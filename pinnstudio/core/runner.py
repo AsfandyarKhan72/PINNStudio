@@ -3,8 +3,8 @@ os.environ["DDE_BACKEND"] = "pytorch"
 import subprocess
 import sys
 import tempfile
-from core.codegen import generate_script
-from core.config import PINNConfig
+from pinnstudio.core.codegen import generate_script
+from pinnstudio.core.config import PINNConfig
 
 def run_pinn(config: PINNConfig, on_output=None, set_process=None):
     """

@@ -9,8 +9,8 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QPixmap, QFont, QAction, QColor
-from core.config import PINNConfig
-from core.runner import run_pinn
+from pinnstudio.core.config import PINNConfig
+from pinnstudio.core.runner import run_pinn
 
 
 class SciLineEdit(QLineEdit):
