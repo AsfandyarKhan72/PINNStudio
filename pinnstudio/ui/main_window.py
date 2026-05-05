@@ -82,15 +82,20 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("DeepXDE GUI — PINN Solver")
         self.setMinimumSize(1100, 750)
+        self._font_size = 16
+        self._log_font_size = 16
+        self._theme = "Solarized Dark"
+        self._accent = "Blue (#a0c4ff)"
         self._apply_theme()
         self._build_ui()
+        self._apply_display_settings()
 
     def _apply_theme(self):
         self.setStyleSheet("""
-            QMainWindow { background: #1a1a2e; }
-            QWidget { background: #1a1a2e; color: #e0e0e0; font-family: 'Segoe UI', Arial; font-size: 12px; }
+            QMainWindow { background: #002b36; }
+            QWidget { background: #002b36; color: #e0e0e0; font-family: 'Segoe UI', Arial; font-size: 16px; }
             QGroupBox {
-                border: 1px solid #3a3a5c;
+                border: 1px solid #586e75;
                 border-radius: 6px;
                 margin-top: 8px;
                 padding-top: 4px;
@@ -103,8 +108,8 @@ class MainWindow(QMainWindow):
                 padding: 0 4px;
             }
             QLineEdit, QDoubleSpinBox, QSpinBox, QComboBox {
-                background: #16213e;
-                border: 1px solid #3a3a5c;
+                background: #252526;
+                border: 1px solid #3e3e42;
                 border-radius: 4px;
                 padding: 2px 6px;
                 color: #e0e0e0;
@@ -112,43 +117,73 @@ class MainWindow(QMainWindow):
             QLineEdit:focus, QDoubleSpinBox:focus, QSpinBox:focus, QComboBox:focus {
                 border: 1px solid #a0c4ff;
             }
+            QSpinBox::up-button, QSpinBox::down-button,
+            QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {
+                background: #586e75;
+                border: none;
+                width: 16px;
+            }
+            QSpinBox::up-arrow, QDoubleSpinBox::up-arrow {
+                border-left: 4px solid transparent;
+                border-right: 4px solid transparent;
+                border-bottom: 6px solid #ffffff;
+                width: 0px; height: 0px;
+            }
+            QSpinBox::down-arrow, QDoubleSpinBox::down-arrow {
+                border-left: 4px solid transparent;
+                border-right: 4px solid transparent;
+                border-top: 6px solid #ffffff;
+                width: 0px; height: 0px;
+            }
+            QComboBox::drop-down {
+                background: #586e75;
+                border: none;
+                width: 20px;
+            }
+            QComboBox::down-arrow {
+                border-left: 4px solid transparent;
+                border-right: 4px solid transparent;
+                border-top: 6px solid #ffffff;
+                width: 0px; height: 0px;
+            }
             QCheckBox { color: #c0c0c0; spacing: 6px; }
             QCheckBox::indicator {
                 width: 14px; height: 14px;
-                border: 1px solid #3a3a5c;
+                border: 1px solid #3e3e42;
                 border-radius: 3px;
-                background: #16213e;
+                background: #252526;
             }
             QCheckBox::indicator:checked { background: #a0c4ff; border-color: #a0c4ff; }
             QRadioButton { color: #c0c0c0; spacing: 6px; }
             QRadioButton::indicator {
                 width: 14px; height: 14px;
-                border: 1px solid #3a3a5c;
+                border: 1px solid #3e3e42;
                 border-radius: 7px;
-                background: #16213e;
+                background: #252526;
             }
             QRadioButton::indicator:checked { background: #a0c4ff; border-color: #a0c4ff; }
             QLabel { color: #c0c0c0; }
-            QScrollArea { border: none; background: #1a1a2e; }
+            QScrollArea { border: none; background: #1e1e1e; }
             QScrollBar:vertical {
-                background: #16213e; width: 8px; border-radius: 4px;
+                background: #252526; width: 14px; border-radius: 6px;
             }
             QScrollBar::handle:vertical {
-                background: #3a3a5c; border-radius: 4px; min-height: 20px;
+                background: #586e75; border-radius: 6px; min-height: 30px;
             }
+
             QTextEdit {
                 background: #0f0f23;
-                border: 1px solid #3a3a5c;
+                border: 1px solid #3e3e42;
                 border-radius: 6px;
                 color: #a0ffb0;
                 font-family: 'Courier New', monospace;
                 font-size: 11px;
             }
-            QSplitter::handle { background: #3a3a5c; width: 2px; }
-            QMenuBar { background: #16213e; color: #c0c0c0; border-bottom: 1px solid #3a3a5c; }
-            QMenuBar::item:selected { background: #3a3a5c; }
-            QMenu { background: #16213e; border: 1px solid #3a3a5c; }
-            QMenu::item:selected { background: #3a3a5c; }
+            QSplitter::handle { background: #3e3e42; width: 2px; }
+            QMenuBar { background: #252526; color: #c0c0c0; border-bottom: 1px solid #3e3e42; }
+            QMenuBar::item:selected { background: #3e3e42; }
+            QMenu { background: #252526; border: 1px solid #3e3e42; }
+            QMenu::item:selected { background: #3e3e42; }
         """)
 
     def _build_ui(self):
@@ -161,6 +196,11 @@ class MainWindow(QMainWindow):
         lbfgs_action = QAction("L-BFGS Options", self)
         lbfgs_action.triggered.connect(self._on_lbfgs_settings)
         settings_menu.addAction(lbfgs_action)
+
+        view_menu = menubar.addMenu("🎨 Display")
+        display_action = QAction("Display Settings...", self)
+        display_action.triggered.connect(self._on_display_settings)
+        view_menu.addAction(display_action)
 
         central = QWidget()
         self.setCentralWidget(central)
@@ -179,7 +219,7 @@ class MainWindow(QMainWindow):
         left_scroll = QScrollArea()
         left_scroll.setWidget(left_inner)
         left_scroll.setWidgetResizable(True)
-        left_scroll.setMaximumWidth(400)
+        left_scroll.setMinimumWidth(300)
         left_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
         # Title
@@ -298,6 +338,21 @@ class MainWindow(QMainWindow):
         self.num_boundary = _pts_row("Boundary points:", 200,  10,  10000,  100)
         self.num_initial  = _pts_row("Initial points:",  200,  10,  10000,  100)
         self.num_test     = _pts_row("Test points:",     1000, 100, 50000,  500)
+
+        pts_dist_row = QHBoxLayout()
+        pts_dist_row.addWidget(QLabel("Point distribution:"))
+        self.pts_dist_combo = QComboBox()
+        self.pts_dist_combo.addItems(["Hammersley", "uniform", "Halton", "LHS", "Sobol", "pseudorandom"])
+        self.pts_dist_combo.setFixedHeight(28)
+        pts_dist_row.addStretch()
+        pts_dist_row.addWidget(self.pts_dist_combo)
+        points_layout.addLayout(pts_dist_row)
+
+        self.view_domain_check = QCheckBox("👁  View domain & point distribution (2D only)")
+        self.view_domain_check.setChecked(False)
+        self.view_domain_check.setVisible(False)
+        self.view_domain_check.stateChanged.connect(self._on_view_domain_changed)
+        points_layout.addWidget(self.view_domain_check)
         left_layout.addWidget(points_group)
 
         # ── Boundary & Initial conditions ─────────────────────
@@ -535,29 +590,6 @@ class MainWindow(QMainWindow):
         self.inverse_group.setVisible(False)
         left_layout.addWidget(self.inverse_group)
 
-        # ── Solve / Stop buttons ──────────────────────────────
-        self.solve_btn = QPushButton("▶  Solve")
-        self.solve_btn.setMinimumHeight(44)
-        self.solve_btn.setStyleSheet("""
-            QPushButton { background: qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 #0078d4,stop:1 #005a9e);
-                          color: white; font-size: 14px; font-weight: bold; border-radius: 6px; border: none; }
-            QPushButton:hover { background: qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 #1a8ae8,stop:1 #0070c0); }
-            QPushButton:disabled { background: #333355; color: #666; }
-        """)
-        self.solve_btn.clicked.connect(self._on_solve)
-        left_layout.addWidget(self.solve_btn)
-
-        self.stop_btn = QPushButton("⏹  Stop")
-        self.stop_btn.setMinimumHeight(36)
-        self.stop_btn.setEnabled(False)
-        self.stop_btn.setStyleSheet("""
-            QPushButton { background: #6b1f1f; color: white; font-size: 13px; font-weight: bold; border-radius: 6px; border: none; }
-            QPushButton:hover { background: #8b2f2f; }
-            QPushButton:disabled { background: #333355; color: #666; }
-        """)
-        self.stop_btn.clicked.connect(self._on_stop)
-        left_layout.addWidget(self.stop_btn)
-
         # ── Parametric Study ──────────────────────────────────
         param_group = QGroupBox("Parametric Study")
         param_layout = QVBoxLayout(param_group)
@@ -588,26 +620,143 @@ class MainWindow(QMainWindow):
         param_layout.addWidget(self.param_widget)
         left_layout.addWidget(param_group)
 
+        # ── Solve / Stop buttons ──────────────────────────────
+        self.solve_btn = QPushButton("▶  Solve")
+        self.solve_btn.setMinimumHeight(44)
+        self.solve_btn.setStyleSheet("""
+            QPushButton { background: qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 #0078d4,stop:1 #005a9e);
+                          color: white; font-size: 14px; font-weight: bold; border-radius: 6px; border: none; }
+            QPushButton:hover { background: qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 #1a8ae8,stop:1 #0070c0); }
+            QPushButton:disabled { background: #333355; color: #666; }
+        """)
+        self.solve_btn.clicked.connect(self._on_solve)
+        left_layout.addWidget(self.solve_btn)
+
+        self.stop_btn = QPushButton("⏹  Stop")
+        self.stop_btn.setMinimumHeight(36)
+        self.stop_btn.setEnabled(False)
+        self.stop_btn.setStyleSheet("""
+            QPushButton { background: #6b1f1f; color: white; font-size: 13px; font-weight: bold; border-radius: 6px; border: none; }
+            QPushButton:hover { background: #8b2f2f; }
+            QPushButton:disabled { background: #333355; color: #666; }
+        """)
+        self.stop_btn.clicked.connect(self._on_stop)
+        left_layout.addWidget(self.stop_btn)
+
+        # ── Model Restore & Visualization ─────────────────────
+        restore_group = QGroupBox("Model Restore & Visualization")
+        restore_layout = QVBoxLayout(restore_group)
+        restore_layout.setSpacing(5)
+
+        restore_layout.addWidget(QLabel("Model file (.pt):"))
+        restore_path_row = QHBoxLayout()
+        self.restore_model_path = QLineEdit()
+        self.restore_model_path.setPlaceholderText("Browse for model .pt file...")
+        self.restore_model_path.setFixedHeight(28)
+        restore_path_row.addWidget(self.restore_model_path)
+        self.restore_browse_btn = QPushButton("Browse")
+        self.restore_browse_btn.setFixedHeight(28); self.restore_browse_btn.setFixedWidth(65)
+        self.restore_browse_btn.clicked.connect(self._on_browse_restore_model)
+        restore_path_row.addWidget(self.restore_browse_btn)
+        restore_layout.addLayout(restore_path_row)
+
+        restore_layout.addWidget(QLabel("Config file (model_config.json):"))
+        config_path_row = QHBoxLayout()
+        self.restore_config_path = QLineEdit()
+        self.restore_config_path.setPlaceholderText("Auto-detected or browse...")
+        self.restore_config_path.setFixedHeight(28)
+        config_path_row.addWidget(self.restore_config_path)
+        self.restore_config_browse_btn = QPushButton("Browse")
+        self.restore_config_browse_btn.setFixedHeight(28); self.restore_config_browse_btn.setFixedWidth(65)
+        self.restore_config_browse_btn.clicked.connect(self._on_browse_restore_config)
+        config_path_row.addWidget(self.restore_config_browse_btn)
+        restore_layout.addLayout(config_path_row)
+
+        restore_layout.addWidget(QLabel("Optimizer used for this model:"))
+        self.restore_optimizer_combo = QComboBox()
+        self.restore_optimizer_combo.addItems(["adam", "lbfgs"])
+        self.restore_optimizer_combo.setFixedHeight(28)
+        restore_layout.addWidget(self.restore_optimizer_combo)
+
+        restore_layout.addWidget(QLabel("Visualization type:"))
+        self.restore_viz_combo = QComboBox()
+        self.restore_viz_combo.addItems(["Surface", "Line (time steps)", "Animation Line (GIF)", "Animation Surface (GIF)"])
+        self.restore_viz_combo.setFixedHeight(28)
+        restore_layout.addWidget(self.restore_viz_combo)
+
+        restore_layout.addWidget(QLabel("Output to plot:"))
+        self.restore_output_combo = QComboBox()
+        self.restore_output_combo.addItems(["Output 1 (u)"])
+        self.restore_output_combo.setFixedHeight(28)
+        restore_layout.addWidget(self.restore_output_combo)
+
+        restore_layout.addWidget(QLabel("Time steps for line/animation:"))
+        self.restore_tsteps_spin = QSpinBox()
+        self.restore_tsteps_spin.setRange(2, 50); self.restore_tsteps_spin.setValue(10)
+        self.restore_tsteps_spin.setFixedHeight(28)
+        restore_layout.addWidget(self.restore_tsteps_spin)
+
+        restore_layout.addWidget(QLabel("Save visualization to:"))
+        restore_save_row = QHBoxLayout()
+        self.restore_save_path = QLineEdit()
+        self.restore_save_path.setPlaceholderText("Directory to save output...")
+        self.restore_save_path.setFixedHeight(28)
+        restore_save_row.addWidget(self.restore_save_path)
+        self.restore_save_browse_btn = QPushButton("Browse")
+        self.restore_save_browse_btn.setFixedHeight(28); self.restore_save_browse_btn.setFixedWidth(65)
+        self.restore_save_browse_btn.clicked.connect(self._on_browse_restore_save)
+        restore_save_row.addWidget(self.restore_save_browse_btn)
+        restore_layout.addLayout(restore_save_row)
+
+        self.restore_btn = QPushButton("🔄  Restore & Visualize")
+        self.restore_btn.setMinimumHeight(38)
+        self.restore_btn.setStyleSheet("""
+            QPushButton { background: #1a5c3a; color: white; font-size: 13px;
+                          font-weight: bold; border-radius: 6px; border: none; }
+            QPushButton:hover { background: #2a7c4a; }
+            QPushButton:disabled { background: #333355; color: #666; }
+        """)
+        self.restore_btn.clicked.connect(self._on_restore)
+        restore_layout.addWidget(self.restore_btn)
+        left_layout.addWidget(restore_group)
+
         left_layout.addStretch()
         splitter.addWidget(left_scroll)
 
         # ── Right panel ───────────────────────────────────────
         right = QWidget()
         right_layout = QVBoxLayout(right)
-        right_layout.setContentsMargins(8, 8, 8, 8)
-        right_layout.setSpacing(6)
+        right_layout.setContentsMargins(8, 4, 8, 4)
+        right_layout.setSpacing(3)
 
-        # Log box
+        # Vertical splitter for log + plots
+        right_splitter = QSplitter(Qt.Orientation.Vertical)
+        right_layout.addWidget(right_splitter)
+
+        # Top part — log
+        log_widget = QWidget()
+        log_layout = QVBoxLayout(log_widget)
+        log_layout.setContentsMargins(0, 0, 0, 0)
+        log_layout.setSpacing(2)
+
         log_label = QLabel("📋 Training Log")
-        log_label.setStyleSheet("color: #a0c4ff; font-weight: bold; font-size: 12px;")
-        right_layout.addWidget(log_label)
+        log_label.setStyleSheet("color: #a0c4ff; font-weight: bold; font-size: 12px; margin-top: 2px;")
+        log_label.setFixedHeight(22)
+        log_layout.addWidget(log_label)
 
         self.log_box = QTextEdit()
         self.log_box.setReadOnly(True)
-        self.log_box.setMinimumHeight(140)
-        self.log_box.setMaximumHeight(170)
         self.log_box.setPlaceholderText("Training log will appear here...")
-        right_layout.addWidget(self.log_box)
+        log_layout.addWidget(self.log_box)
+        right_splitter.addWidget(log_widget)
+
+        # Bottom part — controls + plots
+        bottom_widget = QWidget()
+        bottom_layout = QVBoxLayout(bottom_widget)
+        bottom_layout.setContentsMargins(0, 0, 0, 0)
+        bottom_layout.setSpacing(3)
+        right_splitter.addWidget(bottom_widget)
+        right_splitter.setSizes([150, 650])
 
         # Controls row
         ctrl_row = QHBoxLayout()
@@ -628,23 +777,38 @@ class MainWindow(QMainWindow):
         self.plot_type_combo.currentTextChanged.connect(self._on_plot_type_changed)
         ctrl_row.addWidget(self.plot_type_combo)
 
-        self.timesteps_label = QLabel("  Steps:")
-        self.timesteps_label.setVisible(False)
-        ctrl_row.addWidget(self.timesteps_label)
+        self.export_btn = QPushButton("💾 Export Solution")
+        self.export_btn.setFixedHeight(28)
+        self.export_btn.setStyleSheet("""
+            QPushButton { background: #1a4a3a; color: #69db7c; font-size: 12px;
+                          font-weight: bold; border-radius: 4px; border: 1px solid #2a6a4a; padding: 0 8px; }
+            QPushButton:hover { background: #2a6a4a; }
+        """)
+        self.export_btn.clicked.connect(self._on_export_settings)
+        ctrl_row.addWidget(self.export_btn)
+
+        self.param_save_label = QLabel("  Save parameter:")
+        self.param_save_label.setVisible(False)
+        ctrl_row.addWidget(self.param_save_label)
+        self.param_save_combo = QComboBox()
+        self.param_save_combo.addItems(["No", "Every 100 iters", "Every 1000 iters"])
+        self.param_save_combo.setFixedHeight(28)
+        self.param_save_combo.setFixedWidth(140)
+        self.param_save_combo.setVisible(False)
+        ctrl_row.addWidget(self.param_save_combo)
+
         self.timesteps_spin = QSpinBox()
         self.timesteps_spin.setRange(2, 20); self.timesteps_spin.setValue(4)
-        self.timesteps_spin.setFixedHeight(28); self.timesteps_spin.setFixedWidth(55)
         self.timesteps_spin.setVisible(False)
-        ctrl_row.addWidget(self.timesteps_spin)
 
         ctrl_row.addStretch()
-        right_layout.addLayout(ctrl_row)
+        bottom_layout.addLayout(ctrl_row)
 
         # Save / export row
         save_row = QHBoxLayout()
         save_row.addWidget(QLabel("Save to:"))
         self.save_dir_input = QLineEdit()
-        self.save_dir_input.setPlaceholderText("Optional save directory")
+        self.save_dir_input.setPlaceholderText("Save directory — saves plots, logs, models & data")
         self.save_dir_input.setFixedHeight(28)
         save_row.addWidget(self.save_dir_input)
         self.browse_btn = QPushButton("Browse")
@@ -652,18 +816,14 @@ class MainWindow(QMainWindow):
         self.browse_btn.clicked.connect(self._on_browse)
         save_row.addWidget(self.browse_btn)
 
-        save_row.addWidget(QLabel("  Grid:"))
         self.export_grid_combo = QComboBox()
         self.export_grid_combo.addItems(["101", "51", "21", "11"])
-        self.export_grid_combo.setFixedHeight(28); self.export_grid_combo.setFixedWidth(55)
-        save_row.addWidget(self.export_grid_combo)
+        self.export_grid_combo.setVisible(False)
 
-        save_row.addWidget(QLabel("t steps:"))
         self.export_tsteps_spin = QSpinBox()
         self.export_tsteps_spin.setRange(2, 50); self.export_tsteps_spin.setValue(11)
-        self.export_tsteps_spin.setFixedHeight(28); self.export_tsteps_spin.setFixedWidth(50)
-        save_row.addWidget(self.export_tsteps_spin)
-        right_layout.addLayout(save_row)
+        self.export_tsteps_spin.setVisible(False)
+        bottom_layout.addLayout(save_row)
 
         # Plot area
         plots_layout = QHBoxLayout()
@@ -672,18 +832,18 @@ class MainWindow(QMainWindow):
         self.loss_label = QLabel()
         self.loss_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.loss_label.setText("📉 Loss plot")
-        self.loss_label.setStyleSheet("border: 1px solid #3a3a5c; border-radius: 6px; color: #505080; background: #16213e;")
+        self.loss_label.setStyleSheet("border: 1px solid #3e3e42; border-radius: 6px; color: #505080; background: #252526;")
         self.loss_label.setMinimumSize(420, 380)
 
         self.solution_label = QLabel()
         self.solution_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.solution_label.setText("🗺 Solution plot")
-        self.solution_label.setStyleSheet("border: 1px solid #3a3a5c; border-radius: 6px; color: #505080; background: #16213e;")
+        self.solution_label.setStyleSheet("border: 1px solid #3e3e42; border-radius: 6px; color: #505080; background: #252526;")
         self.solution_label.setMinimumSize(420, 380)
 
         plots_layout.addWidget(self.loss_label)
         plots_layout.addWidget(self.solution_label)
-        right_layout.addLayout(plots_layout)
+        bottom_layout.addLayout(plots_layout)
 
         splitter.addWidget(right)
         splitter.setSizes([390, 720])
@@ -692,6 +852,7 @@ class MainWindow(QMainWindow):
     def _on_dim_changed(self):
         is_2d = self.radio_2d.isChecked()
         self.y_row_widget.setVisible(is_2d)
+        self.view_domain_check.setVisible(is_2d)
         for w in self._2d_bc_widgets:
             w.setVisible(is_2d)
         self._build_pde_inputs(self.num_outputs_spin.value())
@@ -700,9 +861,44 @@ class MainWindow(QMainWindow):
 
     # ── Plot type change ──────────────────────────────────────
     def _on_plot_type_changed(self, text):
-        is_line = text == "Line (time steps)"
-        self.timesteps_label.setVisible(is_line)
-        self.timesteps_spin.setVisible(is_line)
+        if text == "Line (time steps)":
+            self._on_line_plot_settings()
+
+    def _on_line_plot_settings(self):
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Line Plot Settings")
+        dialog.setMinimumWidth(300)
+        layout = QVBoxLayout(dialog)
+
+        info = QLabel("Select number of time steps to plot.")
+        info.setStyleSheet("color: #74c0fc; font-size: 12px;")
+        layout.addWidget(info)
+
+        steps_row = QHBoxLayout()
+        steps_row.addWidget(QLabel("Time steps to show:"))
+        steps_spin = QSpinBox()
+        steps_spin.setRange(2, 20); steps_spin.setValue(self.timesteps_spin.value())
+        steps_spin.setFixedWidth(80)
+        steps_row.addStretch(); steps_row.addWidget(steps_spin)
+        layout.addLayout(steps_row)
+
+        btn_row = QHBoxLayout()
+        ok_btn = QPushButton("OK"); cancel_btn = QPushButton("Cancel")
+        btn_row.addStretch(); btn_row.addWidget(ok_btn); btn_row.addWidget(cancel_btn)
+        layout.addLayout(btn_row)
+
+        def _on_cancel():
+            self.plot_type_combo.setCurrentText("Surface")
+            dialog.reject()
+
+        cancel_btn.clicked.connect(_on_cancel)
+
+        def _on_ok():
+            self.timesteps_spin.setValue(steps_spin.value())
+            dialog.accept()
+
+        ok_btn.clicked.connect(_on_ok)
+        dialog.exec()
 
     def _on_adapt_changed(self, text):
         self.rar_widget.setVisible(text == "RAR")
@@ -752,23 +948,48 @@ class MainWindow(QMainWindow):
 
             self.pde_main_layout.addWidget(QLabel(f"PDE {i+1} residual = 0:"))
             pde_inp = QLineEdit()
-            pde_inp.setText("du_t - 0.4 * du_xx" if i == 0 else "dv_t - 0.1 * dv_xx")
+            if is_2d:
+                pde_inp.setText("du_t - 0.0001 * (du_xx + du_yy) + 1 * (u**3 - u)" if i == 0 else "dv_t - 0.0001 * (dv_xx + dv_yy) + 1 * (v**3 - v)")
+            else:
+                pde_inp.setText("du_t - 0.4 * du_xx" if i == 0 else "dv_t - 0.1 * dv_xx")
             pde_inp.setFixedHeight(28)
             self.pde_inputs.append(pde_inp)
             self.pde_main_layout.addWidget(pde_inp)
 
         names_ex = ", ".join([["u","v","w","p"][i] if i < 4 else f"u{i+1}" for i in range(n)])
         if is_2d:
-            hint_text = (f"2D outputs: {names_ex}\n"
-                         f"Derivatives: d[name]_x, d[name]_y, d[name]_t, d[name]_xx, d[name]_yy, d[name]_xy\n"
-                         f"IC example: np.sin(np.pi*x[:,0])*np.sin(np.pi*x[:,1])")
+            hint_text = (f"Outputs: {names_ex}\n"
+                         f"du_x→∂u/∂x  du_y→∂u/∂y  du_t→∂u/∂t\n"
+                         f"du_xx→∂²u/∂x²  du_yy→∂²u/∂y²  du_xy→∂²u/∂x∂y\n"
+                         f"du_tt→∂²u/∂t²  du_xt→∂²u/∂x∂t  du_yt→∂²u/∂y∂t\n"
+                         f"du_xxxx→∂⁴u/∂x⁴  du_yyyy→∂⁴u/∂y⁴\n"
+                         f"du_xxyy→∂⁴u/∂x²∂y²  du_xxtt→∂⁴u/∂x²∂t²\n"
+                         f"Functions: sin, cos, exp, log, sqrt, tanh, pi\n"
+                         f"e.g. Allen-Cahn 2D: du_t - 0.001*(du_xx+du_yy) + u**3 - u\n"
+                         f"e.g. sin(pi*u)*du_xx + cos(u)*du_yy")
         else:
-            hint_text = (f"1D outputs: {names_ex}\n"
-                         f"Derivatives: d[name]_x, d[name]_t, d[name]_xx, d[name]_tt, d[name]_xt")
+            hint_text = (f"Outputs: {names_ex}\n"
+                         f"du_x→∂u/∂x  du_t→∂u/∂t\n"
+                         f"du_xx→∂²u/∂x²  du_tt→∂²u/∂t²  du_xt→∂²u/∂x∂t\n"
+                         f"du_xxxx→∂⁴u/∂x⁴  du_tttt→∂⁴u/∂t⁴  du_xxtt→∂⁴u/∂x²∂t²\n"
+                         f"Functions: sin, cos, exp, log, sqrt, tanh, pi\n"
+                         f"e.g. Diffusion:      du_t - 0.4*du_xx\n"
+                         f"e.g. Burgers:        du_t + u*du_x - 0.01*du_xx\n"
+                         f"e.g. Cahn-Hilliard:  du_t - (du_xx - du_xxxx)\n"
+                         f"e.g. Nonlinear:      du_t - sin(u)*du_xx")
+            
+        hint_toggle = QCheckBox("📖 Show derivative reference")
+        hint_toggle.setChecked(False)
+        hint_toggle.setStyleSheet("color: #74c0fc; font-size: 13px;")
+        self.pde_main_layout.addWidget(hint_toggle)
+
         hint = QLabel(hint_text)
-        hint.setStyleSheet("color: #505080; font-size: 10px;")
+        hint.setStyleSheet("color: #74c0fc; font-size: 13px;")
         hint.setWordWrap(True)
+        hint.setVisible(False)
         self.pde_main_layout.addWidget(hint)
+
+        hint_toggle.stateChanged.connect(lambda state, h=hint: h.setVisible(state == 2))
 
     # ── Build BC inputs ───────────────────────────────────────
     def _build_bc_inputs(self, n):
@@ -865,10 +1086,45 @@ class MainWindow(QMainWindow):
             self.bc_main_layout.addWidget(ic_act)
 
             ic_inp = QLineEdit()
-            ic_inp.setText("np.sin(np.pi * x[:, 0])" if i == 0 else "np.cos(np.pi * x[:, 0])")
+            if is_2d:
+                ic_inp.setText("sin(4*pi*x)*cos(4*pi*y)" if i == 0 else "cos(4*pi*x)*sin(4*pi*y)")
+            else:
+                ic_inp.setText("sin(pi*x)" if i == 0 else "cos(pi*x)")
             ic_inp.setFixedHeight(26)
             self.ic_inputs.append(ic_inp)
             self.bc_main_layout.addWidget(ic_inp)
+
+            # IC reference toggle
+            ic_hint_toggle = QCheckBox("📖 Show IC reference")
+            ic_hint_toggle.setChecked(False)
+            ic_hint_toggle.setStyleSheet("color: #74c0fc; font-size: 12px;")
+            self.bc_main_layout.addWidget(ic_hint_toggle)
+
+            if is_2d:
+                ic_hint_text = (
+                    "Use x, y as spatial variables, t for time.\n"
+                    "sin(pi*x)*cos(pi*y)  →  sin wave 2D\n"
+                    "exp(-(x**2+y**2))    →  Gaussian\n"
+                    "sin(4*pi*x)*cos(4*pi*y)  →  higher freq\n"
+                    "0                    →  zero IC\n"
+                    "No need for np. or x[:,0] — handled automatically."
+                )
+            else:
+                ic_hint_text = (
+                    "Use x as spatial variable, t for time.\n"
+                    "sin(pi*x)       →  sine wave\n"
+                    "exp(-x**2)      →  Gaussian\n"
+                    "sin(4*pi*x)     →  higher frequency\n"
+                    "x*(1-x)         →  parabola\n"
+                    "0               →  zero IC\n"
+                    "No need for np. or x[:,0] — handled automatically."
+                )
+            ic_hint = QLabel(ic_hint_text)
+            ic_hint.setStyleSheet("color: #74c0fc; font-size: 12px;")
+            ic_hint.setWordWrap(True)
+            ic_hint.setVisible(False)
+            self.bc_main_layout.addWidget(ic_hint)
+            ic_hint_toggle.stateChanged.connect(lambda state, h=ic_hint: h.setVisible(state == 2))
 
     # ── Build weight inputs ───────────────────────────────────
     def _build_weight_inputs(self, n):
@@ -987,6 +1243,7 @@ class MainWindow(QMainWindow):
             ],
             loss_weight_obs=self.inv_obs_weight.value(),
             inv_param_log_scale=self.inv_param_log_scale.isChecked(),
+            inv_param_save=self.param_save_combo.currentText(),
 
             x_min=self.x_min.value(), x_max=self.x_max.value(),
             y_min=self.y_min.value(), y_max=self.y_max.value(),
@@ -1001,6 +1258,7 @@ class MainWindow(QMainWindow):
             num_boundary=self.num_boundary.value(),
             num_initial=self.num_initial.value(),
             num_test=self.num_test.value(),
+            point_distribution=self.pts_dist_combo.currentText(),
             plot_type=self.plot_type_combo.currentText(),
             num_timesteps=self.timesteps_spin.value(),
             save_dir=self.save_dir_input.text(),
@@ -1040,12 +1298,17 @@ class MainWindow(QMainWindow):
         self._build_bc_inputs(n)
         self._build_weight_inputs(n)
         self.plot_output_combo.clear()
+        self.restore_output_combo.clear()
         for i in range(n):
             name = self.output_name_inputs[i].text() if i < len(self.output_name_inputs) else f"u{i+1}"
             self.plot_output_combo.addItem(f"Output {i+1} ({name})")
+            self.restore_output_combo.addItem(f"Output {i+1} ({name})")
 
     def _on_problem_type_changed(self, checked):
-        self.inverse_group.setVisible(self.radio_inverse.isChecked())
+        is_inv = self.radio_inverse.isChecked()
+        self.inverse_group.setVisible(is_inv)
+        self.param_save_label.setVisible(is_inv)
+        self.param_save_combo.setVisible(is_inv)
 
     def _on_browse_inv_data(self):
         f, _ = QFileDialog.getOpenFileName(self, "Select measured data file", "", "Data files (*.txt *.csv *.dat)")
@@ -1176,3 +1439,658 @@ class MainWindow(QMainWindow):
 
         ok_btn.clicked.connect(_on_ok)
         dialog.exec()
+    
+    def _on_view_domain_changed(self, state):
+        if state == 2:
+            self._preview_domain()
+        else:
+            self.loss_label.setText("📉 Loss plot")
+            self.solution_label.setText("🗺 Solution plot")
+
+    def _preview_domain(self):
+        import tempfile, subprocess, sys
+        x_min = self.x_min.value(); x_max = self.x_max.value()
+        y_min = self.y_min.value(); y_max = self.y_max.value()
+        t_min = self.t_min.value(); t_max = self.t_max.value()
+        n_domain   = self.num_domain.value()
+        n_boundary = self.num_boundary.value()
+        n_initial  = self.num_initial.value()
+        dist       = self.pts_dist_combo.currentText()
+
+        try:
+            self.pts_dist_combo.currentTextChanged.disconnect(self._on_dist_changed)
+        except Exception:
+            pass
+        self.pts_dist_combo.currentTextChanged.connect(self._on_dist_changed)
+        for sb in [self.num_domain, self.num_boundary, self.num_initial]:
+            try:
+                sb.valueChanged.disconnect(self._on_pts_changed)
+            except Exception:
+                pass
+            sb.valueChanged.connect(self._on_pts_changed)
+
+        script = f"""
+import os
+os.environ["DDE_BACKEND"] = "pytorch"
+import deepxde as dde
+import numpy as np
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+
+geom  = dde.geometry.Rectangle([{x_min}, {y_min}], [{x_max}, {y_max}])
+t_dom = dde.geometry.TimeDomain({t_min}, {t_max})
+gt    = dde.geometry.GeometryXTime(geom, t_dom)
+
+def pde(x, y): return y[:, 0:1] * 0
+data = dde.data.TimePDE(gt, pde, [],
+    num_domain={n_domain}, num_boundary={n_boundary},
+    num_initial={n_initial}, num_test=10,
+    train_distribution="{dist}")
+
+pts = data.train_points()
+t_range = {t_max} - {t_min}
+tol = max(t_range * 0.05, 1e-6)
+t_snap = {t_min}
+
+plt.rcParams['figure.dpi'] = 120
+fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+fig.patch.set_facecolor('#1e1e1e')
+
+for ax in axes:
+    ax.set_facecolor('#252526')
+    ax.set_xlim({x_min} - 0.05*({x_max}-{x_min}), {x_max} + 0.05*({x_max}-{x_min}))
+    ax.set_ylim({y_min} - 0.05*({y_max}-{y_min}), {y_max} + 0.05*({y_max}-{y_min}))
+    rect = plt.Rectangle(({x_min},{y_min}), {x_max}-{x_min}, {y_max}-{y_min},
+        linewidth=2, edgecolor='#a0c4ff', facecolor='none')
+    ax.add_patch(rect)
+    ax.tick_params(colors='#c0c0c0')
+    for sp in ax.spines.values(): sp.set_color('#3e3e42')
+
+# Separate points by type using edge detection
+ic_mask   = pts[:, 2] <= {t_min} + tol
+on_left   = np.abs(pts[:, 0] - {x_min}) < 1e-10
+on_right  = np.abs(pts[:, 0] - {x_max}) < 1e-10
+on_bottom = np.abs(pts[:, 1] - {y_min}) < 1e-10
+on_top    = np.abs(pts[:, 1] - {y_max}) < 1e-10
+bnd_mask  = (on_left | on_right | on_bottom | on_top) & ~ic_mask
+dom_mask  = ~ic_mask & ~bnd_mask
+dom_pts = pts[dom_mask]
+bnd_pts = pts[bnd_mask]
+ic_pts  = pts[ic_mask]
+
+# Left: spatial distribution (x,y)
+ax = axes[0]
+if len(dom_pts): ax.scatter(dom_pts[:,0], dom_pts[:,1], s=8, c='#74c0fc', alpha=0.7, label=f'Domain ({{len(dom_pts)}})')
+if len(bnd_pts): ax.scatter(bnd_pts[:,0], bnd_pts[:,1], s=20, c='#f03e3e', alpha=1.0, label=f'Boundary ({{len(bnd_pts)}})')
+if len(ic_pts):  ax.scatter(ic_pts[:,0],  ic_pts[:,1],  s=20, c='#2f9e44', alpha=1.0, label=f'IC ({{len(ic_pts)}})')
+ax.set_xlabel('x', color='#e0e0e0', fontsize=11)
+ax.set_ylabel('y', color='#e0e0e0', fontsize=11)
+ax.set_title('Spatial (x,y) | {dist} | D={n_domain} B={n_boundary} IC={n_initial}', color='#74c0fc', fontsize=10, fontweight='bold')
+ax.legend(fontsize=10, facecolor='#2a2a2a', labelcolor='#e0e0e0', edgecolor='#555', markerscale=1.5)
+
+# Right: time distribution (x vs t)
+ax = axes[1]
+ax.set_xlim({x_min}, {x_max}); ax.set_ylim({t_min}, {t_max})
+if len(dom_pts): ax.scatter(dom_pts[:,0], dom_pts[:,2], s=6, c='#74c0fc', alpha=0.5, label=f'Domain ({{len(dom_pts)}})')
+if len(bnd_pts): ax.scatter(bnd_pts[:,0], bnd_pts[:,2], s=14, c='#f03e3e', alpha=0.9, label=f'Boundary ({{len(bnd_pts)}})')
+if len(ic_pts):  ax.scatter(ic_pts[:,0],  ic_pts[:,2],  s=14, c='#2f9e44', alpha=1.0, label=f'IC ({{len(ic_pts)}})')
+ax.set_xlabel('x', color='#e0e0e0', fontsize=11)
+ax.set_ylabel('t', color='#e0e0e0', fontsize=11)
+ax.set_title(f'Time Distribution (x vs t)\\ntotal={{len(pts)}} points', color='#74c0fc', fontsize=10, fontweight='bold')
+ax.legend(fontsize=10, facecolor='#2a2a2a', labelcolor='#e0e0e0', edgecolor='#555', markerscale=1.5)
+plt.tight_layout()
+plt.savefig('/tmp/domain_preview.png', dpi=100, bbox_inches='tight', facecolor='#1e1e1e')
+plt.close()
+print("DOMAIN_PREVIEW_DONE")
+"""
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as tf:
+            tf.write(script)
+            tmp = tf.name
+
+        self.loss_label.setText("⏳ Generating preview...")
+
+        from PyQt6.QtCore import QThread, pyqtSignal as _sig
+
+        class _PreviewThread(QThread):
+            done_sig = _sig(bool)
+            log_sig  = _sig(str)
+            def __init__(self, tmp):
+                super().__init__(); self._tmp = tmp
+            def run(self):
+                import subprocess, sys
+                proc = subprocess.Popen([sys.executable, self._tmp],
+                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+                for line in proc.stdout:
+                    self.log_sig.emit(line.rstrip())
+                proc.wait()
+                os.unlink(self._tmp)
+                self.done_sig.emit(proc.returncode == 0)
+
+        self._preview_thread = _PreviewThread(tmp)
+        self._preview_thread.done_sig.connect(self._on_preview_done)
+        self._preview_thread.log_sig.connect(self.log_box.append)
+        self._preview_thread.start()
+
+    def _on_dist_changed(self, text):
+        if self.view_domain_check.isChecked():
+            self._preview_domain()
+
+    def _on_pts_changed(self, val):
+        if self.view_domain_check.isChecked():
+            self._preview_domain()
+    
+    def _on_preview_done(self, success):
+        if success and os.path.exists('/tmp/domain_preview.png'):
+            # Split the wide image across both panels
+            from PyQt6.QtGui import QPixmap as _QPix
+            full = _QPix('/tmp/domain_preview.png')
+            w = full.width(); h = full.height()
+            left_half  = full.copy(0,       0, w//2, h)
+            right_half = full.copy(w//2, 0, w//2, h)
+            self.loss_label.setPixmap(left_half.scaled(
+                500, 420, Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation))
+            self.solution_label.setPixmap(right_half.scaled(
+                500, 420, Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation))
+        else:
+            self.loss_label.setText("❌ Preview failed")
+    
+    def _on_display_settings(self):
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Display Settings")
+        dialog.setMinimumWidth(380)
+        layout = QVBoxLayout(dialog)
+
+        # Font size
+        font_row = QHBoxLayout()
+        font_row.addWidget(QLabel("UI Font size:"))
+        font_spin = QSpinBox(); font_spin.setRange(9, 18); font_spin.setValue(self._font_size)
+        font_spin.setFixedWidth(80)
+        font_row.addStretch(); font_row.addWidget(font_spin)
+        layout.addLayout(font_row)
+
+        # Log font size
+        log_font_row = QHBoxLayout()
+        log_font_row.addWidget(QLabel("Log font size:"))
+        log_font_spin = QSpinBox(); log_font_spin.setRange(8, 16); log_font_spin.setValue(self._log_font_size)
+        log_font_spin.setFixedWidth(80)
+        log_font_row.addStretch(); log_font_row.addWidget(log_font_spin)
+        layout.addLayout(log_font_row)
+
+        # Theme
+        theme_row = QHBoxLayout()
+        theme_row.addWidget(QLabel("Color theme:"))
+        theme_combo = QComboBox()
+        theme_combo.addItems(["Dark Grey", "GitHub Dark", "Monokai", "Solarized Dark", "Navy Blue", "White"])
+        theme_combo.setCurrentText(self._theme)
+        theme_combo.setFixedWidth(160)
+        theme_row.addStretch(); theme_row.addWidget(theme_combo)
+        layout.addLayout(theme_row)
+
+        # Accent color
+        accent_row = QHBoxLayout()
+        accent_row.addWidget(QLabel("Accent color:"))
+        accent_combo = QComboBox()
+        accent_combo.addItems(["Blue (#a0c4ff)", "Green (#69db7c)", "Orange (#ffa94d)", "Purple (#cc5de8)", "Teal (#38d9a9)", "Black (#000000)"])
+        accent_combo.setCurrentText(self._accent)
+        accent_combo.setFixedWidth(160)
+        accent_row.addStretch(); accent_row.addWidget(accent_combo)
+        layout.addLayout(accent_row)
+
+        # Preview button
+        preview_btn = QPushButton("Preview")
+        layout.addWidget(preview_btn)
+
+        def _apply_preview():
+            self._font_size = font_spin.value()
+            self._log_font_size = log_font_spin.value()
+            self._theme = theme_combo.currentText()
+            self._accent = accent_combo.currentText()
+            self._apply_display_settings()
+
+        preview_btn.clicked.connect(_apply_preview)
+
+        btn_row = QHBoxLayout()
+        ok_btn = QPushButton("OK"); cancel_btn = QPushButton("Cancel")
+        btn_row.addStretch(); btn_row.addWidget(ok_btn); btn_row.addWidget(cancel_btn)
+        layout.addLayout(btn_row)
+        cancel_btn.clicked.connect(dialog.reject)
+        ok_btn.clicked.connect(lambda: (_apply_preview(), dialog.accept()))
+        dialog.exec()
+
+
+    def _apply_display_settings(self):
+        themes = {
+            "Dark Grey":     ("#1e1e1e", "#252526", "#3e3e42"),
+            "GitHub Dark":   ("#0d1117", "#161b22", "#30363d"),
+            "Monokai":       ("#272822", "#1e1f1c", "#49483e"),
+            "Solarized Dark":("#002b36", "#073642", "#586e75"),
+            "Navy Blue":     ("#1a1a2e", "#16213e", "#3a3a5c"),
+            "White":         ("#ffffff", "#f5f5f5", "#d0d0d0"),
+        }
+        accents = {
+            "Blue (#a0c4ff)":   "#a0c4ff",
+            "Green (#69db7c)":  "#69db7c",
+            "Orange (#ffa94d)": "#ffa94d",
+            "Purple (#cc5de8)": "#cc5de8",
+            "Teal (#38d9a9)":   "#38d9a9",
+            "Black (#000000)":  "#000000",
+        }
+        bg, widget_bg, border = themes.get(self._theme, themes["Dark Grey"])
+        accent = accents.get(self._accent, "#a0c4ff")
+        fs = self._font_size
+        lfs = self._log_font_size
+        is_white = self._theme == "White"
+        text_color = "#1e1e1e" if is_white else "#e0e0e0"
+        label_color = "#333333" if is_white else "#c0c0c0"
+        arrow_color = "#333333" if is_white else "#ffffff"
+
+        self.setStyleSheet(f"""
+            QMainWindow {{ background: {bg}; }}
+            QWidget {{ background: {bg}; color: {text_color}; font-family: 'Segoe UI', Arial; font-size: {fs}px; }}
+            QGroupBox {{
+                border: 1px solid {border};
+                border-radius: 6px;
+                margin-top: 8px;
+                padding-top: 4px;
+                font-weight: bold;
+                color: {accent};
+            }}
+            QGroupBox::title {{ subcontrol-origin: margin; left: 8px; padding: 0 4px; }}
+            QLineEdit, QDoubleSpinBox, QSpinBox, QComboBox {{
+                background: {widget_bg};
+                border: 1px solid {border};
+                border-radius: 4px;
+                padding: 2px 6px;
+                color: {text_color};
+            }}
+            QLineEdit:focus, QDoubleSpinBox:focus, QSpinBox:focus, QComboBox:focus {{
+                border: 1px solid {accent};
+            }}
+            QSpinBox::up-button, QSpinBox::down-button,
+            QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {{
+                background: {border};
+                border: none;
+                width: 16px;
+            }}
+            QSpinBox::up-arrow, QDoubleSpinBox::up-arrow {{
+                border-left: 4px solid transparent;
+                border-right: 4px solid transparent;
+                border-bottom: 6px solid {arrow_color};
+                width: 0px; height: 0px;
+            }}
+            QSpinBox::down-arrow, QDoubleSpinBox::down-arrow {{
+                border-left: 4px solid transparent;
+                border-right: 4px solid transparent;
+                border-top: 6px solid {arrow_color};
+                width: 0px; height: 0px;
+            }}
+            QComboBox::drop-down {{ background: {border}; border: none; width: 20px; }}
+            QComboBox::down-arrow {{
+                border-left: 4px solid transparent;
+                border-right: 4px solid transparent;
+                border-top: 6px solid {arrow_color};
+                width: 0px; height: 0px;
+            }}
+            QCheckBox {{ color: {label_color}; spacing: 6px; }}
+            QCheckBox::indicator {{
+                width: 14px; height: 14px;
+                border: 1px solid {border};
+                border-radius: 3px;
+                background: {widget_bg};
+            }}
+            QCheckBox::indicator:checked {{ background: {accent}; border-color: {accent}; }}
+            QRadioButton {{ color: {label_color}; spacing: 6px; }}
+            QRadioButton::indicator {{
+                width: 14px; height: 14px;
+                border: 1px solid {border};
+                border-radius: 7px;
+                background: {widget_bg};
+            }}
+            QRadioButton::indicator:checked {{ background: {accent}; border-color: {accent}; }}
+            QLabel {{ color: {label_color}; }}
+            QScrollArea {{ border: none; background: {bg}; }}
+            QScrollBar:vertical {{ background: {widget_bg}; width: 14px; border-radius: 6px; }}
+            QScrollBar::handle:vertical {{ background: {border}; border-radius: 6px; min-height: 30px; }}
+            QTextEdit {{
+                background: {'#f8f8f8' if is_white else '#0f0f23'};
+                border: 1px solid {border};
+                border-radius: 6px;
+                color: {'#1e1e1e' if is_white else '#a0ffb0'};
+                font-family: 'Courier New', monospace;
+                font-size: {lfs}px;
+            }}
+            QSplitter::handle {{ background: {border}; width: 2px; }}
+            QMenuBar {{ background: {widget_bg}; color: {label_color}; border-bottom: 1px solid {border}; }}
+            QMenuBar::item:selected {{ background: {border}; }}
+            QMenu {{ background: {widget_bg}; border: 1px solid {border}; }}
+            QMenu::item:selected {{ background: {border}; }}
+        """)
+        self.loss_label.setStyleSheet(f"border: 1px solid {border}; border-radius: 6px; color: #505080; background: {widget_bg};")
+        self.solution_label.setStyleSheet(f"border: 1px solid {border}; border-radius: 6px; color: #505080; background: {widget_bg};")
+
+    def _on_export_settings(self):
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Export Solution Data")
+        dialog.setMinimumWidth(320)
+        layout = QVBoxLayout(dialog)
+
+        info = QLabel("Saves solution as CSV files (one per time step)\nfor forward problems after training.")
+        info.setStyleSheet("color: #74c0fc; font-size: 12px;")
+        info.setWordWrap(True)
+        layout.addWidget(info)
+
+        grid_row = QHBoxLayout()
+        grid_row.addWidget(QLabel("Grid size (points per axis):"))
+        grid_combo = QComboBox()
+        grid_combo.addItems(["101", "51", "21", "11"])
+        grid_combo.setCurrentText(self.export_grid_combo.currentText())
+        grid_combo.setFixedWidth(80)
+        grid_row.addStretch(); grid_row.addWidget(grid_combo)
+        layout.addLayout(grid_row)
+
+        tsteps_row = QHBoxLayout()
+        tsteps_row.addWidget(QLabel("Number of time snapshots:"))
+        tsteps_spin = QSpinBox()
+        tsteps_spin.setRange(2, 50); tsteps_spin.setValue(self.export_tsteps_spin.value())
+        tsteps_spin.setFixedWidth(80)
+        tsteps_row.addStretch(); tsteps_row.addWidget(tsteps_spin)
+        layout.addLayout(tsteps_row)
+
+        note = QLabel("Output: solution_data/solution_t{time}.txt\nColumns: x, t, u (1D) or x, y, t, u (2D)")
+        note.setStyleSheet("color: #586e75; font-size: 11px;")
+        note.setWordWrap(True)
+        layout.addWidget(note)
+
+        btn_row = QHBoxLayout()
+        ok_btn = QPushButton("OK"); cancel_btn = QPushButton("Cancel")
+        btn_row.addStretch(); btn_row.addWidget(ok_btn); btn_row.addWidget(cancel_btn)
+        layout.addLayout(btn_row)
+        cancel_btn.clicked.connect(dialog.reject)
+
+        def _on_ok():
+            self.export_grid_combo.setCurrentText(grid_combo.currentText())
+            self.export_tsteps_spin.setValue(tsteps_spin.value())
+            dialog.accept()
+
+        ok_btn.clicked.connect(_on_ok)
+        dialog.exec()
+    
+    def _on_browse_restore_model(self):
+        f, _ = QFileDialog.getOpenFileName(self, "Select model file", "", "PyTorch model (*.pt)")
+        if f:
+            self.restore_model_path.setText(f)
+            base = os.path.dirname(f)
+            fname = os.path.basename(f).lower()
+            # First try: same name as .pt but .json
+            specific = f.replace(".pt", ".json")
+            if os.path.exists(specific):
+                self.restore_config_path.setText(specific)
+                self.log_box.append(f"✅ Auto-detected config: {specific}")
+            elif os.path.exists(os.path.join(base, "model_config.json")):
+                self.restore_config_path.setText(os.path.join(base, "model_config.json"))
+                self.log_box.append(f"✅ Auto-detected config (generic): {os.path.join(base, 'model_config.json')}")
+            else:
+                self.log_box.append("⚠️ No config found — please browse manually.")
+
+    def _on_browse_restore_config(self):
+        f, _ = QFileDialog.getOpenFileName(self, "Select config file", "", "JSON (*.json)")
+        if f:
+            self.restore_config_path.setText(f)
+
+    def _on_browse_restore_save(self):
+        folder = QFileDialog.getExistingDirectory(self, "Select save directory")
+        if folder:
+            self.restore_save_path.setText(folder)
+
+    def _on_restore(self):
+        import json, tempfile, subprocess, sys
+        model_path  = self.restore_model_path.text().strip()
+        config_path = self.restore_config_path.text().strip()
+        save_dir    = self.restore_save_path.text().strip()
+        optimizer   = self.restore_optimizer_combo.currentText()
+        viz_type    = self.restore_viz_combo.currentText()
+        output_idx  = self.restore_output_combo.currentIndex()
+        t_steps     = self.restore_tsteps_spin.value()
+
+        if not model_path:
+            self.log_box.append("❌ Please select a model file."); return
+        if not config_path:
+            self.log_box.append("❌ Please select a model_config.json file."); return
+        if not save_dir:
+            self.log_box.append("❌ Please select a save directory."); return
+
+        try:
+            with open(config_path, "r") as f:
+                cfg = json.load(f)
+        except Exception as e:
+            self.log_box.append(f"❌ Could not read config: {e}"); return
+
+        self.restore_btn.setEnabled(False)
+        self.restore_btn.setText("⏳ Restoring...")
+        self.log_box.append(f"🔄 Restoring model from: {model_path}")
+
+        script = self._build_restore_script(model_path, cfg, optimizer, viz_type, output_idx, t_steps, save_dir)
+
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as tf:
+            tf.write(script)
+            tmp = tf.name
+
+        from PyQt6.QtCore import QThread, pyqtSignal as _sig
+
+        class _RestoreThread(QThread):
+            line_signal = _sig(str)
+            done_signal = _sig(bool)
+            def __init__(self, tmp):
+                super().__init__()
+                self._tmp = tmp
+            def run(self):
+                proc = subprocess.Popen(
+                    [sys.executable, self._tmp],
+                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
+                )
+                for line in proc.stdout:
+                    line = line.rstrip()
+                    if line: self.line_signal.emit(line)
+                proc.wait()
+                os.unlink(self._tmp)
+                self.done_signal.emit(proc.returncode == 0)
+
+        self._restore_thread = _RestoreThread(tmp)
+        self._restore_thread.line_signal.connect(self.log_box.append)
+        self._restore_thread.done_signal.connect(self._on_restore_done)
+        self._restore_thread.start()
+
+    def _on_restore_done(self, success):
+        self.restore_btn.setEnabled(True)
+        self.restore_btn.setText("🔄  Restore & Visualize")
+        save_dir = self.restore_save_path.text().strip()
+        if success:
+            self.log_box.append("✅ Restore complete!")
+            plot_path = os.path.join(save_dir, "restored_plot.png")
+            if os.path.exists(plot_path):
+                self.solution_label.setPixmap(QPixmap(plot_path).scaled(
+                    500, 420, Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation))
+            gif_path = os.path.join(save_dir, "restored_animation.gif")
+            if os.path.exists(gif_path):
+                self.log_box.append(f"🎬 Animation saved: {gif_path}")
+        else:
+            self.log_box.append("❌ Restore failed — check architecture matches saved model.")
+
+    def _build_restore_script(self, model_path, cfg, optimizer, viz_type, output_idx, t_steps, save_dir):
+        layers     = cfg["layers"]
+        activation = cfg["activation"]
+        x_min = cfg["x_min"]; x_max = cfg["x_max"]
+        y_min = cfg.get("y_min", 0.0); y_max = cfg.get("y_max", 1.0)
+        t_min = cfg["t_min"]; t_max = cfg["t_max"]
+        is_2d = cfg.get("problem_dim", "1D") == "2D"
+        loss_type = cfg.get("loss_type", "MSE")
+        out_names = cfg.get("output_names", "u").split(",")
+        out_name = out_names[output_idx].strip() if output_idx < len(out_names) else "u"
+
+        script = f"""
+import os
+os.environ["DDE_BACKEND"] = "pytorch"
+import deepxde as dde
+import numpy as np
+import torch
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+
+# Build minimal geometry for model restore
+if {str(is_2d)}:
+    geom = dde.geometry.Rectangle([{x_min}, {y_min}], [{x_max}, {y_max}])
+else:
+    geom = dde.geometry.Interval({x_min}, {x_max})
+timedomain = dde.geometry.TimeDomain({t_min}, {t_max})
+geomtime   = dde.geometry.GeometryXTime(geom, timedomain)
+
+def pde(x, y): return y[:, 0:1] * 0
+
+data = dde.data.TimePDE(geomtime, pde, [], num_domain=100, num_test=100)
+net  = dde.nn.FNN({layers}, "{activation}", "Glorot uniform")
+model = dde.Model(data, net)
+
+if "{optimizer}" == "lbfgs":
+    dde.optimizers.set_LBFGS_options(maxiter=1)
+    model.compile("L-BFGS", loss="{loss_type}")
+else:
+    model.compile("{optimizer}", lr=0.001, loss="{loss_type}")
+
+try:
+    model.restore(r"{model_path}", verbose=1)
+    print("✅ Model restored successfully.")
+except Exception as e:
+    print(f"❌ Restore error: {{e}}")
+    print("Architecture mismatch — make sure network matches saved model.")
+    exit(1)
+
+os.makedirs(r"{save_dir}", exist_ok=True)
+x_vals = np.linspace({x_min}, {x_max}, 100)
+y_vals = np.linspace({y_min}, {y_max}, 100)
+is_2d  = {str(is_2d)}
+"""
+
+        if viz_type == "Surface":
+            script += f"""
+if is_2d:
+    # 2D: show heatmap at t_max
+    Xg, Yg = np.meshgrid(x_vals, y_vals)
+    XYT = np.column_stack([Xg.ravel(), Yg.ravel(), np.full(Xg.size, {t_max})])
+    pred = model.predict(XYT)[:, {output_idx}].reshape(100, 100)
+    plt.figure(figsize=(7, 5))
+    plt.contourf(Xg, Yg, pred, levels=50, cmap="RdBu_r")
+    plt.colorbar(); plt.xlabel("x"); plt.ylabel("y")
+    plt.title("Restored Model — {out_name}(x,y) at t={t_max}")
+else:
+    t_vals = np.linspace({t_min}, {t_max}, 100)
+    X, T = np.meshgrid(x_vals, t_vals)
+    XT   = np.vstack([X.ravel(), T.ravel()]).T
+    pred = model.predict(XT)[:, {output_idx}].reshape(100, 100)
+    plt.figure(figsize=(7, 5))
+    plt.contourf(X, T, pred, levels=50, cmap="RdBu_r")
+    plt.colorbar(); plt.xlabel("x"); plt.ylabel("t")
+    plt.title("Restored Model — {out_name}(x,t) Surface")
+plt.tight_layout()
+out_path = os.path.join(r"{save_dir}", "restored_plot.png")
+plt.savefig(out_path, dpi=100); plt.close()
+print(f"Surface plot saved to: {{out_path}}")
+"""
+        elif viz_type == "Line (time steps)":
+            script += f"""
+t_steps_vals = np.linspace({t_min}, {t_max}, {t_steps})
+fig, ax = plt.subplots(figsize=(8, 5))
+colors = plt.cm.viridis(np.linspace(0, 1, {t_steps}))
+y_mid = ({y_min} + {y_max}) / 2.0
+for i, tv in enumerate(t_steps_vals):
+    if is_2d:
+        xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, tv)])
+    else:
+        xt = np.column_stack([x_vals, np.full_like(x_vals, tv)])
+    u_line = model.predict(xt)[:, {output_idx}].flatten()
+    ax.plot(x_vals, u_line, color=colors[i], label=f"t={{tv:.3f}}")
+ax.set_xlabel("x"); ax.set_ylabel("{out_name}")
+ax.set_title("Restored Model — {out_name}(x,t) Line Plot")
+ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
+plt.tight_layout()
+out_path = os.path.join(r"{save_dir}", "restored_plot.png")
+plt.savefig(out_path, dpi=100); plt.close()
+print(f"Line plot saved to: {{out_path}}")
+"""
+        elif viz_type == "Animation Line (GIF)":
+            script += f"""
+import matplotlib.animation as _anim
+t_frames = np.linspace({t_min}, {t_max}, {t_steps})
+y_mid = ({y_min} + {y_max}) / 2.0
+all_u = []
+for tv in t_frames:
+    if is_2d:
+        xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, tv)])
+    else:
+        xt = np.column_stack([x_vals, np.full_like(x_vals, tv)])
+    all_u.append(model.predict(xt)[:, {output_idx}].flatten())
+u_min = min(u.min() for u in all_u) 
+u_max = max(u.max() for u in all_u)
+fig, ax = plt.subplots(figsize=(7, 4))
+ax.set_xlim({x_min}, {x_max})
+ax.set_ylim(u_min - 0.05*abs(u_min), u_max + 0.05*abs(u_max))
+ax.set_xlabel("x"); ax.set_ylabel("{out_name}")
+line, = ax.plot([], [], color="#4dabf7", linewidth=2)
+time_txt = ax.text(0.02, 0.95, '', transform=ax.transAxes, color='#ff8787')
+ax.grid(True, alpha=0.2)
+def init():
+    line.set_data([], []); time_txt.set_text(''); return line, time_txt
+def update(i):
+    line.set_data(x_vals, all_u[i])
+    time_txt.set_text(f"t = {{t_frames[i]:.3f}}")
+    return line, time_txt
+ani = _anim.FuncAnimation(fig, update, init_func=init, frames={t_steps}, interval=100, blit=True)
+out_path = os.path.join(r"{save_dir}", "restored_animation.gif")
+ani.save(out_path, writer='pillow', fps=10)
+plt.close()
+print(f"Animation saved to: {{out_path}}")
+"""
+        
+        elif viz_type == "Animation Surface (GIF)":
+            script += f"""
+import matplotlib.animation as _anim
+t_frames = np.linspace({t_min}, {t_max}, {t_steps})
+x_anim = np.linspace({x_min}, {x_max}, 80)
+all_frames = []
+if is_2d:
+    y_anim = np.linspace({y_min}, {y_max}, 80)
+    Xg, Yg = np.meshgrid(x_anim, y_anim)
+    for tv in t_frames:
+        XYT = np.column_stack([Xg.ravel(), Yg.ravel(), np.full(Xg.size, tv)])
+        pred = model.predict(XYT)[:, {output_idx}].reshape(80, 80)
+        all_frames.append((Xg, Yg, pred))
+else:
+    t_anim = np.linspace({t_min}, {t_max}, 80)
+    X_anim, T_anim = np.meshgrid(x_anim, t_anim)
+    for tv in t_frames:
+        XT = np.vstack([X_anim.ravel(), np.full(X_anim.size, tv)]).T
+        pred = model.predict(XT)[:, {output_idx}].reshape(80, 80)
+        all_frames.append((X_anim, T_anim, pred))
+v_min = min(f[2].min() for f in all_frames)
+v_max = max(f[2].max() for f in all_frames)
+fig, ax = plt.subplots(figsize=(7, 5))
+def update(i):
+    ax.cla()
+    Xp, Yp, Zp = all_frames[i]
+    c = ax.contourf(Xp, Yp, Zp, levels=40, cmap="RdBu_r", vmin=v_min, vmax=v_max)
+    ax.set_xlabel("x")
+    ax.set_ylabel("y" if is_2d else "t")
+    ax.set_title(f"t = {{t_frames[i]:.3f}}")
+    return c.collections
+ani = _anim.FuncAnimation(fig, update, frames={t_steps}, interval=150)
+out_path = os.path.join(r"{save_dir}", "restored_animation.gif")
+ani.save(out_path, writer='pillow', fps=8)
+plt.close()
+print(f"Surface animation saved to: {{out_path}}")
+"""
+        script += '\nprint("RESTORE_DONE")\n'
+        return script

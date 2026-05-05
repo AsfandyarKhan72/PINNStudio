@@ -1,7 +1,50 @@
 import os
 os.environ["DDE_BACKEND"] = "pytorch"
 
+def _simplify_expr(expr, is_2d=False):
+    """Convert user-friendly math syntax to numpy syntax."""
+    import re
+    e = expr.strip()
+    # Replace math functions with numpy equivalents
+    for fn in ["sin","cos","tan","sinh","cosh","tanh","arcsin","arccos","arctan",
+               "exp","log","log10","sqrt","abs","ceil","floor"]:
+        e = re.sub(rf'\b{fn}\(', f'np.{fn}(', e)
+    # Replace pi and e constants
+    e = re.sub(r'\bpi\b', 'np.pi', e)
+    e = re.sub(r'\bexp\b', 'np.e', e)
+    # Replace x, y variables — must be done carefully to avoid replacing inside words
+    if is_2d:
+        e = re.sub(r'\by\b', '__Y__', e)
+        e = re.sub(r'\bx\b', 'x[:, 0]', e)
+        e = e.replace('__Y__', 'x[:, 1]')
+    else:
+        e = re.sub(r'\bx\b', 'x[:, 0]', e)
+    return e
+
+def _simplify_pde_expr(expr):
+    """Convert user-friendly math in PDE — only functions and constants, not variables."""
+    import re
+    e = expr.strip()
+    for fn in ["sin","cos","tan","sinh","cosh","tanh","arcsin","arccos","arctan",
+               "exp","log","log10","sqrt","abs","ceil","floor"]:
+        e = re.sub(rf'(?<![a-zA-Z_]){fn}\(', f'np.{fn}(', e)
+    e = re.sub(r'(?<![a-zA-Z_])pi(?![a-zA-Z_])', 'np.pi', e)
+    return e
+
 def generate_script(config):
+    is_2d = config.problem_dim == "2D"
+    # Convert user-friendly IC expressions
+    ic_exprs_raw = config.ic_expressions.split("|")
+    ic_exprs_converted = [_simplify_expr(e, is_2d) for e in ic_exprs_raw]
+    config_ic_expressions = "|".join(ic_exprs_converted)
+
+    # Convert user-friendly PDE expressions
+    pde_exprs_raw = config.pde_expressions.split("|")
+    pde_exprs_converted = [_simplify_pde_expr(e) for e in pde_exprs_raw]
+    config_pde_expressions = "|".join(pde_exprs_converted)
+
+    pde_expr_single = _simplify_pde_expr(config.pde_expression)
+
     script = f"""
 import os
 os.environ["DDE_BACKEND"] = "pytorch"
@@ -16,6 +59,24 @@ _save_dir = "{config.save_dir}".strip()
 _use_save = bool(_save_dir)
 if _use_save:
     _os.makedirs(_save_dir, exist_ok=True)
+    import json as _json
+    _model_config = {{
+        "layers": {config.layers},
+        "activation": "{config.activation}",
+        "num_outputs": {config.num_outputs},
+        "output_names": "{config.output_names}",
+        "x_min": {config.x_min}, "x_max": {config.x_max},
+        "y_min": {config.y_min}, "y_max": {config.y_max},
+        "t_min": {config.t_min}, "t_max": {config.t_max},
+        "problem_dim": "{config.problem_dim}",
+        "pde_expressions": "{config.pde_expressions}",
+        "optimizer": "{config.optimizer}",
+        "optimizer2": "{config.optimizer2}",
+        "loss_type": "{config.loss_type}",
+    }}
+    with open(_os.path.join(_save_dir, "model_config.json"), "w") as _mcf:
+        _json.dump(_model_config, _mcf, indent=2)
+    print(f"Model config saved to: {{_os.path.join(_save_dir, 'model_config.json')}}")
 _loss_path     = _os.path.join(_save_dir, "loss_plot.png")     if _use_save else "/tmp/loss_plot.png"
 _solution_path = _os.path.join(_save_dir, "solution_plot.png") if _use_save else "/tmp/solution_plot.png"
 _log_path      = _os.path.join(_save_dir, "training_log.txt")  if _use_save else None
@@ -77,13 +138,56 @@ if _problem_type == "Inverse":
             self.name = name
             self.period = period
             self._step = 0
+            self._offset = 0
+        def set_offset(self, offset):
+            self._offset = offset
+            self._step = 0
         def on_batch_end(self):
             self._step += 1
-            if self._step % self.period == 0:
+            actual_iter = self._offset + self._step
+            if actual_iter % self.period == 0:
                 val = self.var.detach().cpu().numpy().item() if hasattr(self.var, 'detach') else float(self.var.numpy())
-                print(f"  [{config.inverse_param_name}] Iter {{self._step}}: {{val:.6f}}", flush=True)
+                print(f"  [{config.inverse_param_name}] Iter {{actual_iter}}: {{val:.6f}}", flush=True)
 
     _print_cb = _PrintParamCallback({config.inverse_param_name}, "{config.inverse_param_name}", period=1000)
+    
+    # Parameter saving to text file
+    _param_save_opt = "{config.inv_param_save}"
+    _param_save_period = 100 if _param_save_opt == "Every 100 iters" else 1000 if _param_save_opt == "Every 1000 iters" else 0
+    _param_save_path = _os.path.join(_save_dir if _use_save else "/tmp", f"{config.inverse_param_name}_convergence.txt") if _param_save_period > 0 else None
+
+    if _param_save_period > 0 and _param_save_path:
+        with open(_param_save_path, "w") as _psf:
+            _psf.write(f"iteration,{config.inverse_param_name}\\n")
+        print(f"Parameter convergence will be saved to: {{_param_save_path}}")
+
+    class _SaveParamCallback(dde.callbacks.Callback):
+        def __init__(self, var, name, period, path):
+            super().__init__()
+            self.var = var
+            self.name = name
+            self.period = period
+            self.path = path
+            self._step = 0
+            self._offset = 0
+        def set_offset(self, offset):
+            self._offset = offset
+            self._step = 0
+        def on_batch_end(self):
+            if self.period == 0: return
+            self._step += 1
+            actual_iter = self._offset + self._step
+            if actual_iter % self.period == 0:
+                val = self.var.detach().cpu().numpy().item() if hasattr(self.var, 'detach') else float(self.var.numpy())
+                with open(self.path, "a") as _f:
+                    _f.write(f"{{actual_iter}},{{val:.8f}}\\n")
+
+    _save_cb = _SaveParamCallback(
+        {config.inverse_param_name},
+        "{config.inverse_param_name}",
+        _param_save_period,
+        _param_save_path if _param_save_path else "/tmp/param_save.txt"
+    )
 
 
 # ── PDE definition ──────────────────────────────────────────
@@ -106,6 +210,11 @@ def pde(x, y):
             _dvars[f"d{{_oname}}_tt"] = dde.grad.hessian(y, x, component=_oi, i=2, j=2)
             _dvars[f"d{{_oname}}_xt"] = dde.grad.hessian(y, x, component=_oi, i=0, j=2)
             _dvars[f"d{{_oname}}_yt"] = dde.grad.hessian(y, x, component=_oi, i=1, j=2)
+            _dvars[f"d{{_oname}}_xxxx"] = dde.grad.hessian(_dvars[f"d{{_oname}}_xx"], x, i=0, j=0)
+            _dvars[f"d{{_oname}}_yyyy"] = dde.grad.hessian(_dvars[f"d{{_oname}}_yy"], x, i=1, j=1)
+            _dvars[f"d{{_oname}}_xxyy"] = dde.grad.hessian(_dvars[f"d{{_oname}}_xx"], x, i=1, j=1)
+            _dvars[f"d{{_oname}}_xxtt"] = dde.grad.hessian(_dvars[f"d{{_oname}}_xx"], x, i=2, j=2)
+            _dvars[f"d{{_oname}}_yytt"] = dde.grad.hessian(_dvars[f"d{{_oname}}_yy"], x, i=2, j=2)
         else:
             # 1D: inputs are (x, t) → j=0,1
             _dvars[f"d{{_oname}}_x"]  = dde.grad.jacobian(y, x, i=_oi, j=0)
@@ -113,6 +222,9 @@ def pde(x, y):
             _dvars[f"d{{_oname}}_xx"] = dde.grad.hessian(y, x, component=_oi, i=0, j=0)
             _dvars[f"d{{_oname}}_tt"] = dde.grad.hessian(y, x, component=_oi, i=1, j=1)
             _dvars[f"d{{_oname}}_xt"] = dde.grad.hessian(y, x, component=_oi, i=0, j=1)
+            _dvars[f"d{{_oname}}_xxxx"] = dde.grad.hessian(_dvars[f"d{{_oname}}_xx"], x, i=0, j=0)
+            _dvars[f"d{{_oname}}_xxtt"] = dde.grad.hessian(_dvars[f"d{{_oname}}_xx"], x, i=1, j=1)
+            _dvars[f"d{{_oname}}_tttt"] = dde.grad.hessian(_dvars[f"d{{_oname}}_tt"], x, i=1, j=1)
 
     _eval_ns = {{**globals(), **_dvars}}
     _eval_ns["dde"] = dde
@@ -148,9 +260,9 @@ def pde(x, y):
                 "u": u, "du_x": du_x, "du_t": du_t,
                 "du_xx": du_xx, "du_tt": du_tt, "du_xt": du_xt
             }})
-        return eval("{config.pde_expression}", _eval_ns)
+        return eval("{pde_expr_single}", _eval_ns)
     else:
-        _pde_exprs = "{config.pde_expressions}".split("|")
+        _pde_exprs = "{config_pde_expressions}".split("|")
         return [eval(_expr.strip(), _eval_ns) for _expr in _pde_exprs]
 
 # ── Geometry & Time domain ──────────────────────────────────
@@ -181,7 +293,7 @@ _bc_top_active    = "{config.bc_top_active}".split(",")
 _bc_bottom_deriv_list = "{config.bc_bottom_deriv}".split(",")
 _bc_top_deriv_list    = "{config.bc_top_deriv}".split(",")
 
-_ic_expressions = "{config.ic_expressions}".split("|")
+_ic_expressions = "{config_ic_expressions}".split("|")
 _ic_active_list = "{config.ic_active}".split(",")
 
 _constraints = []
@@ -279,6 +391,8 @@ else:
             _ic_expr = _ic_expressions[_oi].strip() if _oi < len(_ic_expressions) else "np.zeros_like(x[:,0])"
             def _make_ic(expr, comp):
                 def _ic_fn(x):
+                    if x.ndim == 1:
+                        x = x.reshape(-1, 1)
                     return np.reshape(eval(expr, {{"np": np, "x": x, "__builtins__": __builtins__}}), (-1, 1))
                 return dde.icbc.IC(geomtime, _ic_fn, lambda x, on_initial: on_initial, component=comp)
             _constraints.append(_make_ic(_ic_expr, _comp))
@@ -359,13 +473,15 @@ if _problem_type == "Inverse":
         geomtime, pde, _constraints,
         num_domain={config.num_domain}, num_boundary={config.num_boundary},
         num_initial={config.num_initial}, num_test={config.num_test},
+        train_distribution="{config.point_distribution}",
         anchors=_obs_xt
     )
 else:
     data = dde.data.TimePDE(
         geomtime, pde, _constraints,
         num_domain={config.num_domain}, num_boundary={config.num_boundary},
-        num_initial={config.num_initial}, num_test={config.num_test}
+        num_initial={config.num_initial}, num_test={config.num_test},
+        train_distribution="{config.point_distribution}"
     )
 
 # ── Parametric loop ──────────────────────────────────────────
@@ -415,9 +531,16 @@ for _pval in _param_values:
                 [{config.inverse_param_name}], period=1000, filename="/tmp/param_history.txt",
                 precision=6
             )
-            loss_history, train_state = model.train(iterations=_iters, display_every=1000, callbacks=[_var_cb, _print_cb])
+            loss_history, train_state = model.train(iterations=_iters, display_every=1000, callbacks=[_var_cb, _print_cb, _save_cb])
         else:
             loss_history, train_state = model.train(iterations=_iters, display_every=1000)
+            if _use_save:
+                _adam_model_path = _os.path.join(_save_dir, "model_adam")
+                model.save(_adam_model_path)
+                _adam_cfg_path = _os.path.join(_save_dir, f"model_adam-{{_iters}}.json")
+                with open(_adam_cfg_path, "w") as _acf:
+                    _json.dump(_model_config, _acf, indent=2)
+                print(f"Adam config saved to: {{_adam_cfg_path}}")
 
         # Phase 2
         if "{config.optimizer2}" != "none":
@@ -446,7 +569,23 @@ for _pval in _param_values:
                     )
                     model.compile("L-BFGS", loss="{config.loss_type}", loss_weights=_phase2_weights,
                                   external_trainable_variables=[{config.inverse_param_name}])
+                    _print_cb.set_offset(_iters)
                     loss_history, train_state = model.train(display_every=200, callbacks=[_var_cb2, _print_cb])
+                    # Append L-BFGS history to convergence file
+                    if _param_save_period > 0 and _param_save_path:
+                        try:
+                            with open("/tmp/param_history_phase2.txt", "r") as _lf:
+                                for _ll in _lf:
+                                    _ll = _ll.strip()
+                                    if not _ll: continue
+                                    _lparts = _ll.replace("[","").replace("]","").split()
+                                    if len(_lparts) >= 2:
+                                        _lbfgs_iter = int(_lparts[0])
+                                        _lbfgs_val = float(_lparts[1])
+                                        with open(_param_save_path, "a") as _pf:
+                                            _pf.write(f"{{_lbfgs_iter}},{{_lbfgs_val:.8f}}\\n")
+                        except Exception as _le:
+                            print(f"Could not save L-BFGS history: {{_le}}")
                     try:
                         with open("/tmp/param_history_phase2.txt", "r") as _f2:
                             _p2_lines = [l.strip() for l in _f2 if l.strip()]
@@ -461,6 +600,14 @@ for _pval in _param_values:
                 else:
                     model.compile("L-BFGS", loss="{config.loss_type}", loss_weights=_phase2_weights)
                     loss_history, train_state = model.train(display_every=200)
+                    if _use_save:
+                        _lbfgs_model_path = _os.path.join(_save_dir, "model_lbfgs")
+                        model.save(_lbfgs_model_path)
+                        _lbfgs_iter = loss_history.steps[-1] if loss_history.steps else _iters
+                        _lbfgs_cfg_path = _os.path.join(_save_dir, f"model_lbfgs-{{_lbfgs_iter}}.json")
+                        with open(_lbfgs_cfg_path, "w") as _lcf:
+                            _json.dump(_model_config, _lcf, indent=2)
+                        print(f"L-BFGS config saved to: {{_lbfgs_cfg_path}}")
             else:
                 if _problem_type == "Inverse":
                     model.compile("{config.optimizer2}", lr=_lr, loss="{config.loss_type}",
@@ -526,7 +673,7 @@ for _pval in _param_values:
         dde.saveplot(loss_history, train_state, issave=False, isplot=False)
         train_loss = loss_history.loss_train
         test_loss  = loss_history.loss_test
-        steps      = list(range(len(train_loss)))
+        steps      = loss_history.steps
         total_train = [sum(l) for l in train_loss]
         total_test  = [sum(l) for l in test_loss]
 

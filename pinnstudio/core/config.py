@@ -40,6 +40,7 @@ class PINNConfig:
     num_boundary: int = 200
     num_initial: int = 200
     num_test: int = 1000
+    point_distribution: str = "Hammersley"
 
     plot_type: str = "Surface"
     num_timesteps: int = 4
@@ -66,6 +67,7 @@ class PINNConfig:
     loss_weights: List[float] = field(default_factory=lambda: [1.0, 1.0, 1.0, 1.0])
     loss_weight_obs: float = 1.0
     inv_param_log_scale: bool = False
+    inv_param_save: str = "No"
 
     # Inverse PINN
     problem_type: str = "Forward"
