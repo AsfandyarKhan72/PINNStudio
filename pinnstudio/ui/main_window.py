@@ -644,11 +644,24 @@ class MainWindow(QMainWindow):
         left_layout.addWidget(self.stop_btn)
 
         # ── Model Restore & Visualization ─────────────────────
-        restore_group = QGroupBox("Model Restore & Visualization")
+        restore_group = QGroupBox("Model Restore && Visualization")
         restore_layout = QVBoxLayout(restore_group)
         restore_layout.setSpacing(5)
 
-        restore_layout.addWidget(QLabel("Model file (.pt):"))
+        restore_toggle = QCheckBox("🔄 Enable Model Restore && Visualization")
+        restore_toggle.setChecked(False)
+        restore_toggle.setStyleSheet("color: #a0c4ff; font-weight: bold; font-size: 13px;")
+        restore_layout.addWidget(restore_toggle)
+
+        restore_content = QWidget()
+        restore_content_layout = QVBoxLayout(restore_content)
+        restore_content_layout.setContentsMargins(0, 0, 0, 0)
+        restore_content_layout.setSpacing(5)
+        restore_content.setVisible(False)
+        restore_toggle.stateChanged.connect(lambda s: restore_content.setVisible(s == 2))
+        restore_layout.addWidget(restore_content)
+
+        restore_content_layout.addWidget(QLabel("Model file (.pt):"))
         restore_path_row = QHBoxLayout()
         self.restore_model_path = QLineEdit()
         self.restore_model_path.setPlaceholderText("Browse for model .pt file...")
@@ -658,9 +671,9 @@ class MainWindow(QMainWindow):
         self.restore_browse_btn.setFixedHeight(28); self.restore_browse_btn.setFixedWidth(65)
         self.restore_browse_btn.clicked.connect(self._on_browse_restore_model)
         restore_path_row.addWidget(self.restore_browse_btn)
-        restore_layout.addLayout(restore_path_row)
+        restore_content_layout.addLayout(restore_path_row)
 
-        restore_layout.addWidget(QLabel("Config file (model_config.json):"))
+        restore_content_layout.addWidget(QLabel("Config file (model_config.json):"))
         config_path_row = QHBoxLayout()
         self.restore_config_path = QLineEdit()
         self.restore_config_path.setPlaceholderText("Auto-detected or browse...")
@@ -670,33 +683,39 @@ class MainWindow(QMainWindow):
         self.restore_config_browse_btn.setFixedHeight(28); self.restore_config_browse_btn.setFixedWidth(65)
         self.restore_config_browse_btn.clicked.connect(self._on_browse_restore_config)
         config_path_row.addWidget(self.restore_config_browse_btn)
-        restore_layout.addLayout(config_path_row)
+        restore_content_layout.addLayout(config_path_row)
 
-        restore_layout.addWidget(QLabel("Optimizer used for this model:"))
+        restore_content_layout.addWidget(QLabel("Optimizer used for this model:"))
         self.restore_optimizer_combo = QComboBox()
         self.restore_optimizer_combo.addItems(["adam", "lbfgs"])
         self.restore_optimizer_combo.setFixedHeight(28)
-        restore_layout.addWidget(self.restore_optimizer_combo)
+        restore_content_layout.addWidget(self.restore_optimizer_combo)
 
-        restore_layout.addWidget(QLabel("Visualization type:"))
+        restore_content_layout.addWidget(QLabel("Visualization type:"))
         self.restore_viz_combo = QComboBox()
         self.restore_viz_combo.addItems(["Surface", "Line (time steps)", "Animation Line (GIF)", "Animation Surface (GIF)"])
         self.restore_viz_combo.setFixedHeight(28)
-        restore_layout.addWidget(self.restore_viz_combo)
+        self.restore_viz_combo.currentTextChanged.connect(self._on_restore_viz_changed)
+        restore_content_layout.addWidget(self.restore_viz_combo)
 
-        restore_layout.addWidget(QLabel("Output to plot:"))
+        self.restore_tsteps_spin = QSpinBox()
+        self.restore_tsteps_spin.setRange(2, 50); self.restore_tsteps_spin.setValue(10)
+        self.restore_tsteps_spin.setVisible(False)
+
+        self._restore_viz_settings = {
+            'colormap': 'RdBu_r',
+            'surface_time': 1.0,
+            'n_steps': 10,
+            'colorbar': True,
+        }
+
+        restore_content_layout.addWidget(QLabel("Output to plot:"))
         self.restore_output_combo = QComboBox()
         self.restore_output_combo.addItems(["Output 1 (u)"])
         self.restore_output_combo.setFixedHeight(28)
-        restore_layout.addWidget(self.restore_output_combo)
+        restore_content_layout.addWidget(self.restore_output_combo)
 
-        restore_layout.addWidget(QLabel("Time steps for line/animation:"))
-        self.restore_tsteps_spin = QSpinBox()
-        self.restore_tsteps_spin.setRange(2, 50); self.restore_tsteps_spin.setValue(10)
-        self.restore_tsteps_spin.setFixedHeight(28)
-        restore_layout.addWidget(self.restore_tsteps_spin)
-
-        restore_layout.addWidget(QLabel("Save visualization to:"))
+        restore_content_layout.addWidget(QLabel("Save visualization to:"))
         restore_save_row = QHBoxLayout()
         self.restore_save_path = QLineEdit()
         self.restore_save_path.setPlaceholderText("Directory to save output...")
@@ -706,9 +725,10 @@ class MainWindow(QMainWindow):
         self.restore_save_browse_btn.setFixedHeight(28); self.restore_save_browse_btn.setFixedWidth(65)
         self.restore_save_browse_btn.clicked.connect(self._on_browse_restore_save)
         restore_save_row.addWidget(self.restore_save_browse_btn)
-        restore_layout.addLayout(restore_save_row)
+        restore_content_layout.addLayout(restore_save_row)
 
         self.restore_btn = QPushButton("🔄  Restore & Visualize")
+
         self.restore_btn.setMinimumHeight(38)
         self.restore_btn.setStyleSheet("""
             QPushButton { background: #1a5c3a; color: white; font-size: 13px;
@@ -717,7 +737,7 @@ class MainWindow(QMainWindow):
             QPushButton:disabled { background: #333355; color: #666; }
         """)
         self.restore_btn.clicked.connect(self._on_restore)
-        restore_layout.addWidget(self.restore_btn)
+        restore_content_layout.addWidget(self.restore_btn)
         left_layout.addWidget(restore_group)
 
         left_layout.addStretch()
@@ -771,7 +791,7 @@ class MainWindow(QMainWindow):
 
         ctrl_row.addWidget(QLabel("  Plot type:"))
         self.plot_type_combo = QComboBox()
-        self.plot_type_combo.addItems(["Surface", "Line (time steps)"])
+        self.plot_type_combo.addItems(["Surface", "Line (time steps)", "📊 Error Analysis"])
         self.plot_type_combo.setFixedHeight(28)
         self.plot_type_combo.setFixedWidth(140)
         self.plot_type_combo.currentTextChanged.connect(self._on_plot_type_changed)
@@ -863,6 +883,8 @@ class MainWindow(QMainWindow):
     def _on_plot_type_changed(self, text):
         if text == "Line (time steps)":
             self._on_line_plot_settings()
+        elif text == "📊 Error Analysis":
+            self._on_error_analysis_settings()
 
     def _on_line_plot_settings(self):
         dialog = QDialog(self)
@@ -899,6 +921,147 @@ class MainWindow(QMainWindow):
 
         ok_btn.clicked.connect(_on_ok)
         dialog.exec()
+
+    def _on_error_analysis_settings(self):
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Error Analysis Settings")
+        dialog.setMinimumWidth(420)
+        layout = QVBoxLayout(dialog)
+
+        # Source selection
+        src_group = QGroupBox("Reference Data Source")
+        src_layout = QVBoxLayout(src_group)
+        self._ea_radio_expr = QRadioButton("Analytical Expression")
+        self._ea_radio_csv  = QRadioButton("CSV File")
+        self._ea_radio_expr.setChecked(True)
+        src_layout.addWidget(self._ea_radio_expr)
+        src_layout.addWidget(self._ea_radio_csv)
+        layout.addWidget(src_group)
+
+        # Expression section
+        self._ea_expr_widget = QWidget()
+        expr_layout = QVBoxLayout(self._ea_expr_widget)
+        expr_layout.setContentsMargins(0, 0, 0, 0)
+        expr_layout.addWidget(QLabel("Analytical expression (simplified syntax):"))
+        self._ea_expr_input = QLineEdit()
+        self._ea_expr_input.setPlaceholderText("e.g. sin(pi*x)*exp(-0.4*pi**2*t)")
+        self._ea_expr_input.setFixedHeight(28)
+        expr_layout.addWidget(self._ea_expr_input)
+        expr_layout.addWidget(QLabel("Evaluation times (comma separated):"))
+        self._ea_times_input = QLineEdit()
+        self._ea_times_input.setText("0.25, 0.5, 0.75, 1.0")
+        self._ea_times_input.setFixedHeight(28)
+        expr_layout.addWidget(self._ea_times_input)
+        layout.addWidget(self._ea_expr_widget)
+
+        # CSV section
+        self._ea_csv_widget = QWidget()
+        csv_layout = QVBoxLayout(self._ea_csv_widget)
+        csv_layout.setContentsMargins(0, 0, 0, 0)
+        csv_layout.addWidget(QLabel("CSV file:"))
+        csv_row = QHBoxLayout()
+        self._ea_csv_path = QLineEdit()
+        self._ea_csv_path.setPlaceholderText("Browse for CSV file...")
+        self._ea_csv_path.setFixedHeight(28)
+        csv_row.addWidget(self._ea_csv_path)
+        csv_browse = QPushButton("Browse")
+        csv_browse.setFixedHeight(28); csv_browse.setFixedWidth(65)
+        csv_browse.clicked.connect(lambda: self._ea_csv_path.setText(
+            QFileDialog.getOpenFileName(self, "Select CSV", "", "CSV (*.csv *.txt)")[0]))
+        csv_row.addWidget(csv_browse)
+        csv_layout.addLayout(csv_row)
+        info = QLabel("Expected format — 1D: x, t, u  |  2D: x, y, t, u")
+        info.setStyleSheet("color: #586e75; font-size: 11px;")
+        csv_layout.addWidget(info)
+        self._ea_csv_widget.setVisible(False)
+        layout.addWidget(self._ea_csv_widget)
+
+        # Toggle visibility
+        self._ea_radio_expr.toggled.connect(lambda c: (
+            self._ea_expr_widget.setVisible(c),
+            self._ea_csv_widget.setVisible(not c)
+        ))
+
+        # Time snapshot for 2D
+        self._ea_2d_widget = QWidget()
+        td_layout = QHBoxLayout(self._ea_2d_widget)
+        td_layout.setContentsMargins(0, 0, 0, 0)
+        td_layout.addWidget(QLabel("2D snapshot time:"))
+        self._ea_2d_time = QDoubleSpinBox()
+        self._ea_2d_time.setRange(0.0, 1e6); self._ea_2d_time.setValue(0.5)
+        self._ea_2d_time.setFixedHeight(28); self._ea_2d_time.setFixedWidth(100)
+        td_layout.addStretch(); td_layout.addWidget(self._ea_2d_time)
+        self._ea_2d_widget.setVisible(self.radio_2d.isChecked())
+        layout.addWidget(self._ea_2d_widget)
+
+        # Error metrics
+        metrics_group = QGroupBox("Error Metrics")
+        metrics_layout = QVBoxLayout(metrics_group)
+        self._ea_abs  = QCheckBox("Absolute Error plot"); self._ea_abs.setChecked(True)
+        self._ea_l2   = QCheckBox("L2 Relative Error");   self._ea_l2.setChecked(True)
+        self._ea_mse  = QCheckBox("MSE");                  self._ea_mse.setChecked(True)
+        self._ea_max  = QCheckBox("Max Error");            self._ea_max.setChecked(True)
+        for w in [self._ea_abs, self._ea_l2, self._ea_mse, self._ea_max]:
+            metrics_layout.addWidget(w)
+        layout.addWidget(metrics_group)
+
+        btn_row = QHBoxLayout()
+        ok_btn = QPushButton("Run Analysis")
+        ok_btn.setStyleSheet("QPushButton { background: #1a4a6a; color: #74c0fc; font-weight: bold; border-radius: 4px; padding: 4px 12px; }")
+        cancel_btn = QPushButton("Cancel")
+        btn_row.addStretch(); btn_row.addWidget(ok_btn); btn_row.addWidget(cancel_btn)
+        layout.addLayout(btn_row)
+
+        def _on_cancel():
+            self.plot_type_combo.setCurrentText("Surface")
+            dialog.reject()
+
+        cancel_btn.clicked.connect(_on_cancel)
+        ok_btn.clicked.connect(lambda: self._run_error_analysis(dialog))
+        dialog.exec()
+
+    def _run_error_analysis(self, dialog):
+        save_dir = self.save_dir_input.text().strip()
+        if not save_dir:
+            self.log_box.append("❌ Please set a save directory first.")
+            self.plot_type_combo.setCurrentText("Surface")
+            dialog.reject()
+            return
+
+        use_expr = self._ea_radio_expr.isChecked()
+        expr_raw = self._ea_expr_input.text().strip()
+        csv_path = self._ea_csv_path.text().strip()
+
+        if use_expr and not expr_raw:
+            self.log_box.append("❌ Please enter an analytical expression."); return
+        if not use_expr and not csv_path:
+            self.log_box.append("❌ Please select a CSV file."); return
+
+        self._ea_settings = {
+            'use_expr': use_expr,
+            'expr': expr_raw,
+            'csv_path': csv_path,
+            'times': self._ea_times_input.text().strip(),
+            'snap_time': self._ea_2d_time.value(),
+            'do_abs': self._ea_abs.isChecked(),
+            'do_l2': self._ea_l2.isChecked(),
+            'do_mse': self._ea_mse.isChecked(),
+            'do_max': self._ea_max.isChecked(),
+        }
+        self.log_box.append("✅ Error analysis configured — will run after training completes.")
+        dialog.accept()
+
+    def _on_ea_done(self, success):
+        save_dir = self.save_dir_input.text().strip()
+        if success:
+            self.log_box.append("✅ Error analysis complete!")
+            plot_path = os.path.join(save_dir, "comparison_plot.png")
+            if os.path.exists(plot_path):
+                self.solution_label.setPixmap(QPixmap(plot_path).scaled(
+                    500, 420, Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation))
+        else:
+            self.log_box.append("❌ Error analysis failed — check log.")
 
     def _on_adapt_changed(self, text):
         self.rar_widget.setVisible(text == "RAR")
@@ -1376,6 +1539,7 @@ class MainWindow(QMainWindow):
                 self.solution_label.setPixmap(QPixmap(solution_path).scaled(
                     500, 420, Qt.AspectRatioMode.KeepAspectRatio,
                     Qt.TransformationMode.SmoothTransformation))
+            
             if save_dir:
                 self.log_box.append(f"💾 Results saved to: {save_dir}")
 
@@ -1384,6 +1548,14 @@ class MainWindow(QMainWindow):
                 self.solution_label.setPixmap(QPixmap(param_plot).scaled(
                     500, 420, Qt.AspectRatioMode.KeepAspectRatio,
                     Qt.TransformationMode.SmoothTransformation))
+
+            if hasattr(self, '_ea_settings') and self._ea_settings:
+                self.log_box.append("🔍 Running error analysis...")
+                self._execute_error_analysis(self._ea_settings, self._last_config)
+                self._ea_settings = None
+            else:
+                self.log_box.append("ℹ️ No error analysis configured — select '📊 Error Analysis' from Plot type before training.")
+
         else:
             self.log_box.append("\n❌ Error during training. Check log above.")
             self.log_box.append("💡 Tip: Check PDE/IC syntax — use * for multiplication (e.g. 5*u not 5u)")
@@ -1818,6 +1990,396 @@ print("DOMAIN_PREVIEW_DONE")
         ok_btn.clicked.connect(_on_ok)
         dialog.exec()
     
+    def _execute_error_analysis(self, ea, config):
+        import tempfile, glob, json
+        save_dir = self.save_dir_input.text().strip()
+        is_2d = config.problem_dim == "2D"
+
+        # Find latest model
+        model_path = ""
+        for pattern in ["model_lbfgs-*.pt", "model_adam-*.pt"]:
+            files = sorted(glob.glob(os.path.join(save_dir, pattern)))
+            if files:
+                model_path = files[-1]
+                break
+
+        if not model_path:
+            self.log_box.append("❌ No saved model found — set save directory before training."); return
+
+        config_path = model_path.replace(".pt", ".json")
+        if not os.path.exists(config_path):
+            config_path = os.path.join(save_dir, "model_config.json")
+
+        try:
+            with open(config_path) as f:
+                cfg = json.load(f)
+        except Exception as e:
+            self.log_box.append(f"❌ Could not read model config: {e}"); return
+
+        layers = cfg["layers"]; activation = cfg["activation"]
+        x_min = cfg["x_min"]; x_max = cfg["x_max"]
+        y_min = cfg.get("y_min", 0.0); y_max = cfg.get("y_max", 1.0)
+        t_min = cfg["t_min"]; t_max = cfg["t_max"]
+        loss_type = cfg.get("loss_type", "MSE")
+        compile_opt = "lbfgs" if "lbfgs" in model_path else "adam"
+
+        use_expr = ea['use_expr']
+        expr_raw = ea['expr']
+        csv_path = ea['csv_path']
+        times_str = ea['times']
+        snap_time = ea['snap_time']
+
+        from pinnstudio.core.codegen import _simplify_expr
+        expr_converted = _simplify_expr(expr_raw, is_2d) if use_expr else ""
+
+        try:
+            times = [float(t.strip()) for t in times_str.split(",") if t.strip()]
+        except Exception:
+            times = [0.5]
+
+        script = f"""
+import os
+os.environ["DDE_BACKEND"] = "pytorch"
+import deepxde as dde
+import numpy as np
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+
+if {str(is_2d)}:
+    geom = dde.geometry.Rectangle([{x_min}, {y_min}], [{x_max}, {y_max}])
+else:
+    geom = dde.geometry.Interval({x_min}, {x_max})
+td = dde.geometry.TimeDomain({t_min}, {t_max})
+gt = dde.geometry.GeometryXTime(geom, td)
+def pde(x, y): return y[:, 0:1] * 0
+data  = dde.data.TimePDE(gt, pde, [], num_domain=100, num_test=100)
+net   = dde.nn.FNN({layers}, "{activation}", "Glorot uniform")
+model = dde.Model(data, net)
+if "{compile_opt}" == "lbfgs":
+    dde.optimizers.set_LBFGS_options(maxiter=1)
+    model.compile("L-BFGS", loss="{loss_type}")
+else:
+    model.compile("adam", lr=0.001, loss="{loss_type}")
+model.restore(r"{model_path}", verbose=0)
+print("Model restored for error analysis.")
+os.makedirs(r"{save_dir}", exist_ok=True)
+metrics_lines = []
+"""
+        if not is_2d:
+            script += f"""
+x_vals = np.linspace({x_min}, {x_max}, 200)
+times  = {times}
+n_t = len(times)
+fig, axes = plt.subplots(n_t, 3, figsize=(15, 4*n_t))
+if n_t == 1: axes = [axes]
+fig.suptitle("PINN vs Reference — Error Analysis", fontsize=13, fontweight='bold')
+for row, tv in enumerate(times):
+    xt = np.column_stack([x_vals, np.full_like(x_vals, tv)])
+    u_pred = model.predict(xt)[:, 0].flatten()
+"""
+            if use_expr:
+                script += f"""
+    x = x_vals; t = tv
+    u_ref = {expr_converted}
+    u_ref = np.atleast_1d(u_ref)
+    if len(u_ref) != len(x_vals):
+        u_ref = np.full_like(x_vals, float(u_ref[0]))
+"""
+            else:
+                script += f"""
+    data_csv = np.loadtxt(r"{csv_path}", delimiter=",", skiprows=1)
+    t_col = data_csv[:, 1]
+    t_unique = np.unique(t_col)
+    t_closest = t_unique[np.argmin(np.abs(t_unique - tv))]
+    mask = np.abs(t_col - t_closest) < 1e-10
+    u_ref = np.interp(x_vals, data_csv[mask, 0], data_csv[mask, 2])
+"""
+            script += f"""
+    abs_err = np.abs(u_pred - u_ref)
+    l2   = np.linalg.norm(u_pred - u_ref) / (np.linalg.norm(u_ref) + 1e-10)
+    mse  = np.mean((u_pred - u_ref)**2)
+    maxe = np.max(abs_err)
+    metrics_lines.append(f"t={{tv:.4f}}: L2={{l2:.4e}}, MSE={{mse:.4e}}, Max={{maxe:.4e}}")
+    print(f"  t={{tv:.3f}} — L2={{l2:.4e}}, MSE={{mse:.4e}}, Max={{maxe:.4e}}")
+    ax0, ax1, ax2 = axes[row]
+    ax0.plot(x_vals, u_pred, color='#4dabf7', lw=2, label='PINN')
+    ax0.plot(x_vals, u_ref,  color='#ff8787', lw=2, ls='--', label='Reference')
+    ax0.set_title(f"t={{tv:.3f}} — PINN vs Reference"); ax0.legend(); ax0.grid(True, alpha=0.3)
+    ax1.plot(x_vals, u_ref, color='#ff8787', lw=2)
+    ax1.set_title(f"t={{tv:.3f}} — Reference"); ax1.grid(True, alpha=0.3)
+    ax2.plot(x_vals, abs_err, color='#69db7c', lw=2)
+    ax2.fill_between(x_vals, abs_err, alpha=0.3, color='#69db7c')
+    ax2.set_title(f"t={{tv:.3f}} — |Error| L2={{l2:.2e}}"); ax2.grid(True, alpha=0.3)
+plt.tight_layout()
+"""
+        else:
+            script += f"""
+tv = {snap_time}
+x_vals = np.linspace({x_min}, {x_max}, 80)
+y_vals = np.linspace({y_min}, {y_max}, 80)
+Xg, Yg = np.meshgrid(x_vals, y_vals)
+XYT = np.column_stack([Xg.ravel(), Yg.ravel(), np.full(Xg.size, tv)])
+u_pred = model.predict(XYT)[:, 0].reshape(80, 80)
+"""
+            if use_expr:
+                script += f"""
+x = Xg; y = Yg; t = tv
+u_ref = {expr_converted}
+if not hasattr(u_ref, 'shape') or u_ref.shape != (80, 80):
+    u_ref = np.full((80, 80), float(u_ref))
+"""
+            else:
+                script += f"""
+data_csv = np.loadtxt(r"{csv_path}", delimiter=",", skiprows=1)
+t_col = data_csv[:, 2]
+t_unique = np.unique(t_col)
+t_closest = t_unique[np.argmin(np.abs(t_unique - tv))]
+mask = np.abs(t_col - t_closest) < 1e-10
+from scipy.interpolate import griddata
+u_ref = griddata(data_csv[mask, :2], data_csv[mask, 3], (Xg, Yg), method='linear', fill_value=0.0)
+"""
+            script += f"""
+abs_err = np.abs(u_pred - u_ref)
+l2   = np.linalg.norm(u_pred - u_ref) / (np.linalg.norm(u_ref) + 1e-10)
+mse  = np.mean((u_pred - u_ref)**2)
+maxe = np.max(abs_err)
+metrics_lines.append(f"t={snap_time:.4f}: L2={{l2:.4e}}, MSE={{mse:.4e}}, Max={{maxe:.4e}}")
+print(f"  t={snap_time:.3f} — L2={{l2:.4e}}, MSE={{mse:.4e}}, Max={{maxe:.4e}}")
+vmin = min(u_pred.min(), u_ref.min()); vmax = max(u_pred.max(), u_ref.max())
+fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+im0 = axes[0].contourf(Xg, Yg, u_pred, levels=40, cmap='RdBu_r', vmin=vmin, vmax=vmax)
+axes[0].set_title(f"PINN at t={snap_time}"); axes[0].set_xlabel("x"); axes[0].set_ylabel("y")
+fig.colorbar(im0, ax=axes[0])
+im1 = axes[1].contourf(Xg, Yg, u_ref, levels=40, cmap='RdBu_r', vmin=vmin, vmax=vmax)
+axes[1].set_title(f"Reference at t={snap_time}"); axes[1].set_xlabel("x")
+fig.colorbar(im1, ax=axes[1])
+im2 = axes[2].contourf(Xg, Yg, abs_err, levels=40, cmap='YlOrRd')
+axes[2].set_title(f"|Error| L2={{l2:.2e}}"); axes[2].set_xlabel("x")
+fig.colorbar(im2, ax=axes[2])
+fig.suptitle("PINN vs Reference — Error Analysis", fontsize=13, fontweight='bold')
+plt.tight_layout()
+"""
+        script += f"""
+out_path = os.path.join(r"{save_dir}", "comparison_plot.png")
+plt.savefig(out_path, dpi=100); plt.close()
+print(f"Comparison plot saved: {{out_path}}")
+metrics_path = os.path.join(r"{save_dir}", "error_metrics.txt")
+with open(metrics_path, "w") as f:
+    f.write("Error Analysis Results\\n" + "="*40 + "\\n")
+    for line in metrics_lines:
+        f.write(line + "\\n")
+print(f"Metrics saved: {{metrics_path}}")
+print("ERROR_ANALYSIS_DONE")
+"""
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as tf:
+            tf.write(script); tmp = tf.name
+
+        from PyQt6.QtCore import QThread, pyqtSignal as _sig
+        class _EAThread(QThread):
+            line_sig = _sig(str)
+            done_sig = _sig(bool)
+            def __init__(self, tmp):
+                super().__init__(); self._tmp = tmp
+            def run(self):
+                import subprocess, sys
+                proc = subprocess.Popen([sys.executable, self._tmp],
+                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+                for line in proc.stdout:
+                    self.line_sig.emit(line.rstrip())
+                proc.wait()
+                os.unlink(self._tmp)
+                self.done_sig.emit(proc.returncode == 0)
+
+        self._ea_thread = _EAThread(tmp)
+        self._ea_thread.line_sig.connect(self.log_box.append)
+        self._ea_thread.done_sig.connect(self._on_ea_done)
+        self._ea_thread.start()
+
+    def _on_ea_done(self, success):
+        save_dir = self.save_dir_input.text().strip()
+        if success:
+            self.log_box.append("✅ Error analysis complete!")
+            plot_path = os.path.join(save_dir, "comparison_plot.png")
+            if os.path.exists(plot_path):
+                self.solution_label.setPixmap(QPixmap(plot_path).scaled(
+                    500, 420, Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation))
+        else:
+            self.log_box.append("❌ Error analysis failed — check log.")
+    
+    def _on_restore_viz_changed(self, text):
+        self._on_restore_viz_settings(text)
+
+    def _on_restore_viz_settings(self, viz_type=None):
+        if viz_type is None:
+            viz_type = self.restore_viz_combo.currentText()
+
+        dialog = QDialog(self)
+        dialog.setWindowTitle(f"Settings — {viz_type}")
+        dialog.setMinimumWidth(320)
+        layout = QVBoxLayout(dialog)
+
+        current = self._restore_viz_settings
+
+        # Colormap
+        cmap_row = QHBoxLayout()
+        cmap_row.addWidget(QLabel("Colormap:"))
+        cmap_combo = QComboBox()
+        cmap_combo.addItems(["RdBu_r", "viridis", "plasma", "jet", "coolwarm", "inferno", "turbo", "seismic", "bwr"])
+        cmap_combo.setCurrentText(current.get('colormap', 'RdBu_r'))
+        cmap_combo.setFixedWidth(120)
+        cmap_row.addStretch(); cmap_row.addWidget(cmap_combo)
+        layout.addLayout(cmap_row)
+
+        # Contour levels
+        levels_row = QHBoxLayout()
+        levels_row.addWidget(QLabel("Contour levels:"))
+        levels_spin = QSpinBox()
+        levels_spin.setRange(5, 200); levels_spin.setValue(current.get('levels', 40))
+        levels_spin.setFixedWidth(80)
+        levels_row.addStretch(); levels_row.addWidget(levels_spin)
+        layout.addLayout(levels_row)
+
+        # Resolution
+        res_row = QHBoxLayout()
+        res_row.addWidget(QLabel("Grid resolution:"))
+        res_combo = QComboBox()
+        res_combo.addItems(["80", "100", "150", "200"])
+        res_combo.setCurrentText(str(current.get('resolution', 100)))
+        res_combo.setFixedWidth(80)
+        res_row.addStretch(); res_row.addWidget(res_combo)
+        layout.addLayout(res_row)
+
+        # DPI
+        dpi_row = QHBoxLayout()
+        dpi_row.addWidget(QLabel("Output DPI:"))
+        dpi_combo = QComboBox()
+        dpi_combo.addItems(["100", "150", "200", "300"])
+        dpi_combo.setCurrentText(str(current.get('dpi', 100)))
+        dpi_combo.setFixedWidth(80)
+        dpi_row.addStretch(); dpi_row.addWidget(dpi_combo)
+        layout.addLayout(dpi_row)
+
+        # Surface time — only for Surface
+        surface_time_widget = QWidget()
+        st_layout = QHBoxLayout(surface_time_widget)
+        st_layout.setContentsMargins(0, 0, 0, 0)
+        st_layout.addWidget(QLabel("Plot at time t ="))
+        surface_time_spin = QDoubleSpinBox()
+        surface_time_spin.setRange(0.0, 1e6)
+        surface_time_spin.setValue(current.get('surface_time', self.t_max.value()))
+        surface_time_spin.setFixedWidth(100)
+        st_layout.addStretch(); st_layout.addWidget(surface_time_spin)
+        surface_time_widget.setVisible(viz_type == "Surface")
+        layout.addWidget(surface_time_widget)
+
+        # Color range — for Surface and Animation Surface
+        color_range_widget = QWidget()
+        cr_layout = QVBoxLayout(color_range_widget)
+        cr_layout.setContentsMargins(0, 0, 0, 0)
+        cr_auto_cb = QCheckBox("Auto color range")
+        cr_auto_cb.setChecked(current.get('auto_range', True))
+        cr_layout.addWidget(cr_auto_cb)
+        cr_manual_widget = QWidget()
+        cr_manual_layout = QHBoxLayout(cr_manual_widget)
+        cr_manual_layout.setContentsMargins(0, 0, 0, 0)
+        cr_manual_layout.addWidget(QLabel("vmin:"))
+        vmin_spin = QDoubleSpinBox(); vmin_spin.setRange(-1e6, 1e6); vmin_spin.setValue(current.get('vmin', -1.0)); vmin_spin.setFixedWidth(80)
+        cr_manual_layout.addWidget(vmin_spin)
+        cr_manual_layout.addWidget(QLabel("vmax:"))
+        vmax_spin = QDoubleSpinBox(); vmax_spin.setRange(-1e6, 1e6); vmax_spin.setValue(current.get('vmax', 1.0)); vmax_spin.setFixedWidth(80)
+        cr_manual_layout.addWidget(vmax_spin)
+        cr_manual_widget.setVisible(not cr_auto_cb.isChecked())
+        cr_layout.addWidget(cr_manual_widget)
+        cr_auto_cb.stateChanged.connect(lambda s: cr_manual_widget.setVisible(s != 2))
+        color_range_widget.setVisible("Surface" in viz_type)
+        layout.addWidget(color_range_widget)
+
+        # Steps/frames
+        steps_widget = QWidget()
+        steps_layout = QHBoxLayout(steps_widget)
+        steps_layout.setContentsMargins(0, 0, 0, 0)
+        label_text = "Time steps:" if "Line" in viz_type else "Animation frames:"
+        steps_layout.addWidget(QLabel(label_text))
+        steps_spin = QSpinBox()
+        steps_spin.setRange(2, 100); steps_spin.setValue(current.get('n_steps', 10))
+        steps_spin.setFixedWidth(80)
+        steps_layout.addStretch(); steps_layout.addWidget(steps_spin)
+        steps_widget.setVisible(viz_type != "Surface")
+        layout.addWidget(steps_widget)
+
+        # Line width — only for Line plots
+        lw_widget = QWidget()
+        lw_layout = QHBoxLayout(lw_widget)
+        lw_layout.setContentsMargins(0, 0, 0, 0)
+        lw_layout.addWidget(QLabel("Line width:"))
+        lw_combo = QComboBox()
+        lw_combo.addItems(["1.0", "1.5", "2.0", "2.5", "3.0"])
+        lw_combo.setCurrentText(str(current.get('linewidth', 2.0)))
+        lw_combo.setFixedWidth(80)
+        lw_layout.addStretch(); lw_layout.addWidget(lw_combo)
+        lw_widget.setVisible("Line" in viz_type)
+        layout.addWidget(lw_widget)
+
+        # FPS — only for animations
+        fps_widget = QWidget()
+        fps_layout = QHBoxLayout(fps_widget)
+        fps_layout.setContentsMargins(0, 0, 0, 0)
+        fps_layout.addWidget(QLabel("Animation FPS:"))
+        fps_combo = QComboBox()
+        fps_combo.addItems(["5", "8", "10", "15", "20"])
+        fps_combo.setCurrentText(str(current.get('fps', 10)))
+        fps_combo.setFixedWidth(80)
+        fps_layout.addStretch(); fps_layout.addWidget(fps_combo)
+        fps_widget.setVisible("Animation" in viz_type)
+        layout.addWidget(fps_widget)
+
+        # Colorbar
+        colorbar_cb = QCheckBox("Show colorbar")
+        colorbar_cb.setChecked(current.get('colorbar', True))
+        colorbar_cb.setVisible("Surface" in viz_type)
+        layout.addWidget(colorbar_cb)
+
+        info_texts = {
+            "Surface": "Single heatmap/contour at specified time.",
+            "Line (time steps)": "Solution lines at evenly spaced time steps.",
+            "Animation Line (GIF)": "Animated GIF of line plots over time.",
+            "Animation Surface (GIF)": "Animated GIF of surface plots with colorbar.",
+        }
+        info = QLabel(info_texts.get(viz_type, ""))
+        info.setStyleSheet("color: #586e75; font-size: 11px;")
+        info.setWordWrap(True)
+        layout.addWidget(info)
+
+        btn_row = QHBoxLayout()
+        ok_btn = QPushButton("OK"); cancel_btn = QPushButton("Cancel")
+        btn_row.addStretch(); btn_row.addWidget(ok_btn); btn_row.addWidget(cancel_btn)
+        layout.addLayout(btn_row)
+
+        cancel_btn.clicked.connect(dialog.reject)
+
+        def _on_ok():
+            self._restore_viz_settings = {
+                'colormap': cmap_combo.currentText(),
+                'surface_time': surface_time_spin.value(),
+                'n_steps': steps_spin.value(),
+                'colorbar': colorbar_cb.isChecked(),
+                'levels': levels_spin.value(),
+                'resolution': int(res_combo.currentText()),
+                'dpi': int(dpi_combo.currentText()),
+                'auto_range': cr_auto_cb.isChecked(),
+                'vmin': vmin_spin.value(),
+                'vmax': vmax_spin.value(),
+                'linewidth': float(lw_combo.currentText()),
+                'fps': int(fps_combo.currentText()),
+            }
+            self.restore_tsteps_spin.setValue(steps_spin.value())
+            self.log_box.append(f"✅ Viz settings saved — {viz_type}, cmap={cmap_combo.currentText()}, levels={levels_spin.value()}")
+            dialog.accept()
+        ok_btn.clicked.connect(_on_ok)
+        dialog.exec()
+
     def _on_browse_restore_model(self):
         f, _ = QFileDialog.getOpenFileName(self, "Select model file", "", "PyTorch model (*.pt)")
         if f:
@@ -1921,6 +2483,19 @@ print("DOMAIN_PREVIEW_DONE")
             self.log_box.append("❌ Restore failed — check architecture matches saved model.")
 
     def _build_restore_script(self, model_path, cfg, optimizer, viz_type, output_idx, t_steps, save_dir):
+        viz_settings = getattr(self, '_restore_viz_settings', {})
+        colormap = viz_settings.get('colormap', 'RdBu_r')
+        surface_time = viz_settings.get('surface_time', cfg.get('t_max', 1.0))
+        show_colorbar = viz_settings.get('colorbar', True)
+        n_steps = viz_settings.get('n_steps', t_steps)
+        levels = viz_settings.get('levels', 40)
+        resolution = viz_settings.get('resolution', 100)
+        dpi = viz_settings.get('dpi', 100)
+        auto_range = viz_settings.get('auto_range', True)
+        vmin_val = viz_settings.get('vmin', -1.0)
+        vmax_val = viz_settings.get('vmax', 1.0)
+        linewidth = viz_settings.get('linewidth', 2.0)
+        fps = viz_settings.get('fps', 10)
         layers     = cfg["layers"]
         activation = cfg["activation"]
         x_min = cfg["x_min"]; x_max = cfg["x_max"]
@@ -1976,35 +2551,42 @@ is_2d  = {str(is_2d)}
 """
 
         if viz_type == "Surface":
+            vrange = f"vmin={vmin_val}, vmax={vmax_val}" if not auto_range else ""
             script += f"""
+res = {resolution}
+x_vals = np.linspace({x_min}, {x_max}, res)
+y_vals = np.linspace({y_min}, {y_max}, res)
 if is_2d:
-    # 2D: show heatmap at t_max
     Xg, Yg = np.meshgrid(x_vals, y_vals)
-    XYT = np.column_stack([Xg.ravel(), Yg.ravel(), np.full(Xg.size, {t_max})])
-    pred = model.predict(XYT)[:, {output_idx}].reshape(100, 100)
-    plt.figure(figsize=(7, 5))
-    plt.contourf(Xg, Yg, pred, levels=50, cmap="RdBu_r")
-    plt.colorbar(); plt.xlabel("x"); plt.ylabel("y")
-    plt.title("Restored Model — {out_name}(x,y) at t={t_max}")
+    XYT = np.column_stack([Xg.ravel(), Yg.ravel(), np.full(Xg.size, {surface_time})])
+    pred = model.predict(XYT)[:, {output_idx}].reshape(res, res)
+    fig, ax = plt.subplots(figsize=(7, 5))
+    im = ax.contourf(Xg, Yg, pred, levels={levels}, cmap="{colormap}", {vrange})
+    if {show_colorbar}: fig.colorbar(im, ax=ax)
+    ax.set_xlabel("x"); ax.set_ylabel("y")
+    ax.set_title("Restored Model — {out_name}(x,y) at t={surface_time}")
 else:
-    t_vals = np.linspace({t_min}, {t_max}, 100)
+    t_vals = np.linspace({t_min}, {t_max}, res)
     X, T = np.meshgrid(x_vals, t_vals)
     XT   = np.vstack([X.ravel(), T.ravel()]).T
-    pred = model.predict(XT)[:, {output_idx}].reshape(100, 100)
-    plt.figure(figsize=(7, 5))
-    plt.contourf(X, T, pred, levels=50, cmap="RdBu_r")
-    plt.colorbar(); plt.xlabel("x"); plt.ylabel("t")
-    plt.title("Restored Model — {out_name}(x,t) Surface")
+    pred = model.predict(XT)[:, {output_idx}].reshape(res, res)
+    fig, ax = plt.subplots(figsize=(7, 5))
+    im = ax.contourf(X, T, pred, levels={levels}, cmap="{colormap}", {vrange})
+    if {show_colorbar}: fig.colorbar(im, ax=ax)
+    ax.set_xlabel("x"); ax.set_ylabel("t")
+    ax.set_title("Restored Model — {out_name}(x,t) Surface")
 plt.tight_layout()
 out_path = os.path.join(r"{save_dir}", "restored_plot.png")
-plt.savefig(out_path, dpi=100); plt.close()
+plt.savefig(out_path, dpi={dpi}, bbox_inches='tight'); plt.close()
 print(f"Surface plot saved to: {{out_path}}")
 """
+            
         elif viz_type == "Line (time steps)":
             script += f"""
-t_steps_vals = np.linspace({t_min}, {t_max}, {t_steps})
+x_vals = np.linspace({x_min}, {x_max}, {resolution})
+t_steps_vals = np.linspace({t_min}, {t_max}, {n_steps})
 fig, ax = plt.subplots(figsize=(8, 5))
-colors = plt.cm.viridis(np.linspace(0, 1, {t_steps}))
+colors = plt.cm.get_cmap("{colormap}")(np.linspace(0, 1, {n_steps}))
 y_mid = ({y_min} + {y_max}) / 2.0
 for i, tv in enumerate(t_steps_vals):
     if is_2d:
@@ -2012,19 +2594,19 @@ for i, tv in enumerate(t_steps_vals):
     else:
         xt = np.column_stack([x_vals, np.full_like(x_vals, tv)])
     u_line = model.predict(xt)[:, {output_idx}].flatten()
-    ax.plot(x_vals, u_line, color=colors[i], label=f"t={{tv:.3f}}")
+    ax.plot(x_vals, u_line, color=colors[i], linewidth={linewidth}, label=f"t={{tv:.3f}}")
 ax.set_xlabel("x"); ax.set_ylabel("{out_name}")
 ax.set_title("Restored Model — {out_name}(x,t) Line Plot")
 ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
 plt.tight_layout()
 out_path = os.path.join(r"{save_dir}", "restored_plot.png")
-plt.savefig(out_path, dpi=100); plt.close()
+plt.savefig(out_path, dpi={dpi}, bbox_inches='tight'); plt.close()
 print(f"Line plot saved to: {{out_path}}")
 """
         elif viz_type == "Animation Line (GIF)":
             script += f"""
 import matplotlib.animation as _anim
-t_frames = np.linspace({t_min}, {t_max}, {t_steps})
+t_frames = np.linspace({t_min}, {t_max}, {n_steps})
 y_mid = ({y_min} + {y_max}) / 2.0
 all_u = []
 for tv in t_frames:
@@ -2048,9 +2630,9 @@ def update(i):
     line.set_data(x_vals, all_u[i])
     time_txt.set_text(f"t = {{t_frames[i]:.3f}}")
     return line, time_txt
-ani = _anim.FuncAnimation(fig, update, init_func=init, frames={t_steps}, interval=100, blit=True)
+ani = _anim.FuncAnimation(fig, update, init_func=init, frames={n_steps}, interval=100, blit=True)
 out_path = os.path.join(r"{save_dir}", "restored_animation.gif")
-ani.save(out_path, writer='pillow', fps=10)
+ani.save(out_path, writer='pillow', fps={fps})
 plt.close()
 print(f"Animation saved to: {{out_path}}")
 """
@@ -2058,7 +2640,7 @@ print(f"Animation saved to: {{out_path}}")
         elif viz_type == "Animation Surface (GIF)":
             script += f"""
 import matplotlib.animation as _anim
-t_frames = np.linspace({t_min}, {t_max}, {t_steps})
+t_frames = np.linspace({t_min}, {t_max}, {n_steps})
 x_anim = np.linspace({x_min}, {x_max}, 80)
 all_frames = []
 if is_2d:
@@ -2077,18 +2659,24 @@ else:
         all_frames.append((X_anim, T_anim, pred))
 v_min = min(f[2].min() for f in all_frames)
 v_max = max(f[2].max() for f in all_frames)
-fig, ax = plt.subplots(figsize=(7, 5))
+fig, ax = plt.subplots(figsize=(8, 6))
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+_div = make_axes_locatable(ax)
+_cax = _div.append_axes("right", size="5%", pad=0.1)
+_sm = plt.cm.ScalarMappable(cmap="{colormap}", norm=plt.Normalize(vmin=v_min, vmax=v_max))
+if {show_colorbar}: fig.colorbar(_sm, cax=_cax)
 def update(i):
     ax.cla()
     Xp, Yp, Zp = all_frames[i]
-    c = ax.contourf(Xp, Yp, Zp, levels=40, cmap="RdBu_r", vmin=v_min, vmax=v_max)
+    c = ax.contourf(Xp, Yp, Zp, levels={levels}, cmap="{colormap}", vmin=v_min, vmax=v_max)
     ax.set_xlabel("x")
     ax.set_ylabel("y" if is_2d else "t")
     ax.set_title(f"t = {{t_frames[i]:.3f}}")
     return c.collections
-ani = _anim.FuncAnimation(fig, update, frames={t_steps}, interval=150)
+ani = _anim.FuncAnimation(fig, update, frames={n_steps}, interval=150)
 out_path = os.path.join(r"{save_dir}", "restored_animation.gif")
-ani.save(out_path, writer='pillow', fps=8)
+ani.save(out_path, writer='pillow', fps={fps})
+ani.save(out_path, writer='pillow', fps={fps})
 plt.close()
 print(f"Surface animation saved to: {{out_path}}")
 """

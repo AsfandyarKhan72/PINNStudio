@@ -1,0 +1,24 @@
+{
+  "layers": [
+    3,
+    128,
+    128,
+    128,
+    128,
+    1
+  ],
+  "activation": "tanh",
+  "num_outputs": 1,
+  "output_names": "u",
+  "x_min": 0.0,
+  "x_max": 1.0,
+  "y_min": 0.0,
+  "y_max": 1.0,
+  "t_min": 0.0,
+  "t_max": 1.0,
+  "problem_dim": "2D",
+  "pde_expressions": "du_t - 0.0001 * (du_xx + du_yy) + 1 * (u**3 - u)",
+  "optimizer": "adam",
+  "optimizer2": "lbfgs",
+  "loss_type": "MSE"
+}
