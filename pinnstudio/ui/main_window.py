@@ -1141,10 +1141,26 @@ class MainWindow(QMainWindow):
                          f"e.g. Cahn-Hilliard:  du_t - (du_xx - du_xxxx)\n"
                          f"e.g. Nonlinear:      du_t - sin(u)*du_xx")
             
+        # Templates + derivative reference row
+        tmpl_ref_row = QHBoxLayout()
+
         hint_toggle = QCheckBox("📖 Show derivative reference")
         hint_toggle.setChecked(False)
         hint_toggle.setStyleSheet("color: #74c0fc; font-size: 13px;")
-        self.pde_main_layout.addWidget(hint_toggle)
+        tmpl_ref_row.addWidget(hint_toggle)
+
+        if not is_2d:
+            tmpl_ref_row.addStretch()
+            tmpl_combo = QComboBox()
+            tmpl_combo.addItems(["📋 Examples", "1D Heat", "1D Allen-Cahn", "1D Cahn-Hilliard"])
+            tmpl_combo.setFixedHeight(26)
+            tmpl_combo.setFixedWidth(160)
+            tmpl_combo.currentTextChanged.connect(self._on_template_selected)
+            tmpl_ref_row.addWidget(tmpl_combo)
+
+        tmpl_ref_row_widget = QWidget()
+        tmpl_ref_row_widget.setLayout(tmpl_ref_row)
+        self.pde_main_layout.addWidget(tmpl_ref_row_widget)
 
         hint = QLabel(hint_text)
         hint.setStyleSheet("color: #74c0fc; font-size: 13px;")
@@ -2379,6 +2395,109 @@ print("ERROR_ANALYSIS_DONE")
             dialog.accept()
         ok_btn.clicked.connect(_on_ok)
         dialog.exec()
+    
+    def _on_template_selected(self, text):
+        if text == "📋 Examples":
+            return
+
+        templates = {
+            "1D Heat": {
+                'pde': ["du_t - 0.4 * du_xx"],
+                'ic': ["sin(pi*x)"],
+                'num_domain': 2000,
+                'num_boundary': 200,
+                'num_initial': 200,
+                'layers': 3,
+                'neurons': 64,
+                'iterations': 10000,
+                'optimizer2': 'none',
+                'iterations2': 5000,
+                'x_min': 0.0, 'x_max': 1.0,
+                'periodic_bc': False,
+            },
+            "1D Allen-Cahn": {
+                'pde': ["du_t - 0.0001*du_xx + 5*u**3 - 5*u"],
+                'ic': ["x**2*cos(pi*x)"],
+                'num_domain': 10000,
+                'num_boundary': 200,
+                'num_initial': 512,
+                'layers': 4,
+                'neurons': 128,
+                'iterations': 20000,
+                'optimizer2': 'lbfgs',
+                'iterations2': 20000,
+                'x_min': -1.0, 'x_max': 1.0,
+                'periodic_bc': True,
+            },
+            "1D Cahn-Hilliard": {
+                'pde': ["du_t - 0.01*(3*u**2 - 1)*du_xx + 1e-6*du_xxxx"],
+                'ic': ["-cos(2*pi*x)"],
+                'num_domain': 10000,
+                'num_boundary': 200,
+                'num_initial': 512,
+                'layers': 4,
+                'neurons': 128,
+                'iterations': 20000,
+                'optimizer2': 'lbfgs',
+                'iterations2': 20000,
+                'x_min': -1.0, 'x_max': 1.0,
+                'periodic_bc': True,
+            },
+        }
+
+        t = templates.get(text)
+        if not t:
+            return
+
+        # Set PDE
+        for i, pde_text in enumerate(t['pde']):
+            if i < len(self.pde_inputs):
+                self.pde_inputs[i].setText(pde_text)
+
+        # Set IC
+        for i, ic_text in enumerate(t['ic']):
+            if i < len(self.ic_inputs):
+                self.ic_inputs[i].setText(ic_text)
+
+        # Set collocation points
+        self.num_domain.setValue(t['num_domain'])
+        self.num_boundary.setValue(t['num_boundary'])
+        self.num_initial.setValue(t['num_initial'])
+
+        # Set network
+        self.layers_spin.setValue(t['layers'])
+        self.neurons_spin.setValue(t['neurons'])
+
+        # Set training
+        self.iter1_spin.setValue(t['iterations'])
+        self.opt2_combo.setCurrentText(t['optimizer2'])
+        self.iter2_spin.setValue(t['iterations2'])
+
+        # Set IC weight to 100 for Allen-Cahn and Cahn-Hilliard
+        if text in ["1D Allen-Cahn", "1D Cahn-Hilliard"]:
+            for i in range(self.num_outputs_spin.value()):
+                key = f"ic_{i}"
+                if key in self.weight_widgets:
+                    self.weight_widgets[key].setValue(100.0)
+
+        # Set domain x range
+        if 'x_min' in t:
+            self.x_min.setValue(t['x_min'])
+            self.x_max.setValue(t['x_max'])
+
+        # Set periodic BC
+        if t.get('periodic_bc', False):
+            for i in range(self.num_outputs_spin.value()):
+                if i < len(self.bc_left_types):
+                    self.bc_left_types[i].setCurrentText("Periodic")
+        else:
+            for i in range(self.num_outputs_spin.value()):
+                if i < len(self.bc_left_types):
+                    self.bc_left_types[i].setCurrentText("Dirichlet")
+                if i < len(self.bc_right_types):
+                    self.bc_right_types[i].setCurrentText("Dirichlet")
+
+        self.log_box.append(f"✅ Template loaded: {text}")
 
     def _on_browse_restore_model(self):
         f, _ = QFileDialog.getOpenFileName(self, "Select model file", "", "PyTorch model (*.pt)")

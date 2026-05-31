@@ -1,6 +1,6 @@
 {
   "layers": [
-    3,
+    2,
     128,
     128,
     128,
@@ -16,8 +16,8 @@
   "y_max": 1.0,
   "t_min": 0.0,
   "t_max": 1.0,
-  "problem_dim": "2D",
-  "pde_expressions": "du_t - 0.0001 * (du_xx + du_yy) + 1 * (u**3 - u)",
+  "problem_dim": "1D",
+  "pde_expressions": "du_t - 0.0001*du_xx + 5*u**3 - 5*u",
   "optimizer": "adam",
   "optimizer2": "lbfgs",
   "loss_type": "MSE"

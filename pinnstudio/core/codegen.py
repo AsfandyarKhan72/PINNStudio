@@ -37,6 +37,7 @@ def generate_script(config):
     ic_exprs_raw = config.ic_expressions.split("|")
     ic_exprs_converted = [_simplify_expr(e, is_2d) for e in ic_exprs_raw]
     config_ic_expressions = "|".join(ic_exprs_converted)
+    ta_ic_expr = _simplify_expr(config.ic_expression, is_2d)
 
     # Convert user-friendly PDE expressions
     pde_exprs_raw = config.pde_expressions.split("|")
@@ -52,6 +53,27 @@ import deepxde as dde
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
+import warnings
+warnings.filterwarnings("ignore", message=".*cuBLAS.*")
+
+# ── Force GPU initialization ──────────────────────────────────
+if torch.cuda.is_available():
+    torch.cuda.init()
+    torch.cuda.set_device(0)
+    torch.backends.cudnn.benchmark = True
+    torch.backends.cuda.matmul.allow_tf32 = True
+    torch.backends.cudnn.allow_tf32 = True
+    # Warm up CUDA context with a dummy forward+backward pass
+    _dummy = torch.zeros(10, 10, requires_grad=True, device='cuda')
+    _loss = (_dummy ** 2).sum()
+    _loss.backward()
+    torch.cuda.synchronize()
+    del _dummy, _loss
+    print(f"✅ GPU: {{torch.cuda.get_device_name(0)}}")
+    print(f"   Memory: {{torch.cuda.get_device_properties(0).total_memory / 1e9:.1f}} GB")
+    print(f"   TF32 and cuDNN benchmark enabled")
+else:
+    print("⚠️ No GPU found — running on CPU")
 
 # ── Save directory setup ─────────────────────────────────────
 import os as _os
@@ -867,7 +889,7 @@ if {config.time_adaptive}:
     all_x = []; all_t = []; all_u = []
 
     x      = x_grid.reshape(-1, 1)
-    prev_u = np.reshape({config.ic_expression}, (-1, 1))
+    prev_u = np.reshape({ta_ic_expr}, (-1, 1))
 
     for step_i in range(n_steps):
         t0 = t_start + step_i * dt
@@ -1002,6 +1024,42 @@ if {config.time_adaptive}:
         all_x.append(Xp); all_t.append(Tp); all_u.append(Up)
 
         print(f"Step {{step_i+1}} done. Final train loss: {{sum(lh_i.loss_train[-1]):.4e}}")
+
+        # ── Save step plot ────────────────────────────────────
+        if _use_save:
+            _step_dir = _os.path.join(_save_dir, "time_adaptive_steps")
+            _os.makedirs(_step_dir, exist_ok=True)
+            _plot_type_step = "{config.plot_type}"
+            _x_plot_step = np.linspace({config.x_min}, {config.x_max}, 100)
+            _t_plot_step = np.linspace(t0, t1, 50)
+            _Xp_step, _Tp_step = np.meshgrid(_x_plot_step, _t_plot_step)
+            _XTp_step = np.vstack([_Xp_step.ravel(), _Tp_step.ravel()]).T
+            _Up_step = model_i.predict(_XTp_step)[:, {config.plot_output_idx}].reshape(50, 100)
+
+            if _plot_type_step == "Surface" or _plot_type_step.startswith("📊"):
+                plt.figure(figsize=(7, 4))
+                plt.contourf(_Xp_step, _Tp_step, _Up_step, levels=50, cmap="RdBu_r")
+                plt.colorbar(); plt.xlabel("x"); plt.ylabel("t")
+                plt.title(f"Step {{step_i+1}}: t = {{t0:.4f}} → {{t1:.4f}}")
+                plt.tight_layout()
+                _step_fname = _os.path.join(_step_dir, f"step_{{step_i+1:03d}}_t{{t0:.4f}}_to_t{{t1:.4f}}.png")
+                plt.savefig(_step_fname, dpi=100); plt.close()
+            elif _plot_type_step.startswith("Line"):
+                n_steps_plot = {config.num_timesteps}
+                _t_line = np.linspace(t0, t1, n_steps_plot)
+                fig, ax = plt.subplots(figsize=(8, 4))
+                colors = plt.cm.viridis(np.linspace(0, 1, n_steps_plot))
+                for _ci, _tv in enumerate(_t_line):
+                    _xt_line = np.column_stack([_x_plot_step, np.full_like(_x_plot_step, _tv)])
+                    _u_line = model_i.predict(_xt_line)[:, {config.plot_output_idx}].flatten()
+                    ax.plot(_x_plot_step, _u_line, color=colors[_ci], label=f"t={{_tv:.3f}}")
+                ax.set_xlabel("x"); ax.set_ylabel("u")
+                ax.set_title(f"Step {{step_i+1}}: t = {{t0:.4f}} → {{t1:.4f}}")
+                ax.legend(loc="upper right", fontsize=7); ax.grid(True, alpha=0.2)
+                plt.tight_layout()
+                _step_fname = _os.path.join(_step_dir, f"step_{{step_i+1:03d}}_t{{t0:.4f}}_to_t{{t1:.4f}}.png")
+                plt.savefig(_step_fname, dpi=100); plt.close()
+            print(f"Step plot saved: {{_step_fname}}")
 
     X_full = np.vstack(all_x); T_full = np.vstack(all_t); U_full = np.vstack(all_u)
     print("\\n=== Time-Adaptive Training Complete ===")
