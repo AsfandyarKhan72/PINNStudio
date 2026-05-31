@@ -542,6 +542,8 @@ for _pval in _param_values:
         loss_weights=_multi_weights,
         external_trainable_variables=[{config.inverse_param_name}] if _problem_type == "Inverse" else None
     )
+    if {config.batch_size} > 0:
+        print(f"Mini-batch training enabled: batch_size={config.batch_size}")
 
     _iters = int(_pval) if (_parametric and _param_name == "phase1_iterations" and _pval is not None) else {config.iterations}
 
@@ -555,7 +557,11 @@ for _pval in _param_values:
             )
             loss_history, train_state = model.train(iterations=_iters, display_every=1000, callbacks=[_var_cb, _print_cb, _save_cb])
         else:
+            if {config.batch_size} > 0:
+                data.batch_size = {config.batch_size}
+                print(f"Batch size set to: {config.batch_size}")
             loss_history, train_state = model.train(iterations=_iters, display_every=1000)
+
             if _use_save:
                 _adam_model_path = _os.path.join(_save_dir, "model_adam")
                 model.save(_adam_model_path)
@@ -621,7 +627,7 @@ for _pval in _param_values:
                         print(f"Could not append phase 2 history: {{_ae}}")
                 else:
                     model.compile("L-BFGS", loss="{config.loss_type}", loss_weights=_phase2_weights)
-                    loss_history, train_state = model.train(display_every=200)
+                    loss_history, train_state = model.train(display_every=200)  # L-BFGS doesn't use batch_size
                     if _use_save:
                         _lbfgs_model_path = _os.path.join(_save_dir, "model_lbfgs")
                         model.save(_lbfgs_model_path)
@@ -775,7 +781,9 @@ for _pval in _param_values:
             for _ai, _tv in enumerate(t_snaps if False else _t_snaps):
                 _XYT = np.column_stack([_Xg.ravel(), _Yg.ravel(), np.full(_Xg.size, _tv)])
                 _pred = model.predict(_XYT)[:, _plot_idx].reshape(80, 80)
-                im = axes[_ai].contourf(_Xg, _Yg, _pred, levels=40, cmap="RdBu_r")
+                _vmin_2d = None if {config.plot_auto_range} else {config.plot_vmin}
+                _vmax_2d = None if {config.plot_auto_range} else {config.plot_vmax}
+                im = axes[_ai].contourf(_Xg, _Yg, _pred, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_2d, vmax=_vmax_2d)
                 axes[_ai].set_title(f"t = {{_tv:.3f}}")
                 axes[_ai].set_xlabel("x"); axes[_ai].set_ylabel("y")
                 fig.colorbar(im, ax=axes[_ai])
@@ -785,34 +793,39 @@ for _pval in _param_values:
             plt.savefig(_run_solution_path, dpi=100); plt.close()
         else:
             # 1D plot
-            x_vals      = np.linspace({config.x_min}, {config.x_max}, 100)
-            t_vals_plot = np.linspace({config.t_min}, {config.t_max}, 100)
-            X, T = np.meshgrid(x_vals, t_vals_plot)
-            XT   = np.vstack([X.ravel(), T.ravel()]).T
-            _pred_all = model.predict(XT)
-            u_pred = _pred_all[:, _plot_idx].reshape(100, 100)
-
             _plot_type = "{config.plot_type}"
+
             if _plot_type == "Surface":
-                plt.figure(figsize=(7, 5))
-                plt.contourf(X, T, u_pred, levels=50, cmap="RdBu_r")
-                plt.colorbar()
-                plt.xlabel("x"); plt.ylabel("t")
-                plt.title(f"PINN Solution — {{_param_name}}={{_pval}}" if _parametric else "PINN Solution")
-                plt.tight_layout(); plt.savefig(_run_solution_path, dpi=100); plt.close()
+                _res = {config.plot_resolution}
+                _x_s = np.linspace({config.x_min}, {config.x_max}, _res)
+                _t_s = np.linspace({config.t_min}, {config.t_max}, _res)
+                _Xs, _Ts = np.meshgrid(_x_s, _t_s)
+                _XTs = np.vstack([_Xs.ravel(), _Ts.ravel()]).T
+                _u_s = model.predict(_XTs)[:, _plot_idx].reshape(_res, _res)
+                _vmin_s = None if {config.plot_auto_range} else {config.plot_vmin}
+                _vmax_s = None if {config.plot_auto_range} else {config.plot_vmax}
+                print(f"Plot settings: cmap={config.plot_colormap}, levels={config.plot_levels}, dpi={config.plot_dpi}, res={config.plot_resolution}")
+                fig, ax = plt.subplots(figsize=(7, 5))
+                im = ax.contourf(_Xs, _Ts, _u_s, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_s, vmax=_vmax_s)
+                if {config.plot_colorbar}: fig.colorbar(im, ax=ax)
+                ax.set_xlabel("x"); ax.set_ylabel("t")
+                ax.set_title(f"PINN Solution — {{_param_name}}={{_pval}}" if _parametric else "PINN Solution")
+                plt.tight_layout(); plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
+
             elif _plot_type.startswith("Line"):
                 n_steps_plot = {config.num_timesteps}
+                _x_l = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
                 t_steps_plot = np.linspace({config.t_min}, {config.t_max}, n_steps_plot)
                 fig, ax = plt.subplots(figsize=(8, 5))
-                colors = plt.cm.viridis(np.linspace(0, 1, n_steps_plot))
+                colors = plt.cm.get_cmap("{config.plot_colormap}")(np.linspace(0, 1, n_steps_plot))
                 for i, t_val in enumerate(t_steps_plot):
-                    xt = np.column_stack([x_vals, np.full_like(x_vals, t_val)])
+                    xt = np.column_stack([_x_l, np.full_like(_x_l, t_val)])
                     u_line = model.predict(xt)[:, _plot_idx].flatten()
-                    ax.plot(x_vals, u_line, color=colors[i], label=f"t = {{t_val:.3f}}")
+                    ax.plot(_x_l, u_line, color=colors[i], linewidth={config.plot_linewidth}, label=f"t = {{t_val:.3f}}")
                 ax.set_xlabel("x"); ax.set_ylabel("u(x,t)")
                 ax.set_title(f"PINN Solution — {{_param_name}}={{_pval}}" if _parametric else "PINN Solution")
                 ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
-                plt.tight_layout(); plt.savefig(_run_solution_path, dpi=100); plt.close()
+                plt.tight_layout(); plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
 
         import shutil as _shutil
         if _run_loss_path != "/tmp/loss_plot.png":
@@ -1010,6 +1023,12 @@ if {config.time_adaptive}:
                 )
             model_i.compile("L-BFGS", loss="{config.loss_type}", loss_weights=_multi_weights)
             lh_i, ts_i = model_i.train(display_every=200)
+            if _use_save:
+                _step_dir_lbfgs = _os.path.join(_save_dir, "time_adaptive_steps", f"step_{{step_i+1:03d}}_t{{t0:.4f}}_to_t{{t1:.4f}}")
+                _os.makedirs(_step_dir_lbfgs, exist_ok=True)
+                _step_lbfgs_path = _os.path.join(_step_dir_lbfgs, "model_lbfgs")
+                model_i.save(_step_lbfgs_path)
+                print(f"Step L-BFGS model saved: {{_step_lbfgs_path}}.pt")
 
         x_pred  = np.linspace({config.x_min}, {config.x_max}, grid_size)
         t_pred  = np.full_like(x_pred, t1)
@@ -1025,9 +1044,9 @@ if {config.time_adaptive}:
 
         print(f"Step {{step_i+1}} done. Final train loss: {{sum(lh_i.loss_train[-1]):.4e}}")
 
-        # ── Save step plot ────────────────────────────────────
+        # ── Save step plot & models ───────────────────────────
         if _use_save:
-            _step_dir = _os.path.join(_save_dir, "time_adaptive_steps")
+            _step_dir = _os.path.join(_save_dir, "time_adaptive_steps", f"step_{{step_i+1:03d}}_t{{t0:.4f}}_to_t{{t1:.4f}}")
             _os.makedirs(_step_dir, exist_ok=True)
             _plot_type_step = "{config.plot_type}"
             _x_plot_step = np.linspace({config.x_min}, {config.x_max}, 100)
@@ -1037,29 +1056,62 @@ if {config.time_adaptive}:
             _Up_step = model_i.predict(_XTp_step)[:, {config.plot_output_idx}].reshape(50, 100)
 
             if _plot_type_step == "Surface" or _plot_type_step.startswith("📊"):
-                plt.figure(figsize=(7, 4))
-                plt.contourf(_Xp_step, _Tp_step, _Up_step, levels=50, cmap="RdBu_r")
-                plt.colorbar(); plt.xlabel("x"); plt.ylabel("t")
-                plt.title(f"Step {{step_i+1}}: t = {{t0:.4f}} → {{t1:.4f}}")
+                _res_step = {config.plot_resolution}
+                _x_s2 = np.linspace({config.x_min}, {config.x_max}, _res_step)
+                _t_s2 = np.linspace(t0, t1, _res_step)
+                _Xs2, _Ts2 = np.meshgrid(_x_s2, _t_s2)
+                _XTs2 = np.vstack([_Xs2.ravel(), _Ts2.ravel()]).T
+                _Us2 = model_i.predict(_XTs2)[:, {config.plot_output_idx}].reshape(_res_step, _res_step)
+                _vmin_step = None if {config.plot_auto_range} else {config.plot_vmin}
+                _vmax_step = None if {config.plot_auto_range} else {config.plot_vmax}
+                fig, ax = plt.subplots(figsize=(7, 4))
+                im = ax.contourf(_Xs2, _Ts2, _Us2, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_step, vmax=_vmax_step)
+                if {config.plot_colorbar}: fig.colorbar(im, ax=ax)
+                ax.set_xlabel("x"); ax.set_ylabel("t")
+                ax.set_title(f"Step {{step_i+1}}: t = {{t0:.4f}} → {{t1:.4f}}")
                 plt.tight_layout()
                 _step_fname = _os.path.join(_step_dir, f"step_{{step_i+1:03d}}_t{{t0:.4f}}_to_t{{t1:.4f}}.png")
-                plt.savefig(_step_fname, dpi=100); plt.close()
+                plt.savefig(_step_fname, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
             elif _plot_type_step.startswith("Line"):
                 n_steps_plot = {config.num_timesteps}
+                _x_l2 = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
                 _t_line = np.linspace(t0, t1, n_steps_plot)
                 fig, ax = plt.subplots(figsize=(8, 4))
-                colors = plt.cm.viridis(np.linspace(0, 1, n_steps_plot))
+                colors = plt.cm.get_cmap("{config.plot_colormap}")(np.linspace(0, 1, n_steps_plot))
                 for _ci, _tv in enumerate(_t_line):
-                    _xt_line = np.column_stack([_x_plot_step, np.full_like(_x_plot_step, _tv)])
+                    _xt_line = np.column_stack([_x_l2, np.full_like(_x_l2, _tv)])
                     _u_line = model_i.predict(_xt_line)[:, {config.plot_output_idx}].flatten()
-                    ax.plot(_x_plot_step, _u_line, color=colors[_ci], label=f"t={{_tv:.3f}}")
+                    ax.plot(_x_l2, _u_line, color=colors[_ci], linewidth={config.plot_linewidth}, label=f"t={{_tv:.3f}}")
                 ax.set_xlabel("x"); ax.set_ylabel("u")
                 ax.set_title(f"Step {{step_i+1}}: t = {{t0:.4f}} → {{t1:.4f}}")
                 ax.legend(loc="upper right", fontsize=7); ax.grid(True, alpha=0.2)
                 plt.tight_layout()
                 _step_fname = _os.path.join(_step_dir, f"step_{{step_i+1:03d}}_t{{t0:.4f}}_to_t{{t1:.4f}}.png")
-                plt.savefig(_step_fname, dpi=100); plt.close()
+                plt.savefig(_step_fname, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
             print(f"Step plot saved: {{_step_fname}}")
+
+            # ── Save Adam model for this step ─────────────────
+            _step_adam_path = _os.path.join(_step_dir, "model_adam")
+            model_i.save(_step_adam_path)
+            print(f"Step Adam model saved: {{_step_adam_path}}-{{_iters}}.pt")
+            # ── Save step config JSON ─────────────────────────
+            _step_cfg = {{
+                "step": step_i + 1,
+                "t0": t0, "t1": t1,
+                "layers": {config.layers},
+                "activation": "{config.activation}",
+                "x_min": {config.x_min}, "x_max": {config.x_max},
+                "t_min": t0, "t_max": t1,
+                "problem_dim": "{config.problem_dim}",
+                "loss_type": "{config.loss_type}",
+                "optimizer": "{config.optimizer}",
+                "optimizer2": "{config.optimizer2}",
+                "output_names": "{config.output_names}",
+                "num_outputs": {config.num_outputs},
+            }}
+            with open(_os.path.join(_step_dir, "step_config.json"), "w") as _scf:
+                _json.dump(_step_cfg, _scf, indent=2)
+            print(f"Step config saved: {{_os.path.join(_step_dir, 'step_config.json')}}")
 
     X_full = np.vstack(all_x); T_full = np.vstack(all_t); U_full = np.vstack(all_u)
     print("\\n=== Time-Adaptive Training Complete ===")
@@ -1069,23 +1121,26 @@ if {config.time_adaptive}:
 
     _plot_type_ta = "{config.plot_type}"
     if _plot_type_ta == "Surface":
-        plt.figure(figsize=(7, 5))
-        plt.contourf(X_full, T_full, U_full, levels=50, cmap="RdBu_r")
-        plt.colorbar(); plt.xlabel("x"); plt.ylabel("t")
-        plt.title("Time-Adaptive PINN Solution")
-        plt.tight_layout(); plt.savefig(_ta_solution_path, dpi=100); plt.close()
+        _vmin_ta = None if {config.plot_auto_range} else {config.plot_vmin}
+        _vmax_ta = None if {config.plot_auto_range} else {config.plot_vmax}
+        fig, ax = plt.subplots(figsize=(7, 5))
+        im = ax.contourf(X_full, T_full, U_full, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_ta, vmax=_vmax_ta)
+        if {config.plot_colorbar}: fig.colorbar(im, ax=ax)
+        ax.set_xlabel("x"); ax.set_ylabel("t")
+        ax.set_title("Time-Adaptive PINN Solution")
+        plt.tight_layout(); plt.savefig(_ta_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
     elif _plot_type_ta.startswith("Line"):
         n_ts   = {config.num_timesteps}
         t_vals = np.linspace(t_start, t_end, n_ts)
         fig, ax = plt.subplots(figsize=(8, 5))
-        colors  = plt.cm.viridis(np.linspace(0, 1, n_ts))
+        colors = plt.cm.get_cmap("{config.plot_colormap}")(np.linspace(0, 1, n_ts))
         for ci, tv in enumerate(t_vals):
             idx = np.argmin(np.abs(T_full[:,0] - tv))
-            ax.plot(X_full[idx,:], U_full[idx,:], color=colors[ci], label=f"t={{tv:.3f}}")
+            ax.plot(X_full[idx,:], U_full[idx,:], color=colors[ci], linewidth={config.plot_linewidth}, label=f"t={{tv:.3f}}")
         ax.set_xlabel("x"); ax.set_ylabel("u(x,t)")
         ax.set_title("Time-Adaptive PINN — Line Plot")
         ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
-        plt.tight_layout(); plt.savefig(_ta_solution_path, dpi=100); plt.close()
+        plt.tight_layout(); plt.savefig(_ta_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
 
     train_loss_ta = lh_i.loss_train; test_loss_ta = lh_i.loss_test
     steps_ta = list(range(len(train_loss_ta)))

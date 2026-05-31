@@ -1,4 +1,7 @@
 {
+  "step": 1,
+  "t0": 0.0,
+  "t1": 0.2,
   "layers": [
     2,
     128,
@@ -8,17 +11,14 @@
     1
   ],
   "activation": "tanh",
-  "num_outputs": 1,
-  "output_names": "u",
   "x_min": -1.0,
   "x_max": 1.0,
-  "y_min": 0.0,
-  "y_max": 1.0,
   "t_min": 0.0,
-  "t_max": 1.0,
+  "t_max": 0.2,
   "problem_dim": "1D",
-  "pde_expressions": "du_t - 0.0001*du_xx + 5*u**3 - 5*u",
+  "loss_type": "MSE",
   "optimizer": "adam",
   "optimizer2": "lbfgs",
-  "loss_type": "MSE"
+  "output_names": "u",
+  "num_outputs": 1
 }

@@ -396,6 +396,37 @@ class MainWindow(QMainWindow):
         _nn_row("Activation:", self.activation_combo)
         left_layout.addWidget(nn_group)
 
+        # ── Mini-batch ────────────────────────────────────────
+        batch_group = QGroupBox("Mini-batch Training")
+        batch_layout = QVBoxLayout(batch_group)
+        batch_layout.setSpacing(5)
+
+        self.batch_check = QCheckBox("Enable mini-batch training")
+        self.batch_check.setChecked(False)
+        self.batch_check.stateChanged.connect(self._on_batch_changed)
+        batch_layout.addWidget(self.batch_check)
+
+        self.batch_widget = QWidget()
+        bw_layout = QHBoxLayout(self.batch_widget)
+        bw_layout.setContentsMargins(0, 0, 0, 0)
+        bw_layout.addWidget(QLabel("Batch size:"))
+        self.batch_spin = QSpinBox()
+        self.batch_spin.setRange(16, 10000)
+        self.batch_spin.setSingleStep(16)
+        self.batch_spin.setValue(256)
+        self.batch_spin.setFixedWidth(100)
+        self.batch_spin.setFixedHeight(28)
+        bw_layout.addStretch()
+        bw_layout.addWidget(self.batch_spin)
+        self.batch_widget.setVisible(False)
+        batch_layout.addWidget(self.batch_widget)
+
+        note = QLabel("Splits collocation points into mini-batches per iteration.")
+        note.setStyleSheet("color: #586e75; font-size: 11px;")
+        note.setWordWrap(True)
+        batch_layout.addWidget(note)
+        left_layout.addWidget(batch_group)
+
         # ── Training ──────────────────────────────────────────
         train_group = QGroupBox("Training")
         train_layout = QVBoxLayout(train_group)
@@ -796,6 +827,33 @@ class MainWindow(QMainWindow):
         self.plot_type_combo.setFixedWidth(140)
         self.plot_type_combo.currentTextChanged.connect(self._on_plot_type_changed)
         ctrl_row.addWidget(self.plot_type_combo)
+
+        self.plot_settings_btn = QPushButton("⚙")
+        self.plot_settings_btn.setFixedHeight(28)
+        self.plot_settings_btn.setFixedWidth(28)
+        self.plot_settings_btn.setToolTip("Plot settings")
+        self.plot_settings_btn.setStyleSheet("""
+            QPushButton { background: #3e3e42; color: #a0c4ff; font-size: 14px;
+                          border-radius: 4px; border: 1px solid #586e75; }
+            QPushButton:hover { background: #586e75; }
+        """)
+        self.plot_settings_btn.clicked.connect(self._on_plot_settings)
+        ctrl_row.addWidget(self.plot_settings_btn)
+
+        self._plot_viz_settings = {
+            'colormap': 'RdBu_r',
+            'surface_time': 1.0,
+            'n_steps': 4,
+            'colorbar': True,
+            'levels': 50,
+            'resolution': 100,
+            'dpi': 100,
+            'auto_range': True,
+            'vmin': -1.0,
+            'vmax': 1.0,
+            'linewidth': 2.0,
+            'fps': 10,
+        }
 
         self.export_btn = QPushButton("💾 Export Solution")
         self.export_btn.setFixedHeight(28)
@@ -1470,6 +1528,16 @@ class MainWindow(QMainWindow):
             lbfgs_maxiter=int(self.lbfgs_maxiter.value()),
             lbfgs_maxfun=int(self.lbfgs_maxfun.value()),
             lbfgs_maxls=int(self.lbfgs_maxls.value()),
+            batch_size=self.batch_spin.value() if self.batch_check.isChecked() else 0,
+            plot_colormap=self._plot_viz_settings.get('colormap', 'RdBu_r'),
+            plot_levels=self._plot_viz_settings.get('levels', 50),
+            plot_resolution=self._plot_viz_settings.get('resolution', 100),
+            plot_dpi=self._plot_viz_settings.get('dpi', 100),
+            plot_colorbar=self._plot_viz_settings.get('colorbar', True),
+            plot_auto_range=self._plot_viz_settings.get('auto_range', True),
+            plot_vmin=self._plot_viz_settings.get('vmin', -1.0),
+            plot_vmax=self._plot_viz_settings.get('vmax', 1.0),
+            plot_linewidth=self._plot_viz_settings.get('linewidth', 2.0),
         )
 
     def _on_num_outputs_changed(self, n):
@@ -2498,6 +2566,131 @@ print("ERROR_ANALYSIS_DONE")
                     self.bc_right_types[i].setCurrentText("Dirichlet")
 
         self.log_box.append(f"✅ Template loaded: {text}")
+
+    def _on_plot_settings(self):
+        viz_type = self.plot_type_combo.currentText()
+        if viz_type == "📊 Error Analysis":
+            self._on_error_analysis_settings()
+            return
+
+        dialog = QDialog(self)
+        dialog.setWindowTitle(f"Plot Settings — {viz_type}")
+        dialog.setMinimumWidth(320)
+        layout = QVBoxLayout(dialog)
+
+        current = self._plot_viz_settings
+
+        # Colormap
+        cmap_row = QHBoxLayout()
+        cmap_row.addWidget(QLabel("Colormap:"))
+        cmap_combo = QComboBox()
+        cmap_combo.addItems(["RdBu_r", "viridis", "plasma", "jet", "coolwarm", "inferno", "turbo", "seismic", "bwr"])
+        cmap_combo.setCurrentText(current.get('colormap', 'RdBu_r'))
+        cmap_combo.setFixedWidth(120)
+        cmap_row.addStretch(); cmap_row.addWidget(cmap_combo)
+        layout.addLayout(cmap_row)
+
+        # Contour levels
+        levels_row = QHBoxLayout()
+        levels_row.addWidget(QLabel("Contour levels:"))
+        levels_spin = QSpinBox()
+        levels_spin.setRange(5, 200); levels_spin.setValue(current.get('levels', 50))
+        levels_spin.setFixedWidth(80)
+        levels_row.addStretch(); levels_row.addWidget(levels_spin)
+        layout.addLayout(levels_row)
+
+        # Resolution
+        res_row = QHBoxLayout()
+        res_row.addWidget(QLabel("Grid resolution:"))
+        res_combo = QComboBox()
+        res_combo.addItems(["80", "100", "150", "200"])
+        res_combo.setCurrentText(str(current.get('resolution', 100)))
+        res_combo.setFixedWidth(80)
+        res_row.addStretch(); res_row.addWidget(res_combo)
+        layout.addLayout(res_row)
+
+        # DPI
+        dpi_row = QHBoxLayout()
+        dpi_row.addWidget(QLabel("Output DPI:"))
+        dpi_combo = QComboBox()
+        dpi_combo.addItems(["100", "150", "200", "300"])
+        dpi_combo.setCurrentText(str(current.get('dpi', 100)))
+        dpi_combo.setFixedWidth(80)
+        dpi_row.addStretch(); dpi_row.addWidget(dpi_combo)
+        layout.addLayout(dpi_row)
+
+        # Color range — Surface only
+        color_range_widget = QWidget()
+        cr_layout = QVBoxLayout(color_range_widget)
+        cr_layout.setContentsMargins(0, 0, 0, 0)
+        cr_auto_cb = QCheckBox("Auto color range")
+        cr_auto_cb.setChecked(current.get('auto_range', True))
+        cr_layout.addWidget(cr_auto_cb)
+        cr_manual_widget = QWidget()
+        cr_manual_layout = QHBoxLayout(cr_manual_widget)
+        cr_manual_layout.setContentsMargins(0, 0, 0, 0)
+        cr_manual_layout.addWidget(QLabel("vmin:"))
+        vmin_spin = QDoubleSpinBox(); vmin_spin.setRange(-1e6, 1e6)
+        vmin_spin.setValue(current.get('vmin', -1.0)); vmin_spin.setFixedWidth(80)
+        cr_manual_layout.addWidget(vmin_spin)
+        cr_manual_layout.addWidget(QLabel("vmax:"))
+        vmax_spin = QDoubleSpinBox(); vmax_spin.setRange(-1e6, 1e6)
+        vmax_spin.setValue(current.get('vmax', 1.0)); vmax_spin.setFixedWidth(80)
+        cr_manual_layout.addWidget(vmax_spin)
+        cr_manual_widget.setVisible(not cr_auto_cb.isChecked())
+        cr_layout.addWidget(cr_manual_widget)
+        cr_auto_cb.stateChanged.connect(lambda s: cr_manual_widget.setVisible(s != 2))
+        color_range_widget.setVisible(viz_type == "Surface")
+        layout.addWidget(color_range_widget)
+
+        # Colorbar — Surface only
+        colorbar_cb = QCheckBox("Show colorbar")
+        colorbar_cb.setChecked(current.get('colorbar', True))
+        colorbar_cb.setVisible(viz_type == "Surface")
+        layout.addWidget(colorbar_cb)
+
+        # Line width — Line only
+        lw_widget = QWidget()
+        lw_layout = QHBoxLayout(lw_widget)
+        lw_layout.setContentsMargins(0, 0, 0, 0)
+        lw_layout.addWidget(QLabel("Line width:"))
+        lw_combo = QComboBox()
+        lw_combo.addItems(["1.0", "1.5", "2.0", "2.5", "3.0"])
+        lw_combo.setCurrentText(str(current.get('linewidth', 2.0)))
+        lw_combo.setFixedWidth(80)
+        lw_layout.addStretch(); lw_layout.addWidget(lw_combo)
+        lw_widget.setVisible(viz_type == "Line (time steps)")
+        layout.addWidget(lw_widget)
+
+        btn_row = QHBoxLayout()
+        ok_btn = QPushButton("OK"); cancel_btn = QPushButton("Cancel")
+        btn_row.addStretch(); btn_row.addWidget(ok_btn); btn_row.addWidget(cancel_btn)
+        layout.addLayout(btn_row)
+        cancel_btn.clicked.connect(dialog.reject)
+
+        def _on_ok():
+            self._plot_viz_settings = {
+                'colormap': cmap_combo.currentText(),
+                'levels': levels_spin.value(),
+                'resolution': int(res_combo.currentText()),
+                'dpi': int(dpi_combo.currentText()),
+                'auto_range': cr_auto_cb.isChecked(),
+                'vmin': vmin_spin.value(),
+                'vmax': vmax_spin.value(),
+                'colorbar': colorbar_cb.isChecked(),
+                'linewidth': float(lw_combo.currentText()),
+                'n_steps': current.get('n_steps', 4),
+                'surface_time': current.get('surface_time', 1.0),
+                'fps': current.get('fps', 10),
+            }
+            self.log_box.append(f"✅ Plot settings saved — {viz_type}, cmap={cmap_combo.currentText()}, levels={levels_spin.value()}, dpi={dpi_combo.currentText()}")
+            dialog.accept()
+
+        ok_btn.clicked.connect(_on_ok)
+        dialog.exec()
+    
+    def _on_batch_changed(self, state):
+        self.batch_widget.setVisible(state == 2)
 
     def _on_browse_restore_model(self):
         f, _ = QFileDialog.getOpenFileName(self, "Select model file", "", "PyTorch model (*.pt)")
