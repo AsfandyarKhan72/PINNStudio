@@ -822,7 +822,7 @@ class MainWindow(QMainWindow):
 
         ctrl_row.addWidget(QLabel("  Plot type:"))
         self.plot_type_combo = QComboBox()
-        self.plot_type_combo.addItems(["Surface", "Line (time steps)", "📊 Error Analysis"])
+        self.plot_type_combo.addItems(["Surface", "Line (time steps)"])
         self.plot_type_combo.setFixedHeight(28)
         self.plot_type_combo.setFixedWidth(140)
         self.plot_type_combo.currentTextChanged.connect(self._on_plot_type_changed)
@@ -839,6 +839,16 @@ class MainWindow(QMainWindow):
         """)
         self.plot_settings_btn.clicked.connect(self._on_plot_settings)
         ctrl_row.addWidget(self.plot_settings_btn)
+
+        self.ea_btn = QPushButton("📊 Error Analysis")
+        self.ea_btn.setFixedHeight(28)
+        self.ea_btn.setStyleSheet("""
+            QPushButton { background: #1a3a5a; color: #74c0fc; font-size: 12px;
+                          font-weight: bold; border-radius: 4px; border: 1px solid #2a5a8a; padding: 0 8px; }
+            QPushButton:hover { background: #2a5a8a; }
+        """)
+        self.ea_btn.clicked.connect(self._on_error_analysis_btn)
+        ctrl_row.addWidget(self.ea_btn)
 
         self._plot_viz_settings = {
             'colormap': 'RdBu_r',
@@ -941,8 +951,6 @@ class MainWindow(QMainWindow):
     def _on_plot_type_changed(self, text):
         if text == "Line (time steps)":
             self._on_line_plot_settings()
-        elif text == "📊 Error Analysis":
-            self._on_error_analysis_settings()
 
     def _on_line_plot_settings(self):
         dialog = QDialog(self)
@@ -1538,6 +1546,9 @@ class MainWindow(QMainWindow):
             plot_vmin=self._plot_viz_settings.get('vmin', -1.0),
             plot_vmax=self._plot_viz_settings.get('vmax', 1.0),
             plot_linewidth=self._plot_viz_settings.get('linewidth', 2.0),
+            ea_files=repr(self._ea_settings.get('files', [])) if getattr(self, '_ea_settings', None) else "[]",
+            ea_do_line=self._ea_settings.get('do_line', True) if getattr(self, '_ea_settings', None) else True,
+            ea_do_surface=self._ea_settings.get('do_surface', True) if getattr(self, '_ea_settings', None) else True,
         )
 
     def _on_num_outputs_changed(self, n):
@@ -1634,11 +1645,18 @@ class MainWindow(QMainWindow):
                     Qt.TransformationMode.SmoothTransformation))
 
             if hasattr(self, '_ea_settings') and self._ea_settings:
-                self.log_box.append("🔍 Running error analysis...")
-                self._execute_error_analysis(self._ea_settings, self._last_config)
+                self.log_box.append("✅ Error analysis ran inline — check error_analysis/ folder.")
+                ea_dir = os.path.join(save_dir, "error_analysis")
+                for name in ["surface_comparison.png", "line_comparison.png"]:
+                    p = os.path.join(ea_dir, name)
+                    if os.path.exists(p):
+                        self.solution_label.setPixmap(QPixmap(p).scaled(
+                            500, 420, Qt.AspectRatioMode.KeepAspectRatio,
+                            Qt.TransformationMode.SmoothTransformation))
+                        break
                 self._ea_settings = None
             else:
-                self.log_box.append("ℹ️ No error analysis configured — select '📊 Error Analysis' from Plot type before training.")
+                self.log_box.append("ℹ️ No error analysis configured — click '📊 Error Analysis' before training.")
 
         else:
             self.log_box.append("\n❌ Error during training. Check log above.")
@@ -2079,13 +2097,13 @@ print("DOMAIN_PREVIEW_DONE")
         save_dir = self.save_dir_input.text().strip()
         is_2d = config.problem_dim == "2D"
 
-        # Find latest model
+        # Find most recently modified model
         model_path = ""
-        for pattern in ["model_lbfgs-*.pt", "model_adam-*.pt"]:
-            files = sorted(glob.glob(os.path.join(save_dir, pattern)))
-            if files:
-                model_path = files[-1]
-                break
+        all_models = glob.glob(os.path.join(save_dir, "model_lbfgs-*.pt")) + \
+                     glob.glob(os.path.join(save_dir, "model_adam-*.pt"))
+        if all_models:
+            model_path = max(all_models, key=os.path.getmtime)
+            self.log_box.append(f"📂 Using model: {os.path.basename(model_path)}")
 
         if not model_path:
             self.log_box.append("❌ No saved model found — set save directory before training."); return
@@ -2482,6 +2500,7 @@ print("ERROR_ANALYSIS_DONE")
                 'iterations2': 5000,
                 'x_min': 0.0, 'x_max': 1.0,
                 'periodic_bc': False,
+                'ref_dir': '/home/asfandyarkhan/deepxde_gui/FEM_Results/1D_Examples/1D_HeatEquation',
             },
             "1D Allen-Cahn": {
                 'pde': ["du_t - 0.0001*du_xx + 5*u**3 - 5*u"],
@@ -2496,6 +2515,7 @@ print("ERROR_ANALYSIS_DONE")
                 'iterations2': 20000,
                 'x_min': -1.0, 'x_max': 1.0,
                 'periodic_bc': True,
+                'ref_dir': '/home/asfandyarkhan/deepxde_gui/FEM_Results/1D_Examples/1D_AllenCahn/ut−0.0001uxx+5u -5u^3=0_(example_1)',
             },
             "1D Cahn-Hilliard": {
                 'pde': ["du_t - 0.01*(3*u**2 - 1)*du_xx + 1e-6*du_xxxx"],
@@ -2510,6 +2530,7 @@ print("ERROR_ANALYSIS_DONE")
                 'iterations2': 20000,
                 'x_min': -1.0, 'x_max': 1.0,
                 'periodic_bc': True,
+                'ref_dir': '/home/asfandyarkhan/deepxde_gui/FEM_Results/1D_Examples/1D_CahnHilliard/ut−(0.01(u^3-u)-1e-6uxx)xx=0_example_3',
             },
         }
 
@@ -2565,6 +2586,9 @@ print("ERROR_ANALYSIS_DONE")
                 if i < len(self.bc_right_types):
                     self.bc_right_types[i].setCurrentText("Dirichlet")
 
+        # Store ref_dir for error analysis auto-population
+        self._template_ref_dir = t.get('ref_dir', '')
+        self._current_template = text
         self.log_box.append(f"✅ Template loaded: {text}")
 
     def _on_plot_settings(self):
@@ -2689,6 +2713,433 @@ print("ERROR_ANALYSIS_DONE")
         ok_btn.clicked.connect(_on_ok)
         dialog.exec()
     
+    def _on_error_analysis_btn(self):
+        """Standalone error analysis button — opens dialog."""
+        self._ea_ref_files = getattr(self, '_ea_ref_files', [])
+        self._show_ea_dialog()
+
+    def _show_ea_dialog(self):
+        import os, glob
+
+        dialog = QDialog(self)
+        dialog.setWindowTitle("📊 Error Analysis")
+        dialog.setMinimumWidth(520)
+        layout = QVBoxLayout(dialog)
+
+        # ── Plot type selection ────────────────────────────────
+        plot_group = QGroupBox("Plot Types")
+        plot_layout = QVBoxLayout(plot_group)
+        self._ea_line_cb    = QCheckBox("Line comparison (PINN vs FEM at each time step)")
+        self._ea_surface_cb = QCheckBox("Surface comparison (PINN | FEM | Error)")
+        self._ea_line_cb.setChecked(True)
+        self._ea_surface_cb.setChecked(True)
+        plot_layout.addWidget(self._ea_line_cb)
+        plot_layout.addWidget(self._ea_surface_cb)
+        layout.addWidget(plot_group)
+
+        # ── Error metrics ──────────────────────────────────────
+        metrics_group = QGroupBox("Error Metrics to Compute")
+        metrics_layout = QHBoxLayout(metrics_group)
+        self._ea_l2_cb  = QCheckBox("L2 Relative"); self._ea_l2_cb.setChecked(True)
+        self._ea_mse_cb = QCheckBox("MSE");          self._ea_mse_cb.setChecked(True)
+        self._ea_max_cb = QCheckBox("Max Error");    self._ea_max_cb.setChecked(True)
+        for w in [self._ea_l2_cb, self._ea_mse_cb, self._ea_max_cb]:
+            metrics_layout.addWidget(w)
+        layout.addWidget(metrics_group)
+
+        # ── Reference files ────────────────────────────────────
+        files_group = QGroupBox("Reference Files (FEM/Exact)")
+        files_layout = QVBoxLayout(files_group)
+
+        hint = QLabel("Format: space-separated, 3 columns: x  t  u  (no header)\nEach file = one time snapshot.")
+        hint.setStyleSheet("color: #586e75; font-size: 11px;")
+        files_layout.addWidget(hint)
+
+        # File list widget
+        self._ea_file_list_widget = QWidget()
+        self._ea_file_list_layout = QVBoxLayout(self._ea_file_list_widget)
+        self._ea_file_list_layout.setSpacing(4)
+        self._ea_file_list_layout.setContentsMargins(0, 0, 0, 0)
+        files_layout.addWidget(self._ea_file_list_widget)
+
+        self._ea_file_rows = []  # list of (path_label, t_label, remove_btn)
+
+        def _add_file_row(path='', t_val=None):
+            row_widget = QWidget()
+            row_layout = QHBoxLayout(row_widget)
+            row_layout.setContentsMargins(0, 0, 0, 0)
+            row_layout.setSpacing(4)
+
+            path_edit = QLineEdit()
+            path_edit.setPlaceholderText("Browse for reference file...")
+            path_edit.setFixedHeight(26)
+            if path:
+                path_edit.setText(path)
+            row_layout.addWidget(path_edit)
+
+            browse_btn = QPushButton("Browse")
+            browse_btn.setFixedHeight(26); browse_btn.setFixedWidth(60)
+            row_layout.addWidget(browse_btn)
+
+            t_label = QLabel("")
+            t_label.setStyleSheet("color: #69db7c; font-size: 11px; min-width: 80px;")
+            row_layout.addWidget(t_label)
+
+            remove_btn = QPushButton("✕")
+            remove_btn.setFixedHeight(26); remove_btn.setFixedWidth(26)
+            remove_btn.setStyleSheet("QPushButton { color: #ff8787; background: transparent; border: none; }")
+            row_layout.addWidget(remove_btn)
+
+            self._ea_file_list_layout.addWidget(row_widget)
+            row_data = {'widget': row_widget, 'path': path_edit, 't_label': t_label}
+            self._ea_file_rows.append(row_data)
+
+            def _on_browse():
+                f, _ = QFileDialog.getOpenFileName(dialog, "Select reference file", "", "Text files (*.txt *.csv *.dat)")
+                if f:
+                    path_edit.setText(f)
+                    _detect_time(f, t_label)
+
+            def _detect_time(fpath, lbl):
+                try:
+                    import numpy as np
+                    data = np.loadtxt(fpath)
+                    if data.ndim == 1: data = data.reshape(1, -1)
+                    t_detected = float(data[0, 1])
+                    lbl.setText(f"✅ t = {t_detected:.4f} ({len(data)} pts)")
+                    row_data['t_val'] = t_detected
+                except Exception as e:
+                    lbl.setText(f"❌ {str(e)[:30]}")
+
+            browse_btn.clicked.connect(_on_browse)
+
+            def _on_remove():
+                row_widget.deleteLater()
+                if row_data in self._ea_file_rows:
+                    self._ea_file_rows.remove(row_data)
+
+            remove_btn.clicked.connect(_on_remove)
+
+            if path and t_val is not None:
+                t_label.setText(f"✅ t = {t_val:.4f}")
+                row_data['t_val'] = t_val
+            elif path:
+                _detect_time(path, t_label)
+
+            return row_data
+
+        # Auto-populate from template if available
+        ref_dir = getattr(self, '_template_ref_dir', '')
+        if ref_dir and os.path.isdir(ref_dir):
+            txt_files = sorted(glob.glob(os.path.join(ref_dir, 't_*.txt')))
+            if txt_files:
+                hint2 = QLabel(f"📂 Auto-loaded from template: {os.path.basename(ref_dir)}")
+                hint2.setStyleSheet("color: #a0c4ff; font-size: 11px;")
+                files_layout.addWidget(hint2)
+                for f in txt_files:
+                    _add_file_row(f)
+        else:
+            _add_file_row()  # start with one empty row
+
+        add_btn = QPushButton("➕ Add another file")
+        add_btn.setStyleSheet("QPushButton { color: #69db7c; background: transparent; border: 1px solid #2a6a4a; border-radius: 4px; padding: 2px 8px; }")
+        add_btn.clicked.connect(lambda: _add_file_row())
+        files_layout.addWidget(add_btn)
+        layout.addWidget(files_group)
+
+        # ── Buttons ────────────────────────────────────────────
+        btn_row = QHBoxLayout()
+        run_btn = QPushButton("▶ Run Error Analysis")
+        run_btn.setStyleSheet("QPushButton { background: #1a4a6a; color: #74c0fc; font-weight: bold; border-radius: 4px; padding: 4px 14px; }")
+        cancel_btn = QPushButton("Cancel")
+        btn_row.addStretch()
+        btn_row.addWidget(run_btn)
+        btn_row.addWidget(cancel_btn)
+        layout.addLayout(btn_row)
+
+        cancel_btn.clicked.connect(dialog.reject)
+
+        def _on_run():
+            save_dir = self.save_dir_input.text().strip()
+            if not save_dir:
+                self.log_box.append("❌ Error Analysis: please set a save directory first.")
+                dialog.reject(); return
+
+            # Collect valid file rows
+            valid_files = []
+            for row in self._ea_file_rows:
+                p = row['path'].text().strip()
+                t = row.get('t_val', None)
+                if p and os.path.exists(p) and t is not None:
+                    valid_files.append((t, p))
+
+            if not valid_files:
+                self.log_box.append("❌ Error Analysis: no valid reference files loaded.")
+                return
+
+            valid_files.sort(key=lambda x: x[0])
+
+            self._ea_settings = {
+                'files': valid_files,
+                'do_line': self._ea_line_cb.isChecked(),
+                'do_surface': self._ea_surface_cb.isChecked(),
+                'do_l2': self._ea_l2_cb.isChecked(),
+                'do_mse': self._ea_mse_cb.isChecked(),
+                'do_max': self._ea_max_cb.isChecked(),
+            }
+            self.log_box.append(f"✅ Error Analysis configured — {len(valid_files)} reference files, will run after training.")
+            dialog.accept()
+
+        run_btn.clicked.connect(_on_run)
+        dialog.exec()
+
+    def _execute_error_analysis_v2(self, ea, config):
+        import tempfile, glob, json
+        save_dir = self.save_dir_input.text().strip()
+        is_2d = config.problem_dim == "2D"
+
+        # Find most recently modified model
+        model_path = ""
+        all_models = glob.glob(os.path.join(save_dir, "model_lbfgs-*.pt")) + \
+                     glob.glob(os.path.join(save_dir, "model_adam-*.pt"))
+        if all_models:
+            model_path = max(all_models, key=os.path.getmtime)
+            self.log_box.append(f"📂 Using model: {os.path.basename(model_path)}")
+
+        if not model_path:
+            self.log_box.append("❌ No saved model found."); return
+
+        config_path = model_path.replace(".pt", ".json")
+        if not os.path.exists(config_path):
+            config_path = os.path.join(save_dir, "model_config.json")
+
+        try:
+            with open(config_path) as f:
+                cfg = json.load(f)
+        except Exception as e:
+            self.log_box.append(f"❌ Could not read model config: {e}"); return
+
+        layers     = cfg["layers"]
+        activation = cfg["activation"]
+        x_min = cfg["x_min"]; x_max = cfg["x_max"]
+        t_min = cfg["t_min"]; t_max = cfg["t_max"]
+        loss_type  = cfg.get("loss_type", "MSE")
+        compile_opt = "lbfgs" if "lbfgs" in model_path else "adam"
+
+        files_list = ea['files']   # list of (t_val, filepath)
+        do_line    = ea['do_line']
+        do_surface = ea['do_surface']
+        do_l2      = ea['do_l2']
+        do_mse     = ea['do_mse']
+        do_max     = ea['do_max']
+
+        # Serialise file list for script
+        files_repr = repr(files_list)
+
+        script = f"""
+import os
+os.environ["DDE_BACKEND"] = "pytorch"
+import deepxde as dde
+import numpy as np
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+from scipy.interpolate import interp1d
+
+# ── Restore model ─────────────────────────────────────────────
+geom  = dde.geometry.Interval({x_min}, {x_max})
+td    = dde.geometry.TimeDomain({t_min}, {t_max})
+gt    = dde.geometry.GeometryXTime(geom, td)
+def pde(x, y): return y[:, 0:1] * 0
+data  = dde.data.TimePDE(gt, pde, [], num_domain=100, num_test=100)
+net   = dde.nn.FNN({layers}, "{activation}", "Glorot uniform")
+model = dde.Model(data, net)
+if "{compile_opt}" == "lbfgs":
+    dde.optimizers.set_LBFGS_options(maxiter=1)
+    model.compile("L-BFGS", loss="{loss_type}")
+else:
+    model.compile("adam", lr=0.001, loss="{loss_type}")
+
+model.restore(r"{model_path}", verbose=0)
+print("✅ Model restored for error analysis.")
+print(f"   Model path: {model_path}")
+print(f"   x range: [{x_min}, {x_max}]")
+print(f"   t range: [{t_min}, {t_max}]")
+
+# ── Output directory ──────────────────────────────────────────
+_ea_dir = os.path.join(r"{save_dir}", "error_analysis")
+os.makedirs(_ea_dir, exist_ok=True)
+
+# ── Load reference files ──────────────────────────────────────
+_files = {files_repr}
+_times = []; _x_refs = []; _u_refs = []
+for _tv, _fp in _files:
+    _d = np.loadtxt(_fp)
+    if _d.ndim == 1: _d = _d.reshape(1, -1)
+    _idx = np.argsort(_d[:, 0])
+    _x_refs.append(_d[_idx, 0])
+    _u_refs.append(_d[_idx, 2])
+    _times.append(float(_tv))
+    print(f"  Loaded t={{_tv:.4f}}: {{len(_d)}} points from {{os.path.basename(_fp)}}")
+
+_n_t = len(_times)
+
+# ── Predict PINN at EXACT FEM x values for each time ─────────
+_u_pinns = []
+for _i, _tv in enumerate(_times):
+    _x_fem = _x_refs[_i]
+    _xt = np.column_stack([_x_fem, np.full_like(_x_fem, _tv)])
+    _u_pinns.append(model.predict(_xt)[:, 0].flatten())
+    print(f"  PINN predicted at t={{_tv:.4f}}: {{len(_x_fem)}} points")
+
+# ── Error metrics at exact FEM points ────────────────────────
+_metrics = []
+for _i, _tv in enumerate(_times):
+    _up = _u_pinns[_i]; _uf = _u_refs[_i]
+    _abs_err = np.abs(_up - _uf)
+    _l2      = np.linalg.norm(_up - _uf) / (np.linalg.norm(_uf) + 1e-10)
+    _mse     = np.mean((_up - _uf)**2)
+    _mx      = np.max(_abs_err)
+    _ma      = np.mean(_abs_err)
+    _metrics.append((_tv, _l2, _mse, _mx, _ma))
+    print(f"  t={{_tv:.4f}} — L2={{_l2:.4e}}, MSE={{_mse:.4e}}, Max={{_mx:.4e}}, MeanAbs={{_ma:.4e}}")
+
+# Save metrics
+with open(os.path.join(_ea_dir, "error_metrics.txt"), "w") as _mf:
+    _mf.write("t,L2_relative,MSE,Max_error,Mean_abs_error\\n")
+    for _tv, _l2, _mse, _mx, _ma in _metrics:
+        _mf.write(f"{{_tv:.6f}},{{_l2:.6e}},{{_mse:.6e}},{{_mx:.6e}},{{_ma:.6e}}\\n")
+print(f"Metrics saved: {{os.path.join(_ea_dir, 'error_metrics.txt')}}")
+
+# ── Line comparison — PINN vs FEM at exact x values ──────────
+if {do_line}:
+    _ncols = min(4, _n_t)
+    _nrows = (_n_t + _ncols - 1) // _ncols
+    fig, axes = plt.subplots(_nrows, _ncols, figsize=(4*_ncols, 3.5*_nrows), squeeze=False)
+    fig.suptitle("PINN vs FEM — Line Comparison", fontsize=13, fontweight='bold')
+    _ax_flat = axes.flatten()
+    for _i in range(_n_t):
+        ax = _ax_flat[_i]
+        _xv = _x_refs[_i]
+        _tv, _l2, _mse, _mx, _ma = _metrics[_i]
+        ax.plot(_xv, _u_refs[_i],  color='#4dabf7', linewidth=2.0, label='FEM (Exact)')
+        ax.plot(_xv, _u_pinns[_i], color='#ff6b6b', linewidth=1.8, linestyle='--', label='PINN')
+        ax.set_title(f"t = {{_tv:.3f}}  |  L2 = {{_l2:.2e}}", fontsize=10)
+        ax.set_xlabel("x"); ax.set_ylabel("u(x,t)")
+        ax.grid(True, alpha=0.3)
+    for _j in range(_n_t, len(_ax_flat)):
+        _ax_flat[_j].set_visible(False)
+    handles, labels = _ax_flat[0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc='lower center', ncol=2, fontsize=10,
+               framealpha=0.9, bbox_to_anchor=(0.5, 0.01))
+    plt.tight_layout(rect=[0, 0.06, 1, 1])
+    _lp = os.path.join(_ea_dir, "line_comparison.png")
+    plt.savefig(_lp, dpi=150, bbox_inches='tight'); plt.close()
+    print(f"Line comparison saved: {{_lp}}")
+
+# ── Absolute error lines ──────────────────────────────────────
+if {do_line}:
+    _ncols = min(4, _n_t)
+    _nrows = (_n_t + _ncols - 1) // _ncols
+    fig, axes = plt.subplots(_nrows, _ncols, figsize=(4*_ncols, 3.5*_nrows), squeeze=False)
+    fig.suptitle("Absolute Error  |PINN - FEM|", fontsize=13, fontweight='bold')
+    _ax_flat = axes.flatten()
+    for _i in range(_n_t):
+        ax = _ax_flat[_i]
+        _xv = _x_refs[_i]
+        _abs_err = np.abs(_u_pinns[_i] - _u_refs[_i])
+        _tv, _l2, _mse, _mx, _ma = _metrics[_i]
+        ax.plot(_xv, _abs_err, color='#69db7c', linewidth=2.0)
+        ax.fill_between(_xv, _abs_err, alpha=0.25, color='#69db7c')
+        ax.set_title(f"t = {{_tv:.3f}}  |  Max = {{_mx:.2e}}", fontsize=10)
+        ax.set_xlabel("x"); ax.set_ylabel("|error|")
+        ax.grid(True, alpha=0.3)
+    for _j in range(_n_t, len(_ax_flat)):
+        _ax_flat[_j].set_visible(False)
+    plt.tight_layout()
+    _ep = os.path.join(_ea_dir, "absolute_error_lines.png")
+    plt.savefig(_ep, dpi=150, bbox_inches='tight'); plt.close()
+    print(f"Absolute error saved: {{_ep}}")
+
+# ── Surface comparison — interpolate FEM to common grid ──────
+if {do_surface}:
+    _x_common = np.linspace({x_min}, {x_max}, 300)
+    _t_arr = np.array(_times)
+    _U_pinn_surf = np.zeros((len(_t_arr), len(_x_common)))
+    _U_fem_surf  = np.zeros((len(_t_arr), len(_x_common)))
+
+    for _i, _tv in enumerate(_times):
+        _xt_c = np.column_stack([_x_common, np.full_like(_x_common, _tv)])
+        _U_pinn_surf[_i, :] = model.predict(_xt_c)[:, 0].flatten()
+        _fi = interp1d(_x_refs[_i], _u_refs[_i], kind='linear', fill_value='extrapolate')
+        _U_fem_surf[_i, :] = _fi(_x_common)
+
+    _Xg, _Tg = np.meshgrid(_x_common, _t_arr)
+    _U_err_surf = np.abs(_U_pinn_surf - _U_fem_surf)
+    _vmin = min(_U_pinn_surf.min(), _U_fem_surf.min())
+    _vmax = max(_U_pinn_surf.max(), _U_fem_surf.max())
+
+    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+    fig.suptitle("PINN vs FEM — Surface Comparison", fontsize=13, fontweight='bold')
+
+    im0 = axes[0].contourf(_Tg, _Xg, _U_pinn_surf, levels=50, cmap='viridis', vmin=_vmin, vmax=_vmax)
+    axes[0].set_title("PINN  u(x,t)"); axes[0].set_xlabel("t"); axes[0].set_ylabel("x")
+    fig.colorbar(im0, ax=axes[0])
+
+    im1 = axes[1].contourf(_Tg, _Xg, _U_fem_surf, levels=50, cmap='viridis', vmin=_vmin, vmax=_vmax)
+    axes[1].set_title("FEM  u(x,t)"); axes[1].set_xlabel("t"); axes[1].set_ylabel("x")
+    fig.colorbar(im1, ax=axes[1])
+
+    im2 = axes[2].contourf(_Tg, _Xg, _U_err_surf, levels=50, cmap='YlOrRd')
+    axes[2].set_title("Error  |PINN - FEM|"); axes[2].set_xlabel("t"); axes[2].set_ylabel("x")
+    fig.colorbar(im2, ax=axes[2])
+
+    plt.tight_layout()
+    _sp = os.path.join(_ea_dir, "surface_comparison.png")
+    plt.savefig(_sp, dpi=150, bbox_inches='tight'); plt.close()
+    print(f"Surface comparison saved: {{_sp}}")
+
+print("ERROR_ANALYSIS_V2_DONE")
+"""
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as tf:
+            tf.write(script); tmp = tf.name
+
+        from PyQt6.QtCore import QThread, pyqtSignal as _sig
+        class _EAThread2(QThread):
+            line_sig = _sig(str)
+            done_sig = _sig(bool)
+            def __init__(self, tmp):
+                super().__init__(); self._tmp = tmp
+            def run(self):
+                import subprocess, sys
+                proc = subprocess.Popen([sys.executable, self._tmp],
+                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+                for line in proc.stdout:
+                    self.line_sig.emit(line.rstrip())
+                proc.wait()
+                os.unlink(self._tmp)
+                self.done_sig.emit(proc.returncode == 0)
+
+        self._ea_thread2 = _EAThread2(tmp)
+        self._ea_thread2.line_sig.connect(self.log_box.append)
+        self._ea_thread2.done_sig.connect(self._on_ea_v2_done)
+        self._ea_thread2.start()
+
+    def _on_ea_v2_done(self, success):
+        save_dir = self.save_dir_input.text().strip()
+        if success:
+            self.log_box.append("✅ Error analysis complete! Results in error_analysis/ folder.")
+            # Show surface comparison if it exists
+            for name in ["surface_comparison.png", "line_comparison.png"]:
+                p = os.path.join(save_dir, "error_analysis", name)
+                if os.path.exists(p):
+                    self.solution_label.setPixmap(QPixmap(p).scaled(
+                        500, 420, Qt.AspectRatioMode.KeepAspectRatio,
+                        Qt.TransformationMode.SmoothTransformation))
+                    break
+        else:
+            self.log_box.append("❌ Error analysis failed — check log.")
+
     def _on_batch_changed(self, state):
         self.batch_widget.setVisible(state == 2)
 

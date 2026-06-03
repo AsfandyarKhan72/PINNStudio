@@ -833,6 +833,114 @@ for _pval in _param_values:
         if _run_solution_path != "/tmp/solution_plot.png":
             _shutil.copy(_run_solution_path, "/tmp/solution_plot.png")
 
+        # ── Inline Error Analysis ─────────────────────────────
+        if {config.ea_files} and not {config.time_adaptive}:
+            import json as _ea_json
+            from scipy.interpolate import interp1d as _interp1d
+            _ea_files = {config.ea_files}
+            _ea_dir = _os.path.join(_save_dir if _use_save else "/tmp", "error_analysis")
+            _os.makedirs(_ea_dir, exist_ok=True)
+            print("\\n=== Running Error Analysis ===")
+
+            _ea_times = []; _ea_x_refs = []; _ea_u_refs = []
+            for _ea_tv, _ea_fp in _ea_files:
+                _ea_d = np.loadtxt(_ea_fp)
+                if _ea_d.ndim == 1: _ea_d = _ea_d.reshape(1, -1)
+                _ea_idx = np.argsort(_ea_d[:, 0])
+                _ea_x_refs.append(_ea_d[_ea_idx, 0])
+                _ea_u_refs.append(_ea_d[_ea_idx, 2])
+                _ea_times.append(float(_ea_tv))
+                print(f"  Loaded ground truth t={{_ea_tv:.4f}}: {{len(_ea_d)}} pts from {{_os.path.basename(_ea_fp)}}")
+
+            _ea_n_t = len(_ea_times)
+
+            # Predict at exact FEM x values
+            _ea_u_pinns = []
+            for _ei, _ea_tv in enumerate(_ea_times):
+                _ea_xf = _ea_x_refs[_ei]
+                _ea_xt = np.column_stack([_ea_xf, np.full_like(_ea_xf, _ea_tv)])
+                _ea_u_pinns.append(model.predict(_ea_xt)[:, {config.plot_output_idx}].flatten())
+
+            # Metrics
+            _ea_metrics = []
+            for _ei, _ea_tv in enumerate(_ea_times):
+                _up = _ea_u_pinns[_ei]; _uf = _ea_u_refs[_ei]
+                _ea_abs = np.abs(_up - _uf)
+                _ea_l2  = np.linalg.norm(_up - _uf) / (np.linalg.norm(_uf) + 1e-10)
+                _ea_mse = np.mean((_up - _uf)**2)
+                _ea_mx  = np.max(_ea_abs)
+                _ea_ma  = np.mean(_ea_abs)
+                _ea_metrics.append((_ea_tv, _ea_l2, _ea_mse, _ea_mx, _ea_ma))
+                print(f"  t={{_ea_tv:.4f}} — L2={{_ea_l2:.4e}}, MSE={{_ea_mse:.4e}}, Max={{_ea_mx:.4e}}, MeanAbs={{_ea_ma:.4e}}")
+
+            with open(_os.path.join(_ea_dir, "error_metrics.txt"), "w") as _emf:
+                _emf.write("t,L2_relative,MSE,Max_error,Mean_abs_error\\n")
+                for _ea_tv, _l2, _mse, _mx, _ma in _ea_metrics:
+                    _emf.write(f"{{_ea_tv:.6f}},{{_l2:.6e}},{{_mse:.6e}},{{_mx:.6e}},{{_ma:.6e}}\\n")
+            print(f"  Metrics saved: {{_os.path.join(_ea_dir, 'error_metrics.txt')}}")
+
+            # Line comparison
+            if {config.ea_do_line}:
+                _ea_ncols = min(4, _ea_n_t)
+                _ea_nrows = (_ea_n_t + _ea_ncols - 1) // _ea_ncols
+                fig, axes = plt.subplots(_ea_nrows, _ea_ncols, figsize=(4*_ea_ncols, 3.5*_ea_nrows), squeeze=False)
+                fig.suptitle("PINN vs Ground Truth — Line Comparison", fontsize=13, fontweight='bold')
+                _ea_ax_flat = axes.flatten()
+                for _ei in range(_ea_n_t):
+                    ax = _ea_ax_flat[_ei]
+                    _xv = _ea_x_refs[_ei]
+                    _ea_sort = np.argsort(_xv)
+                    _xv_s = _xv[_ea_sort]
+                    _gt_s  = _ea_u_refs[_ei][_ea_sort]
+                    _pinn_s = _ea_u_pinns[_ei][_ea_sort]
+                    _ea_tv, _l2, _mse, _mx, _ma = _ea_metrics[_ei]
+                    ax.plot(_xv_s, _gt_s,   color='#4dabf7', linewidth=2.0, linestyle='-',  label='Ground Truth')
+                    ax.plot(_xv_s, _pinn_s, color='#ff6b6b', linewidth=2.0, linestyle='--', label='PINN')
+                    ax.set_title(f"t = {{_ea_tv:.3f}}  |  L2 = {{_l2:.2e}}", fontsize=10)
+                    ax.set_xlabel("x"); ax.set_ylabel("u(x,t)"); ax.grid(True, alpha=0.3)
+                for _ej in range(_ea_n_t, len(_ea_ax_flat)):
+                    _ea_ax_flat[_ej].set_visible(False)
+                handles, labels = _ea_ax_flat[0].get_legend_handles_labels()
+                fig.legend(handles, labels, loc='lower center', ncol=2, fontsize=10,
+                           framealpha=0.9, bbox_to_anchor=(0.5, 0.01))
+                plt.tight_layout(rect=[0, 0.06, 1, 1])
+                _ea_lp = _os.path.join(_ea_dir, "line_comparison.png")
+                plt.savefig(_ea_lp, dpi=150, bbox_inches='tight'); plt.close()
+                print(f"  Line comparison saved: {{_ea_lp}}")
+
+            # Surface comparison
+            if {config.ea_do_surface}:
+                _ea_x_common = np.linspace({config.x_min}, {config.x_max}, 300)
+                _ea_t_arr = np.array(_ea_times)
+                _ea_U_pinn = np.zeros((len(_ea_t_arr), len(_ea_x_common)))
+                _ea_U_fem  = np.zeros((len(_ea_t_arr), len(_ea_x_common)))
+                for _ei, _ea_tv in enumerate(_ea_times):
+                    _ea_xt_c = np.column_stack([_ea_x_common, np.full_like(_ea_x_common, _ea_tv)])
+                    _ea_U_pinn[_ei, :] = model.predict(_ea_xt_c)[:, {config.plot_output_idx}].flatten()
+                    _ea_fi = _interp1d(_ea_x_refs[_ei], _ea_u_refs[_ei], kind='linear', fill_value='extrapolate')
+                    _ea_U_fem[_ei, :] = _ea_fi(_ea_x_common)
+                _ea_Xg, _ea_Tg = np.meshgrid(_ea_x_common, _ea_t_arr)
+                _ea_U_err = np.abs(_ea_U_pinn - _ea_U_fem)
+                _ea_vmin = min(_ea_U_pinn.min(), _ea_U_fem.min())
+                _ea_vmax = max(_ea_U_pinn.max(), _ea_U_fem.max())
+                fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+                fig.suptitle("PINN vs Ground Truth — Surface Comparison", fontsize=13, fontweight='bold')
+                im0 = axes[0].contourf(_ea_Tg, _ea_Xg, _ea_U_pinn, levels=50, cmap='viridis', vmin=_ea_vmin, vmax=_ea_vmax)
+                axes[0].set_title("PINN  u(x,t)"); axes[0].set_xlabel("t"); axes[0].set_ylabel("x")
+                fig.colorbar(im0, ax=axes[0])
+                im1 = axes[1].contourf(_ea_Tg, _ea_Xg, _ea_U_fem, levels=50, cmap='viridis', vmin=_ea_vmin, vmax=_ea_vmax)
+                axes[1].set_title("Ground Truth  u(x,t)"); axes[1].set_xlabel("t"); axes[1].set_ylabel("x")
+                fig.colorbar(im1, ax=axes[1])
+                im2 = axes[2].contourf(_ea_Tg, _ea_Xg, _ea_U_err, levels=50, cmap='YlOrRd')
+                axes[2].set_title("Error  |PINN - Ground Truth|"); axes[2].set_xlabel("t"); axes[2].set_ylabel("x")
+                fig.colorbar(im2, ax=axes[2])
+                plt.tight_layout()
+                _ea_sp = _os.path.join(_ea_dir, "surface_comparison.png")
+                plt.savefig(_ea_sp, dpi=150, bbox_inches='tight'); plt.close()
+                print(f"  Surface comparison saved: {{_ea_sp}}")
+
+            print("=== Error Analysis Complete ===")
+
         # ── Export solution data ──────────────────────────────
         if _problem_type != "Inverse":
             _data_dir = _os.path.join(

@@ -123,7 +123,7 @@ class PINNConfig:
     lbfgs_maxfun: int = 15000
     lbfgs_maxls: int = 50
     batch_size: int = 0
-    
+
     plot_colormap: str = "RdBu_r"
     plot_levels: int = 50
     plot_resolution: int = 100
@@ -133,3 +133,7 @@ class PINNConfig:
     plot_vmin: float = -1.0
     plot_vmax: float = 1.0
     plot_linewidth: float = 2.0
+
+    ea_files: str = "[]"
+    ea_do_line: bool = True
+    ea_do_surface: bool = True
