@@ -16,6 +16,9 @@ class PINNConfig:
     ta_num_steps: int = 5
     ta_grid_size: int = 101
 
+    ta_transfer_learning: bool = False
+    ta_transfer_optimizer: str = "adam"
+
     parametric_study: bool = False
     parametric_param: str = "none"
     parametric_values: str = ""
@@ -137,3 +140,4 @@ class PINNConfig:
     ea_files: str = "[]"
     ea_do_line: bool = True
     ea_do_surface: bool = True
+

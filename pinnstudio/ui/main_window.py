@@ -568,6 +568,26 @@ class MainWindow(QMainWindow):
         self.ta_grid.setFixedHeight(28); self.ta_grid.setFixedWidth(100)
         row_ta2.addStretch(); row_ta2.addWidget(self.ta_grid)
         ta_layout.addLayout(row_ta2)
+
+        # Transfer learning
+        self.ta_transfer_cb = QCheckBox("Enable transfer learning (warm start from previous step)")
+        self.ta_transfer_cb.setChecked(False)
+        self.ta_transfer_cb.setStyleSheet("color: #69db7c; font-size: 12px;")
+        ta_layout.addWidget(self.ta_transfer_cb)
+
+        self.ta_transfer_opt_widget = QWidget()
+        tl_row = QHBoxLayout(self.ta_transfer_opt_widget)
+        tl_row.setContentsMargins(0, 0, 0, 0)
+        tl_row.addWidget(QLabel("Transfer optimizer:"))
+        self.ta_transfer_opt = QComboBox()
+        self.ta_transfer_opt.addItems(["adam", "lbfgs"])
+        self.ta_transfer_opt.setFixedHeight(26); self.ta_transfer_opt.setFixedWidth(80)
+        tl_row.addStretch(); tl_row.addWidget(self.ta_transfer_opt)
+        self.ta_transfer_opt_widget.setVisible(False)
+        ta_layout.addWidget(self.ta_transfer_opt_widget)
+        self.ta_transfer_cb.stateChanged.connect(
+            lambda s: self.ta_transfer_opt_widget.setVisible(s == 2))
+
         self.ta_widget.setVisible(False)
         adapt_layout.addWidget(self.ta_widget)
         left_layout.addWidget(adapt_group)
@@ -897,6 +917,7 @@ class MainWindow(QMainWindow):
         save_row.addWidget(QLabel("Save to:"))
         self.save_dir_input = QLineEdit()
         self.save_dir_input.setPlaceholderText("Save directory — saves plots, logs, models & data")
+        self.save_dir_input.setText("/home/asfandyarkhan/deepxde_gui/Results")
         self.save_dir_input.setFixedHeight(28)
         save_row.addWidget(self.save_dir_input)
         self.browse_btn = QPushButton("Browse")
@@ -1516,6 +1537,8 @@ class MainWindow(QMainWindow):
             time_adaptive=self.adapt_combo.currentText() == "Time Adaptive",
             ta_num_steps=self.ta_steps.value(),
             ta_grid_size=int(self.ta_grid.currentText()),
+            ta_transfer_learning=self.ta_transfer_cb.isChecked(),
+            ta_transfer_optimizer=self.ta_transfer_opt.currentText(),
             learning_rate=self.lr_spin.value(),
             loss_type=self.loss_combo.currentText(),
             parametric_study=self.param_check.isChecked(),

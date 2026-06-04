@@ -834,14 +834,14 @@ for _pval in _param_values:
             _shutil.copy(_run_solution_path, "/tmp/solution_plot.png")
 
         # ── Inline Error Analysis ─────────────────────────────
-        if {config.ea_files} and not {config.time_adaptive}:
-            import json as _ea_json
+        if {config.ea_files}:
             from scipy.interpolate import interp1d as _interp1d
             _ea_files = {config.ea_files}
             _ea_dir = _os.path.join(_save_dir if _use_save else "/tmp", "error_analysis")
             _os.makedirs(_ea_dir, exist_ok=True)
             print("\\n=== Running Error Analysis ===")
 
+            # Load all ground truth files
             _ea_times = []; _ea_x_refs = []; _ea_u_refs = []
             for _ea_tv, _ea_fp in _ea_files:
                 _ea_d = np.loadtxt(_ea_fp)
@@ -853,16 +853,116 @@ for _pval in _param_values:
                 print(f"  Loaded ground truth t={{_ea_tv:.4f}}: {{len(_ea_d)}} pts from {{_os.path.basename(_ea_fp)}}")
 
             _ea_n_t = len(_ea_times)
+            _ea_u_pinns = [None] * _ea_n_t
+            _ea_metrics = [None] * _ea_n_t
 
-            # Predict at exact FEM x values
-            _ea_u_pinns = []
-            for _ei, _ea_tv in enumerate(_ea_times):
-                _ea_xf = _ea_x_refs[_ei]
-                _ea_xt = np.column_stack([_ea_xf, np.full_like(_ea_xf, _ea_tv)])
-                _ea_u_pinns.append(model.predict(_ea_xt)[:, {config.plot_output_idx}].flatten())
+            if not {config.time_adaptive}:
+                # ── Non-adaptive: use single model ───────────────
+                for _ei, _ea_tv in enumerate(_ea_times):
+                    _ea_xf = _ea_x_refs[_ei]
+                    _ea_xt = np.column_stack([_ea_xf, np.full_like(_ea_xf, _ea_tv)])
+                    _ea_u_pinns[_ei] = model.predict(_ea_xt)[:, {config.plot_output_idx}].flatten()
+                    print(f"  PINN predicted at t={{_ea_tv:.4f}}: {{len(_ea_xf)}} points")
+            else:
+                # ── Time adaptive: match each GT file to correct step model ──
+                # Reconstruct step intervals from saved models
+                import glob as _ea_glob, json as _ea_json
+                _ta_step_dir = _os.path.join(_save_dir, "time_adaptive_steps")
+                _ta_step_dirs = sorted([_sd for _sd in _ea_glob.glob(_os.path.join(_ta_step_dir, "step_*")) if _os.path.isdir(_sd)])
+                # Parse t0, t1 from each step directory name
+                # Format: step_NNN_tX.XXXX_to_tY.YYYY
+                _ta_intervals = []
+                for _sd in _ta_step_dirs:
+                    _sd_name = _os.path.basename(_sd)
+                    try:
+                        _parts = _sd_name.split("_")
+                        _t0_str = _parts[2].replace("t","")
+                        _t1_str = _parts[4].replace("t","")
+                        _ta_intervals.append((float(_t0_str), float(_t1_str), _sd))
+                    except Exception as _pe:
+                        print(f"  Could not parse step dir: {{_sd_name}}: {{_pe}}")
 
-            # Metrics
-            _ea_metrics = []
+                print(f"  Found {{len(_ta_intervals)}} time-adaptive step models")
+
+                # Load each step model once and predict for all GT files in its interval
+                for _si, (_t0_i, _t1_i, _sd_i) in enumerate(_ta_intervals):
+                    # Find GT files whose time falls in [t0, t1]
+                    # For the last step include t1, for others use t0 <= t < t1
+                    # except t0 of first step includes t=t_min
+                    _is_last = (_si == len(_ta_intervals) - 1)
+                    _matching = []
+                    for _ei, _ea_tv in enumerate(_ea_times):
+                        if _is_last:
+                            _in_range = (_t0_i <= _ea_tv <= _t1_i + 1e-10)
+                        else:
+                            _in_range = (_t0_i <= _ea_tv < _t1_i - 1e-10) or \
+                                        (abs(_ea_tv - _t1_i) < 1e-10)  # boundary goes to this step
+                        if _in_range and _ea_u_pinns[_ei] is None:
+                            _matching.append(_ei)
+
+                    if not _matching:
+                        continue
+
+                    print(f"  Step {{_si+1}} [{{_t0_i:.4f}}→{{_t1_i:.4f}}]: predicting for t = {{[_ea_times[_ei] for _ei in _matching]}}")
+
+                    # Load step model
+                    _step_cfg_path = _os.path.join(_sd_i, "step_config.json")
+                    try:
+                        with open(_step_cfg_path) as _scf:
+                            _step_cfg = _ea_json.load(_scf)
+                    except Exception:
+                        _step_cfg = {{"layers": {config.layers}, "activation": "{config.activation}", "loss_type": "{config.loss_type}"}}
+
+                    _step_layers = _step_cfg.get("layers", {config.layers})
+                    _step_act    = _step_cfg.get("activation", "{config.activation}")
+                    _step_loss   = _step_cfg.get("loss_type", "{config.loss_type}")
+
+                    # Build minimal geometry for this step
+                    _step_geom = dde.geometry.Interval({config.x_min}, {config.x_max})
+                    _step_td   = dde.geometry.TimeDomain(_t0_i, _t1_i)
+                    _step_gt   = dde.geometry.GeometryXTime(_step_geom, _step_td)
+                    def _step_pde(x, y): return y[:, 0:1] * 0
+                    _step_data  = dde.data.TimePDE(_step_gt, _step_pde, [], num_domain=100, num_test=100)
+                    _step_net   = dde.nn.FNN(_step_layers, _step_act, "Glorot uniform")
+                    _step_model = dde.Model(_step_data, _step_net)
+
+                    # Find best saved model for this step (lbfgs preferred)
+                    _step_pt = ""
+                    for _pat in ["model_lbfgs-*.pt", "model_lbfgs.pt", "model_adam-*.pt", "model_adam.pt"]:
+                        _step_pts = sorted(_ea_glob.glob(_os.path.join(_sd_i, _pat)))
+                        if _step_pts:
+                            _step_pt = max(_step_pts, key=_os.path.getmtime)
+                            break
+
+                    if not _step_pt:
+                        print(f"  ⚠️ No model found for step {{_si+1}}, skipping")
+                        continue
+
+                    # Compile and restore
+                    if "lbfgs" in _os.path.basename(_step_pt):
+                        dde.optimizers.set_LBFGS_options(maxiter=1)
+                        _step_model.compile("L-BFGS", loss=_step_loss)
+                    else:
+                        _step_model.compile("adam", lr=0.001, loss=_step_loss)
+
+                    _step_model.restore(_step_pt, verbose=0)
+                    print(f"    Restored: {{_os.path.basename(_step_pt)}}")
+
+                    # Predict for each matching GT file
+                    for _ei in _matching:
+                        _ea_xf = _ea_x_refs[_ei]
+                        _ea_tv = _ea_times[_ei]
+                        _ea_xt = np.column_stack([_ea_xf, np.full_like(_ea_xf, _ea_tv)])
+                        _ea_u_pinns[_ei] = _step_model.predict(_ea_xt)[:, 0].flatten()
+                        print(f"    Predicted at t={{_ea_tv:.4f}}: {{len(_ea_xf)}} points")
+
+                # Fill any unmatched with zeros (safety)
+                for _ei in range(_ea_n_t):
+                    if _ea_u_pinns[_ei] is None:
+                        print(f"  ⚠️ No prediction for t={{_ea_times[_ei]:.4f}} — skipping")
+                        _ea_u_pinns[_ei] = np.zeros_like(_ea_u_refs[_ei])
+
+            # ── Compute metrics ───────────────────────────────────
             for _ei, _ea_tv in enumerate(_ea_times):
                 _up = _ea_u_pinns[_ei]; _uf = _ea_u_refs[_ei]
                 _ea_abs = np.abs(_up - _uf)
@@ -870,7 +970,7 @@ for _pval in _param_values:
                 _ea_mse = np.mean((_up - _uf)**2)
                 _ea_mx  = np.max(_ea_abs)
                 _ea_ma  = np.mean(_ea_abs)
-                _ea_metrics.append((_ea_tv, _ea_l2, _ea_mse, _ea_mx, _ea_ma))
+                _ea_metrics[_ei] = (_ea_tv, _ea_l2, _ea_mse, _ea_mx, _ea_ma)
                 print(f"  t={{_ea_tv:.4f}} — L2={{_ea_l2:.4e}}, MSE={{_ea_mse:.4e}}, Max={{_ea_mx:.4e}}, MeanAbs={{_ea_ma:.4e}}")
 
             with open(_os.path.join(_ea_dir, "error_metrics.txt"), "w") as _emf:
@@ -879,7 +979,7 @@ for _pval in _param_values:
                     _emf.write(f"{{_ea_tv:.6f}},{{_l2:.6e}},{{_mse:.6e}},{{_mx:.6e}},{{_ma:.6e}}\\n")
             print(f"  Metrics saved: {{_os.path.join(_ea_dir, 'error_metrics.txt')}}")
 
-            # Line comparison
+            # ── Line comparison ───────────────────────────────────
             if {config.ea_do_line}:
                 _ea_ncols = min(4, _ea_n_t)
                 _ea_nrows = (_ea_n_t + _ea_ncols - 1) // _ea_ncols
@@ -890,8 +990,8 @@ for _pval in _param_values:
                     ax = _ea_ax_flat[_ei]
                     _xv = _ea_x_refs[_ei]
                     _ea_sort = np.argsort(_xv)
-                    _xv_s = _xv[_ea_sort]
-                    _gt_s  = _ea_u_refs[_ei][_ea_sort]
+                    _xv_s   = _xv[_ea_sort]
+                    _gt_s   = _ea_u_refs[_ei][_ea_sort]
                     _pinn_s = _ea_u_pinns[_ei][_ea_sort]
                     _ea_tv, _l2, _mse, _mx, _ma = _ea_metrics[_ei]
                     ax.plot(_xv_s, _gt_s,   color='#4dabf7', linewidth=2.0, linestyle='-',  label='Ground Truth')
@@ -908,21 +1008,32 @@ for _pval in _param_values:
                 plt.savefig(_ea_lp, dpi=150, bbox_inches='tight'); plt.close()
                 print(f"  Line comparison saved: {{_ea_lp}}")
 
-            # Surface comparison
+            # ── Surface comparison ────────────────────────────────
             if {config.ea_do_surface}:
                 _ea_x_common = np.linspace({config.x_min}, {config.x_max}, 300)
-                _ea_t_arr = np.array(_ea_times)
-                _ea_U_pinn = np.zeros((len(_ea_t_arr), len(_ea_x_common)))
-                _ea_U_fem  = np.zeros((len(_ea_t_arr), len(_ea_x_common)))
-                for _ei, _ea_tv in enumerate(_ea_times):
-                    _ea_xt_c = np.column_stack([_ea_x_common, np.full_like(_ea_x_common, _ea_tv)])
-                    _ea_U_pinn[_ei, :] = model.predict(_ea_xt_c)[:, {config.plot_output_idx}].flatten()
-                    _ea_fi = _interp1d(_ea_x_refs[_ei], _ea_u_refs[_ei], kind='linear', fill_value='extrapolate')
-                    _ea_U_fem[_ei, :] = _ea_fi(_ea_x_common)
+                _ea_t_arr    = np.array(_ea_times)
+                _ea_U_pinn   = np.zeros((len(_ea_t_arr), len(_ea_x_common)))
+                _ea_U_fem    = np.zeros((len(_ea_t_arr), len(_ea_x_common)))
+
+                if not {config.time_adaptive}:
+                    for _ei, _ea_tv in enumerate(_ea_times):
+                        _ea_xt_c = np.column_stack([_ea_x_common, np.full_like(_ea_x_common, _ea_tv)])
+                        _ea_U_pinn[_ei, :] = model.predict(_ea_xt_c)[:, {config.plot_output_idx}].flatten()
+                        _ea_fi = _interp1d(_ea_x_refs[_ei], _ea_u_refs[_ei], kind='linear', fill_value='extrapolate')
+                        _ea_U_fem[_ei, :] = _ea_fi(_ea_x_common)
+                else:
+                    # Re-use already-predicted values, interpolate to common grid
+                    for _ei in range(_ea_n_t):
+                        _ea_fi_pinn = _interp1d(_ea_x_refs[_ei], _ea_u_pinns[_ei], kind='linear', fill_value='extrapolate')
+                        _ea_U_pinn[_ei, :] = _ea_fi_pinn(_ea_x_common)
+                        _ea_fi_fem = _interp1d(_ea_x_refs[_ei], _ea_u_refs[_ei], kind='linear', fill_value='extrapolate')
+                        _ea_U_fem[_ei, :] = _ea_fi_fem(_ea_x_common)
+
                 _ea_Xg, _ea_Tg = np.meshgrid(_ea_x_common, _ea_t_arr)
                 _ea_U_err = np.abs(_ea_U_pinn - _ea_U_fem)
-                _ea_vmin = min(_ea_U_pinn.min(), _ea_U_fem.min())
-                _ea_vmax = max(_ea_U_pinn.max(), _ea_U_fem.max())
+                _ea_vmin  = min(_ea_U_pinn.min(), _ea_U_fem.min())
+                _ea_vmax  = max(_ea_U_pinn.max(), _ea_U_fem.max())
+
                 fig, axes = plt.subplots(1, 3, figsize=(15, 5))
                 fig.suptitle("PINN vs Ground Truth — Surface Comparison", fontsize=13, fontweight='bold')
                 im0 = axes[0].contourf(_ea_Tg, _ea_Xg, _ea_U_pinn, levels=50, cmap='viridis', vmin=_ea_vmin, vmax=_ea_vmax)
@@ -1000,6 +1111,14 @@ if _parametric and len(_summary) > 0:
 if {config.time_adaptive}:
     print("\\n=== Starting Time-Adaptive Training ===")
 
+    # Clear old step directories to avoid stale models from previous runs
+    import shutil as _ta_shutil
+    _ta_steps_root = _os.path.join(_save_dir, "time_adaptive_steps")
+    if _os.path.isdir(_ta_steps_root):
+        _ta_shutil.rmtree(_ta_steps_root)
+        print(f"  Cleared old time_adaptive_steps directory")
+    _os.makedirs(_ta_steps_root, exist_ok=True)
+
     n_steps   = {config.ta_num_steps}
     grid_size = {config.ta_grid_size}
     t_start   = {config.t_min}
@@ -1011,6 +1130,8 @@ if {config.time_adaptive}:
 
     x      = x_grid.reshape(-1, 1)
     prev_u = np.reshape({ta_ic_expr}, (-1, 1))
+
+    _prev_step_model_path = ""  # tracks last saved model for transfer learning
 
     for step_i in range(n_steps):
         t0 = t_start + step_i * dt
@@ -1117,6 +1238,47 @@ if {config.time_adaptive}:
 
         net_i   = dde.nn.FNN({config.layers}, "{config.activation}", "Glorot uniform")
         model_i = dde.Model(data_i, net_i)
+
+        # Reset L-BFGS global state before Adam to prevent bleed-over from phase 2
+        try:
+            import deepxde.optimizers.pytorch.optimizers as _dde_opt
+            _dde_opt.LBFGS_options["maxiter"] = 999999
+            _dde_opt.LBFGS_options["iter_per_step"] = 999999
+            _dde_opt.LBFGS_options["maxfun"] = 999999
+            _dde_opt.LBFGS_options["fun_per_step"] = 999999
+        except Exception:
+            pass
+            
+        # ── Transfer learning — warm start from previous step ─
+        if {config.ta_transfer_learning} and step_i > 0 and _prev_step_model_path:
+            try:
+                import torch as _torch
+                _ckpt = _torch.load(_prev_step_model_path, map_location='cpu')
+                # Extract ONLY weights and biases — nothing else
+                _state = _ckpt["model_state_dict"]
+                _wb_only = {{
+                    k: v for k, v in _state.items()
+                    if k.endswith('.weight') or k.endswith('.bias')
+                }}
+                # Strict=False so geometry mismatch doesn't crash
+                # but we verify shapes match before loading
+                _cur_state = model_i.net.state_dict()
+                _matched = {{}}
+                _skipped = []
+                for k, v in _wb_only.items():
+                    if k in _cur_state and _cur_state[k].shape == v.shape:
+                        _matched[k] = v
+                    else:
+                        _skipped.append(k)
+                _cur_state.update(_matched)
+                model_i.net.load_state_dict(_cur_state)
+                print(f"  ✅ Transfer learning: {{len(_matched)}} weight/bias tensors transferred from step {{step_i}}")
+                if _skipped:
+                    print(f"  ⚠️  Skipped {{len(_skipped)}} tensors (shape mismatch): {{_skipped}}")
+            except Exception as _te:
+                print(f"  ⚠️ Transfer learning failed: {{_te}} — training from scratch")
+
+        # Adam always runs full iterations — transfer learning only affects starting weights
         model_i.compile("{config.optimizer}", lr=_lr, loss="{config.loss_type}", loss_weights=_multi_weights)
         lh_i, ts_i = model_i.train(iterations={config.iterations}, display_every=1000)
 
@@ -1131,6 +1293,8 @@ if {config.time_adaptive}:
                 )
             model_i.compile("L-BFGS", loss="{config.loss_type}", loss_weights=_multi_weights)
             lh_i, ts_i = model_i.train(display_every=200)
+            print(f"  L-BFGS phase done. Steps: {{len(lh_i.steps)}}")
+
             if _use_save:
                 _step_dir_lbfgs = _os.path.join(_save_dir, "time_adaptive_steps", f"step_{{step_i+1:03d}}_t{{t0:.4f}}_to_t{{t1:.4f}}")
                 _os.makedirs(_step_dir_lbfgs, exist_ok=True)
@@ -1202,6 +1366,23 @@ if {config.time_adaptive}:
             _step_adam_path = _os.path.join(_step_dir, "model_adam")
             model_i.save(_step_adam_path)
             print(f"Step Adam model saved: {{_step_adam_path}}-{{_iters}}.pt")
+
+            # Track for transfer learning — prefer lbfgs if chosen, else adam
+            _prev_step_model_path = ""
+            import glob as _tl_glob
+            if "{config.ta_transfer_optimizer}" == "lbfgs":
+                # Look for any lbfgs .pt file (may have iteration number suffix)
+                _lbfgs_pts = sorted(_tl_glob.glob(_os.path.join(_step_dir, "model_lbfgs*.pt")))
+                if _lbfgs_pts:
+                    _prev_step_model_path = max(_lbfgs_pts, key=_os.path.getmtime)
+                    print(f"  Transfer learning source (lbfgs): {{_os.path.basename(_prev_step_model_path)}}")
+            if not _prev_step_model_path:
+                # Fall back to adam
+                _adam_pts = sorted(_tl_glob.glob(_os.path.join(_step_dir, "model_adam*.pt")))
+                if _adam_pts:
+                    _prev_step_model_path = max(_adam_pts, key=_os.path.getmtime)
+                    print(f"  Transfer learning source (adam): {{_os.path.basename(_prev_step_model_path)}}")
+
             # ── Save step config JSON ─────────────────────────
             _step_cfg = {{
                 "step": step_i + 1,
@@ -1259,6 +1440,192 @@ if {config.time_adaptive}:
     plt.title("Loss — Last Time Sub-domain")
     plt.legend(); plt.tight_layout()
     plt.savefig(_ta_loss_path, dpi=100); plt.close()
+
+    # ── Time Adaptive Error Analysis ──────────────────────────
+    if {config.ea_files}:
+        from scipy.interpolate import interp1d as _interp1d
+        import glob as _ea_glob, json as _ea_json
+        _ea_files = {config.ea_files}
+        _ea_dir = _os.path.join(_save_dir if _use_save else "/tmp", "error_analysis")
+        _os.makedirs(_ea_dir, exist_ok=True)
+        print("\\n=== Running Time-Adaptive Error Analysis ===")
+
+        # Load all ground truth files
+        _ea_times = []; _ea_x_refs = []; _ea_u_refs = []
+        for _ea_tv, _ea_fp in _ea_files:
+            _ea_d = np.loadtxt(_ea_fp)
+            if _ea_d.ndim == 1: _ea_d = _ea_d.reshape(1, -1)
+            _ea_idx = np.argsort(_ea_d[:, 0])
+            _ea_x_refs.append(_ea_d[_ea_idx, 0])
+            _ea_u_refs.append(_ea_d[_ea_idx, 2])
+            _ea_times.append(float(_ea_tv))
+            print(f"  Loaded ground truth t={{_ea_tv:.4f}}: {{len(_ea_d)}} pts from {{_os.path.basename(_ea_fp)}}")
+
+        _ea_n_t = len(_ea_times)
+        _ea_u_pinns = [None] * _ea_n_t
+
+        # Find all step directories
+        _ta_step_dir = _os.path.join(_save_dir, "time_adaptive_steps")
+        _ta_step_dirs = sorted([_sd for _sd in _ea_glob.glob(_os.path.join(_ta_step_dir, "step_*")) if _os.path.isdir(_sd)])
+        _ta_intervals = []
+        for _sd in _ta_step_dirs:
+            _sd_name = _os.path.basename(_sd)
+            try:
+                _parts = _sd_name.split("_")
+                _t0_str = _parts[2].replace("t","")
+                _t1_str = _parts[4].replace("t","")
+                _ta_intervals.append((float(_t0_str), float(_t1_str), _sd))
+            except Exception as _pe:
+                print(f"  Could not parse step dir: {{_sd_name}}: {{_pe}}")
+        print(f"  Found {{len(_ta_intervals)}} time-adaptive step models")
+
+        for _si, (_t0_i, _t1_i, _sd_i) in enumerate(_ta_intervals):
+            _is_last = (_si == len(_ta_intervals) - 1)
+            _matching = []
+            for _ei, _ea_tv in enumerate(_ea_times):
+                if _is_last:
+                    _in_range = (_t0_i <= _ea_tv <= _t1_i + 1e-10)
+                else:
+                    _in_range = (_t0_i <= _ea_tv < _t1_i - 1e-10) or \
+                                (abs(_ea_tv - _t1_i) < 1e-10)
+                if _in_range and _ea_u_pinns[_ei] is None:
+                    _matching.append(_ei)
+
+            if not _matching:
+                continue
+
+            print(f"  Step {{_si+1}} [{{_t0_i:.4f}}→{{_t1_i:.4f}}]: t = {{[_ea_times[_ei] for _ei in _matching]}}")
+
+            _step_cfg_path = _os.path.join(_sd_i, "step_config.json")
+            try:
+                with open(_step_cfg_path) as _scf:
+                    _step_cfg = _ea_json.load(_scf)
+            except Exception:
+                _step_cfg = {{"layers": {config.layers}, "activation": "{config.activation}", "loss_type": "{config.loss_type}"}}
+
+            _step_layers = _step_cfg.get("layers", {config.layers})
+            _step_act    = _step_cfg.get("activation", "{config.activation}")
+            _step_loss   = _step_cfg.get("loss_type", "{config.loss_type}")
+
+            _step_geom  = dde.geometry.Interval({config.x_min}, {config.x_max})
+            _step_td    = dde.geometry.TimeDomain(_t0_i, _t1_i)
+            _step_gt    = dde.geometry.GeometryXTime(_step_geom, _step_td)
+            def _step_pde(x, y): return y[:, 0:1] * 0
+            _step_data  = dde.data.TimePDE(_step_gt, _step_pde, [], num_domain=100, num_test=100)
+            _step_net   = dde.nn.FNN(_step_layers, _step_act, "Glorot uniform")
+            _step_model = dde.Model(_step_data, _step_net)
+
+            _step_pt = ""
+            for _pat in ["model_lbfgs-*.pt", "model_lbfgs.pt", "model_adam-*.pt", "model_adam.pt"]:
+                _step_pts = sorted(_ea_glob.glob(_os.path.join(_sd_i, _pat)))
+                if _step_pts:
+                    _step_pt = max(_step_pts, key=_os.path.getmtime)
+                    break
+
+            if not _step_pt:
+                print(f"  ⚠️ No model found for step {{_si+1}}, skipping")
+                continue
+
+            if "lbfgs" in _os.path.basename(_step_pt):
+                dde.optimizers.set_LBFGS_options(maxiter=1)
+                _step_model.compile("L-BFGS", loss=_step_loss)
+            else:
+                _step_model.compile("adam", lr=0.001, loss=_step_loss)
+
+            _step_model.restore(_step_pt, verbose=0)
+            print(f"    Restored: {{_os.path.basename(_step_pt)}}")
+
+            for _ei in _matching:
+                _ea_xf = _ea_x_refs[_ei]
+                _ea_tv = _ea_times[_ei]
+                _ea_xt = np.column_stack([_ea_xf, np.full_like(_ea_xf, _ea_tv)])
+                _ea_u_pinns[_ei] = _step_model.predict(_ea_xt)[:, 0].flatten()
+                print(f"    Predicted at t={{_ea_tv:.4f}}: {{len(_ea_xf)}} points")
+
+        for _ei in range(_ea_n_t):
+            if _ea_u_pinns[_ei] is None:
+                print(f"  ⚠️ No prediction for t={{_ea_times[_ei]:.4f}} — zero fill")
+                _ea_u_pinns[_ei] = np.zeros_like(_ea_u_refs[_ei])
+
+        # Metrics
+        _ea_metrics = []
+        for _ei, _ea_tv in enumerate(_ea_times):
+            _up = _ea_u_pinns[_ei]; _uf = _ea_u_refs[_ei]
+            _ea_abs = np.abs(_up - _uf)
+            _ea_l2  = np.linalg.norm(_up - _uf) / (np.linalg.norm(_uf) + 1e-10)
+            _ea_mse = np.mean((_up - _uf)**2)
+            _ea_mx  = np.max(_ea_abs)
+            _ea_ma  = np.mean(_ea_abs)
+            _ea_metrics.append((_ea_tv, _ea_l2, _ea_mse, _ea_mx, _ea_ma))
+            print(f"  t={{_ea_tv:.4f}} — L2={{_ea_l2:.4e}}, MSE={{_ea_mse:.4e}}, Max={{_ea_mx:.4e}}")
+
+        with open(_os.path.join(_ea_dir, "error_metrics.txt"), "w") as _emf:
+            _emf.write("t,L2_relative,MSE,Max_error,Mean_abs_error\\n")
+            for _ea_tv, _l2, _mse, _mx, _ma in _ea_metrics:
+                _emf.write(f"{{_ea_tv:.6f}},{{_l2:.6e}},{{_mse:.6e}},{{_mx:.6e}},{{_ma:.6e}}\\n")
+        print(f"  Metrics saved: {{_os.path.join(_ea_dir, 'error_metrics.txt')}}")
+
+        # Line comparison
+        if {config.ea_do_line}:
+            _ea_ncols = min(4, _ea_n_t)
+            _ea_nrows = (_ea_n_t + _ea_ncols - 1) // _ea_ncols
+            fig, axes = plt.subplots(_ea_nrows, _ea_ncols, figsize=(4*_ea_ncols, 3.5*_ea_nrows), squeeze=False)
+            fig.suptitle("PINN vs Ground Truth — Line Comparison", fontsize=13, fontweight='bold')
+            _ea_ax_flat = axes.flatten()
+            for _ei in range(_ea_n_t):
+                ax = _ea_ax_flat[_ei]
+                _xv = _ea_x_refs[_ei]
+                _ea_sort = np.argsort(_xv)
+                _xv_s = _xv[_ea_sort]
+                _gt_s = _ea_u_refs[_ei][_ea_sort]
+                _pinn_s = _ea_u_pinns[_ei][_ea_sort]
+                _ea_tv, _l2, _mse, _mx, _ma = _ea_metrics[_ei]
+                ax.plot(_xv_s, _gt_s,   color='#4dabf7', linewidth=2.0, linestyle='-',  label='Ground Truth')
+                ax.plot(_xv_s, _pinn_s, color='#ff6b6b', linewidth=2.0, linestyle='--', label='PINN')
+                ax.set_title(f"t = {{_ea_tv:.3f}}  |  L2 = {{_l2:.2e}}", fontsize=10)
+                ax.set_xlabel("x"); ax.set_ylabel("u(x,t)"); ax.grid(True, alpha=0.3)
+            for _ej in range(_ea_n_t, len(_ea_ax_flat)):
+                _ea_ax_flat[_ej].set_visible(False)
+            handles, labels = _ea_ax_flat[0].get_legend_handles_labels()
+            fig.legend(handles, labels, loc='lower center', ncol=2, fontsize=10,
+                       framealpha=0.9, bbox_to_anchor=(0.5, 0.01))
+            plt.tight_layout(rect=[0, 0.06, 1, 1])
+            _ea_lp = _os.path.join(_ea_dir, "line_comparison.png")
+            plt.savefig(_ea_lp, dpi=150, bbox_inches='tight'); plt.close()
+            print(f"  Line comparison saved: {{_ea_lp}}")
+
+        # Surface comparison
+        if {config.ea_do_surface}:
+            _ea_x_common = np.linspace({config.x_min}, {config.x_max}, 300)
+            _ea_t_arr = np.array(_ea_times)
+            _ea_U_pinn = np.zeros((len(_ea_t_arr), len(_ea_x_common)))
+            _ea_U_fem  = np.zeros((len(_ea_t_arr), len(_ea_x_common)))
+            for _ei in range(_ea_n_t):
+                _ea_fi_p = _interp1d(_ea_x_refs[_ei], _ea_u_pinns[_ei], kind='linear', fill_value='extrapolate')
+                _ea_U_pinn[_ei, :] = _ea_fi_p(_ea_x_common)
+                _ea_fi_f = _interp1d(_ea_x_refs[_ei], _ea_u_refs[_ei], kind='linear', fill_value='extrapolate')
+                _ea_U_fem[_ei, :] = _ea_fi_f(_ea_x_common)
+            _ea_Xg, _ea_Tg = np.meshgrid(_ea_x_common, _ea_t_arr)
+            _ea_U_err = np.abs(_ea_U_pinn - _ea_U_fem)
+            _ea_vmin = min(_ea_U_pinn.min(), _ea_U_fem.min())
+            _ea_vmax = max(_ea_U_pinn.max(), _ea_U_fem.max())
+            fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+            fig.suptitle("PINN vs Ground Truth — Surface Comparison", fontsize=13, fontweight='bold')
+            im0 = axes[0].contourf(_ea_Tg, _ea_Xg, _ea_U_pinn, levels=50, cmap='viridis', vmin=_ea_vmin, vmax=_ea_vmax)
+            axes[0].set_title("PINN  u(x,t)"); axes[0].set_xlabel("t"); axes[0].set_ylabel("x")
+            fig.colorbar(im0, ax=axes[0])
+            im1 = axes[1].contourf(_ea_Tg, _ea_Xg, _ea_U_fem, levels=50, cmap='viridis', vmin=_ea_vmin, vmax=_ea_vmax)
+            axes[1].set_title("Ground Truth  u(x,t)"); axes[1].set_xlabel("t"); axes[1].set_ylabel("x")
+            fig.colorbar(im1, ax=axes[1])
+            im2 = axes[2].contourf(_ea_Tg, _ea_Xg, _ea_U_err, levels=50, cmap='YlOrRd')
+            axes[2].set_title("Error  |PINN - Ground Truth|"); axes[2].set_xlabel("t"); axes[2].set_ylabel("x")
+            fig.colorbar(im2, ax=axes[2])
+            plt.tight_layout()
+            _ea_sp = _os.path.join(_ea_dir, "surface_comparison.png")
+            plt.savefig(_ea_sp, dpi=150, bbox_inches='tight'); plt.close()
+            print(f"  Surface comparison saved: {{_ea_sp}}")
+
+        print("=== Time-Adaptive Error Analysis Complete ===")
 
 print("DONE")
 """
