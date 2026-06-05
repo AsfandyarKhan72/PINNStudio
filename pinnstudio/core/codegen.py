@@ -96,12 +96,18 @@ if _use_save:
         "optimizer2": "{config.optimizer2}",
         "loss_type": "{config.loss_type}",
     }}
-    with open(_os.path.join(_save_dir, "model_config.json"), "w") as _mcf:
+    _os.makedirs(_os.path.join(_save_dir, "solution_results"), exist_ok=True)
+    with open(_os.path.join(_save_dir, "solution_results", "model_config.json"), "w") as _mcf:
         _json.dump(_model_config, _mcf, indent=2)
-    print(f"Model config saved to: {{_os.path.join(_save_dir, 'model_config.json')}}")
-_loss_path     = _os.path.join(_save_dir, "loss_plot.png")     if _use_save else "/tmp/loss_plot.png"
-_solution_path = _os.path.join(_save_dir, "solution_plot.png") if _use_save else "/tmp/solution_plot.png"
-_log_path      = _os.path.join(_save_dir, "training_log.txt")  if _use_save else None
+    print(f"Model config saved to: {{_os.path.join(_save_dir, 'solution_results', 'model_config.json')}}")
+
+# ── Solution results folder ───────────────────────────────────
+_sol_dir = _os.path.join(_save_dir, "solution_results") if _use_save else "/tmp"
+if _use_save:
+    _os.makedirs(_sol_dir, exist_ok=True)
+_loss_path     = _os.path.join(_sol_dir, "loss_plot.png")
+_solution_path = _os.path.join(_sol_dir, "solution_plot.png")
+_log_path      = _os.path.join(_sol_dir, "training_log.txt") if _use_save else None
 
 # ── Problem dimension ─────────────────────────────────────────
 _is_2d = "{config.problem_dim}" == "2D"
@@ -563,9 +569,9 @@ for _pval in _param_values:
             loss_history, train_state = model.train(iterations=_iters, display_every=1000)
 
             if _use_save:
-                _adam_model_path = _os.path.join(_save_dir, "model_adam")
+                _adam_model_path = _os.path.join(_sol_dir, "model_adam")
                 model.save(_adam_model_path)
-                _adam_cfg_path = _os.path.join(_save_dir, f"model_adam-{{_iters}}.json")
+                _adam_cfg_path = _os.path.join(_sol_dir, f"model_adam-{{_iters}}.json")
                 with open(_adam_cfg_path, "w") as _acf:
                     _json.dump(_model_config, _acf, indent=2)
                 print(f"Adam config saved to: {{_adam_cfg_path}}")
@@ -629,10 +635,10 @@ for _pval in _param_values:
                     model.compile("L-BFGS", loss="{config.loss_type}", loss_weights=_phase2_weights)
                     loss_history, train_state = model.train(display_every=200)  # L-BFGS doesn't use batch_size
                     if _use_save:
-                        _lbfgs_model_path = _os.path.join(_save_dir, "model_lbfgs")
+                        _lbfgs_model_path = _os.path.join(_sol_dir, "model_lbfgs")
                         model.save(_lbfgs_model_path)
                         _lbfgs_iter = loss_history.steps[-1] if loss_history.steps else _iters
-                        _lbfgs_cfg_path = _os.path.join(_save_dir, f"model_lbfgs-{{_lbfgs_iter}}.json")
+                        _lbfgs_cfg_path = _os.path.join(_sol_dir, f"model_lbfgs-{{_lbfgs_iter}}.json")
                         with open(_lbfgs_cfg_path, "w") as _lcf:
                             _json.dump(_model_config, _lcf, indent=2)
                         print(f"L-BFGS config saved to: {{_lbfgs_cfg_path}}")
@@ -768,29 +774,29 @@ for _pval in _param_values:
         _plot_idx = {config.plot_output_idx}
 
         if _is_2d:
-            # 2D: heatmap at multiple time snapshots
-            _n_snaps = min(4, {config.num_timesteps})
+            # 2D: x-y heatmaps at user-selected number of time snapshots
+            _n_snaps = {config.plot_n_2d_snapshots}
             _t_snaps = np.linspace({config.t_min}, {config.t_max}, _n_snaps)
-            _xp = np.linspace({config.x_min}, {config.x_max}, 80)
-            _yp = np.linspace({config.y_min}, {config.y_max}, 80)
+            _res_2d = {config.plot_resolution}
+            _xp = np.linspace({config.x_min}, {config.x_max}, _res_2d)
+            _yp = np.linspace({config.y_min}, {config.y_max}, _res_2d)
             _Xg, _Yg = np.meshgrid(_xp, _yp)
+            _vmin_2d = None if {config.plot_auto_range} else {config.plot_vmin}
+            _vmax_2d = None if {config.plot_auto_range} else {config.plot_vmax}
 
-            fig, axes = plt.subplots(1, _n_snaps, figsize=(4*_n_snaps, 4))
-            if _n_snaps == 1:
-                axes = [axes]
-            for _ai, _tv in enumerate(t_snaps if False else _t_snaps):
+            fig, axes = plt.subplots(1, _n_snaps, figsize=(5*_n_snaps, 5))
+            if _n_snaps == 1: axes = [axes]
+            for _ai, _tv in enumerate(_t_snaps):
                 _XYT = np.column_stack([_Xg.ravel(), _Yg.ravel(), np.full(_Xg.size, _tv)])
-                _pred = model.predict(_XYT)[:, _plot_idx].reshape(80, 80)
-                _vmin_2d = None if {config.plot_auto_range} else {config.plot_vmin}
-                _vmax_2d = None if {config.plot_auto_range} else {config.plot_vmax}
+                _pred = model.predict(_XYT)[:, _plot_idx].reshape(_res_2d, _res_2d)
                 im = axes[_ai].contourf(_Xg, _Yg, _pred, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_2d, vmax=_vmax_2d)
                 axes[_ai].set_title(f"t = {{_tv:.3f}}")
                 axes[_ai].set_xlabel("x"); axes[_ai].set_ylabel("y")
-                fig.colorbar(im, ax=axes[_ai])
+                if {config.plot_colorbar}: fig.colorbar(im, ax=axes[_ai])
             out_name = "{config.output_names}".split(",")[_plot_idx].strip()
             fig.suptitle(f"PINN Solution — {{out_name}}(x,y,t)", fontsize=12)
             plt.tight_layout()
-            plt.savefig(_run_solution_path, dpi=100); plt.close()
+            plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
         else:
             # 1D plot
             _plot_type = "{config.plot_type}"
@@ -842,16 +848,33 @@ for _pval in _param_values:
             print("\\n=== Running Error Analysis ===")
 
             # Load all ground truth files
-            _ea_times = []; _ea_x_refs = []; _ea_u_refs = []
+            _ea_times = []; _ea_x_refs = []; _ea_y_refs = []; _ea_u_refs = []
             for _ea_tv, _ea_fp in _ea_files:
                 _ea_d = np.loadtxt(_ea_fp)
                 if _ea_d.ndim == 1: _ea_d = _ea_d.reshape(1, -1)
-                _ea_idx = np.argsort(_ea_d[:, 0])
-                _ea_x_refs.append(_ea_d[_ea_idx, 0])
-                _ea_u_refs.append(_ea_d[_ea_idx, 2])
-                _ea_times.append(float(_ea_tv))
-                print(f"  Loaded ground truth t={{_ea_tv:.4f}}: {{len(_ea_d)}} pts from {{_os.path.basename(_ea_fp)}}")
-
+                if _is_2d:
+                    # 2D format: x, y, t, u — sort by x then y
+                    _ea_idx = np.lexsort((_ea_d[:, 1], _ea_d[:, 0]))
+                    _ea_x_refs.append(_ea_d[_ea_idx, 0])
+                    _ea_y_refs.append(_ea_d[_ea_idx, 1])
+                    _ea_u_refs.append(_ea_d[_ea_idx, 3])
+                    _detected_t = float(_ea_d[0, 2])
+                    _ea_times.append(_detected_t)
+                    print(f"  Loaded ground truth t={{_detected_t:.4f}}: {{len(_ea_d)}} pts from {{_os.path.basename(_ea_fp)}}")
+                else:
+                    # 1D format: x, t, u — sort by x
+                    _ea_idx = np.argsort(_ea_d[:, 0])
+                    _ea_x_refs.append(_ea_d[_ea_idx, 0])
+                    _ea_y_refs.append(np.zeros_like(_ea_d[_ea_idx, 0]))
+                    _ea_u_refs.append(_ea_d[_ea_idx, 2])
+                    _ea_times.append(float(_ea_tv))
+                    print(f"  Loaded ground truth t={{_ea_tv:.4f}}: {{len(_ea_d)}} pts from {{_os.path.basename(_ea_fp)}}")
+            # Sort all loaded data by time value — outside the loop
+            _ea_sort_idx = np.argsort(_ea_times)
+            _ea_times  = [_ea_times[_i]  for _i in _ea_sort_idx]
+            _ea_x_refs = [_ea_x_refs[_i] for _i in _ea_sort_idx]
+            _ea_y_refs = [_ea_y_refs[_i] for _i in _ea_sort_idx]
+            _ea_u_refs = [_ea_u_refs[_i] for _i in _ea_sort_idx]
             _ea_n_t = len(_ea_times)
             _ea_u_pinns = [None] * _ea_n_t
             _ea_metrics = [None] * _ea_n_t
@@ -860,7 +883,11 @@ for _pval in _param_values:
                 # ── Non-adaptive: use single model ───────────────
                 for _ei, _ea_tv in enumerate(_ea_times):
                     _ea_xf = _ea_x_refs[_ei]
-                    _ea_xt = np.column_stack([_ea_xf, np.full_like(_ea_xf, _ea_tv)])
+                    if _is_2d:
+                        _ea_yf = _ea_y_refs[_ei]
+                        _ea_xt = np.column_stack([_ea_xf, _ea_yf, np.full_like(_ea_xf, _ea_tv)])
+                    else:
+                        _ea_xt = np.column_stack([_ea_xf, np.full_like(_ea_xf, _ea_tv)])
                     _ea_u_pinns[_ei] = model.predict(_ea_xt)[:, {config.plot_output_idx}].flatten()
                     print(f"  PINN predicted at t={{_ea_tv:.4f}}: {{len(_ea_xf)}} points")
             else:
@@ -989,10 +1016,23 @@ for _pval in _param_values:
                 for _ei in range(_ea_n_t):
                     ax = _ea_ax_flat[_ei]
                     _xv = _ea_x_refs[_ei]
-                    _ea_sort = np.argsort(_xv)
-                    _xv_s   = _xv[_ea_sort]
-                    _gt_s   = _ea_u_refs[_ei][_ea_sort]
-                    _pinn_s = _ea_u_pinns[_ei][_ea_sort]
+                    if _is_2d:
+                        # For 2D line plot: extract mid-y slice
+                        _yv = _ea_y_refs[_ei]
+                        _y_mid = ({config.y_min} + {config.y_max}) / 2.0
+                        _y_tol = ({config.y_max} - {config.y_min}) / 20.0
+                        _mid_mask = np.abs(_yv - _y_mid) < _y_tol
+                        if _mid_mask.sum() < 5:
+                            _mid_mask = np.abs(_yv - _y_mid) < ({config.y_max} - {config.y_min}) / 5.0
+                        _ea_sort = np.argsort(_xv[_mid_mask])
+                        _xv_s   = _xv[_mid_mask][_ea_sort]
+                        _gt_s   = _ea_u_refs[_ei][_mid_mask][_ea_sort]
+                        _pinn_s = _ea_u_pinns[_ei][_mid_mask][_ea_sort]
+                    else:
+                        _ea_sort = np.argsort(_xv)
+                        _xv_s   = _xv[_ea_sort]
+                        _gt_s   = _ea_u_refs[_ei][_ea_sort]
+                        _pinn_s = _ea_u_pinns[_ei][_ea_sort]
                     _ea_tv, _l2, _mse, _mx, _ma = _ea_metrics[_ei]
                     ax.plot(_xv_s, _gt_s,   color='#4dabf7', linewidth=2.0, linestyle='-',  label='Ground Truth')
                     ax.plot(_xv_s, _pinn_s, color='#ff6b6b', linewidth=2.0, linestyle='--', label='PINN')
@@ -1010,53 +1050,91 @@ for _pval in _param_values:
 
             # ── Surface comparison ────────────────────────────────
             if {config.ea_do_surface}:
-                _ea_x_common = np.linspace({config.x_min}, {config.x_max}, 300)
-                _ea_t_arr    = np.array(_ea_times)
-                _ea_U_pinn   = np.zeros((len(_ea_t_arr), len(_ea_x_common)))
-                _ea_U_fem    = np.zeros((len(_ea_t_arr), len(_ea_x_common)))
-
-                if not {config.time_adaptive}:
+                if _is_2d:
+                    # 2D: 3 columns (PINN | FEM | Error), one row per time snapshot
+                    fig, axes = plt.subplots(_ea_n_t, 3,
+                                             figsize=(15, 4*_ea_n_t), squeeze=False)
+                    fig.suptitle("PINN vs Ground Truth — 2D Heatmaps", fontsize=13, fontweight='bold')
+                    _res_ea = 60
+                    _xg_ea = np.linspace({config.x_min}, {config.x_max}, _res_ea)
+                    _yg_ea = np.linspace({config.y_min}, {config.y_max}, _res_ea)
+                    _Xg_ea, _Yg_ea = np.meshgrid(_xg_ea, _yg_ea)
+                    from scipy.interpolate import griddata as _gd
                     for _ei, _ea_tv in enumerate(_ea_times):
-                        _ea_xt_c = np.column_stack([_ea_x_common, np.full_like(_ea_x_common, _ea_tv)])
-                        _ea_U_pinn[_ei, :] = model.predict(_ea_xt_c)[:, {config.plot_output_idx}].flatten()
-                        _ea_fi = _interp1d(_ea_x_refs[_ei], _ea_u_refs[_ei], kind='linear', fill_value='extrapolate')
-                        _ea_U_fem[_ei, :] = _ea_fi(_ea_x_common)
+                        _ea_tv_r, _l2, _mse, _mx, _ma = _ea_metrics[_ei]
+                        # PINN prediction on grid
+                        _xyt_grid = np.column_stack([_Xg_ea.ravel(), _Yg_ea.ravel(), np.full(_Xg_ea.size, _ea_tv)])
+                        _u_pinn_grid = model.predict(_xyt_grid)[:, {config.plot_output_idx}].reshape(_res_ea, _res_ea)
+                        # FEM interpolated onto same grid
+                        _u_fem_grid = _gd(
+                            np.column_stack([_ea_x_refs[_ei], _ea_y_refs[_ei]]),
+                            _ea_u_refs[_ei],
+                            (_Xg_ea, _Yg_ea), method='linear', fill_value=0.0)
+                        _u_err_grid = np.abs(_u_pinn_grid - _u_fem_grid)
+                        _vmin_ea = min(_u_pinn_grid.min(), _u_fem_grid.min())
+                        _vmax_ea = max(_u_pinn_grid.max(), _u_fem_grid.max())
+                        # Column 0: PINN
+                        im0 = axes[_ei][0].contourf(_Xg_ea, _Yg_ea, _u_pinn_grid, levels=40,
+                                                     cmap='viridis', vmin=_vmin_ea, vmax=_vmax_ea)
+                        axes[_ei][0].set_title(f"PINN  t={{_ea_tv:.3f}}  L2={{_l2:.2e}}", fontsize=10)
+                        axes[_ei][0].set_xlabel("x"); axes[_ei][0].set_ylabel("y")
+                        fig.colorbar(im0, ax=axes[_ei][0])
+                        # Column 1: FEM
+                        im1 = axes[_ei][1].contourf(_Xg_ea, _Yg_ea, _u_fem_grid, levels=40,
+                                                     cmap='viridis', vmin=_vmin_ea, vmax=_vmax_ea)
+                        axes[_ei][1].set_title(f"Ground Truth  t={{_ea_tv:.3f}}", fontsize=10)
+                        axes[_ei][1].set_xlabel("x"); axes[_ei][1].set_ylabel("y")
+                        fig.colorbar(im1, ax=axes[_ei][1])
+                        # Column 2: Absolute error
+                        im2 = axes[_ei][2].contourf(_Xg_ea, _Yg_ea, _u_err_grid, levels=40, cmap='YlOrRd')
+                        axes[_ei][2].set_title(f"|Error|  t={{_ea_tv:.3f}}  Max={{_mx:.2e}}", fontsize=10)
+                        axes[_ei][2].set_xlabel("x"); axes[_ei][2].set_ylabel("y")
+                        fig.colorbar(im2, ax=axes[_ei][2])
+                    plt.tight_layout()
                 else:
-                    # Re-use already-predicted values, interpolate to common grid
-                    for _ei in range(_ea_n_t):
-                        _ea_fi_pinn = _interp1d(_ea_x_refs[_ei], _ea_u_pinns[_ei], kind='linear', fill_value='extrapolate')
-                        _ea_U_pinn[_ei, :] = _ea_fi_pinn(_ea_x_common)
-                        _ea_fi_fem = _interp1d(_ea_x_refs[_ei], _ea_u_refs[_ei], kind='linear', fill_value='extrapolate')
-                        _ea_U_fem[_ei, :] = _ea_fi_fem(_ea_x_common)
-
-                _ea_Xg, _ea_Tg = np.meshgrid(_ea_x_common, _ea_t_arr)
-                _ea_U_err = np.abs(_ea_U_pinn - _ea_U_fem)
-                _ea_vmin  = min(_ea_U_pinn.min(), _ea_U_fem.min())
-                _ea_vmax  = max(_ea_U_pinn.max(), _ea_U_fem.max())
-
-                fig, axes = plt.subplots(1, 3, figsize=(15, 5))
-                fig.suptitle("PINN vs Ground Truth — Surface Comparison", fontsize=13, fontweight='bold')
-                im0 = axes[0].contourf(_ea_Tg, _ea_Xg, _ea_U_pinn, levels=50, cmap='viridis', vmin=_ea_vmin, vmax=_ea_vmax)
-                axes[0].set_title("PINN  u(x,t)"); axes[0].set_xlabel("t"); axes[0].set_ylabel("x")
-                fig.colorbar(im0, ax=axes[0])
-                im1 = axes[1].contourf(_ea_Tg, _ea_Xg, _ea_U_fem, levels=50, cmap='viridis', vmin=_ea_vmin, vmax=_ea_vmax)
-                axes[1].set_title("Ground Truth  u(x,t)"); axes[1].set_xlabel("t"); axes[1].set_ylabel("x")
-                fig.colorbar(im1, ax=axes[1])
-                im2 = axes[2].contourf(_ea_Tg, _ea_Xg, _ea_U_err, levels=50, cmap='YlOrRd')
-                axes[2].set_title("Error  |PINN - Ground Truth|"); axes[2].set_xlabel("t"); axes[2].set_ylabel("x")
-                fig.colorbar(im2, ax=axes[2])
-                plt.tight_layout()
+                    # 1D: standard x vs t surface
+                    _ea_x_common = np.linspace({config.x_min}, {config.x_max}, 300)
+                    _ea_t_arr = np.array(_ea_times)
+                    _ea_U_pinn = np.zeros((len(_ea_t_arr), len(_ea_x_common)))
+                    _ea_U_fem  = np.zeros((len(_ea_t_arr), len(_ea_x_common)))
+                    if not {config.time_adaptive}:
+                        for _ei, _ea_tv in enumerate(_ea_times):
+                            _ea_xt_c = np.column_stack([_ea_x_common, np.full_like(_ea_x_common, _ea_tv)])
+                            _ea_U_pinn[_ei, :] = model.predict(_ea_xt_c)[:, {config.plot_output_idx}].flatten()
+                            _ea_fi = _interp1d(_ea_x_refs[_ei], _ea_u_refs[_ei], kind='linear', fill_value='extrapolate')
+                            _ea_U_fem[_ei, :] = _ea_fi(_ea_x_common)
+                    else:
+                        for _ei in range(_ea_n_t):
+                            _ea_fi_pinn = _interp1d(_ea_x_refs[_ei], _ea_u_pinns[_ei], kind='linear', fill_value='extrapolate')
+                            _ea_U_pinn[_ei, :] = _ea_fi_pinn(_ea_x_common)
+                            _ea_fi_fem = _interp1d(_ea_x_refs[_ei], _ea_u_refs[_ei], kind='linear', fill_value='extrapolate')
+                            _ea_U_fem[_ei, :] = _ea_fi_fem(_ea_x_common)
+                    _ea_Xg, _ea_Tg = np.meshgrid(_ea_x_common, _ea_t_arr)
+                    _ea_U_err = np.abs(_ea_U_pinn - _ea_U_fem)
+                    _ea_vmin = min(_ea_U_pinn.min(), _ea_U_fem.min())
+                    _ea_vmax = max(_ea_U_pinn.max(), _ea_U_fem.max())
+                    fig, axes_s = plt.subplots(1, 3, figsize=(15, 5))
+                    fig.suptitle("PINN vs Ground Truth — Surface Comparison", fontsize=13, fontweight='bold')
+                    im0 = axes_s[0].contourf(_ea_Tg, _ea_Xg, _ea_U_pinn, levels=50, cmap='viridis', vmin=_ea_vmin, vmax=_ea_vmax)
+                    axes_s[0].set_title("PINN  u(x,t)"); axes_s[0].set_xlabel("t"); axes_s[0].set_ylabel("x")
+                    fig.colorbar(im0, ax=axes_s[0])
+                    im1 = axes_s[1].contourf(_ea_Tg, _ea_Xg, _ea_U_fem, levels=50, cmap='viridis', vmin=_ea_vmin, vmax=_ea_vmax)
+                    axes_s[1].set_title("Ground Truth  u(x,t)"); axes_s[1].set_xlabel("t"); axes_s[1].set_ylabel("x")
+                    fig.colorbar(im1, ax=axes_s[1])
+                    im2 = axes_s[2].contourf(_ea_Tg, _ea_Xg, _ea_U_err, levels=50, cmap='YlOrRd')
+                    axes_s[2].set_title("Error  |PINN - Ground Truth|"); axes_s[2].set_xlabel("t"); axes_s[2].set_ylabel("x")
+                    fig.colorbar(im2, ax=axes_s[2])
+                    plt.tight_layout()
                 _ea_sp = _os.path.join(_ea_dir, "surface_comparison.png")
                 plt.savefig(_ea_sp, dpi=150, bbox_inches='tight'); plt.close()
                 print(f"  Surface comparison saved: {{_ea_sp}}")
-
             print("=== Error Analysis Complete ===")
 
         # ── Export solution data ──────────────────────────────
         if _problem_type != "Inverse":
             _data_dir = _os.path.join(
                 _run_dir if (_parametric and _pval is not None)
-                else (_save_dir if _use_save else "/tmp"),
+                else (_sol_dir if _use_save else "/tmp"),
                 "solution_data"
             )
             _os.makedirs(_data_dir, exist_ok=True)
@@ -1227,8 +1305,13 @@ if {config.time_adaptive}:
                     _constraints_i.append(_mk_ic_ta(_ic_expr_ta, _comp_ta))
             else:
                 if _oi_ta == 0:
-                    xt_ic = np.column_stack([x_grid, np.full_like(x_grid, t0)])
-                    _constraints_i.append(dde.icbc.PointSetBC(xt_ic, prev_u, component=0))
+                    if _is_2d:
+                        # x_grid is already (N,2) array of (x,y) pairs
+                        _xt_ic_2d = np.column_stack([x_grid, np.full(len(x_grid), t0)])
+                        _constraints_i.append(dde.icbc.PointSetBC(_xt_ic_2d, prev_u, component=0))
+                    else:
+                        xt_ic = np.column_stack([x_grid, np.full_like(x_grid.ravel(), t0)])
+                        _constraints_i.append(dde.icbc.PointSetBC(xt_ic, prev_u, component=0))
 
         data_i = dde.data.TimePDE(
             geomtime_i, pde, _constraints_i,
@@ -1279,7 +1362,7 @@ if {config.time_adaptive}:
                 print(f"  ⚠️ Transfer learning failed: {{_te}} — training from scratch")
 
         # Adam always runs full iterations — transfer learning only affects starting weights
-        model_i.compile("{config.optimizer}", lr=_lr, loss="{config.loss_type}", loss_weights=_multi_weights)
+        model_i.compile("{config.optimizer}", lr=_lr, loss="{config.loss_type}")
         lh_i, ts_i = model_i.train(iterations={config.iterations}, display_every=1000)
 
         if "{config.optimizer2}" != "none":
@@ -1291,7 +1374,7 @@ if {config.time_adaptive}:
                     gtol={config.lbfgs_gtol}, maxiter={config.lbfgs_maxiter},
                     maxfun={config.lbfgs_maxfun}, maxls={config.lbfgs_maxls}
                 )
-            model_i.compile("L-BFGS", loss="{config.loss_type}", loss_weights=_multi_weights)
+            model_i.compile("L-BFGS", loss="{config.loss_type}")
             lh_i, ts_i = model_i.train(display_every=200)
             print(f"  L-BFGS phase done. Steps: {{len(lh_i.steps)}}")
 
@@ -1302,17 +1385,37 @@ if {config.time_adaptive}:
                 model_i.save(_step_lbfgs_path)
                 print(f"Step L-BFGS model saved: {{_step_lbfgs_path}}.pt")
 
-        x_pred  = np.linspace({config.x_min}, {config.x_max}, grid_size)
-        t_pred  = np.full_like(x_pred, t1)
-        xt_pred = np.column_stack([x_pred, t_pred])
-        prev_u  = model_i.predict(xt_pred)[:, 0:1]
+        if _is_2d:
+            # 2D: predict on x-y grid at t=t1, store as flat array for PointSetBC next step
+            _x_pred = np.linspace({config.x_min}, {config.x_max}, grid_size)
+            _y_pred = np.linspace({config.y_min}, {config.y_max}, grid_size)
+            _Xp, _Yp = np.meshgrid(_x_pred, _y_pred)
+            _xyt_pred = np.column_stack([_Xp.ravel(), _Yp.ravel(), np.full(_Xp.size, t1)])
+            prev_u  = model_i.predict(_xyt_pred)[:, 0:1]
+            x_grid  = _xyt_pred[:, :2]  # store (x,y) pairs for next step's PointSetBC
+        else:
+            x_pred  = np.linspace({config.x_min}, {config.x_max}, grid_size)
+            t_pred  = np.full_like(x_pred, t1)
+            xt_pred = np.column_stack([x_pred, t_pred])
+            prev_u  = model_i.predict(xt_pred)[:, 0:1]
+            x_grid  = x_pred.reshape(-1, 1)
 
-        x_plot = np.linspace({config.x_min}, {config.x_max}, 100)
-        t_plot = np.linspace(t0, t1, 50)
-        Xp, Tp = np.meshgrid(x_plot, t_plot)
-        XTp    = np.vstack([Xp.ravel(), Tp.ravel()]).T
-        Up     = model_i.predict(XTp)[:, {config.plot_output_idx}].reshape(50, 100)
-        all_x.append(Xp); all_t.append(Tp); all_u.append(Up)
+        if not _is_2d:
+            x_plot = np.linspace({config.x_min}, {config.x_max}, 100)
+            t_plot = np.linspace(t0, t1, 50)
+            Xp, Tp = np.meshgrid(x_plot, t_plot)
+            XTp    = np.vstack([Xp.ravel(), Tp.ravel()]).T
+            Up     = model_i.predict(XTp)[:, {config.plot_output_idx}].reshape(50, 100)
+            all_x.append(Xp); all_t.append(Tp); all_u.append(Up)
+        else:
+            # 2D: store mid-y slice for combined plot
+            x_plot = np.linspace({config.x_min}, {config.x_max}, 100)
+            t_plot = np.linspace(t0, t1, 50)
+            y_mid  = ({config.y_min} + {config.y_max}) / 2.0
+            Xp, Tp = np.meshgrid(x_plot, t_plot)
+            XYTp   = np.column_stack([Xp.ravel(), np.full(Xp.size, y_mid), Tp.ravel()])
+            Up     = model_i.predict(XYTp)[:, {config.plot_output_idx}].reshape(50, 100)
+            all_x.append(Xp); all_t.append(Tp); all_u.append(Up)
 
         print(f"Step {{step_i+1}} done. Final train loss: {{sum(lh_i.loss_train[-1]):.4e}}")
 
@@ -1324,25 +1427,46 @@ if {config.time_adaptive}:
             _x_plot_step = np.linspace({config.x_min}, {config.x_max}, 100)
             _t_plot_step = np.linspace(t0, t1, 50)
             _Xp_step, _Tp_step = np.meshgrid(_x_plot_step, _t_plot_step)
-            _XTp_step = np.vstack([_Xp_step.ravel(), _Tp_step.ravel()]).T
+            if _is_2d:
+                _y_mid_step = ({config.y_min} + {config.y_max}) / 2.0
+                _XTp_step = np.column_stack([_Xp_step.ravel(), np.full(_Xp_step.size, _y_mid_step), _Tp_step.ravel()])
+            else:
+                _XTp_step = np.vstack([_Xp_step.ravel(), _Tp_step.ravel()]).T
             _Up_step = model_i.predict(_XTp_step)[:, {config.plot_output_idx}].reshape(50, 100)
 
             if _plot_type_step == "Surface" or _plot_type_step.startswith("📊"):
-                _res_step = {config.plot_resolution}
-                _x_s2 = np.linspace({config.x_min}, {config.x_max}, _res_step)
-                _t_s2 = np.linspace(t0, t1, _res_step)
-                _Xs2, _Ts2 = np.meshgrid(_x_s2, _t_s2)
-                _XTs2 = np.vstack([_Xs2.ravel(), _Ts2.ravel()]).T
-                _Us2 = model_i.predict(_XTs2)[:, {config.plot_output_idx}].reshape(_res_step, _res_step)
                 _vmin_step = None if {config.plot_auto_range} else {config.plot_vmin}
                 _vmax_step = None if {config.plot_auto_range} else {config.plot_vmax}
-                fig, ax = plt.subplots(figsize=(7, 4))
-                im = ax.contourf(_Xs2, _Ts2, _Us2, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_step, vmax=_vmax_step)
-                if {config.plot_colorbar}: fig.colorbar(im, ax=ax)
-                ax.set_xlabel("x"); ax.set_ylabel("t")
-                ax.set_title(f"Step {{step_i+1}}: t = {{t0:.4f}} → {{t1:.4f}}")
-                plt.tight_layout()
                 _step_fname = _os.path.join(_step_dir, f"step_{{step_i+1:03d}}_t{{t0:.4f}}_to_t{{t1:.4f}}.png")
+                if _is_2d:
+                    # 2D: x-y heatmaps at t=t0 and t=t1
+                    _res_step = {config.plot_resolution}
+                    _xg_s = np.linspace({config.x_min}, {config.x_max}, _res_step)
+                    _yg_s = np.linspace({config.y_min}, {config.y_max}, _res_step)
+                    _Xg_s, _Yg_s = np.meshgrid(_xg_s, _yg_s)
+                    fig, axes = plt.subplots(1, 2, figsize=(10, 4))
+                    for _ai, _tv_s in enumerate([t0, t1]):
+                        _xyt_s = np.column_stack([_Xg_s.ravel(), _Yg_s.ravel(), np.full(_Xg_s.size, _tv_s)])
+                        _U_s = model_i.predict(_xyt_s)[:, {config.plot_output_idx}].reshape(_res_step, _res_step)
+                        im = axes[_ai].contourf(_Xg_s, _Yg_s, _U_s, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_step, vmax=_vmax_step)
+                        if {config.plot_colorbar}: fig.colorbar(im, ax=axes[_ai])
+                        axes[_ai].set_xlabel("x"); axes[_ai].set_ylabel("y")
+                        axes[_ai].set_title(f"t = {{_tv_s:.4f}}")
+                    fig.suptitle(f"Step {{step_i+1}}: t = {{t0:.4f}} → {{t1:.4f}}", fontsize=11)
+                    plt.tight_layout()
+                else:
+                    _res_step = {config.plot_resolution}
+                    _x_s2 = np.linspace({config.x_min}, {config.x_max}, _res_step)
+                    _t_s2 = np.linspace(t0, t1, _res_step)
+                    _Xs2, _Ts2 = np.meshgrid(_x_s2, _t_s2)
+                    _XTs2 = np.vstack([_Xs2.ravel(), _Ts2.ravel()]).T
+                    _Us2 = model_i.predict(_XTs2)[:, {config.plot_output_idx}].reshape(_res_step, _res_step)
+                    fig, ax = plt.subplots(figsize=(7, 4))
+                    im = ax.contourf(_Xs2, _Ts2, _Us2, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_step, vmax=_vmax_step)
+                    if {config.plot_colorbar}: fig.colorbar(im, ax=ax)
+                    ax.set_xlabel("x"); ax.set_ylabel("t")
+                    ax.set_title(f"Step {{step_i+1}}: t = {{t0:.4f}} → {{t1:.4f}}")
+                    plt.tight_layout()
                 plt.savefig(_step_fname, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
             elif _plot_type_step.startswith("Line"):
                 n_steps_plot = {config.num_timesteps}
@@ -1405,19 +1529,78 @@ if {config.time_adaptive}:
     X_full = np.vstack(all_x); T_full = np.vstack(all_t); U_full = np.vstack(all_u)
     print("\\n=== Time-Adaptive Training Complete ===")
 
-    _ta_solution_path = _os.path.join(_save_dir, "solution_plot.png") if _use_save else "/tmp/solution_plot.png"
-    _ta_loss_path     = _os.path.join(_save_dir, "loss_plot.png")     if _use_save else "/tmp/loss_plot.png"
+    _ta_solution_path = _os.path.join(_sol_dir, "solution_plot.png")
+    _ta_loss_path     = _os.path.join(_sol_dir, "loss_plot.png")
 
     _plot_type_ta = "{config.plot_type}"
     if _plot_type_ta == "Surface":
         _vmin_ta = None if {config.plot_auto_range} else {config.plot_vmin}
         _vmax_ta = None if {config.plot_auto_range} else {config.plot_vmax}
-        fig, ax = plt.subplots(figsize=(7, 5))
-        im = ax.contourf(X_full, T_full, U_full, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_ta, vmax=_vmax_ta)
-        if {config.plot_colorbar}: fig.colorbar(im, ax=ax)
-        ax.set_xlabel("x"); ax.set_ylabel("t")
-        ax.set_title("Time-Adaptive PINN Solution")
-        plt.tight_layout(); plt.savefig(_ta_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
+        if _is_2d:
+            # 2D: x-y heatmaps at n snapshots using the last step model
+            _n_snaps_ta = {config.plot_n_2d_snapshots}
+            _t_snaps_ta = np.linspace({config.t_min}, {config.t_max}, _n_snaps_ta)
+            _res_ta = {config.plot_resolution}
+            _xp_ta = np.linspace({config.x_min}, {config.x_max}, _res_ta)
+            _yp_ta = np.linspace({config.y_min}, {config.y_max}, _res_ta)
+            _Xg_ta, _Yg_ta = np.meshgrid(_xp_ta, _yp_ta)
+            # Collect all step models to predict at each snapshot time
+            import glob as _ta_glob_sol, json as _ta_json_sol
+            _ta_sol_dirs = sorted([_sd for _sd in _ta_glob_sol.glob(_os.path.join(_ta_steps_root, "step_*")) if _os.path.isdir(_sd)])
+            _ta_sol_intervals = []
+            for _sd in _ta_sol_dirs:
+                try:
+                    _p = _os.path.basename(_sd).split("_")
+                    _ta_sol_intervals.append((float(_p[2].replace("t","")), float(_p[4].replace("t","")), _sd))
+                except Exception: pass
+            fig, axes = plt.subplots(1, _n_snaps_ta, figsize=(5*_n_snaps_ta, 5))
+            if _n_snaps_ta == 1: axes = [axes]
+            for _ai, _tv_ta in enumerate(_t_snaps_ta):
+                # Find which step model covers this time
+                _sd_for_t = _ta_sol_dirs[-1] if _ta_sol_dirs else ""
+                for _t0s, _t1s, _sds in _ta_sol_intervals:
+                    if _t0s <= _tv_ta <= _t1s + 1e-10:
+                        _sd_for_t = _sds; break
+                # Load step model
+                _spt_ta = ""
+                for _pat_ta in ["model_lbfgs-*.pt","model_lbfgs.pt","model_adam-*.pt","model_adam.pt"]:
+                    _pts_ta = sorted(_ta_glob_sol.glob(_os.path.join(_sd_for_t, _pat_ta)))
+                    if _pts_ta: _spt_ta = max(_pts_ta, key=_os.path.getmtime); break
+                try:
+                    with open(_os.path.join(_sd_for_t, "step_config.json")) as _scf_ta:
+                        _sc_ta = _ta_json_sol.load(_scf_ta)
+                except: _sc_ta = {{"layers": {config.layers}, "activation": "{config.activation}", "loss_type": "{config.loss_type}"}}
+                _sn_ta = dde.nn.FNN(_sc_ta.get("layers",{config.layers}), _sc_ta.get("activation","{config.activation}"), "Glorot uniform")
+                _sg_ta = dde.geometry.Rectangle([{config.x_min},{config.y_min}],[{config.x_max},{config.y_max}])
+                _st_ta = dde.geometry.TimeDomain(_sc_ta.get("t_min",0), _sc_ta.get("t_max",1))
+                _sgt_ta = dde.geometry.GeometryXTime(_sg_ta, _st_ta)
+                _sd_ta = dde.data.TimePDE(_sgt_ta, lambda x,y: y[:,0:1]*0, [], num_domain=100, num_test=100)
+                _sm_ta = dde.Model(_sd_ta, _sn_ta)
+                if _spt_ta:
+                    if "lbfgs" in _os.path.basename(_spt_ta):
+                        dde.optimizers.set_LBFGS_options(maxiter=1)
+                        _sm_ta.compile("L-BFGS", loss=_sc_ta.get("loss_type","{config.loss_type}"))
+                    else:
+                        _sm_ta.compile("adam", lr=0.001, loss=_sc_ta.get("loss_type","{config.loss_type}"))
+                    _sm_ta.restore(_spt_ta, verbose=0)
+                    _xyt_ta = np.column_stack([_Xg_ta.ravel(), _Yg_ta.ravel(), np.full(_Xg_ta.size, _tv_ta)])
+                    _pred_ta = _sm_ta.predict(_xyt_ta)[:, {config.plot_output_idx}].reshape(_res_ta, _res_ta)
+                else:
+                    _pred_ta = np.zeros((_res_ta, _res_ta))
+                im = axes[_ai].contourf(_Xg_ta, _Yg_ta, _pred_ta, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_ta, vmax=_vmax_ta)
+                axes[_ai].set_title(f"t = {{_tv_ta:.3f}}")
+                axes[_ai].set_xlabel("x"); axes[_ai].set_ylabel("y")
+                if {config.plot_colorbar}: fig.colorbar(im, ax=axes[_ai])
+            fig.suptitle("Time-Adaptive PINN Solution", fontsize=12)
+            plt.tight_layout()
+            plt.savefig(_ta_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
+        else:
+            fig, ax = plt.subplots(figsize=(7, 5))
+            im = ax.contourf(X_full, T_full, U_full, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_ta, vmax=_vmax_ta)
+            if {config.plot_colorbar}: fig.colorbar(im, ax=ax)
+            ax.set_xlabel("x"); ax.set_ylabel("t")
+            ax.set_title("Time-Adaptive PINN Solution")
+            plt.tight_layout(); plt.savefig(_ta_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
     elif _plot_type_ta.startswith("Line"):
         n_ts   = {config.num_timesteps}
         t_vals = np.linspace(t_start, t_end, n_ts)
@@ -1451,16 +1634,31 @@ if {config.time_adaptive}:
         print("\\n=== Running Time-Adaptive Error Analysis ===")
 
         # Load all ground truth files
-        _ea_times = []; _ea_x_refs = []; _ea_u_refs = []
+        _ea_times = []; _ea_x_refs = []; _ea_y_refs = []; _ea_u_refs = []
         for _ea_tv, _ea_fp in _ea_files:
             _ea_d = np.loadtxt(_ea_fp)
             if _ea_d.ndim == 1: _ea_d = _ea_d.reshape(1, -1)
-            _ea_idx = np.argsort(_ea_d[:, 0])
-            _ea_x_refs.append(_ea_d[_ea_idx, 0])
-            _ea_u_refs.append(_ea_d[_ea_idx, 2])
-            _ea_times.append(float(_ea_tv))
-            print(f"  Loaded ground truth t={{_ea_tv:.4f}}: {{len(_ea_d)}} pts from {{_os.path.basename(_ea_fp)}}")
-
+            if _is_2d:
+                _ea_idx = np.lexsort((_ea_d[:, 1], _ea_d[:, 0]))
+                _ea_x_refs.append(_ea_d[_ea_idx, 0])
+                _ea_y_refs.append(_ea_d[_ea_idx, 1])
+                _ea_u_refs.append(_ea_d[_ea_idx, 3])
+                _detected_t = float(_ea_d[0, 2])
+                _ea_times.append(_detected_t)
+                print(f"  Loaded ground truth t={{_detected_t:.4f}}: {{len(_ea_d)}} pts from {{_os.path.basename(_ea_fp)}}")
+            else:
+                _ea_idx = np.argsort(_ea_d[:, 0])
+                _ea_x_refs.append(_ea_d[_ea_idx, 0])
+                _ea_y_refs.append(np.zeros_like(_ea_d[_ea_idx, 0]))
+                _ea_u_refs.append(_ea_d[_ea_idx, 2])
+                _ea_times.append(float(_ea_tv))
+                print(f"  Loaded ground truth t={{_ea_tv:.4f}}: {{len(_ea_d)}} pts from {{_os.path.basename(_ea_fp)}}")
+        # Sort by time
+        _ea_sort_idx = np.argsort(_ea_times)
+        _ea_times  = [_ea_times[_i]  for _i in _ea_sort_idx]
+        _ea_x_refs = [_ea_x_refs[_i] for _i in _ea_sort_idx]
+        _ea_y_refs = [_ea_y_refs[_i] for _i in _ea_sort_idx]
+        _ea_u_refs = [_ea_u_refs[_i] for _i in _ea_sort_idx]
         _ea_n_t = len(_ea_times)
         _ea_u_pinns = [None] * _ea_n_t
 
@@ -1538,7 +1736,11 @@ if {config.time_adaptive}:
             for _ei in _matching:
                 _ea_xf = _ea_x_refs[_ei]
                 _ea_tv = _ea_times[_ei]
-                _ea_xt = np.column_stack([_ea_xf, np.full_like(_ea_xf, _ea_tv)])
+                if _is_2d:
+                    _ea_yf = _ea_y_refs[_ei]
+                    _ea_xt = np.column_stack([_ea_xf, _ea_yf, np.full_like(_ea_xf, _ea_tv)])
+                else:
+                    _ea_xt = np.column_stack([_ea_xf, np.full_like(_ea_xf, _ea_tv)])
                 _ea_u_pinns[_ei] = _step_model.predict(_ea_xt)[:, 0].flatten()
                 print(f"    Predicted at t={{_ea_tv:.4f}}: {{len(_ea_xf)}} points")
 
@@ -1596,31 +1798,112 @@ if {config.time_adaptive}:
 
         # Surface comparison
         if {config.ea_do_surface}:
-            _ea_x_common = np.linspace({config.x_min}, {config.x_max}, 300)
-            _ea_t_arr = np.array(_ea_times)
-            _ea_U_pinn = np.zeros((len(_ea_t_arr), len(_ea_x_common)))
-            _ea_U_fem  = np.zeros((len(_ea_t_arr), len(_ea_x_common)))
-            for _ei in range(_ea_n_t):
-                _ea_fi_p = _interp1d(_ea_x_refs[_ei], _ea_u_pinns[_ei], kind='linear', fill_value='extrapolate')
-                _ea_U_pinn[_ei, :] = _ea_fi_p(_ea_x_common)
-                _ea_fi_f = _interp1d(_ea_x_refs[_ei], _ea_u_refs[_ei], kind='linear', fill_value='extrapolate')
-                _ea_U_fem[_ei, :] = _ea_fi_f(_ea_x_common)
-            _ea_Xg, _ea_Tg = np.meshgrid(_ea_x_common, _ea_t_arr)
-            _ea_U_err = np.abs(_ea_U_pinn - _ea_U_fem)
-            _ea_vmin = min(_ea_U_pinn.min(), _ea_U_fem.min())
-            _ea_vmax = max(_ea_U_pinn.max(), _ea_U_fem.max())
-            fig, axes = plt.subplots(1, 3, figsize=(15, 5))
-            fig.suptitle("PINN vs Ground Truth — Surface Comparison", fontsize=13, fontweight='bold')
-            im0 = axes[0].contourf(_ea_Tg, _ea_Xg, _ea_U_pinn, levels=50, cmap='viridis', vmin=_ea_vmin, vmax=_ea_vmax)
-            axes[0].set_title("PINN  u(x,t)"); axes[0].set_xlabel("t"); axes[0].set_ylabel("x")
-            fig.colorbar(im0, ax=axes[0])
-            im1 = axes[1].contourf(_ea_Tg, _ea_Xg, _ea_U_fem, levels=50, cmap='viridis', vmin=_ea_vmin, vmax=_ea_vmax)
-            axes[1].set_title("Ground Truth  u(x,t)"); axes[1].set_xlabel("t"); axes[1].set_ylabel("x")
-            fig.colorbar(im1, ax=axes[1])
-            im2 = axes[2].contourf(_ea_Tg, _ea_Xg, _ea_U_err, levels=50, cmap='YlOrRd')
-            axes[2].set_title("Error  |PINN - Ground Truth|"); axes[2].set_xlabel("t"); axes[2].set_ylabel("x")
-            fig.colorbar(im2, ax=axes[2])
-            plt.tight_layout()
+            if _is_2d:
+                # 2D: PINN | FEM | Error heatmaps, one row per time snapshot
+                from scipy.interpolate import griddata as _gd
+                _res_ea = 60
+                _xg_ea = np.linspace({config.x_min}, {config.x_max}, _res_ea)
+                _yg_ea = np.linspace({config.y_min}, {config.y_max}, _res_ea)
+                _Xg_ea, _Yg_ea = np.meshgrid(_xg_ea, _yg_ea)
+                fig, axes = plt.subplots(_ea_n_t, 3, figsize=(15, 4*_ea_n_t), squeeze=False)
+                fig.suptitle("PINN vs Ground Truth — 2D Heatmaps", fontsize=13, fontweight='bold')
+                # Need step models to predict on grid — collect from step dirs
+                import glob as _ea_glob2, json as _ea_json2
+                _ta_step_dir2 = _os.path.join(_save_dir, "time_adaptive_steps")
+                _ta_step_dirs2 = sorted([_sd for _sd in _ea_glob2.glob(_os.path.join(_ta_step_dir2, "step_*")) if _os.path.isdir(_sd)])
+                _ta_intervals2 = []
+                for _sd in _ta_step_dirs2:
+                    try:
+                        _parts = _os.path.basename(_sd).split("_")
+                        _ta_intervals2.append((float(_parts[2].replace("t","")), float(_parts[4].replace("t","")), _sd))
+                    except Exception: pass
+                # Map each time to its step model
+                _step_model_map = {{}}
+                for _si2, (_t0_i2, _t1_i2, _sd_i2) in enumerate(_ta_intervals2):
+                    for _ei in range(_ea_n_t):
+                        _tv = _ea_times[_ei]
+                        _is_last2 = (_si2 == len(_ta_intervals2) - 1)
+                        if _is_last2:
+                            _in = (_t0_i2 <= _tv <= _t1_i2 + 1e-10)
+                        else:
+                            _in = (_t0_i2 <= _tv < _t1_i2 - 1e-10) or (abs(_tv - _t1_i2) < 1e-10)
+                        if _in:
+                            _step_model_map[_ei] = _sd_i2
+                for _ei, _ea_tv in enumerate(_ea_times):
+                    _ea_tv_r, _l2, _mse, _mx, _ma = _ea_metrics[_ei]
+                    # PINN on grid using step model
+                    _sd_for_ei = _step_model_map.get(_ei, "")
+                    _xyt_grid = np.column_stack([_Xg_ea.ravel(), _Yg_ea.ravel(), np.full(_Xg_ea.size, _ea_tv)])
+                    if _sd_for_ei:
+                        try:
+                            with open(_os.path.join(_sd_for_ei, "step_config.json")) as _scf2: _sc2 = _ea_json2.load(_scf2)
+                        except: _sc2 = {{"layers": {config.layers}, "activation": "{config.activation}", "loss_type": "{config.loss_type}"}}
+                        _sn2 = dde.nn.FNN(_sc2.get("layers",{config.layers}), _sc2.get("activation","{config.activation}"), "Glorot uniform")
+                        _sg2 = dde.geometry.Rectangle([{config.x_min},{config.y_min}],[{config.x_max},{config.y_max}])
+                        _st2 = dde.geometry.TimeDomain(_sc2.get("t_min",0), _sc2.get("t_max",1))
+                        _sgt2 = dde.geometry.GeometryXTime(_sg2, _st2)
+                        _sd2 = dde.data.TimePDE(_sgt2, lambda x,y: y[:,0:1]*0, [], num_domain=100, num_test=100)
+                        _sm2 = dde.Model(_sd2, _sn2)
+                        _spt2 = ""
+                        for _pat2 in ["model_lbfgs-*.pt","model_lbfgs.pt","model_adam-*.pt","model_adam.pt"]:
+                            _pts2 = sorted(_ea_glob2.glob(_os.path.join(_sd_for_ei, _pat2)))
+                            if _pts2: _spt2 = max(_pts2, key=_os.path.getmtime); break
+                        if _spt2:
+                            if "lbfgs" in _os.path.basename(_spt2):
+                                dde.optimizers.set_LBFGS_options(maxiter=1)
+                                _sm2.compile("L-BFGS", loss=_sc2.get("loss_type","{config.loss_type}"))
+                            else:
+                                _sm2.compile("adam", lr=0.001, loss=_sc2.get("loss_type","{config.loss_type}"))
+                            _sm2.restore(_spt2, verbose=0)
+                            _u_pinn_grid = _sm2.predict(_xyt_grid)[:, 0].reshape(_res_ea, _res_ea)
+                        else:
+                            _u_pinn_grid = np.zeros((_res_ea, _res_ea))
+                    else:
+                        _u_pinn_grid = np.zeros((_res_ea, _res_ea))
+                    _u_fem_grid = _gd(np.column_stack([_ea_x_refs[_ei], _ea_y_refs[_ei]]),
+                                      _ea_u_refs[_ei], (_Xg_ea, _Yg_ea), method='linear', fill_value=0.0)
+                    _u_err_grid = np.abs(_u_pinn_grid - _u_fem_grid)
+                    _vmin_ea = min(_u_pinn_grid.min(), _u_fem_grid.min())
+                    _vmax_ea = max(_u_pinn_grid.max(), _u_fem_grid.max())
+                    im0 = axes[_ei][0].contourf(_Xg_ea, _Yg_ea, _u_pinn_grid, levels=40, cmap='viridis', vmin=_vmin_ea, vmax=_vmax_ea)
+                    axes[_ei][0].set_title(f"PINN  t={{_ea_tv:.3f}}  L2={{_l2:.2e}}", fontsize=10)
+                    axes[_ei][0].set_xlabel("x"); axes[_ei][0].set_ylabel("y")
+                    fig.colorbar(im0, ax=axes[_ei][0])
+                    im1 = axes[_ei][1].contourf(_Xg_ea, _Yg_ea, _u_fem_grid, levels=40, cmap='viridis', vmin=_vmin_ea, vmax=_vmax_ea)
+                    axes[_ei][1].set_title(f"Ground Truth  t={{_ea_tv:.3f}}", fontsize=10)
+                    axes[_ei][1].set_xlabel("x"); axes[_ei][1].set_ylabel("y")
+                    fig.colorbar(im1, ax=axes[_ei][1])
+                    im2 = axes[_ei][2].contourf(_Xg_ea, _Yg_ea, _u_err_grid, levels=40, cmap='YlOrRd')
+                    axes[_ei][2].set_title(f"|Error|  t={{_ea_tv:.3f}}  Max={{_mx:.2e}}", fontsize=10)
+                    axes[_ei][2].set_xlabel("x"); axes[_ei][2].set_ylabel("y")
+                    fig.colorbar(im2, ax=axes[_ei][2])
+                plt.tight_layout()
+            else:
+                _ea_x_common = np.linspace({config.x_min}, {config.x_max}, 300)
+                _ea_t_arr = np.array(_ea_times)
+                _ea_U_pinn = np.zeros((len(_ea_t_arr), len(_ea_x_common)))
+                _ea_U_fem  = np.zeros((len(_ea_t_arr), len(_ea_x_common)))
+                for _ei in range(_ea_n_t):
+                    _ea_fi_p = _interp1d(_ea_x_refs[_ei], _ea_u_pinns[_ei], kind='linear', fill_value='extrapolate')
+                    _ea_U_pinn[_ei, :] = _ea_fi_p(_ea_x_common)
+                    _ea_fi_f = _interp1d(_ea_x_refs[_ei], _ea_u_refs[_ei], kind='linear', fill_value='extrapolate')
+                    _ea_U_fem[_ei, :] = _ea_fi_f(_ea_x_common)
+                _ea_Xg, _ea_Tg = np.meshgrid(_ea_x_common, _ea_t_arr)
+                _ea_U_err = np.abs(_ea_U_pinn - _ea_U_fem)
+                _ea_vmin = min(_ea_U_pinn.min(), _ea_U_fem.min())
+                _ea_vmax = max(_ea_U_pinn.max(), _ea_U_fem.max())
+                fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+                fig.suptitle("PINN vs Ground Truth — Surface Comparison", fontsize=13, fontweight='bold')
+                im0 = axes[0].contourf(_ea_Tg, _ea_Xg, _ea_U_pinn, levels=50, cmap='viridis', vmin=_ea_vmin, vmax=_ea_vmax)
+                axes[0].set_title("PINN  u(x,t)"); axes[0].set_xlabel("t"); axes[0].set_ylabel("x")
+                fig.colorbar(im0, ax=axes[0])
+                im1 = axes[1].contourf(_ea_Tg, _ea_Xg, _ea_U_fem, levels=50, cmap='viridis', vmin=_ea_vmin, vmax=_ea_vmax)
+                axes[1].set_title("Ground Truth  u(x,t)"); axes[1].set_xlabel("t"); axes[1].set_ylabel("x")
+                fig.colorbar(im1, ax=axes[1])
+                im2 = axes[2].contourf(_ea_Tg, _ea_Xg, _ea_U_err, levels=50, cmap='YlOrRd')
+                axes[2].set_title("Error  |PINN - Ground Truth|"); axes[2].set_xlabel("t"); axes[2].set_ylabel("x")
+                fig.colorbar(im2, ax=axes[2])
+                plt.tight_layout()
             _ea_sp = _os.path.join(_ea_dir, "surface_comparison.png")
             plt.savefig(_ea_sp, dpi=150, bbox_inches='tight'); plt.close()
             print(f"  Surface comparison saved: {{_ea_sp}}")

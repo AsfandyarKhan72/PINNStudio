@@ -246,6 +246,17 @@ class MainWindow(QMainWindow):
         left_layout.addWidget(dim_group)
         self.radio_1d.toggled.connect(self._on_dim_changed)
 
+        # ── Quick Examples (shown right after dimension) ──────
+        examples_group = QGroupBox("📋 Quick Examples")
+        examples_layout = QHBoxLayout(examples_group)
+        examples_layout.addWidget(QLabel("Load example:"))
+        self.quick_examples_combo = QComboBox()
+        self.quick_examples_combo.addItems(["── Select ──", "1D Heat", "1D Allen-Cahn", "1D Cahn-Hilliard"])
+        self.quick_examples_combo.setFixedHeight(28)
+        self.quick_examples_combo.currentTextChanged.connect(self._on_quick_example_selected)
+        examples_layout.addWidget(self.quick_examples_combo)
+        left_layout.addWidget(examples_group)
+
         # ── Problem type ──────────────────────────────────────
         type_group = QGroupBox("Problem Type")
         type_layout = QHBoxLayout(type_group)
@@ -874,10 +885,11 @@ class MainWindow(QMainWindow):
             'colormap': 'RdBu_r',
             'surface_time': 1.0,
             'n_steps': 4,
+            'n_2d_snapshots': 2,
             'colorbar': True,
-            'levels': 50,
-            'resolution': 100,
-            'dpi': 100,
+            'levels': 100,
+            'resolution': 200,
+            'dpi': 300,
             'auto_range': True,
             'vmin': -1.0,
             'vmax': 1.0,
@@ -942,13 +954,13 @@ class MainWindow(QMainWindow):
         self.loss_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.loss_label.setText("📉 Loss plot")
         self.loss_label.setStyleSheet("border: 1px solid #3e3e42; border-radius: 6px; color: #505080; background: #252526;")
-        self.loss_label.setMinimumSize(420, 380)
+        self.loss_label.setMinimumSize(500, 450)
 
         self.solution_label = QLabel()
         self.solution_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.solution_label.setText("🗺 Solution plot")
         self.solution_label.setStyleSheet("border: 1px solid #3e3e42; border-radius: 6px; color: #505080; background: #252526;")
-        self.solution_label.setMinimumSize(420, 380)
+        self.solution_label.setMinimumSize(500, 450)
 
         plots_layout.addWidget(self.loss_label)
         plots_layout.addWidget(self.solution_label)
@@ -960,6 +972,25 @@ class MainWindow(QMainWindow):
     # ── Dimension change ──────────────────────────────────────
     def _on_dim_changed(self):
         is_2d = self.radio_2d.isChecked()
+        # Update quick examples list to match dimension
+        self.quick_examples_combo.blockSignals(True)
+        self.quick_examples_combo.clear()
+        if is_2d:
+            self.quick_examples_combo.addItems([
+                "── Select ──",
+                "2D Heat (Dirichlet/Neumann)",
+                "2D Allen-Cahn (Mattey)",
+                "2D Allen-Cahn (Wight)",
+                "2D Cahn-Hilliard (Wight)"
+            ])
+        else:
+            self.quick_examples_combo.addItems([
+                "── Select ──",
+                "1D Heat",
+                "1D Allen-Cahn",
+                "1D Cahn-Hilliard"
+            ])
+        self.quick_examples_combo.blockSignals(False)
         self.y_row_widget.setVisible(is_2d)
         self.view_domain_check.setVisible(is_2d)
         for w in self._2d_bc_widgets:
@@ -967,11 +998,51 @@ class MainWindow(QMainWindow):
         self._build_pde_inputs(self.num_outputs_spin.value())
         self._build_bc_inputs(self.num_outputs_spin.value())
         self._build_weight_inputs(self.num_outputs_spin.value())
+    
+    def _on_quick_example_selected(self, text):
+        if text.startswith("──"):
+            return
+        self._on_template_selected(text)
+        self.quick_examples_combo.blockSignals(True)
+        self.quick_examples_combo.setCurrentIndex(0)
+        self.quick_examples_combo.blockSignals(False)
+
+    def _auto_configure_ea(self, ref_dir):
+        """Auto-configure error analysis when a template with ground truth files is loaded."""
+        import glob, numpy as np
+        if not ref_dir or not os.path.isdir(ref_dir):
+            return
+        txt_files = sorted(glob.glob(os.path.join(ref_dir, 't_*.txt')))
+        if not txt_files:
+            return
+        valid_files = []
+        for fp in txt_files:
+            try:
+                d = np.loadtxt(fp)
+                if d.ndim == 1: d = d.reshape(1, -1)
+                is_2d = self.radio_2d.isChecked()
+                t_val = float(d[0, 2]) if is_2d else float(d[0, 1])
+                valid_files.append((t_val, fp))
+            except Exception:
+                continue
+        if not valid_files:
+            return
+        valid_files.sort(key=lambda x: x[0])
+        self._ea_settings = {
+            'files': valid_files,
+            'do_line': True,
+            'do_surface': True,
+            'do_l2': True,
+            'do_mse': True,
+            'do_max': True,
+        }
+        self.log_box.append(f"✅ Error analysis auto-configured — {len(valid_files)} ground truth files from template")
 
     # ── Plot type change ──────────────────────────────────────
     def _on_plot_type_changed(self, text):
         if text == "Line (time steps)":
             self._on_line_plot_settings()
+    
 
     def _on_line_plot_settings(self):
         dialog = QDialog(self)
@@ -1236,14 +1307,7 @@ class MainWindow(QMainWindow):
         hint_toggle.setStyleSheet("color: #74c0fc; font-size: 13px;")
         tmpl_ref_row.addWidget(hint_toggle)
 
-        if not is_2d:
-            tmpl_ref_row.addStretch()
-            tmpl_combo = QComboBox()
-            tmpl_combo.addItems(["📋 Examples", "1D Heat", "1D Allen-Cahn", "1D Cahn-Hilliard"])
-            tmpl_combo.setFixedHeight(26)
-            tmpl_combo.setFixedWidth(160)
-            tmpl_combo.currentTextChanged.connect(self._on_template_selected)
-            tmpl_ref_row.addWidget(tmpl_combo)
+        tmpl_ref_row.addStretch()
 
         tmpl_ref_row_widget = QWidget()
         tmpl_ref_row_widget.setLayout(tmpl_ref_row)
@@ -1569,6 +1633,7 @@ class MainWindow(QMainWindow):
             plot_vmin=self._plot_viz_settings.get('vmin', -1.0),
             plot_vmax=self._plot_viz_settings.get('vmax', 1.0),
             plot_linewidth=self._plot_viz_settings.get('linewidth', 2.0),
+            plot_n_2d_snapshots=self._plot_viz_settings.get('n_2d_snapshots', 2),
             ea_files=repr(self._ea_settings.get('files', [])) if getattr(self, '_ea_settings', None) else "[]",
             ea_do_line=self._ea_settings.get('do_line', True) if getattr(self, '_ea_settings', None) else True,
             ea_do_surface=self._ea_settings.get('do_surface', True) if getattr(self, '_ea_settings', None) else True,
@@ -1646,37 +1711,31 @@ class MainWindow(QMainWindow):
             self._last_config = self._build_config()
 
             save_dir = self.save_dir_input.text().strip()
-            loss_path = os.path.join(save_dir, "loss_plot.png") if save_dir else "/tmp/loss_plot.png"
-            solution_path = os.path.join(save_dir, "solution_plot.png") if save_dir else "/tmp/solution_plot.png"
+            sol_dir = os.path.join(save_dir, "solution_results") if save_dir else "/tmp"
+            loss_path = os.path.join(sol_dir, "loss_plot.png")
+            solution_path = os.path.join(sol_dir, "solution_plot.png")
+            # Fallback to root save dir for older runs
+            if not os.path.exists(loss_path):
+                loss_path = os.path.join(save_dir, "loss_plot.png") if save_dir else "/tmp/loss_plot.png"
+            if not os.path.exists(solution_path):
+                solution_path = os.path.join(save_dir, "solution_plot.png") if save_dir else "/tmp/solution_plot.png"
 
             if os.path.exists(loss_path):
                 self.loss_label.setPixmap(QPixmap(loss_path).scaled(
-                    500, 420, Qt.AspectRatioMode.KeepAspectRatio,
+                    self.loss_label.width(), self.loss_label.height(),
+                    Qt.AspectRatioMode.KeepAspectRatio,
                     Qt.TransformationMode.SmoothTransformation))
             if os.path.exists(solution_path):
                 self.solution_label.setPixmap(QPixmap(solution_path).scaled(
-                    500, 420, Qt.AspectRatioMode.KeepAspectRatio,
+                    self.solution_label.width(), self.solution_label.height(),
+                    Qt.AspectRatioMode.KeepAspectRatio,
                     Qt.TransformationMode.SmoothTransformation))
             
             if save_dir:
                 self.log_box.append(f"💾 Results saved to: {save_dir}")
 
-            param_plot = "/tmp/param_plot.png"
-            if os.path.exists(param_plot) and self.radio_inverse.isChecked():
-                self.solution_label.setPixmap(QPixmap(param_plot).scaled(
-                    500, 420, Qt.AspectRatioMode.KeepAspectRatio,
-                    Qt.TransformationMode.SmoothTransformation))
-
             if hasattr(self, '_ea_settings') and self._ea_settings:
                 self.log_box.append("✅ Error analysis ran inline — check error_analysis/ folder.")
-                ea_dir = os.path.join(save_dir, "error_analysis")
-                for name in ["surface_comparison.png", "line_comparison.png"]:
-                    p = os.path.join(ea_dir, name)
-                    if os.path.exists(p):
-                        self.solution_label.setPixmap(QPixmap(p).scaled(
-                            500, 420, Qt.AspectRatioMode.KeepAspectRatio,
-                            Qt.TransformationMode.SmoothTransformation))
-                        break
                 self._ea_settings = None
             else:
                 self.log_box.append("ℹ️ No error analysis configured — click '📊 Error Analysis' before training.")
@@ -2509,6 +2568,174 @@ print("ERROR_ANALYSIS_DONE")
         if text == "📋 Examples":
             return
 
+        templates_2d = {
+            "2D Heat (Dirichlet/Neumann)": {
+                'pde': ["du_t - 0.4*(du_xx + du_yy)"],
+                'ic': ["0.0"],
+                'num_domain': 5000,
+                'num_boundary': 400,
+                'num_initial': 400,
+                'layers': 4,
+                'neurons': 64,
+                'iterations': 10000,
+                'optimizer2': 'lbfgs',
+                'iterations2': 10000,
+                'x_min': 0.0, 'x_max': 1.0,
+                'y_min': 0.0, 'y_max': 1.0,
+                'periodic_bc': False,
+                'bc_config': 'heat2d',
+                'num_outputs': 1,
+                'output_names': ['u'],
+                'ic_weight': 100.0,
+                'ref_dir': '/home/asfandyarkhan/deepxde_gui/FEM_Results/2D_Examples/HeatEquation_2D',
+            },
+            "2D Allen-Cahn (Mattey)": {
+                'pde': ["du_t - 0.0001*(du_xx + du_yy) + 5*(u**3 - u)"],
+                'ic': ["sin(4*pi*x)*cos(4*pi*y)"],
+                'num_domain': 10000,
+                'num_boundary': 400,
+                'num_initial': 512,
+                'layers': 4,
+                'neurons': 128,
+                'iterations': 10000,
+                'optimizer2': 'lbfgs',
+                'iterations2': 10000,
+                'x_min': 0.0, 'x_max': 1.0,
+                'y_min': 0.0, 'y_max': 1.0,
+                'periodic_bc': True,
+                'bc_config': 'periodic_all',
+                'num_outputs': 1,
+                'output_names': ['u'],
+                'ic_weight': 100.0,
+                'ref_dir': '/home/asfandyarkhan/deepxde_gui/FEM_Results/2D_Examples/AllenChan_2D_Mattey',
+            },
+            "2D Allen-Cahn (Wight)": {
+                'pde': ["du_t - 0.00625*(du_xx + du_yy) + 10*(u**3 - u)"],
+                'ic': ["tanh((0.35 - sqrt((x-0.5)**2 + (y-0.5)**2)) / (2*0.025))"],
+                'num_domain': 10000,
+                'num_boundary': 400,
+                'num_initial': 512,
+                'layers': 4,
+                'neurons': 128,
+                'iterations': 10000,
+                'optimizer2': 'lbfgs',
+                'iterations2': 10000,
+                'x_min': 0.0, 'x_max': 1.0,
+                'y_min': 0.0, 'y_max': 1.0,
+                'periodic_bc': True,
+                'bc_config': 'periodic_all',
+                'num_outputs': 1,
+                'output_names': ['u'],
+                'ic_weight': 100.0,
+                'ref_dir': '/home/asfandyarkhan/deepxde_gui/FEM_Results/2D_Examples/AllenChan_2D_Wight',
+            },
+            "2D Cahn-Hilliard (Wight)": {
+                'pde': ["du_t - (dmu_xx + dmu_yy)",
+                        "mu - (u**3 - u) + 0.05*2*(du_xx + du_yy)"],
+                'ic': ["max(tanh((0.4-sqrt((x-0.7*0.4)**2+(y)**2))/(2*0.05)), tanh((0.4-sqrt((x+0.7*0.4)**2+(y)**2))/(2*0.05)))",
+                       "0.0"],
+                'num_domain': 10000,
+                'num_boundary': 400,
+                'num_initial': 512,
+                'layers': 4,
+                'neurons': 128,
+                'iterations': 10000,
+                'optimizer2': 'lbfgs',
+                'iterations2': 10000,
+                'x_min': -0.5, 'x_max': 0.5,
+                'y_min': -0.5, 'y_max': 0.5,
+                'periodic_bc': True,
+                'bc_config': 'ch2d',
+                'num_outputs': 2,
+                'output_names': ['u', 'mu'],
+                'ic_weight': 100.0,
+                'ref_dir': '/home/asfandyarkhan/deepxde_gui/FEM_Results/2D_Examples/CahnHilliard_2D_Wight',
+            },
+        }
+        if text in templates_2d:
+            t = templates_2d[text]
+            # Set number of outputs first
+            n_out = t.get('num_outputs', 1)
+            if n_out != self.num_outputs_spin.value():
+                self.num_outputs_spin.setValue(n_out)
+            # Set output names
+            for i, name in enumerate(t.get('output_names', ['u'])):
+                if i < len(self.output_name_inputs):
+                    self.output_name_inputs[i].setText(name)
+            # Set PDEs
+            for i, pde_text in enumerate(t['pde']):
+                if i < len(self.pde_inputs):
+                    self.pde_inputs[i].setText(pde_text)
+            # Set ICs
+            for i, ic_text in enumerate(t['ic']):
+                if i < len(self.ic_inputs):
+                    self.ic_inputs[i].setText(ic_text)
+            # Set domain
+            self.x_min.setValue(t['x_min']); self.x_max.setValue(t['x_max'])
+            self.y_min.setValue(t['y_min']); self.y_max.setValue(t['y_max'])
+            # Set collocation points
+            self.num_domain.setValue(t['num_domain'])
+            self.num_boundary.setValue(t['num_boundary'])
+            self.num_initial.setValue(t['num_initial'])
+            # Set network
+            self.layers_spin.setValue(t['layers'])
+            self.neurons_spin.setValue(t['neurons'])
+            # Set training
+            self.iter1_spin.setValue(t['iterations'])
+            self.opt2_combo.setCurrentText(t['optimizer2'])
+            self.iter2_spin.setValue(t['iterations2'])
+            # Set IC weight
+            for i in range(n_out):
+                key = f"ic_{i}"
+                if key in self.weight_widgets:
+                    self.weight_widgets[key].setValue(t.get('ic_weight', 100.0))
+            # Set BCs
+            bc_config = t.get('bc_config', 'periodic_all')
+            if bc_config == 'periodic_all':
+                # All boundaries periodic for all outputs
+                for i in range(n_out):
+                    if i < len(self.bc_left_types):
+                        self.bc_left_types[i].setCurrentText("Periodic")
+                    if i < len(self.bc_bottom_types):
+                        self.bc_bottom_types[i].setCurrentText("Periodic")
+            elif bc_config == 'ch2d':
+                # u: periodic on all, mu: no BCs
+                if len(self.bc_left_types) > 0:
+                    self.bc_left_types[0].setCurrentText("Periodic")
+                if len(self.bc_bottom_types) > 0:
+                    self.bc_bottom_types[0].setCurrentText("Periodic")
+                # Deactivate all BCs for mu (output 1)
+                if len(self.bc_left_active) > 1:
+                    self.bc_left_active[1].setChecked(False)
+                if len(self.bc_right_active) > 1:
+                    self.bc_right_active[1].setChecked(False)
+                if len(self.bc_bottom_active) > 1:
+                    self.bc_bottom_active[1].setChecked(False)
+                if len(self.bc_top_active) > 1:
+                    self.bc_top_active[1].setChecked(False)
+                if len(self.ic_active) > 1:
+                    self.ic_active[1].setChecked(False)
+            elif bc_config == 'heat2d':
+                # Right: Dirichlet=1, Left/Bottom/Top: Neumann=0
+                for i in range(n_out):
+                    if i < len(self.bc_left_types):
+                        self.bc_left_types[i].setCurrentText("Neumann")
+                        self.bc_left_vals[i].setValue(0.0)
+                    if i < len(self.bc_right_types):
+                        self.bc_right_types[i].setCurrentText("Dirichlet")
+                        self.bc_right_vals[i].setValue(1.0)
+                    if i < len(self.bc_bottom_types):
+                        self.bc_bottom_types[i].setCurrentText("Neumann")
+                        self.bc_bottom_vals[i].setValue(0.0)
+                    if i < len(self.bc_top_types):
+                        self.bc_top_types[i].setCurrentText("Neumann")
+                        self.bc_top_vals[i].setValue(0.0)
+            self._template_ref_dir = t.get('ref_dir', '')
+            self._current_template = text
+            self._auto_configure_ea(self._template_ref_dir)
+            self.log_box.append(f"✅ Template loaded: {text}")
+            return
+
         templates = {
             "1D Heat": {
                 'pde': ["du_t - 0.4 * du_xx"],
@@ -2612,6 +2839,7 @@ print("ERROR_ANALYSIS_DONE")
         # Store ref_dir for error analysis auto-population
         self._template_ref_dir = t.get('ref_dir', '')
         self._current_template = text
+        self._auto_configure_ea(self._template_ref_dir)
         self.log_box.append(f"✅ Template loaded: {text}")
 
     def _on_plot_settings(self):
@@ -2690,6 +2918,18 @@ print("ERROR_ANALYSIS_DONE")
         color_range_widget.setVisible(viz_type == "Surface")
         layout.addWidget(color_range_widget)
 
+        # 2D snapshots — Surface only, 2D mode
+        snap_widget = QWidget()
+        snap_layout = QHBoxLayout(snap_widget)
+        snap_layout.setContentsMargins(0, 0, 0, 0)
+        snap_layout.addWidget(QLabel("2D time snapshots:"))
+        snap_spin = QSpinBox()
+        snap_spin.setRange(1, 10); snap_spin.setValue(current.get('n_2d_snapshots', 2))
+        snap_spin.setFixedWidth(80)
+        snap_layout.addStretch(); snap_layout.addWidget(snap_spin)
+        snap_widget.setVisible(viz_type == "Surface" and self.radio_2d.isChecked())
+        layout.addWidget(snap_widget)
+
         # Colorbar — Surface only
         colorbar_cb = QCheckBox("Show colorbar")
         colorbar_cb.setChecked(current.get('colorbar', True))
@@ -2727,6 +2967,7 @@ print("ERROR_ANALYSIS_DONE")
                 'colorbar': colorbar_cb.isChecked(),
                 'linewidth': float(lw_combo.currentText()),
                 'n_steps': current.get('n_steps', 4),
+                'n_2d_snapshots': snap_spin.value(),
                 'surface_time': current.get('surface_time', 1.0),
                 'fps': current.get('fps', 10),
             }

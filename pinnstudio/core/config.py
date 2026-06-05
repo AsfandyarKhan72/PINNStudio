@@ -128,9 +128,10 @@ class PINNConfig:
     batch_size: int = 0
 
     plot_colormap: str = "RdBu_r"
-    plot_levels: int = 50
-    plot_resolution: int = 100
-    plot_dpi: int = 100
+    plot_levels: int = 100
+    plot_resolution: int = 200
+    plot_dpi: int = 300
+    plot_n_2d_snapshots: int = 2
     plot_colorbar: bool = True
     plot_auto_range: bool = True
     plot_vmin: float = -1.0
