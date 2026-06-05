@@ -713,7 +713,8 @@ for _pval in _param_values:
                         print(f"Could not append phase 2 history: {{_ae}}")
                 else:
                     model.compile("L-BFGS", loss="{config.loss_type}", loss_weights=_phase2_weights)
-                    loss_history, train_state = model.train(display_every=200)  # L-BFGS doesn't use batch_size
+                    loss_history, train_state = model.train(display_every=200)
+
                     if _use_save:
                         _lbfgs_model_path = _os.path.join(_sol_dir, "model_lbfgs")
                         model.save(_lbfgs_model_path)
@@ -1492,7 +1493,7 @@ if {config.time_adaptive}:
 
         if "{config.optimizer2}" != "none":
             if {config.lbfgs_use_default}:
-                dde.optimizers.set_LBFGS_options(maxiter={config.iterations2})
+                dde.optimizers.set_LBFGS_options(maxiter={config.iterations2}, ftol=0.0, gtol=1e-07)
             else:
                 dde.optimizers.set_LBFGS_options(
                     maxcor={config.lbfgs_maxcor}, ftol={config.lbfgs_ftol},

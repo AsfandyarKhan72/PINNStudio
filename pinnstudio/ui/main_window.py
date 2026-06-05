@@ -86,6 +86,7 @@ class MainWindow(QMainWindow):
         self._log_font_size = 16
         self._theme = "Solarized Dark"
         self._accent = "Blue (#a0c4ff)"
+        self._float_type = "float32"
         self._apply_theme()
         self._build_ui()
         self._apply_display_settings()
@@ -545,7 +546,7 @@ class MainWindow(QMainWindow):
 
         self.lbfgs_maxcor  = _lbfgs_row("maxcor:",  100)
         self.lbfgs_ftol    = _lbfgs_row("ftol:",     0.0)
-        self.lbfgs_gtol    = _lbfgs_row("gtol:",     1e-08)
+        self.lbfgs_gtol    = _lbfgs_row("gtol:",     1e-07)
         self.lbfgs_maxiter = _lbfgs_row("maxiter:",  15000)
         self.lbfgs_maxfun  = _lbfgs_row("maxfun:",   15000)
         self.lbfgs_maxls   = _lbfgs_row("maxls:",    50)
