@@ -197,6 +197,10 @@ class MainWindow(QMainWindow):
         lbfgs_action.triggered.connect(self._on_lbfgs_settings)
         settings_menu.addAction(lbfgs_action)
 
+        float_action = QAction("Float Precision...", self)
+        float_action.triggered.connect(self._on_float_settings)
+        settings_menu.addAction(float_action)
+
         view_menu = menubar.addMenu("🎨 Display")
         display_action = QAction("Display Settings...", self)
         display_action.triggered.connect(self._on_display_settings)
@@ -413,7 +417,7 @@ class MainWindow(QMainWindow):
         batch_layout.setSpacing(5)
 
         self.batch_check = QCheckBox("Enable mini-batch training")
-        self.batch_check.setChecked(False)
+        self.batch_check.setChecked(True)
         self.batch_check.stateChanged.connect(self._on_batch_changed)
         batch_layout.addWidget(self.batch_check)
 
@@ -424,12 +428,12 @@ class MainWindow(QMainWindow):
         self.batch_spin = QSpinBox()
         self.batch_spin.setRange(16, 10000)
         self.batch_spin.setSingleStep(16)
-        self.batch_spin.setValue(256)
+        self.batch_spin.setValue(32)
         self.batch_spin.setFixedWidth(100)
         self.batch_spin.setFixedHeight(28)
         bw_layout.addStretch()
         bw_layout.addWidget(self.batch_spin)
-        self.batch_widget.setVisible(False)
+        self.batch_widget.setVisible(True)
         batch_layout.addWidget(self.batch_widget)
 
         note = QLabel("Splits collocation points into mini-batches per iteration.")
@@ -447,6 +451,42 @@ class MainWindow(QMainWindow):
         def _train_row(label, widget):
             train_layout.addWidget(QLabel(label))
             train_layout.addWidget(widget)
+
+        div0 = QLabel("─── IC Pre-Training (optional) ───")
+        div0.setStyleSheet("color: #505080; font-size: 11px;")
+        train_layout.addWidget(div0)
+
+        self.ic_pretrain_cb = QCheckBox("Enable IC-guided pre-training")
+        self.ic_pretrain_cb.setChecked(False)
+        self.ic_pretrain_cb.setStyleSheet("color: #69db7c; font-size: 12px;")
+        self.ic_pretrain_cb.stateChanged.connect(self._on_ic_pretrain_changed)
+        train_layout.addWidget(self.ic_pretrain_cb)
+
+        self.ic_pretrain_widget = QWidget()
+        ic_pt_layout = QVBoxLayout(self.ic_pretrain_widget)
+        ic_pt_layout.setSpacing(4); ic_pt_layout.setContentsMargins(0, 0, 0, 0)
+        ic_pt_layout.addWidget(QLabel("IC pre-train optimizer:"))
+        self.ic_pretrain_opt = QComboBox()
+        self.ic_pretrain_opt.addItems(["adam"])
+        self.ic_pretrain_opt.setFixedHeight(28)
+        ic_pt_layout.addWidget(self.ic_pretrain_opt)
+        ic_pt_layout.addWidget(QLabel("IC pre-train iterations:"))
+        self.ic_pretrain_iters = QSpinBox()
+        self.ic_pretrain_iters.setRange(100, 500000)
+        self.ic_pretrain_iters.setSingleStep(1000)
+        self.ic_pretrain_iters.setValue(10000)
+        self.ic_pretrain_iters.setFixedHeight(28)
+        ic_pt_layout.addWidget(self.ic_pretrain_iters)
+        ic_note = QLabel("Trains IC loss only before main training.\nFirst step only for time-adaptive.")
+        ic_note.setStyleSheet("color: #586e75; font-size: 11px;")
+        ic_note.setWordWrap(True)
+        ic_pt_layout.addWidget(ic_note)
+        self.ic_pretrain_widget.setVisible(False)
+        train_layout.addWidget(self.ic_pretrain_widget)
+
+        div_phase1 = QLabel("─── Phase 1 ───")
+        div_phase1.setStyleSheet("color: #505080; font-size: 11px;")
+        train_layout.addWidget(div_phase1)
 
         self.opt1_combo = QComboBox()
         self.opt1_combo.addItems(["adam", "sgd", "rmsprop"]); self.opt1_combo.setFixedHeight(28)
@@ -504,8 +544,8 @@ class MainWindow(QMainWindow):
             return sb
 
         self.lbfgs_maxcor  = _lbfgs_row("maxcor:",  100)
-        self.lbfgs_ftol    = _lbfgs_row("ftol:",     1e-12)
-        self.lbfgs_gtol    = _lbfgs_row("gtol:",     1e-8)
+        self.lbfgs_ftol    = _lbfgs_row("ftol:",     0.0)
+        self.lbfgs_gtol    = _lbfgs_row("gtol:",     1e-08)
         self.lbfgs_maxiter = _lbfgs_row("maxiter:",  15000)
         self.lbfgs_maxfun  = _lbfgs_row("maxfun:",   15000)
         self.lbfgs_maxls   = _lbfgs_row("maxls:",    50)
@@ -1623,7 +1663,11 @@ class MainWindow(QMainWindow):
             lbfgs_maxiter=int(self.lbfgs_maxiter.value()),
             lbfgs_maxfun=int(self.lbfgs_maxfun.value()),
             lbfgs_maxls=int(self.lbfgs_maxls.value()),
+            float_type=getattr(self, '_float_type', 'float64'),
             batch_size=self.batch_spin.value() if self.batch_check.isChecked() else 0,
+            ic_pretrain=self.ic_pretrain_cb.isChecked(),
+            ic_pretrain_optimizer=self.ic_pretrain_opt.currentText(),
+            ic_pretrain_iterations=self.ic_pretrain_iters.value(),
             plot_colormap=self._plot_viz_settings.get('colormap', 'RdBu_r'),
             plot_levels=self._plot_viz_settings.get('levels', 50),
             plot_resolution=self._plot_viz_settings.get('resolution', 100),
@@ -1743,6 +1787,40 @@ class MainWindow(QMainWindow):
         else:
             self.log_box.append("\n❌ Error during training. Check log above.")
             self.log_box.append("💡 Tip: Check PDE/IC syntax — use * for multiplication (e.g. 5*u not 5u)")
+
+    def _on_float_settings(self):
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Float Precision")
+        dialog.setMinimumWidth(300)
+        layout = QVBoxLayout(dialog)
+
+        info = QLabel("Float64 recommended for L-BFGS convergence.\nFloat32 is faster but L-BFGS may stop early.")
+        info.setStyleSheet("color: #74c0fc; font-size: 12px;")
+        info.setWordWrap(True)
+        layout.addWidget(info)
+
+        row = QHBoxLayout()
+        row.addWidget(QLabel("Float type:"))
+        self._float_combo = QComboBox()
+        self._float_combo.addItems(["float64", "float32"])
+        self._float_combo.setCurrentText(getattr(self, '_float_type', 'float64'))
+        self._float_combo.setFixedWidth(100)
+        row.addStretch(); row.addWidget(self._float_combo)
+        layout.addLayout(row)
+
+        btn_row = QHBoxLayout()
+        ok_btn = QPushButton("OK"); cancel_btn = QPushButton("Cancel")
+        btn_row.addStretch(); btn_row.addWidget(ok_btn); btn_row.addWidget(cancel_btn)
+        layout.addLayout(btn_row)
+        cancel_btn.clicked.connect(dialog.reject)
+
+        def _on_ok():
+            self._float_type = self._float_combo.currentText()
+            self.log_box.append(f"✅ Float precision set to: {self._float_type}")
+            dialog.accept()
+
+        ok_btn.clicked.connect(_on_ok)
+        dialog.exec()
 
     def _on_lbfgs_settings(self):
         dialog = QDialog(self)
@@ -2622,6 +2700,7 @@ print("ERROR_ANALYSIS_DONE")
                 'iterations2': 10000,
                 'x_min': 0.0, 'x_max': 1.0,
                 'y_min': 0.0, 'y_max': 1.0,
+                't_max': 10.0,
                 'periodic_bc': True,
                 'bc_config': 'periodic_all',
                 'num_outputs': 1,
@@ -2673,6 +2752,7 @@ print("ERROR_ANALYSIS_DONE")
             # Set domain
             self.x_min.setValue(t['x_min']); self.x_max.setValue(t['x_max'])
             self.y_min.setValue(t['y_min']); self.y_max.setValue(t['y_max'])
+            if 't_max' in t: self.t_max.setValue(t['t_max'])
             # Set collocation points
             self.num_domain.setValue(t['num_domain'])
             self.num_boundary.setValue(t['num_boundary'])
@@ -3403,6 +3483,9 @@ print("ERROR_ANALYSIS_V2_DONE")
                     break
         else:
             self.log_box.append("❌ Error analysis failed — check log.")
+    
+    def _on_ic_pretrain_changed(self, state):
+        self.ic_pretrain_widget.setVisible(state == 2)
 
     def _on_batch_changed(self, state):
         self.batch_widget.setVisible(state == 2)

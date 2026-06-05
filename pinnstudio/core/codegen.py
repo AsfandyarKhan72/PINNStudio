@@ -1,5 +1,9 @@
 import os
 os.environ["DDE_BACKEND"] = "pytorch"
+# ── CUDA performance environment variables ────────────────────
+os.environ["CUDA_LAUNCH_BLOCKING"] = "0"        # async CUDA launches
+os.environ["TORCH_CUDA_ARCH_LIST"] = "8.9"      # RTX 4090 = Ada Lovelace = sm_89
+os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:512,expandable_segments:True"
 
 def _simplify_expr(expr, is_2d=False):
     """Convert user-friendly math syntax to numpy syntax."""
@@ -57,21 +61,40 @@ import warnings
 warnings.filterwarnings("ignore", message=".*cuBLAS.*")
 
 # ── Force GPU initialization ──────────────────────────────────
+dde.config.set_default_float("{config.float_type}")
 if torch.cuda.is_available():
     torch.cuda.init()
     torch.cuda.set_device(0)
-    torch.backends.cudnn.benchmark = True
-    torch.backends.cuda.matmul.allow_tf32 = True
-    torch.backends.cudnn.allow_tf32 = True
-    # Warm up CUDA context with a dummy forward+backward pass
+
+    # ── Maximize GPU memory usage ─────────────────────────────
+    # Reserve as much memory as possible upfront
+    torch.cuda.empty_cache()
+    total_mem = torch.cuda.get_device_properties(0).total_memory
+    # Allow PyTorch to use up to 95% of GPU memory
+    torch.cuda.set_per_process_memory_fraction(0.95, device=0)
+
+    # ── Performance settings ──────────────────────────────────
+    _is_f64 = "{config.float_type}" == "float64"
+    torch.backends.cuda.matmul.allow_tf32 = not _is_f64
+    torch.backends.cudnn.allow_tf32       = not _is_f64
+    torch.backends.cudnn.benchmark        = True
+    torch.backends.cudnn.deterministic    = False
+    
+    # ── Warm up CUDA ──────────────────────────────────────────
     _dummy = torch.zeros(10, 10, requires_grad=True, device='cuda')
     _loss = (_dummy ** 2).sum()
     _loss.backward()
     torch.cuda.synchronize()
     del _dummy, _loss
+    torch.cuda.empty_cache()
+
+    _free, _total = torch.cuda.mem_get_info(0)
     print(f"✅ GPU: {{torch.cuda.get_device_name(0)}}")
-    print(f"   Memory: {{torch.cuda.get_device_properties(0).total_memory / 1e9:.1f}} GB")
-    print(f"   TF32 and cuDNN benchmark enabled")
+    print(f"   Total memory: {{_total / 1e9:.1f}} GB")
+    print(f"   Available:    {{_free / 1e9:.1f}} GB")
+    print(f"   Float type:   {config.float_type}")
+    print(f"   TF32:         {{not _is_f64}}")
+    print(f"   cuDNN bench:  True")
 else:
     print("⚠️ No GPU found — running on CPU")
 
@@ -553,6 +576,40 @@ for _pval in _param_values:
 
     _iters = int(_pval) if (_parametric and _param_name == "phase1_iterations" and _pval is not None) else {config.iterations}
 
+    # ── IC Pre-Training ───────────────────────────────────────
+    if {config.ic_pretrain} and not {config.time_adaptive}:
+        print(f"\\n=== IC Pre-Training: {config.ic_pretrain_iterations} iterations (IC loss only) ===")
+        # Build IC-only geometry and data — no domain/BC points, only IC
+        if _is_2d:
+            _ic_geom_pre = dde.geometry.Rectangle([{config.x_min},{config.y_min}],[{config.x_max},{config.y_max}])
+        else:
+            _ic_geom_pre = dde.geometry.Interval({config.x_min}, {config.x_max})
+        _ic_td_pre  = dde.geometry.TimeDomain({config.t_min}, {config.t_max})
+        _ic_gt_pre  = dde.geometry.GeometryXTime(_ic_geom_pre, _ic_td_pre)
+        _ic_ics_pre = []
+        _ic_exprs_pre = "{config_ic_expressions}".split("|")
+        for _oi_pre in range({config.num_outputs}):
+            _ic_expr_pre = _ic_exprs_pre[_oi_pre].strip() if _oi_pre < len(_ic_exprs_pre) else "np.zeros_like(x[:,0])"
+            def _mk_ic_pre(expr, comp):
+                def _ic_fn(x):
+                    return np.reshape(eval(expr, {{"np": np, "x": x, "__builtins__": __builtins__}}), (-1, 1))
+                return dde.icbc.IC(_ic_gt_pre, _ic_fn, lambda x, on_initial: on_initial, component=comp)
+            _ic_ics_pre.append(_mk_ic_pre(_ic_expr_pre, _oi_pre))
+        _data_pre = dde.data.TimePDE(
+            _ic_gt_pre, pde, _ic_ics_pre,
+            num_domain=0, num_boundary=0,
+            num_initial={config.num_initial}, num_test=100
+        )
+        _model_pre = dde.Model(_data_pre, net)
+        # PDE=0, IC=1
+        _ic_only_weights = [0.0] * {config.num_outputs} + [1.0] * {config.num_outputs}
+        print(f"  IC-only weights: {{_ic_only_weights}} — IC points only, no domain/BC")
+        _model_pre.compile("{config.ic_pretrain_optimizer}", lr={config.learning_rate},
+                           loss="{config.loss_type}", loss_weights=_ic_only_weights)
+        _ic_lh, _ = _model_pre.train(iterations={config.ic_pretrain_iterations}, display_every=1000)
+        print(f"  IC pre-training done. Final IC loss: {{sum(_ic_lh.loss_train[-1]):.4e}}")
+        print("=== Starting Main Training ===\\n")
+
     if not {config.time_adaptive}:
         if _problem_type == "Inverse":
             with open("/tmp/param_history.txt", "w") as _f:
@@ -581,7 +638,7 @@ for _pval in _param_values:
             _phase2_weights = _multi_weights
             if "{config.optimizer2}" == "lbfgs":
                 if {config.lbfgs_use_default}:
-                    dde.optimizers.set_LBFGS_options(maxiter={config.iterations2})
+                    dde.optimizers.set_LBFGS_options(maxiter={config.iterations2}, ftol=0.0, gtol=1e-10)
                 else:
                     dde.optimizers.set_LBFGS_options(
                         maxcor={config.lbfgs_maxcor}, ftol={config.lbfgs_ftol},
@@ -1202,11 +1259,22 @@ if {config.time_adaptive}:
     t_start   = {config.t_min}
     t_end     = {config.t_max}
     dt        = (t_end - t_start) / n_steps
-    x_grid    = np.linspace({config.x_min}, {config.x_max}, grid_size)
+    if _is_2d:
+        _xg_ta = np.linspace({config.x_min}, {config.x_max}, grid_size)
+        _yg_ta = np.linspace({config.y_min}, {config.y_max}, grid_size)
+        _Xmesh, _Ymesh = np.meshgrid(_xg_ta, _yg_ta)
+        x_grid = np.column_stack([_Xmesh.ravel(), _Ymesh.ravel()])
+        x = x_grid  # (N*N, 2)
+    else:
+        x_grid = np.linspace({config.x_min}, {config.x_max}, grid_size)
 
     all_x = []; all_t = []; all_u = []
 
-    x      = x_grid.reshape(-1, 1)
+    if _is_2d:
+        # 2D: x_grid is (N*N, 2) array of (x,y) pairs
+        x = x_grid  # already set as (x,y) pairs from meshgrid above
+    else:
+        x = x_grid.reshape(-1, 1)
     prev_u = np.reshape({ta_ic_expr}, (-1, 1))
 
     _prev_step_model_path = ""  # tracks last saved model for transfer learning
@@ -1360,6 +1428,40 @@ if {config.time_adaptive}:
                     print(f"  ⚠️  Skipped {{len(_skipped)}} tensors (shape mismatch): {{_skipped}}")
             except Exception as _te:
                 print(f"  ⚠️ Transfer learning failed: {{_te}} — training from scratch")
+
+        # IC pre-training for first step only
+        if {config.ic_pretrain} and step_i == 0:
+            print(f"  === IC Pre-Training: {config.ic_pretrain_iterations} iterations ===")
+            # Build IC-only data: no domain/BC points, only IC points
+            if _is_2d:
+                _ic_geom_pt = dde.geometry.Rectangle([{config.x_min},{config.y_min}],[{config.x_max},{config.y_max}])
+            else:
+                _ic_geom_pt = dde.geometry.Interval({config.x_min}, {config.x_max})
+            _ic_td_pt = dde.geometry.TimeDomain(t0, t1)
+            _ic_gt_pt = dde.geometry.GeometryXTime(_ic_geom_pt, _ic_td_pt)
+            # Only IC constraint
+            _ic_constraints_pt = []
+            for _oi_pt in range({config.num_outputs}):
+                _ic_expr_pt = _ic_expressions[_oi_pt].strip() if _oi_pt < len(_ic_expressions) else "np.zeros_like(x[:,0])"
+                def _mk_ic_pt(expr, comp):
+                    def _ic_fn(x):
+                        return np.reshape(eval(expr, {{"np": np, "x": x, "__builtins__": __builtins__}}), (-1, 1))
+                    return dde.icbc.IC(_ic_gt_pt, _ic_fn, lambda x, on_initial: on_initial, component=comp)
+                _ic_constraints_pt.append(_mk_ic_pt(_ic_expr_pt, _oi_pt))
+            _data_pt = dde.data.TimePDE(
+                _ic_gt_pt, pde, _ic_constraints_pt,
+                num_domain=0, num_boundary=0,
+                num_initial={config.num_initial}, num_test=100
+            )
+            _net_pt = model_i.net
+            _model_pt = dde.Model(_data_pt, _net_pt)
+            # IC-only weights: PDE=0, IC=1
+            _ic_only_w_ta = [0.0] * {config.num_outputs} + [1.0] * {config.num_outputs}
+            _model_pt.compile("{config.ic_pretrain_optimizer}", lr=_lr,
+                              loss="{config.loss_type}", loss_weights=_ic_only_w_ta)
+            _ic_lh_ta, _ = _model_pt.train(iterations={config.ic_pretrain_iterations}, display_every=1000)
+            print(f"  IC pre-training done. Final loss: {{sum(_ic_lh_ta.loss_train[-1]):.4e}}")
+            print("  === Starting Main Training ===")
 
         # Adam always runs full iterations — transfer learning only affects starting weights
         model_i.compile("{config.optimizer}", lr=_lr, loss="{config.loss_type}")
