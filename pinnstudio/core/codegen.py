@@ -79,7 +79,7 @@ if torch.cuda.is_available():
     torch.backends.cudnn.allow_tf32       = not _is_f64
     torch.backends.cudnn.benchmark        = True
     torch.backends.cudnn.deterministic    = False
-    
+
     # ── Warm up CUDA ──────────────────────────────────────────
     _dummy = torch.zeros(10, 10, requires_grad=True, device='cuda')
     _loss = (_dummy ** 2).sum()
@@ -252,30 +252,53 @@ def pde(x, y):
         _dvars[_oname] = y[:, _oi:_oi+1]
         if _is_2d_pde:
             # 2D: inputs are (x, y, t) → j=0,1,2
-            _dvars[f"d{{_oname}}_x"]  = dde.grad.jacobian(y, x, i=_oi, j=0)
-            _dvars[f"d{{_oname}}_y"]  = dde.grad.jacobian(y, x, i=_oi, j=1)
-            _dvars[f"d{{_oname}}_t"]  = dde.grad.jacobian(y, x, i=_oi, j=2)
-            _dvars[f"d{{_oname}}_xx"] = dde.grad.hessian(y, x, component=_oi, i=0, j=0)
-            _dvars[f"d{{_oname}}_yy"] = dde.grad.hessian(y, x, component=_oi, i=1, j=1)
-            _dvars[f"d{{_oname}}_xy"] = dde.grad.hessian(y, x, component=_oi, i=0, j=1)
-            _dvars[f"d{{_oname}}_tt"] = dde.grad.hessian(y, x, component=_oi, i=2, j=2)
-            _dvars[f"d{{_oname}}_xt"] = dde.grad.hessian(y, x, component=_oi, i=0, j=2)
-            _dvars[f"d{{_oname}}_yt"] = dde.grad.hessian(y, x, component=_oi, i=1, j=2)
-            _dvars[f"d{{_oname}}_xxxx"] = dde.grad.hessian(_dvars[f"d{{_oname}}_xx"], x, i=0, j=0)
-            _dvars[f"d{{_oname}}_yyyy"] = dde.grad.hessian(_dvars[f"d{{_oname}}_yy"], x, i=1, j=1)
-            _dvars[f"d{{_oname}}_xxyy"] = dde.grad.hessian(_dvars[f"d{{_oname}}_xx"], x, i=1, j=1)
-            _dvars[f"d{{_oname}}_xxtt"] = dde.grad.hessian(_dvars[f"d{{_oname}}_xx"], x, i=2, j=2)
-            _dvars[f"d{{_oname}}_yytt"] = dde.grad.hessian(_dvars[f"d{{_oname}}_yy"], x, i=2, j=2)
+            # Always compute first-order derivatives
+            _dvars[f"d{{_oname}}_x"] = dde.grad.jacobian(y, x, i=_oi, j=0)
+            _dvars[f"d{{_oname}}_y"] = dde.grad.jacobian(y, x, i=_oi, j=1)
+            _dvars[f"d{{_oname}}_t"] = dde.grad.jacobian(y, x, i=_oi, j=2)
+            # Only compute higher-order derivatives if used in PDE
+            _pde_str_check = "{config_pde_expressions}"
+            _oname_check = _oname
+            if f"d{{_oname_check}}_xx" in _pde_str_check or f"d{{_oname_check}}_xxxx" in _pde_str_check or f"d{{_oname_check}}_xxyy" in _pde_str_check or f"d{{_oname_check}}_xxtt" in _pde_str_check:
+                _dvars[f"d{{_oname}}_xx"] = dde.grad.hessian(y, x, component=_oi, i=0, j=0)
+            if f"d{{_oname_check}}_yy" in _pde_str_check or f"d{{_oname_check}}_yyyy" in _pde_str_check or f"d{{_oname_check}}_xxyy" in _pde_str_check or f"d{{_oname_check}}_yytt" in _pde_str_check:
+                _dvars[f"d{{_oname}}_yy"] = dde.grad.hessian(y, x, component=_oi, i=1, j=1)
+            if f"d{{_oname_check}}_xy" in _pde_str_check:
+                _dvars[f"d{{_oname}}_xy"] = dde.grad.hessian(y, x, component=_oi, i=0, j=1)
+            if f"d{{_oname_check}}_tt" in _pde_str_check:
+                _dvars[f"d{{_oname}}_tt"] = dde.grad.hessian(y, x, component=_oi, i=2, j=2)
+            if f"d{{_oname_check}}_xt" in _pde_str_check:
+                _dvars[f"d{{_oname}}_xt"] = dde.grad.hessian(y, x, component=_oi, i=0, j=2)
+            if f"d{{_oname_check}}_yt" in _pde_str_check:
+                _dvars[f"d{{_oname}}_yt"] = dde.grad.hessian(y, x, component=_oi, i=1, j=2)
+            if f"d{{_oname_check}}_xxxx" in _pde_str_check and f"d{{_oname}}_xx" in _dvars:
+                _dvars[f"d{{_oname}}_xxxx"] = dde.grad.hessian(_dvars[f"d{{_oname}}_xx"], x, i=0, j=0)
+            if f"d{{_oname_check}}_yyyy" in _pde_str_check and f"d{{_oname}}_yy" in _dvars:
+                _dvars[f"d{{_oname}}_yyyy"] = dde.grad.hessian(_dvars[f"d{{_oname}}_yy"], x, i=1, j=1)
+            if f"d{{_oname_check}}_xxyy" in _pde_str_check and f"d{{_oname}}_xx" in _dvars:
+                _dvars[f"d{{_oname}}_xxyy"] = dde.grad.hessian(_dvars[f"d{{_oname}}_xx"], x, i=1, j=1)
+            if f"d{{_oname_check}}_xxtt" in _pde_str_check and f"d{{_oname}}_xx" in _dvars:
+                _dvars[f"d{{_oname}}_xxtt"] = dde.grad.hessian(_dvars[f"d{{_oname}}_xx"], x, i=2, j=2)
+            if f"d{{_oname_check}}_yytt" in _pde_str_check and f"d{{_oname}}_yy" in _dvars:
+                _dvars[f"d{{_oname}}_yytt"] = dde.grad.hessian(_dvars[f"d{{_oname}}_yy"], x, i=2, j=2)
         else:
             # 1D: inputs are (x, t) → j=0,1
-            _dvars[f"d{{_oname}}_x"]  = dde.grad.jacobian(y, x, i=_oi, j=0)
-            _dvars[f"d{{_oname}}_t"]  = dde.grad.jacobian(y, x, i=_oi, j=1)
-            _dvars[f"d{{_oname}}_xx"] = dde.grad.hessian(y, x, component=_oi, i=0, j=0)
-            _dvars[f"d{{_oname}}_tt"] = dde.grad.hessian(y, x, component=_oi, i=1, j=1)
-            _dvars[f"d{{_oname}}_xt"] = dde.grad.hessian(y, x, component=_oi, i=0, j=1)
-            _dvars[f"d{{_oname}}_xxxx"] = dde.grad.hessian(_dvars[f"d{{_oname}}_xx"], x, i=0, j=0)
-            _dvars[f"d{{_oname}}_xxtt"] = dde.grad.hessian(_dvars[f"d{{_oname}}_xx"], x, i=1, j=1)
-            _dvars[f"d{{_oname}}_tttt"] = dde.grad.hessian(_dvars[f"d{{_oname}}_tt"], x, i=1, j=1)
+            _dvars[f"d{{_oname}}_x"] = dde.grad.jacobian(y, x, i=_oi, j=0)
+            _dvars[f"d{{_oname}}_t"] = dde.grad.jacobian(y, x, i=_oi, j=1)
+            _pde_str_check = "{config_pde_expressions}"
+            _oname_check = _oname
+            if f"d{{_oname_check}}_xx" in _pde_str_check or f"d{{_oname_check}}_xxxx" in _pde_str_check or f"d{{_oname_check}}_xxtt" in _pde_str_check:
+                _dvars[f"d{{_oname}}_xx"] = dde.grad.hessian(y, x, component=_oi, i=0, j=0)
+            if f"d{{_oname_check}}_tt" in _pde_str_check or f"d{{_oname_check}}_tttt" in _pde_str_check or f"d{{_oname_check}}_xxtt" in _pde_str_check:
+                _dvars[f"d{{_oname}}_tt"] = dde.grad.hessian(y, x, component=_oi, i=1, j=1)
+            if f"d{{_oname_check}}_xt" in _pde_str_check:
+                _dvars[f"d{{_oname}}_xt"] = dde.grad.hessian(y, x, component=_oi, i=0, j=1)
+            if f"d{{_oname_check}}_xxxx" in _pde_str_check and f"d{{_oname}}_xx" in _dvars:
+                _dvars[f"d{{_oname}}_xxxx"] = dde.grad.hessian(_dvars[f"d{{_oname}}_xx"], x, i=0, j=0)
+            if f"d{{_oname_check}}_xxtt" in _pde_str_check and f"d{{_oname}}_xx" in _dvars:
+                _dvars[f"d{{_oname}}_xxtt"] = dde.grad.hessian(_dvars[f"d{{_oname}}_xx"], x, i=1, j=1)
+            if f"d{{_oname_check}}_tttt" in _pde_str_check and f"d{{_oname}}_tt" in _dvars:
+                _dvars[f"d{{_oname}}_tttt"] = dde.grad.hessian(_dvars[f"d{{_oname}}_tt"], x, i=1, j=1)
 
     _eval_ns = {{**globals(), **_dvars}}
     _eval_ns["dde"] = dde
