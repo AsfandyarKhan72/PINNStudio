@@ -1803,7 +1803,7 @@ class MainWindow(QMainWindow):
         row.addWidget(QLabel("Float type:"))
         self._float_combo = QComboBox()
         self._float_combo.addItems(["float64", "float32"])
-        self._float_combo.setCurrentText(getattr(self, '_float_type', 'float64'))
+        self._float_combo.setCurrentText(getattr(self, '_float_type', 'float32'))
         self._float_combo.setFixedWidth(100)
         row.addStretch(); row.addWidget(self._float_combo)
         layout.addLayout(row)

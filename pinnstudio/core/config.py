@@ -122,7 +122,7 @@ class PINNConfig:
     lbfgs_maxcor: int = 100
     lbfgs_ftol: float = 0.0
     lbfgs_gtol: float = 1e-08
-    float_type: str = "float64"
+    float_type: str = "float32"
     lbfgs_maxiter: int = 15000
     lbfgs_maxfun: int = 15000
     lbfgs_maxls: int = 50

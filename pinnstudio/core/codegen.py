@@ -661,7 +661,7 @@ for _pval in _param_values:
             _phase2_weights = _multi_weights
             if "{config.optimizer2}" == "lbfgs":
                 if {config.lbfgs_use_default}:
-                    dde.optimizers.set_LBFGS_options(maxiter={config.iterations2}, ftol=0.0, gtol=1e-10)
+                    dde.optimizers.set_LBFGS_options(maxiter={config.iterations2}, ftol=0.0, gtol=1e-07)
                 else:
                     dde.optimizers.set_LBFGS_options(
                         maxcor={config.lbfgs_maxcor}, ftol={config.lbfgs_ftol},
