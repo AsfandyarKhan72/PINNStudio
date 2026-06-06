@@ -120,11 +120,11 @@ class PINNConfig:
     # L-BFGS
     lbfgs_use_default: bool = True
     lbfgs_maxcor: int = 100
-    lbfgs_ftol: float = 0.0
-    lbfgs_gtol: float = 1e-07
+    lbfgs_ftol: float = 1e-12
+    lbfgs_gtol: float = 1e-10
     float_type: str = "float32"
     lbfgs_maxiter: int = 15000
-    lbfgs_maxfun: int = 15000
+    lbfgs_maxfun: int = 18750
     lbfgs_maxls: int = 50
     ic_pretrain: bool = False
     ic_pretrain_optimizer: str = "adam"

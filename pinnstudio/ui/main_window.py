@@ -548,7 +548,7 @@ class MainWindow(QMainWindow):
         self.lbfgs_ftol    = _lbfgs_row("ftol:",     0.0)
         self.lbfgs_gtol    = _lbfgs_row("gtol:",     1e-07)
         self.lbfgs_maxiter = _lbfgs_row("maxiter:",  15000)
-        self.lbfgs_maxfun  = _lbfgs_row("maxfun:",   15000)
+        self.lbfgs_maxfun  = _lbfgs_row("maxfun:",   18750)
         self.lbfgs_maxls   = _lbfgs_row("maxls:",    50)
 
         self.lbfgs_manual_widget.setVisible(False)

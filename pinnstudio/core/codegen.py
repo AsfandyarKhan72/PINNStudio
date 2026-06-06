@@ -75,9 +75,9 @@ if torch.cuda.is_available():
 
     # ── Performance settings ──────────────────────────────────
     _is_f64 = "{config.float_type}" == "float64"
-    torch.backends.cuda.matmul.allow_tf32 = not _is_f64
-    torch.backends.cudnn.allow_tf32       = not _is_f64
-    torch.backends.cudnn.benchmark        = True
+    torch.backends.cuda.matmul.allow_tf32 = False
+    torch.backends.cudnn.allow_tf32       = False
+    torch.backends.cudnn.benchmark        = False
     torch.backends.cudnn.deterministic    = False
 
     # ── Warm up CUDA ──────────────────────────────────────────
@@ -92,9 +92,9 @@ if torch.cuda.is_available():
     print(f"✅ GPU: {{torch.cuda.get_device_name(0)}}")
     print(f"   Total memory: {{_total / 1e9:.1f}} GB")
     print(f"   Available:    {{_free / 1e9:.1f}} GB")
+    print(f"   TF32:         False")
     print(f"   Float type:   {config.float_type}")
-    print(f"   TF32:         {{not _is_f64}}")
-    print(f"   cuDNN bench:  True")
+    print(f"   cuDNN bench:  False")
 else:
     print("⚠️ No GPU found — running on CPU")
 
@@ -300,40 +300,17 @@ def pde(x, y):
             if f"d{{_oname_check}}_tttt" in _pde_str_check and f"d{{_oname}}_tt" in _dvars:
                 _dvars[f"d{{_oname}}_tttt"] = dde.grad.hessian(_dvars[f"d{{_oname}}_tt"], x, i=1, j=1)
 
-    _eval_ns = {{**globals(), **_dvars}}
+    _eval_ns = {{**_dvars}}
     _eval_ns["dde"] = dde
     _eval_ns["np"]  = np
     _eval_ns["x"]   = x
     _eval_ns["y"]   = y
+    _eval_ns["torch"] = torch
 
     if _problem_type == "Inverse":
         _eval_ns["{config.inverse_param_name}"] = {config.inverse_param_name}
 
     if _n_out == 1:
-        if _is_2d_pde:
-            u     = _dvars.get("u",     y[:, 0:1])
-            du_x  = _dvars.get("du_x",  dde.grad.jacobian(y, x, i=0, j=0))
-            du_y  = _dvars.get("du_y",  dde.grad.jacobian(y, x, i=0, j=1))
-            du_t  = _dvars.get("du_t",  dde.grad.jacobian(y, x, i=0, j=2))
-            du_xx = _dvars.get("du_xx", dde.grad.hessian(y, x, component=0, i=0, j=0))
-            du_yy = _dvars.get("du_yy", dde.grad.hessian(y, x, component=0, i=1, j=1))
-            du_xy = _dvars.get("du_xy", dde.grad.hessian(y, x, component=0, i=0, j=1))
-            du_tt = _dvars.get("du_tt", dde.grad.hessian(y, x, component=0, i=2, j=2))
-            _eval_ns.update({{
-                "u": u, "du_x": du_x, "du_y": du_y, "du_t": du_t,
-                "du_xx": du_xx, "du_yy": du_yy, "du_xy": du_xy, "du_tt": du_tt
-            }})
-        else:
-            u     = _dvars.get("u",     y[:, 0:1])
-            du_x  = _dvars.get("du_x",  dde.grad.jacobian(y, x, i=0, j=0))
-            du_t  = _dvars.get("du_t",  dde.grad.jacobian(y, x, i=0, j=1))
-            du_xx = _dvars.get("du_xx", dde.grad.hessian(y, x, component=0, i=0, j=0))
-            du_tt = _dvars.get("du_tt", dde.grad.hessian(y, x, component=0, i=1, j=1))
-            du_xt = _dvars.get("du_xt", dde.grad.hessian(y, x, component=0, i=0, j=1))
-            _eval_ns.update({{
-                "u": u, "du_x": du_x, "du_t": du_t,
-                "du_xx": du_xx, "du_tt": du_tt, "du_xt": du_xt
-            }})
         return eval("{pde_expr_single}", _eval_ns)
     else:
         _pde_exprs = "{config_pde_expressions}".split("|")
@@ -661,7 +638,7 @@ for _pval in _param_values:
             _phase2_weights = _multi_weights
             if "{config.optimizer2}" == "lbfgs":
                 if {config.lbfgs_use_default}:
-                    dde.optimizers.set_LBFGS_options(maxiter={config.iterations2}, ftol=0.0, gtol=1e-07)
+                    dde.optimizers.set_LBFGS_options(maxiter={config.iterations2}, ftol=1e-12, gtol=1e-10, maxls=50, maxcor=100)
                 else:
                     dde.optimizers.set_LBFGS_options(
                         maxcor={config.lbfgs_maxcor}, ftol={config.lbfgs_ftol},
@@ -1413,16 +1390,6 @@ if {config.time_adaptive}:
 
         net_i   = dde.nn.FNN({config.layers}, "{config.activation}", "Glorot uniform")
         model_i = dde.Model(data_i, net_i)
-
-        # Reset L-BFGS global state before Adam to prevent bleed-over from phase 2
-        try:
-            import deepxde.optimizers.pytorch.optimizers as _dde_opt
-            _dde_opt.LBFGS_options["maxiter"] = 999999
-            _dde_opt.LBFGS_options["iter_per_step"] = 999999
-            _dde_opt.LBFGS_options["maxfun"] = 999999
-            _dde_opt.LBFGS_options["fun_per_step"] = 999999
-        except Exception:
-            pass
             
         # ── Transfer learning — warm start from previous step ─
         if {config.ta_transfer_learning} and step_i > 0 and _prev_step_model_path:
