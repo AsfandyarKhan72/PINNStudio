@@ -50,7 +50,95 @@ def generate_script(config):
 
     pde_expr_single = _simplify_pde_expr(config.pde_expression)
 
+    # ── FeCr PDE block (inserted verbatim for FeCr_PINN template) ──
+    if config.forward_ic_from_file:
+        _ta_ic_init = f"""_ic_ta_data = np.loadtxt(r"{config.forward_ic_file}")
+    _ic_ta_mask = np.abs(_ic_ta_data[:, 2]) < 1e-10
+    prev_u = _ic_ta_data[_ic_ta_mask, 3:4]"""
+    else:
+        _ta_ic_init = f"prev_u = np.reshape({ta_ic_expr}, (-1, 1))"
+    _fecr_pde1 = config_pde_expressions.split("|")[0].strip() if config.template_type == "FeCr_PINN" else ""
+    _fecr_pde2 = config_pde_expressions.split("|")[1].strip() if (config.template_type == "FeCr_PINN" and "|" in config_pde_expressions) else ""
+
+    if config.template_type == "FeCr_PINN":
+        _fecr_pde_block = f"""
+import math as _math
+
+_Lo        = 1.0 / (25e-9)**2
+_LOGE10    = _math.log(10.0)
+_EPS32     = 1e-6
+
+def _dfdc_torch(c):
+    eps = torch.tensor(1e-6, dtype=c.dtype, device=c.device)
+    c = torch.clamp(c, eps, 1.0 - eps)
+    return (8098.119000
+            + 4167.994000 * torch.log(c)
+            - 7052.907000 * torch.log(1.0 - c)
+            + 14684.820000 * c
+            - 71698.782000 * c**2
+            + 37524.688000 * c**3)
+
+def _M_torch(c):
+    s  = torch.clamp(c, _EPS32, 1.0 - _EPS32)
+    t  = 1.0 - s
+    p1 = torch.clamp(t*t*s, min=1e-30)
+    p2 = torch.clamp(s*s*t, min=1e-30)
+    gCr = (-32.770969*s - 25.8186669*t
+           - 3.29612744*s*torch.log(s)
+           + 17.669757*t*torch.log(t)
+           + 37.6197853*s*t
+           + 20.6941796*s*t*(2.0*s-1.0)
+           + 10.8095813*s*t*(2.0*s-1.0)**2)
+    gFe = (-31.687117*s - 26.0291774*t
+           + 0.2286581*s*torch.log(s)
+           + 24.3633544*t*torch.log(t)
+           + 44.3334237*s*t
+           + 8.72990497*s*t*(2.0*s-1.0)
+           + 20.956768*s*t*(2.0*s-1.0)**2)
+    a = torch.log(p1) + gCr * _LOGE10
+    b = torch.log(p2) + gFe * _LOGE10
+    m = torch.maximum(a, b)
+    ln_sum = m + torch.log(torch.exp(a - m) + torch.exp(b - m))
+    return torch.exp(_math.log(_Lo) + ln_sum)
+
+# ── PDE definition ──────────────────────────────────────────
+def pde(x, y):
+    c   = y[:, 0:1]
+    mu  = y[:, 1:2]
+    c_t   = dde.grad.jacobian(y, x, i=0, j=2)
+    c_xx  = dde.grad.hessian(y, x, component=0, i=0, j=0)
+    c_yy  = dde.grad.hessian(y, x, component=0, i=1, j=1)
+    mu_xx = dde.grad.hessian(y, x, component=1, i=0, j=0)
+    mu_yy = dde.grad.hessian(y, x, component=1, i=1, j=1)
+    c_x   = dde.grad.jacobian(y, x, i=0, j=0)
+    c_y   = dde.grad.jacobian(y, x, i=0, j=1)
+    mu_x  = dde.grad.jacobian(y, x, i=1, j=0)
+    mu_y  = dde.grad.jacobian(y, x, i=1, j=1)
+    dfdc  = _dfdc_torch(c)
+    Mloc  = _M_torch(c)
+    dMdc  = torch.autograd.grad(
+        Mloc, c, grad_outputs=torch.ones_like(Mloc), create_graph=True
+    )[0]
+    # Use values from GUI PDE expressions via eval
+    _pde1 = "{_fecr_pde1}"
+    _pde2 = "{_fecr_pde2}"
+    _eval_fecr = {{
+        "dc_t": c_t, "dmu_xx": mu_xx, "dmu_yy": mu_yy,
+        "dMdc": dMdc, "dc_x": c_x, "dc_y": c_y,
+        "dmu_x": mu_x, "dmu_y": mu_y,
+        "M": Mloc, "dc_xx": c_xx, "dc_yy": c_yy,
+        "mu": mu, "dfdc": dfdc,
+        "np": np, "torch": torch
+    }}
+    eq1 = eval(_pde1, _eval_fecr)
+    eq2 = eval(_pde2, _eval_fecr)
+    return [eq1, eq2]
+"""
+    else:
+        _fecr_pde_block = ""
+
     script = f"""
+
 import os
 os.environ["DDE_BACKEND"] = "pytorch"
 import deepxde as dde
@@ -241,8 +329,10 @@ if _problem_type == "Inverse":
     )
 
 
-# ── PDE definition ──────────────────────────────────────────
-def pde(x, y):
+{_fecr_pde_block}
+_IS_FECR = "{config.template_type}" == "FeCr_PINN"
+# ── PDE definition (standard) ───────────────────────────────
+def _pde_standard(x, y):
     _n_out = {config.num_outputs}
     _out_names = [n.strip() for n in "{config.output_names}".split(",")]
     _is_2d_pde = "{config.problem_dim}" == "2D"
@@ -315,6 +405,8 @@ def pde(x, y):
     else:
         _pde_exprs = "{config_pde_expressions}".split("|")
         return [eval(_expr.strip(), _eval_ns) for _expr in _pde_exprs]
+if not _IS_FECR:
+    pde = _pde_standard
 
 # ── Geometry & Time domain ──────────────────────────────────
 if _is_2d:
@@ -438,7 +530,17 @@ else:
                     pass  # Periodic BC handled by bottom side only
 
         # ── IC ────────────────────────────────────────────────
-        if _oi < len(_ic_active_list) and _ic_active_list[_oi].strip() == "True":
+        if {config.forward_ic_from_file} and _oi == 0:
+            # Load IC from file (x, y, t, c format) — use PointSetBC at t=0
+            _ic_data = np.loadtxt(r"{config.forward_ic_file}")
+            _ic_mask = np.abs(_ic_data[:, 2]) < 1e-10  # rows where t≈0
+            _ic_xy   = _ic_data[_ic_mask, :2]          # x, y
+            _ic_t0   = np.zeros((_ic_mask.sum(), 1))
+            _ic_xyt  = np.hstack([_ic_xy, _ic_t0])     # (x, y, 0)
+            _ic_vals = _ic_data[_ic_mask, 3:4]          # c values
+            _constraints.append(dde.icbc.PointSetBC(_ic_xyt, _ic_vals, component=0))
+            print(f"IC loaded from file: {config.forward_ic_file} — {{_ic_mask.sum()}} points")
+        elif _oi < len(_ic_active_list) and _ic_active_list[_oi].strip() == "True":
             _ic_expr = _ic_expressions[_oi].strip() if _oi < len(_ic_expressions) else "np.zeros_like(x[:,0])"
             def _make_ic(expr, comp):
                 def _ic_fn(x):
@@ -489,7 +591,7 @@ for _oi_w in range(_n_out_w):
             _bct_w.append(None)  # do NOT advance _wi — GUI sends no value for this slot
     else:
         _bcb_w.append(None); _bct_w.append(None)
-    if _oi_w < len(_ic_a) and _ic_a[_oi_w].strip() == "True":
+    if (_oi_w == 0 and {config.forward_ic_from_file}) or (_oi_w < len(_ic_a) and _ic_a[_oi_w].strip() == "True"):
         _ic_w.append(_wm_list[_wi] if _wi < len(_wm_list) else 1.0); _wi += 1
     else:
         _ic_w.append(None); _wi += 1 if _wi < len(_wm_list) else 0
@@ -587,14 +689,23 @@ for _pval in _param_values:
         _ic_td_pre  = dde.geometry.TimeDomain({config.t_min}, {config.t_max})
         _ic_gt_pre  = dde.geometry.GeometryXTime(_ic_geom_pre, _ic_td_pre)
         _ic_ics_pre = []
-        _ic_exprs_pre = "{config_ic_expressions}".split("|")
-        for _oi_pre in range({config.num_outputs}):
-            _ic_expr_pre = _ic_exprs_pre[_oi_pre].strip() if _oi_pre < len(_ic_exprs_pre) else "np.zeros_like(x[:,0])"
-            def _mk_ic_pre(expr, comp):
-                def _ic_fn(x):
-                    return np.reshape(eval(expr, {{"np": np, "x": x, "__builtins__": __builtins__}}), (-1, 1))
-                return dde.icbc.IC(_ic_gt_pre, _ic_fn, lambda x, on_initial: on_initial, component=comp)
-            _ic_ics_pre.append(_mk_ic_pre(_ic_expr_pre, _oi_pre))
+        if {config.forward_ic_from_file}:
+            # Load IC from file for pre-training
+            _ic_pre_data = np.loadtxt(r"{config.forward_ic_file}")
+            _ic_pre_mask = np.abs(_ic_pre_data[:, 2]) < 1e-10
+            _ic_pre_xy   = _ic_pre_data[_ic_pre_mask, :2]
+            _ic_pre_xyt  = np.hstack([_ic_pre_xy, np.zeros((_ic_pre_mask.sum(), 1))])
+            _ic_pre_vals = _ic_pre_data[_ic_pre_mask, 3:4]
+            _ic_ics_pre.append(dde.icbc.PointSetBC(_ic_pre_xyt, _ic_pre_vals, component=0))
+        else:
+            _ic_exprs_pre = "{config_ic_expressions}".split("|")
+            for _oi_pre in range({config.num_outputs}):
+                _ic_expr_pre = _ic_exprs_pre[_oi_pre].strip() if _oi_pre < len(_ic_exprs_pre) else "np.zeros_like(x[:,0])"
+                def _mk_ic_pre(expr, comp):
+                    def _ic_fn(x):
+                        return np.reshape(eval(expr, {{"np": np, "x": x, "__builtins__": __builtins__}}), (-1, 1))
+                    return dde.icbc.IC(_ic_gt_pre, _ic_fn, lambda x, on_initial: on_initial, component=comp)
+                _ic_ics_pre.append(_mk_ic_pre(_ic_expr_pre, _oi_pre))
         _data_pre = dde.data.TimePDE(
             _ic_gt_pre, pde, _ic_ics_pre,
             num_domain=0, num_boundary=0,
@@ -602,7 +713,7 @@ for _pval in _param_values:
         )
         _model_pre = dde.Model(_data_pre, net)
         # PDE=0, IC=1
-        _ic_only_weights = [0.0] * {config.num_outputs} + [1.0] * {config.num_outputs}
+        _ic_only_weights = [0.0] * {config.num_outputs} + [1.0] * len(_ic_ics_pre)
         print(f"  IC-only weights: {{_ic_only_weights}} — IC points only, no domain/BC")
         _model_pre.compile("{config.ic_pretrain_optimizer}", lr={config.learning_rate},
                            loss="{config.loss_type}", loss_weights=_ic_only_weights)
@@ -637,14 +748,11 @@ for _pval in _param_values:
         if "{config.optimizer2}" != "none":
             _phase2_weights = _multi_weights
             if "{config.optimizer2}" == "lbfgs":
-                if {config.lbfgs_use_default}:
-                    dde.optimizers.set_LBFGS_options(maxiter={config.iterations2}, ftol=1e-12, gtol=1e-10, maxls=50, maxcor=100)
-                else:
-                    dde.optimizers.set_LBFGS_options(
-                        maxcor={config.lbfgs_maxcor}, ftol={config.lbfgs_ftol},
-                        gtol={config.lbfgs_gtol}, maxiter={config.lbfgs_maxiter},
-                        maxfun={config.lbfgs_maxfun}, maxls={config.lbfgs_maxls}
-                    )
+                dde.optimizers.set_LBFGS_options(
+                    maxcor={config.lbfgs_maxcor}, ftol={config.lbfgs_ftol},
+                    gtol={config.lbfgs_gtol}, maxiter={config.iterations2},
+                    maxfun={config.lbfgs_maxfun}, maxls={config.lbfgs_maxls}
+                )
                 if _problem_type == "Inverse":
                     _last_iter = 0
                     try:
@@ -736,14 +844,11 @@ for _pval in _param_values:
             model.compile("{config.optimizer}", lr=_lr, loss="{config.loss_type}", loss_weights=_multi_weights)
             loss_history, train_state = model.train(iterations={config.rar_adam_iters}, display_every=500)
             if {config.rar_lbfgs_iters} > 0:
-                if {config.lbfgs_use_default}:
-                    dde.optimizers.set_LBFGS_options(maxiter={config.rar_lbfgs_iters})
-                else:
-                    dde.optimizers.set_LBFGS_options(
-                        maxcor={config.lbfgs_maxcor}, ftol={config.lbfgs_ftol},
-                        gtol={config.lbfgs_gtol}, maxiter={config.lbfgs_maxiter},
-                        maxfun={config.lbfgs_maxfun}, maxls={config.lbfgs_maxls}
-                    )
+                dde.optimizers.set_LBFGS_options(
+                    maxcor={config.lbfgs_maxcor}, ftol={config.lbfgs_ftol},
+                    gtol={config.lbfgs_gtol}, maxiter={config.rar_lbfgs_iters},
+                    maxfun={config.lbfgs_maxfun}, maxls={config.lbfgs_maxls}
+                )
                 model.compile("L-BFGS", loss="{config.loss_type}", loss_weights=_multi_weights)
                 loss_history, train_state = model.train(display_every=200)
         print("\\n=== RAR Complete ===")
@@ -1276,7 +1381,7 @@ if {config.time_adaptive}:
         x = x_grid  # already set as (x,y) pairs from meshgrid above
     else:
         x = x_grid.reshape(-1, 1)
-    prev_u = np.reshape({ta_ic_expr}, (-1, 1))
+    {_ta_ic_init}
 
     _prev_step_model_path = ""  # tracks last saved model for transfer learning
 
@@ -1432,13 +1537,21 @@ if {config.time_adaptive}:
             _ic_gt_pt = dde.geometry.GeometryXTime(_ic_geom_pt, _ic_td_pt)
             # Only IC constraint
             _ic_constraints_pt = []
-            for _oi_pt in range({config.num_outputs}):
-                _ic_expr_pt = _ic_expressions[_oi_pt].strip() if _oi_pt < len(_ic_expressions) else "np.zeros_like(x[:,0])"
-                def _mk_ic_pt(expr, comp):
-                    def _ic_fn(x):
-                        return np.reshape(eval(expr, {{"np": np, "x": x, "__builtins__": __builtins__}}), (-1, 1))
-                    return dde.icbc.IC(_ic_gt_pt, _ic_fn, lambda x, on_initial: on_initial, component=comp)
-                _ic_constraints_pt.append(_mk_ic_pt(_ic_expr_pt, _oi_pt))
+            if {config.forward_ic_from_file}:
+                _ic_ta_data = np.loadtxt(r"{config.forward_ic_file}")
+                _ic_ta_mask = np.abs(_ic_ta_data[:, 2]) < 1e-10
+                _ic_ta_xy   = _ic_ta_data[_ic_ta_mask, :2]
+                _ic_ta_xyt  = np.hstack([_ic_ta_xy, np.zeros((_ic_ta_mask.sum(), 1))])
+                _ic_ta_vals = _ic_ta_data[_ic_ta_mask, 3:4]
+                _ic_constraints_pt.append(dde.icbc.PointSetBC(_ic_ta_xyt, _ic_ta_vals, component=0))
+            else:
+                for _oi_pt in range({config.num_outputs}):
+                    _ic_expr_pt = _ic_expressions[_oi_pt].strip() if _oi_pt < len(_ic_expressions) else "np.zeros_like(x[:,0])"
+                    def _mk_ic_pt(expr, comp):
+                        def _ic_fn(x):
+                            return np.reshape(eval(expr, {{"np": np, "x": x, "__builtins__": __builtins__}}), (-1, 1))
+                        return dde.icbc.IC(_ic_gt_pt, _ic_fn, lambda x, on_initial: on_initial, component=comp)
+                    _ic_constraints_pt.append(_mk_ic_pt(_ic_expr_pt, _oi_pt))
             _data_pt = dde.data.TimePDE(
                 _ic_gt_pt, pde, _ic_constraints_pt,
                 num_domain=0, num_boundary=0,
@@ -1447,7 +1560,7 @@ if {config.time_adaptive}:
             _net_pt = model_i.net
             _model_pt = dde.Model(_data_pt, _net_pt)
             # IC-only weights: PDE=0, IC=1
-            _ic_only_w_ta = [0.0] * {config.num_outputs} + [1.0] * {config.num_outputs}
+            _ic_only_w_ta = [0.0] * {config.num_outputs} + [1.0] * len(_ic_constraints_pt)
             _model_pt.compile("{config.ic_pretrain_optimizer}", lr=_lr,
                               loss="{config.loss_type}", loss_weights=_ic_only_w_ta)
             _ic_lh_ta, _ = _model_pt.train(iterations={config.ic_pretrain_iterations}, display_every=1000)
@@ -1459,14 +1572,10 @@ if {config.time_adaptive}:
         lh_i, ts_i = model_i.train(iterations={config.iterations}, display_every=1000)
 
         if "{config.optimizer2}" != "none":
-            if {config.lbfgs_use_default}:
-                dde.optimizers.set_LBFGS_options(maxiter={config.iterations2}, ftol=0.0, gtol=1e-07)
-            else:
-                dde.optimizers.set_LBFGS_options(
+            dde.optimizers.set_LBFGS_options(
                     maxcor={config.lbfgs_maxcor}, ftol={config.lbfgs_ftol},
-                    gtol={config.lbfgs_gtol}, maxiter={config.lbfgs_maxiter},
-                    maxfun={config.lbfgs_maxfun}, maxls={config.lbfgs_maxls}
-                )
+                    gtol={config.lbfgs_gtol}, maxiter={config.iterations2},
+                    maxfun={config.lbfgs_maxfun}, maxls={config.lbfgs_maxls})
             model_i.compile("L-BFGS", loss="{config.loss_type}")
             lh_i, ts_i = model_i.train(display_every=200)
             print(f"  L-BFGS phase done. Steps: {{len(lh_i.steps)}}")

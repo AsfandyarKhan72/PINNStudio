@@ -111,6 +111,9 @@ class PINNConfig:
     inverse_data_file: str = ""
     inverse_ic_type: str = "expression"
     inverse_ic_file: str = ""
+    forward_ic_from_file: bool = False
+    forward_ic_file: str = ""
+    template_type: str = ""
 
     # Export
     export_grid_size: int = 101

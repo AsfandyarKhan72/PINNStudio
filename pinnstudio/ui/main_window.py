@@ -5,7 +5,7 @@ from PyQt6.QtWidgets import (
     QLabel, QDoubleSpinBox, QSpinBox, QPushButton,
     QTextEdit, QGroupBox, QComboBox, QSplitter, QLineEdit,
     QFileDialog, QCheckBox, QRadioButton, QButtonGroup,
-    QDialog, QMenuBar, QMenu, QFrame
+    QDialog, QMenuBar, QMenu, QFrame, QApplication
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QPixmap, QFont, QAction, QColor
@@ -527,7 +527,7 @@ class MainWindow(QMainWindow):
         lbfgs_layout = QVBoxLayout(self.lbfgs_widget)
         lbfgs_layout.setSpacing(4); lbfgs_layout.setContentsMargins(0, 0, 0, 0)
 
-        self.lbfgs_use_default_cb = QCheckBox("Use DeepXDE L-BFGS defaults")
+        self.lbfgs_use_default_cb = QCheckBox("Use L-BFGS recommended settings")
         self.lbfgs_use_default_cb.setChecked(True)
         self.lbfgs_use_default_cb.stateChanged.connect(self._on_lbfgs_default_changed)
         lbfgs_layout.addWidget(self.lbfgs_use_default_cb)
@@ -545,8 +545,8 @@ class MainWindow(QMainWindow):
             return sb
 
         self.lbfgs_maxcor  = _lbfgs_row("maxcor:",  100)
-        self.lbfgs_ftol    = _lbfgs_row("ftol:",     0.0)
-        self.lbfgs_gtol    = _lbfgs_row("gtol:",     1e-07)
+        self.lbfgs_ftol    = _lbfgs_row("ftol:",     1e-12)
+        self.lbfgs_gtol    = _lbfgs_row("gtol:",     1e-10)
         self.lbfgs_maxiter = _lbfgs_row("maxiter:",  15000)
         self.lbfgs_maxfun  = _lbfgs_row("maxfun:",   18750)
         self.lbfgs_maxls   = _lbfgs_row("maxls:",    50)
@@ -1022,7 +1022,8 @@ class MainWindow(QMainWindow):
                 "2D Heat (Dirichlet/Neumann)",
                 "2D Allen-Cahn (Mattey)",
                 "2D Allen-Cahn (Wight)",
-                "2D Cahn-Hilliard (Wight)"
+                "2D Cahn-Hilliard (Wight)",
+                "FeCr PINN"
             ])
         else:
             self.quick_examples_combo.addItems([
@@ -1373,6 +1374,10 @@ class MainWindow(QMainWindow):
         self.bc_bottom_types.clear(); self.bc_bottom_vals.clear(); self.bc_bottom_active.clear(); self.bc_bottom_deriv.clear()
         self.bc_top_types.clear();    self.bc_top_vals.clear();    self.bc_top_active.clear();    self.bc_top_deriv.clear()
         self.ic_inputs.clear();       self.ic_active.clear()
+        if not hasattr(self, 'ic_from_file'): self.ic_from_file = []
+        if not hasattr(self, 'ic_file_paths'): self.ic_file_paths = []
+        self.ic_from_file.clear()
+        self.ic_file_paths.clear()
         self._2d_bc_widgets.clear()
 
         is_2d = self.radio_2d.isChecked() if hasattr(self, 'radio_2d') else False
@@ -1405,10 +1410,26 @@ class MainWindow(QMainWindow):
 
         for i in range(n):
             name = ["u", "v", "w", "p"][i] if i < 4 else f"u{i+1}"
-
             sep = QLabel(f"── Output {i+1} ({name}) ──")
             sep.setStyleSheet("color: #505080; font-size: 10px; margin-top: 4px;")
             self.bc_main_layout.addWidget(sep)
+
+            # Master toggle for outputs > 0
+            if i > 0:
+                _bc_enable_cb = QCheckBox(f"Enable boundary conditions for {name}")
+                _bc_enable_cb.setChecked(True)
+                _bc_enable_cb.setStyleSheet("color: #ffa94d; font-size: 12px;")
+                self.bc_main_layout.addWidget(_bc_enable_cb)
+            else:
+                _bc_enable_cb = None
+
+            # Container widget for all BC+IC of this output
+            _bc_container = QWidget()
+            _bc_cont_layout = QVBoxLayout(_bc_container)
+            _bc_cont_layout.setSpacing(3)
+            _bc_cont_layout.setContentsMargins(0, 0, 0, 0)
+            _main_layout_save = self.bc_main_layout
+            self.bc_main_layout = _bc_cont_layout
 
             _make_bc_block(f"BC left (x=xmin) for {name}", self.bc_left_types, self.bc_left_vals, self.bc_left_active, self.bc_left_deriv, "x_min")
             _idx = len(self.bc_left_types) - 1
@@ -1430,11 +1451,11 @@ class MainWindow(QMainWindow):
             _2d_l = QVBoxLayout(_2d_w); _2d_l.setContentsMargins(0,0,0,0); _2d_l.setSpacing(3)
 
             # Temporarily redirect bc_main_layout to _2d_l
-            _orig_layout = self.bc_main_layout
+            _2d_save = self.bc_main_layout
             self.bc_main_layout = _2d_l
             _make_bc_block(f"BC bottom (y=ymin) for {name}", self.bc_bottom_types, self.bc_bottom_vals, self.bc_bottom_active, self.bc_bottom_deriv, "y_min")
             _make_bc_block(f"BC top (y=ymax) for {name}", self.bc_top_types, self.bc_top_vals, self.bc_top_active, self.bc_top_deriv, "y_max")
-            self.bc_main_layout = _orig_layout
+            self.bc_main_layout = _2d_save
             # Hide top BC widgets when bottom is Periodic
             _top_active = self.bc_top_active[-1]
             _top_type   = self.bc_top_types[-1]
@@ -1497,6 +1518,65 @@ class MainWindow(QMainWindow):
             self.bc_main_layout.addWidget(ic_hint)
             ic_hint_toggle.stateChanged.connect(lambda state, h=ic_hint: h.setVisible(state == 2))
 
+            # IC from file option (2D only)
+            if is_2d:
+                ic_file_cb = QCheckBox("📂 Load IC from file (x,y,t,c format)")
+                ic_file_cb.setChecked(False)
+                ic_file_cb.setStyleSheet("color: #ffa94d; font-size: 12px;")
+                self.bc_main_layout.addWidget(ic_file_cb)
+                self.ic_from_file.append(ic_file_cb)
+
+                ic_file_widget = QWidget()
+                ic_file_layout = QHBoxLayout(ic_file_widget)
+                ic_file_layout.setContentsMargins(0, 0, 0, 0)
+                ic_file_path = QLineEdit()
+                ic_file_path.setPlaceholderText("Browse for IC file (x,y,t,c)...")
+                ic_file_path.setFixedHeight(26)
+                ic_file_layout.addWidget(ic_file_path)
+                ic_file_browse = QPushButton("Browse")
+                ic_file_browse.setFixedHeight(26); ic_file_browse.setFixedWidth(65)
+                def _make_browse(path_edit):
+                    def _browse():
+                        f, _ = QFileDialog.getOpenFileName(None, "Select IC file", "", "Data files (*.txt *.csv *.dat)")
+                        if f: path_edit.setText(f)
+                    return _browse
+                ic_file_browse.clicked.connect(_make_browse(ic_file_path))
+                ic_file_layout.addWidget(ic_file_browse)
+                ic_file_widget.setVisible(False)
+                self.bc_main_layout.addWidget(ic_file_widget)
+                self.ic_file_paths.append(ic_file_path)
+
+                ic_file_cb.stateChanged.connect(
+                    lambda state, w=ic_file_widget, inp=ic_inp, act=ic_act:
+                    (w.setVisible(state == 2), inp.setVisible(state != 2),
+                     act.setChecked(state != 2))
+                )
+            else:
+                self.ic_from_file.append(None)
+                self.ic_file_paths.append(None)
+
+            # Restore layout and add container
+            self.bc_main_layout = _main_layout_save
+            self.bc_main_layout.addWidget(_bc_container)
+
+            # Wire master toggle
+            if _bc_enable_cb is not None:
+                def _make_toggle(cont, la, ra, ica):
+                    def _tog(state):
+                        cont.setVisible(state == 2)
+                        la.setChecked(state == 2)
+                        ra.setChecked(state == 2)
+                        if ica: ica.setChecked(state == 2)
+                        self._build_weight_inputs(self.num_outputs_spin.value())
+                    return _tog
+                _i_capture = i
+                _bc_enable_cb.stateChanged.connect(_make_toggle(
+                    _bc_container,
+                    self.bc_left_active[_i_capture],
+                    self.bc_right_active[_i_capture],
+                    self.ic_active[_i_capture] if _i_capture < len(self.ic_active) else None
+                ))
+
     # ── Build weight inputs ───────────────────────────────────
     def _build_weight_inputs(self, n):
         for i in reversed(range(self.weights_main_layout.count())):
@@ -1531,7 +1611,13 @@ class MainWindow(QMainWindow):
                 _btt_is_per = i < len(self.bc_top_types) and self.bc_top_types[i].currentText() == "Periodic"
                 if i < len(self.bc_top_active) and self.bc_top_active[i].isChecked() and not _btt_is_per and not _bbt_is_per:
                     _w_row(f"BC top {i+1} ({name}):", f"bc_top_{i}")
-            if i < len(self.ic_active) and self.ic_active[i].isChecked():
+            _ic_from_file_checked = (
+                hasattr(self, 'ic_from_file') and
+                i < len(self.ic_from_file) and
+                self.ic_from_file[i] is not None and
+                self.ic_from_file[i].isChecked()
+            )
+            if (i < len(self.ic_active) and self.ic_active[i].isChecked()) or _ic_from_file_checked:
                 _w_row(f"IC {i+1} ({name}):", f"ic_{i}")
 
     # ── Build config ──────────────────────────────────────────
@@ -1589,6 +1675,20 @@ class MainWindow(QMainWindow):
 
             ic_expressions="|".join([self.ic_inputs[i].text() for i in range(n_out)]),
             ic_active=",".join([str(self.ic_active[i].isChecked()) for i in range(n_out)]),
+            forward_ic_from_file=any(
+                i < len(self.ic_from_file) and self.ic_from_file[i] is not None
+                and self.ic_from_file[i].isChecked()
+                for i in range(n_out)
+            ),
+            forward_ic_file=next(
+                (self.ic_file_paths[i].text().strip()
+                 for i in range(n_out)
+                 if i < len(self.ic_from_file)
+                 and self.ic_from_file[i] is not None
+                 and self.ic_from_file[i].isChecked()
+                 and self.ic_file_paths[i] is not None),
+                ""
+            ),
 
             loss_weights_multi=",".join([
                 str(self.weight_widgets[k].value())
@@ -1657,6 +1757,7 @@ class MainWindow(QMainWindow):
             inverse_ic_file=self.inv_ic_path.text().strip(),
             export_grid_size=int(self.export_grid_combo.currentText()),
             export_t_steps=self.export_tsteps_spin.value(),
+            template_type=getattr(self, '_current_template_type', ''),
             lbfgs_use_default=self.lbfgs_use_default_cb.isChecked(),
             lbfgs_maxcor=int(self.lbfgs_maxcor.value()),
             lbfgs_ftol=self.lbfgs_ftol.value(),
@@ -2731,6 +2832,29 @@ print("ERROR_ANALYSIS_DONE")
                 'ic_weight': 100.0,
                 'ref_dir': '/home/asfandyarkhan/deepxde_gui/FEM_Results/2D_Examples/CahnHilliard_2D_Wight',
             },
+            "FeCr PINN": {
+                'pde': ["dc_t - (86400/10)*(M*(dmu_xx + dmu_yy) + dMdc*(dc_x*dmu_x + dc_y*dmu_y))",
+                        "mu - dfdc + (8.125e-16 * (1.0/(25e-9)**2))*(dc_xx + dc_yy)"],
+                'ic': ["", ""],
+                'num_outputs': 2,
+                'output_names': ['c', 'mu'],
+                'num_domain': 10000,
+                'num_boundary': 200,
+                'num_initial': 0,
+                'layers': 6,
+                'neurons': 128,
+                'iterations': 20000,
+                'optimizer2': 'lbfgs',
+                'iterations2': 20000,
+                'x_min': 0.0, 'x_max': 1.0,
+                'y_min': 0.0, 'y_max': 1.0,
+                't_max': 10.0,
+                'bc_config': 'fecr',
+                'template_type': 'FeCr_PINN',
+                'forward_ic_from_file': True,
+                'forward_ic_file': '/home/asfandyarkhan/deepxde_gui/FEM_Results/2D_Examples/FeCr_PINN_2D/t_0.txt',
+                'ref_dir': '/home/asfandyarkhan/deepxde_gui/FEM_Results/2D_Examples/FeCr_PINN_2D',
+            },
         }
         if text in templates_2d:
             t = templates_2d[text]
@@ -2796,6 +2920,39 @@ print("ERROR_ANALYSIS_DONE")
                     self.bc_top_active[1].setChecked(False)
                 if len(self.ic_active) > 1:
                     self.ic_active[1].setChecked(False)
+            elif bc_config == 'fecr':
+                # c (index 0): periodic on all sides
+                if len(self.bc_left_types) > 0:
+                    self.bc_left_types[0].setCurrentText("Periodic")
+                if len(self.bc_bottom_types) > 0:
+                    self.bc_bottom_types[0].setCurrentText("Periodic")
+                # mu (index 1): no BCs, no IC
+                if len(self.bc_left_active) > 1:
+                    self.bc_left_active[1].setChecked(False)
+                if len(self.bc_right_active) > 1:
+                    self.bc_right_active[1].setChecked(False)
+                if len(self.bc_bottom_active) > 1:
+                    self.bc_bottom_active[1].setChecked(False)
+                if len(self.bc_top_active) > 1:
+                    self.bc_top_active[1].setChecked(False)
+                if len(self.ic_active) > 0:
+                    self.ic_active[0].setChecked(False)  # IC from file, not expression
+                if len(self.ic_active) > 1:
+                    self.ic_active[1].setChecked(False)
+                # Set IC from file for c (index 0)
+                if (hasattr(self, 'ic_from_file') and len(self.ic_from_file) > 0
+                        and self.ic_from_file[0] is not None):
+                    self.ic_from_file[0].setChecked(True)
+                if (hasattr(self, 'ic_file_paths') and len(self.ic_file_paths) > 0
+                        and self.ic_file_paths[0] is not None):
+                    self.ic_file_paths[0].setText(
+                        '/home/asfandyarkhan/deepxde_gui/FEM_Results/2D_Examples/FeCr_PINN_2D/t_0.txt')
+                # Set FeCr default weights
+                self._build_weight_inputs(self.num_outputs_spin.value())
+                if "ic_0" in self.weight_widgets:
+                    self.weight_widgets["ic_0"].setValue(1000.0)
+                if "pde_1" in self.weight_widgets:
+                    self.weight_widgets["pde_1"].setValue(1e-6)
             elif bc_config == 'heat2d':
                 # Right: Dirichlet=1, Left/Bottom/Top: Neumann=0
                 for i in range(n_out):
@@ -2813,6 +2970,7 @@ print("ERROR_ANALYSIS_DONE")
                         self.bc_top_vals[i].setValue(0.0)
             self._template_ref_dir = t.get('ref_dir', '')
             self._current_template = text
+            self._current_template_type = t.get('template_type', '')
             self._auto_configure_ea(self._template_ref_dir)
             self.log_box.append(f"✅ Template loaded: {text}")
             return
@@ -2849,8 +3007,10 @@ print("ERROR_ANALYSIS_DONE")
                 'ref_dir': '/home/asfandyarkhan/deepxde_gui/FEM_Results/1D_Examples/1D_AllenCahn/ut−0.0001uxx+5u -5u^3=0_(example_1)',
             },
             "1D Cahn-Hilliard": {
-                'pde': ["du_t - 0.01*(3*u**2 - 1)*du_xx + 1e-6*du_xxxx"],
-                'ic': ["-cos(2*pi*x)"],
+                'pde': ["du_t - dv_xx", "v - 0.01*(u**3 - u) + 1e-6*du_xx"],
+                'ic': ["-cos(2*pi*x)", ""],
+                'num_outputs': 2,
+                'output_names': "u, v",
                 'num_domain': 10000,
                 'num_boundary': 200,
                 'num_initial': 512,
@@ -2860,7 +3020,7 @@ print("ERROR_ANALYSIS_DONE")
                 'optimizer2': 'lbfgs',
                 'iterations2': 20000,
                 'x_min': -1.0, 'x_max': 1.0,
-                'periodic_bc': True,
+                'periodic_bc_u_only': True,
                 'ref_dir': '/home/asfandyarkhan/deepxde_gui/FEM_Results/1D_Examples/1D_CahnHilliard/ut−(0.01(u^3-u)-1e-6uxx)xx=0_example_3',
             },
         }
@@ -2868,6 +3028,16 @@ print("ERROR_ANALYSIS_DONE")
         t = templates.get(text)
         if not t:
             return
+        
+        # Set num outputs and names if specified
+        if 'num_outputs' in t:
+            self.num_outputs_spin.setValue(t['num_outputs'])
+            QApplication.processEvents()
+        if 'output_names' in t:
+            names = [n.strip() for n in t['output_names'].split(',')]
+            for i, name in enumerate(names):
+                if i < len(self.output_name_inputs):
+                    self.output_name_inputs[i].setText(name)
 
         # Set PDE
         for i, pde_text in enumerate(t['pde']):
@@ -2894,11 +3064,15 @@ print("ERROR_ANALYSIS_DONE")
         self.iter2_spin.setValue(t['iterations2'])
 
         # Set IC weight to 100 for Allen-Cahn and Cahn-Hilliard
-        if text in ["1D Allen-Cahn", "1D Cahn-Hilliard"]:
+        if text in ["1D Allen-Cahn"]:
             for i in range(self.num_outputs_spin.value()):
                 key = f"ic_{i}"
                 if key in self.weight_widgets:
                     self.weight_widgets[key].setValue(100.0)
+        elif text == "1D Cahn-Hilliard":
+            self._build_weight_inputs(self.num_outputs_spin.value())
+            if "ic_0" in self.weight_widgets:
+                self.weight_widgets["ic_0"].setValue(100.0)
 
         # Set domain x range
         if 'x_min' in t:
@@ -2910,6 +3084,14 @@ print("ERROR_ANALYSIS_DONE")
             for i in range(self.num_outputs_spin.value()):
                 if i < len(self.bc_left_types):
                     self.bc_left_types[i].setCurrentText("Periodic")
+        elif t.get('periodic_bc_u_only', False):
+            # Only u (index 0) gets Periodic, v (index 1) gets no BC
+            if len(self.bc_left_types) > 0:
+                self.bc_left_types[0].setCurrentText("Periodic")
+            if len(self.bc_left_types) > 1:
+                self.bc_left_types[1].setCurrentText("None")
+            if len(self.bc_right_types) > 1:
+                self.bc_right_types[1].setCurrentText("None")
         else:
             for i in range(self.num_outputs_spin.value()):
                 if i < len(self.bc_left_types):
@@ -2920,9 +3102,9 @@ print("ERROR_ANALYSIS_DONE")
         # Store ref_dir for error analysis auto-population
         self._template_ref_dir = t.get('ref_dir', '')
         self._current_template = text
+        self._current_template_type = t.get('template_type', '')
         self._auto_configure_ea(self._template_ref_dir)
         self.log_box.append(f"✅ Template loaded: {text}")
-
     def _on_plot_settings(self):
         viz_type = self.plot_type_combo.currentText()
         if viz_type == "📊 Error Analysis":
@@ -3150,7 +3332,9 @@ print("ERROR_ANALYSIS_DONE")
                     import numpy as np
                     data = np.loadtxt(fpath)
                     if data.ndim == 1: data = data.reshape(1, -1)
-                    t_detected = float(data[0, 1])
+                    # Auto-detect: 2D files have 4 cols (x,y,t,u), 1D have 3 cols (x,t,u)
+                    t_col = 2 if data.shape[1] >= 4 else 1
+                    t_detected = float(data[0, t_col])
                     lbl.setText(f"✅ t = {t_detected:.4f} ({len(data)} pts)")
                     row_data['t_val'] = t_detected
                 except Exception as e:
@@ -3292,7 +3476,10 @@ import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
 
 # ── Restore model ─────────────────────────────────────────────
-geom  = dde.geometry.Interval({x_min}, {x_max})
+if {is_2d}:
+    geom = dde.geometry.Rectangle([{x_min}, {cfg.get('y_min', 0.0)}], [{x_max}, {cfg.get('y_max', 1.0)}])
+else:
+    geom  = dde.geometry.Interval({x_min}, {x_max})
 td    = dde.geometry.TimeDomain({t_min}, {t_max})
 gt    = dde.geometry.GeometryXTime(geom, td)
 def pde(x, y): return y[:, 0:1] * 0
@@ -3317,13 +3504,16 @@ os.makedirs(_ea_dir, exist_ok=True)
 
 # ── Load reference files ──────────────────────────────────────
 _files = {files_repr}
-_times = []; _x_refs = []; _u_refs = []
+_times = []; _x_refs = []; _u_refs = []; _d_refs = []; _d_shape = 0
 for _tv, _fp in _files:
     _d = np.loadtxt(_fp)
     if _d.ndim == 1: _d = _d.reshape(1, -1)
+    _d_shape = _d.shape[1]
     _idx = np.argsort(_d[:, 0])
     _x_refs.append(_d[_idx, 0])
-    _u_refs.append(_d[_idx, 2])
+    _u_col = 3 if _d_shape >= 4 else 2
+    _u_refs.append(_d[_idx, _u_col])
+    _d_refs.append(_d[_idx])
     _times.append(float(_tv))
     print(f"  Loaded t={{_tv:.4f}}: {{len(_d)}} points from {{os.path.basename(_fp)}}")
 
@@ -3333,7 +3523,11 @@ _n_t = len(_times)
 _u_pinns = []
 for _i, _tv in enumerate(_times):
     _x_fem = _x_refs[_i]
-    _xt = np.column_stack([_x_fem, np.full_like(_x_fem, _tv)])
+    if _d_shape >= 4:  # 2D file: has x,y,t,c columns
+        _y_fem = _d_refs[_i][:, 1]
+        _xt = np.column_stack([_x_fem, _y_fem, np.full_like(_x_fem, _tv)])
+    else:
+        _xt = np.column_stack([_x_fem, np.full_like(_x_fem, _tv)])
     _u_pinns.append(model.predict(_xt)[:, 0].flatten())
     print(f"  PINN predicted at t={{_tv:.4f}}: {{len(_x_fem)}} points")
 
@@ -3414,7 +3608,11 @@ if {do_surface}:
     _U_fem_surf  = np.zeros((len(_t_arr), len(_x_common)))
 
     for _i, _tv in enumerate(_times):
-        _xt_c = np.column_stack([_x_common, np.full_like(_x_common, _tv)])
+        if _d_shape >= 4:
+            _y_common = _d_refs[_i][:, 1].mean() * np.ones_like(_x_common)
+            _xt_c = np.column_stack([_x_common, _y_common, np.full_like(_x_common, _tv)])
+        else:
+            _xt_c = np.column_stack([_x_common, np.full_like(_x_common, _tv)])
         _U_pinn_surf[_i, :] = model.predict(_xt_c)[:, 0].flatten()
         _fi = interp1d(_x_refs[_i], _u_refs[_i], kind='linear', fill_value='extrapolate')
         _U_fem_surf[_i, :] = _fi(_x_common)
