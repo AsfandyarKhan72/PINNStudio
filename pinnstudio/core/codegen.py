@@ -634,7 +634,8 @@ else:
         geomtime, pde, _constraints,
         num_domain={config.num_domain}, num_boundary={config.num_boundary},
         num_initial={config.num_initial}, num_test={config.num_test},
-        train_distribution="{config.point_distribution}"
+        train_distribution="{config.point_distribution}",
+        anchors=_ic_xyt if {config.forward_ic_from_file} else None
     )
 
 # ── Parametric loop ──────────────────────────────────────────
@@ -708,8 +709,9 @@ for _pval in _param_values:
                 _ic_ics_pre.append(_mk_ic_pre(_ic_expr_pre, _oi_pre))
         _data_pre = dde.data.TimePDE(
             _ic_gt_pre, pde, _ic_ics_pre,
-            num_domain=0, num_boundary=0,
-            num_initial={config.num_initial}, num_test=100
+            num_domain=100, num_boundary=0,
+            num_initial=0, num_test=100,
+            anchors=_ic_pre_xyt if {config.forward_ic_from_file} else None
         )
         _model_pre = dde.Model(_data_pre, net)
         # PDE=0, IC=1
@@ -1470,7 +1472,10 @@ if {config.time_adaptive}:
                         _constraints_i.append(dde.icbc.PeriodicBC(geomtime_i, 1, _bt_on_ta, derivative_order=0, component=_comp_ta))
 
             if step_i == 0:
-                if _oi_ta < len(_ic_active_list) and _ic_active_list[_oi_ta].strip() == "True":
+                if {config.forward_ic_from_file} and _oi_ta == 0:
+                    _xyt_ic_anchor = _ic_xyt  # use the already-loaded IC points
+                    _constraints_i.append(dde.icbc.PointSetBC(_ic_xyt, _ic_vals, component=0))
+                elif _oi_ta < len(_ic_active_list) and _ic_active_list[_oi_ta].strip() == "True":
                     _ic_expr_ta = _ic_expressions[_oi_ta].strip() if _oi_ta < len(_ic_expressions) else "np.zeros_like(x[:,0])"
                     def _mk_ic_ta(expr, comp):
                         def _ic_fn(x):
@@ -1480,17 +1485,19 @@ if {config.time_adaptive}:
             else:
                 if _oi_ta == 0:
                     if _is_2d:
-                        # x_grid is already (N,2) array of (x,y) pairs
                         _xt_ic_2d = np.column_stack([x_grid, np.full(len(x_grid), t0)])
+                        _xyt_ic_anchor = _xt_ic_2d
                         _constraints_i.append(dde.icbc.PointSetBC(_xt_ic_2d, prev_u, component=0))
                     else:
                         xt_ic = np.column_stack([x_grid, np.full_like(x_grid.ravel(), t0)])
+                        _xyt_ic_anchor = xt_ic
                         _constraints_i.append(dde.icbc.PointSetBC(xt_ic, prev_u, component=0))
 
         data_i = dde.data.TimePDE(
             geomtime_i, pde, _constraints_i,
             num_domain={config.num_domain}, num_boundary={config.num_boundary},
-            num_initial={config.num_initial}, num_test={config.num_test}
+            num_initial={config.num_initial}, num_test={config.num_test},
+            anchors=_xyt_ic_anchor if ({config.forward_ic_from_file} and step_i == 0) or (not {config.forward_ic_from_file} and step_i > 0 and _is_2d) else None
         )
 
         net_i   = dde.nn.FNN({config.layers}, "{config.activation}", "Glorot uniform")
@@ -1554,8 +1561,9 @@ if {config.time_adaptive}:
                     _ic_constraints_pt.append(_mk_ic_pt(_ic_expr_pt, _oi_pt))
             _data_pt = dde.data.TimePDE(
                 _ic_gt_pt, pde, _ic_constraints_pt,
-                num_domain=0, num_boundary=0,
-                num_initial={config.num_initial}, num_test=100
+                num_domain=100, num_boundary=0,
+                num_initial=0, num_test=100,
+                anchors=_ic_ta_xyt if {config.forward_ic_from_file} else None
             )
             _net_pt = model_i.net
             _model_pt = dde.Model(_data_pt, _net_pt)
