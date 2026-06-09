@@ -538,20 +538,20 @@ class MainWindow(QMainWindow):
         train_layout.addWidget(self.ic_pretrain_widget)
 
         # ── Optimizer Scheduler ───────────────────────────────
-        div_sched = QLabel("─── Optimizer Scheduler (optional) ───")
+        div_sched = QLabel("─── Training Phases ───")
         div_sched.setStyleSheet("color: #505080; font-size: 11px;")
         train_layout.addWidget(div_sched)
         self.sched_cb = QCheckBox("Enable Optimizer Scheduler")
-        self.sched_cb.setChecked(False)
-        self.sched_cb.setStyleSheet("color: #ffa94d; font-size: 12px;")
-        self.sched_cb.stateChanged.connect(self._on_scheduler_changed)
+        self.sched_cb.setChecked(True)
+        self.sched_cb.setVisible(False)  # always on, hidden
         train_layout.addWidget(self.sched_cb)
+        self.sched_widget = QWidget()
 
         # Hidden legacy widgets — kept for _build_config compatibility
         self.opt1_combo = QComboBox(); self.opt1_combo.addItems(["adam", "sgd", "rmsprop"])
         self.opt1_combo.setVisible(False)
         self.iter1_spin = QSpinBox(); self.iter1_spin.setRange(0, 1000000)
-        self.iter1_spin.setValue(50000); self.iter1_spin.setVisible(False)
+        self.iter1_spin.setValue(0); self.iter1_spin.setVisible(False)
         self.lr_spin = QDoubleSpinBox(); self.lr_spin.setRange(1e-6, 1.0)
         self.lr_spin.setDecimals(6); self.lr_spin.setValue(0.001); self.lr_spin.setVisible(False)
         self.loss_combo = QComboBox()
@@ -583,6 +583,9 @@ class MainWindow(QMainWindow):
         self.sched_phases_layout.setContentsMargins(0, 0, 0, 0)
         sched_layout.addWidget(self.sched_phases_widget)
         self.sched_phase_list = []  # list of dicts with widgets
+        # Add default phases after UI is built
+        from PyQt6.QtCore import QTimer
+        QTimer.singleShot(0, lambda: self._setup_default_scheduler_phases(''))
 
         # Add phase button
         add_phase_btn = QPushButton("➕ Add Phase")
@@ -592,7 +595,7 @@ class MainWindow(QMainWindow):
         add_phase_btn.clicked.connect(lambda: self._add_scheduler_phase())
         sched_layout.addWidget(add_phase_btn)
 
-        self.sched_widget.setVisible(False)
+        self.sched_widget.setVisible(True)
         train_layout.addWidget(self.sched_widget)
 
         # L-BFGS settings
@@ -879,10 +882,18 @@ class MainWindow(QMainWindow):
         self.restore_tsteps_spin.setVisible(False)
 
         self._restore_viz_settings = {
-            'colormap': 'RdBu_r',
+            'colormap': 'jet',
             'surface_time': 1.0,
             'n_steps': 10,
             'colorbar': True,
+            'levels': 100,
+            'resolution': 200,
+            'dpi': 300,
+            'auto_range': True,
+            'vmin': -1.0,
+            'vmax': 1.0,
+            'linewidth': 2.0,
+            'fps': 10,
         }
 
         restore_content_layout.addWidget(QLabel("Output to plot:"))
@@ -996,7 +1007,7 @@ class MainWindow(QMainWindow):
         ctrl_row.addWidget(self.ea_btn)
 
         self._plot_viz_settings = {
-            'colormap': 'RdBu_r',
+            'colormap': 'jet',
             'surface_time': 1.0,
             'n_steps': 4,
             'n_2d_snapshots': 2,
@@ -1661,10 +1672,9 @@ class MainWindow(QMainWindow):
         self.weight_widgets.clear()
 
         # Check if per-phase weights needed
-        _sched_enabled = hasattr(self, 'sched_cb') and self.sched_cb.isChecked()
-        _same_weights = not _sched_enabled or (
-            hasattr(self, 'sched_same_weights_cb') and self.sched_same_weights_cb.isChecked())
-        _num_phases = 1 + (len(self.sched_phase_list) if _sched_enabled else 0)
+        _sched_enabled = True  # scheduler always on
+        _same_weights = hasattr(self, 'sched_same_weights_cb') and self.sched_same_weights_cb.isChecked()
+        _skip_main_weights = not _same_weights  # skip main weights when per-phase
 
         def _w_row(label, key):
             row = QHBoxLayout()
@@ -1675,31 +1685,40 @@ class MainWindow(QMainWindow):
             ww = QWidget(); ww.setLayout(row)
             self.weights_main_layout.addWidget(ww)
 
-        for i in range(n):
-            name = self.output_name_inputs[i].text() if i < len(self.output_name_inputs) else f"u{i+1}"
-            _w_row(f"PDE {i+1} ({name}):", f"pde_{i}")
-            if i < len(self.bc_left_active) and self.bc_left_active[i].isChecked():
-                _w_row(f"BC left {i+1} ({name}):", f"bc_left_{i}")
-            _blt_is_per = i < len(self.bc_left_types) and self.bc_left_types[i].currentText() == "Periodic"
-            _brt_is_per = i < len(self.bc_right_types) and self.bc_right_types[i].currentText() == "Periodic"
-            if i < len(self.bc_right_active) and self.bc_right_active[i].isChecked() and not _brt_is_per and not _blt_is_per:
-                _w_row(f"BC right {i+1} ({name}):", f"bc_right_{i}")
-            is_2d = self.radio_2d.isChecked() if hasattr(self, 'radio_2d') else False
-            if is_2d:
-                if i < len(self.bc_bottom_active) and self.bc_bottom_active[i].isChecked():
-                    _w_row(f"BC bottom {i+1} ({name}):", f"bc_bottom_{i}")
-                _bbt_is_per = i < len(self.bc_bottom_types) and self.bc_bottom_types[i].currentText() == "Periodic"
-                _btt_is_per = i < len(self.bc_top_types) and self.bc_top_types[i].currentText() == "Periodic"
-                if i < len(self.bc_top_active) and self.bc_top_active[i].isChecked() and not _btt_is_per and not _bbt_is_per:
-                    _w_row(f"BC top {i+1} ({name}):", f"bc_top_{i}")
-            _ic_from_file_checked = (
-                hasattr(self, 'ic_from_file') and
-                i < len(self.ic_from_file) and
-                self.ic_from_file[i] is not None and
-                self.ic_from_file[i].isChecked()
-            )
-            if (i < len(self.ic_active) and self.ic_active[i].isChecked()) or _ic_from_file_checked:
-                _w_row(f"IC {i+1} ({name}):", f"ic_{i}")
+        if _same_weights:
+            _sep_all = QLabel("── Shared weights (all phases) ──")
+            _sep_all.setStyleSheet("color: #505080; font-size: 10px;")
+            _sw_all = QWidget(); _sl_all = QHBoxLayout(_sw_all)
+            _sl_all.setContentsMargins(0,0,0,0); _sl_all.addWidget(_sep_all)
+            self.weights_main_layout.addWidget(_sw_all)
+        if _same_weights:
+         
+         if _same_weights:
+            for i in range(n):
+                name = self.output_name_inputs[i].text() if i < len(self.output_name_inputs) else f"u{i+1}"
+                _w_row(f"PDE {i+1} ({name}):", f"pde_{i}")
+                if i < len(self.bc_left_active) and self.bc_left_active[i].isChecked():
+                    _w_row(f"BC left {i+1} ({name}):", f"bc_left_{i}")
+                _blt_is_per = i < len(self.bc_left_types) and self.bc_left_types[i].currentText() == "Periodic"
+                _brt_is_per = i < len(self.bc_right_types) and self.bc_right_types[i].currentText() == "Periodic"
+                if i < len(self.bc_right_active) and self.bc_right_active[i].isChecked() and not _brt_is_per and not _blt_is_per:
+                    _w_row(f"BC right {i+1} ({name}):", f"bc_right_{i}")
+                is_2d = self.radio_2d.isChecked() if hasattr(self, 'radio_2d') else False
+                if is_2d:
+                    if i < len(self.bc_bottom_active) and self.bc_bottom_active[i].isChecked():
+                        _w_row(f"BC bottom {i+1} ({name}):", f"bc_bottom_{i}")
+                    _bbt_is_per = i < len(self.bc_bottom_types) and self.bc_bottom_types[i].currentText() == "Periodic"
+                    _btt_is_per = i < len(self.bc_top_types) and self.bc_top_types[i].currentText() == "Periodic"
+                    if i < len(self.bc_top_active) and self.bc_top_active[i].isChecked() and not _btt_is_per and not _bbt_is_per:
+                        _w_row(f"BC top {i+1} ({name}):", f"bc_top_{i}")
+                _ic_from_file_checked = (
+                    hasattr(self, 'ic_from_file') and
+                    i < len(self.ic_from_file) and
+                    self.ic_from_file[i] is not None and
+                    self.ic_from_file[i].isChecked()
+                )
+                if (i < len(self.ic_active) and self.ic_active[i].isChecked()) or _ic_from_file_checked:
+                    _w_row(f"IC {i+1} ({name}):", f"ic_{i}")
 
         # Per-phase weight rows if scheduler enabled and different weights
         if _sched_enabled and not _same_weights:
@@ -1715,6 +1734,8 @@ class MainWindow(QMainWindow):
                     _w_row(f"PDE {_i+1} ({_name}) P{_phase_num}:", f"pde_{_i}_p{_phase_num}")
                     if _i < len(self.bc_left_active) and self.bc_left_active[_i].isChecked():
                         _w_row(f"BC left {_i+1} P{_phase_num}:", f"bc_left_{_i}_p{_phase_num}")
+                    if hasattr(self, 'bc_bottom_active') and _i < len(self.bc_bottom_active) and self.bc_bottom_active[_i].isChecked():
+                        _w_row(f"BC bottom {_i+1} P{_phase_num}:", f"bc_bottom_{_i}_p{_phase_num}")
                     _ic_ff = (hasattr(self, 'ic_from_file') and _i < len(self.ic_from_file)
                               and self.ic_from_file[_i] is not None and self.ic_from_file[_i].isChecked())
                     if (_i < len(self.ic_active) and self.ic_active[_i].isChecked()) or _ic_ff:
@@ -1790,14 +1811,37 @@ class MainWindow(QMainWindow):
                 ""
             ),
 
-            loss_weights_multi=",".join([
-                str(self.weight_widgets[k].value())
-                for i in range(n_out)
-                for k in ([f"pde_{i}", f"bc_left_{i}", f"bc_right_{i}", f"bc_bottom_{i}", f"bc_top_{i}", f"ic_{i}"]
-                           if is_2d else
-                           [f"pde_{i}", f"bc_left_{i}", f"bc_right_{i}", f"ic_{i}"])
-                if k in self.weight_widgets
-            ]),
+            loss_weights_multi=(lambda: (
+                # When scheduler has per-phase weights, use first phase weights
+                ",".join([
+                    str(self.weight_widgets.get(k, SciLineEdit(1.0)).value())
+                    for i in range(n_out)
+                    for k in ([f"pde_{i}_p{self.sched_phase_list[0]['phase_num']}",
+                                f"bc_left_{i}_p{self.sched_phase_list[0]['phase_num']}",
+                                f"bc_right_{i}_p{self.sched_phase_list[0]['phase_num']}",
+                                f"bc_bottom_{i}_p{self.sched_phase_list[0]['phase_num']}",
+                                f"bc_top_{i}_p{self.sched_phase_list[0]['phase_num']}",
+                                f"ic_{i}_p{self.sched_phase_list[0]['phase_num']}"]
+                               if is_2d else
+                               [f"pde_{i}_p{self.sched_phase_list[0]['phase_num']}",
+                                f"bc_left_{i}_p{self.sched_phase_list[0]['phase_num']}",
+                                f"bc_right_{i}_p{self.sched_phase_list[0]['phase_num']}",
+                                f"ic_{i}_p{self.sched_phase_list[0]['phase_num']}"])
+                    if k in self.weight_widgets
+                ])
+                if (hasattr(self, 'sched_phase_list') and self.sched_phase_list
+                    and hasattr(self, 'sched_same_weights_cb')
+                    and not self.sched_same_weights_cb.isChecked())
+                else
+                ",".join([
+                    str(self.weight_widgets[k].value())
+                    for i in range(n_out)
+                    for k in ([f"pde_{i}", f"bc_left_{i}", f"bc_right_{i}", f"bc_bottom_{i}", f"bc_top_{i}", f"ic_{i}"]
+                               if is_2d else
+                               [f"pde_{i}", f"bc_left_{i}", f"bc_right_{i}", f"ic_{i}"])
+                    if k in self.weight_widgets
+                ])
+            ))(),
             plot_output_idx=self.plot_output_combo.currentIndex(),
 
             pde_expression=self.pde_inputs[0].text() if self.pde_inputs else "du_t - 0.4 * du_xx",
@@ -3035,6 +3079,11 @@ print("ERROR_ANALYSIS_DONE")
                     self.bc_left_types[0].setCurrentText("Periodic")
                 if len(self.bc_bottom_types) > 0:
                     self.bc_bottom_types[0].setCurrentText("Periodic")
+                # Uncheck master BC toggle for mu (output 1)
+                for _w in self.bc_group.findChildren(QCheckBox):
+                    if _w.text() == "Enable boundary conditions for mu":
+                        _w.setChecked(False)
+                        break
                 # mu (index 1): no BCs, no IC
                 if len(self.bc_left_active) > 1:
                     self.bc_left_active[1].setChecked(False)
@@ -3872,13 +3921,14 @@ print("ERROR_ANALYSIS_V2_DONE")
         self._build_weight_inputs(self.num_outputs_spin.value())
 
         if template_type == 'FeCr_PINN' and len(self.sched_phase_list) >= 3:
-            # Phase 2 weights: [0,0,0,0,1000]
             p2 = self.sched_phase_list[0]['phase_num']
             p3 = self.sched_phase_list[1]['phase_num']
             p4 = self.sched_phase_list[2]['phase_num']
+            # Set L-BFGS phase iterations to 50000
+            self.sched_phase_list[2]['iters'].setValue(50000)
             for key, val in [
-                (f"pde_0_p{p2}", 0.0), (f"pde_1_p{p2}", 0.0),
-                (f"bc_left_0_p{p2}", 0.0), (f"bc_bottom_0_p{p2}", 0.0),
+                (f"pde_0_p{p2}", 100.0), (f"pde_1_p{p2}", 1e-6),
+                (f"bc_left_0_p{p2}", 1.0), (f"bc_bottom_0_p{p2}", 1.0),
                 (f"ic_0_p{p2}", 1000.0),
                 (f"pde_0_p{p3}", 100.0), (f"pde_1_p{p3}", 1e-4),
                 (f"bc_left_0_p{p3}", 1.0), (f"bc_bottom_0_p{p3}", 1.0),
@@ -3891,7 +3941,7 @@ print("ERROR_ANALYSIS_V2_DONE")
                     self.weight_widgets[key].setValue(val)
 
     def _add_scheduler_phase(self, optimizer='adam', iterations=50000, lr=0.001):
-        phase_num = len(self.sched_phase_list) + 2  # phase 2, 3, 4...
+        phase_num = len(self.sched_phase_list) + 1  # phase 1, 2, 3...
         phase_widget = QWidget()
         phase_layout = QVBoxLayout(phase_widget)
         phase_layout.setSpacing(3)
@@ -4023,12 +4073,47 @@ print("ERROR_ANALYSIS_V2_DONE")
                 cfg = json.load(f)
         except Exception as e:
             self.log_box.append(f"❌ Could not read config: {e}"); return
-
+        
         self.restore_btn.setEnabled(False)
         self.restore_btn.setText("⏳ Restoring...")
         self.log_box.append(f"🔄 Restoring model from: {model_path}")
-
+        viz_settings = getattr(self, '_restore_viz_settings', {})
         script = self._build_restore_script(model_path, cfg, optimizer, viz_type, output_idx, t_steps, save_dir)
+
+        # ── Append error analysis if files configured ─────────
+        ea = getattr(self, '_ea_settings', None)
+        if ea and ea.get('files'):
+            # Read t range from step_config.json in same folder as model
+            import json as _json_ea
+            step_dir = os.path.dirname(model_path)
+            step_cfg_path = os.path.join(step_dir, 'step_config.json')
+            t_min_restore = cfg.get('t_min', 0.0)
+            t_max_restore = cfg.get('t_max', 1.0)
+            try:
+                with open(step_cfg_path) as _sf:
+                    _sc = _json_ea.load(_sf)
+                t_min_restore = _sc.get('t_min', t_min_restore)
+                t_max_restore = _sc.get('t_max', t_max_restore)
+            except Exception:
+                pass
+            # Filter files within t range
+            matching_files = [
+                (t, f) for t, f in ea['files']
+                if t_min_restore - 1e-10 <= t <= t_max_restore + 1e-10
+            ]
+            if matching_files:
+                self.log_box.append(f"📊 Error analysis: {len(matching_files)} reference files match t=[{t_min_restore:.4f}, {t_max_restore:.4f}]")
+                is_2d = cfg.get('problem_dim', '1D') == '2D'
+                script += self._build_restore_ea_script(
+                    matching_files, save_dir, is_2d,
+                    ea.get('do_line', True), ea.get('do_surface', True),
+                    cfg.get('x_min', 0.0), cfg.get('x_max', 1.0),
+                    cfg.get('y_min', 0.0), cfg.get('y_max', 1.0),
+                    cfg.get('output_names', 'u').split(',')[output_idx].strip(),
+                    viz_settings
+                )
+            else:
+                self.log_box.append(f"ℹ️ No reference files match t=[{t_min_restore:.4f}, {t_max_restore:.4f}] — skipping error analysis")
 
         with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as tf:
             tf.write(script)
@@ -4073,6 +4158,15 @@ print("ERROR_ANALYSIS_V2_DONE")
             gif_path = os.path.join(save_dir, "restored_animation.gif")
             if os.path.exists(gif_path):
                 self.log_box.append(f"🎬 Animation saved: {gif_path}")
+            # Show error analysis plot if available
+            for _ea_plot in ["surface_comparison_restore.png", "line_comparison_restore.png"]:
+                _ea_path = os.path.join(save_dir, "error_analysis", _ea_plot)
+                if os.path.exists(_ea_path):
+                    self.loss_label.setPixmap(QPixmap(_ea_path).scaled(
+                        500, 420, Qt.AspectRatioMode.KeepAspectRatio,
+                        Qt.TransformationMode.SmoothTransformation))
+                    self.log_box.append(f"📊 Error analysis plot: {_ea_path}")
+                    break
         else:
             self.log_box.append("❌ Restore failed — check architecture matches saved model.")
 
@@ -4276,3 +4370,160 @@ print(f"Surface animation saved to: {{out_path}}")
 """
         script += '\nprint("RESTORE_DONE")\n'
         return script
+    
+    def _build_restore_ea_script(self, files, save_dir, is_2d, do_line, do_surface,
+                                  x_min, x_max, y_min, y_max, out_name, viz_settings=None):
+        if viz_settings is None:
+            viz_settings = {}
+        _cmap     = viz_settings.get('colormap', 'viridis')
+        _levels   = viz_settings.get('levels', 40)
+        _dpi      = viz_settings.get('dpi', 150)
+        _colorbar = viz_settings.get('colorbar', True)
+        _auto     = viz_settings.get('auto_range', True)
+        _vmin     = viz_settings.get('vmin', -1.0)
+        _vmax     = viz_settings.get('vmax', 1.0)
+        files_repr = repr(files)
+        return f"""
+
+# ── Restore Error Analysis ────────────────────────────────────
+import numpy as np
+from scipy.interpolate import interp1d as _interp1d
+_ea_dir = os.path.join(r"{save_dir}", "error_analysis")
+os.makedirs(_ea_dir, exist_ok=True)
+print("\\n=== Running Restore Error Analysis ===")
+
+_ea_files = {files_repr}
+_ea_times = []; _ea_x_refs = []; _ea_y_refs = []; _ea_u_refs = []
+for _tv, _fp in _ea_files:
+    _d = np.loadtxt(_fp)
+    if _d.ndim == 1: _d = _d.reshape(1, -1)
+    _d_shape = _d.shape[1]
+    if {is_2d}:
+        _idx = np.lexsort((_d[:, 1], _d[:, 0]))
+        _ea_x_refs.append(_d[_idx, 0])
+        _ea_y_refs.append(_d[_idx, 1])
+        _ea_u_refs.append(_d[_idx, 3])
+        _ea_times.append(float(_d[0, 2]))
+    else:
+        _idx = np.argsort(_d[:, 0])
+        _ea_x_refs.append(_d[_idx, 0])
+        _ea_y_refs.append(np.zeros_like(_d[_idx, 0]))
+        _ea_u_refs.append(_d[_idx, 2])
+        _ea_times.append(float(_tv))
+    print(f"  Loaded t={{_ea_times[-1]:.4f}}: {{len(_d)}} pts from {{os.path.basename(_fp)}}")
+
+_ea_n_t = len(_ea_times)
+_ea_u_pinns = []
+for _i, _tv in enumerate(_ea_times):
+    _xf = _ea_x_refs[_i]
+    if {is_2d}:
+        _yf = _ea_y_refs[_i]
+        _xt = np.column_stack([_xf, _yf, np.full_like(_xf, _tv)])
+    else:
+        _xt = np.column_stack([_xf, np.full_like(_xf, _tv)])
+    _ea_u_pinns.append(model.predict(_xt)[:, 0].flatten())
+    print(f"  Predicted at t={{_tv:.4f}}: {{len(_xf)}} points")
+
+# Metrics
+_ea_metrics = []
+for _i, _tv in enumerate(_ea_times):
+    _up = _ea_u_pinns[_i]; _uf = _ea_u_refs[_i]
+    _l2  = np.linalg.norm(_up - _uf) / (np.linalg.norm(_uf) + 1e-10)
+    _mse = np.mean((_up - _uf)**2)
+    _mx  = np.max(np.abs(_up - _uf))
+    _ma  = np.mean(np.abs(_up - _uf))
+    _ea_metrics.append((_tv, _l2, _mse, _mx, _ma))
+    print(f"  t={{_tv:.4f}} — L2={{_l2:.4e}}, MSE={{_mse:.4e}}, Max={{_mx:.4e}}")
+
+with open(os.path.join(_ea_dir, "error_metrics_restore.txt"), "w") as _mf:
+    _mf.write("t,L2_relative,MSE,Max_error,Mean_abs_error\\n")
+    for _tv, _l2, _mse, _mx, _ma in _ea_metrics:
+        _mf.write(f"{{_tv:.6f}},{{_l2:.6e}},{{_mse:.6e}},{{_mx:.6e}},{{_ma:.6e}}\\n")
+print(f"  Metrics saved: {{os.path.join(_ea_dir, 'error_metrics_restore.txt')}}")
+
+# Line comparison
+if {do_line}:
+    _ncols = min(4, _ea_n_t)
+    _nrows = (_ea_n_t + _ncols - 1) // _ncols
+    fig, axes = plt.subplots(_nrows, _ncols, figsize=(4*_ncols, 3.5*_nrows), squeeze=False)
+    fig.suptitle("Restored Model vs Ground Truth — Line Comparison", fontsize=13, fontweight='bold')
+    _ax_flat = axes.flatten()
+    for _i in range(_ea_n_t):
+        ax = _ax_flat[_i]
+        _xv = _ea_x_refs[_i]
+        _tv, _l2, _mse, _mx, _ma = _ea_metrics[_i]
+        ax.plot(_xv, _ea_u_refs[_i],  color='#4dabf7', linewidth=2.0, label='Ground Truth')
+        ax.plot(_xv, _ea_u_pinns[_i], color='#ff6b6b', linewidth=2.0, linestyle='--', label='PINN')
+        ax.set_title(f"t={{_tv:.3f}}  |  L2={{_l2:.2e}}", fontsize=10)
+        ax.set_xlabel("x"); ax.set_ylabel("{out_name}"); ax.grid(True, alpha=0.3)
+    for _j in range(_ea_n_t, len(_ax_flat)):
+        _ax_flat[_j].set_visible(False)
+    handles, labels = _ax_flat[0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc='lower center', ncol=2, fontsize=10,
+               framealpha=0.9, bbox_to_anchor=(0.5, 0.01))
+    plt.tight_layout(rect=[0, 0.06, 1, 1])
+    _lp = os.path.join(_ea_dir, "line_comparison_restore.png")
+    plt.savefig(_lp, dpi={_dpi}, bbox_inches='tight'); plt.close()
+    print(f"  Line comparison saved: {{_lp}}")
+
+# Surface comparison
+if {do_surface}:
+    if {is_2d}:
+        from scipy.interpolate import griddata as _gd
+        _res_ea = 60
+        _xg_ea = np.linspace({x_min}, {x_max}, _res_ea)
+        _yg_ea = np.linspace({y_min}, {y_max}, _res_ea)
+        _Xg_ea, _Yg_ea = np.meshgrid(_xg_ea, _yg_ea)
+        fig, axes = plt.subplots(_ea_n_t, 3, figsize=(15, 4*_ea_n_t), squeeze=False)
+        fig.suptitle("Restored Model vs Ground Truth — 2D Heatmaps", fontsize=13, fontweight='bold')
+        for _i, _tv in enumerate(_ea_times):
+            _tv_r, _l2, _mse, _mx, _ma = _ea_metrics[_i]
+            _xyt_g = np.column_stack([_Xg_ea.ravel(), _Yg_ea.ravel(), np.full(_Xg_ea.size, _tv)])
+            _u_pinn_g = model.predict(_xyt_g)[:, 0].reshape(_res_ea, _res_ea)
+            _u_fem_g  = _gd(np.column_stack([_ea_x_refs[_i], _ea_y_refs[_i]]),
+                            _ea_u_refs[_i], (_Xg_ea, _Yg_ea), method='linear', fill_value=0.0)
+            _u_err_g  = np.abs(_u_pinn_g - _u_fem_g)
+            _vmin_data = min(_u_pinn_g.min(), _u_fem_g.min()) if {_auto} else {_vmin}
+            _vmax_data = max(_u_pinn_g.max(), _u_fem_g.max()) if {_auto} else {_vmax}
+            im0 = axes[_i][0].contourf(_Xg_ea, _Yg_ea, _u_pinn_g, levels={_levels}, cmap='{_cmap}', vmin=_vmin_data, vmax=_vmax_data)
+            axes[_i][0].set_title(f"PINN t={{_tv:.3f}} L2={{_l2:.2e}}"); axes[_i][0].set_xlabel("x"); axes[_i][0].set_ylabel("y")
+            if {_colorbar}: fig.colorbar(im0, ax=axes[_i][0])
+            im1 = axes[_i][1].contourf(_Xg_ea, _Yg_ea, _u_fem_g, levels={_levels}, cmap='{_cmap}', vmin=_vmin_data, vmax=_vmax_data)
+            axes[_i][1].set_title(f"Ground Truth t={{_tv:.3f}}"); axes[_i][1].set_xlabel("x"); axes[_i][1].set_ylabel("y")
+            if {_colorbar}: fig.colorbar(im1, ax=axes[_i][1])
+            im2 = axes[_i][2].contourf(_Xg_ea, _Yg_ea, _u_err_g, levels={_levels}, cmap='{_cmap}')
+            axes[_i][2].set_title(f"|Error| Max={{_mx:.2e}}"); axes[_i][2].set_xlabel("x"); axes[_i][2].set_ylabel("y")
+            if {_colorbar}: fig.colorbar(im2, ax=axes[_i][2])
+        plt.tight_layout()
+    else:
+        _x_common = np.linspace({x_min}, {x_max}, 300)
+        _t_arr = np.array(_ea_times)
+        _U_pinn = np.zeros((len(_t_arr), len(_x_common)))
+        _U_fem  = np.zeros((len(_t_arr), len(_x_common)))
+        for _i, _tv in enumerate(_ea_times):
+            _xt_c = np.column_stack([_x_common, np.full_like(_x_common, _tv)])
+            _U_pinn[_i] = model.predict(_xt_c)[:, 0].flatten()
+            _fi = _interp1d(_ea_x_refs[_i], _ea_u_refs[_i], kind='linear', fill_value='extrapolate')
+            _U_fem[_i]  = _fi(_x_common)
+        _Xg, _Tg = np.meshgrid(_x_common, _t_arr)
+        _U_err = np.abs(_U_pinn - _U_fem)
+        _vmin_data = min(_U_pinn.min(), _U_fem.min()) if {_auto} else {_vmin}
+        _vmax_data = max(_U_pinn.max(), _U_fem.max()) if {_auto} else {_vmax}
+        fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+        fig.suptitle("Restored Model vs Ground Truth — Surface", fontsize=13, fontweight='bold')
+        im0 = axes[0].contourf(_Tg, _Xg, _U_pinn, levels={_levels}, cmap='{_cmap}', vmin=_vmin_data, vmax=_vmax_data)
+        axes[0].set_title("PINN"); axes[0].set_xlabel("t"); axes[0].set_ylabel("x")
+        if {_colorbar}: fig.colorbar(im0, ax=axes[0])
+        im1 = axes[1].contourf(_Tg, _Xg, _U_fem, levels={_levels}, cmap='{_cmap}', vmin=_vmin_data, vmax=_vmax_data)
+        axes[1].set_title("Ground Truth"); axes[1].set_xlabel("t")
+        if {_colorbar}: fig.colorbar(im1, ax=axes[1])
+        im2 = axes[2].contourf(_Tg, _Xg, _U_err, levels={_levels}, cmap='{_cmap}')
+        axes[2].set_title("|Error|"); axes[2].set_xlabel("t")
+        if {_colorbar}: fig.colorbar(im2, ax=axes[2])
+        plt.tight_layout()
+    _sp = os.path.join(_ea_dir, "surface_comparison_restore.png")
+    plt.savefig(_sp, dpi={_dpi}, bbox_inches='tight'); plt.close()
+    print(f"  Surface comparison saved: {{_sp}}")
+
+print("=== Restore Error Analysis Complete ===")
+"""

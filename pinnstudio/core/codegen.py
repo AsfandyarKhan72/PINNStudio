@@ -753,22 +753,19 @@ for _pval in _param_values:
             if {config.batch_size} > 0:
                 data.batch_size = {config.batch_size}
                 print(f"Batch size set to: {config.batch_size}")
-            loss_history, train_state = model.train(iterations=_iters, display_every=1000)
-
             if _use_save:
-                _adam_model_path = _os.path.join(_sol_dir, "model_adam")
-                model.save(_adam_model_path)
+                pass  # model saved after scheduler phases
                 _adam_cfg_path = _os.path.join(_sol_dir, f"model_adam-{{_iters}}.json")
                 with open(_adam_cfg_path, "w") as _acf:
                     _json.dump(_model_config, _acf, indent=2)
                 print(f"Adam config saved to: {{_adam_cfg_path}}")
 
         # Optimizer Scheduler or Phase 2
-        if {config.optimizer_scheduler} and "{config.scheduler_phases}":
+        if {config.optimizer_scheduler} and _os.path.exists('/tmp') and {len(config.scheduler_phases) > 0}:
             import json as _json_sched
-            _sched_phases = _json_sched.loads('{config.scheduler_phases}')
+            _sched_phases = _json_sched.loads({repr(config.scheduler_phases)})
             for _sp_i, _sp in enumerate(_sched_phases):
-                print(f"  === Scheduler Phase {{_sp_i+2}}: {{_sp['optimizer']}} {{_sp['iterations']}} iters ===")
+                print(f"  === Scheduler Phase {{_sp_i+1}}: {{_sp['optimizer']}} {{_sp['iterations']}} iters ===")
                 _sp_weights = [float(w) for w in _sp['weights'].split(',') if w.strip()]
                 if _sp['optimizer'] == 'lbfgs':
                     dde.optimizers.set_LBFGS_options(
@@ -1628,18 +1625,12 @@ if {config.time_adaptive}:
                 print(f"  IC pre-train model saved to: {{_ic_pre_save_dir_ta}}")
             print("  === Starting Main Training ===")
 
-        # Adam always runs full iterations — transfer learning only affects starting weights
-        model_i.compile("{config.optimizer}", lr=_lr, loss="{config.loss_type}",
-                        loss_weights=_multi_weights)
-        if {config.batch_size} > 0:
-            data_i.batch_size = {config.batch_size}
-        lh_i, ts_i = model_i.train(iterations={config.iterations}, display_every=1000)
         # ── Optimizer Scheduler phases ────────────────────────
-        if {config.optimizer_scheduler} and "{config.scheduler_phases}":
+        if {config.optimizer_scheduler} and {len(config.scheduler_phases) > 0}:
             import json as _json
-            _sched_phases = _json.loads('{config.scheduler_phases}')
+            _sched_phases = _json.loads({repr(config.scheduler_phases)})
             for _sp_i, _sp in enumerate(_sched_phases):
-                print(f"  === Scheduler Phase {{_sp_i+2}}: {{_sp['optimizer']}} {{_sp['iterations']}} iters ===")
+                print(f"  === Scheduler Phase {{_sp_i+1}}: {{_sp['optimizer']}} {{_sp['iterations']}} iters ===")
                 _sp_weights = [float(w) for w in _sp['weights'].split(',') if w.strip()]
                 if _sp['optimizer'] == 'lbfgs':
                     dde.optimizers.set_LBFGS_options(
@@ -1649,12 +1640,25 @@ if {config.time_adaptive}:
                     model_i.compile("L-BFGS", loss=_sp.get('loss', '{config.loss_type}'),
                                     loss_weights=_sp_weights)
                     lh_i, ts_i = model_i.train(display_every=200)
+                    if _use_save:
+                        _sp_step_dir = _os.path.join(_save_dir, "time_adaptive_steps", f"step_{{step_i+1:03d}}_t{{t0:.4f}}_to_t{{t1:.4f}}")
+                        _os.makedirs(_sp_step_dir, exist_ok=True)
+                        _sp_save_path = _os.path.join(_sp_step_dir, f"model_lbfgs-phase{{_sp_i+1}}")
+                        model_i.save(_sp_save_path)
+                        print(f"  Phase {{_sp_i+2}} L-BFGS model saved: {{_sp_save_path}}.pt")
                 else:
                     model_i.compile(_sp['optimizer'], lr=_sp['lr'],
                                     loss=_sp.get('loss', '{config.loss_type}'), loss_weights=_sp_weights)
                     if {config.batch_size} > 0:
                         data_i.batch_size = {config.batch_size}
                     lh_i, ts_i = model_i.train(iterations=_sp['iterations'], display_every=1000)
+                    if _use_save:
+                        _sp_iters = lh_i.steps[-1] if lh_i.steps else _sp['iterations']
+                        _sp_step_dir = _os.path.join(_save_dir, "time_adaptive_steps", f"step_{{step_i+1:03d}}_t{{t0:.4f}}_to_t{{t1:.4f}}")
+                        _os.makedirs(_sp_step_dir, exist_ok=True)
+                        _sp_save_path = _os.path.join(_sp_step_dir, f"model_adam-phase{{_sp_i+1}}")
+                        model_i.save(_sp_save_path)
+                        print(f"  Phase {{_sp_i+2}} Adam model saved: {{_sp_save_path}}.pt")
         elif "{config.optimizer2}" != "none":
             dde.optimizers.set_LBFGS_options(
                     maxcor={config.lbfgs_maxcor}, ftol={config.lbfgs_ftol},
@@ -1773,10 +1777,13 @@ if {config.time_adaptive}:
                 plt.savefig(_step_fname, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
             print(f"Step plot saved: {{_step_fname}}")
 
-            # ── Save Adam model for this step ─────────────────
-            _step_adam_path = _os.path.join(_step_dir, "model_adam")
-            model_i.save(_step_adam_path)
-            print(f"Step Adam model saved: {{_step_adam_path}}-{{_iters}}.pt")
+            # ── Final model already saved per-phase, just track for transfer learning ───
+            _last_phase_opt = "{config.optimizer}"
+            if {config.optimizer_scheduler} and {len(config.scheduler_phases) > 0}:
+                import json as _json_lp
+                _lp_phases = _json_lp.loads({repr(config.scheduler_phases)})
+                if _lp_phases:
+                    _last_phase_opt = _lp_phases[-1]["optimizer"]
 
             # Track for transfer learning — prefer lbfgs if chosen, else adam
             _prev_step_model_path = ""
