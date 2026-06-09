@@ -537,53 +537,31 @@ class MainWindow(QMainWindow):
         self.ic_pretrain_widget.setVisible(False)
         train_layout.addWidget(self.ic_pretrain_widget)
 
-        div_phase1 = QLabel("─── Phase 1 ───")
-        div_phase1.setStyleSheet("color: #505080; font-size: 11px;")
-        train_layout.addWidget(div_phase1)
-
-        self.opt1_combo = QComboBox()
-        self.opt1_combo.addItems(["adam", "sgd", "rmsprop"]); self.opt1_combo.setFixedHeight(28)
-        _train_row("Phase 1 — Optimizer:", self.opt1_combo)
-
-        self.iter1_spin = QSpinBox()
-        self.iter1_spin.setRange(0, 1000000); self.iter1_spin.setSingleStep(1000)
-        self.iter1_spin.setValue(10000); self.iter1_spin.setFixedHeight(28)
-        _train_row("Phase 1 — Iterations:", self.iter1_spin)
-
-        self.lr_spin = QDoubleSpinBox()
-        self.lr_spin.setRange(1e-6, 1.0); self.lr_spin.setDecimals(6)
-        self.lr_spin.setSingleStep(0.0001); self.lr_spin.setValue(0.001); self.lr_spin.setFixedHeight(28)
-        _train_row("Phase 1 — Learning Rate:", self.lr_spin)
-
-        self.loss_combo = QComboBox()
-        self.loss_combo.addItems(["MSE", "MAE", "mean l2 relative error",
-                                   "mean absolute percentage error", "softplus"])
-        self.loss_combo.setFixedHeight(28)
-        _train_row("Loss function:", self.loss_combo)
-
-        div = QLabel("─── Phase 2 (optional) ───")
-        div.setStyleSheet("color: #505080; font-size: 11px;")
-        train_layout.addWidget(div)
-
-        self.opt2_combo = QComboBox()
-        self.opt2_combo.addItems(["none", "lbfgs"]); self.opt2_combo.setFixedHeight(28)
-        _train_row("Phase 2 — Optimizer:", self.opt2_combo)
-
-        self.iter2_spin = QSpinBox()
-        self.iter2_spin.setRange(0, 100000); self.iter2_spin.setSingleStep(1000)
-        self.iter2_spin.setValue(5000); self.iter2_spin.setFixedHeight(28)
-        _train_row("Phase 2 — Iterations:", self.iter2_spin)
-
         # ── Optimizer Scheduler ───────────────────────────────
         div_sched = QLabel("─── Optimizer Scheduler (optional) ───")
         div_sched.setStyleSheet("color: #505080; font-size: 11px;")
         train_layout.addWidget(div_sched)
-
         self.sched_cb = QCheckBox("Enable Optimizer Scheduler")
         self.sched_cb.setChecked(False)
         self.sched_cb.setStyleSheet("color: #ffa94d; font-size: 12px;")
         self.sched_cb.stateChanged.connect(self._on_scheduler_changed)
         train_layout.addWidget(self.sched_cb)
+
+        # Hidden legacy widgets — kept for _build_config compatibility
+        self.opt1_combo = QComboBox(); self.opt1_combo.addItems(["adam", "sgd", "rmsprop"])
+        self.opt1_combo.setVisible(False)
+        self.iter1_spin = QSpinBox(); self.iter1_spin.setRange(0, 1000000)
+        self.iter1_spin.setValue(50000); self.iter1_spin.setVisible(False)
+        self.lr_spin = QDoubleSpinBox(); self.lr_spin.setRange(1e-6, 1.0)
+        self.lr_spin.setDecimals(6); self.lr_spin.setValue(0.001); self.lr_spin.setVisible(False)
+        self.loss_combo = QComboBox()
+        self.loss_combo.addItems(["MSE", "MAE", "mean l2 relative error",
+                                   "mean absolute percentage error", "softplus"])
+        self.loss_combo.setVisible(False)
+        self.opt2_combo = QComboBox(); self.opt2_combo.addItems(["none", "lbfgs"])
+        self.opt2_combo.setCurrentText("none"); self.opt2_combo.setVisible(False)
+        self.iter2_spin = QSpinBox(); self.iter2_spin.setRange(0, 100000)
+        self.iter2_spin.setValue(0); self.iter2_spin.setVisible(False)
 
         self.sched_widget = QWidget()
         sched_layout = QVBoxLayout(self.sched_widget)
@@ -611,7 +589,7 @@ class MainWindow(QMainWindow):
         add_phase_btn.setStyleSheet(
             "QPushButton { color: #69db7c; background: transparent; "
             "border: 1px solid #2a6a4a; border-radius: 4px; padding: 2px 8px; }")
-        add_phase_btn.clicked.connect(self._add_scheduler_phase)
+        add_phase_btn.clicked.connect(lambda: self._add_scheduler_phase())
         sched_layout.addWidget(add_phase_btn)
 
         self.sched_widget.setVisible(False)
@@ -3078,8 +3056,9 @@ print("ERROR_ANALYSIS_DONE")
                         and self.ic_file_paths[0] is not None):
                     self.ic_file_paths[0].setText(
                         '/home/asfandyarkhan/deepxde_gui/FEM_Results/2D_Examples/FeCr_PINN_2D/t_0.txt')
-                # Set FeCr default weights
-                self._build_weight_inputs(self.num_outputs_spin.value())
+                # Enable optimizer scheduler with FeCr default phases
+                self.sched_cb.setChecked(True)
+                self._setup_default_scheduler_phases('FeCr_PINN')
                 if "pde_0" in self.weight_widgets:
                     self.weight_widgets["pde_0"].setValue(100.0)
                 if "pde_1" in self.weight_widgets:
@@ -3108,6 +3087,10 @@ print("ERROR_ANALYSIS_DONE")
             self._template_ref_dir = t.get('ref_dir', '')
             self._current_template = text
             self._current_template_type = t.get('template_type', '')
+            # Setup default scheduler phases
+            if hasattr(self, 'sched_cb'):
+                self.sched_cb.setChecked(True)
+                self._setup_default_scheduler_phases(t.get('template_type', ''))
             self._auto_configure_ea(self._template_ref_dir)
             self.log_box.append(f"✅ Template loaded: {text}")
             return
@@ -3240,6 +3223,9 @@ print("ERROR_ANALYSIS_DONE")
         self._template_ref_dir = t.get('ref_dir', '')
         self._current_template = text
         self._current_template_type = t.get('template_type', '')
+        if hasattr(self, 'sched_cb'):
+            self.sched_cb.setChecked(True)
+            self._setup_default_scheduler_phases(t.get('template_type', ''))
         self._auto_configure_ea(self._template_ref_dir)
         self.log_box.append(f"✅ Template loaded: {text}")
     def _on_plot_settings(self):
@@ -3853,6 +3839,7 @@ print("ERROR_ANALYSIS_V2_DONE")
                 'optimizer': ph['opt'].currentText(),
                 'iterations': ph['iters'].value(),
                 'lr': ph['lr'].value(),
+                'loss': ph.get('loss', self.loss_combo).currentText() if 'loss' in ph else 'MSE',
                 'weights': w_str
             })
         import json
@@ -3861,6 +3848,47 @@ print("ERROR_ANALYSIS_V2_DONE")
     def _on_scheduler_changed(self, state):
         self.sched_widget.setVisible(state == 2)
         self._build_weight_inputs(self.num_outputs_spin.value())
+
+    def _setup_default_scheduler_phases(self, template_type=''):
+        """Clear existing phases and add defaults based on template."""
+        # Clear existing phases
+        for ph in list(self.sched_phase_list):
+            ph['widget'].deleteLater()
+        self.sched_phase_list.clear()
+
+        if template_type == 'FeCr_PINN':
+            # Phase 2: Adam [0,0,0,0,1000]
+            self._add_scheduler_phase('adam', 50000, 0.001)
+            # Phase 3: Adam [100,1e-4,1,1,1000]
+            self._add_scheduler_phase('adam', 50000, 0.001)
+            # Phase 4: L-BFGS [100,1e-4,1,1,1000]
+            self._add_scheduler_phase('lbfgs', 20000, 0.001)
+            # Uncheck same weights so per-phase weights show
+            self.sched_same_weights_cb.setChecked(False)
+        else:
+            # Default: one L-BFGS phase using same weights
+            self._add_scheduler_phase('lbfgs', 20000, 0.001)
+            self.sched_same_weights_cb.setChecked(True)
+        self._build_weight_inputs(self.num_outputs_spin.value())
+
+        if template_type == 'FeCr_PINN' and len(self.sched_phase_list) >= 3:
+            # Phase 2 weights: [0,0,0,0,1000]
+            p2 = self.sched_phase_list[0]['phase_num']
+            p3 = self.sched_phase_list[1]['phase_num']
+            p4 = self.sched_phase_list[2]['phase_num']
+            for key, val in [
+                (f"pde_0_p{p2}", 0.0), (f"pde_1_p{p2}", 0.0),
+                (f"bc_left_0_p{p2}", 0.0), (f"bc_bottom_0_p{p2}", 0.0),
+                (f"ic_0_p{p2}", 1000.0),
+                (f"pde_0_p{p3}", 100.0), (f"pde_1_p{p3}", 1e-4),
+                (f"bc_left_0_p{p3}", 1.0), (f"bc_bottom_0_p{p3}", 1.0),
+                (f"ic_0_p{p3}", 1000.0),
+                (f"pde_0_p{p4}", 100.0), (f"pde_1_p{p4}", 1e-4),
+                (f"bc_left_0_p{p4}", 1.0), (f"bc_bottom_0_p{p4}", 1.0),
+                (f"ic_0_p{p4}", 1000.0),
+            ]:
+                if key in self.weight_widgets:
+                    self.weight_widgets[key].setValue(val)
 
     def _add_scheduler_phase(self, optimizer='adam', iterations=50000, lr=0.001):
         phase_num = len(self.sched_phase_list) + 2  # phase 2, 3, 4...
@@ -3910,12 +3938,23 @@ print("ERROR_ANALYSIS_V2_DONE")
         lr_row.addStretch(); lr_row.addWidget(lr_spin)
         phase_layout.addLayout(lr_row)
 
+        # Loss function
+        loss_row = QHBoxLayout()
+        loss_row.addWidget(QLabel("Loss function:"))
+        loss_combo_ph = QComboBox()
+        loss_combo_ph.addItems(["MSE", "MAE", "mean l2 relative error",
+                                 "mean absolute percentage error", "softplus"])
+        loss_combo_ph.setFixedHeight(26); loss_combo_ph.setFixedWidth(160)
+        loss_row.addStretch(); loss_row.addWidget(loss_combo_ph)
+        phase_layout.addLayout(loss_row)
+
         self.sched_phases_layout.addWidget(phase_widget)
         phase_data = {
             'widget': phase_widget,
             'opt': opt_combo,
             'iters': iter_spin,
             'lr': lr_spin,
+            'loss': loss_combo_ph,
             'phase_num': phase_num
         }
         self.sched_phase_list.append(phase_data)

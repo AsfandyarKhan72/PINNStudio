@@ -775,12 +775,12 @@ for _pval in _param_values:
                         maxcor={config.lbfgs_maxcor}, ftol={config.lbfgs_ftol},
                         gtol={config.lbfgs_gtol}, maxiter=_sp['iterations'],
                         maxfun=int(_sp['iterations']*1.25), maxls={config.lbfgs_maxls})
-                    model.compile("L-BFGS", loss="{config.loss_type}",
+                    model.compile("L-BFGS", loss=_sp.get('loss', '{config.loss_type}'),
                                   loss_weights=_sp_weights)
                     loss_history, train_state = model.train(display_every=200)
                 else:
                     model.compile(_sp['optimizer'], lr=_sp['lr'],
-                                  loss="{config.loss_type}", loss_weights=_sp_weights)
+                                  loss=_sp.get('loss', '{config.loss_type}'), loss_weights=_sp_weights)
                     if {config.batch_size} > 0:
                         data.batch_size = {config.batch_size}
                     loss_history, train_state = model.train(iterations=_sp['iterations'], display_every=1000)
@@ -1646,12 +1646,12 @@ if {config.time_adaptive}:
                         maxcor={config.lbfgs_maxcor}, ftol={config.lbfgs_ftol},
                         gtol={config.lbfgs_gtol}, maxiter=_sp['iterations'],
                         maxfun=int(_sp['iterations']*1.25), maxls={config.lbfgs_maxls})
-                    model_i.compile("L-BFGS", loss="{config.loss_type}",
+                    model_i.compile("L-BFGS", loss=_sp.get('loss', '{config.loss_type}'),
                                     loss_weights=_sp_weights)
                     lh_i, ts_i = model_i.train(display_every=200)
                 else:
                     model_i.compile(_sp['optimizer'], lr=_sp['lr'],
-                                    loss="{config.loss_type}", loss_weights=_sp_weights)
+                                    loss=_sp.get('loss', '{config.loss_type}'), loss_weights=_sp_weights)
                     if {config.batch_size} > 0:
                         data_i.batch_size = {config.batch_size}
                     lh_i, ts_i = model_i.train(iterations=_sp['iterations'], display_every=1000)
