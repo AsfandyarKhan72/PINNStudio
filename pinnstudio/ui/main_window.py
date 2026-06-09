@@ -352,7 +352,7 @@ class MainWindow(QMainWindow):
 
         self.num_domain   = _pts_row("Domain points:",   2000, 100, 100000, 500)
         self.num_boundary = _pts_row("Boundary points:", 200,  10,  10000,  100)
-        self.num_initial  = _pts_row("Initial points:",  200,  10,  10000,  100)
+        self.num_initial  = _pts_row("Initial points:",  200,  0,  10000,  100)
         self.num_test     = _pts_row("Test points:",     1000, 100, 50000,  500)
 
         pts_dist_row = QHBoxLayout()
@@ -475,13 +475,65 @@ class MainWindow(QMainWindow):
         self.ic_pretrain_iters = QSpinBox()
         self.ic_pretrain_iters.setRange(100, 500000)
         self.ic_pretrain_iters.setSingleStep(1000)
-        self.ic_pretrain_iters.setValue(10000)
+        self.ic_pretrain_iters.setValue(200000)
         self.ic_pretrain_iters.setFixedHeight(28)
         ic_pt_layout.addWidget(self.ic_pretrain_iters)
+
+        # Test points
+        ic_test_row = QHBoxLayout()
+        ic_test_row.addWidget(QLabel("Test points:"))
+        self.ic_pretrain_test = QSpinBox()
+        self.ic_pretrain_test.setRange(100, 100000)
+        self.ic_pretrain_test.setSingleStep(1000)
+        self.ic_pretrain_test.setValue(10000)
+        self.ic_pretrain_test.setFixedHeight(28)
+        self.ic_pretrain_test.setFixedWidth(100)
+        ic_test_row.addStretch(); ic_test_row.addWidget(self.ic_pretrain_test)
+        ic_pt_layout.addLayout(ic_test_row)
+
+        # Initial points (only shown when IC is from expression, not file)
+        self.ic_pretrain_init_widget = QWidget()
+        ic_init_row = QHBoxLayout(self.ic_pretrain_init_widget)
+        ic_init_row.setContentsMargins(0, 0, 0, 0)
+        ic_init_row.addWidget(QLabel("Initial points:"))
+        self.ic_pretrain_init = QSpinBox()
+        self.ic_pretrain_init.setRange(0, 10000)
+        self.ic_pretrain_init.setSingleStep(100)
+        self.ic_pretrain_init.setValue(1000)
+        self.ic_pretrain_init.setFixedHeight(28)
+        self.ic_pretrain_init.setFixedWidth(100)
+        ic_init_row.addStretch(); ic_init_row.addWidget(self.ic_pretrain_init)
+        ic_pt_layout.addWidget(self.ic_pretrain_init_widget)
+
+        # Restore option
+        ic_restore_cb = QCheckBox("🔄 Restore from saved IC pre-train model")
+        ic_restore_cb.setChecked(False)
+        ic_restore_cb.setStyleSheet("color: #69db7c; font-size: 12px;")
+        ic_pt_layout.addWidget(ic_restore_cb)
+        self.ic_pretrain_restore_cb = ic_restore_cb
+
+        self.ic_pretrain_restore_widget = QWidget()
+        ic_restore_layout = QHBoxLayout(self.ic_pretrain_restore_widget)
+        ic_restore_layout.setContentsMargins(0, 0, 0, 0)
+        self.ic_pretrain_restore_path = QLineEdit()
+        self.ic_pretrain_restore_path.setPlaceholderText("Browse for IC pre-train .pt file...")
+        self.ic_pretrain_restore_path.setFixedHeight(26)
+        ic_restore_layout.addWidget(self.ic_pretrain_restore_path)
+        ic_restore_browse = QPushButton("Browse")
+        ic_restore_browse.setFixedHeight(26); ic_restore_browse.setFixedWidth(65)
+        ic_restore_browse.clicked.connect(lambda: self.ic_pretrain_restore_path.setText(
+            QFileDialog.getOpenFileName(None, "Select IC pre-train model", "", "Model (*.pt)")[0]))
+        ic_restore_layout.addWidget(ic_restore_browse)
+        self.ic_pretrain_restore_widget.setVisible(False)
+        ic_pt_layout.addWidget(self.ic_pretrain_restore_widget)
+        ic_restore_cb.stateChanged.connect(
+            lambda s: self.ic_pretrain_restore_widget.setVisible(s == 2))
+
         ic_note = QLabel("Trains IC loss only before main training.\nFirst step only for time-adaptive.")
         ic_note.setStyleSheet("color: #586e75; font-size: 11px;")
         ic_note.setWordWrap(True)
         ic_pt_layout.addWidget(ic_note)
+
         self.ic_pretrain_widget.setVisible(False)
         train_layout.addWidget(self.ic_pretrain_widget)
 
@@ -521,6 +573,49 @@ class MainWindow(QMainWindow):
         self.iter2_spin.setRange(0, 100000); self.iter2_spin.setSingleStep(1000)
         self.iter2_spin.setValue(5000); self.iter2_spin.setFixedHeight(28)
         _train_row("Phase 2 — Iterations:", self.iter2_spin)
+
+        # ── Optimizer Scheduler ───────────────────────────────
+        div_sched = QLabel("─── Optimizer Scheduler (optional) ───")
+        div_sched.setStyleSheet("color: #505080; font-size: 11px;")
+        train_layout.addWidget(div_sched)
+
+        self.sched_cb = QCheckBox("Enable Optimizer Scheduler")
+        self.sched_cb.setChecked(False)
+        self.sched_cb.setStyleSheet("color: #ffa94d; font-size: 12px;")
+        self.sched_cb.stateChanged.connect(self._on_scheduler_changed)
+        train_layout.addWidget(self.sched_cb)
+
+        self.sched_widget = QWidget()
+        sched_layout = QVBoxLayout(self.sched_widget)
+        sched_layout.setSpacing(4)
+        sched_layout.setContentsMargins(0, 0, 0, 0)
+
+        # Same weights checkbox
+        self.sched_same_weights_cb = QCheckBox("Use same weights for all phases")
+        self.sched_same_weights_cb.setChecked(True)
+        self.sched_same_weights_cb.setStyleSheet("color: #69db7c; font-size: 12px;")
+        self.sched_same_weights_cb.stateChanged.connect(
+            lambda s: self._build_weight_inputs(self.num_outputs_spin.value()))
+        sched_layout.addWidget(self.sched_same_weights_cb)
+
+        # Phase list container
+        self.sched_phases_widget = QWidget()
+        self.sched_phases_layout = QVBoxLayout(self.sched_phases_widget)
+        self.sched_phases_layout.setSpacing(4)
+        self.sched_phases_layout.setContentsMargins(0, 0, 0, 0)
+        sched_layout.addWidget(self.sched_phases_widget)
+        self.sched_phase_list = []  # list of dicts with widgets
+
+        # Add phase button
+        add_phase_btn = QPushButton("➕ Add Phase")
+        add_phase_btn.setStyleSheet(
+            "QPushButton { color: #69db7c; background: transparent; "
+            "border: 1px solid #2a6a4a; border-radius: 4px; padding: 2px 8px; }")
+        add_phase_btn.clicked.connect(self._add_scheduler_phase)
+        sched_layout.addWidget(add_phase_btn)
+
+        self.sched_widget.setVisible(False)
+        train_layout.addWidget(self.sched_widget)
 
         # L-BFGS settings
         self.lbfgs_widget = QWidget()
@@ -1549,7 +1644,9 @@ class MainWindow(QMainWindow):
                 ic_file_cb.stateChanged.connect(
                     lambda state, w=ic_file_widget, inp=ic_inp, act=ic_act:
                     (w.setVisible(state == 2), inp.setVisible(state != 2),
-                     act.setChecked(state != 2))
+                     act.setChecked(state != 2),
+                     self.ic_pretrain_init_widget.setVisible(state != 2)
+                     if hasattr(self, 'ic_pretrain_init_widget') else None)
                 )
             else:
                 self.ic_from_file.append(None)
@@ -1585,6 +1682,12 @@ class MainWindow(QMainWindow):
                 w.deleteLater()
         self.weight_widgets.clear()
 
+        # Check if per-phase weights needed
+        _sched_enabled = hasattr(self, 'sched_cb') and self.sched_cb.isChecked()
+        _same_weights = not _sched_enabled or (
+            hasattr(self, 'sched_same_weights_cb') and self.sched_same_weights_cb.isChecked())
+        _num_phases = 1 + (len(self.sched_phase_list) if _sched_enabled else 0)
+
         def _w_row(label, key):
             row = QHBoxLayout()
             row.addWidget(QLabel(label))
@@ -1619,6 +1722,25 @@ class MainWindow(QMainWindow):
             )
             if (i < len(self.ic_active) and self.ic_active[i].isChecked()) or _ic_from_file_checked:
                 _w_row(f"IC {i+1} ({name}):", f"ic_{i}")
+
+        # Per-phase weight rows if scheduler enabled and different weights
+        if _sched_enabled and not _same_weights:
+            for _pi, _ph in enumerate(self.sched_phase_list):
+                _phase_num = _ph['phase_num']
+                sep = QLabel(f"── Phase {_phase_num} weights ──")
+                sep.setStyleSheet("color: #505080; font-size: 10px;")
+                _sw = QWidget(); _sl = QHBoxLayout(_sw)
+                _sl.setContentsMargins(0,0,0,0); _sl.addWidget(sep)
+                self.weights_main_layout.addWidget(_sw)
+                for _i in range(n):
+                    _name = self.output_name_inputs[_i].text() if _i < len(self.output_name_inputs) else f"u{_i+1}"
+                    _w_row(f"PDE {_i+1} ({_name}) P{_phase_num}:", f"pde_{_i}_p{_phase_num}")
+                    if _i < len(self.bc_left_active) and self.bc_left_active[_i].isChecked():
+                        _w_row(f"BC left {_i+1} P{_phase_num}:", f"bc_left_{_i}_p{_phase_num}")
+                    _ic_ff = (hasattr(self, 'ic_from_file') and _i < len(self.ic_from_file)
+                              and self.ic_from_file[_i] is not None and self.ic_from_file[_i].isChecked())
+                    if (_i < len(self.ic_active) and self.ic_active[_i].isChecked()) or _ic_ff:
+                        _w_row(f"IC {_i+1} ({_name}) P{_phase_num}:", f"ic_{_i}_p{_phase_num}")
 
     # ── Build config ──────────────────────────────────────────
     def _build_config(self):
@@ -1758,7 +1880,9 @@ class MainWindow(QMainWindow):
             export_grid_size=int(self.export_grid_combo.currentText()),
             export_t_steps=self.export_tsteps_spin.value(),
             template_type=getattr(self, '_current_template_type', ''),
-            lbfgs_use_default=self.lbfgs_use_default_cb.isChecked(),
+            optimizer_scheduler=self.sched_cb.isChecked() if hasattr(self, 'sched_cb') else False,
+            scheduler_same_weights=self.sched_same_weights_cb.isChecked() if hasattr(self, 'sched_same_weights_cb') else True,
+            scheduler_phases=self._build_scheduler_phases_json(),
             lbfgs_maxcor=int(self.lbfgs_maxcor.value()),
             lbfgs_ftol=self.lbfgs_ftol.value(),
             lbfgs_gtol=self.lbfgs_gtol.value(),
@@ -1770,6 +1894,10 @@ class MainWindow(QMainWindow):
             ic_pretrain=self.ic_pretrain_cb.isChecked(),
             ic_pretrain_optimizer=self.ic_pretrain_opt.currentText(),
             ic_pretrain_iterations=self.ic_pretrain_iters.value(),
+            ic_pretrain_num_test=self.ic_pretrain_test.value(),
+            ic_pretrain_num_initial=self.ic_pretrain_init.value(),
+            ic_pretrain_restore=self.ic_pretrain_restore_cb.isChecked(),
+            ic_pretrain_restore_path=self.ic_pretrain_restore_path.text().strip(),
             plot_colormap=self._plot_viz_settings.get('colormap', 'RdBu_r'),
             plot_levels=self._plot_viz_settings.get('levels', 50),
             plot_resolution=self._plot_viz_settings.get('resolution', 100),
@@ -2839,16 +2967,17 @@ print("ERROR_ANALYSIS_DONE")
                 'num_outputs': 2,
                 'output_names': ['c', 'mu'],
                 'num_domain': 10000,
-                'num_boundary': 200,
+                'num_boundary': 400,
                 'num_initial': 0,
+                'num_test': 10000,
                 'layers': 6,
                 'neurons': 128,
-                'iterations': 20000,
+                'iterations': 50000,
                 'optimizer2': 'lbfgs',
-                'iterations2': 20000,
+                'iterations2': 50000,
                 'x_min': 0.0, 'x_max': 1.0,
                 'y_min': 0.0, 'y_max': 1.0,
-                't_max': 10.0,
+                't_max': 1.0,
                 'bc_config': 'fecr',
                 'template_type': 'FeCr_PINN',
                 'forward_ic_from_file': True,
@@ -2882,6 +3011,8 @@ print("ERROR_ANALYSIS_DONE")
             self.num_domain.setValue(t['num_domain'])
             self.num_boundary.setValue(t['num_boundary'])
             self.num_initial.setValue(t['num_initial'])
+            if 'num_test' in t:
+                self.num_test.setValue(t['num_test'])
             # Set network
             self.layers_spin.setValue(t['layers'])
             self.neurons_spin.setValue(t['neurons'])
@@ -2949,10 +3080,16 @@ print("ERROR_ANALYSIS_DONE")
                         '/home/asfandyarkhan/deepxde_gui/FEM_Results/2D_Examples/FeCr_PINN_2D/t_0.txt')
                 # Set FeCr default weights
                 self._build_weight_inputs(self.num_outputs_spin.value())
+                if "pde_0" in self.weight_widgets:
+                    self.weight_widgets["pde_0"].setValue(100.0)
+                if "pde_1" in self.weight_widgets:
+                    self.weight_widgets["pde_1"].setValue(1e-4)
+                if "bc_left_0" in self.weight_widgets:
+                    self.weight_widgets["bc_left_0"].setValue(1.0)
+                if "bc_bottom_0" in self.weight_widgets:
+                    self.weight_widgets["bc_bottom_0"].setValue(1.0)
                 if "ic_0" in self.weight_widgets:
                     self.weight_widgets["ic_0"].setValue(1000.0)
-                if "pde_1" in self.weight_widgets:
-                    self.weight_widgets["pde_1"].setValue(1e-6)
             elif bc_config == 'heat2d':
                 # Right: Dirichlet=1, Left/Bottom/Top: Neumann=0
                 for i in range(n_out):
@@ -3682,6 +3819,115 @@ print("ERROR_ANALYSIS_V2_DONE")
                     break
         else:
             self.log_box.append("❌ Error analysis failed — check log.")
+    
+    def _build_scheduler_phases_json(self):
+        import json
+        if not hasattr(self, 'sched_cb') or not self.sched_cb.isChecked():
+            return ""
+        phases = []
+        same_w = self.sched_same_weights_cb.isChecked()
+        for ph in self.sched_phase_list:
+            pn = ph['phase_num']
+            if same_w:
+                # Use phase 1 weights
+                w_str = ",".join([
+                    str(self.weight_widgets.get(f"pde_{i}", SciLineEdit(1.0)).value())
+                    for i in range(self.num_outputs_spin.value())
+                ] + [
+                    str(self.weight_widgets.get(k, SciLineEdit(1.0)).value())
+                    for i in range(self.num_outputs_spin.value())
+                    for k in [f"bc_left_{i}", f"bc_bottom_{i}", f"ic_{i}"]
+                    if k in self.weight_widgets
+                ])
+            else:
+                w_str = ",".join([
+                    str(self.weight_widgets.get(f"pde_{i}_p{pn}", SciLineEdit(1.0)).value())
+                    for i in range(self.num_outputs_spin.value())
+                ] + [
+                    str(self.weight_widgets.get(k, SciLineEdit(1.0)).value())
+                    for i in range(self.num_outputs_spin.value())
+                    for k in [f"bc_left_{i}_p{pn}", f"bc_bottom_{i}_p{pn}", f"ic_{i}_p{pn}"]
+                    if k in self.weight_widgets
+                ])
+            phases.append({
+                'optimizer': ph['opt'].currentText(),
+                'iterations': ph['iters'].value(),
+                'lr': ph['lr'].value(),
+                'weights': w_str
+            })
+        import json
+        return json.dumps(phases)
+    
+    def _on_scheduler_changed(self, state):
+        self.sched_widget.setVisible(state == 2)
+        self._build_weight_inputs(self.num_outputs_spin.value())
+
+    def _add_scheduler_phase(self, optimizer='adam', iterations=50000, lr=0.001):
+        phase_num = len(self.sched_phase_list) + 2  # phase 2, 3, 4...
+        phase_widget = QWidget()
+        phase_layout = QVBoxLayout(phase_widget)
+        phase_layout.setSpacing(3)
+        phase_layout.setContentsMargins(0, 0, 0, 0)
+
+        # Header
+        header_row = QHBoxLayout()
+        header_lbl = QLabel(f"── Phase {phase_num} ──")
+        header_lbl.setStyleSheet("color: #a0c4ff; font-size: 11px;")
+        header_row.addWidget(header_lbl)
+        remove_btn = QPushButton("✕")
+        remove_btn.setFixedHeight(22); remove_btn.setFixedWidth(24)
+        remove_btn.setStyleSheet(
+            "QPushButton { color: #ff8787; background: transparent; border: none; }")
+        header_row.addStretch(); header_row.addWidget(remove_btn)
+        phase_layout.addLayout(header_row)
+
+        # Optimizer
+        opt_row = QHBoxLayout()
+        opt_row.addWidget(QLabel("Optimizer:"))
+        opt_combo = QComboBox()
+        opt_combo.addItems(["adam", "lbfgs"])
+        opt_combo.setCurrentText(optimizer)
+        opt_combo.setFixedHeight(26); opt_combo.setFixedWidth(80)
+        opt_row.addStretch(); opt_row.addWidget(opt_combo)
+        phase_layout.addLayout(opt_row)
+
+        # Iterations
+        iter_row = QHBoxLayout()
+        iter_row.addWidget(QLabel("Iterations:"))
+        iter_spin = QSpinBox()
+        iter_spin.setRange(0, 500000); iter_spin.setSingleStep(1000)
+        iter_spin.setValue(iterations); iter_spin.setFixedHeight(26)
+        iter_row.addStretch(); iter_row.addWidget(iter_spin)
+        phase_layout.addLayout(iter_row)
+
+        # Learning rate
+        lr_row = QHBoxLayout()
+        lr_row.addWidget(QLabel("Learning rate:"))
+        lr_spin = QDoubleSpinBox()
+        lr_spin.setRange(1e-6, 1.0); lr_spin.setDecimals(6)
+        lr_spin.setSingleStep(0.0001); lr_spin.setValue(lr)
+        lr_spin.setFixedHeight(26)
+        lr_row.addStretch(); lr_row.addWidget(lr_spin)
+        phase_layout.addLayout(lr_row)
+
+        self.sched_phases_layout.addWidget(phase_widget)
+        phase_data = {
+            'widget': phase_widget,
+            'opt': opt_combo,
+            'iters': iter_spin,
+            'lr': lr_spin,
+            'phase_num': phase_num
+        }
+        self.sched_phase_list.append(phase_data)
+
+        def _remove():
+            phase_widget.deleteLater()
+            if phase_data in self.sched_phase_list:
+                self.sched_phase_list.remove(phase_data)
+            self._build_weight_inputs(self.num_outputs_spin.value())
+
+        remove_btn.clicked.connect(_remove)
+        self._build_weight_inputs(self.num_outputs_spin.value())
     
     def _on_ic_pretrain_changed(self, state):
         self.ic_pretrain_widget.setVisible(state == 2)

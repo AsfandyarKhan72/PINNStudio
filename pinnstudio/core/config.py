@@ -132,7 +132,14 @@ class PINNConfig:
     ic_pretrain: bool = False
     ic_pretrain_optimizer: str = "adam"
     ic_pretrain_iterations: int = 10000
+    ic_pretrain_num_test: int = 10000
+    ic_pretrain_num_initial: int = 1000
     batch_size: int = 0
+    ic_pretrain_restore: bool = False
+    ic_pretrain_restore_path: str = ""
+    optimizer_scheduler: bool = False
+    scheduler_phases: str = ""
+    scheduler_same_weights: bool = True
 
     plot_colormap: str = "RdBu_r"
     plot_levels: int = 100

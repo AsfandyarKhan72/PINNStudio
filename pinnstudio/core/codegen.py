@@ -707,20 +707,37 @@ for _pval in _param_values:
                         return np.reshape(eval(expr, {{"np": np, "x": x, "__builtins__": __builtins__}}), (-1, 1))
                     return dde.icbc.IC(_ic_gt_pre, _ic_fn, lambda x, on_initial: on_initial, component=comp)
                 _ic_ics_pre.append(_mk_ic_pre(_ic_expr_pre, _oi_pre))
+        
+        # IC pre-training — dummy PDE, no domain/BC, full batch, anchors only
+        def _pde_dummy_pre(x, y):
+            return [y[:, _oi_d:_oi_d+1] * 0 for _oi_d in range({config.num_outputs})]
+        _bc_constraints_pre = [_c for _c in _constraints if not isinstance(_c, dde.icbc.PointSetBC)]
+        _ic_pre_constraints = _bc_constraints_pre + _ic_ics_pre
         _data_pre = dde.data.TimePDE(
-            _ic_gt_pre, pde, _ic_ics_pre,
-            num_domain=100, num_boundary=0,
-            num_initial=0, num_test=100,
+            _ic_gt_pre, _pde_dummy_pre, _ic_pre_constraints,
+            num_domain=0, num_boundary=0,
+            num_initial=0, num_test=10000,
+            train_distribution="{config.point_distribution}",
             anchors=_ic_pre_xyt if {config.forward_ic_from_file} else None
         )
         _model_pre = dde.Model(_data_pre, net)
-        # PDE=0, IC=1
-        _ic_only_weights = [0.0] * {config.num_outputs} + [1.0] * len(_ic_ics_pre)
-        print(f"  IC-only weights: {{_ic_only_weights}} — IC points only, no domain/BC")
+        _n_bcs_pre = len(_ic_pre_constraints) - len(_ic_ics_pre)
+        _ic_only_weights = [0.0] * {config.num_outputs} + [0.0] * _n_bcs_pre + [1000.0] * len(_ic_ics_pre)
+        print(f"  IC-only weights: {{_ic_only_weights}} — dummy PDE, full batch")
         _model_pre.compile("{config.ic_pretrain_optimizer}", lr={config.learning_rate},
-                           loss="{config.loss_type}", loss_weights=_ic_only_weights)
-        _ic_lh, _ = _model_pre.train(iterations={config.ic_pretrain_iterations}, display_every=1000)
-        print(f"  IC pre-training done. Final IC loss: {{sum(_ic_lh.loss_train[-1]):.4e}}")
+                           loss="MSE", loss_weights=_ic_only_weights)
+        _ic_pre_save_dir = _os.path.join(r"{config.save_dir}", "ic_pretrain")
+        _os.makedirs(_ic_pre_save_dir, exist_ok=True)
+        if {config.ic_pretrain_restore} and r"{config.ic_pretrain_restore_path}" and _os.path.exists(r"{config.ic_pretrain_restore_path}"):
+            print(f"  Restoring IC pre-train model from: {config.ic_pretrain_restore_path}")
+            _model_pre.restore(r"{config.ic_pretrain_restore_path}", verbose=0)
+            print("  IC pre-train model restored — skipping training.")
+        else:
+            _ic_lh, _ = _model_pre.train(iterations={config.ic_pretrain_iterations},
+                                          display_every=10000, batch_size=None,
+                                          model_save_path=_os.path.join(_ic_pre_save_dir, "ic_pretrain_model"))
+            print(f"  IC pre-training done. Final IC loss: {{sum(_ic_lh.loss_train[-1]):.4e}}")
+            print(f"  IC pre-train model saved to: {{_ic_pre_save_dir}}")
         print("=== Starting Main Training ===\\n")
 
     if not {config.time_adaptive}:
@@ -746,8 +763,28 @@ for _pval in _param_values:
                     _json.dump(_model_config, _acf, indent=2)
                 print(f"Adam config saved to: {{_adam_cfg_path}}")
 
-        # Phase 2
-        if "{config.optimizer2}" != "none":
+        # Optimizer Scheduler or Phase 2
+        if {config.optimizer_scheduler} and "{config.scheduler_phases}":
+            import json as _json_sched
+            _sched_phases = _json_sched.loads('{config.scheduler_phases}')
+            for _sp_i, _sp in enumerate(_sched_phases):
+                print(f"  === Scheduler Phase {{_sp_i+2}}: {{_sp['optimizer']}} {{_sp['iterations']}} iters ===")
+                _sp_weights = [float(w) for w in _sp['weights'].split(',') if w.strip()]
+                if _sp['optimizer'] == 'lbfgs':
+                    dde.optimizers.set_LBFGS_options(
+                        maxcor={config.lbfgs_maxcor}, ftol={config.lbfgs_ftol},
+                        gtol={config.lbfgs_gtol}, maxiter=_sp['iterations'],
+                        maxfun=int(_sp['iterations']*1.25), maxls={config.lbfgs_maxls})
+                    model.compile("L-BFGS", loss="{config.loss_type}",
+                                  loss_weights=_sp_weights)
+                    loss_history, train_state = model.train(display_every=200)
+                else:
+                    model.compile(_sp['optimizer'], lr=_sp['lr'],
+                                  loss="{config.loss_type}", loss_weights=_sp_weights)
+                    if {config.batch_size} > 0:
+                        data.batch_size = {config.batch_size}
+                    loss_history, train_state = model.train(iterations=_sp['iterations'], display_every=1000)
+        elif "{config.optimizer2}" != "none":
             _phase2_weights = _multi_weights
             if "{config.optimizer2}" == "lbfgs":
                 dde.optimizers.set_LBFGS_options(
@@ -1384,7 +1421,7 @@ if {config.time_adaptive}:
     else:
         x = x_grid.reshape(-1, 1)
     {_ta_ic_init}
-
+    _lr = {config.learning_rate}
     _prev_step_model_path = ""  # tracks last saved model for transfer learning
 
     for step_i in range(n_steps):
@@ -1559,32 +1596,72 @@ if {config.time_adaptive}:
                             return np.reshape(eval(expr, {{"np": np, "x": x, "__builtins__": __builtins__}}), (-1, 1))
                         return dde.icbc.IC(_ic_gt_pt, _ic_fn, lambda x, on_initial: on_initial, component=comp)
                     _ic_constraints_pt.append(_mk_ic_pt(_ic_expr_pt, _oi_pt))
+            def _pde_dummy_ta(x, y):
+                return [y[:, _oi_d:_oi_d+1] * 0 for _oi_d in range({config.num_outputs})]
+            _bc_constraints_pre = [_c for _c in _constraints_i if not isinstance(_c, dde.icbc.PointSetBC)]
+            _ic_pre_constraints_ta = _bc_constraints_pre + _ic_constraints_pt
             _data_pt = dde.data.TimePDE(
-                _ic_gt_pt, pde, _ic_constraints_pt,
-                num_domain=100, num_boundary=0,
-                num_initial=0, num_test=100,
+                _ic_gt_pt, _pde_dummy_ta, _ic_pre_constraints_ta,
+                num_domain=0, num_boundary=0,
+                num_initial=0, num_test={config.ic_pretrain_num_test},
+                train_distribution="{config.point_distribution}",
                 anchors=_ic_ta_xyt if {config.forward_ic_from_file} else None
             )
             _net_pt = model_i.net
             _model_pt = dde.Model(_data_pt, _net_pt)
-            # IC-only weights: PDE=0, IC=1
-            _ic_only_w_ta = [0.0] * {config.num_outputs} + [1.0] * len(_ic_constraints_pt)
+            # IC-only weights: PDE=0, BC=0, IC=1000
+            _n_bcs_ta = len(_bc_constraints_pre)
+            _ic_only_w_ta = [0.0] * {config.num_outputs} + [0.0] * _n_bcs_ta + [1000.0] * len(_ic_constraints_pt)
             _model_pt.compile("{config.ic_pretrain_optimizer}", lr=_lr,
-                              loss="{config.loss_type}", loss_weights=_ic_only_w_ta)
-            _ic_lh_ta, _ = _model_pt.train(iterations={config.ic_pretrain_iterations}, display_every=1000)
-            print(f"  IC pre-training done. Final loss: {{sum(_ic_lh_ta.loss_train[-1]):.4e}}")
+                              loss="MSE", loss_weights=_ic_only_w_ta)
+            _ic_pre_save_dir_ta = _os.path.join(r"{config.save_dir}", "ic_pretrain")
+            _os.makedirs(_ic_pre_save_dir_ta, exist_ok=True)
+            if {config.ic_pretrain_restore} and r"{config.ic_pretrain_restore_path}" and _os.path.exists(r"{config.ic_pretrain_restore_path}"):
+                print(f"  Restoring IC pre-train model from: {config.ic_pretrain_restore_path}")
+                _model_pt.restore(r"{config.ic_pretrain_restore_path}", verbose=0)
+                print("  IC pre-train model restored — skipping training.")
+            else:
+                _ic_lh_ta, _ = _model_pt.train(iterations={config.ic_pretrain_iterations},
+                                                display_every=10000, batch_size=None,
+                                                model_save_path=_os.path.join(_ic_pre_save_dir_ta, "ic_pretrain_model"))
+                print(f"  IC pre-training done. Final loss: {{sum(_ic_lh_ta.loss_train[-1]):.4e}}")
+                print(f"  IC pre-train model saved to: {{_ic_pre_save_dir_ta}}")
             print("  === Starting Main Training ===")
 
         # Adam always runs full iterations — transfer learning only affects starting weights
-        model_i.compile("{config.optimizer}", lr=_lr, loss="{config.loss_type}")
+        model_i.compile("{config.optimizer}", lr=_lr, loss="{config.loss_type}",
+                        loss_weights=_multi_weights)
+        if {config.batch_size} > 0:
+            data_i.batch_size = {config.batch_size}
         lh_i, ts_i = model_i.train(iterations={config.iterations}, display_every=1000)
-
-        if "{config.optimizer2}" != "none":
+        # ── Optimizer Scheduler phases ────────────────────────
+        if {config.optimizer_scheduler} and "{config.scheduler_phases}":
+            import json as _json
+            _sched_phases = _json.loads('{config.scheduler_phases}')
+            for _sp_i, _sp in enumerate(_sched_phases):
+                print(f"  === Scheduler Phase {{_sp_i+2}}: {{_sp['optimizer']}} {{_sp['iterations']}} iters ===")
+                _sp_weights = [float(w) for w in _sp['weights'].split(',') if w.strip()]
+                if _sp['optimizer'] == 'lbfgs':
+                    dde.optimizers.set_LBFGS_options(
+                        maxcor={config.lbfgs_maxcor}, ftol={config.lbfgs_ftol},
+                        gtol={config.lbfgs_gtol}, maxiter=_sp['iterations'],
+                        maxfun=int(_sp['iterations']*1.25), maxls={config.lbfgs_maxls})
+                    model_i.compile("L-BFGS", loss="{config.loss_type}",
+                                    loss_weights=_sp_weights)
+                    lh_i, ts_i = model_i.train(display_every=200)
+                else:
+                    model_i.compile(_sp['optimizer'], lr=_sp['lr'],
+                                    loss="{config.loss_type}", loss_weights=_sp_weights)
+                    if {config.batch_size} > 0:
+                        data_i.batch_size = {config.batch_size}
+                    lh_i, ts_i = model_i.train(iterations=_sp['iterations'], display_every=1000)
+        elif "{config.optimizer2}" != "none":
             dde.optimizers.set_LBFGS_options(
                     maxcor={config.lbfgs_maxcor}, ftol={config.lbfgs_ftol},
                     gtol={config.lbfgs_gtol}, maxiter={config.iterations2},
                     maxfun={config.lbfgs_maxfun}, maxls={config.lbfgs_maxls})
-            model_i.compile("L-BFGS", loss="{config.loss_type}")
+            model_i.compile("L-BFGS", loss="{config.loss_type}",
+                            loss_weights=_multi_weights)
             lh_i, ts_i = model_i.train(display_every=200)
             print(f"  L-BFGS phase done. Steps: {{len(lh_i.steps)}}")
 
