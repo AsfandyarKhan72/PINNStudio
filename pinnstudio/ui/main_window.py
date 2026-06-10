@@ -683,12 +683,33 @@ class MainWindow(QMainWindow):
         ta_layout = QVBoxLayout(self.ta_widget)
         ta_layout.setSpacing(4); ta_layout.setContentsMargins(0, 0, 0, 0)
 
-        row_ta1 = QHBoxLayout()
-        row_ta1.addWidget(QLabel("Time steps:"))
-        self.ta_steps = QSpinBox(); self.ta_steps.setRange(2, 50); self.ta_steps.setValue(5)
-        self.ta_steps.setFixedHeight(28); self.ta_steps.setFixedWidth(100)
-        row_ta1.addStretch(); row_ta1.addWidget(self.ta_steps)
-        ta_layout.addLayout(row_ta1)
+        # ── Step groups ───────────────────────────────────────
+        ta_groups_label = QLabel("Time step groups:")
+        ta_groups_label.setStyleSheet("color: #a0c4ff; font-size: 12px;")
+        ta_layout.addWidget(ta_groups_label)
+
+        self.ta_groups_widget = QWidget()
+        self.ta_groups_layout = QVBoxLayout(self.ta_groups_widget)
+        self.ta_groups_layout.setSpacing(3)
+        self.ta_groups_layout.setContentsMargins(0, 0, 0, 0)
+        ta_layout.addWidget(self.ta_groups_widget)
+
+        self.ta_group_rows = []  # list of dicts with widgets
+
+        add_group_btn = QPushButton("➕ Add step group")
+        add_group_btn.setStyleSheet(
+            "QPushButton { color: #69db7c; background: transparent; "
+            "border: 1px solid #2a6a4a; border-radius: 4px; padding: 2px 8px; }")
+        add_group_btn.clicked.connect(lambda: self._add_ta_step_group())
+        ta_layout.addWidget(add_group_btn)
+
+        # Add default group
+        self._add_ta_step_group(0.0, 1.0, 10)
+
+        # Keep ta_steps for backward compat — hidden
+        self.ta_steps = QSpinBox(); self.ta_steps.setRange(2, 500)
+        self.ta_steps.setValue(10); self.ta_steps.setVisible(False)
+        ta_layout.addWidget(self.ta_steps)
 
         row_ta2 = QHBoxLayout()
         row_ta2.addWidget(QLabel("IC grid resolution:"))
@@ -1347,9 +1368,75 @@ class MainWindow(QMainWindow):
         else:
             self.log_box.append("❌ Error analysis failed — check log.")
 
+    def _add_ta_step_group(self, t_start=0.0, t_end=1.0, steps=10):
+        row_widget = QWidget()
+        row_layout = QHBoxLayout(row_widget)
+        row_layout.setContentsMargins(0, 0, 0, 0)
+        row_layout.setSpacing(4)
+
+        t_start_sb = QDoubleSpinBox()
+        t_start_sb.setRange(0.0, 1e6); t_start_sb.setValue(t_start)
+        t_start_sb.setFixedHeight(26); t_start_sb.setFixedWidth(65)
+        t_start_sb.setDecimals(2)
+        row_layout.addWidget(t_start_sb)
+
+        row_layout.addWidget(QLabel("→"))
+
+        t_end_sb = QDoubleSpinBox()
+        t_end_sb.setRange(0.0, 1e6); t_end_sb.setValue(t_end)
+        t_end_sb.setFixedHeight(26); t_end_sb.setFixedWidth(65)
+        t_end_sb.setDecimals(2)
+        row_layout.addWidget(t_end_sb)
+
+        row_layout.addWidget(QLabel("n="))
+
+        steps_sb = QSpinBox()
+        steps_sb.setRange(1, 500); steps_sb.setValue(steps)
+        steps_sb.setFixedHeight(26); steps_sb.setFixedWidth(55)
+        row_layout.addWidget(steps_sb)
+
+        remove_btn = QPushButton("✕")
+        remove_btn.setFixedHeight(26); remove_btn.setFixedWidth(26)
+        remove_btn.setStyleSheet(
+            "QPushButton { color: #ff8787; background: transparent; border: none; }")
+        row_layout.addWidget(remove_btn)
+
+        self.ta_groups_layout.addWidget(row_widget)
+        row_data = {
+            'widget': row_widget,
+            't_start': t_start_sb,
+            't_end': t_end_sb,
+            'steps': steps_sb
+        }
+        self.ta_group_rows.append(row_data)
+
+        def _remove():
+            row_widget.deleteLater()
+            if row_data in self.ta_group_rows:
+                self.ta_group_rows.remove(row_data)
+        remove_btn.clicked.connect(_remove)
+    
     def _on_adapt_changed(self, text):
         self.rar_widget.setVisible(text == "RAR")
         self.ta_widget.setVisible(text == "Time Adaptive")
+    
+    def _build_ta_step_groups_json(self):
+        import json
+        groups = []
+        for r in self.ta_group_rows:
+            groups.append({
+                't_start': r['t_start'].value(),
+                't_end':   r['t_end'].value(),
+                'steps':   r['steps'].value()
+            })
+        if not groups:
+            # fallback to single group from domain
+            groups.append({
+                't_start': self.t_min.value(),
+                't_end':   self.t_max.value(),
+                'steps':   self.ta_steps.value()
+            })
+        return json.dumps(groups)
 
     def _on_param_changed(self, state):
         self.param_widget.setVisible(state == 2)
@@ -1884,8 +1971,9 @@ class MainWindow(QMainWindow):
             rar_adam_iters=self.rar_adam_iters.value(),
             rar_lbfgs_iters=self.rar_lbfgs_iters.value(),
             time_adaptive=self.adapt_combo.currentText() == "Time Adaptive",
-            ta_num_steps=self.ta_steps.value(),
+            ta_num_steps=sum(r['steps'].value() for r in self.ta_group_rows) if self.ta_group_rows else self.ta_steps.value(),
             ta_grid_size=int(self.ta_grid.currentText()),
+            ta_step_groups=self._build_ta_step_groups_json(),
             ta_transfer_learning=self.ta_transfer_cb.isChecked(),
             ta_transfer_optimizer=self.ta_transfer_opt.currentText(),
             learning_rate=self.lr_spin.value(),
@@ -2999,7 +3087,7 @@ print("ERROR_ANALYSIS_DONE")
                 'iterations2': 50000,
                 'x_min': 0.0, 'x_max': 1.0,
                 'y_min': 0.0, 'y_max': 1.0,
-                't_max': 1.0,
+                't_max': 10.0,
                 'bc_config': 'fecr',
                 'template_type': 'FeCr_PINN',
                 'forward_ic_from_file': True,
@@ -3108,6 +3196,12 @@ print("ERROR_ANALYSIS_DONE")
                 # Enable optimizer scheduler with FeCr default phases
                 self.sched_cb.setChecked(True)
                 self._setup_default_scheduler_phases('FeCr_PINN')
+                # Set two step groups for FeCr: 0→1 (10 steps) and 1→10 (9 steps)
+                for row in list(self.ta_group_rows):
+                    row['widget'].deleteLater()
+                self.ta_group_rows.clear()
+                self._add_ta_step_group(0.0, 1.0, 10)
+                self._add_ta_step_group(1.0, 10.0, 9)
                 if "pde_0" in self.weight_widgets:
                     self.weight_widgets["pde_0"].setValue(100.0)
                 if "pde_1" in self.weight_widgets:

@@ -775,12 +775,20 @@ for _pval in _param_values:
                     model.compile("L-BFGS", loss=_sp.get('loss', '{config.loss_type}'),
                                   loss_weights=_sp_weights)
                     loss_history, train_state = model.train(display_every=200)
+                    if _use_save:
+                        _nta_save_path = _os.path.join(_sol_dir, f"model_lbfgs-phase{{_sp_i+1}}")
+                        model.save(_nta_save_path)
+                        print(f"  Phase {{_sp_i+1}} L-BFGS model saved: {{_nta_save_path}}.pt")
                 else:
                     model.compile(_sp['optimizer'], lr=_sp['lr'],
                                   loss=_sp.get('loss', '{config.loss_type}'), loss_weights=_sp_weights)
                     if {config.batch_size} > 0:
                         data.batch_size = {config.batch_size}
                     loss_history, train_state = model.train(iterations=_sp['iterations'], display_every=1000)
+                    if _use_save:
+                        _nta_save_path = _os.path.join(_sol_dir, f"model_adam-phase{{_sp_i+1}}")
+                        model.save(_nta_save_path)
+                        print(f"  Phase {{_sp_i+1}} Adam model saved: {{_nta_save_path}}.pt")
         elif "{config.optimizer2}" != "none":
             _phase2_weights = _multi_weights
             if "{config.optimizer2}" == "lbfgs":
@@ -1396,11 +1404,7 @@ if {config.time_adaptive}:
         print(f"  Cleared old time_adaptive_steps directory")
     _os.makedirs(_ta_steps_root, exist_ok=True)
 
-    n_steps   = {config.ta_num_steps}
     grid_size = {config.ta_grid_size}
-    t_start   = {config.t_min}
-    t_end     = {config.t_max}
-    dt        = (t_end - t_start) / n_steps
     if _is_2d:
         _xg_ta = np.linspace({config.x_min}, {config.x_max}, grid_size)
         _yg_ta = np.linspace({config.y_min}, {config.y_max}, grid_size)
@@ -1413,17 +1417,27 @@ if {config.time_adaptive}:
     all_x = []; all_t = []; all_u = []
 
     if _is_2d:
-        # 2D: x_grid is (N*N, 2) array of (x,y) pairs
-        x = x_grid  # already set as (x,y) pairs from meshgrid above
+        x = x_grid
     else:
         x = x_grid.reshape(-1, 1)
     {_ta_ic_init}
     _lr = {config.learning_rate}
-    _prev_step_model_path = ""  # tracks last saved model for transfer learning
+    _prev_step_model_path = ""
 
-    for step_i in range(n_steps):
-        t0 = t_start + step_i * dt
-        t1 = t0 + dt
+    # ── Build flat interval list from step groups ─────────────
+    import json as _json_ta_groups
+    _ta_groups = _json_ta_groups.loads({repr(config.ta_step_groups) if config.ta_step_groups else repr('[{"t_start":' + str(config.t_min) + ',"t_end":' + str(config.t_max) + ',"steps":' + str(config.ta_num_steps) + '}]')})
+    _ta_flat_intervals = []
+    for _grp in _ta_groups:
+        _grp_dt = (_grp['t_end'] - _grp['t_start']) / _grp['steps']
+        for _gi in range(_grp['steps']):
+            _t0_g = _grp['t_start'] + _gi * _grp_dt
+            _t1_g = _t0_g + _grp_dt
+            _ta_flat_intervals.append((_t0_g, _t1_g))
+    n_steps = len(_ta_flat_intervals)
+    print(f"  Total time steps: {{n_steps}} from {{len(_ta_groups)}} group(s)")
+
+    for step_i, (t0, t1) in enumerate(_ta_flat_intervals):
         print(f"\\n--- Time step {{step_i+1}}/{{n_steps}}: t = {{t0:.4f}} to {{t1:.4f}} ---")
 
         if _is_2d:
@@ -1897,7 +1911,7 @@ if {config.time_adaptive}:
             plt.tight_layout(); plt.savefig(_ta_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
     elif _plot_type_ta.startswith("Line"):
         n_ts   = {config.num_timesteps}
-        t_vals = np.linspace(t_start, t_end, n_ts)
+        t_vals = np.linspace(_ta_flat_intervals[0][0], _ta_flat_intervals[-1][1], n_ts)
         fig, ax = plt.subplots(figsize=(8, 5))
         colors = plt.cm.get_cmap("{config.plot_colormap}")(np.linspace(0, 1, n_ts))
         for ci, tv in enumerate(t_vals):

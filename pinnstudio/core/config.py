@@ -16,6 +16,7 @@ class PINNConfig:
     ta_num_steps: int = 5
     ta_grid_size: int = 101
 
+    ta_step_groups: str = ""
     ta_transfer_learning: bool = False
     ta_transfer_optimizer: str = "adam"
 
