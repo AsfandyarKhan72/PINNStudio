@@ -603,10 +603,20 @@ class MainWindow(QMainWindow):
         lbfgs_layout = QVBoxLayout(self.lbfgs_widget)
         lbfgs_layout.setSpacing(4); lbfgs_layout.setContentsMargins(0, 0, 0, 0)
 
+        # Row: recommended checkbox + float precision
+        _lbfgs_top_row = QHBoxLayout()
         self.lbfgs_use_default_cb = QCheckBox("Use L-BFGS recommended settings")
         self.lbfgs_use_default_cb.setChecked(True)
         self.lbfgs_use_default_cb.stateChanged.connect(self._on_lbfgs_default_changed)
-        lbfgs_layout.addWidget(self.lbfgs_use_default_cb)
+        _lbfgs_top_row.addWidget(self.lbfgs_use_default_cb)
+        _lbfgs_top_row.addStretch()
+        _lbfgs_top_row.addWidget(QLabel("Float:"))
+        self.lbfgs_float_combo = QComboBox()
+        self.lbfgs_float_combo.addItems(["float64", "float32"])
+        self.lbfgs_float_combo.setFixedWidth(90)
+        self.lbfgs_float_combo.setToolTip("Float precision for L-BFGS (float64 recommended for accuracy)")
+        _lbfgs_top_row.addWidget(self.lbfgs_float_combo)
+        lbfgs_layout.addLayout(_lbfgs_top_row)
 
         self.lbfgs_manual_widget = QWidget()
         lbfgs_manual_layout = QVBoxLayout(self.lbfgs_manual_widget)
@@ -620,11 +630,11 @@ class MainWindow(QMainWindow):
             lbfgs_manual_layout.addLayout(row)
             return sb
 
-        self.lbfgs_maxcor  = _lbfgs_row("maxcor:",  100)
-        self.lbfgs_ftol    = _lbfgs_row("ftol:",     1e-12)
-        self.lbfgs_gtol    = _lbfgs_row("gtol:",     1e-10)
-        self.lbfgs_maxiter = _lbfgs_row("maxiter:",  15000)
-        self.lbfgs_maxfun  = _lbfgs_row("maxfun:",   18750)
+        self.lbfgs_maxcor  = _lbfgs_row("maxcor:",  200)
+        self.lbfgs_ftol    = _lbfgs_row("ftol:",     1e-16)
+        self.lbfgs_gtol    = _lbfgs_row("gtol:",     1e-16)
+        self.lbfgs_maxiter = _lbfgs_row("maxiter:",  50000)
+        self.lbfgs_maxfun  = _lbfgs_row("maxfun:",   62500)
         self.lbfgs_maxls   = _lbfgs_row("maxls:",    50)
 
         self.lbfgs_manual_widget.setVisible(False)
@@ -1578,6 +1588,9 @@ class MainWindow(QMainWindow):
                     self._build_weight_inputs(self.num_outputs_spin.value())
                 )
             )
+            bc_deriv.stateChanged.connect(
+                lambda s: self._build_weight_inputs(self.num_outputs_spin.value())
+            )
 
         for i in range(n):
             name = ["u", "v", "w", "p"][i] if i < 4 else f"u{i+1}"
@@ -1786,6 +1799,11 @@ class MainWindow(QMainWindow):
                 _w_row(f"PDE {i+1} ({name}):", f"pde_{i}")
                 if i < len(self.bc_left_active) and self.bc_left_active[i].isChecked():
                     _w_row(f"BC left {i+1} ({name}):", f"bc_left_{i}")
+                    # Add derivative periodic BC weight if enabled
+                    _blt_is_per = i < len(self.bc_left_types) and self.bc_left_types[i].currentText() == "Periodic"
+                    _bld_checked = i < len(self.bc_left_deriv) and self.bc_left_deriv[i].isChecked()
+                    if _blt_is_per and _bld_checked:
+                        _w_row(f"BC left deriv {i+1} ({name}):", f"bc_left_deriv_{i}")
                 _blt_is_per = i < len(self.bc_left_types) and self.bc_left_types[i].currentText() == "Periodic"
                 _brt_is_per = i < len(self.bc_right_types) and self.bc_right_types[i].currentText() == "Periodic"
                 if i < len(self.bc_right_active) and self.bc_right_active[i].isChecked() and not _brt_is_per and not _blt_is_per:
@@ -1794,6 +1812,11 @@ class MainWindow(QMainWindow):
                 if is_2d:
                     if i < len(self.bc_bottom_active) and self.bc_bottom_active[i].isChecked():
                         _w_row(f"BC bottom {i+1} ({name}):", f"bc_bottom_{i}")
+                        # Add derivative periodic BC weight if enabled
+                        _bbt_is_per = i < len(self.bc_bottom_types) and self.bc_bottom_types[i].currentText() == "Periodic"
+                        _bbd_checked = i < len(self.bc_bottom_deriv) and self.bc_bottom_deriv[i].isChecked()
+                        if _bbt_is_per and _bbd_checked:
+                            _w_row(f"BC bottom deriv {i+1} ({name}):", f"bc_bottom_deriv_{i}")
                     _bbt_is_per = i < len(self.bc_bottom_types) and self.bc_bottom_types[i].currentText() == "Periodic"
                     _btt_is_per = i < len(self.bc_top_types) and self.bc_top_types[i].currentText() == "Periodic"
                     if i < len(self.bc_top_active) and self.bc_top_active[i].isChecked() and not _btt_is_per and not _bbt_is_per:
@@ -1821,8 +1844,16 @@ class MainWindow(QMainWindow):
                     _w_row(f"PDE {_i+1} ({_name}) P{_phase_num}:", f"pde_{_i}_p{_phase_num}")
                     if _i < len(self.bc_left_active) and self.bc_left_active[_i].isChecked():
                         _w_row(f"BC left {_i+1} P{_phase_num}:", f"bc_left_{_i}_p{_phase_num}")
+                        _blt_per = _i < len(self.bc_left_types) and self.bc_left_types[_i].currentText() == "Periodic"
+                        _bld_chk = _i < len(self.bc_left_deriv) and self.bc_left_deriv[_i].isChecked()
+                        if _blt_per and _bld_chk:
+                            _w_row(f"BC left deriv {_i+1} P{_phase_num}:", f"bc_left_deriv_{_i}_p{_phase_num}")
                     if hasattr(self, 'bc_bottom_active') and _i < len(self.bc_bottom_active) and self.bc_bottom_active[_i].isChecked():
                         _w_row(f"BC bottom {_i+1} P{_phase_num}:", f"bc_bottom_{_i}_p{_phase_num}")
+                        _bbt_per = _i < len(self.bc_bottom_types) and self.bc_bottom_types[_i].currentText() == "Periodic"
+                        _bbd_chk = _i < len(self.bc_bottom_deriv) and self.bc_bottom_deriv[_i].isChecked()
+                        if _bbt_per and _bbd_chk:
+                            _w_row(f"BC bottom deriv {_i+1} P{_phase_num}:", f"bc_bottom_deriv_{_i}_p{_phase_num}")
                     _ic_ff = (hasattr(self, 'ic_from_file') and _i < len(self.ic_from_file)
                               and self.ic_from_file[_i] is not None and self.ic_from_file[_i].isChecked())
                     if (_i < len(self.ic_active) and self.ic_active[_i].isChecked()) or _ic_ff:
@@ -1999,6 +2030,7 @@ class MainWindow(QMainWindow):
             lbfgs_maxiter=int(self.lbfgs_maxiter.value()),
             lbfgs_maxfun=int(self.lbfgs_maxfun.value()),
             lbfgs_maxls=int(self.lbfgs_maxls.value()),
+            lbfgs_float_type=self.lbfgs_float_combo.currentText() if hasattr(self, 'lbfgs_float_combo') else 'float64',
             float_type=getattr(self, '_float_type', 'float64'),
             batch_size=self.batch_spin.value() if self.batch_check.isChecked() else 0,
             ic_pretrain=self.ic_pretrain_cb.isChecked(),

@@ -123,13 +123,14 @@ class PINNConfig:
 
     # L-BFGS
     lbfgs_use_default: bool = True
-    lbfgs_maxcor: int = 100
-    lbfgs_ftol: float = 1e-12
-    lbfgs_gtol: float = 1e-10
+    lbfgs_maxcor: int = 200
+    lbfgs_ftol: float = 1e-20
+    lbfgs_gtol: float = 1e-15
     float_type: str = "float32"
-    lbfgs_maxiter: int = 15000
-    lbfgs_maxfun: int = 18750
-    lbfgs_maxls: int = 50
+    lbfgs_maxiter: int = 50000
+    lbfgs_maxfun: int = 62500
+    lbfgs_maxls: int = 100
+    lbfgs_float_type: str = "float64"
     ic_pretrain: bool = False
     ic_pretrain_optimizer: str = "adam"
     ic_pretrain_iterations: int = 10000

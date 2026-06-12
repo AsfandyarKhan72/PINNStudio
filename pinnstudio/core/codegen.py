@@ -149,7 +149,11 @@ import warnings
 warnings.filterwarnings("ignore", message=".*cuBLAS.*")
 
 # ── Force GPU initialization ──────────────────────────────────
-dde.config.set_default_float("{config.float_type}")
+_effective_float = "{config.float_type}"
+if "{config.lbfgs_float_type}" == "float64" and _effective_float == "float32":
+    _effective_float = "float64"
+    print("  [Info] Using float64 globally (required for L-BFGS float64 mode)")
+dde.config.set_default_float(_effective_float)
 if torch.cuda.is_available():
     torch.cuda.init()
     torch.cuda.set_device(0)
@@ -596,13 +600,27 @@ for _oi_w in range(_n_out_w):
     else:
         _ic_w.append(None); _wi += 1 if _wi < len(_wm_list) else 0
 
+_bc_left_deriv_active  = "{config.bc_left_deriv}".split(",")
+_bc_bottom_deriv_active = "{config.bc_bottom_deriv}".split(",")
 _multi_weights = []
 for _oi_w in range(_n_out_w):
     _multi_weights.append(_pde_w[_oi_w])
 for _oi_w in range(_n_out_w):
-    if _bcl_w[_oi_w] is not None: _multi_weights.append(_bcl_w[_oi_w])
+    if _bcl_w[_oi_w] is not None:
+        _multi_weights.append(_bcl_w[_oi_w])
+        # Add extra weight for derivative periodic BC if enabled
+        _bbt_is_per = _oi_w < len(_bbt_check) and _bbt_check[_oi_w].strip() == "Periodic"
+        _bbd_is_active = _oi_w < len(_bc_bottom_deriv_active) and _bc_bottom_deriv_active[_oi_w].strip() == "True"
+        if _bbt_is_per and _bbd_is_active:
+            _multi_weights.append(_wm_list[_wi] if _wi < len(_wm_list) else 1.0); _wi += 1
     if _bcr_w[_oi_w] is not None: _multi_weights.append(_bcr_w[_oi_w])
-    if _bcb_w[_oi_w] is not None: _multi_weights.append(_bcb_w[_oi_w])
+    if _bcb_w[_oi_w] is not None:
+        _multi_weights.append(_bcb_w[_oi_w])
+        # Add extra weight for derivative periodic BC if enabled
+        _bbt_is_per = _oi_w < len(_bbt_check) and _bbt_check[_oi_w].strip() == "Periodic"
+        _bbd_is_active = _oi_w < len(_bc_bottom_deriv_active) and _bc_bottom_deriv_active[_oi_w].strip() == "True"
+        if _bbt_is_per and _bbd_is_active:
+            _multi_weights.append(1.0)  # derivative periodic BC weight
     if _bct_w[_oi_w] is not None: _multi_weights.append(_bct_w[_oi_w])
     if _ic_w[_oi_w]  is not None: _multi_weights.append(_ic_w[_oi_w])
 
@@ -730,7 +748,9 @@ for _pval in _param_values:
         _os.makedirs(_ic_pre_save_dir, exist_ok=True)
         if {config.ic_pretrain_restore} and r"{config.ic_pretrain_restore_path}" and _os.path.exists(r"{config.ic_pretrain_restore_path}"):
             print(f"  Restoring IC pre-train model from: {config.ic_pretrain_restore_path}")
-            _model_pre.restore(r"{config.ic_pretrain_restore_path}", verbose=0)
+            _ic_ckpt = torch.load(r"{config.ic_pretrain_restore_path}", map_location="cpu")
+            _ic_state = _ic_ckpt.get("model_state_dict", _ic_ckpt)
+            _model_pre.net.load_state_dict(_ic_state)
             print("  IC pre-train model restored — skipping training.")
         else:
             _ic_lh, _ = _model_pre.train(iterations={config.ic_pretrain_iterations},
@@ -772,6 +792,7 @@ for _pval in _param_values:
                         maxcor={config.lbfgs_maxcor}, ftol={config.lbfgs_ftol},
                         gtol={config.lbfgs_gtol}, maxiter=_sp['iterations'],
                         maxfun=int(_sp['iterations']*1.25), maxls={config.lbfgs_maxls})
+                    _lbfgs_float = "{config.lbfgs_float_type}"
                     model.compile("L-BFGS", loss=_sp.get('loss', '{config.loss_type}'),
                                   loss_weights=_sp_weights)
                     loss_history, train_state = model.train(display_every=200)
@@ -797,6 +818,10 @@ for _pval in _param_values:
                     gtol={config.lbfgs_gtol}, maxiter={config.iterations2},
                     maxfun={config.lbfgs_maxfun}, maxls={config.lbfgs_maxls}
                 )
+                if "{config.lbfgs_float_type}" == "float64":
+                    dde.config.set_default_float("float64")
+                    model.net.double()
+                    print("  [L-BFGS] Switched to float64")
                 if _problem_type == "Inverse":
                     _last_iter = 0
                     try:
@@ -843,7 +868,10 @@ for _pval in _param_values:
                 else:
                     model.compile("L-BFGS", loss="{config.loss_type}", loss_weights=_phase2_weights)
                     loss_history, train_state = model.train(display_every=200)
-
+                    if "{config.lbfgs_float_type}" == "float64":
+                        dde.config.set_default_float("float32")
+                        model.net.float()
+                        print("  [L-BFGS] Restored to float32")
                     if _use_save:
                         _lbfgs_model_path = _os.path.join(_sol_dir, "model_lbfgs")
                         model.save(_lbfgs_model_path)
@@ -893,8 +921,16 @@ for _pval in _param_values:
                     gtol={config.lbfgs_gtol}, maxiter={config.rar_lbfgs_iters},
                     maxfun={config.lbfgs_maxfun}, maxls={config.lbfgs_maxls}
                 )
+                if "{config.lbfgs_float_type}" == "float64":
+                    dde.config.set_default_float("float64")
+                    model.net.double()
+                    print("  [L-BFGS] Switched to float64")
                 model.compile("L-BFGS", loss="{config.loss_type}", loss_weights=_multi_weights)
                 loss_history, train_state = model.train(display_every=200)
+                if "{config.lbfgs_float_type}" == "float64":
+                    dde.config.set_default_float("float32")
+                    model.net.float()
+                    print("  [L-BFGS] Restored to float32")
         print("\\n=== RAR Complete ===")
 
     # ── Save paths ────────────────────────────────────────────
@@ -1049,10 +1085,12 @@ for _pval in _param_values:
         # ── Inline Error Analysis ─────────────────────────────
         if {config.ea_files}:
             from scipy.interpolate import interp1d as _interp1d
-            _ea_files = {config.ea_files}
+            _ea_files = [(tv, fp) for tv, fp in {config.ea_files}
+                         if {config.t_min} - 1e-10 <= tv <= {config.t_max} + 1e-10]
             _ea_dir = _os.path.join(_save_dir if _use_save else "/tmp", "error_analysis")
             _os.makedirs(_ea_dir, exist_ok=True)
             print("\\n=== Running Error Analysis ===")
+            print(f"  Filtering to t=[{config.t_min}, {config.t_max}]: {{len(_ea_files)}} files")
 
             # Load all ground truth files
             _ea_times = []; _ea_x_refs = []; _ea_y_refs = []; _ea_u_refs = []
@@ -1252,7 +1290,7 @@ for _pval in _param_values:
                            framealpha=0.9, bbox_to_anchor=(0.5, 0.01))
                 plt.tight_layout(rect=[0, 0.06, 1, 1])
                 _ea_lp = _os.path.join(_ea_dir, "line_comparison.png")
-                plt.savefig(_ea_lp, dpi=150, bbox_inches='tight'); plt.close()
+                plt.savefig(_ea_lp, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
                 print(f"  Line comparison saved: {{_ea_lp}}")
 
             # ── Surface comparison ────────────────────────────────
@@ -1262,7 +1300,7 @@ for _pval in _param_values:
                     fig, axes = plt.subplots(_ea_n_t, 3,
                                              figsize=(15, 4*_ea_n_t), squeeze=False)
                     fig.suptitle("PINN vs Ground Truth — 2D Heatmaps", fontsize=13, fontweight='bold')
-                    _res_ea = 60
+                    _res_ea = {config.viz_resolution}
                     _xg_ea = np.linspace({config.x_min}, {config.x_max}, _res_ea)
                     _yg_ea = np.linspace({config.y_min}, {config.y_max}, _res_ea)
                     _Xg_ea, _Yg_ea = np.meshgrid(_xg_ea, _yg_ea)
@@ -1282,18 +1320,18 @@ for _pval in _param_values:
                         _vmax_ea = max(_u_pinn_grid.max(), _u_fem_grid.max())
                         # Column 0: PINN
                         im0 = axes[_ei][0].contourf(_Xg_ea, _Yg_ea, _u_pinn_grid, levels=40,
-                                                     cmap='viridis', vmin=_vmin_ea, vmax=_vmax_ea)
+                                                     cmap='{config.plot_colormap}', vmin=_vmin_ea, vmax=_vmax_ea)
                         axes[_ei][0].set_title(f"PINN  t={{_ea_tv:.3f}}  L2={{_l2:.2e}}", fontsize=10)
                         axes[_ei][0].set_xlabel("x"); axes[_ei][0].set_ylabel("y")
                         fig.colorbar(im0, ax=axes[_ei][0])
                         # Column 1: FEM
                         im1 = axes[_ei][1].contourf(_Xg_ea, _Yg_ea, _u_fem_grid, levels=40,
-                                                     cmap='viridis', vmin=_vmin_ea, vmax=_vmax_ea)
+                                                     cmap='{config.plot_colormap}', vmin=_vmin_ea, vmax=_vmax_ea)
                         axes[_ei][1].set_title(f"Ground Truth  t={{_ea_tv:.3f}}", fontsize=10)
                         axes[_ei][1].set_xlabel("x"); axes[_ei][1].set_ylabel("y")
                         fig.colorbar(im1, ax=axes[_ei][1])
                         # Column 2: Absolute error
-                        im2 = axes[_ei][2].contourf(_Xg_ea, _Yg_ea, _u_err_grid, levels=40, cmap='YlOrRd')
+                        im2 = axes[_ei][2].contourf(_Xg_ea, _Yg_ea, _u_err_grid, levels={config.viz_levels}, cmap='YlOrRd')
                         axes[_ei][2].set_title(f"|Error|  t={{_ea_tv:.3f}}  Max={{_mx:.2e}}", fontsize=10)
                         axes[_ei][2].set_xlabel("x"); axes[_ei][2].set_ylabel("y")
                         fig.colorbar(im2, ax=axes[_ei][2])
@@ -1322,18 +1360,18 @@ for _pval in _param_values:
                     _ea_vmax = max(_ea_U_pinn.max(), _ea_U_fem.max())
                     fig, axes_s = plt.subplots(1, 3, figsize=(15, 5))
                     fig.suptitle("PINN vs Ground Truth — Surface Comparison", fontsize=13, fontweight='bold')
-                    im0 = axes_s[0].contourf(_ea_Tg, _ea_Xg, _ea_U_pinn, levels=50, cmap='viridis', vmin=_ea_vmin, vmax=_ea_vmax)
+                    im0 = axes_s[0].contourf(_ea_Tg, _ea_Xg, _ea_U_pinn, levels={config.viz_levels}, cmap='{config.plot_colormap}', vmin=_ea_vmin, vmax=_ea_vmax)
                     axes_s[0].set_title("PINN  u(x,t)"); axes_s[0].set_xlabel("t"); axes_s[0].set_ylabel("x")
                     fig.colorbar(im0, ax=axes_s[0])
-                    im1 = axes_s[1].contourf(_ea_Tg, _ea_Xg, _ea_U_fem, levels=50, cmap='viridis', vmin=_ea_vmin, vmax=_ea_vmax)
+                    im1 = axes_s[1].contourf(_ea_Tg, _ea_Xg, _ea_U_fem, levels={config.viz_levels}, cmap='{config.plot_colormap}', vmin=_ea_vmin, vmax=_ea_vmax)
                     axes_s[1].set_title("Ground Truth  u(x,t)"); axes_s[1].set_xlabel("t"); axes_s[1].set_ylabel("x")
                     fig.colorbar(im1, ax=axes_s[1])
-                    im2 = axes_s[2].contourf(_ea_Tg, _ea_Xg, _ea_U_err, levels=50, cmap='YlOrRd')
+                    im2 = axes_s[2].contourf(_ea_Tg, _ea_Xg, _ea_U_err, levels={config.viz_levels}, cmap='YlOrRd')
                     axes_s[2].set_title("Error  |PINN - Ground Truth|"); axes_s[2].set_xlabel("t"); axes_s[2].set_ylabel("x")
                     fig.colorbar(im2, ax=axes_s[2])
                     plt.tight_layout()
                 _ea_sp = _os.path.join(_ea_dir, "surface_comparison.png")
-                plt.savefig(_ea_sp, dpi=150, bbox_inches='tight'); plt.close()
+                plt.savefig(_ea_sp, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
                 print(f"  Surface comparison saved: {{_ea_sp}}")
             print("=== Error Analysis Complete ===")
 
@@ -1629,7 +1667,9 @@ if {config.time_adaptive}:
             _os.makedirs(_ic_pre_save_dir_ta, exist_ok=True)
             if {config.ic_pretrain_restore} and r"{config.ic_pretrain_restore_path}" and _os.path.exists(r"{config.ic_pretrain_restore_path}"):
                 print(f"  Restoring IC pre-train model from: {config.ic_pretrain_restore_path}")
-                _model_pt.restore(r"{config.ic_pretrain_restore_path}", verbose=0)
+                _ic_ckpt_ta = torch.load(r"{config.ic_pretrain_restore_path}", map_location="cpu")
+                _ic_state_ta = _ic_ckpt_ta.get("model_state_dict", _ic_ckpt_ta)
+                _model_pt.net.load_state_dict(_ic_state_ta)
                 print("  IC pre-train model restored — skipping training.")
             else:
                 _ic_lh_ta, _ = _model_pt.train(iterations={config.ic_pretrain_iterations},
@@ -1651,6 +1691,7 @@ if {config.time_adaptive}:
                         maxcor={config.lbfgs_maxcor}, ftol={config.lbfgs_ftol},
                         gtol={config.lbfgs_gtol}, maxiter=_sp['iterations'],
                         maxfun=int(_sp['iterations']*1.25), maxls={config.lbfgs_maxls})
+                    _lbfgs_float = "{config.lbfgs_float_type}"
                     model_i.compile("L-BFGS", loss=_sp.get('loss', '{config.loss_type}'),
                                     loss_weights=_sp_weights)
                     lh_i, ts_i = model_i.train(display_every=200)
@@ -1936,9 +1977,11 @@ if {config.time_adaptive}:
     if {config.ea_files}:
         from scipy.interpolate import interp1d as _interp1d
         import glob as _ea_glob, json as _ea_json
-        _ea_files = {config.ea_files}
+        _ea_files = [(tv, fp) for tv, fp in {config.ea_files}
+                     if {config.t_min} - 1e-10 <= tv <= {config.t_max} + 1e-10]
         _ea_dir = _os.path.join(_save_dir if _use_save else "/tmp", "error_analysis")
         _os.makedirs(_ea_dir, exist_ok=True)
+        print(f"  Filtering to t=[{config.t_min}, {config.t_max}]: {{len(_ea_files)}} files")
         print("\\n=== Running Time-Adaptive Error Analysis ===")
 
         # Load all ground truth files
@@ -2101,7 +2144,7 @@ if {config.time_adaptive}:
                        framealpha=0.9, bbox_to_anchor=(0.5, 0.01))
             plt.tight_layout(rect=[0, 0.06, 1, 1])
             _ea_lp = _os.path.join(_ea_dir, "line_comparison.png")
-            plt.savefig(_ea_lp, dpi=150, bbox_inches='tight'); plt.close()
+            plt.savefig(_ea_lp, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
             print(f"  Line comparison saved: {{_ea_lp}}")
 
         # Surface comparison
@@ -2109,7 +2152,7 @@ if {config.time_adaptive}:
             if _is_2d:
                 # 2D: PINN | FEM | Error heatmaps, one row per time snapshot
                 from scipy.interpolate import griddata as _gd
-                _res_ea = 60
+                _res_ea = {config.viz_resolution}
                 _xg_ea = np.linspace({config.x_min}, {config.x_max}, _res_ea)
                 _yg_ea = np.linspace({config.y_min}, {config.y_max}, _res_ea)
                 _Xg_ea, _Yg_ea = np.meshgrid(_xg_ea, _yg_ea)
@@ -2173,15 +2216,15 @@ if {config.time_adaptive}:
                     _u_err_grid = np.abs(_u_pinn_grid - _u_fem_grid)
                     _vmin_ea = min(_u_pinn_grid.min(), _u_fem_grid.min())
                     _vmax_ea = max(_u_pinn_grid.max(), _u_fem_grid.max())
-                    im0 = axes[_ei][0].contourf(_Xg_ea, _Yg_ea, _u_pinn_grid, levels=40, cmap='viridis', vmin=_vmin_ea, vmax=_vmax_ea)
+                    im0 = axes[_ei][0].contourf(_Xg_ea, _Yg_ea, _u_pinn_grid, levels={config.viz_levels}, cmap='{config.plot_colormap}', vmin=_vmin_ea, vmax=_vmax_ea)
                     axes[_ei][0].set_title(f"PINN  t={{_ea_tv:.3f}}  L2={{_l2:.2e}}", fontsize=10)
                     axes[_ei][0].set_xlabel("x"); axes[_ei][0].set_ylabel("y")
                     fig.colorbar(im0, ax=axes[_ei][0])
-                    im1 = axes[_ei][1].contourf(_Xg_ea, _Yg_ea, _u_fem_grid, levels=40, cmap='viridis', vmin=_vmin_ea, vmax=_vmax_ea)
+                    im1 = axes[_ei][1].contourf(_Xg_ea, _Yg_ea, _u_fem_grid, levels={config.viz_levels}, cmap='{config.plot_colormap}', vmin=_vmin_ea, vmax=_vmax_ea)
                     axes[_ei][1].set_title(f"Ground Truth  t={{_ea_tv:.3f}}", fontsize=10)
                     axes[_ei][1].set_xlabel("x"); axes[_ei][1].set_ylabel("y")
                     fig.colorbar(im1, ax=axes[_ei][1])
-                    im2 = axes[_ei][2].contourf(_Xg_ea, _Yg_ea, _u_err_grid, levels=40, cmap='YlOrRd')
+                    im2 = axes[_ei][2].contourf(_Xg_ea, _Yg_ea, _u_err_grid, levels={config.viz_levels}, cmap='YlOrRd')
                     axes[_ei][2].set_title(f"|Error|  t={{_ea_tv:.3f}}  Max={{_mx:.2e}}", fontsize=10)
                     axes[_ei][2].set_xlabel("x"); axes[_ei][2].set_ylabel("y")
                     fig.colorbar(im2, ax=axes[_ei][2])
@@ -2202,18 +2245,18 @@ if {config.time_adaptive}:
                 _ea_vmax = max(_ea_U_pinn.max(), _ea_U_fem.max())
                 fig, axes = plt.subplots(1, 3, figsize=(15, 5))
                 fig.suptitle("PINN vs Ground Truth — Surface Comparison", fontsize=13, fontweight='bold')
-                im0 = axes[0].contourf(_ea_Tg, _ea_Xg, _ea_U_pinn, levels=50, cmap='viridis', vmin=_ea_vmin, vmax=_ea_vmax)
+                im0 = axes[0].contourf(_ea_Tg, _ea_Xg, _ea_U_pinn, levels={config.viz_levels}, cmap='{config.plot_colormap}', vmin=_ea_vmin, vmax=_ea_vmax)
                 axes[0].set_title("PINN  u(x,t)"); axes[0].set_xlabel("t"); axes[0].set_ylabel("x")
                 fig.colorbar(im0, ax=axes[0])
-                im1 = axes[1].contourf(_ea_Tg, _ea_Xg, _ea_U_fem, levels=50, cmap='viridis', vmin=_ea_vmin, vmax=_ea_vmax)
+                im1 = axes[1].contourf(_ea_Tg, _ea_Xg, _ea_U_fem, levels={config.viz_levels}, cmap='{config.plot_colormap}', vmin=_ea_vmin, vmax=_ea_vmax)
                 axes[1].set_title("Ground Truth  u(x,t)"); axes[1].set_xlabel("t"); axes[1].set_ylabel("x")
                 fig.colorbar(im1, ax=axes[1])
-                im2 = axes[2].contourf(_ea_Tg, _ea_Xg, _ea_U_err, levels=50, cmap='YlOrRd')
+                im2 = axes[2].contourf(_ea_Tg, _ea_Xg, _ea_U_err, levels={config.viz_levels}, cmap='YlOrRd')
                 axes[2].set_title("Error  |PINN - Ground Truth|"); axes[2].set_xlabel("t"); axes[2].set_ylabel("x")
                 fig.colorbar(im2, ax=axes[2])
                 plt.tight_layout()
             _ea_sp = _os.path.join(_ea_dir, "surface_comparison.png")
-            plt.savefig(_ea_sp, dpi=150, bbox_inches='tight'); plt.close()
+            plt.savefig(_ea_sp, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
             print(f"  Surface comparison saved: {{_ea_sp}}")
 
         print("=== Time-Adaptive Error Analysis Complete ===")
