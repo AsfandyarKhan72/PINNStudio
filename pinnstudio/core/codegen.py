@@ -653,7 +653,7 @@ else:
         num_domain={config.num_domain}, num_boundary={config.num_boundary},
         num_initial={config.num_initial}, num_test={config.num_test},
         train_distribution="{config.point_distribution}",
-        anchors=_ic_xyt if {config.forward_ic_from_file} else None
+        anchors=None
     )
 
 # ── Parametric loop ──────────────────────────────────────────
@@ -736,7 +736,7 @@ for _pval in _param_values:
             num_domain=0, num_boundary=0,
             num_initial=0, num_test=10000,
             train_distribution="{config.point_distribution}",
-            anchors=_ic_pre_xyt if {config.forward_ic_from_file} else None
+            anchors=None
         )
         _model_pre = dde.Model(_data_pre, net)
         _n_bcs_pre = len(_ic_pre_constraints) - len(_ic_ics_pre)
@@ -1583,7 +1583,7 @@ if {config.time_adaptive}:
             geomtime_i, pde, _constraints_i,
             num_domain={config.num_domain}, num_boundary={config.num_boundary},
             num_initial={config.num_initial}, num_test={config.num_test},
-            anchors=_xyt_ic_anchor if ({config.forward_ic_from_file} and step_i == 0) or (not {config.forward_ic_from_file} and step_i > 0 and _is_2d) else None
+            anchors=None if {config.forward_ic_from_file} else (_xyt_ic_anchor if (step_i > 0 and _is_2d) else None)
         )
 
         net_i   = dde.nn.FNN({config.layers}, "{config.activation}", "Glorot uniform")
@@ -1654,7 +1654,7 @@ if {config.time_adaptive}:
                 num_domain=0, num_boundary=0,
                 num_initial=0, num_test={config.ic_pretrain_num_test},
                 train_distribution="{config.point_distribution}",
-                anchors=_ic_ta_xyt if {config.forward_ic_from_file} else None
+                anchors=None
             )
             _net_pt = model_i.net
             _model_pt = dde.Model(_data_pt, _net_pt)
