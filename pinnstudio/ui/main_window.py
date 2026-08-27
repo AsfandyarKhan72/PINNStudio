@@ -80,7 +80,7 @@ class SolverThread(QThread):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("DeepXDE GUI — PINN Solver")
+        self.setWindowTitle("PINNStudio — PINN Solver")
         self.setMinimumSize(1100, 750)
         self._font_size = 16
         self._log_font_size = 16
@@ -228,7 +228,7 @@ class MainWindow(QMainWindow):
         left_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
         # Title
-        title = QLabel("🔥 DeepXDE GUI")
+        title = QLabel("PINNStudio")
         title.setFont(QFont("Arial", 16, QFont.Weight.Bold))
         title.setStyleSheet("color: #a0c4ff; margin-bottom: 2px;")
         left_layout.addWidget(title)
