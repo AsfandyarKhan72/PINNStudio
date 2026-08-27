@@ -580,13 +580,13 @@ for _oi_w in range(_n_out_w):
         _bcr_w.append(_wm_list[_wi] if _wi < len(_wm_list) else 1.0); _wi += 1
     else:
         _bcr_w.append(None)  # do NOT advance _wi — GUI sends no value for this slot
+    _btt_check = "{config.bc_top_types}".split(",")
+    _bbt_check = "{config.bc_bottom_types}".split(",")
     if _is_2d:
         if _oi_w < len(_bc_ba) and _bc_ba[_oi_w].strip() == "True":
             _bcb_w.append(_wm_list[_wi] if _wi < len(_wm_list) else 1.0); _wi += 1
         else:
             _bcb_w.append(None); _wi += 1 if _wi < len(_wm_list) else 0
-        _btt_check = "{config.bc_top_types}".split(",")
-        _bbt_check = "{config.bc_bottom_types}".split(",")
         _btt_is_periodic = _oi_w < len(_btt_check) and _btt_check[_oi_w].strip() == "Periodic"
         _bbt_is_periodic = _oi_w < len(_bbt_check) and _bbt_check[_oi_w].strip() == "Periodic"
         if _oi_w < len(_bc_ta) and _bc_ta[_oi_w].strip() == "True" and not _btt_is_periodic and not _bbt_is_periodic:
