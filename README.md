@@ -110,8 +110,14 @@ If PowerShell refuses to run the activation script, use Command Prompt instead, 
 It's recommended to use a clean Python environment:
 
 ```bash
+# macOS / Linux
+python3 -m venv venv
+source venv/bin/activate
+
+# Windows (Command Prompt or PowerShell)
 python -m venv venv
-source venv/bin/activate       # venv\Scripts\activate on Windows
+venv\Scripts\activate
+
 pip install --upgrade pip
 pip install -r requirements.txt
 ```
