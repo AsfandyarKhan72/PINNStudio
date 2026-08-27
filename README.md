@@ -183,9 +183,6 @@ $$\frac{\partial u}{\partial t} = \frac{\partial^2 \mu}{\partial x^2} + \frac{\p
 
 Initial condition: two circular domains of opposite phase. Periodic boundaries.
 
-### FeCr PINN
-
-Fe-Cr spinodal decomposition — a Cahn-Hilliard system with a composition-dependent mobility $M(c)$ and a free-energy-derived chemical potential, over $(x, y) \in [0, 1]^2$, $t \in [0, 10]$. The forward problem is seeded from an FEM initial condition rather than a closed-form expression. Reference data and the initial-condition file for this template are not included in this repository.
 
 ## How It Works
 
