@@ -6,3 +6,4 @@ build/
 *.png
 !assets/screenshots/*.png
 solution_data/
+venv/

@@ -1783,7 +1783,8 @@ class MainWindow(QMainWindow):
         def _w_row(label, key):
             row = QHBoxLayout()
             row.addWidget(QLabel(label))
-            w = SciLineEdit(1.0); w.setFixedWidth(100)
+            _default_w = 100.0 if key.startswith("ic_") else 1.0
+            w = SciLineEdit(_default_w); w.setFixedWidth(100)
             row.addStretch(); row.addWidget(w)
             self.weight_widgets[key] = w
             ww = QWidget(); ww.setLayout(row)
@@ -4001,7 +4002,7 @@ print("ERROR_ANALYSIS_V2_DONE")
                 ] + [
                     str(self.weight_widgets.get(k, SciLineEdit(1.0)).value())
                     for i in range(self.num_outputs_spin.value())
-                    for k in [f"bc_left_{i}", f"bc_bottom_{i}", f"ic_{i}"]
+                    for k in [f"bc_left_{i}", f"bc_right_{i}", f"bc_bottom_{i}", f"bc_top_{i}", f"ic_{i}"]
                     if k in self.weight_widgets
                 ])
             else:
@@ -4011,7 +4012,7 @@ print("ERROR_ANALYSIS_V2_DONE")
                 ] + [
                     str(self.weight_widgets.get(k, SciLineEdit(1.0)).value())
                     for i in range(self.num_outputs_spin.value())
-                    for k in [f"bc_left_{i}_p{pn}", f"bc_bottom_{i}_p{pn}", f"ic_{i}_p{pn}"]
+                    for k in [f"bc_left_{i}_p{pn}", f"bc_right_{i}_p{pn}", f"bc_bottom_{i}_p{pn}", f"bc_top_{i}_p{pn}", f"ic_{i}_p{pn}"]
                     if k in self.weight_widgets
                 ])
             phases.append({
@@ -4045,8 +4046,9 @@ print("ERROR_ANALYSIS_V2_DONE")
             # Uncheck same weights so per-phase weights show
             self.sched_same_weights_cb.setChecked(False)
         else:
-            # Default: one L-BFGS phase using same weights
-            self._add_scheduler_phase('lbfgs', 20000, 0.001)
+            # Default: Adam warm-up phase, then L-BFGS refinement, using same weights
+            self._add_scheduler_phase('adam', 10000, 0.001)
+            self._add_scheduler_phase('lbfgs', 10000, 0.001)
             self.sched_same_weights_cb.setChecked(True)
         self._build_weight_inputs(self.num_outputs_spin.value())
 
