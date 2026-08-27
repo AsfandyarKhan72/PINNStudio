@@ -27,10 +27,10 @@ It supports both **forward problems** (solve a known PDE) and **inverse problems
 <p align="center"><em>Network architecture, multi-phase optimizer schedule, loss weights, and adaptive training.</em></p>
 
 <p align="center">
-  <img src="assets/screenshots/sample_solution.png" alt="Sample PINN solution snapshot" width="500">
+  <img src="assets/results/restored_animation.gif" alt="Animated PINN solution — time evolution predicted by a restored PINNStudio model" width="500">
 </p>
 
-<p align="center"><em>A solution snapshot produced by a PINNStudio run (see <code>Results/restored_animation.gif</code> for the full time evolution).</em></p>
+<p align="center"><em>Time evolution of a PINN solution, reconstructed from a saved checkpoint via Model Restore.</em></p>
 
 ## Features
 
@@ -72,7 +72,9 @@ pinnstudio/
 │       ├── config.py      # PINNConfig — the full problem definition
 │       ├── codegen.py     # PINNConfig -> standalone DeepXDE/PyTorch script
 │       └── runner.py      # Runs the generated script, streams output to the GUI
-├── Results/                # Example output from a PINNStudio run
+├── assets/
+│   ├── screenshots/        # README screenshots
+│   └── results/             # Example output (restored_animation.gif)
 ├── requirements.txt
 ├── setup.py
 └── README.md
