@@ -88,13 +88,22 @@ pinnstudio/
 ```bash
 git clone https://github.com/AsfandyarKhan72/pinnstudio.git
 cd pinnstudio
+
+# macOS / Linux
 python3 -m venv venv
-source venv/bin/activate       # on Windows: venv\Scripts\activate
+source venv/bin/activate
+
+# Windows (Command Prompt or PowerShell)
+python -m venv venv
+venv\Scripts\activate
+
 pip install -r requirements.txt
 python -m pinnstudio.main
 ```
 
-**60-second tour:** with the app open, leave the dimension on **1D**, pick **1D Heat** from the *Quick Examples* dropdown, and click **Solve**. The Training Log panel will stream progress, and the loss/solution plots will populate once the run finishes.
+If PowerShell refuses to run the activation script, use Command Prompt instead, or run `Set-ExecutionPolicy -Scope Process Bypass` first.
+
+**60-second tour:** maximize the window for the best view — PINNStudio packs a lot of controls into the left panel. With the app open, leave the dimension on **1D**, pick **1D Heat** from the *Quick Examples* dropdown, and click **Solve**. The Training Log panel will stream progress, and the loss/solution plots will populate once the run finishes.
 
 ## Installation
 
