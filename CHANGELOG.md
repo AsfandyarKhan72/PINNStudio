@@ -20,7 +20,7 @@ Initial public release. PINNStudio is a no-code PyQt6 GUI for building, training
 - Residual-based adaptive refinement (RAR) and time-adaptive stepping with transfer learning between time windows.
 - Parametric studies over a chosen parameter.
 - Inverse-problem support for estimating unknown PDE parameters from observation data.
-- Seven built-in Quick Example templates: 1D Heat, 1D Allen-Cahn, 1D Cahn-Hilliard, 2D Heat, 2D Allen-Cahn (Mattey & Wight forms), 2D Cahn-Hilliard (Wight), and an FeCr spinodal-decomposition PINN.
+- Eight built-in Quick Example templates: 1D Heat, 1D Allen-Cahn, 1D Cahn-Hilliard, 2D Heat, 2D Allen-Cahn (Mattey & Wight forms), 2D Cahn-Hilliard (Wight), and an FeCr spinodal-decomposition PINN. - Bundled FEM reference data (`reference_data/`) for seven of the eight templates, so Error Analysis auto-configures against real ground truth out of the box on any machine.
 - Error analysis against reference/ground-truth data (L2, MSE, max error; line and surface comparison plots).
 - Configurable result plotting (colormap, resolution, DPI, colorbar, snapshot count) and solution data export.
 - Live training log streaming with a Stop control.
