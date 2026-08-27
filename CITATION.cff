@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "If you use this software in your research or workflow, please cite it as below."
+type: software
+title: "PINNStudio"
+abstract: "A no-code desktop GUI for building, training, and visualizing Physics-Informed Neural Networks, built on DeepXDE."
+authors:
+  - family-names: "Khan"
+    given-names: "Asfandyar"
+    affiliation: "Boise State University"
+repository-code: "https://github.com/AsfandyarKhan72/pinnstudio"
+license: MIT
+version: 0.1.0
+date-released: 2026-08-27
+keywords:
+  - physics-informed neural networks
+  - PINN
+  - DeepXDE
+  - scientific machine learning
+  - PDE solver
+  - GUI
