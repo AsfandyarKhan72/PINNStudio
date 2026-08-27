@@ -11,6 +11,10 @@ from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QPixmap, QFont, QAction, QColor
 from pinnstudio.core.config import PINNConfig
 from pinnstudio.core.runner import run_pinn
+REFERENCE_DATA_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+    "reference_data",
+)
 
 
 class SciLineEdit(QLineEdit):
@@ -1085,7 +1089,7 @@ class MainWindow(QMainWindow):
         save_row.addWidget(QLabel("Save to:"))
         self.save_dir_input = QLineEdit()
         self.save_dir_input.setPlaceholderText("Save directory — saves plots, logs, models & data")
-        self.save_dir_input.setText("/home/asfandyarkhan/deepxde_gui/Results")
+        self.save_dir_input.setText(os.path.join(os.path.expanduser("~"), "PINNStudio_Results"))
         self.save_dir_input.setFixedHeight(28)
         save_row.addWidget(self.save_dir_input)
         self.browse_btn = QPushButton("Browse")
@@ -3037,7 +3041,7 @@ print("ERROR_ANALYSIS_DONE")
                 'num_outputs': 1,
                 'output_names': ['u'],
                 'ic_weight': 100.0,
-                'ref_dir': '/home/asfandyarkhan/deepxde_gui/FEM_Results/2D_Examples/HeatEquation_2D',
+                'ref_dir': os.path.join(REFERENCE_DATA_DIR, "2D", "heat"),
             },
             "2D Allen-Cahn (Mattey)": {
                 'pde': ["du_t - 0.0001*(du_xx + du_yy) + 5*(u**3 - u)"],
@@ -3057,7 +3061,7 @@ print("ERROR_ANALYSIS_DONE")
                 'num_outputs': 1,
                 'output_names': ['u'],
                 'ic_weight': 100.0,
-                'ref_dir': '/home/asfandyarkhan/deepxde_gui/FEM_Results/2D_Examples/AllenChan_2D_Mattey',
+                'ref_dir': os.path.join(REFERENCE_DATA_DIR, "2D", "allen_cahn_mattey"),
             },
             "2D Allen-Cahn (Wight)": {
                 'pde': ["du_t - 0.00625*(du_xx + du_yy) + 10*(u**3 - u)"],
@@ -3078,7 +3082,7 @@ print("ERROR_ANALYSIS_DONE")
                 'num_outputs': 1,
                 'output_names': ['u'],
                 'ic_weight': 100.0,
-                'ref_dir': '/home/asfandyarkhan/deepxde_gui/FEM_Results/2D_Examples/AllenChan_2D_Wight',
+                'ref_dir': os.path.join(REFERENCE_DATA_DIR, "2D", "allen_cahn_wight"),
             },
             "2D Cahn-Hilliard (Wight)": {
                 'pde': ["du_t - (dmu_xx + dmu_yy)",
@@ -3100,7 +3104,7 @@ print("ERROR_ANALYSIS_DONE")
                 'num_outputs': 2,
                 'output_names': ['u', 'mu'],
                 'ic_weight': 100.0,
-                'ref_dir': '/home/asfandyarkhan/deepxde_gui/FEM_Results/2D_Examples/CahnHilliard_2D_Wight',
+                'ref_dir': os.path.join(REFERENCE_DATA_DIR, "2D", "cahn_hilliard_wight"),
             },
             "FeCr PINN": {
                 'pde': ["dc_t - (86400/10)*(M*(dmu_xx + dmu_yy) + dMdc*(dc_x*dmu_x + dc_y*dmu_y))",
@@ -3284,7 +3288,7 @@ print("ERROR_ANALYSIS_DONE")
                 'iterations2': 5000,
                 'x_min': 0.0, 'x_max': 1.0,
                 'periodic_bc': False,
-                'ref_dir': '/home/asfandyarkhan/deepxde_gui/FEM_Results/1D_Examples/1D_HeatEquation',
+                'ref_dir': os.path.join(REFERENCE_DATA_DIR, "1D", "heat"),
             },
             "1D Allen-Cahn": {
                 'pde': ["du_t - 0.0001*du_xx + 5*u**3 - 5*u"],
@@ -3299,7 +3303,7 @@ print("ERROR_ANALYSIS_DONE")
                 'iterations2': 20000,
                 'x_min': -1.0, 'x_max': 1.0,
                 'periodic_bc': True,
-                'ref_dir': '/home/asfandyarkhan/deepxde_gui/FEM_Results/1D_Examples/1D_AllenCahn/ut−0.0001uxx+5u -5u^3=0_(example_1)',
+                'ref_dir': os.path.join(REFERENCE_DATA_DIR, "1D", "allen_cahn"),
             },
             "1D Cahn-Hilliard": {
                 'pde': ["du_t - dv_xx", "v - 0.01*(u**3 - u) + 1e-6*du_xx"],
@@ -3316,7 +3320,7 @@ print("ERROR_ANALYSIS_DONE")
                 'iterations2': 20000,
                 'x_min': -1.0, 'x_max': 1.0,
                 'periodic_bc_u_only': True,
-                'ref_dir': '/home/asfandyarkhan/deepxde_gui/FEM_Results/1D_Examples/1D_CahnHilliard/ut−(0.01(u^3-u)-1e-6uxx)xx=0_example_3',
+                'ref_dir': os.path.join(REFERENCE_DATA_DIR, "1D", "cahn_hilliard"),
             },
         }
 
