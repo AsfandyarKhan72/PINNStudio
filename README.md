@@ -161,11 +161,15 @@ Initial condition: $u(x, y, 0) = 0$. Mixed Dirichlet/Neumann boundaries.
 
 ### 2D Allen-Cahn (Mattey)
 
+Benchmark problem after Mattey & Ghosh (2022) — see [References](#references).
+
 $$\frac{\partial u}{\partial t} = 0.0001\left(\frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2}\right) - 5(u^3 - u), \qquad (x, y) \in [0, 1]^2$$
 
 Initial condition: $u(x, y, 0) = \sin(4\pi x)\cos(4\pi y)$. Periodic boundaries.
 
 ### 2D Allen-Cahn (Wight)
+
+Benchmark problem after Wight & Zhao (2021) — see [References](#references).
 
 $$\frac{\partial u}{\partial t} = 0.00625\left(\frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2}\right) - 10(u^3 - u), \qquad (x, y) \in [0, 1]^2,\ t \in [0, 10]$$
 
@@ -173,7 +177,7 @@ Initial condition: a smooth circular interface, $u(x, y, 0) = \tanh\!\left(\dfra
 
 ### 2D Cahn-Hilliard (Wight)
 
-Two-phase separation, split into a composition field $u$ and a chemical potential $\mu$:
+Benchmark problem after Wight & Zhao (2021) — see [References](#references). Two-phase separation, split into a composition field $u$ and a chemical potential $\mu$:
 
 $$\frac{\partial u}{\partial t} = \frac{\partial^2 \mu}{\partial x^2} + \frac{\partial^2 \mu}{\partial y^2}, \qquad \mu = (u^3 - u) - 0.1\left(\frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2}\right), \qquad (x, y) \in [-0.5, 0.5]^2$$
 
@@ -202,9 +206,19 @@ If PINNStudio is useful in your work, please cite it — see [`CITATION.cff`](CI
 }
 ```
 
+## References
+
+- Lu, L., Meng, X., Mao, Z., & Karniadakis, G. E. (2021). DeepXDE: A deep learning library for solving differential equations. *SIAM Review*, 63(1), 208–228. https://doi.org/10.1137/19M1274067
+- Mattey, R., & Ghosh, S. (2022). A novel sequential method to train physics informed neural networks for Allen-Cahn and Cahn-Hilliard equations. *Computer Methods in Applied Mechanics and Engineering*, 390, 114474. https://doi.org/10.1016/j.cma.2021.114474
+- Wight, C. L., & Zhao, J. (2021). Solving Allen-Cahn and Cahn-Hilliard equations using the adaptive physics informed neural networks. *Communications in Computational Physics*, 29(3), 930–954. https://doi.org/10.4208/cicp.OA-2020-0086
+
 ## Acknowledgment
 
-PINNStudio is built on [DeepXDE](https://github.com/lululxvi/deepxde) (Lu et al., *DeepXDE: A Deep Learning Library for Solving Differential Equations*, SIAM Review, 2021) and PyQt6. Developed as part of ongoing physics-informed machine learning research in the Department of Materials Science and Engineering, Boise State University.
+PINNStudio is built on [DeepXDE](https://github.com/lululxvi/deepxde) (Lu et al., 2021) and PyQt6. The 2D Allen-Cahn and Cahn-Hilliard Quick Example templates follow the problem setups described in Mattey & Ghosh (2022) and Wight & Zhao (2021) — see [References](#references).
+
+Developed under the supervision of Prof. Mahmood Mamivand, Computational Materials Design Lab, Boise State University.
+
+The authors appreciate the support of the National Science Foundation grant DMR-2142935. We would like to acknowledge the high-performance computing support of the Borah compute cluster (DOI: 10.18122/oit/3/boisestate) provided by Boise State University's Research Computing Department.
 
 ## Contributing
 
