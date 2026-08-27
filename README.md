@@ -88,6 +88,8 @@ pinnstudio/
 ```bash
 git clone https://github.com/AsfandyarKhan72/pinnstudio.git
 cd pinnstudio
+python3 -m venv venv
+source venv/bin/activate       # on Windows: venv\Scripts\activate
 pip install -r requirements.txt
 python -m pinnstudio.main
 ```
