@@ -12,6 +12,8 @@ PINNStudio replaces that boilerplate with a form. You describe the problem — t
 
 It supports both **forward problems** (solve a known PDE) and **inverse problems** (estimate unknown PDE parameters from observation data), in 1D `(x, t)` and 2D `(x, y, t)`, including coupled, multi-output PDE systems.
 
+The goal is to make physics-informed machine learning accessible to researchers who need it but don't want to become deep learning engineers first. Setting up a PINN by hand touches autograd-based residuals, collocation sampling, loss weighting, and optimizer scheduling all at once — details that are easy to get subtly wrong and can cost hours of debugging before a single result can be trusted. PINNStudio lets researchers across science and engineering — materials science, mechanics, chemistry, biology, and beyond — set up and run both forward and inverse PINN problems for their own equations without building that infrastructure from scratch, on a framework that has been thoroughly tested so results are trustworthy from the first run.
+
 ## Screenshots
 
 <p align="center">
@@ -42,7 +44,7 @@ It supports both **forward problems** (solve a known PDE) and **inverse problems
 <p align="center"><em>1D Allen-Cahn: PINN-predicted solution against the bundled FEM reference data.</em></p>
 
 <p align="center">
-  <img src="assets/results/1d_allen_cahn_inverse_solution.png" alt="PINNStudio — 1D Allen-Cahn Inverse parameter estimation result" width="700">
+  <img src="assets/results/1d_allen_cahn_inverse.png" alt="PINNStudio — 1D Allen-Cahn Inverse parameter estimation result" width="700">
 </p>
 <p align="center"><em>1D Allen-Cahn (Inverse): the unknown diffusion parameter recovered from observation data, converging to its true value during training.</em></p>
 
