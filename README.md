@@ -97,6 +97,8 @@ pinnstudio/
 │   └── 2D/
 ├── requirements.txt
 ├── setup.py
+├── install.sh              # One-command setup (macOS/Linux)
+├── install.bat              # One-command setup (Windows)
 └── README.md
 ```
 
@@ -105,20 +107,23 @@ pinnstudio/
 ```bash
 git clone https://github.com/AsfandyarKhan72/pinnstudio.git
 cd pinnstudio
-
-# macOS / Linux
-python3 -m venv venv
-source venv/bin/activate
-
-# Windows (Command Prompt or PowerShell)
-python -m venv venv
-venv\Scripts\activate
-
-pip install -r requirements.txt
-python -m pinnstudio.main
 ```
 
-If PowerShell refuses to run the activation script, use Command Prompt instead, or run `Set-ExecutionPolicy -Scope Process Bypass` first.
+**macOS / Linux:**
+```bash
+bash install.sh
+./venv/bin/pinnstudio
+```
+
+**Windows:**
+```
+install.bat
+venv\Scripts\pinnstudio.exe
+```
+
+The install script creates an isolated virtual environment, installs PINNStudio and its dependencies, and — if it detects an NVIDIA GPU that the default PyTorch build can't use (an older driver, most commonly) — automatically installs a more compatible PyTorch build instead, so GPU support works out of the box on more machines.
+
+Requires Python 3.9+ and git already installed.
 
 **60-second tour:** maximize the window for the best view — PINNStudio packs a lot of controls into the left panel. With the app open, leave the dimension on **1D**, pick **1D Heat** from the *Quick Examples* dropdown, and click **Solve**. The Training Log panel will stream progress, and the loss/solution plots will populate once the run finishes.
 
