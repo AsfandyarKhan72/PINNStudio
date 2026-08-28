@@ -17,20 +17,34 @@ It supports both **forward problems** (solve a known PDE) and **inverse problems
 <p align="center">
   <img src="assets/screenshots/pde_builder.png" alt="PINNStudio — PDE, domain, and collocation point setup" width="800">
 </p>
-
 <p align="center"><em>Problem setup: PDE residual, domain, and collocation points.</em></p>
 
 <p align="center">
   <img src="assets/screenshots/training_panel.png" alt="PINNStudio — network, training schedule, and adaptive training controls" width="800">
 </p>
-
 <p align="center"><em>Network architecture, multi-phase optimizer schedule, loss weights, and adaptive training.</em></p>
 
 <p align="center">
   <img src="assets/results/restored_animation.gif" alt="Animated PINN solution — time evolution predicted by a restored PINNStudio model" width="500">
 </p>
-
 <p align="center"><em>Time evolution of a PINN solution, reconstructed from a saved checkpoint via Model Restore.</em></p>
+
+## Example Solutions
+
+<p align="center">
+  <img src="assets/results/1d_heat_solution.png" alt="PINNStudio — 1D Heat PINN solution" width="700">
+</p>
+<p align="center"><em>1D Heat: PINN-predicted solution against the bundled FEM reference data.</em></p>
+
+<p align="center">
+  <img src="assets/results/1d_allen_cahn_solution.png" alt="PINNStudio — 1D Allen-Cahn PINN solution" width="700">
+</p>
+<p align="center"><em>1D Allen-Cahn: PINN-predicted solution against the bundled FEM reference data.</em></p>
+
+<p align="center">
+  <img src="assets/results/1d_allen_cahn_inverse_solution.png" alt="PINNStudio — 1D Allen-Cahn Inverse parameter estimation result" width="700">
+</p>
+<p align="center"><em>1D Allen-Cahn (Inverse): the unknown diffusion parameter recovered from observation data, converging to its true value during training.</em></p>
 
 ## Features
 
@@ -40,6 +54,7 @@ It supports both **forward problems** (solve a known PDE) and **inverse problems
 - Free-form PDE residual editor — supports multi-output, coupled PDE systems, not just single equations
 - Boundary conditions per side, per output (Dirichlet, Neumann, Periodic), and initial conditions from an expression or a data file
 - Collocation point controls (domain / boundary / initial / test point counts, point distribution) with a 2D domain preview
+- For inverse problems, the built-in templates auto-load their end-time reference file as the observed-data source and default the observed-data loss weight to 100, so estimating a parameter needs no manual file browsing to get started (still overridable)
 
 **Training**
 - Configurable network architecture (hidden layers, neurons per layer, activation)
@@ -47,11 +62,11 @@ It supports both **forward problems** (solve a known PDE) and **inverse problems
 - Multi-phase optimizer scheduling and optional IC-guided pre-training
 - Residual-based adaptive refinement (RAR)
 - Time-adaptive stepping with transfer learning between time windows
-- Parametric studies over a chosen parameter
 - Mini-batch training
+- Live parameter convergence during inverse training — the estimated parameter's value prints and saves periodically throughout training, including during L-BFGS phases, not just at the end
 
 **Templates**
-- Eight built-in Quick Example templates covering common phase-field and diffusion problems (see [Built-in Templates](#built-in-templates))
+- Seven built-in Quick Example templates covering common phase-field and diffusion problems (see [Built-in Templates](#built-in-templates))
 
 **Analysis & output**
 - Live training log streaming, with a Stop control
@@ -74,7 +89,7 @@ pinnstudio/
 │       └── runner.py      # Runs the generated script, streams output to the GUI
 ├── assets/
 │   ├── screenshots/        # README screenshots
-│   └── results/             # Example output (restored_animation.gif)
+│   └── results/             # Example output (restored_animation.gif, solution images)
 ├── reference_data/          # Bundled FEM ground truth for the built-in templates
 │   ├── 1D/
 │   └── 2D/
@@ -123,7 +138,6 @@ pip install -r requirements.txt
 ```
 
 ### Core dependencies
-
 - [DeepXDE](https://github.com/lululxvi/deepxde) (PyTorch backend)
 - PyTorch
 - PyQt6
@@ -137,7 +151,7 @@ Requires Python 3.9+. A CUDA-capable GPU is optional but recommended for larger 
 
 Each template preconfigures the PDE, domain, boundary/initial conditions, network size, and training schedule — pick one from *Quick Examples*, then adjust as needed.
 
-Seven of the eight templates ship with bundled FEM reference data (see [`reference_data/`](reference_data)), generated independently of the PINN, so Error Analysis auto-configures against real ground truth the moment you load them — no setup, no external download. The eighth, **FeCr PINN**, is tied to unpublished ongoing research and is not bundled with reference data; it still runs, but its automatic Error Analysis and its file-based initial condition point at a local path that only exists on the author's machine.
+All seven templates ship with bundled FEM reference data (see [`reference_data/`](reference_data)), generated independently of the PINN, so Error Analysis auto-configures against real ground truth the moment you load them — no setup, no external download.
 
 | Template | Dimension | System | Reference data |
 |---|---|---|---|
@@ -148,7 +162,6 @@ Seven of the eight templates ship with bundled FEM reference data (see [`referen
 | 2D Allen-Cahn (Mattey) | 2D | Single PDE | ✅ bundled |
 | 2D Allen-Cahn (Wight) | 2D | Single PDE | ✅ bundled |
 | 2D Cahn-Hilliard (Wight) | 2D | Coupled (2 outputs) | ✅ bundled |
-| FeCr PINN | 2D | Coupled (2 outputs) | — (in-progress research) |
 
 ### 1D Heat
 
@@ -199,7 +212,6 @@ Benchmark problem after Wight & Zhao (2021) — see [References](#references). T
 $$\frac{\partial u}{\partial t} = \frac{\partial^2 \mu}{\partial x^2} + \frac{\partial^2 \mu}{\partial y^2}, \qquad \mu = (u^3 - u) - 0.1\left(\frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2}\right), \qquad (x, y) \in [-0.5, 0.5]^2$$
 
 Initial condition: two circular domains of opposite phase. Periodic boundaries.
-
 
 ## How It Works
 
