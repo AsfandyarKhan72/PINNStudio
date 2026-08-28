@@ -1,6 +1,6 @@
 # PINNStudio
 
-*A no-code desktop GUI for building, training, and visualizing Physics-Informed Neural Networks — built on [DeepXDE](https://github.com/lululxvi/deepxde).*
+*A no-code desktop GUI for building, training, and visualizing Physics-Informed Neural Networks (PINNs) — built on [DeepXDE](https://github.com/lululxvi/deepxde).*
 
 ---
 
