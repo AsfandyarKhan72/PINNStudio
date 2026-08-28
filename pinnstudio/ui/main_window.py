@@ -260,7 +260,7 @@ class MainWindow(QMainWindow):
         examples_layout = QHBoxLayout(examples_group)
         examples_layout.addWidget(QLabel("Load example:"))
         self.quick_examples_combo = QComboBox()
-        self.quick_examples_combo.addItems(["── Select ──", "1D Heat", "1D Allen-Cahn", "1D Cahn-Hilliard"])
+        self.quick_examples_combo.addItems(["None", "1D Heat", "1D Allen-Cahn", "1D Cahn-Hilliard"])
         self.quick_examples_combo.setFixedHeight(28)
         self.quick_examples_combo.currentTextChanged.connect(self._on_quick_example_selected)
         examples_layout.addWidget(self.quick_examples_combo)
@@ -617,6 +617,7 @@ class MainWindow(QMainWindow):
         _lbfgs_top_row.addWidget(QLabel("Float:"))
         self.lbfgs_float_combo = QComboBox()
         self.lbfgs_float_combo.addItems(["float64", "float32"])
+        self.lbfgs_float_combo.setCurrentText("float32")
         self.lbfgs_float_combo.setFixedWidth(90)
         self.lbfgs_float_combo.setToolTip("Float precision for L-BFGS (float64 recommended for accuracy)")
         _lbfgs_top_row.addWidget(self.lbfgs_float_combo)
@@ -761,7 +762,8 @@ class MainWindow(QMainWindow):
         inv_layout.setSpacing(5)
 
         inv_layout.addWidget(QLabel("Unknown parameter name:"))
-        self.inv_param_name = QLineEdit(); self.inv_param_name.setText("beta"); self.inv_param_name.setFixedHeight(28)
+        self.inv_param_name = QLineEdit(); self.inv_param_name.setText("trainable_variable"); self.inv_param_name.setFixedHeight(28)
+        self.inv_param_name.editingFinished.connect(self._on_inv_param_name_changed)
         inv_layout.addWidget(self.inv_param_name)
 
         inv_layout.addWidget(QLabel("Initial guess:"))
@@ -794,7 +796,7 @@ class MainWindow(QMainWindow):
         inv_ic_row.addWidget(self.inv_ic_browse)
         inv_layout.addLayout(inv_ic_row)
         inv_layout.addWidget(QLabel("Observed data loss weight:"))
-        self.inv_obs_weight = SciLineEdit(1.0)
+        self.inv_obs_weight = SciLineEdit(100.0)
         self.inv_obs_weight.setFixedHeight(28)
         inv_layout.addWidget(self.inv_obs_weight)
         self.inv_param_log_scale = QCheckBox("Log scale for parameter convergence plot")
@@ -802,37 +804,9 @@ class MainWindow(QMainWindow):
         inv_layout.addWidget(self.inv_param_log_scale)
 
         self.inverse_group.setVisible(False)
-        left_layout.addWidget(self.inverse_group)
+        left_layout.insertWidget(7, self.inverse_group)  # right after PDE Definition
 
-        # ── Parametric Study ──────────────────────────────────
-        param_group = QGroupBox("Parametric Study")
-        param_layout = QVBoxLayout(param_group)
-        param_layout.setSpacing(5)
-
-        self.param_check = QCheckBox("Enable Parametric Study")
-        self.param_check.setFixedHeight(28)
-        self.param_check.stateChanged.connect(self._on_param_changed)
-        param_layout.addWidget(self.param_check)
-
-        self.param_widget = QWidget()
-        pw_layout = QVBoxLayout(self.param_widget)
-        pw_layout.setSpacing(4); pw_layout.setContentsMargins(0, 0, 0, 0)
-
-        pw_layout.addWidget(QLabel("Parameter to vary:"))
-        self.param_combo = QComboBox()
-        self.param_combo.addItems(["learning_rate","ic_weight","pde_weight","bc_left_weight",
-                                    "bc_right_weight","hidden_layers","neurons_per_layer","phase1_iterations"])
-        self.param_combo.setFixedHeight(28)
-        pw_layout.addWidget(self.param_combo)
-
-        pw_layout.addWidget(QLabel("Values (comma separated):"))
-        self.param_values_input = QLineEdit(); self.param_values_input.setPlaceholderText("e.g. 1, 5, 10, 50")
-        self.param_values_input.setFixedHeight(28)
-        pw_layout.addWidget(self.param_values_input)
-
-        self.param_widget.setVisible(False)
-        param_layout.addWidget(self.param_widget)
-        left_layout.addWidget(param_group)
+        # Parametric Study removed (untested, not exposed in the GUI).
 
         # ── Solve / Stop buttons ──────────────────────────────
         self.solve_btn = QPushButton("▶  Solve")
@@ -1137,16 +1111,15 @@ class MainWindow(QMainWindow):
         self.quick_examples_combo.clear()
         if is_2d:
             self.quick_examples_combo.addItems([
-                "── Select ──",
+                "None",
                 "2D Heat (Dirichlet/Neumann)",
                 "2D Allen-Cahn (Mattey)",
                 "2D Allen-Cahn (Wight)",
-                "2D Cahn-Hilliard (Wight)",
-                "FeCr PINN"
+                "2D Cahn-Hilliard (Wight)"
             ])
         else:
             self.quick_examples_combo.addItems([
-                "── Select ──",
+                "None",
                 "1D Heat",
                 "1D Allen-Cahn",
                 "1D Cahn-Hilliard"
@@ -1159,14 +1132,11 @@ class MainWindow(QMainWindow):
         self._build_pde_inputs(self.num_outputs_spin.value())
         self._build_bc_inputs(self.num_outputs_spin.value())
         self._build_weight_inputs(self.num_outputs_spin.value())
-    
+
     def _on_quick_example_selected(self, text):
-        if text.startswith("──"):
+        if text == "None":
             return
         self._on_template_selected(text)
-        self.quick_examples_combo.blockSignals(True)
-        self.quick_examples_combo.setCurrentIndex(0)
-        self.quick_examples_combo.blockSignals(False)
 
     def _auto_configure_ea(self, ref_dir):
         """Auto-configure error analysis when a template with ground truth files is loaded."""
@@ -1198,6 +1168,14 @@ class MainWindow(QMainWindow):
             'do_max': True,
         }
         self.log_box.append(f"✅ Error analysis auto-configured — {len(valid_files)} ground truth files from template")
+        # Auto-select the end-time (largest t) reference file as the Inverse
+        # observed-data file, so the user doesn't have to browse for it.
+        if hasattr(self, 'inv_data_path'):
+            _end_time_file = valid_files[-1][1]
+            self.inv_data_path.setText(_end_time_file)
+            self.log_box.append(
+                f"📂 Inverse observed data auto-loaded: {os.path.basename(_end_time_file)} "
+                f"(t={valid_files[-1][0]:.4g})")
 
     # ── Plot type change ──────────────────────────────────────
     def _on_plot_type_changed(self, text):
@@ -1451,9 +1429,6 @@ class MainWindow(QMainWindow):
                 'steps':   self.ta_steps.value()
             })
         return json.dumps(groups)
-
-    def _on_param_changed(self, state):
-        self.param_widget.setVisible(state == 2)
 
     def _on_browse(self):
         folder = QFileDialog.getExistingDirectory(self, "Select Save Directory")
@@ -2014,9 +1989,9 @@ class MainWindow(QMainWindow):
             ta_transfer_optimizer=self.ta_transfer_opt.currentText(),
             learning_rate=self.lr_spin.value(),
             loss_type=self.loss_combo.currentText(),
-            parametric_study=self.param_check.isChecked(),
-            parametric_param=self.param_combo.currentText(),
-            parametric_values=self.param_values_input.text(),
+            parametric_study=False,
+            parametric_param="none",
+            parametric_values="",
             problem_type="Inverse" if self.radio_inverse.isChecked() else "Forward",
             inverse_param_name=self.inv_param_name.text().strip(),
             inverse_param_init=self.inv_param_init.value(),
@@ -2071,8 +2046,64 @@ class MainWindow(QMainWindow):
             self.plot_output_combo.addItem(f"Output {i+1} ({name})")
             self.restore_output_combo.addItem(f"Output {i+1} ({name})")
 
+    # Per built-in template: (PDE row index, original constant substring)
+    # of the "diffusion coefficient"-style constant that gets swapped for
+    # the inverse trainable variable.
+    INVERSE_AUTO_CONST = {
+        "1D Heat": (0, "0.4"),
+        "1D Allen-Cahn": (0, "0.0001"),
+        "1D Cahn-Hilliard": (1, "1e-6"),
+        "2D Heat (Dirichlet/Neumann)": (0, "0.4"),
+        "2D Allen-Cahn (Mattey)": (0, "0.0001"),
+        "2D Allen-Cahn (Wight)": (0, "0.00625"),
+        "2D Cahn-Hilliard (Wight)": (1, "0.05"),
+    }
+
+    def _sync_inverse_pde_substitution(self, is_inv):
+        """Inverse ON: replace the current template's known constant with
+        the trainable-variable name in its PDE box. Inverse OFF: restore
+        the original numeric constant so Forward mode stays valid."""
+        template = getattr(self, '_current_template', '')
+        entry = self.INVERSE_AUTO_CONST.get(template)
+        if is_inv:
+            if not entry:
+                return
+            idx, const_str = entry
+            if idx >= len(self.pde_inputs):
+                return
+            var_name = self.inv_param_name.text().strip() or "trainable_variable"
+            text = self.pde_inputs[idx].text()
+            if const_str in text:
+                self.pde_inputs[idx].setText(text.replace(const_str, var_name, 1))
+                self._inverse_sub_active = (template, idx, const_str, var_name)
+        else:
+            state = getattr(self, '_inverse_sub_active', None)
+            if state:
+                s_template, s_idx, s_const, s_var = state
+                if s_idx < len(self.pde_inputs):
+                    cur = self.pde_inputs[s_idx].text()
+                    if s_var in cur:
+                        self.pde_inputs[s_idx].setText(cur.replace(s_var, s_const, 1))
+                self._inverse_sub_active = None
+
+    def _on_inv_param_name_changed(self):
+        """Keep an already-substituted PDE in sync if the trainable
+        variable name is renamed while Inverse mode is active."""
+        state = getattr(self, '_inverse_sub_active', None)
+        if not state:
+            return
+        template, idx, const_str, old_var = state
+        new_var = self.inv_param_name.text().strip()
+        if not new_var or new_var == old_var or idx >= len(self.pde_inputs):
+            return
+        text = self.pde_inputs[idx].text()
+        if old_var in text:
+            self.pde_inputs[idx].setText(text.replace(old_var, new_var, 1))
+            self._inverse_sub_active = (template, idx, const_str, new_var)
+
     def _on_problem_type_changed(self, checked):
         is_inv = self.radio_inverse.isChecked()
+        self._sync_inverse_pde_substitution(is_inv)
         self.inverse_group.setVisible(is_inv)
         self.param_save_label.setVisible(is_inv)
         self.param_save_combo.setVisible(is_inv)
@@ -3107,30 +3138,6 @@ print("ERROR_ANALYSIS_DONE")
                 'ic_weight': 100.0,
                 'ref_dir': os.path.join(REFERENCE_DATA_DIR, "2D", "cahn_hilliard_wight"),
             },
-            "FeCr PINN": {
-                'pde': ["dc_t - (86400/10)*(M*(dmu_xx + dmu_yy) + dMdc*(dc_x*dmu_x + dc_y*dmu_y))",
-                        "mu - dfdc + (8.125e-16 * (1.0/(25e-9)**2))*(dc_xx + dc_yy)"],
-                'ic': ["", ""],
-                'num_outputs': 2,
-                'output_names': ['c', 'mu'],
-                'num_domain': 10000,
-                'num_boundary': 400,
-                'num_initial': 0,
-                'num_test': 10000,
-                'layers': 6,
-                'neurons': 128,
-                'iterations': 50000,
-                'optimizer2': 'lbfgs',
-                'iterations2': 50000,
-                'x_min': 0.0, 'x_max': 1.0,
-                'y_min': 0.0, 'y_max': 1.0,
-                't_max': 10.0,
-                'bc_config': 'fecr',
-                'template_type': 'FeCr_PINN',
-                'forward_ic_from_file': True,
-                'forward_ic_file': '/home/asfandyarkhan/deepxde_gui/FEM_Results/2D_Examples/FeCr_PINN_2D/t_0.txt',
-                'ref_dir': '/home/asfandyarkhan/deepxde_gui/FEM_Results/2D_Examples/FeCr_PINN_2D',
-            },
         }
         if text in templates_2d:
             t = templates_2d[text]
@@ -3198,57 +3205,6 @@ print("ERROR_ANALYSIS_DONE")
                     self.bc_top_active[1].setChecked(False)
                 if len(self.ic_active) > 1:
                     self.ic_active[1].setChecked(False)
-            elif bc_config == 'fecr':
-                # c (index 0): periodic on all sides
-                if len(self.bc_left_types) > 0:
-                    self.bc_left_types[0].setCurrentText("Periodic")
-                if len(self.bc_bottom_types) > 0:
-                    self.bc_bottom_types[0].setCurrentText("Periodic")
-                # Uncheck master BC toggle for mu (output 1)
-                for _w in self.bc_group.findChildren(QCheckBox):
-                    if _w.text() == "Enable boundary conditions for mu":
-                        _w.setChecked(False)
-                        break
-                # mu (index 1): no BCs, no IC
-                if len(self.bc_left_active) > 1:
-                    self.bc_left_active[1].setChecked(False)
-                if len(self.bc_right_active) > 1:
-                    self.bc_right_active[1].setChecked(False)
-                if len(self.bc_bottom_active) > 1:
-                    self.bc_bottom_active[1].setChecked(False)
-                if len(self.bc_top_active) > 1:
-                    self.bc_top_active[1].setChecked(False)
-                if len(self.ic_active) > 0:
-                    self.ic_active[0].setChecked(False)  # IC from file, not expression
-                if len(self.ic_active) > 1:
-                    self.ic_active[1].setChecked(False)
-                # Set IC from file for c (index 0)
-                if (hasattr(self, 'ic_from_file') and len(self.ic_from_file) > 0
-                        and self.ic_from_file[0] is not None):
-                    self.ic_from_file[0].setChecked(True)
-                if (hasattr(self, 'ic_file_paths') and len(self.ic_file_paths) > 0
-                        and self.ic_file_paths[0] is not None):
-                    self.ic_file_paths[0].setText(
-                        '/home/asfandyarkhan/deepxde_gui/FEM_Results/2D_Examples/FeCr_PINN_2D/t_0.txt')
-                # Enable optimizer scheduler with FeCr default phases
-                self.sched_cb.setChecked(True)
-                self._setup_default_scheduler_phases('FeCr_PINN')
-                # Set two step groups for FeCr: 0→1 (10 steps) and 1→10 (9 steps)
-                for row in list(self.ta_group_rows):
-                    row['widget'].deleteLater()
-                self.ta_group_rows.clear()
-                self._add_ta_step_group(0.0, 1.0, 10)
-                self._add_ta_step_group(1.0, 10.0, 9)
-                if "pde_0" in self.weight_widgets:
-                    self.weight_widgets["pde_0"].setValue(100.0)
-                if "pde_1" in self.weight_widgets:
-                    self.weight_widgets["pde_1"].setValue(1e-4)
-                if "bc_left_0" in self.weight_widgets:
-                    self.weight_widgets["bc_left_0"].setValue(1.0)
-                if "bc_bottom_0" in self.weight_widgets:
-                    self.weight_widgets["bc_bottom_0"].setValue(1.0)
-                if "ic_0" in self.weight_widgets:
-                    self.weight_widgets["ic_0"].setValue(1000.0)
             elif bc_config == 'heat2d':
                 # Right: Dirichlet=1, Left/Bottom/Top: Neumann=0
                 for i in range(n_out):
@@ -3267,6 +3223,7 @@ print("ERROR_ANALYSIS_DONE")
             self._template_ref_dir = t.get('ref_dir', '')
             self._current_template = text
             self._current_template_type = t.get('template_type', '')
+            self._sync_inverse_pde_substitution(self.radio_inverse.isChecked())
             # Setup default scheduler phases
             if hasattr(self, 'sched_cb'):
                 self.sched_cb.setChecked(True)
@@ -3403,6 +3360,7 @@ print("ERROR_ANALYSIS_DONE")
         self._template_ref_dir = t.get('ref_dir', '')
         self._current_template = text
         self._current_template_type = t.get('template_type', '')
+        self._sync_inverse_pde_substitution(self.radio_inverse.isChecked())
         if hasattr(self, 'sched_cb'):
             self.sched_cb.setChecked(True)
             self._setup_default_scheduler_phases(t.get('template_type', ''))
@@ -4015,6 +3973,10 @@ print("ERROR_ANALYSIS_V2_DONE")
                     for k in [f"bc_left_{i}_p{pn}", f"bc_right_{i}_p{pn}", f"bc_bottom_{i}_p{pn}", f"bc_top_{i}_p{pn}", f"ic_{i}_p{pn}"]
                     if k in self.weight_widgets
                 ])
+            if hasattr(self, 'radio_inverse') and self.radio_inverse.isChecked() and hasattr(self, 'inv_obs_weight'):
+                # Match codegen's _multi_weights: one extra observation-loss
+                # weight appended at the end for inverse problems.
+                w_str = w_str + "," + str(self.inv_obs_weight.value())
             phases.append({
                 'optimizer': ph['opt'].currentText(),
                 'iterations': ph['iters'].value(),
@@ -4036,41 +3998,11 @@ print("ERROR_ANALYSIS_V2_DONE")
             ph['widget'].deleteLater()
         self.sched_phase_list.clear()
 
-        if template_type == 'FeCr_PINN':
-            # Phase 2: Adam [0,0,0,0,1000]
-            self._add_scheduler_phase('adam', 50000, 0.001)
-            # Phase 3: Adam [100,1e-4,1,1,1000]
-            self._add_scheduler_phase('adam', 50000, 0.001)
-            # Phase 4: L-BFGS [100,1e-4,1,1,1000]
-            self._add_scheduler_phase('lbfgs', 20000, 0.001)
-            # Uncheck same weights so per-phase weights show
-            self.sched_same_weights_cb.setChecked(False)
-        else:
-            # Default: Adam warm-up phase, then L-BFGS refinement, using same weights
-            self._add_scheduler_phase('adam', 10000, 0.001)
-            self._add_scheduler_phase('lbfgs', 10000, 0.001)
-            self.sched_same_weights_cb.setChecked(True)
+        # Default: Adam warm-up phase, then L-BFGS refinement, using same weights
+        self._add_scheduler_phase('adam', 10000, 0.001)
+        self._add_scheduler_phase('lbfgs', 10000, 0.001)
+        self.sched_same_weights_cb.setChecked(True)
         self._build_weight_inputs(self.num_outputs_spin.value())
-
-        if template_type == 'FeCr_PINN' and len(self.sched_phase_list) >= 3:
-            p2 = self.sched_phase_list[0]['phase_num']
-            p3 = self.sched_phase_list[1]['phase_num']
-            p4 = self.sched_phase_list[2]['phase_num']
-            # Set L-BFGS phase iterations to 50000
-            self.sched_phase_list[2]['iters'].setValue(50000)
-            for key, val in [
-                (f"pde_0_p{p2}", 100.0), (f"pde_1_p{p2}", 1e-6),
-                (f"bc_left_0_p{p2}", 1.0), (f"bc_bottom_0_p{p2}", 1.0),
-                (f"ic_0_p{p2}", 1000.0),
-                (f"pde_0_p{p3}", 100.0), (f"pde_1_p{p3}", 1e-4),
-                (f"bc_left_0_p{p3}", 1.0), (f"bc_bottom_0_p{p3}", 1.0),
-                (f"ic_0_p{p3}", 1000.0),
-                (f"pde_0_p{p4}", 100.0), (f"pde_1_p{p4}", 1e-4),
-                (f"bc_left_0_p{p4}", 1.0), (f"bc_bottom_0_p{p4}", 1.0),
-                (f"ic_0_p{p4}", 1000.0),
-            ]:
-                if key in self.weight_widgets:
-                    self.weight_widgets[key].setValue(val)
 
     def _add_scheduler_phase(self, optimizer='adam', iterations=50000, lr=0.001):
         phase_num = len(self.sched_phase_list) + 1  # phase 1, 2, 3...
@@ -4110,15 +4042,21 @@ print("ERROR_ANALYSIS_V2_DONE")
         iter_row.addStretch(); iter_row.addWidget(iter_spin)
         phase_layout.addLayout(iter_row)
 
-        # Learning rate
-        lr_row = QHBoxLayout()
+        # Learning rate (not used by L-BFGS — hidden for lbfgs phases)
+        lr_widget = QWidget()
+        lr_row = QHBoxLayout(lr_widget)
+        lr_row.setContentsMargins(0, 0, 0, 0)
         lr_row.addWidget(QLabel("Learning rate:"))
         lr_spin = QDoubleSpinBox()
         lr_spin.setRange(1e-6, 1.0); lr_spin.setDecimals(6)
         lr_spin.setSingleStep(0.0001); lr_spin.setValue(lr)
         lr_spin.setFixedHeight(26)
         lr_row.addStretch(); lr_row.addWidget(lr_spin)
-        phase_layout.addLayout(lr_row)
+        phase_layout.addWidget(lr_widget)
+        lr_widget.setVisible(optimizer != "lbfgs")
+        opt_combo.currentTextChanged.connect(
+            lambda t, w=lr_widget: w.setVisible(t != "lbfgs")
+        )
 
         # Loss function
         loss_row = QHBoxLayout()

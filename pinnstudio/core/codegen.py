@@ -50,92 +50,13 @@ def generate_script(config):
 
     pde_expr_single = _simplify_pde_expr(config.pde_expression)
 
-    # ── FeCr PDE block (inserted verbatim for FeCr_PINN template) ──
     if config.forward_ic_from_file:
         _ta_ic_init = f"""_ic_ta_data = np.loadtxt(r"{config.forward_ic_file}")
     _ic_ta_mask = np.abs(_ic_ta_data[:, 2]) < 1e-10
     prev_u = _ic_ta_data[_ic_ta_mask, 3:4]"""
     else:
         _ta_ic_init = f"prev_u = np.reshape({ta_ic_expr}, (-1, 1))"
-    _fecr_pde1 = config_pde_expressions.split("|")[0].strip() if config.template_type == "FeCr_PINN" else ""
-    _fecr_pde2 = config_pde_expressions.split("|")[1].strip() if (config.template_type == "FeCr_PINN" and "|" in config_pde_expressions) else ""
-
-    if config.template_type == "FeCr_PINN":
-        _fecr_pde_block = f"""
-import math as _math
-
-_Lo        = 1.0 / (25e-9)**2
-_LOGE10    = _math.log(10.0)
-_EPS32     = 1e-6
-
-def _dfdc_torch(c):
-    eps = torch.tensor(1e-6, dtype=c.dtype, device=c.device)
-    c = torch.clamp(c, eps, 1.0 - eps)
-    return (8098.119000
-            + 4167.994000 * torch.log(c)
-            - 7052.907000 * torch.log(1.0 - c)
-            + 14684.820000 * c
-            - 71698.782000 * c**2
-            + 37524.688000 * c**3)
-
-def _M_torch(c):
-    s  = torch.clamp(c, _EPS32, 1.0 - _EPS32)
-    t  = 1.0 - s
-    p1 = torch.clamp(t*t*s, min=1e-30)
-    p2 = torch.clamp(s*s*t, min=1e-30)
-    gCr = (-32.770969*s - 25.8186669*t
-           - 3.29612744*s*torch.log(s)
-           + 17.669757*t*torch.log(t)
-           + 37.6197853*s*t
-           + 20.6941796*s*t*(2.0*s-1.0)
-           + 10.8095813*s*t*(2.0*s-1.0)**2)
-    gFe = (-31.687117*s - 26.0291774*t
-           + 0.2286581*s*torch.log(s)
-           + 24.3633544*t*torch.log(t)
-           + 44.3334237*s*t
-           + 8.72990497*s*t*(2.0*s-1.0)
-           + 20.956768*s*t*(2.0*s-1.0)**2)
-    a = torch.log(p1) + gCr * _LOGE10
-    b = torch.log(p2) + gFe * _LOGE10
-    m = torch.maximum(a, b)
-    ln_sum = m + torch.log(torch.exp(a - m) + torch.exp(b - m))
-    return torch.exp(_math.log(_Lo) + ln_sum)
-
-# ── PDE definition ──────────────────────────────────────────
-def pde(x, y):
-    c   = y[:, 0:1]
-    mu  = y[:, 1:2]
-    c_t   = dde.grad.jacobian(y, x, i=0, j=2)
-    c_xx  = dde.grad.hessian(y, x, component=0, i=0, j=0)
-    c_yy  = dde.grad.hessian(y, x, component=0, i=1, j=1)
-    mu_xx = dde.grad.hessian(y, x, component=1, i=0, j=0)
-    mu_yy = dde.grad.hessian(y, x, component=1, i=1, j=1)
-    c_x   = dde.grad.jacobian(y, x, i=0, j=0)
-    c_y   = dde.grad.jacobian(y, x, i=0, j=1)
-    mu_x  = dde.grad.jacobian(y, x, i=1, j=0)
-    mu_y  = dde.grad.jacobian(y, x, i=1, j=1)
-    dfdc  = _dfdc_torch(c)
-    Mloc  = _M_torch(c)
-    dMdc  = torch.autograd.grad(
-        Mloc, c, grad_outputs=torch.ones_like(Mloc), create_graph=True
-    )[0]
-    # Use values from GUI PDE expressions via eval
-    _pde1 = "{_fecr_pde1}"
-    _pde2 = "{_fecr_pde2}"
-    _eval_fecr = {{
-        "dc_t": c_t, "dmu_xx": mu_xx, "dmu_yy": mu_yy,
-        "dMdc": dMdc, "dc_x": c_x, "dc_y": c_y,
-        "dmu_x": mu_x, "dmu_y": mu_y,
-        "M": Mloc, "dc_xx": c_xx, "dc_yy": c_yy,
-        "mu": mu, "dfdc": dfdc,
-        "np": np, "torch": torch
-    }}
-    eq1 = eval(_pde1, _eval_fecr)
-    eq2 = eval(_pde2, _eval_fecr)
-    return [eq1, eq2]
-"""
-    else:
-        _fecr_pde_block = ""
+    _fecr_pde_block = ""
 
     script = f"""
 
@@ -280,17 +201,24 @@ if _problem_type == "Inverse":
             self.var = var
             self.name = name
             self.period = period
-            self._step = 0
-            self._offset = 0
+            self._last_bucket = 0
         def set_offset(self, offset):
-            self._offset = offset
-            self._step = 0
+            # No-op, kept so older scheduler-loop code can still call it.
+            # Real progress now comes from the model's own train_state.step,
+            # which is already cumulative across every phase — no manual
+            # offset bookkeeping needed. This also fixes L-BFGS: DeepXDE only
+            # calls on_batch_end once per outer L-BFGS step (which can cover
+            # hundreds of real iterations at once), not once per real
+            # iteration the way Adam does, so counting callback firings
+            # (the old approach) almost never reached the print period.
+            pass
         def on_batch_end(self):
-            self._step += 1
-            actual_iter = self._offset + self._step
-            if actual_iter % self.period == 0:
+            cur = self.model.train_state.step
+            bucket = cur // self.period
+            if bucket > self._last_bucket:
+                self._last_bucket = bucket
                 val = self.var.detach().cpu().numpy().item() if hasattr(self.var, 'detach') else float(self.var.numpy())
-                print(f"  [{config.inverse_param_name}] Iter {{actual_iter}}: {{val:.6f}}", flush=True)
+                print(f"  [{config.inverse_param_name}] Iter {{cur}}: {{val:.6f}}", flush=True)
 
     _print_cb = _PrintParamCallback({config.inverse_param_name}, "{config.inverse_param_name}", period=1000)
     
@@ -311,19 +239,19 @@ if _problem_type == "Inverse":
             self.name = name
             self.period = period
             self.path = path
-            self._step = 0
-            self._offset = 0
+            self._last_bucket = 0
         def set_offset(self, offset):
-            self._offset = offset
-            self._step = 0
+            # No-op — see _PrintParamCallback.set_offset above.
+            pass
         def on_batch_end(self):
             if self.period == 0: return
-            self._step += 1
-            actual_iter = self._offset + self._step
-            if actual_iter % self.period == 0:
+            cur = self.model.train_state.step
+            bucket = cur // self.period
+            if bucket > self._last_bucket:
+                self._last_bucket = bucket
                 val = self.var.detach().cpu().numpy().item() if hasattr(self.var, 'detach') else float(self.var.numpy())
                 with open(self.path, "a") as _f:
-                    _f.write(f"{{actual_iter}},{{val:.8f}}\\n")
+                    _f.write(f"{{cur}},{{val:.8f}}\\n")
 
     _save_cb = _SaveParamCallback(
         {config.inverse_param_name},
@@ -334,7 +262,7 @@ if _problem_type == "Inverse":
 
 
 {_fecr_pde_block}
-_IS_FECR = "{config.template_type}" == "FeCr_PINN"
+_IS_FECR = False
 # ── PDE definition (standard) ───────────────────────────────
 def _pde_standard(x, y):
     _n_out = {config.num_outputs}
@@ -761,14 +689,22 @@ for _pval in _param_values:
         print("=== Starting Main Training ===\\n")
 
     if not {config.time_adaptive}:
+        _sched_active = {config.optimizer_scheduler} and _os.path.exists('/tmp') and {len(config.scheduler_phases) > 0}
         if _problem_type == "Inverse":
             with open("/tmp/param_history.txt", "w") as _f:
                 pass
-            _var_cb = dde.callbacks.VariableValue(
-                [{config.inverse_param_name}], period=1000, filename="/tmp/param_history.txt",
-                precision=6
-            )
-            loss_history, train_state = model.train(iterations=_iters, display_every=1000, callbacks=[_var_cb, _print_cb, _save_cb])
+            if not _sched_active:
+                _var_cb = dde.callbacks.VariableValue(
+                    [{config.inverse_param_name}], period=1000, filename="/tmp/param_history.txt",
+                    precision=6
+                )
+                loss_history, train_state = model.train(iterations=_iters, display_every=1000, callbacks=[_var_cb, _print_cb, _save_cb])
+            else:
+                # Scheduler phases below define all training — skip this
+                # standalone _iters-iteration pass so training only runs
+                # for the iteration counts configured in the scheduler.
+                print(f"  (Scheduler enabled — skipping standalone {{_iters}}-iteration pass; "
+                      f"training runs only for the phases below)")
         else:
             if {config.batch_size} > 0:
                 data.batch_size = {config.batch_size}
@@ -781,12 +717,14 @@ for _pval in _param_values:
                 print(f"Adam config saved to: {{_adam_cfg_path}}")
 
         # Optimizer Scheduler or Phase 2
-        if {config.optimizer_scheduler} and _os.path.exists('/tmp') and {len(config.scheduler_phases) > 0}:
+        if _sched_active:
             import json as _json_sched
             _sched_phases = _json_sched.loads({repr(config.scheduler_phases)})
+            _sched_cum_iters = 0
             for _sp_i, _sp in enumerate(_sched_phases):
                 print(f"  === Scheduler Phase {{_sp_i+1}}: {{_sp['optimizer']}} {{_sp['iterations']}} iters ===")
                 _sp_weights = [float(w) for w in _sp['weights'].split(',') if w.strip()]
+                _sp_ext_vars = [{config.inverse_param_name}] if _problem_type == "Inverse" else None
                 if _sp['optimizer'] == 'lbfgs':
                     dde.optimizers.set_LBFGS_options(
                         maxcor={config.lbfgs_maxcor}, ftol={config.lbfgs_ftol},
@@ -794,18 +732,60 @@ for _pval in _param_values:
                         maxfun=int(_sp['iterations']*1.25), maxls={config.lbfgs_maxls})
                     _lbfgs_float = "{config.lbfgs_float_type}"
                     model.compile("L-BFGS", loss=_sp.get('loss', '{config.loss_type}'),
-                                  loss_weights=_sp_weights)
-                    loss_history, train_state = model.train(display_every=200)
+                                  loss_weights=_sp_weights, external_trainable_variables=_sp_ext_vars)
+                    if _problem_type == "Inverse":
+                        _print_cb.set_offset(_sched_cum_iters)
+                        _save_cb.set_offset(_sched_cum_iters)
+                        _sp_var_cb = dde.callbacks.VariableValue(
+                            [{config.inverse_param_name}], period=200,
+                            filename=f"/tmp/param_history_sp{{_sp_i}}.txt", precision=6)
+                        loss_history, train_state = model.train(
+                            display_every=200, callbacks=[_sp_var_cb, _print_cb, _save_cb])
+                        try:
+                            with open(f"/tmp/param_history_sp{{_sp_i}}.txt", "r") as _spf:
+                                _sp_lines = [l.strip() for l in _spf if l.strip()]
+                            with open("/tmp/param_history.txt", "a") as _fa:
+                                for _spl in _sp_lines:
+                                    _spparts = _spl.replace("[","").replace("]","").split()
+                                    if len(_spparts) >= 2:
+                                        _fa.write(f"{{_sched_cum_iters + int(_spparts[0])}} [{{_spparts[1]}}]\\n")
+                        except Exception as _spe:
+                            print(f"Could not merge phase {{_sp_i+1}} parameter history: {{_spe}}")
+                        _sched_cum_iters = loss_history.steps[-1] if loss_history.steps else (_sched_cum_iters + _sp['iterations'])
+                    else:
+                        loss_history, train_state = model.train(display_every=200)
                     if _use_save:
                         _nta_save_path = _os.path.join(_sol_dir, f"model_lbfgs-phase{{_sp_i+1}}")
                         model.save(_nta_save_path)
                         print(f"  Phase {{_sp_i+1}} L-BFGS model saved: {{_nta_save_path}}.pt")
                 else:
                     model.compile(_sp['optimizer'], lr=_sp['lr'],
-                                  loss=_sp.get('loss', '{config.loss_type}'), loss_weights=_sp_weights)
+                                  loss=_sp.get('loss', '{config.loss_type}'), loss_weights=_sp_weights,
+                                  external_trainable_variables=_sp_ext_vars)
                     if {config.batch_size} > 0:
                         data.batch_size = {config.batch_size}
-                    loss_history, train_state = model.train(iterations=_sp['iterations'], display_every=1000)
+                    if _problem_type == "Inverse":
+                        _print_cb.set_offset(_sched_cum_iters)
+                        _save_cb.set_offset(_sched_cum_iters)
+                        _sp_var_cb = dde.callbacks.VariableValue(
+                            [{config.inverse_param_name}], period=1000,
+                            filename=f"/tmp/param_history_sp{{_sp_i}}.txt", precision=6)
+                        loss_history, train_state = model.train(
+                            iterations=_sp['iterations'], display_every=1000,
+                            callbacks=[_sp_var_cb, _print_cb, _save_cb])
+                        try:
+                            with open(f"/tmp/param_history_sp{{_sp_i}}.txt", "r") as _spf:
+                                _sp_lines = [l.strip() for l in _spf if l.strip()]
+                            with open("/tmp/param_history.txt", "a") as _fa:
+                                for _spl in _sp_lines:
+                                    _spparts = _spl.replace("[","").replace("]","").split()
+                                    if len(_spparts) >= 2:
+                                        _fa.write(f"{{_sched_cum_iters + int(_spparts[0])}} [{{_spparts[1]}}]\\n")
+                        except Exception as _spe:
+                            print(f"Could not merge phase {{_sp_i+1}} parameter history: {{_spe}}")
+                        _sched_cum_iters = loss_history.steps[-1] if loss_history.steps else (_sched_cum_iters + _sp['iterations'])
+                    else:
+                        loss_history, train_state = model.train(iterations=_sp['iterations'], display_every=1000)
                     if _use_save:
                         _nta_save_path = _os.path.join(_sol_dir, f"model_adam-phase{{_sp_i+1}}")
                         model.save(_nta_save_path)

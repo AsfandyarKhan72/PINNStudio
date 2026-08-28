@@ -107,7 +107,7 @@ class PINNConfig:
     loss_weights_multi: str = ""
 
     # Inverse settings
-    inverse_param_name: str = "beta"
+    inverse_param_name: str = "trainable_variable"
     inverse_param_init: float = 1.0
     inverse_data_file: str = ""
     inverse_ic_type: str = "expression"
@@ -130,7 +130,7 @@ class PINNConfig:
     lbfgs_maxiter: int = 50000
     lbfgs_maxfun: int = 62500
     lbfgs_maxls: int = 100
-    lbfgs_float_type: str = "float64"
+    lbfgs_float_type: str = "float32"
     ic_pretrain: bool = False
     ic_pretrain_optimizer: str = "adam"
     ic_pretrain_iterations: int = 10000
