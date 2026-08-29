@@ -62,6 +62,12 @@ def generate_script(config):
 
 import os
 os.environ["DDE_BACKEND"] = "pytorch"
+
+# ── Windows has no /tmp by default; make "/tmp/..." paths work there too ──
+if os.name == "nt":
+    _tmp_root = os.path.splitdrive(os.getcwd())[0] + os.sep + "tmp"
+    os.makedirs(_tmp_root, exist_ok=True)
+
 import deepxde as dde
 import numpy as np
 import torch

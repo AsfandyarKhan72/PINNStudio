@@ -22,13 +22,11 @@ def run_pinn(config: PINNConfig, on_output=None, set_process=None):
     with tempfile.NamedTemporaryFile(
         mode='w',
         suffix='.py',
-        delete=False
+        delete=False,
+        encoding='utf-8'
     ) as f:
         f.write(script)
         tmp_path = f.name
-        # DEBUG: also save a permanent copy
-        with open("/tmp/last_generated_script.py", "w") as dbg:
-            dbg.write(script)
 
     try:
         print(f"Generated script at: {tmp_path}")
@@ -37,7 +35,9 @@ def run_pinn(config: PINNConfig, on_output=None, set_process=None):
                     [sys.executable, tmp_path],
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
-                    text=True
+                    text=True,
+                    encoding='utf-8',
+                    errors='replace'
                 )
         if set_process:
             set_process(process)
