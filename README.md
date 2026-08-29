@@ -110,6 +110,32 @@ pinnstudio/
 
 ## Quick Start
 
+### Step 1: Open a terminal
+
+- **Windows:** click the Start menu, type `PowerShell`, and open **Windows PowerShell**.
+- **macOS:** press `Cmd + Space` to open Spotlight, type `Terminal`, and press Enter (or find it under Applications -> Utilities -> Terminal).
+- **Linux:** open your terminal application (commonly `Ctrl + Alt + T`, or search "Terminal" in your application menu).
+
+### Step 2: Check you have git and Python 3.9+
+
+Paste these one at a time:
+
+```bash
+git --version
+python3 --version
+```
+
+(On Windows, use `python --version` instead of `python3 --version`.)
+
+If either command isn't recognized:
+
+- **git missing?** Install it from [git-scm.com/downloads](https://git-scm.com/downloads). Default options are fine. On macOS, running `git --version` for the first time may itself prompt you to install Apple's Command Line Tools — accept and let it finish, then try again.
+- **Python missing, or older than 3.9?** Install it from [python.org/downloads](https://www.python.org/downloads/). **On Windows, check "Add python.exe to PATH"** on the installer's first screen — this is the single most common thing people miss.
+
+After installing either one, close your terminal window completely and open a new one before continuing, so the change takes effect.
+
+### Step 3: Clone and install
+
 ```bash
 git clone https://github.com/AsfandyarKhan72/PINNStudio.git
 cd PINNStudio
@@ -127,11 +153,15 @@ install.bat
 .\venv\Scripts\pinnstudio.exe
 ```
 
-The install script creates an isolated virtual environment, installs PINNStudio and its dependencies, and — if it detects an NVIDIA GPU that the default PyTorch build can't use (an older driver, most commonly) — automatically installs a more compatible PyTorch build instead, so GPU support works out of the box on more machines.
+The install script creates an isolated virtual environment inside the `PINNStudio` folder and installs PINNStudio and its dependencies into it — nothing is installed system-wide, and deleting the folder removes it completely. If it detects an NVIDIA GPU that the default PyTorch build can't use (an older driver, most commonly), it automatically installs a more compatible PyTorch build instead, so GPU support works out of the box on more machines. This step needs an internet connection and can take a few minutes.
 
-Requires Python 3.9+ and git already installed.
+### Step 4: Take the 60-second tour
 
-**60-second tour:** maximize the window for the best view — PINNStudio packs a lot of controls into the left panel. With the app open, leave the dimension on **1D**, pick **1D Heat** from the *Quick Examples* dropdown, and click **Solve**. The Training Log panel will stream progress, and the loss/solution plots will populate once the run finishes.
+Maximize the window for the best view — PINNStudio packs a lot of controls into the left panel. With the app open, leave the dimension on **1D**, pick **1D Heat** from the *Quick Examples* dropdown, and click **Solve**. The Training Log panel will stream progress, and the loss/solution plots will populate once the run finishes.
+
+### Something not working?
+
+Open an issue on GitHub with the exact command you ran and the full error message — see [Contributing](#contributing).
 
 ## Running PINNStudio Again
 
@@ -149,24 +179,10 @@ You only need to run the install steps above once. After that, launch PINNStudio
 
 That's it - no need to reinstall or recreate the virtual environment.
 
-## Installation
+## What Gets Installed
 
-It's recommended to use a clean Python environment:
+`install.sh` / `install.bat` (used in Quick Start above) set up an isolated Python virtual environment and install:
 
-```bash
-# macOS / Linux
-python3 -m venv venv
-source venv/bin/activate
-
-# Windows (Command Prompt or PowerShell)
-python -m venv venv
-venv\Scripts\activate
-
-pip install --upgrade pip
-pip install -r requirements.txt
-```
-
-### Core dependencies
 - [DeepXDE](https://github.com/lululxvi/deepxde) (PyTorch backend)
 - PyTorch
 - PyQt6
@@ -174,7 +190,7 @@ pip install -r requirements.txt
 - Matplotlib
 - Pandas
 
-Requires Python 3.9+. A CUDA-capable GPU is optional but recommended for larger 2D problems and inverse runs.
+A CUDA-capable GPU is optional but recommended for larger 2D problems and inverse runs.
 
 ## Built-in Templates
 
@@ -194,13 +210,13 @@ All seven templates ship with bundled FEM reference data (see [`reference_data/`
 
 ### 1D Heat
 
-$$\frac{\partial u}{\partial t} = 0.4\,\frac{\partial^2 u}{\partial x^2}, \qquad x \in [0, 1]$$
+$$\frac{\partial u}{\partial t} = 0.4\frac{\partial^2 u}{\partial x^2}, \qquad x \in [0, 1],\ t \in [0, 1]$$
 
 Initial condition: $u(x, 0) = \sin(\pi x)$. Dirichlet boundaries.
 
 ### 1D Allen-Cahn
 
-$$\frac{\partial u}{\partial t} = 0.0001\,\frac{\partial^2 u}{\partial x^2} - 5u^3 + 5u, \qquad x \in [-1, 1]$$
+$$\frac{\partial u}{\partial t} = 0.0001\frac{\partial^2 u}{\partial x^2} - 5u^3 + 5u, \qquad x \in [-1, 1],\ t \in [0, 1]$$
 
 Initial condition: $u(x, 0) = x^2\cos(\pi x)$. Periodic boundaries.
 
@@ -208,13 +224,13 @@ Initial condition: $u(x, 0) = x^2\cos(\pi x)$. Periodic boundaries.
 
 Fourth-order phase separation, split into two coupled second-order equations:
 
-$$\frac{\partial u}{\partial t} = \frac{\partial^2 v}{\partial x^2}, \qquad v = 0.01\,(u^3 - u) - 10^{-6}\,\frac{\partial^2 u}{\partial x^2}, \qquad x \in [-1, 1]$$
+$$\frac{\partial u}{\partial t} = \frac{\partial^2 v}{\partial x^2}, \qquad v = 0.01(u^3 - u) - 10^{-6}\frac{\partial^2 u}{\partial x^2}, \qquad x \in [-1, 1],\ t \in [0, 1]$$
 
 Initial condition: $u(x, 0) = -\cos(2\pi x)$. Periodic boundaries.
 
 ### 2D Heat (Dirichlet/Neumann)
 
-$$\frac{\partial u}{\partial t} = 0.4\left(\frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2}\right), \qquad (x, y) \in [0, 1]^2$$
+$$\frac{\partial u}{\partial t} = 0.4\left(\frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2}\right), \qquad (x, y) \in [0, 1]^2,\ t \in [0, 1]$$
 
 Initial condition: $u(x, y, 0) = 0$. Mixed Dirichlet/Neumann boundaries.
 
@@ -222,7 +238,7 @@ Initial condition: $u(x, y, 0) = 0$. Mixed Dirichlet/Neumann boundaries.
 
 Benchmark problem after Mattey & Ghosh (2022) — see [References](#references).
 
-$$\frac{\partial u}{\partial t} = 0.0001\left(\frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2}\right) - 5(u^3 - u), \qquad (x, y) \in [0, 1]^2$$
+$$\frac{\partial u}{\partial t} = 0.0001\left(\frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2}\right) - 5(u^3 - u), \qquad (x, y) \in [0, 1]^2,\ t \in [0, 1]$$
 
 Initial condition: $u(x, y, 0) = \sin(4\pi x)\cos(4\pi y)$. Periodic boundaries.
 
@@ -232,7 +248,7 @@ Benchmark problem after Wight & Zhao (2021) — see [References](#references).
 
 $$\frac{\partial u}{\partial t} = 0.00625\left(\frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2}\right) - 10(u^3 - u), \qquad (x, y) \in [0, 1]^2,\ t \in [0, 10]$$
 
-Initial condition: a smooth circular interface, $u(x, y, 0) = \tanh\!\left(\dfrac{0.35 - \sqrt{(x-0.5)^2 + (y-0.5)^2}}{0.05}\right)$. Periodic boundaries.
+Initial condition: a smooth circular interface, $u(x, y, 0) = \tanh\left(\dfrac{0.35 - \sqrt{(x-0.5)^2 + (y-0.5)^2}}{0.05}\right)$. Periodic boundaries.
 
 ### 2D Cahn-Hilliard (Wight)
 
