@@ -14,6 +14,12 @@ It supports both **forward problems** (solve a known PDE) and **inverse problems
 
 The goal is to make physics-informed machine learning accessible to researchers who need it but don't want to become deep learning engineers first. Setting up a PINN by hand touches autograd-based residuals, collocation sampling, loss weighting, and optimizer scheduling all at once — details that are easy to get subtly wrong and can cost hours of debugging before a single result can be trusted. PINNStudio lets researchers across science and engineering — materials science, mechanics, chemistry, biology, and beyond — set up and run both forward and inverse PINN problems for their own equations without building that infrastructure from scratch, on a framework that has been thoroughly tested so results are trustworthy from the first run.
 
+## Demo Video
+
+[![PINNStudio demo - setting up a PDE](https://img.youtube.com/vi/Ap-0VRwFbgE/maxresdefault.jpg)](https://youtu.be/Ap-0VRwFbgE)
+
+*Click to watch a full walkthrough of the PDE setup panel on YouTube.*
+
 ## Screenshots
 
 <p align="center">
