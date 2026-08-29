@@ -2,18 +2,19 @@
 echo Setting up PINNStudio...
 python -m venv venv
 venv\Scripts\pip.exe install --upgrade pip --quiet
-venv\Scripts\pip.exe install . --quiet
 
-echo Checking GPU support...
-venv\Scripts\python.exe -c "import torch; print(torch.cuda.is_available())" > gpu_check.tmp
-set /p GPU_OK=<gpu_check.tmp
-del gpu_check.tmp
-
+echo Checking for a compatible GPU...
 where nvidia-smi >nul 2>nul
-if %ERRORLEVEL%==0 if "%GPU_OK%"=="False" (
-    echo NVIDIA GPU found but not usable with the default PyTorch build - installing a broadly compatible version instead...
+if %ERRORLEVEL%==0 (
+    echo NVIDIA GPU detected - installing a broadly compatible PyTorch build (CUDA 12.1) first...
     venv\Scripts\pip.exe install torch --index-url https://download.pytorch.org/whl/cu121 --quiet
+) else (
+    echo No NVIDIA GPU detected - installing CPU-only PyTorch...
+    venv\Scripts\pip.exe install torch --index-url https://download.pytorch.org/whl/cpu --quiet
 )
+
+echo Installing PINNStudio and remaining dependencies...
+venv\Scripts\pip.exe install . --quiet
 
 echo.
 echo Done! Launch PINNStudio with:
