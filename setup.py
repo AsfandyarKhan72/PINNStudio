@@ -10,6 +10,11 @@ setup(
         "deepxde>=1.10.0",
         "torch>=2.0",
         "PyQt6>=6.4",
+        # Newer PyQt6-Qt6 builds fail to load on some Windows versions with a
+        # "DLL load failed" ImportError. Pin to a known-working build on Windows only;
+        # Linux/macOS keep using the latest compatible version.
+        "PyQt6==6.6.1; sys_platform == 'win32'",
+        "PyQt6-Qt6==6.6.1; sys_platform == 'win32'",
         "numpy",
         "matplotlib",
         "pandas",
