@@ -119,7 +119,7 @@ else:
 
 # ── Save directory setup ─────────────────────────────────────
 import os as _os
-_save_dir = "{config.save_dir}".strip()
+_save_dir = r"{config.save_dir}".strip()
 _use_save = bool(_save_dir)
 if _use_save:
     _os.makedirs(_save_dir, exist_ok=True)
@@ -184,7 +184,7 @@ if _problem_type == "Inverse":
                 arr = np.loadtxt(fpath, delimiter=",")
         return arr
 
-    _obs_data = _load_data("{config.inverse_data_file}")
+    _obs_data = _load_data(r"{config.inverse_data_file}")
     if _is_2d:
         _obs_xt = _obs_data[:, 0:3]  # x, y, t
         _obs_u  = _obs_data[:, 3:4]  # u
@@ -194,7 +194,7 @@ if _problem_type == "Inverse":
     print(f"Loaded {{len(_obs_xt)}} observation points from data file")
 
     if "{config.inverse_ic_type}" == "File (x, t, u)":
-        _ic_data = _load_data("{config.inverse_ic_file}")
+        _ic_data = _load_data(r"{config.inverse_ic_file}")
         _ic_xt   = _ic_data[:, 0:2]
         _ic_u    = _ic_data[:, 2:3]
         print(f"Loaded {{len(_ic_xt)}} IC points from file")
@@ -477,7 +477,7 @@ else:
             _ic_xyt  = np.hstack([_ic_xy, _ic_t0])     # (x, y, 0)
             _ic_vals = _ic_data[_ic_mask, 3:4]          # c values
             _constraints.append(dde.icbc.PointSetBC(_ic_xyt, _ic_vals, component=0))
-            print(f"IC loaded from file: {config.forward_ic_file} — {{_ic_mask.sum()}} points")
+            print(rf"IC loaded from file: {config.forward_ic_file} — {{_ic_mask.sum()}} points")
         elif _oi < len(_ic_active_list) and _ic_active_list[_oi].strip() == "True":
             _ic_expr = _ic_expressions[_oi].strip() if _oi < len(_ic_expressions) else "np.zeros_like(x[:,0])"
             def _make_ic(expr, comp):
@@ -681,7 +681,7 @@ for _pval in _param_values:
         _ic_pre_save_dir = _os.path.join(r"{config.save_dir}", "ic_pretrain")
         _os.makedirs(_ic_pre_save_dir, exist_ok=True)
         if {config.ic_pretrain_restore} and r"{config.ic_pretrain_restore_path}" and _os.path.exists(r"{config.ic_pretrain_restore_path}"):
-            print(f"  Restoring IC pre-train model from: {config.ic_pretrain_restore_path}")
+            print(rf"  Restoring IC pre-train model from: {config.ic_pretrain_restore_path}")
             _ic_ckpt = torch.load(r"{config.ic_pretrain_restore_path}", map_location="cpu")
             _ic_state = _ic_ckpt.get("model_state_dict", _ic_ckpt)
             _model_pre.net.load_state_dict(_ic_state)
@@ -1652,7 +1652,7 @@ if {config.time_adaptive}:
             _ic_pre_save_dir_ta = _os.path.join(r"{config.save_dir}", "ic_pretrain")
             _os.makedirs(_ic_pre_save_dir_ta, exist_ok=True)
             if {config.ic_pretrain_restore} and r"{config.ic_pretrain_restore_path}" and _os.path.exists(r"{config.ic_pretrain_restore_path}"):
-                print(f"  Restoring IC pre-train model from: {config.ic_pretrain_restore_path}")
+                print(rf"  Restoring IC pre-train model from: {config.ic_pretrain_restore_path}")
                 _ic_ckpt_ta = torch.load(r"{config.ic_pretrain_restore_path}", map_location="cpu")
                 _ic_state_ta = _ic_ckpt_ta.get("model_state_dict", _ic_ckpt_ta)
                 _model_pt.net.load_state_dict(_ic_state_ta)
