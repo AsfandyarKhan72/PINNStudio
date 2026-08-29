@@ -118,7 +118,7 @@ bash install.sh
 **Windows:**
 ```
 install.bat
-venv\Scripts\pinnstudio.exe
+.\venv\Scripts\pinnstudio.exe
 ```
 
 The install script creates an isolated virtual environment, installs PINNStudio and its dependencies, and — if it detects an NVIDIA GPU that the default PyTorch build can't use (an older driver, most commonly) — automatically installs a more compatible PyTorch build instead, so GPU support works out of the box on more machines.
@@ -138,7 +138,7 @@ You only need to run the install steps above once. After that, launch PINNStudio
 
 **Windows**, from inside the `PINNStudio` folder:
 ```
-venv\Scripts\pinnstudio.exe
+.\venv\Scripts\pinnstudio.exe
 ```
 
 That's it - no need to reinstall or recreate the virtual environment.
