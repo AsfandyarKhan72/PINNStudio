@@ -17,6 +17,31 @@ fi
 echo "Installing PINNStudio and remaining dependencies..."
 ./venv/bin/pip install . --quiet
 
+if [ "$(uname -s)" = "Linux" ]; then
+    echo "Creating a desktop launcher..."
+    INSTALL_DIR="$(pwd)"
+    DESKTOP_FILE="$HOME/.local/share/applications/pinnstudio.desktop"
+    mkdir -p "$HOME/.local/share/applications"
+    cat > "$DESKTOP_FILE" << DESKTOPEOF
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=PINNStudio
+Comment=No-code GUI for Physics-Informed Neural Networks
+Exec=$INSTALL_DIR/venv/bin/pinnstudio
+Path=$INSTALL_DIR
+Icon=applications-science
+Terminal=false
+Categories=Science;Education;
+DESKTOPEOF
+    chmod +x "$DESKTOP_FILE"
+    if [ -d "$HOME/Desktop" ]; then
+        cp "$DESKTOP_FILE" "$HOME/Desktop/PINNStudio.desktop"
+        chmod +x "$HOME/Desktop/PINNStudio.desktop"
+    fi
+    echo "Desktop launcher created — look for 'PINNStudio' in your applications menu (and on your Desktop, if you have one)."
+fi
+
 echo ""
 echo "Done! Launch PINNStudio with:"
 echo "  ./venv/bin/pinnstudio"
