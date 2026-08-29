@@ -105,8 +105,8 @@ pinnstudio/
 ## Quick Start
 
 ```bash
-git clone https://github.com/AsfandyarKhan72/pinnstudio.git
-cd pinnstudio
+git clone https://github.com/AsfandyarKhan72/PINNStudio.git
+cd PINNStudio
 ```
 
 **macOS / Linux:**
@@ -126,6 +126,22 @@ The install script creates an isolated virtual environment, installs PINNStudio 
 Requires Python 3.9+ and git already installed.
 
 **60-second tour:** maximize the window for the best view — PINNStudio packs a lot of controls into the left panel. With the app open, leave the dimension on **1D**, pick **1D Heat** from the *Quick Examples* dropdown, and click **Solve**. The Training Log panel will stream progress, and the loss/solution plots will populate once the run finishes.
+
+## Running PINNStudio Again
+
+You only need to run the install steps above once. After that, launch PINNStudio again anytime with:
+
+**macOS / Linux**, from inside the `PINNStudio` folder:
+```bash
+./venv/bin/pinnstudio
+```
+
+**Windows**, from inside the `PINNStudio` folder:
+```
+venv\Scripts\pinnstudio.exe
+```
+
+That's it - no need to reinstall or recreate the virtual environment.
 
 ## Installation
 
@@ -235,7 +251,7 @@ If PINNStudio is useful in your work, please cite it — see [`CITATION.cff`](CI
   author  = {Khan, Asfandyar},
   title   = {PINNStudio: A No-Code GUI for Physics-Informed Neural Networks},
   year    = {2026},
-  url     = {https://github.com/AsfandyarKhan72/pinnstudio}
+  url     = {https://github.com/AsfandyarKhan72/PINNStudio}
 }
 ```
 
