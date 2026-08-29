@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="pinnstudio",
-    version="0.1.0",
+    version="1.1.0",
     author="AsfandyarKhan72",
     description="No-code GUI for Physics-Informed Neural Networks using DeepXDE",
     packages=find_packages(),
