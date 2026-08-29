@@ -31,13 +31,19 @@ def run_pinn(config: PINNConfig, on_output=None, set_process=None):
     try:
         print(f"Generated script at: {tmp_path}")
         # Run the script as a subprocess
+        # Force the child process itself to use UTF-8 for its own stdout/stderr -
+        # otherwise Windows defaults a piped (non-console) stream to the legacy
+        # system codepage, which can't encode emoji/symbols the script prints.
+        _env = os.environ.copy()
+        _env["PYTHONIOENCODING"] = "utf-8"
         process = subprocess.Popen(
                     [sys.executable, tmp_path],
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
                     text=True,
                     encoding='utf-8',
-                    errors='replace'
+                    errors='replace',
+                    env=_env
                 )
         if set_process:
             set_process(process)
