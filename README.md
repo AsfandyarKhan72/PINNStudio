@@ -4,6 +4,19 @@
 
 ---
 
+## Quick Install
+
+**The fastest way to try PINNStudio** (any OS, no GPU-driver matching):
+
+```bash
+pip install pinnstudio
+pinnstudio
+```
+
+**Have an NVIDIA GPU?** Use the full install script instead - it detects your GPU and automatically installs a matching PyTorch build for you, which the plain pip install above does not do. See [Quick Start](#quick-start) below.
+
+---
+
 ## Overview
 
 Setting up a Physics-Informed Neural Network usually means writing a new DeepXDE script for every problem: defining the PDE residual, wiring up boundary and initial conditions, picking collocation points, choosing an optimizer schedule, and writing your own plotting/error-analysis code afterward.
