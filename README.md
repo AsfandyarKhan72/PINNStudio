@@ -28,6 +28,13 @@ source ~/.zshrc
 
 (Use <code>~/.bashrc</code> instead of <code>~/.zshrc</code> if your shell is bash.) Then <code>pinnstudio</code> should launch directly. This never comes up with <code>install.sh</code>/<code>install.bat</code>, since those use a virtual environment where the command is always found automatically.
 
+- **The suggested GPU fix command itself fails with a <code>flit_core</code> or "Could not find a version that satisfies" error?** Your pip is too old to resolve PyTorch's package index correctly. Upgrade it first, then retry:
+
+```bash
+python -m pip install --upgrade pip
+pip install torch --index-url https://download.pytorch.org/whl/cu121 --force-reinstall
+```
+
 </details>
 
 ---

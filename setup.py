@@ -5,7 +5,7 @@ long_description = (this_dir / "README.md").read_text(encoding="utf-8")
 
 setup(
     name="pinnstudio",
-    version="1.1.1",
+    version="1.1.2",
     author="AsfandyarKhan72",
     description="No-code GUI for Physics-Informed Neural Networks using DeepXDE",
     long_description=long_description,
@@ -18,6 +18,7 @@ setup(
     install_requires=[
         "deepxde>=1.10.0",
         "torch>=2.0",
+        "torch==2.5.1; sys_platform == 'win32'",
         "PyQt6>=6.4",
         # Newer PyQt6-Qt6 builds fail to load on some Windows versions with a
         # "DLL load failed" ImportError. Pin to a known-working build on Windows only;
