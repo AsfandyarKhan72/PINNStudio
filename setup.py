@@ -1,10 +1,19 @@
 from setuptools import setup, find_packages
+from pathlib import Path
+this_dir = Path(__file__).parent
+long_description = (this_dir / "README.md").read_text(encoding="utf-8")
 
 setup(
     name="pinnstudio",
     version="1.1.0",
     author="AsfandyarKhan72",
     description="No-code GUI for Physics-Informed Neural Networks using DeepXDE",
+    long_description=long_description,
+    long_description_content_type="text/markdown",
+    url="https://github.com/AsfandyarKhan72/PINNStudio",
+    project_urls={"Source": "https://github.com/AsfandyarKhan72/PINNStudio", "Issues": "https://github.com/AsfandyarKhan72/PINNStudio/issues"},
+    license="MIT",
+    classifiers=["Programming Language :: Python :: 3", "Operating System :: OS Independent", "Intended Audience :: Science/Research", "Topic :: Scientific/Engineering :: Physics"],
     packages=find_packages(),
     install_requires=[
         "deepxde>=1.10.0",
