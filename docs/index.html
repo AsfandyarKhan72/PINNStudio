@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PINNStudio — No-Code GUI for Physics-Informed Neural Networks</title>
+<meta name="description" content="A no-code desktop GUI for building, training, and visualizing Physics-Informed Neural Networks (PINNs), built on DeepXDE.">
+<style>
+  :root {
+    --bg: #0b0d12;
+    --bg-alt: #12151d;
+    --card: #171b26;
+    --border: #262b3a;
+    --text: #e8eaf0;
+    --text-dim: #9aa2b8;
+    --accent: #6ea8fe;
+    --accent-soft: rgba(110,168,254,0.12);
+    --code-bg: #0d0f16;
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.6;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 0 24px; }
+
+  header.hero {
+    padding: 96px 0 64px;
+    text-align: center;
+    background:
+      radial-gradient(600px 300px at 50% -10%, rgba(110,168,254,0.15), transparent 70%),
+      var(--bg);
+    border-bottom: 1px solid var(--border);
+  }
+  .eyebrow {
+    display: inline-block;
+    font-size: 13px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: var(--accent-soft);
+    padding: 6px 14px;
+    border-radius: 999px;
+    margin-bottom: 24px;
+    font-weight: 600;
+  }
+  h1 {
+    font-size: clamp(36px, 6vw, 56px);
+    margin: 0 0 16px;
+    letter-spacing: -0.02em;
+    font-weight: 700;
+  }
+  .tagline {
+    font-size: clamp(16px, 2.2vw, 20px);
+    color: var(--text-dim);
+    max-width: 640px;
+    margin: 0 auto 40px;
+  }
+
+  .install-box {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 12px 12px 12px 24px;
+    font-family: "SF Mono", Consolas, Menlo, monospace;
+    font-size: 15px;
+    color: #b7f5c9;
+    max-width: 100%;
+  }
+  .install-box code { color: #b7f5c9; white-space: nowrap; }
+  .copy-btn {
+    background: var(--accent);
+    color: #0b0d12;
+    border: none;
+    border-radius: 999px;
+    padding: 8px 16px;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    font-family: inherit;
+    flex-shrink: 0;
+  }
+  .copy-btn:hover { opacity: 0.9; }
+
+  .cta-row {
+    margin-top: 28px;
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .btn {
+    display: inline-block;
+    padding: 12px 22px;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 15px;
+    border: 1px solid var(--border);
+  }
+  .btn.primary { background: var(--accent); color: #0b0d12; border-color: var(--accent); }
+  .btn.primary:hover { opacity: 0.9; text-decoration: none; }
+  .btn.secondary { color: var(--text); }
+  .btn.secondary:hover { border-color: var(--accent); text-decoration: none; }
+
+  section { padding: 72px 0; border-bottom: 1px solid var(--border); }
+  section:last-of-type { border-bottom: none; }
+  h2 {
+    font-size: clamp(24px, 3vw, 32px);
+    margin: 0 0 12px;
+    letter-spacing: -0.01em;
+  }
+  .section-sub { color: var(--text-dim); max-width: 640px; margin: 0 0 40px; }
+
+  .video-frame {
+    position: relative;
+    padding-top: 56.25%;
+    border-radius: var(--radius);
+    overflow: hidden;
+    border: 1px solid var(--border);
+    background: var(--card);
+  }
+  .video-frame iframe {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;
+  }
+
+  .shot-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+  }
+  figure { margin: 0; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  figure img { display: block; width: 100%; height: auto; }
+  figcaption { padding: 14px 16px; color: var(--text-dim); font-size: 14px; }
+
+  .feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 20px;
+  }
+  .feature {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+  }
+  .feature h3 { margin: 0 0 8px; font-size: 17px; }
+  .feature p { margin: 0; color: var(--text-dim); font-size: 14.5px; }
+
+  .install-tabs { display: flex; flex-direction: column; gap: 24px; }
+  .install-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+  }
+  .install-card h3 { margin: 0 0 6px; font-size: 17px; }
+  .install-card p.desc { margin: 0 0 16px; color: var(--text-dim); font-size: 14.5px; }
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+    overflow-x: auto;
+    font-size: 14px;
+    margin: 0;
+  }
+  code { font-family: "SF Mono", Consolas, Menlo, monospace; }
+
+  footer {
+    padding: 48px 0 64px;
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 14px;
+  }
+  footer a { color: var(--text-dim); }
+  footer .credit { margin-top: 8px; }
+
+  @media (max-width: 560px) {
+    header.hero { padding: 64px 0 48px; }
+    .install-box { flex-direction: column; align-items: stretch; padding: 16px; border-radius: 14px; }
+    .install-box code { white-space: normal; word-break: break-all; }
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <span class="eyebrow">Open Source · MIT License</span>
+    <h1>PINNStudio</h1>
+    <p class="tagline">A no-code desktop GUI for building, training, and visualizing Physics-Informed Neural Networks — built on DeepXDE.</p>
+
+    <div class="install-box">
+      <code id="install-cmd">pip install pinnstudio</code>
+      <button class="copy-btn" onclick="navigator.clipboard.writeText('pip install pinnstudio'); this.textContent='Copied!'; setTimeout(() => this.textContent='Copy', 1500)">Copy</button>
+    </div>
+
+    <div class="cta-row">
+      <a class="btn primary" href="https://github.com/AsfandyarKhan72/PINNStudio">View on GitHub</a>
+      <a class="btn secondary" href="https://github.com/AsfandyarKhan72/PINNStudio#quick-start">Full Install Guide</a>
+      <a class="btn secondary" href="https://github.com/AsfandyarKhan72/PINNStudio/discussions">Discussions</a>
+    </div>
+  </div>
+</header>
+
+<section id="overview">
+  <div class="wrap">
+    <h2>Skip the boilerplate</h2>
+    <p class="section-sub">Setting up a PINN usually means writing a new DeepXDE script for every problem — defining the PDE residual, wiring up boundary and initial conditions, picking collocation points, and writing your own plotting code afterward. PINNStudio replaces that with a form: describe your problem through the interface, and it generates a standalone DeepXDE/PyTorch script, runs it, and streams the training log, loss curves, and solution plots back into the app.</p>
+
+    <div class="video-frame">
+      <iframe src="https://www.youtube.com/embed/Ap-0VRwFbgE" title="PINNStudio demo" allowfullscreen loading="lazy"></iframe>
+    </div>
+  </div>
+</section>
+
+<section id="screenshots">
+  <div class="wrap">
+    <h2>See it in action</h2>
+    <p class="section-sub">Problem setup, training controls, and live visualization, all in one window.</p>
+    <div class="shot-grid">
+      <figure>
+        <img src="https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/assets/screenshots/pde_builder.png" alt="PINNStudio PDE, domain, and collocation point setup" loading="lazy">
+        <figcaption>Problem setup: PDE residual, domain, and collocation points.</figcaption>
+      </figure>
+      <figure>
+        <img src="https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/assets/screenshots/training_panel.png" alt="PINNStudio network, training schedule, and adaptive training controls" loading="lazy">
+        <figcaption>Network architecture, optimizer schedule, and adaptive training.</figcaption>
+      </figure>
+      <figure>
+        <img src="https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/assets/results/restored_animation.gif" alt="Animated PINN solution over time" loading="lazy">
+        <figcaption>Time evolution of a PINN solution, restored from a saved checkpoint.</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section id="features">
+  <div class="wrap">
+    <h2>What it can do</h2>
+    <div class="feature-grid">
+      <div class="feature">
+        <h3>Forward &amp; inverse problems</h3>
+        <p>Solve a known PDE, or estimate unknown PDE parameters from observation data.</p>
+      </div>
+      <div class="feature">
+        <h3>1D and 2D domains</h3>
+        <p>Including coupled, multi-output PDE systems in space and time.</p>
+      </div>
+      <div class="feature">
+        <h3>Built-in templates</h3>
+        <p>Heat, Allen-Cahn, and Cahn-Hilliard equations ready to run in seconds.</p>
+      </div>
+      <div class="feature">
+        <h3>Live training feedback</h3>
+        <p>Streaming training log, loss curves, and solution plots as the model trains.</p>
+      </div>
+      <div class="feature">
+        <h3>GPU-aware install</h3>
+        <p>Automatically detects your NVIDIA GPU and installs a compatible PyTorch build.</p>
+      </div>
+      <div class="feature">
+        <h3>Built on DeepXDE</h3>
+        <p>Runs on top of the well-established DeepXDE library, with PyTorch under the hood.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="install">
+  <div class="wrap">
+    <h2>Install</h2>
+    <p class="section-sub">Two ways to get started, depending on what you need.</p>
+    <div class="install-tabs">
+      <div class="install-card">
+        <h3>Quick install</h3>
+        <p class="desc">Fastest way to try it, on any OS. Skips automatic GPU-driver matching.</p>
+        <pre><code>pip install pinnstudio
+pinnstudio</code></pre>
+      </div>
+      <div class="install-card">
+        <h3>Full install (recommended for GPU users)</h3>
+        <p class="desc">Creates an isolated environment and installs a PyTorch build matched to your GPU automatically.</p>
+        <pre><code>git clone https://github.com/AsfandyarKhan72/PINNStudio.git
+cd PINNStudio
+bash install.sh        # or install.bat on Windows
+./venv/bin/pinnstudio   # or .\venv\Scripts\pinnstudio.exe</code></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>Built on <a href="https://github.com/lululxvi/deepxde">DeepXDE</a> — credit to Lu Lu and the DeepXDE team.</div>
+    <div class="credit">
+      <a href="https://github.com/AsfandyarKhan72/PINNStudio">GitHub</a>
+      &nbsp;·&nbsp;
+      <a href="https://pypi.org/project/pinnstudio/">PyPI</a>
+      &nbsp;·&nbsp;
+      <a href="https://github.com/AsfandyarKhan72/PINNStudio/discussions">Discussions</a>
+      &nbsp;·&nbsp;
+      <a href="https://github.com/AsfandyarKhan72/PINNStudio/blob/main/LICENSE">MIT License</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
