@@ -754,7 +754,7 @@ for _pval in _param_values:
                                 for _spl in _sp_lines:
                                     _spparts = _spl.replace("[","").replace("]","").split()
                                     if len(_spparts) >= 2:
-                                        _fa.write(f"{{_sched_cum_iters + int(_spparts[0])}} [{{_spparts[1]}}]\\n")
+                                        _fa.write(f"{{int(_spparts[0])}} [{{_spparts[1]}}]\\n")
                         except Exception as _spe:
                             print(f"Could not merge phase {{_sp_i+1}} parameter history: {{_spe}}")
                         _sched_cum_iters = loss_history.steps[-1] if loss_history.steps else (_sched_cum_iters + _sp['iterations'])
@@ -786,7 +786,7 @@ for _pval in _param_values:
                                 for _spl in _sp_lines:
                                     _spparts = _spl.replace("[","").replace("]","").split()
                                     if len(_spparts) >= 2:
-                                        _fa.write(f"{{_sched_cum_iters + int(_spparts[0])}} [{{_spparts[1]}}]\\n")
+                                        _fa.write(f"{{int(_spparts[0])}} [{{_spparts[1]}}]\\n")
                         except Exception as _spe:
                             print(f"Could not merge phase {{_sp_i+1}} parameter history: {{_spe}}")
                         _sched_cum_iters = loss_history.steps[-1] if loss_history.steps else (_sched_cum_iters + _sp['iterations'])
@@ -809,14 +809,6 @@ for _pval in _param_values:
                     model.net.double()
                     print("  [L-BFGS] Switched to float64")
                 if _problem_type == "Inverse":
-                    _last_iter = 0
-                    try:
-                        with open("/tmp/param_history.txt", "r") as _f:
-                            _lines = [l.strip() for l in _f if l.strip()]
-                            if _lines:
-                                _last_iter = int(_lines[-1].replace("[","").replace("]","").split()[0])
-                    except Exception:
-                        pass
                     _var_cb2 = dde.callbacks.VariableValue(
                         [{config.inverse_param_name}], period=200, filename="/tmp/param_history_phase2.txt",
                         precision=6
@@ -847,7 +839,7 @@ for _pval in _param_values:
                             for _p2l in _p2_lines:
                                 _p2parts = _p2l.replace("[","").replace("]","").split()
                                 if len(_p2parts) >= 2:
-                                    _new_iter = _last_iter + int(_p2parts[0])
+                                    _new_iter = int(_p2parts[0])
                                     _fa.write(f"{{_new_iter}} [{{_p2parts[1]}}]\\n")
                     except Exception as _ae:
                         print(f"Could not append phase 2 history: {{_ae}}")
