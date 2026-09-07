@@ -365,7 +365,7 @@ If PINNStudio is useful in your work, please cite it — see [`CITATION.cff`](CI
 
 ```bibtex
 @software{khan2026pinnstudio,
-  author  = {Khan, Asfandyar},
+  author  = {Khan, Asfandyar and Mamivand, Mahmood},
   title   = {PINNStudio: A No-Code GUI for Physics-Informed Neural Networks},
   year    = {2026},
   url     = {https://github.com/AsfandyarKhan72/PINNStudio}

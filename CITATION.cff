@@ -7,6 +7,9 @@ authors:
   - family-names: "Khan"
     given-names: "Asfandyar"
     affiliation: "Boise State University"
+  - family-names: "Mamivand"
+    given-names: "Mahmood"
+    affiliation: "Boise State University"
 repository-code: "https://github.com/AsfandyarKhan72/pinnstudio"
 license: MIT
 version: 0.1.0
