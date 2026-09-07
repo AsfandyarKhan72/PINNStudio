@@ -472,7 +472,7 @@ class MainWindow(QMainWindow):
         ic_pt_layout.setSpacing(4); ic_pt_layout.setContentsMargins(0, 0, 0, 0)
         ic_pt_layout.addWidget(QLabel("IC pre-train optimizer:"))
         self.ic_pretrain_opt = QComboBox()
-        self.ic_pretrain_opt.addItems(["adam"])
+        self.ic_pretrain_opt.addItem("Adam", "adam")
         self.ic_pretrain_opt.setFixedHeight(28)
         ic_pt_layout.addWidget(self.ic_pretrain_opt)
         ic_pt_layout.addWidget(QLabel("IC pre-train iterations:"))
@@ -665,7 +665,9 @@ class MainWindow(QMainWindow):
         row_a1 = QHBoxLayout()
         row_a1.addWidget(QLabel("Method:"))
         self.adapt_combo = QComboBox()
-        self.adapt_combo.addItems(["None", "RAR", "Time Adaptive"])
+        self.adapt_combo.addItem("None", "None")
+        self.adapt_combo.addItem("Residual-based Adaptive Refinement (RAR)", "RAR")
+        self.adapt_combo.addItem("Time Adaptive", "Time Adaptive")
         self.adapt_combo.setFixedHeight(28)
         self.adapt_combo.currentTextChanged.connect(self._on_adapt_changed)
         row_a1.addWidget(self.adapt_combo)
@@ -744,7 +746,8 @@ class MainWindow(QMainWindow):
         tl_row.setContentsMargins(0, 0, 0, 0)
         tl_row.addWidget(QLabel("Transfer optimizer:"))
         self.ta_transfer_opt = QComboBox()
-        self.ta_transfer_opt.addItems(["adam", "lbfgs"])
+        self.ta_transfer_opt.addItem("Adam", "adam")
+        self.ta_transfer_opt.addItem("L-BFGS", "lbfgs")
         self.ta_transfer_opt.setFixedHeight(26); self.ta_transfer_opt.setFixedWidth(80)
         tl_row.addStretch(); tl_row.addWidget(self.ta_transfer_opt)
         self.ta_transfer_opt_widget.setVisible(False)
@@ -902,7 +905,8 @@ class MainWindow(QMainWindow):
 
         restore_content_layout.addWidget(QLabel("Optimizer used for this model:"))
         self.restore_optimizer_combo = QComboBox()
-        self.restore_optimizer_combo.addItems(["adam", "lbfgs"])
+        self.restore_optimizer_combo.addItem("Adam", "adam")
+        self.restore_optimizer_combo.addItem("L-BFGS", "lbfgs")
         self.restore_optimizer_combo.setFixedHeight(28)
         restore_content_layout.addWidget(self.restore_optimizer_combo)
 
@@ -1442,8 +1446,13 @@ class MainWindow(QMainWindow):
                 self.ta_group_rows.remove(row_data)
         remove_btn.clicked.connect(_remove)
     
+    def _set_combo_data(self, combo, value):
+        idx = combo.findData(value)
+        if idx >= 0:
+            combo.setCurrentIndex(idx)
+
     def _on_adapt_changed(self, text):
-        self.rar_widget.setVisible(text == "RAR")
+        self.rar_widget.setVisible(text == "Residual-based Adaptive Refinement (RAR)")
         self.ta_widget.setVisible(text == "Time Adaptive")
     
     def _build_ta_step_groups_json(self):
@@ -2009,18 +2018,18 @@ class MainWindow(QMainWindow):
             plot_type=self.plot_type_combo.currentText(),
             num_timesteps=self.timesteps_spin.value(),
             save_dir=self.save_dir_input.text(),
-            adapt_method=self.adapt_combo.currentText(),
+            adapt_method=self.adapt_combo.currentData(),
             rar_cycles=self.rar_cycles.value(),
             rar_candidates=self.rar_candidates.value(),
             rar_add_points=self.rar_add_points.value(),
             rar_adam_iters=self.rar_adam_iters.value(),
             rar_lbfgs_iters=self.rar_lbfgs_iters.value(),
-            time_adaptive=self.adapt_combo.currentText() == "Time Adaptive",
+            time_adaptive=self.adapt_combo.currentData() == "Time Adaptive",
             ta_num_steps=sum(r['steps'].value() for r in self.ta_group_rows) if self.ta_group_rows else self.ta_steps.value(),
             ta_grid_size=int(self.ta_grid.currentText()),
             ta_step_groups=self._build_ta_step_groups_json(),
             ta_transfer_learning=self.ta_transfer_cb.isChecked(),
-            ta_transfer_optimizer=self.ta_transfer_opt.currentText(),
+            ta_transfer_optimizer=self.ta_transfer_opt.currentData(),
             learning_rate=self.lr_spin.value(),
             loss_type=self.loss_combo.currentText(),
             parametric_study=False,
@@ -2048,7 +2057,7 @@ class MainWindow(QMainWindow):
             float_type=getattr(self, '_float_type', 'float64'),
             batch_size=self.batch_spin.value() if self.batch_check.isChecked() else 0,
             ic_pretrain=self.ic_pretrain_cb.isChecked(),
-            ic_pretrain_optimizer=self.ic_pretrain_opt.currentText(),
+            ic_pretrain_optimizer=self.ic_pretrain_opt.currentData(),
             ic_pretrain_iterations=self.ic_pretrain_iters.value(),
             ic_pretrain_num_test=self.ic_pretrain_test.value(),
             ic_pretrain_num_initial=self.ic_pretrain_init.value(),
@@ -2153,7 +2162,7 @@ class MainWindow(QMainWindow):
                 self.adapt_combo.removeItem(_ta_idx)
         else:
             if _ta_idx == -1:
-                self.adapt_combo.addItem("Time Adaptive")
+                self.adapt_combo.addItem("Time Adaptive", "Time Adaptive")
             if getattr(self, '_ta_suspended_for_inverse', False):
                 self._ta_suspended_for_inverse = False
                 _ta_cfg = getattr(self, '_current_ta_cfg', None)
@@ -2166,7 +2175,7 @@ class MainWindow(QMainWindow):
                         self._add_ta_step_group(_g_start, _g_end, _g_steps)
                     self.ta_transfer_cb.setChecked(_ta_cfg.get('transfer_learning', False))
                     self.ta_grid.setCurrentText(str(_ta_cfg.get('ic_grid', 101)))
-                    self.ta_transfer_opt.setCurrentText(_ta_cfg.get('transfer_optimizer', 'adam'))
+                    self._set_combo_data(self.ta_transfer_opt, _ta_cfg.get('transfer_optimizer', 'adam'))
         # 2D Allen-Cahn (Wight & Zhao): Inverse trains over a shorter t
         # range than Forward (see the template's inverse_t_max) since
         # fitting the unknown parameter over the full t in [0,10] window
@@ -3270,13 +3279,13 @@ print("ERROR_ANALYSIS_DONE")
                     self._add_ta_step_group(g_start, g_end, g_steps)
                 self.ta_transfer_cb.setChecked(ta_cfg.get('transfer_learning', False))
                 self.ta_grid.setCurrentText(str(ta_cfg.get('ic_grid', 101)))
-                self.ta_transfer_opt.setCurrentText(ta_cfg.get('transfer_optimizer', 'adam'))
+                self._set_combo_data(self.ta_transfer_opt, ta_cfg.get('transfer_optimizer', 'adam'))
             else:
                 self.adapt_combo.setCurrentText("None")
                 self._add_ta_step_group(0.0, 1.0, 10)
                 self.ta_transfer_cb.setChecked(False)
                 self.ta_grid.setCurrentText("101")
-                self.ta_transfer_opt.setCurrentText("adam")
+                self._set_combo_data(self.ta_transfer_opt, "adam")
                 if ta_cfg and self.radio_inverse.isChecked():
                     self._ta_suspended_for_inverse = True
             self._template_ref_dir = t.get('ref_dir', '')
@@ -4008,7 +4017,7 @@ print("ERROR_ANALYSIS_V2_DONE")
                 # weight appended at the end for inverse problems.
                 w_str = w_str + "," + str(self.inv_obs_weight.value())
             phases.append({
-                'optimizer': ph['opt'].currentText(),
+                'optimizer': ph['opt'].currentData(),
                 'iterations': ph['iters'].value(),
                 'lr': ph['lr'].value(),
                 'loss': ph.get('loss', self.loss_combo).currentText() if 'loss' in ph else 'MSE',
@@ -4057,8 +4066,9 @@ print("ERROR_ANALYSIS_V2_DONE")
         opt_row = QHBoxLayout()
         opt_row.addWidget(QLabel("Optimizer:"))
         opt_combo = QComboBox()
-        opt_combo.addItems(["adam", "lbfgs"])
-        opt_combo.setCurrentText(optimizer)
+        opt_combo.addItem("Adam", "adam")
+        opt_combo.addItem("L-BFGS", "lbfgs")
+        self._set_combo_data(opt_combo, optimizer)
         opt_combo.setFixedHeight(26); opt_combo.setFixedWidth(80)
         opt_row.addStretch(); opt_row.addWidget(opt_combo)
         phase_layout.addLayout(opt_row)
@@ -4084,8 +4094,8 @@ print("ERROR_ANALYSIS_V2_DONE")
         lr_row.addStretch(); lr_row.addWidget(lr_spin)
         phase_layout.addWidget(lr_widget)
         lr_widget.setVisible(optimizer != "lbfgs")
-        opt_combo.currentTextChanged.connect(
-            lambda t, w=lr_widget: w.setVisible(t != "lbfgs")
+        opt_combo.currentIndexChanged.connect(
+            lambda _idx, w=lr_widget, c=opt_combo: w.setVisible(c.currentData() != "lbfgs")
         )
 
         # Loss function
@@ -4156,7 +4166,7 @@ print("ERROR_ANALYSIS_V2_DONE")
         model_path  = self.restore_model_path.text().strip()
         config_path = self.restore_config_path.text().strip()
         save_dir    = self.restore_save_path.text().strip()
-        optimizer   = self.restore_optimizer_combo.currentText()
+        optimizer   = self.restore_optimizer_combo.currentData()
         viz_type    = self.restore_viz_combo.currentText()
         output_idx  = self.restore_output_combo.currentIndex()
         t_steps     = self.restore_tsteps_spin.value()
