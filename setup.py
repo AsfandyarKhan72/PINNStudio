@@ -15,6 +15,7 @@ setup(
     license="MIT",
     classifiers=["Programming Language :: Python :: 3", "Operating System :: OS Independent", "Intended Audience :: Science/Research", "Topic :: Scientific/Engineering :: Physics"],
     packages=find_packages(),
+    include_package_data=True,
     install_requires=[
         "deepxde>=1.10.0",
         "torch>=2.0",
