@@ -283,13 +283,13 @@ Each template preconfigures the PDE, domain, boundary/initial conditions, networ
 
 All five templates ship with bundled FEM reference data (see [`reference_data/`](reference_data)), generated independently of the PINN, so Error Analysis auto-configures against real ground truth the moment you load them — no setup, no external download.
 
-| Template | Dimension | System | Reference data |
-|---|---|---|---|
-| 1D Heat | 1D | Single PDE | ✅ bundled |
-| 1D Allen-Cahn | 1D | Single PDE | ✅ bundled |
-| 2D Heat | 2D | Single PDE | ✅ bundled |
-| 2D Allen-Cahn | 2D | Single PDE | ✅ bundled |
-| 2D Allen-Cahn | 2D | Single PDE | ✅ bundled |
+| Template | Dimension | System | Problem Type | Reference | Reference data |
+|---|---|---|---|---|---|
+| 1D Heat | 1D | Single PDE | Forward + Inverse | — | ✅ bundled |
+| 1D Allen-Cahn | 1D | Single PDE | Forward + Inverse | [Wight & Zhao (2021)](#references) | ✅ bundled |
+| 2D Heat | 2D | Single PDE | Forward + Inverse | — | ✅ bundled |
+| 2D Allen-Cahn | 2D | Single PDE | Forward + Inverse | [Wight & Zhao (2021)](#references) | ✅ bundled |
+| 2D Allen-Cahn | 2D | Single PDE | Forward + Inverse | [Mattey & Ghosh (2022)](#references) | ✅ bundled |
 
 ### 1D Heat
 
