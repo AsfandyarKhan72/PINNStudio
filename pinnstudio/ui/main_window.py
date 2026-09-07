@@ -80,6 +80,27 @@ class SolverThread(QThread):
             self.process.terminate()
 
 
+# --- Update-check background thread ---
+class UpdateCheckThread(QThread):
+    """Fetches the latest published version from PyPI without blocking the GUI."""
+    result_signal = pyqtSignal(str)
+
+    def run(self):
+        try:
+            import json
+            import urllib.request
+            req = urllib.request.Request(
+                "https://pypi.org/pypi/pinnstudio/json",
+                headers={"User-Agent": "PINNStudio-update-check"},
+            )
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+            latest = data.get("info", {}).get("version", "")
+            self.result_signal.emit(latest)
+        except Exception:
+            self.result_signal.emit("")
+
+
 # ── Main Window ──────────────────────────────────────────────
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -94,6 +115,7 @@ class MainWindow(QMainWindow):
         self._apply_theme()
         self._build_ui()
         self._apply_display_settings()
+        self._check_for_updates()
 
     def _apply_theme(self):
         self.setStyleSheet("""
@@ -191,6 +213,47 @@ class MainWindow(QMainWindow):
             QMenu::item:selected { background: #3e3e42; }
         """)
 
+    def _check_for_updates(self):
+        """Kick off a background check against PyPI for a newer PINNStudio release."""
+        self._current_pkg_version = self._get_installed_version()
+        if not self._current_pkg_version:
+            return
+        self._update_thread = UpdateCheckThread()
+        self._update_thread.result_signal.connect(self._on_update_check_result)
+        self._update_thread.start()
+
+    def _get_installed_version(self):
+        try:
+            from importlib.metadata import version as _pkg_version
+            return _pkg_version("pinnstudio")
+        except Exception:
+            return None
+
+    def _version_tuple(self, v):
+        parts = []
+        for p in v.split("."):
+            digits = ""
+            for ch in p:
+                if ch.isdigit():
+                    digits += ch
+                else:
+                    break
+            parts.append(int(digits) if digits else 0)
+        return tuple(parts)
+
+    def _on_update_check_result(self, latest_version):
+        if not latest_version or not getattr(self, "_current_pkg_version", None):
+            return
+        try:
+            is_newer = self._version_tuple(latest_version) > self._version_tuple(self._current_pkg_version)
+        except Exception:
+            is_newer = False
+        if is_newer:
+            self.update_banner_label.setText(
+                f"🔔  A newer version of PINNStudio is available: {latest_version}  (you have {self._current_pkg_version}).   Update with:  pip install --upgrade pinnstudio"
+            )
+            self.update_banner.setVisible(True)
+
     def _build_ui(self):
         from PyQt6.QtWidgets import QScrollArea
 
@@ -213,8 +276,27 @@ class MainWindow(QMainWindow):
 
         central = QWidget()
         self.setCentralWidget(central)
-        root = QHBoxLayout(central)
+        outer_layout = QVBoxLayout(central)
+        outer_layout.setContentsMargins(0, 0, 0, 0)
+        outer_layout.setSpacing(0)
+        self.update_banner = QWidget()
+        self.update_banner.setStyleSheet("background: #2aa198;")
+        self.update_banner.setVisible(False)
+        banner_layout = QHBoxLayout(self.update_banner)
+        banner_layout.setContentsMargins(12, 6, 12, 6)
+        self.update_banner_label = QLabel("")
+        self.update_banner_label.setStyleSheet("color: #002b36; font-weight: bold; background: transparent;")
+        banner_layout.addWidget(self.update_banner_label)
+        banner_layout.addStretch()
+        update_dismiss_btn = QPushButton("✕")
+        update_dismiss_btn.setFixedSize(24, 24)
+        update_dismiss_btn.setStyleSheet("background: transparent; color: #002b36; border: none; font-weight: bold;")
+        update_dismiss_btn.clicked.connect(lambda: self.update_banner.setVisible(False))
+        banner_layout.addWidget(update_dismiss_btn)
+        outer_layout.addWidget(self.update_banner)
+        root = QHBoxLayout()
         root.setContentsMargins(0, 0, 0, 0)
+        outer_layout.addLayout(root)
 
         splitter = QSplitter(Qt.Orientation.Horizontal)
         root.addWidget(splitter)
