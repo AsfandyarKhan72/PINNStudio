@@ -333,7 +333,7 @@ $$\frac{\partial u}{\partial t} = 0.00625\left(\frac{\partial^2 u}{\partial x^2}
 
 Initial condition: a smooth circular interface, $u(x, y, 0) = \tanh\left(\dfrac{0.35 - \sqrt{(x-0.5)^2 + (y-0.5)^2}}{0.05}\right)$. Periodic boundaries.
 
-> **Note:** `t \in [0, 10]` is a wide time window for a single PINN pass, so this template loads with **Time Adaptive** training on by default — split into steps of 1 (`0→1, 1→2, ..., 9→10`) with transfer learning enabled, so each step warm-starts from the last. Adjust or disable this in the *Adaptive Training* panel if you'd rather train the full range in one pass.
+> **Note:** $t \in [0, 10]$ is a wide time window for a single PINN pass, so this template loads with **Time Adaptive** training on by default — split into steps of 1 (`0→1, 1→2, ..., 9→10`) with transfer learning enabled, so each step warm-starts from the last. Adjust or disable this in the *Adaptive Training* panel if you'd rather train the full range in one pass.
 
 ### 2D Allen-Cahn
 
@@ -343,7 +343,7 @@ $$\frac{\partial u}{\partial t} = 0.0001\left(\frac{\partial^2 u}{\partial x^2} 
 
 Initial condition: $u(x, y, 0) = \sin(4\pi x)\cos(4\pi y)$. Periodic boundaries.
 
-> **Note:** This template also loads with **Time Adaptive** training on by default — `t \in [0, 1]` split into steps of 0.25 (`0→0.25, 0.25→0.5, 0.5→0.75, 0.75→1`) with transfer learning enabled. Adjust or disable this in the *Adaptive Training* panel if you'd rather train the full range in one pass.
+> **Note:** This template also loads with **Time Adaptive** training on by default — $t \in [0, 1]$ split into steps of 0.25 (`0→0.25, 0.25→0.5, 0.5→0.75, 0.75→1`) with transfer learning enabled. Adjust or disable this in the *Adaptive Training* panel if you'd rather train the full range in one pass.
 
 ### 2D Cahn-Hilliard
 

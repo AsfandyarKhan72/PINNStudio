@@ -84,7 +84,7 @@ class SolverThread(QThread):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("PINNStudio — PINN Solver")
+        self.setWindowTitle("PINNStudio — No-Code GUI for Physics-Informed Neural Networks (PINNs)")
         self.setMinimumSize(1100, 750)
         self._font_size = 16
         self._log_font_size = 16
@@ -376,7 +376,7 @@ class MainWindow(QMainWindow):
         left_layout.addWidget(points_group)
 
         # ── Boundary & Initial conditions ─────────────────────
-        self.bc_group = QGroupBox("Boundary & Initial Conditions")
+        self.bc_group = QGroupBox("Boundary && Initial Conditions")
         self.bc_main_layout = QVBoxLayout(self.bc_group)
         self.bc_main_layout.setSpacing(4)
         self.bc_left_types = [];  self.bc_left_vals = [];   self.bc_left_active = [];  self.bc_left_deriv = []
@@ -1112,10 +1112,10 @@ class MainWindow(QMainWindow):
         if is_2d:
             self.quick_examples_combo.addItems([
                 "None",
-                "2D Heat (Dirichlet/Neumann)",
-                "2D Allen-Cahn (Mattey)",
-                "2D Allen-Cahn (Wight)",
-                "2D Cahn-Hilliard (Wight)"
+                "2D Heat",
+                "2D Allen-Cahn (Mattey & Ghosh)",
+                "2D Allen-Cahn (Wight & Zhao)",
+                "2D Cahn-Hilliard"
             ])
         else:
             self.quick_examples_combo.addItems([
@@ -2053,10 +2053,10 @@ class MainWindow(QMainWindow):
         "1D Heat": (0, "0.4"),
         "1D Allen-Cahn": (0, "0.0001"),
         "1D Cahn-Hilliard": (1, "1e-6"),
-        "2D Heat (Dirichlet/Neumann)": (0, "0.4"),
-        "2D Allen-Cahn (Mattey)": (0, "0.0001"),
-        "2D Allen-Cahn (Wight)": (0, "0.00625"),
-        "2D Cahn-Hilliard (Wight)": (1, "0.05"),
+        "2D Heat": (0, "0.4"),
+        "2D Allen-Cahn (Mattey & Ghosh)": (0, "0.0001"),
+        "2D Allen-Cahn (Wight & Zhao)": (0, "0.00625"),
+        "2D Cahn-Hilliard": (1, "0.05"),
     }
 
     def _sync_inverse_pde_substitution(self, is_inv):
@@ -3055,7 +3055,7 @@ print("ERROR_ANALYSIS_DONE")
             return
 
         templates_2d = {
-            "2D Heat (Dirichlet/Neumann)": {
+            "2D Heat": {
                 'pde': ["du_t - 0.4*(du_xx + du_yy)"],
                 'ic': ["0.0"],
                 'num_domain': 5000,
@@ -3075,7 +3075,7 @@ print("ERROR_ANALYSIS_DONE")
                 'ic_weight': 100.0,
                 'ref_dir': os.path.join(REFERENCE_DATA_DIR, "2D", "heat"),
             },
-            "2D Allen-Cahn (Mattey)": {
+            "2D Allen-Cahn (Mattey & Ghosh)": {
                 'pde': ["du_t - 0.0001*(du_xx + du_yy) + (u**3 - u)"],
                 'ic': ["sin(4*pi*x)*cos(4*pi*y)"],
                 'num_domain': 10000,
@@ -3096,7 +3096,7 @@ print("ERROR_ANALYSIS_DONE")
                 'ref_dir': os.path.join(REFERENCE_DATA_DIR, "2D", "allen_cahn_mattey"),
                 'ta_default': {'step_groups': [(0.0, 1.0, 4)], 'transfer_learning': True, 'ic_grid': 51, 'transfer_optimizer': 'lbfgs'},
             },
-            "2D Allen-Cahn (Wight)": {
+            "2D Allen-Cahn (Wight & Zhao)": {
                 'pde': ["du_t - 0.00625*(du_xx + du_yy) + 10*(u**3 - u)"],
                 'ic': ["tanh((0.35 - sqrt((x-0.5)**2 + (y-0.5)**2)) / (2*0.025))"],
                 'num_domain': 10000,
@@ -3118,7 +3118,7 @@ print("ERROR_ANALYSIS_DONE")
                 'ref_dir': os.path.join(REFERENCE_DATA_DIR, "2D", "allen_cahn_wight"),
                 'ta_default': {'step_groups': [(0.0, 10.0, 10)], 'transfer_learning': True, 'ic_grid': 51, 'transfer_optimizer': 'lbfgs'},
             },
-            "2D Cahn-Hilliard (Wight)": {
+            "2D Cahn-Hilliard": {
                 'pde': ["du_t - (dmu_xx + dmu_yy)",
                         "mu - (u**3 - u) + 0.05**2*(du_xx + du_yy)"],
                 'ic': ["max(tanh((0.4-sqrt((x-0.7*0.4)**2+(y)**2))/(2*0.05)), tanh((0.4-sqrt((x+0.7*0.4)**2+(y)**2))/(2*0.05)))",
@@ -4235,7 +4235,7 @@ print("ERROR_ANALYSIS_V2_DONE")
 
     def _on_restore_done(self, success):
         self.restore_btn.setEnabled(True)
-        self.restore_btn.setText("🔄  Restore & Visualize")
+        self.restore_btn.setText("🔄  Restore && Visualize")
         save_dir = self.restore_save_path.text().strip()
         if success:
             self.log_box.append("✅ Restore complete!")
