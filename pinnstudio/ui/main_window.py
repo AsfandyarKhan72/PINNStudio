@@ -3246,7 +3246,7 @@ print("ERROR_ANALYSIS_DONE")
             # Setup default scheduler phases
             if hasattr(self, 'sched_cb'):
                 self.sched_cb.setChecked(True)
-                self._setup_default_scheduler_phases(t.get('template_type', ''))
+                self._setup_default_scheduler_phases(t.get('template_type', ''), t['iterations'], t.get('iterations2', 10000))
             self._auto_configure_ea(self._template_ref_dir)
             self.log_box.append(f"✅ Template loaded: {text}")
             return
@@ -3382,7 +3382,7 @@ print("ERROR_ANALYSIS_DONE")
         self._sync_inverse_pde_substitution(self.radio_inverse.isChecked())
         if hasattr(self, 'sched_cb'):
             self.sched_cb.setChecked(True)
-            self._setup_default_scheduler_phases(t.get('template_type', ''))
+            self._setup_default_scheduler_phases(t.get('template_type', ''), t['iterations'], t.get('iterations2', 10000))
         self._auto_configure_ea(self._template_ref_dir)
         self.log_box.append(f"✅ Template loaded: {text}")
     def _on_plot_settings(self):
@@ -4010,7 +4010,7 @@ print("ERROR_ANALYSIS_V2_DONE")
         self.sched_widget.setVisible(state == 2)
         self._build_weight_inputs(self.num_outputs_spin.value())
 
-    def _setup_default_scheduler_phases(self, template_type=''):
+    def _setup_default_scheduler_phases(self, template_type='', adam_iters=10000, lbfgs_iters=10000):
         """Clear existing phases and add defaults based on template."""
         # Clear existing phases
         for ph in list(self.sched_phase_list):
@@ -4018,8 +4018,8 @@ print("ERROR_ANALYSIS_V2_DONE")
         self.sched_phase_list.clear()
 
         # Default: Adam warm-up phase, then L-BFGS refinement, using same weights
-        self._add_scheduler_phase('adam', 10000, 0.001)
-        self._add_scheduler_phase('lbfgs', 10000, 0.001)
+        self._add_scheduler_phase('adam', adam_iters, 0.001)
+        self._add_scheduler_phase('lbfgs', lbfgs_iters, 0.001)
         self.sched_same_weights_cb.setChecked(True)
         self._build_weight_inputs(self.num_outputs_spin.value())
 
