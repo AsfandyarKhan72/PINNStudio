@@ -3094,7 +3094,7 @@ print("ERROR_ANALYSIS_DONE")
                 'output_names': ['u'],
                 'ic_weight': 100.0,
                 'ref_dir': os.path.join(REFERENCE_DATA_DIR, "2D", "allen_cahn_mattey"),
-                'ta_default': {'step_groups': [(0.0, 1.0, 4)], 'transfer_learning': True},
+                'ta_default': {'step_groups': [(0.0, 1.0, 4)], 'transfer_learning': True, 'ic_grid': 51, 'transfer_optimizer': 'lbfgs'},
             },
             "2D Allen-Cahn (Wight)": {
                 'pde': ["du_t - 0.00625*(du_xx + du_yy) + 10*(u**3 - u)"],
@@ -3116,7 +3116,7 @@ print("ERROR_ANALYSIS_DONE")
                 'output_names': ['u'],
                 'ic_weight': 100.0,
                 'ref_dir': os.path.join(REFERENCE_DATA_DIR, "2D", "allen_cahn_wight"),
-                'ta_default': {'step_groups': [(0.0, 10.0, 10)], 'transfer_learning': True},
+                'ta_default': {'step_groups': [(0.0, 10.0, 10)], 'transfer_learning': True, 'ic_grid': 51, 'transfer_optimizer': 'lbfgs'},
             },
             "2D Cahn-Hilliard (Wight)": {
                 'pde': ["du_t - (dmu_xx + dmu_yy)",
@@ -3231,10 +3231,14 @@ print("ERROR_ANALYSIS_DONE")
                 for g_start, g_end, g_steps in ta_cfg['step_groups']:
                     self._add_ta_step_group(g_start, g_end, g_steps)
                 self.ta_transfer_cb.setChecked(ta_cfg.get('transfer_learning', False))
+                self.ta_grid.setCurrentText(str(ta_cfg.get('ic_grid', 101)))
+                self.ta_transfer_opt.setCurrentText(ta_cfg.get('transfer_optimizer', 'adam'))
             else:
                 self.adapt_combo.setCurrentText("None")
                 self._add_ta_step_group(0.0, 1.0, 10)
                 self.ta_transfer_cb.setChecked(False)
+                self.ta_grid.setCurrentText("101")
+                self.ta_transfer_opt.setCurrentText("adam")
             self._template_ref_dir = t.get('ref_dir', '')
             self._current_template = text
             self._current_template_type = t.get('template_type', '')
