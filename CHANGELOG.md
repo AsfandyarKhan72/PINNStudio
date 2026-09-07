@@ -4,6 +4,12 @@ All notable changes to PINNStudio are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.2.2] - 2026-09-07
+
+### Fixed
+
+- **Training crashed immediately on deepxde==1.10.0 (the minimum version this package requires) for every single-output PDE with a second derivative** -- 1D Heat, 1D Allen-Cahn, 2D Heat, both 2D Allen-Cahn templates, and any custom single-output PDE using u_xx/u_yy/u_tt/u_xy/u_xt/u_yt, with `ValueError: Do not use component for 1D y.`. That deepxde version raises this error whenever `component` is passed to `dde.grad.hessian()` for a single-output model, even when it is explicitly 0; newer deepxde releases dropped this restriction, which is why it was not caught earlier. The PDE builder now omits `component` for single-output models and keeps passing it for multi-output models, matching what each deepxde version expects. Existing 1.2.0/1.2.1 users on an older or minimum-pinned deepxde should upgrade.
+
 ## [1.2.1] - 2026-09-07
 
 ### Added
