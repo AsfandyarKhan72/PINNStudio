@@ -5,7 +5,7 @@ long_description = (this_dir / "README.md").read_text(encoding="utf-8")
 
 setup(
     name="pinnstudio",
-    version="1.2.0",
+    version="1.2.1",
     author="AsfandyarKhan72",
     description="No-code GUI for Physics-Informed Neural Networks using DeepXDE",
     long_description=long_description,

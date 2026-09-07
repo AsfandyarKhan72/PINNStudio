@@ -4,6 +4,12 @@ All notable changes to PINNStudio are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.2.1] - 2026-09-07
+
+### Added
+
+- In-app update checker: on launch, PINNStudio checks PyPI in the background for a newer release and shows a dismissible banner with the upgrade command if one is available. Runs off the GUI thread and fails silently when offline or if PyPI is unreachable.
+
 ## [1.2.0] - 2026-09-07
 
 ### Added
