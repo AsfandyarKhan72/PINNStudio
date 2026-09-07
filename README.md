@@ -2,6 +2,51 @@
 
 *A no-code desktop GUI for building, training, and visualizing Physics-Informed Neural Networks (PINNs) — built on [DeepXDE](https://github.com/lululxvi/deepxde).*
 
+<p align="center">
+  <a href="https://pypi.org/project/pinnstudio/"><img src="https://img.shields.io/pypi/v/pinnstudio.svg" alt="PyPI version"></a>
+  <a href="https://pypi.org/project/pinnstudio/"><img src="https://img.shields.io/pypi/dm/pinnstudio.svg" alt="PyPI downloads"></a>
+  <a href="https://pypi.org/project/pinnstudio/"><img src="https://img.shields.io/pypi/pyversions/pinnstudio.svg" alt="Python versions"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/AsfandyarKhan72/PINNStudio.svg" alt="License: MIT"></a>
+  <a href="https://github.com/AsfandyarKhan72/PINNStudio/stargazers"><img src="https://img.shields.io/github/stars/AsfandyarKhan72/PINNStudio?style=social" alt="GitHub stars"></a>
+</p>
+
+<p align="center">
+  <img src="assets/results/restored_animation.gif" alt="Animated PINN solution — time evolution predicted by a restored PINNStudio model" width="500">
+</p>
+<p align="center"><em>Set up a PDE, click Solve, and watch the solution evolve — reconstructed here from a saved checkpoint via Model Restore.</em></p>
+
+<p align="center">
+  <strong><a href="https://asfandyarkhan72.github.io/PINNStudio/">Website</a></strong> &nbsp;·&nbsp;
+  <strong><a href="#quick-start">Quick Start</a></strong> &nbsp;·&nbsp;
+  <strong><a href="#built-in-templates">Templates</a></strong> &nbsp;·&nbsp;
+  <strong><a href="https://github.com/AsfandyarKhan72/PINNStudio/discussions">Discussions</a></strong> &nbsp;·&nbsp;
+  <strong><a href="#citation">Citation</a></strong>
+</p>
+
+<details>
+<summary><strong>Table of contents</strong></summary>
+
+- [Quick Install](#quick-install)
+- [Overview](#overview)
+- [Demo Video](#demo-video)
+- [Screenshots](#screenshots)
+- [Example Solutions](#example-solutions)
+- [Features](#features)
+- [Repository Structure](#repository-structure)
+- [Quick Start](#quick-start)
+- [Running PINNStudio Again](#running-pinnstudio-again)
+- [What Gets Installed](#what-gets-installed)
+- [Built-in Templates](#built-in-templates)
+- [How It Works](#how-it-works)
+- [Citation](#citation)
+- [References](#references)
+- [Acknowledgment](#acknowledgment)
+- [Contributing](#contributing)
+- [Contact](#contact)
+- [License](#license)
+
+</details>
+
 ---
 
 ## Quick Install
@@ -57,37 +102,39 @@ The goal is to make physics-informed machine learning accessible to researchers 
 
 ## Screenshots
 
-<p align="center">
-  <img src="assets/screenshots/pde_builder.png" alt="PINNStudio — PDE, domain, and collocation point setup" width="800">
-</p>
+<table>
+<tr>
+<td width="50%">
+<img src="assets/screenshots/pde_builder.png" alt="PINNStudio — PDE, domain, and collocation point setup" width="100%">
 <p align="center"><em>Problem setup: PDE residual, domain, and collocation points.</em></p>
-
-<p align="center">
-  <img src="assets/screenshots/training_panel.png" alt="PINNStudio — network, training schedule, and adaptive training controls" width="800">
-</p>
+</td>
+<td width="50%">
+<img src="assets/screenshots/training_panel.png" alt="PINNStudio — network, training schedule, and adaptive training controls" width="100%">
 <p align="center"><em>Network architecture, multi-phase optimizer schedule, loss weights, and adaptive training.</em></p>
-
-<p align="center">
-  <img src="assets/results/restored_animation.gif" alt="Animated PINN solution — time evolution predicted by a restored PINNStudio model" width="500">
-</p>
-<p align="center"><em>Time evolution of a PINN solution, reconstructed from a saved checkpoint via Model Restore.</em></p>
+</td>
+</tr>
+</table>
 
 ## Example Solutions
 
-<p align="center">
-  <img src="assets/results/1d_heat_solution.png" alt="PINNStudio — 1D Heat PINN solution" width="700">
-</p>
+<table>
+<tr>
+<td width="50%">
+<img src="assets/results/1d_heat_solution.png" alt="PINNStudio — 1D Heat PINN solution" width="100%">
 <p align="center"><em>1D Heat: PINN-predicted solution against the bundled FEM reference data.</em></p>
-
-<p align="center">
-  <img src="assets/results/1d_allen_cahn_solution.png" alt="PINNStudio — 1D Allen-Cahn PINN solution" width="700">
-</p>
+</td>
+<td width="50%">
+<img src="assets/results/1d_allen_cahn_solution.png" alt="PINNStudio — 1D Allen-Cahn PINN solution" width="100%">
 <p align="center"><em>1D Allen-Cahn: PINN-predicted solution against the bundled FEM reference data.</em></p>
-
-<p align="center">
-  <img src="assets/results/1d_allen_cahn_inverse.png" alt="PINNStudio — 1D Allen-Cahn Inverse parameter estimation result" width="700">
-</p>
+</td>
+</tr>
+<tr>
+<td colspan="2" align="center">
+<img src="assets/results/1d_allen_cahn_inverse.png" alt="PINNStudio — 1D Allen-Cahn Inverse parameter estimation result" width="60%">
 <p align="center"><em>1D Allen-Cahn (Inverse): the unknown diffusion parameter recovered from observation data, converging to its true value during training.</em></p>
+</td>
+</tr>
+</table>
 
 ## Features
 
