@@ -766,6 +766,33 @@ class MainWindow(QMainWindow):
         self.inv_param_name.editingFinished.connect(self._on_inv_param_name_changed)
         inv_layout.addWidget(self.inv_param_name)
 
+        inv_ref_row = QHBoxLayout()
+        inv_ref_toggle = QCheckBox("\U0001F4D6 Show inverse reference")
+        inv_ref_toggle.setChecked(False)
+        inv_ref_toggle.setStyleSheet("color: #74c0fc; font-size: 13px;")
+        inv_ref_row.addWidget(inv_ref_toggle)
+        inv_ref_row.addStretch()
+        inv_ref_row_widget = QWidget()
+        inv_ref_row_widget.setLayout(inv_ref_row)
+        inv_layout.addWidget(inv_ref_row_widget)
+        inv_ref_text = ("The unknown parameter is the value DeepXDE infers (optimizes) during\n"
+                        "training, e.g. a diffusion coefficient or reaction rate.\n"
+                        "Default name is 'trainable_variable' -- rename it to anything you like\n"
+                        "(any valid Python identifier); when a Quick Example is loaded, renaming\n"
+                        "here keeps its PDE box in sync automatically. For a custom PDE (no\n"
+                        "example), make sure the same name also appears in your PDE expression\n"
+                        "(PDE Builder tab) wherever that coefficient belongs, e.g. rename to D and\n"
+                        "write: du_t - D*du_xx\n"
+                        "Initial guess sets the starting value before optimization begins.\n"
+                        "Measured data file (x, t, u) supplies the sparse ground-truth points\n"
+                        "used to fit both the network and the unknown parameter.")
+        inv_ref_hint = QLabel(inv_ref_text)
+        inv_ref_hint.setStyleSheet("color: #74c0fc; font-size: 13px;")
+        inv_ref_hint.setWordWrap(True)
+        inv_ref_hint.setVisible(False)
+        inv_layout.addWidget(inv_ref_hint)
+        inv_ref_toggle.stateChanged.connect(lambda state, h=inv_ref_hint: h.setVisible(state == 2))
+
         inv_layout.addWidget(QLabel("Initial guess:"))
         self.inv_param_init = QDoubleSpinBox()
         self.inv_param_init.setRange(-1e6, 1e6); self.inv_param_init.setDecimals(6)
@@ -2107,6 +2134,34 @@ class MainWindow(QMainWindow):
         self.inverse_group.setVisible(is_inv)
         self.param_save_label.setVisible(is_inv)
         self.param_save_combo.setVisible(is_inv)
+        # Time Adaptive training does not yet wire the inferred parameter
+        # into its per-step training loop (no external_trainable_variables
+        # there), so it silently would not converge for Inverse problems --
+        # remove it as a selectable option in Inverse mode and restore any
+        # template default that was suspended when returning to Forward.
+        _ta_idx = self.adapt_combo.findText("Time Adaptive")
+        if is_inv:
+            if self.adapt_combo.currentText() == "Time Adaptive":
+                self._ta_suspended_for_inverse = True
+                self.adapt_combo.setCurrentText("None")
+            if _ta_idx != -1:
+                self.adapt_combo.removeItem(_ta_idx)
+        else:
+            if _ta_idx == -1:
+                self.adapt_combo.addItem("Time Adaptive")
+            if getattr(self, '_ta_suspended_for_inverse', False):
+                self._ta_suspended_for_inverse = False
+                _ta_cfg = getattr(self, '_current_ta_cfg', None)
+                if _ta_cfg:
+                    for _row in list(self.ta_group_rows):
+                        _row['widget'].deleteLater()
+                    self.ta_group_rows.clear()
+                    self.adapt_combo.setCurrentText("Time Adaptive")
+                    for _g_start, _g_end, _g_steps in _ta_cfg['step_groups']:
+                        self._add_ta_step_group(_g_start, _g_end, _g_steps)
+                    self.ta_transfer_cb.setChecked(_ta_cfg.get('transfer_learning', False))
+                    self.ta_grid.setCurrentText(str(_ta_cfg.get('ic_grid', 101)))
+                    self.ta_transfer_opt.setCurrentText(_ta_cfg.get('transfer_optimizer', 'adam'))
 
     def _on_browse_inv_data(self):
         f, _ = QFileDialog.getOpenFileName(self, "Select measured data file", "", "Data files (*.txt *.csv *.dat)")
@@ -3226,7 +3281,9 @@ print("ERROR_ANALYSIS_DONE")
                 row['widget'].deleteLater()
             self.ta_group_rows.clear()
             ta_cfg = t.get('ta_default')
-            if ta_cfg:
+            self._current_ta_cfg = ta_cfg
+            self._ta_suspended_for_inverse = False
+            if ta_cfg and not self.radio_inverse.isChecked():
                 self.adapt_combo.setCurrentText("Time Adaptive")
                 for g_start, g_end, g_steps in ta_cfg['step_groups']:
                     self._add_ta_step_group(g_start, g_end, g_steps)
@@ -3239,6 +3296,8 @@ print("ERROR_ANALYSIS_DONE")
                 self.ta_transfer_cb.setChecked(False)
                 self.ta_grid.setCurrentText("101")
                 self.ta_transfer_opt.setCurrentText("adam")
+                if ta_cfg and self.radio_inverse.isChecked():
+                    self._ta_suspended_for_inverse = True
             self._template_ref_dir = t.get('ref_dir', '')
             self._current_template = text
             self._current_template_type = t.get('template_type', '')
