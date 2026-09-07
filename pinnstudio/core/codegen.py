@@ -2042,7 +2042,10 @@ if {config.time_adaptive}:
             _step_act    = _step_cfg.get("activation", "{config.activation}")
             _step_loss   = _step_cfg.get("loss_type", "{config.loss_type}")
 
-            _step_geom  = dde.geometry.Interval({config.x_min}, {config.x_max})
+            if _is_2d:
+                _step_geom = dde.geometry.Rectangle([{config.x_min}, {config.y_min}], [{config.x_max}, {config.y_max}])
+            else:
+                _step_geom = dde.geometry.Interval({config.x_min}, {config.x_max})
             _step_td    = dde.geometry.TimeDomain(_t0_i, _t1_i)
             _step_gt    = dde.geometry.GeometryXTime(_step_geom, _step_td)
             def _step_pde(x, y): return y[:, 0:1] * 0
