@@ -3,7 +3,7 @@
 Detects the NVIDIA driver's maximum supported CUDA version (via `nvidia-smi`)
 and prints the best-matching PyTorch CUDA wheel tag (e.g. "cu126") to stdout,
 or "cpu" if no compatible GPU/driver is found. Used by install.sh/install.bat
-to pick the right --extra-index-url before installing torch, instead of
+to pick the right --index-url before installing torch, instead of
 hardcoding one CUDA version that may not match every machine's driver.
 """
 import re
