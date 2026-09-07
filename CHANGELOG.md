@@ -4,6 +4,38 @@ All notable changes to PINNStudio are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.2.0] - 2026-09-07
+
+### Added
+
+- "Show inverse reference" guidance box in the Inverse PINN panel, explaining the trainable/unknown parameter and how to name it in a custom PDE.
+- `Problem Type` and `Reference` columns in the README's Built-in Templates table, linking each template to its source paper.
+- Mahmood Mamivand added as a co-author in the project citation.
+- Time Adaptive training now defaults on for both 2D Allen-Cahn templates, with a tuned IC grid resolution and transfer-learning optimizer.
+
+### Changed
+
+- Optimizer and Adaptive Training dropdowns now show friendlier names ("Adam", "L-BFGS", "Residual-based Adaptive Refinement (RAR)") without changing the underlying config values.
+- Time Adaptive training is now restricted to Forward problems -- it never correctly optimized the inverse parameter, so it no longer appears when Inverse is selected.
+- 2D Allen-Cahn (Wight & Zhao) Inverse mode now trains over t in [0, 2.5] instead of [0, 10]; the full time domain made the inverse problem far harder to converge. Forward mode is unchanged.
+- Default Adam iterations increased to 20000 for all 2D templates.
+- README overhauled with badges, quick links, a table of contents, reorganized template sections, and a note that finer Time Adaptive steps or more collocation points can improve accuracy.
+
+### Fixed
+
+- **Reference data was not bundled into the installed package.** A packaging bug meant a fresh `pip install` of 1.1.2 or earlier silently shipped without `reference_data/`, so Error Analysis and auto-loaded observation files were missing for every template. Existing 1.1.2 users should upgrade.
+- 2D geometry reconstruction in Time-Adaptive Error Analysis was hardcoded to a 1D interval, producing incorrect error metrics for 2D templates.
+- Inverse-parameter convergence plot's x-axis double-counted iterations across training phases.
+- Optimizer Scheduler now honors each template's configured iteration counts instead of always defaulting to 10000/10000 Adam/L-BFGS.
+- Corrected coefficients/domain in the 2D Allen-Cahn (Mattey & Ghosh) and 2D Cahn-Hilliard (Wight) equations to match their source papers.
+- "Line (time steps)" and "Animation Surface (GIF)" plots in Model Restore no longer crash on newer matplotlib versions (removed use of the deprecated/removed `matplotlib.cm.get_cmap` and `QuadContourSet.collections` APIs).
+- Fixed a Qt ampersand-mnemonic bug that mangled the "Boundary & Initial Conditions" and "Restore & Visualize" labels, plus README math rendering and Error Analysis colormap consistency.
+
+### Removed
+
+- 1D and 2D Cahn-Hilliard Quick Example templates removed from the GUI and README -- they are not yet numerically reliable. Their reference data remains in the repository for a future fix.
+- Leftover one-off patch scripts removed from the repo root.
+
 ## [0.1.0] - 2026-08-27
 
 ### Added
