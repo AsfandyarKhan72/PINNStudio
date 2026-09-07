@@ -275,6 +275,16 @@ def _pde_standard(x, y):
     _out_names = [n.strip() for n in "{config.output_names}".split(",")]
     _is_2d_pde = "{config.problem_dim}" == "2D"
 
+    def _hess(ys, xs, i, j):
+        # DeepXDE 1.10.0 (the floor version pinned in setup.py) raises
+        # "Do not use component for 1D y." if `component` is passed at all
+        # for a single-output model, while multi-output models require it.
+        # Newer deepxde releases accept it either way, so omitting `component`
+        # only for the single-output case is safe across the whole supported range.
+        if _n_out == 1:
+            return dde.grad.hessian(ys, xs, i=i, j=j)
+        return dde.grad.hessian(ys, xs, component=_oi, i=i, j=j)
+
     _dvars = {{}}
     for _oi, _oname in enumerate(_out_names):
         _dvars[_oname] = y[:, _oi:_oi+1]
@@ -288,17 +298,17 @@ def _pde_standard(x, y):
             _pde_str_check = "{config_pde_expressions}"
             _oname_check = _oname
             if f"d{{_oname_check}}_xx" in _pde_str_check or f"d{{_oname_check}}_xxxx" in _pde_str_check or f"d{{_oname_check}}_xxyy" in _pde_str_check or f"d{{_oname_check}}_xxtt" in _pde_str_check:
-                _dvars[f"d{{_oname}}_xx"] = dde.grad.hessian(y, x, component=_oi, i=0, j=0)
+                _dvars[f"d{{_oname}}_xx"] = _hess(y, x, 0, 0)
             if f"d{{_oname_check}}_yy" in _pde_str_check or f"d{{_oname_check}}_yyyy" in _pde_str_check or f"d{{_oname_check}}_xxyy" in _pde_str_check or f"d{{_oname_check}}_yytt" in _pde_str_check:
-                _dvars[f"d{{_oname}}_yy"] = dde.grad.hessian(y, x, component=_oi, i=1, j=1)
+                _dvars[f"d{{_oname}}_yy"] = _hess(y, x, 1, 1)
             if f"d{{_oname_check}}_xy" in _pde_str_check:
-                _dvars[f"d{{_oname}}_xy"] = dde.grad.hessian(y, x, component=_oi, i=0, j=1)
+                _dvars[f"d{{_oname}}_xy"] = _hess(y, x, 0, 1)
             if f"d{{_oname_check}}_tt" in _pde_str_check:
-                _dvars[f"d{{_oname}}_tt"] = dde.grad.hessian(y, x, component=_oi, i=2, j=2)
+                _dvars[f"d{{_oname}}_tt"] = _hess(y, x, 2, 2)
             if f"d{{_oname_check}}_xt" in _pde_str_check:
-                _dvars[f"d{{_oname}}_xt"] = dde.grad.hessian(y, x, component=_oi, i=0, j=2)
+                _dvars[f"d{{_oname}}_xt"] = _hess(y, x, 0, 2)
             if f"d{{_oname_check}}_yt" in _pde_str_check:
-                _dvars[f"d{{_oname}}_yt"] = dde.grad.hessian(y, x, component=_oi, i=1, j=2)
+                _dvars[f"d{{_oname}}_yt"] = _hess(y, x, 1, 2)
             if f"d{{_oname_check}}_xxxx" in _pde_str_check and f"d{{_oname}}_xx" in _dvars:
                 _dvars[f"d{{_oname}}_xxxx"] = dde.grad.hessian(_dvars[f"d{{_oname}}_xx"], x, i=0, j=0)
             if f"d{{_oname_check}}_yyyy" in _pde_str_check and f"d{{_oname}}_yy" in _dvars:
@@ -316,11 +326,11 @@ def _pde_standard(x, y):
             _pde_str_check = "{config_pde_expressions}"
             _oname_check = _oname
             if f"d{{_oname_check}}_xx" in _pde_str_check or f"d{{_oname_check}}_xxxx" in _pde_str_check or f"d{{_oname_check}}_xxtt" in _pde_str_check:
-                _dvars[f"d{{_oname}}_xx"] = dde.grad.hessian(y, x, component=_oi, i=0, j=0)
+                _dvars[f"d{{_oname}}_xx"] = _hess(y, x, 0, 0)
             if f"d{{_oname_check}}_tt" in _pde_str_check or f"d{{_oname_check}}_tttt" in _pde_str_check or f"d{{_oname_check}}_xxtt" in _pde_str_check:
-                _dvars[f"d{{_oname}}_tt"] = dde.grad.hessian(y, x, component=_oi, i=1, j=1)
+                _dvars[f"d{{_oname}}_tt"] = _hess(y, x, 1, 1)
             if f"d{{_oname_check}}_xt" in _pde_str_check:
-                _dvars[f"d{{_oname}}_xt"] = dde.grad.hessian(y, x, component=_oi, i=0, j=1)
+                _dvars[f"d{{_oname}}_xt"] = _hess(y, x, 0, 1)
             if f"d{{_oname_check}}_xxxx" in _pde_str_check and f"d{{_oname}}_xx" in _dvars:
                 _dvars[f"d{{_oname}}_xxxx"] = dde.grad.hessian(_dvars[f"d{{_oname}}_xx"], x, i=0, j=0)
             if f"d{{_oname_check}}_xxtt" in _pde_str_check and f"d{{_oname}}_xx" in _dvars:
