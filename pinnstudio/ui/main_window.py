@@ -3076,7 +3076,7 @@ print("ERROR_ANALYSIS_DONE")
                 'ref_dir': os.path.join(REFERENCE_DATA_DIR, "2D", "heat"),
             },
             "2D Allen-Cahn (Mattey)": {
-                'pde': ["du_t - 0.0001*(du_xx + du_yy) + 5*(u**3 - u)"],
+                'pde': ["du_t - 0.0001*(du_xx + du_yy) + (u**3 - u)"],
                 'ic': ["sin(4*pi*x)*cos(4*pi*y)"],
                 'num_domain': 10000,
                 'num_boundary': 400,
@@ -3118,7 +3118,7 @@ print("ERROR_ANALYSIS_DONE")
             },
             "2D Cahn-Hilliard (Wight)": {
                 'pde': ["du_t - (dmu_xx + dmu_yy)",
-                        "mu - (u**3 - u) + 0.05*2*(du_xx + du_yy)"],
+                        "mu - (u**3 - u) + 0.05**2*(du_xx + du_yy)"],
                 'ic': ["max(tanh((0.4-sqrt((x-0.7*0.4)**2+(y)**2))/(2*0.05)), tanh((0.4-sqrt((x+0.7*0.4)**2+(y)**2))/(2*0.05)))",
                        "0.0"],
                 'num_domain': 10000,
@@ -3129,8 +3129,8 @@ print("ERROR_ANALYSIS_DONE")
                 'iterations': 10000,
                 'optimizer2': 'lbfgs',
                 'iterations2': 10000,
-                'x_min': -0.5, 'x_max': 0.5,
-                'y_min': -0.5, 'y_max': 0.5,
+                'x_min': -1.0, 'x_max': 1.0,
+                'y_min': -1.0, 'y_max': 1.0,
                 'periodic_bc': True,
                 'bc_config': 'ch2d',
                 'num_outputs': 2,

@@ -288,10 +288,10 @@ All seven templates ship with bundled FEM reference data (see [`reference_data/`
 | 1D Heat | 1D | Single PDE | ✅ bundled |
 | 1D Allen-Cahn | 1D | Single PDE | ✅ bundled |
 | 1D Cahn-Hilliard | 1D | Coupled (2 outputs) | ✅ bundled |
-| 2D Heat (Dirichlet/Neumann) | 2D | Single PDE | ✅ bundled |
-| 2D Allen-Cahn (Mattey) | 2D | Single PDE | ✅ bundled |
+| 2D Heat | 2D | Single PDE | ✅ bundled |
 | 2D Allen-Cahn (Wight) | 2D | Single PDE | ✅ bundled |
-| 2D Cahn-Hilliard (Wight) | 2D | Coupled (2 outputs) | ✅ bundled |
+| 2D Cahn-Hilliard | 2D | Coupled (2 outputs) | ✅ bundled |
+| 2D Allen-Cahn (Mattey) | 2D | Single PDE | ✅ bundled |
 
 ### 1D Heat
 
@@ -301,31 +301,29 @@ Initial condition: $u(x, 0) = \sin(\pi x)$. Dirichlet boundaries.
 
 ### 1D Allen-Cahn
 
+Benchmark problem after Wight & Zhao (2021) — see [References](#references).
+
 $$\frac{\partial u}{\partial t} = 0.0001\frac{\partial^2 u}{\partial x^2} - 5u^3 + 5u, \qquad x \in [-1, 1],\ t \in [0, 1]$$
 
 Initial condition: $u(x, 0) = x^2\cos(\pi x)$. Periodic boundaries.
 
 ### 1D Cahn-Hilliard
 
-Fourth-order phase separation, split into two coupled second-order equations:
+Benchmark problem after Wight & Zhao (2021) — see [References](#references). Fourth-order phase separation, split into two coupled second-order equations:
 
 $$\frac{\partial u}{\partial t} = \frac{\partial^2 v}{\partial x^2}, \qquad v = 0.01(u^3 - u) - 10^{-6}\frac{\partial^2 u}{\partial x^2}, \qquad x \in [-1, 1],\ t \in [0, 1]$$
 
 Initial condition: $u(x, 0) = -\cos(2\pi x)$. Periodic boundaries.
 
-### 2D Heat (Dirichlet/Neumann)
+---
+
+*The remaining templates are 2D `(x, y, t)` problems.*
+
+### 2D Heat
 
 $$\frac{\partial u}{\partial t} = 0.4\left(\frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2}\right), \qquad (x, y) \in [0, 1]^2,\ t \in [0, 1]$$
 
 Initial condition: $u(x, y, 0) = 0$. Mixed Dirichlet/Neumann boundaries.
-
-### 2D Allen-Cahn (Mattey)
-
-Benchmark problem after Mattey & Ghosh (2022) — see [References](#references).
-
-$$\frac{\partial u}{\partial t} = 0.0001\left(\frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2}\right) - 5(u^3 - u), \qquad (x, y) \in [0, 1]^2,\ t \in [0, 1]$$
-
-Initial condition: $u(x, y, 0) = \sin(4\pi x)\cos(4\pi y)$. Periodic boundaries.
 
 ### 2D Allen-Cahn (Wight)
 
@@ -335,13 +333,21 @@ $$\frac{\partial u}{\partial t} = 0.00625\left(\frac{\partial^2 u}{\partial x^2}
 
 Initial condition: a smooth circular interface, $u(x, y, 0) = \tanh\left(\dfrac{0.35 - \sqrt{(x-0.5)^2 + (y-0.5)^2}}{0.05}\right)$. Periodic boundaries.
 
-### 2D Cahn-Hilliard (Wight)
+### 2D Cahn-Hilliard
 
 Benchmark problem after Wight & Zhao (2021) — see [References](#references). Two-phase separation, split into a composition field $u$ and a chemical potential $\mu$:
 
-$$\frac{\partial u}{\partial t} = \frac{\partial^2 \mu}{\partial x^2} + \frac{\partial^2 \mu}{\partial y^2}, \qquad \mu = (u^3 - u) - 0.1\left(\frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2}\right), \qquad (x, y) \in [-0.5, 0.5]^2$$
+$$\frac{\partial u}{\partial t} = \frac{\partial^2 \mu}{\partial x^2} + \frac{\partial^2 \mu}{\partial y^2}, \qquad \mu = (u^3 - u) - 0.0025\left(\frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2}\right), \qquad (x, y) \in [-1, 1]^2,\ t \in [0, 1]$$
 
-Initial condition: two circular domains of opposite phase. Periodic boundaries.
+Initial condition: two overlapping circular bubbles, $u(x, y, 0) = \max\left(\tanh\dfrac{0.4 - \sqrt{(x - 0.28)^2 + y^2}}{0.1}, \tanh\dfrac{0.4 - \sqrt{(x + 0.28)^2 + y^2}}{0.1}\right)$. Periodic boundaries.
+
+### 2D Allen-Cahn (Mattey)
+
+Benchmark problem after Mattey & Ghosh (2022) — see [References](#references).
+
+$$\frac{\partial u}{\partial t} = 0.0001\left(\frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2}\right) - (u^3 - u), \qquad (x, y) \in [0, 1]^2,\ t \in [0, 1]$$
+
+Initial condition: $u(x, y, 0) = \sin(4\pi x)\cos(4\pi y)$. Periodic boundaries.
 
 ## How It Works
 
