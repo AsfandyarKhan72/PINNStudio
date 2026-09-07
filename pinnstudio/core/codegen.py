@@ -1044,7 +1044,7 @@ for _pval in _param_values:
                 _x_l = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
                 t_steps_plot = np.linspace({config.t_min}, {config.t_max}, n_steps_plot)
                 fig, ax = plt.subplots(figsize=(8, 5))
-                colors = plt.cm.get_cmap("{config.plot_colormap}")(np.linspace(0, 1, n_steps_plot))
+                colors = plt.get_cmap("{config.plot_colormap}")(np.linspace(0, 1, n_steps_plot))
                 for i, t_val in enumerate(t_steps_plot):
                     xt = np.column_stack([_x_l, np.full_like(_x_l, t_val)])
                     u_line = model.predict(xt)[:, _plot_idx].flatten()
@@ -1797,7 +1797,7 @@ if {config.time_adaptive}:
                 _x_l2 = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
                 _t_line = np.linspace(t0, t1, n_steps_plot)
                 fig, ax = plt.subplots(figsize=(8, 4))
-                colors = plt.cm.get_cmap("{config.plot_colormap}")(np.linspace(0, 1, n_steps_plot))
+                colors = plt.get_cmap("{config.plot_colormap}")(np.linspace(0, 1, n_steps_plot))
                 for _ci, _tv in enumerate(_t_line):
                     _xt_line = np.column_stack([_x_l2, np.full_like(_x_l2, _tv)])
                     _u_line = model_i.predict(_xt_line)[:, {config.plot_output_idx}].flatten()
@@ -1932,7 +1932,7 @@ if {config.time_adaptive}:
         n_ts   = {config.num_timesteps}
         t_vals = np.linspace(_ta_flat_intervals[0][0], _ta_flat_intervals[-1][1], n_ts)
         fig, ax = plt.subplots(figsize=(8, 5))
-        colors = plt.cm.get_cmap("{config.plot_colormap}")(np.linspace(0, 1, n_ts))
+        colors = plt.get_cmap("{config.plot_colormap}")(np.linspace(0, 1, n_ts))
         for ci, tv in enumerate(t_vals):
             idx = np.argmin(np.abs(T_full[:,0] - tv))
             ax.plot(X_full[idx,:], U_full[idx,:], color=colors[ci], linewidth={config.plot_linewidth}, label=f"t={{tv:.3f}}")

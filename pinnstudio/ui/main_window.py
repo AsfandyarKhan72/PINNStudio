@@ -4384,7 +4384,7 @@ print(f"Surface plot saved to: {{out_path}}")
 x_vals = np.linspace({x_min}, {x_max}, {resolution})
 t_steps_vals = np.linspace({t_min}, {t_max}, {n_steps})
 fig, ax = plt.subplots(figsize=(8, 5))
-colors = plt.cm.get_cmap("{colormap}")(np.linspace(0, 1, {n_steps}))
+colors = plt.get_cmap("{colormap}")(np.linspace(0, 1, {n_steps}))
 y_mid = ({y_min} + {y_max}) / 2.0
 for i, tv in enumerate(t_steps_vals):
     if is_2d:
@@ -4466,14 +4466,12 @@ if {show_colorbar}: fig.colorbar(_sm, cax=_cax)
 def update(i):
     ax.cla()
     Xp, Yp, Zp = all_frames[i]
-    c = ax.contourf(Xp, Yp, Zp, levels={levels}, cmap="{colormap}", vmin=v_min, vmax=v_max)
+    ax.contourf(Xp, Yp, Zp, levels={levels}, cmap="{colormap}", vmin=v_min, vmax=v_max)
     ax.set_xlabel("x")
     ax.set_ylabel("y" if is_2d else "t")
     ax.set_title(f"t = {{t_frames[i]:.3f}}")
-    return c.collections
 ani = _anim.FuncAnimation(fig, update, frames={n_steps}, interval=150)
 out_path = os.path.join(r"{save_dir}", "restored_animation.gif")
-ani.save(out_path, writer='pillow', fps={fps})
 ani.save(out_path, writer='pillow', fps={fps})
 plt.close()
 print(f"Surface animation saved to: {{out_path}}")
