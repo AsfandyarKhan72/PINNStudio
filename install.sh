@@ -6,12 +6,18 @@ python3 -m venv venv
 ./venv/bin/pip install --upgrade pip --quiet
 
 echo "Checking for a compatible GPU..."
-if command -v nvidia-smi &> /dev/null; then
-    echo "NVIDIA GPU detected — installing a broadly compatible PyTorch build (CUDA 12.1) first..."
-    ./venv/bin/pip install torch --index-url https://download.pytorch.org/whl/cu121 --quiet
-else
-    echo "No NVIDIA GPU detected — installing CPU-only PyTorch..."
+TORCH_TAG=$(./venv/bin/python "$(dirname "$0")/select_torch_index.py")
+
+if [ "$TORCH_TAG" = "cpu" ]; then
+    echo "No compatible NVIDIA GPU/driver detected — installing CPU-only PyTorch..."
     ./venv/bin/pip install torch --index-url https://download.pytorch.org/whl/cpu --quiet
+else
+    echo "NVIDIA GPU detected — installing a PyTorch build matching your driver (${TORCH_TAG})..."
+    if ! ./venv/bin/pip install torch --extra-index-url "https://download.pytorch.org/whl/${TORCH_TAG}" --quiet; then
+        echo "GPU-matched PyTorch install failed — falling back to the default CPU build so setup can still finish..."
+        echo "(You can retry GPU setup later — see the README's GPU troubleshooting section.)"
+        ./venv/bin/pip install torch --index-url https://download.pytorch.org/whl/cpu --quiet
+    fi
 fi
 
 echo "Installing PINNStudio and remaining dependencies..."
