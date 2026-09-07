@@ -260,7 +260,7 @@ class MainWindow(QMainWindow):
         examples_layout = QHBoxLayout(examples_group)
         examples_layout.addWidget(QLabel("Load example:"))
         self.quick_examples_combo = QComboBox()
-        self.quick_examples_combo.addItems(["None", "1D Heat", "1D Allen-Cahn", "1D Cahn-Hilliard"])
+        self.quick_examples_combo.addItems(["None", "1D Heat", "1D Allen-Cahn"])
         self.quick_examples_combo.setFixedHeight(28)
         self.quick_examples_combo.currentTextChanged.connect(self._on_quick_example_selected)
         examples_layout.addWidget(self.quick_examples_combo)
@@ -1141,15 +1141,13 @@ class MainWindow(QMainWindow):
                 "None",
                 "2D Heat",
                 "2D Allen-Cahn (Mattey & Ghosh)",
-                "2D Allen-Cahn (Wight & Zhao)",
-                "2D Cahn-Hilliard"
+                "2D Allen-Cahn (Wight & Zhao)"
             ])
         else:
             self.quick_examples_combo.addItems([
                 "None",
                 "1D Heat",
-                "1D Allen-Cahn",
-                "1D Cahn-Hilliard"
+                "1D Allen-Cahn"
             ])
         self.quick_examples_combo.blockSignals(False)
         self.y_row_widget.setVisible(is_2d)
@@ -1186,6 +1184,15 @@ class MainWindow(QMainWindow):
         if not valid_files:
             return
         valid_files.sort(key=lambda x: x[0])
+        # Only offer/select reference snapshots within the currently
+        # configured time domain -- e.g. 2D Allen-Cahn (Wight & Zhao) in
+        # Inverse mode trains over a shorter t range than Forward, so it
+        # should not compare against or auto-load a snapshot beyond that.
+        if hasattr(self, 't_max'):
+            _tmax_cur = self.t_max.value()
+            _filtered = [vf for vf in valid_files if vf[0] <= _tmax_cur + 1e-6]
+            if _filtered:
+                valid_files = _filtered
         self._ea_settings = {
             'files': valid_files,
             'do_line': True,
@@ -1525,7 +1532,7 @@ class MainWindow(QMainWindow):
                          f"Functions: sin, cos, exp, log, sqrt, tanh, pi\n"
                          f"e.g. Diffusion:      du_t - 0.4*du_xx\n"
                          f"e.g. Burgers:        du_t + u*du_x - 0.01*du_xx\n"
-                         f"e.g. Cahn-Hilliard:  du_t - (du_xx - du_xxxx)\n"
+                         f"e.g. 4th-order:      du_t - (du_xx - du_xxxx)\n"
                          f"e.g. Nonlinear:      du_t - sin(u)*du_xx")
             
         # Templates + derivative reference row
@@ -2079,11 +2086,9 @@ class MainWindow(QMainWindow):
     INVERSE_AUTO_CONST = {
         "1D Heat": (0, "0.4"),
         "1D Allen-Cahn": (0, "0.0001"),
-        "1D Cahn-Hilliard": (1, "1e-6"),
         "2D Heat": (0, "0.4"),
         "2D Allen-Cahn (Mattey & Ghosh)": (0, "0.0001"),
         "2D Allen-Cahn (Wight & Zhao)": (0, "0.00625"),
-        "2D Cahn-Hilliard": (1, "0.05"),
     }
 
     def _sync_inverse_pde_substitution(self, is_inv):
@@ -2162,6 +2167,16 @@ class MainWindow(QMainWindow):
                     self.ta_transfer_cb.setChecked(_ta_cfg.get('transfer_learning', False))
                     self.ta_grid.setCurrentText(str(_ta_cfg.get('ic_grid', 101)))
                     self.ta_transfer_opt.setCurrentText(_ta_cfg.get('transfer_optimizer', 'adam'))
+        # 2D Allen-Cahn (Wight & Zhao): Inverse trains over a shorter t
+        # range than Forward (see the template's inverse_t_max) since
+        # fitting the unknown parameter over the full t in [0,10] window
+        # used for Forward is much harder -- restore whichever t_max
+        # belongs to the problem type we just switched to.
+        _fwd_tmax = getattr(self, '_current_template_forward_tmax', None)
+        _inv_tmax = getattr(self, '_current_template_inverse_tmax', None)
+        if _inv_tmax is not None and _fwd_tmax is not None:
+            self.t_max.setValue(_inv_tmax if is_inv else _fwd_tmax)
+            self._auto_configure_ea(getattr(self, '_template_ref_dir', ''))
 
     def _on_browse_inv_data(self):
         f, _ = QFileDialog.getOpenFileName(self, "Select measured data file", "", "Data files (*.txt *.csv *.dat)")
@@ -3172,28 +3187,7 @@ print("ERROR_ANALYSIS_DONE")
                 'ic_weight': 100.0,
                 'ref_dir': os.path.join(REFERENCE_DATA_DIR, "2D", "allen_cahn_wight"),
                 'ta_default': {'step_groups': [(0.0, 10.0, 10)], 'transfer_learning': True, 'ic_grid': 51, 'transfer_optimizer': 'lbfgs'},
-            },
-            "2D Cahn-Hilliard": {
-                'pde': ["du_t - (dmu_xx + dmu_yy)",
-                        "mu - (u**3 - u) + 0.05**2*(du_xx + du_yy)"],
-                'ic': ["max(tanh((0.4-sqrt((x-0.7*0.4)**2+(y)**2))/(2*0.05)), tanh((0.4-sqrt((x+0.7*0.4)**2+(y)**2))/(2*0.05)))",
-                       "0.0"],
-                'num_domain': 10000,
-                'num_boundary': 400,
-                'num_initial': 512,
-                'layers': 4,
-                'neurons': 128,
-                'iterations': 20000,
-                'optimizer2': 'lbfgs',
-                'iterations2': 10000,
-                'x_min': -1.0, 'x_max': 1.0,
-                'y_min': -1.0, 'y_max': 1.0,
-                'periodic_bc': True,
-                'bc_config': 'ch2d',
-                'num_outputs': 2,
-                'output_names': ['u', 'mu'],
-                'ic_weight': 100.0,
-                'ref_dir': os.path.join(REFERENCE_DATA_DIR, "2D", "cahn_hilliard_wight"),
+                'inverse_t_max': 2.5,
             },
         }
         if text in templates_2d:
@@ -3218,6 +3212,10 @@ print("ERROR_ANALYSIS_DONE")
             self.x_min.setValue(t['x_min']); self.x_max.setValue(t['x_max'])
             self.y_min.setValue(t['y_min']); self.y_max.setValue(t['y_max'])
             if 't_max' in t: self.t_max.setValue(t['t_max'])
+            self._current_template_forward_tmax = t.get('t_max')
+            self._current_template_inverse_tmax = t.get('inverse_t_max')
+            if self._current_template_inverse_tmax is not None and self.radio_inverse.isChecked():
+                self.t_max.setValue(self._current_template_inverse_tmax)
             # Set collocation points
             self.num_domain.setValue(t['num_domain'])
             self.num_boundary.setValue(t['num_boundary'])
@@ -3245,23 +3243,6 @@ print("ERROR_ANALYSIS_DONE")
                         self.bc_left_types[i].setCurrentText("Periodic")
                     if i < len(self.bc_bottom_types):
                         self.bc_bottom_types[i].setCurrentText("Periodic")
-            elif bc_config == 'ch2d':
-                # u: periodic on all, mu: no BCs
-                if len(self.bc_left_types) > 0:
-                    self.bc_left_types[0].setCurrentText("Periodic")
-                if len(self.bc_bottom_types) > 0:
-                    self.bc_bottom_types[0].setCurrentText("Periodic")
-                # Deactivate all BCs for mu (output 1)
-                if len(self.bc_left_active) > 1:
-                    self.bc_left_active[1].setChecked(False)
-                if len(self.bc_right_active) > 1:
-                    self.bc_right_active[1].setChecked(False)
-                if len(self.bc_bottom_active) > 1:
-                    self.bc_bottom_active[1].setChecked(False)
-                if len(self.bc_top_active) > 1:
-                    self.bc_top_active[1].setChecked(False)
-                if len(self.ic_active) > 1:
-                    self.ic_active[1].setChecked(False)
             elif bc_config == 'heat2d':
                 # Right: Dirichlet=1, Left/Bottom/Top: Neumann=0
                 for i in range(n_out):
@@ -3341,23 +3322,6 @@ print("ERROR_ANALYSIS_DONE")
                 'periodic_bc': True,
                 'ref_dir': os.path.join(REFERENCE_DATA_DIR, "1D", "allen_cahn"),
             },
-            "1D Cahn-Hilliard": {
-                'pde': ["du_t - dv_xx", "v - 0.01*(u**3 - u) + 1e-6*du_xx"],
-                'ic': ["-cos(2*pi*x)", ""],
-                'num_outputs': 2,
-                'output_names': "u, v",
-                'num_domain': 10000,
-                'num_boundary': 200,
-                'num_initial': 512,
-                'layers': 4,
-                'neurons': 128,
-                'iterations': 20000,
-                'optimizer2': 'lbfgs',
-                'iterations2': 20000,
-                'x_min': -1.0, 'x_max': 1.0,
-                'periodic_bc_u_only': True,
-                'ref_dir': os.path.join(REFERENCE_DATA_DIR, "1D", "cahn_hilliard"),
-            },
         }
 
         t = templates.get(text)
@@ -3398,16 +3362,12 @@ print("ERROR_ANALYSIS_DONE")
         self.opt2_combo.setCurrentText(t['optimizer2'])
         self.iter2_spin.setValue(t['iterations2'])
 
-        # Set IC weight to 100 for Allen-Cahn and Cahn-Hilliard
+        # Set IC weight to 100 for Allen-Cahn
         if text in ["1D Allen-Cahn"]:
             for i in range(self.num_outputs_spin.value()):
                 key = f"ic_{i}"
                 if key in self.weight_widgets:
                     self.weight_widgets[key].setValue(100.0)
-        elif text == "1D Cahn-Hilliard":
-            self._build_weight_inputs(self.num_outputs_spin.value())
-            if "ic_0" in self.weight_widgets:
-                self.weight_widgets["ic_0"].setValue(100.0)
 
         # Set domain x range
         if 'x_min' in t:
@@ -3419,14 +3379,6 @@ print("ERROR_ANALYSIS_DONE")
             for i in range(self.num_outputs_spin.value()):
                 if i < len(self.bc_left_types):
                     self.bc_left_types[i].setCurrentText("Periodic")
-        elif t.get('periodic_bc_u_only', False):
-            # Only u (index 0) gets Periodic, v (index 1) gets no BC
-            if len(self.bc_left_types) > 0:
-                self.bc_left_types[0].setCurrentText("Periodic")
-            if len(self.bc_left_types) > 1:
-                self.bc_left_types[1].setCurrentText("None")
-            if len(self.bc_right_types) > 1:
-                self.bc_right_types[1].setCurrentText("None")
         else:
             for i in range(self.num_outputs_spin.value()):
                 if i < len(self.bc_left_types):

@@ -157,7 +157,7 @@ The goal is to make physics-informed machine learning accessible to researchers 
 - Live parameter convergence during inverse training — the estimated parameter's value prints and saves periodically throughout training, including during L-BFGS phases, not just at the end
 
 **Templates**
-- Seven built-in Quick Example templates covering common phase-field and diffusion problems (see [Built-in Templates](#built-in-templates))
+- Five built-in Quick Example templates covering common phase-field and diffusion problems (see [Built-in Templates](#built-in-templates))
 
 **Analysis & output**
 - Live training log streaming, with a Stop control
@@ -281,17 +281,15 @@ A CUDA-capable GPU is optional but recommended for larger 2D problems and invers
 
 Each template preconfigures the PDE, domain, boundary/initial conditions, network size, and training schedule — pick one from *Quick Examples*, then adjust as needed.
 
-All seven templates ship with bundled FEM reference data (see [`reference_data/`](reference_data)), generated independently of the PINN, so Error Analysis auto-configures against real ground truth the moment you load them — no setup, no external download.
+All five templates ship with bundled FEM reference data (see [`reference_data/`](reference_data)), generated independently of the PINN, so Error Analysis auto-configures against real ground truth the moment you load them — no setup, no external download.
 
 | Template | Dimension | System | Reference data |
 |---|---|---|---|
 | 1D Heat | 1D | Single PDE | ✅ bundled |
 | 1D Allen-Cahn | 1D | Single PDE | ✅ bundled |
-| 1D Cahn-Hilliard | 1D | Coupled (2 outputs) | ✅ bundled |
 | 2D Heat | 2D | Single PDE | ✅ bundled |
 | 2D Allen-Cahn | 2D | Single PDE | ✅ bundled |
 | 2D Allen-Cahn | 2D | Single PDE | ✅ bundled |
-| 2D Cahn-Hilliard | 2D | Coupled (2 outputs) | ✅ bundled |
 
 ### 1D Heat
 
@@ -306,14 +304,6 @@ Benchmark problem after Wight & Zhao (2021) — see [References](#references).
 $$\frac{\partial u}{\partial t} = 0.0001\frac{\partial^2 u}{\partial x^2} - 5u^3 + 5u, \qquad x \in [-1, 1],\ t \in [0, 1]$$
 
 Initial condition: $u(x, 0) = x^2\cos(\pi x)$. Periodic boundaries.
-
-### 1D Cahn-Hilliard
-
-Benchmark problem after Wight & Zhao (2021) — see [References](#references). Fourth-order phase separation, split into two coupled second-order equations:
-
-$$\frac{\partial u}{\partial t} = \frac{\partial^2 v}{\partial x^2}, \qquad v = 0.01(u^3 - u) - 10^{-6}\frac{\partial^2 u}{\partial x^2}, \qquad x \in [-1, 1],\ t \in [0, 1]$$
-
-Initial condition: $u(x, 0) = -\cos(2\pi x)$. Periodic boundaries.
 
 ---
 
@@ -345,13 +335,7 @@ Initial condition: $u(x, y, 0) = \sin(4\pi x)\cos(4\pi y)$. Periodic boundaries.
 
 > **Note:** This template also loads with **Time Adaptive** training on by default — $t \in [0, 1]$ split into steps of 0.25 (`0→0.25, 0.25→0.5, 0.5→0.75, 0.75→1`) with transfer learning enabled. Adjust or disable this in the *Adaptive Training* panel if you'd rather train the full range in one pass.
 
-### 2D Cahn-Hilliard
-
-Benchmark problem after Wight & Zhao (2021) — see [References](#references). Two-phase separation, split into a composition field $u$ and a chemical potential $\mu$:
-
-$$\frac{\partial u}{\partial t} = \frac{\partial^2 \mu}{\partial x^2} + \frac{\partial^2 \mu}{\partial y^2}, \qquad \mu = (u^3 - u) - 0.0025\left(\frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2}\right), \qquad (x, y) \in [-1, 1]^2,\ t \in [0, 1]$$
-
-Initial condition: two overlapping circular bubbles, $u(x, y, 0) = \max\left(\tanh\dfrac{0.4 - \sqrt{(x - 0.28)^2 + y^2}}{0.1}, \tanh\dfrac{0.4 - \sqrt{(x + 0.28)^2 + y^2}}{0.1}\right)$. Periodic boundaries.
+> **Tip:** Accuracy can generally be improved by refining the time discretization — use more, smaller **Time Adaptive** step groups (a finer time step per phase) rather than one large training pass, or increase collocation points for finer spatial/adaptive refinement of the residual. The two 2D Allen-Cahn templates above already default to Time Adaptive for this reason; add or adjust step groups for any template in the *Adaptive Training* panel if you want more accuracy on your own problem.
 
 ## How It Works
 
@@ -380,7 +364,7 @@ If PINNStudio is useful in your work, please cite it — see [`CITATION.cff`](CI
 
 ## Acknowledgment
 
-PINNStudio is built on [DeepXDE](https://github.com/lululxvi/deepxde) (Lu et al., 2021) and PyQt6. The 2D Allen-Cahn and Cahn-Hilliard Quick Example templates follow the problem setups described in Mattey & Ghosh (2022) and Wight & Zhao (2021) — see [References](#references).
+PINNStudio is built on [DeepXDE](https://github.com/lululxvi/deepxde) (Lu et al., 2021) and PyQt6. The 2D Allen-Cahn Quick Example templates follow the problem setups described in Mattey & Ghosh (2022) and Wight & Zhao (2021) — see [References](#references).
 
 Developed under the supervision of Prof. Mahmood Mamivand, Computational Materials Design Lab, Boise State University.
 
