@@ -60,6 +60,36 @@ def _simplify_pde_expr(expr):
     e = re.sub(r'(?<![a-zA-Z_])pi(?![a-zA-Z_])', 'np.pi', e)
     return e
 
+def _parse_inverse_variables(config):
+    """Parse config.inverse_variables_json into an ordered list of
+    (name, init) tuples, one per trainable variable (variable 1 first).
+    Falls back to a single entry built from the legacy
+    inverse_param_name/inverse_param_init fields when the JSON is empty or
+    unparseable -- covers configs saved before this feature existed, and
+    stays perfectly single-variable-compatible: one variable named
+    inverse_param_name in that case, exactly like before."""
+    import json
+    raw = getattr(config, "inverse_variables_json", "") or ""
+    variables = []
+    if raw:
+        try:
+            parsed = json.loads(raw)
+        except (json.JSONDecodeError, TypeError, ValueError):
+            parsed = []
+        for i, v in enumerate(parsed or []):
+            name = str((v or {}).get("name") or f"trainable_variable_{i + 1}").strip()
+            if not name:
+                name = f"trainable_variable_{i + 1}"
+            try:
+                init = float((v or {}).get("init", 1.0))
+            except (TypeError, ValueError):
+                init = 1.0
+            variables.append((name, init))
+    if not variables:
+        variables.append((config.inverse_param_name or "trainable_variable_1",
+                           config.inverse_param_init))
+    return variables
+
 def generate_script(config):
     is_2d = config.problem_dim == "2D"
     is_3d = config.problem_dim == "3D"
@@ -114,6 +144,24 @@ def generate_script(config):
         _polygon_verts_parsed = [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]
     _triangle_vertices_literal = repr(_triangle_verts_parsed)
     _polygon_vertices_literal = repr(_polygon_verts_parsed)
+
+    # Inverse: one or more trainable variables (generalized from the single
+    # trainable_variable this used to be limited to). Only the variable
+    # *definitions* need to be unrolled per-variable here at generation
+    # time -- every downstream use (external_trainable_variables,
+    # VariableValue, print/save callbacks, the eval() namespace, the
+    # convergence plot) operates generically over the _inv_vars /
+    # _inv_var_names lists built right after these definitions run, so
+    # none of that has to be unrolled.
+    _inv_vars_parsed = _parse_inverse_variables(config)
+    _inv_var_def_lines = []
+    for _iv_name, _iv_init in _inv_vars_parsed:
+        _inv_var_def_lines.append(f"    {_iv_name} = dde.Variable({_iv_init})")
+        _inv_var_def_lines.append(
+            f'    print(f"Inverse PINN: inferring {_iv_name}, init = {_iv_init}")')
+    _inv_var_defs_code = "\n".join(_inv_var_def_lines)
+    _inv_var_list_literal = "[" + ", ".join(n for n, _ in _inv_vars_parsed) + "]"
+    _inv_var_names_literal = repr([n for n, _ in _inv_vars_parsed])
 
     script = f"""
 
@@ -229,8 +277,9 @@ _problem_type = "{config.problem_type}"
 if _problem_type == "Inverse":
     import pandas as _pd
 
-    {config.inverse_param_name} = dde.Variable({config.inverse_param_init})
-    print(f"Inverse PINN: inferring {config.inverse_param_name}, init = {config.inverse_param_init}")
+{_inv_var_defs_code}
+    _inv_vars = {_inv_var_list_literal}
+    _inv_var_names = {_inv_var_names_literal}
 
     def _load_data(fpath):
         try:
@@ -267,7 +316,26 @@ if _problem_type == "Inverse":
             _ic_u  = _ic_data[:, 2:3]  # u
         print(f"Loaded {{len(_ic_xt)}} IC points from file")
 
-    _{config.inverse_param_name}_history = []
+    def _split_param_history_line(line):
+        # Robustly split one dde.callbacks.VariableValue output line,
+        # "<iter> [<v1>, <v2>, ...]", into (iter:int, raw_values_text:str)
+        # without reparsing/reformatting the numeric values -- so the
+        # precision the callback wrote is preserved exactly when this is
+        # used to merge/append history files. Returns None if the line
+        # doesn't look like a VariableValue line at all. Replaces the old
+        # `.replace("[","").replace("]","").split()` approach, which broke
+        # as soon as more than one comma-separated value appeared inside
+        # the brackets (whitespace-split leaves a trailing comma on each
+        # value, which float() rejects).
+        line = line.strip()
+        if not line or "[" not in line or "]" not in line:
+            return None
+        try:
+            i0 = line.index("[")
+            i1 = line.rindex("]")
+            return int(float(line[:i0].strip())), line[i0 + 1:i1]
+        except (ValueError, IndexError):
+            return None
 
     class _PrintParamCallback(dde.callbacks.Callback):
         def __init__(self, var, name, period=1000):
@@ -292,19 +360,24 @@ if _problem_type == "Inverse":
             if bucket > self._last_bucket:
                 self._last_bucket = bucket
                 val = self.var.detach().cpu().numpy().item() if hasattr(self.var, 'detach') else float(self.var.numpy())
-                print(f"  [{config.inverse_param_name}] Iter {{cur}}: {{val:.6f}}", flush=True)
+                print(f"  [{{self.name}}] Iter {{cur}}: {{val:.6f}}", flush=True)
 
-    _print_cb = _PrintParamCallback({config.inverse_param_name}, "{config.inverse_param_name}", period=1000)
-    
-    # Parameter saving to text file
+    _print_cbs = [_PrintParamCallback(_iv, _in, period=1000) for _iv, _in in zip(_inv_vars, _inv_var_names)]
+
+    # Parameter saving to text file -- one convergence file per variable,
+    # all sharing the same save-period setting from the panel.
     _param_save_opt = "{config.inv_param_save}"
     _param_save_period = 100 if _param_save_opt == "Every 100 iters" else 1000 if _param_save_opt == "Every 1000 iters" else 0
-    _param_save_path = _os.path.join(_save_dir if _use_save else "/tmp", f"{config.inverse_param_name}_convergence.txt") if _param_save_period > 0 else None
+    _param_save_paths = [
+        _os.path.join(_save_dir if _use_save else "/tmp", f"{{_in}}_convergence.txt")
+        for _in in _inv_var_names
+    ] if _param_save_period > 0 else [None] * len(_inv_var_names)
 
-    if _param_save_period > 0 and _param_save_path:
-        with open(_param_save_path, "w") as _psf:
-            _psf.write(f"iteration,{config.inverse_param_name}\\n")
-        print(f"Parameter convergence will be saved to: {{_param_save_path}}")
+    if _param_save_period > 0:
+        for _in, _ip in zip(_inv_var_names, _param_save_paths):
+            with open(_ip, "w") as _psf:
+                _psf.write(f"iteration,{{_in}}\\n")
+        print(f"Parameter convergence will be saved to: {{_param_save_paths}}")
 
     class _SaveParamCallback(dde.callbacks.Callback):
         def __init__(self, var, name, period, path):
@@ -327,12 +400,10 @@ if _problem_type == "Inverse":
                 with open(self.path, "a") as _f:
                     _f.write(f"{{cur}},{{val:.8f}}\\n")
 
-    _save_cb = _SaveParamCallback(
-        {config.inverse_param_name},
-        "{config.inverse_param_name}",
-        _param_save_period,
-        _param_save_path if _param_save_path else "/tmp/param_save.txt"
-    )
+    _save_cbs = [
+        _SaveParamCallback(_iv, _in, _param_save_period, _ip if _ip else f"/tmp/{{_in}}_param_save.txt")
+        for _iv, _in, _ip in zip(_inv_vars, _inv_var_names, _param_save_paths)
+    ]
 
 
 {_fecr_pde_block}
@@ -469,7 +540,8 @@ def _pde_standard(x, y):
     _eval_ns["torch"] = torch
 
     if _problem_type == "Inverse":
-        _eval_ns["{config.inverse_param_name}"] = {config.inverse_param_name}
+        for _iv_name, _iv_var in zip(_inv_var_names, _inv_vars):
+            _eval_ns[_iv_name] = _iv_var
 
     if _n_out == 1:
         return eval("{pde_expr_single}", _eval_ns)
@@ -964,7 +1036,7 @@ print(f"Loss weights: {{_multi_weights}} ({{len(_multi_weights)}} terms for {{le
 
 # ── Data ─────────────────────────────────────────────────────
 if _problem_type == "Inverse":
-    obs_bc = dde.icbc.PointSetBC(_obs_xt, _obs_u, component=0)
+    obs_bc = dde.icbc.PointSetBC(_obs_xt, _obs_u, component={config.inverse_obs_output_idx})
     _constraints.append(obs_bc)
     data = dde.data.TimePDE(
         geomtime, pde, _constraints,
@@ -1016,7 +1088,7 @@ for _pval in _param_values:
     model.compile(
         "{config.optimizer}", lr=_lr, loss="{config.loss_type}",
         loss_weights=_multi_weights,
-        external_trainable_variables=[{config.inverse_param_name}] if _problem_type == "Inverse" else None
+        external_trainable_variables=_inv_vars if _problem_type == "Inverse" else None
     )
     if {config.batch_size} > 0:
         print(f"Mini-batch training enabled: batch_size={config.batch_size}")
@@ -1090,10 +1162,10 @@ for _pval in _param_values:
                 pass
             if not _sched_active:
                 _var_cb = dde.callbacks.VariableValue(
-                    [{config.inverse_param_name}], period=1000, filename="/tmp/param_history.txt",
+                    _inv_vars, period=1000, filename="/tmp/param_history.txt",
                     precision=6
                 )
-                loss_history, train_state = model.train(iterations=_iters, display_every=1000, callbacks=[_var_cb, _print_cb, _save_cb])
+                loss_history, train_state = model.train(iterations=_iters, display_every=1000, callbacks=[_var_cb] + _print_cbs + _save_cbs)
             else:
                 # Scheduler phases below define all training — skip this
                 # standalone _iters-iteration pass so training only runs
@@ -1135,7 +1207,7 @@ for _pval in _param_values:
                           f"Conditions panel or geometry likely changed after this phase's weights were set. "
                           f"Using the freshly computed weights for this phase instead.")
                     _sp_weights = list(_multi_weights)
-                _sp_ext_vars = [{config.inverse_param_name}] if _problem_type == "Inverse" else None
+                _sp_ext_vars = _inv_vars if _problem_type == "Inverse" else None
                 if _sp['optimizer'] == 'lbfgs':
                     dde.optimizers.set_LBFGS_options(
                         maxcor={config.lbfgs_maxcor}, ftol={config.lbfgs_ftol},
@@ -1145,21 +1217,22 @@ for _pval in _param_values:
                     model.compile("L-BFGS", loss=_sp.get('loss', '{config.loss_type}'),
                                   loss_weights=_sp_weights, external_trainable_variables=_sp_ext_vars)
                     if _problem_type == "Inverse":
-                        _print_cb.set_offset(_sched_cum_iters)
-                        _save_cb.set_offset(_sched_cum_iters)
+                        for _icb in _print_cbs: _icb.set_offset(_sched_cum_iters)
+                        for _icb in _save_cbs: _icb.set_offset(_sched_cum_iters)
                         _sp_var_cb = dde.callbacks.VariableValue(
-                            [{config.inverse_param_name}], period=200,
+                            _inv_vars, period=200,
                             filename=f"/tmp/param_history_sp{{_sp_i}}.txt", precision=6)
                         loss_history, train_state = model.train(
-                            display_every=200, callbacks=[_sp_var_cb, _print_cb, _save_cb])
+                            display_every=200, callbacks=[_sp_var_cb] + _print_cbs + _save_cbs)
                         try:
                             with open(f"/tmp/param_history_sp{{_sp_i}}.txt", "r") as _spf:
                                 _sp_lines = [l.strip() for l in _spf if l.strip()]
                             with open("/tmp/param_history.txt", "a") as _fa:
                                 for _spl in _sp_lines:
-                                    _spparts = _spl.replace("[","").replace("]","").split()
-                                    if len(_spparts) >= 2:
-                                        _fa.write(f"{{int(_spparts[0])}} [{{_spparts[1]}}]\\n")
+                                    _sp_parsed = _split_param_history_line(_spl)
+                                    if _sp_parsed is not None:
+                                        _sp_it, _sp_raw = _sp_parsed
+                                        _fa.write(f"{{_sp_it}} [{{_sp_raw}}]\\n")
                         except Exception as _spe:
                             print(f"Could not merge phase {{_sp_i+1}} parameter history: {{_spe}}")
                         _sched_cum_iters = loss_history.steps[-1] if loss_history.steps else (_sched_cum_iters + _sp['iterations'])
@@ -1176,22 +1249,23 @@ for _pval in _param_values:
                     if {config.batch_size} > 0:
                         data.batch_size = {config.batch_size}
                     if _problem_type == "Inverse":
-                        _print_cb.set_offset(_sched_cum_iters)
-                        _save_cb.set_offset(_sched_cum_iters)
+                        for _icb in _print_cbs: _icb.set_offset(_sched_cum_iters)
+                        for _icb in _save_cbs: _icb.set_offset(_sched_cum_iters)
                         _sp_var_cb = dde.callbacks.VariableValue(
-                            [{config.inverse_param_name}], period=1000,
+                            _inv_vars, period=1000,
                             filename=f"/tmp/param_history_sp{{_sp_i}}.txt", precision=6)
                         loss_history, train_state = model.train(
                             iterations=_sp['iterations'], display_every=1000,
-                            callbacks=[_sp_var_cb, _print_cb, _save_cb])
+                            callbacks=[_sp_var_cb] + _print_cbs + _save_cbs)
                         try:
                             with open(f"/tmp/param_history_sp{{_sp_i}}.txt", "r") as _spf:
                                 _sp_lines = [l.strip() for l in _spf if l.strip()]
                             with open("/tmp/param_history.txt", "a") as _fa:
                                 for _spl in _sp_lines:
-                                    _spparts = _spl.replace("[","").replace("]","").split()
-                                    if len(_spparts) >= 2:
-                                        _fa.write(f"{{int(_spparts[0])}} [{{_spparts[1]}}]\\n")
+                                    _sp_parsed = _split_param_history_line(_spl)
+                                    if _sp_parsed is not None:
+                                        _sp_it, _sp_raw = _sp_parsed
+                                        _fa.write(f"{{_sp_it}} [{{_sp_raw}}]\\n")
                         except Exception as _spe:
                             print(f"Could not merge phase {{_sp_i+1}} parameter history: {{_spe}}")
                         _sched_cum_iters = loss_history.steps[-1] if loss_history.steps else (_sched_cum_iters + _sp['iterations'])
@@ -1215,26 +1289,31 @@ for _pval in _param_values:
                     print("  [L-BFGS] Switched to float64")
                 if _problem_type == "Inverse":
                     _var_cb2 = dde.callbacks.VariableValue(
-                        [{config.inverse_param_name}], period=200, filename="/tmp/param_history_phase2.txt",
+                        _inv_vars, period=200, filename="/tmp/param_history_phase2.txt",
                         precision=6
                     )
                     model.compile("L-BFGS", loss="{config.loss_type}", loss_weights=_phase2_weights,
-                                  external_trainable_variables=[{config.inverse_param_name}])
-                    _print_cb.set_offset(_iters)
-                    loss_history, train_state = model.train(display_every=200, callbacks=[_var_cb2, _print_cb])
-                    # Append L-BFGS history to convergence file
-                    if _param_save_period > 0 and _param_save_path:
+                                  external_trainable_variables=_inv_vars)
+                    for _icb in _print_cbs: _icb.set_offset(_iters)
+                    loss_history, train_state = model.train(display_every=200, callbacks=[_var_cb2] + _print_cbs)
+                    # Append L-BFGS history to each variable's own convergence file
+                    if _param_save_period > 0:
                         try:
                             with open("/tmp/param_history_phase2.txt", "r") as _lf:
                                 for _ll in _lf:
-                                    _ll = _ll.strip()
-                                    if not _ll: continue
-                                    _lparts = _ll.replace("[","").replace("]","").split()
-                                    if len(_lparts) >= 2:
-                                        _lbfgs_iter = int(_lparts[0])
-                                        _lbfgs_val = float(_lparts[1])
-                                        with open(_param_save_path, "a") as _pf:
-                                            _pf.write(f"{{_lbfgs_iter}},{{_lbfgs_val:.8f}}\\n")
+                                    _l_parsed = _split_param_history_line(_ll)
+                                    if _l_parsed is None:
+                                        continue
+                                    _lbfgs_iter, _lbfgs_raw = _l_parsed
+                                    try:
+                                        _lbfgs_vals = [float(v) for v in _lbfgs_raw.split(",") if v.strip()]
+                                    except ValueError:
+                                        continue
+                                    for _lv_path, _lv_val in zip(_param_save_paths, _lbfgs_vals):
+                                        if not _lv_path:
+                                            continue
+                                        with open(_lv_path, "a") as _pf:
+                                            _pf.write(f"{{_lbfgs_iter}},{{_lv_val:.8f}}\\n")
                         except Exception as _le:
                             print(f"Could not save L-BFGS history: {{_le}}")
                     try:
@@ -1242,10 +1321,10 @@ for _pval in _param_values:
                             _p2_lines = [l.strip() for l in _f2 if l.strip()]
                         with open("/tmp/param_history.txt", "a") as _fa:
                             for _p2l in _p2_lines:
-                                _p2parts = _p2l.replace("[","").replace("]","").split()
-                                if len(_p2parts) >= 2:
-                                    _new_iter = int(_p2parts[0])
-                                    _fa.write(f"{{_new_iter}} [{{_p2parts[1]}}]\\n")
+                                _p2_parsed = _split_param_history_line(_p2l)
+                                if _p2_parsed is not None:
+                                    _new_iter, _p2_raw = _p2_parsed
+                                    _fa.write(f"{{_new_iter}} [{{_p2_raw}}]\\n")
                     except Exception as _ae:
                         print(f"Could not append phase 2 history: {{_ae}}")
                 else:
@@ -1267,7 +1346,7 @@ for _pval in _param_values:
                 if _problem_type == "Inverse":
                     model.compile("{config.optimizer2}", lr=_lr, loss="{config.loss_type}",
                                   loss_weights=_phase2_weights,
-                                  external_trainable_variables=[{config.inverse_param_name}])
+                                  external_trainable_variables=_inv_vars)
                 else:
                     model.compile("{config.optimizer2}", lr=_lr, loss="{config.loss_type}",
                                   loss_weights=_phase2_weights)
@@ -1353,42 +1432,56 @@ for _pval in _param_values:
 
         _final_loss = sum(loss_history.loss_train[-1])
 
-        # Parameter history (inverse only)
+        # Parameter history (inverse only) -- one subplot per trainable
+        # variable, all sharing the single param_plot.png output path
+        # (same filename as the single-variable version, for anything
+        # downstream that expects it there).
         if _problem_type == "Inverse":
             try:
-                _ph_iters = []; _ph_vals = []
+                _ph_iters = []
+                _ph_vals_by_var = [[] for _ in _inv_var_names]
                 with open("/tmp/param_history.txt", "r") as _phf:
                     for _line in _phf:
-                        _line = _line.strip()
-                        if not _line: continue
-                        _parts = _line.replace("[","").replace("]","").split()
-                        if len(_parts) >= 2:
-                            try:
-                                _ph_iters.append(float(_parts[0]))
-                                _ph_vals.append(float(_parts[1]))
-                            except ValueError:
-                                continue
-                _ph_iters = np.array(_ph_iters); _ph_vals = np.array(_ph_vals)
-                print(f"\\n=== {config.inverse_param_name} final value: {{_ph_vals[-1]:.6f}} ===")
-                plt.figure(figsize=(6, 4))
-                if {config.inv_param_log_scale} and np.all(np.array(_ph_vals) > 0):
-                    plt.semilogy(_ph_iters, _ph_vals, color="#69db7c", linewidth=1.5)
-                    plt.axhline(y=_ph_vals[-1], color="#ff8787", linestyle="--", alpha=0.5, label=f"Final = {{_ph_vals[-1]:.6f}}")
-                    plt.ylabel("log({config.inverse_param_name})")
-                else:
-                    plt.plot(_ph_iters, _ph_vals, color="#69db7c", linewidth=1.5)
-                    plt.axhline(y=_ph_vals[-1], color="#ff8787", linestyle="--", alpha=0.5, label=f"Final = {{_ph_vals[-1]:.6f}}")
-                    plt.ylabel("{config.inverse_param_name}")
-                plt.xlabel("Iteration")
-                plt.title("Inferred Parameter: {config.inverse_param_name}")
-                plt.legend(); plt.grid(True, alpha=0.3); plt.tight_layout()
+                        _parsed_line = _split_param_history_line(_line)
+                        if _parsed_line is None:
+                            continue
+                        _it, _raw = _parsed_line
+                        try:
+                            _vals = [float(v) for v in _raw.split(",") if v.strip()]
+                        except ValueError:
+                            continue
+                        if len(_vals) != len(_inv_var_names):
+                            continue
+                        _ph_iters.append(_it)
+                        for _vi in range(len(_inv_var_names)):
+                            _ph_vals_by_var[_vi].append(_vals[_vi])
+                _ph_iters_arr = np.array(_ph_iters)
+                _n_ivars = len(_inv_var_names)
+                _fig, _iv_axes = plt.subplots(_n_ivars, 1, figsize=(6, 3.2 * _n_ivars), squeeze=False)
+                for _vi, _vname in enumerate(_inv_var_names):
+                    _ax = _iv_axes[_vi][0]
+                    _vvals = np.array(_ph_vals_by_var[_vi])
+                    _final_val = _vvals[-1]
+                    if {config.inv_param_log_scale} and np.all(_vvals > 0):
+                        _ax.semilogy(_ph_iters_arr, _vvals, color="#69db7c", linewidth=1.5)
+                        _ax.set_ylabel(f"log({{_vname}})")
+                    else:
+                        _ax.plot(_ph_iters_arr, _vvals, color="#69db7c", linewidth=1.5)
+                        _ax.set_ylabel(_vname)
+                    _ax.axhline(y=_final_val, color="#ff8787", linestyle="--", alpha=0.5, label=f"Final = {{_final_val:.6f}}")
+                    _ax.set_xlabel("Iteration")
+                    _ax.set_title(f"Inferred Parameter: {{_vname}}")
+                    _ax.legend(); _ax.grid(True, alpha=0.3)
+                    print(f"\\n=== {{_vname}} final value: {{_final_val:.6f}} ===")
+                plt.tight_layout()
                 plt.savefig("/tmp/param_plot.png", dpi=100)
                 if _use_save:
                     import shutil as _sp
                     _sp.copy("/tmp/param_plot.png", _os.path.join(
                         _run_dir if (_parametric and _pval is not None) else _save_dir, "param_plot.png"))
-                plt.close()
-                print(f"Final inferred {config.inverse_param_name}: {{_ph_vals[-1]:.6f}}")
+                plt.close(_fig)
+                for _vi, _vname in enumerate(_inv_var_names):
+                    print(f"Final inferred {{_vname}}: {{_ph_vals_by_var[_vi][-1]:.6f}}")
             except Exception as _e:
                 print(f"Could not plot parameter history: {{_e}}")
 

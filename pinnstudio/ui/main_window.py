@@ -1021,10 +1021,35 @@ class MainWindow(QMainWindow):
         inv_layout = QVBoxLayout(self.inverse_group)
         inv_layout.setSpacing(5)
 
-        inv_layout.addWidget(QLabel("Unknown parameter name:"))
-        self.inv_param_name = QLineEdit(); self.inv_param_name.setText("trainable_variable"); self.inv_param_name.setFixedHeight(28)
-        self.inv_param_name.editingFinished.connect(self._on_inv_param_name_changed)
-        inv_layout.addWidget(self.inv_param_name)
+        inv_layout.addWidget(QLabel("Trainable (unknown) variables:"))
+        self.inv_vars_widget = QWidget()
+        self.inv_vars_layout = QVBoxLayout(self.inv_vars_widget)
+        self.inv_vars_layout.setSpacing(3)
+        self.inv_vars_layout.setContentsMargins(0, 0, 0, 0)
+        inv_layout.addWidget(self.inv_vars_widget)
+
+        self.inv_var_rows = []  # list of dicts with widgets
+
+        add_inv_var_btn = QPushButton("➕ Add trainable variable")
+        add_inv_var_btn.setStyleSheet(
+            "QPushButton { color: #69db7c; background: transparent; "
+            "border: 1px solid #2a6a4a; border-radius: 4px; padding: 2px 8px; }")
+        add_inv_var_btn.clicked.connect(lambda: self._add_inverse_var_row())
+        inv_layout.addWidget(add_inv_var_btn)
+
+        self.inv_multi_var_hint = QLabel(
+            "⚠ Add each new variable's name to your PDE expression(s) too\n"
+            "(PDE Builder tab), wherever that unknown quantity belongs.")
+        self.inv_multi_var_hint.setStyleSheet("color: #ffd43b; font-size: 12px;")
+        self.inv_multi_var_hint.setWordWrap(True)
+        self.inv_multi_var_hint.setVisible(False)
+        inv_layout.addWidget(self.inv_multi_var_hint)
+
+        # Add the first (primary) trainable variable row -- always present;
+        # renaming it keeps a loaded Quick Example's PDE box in sync
+        # (INVERSE_AUTO_CONST / _sync_inverse_pde_substitution), same as the
+        # single-variable behavior this replaces.
+        self._add_inverse_var_row("trainable_variable_1", 1.0)
 
         inv_ref_row = QHBoxLayout()
         inv_ref_toggle = QCheckBox("\U0001F4D6 Show inverse reference")
@@ -1035,29 +1060,25 @@ class MainWindow(QMainWindow):
         inv_ref_row_widget = QWidget()
         inv_ref_row_widget.setLayout(inv_ref_row)
         inv_layout.addWidget(inv_ref_row_widget)
-        inv_ref_text = ("The unknown parameter is the value DeepXDE infers (optimizes) during\n"
-                        "training, e.g. a diffusion coefficient or reaction rate.\n"
-                        "Default name is 'trainable_variable' -- rename it to anything you like\n"
-                        "(any valid Python identifier); when a Quick Example is loaded, renaming\n"
-                        "here keeps its PDE box in sync automatically. For a custom PDE (no\n"
-                        "example), make sure the same name also appears in your PDE expression\n"
-                        "(PDE Builder tab) wherever that coefficient belongs, e.g. rename to D and\n"
-                        "write: du_t - D*du_xx\n"
-                        "Initial guess sets the starting value before optimization begins.\n"
-                        "Measured data file (x, t, u) supplies the sparse ground-truth points\n"
-                        "used to fit both the network and the unknown parameter.")
+        inv_ref_text = ("Each trainable (unknown) variable is a value DeepXDE infers (optimizes)\n"
+                        "during training, e.g. a diffusion coefficient or reaction rate.\n"
+                        "The first is named 'trainable_variable_1' by default -- rename any of\n"
+                        "them to anything you like (any valid Python identifier); renaming the\n"
+                        "first one keeps a loaded Quick Example's PDE box in sync automatically.\n"
+                        "For a custom PDE (no example), or for any variable beyond the first,\n"
+                        "make sure the same name also appears in your PDE expression(s) (PDE\n"
+                        "Builder tab) wherever that quantity belongs, e.g. rename to D and write:\n"
+                        "du_t - D*du_xx\n"
+                        "Initial guess sets each variable's starting value before optimization.\n"
+                        "All trainable variables share the same measured data file (x, t, u, ...)\n"
+                        "below, used to fit both the network and the unknown variables -- pick\n"
+                        "which model output that data corresponds to with the selector below it.")
         inv_ref_hint = QLabel(inv_ref_text)
         inv_ref_hint.setStyleSheet("color: #74c0fc; font-size: 13px;")
         inv_ref_hint.setWordWrap(True)
         inv_ref_hint.setVisible(False)
         inv_layout.addWidget(inv_ref_hint)
         inv_ref_toggle.stateChanged.connect(lambda state, h=inv_ref_hint: h.setVisible(state == 2))
-
-        inv_layout.addWidget(QLabel("Initial guess:"))
-        self.inv_param_init = QDoubleSpinBox()
-        self.inv_param_init.setRange(-1e6, 1e6); self.inv_param_init.setDecimals(6)
-        self.inv_param_init.setValue(1.0); self.inv_param_init.setFixedHeight(28)
-        inv_layout.addWidget(self.inv_param_init)
 
         inv_layout.addWidget(QLabel("Measured data file (x, t, u):"))
         inv_data_row = QHBoxLayout()
@@ -1067,6 +1088,12 @@ class MainWindow(QMainWindow):
         self.inv_data_browse.clicked.connect(self._on_browse_inv_data)
         inv_data_row.addWidget(self.inv_data_browse)
         inv_layout.addLayout(inv_data_row)
+
+        inv_layout.addWidget(QLabel("Observed data corresponds to output:"))
+        self.inv_obs_output_combo = QComboBox()
+        self.inv_obs_output_combo.addItems(["Output 1 (u)"])
+        self.inv_obs_output_combo.setFixedHeight(28)
+        inv_layout.addWidget(self.inv_obs_output_combo)
 
         inv_layout.addWidget(QLabel("IC type:"))
         self.inv_ic_type = QComboBox(); self.inv_ic_type.addItems(["Expression", "File (x, t, u)"])
@@ -1840,7 +1867,91 @@ class MainWindow(QMainWindow):
             if row_data in self.ta_group_rows:
                 self.ta_group_rows.remove(row_data)
         remove_btn.clicked.connect(_remove)
-    
+
+    def _add_inverse_var_row(self, name=None, init=1.0, is_primary=None):
+        """Add one trainable-variable row to the Inverse panel. The first
+        (primary) row is always present and cannot be removed -- it is the
+        one that participates in INVERSE_AUTO_CONST's automatic PDE-box
+        substitution when a Quick Example is loaded, exactly like the
+        single trainable_variable this generalizes. Rows beyond the first
+        are optional, freely added/removed, and share the panel's single
+        measured-data file / output selector / loss weight (all trainable
+        variables are fit against the same shared observation dataset)."""
+        if is_primary is None:
+            is_primary = (len(self.inv_var_rows) == 0)
+        if not name:
+            name = f"trainable_variable_{len(self.inv_var_rows) + 1}"
+
+        row_widget = QWidget()
+        row_layout = QHBoxLayout(row_widget)
+        row_layout.setContentsMargins(0, 0, 0, 0)
+        row_layout.setSpacing(4)
+
+        name_edit = QLineEdit()
+        name_edit.setText(name)
+        name_edit.setFixedHeight(26)
+        row_layout.addWidget(name_edit)
+
+        row_layout.addWidget(QLabel("init:"))
+        init_spin = QDoubleSpinBox()
+        init_spin.setRange(-1e6, 1e6); init_spin.setDecimals(6)
+        init_spin.setValue(init)
+        init_spin.setFixedHeight(26); init_spin.setFixedWidth(85)
+        row_layout.addWidget(init_spin)
+
+        remove_btn = None
+        if is_primary:
+            name_edit.editingFinished.connect(self._on_inv_param_name_changed)
+        else:
+            remove_btn = QPushButton("✕")
+            remove_btn.setFixedHeight(26); remove_btn.setFixedWidth(26)
+            remove_btn.setStyleSheet(
+                "QPushButton { color: #ff8787; background: transparent; border: none; }")
+            row_layout.addWidget(remove_btn)
+
+        self.inv_vars_layout.addWidget(row_widget)
+        row_data = {
+            'widget': row_widget,
+            'name': name_edit,
+            'init': init_spin,
+            'is_primary': is_primary,
+        }
+        self.inv_var_rows.append(row_data)
+        if is_primary:
+            # Keep the legacy single-variable attribute names as aliases to
+            # the primary row's widgets -- every existing call site that
+            # reads/writes self.inv_param_name / self.inv_param_init (PDE
+            # auto-substitution, config build/restore) keeps working
+            # unchanged, including after a config-restore rebuild replaces
+            # the row widgets these point to.
+            self.inv_param_name = name_edit
+            self.inv_param_init = init_spin
+
+        if remove_btn is not None:
+            def _remove():
+                row_widget.deleteLater()
+                if row_data in self.inv_var_rows:
+                    self.inv_var_rows.remove(row_data)
+                self._update_inv_multi_var_hint()
+            remove_btn.clicked.connect(_remove)
+
+        self._update_inv_multi_var_hint()
+        return row_data
+
+    def _update_inv_multi_var_hint(self):
+        if hasattr(self, 'inv_multi_var_hint'):
+            self.inv_multi_var_hint.setVisible(len(self.inv_var_rows) > 1)
+
+    def _build_inverse_variables_json(self):
+        import json
+        variables = []
+        for r in self.inv_var_rows:
+            nm = r['name'].text().strip() or f"trainable_variable_{len(variables) + 1}"
+            variables.append({'name': nm, 'init': r['init'].value()})
+        if not variables:
+            variables.append({'name': 'trainable_variable_1', 'init': 1.0})
+        return json.dumps(variables)
+
     def _set_combo_data(self, combo, value):
         idx = combo.findData(value)
         if idx >= 0:
@@ -2990,6 +3101,8 @@ class MainWindow(QMainWindow):
             problem_type="Inverse" if self.radio_inverse.isChecked() else "Forward",
             inverse_param_name=self.inv_param_name.text().strip(),
             inverse_param_init=self.inv_param_init.value(),
+            inverse_variables_json=self._build_inverse_variables_json(),
+            inverse_obs_output_idx=self.inv_obs_output_combo.currentIndex() if self.inv_obs_output_combo.currentIndex() >= 0 else 0,
             inverse_data_file=self.inv_data_path.text().strip(),
             inverse_ic_type=self.inv_ic_type.currentText(),
             inverse_ic_file=self.inv_ic_path.text().strip(),
@@ -3251,10 +3364,12 @@ class MainWindow(QMainWindow):
         # changed, before we had the saved names to give them).
         self.plot_output_combo.clear()
         self.restore_output_combo.clear()
+        self.inv_obs_output_combo.clear()
         for i in range(n_out):
             name = self.output_name_inputs[i].text() if i < len(self.output_name_inputs) else f"u{i+1}"
             self.plot_output_combo.addItem(f"Output {i+1} ({name})")
             self.restore_output_combo.addItem(f"Output {i+1} ({name})")
+            self.inv_obs_output_combo.addItem(f"Output {i+1} ({name})")
 
         # PDE expressions
         pdes = _texts(config.pde_expressions, n_out, "|", config.pde_expression)
@@ -3409,13 +3524,34 @@ class MainWindow(QMainWindow):
         self.lr_spin.setValue(config.learning_rate)
         self.loss_combo.setCurrentText(config.loss_type)
 
-        # Inverse-problem settings
-        self.inv_param_name.setText(config.inverse_param_name)
-        self.inv_param_init.setValue(config.inverse_param_init)
+        # Inverse-problem settings -- trainable-variable rows. Rebuild from
+        # inverse_variables_json when present (configs saved with the
+        # multi-variable feature); otherwise fall back to the single
+        # legacy inverse_param_name/inverse_param_init fields (configs
+        # saved before this feature existed) so old saved configs still
+        # load correctly with exactly one variable.
+        for row in list(self.inv_var_rows):
+            row['widget'].deleteLater()
+        self.inv_var_rows.clear()
+        try:
+            _inv_vars = json.loads(config.inverse_variables_json) if config.inverse_variables_json else []
+        except (json.JSONDecodeError, TypeError):
+            _inv_vars = []
+        if _inv_vars:
+            for _v in _inv_vars:
+                self._add_inverse_var_row(
+                    _v.get('name', f"trainable_variable_{len(self.inv_var_rows) + 1}"),
+                    _v.get('init', 1.0))
+        else:
+            self._add_inverse_var_row(
+                config.inverse_param_name or "trainable_variable_1",
+                config.inverse_param_init)
         self.inv_data_path.setText(config.inverse_data_file)
         self.inv_ic_type.setCurrentText(config.inverse_ic_type)
         self.inv_ic_path.setText(config.inverse_ic_file)
         self.inv_obs_weight.setValue(config.loss_weight_obs)
+        if 0 <= config.inverse_obs_output_idx < self.inv_obs_output_combo.count():
+            self.inv_obs_output_combo.setCurrentIndex(config.inverse_obs_output_idx)
         self.inv_param_log_scale.setChecked(config.inv_param_log_scale)
         self.param_save_combo.setCurrentText(config.inv_param_save)
 
@@ -3530,10 +3666,12 @@ class MainWindow(QMainWindow):
         self._build_weight_inputs(n)
         self.plot_output_combo.clear()
         self.restore_output_combo.clear()
+        self.inv_obs_output_combo.clear()
         for i in range(n):
             name = self.output_name_inputs[i].text() if i < len(self.output_name_inputs) else f"u{i+1}"
             self.plot_output_combo.addItem(f"Output {i+1} ({name})")
             self.restore_output_combo.addItem(f"Output {i+1} ({name})")
+            self.inv_obs_output_combo.addItem(f"Output {i+1} ({name})")
 
     # Per built-in template: (PDE row index, original constant substring)
     # of the "diffusion coefficient"-style constant that gets swapped for
@@ -3559,7 +3697,7 @@ class MainWindow(QMainWindow):
             idx, const_str = entry
             if idx >= len(self.pde_inputs):
                 return
-            var_name = self.inv_param_name.text().strip() or "trainable_variable"
+            var_name = self.inv_param_name.text().strip() or "trainable_variable_1"
             text = self.pde_inputs[idx].text()
             if const_str in text:
                 self.pde_inputs[idx].setText(text.replace(const_str, var_name, 1))

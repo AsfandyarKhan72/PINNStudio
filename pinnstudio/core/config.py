@@ -116,6 +116,19 @@ class PINNConfig:
     forward_ic_file: str = ""
     template_type: str = ""
 
+    # Multiple trainable variables (Inverse). JSON-encoded list of
+    # {"name": str, "init": float} dicts, one per trainable variable, in
+    # order (variable 1 first). Empty string means "not set" -- fall back
+    # to the single legacy inverse_param_name/inverse_param_init fields
+    # above for configs saved before this feature existed. All trainable
+    # variables share the single inverse_data_file / inverse_ic_type /
+    # inverse_ic_file / loss_weight_obs above (one shared measured-data
+    # setup, no matter how many variables are being estimated).
+    inverse_variables_json: str = ""
+    # Which model output column the shared measured-data file corresponds
+    # to (0-based index into output_names). Defaults to output 0.
+    inverse_obs_output_idx: int = 0
+
     # Export
     export_grid_size: int = 101
     export_t_steps: int = 11
