@@ -25,9 +25,14 @@ def _check_gpu_torch_mismatch():
     print("=" * 70)
 
 def main():
-    _check_gpu_torch_mismatch()
+    # Create the QApplication (and set its style) before importing PyTorch
+    # (which happens inside _check_gpu_torch_mismatch()). Importing PyTorch
+    # first has been observed to leave some Qt widgets built-but-not-painted
+    # until an unrelated event nudges a repaint -- creating the QApplication
+    # first avoids that ordering issue entirely.
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
+    _check_gpu_torch_mismatch()
     window = MainWindow()
     window.show()
     sys.exit(app.exec())

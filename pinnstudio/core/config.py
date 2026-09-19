@@ -158,3 +158,33 @@ class PINNConfig:
     ea_do_line: bool = True
     ea_do_surface: bool = True
 
+    # Geometry type & 3D domain
+    geometry_type: str = "Rectangle"  # 2D: Rectangle|Disk|Ellipse|Triangle|Polygon ; 3D: Cuboid|Sphere
+    z_min: float = 0.0
+    z_max: float = 1.0
+
+    # Disk / Ellipse / Sphere center
+    geom_center_x: float = 0.5
+    geom_center_y: float = 0.5
+    geom_center_z: float = 0.5
+    geom_radius: float = 0.5
+
+    # Ellipse
+    geom_semi_major: float = 0.5
+    geom_semi_minor: float = 0.3
+    geom_angle: float = 0.0
+
+    # Triangle / Polygon vertices, "x1,y1;x2,y2;..." format
+    geom_triangle_vertices: str = "0,0;1,0;0,1"
+    geom_polygon_vertices: str = "0,0;1,0;1,1;0,1"
+
+    # Shape-aware boundary conditions for non-box geometries (JSON-encoded)
+    bc_boundary_json: str = ""  # Disk/Ellipse/Sphere: one BC group per output
+    bc_edge_json: str = ""      # Triangle/Polygon: one BC group per edge per output
+
+    # Fully-customizable BC builder, used when no Quick Example template is
+    # selected -- a flat, user-authored list of BCs (any DeepXDE BC class,
+    # any location, any output), independent of geometry_type. JSON-encoded
+    # list of dicts; see MainWindow._build_custom_bc_json().
+    custom_bc_json: str = ""
+

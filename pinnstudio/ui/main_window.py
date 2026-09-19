@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import (
     QFileDialog, QCheckBox, QRadioButton, QButtonGroup,
     QDialog, QMenuBar, QMenu, QFrame, QApplication
 )
-from PyQt6.QtCore import Qt, QThread, pyqtSignal
+from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer
 from PyQt6.QtGui import QPixmap, QFont, QAction, QColor
 from pinnstudio.core.config import PINNConfig
 from pinnstudio.core.runner import run_pinn
@@ -260,6 +260,13 @@ class MainWindow(QMainWindow):
         # ── Menu bar ─────────────────────────────────────────
         menubar = self.menuBar()
         menubar.setNativeMenuBar(False)
+        problem_menu = menubar.addMenu("📁 Problem")
+        open_problem_action = QAction("Open Saved Problem...", self)
+        open_problem_action.triggered.connect(self._open_problem)
+        problem_menu.addAction(open_problem_action)
+        save_problem_action = QAction("Save Problem As...", self)
+        save_problem_action.triggered.connect(self._save_problem)
+        problem_menu.addAction(save_problem_action)
         settings_menu = menubar.addMenu("⚙ Settings")
         lbfgs_action = QAction("L-BFGS Options", self)
         lbfgs_action.triggered.connect(self._on_lbfgs_settings)
@@ -328,14 +335,19 @@ class MainWindow(QMainWindow):
         dim_layout = QHBoxLayout(dim_group)
         self.radio_1d = QRadioButton("1D  (x, t)")
         self.radio_2d = QRadioButton("2D  (x, y, t)")
+        self.radio_3d = QRadioButton("3D  (x, y, z, t)")
         self.radio_1d.setChecked(True)
         self.dim_group_btn = QButtonGroup()
         self.dim_group_btn.addButton(self.radio_1d)
         self.dim_group_btn.addButton(self.radio_2d)
+        self.dim_group_btn.addButton(self.radio_3d)
         dim_layout.addWidget(self.radio_1d)
         dim_layout.addWidget(self.radio_2d)
+        dim_layout.addWidget(self.radio_3d)
         left_layout.addWidget(dim_group)
         self.radio_1d.toggled.connect(self._on_dim_changed)
+        self.radio_2d.toggled.connect(self._on_dim_changed)
+        self.radio_3d.toggled.connect(self._on_dim_changed)
 
         # ── Quick Examples (shown right after dimension) ──────
         examples_group = QGroupBox("📋 Quick Examples")
@@ -386,18 +398,42 @@ class MainWindow(QMainWindow):
         left_layout.addWidget(self.pde_group)
 
         # ── Domain ────────────────────────────────────────────
+        # ── Geometry type (2D / 3D only) -- shown above Domain so the ──
+        # ── shape choice governs what Domain asks for below it. ────────
+        self.geom_type_group = QGroupBox("Geometry Type")
+        geom_type_layout = QVBoxLayout(self.geom_type_group)
+        geom_type_layout.setSpacing(6)
+
+        geom_combo_row = QHBoxLayout()
+        geom_combo_row.addWidget(QLabel("Shape:"))
+        self.geometry_type_combo = QComboBox()
+        self.geometry_type_combo.setFixedHeight(28)
+        geom_combo_row.addWidget(self.geometry_type_combo)
+        geom_type_layout.addLayout(geom_combo_row)
+        self.geometry_type_combo.currentTextChanged.connect(self._on_geometry_type_changed)
+
+        self.geom_type_group.setVisible(False)
+        left_layout.addWidget(self.geom_type_group)
+
         domain_group = QGroupBox("Domain")
         domain_layout = QVBoxLayout(domain_group)
         domain_layout.setSpacing(6)
 
-        row1 = QHBoxLayout()
-        row1.addWidget(QLabel("x:"))
+        # x/y/z rows: only meaningful for the box shapes (Interval/Rectangle/
+        # Cuboid), where the domain really is an axis-aligned box. For every
+        # other shape these are replaced by that shape's own parameters
+        # (center + radius, vertices, ...) below -- see
+        # _update_domain_fields_visibility().
+        self.x_row_widget = QWidget()
+        x_row = QHBoxLayout(self.x_row_widget)
+        x_row.setContentsMargins(0, 0, 0, 0)
+        x_row.addWidget(QLabel("x:"))
         self.x_min = QDoubleSpinBox()
         self.x_min.setRange(-1e6, 1e6); self.x_min.setValue(0.0); self.x_min.setSingleStep(0.5)
         self.x_max = QDoubleSpinBox()
         self.x_max.setRange(-1e6, 1e6); self.x_max.setValue(1.0); self.x_max.setSingleStep(0.5)
-        row1.addWidget(self.x_min); row1.addWidget(QLabel("to")); row1.addWidget(self.x_max)
-        domain_layout.addLayout(row1)
+        x_row.addWidget(self.x_min); x_row.addWidget(QLabel("to")); x_row.addWidget(self.x_max)
+        domain_layout.addWidget(self.x_row_widget)
 
         self.y_row_widget = QWidget()
         y_row = QHBoxLayout(self.y_row_widget)
@@ -410,6 +446,95 @@ class MainWindow(QMainWindow):
         y_row.addWidget(self.y_min); y_row.addWidget(QLabel("to")); y_row.addWidget(self.y_max)
         self.y_row_widget.setVisible(False)
         domain_layout.addWidget(self.y_row_widget)
+
+        self.z_row_widget = QWidget()
+        z_row = QHBoxLayout(self.z_row_widget)
+        z_row.setContentsMargins(0, 0, 0, 0)
+        z_row.addWidget(QLabel("z:"))
+        self.z_min = QDoubleSpinBox()
+        self.z_min.setRange(-1e6, 1e6); self.z_min.setValue(0.0); self.z_min.setSingleStep(0.5)
+        self.z_max = QDoubleSpinBox()
+        self.z_max.setRange(-1e6, 1e6); self.z_max.setValue(1.0); self.z_max.setSingleStep(0.5)
+        z_row.addWidget(self.z_min); z_row.addWidget(QLabel("to")); z_row.addWidget(self.z_max)
+        self.z_row_widget.setVisible(False)
+        domain_layout.addWidget(self.z_row_widget)
+
+        # -- Disk panel: center (x, y) + radius --
+        self.geom_panel_disk = QWidget()
+        _p = QHBoxLayout(self.geom_panel_disk); _p.setContentsMargins(0, 0, 0, 0)
+        _p.addWidget(QLabel("center x,y:"))
+        self.geom_disk_cx = QDoubleSpinBox(); self.geom_disk_cx.setRange(-1e6, 1e6); self.geom_disk_cx.setValue(0.5); self.geom_disk_cx.setSingleStep(0.1)
+        self.geom_disk_cy = QDoubleSpinBox(); self.geom_disk_cy.setRange(-1e6, 1e6); self.geom_disk_cy.setValue(0.5); self.geom_disk_cy.setSingleStep(0.1)
+        _p.addWidget(self.geom_disk_cx); _p.addWidget(self.geom_disk_cy)
+        _p.addWidget(QLabel("radius:"))
+        self.geom_disk_r = QDoubleSpinBox(); self.geom_disk_r.setRange(1e-6, 1e6); self.geom_disk_r.setValue(0.5); self.geom_disk_r.setSingleStep(0.1)
+        _p.addWidget(self.geom_disk_r)
+        self.geom_panel_disk.setVisible(False)
+        domain_layout.addWidget(self.geom_panel_disk)
+
+        # -- Ellipse panel: center (x, y) + semi-major/minor + angle --
+        self.geom_panel_ellipse = QWidget()
+        _p = QVBoxLayout(self.geom_panel_ellipse); _p.setContentsMargins(0, 0, 0, 0); _p.setSpacing(4)
+        _row_a = QHBoxLayout()
+        _row_a.addWidget(QLabel("center x,y:"))
+        self.geom_ellipse_cx = QDoubleSpinBox(); self.geom_ellipse_cx.setRange(-1e6, 1e6); self.geom_ellipse_cx.setValue(0.5); self.geom_ellipse_cx.setSingleStep(0.1)
+        self.geom_ellipse_cy = QDoubleSpinBox(); self.geom_ellipse_cy.setRange(-1e6, 1e6); self.geom_ellipse_cy.setValue(0.5); self.geom_ellipse_cy.setSingleStep(0.1)
+        _row_a.addWidget(self.geom_ellipse_cx); _row_a.addWidget(self.geom_ellipse_cy)
+        _p.addLayout(_row_a)
+        _row_b = QHBoxLayout()
+        _row_b.addWidget(QLabel("semi-major, semi-minor:"))
+        self.geom_ellipse_a = QDoubleSpinBox(); self.geom_ellipse_a.setRange(1e-6, 1e6); self.geom_ellipse_a.setValue(0.5); self.geom_ellipse_a.setSingleStep(0.1)
+        self.geom_ellipse_b = QDoubleSpinBox(); self.geom_ellipse_b.setRange(1e-6, 1e6); self.geom_ellipse_b.setValue(0.3); self.geom_ellipse_b.setSingleStep(0.1)
+        _row_b.addWidget(self.geom_ellipse_a); _row_b.addWidget(self.geom_ellipse_b)
+        _p.addLayout(_row_b)
+        _row_c = QHBoxLayout()
+        _row_c.addWidget(QLabel("angle (rad):"))
+        self.geom_ellipse_angle = QDoubleSpinBox(); self.geom_ellipse_angle.setRange(-100, 100); self.geom_ellipse_angle.setValue(0.0); self.geom_ellipse_angle.setSingleStep(0.1)
+        _row_c.addWidget(self.geom_ellipse_angle)
+        _p.addLayout(_row_c)
+        self.geom_panel_ellipse.setVisible(False)
+        domain_layout.addWidget(self.geom_panel_ellipse)
+
+        # -- Triangle panel: vertices as "x1,y1;x2,y2;x3,y3" --
+        self.geom_panel_triangle = QWidget()
+        _p = QVBoxLayout(self.geom_panel_triangle); _p.setContentsMargins(0, 0, 0, 0); _p.setSpacing(2)
+        _p.addWidget(QLabel("vertices (x1,y1;x2,y2;x3,y3):"))
+        self.geom_triangle_verts_input = QLineEdit("0,0;1,0;0,1")
+        self.geom_triangle_verts_input.setFixedHeight(26)
+        _p.addWidget(self.geom_triangle_verts_input)
+        self.geom_panel_triangle.setVisible(False)
+        domain_layout.addWidget(self.geom_panel_triangle)
+
+        # -- Polygon panel: vertices as "x1,y1;x2,y2;...;xn,yn" --
+        self.geom_panel_polygon = QWidget()
+        _p = QVBoxLayout(self.geom_panel_polygon); _p.setContentsMargins(0, 0, 0, 0); _p.setSpacing(2)
+        _p.addWidget(QLabel("vertices (x1,y1;x2,y2;...), any count ≥ 3:"))
+        self.geom_polygon_verts_input = QLineEdit("0,0;1,0;1,1;0,1")
+        self.geom_polygon_verts_input.setFixedHeight(26)
+        _p.addWidget(self.geom_polygon_verts_input)
+        self.geom_panel_polygon.setVisible(False)
+        domain_layout.addWidget(self.geom_panel_polygon)
+
+        # -- Sphere panel: center (x, y, z) + radius --
+        self.geom_panel_sphere = QWidget()
+        _p = QHBoxLayout(self.geom_panel_sphere); _p.setContentsMargins(0, 0, 0, 0)
+        _p.addWidget(QLabel("center x,y,z:"))
+        self.geom_sphere_cx = QDoubleSpinBox(); self.geom_sphere_cx.setRange(-1e6, 1e6); self.geom_sphere_cx.setValue(0.5); self.geom_sphere_cx.setSingleStep(0.1)
+        self.geom_sphere_cy = QDoubleSpinBox(); self.geom_sphere_cy.setRange(-1e6, 1e6); self.geom_sphere_cy.setValue(0.5); self.geom_sphere_cy.setSingleStep(0.1)
+        self.geom_sphere_cz = QDoubleSpinBox(); self.geom_sphere_cz.setRange(-1e6, 1e6); self.geom_sphere_cz.setValue(0.5); self.geom_sphere_cz.setSingleStep(0.1)
+        _p.addWidget(self.geom_sphere_cx); _p.addWidget(self.geom_sphere_cy); _p.addWidget(self.geom_sphere_cz)
+        _p.addWidget(QLabel("radius:"))
+        self.geom_sphere_r = QDoubleSpinBox(); self.geom_sphere_r.setRange(1e-6, 1e6); self.geom_sphere_r.setValue(0.5); self.geom_sphere_r.setSingleStep(0.1)
+        _p.addWidget(self.geom_sphere_r)
+        self.geom_panel_sphere.setVisible(False)
+        domain_layout.addWidget(self.geom_panel_sphere)
+
+        self._geom_shape_panels = [
+            self.geom_panel_disk, self.geom_panel_ellipse, self.geom_panel_triangle,
+            self.geom_panel_polygon, self.geom_panel_sphere,
+        ]
+        self.geom_triangle_verts_input.textChanged.connect(self._on_geom_vertices_changed)
+        self.geom_polygon_verts_input.textChanged.connect(self._on_geom_vertices_changed)
 
         row2 = QHBoxLayout()
         row2.addWidget(QLabel("t:"))
@@ -450,7 +575,7 @@ class MainWindow(QMainWindow):
         pts_dist_row.addWidget(self.pts_dist_combo)
         points_layout.addLayout(pts_dist_row)
 
-        self.view_domain_check = QCheckBox("👁  View domain & point distribution (2D only)")
+        self.view_domain_check = QCheckBox("👁  View domain & point distribution")
         self.view_domain_check.setChecked(False)
         self.view_domain_check.setVisible(False)
         self.view_domain_check.stateChanged.connect(self._on_view_domain_changed)
@@ -465,10 +590,61 @@ class MainWindow(QMainWindow):
         self.bc_right_types = []; self.bc_right_vals = [];  self.bc_right_active = []; self.bc_right_deriv = []
         self.bc_bottom_types = []; self.bc_bottom_vals = []; self.bc_bottom_active = []; self.bc_bottom_deriv = []
         self.bc_top_types = [];   self.bc_top_vals = [];    self.bc_top_active = [];   self.bc_top_deriv = []
+        # Cuboid-only sides (3D)
+        self.bc_front_types = []; self.bc_front_vals = [];  self.bc_front_active = []
+        self.bc_back_types = [];  self.bc_back_vals = [];   self.bc_back_active = []
+        # Single unified boundary group, per output (Disk/Ellipse/Sphere)
+        self.bc_boundary_types = []; self.bc_boundary_vals = []; self.bc_boundary_active = []
+        # Per-edge BC groups, per output (Triangle/Polygon) -- nested: [output][edge]
+        self.bc_edge_types = []; self.bc_edge_vals = []; self.bc_edge_active = []
         self.ic_inputs = [];      self.ic_active = []
         self._2d_bc_widgets = []
+        # Wrapper widgets (one per output) around the hardcoded per-shape BC
+        # rows above -- hidden whenever a custom (non-template) problem is
+        # active, so the flexible builder below takes over instead. Rebuilt
+        # every _build_bc_inputs() call; see _update_bc_mode_visibility().
+        self._shape_bc_wrappers = []
         self._build_bc_inputs(1)
         left_layout.addWidget(self.bc_group)
+
+        # ── Boundary Conditions (unified panel) ────────────────
+        # ONE list-of-entries panel, used whether or not a template is
+        # selected. Each entry is any DeepXDE BC class, on any output, at
+        # any location the user describes. When a Quick Example template is
+        # selected, this list is auto-filled (in this exact same visual
+        # style) with that template's BCs, shown read-only -- the legacy
+        # per-side widgets that still actually drive codegen for templates
+        # (self.bc_left_types etc.) are kept alive internally but never
+        # shown; see _populate_locked_bc_entries_from_legacy(). When no
+        # template is selected ("None"), the list starts empty and every
+        # entry is fully editable/removable -- this is the only path that
+        # affects the generated training script today (codegen for these
+        # entries is still pending; see _build_custom_bc_json()'s docstring).
+        self.custom_bc_group = QGroupBox("Boundary Conditions")
+        self.custom_bc_main_layout = QVBoxLayout(self.custom_bc_group)
+        self.custom_bc_main_layout.setSpacing(4)
+        self.custom_bc_note = QLabel()
+        self.custom_bc_note.setStyleSheet("color: #74c0fc; font-size: 11px;")
+        self.custom_bc_note.setWordWrap(True)
+        self.custom_bc_main_layout.addWidget(self.custom_bc_note)
+        self.custom_bc_list_widget = QWidget()
+        self.custom_bc_list_layout = QVBoxLayout(self.custom_bc_list_widget)
+        self.custom_bc_list_layout.setSpacing(4)
+        self.custom_bc_list_layout.setContentsMargins(0, 0, 0, 0)
+        self.custom_bc_main_layout.addWidget(self.custom_bc_list_widget)
+        self.custom_bc_list = []
+        self.add_custom_bc_btn = QPushButton("➕ Add Boundary Condition")
+        self.add_custom_bc_btn.setStyleSheet(
+            "QPushButton { color: #69db7c; background: transparent; "
+            "border: 1px solid #2a6a4a; border-radius: 4px; padding: 2px 8px; }"
+            "QPushButton:disabled { color: #4a5a6a; border-color: #2a3a4a; }")
+        def _on_add_custom_bc_clicked():
+            self._add_custom_bc_entry()
+            self._update_bc_mode_visibility()
+        self.add_custom_bc_btn.clicked.connect(_on_add_custom_bc_clicked)
+        self.custom_bc_main_layout.addWidget(self.add_custom_bc_btn)
+        left_layout.addWidget(self.custom_bc_group)
+        QTimer.singleShot(0, self._update_bc_mode_visibility)
 
         # ── Neural Network ────────────────────────────────────
         nn_group = QGroupBox("Neural Network")
@@ -670,7 +846,6 @@ class MainWindow(QMainWindow):
         sched_layout.addWidget(self.sched_phases_widget)
         self.sched_phase_list = []  # list of dicts with widgets
         # Add default phases after UI is built
-        from PyQt6.QtCore import QTimer
         QTimer.singleShot(0, lambda: self._setup_default_scheduler_phases(''))
 
         # Add phase button
@@ -1217,8 +1392,12 @@ class MainWindow(QMainWindow):
         splitter.setSizes([390, 720])
 
     # ── Dimension change ──────────────────────────────────────
+    GEOM_TYPES_2D = ["Rectangle", "Disk", "Ellipse", "Triangle", "Polygon"]
+    GEOM_TYPES_3D = ["Cuboid", "Sphere"]
+
     def _on_dim_changed(self):
         is_2d = self.radio_2d.isChecked()
+        is_3d = self.radio_3d.isChecked()
         # Update quick examples list to match dimension
         self.quick_examples_combo.blockSignals(True)
         self.quick_examples_combo.clear()
@@ -1229,6 +1408,8 @@ class MainWindow(QMainWindow):
                 "2D Allen-Cahn (Mattey & Ghosh)",
                 "2D Allen-Cahn (Wight & Zhao)"
             ])
+        elif is_3d:
+            self.quick_examples_combo.addItems(["None", "3D Heat"])
         else:
             self.quick_examples_combo.addItems([
                 "None",
@@ -1236,17 +1417,131 @@ class MainWindow(QMainWindow):
                 "1D Allen-Cahn"
             ])
         self.quick_examples_combo.blockSignals(False)
-        self.y_row_widget.setVisible(is_2d)
-        self.view_domain_check.setVisible(is_2d)
+        self.view_domain_check.setVisible(is_2d or is_3d)
         for w in self._2d_bc_widgets:
             w.setVisible(is_2d)
+
+        # Repopulate the geometry-type selector for the new dimension.
+        self.geom_type_group.setVisible(is_2d or is_3d)
+        self.geometry_type_combo.blockSignals(True)
+        self.geometry_type_combo.clear()
+        if is_2d:
+            self.geometry_type_combo.addItems(self.GEOM_TYPES_2D)
+        elif is_3d:
+            self.geometry_type_combo.addItems(self.GEOM_TYPES_3D)
+        self.geometry_type_combo.blockSignals(False)
+        self._on_geometry_type_changed(self.geometry_type_combo.currentText())
+
         self._build_pde_inputs(self.num_outputs_spin.value())
         self._build_bc_inputs(self.num_outputs_spin.value())
         self._build_weight_inputs(self.num_outputs_spin.value())
 
+        # Force an immediate layout/repaint pass so the Geometry Type box
+        # (and any other widgets just toggled above) always show up right
+        # away, instead of waiting on the next natural repaint cycle.
+        self.geom_type_group.updateGeometry()
+        self.geom_type_group.repaint()
+        QApplication.processEvents()
+
+    def _current_geometry_type(self):
+        """The active geometry type, or the implicit box type for 1D/unselected."""
+        if self.radio_3d.isChecked():
+            return self.geometry_type_combo.currentText() or "Cuboid"
+        if self.radio_2d.isChecked():
+            return self.geometry_type_combo.currentText() or "Rectangle"
+        return "Interval"
+
+    def _on_geometry_type_changed(self, text):
+        self._update_domain_fields_visibility()
+        # Rebuild BCs: the boundary-condition layout (sides / unified /
+        # per-edge) depends on which geometry type is now selected.
+        if hasattr(self, 'bc_main_layout'):
+            self._build_bc_inputs(self.num_outputs_spin.value())
+            self._build_weight_inputs(self.num_outputs_spin.value())
+
+    def _update_domain_fields_visibility(self):
+        """Show the plain x/y/z domain-bounds rows only for the box shapes
+        (Interval/Rectangle/Cuboid). For every other shape, those rows don't
+        mean anything -- e.g. an Ellipse needs a center + semi-axes, not an
+        x/y range -- so hide them and show that shape's own parameter panel
+        instead. The "t:" row always stays, after whichever of the two is
+        showing."""
+        is_2d = self.radio_2d.isChecked()
+        is_3d = self.radio_3d.isChecked()
+        geom_type = self._current_geometry_type()
+        box_shape = geom_type in ("Interval", "Rectangle", "Cuboid")
+        self.x_row_widget.setVisible(box_shape)
+        self.y_row_widget.setVisible(box_shape and (is_2d or is_3d))
+        self.z_row_widget.setVisible(box_shape and is_3d)
+        for panel in self._geom_shape_panels:
+            panel.setVisible(False)
+        panel_map = {
+            "Disk": self.geom_panel_disk,
+            "Ellipse": self.geom_panel_ellipse,
+            "Triangle": self.geom_panel_triangle,
+            "Polygon": self.geom_panel_polygon,
+            "Sphere": self.geom_panel_sphere,
+        }
+        panel = panel_map.get(geom_type)
+        if panel is not None:
+            panel.setVisible(True)
+
+    def _on_geom_vertices_changed(self, text):
+        # Triangle/Polygon edge count changed -- rebuild the per-edge BC rows.
+        geom_type = self._current_geometry_type()
+        if geom_type in ("Triangle", "Polygon") and hasattr(self, 'bc_main_layout'):
+            self._build_bc_inputs(self.num_outputs_spin.value())
+            self._build_weight_inputs(self.num_outputs_spin.value())
+
+    @staticmethod
+    def _parse_vertices(text):
+        """'x1,y1;x2,y2;...' -> [(x1,y1), (x2,y2), ...]. Skips malformed pairs."""
+        verts = []
+        for chunk in text.split(";"):
+            chunk = chunk.strip()
+            if not chunk:
+                continue
+            parts = chunk.split(",")
+            if len(parts) != 2:
+                continue
+            try:
+                verts.append((float(parts[0].strip()), float(parts[1].strip())))
+            except ValueError:
+                continue
+        return verts
+
+    @staticmethod
+    def _is_axis_aligned_rectangle(verts):
+        """True if these 4 vertices form an axis-aligned rectangle -- mirrors
+        DeepXDE's own Rectangle.is_valid() check (every edge is purely
+        horizontal or purely vertical), so callers can warn before DeepXDE's
+        Polygon constructor rejects it with "The polygon is a rectangle.
+        Use Rectangle instead."."""
+        if len(verts) != 4:
+            return False
+        for i in range(4):
+            x0, y0 = verts[i]
+            x1, y1 = verts[(i + 1) % 4]
+            if abs((x1 - x0) * (y1 - y0)) > 1e-8:
+                return False
+        return True
+
     def _on_quick_example_selected(self, text):
         if text == "None":
+            # Leave the Boundary Conditions panel exactly as it is -- rows
+            # are no longer tied to template identity, so whatever's showing
+            # (template-seeded or hand-built, edited or not) just becomes
+            # the starting point for custom mode. Switching TO a template
+            # (below) still always resets the list to that template's
+            # defaults via _populate_locked_bc_entries_from_legacy.
+            self._update_bc_mode_visibility()
             return
+        # _on_template_selected() already calls _update_bc_mode_visibility()
+        # itself once the panel and weight rows are in their final state
+        # (including any template-specific weight default, e.g. 2D Heat's
+        # right-Dirichlet BC) -- an extra call here would rebuild the
+        # weight rows a second time and silently wipe such a default back
+        # to 1.0, so it's intentionally not repeated.
         self._on_template_selected(text)
 
     def _auto_configure_ea(self, ref_dir):
@@ -1263,7 +1558,8 @@ class MainWindow(QMainWindow):
                 d = np.loadtxt(fp)
                 if d.ndim == 1: d = d.reshape(1, -1)
                 is_2d = self.radio_2d.isChecked()
-                t_val = float(d[0, 2]) if is_2d else float(d[0, 1])
+                is_3d = self.radio_3d.isChecked() if hasattr(self, 'radio_3d') else False
+                t_val = float(d[0, 3]) if is_3d else (float(d[0, 2]) if is_2d else float(d[0, 1]))
                 valid_files.append((t_val, fp))
             except Exception:
                 continue
@@ -1658,14 +1954,27 @@ class MainWindow(QMainWindow):
         self.bc_right_types.clear();  self.bc_right_vals.clear();  self.bc_right_active.clear();  self.bc_right_deriv.clear()
         self.bc_bottom_types.clear(); self.bc_bottom_vals.clear(); self.bc_bottom_active.clear(); self.bc_bottom_deriv.clear()
         self.bc_top_types.clear();    self.bc_top_vals.clear();    self.bc_top_active.clear();    self.bc_top_deriv.clear()
+        self.bc_front_types.clear();  self.bc_front_vals.clear();  self.bc_front_active.clear()
+        self.bc_back_types.clear();   self.bc_back_vals.clear();   self.bc_back_active.clear()
+        self.bc_boundary_types.clear(); self.bc_boundary_vals.clear(); self.bc_boundary_active.clear()
+        self.bc_edge_types.clear();   self.bc_edge_vals.clear();   self.bc_edge_active.clear()
         self.ic_inputs.clear();       self.ic_active.clear()
         if not hasattr(self, 'ic_from_file'): self.ic_from_file = []
         if not hasattr(self, 'ic_file_paths'): self.ic_file_paths = []
         self.ic_from_file.clear()
         self.ic_file_paths.clear()
         self._2d_bc_widgets.clear()
+        if not hasattr(self, '_3d_bc_widgets'): self._3d_bc_widgets = []
+        self._3d_bc_widgets.clear()
+        if not hasattr(self, '_shape_bc_wrappers'): self._shape_bc_wrappers = []
+        self._shape_bc_wrappers.clear()
 
         is_2d = self.radio_2d.isChecked() if hasattr(self, 'radio_2d') else False
+        is_3d = self.radio_3d.isChecked() if hasattr(self, 'radio_3d') else False
+        geom_type = self._current_geometry_type()
+        box_shape = geom_type in ("Interval", "Rectangle", "Cuboid")
+        unified_shape = geom_type in ("Disk", "Ellipse", "Sphere")
+        edge_shape = geom_type in ("Triangle", "Polygon")
 
         def _make_bc_block(label_txt, types_list, vals_list, active_list, deriv_list, x_pos):
             """Create a BC row: checkbox + type combo + value spinbox + deriv checkbox"""
@@ -1696,6 +2005,26 @@ class MainWindow(QMainWindow):
                 lambda s: self._build_weight_inputs(self.num_outputs_spin.value())
             )
 
+        def _make_bc_block_simple(label_txt, types_list, vals_list, active_list):
+            """Create a BC row with no Periodic option and no derivative toggle --
+            used for single-boundary shapes (Disk/Ellipse/Sphere) and polygon/
+            triangle edges, where there's no natural 'paired opposite side'."""
+            active = QCheckBox(label_txt); active.setChecked(True)
+            active_list.append(active)
+            self.bc_main_layout.addWidget(active)
+
+            bc_type = QComboBox(); bc_type.addItems(["Dirichlet", "Neumann"]); bc_type.setFixedHeight(26)
+            types_list.append(bc_type)
+            self.bc_main_layout.addWidget(bc_type)
+
+            bc_val = QDoubleSpinBox(); bc_val.setRange(-1000, 1000); bc_val.setValue(0.0); bc_val.setFixedHeight(26)
+            vals_list.append(bc_val)
+            self.bc_main_layout.addWidget(bc_val)
+
+            bc_type.currentTextChanged.connect(
+                lambda t: self._build_weight_inputs(self.num_outputs_spin.value())
+            )
+
         for i in range(n):
             name = ["u", "v", "w", "p"][i] if i < 4 else f"u{i+1}"
             sep = QLabel(f"── Output {i+1} ({name}) ──")
@@ -1719,46 +2048,89 @@ class MainWindow(QMainWindow):
             _main_layout_save = self.bc_main_layout
             self.bc_main_layout = _bc_cont_layout
 
-            _make_bc_block(f"BC left (x=xmin) for {name}", self.bc_left_types, self.bc_left_vals, self.bc_left_active, self.bc_left_deriv, "x_min")
-            _idx = len(self.bc_left_types) - 1
-            _make_bc_block(f"BC right (x=xmax) for {name}", self.bc_right_types, self.bc_right_vals, self.bc_right_active, self.bc_right_deriv, "x_max")
-            # Hide right BC widgets when left is Periodic
-            _right_active = self.bc_right_active[-1]
-            _right_type   = self.bc_right_types[-1]
-            _right_val    = self.bc_right_vals[-1]
-            _right_deriv  = self.bc_right_deriv[-1]
-            def _sync_right(t, ra=_right_active, rt=_right_type, rv=_right_val, rd=_right_deriv):
-                ra.setVisible(t != "Periodic")
-                rt.setVisible(t != "Periodic")
-                rv.setVisible(t != "Periodic")
-                rd.setVisible(False)
-            self.bc_left_types[-1].currentTextChanged.connect(_sync_right)
+            # Hardcoded per-shape BC rows (left/right/top/bottom/etc, or one
+            # unified/per-edge row) -- wrapped so the whole block can be
+            # hidden in one shot when a custom (non-template) problem is
+            # active and the flexible Custom Boundary Conditions builder
+            # takes over instead. See _update_bc_mode_visibility().
+            _shape_bc_wrap = QWidget()
+            _shape_bc_wrap_layout = QVBoxLayout(_shape_bc_wrap)
+            _shape_bc_wrap_layout.setContentsMargins(0, 0, 0, 0)
+            _shape_bc_wrap_layout.setSpacing(3)
+            _shape_bc_save = self.bc_main_layout
+            self.bc_main_layout = _shape_bc_wrap_layout
 
-            # 2D BCs — bottom and top
-            _2d_w = QWidget()
-            _2d_l = QVBoxLayout(_2d_w); _2d_l.setContentsMargins(0,0,0,0); _2d_l.setSpacing(3)
+            if box_shape:
+                _make_bc_block(f"BC left (x=xmin) for {name}", self.bc_left_types, self.bc_left_vals, self.bc_left_active, self.bc_left_deriv, "x_min")
+                _idx = len(self.bc_left_types) - 1
+                _make_bc_block(f"BC right (x=xmax) for {name}", self.bc_right_types, self.bc_right_vals, self.bc_right_active, self.bc_right_deriv, "x_max")
+                # Hide right BC widgets when left is Periodic
+                _right_active = self.bc_right_active[-1]
+                _right_type   = self.bc_right_types[-1]
+                _right_val    = self.bc_right_vals[-1]
+                _right_deriv  = self.bc_right_deriv[-1]
+                def _sync_right(t, ra=_right_active, rt=_right_type, rv=_right_val, rd=_right_deriv):
+                    ra.setVisible(t != "Periodic")
+                    rt.setVisible(t != "Periodic")
+                    rv.setVisible(t != "Periodic")
+                    rd.setVisible(False)
+                self.bc_left_types[-1].currentTextChanged.connect(_sync_right)
 
-            # Temporarily redirect bc_main_layout to _2d_l
-            _2d_save = self.bc_main_layout
-            self.bc_main_layout = _2d_l
-            _make_bc_block(f"BC bottom (y=ymin) for {name}", self.bc_bottom_types, self.bc_bottom_vals, self.bc_bottom_active, self.bc_bottom_deriv, "y_min")
-            _make_bc_block(f"BC top (y=ymax) for {name}", self.bc_top_types, self.bc_top_vals, self.bc_top_active, self.bc_top_deriv, "y_max")
-            self.bc_main_layout = _2d_save
-            # Hide top BC widgets when bottom is Periodic
-            _top_active = self.bc_top_active[-1]
-            _top_type   = self.bc_top_types[-1]
-            _top_val    = self.bc_top_vals[-1]
-            _top_deriv  = self.bc_top_deriv[-1]
-            def _sync_top(t, ta=_top_active, tt=_top_type, tv=_top_val, td=_top_deriv):
-                ta.setVisible(t != "Periodic")
-                tt.setVisible(t != "Periodic")
-                tv.setVisible(t != "Periodic")
-                td.setVisible(False)
-            self.bc_bottom_types[-1].currentTextChanged.connect(_sync_top)
+                # BCs — bottom and top (2D Rectangle, or 3D Cuboid's y-axis)
+                _2d_w = QWidget()
+                _2d_l = QVBoxLayout(_2d_w); _2d_l.setContentsMargins(0,0,0,0); _2d_l.setSpacing(3)
 
-            _2d_w.setVisible(is_2d)
-            self._2d_bc_widgets.append(_2d_w)
-            self.bc_main_layout.addWidget(_2d_w)
+                # Temporarily redirect bc_main_layout to _2d_l
+                _2d_save = self.bc_main_layout
+                self.bc_main_layout = _2d_l
+                _make_bc_block(f"BC bottom (y=ymin) for {name}", self.bc_bottom_types, self.bc_bottom_vals, self.bc_bottom_active, self.bc_bottom_deriv, "y_min")
+                _make_bc_block(f"BC top (y=ymax) for {name}", self.bc_top_types, self.bc_top_vals, self.bc_top_active, self.bc_top_deriv, "y_max")
+                self.bc_main_layout = _2d_save
+                # Hide top BC widgets when bottom is Periodic
+                _top_active = self.bc_top_active[-1]
+                _top_type   = self.bc_top_types[-1]
+                _top_val    = self.bc_top_vals[-1]
+                _top_deriv  = self.bc_top_deriv[-1]
+                def _sync_top(t, ta=_top_active, tt=_top_type, tv=_top_val, td=_top_deriv):
+                    ta.setVisible(t != "Periodic")
+                    tt.setVisible(t != "Periodic")
+                    tv.setVisible(t != "Periodic")
+                    td.setVisible(False)
+                self.bc_bottom_types[-1].currentTextChanged.connect(_sync_top)
+
+                _2d_w.setVisible(is_2d or is_3d)
+                self._2d_bc_widgets.append(_2d_w)
+                self.bc_main_layout.addWidget(_2d_w)
+
+                # Cuboid only — front and back (z-axis)
+                if is_3d:
+                    _3d_w = QWidget()
+                    _3d_l = QVBoxLayout(_3d_w); _3d_l.setContentsMargins(0,0,0,0); _3d_l.setSpacing(3)
+                    _3d_save = self.bc_main_layout
+                    self.bc_main_layout = _3d_l
+                    _make_bc_block_simple(f"BC front (z=zmin) for {name}", self.bc_front_types, self.bc_front_vals, self.bc_front_active)
+                    _make_bc_block_simple(f"BC back (z=zmax) for {name}", self.bc_back_types, self.bc_back_vals, self.bc_back_active)
+                    self.bc_main_layout = _3d_save
+                    self._3d_bc_widgets.append(_3d_w)
+                    self.bc_main_layout.addWidget(_3d_w)
+            elif unified_shape:
+                _make_bc_block_simple(f"Boundary for {name}", self.bc_boundary_types, self.bc_boundary_vals, self.bc_boundary_active)
+            elif edge_shape:
+                if geom_type == "Triangle":
+                    _verts = self._parse_vertices(self.geom_triangle_verts_input.text())
+                else:
+                    _verts = self._parse_vertices(self.geom_polygon_verts_input.text())
+                _n_edges = max(len(_verts), 3)
+                self.bc_edge_types.append([]); self.bc_edge_vals.append([]); self.bc_edge_active.append([])
+                for _e in range(_n_edges):
+                    _make_bc_block_simple(
+                        f"Edge {_e + 1} for {name}",
+                        self.bc_edge_types[-1], self.bc_edge_vals[-1], self.bc_edge_active[-1]
+                    )
+
+            self.bc_main_layout = _shape_bc_save
+            self._shape_bc_wrappers.append(_shape_bc_wrap)
+            self.bc_main_layout.addWidget(_shape_bc_wrap)
 
             # IC
             ic_act = QCheckBox(f"IC for {name}"); ic_act.setChecked(True)
@@ -1854,18 +2226,451 @@ class MainWindow(QMainWindow):
                 def _make_toggle(cont, la, ra, ica):
                     def _tog(state):
                         cont.setVisible(state == 2)
-                        la.setChecked(state == 2)
-                        ra.setChecked(state == 2)
+                        if la: la.setChecked(state == 2)
+                        if ra: ra.setChecked(state == 2)
                         if ica: ica.setChecked(state == 2)
                         self._build_weight_inputs(self.num_outputs_spin.value())
                     return _tog
                 _i_capture = i
                 _bc_enable_cb.stateChanged.connect(_make_toggle(
                     _bc_container,
-                    self.bc_left_active[_i_capture],
-                    self.bc_right_active[_i_capture],
+                    self.bc_left_active[_i_capture] if _i_capture < len(self.bc_left_active) else None,
+                    self.bc_right_active[_i_capture] if _i_capture < len(self.bc_right_active) else None,
                     self.ic_active[_i_capture] if _i_capture < len(self.ic_active) else None
                 ))
+
+        self._update_bc_mode_visibility()
+
+    def _is_custom_problem(self):
+        """True when no Quick Example template is selected -- i.e. the user
+        is building their own problem from scratch, and every entry in the
+        Boundary Conditions panel is theirs to add/edit/remove. False means
+        a template governs BCs; the panel still shows them (in the same
+        style), just read-only -- see _populate_locked_bc_entries_from_legacy()."""
+        if not hasattr(self, 'quick_examples_combo'):
+            return True
+        return self.quick_examples_combo.currentText() == "None"
+
+    def _update_bc_mode_visibility(self):
+        """The hardcoded per-side widgets (self.bc_left_types etc.) never
+        appear in the UI any more -- they're kept alive only as a
+        display-source for templates (see _populate_locked_bc_entries_from_legacy)
+        -- so just keep them hidden. The single Boundary Conditions panel is
+        always shown, always editable, and is itself what drives training
+        (see codegen.py's custom_bc_json path) -- a template just pre-fills
+        it as a starting point. This only updates the note text and keeps
+        the per-BC weight rows in the Loss Weights panel matching whatever
+        is currently in the list. Called after every _build_bc_inputs()
+        rebuild, whenever the Quick Example selection changes, and whenever
+        a BC row is added or removed."""
+        for w in getattr(self, '_shape_bc_wrappers', []):
+            w.setVisible(False)
+        if not hasattr(self, 'custom_bc_group'):
+            return
+        is_custom = self._is_custom_problem()
+        if is_custom:
+            self.custom_bc_note.setText(
+                "No template selected — build your own boundary conditions.\n"
+                "Add one per boundary you need; each can be any DeepXDE BC type,\n"
+                "on any output, at any location you describe.")
+        else:
+            template_name = self.quick_examples_combo.currentText() if hasattr(self, 'quick_examples_combo') else ''
+            self.custom_bc_note.setText(
+                f"Pre-filled from the \"{template_name}\" template — edit, remove, or add\n"
+                "to these rows freely; whatever is listed here is what trains.")
+        self.add_custom_bc_btn.setEnabled(True)
+        self.add_custom_bc_btn.setToolTip("")
+        if hasattr(self, 'weights_main_layout'):
+            self._build_weight_inputs(self.num_outputs_spin.value())
+
+    # ── Boundary Conditions builder (all problems) ─────────────
+    # DeepXDE BC classes offered in the "Type" dropdown, and which optional
+    # rows each one needs. Location/value are plain Python expressions using
+    # bare x/y/z (and, for Robin, u for the current solution value) -- same
+    # convention as the PDE/IC expression fields -- combined by the eventual
+    # codegen as `lambda x, on_boundary: on_boundary and (<location>)`, so
+    # the user only has to say *which* boundary they mean, not re-derive
+    # on_boundary from scratch.
+    # Covers the full deepxde.icbc surface: every class listed at
+    # https://deepxde.readthedocs.io/en/latest/modules/deepxde.icbc.html
+    # except the abstract base BC and initial_conditions.IC (ICs keep their
+    # own separate, already-flexible expression field above).
+    CUSTOM_BC_TYPES = [
+        ("Dirichlet BC", "dirichlet"),
+        ("Neumann BC", "neumann"),
+        ("Robin BC", "robin"),
+        ("Periodic BC", "periodic"),
+        ("Point Set BC (from file)", "pointset"),
+        ("Point Set Operator BC (advanced, from file)", "pointset_operator"),
+        ("Operator BC (advanced)", "operator"),
+        ("Interface 2D BC (advanced, Rectangle/Polygon only)", "interface2d"),
+    ]
+    # Which optional rows each type needs.
+    _BC_NEEDS_COMPONENT = {"dirichlet", "neumann", "robin", "periodic", "pointset"}
+    _BC_NEEDS_LOCATION = {"dirichlet", "neumann", "robin", "periodic", "operator", "interface2d"}
+    _BC_NEEDS_VALUE = {"dirichlet", "neumann", "robin", "operator", "interface2d", "pointset_operator"}
+    _BC_NEEDS_PERIODIC_ROW = {"periodic"}
+    _BC_NEEDS_POINTS_FILE = {"pointset", "pointset_operator"}
+    _BC_NEEDS_ADVANCED_NOTE = {"operator", "pointset_operator"}
+    _BC_NEEDS_INTERFACE_ROW = {"interface2d"}
+
+    def _add_custom_bc_entry(self, bc_type="dirichlet", component=0, location="",
+                              value="0", axis="x", deriv_order=0, points_file="",
+                              location2="", direction="normal", locked=False):
+        entry_widget = QWidget()
+        entry_layout = QVBoxLayout(entry_widget)
+        entry_layout.setSpacing(3)
+        entry_layout.setContentsMargins(0, 0, 0, 0)
+
+        entry_num = len(self.custom_bc_list) + 1
+        header_row = QHBoxLayout()
+        header_txt = f"── BC {entry_num} ──" + (" \U0001F512" if locked else "")
+        header_lbl = QLabel(header_txt)
+        header_lbl.setStyleSheet("color: #a0c4ff; font-size: 11px;" if not locked
+                                  else "color: #8a8a8a; font-size: 11px;")
+        header_row.addWidget(header_lbl)
+        remove_btn = QPushButton("✕")
+        remove_btn.setFixedHeight(22); remove_btn.setFixedWidth(24)
+        remove_btn.setStyleSheet(
+            "QPushButton { color: #ff8787; background: transparent; border: none; }")
+        remove_btn.setVisible(not locked)
+        header_row.addStretch(); header_row.addWidget(remove_btn)
+        entry_layout.addLayout(header_row)
+
+        # Type
+        type_row = QHBoxLayout()
+        type_row.addWidget(QLabel("Type:"))
+        type_combo = QComboBox()
+        for label_txt, key in self.CUSTOM_BC_TYPES:
+            type_combo.addItem(label_txt, key)
+        self._set_combo_data(type_combo, bc_type)
+        type_combo.setFixedHeight(26); type_combo.setFixedWidth(210)
+        type_row.addStretch(); type_row.addWidget(type_combo)
+        entry_layout.addLayout(type_row)
+
+        # Output (component)
+        comp_widget = QWidget()
+        comp_row = QHBoxLayout(comp_widget)
+        comp_row.setContentsMargins(0, 0, 0, 0)
+        comp_row.addWidget(QLabel("Output #:"))
+        comp_spin = QSpinBox(); comp_spin.setRange(0, 7); comp_spin.setValue(component)
+        comp_spin.setFixedHeight(26); comp_spin.setFixedWidth(60)
+        comp_spin.setToolTip("0-indexed output this BC applies to (0 = first output, 1 = second, ...)")
+        comp_row.addStretch(); comp_row.addWidget(comp_spin)
+        entry_layout.addWidget(comp_widget)
+
+        # Location (hidden for PointSet/PointSetOperator, which take points
+        # from a file instead)
+        loc_widget = QWidget()
+        loc_layout = QVBoxLayout(loc_widget)
+        loc_layout.setContentsMargins(0, 0, 0, 0); loc_layout.setSpacing(2)
+        loc_row = QHBoxLayout()
+        loc_row.addWidget(QLabel("Where:"))
+        loc_edit = QLineEdit(location)
+        loc_edit.setPlaceholderText("e.g. x <= 1e-8   (boolean expression in x, y, z)")
+        loc_edit.setFixedHeight(26)
+        loc_row.addWidget(loc_edit)
+        loc_layout.addLayout(loc_row)
+        loc_hint_toggle = QCheckBox("📖 Show location examples")
+        loc_hint_toggle.setChecked(False)
+        loc_hint_toggle.setStyleSheet("color: #74c0fc; font-size: 12px;")
+        loc_layout.addWidget(loc_hint_toggle)
+        loc_hint = QLabel(
+            "True/False expression in x, y, z picking out the boundary you\n"
+            "mean (only y if 2D/3D, only z if 3D) -- points not actually on\n"
+            "the geometry's boundary are already excluded automatically.\n"
+            "x <= 1e-8            → left edge (x = xmin)\n"
+            "x >= 0.999           → right edge (x close to xmax = 1.0)\n"
+            "y <= 1e-8            → bottom edge\n"
+            "np.isclose(x**2 + y**2, 0.25)  → circle boundary, radius 0.5"
+        )
+        loc_hint.setStyleSheet("color: #74c0fc; font-size: 11px;")
+        loc_hint.setWordWrap(True)
+        loc_hint.setVisible(False)
+        loc_layout.addWidget(loc_hint)
+        loc_hint_toggle.stateChanged.connect(lambda s, h=loc_hint: h.setVisible(s == 2))
+        entry_layout.addWidget(loc_widget)
+
+        # Value/function (hidden for Periodic, which has no func; hidden for
+        # PointSet, whose values come from its file)
+        val_widget = QWidget()
+        val_layout = QVBoxLayout(val_widget)
+        val_layout.setContentsMargins(0, 0, 0, 0); val_layout.setSpacing(2)
+        val_row = QHBoxLayout()
+        val_row.addWidget(QLabel("Value:"))
+        val_edit = QLineEdit(value)
+        val_edit.setPlaceholderText("e.g. 0, sin(pi*y), x**2  (Robin: may also use u)")
+        val_edit.setFixedHeight(26)
+        val_row.addWidget(val_edit)
+        val_layout.addLayout(val_row)
+        entry_layout.addWidget(val_widget)
+
+        # Periodic-only: which coordinate is periodic + derivative order
+        periodic_widget = QWidget()
+        periodic_layout = QHBoxLayout(periodic_widget)
+        periodic_layout.setContentsMargins(0, 0, 0, 0)
+        periodic_layout.addWidget(QLabel("Periodic in:"))
+        axis_combo = QComboBox(); axis_combo.addItems(["x", "y", "z"])
+        axis_combo.setCurrentText(axis); axis_combo.setFixedHeight(26); axis_combo.setFixedWidth(60)
+        periodic_layout.addWidget(axis_combo)
+        periodic_layout.addWidget(QLabel("Derivative order:"))
+        deriv_spin = QSpinBox(); deriv_spin.setRange(0, 1); deriv_spin.setValue(deriv_order)
+        deriv_spin.setFixedHeight(26); deriv_spin.setFixedWidth(50)
+        periodic_layout.addWidget(deriv_spin)
+        periodic_layout.addStretch()
+        entry_layout.addWidget(periodic_widget)
+
+        # PointSet / PointSetOperator: a data file of points (+ values,
+        # unless PointSetOperator's Value row supplies the func instead) --
+        # same convention as the existing "Load IC from file" option above.
+        pointset_widget = QWidget()
+        pointset_layout = QHBoxLayout(pointset_widget)
+        pointset_layout.setContentsMargins(0, 0, 0, 0)
+        pointset_path = QLineEdit(points_file)
+        pointset_path.setPlaceholderText("Browse for points file (x[,y[,z]],value)...")
+        pointset_path.setFixedHeight(26)
+        pointset_layout.addWidget(pointset_path)
+        pointset_browse = QPushButton("Browse")
+        pointset_browse.setFixedHeight(26); pointset_browse.setFixedWidth(65)
+        pointset_browse.clicked.connect(lambda: pointset_path.setText(
+            QFileDialog.getOpenFileName(None, "Select points file", "", "Data files (*.txt *.csv *.dat)")[0]
+            or pointset_path.text()))
+        pointset_layout.addWidget(pointset_browse)
+        entry_layout.addWidget(pointset_widget)
+
+        # Interface2DBC-only: a second location (its geometry needs two
+        # matching-length boundary pieces) + normal/tangent direction.
+        interface_widget = QWidget()
+        interface_layout = QVBoxLayout(interface_widget)
+        interface_layout.setContentsMargins(0, 0, 0, 0); interface_layout.setSpacing(2)
+        loc2_row = QHBoxLayout()
+        loc2_row.addWidget(QLabel("Where (side 2):"))
+        loc2_edit = QLineEdit(location2)
+        loc2_edit.setPlaceholderText("boolean expression in x, y -- the matching second edge")
+        loc2_edit.setFixedHeight(26)
+        loc2_row.addWidget(loc2_edit)
+        interface_layout.addLayout(loc2_row)
+        dir_row = QHBoxLayout()
+        dir_row.addWidget(QLabel("Direction:"))
+        direction_combo = QComboBox(); direction_combo.addItems(["normal", "tangent"])
+        direction_combo.setCurrentText(direction)
+        direction_combo.setFixedHeight(26); direction_combo.setFixedWidth(110)
+        dir_row.addWidget(direction_combo); dir_row.addStretch()
+        interface_layout.addLayout(dir_row)
+        entry_layout.addWidget(interface_widget)
+
+        advanced_note = QLabel(
+            "Advanced: Value is a Python expression using inputs, outputs, X\n"
+            "directly, i.e. DeepXDE's raw func(inputs, outputs, X) -- it should\n"
+            "evaluate to 0 on the boundary/points selected above."
+        )
+        advanced_note.setStyleSheet("color: #ffa94d; font-size: 11px;")
+        advanced_note.setWordWrap(True)
+        advanced_note.setVisible(False)
+        entry_layout.addWidget(advanced_note)
+
+        val_placeholders = {
+            "robin": "e.g. 0, sin(pi*y), u   (Robin: x, y, z, and u for the solution)",
+            "interface2d": "Python expression in x, y, z for the interface func(x)",
+            "pointset_operator": "Python expression using inputs, outputs, X (advanced)",
+        }
+        default_val_placeholder = "e.g. 0, sin(pi*y), x**2  (Robin: may also use u)"
+
+        def _sync_type(_t=None):
+            key = type_combo.currentData()
+            comp_widget.setVisible(key in self._BC_NEEDS_COMPONENT)
+            loc_widget.setVisible(key in self._BC_NEEDS_LOCATION)
+            val_widget.setVisible(key in self._BC_NEEDS_VALUE)
+            periodic_widget.setVisible(key in self._BC_NEEDS_PERIODIC_ROW)
+            pointset_widget.setVisible(key in self._BC_NEEDS_POINTS_FILE)
+            interface_widget.setVisible(key in self._BC_NEEDS_INTERFACE_ROW)
+            advanced_note.setVisible(key in self._BC_NEEDS_ADVANCED_NOTE)
+            val_edit.setPlaceholderText(val_placeholders.get(key, default_val_placeholder))
+
+        def _sync_type_and_refresh_weights(_t=None):
+            _sync_type(_t)
+            # Keep the Loss Weights panel's "BC n (type, out k):" label current
+            # -- the row itself already exists, this just re-labels it.
+            if hasattr(self, 'weights_main_layout') and hasattr(self, 'num_outputs_spin'):
+                self._build_weight_inputs(self.num_outputs_spin.value())
+        type_combo.currentIndexChanged.connect(_sync_type_and_refresh_weights)
+        comp_spin.valueChanged.connect(_sync_type_and_refresh_weights)
+        _sync_type()
+
+        if locked:
+            for w in (type_combo, comp_spin, loc_edit, loc_hint_toggle, val_edit,
+                      axis_combo, deriv_spin, pointset_path, pointset_browse,
+                      loc2_edit, direction_combo):
+                w.setEnabled(False)
+
+        self.custom_bc_list_layout.addWidget(entry_widget)
+        entry_data = {
+            'widget': entry_widget,
+            'type': type_combo,
+            'component': comp_spin,
+            'location': loc_edit,
+            'value': val_edit,
+            'axis': axis_combo,
+            'deriv_order': deriv_spin,
+            'points_file': pointset_path,
+            'location2': loc2_edit,
+            'direction': direction_combo,
+            'locked': locked,
+            # Containers, exposed mainly so tests can check per-type
+            # visibility directly rather than guessing from the leaf inputs.
+            'location_widget': loc_widget,
+            'value_widget': val_widget,
+            'periodic_widget': periodic_widget,
+            'pointset_widget': pointset_widget,
+            'interface_widget': interface_widget,
+            'component_widget': comp_widget,
+        }
+        self.custom_bc_list.append(entry_data)
+
+        def _remove():
+            entry_widget.deleteLater()
+            if entry_data in self.custom_bc_list:
+                self.custom_bc_list.remove(entry_data)
+            self._update_bc_mode_visibility()
+
+        remove_btn.clicked.connect(_remove)
+        return entry_data
+
+    def _build_custom_bc_json(self):
+        """Serialize the Boundary Conditions list for PINNConfig
+        (custom_bc_json) -- one dict per BC row, independent of
+        geometry_type. Template-derived (locked) rows are included too, but
+        only for display continuity within a session; the "locked" flag
+        itself isn't persisted (nothing here is), since Quick Example
+        selection also isn't persisted across Save/Load Problem today --
+        see _apply_config(). Only the un-locked (custom-mode) rows actually
+        drive training today; codegen doesn't read this list for template
+        problems (it still reads the legacy bc_left_types/etc fields, kept
+        in sync internally) or for any row a template didn't produce --
+        wiring that up is the natural next step."""
+        import json
+        entries = []
+        for e in self.custom_bc_list:
+            entries.append({
+                'type': e['type'].currentData(),
+                'component': e['component'].value(),
+                'location': e['location'].text(),
+                'value': e['value'].text(),
+                'axis': e['axis'].currentText(),
+                'deriv_order': e['deriv_order'].value(),
+                'points_file': e['points_file'].text(),
+                'location2': e['location2'].text(),
+                'direction': e['direction'].currentText(),
+            })
+        return json.dumps(entries)
+
+    def _apply_custom_bc_json(self, custom_bc_json):
+        """Rebuild the Boundary Conditions list from a saved custom_bc_json
+        string (config load). Restored rows are always unlocked/editable --
+        see _build_custom_bc_json()'s docstring for why "locked" isn't
+        persisted."""
+        import json
+        for e in list(self.custom_bc_list):
+            e['widget'].deleteLater()
+        self.custom_bc_list.clear()
+        if not custom_bc_json:
+            return
+        try:
+            entries = json.loads(custom_bc_json)
+        except (ValueError, TypeError):
+            return
+        for e in entries:
+            self._add_custom_bc_entry(
+                bc_type=e.get('type', 'dirichlet'),
+                component=e.get('component', 0),
+                location=e.get('location', ''),
+                value=e.get('value', '0'),
+                axis=e.get('axis', 'x'),
+                deriv_order=e.get('deriv_order', 0),
+                points_file=e.get('points_file', ''),
+                location2=e.get('location2', ''),
+                direction=e.get('direction', 'normal'),
+                locked=False,
+            )
+
+    def _populate_locked_bc_entries_from_legacy(self, n_out, is_2d):
+        """Seed the Boundary Conditions panel with whatever was just written
+        to the legacy per-side widgets (self.bc_left_types etc., set by
+        _on_template_selected just before this is called) -- so a
+        template's BCs show up pre-filled in the same panel used for a
+        hand-built list, editable from the moment they appear. This is
+        purely a starting point: once seeded, the legacy widgets are no
+        longer consulted for this problem -- _build_config() serializes
+        this panel's rows (whether edited or left as the template set
+        them) into custom_bc_json, which is what codegen.py actually reads."""
+        for e in list(self.custom_bc_list):
+            e['widget'].deleteLater()
+        self.custom_bc_list.clear()
+        x_min, x_max = self.x_min.value(), self.x_max.value()
+        y_min = self.y_min.value() if is_2d else None
+        y_max = self.y_max.value() if is_2d else None
+        for i in range(n_out):
+            if i < len(self.bc_left_types):
+                self._add_locked_side_entry("left", i, x_min, x_max, y_min, y_max, is_2d)
+            if i < len(self.bc_right_types) and self.bc_left_types[i].currentText() != "Periodic":
+                self._add_locked_side_entry("right", i, x_min, x_max, y_min, y_max, is_2d)
+            if is_2d:
+                if i < len(self.bc_bottom_types):
+                    self._add_locked_side_entry("bottom", i, x_min, x_max, y_min, y_max, is_2d)
+                if i < len(self.bc_top_types) and self.bc_bottom_types[i].currentText() != "Periodic":
+                    self._add_locked_side_entry("top", i, x_min, x_max, y_min, y_max, is_2d)
+
+    def _add_locked_side_entry(self, side, i, x_min, x_max, y_min, y_max, is_2d):
+        types_map = {"left": self.bc_left_types, "right": self.bc_right_types,
+                     "bottom": getattr(self, "bc_bottom_types", []),
+                     "top": getattr(self, "bc_top_types", [])}
+        vals_map = {"left": self.bc_left_vals, "right": self.bc_right_vals,
+                    "bottom": getattr(self, "bc_bottom_vals", []),
+                    "top": getattr(self, "bc_top_vals", [])}
+        loc_map = {
+            "left": f"x <= {x_min:g}",
+            "right": f"x >= {x_max:g}",
+            "bottom": f"y <= {y_min:g}" if is_2d else "",
+            "top": f"y >= {y_max:g}" if is_2d else "",
+        }
+        axis_map = {"left": "x", "right": "x", "bottom": "y", "top": "y"}
+        bc_type_txt = types_map[side][i].currentText()
+        if bc_type_txt == "Periodic":
+            self._add_custom_bc_entry(bc_type="periodic", component=i, location=loc_map[side],
+                                       axis=axis_map[side], deriv_order=0, locked=False)
+        else:
+            val = vals_map[side][i].value()
+            self._add_custom_bc_entry(bc_type=bc_type_txt.lower(), component=i,
+                                       location=loc_map[side], value=str(val), locked=False)
+
+    def _populate_3d_heat_bc_entries(self, n_out):
+        """Seed the Boundary Conditions panel with the 6 faces of the 3D
+        Heat template's box domain (x/y/z min/max). There's no legacy
+        per-side widget layer for a third dimension (only left/right/
+        bottom/top ever existed) -- and since the panel is the real source
+        of truth for training now anyway (see codegen.py's custom_bc_json
+        path), 3D templates populate it directly instead of going through
+        _populate_locked_bc_entries_from_legacy, which only knows 1D/2D."""
+        for e in list(self.custom_bc_list):
+            e['widget'].deleteLater()
+        self.custom_bc_list.clear()
+        x_min, x_max = self.x_min.value(), self.x_max.value()
+        y_min, y_max = self.y_min.value(), self.y_max.value()
+        z_min, z_max = self.z_min.value(), self.z_max.value()
+        # Same convention as heat2d: one Dirichlet face (right/x-max), the
+        # rest Neumann=0 (insulated).
+        faces = [
+            (f"x <= {x_min:g}", "neumann", "0"),
+            (f"x >= {x_max:g}", "dirichlet", "1"),
+            (f"y <= {y_min:g}", "neumann", "0"),
+            (f"y >= {y_max:g}", "neumann", "0"),
+            (f"z <= {z_min:g}", "neumann", "0"),
+            (f"z >= {z_max:g}", "neumann", "0"),
+        ]
+        for i in range(n_out):
+            for loc, btype, val in faces:
+                self._add_custom_bc_entry(bc_type=btype, component=i, location=loc,
+                                           value=val, locked=False)
 
     # ── Build weight inputs ───────────────────────────────────
     def _build_weight_inputs(self, n):
@@ -1896,36 +2701,20 @@ class MainWindow(QMainWindow):
             _sw_all = QWidget(); _sl_all = QHBoxLayout(_sw_all)
             _sl_all.setContentsMargins(0,0,0,0); _sl_all.addWidget(_sep_all)
             self.weights_main_layout.addWidget(_sw_all)
-        if _same_weights:
-         
-         if _same_weights:
+
             for i in range(n):
                 name = self.output_name_inputs[i].text() if i < len(self.output_name_inputs) else f"u{i+1}"
                 _w_row(f"PDE {i+1} ({name}):", f"pde_{i}")
-                if i < len(self.bc_left_active) and self.bc_left_active[i].isChecked():
-                    _w_row(f"BC left {i+1} ({name}):", f"bc_left_{i}")
-                    # Add derivative periodic BC weight if enabled
-                    _blt_is_per = i < len(self.bc_left_types) and self.bc_left_types[i].currentText() == "Periodic"
-                    _bld_checked = i < len(self.bc_left_deriv) and self.bc_left_deriv[i].isChecked()
-                    if _blt_is_per and _bld_checked:
-                        _w_row(f"BC left deriv {i+1} ({name}):", f"bc_left_deriv_{i}")
-                _blt_is_per = i < len(self.bc_left_types) and self.bc_left_types[i].currentText() == "Periodic"
-                _brt_is_per = i < len(self.bc_right_types) and self.bc_right_types[i].currentText() == "Periodic"
-                if i < len(self.bc_right_active) and self.bc_right_active[i].isChecked() and not _brt_is_per and not _blt_is_per:
-                    _w_row(f"BC right {i+1} ({name}):", f"bc_right_{i}")
-                is_2d = self.radio_2d.isChecked() if hasattr(self, 'radio_2d') else False
-                if is_2d:
-                    if i < len(self.bc_bottom_active) and self.bc_bottom_active[i].isChecked():
-                        _w_row(f"BC bottom {i+1} ({name}):", f"bc_bottom_{i}")
-                        # Add derivative periodic BC weight if enabled
-                        _bbt_is_per = i < len(self.bc_bottom_types) and self.bc_bottom_types[i].currentText() == "Periodic"
-                        _bbd_checked = i < len(self.bc_bottom_deriv) and self.bc_bottom_deriv[i].isChecked()
-                        if _bbt_is_per and _bbd_checked:
-                            _w_row(f"BC bottom deriv {i+1} ({name}):", f"bc_bottom_deriv_{i}")
-                    _bbt_is_per = i < len(self.bc_bottom_types) and self.bc_bottom_types[i].currentText() == "Periodic"
-                    _btt_is_per = i < len(self.bc_top_types) and self.bc_top_types[i].currentText() == "Periodic"
-                    if i < len(self.bc_top_active) and self.bc_top_active[i].isChecked() and not _btt_is_per and not _bbt_is_per:
-                        _w_row(f"BC top {i+1} ({name}):", f"bc_top_{i}")
+            # One weight row per row in the Boundary Conditions panel --
+            # matches exactly what will train (see codegen.py's
+            # custom_bc_json path), whether it's a hand-built row or one
+            # pre-filled from a template.
+            for _bj, _be in enumerate(getattr(self, 'custom_bc_list', [])):
+                _btype_label = _be['type'].currentText()
+                _bcomp = _be['component'].value()
+                _w_row(f"BC {_bj + 1} ({_btype_label}, out {_bcomp}):", f"bc_{_bj}")
+            for i in range(n):
+                name = self.output_name_inputs[i].text() if i < len(self.output_name_inputs) else f"u{i+1}"
                 _ic_from_file_checked = (
                     hasattr(self, 'ic_from_file') and
                     i < len(self.ic_from_file) and
@@ -1947,22 +2736,43 @@ class MainWindow(QMainWindow):
                 for _i in range(n):
                     _name = self.output_name_inputs[_i].text() if _i < len(self.output_name_inputs) else f"u{_i+1}"
                     _w_row(f"PDE {_i+1} ({_name}) P{_phase_num}:", f"pde_{_i}_p{_phase_num}")
-                    if _i < len(self.bc_left_active) and self.bc_left_active[_i].isChecked():
-                        _w_row(f"BC left {_i+1} P{_phase_num}:", f"bc_left_{_i}_p{_phase_num}")
-                        _blt_per = _i < len(self.bc_left_types) and self.bc_left_types[_i].currentText() == "Periodic"
-                        _bld_chk = _i < len(self.bc_left_deriv) and self.bc_left_deriv[_i].isChecked()
-                        if _blt_per and _bld_chk:
-                            _w_row(f"BC left deriv {_i+1} P{_phase_num}:", f"bc_left_deriv_{_i}_p{_phase_num}")
-                    if hasattr(self, 'bc_bottom_active') and _i < len(self.bc_bottom_active) and self.bc_bottom_active[_i].isChecked():
-                        _w_row(f"BC bottom {_i+1} P{_phase_num}:", f"bc_bottom_{_i}_p{_phase_num}")
-                        _bbt_per = _i < len(self.bc_bottom_types) and self.bc_bottom_types[_i].currentText() == "Periodic"
-                        _bbd_chk = _i < len(self.bc_bottom_deriv) and self.bc_bottom_deriv[_i].isChecked()
-                        if _bbt_per and _bbd_chk:
-                            _w_row(f"BC bottom deriv {_i+1} P{_phase_num}:", f"bc_bottom_deriv_{_i}_p{_phase_num}")
+                for _bj, _be in enumerate(getattr(self, 'custom_bc_list', [])):
+                    _btype_label = _be['type'].currentText()
+                    _bcomp = _be['component'].value()
+                    _w_row(f"BC {_bj + 1} ({_btype_label}, out {_bcomp}) P{_phase_num}:", f"bc_{_bj}_p{_phase_num}")
+                for _i in range(n):
+                    _name = self.output_name_inputs[_i].text() if _i < len(self.output_name_inputs) else f"u{_i+1}"
                     _ic_ff = (hasattr(self, 'ic_from_file') and _i < len(self.ic_from_file)
                               and self.ic_from_file[_i] is not None and self.ic_from_file[_i].isChecked())
                     if (_i < len(self.ic_active) and self.ic_active[_i].isChecked()) or _ic_ff:
                         _w_row(f"IC {_i+1} ({_name}) P{_phase_num}:", f"ic_{_i}_p{_phase_num}")
+
+    def _flat_loss_weights_string(self, n_out):
+        """Build the comma-separated loss_weights_multi string in the exact
+        order codegen.py expects: PDE (one per output), then one weight per
+        Boundary Conditions panel row (in that panel's order), then IC (one
+        per active output) -- mirroring _build_weight_inputs()'s row order.
+        When per-phase weights are in use, this uses phase 1's weight_widgets
+        as the flat/representative set (matching the pre-existing convention
+        this replaces)."""
+        use_phase1 = (hasattr(self, 'sched_phase_list') and self.sched_phase_list
+                      and hasattr(self, 'sched_same_weights_cb')
+                      and not self.sched_same_weights_cb.isChecked())
+        suffix = f"_p{self.sched_phase_list[0]['phase_num']}" if use_phase1 else ""
+        parts = []
+        for i in range(n_out):
+            key = f"pde_{i}{suffix}"
+            if key in self.weight_widgets:
+                parts.append(str(self.weight_widgets[key].value()))
+        for j in range(len(getattr(self, 'custom_bc_list', []))):
+            key = f"bc_{j}{suffix}"
+            if key in self.weight_widgets:
+                parts.append(str(self.weight_widgets[key].value()))
+        for i in range(n_out):
+            key = f"ic_{i}{suffix}"
+            if key in self.weight_widgets:
+                parts.append(str(self.weight_widgets[key].value()))
+        return ",".join(parts)
 
     # ── Build config ──────────────────────────────────────────
     def _build_config(self):
@@ -1970,7 +2780,8 @@ class MainWindow(QMainWindow):
         w = self.neurons_spin.value()
         n_out = self.num_outputs_spin.value()
         is_2d = self.radio_2d.isChecked()
-        input_size = 3 if is_2d else 2
+        is_3d = self.radio_3d.isChecked() if hasattr(self, 'radio_3d') else False
+        input_size = 4 if is_3d else (3 if is_2d else 2)
         layers = [input_size] + [w] * n + [n_out]
 
         def _safe_val(lst, i, default=0.0):
@@ -1985,8 +2796,65 @@ class MainWindow(QMainWindow):
             except Exception:
                 return default
 
+        def _safe_checked(lst, i, default=True):
+            try:
+                return lst[i].isChecked()
+            except Exception:
+                return default
+
+        box_shape = self._current_geometry_type() in ("Interval", "Rectangle", "Cuboid")
+
+        def _bc_group_json(types_list, vals_list, active_list, n_out):
+            """Serialize a flat per-output BC group (Boundary for Disk/Ellipse/
+            Sphere) to a JSON string: one {active,type,value} dict per output."""
+            import json as _json
+            out = []
+            for _i in range(n_out):
+                out.append({
+                    "active": _i < len(active_list) and active_list[_i].isChecked(),
+                    "type": _safe_text(types_list, _i),
+                    "value": _safe_val(vals_list, _i),
+                })
+            return _json.dumps(out)
+
+        def _bc_edge_json(n_out):
+            """Serialize the per-output, per-edge BC groups (Triangle/Polygon)
+            to a JSON string: a list (per output) of lists (per edge) of
+            {active,type,value} dicts."""
+            import json as _json
+            out = []
+            for _i in range(n_out):
+                _edges = []
+                if _i < len(self.bc_edge_types):
+                    for _e in range(len(self.bc_edge_types[_i])):
+                        _edges.append({
+                            "active": self.bc_edge_active[_i][_e].isChecked(),
+                            "type": self.bc_edge_types[_i][_e].currentText(),
+                            "value": self.bc_edge_vals[_i][_e].value(),
+                        })
+                out.append(_edges)
+            return _json.dumps(out)
+
         return PINNConfig(
-            problem_dim="2D" if is_2d else "1D",
+            problem_dim="3D" if is_3d else ("2D" if is_2d else "1D"),
+            geometry_type=self._current_geometry_type(),
+            z_min=self.z_min.value(), z_max=self.z_max.value(),
+            geom_center_x=(self.geom_sphere_cx.value() if is_3d else
+                           self.geom_ellipse_cx.value() if self.geometry_type_combo.currentText() == "Ellipse" else
+                           self.geom_disk_cx.value()),
+            geom_center_y=(self.geom_sphere_cy.value() if is_3d else
+                           self.geom_ellipse_cy.value() if self.geometry_type_combo.currentText() == "Ellipse" else
+                           self.geom_disk_cy.value()),
+            geom_center_z=self.geom_sphere_cz.value(),
+            geom_radius=self.geom_sphere_r.value() if is_3d else self.geom_disk_r.value(),
+            geom_semi_major=self.geom_ellipse_a.value(),
+            geom_semi_minor=self.geom_ellipse_b.value(),
+            geom_angle=self.geom_ellipse_angle.value(),
+            geom_triangle_vertices=self.geom_triangle_verts_input.text(),
+            geom_polygon_vertices=self.geom_polygon_verts_input.text(),
+            bc_boundary_json=_bc_group_json(self.bc_boundary_types, self.bc_boundary_vals, self.bc_boundary_active, n_out),
+            bc_edge_json=_bc_edge_json(n_out),
+            custom_bc_json=self._build_custom_bc_json(),
             num_outputs=n_out,
             output_names=",".join([self.output_name_inputs[i].text() for i in range(n_out)]),
             pde_expressions="|".join([self.pde_inputs[i].text() for i in range(n_out)]),
@@ -1995,27 +2863,27 @@ class MainWindow(QMainWindow):
             bc_right_types=",".join([_safe_text(self.bc_right_types, i) for i in range(n_out)]),
             bc_left_values=",".join([str(_safe_val(self.bc_left_vals, i)) for i in range(n_out)]),
             bc_right_values=",".join([str(_safe_val(self.bc_right_vals, i)) for i in range(n_out)]),
-            bc_left_active=",".join([str(self.bc_left_active[i].isChecked()) for i in range(n_out)]),
+            bc_left_active=",".join([str(_safe_checked(self.bc_left_active, i)) for i in range(n_out)]),
             bc_right_active=",".join([
                 "False" if (i < len(self.bc_left_types) and self.bc_left_types[i].currentText() == "Periodic")
-                else str(self.bc_right_active[i].isChecked())
+                else str(_safe_checked(self.bc_right_active, i))
                 for i in range(n_out)
             ]),
-            bc_left_deriv=",".join([str(self.bc_left_deriv[i].isChecked()) for i in range(n_out)]),
-            bc_right_deriv=",".join([str(self.bc_right_deriv[i].isChecked()) for i in range(n_out)]),
+            bc_left_deriv=",".join([str(_safe_checked(self.bc_left_deriv, i, False)) for i in range(n_out)]),
+            bc_right_deriv=",".join([str(_safe_checked(self.bc_right_deriv, i, False)) for i in range(n_out)]),
 
-            bc_bottom_types=",".join([_safe_text(self.bc_bottom_types, i) for i in range(n_out)]) if is_2d else "Dirichlet",
-            bc_top_types=",".join([_safe_text(self.bc_top_types, i) for i in range(n_out)]) if is_2d else "Dirichlet",
-            bc_bottom_values=",".join([str(_safe_val(self.bc_bottom_vals, i)) for i in range(n_out)]) if is_2d else "0.0",
-            bc_top_values=",".join([str(_safe_val(self.bc_top_vals, i)) for i in range(n_out)]) if is_2d else "0.0",
-            bc_bottom_active=",".join([str(self.bc_bottom_active[i].isChecked()) for i in range(n_out)]) if is_2d else "True",
+            bc_bottom_types=",".join([_safe_text(self.bc_bottom_types, i) for i in range(n_out)]) if box_shape else "Dirichlet",
+            bc_top_types=",".join([_safe_text(self.bc_top_types, i) for i in range(n_out)]) if box_shape else "Dirichlet",
+            bc_bottom_values=",".join([str(_safe_val(self.bc_bottom_vals, i)) for i in range(n_out)]) if box_shape else "0.0",
+            bc_top_values=",".join([str(_safe_val(self.bc_top_vals, i)) for i in range(n_out)]) if box_shape else "0.0",
+            bc_bottom_active=",".join([str(_safe_checked(self.bc_bottom_active, i)) for i in range(n_out)]) if box_shape else "True",
             bc_top_active=",".join([
                 "False" if (i < len(self.bc_bottom_types) and self.bc_bottom_types[i].currentText() == "Periodic")
-                else str(self.bc_top_active[i].isChecked())
+                else str(_safe_checked(self.bc_top_active, i))
                 for i in range(n_out)
-            ]) if is_2d else "True",
-            bc_bottom_deriv=",".join([str(self.bc_bottom_deriv[i].isChecked()) for i in range(n_out)]) if is_2d else "False",
-            bc_top_deriv=",".join([str(self.bc_top_deriv[i].isChecked()) for i in range(n_out)]) if is_2d else "False",
+            ]) if box_shape else "True",
+            bc_bottom_deriv=",".join([str(_safe_checked(self.bc_bottom_deriv, i, False)) for i in range(n_out)]) if box_shape else "False",
+            bc_top_deriv=",".join([str(_safe_checked(self.bc_top_deriv, i, False)) for i in range(n_out)]) if box_shape else "False",
 
             ic_expressions="|".join([self.ic_inputs[i].text() for i in range(n_out)]),
             ic_active=",".join([str(self.ic_active[i].isChecked()) for i in range(n_out)]),
@@ -2034,37 +2902,7 @@ class MainWindow(QMainWindow):
                 ""
             ),
 
-            loss_weights_multi=(lambda: (
-                # When scheduler has per-phase weights, use first phase weights
-                ",".join([
-                    str(self.weight_widgets.get(k, SciLineEdit(1.0)).value())
-                    for i in range(n_out)
-                    for k in ([f"pde_{i}_p{self.sched_phase_list[0]['phase_num']}",
-                                f"bc_left_{i}_p{self.sched_phase_list[0]['phase_num']}",
-                                f"bc_right_{i}_p{self.sched_phase_list[0]['phase_num']}",
-                                f"bc_bottom_{i}_p{self.sched_phase_list[0]['phase_num']}",
-                                f"bc_top_{i}_p{self.sched_phase_list[0]['phase_num']}",
-                                f"ic_{i}_p{self.sched_phase_list[0]['phase_num']}"]
-                               if is_2d else
-                               [f"pde_{i}_p{self.sched_phase_list[0]['phase_num']}",
-                                f"bc_left_{i}_p{self.sched_phase_list[0]['phase_num']}",
-                                f"bc_right_{i}_p{self.sched_phase_list[0]['phase_num']}",
-                                f"ic_{i}_p{self.sched_phase_list[0]['phase_num']}"])
-                    if k in self.weight_widgets
-                ])
-                if (hasattr(self, 'sched_phase_list') and self.sched_phase_list
-                    and hasattr(self, 'sched_same_weights_cb')
-                    and not self.sched_same_weights_cb.isChecked())
-                else
-                ",".join([
-                    str(self.weight_widgets[k].value())
-                    for i in range(n_out)
-                    for k in ([f"pde_{i}", f"bc_left_{i}", f"bc_right_{i}", f"bc_bottom_{i}", f"bc_top_{i}", f"ic_{i}"]
-                               if is_2d else
-                               [f"pde_{i}", f"bc_left_{i}", f"bc_right_{i}", f"ic_{i}"])
-                    if k in self.weight_widgets
-                ])
-            ))(),
+            loss_weights_multi=self._flat_loss_weights_string(n_out),
             plot_output_idx=self.plot_output_combo.currentIndex(),
 
             pde_expression=self.pde_inputs[0].text() if self.pde_inputs else "du_t - 0.4 * du_xx",
@@ -2159,6 +2997,500 @@ class MainWindow(QMainWindow):
             ea_do_line=self._ea_settings.get('do_line', True) if getattr(self, '_ea_settings', None) else True,
             ea_do_surface=self._ea_settings.get('do_surface', True) if getattr(self, '_ea_settings', None) else True,
         )
+
+    # ── Save / Open a problem definition ─────────────────────
+    # A saved problem is just a PINNConfig -- the same object _build_config()
+    # already assembles for Solve -- serialized to JSON. Opening one reverses
+    # that: parse the JSON back into a PINNConfig, then _apply_config() writes
+    # every field back onto its widget. Together these make _build_config()
+    # and _apply_config() exact mirrors of each other; the split is deliberate
+    # so a bug in one direction can't silently paper over a bug in the other.
+    def _save_problem(self):
+        import json
+        import dataclasses
+        from datetime import datetime
+        default_name = getattr(self, "_current_problem_name", "") or "problem"
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Save Problem As", f"{default_name}.pinn.json",
+            "PINNStudio Problem (*.pinn.json)"
+        )
+        if not path:
+            return
+        if not path.lower().endswith(".json"):
+            path += ".pinn.json"
+        config = self._build_config()
+        try:
+            from importlib.metadata import version as _pkg_version
+            installed_version = _pkg_version("pinnstudio")
+        except Exception:
+            installed_version = ""
+        problem_name = os.path.splitext(os.path.basename(path))[0]
+        if problem_name.endswith(".pinn"):
+            problem_name = problem_name[:-5]
+        payload = {
+            "pinnstudio_problem_format": 1,
+            "problem_name": problem_name,
+            "saved_with_pinnstudio_version": installed_version,
+            "saved_at": datetime.now().isoformat(timespec="seconds"),
+            "config": dataclasses.asdict(config),
+        }
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(payload, f, indent=2)
+            self._current_problem_name = problem_name
+            self.log_box.append(f"💾 Problem saved: {os.path.basename(path)}")
+        except Exception as e:
+            self.log_box.append(f"❌ Failed to save problem: {e}")
+
+    def _open_problem(self):
+        import json
+        import dataclasses
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Open Saved Problem", "", "PINNStudio Problem (*.pinn.json *.json)"
+        )
+        if not path:
+            return
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except Exception as e:
+            self.log_box.append(f"❌ Failed to read problem file: {e}")
+            return
+        raw_config = data.get("config", data) if isinstance(data, dict) else None
+        if not isinstance(raw_config, dict):
+            self.log_box.append("❌ This doesn't look like a valid PINNStudio problem file.")
+            return
+        known_fields = {f.name for f in dataclasses.fields(PINNConfig)}
+        filtered = {k: v for k, v in raw_config.items() if k in known_fields}
+        try:
+            config = PINNConfig(**filtered)
+        except Exception as e:
+            self.log_box.append(f"❌ Failed to parse problem file: {e}")
+            return
+        try:
+            self._apply_config(config)
+        except Exception as e:
+            self.log_box.append(f"❌ Failed to load problem into the interface: {e}")
+            return
+        problem_name = (
+            data.get("problem_name", os.path.splitext(os.path.basename(path))[0])
+            if isinstance(data, dict) else os.path.splitext(os.path.basename(path))[0]
+        )
+        self._current_problem_name = problem_name
+        self.log_box.append(f"✅ Problem loaded: {problem_name}")
+
+    def _apply_weight_string(self, weights_str, keys):
+        """Assign a comma-separated weight string back onto self.weight_widgets,
+        walking `keys` in order and consuming one value per key that actually
+        exists in weight_widgets -- the exact mirror of how each weight string
+        is built (see _build_config's loss_weights_multi and
+        _build_scheduler_phases_json)."""
+        parts = (weights_str or "").split(",")
+        vi = 0
+        for k in keys:
+            if k not in self.weight_widgets:
+                continue
+            if vi < len(parts):
+                try:
+                    self.weight_widgets[k].setValue(float(parts[vi]))
+                except ValueError:
+                    pass
+                vi += 1
+
+    def _apply_flat_weights(self, weights_str, n_out, is_2d):
+        # Order matches _flat_loss_weights_string() / _build_weight_inputs():
+        # PDE per output, then one weight per Boundary Conditions panel row,
+        # then IC per output. is_2d is accepted for call-site compatibility
+        # but no longer changes which keys are read.
+        keys = [f"pde_{i}" for i in range(n_out)]
+        keys.extend(f"bc_{j}" for j in range(len(getattr(self, 'custom_bc_list', []))))
+        keys.extend(f"ic_{i}" for i in range(n_out))
+        self._apply_weight_string(weights_str, keys)
+
+    def _apply_scheduler_phases_build_only(self, phases_json):
+        """Rebuild self.sched_phase_list's optimizer/iterations/lr rows from
+        saved JSON -- weight VALUES are applied separately afterward, once
+        _build_weight_inputs() has (re)created the matching weight_widgets."""
+        import json
+        try:
+            phases = json.loads(phases_json) if phases_json else []
+        except (json.JSONDecodeError, TypeError):
+            phases = []
+        for ph in list(self.sched_phase_list):
+            ph["widget"].deleteLater()
+        self.sched_phase_list.clear()
+        for ph in phases:
+            self._add_scheduler_phase(
+                ph.get("optimizer", "adam"), ph.get("iterations", 10000), ph.get("lr", 0.001)
+            )
+        return phases
+
+    def _apply_phase_weights(self, phases, n_out, is_2d):
+        """Only meaningful when scheduler_same_weights is False -- that's the
+        only case where per-phase (_p{n}-suffixed) weight_widgets exist.
+        The saved JSON has no phase_num key (_build_scheduler_phases_json
+        never wrote one) -- phase_num is 1-based position in the list, the
+        same convention _add_scheduler_phase itself uses. Key order/set below
+        matches _build_scheduler_phases_json exactly: PDE for every output
+        first, then one weight per Boundary Conditions panel row, then IC
+        for every output."""
+        for pn, ph in enumerate(phases, start=1):
+            keys = [f"pde_{i}_p{pn}" for i in range(n_out)]
+            keys.extend(f"bc_{j}_p{pn}" for j in range(len(getattr(self, 'custom_bc_list', []))))
+            keys.extend(f"ic_{i}_p{pn}" for i in range(n_out))
+            self._apply_weight_string(ph.get("weights", ""), keys)
+
+    def _apply_config(self, config):
+        """Populate every widget in the interface from a PINNConfig -- the
+        exact mirror of _build_config(). Used by _open_problem() to restore a
+        previously saved problem. Order matters: dimension, problem type, and
+        output count are set first, since changing any of them rebuilds the
+        per-output PDE/BC/IC widget rows from scratch -- only once those rows
+        exist can their individual values be populated."""
+        import json
+        import ast as _ast
+
+        def _bools(s, n, default=True):
+            parts = (s or "").split(",")
+            return [(parts[i].strip() == "True" if i < len(parts) else default) for i in range(n)]
+
+        def _floats(s, n, default=0.0):
+            parts = (s or "").split(",")
+            out = []
+            for i in range(n):
+                if i < len(parts):
+                    try:
+                        out.append(float(parts[i]))
+                    except ValueError:
+                        out.append(default)
+                else:
+                    out.append(default)
+            return out
+
+        def _texts(s, n, sep, default=""):
+            parts = (s or "").split(sep)
+            return [(parts[i] if i < len(parts) else default) for i in range(n)]
+
+        n_out = max(1, config.num_outputs)
+        is_2d = config.problem_dim == "2D"
+        is_3d = config.problem_dim == "3D"
+
+        # Clear per-session template bookkeeping so leftover state from a
+        # previously loaded built-in template (or a previously loaded saved
+        # problem) can't leak into this one via _on_problem_type_changed /
+        # _sync_inverse_pde_substitution.
+        self._current_template = ""
+        self._current_template_type = config.template_type or ""
+        self._template_ref_dir = ""
+        self._current_template_forward_tmax = None
+        self._current_template_inverse_tmax = None
+        self._current_ta_cfg = None
+        self._ta_suspended_for_inverse = False
+        self._inverse_sub_active = None
+
+        # 1) Dimension -- rebuilds PDE/BC/IC rows for the CURRENT output count.
+        if is_3d:
+            self.radio_3d.setChecked(True)
+        elif is_2d:
+            self.radio_2d.setChecked(True)
+        else:
+            self.radio_1d.setChecked(True)
+
+        # 2) Problem type -- must be set before output count / adapt_method,
+        # since Inverse mode removes "Time Adaptive" from adapt_combo.
+        if config.problem_type == "Inverse":
+            self.radio_inverse.setChecked(True)
+        else:
+            self.radio_forward.setChecked(True)
+
+        # 3) Output count -- rebuilds PDE/BC/IC rows again, this time for the
+        # real target count. Let Qt actually create the new widgets first.
+        self.num_outputs_spin.setValue(n_out)
+        QApplication.processEvents()
+
+        # Output names
+        names = _texts(config.output_names, n_out, ",", "")
+        for i in range(n_out):
+            if i < len(self.output_name_inputs) and names[i]:
+                self.output_name_inputs[i].setText(names[i])
+
+        # Refresh the plot/restore output dropdowns now that names are real
+        # (they were populated with placeholder names when output count
+        # changed, before we had the saved names to give them).
+        self.plot_output_combo.clear()
+        self.restore_output_combo.clear()
+        for i in range(n_out):
+            name = self.output_name_inputs[i].text() if i < len(self.output_name_inputs) else f"u{i+1}"
+            self.plot_output_combo.addItem(f"Output {i+1} ({name})")
+            self.restore_output_combo.addItem(f"Output {i+1} ({name})")
+
+        # PDE expressions
+        pdes = _texts(config.pde_expressions, n_out, "|", config.pde_expression)
+        for i in range(n_out):
+            if i < len(self.pde_inputs):
+                self.pde_inputs[i].setText(pdes[i])
+
+        # 3.5) Domain z bounds + per-shape geometry parameters, and vertex
+        # text (set before the geometry-type combo below, so that when it
+        # rebuilds the BC rows for Triangle/Polygon, the edge count already
+        # reflects the loaded vertices).
+        self.z_min.setValue(config.z_min); self.z_max.setValue(config.z_max)
+        self.geom_disk_cx.setValue(config.geom_center_x); self.geom_disk_cy.setValue(config.geom_center_y)
+        self.geom_disk_r.setValue(config.geom_radius)
+        self.geom_ellipse_cx.setValue(config.geom_center_x); self.geom_ellipse_cy.setValue(config.geom_center_y)
+        self.geom_ellipse_a.setValue(config.geom_semi_major); self.geom_ellipse_b.setValue(config.geom_semi_minor)
+        self.geom_ellipse_angle.setValue(config.geom_angle)
+        self.geom_sphere_cx.setValue(config.geom_center_x); self.geom_sphere_cy.setValue(config.geom_center_y)
+        self.geom_sphere_cz.setValue(config.geom_center_z); self.geom_sphere_r.setValue(config.geom_radius)
+        self.geom_triangle_verts_input.setText(config.geom_triangle_vertices or "0,0;1,0;0,1")
+        self.geom_polygon_verts_input.setText(config.geom_polygon_vertices or "0,0;1,0;1,1;0,1")
+
+        # 3.6) Geometry type -- rebuilds the BC rows one more time, this
+        # time in the shape (box / unified boundary / per-edge) that
+        # matches the saved geometry.
+        _geom_items = [self.geometry_type_combo.itemText(k) for k in range(self.geometry_type_combo.count())]
+        if config.geometry_type in _geom_items:
+            self.geometry_type_combo.setCurrentText(config.geometry_type)
+        QApplication.processEvents()
+        box_shape = self._current_geometry_type() in ("Interval", "Rectangle", "Cuboid")
+        unified_shape = self._current_geometry_type() in ("Disk", "Ellipse", "Sphere")
+        edge_shape = self._current_geometry_type() in ("Triangle", "Polygon")
+
+        # Boundary conditions -- left/right (1D and 2D), bottom/top (2D only)
+        bl_types = _texts(config.bc_left_types, n_out, ",", "Dirichlet")
+        br_types = _texts(config.bc_right_types, n_out, ",", "Dirichlet")
+        bl_vals = _floats(config.bc_left_values, n_out, 0.0)
+        br_vals = _floats(config.bc_right_values, n_out, 0.0)
+        bl_active = _bools(config.bc_left_active, n_out, True)
+        br_active = _bools(config.bc_right_active, n_out, True)
+        bl_deriv = _bools(config.bc_left_deriv, n_out, False)
+        br_deriv = _bools(config.bc_right_deriv, n_out, False)
+        for i in range(n_out):
+            if i < len(self.bc_left_types):
+                self.bc_left_active[i].setChecked(bl_active[i])
+                self.bc_left_types[i].setCurrentText(bl_types[i])
+                self.bc_left_vals[i].setValue(bl_vals[i])
+                self.bc_left_deriv[i].setChecked(bl_deriv[i])
+            if i < len(self.bc_right_types):
+                self.bc_right_active[i].setChecked(br_active[i])
+                self.bc_right_types[i].setCurrentText(br_types[i])
+                self.bc_right_vals[i].setValue(br_vals[i])
+                self.bc_right_deriv[i].setChecked(br_deriv[i])
+
+        if box_shape:
+            bb_types = _texts(config.bc_bottom_types, n_out, ",", "Dirichlet")
+            bt_types = _texts(config.bc_top_types, n_out, ",", "Dirichlet")
+            bb_vals = _floats(config.bc_bottom_values, n_out, 0.0)
+            bt_vals = _floats(config.bc_top_values, n_out, 0.0)
+            bb_active = _bools(config.bc_bottom_active, n_out, True)
+            bt_active = _bools(config.bc_top_active, n_out, True)
+            bb_deriv = _bools(config.bc_bottom_deriv, n_out, False)
+            bt_deriv = _bools(config.bc_top_deriv, n_out, False)
+            for i in range(n_out):
+                if i < len(self.bc_bottom_types):
+                    self.bc_bottom_active[i].setChecked(bb_active[i])
+                    self.bc_bottom_types[i].setCurrentText(bb_types[i])
+                    self.bc_bottom_vals[i].setValue(bb_vals[i])
+                    self.bc_bottom_deriv[i].setChecked(bb_deriv[i])
+                if i < len(self.bc_top_types):
+                    self.bc_top_active[i].setChecked(bt_active[i])
+                    self.bc_top_types[i].setCurrentText(bt_types[i])
+                    self.bc_top_vals[i].setValue(bt_vals[i])
+                    self.bc_top_deriv[i].setChecked(bt_deriv[i])
+
+        # Unified boundary (Disk/Ellipse/Sphere)
+        if unified_shape and config.bc_boundary_json:
+            try:
+                _bgroups = json.loads(config.bc_boundary_json)
+            except Exception:
+                _bgroups = []
+            for i in range(min(n_out, len(_bgroups), len(self.bc_boundary_types))):
+                _g = _bgroups[i] or {}
+                self.bc_boundary_active[i].setChecked(bool(_g.get("active", True)))
+                self.bc_boundary_types[i].setCurrentText(_g.get("type", "Dirichlet"))
+                self.bc_boundary_vals[i].setValue(float(_g.get("value", 0.0)))
+
+        # Per-edge boundary (Triangle/Polygon)
+        if edge_shape and config.bc_edge_json:
+            try:
+                _egroups = json.loads(config.bc_edge_json)
+            except Exception:
+                _egroups = []
+            for i in range(min(n_out, len(_egroups), len(self.bc_edge_types))):
+                _edges = _egroups[i] or []
+                for e in range(min(len(_edges), len(self.bc_edge_types[i]))):
+                    _ed = _edges[e] or {}
+                    self.bc_edge_active[i][e].setChecked(bool(_ed.get("active", True)))
+                    self.bc_edge_types[i][e].setCurrentText(_ed.get("type", "Dirichlet"))
+                    self.bc_edge_vals[i][e].setValue(float(_ed.get("value", 0.0)))
+
+        # Custom Boundary Conditions (non-template problems)
+        if hasattr(self, 'custom_bc_list'):
+            self._apply_custom_bc_json(getattr(config, 'custom_bc_json', ''))
+        self._update_bc_mode_visibility()
+
+        # Initial conditions
+        ics = _texts(config.ic_expressions, n_out, "|", config.ic_expression)
+        ic_active = _bools(config.ic_active, n_out, True)
+        for i in range(n_out):
+            if i < len(self.ic_inputs):
+                self.ic_inputs[i].setText(ics[i])
+            if i < len(self.ic_active):
+                self.ic_active[i].setChecked(ic_active[i])
+
+        # IC-from-file (2D only; the builder only supports one output at a time)
+        if is_2d and config.forward_ic_from_file and hasattr(self, "ic_from_file"):
+            for i in range(n_out):
+                if i < len(self.ic_from_file) and self.ic_from_file[i] is not None:
+                    self.ic_from_file[i].setChecked(i == 0)
+                    if i == 0 and i < len(self.ic_file_paths) and self.ic_file_paths[i] is not None:
+                        self.ic_file_paths[i].setText(config.forward_ic_file)
+
+        # Domain
+        self.x_min.setValue(config.x_min); self.x_max.setValue(config.x_max)
+        if is_2d or is_3d:
+            self.y_min.setValue(config.y_min); self.y_max.setValue(config.y_max)
+        self.t_min.setValue(config.t_min); self.t_max.setValue(config.t_max)
+
+        # Collocation points
+        self.num_domain.setValue(config.num_domain)
+        self.num_boundary.setValue(config.num_boundary)
+        self.num_initial.setValue(config.num_initial)
+        self.num_test.setValue(config.num_test)
+        self.pts_dist_combo.setCurrentText(config.point_distribution)
+        self.plot_type_combo.setCurrentText(config.plot_type)
+        self.timesteps_spin.setValue(config.num_timesteps)
+
+        # Network
+        n_hidden = max(0, len(config.layers) - 2)
+        neurons = config.layers[1] if len(config.layers) > 2 else self.neurons_spin.value()
+        self.layers_spin.setValue(n_hidden)
+        self.neurons_spin.setValue(neurons)
+        self.activation_combo.setCurrentText(config.activation)
+
+        # Training / optimizers
+        self.iter1_spin.setValue(config.iterations)
+        self.opt1_combo.setCurrentText(config.optimizer)
+        self.opt2_combo.setCurrentText(config.optimizer2)
+        self.iter2_spin.setValue(config.iterations2)
+        self.save_dir_input.setText(config.save_dir)
+        self.lr_spin.setValue(config.learning_rate)
+        self.loss_combo.setCurrentText(config.loss_type)
+
+        # Inverse-problem settings
+        self.inv_param_name.setText(config.inverse_param_name)
+        self.inv_param_init.setValue(config.inverse_param_init)
+        self.inv_data_path.setText(config.inverse_data_file)
+        self.inv_ic_type.setCurrentText(config.inverse_ic_type)
+        self.inv_ic_path.setText(config.inverse_ic_file)
+        self.inv_obs_weight.setValue(config.loss_weight_obs)
+        self.inv_param_log_scale.setChecked(config.inv_param_log_scale)
+        self.param_save_combo.setCurrentText(config.inv_param_save)
+
+        # Adaptive training method (Forward-only options depend on problem
+        # type already being set above)
+        self._set_combo_data(self.adapt_combo, config.adapt_method)
+        self.rar_cycles.setValue(config.rar_cycles)
+        self.rar_candidates.setValue(config.rar_candidates)
+        self.rar_add_points.setValue(config.rar_add_points)
+        self.rar_adam_iters.setValue(config.rar_adam_iters)
+        self.rar_lbfgs_iters.setValue(config.rar_lbfgs_iters)
+
+        # Time-adaptive step groups
+        for row in list(self.ta_group_rows):
+            row["widget"].deleteLater()
+        self.ta_group_rows.clear()
+        try:
+            groups = json.loads(config.ta_step_groups) if config.ta_step_groups else []
+        except (json.JSONDecodeError, TypeError):
+            groups = []
+        if groups:
+            for g in groups:
+                self._add_ta_step_group(g.get("t_start", 0.0), g.get("t_end", 1.0), g.get("steps", 10))
+        else:
+            self._add_ta_step_group(config.t_min, config.t_max, config.ta_num_steps)
+        self.ta_grid.setCurrentText(str(config.ta_grid_size))
+        self.ta_transfer_cb.setChecked(config.ta_transfer_learning)
+        self._set_combo_data(self.ta_transfer_opt, config.ta_transfer_optimizer)
+
+        # Export / plot-output settings
+        self.export_grid_combo.setCurrentText(str(config.export_grid_size))
+        self.export_tsteps_spin.setValue(config.export_t_steps)
+        if 0 <= config.plot_output_idx < self.plot_output_combo.count():
+            self.plot_output_combo.setCurrentIndex(config.plot_output_idx)
+
+        # L-BFGS
+        self.lbfgs_use_default_cb.setChecked(config.lbfgs_use_default)
+        self.lbfgs_maxcor.setValue(config.lbfgs_maxcor)
+        self.lbfgs_ftol.setValue(config.lbfgs_ftol)
+        self.lbfgs_gtol.setValue(config.lbfgs_gtol)
+        self.lbfgs_maxiter.setValue(config.lbfgs_maxiter)
+        self.lbfgs_maxfun.setValue(config.lbfgs_maxfun)
+        self.lbfgs_maxls.setValue(config.lbfgs_maxls)
+        if hasattr(self, "lbfgs_float_combo"):
+            self.lbfgs_float_combo.setCurrentText(config.lbfgs_float_type)
+        self._float_type = config.float_type
+
+        # Mini-batch training
+        if config.batch_size and config.batch_size > 0:
+            self.batch_check.setChecked(True)
+            self.batch_spin.setValue(config.batch_size)
+        else:
+            self.batch_check.setChecked(False)
+
+        # IC pre-training
+        self.ic_pretrain_cb.setChecked(config.ic_pretrain)
+        self._set_combo_data(self.ic_pretrain_opt, config.ic_pretrain_optimizer)
+        self.ic_pretrain_iters.setValue(config.ic_pretrain_iterations)
+        self.ic_pretrain_test.setValue(config.ic_pretrain_num_test)
+        self.ic_pretrain_init.setValue(config.ic_pretrain_num_initial)
+        self.ic_pretrain_restore_cb.setChecked(config.ic_pretrain_restore)
+        self.ic_pretrain_restore_path.setText(config.ic_pretrain_restore_path)
+
+        # Optimizer scheduler + weights. Phase rows (optimizer/iterations/lr
+        # per phase) are only present in the saved file when the scheduler was
+        # actually enabled at save time; rebuild them first so weight-widget
+        # generation below (which depends on phase count when weights differ
+        # per phase) sees the right shape.
+        self.sched_cb.setChecked(config.optimizer_scheduler)
+        self.sched_same_weights_cb.setChecked(config.scheduler_same_weights)
+        phases = []
+        if config.scheduler_phases:
+            phases = self._apply_scheduler_phases_build_only(config.scheduler_phases)
+        self._build_weight_inputs(n_out)
+        # loss_weights_multi is the authoritative flat/shared weight set --
+        # it's a no-op when scheduler_same_weights is False, since in that
+        # case weight_widgets only contains the _p{n}-suffixed keys.
+        self._apply_flat_weights(config.loss_weights_multi, n_out, is_2d)
+        if phases and not config.scheduler_same_weights:
+            self._apply_phase_weights(phases, n_out, is_2d)
+
+        # Plot / visualization settings
+        self._plot_viz_settings = {
+            "colormap": config.plot_colormap,
+            "levels": config.plot_levels,
+            "resolution": config.plot_resolution,
+            "dpi": config.plot_dpi,
+            "colorbar": config.plot_colorbar,
+            "auto_range": config.plot_auto_range,
+            "vmin": config.plot_vmin,
+            "vmax": config.plot_vmax,
+            "linewidth": config.plot_linewidth,
+            "n_2d_snapshots": config.plot_n_2d_snapshots,
+        }
+
+        # Error-analysis settings
+        try:
+            ea_files = _ast.literal_eval(config.ea_files) if config.ea_files else []
+        except (ValueError, SyntaxError):
+            ea_files = []
+        self._ea_settings = {
+            "files": ea_files,
+            "do_line": config.ea_do_line,
+            "do_surface": config.ea_do_surface,
+        } if ea_files else None
+
+        self._sync_inverse_pde_substitution(self.radio_inverse.isChecked())
 
     def _on_num_outputs_changed(self, n):
         self._build_pde_inputs(n)
@@ -2285,7 +3617,30 @@ class MainWindow(QMainWindow):
         self.inv_ic_path.setVisible(is_file)
         self.inv_ic_browse.setVisible(is_file)
 
+    def _geometry_supported_for_training(self):
+        """Phase 2 of the geometry-type feature: codegen.py's _build_geom()
+        now constructs every shape in the Geometry Type selector (Interval;
+        Rectangle/Disk/Ellipse/Triangle/Polygon in 2D; Cuboid/Sphere in
+        3D), so Solve is no longer blocked for any of them. Kept as a real
+        gate (rather than deleted outright) so a future shape added to the
+        selector without matching codegen support fails the same clean,
+        explicit way Phase 1 did, instead of silently training on the
+        wrong geometry."""
+        geom_type = self._current_geometry_type()
+        _supported = ("Interval", "Rectangle", "Disk", "Ellipse", "Triangle",
+                      "Polygon", "Cuboid", "Sphere")
+        if geom_type not in _supported:
+            return False, (
+                f"⚠️ Training for '{geom_type}' geometry isn't wired up yet -- "
+                f"switch Geometry Type to one of {', '.join(_supported)} to train."
+            )
+        return True, ""
+
     def _on_solve(self):
+        _ok, _msg = self._geometry_supported_for_training()
+        if not _ok:
+            self.log_box.append(_msg)
+            return
         self.solve_btn.setEnabled(False)
         self.solve_btn.setText("⏳  Solving...")
         self.stop_btn.setEnabled(True)
@@ -2451,9 +3806,15 @@ class MainWindow(QMainWindow):
             self.solution_label.setText("🗺 Solution plot")
 
     def _preview_domain(self):
-        import tempfile, subprocess, sys
-        x_min = self.x_min.value(); x_max = self.x_max.value()
-        y_min = self.y_min.value(); y_max = self.y_max.value()
+        import tempfile, subprocess, sys, math
+        geom_type = self._current_geometry_type()
+        if geom_type not in ("Rectangle", "Disk", "Ellipse", "Triangle", "Polygon", "Cuboid", "Sphere"):
+            self.log_box.append(
+                f"⚠️ Domain preview for '{geom_type}' geometry isn't supported yet."
+            )
+            self.loss_label.setText("📉 Loss plot")
+            self.solution_label.setText("🗺 Solution plot")
+            return
         t_min = self.t_min.value(); t_max = self.t_max.value()
         n_domain   = self.num_domain.value()
         n_boundary = self.num_boundary.value()
@@ -2472,6 +3833,91 @@ class MainWindow(QMainWindow):
                 pass
             sb.valueChanged.connect(self._on_pts_changed)
 
+        is_3d_shape = geom_type in ("Cuboid", "Sphere")
+        if is_3d_shape:
+            script = self._build_3d_preview_script(
+                geom_type, t_min, t_max, n_domain, n_boundary, n_initial, dist)
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as tf:
+                tf.write(script)
+                tmp = tf.name
+            self._launch_preview_thread(tmp)
+            return
+
+        # Build the DeepXDE geometry constructor call, a matching matplotlib
+        # outline patch, and the bounding box for the plot axes -- one branch
+        # per shape, reading that shape's own parameters. x_min/x_max/y_min/
+        # y_max only mean something for Rectangle; the others (center +
+        # radius, semi-axes, vertex list) live on their own widgets.
+        if geom_type == "Rectangle":
+            x_min = self.x_min.value(); x_max = self.x_max.value()
+            y_min = self.y_min.value(); y_max = self.y_max.value()
+            geom_code = f"dde.geometry.Rectangle([{x_min}, {y_min}], [{x_max}, {y_max}])"
+            patch_code = (
+                f"plt.Rectangle(({x_min},{y_min}), {x_max}-{x_min}, {y_max}-{y_min}, "
+                "linewidth=2, edgecolor='#a0c4ff', facecolor='none')"
+            )
+            bbox = (x_min, x_max, y_min, y_max)
+        elif geom_type == "Disk":
+            cx = self.geom_disk_cx.value(); cy = self.geom_disk_cy.value(); r = self.geom_disk_r.value()
+            geom_code = f"dde.geometry.Disk([{cx}, {cy}], {r})"
+            patch_code = f"plt.Circle(({cx},{cy}), {r}, linewidth=2, edgecolor='#a0c4ff', facecolor='none')"
+            bbox = (cx - r, cx + r, cy - r, cy + r)
+        elif geom_type == "Ellipse":
+            cx = self.geom_ellipse_cx.value(); cy = self.geom_ellipse_cy.value()
+            a = self.geom_ellipse_a.value(); b = self.geom_ellipse_b.value()
+            angle = self.geom_ellipse_angle.value()
+            geom_code = f"dde.geometry.Ellipse([{cx}, {cy}], {a}, {b}, {angle})"
+            patch_code = (
+                f"matplotlib.patches.Ellipse(({cx},{cy}), {2*a}, {2*b}, angle={math.degrees(angle)}, "
+                "linewidth=2, edgecolor='#a0c4ff', facecolor='none')"
+            )
+            dx = math.sqrt((a * math.cos(angle)) ** 2 + (b * math.sin(angle)) ** 2)
+            dy = math.sqrt((a * math.sin(angle)) ** 2 + (b * math.cos(angle)) ** 2)
+            bbox = (cx - dx, cx + dx, cy - dy, cy + dy)
+        else:  # Triangle / Polygon
+            verts_text = (self.geom_triangle_verts_input.text() if geom_type == "Triangle"
+                          else self.geom_polygon_verts_input.text())
+            verts = self._parse_vertices(verts_text)
+            if len(verts) < 3 or (geom_type == "Triangle" and len(verts) != 3):
+                self.log_box.append(
+                    f"⚠️ Enter {'exactly 3' if geom_type == 'Triangle' else 'at least 3'} "
+                    f"valid vertices for a {geom_type} domain preview."
+                )
+                self.loss_label.setText("📉 Loss plot")
+                self.solution_label.setText("🗺 Solution plot")
+                return
+            if geom_type == "Polygon" and len(verts) == 3:
+                self.log_box.append(
+                    "⚠️ 3 vertices is a Triangle, not a Polygon -- switch Geometry "
+                    "Type to Triangle, or add a 4th vertex."
+                )
+                self.loss_label.setText("📉 Loss plot")
+                self.solution_label.setText("🗺 Solution plot")
+                return
+            if geom_type == "Polygon" and self._is_axis_aligned_rectangle(verts):
+                self.log_box.append(
+                    "⚠️ Those 4 vertices form an axis-aligned rectangle -- DeepXDE "
+                    "requires the Rectangle shape for that. Switch Geometry Type to "
+                    "Rectangle, or edit a vertex so it's not a rectangle."
+                )
+                self.loss_label.setText("📉 Loss plot")
+                self.solution_label.setText("🗺 Solution plot")
+                return
+            vlist = [list(v) for v in verts]
+            if geom_type == "Triangle":
+                geom_code = f"dde.geometry.Triangle({vlist[0]}, {vlist[1]}, {vlist[2]})"
+            else:
+                geom_code = f"dde.geometry.Polygon({vlist})"
+            patch_code = f"plt.Polygon({vlist}, closed=True, linewidth=2, edgecolor='#a0c4ff', facecolor='none')"
+            xs = [v[0] for v in verts]; ys = [v[1] for v in verts]
+            bbox = (min(xs), max(xs), min(ys), max(ys))
+
+        bbox_x_min, bbox_x_max, bbox_y_min, bbox_y_max = bbox
+        pad_x = max((bbox_x_max - bbox_x_min) * 0.05, 1e-6)
+        pad_y = max((bbox_y_max - bbox_y_min) * 0.05, 1e-6)
+        xlim_lo, xlim_hi = bbox_x_min - pad_x, bbox_x_max + pad_x
+        ylim_lo, ylim_hi = bbox_y_min - pad_y, bbox_y_max + pad_y
+
         script = f"""
 import os
 os.environ["DDE_BACKEND"] = "pytorch"
@@ -2480,8 +3926,9 @@ import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+import matplotlib.patches
 
-geom  = dde.geometry.Rectangle([{x_min}, {y_min}], [{x_max}, {y_max}])
+geom  = {geom_code}
 t_dom = dde.geometry.TimeDomain({t_min}, {t_max})
 gt    = dde.geometry.GeometryXTime(geom, t_dom)
 
@@ -2494,7 +3941,6 @@ data = dde.data.TimePDE(gt, pde, [],
 pts = data.train_points()
 t_range = {t_max} - {t_min}
 tol = max(t_range * 0.05, 1e-6)
-t_snap = {t_min}
 
 plt.rcParams['figure.dpi'] = 120
 fig, axes = plt.subplots(1, 2, figsize=(14, 6))
@@ -2502,39 +3948,43 @@ fig.patch.set_facecolor('#1e1e1e')
 
 for ax in axes:
     ax.set_facecolor('#252526')
-    ax.set_xlim({x_min} - 0.05*({x_max}-{x_min}), {x_max} + 0.05*({x_max}-{x_min}))
-    ax.set_ylim({y_min} - 0.05*({y_max}-{y_min}), {y_max} + 0.05*({y_max}-{y_min}))
-    rect = plt.Rectangle(({x_min},{y_min}), {x_max}-{x_min}, {y_max}-{y_min},
-        linewidth=2, edgecolor='#a0c4ff', facecolor='none')
-    ax.add_patch(rect)
     ax.tick_params(colors='#c0c0c0')
     for sp in ax.spines.values(): sp.set_color('#3e3e42')
 
-# Separate points by type using edge detection
-ic_mask   = pts[:, 2] <= {t_min} + tol
-on_left   = np.abs(pts[:, 0] - {x_min}) < 1e-10
-on_right  = np.abs(pts[:, 0] - {x_max}) < 1e-10
-on_bottom = np.abs(pts[:, 1] - {y_min}) < 1e-10
-on_top    = np.abs(pts[:, 1] - {y_max}) < 1e-10
-bnd_mask  = (on_left | on_right | on_bottom | on_top) & ~ic_mask
-dom_mask  = ~ic_mask & ~bnd_mask
+# The shape outline is a spatial (x,y) patch -- it only makes sense on the
+# left, spatial panel. The right panel's y-axis is time, not y, so drawing
+# the same patch there would show the shape's y-extent as if it were a time
+# range, which is meaningless.
+axes[0].set_xlim({xlim_lo}, {xlim_hi})
+axes[0].set_ylim({ylim_lo}, {ylim_hi})
+shape_patch = {patch_code}
+axes[0].add_patch(shape_patch)
+
+# Classify points using the geometry's own on_boundary() test -- this works
+# for any 2D shape (circle, ellipse, triangle, polygon, ...), not just an
+# axis-aligned box.
+ic_mask  = pts[:, 2] <= {t_min} + tol
+bnd_mask = gt.geometry.on_boundary(pts[:, :2]) & ~ic_mask
+dom_mask = ~ic_mask & ~bnd_mask
 dom_pts = pts[dom_mask]
 bnd_pts = pts[bnd_mask]
 ic_pts  = pts[ic_mask]
 
-# Left: spatial distribution (x,y)
+# Left: spatial distribution (x,y) -- domain + boundary only. IC points
+# are t=t_min points that live inside the domain, so overlaying them here
+# just adds clutter on top of the domain cloud; they're already shown
+# clearly in the time panel on the right.
 ax = axes[0]
 if len(dom_pts): ax.scatter(dom_pts[:,0], dom_pts[:,1], s=8, c='#74c0fc', alpha=0.7, label=f'Domain ({{len(dom_pts)}})')
 if len(bnd_pts): ax.scatter(bnd_pts[:,0], bnd_pts[:,1], s=20, c='#f03e3e', alpha=1.0, label=f'Boundary ({{len(bnd_pts)}})')
-if len(ic_pts):  ax.scatter(ic_pts[:,0],  ic_pts[:,1],  s=20, c='#2f9e44', alpha=1.0, label=f'IC ({{len(ic_pts)}})')
 ax.set_xlabel('x', color='#e0e0e0', fontsize=11)
 ax.set_ylabel('y', color='#e0e0e0', fontsize=11)
-ax.set_title('Spatial (x,y) | {dist} | D={n_domain} B={n_boundary} IC={n_initial}', color='#74c0fc', fontsize=10, fontweight='bold')
+ax.set_title('{geom_type}: Spatial (x,y) | {dist} | D={n_domain} B={n_boundary} IC={n_initial}', color='#74c0fc', fontsize=10, fontweight='bold')
 ax.legend(fontsize=10, facecolor='#2a2a2a', labelcolor='#e0e0e0', edgecolor='#555', markerscale=1.5)
 
 # Right: time distribution (x vs t)
 ax = axes[1]
-ax.set_xlim({x_min}, {x_max}); ax.set_ylim({t_min}, {t_max})
+ax.set_xlim({xlim_lo}, {xlim_hi}); ax.set_ylim({t_min}, {t_max})
 if len(dom_pts): ax.scatter(dom_pts[:,0], dom_pts[:,2], s=6, c='#74c0fc', alpha=0.5, label=f'Domain ({{len(dom_pts)}})')
 if len(bnd_pts): ax.scatter(bnd_pts[:,0], bnd_pts[:,2], s=14, c='#f03e3e', alpha=0.9, label=f'Boundary ({{len(bnd_pts)}})')
 if len(ic_pts):  ax.scatter(ic_pts[:,0],  ic_pts[:,2],  s=14, c='#2f9e44', alpha=1.0, label=f'IC ({{len(ic_pts)}})')
@@ -2550,7 +4000,12 @@ print("DOMAIN_PREVIEW_DONE")
         with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as tf:
             tf.write(script)
             tmp = tf.name
+        self._launch_preview_thread(tmp)
 
+    def _launch_preview_thread(self, tmp):
+        """Run a generated domain-preview script (2D or 3D) in a background
+        thread and stream its output into the log box, same as before this
+        was factored out -- shared by both the 2D and 3D preview paths."""
         self.loss_label.setText("⏳ Generating preview...")
 
         from PyQt6.QtCore import QThread, pyqtSignal as _sig
@@ -2574,6 +4029,128 @@ print("DOMAIN_PREVIEW_DONE")
         self._preview_thread.done_sig.connect(self._on_preview_done)
         self._preview_thread.log_sig.connect(self.log_box.append)
         self._preview_thread.start()
+
+    def _build_3d_preview_script(self, geom_type, t_min, t_max, n_domain, n_boundary, n_initial, dist):
+        """Build the domain-preview script for a 3D shape (Cuboid or
+        Sphere). Points here are (x, y, z, t) -- 4 columns instead of the
+        2D preview's 3 -- so this uses a real 3D scatter (mpl_toolkits
+        Axes3D) for the spatial panel instead of the 2D preview's flat
+        (x,y) panel, plus the same x-vs-t time panel as before. Boundary
+        classification still goes through the geometry's own on_boundary()
+        test, same as the 2D preview."""
+        if geom_type == "Cuboid":
+            x_min = self.x_min.value(); x_max = self.x_max.value()
+            y_min = self.y_min.value(); y_max = self.y_max.value()
+            z_min = self.z_min.value(); z_max = self.z_max.value()
+            geom_code = f"dde.geometry.Cuboid([{x_min}, {y_min}, {z_min}], [{x_max}, {y_max}, {z_max}])"
+            bbox3 = (x_min, x_max, y_min, y_max, z_min, z_max)
+            outline_code = (
+                f"_x0, _x1, _y0, _y1, _z0, _z1 = {x_min}, {x_max}, {y_min}, {y_max}, {z_min}, {z_max}\n"
+                "_corners = [(_x0,_y0,_z0),(_x1,_y0,_z0),(_x1,_y1,_z0),(_x0,_y1,_z0),\n"
+                "            (_x0,_y0,_z1),(_x1,_y0,_z1),(_x1,_y1,_z1),(_x0,_y1,_z1)]\n"
+                "_edges = [(0,1),(1,2),(2,3),(3,0),(4,5),(5,6),(6,7),(7,4),(0,4),(1,5),(2,6),(3,7)]\n"
+                "for _i, _j in _edges:\n"
+                "    _p0, _p1 = _corners[_i], _corners[_j]\n"
+                "    ax.plot([_p0[0],_p1[0]], [_p0[1],_p1[1]], [_p0[2],_p1[2]], color='#a0c4ff', linewidth=1.5)\n"
+            )
+        else:  # Sphere
+            cx = self.geom_sphere_cx.value(); cy = self.geom_sphere_cy.value()
+            cz = self.geom_sphere_cz.value(); r = self.geom_sphere_r.value()
+            geom_code = f"dde.geometry.Sphere([{cx}, {cy}, {cz}], {r})"
+            bbox3 = (cx - r, cx + r, cy - r, cy + r, cz - r, cz + r)
+            outline_code = (
+                "_u = np.linspace(0, 2*np.pi, 30)\n"
+                "_v = np.linspace(0, np.pi, 20)\n"
+                f"_sx = {cx} + {r}*np.outer(np.cos(_u), np.sin(_v))\n"
+                f"_sy = {cy} + {r}*np.outer(np.sin(_u), np.sin(_v))\n"
+                f"_sz = {cz} + {r}*np.outer(np.ones_like(_u), np.cos(_v))\n"
+                "ax.plot_wireframe(_sx, _sy, _sz, color='#a0c4ff', linewidth=0.5, alpha=0.4, rstride=2, cstride=2)\n"
+            )
+
+        bx0, bx1, by0, by1, bz0, bz1 = bbox3
+        pad_x = max((bx1 - bx0) * 0.08, 1e-6)
+        pad_y = max((by1 - by0) * 0.08, 1e-6)
+        pad_z = max((bz1 - bz0) * 0.08, 1e-6)
+        xlim_lo, xlim_hi = bx0 - pad_x, bx1 + pad_x
+        ylim_lo, ylim_hi = by0 - pad_y, by1 + pad_y
+        zlim_lo, zlim_hi = bz0 - pad_z, bz1 + pad_z
+
+        return f"""
+import os
+os.environ["DDE_BACKEND"] = "pytorch"
+import deepxde as dde
+import numpy as np
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+
+geom  = {geom_code}
+t_dom = dde.geometry.TimeDomain({t_min}, {t_max})
+gt    = dde.geometry.GeometryXTime(geom, t_dom)
+
+def pde(x, y): return y[:, 0:1] * 0
+data = dde.data.TimePDE(gt, pde, [],
+    num_domain={n_domain}, num_boundary={n_boundary},
+    num_initial={n_initial}, num_test=10,
+    train_distribution="{dist}")
+
+pts = data.train_points()
+t_range = {t_max} - {t_min}
+tol = max(t_range * 0.05, 1e-6)
+
+plt.rcParams['figure.dpi'] = 120
+fig = plt.figure(figsize=(14, 6))
+fig.patch.set_facecolor('#1e1e1e')
+ax  = fig.add_subplot(1, 2, 1, projection='3d')
+ax2 = fig.add_subplot(1, 2, 2)
+
+for _a in (ax, ax2):
+    _a.set_facecolor('#252526')
+    _a.tick_params(colors='#c0c0c0')
+    for sp in _a.spines.values(): sp.set_color('#3e3e42')
+_pane = (0.145, 0.145, 0.149, 1.0)
+ax.xaxis.set_pane_color(_pane); ax.yaxis.set_pane_color(_pane); ax.zaxis.set_pane_color(_pane)
+
+ax.set_xlim({xlim_lo}, {xlim_hi})
+ax.set_ylim({ylim_lo}, {ylim_hi})
+ax.set_zlim({zlim_lo}, {zlim_hi})
+
+# Shape outline -- box edges for Cuboid, a wireframe sphere for Sphere.
+{outline_code}
+# Classify points using the geometry's own on_boundary() test -- same
+# generalization as the 2D preview, just over (x,y,z) instead of (x,y).
+ic_mask  = pts[:, 3] <= {t_min} + tol
+bnd_mask = gt.geometry.on_boundary(pts[:, :3]) & ~ic_mask
+dom_mask = ~ic_mask & ~bnd_mask
+dom_pts = pts[dom_mask]
+bnd_pts = pts[bnd_mask]
+ic_pts  = pts[ic_mask]
+
+# Spatial (3D) panel -- domain + boundary only, same reasoning as the 2D
+# preview: IC points are already shown clearly in the time panel below.
+if len(dom_pts): ax.scatter(dom_pts[:,0], dom_pts[:,1], dom_pts[:,2], s=6, c='#74c0fc', alpha=0.5, label=f'Domain ({{len(dom_pts)}})')
+if len(bnd_pts): ax.scatter(bnd_pts[:,0], bnd_pts[:,1], bnd_pts[:,2], s=16, c='#f03e3e', alpha=1.0, label=f'Boundary ({{len(bnd_pts)}})')
+ax.set_xlabel('x', color='#e0e0e0', fontsize=10)
+ax.set_ylabel('y', color='#e0e0e0', fontsize=10)
+ax.set_zlabel('z', color='#e0e0e0', fontsize=10)
+ax.set_title('{geom_type}: Spatial (x,y,z) | {dist} | D={n_domain} B={n_boundary} IC={n_initial}', color='#74c0fc', fontsize=10, fontweight='bold')
+ax.legend(fontsize=9, facecolor='#2a2a2a', labelcolor='#e0e0e0', edgecolor='#555', markerscale=1.5, loc='upper left')
+
+# Right: time distribution (x vs t) -- same layout as the 2D preview's
+# right panel, just reading column 3 (t) instead of column 2.
+ax2.set_xlim({xlim_lo}, {xlim_hi}); ax2.set_ylim({t_min}, {t_max})
+if len(dom_pts): ax2.scatter(dom_pts[:,0], dom_pts[:,3], s=6, c='#74c0fc', alpha=0.5, label=f'Domain ({{len(dom_pts)}})')
+if len(bnd_pts): ax2.scatter(bnd_pts[:,0], bnd_pts[:,3], s=14, c='#f03e3e', alpha=0.9, label=f'Boundary ({{len(bnd_pts)}})')
+if len(ic_pts):  ax2.scatter(ic_pts[:,0],  ic_pts[:,3],  s=14, c='#2f9e44', alpha=1.0, label=f'IC ({{len(ic_pts)}})')
+ax2.set_xlabel('x', color='#e0e0e0', fontsize=11)
+ax2.set_ylabel('t', color='#e0e0e0', fontsize=11)
+ax2.set_title(f'Time Distribution (x vs t)\\ntotal={{len(pts)}} points', color='#74c0fc', fontsize=10, fontweight='bold')
+ax2.legend(fontsize=10, facecolor='#2a2a2a', labelcolor='#e0e0e0', edgecolor='#555', markerscale=1.5)
+plt.tight_layout()
+plt.savefig('/tmp/domain_preview.png', dpi=100, bbox_inches='tight', facecolor='#1e1e1e')
+plt.close()
+print("DOMAIN_PREVIEW_DONE")
+"""
 
     def _on_dist_changed(self, text):
         if self.view_domain_check.isChecked():
@@ -3349,6 +4926,8 @@ print("ERROR_ANALYSIS_DONE")
                     if i < len(self.bc_top_types):
                         self.bc_top_types[i].setCurrentText("Neumann")
                         self.bc_top_vals[i].setValue(0.0)
+            self._populate_locked_bc_entries_from_legacy(n_out, is_2d=True)
+            self._update_bc_mode_visibility()
             for row in list(self.ta_group_rows):
                 row['widget'].deleteLater()
             self.ta_group_rows.clear()
@@ -3378,6 +4957,112 @@ print("ERROR_ANALYSIS_DONE")
             if hasattr(self, 'sched_cb'):
                 self.sched_cb.setChecked(True)
                 self._setup_default_scheduler_phases(t.get('template_type', ''), t['iterations'], t.get('iterations2', 10000))
+            if bc_config == 'heat2d':
+                # The right-edge Dirichlet BC trains more accurately with a
+                # heavier weight than the default 1 -- 100 matches the other
+                # loss terms' scale here and was confirmed empirically. Set
+                # after _setup_default_scheduler_phases(), since that call
+                # rebuilds the weight_widgets (and would otherwise wipe this
+                # back to the default of 1.0).
+                for _bj, _be in enumerate(self.custom_bc_list):
+                    if _be['type'].currentData() == 'dirichlet':
+                        _bk = f"bc_{_bj}"
+                        if _bk in self.weight_widgets:
+                            self.weight_widgets[_bk].setValue(100.0)
+            self._auto_configure_ea(self._template_ref_dir)
+            self.log_box.append(f"✅ Template loaded: {text}")
+            return
+
+        templates_3d = {
+            "3D Heat": {
+                # Same domain and physics as 2D Heat, extended with a z
+                # axis -- diffusion in a unit cube, insulated on 5 faces,
+                # held at u=1 on the x=x_max face.
+                'pde': ["du_t - 0.4*(du_xx + du_yy + du_zz)"],
+                'ic': ["0.0"],
+                'num_domain': 8000,
+                'num_boundary': 800,
+                'num_initial': 800,
+                'layers': 4,
+                'neurons': 64,
+                'iterations': 20000,
+                'optimizer2': 'lbfgs',
+                'iterations2': 10000,
+                'x_min': 0.0, 'x_max': 1.0,
+                'y_min': 0.0, 'y_max': 1.0,
+                'z_min': 0.0, 'z_max': 1.0,
+                'num_outputs': 1,
+                'output_names': ['u'],
+                'ic_weight': 100.0,
+                'ref_dir': os.path.join(REFERENCE_DATA_DIR, "3D", "heat"),
+            },
+        }
+        if text in templates_3d:
+            t = templates_3d[text]
+            n_out = t.get('num_outputs', 1)
+            if n_out != self.num_outputs_spin.value():
+                self.num_outputs_spin.setValue(n_out)
+            for i, name in enumerate(t.get('output_names', ['u'])):
+                if i < len(self.output_name_inputs):
+                    self.output_name_inputs[i].setText(name)
+            for i, pde_text in enumerate(t['pde']):
+                if i < len(self.pde_inputs):
+                    self.pde_inputs[i].setText(pde_text)
+            for i, ic_text in enumerate(t['ic']):
+                if i < len(self.ic_inputs):
+                    self.ic_inputs[i].setText(ic_text)
+            self.x_min.setValue(t['x_min']); self.x_max.setValue(t['x_max'])
+            self.y_min.setValue(t['y_min']); self.y_max.setValue(t['y_max'])
+            self.z_min.setValue(t['z_min']); self.z_max.setValue(t['z_max'])
+            if 't_max' in t: self.t_max.setValue(t['t_max'])
+            self._current_template_forward_tmax = t.get('t_max')
+            self._current_template_inverse_tmax = t.get('inverse_t_max')
+            if self._current_template_inverse_tmax is not None and self.radio_inverse.isChecked():
+                self.t_max.setValue(self._current_template_inverse_tmax)
+            self.num_domain.setValue(t['num_domain'])
+            self.num_boundary.setValue(t['num_boundary'])
+            self.num_initial.setValue(t['num_initial'])
+            if 'num_test' in t:
+                self.num_test.setValue(t['num_test'])
+            self.layers_spin.setValue(t['layers'])
+            self.neurons_spin.setValue(t['neurons'])
+            self.iter1_spin.setValue(t['iterations'])
+            self.opt2_combo.setCurrentText(t['optimizer2'])
+            self.iter2_spin.setValue(t['iterations2'])
+            for i in range(n_out):
+                key = f"ic_{i}"
+                if key in self.weight_widgets:
+                    self.weight_widgets[key].setValue(t.get('ic_weight', 100.0))
+            self._populate_3d_heat_bc_entries(n_out)
+            self._update_bc_mode_visibility()
+            for row in list(self.ta_group_rows):
+                row['widget'].deleteLater()
+            self.ta_group_rows.clear()
+            # 3D Heat doesn't use Time-Adaptive mode (same as 2D Heat).
+            self._current_ta_cfg = None
+            self._ta_suspended_for_inverse = False
+            self.adapt_combo.setCurrentText("None")
+            self._add_ta_step_group(0.0, 1.0, 10)
+            self.ta_transfer_cb.setChecked(False)
+            self.ta_grid.setCurrentText("101")
+            self._set_combo_data(self.ta_transfer_opt, "adam")
+            self._template_ref_dir = t.get('ref_dir', '')
+            self._current_template = text
+            self._current_template_type = t.get('template_type', '')
+            self._sync_inverse_pde_substitution(self.radio_inverse.isChecked())
+            if hasattr(self, 'sched_cb'):
+                self.sched_cb.setChecked(True)
+                self._setup_default_scheduler_phases(t.get('template_type', ''), t['iterations'], t.get('iterations2', 10000))
+            # The x-max Dirichlet face defaults to weight 100, same
+            # empirically-confirmed convention as 2D Heat's right edge. Set
+            # after _setup_default_scheduler_phases(), since that call
+            # rebuilds weight_widgets (and would otherwise wipe this back
+            # to the default of 1.0).
+            for _bj, _be in enumerate(self.custom_bc_list):
+                if _be['type'].currentData() == 'dirichlet':
+                    _bk = f"bc_{_bj}"
+                    if _bk in self.weight_widgets:
+                        self.weight_widgets[_bk].setValue(100.0)
             self._auto_configure_ea(self._template_ref_dir)
             self.log_box.append(f"✅ Template loaded: {text}")
             return
@@ -3476,6 +5161,8 @@ print("ERROR_ANALYSIS_DONE")
                     self.bc_left_types[i].setCurrentText("Dirichlet")
                 if i < len(self.bc_right_types):
                     self.bc_right_types[i].setCurrentText("Dirichlet")
+        self._populate_locked_bc_entries_from_legacy(self.num_outputs_spin.value(), is_2d=False)
+        self._update_bc_mode_visibility()
 
         # Store ref_dir for error analysis auto-population
         self._template_ref_dir = t.get('ref_dir', '')
@@ -4071,29 +5758,26 @@ print("ERROR_ANALYSIS_V2_DONE")
             return ""
         phases = []
         same_w = self.sched_same_weights_cb.isChecked()
+        n_out_sc = self.num_outputs_spin.value()
+        n_bc_sc = len(getattr(self, 'custom_bc_list', []))
         for ph in self.sched_phase_list:
             pn = ph['phase_num']
-            if same_w:
-                # Use phase 1 weights
-                w_str = ",".join([
-                    str(self.weight_widgets.get(f"pde_{i}", SciLineEdit(1.0)).value())
-                    for i in range(self.num_outputs_spin.value())
-                ] + [
-                    str(self.weight_widgets.get(k, SciLineEdit(1.0)).value())
-                    for i in range(self.num_outputs_spin.value())
-                    for k in [f"bc_left_{i}", f"bc_right_{i}", f"bc_bottom_{i}", f"bc_top_{i}", f"ic_{i}"]
-                    if k in self.weight_widgets
-                ])
-            else:
-                w_str = ",".join([
-                    str(self.weight_widgets.get(f"pde_{i}_p{pn}", SciLineEdit(1.0)).value())
-                    for i in range(self.num_outputs_spin.value())
-                ] + [
-                    str(self.weight_widgets.get(k, SciLineEdit(1.0)).value())
-                    for i in range(self.num_outputs_spin.value())
-                    for k in [f"bc_left_{i}_p{pn}", f"bc_right_{i}_p{pn}", f"bc_bottom_{i}_p{pn}", f"bc_top_{i}_p{pn}", f"ic_{i}_p{pn}"]
-                    if k in self.weight_widgets
-                ])
+            # Block order matches _flat_loss_weights_string()/codegen.py:
+            # PDE per output, then one weight per Boundary Conditions panel
+            # row, then IC per output -- never interleaved per-output.
+            _suffix = "" if same_w else f"_p{pn}"
+            w_str = ",".join(
+                [str(self.weight_widgets.get(f"pde_{i}{_suffix}", SciLineEdit(1.0)).value())
+                 for i in range(n_out_sc)]
+                + [str(self.weight_widgets.get(k, SciLineEdit(1.0)).value())
+                   for j in range(n_bc_sc)
+                   for k in [f"bc_{j}{_suffix}"]
+                   if k in self.weight_widgets]
+                + [str(self.weight_widgets.get(k, SciLineEdit(1.0)).value())
+                   for i in range(n_out_sc)
+                   for k in [f"ic_{i}{_suffix}"]
+                   if k in self.weight_widgets]
+            )
             if hasattr(self, 'radio_inverse') and self.radio_inverse.isChecked() and hasattr(self, 'inv_obs_weight'):
                 # Match codegen's _multi_weights: one extra observation-loss
                 # weight appended at the end for inverse problems.
