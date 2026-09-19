@@ -1546,10 +1546,20 @@ class MainWindow(QMainWindow):
 
     def _auto_configure_ea(self, ref_dir):
         """Auto-configure error analysis when a template with ground truth files is loaded."""
-        import glob, numpy as np
+        import glob, re, numpy as np
         if not ref_dir or not os.path.isdir(ref_dir):
             return
-        txt_files = sorted(glob.glob(os.path.join(ref_dir, 't_*.txt')))
+        # Ground-truth snapshots for error analysis must match "t_<number>.txt"
+        # exactly -- a sibling file like "t_1.0_LessData.txt" (a thinned-down
+        # version of the same snapshot meant only as an easier Inverse
+        # observation set, see below) is intentionally NOT another ground
+        # truth snapshot and must not be swept in just because it also starts
+        # with "t_" and ends with ".txt".
+        _gt_name_re = re.compile(r'^t_[0-9]+(\.[0-9]+)?\.txt$')
+        txt_files = sorted(
+            fp for fp in glob.glob(os.path.join(ref_dir, 't_*.txt'))
+            if _gt_name_re.match(os.path.basename(fp))
+        )
         if not txt_files:
             return
         valid_files = []
@@ -1585,12 +1595,19 @@ class MainWindow(QMainWindow):
         }
         self.log_box.append(f"✅ Error analysis auto-configured — {len(valid_files)} ground truth files from template")
         # Auto-select the end-time (largest t) reference file as the Inverse
-        # observed-data file, so the user doesn't have to browse for it.
+        # observed-data file, so the user doesn't have to browse for it. If a
+        # thinned "<name>_LessData.txt" sibling of that snapshot exists in
+        # the same folder, prefer it for the Inverse default instead: fewer
+        # observation points make the inverse fit numerically easier, while
+        # the full snapshot above stays untouched as the error-analysis
+        # ground truth.
         if hasattr(self, 'inv_data_path'):
             _end_time_file = valid_files[-1][1]
-            self.inv_data_path.setText(_end_time_file)
+            _less_data_variant = _end_time_file[:-4] + "_LessData.txt"
+            _inv_default_file = _less_data_variant if os.path.isfile(_less_data_variant) else _end_time_file
+            self.inv_data_path.setText(_inv_default_file)
             self.log_box.append(
-                f"📂 Inverse observed data auto-loaded: {os.path.basename(_end_time_file)} "
+                f"📂 Inverse observed data auto-loaded: {os.path.basename(_inv_default_file)} "
                 f"(t={valid_files[-1][0]:.4g})")
 
     # ── Plot type change ──────────────────────────────────────
@@ -1878,6 +1895,7 @@ class MainWindow(QMainWindow):
         self.output_name_inputs.clear()
 
         is_2d = self.radio_2d.isChecked() if hasattr(self, 'radio_2d') else False
+        is_3d = self.radio_3d.isChecked() if hasattr(self, 'radio_3d') else False
 
         for i in range(n):
             name_row = QHBoxLayout()
@@ -1892,7 +1910,9 @@ class MainWindow(QMainWindow):
 
             self.pde_main_layout.addWidget(QLabel(f"PDE {i+1} residual = 0:"))
             pde_inp = QLineEdit()
-            if is_2d:
+            if is_3d:
+                pde_inp.setText("du_t - 0.4 * (du_xx + du_yy + du_zz)" if i == 0 else "dv_t - 0.1 * (dv_xx + dv_yy + dv_zz)")
+            elif is_2d:
                 pde_inp.setText("du_t - 0.0001 * (du_xx + du_yy) + 1 * (u**3 - u)" if i == 0 else "dv_t - 0.0001 * (dv_xx + dv_yy) + 1 * (v**3 - v)")
             else:
                 pde_inp.setText("du_t - 0.4 * du_xx" if i == 0 else "dv_t - 0.1 * dv_xx")
@@ -1901,7 +1921,19 @@ class MainWindow(QMainWindow):
             self.pde_main_layout.addWidget(pde_inp)
 
         names_ex = ", ".join([["u","v","w","p"][i] if i < 4 else f"u{i+1}" for i in range(n)])
-        if is_2d:
+        if is_3d:
+            hint_text = (f"Outputs: {names_ex}\n"
+                         f"du_x→∂u/∂x  du_y→∂u/∂y  du_z→∂u/∂z  du_t→∂u/∂t\n"
+                         f"du_xx→∂²u/∂x²  du_yy→∂²u/∂y²  du_zz→∂²u/∂z²  du_tt→∂²u/∂t²\n"
+                         f"du_xy→∂²u/∂x∂y  du_xz→∂²u/∂x∂z  du_yz→∂²u/∂y∂z\n"
+                         f"du_xt→∂²u/∂x∂t  du_yt→∂²u/∂y∂t  du_zt→∂²u/∂z∂t\n"
+                         f"du_xxxx→∂⁴u/∂x⁴  du_yyyy→∂⁴u/∂y⁴  du_zzzz→∂⁴u/∂z⁴\n"
+                         f"du_xxyy→∂⁴u/∂x²∂y²  du_xxzz→∂⁴u/∂x²∂z²  du_yyzz→∂⁴u/∂y²∂z²\n"
+                         f"du_xxtt→∂⁴u/∂x²∂t²  du_yytt→∂⁴u/∂y²∂t²  du_zztt→∂⁴u/∂z²∂t²\n"
+                         f"Functions: sin, cos, exp, log, sqrt, tanh, pi\n"
+                         f"e.g. 3D Heat:       du_t - 0.4*(du_xx+du_yy+du_zz)\n"
+                         f"e.g. 3D Reaction:   du_t - 0.001*(du_xx+du_yy+du_zz) + u**3 - u")
+        elif is_2d:
             hint_text = (f"Outputs: {names_ex}\n"
                          f"du_x→∂u/∂x  du_y→∂u/∂y  du_t→∂u/∂t\n"
                          f"du_xx→∂²u/∂x²  du_yy→∂²u/∂y²  du_xy→∂²u/∂x∂y\n"
@@ -3512,6 +3544,7 @@ class MainWindow(QMainWindow):
         "2D Heat": (0, "0.4"),
         "2D Allen-Cahn (Mattey & Ghosh)": (0, "0.0001"),
         "2D Allen-Cahn (Wight & Zhao)": (0, "0.00625"),
+        "3D Heat": (0, "0.4"),
     }
 
     def _sync_inverse_pde_substitution(self, is_inv):
@@ -6064,8 +6097,10 @@ print("ERROR_ANALYSIS_V2_DONE")
         activation = cfg["activation"]
         x_min = cfg["x_min"]; x_max = cfg["x_max"]
         y_min = cfg.get("y_min", 0.0); y_max = cfg.get("y_max", 1.0)
+        z_min = cfg.get("z_min", 0.0); z_max = cfg.get("z_max", 1.0)
         t_min = cfg["t_min"]; t_max = cfg["t_max"]
         is_2d = cfg.get("problem_dim", "1D") == "2D"
+        is_3d = cfg.get("problem_dim", "1D") == "3D"
         loss_type = cfg.get("loss_type", "MSE")
         out_names = cfg.get("output_names", "u").split(",")
         out_name = out_names[output_idx].strip() if output_idx < len(out_names) else "u"
@@ -6081,7 +6116,9 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 # Build minimal geometry for model restore
-if {str(is_2d)}:
+if {str(is_3d)}:
+    geom = dde.geometry.Cuboid([{x_min}, {y_min}, {z_min}], [{x_max}, {y_max}, {z_max}])
+elif {str(is_2d)}:
     geom = dde.geometry.Rectangle([{x_min}, {y_min}], [{x_max}, {y_max}])
 else:
     geom = dde.geometry.Interval({x_min}, {x_max})
@@ -6111,7 +6148,9 @@ except Exception as e:
 os.makedirs(r"{save_dir}", exist_ok=True)
 x_vals = np.linspace({x_min}, {x_max}, 100)
 y_vals = np.linspace({y_min}, {y_max}, 100)
+z_vals = np.linspace({z_min}, {z_max}, 100)
 is_2d  = {str(is_2d)}
+is_3d  = {str(is_3d)}
 """
 
         if viz_type == "Surface":
@@ -6120,7 +6159,57 @@ is_2d  = {str(is_2d)}
 res = {resolution}
 x_vals = np.linspace({x_min}, {x_max}, res)
 y_vals = np.linspace({y_min}, {y_max}, res)
-if is_2d:
+if is_3d:
+    # Genuine smooth 3D surface: the restored model is always a Cuboid
+    # in this restore/visualize flow, so each of its 6 flat faces (from
+    # geom.bbox) is predicted directly on a fine regular grid -- no
+    # slicing or interpolation needed, it's an exact prediction at every
+    # grid point -- and drawn with plot_surface's per-quad facecolors.
+    # Unlike a scatter of discrete points, adjacent same-ish-colored grid
+    # quads blend into a continuous-looking colored surface.
+    _res3 = max(24, res // 2)
+    _bbox3 = np.asarray(geom.bbox)
+    _cx0, _cy0, _cz0 = _bbox3[0]; _cx1, _cy1, _cz1 = _bbox3[1]
+    _xg3 = np.linspace(_cx0, _cx1, _res3)
+    _yg3 = np.linspace(_cy0, _cy1, _res3)
+    _zg3 = np.linspace(_cz0, _cz1, _res3)
+    _Xxy3, _Yxy3 = np.meshgrid(_xg3, _yg3)   # z-faces (free: x,y)
+    _Xxz3, _Zxz3 = np.meshgrid(_xg3, _zg3)   # y-faces (free: x,z)
+    _Yyz3, _Zyz3 = np.meshgrid(_yg3, _zg3)   # x-faces (free: y,z)
+    _faces3 = [
+        (_Xxy3, _Yxy3, np.full_like(_Xxy3, _cz0)),
+        (_Xxy3, _Yxy3, np.full_like(_Xxy3, _cz1)),
+        (_Xxz3, np.full_like(_Xxz3, _cy0), _Zxz3),
+        (_Xxz3, np.full_like(_Xxz3, _cy1), _Zxz3),
+        (np.full_like(_Yyz3, _cx0), _Yyz3, _Zyz3),
+        (np.full_like(_Yyz3, _cx1), _Yyz3, _Zyz3),
+    ]
+    _face_preds3 = []
+    for _fX3, _fY3, _fZ3 in _faces3:
+        _fpts3 = np.column_stack([_fX3.ravel(), _fY3.ravel(), _fZ3.ravel(), np.full(_fX3.size, {surface_time})])
+        _face_preds3.append(model.predict(_fpts3)[:, {output_idx}].reshape(_fX3.shape))
+    if {auto_range}:
+        _pv_min3 = min(_f.min() for _f in _face_preds3)
+        _pv_max3 = max(_f.max() for _f in _face_preds3)
+    else:
+        _pv_min3, _pv_max3 = {vmin_val}, {vmax_val}
+    fig = plt.figure(figsize=(8, 6.5))
+    ax = fig.add_subplot(111, projection='3d')
+    _norm3 = plt.Normalize(vmin=_pv_min3, vmax=_pv_max3)
+    _cmap_obj3 = plt.get_cmap("{colormap}")
+    for _fi3, (_fX3, _fY3, _fZ3) in enumerate(_faces3):
+        ax.plot_surface(_fX3, _fY3, _fZ3, facecolors=_cmap_obj3(_norm3(_face_preds3[_fi3])),
+                         rstride=1, cstride=1, linewidth=0, antialiased=False, shade=False)
+    if {show_colorbar}:
+        _sm3 = plt.cm.ScalarMappable(cmap=_cmap_obj3, norm=_norm3)
+        fig.colorbar(_sm3, ax=ax, shrink=0.6, pad=0.12)
+    ax.set_xlabel("x"); ax.set_ylabel("y"); ax.set_zlabel("z")
+    ax.set_title("Restored Model — {out_name}(x,y,z) at t={surface_time}")
+    try:
+        ax.set_box_aspect((_cx1 - _cx0, _cy1 - _cy0, _cz1 - _cz0))
+    except Exception:
+        pass  # older matplotlib without set_box_aspect -- cosmetic only
+elif is_2d:
     Xg, Yg = np.meshgrid(x_vals, y_vals)
     XYT = np.column_stack([Xg.ravel(), Yg.ravel(), np.full(Xg.size, {surface_time})])
     pred = model.predict(XYT)[:, {output_idx}].reshape(res, res)
@@ -6152,8 +6241,11 @@ t_steps_vals = np.linspace({t_min}, {t_max}, {n_steps})
 fig, ax = plt.subplots(figsize=(8, 5))
 colors = plt.get_cmap("{colormap}")(np.linspace(0, 1, {n_steps}))
 y_mid = ({y_min} + {y_max}) / 2.0
+z_mid = ({z_min} + {z_max}) / 2.0
 for i, tv in enumerate(t_steps_vals):
-    if is_2d:
+    if is_3d:
+        xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, z_mid), np.full_like(x_vals, tv)])
+    elif is_2d:
         xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, tv)])
     else:
         xt = np.column_stack([x_vals, np.full_like(x_vals, tv)])
@@ -6172,9 +6264,12 @@ print(f"Line plot saved to: {{out_path}}")
 import matplotlib.animation as _anim
 t_frames = np.linspace({t_min}, {t_max}, {n_steps})
 y_mid = ({y_min} + {y_max}) / 2.0
+z_mid = ({z_min} + {z_max}) / 2.0
 all_u = []
 for tv in t_frames:
-    if is_2d:
+    if is_3d:
+        xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, z_mid), np.full_like(x_vals, tv)])
+    elif is_2d:
         xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, tv)])
     else:
         xt = np.column_stack([x_vals, np.full_like(x_vals, tv)])
@@ -6207,40 +6302,95 @@ import matplotlib.animation as _anim
 t_frames = np.linspace({t_min}, {t_max}, {n_steps})
 x_anim = np.linspace({x_min}, {x_max}, 80)
 all_frames = []
-if is_2d:
-    y_anim = np.linspace({y_min}, {y_max}, 80)
-    Xg, Yg = np.meshgrid(x_anim, y_anim)
+if is_3d:
+    # Genuine smooth 3D surface animated over time: same 6-flat-face
+    # exact-prediction approach as the static 3D Surface option above,
+    # repeated once per frame (the face grids are fixed across frames,
+    # only the predicted color values change per t) and rendered with
+    # plot_surface's per-quad facecolors for a continuous-looking colored
+    # surface instead of a scatter of discrete points.
+    _res3a = 28
+    _bbox3a = np.asarray(geom.bbox)
+    _cx0a, _cy0a, _cz0a = _bbox3a[0]; _cx1a, _cy1a, _cz1a = _bbox3a[1]
+    _xg3a = np.linspace(_cx0a, _cx1a, _res3a)
+    _yg3a = np.linspace(_cy0a, _cy1a, _res3a)
+    _zg3a = np.linspace(_cz0a, _cz1a, _res3a)
+    _Xxy3a, _Yxy3a = np.meshgrid(_xg3a, _yg3a)
+    _Xxz3a, _Zxz3a = np.meshgrid(_xg3a, _zg3a)
+    _Yyz3a, _Zyz3a = np.meshgrid(_yg3a, _zg3a)
+    _faces3a = [
+        (_Xxy3a, _Yxy3a, np.full_like(_Xxy3a, _cz0a)),
+        (_Xxy3a, _Yxy3a, np.full_like(_Xxy3a, _cz1a)),
+        (_Xxz3a, np.full_like(_Xxz3a, _cy0a), _Zxz3a),
+        (_Xxz3a, np.full_like(_Xxz3a, _cy1a), _Zxz3a),
+        (np.full_like(_Yyz3a, _cx0a), _Yyz3a, _Zyz3a),
+        (np.full_like(_Yyz3a, _cx1a), _Yyz3a, _Zyz3a),
+    ]
     for tv in t_frames:
-        XYT = np.column_stack([Xg.ravel(), Yg.ravel(), np.full(Xg.size, tv)])
-        pred = model.predict(XYT)[:, {output_idx}].reshape(80, 80)
-        all_frames.append((Xg, Yg, pred))
+        _frame_faces = []
+        for _fX3a, _fY3a, _fZ3a in _faces3a:
+            _fpts3a = np.column_stack([_fX3a.ravel(), _fY3a.ravel(), _fZ3a.ravel(), np.full(_fX3a.size, tv)])
+            _frame_faces.append(model.predict(_fpts3a)[:, {output_idx}].reshape(_fX3a.shape))
+        all_frames.append(_frame_faces)
+    v_min = min(_f.min() for _frame in all_frames for _f in _frame)
+    v_max = max(_f.max() for _frame in all_frames for _f in _frame)
+    fig = plt.figure(figsize=(8, 6.5))
+    ax = fig.add_subplot(111, projection='3d')
+    _norm3a = plt.Normalize(vmin=v_min, vmax=v_max)
+    _cmap_obj3a = plt.get_cmap("{colormap}")
+    _sm3a = plt.cm.ScalarMappable(cmap=_cmap_obj3a, norm=_norm3a)
+    if {show_colorbar}: fig.colorbar(_sm3a, ax=ax, shrink=0.6, pad=0.12)
+    def update(i):
+        ax.cla()
+        for _fi3a, (_fX3a, _fY3a, _fZ3a) in enumerate(_faces3a):
+            ax.plot_surface(_fX3a, _fY3a, _fZ3a, facecolors=_cmap_obj3a(_norm3a(all_frames[i][_fi3a])),
+                             rstride=1, cstride=1, linewidth=0, antialiased=False, shade=False)
+        ax.set_xlabel("x"); ax.set_ylabel("y"); ax.set_zlabel("z")
+        ax.set_title(f"t = {{t_frames[i]:.3f}}")
+        try:
+            ax.set_box_aspect((_cx1a - _cx0a, _cy1a - _cy0a, _cz1a - _cz0a))
+        except Exception:
+            pass
+    ani = _anim.FuncAnimation(fig, update, frames={n_steps}, interval=150)
+    out_path = os.path.join(r"{save_dir}", "restored_animation.gif")
+    ani.save(out_path, writer='pillow', fps={fps})
+    plt.close()
+    print(f"3D surface animation saved to: {{out_path}}")
 else:
-    t_anim = np.linspace({t_min}, {t_max}, 80)
-    X_anim, T_anim = np.meshgrid(x_anim, t_anim)
-    for tv in t_frames:
-        XT = np.vstack([X_anim.ravel(), np.full(X_anim.size, tv)]).T
-        pred = model.predict(XT)[:, {output_idx}].reshape(80, 80)
-        all_frames.append((X_anim, T_anim, pred))
-v_min = min(f[2].min() for f in all_frames)
-v_max = max(f[2].max() for f in all_frames)
-fig, ax = plt.subplots(figsize=(8, 6))
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-_div = make_axes_locatable(ax)
-_cax = _div.append_axes("right", size="5%", pad=0.1)
-_sm = plt.cm.ScalarMappable(cmap="{colormap}", norm=plt.Normalize(vmin=v_min, vmax=v_max))
-if {show_colorbar}: fig.colorbar(_sm, cax=_cax)
-def update(i):
-    ax.cla()
-    Xp, Yp, Zp = all_frames[i]
-    ax.contourf(Xp, Yp, Zp, levels={levels}, cmap="{colormap}", vmin=v_min, vmax=v_max)
-    ax.set_xlabel("x")
-    ax.set_ylabel("y" if is_2d else "t")
-    ax.set_title(f"t = {{t_frames[i]:.3f}}")
-ani = _anim.FuncAnimation(fig, update, frames={n_steps}, interval=150)
-out_path = os.path.join(r"{save_dir}", "restored_animation.gif")
-ani.save(out_path, writer='pillow', fps={fps})
-plt.close()
-print(f"Surface animation saved to: {{out_path}}")
+    if is_2d:
+        y_anim = np.linspace({y_min}, {y_max}, 80)
+        Xg, Yg = np.meshgrid(x_anim, y_anim)
+        for tv in t_frames:
+            XYT = np.column_stack([Xg.ravel(), Yg.ravel(), np.full(Xg.size, tv)])
+            pred = model.predict(XYT)[:, {output_idx}].reshape(80, 80)
+            all_frames.append((Xg, Yg, pred))
+    else:
+        t_anim = np.linspace({t_min}, {t_max}, 80)
+        X_anim, T_anim = np.meshgrid(x_anim, t_anim)
+        for tv in t_frames:
+            XT = np.vstack([X_anim.ravel(), np.full(X_anim.size, tv)]).T
+            pred = model.predict(XT)[:, {output_idx}].reshape(80, 80)
+            all_frames.append((X_anim, T_anim, pred))
+    v_min = min(f[2].min() for f in all_frames)
+    v_max = max(f[2].max() for f in all_frames)
+    fig, ax = plt.subplots(figsize=(8, 6))
+    from mpl_toolkits.axes_grid1 import make_axes_locatable
+    _div = make_axes_locatable(ax)
+    _cax = _div.append_axes("right", size="5%", pad=0.1)
+    _sm = plt.cm.ScalarMappable(cmap="{colormap}", norm=plt.Normalize(vmin=v_min, vmax=v_max))
+    if {show_colorbar}: fig.colorbar(_sm, cax=_cax)
+    def update(i):
+        ax.cla()
+        Xp, Yp, Zp = all_frames[i]
+        ax.contourf(Xp, Yp, Zp, levels={levels}, cmap="{colormap}", vmin=v_min, vmax=v_max)
+        ax.set_xlabel("x")
+        ax.set_ylabel("y" if is_2d else "t")
+        ax.set_title(f"t = {{t_frames[i]:.3f}}")
+    ani = _anim.FuncAnimation(fig, update, frames={n_steps}, interval=150)
+    out_path = os.path.join(r"{save_dir}", "restored_animation.gif")
+    ani.save(out_path, writer='pillow', fps={fps})
+    plt.close()
+    print(f"Surface animation saved to: {{out_path}}")
 """
         script += '\nprint("RESTORE_DONE")\n'
         return script

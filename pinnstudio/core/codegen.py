@@ -243,7 +243,10 @@ if _problem_type == "Inverse":
         return arr
 
     _obs_data = _load_data(r"{config.inverse_data_file}")
-    if _is_2d:
+    if _is_3d:
+        _obs_xt = _obs_data[:, 0:4]  # x, y, z, t
+        _obs_u  = _obs_data[:, 4:5]  # u
+    elif _is_2d:
         _obs_xt = _obs_data[:, 0:3]  # x, y, t
         _obs_u  = _obs_data[:, 3:4]  # u
     else:
@@ -253,8 +256,15 @@ if _problem_type == "Inverse":
 
     if "{config.inverse_ic_type}" == "File (x, t, u)":
         _ic_data = _load_data(r"{config.inverse_ic_file}")
-        _ic_xt   = _ic_data[:, 0:2]
-        _ic_u    = _ic_data[:, 2:3]
+        if _is_3d:
+            _ic_xt = _ic_data[:, 0:4]  # x, y, z, t
+            _ic_u  = _ic_data[:, 4:5]  # u
+        elif _is_2d:
+            _ic_xt = _ic_data[:, 0:3]  # x, y, t
+            _ic_u  = _ic_data[:, 3:4]  # u
+        else:
+            _ic_xt = _ic_data[:, 0:2]  # x, t
+            _ic_u  = _ic_data[:, 2:3]  # u
         print(f"Loaded {{len(_ic_xt)}} IC points from file")
 
     _{config.inverse_param_name}_history = []
@@ -355,8 +365,12 @@ def _pde_standard(x, y):
             _dvars[f"d{{_oname}}_z"] = dde.grad.jacobian(y, x, i=_oi, j=2)
             _dvars[f"d{{_oname}}_t"] = dde.grad.jacobian(y, x, i=_oi, j=3)
             # Only compute second-order derivatives if used in PDE (pure and
-            # mixed -- no 4th-order terms in 3D yet, unlike 2D's xxxx/yyyy/
-            # xxyy/xxtt/yytt, since no 3D template has needed them so far)
+            # mixed). 4th-order pure/mixed terms (xxxx/yyyy/zzzz/xxyy/xxzz/
+            # yyzz/xxtt/yytt/zztt) are also supported, mirroring the 2D/1D
+            # cases below, computed as the hessian of the matching 2nd-order
+            # term (which the substring check above already guarantees gets
+            # built, since e.g. "xx" is a substring of "xxxx"/"xxyy"/"xxzz"/
+            # "xxtt").
             _pde_str_check = "{config_pde_expressions}"
             _oname_check = _oname
             if f"d{{_oname_check}}_xx" in _pde_str_check:
@@ -379,6 +393,24 @@ def _pde_standard(x, y):
                 _dvars[f"d{{_oname}}_yt"] = _hess(y, x, 1, 3)
             if f"d{{_oname_check}}_zt" in _pde_str_check:
                 _dvars[f"d{{_oname}}_zt"] = _hess(y, x, 2, 3)
+            if f"d{{_oname_check}}_xxxx" in _pde_str_check and f"d{{_oname}}_xx" in _dvars:
+                _dvars[f"d{{_oname}}_xxxx"] = dde.grad.hessian(_dvars[f"d{{_oname}}_xx"], x, i=0, j=0)
+            if f"d{{_oname_check}}_yyyy" in _pde_str_check and f"d{{_oname}}_yy" in _dvars:
+                _dvars[f"d{{_oname}}_yyyy"] = dde.grad.hessian(_dvars[f"d{{_oname}}_yy"], x, i=1, j=1)
+            if f"d{{_oname_check}}_zzzz" in _pde_str_check and f"d{{_oname}}_zz" in _dvars:
+                _dvars[f"d{{_oname}}_zzzz"] = dde.grad.hessian(_dvars[f"d{{_oname}}_zz"], x, i=2, j=2)
+            if f"d{{_oname_check}}_xxyy" in _pde_str_check and f"d{{_oname}}_xx" in _dvars:
+                _dvars[f"d{{_oname}}_xxyy"] = dde.grad.hessian(_dvars[f"d{{_oname}}_xx"], x, i=1, j=1)
+            if f"d{{_oname_check}}_xxzz" in _pde_str_check and f"d{{_oname}}_xx" in _dvars:
+                _dvars[f"d{{_oname}}_xxzz"] = dde.grad.hessian(_dvars[f"d{{_oname}}_xx"], x, i=2, j=2)
+            if f"d{{_oname_check}}_yyzz" in _pde_str_check and f"d{{_oname}}_yy" in _dvars:
+                _dvars[f"d{{_oname}}_yyzz"] = dde.grad.hessian(_dvars[f"d{{_oname}}_yy"], x, i=2, j=2)
+            if f"d{{_oname_check}}_xxtt" in _pde_str_check and f"d{{_oname}}_xx" in _dvars:
+                _dvars[f"d{{_oname}}_xxtt"] = dde.grad.hessian(_dvars[f"d{{_oname}}_xx"], x, i=3, j=3)
+            if f"d{{_oname_check}}_yytt" in _pde_str_check and f"d{{_oname}}_yy" in _dvars:
+                _dvars[f"d{{_oname}}_yytt"] = dde.grad.hessian(_dvars[f"d{{_oname}}_yy"], x, i=3, j=3)
+            if f"d{{_oname_check}}_zztt" in _pde_str_check and f"d{{_oname}}_zz" in _dvars:
+                _dvars[f"d{{_oname}}_zztt"] = dde.grad.hessian(_dvars[f"d{{_oname}}_zz"], x, i=3, j=3)
         elif _is_2d_pde:
             # 2D: inputs are (x, y, t) → j=0,1,2
             # Always compute first-order derivatives
@@ -1722,16 +1754,107 @@ for _pval in _param_values:
 
             # ── Surface comparison ────────────────────────────────
             if {config.ea_do_surface}:
-                if _is_3d:
-                    # 3D: genuine 3D boundary-surface scatter (PINN | Ground
-                    # Truth | Error), like a COMSOL surface plot -- colored
-                    # points on the geometry's own boundary (geom.on_boundary(),
-                    # so this works for Cuboid or Sphere alike), predicted and
-                    # compared at the SAME reference points (no slicing or
-                    # interpolation needed), plus a wireframe box sized from
-                    # the geometry's own .bbox for spatial context, one row
-                    # per time snapshot -- so the actual 3D shape is visible
-                    # instead of a flat mid-z slice.
+                if _is_3d and _geom_type != "Sphere":
+                    # Box-shaped 3D geometry (Cuboid): a genuine smooth
+                    # surface (PINN | Ground Truth | Error), like a COMSOL
+                    # surface plot. Each of the geometry's 6 flat faces
+                    # (from geom.bbox) is predicted on a fine regular grid;
+                    # ground truth is interpolated (griddata) from reference
+                    # points near that face onto the same grid; and each
+                    # face is drawn with plot_surface's per-quad facecolors
+                    # -- unlike a scatter of discrete points, adjacent
+                    # same-ish-colored grid quads blend into a continuous-
+                    # looking colored surface, matching the smoothness of
+                    # the 2D contourf plots above.
+                    from scipy.interpolate import griddata as _gd3
+                    fig = plt.figure(figsize=(15, 4.5 * _ea_n_t))
+                    fig.suptitle("PINN vs Ground Truth — 3D Surface Comparison", fontsize=13, fontweight='bold')
+                    _geom_bbox_ea = np.asarray(geom.bbox)
+                    _bx0, _by0, _bz0 = _geom_bbox_ea[0]
+                    _bx1, _by1, _bz1 = _geom_bbox_ea[1]
+                    _res3_ea = 36
+                    _xg3_ea = np.linspace(_bx0, _bx1, _res3_ea)
+                    _yg3_ea = np.linspace(_by0, _by1, _res3_ea)
+                    _zg3_ea = np.linspace(_bz0, _bz1, _res3_ea)
+                    _Xxy_ea, _Yxy_ea = np.meshgrid(_xg3_ea, _yg3_ea)   # z-faces (free: x,y)
+                    _Xxz_ea, _Zxz_ea = np.meshgrid(_xg3_ea, _zg3_ea)   # y-faces (free: x,z)
+                    _Yyz_ea, _Zyz_ea = np.meshgrid(_yg3_ea, _zg3_ea)   # x-faces (free: y,z)
+                    # (fixed axis idx into x/y/z, fixed value, X, Y, Z grids, free-axis idx pair)
+                    _faces3_ea = [
+                        (2, _bz0, _Xxy_ea, _Yxy_ea, np.full_like(_Xxy_ea, _bz0), (0, 1)),
+                        (2, _bz1, _Xxy_ea, _Yxy_ea, np.full_like(_Xxy_ea, _bz1), (0, 1)),
+                        (1, _by0, _Xxz_ea, np.full_like(_Xxz_ea, _by0), _Zxz_ea, (0, 2)),
+                        (1, _by1, _Xxz_ea, np.full_like(_Xxz_ea, _by1), _Zxz_ea, (0, 2)),
+                        (0, _bx0, np.full_like(_Yyz_ea, _bx0), _Yyz_ea, _Zyz_ea, (1, 2)),
+                        (0, _bx1, np.full_like(_Yyz_ea, _bx1), _Yyz_ea, _Zyz_ea, (1, 2)),
+                    ]
+                    _face_tol_ea = (
+                        max((_bx1 - _bx0) * 0.02, 1e-6),
+                        max((_by1 - _by0) * 0.02, 1e-6),
+                        max((_bz1 - _bz0) * 0.02, 1e-6),
+                    )
+                    for _ei, _ea_tv in enumerate(_ea_times):
+                        _ea_tv_r, _l2, _mse, _mx, _ma = _ea_metrics[_ei]
+                        _bxr_ea = _ea_x_refs[_ei]; _byr_ea = _ea_y_refs[_ei]; _bzr_ea = _ea_z_refs[_ei]
+                        _ur_ea = _ea_u_refs[_ei]
+                        _all_coords_ea = (_bxr_ea, _byr_ea, _bzr_ea)
+                        _pinn_faces_ea = []
+                        _gt_faces_ea = []
+                        for _fax_ea, _fval_ea, _fX_ea, _fY_ea, _fZ_ea, _free_idx_ea in _faces3_ea:
+                            _fpts_ea = np.column_stack([_fX_ea.ravel(), _fY_ea.ravel(), _fZ_ea.ravel(), np.full(_fX_ea.size, _ea_tv)])
+                            _fpinn_ea = model.predict(_fpts_ea)[:, {config.plot_output_idx}].reshape(_fX_ea.shape)
+                            _near_mask_ea = np.abs(_all_coords_ea[_fax_ea] - _fval_ea) < _face_tol_ea[_fax_ea]
+                            if _near_mask_ea.sum() < 4:
+                                _near_mask_ea = np.ones_like(_bxr_ea, dtype=bool)
+                            _free0_ea = _all_coords_ea[_free_idx_ea[0]][_near_mask_ea]
+                            _free1_ea = _all_coords_ea[_free_idx_ea[1]][_near_mask_ea]
+                            _u_near_ea = _ur_ea[_near_mask_ea]
+                            _face_arrs_ea = (_fX_ea, _fY_ea, _fZ_ea)
+                            _gridA_ea = _face_arrs_ea[_free_idx_ea[0]]
+                            _gridB_ea = _face_arrs_ea[_free_idx_ea[1]]
+                            _fgt_ea = _gd3(np.column_stack([_free0_ea, _free1_ea]), _u_near_ea, (_gridA_ea, _gridB_ea), method='linear')
+                            _nan_mask_ea = np.isnan(_fgt_ea)
+                            if _nan_mask_ea.any():
+                                _fgt_nn_ea = _gd3(np.column_stack([_free0_ea, _free1_ea]), _u_near_ea, (_gridA_ea, _gridB_ea), method='nearest')
+                                _fgt_ea[_nan_mask_ea] = _fgt_nn_ea[_nan_mask_ea]
+                            _pinn_faces_ea.append(_fpinn_ea)
+                            _gt_faces_ea.append(_fgt_ea)
+                        _vmin3_ea = min(min(_f.min() for _f in _pinn_faces_ea), min(_f.min() for _f in _gt_faces_ea))
+                        _vmax3_ea = max(max(_f.max() for _f in _pinn_faces_ea), max(_f.max() for _f in _gt_faces_ea))
+                        _err_faces_ea = [np.abs(_pf_ea - _gf_ea) for _pf_ea, _gf_ea in zip(_pinn_faces_ea, _gt_faces_ea)]
+                        _vmax_err_ea = max(_f.max() for _f in _err_faces_ea)
+                        _cols_ea = [
+                            (_pinn_faces_ea, f"PINN  t={{_ea_tv:.3f}}  L2={{_l2:.2e}}", _vmin3_ea, _vmax3_ea, '{config.plot_colormap}'),
+                            (_gt_faces_ea,   f"Ground Truth  t={{_ea_tv:.3f}}",         _vmin3_ea, _vmax3_ea, '{config.plot_colormap}'),
+                            (_err_faces_ea,  f"|Error|  t={{_ea_tv:.3f}}  Max={{_mx:.2e}}", 0.0, _vmax_err_ea, 'inferno'),
+                        ]
+                        for _col_ea, (_face_vals_ea, _ttl_ea, _vmin_c_ea, _vmax_c_ea, _cmap_c_ea) in enumerate(_cols_ea):
+                            _ax3_ea = fig.add_subplot(_ea_n_t, 3, _ei * 3 + _col_ea + 1, projection='3d')
+                            _norm3_ea = plt.Normalize(vmin=_vmin_c_ea, vmax=_vmax_c_ea)
+                            _cmap_obj_ea = plt.get_cmap(_cmap_c_ea)
+                            for _face_i_ea, (_fax_ea, _fval_ea, _fX_ea, _fY_ea, _fZ_ea, _free_idx_ea) in enumerate(_faces3_ea):
+                                _ax3_ea.plot_surface(
+                                    _fX_ea, _fY_ea, _fZ_ea,
+                                    facecolors=_cmap_obj_ea(_norm3_ea(_face_vals_ea[_face_i_ea])),
+                                    rstride=1, cstride=1, linewidth=0, antialiased=False, shade=False,
+                                )
+                            _sm3_ea = plt.cm.ScalarMappable(cmap=_cmap_obj_ea, norm=_norm3_ea)
+                            fig.colorbar(_sm3_ea, ax=_ax3_ea, shrink=0.6, pad=0.12)
+                            _ax3_ea.set_title(_ttl_ea, fontsize=10)
+                            _ax3_ea.set_xlabel("x"); _ax3_ea.set_ylabel("y"); _ax3_ea.set_zlabel("z")
+                            try:
+                                _ax3_ea.set_box_aspect((_bx1 - _bx0, _by1 - _by0, _bz1 - _bz0))
+                            except Exception:
+                                pass  # older matplotlib without set_box_aspect -- cosmetic only, safe to skip
+                    plt.tight_layout()
+                elif _is_3d:
+                    # Non-box 3D geometry (Sphere): no flat-face
+                    # parameterization to grid-interpolate onto, so fall
+                    # back to a genuine boundary-point scatter -- real
+                    # (x, y, z) points that already lie on the geometry's
+                    # own boundary (geom.on_boundary()), predicted and
+                    # compared directly (no interpolation needed), with a
+                    # wireframe box from geom.bbox for spatial context.
                     fig = plt.figure(figsize=(15, 4.5 * _ea_n_t))
                     fig.suptitle("PINN vs Ground Truth — 3D Surface Comparison", fontsize=13, fontweight='bold')
                     _geom_bbox_ea = np.asarray(geom.bbox)
