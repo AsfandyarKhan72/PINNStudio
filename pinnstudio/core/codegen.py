@@ -90,6 +90,47 @@ def _parse_inverse_variables(config):
                            config.inverse_param_init))
     return variables
 
+def _parse_inverse_obs_files(config):
+    """Parse config.inverse_obs_files_json into an ordered list of
+    {"path", "output_idx", "weight"} dicts, one per measured-data file
+    (file 1 first). Falls back to a single entry built from the legacy
+    inverse_data_file/inverse_obs_output_idx/loss_weight_obs fields when
+    the JSON is empty or unparseable -- covers configs saved before this
+    feature existed, and stays perfectly single-file-compatible: one
+    observation file/constraint/weight in that case, exactly like
+    before. Unlike trainable variables, every entry here is *data*, not
+    a Python identifier, so it needs no codegen-time unrolling -- the
+    whole list is embedded as one repr() literal and looped over at
+    runtime."""
+    import json
+    raw = getattr(config, "inverse_obs_files_json", "") or ""
+    files = []
+    if raw:
+        try:
+            parsed = json.loads(raw)
+        except (json.JSONDecodeError, TypeError, ValueError):
+            parsed = []
+        for f in (parsed or []):
+            f = f or {}
+            path = str(f.get("path") or "").strip()
+            try:
+                output_idx = int(f.get("output_idx", 0))
+            except (TypeError, ValueError):
+                output_idx = 0
+            try:
+                weight = float(f.get("weight", 100.0))
+            except (TypeError, ValueError):
+                weight = 100.0
+            if path:
+                files.append({"path": path, "output_idx": output_idx, "weight": weight})
+    if not files:
+        files.append({
+            "path": config.inverse_data_file or "",
+            "output_idx": getattr(config, "inverse_obs_output_idx", 0),
+            "weight": config.loss_weight_obs,
+        })
+    return files
+
 def generate_script(config):
     is_2d = config.problem_dim == "2D"
     is_3d = config.problem_dim == "3D"
@@ -162,6 +203,15 @@ def generate_script(config):
     _inv_var_defs_code = "\n".join(_inv_var_def_lines)
     _inv_var_list_literal = "[" + ", ".join(n for n, _ in _inv_vars_parsed) + "]"
     _inv_var_names_literal = repr([n for n, _ in _inv_vars_parsed])
+
+    # Inverse: one or more measured-data files, each with its own output
+    # column and its own loss weight (a separate observation loss term
+    # per file). This is pure data (path/index/weight), not a Python
+    # identifier, so -- unlike the variables above -- it needs no
+    # per-entry unrolling: the whole parsed list is just one repr()
+    # literal, looped over at runtime.
+    _obs_files_parsed = _parse_inverse_obs_files(config)
+    _obs_files_literal = repr(_obs_files_parsed)
 
     script = f"""
 
@@ -291,17 +341,25 @@ if _problem_type == "Inverse":
                 arr = np.loadtxt(fpath, delimiter=",")
         return arr
 
-    _obs_data = _load_data(r"{config.inverse_data_file}")
-    if _is_3d:
-        _obs_xt = _obs_data[:, 0:4]  # x, y, z, t
-        _obs_u  = _obs_data[:, 4:5]  # u
-    elif _is_2d:
-        _obs_xt = _obs_data[:, 0:3]  # x, y, t
-        _obs_u  = _obs_data[:, 3:4]  # u
-    else:
-        _obs_xt = _obs_data[:, 0:2]  # x, t
-        _obs_u  = _obs_data[:, 2:3]  # u
-    print(f"Loaded {{len(_obs_xt)}} observation points from data file")
+    _obs_files = {_obs_files_literal}
+    _obs_entries = []  # list of (xt, u, output_idx, weight), one per measured-data file
+    for _of in _obs_files:
+        _of_data = _load_data(_of["path"])
+        if _is_3d:
+            _of_xt = _of_data[:, 0:4]  # x, y, z, t
+            _of_u  = _of_data[:, 4:5]  # u
+        elif _is_2d:
+            _of_xt = _of_data[:, 0:3]  # x, y, t
+            _of_u  = _of_data[:, 3:4]  # u
+        else:
+            _of_xt = _of_data[:, 0:2]  # x, t
+            _of_u  = _of_data[:, 2:3]  # u
+        _obs_entries.append((_of_xt, _of_u, _of.get("output_idx", 0), _of.get("weight", 100.0)))
+        print(f"Loaded {{len(_of_xt)}} observation points from {{_of['path']}} (output {{_of.get('output_idx', 0)}}, weight {{_of.get('weight', 100.0)}})")
+    # Kept as aliases to the first measured-data file's points, in case
+    # anything downstream still expects the old single-file names.
+    _obs_xt = _obs_entries[0][0] if _obs_entries else None
+    _obs_u  = _obs_entries[0][1] if _obs_entries else None
 
     if "{config.inverse_ic_type}" == "File (x, t, u)":
         _ic_data = _load_data(r"{config.inverse_ic_file}")
@@ -1030,20 +1088,23 @@ else:
     print(f"  IC weights: {{[w for w in _ic_w if w is not None]}}")
 
 if _problem_type == "Inverse":
-    _multi_weights = _multi_weights + [{config.loss_weight_obs}]
+    # One observation-loss weight per measured-data file, same order as
+    # the PointSetBC constraints appended just below.
+    _multi_weights = _multi_weights + [_e[3] for _e in _obs_entries]
 
 print(f"Loss weights: {{_multi_weights}} ({{len(_multi_weights)}} terms for {{len(_constraints)}} constraints)")
 
 # ── Data ─────────────────────────────────────────────────────
 if _problem_type == "Inverse":
-    obs_bc = dde.icbc.PointSetBC(_obs_xt, _obs_u, component={config.inverse_obs_output_idx})
-    _constraints.append(obs_bc)
+    _obs_bcs = [dde.icbc.PointSetBC(_e[0], _e[1], component=_e[2]) for _e in _obs_entries]
+    _constraints.extend(_obs_bcs)
+    _obs_anchors = np.vstack([_e[0] for _e in _obs_entries]) if _obs_entries else None
     data = dde.data.TimePDE(
         geomtime, pde, _constraints,
         num_domain={config.num_domain}, num_boundary={config.num_boundary},
         num_initial={config.num_initial}, num_test={config.num_test},
         train_distribution="{config.point_distribution}",
-        anchors=_obs_xt
+        anchors=_obs_anchors
     )
 else:
     data = dde.data.TimePDE(

@@ -54,6 +54,22 @@ class SciLineEdit(QLineEdit):
         self.setStyleSheet("")
 
 
+class InitGuessLineEdit(SciLineEdit):
+    """SciLineEdit variant for Inverse trainable-variable initial guesses.
+    SciLineEdit's own _format() (via Python's %g) shows a whole number
+    like 1.0 as a bare "1" -- fine for loss-weight boxes, but for an
+    initial-guess box "1.0" reads more clearly as a float. This just
+    appends ".0" whenever the formatted text has no decimal point and
+    isn't in scientific notation; the underlying value is still a plain
+    float with no precision or range restriction, so any small or large
+    number can still be typed exactly as before."""
+    def _format(self, v):
+        s = super()._format(v)
+        if "." not in s and "e" not in s and "E" not in s:
+            s += ".0"
+        return s
+
+
 # ── Background worker thread ─────────────────────────────────
 class SolverThread(QThread):
     output_signal = pyqtSignal(str)
@@ -1070,9 +1086,10 @@ class MainWindow(QMainWindow):
                         "Builder tab) wherever that quantity belongs, e.g. rename to D and write:\n"
                         "du_t - D*du_xx\n"
                         "Initial guess sets each variable's starting value before optimization.\n"
-                        "All trainable variables share the same measured data file (x, t, u, ...)\n"
-                        "below, used to fit both the network and the unknown variables -- pick\n"
-                        "which model output that data corresponds to with the selector below it.")
+                        "All trainable variables are fit against the same shared measured data\n"
+                        "file(s) below (x, t, u, ...) -- add more than one if you have several\n"
+                        "observation datasets; each gets its own \"which output\" selector and its\n"
+                        "own loss weight, since each becomes a separate loss term.")
         inv_ref_hint = QLabel(inv_ref_text)
         inv_ref_hint.setStyleSheet("color: #74c0fc; font-size: 13px;")
         inv_ref_hint.setWordWrap(True)
@@ -1080,20 +1097,33 @@ class MainWindow(QMainWindow):
         inv_layout.addWidget(inv_ref_hint)
         inv_ref_toggle.stateChanged.connect(lambda state, h=inv_ref_hint: h.setVisible(state == 2))
 
-        inv_layout.addWidget(QLabel("Measured data file (x, t, u):"))
-        inv_data_row = QHBoxLayout()
-        self.inv_data_path = QLineEdit(); self.inv_data_path.setPlaceholderText("Browse..."); self.inv_data_path.setFixedHeight(28)
-        inv_data_row.addWidget(self.inv_data_path)
-        self.inv_data_browse = QPushButton("Browse"); self.inv_data_browse.setFixedHeight(28); self.inv_data_browse.setFixedWidth(65)
-        self.inv_data_browse.clicked.connect(self._on_browse_inv_data)
-        inv_data_row.addWidget(self.inv_data_browse)
-        inv_layout.addLayout(inv_data_row)
+        inv_layout.addWidget(QLabel("Measured data file(s) (x, t, u):"))
+        self.inv_data_files_widget = QWidget()
+        self.inv_data_files_layout = QVBoxLayout(self.inv_data_files_widget)
+        self.inv_data_files_layout.setSpacing(6)
+        self.inv_data_files_layout.setContentsMargins(0, 0, 0, 0)
+        inv_layout.addWidget(self.inv_data_files_widget)
 
-        inv_layout.addWidget(QLabel("Observed data corresponds to output:"))
-        self.inv_obs_output_combo = QComboBox()
-        self.inv_obs_output_combo.addItems(["Output 1 (u)"])
-        self.inv_obs_output_combo.setFixedHeight(28)
-        inv_layout.addWidget(self.inv_obs_output_combo)
+        self.inv_data_rows = []  # list of dicts with widgets
+
+        add_inv_data_btn = QPushButton("➕ Add measured data file")
+        add_inv_data_btn.setStyleSheet(
+            "QPushButton { color: #69db7c; background: transparent; "
+            "border: 1px solid #2a6a4a; border-radius: 4px; padding: 2px 8px; }")
+        add_inv_data_btn.clicked.connect(lambda: self._add_inverse_data_row())
+        inv_layout.addWidget(add_inv_data_btn)
+
+        self.inv_multi_data_hint = QLabel(
+            "⚠ Each additional measured data file adds its own\n"
+            "observation loss term, weighted by its own box below.")
+        self.inv_multi_data_hint.setStyleSheet("color: #ffd43b; font-size: 12px;")
+        self.inv_multi_data_hint.setWordWrap(True)
+        self.inv_multi_data_hint.setVisible(False)
+        inv_layout.addWidget(self.inv_multi_data_hint)
+
+        # Add the first (primary) measured-data-file row -- always present,
+        # matching the single-file behavior this generalizes by default.
+        self._add_inverse_data_row()
 
         inv_layout.addWidget(QLabel("IC type:"))
         self.inv_ic_type = QComboBox(); self.inv_ic_type.addItems(["Expression", "File (x, t, u)"])
@@ -1109,10 +1139,6 @@ class MainWindow(QMainWindow):
         self.inv_ic_browse.clicked.connect(self._on_browse_inv_ic)
         inv_ic_row.addWidget(self.inv_ic_browse)
         inv_layout.addLayout(inv_ic_row)
-        inv_layout.addWidget(QLabel("Observed data loss weight:"))
-        self.inv_obs_weight = SciLineEdit(100.0)
-        self.inv_obs_weight.setFixedHeight(28)
-        inv_layout.addWidget(self.inv_obs_weight)
         self.inv_param_log_scale = QCheckBox("Log scale for parameter convergence plot")
         self.inv_param_log_scale.setChecked(False)
         inv_layout.addWidget(self.inv_param_log_scale)
@@ -1361,6 +1387,12 @@ class MainWindow(QMainWindow):
         ctrl_row.addWidget(self.param_save_label)
         self.param_save_combo = QComboBox()
         self.param_save_combo.addItems(["No", "Every 100 iters", "Every 1000 iters"])
+        # Default to saving every 100 iterations for every Inverse problem
+        # -- without this, the per-variable iteration-vs-value convergence
+        # text files never get written unless the user remembers to change
+        # this dropdown first, which is easy to miss since it's a small
+        # control that's only visible once Inverse is selected.
+        self.param_save_combo.setCurrentText("Every 100 iters")
         self.param_save_combo.setFixedHeight(28)
         self.param_save_combo.setFixedWidth(140)
         self.param_save_combo.setVisible(False)
@@ -1892,10 +1924,8 @@ class MainWindow(QMainWindow):
         name_edit.setFixedHeight(26)
         row_layout.addWidget(name_edit)
 
-        row_layout.addWidget(QLabel("init:"))
-        init_spin = QDoubleSpinBox()
-        init_spin.setRange(-1e6, 1e6); init_spin.setDecimals(6)
-        init_spin.setValue(init)
+        row_layout.addWidget(QLabel("initial guess:"))
+        init_spin = InitGuessLineEdit(init)
         init_spin.setFixedHeight(26); init_spin.setFixedWidth(85)
         row_layout.addWidget(init_spin)
 
@@ -1951,6 +1981,123 @@ class MainWindow(QMainWindow):
         if not variables:
             variables.append({'name': 'trainable_variable_1', 'init': 1.0})
         return json.dumps(variables)
+
+    def _add_inverse_data_row(self, path="", output_idx=0, weight=100.0, is_primary=None):
+        """Add one measured-data-file row to the Inverse panel. The first
+        (primary) row is always present -- it's the one the legacy single-
+        file config fields (inverse_data_file / inverse_obs_output_idx /
+        loss_weight_obs) mirror, so every existing call site and every
+        previously-saved config keeps working unchanged. Rows beyond the
+        first are optional, freely added/removed; unlike trainable
+        variables (which all share one measured-data setup), each
+        additional file here is its OWN observation dataset with its own
+        "which output" selector and its own loss weight, since each
+        becomes its own separate loss term."""
+        if is_primary is None:
+            is_primary = (len(self.inv_data_rows) == 0)
+
+        row_widget = QWidget()
+        row_v = QVBoxLayout(row_widget)
+        row_v.setContentsMargins(0, 0, 0, 0)
+        row_v.setSpacing(2)
+
+        path_row = QHBoxLayout()
+        path_row.setContentsMargins(0, 0, 0, 0)
+        path_edit = QLineEdit()
+        path_edit.setText(path)
+        path_edit.setPlaceholderText("Browse...")
+        path_edit.setFixedHeight(28)
+        path_row.addWidget(path_edit)
+        browse_btn = QPushButton("Browse")
+        browse_btn.setFixedHeight(28); browse_btn.setFixedWidth(65)
+        browse_btn.clicked.connect(lambda _checked=False, e=path_edit: self._on_browse_inv_data(e))
+        path_row.addWidget(browse_btn)
+
+        remove_btn = None
+        if not is_primary:
+            remove_btn = QPushButton("✕")
+            remove_btn.setFixedHeight(28); remove_btn.setFixedWidth(26)
+            remove_btn.setStyleSheet(
+                "QPushButton { color: #ff8787; background: transparent; border: none; }")
+            path_row.addWidget(remove_btn)
+        path_row_widget = QWidget()
+        path_row_widget.setLayout(path_row)
+        row_v.addWidget(path_row_widget)
+
+        meta_row = QHBoxLayout()
+        meta_row.setContentsMargins(0, 0, 0, 0)
+        meta_row.addWidget(QLabel("output:"))
+        output_combo = QComboBox()
+        output_combo.setFixedHeight(26)
+        _n_out = self.num_outputs_spin.value() if hasattr(self, 'num_outputs_spin') else 1
+        for _i in range(_n_out):
+            _name = (self.output_name_inputs[_i].text()
+                      if hasattr(self, 'output_name_inputs') and _i < len(self.output_name_inputs)
+                      else f"u{_i+1}")
+            output_combo.addItem(f"Output {_i+1} ({_name})")
+        if 0 <= output_idx < output_combo.count():
+            output_combo.setCurrentIndex(output_idx)
+        meta_row.addWidget(output_combo)
+        meta_row.addWidget(QLabel("weight:"))
+        weight_edit = SciLineEdit(weight)
+        weight_edit.setFixedHeight(26); weight_edit.setFixedWidth(85)
+        meta_row.addWidget(weight_edit)
+        meta_row.addStretch()
+        meta_row_widget = QWidget()
+        meta_row_widget.setLayout(meta_row)
+        row_v.addWidget(meta_row_widget)
+
+        self.inv_data_files_layout.addWidget(row_widget)
+        row_data = {
+            'widget': row_widget,
+            'path': path_edit,
+            'browse': browse_btn,
+            'output_combo': output_combo,
+            'weight': weight_edit,
+            'is_primary': is_primary,
+        }
+        self.inv_data_rows.append(row_data)
+        if is_primary:
+            # Keep the legacy single-file attribute names as aliases to the
+            # primary row's widgets -- every existing call site that reads
+            # or writes self.inv_data_path / self.inv_obs_output_combo /
+            # self.inv_obs_weight (config build/restore, the template
+            # auto-load-observed-data helper, the scheduler weight-string
+            # builder) keeps working unchanged, including after a config-
+            # restore rebuild replaces the row widgets these point to.
+            self.inv_data_path = path_edit
+            self.inv_data_browse = browse_btn
+            self.inv_obs_output_combo = output_combo
+            self.inv_obs_weight = weight_edit
+
+        if remove_btn is not None:
+            def _remove():
+                row_widget.deleteLater()
+                if row_data in self.inv_data_rows:
+                    self.inv_data_rows.remove(row_data)
+                self._update_inv_multi_data_hint()
+            remove_btn.clicked.connect(_remove)
+
+        self._update_inv_multi_data_hint()
+        return row_data
+
+    def _update_inv_multi_data_hint(self):
+        if hasattr(self, 'inv_multi_data_hint'):
+            self.inv_multi_data_hint.setVisible(len(self.inv_data_rows) > 1)
+
+    def _build_inverse_obs_files_json(self):
+        import json
+        files = []
+        for r in self.inv_data_rows:
+            _oi = r['output_combo'].currentIndex()
+            files.append({
+                'path': r['path'].text().strip(),
+                'output_idx': _oi if _oi >= 0 else 0,
+                'weight': r['weight'].value(),
+            })
+        if not files:
+            files.append({'path': '', 'output_idx': 0, 'weight': 100.0})
+        return json.dumps(files)
 
     def _set_combo_data(self, combo, value):
         idx = combo.findData(value)
@@ -3104,6 +3251,7 @@ class MainWindow(QMainWindow):
             inverse_variables_json=self._build_inverse_variables_json(),
             inverse_obs_output_idx=self.inv_obs_output_combo.currentIndex() if self.inv_obs_output_combo.currentIndex() >= 0 else 0,
             inverse_data_file=self.inv_data_path.text().strip(),
+            inverse_obs_files_json=self._build_inverse_obs_files_json(),
             inverse_ic_type=self.inv_ic_type.currentText(),
             inverse_ic_file=self.inv_ic_path.text().strip(),
             export_grid_size=int(self.export_grid_combo.currentText()),
@@ -3364,12 +3512,14 @@ class MainWindow(QMainWindow):
         # changed, before we had the saved names to give them).
         self.plot_output_combo.clear()
         self.restore_output_combo.clear()
-        self.inv_obs_output_combo.clear()
+        for _r in getattr(self, 'inv_data_rows', []):
+            _r['output_combo'].clear()
         for i in range(n_out):
             name = self.output_name_inputs[i].text() if i < len(self.output_name_inputs) else f"u{i+1}"
             self.plot_output_combo.addItem(f"Output {i+1} ({name})")
             self.restore_output_combo.addItem(f"Output {i+1} ({name})")
-            self.inv_obs_output_combo.addItem(f"Output {i+1} ({name})")
+            for _r in getattr(self, 'inv_data_rows', []):
+                _r['output_combo'].addItem(f"Output {i+1} ({name})")
 
         # PDE expressions
         pdes = _texts(config.pde_expressions, n_out, "|", config.pde_expression)
@@ -3546,12 +3696,28 @@ class MainWindow(QMainWindow):
             self._add_inverse_var_row(
                 config.inverse_param_name or "trainable_variable_1",
                 config.inverse_param_init)
-        self.inv_data_path.setText(config.inverse_data_file)
+        # Inverse-problem settings -- measured-data-file rows. Rebuild from
+        # inverse_obs_files_json when present; otherwise fall back to a
+        # single row built from the legacy inverse_data_file/
+        # inverse_obs_output_idx/loss_weight_obs fields, so old saved
+        # configs still load correctly with exactly one measured-data
+        # file.
+        for row in list(self.inv_data_rows):
+            row['widget'].deleteLater()
+        self.inv_data_rows.clear()
+        try:
+            _obs_files = json.loads(config.inverse_obs_files_json) if config.inverse_obs_files_json else []
+        except (json.JSONDecodeError, TypeError):
+            _obs_files = []
+        if _obs_files:
+            for _f in _obs_files:
+                self._add_inverse_data_row(
+                    _f.get('path', ''), _f.get('output_idx', 0), _f.get('weight', 100.0))
+        else:
+            self._add_inverse_data_row(
+                config.inverse_data_file, config.inverse_obs_output_idx, config.loss_weight_obs)
         self.inv_ic_type.setCurrentText(config.inverse_ic_type)
         self.inv_ic_path.setText(config.inverse_ic_file)
-        self.inv_obs_weight.setValue(config.loss_weight_obs)
-        if 0 <= config.inverse_obs_output_idx < self.inv_obs_output_combo.count():
-            self.inv_obs_output_combo.setCurrentIndex(config.inverse_obs_output_idx)
         self.inv_param_log_scale.setChecked(config.inv_param_log_scale)
         self.param_save_combo.setCurrentText(config.inv_param_save)
 
@@ -3666,12 +3832,14 @@ class MainWindow(QMainWindow):
         self._build_weight_inputs(n)
         self.plot_output_combo.clear()
         self.restore_output_combo.clear()
-        self.inv_obs_output_combo.clear()
+        for _r in getattr(self, 'inv_data_rows', []):
+            _r['output_combo'].clear()
         for i in range(n):
             name = self.output_name_inputs[i].text() if i < len(self.output_name_inputs) else f"u{i+1}"
             self.plot_output_combo.addItem(f"Output {i+1} ({name})")
             self.restore_output_combo.addItem(f"Output {i+1} ({name})")
-            self.inv_obs_output_combo.addItem(f"Output {i+1} ({name})")
+            for _r in getattr(self, 'inv_data_rows', []):
+                _r['output_combo'].addItem(f"Output {i+1} ({name})")
 
     # Per built-in template: (PDE row index, original constant substring)
     # of the "diffusion coefficient"-style constant that gets swapped for
@@ -3772,10 +3940,12 @@ class MainWindow(QMainWindow):
             self.t_max.setValue(_inv_tmax if is_inv else _fwd_tmax)
             self._auto_configure_ea(getattr(self, '_template_ref_dir', ''))
 
-    def _on_browse_inv_data(self):
+    def _on_browse_inv_data(self, target=None):
+        if target is None:
+            target = self.inv_data_path
         f, _ = QFileDialog.getOpenFileName(self, "Select measured data file", "", "Data files (*.txt *.csv *.dat)")
         if f:
-            self.inv_data_path.setText(f)
+            target.setText(f)
 
     def _on_browse_inv_ic(self):
         f, _ = QFileDialog.getOpenFileName(self, "Select IC data file", "", "Data files (*.txt *.csv *.dat)")
@@ -5949,10 +6119,12 @@ print("ERROR_ANALYSIS_V2_DONE")
                    for k in [f"ic_{i}{_suffix}"]
                    if k in self.weight_widgets]
             )
-            if hasattr(self, 'radio_inverse') and self.radio_inverse.isChecked() and hasattr(self, 'inv_obs_weight'):
+            if hasattr(self, 'radio_inverse') and self.radio_inverse.isChecked() and getattr(self, 'inv_data_rows', None):
                 # Match codegen's _multi_weights: one extra observation-loss
-                # weight appended at the end for inverse problems.
-                w_str = w_str + "," + str(self.inv_obs_weight.value())
+                # weight appended at the end per measured-data file (one for
+                # the legacy single file, or one per row when the panel has
+                # more than one measured-data file configured).
+                w_str = w_str + "," + ",".join(str(r['weight'].value()) for r in self.inv_data_rows)
             phases.append({
                 'optimizer': ph['opt'].currentData(),
                 'iterations': ph['iters'].value(),

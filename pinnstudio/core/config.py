@@ -71,7 +71,7 @@ class PINNConfig:
     loss_weights: List[float] = field(default_factory=lambda: [1.0, 1.0, 1.0, 1.0])
     loss_weight_obs: float = 1.0
     inv_param_log_scale: bool = False
-    inv_param_save: str = "No"
+    inv_param_save: str = "Every 100 iters"
 
     # Inverse PINN
     problem_type: str = "Forward"
@@ -121,13 +121,25 @@ class PINNConfig:
     # order (variable 1 first). Empty string means "not set" -- fall back
     # to the single legacy inverse_param_name/inverse_param_init fields
     # above for configs saved before this feature existed. All trainable
-    # variables share the single inverse_data_file / inverse_ic_type /
-    # inverse_ic_file / loss_weight_obs above (one shared measured-data
-    # setup, no matter how many variables are being estimated).
+    # variables are fit against the same shared measured-data setup below
+    # (one or more files) -- variables never get their own private
+    # dataset, no matter how many of them are being estimated.
     inverse_variables_json: str = ""
-    # Which model output column the shared measured-data file corresponds
-    # to (0-based index into output_names). Defaults to output 0.
+    # Which model output column the (legacy, single) measured-data file
+    # corresponds to (0-based index into output_names). Defaults to
+    # output 0. Superseded by inverse_obs_files_json below when that is
+    # set; kept as the fallback for configs saved before multi-file
+    # support existed.
     inverse_obs_output_idx: int = 0
+    # Multiple measured-data files (Inverse). JSON-encoded list of
+    # {"path": str, "output_idx": int, "weight": float} dicts, one per
+    # measured-data file, in order (file 1 first) -- each file becomes
+    # its own PointSetBC observation constraint and its own loss-weight
+    # term. Empty string means "not set" -- fall back to a single entry
+    # built from the legacy inverse_data_file/inverse_obs_output_idx/
+    # loss_weight_obs fields above, so configs saved before this feature
+    # existed keep loading as exactly one measured-data file, unchanged.
+    inverse_obs_files_json: str = ""
 
     # Export
     export_grid_size: int = 101
