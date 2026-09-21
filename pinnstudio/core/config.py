@@ -168,6 +168,41 @@ class PINNConfig:
     scheduler_phases: str = ""
     scheduler_same_weights: bool = True
 
+    # Weight decay (L2 regularization on the network). Applies to
+    # whichever network is being trained (main model, IC pre-training,
+    # RAR refinement, every scheduler phase) since DeepXDE sets this at
+    # the network level, not per optimizer call. 0.0 = off (default,
+    # matches all pre-existing behavior). Not compatible with L-BFGS or
+    # NNCG (DeepXDE raises an error if weight_decay > 0 for either) --
+    # validated in the GUI before a run starts, not just left to crash.
+    weight_decay: float = 0.0
+
+    # Training Callbacks (all opt-in, off by default). Applied to the
+    # live "Training Phases" scheduler (and the legacy single/dual-phase
+    # fallback path) -- NOT to IC pre-training or the RAR refinement
+    # sub-loop, which are short, purpose-built inner loops of their own
+    # where early-stopping/point-resampling/checkpointing would fight
+    # their intent rather than help it.
+    cb_early_stopping: bool = False
+    cb_early_stopping_min_delta: float = 0.0
+    cb_early_stopping_patience: int = 2000
+    cb_early_stopping_baseline: str = ""  # blank = None (no baseline)
+    cb_early_stopping_monitor: str = "loss_train"  # or "loss_test"
+    cb_early_stopping_start_from: int = 0  # needs deepxde>=1.12.0, guarded at codegen time
+
+    cb_point_resampler: bool = False
+    cb_point_resampler_period: int = 100
+    cb_point_resampler_pde_points: bool = True
+    cb_point_resampler_bc_points: bool = False
+
+    cb_model_checkpoint: bool = False
+    cb_checkpoint_period: int = 1000
+    cb_checkpoint_save_better_only: bool = True
+    cb_checkpoint_monitor: str = "train loss"  # or "test loss"
+
+    cb_timer: bool = False
+    cb_timer_minutes: float = 60.0
+
     plot_colormap: str = "RdBu_r"
     plot_levels: int = 100
     plot_resolution: int = 200

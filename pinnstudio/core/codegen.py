@@ -131,6 +131,75 @@ def _parse_inverse_obs_files(config):
         })
     return files
 
+
+def _build_train_cbs_code(config, var_name="_train_cbs", indent=4):
+    """Builds the literal Python source (already indented at `indent`
+    spaces, matching whatever base indent level the generated script has
+    at the call site this is embedded into -- 4 for the Standard path, 8
+    for the Time-Adaptive per-step loop) that constructs the shared list
+    of opt-in DeepXDE training callbacks (EarlyStopping, PDEPointResampler,
+    ModelCheckpoint, Timer) from config.cb_*. All four are off by default,
+    so an unconfigured run gets exactly `{var_name} = []`, appended into
+    every mainline .train() call's existing callbacks list -- a no-op,
+    byte-for-byte reproducing every pre-existing generated script. NOT
+    threaded into IC pre-training or the RAR refinement sub-loop (see the
+    call sites) -- those are short, purpose-built inner loops where early-
+    stopping/point-resampling/checkpointing would fight their intent
+    rather than help it. EarlyStopping's start_from_epoch needs
+    deepxde>=1.12.0 (older than this app's minimum pinned 1.10.0) -- only
+    attempted when the user set a nonzero value, and falls back gracefully
+    with a printed note rather than crashing if the installed deepxde is
+    too old for it."""
+    pad = " " * indent
+    pad2 = " " * (indent + 4)
+    lines = [f"{pad}{var_name} = []"]
+    if config.cb_early_stopping:
+        baseline_src = "None"
+        raw_baseline = str(config.cb_early_stopping_baseline or "").strip()
+        if raw_baseline:
+            try:
+                baseline_src = repr(float(raw_baseline))
+            except ValueError:
+                baseline_src = "None"
+        es_kwargs = (
+            f"min_delta={config.cb_early_stopping_min_delta}, "
+            f"patience={int(config.cb_early_stopping_patience)}, "
+            f"baseline={baseline_src}, "
+            f"monitor={config.cb_early_stopping_monitor!r}"
+        )
+        if config.cb_early_stopping_start_from > 0:
+            lines.append(f"{pad}try:")
+            lines.append(
+                f"{pad2}{var_name}.append(dde.callbacks.EarlyStopping("
+                f"{es_kwargs}, start_from_epoch={int(config.cb_early_stopping_start_from)}))"
+            )
+            lines.append(f"{pad}except TypeError:")
+            lines.append(
+                f"{pad2}print(\"Note: this deepxde version doesn't support "
+                "EarlyStopping's start_from_epoch (added in 1.12.0) -- ignoring it.\")"
+            )
+            lines.append(f"{pad2}{var_name}.append(dde.callbacks.EarlyStopping({es_kwargs}))")
+        else:
+            lines.append(f"{pad}{var_name}.append(dde.callbacks.EarlyStopping({es_kwargs}))")
+    if config.cb_point_resampler:
+        lines.append(
+            f"{pad}{var_name}.append(dde.callbacks.PDEPointResampler("
+            f"period={int(config.cb_point_resampler_period)}, "
+            f"pde_points={bool(config.cb_point_resampler_pde_points)}, "
+            f"bc_points={bool(config.cb_point_resampler_bc_points)}))"
+        )
+    if config.cb_model_checkpoint:
+        lines.append(
+            f'{pad}{var_name}.append(dde.callbacks.ModelCheckpoint('
+            f'_os.path.join(_sol_dir, "checkpoint_best"), verbose=1, '
+            f"save_better_only={bool(config.cb_checkpoint_save_better_only)}, "
+            f"period={int(config.cb_checkpoint_period)}, "
+            f"monitor={config.cb_checkpoint_monitor!r}))"
+        )
+    if config.cb_timer:
+        lines.append(f"{pad}{var_name}.append(dde.callbacks.Timer(available_time={config.cb_timer_minutes}))")
+    return "\n".join(lines)
+
 def generate_script(config):
     is_2d = config.problem_dim == "2D"
     is_3d = config.problem_dim == "3D"
@@ -225,6 +294,57 @@ def generate_script(config):
     _obs_files_parsed = _parse_inverse_obs_files(config)
     _obs_files_literal = repr(_obs_files_parsed)
 
+    # Whether this run uses the NNCG optimizer anywhere (a Training Phase,
+    # or the legacy phase-2 field for pre-scheduler configs) -- NNCG was
+    # added in deepxde 1.13.0, but this app's minimum pinned version is
+    # 1.10.0, so a version-guard block is only emitted into the generated
+    # script when actually needed, printing a clear upgrade message instead
+    # of letting an old deepxde installation hit a bare NotImplementedError
+    # deep inside training. (The GUI itself also checks this at Solve time,
+    # in _validate_optimizer_settings() -- this is the belt-and-suspenders
+    # copy for a script saved and re-run standalone, possibly on a
+    # different machine/environment than the one that generated it.)
+    import json as _json_nncg
+    try:
+        _sched_phases_for_nncg = _json_nncg.loads(config.scheduler_phases) if config.scheduler_phases else []
+    except (ValueError, TypeError):
+        _sched_phases_for_nncg = []
+    _uses_nncg = (
+        any(p.get("optimizer") == "nncg" for p in _sched_phases_for_nncg)
+        or config.optimizer2 == "nncg"
+    )
+    _nncg_guard_code = ""
+    if _uses_nncg:
+        _nncg_guard_code = '''
+_dxde_ver_parts = dde.__version__.split(".")[:3]
+try:
+    _dxde_ver = tuple(int(_p) for _p in _dxde_ver_parts)
+except ValueError:
+    _dxde_ver = None
+if _dxde_ver is not None and _dxde_ver < (1, 13, 0):
+    print(f"ERROR: The NNCG optimizer requires deepxde>=1.13.0 "
+          f"(you have {dde.__version__} installed). "
+          f"Please upgrade: pip install --upgrade deepxde")
+    raise SystemExit(1)
+'''
+
+    # Weight decay (L2 regularization). 0.0 (the default) reproduces every
+    # pre-existing generated script byte-for-byte in this section (an empty
+    # regularization arg was never emitted before this feature existed).
+    _weight_decay_regularizer_arg = (
+        f', regularization=("l2", {config.weight_decay})' if config.weight_decay > 0 else ""
+    )
+
+    # Opt-in training callbacks (EarlyStopping/PDEPointResampler/
+    # ModelCheckpoint/Timer) -- one block for the Standard path (built once,
+    # reused across every scheduler phase's .train() call so state like
+    # Timer's running clock and EarlyStopping's patience counter carry
+    # correctly across phases within one run), one for the Time-Adaptive
+    # per-step loop (rebuilt fresh each step, since each step is its own
+    # independent training problem).
+    _train_cbs_code = _build_train_cbs_code(config, "_train_cbs", indent=4)
+    _train_cbs_code_ta = _build_train_cbs_code(config, "_train_cbs_ta", indent=8)
+
     script = f"""
 
 import os
@@ -241,6 +361,7 @@ import torch
 import matplotlib.pyplot as plt
 import warnings
 warnings.filterwarnings("ignore", message=".*cuBLAS.*")
+{_nncg_guard_code}
 
 # ── Force GPU initialization ──────────────────────────────────
 _effective_float = "{config.float_type}"
@@ -1157,7 +1278,7 @@ for _pval in _param_values:
         elif _param_name == "neurons_per_layer":
             _layers = [{config.layers[0]}] + [int(_pval)] * {len(config.layers) - 2} + [{config.layers[-1]}]
 
-    net = dde.nn.FNN(_layers, "{config.activation}", "Glorot uniform")
+    net = dde.nn.FNN(_layers, "{config.activation}", "Glorot uniform"{_weight_decay_regularizer_arg})
     model = dde.Model(data, net)
 
     model.compile(
@@ -1169,6 +1290,12 @@ for _pval in _param_values:
         print(f"Mini-batch training enabled: batch_size={config.batch_size}")
 
     _iters = int(_pval) if (_parametric and _param_name == "phase1_iterations" and _pval is not None) else {config.iterations}
+
+    # ── Training callbacks (opt-in: EarlyStopping/PDEPointResampler/
+    # ModelCheckpoint/Timer) — see _build_train_cbs_code() in codegen.py
+    # for exactly what's included and why; empty list when none are
+    # enabled, which every mainline .train() call below appends as a no-op.
+{_train_cbs_code}
 
     # ── IC Pre-Training ───────────────────────────────────────
     if {config.ic_pretrain} and not {config.time_adaptive}:
@@ -1240,7 +1367,7 @@ for _pval in _param_values:
                     _inv_vars, period=1000, filename="/tmp/param_history.txt",
                     precision=6
                 )
-                loss_history, train_state = model.train(iterations=_iters, display_every=1000, callbacks=[_var_cb] + _print_cbs + _save_cbs)
+                loss_history, train_state = model.train(iterations=_iters, display_every=1000, callbacks=[_var_cb] + _print_cbs + _save_cbs + _train_cbs)
             else:
                 # Scheduler phases below define all training — skip this
                 # standalone _iters-iteration pass so training only runs
@@ -1298,7 +1425,7 @@ for _pval in _param_values:
                             _inv_vars, period=200,
                             filename=f"/tmp/param_history_sp{{_sp_i}}.txt", precision=6)
                         loss_history, train_state = model.train(
-                            display_every=200, callbacks=[_sp_var_cb] + _print_cbs + _save_cbs)
+                            display_every=200, callbacks=[_sp_var_cb] + _print_cbs + _save_cbs + _train_cbs)
                         try:
                             with open(f"/tmp/param_history_sp{{_sp_i}}.txt", "r") as _spf:
                                 _sp_lines = [l.strip() for l in _spf if l.strip()]
@@ -1312,13 +1439,62 @@ for _pval in _param_values:
                             print(f"Could not merge phase {{_sp_i+1}} parameter history: {{_spe}}")
                         _sched_cum_iters = loss_history.steps[-1] if loss_history.steps else (_sched_cum_iters + _sp['iterations'])
                     else:
-                        loss_history, train_state = model.train(display_every=200)
+                        loss_history, train_state = model.train(display_every=200, callbacks=_train_cbs)
                     if _use_save:
                         _nta_save_path = _os.path.join(_sol_dir, f"model_lbfgs-phase{{_sp_i+1}}")
                         model.save(_nta_save_path)
                         print(f"  Phase {{_sp_i+1}} L-BFGS model saved: {{_nta_save_path}}.pt")
+                elif _sp['optimizer'] == 'nncg':
+                    # NNCG (deepxde>=1.13.0, version-guarded above): exact-case
+                    # "NNCG" name required, no lr= (ignored with a warning --
+                    # NysNewtonCG's own step size is configured via
+                    # dde.optimizers.set_NNCG_options(), left at its defaults
+                    # here since this app doesn't expose those knobs), and no
+                    # LR decay (decay is meaningless for a Newton-CG method).
+                    model.compile("NNCG", loss=_sp.get('loss', '{config.loss_type}'),
+                                  loss_weights=_sp_weights, external_trainable_variables=_sp_ext_vars)
+                    if {config.batch_size} > 0:
+                        data.batch_size = {config.batch_size}
+                    if _problem_type == "Inverse":
+                        for _icb in _print_cbs: _icb.set_offset(_sched_cum_iters)
+                        for _icb in _save_cbs: _icb.set_offset(_sched_cum_iters)
+                        _sp_var_cb = dde.callbacks.VariableValue(
+                            _inv_vars, period=1000,
+                            filename=f"/tmp/param_history_sp{{_sp_i}}.txt", precision=6)
+                        loss_history, train_state = model.train(
+                            iterations=_sp['iterations'], display_every=1000,
+                            callbacks=[_sp_var_cb] + _print_cbs + _save_cbs + _train_cbs)
+                        try:
+                            with open(f"/tmp/param_history_sp{{_sp_i}}.txt", "r") as _spf:
+                                _sp_lines = [l.strip() for l in _spf if l.strip()]
+                            with open("/tmp/param_history.txt", "a") as _fa:
+                                for _spl in _sp_lines:
+                                    _sp_parsed = _split_param_history_line(_spl)
+                                    if _sp_parsed is not None:
+                                        _sp_it, _sp_raw = _sp_parsed
+                                        _fa.write(f"{{_sp_it}} [{{_sp_raw}}]\\n")
+                        except Exception as _spe:
+                            print(f"Could not merge phase {{_sp_i+1}} parameter history: {{_spe}}")
+                        _sched_cum_iters = loss_history.steps[-1] if loss_history.steps else (_sched_cum_iters + _sp['iterations'])
+                    else:
+                        loss_history, train_state = model.train(iterations=_sp['iterations'], display_every=1000, callbacks=_train_cbs)
+                    if _use_save:
+                        _nta_save_path = _os.path.join(_sol_dir, f"model_nncg-phase{{_sp_i+1}}")
+                        model.save(_nta_save_path)
+                        print(f"  Phase {{_sp_i+1}} NNCG model saved: {{_nta_save_path}}.pt")
                 else:
-                    model.compile(_sp['optimizer'], lr=_sp['lr'],
+                    _sp_decay = None
+                    _sp_decay_type = _sp.get('decay_type', 'none')
+                    if _sp_decay_type and _sp_decay_type != 'none':
+                        _sp_p1 = _sp.get('decay_p1', 0) or 0
+                        _sp_p2 = _sp.get('decay_p2', 0) or 0
+                        if _sp_decay_type == 'step':
+                            _sp_decay = ('step', int(_sp_p1), float(_sp_p2))
+                        elif _sp_decay_type == 'cosine':
+                            _sp_decay = ('cosine', int(_sp_p1), float(_sp_p2))
+                        elif _sp_decay_type == 'exponential':
+                            _sp_decay = ('exponential', float(_sp_p1))
+                    model.compile(_sp['optimizer'], lr=_sp['lr'], decay=_sp_decay,
                                   loss=_sp.get('loss', '{config.loss_type}'), loss_weights=_sp_weights,
                                   external_trainable_variables=_sp_ext_vars)
                     if {config.batch_size} > 0:
@@ -1331,7 +1507,7 @@ for _pval in _param_values:
                             filename=f"/tmp/param_history_sp{{_sp_i}}.txt", precision=6)
                         loss_history, train_state = model.train(
                             iterations=_sp['iterations'], display_every=1000,
-                            callbacks=[_sp_var_cb] + _print_cbs + _save_cbs)
+                            callbacks=[_sp_var_cb] + _print_cbs + _save_cbs + _train_cbs)
                         try:
                             with open(f"/tmp/param_history_sp{{_sp_i}}.txt", "r") as _spf:
                                 _sp_lines = [l.strip() for l in _spf if l.strip()]
@@ -1345,7 +1521,7 @@ for _pval in _param_values:
                             print(f"Could not merge phase {{_sp_i+1}} parameter history: {{_spe}}")
                         _sched_cum_iters = loss_history.steps[-1] if loss_history.steps else (_sched_cum_iters + _sp['iterations'])
                     else:
-                        loss_history, train_state = model.train(iterations=_sp['iterations'], display_every=1000)
+                        loss_history, train_state = model.train(iterations=_sp['iterations'], display_every=1000, callbacks=_train_cbs)
                     if _use_save:
                         _nta_save_path = _os.path.join(_sol_dir, f"model_adam-phase{{_sp_i+1}}")
                         model.save(_nta_save_path)
@@ -1370,7 +1546,7 @@ for _pval in _param_values:
                     model.compile("L-BFGS", loss="{config.loss_type}", loss_weights=_phase2_weights,
                                   external_trainable_variables=_inv_vars)
                     for _icb in _print_cbs: _icb.set_offset(_iters)
-                    loss_history, train_state = model.train(display_every=200, callbacks=[_var_cb2] + _print_cbs)
+                    loss_history, train_state = model.train(display_every=200, callbacks=[_var_cb2] + _print_cbs + _train_cbs)
                     # Append L-BFGS history to each variable's own convergence file
                     if _param_save_period > 0:
                         try:
@@ -1404,7 +1580,7 @@ for _pval in _param_values:
                         print(f"Could not append phase 2 history: {{_ae}}")
                 else:
                     model.compile("L-BFGS", loss="{config.loss_type}", loss_weights=_phase2_weights)
-                    loss_history, train_state = model.train(display_every=200)
+                    loss_history, train_state = model.train(display_every=200, callbacks=_train_cbs)
                     if "{config.lbfgs_float_type}" == "float64":
                         dde.config.set_default_float("float32")
                         model.net.float()
@@ -1425,7 +1601,7 @@ for _pval in _param_values:
                 else:
                     model.compile("{config.optimizer2}", lr=_lr, loss="{config.loss_type}",
                                   loss_weights=_phase2_weights)
-                loss_history, train_state = model.train(iterations={config.iterations2}, display_every=1000)
+                loss_history, train_state = model.train(iterations={config.iterations2}, display_every=1000, callbacks=_train_cbs)
 
     # ── RAR Loop ─────────────────────────────────────────────
     if "{config.adapt_method}" == "RAR" and not {config.time_adaptive}:
@@ -2435,9 +2611,12 @@ if {config.time_adaptive}:
             anchors=None if {config.forward_ic_from_file} else (_xyt_ic_anchor if (step_i > 0 and _is_2d) else None)
         )
 
-        net_i   = dde.nn.FNN({config.layers}, "{config.activation}", "Glorot uniform")
+        net_i   = dde.nn.FNN({config.layers}, "{config.activation}", "Glorot uniform"{_weight_decay_regularizer_arg})
         model_i = dde.Model(data_i, net_i)
-            
+
+        # ── Training callbacks (opt-in, fresh instances each step) ─
+{_train_cbs_code_ta}
+
         # ── Transfer learning — warm start from previous step ─
         if {config.ta_transfer_learning} and step_i > 0 and _prev_step_model_path:
             try:
@@ -2553,19 +2732,47 @@ if {config.time_adaptive}:
                     _lbfgs_float = "{config.lbfgs_float_type}"
                     model_i.compile("L-BFGS", loss=_sp.get('loss', '{config.loss_type}'),
                                     loss_weights=_sp_weights)
-                    lh_i, ts_i = model_i.train(display_every=200)
+                    lh_i, ts_i = model_i.train(display_every=200, callbacks=_train_cbs_ta)
                     if _use_save:
                         _sp_step_dir = _os.path.join(_save_dir, "time_adaptive_steps", f"step_{{step_i+1:03d}}_t{{t0:.4f}}_to_t{{t1:.4f}}")
                         _os.makedirs(_sp_step_dir, exist_ok=True)
                         _sp_save_path = _os.path.join(_sp_step_dir, f"model_lbfgs-phase{{_sp_i+1}}")
                         model_i.save(_sp_save_path)
                         print(f"  Phase {{_sp_i+2}} L-BFGS model saved: {{_sp_save_path}}.pt")
+                elif _sp['optimizer'] == 'nncg':
+                    # See the matching NNCG branch in the Standard scheduler
+                    # loop above for why: exact-case "NNCG" name, no lr=, no
+                    # decay (NNCG_options is left at its defaults -- not
+                    # exposed in this app's UI).
+                    model_i.compile("NNCG", loss=_sp.get('loss', '{config.loss_type}'),
+                                    loss_weights=_sp_weights)
+                    if {config.batch_size} > 0:
+                        data_i.batch_size = {config.batch_size}
+                    lh_i, ts_i = model_i.train(iterations=_sp['iterations'], display_every=1000, callbacks=_train_cbs_ta)
+                    if _use_save:
+                        _sp_iters = lh_i.steps[-1] if lh_i.steps else _sp['iterations']
+                        _sp_step_dir = _os.path.join(_save_dir, "time_adaptive_steps", f"step_{{step_i+1:03d}}_t{{t0:.4f}}_to_t{{t1:.4f}}")
+                        _os.makedirs(_sp_step_dir, exist_ok=True)
+                        _sp_save_path = _os.path.join(_sp_step_dir, f"model_nncg-phase{{_sp_i+1}}")
+                        model_i.save(_sp_save_path)
+                        print(f"  Phase {{_sp_i+2}} NNCG model saved: {{_sp_save_path}}.pt")
                 else:
-                    model_i.compile(_sp['optimizer'], lr=_sp['lr'],
+                    _sp_decay = None
+                    _sp_decay_type = _sp.get('decay_type', 'none')
+                    if _sp_decay_type and _sp_decay_type != 'none':
+                        _sp_p1 = _sp.get('decay_p1', 0) or 0
+                        _sp_p2 = _sp.get('decay_p2', 0) or 0
+                        if _sp_decay_type == 'step':
+                            _sp_decay = ('step', int(_sp_p1), float(_sp_p2))
+                        elif _sp_decay_type == 'cosine':
+                            _sp_decay = ('cosine', int(_sp_p1), float(_sp_p2))
+                        elif _sp_decay_type == 'exponential':
+                            _sp_decay = ('exponential', float(_sp_p1))
+                    model_i.compile(_sp['optimizer'], lr=_sp['lr'], decay=_sp_decay,
                                     loss=_sp.get('loss', '{config.loss_type}'), loss_weights=_sp_weights)
                     if {config.batch_size} > 0:
                         data_i.batch_size = {config.batch_size}
-                    lh_i, ts_i = model_i.train(iterations=_sp['iterations'], display_every=1000)
+                    lh_i, ts_i = model_i.train(iterations=_sp['iterations'], display_every=1000, callbacks=_train_cbs_ta)
                     if _use_save:
                         _sp_iters = lh_i.steps[-1] if lh_i.steps else _sp['iterations']
                         _sp_step_dir = _os.path.join(_save_dir, "time_adaptive_steps", f"step_{{step_i+1:03d}}_t{{t0:.4f}}_to_t{{t1:.4f}}")
@@ -2580,7 +2787,7 @@ if {config.time_adaptive}:
                     maxfun={config.lbfgs_maxfun}, maxls={config.lbfgs_maxls})
             model_i.compile("L-BFGS", loss="{config.loss_type}",
                             loss_weights=_multi_weights)
-            lh_i, ts_i = model_i.train(display_every=200)
+            lh_i, ts_i = model_i.train(display_every=200, callbacks=_train_cbs_ta)
             print(f"  L-BFGS phase done. Steps: {{len(lh_i.steps)}}")
 
             if _use_save:

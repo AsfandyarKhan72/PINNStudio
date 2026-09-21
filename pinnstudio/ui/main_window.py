@@ -150,6 +150,36 @@ class MainWindow(QMainWindow):
         self._display_settings_path = os.path.join(
             os.path.expanduser("~"), ".pinnstudio", "display_settings.json")
         self._load_display_settings_from_disk()
+
+        # ── Optimizer / training-callback settings ─────────────
+        # Same pattern as self._plot_viz_settings: a plain dict edited via a
+        # menu-launched dialog (Settings > Optimizer Settings / Training
+        # Callbacks), read directly by _build_config(). weight_decay applies
+        # to whichever network is trained (see codegen.py) -- it is 0.0 (off)
+        # by default, matching all pre-existing behavior exactly.
+        self._optimizer_settings = {
+            "weight_decay": 0.0,
+        }
+        # Every callback is off by default -- matches all pre-existing
+        # behavior exactly until the user opts in via the dialog.
+        self._callback_settings = {
+            "early_stopping": False,
+            "early_stopping_min_delta": 0.0,
+            "early_stopping_patience": 2000,
+            "early_stopping_baseline": "",
+            "early_stopping_monitor": "loss_train",
+            "early_stopping_start_from": 0,
+            "point_resampler": False,
+            "point_resampler_period": 100,
+            "point_resampler_pde_points": True,
+            "point_resampler_bc_points": False,
+            "model_checkpoint": False,
+            "checkpoint_period": 1000,
+            "checkpoint_save_better_only": True,
+            "checkpoint_monitor": "train loss",
+            "timer": False,
+            "timer_minutes": 60.0,
+        }
         self._apply_theme()
         self._build_ui()
         self._apply_display_settings()
@@ -415,6 +445,14 @@ class MainWindow(QMainWindow):
         float_action = QAction("Float Precision...", self)
         float_action.triggered.connect(self._on_float_settings)
         settings_menu.addAction(float_action)
+
+        optimizer_settings_action = QAction("Optimizer Settings...", self)
+        optimizer_settings_action.triggered.connect(self._on_optimizer_settings)
+        settings_menu.addAction(optimizer_settings_action)
+
+        callbacks_action = QAction("Training Callbacks...", self)
+        callbacks_action.triggered.connect(self._on_callback_settings)
+        settings_menu.addAction(callbacks_action)
 
         view_menu = menubar.addMenu("🎨 Display")
         display_action = QAction("Display Settings...", self)
@@ -2800,14 +2838,11 @@ class MainWindow(QMainWindow):
         is_custom = self._is_custom_problem()
         if is_custom:
             self.custom_bc_note.setText(
-                "No template selected — build your own boundary conditions.\n"
-                "Add one per boundary you need; each can be any DeepXDE BC type,\n"
-                "on any output, at any location you describe.")
+                "No template selected — build your own boundary conditions.")
         else:
             template_name = self.quick_examples_combo.currentText() if hasattr(self, 'quick_examples_combo') else ''
             self.custom_bc_note.setText(
-                f"Pre-filled from the \"{template_name}\" template — edit, remove, or add\n"
-                "to these rows freely; whatever is listed here is what trains.")
+                f"Pre-filled from the \"{template_name}\" template.")
         self.add_custom_bc_btn.setEnabled(True)
         self.add_custom_bc_btn.setToolTip("")
         if hasattr(self, 'weights_main_layout'):
@@ -3516,6 +3551,23 @@ class MainWindow(QMainWindow):
             ic_pretrain_num_initial=self.ic_pretrain_init.value(),
             ic_pretrain_restore=self.ic_pretrain_restore_cb.isChecked(),
             ic_pretrain_restore_path=self.ic_pretrain_restore_path.text().strip(),
+            weight_decay=self._optimizer_settings.get("weight_decay", 0.0),
+            cb_early_stopping=self._callback_settings.get("early_stopping", False),
+            cb_early_stopping_min_delta=self._callback_settings.get("early_stopping_min_delta", 0.0),
+            cb_early_stopping_patience=self._callback_settings.get("early_stopping_patience", 2000),
+            cb_early_stopping_baseline=self._callback_settings.get("early_stopping_baseline", ""),
+            cb_early_stopping_monitor=self._callback_settings.get("early_stopping_monitor", "loss_train"),
+            cb_early_stopping_start_from=self._callback_settings.get("early_stopping_start_from", 0),
+            cb_point_resampler=self._callback_settings.get("point_resampler", False),
+            cb_point_resampler_period=self._callback_settings.get("point_resampler_period", 100),
+            cb_point_resampler_pde_points=self._callback_settings.get("point_resampler_pde_points", True),
+            cb_point_resampler_bc_points=self._callback_settings.get("point_resampler_bc_points", False),
+            cb_model_checkpoint=self._callback_settings.get("model_checkpoint", False),
+            cb_checkpoint_period=self._callback_settings.get("checkpoint_period", 1000),
+            cb_checkpoint_save_better_only=self._callback_settings.get("checkpoint_save_better_only", True),
+            cb_checkpoint_monitor=self._callback_settings.get("checkpoint_monitor", "train loss"),
+            cb_timer=self._callback_settings.get("timer", False),
+            cb_timer_minutes=self._callback_settings.get("timer_minutes", 60.0),
             plot_colormap=self._plot_viz_settings.get('colormap', 'RdBu_r'),
             plot_levels=self._plot_viz_settings.get('levels', 50),
             plot_resolution=self._plot_viz_settings.get('resolution', 100),
@@ -3656,6 +3708,10 @@ class MainWindow(QMainWindow):
             self._add_scheduler_phase(
                 ph.get("optimizer", "adam"), ph.get("iterations", 10000), ph.get("lr", 0.001)
             )
+            new_row = self.sched_phase_list[-1]
+            self._set_combo_data(new_row['decay_type'], ph.get('decay_type', 'none'))
+            new_row['decay_p1'].setValue(ph.get('decay_p1', 0) or 0)
+            new_row['decay_p2'].setValue(ph.get('decay_p2', 0) or 0)
         return phases
 
     def _apply_phase_weights(self, phases, n_out, is_2d):
@@ -4005,6 +4061,29 @@ class MainWindow(QMainWindow):
             self.lbfgs_float_combo.setCurrentText(config.lbfgs_float_type)
         self._float_type = config.float_type
 
+        # Optimizer / training-callback settings
+        self._optimizer_settings = {
+            "weight_decay": config.weight_decay,
+        }
+        self._callback_settings = {
+            "early_stopping": config.cb_early_stopping,
+            "early_stopping_min_delta": config.cb_early_stopping_min_delta,
+            "early_stopping_patience": config.cb_early_stopping_patience,
+            "early_stopping_baseline": config.cb_early_stopping_baseline,
+            "early_stopping_monitor": config.cb_early_stopping_monitor,
+            "early_stopping_start_from": config.cb_early_stopping_start_from,
+            "point_resampler": config.cb_point_resampler,
+            "point_resampler_period": config.cb_point_resampler_period,
+            "point_resampler_pde_points": config.cb_point_resampler_pde_points,
+            "point_resampler_bc_points": config.cb_point_resampler_bc_points,
+            "model_checkpoint": config.cb_model_checkpoint,
+            "checkpoint_period": config.cb_checkpoint_period,
+            "checkpoint_save_better_only": config.cb_checkpoint_save_better_only,
+            "checkpoint_monitor": config.cb_checkpoint_monitor,
+            "timer": config.cb_timer,
+            "timer_minutes": config.cb_timer_minutes,
+        }
+
         # Mini-batch training
         if config.batch_size and config.batch_size > 0:
             self.batch_check.setChecked(True)
@@ -4217,10 +4296,67 @@ class MainWindow(QMainWindow):
             )
         return True, ""
 
+    def _validate_optimizer_settings(self, config):
+        """Catches three real DeepXDE incompatibilities before a run starts,
+        rather than letting them surface as a mid-training crash or a
+        cryptic traceback: (1) weight_decay > 0 combined with L-BFGS or
+        NNCG anywhere in the run -- both raise ValueError for any nonzero
+        weight_decay; (2) AdamW selected with weight_decay == 0 -- DeepXDE
+        raises ValueError since AdamW requires non-zero weight decay; (3)
+        NNCG selected without a new-enough deepxde installed -- NNCG was
+        added in deepxde 1.13.0, and this app's minimum pinned version is
+        1.10.0, so older installs would hit a NotImplementedError deep
+        inside training instead of a clear upgrade message."""
+        import json as _json_val
+        try:
+            phases = _json_val.loads(config.scheduler_phases) if config.scheduler_phases else []
+        except (ValueError, TypeError):
+            phases = []
+        # Include the legacy single phase-2 optimizer field too -- it's
+        # hidden in the current UI (the Training Phases scheduler is always
+        # on), but still drives training for a config saved before the
+        # scheduler existed and then re-solved without ever touching the
+        # (now-hidden) phase-2 widgets.
+        phase_opts = [p.get("optimizer") for p in phases] + [config.optimizer2]
+        uses_lbfgs_or_nncg = (
+            "lbfgs" in phase_opts or "nncg" in phase_opts
+            or (config.adapt_method == "RAR" and config.rar_lbfgs_iters > 0)
+        )
+        if config.weight_decay > 0 and uses_lbfgs_or_nncg:
+            return False, (
+                "⚠️ Weight decay is set > 0 (Settings > Optimizer Settings), but "
+                "this run uses L-BFGS and/or NNCG somewhere (Training Phases, or "
+                "RAR's optional L-BFGS polish) — both reject any nonzero weight "
+                "decay. Set weight decay to 0, or remove L-BFGS/NNCG from the "
+                "run, before solving.")
+        if "adamw" in phase_opts and config.weight_decay == 0:
+            return False, (
+                "⚠️ A Training Phase is set to use AdamW, which requires a "
+                "nonzero weight decay. Set one in Settings > Optimizer "
+                "Settings, or switch that phase to Adam instead.")
+        if "nncg" in phase_opts:
+            try:
+                import deepxde as _dde_check
+                _ver = tuple(int(x) for x in _dde_check.__version__.split(".")[:3])
+            except Exception:
+                _ver = None
+            if _ver is not None and _ver < (1, 13, 0):
+                return False, (
+                    f"⚠️ A Training Phase is set to use NNCG, which requires "
+                    f"deepxde>=1.13.0 (you have {_dde_check.__version__} installed). "
+                    f"Upgrade with: pip install --upgrade deepxde — or switch that "
+                    f"phase to Adam or L-BFGS instead.")
+        return True, ""
+
     def _on_solve(self):
         _ok, _msg = self._geometry_supported_for_training()
         if not _ok:
             self.log_box.append(_msg)
+            return
+        _config_preview = self._build_config()
+        _ok2, _msg2 = self._validate_optimizer_settings(_config_preview)
+        if not _ok2:
+            self.log_box.append(_msg2)
             return
         self.solve_btn.setEnabled(False)
         self.solve_btn.setText("⏳  Solving...")
@@ -4231,7 +4367,7 @@ class MainWindow(QMainWindow):
         for _p in ["/tmp/loss_plot.png", "/tmp/solution_plot.png", "/tmp/param_plot.png"]:
             if os.path.exists(_p):
                 os.remove(_p)
-        config = self._build_config()
+        config = _config_preview
         self.thread = SolverThread(config)
         self.thread.output_signal.connect(self._on_output)
         self.thread.done_signal.connect(self._on_done)
@@ -4378,7 +4514,209 @@ class MainWindow(QMainWindow):
 
         ok_btn.clicked.connect(_on_ok)
         dialog.exec()
-    
+
+    def _on_optimizer_settings(self):
+        """Weight decay (L2 regularization) -- applies to the whole network
+        being trained (main model, every scheduler phase, IC pre-training,
+        RAR refinement), since DeepXDE sets this at network-construction
+        time rather than per optimizer call. NOT compatible with L-BFGS or
+        NNCG (DeepXDE raises an error if weight_decay > 0 for either) --
+        checked at Solve time in _validate_optimizer_settings(), not just
+        left to crash mid-run."""
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Optimizer Settings")
+        dialog.setMinimumWidth(380)
+        layout = QVBoxLayout(dialog)
+
+        note = QLabel(
+            "Weight decay (L2 regularization) applies to Adam, AdamW, SGD\n"
+            "and RMSprop phases. It is NOT compatible with L-BFGS or NNCG --\n"
+            "leave it at 0 if any phase in Training Phases uses either of\n"
+            "those. AdamW requires a non-zero weight decay to be selected.")
+        note.setWordWrap(True)
+        self._register_style(note, "hint", lambda css, _c='#586e75', _e='': f"color: {_c}; {_e}{css}")
+        layout.addWidget(note)
+
+        wd_row = QHBoxLayout()
+        wd_row.addWidget(QLabel("Weight decay (L2):"))
+        wd_spin = SciLineEdit(self._optimizer_settings.get("weight_decay", 0.0))
+        wd_spin.setFixedWidth(130)
+        wd_row.addStretch(); wd_row.addWidget(wd_spin)
+        layout.addLayout(wd_row)
+
+        btn_row = QHBoxLayout()
+        ok_btn = QPushButton("OK"); cancel_btn = QPushButton("Cancel")
+        btn_row.addStretch(); btn_row.addWidget(ok_btn); btn_row.addWidget(cancel_btn)
+        layout.addLayout(btn_row)
+        cancel_btn.clicked.connect(dialog.reject)
+
+        def _on_ok():
+            self._optimizer_settings["weight_decay"] = wd_spin.value()
+            dialog.accept()
+
+        ok_btn.clicked.connect(_on_ok)
+        dialog.exec()
+
+    def _on_callback_settings(self):
+        """Optional DeepXDE training callbacks -- all off by default. Applied
+        to the live Training Phases scheduler (and the legacy single/dual-
+        phase fallback), NOT to IC pre-training or the RAR refinement
+        sub-loop, which are short, purpose-built inner loops of their own
+        (see codegen.py's _train_cbs construction for the full scoping
+        note)."""
+        from PyQt6.QtWidgets import QScrollArea
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Training Callbacks")
+        dialog.setMinimumWidth(420)
+        dialog.setMinimumHeight(520)
+        outer = QVBoxLayout(dialog)
+        scroll = QScrollArea(); scroll.setWidgetResizable(True)
+        content = QWidget()
+        layout = QVBoxLayout(content)
+        scroll.setWidget(content)
+        outer.addWidget(scroll)
+
+        cs = self._callback_settings
+
+        # ── Early Stopping ──────────────────────────────────
+        es_group = QGroupBox("Early Stopping")
+        es_layout = QVBoxLayout(es_group)
+        es_cb = QCheckBox("Stop training when loss stops improving")
+        es_cb.setChecked(cs.get("early_stopping", False))
+        es_layout.addWidget(es_cb)
+        es_fields = QWidget()
+        es_fl = QVBoxLayout(es_fields); es_fl.setContentsMargins(0, 0, 0, 0)
+
+        def _es_row(label, widget):
+            row = QHBoxLayout(); row.addWidget(QLabel(label))
+            row.addStretch(); row.addWidget(widget)
+            es_fl.addLayout(row)
+
+        es_min_delta = SciLineEdit(cs.get("early_stopping_min_delta", 0.0)); es_min_delta.setFixedWidth(110)
+        _es_row("Min. delta:", es_min_delta)
+        es_patience = QSpinBox(); es_patience.setRange(1, 1000000); es_patience.setSingleStep(100)
+        es_patience.setValue(int(cs.get("early_stopping_patience", 2000))); es_patience.setFixedWidth(110)
+        _es_row("Patience (iters):", es_patience)
+        es_baseline = QLineEdit(str(cs.get("early_stopping_baseline", "") or ""))
+        es_baseline.setPlaceholderText("(none)"); es_baseline.setFixedWidth(110)
+        _es_row("Baseline loss:", es_baseline)
+        es_monitor = QComboBox()
+        es_monitor.addItem("Training loss", "loss_train")
+        es_monitor.addItem("Testing loss", "loss_test")
+        self._set_combo_data(es_monitor, cs.get("early_stopping_monitor", "loss_train"))
+        es_monitor.setFixedWidth(110)
+        _es_row("Monitor:", es_monitor)
+        es_start = QSpinBox(); es_start.setRange(0, 1000000); es_start.setSingleStep(100)
+        es_start.setValue(int(cs.get("early_stopping_start_from", 0))); es_start.setFixedWidth(110)
+        _es_row("Start after (iters):", es_start)
+        es_layout.addWidget(es_fields)
+        es_fields.setVisible(es_cb.isChecked())
+        es_cb.stateChanged.connect(lambda s: es_fields.setVisible(s == 2))
+        layout.addWidget(es_group)
+
+        # ── Point Resampling ────────────────────────────────
+        pr_group = QGroupBox("Point Resampling")
+        pr_layout = QVBoxLayout(pr_group)
+        pr_cb = QCheckBox("Periodically resample collocation points")
+        pr_cb.setChecked(cs.get("point_resampler", False))
+        pr_layout.addWidget(pr_cb)
+        pr_fields = QWidget()
+        pr_fl = QVBoxLayout(pr_fields); pr_fl.setContentsMargins(0, 0, 0, 0)
+        pr_period = QSpinBox(); pr_period.setRange(1, 1000000); pr_period.setSingleStep(10)
+        pr_period.setValue(int(cs.get("point_resampler_period", 100))); pr_period.setFixedWidth(110)
+        _pr_row = QHBoxLayout(); _pr_row.addWidget(QLabel("Resample every (iters):"))
+        _pr_row.addStretch(); _pr_row.addWidget(pr_period)
+        pr_fl.addLayout(_pr_row)
+        pr_pde = QCheckBox("Resample PDE (domain) points")
+        pr_pde.setChecked(cs.get("point_resampler_pde_points", True))
+        pr_fl.addWidget(pr_pde)
+        pr_bc = QCheckBox("Also resample boundary-condition points")
+        pr_bc.setChecked(cs.get("point_resampler_bc_points", False))
+        pr_fl.addWidget(pr_bc)
+        pr_layout.addWidget(pr_fields)
+        pr_fields.setVisible(pr_cb.isChecked())
+        pr_cb.stateChanged.connect(lambda s: pr_fields.setVisible(s == 2))
+        layout.addWidget(pr_group)
+
+        # ── Model Checkpoint ─────────────────────────────────
+        ck_group = QGroupBox("Model Checkpoint")
+        ck_layout = QVBoxLayout(ck_group)
+        ck_cb = QCheckBox("Periodically save the model during training")
+        ck_cb.setChecked(cs.get("model_checkpoint", False))
+        ck_layout.addWidget(ck_cb)
+        ck_fields = QWidget()
+        ck_fl = QVBoxLayout(ck_fields); ck_fl.setContentsMargins(0, 0, 0, 0)
+        ck_period = QSpinBox(); ck_period.setRange(1, 1000000); ck_period.setSingleStep(100)
+        ck_period.setValue(int(cs.get("checkpoint_period", 1000))); ck_period.setFixedWidth(110)
+        _ck_row = QHBoxLayout(); _ck_row.addWidget(QLabel("Check every (iters):"))
+        _ck_row.addStretch(); _ck_row.addWidget(ck_period)
+        ck_fl.addLayout(_ck_row)
+        ck_better = QCheckBox("Only save when the monitored loss improves")
+        ck_better.setChecked(cs.get("checkpoint_save_better_only", True))
+        ck_fl.addWidget(ck_better)
+        ck_monitor = QComboBox()
+        ck_monitor.addItem("Training loss", "train loss")
+        ck_monitor.addItem("Testing loss", "test loss")
+        self._set_combo_data(ck_monitor, cs.get("checkpoint_monitor", "train loss"))
+        ck_monitor.setFixedWidth(110)
+        _ck_mrow = QHBoxLayout(); _ck_mrow.addWidget(QLabel("Monitor:"))
+        _ck_mrow.addStretch(); _ck_mrow.addWidget(ck_monitor)
+        ck_fl.addLayout(_ck_mrow)
+        ck_layout.addWidget(ck_fields)
+        ck_fields.setVisible(ck_cb.isChecked())
+        ck_cb.stateChanged.connect(lambda s: ck_fields.setVisible(s == 2))
+        layout.addWidget(ck_group)
+
+        # ── Timer ────────────────────────────────────────────
+        tm_group = QGroupBox("Training Timer")
+        tm_layout = QVBoxLayout(tm_group)
+        tm_cb = QCheckBox("Stop training after a time budget")
+        tm_cb.setChecked(cs.get("timer", False))
+        tm_layout.addWidget(tm_cb)
+        tm_fields = QWidget()
+        tm_fl = QVBoxLayout(tm_fields); tm_fl.setContentsMargins(0, 0, 0, 0)
+        tm_minutes = QDoubleSpinBox(); tm_minutes.setRange(0.5, 100000); tm_minutes.setDecimals(1)
+        tm_minutes.setValue(float(cs.get("timer_minutes", 60.0))); tm_minutes.setFixedWidth(110)
+        _tm_row = QHBoxLayout(); _tm_row.addWidget(QLabel("Available time (minutes):"))
+        _tm_row.addStretch(); _tm_row.addWidget(tm_minutes)
+        tm_fl.addLayout(_tm_row)
+        tm_layout.addWidget(tm_fields)
+        tm_fields.setVisible(tm_cb.isChecked())
+        tm_cb.stateChanged.connect(lambda s: tm_fields.setVisible(s == 2))
+        layout.addWidget(tm_group)
+
+        layout.addStretch()
+
+        btn_row = QHBoxLayout()
+        ok_btn = QPushButton("OK"); cancel_btn = QPushButton("Cancel")
+        btn_row.addStretch(); btn_row.addWidget(ok_btn); btn_row.addWidget(cancel_btn)
+        outer.addLayout(btn_row)
+        cancel_btn.clicked.connect(dialog.reject)
+
+        def _on_ok():
+            self._callback_settings = {
+                "early_stopping": es_cb.isChecked(),
+                "early_stopping_min_delta": es_min_delta.value(),
+                "early_stopping_patience": es_patience.value(),
+                "early_stopping_baseline": es_baseline.text().strip(),
+                "early_stopping_monitor": es_monitor.currentData(),
+                "early_stopping_start_from": es_start.value(),
+                "point_resampler": pr_cb.isChecked(),
+                "point_resampler_period": pr_period.value(),
+                "point_resampler_pde_points": pr_pde.isChecked(),
+                "point_resampler_bc_points": pr_bc.isChecked(),
+                "model_checkpoint": ck_cb.isChecked(),
+                "checkpoint_period": ck_period.value(),
+                "checkpoint_save_better_only": ck_better.isChecked(),
+                "checkpoint_monitor": ck_monitor.currentData(),
+                "timer": tm_cb.isChecked(),
+                "timer_minutes": tm_minutes.value(),
+            }
+            dialog.accept()
+
+        ok_btn.clicked.connect(_on_ok)
+        dialog.exec()
+
     def _on_view_domain_changed(self, state):
         if state == 2:
             self._preview_domain()
@@ -6612,7 +6950,10 @@ print("ERROR_ANALYSIS_V2_DONE")
                 'iterations': ph['iters'].value(),
                 'lr': ph['lr'].value(),
                 'loss': ph.get('loss', self.loss_combo).currentText() if 'loss' in ph else 'MSE',
-                'weights': w_str
+                'weights': w_str,
+                'decay_type': ph['decay_type'].currentData() if 'decay_type' in ph else 'none',
+                'decay_p1': ph['decay_p1'].value() if 'decay_p1' in ph else 0,
+                'decay_p2': ph['decay_p2'].value() if 'decay_p2' in ph else 0,
             })
         import json
         return json.dumps(phases)
@@ -6658,7 +6999,9 @@ print("ERROR_ANALYSIS_V2_DONE")
         opt_row.addWidget(QLabel("Optimizer:"))
         opt_combo = QComboBox()
         opt_combo.addItem("Adam", "adam")
+        opt_combo.addItem("AdamW", "adamw")
         opt_combo.addItem("L-BFGS", "lbfgs")
+        opt_combo.addItem("NNCG", "nncg")
         self._set_combo_data(opt_combo, optimizer)
         opt_combo.setFixedHeight(26); opt_combo.setFixedWidth(80)
         opt_row.addStretch(); opt_row.addWidget(opt_combo)
@@ -6673,7 +7016,9 @@ print("ERROR_ANALYSIS_V2_DONE")
         iter_row.addStretch(); iter_row.addWidget(iter_spin)
         phase_layout.addLayout(iter_row)
 
-        # Learning rate (not used by L-BFGS — hidden for lbfgs phases)
+        # Learning rate (not used by L-BFGS/NNCG — hidden for those phases;
+        # NNCG has its own internal learning rate via DeepXDE's NNCG
+        # hyperparameters, left at DeepXDE's defaults for now)
         lr_widget = QWidget()
         lr_row = QHBoxLayout(lr_widget)
         lr_row.setContentsMargins(0, 0, 0, 0)
@@ -6684,10 +7029,74 @@ print("ERROR_ANALYSIS_V2_DONE")
         lr_spin.setFixedHeight(26)
         lr_row.addStretch(); lr_row.addWidget(lr_spin)
         phase_layout.addWidget(lr_widget)
-        lr_widget.setVisible(optimizer != "lbfgs")
-        opt_combo.currentIndexChanged.connect(
-            lambda _idx, w=lr_widget, c=opt_combo: w.setVisible(c.currentData() != "lbfgs")
-        )
+        _lr_capable = optimizer not in ("lbfgs", "nncg")
+        lr_widget.setVisible(_lr_capable)
+
+        # Learning-rate decay (Adam/AdamW/SGD/RMSprop only — ignored by
+        # L-BFGS/NNCG, so hidden together with the learning-rate field)
+        decay_widget = QWidget()
+        decay_layout = QVBoxLayout(decay_widget)
+        decay_layout.setContentsMargins(0, 0, 0, 0)
+        decay_layout.setSpacing(2)
+        decay_type_row = QHBoxLayout()
+        decay_type_row.addWidget(QLabel("LR decay:"))
+        decay_type_combo = QComboBox()
+        decay_type_combo.addItem("None", "none")
+        decay_type_combo.addItem("Step", "step")
+        decay_type_combo.addItem("Cosine", "cosine")
+        decay_type_combo.addItem("Exponential", "exponential")
+        decay_type_combo.setFixedHeight(24); decay_type_combo.setFixedWidth(100)
+        decay_type_row.addStretch(); decay_type_row.addWidget(decay_type_combo)
+        decay_layout.addLayout(decay_type_row)
+
+        decay_p1_row = QHBoxLayout()
+        decay_p1_lbl = QLabel("Step size:")
+        decay_p1_row.addWidget(decay_p1_lbl)
+        decay_p1_spin = QDoubleSpinBox()
+        decay_p1_spin.setRange(1, 500000); decay_p1_spin.setDecimals(0)
+        decay_p1_spin.setValue(5000); decay_p1_spin.setFixedHeight(24)
+        decay_p1_row.addStretch(); decay_p1_row.addWidget(decay_p1_spin)
+        decay_layout.addLayout(decay_p1_row)
+
+        decay_p2_row = QHBoxLayout()
+        decay_p2_lbl = QLabel("Gamma:")
+        decay_p2_row.addWidget(decay_p2_lbl)
+        decay_p2_spin = QDoubleSpinBox()
+        decay_p2_spin.setRange(0.0, 1.0); decay_p2_spin.setDecimals(4)
+        decay_p2_spin.setSingleStep(0.01); decay_p2_spin.setValue(0.9)
+        decay_p2_spin.setFixedHeight(24)
+        decay_p2_row.addStretch(); decay_p2_row.addWidget(decay_p2_spin)
+        decay_layout.addLayout(decay_p2_row)
+        phase_layout.addWidget(decay_widget)
+        decay_widget.setVisible(_lr_capable)
+
+        def _update_decay_fields(_idx=None, c=decay_type_combo, l1=decay_p1_lbl,
+                                  s1=decay_p1_spin, r2=decay_p2_row, l2=decay_p2_lbl,
+                                  s2=decay_p2_spin):
+            kind = c.currentData()
+            if kind == "step":
+                l1.setText("Step size:"); s1.setRange(1, 500000); s1.setDecimals(0)
+                l2.setText("Gamma:"); r2widget_visible = True
+            elif kind == "cosine":
+                l1.setText("T_max (iters):"); s1.setRange(1, 500000); s1.setDecimals(0)
+                l2.setText("Eta min:"); r2widget_visible = True
+            elif kind == "exponential":
+                l1.setText("Gamma:"); s1.setRange(0.0, 1.0); s1.setDecimals(4)
+                r2widget_visible = False
+            else:
+                r2widget_visible = False
+            s1.setVisible(kind != "none"); l1.setVisible(kind != "none")
+            for i in range(r2.count()):
+                item = r2.itemAt(i).widget()
+                if item is not None:
+                    item.setVisible(r2widget_visible)
+        decay_type_combo.currentIndexChanged.connect(_update_decay_fields)
+        _update_decay_fields()
+
+        def _update_lr_capable(_idx=None, w1=lr_widget, w2=decay_widget, c=opt_combo):
+            capable = c.currentData() not in ("lbfgs", "nncg")
+            w1.setVisible(capable); w2.setVisible(capable)
+        opt_combo.currentIndexChanged.connect(_update_lr_capable)
 
         # Loss function
         loss_row = QHBoxLayout()
@@ -6706,7 +7115,10 @@ print("ERROR_ANALYSIS_V2_DONE")
             'iters': iter_spin,
             'lr': lr_spin,
             'loss': loss_combo_ph,
-            'phase_num': phase_num
+            'phase_num': phase_num,
+            'decay_type': decay_type_combo,
+            'decay_p1': decay_p1_spin,
+            'decay_p2': decay_p2_spin,
         }
         self.sched_phase_list.append(phase_data)
 
