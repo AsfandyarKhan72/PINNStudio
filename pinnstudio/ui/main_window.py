@@ -1299,6 +1299,9 @@ class MainWindow(QMainWindow):
             'vmax': 1.0,
             'linewidth': 2.0,
             'fps': 10,
+            'title': '',
+            'xlabel': '',
+            'ylabel': '',
         }
 
         self.restore_output_widget = QWidget()
@@ -5084,13 +5087,13 @@ print("ERROR_ANALYSIS_DONE")
         self.restore_optimizer_widget.setVisible(not is_param)
         self.restore_output_widget.setVisible(not is_param)
         self.restore_param_widget.setVisible(is_param)
-        if is_param:
-            return
         self._on_restore_viz_settings(text)
 
     def _on_restore_viz_settings(self, viz_type=None):
         if viz_type is None:
             viz_type = self.restore_viz_combo.currentText()
+
+        is_param = viz_type in getattr(self, '_RESTORE_PARAM_VIZ', [])
 
         dialog = QDialog(self)
         dialog.setWindowTitle(f"Settings — {viz_type}")
@@ -5107,7 +5110,8 @@ print("ERROR_ANALYSIS_DONE")
         cmap_combo.setCurrentText(current.get('colormap', 'RdBu_r'))
         cmap_combo.setFixedWidth(120)
         cmap_row.addStretch(); cmap_row.addWidget(cmap_combo)
-        layout.addLayout(cmap_row)
+        if not is_param:
+            layout.addLayout(cmap_row)
 
         # Contour levels
         levels_row = QHBoxLayout()
@@ -5116,7 +5120,8 @@ print("ERROR_ANALYSIS_DONE")
         levels_spin.setRange(5, 200); levels_spin.setValue(current.get('levels', 40))
         levels_spin.setFixedWidth(80)
         levels_row.addStretch(); levels_row.addWidget(levels_spin)
-        layout.addLayout(levels_row)
+        if not is_param:
+            layout.addLayout(levels_row)
 
         # Resolution
         res_row = QHBoxLayout()
@@ -5126,7 +5131,8 @@ print("ERROR_ANALYSIS_DONE")
         res_combo.setCurrentText(str(current.get('resolution', 100)))
         res_combo.setFixedWidth(80)
         res_row.addStretch(); res_row.addWidget(res_combo)
-        layout.addLayout(res_row)
+        if not is_param:
+            layout.addLayout(res_row)
 
         # DPI
         dpi_row = QHBoxLayout()
@@ -5136,7 +5142,8 @@ print("ERROR_ANALYSIS_DONE")
         dpi_combo.setCurrentText(str(current.get('dpi', 100)))
         dpi_combo.setFixedWidth(80)
         dpi_row.addStretch(); dpi_row.addWidget(dpi_combo)
-        layout.addLayout(dpi_row)
+        if not is_param:
+            layout.addLayout(dpi_row)
 
         # Surface time — only for Surface
         surface_time_widget = QWidget()
@@ -5149,7 +5156,8 @@ print("ERROR_ANALYSIS_DONE")
         surface_time_spin.setFixedWidth(100)
         st_layout.addStretch(); st_layout.addWidget(surface_time_spin)
         surface_time_widget.setVisible(viz_type == "Surface")
-        layout.addWidget(surface_time_widget)
+        if not is_param:
+            layout.addWidget(surface_time_widget)
 
         # Color range — for Surface and Animation Surface
         color_range_widget = QWidget()
@@ -5171,7 +5179,8 @@ print("ERROR_ANALYSIS_DONE")
         cr_layout.addWidget(cr_manual_widget)
         cr_auto_cb.stateChanged.connect(lambda s: cr_manual_widget.setVisible(s != 2))
         color_range_widget.setVisible("Surface" in viz_type)
-        layout.addWidget(color_range_widget)
+        if not is_param:
+            layout.addWidget(color_range_widget)
 
         # Steps/frames
         steps_widget = QWidget()
@@ -5184,7 +5193,8 @@ print("ERROR_ANALYSIS_DONE")
         steps_spin.setFixedWidth(80)
         steps_layout.addStretch(); steps_layout.addWidget(steps_spin)
         steps_widget.setVisible(viz_type != "Surface")
-        layout.addWidget(steps_widget)
+        if not is_param:
+            layout.addWidget(steps_widget)
 
         # Line width — only for Line plots
         lw_widget = QWidget()
@@ -5197,7 +5207,8 @@ print("ERROR_ANALYSIS_DONE")
         lw_combo.setFixedWidth(80)
         lw_layout.addStretch(); lw_layout.addWidget(lw_combo)
         lw_widget.setVisible("Line" in viz_type)
-        layout.addWidget(lw_widget)
+        if not is_param:
+            layout.addWidget(lw_widget)
 
         # FPS — only for animations
         fps_widget = QWidget()
@@ -5210,19 +5221,54 @@ print("ERROR_ANALYSIS_DONE")
         fps_combo.setFixedWidth(80)
         fps_layout.addStretch(); fps_layout.addWidget(fps_combo)
         fps_widget.setVisible("Animation" in viz_type)
-        layout.addWidget(fps_widget)
+        if not is_param:
+            layout.addWidget(fps_widget)
 
         # Colorbar
         colorbar_cb = QCheckBox("Show colorbar")
         colorbar_cb.setChecked(current.get('colorbar', True))
         colorbar_cb.setVisible("Surface" in viz_type)
-        layout.addWidget(colorbar_cb)
+        if not is_param:
+            layout.addWidget(colorbar_cb)
+
+        # Title / axis labels — every viz type gets these; blank keeps the
+        # existing default text exactly as before.
+        labels_line = QLabel("Leave blank to keep the default title/axis labels.")
+        labels_line.setStyleSheet("color: #586e75; font-size: 11px;")
+        labels_line.setWordWrap(True)
+        layout.addWidget(labels_line)
+
+        title_row = QHBoxLayout()
+        title_row.addWidget(QLabel("Title:"))
+        title_edit = QLineEdit()
+        title_edit.setText(current.get('title', ''))
+        title_edit.setPlaceholderText("(default)")
+        title_row.addWidget(title_edit)
+        layout.addLayout(title_row)
+
+        xlabel_row = QHBoxLayout()
+        xlabel_row.addWidget(QLabel("X-axis label:"))
+        xlabel_edit = QLineEdit()
+        xlabel_edit.setText(current.get('xlabel', ''))
+        xlabel_edit.setPlaceholderText("(default)")
+        xlabel_row.addWidget(xlabel_edit)
+        layout.addLayout(xlabel_row)
+
+        ylabel_row = QHBoxLayout()
+        ylabel_row.addWidget(QLabel("Y-axis label:"))
+        ylabel_edit = QLineEdit()
+        ylabel_edit.setText(current.get('ylabel', ''))
+        ylabel_edit.setPlaceholderText("(default)")
+        ylabel_row.addWidget(ylabel_edit)
+        layout.addLayout(ylabel_row)
 
         info_texts = {
             "Surface": "Single heatmap/contour at specified time.",
             "Line (time steps)": "Solution lines at evenly spaced time steps.",
             "Animation Line (GIF)": "Animated GIF of line plots over time.",
             "Animation Surface (GIF)": "Animated GIF of surface plots with colorbar.",
+            "Parameter Convergence Plot (PNG)": "Static plot of each trainable variable's value vs. iteration.",
+            "Parameter Convergence Animation (GIF)": "Animated GIF of each trainable variable's convergence, growing curve up to each logged iteration.",
         }
         info = QLabel(info_texts.get(viz_type, ""))
         info.setStyleSheet("color: #586e75; font-size: 11px;")
@@ -5237,22 +5283,28 @@ print("ERROR_ANALYSIS_DONE")
         cancel_btn.clicked.connect(dialog.reject)
 
         def _on_ok():
-            self._restore_viz_settings = {
-                'colormap': cmap_combo.currentText(),
-                'surface_time': surface_time_spin.value(),
-                'n_steps': steps_spin.value(),
-                'colorbar': colorbar_cb.isChecked(),
-                'levels': levels_spin.value(),
-                'resolution': int(res_combo.currentText()),
-                'dpi': int(dpi_combo.currentText()),
-                'auto_range': cr_auto_cb.isChecked(),
-                'vmin': vmin_spin.value(),
-                'vmax': vmax_spin.value(),
-                'linewidth': float(lw_combo.currentText()),
-                'fps': int(fps_combo.currentText()),
-            }
-            self.restore_tsteps_spin.setValue(steps_spin.value())
-            self.log_box.append(f"✅ Viz settings saved — {viz_type}, cmap={cmap_combo.currentText()}, levels={levels_spin.value()}")
+            new_settings = dict(current)
+            if not is_param:
+                new_settings.update({
+                    'colormap': cmap_combo.currentText(),
+                    'surface_time': surface_time_spin.value(),
+                    'n_steps': steps_spin.value(),
+                    'colorbar': colorbar_cb.isChecked(),
+                    'levels': levels_spin.value(),
+                    'resolution': int(res_combo.currentText()),
+                    'dpi': int(dpi_combo.currentText()),
+                    'auto_range': cr_auto_cb.isChecked(),
+                    'vmin': vmin_spin.value(),
+                    'vmax': vmax_spin.value(),
+                    'linewidth': float(lw_combo.currentText()),
+                    'fps': int(fps_combo.currentText()),
+                })
+                self.restore_tsteps_spin.setValue(steps_spin.value())
+            new_settings['title'] = title_edit.text().strip()
+            new_settings['xlabel'] = xlabel_edit.text().strip()
+            new_settings['ylabel'] = ylabel_edit.text().strip()
+            self._restore_viz_settings = new_settings
+            self.log_box.append(f"✅ Viz settings saved — {viz_type}")
             dialog.accept()
         ok_btn.clicked.connect(_on_ok)
         dialog.exec()
@@ -6694,6 +6746,10 @@ print("ERROR_ANALYSIS_V2_DONE")
         combine_literal = repr(bool(combine))
         log_literal = repr(bool(log_scale))
         animate_literal = repr(bool(animate))
+        viz_settings = getattr(self, '_restore_viz_settings', {})
+        title_override = (viz_settings.get('title') or '').strip()
+        xlabel_override = (viz_settings.get('xlabel') or '').strip()
+        ylabel_override = (viz_settings.get('ylabel') or '').strip()
         script = f"""
 import os
 os.makedirs(r"{save_dir}", exist_ok=True)
@@ -6707,6 +6763,9 @@ _paths = {paths_literal}
 _combine = {combine_literal}
 _log_scale = {log_literal}
 _animate = {animate_literal}
+_title_override = {title_override!r}
+_xlabel_override = {xlabel_override!r}
+_ylabel_override = {ylabel_override!r}
 
 def _load_conv(path):
     name = None
@@ -6759,13 +6818,13 @@ def _draw_static_ax(ax, name, iters, vals):
     final_val = vals[-1]
     if _use_log(vals):
         ax.semilogy(iters, vals, color="#69db7c", linewidth=1.5)
-        ax.set_ylabel(f"log({{name}})")
+        ax.set_ylabel(_ylabel_override or f"log({{name}})")
     else:
         ax.plot(iters, vals, color="#69db7c", linewidth=1.5)
-        ax.set_ylabel(name)
+        ax.set_ylabel(_ylabel_override or name)
     ax.axhline(y=final_val, color="#ff8787", linestyle="--", alpha=0.5, label=f"Final = {{final_val:.6f}}")
-    ax.set_xlabel("Iteration")
-    ax.set_title(f"Inferred Parameter: {{name}}")
+    ax.set_xlabel(_xlabel_override or "Iteration")
+    ax.set_title(_title_override or f"Inferred Parameter: {{name}}")
     ax.legend(); ax.grid(True, alpha=0.3)
 
 def _setup_anim_ax(ax, name, iters, vals):
@@ -6773,17 +6832,17 @@ def _setup_anim_ax(ax, name, iters, vals):
     use_log = _use_log(vals)
     if use_log:
         ax.set_yscale("log")
-        ax.set_ylabel(f"log({{name}})")
+        ax.set_ylabel(_ylabel_override or f"log({{name}})")
     else:
-        ax.set_ylabel(name)
+        ax.set_ylabel(_ylabel_override or name)
     x_hi = iters.max() if iters.max() > iters.min() else iters.min() + 1
     ax.set_xlim(iters.min(), x_hi)
     vmin, vmax = vals.min(), vals.max()
     pad = 0.05 * (abs(vmax - vmin) if vmax != vmin else (abs(vmax) + 1))
     ax.set_ylim(vmin - pad, vmax + pad)
     ax.axhline(y=final_val, color="#ff8787", linestyle="--", alpha=0.5, label=f"Final = {{final_val:.6f}}")
-    ax.set_xlabel("Iteration")
-    ax.set_title(f"Inferred Parameter: {{name}}")
+    ax.set_xlabel(_xlabel_override or "Iteration")
+    ax.set_title(_title_override or f"Inferred Parameter: {{name}}")
     ax.legend(loc="upper right"); ax.grid(True, alpha=0.3)
     line, = ax.plot([], [], color="#69db7c", linewidth=1.5)
     return line
@@ -6866,6 +6925,9 @@ print("RESTORE_DONE")
         vmax_val = viz_settings.get('vmax', 1.0)
         linewidth = viz_settings.get('linewidth', 2.0)
         fps = viz_settings.get('fps', 10)
+        title_override = (viz_settings.get('title') or '').strip()
+        xlabel_override = (viz_settings.get('xlabel') or '').strip()
+        ylabel_override = (viz_settings.get('ylabel') or '').strip()
         layers     = cfg["layers"]
         activation = cfg["activation"]
         x_min = cfg["x_min"]; x_max = cfg["x_max"]
@@ -6961,6 +7023,15 @@ is_3d  = {str(is_3d)}
 
         if viz_type == "Surface":
             vrange = f"vmin={vmin_val}, vmax={vmax_val}" if not auto_range else ""
+            _xlabel_3d = xlabel_override or "x"
+            _ylabel_3d = ylabel_override or "y"
+            _title_3d = title_override or f"Restored Model — {out_name}(x,y,z) at t={surface_time}"
+            _xlabel_2d = xlabel_override or "x"
+            _ylabel_2d = ylabel_override or "y"
+            _title_2d = title_override or f"Restored Model — {out_name}(x,y) at t={surface_time}"
+            _xlabel_1d = xlabel_override or "x"
+            _ylabel_1d = ylabel_override or "t"
+            _title_1d = title_override or f"Restored Model — {out_name}(x,t) Surface"
             script += f"""
 res = {resolution}
 x_vals = np.linspace({x_min}, {x_max}, res)
@@ -7009,8 +7080,8 @@ if is_3d:
     if {show_colorbar}:
         _sm3 = plt.cm.ScalarMappable(cmap=_cmap_obj3, norm=_norm3)
         fig.colorbar(_sm3, ax=ax, shrink=0.6, pad=0.12)
-    ax.set_xlabel("x"); ax.set_ylabel("y"); ax.set_zlabel("z")
-    ax.set_title("Restored Model — {out_name}(x,y,z) at t={surface_time}")
+    ax.set_xlabel({_xlabel_3d!r}); ax.set_ylabel({_ylabel_3d!r}); ax.set_zlabel("z")
+    ax.set_title({_title_3d!r})
     try:
         ax.set_box_aspect((_cx1 - _cx0, _cy1 - _cy0, _cz1 - _cz0))
     except Exception:
@@ -7022,8 +7093,8 @@ elif is_2d:
     fig, ax = plt.subplots(figsize=(7, 5))
     im = ax.contourf(Xg, Yg, pred, levels={levels}, cmap="{colormap}", {vrange})
     if {show_colorbar}: fig.colorbar(im, ax=ax)
-    ax.set_xlabel("x"); ax.set_ylabel("y")
-    ax.set_title("Restored Model — {out_name}(x,y) at t={surface_time}")
+    ax.set_xlabel({_xlabel_2d!r}); ax.set_ylabel({_ylabel_2d!r})
+    ax.set_title({_title_2d!r})
 else:
     t_vals = np.linspace({t_min}, {t_max}, res)
     X, T = np.meshgrid(x_vals, t_vals)
@@ -7032,8 +7103,8 @@ else:
     fig, ax = plt.subplots(figsize=(7, 5))
     im = ax.contourf(X, T, pred, levels={levels}, cmap="{colormap}", {vrange})
     if {show_colorbar}: fig.colorbar(im, ax=ax)
-    ax.set_xlabel("x"); ax.set_ylabel("t")
-    ax.set_title("Restored Model — {out_name}(x,t) Surface")
+    ax.set_xlabel({_xlabel_1d!r}); ax.set_ylabel({_ylabel_1d!r})
+    ax.set_title({_title_1d!r})
 plt.tight_layout()
 out_path = os.path.join(r"{save_dir}", "restored_plot.png")
 plt.savefig(out_path, dpi={dpi}, bbox_inches='tight'); plt.close()
@@ -7041,6 +7112,9 @@ print(f"Surface plot saved to: {{out_path}}")
 """
             
         elif viz_type == "Line (time steps)":
+            _xlabel_line = xlabel_override or "x"
+            _ylabel_line = ylabel_override or out_name
+            _title_line = title_override or f"Restored Model — {out_name}(x,t) Line Plot"
             script += f"""
 x_vals = np.linspace({x_min}, {x_max}, {resolution})
 t_steps_vals = np.linspace({t_min}, {t_max}, {n_steps})
@@ -7057,8 +7131,8 @@ for i, tv in enumerate(t_steps_vals):
         xt = np.column_stack([x_vals, np.full_like(x_vals, tv)])
     u_line = model.predict(xt)[:, {output_idx}].flatten()
     ax.plot(x_vals, u_line, color=colors[i], linewidth={linewidth}, label=f"t={{tv:.3f}}")
-ax.set_xlabel("x"); ax.set_ylabel("{out_name}")
-ax.set_title("Restored Model — {out_name}(x,t) Line Plot")
+ax.set_xlabel({_xlabel_line!r}); ax.set_ylabel({_ylabel_line!r})
+ax.set_title({_title_line!r})
 ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
 plt.tight_layout()
 out_path = os.path.join(r"{save_dir}", "restored_plot.png")
@@ -7066,6 +7140,9 @@ plt.savefig(out_path, dpi={dpi}, bbox_inches='tight'); plt.close()
 print(f"Line plot saved to: {{out_path}}")
 """
         elif viz_type == "Animation Line (GIF)":
+            _xlabel_animline = xlabel_override or "x"
+            _ylabel_animline = ylabel_override or out_name
+            _title_line_stmt = f"ax.set_title({title_override!r})" if title_override else ""
             script += f"""
 import matplotlib.animation as _anim
 t_frames = np.linspace({t_min}, {t_max}, {n_steps})
@@ -7085,7 +7162,8 @@ u_max = max(u.max() for u in all_u)
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.set_xlim({x_min}, {x_max})
 ax.set_ylim(u_min - 0.05*abs(u_min), u_max + 0.05*abs(u_max))
-ax.set_xlabel("x"); ax.set_ylabel("{out_name}")
+ax.set_xlabel({_xlabel_animline!r}); ax.set_ylabel({_ylabel_animline!r})
+{_title_line_stmt}
 line, = ax.plot([], [], color="#4dabf7", linewidth=2)
 time_txt = ax.text(0.02, 0.95, '', transform=ax.transAxes, color='#ff8787')
 ax.grid(True, alpha=0.2)
@@ -7103,6 +7181,18 @@ print(f"Animation saved to: {{out_path}}")
 """
         
         elif viz_type == "Animation Surface (GIF)":
+            _xlabel_animsurf3d = xlabel_override or "x"
+            _ylabel_animsurf3d = ylabel_override or "y"
+            _animsurf_title_line_3d = (
+                f"ax.set_title({title_override!r})" if title_override
+                else 'ax.set_title(f"t = {t_frames[i]:.3f}")'
+            )
+            _xlabel_animsurf_else = xlabel_override or "x"
+            _ylabel_animsurf_else = ylabel_override or ("y" if is_2d else "t")
+            _animsurf_title_line_else = (
+                f"ax.set_title({title_override!r})" if title_override
+                else 'ax.set_title(f"t = {t_frames[i]:.3f}")'
+            )
             script += f"""
 import matplotlib.animation as _anim
 t_frames = np.linspace({t_min}, {t_max}, {n_steps})
@@ -7151,8 +7241,8 @@ if is_3d:
         for _fi3a, (_fX3a, _fY3a, _fZ3a) in enumerate(_faces3a):
             ax.plot_surface(_fX3a, _fY3a, _fZ3a, facecolors=_cmap_obj3a(_norm3a(all_frames[i][_fi3a])),
                              rstride=1, cstride=1, linewidth=0, antialiased=False, shade=False)
-        ax.set_xlabel("x"); ax.set_ylabel("y"); ax.set_zlabel("z")
-        ax.set_title(f"t = {{t_frames[i]:.3f}}")
+        ax.set_xlabel({_xlabel_animsurf3d!r}); ax.set_ylabel({_ylabel_animsurf3d!r}); ax.set_zlabel("z")
+        {_animsurf_title_line_3d}
         try:
             ax.set_box_aspect((_cx1a - _cx0a, _cy1a - _cy0a, _cz1a - _cz0a))
         except Exception:
@@ -7189,9 +7279,9 @@ else:
         ax.cla()
         Xp, Yp, Zp = all_frames[i]
         ax.contourf(Xp, Yp, Zp, levels={levels}, cmap="{colormap}", vmin=v_min, vmax=v_max)
-        ax.set_xlabel("x")
-        ax.set_ylabel("y" if is_2d else "t")
-        ax.set_title(f"t = {{t_frames[i]:.3f}}")
+        ax.set_xlabel({_xlabel_animsurf_else!r})
+        ax.set_ylabel({_ylabel_animsurf_else!r})
+        {_animsurf_title_line_else}
     ani = _anim.FuncAnimation(fig, update, frames={n_steps}, interval=150)
     out_path = os.path.join(r"{save_dir}", "restored_animation.gif")
     ani.save(out_path, writer='pillow', fps={fps})
