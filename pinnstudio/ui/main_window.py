@@ -9,7 +9,7 @@ from PyQt6.QtWidgets import (
     QTabWidget
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer
-from PyQt6.QtGui import QPixmap, QFont, QAction, QColor
+from PyQt6.QtGui import QPixmap, QFont, QAction, QColor, QMovie
 from pinnstudio.core.config import PINNConfig
 from pinnstudio.core.runner import run_pinn
 REFERENCE_DATA_DIR = os.path.join(
@@ -437,6 +437,9 @@ class MainWindow(QMainWindow):
         save_problem_action = QAction("Save Problem As...", self)
         save_problem_action.triggered.connect(self._save_problem)
         problem_menu.addAction(save_problem_action)
+        export_script_action = QAction("Export as DeepXDE Script...", self)
+        export_script_action.triggered.connect(self._export_deepxde_script)
+        problem_menu.addAction(export_script_action)
         settings_menu = menubar.addMenu("⚙ Settings")
         lbfgs_action = QAction("L-BFGS Options", self)
         lbfgs_action.triggered.connect(self._on_lbfgs_settings)
@@ -1695,7 +1698,10 @@ class MainWindow(QMainWindow):
 
         ctrl_row.addWidget(QLabel("  Plot type:"))
         self.plot_type_combo = QComboBox()
-        self.plot_type_combo.addItems(["Surface", "Line (time steps)"])
+        self.plot_type_combo.addItems([
+            "Surface", "Line (time steps)",
+            "Line Animation (GIF)", "Surface Animation (GIF)",
+        ])
         self.plot_type_combo.setFixedHeight(28)
         self.plot_type_combo.setFixedWidth(140)
         self.plot_type_combo.currentTextChanged.connect(self._on_plot_type_changed)
@@ -1803,15 +1809,60 @@ class MainWindow(QMainWindow):
         self.loss_label.setText("📉 Loss plot")
         self.loss_label.setStyleSheet("border: 1px solid #3e3e42; border-radius: 6px; color: #505080; background: #252526;")
         self.loss_label.setMinimumSize(500, 450)
+        self.loss_label._source_path = None
 
         self.solution_label = QLabel()
         self.solution_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.solution_label.setText("🗺 Solution plot")
         self.solution_label.setStyleSheet("border: 1px solid #3e3e42; border-radius: 6px; color: #505080; background: #252526;")
         self.solution_label.setMinimumSize(500, 450)
+        self.solution_label._source_path = None
 
-        plots_layout.addWidget(self.loss_label)
-        plots_layout.addWidget(self.solution_label)
+        # Each figure gets its own small header (title + a "save this
+        # figure" button) above the image itself, both wrapped in one
+        # container so plots_layout still just sees two side-by-side items.
+        loss_container = QWidget()
+        loss_vlayout = QVBoxLayout(loss_container)
+        loss_vlayout.setContentsMargins(0, 0, 0, 0)
+        loss_vlayout.setSpacing(2)
+        loss_header = QHBoxLayout()
+        loss_header.addWidget(QLabel("Loss"))
+        loss_header.addStretch()
+        self.loss_save_btn = QPushButton("💾 Save Figure")
+        self.loss_save_btn.setFixedHeight(24)
+        self.loss_save_btn.setToolTip("Save the loss plot currently shown")
+        self._register_style(self.loss_save_btn, "button", lambda css: f"""
+            QPushButton {{ background: #3e3e42; color: #a0c4ff; {css}
+                          border-radius: 4px; border: 1px solid #586e75; }}
+            QPushButton:hover {{ background: #586e75; }}
+        """)
+        self.loss_save_btn.clicked.connect(lambda: self._save_figure(self.loss_label, "loss_plot"))
+        loss_header.addWidget(self.loss_save_btn)
+        loss_vlayout.addLayout(loss_header)
+        loss_vlayout.addWidget(self.loss_label)
+
+        solution_container = QWidget()
+        solution_vlayout = QVBoxLayout(solution_container)
+        solution_vlayout.setContentsMargins(0, 0, 0, 0)
+        solution_vlayout.setSpacing(2)
+        solution_header = QHBoxLayout()
+        solution_header.addWidget(QLabel("Solution"))
+        solution_header.addStretch()
+        self.solution_save_btn = QPushButton("💾 Save Figure")
+        self.solution_save_btn.setFixedHeight(24)
+        self.solution_save_btn.setToolTip("Save the solution plot currently shown")
+        self._register_style(self.solution_save_btn, "button", lambda css: f"""
+            QPushButton {{ background: #3e3e42; color: #a0c4ff; {css}
+                          border-radius: 4px; border: 1px solid #586e75; }}
+            QPushButton:hover {{ background: #586e75; }}
+        """)
+        self.solution_save_btn.clicked.connect(lambda: self._save_figure(self.solution_label, "solution_plot"))
+        solution_header.addWidget(self.solution_save_btn)
+        solution_vlayout.addLayout(solution_header)
+        solution_vlayout.addWidget(self.solution_label)
+
+        plots_layout.addWidget(loss_container)
+        plots_layout.addWidget(solution_container)
         bottom_layout.addLayout(plots_layout)
 
         splitter.addWidget(right)
@@ -2089,7 +2140,7 @@ class MainWindow(QMainWindow):
 
     # ── Plot type change ──────────────────────────────────────
     def _on_plot_type_changed(self, text):
-        if text == "Line (time steps)":
+        if text in ("Line (time steps)", "Line Animation (GIF)", "Surface Animation (GIF)"):
             self._on_line_plot_settings()
     
 
@@ -2099,7 +2150,8 @@ class MainWindow(QMainWindow):
         dialog.setMinimumWidth(300)
         layout = QVBoxLayout(dialog)
 
-        info = QLabel("Select number of time steps to plot.")
+        info = QLabel("Select number of time steps to plot (also used as the number of frames for the GIF animations).")
+        info.setWordWrap(True)
         self._register_style(info, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
         layout.addWidget(info)
 
@@ -3727,6 +3779,7 @@ class MainWindow(QMainWindow):
             plot_vmin=self._plot_viz_settings.get('vmin', -1.0),
             plot_vmax=self._plot_viz_settings.get('vmax', 1.0),
             plot_linewidth=self._plot_viz_settings.get('linewidth', 2.0),
+            plot_fps=self._plot_viz_settings.get('fps', 10),
             plot_n_2d_snapshots=self._plot_viz_settings.get('n_2d_snapshots', 2),
             ea_files=repr(self._ea_settings.get('files', [])) if getattr(self, '_ea_settings', None) else "[]",
             ea_do_line=self._ea_settings.get('do_line', True) if getattr(self, '_ea_settings', None) else True,
@@ -3813,6 +3866,37 @@ class MainWindow(QMainWindow):
         )
         self._current_problem_name = problem_name
         self.log_box.append(f"✅ Problem loaded: {problem_name}")
+
+    def _export_deepxde_script(self):
+        """Export the problem exactly as currently configured in the GUI as
+        a standalone, runnable DeepXDE/PyTorch training script -- the same
+        script Solve itself generates and runs internally (generate_script
+        in codegen.py), just written to a .py file instead of piped to a
+        subprocess. Lets a user see precisely what their GUI settings
+        translate to in real DeepXDE code, and run/modify it themselves
+        outside the app."""
+        default_name = getattr(self, "_current_problem_name", "") or "problem"
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Export as DeepXDE Script", f"{default_name}.py",
+            "Python Script (*.py)"
+        )
+        if not path:
+            return
+        if not path.lower().endswith(".py"):
+            path += ".py"
+        config = self._build_config()
+        try:
+            from pinnstudio.core.codegen import generate_script
+            script = generate_script(config)
+        except Exception as e:
+            self.log_box.append(f"❌ Failed to generate DeepXDE script: {e}")
+            return
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(script)
+            self.log_box.append(f"🐍 DeepXDE script exported: {os.path.basename(path)}")
+        except Exception as e:
+            self.log_box.append(f"❌ Failed to write script file: {e}")
 
     def _apply_weight_string(self, weights_str, keys):
         """Assign a comma-separated weight string back onto self.weight_widgets,
@@ -4304,6 +4388,7 @@ class MainWindow(QMainWindow):
             "vmax": config.plot_vmax,
             "linewidth": config.plot_linewidth,
             "n_2d_snapshots": config.plot_n_2d_snapshots,
+            "fps": getattr(config, "plot_fps", 10),
         }
 
         # Error-analysis settings
@@ -4395,6 +4480,22 @@ class MainWindow(QMainWindow):
         self.inverse_group.setVisible(is_inv)
         self.param_save_label.setVisible(is_inv)
         self.param_save_combo.setVisible(is_inv)
+        # "Parameter Convergence" (iteration vs. inferred-value chart) only
+        # means anything for Inverse problems -- add it as a selectable
+        # Plot Type only while Inverse is active, and default to it (the
+        # most useful view for an Inverse run) the moment Inverse is
+        # switched on. Removing it when leaving Inverse (rather than just
+        # hiding it) keeps a stray leftover selection from silently
+        # producing no solution plot for a Forward problem.
+        _pc_idx = self.plot_type_combo.findText("Parameter Convergence")
+        if is_inv:
+            if _pc_idx == -1:
+                self.plot_type_combo.addItem("Parameter Convergence")
+            self.plot_type_combo.setCurrentText("Parameter Convergence")
+        elif _pc_idx != -1:
+            if self.plot_type_combo.currentText() == "Parameter Convergence":
+                self.plot_type_combo.setCurrentText("Surface")
+            self.plot_type_combo.removeItem(_pc_idx)
         # Time Adaptive training does not yet wire the inferred parameter
         # into its per-step training loop (no external_trainable_variables
         # there), so it silently would not converge for Inverse problems --
@@ -4527,9 +4628,12 @@ class MainWindow(QMainWindow):
         self.solve_btn.setText("⏳  Solving...")
         self.stop_btn.setEnabled(True)
         self.log_box.clear()
+        self._clear_solution_movie()
         self.loss_label.setText("⏳ Training...")
         self.solution_label.setText("⏳ Training...")
-        for _p in ["/tmp/loss_plot.png", "/tmp/solution_plot.png", "/tmp/param_plot.png"]:
+        self.loss_label._source_path = None
+        self.solution_label._source_path = None
+        for _p in ["/tmp/loss_plot.png", "/tmp/solution_plot.png", "/tmp/solution_plot.gif", "/tmp/param_plot.png"]:
             if os.path.exists(_p):
                 os.remove(_p)
         config = _config_preview
@@ -4551,6 +4655,53 @@ class MainWindow(QMainWindow):
         self.log_box.append(line)
         self.log_box.verticalScrollBar().setValue(self.log_box.verticalScrollBar().maximum())
 
+    def _clear_solution_movie(self):
+        """Stop and drop any QMovie currently animating in solution_label.
+        QLabel.setPixmap()/.setText() replace what's *displayed* but don't
+        stop a previously-set QMovie from continuing to run/decode frames
+        in the background, so this has to be called explicitly before
+        showing anything else there -- otherwise the old animation keeps
+        running invisibly."""
+        movie = getattr(self, '_solution_movie', None)
+        if movie is not None:
+            movie.stop()
+            self._solution_movie = None
+
+    def _set_solution_gif(self, path):
+        """Animate a solution GIF (Line/Surface Animation plot types)
+        directly in solution_label, scaled to fit the same box a static
+        solution plot would use."""
+        self._clear_solution_movie()
+        movie = QMovie(path)
+        movie.setScaledSize(self.solution_label.size())
+        self.solution_label.setMovie(movie)
+        self._solution_movie = movie
+        movie.start()
+
+    def _save_figure(self, label, default_basename):
+        """Save whichever figure is currently shown in `label` (loss_label
+        or solution_label after a Solve) to a location the user picks --
+        just copies the already-generated source file, so a saved PNG/GIF
+        is byte-identical to what's on screen."""
+        src = getattr(label, '_source_path', None)
+        if not src or not os.path.exists(src):
+            self.log_box.append("⚠️ No figure to save yet — run Solve first.")
+            return
+        ext = os.path.splitext(src)[1] or ".png"
+        default_name = f"{default_basename}{ext}"
+        file_filter = "GIF Animation (*.gif)" if ext.lower() == ".gif" else "PNG Image (*.png)"
+        path, _ = QFileDialog.getSaveFileName(self, "Save Figure", default_name, file_filter)
+        if not path:
+            return
+        if not os.path.splitext(path)[1]:
+            path += ext
+        try:
+            import shutil as _fig_shutil
+            _fig_shutil.copy(src, path)
+            self.log_box.append(f"💾 Figure saved: {os.path.basename(path)}")
+        except Exception as e:
+            self.log_box.append(f"❌ Failed to save figure: {e}")
+
     def _on_done(self, result):
         self.solve_btn.setEnabled(True)
         self.solve_btn.setText("▶  Solve")
@@ -4559,28 +4710,43 @@ class MainWindow(QMainWindow):
         if result == "DONE":
             self.log_box.append("\n✅ Training complete!")
             self._last_config = self._build_config()
+            self._clear_solution_movie()
+
+            # The two GIF animation plot types write "solution_plot.gif"
+            # instead of "solution_plot.png" (see codegen.py's _sol_ext) --
+            # known now from the config that was just used to run this
+            # solve, so look for the right extension instead of assuming
+            # .png.
+            _gif_types = ("Line Animation (GIF)", "Surface Animation (GIF)")
+            _is_gif = self._last_config.plot_type in _gif_types
+            _sol_ext = "gif" if _is_gif else "png"
 
             save_dir = self.save_dir_input.text().strip()
             sol_dir = os.path.join(save_dir, "solution_results") if save_dir else "/tmp"
             loss_path = os.path.join(sol_dir, "loss_plot.png")
-            solution_path = os.path.join(sol_dir, "solution_plot.png")
+            solution_path = os.path.join(sol_dir, f"solution_plot.{_sol_ext}")
             # Fallback to root save dir for older runs
             if not os.path.exists(loss_path):
                 loss_path = os.path.join(save_dir, "loss_plot.png") if save_dir else "/tmp/loss_plot.png"
             if not os.path.exists(solution_path):
-                solution_path = os.path.join(save_dir, "solution_plot.png") if save_dir else "/tmp/solution_plot.png"
+                solution_path = os.path.join(save_dir, f"solution_plot.{_sol_ext}") if save_dir else f"/tmp/solution_plot.{_sol_ext}"
 
             if os.path.exists(loss_path):
                 self.loss_label.setPixmap(QPixmap(loss_path).scaled(
                     self.loss_label.width(), self.loss_label.height(),
                     Qt.AspectRatioMode.KeepAspectRatio,
                     Qt.TransformationMode.SmoothTransformation))
+                self.loss_label._source_path = loss_path
             if os.path.exists(solution_path):
-                self.solution_label.setPixmap(QPixmap(solution_path).scaled(
-                    self.solution_label.width(), self.solution_label.height(),
-                    Qt.AspectRatioMode.KeepAspectRatio,
-                    Qt.TransformationMode.SmoothTransformation))
-            
+                if _is_gif:
+                    self._set_solution_gif(solution_path)
+                else:
+                    self.solution_label.setPixmap(QPixmap(solution_path).scaled(
+                        self.solution_label.width(), self.solution_label.height(),
+                        Qt.AspectRatioMode.KeepAspectRatio,
+                        Qt.TransformationMode.SmoothTransformation))
+                self.solution_label._source_path = solution_path
+
             if save_dir:
                 self.log_box.append(f"💾 Results saved to: {save_dir}")
 
@@ -6606,7 +6772,7 @@ print("ERROR_ANALYSIS_DONE")
         cr_manual_widget.setVisible(not cr_auto_cb.isChecked())
         cr_layout.addWidget(cr_manual_widget)
         cr_auto_cb.stateChanged.connect(lambda s: cr_manual_widget.setVisible(s != 2))
-        color_range_widget.setVisible(viz_type == "Surface")
+        color_range_widget.setVisible(viz_type in ("Surface", "Surface Animation (GIF)"))
         layout.addWidget(color_range_widget)
 
         # 2D snapshots — Surface only, 2D mode
@@ -6624,7 +6790,7 @@ print("ERROR_ANALYSIS_DONE")
         # Colorbar — Surface only
         colorbar_cb = QCheckBox("Show colorbar")
         colorbar_cb.setChecked(current.get('colorbar', True))
-        colorbar_cb.setVisible(viz_type == "Surface")
+        colorbar_cb.setVisible(viz_type in ("Surface", "Surface Animation (GIF)"))
         layout.addWidget(colorbar_cb)
 
         # Line width — Line only
@@ -6637,8 +6803,21 @@ print("ERROR_ANALYSIS_DONE")
         lw_combo.setCurrentText(str(current.get('linewidth', 2.0)))
         lw_combo.setFixedWidth(80)
         lw_layout.addStretch(); lw_layout.addWidget(lw_combo)
-        lw_widget.setVisible(viz_type == "Line (time steps)")
+        lw_widget.setVisible(viz_type in ("Line (time steps)", "Line Animation (GIF)"))
         layout.addWidget(lw_widget)
+
+        # Frame rate — the two GIF animation types only
+        fps_widget = QWidget()
+        fps_layout = QHBoxLayout(fps_widget)
+        fps_layout.setContentsMargins(0, 0, 0, 0)
+        fps_layout.addWidget(QLabel("Frame rate (fps):"))
+        fps_combo = QComboBox()
+        fps_combo.addItems(["5", "10", "15", "20", "24", "30"])
+        fps_combo.setCurrentText(str(current.get('fps', 10)))
+        fps_combo.setFixedWidth(80)
+        fps_layout.addStretch(); fps_layout.addWidget(fps_combo)
+        fps_widget.setVisible(viz_type in ("Line Animation (GIF)", "Surface Animation (GIF)"))
+        layout.addWidget(fps_widget)
 
         btn_row = QHBoxLayout()
         ok_btn = QPushButton("OK"); cancel_btn = QPushButton("Cancel")
@@ -6660,7 +6839,7 @@ print("ERROR_ANALYSIS_DONE")
                 'n_steps': current.get('n_steps', 4),
                 'n_2d_snapshots': snap_spin.value(),
                 'surface_time': current.get('surface_time', 1.0),
-                'fps': current.get('fps', 10),
+                'fps': int(fps_combo.currentText()),
             }
             self.log_box.append(f"✅ Plot settings saved — {viz_type}, cmap={cmap_combo.currentText()}, levels={levels_spin.value()}, dpi={dpi_combo.currentText()}")
             dialog.accept()

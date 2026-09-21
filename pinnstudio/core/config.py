@@ -226,6 +226,7 @@ class PINNConfig:
     plot_vmin: float = -1.0
     plot_vmax: float = 1.0
     plot_linewidth: float = 2.0
+    plot_fps: int = 10
 
     ea_files: str = "[]"
     ea_do_line: bool = True

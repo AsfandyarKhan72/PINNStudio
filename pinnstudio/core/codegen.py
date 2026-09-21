@@ -203,6 +203,12 @@ def _build_train_cbs_code(config, var_name="_train_cbs", indent=4):
 def generate_script(config):
     is_2d = config.problem_dim == "2D"
     is_3d = config.problem_dim == "3D"
+    # The "solution" output is a static PNG for every plot type except the
+    # two GIF animations, where it's an actual animated .gif file instead
+    # -- known now (at generation time) from the selected plot type, so the
+    # right extension can be baked into every solution-path literal below
+    # rather than guessed at runtime.
+    _sol_ext = "gif" if config.plot_type in ("Line Animation (GIF)", "Surface Animation (GIF)") else "png"
     # Convert user-friendly IC expressions
     ic_exprs_raw = config.ic_expressions.split("|")
     ic_exprs_converted = [_simplify_expr(e, is_2d, is_3d) for e in ic_exprs_raw]
@@ -445,7 +451,7 @@ _sol_dir = _os.path.join(_save_dir, "solution_results") if _use_save else "/tmp"
 if _use_save:
     _os.makedirs(_sol_dir, exist_ok=True)
 _loss_path     = _os.path.join(_sol_dir, "loss_plot.png")
-_solution_path = _os.path.join(_sol_dir, "solution_plot.png")
+_solution_path = _os.path.join(_sol_dir, "solution_plot.{_sol_ext}")
 _log_path      = _os.path.join(_sol_dir, "training_log.txt") if _use_save else None
 
 # ── Problem dimension ─────────────────────────────────────────
@@ -1737,7 +1743,7 @@ for _pval in _param_values:
         _run_dir = _os.path.join(_save_dir if _use_save else "/tmp", f"{{_param_name}}_{{_pval}}")
         _os.makedirs(_run_dir, exist_ok=True)
         _run_loss_path     = _os.path.join(_run_dir, "loss_plot.png")
-        _run_solution_path = _os.path.join(_run_dir, "solution_plot.png")
+        _run_solution_path = _os.path.join(_run_dir, "solution_plot.{_sol_ext}")
         _run_log_path      = _os.path.join(_run_dir, "training_log.txt")
     else:
         _run_loss_path     = _loss_path
@@ -1753,14 +1759,18 @@ for _pval in _param_values:
         total_train = [sum(l) for l in train_loss]
         total_test  = [sum(l) for l in test_loss]
 
-        plt.figure(figsize=(6, 4))
+        # Same figsize/dpi as the default single-panel solution plot below
+        # (Surface/Line/GIF) so the two figures shown side by side in the
+        # GUI's output panel read as one consistent, professional-looking
+        # pair rather than two different sizes/resolutions.
+        plt.figure(figsize=(7, 5))
         plt.semilogy(steps, total_train, label="Train loss", color="#4dabf7")
         plt.semilogy(steps, total_test,  label="Test loss",  color="#ff8787", linestyle="--")
         plt.xlabel("Iteration"); plt.ylabel("Loss")
         title_str = f"Loss — {{_param_name}}={{_pval}}" if _parametric else "Training & Test Loss"
         plt.title(title_str)
         plt.legend(); plt.tight_layout()
-        plt.savefig(_run_loss_path, dpi=100); plt.close()
+        plt.savefig(_run_loss_path, dpi={config.plot_dpi}); plt.close()
 
         if _run_log_path:
             with open(_run_log_path, "w") as f:
@@ -1828,8 +1838,150 @@ for _pval in _param_values:
     # ── Plot solution ─────────────────────────────────────────
     if not {config.time_adaptive}:
         _plot_idx = {config.plot_output_idx}
+        _plot_type = "{config.plot_type}"
 
-        if _is_2d:
+        if _problem_type == "Inverse" and _plot_type == "Parameter Convergence":
+            # Parameter Convergence isn't a spatial plot at all -- it's the
+            # iteration-vs-inferred-value chart already built just above
+            # (right after training) from this run's own parameter
+            # history. Use that chart as the "solution" plot instead of
+            # generating a spatial one, since that's what was asked to be
+            # shown by default for an Inverse problem.
+            import shutil as _shutil_pc
+            if _os.path.exists("/tmp/param_plot.png"):
+                _shutil_pc.copy("/tmp/param_plot.png", _run_solution_path)
+
+        elif _plot_type in ("Line Animation (GIF)", "Surface Animation (GIF)"):
+            import matplotlib.animation as _anim
+            _n_frames = max(2, {config.num_timesteps})
+            _fps = {config.plot_fps}
+            _t_frames = np.linspace({config.t_min}, {config.t_max}, _n_frames)
+            _y_mid_gif = (_plot_y_min + _plot_y_max) / 2.0 if (_is_2d or _is_3d) else 0.0
+            _z_mid_gif = (_plot_z_min + _plot_z_max) / 2.0 if _is_3d else 0.0
+
+            if _plot_type == "Line Animation (GIF)":
+                _x_gif = np.linspace(_plot_x_min, _plot_x_max, {config.plot_resolution})
+                _all_u_gif = []
+                for _tv in _t_frames:
+                    if _is_3d:
+                        _xt_gif = np.column_stack([_x_gif, np.full_like(_x_gif, _y_mid_gif), np.full_like(_x_gif, _z_mid_gif), np.full_like(_x_gif, _tv)])
+                    elif _is_2d:
+                        _xt_gif = np.column_stack([_x_gif, np.full_like(_x_gif, _y_mid_gif), np.full_like(_x_gif, _tv)])
+                    else:
+                        _xt_gif = np.column_stack([_x_gif, np.full_like(_x_gif, _tv)])
+                    _all_u_gif.append(model.predict(_xt_gif)[:, _plot_idx].flatten())
+                _u_min_gif = min(_u.min() for _u in _all_u_gif)
+                _u_max_gif = max(_u.max() for _u in _all_u_gif)
+                _fig_gif, _ax_gif = plt.subplots(figsize=(7, 5))
+                _ax_gif.set_xlim(_plot_x_min, _plot_x_max)
+                _ax_gif.set_ylim(_u_min_gif - 0.05*abs(_u_min_gif) - 1e-9, _u_max_gif + 0.05*abs(_u_max_gif) + 1e-9)
+                _ax_gif.set_xlabel("x"); _ax_gif.set_ylabel("u(x,t)")
+                _line_gif, = _ax_gif.plot([], [], color="#4dabf7", linewidth={config.plot_linewidth})
+                _time_txt_gif = _ax_gif.text(0.02, 0.95, '', transform=_ax_gif.transAxes, color='#ff8787')
+                _ax_gif.grid(True, alpha=0.2)
+                def _init_gif():
+                    _line_gif.set_data([], []); _time_txt_gif.set_text(''); return _line_gif, _time_txt_gif
+                def _update_gif(i):
+                    _line_gif.set_data(_x_gif, _all_u_gif[i])
+                    _time_txt_gif.set_text(f"t = {{_t_frames[i]:.3f}}")
+                    return _line_gif, _time_txt_gif
+                _ani_gif = _anim.FuncAnimation(_fig_gif, _update_gif, init_func=_init_gif, frames=_n_frames, interval=100, blit=True)
+                _ani_gif.save(_run_solution_path, writer='pillow', fps=_fps)
+                plt.close(_fig_gif)
+
+            else:  # Surface Animation (GIF)
+                if _is_3d:
+                    _res3a = 28
+                    _bbox3a = np.asarray(geom.bbox)
+                    _cx0a, _cy0a, _cz0a = _bbox3a[0]; _cx1a, _cy1a, _cz1a = _bbox3a[1]
+                    _xg3a = np.linspace(_cx0a, _cx1a, _res3a)
+                    _yg3a = np.linspace(_cy0a, _cy1a, _res3a)
+                    _zg3a = np.linspace(_cz0a, _cz1a, _res3a)
+                    _Xxy3a, _Yxy3a = np.meshgrid(_xg3a, _yg3a)
+                    _Xxz3a, _Zxz3a = np.meshgrid(_xg3a, _zg3a)
+                    _Yyz3a, _Zyz3a = np.meshgrid(_yg3a, _zg3a)
+                    _faces3a = [
+                        (_Xxy3a, _Yxy3a, np.full_like(_Xxy3a, _cz0a)),
+                        (_Xxy3a, _Yxy3a, np.full_like(_Xxy3a, _cz1a)),
+                        (_Xxz3a, np.full_like(_Xxz3a, _cy0a), _Zxz3a),
+                        (_Xxz3a, np.full_like(_Xxz3a, _cy1a), _Zxz3a),
+                        (np.full_like(_Yyz3a, _cx0a), _Yyz3a, _Zyz3a),
+                        (np.full_like(_Yyz3a, _cx1a), _Yyz3a, _Zyz3a),
+                    ]
+                    _all_frames_gif = []
+                    for _tv in _t_frames:
+                        _frame_faces_gif = []
+                        for _fX3a, _fY3a, _fZ3a in _faces3a:
+                            _fpts3a = np.column_stack([_fX3a.ravel(), _fY3a.ravel(), _fZ3a.ravel(), np.full(_fX3a.size, _tv)])
+                            _frame_faces_gif.append(model.predict(_fpts3a)[:, _plot_idx].reshape(_fX3a.shape))
+                        _all_frames_gif.append(_frame_faces_gif)
+                    if {config.plot_auto_range}:
+                        _v_min_gif = min(_f.min() for _frame in _all_frames_gif for _f in _frame)
+                        _v_max_gif = max(_f.max() for _frame in _all_frames_gif for _f in _frame)
+                    else:
+                        _v_min_gif = {config.plot_vmin}
+                        _v_max_gif = {config.plot_vmax}
+                    _fig_gif = plt.figure(figsize=(7, 5))
+                    _ax_gif = _fig_gif.add_subplot(111, projection='3d')
+                    _norm3a = plt.Normalize(vmin=_v_min_gif, vmax=_v_max_gif)
+                    _cmap_obj3a = plt.get_cmap("{config.plot_colormap}")
+                    _sm3a = plt.cm.ScalarMappable(cmap=_cmap_obj3a, norm=_norm3a)
+                    if {config.plot_colorbar}: _fig_gif.colorbar(_sm3a, ax=_ax_gif, shrink=0.6, pad=0.12)
+                    def _update_gif(i):
+                        _ax_gif.cla()
+                        for _fi3a, (_fX3a, _fY3a, _fZ3a) in enumerate(_faces3a):
+                            _ax_gif.plot_surface(_fX3a, _fY3a, _fZ3a, facecolors=_cmap_obj3a(_norm3a(_all_frames_gif[i][_fi3a])),
+                                             rstride=1, cstride=1, linewidth=0, antialiased=False, shade=False)
+                        _ax_gif.set_xlabel("x"); _ax_gif.set_ylabel("y"); _ax_gif.set_zlabel("z")
+                        _ax_gif.set_title(f"t = {{_t_frames[i]:.3f}}")
+                        try:
+                            _ax_gif.set_box_aspect((_cx1a - _cx0a, _cy1a - _cy0a, _cz1a - _cz0a))
+                        except Exception:
+                            pass
+                    _ani_gif = _anim.FuncAnimation(_fig_gif, _update_gif, frames=_n_frames, interval=150)
+                    _ani_gif.save(_run_solution_path, writer='pillow', fps=_fps)
+                    plt.close(_fig_gif)
+                else:
+                    _x_anim_gif = np.linspace(_plot_x_min, _plot_x_max, 80)
+                    _all_frames_gif = []
+                    if _is_2d:
+                        _y_anim_gif = np.linspace(_plot_y_min, _plot_y_max, 80)
+                        _Xg_gif, _Yg_gif = np.meshgrid(_x_anim_gif, _y_anim_gif)
+                        for _tv in _t_frames:
+                            _xyt_gif = np.column_stack([_Xg_gif.ravel(), _Yg_gif.ravel(), np.full(_Xg_gif.size, _tv)])
+                            _pred_gif = model.predict(_xyt_gif)[:, _plot_idx].reshape(80, 80)
+                            _all_frames_gif.append((_Xg_gif, _Yg_gif, _pred_gif))
+                    else:
+                        _t_anim_gif = np.linspace({config.t_min}, {config.t_max}, 80)
+                        _X_anim_gif, _T_anim_gif = np.meshgrid(_x_anim_gif, _t_anim_gif)
+                        for _tv in _t_frames:
+                            _xt_gif2 = np.vstack([_X_anim_gif.ravel(), np.full(_X_anim_gif.size, _tv)]).T
+                            _pred_gif = model.predict(_xt_gif2)[:, _plot_idx].reshape(80, 80)
+                            _all_frames_gif.append((_X_anim_gif, _T_anim_gif, _pred_gif))
+                    if {config.plot_auto_range}:
+                        _v_min_gif = min(_f[2].min() for _f in _all_frames_gif)
+                        _v_max_gif = max(_f[2].max() for _f in _all_frames_gif)
+                    else:
+                        _v_min_gif = {config.plot_vmin}
+                        _v_max_gif = {config.plot_vmax}
+                    _fig_gif, _ax_gif = plt.subplots(figsize=(7, 5))
+                    from mpl_toolkits.axes_grid1 import make_axes_locatable as _make_axes_locatable_gif
+                    _div_gif = _make_axes_locatable_gif(_ax_gif)
+                    _cax_gif = _div_gif.append_axes("right", size="5%", pad=0.1)
+                    _sm_gif = plt.cm.ScalarMappable(cmap="{config.plot_colormap}", norm=plt.Normalize(vmin=_v_min_gif, vmax=_v_max_gif))
+                    if {config.plot_colorbar}: _fig_gif.colorbar(_sm_gif, cax=_cax_gif)
+                    def _update_gif(i):
+                        _ax_gif.cla()
+                        _Xp_gif, _Yp_gif, _Zp_gif = _all_frames_gif[i]
+                        _ax_gif.contourf(_Xp_gif, _Yp_gif, _Zp_gif, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_v_min_gif, vmax=_v_max_gif)
+                        _ax_gif.set_xlabel("x")
+                        _ax_gif.set_ylabel("y" if _is_2d else "t")
+                        _ax_gif.set_title(f"t = {{_t_frames[i]:.3f}}")
+                    _ani_gif = _anim.FuncAnimation(_fig_gif, _update_gif, frames=_n_frames, interval=150)
+                    _ani_gif.save(_run_solution_path, writer='pillow', fps=_fps)
+                    plt.close(_fig_gif)
+
+        elif _is_2d:
             # 2D: x-y heatmaps at user-selected number of time snapshots
             _n_snaps = {config.plot_n_2d_snapshots}
             _t_snaps = np.linspace({config.t_min}, {config.t_max}, _n_snaps)
@@ -1895,9 +2047,7 @@ for _pval in _param_values:
             plt.tight_layout()
             plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
         else:
-            # 1D plot
-            _plot_type = "{config.plot_type}"
-
+            # 1D plot (_plot_type already computed above)
             if _plot_type == "Surface":
                 _res = {config.plot_resolution}
                 _x_s = np.linspace({config.x_min}, {config.x_max}, _res)
@@ -1915,7 +2065,7 @@ for _pval in _param_values:
                 ax.set_title(f"PINN Solution — {{_param_name}}={{_pval}}" if _parametric else "PINN Solution")
                 plt.tight_layout(); plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
 
-            elif _plot_type.startswith("Line"):
+            elif _plot_type == "Line (time steps)":
                 n_steps_plot = {config.num_timesteps}
                 _x_l = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
                 t_steps_plot = np.linspace({config.t_min}, {config.t_max}, n_steps_plot)
@@ -1933,8 +2083,9 @@ for _pval in _param_values:
         import shutil as _shutil
         if _run_loss_path != "/tmp/loss_plot.png":
             _shutil.copy(_run_loss_path, "/tmp/loss_plot.png")
-        if _run_solution_path != "/tmp/solution_plot.png":
-            _shutil.copy(_run_solution_path, "/tmp/solution_plot.png")
+        _tmp_solution_path = "/tmp/solution_plot.{_sol_ext}"
+        if _run_solution_path != _tmp_solution_path and _os.path.exists(_run_solution_path):
+            _shutil.copy(_run_solution_path, _tmp_solution_path)
 
         # ── Inline Error Analysis ─────────────────────────────
         if {config.ea_files}:
@@ -2921,6 +3072,12 @@ if {config.time_adaptive}:
             _step_dir = _os.path.join(_save_dir, "time_adaptive_steps", f"step_{{step_i+1:03d}}_t{{t0:.4f}}_to_t{{t1:.4f}}")
             _os.makedirs(_step_dir, exist_ok=True)
             _plot_type_step = "{config.plot_type}"
+            if _plot_type_step not in ("Surface", "Line (time steps)"):
+                # GIF animations and Parameter Convergence aren't wired up
+                # for Time-Adaptive per-step preview images yet -- fall
+                # back to the static Surface heatmap rather than silently
+                # skipping this step's preview entirely.
+                _plot_type_step = "Surface"
             _x_plot_step = np.linspace({config.x_min}, {config.x_max}, 100)
             _t_plot_step = np.linspace(t0, t1, 50)
             _Xp_step, _Tp_step = np.meshgrid(_x_plot_step, _t_plot_step)
@@ -3033,6 +3190,11 @@ if {config.time_adaptive}:
     _ta_loss_path     = _os.path.join(_sol_dir, "loss_plot.png")
 
     _plot_type_ta = "{config.plot_type}"
+    if _plot_type_ta not in ("Surface", "Line (time steps)"):
+        # Same fallback reasoning as the per-step preview above -- GIF
+        # animations and Parameter Convergence aren't wired up for
+        # Time-Adaptive's final solution plot yet.
+        _plot_type_ta = "Surface"
     if _plot_type_ta == "Surface":
         _vmin_ta = None if {config.plot_auto_range} else {config.plot_vmin}
         _vmax_ta = None if {config.plot_auto_range} else {config.plot_vmax}
@@ -3116,13 +3278,15 @@ if {config.time_adaptive}:
 
     train_loss_ta = lh_i.loss_train; test_loss_ta = lh_i.loss_test
     steps_ta = list(range(len(train_loss_ta)))
-    plt.figure(figsize=(6, 4))
+    # Same figsize/dpi as the solution plot for consistency -- see the
+    # matching comment on the non-adaptive loss plot above.
+    plt.figure(figsize=(7, 5))
     plt.semilogy(steps_ta, [sum(l) for l in train_loss_ta], label="Train", color="#4dabf7")
     plt.semilogy(steps_ta, [sum(l) for l in test_loss_ta],  label="Test",  color="#ff8787", linestyle="--")
     plt.xlabel("Iteration"); plt.ylabel("Loss")
     plt.title("Loss — Last Time Sub-domain")
     plt.legend(); plt.tight_layout()
-    plt.savefig(_ta_loss_path, dpi=100); plt.close()
+    plt.savefig(_ta_loss_path, dpi={config.plot_dpi}); plt.close()
 
     # ── Time Adaptive Error Analysis ──────────────────────────
     if {config.ea_files}:
