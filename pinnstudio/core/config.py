@@ -9,8 +9,8 @@ class PINNConfig:
     rar_cycles: int = 3
     rar_candidates: int = 50000
     rar_add_points: int = 500
-    rar_adam_iters: int = 5000
-    rar_lbfgs_iters: int = 0
+    rar_adam_iters: int = 20000
+    rar_lbfgs_iters: int = 10000
 
     time_adaptive: bool = False
     ta_num_steps: int = 5
@@ -174,6 +174,8 @@ class PINNConfig:
     ic_pretrain_iterations: int = 20000
     ic_pretrain_num_test: int = 10000
     ic_pretrain_num_initial: int = 1000
+    ic_pretrain_lr: float = 1e-3
+    ic_pretrain_loss: str = "MSE"
     batch_size: int = 0
     ic_pretrain_restore: bool = False
     ic_pretrain_restore_path: str = ""

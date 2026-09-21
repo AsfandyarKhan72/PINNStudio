@@ -457,10 +457,10 @@ class MainWindow(QMainWindow):
         callbacks_action.triggered.connect(self._on_callback_settings)
         settings_menu.addAction(callbacks_action)
 
-        view_menu = menubar.addMenu("🎨 Display")
-        display_action = QAction("Display Settings...", self)
+        settings_menu.addSeparator()
+        display_action = QAction("🎨 Display Settings...", self)
         display_action.triggered.connect(self._on_display_settings)
-        view_menu.addAction(display_action)
+        settings_menu.addAction(display_action)
 
         central = QWidget()
         self.setCentralWidget(central)
@@ -516,7 +516,7 @@ class MainWindow(QMainWindow):
             color = (t.get("color") or "").strip() or "#7070a0"
             return (f"color: {color}; margin-bottom: 6px; "
                     f"font-family: '{fam}'; font-size: {size}px; font-weight: normal;")
-        subtitle = QLabel("Physics-Informed Neural Network Solver")
+        subtitle = QLabel("Physics-Informed Neural Network (PINN) Solver")
         self._register_style(subtitle, "title", _subtitle_style_fn)
         left_layout.addWidget(subtitle)
 
@@ -765,7 +765,7 @@ class MainWindow(QMainWindow):
         pts_dist_row.addWidget(self.pts_dist_combo)
         points_layout.addLayout(pts_dist_row)
 
-        self.view_domain_check = QCheckBox("View domain & point distribution")
+        self.view_domain_check = QCheckBox("View domain && point distribution")
         self.view_domain_check.setChecked(False)
         self.view_domain_check.setVisible(False)
         self.view_domain_check.stateChanged.connect(self._on_view_domain_changed)
@@ -860,13 +860,15 @@ class MainWindow(QMainWindow):
 
         self.activation_combo = QComboBox()
         self.activation_combo.addItems(["tanh", "relu", "sigmoid", "swish"])
-        self.activation_combo.setFixedWidth(100); self.activation_combo.setFixedHeight(28)
+        self.activation_combo.setFixedHeight(28)
+        self._fit_combo_width(self.activation_combo, min_width=100)
         _nn_row("Activation:", self.activation_combo)
 
         self.kernel_init_combo = QComboBox()
         self.kernel_init_combo.addItems(
             ["Glorot uniform", "Glorot normal", "He uniform", "He normal", "zeros"])
-        self.kernel_init_combo.setFixedWidth(130); self.kernel_init_combo.setFixedHeight(28)
+        self.kernel_init_combo.setFixedHeight(28)
+        self._fit_combo_width(self.kernel_init_combo, min_width=130)
         _nn_row("Kernel initializer:", self.kernel_init_combo)
 
         # ── Input / output transform (optional) ───────────────
@@ -1024,6 +1026,7 @@ class MainWindow(QMainWindow):
         self.ic_pretrain_opt = QComboBox()
         self.ic_pretrain_opt.addItem("Adam", "adam")
         self.ic_pretrain_opt.setFixedHeight(28)
+        self._fit_combo_width(self.ic_pretrain_opt, min_width=80)
         ic_train_fields_layout.addWidget(self.ic_pretrain_opt)
         ic_train_fields_layout.addWidget(QLabel("IC pre-train iterations:"))
         self.ic_pretrain_iters = QSpinBox()
@@ -1032,6 +1035,31 @@ class MainWindow(QMainWindow):
         self.ic_pretrain_iters.setValue(20000)
         self.ic_pretrain_iters.setFixedHeight(28)
         ic_train_fields_layout.addWidget(self.ic_pretrain_iters)
+
+        # Adam learning rate -- IC pre-training used to silently reuse the
+        # main training's learning rate; it now has its own, so it can be
+        # tuned independently, same as the main Training panel's own LR.
+        ic_lr_row = QHBoxLayout()
+        ic_lr_row.addWidget(QLabel("Adam learning rate:"))
+        self.ic_pretrain_lr = QDoubleSpinBox()
+        self.ic_pretrain_lr.setRange(1e-6, 1.0); self.ic_pretrain_lr.setDecimals(6)
+        self.ic_pretrain_lr.setSingleStep(0.0001); self.ic_pretrain_lr.setValue(0.001)
+        self.ic_pretrain_lr.setFixedHeight(28); self.ic_pretrain_lr.setFixedWidth(100)
+        ic_lr_row.addStretch(); ic_lr_row.addWidget(self.ic_pretrain_lr)
+        ic_train_fields_layout.addLayout(ic_lr_row)
+
+        # Loss function -- used to be hardcoded to MSE; same option list as
+        # the main Training panel's loss function field.
+        ic_loss_row = QHBoxLayout()
+        ic_loss_row.addWidget(QLabel("Loss function:"))
+        self.ic_pretrain_loss_combo = QComboBox()
+        self.ic_pretrain_loss_combo.addItems(
+            ["MSE", "MAE", "mean l2 relative error",
+             "mean absolute percentage error", "softplus"])
+        self.ic_pretrain_loss_combo.setFixedHeight(28)
+        self._fit_combo_width(self.ic_pretrain_loss_combo, min_width=140)
+        ic_loss_row.addStretch(); ic_loss_row.addWidget(self.ic_pretrain_loss_combo)
+        ic_train_fields_layout.addLayout(ic_loss_row)
 
         # Test points
         ic_test_row = QHBoxLayout()
@@ -1072,13 +1100,19 @@ class MainWindow(QMainWindow):
         ic_restore_layout = QHBoxLayout(self.ic_pretrain_restore_widget)
         ic_restore_layout.setContentsMargins(0, 0, 0, 0)
         self.ic_pretrain_restore_path = QLineEdit()
-        self.ic_pretrain_restore_path.setPlaceholderText("Browse for IC pre-train .pt file...")
+        # Only an Adam-trained checkpoint can be restored here (the "IC
+        # pre-train optimizer" dropdown above only ever offers Adam, and
+        # restoring just loads net.state_dict() -- no optimizer state --
+        # so the file itself must genuinely have come from an Adam IC
+        # pre-training run to have valid, matching weights).
+        self.ic_pretrain_restore_path.setPlaceholderText(
+            "Browse for Adam-trained IC pre-train model (.pt)...")
         self.ic_pretrain_restore_path.setFixedHeight(26)
         ic_restore_layout.addWidget(self.ic_pretrain_restore_path)
         ic_restore_browse = QPushButton("Browse")
         ic_restore_browse.setFixedHeight(26); ic_restore_browse.setFixedWidth(65)
         ic_restore_browse.clicked.connect(lambda: self.ic_pretrain_restore_path.setText(
-            QFileDialog.getOpenFileName(None, "Select IC pre-train model", "", "Model (*.pt)")[0]))
+            QFileDialog.getOpenFileName(None, "Select Adam-trained IC pre-train model", "", "Model (*.pt)")[0]))
         ic_restore_layout.addWidget(ic_restore_browse)
         ic_pt_layout.addWidget(self.ic_pretrain_restore_widget)
 
@@ -1210,34 +1244,12 @@ class MainWindow(QMainWindow):
         row_a1.addWidget(QLabel("Method:"))
         self.adapt_combo = QComboBox()
         self.adapt_combo.addItem("None", "None")
+        self.adapt_combo.addItem("Time Adaptive Training", "Time Adaptive")
         self.adapt_combo.addItem("Residual-based Adaptive Refinement (RAR)", "RAR")
-        self.adapt_combo.addItem("Time Adaptive", "Time Adaptive")
         self.adapt_combo.setFixedHeight(28)
         self.adapt_combo.currentTextChanged.connect(self._on_adapt_changed)
         row_a1.addWidget(self.adapt_combo)
         adapt_layout.addLayout(row_a1)
-
-        # RAR widget
-        self.rar_widget = QWidget()
-        rar_layout = QVBoxLayout(self.rar_widget)
-        rar_layout.setSpacing(4); rar_layout.setContentsMargins(0, 0, 0, 0)
-
-        def _rar_row(label, default, min_v, max_v, step):
-            row = QHBoxLayout()
-            row.addWidget(QLabel(label))
-            sb = QSpinBox(); sb.setRange(min_v, max_v); sb.setSingleStep(step); sb.setValue(default)
-            sb.setFixedHeight(28); sb.setFixedWidth(100)
-            row.addStretch(); row.addWidget(sb)
-            rar_layout.addLayout(row)
-            return sb
-
-        self.rar_cycles     = _rar_row("RAR cycles:",         3,     1,    20,     1)
-        self.rar_candidates = _rar_row("Candidate points:",   50000, 1000, 200000, 5000)
-        self.rar_add_points = _rar_row("Points per cycle:",   500,   10,   10000,  100)
-        self.rar_adam_iters = _rar_row("Adam iters/cycle:",   5000,  100,  50000,  1000)
-        self.rar_lbfgs_iters= _rar_row("L-BFGS iters/cycle:", 0,    0,    50000,  1000)
-        self.rar_widget.setVisible(False)
-        adapt_layout.addWidget(self.rar_widget)
 
         # Time Adaptive widget
         self.ta_widget = QWidget()
@@ -1292,7 +1304,8 @@ class MainWindow(QMainWindow):
         self.ta_transfer_opt = QComboBox()
         self.ta_transfer_opt.addItem("Adam", "adam")
         self.ta_transfer_opt.addItem("L-BFGS", "lbfgs")
-        self.ta_transfer_opt.setFixedHeight(26); self.ta_transfer_opt.setFixedWidth(80)
+        self.ta_transfer_opt.setFixedHeight(26)
+        self._fit_combo_width(self.ta_transfer_opt, min_width=80)
         tl_row.addStretch(); tl_row.addWidget(self.ta_transfer_opt)
         self.ta_transfer_opt_widget.setVisible(False)
         ta_layout.addWidget(self.ta_transfer_opt_widget)
@@ -1301,6 +1314,34 @@ class MainWindow(QMainWindow):
 
         self.ta_widget.setVisible(False)
         adapt_layout.addWidget(self.ta_widget)
+
+        # RAR widget
+        self.rar_widget = QWidget()
+        rar_layout = QVBoxLayout(self.rar_widget)
+        rar_layout.setSpacing(4); rar_layout.setContentsMargins(0, 0, 0, 0)
+
+        def _rar_row(label, default, min_v, max_v, step):
+            row = QHBoxLayout()
+            row.addWidget(QLabel(label))
+            sb = QSpinBox(); sb.setRange(min_v, max_v); sb.setSingleStep(step); sb.setValue(default)
+            sb.setFixedHeight(28); sb.setFixedWidth(100)
+            row.addStretch(); row.addWidget(sb)
+            rar_layout.addLayout(row)
+            return sb
+
+        # RAR ("Residual-based Adaptive Refinement") periodically samples a
+        # large pool of random points, evaluates the current model's PDE
+        # residual at each one, and adds the worst-residual ones as new
+        # training points -- then retrains for a fixed number of iterations.
+        # That's one "round"; it repeats for the configured number of rounds.
+        self.rar_cycles      = _rar_row("RAR training rounds:",          3,     1,    20,     1)
+        self.rar_candidates  = _rar_row("Residual sampling points:",     50000, 1000, 200000, 5000)
+        self.rar_add_points  = _rar_row("Data points to add per cycle:", 500,   10,   10000,  100)
+        self.rar_adam_iters  = _rar_row("Adam iterations:",              20000, 100,  50000,  1000)
+        self.rar_lbfgs_iters = _rar_row("L-BFGS iterations:",            10000, 0,    50000,  1000)
+        self.rar_widget.setVisible(False)
+        adapt_layout.addWidget(self.rar_widget)
+
         left_layout.addWidget(adapt_group)
 
         # ── Inverse PINN panel ────────────────────────────────
@@ -1412,11 +1453,26 @@ class MainWindow(QMainWindow):
         # Parametric Study removed (untested, not exposed in the GUI).
 
         # ── Solve / Stop buttons ──────────────────────────────
+        # These are the two most important buttons in the app, so they're
+        # deliberately sized/weighted up from the shared "Buttons" Display
+        # Settings category rather than just inheriting it plain -- but
+        # still scaled relative to that category's own font size/family
+        # (like the subtitle label does with the "title" category) so they
+        # stay in sync if the user changes Display Settings, instead of a
+        # flatly hardcoded font-size that would silently stop responding
+        # to it (the exact bug class fixed in v14/v21).
+        def _cta_css_fn(_css):
+            cat = self._disp.get("button", self._DISP_CATEGORY_DEFAULTS.get("button", {}))
+            defaults = self._DISP_CATEGORY_DEFAULTS.get("button", {})
+            family = cat.get("family") or defaults.get("family", "Segoe UI")
+            size = round((cat.get("size") or defaults.get("size", 12)) * 1.25)
+            return f"font-family: '{family}'; font-size: {size}px; font-weight: bold;"
+
         self.solve_btn = QPushButton("▶  Solve")
-        self.solve_btn.setMinimumHeight(44)
+        self.solve_btn.setMinimumHeight(52)
         self._register_style(self.solve_btn, "button", lambda css: f"""
             QPushButton {{ background: qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 #0078d4,stop:1 #005a9e);
-                          color: white; {css} border-radius: 6px; border: none; }}
+                          color: white; {_cta_css_fn(css)} border-radius: 6px; border: none; }}
             QPushButton:hover {{ background: qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 #1a8ae8,stop:1 #0070c0); }}
             QPushButton:disabled {{ background: #333355; color: #666; }}
         """)
@@ -1424,10 +1480,10 @@ class MainWindow(QMainWindow):
         left_layout.addWidget(self.solve_btn)
 
         self.stop_btn = QPushButton("⏹  Stop")
-        self.stop_btn.setMinimumHeight(36)
+        self.stop_btn.setMinimumHeight(44)
         self.stop_btn.setEnabled(False)
         self._register_style(self.stop_btn, "button", lambda css: f"""
-            QPushButton {{ background: #6b1f1f; color: white; {css} border-radius: 6px; border: none; }}
+            QPushButton {{ background: #6b1f1f; color: white; {_cta_css_fn(css)} border-radius: 6px; border: none; }}
             QPushButton:hover {{ background: #8b2f2f; }}
             QPushButton:disabled {{ background: #333355; color: #666; }}
         """)
@@ -1513,6 +1569,7 @@ class MainWindow(QMainWindow):
         self.restore_optimizer_combo.addItem("Adam", "adam")
         self.restore_optimizer_combo.addItem("L-BFGS", "lbfgs")
         self.restore_optimizer_combo.setFixedHeight(28)
+        self._fit_combo_width(self.restore_optimizer_combo, min_width=80)
         _ro_layout.addWidget(self.restore_optimizer_combo)
         restore_content_layout.addWidget(self.restore_optimizer_widget)
 
@@ -2328,6 +2385,8 @@ class MainWindow(QMainWindow):
         row_layout.setContentsMargins(0, 0, 0, 0)
         row_layout.setSpacing(4)
 
+        row_layout.addWidget(QLabel("Start time:"))
+
         t_start_sb = QDoubleSpinBox()
         t_start_sb.setRange(0.0, 1e6); t_start_sb.setValue(t_start)
         t_start_sb.setFixedHeight(26); t_start_sb.setFixedWidth(85)
@@ -2336,13 +2395,15 @@ class MainWindow(QMainWindow):
 
         row_layout.addWidget(QLabel("→"))
 
+        row_layout.addWidget(QLabel("End time:"))
+
         t_end_sb = QDoubleSpinBox()
         t_end_sb.setRange(0.0, 1e6); t_end_sb.setValue(t_end)
         t_end_sb.setFixedHeight(26); t_end_sb.setFixedWidth(85)
         t_end_sb.setDecimals(2)
         row_layout.addWidget(t_end_sb)
 
-        row_layout.addWidget(QLabel("n="))
+        row_layout.addWidget(QLabel("Steps (n):"))
 
         steps_sb = QSpinBox()
         steps_sb.setRange(1, 500); steps_sb.setValue(steps)
@@ -2574,9 +2635,26 @@ class MainWindow(QMainWindow):
         if idx >= 0:
             combo.setCurrentIndex(idx)
 
+    def _fit_combo_width(self, combo, extra=44, min_width=0):
+        """Widen a QComboBox so its box is at least as wide as its widest
+        item's text, instead of a hand-picked fixed width that can cut off
+        a longer option (e.g. "Glorot uniform" or "L-BFGS" getting clipped
+        in a box sized for a shorter default). `extra` accounts for the
+        dropdown arrow and internal padding; `min_width` is an optional
+        floor on top of that. Call this after every combo.addItem(s) call
+        -- it reads the combo's current font, so it stays correct even if
+        Display Settings later changes the app-wide font size/family."""
+        fm = combo.fontMetrics()
+        widest = 0
+        for i in range(combo.count()):
+            w = fm.horizontalAdvance(combo.itemText(i))
+            if w > widest:
+                widest = w
+        combo.setMinimumWidth(max(min_width, widest + extra))
+
     def _on_adapt_changed(self, text):
         self.rar_widget.setVisible(text == "Residual-based Adaptive Refinement (RAR)")
-        self.ta_widget.setVisible(text == "Time Adaptive")
+        self.ta_widget.setVisible(text == "Time Adaptive Training")
     
     def _build_ta_step_groups_json(self):
         import json
@@ -2651,32 +2729,36 @@ class MainWindow(QMainWindow):
         names_ex = ", ".join([["u","v","w","p"][i] if i < 4 else f"u{i+1}" for i in range(n)])
         if is_3d:
             hint_text = (f"Outputs: {names_ex}\n"
-                         f"du_x→∂u/∂x  du_y→∂u/∂y  du_z→∂u/∂z  du_t→∂u/∂t\n"
-                         f"du_xx→∂²u/∂x²  du_yy→∂²u/∂y²  du_zz→∂²u/∂z²  du_tt→∂²u/∂t²\n"
-                         f"du_xy→∂²u/∂x∂y  du_xz→∂²u/∂x∂z  du_yz→∂²u/∂y∂z\n"
-                         f"du_xt→∂²u/∂x∂t  du_yt→∂²u/∂y∂t  du_zt→∂²u/∂z∂t\n"
-                         f"du_xxxx→∂⁴u/∂x⁴  du_yyyy→∂⁴u/∂y⁴  du_zzzz→∂⁴u/∂z⁴\n"
-                         f"du_xxyy→∂⁴u/∂x²∂y²  du_xxzz→∂⁴u/∂x²∂z²  du_yyzz→∂⁴u/∂y²∂z²\n"
-                         f"du_xxtt→∂⁴u/∂x²∂t²  du_yytt→∂⁴u/∂y²∂t²  du_zztt→∂⁴u/∂z²∂t²\n"
-                         f"Functions: sin, cos, exp, log, sqrt, tanh, pi\n"
+                         f"du_x→∂u/∂x;  du_y→∂u/∂y;  du_z→∂u/∂z;  du_t→∂u/∂t;\n"
+                         f"du_xx→∂²u/∂x²;  du_yy→∂²u/∂y²;  du_zz→∂²u/∂z²;  du_tt→∂²u/∂t²;\n"
+                         f"du_xy→∂²u/∂x∂y;  du_xz→∂²u/∂x∂z;  du_yz→∂²u/∂y∂z;\n"
+                         f"du_xt→∂²u/∂x∂t;  du_yt→∂²u/∂y∂t;  du_zt→∂²u/∂z∂t;\n"
+                         f"du_xxxx→∂⁴u/∂x⁴;  du_yyyy→∂⁴u/∂y⁴;  du_zzzz→∂⁴u/∂z⁴;\n"
+                         f"du_xxyy→∂⁴u/∂x²∂y²;  du_xxzz→∂⁴u/∂x²∂z²;  du_yyzz→∂⁴u/∂y²∂z²;\n"
+                         f"du_xxtt→∂⁴u/∂x²∂t²;  du_yytt→∂⁴u/∂y²∂t²;  du_zztt→∂⁴u/∂z²∂t².\n"
+                         f"── ── ──\n"
+                         f"Functions: sin, cos, exp, log, sqrt, tanh, pi\n\n"
                          f"e.g. 3D Heat:       du_t - 0.4*(du_xx+du_yy+du_zz)\n"
                          f"e.g. 3D Reaction:   du_t - 0.001*(du_xx+du_yy+du_zz) + u**3 - u")
         elif is_2d:
             hint_text = (f"Outputs: {names_ex}\n"
-                         f"du_x→∂u/∂x  du_y→∂u/∂y  du_t→∂u/∂t\n"
-                         f"du_xx→∂²u/∂x²  du_yy→∂²u/∂y²  du_xy→∂²u/∂x∂y\n"
-                         f"du_tt→∂²u/∂t²  du_xt→∂²u/∂x∂t  du_yt→∂²u/∂y∂t\n"
-                         f"du_xxxx→∂⁴u/∂x⁴  du_yyyy→∂⁴u/∂y⁴\n"
-                         f"du_xxyy→∂⁴u/∂x²∂y²  du_xxtt→∂⁴u/∂x²∂t²\n"
-                         f"Functions: sin, cos, exp, log, sqrt, tanh, pi\n"
-                         f"e.g. Allen-Cahn 2D: du_t - 0.001*(du_xx+du_yy) + u**3 - u\n"
+                         f"du_x→∂u/∂x;  du_y→∂u/∂y;  du_t→∂u/∂t;\n"
+                         f"du_xx→∂²u/∂x²;  du_yy→∂²u/∂y²;  du_xy→∂²u/∂x∂y;\n"
+                         f"du_tt→∂²u/∂t²;  du_xt→∂²u/∂x∂t;  du_yt→∂²u/∂y∂t;\n"
+                         f"du_xxxx→∂⁴u/∂x⁴;  du_yyyy→∂⁴u/∂y⁴;\n"
+                         f"du_xxyy→∂⁴u/∂x²∂y²;  du_xxtt→∂⁴u/∂x²∂t².\n"
+                         f"── ── ──\n"
+                         f"Functions: sin, cos, exp, log, sqrt, tanh, pi\n\n"
+                         f"e.g. 2D Heat:        du_t - 0.4*(du_xx+du_yy)\n"
+                         f"e.g. Allen-Cahn 2D:  du_t - 0.001*(du_xx+du_yy) + u**3 - u\n"
                          f"e.g. sin(pi*u)*du_xx + cos(u)*du_yy")
         else:
             hint_text = (f"Outputs: {names_ex}\n"
-                         f"du_x→∂u/∂x  du_t→∂u/∂t\n"
-                         f"du_xx→∂²u/∂x²  du_tt→∂²u/∂t²  du_xt→∂²u/∂x∂t\n"
-                         f"du_xxxx→∂⁴u/∂x⁴  du_tttt→∂⁴u/∂t⁴  du_xxtt→∂⁴u/∂x²∂t²\n"
-                         f"Functions: sin, cos, exp, log, sqrt, tanh, pi\n"
+                         f"du_x→∂u/∂x;  du_t→∂u/∂t;\n"
+                         f"du_xx→∂²u/∂x²;  du_tt→∂²u/∂t²;  du_xt→∂²u/∂x∂t;\n"
+                         f"du_xxxx→∂⁴u/∂x⁴;  du_tttt→∂⁴u/∂t⁴;  du_xxtt→∂⁴u/∂x²∂t².\n"
+                         f"── ── ──\n"
+                         f"Functions: sin, cos, exp, log, sqrt, tanh, pi\n\n"
                          f"e.g. Diffusion:      du_t - 0.4*du_xx\n"
                          f"e.g. Burgers:        du_t + u*du_x - 0.01*du_xx\n"
                          f"e.g. 4th-order:      du_t - (du_xx - du_xxxx)\n"
@@ -2912,23 +2994,44 @@ class MainWindow(QMainWindow):
             self._register_style(ic_hint_toggle, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
             self.bc_main_layout.addWidget(ic_hint_toggle)
 
-            if is_2d:
+            if is_3d:
                 ic_hint_text = (
-                    "Use x, y as spatial variables, t for time.\n"
-                    "sin(pi*x)*cos(pi*y)  →  sin wave 2D\n"
-                    "exp(-(x**2+y**2))    →  Gaussian\n"
+                    "The IC expression describes u at t = t_min, as a function of x, y, z.\n"
+                    "Use x, y, z as spatial variables (t is fixed at t_min here, so it\n"
+                    "should not appear in this expression).\n"
+                    "── ── ──\n"
+                    "sin(pi*x)*sin(pi*y)*sin(pi*z)  →  3D sine wave\n"
+                    "exp(-(x**2+y**2+z**2))         →  3D Gaussian\n"
+                    "sin(4*pi*x)*cos(4*pi*y)*sin(4*pi*z)  →  higher freq\n"
+                    "0                              →  zero IC\n"
+                    "── ── ──\n"
+                    "No need for np. or x[:,0] — handled automatically."
+                )
+            elif is_2d:
+                ic_hint_text = (
+                    "The IC expression describes u at t = t_min, as a function of x, y.\n"
+                    "Use x, y as spatial variables (t is fixed at t_min here, so it\n"
+                    "should not appear in this expression).\n"
+                    "── ── ──\n"
+                    "sin(pi*x)*cos(pi*y)      →  2D sine wave\n"
+                    "exp(-(x**2+y**2))        →  2D Gaussian\n"
                     "sin(4*pi*x)*cos(4*pi*y)  →  higher freq\n"
-                    "0                    →  zero IC\n"
+                    "0                        →  zero IC\n"
+                    "── ── ──\n"
                     "No need for np. or x[:,0] — handled automatically."
                 )
             else:
                 ic_hint_text = (
-                    "Use x as spatial variable, t for time.\n"
+                    "The IC expression describes u at t = t_min, as a function of x.\n"
+                    "Use x as the spatial variable (t is fixed at t_min here, so it\n"
+                    "should not appear in this expression).\n"
+                    "── ── ──\n"
                     "sin(pi*x)       →  sine wave\n"
                     "exp(-x**2)      →  Gaussian\n"
                     "sin(4*pi*x)     →  higher frequency\n"
                     "x*(1-x)         →  parabola\n"
                     "0               →  zero IC\n"
+                    "── ── ──\n"
                     "No need for np. or x[:,0] — handled automatically."
                 )
             ic_hint = QLabel(ic_hint_text)
@@ -3751,6 +3854,8 @@ class MainWindow(QMainWindow):
             ic_pretrain_iterations=self.ic_pretrain_iters.value(),
             ic_pretrain_num_test=self.ic_pretrain_test.value(),
             ic_pretrain_num_initial=self.ic_pretrain_init.value(),
+            ic_pretrain_lr=self.ic_pretrain_lr.value(),
+            ic_pretrain_loss=self.ic_pretrain_loss_combo.currentText(),
             ic_pretrain_restore=self.ic_pretrain_mode_restore.isChecked(),
             ic_pretrain_restore_path=self.ic_pretrain_restore_path.text().strip(),
             weight_decay=self._optimizer_settings.get("weight_decay", 0.0),
@@ -4359,6 +4464,8 @@ class MainWindow(QMainWindow):
         self.ic_pretrain_iters.setValue(config.ic_pretrain_iterations)
         self.ic_pretrain_test.setValue(config.ic_pretrain_num_test)
         self.ic_pretrain_init.setValue(config.ic_pretrain_num_initial)
+        self.ic_pretrain_lr.setValue(config.ic_pretrain_lr)
+        self.ic_pretrain_loss_combo.setCurrentText(config.ic_pretrain_loss)
         self.ic_pretrain_mode_restore.setChecked(bool(config.ic_pretrain_restore))
         self.ic_pretrain_mode_train.setChecked(not config.ic_pretrain_restore)
         self.ic_pretrain_restore_path.setText(config.ic_pretrain_restore_path)
@@ -4507,16 +4614,16 @@ class MainWindow(QMainWindow):
         # there), so it silently would not converge for Inverse problems --
         # remove it as a selectable option in Inverse mode and restore any
         # template default that was suspended when returning to Forward.
-        _ta_idx = self.adapt_combo.findText("Time Adaptive")
+        _ta_idx = self.adapt_combo.findText("Time Adaptive Training")
         if is_inv:
-            if self.adapt_combo.currentText() == "Time Adaptive":
+            if self.adapt_combo.currentText() == "Time Adaptive Training":
                 self._ta_suspended_for_inverse = True
                 self.adapt_combo.setCurrentText("None")
             if _ta_idx != -1:
                 self.adapt_combo.removeItem(_ta_idx)
         else:
             if _ta_idx == -1:
-                self.adapt_combo.addItem("Time Adaptive", "Time Adaptive")
+                self.adapt_combo.addItem("Time Adaptive Training", "Time Adaptive")
             if getattr(self, '_ta_suspended_for_inverse', False):
                 self._ta_suspended_for_inverse = False
                 _ta_cfg = getattr(self, '_current_ta_cfg', None)
@@ -4524,7 +4631,7 @@ class MainWindow(QMainWindow):
                     for _row in list(self.ta_group_rows):
                         _row['widget'].deleteLater()
                     self.ta_group_rows.clear()
-                    self.adapt_combo.setCurrentText("Time Adaptive")
+                    self.adapt_combo.setCurrentText("Time Adaptive Training")
                     for _g_start, _g_end, _g_steps in _ta_cfg['step_groups']:
                         self._add_ta_step_group(_g_start, _g_end, _g_steps)
                     self.ta_transfer_cb.setChecked(_ta_cfg.get('transfer_learning', False))
@@ -6440,7 +6547,7 @@ print("ERROR_ANALYSIS_DONE")
             self._current_ta_cfg = ta_cfg
             self._ta_suspended_for_inverse = False
             if ta_cfg and not self.radio_inverse.isChecked():
-                self.adapt_combo.setCurrentText("Time Adaptive")
+                self.adapt_combo.setCurrentText("Time Adaptive Training")
                 for g_start, g_end, g_steps in ta_cfg['step_groups']:
                     self._add_ta_step_group(g_start, g_end, g_steps)
                 self.ta_transfer_cb.setChecked(ta_cfg.get('transfer_learning', False))
@@ -6680,7 +6787,7 @@ print("ERROR_ANALYSIS_DONE")
         self._current_ta_cfg = ta_cfg
         self._ta_suspended_for_inverse = False
         if ta_cfg and not self.radio_inverse.isChecked():
-            self.adapt_combo.setCurrentText("Time Adaptive")
+            self.adapt_combo.setCurrentText("Time Adaptive Training")
             for g_start, g_end, g_steps in ta_cfg['step_groups']:
                 self._add_ta_step_group(g_start, g_end, g_steps)
             self.ta_transfer_cb.setChecked(ta_cfg.get('transfer_learning', False))
@@ -7386,7 +7493,8 @@ print("ERROR_ANALYSIS_V2_DONE")
         opt_combo.addItem("L-BFGS", "lbfgs")
         opt_combo.addItem("NNCG", "nncg")
         self._set_combo_data(opt_combo, optimizer)
-        opt_combo.setFixedHeight(26); opt_combo.setFixedWidth(80)
+        opt_combo.setFixedHeight(26)
+        self._fit_combo_width(opt_combo, min_width=80)
         opt_row.addStretch(); opt_row.addWidget(opt_combo)
         phase_layout.addLayout(opt_row)
 
@@ -7487,7 +7595,8 @@ print("ERROR_ANALYSIS_V2_DONE")
         loss_combo_ph = QComboBox()
         loss_combo_ph.addItems(["MSE", "MAE", "mean l2 relative error",
                                  "mean absolute percentage error", "softplus"])
-        loss_combo_ph.setFixedHeight(26); loss_combo_ph.setFixedWidth(160)
+        loss_combo_ph.setFixedHeight(26)
+        self._fit_combo_width(loss_combo_ph, min_width=160)
         loss_row.addStretch(); loss_row.addWidget(loss_combo_ph)
         phase_layout.addLayout(loss_row)
 

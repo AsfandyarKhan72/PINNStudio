@@ -1431,8 +1431,8 @@ for _pval in _param_values:
         _model_pre = dde.Model(_data_pre, net)
         _ic_only_weights = [0.0] * {config.num_outputs} + [1000.0] * len(_ic_ics_pre)
         print(f"  IC-only weights: {{_ic_only_weights}} — dummy PDE, IC points only")
-        _model_pre.compile("{config.ic_pretrain_optimizer}", lr={config.learning_rate},
-                           loss="MSE", loss_weights=_ic_only_weights)
+        _model_pre.compile("{config.ic_pretrain_optimizer}", lr={config.ic_pretrain_lr},
+                           loss="{config.ic_pretrain_loss}", loss_weights=_ic_only_weights)
         _ic_pre_save_dir = _os.path.join(r"{config.save_dir}", "ic_pretrain")
         _os.makedirs(_ic_pre_save_dir, exist_ok=True)
         if {config.ic_pretrain_restore} and r"{config.ic_pretrain_restore_path}" and _os.path.exists(r"{config.ic_pretrain_restore_path}"):
@@ -1700,7 +1700,13 @@ for _pval in _param_values:
         print("\\n=== Starting RAR Adaptive Refinement ===")
         for rar_cycle in range({config.rar_cycles}):
             print(f"\\n--- RAR Cycle {{rar_cycle+1}}/{config.rar_cycles} ---")
-            if _is_2d:
+            if _is_3d:
+                x_cand = np.random.uniform({config.x_min}, {config.x_max}, {config.rar_candidates})
+                y_cand = np.random.uniform({config.y_min}, {config.y_max}, {config.rar_candidates})
+                z_cand = np.random.uniform({config.z_min}, {config.z_max}, {config.rar_candidates})
+                t_cand = np.random.uniform({config.t_min}, {config.t_max}, {config.rar_candidates})
+                xt_cand = np.column_stack([x_cand, y_cand, z_cand, t_cand])
+            elif _is_2d:
                 x_cand = np.random.uniform({config.x_min}, {config.x_max}, {config.rar_candidates})
                 y_cand = np.random.uniform({config.y_min}, {config.y_max}, {config.rar_candidates})
                 t_cand = np.random.uniform({config.t_min}, {config.t_max}, {config.rar_candidates})
@@ -2922,8 +2928,8 @@ if {config.time_adaptive}:
             _model_pt = dde.Model(_data_pt, _net_pt)
             # IC-only weights: PDE=0, IC=1000
             _ic_only_w_ta = [0.0] * {config.num_outputs} + [1000.0] * len(_ic_constraints_pt)
-            _model_pt.compile("{config.ic_pretrain_optimizer}", lr=_lr,
-                              loss="MSE", loss_weights=_ic_only_w_ta)
+            _model_pt.compile("{config.ic_pretrain_optimizer}", lr={config.ic_pretrain_lr},
+                              loss="{config.ic_pretrain_loss}", loss_weights=_ic_only_w_ta)
             _ic_pre_save_dir_ta = _os.path.join(r"{config.save_dir}", "ic_pretrain")
             _os.makedirs(_ic_pre_save_dir_ta, exist_ok=True)
             if {config.ic_pretrain_restore} and r"{config.ic_pretrain_restore_path}" and _os.path.exists(r"{config.ic_pretrain_restore_path}"):
@@ -4287,8 +4293,8 @@ _data_pre = dde.data.TimePDE(
     train_distribution="{config.point_distribution}",
 )
 _model_pre = dde.Model(_data_pre, net)
-_model_pre.compile("{config.ic_pretrain_optimizer}", lr={config.learning_rate},
-                    loss="MSE", loss_weights={ic_only_weights})
+_model_pre.compile("{config.ic_pretrain_optimizer}", lr={config.ic_pretrain_lr},
+                    loss="{config.ic_pretrain_loss}", loss_weights={ic_only_weights})
 _ic_lh, _ = _model_pre.train(iterations={config.ic_pretrain_iterations}, display_every=10000)
 print(f"IC pre-training done. Final IC loss: {{sum(_ic_lh.loss_train[-1]):.4e}}")''')
             parts.append("\n".join(ic_pretrain_lines))
@@ -4452,8 +4458,8 @@ prev_net = None''')
             train_distribution="{config.point_distribution}",
         )
         _model_pre_i = dde.Model(_data_pre_i, net_i)
-        _model_pre_i.compile("{config.ic_pretrain_optimizer}", lr={config.learning_rate},
-                              loss="MSE", loss_weights={ic_only_weights})
+        _model_pre_i.compile("{config.ic_pretrain_optimizer}", lr={config.ic_pretrain_lr},
+                              loss="{config.ic_pretrain_loss}", loss_weights={ic_only_weights})
         _model_pre_i.train(iterations={config.ic_pretrain_iterations}, display_every=10000)''')
 
         loop_lines.append("    model_i = dde.Model(data_i, net_i)")
