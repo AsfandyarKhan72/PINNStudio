@@ -1189,7 +1189,34 @@ class MainWindow(QMainWindow):
         restore_toggle.stateChanged.connect(lambda s: restore_content.setVisible(s == 2))
         restore_layout.addWidget(restore_content)
 
-        restore_content_layout.addWidget(QLabel("Model file (.pt):"))
+        # Restore mode -- Forward vs Inverse. Forward keeps the panel
+        # exactly as it always was (model + config + optimizer + one of
+        # the four field-plotting viz types). Inverse gets everything
+        # Forward has -- an Inverse-trained model's network weights
+        # restore and plot the solution field the same way -- plus two
+        # more viz types, Parameter Convergence Plot/Animation, which
+        # read the *_convergence.txt file(s) saved alongside the model
+        # instead of the model itself (the trained parameter's value was
+        # never part of the .pt checkpoint to begin with -- see
+        # _build_restore_script's comment for why).
+        restore_mode_row = QHBoxLayout()
+        restore_mode_row.addWidget(QLabel("Restore:"))
+        self.restore_mode_combo = QComboBox()
+        self.restore_mode_combo.addItems(["Forward Model", "Inverse Model"])
+        self.restore_mode_combo.setFixedHeight(28)
+        self.restore_mode_combo.currentTextChanged.connect(self._on_restore_mode_changed)
+        restore_mode_row.addWidget(self.restore_mode_combo)
+        restore_content_layout.addLayout(restore_mode_row)
+
+        self._RESTORE_FORWARD_VIZ = ["Surface", "Line (time steps)", "Animation Line (GIF)", "Animation Surface (GIF)"]
+        self._RESTORE_PARAM_VIZ = ["Parameter Convergence Plot (PNG)", "Parameter Convergence Animation (GIF)"]
+
+        self.restore_model_fields_widget = QWidget()
+        _rmf_layout = QVBoxLayout(self.restore_model_fields_widget)
+        _rmf_layout.setContentsMargins(0, 0, 0, 0)
+        _rmf_layout.setSpacing(5)
+
+        _rmf_layout.addWidget(QLabel("Model file (.pt):"))
         restore_path_row = QHBoxLayout()
         self.restore_model_path = QLineEdit()
         self.restore_model_path.setPlaceholderText("Browse for model .pt file...")
@@ -1199,9 +1226,9 @@ class MainWindow(QMainWindow):
         self.restore_browse_btn.setFixedHeight(28); self.restore_browse_btn.setFixedWidth(65)
         self.restore_browse_btn.clicked.connect(self._on_browse_restore_model)
         restore_path_row.addWidget(self.restore_browse_btn)
-        restore_content_layout.addLayout(restore_path_row)
+        _rmf_layout.addLayout(restore_path_row)
 
-        restore_content_layout.addWidget(QLabel("Config file (model_config.json):"))
+        _rmf_layout.addWidget(QLabel("Config file (model_config.json):"))
         config_path_row = QHBoxLayout()
         self.restore_config_path = QLineEdit()
         self.restore_config_path.setPlaceholderText("Auto-detected or browse...")
@@ -1211,18 +1238,46 @@ class MainWindow(QMainWindow):
         self.restore_config_browse_btn.setFixedHeight(28); self.restore_config_browse_btn.setFixedWidth(65)
         self.restore_config_browse_btn.clicked.connect(self._on_browse_restore_config)
         config_path_row.addWidget(self.restore_config_browse_btn)
-        restore_content_layout.addLayout(config_path_row)
+        _rmf_layout.addLayout(config_path_row)
+        restore_content_layout.addWidget(self.restore_model_fields_widget)
 
-        restore_content_layout.addWidget(QLabel("Optimizer used for this model:"))
+        self.restore_optimizer_widget = QWidget()
+        _ro_layout = QVBoxLayout(self.restore_optimizer_widget)
+        _ro_layout.setContentsMargins(0, 0, 0, 0)
+        _ro_layout.setSpacing(5)
+        _ro_layout.addWidget(QLabel("Optimizer used for this model:"))
         self.restore_optimizer_combo = QComboBox()
         self.restore_optimizer_combo.addItem("Adam", "adam")
         self.restore_optimizer_combo.addItem("L-BFGS", "lbfgs")
         self.restore_optimizer_combo.setFixedHeight(28)
-        restore_content_layout.addWidget(self.restore_optimizer_combo)
+        _ro_layout.addWidget(self.restore_optimizer_combo)
+        restore_content_layout.addWidget(self.restore_optimizer_widget)
+
+        # Inverse-only: lets an older Inverse-trained model (saved before
+        # model_config.json recorded this) still restore. model.restore()
+        # needs the compiled model to have the SAME number of
+        # external_trainable_variables the optimizer had at training time,
+        # or it crashes with a parameter-group-size mismatch -- newer
+        # models auto-fill this from model_config.json's "inverse_variables"
+        # field; this box lets you type it in for older ones that don't
+        # have that field. The variable's actual trained VALUE is never
+        # recoverable from the checkpoint either way, so any placeholder
+        # init value here is fine -- only the count/names matter.
+        self.restore_inv_vars_widget = QWidget()
+        _riv_layout = QVBoxLayout(self.restore_inv_vars_widget)
+        _riv_layout.setContentsMargins(0, 0, 0, 0)
+        _riv_layout.setSpacing(5)
+        _riv_layout.addWidget(QLabel("Trainable variable names (comma-separated -- blank = auto-detect):"))
+        self.restore_inv_var_names = QLineEdit()
+        self.restore_inv_var_names.setPlaceholderText("e.g. D  or  D,k  (leave blank to auto-detect from config)")
+        self.restore_inv_var_names.setFixedHeight(28)
+        _riv_layout.addWidget(self.restore_inv_var_names)
+        restore_content_layout.addWidget(self.restore_inv_vars_widget)
+        self.restore_inv_vars_widget.setVisible(False)
 
         restore_content_layout.addWidget(QLabel("Visualization type:"))
         self.restore_viz_combo = QComboBox()
-        self.restore_viz_combo.addItems(["Surface", "Line (time steps)", "Animation Line (GIF)", "Animation Surface (GIF)"])
+        self.restore_viz_combo.addItems(self._RESTORE_FORWARD_VIZ)
         self.restore_viz_combo.setFixedHeight(28)
         self.restore_viz_combo.currentTextChanged.connect(self._on_restore_viz_changed)
         restore_content_layout.addWidget(self.restore_viz_combo)
@@ -1246,11 +1301,60 @@ class MainWindow(QMainWindow):
             'fps': 10,
         }
 
-        restore_content_layout.addWidget(QLabel("Output to plot:"))
+        self.restore_output_widget = QWidget()
+        _rout_layout = QVBoxLayout(self.restore_output_widget)
+        _rout_layout.setContentsMargins(0, 0, 0, 0)
+        _rout_layout.setSpacing(5)
+        _rout_layout.addWidget(QLabel("Output to plot:"))
         self.restore_output_combo = QComboBox()
         self.restore_output_combo.addItems(["Output 1 (u)"])
         self.restore_output_combo.setFixedHeight(28)
-        restore_content_layout.addWidget(self.restore_output_combo)
+        _rout_layout.addWidget(self.restore_output_combo)
+        restore_content_layout.addWidget(self.restore_output_widget)
+
+        # Inverse-only: Parameter Convergence Plot/Animation settings.
+        # One or more *_convergence.txt files, one per trainable variable
+        # -- same add/remove row-list pattern used everywhere else in this
+        # app (Boundary Conditions rows, trainable-variable rows,
+        # measured-data-file rows). Unlike those, every row here is
+        # removable (including the first) since there's no single legacy
+        # field to keep aliased to a "primary" row.
+        self.restore_param_widget = QWidget()
+        _rp_layout = QVBoxLayout(self.restore_param_widget)
+        _rp_layout.setContentsMargins(0, 0, 0, 0)
+        _rp_layout.setSpacing(5)
+        _rp_layout.addWidget(QLabel("Parameter convergence text file(s) (<name>_convergence.txt):"))
+        self.restore_param_files_widget = QWidget()
+        self.restore_param_files_layout = QVBoxLayout(self.restore_param_files_widget)
+        self.restore_param_files_layout.setSpacing(6)
+        self.restore_param_files_layout.setContentsMargins(0, 0, 0, 0)
+        _rp_layout.addWidget(self.restore_param_files_widget)
+        self.restore_param_rows = []
+        add_param_file_btn = QPushButton("➕ Add parameter file")
+        add_param_file_btn.setStyleSheet(
+            "QPushButton { color: #69db7c; background: transparent; "
+            "border: 1px solid #2a6a4a; border-radius: 4px; padding: 2px 8px; }")
+        add_param_file_btn.clicked.connect(lambda: self._add_restore_param_row())
+        _rp_layout.addWidget(add_param_file_btn)
+        self._add_restore_param_row()
+
+        _rp_combine_row = QHBoxLayout()
+        _rp_combine_row.addWidget(QLabel("Output:"))
+        self.restore_param_combine_combo = QComboBox()
+        self.restore_param_combine_combo.addItems([
+            "Combine all variables into one file",
+            "Separate file per variable",
+        ])
+        self.restore_param_combine_combo.setFixedHeight(28)
+        _rp_combine_row.addWidget(self.restore_param_combine_combo)
+        _rp_layout.addLayout(_rp_combine_row)
+
+        self.restore_param_log_cb = QCheckBox("Log-scale y-axis")
+        self.restore_param_log_cb.setStyleSheet("color: #a0c4ff;")
+        _rp_layout.addWidget(self.restore_param_log_cb)
+
+        restore_content_layout.addWidget(self.restore_param_widget)
+        self.restore_param_widget.setVisible(False)
 
         restore_content_layout.addWidget(QLabel("Save visualization to:"))
         restore_save_row = QHBoxLayout()
@@ -4957,7 +5061,31 @@ print("ERROR_ANALYSIS_DONE")
         else:
             self.log_box.append("❌ Error analysis failed — check log.")
     
+    def _on_restore_mode_changed(self, text):
+        is_inverse = (text == "Inverse Model")
+        self.restore_inv_vars_widget.setVisible(is_inverse)
+        current_viz = self.restore_viz_combo.currentText()
+        items = list(self._RESTORE_FORWARD_VIZ) + (list(self._RESTORE_PARAM_VIZ) if is_inverse else [])
+        self.restore_viz_combo.blockSignals(True)
+        self.restore_viz_combo.clear()
+        self.restore_viz_combo.addItems(items)
+        if current_viz in items:
+            self.restore_viz_combo.setCurrentText(current_viz)
+        self.restore_viz_combo.blockSignals(False)
+        self._on_restore_viz_changed(self.restore_viz_combo.currentText())
+
     def _on_restore_viz_changed(self, text):
+        # Parameter Convergence Plot/Animation read text files, not the
+        # model -- hide the model/config/optimizer/output fields (not
+        # needed) and show the parameter-file row list instead. Every
+        # other viz type keeps the panel exactly as it always was.
+        is_param = text in getattr(self, '_RESTORE_PARAM_VIZ', [])
+        self.restore_model_fields_widget.setVisible(not is_param)
+        self.restore_optimizer_widget.setVisible(not is_param)
+        self.restore_output_widget.setVisible(not is_param)
+        self.restore_param_widget.setVisible(is_param)
+        if is_param:
+            return
         self._on_restore_viz_settings(text)
 
     def _on_restore_viz_settings(self, viz_type=None):
@@ -6260,6 +6388,33 @@ print("ERROR_ANALYSIS_V2_DONE")
             else:
                 self.log_box.append("⚠️ No config found — please browse manually.")
 
+            # Inverse-only convenience: auto-detect the *_convergence.txt
+            # file(s) saved alongside this run (one level up from
+            # solution_results/, same folder the model_config.json above
+            # was auto-detected in) and the trainable-variable names read
+            # from each file's own header row -- the same auto-detect
+            # convenience as the config.json above, so an older model
+            # missing "inverse_variables" in its config still gets this
+            # filled in without the user typing anything.
+            if getattr(self, 'restore_mode_combo', None) is not None and self.restore_mode_combo.currentText() == "Inverse Model":
+                import glob as _glob_brm
+                run_dir = os.path.dirname(base) if os.path.basename(base) == "solution_results" else base
+                conv_files = sorted(_glob_brm.glob(os.path.join(run_dir, "*_convergence.txt")))
+                if conv_files:
+                    self._set_restore_param_rows(conv_files)
+                    self.log_box.append(f"✅ Auto-detected {len(conv_files)} parameter convergence file(s) in {run_dir}")
+                    names = []
+                    for cf in conv_files:
+                        try:
+                            with open(cf) as _cf:
+                                header = _cf.readline().strip().split(",")
+                            if len(header) >= 2 and header[1].strip():
+                                names.append(header[1].strip())
+                        except Exception:
+                            pass
+                    if names and not self.restore_inv_var_names.text().strip():
+                        self.restore_inv_var_names.setText(",".join(names))
+
     def _on_browse_restore_config(self):
         f, _ = QFileDialog.getOpenFileName(self, "Select config file", "", "JSON (*.json)")
         if f:
@@ -6270,13 +6425,115 @@ print("ERROR_ANALYSIS_V2_DONE")
         if folder:
             self.restore_save_path.setText(folder)
 
+    def _add_restore_param_row(self, path=""):
+        """Add one parameter-convergence-file row (Inverse restore's
+        Parameter Convergence Plot/Animation viz types). Every row is
+        freely removable, including the first -- unlike the trainable-
+        variable / measured-data-file row lists elsewhere, there's no
+        single legacy field a "primary" row needs to stay aliased to
+        here, so at-least-one-path is simply checked at Restore time."""
+        row_widget = QWidget()
+        row_layout = QHBoxLayout(row_widget)
+        row_layout.setContentsMargins(0, 0, 0, 0)
+        row_layout.setSpacing(4)
+        path_edit = QLineEdit()
+        path_edit.setText(path)
+        path_edit.setPlaceholderText("Browse for <name>_convergence.txt...")
+        path_edit.setFixedHeight(26)
+        row_layout.addWidget(path_edit)
+        browse_btn = QPushButton("Browse")
+        browse_btn.setFixedHeight(26); browse_btn.setFixedWidth(65)
+        browse_btn.clicked.connect(lambda _checked=False, e=path_edit: self._on_browse_restore_param(e))
+        row_layout.addWidget(browse_btn)
+        remove_btn = QPushButton("✕")
+        remove_btn.setFixedHeight(26); remove_btn.setFixedWidth(26)
+        remove_btn.setStyleSheet("QPushButton { color: #ff8787; background: transparent; border: none; }")
+        row_layout.addWidget(remove_btn)
+        self.restore_param_files_layout.addWidget(row_widget)
+        row_data = {'widget': row_widget, 'path': path_edit, 'browse': browse_btn}
+        self.restore_param_rows.append(row_data)
+
+        def _remove():
+            row_widget.deleteLater()
+            if row_data in self.restore_param_rows:
+                self.restore_param_rows.remove(row_data)
+        remove_btn.clicked.connect(_remove)
+        return row_data
+
+    def _set_restore_param_rows(self, paths):
+        for row in list(self.restore_param_rows):
+            row['widget'].deleteLater()
+        self.restore_param_rows.clear()
+        if not paths:
+            self._add_restore_param_row()
+        else:
+            for p in paths:
+                self._add_restore_param_row(p)
+
+    def _on_browse_restore_param(self, target):
+        f, _ = QFileDialog.getOpenFileName(self, "Select parameter convergence file", "", "Text files (*.txt)")
+        if f:
+            target.setText(f)
+
     def _on_restore(self):
         import json, tempfile, subprocess, sys
+        viz_type    = self.restore_viz_combo.currentText()
+        save_dir    = self.restore_save_path.text().strip()
+
+        # Parameter Convergence Plot/Animation: entirely independent of
+        # the model checkpoint (see _build_restore_param_script) -- reads
+        # the *_convergence.txt file(s) directly, no model/config/
+        # optimizer/output selection needed.
+        if viz_type in getattr(self, '_RESTORE_PARAM_VIZ', []):
+            if not save_dir:
+                self.log_box.append("❌ Please select a save directory."); return
+            paths = [r['path'].text().strip() for r in self.restore_param_rows if r['path'].text().strip()]
+            if not paths:
+                self.log_box.append("❌ Please add at least one parameter convergence .txt file."); return
+            combine = self.restore_param_combine_combo.currentText().startswith("Combine")
+            log_scale = self.restore_param_log_cb.isChecked()
+            animate = (viz_type == "Parameter Convergence Animation (GIF)")
+
+            self.restore_btn.setEnabled(False)
+            self.restore_btn.setText("⏳ Restoring...")
+            self.log_box.append(
+                f"🔄 Building parameter convergence {'animation' if animate else 'plot'} "
+                f"from {len(paths)} file(s)...")
+            script = self._build_restore_param_script(paths, save_dir, combine, log_scale, animate)
+
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as tf:
+                tf.write(script)
+                tmp = tf.name
+
+            from PyQt6.QtCore import QThread, pyqtSignal as _sig
+
+            class _ParamRestoreThread(QThread):
+                line_signal = _sig(str)
+                done_signal = _sig(bool)
+                def __init__(self, tmp):
+                    super().__init__()
+                    self._tmp = tmp
+                def run(self):
+                    proc = subprocess.Popen(
+                        [sys.executable, self._tmp],
+                        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
+                    )
+                    for line in proc.stdout:
+                        line = line.rstrip()
+                        if line: self.line_signal.emit(line)
+                    proc.wait()
+                    os.unlink(self._tmp)
+                    self.done_signal.emit(proc.returncode == 0)
+
+            self._restore_thread = _ParamRestoreThread(tmp)
+            self._restore_thread.line_signal.connect(self.log_box.append)
+            self._restore_thread.done_signal.connect(self._on_restore_done)
+            self._restore_thread.start()
+            return
+
         model_path  = self.restore_model_path.text().strip()
         config_path = self.restore_config_path.text().strip()
-        save_dir    = self.restore_save_path.text().strip()
         optimizer   = self.restore_optimizer_combo.currentData()
-        viz_type    = self.restore_viz_combo.currentText()
         output_idx  = self.restore_output_combo.currentIndex()
         t_steps     = self.restore_tsteps_spin.value()
 
@@ -6292,7 +6549,24 @@ print("ERROR_ANALYSIS_V2_DONE")
                 cfg = json.load(f)
         except Exception as e:
             self.log_box.append(f"❌ Could not read config: {e}"); return
-        
+
+        # Inverse restore: let the user override/supply the trainable-
+        # variable names for an older model saved before model_config.json
+        # recorded them ("inverse_variables"). model.restore() needs the
+        # freshly-compiled model to have the SAME number of
+        # external_trainable_variables the optimizer had at training time
+        # or it crashes with a parameter-group-size mismatch -- see
+        # _build_restore_script's comment. Only used when the box actually
+        # has something typed in it; otherwise cfg is left exactly as
+        # loaded (new-format configs already have this, old ones without
+        # it and without an override still get the original crash, same
+        # as before this box existed).
+        if self.restore_mode_combo.currentText() == "Inverse Model":
+            override_names = [n.strip() for n in self.restore_inv_var_names.text().split(",") if n.strip()]
+            if override_names:
+                cfg["problem_type"] = "Inverse"
+                cfg["inverse_variables"] = [{"name": n, "init": 1.0} for n in override_names]
+
         self.restore_btn.setEnabled(False)
         self.restore_btn.setText("⏳ Restoring...")
         self.log_box.append(f"🔄 Restoring model from: {model_path}")
@@ -6377,6 +6651,19 @@ print("ERROR_ANALYSIS_V2_DONE")
             gif_path = os.path.join(save_dir, "restored_animation.gif")
             if os.path.exists(gif_path):
                 self.log_box.append(f"🎬 Animation saved: {gif_path}")
+            # Parameter Convergence Plot/Animation outputs -- combined
+            # (one file) or per-variable (several), PNG or GIF. Preview
+            # whichever comes first alphabetically; every file produced is
+            # already named in the log above from the script's own prints.
+            import glob as _glob_done
+            param_pngs = sorted(_glob_done.glob(os.path.join(save_dir, "*convergence_plot.png")))
+            if param_pngs:
+                self.solution_label.setPixmap(QPixmap(param_pngs[0]).scaled(
+                    500, 420, Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation))
+            param_gifs = sorted(_glob_done.glob(os.path.join(save_dir, "*convergence_animation.gif")))
+            for _pg in param_gifs:
+                self.log_box.append(f"🎬 Parameter convergence animation saved: {_pg}")
             # Show error analysis plot if available
             for _ea_plot in ["surface_comparison_restore.png", "line_comparison_restore.png"]:
                 _ea_path = os.path.join(save_dir, "error_analysis", _ea_plot)
@@ -6388,6 +6675,182 @@ print("ERROR_ANALYSIS_V2_DONE")
                     break
         else:
             self.log_box.append("❌ Restore failed — check architecture matches saved model.")
+
+    def _build_restore_param_script(self, paths, save_dir, combine, log_scale, animate):
+        """Parameter Convergence Plot/Animation (Inverse restore). Reads
+        one or more <name>_convergence.txt files (iteration,<name> header
+        then iter,value rows -- exactly what _SaveParamCallback writes
+        during training) and either draws them as-is (static PNG) or as a
+        growing-curve animation (GIF), combined into one figure (one
+        subplot per variable, same layout the training-time param_plot.png
+        already uses) or as separate files per variable. Deliberately
+        doesn't touch the model checkpoint at all -- neither
+        net.state_dict() nor optimizer.state_dict() ever stores a trainable
+        variable's actual value (only the network weights and optimizer
+        momentum buffers), so there's nothing for a model restore to add
+        here; these text files, written throughout training, are the only
+        place the value's full history exists."""
+        paths_literal = repr(list(paths))
+        combine_literal = repr(bool(combine))
+        log_literal = repr(bool(log_scale))
+        animate_literal = repr(bool(animate))
+        script = f"""
+import os
+os.makedirs(r"{save_dir}", exist_ok=True)
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+import matplotlib.animation as _anim
+import numpy as np
+
+_paths = {paths_literal}
+_combine = {combine_literal}
+_log_scale = {log_literal}
+_animate = {animate_literal}
+
+def _load_conv(path):
+    name = None
+    iters, vals = [], []
+    with open(path) as f:
+        header = f.readline().strip().split(",")
+        if len(header) >= 2 and header[0].strip().lower() == "iteration":
+            name = header[1].strip()
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            bits = line.split(",")
+            if len(bits) < 2:
+                continue
+            try:
+                it = int(float(bits[0])); val = float(bits[1])
+            except ValueError:
+                continue
+            iters.append(it); vals.append(val)
+    if not name:
+        name = os.path.splitext(os.path.basename(path))[0].replace("_convergence", "")
+    return name, np.array(iters), np.array(vals)
+
+series = []
+for _p in _paths:
+    _p = _p.strip()
+    if not _p:
+        continue
+    try:
+        _s = _load_conv(_p)
+        if len(_s[1]) < 1:
+            print(f"⚠️ {{_p}}: no data rows found, skipping")
+            continue
+        series.append(_s)
+    except Exception as e:
+        print(f"⚠️ Could not read {{_p}}: {{e}}")
+
+if not series:
+    print("❌ No valid parameter-convergence files loaded.")
+    raise SystemExit(1)
+
+def _use_log(vals):
+    ok = _log_scale and np.all(vals > 0)
+    if _log_scale and not ok:
+        print("⚠️ Log-scale requested but values aren't all positive -- using linear scale instead.")
+    return ok
+
+def _draw_static_ax(ax, name, iters, vals):
+    final_val = vals[-1]
+    if _use_log(vals):
+        ax.semilogy(iters, vals, color="#69db7c", linewidth=1.5)
+        ax.set_ylabel(f"log({{name}})")
+    else:
+        ax.plot(iters, vals, color="#69db7c", linewidth=1.5)
+        ax.set_ylabel(name)
+    ax.axhline(y=final_val, color="#ff8787", linestyle="--", alpha=0.5, label=f"Final = {{final_val:.6f}}")
+    ax.set_xlabel("Iteration")
+    ax.set_title(f"Inferred Parameter: {{name}}")
+    ax.legend(); ax.grid(True, alpha=0.3)
+
+def _setup_anim_ax(ax, name, iters, vals):
+    final_val = vals[-1]
+    use_log = _use_log(vals)
+    if use_log:
+        ax.set_yscale("log")
+        ax.set_ylabel(f"log({{name}})")
+    else:
+        ax.set_ylabel(name)
+    x_hi = iters.max() if iters.max() > iters.min() else iters.min() + 1
+    ax.set_xlim(iters.min(), x_hi)
+    vmin, vmax = vals.min(), vals.max()
+    pad = 0.05 * (abs(vmax - vmin) if vmax != vmin else (abs(vmax) + 1))
+    ax.set_ylim(vmin - pad, vmax + pad)
+    ax.axhline(y=final_val, color="#ff8787", linestyle="--", alpha=0.5, label=f"Final = {{final_val:.6f}}")
+    ax.set_xlabel("Iteration")
+    ax.set_title(f"Inferred Parameter: {{name}}")
+    ax.legend(loc="upper right"); ax.grid(True, alpha=0.3)
+    line, = ax.plot([], [], color="#69db7c", linewidth=1.5)
+    return line
+
+if not _animate:
+    if _combine:
+        n = len(series)
+        fig, axes = plt.subplots(n, 1, figsize=(6, 3.2 * n), squeeze=False)
+        for i, (name, iters, vals) in enumerate(series):
+            _draw_static_ax(axes[i][0], name, iters, vals)
+        plt.tight_layout()
+        out_path = os.path.join(r"{save_dir}", "param_convergence_plot.png")
+        plt.savefig(out_path, dpi=150)
+        plt.close(fig)
+        print(f"✅ Parameter convergence plot saved: {{out_path}}")
+    else:
+        for name, iters, vals in series:
+            fig, ax = plt.subplots(figsize=(6, 3.2))
+            _draw_static_ax(ax, name, iters, vals)
+            plt.tight_layout()
+            out_path = os.path.join(r"{save_dir}", f"{{name}}_convergence_plot.png")
+            plt.savefig(out_path, dpi=150)
+            plt.close(fig)
+            print(f"✅ Parameter convergence plot saved: {{out_path}}")
+else:
+    # The reveal-frame count is capped for GIF size/render time -- the
+    # final frame always shows every logged point regardless, this only
+    # affects how many intermediate steps the growth is drawn across. A
+    # series with fewer points than the frame budget finishes revealing
+    # early and holds its completed curve for the rest of the animation.
+    if _combine:
+        n = len(series)
+        n_frames = min(max(len(s[1]) for s in series), 120)
+        fig, axes = plt.subplots(n, 1, figsize=(6, 3.2 * n), squeeze=False)
+        lines = [_setup_anim_ax(axes[i][0], name, iters, vals) for i, (name, iters, vals) in enumerate(series)]
+        plt.tight_layout()
+        def update(frame):
+            for line, (name, iters, vals) in zip(lines, series):
+                frac = (frame + 1) / n_frames
+                idx = max(1, min(len(iters), int(round(frac * len(iters)))))
+                line.set_data(iters[:idx], vals[:idx])
+            return lines
+        ani = _anim.FuncAnimation(fig, update, frames=n_frames, interval=80)
+        out_path = os.path.join(r"{save_dir}", "param_convergence_animation.gif")
+        ani.save(out_path, writer='pillow', fps=15)
+        plt.close(fig)
+        print(f"✅ Parameter convergence animation saved: {{out_path}}")
+    else:
+        for name, iters, vals in series:
+            n_frames = min(len(iters), 120)
+            fig, ax = plt.subplots(figsize=(6, 3.2))
+            line = _setup_anim_ax(ax, name, iters, vals)
+            plt.tight_layout()
+            def update(frame, iters=iters, vals=vals, line=line, n_frames=n_frames):
+                frac = (frame + 1) / n_frames
+                idx = max(1, min(len(iters), int(round(frac * len(iters)))))
+                line.set_data(iters[:idx], vals[:idx])
+                return [line]
+            ani = _anim.FuncAnimation(fig, update, frames=n_frames, interval=80)
+            out_path = os.path.join(r"{save_dir}", f"{{name}}_convergence_animation.gif")
+            ani.save(out_path, writer='pillow', fps=15)
+            plt.close(fig)
+            print(f"✅ Parameter convergence animation saved: {{out_path}}")
+
+print("RESTORE_DONE")
+"""
+        return script
 
     def _build_restore_script(self, model_path, cfg, optimizer, viz_type, output_idx, t_steps, save_dir):
         viz_settings = getattr(self, '_restore_viz_settings', {})
@@ -6415,6 +6878,32 @@ print("ERROR_ANALYSIS_V2_DONE")
         out_names = cfg.get("output_names", "u").split(",")
         out_name = out_names[output_idx].strip() if output_idx < len(out_names) else "u"
 
+        # Inverse models were compiled with one or more external_trainable_
+        # variables (D, k, ...) added to the optimizer as an extra parameter
+        # group -- model.restore() checks the saved optimizer state against
+        # whatever the freshly-compiled model's optimizer looks like, so
+        # restoring without recreating that same extra group fails with a
+        # "different number of parameter groups" / "doesn't match the size
+        # of optimizer's group" error (the exact crash this fixes). Their
+        # actual VALUE doesn't matter here and isn't recoverable from the
+        # checkpoint either way (neither net.state_dict() nor
+        # opt.state_dict() ever stores it) -- only the same COUNT is needed
+        # so the optimizer's structure matches what was saved.
+        _restore_inv_vars = cfg.get("inverse_variables") or []
+        is_inverse_restore = cfg.get("problem_type") == "Inverse" and bool(_restore_inv_vars)
+        _inv_var_def_lines = []
+        _inv_var_names_restore = []
+        for _riv_i, _riv in enumerate(_restore_inv_vars):
+            _riv_name = str(_riv.get("name") or f"trainable_variable_{_riv_i + 1}").strip() or f"trainable_variable_{_riv_i + 1}"
+            try:
+                _riv_init = float(_riv.get("init", 1.0))
+            except (TypeError, ValueError):
+                _riv_init = 1.0
+            _inv_var_def_lines.append(f"{_riv_name} = dde.Variable({_riv_init})")
+            _inv_var_names_restore.append(_riv_name)
+        inv_var_defs_restore = "\n".join(_inv_var_def_lines)
+        inv_var_list_restore = "[" + ", ".join(_inv_var_names_restore) + "]" if is_inverse_restore else "None"
+
         script = f"""
 import os
 os.environ["DDE_BACKEND"] = "pytorch"
@@ -6437,15 +6926,22 @@ geomtime   = dde.geometry.GeometryXTime(geom, timedomain)
 
 def pde(x, y): return y[:, 0:1] * 0
 
+{inv_var_defs_restore}
+
 data = dde.data.TimePDE(geomtime, pde, [], num_domain=100, num_test=100)
 net  = dde.nn.FNN({layers}, "{activation}", "Glorot uniform")
 model = dde.Model(data, net)
 
 if "{optimizer}" == "lbfgs":
     dde.optimizers.set_LBFGS_options(maxiter=1)
-    model.compile("L-BFGS", loss="{loss_type}")
+    model.compile("L-BFGS", loss="{loss_type}", external_trainable_variables={inv_var_list_restore})
 else:
-    model.compile("{optimizer}", lr=0.001, loss="{loss_type}")
+    model.compile("{optimizer}", lr=0.001, loss="{loss_type}", external_trainable_variables={inv_var_list_restore})
+
+if {is_inverse_restore}:
+    print("ℹ️ Inverse model: network weights restored for solution plotting. The "
+          "trained parameter value itself isn't stored in the checkpoint -- see "
+          "the *_convergence.txt file(s) saved alongside the model for that.")
 
 try:
     model.restore(r"{model_path}", verbose=1)

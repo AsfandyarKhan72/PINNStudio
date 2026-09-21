@@ -202,6 +202,18 @@ def generate_script(config):
             f'    print(f"Inverse PINN: inferring {_iv_name}, init = {_iv_init}")')
     _inv_var_defs_code = "\n".join(_inv_var_def_lines)
     _inv_var_list_literal = "[" + ", ".join(n for n, _ in _inv_vars_parsed) + "]"
+    # Recorded into model_config.json below so a later Model Restore knows
+    # this run was Inverse and exactly which trainable variables it had --
+    # restoring an Inverse checkpoint needs to recompile with the same
+    # number of external_trainable_variables the optimizer was originally
+    # given (their value doesn't matter for this -- only the count, since
+    # neither the .pt file nor model.restore() ever stores/recovers a
+    # trainable variable's actual value, only the network weights).
+    # Empty list for Forward configs, where this is irrelevant.
+    _mc_inv_vars_literal = (
+        repr([{"name": n, "init": i} for n, i in _inv_vars_parsed])
+        if config.problem_type == "Inverse" else "[]"
+    )
     _inv_var_names_literal = repr([n for n, _ in _inv_vars_parsed])
 
     # Inverse: one or more measured-data files, each with its own output
@@ -292,6 +304,8 @@ if _use_save:
         "optimizer": "{config.optimizer}",
         "optimizer2": "{config.optimizer2}",
         "loss_type": "{config.loss_type}",
+        "problem_type": {config.problem_type!r},
+        "inverse_variables": {_mc_inv_vars_literal},
     }}
     _os.makedirs(_os.path.join(_save_dir, "solution_results"), exist_ok=True)
     with open(_os.path.join(_save_dir, "solution_results", "model_config.json"), "w") as _mcf:
