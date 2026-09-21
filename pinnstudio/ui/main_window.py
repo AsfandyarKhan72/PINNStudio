@@ -5,7 +5,8 @@ from PyQt6.QtWidgets import (
     QLabel, QDoubleSpinBox, QSpinBox, QPushButton,
     QTextEdit, QGroupBox, QComboBox, QSplitter, QLineEdit,
     QFileDialog, QCheckBox, QRadioButton, QButtonGroup,
-    QDialog, QMenuBar, QMenu, QFrame, QApplication
+    QDialog, QMenuBar, QMenu, QFrame, QApplication, QColorDialog,
+    QTabWidget
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer
 from PyQt6.QtGui import QPixmap, QFont, QAction, QColor
@@ -123,15 +124,138 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("PINNStudio — No-Code GUI for Physics-Informed Neural Networks (PINNs)")
         self.setMinimumSize(1100, 750)
-        self._font_size = 16
-        self._log_font_size = 16
+        self._font_size = 18
+        self._log_font_size = 18
         self._theme = "Solarized Dark"
-        self._accent = "Blue (#a0c4ff)"
+        self._accent = "Green (#69db7c)"
         self._float_type = "float32"
+        # ── Per-category display settings (font family/size/weight/color for
+        # groups of related text: the app title, section headers, field
+        # labels, small hint/note text, buttons, and the log console). Each
+        # category's 'color' is '' by default, meaning "keep that widget's
+        # own original color" -- setting one explicitly overrides it
+        # uniformly across the category. self._styled_widgets is the
+        # registry of (widget, category, style_fn) used to re-apply these
+        # live whenever settings change, without needing to rebuild the UI.
+        self._DISP_CATEGORY_DEFAULTS = {
+            "title":          {"family": "Arial",      "size": 26, "bold": True,  "color": "#ffffff"},
+            "section_header": {"family": "Arial",      "size": 18, "bold": True,  "color": "#ffffff"},
+            "field_label":    {"family": "Segoe UI",    "size": 16, "bold": False, "color": "#ffffff"},
+            "hint":           {"family": "Segoe UI",    "size": 16, "bold": False, "color": "#ffffff"},
+            "button":         {"family": "Segoe UI",    "size": 16, "bold": False, "color": "#ffffff"},
+            "log_console":    {"family": "Arial",       "size": 16, "bold": False, "color": "#ffffff"},
+        }
+        self._disp = {k: dict(v) for k, v in self._DISP_CATEGORY_DEFAULTS.items()}
+        self._styled_widgets = []
+        self._display_settings_path = os.path.join(
+            os.path.expanduser("~"), ".pinnstudio", "display_settings.json")
+        self._load_display_settings_from_disk()
         self._apply_theme()
         self._build_ui()
         self._apply_display_settings()
         self._check_for_updates()
+
+    # ── Display-settings persistence ──────────────────────────
+    def _load_display_settings_from_disk(self):
+        """Best-effort load of ~/.pinnstudio/display_settings.json, written
+        by _save_display_settings_to_disk(). Missing/corrupt file, or a
+        file from an older version missing some keys, just falls back to
+        the built-in defaults for whatever isn't present -- never blocks
+        startup."""
+        try:
+            import json
+            if not os.path.isfile(self._display_settings_path):
+                return
+            with open(self._display_settings_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except Exception:
+            return
+        try:
+            self._font_size = int(data.get("font_size", self._font_size))
+            self._log_font_size = int(data.get("log_font_size", self._log_font_size))
+            self._theme = data.get("theme", self._theme)
+            self._accent = data.get("accent", self._accent)
+            cats = data.get("categories", {})
+            for key, defaults in self._DISP_CATEGORY_DEFAULTS.items():
+                saved = cats.get(key, {})
+                if not isinstance(saved, dict):
+                    continue
+                entry = self._disp.setdefault(key, dict(defaults))
+                entry["family"] = str(saved.get("family", entry["family"]))
+                entry["size"] = int(saved.get("size", entry["size"]))
+                entry["bold"] = bool(saved.get("bold", entry["bold"]))
+                entry["color"] = str(saved.get("color", entry["color"]))
+        except Exception:
+            pass  # any malformed field -- keep whatever defaults survived
+
+    def _save_display_settings_to_disk(self):
+        """Best-effort save -- persistence is a convenience, never load-
+        bearing for the app to function, so failures (e.g. read-only home
+        directory) are silently ignored rather than shown as an error."""
+        try:
+            import json
+            os.makedirs(os.path.dirname(self._display_settings_path), exist_ok=True)
+            payload = {
+                "font_size": self._font_size,
+                "log_font_size": self._log_font_size,
+                "theme": self._theme,
+                "accent": self._accent,
+                "categories": self._disp,
+            }
+            with open(self._display_settings_path, "w", encoding="utf-8") as f:
+                json.dump(payload, f, indent=2)
+        except Exception:
+            pass
+
+    # ── Per-category style registry ───────────────────────────
+    def _cat_css(self, category):
+        """Returns a 'font-family: ...; font-size: ...px; font-weight: ...;'
+        CSS fragment for the given category, plus 'color: ...;' if that
+        category has an explicit color override set (blank/unset means
+        "leave each widget's own default color alone")."""
+        defaults = self._DISP_CATEGORY_DEFAULTS.get(category, {})
+        cat = self._disp.get(category, defaults)
+        family = cat.get("family") or defaults.get("family", "Segoe UI")
+        size = cat.get("size") or defaults.get("size", 12)
+        weight = "bold" if cat.get("bold") else "normal"
+        parts = [f"font-family: '{family}';", f"font-size: {size}px;", f"font-weight: {weight};"]
+        color = (cat.get("color") or "").strip()
+        if color:
+            parts.append(f"color: {color};")
+        return " ".join(parts)
+
+    def _register_style(self, widget, category, style_fn):
+        """Registers `widget` as styled by `category` and applies it
+        immediately. `style_fn(css_fragment)` must return the full
+        stylesheet string to apply to `widget`, where css_fragment is the
+        current _cat_css(category) output -- used at every call site that
+        used to hardcode a font-size (and often color) directly, so those
+        labels/buttons respond to Display Settings instead of being pinned.
+        Returns widget, so this can be chained inline where a plain
+        .setStyleSheet(...) call used to sit."""
+        self._styled_widgets.append((widget, category, style_fn))
+        self._restyle_one(widget, category, style_fn)
+        return widget
+
+    def _restyle_one(self, widget, category, style_fn):
+        try:
+            widget.setStyleSheet(style_fn(self._cat_css(category)))
+        except RuntimeError:
+            pass  # underlying Qt widget already deleted
+
+    def _restyle_all(self):
+        """Re-applies every registered widget's stylesheet from the current
+        category settings. Called whenever Display Settings changes
+        (Preview/OK) and once at startup. Silently drops any widget whose
+        underlying C++ object has since been deleted (e.g. a removed row)."""
+        dead = []
+        for widget, category, style_fn in self._styled_widgets:
+            try:
+                widget.setStyleSheet(style_fn(self._cat_css(category)))
+            except RuntimeError:
+                dead.append((widget, category, style_fn))
+        for entry in dead:
+            self._styled_widgets.remove(entry)
 
     def _apply_theme(self):
         self.setStyleSheet("""
@@ -336,14 +460,23 @@ class MainWindow(QMainWindow):
         left_scroll.setMinimumWidth(300)
         left_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
-        # Title
+        # Title -- styled from the "title" Display Settings category (family/
+        # size/weight/color) instead of a hardcoded QFont(), which is what
+        # previously made it (and the subtitle below) immune to the Display
+        # Settings font-size control entirely.
         title = QLabel("PINNStudio")
-        title.setFont(QFont("Arial", 16, QFont.Weight.Bold))
-        title.setStyleSheet("color: #a0c4ff; margin-bottom: 2px;")
+        self._register_style(title, "title", lambda css: f"color: #a0c4ff; margin-bottom: 2px; {css}")
         left_layout.addWidget(title)
 
+        def _subtitle_style_fn(_css):
+            t = self._disp.get("title", self._DISP_CATEGORY_DEFAULTS["title"])
+            fam = t.get("family") or "Arial"
+            size = max(9, round((t.get("size") or 16) * 0.69))
+            color = (t.get("color") or "").strip() or "#7070a0"
+            return (f"color: {color}; margin-bottom: 6px; "
+                    f"font-family: '{fam}'; font-size: {size}px; font-weight: normal;")
         subtitle = QLabel("Physics-Informed Neural Network Solver")
-        subtitle.setStyleSheet("color: #7070a0; font-size: 11px; margin-bottom: 6px;")
+        self._register_style(subtitle, "title", _subtitle_style_fn)
         left_layout.addWidget(subtitle)
 
         # ── Dimension selector ────────────────────────────────
@@ -640,7 +773,7 @@ class MainWindow(QMainWindow):
         self.custom_bc_main_layout = QVBoxLayout(self.custom_bc_group)
         self.custom_bc_main_layout.setSpacing(4)
         self.custom_bc_note = QLabel()
-        self.custom_bc_note.setStyleSheet("color: #74c0fc; font-size: 11px;")
+        self._register_style(self.custom_bc_note, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
         self.custom_bc_note.setWordWrap(True)
         self.custom_bc_main_layout.addWidget(self.custom_bc_note)
         self.custom_bc_list_widget = QWidget()
@@ -716,7 +849,7 @@ class MainWindow(QMainWindow):
         batch_layout.addWidget(self.batch_widget)
 
         note = QLabel("Splits collocation points into mini-batches per iteration.")
-        note.setStyleSheet("color: #586e75; font-size: 11px;")
+        self._register_style(note, "hint", lambda css, _c='#586e75', _e='': f"color: {_c}; {_e}{css}")
         note.setWordWrap(True)
         batch_layout.addWidget(note)
         left_layout.addWidget(batch_group)
@@ -732,12 +865,12 @@ class MainWindow(QMainWindow):
             train_layout.addWidget(widget)
 
         div0 = QLabel("─── IC Pre-Training (optional) ───")
-        div0.setStyleSheet("color: #505080; font-size: 11px;")
+        self._register_style(div0, "hint", lambda css, _c='#505080', _e='': f"color: {_c}; {_e}{css}")
         train_layout.addWidget(div0)
 
         self.ic_pretrain_cb = QCheckBox("Enable IC-guided pre-training")
         self.ic_pretrain_cb.setChecked(False)
-        self.ic_pretrain_cb.setStyleSheet("color: #69db7c; font-size: 12px;")
+        self._register_style(self.ic_pretrain_cb, "hint", lambda css, _c='#69db7c', _e='': f"color: {_c}; {_e}{css}")
         self.ic_pretrain_cb.stateChanged.connect(self._on_ic_pretrain_changed)
         train_layout.addWidget(self.ic_pretrain_cb)
 
@@ -786,7 +919,7 @@ class MainWindow(QMainWindow):
         # Restore option
         ic_restore_cb = QCheckBox("🔄 Restore from saved IC pre-train model")
         ic_restore_cb.setChecked(False)
-        ic_restore_cb.setStyleSheet("color: #69db7c; font-size: 12px;")
+        self._register_style(ic_restore_cb, "hint", lambda css, _c='#69db7c', _e='': f"color: {_c}; {_e}{css}")
         ic_pt_layout.addWidget(ic_restore_cb)
         self.ic_pretrain_restore_cb = ic_restore_cb
 
@@ -808,7 +941,7 @@ class MainWindow(QMainWindow):
             lambda s: self.ic_pretrain_restore_widget.setVisible(s == 2))
 
         ic_note = QLabel("Trains IC loss only before main training.\nFirst step only for time-adaptive.")
-        ic_note.setStyleSheet("color: #586e75; font-size: 11px;")
+        self._register_style(ic_note, "hint", lambda css, _c='#586e75', _e='': f"color: {_c}; {_e}{css}")
         ic_note.setWordWrap(True)
         ic_pt_layout.addWidget(ic_note)
 
@@ -817,7 +950,7 @@ class MainWindow(QMainWindow):
 
         # ── Optimizer Scheduler ───────────────────────────────
         div_sched = QLabel("─── Training Phases ───")
-        div_sched.setStyleSheet("color: #505080; font-size: 11px;")
+        self._register_style(div_sched, "hint", lambda css, _c='#505080', _e='': f"color: {_c}; {_e}{css}")
         train_layout.addWidget(div_sched)
         self.sched_cb = QCheckBox("Enable Optimizer Scheduler")
         self.sched_cb.setChecked(True)
@@ -849,7 +982,7 @@ class MainWindow(QMainWindow):
         # Same weights checkbox
         self.sched_same_weights_cb = QCheckBox("Use same weights for all phases")
         self.sched_same_weights_cb.setChecked(True)
-        self.sched_same_weights_cb.setStyleSheet("color: #69db7c; font-size: 12px;")
+        self._register_style(self.sched_same_weights_cb, "hint", lambda css, _c='#69db7c', _e='': f"color: {_c}; {_e}{css}")
         self.sched_same_weights_cb.stateChanged.connect(
             lambda s: self._build_weight_inputs(self.num_outputs_spin.value()))
         sched_layout.addWidget(self.sched_same_weights_cb)
@@ -975,7 +1108,7 @@ class MainWindow(QMainWindow):
 
         # ── Step groups ───────────────────────────────────────
         ta_groups_label = QLabel("Time step groups:")
-        ta_groups_label.setStyleSheet("color: #a0c4ff; font-size: 12px;")
+        self._register_style(ta_groups_label, "hint", lambda css, _c='#a0c4ff', _e='': f"color: {_c}; {_e}{css}")
         ta_layout.addWidget(ta_groups_label)
 
         self.ta_groups_widget = QWidget()
@@ -1011,7 +1144,7 @@ class MainWindow(QMainWindow):
         # Transfer learning
         self.ta_transfer_cb = QCheckBox("Enable transfer learning (warm start from previous step)")
         self.ta_transfer_cb.setChecked(False)
-        self.ta_transfer_cb.setStyleSheet("color: #69db7c; font-size: 12px;")
+        self._register_style(self.ta_transfer_cb, "hint", lambda css, _c='#69db7c', _e='': f"color: {_c}; {_e}{css}")
         ta_layout.addWidget(self.ta_transfer_cb)
 
         self.ta_transfer_opt_widget = QWidget()
@@ -1056,7 +1189,7 @@ class MainWindow(QMainWindow):
         self.inv_multi_var_hint = QLabel(
             "⚠ Add each new variable's name to your PDE expression(s) too\n"
             "(PDE Builder tab), wherever that unknown quantity belongs.")
-        self.inv_multi_var_hint.setStyleSheet("color: #ffd43b; font-size: 12px;")
+        self._register_style(self.inv_multi_var_hint, "hint", lambda css, _c='#ffd43b', _e='': f"color: {_c}; {_e}{css}")
         self.inv_multi_var_hint.setWordWrap(True)
         self.inv_multi_var_hint.setVisible(False)
         inv_layout.addWidget(self.inv_multi_var_hint)
@@ -1070,7 +1203,7 @@ class MainWindow(QMainWindow):
         inv_ref_row = QHBoxLayout()
         inv_ref_toggle = QCheckBox("\U0001F4D6 Show inverse reference")
         inv_ref_toggle.setChecked(False)
-        inv_ref_toggle.setStyleSheet("color: #74c0fc; font-size: 13px;")
+        self._register_style(inv_ref_toggle, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
         inv_ref_row.addWidget(inv_ref_toggle)
         inv_ref_row.addStretch()
         inv_ref_row_widget = QWidget()
@@ -1091,7 +1224,7 @@ class MainWindow(QMainWindow):
                         "observation datasets; each gets its own \"which output\" selector and its\n"
                         "own loss weight, since each becomes a separate loss term.")
         inv_ref_hint = QLabel(inv_ref_text)
-        inv_ref_hint.setStyleSheet("color: #74c0fc; font-size: 13px;")
+        self._register_style(inv_ref_hint, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
         inv_ref_hint.setWordWrap(True)
         inv_ref_hint.setVisible(False)
         inv_layout.addWidget(inv_ref_hint)
@@ -1116,7 +1249,7 @@ class MainWindow(QMainWindow):
         self.inv_multi_data_hint = QLabel(
             "⚠ Each additional measured data file adds its own\n"
             "observation loss term, weighted by its own box below.")
-        self.inv_multi_data_hint.setStyleSheet("color: #ffd43b; font-size: 12px;")
+        self._register_style(self.inv_multi_data_hint, "hint", lambda css, _c='#ffd43b', _e='': f"color: {_c}; {_e}{css}")
         self.inv_multi_data_hint.setWordWrap(True)
         self.inv_multi_data_hint.setVisible(False)
         inv_layout.addWidget(self.inv_multi_data_hint)
@@ -1151,11 +1284,11 @@ class MainWindow(QMainWindow):
         # ── Solve / Stop buttons ──────────────────────────────
         self.solve_btn = QPushButton("▶  Solve")
         self.solve_btn.setMinimumHeight(44)
-        self.solve_btn.setStyleSheet("""
-            QPushButton { background: qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 #0078d4,stop:1 #005a9e);
-                          color: white; font-size: 14px; font-weight: bold; border-radius: 6px; border: none; }
-            QPushButton:hover { background: qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 #1a8ae8,stop:1 #0070c0); }
-            QPushButton:disabled { background: #333355; color: #666; }
+        self._register_style(self.solve_btn, "button", lambda css: f"""
+            QPushButton {{ background: qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 #0078d4,stop:1 #005a9e);
+                          color: white; {css} border-radius: 6px; border: none; }}
+            QPushButton:hover {{ background: qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 #1a8ae8,stop:1 #0070c0); }}
+            QPushButton:disabled {{ background: #333355; color: #666; }}
         """)
         self.solve_btn.clicked.connect(self._on_solve)
         left_layout.addWidget(self.solve_btn)
@@ -1163,10 +1296,10 @@ class MainWindow(QMainWindow):
         self.stop_btn = QPushButton("⏹  Stop")
         self.stop_btn.setMinimumHeight(36)
         self.stop_btn.setEnabled(False)
-        self.stop_btn.setStyleSheet("""
-            QPushButton { background: #6b1f1f; color: white; font-size: 13px; font-weight: bold; border-radius: 6px; border: none; }
-            QPushButton:hover { background: #8b2f2f; }
-            QPushButton:disabled { background: #333355; color: #666; }
+        self._register_style(self.stop_btn, "button", lambda css: f"""
+            QPushButton {{ background: #6b1f1f; color: white; {css} border-radius: 6px; border: none; }}
+            QPushButton:hover {{ background: #8b2f2f; }}
+            QPushButton:disabled {{ background: #333355; color: #666; }}
         """)
         self.stop_btn.clicked.connect(self._on_stop)
         left_layout.addWidget(self.stop_btn)
@@ -1178,7 +1311,7 @@ class MainWindow(QMainWindow):
 
         restore_toggle = QCheckBox("🔄 Enable Model Restore && Visualization")
         restore_toggle.setChecked(False)
-        restore_toggle.setStyleSheet("color: #a0c4ff; font-weight: bold; font-size: 13px;")
+        self._register_style(restore_toggle, "hint", lambda css, _c='#a0c4ff', _e='': f"color: {_c}; {_e}{css}")
         restore_layout.addWidget(restore_toggle)
 
         restore_content = QWidget()
@@ -1374,11 +1507,11 @@ class MainWindow(QMainWindow):
         self.restore_btn = QPushButton("🔄  Restore & Visualize")
 
         self.restore_btn.setMinimumHeight(38)
-        self.restore_btn.setStyleSheet("""
-            QPushButton { background: #1a5c3a; color: white; font-size: 13px;
-                          font-weight: bold; border-radius: 6px; border: none; }
-            QPushButton:hover { background: #2a7c4a; }
-            QPushButton:disabled { background: #333355; color: #666; }
+        self._register_style(self.restore_btn, "button", lambda css: f"""
+            QPushButton {{ background: #1a5c3a; color: white;
+                          {css} border-radius: 6px; border: none; }}
+            QPushButton:hover {{ background: #2a7c4a; }}
+            QPushButton:disabled {{ background: #333355; color: #666; }}
         """)
         self.restore_btn.clicked.connect(self._on_restore)
         restore_content_layout.addWidget(self.restore_btn)
@@ -1404,7 +1537,7 @@ class MainWindow(QMainWindow):
         log_layout.setSpacing(2)
 
         log_label = QLabel("📋 Training Log")
-        log_label.setStyleSheet("color: #a0c4ff; font-weight: bold; font-size: 12px; margin-top: 2px;")
+        self._register_style(log_label, "hint", lambda css, _c='#a0c4ff', _e='margin-top: 2px; ': f"color: {_c}; {_e}{css}")
         log_label.setFixedHeight(22)
         log_layout.addWidget(log_label)
 
@@ -1445,20 +1578,20 @@ class MainWindow(QMainWindow):
         self.plot_settings_btn.setFixedHeight(28)
         self.plot_settings_btn.setFixedWidth(28)
         self.plot_settings_btn.setToolTip("Plot settings")
-        self.plot_settings_btn.setStyleSheet("""
-            QPushButton { background: #3e3e42; color: #a0c4ff; font-size: 14px;
-                          border-radius: 4px; border: 1px solid #586e75; }
-            QPushButton:hover { background: #586e75; }
+        self._register_style(self.plot_settings_btn, "button", lambda css: f"""
+            QPushButton {{ background: #3e3e42; color: #a0c4ff; {css}
+                          border-radius: 4px; border: 1px solid #586e75; }}
+            QPushButton:hover {{ background: #586e75; }}
         """)
         self.plot_settings_btn.clicked.connect(self._on_plot_settings)
         ctrl_row.addWidget(self.plot_settings_btn)
 
         self.ea_btn = QPushButton("📊 Error Analysis")
         self.ea_btn.setFixedHeight(28)
-        self.ea_btn.setStyleSheet("""
-            QPushButton { background: #1a3a5a; color: #74c0fc; font-size: 12px;
-                          font-weight: bold; border-radius: 4px; border: 1px solid #2a5a8a; padding: 0 8px; }
-            QPushButton:hover { background: #2a5a8a; }
+        self._register_style(self.ea_btn, "button", lambda css: f"""
+            QPushButton {{ background: #1a3a5a; color: #74c0fc; {css}
+                          border-radius: 4px; border: 1px solid #2a5a8a; padding: 0 8px; }}
+            QPushButton:hover {{ background: #2a5a8a; }}
         """)
         self.ea_btn.clicked.connect(self._on_error_analysis_btn)
         ctrl_row.addWidget(self.ea_btn)
@@ -1481,10 +1614,10 @@ class MainWindow(QMainWindow):
 
         self.export_btn = QPushButton("💾 Export Solution")
         self.export_btn.setFixedHeight(28)
-        self.export_btn.setStyleSheet("""
-            QPushButton { background: #1a4a3a; color: #69db7c; font-size: 12px;
-                          font-weight: bold; border-radius: 4px; border: 1px solid #2a6a4a; padding: 0 8px; }
-            QPushButton:hover { background: #2a6a4a; }
+        self._register_style(self.export_btn, "button", lambda css: f"""
+            QPushButton {{ background: #1a4a3a; color: #69db7c; {css}
+                          border-radius: 4px; border: 1px solid #2a6a4a; padding: 0 8px; }}
+            QPushButton:hover {{ background: #2a6a4a; }}
         """)
         self.export_btn.clicked.connect(self._on_export_settings)
         ctrl_row.addWidget(self.export_btn)
@@ -1789,7 +1922,7 @@ class MainWindow(QMainWindow):
         layout = QVBoxLayout(dialog)
 
         info = QLabel("Select number of time steps to plot.")
-        info.setStyleSheet("color: #74c0fc; font-size: 12px;")
+        self._register_style(info, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
         layout.addWidget(info)
 
         steps_row = QHBoxLayout()
@@ -1867,7 +2000,7 @@ class MainWindow(QMainWindow):
         csv_row.addWidget(csv_browse)
         csv_layout.addLayout(csv_row)
         info = QLabel("Expected format — 1D: x, t, u  |  2D: x, y, t, u")
-        info.setStyleSheet("color: #586e75; font-size: 11px;")
+        self._register_style(info, "hint", lambda css, _c='#586e75', _e='': f"color: {_c}; {_e}{css}")
         csv_layout.addWidget(info)
         self._ea_csv_widget.setVisible(False)
         layout.addWidget(self._ea_csv_widget)
@@ -2324,7 +2457,7 @@ class MainWindow(QMainWindow):
 
         hint_toggle = QCheckBox("📖 Show derivative reference")
         hint_toggle.setChecked(False)
-        hint_toggle.setStyleSheet("color: #74c0fc; font-size: 13px;")
+        self._register_style(hint_toggle, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
         tmpl_ref_row.addWidget(hint_toggle)
 
         tmpl_ref_row.addStretch()
@@ -2334,7 +2467,7 @@ class MainWindow(QMainWindow):
         self.pde_main_layout.addWidget(tmpl_ref_row_widget)
 
         hint = QLabel(hint_text)
-        hint.setStyleSheet("color: #74c0fc; font-size: 13px;")
+        self._register_style(hint, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
         hint.setWordWrap(True)
         hint.setVisible(False)
         self.pde_main_layout.addWidget(hint)
@@ -2425,14 +2558,14 @@ class MainWindow(QMainWindow):
         for i in range(n):
             name = ["u", "v", "w", "p"][i] if i < 4 else f"u{i+1}"
             sep = QLabel(f"── Output {i+1} ({name}) ──")
-            sep.setStyleSheet("color: #505080; font-size: 10px; margin-top: 4px;")
+            self._register_style(sep, "hint", lambda css, _c='#505080', _e='margin-top: 4px; ': f"color: {_c}; {_e}{css}")
             self.bc_main_layout.addWidget(sep)
 
             # Master toggle for outputs > 0
             if i > 0:
                 _bc_enable_cb = QCheckBox(f"Enable boundary conditions for {name}")
                 _bc_enable_cb.setChecked(True)
-                _bc_enable_cb.setStyleSheet("color: #ffa94d; font-size: 12px;")
+                self._register_style(_bc_enable_cb, "hint", lambda css, _c='#ffa94d', _e='': f"color: {_c}; {_e}{css}")
                 self.bc_main_layout.addWidget(_bc_enable_cb)
             else:
                 _bc_enable_cb = None
@@ -2546,7 +2679,7 @@ class MainWindow(QMainWindow):
             # IC reference toggle
             ic_hint_toggle = QCheckBox("📖 Show IC reference")
             ic_hint_toggle.setChecked(False)
-            ic_hint_toggle.setStyleSheet("color: #74c0fc; font-size: 12px;")
+            self._register_style(ic_hint_toggle, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
             self.bc_main_layout.addWidget(ic_hint_toggle)
 
             if is_2d:
@@ -2569,7 +2702,7 @@ class MainWindow(QMainWindow):
                     "No need for np. or x[:,0] — handled automatically."
                 )
             ic_hint = QLabel(ic_hint_text)
-            ic_hint.setStyleSheet("color: #74c0fc; font-size: 12px;")
+            self._register_style(ic_hint, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
             ic_hint.setWordWrap(True)
             ic_hint.setVisible(False)
             self.bc_main_layout.addWidget(ic_hint)
@@ -2579,7 +2712,7 @@ class MainWindow(QMainWindow):
             if is_2d:
                 ic_file_cb = QCheckBox("📂 Load IC from file (x,y,t,c format)")
                 ic_file_cb.setChecked(False)
-                ic_file_cb.setStyleSheet("color: #ffa94d; font-size: 12px;")
+                self._register_style(ic_file_cb, "hint", lambda css, _c='#ffa94d', _e='': f"color: {_c}; {_e}{css}")
                 self.bc_main_layout.addWidget(ic_file_cb)
                 self.ic_from_file.append(ic_file_cb)
 
@@ -2723,8 +2856,8 @@ class MainWindow(QMainWindow):
         header_row = QHBoxLayout()
         header_txt = f"── BC {entry_num} ──" + (" \U0001F512" if locked else "")
         header_lbl = QLabel(header_txt)
-        header_lbl.setStyleSheet("color: #a0c4ff; font-size: 11px;" if not locked
-                                  else "color: #8a8a8a; font-size: 11px;")
+        _header_color = "#8a8a8a" if locked else "#a0c4ff"
+        self._register_style(header_lbl, "hint", lambda css, _c=_header_color: f"color: {_c}; {css}")
         header_row.addWidget(header_lbl)
         remove_btn = QPushButton("✕")
         remove_btn.setFixedHeight(22); remove_btn.setFixedWidth(24)
@@ -2770,7 +2903,7 @@ class MainWindow(QMainWindow):
         loc_layout.addLayout(loc_row)
         loc_hint_toggle = QCheckBox("📖 Show location examples")
         loc_hint_toggle.setChecked(False)
-        loc_hint_toggle.setStyleSheet("color: #74c0fc; font-size: 12px;")
+        self._register_style(loc_hint_toggle, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
         loc_layout.addWidget(loc_hint_toggle)
         loc_hint = QLabel(
             "True/False expression in x, y, z picking out the boundary you\n"
@@ -2781,7 +2914,7 @@ class MainWindow(QMainWindow):
             "y <= 1e-8            → bottom edge\n"
             "np.isclose(x**2 + y**2, 0.25)  → circle boundary, radius 0.5"
         )
-        loc_hint.setStyleSheet("color: #74c0fc; font-size: 11px;")
+        self._register_style(loc_hint, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
         loc_hint.setWordWrap(True)
         loc_hint.setVisible(False)
         loc_layout.addWidget(loc_hint)
@@ -2861,7 +2994,7 @@ class MainWindow(QMainWindow):
             "directly, i.e. DeepXDE's raw func(inputs, outputs, X) -- it should\n"
             "evaluate to 0 on the boundary/points selected above."
         )
-        advanced_note.setStyleSheet("color: #ffa94d; font-size: 11px;")
+        self._register_style(advanced_note, "hint", lambda css, _c='#ffa94d', _e='': f"color: {_c}; {_e}{css}")
         advanced_note.setWordWrap(True)
         advanced_note.setVisible(False)
         entry_layout.addWidget(advanced_note)
@@ -3094,7 +3227,7 @@ class MainWindow(QMainWindow):
 
         if _same_weights:
             _sep_all = QLabel("── Shared weights (all phases) ──")
-            _sep_all.setStyleSheet("color: #505080; font-size: 10px;")
+            self._register_style(_sep_all, "hint", lambda css, _c='#505080', _e='': f"color: {_c}; {_e}{css}")
             _sw_all = QWidget(); _sl_all = QHBoxLayout(_sw_all)
             _sl_all.setContentsMargins(0,0,0,0); _sl_all.addWidget(_sep_all)
             self.weights_main_layout.addWidget(_sw_all)
@@ -3126,7 +3259,7 @@ class MainWindow(QMainWindow):
             for _pi, _ph in enumerate(self.sched_phase_list):
                 _phase_num = _ph['phase_num']
                 sep = QLabel(f"── Phase {_phase_num} weights ──")
-                sep.setStyleSheet("color: #505080; font-size: 10px;")
+                self._register_style(sep, "hint", lambda css, _c='#505080', _e='': f"color: {_c}; {_e}{css}")
                 _sw = QWidget(); _sl = QHBoxLayout(_sw)
                 _sl.setContentsMargins(0,0,0,0); _sl.addWidget(sep)
                 self.weights_main_layout.addWidget(_sw)
@@ -4167,7 +4300,7 @@ class MainWindow(QMainWindow):
         layout = QVBoxLayout(dialog)
 
         info = QLabel("Float64 recommended for L-BFGS convergence.\nFloat32 is faster but L-BFGS may stop early.")
-        info.setStyleSheet("color: #74c0fc; font-size: 12px;")
+        self._register_style(info, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
         info.setWordWrap(True)
         layout.addWidget(info)
 
@@ -4625,29 +4758,57 @@ print("DOMAIN_PREVIEW_DONE")
         else:
             self.loss_label.setText("❌ Preview failed")
     
+    _DISP_FONT_CHOICES = [
+        "Segoe UI", "Arial", "Helvetica", "Verdana", "Tahoma",
+        "Trebuchet MS", "Georgia", "Times New Roman",
+        "Courier New", "Consolas",
+    ]
+    _DISP_CATEGORY_LABELS = [
+        ("title", "App Title / Subtitle"),
+        ("section_header", 'Section Headers (e.g. "Problem Definition", "Quick Examples")'),
+        ("field_label", "Field Labels (regular text next to inputs)"),
+        ("hint", "Hints / Notes (small tips && warnings)"),
+        ("button", "Buttons"),
+        ("log_console", "Log Console"),
+    ]
+
     def _on_display_settings(self):
+        # Snapshot everything so Cancel can revert live-previewed changes,
+        # not just close the dialog leaving a half-applied preview behind.
+        snapshot = {
+            "font_size": self._font_size,
+            "log_font_size": self._log_font_size,
+            "theme": self._theme,
+            "accent": self._accent,
+            "disp": {k: dict(v) for k, v in self._disp.items()},
+        }
+
         dialog = QDialog(self)
         dialog.setWindowTitle("Display Settings")
-        dialog.setMinimumWidth(380)
-        layout = QVBoxLayout(dialog)
+        dialog.setMinimumWidth(620)
+        outer = QVBoxLayout(dialog)
 
-        # Font size
+        tabs = QTabWidget()
+        outer.addWidget(tabs)
+
+        # ── Tab 1: Theme & Base ───────────────────────────────
+        theme_tab = QWidget()
+        theme_layout = QVBoxLayout(theme_tab)
+
         font_row = QHBoxLayout()
-        font_row.addWidget(QLabel("UI Font size:"))
-        font_spin = QSpinBox(); font_spin.setRange(9, 18); font_spin.setValue(self._font_size)
+        font_row.addWidget(QLabel("Base UI font size (spinboxes, combos, checkboxes):"))
+        font_spin = QSpinBox(); font_spin.setRange(9, 22); font_spin.setValue(self._font_size)
         font_spin.setFixedWidth(80)
         font_row.addStretch(); font_row.addWidget(font_spin)
-        layout.addLayout(font_row)
+        theme_layout.addLayout(font_row)
 
-        # Log font size
         log_font_row = QHBoxLayout()
-        log_font_row.addWidget(QLabel("Log font size:"))
-        log_font_spin = QSpinBox(); log_font_spin.setRange(8, 16); log_font_spin.setValue(self._log_font_size)
+        log_font_row.addWidget(QLabel("Log console font size:"))
+        log_font_spin = QSpinBox(); log_font_spin.setRange(8, 24); log_font_spin.setValue(self._log_font_size)
         log_font_spin.setFixedWidth(80)
         log_font_row.addStretch(); log_font_row.addWidget(log_font_spin)
-        layout.addLayout(log_font_row)
+        theme_layout.addLayout(log_font_row)
 
-        # Theme
         theme_row = QHBoxLayout()
         theme_row.addWidget(QLabel("Color theme:"))
         theme_combo = QComboBox()
@@ -4655,37 +4816,150 @@ print("DOMAIN_PREVIEW_DONE")
         theme_combo.setCurrentText(self._theme)
         theme_combo.setFixedWidth(160)
         theme_row.addStretch(); theme_row.addWidget(theme_combo)
-        layout.addLayout(theme_row)
+        theme_layout.addLayout(theme_row)
 
-        # Accent color
         accent_row = QHBoxLayout()
-        accent_row.addWidget(QLabel("Accent color:"))
+        accent_row.addWidget(QLabel("Accent color (default Section Header color):"))
         accent_combo = QComboBox()
         accent_combo.addItems(["Blue (#a0c4ff)", "Green (#69db7c)", "Orange (#ffa94d)", "Purple (#cc5de8)", "Teal (#38d9a9)", "Black (#000000)"])
         accent_combo.setCurrentText(self._accent)
         accent_combo.setFixedWidth(160)
         accent_row.addStretch(); accent_row.addWidget(accent_combo)
-        layout.addLayout(accent_row)
+        theme_layout.addLayout(accent_row)
+        theme_layout.addStretch()
+        tabs.addTab(theme_tab, "Theme")
 
-        # Preview button
-        preview_btn = QPushButton("Preview")
-        layout.addWidget(preview_btn)
+        # ── Tab 2: Text Styles (per-category) ─────────────────
+        text_tab = QWidget()
+        text_layout = QVBoxLayout(text_tab)
+        intro = QLabel(
+            "Set family/size/bold/color independently for each kind of text. "
+            "Color left on \"Auto\" keeps that text's own default color."
+        )
+        intro.setWordWrap(True)
+        intro.setStyleSheet("color: #74c0fc; font-size: 12px;")
+        text_layout.addWidget(intro)
+
+        cat_widgets = {}  # category -> dict of controls, for reading back on preview/OK
+
+        for cat_key, cat_label in self._DISP_CATEGORY_LABELS:
+            cur = self._disp.get(cat_key, self._DISP_CATEGORY_DEFAULTS[cat_key])
+            group = QGroupBox(cat_label)
+            row = QHBoxLayout(group)
+
+            family_combo = QComboBox()
+            family_combo.addItems(self._DISP_FONT_CHOICES)
+            if cur["family"] not in self._DISP_FONT_CHOICES:
+                family_combo.addItem(cur["family"])
+            family_combo.setCurrentText(cur["family"])
+            family_combo.setFixedWidth(140)
+            row.addWidget(family_combo)
+
+            size_spin = QSpinBox()
+            size_spin.setRange(7, 40)
+            size_spin.setValue(cur["size"])
+            size_spin.setFixedWidth(60)
+            size_spin.setSuffix(" px")
+            row.addWidget(size_spin)
+
+            bold_cb = QCheckBox("Bold")
+            bold_cb.setChecked(bool(cur["bold"]))
+            row.addWidget(bold_cb)
+
+            color_btn = QPushButton()
+            color_btn.setFixedWidth(90)
+            color_btn.setToolTip("Click to pick a color for this category")
+            color_state = {"color": (cur.get("color") or "").strip()}
+
+            def _refresh_color_btn(btn=color_btn, state=color_state):
+                c = state["color"]
+                if c:
+                    btn.setText(c)
+                    btn.setStyleSheet(f"background: {c}; color: {'#000' if QColor(c).lightnessF() > 0.5 else '#fff'};")
+                else:
+                    btn.setText("Color: Auto")
+                    btn.setStyleSheet("")
+            _refresh_color_btn()
+
+            def _pick_color(_checked=False, state=color_state, btn=color_btn):
+                start = QColor(state["color"]) if state["color"] else QColor("#a0c4ff")
+                picked = QColorDialog.getColor(start, dialog, "Choose color")
+                if picked.isValid():
+                    state["color"] = picked.name()
+                    _refresh_color_btn(btn, state)
+                    _apply_preview()
+            color_btn.clicked.connect(_pick_color)
+            row.addWidget(color_btn)
+
+            reset_btn = QPushButton("✕ Reset")
+            reset_btn.setFixedWidth(60)
+            reset_btn.setToolTip("Clear the color override, back to this text's own default color")
+
+            def _reset_color(_checked=False, state=color_state, btn=color_btn):
+                state["color"] = ""
+                _refresh_color_btn(btn, state)
+                _apply_preview()
+            reset_btn.clicked.connect(_reset_color)
+            row.addWidget(reset_btn)
+
+            text_layout.addWidget(group)
+            cat_widgets[cat_key] = {
+                "family": family_combo, "size": size_spin, "bold": bold_cb, "color_state": color_state,
+            }
+
+        text_layout.addStretch()
+        tabs.addTab(text_tab, "Text Styles")
 
         def _apply_preview():
             self._font_size = font_spin.value()
             self._log_font_size = log_font_spin.value()
             self._theme = theme_combo.currentText()
             self._accent = accent_combo.currentText()
+            for cat_key, widgets in cat_widgets.items():
+                self._disp[cat_key] = {
+                    "family": widgets["family"].currentText(),
+                    "size": widgets["size"].value(),
+                    "bold": widgets["bold"].isChecked(),
+                    "color": widgets["color_state"]["color"],
+                }
             self._apply_display_settings()
 
-        preview_btn.clicked.connect(_apply_preview)
+        # Live preview: every control applies immediately, so changes are
+        # visible right away while comparing options -- no separate
+        # "Preview" click needed.
+        font_spin.valueChanged.connect(_apply_preview)
+        log_font_spin.valueChanged.connect(_apply_preview)
+        theme_combo.currentTextChanged.connect(_apply_preview)
+        accent_combo.currentTextChanged.connect(_apply_preview)
+        for widgets in cat_widgets.values():
+            widgets["family"].currentTextChanged.connect(_apply_preview)
+            widgets["size"].valueChanged.connect(_apply_preview)
+            widgets["bold"].stateChanged.connect(_apply_preview)
 
         btn_row = QHBoxLayout()
-        ok_btn = QPushButton("OK"); cancel_btn = QPushButton("Cancel")
+        ok_btn = QPushButton("OK (save)"); cancel_btn = QPushButton("Cancel (revert)")
         btn_row.addStretch(); btn_row.addWidget(ok_btn); btn_row.addWidget(cancel_btn)
-        layout.addLayout(btn_row)
+        outer.addLayout(btn_row)
+
+        def _revert_settings():
+            # Runs on Cancel AND on closing the dialog via the window's own
+            # close button, so a live-previewed-but-not-saved change never
+            # silently sticks either way.
+            self._font_size = snapshot["font_size"]
+            self._log_font_size = snapshot["log_font_size"]
+            self._theme = snapshot["theme"]
+            self._accent = snapshot["accent"]
+            self._disp = snapshot["disp"]
+            self._apply_display_settings()
+
+        def _on_ok():
+            _apply_preview()
+            self._save_display_settings_to_disk()
+            dialog.accept()
+
         cancel_btn.clicked.connect(dialog.reject)
-        ok_btn.clicked.connect(lambda: (_apply_preview(), dialog.accept()))
+        dialog.rejected.connect(_revert_settings)
+        ok_btn.clicked.connect(_on_ok)
         dialog.exec()
 
 
@@ -4715,6 +4989,21 @@ print("DOMAIN_PREVIEW_DONE")
         label_color = "#333333" if is_white else "#c0c0c0"
         arrow_color = "#333333" if is_white else "#ffffff"
 
+        # Section Headers (QGroupBox titles, e.g. "Problem Definition",
+        # "Quick Examples") and Field Labels (plain QLabel text) each get
+        # their own independently-adjustable family/size/weight, on top of
+        # the base widget font-size above -- these are two of the Display
+        # Settings categories. An unset category color falls back to the
+        # theme's existing accent/label color exactly as before.
+        sh = self._disp.get("section_header", self._DISP_CATEGORY_DEFAULTS["section_header"])
+        sh_color = (sh.get("color") or "").strip() or accent
+        sh_weight = "bold" if sh.get("bold") else "normal"
+        fl = self._disp.get("field_label", self._DISP_CATEGORY_DEFAULTS["field_label"])
+        fl_color = (fl.get("color") or "").strip() or label_color
+        fl_weight = "bold" if fl.get("bold") else "normal"
+        lc = self._disp.get("log_console", self._DISP_CATEGORY_DEFAULTS["log_console"])
+        log_color = (lc.get("color") or "").strip() or ('#1e1e1e' if is_white else '#a0ffb0')
+
         self.setStyleSheet(f"""
             QMainWindow {{ background: {bg}; }}
             QWidget {{ background: {bg}; color: {text_color}; font-family: 'Segoe UI', Arial; font-size: {fs}px; }}
@@ -4726,7 +5015,11 @@ print("DOMAIN_PREVIEW_DONE")
                 font-weight: bold;
                 color: {accent};
             }}
-            QGroupBox::title {{ subcontrol-origin: margin; left: 8px; padding: 0 4px; }}
+            QGroupBox::title {{
+                subcontrol-origin: margin; left: 8px; padding: 0 4px;
+                font-family: '{sh['family']}'; font-size: {sh['size']}px;
+                font-weight: {sh_weight}; color: {sh_color};
+            }}
             QLineEdit, QDoubleSpinBox, QSpinBox, QComboBox {{
                 background: {widget_bg};
                 border: 1px solid {border};
@@ -4778,7 +5071,10 @@ print("DOMAIN_PREVIEW_DONE")
                 background: {widget_bg};
             }}
             QRadioButton::indicator:checked {{ background: {accent}; border-color: {accent}; }}
-            QLabel {{ color: {label_color}; }}
+            QLabel {{
+                color: {fl_color};
+                font-family: '{fl['family']}'; font-size: {fl['size']}px; font-weight: {fl_weight};
+            }}
             QScrollArea {{ border: none; background: {bg}; }}
             QScrollBar:vertical {{ background: {widget_bg}; width: 14px; border-radius: 6px; }}
             QScrollBar::handle:vertical {{ background: {border}; border-radius: 6px; min-height: 30px; }}
@@ -4786,8 +5082,8 @@ print("DOMAIN_PREVIEW_DONE")
                 background: {'#f8f8f8' if is_white else '#0f0f23'};
                 border: 1px solid {border};
                 border-radius: 6px;
-                color: {'#1e1e1e' if is_white else '#a0ffb0'};
-                font-family: 'Courier New', monospace;
+                color: {log_color};
+                font-family: '{lc['family']}';
                 font-size: {lfs}px;
             }}
             QSplitter::handle {{ background: {border}; width: 2px; }}
@@ -4798,6 +5094,12 @@ print("DOMAIN_PREVIEW_DONE")
         """)
         self.loss_label.setStyleSheet(f"border: 1px solid {border}; border-radius: 6px; color: #505080; background: {widget_bg};")
         self.solution_label.setStyleSheet(f"border: 1px solid {border}; border-radius: 6px; color: #505080; background: {widget_bg};")
+        # Re-apply every registered per-category widget (App Title,
+        # Hint/Note labels, Buttons) so they pick up the latest settings too
+        # -- the QSS block above only covers Section Headers/Field Labels/
+        # Log Console, which don't need per-widget registration.
+        if hasattr(self, "_styled_widgets"):
+            self._restyle_all()
 
     def _on_export_settings(self):
         dialog = QDialog(self)
@@ -4806,7 +5108,7 @@ print("DOMAIN_PREVIEW_DONE")
         layout = QVBoxLayout(dialog)
 
         info = QLabel("Saves solution as CSV files (one per time step)\nfor forward problems after training.")
-        info.setStyleSheet("color: #74c0fc; font-size: 12px;")
+        self._register_style(info, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
         info.setWordWrap(True)
         layout.addWidget(info)
 
@@ -4828,7 +5130,7 @@ print("DOMAIN_PREVIEW_DONE")
         layout.addLayout(tsteps_row)
 
         note = QLabel("Output: solution_data/solution_t{time}.txt\nColumns: x, t, u (1D) or x, y, t, u (2D)")
-        note.setStyleSheet("color: #586e75; font-size: 11px;")
+        self._register_style(note, "hint", lambda css, _c='#586e75', _e='': f"color: {_c}; {_e}{css}")
         note.setWordWrap(True)
         layout.addWidget(note)
 
@@ -5234,7 +5536,7 @@ print("ERROR_ANALYSIS_DONE")
         # Title / axis labels — every viz type gets these; blank keeps the
         # existing default text exactly as before.
         labels_line = QLabel("Leave blank to keep the default title/axis labels.")
-        labels_line.setStyleSheet("color: #586e75; font-size: 11px;")
+        self._register_style(labels_line, "hint", lambda css, _c='#586e75', _e='': f"color: {_c}; {_e}{css}")
         labels_line.setWordWrap(True)
         layout.addWidget(labels_line)
 
@@ -5271,7 +5573,7 @@ print("ERROR_ANALYSIS_DONE")
             "Parameter Convergence Animation (GIF)": "Animated GIF of each trainable variable's convergence, growing curve up to each logged iteration.",
         }
         info = QLabel(info_texts.get(viz_type, ""))
-        info.setStyleSheet("color: #586e75; font-size: 11px;")
+        self._register_style(info, "hint", lambda css, _c='#586e75', _e='': f"color: {_c}; {_e}{css}")
         info.setWordWrap(True)
         layout.addWidget(info)
 
@@ -5869,7 +6171,7 @@ print("ERROR_ANALYSIS_DONE")
         files_layout = QVBoxLayout(files_group)
 
         hint = QLabel("Format: space-separated, 3 columns: x  t  u  (no header)\nEach file = one time snapshot.")
-        hint.setStyleSheet("color: #586e75; font-size: 11px;")
+        self._register_style(hint, "hint", lambda css, _c='#586e75', _e='': f"color: {_c}; {_e}{css}")
         files_layout.addWidget(hint)
 
         # File list widget
@@ -5899,7 +6201,7 @@ print("ERROR_ANALYSIS_DONE")
             row_layout.addWidget(browse_btn)
 
             t_label = QLabel("")
-            t_label.setStyleSheet("color: #69db7c; font-size: 11px; min-width: 80px;")
+            self._register_style(t_label, "hint", lambda css, _c='#69db7c', _e='min-width: 80px; ': f"color: {_c}; {_e}{css}")
             row_layout.addWidget(t_label)
 
             remove_btn = QPushButton("✕")
@@ -5953,7 +6255,7 @@ print("ERROR_ANALYSIS_DONE")
             txt_files = sorted(glob.glob(os.path.join(ref_dir, 't_*.txt')))
             if txt_files:
                 hint2 = QLabel(f"📂 Auto-loaded from template: {os.path.basename(ref_dir)}")
-                hint2.setStyleSheet("color: #a0c4ff; font-size: 11px;")
+                self._register_style(hint2, "hint", lambda css, _c='#a0c4ff', _e='': f"color: {_c}; {_e}{css}")
                 files_layout.addWidget(hint2)
                 for f in txt_files:
                     _add_file_row(f)
@@ -6342,7 +6644,7 @@ print("ERROR_ANALYSIS_V2_DONE")
         # Header
         header_row = QHBoxLayout()
         header_lbl = QLabel(f"── Phase {phase_num} ──")
-        header_lbl.setStyleSheet("color: #a0c4ff; font-size: 11px;")
+        self._register_style(header_lbl, "hint", lambda css, _c='#a0c4ff', _e='': f"color: {_c}; {_e}{css}")
         header_row.addWidget(header_lbl)
         remove_btn = QPushButton("✕")
         remove_btn.setFixedHeight(22); remove_btn.setFixedWidth(24)
