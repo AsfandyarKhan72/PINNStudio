@@ -3869,12 +3869,18 @@ class MainWindow(QMainWindow):
 
     def _export_deepxde_script(self):
         """Export the problem exactly as currently configured in the GUI as
-        a standalone, runnable DeepXDE/PyTorch training script -- the same
-        script Solve itself generates and runs internally (generate_script
-        in codegen.py), just written to a .py file instead of piped to a
-        subprocess. Lets a user see precisely what their GUI settings
-        translate to in real DeepXDE code, and run/modify it themselves
-        outside the app."""
+        a standalone, runnable DeepXDE/PyTorch + matplotlib script -- built
+        by generate_clean_script() in codegen.py, a short, tutorial-style
+        generator that's independent of what Solve itself actually runs
+        (generate_script(), the app's own internal generator, untouched).
+        Only the features actually configured for this problem are written
+        in at all (an unticked one -- RAR, IC Pre-Training, Training
+        Callbacks, weight decay, Inverse, Time-Adaptive, Error Analysis,
+        input/output transforms -- is left out entirely, not hidden behind
+        a runtime "if"), in plain DeepXDE calls instead of the internal
+        generator's runtime dispatch over every GUI option. Lets a user see
+        precisely what their GUI settings translate to in real, readable
+        DeepXDE code, and run/edit it themselves outside the app."""
         default_name = getattr(self, "_current_problem_name", "") or "problem"
         path, _ = QFileDialog.getSaveFileName(
             self, "Export as DeepXDE Script", f"{default_name}.py",
@@ -3886,8 +3892,8 @@ class MainWindow(QMainWindow):
             path += ".py"
         config = self._build_config()
         try:
-            from pinnstudio.core.codegen import generate_script
-            script = generate_script(config)
+            from pinnstudio.core.codegen import generate_clean_script
+            script = generate_clean_script(config)
         except Exception as e:
             self.log_box.append(f"❌ Failed to generate DeepXDE script: {e}")
             return

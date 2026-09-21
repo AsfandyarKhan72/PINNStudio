@@ -3582,3 +3582,1371 @@ if {config.time_adaptive}:
 print("DONE")
 """
     return script
+
+
+# =====================================================================
+# generate_clean_script -- a SECOND, independent code generator.
+#
+# generate_script() above is what Solve actually runs: deliberately
+# generic/defensive, built to work for any possible GUI configuration via
+# runtime "if" branches over every option this app exposes, with app
+# bookkeeping (training_log.txt, model_config.json, per-phase JSON dumps)
+# for the Restore & Visualization panel. It must stay exactly as-is.
+#
+# This function is for "Export as DeepXDE Script" instead: a short,
+# tutorial-style, plain DeepXDE/PyTorch + matplotlib script containing
+# ONLY the pieces actually configured for THIS problem -- an unticked
+# feature (RAR, IC pre-training, Training Callbacks, weight decay,
+# input/output transforms, Error Analysis, Inverse) is left out of the
+# file entirely, not hidden behind a False branch. Everything that is
+# fully known at export time (geometry type, which PDE derivative terms
+# are referenced, the BC/IC list, loss weights, the training-phase list)
+# is resolved right here in Python and written into the script as plain,
+# literal DeepXDE calls instead of runtime dispatch code, so the result
+# reads like a hand-written example: something to read, run, and edit.
+# =====================================================================
+
+import ast as _clean_ast
+import json as _clean_json
+
+
+def _clean_needed_derivs(oname, oi, n_out, pde_check, is_2d, is_3d):
+    """Host-time equivalent of _pde_standard's runtime substring checks
+    above -- returns an ordered list of (varname, rhs_code) for exactly
+    the derivative terms this output's PDE expression(s) actually
+    reference, resolved now instead of re-checked every time the
+    generated script's pde() function runs."""
+
+    def has(suffix):
+        return f"d{oname}_{suffix}" in pde_check
+
+    def hess(i, j):
+        if n_out == 1:
+            return f"dde.grad.hessian(y, x, i={i}, j={j})"
+        return f"dde.grad.hessian(y, x, component={oi}, i={i}, j={j})"
+
+    out = []
+    if is_3d:
+        out.append((f"d{oname}_x", f"dde.grad.jacobian(y, x, i={oi}, j=0)"))
+        out.append((f"d{oname}_y", f"dde.grad.jacobian(y, x, i={oi}, j=1)"))
+        out.append((f"d{oname}_z", f"dde.grad.jacobian(y, x, i={oi}, j=2)"))
+        out.append((f"d{oname}_t", f"dde.grad.jacobian(y, x, i={oi}, j=3)"))
+        second = [("xx", 0, 0), ("yy", 1, 1), ("zz", 2, 2), ("tt", 3, 3),
+                  ("xy", 0, 1), ("xz", 0, 2), ("yz", 1, 2),
+                  ("xt", 0, 3), ("yt", 1, 3), ("zt", 2, 3)]
+        have2 = set()
+        for nm, i, j in second:
+            if has(nm):
+                out.append((f"d{oname}_{nm}", hess(i, j)))
+                have2.add(nm)
+        fourth = [("xxxx", "xx", 0, 0), ("yyyy", "yy", 1, 1), ("zzzz", "zz", 2, 2),
+                  ("xxyy", "xx", 1, 1), ("xxzz", "xx", 2, 2), ("yyzz", "yy", 2, 2),
+                  ("xxtt", "xx", 3, 3), ("yytt", "yy", 3, 3), ("zztt", "zz", 3, 3)]
+        for nm, base, i, j in fourth:
+            if has(nm) and base in have2:
+                out.append((f"d{oname}_{nm}", f"dde.grad.hessian(d{oname}_{base}, x, i={i}, j={j})"))
+    elif is_2d:
+        out.append((f"d{oname}_x", f"dde.grad.jacobian(y, x, i={oi}, j=0)"))
+        out.append((f"d{oname}_y", f"dde.grad.jacobian(y, x, i={oi}, j=1)"))
+        out.append((f"d{oname}_t", f"dde.grad.jacobian(y, x, i={oi}, j=2)"))
+        need_xx = has("xx") or has("xxxx") or has("xxyy") or has("xxtt")
+        need_yy = has("yy") or has("yyyy") or has("xxyy") or has("yytt")
+        if need_xx:
+            out.append((f"d{oname}_xx", hess(0, 0)))
+        if need_yy:
+            out.append((f"d{oname}_yy", hess(1, 1)))
+        if has("xy"):
+            out.append((f"d{oname}_xy", hess(0, 1)))
+        if has("tt"):
+            out.append((f"d{oname}_tt", hess(2, 2)))
+        if has("xt"):
+            out.append((f"d{oname}_xt", hess(0, 2)))
+        if has("yt"):
+            out.append((f"d{oname}_yt", hess(1, 2)))
+        if has("xxxx") and need_xx:
+            out.append((f"d{oname}_xxxx", f"dde.grad.hessian(d{oname}_xx, x, i=0, j=0)"))
+        if has("yyyy") and need_yy:
+            out.append((f"d{oname}_yyyy", f"dde.grad.hessian(d{oname}_yy, x, i=1, j=1)"))
+        if has("xxyy") and need_xx:
+            out.append((f"d{oname}_xxyy", f"dde.grad.hessian(d{oname}_xx, x, i=1, j=1)"))
+        if has("xxtt") and need_xx:
+            out.append((f"d{oname}_xxtt", f"dde.grad.hessian(d{oname}_xx, x, i=2, j=2)"))
+        if has("yytt") and need_yy:
+            out.append((f"d{oname}_yytt", f"dde.grad.hessian(d{oname}_yy, x, i=2, j=2)"))
+    else:
+        out.append((f"d{oname}_x", f"dde.grad.jacobian(y, x, i={oi}, j=0)"))
+        out.append((f"d{oname}_t", f"dde.grad.jacobian(y, x, i={oi}, j=1)"))
+        need_xx = has("xx") or has("xxxx") or has("xxtt")
+        need_tt = has("tt") or has("tttt") or has("xxtt")
+        if need_xx:
+            out.append((f"d{oname}_xx", hess(0, 0)))
+        if need_tt:
+            out.append((f"d{oname}_tt", hess(1, 1)))
+        if has("xt"):
+            out.append((f"d{oname}_xt", hess(0, 1)))
+        if has("xxxx") and need_xx:
+            out.append((f"d{oname}_xxxx", f"dde.grad.hessian(d{oname}_xx, x, i=0, j=0)"))
+        if has("xxtt") and need_xx:
+            out.append((f"d{oname}_xxtt", f"dde.grad.hessian(d{oname}_xx, x, i=1, j=1)"))
+        if has("tttt") and need_tt:
+            out.append((f"d{oname}_tttt", f"dde.grad.hessian(d{oname}_tt, x, i=1, j=1)"))
+    return out
+
+
+def _clean_geom_line(config, is_2d, is_3d, tri_verts, poly_verts):
+    """One literal geom = dde.geometry.XXX(...) line -- geometry type is
+    fixed per-problem, so no runtime dispatch is needed."""
+    gt = config.geometry_type or "Rectangle"
+    wrap_needed = gt in ("Disk", "Ellipse", "Triangle", "Polygon", "Sphere")
+    if gt == "Disk":
+        inner = f"dde.geometry.Disk([{config.geom_center_x}, {config.geom_center_y}], {config.geom_radius})"
+    elif gt == "Ellipse":
+        inner = (f"dde.geometry.Ellipse([{config.geom_center_x}, {config.geom_center_y}], "
+                  f"{config.geom_semi_major}, {config.geom_semi_minor}, {config.geom_angle})")
+    elif gt == "Triangle":
+        inner = f"dde.geometry.Triangle({tri_verts[0]}, {tri_verts[1]}, {tri_verts[2]})"
+    elif gt == "Polygon":
+        inner = f"dde.geometry.Polygon({poly_verts})"
+    elif gt == "Sphere":
+        inner = (f"dde.geometry.Sphere([{config.geom_center_x}, {config.geom_center_y}, "
+                  f"{config.geom_center_z}], {config.geom_radius})")
+    elif is_2d:
+        inner = f"dde.geometry.Rectangle([{config.x_min}, {config.y_min}], [{config.x_max}, {config.y_max}])"
+    elif is_3d:
+        inner = (f"dde.geometry.Cuboid([{config.x_min}, {config.y_min}, {config.z_min}], "
+                  f"[{config.x_max}, {config.y_max}, {config.z_max}])")
+    else:
+        inner = f"dde.geometry.Interval({config.x_min}, {config.x_max})"
+    if wrap_needed:
+        return f"geom = _DTypeSafeGeom({inner})", True
+    return f"geom = {inner}", False
+
+
+def _clean_coord_unpack(indent, is_batch, is_2d, is_3d):
+    """`x = X[:, 0]` (batch) or `x = X[0]` (single point), plus y/z when
+    the problem has them -- shared by every BC location/value helper
+    below so an expression like "x" or "np.isclose(x, 0)" the user typed
+    means exactly what it looks like."""
+    lines = []
+    idx = ":, 0" if is_batch else "0"
+    lines.append(f"{indent}x = X[{idx}]")
+    if is_2d or is_3d:
+        idx = ":, 1" if is_batch else "1"
+        lines.append(f"{indent}y = X[{idx}]")
+    if is_3d:
+        idx = ":, 2" if is_batch else "2"
+        lines.append(f"{indent}z = X[{idx}]")
+    return lines
+
+
+def _clean_bc_row_code(i, entry, is_2d, is_3d, n_coord_cols):
+    """Everything needed for one Boundary Conditions panel row: the small
+    helper function(s) its location/value expression needs (the
+    expression text itself is spliced straight into the function body --
+    no eval() indirection, since the whole point is a script someone can
+    read and edit) plus the one dde.icbc.XxxBC(...) call that adds it to
+    `constraints`. Returns (def_lines, append_lines)."""
+    btype = entry.get('type', 'dirichlet')
+    comp = int(entry.get('component', 0) or 0)
+    loc = (entry.get('location', '') or '').strip() or 'True'
+    val = (entry.get('value', '') or '').strip() or '0'
+    axis = entry.get('axis', 'x')
+    deriv = int(entry.get('deriv_order', 0) or 0)
+    pts_file = entry.get('points_file', '')
+    loc2 = (entry.get('location2', '') or '').strip() or 'True'
+    direction = entry.get('direction', 'normal')
+    axis_idx_map = {"x": 0, "y": 1, "z": 2}
+
+    loc_name = f"_bc{i}_loc"
+    loc2_name = f"_bc{i}_loc2"
+    val_name = f"_bc{i}_val"
+    defs, append = [], []
+
+    def loc_fn(name, expr):
+        L = [f"def {name}(X, on_boundary):", "    if not on_boundary:", "        return False"]
+        L += _clean_coord_unpack("    ", False, is_2d, is_3d)
+        L.append(f"    return bool({expr})")
+        return L
+
+    def val_fn(name, expr):
+        L = [f"def {name}(X):"]
+        L += _clean_coord_unpack("    ", True, is_2d, is_3d)
+        L.append(f"    _r = np.asarray({expr}, dtype=float)")
+        L.append("    return np.full((len(X), 1), float(_r)) if _r.ndim == 0 else _r.reshape(-1, 1)")
+        return L
+
+    if btype == 'neumann':
+        defs += loc_fn(loc_name, loc) + val_fn(val_name, val)
+        append.append(f"constraints.append(dde.icbc.NeumannBC(geomtime, {val_name}, {loc_name}, component={comp}))")
+    elif btype == 'robin':
+        rob_name = f"_bc{i}_robin"
+        L = [f"def {rob_name}(X, Y):"]
+        L += _clean_coord_unpack("    ", True, is_2d, is_3d)
+        L.append(f"    u = Y[:, {comp}:{comp}+1]")
+        L.append(f"    _r = {val}")
+        L.append("    if isinstance(_r, torch.Tensor):")
+        L.append("        return _r if _r.dim() == 2 else _r.reshape(-1, 1)")
+        L.append("    _arr = np.asarray(_r, dtype=float)")
+        L.append("    if _arr.ndim == 0:")
+        L.append("        return Y.new_full((len(X), 1), float(_arr))")
+        L.append("    return Y.new_tensor(_arr.reshape(-1, 1))")
+        defs += L + loc_fn(loc_name, loc)
+        append.append(f"constraints.append(dde.icbc.RobinBC(geomtime, {rob_name}, {loc_name}, component={comp}))")
+    elif btype == 'periodic':
+        defs += loc_fn(loc_name, loc)
+        append.append(f"constraints.append(dde.icbc.PeriodicBC(geomtime, {axis_idx_map.get(axis, 0)}, "
+                       f"{loc_name}, derivative_order={deriv}, component={comp}))")
+    elif btype == 'pointset':
+        append.append(f'_pts{i}, _pvals{i} = _load_bc_points(r"{pts_file}", {n_coord_cols})')
+        append.append(f"constraints.append(dde.icbc.PointSetBC(_pts{i}, _pvals{i}, component={comp}))")
+    elif btype == 'pointset_operator':
+        op_name = f"_bc{i}_op"
+        defs += [f"def {op_name}(inputs, outputs, X):", f"    return {val}"]
+        append.append(f'_pts{i}, _pvals{i} = _load_bc_points(r"{pts_file}", {n_coord_cols})')
+        append.append(f"constraints.append(dde.icbc.PointSetOperatorBC(_pts{i}, _pvals{i}, {op_name}))")
+    elif btype == 'operator':
+        op_name = f"_bc{i}_op"
+        defs += [f"def {op_name}(inputs, outputs, X):", f"    return {val}"] + loc_fn(loc_name, loc)
+        append.append(f"constraints.append(dde.icbc.OperatorBC(geomtime, {op_name}, {loc_name}))")
+    elif btype == 'interface2d':
+        defs += loc_fn(loc_name, loc) + loc_fn(loc2_name, loc2) + val_fn(val_name, val)
+        append.append(f"constraints.append(dde.icbc.Interface2DBC(_Interface2DGeomAdapter(geomtime), {val_name}, "
+                       f"{loc_name}, {loc2_name}, direction={direction!r}))")
+    else:  # 'dirichlet' and any unrecognized type fall back to Dirichlet
+        defs += loc_fn(loc_name, loc) + val_fn(val_name, val)
+        append.append(f"constraints.append(dde.icbc.DirichletBC(geomtime, {val_name}, {loc_name}, component={comp}))")
+
+    return defs, append
+
+
+def _clean_active_ic_outputs(config, n_out, ic_active_list):
+    """Which output indices actually get an Initial Condition, in order --
+    used both to build the IC constraints and to know how many IC weight
+    slots the loss-weight list needs."""
+    active = []
+    for oi in range(n_out):
+        if oi == 0 and config.forward_ic_from_file:
+            active.append(oi)
+        elif oi < len(ic_active_list) and ic_active_list[oi].strip() == "True":
+            active.append(oi)
+    return active
+
+
+def _clean_loss_weights(config, n_out, bc_entries, ic_active_list, obs_weights):
+    """Fully resolves the loss-weight list at export time -- same slot
+    ordering as the running app's runtime reconstruction (PDE per output,
+    then one per Boundary Conditions panel row, then one per active IC,
+    then one per Inverse observation file), but computed once now instead
+    of on every run. Returns (weights, expected_len) -- expected_len is
+    how many terms a Training Phase's own weight string must have to be
+    used as-is (see _clean_phase_weights below)."""
+    wm_list = [float(v) for v in (config.loss_weights_multi or "").split(",") if v.strip()]
+    wi = 0
+    pde_w = []
+    for _ in range(n_out):
+        pde_w.append(wm_list[wi] if wi < len(wm_list) else 1.0)
+        wi += 1
+    bc_w = []
+    for _ in range(len(bc_entries)):
+        bc_w.append(wm_list[wi] if wi < len(wm_list) else 1.0)
+        wi += 1
+    ic_w = []
+    for oi in range(n_out):
+        active = (oi == 0 and config.forward_ic_from_file) or (oi < len(ic_active_list) and ic_active_list[oi].strip() == "True")
+        if active:
+            ic_w.append(wm_list[wi] if wi < len(wm_list) else 1.0)
+            wi += 1
+        elif wi < len(wm_list):
+            wi += 1
+    weights = pde_w + bc_w + ic_w + list(obs_weights)
+    expected_len = n_out + len(bc_entries) + len(ic_w) + len(obs_weights)
+    return weights, expected_len
+
+
+def _clean_phase_weights(phase, expected_len, fallback):
+    try:
+        w = [float(x) for x in str(phase.get('weights', '')).split(',') if x.strip()]
+    except (TypeError, ValueError):
+        w = []
+    if len(w) != expected_len:
+        w = list(fallback)
+    return w
+
+
+def _clean_sched_phases(config, fallback_weights):
+    """The literal, ordered list of training phases this run actually
+    uses -- straight from the Training Phases scheduler when it's set up
+    (the normal case for anything built in the GUI), or synthesized from
+    the older single/second-optimizer fields for a config saved before
+    the scheduler existed."""
+    try:
+        phases = _clean_json.loads(config.scheduler_phases) if config.scheduler_phases else []
+    except (ValueError, TypeError):
+        phases = []
+    if not phases:
+        w_str = ",".join(str(w) for w in fallback_weights)
+        phases = [{"optimizer": config.optimizer, "iterations": config.iterations,
+                   "lr": config.learning_rate, "loss": config.loss_type, "weights": w_str}]
+        if config.optimizer2 and config.optimizer2 != "none":
+            phases.append({"optimizer": config.optimizer2, "iterations": config.iterations2,
+                            "lr": config.learning_rate, "loss": config.loss_type, "weights": w_str})
+    return phases
+
+
+def _clean_phase_train_lines(sp, w, ext_vars_kw, cbs_kw, model_name, data_name, config, indent=""):
+    """The literal model.compile()/model.train() call(s) for exactly one
+    training phase -- the "literal sequential calls" style: read top to
+    bottom as exactly what happens, no phases-list loop at runtime."""
+    opt = sp.get('optimizer', 'adam')
+    iters = int(sp.get('iterations', 1000) or 0)
+    loss = sp.get('loss') or config.loss_type
+    L = []
+    if opt == 'lbfgs':
+        L.append(f"dde.optimizers.set_LBFGS_options(maxcor={config.lbfgs_maxcor}, ftol={config.lbfgs_ftol}, "
+                  f"gtol={config.lbfgs_gtol}, maxiter={iters}, maxfun={int(iters * 1.25)}, maxls={config.lbfgs_maxls})")
+        L.append(f"{model_name}.compile(\"L-BFGS\", loss={loss!r}, loss_weights={w}{ext_vars_kw})")
+        L.append(f"loss_history, train_state = {model_name}.train(display_every=200{cbs_kw})")
+    elif opt == 'nncg':
+        L.append(f"{model_name}.compile(\"NNCG\", loss={loss!r}, loss_weights={w}{ext_vars_kw})")
+        if config.batch_size > 0:
+            L.append(f"{data_name}.batch_size = {config.batch_size}")
+        L.append(f"loss_history, train_state = {model_name}.train(iterations={iters}, display_every=1000{cbs_kw})")
+    else:
+        decay = None
+        dtype = sp.get('decay_type', 'none')
+        if dtype and dtype != 'none':
+            p1 = sp.get('decay_p1', 0) or 0
+            p2 = sp.get('decay_p2', 0) or 0
+            if dtype == 'step':
+                decay = ('step', int(p1), float(p2))
+            elif dtype == 'cosine':
+                decay = ('cosine', int(p1), float(p2))
+            elif dtype == 'exponential':
+                decay = ('exponential', float(p1))
+        lr = sp.get('lr', config.learning_rate)
+        L.append(f"{model_name}.compile({opt!r}, lr={lr}, decay={decay!r}, loss={loss!r}, "
+                  f"loss_weights={w}{ext_vars_kw})")
+        if config.batch_size > 0:
+            L.append(f"{data_name}.batch_size = {config.batch_size}")
+        L.append(f"loss_history, train_state = {model_name}.train(iterations={iters}, display_every=1000{cbs_kw})")
+    return [f"{indent}{ln}" for ln in L]
+
+
+def generate_clean_script(config):
+    """Builds the "Export as DeepXDE Script" file: a short, plain,
+    tutorial-style DeepXDE/PyTorch + matplotlib script for exactly this
+    problem -- only the features actually configured (weight decay, RAR,
+    Training Callbacks, IC Pre-Training, Inverse variables/observations,
+    input/output transforms, Time-Adaptive stepping, Error Analysis) are
+    written in at all, each as plain DeepXDE calls rather than runtime
+    "if" dispatch over every option this app exposes. See generate_script()
+    above for the generator Solve itself actually runs -- that one stays
+    untouched; this is a second, independent generator."""
+    is_2d = config.problem_dim == "2D"
+    is_3d = config.problem_dim == "3D"
+    problem_type = config.problem_type
+    n_out = config.num_outputs
+    out_names = [n.strip() for n in config.output_names.split(",")]
+    while len(out_names) < n_out:
+        out_names.append(f"u{len(out_names)}")
+    n_coord = 3 if is_3d else (2 if is_2d else 1)      # spatial dims
+    n_coord_cols = n_coord + 1                          # + time, for points files
+    sol_ext = "gif" if config.plot_type in ("Line Animation (GIF)", "Surface Animation (GIF)") else "png"
+    is_inverse = problem_type == "Inverse"
+
+    # ---- PDE expressions (host-resolved derivative terms) --------------
+    pde_exprs = [_simplify_pde_expr(e) for e in config.pde_expressions.split("|")]
+    pde_check_str = "|".join(pde_exprs)
+    pde_body = []
+    for oi, oname in enumerate(out_names[:n_out]):
+        pde_body.append(f"    {oname} = y[:, {oi}:{oi + 1}]")
+        for varname, rhs in _clean_needed_derivs(oname, oi, n_out, pde_check_str, is_2d, is_3d):
+            pde_body.append(f"    {varname} = {rhs}")
+    if n_out == 1:
+        pde_body.append(f"    return {pde_exprs[0].strip()}")
+    else:
+        exprs = [e.strip() for e in pde_exprs[:n_out]]
+        pde_body.append("    return [")
+        for e in exprs:
+            pde_body.append(f"        {e},")
+        pde_body.append("    ]")
+    pde_block = "def pde(x, y):\n" + "\n".join(pde_body)
+
+    # ---- Geometry --------------------------------------------------------
+    tri_verts = _parse_vertex_list(config.geom_triangle_vertices)
+    if len(tri_verts) != 3:
+        tri_verts = [[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]]
+    poly_verts = _parse_vertex_list(config.geom_polygon_vertices)
+    if len(poly_verts) < 3:
+        poly_verts = [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]
+    geom_line, needs_dtype_wrap = _clean_geom_line(config, is_2d, is_3d, tri_verts, poly_verts)
+
+    # ---- Boundary conditions (custom_bc_json is the live source) --------
+    try:
+        bc_entries = _clean_json.loads(config.custom_bc_json) if config.custom_bc_json else []
+    except (ValueError, TypeError):
+        bc_entries = []
+    bc_used_types = {e.get('type', 'dirichlet') for e in bc_entries}
+    needs_points_loader = bool({'pointset', 'pointset_operator'} & bc_used_types)
+    needs_interface_adapter = 'interface2d' in bc_used_types
+
+    bc_defs, bc_appends = [], []
+    for i, entry in enumerate(bc_entries):
+        d, a = _clean_bc_row_code(i, entry, is_2d, is_3d, n_coord_cols)
+        bc_defs += d
+        bc_appends += a
+
+    # ---- Initial condition(s) --------------------------------------------
+    ic_exprs = [_simplify_expr(e, is_2d, is_3d) for e in config.ic_expressions.split("|")]
+    ic_active_list = config.ic_active.split(",")
+    active_ic_outputs = _clean_active_ic_outputs(config, n_out, ic_active_list)
+    needs_ic_file_loader = bool(config.forward_ic_from_file)
+
+    ic_defs, ic_appends = [], []
+    for oi in range(n_out):
+        if oi == 0 and config.forward_ic_from_file:
+            ic_appends.append(f'_ic_xt, _ic_vals = _load_ic_from_file(r"{config.forward_ic_file}")')
+            ic_appends.append("constraints.append(dde.icbc.PointSetBC(_ic_xt, _ic_vals, component=0))")
+        elif oi in active_ic_outputs:
+            expr = ic_exprs[oi].strip() if oi < len(ic_exprs) else "np.zeros_like(x[:, 0])"
+            ic_defs.append(f"def _ic{oi}_fn(x):")
+            ic_defs.append(f"    return np.reshape({expr}, (-1, 1))")
+            ic_appends.append(f"constraints.append(dde.icbc.IC(geomtime, _ic{oi}_fn, "
+                               f"lambda x, on_initial: on_initial, component={oi}))")
+
+    # ---- Inverse: trainable variables + observation data -----------------
+    inv_vars_parsed = _parse_inverse_variables(config) if is_inverse else []
+    obs_files_parsed = _parse_inverse_obs_files(config) if is_inverse else []
+    obs_weights = [e['weight'] for e in obs_files_parsed] if is_inverse else []
+
+    # ---- Loss weights (fully resolved now, not reconstructed at runtime) -
+    multi_weights, expected_len = _clean_loss_weights(config, n_out, bc_entries, ic_active_list, obs_weights)
+
+    # ---- Training-phase list, resolved to literal per-phase weights ------
+    sched_phases = _clean_sched_phases(config, multi_weights)
+    for sp in sched_phases:
+        sp['_w'] = _clean_phase_weights(sp, expected_len, multi_weights)
+    uses_nncg = any(sp.get('optimizer') == 'nncg' for sp in sched_phases)
+    total_iters = sum(int(sp.get('iterations', 0) or 0) for sp in sched_phases)
+
+    # ---- Training callbacks (opt-in only) --------------------------------
+    any_cbs = bool(config.cb_early_stopping or config.cb_point_resampler
+                   or config.cb_model_checkpoint or config.cb_timer)
+    cbs_code = ""
+    if any_cbs:
+        cbs_code = _build_train_cbs_code(config, "train_cbs", indent=0).replace("_os.path.join", "os.path.join")
+
+    var_cb_period = max(1, total_iters // 200) if total_iters else 100
+    callbacks_parts = []
+    if is_inverse:
+        callbacks_parts.append("[var_cb]")
+    if any_cbs:
+        callbacks_parts.append("train_cbs")
+    if callbacks_parts:
+        cbs_kw = ", callbacks=" + " + ".join(callbacks_parts)
+    else:
+        cbs_kw = ""
+    ext_vars_kw = ", external_trainable_variables=inv_vars" if is_inverse else ""
+
+    # ---- Weight decay (L2) on the network --------------------------------
+    weight_decay_arg = f', regularization=("l2", {config.weight_decay})' if config.weight_decay > 0 else ""
+
+    # ---- Optional input/output transforms --------------------------------
+    has_in_transform = bool(config.input_transform_enabled and config.input_transform_scale)
+    has_out_transform = bool(config.output_transform_enabled and config.output_transform_scale)
+    needs_transform_helper = has_in_transform or has_out_transform
+
+    # ---- RAR / IC Pre-Training / Time-Adaptive flags ----------------------
+    use_rar = (config.adapt_method == "RAR") and not config.time_adaptive
+    use_ic_pretrain = bool(config.ic_pretrain)
+    use_ta = bool(config.time_adaptive)
+
+    # ---- Error Analysis ----------------------------------------------------
+    try:
+        ea_files = _clean_ast.literal_eval(config.ea_files) if config.ea_files else []
+    except (ValueError, SyntaxError):
+        ea_files = []
+    ea_files = [(tv, fp) for tv, fp in ea_files if config.t_min - 1e-10 <= tv <= config.t_max + 1e-10]
+    use_ea = bool(ea_files) and (config.ea_do_line or config.ea_do_surface)
+
+    use_save = bool((config.save_dir or "").strip())
+
+    # =====================================================================
+    # Assemble the script
+    # =====================================================================
+    parts = []
+
+    dim_label = "3D" if is_3d else ("2D" if is_2d else "1D")
+    title = f"{dim_label} {problem_type} PINN" + (" (Time-Adaptive)" if use_ta else "")
+    parts.append(f'''"""
+{title}, exported from PINNStudio.
+
+Outputs: {", ".join(out_names[:n_out])}
+Domain:  x in [{config.x_min}, {config.x_max}]''' +
+                 (f", y in [{config.y_min}, {config.y_max}]" if is_2d or is_3d else "") +
+                 (f", z in [{config.z_min}, {config.z_max}]" if is_3d else "") +
+                 f'''
+Time:    t in [{config.t_min}, {config.t_max}]
+
+Edit anything below and re-run -- this is a plain script, not tied to
+the PINNStudio GUI.
+"""
+import os
+os.environ["DDE_BACKEND"] = "pytorch"
+
+import deepxde as dde
+import numpy as np
+import torch
+import matplotlib.pyplot as plt''')
+
+    if uses_nncg:
+        parts.append('''_dxde_ver_parts = dde.__version__.split(".")[:3]
+try:
+    _dxde_ver = tuple(int(p) for p in _dxde_ver_parts)
+except ValueError:
+    _dxde_ver = None
+if _dxde_ver is not None and _dxde_ver < (1, 13, 0):
+    raise SystemExit(
+        f"The NNCG optimizer requires deepxde>=1.13.0 (you have {dde.__version__}). "
+        f"Please upgrade: pip install --upgrade deepxde"
+    )''')
+
+    parts.append(f'dde.config.set_default_float("{config.float_type}")')
+
+    save_dir_repr = repr(config.save_dir) if use_save else repr("")
+    parts.append(f'''save_dir = {save_dir_repr}
+if save_dir:
+    os.makedirs(save_dir, exist_ok=True)''')
+
+    if needs_ic_file_loader:
+        parts.append(f'''def _load_ic_from_file(path):
+    """Loads an Initial Condition from a plain, header-less file: one
+    coordinate column per spatial axis, then time, then value -- e.g.
+    "x, t, u" in 1D. Only the rows already at t = {config.t_min} (the
+    domain's start time) are used."""
+    raw = np.loadtxt(path)
+    n_coord = {n_coord}
+    t_col, v_col = n_coord, n_coord + 1
+    mask = np.abs(raw[:, t_col] - {config.t_min}) < 1e-8
+    coords = raw[mask, :n_coord]
+    t0 = np.full((int(mask.sum()), 1), {config.t_min})
+    return np.hstack([coords, t0]), raw[mask, v_col:v_col + 1]''')
+
+    if needs_points_loader:
+        parts.append(f'''def _load_bc_points(path, n_coord_cols={n_coord_cols}):
+    """Loads a points file for a PointSetBC / PointSetOperatorBC row:
+    n_coord_cols coordinate (+ time) columns, then the target value."""
+    if not path or not os.path.isfile(path):
+        raise RuntimeError(f"Boundary condition points file not found: {{path!r}}")
+    data = np.loadtxt(path, delimiter=",") if path.lower().endswith(".csv") else np.loadtxt(path)
+    if data.ndim == 1:
+        data = data.reshape(1, -1)
+    return data[:, :n_coord_cols], data[:, n_coord_cols:n_coord_cols + 1]''')
+
+    if needs_interface_adapter:
+        parts.append('''class _Interface2DGeomAdapter:
+    """Interface2DBC expects boundary_normal() without GeometryXTime's
+    extra (always-zero) time-normal column."""
+    def __init__(self, gt):
+        self._gt = gt
+    def on_boundary(self, x):
+        return self._gt.on_boundary(x)
+    def boundary_normal(self, x):
+        return self._gt.boundary_normal(x)[:, :-1]''')
+
+    if needs_dtype_wrap:
+        parts.append('''class _DTypeSafeGeom:
+    """Some DeepXDE geometries (Disk/Ellipse/Triangle/Polygon/Sphere on
+    this installed version) return float64 points even when the network
+    is float32 -- cast every sampled point array to the configured float
+    type so training doesn't hit a dtype-mismatch error."""
+    def __init__(self, geom):
+        self._geom = geom
+    def __getattr__(self, name):
+        return getattr(self._geom, name)
+    def random_points(self, n, random="pseudo"):
+        return self._geom.random_points(n, random=random).astype(dde.config.real(np))
+    def uniform_points(self, n, boundary=True):
+        return self._geom.uniform_points(n, boundary=boundary).astype(dde.config.real(np))
+    def random_boundary_points(self, n, random="pseudo"):
+        return self._geom.random_boundary_points(n, random=random).astype(dde.config.real(np))
+    def uniform_boundary_points(self, n):
+        return self._geom.uniform_boundary_points(n).astype(dde.config.real(np))''')
+
+    if needs_transform_helper:
+        tlines = ["def _apply_transforms(net):"]
+        if has_in_transform:
+            tlines.append(f"    in_scale = {list(config.input_transform_scale)}")
+            tlines.append(f"    in_shift = {list(config.input_transform_shift)}")
+            tlines.append("    def _input_transform(x):")
+            tlines.append("        sc = torch.tensor(in_scale, dtype=x.dtype, device=x.device)")
+            tlines.append("        sh = torch.tensor(in_shift, dtype=x.dtype, device=x.device)")
+            tlines.append("        return x * sc + sh")
+            tlines.append("    net.apply_feature_transform(_input_transform)")
+        if has_out_transform:
+            tlines.append(f"    out_scale = {list(config.output_transform_scale)}")
+            tlines.append(f"    out_shift = {list(config.output_transform_shift)}")
+            tlines.append("    def _output_transform(x, y):")
+            tlines.append("        sc = torch.tensor(out_scale, dtype=y.dtype, device=y.device)")
+            tlines.append("        sh = torch.tensor(out_shift, dtype=y.dtype, device=y.device)")
+            tlines.append("        return y * sc + sh")
+            tlines.append("    net.apply_output_transform(_output_transform)")
+        tlines.append("    return net")
+        parts.append("\n".join(tlines))
+
+    parts.append(pde_block)
+
+    if bc_defs:
+        parts.append("\n".join(bc_defs))
+
+    if ic_defs:
+        parts.append("\n".join(ic_defs))
+
+    if is_inverse:
+        inv_lines = []
+        for name, init in inv_vars_parsed:
+            inv_lines.append(f"{name} = dde.Variable({init})")
+        inv_lines.append("inv_vars = [" + ", ".join(n for n, _ in inv_vars_parsed) + "]")
+        inv_lines.append('''
+def _load_obs_data(path):
+    try:
+        return np.loadtxt(path, delimiter=",", skiprows=1)
+    except Exception:
+        try:
+            return np.loadtxt(path, skiprows=1)
+        except Exception:
+            return np.loadtxt(path, delimiter=",")
+''')
+        obs_lines = ["obs_entries = []  # (xt, u, output_idx, weight), one per measured-data file"]
+        for of in obs_files_parsed:
+            obs_lines.append(f"_of_data = _load_obs_data(r\"{of['path']}\")")
+            if is_3d:
+                obs_lines.append("_of_xt, _of_u = _of_data[:, 0:4], _of_data[:, 4:5]")
+            elif is_2d:
+                obs_lines.append("_of_xt, _of_u = _of_data[:, 0:3], _of_data[:, 3:4]")
+            else:
+                obs_lines.append("_of_xt, _of_u = _of_data[:, 0:2], _of_data[:, 2:3]")
+            obs_lines.append(f"obs_entries.append((_of_xt, _of_u, {of['output_idx']}, {of['weight']}))")
+        obs_lines.append("obs_bcs = [dde.icbc.PointSetBC(e[0], e[1], component=e[2]) for e in obs_entries]")
+        obs_lines.append("obs_anchors = np.vstack([e[0] for e in obs_entries]) if obs_entries else None")
+        parts.append("\n".join(inv_lines))
+        parts.append("\n".join(obs_lines))
+
+    net_line = (f'net = dde.nn.FNN({list(config.layers)}, "{config.activation}", '
+                f'"{config.kernel_initializer}"{weight_decay_arg})')
+    if needs_transform_helper:
+        net_line += "\nnet = _apply_transforms(net)"
+
+    if not use_ta:
+        # =================================================================
+        # Standard (non-Time-Adaptive) training path
+        # =================================================================
+        geom_lines = [geom_line,
+                      f"timedomain = dde.geometry.TimeDomain({config.t_min}, {config.t_max})",
+                      "geomtime = dde.geometry.GeometryXTime(geom, timedomain)"]
+        parts.append("\n".join(geom_lines))
+
+        constraints_lines = ["constraints = []"] + bc_appends + ic_appends
+        if is_inverse:
+            constraints_lines.append("constraints.extend(obs_bcs)")
+        parts.append("\n".join(constraints_lines))
+
+        anchors_arg = "obs_anchors" if is_inverse else "None"
+        data_lines = [f'''data = dde.data.TimePDE(
+    geomtime, pde, constraints,
+    num_domain={config.num_domain}, num_boundary={config.num_boundary},
+    num_initial={config.num_initial}, num_test={config.num_test},
+    train_distribution="{config.point_distribution}",
+    anchors={anchors_arg},
+)''']
+        parts.append("\n".join(data_lines))
+        parts.append(net_line)
+
+        if use_ic_pretrain:
+            ic_pretrain_lines = [f'''# ── IC Pre-Training: {config.ic_pretrain_iterations} iterations, IC loss only ──
+# A dummy zero-residual PDE and an IC-only dataset (no domain/boundary
+# points at all -- an empty-match BC term's loss is NaN even at weight
+# 0, so real BCs are left out of this dataset entirely, not zero-weighted).
+_ic_pre_geomtime = dde.geometry.GeometryXTime({geom_line.split("=", 1)[1].strip()}, dde.geometry.TimeDomain({config.t_min}, {config.t_max}))
+_ic_pre_constraints = []''']
+            # Re-use the same IC construction, bound to the pre-training geomtime.
+            pretrain_ic_appends = [ln.replace("geomtime", "_ic_pre_geomtime") if "geomtime" in ln else ln
+                                    for ln in ic_appends]
+            pretrain_ic_appends = [ln.replace("constraints.append", "_ic_pre_constraints.append")
+                                    for ln in pretrain_ic_appends]
+            ic_pretrain_lines[0] += "\n" + "\n".join(pretrain_ic_appends)
+            ic_only_weights = [0.0] * n_out + [1000.0] * len(active_ic_outputs)
+            ic_pretrain_lines.append(f'''def _pde_dummy_pre(x, y):
+    return [y[:, i:i + 1] * 0 for i in range({n_out})]
+
+_ic_pretrain_num_initial = {max(1, config.ic_pretrain_num_initial)}
+_data_pre = dde.data.TimePDE(
+    _ic_pre_geomtime, _pde_dummy_pre, _ic_pre_constraints,
+    num_domain=0, num_boundary=0,
+    num_initial=_ic_pretrain_num_initial, num_test={config.ic_pretrain_num_test},
+    train_distribution="{config.point_distribution}",
+)
+_model_pre = dde.Model(_data_pre, net)
+_model_pre.compile("{config.ic_pretrain_optimizer}", lr={config.learning_rate},
+                    loss="MSE", loss_weights={ic_only_weights})
+_ic_lh, _ = _model_pre.train(iterations={config.ic_pretrain_iterations}, display_every=10000)
+print(f"IC pre-training done. Final IC loss: {{sum(_ic_lh.loss_train[-1]):.4e}}")''')
+            parts.append("\n".join(ic_pretrain_lines))
+
+        parts.append("model = dde.Model(data, net)")
+        if cbs_code:
+            parts.append(cbs_code)
+        if is_inverse:
+            hist_path = 'os.path.join(save_dir, "param_history.txt") if save_dir else "/tmp/param_history.txt"'
+            parts.append(f'''var_history_path = {hist_path}
+var_cb = dde.callbacks.VariableValue(inv_vars, period={var_cb_period}, filename=var_history_path, precision=8)''')
+
+        phase_lines = []
+        for pi, sp in enumerate(sched_phases):
+            phase_lines.append(f"# ── Phase {pi + 1}: {sp.get('optimizer', 'adam')}, "
+                                f"{int(sp.get('iterations', 0) or 0)} iterations ──")
+            phase_lines += _clean_phase_train_lines(sp, sp['_w'], ext_vars_kw, cbs_kw, "model", "data", config)
+        parts.append("\n".join(phase_lines))
+
+        if use_rar:
+            rar_lines = [f'''# ── RAR: residual-based adaptive refinement ──
+for rar_cycle in range({config.rar_cycles}):''']
+            if is_3d:
+                rar_lines.append(f'''    x_cand = np.random.uniform({config.x_min}, {config.x_max}, {config.rar_candidates})
+    y_cand = np.random.uniform({config.y_min}, {config.y_max}, {config.rar_candidates})
+    z_cand = np.random.uniform({config.z_min}, {config.z_max}, {config.rar_candidates})
+    t_cand = np.random.uniform({config.t_min}, {config.t_max}, {config.rar_candidates})
+    xt_cand = np.column_stack([x_cand, y_cand, z_cand, t_cand])''')
+            elif is_2d:
+                rar_lines.append(f'''    x_cand = np.random.uniform({config.x_min}, {config.x_max}, {config.rar_candidates})
+    y_cand = np.random.uniform({config.y_min}, {config.y_max}, {config.rar_candidates})
+    t_cand = np.random.uniform({config.t_min}, {config.t_max}, {config.rar_candidates})
+    xt_cand = np.column_stack([x_cand, y_cand, t_cand])''')
+            else:
+                rar_lines.append(f'''    x_cand = np.random.uniform({config.x_min}, {config.x_max}, {config.rar_candidates})
+    t_cand = np.random.uniform({config.t_min}, {config.t_max}, {config.rar_candidates})
+    xt_cand = np.column_stack([x_cand, t_cand])''')
+            rar_lines.append(f'''    res = model.predict(xt_cand, operator=pde)
+    residuals = np.sum([np.abs(r).flatten() for r in res], axis=0) if isinstance(res, list) else np.abs(res).flatten()
+    top_idx = np.argsort(residuals)[-{config.rar_add_points}:]
+    data.add_anchors(xt_cand[top_idx])
+    model.compile("{config.optimizer}", lr={config.learning_rate}, loss="{config.loss_type}", loss_weights={multi_weights})
+    loss_history, train_state = model.train(iterations={config.rar_adam_iters}, display_every=500)''')
+            if config.rar_lbfgs_iters > 0:
+                rar_lines.append(f'''    dde.optimizers.set_LBFGS_options(maxcor={config.lbfgs_maxcor}, ftol={config.lbfgs_ftol},
+                                     gtol={config.lbfgs_gtol}, maxiter={config.rar_lbfgs_iters},
+                                     maxfun={config.lbfgs_maxfun}, maxls={config.lbfgs_maxls})
+    model.compile("L-BFGS", loss="{config.loss_type}", loss_weights={multi_weights})
+    loss_history, train_state = model.train(display_every=200)''')
+            parts.append("\n".join(rar_lines))
+
+        if use_save:
+            parts.append('model.save(os.path.join(save_dir, "model"))')
+
+    else:
+        # =================================================================
+        # Time-Adaptive training path -- the domain's time range is split
+        # into sequential sub-intervals; each one trains its own model,
+        # seeded from the previous interval's predicted solution as its
+        # Initial Condition (and, if Transfer Learning is on, from its
+        # network weights too). Matches this app's real Time-Adaptive
+        # support: 1D and 2D; a 3D geometry falls back to the 1D-style
+        # single-column time-stepping grid, the same limit the app's own
+        # generator has today.
+        # =================================================================
+        try:
+            ta_groups = _clean_json.loads(config.ta_step_groups) if config.ta_step_groups else []
+        except (ValueError, TypeError):
+            ta_groups = []
+        if not ta_groups:
+            ta_groups = [{"t_start": config.t_min, "t_end": config.t_max, "steps": config.ta_num_steps}]
+        intervals = []
+        for grp in ta_groups:
+            dt = (grp['t_end'] - grp['t_start']) / grp['steps']
+            for gi in range(grp['steps']):
+                t0 = grp['t_start'] + gi * dt
+                intervals.append((t0, t0 + dt))
+        parts.append(f"intervals = {intervals}  # (t0, t1) per Time-Adaptive step")
+
+        geom_expr = geom_line.split("=", 1)[1].strip()
+        ta_lines = [f'''def _build_geom():
+    return {geom_expr}
+''']
+        if is_2d:
+            ta_lines.append(f'''grid_size = {config.ta_grid_size}
+_xg = np.linspace({config.x_min}, {config.x_max}, grid_size)
+_yg = np.linspace({config.y_min}, {config.y_max}, grid_size)
+_Xg, _Yg = np.meshgrid(_xg, _yg)
+x_grid = np.column_stack([_Xg.ravel(), _Yg.ravel()])''')
+        else:
+            ta_lines.append(f'''grid_size = {config.ta_grid_size}
+x_grid = np.linspace({config.x_min}, {config.x_max}, grid_size).reshape(-1, 1)''')
+
+        if config.forward_ic_from_file:
+            ta_lines.append(f'_ic_ta_xt, prev_u = _load_ic_from_file(r"{config.forward_ic_file}")')
+        else:
+            # ic_exprs[0] already expects spatial columns only (x, or x & y) --
+            # exactly what x_grid holds, so no time column is needed here.
+            ic0_expr = ic_exprs[0].strip() if ic_exprs else "np.zeros_like(x[:, 0])"
+            ta_lines.append(f'''def _prev_u0(x):
+    return np.reshape({ic0_expr}, (-1, 1))
+prev_u = _prev_u0(x_grid)''')
+
+        ta_lines.append('''
+all_x, all_t, all_u = [], [], []   # accumulated per-step (X, T, U) grids for the final stitched plot
+ta_step_models = []                # [(t0, t1, model_i)] -- used for Error Analysis, if configured
+prev_net = None''')
+        parts.append("\n".join(ta_lines))
+
+        loop_lines = ["for step_i, (t0, t1) in enumerate(intervals):",
+                      "    geom_i = _build_geom()",
+                      "    timedomain_i = dde.geometry.TimeDomain(t0, t1)",
+                      "    geomtime_i = dde.geometry.GeometryXTime(geom_i, timedomain_i)",
+                      ""]
+        # Reuse the shared BC construction, bound to this step's geomtime.
+        step_bc_appends = [ln.replace("geomtime", "geomtime_i") for ln in bc_appends]
+        loop_lines.append("    constraints_i = []")
+        for ln in step_bc_appends:
+            loop_lines.append(f"    {ln.replace('constraints.append', 'constraints_i.append')}")
+        loop_lines.append("")
+        loop_lines.append("    if step_i == 0:")
+        step0_ic_appends = [ln.replace("geomtime", "geomtime_i").replace("constraints.append", "constraints_i.append")
+                             for ln in ic_appends]
+        for ln in step0_ic_appends:
+            loop_lines.append(f"        {ln}")
+        loop_lines.append("    else:")
+        loop_lines.append("        constraints_i.append(dde.icbc.PointSetBC("
+                           "np.column_stack([x_grid, np.full(len(x_grid), t0)]), prev_u, component=0))")
+        loop_lines.append("")
+        anchors_i = "obs_anchors" if is_inverse else "None"
+        loop_lines.append(f'''    data_i = dde.data.TimePDE(
+        geomtime_i, pde, constraints_i,
+        num_domain={config.num_domain}, num_boundary={config.num_boundary},
+        num_initial={config.num_initial}, num_test={config.num_test},
+        train_distribution="{config.point_distribution}",
+        anchors={anchors_i},
+    )
+    net_i = dde.nn.FNN({list(config.layers)}, "{config.activation}", "{config.kernel_initializer}"{weight_decay_arg})''')
+        if needs_transform_helper:
+            loop_lines.append("    net_i = _apply_transforms(net_i)")
+        if config.ta_transfer_learning:
+            loop_lines.append('''    if prev_net is not None:
+        net_i.load_state_dict(prev_net.state_dict())''')
+
+        if use_ic_pretrain:
+            ic_only_weights = [0.0] * n_out + [1000.0] * len(active_ic_outputs)
+            step0_pretrain_ic = [ln.replace("geomtime", "_ic_pre_geomtime_i")
+                                  .replace("constraints.append", "_ic_pre_constraints_i.append")
+                                  for ln in ic_appends]
+            loop_lines.append(f'''    if step_i == 0:
+        _ic_pre_geomtime_i = dde.geometry.GeometryXTime(_build_geom(), dde.geometry.TimeDomain(t0, t1))
+        _ic_pre_constraints_i = []''')
+            for ln in step0_pretrain_ic:
+                loop_lines.append(f"        {ln}")
+            loop_lines.append(f'''        def _pde_dummy_pre(x, y):
+            return [y[:, i:i + 1] * 0 for i in range({n_out})]
+        _data_pre_i = dde.data.TimePDE(
+            _ic_pre_geomtime_i, _pde_dummy_pre, _ic_pre_constraints_i,
+            num_domain=0, num_boundary=0,
+            num_initial={max(1, config.ic_pretrain_num_initial)}, num_test={config.ic_pretrain_num_test},
+            train_distribution="{config.point_distribution}",
+        )
+        _model_pre_i = dde.Model(_data_pre_i, net_i)
+        _model_pre_i.compile("{config.ic_pretrain_optimizer}", lr={config.learning_rate},
+                              loss="MSE", loss_weights={ic_only_weights})
+        _model_pre_i.train(iterations={config.ic_pretrain_iterations}, display_every=10000)''')
+
+        loop_lines.append("    model_i = dde.Model(data_i, net_i)")
+        if is_inverse:
+            loop_lines.append("    if step_i == 0:")
+            hist_path = 'os.path.join(save_dir, "param_history.txt") if save_dir else "/tmp/param_history.txt"'
+            loop_lines.append(f'''        var_history_path = {hist_path}
+        var_cb = dde.callbacks.VariableValue(inv_vars, period={var_cb_period}, filename=var_history_path, precision=8)''')
+        for pi, sp in enumerate(sched_phases):
+            loop_lines.append(f"    # ── Phase {pi + 1}: {sp.get('optimizer', 'adam')}, "
+                               f"{int(sp.get('iterations', 0) or 0)} iterations ──")
+            loop_lines += _clean_phase_train_lines(sp, sp['_w'], ext_vars_kw, cbs_kw, "model_i", "data_i", config,
+                                                     indent="    ")
+        loop_lines.append("    ta_step_models.append((t0, t1, model_i))")
+        loop_lines.append("    prev_net = net_i")
+        if is_2d:
+            loop_lines.append('''    _xyt_pred = np.column_stack([x_grid, np.full(len(x_grid), t1)])
+    prev_u = model_i.predict(_xyt_pred)[:, 0:1]
+    _x_plot = np.linspace({0}, {1}, 100)
+    _t_plot = np.linspace(t0, t1, 50)
+    _y_mid = ({2} + {3}) / 2.0
+    _Xp, _Tp = np.meshgrid(_x_plot, _t_plot)
+    _XYTp = np.column_stack([_Xp.ravel(), np.full(_Xp.size, _y_mid), _Tp.ravel()])
+    _Up = model_i.predict(_XYTp)[:, {4}].reshape(50, 100)
+    all_x.append(_Xp); all_t.append(_Tp); all_u.append(_Up)'''.format(
+                config.x_min, config.x_max, config.y_min, config.y_max, config.plot_output_idx))
+        else:
+            loop_lines.append('''    _xt_pred = np.column_stack([x_grid.ravel(), np.full(grid_size, t1)])
+    prev_u = model_i.predict(_xt_pred)[:, 0:1]
+    _x_plot = np.linspace({0}, {1}, 100)
+    _t_plot = np.linspace(t0, t1, 50)
+    _Xp, _Tp = np.meshgrid(_x_plot, _t_plot)
+    _XTp = np.vstack([_Xp.ravel(), _Tp.ravel()]).T
+    _Up = model_i.predict(_XTp)[:, {2}].reshape(50, 100)
+    all_x.append(_Xp); all_t.append(_Tp); all_u.append(_Up)'''.format(
+                config.x_min, config.x_max, config.plot_output_idx))
+        loop_lines.append(f'    print(f"Step {{step_i + 1}}/{{len(intervals)}} done. '
+                           f'Final train loss: {{sum(loss_history.loss_train[-1]):.4e}}")')
+        parts.append("\n".join(loop_lines))
+
+        parts.append('''model = ta_step_models[-1][2]  # last step's model, for Error Analysis / ad-hoc predict() calls''')
+        if use_save:
+            parts.append('model.save(os.path.join(save_dir, "model"))')
+
+    # =========================================================================
+    # Plots
+    # =========================================================================
+    parts.append(f'''sol_dir = save_dir if save_dir else "/tmp"
+loss_path = os.path.join(sol_dir, "loss_plot.png")
+solution_path = os.path.join(sol_dir, "solution_plot.{sol_ext}")''')
+
+    loss_comment = "  # last Time-Adaptive step's loss curve" if use_ta else ""
+    parts.append(f'''# ── Loss plot ──{loss_comment}
+train_loss = [sum(l) for l in loss_history.loss_train]
+test_loss = [sum(l) for l in loss_history.loss_test]
+plt.figure(figsize=(7, 5))
+plt.semilogy(loss_history.steps, train_loss, label="Train loss", color="#4dabf7")
+plt.semilogy(loss_history.steps, test_loss, label="Test loss", color="#ff8787", linestyle="--")
+plt.xlabel("Iteration"); plt.ylabel("Loss"); plt.title("Training & Test Loss")
+plt.legend(); plt.tight_layout()
+plt.savefig(loss_path, dpi={config.plot_dpi})
+plt.close()
+print(f"Loss plot saved: {{loss_path}}")''')
+
+    if is_inverse:
+        parts.append(f'''# ── Parameter convergence plot ──
+param_iters, param_vals = [], [[] for _ in inv_vars]
+with open(var_history_path, "r") as f:
+    for line in f:
+        line = line.strip()
+        if not line or "[" not in line:
+            continue
+        it_str, rest = line.split(None, 1)
+        vals = [float(v) for v in rest.strip("[]").split(",") if v.strip()]
+        if len(vals) != len(inv_vars):
+            continue
+        param_iters.append(int(it_str))
+        for vi, v in enumerate(vals):
+            param_vals[vi].append(v)
+param_iters = np.array(param_iters)
+fig, axes = plt.subplots(len(inv_vars), 1, figsize=(6, 3.2 * len(inv_vars)), squeeze=False)
+for vi, name in enumerate({[n for n, _ in inv_vars_parsed]!r}):
+    ax = axes[vi][0]
+    vals = np.array(param_vals[vi])
+    final_val = vals[-1] if len(vals) else float("nan")
+    ax.plot(param_iters, vals, color="#69db7c", linewidth=1.5)
+    ax.axhline(y=final_val, color="#ff8787", linestyle="--", alpha=0.5, label=f"Final = {{final_val:.6f}}")
+    ax.set_xlabel("Iteration"); ax.set_ylabel(name)
+    ax.set_title(f"Inferred Parameter: {{name}}")
+    ax.legend(); ax.grid(True, alpha=0.3)
+    print(f"Final inferred {{name}}: {{final_val:.6f}}")
+plt.tight_layout()
+param_plot_path = os.path.join(sol_dir, "param_convergence.png")
+plt.savefig(param_plot_path, dpi=100)
+plt.close(fig)''')
+
+    # ── Result plot -- exactly one of these, matching this problem's
+    # dimension / Time-Adaptive status / selected Plot Type. No runtime
+    # dispatch: which branch applies is already known now.
+    plot_idx = config.plot_output_idx
+    out_name = out_names[plot_idx] if plot_idx < len(out_names) else out_names[0]
+
+    if use_ta:
+        parts.append(f'''# ── Result plot: stitched Time-Adaptive solution ──
+Xg = np.concatenate([a for a in all_x], axis=0)
+Tg = np.concatenate([a for a in all_t], axis=0)
+Ug = np.concatenate([a for a in all_u], axis=0)
+plt.figure(figsize=(7, 5))
+plt.contourf(Xg, Tg, Ug, levels={config.plot_levels}, cmap="{config.plot_colormap}")
+if {config.plot_colorbar}:
+    plt.colorbar(label="{out_name}")
+plt.xlabel("x"); plt.ylabel("t")
+plt.title("PINN Solution (Time-Adaptive)")
+plt.tight_layout()
+plt.savefig(solution_path, dpi={config.plot_dpi}, bbox_inches="tight")
+plt.close()
+print(f"Solution plot saved: {{solution_path}}")''')
+
+    elif is_inverse and config.plot_type == "Parameter Convergence":
+        parts.append('''# ── Result plot: parameter convergence (Inverse default) ──
+import shutil
+shutil.copy(param_plot_path, solution_path)
+print(f"Solution plot saved: {solution_path}")''')
+
+    elif config.plot_type in ("Line Animation (GIF)", "Surface Animation (GIF)"):
+        n_frames = max(2, config.num_timesteps)
+        anim_kind = "line" if config.plot_type == "Line Animation (GIF)" else "surface"
+        vrange = ("v_min, v_max = None, None" if config.plot_auto_range
+                  else f"v_min, v_max = {config.plot_vmin}, {config.plot_vmax}")
+        if anim_kind == "line" and not (is_2d or is_3d):
+            parts.append(f'''# ── Result plot: line animation (GIF) ──
+import matplotlib.animation as animation
+t_frames = np.linspace({config.t_min}, {config.t_max}, {n_frames})
+x_line = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
+frames_u = []
+for tv in t_frames:
+    xt = np.column_stack([x_line, np.full_like(x_line, tv)])
+    frames_u.append(model.predict(xt)[:, {plot_idx}].flatten())
+u_min = min(u.min() for u in frames_u); u_max = max(u.max() for u in frames_u)
+fig, ax = plt.subplots(figsize=(7, 5))
+ax.set_xlim({config.x_min}, {config.x_max})
+ax.set_ylim(u_min - 0.05 * abs(u_min) - 1e-9, u_max + 0.05 * abs(u_max) + 1e-9)
+ax.set_xlabel("x"); ax.set_ylabel("{out_name}(x, t)"); ax.grid(True, alpha=0.2)
+line, = ax.plot([], [], color="#4dabf7", linewidth={config.plot_linewidth})
+time_txt = ax.text(0.02, 0.95, "", transform=ax.transAxes, color="#ff8787")
+def _update(i):
+    line.set_data(x_line, frames_u[i])
+    time_txt.set_text(f"t = {{t_frames[i]:.3f}}")
+    return line, time_txt
+ani = animation.FuncAnimation(fig, _update, frames={n_frames}, interval=100, blit=True)
+ani.save(solution_path, writer="pillow", fps={config.plot_fps})
+plt.close(fig)
+print(f"Solution plot saved: {{solution_path}}")''')
+        else:
+            parts.append(f'''# ── Result plot: surface animation (GIF) ──
+import matplotlib.animation as animation
+t_frames = np.linspace({config.t_min}, {config.t_max}, {n_frames})
+res = 80
+x_a = np.linspace({config.x_min}, {config.x_max}, res)
+frames = []''')
+            if is_2d:
+                parts.append(f'''y_a = np.linspace({config.y_min}, {config.y_max}, res)
+Xa, Ya = np.meshgrid(x_a, y_a)
+for tv in t_frames:
+    xyt = np.column_stack([Xa.ravel(), Ya.ravel(), np.full(Xa.size, tv)])
+    frames.append(model.predict(xyt)[:, {plot_idx}].reshape(res, res))
+{vrange}
+if v_min is None:
+    v_min = min(f.min() for f in frames); v_max = max(f.max() for f in frames)
+fig, ax = plt.subplots(figsize=(7, 5))
+def _update(i):
+    ax.cla()
+    ax.contourf(Xa, Ya, frames[i], levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=v_min, vmax=v_max)
+    ax.set_xlabel("x"); ax.set_ylabel("y"); ax.set_title(f"t = {{t_frames[i]:.3f}}")
+ani = animation.FuncAnimation(fig, _update, frames={n_frames}, interval=150)
+ani.save(solution_path, writer="pillow", fps={config.plot_fps})
+plt.close(fig)
+print(f"Solution plot saved: {{solution_path}}")''')
+            else:
+                parts.append(f'''t_a = np.linspace({config.t_min}, {config.t_max}, res)
+Xa, Ta = np.meshgrid(x_a, t_a)
+for tv in t_frames:
+    xt = np.vstack([Xa.ravel(), np.full(Xa.size, tv)]).T
+    frames.append(model.predict(xt)[:, {plot_idx}].reshape(res, res))
+{vrange}
+if v_min is None:
+    v_min = min(f.min() for f in frames); v_max = max(f.max() for f in frames)
+fig, ax = plt.subplots(figsize=(7, 5))
+def _update(i):
+    ax.cla()
+    ax.contourf(Xa, Ta, frames[i], levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=v_min, vmax=v_max)
+    ax.set_xlabel("x"); ax.set_ylabel("t"); ax.set_title(f"t = {{t_frames[i]:.3f}}")
+ani = animation.FuncAnimation(fig, _update, frames={n_frames}, interval=150)
+ani.save(solution_path, writer="pillow", fps={config.plot_fps})
+plt.close(fig)
+print(f"Solution plot saved: {{solution_path}}")''')
+
+    elif is_2d:
+        parts.append(f'''# ── Result plot: 2D snapshots ──
+n_snaps = {config.plot_n_2d_snapshots}
+t_snaps = np.linspace({config.t_min}, {config.t_max}, n_snaps)
+res = {config.plot_resolution}
+xp = np.linspace({config.x_min}, {config.x_max}, res)
+yp = np.linspace({config.y_min}, {config.y_max}, res)
+Xg, Yg = np.meshgrid(xp, yp)
+inside = geom.inside(np.column_stack([Xg.ravel(), Yg.ravel()])).reshape(res, res)
+fig, axes = plt.subplots(1, n_snaps, figsize=(5 * n_snaps, 5))
+if n_snaps == 1:
+    axes = [axes]
+for ai, tv in enumerate(t_snaps):
+    xyt = np.column_stack([Xg.ravel(), Yg.ravel(), np.full(Xg.size, tv)])
+    pred = model.predict(xyt)[:, {plot_idx}].reshape(res, res)
+    pred = np.where(inside, pred, np.nan)
+    im = axes[ai].contourf(Xg, Yg, pred, levels={config.plot_levels}, cmap="{config.plot_colormap}")
+    axes[ai].set_title(f"t = {{tv:.3f}}"); axes[ai].set_xlabel("x"); axes[ai].set_ylabel("y")
+    if {config.plot_colorbar}:
+        fig.colorbar(im, ax=axes[ai])
+fig.suptitle(f"PINN Solution — {out_name}(x, y, t)")
+plt.tight_layout()
+plt.savefig(solution_path, dpi={config.plot_dpi}, bbox_inches="tight")
+plt.close()
+print(f"Solution plot saved: {{solution_path}}")''')
+
+    elif is_3d:
+        parts.append(f'''# ── Result plot: 3D snapshots at the domain's z mid-plane ──
+n_snaps = {config.plot_n_2d_snapshots}
+t_snaps = np.linspace({config.t_min}, {config.t_max}, n_snaps)
+res = {config.plot_resolution}
+xp = np.linspace({config.x_min}, {config.x_max}, res)
+yp = np.linspace({config.y_min}, {config.y_max}, res)
+Xg, Yg = np.meshgrid(xp, yp)
+z_mid = ({config.z_min} + {config.z_max}) / 2.0
+inside = geom.inside(np.column_stack([Xg.ravel(), Yg.ravel(), np.full(Xg.size, z_mid)])).reshape(res, res)
+fig, axes = plt.subplots(1, n_snaps, figsize=(5 * n_snaps, 5))
+if n_snaps == 1:
+    axes = [axes]
+for ai, tv in enumerate(t_snaps):
+    xyzt = np.column_stack([Xg.ravel(), Yg.ravel(), np.full(Xg.size, z_mid), np.full(Xg.size, tv)])
+    pred = model.predict(xyzt)[:, {plot_idx}].reshape(res, res)
+    pred = np.where(inside, pred, np.nan)
+    im = axes[ai].contourf(Xg, Yg, pred, levels={config.plot_levels}, cmap="{config.plot_colormap}")
+    axes[ai].set_title(f"t = {{tv:.3f}}, z = {{z_mid:.3g}}"); axes[ai].set_xlabel("x"); axes[ai].set_ylabel("y")
+    if {config.plot_colorbar}:
+        fig.colorbar(im, ax=axes[ai])
+fig.suptitle(f"PINN Solution — {out_name}(x, y, z={{z_mid:.3g}}, t)")
+plt.tight_layout()
+plt.savefig(solution_path, dpi={config.plot_dpi}, bbox_inches="tight")
+plt.close()
+print(f"Solution plot saved: {{solution_path}}")''')
+
+    elif config.plot_type == "Line (time steps)":
+        parts.append(f'''# ── Result plot: line, several time steps ──
+n_steps_plot = {config.num_timesteps}
+x_l = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
+t_steps = np.linspace({config.t_min}, {config.t_max}, n_steps_plot)
+fig, ax = plt.subplots(figsize=(8, 5))
+colors = plt.get_cmap("{config.plot_colormap}")(np.linspace(0, 1, n_steps_plot))
+for i, tv in enumerate(t_steps):
+    xt = np.column_stack([x_l, np.full_like(x_l, tv)])
+    u_line = model.predict(xt)[:, {plot_idx}].flatten()
+    ax.plot(x_l, u_line, color=colors[i], linewidth={config.plot_linewidth}, label=f"t = {{tv:.3f}}")
+ax.set_xlabel("x"); ax.set_ylabel("{out_name}(x, t)")
+ax.set_title("PINN Solution")
+ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
+plt.tight_layout()
+plt.savefig(solution_path, dpi={config.plot_dpi}, bbox_inches="tight")
+plt.close()
+print(f"Solution plot saved: {{solution_path}}")''')
+
+    else:  # "Surface" -- 1D x-t heatmap
+        parts.append(f'''# ── Result plot: surface (x-t heatmap) ──
+res = {config.plot_resolution}
+x_s = np.linspace({config.x_min}, {config.x_max}, res)
+t_s = np.linspace({config.t_min}, {config.t_max}, res)
+Xs, Ts = np.meshgrid(x_s, t_s)
+xts = np.vstack([Xs.ravel(), Ts.ravel()]).T
+u_s = model.predict(xts)[:, {plot_idx}].reshape(res, res)
+fig, ax = plt.subplots(figsize=(7, 5))
+im = ax.contourf(Xs, Ts, u_s, levels={config.plot_levels}, cmap="{config.plot_colormap}")
+if {config.plot_colorbar}:
+    fig.colorbar(im, ax=ax)
+ax.set_xlabel("x"); ax.set_ylabel("t")
+ax.set_title("PINN Solution")
+plt.tight_layout()
+plt.savefig(solution_path, dpi={config.plot_dpi}, bbox_inches="tight")
+plt.close()
+print(f"Solution plot saved: {{solution_path}}")''')
+
+    # =========================================================================
+    # Error Analysis (only emitted when reference/ground-truth files are
+    # configured for this problem)
+    # =========================================================================
+    if use_ea:
+        ea_lines = [f'''# ── Error Analysis: compare against reference data ──
+ea_dir = os.path.join(sol_dir, "error_analysis")
+os.makedirs(ea_dir, exist_ok=True)
+ea_files = {ea_files}
+ea_times, ea_x_refs, ea_y_refs, ea_z_refs, ea_u_refs = [], [], [], [], []
+for tv, fp in ea_files:
+    d = np.loadtxt(fp)
+    if d.ndim == 1:
+        d = d.reshape(1, -1)''']
+        if is_3d:
+            ea_lines.append('''    idx = np.lexsort((d[:, 2], d[:, 1], d[:, 0]))
+    ea_x_refs.append(d[idx, 0]); ea_y_refs.append(d[idx, 1]); ea_z_refs.append(d[idx, 2])
+    ea_u_refs.append(d[idx, 4]); ea_times.append(float(d[0, 3]))''')
+        elif is_2d:
+            ea_lines.append('''    idx = np.lexsort((d[:, 1], d[:, 0]))
+    ea_x_refs.append(d[idx, 0]); ea_y_refs.append(d[idx, 1]); ea_z_refs.append(np.zeros_like(d[idx, 0]))
+    ea_u_refs.append(d[idx, 3]); ea_times.append(float(d[0, 2]))''')
+        else:
+            ea_lines.append('''    idx = np.argsort(d[:, 0])
+    ea_x_refs.append(d[idx, 0]); ea_y_refs.append(np.zeros_like(d[idx, 0])); ea_z_refs.append(np.zeros_like(d[idx, 0]))
+    ea_u_refs.append(d[idx, 2]); ea_times.append(float(tv))''')
+        ea_lines.append('''order = np.argsort(ea_times)
+ea_times  = [ea_times[i] for i in order]
+ea_x_refs = [ea_x_refs[i] for i in order]
+ea_y_refs = [ea_y_refs[i] for i in order]
+ea_z_refs = [ea_z_refs[i] for i in order]
+ea_u_refs = [ea_u_refs[i] for i in order]
+n_t = len(ea_times)''')
+
+        if use_ta:
+            ea_lines.append(f'''def _predict_at_time(xt_no_time, tv):
+    for t0, t1, m in ta_step_models:
+        if t0 - 1e-9 <= tv <= t1 + 1e-9:
+            return m.predict(np.column_stack([xt_no_time, np.full(len(xt_no_time), tv)]))[:, {plot_idx}].flatten()
+    return ta_step_models[-1][2].predict(
+        np.column_stack([xt_no_time, np.full(len(xt_no_time), tv)]))[:, {plot_idx}].flatten()
+
+ea_u_pinns = []
+for i, tv in enumerate(ea_times):''')
+            if is_3d:
+                ea_lines.append('''    coords = np.column_stack([ea_x_refs[i], ea_y_refs[i], ea_z_refs[i]])
+    ea_u_pinns.append(_predict_at_time(coords, tv))''')
+            elif is_2d:
+                ea_lines.append('''    coords = np.column_stack([ea_x_refs[i], ea_y_refs[i]])
+    ea_u_pinns.append(_predict_at_time(coords, tv))''')
+            else:
+                ea_lines.append('''    coords = ea_x_refs[i].reshape(-1, 1)
+    ea_u_pinns.append(_predict_at_time(coords, tv))''')
+        else:
+            ea_lines.append("ea_u_pinns = []")
+            ea_lines.append("for i, tv in enumerate(ea_times):")
+            if is_3d:
+                ea_lines.append(f'''    xt = np.column_stack([ea_x_refs[i], ea_y_refs[i], ea_z_refs[i], np.full_like(ea_x_refs[i], tv)])
+    ea_u_pinns.append(model.predict(xt)[:, {plot_idx}].flatten())''')
+            elif is_2d:
+                ea_lines.append(f'''    xt = np.column_stack([ea_x_refs[i], ea_y_refs[i], np.full_like(ea_x_refs[i], tv)])
+    ea_u_pinns.append(model.predict(xt)[:, {plot_idx}].flatten())''')
+            else:
+                ea_lines.append(f'''    xt = np.column_stack([ea_x_refs[i], np.full_like(ea_x_refs[i], tv)])
+    ea_u_pinns.append(model.predict(xt)[:, {plot_idx}].flatten())''')
+
+        ea_lines.append('''
+# ── Metrics ──
+ea_metrics = []
+for i, tv in enumerate(ea_times):
+    up, uf = ea_u_pinns[i], ea_u_refs[i]
+    l2 = np.linalg.norm(up - uf) / (np.linalg.norm(uf) + 1e-10)
+    mse = np.mean((up - uf) ** 2)
+    mx = np.max(np.abs(up - uf))
+    ma = np.mean(np.abs(up - uf))
+    ea_metrics.append((tv, l2, mse, mx, ma))
+    print(f"  t={tv:.4f} -- L2={l2:.4e}, MSE={mse:.4e}, Max={mx:.4e}, MeanAbs={ma:.4e}")
+with open(os.path.join(ea_dir, "error_metrics.txt"), "w") as f:
+    f.write("t,L2_relative,MSE,Max_error,Mean_abs_error\\n")
+    for tv, l2, mse, mx, ma in ea_metrics:
+        f.write(f"{tv:.6f},{l2:.6e},{mse:.6e},{mx:.6e},{ma:.6e}\\n")''')
+
+        if config.ea_do_line:
+            if is_2d or is_3d:
+                mid_slice = ('''
+    y_mid = ({0} + {1}) / 2.0
+    y_tol = ({1} - {0}) / 20.0
+    mask = np.abs(ea_y_refs[i] - y_mid) < y_tol
+    if mask.sum() < 5:
+        mask = np.abs(ea_y_refs[i] - y_mid) < ({1} - {0}) / 5.0'''.format(config.y_min, config.y_max)
+                             if not is_3d else '''
+    y_mid = ({0} + {1}) / 2.0; z_mid = ({2} + {3}) / 2.0
+    y_tol = ({1} - {0}) / 20.0; z_tol = ({3} - {2}) / 20.0
+    mask = (np.abs(ea_y_refs[i] - y_mid) < y_tol) & (np.abs(ea_z_refs[i] - z_mid) < z_tol)
+    if mask.sum() < 5:
+        y_tol2 = ({1} - {0}) / 5.0; z_tol2 = ({3} - {2}) / 5.0
+        mask = (np.abs(ea_y_refs[i] - y_mid) < y_tol2) & (np.abs(ea_z_refs[i] - z_mid) < z_tol2)'''.format(
+                    config.x_min, config.x_max, config.z_min, config.z_max))
+                mid_slice += "\n    if mask.sum() < 2:\n        mask = np.ones_like(ea_x_refs[i], dtype=bool)"
+                sort_line = "    order_i = np.argsort(ea_x_refs[i][mask]); xv, gt, pn = ea_x_refs[i][mask][order_i], ea_u_refs[i][mask][order_i], ea_u_pinns[i][mask][order_i]"
+            else:
+                mid_slice = ""
+                sort_line = "    order_i = np.argsort(ea_x_refs[i]); xv, gt, pn = ea_x_refs[i][order_i], ea_u_refs[i][order_i], ea_u_pinns[i][order_i]"
+            ea_lines.append(f'''
+# ── Line comparison ──
+ncols = min(4, n_t); nrows = (n_t + ncols - 1) // ncols
+fig, axes = plt.subplots(nrows, ncols, figsize=(4 * ncols, 3.5 * nrows), squeeze=False)
+fig.suptitle("PINN vs Ground Truth -- Line Comparison", fontsize=13, fontweight="bold")
+axf = axes.flatten()
+for i, tv in enumerate(ea_times):
+    ax = axf[i]{mid_slice}
+{sort_line}
+    tv_r, l2, mse, mx, ma = ea_metrics[i]
+    ax.plot(xv, gt, color="#4dabf7", linewidth=2.0, label="Ground Truth")
+    ax.plot(xv, pn, color="#ff6b6b", linewidth=2.0, linestyle="--", label="PINN")
+    ax.set_title(f"t = {{tv:.3f}}  |  L2 = {{l2:.2e}}", fontsize=10)
+    ax.set_xlabel("x"); ax.set_ylabel("{out_name}(x, t)"); ax.grid(True, alpha=0.3)
+for j in range(n_t, len(axf)):
+    axf[j].set_visible(False)
+handles, labels = axf[0].get_legend_handles_labels()
+fig.legend(handles, labels, loc="lower center", ncol=2, fontsize=10, framealpha=0.9, bbox_to_anchor=(0.5, 0.01))
+plt.tight_layout(rect=[0, 0.06, 1, 1])
+plt.savefig(os.path.join(ea_dir, "line_comparison.png"), dpi={config.plot_dpi}, bbox_inches="tight")
+plt.close()
+print("  Line comparison saved.")''')
+
+        if config.ea_do_surface and not (is_2d or is_3d):
+            ea_lines.append(f'''
+# ── Surface comparison (1D: x-t) ──
+from scipy.interpolate import interp1d
+x_common = np.linspace({config.x_min}, {config.x_max}, 300)
+t_arr = np.array(ea_times)
+U_pinn = np.zeros((len(t_arr), len(x_common)))
+U_ref  = np.zeros((len(t_arr), len(x_common)))
+for i, tv in enumerate(ea_times):
+    fi_p = interp1d(ea_x_refs[i], ea_u_pinns[i], kind="linear", fill_value="extrapolate")
+    fi_r = interp1d(ea_x_refs[i], ea_u_refs[i], kind="linear", fill_value="extrapolate")
+    U_pinn[i, :] = fi_p(x_common); U_ref[i, :] = fi_r(x_common)
+Xg, Tg = np.meshgrid(x_common, t_arr)
+U_err = np.abs(U_pinn - U_ref)
+fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+fig.suptitle("PINN vs Ground Truth -- Surface Comparison", fontsize=13, fontweight="bold")
+im0 = axes[0].contourf(Tg, Xg, U_pinn, levels={config.plot_levels}, cmap="{config.plot_colormap}")
+axes[0].set_title("PINN"); axes[0].set_xlabel("t"); axes[0].set_ylabel("x"); fig.colorbar(im0, ax=axes[0])
+im1 = axes[1].contourf(Tg, Xg, U_ref, levels={config.plot_levels}, cmap="{config.plot_colormap}")
+axes[1].set_title("Ground Truth"); axes[1].set_xlabel("t"); axes[1].set_ylabel("x"); fig.colorbar(im1, ax=axes[1])
+im2 = axes[2].contourf(Tg, Xg, U_err, levels={config.plot_levels}, cmap="{config.plot_colormap}")
+axes[2].set_title("|Error|"); axes[2].set_xlabel("t"); axes[2].set_ylabel("x"); fig.colorbar(im2, ax=axes[2])
+plt.tight_layout()
+plt.savefig(os.path.join(ea_dir, "surface_comparison.png"), dpi={config.plot_dpi}, bbox_inches="tight")
+plt.close()
+print("  Surface comparison saved.")''')
+        elif config.ea_do_surface and is_2d:
+            ea_lines.append(f'''
+# ── Surface comparison (2D heatmaps) ──
+from scipy.interpolate import griddata
+res_ea = {config.plot_resolution}
+xg_ea = np.linspace({config.x_min}, {config.x_max}, res_ea)
+yg_ea = np.linspace({config.y_min}, {config.y_max}, res_ea)
+Xg_ea, Yg_ea = np.meshgrid(xg_ea, yg_ea)
+fig, axes = plt.subplots(n_t, 3, figsize=(15, 4 * n_t), squeeze=False)
+fig.suptitle("PINN vs Ground Truth -- 2D Heatmaps", fontsize=13, fontweight="bold")
+for i, tv in enumerate(ea_times):
+    tv_r, l2, mse, mx, ma = ea_metrics[i]
+    xyt_grid = np.column_stack([Xg_ea.ravel(), Yg_ea.ravel(), np.full(Xg_ea.size, tv)])
+    u_pinn_grid = model.predict(xyt_grid)[:, {plot_idx}].reshape(res_ea, res_ea)
+    u_ref_grid = griddata(np.column_stack([ea_x_refs[i], ea_y_refs[i]]), ea_u_refs[i], (Xg_ea, Yg_ea), method="linear", fill_value=0.0)
+    u_err_grid = np.abs(u_pinn_grid - u_ref_grid)
+    im0 = axes[i][0].contourf(Xg_ea, Yg_ea, u_pinn_grid, levels=40, cmap="{config.plot_colormap}")
+    axes[i][0].set_title(f"PINN  t={{tv:.3f}}  L2={{l2:.2e}}"); fig.colorbar(im0, ax=axes[i][0])
+    im1 = axes[i][1].contourf(Xg_ea, Yg_ea, u_ref_grid, levels=40, cmap="{config.plot_colormap}")
+    axes[i][1].set_title(f"Ground Truth  t={{tv:.3f}}"); fig.colorbar(im1, ax=axes[i][1])
+    im2 = axes[i][2].contourf(Xg_ea, Yg_ea, u_err_grid, levels={config.plot_levels}, cmap="{config.plot_colormap}")
+    axes[i][2].set_title(f"|Error|  Max={{mx:.2e}}"); fig.colorbar(im2, ax=axes[i][2])
+plt.tight_layout()
+plt.savefig(os.path.join(ea_dir, "surface_comparison.png"), dpi={config.plot_dpi}, bbox_inches="tight")
+plt.close()
+print("  Surface comparison saved.")''')
+        elif config.ea_do_surface and is_3d:
+            ea_lines.append('''
+# ── Surface comparison (3D: boundary-point scatter vs reference) ──
+fig = plt.figure(figsize=(15, 4.5 * n_t))
+fig.suptitle("PINN vs Ground Truth -- 3D Comparison", fontsize=13, fontweight="bold")
+for i, tv in enumerate(ea_times):
+    tv_r, l2, mse, mx, ma = ea_metrics[i]
+    bnd = geom.on_boundary(np.column_stack([ea_x_refs[i], ea_y_refs[i], ea_z_refs[i]]))
+    if bnd.sum() < 4:
+        bnd = np.ones_like(ea_x_refs[i], dtype=bool)
+    bx, by, bz = ea_x_refs[i][bnd], ea_y_refs[i][bnd], ea_z_refs[i][bnd]
+    gt_b = ea_u_refs[i][bnd]
+    pinn_b = model.predict(np.column_stack([bx, by, bz, np.full_like(bx, tv)]))[:, {0}].flatten()
+    err_b = np.abs(pinn_b - gt_b)
+    cols = [(pinn_b, f"PINN  t={{tv:.3f}}  L2={{l2:.2e}}"), (gt_b, f"Ground Truth  t={{tv:.3f}}"), (err_b, f"|Error|  Max={{mx:.2e}}")]
+    for ci, (vals, ttl) in enumerate(cols):
+        ax3 = fig.add_subplot(n_t, 3, i * 3 + ci + 1, projection="3d")
+        sc = ax3.scatter(bx, by, bz, c=vals, cmap="{1}" if ci < 2 else "inferno", s=14)
+        fig.colorbar(sc, ax=ax3, shrink=0.6, pad=0.12)
+        ax3.set_title(ttl, fontsize=10)
+        ax3.set_xlabel("x"); ax3.set_ylabel("y"); ax3.set_zlabel("z")
+plt.tight_layout()
+plt.savefig(os.path.join(ea_dir, "surface_comparison.png"), dpi={2}, bbox_inches="tight")
+plt.close()
+print("  Surface comparison saved.")'''.format(plot_idx, config.plot_colormap, config.plot_dpi))
+
+        parts.append("\n".join(ea_lines))
+
+    parts.append('print("DONE")')
+    return "\n\n".join(parts) + "\n"
