@@ -292,7 +292,7 @@ class MainWindow(QMainWindow):
             QMainWindow { background: #002b36; }
             QWidget { background: #002b36; color: #e0e0e0; font-family: 'Segoe UI', Arial; font-size: 16px; }
             QGroupBox {
-                border: 1px solid #586e75;
+                border: 1px solid #c8d2d8;
                 border-radius: 6px;
                 margin-top: 8px;
                 padding-top: 4px;
@@ -762,7 +762,7 @@ class MainWindow(QMainWindow):
         pts_dist_row.addWidget(self.pts_dist_combo)
         points_layout.addLayout(pts_dist_row)
 
-        self.view_domain_check = QCheckBox("👁  View domain & point distribution")
+        self.view_domain_check = QCheckBox("View domain & point distribution")
         self.view_domain_check.setChecked(False)
         self.view_domain_check.setVisible(False)
         self.view_domain_check.stateChanged.connect(self._on_view_domain_changed)
@@ -967,10 +967,6 @@ class MainWindow(QMainWindow):
         self.batch_widget.setVisible(True)
         batch_layout.addWidget(self.batch_widget)
 
-        note = QLabel("Splits collocation points into mini-batches per iteration.")
-        self._register_style(note, "hint", lambda css, _c='#586e75', _e='': f"color: {_c}; {_e}{css}")
-        note.setWordWrap(True)
-        batch_layout.addWidget(note)
         left_layout.addWidget(batch_group)
 
         # ── Training ──────────────────────────────────────────
@@ -983,7 +979,7 @@ class MainWindow(QMainWindow):
             train_layout.addWidget(QLabel(label))
             train_layout.addWidget(widget)
 
-        div0 = QLabel("─── IC Pre-Training (optional) ───")
+        div0 = QLabel("─── Initial Condition (IC) Pre-Training (optional) ───")
         self._register_style(div0, "hint", lambda css, _c='#505080', _e='': f"color: {_c}; {_e}{css}")
         train_layout.addWidget(div0)
 
@@ -1082,11 +1078,6 @@ class MainWindow(QMainWindow):
             QFileDialog.getOpenFileName(None, "Select IC pre-train model", "", "Model (*.pt)")[0]))
         ic_restore_layout.addWidget(ic_restore_browse)
         ic_pt_layout.addWidget(self.ic_pretrain_restore_widget)
-
-        ic_note = QLabel("Trains IC loss only before main training.\nFirst step only for time-adaptive.")
-        self._register_style(ic_note, "hint", lambda css, _c='#586e75', _e='': f"color: {_c}; {_e}{css}")
-        ic_note.setWordWrap(True)
-        ic_pt_layout.addWidget(ic_note)
 
         self._update_ic_pretrain_visibility()
         self.ic_pretrain_widget.setVisible(False)
@@ -2287,7 +2278,7 @@ class MainWindow(QMainWindow):
 
         t_start_sb = QDoubleSpinBox()
         t_start_sb.setRange(0.0, 1e6); t_start_sb.setValue(t_start)
-        t_start_sb.setFixedHeight(26); t_start_sb.setFixedWidth(65)
+        t_start_sb.setFixedHeight(26); t_start_sb.setFixedWidth(85)
         t_start_sb.setDecimals(2)
         row_layout.addWidget(t_start_sb)
 
@@ -2295,7 +2286,7 @@ class MainWindow(QMainWindow):
 
         t_end_sb = QDoubleSpinBox()
         t_end_sb.setRange(0.0, 1e6); t_end_sb.setValue(t_end)
-        t_end_sb.setFixedHeight(26); t_end_sb.setFixedWidth(65)
+        t_end_sb.setFixedHeight(26); t_end_sb.setFixedWidth(85)
         t_end_sb.setDecimals(2)
         row_layout.addWidget(t_end_sb)
 
@@ -2303,7 +2294,7 @@ class MainWindow(QMainWindow):
 
         steps_sb = QSpinBox()
         steps_sb.setRange(1, 500); steps_sb.setValue(steps)
-        steps_sb.setFixedHeight(26); steps_sb.setFixedWidth(55)
+        steps_sb.setFixedHeight(26); steps_sb.setFixedWidth(70)
         row_layout.addWidget(steps_sb)
 
         remove_btn = QPushButton("✕")
@@ -2465,7 +2456,7 @@ class MainWindow(QMainWindow):
         if 0 <= output_idx < output_combo.count():
             output_combo.setCurrentIndex(output_idx)
         meta_row.addWidget(output_combo)
-        meta_row.addWidget(QLabel("weight:"))
+        meta_row.addWidget(QLabel("Data loss weight:"))
         weight_edit = SciLineEdit(weight)
         weight_edit.setFixedHeight(26); weight_edit.setFixedWidth(85)
         meta_row.addWidget(weight_edit)
@@ -2593,7 +2584,7 @@ class MainWindow(QMainWindow):
             nw = QWidget(); nw.setLayout(name_row)
             self.pde_main_layout.addWidget(nw)
 
-            self.pde_main_layout.addWidget(QLabel(f"PDE {i+1} residual = 0:"))
+            self.pde_main_layout.addWidget(QLabel(f"PDE {i+1} (residual = 0):"))
             pde_inp = QLineEdit()
             if is_3d:
                 pde_inp.setText("du_t - 0.4 * (du_xx + du_yy + du_zz)" if i == 0 else "dv_t - 0.1 * (dv_xx + dv_yy + dv_zz)")
@@ -3426,7 +3417,7 @@ class MainWindow(QMainWindow):
             for _bj, _be in enumerate(getattr(self, 'custom_bc_list', [])):
                 _btype_label = _be['type'].currentText()
                 _bcomp = _be['component'].value()
-                _w_row(f"BC {_bj + 1} ({_btype_label}, out {_bcomp}):", f"bc_{_bj}")
+                _w_row(f"BC {_bj + 1} ({_btype_label}, Output {_bcomp}):", f"bc_{_bj}")
             for i in range(n):
                 name = self.output_name_inputs[i].text() if i < len(self.output_name_inputs) else f"u{i+1}"
                 _ic_from_file_checked = (
@@ -3453,7 +3444,7 @@ class MainWindow(QMainWindow):
                 for _bj, _be in enumerate(getattr(self, 'custom_bc_list', [])):
                     _btype_label = _be['type'].currentText()
                     _bcomp = _be['component'].value()
-                    _w_row(f"BC {_bj + 1} ({_btype_label}, out {_bcomp}) P{_phase_num}:", f"bc_{_bj}_p{_phase_num}")
+                    _w_row(f"BC {_bj + 1} ({_btype_label}, Output {_bcomp}) P{_phase_num}:", f"bc_{_bj}_p{_phase_num}")
                 for _i in range(n):
                     _name = self.output_name_inputs[_i].text() if _i < len(self.output_name_inputs) else f"u{_i+1}"
                     _ic_ff = (hasattr(self, 'ic_from_file') and _i < len(self.ic_from_file)
@@ -5500,6 +5491,13 @@ print("DOMAIN_PREVIEW_DONE")
         text_color = "#1e1e1e" if is_white else "#e0e0e0"
         label_color = "#333333" if is_white else "#c0c0c0"
         arrow_color = "#333333" if is_white else "#ffffff"
+        # Panel (QGroupBox) borders specifically, brightened relative to
+        # the theme's general-purpose {border} color (also used for input
+        # fields/scrollbars/menus, which should keep their own subtler
+        # value) so separate panels read clearly against a dark
+        # background. The White theme's own border is already light
+        # against its white background, so it's left as-is.
+        panel_border = border if is_white else "#c8d2d8"
 
         # Section Headers (QGroupBox titles, e.g. "Problem Definition",
         # "Quick Examples") and Field Labels (plain QLabel text) each get
@@ -5520,7 +5518,7 @@ print("DOMAIN_PREVIEW_DONE")
             QMainWindow {{ background: {bg}; }}
             QWidget {{ background: {bg}; color: {text_color}; font-family: 'Segoe UI', Arial; font-size: {fs}px; }}
             QGroupBox {{
-                border: 1px solid {border};
+                border: 1px solid {panel_border};
                 border-radius: 6px;
                 margin-top: 8px;
                 padding-top: 4px;
@@ -6131,7 +6129,7 @@ print("ERROR_ANALYSIS_DONE")
             "2D Heat": {
                 'pde': ["du_t - 0.4*(du_xx + du_yy)"],
                 'ic': ["0.0"],
-                'num_domain': 5000,
+                'num_domain': 10000,
                 'num_boundary': 400,
                 'num_initial': 400,
                 'layers': 4,
@@ -6315,14 +6313,15 @@ print("ERROR_ANALYSIS_DONE")
                 # held at u=1 on the x=x_max face.
                 'pde': ["du_t - 0.4*(du_xx + du_yy + du_zz)"],
                 'ic': ["0.0"],
-                'num_domain': 8000,
-                'num_boundary': 800,
-                'num_initial': 800,
+                'num_domain': 15000,
+                'num_boundary': 1000,
+                'num_initial': 1000,
                 'layers': 4,
-                'neurons': 64,
+                'neurons': 128,
                 'iterations': 20000,
                 'optimizer2': 'lbfgs',
-                'iterations2': 10000,
+                'iterations2': 20000,
+                'num_test': 10000,
                 'x_min': 0.0, 'x_max': 1.0,
                 'y_min': 0.0, 'y_max': 1.0,
                 'z_min': 0.0, 'z_max': 1.0,
@@ -6406,10 +6405,10 @@ print("ERROR_ANALYSIS_DONE")
             "1D Heat": {
                 'pde': ["du_t - 0.4 * du_xx"],
                 'ic': ["sin(pi*x)"],
-                'num_domain': 2000,
+                'num_domain': 5000,
                 'num_boundary': 200,
                 'num_initial': 200,
-                'layers': 3,
+                'layers': 4,
                 'neurons': 64,
                 'iterations': 10000,
                 'optimizer2': 'none',
@@ -6428,10 +6427,11 @@ print("ERROR_ANALYSIS_DONE")
                 'neurons': 128,
                 'iterations': 20000,
                 'optimizer2': 'lbfgs',
-                'iterations2': 20000,
+                'iterations2': 10000,
                 'x_min': -1.0, 'x_max': 1.0,
                 'periodic_bc': True,
                 'ref_dir': os.path.join(REFERENCE_DATA_DIR, "1D", "allen_cahn"),
+                'ta_default': {'step_groups': [(0.0, 1.0, 4)], 'transfer_learning': True, 'ic_grid': 101, 'transfer_optimizer': 'lbfgs'},
             },
         }
 
@@ -6498,6 +6498,30 @@ print("ERROR_ANALYSIS_DONE")
                     self.bc_right_types[i].setCurrentText("Dirichlet")
         self._populate_locked_bc_entries_from_legacy(self.num_outputs_spin.value(), is_2d=False)
         self._update_bc_mode_visibility()
+
+        # Set Time-Adaptive default (e.g. 1D Allen-Cahn), same pattern as
+        # the 2D/3D template blocks above.
+        for row in list(self.ta_group_rows):
+            row['widget'].deleteLater()
+        self.ta_group_rows.clear()
+        ta_cfg = t.get('ta_default')
+        self._current_ta_cfg = ta_cfg
+        self._ta_suspended_for_inverse = False
+        if ta_cfg and not self.radio_inverse.isChecked():
+            self.adapt_combo.setCurrentText("Time Adaptive")
+            for g_start, g_end, g_steps in ta_cfg['step_groups']:
+                self._add_ta_step_group(g_start, g_end, g_steps)
+            self.ta_transfer_cb.setChecked(ta_cfg.get('transfer_learning', False))
+            self.ta_grid.setCurrentText(str(ta_cfg.get('ic_grid', 101)))
+            self._set_combo_data(self.ta_transfer_opt, ta_cfg.get('transfer_optimizer', 'adam'))
+        else:
+            self.adapt_combo.setCurrentText("None")
+            self._add_ta_step_group(0.0, 1.0, 10)
+            self.ta_transfer_cb.setChecked(False)
+            self.ta_grid.setCurrentText("101")
+            self._set_combo_data(self.ta_transfer_opt, "adam")
+            if ta_cfg and self.radio_inverse.isChecked():
+                self._ta_suspended_for_inverse = True
 
         # Store ref_dir for error analysis auto-population
         self._template_ref_dir = t.get('ref_dir', '')
@@ -7213,7 +7237,7 @@ print("ERROR_ANALYSIS_V2_DONE")
         decay_layout.setContentsMargins(0, 0, 0, 0)
         decay_layout.setSpacing(2)
         decay_type_row = QHBoxLayout()
-        decay_type_row.addWidget(QLabel("LR decay:"))
+        decay_type_row.addWidget(QLabel("Learning rate decay:"))
         decay_type_combo = QComboBox()
         decay_type_combo.addItem("None", "none")
         decay_type_combo.addItem("Step", "step")
