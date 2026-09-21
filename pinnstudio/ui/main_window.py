@@ -859,6 +859,87 @@ class MainWindow(QMainWindow):
         self.activation_combo.addItems(["tanh", "relu", "sigmoid", "swish"])
         self.activation_combo.setFixedWidth(100); self.activation_combo.setFixedHeight(28)
         _nn_row("Activation:", self.activation_combo)
+
+        self.kernel_init_combo = QComboBox()
+        self.kernel_init_combo.addItems(
+            ["Glorot uniform", "Glorot normal", "He uniform", "He normal", "zeros"])
+        self.kernel_init_combo.setFixedWidth(130); self.kernel_init_combo.setFixedHeight(28)
+        _nn_row("Kernel initializer:", self.kernel_init_combo)
+
+        # ── Input / output transform (optional) ───────────────
+        # x_transformed = x_raw * scale + shift  (one row per input dim)
+        # y_transformed = y_raw * scale + shift  (one row per output)
+        # Off by default; scale=1/shift=0 is the identity, so turning a
+        # transform on with untouched defaults changes nothing until a
+        # value is edited. Rows are rebuilt back to identity defaults
+        # whenever the dimension or output count changes (see
+        # _rebuild_input_transform_rows()/_rebuild_output_transform_rows(),
+        # called from _on_dim_changed()/_on_num_outputs_changed()) -- a row
+        # left over from a different shape doesn't mean anything once the
+        # number of columns it applies to changes, same reasoning as the
+        # Boundary Conditions panel clearing on dimension switch.
+        def _transform_row(label_text):
+            row_w = QWidget()
+            row_l = QHBoxLayout(row_w)
+            row_l.setContentsMargins(0, 0, 0, 0)
+            row_l.addWidget(QLabel(label_text))
+            row_l.addStretch()
+            row_l.addWidget(QLabel("×"))
+            scale_spin = QDoubleSpinBox()
+            scale_spin.setRange(-1e6, 1e6); scale_spin.setDecimals(4)
+            scale_spin.setSingleStep(0.1); scale_spin.setValue(1.0)
+            scale_spin.setFixedWidth(85); scale_spin.setFixedHeight(26)
+            row_l.addWidget(scale_spin)
+            row_l.addWidget(QLabel("+"))
+            shift_spin = QDoubleSpinBox()
+            shift_spin.setRange(-1e6, 1e6); shift_spin.setDecimals(4)
+            shift_spin.setSingleStep(0.1); shift_spin.setValue(0.0)
+            shift_spin.setFixedWidth(85); shift_spin.setFixedHeight(26)
+            row_l.addWidget(shift_spin)
+            return row_w, scale_spin, shift_spin
+        self._transform_row_factory = _transform_row
+
+        self.input_transform_cb = QCheckBox("Enable input transform")
+        self.input_transform_cb.setChecked(False)
+        nn_layout.addWidget(self.input_transform_cb)
+
+        self.input_transform_widget = QWidget()
+        it_layout = QVBoxLayout(self.input_transform_widget)
+        it_layout.setSpacing(3); it_layout.setContentsMargins(12, 0, 0, 4)
+        it_hint = QLabel("x_transformed = x_raw × scale + shift")
+        self._register_style(it_hint, "hint", lambda css, _c='#586e75', _e='': f"color: {_c}; {_e}{css}")
+        it_layout.addWidget(it_hint)
+        self.input_transform_rows_layout = QVBoxLayout()
+        self.input_transform_rows_layout.setSpacing(3)
+        it_layout.addLayout(self.input_transform_rows_layout)
+        self.input_transform_rows = []
+        nn_layout.addWidget(self.input_transform_widget)
+        self.input_transform_widget.setVisible(False)
+        self.input_transform_cb.stateChanged.connect(
+            lambda: self.input_transform_widget.setVisible(self.input_transform_cb.isChecked()))
+
+        self.output_transform_cb = QCheckBox("Enable output transform")
+        self.output_transform_cb.setChecked(False)
+        nn_layout.addWidget(self.output_transform_cb)
+
+        self.output_transform_widget = QWidget()
+        ot_layout = QVBoxLayout(self.output_transform_widget)
+        ot_layout.setSpacing(3); ot_layout.setContentsMargins(12, 0, 0, 4)
+        ot_hint = QLabel("y_transformed = y_raw × scale + shift")
+        self._register_style(ot_hint, "hint", lambda css, _c='#586e75', _e='': f"color: {_c}; {_e}{css}")
+        ot_layout.addWidget(ot_hint)
+        self.output_transform_rows_layout = QVBoxLayout()
+        self.output_transform_rows_layout.setSpacing(3)
+        ot_layout.addLayout(self.output_transform_rows_layout)
+        self.output_transform_rows = []
+        nn_layout.addWidget(self.output_transform_widget)
+        self.output_transform_widget.setVisible(False)
+        self.output_transform_cb.stateChanged.connect(
+            lambda: self.output_transform_widget.setVisible(self.output_transform_cb.isChecked()))
+
+        self._rebuild_input_transform_rows()
+        self._rebuild_output_transform_rows(1)
+
         left_layout.addWidget(nn_group)
 
         # ── Mini-batch ────────────────────────────────────────
@@ -1749,6 +1830,39 @@ class MainWindow(QMainWindow):
     GEOM_TYPES_2D = ["Rectangle", "Disk", "Ellipse", "Triangle", "Polygon"]
     GEOM_TYPES_3D = ["Cuboid", "Sphere"]
 
+    def _current_input_dim_labels(self):
+        if self.radio_3d.isChecked():
+            return ["x", "y", "z", "t"]
+        elif self.radio_2d.isChecked():
+            return ["x", "y", "t"]
+        else:
+            return ["x", "t"]
+
+    def _rebuild_input_transform_rows(self):
+        while self.input_transform_rows_layout.count():
+            item = self.input_transform_rows_layout.takeAt(0)
+            w = item.widget()
+            if w is not None:
+                w.deleteLater()
+        self.input_transform_rows = []
+        for label in self._current_input_dim_labels():
+            row_w, scale_spin, shift_spin = self._transform_row_factory(f"{label}:")
+            self.input_transform_rows_layout.addWidget(row_w)
+            self.input_transform_rows.append(
+                {"label": label, "scale": scale_spin, "shift": shift_spin})
+
+    def _rebuild_output_transform_rows(self, n_outputs):
+        while self.output_transform_rows_layout.count():
+            item = self.output_transform_rows_layout.takeAt(0)
+            w = item.widget()
+            if w is not None:
+                w.deleteLater()
+        self.output_transform_rows = []
+        for i in range(max(1, n_outputs)):
+            row_w, scale_spin, shift_spin = self._transform_row_factory(f"Output {i + 1}:")
+            self.output_transform_rows_layout.addWidget(row_w)
+            self.output_transform_rows.append({"scale": scale_spin, "shift": shift_spin})
+
     def _on_dim_changed(self):
         is_2d = self.radio_2d.isChecked()
         is_3d = self.radio_3d.isChecked()
@@ -1806,6 +1920,7 @@ class MainWindow(QMainWindow):
         self._build_pde_inputs(self.num_outputs_spin.value())
         self._build_bc_inputs(self.num_outputs_spin.value())
         self._build_weight_inputs(self.num_outputs_spin.value())
+        self._rebuild_input_transform_rows()
 
         # Force an immediate layout/repaint pass so the Geometry Type box
         # (and any other widgets just toggled above) always show up right
@@ -3525,6 +3640,13 @@ class MainWindow(QMainWindow):
             t_min=self.t_min.value(), t_max=self.t_max.value(),
             layers=layers,
             activation=self.activation_combo.currentText(),
+            kernel_initializer=self.kernel_init_combo.currentText(),
+            input_transform_enabled=self.input_transform_cb.isChecked(),
+            input_transform_scale=[r["scale"].value() for r in self.input_transform_rows],
+            input_transform_shift=[r["shift"].value() for r in self.input_transform_rows],
+            output_transform_enabled=self.output_transform_cb.isChecked(),
+            output_transform_scale=[r["scale"].value() for r in self.output_transform_rows],
+            output_transform_shift=[r["shift"].value() for r in self.output_transform_rows],
             iterations=self.iter1_spin.value(),
             optimizer=self.opt1_combo.currentText(),
             optimizer2=self.opt2_combo.currentText(),
@@ -3997,6 +4119,25 @@ class MainWindow(QMainWindow):
         self.layers_spin.setValue(n_hidden)
         self.neurons_spin.setValue(neurons)
         self.activation_combo.setCurrentText(config.activation)
+        self.kernel_init_combo.setCurrentText(config.kernel_initializer)
+
+        # Input/output transform rows were already rebuilt to match this
+        # config's dimension (step 1 above) and output count (step 3
+        # above) via _on_dim_changed()/_on_num_outputs_changed() -- just
+        # fill in the saved values now, defaulting to identity (scale=1,
+        # shift=0) for any row a shorter/older saved list doesn't cover.
+        self.input_transform_cb.setChecked(bool(config.input_transform_enabled))
+        for i, row in enumerate(self.input_transform_rows):
+            scale = config.input_transform_scale[i] if i < len(config.input_transform_scale) else 1.0
+            shift = config.input_transform_shift[i] if i < len(config.input_transform_shift) else 0.0
+            row["scale"].setValue(scale)
+            row["shift"].setValue(shift)
+        self.output_transform_cb.setChecked(bool(config.output_transform_enabled))
+        for i, row in enumerate(self.output_transform_rows):
+            scale = config.output_transform_scale[i] if i < len(config.output_transform_scale) else 1.0
+            shift = config.output_transform_shift[i] if i < len(config.output_transform_shift) else 0.0
+            row["scale"].setValue(scale)
+            row["shift"].setValue(shift)
 
         # Training / optimizers
         self.iter1_spin.setValue(config.iterations)
@@ -4191,6 +4332,7 @@ class MainWindow(QMainWindow):
         self._build_pde_inputs(n)
         self._build_bc_inputs(n)
         self._build_weight_inputs(n)
+        self._rebuild_output_transform_rows(n)
         self.plot_output_combo.clear()
         self.restore_output_combo.clear()
         for _r in getattr(self, 'inv_data_rows', []):

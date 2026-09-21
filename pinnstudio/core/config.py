@@ -62,6 +62,19 @@ class PINNConfig:
     # Neural network
     layers: List[int] = field(default_factory=lambda: [2, 64, 64, 64, 1])
     activation: str = "tanh"
+    kernel_initializer: str = "Glorot uniform"
+
+    # Optional input/output transform: x_transformed = x_raw * scale + shift
+    # (input, one entry per input dimension) and y_transformed = y_raw *
+    # scale + shift (output, one entry per output component). Disabled by
+    # default -- identity scale=1/shift=0 either way, so enabling with
+    # untouched defaults changes nothing.
+    input_transform_enabled: bool = False
+    input_transform_scale: List[float] = field(default_factory=lambda: [1.0, 1.0])
+    input_transform_shift: List[float] = field(default_factory=lambda: [0.0, 0.0])
+    output_transform_enabled: bool = False
+    output_transform_scale: List[float] = field(default_factory=lambda: [1.0])
+    output_transform_shift: List[float] = field(default_factory=lambda: [0.0])
 
     # Training
     optimizer: str = "adam"

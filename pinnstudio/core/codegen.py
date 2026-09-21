@@ -483,6 +483,36 @@ def _load_ic_from_file(_path):
     _vals = _raw[_mask, _v_col:_v_col + 1]
     return _xt, _vals
 
+# Optional input/output transform, applied to every net this script
+# builds (the one that actually trains, and every per-step net rebuilt
+# later purely to restore a checkpoint for plotting/error-analysis --
+# restoring only loads weights, not a transform, since apply_feature_
+# transform/apply_output_transform just attach a plain Python closure to
+# the net instance rather than something saved in a .pt checkpoint, so a
+# reloaded net needs the same transform re-applied to predict correctly).
+# Empty list means "off"; scale/shift lists line up column-for-column
+# with the net's raw input (x, [y], [z], t) or raw output (one entry per
+# output component).
+_in_scale  = {config.input_transform_scale if config.input_transform_enabled else []}
+_in_shift  = {config.input_transform_shift if config.input_transform_enabled else []}
+_out_scale = {config.output_transform_scale if config.output_transform_enabled else []}
+_out_shift = {config.output_transform_shift if config.output_transform_enabled else []}
+
+def _apply_net_transforms(_net):
+    if _in_scale:
+        def _input_transform(x):
+            _sc = torch.tensor(_in_scale, dtype=x.dtype, device=x.device)
+            _sh = torch.tensor(_in_shift, dtype=x.dtype, device=x.device)
+            return x * _sc + _sh
+        _net.apply_feature_transform(_input_transform)
+    if _out_scale:
+        def _output_transform(x, y):
+            _sc = torch.tensor(_out_scale, dtype=y.dtype, device=y.device)
+            _sh = torch.tensor(_out_shift, dtype=y.dtype, device=y.device)
+            return y * _sc + _sh
+        _net.apply_output_transform(_output_transform)
+    return _net
+
 # ── Parametric study setup ────────────────────────────────────
 _parametric = {config.parametric_study}
 _param_name  = "{config.parametric_param}"
@@ -1326,7 +1356,7 @@ for _pval in _param_values:
         elif _param_name == "neurons_per_layer":
             _layers = [{config.layers[0]}] + [int(_pval)] * {len(config.layers) - 2} + [{config.layers[-1]}]
 
-    net = dde.nn.FNN(_layers, "{config.activation}", "Glorot uniform"{_weight_decay_regularizer_arg})
+    net = _apply_net_transforms(dde.nn.FNN(_layers, "{config.activation}", "{config.kernel_initializer}"{_weight_decay_regularizer_arg}))
     model = dde.Model(data, net)
 
     model.compile(
@@ -2036,7 +2066,7 @@ for _pval in _param_values:
                     _step_gt   = dde.geometry.GeometryXTime(_step_geom, _step_td)
                     def _step_pde(x, y): return y[:, 0:1] * 0
                     _step_data  = dde.data.TimePDE(_step_gt, _step_pde, [], num_domain=100, num_test=100)
-                    _step_net   = dde.nn.FNN(_step_layers, _step_act, "Glorot uniform")
+                    _step_net   = _apply_net_transforms(dde.nn.FNN(_step_layers, _step_act, "Glorot uniform"))
                     _step_model = dde.Model(_step_data, _step_net)
 
                     # Find best saved model for this step (lbfgs preferred)
@@ -2667,7 +2697,7 @@ if {config.time_adaptive}:
             anchors=None if {config.forward_ic_from_file} else (_xyt_ic_anchor if (step_i > 0 and _is_2d) else None)
         )
 
-        net_i   = dde.nn.FNN({config.layers}, "{config.activation}", "Glorot uniform"{_weight_decay_regularizer_arg})
+        net_i   = _apply_net_transforms(dde.nn.FNN({config.layers}, "{config.activation}", "{config.kernel_initializer}"{_weight_decay_regularizer_arg}))
         model_i = dde.Model(data_i, net_i)
 
         # ── Training callbacks (opt-in, fresh instances each step) ─
@@ -3040,7 +3070,7 @@ if {config.time_adaptive}:
                     with open(_os.path.join(_sd_for_t, "step_config.json")) as _scf_ta:
                         _sc_ta = _ta_json_sol.load(_scf_ta)
                 except: _sc_ta = {{"layers": {config.layers}, "activation": "{config.activation}", "loss_type": "{config.loss_type}"}}
-                _sn_ta = dde.nn.FNN(_sc_ta.get("layers",{config.layers}), _sc_ta.get("activation","{config.activation}"), "Glorot uniform")
+                _sn_ta = _apply_net_transforms(dde.nn.FNN(_sc_ta.get("layers",{config.layers}), _sc_ta.get("activation","{config.activation}"), "Glorot uniform"))
                 _sg_ta = dde.geometry.Rectangle([{config.x_min},{config.y_min}],[{config.x_max},{config.y_max}])
                 _st_ta = dde.geometry.TimeDomain(_sc_ta.get("t_min",0), _sc_ta.get("t_max",1))
                 _sgt_ta = dde.geometry.GeometryXTime(_sg_ta, _st_ta)
@@ -3185,7 +3215,7 @@ if {config.time_adaptive}:
             _step_gt    = dde.geometry.GeometryXTime(_step_geom, _step_td)
             def _step_pde(x, y): return y[:, 0:1] * 0
             _step_data  = dde.data.TimePDE(_step_gt, _step_pde, [], num_domain=100, num_test=100)
-            _step_net   = dde.nn.FNN(_step_layers, _step_act, "Glorot uniform")
+            _step_net   = _apply_net_transforms(dde.nn.FNN(_step_layers, _step_act, "Glorot uniform"))
             _step_model = dde.Model(_step_data, _step_net)
 
             _step_pt = ""
@@ -3313,7 +3343,7 @@ if {config.time_adaptive}:
                         try:
                             with open(_os.path.join(_sd_for_ei, "step_config.json")) as _scf2: _sc2 = _ea_json2.load(_scf2)
                         except: _sc2 = {{"layers": {config.layers}, "activation": "{config.activation}", "loss_type": "{config.loss_type}"}}
-                        _sn2 = dde.nn.FNN(_sc2.get("layers",{config.layers}), _sc2.get("activation","{config.activation}"), "Glorot uniform")
+                        _sn2 = _apply_net_transforms(dde.nn.FNN(_sc2.get("layers",{config.layers}), _sc2.get("activation","{config.activation}"), "Glorot uniform"))
                         _sg2 = dde.geometry.Rectangle([{config.x_min},{config.y_min}],[{config.x_max},{config.y_max}])
                         _st2 = dde.geometry.TimeDomain(_sc2.get("t_min",0), _sc2.get("t_max",1))
                         _sgt2 = dde.geometry.GeometryXTime(_sg2, _st2)
