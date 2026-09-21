@@ -217,9 +217,8 @@ def generate_script(config):
     pde_expr_single = _simplify_pde_expr(config.pde_expression)
 
     if config.forward_ic_from_file:
-        _ta_ic_init = f"""_ic_ta_data = np.loadtxt(r"{config.forward_ic_file}")
-    _ic_ta_mask = np.abs(_ic_ta_data[:, 2]) < 1e-10
-    prev_u = _ic_ta_data[_ic_ta_mask, 3:4]"""
+        _ta_ic_init = f"""_ic_ta_xt, _ic_ta_vals = _load_ic_from_file(r"{config.forward_ic_file}")
+    prev_u = _ic_ta_vals"""
     else:
         _ta_ic_init = f"prev_u = np.reshape({ta_ic_expr}, (-1, 1))"
     _fecr_pde_block = ""
@@ -452,6 +451,37 @@ _log_path      = _os.path.join(_sol_dir, "training_log.txt") if _use_save else N
 # ── Problem dimension ─────────────────────────────────────────
 _is_2d = "{config.problem_dim}" == "2D"
 _is_3d = "{config.problem_dim}" == "3D"
+
+# Load an Initial Condition from a plain, header-less data file and
+# return (xt, vals) ready for dde.icbc.PointSetBC -- xt at the domain's
+# START time ({config.t_min}), since that's where an IC is defined by
+# default. Column layout matches the problem's dimension, one
+# coordinate column per spatial axis, then time, then value:
+#   1D: x, t, c        2D: x, y, t, c        3D: x, y, z, t, c
+# No header row. Rows are filtered to whichever ones already sit at
+# t == {config.t_min} (small tolerance for floating-point data) --
+# a file covering the whole time range works fine, only its t=t_min
+# slice is used as the IC.
+def _load_ic_from_file(_path):
+    _raw = np.loadtxt(_path)
+    _n_coord = 3 if _is_3d else (2 if _is_2d else 1)
+    _t_col = _n_coord
+    _v_col = _n_coord + 1
+    _t_start = {config.t_min}
+    _mask = np.abs(_raw[:, _t_col] - _t_start) < 1e-8
+    _n_matched = int(_mask.sum())
+    if _n_matched == 0:
+        raise ValueError(
+            f"IC file {{_path}} has no rows at t = {{_t_start}} (the domain's "
+            f"start time) -- expected a header-less file with columns "
+            f"{{'x, t, c' if not (_is_2d or _is_3d) else ('x, y, t, c' if _is_2d else 'x, y, z, t, c')}}, "
+            f"with at least one row at t = {{_t_start}}."
+        )
+    _coords = _raw[_mask, :_n_coord]
+    _t0 = np.full((_n_matched, 1), _t_start)
+    _xt = np.hstack([_coords, _t0])
+    _vals = _raw[_mask, _v_col:_v_col + 1]
+    return _xt, _vals
 
 # ── Parametric study setup ────────────────────────────────────
 _parametric = {config.parametric_study}
@@ -990,21 +1020,26 @@ if _custom_bc_entries or _bc_panel_data_present:
             _constraints.append(dde.icbc.DirichletBC(geomtime, _bc_val_fn(_bval), _bc_loc_fn(_bloc), component=_bcomp))
 
     # ── IC (independent of the BC panel -- same IC config as always) ──
-    if _problem_type == "Inverse" and "{config.inverse_ic_type}" == "File (x, t, u)":
+    # v19: the Inverse panel's separate "IC type" (expression/file)
+    # selector was removed -- confusing to have two places to set the
+    # IC when the Initial Condition panel above already covers both
+    # expression and file-based ICs, for every problem type and
+    # dimension. This branch is permanently disabled (never True) so
+    # every problem -- inverse included -- now goes through that one
+    # panel's own logic just below. _ic_xt/_ic_u above are kept only
+    # so a config saved before this change (inverse_ic_type could
+    # still be "File (x, t, u)" in it) still loads without error.
+    if False:
         _constraints.append(dde.icbc.PointSetBC(_ic_xt, _ic_u, component=0))
     else:
         for _oi in range({config.num_outputs}):
             _comp = _oi
             if {config.forward_ic_from_file} and _oi == 0:
-                # Load IC from file (x, y, t, c format) — use PointSetBC at t=0
-                _ic_data = np.loadtxt(r"{config.forward_ic_file}")
-                _ic_mask = np.abs(_ic_data[:, 2]) < 1e-10  # rows where t≈0
-                _ic_xy   = _ic_data[_ic_mask, :2]          # x, y
-                _ic_t0   = np.zeros((_ic_mask.sum(), 1))
-                _ic_xyt  = np.hstack([_ic_xy, _ic_t0])     # (x, y, 0)
-                _ic_vals = _ic_data[_ic_mask, 3:4]          # c values
+                # Load IC from file -- see _load_ic_from_file() above for
+                # the expected column layout per dimension.
+                _ic_xyt, _ic_vals = _load_ic_from_file(r"{config.forward_ic_file}")
                 _constraints.append(dde.icbc.PointSetBC(_ic_xyt, _ic_vals, component=0))
-                print(rf"IC loaded from file: {config.forward_ic_file} — {{_ic_mask.sum()}} points")
+                print(rf"IC loaded from file: {config.forward_ic_file} — {{len(_ic_xyt)}} points")
             elif _oi < len(_ic_active_list) and _ic_active_list[_oi].strip() == "True":
                 _ic_expr = _ic_expressions[_oi].strip() if _oi < len(_ic_expressions) else "np.zeros_like(x[:,0])"
                 def _make_ic(expr, comp):
@@ -1017,7 +1052,16 @@ if _custom_bc_entries or _bc_panel_data_present:
 else:
     # Legacy per-side BCs, for configs saved before the Boundary
     # Conditions panel existed (custom_bc_json empty).
-    if _problem_type == "Inverse" and "{config.inverse_ic_type}" == "File (x, t, u)":
+    # v19: the Inverse panel's separate "IC type" (expression/file)
+    # selector was removed -- confusing to have two places to set the
+    # IC when the Initial Condition panel above already covers both
+    # expression and file-based ICs, for every problem type and
+    # dimension. This branch is permanently disabled (never True) so
+    # every problem -- inverse included -- now goes through that one
+    # panel's own logic just below. _ic_xt/_ic_u above are kept only
+    # so a config saved before this change (inverse_ic_type could
+    # still be "File (x, t, u)" in it) still loads without error.
+    if False:
         _constraints.append(dde.icbc.PointSetBC(_ic_xt, _ic_u, component=0))
     else:
         for _oi in range({config.num_outputs}):
@@ -1107,15 +1151,11 @@ else:
 
             # ── IC ────────────────────────────────────────────────
             if {config.forward_ic_from_file} and _oi == 0:
-                # Load IC from file (x, y, t, c format) — use PointSetBC at t=0
-                _ic_data = np.loadtxt(r"{config.forward_ic_file}")
-                _ic_mask = np.abs(_ic_data[:, 2]) < 1e-10  # rows where t≈0
-                _ic_xy   = _ic_data[_ic_mask, :2]          # x, y
-                _ic_t0   = np.zeros((_ic_mask.sum(), 1))
-                _ic_xyt  = np.hstack([_ic_xy, _ic_t0])     # (x, y, 0)
-                _ic_vals = _ic_data[_ic_mask, 3:4]          # c values
+                # Load IC from file -- see _load_ic_from_file() above for
+                # the expected column layout per dimension.
+                _ic_xyt, _ic_vals = _load_ic_from_file(r"{config.forward_ic_file}")
                 _constraints.append(dde.icbc.PointSetBC(_ic_xyt, _ic_vals, component=0))
-                print(rf"IC loaded from file: {config.forward_ic_file} — {{_ic_mask.sum()}} points")
+                print(rf"IC loaded from file: {config.forward_ic_file} — {{len(_ic_xyt)}} points")
             elif _oi < len(_ic_active_list) and _ic_active_list[_oi].strip() == "True":
                 _ic_expr = _ic_expressions[_oi].strip() if _oi < len(_ic_expressions) else "np.zeros_like(x[:,0])"
                 def _make_ic(expr, comp):
@@ -1314,12 +1354,9 @@ for _pval in _param_values:
         _ic_gt_pre  = dde.geometry.GeometryXTime(_ic_geom_pre, _ic_td_pre)
         _ic_ics_pre = []
         if {config.forward_ic_from_file}:
-            # Load IC from file for pre-training
-            _ic_pre_data = np.loadtxt(r"{config.forward_ic_file}")
-            _ic_pre_mask = np.abs(_ic_pre_data[:, 2]) < 1e-10
-            _ic_pre_xy   = _ic_pre_data[_ic_pre_mask, :2]
-            _ic_pre_xyt  = np.hstack([_ic_pre_xy, np.zeros((_ic_pre_mask.sum(), 1))])
-            _ic_pre_vals = _ic_pre_data[_ic_pre_mask, 3:4]
+            # Load IC from file for pre-training -- see _load_ic_from_file()
+            # near the top of this script for the expected column layout.
+            _ic_pre_xyt, _ic_pre_vals = _load_ic_from_file(r"{config.forward_ic_file}")
             _ic_ics_pre.append(dde.icbc.PointSetBC(_ic_pre_xyt, _ic_pre_vals, component=0))
         else:
             _ic_exprs_pre = "{config_ic_expressions}".split("|")
@@ -2675,11 +2712,7 @@ if {config.time_adaptive}:
             # Only IC constraint
             _ic_constraints_pt = []
             if {config.forward_ic_from_file}:
-                _ic_ta_data = np.loadtxt(r"{config.forward_ic_file}")
-                _ic_ta_mask = np.abs(_ic_ta_data[:, 2]) < 1e-10
-                _ic_ta_xy   = _ic_ta_data[_ic_ta_mask, :2]
-                _ic_ta_xyt  = np.hstack([_ic_ta_xy, np.zeros((_ic_ta_mask.sum(), 1))])
-                _ic_ta_vals = _ic_ta_data[_ic_ta_mask, 3:4]
+                _ic_ta_xyt, _ic_ta_vals = _load_ic_from_file(r"{config.forward_ic_file}")
                 _ic_constraints_pt.append(dde.icbc.PointSetBC(_ic_ta_xyt, _ic_ta_vals, component=0))
             else:
                 for _oi_pt in range({config.num_outputs}):

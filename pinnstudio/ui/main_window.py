@@ -770,7 +770,7 @@ class MainWindow(QMainWindow):
         left_layout.addWidget(points_group)
 
         # ── Boundary & Initial conditions ─────────────────────
-        self.bc_group = QGroupBox("Boundary && Initial Conditions")
+        self.bc_group = QGroupBox("Initial Condition")
         self.bc_main_layout = QVBoxLayout(self.bc_group)
         self.bc_main_layout.setSpacing(4)
         self.bc_left_types = [];  self.bc_left_vals = [];   self.bc_left_active = [];  self.bc_left_deriv = []
@@ -915,18 +915,43 @@ class MainWindow(QMainWindow):
         self.ic_pretrain_widget = QWidget()
         ic_pt_layout = QVBoxLayout(self.ic_pretrain_widget)
         ic_pt_layout.setSpacing(4); ic_pt_layout.setContentsMargins(0, 0, 0, 0)
-        ic_pt_layout.addWidget(QLabel("IC pre-train optimizer:"))
+
+        # Train-from-start vs Restore-from-checkpoint -- a single either/or
+        # choice, not a checkbox layered on top of the train fields. Only
+        # one of these ever actually applies at run time (see codegen.py:
+        # restoring loads the saved weights and skips training entirely,
+        # so the optimizer/iterations/test/initial-points fields below are
+        # meaningless while restoring), so only the fields for whichever
+        # is chosen are ever shown -- picking "Restore" hides the training
+        # fields instead of just adding the restore path underneath them.
+        ic_mode_row = QHBoxLayout()
+        self.ic_pretrain_mode_train = QRadioButton("▶ Train from start")
+        self.ic_pretrain_mode_restore = QRadioButton("🔄 Restore from checkpoint")
+        self.ic_pretrain_mode_train.setChecked(True)
+        self._ic_pretrain_mode_group = QButtonGroup(self.ic_pretrain_widget)
+        self._ic_pretrain_mode_group.addButton(self.ic_pretrain_mode_train)
+        self._ic_pretrain_mode_group.addButton(self.ic_pretrain_mode_restore)
+        ic_mode_row.addWidget(self.ic_pretrain_mode_train)
+        ic_mode_row.addWidget(self.ic_pretrain_mode_restore)
+        ic_pt_layout.addLayout(ic_mode_row)
+        self.ic_pretrain_mode_train.toggled.connect(self._update_ic_pretrain_visibility)
+
+        # Train-from-start fields
+        self.ic_pretrain_train_fields_widget = QWidget()
+        ic_train_fields_layout = QVBoxLayout(self.ic_pretrain_train_fields_widget)
+        ic_train_fields_layout.setSpacing(4); ic_train_fields_layout.setContentsMargins(0, 0, 0, 0)
+        ic_train_fields_layout.addWidget(QLabel("IC pre-train optimizer:"))
         self.ic_pretrain_opt = QComboBox()
         self.ic_pretrain_opt.addItem("Adam", "adam")
         self.ic_pretrain_opt.setFixedHeight(28)
-        ic_pt_layout.addWidget(self.ic_pretrain_opt)
-        ic_pt_layout.addWidget(QLabel("IC pre-train iterations:"))
+        ic_train_fields_layout.addWidget(self.ic_pretrain_opt)
+        ic_train_fields_layout.addWidget(QLabel("IC pre-train iterations:"))
         self.ic_pretrain_iters = QSpinBox()
         self.ic_pretrain_iters.setRange(100, 500000)
         self.ic_pretrain_iters.setSingleStep(1000)
         self.ic_pretrain_iters.setValue(20000)
         self.ic_pretrain_iters.setFixedHeight(28)
-        ic_pt_layout.addWidget(self.ic_pretrain_iters)
+        ic_train_fields_layout.addWidget(self.ic_pretrain_iters)
 
         # Test points
         ic_test_row = QHBoxLayout()
@@ -938,9 +963,10 @@ class MainWindow(QMainWindow):
         self.ic_pretrain_test.setFixedHeight(28)
         self.ic_pretrain_test.setFixedWidth(100)
         ic_test_row.addStretch(); ic_test_row.addWidget(self.ic_pretrain_test)
-        ic_pt_layout.addLayout(ic_test_row)
+        ic_train_fields_layout.addLayout(ic_test_row)
 
-        # Initial points (only shown when IC is from expression, not file)
+        # Initial points (only shown when IC is from expression, not file --
+        # see _update_ic_pretrain_visibility(), which also accounts for that)
         self.ic_pretrain_init_widget = QWidget()
         ic_init_row = QHBoxLayout(self.ic_pretrain_init_widget)
         ic_init_row.setContentsMargins(0, 0, 0, 0)
@@ -958,15 +984,10 @@ class MainWindow(QMainWindow):
         self.ic_pretrain_init.setFixedHeight(28)
         self.ic_pretrain_init.setFixedWidth(100)
         ic_init_row.addStretch(); ic_init_row.addWidget(self.ic_pretrain_init)
-        ic_pt_layout.addWidget(self.ic_pretrain_init_widget)
+        ic_train_fields_layout.addWidget(self.ic_pretrain_init_widget)
+        ic_pt_layout.addWidget(self.ic_pretrain_train_fields_widget)
 
-        # Restore option
-        ic_restore_cb = QCheckBox("🔄 Restore from saved IC pre-train model")
-        ic_restore_cb.setChecked(False)
-        self._register_style(ic_restore_cb, "hint", lambda css, _c='#69db7c', _e='': f"color: {_c}; {_e}{css}")
-        ic_pt_layout.addWidget(ic_restore_cb)
-        self.ic_pretrain_restore_cb = ic_restore_cb
-
+        # Restore-from-checkpoint field (path only -- see mode toggle above)
         self.ic_pretrain_restore_widget = QWidget()
         ic_restore_layout = QHBoxLayout(self.ic_pretrain_restore_widget)
         ic_restore_layout.setContentsMargins(0, 0, 0, 0)
@@ -979,16 +1000,14 @@ class MainWindow(QMainWindow):
         ic_restore_browse.clicked.connect(lambda: self.ic_pretrain_restore_path.setText(
             QFileDialog.getOpenFileName(None, "Select IC pre-train model", "", "Model (*.pt)")[0]))
         ic_restore_layout.addWidget(ic_restore_browse)
-        self.ic_pretrain_restore_widget.setVisible(False)
         ic_pt_layout.addWidget(self.ic_pretrain_restore_widget)
-        ic_restore_cb.stateChanged.connect(
-            lambda s: self.ic_pretrain_restore_widget.setVisible(s == 2))
 
         ic_note = QLabel("Trains IC loss only before main training.\nFirst step only for time-adaptive.")
         self._register_style(ic_note, "hint", lambda css, _c='#586e75', _e='': f"color: {_c}; {_e}{css}")
         ic_note.setWordWrap(True)
         ic_pt_layout.addWidget(ic_note)
 
+        self._update_ic_pretrain_visibility()
         self.ic_pretrain_widget.setVisible(False)
         train_layout.addWidget(self.ic_pretrain_widget)
 
@@ -1302,20 +1321,12 @@ class MainWindow(QMainWindow):
         # matching the single-file behavior this generalizes by default.
         self._add_inverse_data_row()
 
-        inv_layout.addWidget(QLabel("IC type:"))
-        self.inv_ic_type = QComboBox(); self.inv_ic_type.addItems(["Expression", "File (x, t, u)"])
-        self.inv_ic_type.setFixedHeight(28); self.inv_ic_type.currentTextChanged.connect(self._on_inv_ic_type_changed)
-        inv_layout.addWidget(self.inv_ic_type)
-
-        self.inv_ic_file_label = QLabel("IC data file:"); self.inv_ic_file_label.setVisible(False)
-        inv_layout.addWidget(self.inv_ic_file_label)
-        inv_ic_row = QHBoxLayout()
-        self.inv_ic_path = QLineEdit(); self.inv_ic_path.setPlaceholderText("Browse..."); self.inv_ic_path.setFixedHeight(28); self.inv_ic_path.setVisible(False)
-        inv_ic_row.addWidget(self.inv_ic_path)
-        self.inv_ic_browse = QPushButton("Browse"); self.inv_ic_browse.setFixedHeight(28); self.inv_ic_browse.setFixedWidth(65); self.inv_ic_browse.setVisible(False)
-        self.inv_ic_browse.clicked.connect(self._on_browse_inv_ic)
-        inv_ic_row.addWidget(self.inv_ic_browse)
-        inv_layout.addLayout(inv_ic_row)
+        # v19: the separate "IC type" (expression/file) selector that used
+        # to live here was removed -- it was confusing to have two places
+        # to set the IC when the Initial Condition panel above already
+        # covers both expression and file-based ICs, for every problem
+        # type (including Inverse) and dimension. Inverse problems now
+        # just use that one panel, same as Forward problems.
         self.inv_param_log_scale = QCheckBox("Log scale for parameter convergence plot")
         self.inv_param_log_scale.setChecked(False)
         inv_layout.addWidget(self.inv_param_log_scale)
@@ -1741,6 +1752,23 @@ class MainWindow(QMainWindow):
     def _on_dim_changed(self):
         is_2d = self.radio_2d.isChecked()
         is_3d = self.radio_3d.isChecked()
+        # Clear the Boundary Conditions panel -- its rows (template-seeded
+        # or hand-built) are location EXPRESSIONS in the previous
+        # dimension's variables (e.g. "z <= 0" from a 3D problem), which
+        # are either meaningless or, worse, reference a variable that
+        # no longer exists at all once the dimension changes (x only for
+        # 1D; x, y for 2D; x, y, z for 3D). Left in place, a stale row
+        # crashes the generated script with a NameError the moment
+        # training starts, since the location function's namespace only
+        # defines the variables the *current* dimension actually has. A
+        # template selected after this still repopulates the panel with
+        # that template's own (dimension-correct) rows, exactly as before;
+        # this only clears what dimension-switching itself would otherwise
+        # leave stale.
+        if hasattr(self, 'custom_bc_list') and self.custom_bc_list:
+            for e in list(self.custom_bc_list):
+                e['widget'].deleteLater()
+            self.custom_bc_list.clear()
         # Update quick examples list to match dimension
         self.quick_examples_combo.blockSignals(True)
         self.quick_examples_combo.clear()
@@ -2752,44 +2780,44 @@ class MainWindow(QMainWindow):
             self.bc_main_layout.addWidget(ic_hint)
             ic_hint_toggle.stateChanged.connect(lambda state, h=ic_hint: h.setVisible(state == 2))
 
-            # IC from file option (2D only)
-            if is_2d:
-                ic_file_cb = QCheckBox("📂 Load IC from file (x,y,t,c format)")
-                ic_file_cb.setChecked(False)
-                self._register_style(ic_file_cb, "hint", lambda css, _c='#ffa94d', _e='': f"color: {_c}; {_e}{css}")
-                self.bc_main_layout.addWidget(ic_file_cb)
-                self.ic_from_file.append(ic_file_cb)
+            # IC from file option — available for 1D, 2D, and 3D; the
+            # expected no-header column format changes with dimension:
+            # 1D: x,t,c   2D: x,y,t,c   3D: x,y,z,t,c. Expression stays the
+            # default; this is opt-in per output, and only ever applies to
+            # output 0's IC (single global IC file per problem).
+            _ic_file_fmt = "x,y,z,t,c" if is_3d else ("x,y,t,c" if is_2d else "x,t,c")
+            ic_file_cb = QCheckBox(f"📂 Load IC from file ({_ic_file_fmt} format)")
+            ic_file_cb.setChecked(False)
+            self._register_style(ic_file_cb, "hint", lambda css, _c='#ffa94d', _e='': f"color: {_c}; {_e}{css}")
+            self.bc_main_layout.addWidget(ic_file_cb)
+            self.ic_from_file.append(ic_file_cb)
 
-                ic_file_widget = QWidget()
-                ic_file_layout = QHBoxLayout(ic_file_widget)
-                ic_file_layout.setContentsMargins(0, 0, 0, 0)
-                ic_file_path = QLineEdit()
-                ic_file_path.setPlaceholderText("Browse for IC file (x,y,t,c)...")
-                ic_file_path.setFixedHeight(26)
-                ic_file_layout.addWidget(ic_file_path)
-                ic_file_browse = QPushButton("Browse")
-                ic_file_browse.setFixedHeight(26); ic_file_browse.setFixedWidth(65)
-                def _make_browse(path_edit):
-                    def _browse():
-                        f, _ = QFileDialog.getOpenFileName(None, "Select IC file", "", "Data files (*.txt *.csv *.dat)")
-                        if f: path_edit.setText(f)
-                    return _browse
-                ic_file_browse.clicked.connect(_make_browse(ic_file_path))
-                ic_file_layout.addWidget(ic_file_browse)
-                ic_file_widget.setVisible(False)
-                self.bc_main_layout.addWidget(ic_file_widget)
-                self.ic_file_paths.append(ic_file_path)
+            ic_file_widget = QWidget()
+            ic_file_layout = QHBoxLayout(ic_file_widget)
+            ic_file_layout.setContentsMargins(0, 0, 0, 0)
+            ic_file_path = QLineEdit()
+            ic_file_path.setPlaceholderText(f"Browse for IC file ({_ic_file_fmt})...")
+            ic_file_path.setFixedHeight(26)
+            ic_file_layout.addWidget(ic_file_path)
+            ic_file_browse = QPushButton("Browse")
+            ic_file_browse.setFixedHeight(26); ic_file_browse.setFixedWidth(65)
+            def _make_browse(path_edit):
+                def _browse():
+                    f, _ = QFileDialog.getOpenFileName(None, "Select IC file", "", "Data files (*.txt *.csv *.dat)")
+                    if f: path_edit.setText(f)
+                return _browse
+            ic_file_browse.clicked.connect(_make_browse(ic_file_path))
+            ic_file_layout.addWidget(ic_file_browse)
+            ic_file_widget.setVisible(False)
+            self.bc_main_layout.addWidget(ic_file_widget)
+            self.ic_file_paths.append(ic_file_path)
 
-                ic_file_cb.stateChanged.connect(
-                    lambda state, w=ic_file_widget, inp=ic_inp, act=ic_act:
-                    (w.setVisible(state == 2), inp.setVisible(state != 2),
-                     act.setChecked(state != 2),
-                     self.ic_pretrain_init_widget.setVisible(state != 2)
-                     if hasattr(self, 'ic_pretrain_init_widget') else None)
-                )
-            else:
-                self.ic_from_file.append(None)
-                self.ic_file_paths.append(None)
+            ic_file_cb.stateChanged.connect(
+                lambda state, w=ic_file_widget, inp=ic_inp, act=ic_act:
+                (w.setVisible(state == 2), inp.setVisible(state != 2),
+                 act.setChecked(state != 2),
+                 self._update_ic_pretrain_visibility())
+            )
 
             # Restore layout and add container
             self.bc_main_layout = _main_layout_save
@@ -3533,8 +3561,11 @@ class MainWindow(QMainWindow):
             inverse_obs_output_idx=self.inv_obs_output_combo.currentIndex() if self.inv_obs_output_combo.currentIndex() >= 0 else 0,
             inverse_data_file=self.inv_data_path.text().strip(),
             inverse_obs_files_json=self._build_inverse_obs_files_json(),
-            inverse_ic_type=self.inv_ic_type.currentText(),
-            inverse_ic_file=self.inv_ic_path.text().strip(),
+            # v19: the Inverse panel's own IC-type selector is gone (see the
+            # comment where it used to be built) -- always "expression" now,
+            # so codegen always takes the Initial Condition panel's path.
+            inverse_ic_type="expression",
+            inverse_ic_file="",
             export_grid_size=int(self.export_grid_combo.currentText()),
             export_t_steps=self.export_tsteps_spin.value(),
             template_type=getattr(self, '_current_template_type', ''),
@@ -3555,7 +3586,7 @@ class MainWindow(QMainWindow):
             ic_pretrain_iterations=self.ic_pretrain_iters.value(),
             ic_pretrain_num_test=self.ic_pretrain_test.value(),
             ic_pretrain_num_initial=self.ic_pretrain_init.value(),
-            ic_pretrain_restore=self.ic_pretrain_restore_cb.isChecked(),
+            ic_pretrain_restore=self.ic_pretrain_mode_restore.isChecked(),
             ic_pretrain_restore_path=self.ic_pretrain_restore_path.text().strip(),
             weight_decay=self._optimizer_settings.get("weight_decay", 0.0),
             cb_early_stopping=self._callback_settings.get("early_stopping", False),
@@ -3937,8 +3968,8 @@ class MainWindow(QMainWindow):
             if i < len(self.ic_active):
                 self.ic_active[i].setChecked(ic_active[i])
 
-        # IC-from-file (2D only; the builder only supports one output at a time)
-        if is_2d and config.forward_ic_from_file and hasattr(self, "ic_from_file"):
+        # IC-from-file (any dimension; the builder only supports one output at a time)
+        if config.forward_ic_from_file and hasattr(self, "ic_from_file"):
             for i in range(n_out):
                 if i < len(self.ic_from_file) and self.ic_from_file[i] is not None:
                     self.ic_from_file[i].setChecked(i == 0)
@@ -4018,8 +4049,11 @@ class MainWindow(QMainWindow):
         else:
             self._add_inverse_data_row(
                 config.inverse_data_file, config.inverse_obs_output_idx, config.loss_weight_obs)
-        self.inv_ic_type.setCurrentText(config.inverse_ic_type)
-        self.inv_ic_path.setText(config.inverse_ic_file)
+        # v19: config.inverse_ic_type/inverse_ic_file are no longer surfaced
+        # in the UI (see _build_config()) -- a config saved by an older
+        # version that still has "File (x, t, u)" in there just loads with
+        # that field silently ignored; the Initial Condition panel above
+        # (ic_active/ic_inputs/ic_from_file) is what actually restores now.
         self.inv_param_log_scale.setChecked(config.inv_param_log_scale)
         self.param_save_combo.setCurrentText(config.inv_param_save)
 
@@ -4103,8 +4137,10 @@ class MainWindow(QMainWindow):
         self.ic_pretrain_iters.setValue(config.ic_pretrain_iterations)
         self.ic_pretrain_test.setValue(config.ic_pretrain_num_test)
         self.ic_pretrain_init.setValue(config.ic_pretrain_num_initial)
-        self.ic_pretrain_restore_cb.setChecked(config.ic_pretrain_restore)
+        self.ic_pretrain_mode_restore.setChecked(bool(config.ic_pretrain_restore))
+        self.ic_pretrain_mode_train.setChecked(not config.ic_pretrain_restore)
         self.ic_pretrain_restore_path.setText(config.ic_pretrain_restore_path)
+        self._update_ic_pretrain_visibility()
 
         # Optimizer scheduler + weights. Phase rows (optimizer/iterations/lr
         # per phase) are only present in the saved file when the scheduler was
@@ -4272,16 +4308,6 @@ class MainWindow(QMainWindow):
         if f:
             target.setText(f)
 
-    def _on_browse_inv_ic(self):
-        f, _ = QFileDialog.getOpenFileName(self, "Select IC data file", "", "Data files (*.txt *.csv *.dat)")
-        if f:
-            self.inv_ic_path.setText(f)
-
-    def _on_inv_ic_type_changed(self, text):
-        is_file = text == "File (x, t, u)"
-        self.inv_ic_file_label.setVisible(is_file)
-        self.inv_ic_path.setVisible(is_file)
-        self.inv_ic_browse.setVisible(is_file)
 
     def _geometry_supported_for_training(self):
         """Phase 2 of the geometry-type feature: codegen.py's _build_geom()
@@ -7139,6 +7165,26 @@ print("ERROR_ANALYSIS_V2_DONE")
     
     def _on_ic_pretrain_changed(self, state):
         self.ic_pretrain_widget.setVisible(state == 2)
+
+    def _update_ic_pretrain_visibility(self):
+        """Show exactly the IC Pre-Training fields that matter for the
+        currently-chosen mode: Train-from-start shows the optimizer/
+        iterations/test-points/initial-points fields (initial-points also
+        hidden if the IC itself is coming from a file, unrelated to this
+        toggle); Restore-from-checkpoint shows only the checkpoint path,
+        since restoring loads the saved weights and skips training
+        entirely -- see codegen.py's ic_pretrain_restore branch."""
+        if not hasattr(self, 'ic_pretrain_mode_restore'):
+            return
+        restoring = self.ic_pretrain_mode_restore.isChecked()
+        self.ic_pretrain_train_fields_widget.setVisible(not restoring)
+        self.ic_pretrain_restore_widget.setVisible(restoring)
+        if hasattr(self, 'ic_from_file'):
+            _any_ic_from_file = any(
+                cb is not None and cb.isChecked() for cb in self.ic_from_file)
+        else:
+            _any_ic_from_file = False
+        self.ic_pretrain_init_widget.setVisible(not restoring and not _any_ic_from_file)
 
     def _on_batch_changed(self, state):
         self.batch_widget.setVisible(state == 2)
