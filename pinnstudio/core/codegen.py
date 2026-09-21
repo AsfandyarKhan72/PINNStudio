@@ -345,6 +345,14 @@ if _dxde_ver is not None and _dxde_ver < (1, 13, 0):
     _train_cbs_code = _build_train_cbs_code(config, "_train_cbs", indent=4)
     _train_cbs_code_ta = _build_train_cbs_code(config, "_train_cbs_ta", indent=8)
 
+    # IC pre-training needs at least 1 point sampled at the initial-time
+    # slice, or DeepXDE's data construction fails outright (see the IC
+    # pre-training blocks below for why). The GUI's own spinner is now
+    # range-limited to >=1, but a config saved before that existed (or
+    # hand-edited) could still carry 0 -- clamp here too as a second line
+    # of defense. The field's own default (1000) is unaffected either way.
+    _ic_pretrain_num_initial_safe = max(1, config.ic_pretrain_num_initial)
+
     script = f"""
 
 import os
@@ -1323,22 +1331,33 @@ for _pval in _param_values:
                     return dde.icbc.IC(_ic_gt_pre, _ic_fn, lambda x, on_initial: on_initial, component=comp)
                 _ic_ics_pre.append(_mk_ic_pre(_ic_expr_pre, _oi_pre))
         
-        # IC pre-training — dummy PDE, no domain/BC, full batch, anchors only
+        # IC pre-training — dummy PDE (zero residual, same output count as
+        # the real network), IC points only. Real boundary conditions are
+        # deliberately left OUT of this dataset entirely, not just given a
+        # 0 loss weight: with no boundary points sampled here (num_boundary
+        # stays 0 -- only the initial-time slice matters for this step), a
+        # BC term's collocation match is usually empty, and DeepXDE's
+        # MSE(empty, empty) is NaN -- which a 0 weight does NOT neutralize
+        # (0 * nan is still nan), silently corrupting every other loss term
+        # and the whole gradient. Excluding these terms sidesteps that trap
+        # while still training only the initial condition, as intended.
+        # num_initial/num_test use their own IC-pre-training-specific config
+        # fields (not the main run's), and must be nonzero -- with them at
+        # 0, no points are ever sampled at all and construction itself
+        # fails with an unrelated-looking IndexError deep inside DeepXDE.
         def _pde_dummy_pre(x, y):
             return [y[:, _oi_d:_oi_d+1] * 0 for _oi_d in range({config.num_outputs})]
-        _bc_constraints_pre = [_c for _c in _constraints if not isinstance(_c, dde.icbc.PointSetBC)]
-        _ic_pre_constraints = _bc_constraints_pre + _ic_ics_pre
+        _ic_pre_constraints = _ic_ics_pre
         _data_pre = dde.data.TimePDE(
             _ic_gt_pre, _pde_dummy_pre, _ic_pre_constraints,
             num_domain=0, num_boundary=0,
-            num_initial=0, num_test=10000,
+            num_initial={_ic_pretrain_num_initial_safe}, num_test={config.ic_pretrain_num_test},
             train_distribution="{config.point_distribution}",
             anchors=None
         )
         _model_pre = dde.Model(_data_pre, net)
-        _n_bcs_pre = len(_ic_pre_constraints) - len(_ic_ics_pre)
-        _ic_only_weights = [0.0] * {config.num_outputs} + [0.0] * _n_bcs_pre + [1000.0] * len(_ic_ics_pre)
-        print(f"  IC-only weights: {{_ic_only_weights}} — dummy PDE, full batch")
+        _ic_only_weights = [0.0] * {config.num_outputs} + [1000.0] * len(_ic_ics_pre)
+        print(f"  IC-only weights: {{_ic_only_weights}} — dummy PDE, IC points only")
         _model_pre.compile("{config.ic_pretrain_optimizer}", lr={config.learning_rate},
                            loss="MSE", loss_weights=_ic_only_weights)
         _ic_pre_save_dir = _os.path.join(r"{config.save_dir}", "ic_pretrain")
@@ -2672,20 +2691,23 @@ if {config.time_adaptive}:
                     _ic_constraints_pt.append(_mk_ic_pt(_ic_expr_pt, _oi_pt))
             def _pde_dummy_ta(x, y):
                 return [y[:, _oi_d:_oi_d+1] * 0 for _oi_d in range({config.num_outputs})]
-            _bc_constraints_pre = [_c for _c in _constraints_i if not isinstance(_c, dde.icbc.PointSetBC)]
-            _ic_pre_constraints_ta = _bc_constraints_pre + _ic_constraints_pt
+            # Only IC constraints included -- see the matching comment in
+            # the Standard-path IC pre-training block above for why real
+            # BCs are left out entirely rather than just zero-weighted
+            # (an empty-match BC term's NaN loss isn't neutralized by a 0
+            # weight), and why num_initial/num_test can't stay 0 here.
+            _ic_pre_constraints_ta = _ic_constraints_pt
             _data_pt = dde.data.TimePDE(
                 _ic_gt_pt, _pde_dummy_ta, _ic_pre_constraints_ta,
                 num_domain=0, num_boundary=0,
-                num_initial=0, num_test={config.ic_pretrain_num_test},
+                num_initial={_ic_pretrain_num_initial_safe}, num_test={config.ic_pretrain_num_test},
                 train_distribution="{config.point_distribution}",
                 anchors=None
             )
             _net_pt = model_i.net
             _model_pt = dde.Model(_data_pt, _net_pt)
-            # IC-only weights: PDE=0, BC=0, IC=1000
-            _n_bcs_ta = len(_bc_constraints_pre)
-            _ic_only_w_ta = [0.0] * {config.num_outputs} + [0.0] * _n_bcs_ta + [1000.0] * len(_ic_constraints_pt)
+            # IC-only weights: PDE=0, IC=1000
+            _ic_only_w_ta = [0.0] * {config.num_outputs} + [1000.0] * len(_ic_constraints_pt)
             _model_pt.compile("{config.ic_pretrain_optimizer}", lr=_lr,
                               loss="MSE", loss_weights=_ic_only_w_ta)
             _ic_pre_save_dir_ta = _os.path.join(r"{config.save_dir}", "ic_pretrain")

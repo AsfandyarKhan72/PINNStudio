@@ -158,7 +158,7 @@ class PINNConfig:
     lbfgs_float_type: str = "float32"
     ic_pretrain: bool = False
     ic_pretrain_optimizer: str = "adam"
-    ic_pretrain_iterations: int = 10000
+    ic_pretrain_iterations: int = 20000
     ic_pretrain_num_test: int = 10000
     ic_pretrain_num_initial: int = 1000
     batch_size: int = 0

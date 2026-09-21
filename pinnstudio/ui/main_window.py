@@ -924,7 +924,7 @@ class MainWindow(QMainWindow):
         self.ic_pretrain_iters = QSpinBox()
         self.ic_pretrain_iters.setRange(100, 500000)
         self.ic_pretrain_iters.setSingleStep(1000)
-        self.ic_pretrain_iters.setValue(200000)
+        self.ic_pretrain_iters.setValue(20000)
         self.ic_pretrain_iters.setFixedHeight(28)
         ic_pt_layout.addWidget(self.ic_pretrain_iters)
 
@@ -946,7 +946,13 @@ class MainWindow(QMainWindow):
         ic_init_row.setContentsMargins(0, 0, 0, 0)
         ic_init_row.addWidget(QLabel("Initial points:"))
         self.ic_pretrain_init = QSpinBox()
-        self.ic_pretrain_init.setRange(0, 10000)
+        # Minimum of 1, not 0: this is the count of points sampled at the
+        # initial-time slice for IC pre-training, and with 0 of them no
+        # training points exist at all -- DeepXDE doesn't fail cleanly on
+        # that (an empty-array indexing bug deep inside its IC filtering),
+        # it's a confusing crash instead. See _validate_optimizer_settings-
+        # adjacent codegen.py guard for the belt-and-suspenders clamp.
+        self.ic_pretrain_init.setRange(1, 10000)
         self.ic_pretrain_init.setSingleStep(100)
         self.ic_pretrain_init.setValue(1000)
         self.ic_pretrain_init.setFixedHeight(28)
