@@ -564,50 +564,55 @@ class MainWindow(QMainWindow):
         left_layout.addWidget(type_group)
         self.radio_forward.toggled.connect(self._on_problem_type_changed)
 
-        # ── Number of PDEs ────────────────────────────────────
-        nout_group = QGroupBox("Number of PDEs / Outputs")
-        nout_layout = QHBoxLayout(nout_group)
-        nout_layout.addWidget(QLabel("How many PDEs:"))
+        # ── PDE input (Number of PDEs/Outputs folded in at the top, ────
+        # ── since they belong together and don't need their own panel) ─
+        self.pde_group = QGroupBox("PDE Definition")
+        pde_outer_layout = QVBoxLayout(self.pde_group)
+        pde_outer_layout.setSpacing(6)
+
+        nout_row = QHBoxLayout()
+        nout_row.addWidget(QLabel("How many PDEs:"))
         self.num_outputs_spin = QSpinBox()
         self.num_outputs_spin.setRange(1, 4)
         self.num_outputs_spin.setValue(1)
         self.num_outputs_spin.setFixedHeight(30)
         self.num_outputs_spin.setFixedWidth(60)
         self.num_outputs_spin.valueChanged.connect(self._on_num_outputs_changed)
-        nout_layout.addWidget(self.num_outputs_spin)
-        nout_layout.addStretch()
-        left_layout.addWidget(nout_group)
+        nout_row.addWidget(self.num_outputs_spin)
+        nout_row.addStretch()
+        pde_outer_layout.addLayout(nout_row)
 
-        # ── PDE input ─────────────────────────────────────────
-        self.pde_group = QGroupBox("PDE Definition")
-        self.pde_main_layout = QVBoxLayout(self.pde_group)
+        # self.pde_main_layout stays a nested layout (not the group's own
+        # top-level layout) so _build_pde_inputs() can freely clear/rebuild
+        # it on every output-count change without disturbing the "How many
+        # PDEs" row above it.
+        self.pde_main_layout = QVBoxLayout()
         self.pde_main_layout.setSpacing(6)
+        pde_outer_layout.addLayout(self.pde_main_layout)
         self.pde_inputs = []
         self.output_name_inputs = []
         self._build_pde_inputs(1)
         left_layout.addWidget(self.pde_group)
 
-        # ── Domain ────────────────────────────────────────────
-        # ── Geometry type (2D / 3D only) -- shown above Domain so the ──
-        # ── shape choice governs what Domain asks for below it. ────────
-        self.geom_type_group = QGroupBox("Geometry Type")
-        geom_type_layout = QVBoxLayout(self.geom_type_group)
-        geom_type_layout.setSpacing(6)
+        # ── Domain (Geometry Type folded in as the first field, since ──
+        # ── the shape choice governs what the rest of this panel asks ──
+        # ── for below it -- they belong in one panel, not two). ────────
+        domain_group = QGroupBox("Domain")
+        self.domain_group = domain_group
+        domain_layout = QVBoxLayout(domain_group)
+        domain_layout.setSpacing(6)
 
-        geom_combo_row = QHBoxLayout()
+        self.geom_type_row_widget = QWidget()
+        geom_combo_row = QHBoxLayout(self.geom_type_row_widget)
+        geom_combo_row.setContentsMargins(0, 0, 0, 0)
         geom_combo_row.addWidget(QLabel("Shape:"))
         self.geometry_type_combo = QComboBox()
         self.geometry_type_combo.setFixedHeight(28)
         geom_combo_row.addWidget(self.geometry_type_combo)
-        geom_type_layout.addLayout(geom_combo_row)
+        geom_combo_row.addStretch()
+        self.geom_type_row_widget.setVisible(False)
+        domain_layout.addWidget(self.geom_type_row_widget)
         self.geometry_type_combo.currentTextChanged.connect(self._on_geometry_type_changed)
-
-        self.geom_type_group.setVisible(False)
-        left_layout.addWidget(self.geom_type_group)
-
-        domain_group = QGroupBox("Domain")
-        domain_layout = QVBoxLayout(domain_group)
-        domain_layout.setSpacing(6)
 
         # x/y/z rows: only meaningful for the box shapes (Interval/Rectangle/
         # Cuboid), where the domain really is an axis-aligned box. For every
@@ -947,15 +952,17 @@ class MainWindow(QMainWindow):
 
         left_layout.addWidget(nn_group)
 
-        # ── Mini-batch ────────────────────────────────────────
-        batch_group = QGroupBox("Mini-batch Training")
-        batch_layout = QVBoxLayout(batch_group)
-        batch_layout.setSpacing(5)
+        # ── Training (Mini-batch Training folded in at the top, since ──
+        # ── it's a training setting and doesn't need its own panel) ────
+        train_group = QGroupBox("Training")
+        train_layout = QVBoxLayout(train_group)
+        train_layout.setSpacing(5)
+        train_layout.setContentsMargins(10, 10, 10, 10)
 
         self.batch_check = QCheckBox("Enable mini-batch training")
         self.batch_check.setChecked(True)
         self.batch_check.stateChanged.connect(self._on_batch_changed)
-        batch_layout.addWidget(self.batch_check)
+        train_layout.addWidget(self.batch_check)
 
         self.batch_widget = QWidget()
         bw_layout = QHBoxLayout(self.batch_widget)
@@ -970,15 +977,7 @@ class MainWindow(QMainWindow):
         bw_layout.addStretch()
         bw_layout.addWidget(self.batch_spin)
         self.batch_widget.setVisible(True)
-        batch_layout.addWidget(self.batch_widget)
-
-        left_layout.addWidget(batch_group)
-
-        # ── Training ──────────────────────────────────────────
-        train_group = QGroupBox("Training")
-        train_layout = QVBoxLayout(train_group)
-        train_layout.setSpacing(5)
-        train_layout.setContentsMargins(10, 10, 10, 10)
+        train_layout.addWidget(self.batch_widget)
 
         def _train_row(label, widget):
             train_layout.addWidget(QLabel(label))
@@ -2006,13 +2005,14 @@ class MainWindow(QMainWindow):
             w.setVisible(is_2d)
 
         # Repopulate the geometry-type selector for the new dimension.
-        self.geom_type_group.setVisible(is_2d or is_3d)
+        self.geom_type_row_widget.setVisible(is_2d or is_3d)
         self.geometry_type_combo.blockSignals(True)
         self.geometry_type_combo.clear()
         if is_2d:
             self.geometry_type_combo.addItems(self.GEOM_TYPES_2D)
         elif is_3d:
             self.geometry_type_combo.addItems(self.GEOM_TYPES_3D)
+        self._fit_combo_width(self.geometry_type_combo, min_width=90)
         self.geometry_type_combo.blockSignals(False)
         self._on_geometry_type_changed(self.geometry_type_combo.currentText())
 
@@ -2021,11 +2021,11 @@ class MainWindow(QMainWindow):
         self._build_weight_inputs(self.num_outputs_spin.value())
         self._rebuild_input_transform_rows()
 
-        # Force an immediate layout/repaint pass so the Geometry Type box
+        # Force an immediate layout/repaint pass so the Geometry Type row
         # (and any other widgets just toggled above) always show up right
         # away, instead of waiting on the next natural repaint cycle.
-        self.geom_type_group.updateGeometry()
-        self.geom_type_group.repaint()
+        self.domain_group.updateGeometry()
+        self.domain_group.repaint()
         QApplication.processEvents()
 
     def _current_geometry_type(self):
