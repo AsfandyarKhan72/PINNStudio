@@ -264,3 +264,12 @@ class PINNConfig:
     # list of dicts; see MainWindow._build_custom_bc_json().
     custom_bc_json: str = ""
 
+    # Steady-state (time-independent) problems, e.g. the Poisson equation.
+    # When True, the generated script builds a plain dde.data.PDE over the
+    # spatial geometry only -- no GeometryXTime, no time axis on the
+    # network input, no Initial Condition, no Time-Adaptive/RAR (both are
+    # inherently time-based). x_min/x_max/y_min/y_max/z_min/z_max still
+    # define the spatial domain as usual; t_min/t_max/num_initial/
+    # ic_expressions/time_adaptive/adapt_method are all ignored.
+    steady_state: bool = False
+

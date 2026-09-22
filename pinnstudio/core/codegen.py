@@ -13,9 +13,20 @@ def _simplify_expr(expr, is_2d=False, is_3d=False):
     for fn in ["sin","cos","tan","sinh","cosh","tanh","arcsin","arccos","arctan",
                "exp","log","log10","sqrt","abs","ceil","floor"]:
         e = re.sub(rf'\b{fn}\(', f'np.{fn}(', e)
-    # Replace pi and e constants
+    # Replace the pi constant. (There used to be a similar line here for a
+    # bare Euler's-number "e" constant, but it was written as \bexp\b
+    # instead of \be\b -- since \b is a boundary between a word character
+    # and a non-word character, \bexp\b matches "exp" immediately before
+    # "(" too (a word/non-word boundary either way), so it silently
+    # clobbered every use of the exp() function into "np.e(", right after
+    # the loop above had already correctly turned it into "np.exp(" --
+    # e.g. "exp(-20*x)" -> "np.exp(-20*x)" -> "np.np.e(-20*x)". No shipped
+    # template used exp() before this patch's Diffusion-Reaction and 2D
+    # Burgers examples, so it went unnoticed. Removed rather than fixed to
+    # \be\b, matching _simplify_pde_expr in main_window.py (used for the
+    # same user-facing "type math like you'd write it" convention
+    # elsewhere), which never had a bare-e substitution to begin with.)
     e = re.sub(r'\bpi\b', 'np.pi', e)
-    e = re.sub(r'\bexp\b', 'np.e', e)
     # Replace x, y, z variables — must be done carefully to avoid replacing
     # inside words
     if is_3d:
@@ -208,7 +219,10 @@ def generate_script(config):
     # -- known now (at generation time) from the selected plot type, so the
     # right extension can be baked into every solution-path literal below
     # rather than guessed at runtime.
-    _sol_ext = "gif" if config.plot_type in ("Line Animation (GIF)", "Surface Animation (GIF)") else "png"
+    # Steady-state problems have no time axis, so a GIF animation (which is
+    # inherently a walk over time) never applies -- always .png there, even
+    # if a stale config still has one of the GIF plot types selected.
+    _sol_ext = "gif" if (not config.steady_state and config.plot_type in ("Line Animation (GIF)", "Surface Animation (GIF)")) else "png"
     # Convert user-friendly IC expressions
     ic_exprs_raw = config.ic_expressions.split("|")
     ic_exprs_converted = [_simplify_expr(e, is_2d, is_3d) for e in ic_exprs_raw]
@@ -457,6 +471,11 @@ _log_path      = _os.path.join(_sol_dir, "training_log.txt") if _use_save else N
 # ── Problem dimension ─────────────────────────────────────────
 _is_2d = "{config.problem_dim}" == "2D"
 _is_3d = "{config.problem_dim}" == "3D"
+# Steady-state (time-independent) problem, e.g. a Poisson equation -- no
+# time axis on the network input, no GeometryXTime, no Initial Condition,
+# a plain dde.data.PDE instead of dde.data.TimePDE. See _build_geom() and
+# the "Data" section below for where this actually changes construction.
+_is_steady = {str(config.steady_state)}
 
 # Load an Initial Condition from a plain, header-less data file and
 # return (xt, vals) ready for dde.icbc.PointSetBC -- xt at the domain's
@@ -696,12 +715,17 @@ def _pde_standard(x, y):
     for _oi, _oname in enumerate(_out_names):
         _dvars[_oname] = y[:, _oi:_oi+1]
         if _is_3d_pde:
-            # 3D: inputs are (x, y, z, t) → j=0,1,2,3
+            # 3D: inputs are (x, y, z, t) → j=0,1,2,3 -- or, for a steady
+            # (time-independent) problem, just (x, y, z) → j=0,1,2, with no
+            # time column at all, so the unconditional "_t" jacobian below
+            # (which would otherwise index a column that doesn't exist) is
+            # skipped entirely rather than computed and left unused.
             # Always compute first-order derivatives
             _dvars[f"d{{_oname}}_x"] = dde.grad.jacobian(y, x, i=_oi, j=0)
             _dvars[f"d{{_oname}}_y"] = dde.grad.jacobian(y, x, i=_oi, j=1)
             _dvars[f"d{{_oname}}_z"] = dde.grad.jacobian(y, x, i=_oi, j=2)
-            _dvars[f"d{{_oname}}_t"] = dde.grad.jacobian(y, x, i=_oi, j=3)
+            if not _is_steady:
+                _dvars[f"d{{_oname}}_t"] = dde.grad.jacobian(y, x, i=_oi, j=3)
             # Only compute second-order derivatives if used in PDE (pure and
             # mixed). 4th-order pure/mixed terms (xxxx/yyyy/zzzz/xxyy/xxzz/
             # yyzz/xxtt/yytt/zztt) are also supported, mirroring the 2D/1D
@@ -750,11 +774,15 @@ def _pde_standard(x, y):
             if f"d{{_oname_check}}_zztt" in _pde_str_check and f"d{{_oname}}_zz" in _dvars:
                 _dvars[f"d{{_oname}}_zztt"] = dde.grad.hessian(_dvars[f"d{{_oname}}_zz"], x, i=3, j=3)
         elif _is_2d_pde:
-            # 2D: inputs are (x, y, t) → j=0,1,2
+            # 2D: inputs are (x, y, t) → j=0,1,2 -- or, for a steady
+            # (time-independent) problem, just (x, y) → j=0,1, so the
+            # unconditional "_t" jacobian below (which would otherwise
+            # index a column that doesn't exist) is skipped entirely.
             # Always compute first-order derivatives
             _dvars[f"d{{_oname}}_x"] = dde.grad.jacobian(y, x, i=_oi, j=0)
             _dvars[f"d{{_oname}}_y"] = dde.grad.jacobian(y, x, i=_oi, j=1)
-            _dvars[f"d{{_oname}}_t"] = dde.grad.jacobian(y, x, i=_oi, j=2)
+            if not _is_steady:
+                _dvars[f"d{{_oname}}_t"] = dde.grad.jacobian(y, x, i=_oi, j=2)
             # Only compute higher-order derivatives if used in PDE
             _pde_str_check = "{config_pde_expressions}"
             _oname_check = _oname
@@ -781,17 +809,27 @@ def _pde_standard(x, y):
             if f"d{{_oname_check}}_yytt" in _pde_str_check and f"d{{_oname}}_yy" in _dvars:
                 _dvars[f"d{{_oname}}_yytt"] = dde.grad.hessian(_dvars[f"d{{_oname}}_yy"], x, i=2, j=2)
         else:
-            # 1D: inputs are (x, t) → j=0,1
+            # 1D: inputs are (x, t) → j=0,1 -- or, for a steady
+            # (time-independent) problem, just (x) → j=0, so the
+            # unconditional "_t" jacobian below (which would otherwise
+            # index a column that doesn't exist) is skipped entirely.
             _dvars[f"d{{_oname}}_x"] = dde.grad.jacobian(y, x, i=_oi, j=0)
-            _dvars[f"d{{_oname}}_t"] = dde.grad.jacobian(y, x, i=_oi, j=1)
+            if not _is_steady:
+                _dvars[f"d{{_oname}}_t"] = dde.grad.jacobian(y, x, i=_oi, j=1)
             _pde_str_check = "{config_pde_expressions}"
             _oname_check = _oname
-            if f"d{{_oname_check}}_xx" in _pde_str_check or f"d{{_oname_check}}_xxxx" in _pde_str_check or f"d{{_oname_check}}_xxtt" in _pde_str_check:
+            if f"d{{_oname_check}}_xx" in _pde_str_check or f"d{{_oname_check}}_xxx" in _pde_str_check or f"d{{_oname_check}}_xxxx" in _pde_str_check or f"d{{_oname_check}}_xxtt" in _pde_str_check:
                 _dvars[f"d{{_oname}}_xx"] = _hess(y, x, 0, 0)
             if f"d{{_oname_check}}_tt" in _pde_str_check or f"d{{_oname_check}}_tttt" in _pde_str_check or f"d{{_oname_check}}_xxtt" in _pde_str_check:
                 _dvars[f"d{{_oname}}_tt"] = _hess(y, x, 1, 1)
             if f"d{{_oname_check}}_xt" in _pde_str_check:
                 _dvars[f"d{{_oname}}_xt"] = _hess(y, x, 0, 1)
+            # Third-order pure x-derivative (e.g. for the KdV equation's
+            # u_xxx dispersive term): one more jacobian pass on top of the
+            # already-computed u_xx, rather than a hessian (which would
+            # give the 4th-order xxxx term instead -- see below).
+            if f"d{{_oname_check}}_xxx" in _pde_str_check and f"d{{_oname}}_xx" in _dvars:
+                _dvars[f"d{{_oname}}_xxx"] = dde.grad.jacobian(_dvars[f"d{{_oname}}_xx"], x, i=0, j=0)
             if f"d{{_oname_check}}_xxxx" in _pde_str_check and f"d{{_oname}}_xx" in _dvars:
                 _dvars[f"d{{_oname}}_xxxx"] = dde.grad.hessian(_dvars[f"d{{_oname}}_xx"], x, i=0, j=0)
             if f"d{{_oname_check}}_xxtt" in _pde_str_check and f"d{{_oname}}_xx" in _dvars:
@@ -885,8 +923,18 @@ def _build_geom():
         return dde.geometry.Interval({config.x_min}, {config.x_max})
 
 geom = _build_geom()
-timedomain = dde.geometry.TimeDomain({config.t_min}, {config.t_max})
-geomtime   = dde.geometry.GeometryXTime(geom, timedomain)
+if _is_steady:
+    # No time axis at all -- every downstream BC constructor (DirichletBC,
+    # NeumannBC, PeriodicBC, OperatorBC, ...) only ever needs a plain
+    # Geometry (on_boundary/random_points/bbox/...), not specifically a
+    # GeometryXTime, so aliasing geomtime straight to geom lets every BC-
+    # construction call site below stay completely unchanged. Only the IC
+    # section (which needs GeometryXTime's on_initial) and the "Data"
+    # section (TimePDE vs plain PDE) below actually branch on _is_steady.
+    geomtime = geom
+else:
+    timedomain = dde.geometry.TimeDomain({config.t_min}, {config.t_max})
+    geomtime   = dde.geometry.GeometryXTime(geom, timedomain)
 
 # Bounding box of the ACTUAL shape (every DeepXDE geometry exposes this),
 # used for plot/export grids so a Disk/Ellipse/Triangle/Polygon/Sphere gets
@@ -934,7 +982,27 @@ _constraints = []
 import json as _bc_json_mod
 _custom_bc_entries = _bc_json_mod.loads({_custom_bc_json_literal}) if {_custom_bc_json_literal} else []
 _bc_panel_data_present = {_bc_panel_data_present_literal}
-_n_coord_cols_bc = 4 if _is_3d else (3 if _is_2d else 2)
+# One fewer coordinate column for a steady-state problem -- no time axis
+# at all, so a BC point's last column is whatever spatial axis is last
+# (z for 3D, y for 2D, x for 1D), not time.
+_n_coord_cols_bc = (3 if _is_3d else (2 if _is_2d else 1)) if _is_steady else (4 if _is_3d else (3 if _is_2d else 2))
+
+
+# Named math functions/constants available directly (unprefixed) in every
+# Boundary Conditions panel expression field ("Where:"/"Value:"), matching
+# the fields' own placeholder examples (e.g. "sin(pi*y)") -- unlike the
+# PDE/IC expression boxes, these are NOT run through a "np." text-prefixing
+# pass first (see _simplify_expr above), so without this dict "sin(pi*y)"
+# or "exp(...)" would raise a plain NameError the first time anyone typed
+# one, since eval()'s namespace otherwise only has x/y/z/t/np in it.
+_BC_MATH_NS = {{
+    "sin": np.sin, "cos": np.cos, "tan": np.tan,
+    "sinh": np.sinh, "cosh": np.cosh, "tanh": np.tanh,
+    "arcsin": np.arcsin, "arccos": np.arccos, "arctan": np.arctan,
+    "exp": np.exp, "log": np.log, "log10": np.log10,
+    "sqrt": np.sqrt, "abs": np.abs, "ceil": np.ceil, "floor": np.floor,
+    "pi": np.pi,
+}}
 
 def _bc_loc_fn(_expr):
     _src = _expr if _expr.strip() else "True"
@@ -942,7 +1010,9 @@ def _bc_loc_fn(_expr):
     def _f(_X, _on):
         if not _on:
             return False
-        _ns = {{"x": _X[0], "np": np}}
+        _ns = {{**_BC_MATH_NS, "x": _X[0], "np": np}}
+        if not _is_steady:
+            _ns["t"] = _X[_n_coord_cols_bc - 1]
         if _is_2d or _is_3d:
             _ns["y"] = _X[1]
         if _is_3d:
@@ -954,7 +1024,9 @@ def _bc_val_fn(_expr):
     _src = _expr if _expr.strip() else "0"
     _code = compile(_src, "<bc_value>", "eval")
     def _f(_Xb):
-        _ns = {{"x": _Xb[:, 0], "np": np}}
+        _ns = {{**_BC_MATH_NS, "x": _Xb[:, 0], "np": np}}
+        if not _is_steady:
+            _ns["t"] = _Xb[:, _n_coord_cols_bc - 1]
         if _is_2d or _is_3d:
             _ns["y"] = _Xb[:, 1]
         if _is_3d:
@@ -973,7 +1045,7 @@ def _bc_robin_fn(_expr, _comp):
     _src = _expr if _expr.strip() else "0"
     _code = compile(_src, "<bc_robin_value>", "eval")
     def _f(_Xb, _Yb):
-        _ns = {{"x": _Xb[:, 0], "np": np, "torch": torch, "u": _Yb[:, _comp:_comp + 1]}}
+        _ns = {{**_BC_MATH_NS, "x": _Xb[:, 0], "np": np, "torch": torch, "u": _Yb[:, _comp:_comp + 1]}}
         if _is_2d or _is_3d:
             _ns["y"] = _Xb[:, 1]
         if _is_3d:
@@ -1055,7 +1127,11 @@ if _custom_bc_entries or _bc_panel_data_present:
         else:  # 'dirichlet' and any unrecognized type fall back to Dirichlet
             _constraints.append(dde.icbc.DirichletBC(geomtime, _bc_val_fn(_bval), _bc_loc_fn(_bloc), component=_bcomp))
 
-    # ── IC (independent of the BC panel -- same IC config as always) ──
+    # ── IC (independent of the BC panel -- same IC config as always;
+    # skipped entirely for a steady-state problem, which has no initial
+    # time slice to speak of -- dde.icbc.IC()'s on_initial() would have
+    # nothing to match against anyway once geomtime is just a plain
+    # spatial geometry, see above) ──
     # v19: the Inverse panel's separate "IC type" (expression/file)
     # selector was removed -- confusing to have two places to set the
     # IC when the Initial Condition panel above already covers both
@@ -1065,7 +1141,9 @@ if _custom_bc_entries or _bc_panel_data_present:
     # panel's own logic just below. _ic_xt/_ic_u above are kept only
     # so a config saved before this change (inverse_ic_type could
     # still be "File (x, t, u)" in it) still loads without error.
-    if False:
+    if _is_steady:
+        pass
+    elif False:
         _constraints.append(dde.icbc.PointSetBC(_ic_xt, _ic_u, component=0))
     else:
         for _oi in range({config.num_outputs}):
@@ -1219,10 +1297,10 @@ if _custom_bc_entries or _bc_panel_data_present:
 
     _ic_w = []
     for _oi_w in range(_n_out_w):
-        if (_oi_w == 0 and {config.forward_ic_from_file}) or (_oi_w < len(_ic_a) and _ic_a[_oi_w].strip() == "True"):
+        if not _is_steady and ((_oi_w == 0 and {config.forward_ic_from_file}) or (_oi_w < len(_ic_a) and _ic_a[_oi_w].strip() == "True")):
             _ic_w.append(_wm_list[_wi] if _wi < len(_wm_list) else 1.0); _wi += 1
         else:
-            _ic_w.append(None); _wi += 1 if _wi < len(_wm_list) else 0
+            _ic_w.append(None); _wi += 1 if (not _is_steady and _wi < len(_wm_list)) else 0
 
     _multi_weights = list(_pde_w) + list(_bc_entry_w)
     for _oi_w in range(_n_out_w):
@@ -1314,25 +1392,47 @@ if _problem_type == "Inverse":
 print(f"Loss weights: {{_multi_weights}} ({{len(_multi_weights)}} terms for {{len(_constraints)}} constraints)")
 
 # ── Data ─────────────────────────────────────────────────────
+# Steady-state problems have no time axis/Initial Condition, so they use a
+# plain dde.data.PDE (spatial geometry only, no num_initial=) instead of
+# dde.data.TimePDE -- geomtime is already just an alias for geom in that
+# case (see the geometry-construction section above).
 if _problem_type == "Inverse":
     _obs_bcs = [dde.icbc.PointSetBC(_e[0], _e[1], component=_e[2]) for _e in _obs_entries]
     _constraints.extend(_obs_bcs)
     _obs_anchors = np.vstack([_e[0] for _e in _obs_entries]) if _obs_entries else None
-    data = dde.data.TimePDE(
-        geomtime, pde, _constraints,
-        num_domain={config.num_domain}, num_boundary={config.num_boundary},
-        num_initial={config.num_initial}, num_test={config.num_test},
-        train_distribution="{config.point_distribution}",
-        anchors=_obs_anchors
-    )
+    if _is_steady:
+        data = dde.data.PDE(
+            geomtime, pde, _constraints,
+            num_domain={config.num_domain}, num_boundary={config.num_boundary},
+            num_test={config.num_test},
+            train_distribution="{config.point_distribution}",
+            anchors=_obs_anchors
+        )
+    else:
+        data = dde.data.TimePDE(
+            geomtime, pde, _constraints,
+            num_domain={config.num_domain}, num_boundary={config.num_boundary},
+            num_initial={config.num_initial}, num_test={config.num_test},
+            train_distribution="{config.point_distribution}",
+            anchors=_obs_anchors
+        )
 else:
-    data = dde.data.TimePDE(
-        geomtime, pde, _constraints,
-        num_domain={config.num_domain}, num_boundary={config.num_boundary},
-        num_initial={config.num_initial}, num_test={config.num_test},
-        train_distribution="{config.point_distribution}",
-        anchors=None
-    )
+    if _is_steady:
+        data = dde.data.PDE(
+            geomtime, pde, _constraints,
+            num_domain={config.num_domain}, num_boundary={config.num_boundary},
+            num_test={config.num_test},
+            train_distribution="{config.point_distribution}",
+            anchors=None
+        )
+    else:
+        data = dde.data.TimePDE(
+            geomtime, pde, _constraints,
+            num_domain={config.num_domain}, num_boundary={config.num_boundary},
+            num_initial={config.num_initial}, num_test={config.num_test},
+            train_distribution="{config.point_distribution}",
+            anchors=None
+        )
 
 # ── Parametric loop ──────────────────────────────────────────
 _summary = []
@@ -1857,7 +1957,7 @@ for _pval in _param_values:
             if _os.path.exists("/tmp/param_plot.png"):
                 _shutil_pc.copy("/tmp/param_plot.png", _run_solution_path)
 
-        elif _plot_type in ("Line Animation (GIF)", "Surface Animation (GIF)"):
+        elif (not _is_steady) and _plot_type in ("Line Animation (GIF)", "Surface Animation (GIF)"):
             import matplotlib.animation as _anim
             _n_frames = max(2, {config.num_timesteps})
             _fps = {config.plot_fps}
@@ -1987,6 +2087,31 @@ for _pval in _param_values:
                     _ani_gif.save(_run_solution_path, writer='pillow', fps=_fps)
                     plt.close(_fig_gif)
 
+        elif _is_2d and _is_steady:
+            # Steady-state 2D: a single static x-y heatmap of u(x,y) -- no
+            # time axis, so no time snapshots and no time column on the
+            # model input (matches the 2-column network input built for
+            # steady 2D problems).
+            _res_2d = {config.plot_resolution}
+            _xp = np.linspace(_plot_x_min, _plot_x_max, _res_2d)
+            _yp = np.linspace(_plot_y_min, _plot_y_max, _res_2d)
+            _Xg, _Yg = np.meshgrid(_xp, _yp)
+            _inside_2d = geom.inside(np.column_stack([_Xg.ravel(), _Yg.ravel()])).reshape(_res_2d, _res_2d)
+            _vmin_2d = None if {config.plot_auto_range} else {config.plot_vmin}
+            _vmax_2d = None if {config.plot_auto_range} else {config.plot_vmax}
+
+            _XY = np.column_stack([_Xg.ravel(), _Yg.ravel()])
+            _pred = model.predict(_XY)[:, _plot_idx].reshape(_res_2d, _res_2d)
+            _pred = np.where(_inside_2d, _pred, np.nan)
+            fig, ax = plt.subplots(figsize=(6.5, 5.5))
+            im = ax.contourf(_Xg, _Yg, _pred, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_2d, vmax=_vmax_2d)
+            ax.set_xlabel("x"); ax.set_ylabel("y")
+            ax.set_aspect("equal", adjustable="box")
+            if {config.plot_colorbar}: fig.colorbar(im, ax=ax)
+            out_name = "{config.output_names}".split(",")[_plot_idx].strip()
+            fig.suptitle(f"PINN Solution — {{out_name}}(x,y)", fontsize=12)
+            plt.tight_layout()
+            plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
         elif _is_2d:
             # 2D: x-y heatmaps at user-selected number of time snapshots
             _n_snaps = {config.plot_n_2d_snapshots}
@@ -2014,6 +2139,33 @@ for _pval in _param_values:
                 if {config.plot_colorbar}: fig.colorbar(im, ax=axes[_ai])
             out_name = "{config.output_names}".split(",")[_plot_idx].strip()
             fig.suptitle(f"PINN Solution — {{out_name}}(x,y,t)", fontsize=12)
+            plt.tight_layout()
+            plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
+        elif _is_3d and _is_steady:
+            # Steady-state 3D: same "x-y heatmap at the z mid-plane"
+            # simplification as the time-dependent 3D branch below, but a
+            # single static plot -- no time axis, no time snapshots, and a
+            # 3-column (x,y,z) model input rather than 4.
+            _res_3d = {config.plot_resolution}
+            _xp3 = np.linspace(_plot_x_min, _plot_x_max, _res_3d)
+            _yp3 = np.linspace(_plot_y_min, _plot_y_max, _res_3d)
+            _Xg3, _Yg3 = np.meshgrid(_xp3, _yp3)
+            _z_mid = (_plot_z_min + _plot_z_max) / 2.0
+            _inside_3d = geom.inside(np.column_stack(
+                [_Xg3.ravel(), _Yg3.ravel(), np.full(_Xg3.size, _z_mid)])).reshape(_res_3d, _res_3d)
+            _vmin_3d = None if {config.plot_auto_range} else {config.plot_vmin}
+            _vmax_3d = None if {config.plot_auto_range} else {config.plot_vmax}
+
+            _XYZ = np.column_stack([_Xg3.ravel(), _Yg3.ravel(), np.full(_Xg3.size, _z_mid)])
+            _pred3 = model.predict(_XYZ)[:, _plot_idx].reshape(_res_3d, _res_3d)
+            _pred3 = np.where(_inside_3d, _pred3, np.nan)
+            fig, ax = plt.subplots(figsize=(6.5, 5.5))
+            im = ax.contourf(_Xg3, _Yg3, _pred3, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_3d, vmax=_vmax_3d)
+            ax.set_xlabel("x"); ax.set_ylabel("y")
+            ax.set_aspect("equal", adjustable="box")
+            if {config.plot_colorbar}: fig.colorbar(im, ax=ax)
+            out_name = "{config.output_names}".split(",")[_plot_idx].strip()
+            fig.suptitle(f"PINN Solution — {{out_name}}(x,y,z={{_z_mid:.3g}})", fontsize=12)
             plt.tight_layout()
             plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
         elif _is_3d:
@@ -2052,6 +2204,19 @@ for _pval in _param_values:
             fig.suptitle(f"PINN Solution — {{out_name}}(x,y,z={{_z_mid:.3g}},t)", fontsize=12)
             plt.tight_layout()
             plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
+        elif _is_steady:
+            # Steady-state 1D: a single static curve u(x) -- no time axis
+            # at all, so neither of the time-dependent 1D plot types
+            # ("Surface" over x,t / "Line (time steps)") apply.
+            _res_1d = {config.plot_resolution}
+            _x_1d = np.linspace({config.x_min}, {config.x_max}, _res_1d)
+            _u_1d = model.predict(_x_1d.reshape(-1, 1))[:, _plot_idx].flatten()
+            fig, ax = plt.subplots(figsize=(7, 5))
+            ax.plot(_x_1d, _u_1d, color="#4dabf7", linewidth={config.plot_linewidth})
+            ax.set_xlabel("x"); ax.set_ylabel("u(x)")
+            ax.set_title(f"PINN Solution — {{_param_name}}={{_pval}}" if _parametric else "PINN Solution")
+            ax.grid(True, alpha=0.2)
+            plt.tight_layout(); plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
         else:
             # 1D plot (_plot_type already computed above)
             if _plot_type == "Surface":
@@ -2576,7 +2741,34 @@ for _pval in _param_values:
             _x_export = np.linspace(_plot_x_min, _plot_x_max, {config.export_grid_size})
             _t_export = np.linspace({config.t_min}, {config.t_max}, {config.export_t_steps})
 
-            if _is_2d:
+            if _is_steady and _is_2d:
+                # No time axis -- one export, x,y columns only (matches the
+                # 2-column network input built for steady 2D problems).
+                _y_export = np.linspace(_plot_y_min, _plot_y_max, {config.export_grid_size})
+                _Xe, _Ye = np.meshgrid(_x_export, _y_export)
+                _XY_exp = np.column_stack([_Xe.ravel(), _Ye.ravel()])
+                _u_exp = model.predict(_XY_exp)
+                _header = "x,y," + ",".join(_out_names_list)
+                _out = np.column_stack([_Xe.ravel(), _Ye.ravel(), _u_exp])
+                _fname = _os.path.join(_data_dir, "solution.txt")
+                np.savetxt(_fname, _out, header=_header, delimiter=",", comments="")
+            elif _is_steady and _is_3d:
+                _y_export = np.linspace(_plot_y_min, _plot_y_max, {config.export_grid_size})
+                _z_export = np.linspace(_plot_z_min, _plot_z_max, {config.export_grid_size})
+                _Xe, _Ye, _Ze = np.meshgrid(_x_export, _y_export, _z_export)
+                _XYZ_exp = np.column_stack([_Xe.ravel(), _Ye.ravel(), _Ze.ravel()])
+                _u_exp = model.predict(_XYZ_exp)
+                _header = "x,y,z," + ",".join(_out_names_list)
+                _out = np.column_stack([_Xe.ravel(), _Ye.ravel(), _Ze.ravel(), _u_exp])
+                _fname = _os.path.join(_data_dir, "solution.txt")
+                np.savetxt(_fname, _out, header=_header, delimiter=",", comments="")
+            elif _is_steady:
+                _u_exp_all = model.predict(_x_export.reshape(-1, 1))
+                _header_cols = "x," + ",".join(_out_names_list)
+                _out = np.column_stack([_x_export, _u_exp_all])
+                _fname = _os.path.join(_data_dir, "solution.txt")
+                np.savetxt(_fname, _out, header=_header_cols, delimiter=",", comments="")
+            elif _is_2d:
                 _y_export = np.linspace(_plot_y_min, _plot_y_max, {config.export_grid_size})
                 for _t_val in _t_export:
                     _Xe, _Ye = np.meshgrid(_x_export, _y_export)
@@ -2612,7 +2804,8 @@ for _pval in _param_values:
                     np.savetxt(_fname, _out, header=_header_cols, delimiter=",", comments="")
 
             dim_str = "3D" if _is_3d else ("2D" if _is_2d else "1D")
-            print(f"Solution data saved to: {{_data_dir}} ({{dim_str}}, grid={config.export_grid_size}, t_steps={config.export_t_steps})")
+            _steps_desc = "steady (single export)" if _is_steady else f"t_steps={config.export_t_steps}"
+            print(f"Solution data saved to: {{_data_dir}} ({{dim_str}}, grid={config.export_grid_size}, {{_steps_desc}})")
 
 # ── End parametric loop ───────────────────────────────────────
 
@@ -3616,7 +3809,7 @@ import ast as _clean_ast
 import json as _clean_json
 
 
-def _clean_needed_derivs(oname, oi, n_out, pde_check, is_2d, is_3d):
+def _clean_needed_derivs(oname, oi, n_out, pde_check, is_2d, is_3d, is_steady=False):
     """Host-time equivalent of _pde_standard's runtime substring checks
     above -- returns an ordered list of (varname, rhs_code) for exactly
     the derivative terms this output's PDE expression(s) actually
@@ -3636,7 +3829,8 @@ def _clean_needed_derivs(oname, oi, n_out, pde_check, is_2d, is_3d):
         out.append((f"d{oname}_x", f"dde.grad.jacobian(y, x, i={oi}, j=0)"))
         out.append((f"d{oname}_y", f"dde.grad.jacobian(y, x, i={oi}, j=1)"))
         out.append((f"d{oname}_z", f"dde.grad.jacobian(y, x, i={oi}, j=2)"))
-        out.append((f"d{oname}_t", f"dde.grad.jacobian(y, x, i={oi}, j=3)"))
+        if not is_steady:
+            out.append((f"d{oname}_t", f"dde.grad.jacobian(y, x, i={oi}, j=3)"))
         second = [("xx", 0, 0), ("yy", 1, 1), ("zz", 2, 2), ("tt", 3, 3),
                   ("xy", 0, 1), ("xz", 0, 2), ("yz", 1, 2),
                   ("xt", 0, 3), ("yt", 1, 3), ("zt", 2, 3)]
@@ -3654,7 +3848,8 @@ def _clean_needed_derivs(oname, oi, n_out, pde_check, is_2d, is_3d):
     elif is_2d:
         out.append((f"d{oname}_x", f"dde.grad.jacobian(y, x, i={oi}, j=0)"))
         out.append((f"d{oname}_y", f"dde.grad.jacobian(y, x, i={oi}, j=1)"))
-        out.append((f"d{oname}_t", f"dde.grad.jacobian(y, x, i={oi}, j=2)"))
+        if not is_steady:
+            out.append((f"d{oname}_t", f"dde.grad.jacobian(y, x, i={oi}, j=2)"))
         need_xx = has("xx") or has("xxxx") or has("xxyy") or has("xxtt")
         need_yy = has("yy") or has("yyyy") or has("xxyy") or has("yytt")
         if need_xx:
@@ -3681,8 +3876,9 @@ def _clean_needed_derivs(oname, oi, n_out, pde_check, is_2d, is_3d):
             out.append((f"d{oname}_yytt", f"dde.grad.hessian(d{oname}_yy, x, i=2, j=2)"))
     else:
         out.append((f"d{oname}_x", f"dde.grad.jacobian(y, x, i={oi}, j=0)"))
-        out.append((f"d{oname}_t", f"dde.grad.jacobian(y, x, i={oi}, j=1)"))
-        need_xx = has("xx") or has("xxxx") or has("xxtt")
+        if not is_steady:
+            out.append((f"d{oname}_t", f"dde.grad.jacobian(y, x, i={oi}, j=1)"))
+        need_xx = has("xx") or has("xxx") or has("xxxx") or has("xxtt")
         need_tt = has("tt") or has("tttt") or has("xxtt")
         if need_xx:
             out.append((f"d{oname}_xx", hess(0, 0)))
@@ -3690,6 +3886,11 @@ def _clean_needed_derivs(oname, oi, n_out, pde_check, is_2d, is_3d):
             out.append((f"d{oname}_tt", hess(1, 1)))
         if has("xt"):
             out.append((f"d{oname}_xt", hess(0, 1)))
+        # Third-order pure x-derivative (KdV's dispersive u_xxx term): one
+        # more jacobian pass on top of u_xx, not a hessian (that would give
+        # the 4th-order xxxx term below instead).
+        if has("xxx") and need_xx:
+            out.append((f"d{oname}_xxx", f"dde.grad.jacobian(d{oname}_xx, x, i=0, j=0)"))
         if has("xxxx") and need_xx:
             out.append((f"d{oname}_xxxx", f"dde.grad.hessian(d{oname}_xx, x, i=0, j=0)"))
         if has("xxtt") and need_xx:
@@ -3838,14 +4039,15 @@ def _clean_active_ic_outputs(config, n_out, ic_active_list):
     return active
 
 
-def _clean_loss_weights(config, n_out, bc_entries, ic_active_list, obs_weights):
+def _clean_loss_weights(config, n_out, bc_entries, ic_active_list, obs_weights, is_steady=False):
     """Fully resolves the loss-weight list at export time -- same slot
     ordering as the running app's runtime reconstruction (PDE per output,
     then one per Boundary Conditions panel row, then one per active IC,
     then one per Inverse observation file), but computed once now instead
     of on every run. Returns (weights, expected_len) -- expected_len is
     how many terms a Training Phase's own weight string must have to be
-    used as-is (see _clean_phase_weights below)."""
+    used as-is (see _clean_phase_weights below). A steady-state problem
+    has no Initial Condition at all, so it never gets an IC weight slot."""
     wm_list = [float(v) for v in (config.loss_weights_multi or "").split(",") if v.strip()]
     wi = 0
     pde_w = []
@@ -3857,13 +4059,14 @@ def _clean_loss_weights(config, n_out, bc_entries, ic_active_list, obs_weights):
         bc_w.append(wm_list[wi] if wi < len(wm_list) else 1.0)
         wi += 1
     ic_w = []
-    for oi in range(n_out):
-        active = (oi == 0 and config.forward_ic_from_file) or (oi < len(ic_active_list) and ic_active_list[oi].strip() == "True")
-        if active:
-            ic_w.append(wm_list[wi] if wi < len(wm_list) else 1.0)
-            wi += 1
-        elif wi < len(wm_list):
-            wi += 1
+    if not is_steady:
+        for oi in range(n_out):
+            active = (oi == 0 and config.forward_ic_from_file) or (oi < len(ic_active_list) and ic_active_list[oi].strip() == "True")
+            if active:
+                ic_w.append(wm_list[wi] if wi < len(wm_list) else 1.0)
+                wi += 1
+            elif wi < len(wm_list):
+                wi += 1
     weights = pde_w + bc_w + ic_w + list(obs_weights)
     expected_len = n_out + len(bc_entries) + len(ic_w) + len(obs_weights)
     return weights, expected_len
@@ -3950,6 +4153,11 @@ def generate_clean_script(config):
     untouched; this is a second, independent generator."""
     is_2d = config.problem_dim == "2D"
     is_3d = config.problem_dim == "3D"
+    # Steady-state (time-independent) problem -- see generate_script()'s
+    # _is_steady for the full rationale; this generator mirrors the same
+    # dispatch (plain dde.data.PDE, no GeometryXTime/Initial Condition/
+    # time-derivative terms) for the "Export as DeepXDE Script" output.
+    is_steady = bool(config.steady_state)
     problem_type = config.problem_type
     n_out = config.num_outputs
     out_names = [n.strip() for n in config.output_names.split(",")]
@@ -3957,7 +4165,7 @@ def generate_clean_script(config):
         out_names.append(f"u{len(out_names)}")
     n_coord = 3 if is_3d else (2 if is_2d else 1)      # spatial dims
     n_coord_cols = n_coord + 1                          # + time, for points files
-    sol_ext = "gif" if config.plot_type in ("Line Animation (GIF)", "Surface Animation (GIF)") else "png"
+    sol_ext = "gif" if (not is_steady and config.plot_type in ("Line Animation (GIF)", "Surface Animation (GIF)")) else "png"
     is_inverse = problem_type == "Inverse"
 
     # ---- PDE expressions (host-resolved derivative terms) --------------
@@ -3966,7 +4174,7 @@ def generate_clean_script(config):
     pde_body = []
     for oi, oname in enumerate(out_names[:n_out]):
         pde_body.append(f"    {oname} = y[:, {oi}:{oi + 1}]")
-        for varname, rhs in _clean_needed_derivs(oname, oi, n_out, pde_check_str, is_2d, is_3d):
+        for varname, rhs in _clean_needed_derivs(oname, oi, n_out, pde_check_str, is_2d, is_3d, is_steady):
             pde_body.append(f"    {varname} = {rhs}")
     if n_out == 1:
         pde_body.append(f"    return {pde_exprs[0].strip()}")
@@ -4009,7 +4217,7 @@ def generate_clean_script(config):
     needs_ic_file_loader = bool(config.forward_ic_from_file)
 
     ic_defs, ic_appends = [], []
-    for oi in range(n_out):
+    for oi in (range(n_out) if not is_steady else []):
         if oi == 0 and config.forward_ic_from_file:
             ic_appends.append(f'_ic_xt, _ic_vals = _load_ic_from_file(r"{config.forward_ic_file}")')
             ic_appends.append("constraints.append(dde.icbc.PointSetBC(_ic_xt, _ic_vals, component=0))")
@@ -4026,7 +4234,7 @@ def generate_clean_script(config):
     obs_weights = [e['weight'] for e in obs_files_parsed] if is_inverse else []
 
     # ---- Loss weights (fully resolved now, not reconstructed at runtime) -
-    multi_weights, expected_len = _clean_loss_weights(config, n_out, bc_entries, ic_active_list, obs_weights)
+    multi_weights, expected_len = _clean_loss_weights(config, n_out, bc_entries, ic_active_list, obs_weights, is_steady)
 
     # ---- Training-phase list, resolved to literal per-phase weights ------
     sched_phases = _clean_sched_phases(config, multi_weights)
@@ -4091,8 +4299,9 @@ Outputs: {", ".join(out_names[:n_out])}
 Domain:  x in [{config.x_min}, {config.x_max}]''' +
                  (f", y in [{config.y_min}, {config.y_max}]" if is_2d or is_3d else "") +
                  (f", z in [{config.z_min}, {config.z_max}]" if is_3d else "") +
+                 ("" if is_steady else f'''
+Time:    t in [{config.t_min}, {config.t_max}]''') +
                  f'''
-Time:    t in [{config.t_min}, {config.t_max}]
 
 Edit anything below and re-run -- this is a plain script, not tied to
 the PINNStudio GUI.
@@ -4247,9 +4456,16 @@ def _load_obs_data(path):
         # =================================================================
         # Standard (non-Time-Adaptive) training path
         # =================================================================
-        geom_lines = [geom_line,
-                      f"timedomain = dde.geometry.TimeDomain({config.t_min}, {config.t_max})",
-                      "geomtime = dde.geometry.GeometryXTime(geom, timedomain)"]
+        if is_steady:
+            # No time axis at all -- geomtime is just an alias for geom (every
+            # dde.icbc.XxxBC constructor accepts any Geometry, not specifically
+            # a GeometryXTime), so every BC-construction line above is reused
+            # unchanged. See generate_script()'s _is_steady for the same trick.
+            geom_lines = [geom_line, "geomtime = geom"]
+        else:
+            geom_lines = [geom_line,
+                          f"timedomain = dde.geometry.TimeDomain({config.t_min}, {config.t_max})",
+                          "geomtime = dde.geometry.GeometryXTime(geom, timedomain)"]
         parts.append("\n".join(geom_lines))
 
         constraints_lines = ["constraints = []"] + bc_appends + ic_appends
@@ -4258,7 +4474,16 @@ def _load_obs_data(path):
         parts.append("\n".join(constraints_lines))
 
         anchors_arg = "obs_anchors" if is_inverse else "None"
-        data_lines = [f'''data = dde.data.TimePDE(
+        if is_steady:
+            data_lines = [f'''data = dde.data.PDE(
+    geomtime, pde, constraints,
+    num_domain={config.num_domain}, num_boundary={config.num_boundary},
+    num_test={config.num_test},
+    train_distribution="{config.point_distribution}",
+    anchors={anchors_arg},
+)''']
+        else:
+            data_lines = [f'''data = dde.data.TimePDE(
     geomtime, pde, constraints,
     num_domain={config.num_domain}, num_boundary={config.num_boundary},
     num_initial={config.num_initial}, num_test={config.num_test},
@@ -4268,7 +4493,7 @@ def _load_obs_data(path):
         parts.append("\n".join(data_lines))
         parts.append(net_line)
 
-        if use_ic_pretrain:
+        if use_ic_pretrain and not is_steady:
             ic_pretrain_lines = [f'''# ── IC Pre-Training: {config.ic_pretrain_iterations} iterations, IC loss only ──
 # A dummy zero-residual PDE and an IC-only dataset (no domain/boundary
 # points at all -- an empty-match BC term's loss is NaN even at weight
@@ -4583,6 +4808,65 @@ print(f"Solution plot saved: {{solution_path}}")''')
 import shutil
 shutil.copy(param_plot_path, solution_path)
 print(f"Solution plot saved: {solution_path}")''')
+
+    elif is_2d and is_steady:
+        parts.append(f'''# ── Result plot: steady-state 2D heatmap (no time axis) ──
+res = {config.plot_resolution}
+xp = np.linspace({config.x_min}, {config.x_max}, res)
+yp = np.linspace({config.y_min}, {config.y_max}, res)
+Xg, Yg = np.meshgrid(xp, yp)
+inside = geom.inside(np.column_stack([Xg.ravel(), Yg.ravel()])).reshape(res, res)
+xy = np.column_stack([Xg.ravel(), Yg.ravel()])
+pred = model.predict(xy)[:, {plot_idx}].reshape(res, res)
+pred = np.where(inside, pred, np.nan)
+fig, ax = plt.subplots(figsize=(6.5, 5.5))
+im = ax.contourf(Xg, Yg, pred, levels={config.plot_levels}, cmap="{config.plot_colormap}")
+ax.set_xlabel("x"); ax.set_ylabel("y"); ax.set_aspect("equal", adjustable="box")
+if {config.plot_colorbar}:
+    fig.colorbar(im, ax=ax)
+fig.suptitle(f"PINN Solution — {out_name}(x, y)")
+plt.tight_layout()
+plt.savefig(solution_path, dpi={config.plot_dpi}, bbox_inches="tight")
+plt.close()
+print(f"Solution plot saved: {{solution_path}}")''')
+
+    elif is_3d and is_steady:
+        parts.append(f'''# ── Result plot: steady-state 3D heatmap at the z mid-plane (no time axis) ──
+res = {config.plot_resolution}
+xp = np.linspace({config.x_min}, {config.x_max}, res)
+yp = np.linspace({config.y_min}, {config.y_max}, res)
+Xg, Yg = np.meshgrid(xp, yp)
+z_mid = ({config.z_min} + {config.z_max}) / 2.0
+inside = geom.inside(np.column_stack([Xg.ravel(), Yg.ravel(), np.full(Xg.size, z_mid)])).reshape(res, res)
+xyz = np.column_stack([Xg.ravel(), Yg.ravel(), np.full(Xg.size, z_mid)])
+pred = model.predict(xyz)[:, {plot_idx}].reshape(res, res)
+pred = np.where(inside, pred, np.nan)
+fig, ax = plt.subplots(figsize=(6.5, 5.5))
+im = ax.contourf(Xg, Yg, pred, levels={config.plot_levels}, cmap="{config.plot_colormap}")
+ax.set_xlabel("x"); ax.set_ylabel("y"); ax.set_aspect("equal", adjustable="box")
+if {config.plot_colorbar}:
+    fig.colorbar(im, ax=ax)
+fig.suptitle(f"PINN Solution — {out_name}(x, y, z={{z_mid:.3g}})")
+plt.tight_layout()
+plt.savefig(solution_path, dpi={config.plot_dpi}, bbox_inches="tight")
+plt.close()
+print(f"Solution plot saved: {{solution_path}}")''')
+
+    elif is_steady:
+        # Steady-state 1D: a single static curve u(x) -- no time axis.
+        parts.append(f'''# ── Result plot: steady-state 1D curve (no time axis) ──
+res = {config.plot_resolution}
+x_1d = np.linspace({config.x_min}, {config.x_max}, res)
+u_1d = model.predict(x_1d.reshape(-1, 1))[:, {plot_idx}].flatten()
+fig, ax = plt.subplots(figsize=(7, 5))
+ax.plot(x_1d, u_1d, color="#4dabf7", linewidth={config.plot_linewidth})
+ax.set_xlabel("x"); ax.set_ylabel("{out_name}(x)")
+ax.set_title("PINN Solution")
+ax.grid(True, alpha=0.2)
+plt.tight_layout()
+plt.savefig(solution_path, dpi={config.plot_dpi}, bbox_inches="tight")
+plt.close()
+print(f"Solution plot saved: {{solution_path}}")''')
 
     elif config.plot_type in ("Line Animation (GIF)", "Surface Animation (GIF)"):
         n_frames = max(2, config.num_timesteps)

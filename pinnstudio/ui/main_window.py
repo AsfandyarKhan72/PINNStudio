@@ -544,7 +544,7 @@ class MainWindow(QMainWindow):
         examples_layout = QHBoxLayout(examples_group)
         examples_layout.addWidget(QLabel("Load example:"))
         self.quick_examples_combo = QComboBox()
-        self.quick_examples_combo.addItems(["None", "1D Heat", "1D Allen-Cahn"])
+        self.quick_examples_combo.addItems(["None", "1D Heat", "1D Allen-Cahn", "1D Burgers", "1D Diffusion-Reaction (Inverse)", "1D Schrödinger"])
         self.quick_examples_combo.setFixedHeight(28)
         self.quick_examples_combo.currentTextChanged.connect(self._on_quick_example_selected)
         examples_layout.addWidget(self.quick_examples_combo)
@@ -731,14 +731,30 @@ class MainWindow(QMainWindow):
         self.geom_triangle_verts_input.textChanged.connect(self._on_geom_vertices_changed)
         self.geom_polygon_verts_input.textChanged.connect(self._on_geom_vertices_changed)
 
-        row2 = QHBoxLayout()
+        self.t_row_widget = QWidget()
+        row2 = QHBoxLayout(self.t_row_widget)
+        row2.setContentsMargins(0, 0, 0, 0)
         row2.addWidget(QLabel("t:"))
         self.t_min = QDoubleSpinBox()
         self.t_min.setRange(0.0, 1e6); self.t_min.setValue(0.0); self.t_min.setSingleStep(0.5)
+        self.t_min.setDecimals(4)
         self.t_max = QDoubleSpinBox()
         self.t_max.setRange(0.0, 1e6); self.t_max.setValue(1.0); self.t_max.setSingleStep(0.5)
+        # 4 decimals (not the QDoubleSpinBox default of 2) so a template
+        # whose time domain isn't a round number -- e.g. 1D Schrodinger's
+        # t in [0, pi/2] -- can actually be set to it (2 decimals would
+        # silently round pi/2 = 1.5707963... down to 1.57).
+        self.t_max.setDecimals(4)
         row2.addWidget(self.t_min); row2.addWidget(QLabel("to")); row2.addWidget(self.t_max)
-        domain_layout.addLayout(row2)
+        domain_layout.addWidget(self.t_row_widget)
+
+        # -- Steady-state (time-independent) toggle, e.g. a Poisson
+        # equation -- no time axis at all: no t domain, no Initial
+        # Condition, no Time-Adaptive/RAR (both are inherently time-based).
+        # See _on_steady_state_changed() for what else this hides/resets.
+        self.steady_state_check = QCheckBox("Steady-state (no time axis, e.g. Poisson equation)")
+        self.steady_state_check.toggled.connect(self._on_steady_state_changed)
+        domain_layout.addWidget(self.steady_state_check)
         left_layout.addWidget(domain_group)
 
         # ── Collocation Points ────────────────────────────────
@@ -986,6 +1002,7 @@ class MainWindow(QMainWindow):
         div0 = QLabel("─── Initial Condition (IC) Pre-Training (optional) ───")
         self._register_style(div0, "hint", lambda css, _c='#505080', _e='': f"color: {_c}; {_e}{css}")
         train_layout.addWidget(div0)
+        self.ic_pretrain_divider = div0
 
         self.ic_pretrain_cb = QCheckBox("Enable IC-guided pre-training")
         self.ic_pretrain_cb.setChecked(False)
@@ -1236,6 +1253,7 @@ class MainWindow(QMainWindow):
 
         # ── Adaptive Training ─────────────────────────────────
         adapt_group = QGroupBox("Adaptive Training")
+        self.adapt_group = adapt_group
         adapt_layout = QVBoxLayout(adapt_group)
         adapt_layout.setSpacing(5)
 
@@ -1989,15 +2007,21 @@ class MainWindow(QMainWindow):
                 "None",
                 "2D Heat",
                 "2D Allen-Cahn (Mattey & Ghosh)",
-                "2D Allen-Cahn (Wight & Zhao)"
+                "2D Allen-Cahn (Wight & Zhao)",
+                "2D Burgers",
+                "2D Poisson (L-Shape)",
+                "2D Poisson (Disk)",
             ])
         elif is_3d:
-            self.quick_examples_combo.addItems(["None", "3D Heat"])
+            self.quick_examples_combo.addItems(["None", "3D Heat", "3D Poisson (Sphere)"])
         else:
             self.quick_examples_combo.addItems([
                 "None",
                 "1D Heat",
-                "1D Allen-Cahn"
+                "1D Allen-Cahn",
+                "1D Burgers",
+                "1D Diffusion-Reaction (Inverse)",
+                "1D Schrödinger"
             ])
         self.quick_examples_combo.blockSignals(False)
         self.view_domain_check.setVisible(is_2d or is_3d)
@@ -2049,8 +2073,9 @@ class MainWindow(QMainWindow):
         (Interval/Rectangle/Cuboid). For every other shape, those rows don't
         mean anything -- e.g. an Ellipse needs a center + semi-axes, not an
         x/y range -- so hide them and show that shape's own parameter panel
-        instead. The "t:" row always stays, after whichever of the two is
-        showing."""
+        instead. The "t:" row follows whichever of the two is showing,
+        unless Steady-state is on (see _on_steady_state_changed), in which
+        case it stays hidden regardless."""
         is_2d = self.radio_2d.isChecked()
         is_3d = self.radio_3d.isChecked()
         geom_type = self._current_geometry_type()
@@ -2070,6 +2095,36 @@ class MainWindow(QMainWindow):
         panel = panel_map.get(geom_type)
         if panel is not None:
             panel.setVisible(True)
+        if hasattr(self, 'steady_state_check'):
+            self.t_row_widget.setVisible(not self.steady_state_check.isChecked())
+
+    def _on_steady_state_changed(self, checked):
+        """Steady-state (time-independent) problems, e.g. a Poisson
+        equation, have no time axis at all -- hide everything that only
+        means something with one: the "t:" domain row, the Initial
+        Condition panel, IC Pre-Training, and Adaptive Training (Time
+        Adaptive Training is inherently time-stepped; RAR is allowed for
+        steady problems in principle, but the whole "Adaptive Training"
+        group is folded away here too since Time Adaptive is normally the
+        default choice a user reaches for first). Turning it back off
+        restores all of them -- nothing is destroyed, just hidden, except
+        for the two settings (adapt method, IC pre-training) explicitly
+        reset below so a stale time-based choice doesn't silently linger
+        under the hood while its panel is hidden.
+        """
+        self.t_row_widget.setVisible(not checked)
+        self.bc_group.setVisible(not checked)
+        if hasattr(self, 'adapt_group'):
+            self.adapt_group.setVisible(not checked)
+        if hasattr(self, 'ic_pretrain_divider'):
+            self.ic_pretrain_divider.setVisible(not checked)
+        self.ic_pretrain_cb.setVisible(not checked)
+        self.ic_pretrain_widget.setVisible(not checked and self.ic_pretrain_cb.isChecked())
+        if checked:
+            if self.adapt_combo.currentText() != "None":
+                self.adapt_combo.setCurrentText("None")
+            if self.ic_pretrain_cb.isChecked():
+                self.ic_pretrain_cb.setChecked(False)
 
     def _on_geom_vertices_changed(self, text):
         # Triangle/Polygon edge count changed -- rebuild the per-edge BC rows.
@@ -2464,6 +2519,12 @@ class MainWindow(QMainWindow):
         if is_primary:
             name_edit.editingFinished.connect(self._on_inv_param_name_changed)
         else:
+            # Secondary rows can also be the target of an active
+            # substitution (e.g. the diffusion-reaction template's "kf"
+            # row) -- _on_inv_param_name_changed re-derives every active
+            # entry's current name regardless of which row's edit fired
+            # this, so the same slot covers both cases.
+            name_edit.editingFinished.connect(self._on_inv_param_name_changed)
             remove_btn = QPushButton("✕")
             remove_btn.setFixedHeight(26); remove_btn.setFixedWidth(26)
             remove_btn.setStyleSheet(
@@ -3532,6 +3593,50 @@ class MainWindow(QMainWindow):
                 self._add_custom_bc_entry(bc_type=btype, component=i, location=loc,
                                            value=val, locked=False)
 
+    def _populate_schrodinger_bc_entries(self, n_out):
+        """Add the first-derivative periodic rows the 1D Schrodinger
+        template's h_x(t,-5)=h_x(t,5) condition needs (on both the real
+        output u and the imaginary output v), on top of whatever
+        _populate_locked_bc_entries_from_legacy already seeded for this
+        template (value-only periodicity, derivative_order=0 -- the
+        legacy per-side widgets have no concept of derivative order at
+        all). Same "template populates the panel directly" pattern as
+        _populate_3d_heat_bc_entries above."""
+        x_min = self.x_min.value()
+        for i in range(n_out):
+            self._add_custom_bc_entry(bc_type="periodic", component=i,
+                                       location=f"x <= {x_min:g}", axis="x",
+                                       deriv_order=1, locked=False)
+
+    def _populate_2d_burgers_bc_entries(self, n_out):
+        """Seed the Boundary Conditions panel directly for the 2D Burgers
+        template: Dirichlet on all four edges, valued at the paper's exact
+        solution (DeepXDE section 4.2) evaluated on that edge -- genuinely
+        time-dependent, so this bypasses the legacy per-side widgets
+        entirely (they only ever hold a constant number) and uses the
+        panel's expression-valued Dirichlet rows directly, the same way
+        _populate_3d_heat_bc_entries does for 3D Heat's faces. Needs the
+        BC-value expression parser's "t" support (see codegen.py's
+        _bc_val_fn/_bc_loc_fn) -- without it this would silently drop the
+        "-t" term and train against a steady-state boundary instead."""
+        for e in list(self.custom_bc_list):
+            e['widget'].deleteLater()
+        self.custom_bc_list.clear()
+        x_min, x_max = self.x_min.value(), self.x_max.value()
+        y_min, y_max = self.y_min.value(), self.y_max.value()
+        locations = [
+            f"x <= {x_min:g}", f"x >= {x_max:g}",
+            f"y <= {y_min:g}", f"y >= {y_max:g}",
+        ]
+        exact = [
+            "3/4 - 1/(4*(1 + exp((-4*x + 4*y - t)*156.25)))",   # u
+            "3/4 + 1/(4*(1 + exp((-4*x + 4*y - t)*156.25)))",   # v
+        ]
+        for i in range(n_out):
+            for loc in locations:
+                self._add_custom_bc_entry(bc_type="dirichlet", component=i,
+                                           location=loc, value=exact[i], locked=False)
+
     # ── Build weight inputs ───────────────────────────────────
     def _build_weight_inputs(self, n):
         for i in reversed(range(self.weights_main_layout.count())):
@@ -3641,7 +3746,10 @@ class MainWindow(QMainWindow):
         n_out = self.num_outputs_spin.value()
         is_2d = self.radio_2d.isChecked()
         is_3d = self.radio_3d.isChecked() if hasattr(self, 'radio_3d') else False
-        input_size = 4 if is_3d else (3 if is_2d else 2)
+        is_steady = self.steady_state_check.isChecked() if hasattr(self, 'steady_state_check') else False
+        # Steady-state problems have no time axis, so the network takes one
+        # fewer input column than the time-dependent case (x[,y[,z]] only).
+        input_size = (3 if is_3d else (2 if is_2d else 1)) if is_steady else (4 if is_3d else (3 if is_2d else 2))
         layers = [input_size] + [w] * n + [n_out]
 
         def _safe_val(lst, i, default=0.0):
@@ -3697,6 +3805,7 @@ class MainWindow(QMainWindow):
 
         return PINNConfig(
             problem_dim="3D" if is_3d else ("2D" if is_2d else "1D"),
+            steady_state=is_steady,
             geometry_type=self._current_geometry_type(),
             z_min=self.z_min.value(), z_max=self.z_max.value(),
             geom_center_x=(self.geom_sphere_cx.value() if is_3d else
@@ -4289,6 +4398,9 @@ class MainWindow(QMainWindow):
         if is_2d or is_3d:
             self.y_min.setValue(config.y_min); self.y_max.setValue(config.y_max)
         self.t_min.setValue(config.t_min); self.t_max.setValue(config.t_max)
+        if hasattr(self, 'steady_state_check'):
+            self.steady_state_check.setChecked(bool(getattr(config, 'steady_state', False)))
+            self._on_steady_state_changed(self.steady_state_check.isChecked())
 
         # Collocation points
         self.num_domain.setValue(config.num_domain)
@@ -4533,59 +4645,133 @@ class MainWindow(QMainWindow):
             for _r in getattr(self, 'inv_data_rows', []):
                 _r['output_combo'].addItem(f"Output {i+1} ({name})")
 
-    # Per built-in template: (PDE row index, original constant substring)
-    # of the "diffusion coefficient"-style constant that gets swapped for
-    # the inverse trainable variable.
+    # Per built-in template: a list of (PDE row index, original constant
+    # substring, trainable-variable row index) triples -- one per constant
+    # that gets swapped for a trainable variable's live name when Inverse
+    # mode is on. Most templates have exactly one entry (their single
+    # unknown, always row 0 = the primary/first trainable variable); a
+    # template with more than one unknown (e.g. the diffusion-reaction
+    # system's D and kf, each appearing in both of its two PDE rows) lists
+    # one triple per (PDE row, constant) pair it needs substituted.
     INVERSE_AUTO_CONST = {
-        "1D Heat": (0, "0.4"),
-        "1D Allen-Cahn": (0, "0.0001"),
-        "2D Heat": (0, "0.4"),
-        "2D Allen-Cahn (Mattey & Ghosh)": (0, "0.0001"),
-        "2D Allen-Cahn (Wight & Zhao)": (0, "0.00625"),
-        "3D Heat": (0, "0.4"),
+        "1D Heat": [(0, "0.4", 0)],
+        "1D Allen-Cahn": [(0, "0.0001", 0)],
+        "2D Heat": [(0, "0.4", 0)],
+        "2D Allen-Cahn (Mattey & Ghosh)": [(0, "0.0001", 0)],
+        "2D Allen-Cahn (Wight & Zhao)": [(0, "0.00625", 0)],
+        "3D Heat": [(0, "0.4", 0)],
+        "1D Diffusion-Reaction (Inverse)": [
+            (0, "0.002", 0), (1, "0.002", 0),  # D, in both C_A's and C_B's PDE
+            (0, "0.1", 1), (1, "0.1", 1),      # kf, in both (C_B's is written 2*0.1 so the same "0.1" substring still matches)
+        ],
     }
 
-    def _sync_inverse_pde_substitution(self, is_inv):
-        """Inverse ON: replace the current template's known constant with
-        the trainable-variable name in its PDE box. Inverse OFF: restore
-        the original numeric constant so Forward mode stays valid."""
+    def _inv_var_name(self, row_index):
+        if 0 <= row_index < len(self.inv_var_rows):
+            return self.inv_var_rows[row_index]['name'].text().strip() or f"trainable_variable_{row_index + 1}"
+        return "trainable_variable_1" if row_index == 0 else f"trainable_variable_{row_index + 1}"
+
+    # Per built-in template that has more than one unknown (so far, only
+    # the diffusion-reaction system): the trainable-variable rows and
+    # observed-data-file rows to seed the Inverse panel with automatically,
+    # so the example works out of the box instead of requiring the user to
+    # hand-add a second variable/file row and name it to match
+    # INVERSE_AUTO_CONST exactly. (name, init) per variable row, primary
+    # first; (path, output_idx, weight) per observation file row, primary
+    # first. Paths point at the template's reference-data folder using the
+    # filenames documented in that template's comment -- not generated by
+    # this patch, supplied separately.
+    INVERSE_AUTO_VARS = {
+        "1D Diffusion-Reaction (Inverse)": [("D", 1e-3), ("kf", 0.2)],
+    }
+    INVERSE_AUTO_OBS = {
+        "1D Diffusion-Reaction (Inverse)": [
+            (os.path.join(REFERENCE_DATA_DIR, "1D", "diffusion_reaction", "CA_obs.txt"), 0, 100.0),
+            (os.path.join(REFERENCE_DATA_DIR, "1D", "diffusion_reaction", "CB_obs.txt"), 1, 100.0),
+        ],
+    }
+
+    def _sync_inverse_multi_setup(self, is_inv):
+        """Inverse ON, for a template in INVERSE_AUTO_VARS/INVERSE_AUTO_OBS:
+        rebuild the Inverse panel's variable and observed-data-file rows
+        from that template's list, replacing whatever was there (mirrors
+        _populate_locked_bc_entries_from_legacy's "template output
+        replaces prior panel state" convention). Only runs when the
+        current template actually has an entry -- a template with a
+        single unknown keeps using whatever the user already has in the
+        (always-present) primary row, exactly as before this method
+        existed. Inverse OFF is a no-op: the rows are left as they are
+        (same as every other Inverse-only panel), since nothing here needs
+        undoing the way a PDE-box text substitution does."""
+        if not is_inv:
+            return
         template = getattr(self, '_current_template', '')
-        entry = self.INVERSE_AUTO_CONST.get(template)
+        var_list = self.INVERSE_AUTO_VARS.get(template)
+        if var_list:
+            for r in list(self.inv_var_rows):
+                r['widget'].deleteLater()
+            self.inv_var_rows.clear()
+            for i, (name, init) in enumerate(var_list):
+                self._add_inverse_var_row(name=name, init=init, is_primary=(i == 0))
+        obs_list = self.INVERSE_AUTO_OBS.get(template)
+        if obs_list:
+            for r in list(self.inv_data_rows):
+                r['widget'].deleteLater()
+            self.inv_data_rows.clear()
+            for i, (path, output_idx, weight) in enumerate(obs_list):
+                self._add_inverse_data_row(path=path, output_idx=output_idx, weight=weight, is_primary=(i == 0))
+
+    def _sync_inverse_pde_substitution(self, is_inv):
+        """Inverse ON: replace the current template's known constants with
+        their trainable-variable names in its PDE box(es). Inverse OFF:
+        restore the original numeric constants so Forward mode stays
+        valid. Also seeds the Inverse panel's variable/observed-data rows
+        for templates that need more than the single always-present
+        default row (see _sync_inverse_multi_setup) -- called from here,
+        not duplicated at each of this method's call sites, since the two
+        always need to happen together."""
+        self._sync_inverse_multi_setup(is_inv)
+        template = getattr(self, '_current_template', '')
+        entries = self.INVERSE_AUTO_CONST.get(template)
         if is_inv:
-            if not entry:
+            if not entries:
                 return
-            idx, const_str = entry
-            if idx >= len(self.pde_inputs):
-                return
-            var_name = self.inv_param_name.text().strip() or "trainable_variable_1"
-            text = self.pde_inputs[idx].text()
-            if const_str in text:
-                self.pde_inputs[idx].setText(text.replace(const_str, var_name, 1))
-                self._inverse_sub_active = (template, idx, const_str, var_name)
+            active = []
+            for idx, const_str, var_row in entries:
+                if idx >= len(self.pde_inputs):
+                    continue
+                var_name = self._inv_var_name(var_row)
+                text = self.pde_inputs[idx].text()
+                if const_str in text:
+                    self.pde_inputs[idx].setText(text.replace(const_str, var_name, 1))
+                    active.append((template, idx, const_str, var_name, var_row))
+            self._inverse_sub_active = active
         else:
-            state = getattr(self, '_inverse_sub_active', None)
-            if state:
-                s_template, s_idx, s_const, s_var = state
+            for s_template, s_idx, s_const, s_var, s_var_row in getattr(self, '_inverse_sub_active', None) or []:
                 if s_idx < len(self.pde_inputs):
                     cur = self.pde_inputs[s_idx].text()
                     if s_var in cur:
                         self.pde_inputs[s_idx].setText(cur.replace(s_var, s_const, 1))
-                self._inverse_sub_active = None
+            self._inverse_sub_active = []
 
     def _on_inv_param_name_changed(self):
-        """Keep an already-substituted PDE in sync if the trainable
-        variable name is renamed while Inverse mode is active."""
-        state = getattr(self, '_inverse_sub_active', None)
-        if not state:
+        """Keep any already-substituted PDE(s) in sync if a trainable
+        variable is renamed while Inverse mode is active -- covers every
+        active substitution tied to the row that changed, not just the
+        first."""
+        active = getattr(self, '_inverse_sub_active', None) or []
+        if not active:
             return
-        template, idx, const_str, old_var = state
-        new_var = self.inv_param_name.text().strip()
-        if not new_var or new_var == old_var or idx >= len(self.pde_inputs):
-            return
-        text = self.pde_inputs[idx].text()
-        if old_var in text:
-            self.pde_inputs[idx].setText(text.replace(old_var, new_var, 1))
-            self._inverse_sub_active = (template, idx, const_str, new_var)
+        new_active = []
+        for template, idx, const_str, old_var, var_row in active:
+            new_var = self._inv_var_name(var_row)
+            if new_var and new_var != old_var and idx < len(self.pde_inputs):
+                text = self.pde_inputs[idx].text()
+                if old_var in text:
+                    self.pde_inputs[idx].setText(text.replace(old_var, new_var, 1))
+                    old_var = new_var
+            new_active.append((template, idx, const_str, old_var, var_row))
+        self._inverse_sub_active = new_active
 
     def _on_problem_type_changed(self, checked):
         is_inv = self.radio_inverse.isChecked()
@@ -6469,6 +6655,46 @@ print("ERROR_ANALYSIS_DONE")
                 'ta_default': {'step_groups': [(0.0, 10.0, 10)], 'transfer_learning': True, 'ic_grid': 51, 'transfer_optimizer': 'lbfgs'},
                 'inverse_t_max': 2.5,
             },
+            # Exact equations, IC and BC as in Lu, Meng, Mao & Karniadakis
+            # 2019 (DeepXDE), section 4.2 (the 2D Burgers / high-Reynolds
+            # example): dt u + u dx u + v dy u = (1/Re)(dxx u + dyy u),
+            # dt v + u dx v + v dy v = (1/Re)(dxx v + dyy v), x,y in [0,1],
+            # t in [0,1], Re=5000, with the closed-form exact solution
+            #   u = 3/4 - 1/(4[1+exp((-4x+4y-t) Re/32)]),
+            #   v = 3/4 + 1/(4[1+exp((-4x+4y-t) Re/32)])
+            # (Re/32 = 156.25) supplying both the IC (t=0) and Dirichlet BC
+            # on all four edges. No RAR this round (the paper uses RAR to
+            # handle Re=5000's steep gradient; a larger fixed collocation
+            # count is used instead). Since the BC is genuinely time-
+            # dependent, it's populated directly by
+            # _populate_2d_burgers_bc_entries below rather than through the
+            # legacy per-side numeric bc_config dispatch (see bc_config
+            # 'custom_2d_burgers' in the handler below). Network/training
+            # recipe follows DeepXDE Table 3, Example 2 (depth 3, width 20,
+            # Adam then L-BFGS, lr 0.001, 15000 Adam iterations) -- same
+            # recipe as 1D Burgers, which the paper's own table also covers
+            # with this one row.
+            "2D Burgers": {
+                'pde': ["du_t + u*du_x + v*du_y - (1/5000)*(du_xx + du_yy)",
+                        "dv_t + u*dv_x + v*dv_y - (1/5000)*(dv_xx + dv_yy)"],
+                'ic': ["3/4 - 1/(4*(1 + exp((-4*x + 4*y)*156.25)))",
+                       "3/4 + 1/(4*(1 + exp((-4*x + 4*y)*156.25)))"],
+                'num_domain': 8000,
+                'num_boundary': 2000,
+                'num_initial': 2000,
+                'layers': 3,
+                'neurons': 20,
+                'iterations': 15000,
+                'optimizer2': 'lbfgs',
+                'iterations2': 10000,
+                'x_min': 0.0, 'x_max': 1.0,
+                'y_min': 0.0, 'y_max': 1.0,
+                'periodic_bc': False,
+                'bc_config': 'custom_2d_burgers',
+                'num_outputs': 2,
+                'output_names': ['u', 'v'],
+                'ref_dir': os.path.join(REFERENCE_DATA_DIR, "2D", "burgers"),
+            },
         }
         if text in templates_2d:
             t = templates_2d[text]
@@ -6538,7 +6764,10 @@ print("ERROR_ANALYSIS_DONE")
                     if i < len(self.bc_top_types):
                         self.bc_top_types[i].setCurrentText("Neumann")
                         self.bc_top_vals[i].setValue(0.0)
-            self._populate_locked_bc_entries_from_legacy(n_out, is_2d=True)
+            if bc_config == 'custom_2d_burgers':
+                self._populate_2d_burgers_bc_entries(n_out)
+            else:
+                self._populate_locked_bc_entries_from_legacy(n_out, is_2d=True)
             self._update_bc_mode_visibility()
             for row in list(self.ta_group_rows):
                 row['widget'].deleteLater()
@@ -6582,6 +6811,98 @@ print("ERROR_ANALYSIS_DONE")
                         if _bk in self.weight_widgets:
                             self.weight_widgets[_bk].setValue(100.0)
             self._auto_configure_ea(self._template_ref_dir)
+            self.log_box.append(f"✅ Template loaded: {text}")
+            return
+
+        # ── Steady-state (time-independent) 2D Quick Examples ──────────
+        # Both templates are the same Poisson family (-Δu = 1, u = 0 on
+        # the whole boundary) on a non-rectangular domain -- L-Shape is
+        # DeepXDE's own official example (poisson.Lshape.py: Polygon
+        # geometry, [2]+[50]*4+[1] tanh/Glorot uniform network, Adam
+        # lr=0.001 for 50000 iterations then L-BFGS to convergence,
+        # num_domain=1200/num_boundary=120/num_test=1500); Disk reuses the
+        # same recipe on a unit disk, whose closed-form solution
+        # u = (R^2 - r^2)/4 gives an independent, cheap correctness check
+        # (not wired into the app -- confirmed by hand against the
+        # exported solution data during verification). Both need
+        # Steady-state support (config.steady_state / codegen.py's
+        # _is_steady) since neither problem has a time variable at all.
+        templates_2d_steady = {
+            "2D Poisson (L-Shape)": {
+                'pde': "-du_xx - du_yy - 1",
+                'geometry_type': 'Polygon',
+                'geom_polygon_vertices': "0,0;1,0;1,-1;-1,-1;-1,1;0,1",
+                'x_min': -1.0, 'x_max': 1.0, 'y_min': -1.0, 'y_max': 1.0,
+                'num_domain': 1200, 'num_boundary': 120, 'num_test': 1500,
+                'layers': 4, 'neurons': 50,
+                'iterations': 50000, 'iterations2': 50000,
+            },
+            "2D Poisson (Disk)": {
+                'pde': "-du_xx - du_yy - 1",
+                'geometry_type': 'Disk',
+                'geom_center_x': 0.0, 'geom_center_y': 0.0, 'geom_radius': 1.0,
+                'x_min': -1.0, 'x_max': 1.0, 'y_min': -1.0, 'y_max': 1.0,
+                'num_domain': 1200, 'num_boundary': 120, 'num_test': 1500,
+                'layers': 4, 'neurons': 50,
+                'iterations': 50000, 'iterations2': 50000,
+            },
+        }
+        if text in templates_2d_steady:
+            t = templates_2d_steady[text]
+            n_out = 1
+            if n_out != self.num_outputs_spin.value():
+                self.num_outputs_spin.setValue(n_out)
+            if self.output_name_inputs:
+                self.output_name_inputs[0].setText('u')
+            if self.pde_inputs:
+                self.pde_inputs[0].setText(t['pde'])
+            # Domain bounds (display/bbox-fallback only -- the Polygon/Disk
+            # geometry panel below is what actually defines the shape).
+            self.x_min.setValue(t['x_min']); self.x_max.setValue(t['x_max'])
+            self.y_min.setValue(t['y_min']); self.y_max.setValue(t['y_max'])
+            self._current_template_forward_tmax = None
+            self._current_template_inverse_tmax = None
+            self.num_domain.setValue(t['num_domain'])
+            self.num_boundary.setValue(t['num_boundary'])
+            self.num_initial.setValue(0)
+            self.num_test.setValue(t['num_test'])
+            self.layers_spin.setValue(t['layers'])
+            self.neurons_spin.setValue(t['neurons'])
+            self.iter1_spin.setValue(t['iterations'])
+            self.opt2_combo.setCurrentText('lbfgs')
+            self.iter2_spin.setValue(t['iterations2'])
+            # Geometry: switch shape and set that shape's own parameters --
+            # setCurrentText fires _on_geometry_type_changed, which shows
+            # the right shape panel and hides the plain x/y rows.
+            self.geometry_type_combo.setCurrentText(t['geometry_type'])
+            if t['geometry_type'] == 'Polygon':
+                self.geom_polygon_verts_input.setText(t['geom_polygon_vertices'])
+            elif t['geometry_type'] == 'Disk':
+                self.geom_disk_cx.setValue(t['geom_center_x'])
+                self.geom_disk_cy.setValue(t['geom_center_y'])
+                self.geom_disk_r.setValue(t['geom_radius'])
+            # Steady-state: no time axis, no Initial Condition, no Time-
+            # Adaptive/RAR -- see _on_steady_state_changed() for what this
+            # hides/resets (adapt_combo -> None, IC pre-training off).
+            self.steady_state_check.setChecked(True)
+            # Boundary Conditions panel: Dirichlet u = 0 on the whole
+            # boundary -- "True" as the location is the established
+            # convention for a shape with no natural "side" (see Disk/
+            # Ellipse/Sphere "unified" BCs elsewhere in this app);
+            # DeepXDE's own on_boundary check already restricts it correctly.
+            for e in list(self.custom_bc_list):
+                e['widget'].deleteLater()
+            self.custom_bc_list.clear()
+            self._add_custom_bc_entry(bc_type="dirichlet", component=0,
+                                       location="True", value="0", locked=False)
+            self._update_bc_mode_visibility()
+            self._template_ref_dir = ''
+            self._current_template = text
+            self._current_template_type = ''
+            self._sync_inverse_pde_substitution(self.radio_inverse.isChecked())
+            if hasattr(self, 'sched_cb'):
+                self.sched_cb.setChecked(True)
+                self._setup_default_scheduler_phases('', t['iterations'], t['iterations2'])
             self.log_box.append(f"✅ Template loaded: {text}")
             return
 
@@ -6680,6 +7001,68 @@ print("ERROR_ANALYSIS_DONE")
             self.log_box.append(f"✅ Template loaded: {text}")
             return
 
+        # ── Steady-state (time-independent) 3D Quick Example ────────────
+        # Same -Δu = 1, u = 0 Poisson family as the 2D steady templates
+        # above, on a unit Sphere -- closed-form solution u = (R^2 - r^2)/6,
+        # again used only as a hand-checked sanity check during
+        # verification, not an app feature. See templates_2d_steady above
+        # for the shared rationale (Steady-state support, "True" as the
+        # unified-boundary BC location).
+        templates_3d_steady = {
+            "3D Poisson (Sphere)": {
+                'pde': "-du_xx - du_yy - du_zz - 1",
+                'geom_center_x': 0.0, 'geom_center_y': 0.0, 'geom_center_z': 0.0, 'geom_radius': 1.0,
+                'x_min': -1.0, 'x_max': 1.0, 'y_min': -1.0, 'y_max': 1.0, 'z_min': -1.0, 'z_max': 1.0,
+                'num_domain': 2000, 'num_boundary': 300, 'num_test': 2000,
+                'layers': 4, 'neurons': 50,
+                'iterations': 20000, 'iterations2': 20000,
+            },
+        }
+        if text in templates_3d_steady:
+            t = templates_3d_steady[text]
+            n_out = 1
+            if n_out != self.num_outputs_spin.value():
+                self.num_outputs_spin.setValue(n_out)
+            if self.output_name_inputs:
+                self.output_name_inputs[0].setText('u')
+            if self.pde_inputs:
+                self.pde_inputs[0].setText(t['pde'])
+            self.x_min.setValue(t['x_min']); self.x_max.setValue(t['x_max'])
+            self.y_min.setValue(t['y_min']); self.y_max.setValue(t['y_max'])
+            self.z_min.setValue(t['z_min']); self.z_max.setValue(t['z_max'])
+            self._current_template_forward_tmax = None
+            self._current_template_inverse_tmax = None
+            self.num_domain.setValue(t['num_domain'])
+            self.num_boundary.setValue(t['num_boundary'])
+            self.num_initial.setValue(0)
+            self.num_test.setValue(t['num_test'])
+            self.layers_spin.setValue(t['layers'])
+            self.neurons_spin.setValue(t['neurons'])
+            self.iter1_spin.setValue(t['iterations'])
+            self.opt2_combo.setCurrentText('lbfgs')
+            self.iter2_spin.setValue(t['iterations2'])
+            self.geometry_type_combo.setCurrentText('Sphere')
+            self.geom_sphere_cx.setValue(t['geom_center_x'])
+            self.geom_sphere_cy.setValue(t['geom_center_y'])
+            self.geom_sphere_cz.setValue(t['geom_center_z'])
+            self.geom_sphere_r.setValue(t['geom_radius'])
+            self.steady_state_check.setChecked(True)
+            for e in list(self.custom_bc_list):
+                e['widget'].deleteLater()
+            self.custom_bc_list.clear()
+            self._add_custom_bc_entry(bc_type="dirichlet", component=0,
+                                       location="True", value="0", locked=False)
+            self._update_bc_mode_visibility()
+            self._template_ref_dir = ''
+            self._current_template = text
+            self._current_template_type = ''
+            self._sync_inverse_pde_substitution(self.radio_inverse.isChecked())
+            if hasattr(self, 'sched_cb'):
+                self.sched_cb.setChecked(True)
+                self._setup_default_scheduler_phases('', t['iterations'], t['iterations2'])
+            self.log_box.append(f"✅ Template loaded: {text}")
+            return
+
         templates = {
             "1D Heat": {
                 'pde': ["du_t - 0.4 * du_xx"],
@@ -6711,6 +7094,106 @@ print("ERROR_ANALYSIS_DONE")
                 'periodic_bc': True,
                 'ref_dir': os.path.join(REFERENCE_DATA_DIR, "1D", "allen_cahn"),
                 'ta_default': {'step_groups': [(0.0, 1.0, 4)], 'transfer_learning': True, 'ic_grid': 101, 'transfer_optimizer': 'lbfgs'},
+            },
+            # Exact equation, IC and BC as in Lu, Meng, Mao & Karniadakis
+            # 2019 (DeepXDE), section 4.2 / Raissi, Perdikaris & Karniadakis
+            # 2019 (JCP), eq. (A.1): u_t + u u_x - (0.01/pi) u_xx = 0,
+            # x in [-1,1], t in [0,1], u(x,0) = -sin(pi x), u(-1,t)=u(1,t)=0.
+            # No RAR (residual-based adaptive refinement) this round -- a
+            # larger fixed collocation count is used instead to help resolve
+            # the shock that forms near x=0 as t -> 1. Network/training
+            # recipe follows DeepXDE Table 3, Example 2 (depth 3, width 20,
+            # Adam then L-BFGS, lr 0.001, 15000 Adam iterations).
+            "1D Burgers": {
+                'pde': ["du_t + u*du_x - (0.01/pi)*du_xx"],
+                'ic': ["-sin(pi*x)"],
+                'num_domain': 8000,
+                'num_boundary': 200,
+                'num_initial': 200,
+                'layers': 3,
+                'neurons': 20,
+                'iterations': 15000,
+                'optimizer2': 'lbfgs',
+                'iterations2': 10000,
+                'x_min': -1.0, 'x_max': 1.0,
+                'periodic_bc': False,
+                'ref_dir': os.path.join(REFERENCE_DATA_DIR, "1D", "burgers"),
+            },
+            # Exact equations, IC and BC as in Lu, Meng, Mao & Karniadakis
+            # 2019 (DeepXDE), section 4.4: a diffusion-reaction system
+            # A + 2B -> C in porous media,
+            #   dC_A/dt = D d2C_A/dx2 - kf C_A C_B^2,
+            #   dC_B/dt = D d2C_B/dx2 - 2 kf C_A C_B^2,
+            # x in [0,1], t in [0,10], C_A(x,0)=C_B(x,0)=exp(-20x),
+            # C_A(0,t)=C_B(0,t)=1, C_A(1,t)=C_B(1,t)=0. True values
+            # D=2e-3, kf=0.1 (this is the paper's Inverse example: D and kf
+            # are unknown, identified from concentration observations --
+            # loaded as Forward here with the true constants so the
+            # equations can be inspected/trained forward too, and the
+            # Inverse panel's D/kf rows + C_A/C_B observation-file rows are
+            # auto-seeded by INVERSE_AUTO_VARS/INVERSE_AUTO_OBS the moment
+            # Inverse mode is switched on for this template -- see
+            # _sync_inverse_multi_setup. The CB PDE keeps "2*0.1" unsimplified
+            # (rather than precomputing 0.2) purely so the same "0.1"
+            # substring substitutes to "kf" in both PDE rows -- see
+            # INVERSE_AUTO_CONST. Observation files are NOT generated by
+            # this patch -- see that template's reference-data folder.
+            # Network/training recipe follows DeepXDE Table 3, Example 4
+            # (depth 3, width 20, Adam only, lr 0.001, 80000 iterations).
+            "1D Diffusion-Reaction (Inverse)": {
+                'num_outputs': 2,
+                'output_names': 'CA,CB',
+                'pde': ["dCA_t - 0.002*dCA_xx + 0.1*CA*CB**2",
+                        "dCB_t - 0.002*dCB_xx + 2*0.1*CA*CB**2"],
+                'ic': ["exp(-20*x)", "exp(-20*x)"],
+                'num_domain': 6000,
+                'num_boundary': 400,
+                'num_initial': 400,
+                'layers': 3,
+                'neurons': 20,
+                'iterations': 80000,
+                'optimizer2': 'none',
+                'iterations2': 5000,
+                'x_min': 0.0, 'x_max': 1.0,
+                't_max': 10.0,
+                'periodic_bc': False,
+                'ref_dir': os.path.join(REFERENCE_DATA_DIR, "1D", "diffusion_reaction"),
+            },
+            # Exact equation, IC and periodic BC as in Raissi, Perdikaris &
+            # Karniadakis 2019 (JCP), section 3.1.1: the 1D nonlinear
+            # Schrodinger equation i h_t + 0.5 h_xx + |h|^2 h = 0,
+            # x in [-5,5], t in [0, pi/2], h(0,x) = 2 sech(x),
+            # h(t,-5)=h(t,5), h_x(t,-5)=h_x(t,5). h is complex-valued and
+            # represented as two real outputs h = u + iv (2-output PDE);
+            # splitting i h_t + 0.5 h_xx + |h|^2 h = 0 into real/imaginary
+            # parts gives the two real PDEs below (the standard PINN
+            # Schrodinger residual split). Periodic BC is enforced on both
+            # u and v AND on their first x-derivatives (matching the
+            # paper's h_x(t,-5)=h_x(t,5) condition) -- the derivative-order-1
+            # rows are added on top of the standard value-periodic rows by
+            # _populate_schrodinger_bc_entries below, since the generic
+            # legacy-BC population only ever adds derivative_order=0.
+            # Network follows the paper's own recipe: 5-layer, 100 neurons
+            # per layer, trained mainly via L-BFGS (a short Adam warm-up is
+            # used first since PINNStudio's phase-1 optimizer is always Adam).
+            "1D Schrödinger": {
+                'num_outputs': 2,
+                'output_names': 'u,v',
+                'pde': ["du_t + 0.5*dv_xx + (u**2+v**2)*v",
+                        "dv_t - 0.5*du_xx - (u**2+v**2)*u"],
+                'ic': ["2/cosh(x)", "0"],
+                'num_domain': 20000,
+                'num_boundary': 200,
+                'num_initial': 200,
+                'layers': 5,
+                'neurons': 100,
+                'iterations': 1000,
+                'optimizer2': 'lbfgs',
+                'iterations2': 20000,
+                'x_min': -5.0, 'x_max': 5.0,
+                't_max': 1.5707963267948966,
+                'periodic_bc': True,
+                'ref_dir': os.path.join(REFERENCE_DATA_DIR, "1D", "schrodinger"),
             },
         }
 
@@ -6759,10 +7242,14 @@ print("ERROR_ANALYSIS_DONE")
                 if key in self.weight_widgets:
                     self.weight_widgets[key].setValue(100.0)
 
-        # Set domain x range
+        # Set domain x range (and t range, for templates whose t domain
+        # isn't the default 1.0 -- e.g. Diffusion-Reaction's t in [0,10]
+        # and Schrodinger's t in [0, pi/2]).
         if 'x_min' in t:
             self.x_min.setValue(t['x_min'])
             self.x_max.setValue(t['x_max'])
+        if 't_max' in t:
+            self.t_max.setValue(t['t_max'])
 
         # Set periodic BC
         if t.get('periodic_bc', False):
@@ -6775,7 +7262,24 @@ print("ERROR_ANALYSIS_DONE")
                     self.bc_left_types[i].setCurrentText("Dirichlet")
                 if i < len(self.bc_right_types):
                     self.bc_right_types[i].setCurrentText("Dirichlet")
+        # Non-zero/non-default Dirichlet BC values -- the generic branch
+        # above only ever sets BC *type*, leaving whatever value was
+        # already in the spinbox (a prior template's leftovers) in place,
+        # so a template whose Dirichlet condition isn't 0 on both sides
+        # has to set its values explicitly. 1D Burgers' u(-1,t)=u(1,t)=0
+        # matches the spinbox default already, but is set explicitly too
+        # so it's correct regardless of prior UI state.
+        if text == "1D Burgers":
+            for i in range(self.num_outputs_spin.value()):
+                if i < len(self.bc_left_vals): self.bc_left_vals[i].setValue(0.0)
+                if i < len(self.bc_right_vals): self.bc_right_vals[i].setValue(0.0)
+        elif text == "1D Diffusion-Reaction (Inverse)":
+            for i in range(self.num_outputs_spin.value()):
+                if i < len(self.bc_left_vals): self.bc_left_vals[i].setValue(1.0)
+                if i < len(self.bc_right_vals): self.bc_right_vals[i].setValue(0.0)
         self._populate_locked_bc_entries_from_legacy(self.num_outputs_spin.value(), is_2d=False)
+        if text == "1D Schrödinger":
+            self._populate_schrodinger_bc_entries(self.num_outputs_spin.value())
         self._update_bc_mode_visibility()
 
         # Set Time-Adaptive default (e.g. 1D Allen-Cahn), same pattern as
@@ -6806,6 +7310,16 @@ print("ERROR_ANALYSIS_DONE")
         self._template_ref_dir = t.get('ref_dir', '')
         self._current_template = text
         self._current_template_type = t.get('template_type', '')
+        # Reset the Forward/Inverse t_max pair (see _on_problem_type_changed)
+        # so a 1D template never inherits a stale inverse_t_max left behind
+        # by whichever 2D/3D template was selected earlier this session --
+        # none of the 1D templates use a shortened Inverse t range today,
+        # but this keeps that possible without it silently picking up
+        # another template's value.
+        self._current_template_forward_tmax = t.get('t_max')
+        self._current_template_inverse_tmax = t.get('inverse_t_max')
+        if self._current_template_inverse_tmax is not None and self.radio_inverse.isChecked():
+            self.t_max.setValue(self._current_template_inverse_tmax)
         self._sync_inverse_pde_substitution(self.radio_inverse.isChecked())
         if hasattr(self, 'sched_cb'):
             self.sched_cb.setChecked(True)
