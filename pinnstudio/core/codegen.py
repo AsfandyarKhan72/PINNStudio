@@ -3065,15 +3065,14 @@ if {config.time_adaptive}:
                             return dde.icbc.IC(geomtime_i, _ic_fn, lambda x, on_initial: on_initial, component=comp)
                         _constraints_i.append(_mk_ic_ta(_ic_expr_ta, _comp_ta))
                 else:
-                    if _oi_ta == 0:
-                        if _is_2d:
-                            _xt_ic_2d = np.column_stack([x_grid, np.full(len(x_grid), t0)])
-                            _xyt_ic_anchor = _xt_ic_2d
-                            _constraints_i.append(dde.icbc.PointSetBC(_xt_ic_2d, prev_u, component=0))
-                        else:
-                            xt_ic = np.column_stack([x_grid, np.full_like(x_grid.ravel(), t0)])
-                            _xyt_ic_anchor = xt_ic
-                            _constraints_i.append(dde.icbc.PointSetBC(xt_ic, prev_u, component=0))
+                    if _is_2d:
+                        _xt_ic_2d = np.column_stack([x_grid, np.full(len(x_grid), t0)])
+                        _xyt_ic_anchor = _xt_ic_2d
+                        _constraints_i.append(dde.icbc.PointSetBC(_xt_ic_2d, prev_u[:, _oi_ta:_oi_ta+1], component=_oi_ta))
+                    else:
+                        xt_ic = np.column_stack([x_grid, np.full_like(x_grid.ravel(), t0)])
+                        _xyt_ic_anchor = xt_ic
+                        _constraints_i.append(dde.icbc.PointSetBC(xt_ic, prev_u[:, _oi_ta:_oi_ta+1], component=_oi_ta))
         else:
             # Legacy per-side BCs, for configs saved before the Boundary
             # Conditions panel existed (custom_bc_json empty).
@@ -3160,15 +3159,14 @@ if {config.time_adaptive}:
                             return dde.icbc.IC(geomtime_i, _ic_fn, lambda x, on_initial: on_initial, component=comp)
                         _constraints_i.append(_mk_ic_ta(_ic_expr_ta, _comp_ta))
                 else:
-                    if _oi_ta == 0:
-                        if _is_2d:
-                            _xt_ic_2d = np.column_stack([x_grid, np.full(len(x_grid), t0)])
-                            _xyt_ic_anchor = _xt_ic_2d
-                            _constraints_i.append(dde.icbc.PointSetBC(_xt_ic_2d, prev_u, component=0))
-                        else:
-                            xt_ic = np.column_stack([x_grid, np.full_like(x_grid.ravel(), t0)])
-                            _xyt_ic_anchor = xt_ic
-                            _constraints_i.append(dde.icbc.PointSetBC(xt_ic, prev_u, component=0))
+                    if _is_2d:
+                        _xt_ic_2d = np.column_stack([x_grid, np.full(len(x_grid), t0)])
+                        _xyt_ic_anchor = _xt_ic_2d
+                        _constraints_i.append(dde.icbc.PointSetBC(_xt_ic_2d, prev_u[:, _oi_ta:_oi_ta+1], component=_oi_ta))
+                    else:
+                        xt_ic = np.column_stack([x_grid, np.full_like(x_grid.ravel(), t0)])
+                        _xyt_ic_anchor = xt_ic
+                        _constraints_i.append(dde.icbc.PointSetBC(xt_ic, prev_u[:, _oi_ta:_oi_ta+1], component=_oi_ta))
 
         data_i = dde.data.TimePDE(
             geomtime_i, pde, _constraints_i,
@@ -3368,13 +3366,13 @@ if {config.time_adaptive}:
             _y_pred = np.linspace({config.y_min}, {config.y_max}, grid_size)
             _Xp, _Yp = np.meshgrid(_x_pred, _y_pred)
             _xyt_pred = np.column_stack([_Xp.ravel(), _Yp.ravel(), np.full(_Xp.size, t1)])
-            prev_u  = model_i.predict(_xyt_pred)[:, 0:1]
+            prev_u  = model_i.predict(_xyt_pred)
             x_grid  = _xyt_pred[:, :2]  # store (x,y) pairs for next step's PointSetBC
         else:
             x_pred  = np.linspace({config.x_min}, {config.x_max}, grid_size)
             t_pred  = np.full_like(x_pred, t1)
             xt_pred = np.column_stack([x_pred, t_pred])
-            prev_u  = model_i.predict(xt_pred)[:, 0:1]
+            prev_u  = model_i.predict(xt_pred)
             x_grid  = x_pred.reshape(-1, 1)
 
         if not _is_2d:
@@ -4782,8 +4780,12 @@ prev_net = None''')
         for ln in step0_ic_appends:
             loop_lines.append(f"        {ln}")
         loop_lines.append("    else:")
-        loop_lines.append("        constraints_i.append(dde.icbc.PointSetBC("
-                           "np.column_stack([x_grid, np.full(len(x_grid), t0)]), prev_u, component=0))")
+        loop_lines.append("        _xt_ic_i = np.column_stack([x_grid, np.full(len(x_grid), t0)])")
+        for _oi_ic in range(n_out):
+            loop_lines.append(
+                f"        constraints_i.append(dde.icbc.PointSetBC(_xt_ic_i, "
+                f"prev_u[:, {_oi_ic}:{_oi_ic + 1}], component={_oi_ic}))"
+            )
         loop_lines.append("")
         anchors_i = "obs_anchors" if is_inverse else "None"
         loop_lines.append(f'''    data_i = dde.data.TimePDE(
@@ -4838,7 +4840,7 @@ prev_net = None''')
         loop_lines.append("    prev_net = net_i")
         if is_2d:
             loop_lines.append('''    _xyt_pred = np.column_stack([x_grid, np.full(len(x_grid), t1)])
-    prev_u = model_i.predict(_xyt_pred)[:, 0:1]
+    prev_u = model_i.predict(_xyt_pred)
     _x_plot = np.linspace({0}, {1}, 100)
     _t_plot = np.linspace(t0, t1, 50)
     _y_mid = ({2} + {3}) / 2.0
@@ -4849,7 +4851,7 @@ prev_net = None''')
                 config.x_min, config.x_max, config.y_min, config.y_max, config.plot_output_idx))
         else:
             loop_lines.append('''    _xt_pred = np.column_stack([x_grid.ravel(), np.full(grid_size, t1)])
-    prev_u = model_i.predict(_xt_pred)[:, 0:1]
+    prev_u = model_i.predict(_xt_pred)
     _x_plot = np.linspace({0}, {1}, 100)
     _t_plot = np.linspace(t0, t1, 50)
     _Xp, _Tp = np.meshgrid(_x_plot, _t_plot)
