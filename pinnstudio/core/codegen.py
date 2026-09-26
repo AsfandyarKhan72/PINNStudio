@@ -1971,10 +1971,11 @@ for _pval in _param_values:
             # by the (non-time-adaptive) Inline Error Analysis section
             # further down -- so a reference dataset that represents a
             # derived field like |h| is compared against that same
-            # derived field, not a raw output column. Time-Adaptive
-            # still reads a single raw output column directly (that
-            # path has its own, separate model-selection code and does
-            # not define this helper).
+            # derived field, not a raw output column. Time-Adaptive has
+            # its own separate model-selection code and can't reach this
+            # definition (a different top-level `if` block) -- it defines
+            # its own copy of this same helper, by the same name, right
+            # before its per-step training loop.
             if _plot_custom_expr.strip():
                 _ns_plot = {{**_BC_MATH_NS, "np": np}}
                 for _oi_p, _on_p in enumerate(_plot_output_names_list):
@@ -2981,6 +2982,28 @@ if {config.time_adaptive}:
     n_steps = len(_ta_flat_intervals)
     print(f"  Total time steps: {{n_steps}} from {{len(_ta_groups)}} group(s)")
 
+    _plot_idx = {config.plot_output_idx}
+    _plot_custom_expr = "{plot_custom_expr_converted}"
+    _plot_output_names_list = "{config.output_names}".split(",")
+
+    def _extract_plot_field(_pred_arr):
+        # Time-Adaptive's own copy of the Standard-path helper of the same
+        # name (out of scope here -- it's defined inside `if not
+        # {config.time_adaptive}:`, a separate top-level block this one
+        # never runs alongside). Same logic: a derived custom field (e.g.
+        # |h| = sqrt(u**2+v**2) for 1D Schrodinger) when one is configured,
+        # else the single raw output column -- so every model.predict()
+        # call in this Time-Adaptive loop plots/animates the same field
+        # the Standard path and the main Results panel would, instead of
+        # indexing a column that may not even exist (e.g. plot_output_idx
+        # pointing past the last real output when "Custom..." is selected).
+        if _plot_custom_expr.strip():
+            _ns_plot = {{**_BC_MATH_NS, "np": np}}
+            for _oi_p, _on_p in enumerate(_plot_output_names_list):
+                _ns_plot[_on_p.strip()] = _pred_arr[:, _oi_p]
+            return np.asarray(eval(_plot_custom_expr, _ns_plot))
+        return _pred_arr[:, _plot_idx]
+
     for step_i, (t0, t1) in enumerate(_ta_flat_intervals):
         print(f"\\n--- Time step {{step_i+1}}/{{n_steps}}: t = {{t0:.4f}} to {{t1:.4f}} ---")
 
@@ -3359,7 +3382,7 @@ if {config.time_adaptive}:
             t_plot = np.linspace(t0, t1, 50)
             Xp, Tp = np.meshgrid(x_plot, t_plot)
             XTp    = np.vstack([Xp.ravel(), Tp.ravel()]).T
-            Up     = model_i.predict(XTp)[:, {config.plot_output_idx}].reshape(50, 100)
+            Up     = _extract_plot_field(model_i.predict(XTp)).reshape(50, 100)
             all_x.append(Xp); all_t.append(Tp); all_u.append(Up)
         else:
             # 2D: store mid-y slice for combined plot
@@ -3368,7 +3391,7 @@ if {config.time_adaptive}:
             y_mid  = ({config.y_min} + {config.y_max}) / 2.0
             Xp, Tp = np.meshgrid(x_plot, t_plot)
             XYTp   = np.column_stack([Xp.ravel(), np.full(Xp.size, y_mid), Tp.ravel()])
-            Up     = model_i.predict(XYTp)[:, {config.plot_output_idx}].reshape(50, 100)
+            Up     = _extract_plot_field(model_i.predict(XYTp)).reshape(50, 100)
             all_x.append(Xp); all_t.append(Tp); all_u.append(Up)
 
         print(f"Step {{step_i+1}} done. Final train loss: {{sum(lh_i.loss_train[-1]):.4e}}")
@@ -3392,7 +3415,7 @@ if {config.time_adaptive}:
                 _XTp_step = np.column_stack([_Xp_step.ravel(), np.full(_Xp_step.size, _y_mid_step), _Tp_step.ravel()])
             else:
                 _XTp_step = np.vstack([_Xp_step.ravel(), _Tp_step.ravel()]).T
-            _Up_step = model_i.predict(_XTp_step)[:, {config.plot_output_idx}].reshape(50, 100)
+            _Up_step = _extract_plot_field(model_i.predict(_XTp_step)).reshape(50, 100)
 
             if _plot_type_step == "Surface" or _plot_type_step.startswith("📊"):
                 _vmin_step = None if {config.plot_auto_range} else {config.plot_vmin}
@@ -3407,7 +3430,7 @@ if {config.time_adaptive}:
                     fig, axes = plt.subplots(1, 2, figsize=(10, 4))
                     for _ai, _tv_s in enumerate([t0, t1]):
                         _xyt_s = np.column_stack([_Xg_s.ravel(), _Yg_s.ravel(), np.full(_Xg_s.size, _tv_s)])
-                        _U_s = model_i.predict(_xyt_s)[:, {config.plot_output_idx}].reshape(_res_step, _res_step)
+                        _U_s = _extract_plot_field(model_i.predict(_xyt_s)).reshape(_res_step, _res_step)
                         im = axes[_ai].contourf(_Xg_s, _Yg_s, _U_s, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_step, vmax=_vmax_step)
                         if {config.plot_colorbar}: fig.colorbar(im, ax=axes[_ai])
                         axes[_ai].set_xlabel("x"); axes[_ai].set_ylabel("y")
@@ -3420,7 +3443,7 @@ if {config.time_adaptive}:
                     _t_s2 = np.linspace(t0, t1, _res_step)
                     _Xs2, _Ts2 = np.meshgrid(_x_s2, _t_s2)
                     _XTs2 = np.vstack([_Xs2.ravel(), _Ts2.ravel()]).T
-                    _Us2 = model_i.predict(_XTs2)[:, {config.plot_output_idx}].reshape(_res_step, _res_step)
+                    _Us2 = _extract_plot_field(model_i.predict(_XTs2)).reshape(_res_step, _res_step)
                     fig, ax = plt.subplots(figsize=(7, 4))
                     im = ax.contourf(_Xs2, _Ts2, _Us2, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_step, vmax=_vmax_step)
                     if {config.plot_colorbar}: fig.colorbar(im, ax=ax)
@@ -3436,7 +3459,7 @@ if {config.time_adaptive}:
                 colors = plt.get_cmap("{config.plot_colormap}")(np.linspace(0, 1, n_steps_plot))
                 for _ci, _tv in enumerate(_t_line):
                     _xt_line = np.column_stack([_x_l2, np.full_like(_x_l2, _tv)])
-                    _u_line = model_i.predict(_xt_line)[:, {config.plot_output_idx}].flatten()
+                    _u_line = _extract_plot_field(model_i.predict(_xt_line)).flatten()
                     ax.plot(_x_l2, _u_line, color=colors[_ci], linewidth={config.plot_linewidth}, label=f"t={{_tv:.3f}}")
                 ax.set_xlabel("x"); ax.set_ylabel("u")
                 ax.set_title(f"Step {{step_i+1}}: t = {{t0:.4f}} → {{t1:.4f}}")
