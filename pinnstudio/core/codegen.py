@@ -2273,7 +2273,25 @@ for _pval in _param_values:
             for _ea_tv, _ea_fp in _ea_files:
                 _ea_d = np.loadtxt(_ea_fp)
                 if _ea_d.ndim == 1: _ea_d = _ea_d.reshape(1, -1)
-                if _is_3d:
+                if _is_steady and _is_3d:
+                    # Steady 3D format: x, y, z, u — no time column at all.
+                    _ea_idx = np.lexsort((_ea_d[:, 2], _ea_d[:, 1], _ea_d[:, 0]))
+                    _ea_x_refs.append(_ea_d[_ea_idx, 0])
+                    _ea_y_refs.append(_ea_d[_ea_idx, 1])
+                    _ea_z_refs.append(_ea_d[_ea_idx, 2])
+                    _ea_u_refs.append(_ea_d[_ea_idx, 3])
+                    _ea_times.append(0.0)
+                    print(f"  Loaded ground truth (steady-state): {{len(_ea_d)}} pts from {{_os.path.basename(_ea_fp)}}")
+                elif _is_steady and _is_2d:
+                    # Steady 2D format: x, y, u — no time column at all.
+                    _ea_idx = np.lexsort((_ea_d[:, 1], _ea_d[:, 0]))
+                    _ea_x_refs.append(_ea_d[_ea_idx, 0])
+                    _ea_y_refs.append(_ea_d[_ea_idx, 1])
+                    _ea_z_refs.append(np.zeros_like(_ea_d[_ea_idx, 0]))
+                    _ea_u_refs.append(_ea_d[_ea_idx, 2])
+                    _ea_times.append(0.0)
+                    print(f"  Loaded ground truth (steady-state): {{len(_ea_d)}} pts from {{_os.path.basename(_ea_fp)}}")
+                elif _is_3d:
                     # 3D format: x, y, z, t, u — sort by x, y, z
                     _ea_idx = np.lexsort((_ea_d[:, 2], _ea_d[:, 1], _ea_d[:, 0]))
                     _ea_x_refs.append(_ea_d[_ea_idx, 0])
@@ -2302,6 +2320,19 @@ for _pval in _param_values:
                     _ea_u_refs.append(_ea_d[_ea_idx, 2])
                     _ea_times.append(float(_ea_tv))
                     print(f"  Loaded ground truth t={{_ea_tv:.4f}}: {{len(_ea_d)}} pts from {{_os.path.basename(_ea_fp)}}")
+            # Drop reference points with no solution value (NaN) -- e.g. grid
+            # points outside a non-rectangular geometry like L-Shape's missing
+            # quadrant or Disk/Sphere's bounding-box corners. A no-op for
+            # reference files that don't have any (the usual case).
+            for _ei in range(len(_ea_u_refs)):
+                _ea_valid = ~np.isnan(_ea_u_refs[_ei])
+                if not _ea_valid.all():
+                    _n_dropped = int((~_ea_valid).sum())
+                    _ea_x_refs[_ei] = _ea_x_refs[_ei][_ea_valid]
+                    _ea_y_refs[_ei] = _ea_y_refs[_ei][_ea_valid]
+                    _ea_z_refs[_ei] = _ea_z_refs[_ei][_ea_valid]
+                    _ea_u_refs[_ei] = _ea_u_refs[_ei][_ea_valid]
+                    print(f"  Dropped {{_n_dropped}} NaN reference point(s) outside the geometry")
             # Sort all loaded data by time value — outside the loop
             _ea_sort_idx = np.argsort(_ea_times)
             _ea_times  = [_ea_times[_i]  for _i in _ea_sort_idx]
@@ -2317,7 +2348,11 @@ for _pval in _param_values:
                 # ── Non-adaptive: use single model ───────────────
                 for _ei, _ea_tv in enumerate(_ea_times):
                     _ea_xf = _ea_x_refs[_ei]
-                    if _is_3d:
+                    if _is_steady and _is_3d:
+                        _ea_xt = np.column_stack([_ea_xf, _ea_y_refs[_ei], _ea_z_refs[_ei]])
+                    elif _is_steady and _is_2d:
+                        _ea_xt = np.column_stack([_ea_xf, _ea_y_refs[_ei]])
+                    elif _is_3d:
                         _ea_yf = _ea_y_refs[_ei]
                         _ea_zf = _ea_z_refs[_ei]
                         _ea_xt = np.column_stack([_ea_xf, _ea_yf, _ea_zf, np.full_like(_ea_xf, _ea_tv)])
@@ -2506,6 +2541,7 @@ for _pval in _param_values:
 
             # ── Surface comparison ────────────────────────────────
             if {config.ea_do_surface}:
+                _ea_did_surface = True
                 if _is_3d and _geom_type != "Sphere":
                     # Box-shaped 3D geometry (Cuboid): a genuine smooth
                     # surface (PINN | Ground Truth | Error), like a COMSOL
@@ -2623,9 +2659,9 @@ for _pval in _param_values:
                             _bnd_mask_ea = np.ones_like(_bxr_ea, dtype=bool)  # shape has no clean boundary subset -- use all ref points
                         _bx_ea = _bxr_ea[_bnd_mask_ea]; _by_ea = _byr_ea[_bnd_mask_ea]; _bz_ea = _bzr_ea[_bnd_mask_ea]
                         _gt_b_ea = _ea_u_refs[_ei][_bnd_mask_ea]
-                        _pinn_b_ea = model.predict(
-                            np.column_stack([_bx_ea, _by_ea, _bz_ea, np.full_like(_bx_ea, _ea_tv)])
-                        )[:, {config.plot_output_idx}].flatten()
+                        _pinn_b_pts_ea = (np.column_stack([_bx_ea, _by_ea, _bz_ea]) if _is_steady else
+                                          np.column_stack([_bx_ea, _by_ea, _bz_ea, np.full_like(_bx_ea, _ea_tv)]))
+                        _pinn_b_ea = model.predict(_pinn_b_pts_ea)[:, {config.plot_output_idx}].flatten()
                         _err_b_ea = np.abs(_pinn_b_ea - _gt_b_ea)
                         _vmin3_ea = min(_pinn_b_ea.min(), _gt_b_ea.min())
                         _vmax3_ea = max(_pinn_b_ea.max(), _gt_b_ea.max())
@@ -2663,8 +2699,9 @@ for _pval in _param_values:
                     for _ei, _ea_tv in enumerate(_ea_times):
                         _ea_tv_r, _l2, _mse, _mx, _ma = _ea_metrics[_ei]
                         # PINN prediction on grid
-                        _xyt_grid = np.column_stack([_Xg_ea.ravel(), _Yg_ea.ravel(), np.full(_Xg_ea.size, _ea_tv)])
-                        _u_pinn_grid = model.predict(_xyt_grid)[:, {config.plot_output_idx}].reshape(_res_ea, _res_ea)
+                        _xy_grid = (np.column_stack([_Xg_ea.ravel(), _Yg_ea.ravel()]) if _is_steady else
+                                    np.column_stack([_Xg_ea.ravel(), _Yg_ea.ravel(), np.full(_Xg_ea.size, _ea_tv)]))
+                        _u_pinn_grid = model.predict(_xy_grid)[:, {config.plot_output_idx}].reshape(_res_ea, _res_ea)
                         # FEM interpolated onto same grid
                         _u_fem_grid = _gd(
                             np.column_stack([_ea_x_refs[_ei], _ea_y_refs[_ei]]),
@@ -2691,6 +2728,15 @@ for _pval in _param_values:
                         axes[_ei][2].set_xlabel("x"); axes[_ei][2].set_ylabel("y")
                         fig.colorbar(im2, ax=axes[_ei][2])
                     plt.tight_layout()
+                elif len(_ea_times) < 2:
+                    # A 1D x-t surface needs at least 2 distinct time
+                    # snapshots to form a non-degenerate grid -- e.g. only
+                    # one reference file provided so far. Skip gracefully
+                    # instead of crashing matplotlib's contourf on a (1, N)
+                    # array; the line comparison above already covers this
+                    # single snapshot.
+                    _ea_did_surface = False
+                    print("  Skipping surface comparison — need at least 2 time snapshots for a 1D x-t surface plot")
                 else:
                     # 1D: standard x vs t surface
                     _ea_x_common = np.linspace({config.x_min}, {config.x_max}, 300)
@@ -2725,9 +2771,10 @@ for _pval in _param_values:
                     axes_s[2].set_title("Error  |PINN - Ground Truth|"); axes_s[2].set_xlabel("t"); axes_s[2].set_ylabel("x")
                     fig.colorbar(im2, ax=axes_s[2])
                     plt.tight_layout()
-                _ea_sp = _os.path.join(_ea_dir, "surface_comparison.png")
-                plt.savefig(_ea_sp, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
-                print(f"  Surface comparison saved: {{_ea_sp}}")
+                if _ea_did_surface:
+                    _ea_sp = _os.path.join(_ea_dir, "surface_comparison.png")
+                    plt.savefig(_ea_sp, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
+                    print(f"  Surface comparison saved: {{_ea_sp}}")
             print("=== Error Analysis Complete ===")
 
         # ── Export solution data ──────────────────────────────

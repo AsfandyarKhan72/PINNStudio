@@ -2184,10 +2184,39 @@ class MainWindow(QMainWindow):
         # to 1.0, so it's intentionally not repeated.
         self._on_template_selected(text)
 
-    def _auto_configure_ea(self, ref_dir):
+    def _auto_configure_ea(self, ref_dir, is_steady=False):
         """Auto-configure error analysis when a template with ground truth files is loaded."""
         import glob, re, numpy as np
+        # Always start from a clean slate: a template with no matching
+        # reference data (or none at all) must not silently inherit the
+        # previous template's Error Analysis config -- e.g. switching from
+        # 2D Poisson (Disk) to 2D Burgers before 2D Burgers has its own
+        # COMSOL reference file dropped in must not keep comparing 2D
+        # Burgers' training run against Disk's leftover ground truth.
+        self._ea_settings = None
         if not ref_dir or not os.path.isdir(ref_dir):
+            return
+        if is_steady:
+            # Steady-state (time-independent) templates have a single
+            # reference file with no time column at all -- "solution.txt",
+            # columns x,y,u for 2D / x,y,z,u for 3D -- matching exactly what
+            # PINNStudio's own steady-state "Export solution data" writes.
+            # Points outside a non-rectangular geometry (L-Shape's missing
+            # quadrant, Disk/Sphere corners of the bounding box) are NaN in
+            # the file; codegen's error-analysis loader drops those rows
+            # before computing metrics, so nothing needs filtering here.
+            _sol_path = os.path.join(ref_dir, "solution.txt")
+            if not os.path.isfile(_sol_path):
+                return
+            self._ea_settings = {
+                'files': [(0.0, _sol_path)],
+                'do_line': True,
+                'do_surface': True,
+                'do_l2': True,
+                'do_mse': True,
+                'do_max': True,
+            }
+            self.log_box.append("✅ Error analysis auto-configured — 1 ground truth file (steady-state) from template")
             return
         # Ground-truth snapshots for error analysis must match "t_<number>.txt"
         # exactly -- a sibling file like "t_1.0_LessData.txt" (a thinned-down
@@ -6590,6 +6619,15 @@ print("ERROR_ANALYSIS_DONE")
         if text == "📋 Examples":
             return
 
+        # Every template starts from a clean Steady-state toggle -- only the
+        # Poisson (L-Shape/Disk/Sphere) branches below turn it back on for
+        # themselves. Without this reset, picking a steady template and then
+        # a time-dependent one (e.g. Disk -> 2D Heat) would silently leave
+        # Heat training with no time axis at all, since nothing else ever
+        # turns this checkbox back off.
+        if hasattr(self, 'steady_state_check') and self.steady_state_check.isChecked():
+            self.steady_state_check.setChecked(False)
+
         templates_2d = {
             "2D Heat": {
                 'pde': ["du_t - 0.4*(du_xx + du_yy)"],
@@ -6836,6 +6874,7 @@ print("ERROR_ANALYSIS_DONE")
                 'num_domain': 1200, 'num_boundary': 120, 'num_test': 1500,
                 'layers': 4, 'neurons': 50,
                 'iterations': 50000, 'iterations2': 50000,
+                'ref_dir': os.path.join(REFERENCE_DATA_DIR, "2D", "poisson_lshape"),
             },
             "2D Poisson (Disk)": {
                 'pde': "-du_xx - du_yy - 1",
@@ -6845,6 +6884,7 @@ print("ERROR_ANALYSIS_DONE")
                 'num_domain': 1200, 'num_boundary': 120, 'num_test': 1500,
                 'layers': 4, 'neurons': 50,
                 'iterations': 50000, 'iterations2': 50000,
+                'ref_dir': os.path.join(REFERENCE_DATA_DIR, "2D", "poisson_disk"),
             },
         }
         if text in templates_2d_steady:
@@ -6896,13 +6936,14 @@ print("ERROR_ANALYSIS_DONE")
             self._add_custom_bc_entry(bc_type="dirichlet", component=0,
                                        location="True", value="0", locked=False)
             self._update_bc_mode_visibility()
-            self._template_ref_dir = ''
+            self._template_ref_dir = t.get('ref_dir', '')
             self._current_template = text
             self._current_template_type = ''
             self._sync_inverse_pde_substitution(self.radio_inverse.isChecked())
             if hasattr(self, 'sched_cb'):
                 self.sched_cb.setChecked(True)
                 self._setup_default_scheduler_phases('', t['iterations'], t['iterations2'])
+            self._auto_configure_ea(self._template_ref_dir, is_steady=True)
             self.log_box.append(f"✅ Template loaded: {text}")
             return
 
@@ -7053,13 +7094,14 @@ print("ERROR_ANALYSIS_DONE")
             self._add_custom_bc_entry(bc_type="dirichlet", component=0,
                                        location="True", value="0", locked=False)
             self._update_bc_mode_visibility()
-            self._template_ref_dir = ''
+            self._template_ref_dir = t.get('ref_dir', '')
             self._current_template = text
             self._current_template_type = ''
             self._sync_inverse_pde_substitution(self.radio_inverse.isChecked())
             if hasattr(self, 'sched_cb'):
                 self.sched_cb.setChecked(True)
                 self._setup_default_scheduler_phases('', t['iterations'], t['iterations2'])
+            self._auto_configure_ea(self._template_ref_dir, is_steady=True)
             self.log_box.append(f"✅ Template loaded: {text}")
             return
 
