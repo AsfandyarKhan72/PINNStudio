@@ -236,6 +236,15 @@ def generate_script(config):
 
     pde_expr_single = _simplify_pde_expr(config.pde_expression)
 
+    # Convert the optional custom Results-panel plot expression (e.g.
+    # Schrodinger's "sqrt(u**2+v**2)") the same way PDE expressions are
+    # converted -- function names only (sqrt/sin/exp/...), never variable
+    # names, since here the variables are this problem's own output names
+    # (u, v, ...), substituted by name at runtime below, not x/y/z.
+    _plot_custom_expr_raw = (getattr(config, "plot_custom_expr", "") or "").strip()
+    plot_custom_expr_converted = _simplify_pde_expr(_plot_custom_expr_raw) if _plot_custom_expr_raw else ""
+    plot_custom_label_resolved = (getattr(config, "plot_custom_label", "") or "").strip() or _plot_custom_expr_raw
+
     if config.forward_ic_from_file:
         _ta_ic_init = f"""_ic_ta_xt, _ic_ta_vals = _load_ic_from_file(r"{config.forward_ic_file}")
     prev_u = _ic_ta_vals"""
@@ -1945,6 +1954,28 @@ for _pval in _param_values:
     if not {config.time_adaptive}:
         _plot_idx = {config.plot_output_idx}
         _plot_type = "{config.plot_type}"
+        _plot_custom_expr = "{plot_custom_expr_converted}"
+        _plot_custom_label = "{plot_custom_label_resolved}"
+        _plot_output_names_list = "{config.output_names}".split(",")
+
+        def _extract_plot_field(_pred_arr):
+            # Pick the field to plot from a model.predict() output array:
+            # either one raw output column (_plot_idx, the pre-existing
+            # default), or -- when a custom expression is configured, e.g.
+            # |h| = sqrt(u**2+v**2) for the 1D Schrodinger template's
+            # complex-valued u,v outputs -- a derived scalar field built
+            # from ALL of this problem's outputs, addressed by their own
+            # output_names, so any future multi-output template can plot
+            # its own combination of outputs the same way, not just this
+            # one. Only used for the main Results panel plot below (not
+            # Error Analysis or Time-Adaptive, which still read a single
+            # raw output column directly).
+            if _plot_custom_expr.strip():
+                _ns_plot = {{**_BC_MATH_NS, "np": np}}
+                for _oi_p, _on_p in enumerate(_plot_output_names_list):
+                    _ns_plot[_on_p.strip()] = _pred_arr[:, _oi_p]
+                return np.asarray(eval(_plot_custom_expr, _ns_plot))
+            return _pred_arr[:, _plot_idx]
 
         if _problem_type == "Inverse" and _plot_type == "Parameter Convergence":
             # Parameter Convergence isn't a spatial plot at all -- it's the
@@ -1975,7 +2006,7 @@ for _pval in _param_values:
                         _xt_gif = np.column_stack([_x_gif, np.full_like(_x_gif, _y_mid_gif), np.full_like(_x_gif, _tv)])
                     else:
                         _xt_gif = np.column_stack([_x_gif, np.full_like(_x_gif, _tv)])
-                    _all_u_gif.append(model.predict(_xt_gif)[:, _plot_idx].flatten())
+                    _all_u_gif.append(_extract_plot_field(model.predict(_xt_gif)).flatten())
                 _u_min_gif = min(_u.min() for _u in _all_u_gif)
                 _u_max_gif = max(_u.max() for _u in _all_u_gif)
                 _fig_gif, _ax_gif = plt.subplots(figsize=(7, 5))
@@ -2019,7 +2050,7 @@ for _pval in _param_values:
                         _frame_faces_gif = []
                         for _fX3a, _fY3a, _fZ3a in _faces3a:
                             _fpts3a = np.column_stack([_fX3a.ravel(), _fY3a.ravel(), _fZ3a.ravel(), np.full(_fX3a.size, _tv)])
-                            _frame_faces_gif.append(model.predict(_fpts3a)[:, _plot_idx].reshape(_fX3a.shape))
+                            _frame_faces_gif.append(_extract_plot_field(model.predict(_fpts3a)).reshape(_fX3a.shape))
                         _all_frames_gif.append(_frame_faces_gif)
                     if {config.plot_auto_range}:
                         _v_min_gif = min(_f.min() for _frame in _all_frames_gif for _f in _frame)
@@ -2055,14 +2086,14 @@ for _pval in _param_values:
                         _Xg_gif, _Yg_gif = np.meshgrid(_x_anim_gif, _y_anim_gif)
                         for _tv in _t_frames:
                             _xyt_gif = np.column_stack([_Xg_gif.ravel(), _Yg_gif.ravel(), np.full(_Xg_gif.size, _tv)])
-                            _pred_gif = model.predict(_xyt_gif)[:, _plot_idx].reshape(80, 80)
+                            _pred_gif = _extract_plot_field(model.predict(_xyt_gif)).reshape(80, 80)
                             _all_frames_gif.append((_Xg_gif, _Yg_gif, _pred_gif))
                     else:
                         _t_anim_gif = np.linspace({config.t_min}, {config.t_max}, 80)
                         _X_anim_gif, _T_anim_gif = np.meshgrid(_x_anim_gif, _t_anim_gif)
                         for _tv in _t_frames:
                             _xt_gif2 = np.vstack([_X_anim_gif.ravel(), np.full(_X_anim_gif.size, _tv)]).T
-                            _pred_gif = model.predict(_xt_gif2)[:, _plot_idx].reshape(80, 80)
+                            _pred_gif = _extract_plot_field(model.predict(_xt_gif2)).reshape(80, 80)
                             _all_frames_gif.append((_X_anim_gif, _T_anim_gif, _pred_gif))
                     if {config.plot_auto_range}:
                         _v_min_gif = min(_f[2].min() for _f in _all_frames_gif)
@@ -2101,14 +2132,14 @@ for _pval in _param_values:
             _vmax_2d = None if {config.plot_auto_range} else {config.plot_vmax}
 
             _XY = np.column_stack([_Xg.ravel(), _Yg.ravel()])
-            _pred = model.predict(_XY)[:, _plot_idx].reshape(_res_2d, _res_2d)
+            _pred = _extract_plot_field(model.predict(_XY)).reshape(_res_2d, _res_2d)
             _pred = np.where(_inside_2d, _pred, np.nan)
             fig, ax = plt.subplots(figsize=(6.5, 5.5))
             im = ax.contourf(_Xg, _Yg, _pred, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_2d, vmax=_vmax_2d)
             ax.set_xlabel("x"); ax.set_ylabel("y")
             ax.set_aspect("equal", adjustable="box")
             if {config.plot_colorbar}: fig.colorbar(im, ax=ax)
-            out_name = "{config.output_names}".split(",")[_plot_idx].strip()
+            out_name = _plot_custom_label if _plot_custom_expr.strip() else "{config.output_names}".split(",")[_plot_idx].strip()
             fig.suptitle(f"PINN Solution — {{out_name}}(x,y)", fontsize=12)
             plt.tight_layout()
             plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
@@ -2131,13 +2162,13 @@ for _pval in _param_values:
             if _n_snaps == 1: axes = [axes]
             for _ai, _tv in enumerate(_t_snaps):
                 _XYT = np.column_stack([_Xg.ravel(), _Yg.ravel(), np.full(_Xg.size, _tv)])
-                _pred = model.predict(_XYT)[:, _plot_idx].reshape(_res_2d, _res_2d)
+                _pred = _extract_plot_field(model.predict(_XYT)).reshape(_res_2d, _res_2d)
                 _pred = np.where(_inside_2d, _pred, np.nan)
                 im = axes[_ai].contourf(_Xg, _Yg, _pred, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_2d, vmax=_vmax_2d)
                 axes[_ai].set_title(f"t = {{_tv:.3f}}")
                 axes[_ai].set_xlabel("x"); axes[_ai].set_ylabel("y")
                 if {config.plot_colorbar}: fig.colorbar(im, ax=axes[_ai])
-            out_name = "{config.output_names}".split(",")[_plot_idx].strip()
+            out_name = _plot_custom_label if _plot_custom_expr.strip() else "{config.output_names}".split(",")[_plot_idx].strip()
             fig.suptitle(f"PINN Solution — {{out_name}}(x,y,t)", fontsize=12)
             plt.tight_layout()
             plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
@@ -2157,14 +2188,14 @@ for _pval in _param_values:
             _vmax_3d = None if {config.plot_auto_range} else {config.plot_vmax}
 
             _XYZ = np.column_stack([_Xg3.ravel(), _Yg3.ravel(), np.full(_Xg3.size, _z_mid)])
-            _pred3 = model.predict(_XYZ)[:, _plot_idx].reshape(_res_3d, _res_3d)
+            _pred3 = _extract_plot_field(model.predict(_XYZ)).reshape(_res_3d, _res_3d)
             _pred3 = np.where(_inside_3d, _pred3, np.nan)
             fig, ax = plt.subplots(figsize=(6.5, 5.5))
             im = ax.contourf(_Xg3, _Yg3, _pred3, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_3d, vmax=_vmax_3d)
             ax.set_xlabel("x"); ax.set_ylabel("y")
             ax.set_aspect("equal", adjustable="box")
             if {config.plot_colorbar}: fig.colorbar(im, ax=ax)
-            out_name = "{config.output_names}".split(",")[_plot_idx].strip()
+            out_name = _plot_custom_label if _plot_custom_expr.strip() else "{config.output_names}".split(",")[_plot_idx].strip()
             fig.suptitle(f"PINN Solution — {{out_name}}(x,y,z={{_z_mid:.3g}})", fontsize=12)
             plt.tight_layout()
             plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
@@ -2194,13 +2225,13 @@ for _pval in _param_values:
             if _n_snaps == 1: axes = [axes]
             for _ai, _tv in enumerate(_t_snaps):
                 _XYZT = np.column_stack([_Xg3.ravel(), _Yg3.ravel(), np.full(_Xg3.size, _z_mid), np.full(_Xg3.size, _tv)])
-                _pred3 = model.predict(_XYZT)[:, _plot_idx].reshape(_res_3d, _res_3d)
+                _pred3 = _extract_plot_field(model.predict(_XYZT)).reshape(_res_3d, _res_3d)
                 _pred3 = np.where(_inside_3d, _pred3, np.nan)
                 im = axes[_ai].contourf(_Xg3, _Yg3, _pred3, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_3d, vmax=_vmax_3d)
                 axes[_ai].set_title(f"t = {{_tv:.3f}}, z = {{_z_mid:.3g}} (mid-plane)")
                 axes[_ai].set_xlabel("x"); axes[_ai].set_ylabel("y")
                 if {config.plot_colorbar}: fig.colorbar(im, ax=axes[_ai])
-            out_name = "{config.output_names}".split(",")[_plot_idx].strip()
+            out_name = _plot_custom_label if _plot_custom_expr.strip() else "{config.output_names}".split(",")[_plot_idx].strip()
             fig.suptitle(f"PINN Solution — {{out_name}}(x,y,z={{_z_mid:.3g}},t)", fontsize=12)
             plt.tight_layout()
             plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
@@ -2210,10 +2241,11 @@ for _pval in _param_values:
             # ("Surface" over x,t / "Line (time steps)") apply.
             _res_1d = {config.plot_resolution}
             _x_1d = np.linspace({config.x_min}, {config.x_max}, _res_1d)
-            _u_1d = model.predict(_x_1d.reshape(-1, 1))[:, _plot_idx].flatten()
+            _u_1d = _extract_plot_field(model.predict(_x_1d.reshape(-1, 1))).flatten()
+            _out_name_1d = _plot_custom_label if _plot_custom_expr.strip() else "{config.output_names}".split(",")[_plot_idx].strip()
             fig, ax = plt.subplots(figsize=(7, 5))
             ax.plot(_x_1d, _u_1d, color="#4dabf7", linewidth={config.plot_linewidth})
-            ax.set_xlabel("x"); ax.set_ylabel("u(x)")
+            ax.set_xlabel("x"); ax.set_ylabel(f"{{_out_name_1d}}(x)")
             ax.set_title(f"PINN Solution — {{_param_name}}={{_pval}}" if _parametric else "PINN Solution")
             ax.grid(True, alpha=0.2)
             plt.tight_layout(); plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
@@ -2225,7 +2257,8 @@ for _pval in _param_values:
                 _t_s = np.linspace({config.t_min}, {config.t_max}, _res)
                 _Xs, _Ts = np.meshgrid(_x_s, _t_s)
                 _XTs = np.vstack([_Xs.ravel(), _Ts.ravel()]).T
-                _u_s = model.predict(_XTs)[:, _plot_idx].reshape(_res, _res)
+                _u_s = _extract_plot_field(model.predict(_XTs)).reshape(_res, _res)
+                _out_name_1dt = _plot_custom_label if _plot_custom_expr.strip() else "{config.output_names}".split(",")[_plot_idx].strip()
                 _vmin_s = None if {config.plot_auto_range} else {config.plot_vmin}
                 _vmax_s = None if {config.plot_auto_range} else {config.plot_vmax}
                 print(f"Plot settings: cmap={config.plot_colormap}, levels={config.plot_levels}, dpi={config.plot_dpi}, res={config.plot_resolution}")
@@ -2233,7 +2266,8 @@ for _pval in _param_values:
                 im = ax.contourf(_Xs, _Ts, _u_s, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_s, vmax=_vmax_s)
                 if {config.plot_colorbar}: fig.colorbar(im, ax=ax)
                 ax.set_xlabel("x"); ax.set_ylabel("t")
-                ax.set_title(f"PINN Solution — {{_param_name}}={{_pval}}" if _parametric else "PINN Solution")
+                ax.set_title((f"PINN Solution — {{_out_name_1dt}}(x,t) — {{_param_name}}={{_pval}}" if _parametric
+                              else f"PINN Solution — {{_out_name_1dt}}(x,t)"))
                 plt.tight_layout(); plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
 
             elif _plot_type == "Line (time steps)":
@@ -2242,11 +2276,12 @@ for _pval in _param_values:
                 t_steps_plot = np.linspace({config.t_min}, {config.t_max}, n_steps_plot)
                 fig, ax = plt.subplots(figsize=(8, 5))
                 colors = plt.get_cmap("{config.plot_colormap}")(np.linspace(0, 1, n_steps_plot))
+                _out_name_line = _plot_custom_label if _plot_custom_expr.strip() else "{config.output_names}".split(",")[_plot_idx].strip()
                 for i, t_val in enumerate(t_steps_plot):
                     xt = np.column_stack([_x_l, np.full_like(_x_l, t_val)])
-                    u_line = model.predict(xt)[:, _plot_idx].flatten()
+                    u_line = _extract_plot_field(model.predict(xt)).flatten()
                     ax.plot(_x_l, u_line, color=colors[i], linewidth={config.plot_linewidth}, label=f"t = {{t_val:.3f}}")
-                ax.set_xlabel("x"); ax.set_ylabel("u(x,t)")
+                ax.set_xlabel("x"); ax.set_ylabel(f"{{_out_name_line}}(x,t)")
                 ax.set_title(f"PINN Solution — {{_param_name}}={{_pval}}" if _parametric else "PINN Solution")
                 ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
                 plt.tight_layout(); plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()

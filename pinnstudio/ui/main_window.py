@@ -1765,10 +1765,35 @@ class MainWindow(QMainWindow):
         # Output selector
         ctrl_row.addWidget(QLabel("Plot output:"))
         self.plot_output_combo = QComboBox()
-        self.plot_output_combo.addItems(["Output 1 (u)"])
+        # "Custom..." is always the last item (see _on_num_outputs_changed
+        # and _apply_config, where the combo is rebuilt) -- picking it
+        # reveals the two fields below instead of a raw output column, so
+        # a multi-output problem can plot any derived field of its own
+        # outputs (e.g. 1D Schrodinger's |h| = sqrt(u**2+v**2) from its
+        # u,v outputs) rather than only ever one of them individually.
+        self.plot_output_combo.addItems(["Output 1 (u)", "Custom..."])
         self.plot_output_combo.setFixedHeight(28)
         self.plot_output_combo.setFixedWidth(130)
+        self.plot_output_combo.currentTextChanged.connect(self._on_plot_output_combo_changed)
         ctrl_row.addWidget(self.plot_output_combo)
+
+        # Custom field expression/label -- only visible when "Custom..." is
+        # selected above. Expression variables are this problem's own
+        # output_names (see codegen.py's _extract_plot_field); Label is
+        # just the colorbar/axis text (falls back to the expression itself
+        # when left blank).
+        self.plot_custom_expr_input = QLineEdit()
+        self.plot_custom_expr_input.setPlaceholderText("expression, e.g. sqrt(u**2+v**2)")
+        self.plot_custom_expr_input.setFixedHeight(28)
+        self.plot_custom_expr_input.setFixedWidth(190)
+        self.plot_custom_expr_input.setVisible(False)
+        ctrl_row.addWidget(self.plot_custom_expr_input)
+        self.plot_custom_label_input = QLineEdit()
+        self.plot_custom_label_input.setPlaceholderText("label, e.g. |h|")
+        self.plot_custom_label_input.setFixedHeight(28)
+        self.plot_custom_label_input.setFixedWidth(80)
+        self.plot_custom_label_input.setVisible(False)
+        ctrl_row.addWidget(self.plot_custom_label_input)
 
         ctrl_row.addWidget(QLabel("  Plot type:"))
         self.plot_type_combo = QComboBox()
@@ -2283,7 +2308,16 @@ class MainWindow(QMainWindow):
     def _on_plot_type_changed(self, text):
         if text in ("Line (time steps)", "Line Animation (GIF)", "Surface Animation (GIF)"):
             self._on_line_plot_settings()
-    
+
+    def _on_plot_output_combo_changed(self, text):
+        """Show the custom expression/label fields only while "Custom..."
+        is selected in the Plot output dropdown -- see _build_config()
+        (which only serializes them in that case) and codegen.py's
+        _extract_plot_field (which only evaluates them in that case)."""
+        _is_custom = (text == "Custom...")
+        self.plot_custom_expr_input.setVisible(_is_custom)
+        self.plot_custom_label_input.setVisible(_is_custom)
+
 
     def _on_line_plot_settings(self):
         dialog = QDialog(self)
@@ -3902,6 +3936,10 @@ class MainWindow(QMainWindow):
 
             loss_weights_multi=self._flat_loss_weights_string(n_out),
             plot_output_idx=self.plot_output_combo.currentIndex(),
+            plot_custom_expr=(self.plot_custom_expr_input.text().strip()
+                               if self.plot_output_combo.currentText() == "Custom..." else ""),
+            plot_custom_label=(self.plot_custom_label_input.text().strip()
+                                if self.plot_output_combo.currentText() == "Custom..." else ""),
 
             pde_expression=self.pde_inputs[0].text() if self.pde_inputs else "du_t - 0.4 * du_xx",
             bc_left=_safe_val(self.bc_left_vals, 0),
@@ -4299,6 +4337,10 @@ class MainWindow(QMainWindow):
             self.restore_output_combo.addItem(f"Output {i+1} ({name})")
             for _r in getattr(self, 'inv_data_rows', []):
                 _r['output_combo'].addItem(f"Output {i+1} ({name})")
+        # "Custom..." is a Plot-output-only option (see
+        # _on_plot_output_combo_changed) -- Restore/measured-data output
+        # pickers always need one real output column, never a derived one.
+        self.plot_output_combo.addItem("Custom...")
 
         # PDE expressions
         pdes = _texts(config.pde_expressions, n_out, "|", config.pde_expression)
@@ -4556,6 +4598,9 @@ class MainWindow(QMainWindow):
         self.export_tsteps_spin.setValue(config.export_t_steps)
         if 0 <= config.plot_output_idx < self.plot_output_combo.count():
             self.plot_output_combo.setCurrentIndex(config.plot_output_idx)
+        self.plot_custom_expr_input.setText(getattr(config, 'plot_custom_expr', '') or '')
+        self.plot_custom_label_input.setText(getattr(config, 'plot_custom_label', '') or '')
+        self._on_plot_output_combo_changed(self.plot_output_combo.currentText())
 
         # L-BFGS
         self.lbfgs_use_default_cb.setChecked(config.lbfgs_use_default)
@@ -4673,6 +4718,7 @@ class MainWindow(QMainWindow):
             self.restore_output_combo.addItem(f"Output {i+1} ({name})")
             for _r in getattr(self, 'inv_data_rows', []):
                 _r['output_combo'].addItem(f"Output {i+1} ({name})")
+        self.plot_output_combo.addItem("Custom...")
 
     # Per built-in template: a list of (PDE row index, original constant
     # substring, trainable-variable row index) triples -- one per constant
@@ -7236,6 +7282,14 @@ print("ERROR_ANALYSIS_DONE")
                 't_max': 1.5707963267948966,
                 'periodic_bc': True,
                 'ref_dir': os.path.join(REFERENCE_DATA_DIR, "1D", "schrodinger"),
+                # h = u + iv is complex-valued -- what's physically meaningful
+                # to look at is its magnitude |h| = sqrt(u^2+v^2) (this is
+                # what Raissi et al.'s own Figure 1 plots), not u or v
+                # individually. Pre-fills the Plot output panel's "Custom..."
+                # option -- see _populate_locked_bc_entries_from_legacy's
+                # sibling hook below and codegen.py's _extract_plot_field.
+                'plot_custom_expr': 'sqrt(u**2+v**2)',
+                'plot_custom_label': '|h|',
             },
         }
 
@@ -7323,6 +7377,21 @@ print("ERROR_ANALYSIS_DONE")
         if text == "1D Schrödinger":
             self._populate_schrodinger_bc_entries(self.num_outputs_spin.value())
         self._update_bc_mode_visibility()
+
+        # Plot output: switch to "Custom..." and pre-fill the expression/
+        # label for a template that defines one (currently just 1D
+        # Schrodinger's |h|); reset to plain "Output 1" for every other
+        # template, so a previous template's custom field never lingers
+        # (same staleness class as the Error Analysis reset in
+        # _auto_configure_ea -- see its docstring).
+        if 'plot_custom_expr' in t:
+            self.plot_output_combo.setCurrentIndex(self.plot_output_combo.count() - 1)  # "Custom..." is always last
+            self.plot_custom_expr_input.setText(t['plot_custom_expr'])
+            self.plot_custom_label_input.setText(t.get('plot_custom_label', ''))
+        else:
+            self.plot_output_combo.setCurrentIndex(0)
+            self.plot_custom_expr_input.clear()
+            self.plot_custom_label_input.clear()
 
         # Set Time-Adaptive default (e.g. 1D Allen-Cahn), same pattern as
         # the 2D/3D template blocks above.

@@ -158,6 +158,19 @@ class PINNConfig:
     export_grid_size: int = 101
     export_t_steps: int = 11
     plot_output_idx: int = 0
+    # Optional derived scalar field to plot in the Results panel instead of
+    # a single raw output column -- e.g. "sqrt(u**2+v**2)" for the 1D
+    # Schrodinger template's |h|, built from its two real-valued outputs
+    # u (real part) and v (imaginary part). The expression's variables are
+    # this problem's own output_names, so any future multi-output template
+    # can define its own derived field the same way. Empty string (the
+    # default) keeps the existing plot_output_idx-only behavior exactly as
+    # it was -- this is purely additive.
+    plot_custom_expr: str = ""
+    # Display label for the field above (colorbar/axis label, and the
+    # printed output name) -- falls back to the expression itself when left
+    # blank. Ignored when plot_custom_expr is empty.
+    plot_custom_label: str = ""
 
     # L-BFGS
     lbfgs_use_default: bool = True
