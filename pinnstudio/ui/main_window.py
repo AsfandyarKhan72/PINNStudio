@@ -2549,7 +2549,7 @@ class MainWindow(QMainWindow):
                 self.ta_group_rows.remove(row_data)
         remove_btn.clicked.connect(_remove)
 
-    def _add_inverse_var_row(self, name=None, init=1.0, is_primary=None):
+    def _add_inverse_var_row(self, name=None, init=1.0, is_primary=None, true_value=None):
         """Add one trainable-variable row to the Inverse panel. The first
         (primary) row is always present and cannot be removed -- it is the
         one that participates in INVERSE_AUTO_CONST's automatic PDE-box
@@ -2557,7 +2557,15 @@ class MainWindow(QMainWindow):
         single trainable_variable this generalizes. Rows beyond the first
         are optional, freely added/removed, and share the panel's single
         measured-data file / output selector / loss weight (all trainable
-        variables are fit against the same shared observation dataset)."""
+        variables are fit against the same shared observation dataset).
+        true_value is the known ground-truth value for a built-in
+        template's auto-substituted PDE constant (see INVERSE_AUTO_VARS
+        below) -- not shown as its own widget (nothing here today lets the
+        user set or edit it directly), just carried on the row so
+        _build_inverse_variables_json can serialize it for codegen.py's
+        parameter-convergence plot to draw a dashed reference line at.
+        None (the default) for a manually added variable or a legacy
+        saved config, in which case that line is simply not drawn."""
         if is_primary is None:
             is_primary = (len(self.inv_var_rows) == 0)
         if not name:
@@ -2600,6 +2608,7 @@ class MainWindow(QMainWindow):
             'name': name_edit,
             'init': init_spin,
             'is_primary': is_primary,
+            'true': true_value,
         }
         self.inv_var_rows.append(row_data)
         if is_primary:
@@ -2632,12 +2641,16 @@ class MainWindow(QMainWindow):
         variables = []
         for r in self.inv_var_rows:
             nm = r['name'].text().strip() or f"trainable_variable_{len(variables) + 1}"
-            variables.append({'name': nm, 'init': r['init'].value()})
+            entry = {'name': nm, 'init': r['init'].value()}
+            _true = r.get('true')
+            if _true is not None:
+                entry['true'] = _true
+            variables.append(entry)
         if not variables:
             variables.append({'name': 'trainable_variable_1', 'init': 1.0})
         return json.dumps(variables)
 
-    def _add_inverse_data_row(self, path="", output_idx=0, weight=100.0, is_primary=None):
+    def _add_inverse_data_row(self, path="", output_idx=0, weight=100.0, is_primary=None, custom_expr=""):
         """Add one measured-data-file row to the Inverse panel. The first
         (primary) row is always present -- it's the one the legacy single-
         file config fields (inverse_data_file / inverse_obs_output_idx /
@@ -2647,7 +2660,18 @@ class MainWindow(QMainWindow):
         variables (which all share one measured-data setup), each
         additional file here is its OWN observation dataset with its own
         "which output" selector and its own loss weight, since each
-        becomes its own separate loss term."""
+        becomes its own separate loss term.
+
+        The "output:" dropdown also offers "Custom..." (last item, same
+        convention as the Results panel's Plot-output dropdown), for a
+        measured-data file whose value is a DERIVED field the network's
+        raw outputs don't have as a single column -- e.g. 1D Schrodinger's
+        data is the magnitude |h| = sqrt(u**2+v**2), not output u or v
+        alone. Selecting it reveals a expression box (custom_expr);
+        codegen.py's _parse_inverse_obs_files/_make_obs_func evaluate it
+        against ALL of this problem's outputs by name, via
+        dde.icbc.PointSetOperatorBC, instead of matching a single raw
+        output column."""
         if is_primary is None:
             is_primary = (len(self.inv_data_rows) == 0)
 
@@ -2690,9 +2714,23 @@ class MainWindow(QMainWindow):
                       if hasattr(self, 'output_name_inputs') and _i < len(self.output_name_inputs)
                       else f"u{_i+1}")
             output_combo.addItem(f"Output {_i+1} ({_name})")
-        if 0 <= output_idx < output_combo.count():
+        output_combo.addItem("Custom...")
+        custom_edit = QLineEdit()
+        custom_edit.setText(custom_expr)
+        custom_edit.setPlaceholderText("expression, e.g. sqrt(u**2+v**2)")
+        custom_edit.setFixedHeight(26)
+        custom_edit.setVisible(bool(custom_expr))
+        if custom_expr:
+            output_combo.setCurrentIndex(output_combo.count() - 1)
+        elif 0 <= output_idx < output_combo.count() - 1:
             output_combo.setCurrentIndex(output_idx)
+
+        def _on_obs_output_changed(_idx, _combo=output_combo, _edit=custom_edit):
+            _edit.setVisible(_combo.currentText() == "Custom...")
+        output_combo.currentIndexChanged.connect(_on_obs_output_changed)
+
         meta_row.addWidget(output_combo)
+        meta_row.addWidget(custom_edit)
         meta_row.addWidget(QLabel("Data loss weight:"))
         weight_edit = SciLineEdit(weight)
         weight_edit.setFixedHeight(26); weight_edit.setFixedWidth(85)
@@ -2708,6 +2746,7 @@ class MainWindow(QMainWindow):
             'path': path_edit,
             'browse': browse_btn,
             'output_combo': output_combo,
+            'custom_expr': custom_edit,
             'weight': weight_edit,
             'is_primary': is_primary,
         }
@@ -2745,13 +2784,15 @@ class MainWindow(QMainWindow):
         files = []
         for r in self.inv_data_rows:
             _oi = r['output_combo'].currentIndex()
+            _is_custom = (r['output_combo'].currentText() == "Custom...")
             files.append({
                 'path': r['path'].text().strip(),
-                'output_idx': _oi if _oi >= 0 else 0,
+                'output_idx': _oi if (_oi >= 0 and not _is_custom) else 0,
                 'weight': r['weight'].value(),
+                'custom_expr': r['custom_expr'].text().strip() if _is_custom else '',
             })
         if not files:
-            files.append({'path': '', 'output_idx': 0, 'weight': 100.0})
+            files.append({'path': '', 'output_idx': 0, 'weight': 100.0, 'custom_expr': ''})
         return json.dumps(files)
 
     def _set_combo_data(self, combo, value):
@@ -4338,9 +4379,12 @@ class MainWindow(QMainWindow):
             self.restore_output_combo.addItem(f"Output {i+1} ({name})")
             for _r in getattr(self, 'inv_data_rows', []):
                 _r['output_combo'].addItem(f"Output {i+1} ({name})")
-        # "Custom..." is a Plot-output-only option (see
-        # _on_plot_output_combo_changed) -- Restore/measured-data output
-        # pickers always need one real output column, never a derived one.
+        # Restore's own output picker still always needs one real output
+        # column, never a derived one -- but the measured-data-file rows
+        # rebuilt here get replaced wholesale by the inverse_obs_files_json
+        # restore pass further below anyway (each row re-added via
+        # _add_inverse_data_row, which adds its own "Custom..." item), so
+        # this pass doesn't need to add one for them.
         self.plot_output_combo.addItem("Custom...")
 
         # PDE expressions
@@ -4535,7 +4579,7 @@ class MainWindow(QMainWindow):
             for _v in _inv_vars:
                 self._add_inverse_var_row(
                     _v.get('name', f"trainable_variable_{len(self.inv_var_rows) + 1}"),
-                    _v.get('init', 1.0))
+                    _v.get('init', 1.0), true_value=_v.get('true'))
         else:
             self._add_inverse_var_row(
                 config.inverse_param_name or "trainable_variable_1",
@@ -4556,7 +4600,8 @@ class MainWindow(QMainWindow):
         if _obs_files:
             for _f in _obs_files:
                 self._add_inverse_data_row(
-                    _f.get('path', ''), _f.get('output_idx', 0), _f.get('weight', 100.0))
+                    _f.get('path', ''), _f.get('output_idx', 0), _f.get('weight', 100.0),
+                    custom_expr=_f.get('custom_expr', ''))
         else:
             self._add_inverse_data_row(
                 config.inverse_data_file, config.inverse_obs_output_idx, config.loss_weight_obs)
@@ -4721,6 +4766,15 @@ class MainWindow(QMainWindow):
             for _r in getattr(self, 'inv_data_rows', []):
                 _r['output_combo'].addItem(f"Output {i+1} ({name})")
         self.plot_output_combo.addItem("Custom...")
+        for _r in getattr(self, 'inv_data_rows', []):
+            _r['output_combo'].addItem("Custom...")
+            # Re-select "Custom..." (and keep the expression box visible)
+            # for any row that already had a custom expression typed in --
+            # clear()/re-add above reset the combo to its first item, which
+            # would otherwise silently drop back to a raw output column.
+            if _r['custom_expr'].text().strip():
+                _r['output_combo'].setCurrentIndex(_r['output_combo'].count() - 1)
+                _r['custom_expr'].setVisible(True)
 
     # Per built-in template: a list of (PDE row index, original constant
     # substring, trainable-variable row index) triples -- one per constant
@@ -4741,6 +4795,25 @@ class MainWindow(QMainWindow):
             (0, "0.002", 0), (1, "0.002", 0),  # D, in both C_A's and C_B's PDE
             (0, "0.1", 1), (1, "0.1", 1),      # kf, in both (C_B's is written 2*0.1 so the same "0.1" substring still matches)
         ],
+        # Viscosity 0.01 (the paper's nu = 0.01/pi -- the constant that's
+        # actually unknown/inferred in an inverse Burgers problem is
+        # written as its own numerator, not the whole fraction).
+        "1D Burgers": [(0, "0.01", 0)],
+        # 1/Re -- same reasoning as 1D Burgers' viscosity above, appearing
+        # identically in both PDE rows (u's and v's).
+        "2D Burgers": [(0, "1/5000", 0), (1, "1/5000", 0)],
+        # The nonlinear Schrodinger equation's shared 0.5 coefficient
+        # (on dv_xx in u's PDE, du_xx in v's) -- one unknown, substituted
+        # into both rows exactly like D/kf above.
+        "1D Schrödinger": [(0, "0.5", 0), (1, "0.5", 0)],
+        # The Poisson equation's RHS forcing constant (-Δu = 1) -- steady-
+        # state problems have no time axis, but nothing about Inverse mode
+        # (external_trainable_variables, the observed-data PointSetBC/
+        # PointSetOperatorBC constraints, dde.data.PDE's anchors=) is
+        # actually time-axis-specific, so this works the same way as every
+        # other template here.
+        "2D Poisson (L-Shape)": [(0, "1", 0)],
+        "2D Poisson (Disk)": [(0, "1", 0)],
     }
 
     def _inv_var_name(self, row_index):
@@ -4748,23 +4821,71 @@ class MainWindow(QMainWindow):
             return self.inv_var_rows[row_index]['name'].text().strip() or f"trainable_variable_{row_index + 1}"
         return "trainable_variable_1" if row_index == 0 else f"trainable_variable_{row_index + 1}"
 
-    # Per built-in template that has more than one unknown (so far, only
-    # the diffusion-reaction system): the trainable-variable rows and
-    # observed-data-file rows to seed the Inverse panel with automatically,
-    # so the example works out of the box instead of requiring the user to
-    # hand-add a second variable/file row and name it to match
-    # INVERSE_AUTO_CONST exactly. (name, init) per variable row, primary
-    # first; (path, output_idx, weight) per observation file row, primary
-    # first. Paths point at the template's reference-data folder using the
-    # filenames documented in that template's comment -- not generated by
-    # this patch, supplied separately.
+    # Per built-in template that has a known ground-truth value for at
+    # least one unknown (every template with an INVERSE_AUTO_CONST entry,
+    # not just the diffusion-reaction system anymore): the trainable-
+    # variable rows and observed-data-file rows to seed the Inverse panel
+    # with automatically, so the example works out of the box instead of
+    # requiring the user to hand-add a row and name it to match
+    # INVERSE_AUTO_CONST exactly. (name, init, true) per variable row,
+    # primary first -- init is deliberately NOT the true value (an inverse
+    # problem that starts already at the answer proves nothing about
+    # whether the fit actually recovers it), true is the real PDE constant
+    # this variable replaced, used only by codegen.py's parameter-
+    # convergence plot to draw a dashed reference line at. (path,
+    # output_idx, weight) or (path, output_idx, weight, custom_expr) per
+    # observation file row, primary first -- the optional 4th element
+    # pre-selects the "Custom..." derived-field option (e.g. 1D
+    # Schrodinger's data is |h| = sqrt(u**2+v**2), not output u or v
+    # alone) even when, as for Schrodinger today, no bundled file path is
+    # supplied and the user still has to browse to one. Paths that ARE
+    # supplied point at the template's own reference-data folder -- either
+    # hand-provided separately (Diffusion-Reaction's CA_obs.txt/
+    # CB_obs.txt) or, for the two Poisson templates, generated by this
+    # patch as a subsample of the real numerical solution.txt already
+    # bundled with each template (see u_obs.txt in the same folder) --
+    # never fabricated from a closed form, since the L-Shape domain's
+    # reentrant corner has no simple one (that's the point of the
+    # example), so the Disk template (which DOES have one, u=(1-r^2)/4)
+    # isn't treated any differently from it here.
     INVERSE_AUTO_VARS = {
-        "1D Diffusion-Reaction (Inverse)": [("D", 1e-3), ("kf", 0.2)],
+        "1D Diffusion-Reaction (Inverse)": [("D", 1e-3, 2e-3), ("kf", 0.2, 0.1)],
+        "1D Burgers": [("trainable_variable_1", 0.02, 0.01)],
+        "2D Burgers": [("trainable_variable_1", 0.0004, 1 / 5000)],
+        "1D Schrödinger": [("trainable_variable_1", 1.0, 0.5)],
+        # True value is already 1 -- starting the initial guess there
+        # would make the "inference" trivial (zero iterations needed),
+        # so it starts an order of magnitude away instead.
+        "2D Poisson (L-Shape)": [("trainable_variable_1", 0.1, 1.0)],
+        "2D Poisson (Disk)": [("trainable_variable_1", 0.1, 1.0)],
     }
     INVERSE_AUTO_OBS = {
         "1D Diffusion-Reaction (Inverse)": [
             (os.path.join(REFERENCE_DATA_DIR, "1D", "diffusion_reaction", "CA_obs.txt"), 0, 100.0),
             (os.path.join(REFERENCE_DATA_DIR, "1D", "diffusion_reaction", "CB_obs.txt"), 1, 100.0),
+        ],
+        # No bundled file -- there's no default "the" |h| measurement file
+        # the way Diffusion-Reaction has CA_obs.txt/CB_obs.txt, but the
+        # measured quantity for this template is always |h|, never a raw
+        # output, so the output-selector default is still worth seeding:
+        # the user only has to Browse to a file, not also discover and
+        # turn on "Custom...". The "+1e-12" inside the sqrt isn't cosmetic:
+        # d/du sqrt(u**2+v**2) = u/sqrt(u**2+v**2) is singular at u=v=0, and
+        # a freshly-initialized 2-output network genuinely can (and, in
+        # testing, reliably did on small networks) land exactly on that
+        # point at some collocation points early in training, blowing the
+        # gradient up to inf/nan and poisoning every other loss term for
+        # the rest of the run. The epsilon is far below any physically
+        # meaningful |h| for this problem (h ranges roughly 0-2), so it
+        # doesn't change what's being fit -- it only removes the
+        # zero-crossing singularity. A user who edits this expression by
+        # hand takes that risk back on knowingly.
+        "1D Schrödinger": [("", 0, 100.0, "sqrt(u**2+v**2+1e-12)")],
+        "2D Poisson (L-Shape)": [
+            (os.path.join(REFERENCE_DATA_DIR, "2D", "poisson_lshape", "u_obs.txt"), 0, 100.0),
+        ],
+        "2D Poisson (Disk)": [
+            (os.path.join(REFERENCE_DATA_DIR, "2D", "poisson_disk", "u_obs.txt"), 0, 100.0),
         ],
     }
 
@@ -4774,12 +4895,13 @@ class MainWindow(QMainWindow):
         from that template's list, replacing whatever was there (mirrors
         _populate_locked_bc_entries_from_legacy's "template output
         replaces prior panel state" convention). Only runs when the
-        current template actually has an entry -- a template with a
-        single unknown keeps using whatever the user already has in the
-        (always-present) primary row, exactly as before this method
-        existed. Inverse OFF is a no-op: the rows are left as they are
-        (same as every other Inverse-only panel), since nothing here needs
-        undoing the way a PDE-box text substitution does."""
+        current template actually has an entry -- a template with no
+        known true value / default observed-data setup keeps using
+        whatever the user already has in the (always-present) primary
+        row, exactly as before this method existed. Inverse OFF is a
+        no-op: the rows are left as they are (same as every other
+        Inverse-only panel), since nothing here needs undoing the way a
+        PDE-box text substitution does."""
         if not is_inv:
             return
         template = getattr(self, '_current_template', '')
@@ -4788,15 +4910,18 @@ class MainWindow(QMainWindow):
             for r in list(self.inv_var_rows):
                 r['widget'].deleteLater()
             self.inv_var_rows.clear()
-            for i, (name, init) in enumerate(var_list):
-                self._add_inverse_var_row(name=name, init=init, is_primary=(i == 0))
+            for i, (name, init, true) in enumerate(var_list):
+                self._add_inverse_var_row(name=name, init=init, true_value=true, is_primary=(i == 0))
         obs_list = self.INVERSE_AUTO_OBS.get(template)
         if obs_list:
             for r in list(self.inv_data_rows):
                 r['widget'].deleteLater()
             self.inv_data_rows.clear()
-            for i, (path, output_idx, weight) in enumerate(obs_list):
-                self._add_inverse_data_row(path=path, output_idx=output_idx, weight=weight, is_primary=(i == 0))
+            for i, entry in enumerate(obs_list):
+                path, output_idx, weight = entry[0], entry[1], entry[2]
+                custom_expr = entry[3] if len(entry) > 3 else ""
+                self._add_inverse_data_row(path=path, output_idx=output_idx, weight=weight,
+                                            custom_expr=custom_expr, is_primary=(i == 0))
 
     def _sync_inverse_pde_substitution(self, is_inv):
         """Inverse ON: replace the current template's known constants with

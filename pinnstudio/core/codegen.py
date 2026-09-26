@@ -73,12 +73,18 @@ def _simplify_pde_expr(expr):
 
 def _parse_inverse_variables(config):
     """Parse config.inverse_variables_json into an ordered list of
-    (name, init) tuples, one per trainable variable (variable 1 first).
-    Falls back to a single entry built from the legacy
-    inverse_param_name/inverse_param_init fields when the JSON is empty or
-    unparseable -- covers configs saved before this feature existed, and
-    stays perfectly single-variable-compatible: one variable named
-    inverse_param_name in that case, exactly like before."""
+    (name, init, true) triples, one per trainable variable (variable 1
+    first). `true` is the known ground-truth value for a built-in template
+    whose PDE constant was substituted for this variable (see
+    main_window.py's INVERSE_AUTO_VARS) -- None when not known (a manually
+    added variable, or a config saved before this field existed), in which
+    case downstream code (the parameter-convergence plot) simply skips
+    drawing a true-value reference line for that variable. Falls back to a
+    single entry built from the legacy inverse_param_name/inverse_param_init
+    fields when the JSON is empty or unparseable -- covers configs saved
+    before this feature existed, and stays perfectly single-variable-
+    compatible: one variable named inverse_param_name, true=None, in that
+    case."""
     import json
     raw = getattr(config, "inverse_variables_json", "") or ""
     variables = []
@@ -95,20 +101,37 @@ def _parse_inverse_variables(config):
                 init = float((v or {}).get("init", 1.0))
             except (TypeError, ValueError):
                 init = 1.0
-            variables.append((name, init))
+            _true_raw = (v or {}).get("true", None)
+            try:
+                true = float(_true_raw) if _true_raw is not None else None
+            except (TypeError, ValueError):
+                true = None
+            variables.append((name, init, true))
     if not variables:
         variables.append((config.inverse_param_name or "trainable_variable_1",
-                           config.inverse_param_init))
+                           config.inverse_param_init, None))
     return variables
 
 def _parse_inverse_obs_files(config):
     """Parse config.inverse_obs_files_json into an ordered list of
-    {"path", "output_idx", "weight"} dicts, one per measured-data file
-    (file 1 first). Falls back to a single entry built from the legacy
-    inverse_data_file/inverse_obs_output_idx/loss_weight_obs fields when
-    the JSON is empty or unparseable -- covers configs saved before this
-    feature existed, and stays perfectly single-file-compatible: one
-    observation file/constraint/weight in that case, exactly like
+    {"path", "output_idx", "weight", "custom_expr"} dicts, one per
+    measured-data file (file 1 first). "custom_expr" is non-empty only
+    when the measured data corresponds to a *derived* field the raw
+    network outputs don't have as a single column -- e.g. 1D
+    Schrodinger's data is the magnitude |h| = sqrt(u**2+v**2), not
+    output u or v alone. When set, the generated script matches this
+    file against that expression (evaluated against ALL of this
+    problem's outputs by name, via dde.icbc.PointSetOperatorBC) instead
+    of a single output column (dde.icbc.PointSetBC(component=output_idx))
+    -- mirrors the existing Results-panel "Custom..." plot-field option
+    (see main_window.py's plot_custom_expr / codegen.py's
+    _extract_plot_field), just for the *measured-data* side of an
+    Inverse problem instead of the plotted solution. Falls back to a
+    single entry built from the legacy inverse_data_file/
+    inverse_obs_output_idx/loss_weight_obs fields when the JSON is empty
+    or unparseable -- covers configs saved before this feature existed,
+    and stays perfectly single-file-compatible: one observation file/
+    constraint/weight, no custom expression, in that case, exactly like
     before. Unlike trainable variables, every entry here is *data*, not
     a Python identifier, so it needs no codegen-time unrolling -- the
     whole list is embedded as one repr() literal and looped over at
@@ -132,13 +155,16 @@ def _parse_inverse_obs_files(config):
                 weight = float(f.get("weight", 100.0))
             except (TypeError, ValueError):
                 weight = 100.0
+            custom_expr = str(f.get("custom_expr") or "").strip()
             if path:
-                files.append({"path": path, "output_idx": output_idx, "weight": weight})
+                files.append({"path": path, "output_idx": output_idx,
+                               "weight": weight, "custom_expr": custom_expr})
     if not files:
         files.append({
             "path": config.inverse_data_file or "",
             "output_idx": getattr(config, "inverse_obs_output_idx", 0),
             "weight": config.loss_weight_obs,
+            "custom_expr": "",
         })
     return files
 
@@ -293,12 +319,12 @@ def generate_script(config):
     # none of that has to be unrolled.
     _inv_vars_parsed = _parse_inverse_variables(config)
     _inv_var_def_lines = []
-    for _iv_name, _iv_init in _inv_vars_parsed:
+    for _iv_name, _iv_init, _iv_true in _inv_vars_parsed:
         _inv_var_def_lines.append(f"    {_iv_name} = dde.Variable({_iv_init})")
         _inv_var_def_lines.append(
             f'    print(f"Inverse PINN: inferring {_iv_name}, init = {_iv_init}")')
     _inv_var_defs_code = "\n".join(_inv_var_def_lines)
-    _inv_var_list_literal = "[" + ", ".join(n for n, _ in _inv_vars_parsed) + "]"
+    _inv_var_list_literal = "[" + ", ".join(n for n, _i, _t in _inv_vars_parsed) + "]"
     # Recorded into model_config.json below so a later Model Restore knows
     # this run was Inverse and exactly which trainable variables it had --
     # restoring an Inverse checkpoint needs to recompile with the same
@@ -308,10 +334,18 @@ def generate_script(config):
     # trainable variable's actual value, only the network weights).
     # Empty list for Forward configs, where this is irrelevant.
     _mc_inv_vars_literal = (
-        repr([{"name": n, "init": i} for n, i in _inv_vars_parsed])
+        repr([{"name": n, "init": i} for n, i, _t in _inv_vars_parsed])
         if config.problem_type == "Inverse" else "[]"
     )
-    _inv_var_names_literal = repr([n for n, _ in _inv_vars_parsed])
+    _inv_var_names_literal = repr([n for n, _i, _t in _inv_vars_parsed])
+    # One entry per trainable variable, the known ground-truth value for a
+    # built-in template's auto-substituted PDE constant (see
+    # main_window.py's INVERSE_AUTO_VARS), or None for a manually added
+    # variable/legacy config with no known true value -- used only by the
+    # parameter-convergence plot below to optionally draw a dashed
+    # reference line at the true value, alongside the existing dashed
+    # line at the run's own final inferred value.
+    _inv_var_true_literal = repr([t for _n, _i, t in _inv_vars_parsed])
 
     # Inverse: one or more measured-data files, each with its own output
     # column and its own loss weight (a separate observation loss term
@@ -567,6 +601,7 @@ if _problem_type == "Inverse":
 {_inv_var_defs_code}
     _inv_vars = {_inv_var_list_literal}
     _inv_var_names = {_inv_var_names_literal}
+    _inv_var_trues = {_inv_var_true_literal}
 
     def _load_data(fpath):
         try:
@@ -578,20 +613,52 @@ if _problem_type == "Inverse":
                 arr = np.loadtxt(fpath, delimiter=",")
         return arr
 
+    # Number of leading coordinate columns in a measured-data file (before
+    # its value column): x/y/z plus a time column, EXCEPT for a steady-state
+    # problem, which has no time axis at all -- same distinction
+    # _n_coord_cols_bc already makes for BC-panel points below. Getting this
+    # wrong for a steady 2D/3D template (assuming a "t" column that doesn't
+    # exist) would silently read the value column as coordinates and vice
+    # versa instead of raising, so this is computed generically rather than
+    # copying the old is_3d/is_2d-only ladder that never checked _is_steady.
+    _n_obs_coord_cols = ((3 if _is_3d else (2 if _is_2d else 1)) if _is_steady
+                         else (4 if _is_3d else (3 if _is_2d else 2)))
+
+    def _make_obs_func(_expr, _onames):
+        # Builds a dde.icbc.PointSetOperatorBC-compatible func(inputs,
+        # outputs, X) for a measured-data file whose value is a DERIVED
+        # field (e.g. 1D Schrodinger's |h| = sqrt(u**2+v**2)) rather than
+        # a single raw output column -- same expression syntax as the
+        # Results panel's "Custom..." plot field (_extract_plot_field
+        # below), but evaluated on live torch tensors during training
+        # instead of a numpy array after predict(), so it uses real torch
+        # ops (gradient-safe) rather than np.* (which errors or silently
+        # detaches on a tensor that requires grad).
+        _code_obs = compile(_expr, "<obs_custom_field>", "eval")
+        def _f(inputs, outputs, X):
+            _ns_obs = {{
+                "sin": torch.sin, "cos": torch.cos, "tan": torch.tan,
+                "sinh": torch.sinh, "cosh": torch.cosh, "tanh": torch.tanh,
+                "arcsin": torch.arcsin, "arccos": torch.arccos, "arctan": torch.arctan,
+                "exp": torch.exp, "log": torch.log, "log10": torch.log10,
+                "sqrt": torch.sqrt, "abs": torch.abs, "ceil": torch.ceil,
+                "floor": torch.floor, "pi": np.pi, "torch": torch,
+            }}
+            for _oi_ob, _on_ob in enumerate(_onames):
+                _ns_obs[_on_ob.strip()] = outputs[:, _oi_ob:_oi_ob + 1]
+            _r_ob = eval(_code_obs, _ns_obs)
+            return _r_ob if _r_ob.dim() == 2 else _r_ob.reshape(-1, 1)
+        return _f
+
+    _obs_output_names_list = "{config.output_names}".split(",")
     _obs_files = {_obs_files_literal}
-    _obs_entries = []  # list of (xt, u, output_idx, weight), one per measured-data file
+    _obs_entries = []  # list of (xt, u, output_idx, weight, custom_expr), one per measured-data file
     for _of in _obs_files:
         _of_data = _load_data(_of["path"])
-        if _is_3d:
-            _of_xt = _of_data[:, 0:4]  # x, y, z, t
-            _of_u  = _of_data[:, 4:5]  # u
-        elif _is_2d:
-            _of_xt = _of_data[:, 0:3]  # x, y, t
-            _of_u  = _of_data[:, 3:4]  # u
-        else:
-            _of_xt = _of_data[:, 0:2]  # x, t
-            _of_u  = _of_data[:, 2:3]  # u
-        _obs_entries.append((_of_xt, _of_u, _of.get("output_idx", 0), _of.get("weight", 100.0)))
+        _of_xt = _of_data[:, 0:_n_obs_coord_cols]
+        _of_u  = _of_data[:, _n_obs_coord_cols:_n_obs_coord_cols + 1]
+        _obs_entries.append((_of_xt, _of_u, _of.get("output_idx", 0),
+                              _of.get("weight", 100.0), _of.get("custom_expr", "")))
         print(f"Loaded {{len(_of_xt)}} observation points from {{_of['path']}} (output {{_of.get('output_idx', 0)}}, weight {{_of.get('weight', 100.0)}})")
     # Kept as aliases to the first measured-data file's points, in case
     # anything downstream still expects the old single-file names.
@@ -1406,7 +1473,11 @@ print(f"Loss weights: {{_multi_weights}} ({{len(_multi_weights)}} terms for {{le
 # dde.data.TimePDE -- geomtime is already just an alias for geom in that
 # case (see the geometry-construction section above).
 if _problem_type == "Inverse":
-    _obs_bcs = [dde.icbc.PointSetBC(_e[0], _e[1], component=_e[2]) for _e in _obs_entries]
+    _obs_bcs = [
+        dde.icbc.PointSetOperatorBC(_e[0], _e[1], _make_obs_func(_e[4], _obs_output_names_list))
+        if _e[4] else dde.icbc.PointSetBC(_e[0], _e[1], component=_e[2])
+        for _e in _obs_entries
+    ]
     _constraints.extend(_obs_bcs)
     _obs_anchors = np.vstack([_e[0] for _e in _obs_entries]) if _obs_entries else None
     if _is_steady:
@@ -1931,6 +2002,9 @@ for _pval in _param_values:
                         _ax.plot(_ph_iters_arr, _vvals, color="#69db7c", linewidth=1.5)
                         _ax.set_ylabel(_vname)
                     _ax.axhline(y=_final_val, color="#ff8787", linestyle="--", alpha=0.5, label=f"Final = {{_final_val:.6f}}")
+                    _true_val = _inv_var_trues[_vi] if _vi < len(_inv_var_trues) else None
+                    if _true_val is not None:
+                        _ax.axhline(y=_true_val, color="#ffd43b", linestyle="--", alpha=0.8, label=f"True = {{_true_val:.6f}}")
                     _ax.set_xlabel("Iteration")
                     _ax.set_title(f"Inferred Parameter: {{_vname}}")
                     _ax.legend(); _ax.grid(True, alpha=0.3)
@@ -4553,9 +4627,9 @@ if save_dir:
 
     if is_inverse:
         inv_lines = []
-        for name, init in inv_vars_parsed:
+        for name, init, _true in inv_vars_parsed:
             inv_lines.append(f"{name} = dde.Variable({init})")
-        inv_lines.append("inv_vars = [" + ", ".join(n for n, _ in inv_vars_parsed) + "]")
+        inv_lines.append("inv_vars = [" + ", ".join(n for n, _i, _t in inv_vars_parsed) + "]")
         inv_lines.append('''
 def _load_obs_data(path):
     try:
@@ -4566,17 +4640,54 @@ def _load_obs_data(path):
         except Exception:
             return np.loadtxt(path, delimiter=",")
 ''')
-        obs_lines = ["obs_entries = []  # (xt, u, output_idx, weight), one per measured-data file"]
-        for of in obs_files_parsed:
+        # Number of leading coordinate columns in a measured-data file --
+        # x/y/z plus time, EXCEPT for a steady-state problem, which has no
+        # time axis at all (same distinction the BC-panel machinery above
+        # already makes). The pre-existing is_3d/is_2d-only ladder never
+        # checked is_steady, so a steady 2D/3D template's observed-data
+        # file (x, y, u -- no time column) would have been sliced as if
+        # its value column were "t" and there were no value column at
+        # all. Known at generation time here, so this resolves to a
+        # literal slice, not a runtime branch.
+        _n_obs_cols = (3 if is_3d else (2 if is_2d else 1)) if is_steady else (4 if is_3d else (3 if is_2d else 2))
+        obs_lines = ["obs_entries = []  # (xt, u, output_idx, weight, custom_expr), one per measured-data file"]
+        for _oi_f, of in enumerate(obs_files_parsed):
             obs_lines.append(f"_of_data = _load_obs_data(r\"{of['path']}\")")
-            if is_3d:
-                obs_lines.append("_of_xt, _of_u = _of_data[:, 0:4], _of_data[:, 4:5]")
-            elif is_2d:
-                obs_lines.append("_of_xt, _of_u = _of_data[:, 0:3], _of_data[:, 3:4]")
+            obs_lines.append(f"_of_xt, _of_u = _of_data[:, 0:{_n_obs_cols}], _of_data[:, {_n_obs_cols}:{_n_obs_cols + 1}]")
+            obs_lines.append(f"obs_entries.append((_of_xt, _of_u, {of['output_idx']}, {of['weight']}, {of.get('custom_expr', '')!r}))")
+            if of.get('custom_expr'):
+                # This measured-data file's value is a DERIVED field (e.g.
+                # 1D Schrodinger's |h| = sqrt(u**2+v**2)), not a single raw
+                # output column -- same expression syntax as the Results
+                # panel's "Custom..." plot field, evaluated here on live
+                # torch tensors (gradient-safe) rather than a numpy array
+                # after predict(), via dde.icbc.PointSetOperatorBC instead
+                # of PointSetBC(component=...).
+                _bindings = ", ".join(f'"{n.strip()}": outputs[:, {_i}:{_i + 1}]' for _i, n in enumerate(out_names))
+                obs_lines.append(f'''def _obs_func_{_oi_f}(inputs, outputs, X):
+    _ns_obs = {{"sin": torch.sin, "cos": torch.cos, "tan": torch.tan,
+                "sinh": torch.sinh, "cosh": torch.cosh, "tanh": torch.tanh,
+                "arcsin": torch.arcsin, "arccos": torch.arccos, "arctan": torch.arctan,
+                "exp": torch.exp, "log": torch.log, "log10": torch.log10,
+                "sqrt": torch.sqrt, "abs": torch.abs, "ceil": torch.ceil,
+                "floor": torch.floor, "pi": np.pi, "torch": torch,
+                {_bindings}}}
+    _r = eval({of['custom_expr']!r}, _ns_obs)
+    return _r if _r.dim() == 2 else _r.reshape(-1, 1)''')
+        # Built as literal per-entry statements (not a generic runtime
+        # dispatch) so the exported script stays plain, readable code --
+        # matching this generator's own "resolve everything at export
+        # time" convention -- rather than looking up each _obs_func_N by
+        # constructed name at runtime.
+        obs_lines.append("obs_bcs = []")
+        for _oi_f, of in enumerate(obs_files_parsed):
+            if of.get('custom_expr'):
+                obs_lines.append(f"obs_bcs.append(dde.icbc.PointSetOperatorBC("
+                                  f"obs_entries[{_oi_f}][0], obs_entries[{_oi_f}][1], _obs_func_{_oi_f}))")
             else:
-                obs_lines.append("_of_xt, _of_u = _of_data[:, 0:2], _of_data[:, 2:3]")
-            obs_lines.append(f"obs_entries.append((_of_xt, _of_u, {of['output_idx']}, {of['weight']}))")
-        obs_lines.append("obs_bcs = [dde.icbc.PointSetBC(e[0], e[1], component=e[2]) for e in obs_entries]")
+                obs_lines.append(f"obs_bcs.append(dde.icbc.PointSetBC("
+                                  f"obs_entries[{_oi_f}][0], obs_entries[{_oi_f}][1], "
+                                  f"component=obs_entries[{_oi_f}][2]))")
         obs_lines.append("obs_anchors = np.vstack([e[0] for e in obs_entries]) if obs_entries else None")
         parts.append("\n".join(inv_lines))
         parts.append("\n".join(obs_lines))
@@ -4903,13 +5014,17 @@ with open(var_history_path, "r") as f:
         for vi, v in enumerate(vals):
             param_vals[vi].append(v)
 param_iters = np.array(param_iters)
+_inv_true_vals = {[t for _n, _i, t in inv_vars_parsed]!r}
 fig, axes = plt.subplots(len(inv_vars), 1, figsize=(6, 3.2 * len(inv_vars)), squeeze=False)
-for vi, name in enumerate({[n for n, _ in inv_vars_parsed]!r}):
+for vi, name in enumerate({[n for n, _i, _t in inv_vars_parsed]!r}):
     ax = axes[vi][0]
     vals = np.array(param_vals[vi])
     final_val = vals[-1] if len(vals) else float("nan")
     ax.plot(param_iters, vals, color="#69db7c", linewidth=1.5)
     ax.axhline(y=final_val, color="#ff8787", linestyle="--", alpha=0.5, label=f"Final = {{final_val:.6f}}")
+    true_val = _inv_true_vals[vi] if vi < len(_inv_true_vals) else None
+    if true_val is not None:
+        ax.axhline(y=true_val, color="#ffd43b", linestyle="--", alpha=0.8, label=f"True = {{true_val:.6f}}")
     ax.set_xlabel("Iteration"); ax.set_ylabel(name)
     ax.set_title(f"Inferred Parameter: {{name}}")
     ax.legend(); ax.grid(True, alpha=0.3)
@@ -5192,18 +5307,56 @@ for tv, fp in ea_files:
     d = np.loadtxt(fp)
     if d.ndim == 1:
         d = d.reshape(1, -1)''']
+        # Same distinction as _n_obs_coord_cols/_n_coord_cols_bc elsewhere in
+        # this file: a steady-state reference file (PINNStudio's own
+        # "solution.txt", written by _auto_configure_ea's is_steady branch
+        # in main_window.py) has no time column at all -- x,y,u for 2D /
+        # x,y,z,u for 3D -- one fewer column than the time-dependent layout,
+        # with every column after the coordinates shifted down by one.
+        # Getting this wrong doesn't raise anywhere near the mistake: it
+        # reads a steady 2D file's u column as if it were a time column and
+        # crashes with an out-of-bounds IndexError on the (nonexistent)
+        # column after it instead.
         if is_3d:
-            ea_lines.append('''    idx = np.lexsort((d[:, 2], d[:, 1], d[:, 0]))
+            if is_steady:
+                ea_lines.append('''    idx = np.lexsort((d[:, 2], d[:, 1], d[:, 0]))
+    ea_x_refs.append(d[idx, 0]); ea_y_refs.append(d[idx, 1]); ea_z_refs.append(d[idx, 2])
+    ea_u_refs.append(d[idx, 3]); ea_times.append(float(tv))''')
+            else:
+                ea_lines.append('''    idx = np.lexsort((d[:, 2], d[:, 1], d[:, 0]))
     ea_x_refs.append(d[idx, 0]); ea_y_refs.append(d[idx, 1]); ea_z_refs.append(d[idx, 2])
     ea_u_refs.append(d[idx, 4]); ea_times.append(float(d[0, 3]))''')
         elif is_2d:
-            ea_lines.append('''    idx = np.lexsort((d[:, 1], d[:, 0]))
+            if is_steady:
+                ea_lines.append('''    idx = np.lexsort((d[:, 1], d[:, 0]))
+    ea_x_refs.append(d[idx, 0]); ea_y_refs.append(d[idx, 1]); ea_z_refs.append(np.zeros_like(d[idx, 0]))
+    ea_u_refs.append(d[idx, 2]); ea_times.append(float(tv))''')
+            else:
+                ea_lines.append('''    idx = np.lexsort((d[:, 1], d[:, 0]))
     ea_x_refs.append(d[idx, 0]); ea_y_refs.append(d[idx, 1]); ea_z_refs.append(np.zeros_like(d[idx, 0]))
     ea_u_refs.append(d[idx, 3]); ea_times.append(float(d[0, 2]))''')
         else:
-            ea_lines.append('''    idx = np.argsort(d[:, 0])
+            if is_steady:
+                ea_lines.append('''    idx = np.argsort(d[:, 0])
+    ea_x_refs.append(d[idx, 0]); ea_y_refs.append(np.zeros_like(d[idx, 0])); ea_z_refs.append(np.zeros_like(d[idx, 0]))
+    ea_u_refs.append(d[idx, 1]); ea_times.append(float(tv))''')
+            else:
+                ea_lines.append('''    idx = np.argsort(d[:, 0])
     ea_x_refs.append(d[idx, 0]); ea_y_refs.append(np.zeros_like(d[idx, 0])); ea_z_refs.append(np.zeros_like(d[idx, 0]))
     ea_u_refs.append(d[idx, 2]); ea_times.append(float(tv))''')
+        # Drop reference points with no solution value (NaN) -- e.g. grid
+        # points outside a non-rectangular geometry like L-Shape's missing
+        # quadrant or Disk's bounding-box corners. A no-op for reference
+        # files that don't have any (the usual case).
+        ea_lines.append('''for _ei in range(len(ea_u_refs)):
+    _ea_valid = ~np.isnan(ea_u_refs[_ei])
+    if not _ea_valid.all():
+        _n_dropped = int((~_ea_valid).sum())
+        ea_x_refs[_ei] = ea_x_refs[_ei][_ea_valid]
+        ea_y_refs[_ei] = ea_y_refs[_ei][_ea_valid]
+        ea_z_refs[_ei] = ea_z_refs[_ei][_ea_valid]
+        ea_u_refs[_ei] = ea_u_refs[_ei][_ea_valid]
+        print(f"  Dropped {_n_dropped} NaN reference point(s) outside the geometry")''')
         ea_lines.append('''order = np.argsort(ea_times)
 ea_times  = [ea_times[i] for i in order]
 ea_x_refs = [ea_x_refs[i] for i in order]
@@ -5234,14 +5387,31 @@ for i, tv in enumerate(ea_times):''')
         else:
             ea_lines.append("ea_u_pinns = []")
             ea_lines.append("for i, tv in enumerate(ea_times):")
+            # A steady-state model was trained on (x[, y[, z]]) alone -- no
+            # time input at all -- so predict() must not be fed a time
+            # column here either (same distinction as the ground-truth
+            # loader above); doing so is what produced the earlier
+            # "mat1 and mat2 shapes cannot be multiplied" crash.
             if is_3d:
-                ea_lines.append(f'''    xt = np.column_stack([ea_x_refs[i], ea_y_refs[i], ea_z_refs[i], np.full_like(ea_x_refs[i], tv)])
+                if is_steady:
+                    ea_lines.append(f'''    xt = np.column_stack([ea_x_refs[i], ea_y_refs[i], ea_z_refs[i]])
+    ea_u_pinns.append(model.predict(xt)[:, {plot_idx}].flatten())''')
+                else:
+                    ea_lines.append(f'''    xt = np.column_stack([ea_x_refs[i], ea_y_refs[i], ea_z_refs[i], np.full_like(ea_x_refs[i], tv)])
     ea_u_pinns.append(model.predict(xt)[:, {plot_idx}].flatten())''')
             elif is_2d:
-                ea_lines.append(f'''    xt = np.column_stack([ea_x_refs[i], ea_y_refs[i], np.full_like(ea_x_refs[i], tv)])
+                if is_steady:
+                    ea_lines.append(f'''    xt = np.column_stack([ea_x_refs[i], ea_y_refs[i]])
+    ea_u_pinns.append(model.predict(xt)[:, {plot_idx}].flatten())''')
+                else:
+                    ea_lines.append(f'''    xt = np.column_stack([ea_x_refs[i], ea_y_refs[i], np.full_like(ea_x_refs[i], tv)])
     ea_u_pinns.append(model.predict(xt)[:, {plot_idx}].flatten())''')
             else:
-                ea_lines.append(f'''    xt = np.column_stack([ea_x_refs[i], np.full_like(ea_x_refs[i], tv)])
+                if is_steady:
+                    ea_lines.append(f'''    xt = ea_x_refs[i].reshape(-1, 1)
+    ea_u_pinns.append(model.predict(xt)[:, {plot_idx}].flatten())''')
+                else:
+                    ea_lines.append(f'''    xt = np.column_stack([ea_x_refs[i], np.full_like(ea_x_refs[i], tv)])
     ea_u_pinns.append(model.predict(xt)[:, {plot_idx}].flatten())''')
 
         ea_lines.append('''
@@ -5342,7 +5512,7 @@ fig, axes = plt.subplots(n_t, 3, figsize=(15, 4 * n_t), squeeze=False)
 fig.suptitle("PINN vs Ground Truth -- 2D Heatmaps", fontsize=13, fontweight="bold")
 for i, tv in enumerate(ea_times):
     tv_r, l2, mse, mx, ma = ea_metrics[i]
-    xyt_grid = np.column_stack([Xg_ea.ravel(), Yg_ea.ravel(), np.full(Xg_ea.size, tv)])
+    xyt_grid = np.column_stack([Xg_ea.ravel(), Yg_ea.ravel()]{"" if is_steady else " + [np.full(Xg_ea.size, tv)]"})
     u_pinn_grid = model.predict(xyt_grid)[:, {plot_idx}].reshape(res_ea, res_ea)
     u_ref_grid = griddata(np.column_stack([ea_x_refs[i], ea_y_refs[i]]), ea_u_refs[i], (Xg_ea, Yg_ea), method="linear", fill_value=0.0)
     u_err_grid = np.abs(u_pinn_grid - u_ref_grid)
