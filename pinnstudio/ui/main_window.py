@@ -6803,7 +6803,7 @@ print("ERROR_ANALYSIS_DONE")
             # Set domain
             self.x_min.setValue(t['x_min']); self.x_max.setValue(t['x_max'])
             self.y_min.setValue(t['y_min']); self.y_max.setValue(t['y_max'])
-            if 't_max' in t: self.t_max.setValue(t['t_max'])
+            self.t_max.setValue(t.get('t_max', 1.0))
             self._current_template_forward_tmax = t.get('t_max')
             self._current_template_inverse_tmax = t.get('inverse_t_max')
             if self._current_template_inverse_tmax is not None and self.radio_inverse.isChecked():
@@ -6812,8 +6812,7 @@ print("ERROR_ANALYSIS_DONE")
             self.num_domain.setValue(t['num_domain'])
             self.num_boundary.setValue(t['num_boundary'])
             self.num_initial.setValue(t['num_initial'])
-            if 'num_test' in t:
-                self.num_test.setValue(t['num_test'])
+            self.num_test.setValue(t.get('num_test', 1000))
             # Set network
             self.layers_spin.setValue(t['layers'])
             self.neurons_spin.setValue(t['neurons'])
@@ -7037,7 +7036,7 @@ print("ERROR_ANALYSIS_DONE")
             self.x_min.setValue(t['x_min']); self.x_max.setValue(t['x_max'])
             self.y_min.setValue(t['y_min']); self.y_max.setValue(t['y_max'])
             self.z_min.setValue(t['z_min']); self.z_max.setValue(t['z_max'])
-            if 't_max' in t: self.t_max.setValue(t['t_max'])
+            self.t_max.setValue(t.get('t_max', 1.0))
             self._current_template_forward_tmax = t.get('t_max')
             self._current_template_inverse_tmax = t.get('inverse_t_max')
             if self._current_template_inverse_tmax is not None and self.radio_inverse.isChecked():
@@ -7045,8 +7044,7 @@ print("ERROR_ANALYSIS_DONE")
             self.num_domain.setValue(t['num_domain'])
             self.num_boundary.setValue(t['num_boundary'])
             self.num_initial.setValue(t['num_initial'])
-            if 'num_test' in t:
-                self.num_test.setValue(t['num_test'])
+            self.num_test.setValue(t.get('num_test', 1000))
             self.layers_spin.setValue(t['layers'])
             self.neurons_spin.setValue(t['neurons'])
             self.iter1_spin.setValue(t['iterations'])
@@ -7346,8 +7344,7 @@ print("ERROR_ANALYSIS_DONE")
         if 'x_min' in t:
             self.x_min.setValue(t['x_min'])
             self.x_max.setValue(t['x_max'])
-        if 't_max' in t:
-            self.t_max.setValue(t['t_max'])
+        self.t_max.setValue(t.get('t_max', 1.0))
 
         # Set periodic BC
         if t.get('periodic_bc', False):
