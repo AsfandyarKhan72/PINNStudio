@@ -2695,6 +2695,15 @@ for _pval in _param_values:
                     _xg_ea = np.linspace({config.x_min}, {config.x_max}, _res_ea)
                     _yg_ea = np.linspace({config.y_min}, {config.y_max}, _res_ea)
                     _Xg_ea, _Yg_ea = np.meshgrid(_xg_ea, _yg_ea)
+                    # Outside the shape's own boundary (only differs from
+                    # the bbox for Disk/Ellipse/Triangle/Polygon), mask the
+                    # grid to NaN so neither the PINN prediction nor the
+                    # griddata-interpolated ground truth shows fabricated
+                    # values there -- griddata's Delaunay triangulation
+                    # otherwise happily interpolates straight across a
+                    # concave notch (e.g. the L-Shape's missing quadrant),
+                    # matching the same masking the main solution plot uses.
+                    _inside_2d_ea = geom.inside(np.column_stack([_Xg_ea.ravel(), _Yg_ea.ravel()])).reshape(_res_ea, _res_ea)
                     from scipy.interpolate import griddata as _gd
                     for _ei, _ea_tv in enumerate(_ea_times):
                         _ea_tv_r, _l2, _mse, _mx, _ma = _ea_metrics[_ei]
@@ -2702,14 +2711,16 @@ for _pval in _param_values:
                         _xy_grid = (np.column_stack([_Xg_ea.ravel(), _Yg_ea.ravel()]) if _is_steady else
                                     np.column_stack([_Xg_ea.ravel(), _Yg_ea.ravel(), np.full(_Xg_ea.size, _ea_tv)]))
                         _u_pinn_grid = model.predict(_xy_grid)[:, {config.plot_output_idx}].reshape(_res_ea, _res_ea)
+                        _u_pinn_grid = np.where(_inside_2d_ea, _u_pinn_grid, np.nan)
                         # FEM interpolated onto same grid
                         _u_fem_grid = _gd(
                             np.column_stack([_ea_x_refs[_ei], _ea_y_refs[_ei]]),
                             _ea_u_refs[_ei],
                             (_Xg_ea, _Yg_ea), method='linear', fill_value=0.0)
+                        _u_fem_grid = np.where(_inside_2d_ea, _u_fem_grid, np.nan)
                         _u_err_grid = np.abs(_u_pinn_grid - _u_fem_grid)
-                        _vmin_ea = min(_u_pinn_grid.min(), _u_fem_grid.min())
-                        _vmax_ea = max(_u_pinn_grid.max(), _u_fem_grid.max())
+                        _vmin_ea = np.nanmin([_u_pinn_grid, _u_fem_grid])
+                        _vmax_ea = np.nanmax([_u_pinn_grid, _u_fem_grid])
                         # Column 0: PINN
                         im0 = axes[_ei][0].contourf(_Xg_ea, _Yg_ea, _u_pinn_grid, levels=40,
                                                      cmap='{config.plot_colormap}', vmin=_vmin_ea, vmax=_vmax_ea)
