@@ -3743,7 +3743,7 @@ if {config.time_adaptive}:
                     _ea_xt = np.column_stack([_ea_xf, _ea_yf, np.full_like(_ea_xf, _ea_tv)])
                 else:
                     _ea_xt = np.column_stack([_ea_xf, np.full_like(_ea_xf, _ea_tv)])
-                _ea_u_pinns[_ei] = _step_model.predict(_ea_xt)[:, 0].flatten()
+                _ea_u_pinns[_ei] = _extract_plot_field(_step_model.predict(_ea_xt)).flatten()
                 print(f"    Predicted at t={{_ea_tv:.4f}}: {{len(_ea_xf)}} points")
 
         for _ei in range(_ea_n_t):
@@ -3857,7 +3857,7 @@ if {config.time_adaptive}:
                             else:
                                 _sm2.compile("adam", lr=0.001, loss=_sc2.get("loss_type","{config.loss_type}"))
                             _sm2.restore(_spt2, verbose=0)
-                            _u_pinn_grid = _sm2.predict(_xyt_grid)[:, 0].reshape(_res_ea, _res_ea)
+                            _u_pinn_grid = _extract_plot_field(_sm2.predict(_xyt_grid)).reshape(_res_ea, _res_ea)
                         else:
                             _u_pinn_grid = np.zeros((_res_ea, _res_ea))
                     else:
