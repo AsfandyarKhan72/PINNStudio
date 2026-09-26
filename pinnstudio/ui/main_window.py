@@ -4062,6 +4062,7 @@ class MainWindow(QMainWindow):
             plot_linewidth=self._plot_viz_settings.get('linewidth', 2.0),
             plot_fps=self._plot_viz_settings.get('fps', 10),
             plot_n_2d_snapshots=self._plot_viz_settings.get('n_2d_snapshots', 2),
+            plot_swap_xt=self._plot_viz_settings.get('swap_xt', True),
             ea_files=repr(self._ea_settings.get('files', [])) if getattr(self, '_ea_settings', None) else "[]",
             ea_do_line=self._ea_settings.get('do_line', True) if getattr(self, '_ea_settings', None) else True,
             ea_do_surface=self._ea_settings.get('do_surface', True) if getattr(self, '_ea_settings', None) else True,
@@ -4688,6 +4689,7 @@ class MainWindow(QMainWindow):
             "linewidth": config.plot_linewidth,
             "n_2d_snapshots": config.plot_n_2d_snapshots,
             "fps": getattr(config, "plot_fps", 10),
+            "swap_xt": getattr(config, "plot_swap_xt", True),
         }
 
         # Error-analysis settings
@@ -7525,6 +7527,13 @@ print("ERROR_ANALYSIS_DONE")
         snap_widget.setVisible(viz_type == "Surface" and self.radio_2d.isChecked())
         layout.addWidget(snap_widget)
 
+        # Swap x/t axes — 1D "Surface" only (2D/3D Surface plots are
+        # spatial snapshots at fixed times and have no x/t axis to swap).
+        swap_xt_cb = QCheckBox("Swap axes (x-axis = t, y-axis = x)")
+        swap_xt_cb.setChecked(current.get('swap_xt', True))
+        swap_xt_cb.setVisible(viz_type == "Surface" and self.radio_1d.isChecked())
+        layout.addWidget(swap_xt_cb)
+
         # Colorbar — Surface only
         colorbar_cb = QCheckBox("Show colorbar")
         colorbar_cb.setChecked(current.get('colorbar', True))
@@ -7578,6 +7587,7 @@ print("ERROR_ANALYSIS_DONE")
                 'n_2d_snapshots': snap_spin.value(),
                 'surface_time': current.get('surface_time', 1.0),
                 'fps': int(fps_combo.currentText()),
+                'swap_xt': swap_xt_cb.isChecked(),
             }
             self.log_box.append(f"✅ Plot settings saved — {viz_type}, cmap={cmap_combo.currentText()}, levels={levels_spin.value()}, dpi={dpi_combo.currentText()}")
             dialog.accept()

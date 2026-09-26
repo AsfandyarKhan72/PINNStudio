@@ -1967,9 +1967,14 @@ for _pval in _param_values:
             # from ALL of this problem's outputs, addressed by their own
             # output_names, so any future multi-output template can plot
             # its own combination of outputs the same way, not just this
-            # one. Only used for the main Results panel plot below (not
-            # Error Analysis or Time-Adaptive, which still read a single
-            # raw output column directly).
+            # one. Used for the main Results panel plot below, and also
+            # by the (non-time-adaptive) Inline Error Analysis section
+            # further down -- so a reference dataset that represents a
+            # derived field like |h| is compared against that same
+            # derived field, not a raw output column. Time-Adaptive
+            # still reads a single raw output column directly (that
+            # path has its own, separate model-selection code and does
+            # not define this helper).
             if _plot_custom_expr.strip():
                 _ns_plot = {{**_BC_MATH_NS, "np": np}}
                 for _oi_p, _on_p in enumerate(_plot_output_names_list):
@@ -2263,9 +2268,18 @@ for _pval in _param_values:
                 _vmax_s = None if {config.plot_auto_range} else {config.plot_vmax}
                 print(f"Plot settings: cmap={config.plot_colormap}, levels={config.plot_levels}, dpi={config.plot_dpi}, res={config.plot_resolution}")
                 fig, ax = plt.subplots(figsize=(7, 5))
-                im = ax.contourf(_Xs, _Ts, _u_s, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_s, vmax=_vmax_s)
+                # Axis orientation is configurable (Plot Settings ->
+                # "Swap axes"); contourf just needs its three arrays to
+                # line up element-for-element, so swapping which of
+                # _Xs/_Ts is passed first -- with no reshape/transpose of
+                # _u_s -- is enough to flip which one lands on the x-axis.
+                if {config.plot_swap_xt}:
+                    im = ax.contourf(_Ts, _Xs, _u_s, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_s, vmax=_vmax_s)
+                    ax.set_xlabel("t"); ax.set_ylabel("x")
+                else:
+                    im = ax.contourf(_Xs, _Ts, _u_s, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_s, vmax=_vmax_s)
+                    ax.set_xlabel("x"); ax.set_ylabel("t")
                 if {config.plot_colorbar}: fig.colorbar(im, ax=ax)
-                ax.set_xlabel("x"); ax.set_ylabel("t")
                 ax.set_title((f"PINN Solution — {{_out_name_1dt}}(x,t) — {{_param_name}}={{_pval}}" if _parametric
                               else f"PINN Solution — {{_out_name_1dt}}(x,t)"))
                 plt.tight_layout(); plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
@@ -2396,7 +2410,7 @@ for _pval in _param_values:
                         _ea_xt = np.column_stack([_ea_xf, _ea_yf, np.full_like(_ea_xf, _ea_tv)])
                     else:
                         _ea_xt = np.column_stack([_ea_xf, np.full_like(_ea_xf, _ea_tv)])
-                    _ea_u_pinns[_ei] = model.predict(_ea_xt)[:, {config.plot_output_idx}].flatten()
+                    _ea_u_pinns[_ei] = _extract_plot_field(model.predict(_ea_xt)).flatten()
                     print(f"  PINN predicted at t={{_ea_tv:.4f}}: {{len(_ea_xf)}} points")
             else:
                 # ── Time adaptive: match each GT file to correct step model ──
@@ -2792,7 +2806,7 @@ for _pval in _param_values:
                     if not {config.time_adaptive}:
                         for _ei, _ea_tv in enumerate(_ea_times):
                             _ea_xt_c = np.column_stack([_ea_x_common, np.full_like(_ea_x_common, _ea_tv)])
-                            _ea_U_pinn[_ei, :] = model.predict(_ea_xt_c)[:, {config.plot_output_idx}].flatten()
+                            _ea_U_pinn[_ei, :] = _extract_plot_field(model.predict(_ea_xt_c)).flatten()
                             _ea_fi = _interp1d(_ea_x_refs[_ei], _ea_u_refs[_ei], kind='linear', fill_value='extrapolate')
                             _ea_U_fem[_ei, :] = _ea_fi(_ea_x_common)
                     else:
@@ -3550,9 +3564,15 @@ if {config.time_adaptive}:
             plt.savefig(_ta_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
         else:
             fig, ax = plt.subplots(figsize=(7, 5))
-            im = ax.contourf(X_full, T_full, U_full, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_ta, vmax=_vmax_ta)
+            # Same configurable axis orientation as the Standard path's 1D
+            # "Surface" plot -- see the matching comment there.
+            if {config.plot_swap_xt}:
+                im = ax.contourf(T_full, X_full, U_full, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_ta, vmax=_vmax_ta)
+                ax.set_xlabel("t"); ax.set_ylabel("x")
+            else:
+                im = ax.contourf(X_full, T_full, U_full, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_ta, vmax=_vmax_ta)
+                ax.set_xlabel("x"); ax.set_ylabel("t")
             if {config.plot_colorbar}: fig.colorbar(im, ax=ax)
-            ax.set_xlabel("x"); ax.set_ylabel("t")
             ax.set_title("Time-Adaptive PINN Solution")
             plt.tight_layout(); plt.savefig(_ta_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
     elif _plot_type_ta.startswith("Line"):
@@ -4886,10 +4906,14 @@ Xg = np.concatenate([a for a in all_x], axis=0)
 Tg = np.concatenate([a for a in all_t], axis=0)
 Ug = np.concatenate([a for a in all_u], axis=0)
 plt.figure(figsize=(7, 5))
-plt.contourf(Xg, Tg, Ug, levels={config.plot_levels}, cmap="{config.plot_colormap}")
+if {config.plot_swap_xt}:
+    plt.contourf(Tg, Xg, Ug, levels={config.plot_levels}, cmap="{config.plot_colormap}")
+    plt.xlabel("t"); plt.ylabel("x")
+else:
+    plt.contourf(Xg, Tg, Ug, levels={config.plot_levels}, cmap="{config.plot_colormap}")
+    plt.xlabel("x"); plt.ylabel("t")
 if {config.plot_colorbar}:
     plt.colorbar(label="{out_name}")
-plt.xlabel("x"); plt.ylabel("t")
 plt.title("PINN Solution (Time-Adaptive)")
 plt.tight_layout()
 plt.savefig(solution_path, dpi={config.plot_dpi}, bbox_inches="tight")
@@ -5115,10 +5139,14 @@ Xs, Ts = np.meshgrid(x_s, t_s)
 xts = np.vstack([Xs.ravel(), Ts.ravel()]).T
 u_s = model.predict(xts)[:, {plot_idx}].reshape(res, res)
 fig, ax = plt.subplots(figsize=(7, 5))
-im = ax.contourf(Xs, Ts, u_s, levels={config.plot_levels}, cmap="{config.plot_colormap}")
+if {config.plot_swap_xt}:
+    im = ax.contourf(Ts, Xs, u_s, levels={config.plot_levels}, cmap="{config.plot_colormap}")
+    ax.set_xlabel("t"); ax.set_ylabel("x")
+else:
+    im = ax.contourf(Xs, Ts, u_s, levels={config.plot_levels}, cmap="{config.plot_colormap}")
+    ax.set_xlabel("x"); ax.set_ylabel("t")
 if {config.plot_colorbar}:
     fig.colorbar(im, ax=ax)
-ax.set_xlabel("x"); ax.set_ylabel("t")
 ax.set_title("PINN Solution")
 plt.tight_layout()
 plt.savefig(solution_path, dpi={config.plot_dpi}, bbox_inches="tight")

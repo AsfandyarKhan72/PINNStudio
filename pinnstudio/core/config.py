@@ -171,6 +171,17 @@ class PINNConfig:
     # printed output name) -- falls back to the expression itself when left
     # blank. Ignored when plot_custom_expr is empty.
     plot_custom_label: str = ""
+    # 1D "Surface" plot axis orientation (both the Standard and
+    # Time-Adaptive final solution plots): True (the default) puts t on the
+    # x-axis and the spatial domain x on the y-axis; False keeps the
+    # original orientation (x on the x-axis, t on the y-axis). Only affects
+    # the 1D x-t heatmap -- 2D/3D "Surface" plots show spatial snapshots at
+    # fixed times and have no x/t axis choice to make. Defaulting to True
+    # (rather than the pre-v32 False) is a deliberate, user-requested
+    # change to what every 1D "Surface" plot looks like by default, not
+    # just a new opt-in -- unlike plot_custom_expr above, which had to stay
+    # inert-by-default for backward compatibility.
+    plot_swap_xt: bool = True
 
     # L-BFGS
     lbfgs_use_default: bool = True
