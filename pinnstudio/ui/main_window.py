@@ -2034,6 +2034,7 @@ class MainWindow(QMainWindow):
                 "2D Allen-Cahn (Mattey & Ghosh)",
                 "2D Allen-Cahn (Wight & Zhao)",
                 "2D Burgers",
+                "2D Burgers (Mathias)",
                 "2D Poisson (L-Shape)",
                 "2D Poisson (Disk)",
             ])
@@ -6906,6 +6907,57 @@ print("ERROR_ANALYSIS_DONE")
                 'output_names': ['u', 'v'],
                 'ref_dir': os.path.join(REFERENCE_DATA_DIR, "2D", "burgers"),
             },
+            # Physics only, from Mathias, de Almeida, de Barros, Coelho et
+            # al. 2022 ("Augmenting a Physics-Informed Neural Network for
+            # the 2D Burgers Equation by Addition of Solution Data Points",
+            # BRACIS 2022; arXiv:2301.07824), eq. (1)-(4):
+            #   dt U + U dx U + V dy U = nu (dxx U + dyy U),
+            #   dt V + U dx V + V dy V = nu (dxx V + dyy V),
+            # x,y in [0,1], t in [0,1], nu = 0.01/pi, with
+            #   U(0,x,y) = sin(2 pi x) sin(2 pi y),
+            #   V(0,x,y) = sin(pi x) sin(pi y),
+            # and Dirichlet U=V=0 on all four edges for all time. This is a
+            # genuinely different problem from the existing "2D Burgers"
+            # template above (that one is Lu/Meng/Mao/Karniadakis's
+            # Re=5000 example) -- same PDE family, different viscosity, IC
+            # and BC -- so it's added as its own template rather than a
+            # variant of the existing one. Deliberately NOT replicated
+            # here (out of scope for this template, per the user's own
+            # choice): the paper's actual point -- augmenting training
+            # with sparse ground-truth data points -- and its hard-
+            # constrained boundary/IC-encoding output layer plus
+            # residual-block network; this uses the same soft Dirichlet/IC
+            # loss and plain MLP every other template already trains
+            # with, so it's directly comparable to the existing 2D Burgers
+            # template above. No reference data file exists for this
+            # problem yet (the paper's own ground truth is a 401x401
+            # sixth-order-compact-FD/RK4 MATLAB solve, not something
+            # bundled here), so Error Analysis stays off until one is
+            # added. Network/training recipe matches the existing 2D
+            # Burgers template's own recipe (same PDE family, same
+            # collocation-count/network-size ballpark) rather than the
+            # paper's own residual-net sizing, since that network shape
+            # doesn't apply to this template's plain MLP.
+            "2D Burgers (Mathias)": {
+                'pde': ["du_t + u*du_x + v*du_y - (0.01/pi)*(du_xx + du_yy)",
+                        "dv_t + u*dv_x + v*dv_y - (0.01/pi)*(dv_xx + dv_yy)"],
+                'ic': ["sin(2*pi*x)*sin(2*pi*y)",
+                       "sin(pi*x)*sin(pi*y)"],
+                'num_domain': 8000,
+                'num_boundary': 2000,
+                'num_initial': 2000,
+                'layers': 3,
+                'neurons': 20,
+                'iterations': 15000,
+                'optimizer2': 'lbfgs',
+                'iterations2': 10000,
+                'x_min': 0.0, 'x_max': 1.0,
+                'y_min': 0.0, 'y_max': 1.0,
+                'periodic_bc': False,
+                'bc_config': 'dirichlet_zero_all',
+                'num_outputs': 2,
+                'output_names': ['u', 'v'],
+            },
         }
         if text in templates_2d:
             t = templates_2d[text]
@@ -6973,6 +7025,27 @@ print("ERROR_ANALYSIS_DONE")
                         self.bc_bottom_vals[i].setValue(0.0)
                     if i < len(self.bc_top_types):
                         self.bc_top_types[i].setCurrentText("Neumann")
+                        self.bc_top_vals[i].setValue(0.0)
+            elif bc_config == 'dirichlet_zero_all':
+                # All four edges Dirichlet=0, every output -- Mathias et
+                # al.'s 2D Burgers velocities are both zero at the domain
+                # boundary for all time, and unlike the DeepXDE 2D Burgers
+                # template's BC this is a plain constant, not a
+                # time-dependent expression, so the ordinary per-side
+                # legacy widgets (which only ever hold a constant) are
+                # enough -- no custom expression rows needed.
+                for i in range(n_out):
+                    if i < len(self.bc_left_types):
+                        self.bc_left_types[i].setCurrentText("Dirichlet")
+                        self.bc_left_vals[i].setValue(0.0)
+                    if i < len(self.bc_right_types):
+                        self.bc_right_types[i].setCurrentText("Dirichlet")
+                        self.bc_right_vals[i].setValue(0.0)
+                    if i < len(self.bc_bottom_types):
+                        self.bc_bottom_types[i].setCurrentText("Dirichlet")
+                        self.bc_bottom_vals[i].setValue(0.0)
+                    if i < len(self.bc_top_types):
+                        self.bc_top_types[i].setCurrentText("Dirichlet")
                         self.bc_top_vals[i].setValue(0.0)
             if bc_config == 'custom_2d_burgers':
                 self._populate_2d_burgers_bc_entries(n_out)
