@@ -1,5 +1,6 @@
 import sys
 import os
+import math
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QDoubleSpinBox, QSpinBox, QPushButton,
@@ -2033,7 +2034,6 @@ class MainWindow(QMainWindow):
                 "2D Heat",
                 "2D Allen-Cahn (Mattey & Ghosh)",
                 "2D Allen-Cahn (Wight & Zhao)",
-                "2D Burgers",
                 "2D Burgers (Mathias)",
                 "2D Poisson (L-Shape)",
                 "2D Poisson (Disk)",
@@ -3757,35 +3757,6 @@ class MainWindow(QMainWindow):
                                        location=f"x <= {x_min:g}", axis="x",
                                        deriv_order=1, locked=False)
 
-    def _populate_2d_burgers_bc_entries(self, n_out):
-        """Seed the Boundary Conditions panel directly for the 2D Burgers
-        template: Dirichlet on all four edges, valued at the paper's exact
-        solution (DeepXDE section 4.2) evaluated on that edge -- genuinely
-        time-dependent, so this bypasses the legacy per-side widgets
-        entirely (they only ever hold a constant number) and uses the
-        panel's expression-valued Dirichlet rows directly, the same way
-        _populate_3d_heat_bc_entries does for 3D Heat's faces. Needs the
-        BC-value expression parser's "t" support (see codegen.py's
-        _bc_val_fn/_bc_loc_fn) -- without it this would silently drop the
-        "-t" term and train against a steady-state boundary instead."""
-        for e in list(self.custom_bc_list):
-            e['widget'].deleteLater()
-        self.custom_bc_list.clear()
-        x_min, x_max = self.x_min.value(), self.x_max.value()
-        y_min, y_max = self.y_min.value(), self.y_max.value()
-        locations = [
-            f"x <= {x_min:g}", f"x >= {x_max:g}",
-            f"y <= {y_min:g}", f"y >= {y_max:g}",
-        ]
-        exact = [
-            "3/4 - 1/(4*(1 + exp((-4*x + 4*y - t)*156.25)))",   # u
-            "3/4 + 1/(4*(1 + exp((-4*x + 4*y - t)*156.25)))",   # v
-        ]
-        for i in range(n_out):
-            for loc in locations:
-                self._add_custom_bc_entry(bc_type="dirichlet", component=i,
-                                           location=loc, value=exact[i], locked=False)
-
     # ── Build weight inputs ───────────────────────────────────
     def _build_weight_inputs(self, n):
         for i in reversed(range(self.weights_main_layout.count())):
@@ -4844,9 +4815,10 @@ class MainWindow(QMainWindow):
         # actually unknown/inferred in an inverse Burgers problem is
         # written as its own numerator, not the whole fraction).
         "1D Burgers": [(0, "0.01", 0)],
-        # 1/Re -- same reasoning as 1D Burgers' viscosity above, appearing
-        # identically in both PDE rows (u's and v's).
-        "2D Burgers": [(0, "1/5000", 0), (1, "1/5000", 0)],
+        # nu's numerator 0.01 (nu = 0.01/pi) -- same reasoning as 1D
+        # Burgers' viscosity above, appearing identically in both PDE rows
+        # (U's and V's).
+        "2D Burgers (Mathias)": [(0, "0.01", 0), (1, "0.01", 0)],
         # The nonlinear Schrodinger equation's shared 0.5 coefficient
         # (on dv_xx in u's PDE, du_xx in v's) -- one unknown, substituted
         # into both rows exactly like D/kf above.
@@ -4896,7 +4868,7 @@ class MainWindow(QMainWindow):
     INVERSE_AUTO_VARS = {
         "1D Diffusion-Reaction (Inverse)": [("D", 1e-3, 2e-3), ("kf", 0.2, 0.1)],
         "1D Burgers": [("trainable_variable_1", 0.02, 0.01)],
-        "2D Burgers": [("trainable_variable_1", 0.0004, 1 / 5000)],
+        "2D Burgers (Mathias)": [("trainable_variable_1", 0.02 / math.pi, 0.01 / math.pi)],
         "1D Schrödinger": [("trainable_variable_1", 1.0, 0.5)],
         # True value is already 1 -- starting the initial guess there
         # would make the "inference" trivial (zero iterations needed),
@@ -6911,46 +6883,6 @@ print("ERROR_ANALYSIS_DONE")
                 'ta_default': {'step_groups': [(0.0, 10.0, 10)], 'transfer_learning': True, 'ic_grid': 51, 'transfer_optimizer': 'lbfgs'},
                 'inverse_t_max': 2.5,
             },
-            # Exact equations, IC and BC as in Lu, Meng, Mao & Karniadakis
-            # 2019 (DeepXDE), section 4.2 (the 2D Burgers / high-Reynolds
-            # example): dt u + u dx u + v dy u = (1/Re)(dxx u + dyy u),
-            # dt v + u dx v + v dy v = (1/Re)(dxx v + dyy v), x,y in [0,1],
-            # t in [0,1], Re=5000, with the closed-form exact solution
-            #   u = 3/4 - 1/(4[1+exp((-4x+4y-t) Re/32)]),
-            #   v = 3/4 + 1/(4[1+exp((-4x+4y-t) Re/32)])
-            # (Re/32 = 156.25) supplying both the IC (t=0) and Dirichlet BC
-            # on all four edges. No RAR this round (the paper uses RAR to
-            # handle Re=5000's steep gradient; a larger fixed collocation
-            # count is used instead). Since the BC is genuinely time-
-            # dependent, it's populated directly by
-            # _populate_2d_burgers_bc_entries below rather than through the
-            # legacy per-side numeric bc_config dispatch (see bc_config
-            # 'custom_2d_burgers' in the handler below). Network/training
-            # recipe follows DeepXDE Table 3, Example 2 (depth 3, width 20,
-            # Adam then L-BFGS, lr 0.001, 15000 Adam iterations) -- same
-            # recipe as 1D Burgers, which the paper's own table also covers
-            # with this one row.
-            "2D Burgers": {
-                'pde': ["du_t + u*du_x + v*du_y - (1/5000)*(du_xx + du_yy)",
-                        "dv_t + u*dv_x + v*dv_y - (1/5000)*(dv_xx + dv_yy)"],
-                'ic': ["3/4 - 1/(4*(1 + exp((-4*x + 4*y)*156.25)))",
-                       "3/4 + 1/(4*(1 + exp((-4*x + 4*y)*156.25)))"],
-                'num_domain': 8000,
-                'num_boundary': 2000,
-                'num_initial': 2000,
-                'layers': 3,
-                'neurons': 20,
-                'iterations': 15000,
-                'optimizer2': 'lbfgs',
-                'iterations2': 10000,
-                'x_min': 0.0, 'x_max': 1.0,
-                'y_min': 0.0, 'y_max': 1.0,
-                'periodic_bc': False,
-                'bc_config': 'custom_2d_burgers',
-                'num_outputs': 2,
-                'output_names': ['u', 'v'],
-                'ref_dir': os.path.join(REFERENCE_DATA_DIR, "2D", "burgers"),
-            },
             # Physics only, from Mathias, de Almeida, de Barros, Coelho et
             # al. 2022 ("Augmenting a Physics-Informed Neural Network for
             # the 2D Burgers Equation by Addition of Solution Data Points",
@@ -6960,28 +6892,25 @@ print("ERROR_ANALYSIS_DONE")
             # x,y in [0,1], t in [0,1], nu = 0.01/pi, with
             #   U(0,x,y) = sin(2 pi x) sin(2 pi y),
             #   V(0,x,y) = sin(pi x) sin(pi y),
-            # and Dirichlet U=V=0 on all four edges for all time. This is a
-            # genuinely different problem from the existing "2D Burgers"
-            # template above (that one is Lu/Meng/Mao/Karniadakis's
-            # Re=5000 example) -- same PDE family, different viscosity, IC
-            # and BC -- so it's added as its own template rather than a
-            # variant of the existing one. Deliberately NOT replicated
-            # here (out of scope for this template, per the user's own
-            # choice): the paper's actual point -- augmenting training
-            # with sparse ground-truth data points -- and its hard-
-            # constrained boundary/IC-encoding output layer plus
-            # residual-block network; this uses the same soft Dirichlet/IC
-            # loss and plain MLP every other template already trains
-            # with, so it's directly comparable to the existing 2D Burgers
-            # template above. No reference data file exists for this
-            # problem yet (the paper's own ground truth is a 401x401
-            # sixth-order-compact-FD/RK4 MATLAB solve, not something
-            # bundled here), so Error Analysis stays off until one is
-            # added. Network/training recipe matches the existing 2D
-            # Burgers template's own recipe (same PDE family, same
-            # collocation-count/network-size ballpark) rather than the
-            # paper's own residual-net sizing, since that network shape
-            # doesn't apply to this template's plain MLP.
+            # and Dirichlet U=V=0 on all four edges for all time.
+            # Deliberately NOT replicated here (out of scope for this
+            # template, per the user's own choice): the paper's actual
+            # point -- augmenting training with sparse ground-truth data
+            # points -- and its hard-constrained boundary/IC-encoding
+            # output layer plus residual-block network; this uses the same
+            # soft Dirichlet/IC loss and plain MLP every other template
+            # already trains with. No reference data file existed when this
+            # template was first added; the user has since generated and
+            # supplied real reference data (t_0_u.txt/t_0_v.txt below), and
+            # confirmed the results are good using Time-Adaptive training
+            # (one full-domain step, L-BFGS transfer, 51-point IC grid) --
+            # ta_default below makes that the out-of-the-box default for
+            # this template. This template previously existed alongside an
+            # earlier "2D Burgers" template (Lu/Meng/Mao/Karniadakis's
+            # Re=5000 DeepXDE example); that one was removed at the user's
+            # request once this template's own results proved out, since
+            # its own BC/IC never reproduced the paper's results and it's
+            # no longer needed.
             "2D Burgers (Mathias)": {
                 'pde': ["du_t + u*du_x + v*du_y - (0.01/pi)*(du_xx + du_yy)",
                         "dv_t + u*dv_x + v*dv_y - (0.01/pi)*(dv_xx + dv_yy)"],
@@ -7008,6 +6937,13 @@ print("ERROR_ANALYSIS_DONE")
                 # (for ease of use). Users can still reassign or add their
                 # own via the "📊 Error Analysis" dialog.
                 'ref_dir': os.path.join(REFERENCE_DATA_DIR, "2D", "burgers_mathias"),
+                # Confirmed by the user to give good results this way:
+                # one Time-Adaptive step spanning the whole domain (not
+                # actually sub-stepping -- "steps": 1 -- just running the
+                # Time-Adaptive code path's own network/training machinery
+                # once), L-BFGS-only transfer between (in this case,
+                # nonexistent) steps, and a 51-point IC continuity grid.
+                'ta_default': {'step_groups': [(0.0, 1.0, 1)], 'transfer_learning': True, 'ic_grid': 51, 'transfer_optimizer': 'lbfgs'},
             },
         }
         if text in templates_2d:
@@ -7098,10 +7034,7 @@ print("ERROR_ANALYSIS_DONE")
                     if i < len(self.bc_top_types):
                         self.bc_top_types[i].setCurrentText("Dirichlet")
                         self.bc_top_vals[i].setValue(0.0)
-            if bc_config == 'custom_2d_burgers':
-                self._populate_2d_burgers_bc_entries(n_out)
-            else:
-                self._populate_locked_bc_entries_from_legacy(n_out, is_2d=True)
+            self._populate_locked_bc_entries_from_legacy(n_out, is_2d=True)
             self._update_bc_mode_visibility()
             for row in list(self.ta_group_rows):
                 row['widget'].deleteLater()
