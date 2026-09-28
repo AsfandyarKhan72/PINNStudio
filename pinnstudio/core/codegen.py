@@ -396,6 +396,18 @@ if _dxde_ver is not None and _dxde_ver < (1, 13, 0):
     raise SystemExit(1)
 '''
 
+    # Reproducibility: seed NumPy/PyTorch/random together via DeepXDE's own
+    # helper, right before anything random happens (point sampling, network
+    # weight init). Off entirely when use_random_seed is False -- emits
+    # nothing, byte-for-byte the same as before this feature existed.
+    # Deliberately NOT touching torch.backends.cudnn.deterministic below --
+    # that would buy bit-for-bit GPU reproducibility too, at a real training-
+    # speed cost that isn't worth it here.
+    _seed_code = ""
+    if config.use_random_seed:
+        _seed_code = f'''dde.config.set_random_seed({config.random_seed})
+'''
+
     # Weight decay (L2 regularization). 0.0 (the default) reproduces every
     # pre-existing generated script byte-for-byte in this section (an empty
     # regularization arg was never emitted before this feature existed).
@@ -445,7 +457,7 @@ if "{config.lbfgs_float_type}" == "float64" and _effective_float == "float32":
     _effective_float = "float64"
     print("  [Info] Using float64 globally (required for L-BFGS float64 mode)")
 dde.config.set_default_float(_effective_float)
-_gpu_device_index = {config.gpu_device_index}
+{_seed_code}_gpu_device_index = {config.gpu_device_index}
 _gpu_memory_fraction = {config.gpu_memory_fraction}
 if torch.cuda.is_available():
     torch.cuda.init()
@@ -4660,15 +4672,29 @@ def generate_clean_script(config):
     # with None here the same way, so they keep behaving exactly as before.
     # Unpacking as a plain 2-tuple here (as before v40) raised "too many
     # values to unpack" for any template with reference data the moment
-    # "Export as DeepXDE Script" was used. This generator doesn't have
-    # per-output grouping/routing at all yet (a separate, larger,
-    # already-flagged gap -- it always predicts a single column,
-    # config.plot_output_idx, below), so a file is only kept here if it
-    # belongs to that same output (selector is None -- the implicit-
-    # default/single-output case -- or an int matching plot_output_idx
-    # exactly); a custom-expression [expr, label] selector or a named file
-    # for a different output is correctly dropped rather than silently
-    # compared against the wrong prediction.
+    # "Export as DeepXDE Script" was used. This generator still doesn't
+    # have per-output grouping/routing (a separate, larger, still-open
+    # gap) -- it always predicts a single field, below -- but that one
+    # field can now be either a raw column OR a custom derived expression
+    # (see _extract_plot_field, added below), matching what the Results
+    # panel/main Solve path already show. A file is kept here only if it
+    # belongs to that same field: selector is None (the implicit-default
+    # case -- always follows whichever field this script is actually
+    # plotting), or an int matching plot_output_idx when no custom field
+    # is configured, or a [expr, label] pair whose expression matches this
+    # problem's own custom plot expression when one is. A named file for a
+    # genuinely different output/expression is correctly dropped rather
+    # than silently compared against the wrong prediction.
+    _plot_custom_expr_val = (config.plot_custom_expr or "").strip()
+
+    def _ea_sel_matches(_sel):
+        if _sel is None:
+            return True
+        if _plot_custom_expr_val:
+            return (isinstance(_sel, (list, tuple)) and len(_sel) >= 1
+                    and str(_sel[0]).strip() == _plot_custom_expr_val)
+        return isinstance(_sel, int) and _sel == config.plot_output_idx
+
     _ea_files_norm = []
     for _entry in ea_files:
         if len(_entry) >= 3:
@@ -4678,7 +4704,7 @@ def generate_clean_script(config):
         _ea_files_norm.append((_tv0, _fp0, _sel0))
     ea_files = [
         (tv, fp) for tv, fp, sel in _ea_files_norm
-        if (sel is None or sel == config.plot_output_idx)
+        if _ea_sel_matches(sel)
         and config.t_min - 1e-10 <= tv <= config.t_max + 1e-10
     ]
     use_ea = bool(ea_files) and (config.ea_do_line or config.ea_do_surface)
@@ -4727,6 +4753,9 @@ if _dxde_ver is not None and _dxde_ver < (1, 13, 0):
     )''')
 
     parts.append(f'dde.config.set_default_float("{config.float_type}")')
+
+    if config.use_random_seed:
+        parts.append(f'dde.config.set_random_seed({config.random_seed})')
 
     save_dir_repr = repr(config.save_dir) if use_save else repr("")
     parts.append(f'''save_dir = {save_dir_repr}
@@ -5245,6 +5274,35 @@ plt.close(fig)''')
     # dispatch: which branch applies is already known now.
     plot_idx = config.plot_output_idx
     out_name = out_names[plot_idx] if plot_idx < len(out_names) else out_names[0]
+    if _plot_custom_expr_val:
+        out_name = (config.plot_custom_label or "").strip() or "custom"
+
+    # ── Field to plot/analyze: one raw output column, or -- when a custom
+    # expression is configured, e.g. |h| = sqrt(u**2+v**2) for 1D
+    # Schrodinger's complex-valued u,v outputs -- a derived scalar field
+    # built from ALL of this problem's outputs, addressed by their own
+    # names. Mirrors generate_script()'s own _extract_plot_field helper
+    # (minus its multi-output Error-Analysis routing, which this single-
+    # field generator doesn't have) -- without this, an exported script
+    # for a custom-field template always plotted and error-analyzed the
+    # raw first output instead of the derived field the GUI itself shows.
+    parts.append(f'''_plot_custom_expr = {_plot_custom_expr_val!r}
+_plot_output_names = {out_names!r}
+_PLOT_MATH_NS = {{
+    "sin": np.sin, "cos": np.cos, "tan": np.tan,
+    "sinh": np.sinh, "cosh": np.cosh, "tanh": np.tanh,
+    "arcsin": np.arcsin, "arccos": np.arccos, "arctan": np.arctan,
+    "exp": np.exp, "log": np.log, "log10": np.log10,
+    "sqrt": np.sqrt, "abs": np.abs, "ceil": np.ceil, "floor": np.floor,
+    "pi": np.pi,
+}}
+def _extract_plot_field(pred):
+    if _plot_custom_expr:
+        ns = {{**_PLOT_MATH_NS, "np": np}}
+        for _i, _n in enumerate(_plot_output_names):
+            ns[_n.strip()] = pred[:, _i]
+        return np.asarray(eval(_plot_custom_expr, ns))
+    return pred[:, {plot_idx}]''')
 
     if use_ta:
         parts.append(f'''# ── Result plot: stitched Time-Adaptive solution ──
@@ -5280,7 +5338,7 @@ yp = np.linspace({config.y_min}, {config.y_max}, res)
 Xg, Yg = np.meshgrid(xp, yp)
 inside = geom.inside(np.column_stack([Xg.ravel(), Yg.ravel()])).reshape(res, res)
 xy = np.column_stack([Xg.ravel(), Yg.ravel()])
-pred = model.predict(xy)[:, {plot_idx}].reshape(res, res)
+pred = _extract_plot_field(model.predict(xy)).reshape(res, res)
 pred = np.where(inside, pred, np.nan)
 fig, ax = plt.subplots(figsize=(6.5, 5.5))
 im = ax.contourf(Xg, Yg, pred, levels={config.plot_levels}, cmap="{config.plot_colormap}")
@@ -5302,7 +5360,7 @@ Xg, Yg = np.meshgrid(xp, yp)
 z_mid = ({config.z_min} + {config.z_max}) / 2.0
 inside = geom.inside(np.column_stack([Xg.ravel(), Yg.ravel(), np.full(Xg.size, z_mid)])).reshape(res, res)
 xyz = np.column_stack([Xg.ravel(), Yg.ravel(), np.full(Xg.size, z_mid)])
-pred = model.predict(xyz)[:, {plot_idx}].reshape(res, res)
+pred = _extract_plot_field(model.predict(xyz)).reshape(res, res)
 pred = np.where(inside, pred, np.nan)
 fig, ax = plt.subplots(figsize=(6.5, 5.5))
 im = ax.contourf(Xg, Yg, pred, levels={config.plot_levels}, cmap="{config.plot_colormap}")
@@ -5320,7 +5378,7 @@ print(f"Solution plot saved: {{solution_path}}")''')
         parts.append(f'''# ── Result plot: steady-state 1D curve (no time axis) ──
 res = {config.plot_resolution}
 x_1d = np.linspace({config.x_min}, {config.x_max}, res)
-u_1d = model.predict(x_1d.reshape(-1, 1))[:, {plot_idx}].flatten()
+u_1d = _extract_plot_field(model.predict(x_1d.reshape(-1, 1))).flatten()
 fig, ax = plt.subplots(figsize=(7, 5))
 ax.plot(x_1d, u_1d, color="#4dabf7", linewidth={config.plot_linewidth})
 ax.set_xlabel("x"); ax.set_ylabel("{out_name}(x)")
@@ -5344,7 +5402,7 @@ x_line = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
 frames_u = []
 for tv in t_frames:
     xt = np.column_stack([x_line, np.full_like(x_line, tv)])
-    frames_u.append(model.predict(xt)[:, {plot_idx}].flatten())
+    frames_u.append(_extract_plot_field(model.predict(xt)).flatten())
 u_min = min(u.min() for u in frames_u); u_max = max(u.max() for u in frames_u)
 fig, ax = plt.subplots(figsize=(7, 5))
 ax.set_xlim({config.x_min}, {config.x_max})
@@ -5372,7 +5430,7 @@ frames = []''')
 Xa, Ya = np.meshgrid(x_a, y_a)
 for tv in t_frames:
     xyt = np.column_stack([Xa.ravel(), Ya.ravel(), np.full(Xa.size, tv)])
-    frames.append(model.predict(xyt)[:, {plot_idx}].reshape(res, res))
+    frames.append(_extract_plot_field(model.predict(xyt)).reshape(res, res))
 {vrange}
 if v_min is None:
     v_min = min(f.min() for f in frames); v_max = max(f.max() for f in frames)
@@ -5390,7 +5448,7 @@ print(f"Solution plot saved: {{solution_path}}")''')
 Xa, Ta = np.meshgrid(x_a, t_a)
 for tv in t_frames:
     xt = np.vstack([Xa.ravel(), np.full(Xa.size, tv)]).T
-    frames.append(model.predict(xt)[:, {plot_idx}].reshape(res, res))
+    frames.append(_extract_plot_field(model.predict(xt)).reshape(res, res))
 {vrange}
 if v_min is None:
     v_min = min(f.min() for f in frames); v_max = max(f.max() for f in frames)
@@ -5418,7 +5476,7 @@ if n_snaps == 1:
     axes = [axes]
 for ai, tv in enumerate(t_snaps):
     xyt = np.column_stack([Xg.ravel(), Yg.ravel(), np.full(Xg.size, tv)])
-    pred = model.predict(xyt)[:, {plot_idx}].reshape(res, res)
+    pred = _extract_plot_field(model.predict(xyt)).reshape(res, res)
     pred = np.where(inside, pred, np.nan)
     im = axes[ai].contourf(Xg, Yg, pred, levels={config.plot_levels}, cmap="{config.plot_colormap}")
     axes[ai].set_title(f"t = {{tv:.3f}}"); axes[ai].set_xlabel("x"); axes[ai].set_ylabel("y")
@@ -5445,7 +5503,7 @@ if n_snaps == 1:
     axes = [axes]
 for ai, tv in enumerate(t_snaps):
     xyzt = np.column_stack([Xg.ravel(), Yg.ravel(), np.full(Xg.size, z_mid), np.full(Xg.size, tv)])
-    pred = model.predict(xyzt)[:, {plot_idx}].reshape(res, res)
+    pred = _extract_plot_field(model.predict(xyzt)).reshape(res, res)
     pred = np.where(inside, pred, np.nan)
     im = axes[ai].contourf(Xg, Yg, pred, levels={config.plot_levels}, cmap="{config.plot_colormap}")
     axes[ai].set_title(f"t = {{tv:.3f}}, z = {{z_mid:.3g}}"); axes[ai].set_xlabel("x"); axes[ai].set_ylabel("y")
@@ -5466,7 +5524,7 @@ fig, ax = plt.subplots(figsize=(8, 5))
 colors = plt.get_cmap("{config.plot_colormap}")(np.linspace(0, 1, n_steps_plot))
 for i, tv in enumerate(t_steps):
     xt = np.column_stack([x_l, np.full_like(x_l, tv)])
-    u_line = model.predict(xt)[:, {plot_idx}].flatten()
+    u_line = _extract_plot_field(model.predict(xt)).flatten()
     ax.plot(x_l, u_line, color=colors[i], linewidth={config.plot_linewidth}, label=f"t = {{tv:.3f}}")
 ax.set_xlabel("x"); ax.set_ylabel("{out_name}(x, t)")
 ax.set_title("PINN Solution")
@@ -5483,7 +5541,7 @@ x_s = np.linspace({config.x_min}, {config.x_max}, res)
 t_s = np.linspace({config.t_min}, {config.t_max}, res)
 Xs, Ts = np.meshgrid(x_s, t_s)
 xts = np.vstack([Xs.ravel(), Ts.ravel()]).T
-u_s = model.predict(xts)[:, {plot_idx}].reshape(res, res)
+u_s = _extract_plot_field(model.predict(xts)).reshape(res, res)
 fig, ax = plt.subplots(figsize=(7, 5))
 if {config.plot_swap_xt}:
     im = ax.contourf(Ts, Xs, u_s, levels={config.plot_levels}, cmap="{config.plot_colormap}")
@@ -5575,9 +5633,9 @@ n_t = len(ea_times)''')
             ea_lines.append(f'''def _predict_at_time(xt_no_time, tv):
     for t0, t1, m in ta_step_models:
         if t0 - 1e-9 <= tv <= t1 + 1e-9:
-            return m.predict(np.column_stack([xt_no_time, np.full(len(xt_no_time), tv)]))[:, {plot_idx}].flatten()
-    return ta_step_models[-1][2].predict(
-        np.column_stack([xt_no_time, np.full(len(xt_no_time), tv)]))[:, {plot_idx}].flatten()
+            return _extract_plot_field(m.predict(np.column_stack([xt_no_time, np.full(len(xt_no_time), tv)]))).flatten()
+    return _extract_plot_field(ta_step_models[-1][2].predict(
+        np.column_stack([xt_no_time, np.full(len(xt_no_time), tv)]))).flatten()
 
 ea_u_pinns = []
 for i, tv in enumerate(ea_times):''')
@@ -5601,24 +5659,24 @@ for i, tv in enumerate(ea_times):''')
             if is_3d:
                 if is_steady:
                     ea_lines.append(f'''    xt = np.column_stack([ea_x_refs[i], ea_y_refs[i], ea_z_refs[i]])
-    ea_u_pinns.append(model.predict(xt)[:, {plot_idx}].flatten())''')
+    ea_u_pinns.append(_extract_plot_field(model.predict(xt)).flatten())''')
                 else:
                     ea_lines.append(f'''    xt = np.column_stack([ea_x_refs[i], ea_y_refs[i], ea_z_refs[i], np.full_like(ea_x_refs[i], tv)])
-    ea_u_pinns.append(model.predict(xt)[:, {plot_idx}].flatten())''')
+    ea_u_pinns.append(_extract_plot_field(model.predict(xt)).flatten())''')
             elif is_2d:
                 if is_steady:
                     ea_lines.append(f'''    xt = np.column_stack([ea_x_refs[i], ea_y_refs[i]])
-    ea_u_pinns.append(model.predict(xt)[:, {plot_idx}].flatten())''')
+    ea_u_pinns.append(_extract_plot_field(model.predict(xt)).flatten())''')
                 else:
                     ea_lines.append(f'''    xt = np.column_stack([ea_x_refs[i], ea_y_refs[i], np.full_like(ea_x_refs[i], tv)])
-    ea_u_pinns.append(model.predict(xt)[:, {plot_idx}].flatten())''')
+    ea_u_pinns.append(_extract_plot_field(model.predict(xt)).flatten())''')
             else:
                 if is_steady:
                     ea_lines.append(f'''    xt = ea_x_refs[i].reshape(-1, 1)
-    ea_u_pinns.append(model.predict(xt)[:, {plot_idx}].flatten())''')
+    ea_u_pinns.append(_extract_plot_field(model.predict(xt)).flatten())''')
                 else:
                     ea_lines.append(f'''    xt = np.column_stack([ea_x_refs[i], np.full_like(ea_x_refs[i], tv)])
-    ea_u_pinns.append(model.predict(xt)[:, {plot_idx}].flatten())''')
+    ea_u_pinns.append(_extract_plot_field(model.predict(xt)).flatten())''')
 
         ea_lines.append('''
 # ── Metrics ──
@@ -5719,7 +5777,7 @@ fig.suptitle("PINN vs Ground Truth -- 2D Heatmaps", fontsize=13, fontweight="bol
 for i, tv in enumerate(ea_times):
     tv_r, l2, mse, mx, ma = ea_metrics[i]
     xyt_grid = np.column_stack([Xg_ea.ravel(), Yg_ea.ravel()]{"" if is_steady else " + [np.full(Xg_ea.size, tv)]"})
-    u_pinn_grid = model.predict(xyt_grid)[:, {plot_idx}].reshape(res_ea, res_ea)
+    u_pinn_grid = _extract_plot_field(model.predict(xyt_grid)).reshape(res_ea, res_ea)
     u_ref_grid = griddata(np.column_stack([ea_x_refs[i], ea_y_refs[i]]), ea_u_refs[i], (Xg_ea, Yg_ea), method="linear", fill_value=0.0)
     u_err_grid = np.abs(u_pinn_grid - u_ref_grid)
     im0 = axes[i][0].contourf(Xg_ea, Yg_ea, u_pinn_grid, levels=40, cmap="{config.plot_colormap}")

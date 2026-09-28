@@ -306,6 +306,19 @@ class PINNConfig:
     gpu_device_index: int = 0
     gpu_memory_fraction: float = 0.95
 
+    # Reproducibility. When on (the default), the generated script calls
+    # dde.config.set_random_seed(random_seed) once, right at the start --
+    # this seeds NumPy, PyTorch and Python's own `random` together (that's
+    # what DeepXDE's helper does internally), so point sampling and network
+    # weight initialization are the same every run. Deliberately NOT paired
+    # with torch.backends.cudnn.deterministic=True -- that would make GPU
+    # runs bit-for-bit reproducible too, but costs real training speed, and
+    # speed was judged more valuable than that last mile of exactness here.
+    # 2026 is just a fixed, memorable default -- there's nothing special
+    # about the number itself.
+    use_random_seed: bool = True
+    random_seed: int = 2026
+
     def validate(self):
         """Sanity-check the fields that would otherwise either silently
         produce a degenerate run or crash deep inside DeepXDE/PyTorch with a
@@ -451,6 +464,9 @@ class PINNConfig:
                 f"GPU memory fraction must be greater than 0 and at most 1; "
                 f"got {self.gpu_memory_fraction}."
             )
+
+        if self.use_random_seed and not isinstance(self.random_seed, int):
+            errors.append(f"Random seed must be an integer; got {self.random_seed!r}.")
 
         return errors
 

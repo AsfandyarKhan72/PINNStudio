@@ -208,6 +208,8 @@ class MainWindow(QMainWindow):
         self._float_type = "float32"
         self._gpu_device_index = 0
         self._gpu_memory_fraction = 0.95
+        self._use_random_seed = True
+        self._random_seed = 2026
         # ── Per-category display settings (font family/size/weight/color for
         # groups of related text: the app title, section headers, field
         # labels, small hint/note text, buttons, and the log console). Each
@@ -521,6 +523,10 @@ class MainWindow(QMainWindow):
         gpu_settings_action = QAction("GPU / Hardware...", self)
         gpu_settings_action.triggered.connect(self._on_gpu_settings)
         settings_menu.addAction(gpu_settings_action)
+
+        seed_settings_action = QAction("Random Seed...", self)
+        seed_settings_action.triggered.connect(self._on_seed_settings)
+        settings_menu.addAction(seed_settings_action)
 
         # Training Callbacks used to live here as its own dialog; it's now
         # an inline section of the Training panel itself (see train_group's
@@ -4338,6 +4344,8 @@ class MainWindow(QMainWindow):
             float_type=getattr(self, '_float_type', 'float64'),
             gpu_device_index=getattr(self, '_gpu_device_index', 0),
             gpu_memory_fraction=getattr(self, '_gpu_memory_fraction', 0.95),
+            use_random_seed=getattr(self, '_use_random_seed', True),
+            random_seed=getattr(self, '_random_seed', 2026),
             ic_pretrain=self.ic_pretrain_cb.isChecked(),
             ic_pretrain_optimizer=self.ic_pretrain_opt.currentData(),
             ic_pretrain_iterations=self.ic_pretrain_iters.value(),
@@ -4947,6 +4955,8 @@ class MainWindow(QMainWindow):
         self._float_type = config.float_type
         self._gpu_device_index = getattr(config, 'gpu_device_index', 0)
         self._gpu_memory_fraction = getattr(config, 'gpu_memory_fraction', 0.95)
+        self._use_random_seed = getattr(config, 'use_random_seed', True)
+        self._random_seed = getattr(config, 'random_seed', 2026)
 
         # Optimizer settings
         self._optimizer_settings = {
@@ -5779,6 +5789,59 @@ class MainWindow(QMainWindow):
                 f"✅ GPU settings: device {self._gpu_device_index}, "
                 f"{mem_spin.value()}% memory reserved"
             )
+            dialog.accept()
+
+        ok_btn.clicked.connect(_on_ok)
+        dialog.exec()
+
+    def _on_seed_settings(self):
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Random Seed")
+        dialog.setMinimumWidth(340)
+        layout = QVBoxLayout(dialog)
+
+        info = QLabel(
+            "Seeds NumPy, PyTorch, and point sampling together so a run's "
+            "collocation points and network initialization are the same "
+            "every time. Doesn't force GPU runs to be bit-for-bit identical "
+            "(that costs training speed) -- results will be consistent, "
+            "not necessarily byte-identical, on GPU."
+        )
+        self._register_style(info, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
+        info.setWordWrap(True)
+        layout.addWidget(info)
+
+        use_cb = QCheckBox("Fix random seed for reproducible runs")
+        use_cb.setChecked(getattr(self, '_use_random_seed', True))
+        layout.addWidget(use_cb)
+
+        seed_row = QHBoxLayout()
+        seed_row.addWidget(QLabel("Seed:"))
+        seed_spin = QSpinBox()
+        seed_spin.setRange(0, 2_147_483_647)
+        seed_spin.setValue(getattr(self, '_random_seed', 2026))
+        seed_spin.setFixedWidth(120)
+        seed_row.addStretch(); seed_row.addWidget(seed_spin)
+        layout.addLayout(seed_row)
+
+        def _sync_seed_enabled(checked):
+            seed_spin.setEnabled(checked)
+        seed_spin.setEnabled(use_cb.isChecked())
+        use_cb.toggled.connect(_sync_seed_enabled)
+
+        btn_row = QHBoxLayout()
+        ok_btn = QPushButton("OK"); cancel_btn = QPushButton("Cancel")
+        btn_row.addStretch(); btn_row.addWidget(ok_btn); btn_row.addWidget(cancel_btn)
+        layout.addLayout(btn_row)
+        cancel_btn.clicked.connect(dialog.reject)
+
+        def _on_ok():
+            self._use_random_seed = use_cb.isChecked()
+            self._random_seed = seed_spin.value()
+            if self._use_random_seed:
+                self.log_box.append(f"✅ Random seed fixed at {self._random_seed}")
+            else:
+                self.log_box.append("✅ Random seed: off (runs will vary each time)")
             dialog.accept()
 
         ok_btn.clicked.connect(_on_ok)
@@ -9193,13 +9256,16 @@ print("ERROR_ANALYSIS_V2_DONE")
             if matching_files:
                 self.log_box.append(f"📊 Error analysis: {len(matching_files)} reference files match t=[{t_min_restore:.4f}, {t_max_restore:.4f}]")
                 is_2d = cfg.get('problem_dim', '1D') == '2D'
+                is_3d = cfg.get('problem_dim', '1D') == '3D'
                 script += self._build_restore_ea_script(
                     matching_files, save_dir, is_2d,
                     ea.get('do_line', True), ea.get('do_surface', True),
                     cfg.get('x_min', 0.0), cfg.get('x_max', 1.0),
                     cfg.get('y_min', 0.0), cfg.get('y_max', 1.0),
                     cfg.get('output_names', 'u').split(',')[output_idx].strip(),
-                    viz_settings
+                    viz_settings,
+                    is_3d=is_3d, output_idx=output_idx,
+                    output_names=cfg.get('output_names', 'u'),
                 )
             else:
                 self.log_box.append(f"ℹ️ No reference files match t=[{t_min_restore:.4f}, {t_max_restore:.4f}] — skipping error analysis")
@@ -9857,7 +9923,8 @@ else:
         return script
     
     def _build_restore_ea_script(self, files, save_dir, is_2d, do_line, do_surface,
-                                  x_min, x_max, y_min, y_max, out_name, viz_settings=None):
+                                  x_min, x_max, y_min, y_max, out_name, viz_settings=None,
+                                  is_3d=False, output_idx=0, custom_expr="", output_names="u"):
         if viz_settings is None:
             viz_settings = {}
         _cmap     = viz_settings.get('colormap', 'viridis')
@@ -9868,6 +9935,32 @@ else:
         _vmin     = viz_settings.get('vmin', -1.0)
         _vmax     = viz_settings.get('vmax', 1.0)
         files_repr = repr(files)
+        # Predicted field: a raw output column (output_idx, matching the
+        # Restore panel's own "output:" selector) or -- when a custom
+        # expression is set, e.g. |h| = sqrt(u**2+v**2) -- a NumPy
+        # expression over all of this model's outputs. Previously this
+        # always compared against column 0 regardless of which output was
+        # actually selected above, silently analyzing the wrong field for
+        # any multi-output model where "Output 1" wasn't the one chosen.
+        _custom_expr_val = (custom_expr or "").strip()
+        _extract_field_code = f'''_ea_custom_expr = {_custom_expr_val!r}
+_ea_output_names = {[n.strip() for n in output_names.split(",")]!r}
+_EA_MATH_NS = {{
+    "sin": np.sin, "cos": np.cos, "tan": np.tan,
+    "sinh": np.sinh, "cosh": np.cosh, "tanh": np.tanh,
+    "arcsin": np.arcsin, "arccos": np.arccos, "arctan": np.arctan,
+    "exp": np.exp, "log": np.log, "log10": np.log10,
+    "sqrt": np.sqrt, "abs": np.abs, "ceil": np.ceil, "floor": np.floor,
+    "pi": np.pi,
+}}
+def _extract_restore_field(pred):
+    if _ea_custom_expr:
+        ns = {{**_EA_MATH_NS, "np": np}}
+        for _i, _n in enumerate(_ea_output_names):
+            ns[_n] = pred[:, _i]
+        return np.asarray(eval(_ea_custom_expr, ns))
+    return pred[:, {output_idx}]
+'''
         return f"""
 
 # ── Restore Error Analysis ────────────────────────────────────
@@ -9877,22 +9970,33 @@ _ea_dir = os.path.join({save_dir!r}, "error_analysis")
 os.makedirs(_ea_dir, exist_ok=True)
 print("\\n=== Running Restore Error Analysis ===")
 
+{_extract_field_code}
 _ea_files = {files_repr}
-_ea_times = []; _ea_x_refs = []; _ea_y_refs = []; _ea_u_refs = []
+_ea_times = []; _ea_x_refs = []; _ea_y_refs = []; _ea_z_refs = []; _ea_u_refs = []
 for _tv, _fp in _ea_files:
     _d = np.loadtxt(_fp)
     if _d.ndim == 1: _d = _d.reshape(1, -1)
     _d_shape = _d.shape[1]
-    if {is_2d}:
+    if {is_3d}:
+        # 3D time-dependent reference format: x, y, z, t, u
+        _idx = np.lexsort((_d[:, 2], _d[:, 1], _d[:, 0]))
+        _ea_x_refs.append(_d[_idx, 0])
+        _ea_y_refs.append(_d[_idx, 1])
+        _ea_z_refs.append(_d[_idx, 2])
+        _ea_u_refs.append(_d[_idx, 4])
+        _ea_times.append(float(_d[0, 3]))
+    elif {is_2d}:
         _idx = np.lexsort((_d[:, 1], _d[:, 0]))
         _ea_x_refs.append(_d[_idx, 0])
         _ea_y_refs.append(_d[_idx, 1])
+        _ea_z_refs.append(np.zeros_like(_d[_idx, 0]))
         _ea_u_refs.append(_d[_idx, 3])
         _ea_times.append(float(_d[0, 2]))
     else:
         _idx = np.argsort(_d[:, 0])
         _ea_x_refs.append(_d[_idx, 0])
         _ea_y_refs.append(np.zeros_like(_d[_idx, 0]))
+        _ea_z_refs.append(np.zeros_like(_d[_idx, 0]))
         _ea_u_refs.append(_d[_idx, 2])
         _ea_times.append(float(_tv))
     print(f"  Loaded t={{_ea_times[-1]:.4f}}: {{len(_d)}} pts from {{os.path.basename(_fp)}}")
@@ -9901,12 +10005,15 @@ _ea_n_t = len(_ea_times)
 _ea_u_pinns = []
 for _i, _tv in enumerate(_ea_times):
     _xf = _ea_x_refs[_i]
-    if {is_2d}:
+    if {is_3d}:
+        _yf = _ea_y_refs[_i]; _zf = _ea_z_refs[_i]
+        _xt = np.column_stack([_xf, _yf, _zf, np.full_like(_xf, _tv)])
+    elif {is_2d}:
         _yf = _ea_y_refs[_i]
         _xt = np.column_stack([_xf, _yf, np.full_like(_xf, _tv)])
     else:
         _xt = np.column_stack([_xf, np.full_like(_xf, _tv)])
-    _ea_u_pinns.append(model.predict(_xt)[:, 0].flatten())
+    _ea_u_pinns.append(_extract_restore_field(model.predict(_xt)).flatten())
     print(f"  Predicted at t={{_tv:.4f}}: {{len(_xf)}} points")
 
 # Metrics
@@ -9952,7 +10059,11 @@ if {do_line}:
     print(f"  Line comparison saved: {{_lp}}")
 
 # Surface comparison
-if {do_surface}:
+if {do_surface} and {is_3d}:
+    print("  ⚠️  Surface comparison isn't available yet for a restored 3D "
+          "model -- skipping (metrics above and the line comparison below, "
+          "if enabled, are unaffected).")
+elif {do_surface}:
     if {is_2d}:
         from scipy.interpolate import griddata as _gd
         _res_ea = 60
@@ -9964,7 +10075,7 @@ if {do_surface}:
         for _i, _tv in enumerate(_ea_times):
             _tv_r, _l2, _mse, _mx, _ma = _ea_metrics[_i]
             _xyt_g = np.column_stack([_Xg_ea.ravel(), _Yg_ea.ravel(), np.full(_Xg_ea.size, _tv)])
-            _u_pinn_g = model.predict(_xyt_g)[:, 0].reshape(_res_ea, _res_ea)
+            _u_pinn_g = _extract_restore_field(model.predict(_xyt_g)).reshape(_res_ea, _res_ea)
             _u_fem_g  = _gd(np.column_stack([_ea_x_refs[_i], _ea_y_refs[_i]]),
                             _ea_u_refs[_i], (_Xg_ea, _Yg_ea), method='linear', fill_value=0.0)
             _u_err_g  = np.abs(_u_pinn_g - _u_fem_g)
@@ -9987,7 +10098,7 @@ if {do_surface}:
         _U_fem  = np.zeros((len(_t_arr), len(_x_common)))
         for _i, _tv in enumerate(_ea_times):
             _xt_c = np.column_stack([_x_common, np.full_like(_x_common, _tv)])
-            _U_pinn[_i] = model.predict(_xt_c)[:, 0].flatten()
+            _U_pinn[_i] = _extract_restore_field(model.predict(_xt_c)).flatten()
             _fi = _interp1d(_ea_x_refs[_i], _ea_u_refs[_i], kind='linear', fill_value='extrapolate')
             _U_fem[_i]  = _fi(_x_common)
         _Xg, _Tg = np.meshgrid(_x_common, _t_arr)
