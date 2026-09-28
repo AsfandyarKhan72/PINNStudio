@@ -77,6 +77,33 @@ def _simplify_pde_expr(expr):
     e = re.sub(r'(?<![a-zA-Z_])pi(?![a-zA-Z_])', 'np.pi', e)
     return e
 
+def _sanitize_python_identifier(name, fallback):
+    """Coerce a free-typed string into a legal Python identifier. Inverse
+    trainable-variable names come straight from a QLineEdit with no
+    character restriction, but get spliced directly into generated code
+    as a bare variable name (`{name} = dde.Variable(...)`), not inside a
+    string literal -- so the repr()-escaping used for other free-text
+    fields elsewhere in this file doesn't apply here; a name like
+    "diffusion coefficient" would otherwise produce a SyntaxError in the
+    generated script. An already-valid identifier (which covers every
+    built-in template and any already-well-formed custom name) is
+    returned completely unchanged -- this only rewrites the ones that
+    would otherwise break."""
+    import re as _re_id
+    import keyword as _keyword_id
+    _name = (name or "").strip()
+    if _name.isidentifier() and not _keyword_id.iskeyword(_name):
+        return _name
+    _clean = _re_id.sub(r'[^A-Za-z0-9_]', '_', _name).strip('_')
+    if not _clean:
+        _clean = fallback
+    elif _clean[0].isdigit():
+        _clean = "_" + _clean
+    if _keyword_id.iskeyword(_clean):
+        _clean = _clean + "_var"
+    return _clean
+
+
 def _parse_inverse_variables(config):
     """Parse config.inverse_variables_json into an ordered list of
     (name, init, true) triples, one per trainable variable (variable 1
@@ -103,6 +130,7 @@ def _parse_inverse_variables(config):
             name = str((v or {}).get("name") or f"trainable_variable_{i + 1}").strip()
             if not name:
                 name = f"trainable_variable_{i + 1}"
+            name = _sanitize_python_identifier(name, f"trainable_variable_{i + 1}")
             try:
                 init = float((v or {}).get("init", 1.0))
             except (TypeError, ValueError):
@@ -114,9 +142,23 @@ def _parse_inverse_variables(config):
                 true = None
             variables.append((name, init, true))
     if not variables:
-        variables.append((config.inverse_param_name or "trainable_variable_1",
-                           config.inverse_param_init, None))
-    return variables
+        variables.append((
+            _sanitize_python_identifier(config.inverse_param_name, "trainable_variable_1"),
+            config.inverse_param_init, None))
+
+    # Two different user-typed names can sanitize to the same identifier
+    # (e.g. "D 1" and "D_1" both become "D_1") -- de-duplicate so the
+    # generated script never defines the same variable name twice.
+    _seen = {}
+    _deduped = []
+    for name, init, true in variables:
+        if name in _seen:
+            _seen[name] += 1
+            name = f"{name}_{_seen[name]}"
+        else:
+            _seen[name] = 0
+        _deduped.append((name, init, true))
+    return _deduped
 
 def _parse_inverse_obs_files(config):
     """Parse config.inverse_obs_files_json into an ordered list of
@@ -505,17 +547,17 @@ if _use_save:
     import json as _json
     _model_config = {{
         "layers": {config.layers},
-        "activation": "{config.activation}",
+        "activation": {repr(config.activation)},
         "num_outputs": {config.num_outputs},
         "output_names": {repr(config.output_names)},
         "x_min": {config.x_min}, "x_max": {config.x_max},
         "y_min": {config.y_min}, "y_max": {config.y_max},
         "t_min": {config.t_min}, "t_max": {config.t_max},
-        "problem_dim": "{config.problem_dim}",
-        "pde_expressions": "{config.pde_expressions}",
-        "optimizer": "{config.optimizer}",
-        "optimizer2": "{config.optimizer2}",
-        "loss_type": "{config.loss_type}",
+        "problem_dim": {repr(config.problem_dim)},
+        "pde_expressions": {repr(config.pde_expressions)},
+        "optimizer": {repr(config.optimizer)},
+        "optimizer2": {repr(config.optimizer2)},
+        "loss_type": {repr(config.loss_type)},
         "problem_type": {config.problem_type!r},
         "inverse_variables": {_mc_inv_vars_literal},
     }}
@@ -847,7 +889,7 @@ def _pde_standard(x, y):
             # term (which the substring check above already guarantees gets
             # built, since e.g. "xx" is a substring of "xxxx"/"xxyy"/"xxzz"/
             # "xxtt").
-            _pde_str_check = "{config_pde_expressions}"
+            _pde_str_check = {repr(config_pde_expressions)}
             _oname_check = _oname
             if f"d{{_oname_check}}_xx" in _pde_str_check:
                 _dvars[f"d{{_oname}}_xx"] = _hess(y, x, 0, 0)
@@ -898,7 +940,7 @@ def _pde_standard(x, y):
             if not _is_steady:
                 _dvars[f"d{{_oname}}_t"] = dde.grad.jacobian(y, x, i=_oi, j=2)
             # Only compute higher-order derivatives if used in PDE
-            _pde_str_check = "{config_pde_expressions}"
+            _pde_str_check = {repr(config_pde_expressions)}
             _oname_check = _oname
             if f"d{{_oname_check}}_xx" in _pde_str_check or f"d{{_oname_check}}_xxxx" in _pde_str_check or f"d{{_oname_check}}_xxyy" in _pde_str_check or f"d{{_oname_check}}_xxtt" in _pde_str_check:
                 _dvars[f"d{{_oname}}_xx"] = _hess(y, x, 0, 0)
@@ -930,7 +972,7 @@ def _pde_standard(x, y):
             _dvars[f"d{{_oname}}_x"] = dde.grad.jacobian(y, x, i=_oi, j=0)
             if not _is_steady:
                 _dvars[f"d{{_oname}}_t"] = dde.grad.jacobian(y, x, i=_oi, j=1)
-            _pde_str_check = "{config_pde_expressions}"
+            _pde_str_check = {repr(config_pde_expressions)}
             _oname_check = _oname
             if f"d{{_oname_check}}_xx" in _pde_str_check or f"d{{_oname_check}}_xxx" in _pde_str_check or f"d{{_oname_check}}_xxxx" in _pde_str_check or f"d{{_oname_check}}_xxtt" in _pde_str_check:
                 _dvars[f"d{{_oname}}_xx"] = _hess(y, x, 0, 0)
@@ -963,9 +1005,9 @@ def _pde_standard(x, y):
             _eval_ns[_iv_name] = _iv_var
 
     if _n_out == 1:
-        return eval("{pde_expr_single}", _eval_ns)
+        return eval({repr(pde_expr_single)}, _eval_ns)
     else:
-        _pde_exprs = "{config_pde_expressions}".split("|")
+        _pde_exprs = {repr(config_pde_expressions)}.split("|")
         return [eval(_expr.strip(), _eval_ns) for _expr in _pde_exprs]
 if not _IS_FECR:
     pde = _pde_standard
@@ -1569,6 +1611,18 @@ for _pval in _param_values:
         print(f"\\n===== Running: {{_param_name}} = {{_pval}} =====")
 
     _lr           = {config.learning_rate}
+    # NOTE: _loss_weights (and the four branches below that mutate it --
+    # ic_weight/pde_weight/bc_left_weight/bc_right_weight) predate this
+    # codebase's multi-output loss-weights system and are currently dead:
+    # model.compile() below passes loss_weights=_multi_weights (the real,
+    # general per-PDE/per-BC/per-IC weights list, built earlier in this
+    # function), never _loss_weights -- so sweeping any of these four
+    # parametric options would silently do nothing. Harmless today since
+    # Parametric Study has no GUI controls at all yet (nothing can reach
+    # this code path), but worth fixing for real -- route the swept value
+    # into the matching slot of _multi_weights instead -- before ever
+    # wiring up a GUI for it, rather than leaving a "parametric sweep"
+    # feature that quietly does nothing for 4 of its 6 options.
     _loss_weights = list({config.loss_weights})
     _layers       = list({config.layers})
 
@@ -3134,7 +3188,19 @@ if {config.time_adaptive}:
     _os.makedirs(_ta_steps_root, exist_ok=True)
 
     grid_size = {config.ta_grid_size}
-    if _is_2d:
+    if _is_3d:
+        # grid_size is a per-axis resolution, so this cubes it (e.g. 51 ->
+        # ~132k points) -- much bigger than the 2D case's square. Left to
+        # the user's own ta_grid_size choice (the GUI's smallest preset,
+        # 11, keeps this to ~1.3k points) rather than silently overriding
+        # it here.
+        _xg_ta = np.linspace({config.x_min}, {config.x_max}, grid_size)
+        _yg_ta = np.linspace({config.y_min}, {config.y_max}, grid_size)
+        _zg_ta = np.linspace({config.z_min}, {config.z_max}, grid_size)
+        _Xmesh, _Ymesh, _Zmesh = np.meshgrid(_xg_ta, _yg_ta, _zg_ta)
+        x_grid = np.column_stack([_Xmesh.ravel(), _Ymesh.ravel(), _Zmesh.ravel()])
+        x = x_grid  # (N*N*N, 3)
+    elif _is_2d:
         _xg_ta = np.linspace({config.x_min}, {config.x_max}, grid_size)
         _yg_ta = np.linspace({config.y_min}, {config.y_max}, grid_size)
         _Xmesh, _Ymesh = np.meshgrid(_xg_ta, _yg_ta)
@@ -3145,7 +3211,7 @@ if {config.time_adaptive}:
 
     all_x = []; all_t = []; all_u = []
 
-    if _is_2d:
+    if _is_2d or _is_3d:
         x = x_grid
     else:
         x = x_grid.reshape(-1, 1)
@@ -3249,7 +3315,10 @@ if {config.time_adaptive}:
                             return dde.icbc.IC(geomtime_i, _ic_fn, lambda x, on_initial: on_initial, component=comp)
                         _constraints_i.append(_mk_ic_ta(_ic_expr_ta, _comp_ta))
                 else:
-                    if _is_2d:
+                    if _is_2d or _is_3d:
+                        # x_grid is already an (N, 2) or (N, 3) array of
+                        # spatial points either way, so one column_stack
+                        # covers both.
                         _xt_ic_2d = np.column_stack([x_grid, np.full(len(x_grid), t0)])
                         _xyt_ic_anchor = _xt_ic_2d
                         _constraints_i.append(dde.icbc.PointSetBC(_xt_ic_2d, prev_u[:, _oi_ta:_oi_ta+1], component=_oi_ta))
@@ -3343,7 +3412,7 @@ if {config.time_adaptive}:
                             return dde.icbc.IC(geomtime_i, _ic_fn, lambda x, on_initial: on_initial, component=comp)
                         _constraints_i.append(_mk_ic_ta(_ic_expr_ta, _comp_ta))
                 else:
-                    if _is_2d:
+                    if _is_2d or _is_3d:
                         _xt_ic_2d = np.column_stack([x_grid, np.full(len(x_grid), t0)])
                         _xyt_ic_anchor = _xt_ic_2d
                         _constraints_i.append(dde.icbc.PointSetBC(_xt_ic_2d, prev_u[:, _oi_ta:_oi_ta+1], component=_oi_ta))
@@ -3356,7 +3425,7 @@ if {config.time_adaptive}:
             geomtime_i, pde, _constraints_i,
             num_domain={config.num_domain}, num_boundary={config.num_boundary},
             num_initial={config.num_initial}, num_test={config.num_test},
-            anchors=None if {config.forward_ic_from_file} else (_xyt_ic_anchor if (step_i > 0 and _is_2d) else None)
+            anchors=None if {config.forward_ic_from_file} else (_xyt_ic_anchor if (step_i > 0 and (_is_2d or _is_3d)) else None)
         )
 
         net_i   = _apply_net_transforms(dde.nn.FNN({config.layers}, "{config.activation}", "{config.kernel_initializer}"{_weight_decay_regularizer_arg}))
@@ -3566,7 +3635,16 @@ if {config.time_adaptive}:
                 model_i.save(_step_lbfgs_path)
                 print(f"Step L-BFGS model saved: {{_step_lbfgs_path}}.pt")
 
-        if _is_2d:
+        if _is_3d:
+            # 3D: predict on x-y-z grid at t=t1, store as flat array for PointSetBC next step
+            _x_pred = np.linspace({config.x_min}, {config.x_max}, grid_size)
+            _y_pred = np.linspace({config.y_min}, {config.y_max}, grid_size)
+            _z_pred = np.linspace({config.z_min}, {config.z_max}, grid_size)
+            _Xp, _Yp, _Zp = np.meshgrid(_x_pred, _y_pred, _z_pred)
+            _xyzt_pred = np.column_stack([_Xp.ravel(), _Yp.ravel(), _Zp.ravel(), np.full(_Xp.size, t1)])
+            prev_u  = model_i.predict(_xyzt_pred)
+            x_grid  = _xyzt_pred[:, :3]  # store (x,y,z) triples for next step's PointSetBC
+        elif _is_2d:
             # 2D: predict on x-y grid at t=t1, store as flat array for PointSetBC next step
             _x_pred = np.linspace({config.x_min}, {config.x_max}, grid_size)
             _y_pred = np.linspace({config.y_min}, {config.y_max}, grid_size)
@@ -3581,7 +3659,23 @@ if {config.time_adaptive}:
             prev_u  = model_i.predict(xt_pred)
             x_grid  = x_pred.reshape(-1, 1)
 
-        if not _is_2d:
+        if _is_3d:
+            # 3D: no volumetric renderer for the stitched plot either (same
+            # limit as the Standard path's own 3D solution plot) -- fix
+            # BOTH y and z at their domain mid-points and store an x-t
+            # slice, exactly like the 2D branch below fixes y alone. This
+            # keeps all_x/all_t/all_u in the same shape regardless of
+            # dimension, so the final combined plot needs no 3D-specific
+            # branch of its own.
+            x_plot = np.linspace({config.x_min}, {config.x_max}, 100)
+            t_plot = np.linspace(t0, t1, 50)
+            y_mid  = ({config.y_min} + {config.y_max}) / 2.0
+            z_mid  = ({config.z_min} + {config.z_max}) / 2.0
+            Xp, Tp = np.meshgrid(x_plot, t_plot)
+            XYZTp  = np.column_stack([Xp.ravel(), np.full(Xp.size, y_mid), np.full(Xp.size, z_mid), Tp.ravel()])
+            Up     = _extract_plot_field(model_i.predict(XYZTp)).reshape(50, 100)
+            all_x.append(Xp); all_t.append(Tp); all_u.append(Up)
+        elif not _is_2d:
             x_plot = np.linspace({config.x_min}, {config.x_max}, 100)
             t_plot = np.linspace(t0, t1, 50)
             Xp, Tp = np.meshgrid(x_plot, t_plot)
@@ -3614,7 +3708,12 @@ if {config.time_adaptive}:
             _x_plot_step = np.linspace({config.x_min}, {config.x_max}, 100)
             _t_plot_step = np.linspace(t0, t1, 50)
             _Xp_step, _Tp_step = np.meshgrid(_x_plot_step, _t_plot_step)
-            if _is_2d:
+            if _is_3d:
+                _y_mid_step = ({config.y_min} + {config.y_max}) / 2.0
+                _z_mid_step = ({config.z_min} + {config.z_max}) / 2.0
+                _XTp_step = np.column_stack([_Xp_step.ravel(), np.full(_Xp_step.size, _y_mid_step),
+                                              np.full(_Xp_step.size, _z_mid_step), _Tp_step.ravel()])
+            elif _is_2d:
                 _y_mid_step = ({config.y_min} + {config.y_max}) / 2.0
                 _XTp_step = np.column_stack([_Xp_step.ravel(), np.full(_Xp_step.size, _y_mid_step), _Tp_step.ravel()])
             else:
@@ -3625,7 +3724,26 @@ if {config.time_adaptive}:
                 _vmin_step = None if {config.plot_auto_range} else {config.plot_vmin}
                 _vmax_step = None if {config.plot_auto_range} else {config.plot_vmax}
                 _step_fname = _os.path.join(_step_dir, f"step_{{step_i+1:03d}}_t{{t0:.4f}}_to_t{{t1:.4f}}.png")
-                if _is_2d:
+                if _is_3d:
+                    # 3D: same "x-y heatmap at the z mid-plane" convention as
+                    # the Standard (non-Time-Adaptive) 3D solution plot --
+                    # at t=t0 and t=t1.
+                    _res_step = {config.plot_resolution}
+                    _xg_s = np.linspace({config.x_min}, {config.x_max}, _res_step)
+                    _yg_s = np.linspace({config.y_min}, {config.y_max}, _res_step)
+                    _Xg_s, _Yg_s = np.meshgrid(_xg_s, _yg_s)
+                    _z_mid_s = ({config.z_min} + {config.z_max}) / 2.0
+                    fig, axes = plt.subplots(1, 2, figsize=(10, 4))
+                    for _ai, _tv_s in enumerate([t0, t1]):
+                        _xyt_s = np.column_stack([_Xg_s.ravel(), _Yg_s.ravel(), np.full(_Xg_s.size, _z_mid_s), np.full(_Xg_s.size, _tv_s)])
+                        _U_s = _extract_plot_field(model_i.predict(_xyt_s)).reshape(_res_step, _res_step)
+                        im = axes[_ai].contourf(_Xg_s, _Yg_s, _U_s, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_step, vmax=_vmax_step)
+                        if {config.plot_colorbar}: fig.colorbar(im, ax=axes[_ai])
+                        axes[_ai].set_xlabel("x"); axes[_ai].set_ylabel("y")
+                        axes[_ai].set_title(f"t = {{_tv_s:.4f}}  (z={{_z_mid_s:.3g}})")
+                    fig.suptitle(f"Step {{step_i+1}}: t = {{t0:.4f}} → {{t1:.4f}}", fontsize=11)
+                    plt.tight_layout()
+                elif _is_2d:
                     # 2D: x-y heatmaps at t=t0 and t=t1
                     _res_step = {config.plot_resolution}
                     _xg_s = np.linspace({config.x_min}, {config.x_max}, _res_step)
@@ -3661,8 +3779,23 @@ if {config.time_adaptive}:
                 _t_line = np.linspace(t0, t1, n_steps_plot)
                 fig, ax = plt.subplots(figsize=(8, 4))
                 colors = plt.get_cmap("{config.plot_colormap}")(np.linspace(0, 1, n_steps_plot))
+                # A line plot is inherently 1D -- for 2D/3D this is a slice
+                # along x at the domain's other mid-point(s) (same "fix the
+                # other axes at their mid-point" convention used throughout
+                # this Time-Adaptive loop for 2D/3D previews).
+                if _is_3d:
+                    _y_mid_l2 = ({config.y_min} + {config.y_max}) / 2.0
+                    _z_mid_l2 = ({config.z_min} + {config.z_max}) / 2.0
+                elif _is_2d:
+                    _y_mid_l2 = ({config.y_min} + {config.y_max}) / 2.0
                 for _ci, _tv in enumerate(_t_line):
-                    _xt_line = np.column_stack([_x_l2, np.full_like(_x_l2, _tv)])
+                    if _is_3d:
+                        _xt_line = np.column_stack([_x_l2, np.full_like(_x_l2, _y_mid_l2),
+                                                     np.full_like(_x_l2, _z_mid_l2), np.full_like(_x_l2, _tv)])
+                    elif _is_2d:
+                        _xt_line = np.column_stack([_x_l2, np.full_like(_x_l2, _y_mid_l2), np.full_like(_x_l2, _tv)])
+                    else:
+                        _xt_line = np.column_stack([_x_l2, np.full_like(_x_l2, _tv)])
                     _u_line = _extract_plot_field(model_i.predict(_xt_line)).flatten()
                     ax.plot(_x_l2, _u_line, color=colors[_ci], linewidth={config.plot_linewidth}, label=f"t={{_tv:.3f}}")
                 ax.set_xlabel("x"); ax.set_ylabel("u")
@@ -3790,6 +3923,11 @@ if {config.time_adaptive}:
             plt.tight_layout()
             plt.savefig(_ta_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
         else:
+            # 1D, and 3D too (its per-step loop above already fixed y and z
+            # at their domain mid-points and stitched an x-t slice into
+            # X_full/T_full/U_full, same shape as the 1D case) -- no
+            # volumetric renderer, so this mid-plane slice is the final
+            # solution plot for 3D as well.
             fig, ax = plt.subplots(figsize=(7, 5))
             # Same configurable axis orientation as the Standard path's 1D
             # "Surface" plot -- see the matching comment there.
@@ -3886,14 +4024,26 @@ if {config.time_adaptive}:
                 print(f"  ── Output group: {{_ea_group_label(_ea_sel) or 'default'}} ({{len(_ea_files)}} files) ──")
 
             # Load all ground truth files
-            _ea_times = []; _ea_x_refs = []; _ea_y_refs = []; _ea_u_refs = []
+            _ea_times = []; _ea_x_refs = []; _ea_y_refs = []; _ea_z_refs = []; _ea_u_refs = []
             for _ea_tv, _ea_fp in _ea_files:
                 _ea_d = np.loadtxt(_ea_fp)
                 if _ea_d.ndim == 1: _ea_d = _ea_d.reshape(1, -1)
-                if _is_2d:
+                if _is_3d:
+                    # 3D format: x, y, z, t, u -- same as the Standard path's
+                    # own non-steady 3D Error Analysis loader.
+                    _ea_idx = np.lexsort((_ea_d[:, 2], _ea_d[:, 1], _ea_d[:, 0]))
+                    _ea_x_refs.append(_ea_d[_ea_idx, 0])
+                    _ea_y_refs.append(_ea_d[_ea_idx, 1])
+                    _ea_z_refs.append(_ea_d[_ea_idx, 2])
+                    _ea_u_refs.append(_ea_d[_ea_idx, 4])
+                    _detected_t = float(_ea_d[0, 3])
+                    _ea_times.append(_detected_t)
+                    print(f"  Loaded ground truth t={{_detected_t:.4f}}: {{len(_ea_d)}} pts from {{_os.path.basename(_ea_fp)}}")
+                elif _is_2d:
                     _ea_idx = np.lexsort((_ea_d[:, 1], _ea_d[:, 0]))
                     _ea_x_refs.append(_ea_d[_ea_idx, 0])
                     _ea_y_refs.append(_ea_d[_ea_idx, 1])
+                    _ea_z_refs.append(np.zeros_like(_ea_d[_ea_idx, 0]))
                     _ea_u_refs.append(_ea_d[_ea_idx, 3])
                     _detected_t = float(_ea_d[0, 2])
                     _ea_times.append(_detected_t)
@@ -3902,6 +4052,7 @@ if {config.time_adaptive}:
                     _ea_idx = np.argsort(_ea_d[:, 0])
                     _ea_x_refs.append(_ea_d[_ea_idx, 0])
                     _ea_y_refs.append(np.zeros_like(_ea_d[_ea_idx, 0]))
+                    _ea_z_refs.append(np.zeros_like(_ea_d[_ea_idx, 0]))
                     _ea_u_refs.append(_ea_d[_ea_idx, 2])
                     _ea_times.append(float(_ea_tv))
                     print(f"  Loaded ground truth t={{_ea_tv:.4f}}: {{len(_ea_d)}} pts from {{_os.path.basename(_ea_fp)}}")
@@ -3910,6 +4061,7 @@ if {config.time_adaptive}:
             _ea_times  = [_ea_times[_i]  for _i in _ea_sort_idx]
             _ea_x_refs = [_ea_x_refs[_i] for _i in _ea_sort_idx]
             _ea_y_refs = [_ea_y_refs[_i] for _i in _ea_sort_idx]
+            _ea_z_refs = [_ea_z_refs[_i] for _i in _ea_sort_idx]
             _ea_u_refs = [_ea_u_refs[_i] for _i in _ea_sort_idx]
             _ea_n_t = len(_ea_times)
             _ea_u_pinns = [None] * _ea_n_t
@@ -3957,7 +4109,10 @@ if {config.time_adaptive}:
                 _step_act    = _step_cfg.get("activation", "{config.activation}")
                 _step_loss   = _step_cfg.get("loss_type", "{config.loss_type}")
 
-                if _is_2d:
+                if _is_3d:
+                    _step_geom = dde.geometry.Cuboid([{config.x_min}, {config.y_min}, {config.z_min}],
+                                                       [{config.x_max}, {config.y_max}, {config.z_max}])
+                elif _is_2d:
                     _step_geom = dde.geometry.Rectangle([{config.x_min}, {config.y_min}], [{config.x_max}, {config.y_max}])
                 else:
                     _step_geom = dde.geometry.Interval({config.x_min}, {config.x_max})
@@ -3991,7 +4146,10 @@ if {config.time_adaptive}:
                 for _ei in _matching:
                     _ea_xf = _ea_x_refs[_ei]
                     _ea_tv = _ea_times[_ei]
-                    if _is_2d:
+                    if _is_3d:
+                        _ea_yf = _ea_y_refs[_ei]; _ea_zf = _ea_z_refs[_ei]
+                        _ea_xt = np.column_stack([_ea_xf, _ea_yf, _ea_zf, np.full_like(_ea_xf, _ea_tv)])
+                    elif _is_2d:
                         _ea_yf = _ea_y_refs[_ei]
                         _ea_xt = np.column_stack([_ea_xf, _ea_yf, np.full_like(_ea_xf, _ea_tv)])
                     else:
@@ -4133,6 +4291,50 @@ if {config.time_adaptive}:
                         axes[_ei][2].set_title(f"|Error|  t={{_ea_tv:.3f}}  Max={{_mx:.2e}}", fontsize=10)
                         axes[_ei][2].set_xlabel("x"); axes[_ei][2].set_ylabel("y")
                         fig.colorbar(im2, ax=axes[_ei][2])
+                    plt.tight_layout()
+                elif _is_3d:
+                    # 3D: same "boundary-point scatter" convention as the
+                    # Standard path's non-box-geometry 3D surface comparison
+                    # -- no flat-face grid to heatmap onto in general, so
+                    # compare real (x, y, z) points that lie on the
+                    # geometry's own boundary. Reuses the per-time PINN
+                    # predictions already computed above (_ea_u_pinns) --
+                    # each one came from that time's own correctly-restored
+                    # step model -- instead of reloading a step model again
+                    # here just to predict on a dense grid, as the 2D branch
+                    # above does.
+                    _ea_geom_ta = _build_geom()
+                    _ea_bbox_ta = np.asarray(_ea_geom_ta.bbox)
+                    _bx0_ta, _by0_ta, _bz0_ta = _ea_bbox_ta[0]
+                    _bx1_ta, _by1_ta, _bz1_ta = _ea_bbox_ta[1]
+                    _corners_ta = [(_bx0_ta,_by0_ta,_bz0_ta),(_bx1_ta,_by0_ta,_bz0_ta),(_bx1_ta,_by1_ta,_bz0_ta),(_bx0_ta,_by1_ta,_bz0_ta),
+                                    (_bx0_ta,_by0_ta,_bz1_ta),(_bx1_ta,_by0_ta,_bz1_ta),(_bx1_ta,_by1_ta,_bz1_ta),(_bx0_ta,_by1_ta,_bz1_ta)]
+                    _edges_ta = [(0,1),(1,2),(2,3),(3,0),(4,5),(5,6),(6,7),(7,4),(0,4),(1,5),(2,6),(3,7)]
+                    fig = plt.figure(figsize=(15, 4.5 * _ea_n_t))
+                    fig.suptitle("PINN vs Ground Truth — 3D Comparison", fontsize=13, fontweight='bold')
+                    for _ei, _ea_tv in enumerate(_ea_times):
+                        _ea_tv_r, _l2, _mse, _mx, _ma = _ea_metrics[_ei]
+                        _bnd_ta = _ea_geom_ta.on_boundary(np.column_stack([_ea_x_refs[_ei], _ea_y_refs[_ei], _ea_z_refs[_ei]]))
+                        if _bnd_ta.sum() < 4:
+                            _bnd_ta = np.ones_like(_ea_x_refs[_ei], dtype=bool)
+                        _bx_ta, _by_ta, _bz_ta = _ea_x_refs[_ei][_bnd_ta], _ea_y_refs[_ei][_bnd_ta], _ea_z_refs[_ei][_bnd_ta]
+                        _gt_b_ta = _ea_u_refs[_ei][_bnd_ta]
+                        _pinn_b_ta = _ea_u_pinns[_ei][_bnd_ta]
+                        _err_b_ta = np.abs(_pinn_b_ta - _gt_b_ta)
+                        _cols_ta = [(_pinn_b_ta, f"PINN  t={{_ea_tv:.3f}}  L2={{_l2:.2e}}"),
+                                    (_gt_b_ta, f"Ground Truth  t={{_ea_tv:.3f}}"),
+                                    (_err_b_ta, f"|Error|  Max={{_mx:.2e}}")]
+                        for _ci_ta, (_vals_ta, _ttl_ta) in enumerate(_cols_ta):
+                            _ax3_ta = fig.add_subplot(_ea_n_t, 3, _ei * 3 + _ci_ta + 1, projection='3d')
+                            for _i3_ta, _j3_ta in _edges_ta:
+                                _p0_ta, _p1_ta = _corners_ta[_i3_ta], _corners_ta[_j3_ta]
+                                _ax3_ta.plot([_p0_ta[0], _p1_ta[0]], [_p0_ta[1], _p1_ta[1]], [_p0_ta[2], _p1_ta[2]],
+                                             color='#888888', linewidth=0.8, alpha=0.6)
+                            _sc3_ta = _ax3_ta.scatter(_bx_ta, _by_ta, _bz_ta, c=_vals_ta,
+                                                       cmap='{config.plot_colormap}' if _ci_ta < 2 else 'inferno', s=14)
+                            fig.colorbar(_sc3_ta, ax=_ax3_ta, shrink=0.6, pad=0.12)
+                            _ax3_ta.set_title(_ttl_ta, fontsize=10)
+                            _ax3_ta.set_xlabel("x"); _ax3_ta.set_ylabel("y"); _ax3_ta.set_zlabel("z")
                     plt.tight_layout()
                 else:
                     _ea_x_common = np.linspace({config.x_min}, {config.x_max}, 300)
@@ -5061,9 +5263,9 @@ for rar_cycle in range({config.rar_cycles}):''']
         # seeded from the previous interval's predicted solution as its
         # Initial Condition (and, if Transfer Learning is on, from its
         # network weights too). Matches this app's real Time-Adaptive
-        # support: 1D and 2D; a 3D geometry falls back to the 1D-style
-        # single-column time-stepping grid, the same limit the app's own
-        # generator has today.
+        # support: 1D, 2D, and 3D (a 3D solution is visualized the same way
+        # as the Standard path's own 3D plot -- an x-t slice at the domain's
+        # y/z mid-points, since there's no volumetric renderer here).
         # =================================================================
         try:
             ta_groups = _clean_json.loads(config.ta_step_groups) if config.ta_step_groups else []
@@ -5083,7 +5285,15 @@ for rar_cycle in range({config.rar_cycles}):''']
         ta_lines = [f'''def _build_geom():
     return {geom_expr}
 ''']
-        if is_2d:
+        if is_3d:
+            # grid_size is a per-axis resolution, so this cubes it.
+            ta_lines.append(f'''grid_size = {config.ta_grid_size}
+_xg = np.linspace({config.x_min}, {config.x_max}, grid_size)
+_yg = np.linspace({config.y_min}, {config.y_max}, grid_size)
+_zg = np.linspace({config.z_min}, {config.z_max}, grid_size)
+_Xg, _Yg, _Zg = np.meshgrid(_xg, _yg, _zg)
+x_grid = np.column_stack([_Xg.ravel(), _Yg.ravel(), _Zg.ravel()])''')
+        elif is_2d:
             ta_lines.append(f'''grid_size = {config.ta_grid_size}
 _xg = np.linspace({config.x_min}, {config.x_max}, grid_size)
 _yg = np.linspace({config.y_min}, {config.y_max}, grid_size)
@@ -5184,7 +5394,19 @@ prev_net = None''')
                                                      indent="    ")
         loop_lines.append("    ta_step_models.append((t0, t1, model_i))")
         loop_lines.append("    prev_net = net_i")
-        if is_2d:
+        if is_3d:
+            loop_lines.append('''    _xyzt_pred = np.column_stack([x_grid, np.full(len(x_grid), t1)])
+    prev_u = model_i.predict(_xyzt_pred)
+    _x_plot = np.linspace({0}, {1}, 100)
+    _t_plot = np.linspace(t0, t1, 50)
+    _y_mid = ({2} + {3}) / 2.0
+    _z_mid = ({4} + {5}) / 2.0
+    _Xp, _Tp = np.meshgrid(_x_plot, _t_plot)
+    _XYZTp = np.column_stack([_Xp.ravel(), np.full(_Xp.size, _y_mid), np.full(_Xp.size, _z_mid), _Tp.ravel()])
+    _Up = model_i.predict(_XYZTp)[:, {6}].reshape(50, 100)
+    all_x.append(_Xp); all_t.append(_Tp); all_u.append(_Up)'''.format(
+                config.x_min, config.x_max, config.y_min, config.y_max, config.z_min, config.z_max, config.plot_output_idx))
+        elif is_2d:
             loop_lines.append('''    _xyt_pred = np.column_stack([x_grid, np.full(len(x_grid), t1)])
     prev_u = model_i.predict(_xyt_pred)
     _x_plot = np.linspace({0}, {1}, 100)
@@ -5425,7 +5647,28 @@ t_frames = np.linspace({config.t_min}, {config.t_max}, {n_frames})
 res = 80
 x_a = np.linspace({config.x_min}, {config.x_max}, res)
 frames = []''')
-            if is_2d:
+            if is_3d:
+                parts.append(f'''# 3D: same "x-y heatmap at the z mid-plane" convention as the static
+# 3D solution plot below -- no volumetric GIF renderer.
+y_a = np.linspace({config.y_min}, {config.y_max}, res)
+z_mid_a = ({config.z_min} + {config.z_max}) / 2.0
+Xa, Ya = np.meshgrid(x_a, y_a)
+for tv in t_frames:
+    xyzt = np.column_stack([Xa.ravel(), Ya.ravel(), np.full(Xa.size, z_mid_a), np.full(Xa.size, tv)])
+    frames.append(_extract_plot_field(model.predict(xyzt)).reshape(res, res))
+{vrange}
+if v_min is None:
+    v_min = min(f.min() for f in frames); v_max = max(f.max() for f in frames)
+fig, ax = plt.subplots(figsize=(7, 5))
+def _update(i):
+    ax.cla()
+    ax.contourf(Xa, Ya, frames[i], levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=v_min, vmax=v_max)
+    ax.set_xlabel("x"); ax.set_ylabel("y"); ax.set_title(f"t = {{t_frames[i]:.3f}}")
+ani = animation.FuncAnimation(fig, _update, frames={n_frames}, interval=150)
+ani.save(solution_path, writer="pillow", fps={config.plot_fps})
+plt.close(fig)
+print(f"Solution plot saved: {{solution_path}}")''')
+            elif is_2d:
                 parts.append(f'''y_a = np.linspace({config.y_min}, {config.y_max}, res)
 Xa, Ya = np.meshgrid(x_a, y_a)
 for tv in t_frames:
@@ -5791,30 +6034,52 @@ plt.savefig(os.path.join(ea_dir, "surface_comparison.png"), dpi={config.plot_dpi
 plt.close()
 print("  Surface comparison saved.")''')
         elif config.ea_do_surface and is_3d:
-            ea_lines.append('''
+            # Same steady-vs-time-dependent distinction as the metrics
+            # block above (see the "mat1 and mat2 shapes cannot be
+            # multiplied" comment there): a steady-state model takes no
+            # time input at all, so predict() must not be fed a time
+            # column here either. This also now routes through
+            # _extract_plot_field like every other prediction site in
+            # this function, instead of a raw [:, plot_idx] column --
+            # previously a custom derived plot field (e.g. a future
+            # 3D template's own |h|-style field) would have been silently
+            # ignored in this one plot while the metrics/line-comparison
+            # plots above already used it correctly.
+            _ea_3d_predict_line = (
+                "    pinn_b = _extract_plot_field(model.predict(np.column_stack([bx, by, bz]))).flatten()"
+                if is_steady else
+                "    pinn_b = _extract_plot_field(model.predict(np.column_stack([bx, by, bz, np.full_like(bx, tv)]))).flatten()"
+            )
+            # Time-Adaptive never keeps a bare `geom` variable around (it only
+            # ever builds per-step geometry via _build_geom()/geom_i, scoped
+            # to that step's loop iteration) -- the Standard path's own
+            # geom_line assignment is what defines `geom` here.
+            _ea_geom_ref = "_build_geom()" if use_ta else "geom"
+            ea_lines.append(f'''
 # ── Surface comparison (3D: boundary-point scatter vs reference) ──
 fig = plt.figure(figsize=(15, 4.5 * n_t))
 fig.suptitle("PINN vs Ground Truth -- 3D Comparison", fontsize=13, fontweight="bold")
+_ea_geom3d = {_ea_geom_ref}
 for i, tv in enumerate(ea_times):
     tv_r, l2, mse, mx, ma = ea_metrics[i]
-    bnd = geom.on_boundary(np.column_stack([ea_x_refs[i], ea_y_refs[i], ea_z_refs[i]]))
+    bnd = _ea_geom3d.on_boundary(np.column_stack([ea_x_refs[i], ea_y_refs[i], ea_z_refs[i]]))
     if bnd.sum() < 4:
         bnd = np.ones_like(ea_x_refs[i], dtype=bool)
     bx, by, bz = ea_x_refs[i][bnd], ea_y_refs[i][bnd], ea_z_refs[i][bnd]
     gt_b = ea_u_refs[i][bnd]
-    pinn_b = model.predict(np.column_stack([bx, by, bz, np.full_like(bx, tv)]))[:, {0}].flatten()
+{_ea_3d_predict_line}
     err_b = np.abs(pinn_b - gt_b)
     cols = [(pinn_b, f"PINN  t={{tv:.3f}}  L2={{l2:.2e}}"), (gt_b, f"Ground Truth  t={{tv:.3f}}"), (err_b, f"|Error|  Max={{mx:.2e}}")]
     for ci, (vals, ttl) in enumerate(cols):
         ax3 = fig.add_subplot(n_t, 3, i * 3 + ci + 1, projection="3d")
-        sc = ax3.scatter(bx, by, bz, c=vals, cmap="{1}" if ci < 2 else "inferno", s=14)
+        sc = ax3.scatter(bx, by, bz, c=vals, cmap="{config.plot_colormap}" if ci < 2 else "inferno", s=14)
         fig.colorbar(sc, ax=ax3, shrink=0.6, pad=0.12)
         ax3.set_title(ttl, fontsize=10)
         ax3.set_xlabel("x"); ax3.set_ylabel("y"); ax3.set_zlabel("z")
 plt.tight_layout()
-plt.savefig(os.path.join(ea_dir, "surface_comparison.png"), dpi={2}, bbox_inches="tight")
+plt.savefig(os.path.join(ea_dir, "surface_comparison.png"), dpi={config.plot_dpi}, bbox_inches="tight")
 plt.close()
-print("  Surface comparison saved.")'''.format(plot_idx, config.plot_colormap, config.plot_dpi))
+print("  Surface comparison saved.")''')
 
         parts.append("\n".join(ea_lines))
 

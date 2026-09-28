@@ -1500,6 +1500,12 @@ class MainWindow(QMainWindow):
         row_ta2.addWidget(QLabel("IC grid resolution:"))
         self.ta_grid = QComboBox(); self.ta_grid.addItems(["101", "51", "21", "11"])
         self.ta_grid.setFixedHeight(28); self.ta_grid.setFixedWidth(100)
+        self.ta_grid.setToolTip(
+            "Per-axis resolution for the grid handed between time steps.\n"
+            "1D: this many points. 2D: squared. 3D: cubed -- e.g. 101 in "
+            "3D is over a million points. Pick a smaller value (11 or 21) "
+            "for 3D Time-Adaptive runs."
+        )
         row_ta2.addStretch(); row_ta2.addWidget(self.ta_grid)
         ta_layout.addLayout(row_ta2)
 
@@ -2276,6 +2282,7 @@ class MainWindow(QMainWindow):
                 "1D Schrödinger"
             ])
         self.quick_examples_combo.blockSignals(False)
+
         self.view_domain_check.setVisible(is_2d or is_3d)
         for w in self._2d_bc_widgets:
             w.setVisible(is_2d)
@@ -2590,7 +2597,15 @@ class MainWindow(QMainWindow):
     # ── Plot type change ──────────────────────────────────────
     def _on_plot_type_changed(self, text):
         if text in ("Line (time steps)", "Line Animation (GIF)", "Surface Animation (GIF)"):
+            # _plot_type_prev is deliberately NOT updated here -- it still
+            # holds whatever was selected before this change, which is
+            # exactly what _on_line_plot_settings()'s Cancel button needs
+            # to restore. It's updated below instead, once a selection
+            # actually sticks (either one that doesn't need this dialog at
+            # all, or this dialog's own OK).
             self._on_line_plot_settings()
+        else:
+            self._plot_type_prev = text
 
     def _on_plot_output_combo_changed(self, text):
         """Show the custom expression/label fields only while "Custom..."
@@ -2627,158 +2642,38 @@ class MainWindow(QMainWindow):
         layout.addLayout(btn_row)
 
         def _on_cancel():
-            self.plot_type_combo.setCurrentText("Surface")
+            # Restore whichever plot type was actually selected before
+            # this dialog opened -- not a hardcoded "Surface" -- so
+            # reconsidering "Surface Animation (GIF)" while "Line (time
+            # steps)" was already selected and then Cancelling lands back
+            # on "Line (time steps)", the same Cancel behavior every other
+            # Settings dialog in this app already has. blockSignals avoids
+            # re-triggering _on_plot_type_changed (and re-opening this
+            # same dialog) for the revert itself.
+            self.plot_type_combo.blockSignals(True)
+            self.plot_type_combo.setCurrentText(getattr(self, '_plot_type_prev', 'Surface'))
+            self.plot_type_combo.blockSignals(False)
             dialog.reject()
 
         cancel_btn.clicked.connect(_on_cancel)
 
         def _on_ok():
             self.timesteps_spin.setValue(steps_spin.value())
+            self._plot_type_prev = self.plot_type_combo.currentText()
             dialog.accept()
 
         ok_btn.clicked.connect(_on_ok)
         dialog.exec()
 
-    def _on_error_analysis_settings(self):
-        dialog = QDialog(self)
-        dialog.setWindowTitle("Error Analysis Settings")
-        dialog.setMinimumWidth(420)
-        layout = QVBoxLayout(dialog)
-
-        # Source selection
-        src_group = QGroupBox("Reference Data Source")
-        src_layout = QVBoxLayout(src_group)
-        self._ea_radio_expr = QRadioButton("Analytical Expression")
-        self._ea_radio_csv  = QRadioButton("CSV File")
-        self._ea_radio_expr.setChecked(True)
-        src_layout.addWidget(self._ea_radio_expr)
-        src_layout.addWidget(self._ea_radio_csv)
-        layout.addWidget(src_group)
-
-        # Expression section
-        self._ea_expr_widget = QWidget()
-        expr_layout = QVBoxLayout(self._ea_expr_widget)
-        expr_layout.setContentsMargins(0, 0, 0, 0)
-        expr_layout.addWidget(QLabel("Analytical expression (simplified syntax):"))
-        self._ea_expr_input = QLineEdit()
-        self._ea_expr_input.setPlaceholderText("e.g. sin(pi*x)*exp(-0.4*pi**2*t)")
-        self._ea_expr_input.setFixedHeight(28)
-        expr_layout.addWidget(self._ea_expr_input)
-        expr_layout.addWidget(QLabel("Evaluation times (comma separated):"))
-        self._ea_times_input = QLineEdit()
-        self._ea_times_input.setText("0.25, 0.5, 0.75, 1.0")
-        self._ea_times_input.setFixedHeight(28)
-        expr_layout.addWidget(self._ea_times_input)
-        layout.addWidget(self._ea_expr_widget)
-
-        # CSV section
-        self._ea_csv_widget = QWidget()
-        csv_layout = QVBoxLayout(self._ea_csv_widget)
-        csv_layout.setContentsMargins(0, 0, 0, 0)
-        csv_layout.addWidget(QLabel("CSV file:"))
-        csv_row = QHBoxLayout()
-        self._ea_csv_path = QLineEdit()
-        self._ea_csv_path.setPlaceholderText("Browse for CSV file...")
-        self._ea_csv_path.setFixedHeight(28)
-        csv_row.addWidget(self._ea_csv_path)
-        csv_browse = QPushButton("Browse")
-        csv_browse.setFixedHeight(28); csv_browse.setFixedWidth(65)
-        csv_browse.clicked.connect(lambda: self._ea_csv_path.setText(
-            QFileDialog.getOpenFileName(self, "Select CSV", "", "CSV (*.csv *.txt)")[0]))
-        csv_row.addWidget(csv_browse)
-        csv_layout.addLayout(csv_row)
-        info = QLabel("Expected format — 1D: x, t, u  |  2D: x, y, t, u")
-        self._register_style(info, "hint", lambda css, _c='#586e75', _e='': f"color: {_c}; {_e}{css}")
-        csv_layout.addWidget(info)
-        self._ea_csv_widget.setVisible(False)
-        layout.addWidget(self._ea_csv_widget)
-
-        # Toggle visibility
-        self._ea_radio_expr.toggled.connect(lambda c: (
-            self._ea_expr_widget.setVisible(c),
-            self._ea_csv_widget.setVisible(not c)
-        ))
-
-        # Time snapshot for 2D
-        self._ea_2d_widget = QWidget()
-        td_layout = QHBoxLayout(self._ea_2d_widget)
-        td_layout.setContentsMargins(0, 0, 0, 0)
-        td_layout.addWidget(QLabel("2D snapshot time:"))
-        self._ea_2d_time = QDoubleSpinBox()
-        self._ea_2d_time.setRange(0.0, 1e6); self._ea_2d_time.setValue(0.5)
-        self._ea_2d_time.setFixedHeight(28); self._ea_2d_time.setFixedWidth(100)
-        td_layout.addStretch(); td_layout.addWidget(self._ea_2d_time)
-        self._ea_2d_widget.setVisible(self.radio_2d.isChecked())
-        layout.addWidget(self._ea_2d_widget)
-
-        # Error metrics
-        metrics_group = QGroupBox("Error Metrics")
-        metrics_layout = QVBoxLayout(metrics_group)
-        self._ea_abs  = QCheckBox("Absolute Error plot"); self._ea_abs.setChecked(True)
-        self._ea_l2   = QCheckBox("L2 Relative Error");   self._ea_l2.setChecked(True)
-        self._ea_mse  = QCheckBox("MSE");                  self._ea_mse.setChecked(True)
-        self._ea_max  = QCheckBox("Max Error");            self._ea_max.setChecked(True)
-        for w in [self._ea_abs, self._ea_l2, self._ea_mse, self._ea_max]:
-            metrics_layout.addWidget(w)
-        layout.addWidget(metrics_group)
-
-        btn_row = QHBoxLayout()
-        ok_btn = QPushButton("Run Analysis")
-        ok_btn.setStyleSheet("QPushButton { background: #1a4a6a; color: #74c0fc; font-weight: bold; border-radius: 4px; padding: 4px 12px; }")
-        cancel_btn = QPushButton("Cancel")
-        btn_row.addStretch(); btn_row.addWidget(ok_btn); btn_row.addWidget(cancel_btn)
-        layout.addLayout(btn_row)
-
-        def _on_cancel():
-            self.plot_type_combo.setCurrentText("Surface")
-            dialog.reject()
-
-        cancel_btn.clicked.connect(_on_cancel)
-        ok_btn.clicked.connect(lambda: self._run_error_analysis(dialog))
-        dialog.exec()
-
-    def _run_error_analysis(self, dialog):
-        save_dir = self.save_dir_input.text().strip()
-        if not save_dir:
-            self.log_box.append("❌ Please set a save directory first.")
-            self.plot_type_combo.setCurrentText("Surface")
-            dialog.reject()
-            return
-
-        use_expr = self._ea_radio_expr.isChecked()
-        expr_raw = self._ea_expr_input.text().strip()
-        csv_path = self._ea_csv_path.text().strip()
-
-        if use_expr and not expr_raw:
-            self.log_box.append("❌ Please enter an analytical expression."); return
-        if not use_expr and not csv_path:
-            self.log_box.append("❌ Please select a CSV file."); return
-
-        self._ea_settings = {
-            'use_expr': use_expr,
-            'expr': expr_raw,
-            'csv_path': csv_path,
-            'times': self._ea_times_input.text().strip(),
-            'snap_time': self._ea_2d_time.value(),
-            'do_abs': self._ea_abs.isChecked(),
-            'do_l2': self._ea_l2.isChecked(),
-            'do_mse': self._ea_mse.isChecked(),
-            'do_max': self._ea_max.isChecked(),
-        }
-        self.log_box.append("✅ Error analysis configured — will run after training completes.")
-        dialog.accept()
-
-    def _on_ea_done(self, success):
-        save_dir = self.save_dir_input.text().strip()
-        if success:
-            self.log_box.append("✅ Error analysis complete!")
-            plot_path = os.path.join(save_dir, "comparison_plot.png")
-            if os.path.exists(plot_path):
-                self.solution_label.setPixmap(QPixmap(plot_path).scaled(
-                    500, 420, Qt.AspectRatioMode.KeepAspectRatio,
-                    Qt.TransformationMode.SmoothTransformation))
-        else:
-            self.log_box.append("❌ Error analysis failed — check log.")
+    # _on_error_analysis_settings / _run_error_analysis / this file's
+    # first _on_ea_done were dead code -- only reachable from a
+    # viz_type == "\U0001F4CA Error Analysis" branch in _on_plot_settings()
+    # that could never actually fire (plot_type_combo never contains that
+    # string; the real Error Analysis entry point is the separate ea_btn
+    # -> _on_error_analysis_btn()). The real, reachable _on_ea_done
+    # (connected to _ea_thread.done_sig further down) was silently
+    # shadowing this dead duplicate the entire time -- removed together
+    # rather than leaving a same-named method that only looked live.
 
     def _add_ta_step_group(self, t_start=0.0, t_end=1.0, steps=10):
         row_widget = QWidget()
@@ -4334,6 +4229,7 @@ class MainWindow(QMainWindow):
             optimizer_scheduler=self.sched_cb.isChecked() if hasattr(self, 'sched_cb') else False,
             scheduler_same_weights=self.sched_same_weights_cb.isChecked() if hasattr(self, 'sched_same_weights_cb') else True,
             scheduler_phases=self._build_scheduler_phases_json(),
+            lbfgs_use_default=self.lbfgs_use_default_cb.isChecked(),
             lbfgs_maxcor=int(self.lbfgs_maxcor.value()),
             lbfgs_ftol=self.lbfgs_ftol.value(),
             lbfgs_gtol=self.lbfgs_gtol.value(),
@@ -5683,7 +5579,16 @@ class MainWindow(QMainWindow):
 
             if hasattr(self, '_ea_settings') and self._ea_settings:
                 self.log_box.append("✅ Error analysis ran inline — check error_analysis/ folder.")
-                self._ea_settings = None
+                # Deliberately NOT cleared here (unlike before): leaving it
+                # in place means a later "Restore & Visualize" pass on a
+                # checkpoint from this same run (e.g. one saved mid-
+                # training via the Model Checkpoint callback) can still
+                # compare against the same reference data, instead of
+                # silently skipping Error Analysis there with no
+                # indication why. _auto_configure_ea() already resets this
+                # to a clean slate the moment a different template is
+                # selected (see its own comment), so nothing goes stale
+                # across templates by leaving it set here.
             else:
                 self.log_box.append("ℹ️ No error analysis configured — click '📊 Error Analysis' before training.")
 
@@ -8060,9 +7965,10 @@ print("ERROR_ANALYSIS_DONE")
         self.log_box.append(f"✅ Template loaded: {text}")
     def _on_plot_settings(self):
         viz_type = self.plot_type_combo.currentText()
-        if viz_type == "📊 Error Analysis":
-            self._on_error_analysis_settings()
-            return
+        # (plot_type_combo never actually contains "📊 Error Analysis" --
+        # see the dead-code removal note above _add_ta_step_group -- the
+        # real Error Analysis entry point is the separate ea_btn ->
+        # _on_error_analysis_btn().)
 
         dialog = QDialog(self)
         dialog.setWindowTitle(f"Plot Settings — {viz_type}")
@@ -9210,65 +9116,91 @@ print("ERROR_ANALYSIS_V2_DONE")
         self.restore_btn.setText("⏳ Restoring...")
         self.log_box.append(f"🔄 Restoring model from: {model_path}")
         viz_settings = getattr(self, '_restore_viz_settings', {})
-        script = self._build_restore_script(model_path, cfg, optimizer, viz_type, output_idx, t_steps, save_dir)
+        # Script-building below is pure computation (no subprocess started
+        # yet), but it reads several cfg[...] keys directly rather than
+        # cfg.get(...) -- a malformed or older-format model_config.json
+        # that parsed as valid JSON but is missing one of them raises a
+        # KeyError here, which (before this try/except existed) propagated
+        # straight out of this Qt slot, leaving restore_btn stuck disabled
+        # and reading "⏳ Restoring..." forever, since only the background
+        # thread's done_signal (never started in that case) normally
+        # re-enables it.
+        try:
+            script = self._build_restore_script(model_path, cfg, optimizer, viz_type, output_idx, t_steps, save_dir)
+        except Exception as e:
+            self.log_box.append(f"❌ Could not build the restore script from this config: {e}")
+            self.restore_btn.setEnabled(True)
+            self.restore_btn.setText("🔄  Restore && Visualize")
+            return
 
         # ── Append error analysis if files configured ─────────
-        ea = getattr(self, '_ea_settings', None)
-        if ea and ea.get('files'):
-            # Read t range from step_config.json in same folder as model
-            import json as _json_ea
-            step_dir = os.path.dirname(model_path)
-            step_cfg_path = os.path.join(step_dir, 'step_config.json')
-            t_min_restore = cfg.get('t_min', 0.0)
-            t_max_restore = cfg.get('t_max', 1.0)
-            try:
-                with open(step_cfg_path) as _sf:
-                    _sc = _json_ea.load(_sf)
-                t_min_restore = _sc.get('t_min', t_min_restore)
-                t_max_restore = _sc.get('t_max', t_max_restore)
-            except Exception:
-                pass
-            # Filter files within t range. ea['files'] entries are always
-            # (time, path, output_selector) 3-tuples since the v40 multi-
-            # output Error Analysis feature (output_selector is None for a
-            # single-output template's file, an int raw output index for a
-            # named per-output file like "t_0_u.txt", or a [expr, label]
-            # pair for a custom derived field) -- unpacking as a 2-tuple
-            # here (as before v40) raises "too many values to unpack" the
-            # moment any reference file is configured, which is effectively
-            # always, since every write site (auto-config and the manual
-            # Error Analysis dialog) has stored 3-tuples since that patch.
-            # This restore-and-visualize path only ever predicts a single
-            # chosen output (output_idx, picked in the Restore panel above),
-            # so rather than building out the full per-group multi-output
-            # report the main Error Analysis paths have, a file is included
-            # here only if it belongs to that same output (selector is None
-            # -- the implicit-default/single-output case -- or an int
-            # matching output_idx exactly); a custom-expression [expr,
-            # label] selector or a named file for a different output is
-            # correctly excluded rather than silently compared against the
-            # wrong prediction.
-            matching_files = [
-                (t, f) for t, f, sel in ea['files']
-                if (sel is None or sel == output_idx)
-                and t_min_restore - 1e-10 <= t <= t_max_restore + 1e-10
-            ]
-            if matching_files:
-                self.log_box.append(f"📊 Error analysis: {len(matching_files)} reference files match t=[{t_min_restore:.4f}, {t_max_restore:.4f}]")
-                is_2d = cfg.get('problem_dim', '1D') == '2D'
-                is_3d = cfg.get('problem_dim', '1D') == '3D'
-                script += self._build_restore_ea_script(
-                    matching_files, save_dir, is_2d,
-                    ea.get('do_line', True), ea.get('do_surface', True),
-                    cfg.get('x_min', 0.0), cfg.get('x_max', 1.0),
-                    cfg.get('y_min', 0.0), cfg.get('y_max', 1.0),
-                    cfg.get('output_names', 'u').split(',')[output_idx].strip(),
-                    viz_settings,
-                    is_3d=is_3d, output_idx=output_idx,
-                    output_names=cfg.get('output_names', 'u'),
-                )
-            else:
-                self.log_box.append(f"ℹ️ No reference files match t=[{t_min_restore:.4f}, {t_max_restore:.4f}] — skipping error analysis")
+        # Wrapped in its own try/except, separate from the one around
+        # _build_restore_script above: Error Analysis here is a
+        # supplementary extra on top of the restore/visualize script, not
+        # the thing the user actually clicked the button for, so a problem
+        # building it (e.g. output_idx no longer matching this cfg's own
+        # output_names, from an older/mismatched model_config.json) logs a
+        # warning and continues with the restore script as already built,
+        # rather than aborting the whole restore over the EA add-on.
+        try:
+            ea = getattr(self, '_ea_settings', None)
+            if ea and ea.get('files'):
+                # Read t range from step_config.json in same folder as model
+                import json as _json_ea
+                step_dir = os.path.dirname(model_path)
+                step_cfg_path = os.path.join(step_dir, 'step_config.json')
+                t_min_restore = cfg.get('t_min', 0.0)
+                t_max_restore = cfg.get('t_max', 1.0)
+                try:
+                    with open(step_cfg_path) as _sf:
+                        _sc = _json_ea.load(_sf)
+                    t_min_restore = _sc.get('t_min', t_min_restore)
+                    t_max_restore = _sc.get('t_max', t_max_restore)
+                except Exception:
+                    pass
+                # Filter files within t range. ea['files'] entries are always
+                # (time, path, output_selector) 3-tuples since the v40 multi-
+                # output Error Analysis feature (output_selector is None for a
+                # single-output template's file, an int raw output index for a
+                # named per-output file like "t_0_u.txt", or a [expr, label]
+                # pair for a custom derived field) -- unpacking as a 2-tuple
+                # here (as before v40) raises "too many values to unpack" the
+                # moment any reference file is configured, which is effectively
+                # always, since every write site (auto-config and the manual
+                # Error Analysis dialog) has stored 3-tuples since that patch.
+                # This restore-and-visualize path only ever predicts a single
+                # chosen output (output_idx, picked in the Restore panel above),
+                # so rather than building out the full per-group multi-output
+                # report the main Error Analysis paths have, a file is included
+                # here only if it belongs to that same output (selector is None
+                # -- the implicit-default/single-output case -- or an int
+                # matching output_idx exactly); a custom-expression [expr,
+                # label] selector or a named file for a different output is
+                # correctly excluded rather than silently compared against the
+                # wrong prediction.
+                matching_files = [
+                    (t, f) for t, f, sel in ea['files']
+                    if (sel is None or sel == output_idx)
+                    and t_min_restore - 1e-10 <= t <= t_max_restore + 1e-10
+                ]
+                if matching_files:
+                    self.log_box.append(f"📊 Error analysis: {len(matching_files)} reference files match t=[{t_min_restore:.4f}, {t_max_restore:.4f}]")
+                    is_2d = cfg.get('problem_dim', '1D') == '2D'
+                    is_3d = cfg.get('problem_dim', '1D') == '3D'
+                    script += self._build_restore_ea_script(
+                        matching_files, save_dir, is_2d,
+                        ea.get('do_line', True), ea.get('do_surface', True),
+                        cfg.get('x_min', 0.0), cfg.get('x_max', 1.0),
+                        cfg.get('y_min', 0.0), cfg.get('y_max', 1.0),
+                        cfg.get('output_names', 'u').split(',')[output_idx].strip(),
+                        viz_settings,
+                        is_3d=is_3d, output_idx=output_idx,
+                        output_names=cfg.get('output_names', 'u'),
+                    )
+                else:
+                    self.log_box.append(f"ℹ️ No reference files match t=[{t_min_restore:.4f}, {t_max_restore:.4f}] — skipping error analysis")
+        except Exception as e:
+            self.log_box.append(f"⚠️ Skipping error analysis for this restore -- couldn't build it from this config: {e}")
 
         with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as tf:
             tf.write(script)
