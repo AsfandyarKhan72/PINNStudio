@@ -168,35 +168,21 @@ class MainWindow(QMainWindow):
             os.path.expanduser("~"), ".pinnstudio", "display_settings.json")
         self._load_display_settings_from_disk()
 
-        # ── Optimizer / training-callback settings ─────────────
+        # ── Optimizer settings ──────────────────────────────────
         # Same pattern as self._plot_viz_settings: a plain dict edited via a
-        # menu-launched dialog (Settings > Optimizer Settings / Training
-        # Callbacks), read directly by _build_config(). weight_decay applies
-        # to whichever network is trained (see codegen.py) -- it is 0.0 (off)
-        # by default, matching all pre-existing behavior exactly.
+        # menu-launched dialog (Settings > Optimizer Settings), read
+        # directly by _build_config(). weight_decay applies to whichever
+        # network is trained (see codegen.py) -- it is 0.0 (off) by
+        # default, matching all pre-existing behavior exactly.
         self._optimizer_settings = {
             "weight_decay": 0.0,
         }
-        # Every callback is off by default -- matches all pre-existing
-        # behavior exactly until the user opts in via the dialog.
-        self._callback_settings = {
-            "early_stopping": False,
-            "early_stopping_min_delta": 0.0,
-            "early_stopping_patience": 2000,
-            "early_stopping_baseline": "",
-            "early_stopping_monitor": "loss_train",
-            "early_stopping_start_from": 0,
-            "point_resampler": False,
-            "point_resampler_period": 100,
-            "point_resampler_pde_points": True,
-            "point_resampler_bc_points": False,
-            "model_checkpoint": False,
-            "checkpoint_period": 1000,
-            "checkpoint_save_better_only": True,
-            "checkpoint_monitor": "train loss",
-            "timer": False,
-            "timer_minutes": 60.0,
-        }
+        # Training Callbacks (Early Stopping/Point Resampling/Model
+        # Checkpoint/Timer) used to be a similar dialog-backed dict here;
+        # they're now inline widgets in the Training panel itself (built in
+        # _build_ui, read directly by _build_config() -- see the "Training
+        # Callbacks" section of train_group's construction), all unchecked
+        # by default exactly as before.
         self._apply_theme()
         self._build_ui()
         self._apply_display_settings()
@@ -470,9 +456,10 @@ class MainWindow(QMainWindow):
         optimizer_settings_action.triggered.connect(self._on_optimizer_settings)
         settings_menu.addAction(optimizer_settings_action)
 
-        callbacks_action = QAction("Training Callbacks...", self)
-        callbacks_action.triggered.connect(self._on_callback_settings)
-        settings_menu.addAction(callbacks_action)
+        # Training Callbacks used to live here as its own dialog; it's now
+        # an inline section of the Training panel itself (see train_group's
+        # construction in _build_ui), alongside IC Pre-Training/Training
+        # Phases/L-BFGS, so it's visible and editable without a popup.
 
         settings_menu.addSeparator()
         display_action = QAction("🎨 Display Settings...", self)
@@ -1246,6 +1233,123 @@ class MainWindow(QMainWindow):
         self.lbfgs_widget.setVisible(False)
         train_layout.addWidget(self.lbfgs_widget)
         self.opt2_combo.currentTextChanged.connect(self._on_opt2_changed)
+
+        # ── Training Callbacks (optional) ───────────────────────
+        # Optional DeepXDE training callbacks -- all off by default. Used
+        # to live in their own Settings-menu dialog; now inline here so
+        # they're visible alongside every other Training setting instead of
+        # behind a popup. Applied to the live Training Phases scheduler
+        # (and the legacy single/dual-phase fallback), NOT to IC
+        # pre-training or the RAR refinement sub-loop, which are short,
+        # purpose-built inner loops of their own (see codegen.py's
+        # _train_cbs construction for the full scoping note). Read directly
+        # by _build_config() and set directly by _apply_config() -- no
+        # intermediate dict, same as every other Training-panel setting.
+        div_cb = QLabel("─── Training Callbacks (optional) ───")
+        self._register_style(div_cb, "hint", lambda css, _c='#505080', _e='': f"color: {_c}; {_e}{css}")
+        train_layout.addWidget(div_cb)
+
+        def _cb_row(target_layout, label, widget):
+            row = QHBoxLayout(); row.addWidget(QLabel(label))
+            row.addStretch(); row.addWidget(widget)
+            target_layout.addLayout(row)
+
+        # Early Stopping
+        es_group = QGroupBox("Early Stopping")
+        es_layout = QVBoxLayout(es_group)
+        self.cb_early_stopping_cb = QCheckBox("Stop training when loss stops improving")
+        self.cb_early_stopping_cb.setChecked(False)
+        es_layout.addWidget(self.cb_early_stopping_cb)
+        es_fields = QWidget()
+        es_fl = QVBoxLayout(es_fields); es_fl.setContentsMargins(0, 0, 0, 0)
+        self.cb_es_min_delta = SciLineEdit(0.0); self.cb_es_min_delta.setFixedWidth(110)
+        _cb_row(es_fl, "Min. delta:", self.cb_es_min_delta)
+        self.cb_es_patience = QSpinBox(); self.cb_es_patience.setRange(1, 1000000)
+        self.cb_es_patience.setSingleStep(100); self.cb_es_patience.setValue(2000)
+        self.cb_es_patience.setFixedWidth(110)
+        _cb_row(es_fl, "Patience (iters):", self.cb_es_patience)
+        self.cb_es_baseline = QLineEdit()
+        self.cb_es_baseline.setPlaceholderText("(none)"); self.cb_es_baseline.setFixedWidth(110)
+        _cb_row(es_fl, "Baseline loss:", self.cb_es_baseline)
+        self.cb_es_monitor = QComboBox()
+        self.cb_es_monitor.addItem("Training loss", "loss_train")
+        self.cb_es_monitor.addItem("Testing loss", "loss_test")
+        self.cb_es_monitor.setFixedWidth(110)
+        _cb_row(es_fl, "Monitor:", self.cb_es_monitor)
+        self.cb_es_start = QSpinBox(); self.cb_es_start.setRange(0, 1000000)
+        self.cb_es_start.setSingleStep(100); self.cb_es_start.setValue(0)
+        self.cb_es_start.setFixedWidth(110)
+        _cb_row(es_fl, "Start after (iters):", self.cb_es_start)
+        es_layout.addWidget(es_fields)
+        es_fields.setVisible(False)
+        self.cb_early_stopping_cb.stateChanged.connect(lambda s: es_fields.setVisible(s == 2))
+        train_layout.addWidget(es_group)
+
+        # Point Resampling
+        pr_group = QGroupBox("Point Resampling")
+        pr_layout = QVBoxLayout(pr_group)
+        self.cb_point_resampler_cb = QCheckBox("Periodically resample collocation points")
+        self.cb_point_resampler_cb.setChecked(False)
+        pr_layout.addWidget(self.cb_point_resampler_cb)
+        pr_fields = QWidget()
+        pr_fl = QVBoxLayout(pr_fields); pr_fl.setContentsMargins(0, 0, 0, 0)
+        self.cb_pr_period = QSpinBox(); self.cb_pr_period.setRange(1, 1000000)
+        self.cb_pr_period.setSingleStep(10); self.cb_pr_period.setValue(100)
+        self.cb_pr_period.setFixedWidth(110)
+        _cb_row(pr_fl, "Resample every (iters):", self.cb_pr_period)
+        self.cb_pr_pde = QCheckBox("Resample PDE (domain) points")
+        self.cb_pr_pde.setChecked(True)
+        pr_fl.addWidget(self.cb_pr_pde)
+        self.cb_pr_bc = QCheckBox("Also resample boundary-condition points")
+        self.cb_pr_bc.setChecked(False)
+        pr_fl.addWidget(self.cb_pr_bc)
+        pr_layout.addWidget(pr_fields)
+        pr_fields.setVisible(False)
+        self.cb_point_resampler_cb.stateChanged.connect(lambda s: pr_fields.setVisible(s == 2))
+        train_layout.addWidget(pr_group)
+
+        # Model Checkpoint
+        ck_group = QGroupBox("Model Checkpoint")
+        ck_layout = QVBoxLayout(ck_group)
+        self.cb_model_checkpoint_cb = QCheckBox("Periodically save the model during training")
+        self.cb_model_checkpoint_cb.setChecked(False)
+        ck_layout.addWidget(self.cb_model_checkpoint_cb)
+        ck_fields = QWidget()
+        ck_fl = QVBoxLayout(ck_fields); ck_fl.setContentsMargins(0, 0, 0, 0)
+        self.cb_ck_period = QSpinBox(); self.cb_ck_period.setRange(1, 1000000)
+        self.cb_ck_period.setSingleStep(100); self.cb_ck_period.setValue(1000)
+        self.cb_ck_period.setFixedWidth(110)
+        _cb_row(ck_fl, "Check every (iters):", self.cb_ck_period)
+        self.cb_ck_better = QCheckBox("Only save when the monitored loss improves")
+        self.cb_ck_better.setChecked(True)
+        ck_fl.addWidget(self.cb_ck_better)
+        self.cb_ck_monitor = QComboBox()
+        self.cb_ck_monitor.addItem("Training loss", "train loss")
+        self.cb_ck_monitor.addItem("Testing loss", "test loss")
+        self.cb_ck_monitor.setFixedWidth(110)
+        _cb_row(ck_fl, "Monitor:", self.cb_ck_monitor)
+        ck_layout.addWidget(ck_fields)
+        ck_fields.setVisible(False)
+        self.cb_model_checkpoint_cb.stateChanged.connect(lambda s: ck_fields.setVisible(s == 2))
+        train_layout.addWidget(ck_group)
+
+        # Training Timer
+        tm_group = QGroupBox("Training Timer")
+        tm_layout = QVBoxLayout(tm_group)
+        self.cb_timer_cb = QCheckBox("Stop training after a time budget")
+        self.cb_timer_cb.setChecked(False)
+        tm_layout.addWidget(self.cb_timer_cb)
+        tm_fields = QWidget()
+        tm_fl = QVBoxLayout(tm_fields); tm_fl.setContentsMargins(0, 0, 0, 0)
+        self.cb_tm_minutes = QDoubleSpinBox(); self.cb_tm_minutes.setRange(0.5, 100000)
+        self.cb_tm_minutes.setDecimals(1); self.cb_tm_minutes.setValue(60.0)
+        self.cb_tm_minutes.setFixedWidth(110)
+        _cb_row(tm_fl, "Available time (minutes):", self.cb_tm_minutes)
+        tm_layout.addWidget(tm_fields)
+        tm_fields.setVisible(False)
+        self.cb_timer_cb.stateChanged.connect(lambda s: tm_fields.setVisible(s == 2))
+        train_layout.addWidget(tm_group)
+
         left_layout.addWidget(train_group)
 
         # ── Loss Weights ──────────────────────────────────────
@@ -4095,22 +4199,22 @@ class MainWindow(QMainWindow):
             ic_pretrain_restore=self.ic_pretrain_mode_restore.isChecked(),
             ic_pretrain_restore_path=self.ic_pretrain_restore_path.text().strip(),
             weight_decay=self._optimizer_settings.get("weight_decay", 0.0),
-            cb_early_stopping=self._callback_settings.get("early_stopping", False),
-            cb_early_stopping_min_delta=self._callback_settings.get("early_stopping_min_delta", 0.0),
-            cb_early_stopping_patience=self._callback_settings.get("early_stopping_patience", 2000),
-            cb_early_stopping_baseline=self._callback_settings.get("early_stopping_baseline", ""),
-            cb_early_stopping_monitor=self._callback_settings.get("early_stopping_monitor", "loss_train"),
-            cb_early_stopping_start_from=self._callback_settings.get("early_stopping_start_from", 0),
-            cb_point_resampler=self._callback_settings.get("point_resampler", False),
-            cb_point_resampler_period=self._callback_settings.get("point_resampler_period", 100),
-            cb_point_resampler_pde_points=self._callback_settings.get("point_resampler_pde_points", True),
-            cb_point_resampler_bc_points=self._callback_settings.get("point_resampler_bc_points", False),
-            cb_model_checkpoint=self._callback_settings.get("model_checkpoint", False),
-            cb_checkpoint_period=self._callback_settings.get("checkpoint_period", 1000),
-            cb_checkpoint_save_better_only=self._callback_settings.get("checkpoint_save_better_only", True),
-            cb_checkpoint_monitor=self._callback_settings.get("checkpoint_monitor", "train loss"),
-            cb_timer=self._callback_settings.get("timer", False),
-            cb_timer_minutes=self._callback_settings.get("timer_minutes", 60.0),
+            cb_early_stopping=self.cb_early_stopping_cb.isChecked(),
+            cb_early_stopping_min_delta=self.cb_es_min_delta.value(),
+            cb_early_stopping_patience=self.cb_es_patience.value(),
+            cb_early_stopping_baseline=self.cb_es_baseline.text().strip(),
+            cb_early_stopping_monitor=self.cb_es_monitor.currentData(),
+            cb_early_stopping_start_from=self.cb_es_start.value(),
+            cb_point_resampler=self.cb_point_resampler_cb.isChecked(),
+            cb_point_resampler_period=self.cb_pr_period.value(),
+            cb_point_resampler_pde_points=self.cb_pr_pde.isChecked(),
+            cb_point_resampler_bc_points=self.cb_pr_bc.isChecked(),
+            cb_model_checkpoint=self.cb_model_checkpoint_cb.isChecked(),
+            cb_checkpoint_period=self.cb_ck_period.value(),
+            cb_checkpoint_save_better_only=self.cb_ck_better.isChecked(),
+            cb_checkpoint_monitor=self.cb_ck_monitor.currentData(),
+            cb_timer=self.cb_timer_cb.isChecked(),
+            cb_timer_minutes=self.cb_tm_minutes.value(),
             plot_colormap=self._plot_viz_settings.get('colormap', 'RdBu_r'),
             plot_levels=self._plot_viz_settings.get('levels', 50),
             plot_resolution=self._plot_viz_settings.get('resolution', 100),
@@ -4693,28 +4797,30 @@ class MainWindow(QMainWindow):
             self.lbfgs_float_combo.setCurrentText(config.lbfgs_float_type)
         self._float_type = config.float_type
 
-        # Optimizer / training-callback settings
+        # Optimizer settings
         self._optimizer_settings = {
             "weight_decay": config.weight_decay,
         }
-        self._callback_settings = {
-            "early_stopping": config.cb_early_stopping,
-            "early_stopping_min_delta": config.cb_early_stopping_min_delta,
-            "early_stopping_patience": config.cb_early_stopping_patience,
-            "early_stopping_baseline": config.cb_early_stopping_baseline,
-            "early_stopping_monitor": config.cb_early_stopping_monitor,
-            "early_stopping_start_from": config.cb_early_stopping_start_from,
-            "point_resampler": config.cb_point_resampler,
-            "point_resampler_period": config.cb_point_resampler_period,
-            "point_resampler_pde_points": config.cb_point_resampler_pde_points,
-            "point_resampler_bc_points": config.cb_point_resampler_bc_points,
-            "model_checkpoint": config.cb_model_checkpoint,
-            "checkpoint_period": config.cb_checkpoint_period,
-            "checkpoint_save_better_only": config.cb_checkpoint_save_better_only,
-            "checkpoint_monitor": config.cb_checkpoint_monitor,
-            "timer": config.cb_timer,
-            "timer_minutes": config.cb_timer_minutes,
-        }
+
+        # Training Callbacks -- inline Training-panel widgets, set directly
+        # (no intermediate dict; see their construction in _build_ui for
+        # the full scoping note).
+        self.cb_early_stopping_cb.setChecked(config.cb_early_stopping)
+        self.cb_es_min_delta.setValue(config.cb_early_stopping_min_delta)
+        self.cb_es_patience.setValue(int(config.cb_early_stopping_patience))
+        self.cb_es_baseline.setText(str(config.cb_early_stopping_baseline or ""))
+        self._set_combo_data(self.cb_es_monitor, config.cb_early_stopping_monitor)
+        self.cb_es_start.setValue(int(config.cb_early_stopping_start_from))
+        self.cb_point_resampler_cb.setChecked(config.cb_point_resampler)
+        self.cb_pr_period.setValue(int(config.cb_point_resampler_period))
+        self.cb_pr_pde.setChecked(config.cb_point_resampler_pde_points)
+        self.cb_pr_bc.setChecked(config.cb_point_resampler_bc_points)
+        self.cb_model_checkpoint_cb.setChecked(config.cb_model_checkpoint)
+        self.cb_ck_period.setValue(int(config.cb_checkpoint_period))
+        self.cb_ck_better.setChecked(config.cb_checkpoint_save_better_only)
+        self._set_combo_data(self.cb_ck_monitor, config.cb_checkpoint_monitor)
+        self.cb_timer_cb.setChecked(config.cb_timer)
+        self.cb_tm_minutes.setValue(float(config.cb_timer_minutes))
 
         # IC pre-training
         self.ic_pretrain_cb.setChecked(config.ic_pretrain)
@@ -5519,165 +5625,6 @@ class MainWindow(QMainWindow):
         ok_btn.clicked.connect(_on_ok)
         dialog.exec()
 
-    def _on_callback_settings(self):
-        """Optional DeepXDE training callbacks -- all off by default. Applied
-        to the live Training Phases scheduler (and the legacy single/dual-
-        phase fallback), NOT to IC pre-training or the RAR refinement
-        sub-loop, which are short, purpose-built inner loops of their own
-        (see codegen.py's _train_cbs construction for the full scoping
-        note)."""
-        from PyQt6.QtWidgets import QScrollArea
-        dialog = QDialog(self)
-        dialog.setWindowTitle("Training Callbacks")
-        dialog.setMinimumWidth(420)
-        dialog.setMinimumHeight(520)
-        outer = QVBoxLayout(dialog)
-        scroll = QScrollArea(); scroll.setWidgetResizable(True)
-        content = QWidget()
-        layout = QVBoxLayout(content)
-        scroll.setWidget(content)
-        outer.addWidget(scroll)
-
-        cs = self._callback_settings
-
-        # ── Early Stopping ──────────────────────────────────
-        es_group = QGroupBox("Early Stopping")
-        es_layout = QVBoxLayout(es_group)
-        es_cb = QCheckBox("Stop training when loss stops improving")
-        es_cb.setChecked(cs.get("early_stopping", False))
-        es_layout.addWidget(es_cb)
-        es_fields = QWidget()
-        es_fl = QVBoxLayout(es_fields); es_fl.setContentsMargins(0, 0, 0, 0)
-
-        def _es_row(label, widget):
-            row = QHBoxLayout(); row.addWidget(QLabel(label))
-            row.addStretch(); row.addWidget(widget)
-            es_fl.addLayout(row)
-
-        es_min_delta = SciLineEdit(cs.get("early_stopping_min_delta", 0.0)); es_min_delta.setFixedWidth(110)
-        _es_row("Min. delta:", es_min_delta)
-        es_patience = QSpinBox(); es_patience.setRange(1, 1000000); es_patience.setSingleStep(100)
-        es_patience.setValue(int(cs.get("early_stopping_patience", 2000))); es_patience.setFixedWidth(110)
-        _es_row("Patience (iters):", es_patience)
-        es_baseline = QLineEdit(str(cs.get("early_stopping_baseline", "") or ""))
-        es_baseline.setPlaceholderText("(none)"); es_baseline.setFixedWidth(110)
-        _es_row("Baseline loss:", es_baseline)
-        es_monitor = QComboBox()
-        es_monitor.addItem("Training loss", "loss_train")
-        es_monitor.addItem("Testing loss", "loss_test")
-        self._set_combo_data(es_monitor, cs.get("early_stopping_monitor", "loss_train"))
-        es_monitor.setFixedWidth(110)
-        _es_row("Monitor:", es_monitor)
-        es_start = QSpinBox(); es_start.setRange(0, 1000000); es_start.setSingleStep(100)
-        es_start.setValue(int(cs.get("early_stopping_start_from", 0))); es_start.setFixedWidth(110)
-        _es_row("Start after (iters):", es_start)
-        es_layout.addWidget(es_fields)
-        es_fields.setVisible(es_cb.isChecked())
-        es_cb.stateChanged.connect(lambda s: es_fields.setVisible(s == 2))
-        layout.addWidget(es_group)
-
-        # ── Point Resampling ────────────────────────────────
-        pr_group = QGroupBox("Point Resampling")
-        pr_layout = QVBoxLayout(pr_group)
-        pr_cb = QCheckBox("Periodically resample collocation points")
-        pr_cb.setChecked(cs.get("point_resampler", False))
-        pr_layout.addWidget(pr_cb)
-        pr_fields = QWidget()
-        pr_fl = QVBoxLayout(pr_fields); pr_fl.setContentsMargins(0, 0, 0, 0)
-        pr_period = QSpinBox(); pr_period.setRange(1, 1000000); pr_period.setSingleStep(10)
-        pr_period.setValue(int(cs.get("point_resampler_period", 100))); pr_period.setFixedWidth(110)
-        _pr_row = QHBoxLayout(); _pr_row.addWidget(QLabel("Resample every (iters):"))
-        _pr_row.addStretch(); _pr_row.addWidget(pr_period)
-        pr_fl.addLayout(_pr_row)
-        pr_pde = QCheckBox("Resample PDE (domain) points")
-        pr_pde.setChecked(cs.get("point_resampler_pde_points", True))
-        pr_fl.addWidget(pr_pde)
-        pr_bc = QCheckBox("Also resample boundary-condition points")
-        pr_bc.setChecked(cs.get("point_resampler_bc_points", False))
-        pr_fl.addWidget(pr_bc)
-        pr_layout.addWidget(pr_fields)
-        pr_fields.setVisible(pr_cb.isChecked())
-        pr_cb.stateChanged.connect(lambda s: pr_fields.setVisible(s == 2))
-        layout.addWidget(pr_group)
-
-        # ── Model Checkpoint ─────────────────────────────────
-        ck_group = QGroupBox("Model Checkpoint")
-        ck_layout = QVBoxLayout(ck_group)
-        ck_cb = QCheckBox("Periodically save the model during training")
-        ck_cb.setChecked(cs.get("model_checkpoint", False))
-        ck_layout.addWidget(ck_cb)
-        ck_fields = QWidget()
-        ck_fl = QVBoxLayout(ck_fields); ck_fl.setContentsMargins(0, 0, 0, 0)
-        ck_period = QSpinBox(); ck_period.setRange(1, 1000000); ck_period.setSingleStep(100)
-        ck_period.setValue(int(cs.get("checkpoint_period", 1000))); ck_period.setFixedWidth(110)
-        _ck_row = QHBoxLayout(); _ck_row.addWidget(QLabel("Check every (iters):"))
-        _ck_row.addStretch(); _ck_row.addWidget(ck_period)
-        ck_fl.addLayout(_ck_row)
-        ck_better = QCheckBox("Only save when the monitored loss improves")
-        ck_better.setChecked(cs.get("checkpoint_save_better_only", True))
-        ck_fl.addWidget(ck_better)
-        ck_monitor = QComboBox()
-        ck_monitor.addItem("Training loss", "train loss")
-        ck_monitor.addItem("Testing loss", "test loss")
-        self._set_combo_data(ck_monitor, cs.get("checkpoint_monitor", "train loss"))
-        ck_monitor.setFixedWidth(110)
-        _ck_mrow = QHBoxLayout(); _ck_mrow.addWidget(QLabel("Monitor:"))
-        _ck_mrow.addStretch(); _ck_mrow.addWidget(ck_monitor)
-        ck_fl.addLayout(_ck_mrow)
-        ck_layout.addWidget(ck_fields)
-        ck_fields.setVisible(ck_cb.isChecked())
-        ck_cb.stateChanged.connect(lambda s: ck_fields.setVisible(s == 2))
-        layout.addWidget(ck_group)
-
-        # ── Timer ────────────────────────────────────────────
-        tm_group = QGroupBox("Training Timer")
-        tm_layout = QVBoxLayout(tm_group)
-        tm_cb = QCheckBox("Stop training after a time budget")
-        tm_cb.setChecked(cs.get("timer", False))
-        tm_layout.addWidget(tm_cb)
-        tm_fields = QWidget()
-        tm_fl = QVBoxLayout(tm_fields); tm_fl.setContentsMargins(0, 0, 0, 0)
-        tm_minutes = QDoubleSpinBox(); tm_minutes.setRange(0.5, 100000); tm_minutes.setDecimals(1)
-        tm_minutes.setValue(float(cs.get("timer_minutes", 60.0))); tm_minutes.setFixedWidth(110)
-        _tm_row = QHBoxLayout(); _tm_row.addWidget(QLabel("Available time (minutes):"))
-        _tm_row.addStretch(); _tm_row.addWidget(tm_minutes)
-        tm_fl.addLayout(_tm_row)
-        tm_layout.addWidget(tm_fields)
-        tm_fields.setVisible(tm_cb.isChecked())
-        tm_cb.stateChanged.connect(lambda s: tm_fields.setVisible(s == 2))
-        layout.addWidget(tm_group)
-
-        layout.addStretch()
-
-        btn_row = QHBoxLayout()
-        ok_btn = QPushButton("OK"); cancel_btn = QPushButton("Cancel")
-        btn_row.addStretch(); btn_row.addWidget(ok_btn); btn_row.addWidget(cancel_btn)
-        outer.addLayout(btn_row)
-        cancel_btn.clicked.connect(dialog.reject)
-
-        def _on_ok():
-            self._callback_settings = {
-                "early_stopping": es_cb.isChecked(),
-                "early_stopping_min_delta": es_min_delta.value(),
-                "early_stopping_patience": es_patience.value(),
-                "early_stopping_baseline": es_baseline.text().strip(),
-                "early_stopping_monitor": es_monitor.currentData(),
-                "early_stopping_start_from": es_start.value(),
-                "point_resampler": pr_cb.isChecked(),
-                "point_resampler_period": pr_period.value(),
-                "point_resampler_pde_points": pr_pde.isChecked(),
-                "point_resampler_bc_points": pr_bc.isChecked(),
-                "model_checkpoint": ck_cb.isChecked(),
-                "checkpoint_period": ck_period.value(),
-                "checkpoint_save_better_only": ck_better.isChecked(),
-                "checkpoint_monitor": ck_monitor.currentData(),
-                "timer": tm_cb.isChecked(),
-                "timer_minutes": tm_minutes.value(),
-            }
-            dialog.accept()
-
-        ok_btn.clicked.connect(_on_ok)
-        dialog.exec()
 
     def _on_view_domain_changed(self, state):
         if state == 2:
@@ -6945,6 +6892,27 @@ print("ERROR_ANALYSIS_DONE")
         # turns this checkbox back off.
         if hasattr(self, 'steady_state_check') and self.steady_state_check.isChecked():
             self.steady_state_check.setChecked(False)
+
+        # Every template also starts from a clean Results-panel plot field --
+        # only the 1D dispatch block below (the one template dict that
+        # currently uses this at all, for 1D Schrödinger's |h| field) ever
+        # re-selects "Custom..." for itself, further down in this same
+        # function. Without this reset here, switching dimension and/or
+        # template away from 1D Schrödinger left the plot combo on
+        # "Custom..." with its stale expression (e.g. "sqrt(u**2+v**2)")
+        # for every 2D/3D template dispatch block, which never reference
+        # this field at all -- harmless when the newly selected template
+        # happens to share the same output names (silently plots a
+        # meaningless derived field instead of the requested output), and
+        # an uncaught NameError from evaluating a leftover expression
+        # against a different template's output names otherwise. Same
+        # staleness class as the steady-state reset just above.
+        if hasattr(self, 'plot_output_combo') and self.plot_output_combo.count():
+            self.plot_output_combo.setCurrentIndex(0)
+        if hasattr(self, 'plot_custom_expr_input'):
+            self.plot_custom_expr_input.clear()
+        if hasattr(self, 'plot_custom_label_input'):
+            self.plot_custom_label_input.clear()
 
         templates_2d = {
             "2D Heat": {

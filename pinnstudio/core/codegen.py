@@ -3430,6 +3430,32 @@ if {config.time_adaptive}:
                 print(f"  IC pre-train model saved to: {{_ic_pre_save_dir_ta}}")
             print("  === Starting Main Training ===")
 
+        # ── Phase 1 (Adam) ──────────────────────────────────────
+        # Mirrors the Standard (non-Time-Adaptive) path's own unconditional
+        # Phase 1 training call above (model.train(iterations=_iters, ...)
+        # under "if not _sched_active:") -- this per-step loop previously
+        # had no equivalent: it only ever compiled/trained model_i inside
+        # the scheduler-phases block below or the legacy optimizer2
+        # L-BFGS-only branch's elif, with nothing to fall back on when
+        # neither applied. A legacy/hand-edited config with the (GUI-
+        # hidden, always-on) scheduler off, an empty scheduler_phases, and
+        # optimizer2 left at "none" would then never compile or train
+        # model_i at all for this step -- model_i.predict(...) ran
+        # immediately after on an untrained, randomly-initialized network,
+        # and that garbage became the next step's initial condition, with
+        # no exception raised anywhere.
+        if not ({config.optimizer_scheduler} and {len(config.scheduler_phases) > 0}):
+            model_i.compile("{config.optimizer}", lr={config.learning_rate},
+                            loss="{config.loss_type}", loss_weights=_multi_weights)
+            lh_i, ts_i = model_i.train(iterations={config.iterations}, display_every=1000, callbacks=_train_cbs_ta)
+            print(f"  Adam phase done. Steps: {{len(lh_i.steps)}}")
+            if _use_save:
+                _step_dir_adam = _os.path.join(_save_dir, "time_adaptive_steps", f"step_{{step_i+1:03d}}_t{{t0:.4f}}_to_t{{t1:.4f}}")
+                _os.makedirs(_step_dir_adam, exist_ok=True)
+                _step_adam_path = _os.path.join(_step_dir_adam, "model_adam")
+                model_i.save(_step_adam_path)
+                print(f"Step Adam model saved: {{_step_adam_path}}.pt")
+
         # ── Optimizer Scheduler phases ────────────────────────
         if {config.optimizer_scheduler} and {len(config.scheduler_phases) > 0}:
             import json as _json

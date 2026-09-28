@@ -396,5 +396,43 @@ class PINNConfig:
             except (ValueError, TypeError, SyntaxError) as _e:
                 errors.append(f"ea_files is not valid: {_e}")
 
+        # Inverse mode needs at least one real observed-data file path to
+        # fit against. Without one, codegen.py's _parse_inverse_obs_files()
+        # falls all the way through to an empty inverse_data_file, and the
+        # generated script doesn't fail until deep inside its data loader
+        # tries to read from "" -- an uncaught FileNotFoundError with no
+        # hint the actual problem is an unset observed-data path. This is
+        # reachable from the live GUI today: several built-in templates
+        # substitute a PDE constant for a trainable variable in Inverse
+        # mode (INVERSE_AUTO_CONST) without also auto-seeding a matching
+        # observed-data file (INVERSE_AUTO_VARS/OBS) -- e.g. "1D Heat" --
+        # since Inverse mode isn't gated per-template and no ground-truth
+        # data is bundled for every template. This check mirrors codegen's
+        # own fallback order exactly: prefer inverse_obs_files_json's own
+        # per-row paths, falling back to the legacy single-file
+        # inverse_data_file field only when none of that JSON's rows have
+        # a path set -- so it flags exactly the configs that would
+        # otherwise crash, not ones that legitimately rely on the legacy
+        # field.
+        if self.problem_type == "Inverse":
+            _has_obs_path = False
+            _raw_obs = getattr(self, "inverse_obs_files_json", "") or ""
+            if _raw_obs.strip():
+                try:
+                    _parsed_obs = _json_cfg.loads(_raw_obs)
+                except (ValueError, TypeError):
+                    _parsed_obs = []
+                for _of in (_parsed_obs or []):
+                    if str((_of or {}).get("path") or "").strip():
+                        _has_obs_path = True
+                        break
+            if not _has_obs_path and str(self.inverse_data_file or "").strip():
+                _has_obs_path = True
+            if not _has_obs_path:
+                errors.append(
+                    "Inverse mode needs at least one observed-data file to fit "
+                    "against, but no observation row has a file selected."
+                )
+
         return errors
 
