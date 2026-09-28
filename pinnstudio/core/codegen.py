@@ -486,7 +486,7 @@ if _use_save:
         "layers": {config.layers},
         "activation": "{config.activation}",
         "num_outputs": {config.num_outputs},
-        "output_names": "{config.output_names}",
+        "output_names": {repr(config.output_names)},
         "x_min": {config.x_min}, "x_max": {config.x_max},
         "y_min": {config.y_min}, "y_max": {config.y_max},
         "t_min": {config.t_min}, "t_max": {config.t_max},
@@ -641,7 +641,24 @@ if _problem_type == "Inverse":
                 "sinh": torch.sinh, "cosh": torch.cosh, "tanh": torch.tanh,
                 "arcsin": torch.arcsin, "arccos": torch.arccos, "arctan": torch.arctan,
                 "exp": torch.exp, "log": torch.log, "log10": torch.log10,
-                "sqrt": torch.sqrt, "abs": torch.abs, "ceil": torch.ceil,
+                # +1e-12 baked into sqrt itself here (not just relying on a
+                # default custom_expr string like "sqrt(u**2+v**2+1e-12)"
+                # already spelling it out, e.g. 1D Schrodinger's |h|
+                # default) -- unlike a plotting-only sqrt evaluation, this
+                # namespace is what DeepXDE actually differentiates through
+                # during training via PointSetOperatorBC, and
+                # d/du sqrt(u**2+v**2) = u/sqrt(u**2+v**2) is genuinely
+                # singular at u=v=0, which a freshly-initialized network can
+                # (and does) land on exactly at some collocation points
+                # early in training, producing an inf/nan gradient that
+                # poisons every other loss term. Guarding the function
+                # itself protects ANY custom expression using sqrt(...),
+                # including ones a user hand-types without adding their own
+                # epsilon, not just whichever default happens to spell it
+                # out already. The shift is far below any physically
+                # meaningful value for a sum-of-squares argument, so it
+                # doesn't change what's being fit.
+                "sqrt": lambda _v: torch.sqrt(_v + 1e-12), "abs": torch.abs, "ceil": torch.ceil,
                 "floor": torch.floor, "pi": np.pi, "torch": torch,
             }}
             for _oi_ob, _on_ob in enumerate(_onames):
@@ -650,7 +667,7 @@ if _problem_type == "Inverse":
             return _r_ob if _r_ob.dim() == 2 else _r_ob.reshape(-1, 1)
         return _f
 
-    _obs_output_names_list = "{config.output_names}".split(",")
+    _obs_output_names_list = {repr(config.output_names)}.split(",")
     _obs_files = {_obs_files_literal}
     _obs_entries = []  # list of (xt, u, output_idx, weight, custom_expr), one per measured-data file
     for _of in _obs_files:
@@ -773,7 +790,7 @@ _IS_FECR = False
 # ── PDE definition (standard) ───────────────────────────────
 def _pde_standard(x, y):
     _n_out = {config.num_outputs}
-    _out_names = [n.strip() for n in "{config.output_names}".split(",")]
+    _out_names = [n.strip() for n in {repr(config.output_names)}.split(",")]
     _is_2d_pde = "{config.problem_dim}" == "2D"
     _is_3d_pde = "{config.problem_dim}" == "3D"
 
@@ -1025,7 +1042,7 @@ _plot_z_min = float(_geom_bbox_arr[0][2]) if _geom_bbox_arr.shape[1] > 2 else {c
 _plot_z_max = float(_geom_bbox_arr[1][2]) if _geom_bbox_arr.shape[1] > 2 else {config.z_max}
 
 # ── Boundary & Initial conditions ────────────────────────────
-_out_names_list  = "{config.output_names}".split(",")
+_out_names_list  = {repr(config.output_names)}.split(",")
 _bc_left_types   = "{config.bc_left_types}".split(",")
 _bc_right_types  = "{config.bc_right_types}".split(",")
 _bc_left_values  = "{config.bc_left_values}".split(",")
@@ -1438,10 +1455,17 @@ else:
     for _oi_w in range(_n_out_w):
         if _bcl_w[_oi_w] is not None:
             _multi_weights.append(_bcl_w[_oi_w])
-            # Add extra weight for derivative periodic BC if enabled
-            _bbt_is_per = _oi_w < len(_bbt_check) and _bbt_check[_oi_w].strip() == "Periodic"
-            _bbd_is_active = _oi_w < len(_bc_bottom_deriv_active) and _bc_bottom_deriv_active[_oi_w].strip() == "True"
-            if _bbt_is_per and _bbd_is_active:
+            # Add extra weight for derivative periodic BC if enabled -- this
+            # must check the LEFT edge's own periodic/derivative flags, not
+            # the bottom edge's (a copy-paste bug: this block was gated on
+            # _bbt_check/_bc_bottom_deriv_active, the exact same variables
+            # the bottom block below correctly uses for itself, so a
+            # left-side periodic+derivative BC never got its extra weight
+            # slot at all while a bottom-side one could spuriously trigger
+            # this block instead, desyncing every loss weight after it).
+            _blt_is_per = _oi_w < len(_blt_check) and _blt_check[_oi_w].strip() == "Periodic"
+            _bld_is_active = _oi_w < len(_bc_left_deriv_active) and _bc_left_deriv_active[_oi_w].strip() == "True"
+            if _blt_is_per and _bld_is_active:
                 _multi_weights.append(_wm_list[_wi] if _wi < len(_wm_list) else 1.0); _wi += 1
         if _bcr_w[_oi_w] is not None: _multi_weights.append(_bcr_w[_oi_w])
         if _bcb_w[_oi_w] is not None:
@@ -2035,7 +2059,7 @@ for _pval in _param_values:
         _plot_type = "{config.plot_type}"
         _plot_custom_expr = "{plot_custom_expr_converted}"
         _plot_custom_label = "{plot_custom_label_resolved}"
-        _plot_output_names_list = "{config.output_names}".split(",")
+        _plot_output_names_list = {repr(config.output_names)}.split(",")
 
         def _extract_plot_field(_pred_arr):
             # Pick the field to plot from a model.predict() output array:
@@ -2224,7 +2248,7 @@ for _pval in _param_values:
             ax.set_xlabel("x"); ax.set_ylabel("y")
             ax.set_aspect("equal", adjustable="box")
             if {config.plot_colorbar}: fig.colorbar(im, ax=ax)
-            out_name = _plot_custom_label if _plot_custom_expr.strip() else "{config.output_names}".split(",")[_plot_idx].strip()
+            out_name = _plot_custom_label if _plot_custom_expr.strip() else {repr(config.output_names)}.split(",")[_plot_idx].strip()
             fig.suptitle(f"PINN Solution — {{out_name}}(x,y)", fontsize=12)
             plt.tight_layout()
             plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
@@ -2253,7 +2277,7 @@ for _pval in _param_values:
                 axes[_ai].set_title(f"t = {{_tv:.3f}}")
                 axes[_ai].set_xlabel("x"); axes[_ai].set_ylabel("y")
                 if {config.plot_colorbar}: fig.colorbar(im, ax=axes[_ai])
-            out_name = _plot_custom_label if _plot_custom_expr.strip() else "{config.output_names}".split(",")[_plot_idx].strip()
+            out_name = _plot_custom_label if _plot_custom_expr.strip() else {repr(config.output_names)}.split(",")[_plot_idx].strip()
             fig.suptitle(f"PINN Solution — {{out_name}}(x,y,t)", fontsize=12)
             plt.tight_layout()
             plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
@@ -2280,7 +2304,7 @@ for _pval in _param_values:
             ax.set_xlabel("x"); ax.set_ylabel("y")
             ax.set_aspect("equal", adjustable="box")
             if {config.plot_colorbar}: fig.colorbar(im, ax=ax)
-            out_name = _plot_custom_label if _plot_custom_expr.strip() else "{config.output_names}".split(",")[_plot_idx].strip()
+            out_name = _plot_custom_label if _plot_custom_expr.strip() else {repr(config.output_names)}.split(",")[_plot_idx].strip()
             fig.suptitle(f"PINN Solution — {{out_name}}(x,y,z={{_z_mid:.3g}})", fontsize=12)
             plt.tight_layout()
             plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
@@ -2316,7 +2340,7 @@ for _pval in _param_values:
                 axes[_ai].set_title(f"t = {{_tv:.3f}}, z = {{_z_mid:.3g}} (mid-plane)")
                 axes[_ai].set_xlabel("x"); axes[_ai].set_ylabel("y")
                 if {config.plot_colorbar}: fig.colorbar(im, ax=axes[_ai])
-            out_name = _plot_custom_label if _plot_custom_expr.strip() else "{config.output_names}".split(",")[_plot_idx].strip()
+            out_name = _plot_custom_label if _plot_custom_expr.strip() else {repr(config.output_names)}.split(",")[_plot_idx].strip()
             fig.suptitle(f"PINN Solution — {{out_name}}(x,y,z={{_z_mid:.3g}},t)", fontsize=12)
             plt.tight_layout()
             plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
@@ -2327,7 +2351,7 @@ for _pval in _param_values:
             _res_1d = {config.plot_resolution}
             _x_1d = np.linspace({config.x_min}, {config.x_max}, _res_1d)
             _u_1d = _extract_plot_field(model.predict(_x_1d.reshape(-1, 1))).flatten()
-            _out_name_1d = _plot_custom_label if _plot_custom_expr.strip() else "{config.output_names}".split(",")[_plot_idx].strip()
+            _out_name_1d = _plot_custom_label if _plot_custom_expr.strip() else {repr(config.output_names)}.split(",")[_plot_idx].strip()
             fig, ax = plt.subplots(figsize=(7, 5))
             ax.plot(_x_1d, _u_1d, color="#4dabf7", linewidth={config.plot_linewidth})
             ax.set_xlabel("x"); ax.set_ylabel(f"{{_out_name_1d}}(x)")
@@ -2343,7 +2367,7 @@ for _pval in _param_values:
                 _Xs, _Ts = np.meshgrid(_x_s, _t_s)
                 _XTs = np.vstack([_Xs.ravel(), _Ts.ravel()]).T
                 _u_s = _extract_plot_field(model.predict(_XTs)).reshape(_res, _res)
-                _out_name_1dt = _plot_custom_label if _plot_custom_expr.strip() else "{config.output_names}".split(",")[_plot_idx].strip()
+                _out_name_1dt = _plot_custom_label if _plot_custom_expr.strip() else {repr(config.output_names)}.split(",")[_plot_idx].strip()
                 _vmin_s = None if {config.plot_auto_range} else {config.plot_vmin}
                 _vmax_s = None if {config.plot_auto_range} else {config.plot_vmax}
                 print(f"Plot settings: cmap={config.plot_colormap}, levels={config.plot_levels}, dpi={config.plot_dpi}, res={config.plot_resolution}")
@@ -2370,7 +2394,7 @@ for _pval in _param_values:
                 t_steps_plot = np.linspace({config.t_min}, {config.t_max}, n_steps_plot)
                 fig, ax = plt.subplots(figsize=(8, 5))
                 colors = plt.get_cmap("{config.plot_colormap}")(np.linspace(0, 1, n_steps_plot))
-                _out_name_line = _plot_custom_label if _plot_custom_expr.strip() else "{config.output_names}".split(",")[_plot_idx].strip()
+                _out_name_line = _plot_custom_label if _plot_custom_expr.strip() else {repr(config.output_names)}.split(",")[_plot_idx].strip()
                 for i, t_val in enumerate(t_steps_plot):
                     xt = np.column_stack([_x_l, np.full_like(_x_l, t_val)])
                     u_line = _extract_plot_field(model.predict(xt)).flatten()
@@ -3123,7 +3147,7 @@ if {config.time_adaptive}:
 
     _plot_idx = {config.plot_output_idx}
     _plot_custom_expr = "{plot_custom_expr_converted}"
-    _plot_output_names_list = "{config.output_names}".split(",")
+    _plot_output_names_list = {repr(config.output_names)}.split(",")
 
     def _extract_plot_field(_pred_arr):
         # Time-Adaptive's own copy of the Standard-path helper of the same
@@ -3638,7 +3662,7 @@ if {config.time_adaptive}:
                 "loss_type": "{config.loss_type}",
                 "optimizer": "{config.optimizer}",
                 "optimizer2": "{config.optimizer2}",
-                "output_names": "{config.output_names}",
+                "output_names": {repr(config.output_names)},
                 "num_outputs": {config.num_outputs},
             }}
             with open(_os.path.join(_step_dir, "step_config.json"), "w") as _scf:
@@ -4785,7 +4809,11 @@ def _load_obs_data(path):
         _n_obs_cols = (3 if is_3d else (2 if is_2d else 1)) if is_steady else (4 if is_3d else (3 if is_2d else 2))
         obs_lines = ["obs_entries = []  # (xt, u, output_idx, weight, custom_expr), one per measured-data file"]
         for _oi_f, of in enumerate(obs_files_parsed):
-            obs_lines.append(f"_of_data = _load_obs_data(r\"{of['path']}\")")
+            # of['path']!r (not r"...") -- same Windows-trailing-backslash
+            # SyntaxError this file's other path sites were already fixed
+            # for; this one is generate_clean_script()'s own separate
+            # Inverse observation-file loading path and was missed then.
+            obs_lines.append(f"_of_data = _load_obs_data({of['path']!r})")
             obs_lines.append(f"_of_xt, _of_u = _of_data[:, 0:{_n_obs_cols}], _of_data[:, {_n_obs_cols}:{_n_obs_cols + 1}]")
             obs_lines.append(f"obs_entries.append((_of_xt, _of_u, {of['output_idx']}, {of['weight']}, {of.get('custom_expr', '')!r}))")
             if of.get('custom_expr'):
@@ -4796,13 +4824,23 @@ def _load_obs_data(path):
                 # torch tensors (gradient-safe) rather than a numpy array
                 # after predict(), via dde.icbc.PointSetOperatorBC instead
                 # of PointSetBC(component=...).
-                _bindings = ", ".join(f'"{n.strip()}": outputs[:, {_i}:{_i + 1}]' for _i, n in enumerate(out_names))
+                # n.strip()!r (not a manually-quoted f-string) so an output
+                # name containing a quote can't break this dict literal --
+                # same repr()-escaping convention used for free-text fields
+                # elsewhere in this file.
+                _bindings = ", ".join(f'{n.strip()!r}: outputs[:, {_i}:{_i + 1}]' for _i, n in enumerate(out_names))
                 obs_lines.append(f'''def _obs_func_{_oi_f}(inputs, outputs, X):
     _ns_obs = {{"sin": torch.sin, "cos": torch.cos, "tan": torch.tan,
                 "sinh": torch.sinh, "cosh": torch.cosh, "tanh": torch.tanh,
                 "arcsin": torch.arcsin, "arccos": torch.arccos, "arctan": torch.arctan,
                 "exp": torch.exp, "log": torch.log, "log10": torch.log10,
-                "sqrt": torch.sqrt, "abs": torch.abs, "ceil": torch.ceil,
+                # +1e-12 guard baked into sqrt itself -- same fix and
+                # rationale as generate_script()'s own _make_obs_func (this
+                # is generate_clean_script()'s separate copy of the same
+                # training-time observation-matching function, which
+                # DeepXDE differentiates through via PointSetOperatorBC;
+                # the same u=v=0 singularity applies here identically).
+                "sqrt": lambda _v: torch.sqrt(_v + 1e-12), "abs": torch.abs, "ceil": torch.ceil,
                 "floor": torch.floor, "pi": np.pi, "torch": torch,
                 {_bindings}}}
     _r = eval({of['custom_expr']!r}, _ns_obs)

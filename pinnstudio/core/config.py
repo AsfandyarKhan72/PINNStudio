@@ -296,3 +296,105 @@ class PINNConfig:
     # ic_expressions/time_adaptive/adapt_method are all ignored.
     steady_state: bool = False
 
+    def validate(self):
+        """Sanity-check the fields that would otherwise either silently
+        produce a degenerate run or crash deep inside DeepXDE/PyTorch with a
+        traceback that gives no hint it was a config problem -- most
+        importantly the ones a hand-edited or corrupted .pinn.json save
+        file could set to something the GUI's own spinboxes/combo boxes
+        would never allow (a negative iteration count, an empty layers
+        list, an inverted domain range, etc.). Returns a list of
+        human-readable problem descriptions; an empty list means the config
+        is safe to hand to codegen. Deliberately not exhaustive -- this
+        catches the failure modes that are easy to hit from a hand-edited
+        file and hard to diagnose from the resulting crash, not every
+        possible misconfiguration."""
+        errors = []
+
+        if not isinstance(self.layers, (list, tuple)) or len(self.layers) < 2:
+            errors.append(
+                "Network layers must be a list of at least 2 sizes (input and "
+                f"output); got {self.layers!r}."
+            )
+        else:
+            for _n in self.layers:
+                if not isinstance(_n, int) or _n < 1:
+                    errors.append(
+                        f"Every network layer size must be a positive integer; "
+                        f"found {_n!r} in layers={self.layers!r}."
+                    )
+                    break
+
+        if self.num_domain <= 0:
+            errors.append(f"Domain points (num_domain) must be positive; got {self.num_domain}.")
+        if self.num_boundary < 0:
+            errors.append(f"Boundary points (num_boundary) cannot be negative; got {self.num_boundary}.")
+        if self.num_initial < 0:
+            errors.append(f"Initial points (num_initial) cannot be negative; got {self.num_initial}.")
+        if self.num_test < 0:
+            errors.append(f"Test points (num_test) cannot be negative; got {self.num_test}.")
+
+        if self.iterations <= 0:
+            errors.append(f"Phase 1 iterations must be positive; got {self.iterations}.")
+        if self.iterations2 < 0:
+            errors.append(f"Phase 2 iterations cannot be negative; got {self.iterations2}.")
+        if self.learning_rate <= 0:
+            errors.append(f"Learning rate must be positive; got {self.learning_rate}.")
+        if self.weight_decay < 0:
+            errors.append(f"Weight decay cannot be negative; got {self.weight_decay}.")
+
+        if self.problem_dim not in ("1D", "2D", "3D"):
+            errors.append(f"problem_dim must be '1D', '2D', or '3D'; got {self.problem_dim!r}.")
+        if self.problem_type not in ("Forward", "Inverse"):
+            errors.append(f"problem_type must be 'Forward' or 'Inverse'; got {self.problem_type!r}.")
+
+        if self.x_min >= self.x_max:
+            errors.append(f"x_min ({self.x_min}) must be less than x_max ({self.x_max}).")
+        if self.problem_dim in ("2D", "3D") and self.y_min >= self.y_max:
+            errors.append(f"y_min ({self.y_min}) must be less than y_max ({self.y_max}).")
+        if self.problem_dim == "3D" and self.z_min >= self.z_max:
+            errors.append(f"z_min ({self.z_min}) must be less than z_max ({self.z_max}).")
+        if not self.steady_state and self.t_min >= self.t_max:
+            errors.append(f"t_min ({self.t_min}) must be less than t_max ({self.t_max}).")
+
+        if self.num_outputs < 1:
+            errors.append(f"num_outputs must be at least 1; got {self.num_outputs}.")
+        else:
+            _names = [n for n in (self.output_names or "").split(",") if n.strip()]
+            if len(_names) < self.num_outputs:
+                errors.append(
+                    f"output_names ({self.output_names!r}) has fewer entries than "
+                    f"num_outputs ({self.num_outputs})."
+                )
+
+        # JSON-encoded fields: a hand-edited file can put invalid JSON in
+        # any of these, which would otherwise only surface as a confusing
+        # crash the moment codegen tries to json.loads() it.
+        import json as _json_cfg
+        for _field in (
+            "scheduler_phases", "custom_bc_json", "bc_boundary_json",
+            "bc_edge_json", "inverse_variables_json", "inverse_obs_files_json",
+        ):
+            _raw = getattr(self, _field, "") or ""
+            if _raw.strip():
+                try:
+                    _json_cfg.loads(_raw)
+                except (ValueError, TypeError) as _e:
+                    errors.append(f"{_field} is not valid JSON: {_e}")
+
+        # ea_files is the one exception: it's encoded with repr()/parsed
+        # with ast.literal_eval (a list of (time, path[, output_selector])
+        # tuples) elsewhere in this codebase, not json.dumps/json.loads --
+        # so it must be checked the same way, not lumped in with the
+        # JSON-encoded fields above (which would reject every legitimate
+        # value, since a Python tuple/None literal isn't valid JSON).
+        _raw_ea = getattr(self, "ea_files", "") or ""
+        if _raw_ea.strip():
+            import ast as _ast_cfg
+            try:
+                _ast_cfg.literal_eval(_raw_ea)
+            except (ValueError, TypeError, SyntaxError) as _e:
+                errors.append(f"ea_files is not valid: {_e}")
+
+        return errors
+
