@@ -72,6 +72,56 @@ class InitGuessLineEdit(SciLineEdit):
         return s
 
 
+class TrueValueLineEdit(InitGuessLineEdit):
+    """InitGuessLineEdit variant for the optional known ground-truth value
+    of an Inverse trainable variable. Unlike the initial guess (always a
+    number), this box may be left BLANK to mean "no known true value" --
+    e.g. for a manually added/custom variable with no known answer, in
+    which case codegen.py's parameter-convergence plot simply skips
+    drawing a dashed True= reference line for it. Blank is a valid,
+    first-class state here (not an error): only non-blank text that fails
+    to parse as a float gets the red-border treatment SciLineEdit uses
+    for invalid input."""
+    def __init__(self, value=None, parent=None):
+        QLineEdit.__init__(self, parent)
+        self._value = None if value is None else float(value)
+        self.setText("" if value is None else self._format(value))
+        self.editingFinished.connect(self._on_edited)
+        self.setFixedHeight(28)
+
+    def _on_edited(self):
+        text = self.text().strip()
+        if not text:
+            self._value = None
+            self.setStyleSheet("")
+            return
+        try:
+            self._value = float(text)
+            self.setText(self._format(self._value))
+            self.setStyleSheet("")
+        except ValueError:
+            self.setStyleSheet("border: 1px solid red;")
+
+    def value(self):
+        text = self.text().strip()
+        if not text:
+            return None
+        try:
+            return float(text)
+        except ValueError:
+            return self._value
+
+    def setValue(self, v):
+        if v is None:
+            self._value = None
+            self.setText("")
+            self.setStyleSheet("")
+            return
+        self._value = float(v)
+        self.setText(self._format(v))
+        self.setStyleSheet("")
+
+
 # ── Background worker thread ─────────────────────────────────
 class SolverThread(QThread):
     output_signal = pyqtSignal(str)
@@ -141,6 +191,16 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("PINNStudio — No-Code GUI for Physics-Informed Neural Networks (PINNs)")
         self.setMinimumSize(1100, 750)
+        # Default launch size: previously there was no explicit resize()
+        # call anywhere (main.py just does MainWindow().show()), so Qt fell
+        # back to the layout's own computed sizeHint(), which lands very
+        # close to the 1100x750 minimum above -- the user had to manually
+        # stretch the window every time just to get a usable amount of
+        # room for the left configuration panel and the plot area. This is
+        # only an initial default: the user can still freely resize the
+        # window and drag both splitters (see their own setSizes() calls
+        # below) afterward exactly as before.
+        self.resize(1650, 950)
         self._font_size = 18
         self._log_font_size = 18
         self._theme = "Solarized Dark"
@@ -548,7 +608,7 @@ class MainWindow(QMainWindow):
         examples_layout = QHBoxLayout(examples_group)
         examples_layout.addWidget(QLabel("Load example:"))
         self.quick_examples_combo = QComboBox()
-        self.quick_examples_combo.addItems(["None", "1D Heat", "1D Allen-Cahn", "1D Burgers", "1D Diffusion-Reaction (Inverse)", "1D Schrödinger"])
+        self.quick_examples_combo.addItems(["None", "1D Heat", "1D Allen-Cahn", "1D Burgers", "1D Schrödinger"])
         self.quick_examples_combo.setFixedHeight(28)
         self.quick_examples_combo.currentTextChanged.connect(self._on_quick_example_selected)
         examples_layout.addWidget(self.quick_examples_combo)
@@ -1866,7 +1926,13 @@ class MainWindow(QMainWindow):
         bottom_layout.setContentsMargins(0, 0, 0, 0)
         bottom_layout.setSpacing(3)
         right_splitter.addWidget(bottom_widget)
-        right_splitter.setSizes([150, 650])
+        # Give the Training Log noticeably more of the vertical space by
+        # default -- previously 150px out of 800 (~19%) left the log
+        # cramped while the plots row below it got "much more space" than
+        # it needed; this is still just an initial split; the user can
+        # drag the divider to whatever they prefer afterward, same as
+        # before this changed.
+        right_splitter.setSizes([320, 600])
 
         # Controls row
         ctrl_row = QHBoxLayout()
@@ -2074,7 +2140,11 @@ class MainWindow(QMainWindow):
         bottom_layout.addLayout(plots_layout)
 
         splitter.addWidget(right)
-        splitter.setSizes([390, 720])
+        # Left configuration panel gets noticeably more default width too
+        # (roughly 38% of the new 1650px-wide default window, vs. 35% of
+        # the old cramped 1100px minimum-sized window) -- same "still just
+        # an initial split, drag it anytime" caveat as right_splitter above.
+        splitter.setSizes([630, 1010])
 
     # ── Dimension change ──────────────────────────────────────
     GEOM_TYPES_2D = ["Rectangle", "Disk", "Ellipse", "Triangle", "Polygon"]
@@ -2154,7 +2224,6 @@ class MainWindow(QMainWindow):
                 "1D Heat",
                 "1D Allen-Cahn",
                 "1D Burgers",
-                "1D Diffusion-Reaction (Inverse)",
                 "1D Schrödinger"
             ])
         self.quick_examples_combo.blockSignals(False)
@@ -2453,6 +2522,18 @@ class MainWindow(QMainWindow):
             _less_data_variant = _end_time_file[:-4] + "_LessData.txt"
             _inv_default_file = _less_data_variant if os.path.isfile(_less_data_variant) else _end_time_file
             self.inv_data_path.setText(_inv_default_file)
+            # Remember which template this path was just auto-loaded for --
+            # _sync_inverse_multi_setup reads this to tell "a real file we
+            # just found for the CURRENTLY selected template" apart from
+            # "stale leftovers from whatever template was selected before",
+            # so it can preserve the former and still safely discard the
+            # latter (see its own comment for the bug this fixes: 1D
+            # Schrodinger's own INVERSE_AUTO_OBS entry has an intentionally
+            # empty default path, and switching Problem Type to Inverse
+            # right after this ran was unconditionally wiping this
+            # just-auto-loaded path back to empty).
+            self._ea_auto_inv_path = _inv_default_file
+            self._ea_auto_inv_template = getattr(self, '_current_template', '')
             self.log_box.append(
                 f"📂 Inverse observed data auto-loaded: {os.path.basename(_inv_default_file)} "
                 f"(t={valid_files[-1][0]:.4g})")
@@ -2713,12 +2794,15 @@ class MainWindow(QMainWindow):
         variables are fit against the same shared observation dataset).
         true_value is the known ground-truth value for a built-in
         template's auto-substituted PDE constant (see INVERSE_AUTO_VARS
-        below) -- not shown as its own widget (nothing here today lets the
-        user set or edit it directly), just carried on the row so
-        _build_inverse_variables_json can serialize it for codegen.py's
-        parameter-convergence plot to draw a dashed reference line at.
-        None (the default) for a manually added variable or a legacy
-        saved config, in which case that line is simply not drawn."""
+        below), shown in its own editable "true value:" box so the user
+        can see, correct, or (for a manually added/custom variable) fill
+        in the known answer themselves -- _build_inverse_variables_json
+        reads the box's current value (not this argument) when it
+        serializes the variable list for codegen.py's parameter-
+        convergence plot to draw a dashed reference line at. None (the
+        default) leaves the box blank -- for a manually added variable or
+        a legacy saved config with no known true value -- in which case
+        that line is simply not drawn."""
         if is_primary is None:
             is_primary = (len(self.inv_var_rows) == 0)
         if not name:
@@ -2738,6 +2822,17 @@ class MainWindow(QMainWindow):
         init_spin = InitGuessLineEdit(init)
         init_spin.setFixedHeight(26); init_spin.setFixedWidth(85)
         row_layout.addWidget(init_spin)
+
+        row_layout.addWidget(QLabel("true value:"))
+        true_edit = TrueValueLineEdit(true_value)
+        true_edit.setFixedHeight(26); true_edit.setFixedWidth(85)
+        true_edit.setToolTip(
+            "Known ground-truth value for this variable, if you have one.\n"
+            "Pre-filled for built-in templated examples; leave blank for a\n"
+            "custom PDE, or fill it in yourself if you know the answer.\n"
+            "Only used to draw a dashed reference line on the parameter-\n"
+            "convergence plot -- it never affects training itself.")
+        row_layout.addWidget(true_edit)
 
         remove_btn = None
         if is_primary:
@@ -2761,7 +2856,7 @@ class MainWindow(QMainWindow):
             'name': name_edit,
             'init': init_spin,
             'is_primary': is_primary,
-            'true': true_value,
+            'true': true_edit,
         }
         self.inv_var_rows.append(row_data)
         if is_primary:
@@ -2795,7 +2890,7 @@ class MainWindow(QMainWindow):
         for r in self.inv_var_rows:
             nm = r['name'].text().strip() or f"trainable_variable_{len(variables) + 1}"
             entry = {'name': nm, 'init': r['init'].value()}
-            _true = r.get('true')
+            _true = r['true'].value()
             if _true is not None:
                 entry['true'] = _true
             variables.append(entry)
@@ -3545,7 +3640,7 @@ class MainWindow(QMainWindow):
         loc_row = QHBoxLayout()
         loc_row.addWidget(QLabel("Where:"))
         loc_edit = QLineEdit(location)
-        loc_edit.setPlaceholderText("e.g. x <= 1e-8   (boolean expression in x, y, z)")
+        loc_edit.setPlaceholderText("e.g. x <= -1   (compare against YOUR domain's own min/max)")
         loc_edit.setFixedHeight(26)
         loc_row.addWidget(loc_edit)
         loc_layout.addLayout(loc_row)
@@ -3554,12 +3649,21 @@ class MainWindow(QMainWindow):
         self._register_style(loc_hint_toggle, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
         loc_layout.addWidget(loc_hint_toggle)
         loc_hint = QLabel(
-            "True/False expression in x, y, z picking out the boundary you\n"
-            "mean (only y if 2D/3D, only z if 3D) -- points not actually on\n"
-            "the geometry's boundary are already excluded automatically.\n"
-            "x <= 1e-8            → left edge (x = xmin)\n"
-            "x >= 0.999           → right edge (x close to xmax = 1.0)\n"
-            "y <= 1e-8            → bottom edge\n"
+            "True/False expression in x, y, z that picks out WHICH boundary\n"
+            "you mean (only y if 2D/3D, only z if 3D) -- DeepXDE only ever\n"
+            "calls this on points it has already checked ARE on the\n"
+            "geometry's boundary, so you don't need to re-detect \"on the\n"
+            "boundary\" yourself or add any tolerance; you're only telling\n"
+            "it which edge/face those points belong to.\n"
+            "Compare against THIS problem's own Domain min/max fields above\n"
+            "(x_min/x_max, y_min/y_max, z_min/z_max) -- NOT a fixed number\n"
+            "like 0 or 1. E.g. if your domain is x in [-1, 1], the left\n"
+            "edge is \"x <= -1\"; if it's x in [0, 1] instead, the left edge\n"
+            "is \"x <= 0\". Built-in templates fill this in for you\n"
+            "automatically using their own domain -- these are just examples:\n"
+            "x <= x_min            → left edge (use your own x_min value)\n"
+            "x >= x_max            → right edge (use your own x_max value)\n"
+            "y <= y_min            → bottom edge (2D/3D)\n"
             "np.isclose(x**2 + y**2, 0.25)  → circle boundary, radius 0.5"
         )
         self._register_style(loc_hint, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
@@ -4923,10 +5027,6 @@ class MainWindow(QMainWindow):
         "2D Allen-Cahn (Mattey & Ghosh)": [(0, "0.0001", 0)],
         "2D Allen-Cahn (Wight & Zhao)": [(0, "0.00625", 0)],
         "3D Heat": [(0, "0.4", 0)],
-        "1D Diffusion-Reaction (Inverse)": [
-            (0, "0.002", 0), (1, "0.002", 0),  # D, in both C_A's and C_B's PDE
-            (0, "0.1", 1), (1, "0.1", 1),      # kf, in both (C_B's is written 2*0.1 so the same "0.1" substring still matches)
-        ],
         # Viscosity 0.01 (the paper's nu = 0.01/pi -- the constant that's
         # actually unknown/inferred in an inverse Burgers problem is
         # written as its own numerator, not the whole fraction).
@@ -4966,40 +5066,57 @@ class MainWindow(QMainWindow):
         return "trainable_variable_1" if row_index == 0 else f"trainable_variable_{row_index + 1}"
 
     # Per built-in template that has a known ground-truth value for at
-    # least one unknown (every template with an INVERSE_AUTO_CONST entry,
-    # not just the diffusion-reaction system anymore): the trainable-
-    # variable rows and observed-data-file rows to seed the Inverse panel
-    # with automatically, so the example works out of the box instead of
+    # least one unknown (every template with an INVERSE_AUTO_CONST entry
+    # now has one here too -- previously six of them -- 1D Heat, 1D
+    # Allen-Cahn, 2D Heat, 2D Allen-Cahn (Mattey & Ghosh), 2D Allen-Cahn
+    # (Wight & Zhao), 3D Heat -- had an INVERSE_AUTO_CONST entry (so their
+    # PDE box WAS correctly substituted) but no entry here, so the
+    # always-present default variable row simply kept whatever init/true
+    # values were left over from whichever template had been selected
+    # before it, e.g. selecting 1D Allen-Cahn after 1D Burgers showed
+    # Burgers' own init=0.02/true=0.01 instead of Allen-Cahn's real
+    # init=1.0/true=0.0001): the trainable-variable rows and
+    # observed-data-file rows to seed the Inverse panel with
+    # automatically, so the example works out of the box instead of
     # requiring the user to hand-add a row and name it to match
     # INVERSE_AUTO_CONST exactly. (name, init, true) per variable row,
     # primary first -- init is deliberately NOT the true value (an inverse
     # problem that starts already at the answer proves nothing about
-    # whether the fit actually recovers it), true is the real PDE constant
-    # this variable replaced, used only by codegen.py's parameter-
-    # convergence plot to draw a dashed reference line at. (path,
-    # output_idx, weight) or (path, output_idx, weight, custom_expr) per
-    # observation file row, primary first -- the optional 4th element
-    # pre-selects the "Custom..." derived-field option (e.g. 1D
-    # Schrodinger's data is |h| = sqrt(u**2+v**2), not output u or v
+    # whether the fit actually recovers it -- every template here starts
+    # at init=1.0 for exactly this reason, except the Poisson family,
+    # whose true value already IS 1.0, so it starts at 0.1 instead), true
+    # is the real PDE constant this variable replaced, used only by
+    # codegen.py's parameter-convergence plot to draw a dashed reference
+    # line at. (path, output_idx, weight) or (path, output_idx, weight,
+    # custom_expr) per observation file row, primary first -- the optional
+    # 4th element pre-selects the "Custom..." derived-field option (e.g.
+    # 1D Schrodinger's data is |h| = sqrt(u**2+v**2), not output u or v
     # alone) even when, as for Schrodinger today, no bundled file path is
     # supplied and the user still has to browse to one. Paths that ARE
-    # supplied point at the template's own reference-data folder -- either
-    # hand-provided separately (Diffusion-Reaction's CA_obs.txt/
-    # CB_obs.txt) or, for the Poisson templates, generated by a patch as a
-    # subsample of each template's own bundled solution.txt (see u_obs.txt
-    # in the same folder). For 2D Poisson (L-Shape/Disk) that solution.txt
-    # is a real numerical solution, never fabricated from a closed form,
-    # since the L-Shape domain's reentrant corner has no simple one (that's
-    # the point of the example) -- so the Disk template (which DOES have
-    # one, u=(1-r^2)/4) isn't treated any differently from it here. 3D
-    # Poisson (Sphere) is the one exception: its solution.txt IS generated
-    # directly from its known closed form u=(R^2-r^2)/6 (see
-    # templates_3d_steady above) since no reentrant-corner-style
-    # complication exists for a sphere to make a closed form untrustworthy.
+    # supplied point at the template's own reference-data folder, generated
+    # by a patch as a subsample of each template's own bundled solution.txt
+    # (see u_obs.txt in the same folder). For 2D Poisson (L-Shape/Disk)
+    # that solution.txt is a real numerical solution, never fabricated
+    # from a closed form, since the L-Shape domain's reentrant corner has
+    # no simple one (that's the point of the example) -- so the Disk
+    # template (which DOES have one, u=(1-r^2)/4) isn't treated any
+    # differently from it here. 3D Poisson (Sphere) is the one exception:
+    # its solution.txt IS generated directly from its known closed form
+    # u=(R^2-r^2)/6 (see templates_3d_steady above) since no
+    # reentrant-corner-style complication exists for a sphere to make a
+    # closed form untrustworthy. The 6 templates below with no bundled
+    # observed-data file (1D/2D/3D Heat, 1D/2D Allen-Cahn) have no
+    # INVERSE_AUTO_OBS entry either -- same as 1D Schrodinger, the user
+    # just has to Browse to a file of their own.
     INVERSE_AUTO_VARS = {
-        "1D Diffusion-Reaction (Inverse)": [("D", 1e-3, 2e-3), ("kf", 0.2, 0.1)],
-        "1D Burgers": [("trainable_variable_1", 0.02, 0.01)],
-        "2D Burgers (Mathias)": [("trainable_variable_1", 0.02 / math.pi, 0.01 / math.pi)],
+        "1D Heat": [("trainable_variable_1", 1.0, 0.4)],
+        "1D Allen-Cahn": [("trainable_variable_1", 1.0, 0.0001)],
+        "2D Heat": [("trainable_variable_1", 1.0, 0.4)],
+        "2D Allen-Cahn (Mattey & Ghosh)": [("trainable_variable_1", 1.0, 0.0001)],
+        "2D Allen-Cahn (Wight & Zhao)": [("trainable_variable_1", 1.0, 0.00625)],
+        "3D Heat": [("trainable_variable_1", 1.0, 0.4)],
+        "1D Burgers": [("trainable_variable_1", 1.0, 0.01)],
+        "2D Burgers (Mathias)": [("trainable_variable_1", 1.0, 0.01 / math.pi)],
         "1D Schrödinger": [("trainable_variable_1", 1.0, 0.5)],
         # True value is already 1 -- starting the initial guess there
         # would make the "inference" trivial (zero iterations needed),
@@ -5009,14 +5126,10 @@ class MainWindow(QMainWindow):
         "3D Poisson (Sphere)": [("trainable_variable_1", 0.1, 1.0)],
     }
     INVERSE_AUTO_OBS = {
-        "1D Diffusion-Reaction (Inverse)": [
-            (os.path.join(REFERENCE_DATA_DIR, "1D", "diffusion_reaction", "CA_obs.txt"), 0, 100.0),
-            (os.path.join(REFERENCE_DATA_DIR, "1D", "diffusion_reaction", "CB_obs.txt"), 1, 100.0),
-        ],
         # No bundled file -- there's no default "the" |h| measurement file
-        # the way Diffusion-Reaction has CA_obs.txt/CB_obs.txt, but the
-        # measured quantity for this template is always |h|, never a raw
-        # output, so the output-selector default is still worth seeding:
+        # for this template (unlike the Poisson family's u_obs.txt below),
+        # but the measured quantity for this template is always |h|, never
+        # a raw output, so the output-selector default is still worth seeding:
         # the user only has to Browse to a file, not also discover and
         # turn on "Custom...". The "+1e-12" inside the sqrt isn't cosmetic:
         # d/du sqrt(u**2+v**2) = u/sqrt(u**2+v**2) is singular at u=v=0, and
@@ -5074,12 +5187,36 @@ class MainWindow(QMainWindow):
                 self._add_inverse_var_row(name=name, init=init, true_value=true, is_primary=(i == 0))
         obs_list = self.INVERSE_AUTO_OBS.get(template)
         if obs_list:
+            # If _auto_configure_ea already found and auto-loaded a real
+            # observed-data file for the CURRENTLY selected template (e.g.
+            # 1D Schrodinger, whose own default path below is intentionally
+            # ""  --  no bundled |h| file ships with it), preserve that
+            # path instead of unconditionally wiping it back to the
+            # template's static default: without this, switching Problem
+            # Type to Inverse right after a template that just auto-loaded
+            # a file produced exactly the contradiction reported --
+            # "auto-loaded: t_1.0.txt" in the log, immediately followed by
+            # "no observation row has a file selected" at Solve time,
+            # because this rebuild ran after the auto-load and silently
+            # discarded it. Guarded on the auto-load being for THIS SAME
+            # template (not a stale path pointing at a file that belongs
+            # to whatever template was selected before this one) -- when
+            # _auto_configure_ea instead runs AFTER this rebuild (the
+            # normal order when a template is freshly selected while
+            # already in Inverse mode), it sets the row's path directly,
+            # so there's nothing to preserve here and this stays empty.
+            _preserve_path = ""
+            if (not obs_list[0][0]
+                    and getattr(self, '_ea_auto_inv_template', None) == template):
+                _preserve_path = getattr(self, '_ea_auto_inv_path', '') or ""
             for r in list(self.inv_data_rows):
                 r['widget'].deleteLater()
             self.inv_data_rows.clear()
             for i, entry in enumerate(obs_list):
                 path, output_idx, weight = entry[0], entry[1], entry[2]
                 custom_expr = entry[3] if len(entry) > 3 else ""
+                if i == 0 and not path and _preserve_path:
+                    path = _preserve_path
                 self._add_inverse_data_row(path=path, output_idx=output_idx, weight=weight,
                                             custom_expr=custom_expr, is_primary=(i == 0))
 
@@ -7060,6 +7197,20 @@ print("ERROR_ANALYSIS_DONE")
             for i, ic_text in enumerate(t['ic']):
                 if i < len(self.ic_inputs):
                     self.ic_inputs[i].setText(ic_text)
+            # Geometry: every template in this dict (Heat, Allen-Cahn,
+            # Burgers) is a plain rectangular domain -- unlike the steady
+            # Poisson templates below (Polygon/Disk), none of them ever set
+            # their own geometry_type, so without an explicit reset here,
+            # switching TO one of these FROM "2D Poisson (L-Shape)" or "2D
+            # Poisson (Disk)" left the Geometry selector stuck on
+            # Polygon/Disk (and its Polygon-vertices/Disk-center/radius
+            # panel still showing) even though every other field had
+            # already switched over to the new, rectangular template --
+            # the same stale-leftover-from-a-different-template bug class
+            # already fixed elsewhere for t_max/num_test/BC values. Setting
+            # it back to Rectangle here, unconditionally, is always correct
+            # for every template in this dict.
+            self.geometry_type_combo.setCurrentText('Rectangle')
             # Set domain
             self.x_min.setValue(t['x_min']); self.x_max.setValue(t['x_max'])
             self.y_min.setValue(t['y_min']); self.y_max.setValue(t['y_max'])
@@ -7341,6 +7492,11 @@ print("ERROR_ANALYSIS_DONE")
             for i, ic_text in enumerate(t['ic']):
                 if i < len(self.ic_inputs):
                     self.ic_inputs[i].setText(ic_text)
+            # Geometry: same reset as the 2D dict above -- 3D Heat is
+            # always a plain Cuboid, but switching to it FROM "3D Poisson
+            # (Sphere)" (which sets geometry_type to 'Sphere' below) left
+            # the Geometry selector stuck on Sphere without this.
+            self.geometry_type_combo.setCurrentText('Cuboid')
             self.x_min.setValue(t['x_min']); self.x_max.setValue(t['x_max'])
             self.y_min.setValue(t['y_min']); self.y_max.setValue(t['y_max'])
             self.z_min.setValue(t['z_min']); self.z_max.setValue(t['z_max'])
@@ -7532,46 +7688,6 @@ print("ERROR_ANALYSIS_DONE")
                 'periodic_bc': False,
                 'ref_dir': os.path.join(REFERENCE_DATA_DIR, "1D", "burgers"),
             },
-            # Exact equations, IC and BC as in Lu, Meng, Mao & Karniadakis
-            # 2019 (DeepXDE), section 4.4: a diffusion-reaction system
-            # A + 2B -> C in porous media,
-            #   dC_A/dt = D d2C_A/dx2 - kf C_A C_B^2,
-            #   dC_B/dt = D d2C_B/dx2 - 2 kf C_A C_B^2,
-            # x in [0,1], t in [0,10], C_A(x,0)=C_B(x,0)=exp(-20x),
-            # C_A(0,t)=C_B(0,t)=1, C_A(1,t)=C_B(1,t)=0. True values
-            # D=2e-3, kf=0.1 (this is the paper's Inverse example: D and kf
-            # are unknown, identified from concentration observations --
-            # loaded as Forward here with the true constants so the
-            # equations can be inspected/trained forward too, and the
-            # Inverse panel's D/kf rows + C_A/C_B observation-file rows are
-            # auto-seeded by INVERSE_AUTO_VARS/INVERSE_AUTO_OBS the moment
-            # Inverse mode is switched on for this template -- see
-            # _sync_inverse_multi_setup. The CB PDE keeps "2*0.1" unsimplified
-            # (rather than precomputing 0.2) purely so the same "0.1"
-            # substring substitutes to "kf" in both PDE rows -- see
-            # INVERSE_AUTO_CONST. Observation files are NOT generated by
-            # this patch -- see that template's reference-data folder.
-            # Network/training recipe follows DeepXDE Table 3, Example 4
-            # (depth 3, width 20, Adam only, lr 0.001, 80000 iterations).
-            "1D Diffusion-Reaction (Inverse)": {
-                'num_outputs': 2,
-                'output_names': 'CA,CB',
-                'pde': ["dCA_t - 0.002*dCA_xx + 0.1*CA*CB**2",
-                        "dCB_t - 0.002*dCB_xx + 2*0.1*CA*CB**2"],
-                'ic': ["exp(-20*x)", "exp(-20*x)"],
-                'num_domain': 6000,
-                'num_boundary': 400,
-                'num_initial': 400,
-                'layers': 3,
-                'neurons': 20,
-                'iterations': 80000,
-                'optimizer2': 'none',
-                'iterations2': 5000,
-                'x_min': 0.0, 'x_max': 1.0,
-                't_max': 10.0,
-                'periodic_bc': False,
-                'ref_dir': os.path.join(REFERENCE_DATA_DIR, "1D", "diffusion_reaction"),
-            },
             # Exact equation, IC and periodic BC as in Raissi, Perdikaris &
             # Karniadakis 2019 (JCP), section 3.1.1: the 1D nonlinear
             # Schrodinger equation i h_t + 0.5 h_xx + |h|^2 h = 0,
@@ -7671,8 +7787,7 @@ print("ERROR_ANALYSIS_DONE")
                     self.weight_widgets[key].setValue(100.0)
 
         # Set domain x range (and t range, for templates whose t domain
-        # isn't the default 1.0 -- e.g. Diffusion-Reaction's t in [0,10]
-        # and Schrodinger's t in [0, pi/2]).
+        # isn't the default 1.0 -- e.g. Schrodinger's t in [0, pi/2]).
         if 'x_min' in t:
             self.x_min.setValue(t['x_min'])
             self.x_max.setValue(t['x_max'])
@@ -7699,10 +7814,6 @@ print("ERROR_ANALYSIS_DONE")
         if text == "1D Burgers":
             for i in range(self.num_outputs_spin.value()):
                 if i < len(self.bc_left_vals): self.bc_left_vals[i].setValue(0.0)
-                if i < len(self.bc_right_vals): self.bc_right_vals[i].setValue(0.0)
-        elif text == "1D Diffusion-Reaction (Inverse)":
-            for i in range(self.num_outputs_spin.value()):
-                if i < len(self.bc_left_vals): self.bc_left_vals[i].setValue(1.0)
                 if i < len(self.bc_right_vals): self.bc_right_vals[i].setValue(0.0)
         self._populate_locked_bc_entries_from_legacy(self.num_outputs_spin.value(), is_2d=False)
         if text == "1D Schrödinger":
