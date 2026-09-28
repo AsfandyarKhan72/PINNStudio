@@ -2385,531 +2385,591 @@ for _pval in _param_values:
         # ── Inline Error Analysis ─────────────────────────────
         if {config.ea_files}:
             from scipy.interpolate import interp1d as _interp1d
-            _ea_files = [(tv, fp) for tv, fp in {config.ea_files}
-                         if {config.t_min} - 1e-10 <= tv <= {config.t_max} + 1e-10]
             _ea_dir = _os.path.join(_save_dir if _use_save else "/tmp", "error_analysis")
             _os.makedirs(_ea_dir, exist_ok=True)
+
+            # Normalize `ea_files` entries to (time, path, output_selector)
+            # 3-tuples -- output_selector is None (implicit default: falls
+            # back to whatever single field the Results panel/plot_custom_expr
+            # is already configured to show, exactly like before this
+            # feature existed), an int (a raw output column index), or a
+            # [expr, label] pair (a custom derived field of its own, reusing
+            # the same expression mechanism as the Results panel's
+            # "Custom..." plot field). Older saved configs only ever wrote
+            # 2-tuples (no selector at all) -- padded with None here so they
+            # keep behaving exactly as before.
+            _ea_files_norm = []
+            for _ea_entry in {config.ea_files}:
+                if len(_ea_entry) >= 3:
+                    _ea_tv0, _ea_fp0, _ea_sel0 = _ea_entry[0], _ea_entry[1], _ea_entry[2]
+                else:
+                    _ea_tv0, _ea_fp0 = _ea_entry[0], _ea_entry[1]
+                    _ea_sel0 = None
+                if {config.t_min} - 1e-10 <= _ea_tv0 <= {config.t_max} + 1e-10:
+                    _ea_files_norm.append((_ea_tv0, _ea_fp0, _ea_sel0))
             print("\\n=== Running Error Analysis ===")
-            print(f"  Filtering to t=[{config.t_min}, {config.t_max}]: {{len(_ea_files)}} files")
+            print(f"  Filtering to t=[{config.t_min}, {config.t_max}]: {{len(_ea_files_norm)}} files")
 
-            # Load all ground truth files
-            _ea_times = []; _ea_x_refs = []; _ea_y_refs = []; _ea_z_refs = []; _ea_u_refs = []
-            for _ea_tv, _ea_fp in _ea_files:
-                _ea_d = np.loadtxt(_ea_fp)
-                if _ea_d.ndim == 1: _ea_d = _ea_d.reshape(1, -1)
-                if _is_steady and _is_3d:
-                    # Steady 3D format: x, y, z, u — no time column at all.
-                    _ea_idx = np.lexsort((_ea_d[:, 2], _ea_d[:, 1], _ea_d[:, 0]))
-                    _ea_x_refs.append(_ea_d[_ea_idx, 0])
-                    _ea_y_refs.append(_ea_d[_ea_idx, 1])
-                    _ea_z_refs.append(_ea_d[_ea_idx, 2])
-                    _ea_u_refs.append(_ea_d[_ea_idx, 3])
-                    _ea_times.append(0.0)
-                    print(f"  Loaded ground truth (steady-state): {{len(_ea_d)}} pts from {{_os.path.basename(_ea_fp)}}")
-                elif _is_steady and _is_2d:
-                    # Steady 2D format: x, y, u — no time column at all.
-                    _ea_idx = np.lexsort((_ea_d[:, 1], _ea_d[:, 0]))
-                    _ea_x_refs.append(_ea_d[_ea_idx, 0])
-                    _ea_y_refs.append(_ea_d[_ea_idx, 1])
-                    _ea_z_refs.append(np.zeros_like(_ea_d[_ea_idx, 0]))
-                    _ea_u_refs.append(_ea_d[_ea_idx, 2])
-                    _ea_times.append(0.0)
-                    print(f"  Loaded ground truth (steady-state): {{len(_ea_d)}} pts from {{_os.path.basename(_ea_fp)}}")
-                elif _is_3d:
-                    # 3D format: x, y, z, t, u — sort by x, y, z
-                    _ea_idx = np.lexsort((_ea_d[:, 2], _ea_d[:, 1], _ea_d[:, 0]))
-                    _ea_x_refs.append(_ea_d[_ea_idx, 0])
-                    _ea_y_refs.append(_ea_d[_ea_idx, 1])
-                    _ea_z_refs.append(_ea_d[_ea_idx, 2])
-                    _ea_u_refs.append(_ea_d[_ea_idx, 4])
-                    _detected_t = float(_ea_d[0, 3])
-                    _ea_times.append(_detected_t)
-                    print(f"  Loaded ground truth t={{_detected_t:.4f}}: {{len(_ea_d)}} pts from {{_os.path.basename(_ea_fp)}}")
-                elif _is_2d:
-                    # 2D format: x, y, t, u — sort by x then y
-                    _ea_idx = np.lexsort((_ea_d[:, 1], _ea_d[:, 0]))
-                    _ea_x_refs.append(_ea_d[_ea_idx, 0])
-                    _ea_y_refs.append(_ea_d[_ea_idx, 1])
-                    _ea_z_refs.append(np.zeros_like(_ea_d[_ea_idx, 0]))
-                    _ea_u_refs.append(_ea_d[_ea_idx, 3])
-                    _detected_t = float(_ea_d[0, 2])
-                    _ea_times.append(_detected_t)
-                    print(f"  Loaded ground truth t={{_detected_t:.4f}}: {{len(_ea_d)}} pts from {{_os.path.basename(_ea_fp)}}")
-                else:
-                    # 1D format: x, t, u — sort by x
-                    _ea_idx = np.argsort(_ea_d[:, 0])
-                    _ea_x_refs.append(_ea_d[_ea_idx, 0])
-                    _ea_y_refs.append(np.zeros_like(_ea_d[_ea_idx, 0]))
-                    _ea_z_refs.append(np.zeros_like(_ea_d[_ea_idx, 0]))
-                    _ea_u_refs.append(_ea_d[_ea_idx, 2])
-                    _ea_times.append(float(_ea_tv))
-                    print(f"  Loaded ground truth t={{_ea_tv:.4f}}: {{len(_ea_d)}} pts from {{_os.path.basename(_ea_fp)}}")
-            # Drop reference points with no solution value (NaN) -- e.g. grid
-            # points outside a non-rectangular geometry like L-Shape's missing
-            # quadrant or Disk/Sphere's bounding-box corners. A no-op for
-            # reference files that don't have any (the usual case).
-            for _ei in range(len(_ea_u_refs)):
-                _ea_valid = ~np.isnan(_ea_u_refs[_ei])
-                if not _ea_valid.all():
-                    _n_dropped = int((~_ea_valid).sum())
-                    _ea_x_refs[_ei] = _ea_x_refs[_ei][_ea_valid]
-                    _ea_y_refs[_ei] = _ea_y_refs[_ei][_ea_valid]
-                    _ea_z_refs[_ei] = _ea_z_refs[_ei][_ea_valid]
-                    _ea_u_refs[_ei] = _ea_u_refs[_ei][_ea_valid]
-                    print(f"  Dropped {{_n_dropped}} NaN reference point(s) outside the geometry")
-            # Sort all loaded data by time value — outside the loop
-            _ea_sort_idx = np.argsort(_ea_times)
-            _ea_times  = [_ea_times[_i]  for _i in _ea_sort_idx]
-            _ea_x_refs = [_ea_x_refs[_i] for _i in _ea_sort_idx]
-            _ea_y_refs = [_ea_y_refs[_i] for _i in _ea_sort_idx]
-            _ea_z_refs = [_ea_z_refs[_i] for _i in _ea_sort_idx]
-            _ea_u_refs = [_ea_u_refs[_i] for _i in _ea_sort_idx]
-            _ea_n_t = len(_ea_times)
-            _ea_u_pinns = [None] * _ea_n_t
-            _ea_metrics = [None] * _ea_n_t
+            # Group reference files by which model output they belong to --
+            # each distinct output gets its own full metrics/line/surface
+            # report below. When every file resolves to the same (usually
+            # the implicit default) output, there's exactly one group and
+            # every filename below is unsuffixed -- byte-for-byte the same
+            # output as before this feature existed.
+            _ea_groups = {{}}
+            for _ea_tv0, _ea_fp0, _ea_sel0 in _ea_files_norm:
+                _ea_gkey = repr(_ea_sel0)
+                if _ea_gkey not in _ea_groups:
+                    _ea_groups[_ea_gkey] = {{"sel": _ea_sel0, "files": []}}
+                _ea_groups[_ea_gkey]["files"].append((_ea_tv0, _ea_fp0))
+            _ea_multi_output = len(_ea_groups) > 1
 
-            if not {config.time_adaptive}:
-                # ── Non-adaptive: use single model ───────────────
-                for _ei, _ea_tv in enumerate(_ea_times):
-                    _ea_xf = _ea_x_refs[_ei]
+            def _ea_group_label(_ea_sel):
+                if _ea_sel is None:
+                    return ""
+                if isinstance(_ea_sel, int):
+                    return (_plot_output_names_list[_ea_sel].strip()
+                            if 0 <= _ea_sel < len(_plot_output_names_list) else f"out{{_ea_sel}}")
+                _ea_lbl = (_ea_sel[1] or "").strip() if len(_ea_sel) > 1 else ""
+                return _ea_lbl if _ea_lbl else "custom"
+
+            def _ea_extract(_ea_pred, _ea_sel):
+                if _ea_sel is None:
+                    return _extract_plot_field(_ea_pred)
+                if isinstance(_ea_sel, int):
+                    return _ea_pred[:, _ea_sel]
+                _ea_ns = {{**_BC_MATH_NS, "np": np}}
+                for _ea_oi, _ea_on in enumerate(_plot_output_names_list):
+                    _ea_ns[_ea_on.strip()] = _ea_pred[:, _ea_oi]
+                return np.asarray(eval(_ea_sel[0], _ea_ns))
+
+            for _ea_group_key, _ea_group in _ea_groups.items():
+                _ea_files = _ea_group["files"]
+                _ea_sel = _ea_group["sel"]
+                _ea_suffix = f"_{{_ea_group_label(_ea_sel)}}" if _ea_multi_output else ""
+                if _ea_multi_output:
+                    print(f"  ── Output group: {{_ea_group_label(_ea_sel) or 'default'}} ({{len(_ea_files)}} files) ──")
+
+                # Load all ground truth files
+                _ea_times = []; _ea_x_refs = []; _ea_y_refs = []; _ea_z_refs = []; _ea_u_refs = []
+                for _ea_tv, _ea_fp in _ea_files:
+                    _ea_d = np.loadtxt(_ea_fp)
+                    if _ea_d.ndim == 1: _ea_d = _ea_d.reshape(1, -1)
                     if _is_steady and _is_3d:
-                        _ea_xt = np.column_stack([_ea_xf, _ea_y_refs[_ei], _ea_z_refs[_ei]])
+                        # Steady 3D format: x, y, z, u — no time column at all.
+                        _ea_idx = np.lexsort((_ea_d[:, 2], _ea_d[:, 1], _ea_d[:, 0]))
+                        _ea_x_refs.append(_ea_d[_ea_idx, 0])
+                        _ea_y_refs.append(_ea_d[_ea_idx, 1])
+                        _ea_z_refs.append(_ea_d[_ea_idx, 2])
+                        _ea_u_refs.append(_ea_d[_ea_idx, 3])
+                        _ea_times.append(0.0)
+                        print(f"  Loaded ground truth (steady-state): {{len(_ea_d)}} pts from {{_os.path.basename(_ea_fp)}}")
                     elif _is_steady and _is_2d:
-                        _ea_xt = np.column_stack([_ea_xf, _ea_y_refs[_ei]])
+                        # Steady 2D format: x, y, u — no time column at all.
+                        _ea_idx = np.lexsort((_ea_d[:, 1], _ea_d[:, 0]))
+                        _ea_x_refs.append(_ea_d[_ea_idx, 0])
+                        _ea_y_refs.append(_ea_d[_ea_idx, 1])
+                        _ea_z_refs.append(np.zeros_like(_ea_d[_ea_idx, 0]))
+                        _ea_u_refs.append(_ea_d[_ea_idx, 2])
+                        _ea_times.append(0.0)
+                        print(f"  Loaded ground truth (steady-state): {{len(_ea_d)}} pts from {{_os.path.basename(_ea_fp)}}")
                     elif _is_3d:
-                        _ea_yf = _ea_y_refs[_ei]
-                        _ea_zf = _ea_z_refs[_ei]
-                        _ea_xt = np.column_stack([_ea_xf, _ea_yf, _ea_zf, np.full_like(_ea_xf, _ea_tv)])
+                        # 3D format: x, y, z, t, u — sort by x, y, z
+                        _ea_idx = np.lexsort((_ea_d[:, 2], _ea_d[:, 1], _ea_d[:, 0]))
+                        _ea_x_refs.append(_ea_d[_ea_idx, 0])
+                        _ea_y_refs.append(_ea_d[_ea_idx, 1])
+                        _ea_z_refs.append(_ea_d[_ea_idx, 2])
+                        _ea_u_refs.append(_ea_d[_ea_idx, 4])
+                        _detected_t = float(_ea_d[0, 3])
+                        _ea_times.append(_detected_t)
+                        print(f"  Loaded ground truth t={{_detected_t:.4f}}: {{len(_ea_d)}} pts from {{_os.path.basename(_ea_fp)}}")
                     elif _is_2d:
-                        _ea_yf = _ea_y_refs[_ei]
-                        _ea_xt = np.column_stack([_ea_xf, _ea_yf, np.full_like(_ea_xf, _ea_tv)])
+                        # 2D format: x, y, t, u — sort by x then y
+                        _ea_idx = np.lexsort((_ea_d[:, 1], _ea_d[:, 0]))
+                        _ea_x_refs.append(_ea_d[_ea_idx, 0])
+                        _ea_y_refs.append(_ea_d[_ea_idx, 1])
+                        _ea_z_refs.append(np.zeros_like(_ea_d[_ea_idx, 0]))
+                        _ea_u_refs.append(_ea_d[_ea_idx, 3])
+                        _detected_t = float(_ea_d[0, 2])
+                        _ea_times.append(_detected_t)
+                        print(f"  Loaded ground truth t={{_detected_t:.4f}}: {{len(_ea_d)}} pts from {{_os.path.basename(_ea_fp)}}")
                     else:
-                        _ea_xt = np.column_stack([_ea_xf, np.full_like(_ea_xf, _ea_tv)])
-                    _ea_u_pinns[_ei] = _extract_plot_field(model.predict(_ea_xt)).flatten()
-                    print(f"  PINN predicted at t={{_ea_tv:.4f}}: {{len(_ea_xf)}} points")
-            else:
-                # ── Time adaptive: match each GT file to correct step model ──
-                # Reconstruct step intervals from saved models
-                import glob as _ea_glob, json as _ea_json
-                _ta_step_dir = _os.path.join(_save_dir, "time_adaptive_steps")
-                _ta_step_dirs = sorted([_sd for _sd in _ea_glob.glob(_os.path.join(_ta_step_dir, "step_*")) if _os.path.isdir(_sd)])
-                # Parse t0, t1 from each step directory name
-                # Format: step_NNN_tX.XXXX_to_tY.YYYY
-                _ta_intervals = []
-                for _sd in _ta_step_dirs:
-                    _sd_name = _os.path.basename(_sd)
-                    try:
-                        _parts = _sd_name.split("_")
-                        _t0_str = _parts[2].replace("t","")
-                        _t1_str = _parts[4].replace("t","")
-                        _ta_intervals.append((float(_t0_str), float(_t1_str), _sd))
-                    except Exception as _pe:
-                        print(f"  Could not parse step dir: {{_sd_name}}: {{_pe}}")
+                        # 1D format: x, t, u — sort by x
+                        _ea_idx = np.argsort(_ea_d[:, 0])
+                        _ea_x_refs.append(_ea_d[_ea_idx, 0])
+                        _ea_y_refs.append(np.zeros_like(_ea_d[_ea_idx, 0]))
+                        _ea_z_refs.append(np.zeros_like(_ea_d[_ea_idx, 0]))
+                        _ea_u_refs.append(_ea_d[_ea_idx, 2])
+                        _ea_times.append(float(_ea_tv))
+                        print(f"  Loaded ground truth t={{_ea_tv:.4f}}: {{len(_ea_d)}} pts from {{_os.path.basename(_ea_fp)}}")
+                # Drop reference points with no solution value (NaN) -- e.g. grid
+                # points outside a non-rectangular geometry like L-Shape's missing
+                # quadrant or Disk/Sphere's bounding-box corners. A no-op for
+                # reference files that don't have any (the usual case).
+                for _ei in range(len(_ea_u_refs)):
+                    _ea_valid = ~np.isnan(_ea_u_refs[_ei])
+                    if not _ea_valid.all():
+                        _n_dropped = int((~_ea_valid).sum())
+                        _ea_x_refs[_ei] = _ea_x_refs[_ei][_ea_valid]
+                        _ea_y_refs[_ei] = _ea_y_refs[_ei][_ea_valid]
+                        _ea_z_refs[_ei] = _ea_z_refs[_ei][_ea_valid]
+                        _ea_u_refs[_ei] = _ea_u_refs[_ei][_ea_valid]
+                        print(f"  Dropped {{_n_dropped}} NaN reference point(s) outside the geometry")
+                # Sort all loaded data by time value — outside the loop
+                _ea_sort_idx = np.argsort(_ea_times)
+                _ea_times  = [_ea_times[_i]  for _i in _ea_sort_idx]
+                _ea_x_refs = [_ea_x_refs[_i] for _i in _ea_sort_idx]
+                _ea_y_refs = [_ea_y_refs[_i] for _i in _ea_sort_idx]
+                _ea_z_refs = [_ea_z_refs[_i] for _i in _ea_sort_idx]
+                _ea_u_refs = [_ea_u_refs[_i] for _i in _ea_sort_idx]
+                _ea_n_t = len(_ea_times)
+                _ea_u_pinns = [None] * _ea_n_t
+                _ea_metrics = [None] * _ea_n_t
 
-                print(f"  Found {{len(_ta_intervals)}} time-adaptive step models")
-
-                # Load each step model once and predict for all GT files in its interval
-                for _si, (_t0_i, _t1_i, _sd_i) in enumerate(_ta_intervals):
-                    # Find GT files whose time falls in [t0, t1]
-                    # For the last step include t1, for others use t0 <= t < t1
-                    # except t0 of first step includes t=t_min
-                    _is_last = (_si == len(_ta_intervals) - 1)
-                    _matching = []
+                if not {config.time_adaptive}:
+                    # ── Non-adaptive: use single model ───────────────
                     for _ei, _ea_tv in enumerate(_ea_times):
-                        if _is_last:
-                            _in_range = (_t0_i <= _ea_tv <= _t1_i + 1e-10)
-                        else:
-                            _in_range = (_t0_i <= _ea_tv < _t1_i - 1e-10) or \
-                                        (abs(_ea_tv - _t1_i) < 1e-10)  # boundary goes to this step
-                        if _in_range and _ea_u_pinns[_ei] is None:
-                            _matching.append(_ei)
-
-                    if not _matching:
-                        continue
-
-                    print(f"  Step {{_si+1}} [{{_t0_i:.4f}}→{{_t1_i:.4f}}]: predicting for t = {{[_ea_times[_ei] for _ei in _matching]}}")
-
-                    # Load step model
-                    _step_cfg_path = _os.path.join(_sd_i, "step_config.json")
-                    try:
-                        with open(_step_cfg_path) as _scf:
-                            _step_cfg = _ea_json.load(_scf)
-                    except Exception:
-                        _step_cfg = {{"layers": {config.layers}, "activation": "{config.activation}", "loss_type": "{config.loss_type}"}}
-
-                    _step_layers = _step_cfg.get("layers", {config.layers})
-                    _step_act    = _step_cfg.get("activation", "{config.activation}")
-                    _step_loss   = _step_cfg.get("loss_type", "{config.loss_type}")
-
-                    # Build minimal geometry for this step
-                    _step_geom = dde.geometry.Interval({config.x_min}, {config.x_max})
-                    _step_td   = dde.geometry.TimeDomain(_t0_i, _t1_i)
-                    _step_gt   = dde.geometry.GeometryXTime(_step_geom, _step_td)
-                    def _step_pde(x, y): return y[:, 0:1] * 0
-                    _step_data  = dde.data.TimePDE(_step_gt, _step_pde, [], num_domain=100, num_test=100)
-                    _step_net   = _apply_net_transforms(dde.nn.FNN(_step_layers, _step_act, "Glorot uniform"))
-                    _step_model = dde.Model(_step_data, _step_net)
-
-                    # Find best saved model for this step (lbfgs preferred)
-                    _step_pt = ""
-                    for _pat in ["model_lbfgs-*.pt", "model_lbfgs.pt", "model_adam-*.pt", "model_adam.pt"]:
-                        _step_pts = sorted(_ea_glob.glob(_os.path.join(_sd_i, _pat)))
-                        if _step_pts:
-                            _step_pt = max(_step_pts, key=_os.path.getmtime)
-                            break
-
-                    if not _step_pt:
-                        print(f"  ⚠️ No model found for step {{_si+1}}, skipping")
-                        continue
-
-                    # Compile and restore
-                    if "lbfgs" in _os.path.basename(_step_pt):
-                        dde.optimizers.set_LBFGS_options(maxiter=1)
-                        _step_model.compile("L-BFGS", loss=_step_loss)
-                    else:
-                        _step_model.compile("adam", lr=0.001, loss=_step_loss)
-
-                    _step_model.restore(_step_pt, verbose=0)
-                    print(f"    Restored: {{_os.path.basename(_step_pt)}}")
-
-                    # Predict for each matching GT file
-                    for _ei in _matching:
                         _ea_xf = _ea_x_refs[_ei]
-                        _ea_tv = _ea_times[_ei]
-                        _ea_xt = np.column_stack([_ea_xf, np.full_like(_ea_xf, _ea_tv)])
-                        _ea_u_pinns[_ei] = _step_model.predict(_ea_xt)[:, 0].flatten()
-                        print(f"    Predicted at t={{_ea_tv:.4f}}: {{len(_ea_xf)}} points")
-
-                # Fill any unmatched with zeros (safety)
-                for _ei in range(_ea_n_t):
-                    if _ea_u_pinns[_ei] is None:
-                        print(f"  ⚠️ No prediction for t={{_ea_times[_ei]:.4f}} — skipping")
-                        _ea_u_pinns[_ei] = np.zeros_like(_ea_u_refs[_ei])
-
-            # ── Compute metrics ───────────────────────────────────
-            for _ei, _ea_tv in enumerate(_ea_times):
-                _up = _ea_u_pinns[_ei]; _uf = _ea_u_refs[_ei]
-                _ea_abs = np.abs(_up - _uf)
-                _ea_l2  = np.linalg.norm(_up - _uf) / (np.linalg.norm(_uf) + 1e-10)
-                _ea_mse = np.mean((_up - _uf)**2)
-                _ea_mx  = np.max(_ea_abs)
-                _ea_ma  = np.mean(_ea_abs)
-                _ea_metrics[_ei] = (_ea_tv, _ea_l2, _ea_mse, _ea_mx, _ea_ma)
-                print(f"  t={{_ea_tv:.4f}} — L2={{_ea_l2:.4e}}, MSE={{_ea_mse:.4e}}, Max={{_ea_mx:.4e}}, MeanAbs={{_ea_ma:.4e}}")
-
-            with open(_os.path.join(_ea_dir, "error_metrics.txt"), "w") as _emf:
-                _emf.write("t,L2_relative,MSE,Max_error,Mean_abs_error\\n")
-                for _ea_tv, _l2, _mse, _mx, _ma in _ea_metrics:
-                    _emf.write(f"{{_ea_tv:.6f}},{{_l2:.6e}},{{_mse:.6e}},{{_mx:.6e}},{{_ma:.6e}}\\n")
-            print(f"  Metrics saved: {{_os.path.join(_ea_dir, 'error_metrics.txt')}}")
-
-            # ── Line comparison ───────────────────────────────────
-            if {config.ea_do_line}:
-                _ea_ncols = min(4, _ea_n_t)
-                _ea_nrows = (_ea_n_t + _ea_ncols - 1) // _ea_ncols
-                fig, axes = plt.subplots(_ea_nrows, _ea_ncols, figsize=(4*_ea_ncols, 3.5*_ea_nrows), squeeze=False)
-                fig.suptitle("PINN vs Ground Truth — Line Comparison", fontsize=13, fontweight='bold')
-                _ea_ax_flat = axes.flatten()
-                for _ei in range(_ea_n_t):
-                    ax = _ea_ax_flat[_ei]
-                    _xv = _ea_x_refs[_ei]
-                    if _is_3d:
-                        # For 3D line plot: extract mid-y, mid-z slice along x
-                        _yv = _ea_y_refs[_ei]; _zv = _ea_z_refs[_ei]
-                        _y_mid = ({config.y_min} + {config.y_max}) / 2.0
-                        _z_mid = ({config.z_min} + {config.z_max}) / 2.0
-                        _y_tol = ({config.y_max} - {config.y_min}) / 20.0
-                        _z_tol = ({config.z_max} - {config.z_min}) / 20.0
-                        _mid_mask = (np.abs(_yv - _y_mid) < _y_tol) & (np.abs(_zv - _z_mid) < _z_tol)
-                        if _mid_mask.sum() < 5:
-                            _y_tol2 = ({config.y_max} - {config.y_min}) / 5.0
-                            _z_tol2 = ({config.z_max} - {config.z_min}) / 5.0
-                            _mid_mask = (np.abs(_yv - _y_mid) < _y_tol2) & (np.abs(_zv - _z_mid) < _z_tol2)
-                        if _mid_mask.sum() < 2:
-                            _mid_mask = np.ones_like(_xv, dtype=bool)  # fall back to all points
-                        _ea_sort = np.argsort(_xv[_mid_mask])
-                        _xv_s   = _xv[_mid_mask][_ea_sort]
-                        _gt_s   = _ea_u_refs[_ei][_mid_mask][_ea_sort]
-                        _pinn_s = _ea_u_pinns[_ei][_mid_mask][_ea_sort]
-                    elif _is_2d:
-                        # For 2D line plot: extract mid-y slice
-                        _yv = _ea_y_refs[_ei]
-                        _y_mid = ({config.y_min} + {config.y_max}) / 2.0
-                        _y_tol = ({config.y_max} - {config.y_min}) / 20.0
-                        _mid_mask = np.abs(_yv - _y_mid) < _y_tol
-                        if _mid_mask.sum() < 5:
-                            _mid_mask = np.abs(_yv - _y_mid) < ({config.y_max} - {config.y_min}) / 5.0
-                        _ea_sort = np.argsort(_xv[_mid_mask])
-                        _xv_s   = _xv[_mid_mask][_ea_sort]
-                        _gt_s   = _ea_u_refs[_ei][_mid_mask][_ea_sort]
-                        _pinn_s = _ea_u_pinns[_ei][_mid_mask][_ea_sort]
-                    else:
-                        _ea_sort = np.argsort(_xv)
-                        _xv_s   = _xv[_ea_sort]
-                        _gt_s   = _ea_u_refs[_ei][_ea_sort]
-                        _pinn_s = _ea_u_pinns[_ei][_ea_sort]
-                    _ea_tv, _l2, _mse, _mx, _ma = _ea_metrics[_ei]
-                    ax.plot(_xv_s, _gt_s,   color='#4dabf7', linewidth=2.0, linestyle='-',  label='Ground Truth')
-                    ax.plot(_xv_s, _pinn_s, color='#ff6b6b', linewidth=2.0, linestyle='--', label='PINN')
-                    ax.set_title(f"t = {{_ea_tv:.3f}}  |  L2 = {{_l2:.2e}}", fontsize=10)
-                    ax.set_xlabel("x"); ax.set_ylabel("u(x,t)"); ax.grid(True, alpha=0.3)
-                for _ej in range(_ea_n_t, len(_ea_ax_flat)):
-                    _ea_ax_flat[_ej].set_visible(False)
-                handles, labels = _ea_ax_flat[0].get_legend_handles_labels()
-                fig.legend(handles, labels, loc='lower center', ncol=2, fontsize=10,
-                           framealpha=0.9, bbox_to_anchor=(0.5, 0.01))
-                plt.tight_layout(rect=[0, 0.06, 1, 1])
-                _ea_lp = _os.path.join(_ea_dir, "line_comparison.png")
-                plt.savefig(_ea_lp, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
-                print(f"  Line comparison saved: {{_ea_lp}}")
-
-            # ── Surface comparison ────────────────────────────────
-            if {config.ea_do_surface}:
-                _ea_did_surface = True
-                if _is_3d and _geom_type != "Sphere":
-                    # Box-shaped 3D geometry (Cuboid): a genuine smooth
-                    # surface (PINN | Ground Truth | Error), like a COMSOL
-                    # surface plot. Each of the geometry's 6 flat faces
-                    # (from geom.bbox) is predicted on a fine regular grid;
-                    # ground truth is interpolated (griddata) from reference
-                    # points near that face onto the same grid; and each
-                    # face is drawn with plot_surface's per-quad facecolors
-                    # -- unlike a scatter of discrete points, adjacent
-                    # same-ish-colored grid quads blend into a continuous-
-                    # looking colored surface, matching the smoothness of
-                    # the 2D contourf plots above.
-                    from scipy.interpolate import griddata as _gd3
-                    fig = plt.figure(figsize=(15, 4.5 * _ea_n_t))
-                    fig.suptitle("PINN vs Ground Truth — 3D Surface Comparison", fontsize=13, fontweight='bold')
-                    _geom_bbox_ea = np.asarray(geom.bbox)
-                    _bx0, _by0, _bz0 = _geom_bbox_ea[0]
-                    _bx1, _by1, _bz1 = _geom_bbox_ea[1]
-                    _res3_ea = 36
-                    _xg3_ea = np.linspace(_bx0, _bx1, _res3_ea)
-                    _yg3_ea = np.linspace(_by0, _by1, _res3_ea)
-                    _zg3_ea = np.linspace(_bz0, _bz1, _res3_ea)
-                    _Xxy_ea, _Yxy_ea = np.meshgrid(_xg3_ea, _yg3_ea)   # z-faces (free: x,y)
-                    _Xxz_ea, _Zxz_ea = np.meshgrid(_xg3_ea, _zg3_ea)   # y-faces (free: x,z)
-                    _Yyz_ea, _Zyz_ea = np.meshgrid(_yg3_ea, _zg3_ea)   # x-faces (free: y,z)
-                    # (fixed axis idx into x/y/z, fixed value, X, Y, Z grids, free-axis idx pair)
-                    _faces3_ea = [
-                        (2, _bz0, _Xxy_ea, _Yxy_ea, np.full_like(_Xxy_ea, _bz0), (0, 1)),
-                        (2, _bz1, _Xxy_ea, _Yxy_ea, np.full_like(_Xxy_ea, _bz1), (0, 1)),
-                        (1, _by0, _Xxz_ea, np.full_like(_Xxz_ea, _by0), _Zxz_ea, (0, 2)),
-                        (1, _by1, _Xxz_ea, np.full_like(_Xxz_ea, _by1), _Zxz_ea, (0, 2)),
-                        (0, _bx0, np.full_like(_Yyz_ea, _bx0), _Yyz_ea, _Zyz_ea, (1, 2)),
-                        (0, _bx1, np.full_like(_Yyz_ea, _bx1), _Yyz_ea, _Zyz_ea, (1, 2)),
-                    ]
-                    _face_tol_ea = (
-                        max((_bx1 - _bx0) * 0.02, 1e-6),
-                        max((_by1 - _by0) * 0.02, 1e-6),
-                        max((_bz1 - _bz0) * 0.02, 1e-6),
-                    )
-                    for _ei, _ea_tv in enumerate(_ea_times):
-                        _ea_tv_r, _l2, _mse, _mx, _ma = _ea_metrics[_ei]
-                        _bxr_ea = _ea_x_refs[_ei]; _byr_ea = _ea_y_refs[_ei]; _bzr_ea = _ea_z_refs[_ei]
-                        _ur_ea = _ea_u_refs[_ei]
-                        _all_coords_ea = (_bxr_ea, _byr_ea, _bzr_ea)
-                        _pinn_faces_ea = []
-                        _gt_faces_ea = []
-                        for _fax_ea, _fval_ea, _fX_ea, _fY_ea, _fZ_ea, _free_idx_ea in _faces3_ea:
-                            _fpts_ea = np.column_stack([_fX_ea.ravel(), _fY_ea.ravel(), _fZ_ea.ravel(), np.full(_fX_ea.size, _ea_tv)])
-                            _fpinn_ea = model.predict(_fpts_ea)[:, {config.plot_output_idx}].reshape(_fX_ea.shape)
-                            _near_mask_ea = np.abs(_all_coords_ea[_fax_ea] - _fval_ea) < _face_tol_ea[_fax_ea]
-                            if _near_mask_ea.sum() < 4:
-                                _near_mask_ea = np.ones_like(_bxr_ea, dtype=bool)
-                            _free0_ea = _all_coords_ea[_free_idx_ea[0]][_near_mask_ea]
-                            _free1_ea = _all_coords_ea[_free_idx_ea[1]][_near_mask_ea]
-                            _u_near_ea = _ur_ea[_near_mask_ea]
-                            _face_arrs_ea = (_fX_ea, _fY_ea, _fZ_ea)
-                            _gridA_ea = _face_arrs_ea[_free_idx_ea[0]]
-                            _gridB_ea = _face_arrs_ea[_free_idx_ea[1]]
-                            _fgt_ea = _gd3(np.column_stack([_free0_ea, _free1_ea]), _u_near_ea, (_gridA_ea, _gridB_ea), method='linear')
-                            _nan_mask_ea = np.isnan(_fgt_ea)
-                            if _nan_mask_ea.any():
-                                _fgt_nn_ea = _gd3(np.column_stack([_free0_ea, _free1_ea]), _u_near_ea, (_gridA_ea, _gridB_ea), method='nearest')
-                                _fgt_ea[_nan_mask_ea] = _fgt_nn_ea[_nan_mask_ea]
-                            _pinn_faces_ea.append(_fpinn_ea)
-                            _gt_faces_ea.append(_fgt_ea)
-                        _vmin3_ea = min(min(_f.min() for _f in _pinn_faces_ea), min(_f.min() for _f in _gt_faces_ea))
-                        _vmax3_ea = max(max(_f.max() for _f in _pinn_faces_ea), max(_f.max() for _f in _gt_faces_ea))
-                        _err_faces_ea = [np.abs(_pf_ea - _gf_ea) for _pf_ea, _gf_ea in zip(_pinn_faces_ea, _gt_faces_ea)]
-                        _vmax_err_ea = max(_f.max() for _f in _err_faces_ea)
-                        _cols_ea = [
-                            (_pinn_faces_ea, f"PINN  t={{_ea_tv:.3f}}  L2={{_l2:.2e}}", _vmin3_ea, _vmax3_ea, '{config.plot_colormap}'),
-                            (_gt_faces_ea,   f"Ground Truth  t={{_ea_tv:.3f}}",         _vmin3_ea, _vmax3_ea, '{config.plot_colormap}'),
-                            (_err_faces_ea,  f"|Error|  t={{_ea_tv:.3f}}  Max={{_mx:.2e}}", 0.0, _vmax_err_ea, 'inferno'),
-                        ]
-                        for _col_ea, (_face_vals_ea, _ttl_ea, _vmin_c_ea, _vmax_c_ea, _cmap_c_ea) in enumerate(_cols_ea):
-                            _ax3_ea = fig.add_subplot(_ea_n_t, 3, _ei * 3 + _col_ea + 1, projection='3d')
-                            _norm3_ea = plt.Normalize(vmin=_vmin_c_ea, vmax=_vmax_c_ea)
-                            _cmap_obj_ea = plt.get_cmap(_cmap_c_ea)
-                            for _face_i_ea, (_fax_ea, _fval_ea, _fX_ea, _fY_ea, _fZ_ea, _free_idx_ea) in enumerate(_faces3_ea):
-                                _ax3_ea.plot_surface(
-                                    _fX_ea, _fY_ea, _fZ_ea,
-                                    facecolors=_cmap_obj_ea(_norm3_ea(_face_vals_ea[_face_i_ea])),
-                                    rstride=1, cstride=1, linewidth=0, antialiased=False, shade=False,
-                                )
-                            _sm3_ea = plt.cm.ScalarMappable(cmap=_cmap_obj_ea, norm=_norm3_ea)
-                            fig.colorbar(_sm3_ea, ax=_ax3_ea, shrink=0.6, pad=0.12)
-                            _ax3_ea.set_title(_ttl_ea, fontsize=10)
-                            _ax3_ea.set_xlabel("x"); _ax3_ea.set_ylabel("y"); _ax3_ea.set_zlabel("z")
-                            try:
-                                _ax3_ea.set_box_aspect((_bx1 - _bx0, _by1 - _by0, _bz1 - _bz0))
-                            except Exception:
-                                pass  # older matplotlib without set_box_aspect -- cosmetic only, safe to skip
-                    plt.tight_layout()
-                elif _is_3d:
-                    # Non-box 3D geometry (Sphere): no flat-face
-                    # parameterization to grid-interpolate onto, so fall
-                    # back to a genuine boundary-point scatter -- real
-                    # (x, y, z) points that already lie on the geometry's
-                    # own boundary (geom.on_boundary()), predicted and
-                    # compared directly (no interpolation needed), with a
-                    # wireframe box from geom.bbox for spatial context.
-                    fig = plt.figure(figsize=(15, 4.5 * _ea_n_t))
-                    fig.suptitle("PINN vs Ground Truth — 3D Surface Comparison", fontsize=13, fontweight='bold')
-                    _geom_bbox_ea = np.asarray(geom.bbox)
-                    _bx0, _by0, _bz0 = _geom_bbox_ea[0]
-                    _bx1, _by1, _bz1 = _geom_bbox_ea[1]
-                    _corners3_ea = [(_bx0,_by0,_bz0),(_bx1,_by0,_bz0),(_bx1,_by1,_bz0),(_bx0,_by1,_bz0),
-                                     (_bx0,_by0,_bz1),(_bx1,_by0,_bz1),(_bx1,_by1,_bz1),(_bx0,_by1,_bz1)]
-                    _edges3_ea = [(0,1),(1,2),(2,3),(3,0),(4,5),(5,6),(6,7),(7,4),(0,4),(1,5),(2,6),(3,7)]
-                    for _ei, _ea_tv in enumerate(_ea_times):
-                        _ea_tv_r, _l2, _mse, _mx, _ma = _ea_metrics[_ei]
-                        _bxr_ea = _ea_x_refs[_ei]; _byr_ea = _ea_y_refs[_ei]; _bzr_ea = _ea_z_refs[_ei]
-                        _bnd_mask_ea = geom.on_boundary(np.column_stack([_bxr_ea, _byr_ea, _bzr_ea]))
-                        if _bnd_mask_ea.sum() < 4:
-                            _bnd_mask_ea = np.ones_like(_bxr_ea, dtype=bool)  # shape has no clean boundary subset -- use all ref points
-                        _bx_ea = _bxr_ea[_bnd_mask_ea]; _by_ea = _byr_ea[_bnd_mask_ea]; _bz_ea = _bzr_ea[_bnd_mask_ea]
-                        _gt_b_ea = _ea_u_refs[_ei][_bnd_mask_ea]
-                        _pinn_b_pts_ea = (np.column_stack([_bx_ea, _by_ea, _bz_ea]) if _is_steady else
-                                          np.column_stack([_bx_ea, _by_ea, _bz_ea, np.full_like(_bx_ea, _ea_tv)]))
-                        _pinn_b_ea = model.predict(_pinn_b_pts_ea)[:, {config.plot_output_idx}].flatten()
-                        _err_b_ea = np.abs(_pinn_b_ea - _gt_b_ea)
-                        _vmin3_ea = min(_pinn_b_ea.min(), _gt_b_ea.min())
-                        _vmax3_ea = max(_pinn_b_ea.max(), _gt_b_ea.max())
-                        _cols_ea = [
-                            (_pinn_b_ea, f"PINN  t={{_ea_tv:.3f}}  L2={{_l2:.2e}}", _vmin3_ea, _vmax3_ea, '{config.plot_colormap}'),
-                            (_gt_b_ea,   f"Ground Truth  t={{_ea_tv:.3f}}",         _vmin3_ea, _vmax3_ea, '{config.plot_colormap}'),
-                            (_err_b_ea,  f"|Error|  t={{_ea_tv:.3f}}  Max={{_mx:.2e}}", None, None, 'inferno'),
-                        ]
-                        for _col_ea, (_vals_ea, _ttl_ea, _vmin_c_ea, _vmax_c_ea, _cmap_c_ea) in enumerate(_cols_ea):
-                            _ax3_ea = fig.add_subplot(_ea_n_t, 3, _ei * 3 + _col_ea + 1, projection='3d')
-                            for _i3_ea, _j3_ea in _edges3_ea:
-                                _p0_ea, _p1_ea = _corners3_ea[_i3_ea], _corners3_ea[_j3_ea]
-                                _ax3_ea.plot([_p0_ea[0], _p1_ea[0]], [_p0_ea[1], _p1_ea[1]], [_p0_ea[2], _p1_ea[2]],
-                                             color='#888888', linewidth=0.8, alpha=0.6)
-                            _sc3_ea = _ax3_ea.scatter(_bx_ea, _by_ea, _bz_ea, c=_vals_ea, cmap=_cmap_c_ea, s=14,
-                                                       vmin=_vmin_c_ea, vmax=_vmax_c_ea)
-                            fig.colorbar(_sc3_ea, ax=_ax3_ea, shrink=0.6, pad=0.12)
-                            _ax3_ea.set_title(_ttl_ea, fontsize=10)
-                            _ax3_ea.set_xlabel("x"); _ax3_ea.set_ylabel("y"); _ax3_ea.set_zlabel("z")
-                            try:
-                                _ax3_ea.set_box_aspect((_bx1 - _bx0, _by1 - _by0, _bz1 - _bz0))
-                            except Exception:
-                                pass  # older matplotlib without set_box_aspect -- cosmetic only, safe to skip
-                    plt.tight_layout()
-                elif _is_2d:
-                    # 2D: 3 columns (PINN | FEM | Error), one row per time snapshot
-                    fig, axes = plt.subplots(_ea_n_t, 3,
-                                             figsize=(15, 4*_ea_n_t), squeeze=False)
-                    fig.suptitle("PINN vs Ground Truth — 2D Heatmaps", fontsize=13, fontweight='bold')
-                    _res_ea = {config.plot_resolution}
-                    _xg_ea = np.linspace({config.x_min}, {config.x_max}, _res_ea)
-                    _yg_ea = np.linspace({config.y_min}, {config.y_max}, _res_ea)
-                    _Xg_ea, _Yg_ea = np.meshgrid(_xg_ea, _yg_ea)
-                    # Outside the shape's own boundary (only differs from
-                    # the bbox for Disk/Ellipse/Triangle/Polygon), mask the
-                    # grid to NaN so neither the PINN prediction nor the
-                    # griddata-interpolated ground truth shows fabricated
-                    # values there -- griddata's Delaunay triangulation
-                    # otherwise happily interpolates straight across a
-                    # concave notch (e.g. the L-Shape's missing quadrant),
-                    # matching the same masking the main solution plot uses.
-                    _inside_2d_ea = geom.inside(np.column_stack([_Xg_ea.ravel(), _Yg_ea.ravel()])).reshape(_res_ea, _res_ea)
-                    from scipy.interpolate import griddata as _gd
-                    for _ei, _ea_tv in enumerate(_ea_times):
-                        _ea_tv_r, _l2, _mse, _mx, _ma = _ea_metrics[_ei]
-                        # PINN prediction on grid
-                        _xy_grid = (np.column_stack([_Xg_ea.ravel(), _Yg_ea.ravel()]) if _is_steady else
-                                    np.column_stack([_Xg_ea.ravel(), _Yg_ea.ravel(), np.full(_Xg_ea.size, _ea_tv)]))
-                        _u_pinn_grid = model.predict(_xy_grid)[:, {config.plot_output_idx}].reshape(_res_ea, _res_ea)
-                        _u_pinn_grid = np.where(_inside_2d_ea, _u_pinn_grid, np.nan)
-                        # FEM interpolated onto same grid
-                        _u_fem_grid = _gd(
-                            np.column_stack([_ea_x_refs[_ei], _ea_y_refs[_ei]]),
-                            _ea_u_refs[_ei],
-                            (_Xg_ea, _Yg_ea), method='linear', fill_value=0.0)
-                        _u_fem_grid = np.where(_inside_2d_ea, _u_fem_grid, np.nan)
-                        _u_err_grid = np.abs(_u_pinn_grid - _u_fem_grid)
-                        _vmin_ea = np.nanmin([_u_pinn_grid, _u_fem_grid])
-                        _vmax_ea = np.nanmax([_u_pinn_grid, _u_fem_grid])
-                        # Column 0: PINN
-                        im0 = axes[_ei][0].contourf(_Xg_ea, _Yg_ea, _u_pinn_grid, levels=40,
-                                                     cmap='{config.plot_colormap}', vmin=_vmin_ea, vmax=_vmax_ea)
-                        axes[_ei][0].set_title(f"PINN  t={{_ea_tv:.3f}}  L2={{_l2:.2e}}", fontsize=10)
-                        axes[_ei][0].set_xlabel("x"); axes[_ei][0].set_ylabel("y")
-                        fig.colorbar(im0, ax=axes[_ei][0])
-                        # Column 1: FEM
-                        im1 = axes[_ei][1].contourf(_Xg_ea, _Yg_ea, _u_fem_grid, levels=40,
-                                                     cmap='{config.plot_colormap}', vmin=_vmin_ea, vmax=_vmax_ea)
-                        axes[_ei][1].set_title(f"Ground Truth  t={{_ea_tv:.3f}}", fontsize=10)
-                        axes[_ei][1].set_xlabel("x"); axes[_ei][1].set_ylabel("y")
-                        fig.colorbar(im1, ax=axes[_ei][1])
-                        # Column 2: Absolute error
-                        im2 = axes[_ei][2].contourf(_Xg_ea, _Yg_ea, _u_err_grid, levels={config.plot_levels}, cmap='{config.plot_colormap}')
-                        axes[_ei][2].set_title(f"|Error|  t={{_ea_tv:.3f}}  Max={{_mx:.2e}}", fontsize=10)
-                        axes[_ei][2].set_xlabel("x"); axes[_ei][2].set_ylabel("y")
-                        fig.colorbar(im2, ax=axes[_ei][2])
-                    plt.tight_layout()
-                elif len(_ea_times) < 2:
-                    # A 1D x-t surface needs at least 2 distinct time
-                    # snapshots to form a non-degenerate grid -- e.g. only
-                    # one reference file provided so far. Skip gracefully
-                    # instead of crashing matplotlib's contourf on a (1, N)
-                    # array; the line comparison above already covers this
-                    # single snapshot.
-                    _ea_did_surface = False
-                    print("  Skipping surface comparison — need at least 2 time snapshots for a 1D x-t surface plot")
+                        if _is_steady and _is_3d:
+                            _ea_xt = np.column_stack([_ea_xf, _ea_y_refs[_ei], _ea_z_refs[_ei]])
+                        elif _is_steady and _is_2d:
+                            _ea_xt = np.column_stack([_ea_xf, _ea_y_refs[_ei]])
+                        elif _is_3d:
+                            _ea_yf = _ea_y_refs[_ei]
+                            _ea_zf = _ea_z_refs[_ei]
+                            _ea_xt = np.column_stack([_ea_xf, _ea_yf, _ea_zf, np.full_like(_ea_xf, _ea_tv)])
+                        elif _is_2d:
+                            _ea_yf = _ea_y_refs[_ei]
+                            _ea_xt = np.column_stack([_ea_xf, _ea_yf, np.full_like(_ea_xf, _ea_tv)])
+                        else:
+                            _ea_xt = np.column_stack([_ea_xf, np.full_like(_ea_xf, _ea_tv)])
+                        _ea_u_pinns[_ei] = _ea_extract(model.predict(_ea_xt), _ea_sel).flatten()
+                        print(f"  PINN predicted at t={{_ea_tv:.4f}}: {{len(_ea_xf)}} points")
                 else:
-                    # 1D: standard x vs t surface
-                    _ea_x_common = np.linspace({config.x_min}, {config.x_max}, 300)
-                    _ea_t_arr = np.array(_ea_times)
-                    _ea_U_pinn = np.zeros((len(_ea_t_arr), len(_ea_x_common)))
-                    _ea_U_fem  = np.zeros((len(_ea_t_arr), len(_ea_x_common)))
-                    if not {config.time_adaptive}:
+                    # ── Time adaptive: match each GT file to correct step model ──
+                    # Reconstruct step intervals from saved models
+                    import glob as _ea_glob, json as _ea_json
+                    _ta_step_dir = _os.path.join(_save_dir, "time_adaptive_steps")
+                    _ta_step_dirs = sorted([_sd for _sd in _ea_glob.glob(_os.path.join(_ta_step_dir, "step_*")) if _os.path.isdir(_sd)])
+                    # Parse t0, t1 from each step directory name
+                    # Format: step_NNN_tX.XXXX_to_tY.YYYY
+                    _ta_intervals = []
+                    for _sd in _ta_step_dirs:
+                        _sd_name = _os.path.basename(_sd)
+                        try:
+                            _parts = _sd_name.split("_")
+                            _t0_str = _parts[2].replace("t","")
+                            _t1_str = _parts[4].replace("t","")
+                            _ta_intervals.append((float(_t0_str), float(_t1_str), _sd))
+                        except Exception as _pe:
+                            print(f"  Could not parse step dir: {{_sd_name}}: {{_pe}}")
+
+                    print(f"  Found {{len(_ta_intervals)}} time-adaptive step models")
+
+                    # Load each step model once and predict for all GT files in its interval
+                    for _si, (_t0_i, _t1_i, _sd_i) in enumerate(_ta_intervals):
+                        # Find GT files whose time falls in [t0, t1]
+                        # For the last step include t1, for others use t0 <= t < t1
+                        # except t0 of first step includes t=t_min
+                        _is_last = (_si == len(_ta_intervals) - 1)
+                        _matching = []
                         for _ei, _ea_tv in enumerate(_ea_times):
-                            _ea_xt_c = np.column_stack([_ea_x_common, np.full_like(_ea_x_common, _ea_tv)])
-                            _ea_U_pinn[_ei, :] = _extract_plot_field(model.predict(_ea_xt_c)).flatten()
-                            _ea_fi = _interp1d(_ea_x_refs[_ei], _ea_u_refs[_ei], kind='linear', fill_value='extrapolate')
-                            _ea_U_fem[_ei, :] = _ea_fi(_ea_x_common)
+                            if _is_last:
+                                _in_range = (_t0_i <= _ea_tv <= _t1_i + 1e-10)
+                            else:
+                                _in_range = (_t0_i <= _ea_tv < _t1_i - 1e-10) or \
+                                            (abs(_ea_tv - _t1_i) < 1e-10)  # boundary goes to this step
+                            if _in_range and _ea_u_pinns[_ei] is None:
+                                _matching.append(_ei)
+
+                        if not _matching:
+                            continue
+
+                        print(f"  Step {{_si+1}} [{{_t0_i:.4f}}→{{_t1_i:.4f}}]: predicting for t = {{[_ea_times[_ei] for _ei in _matching]}}")
+
+                        # Load step model
+                        _step_cfg_path = _os.path.join(_sd_i, "step_config.json")
+                        try:
+                            with open(_step_cfg_path) as _scf:
+                                _step_cfg = _ea_json.load(_scf)
+                        except Exception:
+                            _step_cfg = {{"layers": {config.layers}, "activation": "{config.activation}", "loss_type": "{config.loss_type}"}}
+
+                        _step_layers = _step_cfg.get("layers", {config.layers})
+                        _step_act    = _step_cfg.get("activation", "{config.activation}")
+                        _step_loss   = _step_cfg.get("loss_type", "{config.loss_type}")
+
+                        # Build minimal geometry for this step
+                        _step_geom = dde.geometry.Interval({config.x_min}, {config.x_max})
+                        _step_td   = dde.geometry.TimeDomain(_t0_i, _t1_i)
+                        _step_gt   = dde.geometry.GeometryXTime(_step_geom, _step_td)
+                        def _step_pde(x, y): return y[:, 0:1] * 0
+                        _step_data  = dde.data.TimePDE(_step_gt, _step_pde, [], num_domain=100, num_test=100)
+                        _step_net   = _apply_net_transforms(dde.nn.FNN(_step_layers, _step_act, "Glorot uniform"))
+                        _step_model = dde.Model(_step_data, _step_net)
+
+                        # Find best saved model for this step (lbfgs preferred)
+                        _step_pt = ""
+                        for _pat in ["model_lbfgs-*.pt", "model_lbfgs.pt", "model_adam-*.pt", "model_adam.pt"]:
+                            _step_pts = sorted(_ea_glob.glob(_os.path.join(_sd_i, _pat)))
+                            if _step_pts:
+                                _step_pt = max(_step_pts, key=_os.path.getmtime)
+                                break
+
+                        if not _step_pt:
+                            print(f"  ⚠️ No model found for step {{_si+1}}, skipping")
+                            continue
+
+                        # Compile and restore
+                        if "lbfgs" in _os.path.basename(_step_pt):
+                            dde.optimizers.set_LBFGS_options(maxiter=1)
+                            _step_model.compile("L-BFGS", loss=_step_loss)
+                        else:
+                            _step_model.compile("adam", lr=0.001, loss=_step_loss)
+
+                        _step_model.restore(_step_pt, verbose=0)
+                        print(f"    Restored: {{_os.path.basename(_step_pt)}}")
+
+                        # Predict for each matching GT file
+                        for _ei in _matching:
+                            _ea_xf = _ea_x_refs[_ei]
+                            _ea_tv = _ea_times[_ei]
+                            _ea_xt = np.column_stack([_ea_xf, np.full_like(_ea_xf, _ea_tv)])
+                            _ea_u_pinns[_ei] = _ea_extract(_step_model.predict(_ea_xt), _ea_sel).flatten()
+                            print(f"    Predicted at t={{_ea_tv:.4f}}: {{len(_ea_xf)}} points")
+
+                    # Fill any unmatched with zeros (safety)
+                    for _ei in range(_ea_n_t):
+                        if _ea_u_pinns[_ei] is None:
+                            print(f"  ⚠️ No prediction for t={{_ea_times[_ei]:.4f}} — skipping")
+                            _ea_u_pinns[_ei] = np.zeros_like(_ea_u_refs[_ei])
+
+                # ── Compute metrics ───────────────────────────────────
+                for _ei, _ea_tv in enumerate(_ea_times):
+                    _up = _ea_u_pinns[_ei]; _uf = _ea_u_refs[_ei]
+                    _ea_abs = np.abs(_up - _uf)
+                    _ea_l2  = np.linalg.norm(_up - _uf) / (np.linalg.norm(_uf) + 1e-10)
+                    _ea_mse = np.mean((_up - _uf)**2)
+                    _ea_mx  = np.max(_ea_abs)
+                    _ea_ma  = np.mean(_ea_abs)
+                    _ea_metrics[_ei] = (_ea_tv, _ea_l2, _ea_mse, _ea_mx, _ea_ma)
+                    print(f"  t={{_ea_tv:.4f}} — L2={{_ea_l2:.4e}}, MSE={{_ea_mse:.4e}}, Max={{_ea_mx:.4e}}, MeanAbs={{_ea_ma:.4e}}")
+
+                _ea_metrics_path = _os.path.join(_ea_dir, f"error_metrics{{_ea_suffix}}.txt")
+                with open(_ea_metrics_path, "w") as _emf:
+                    _emf.write("t,L2_relative,MSE,Max_error,Mean_abs_error\\n")
+                    for _ea_tv, _l2, _mse, _mx, _ma in _ea_metrics:
+                        _emf.write(f"{{_ea_tv:.6f}},{{_l2:.6e}},{{_mse:.6e}},{{_mx:.6e}},{{_ma:.6e}}\\n")
+                print(f"  Metrics saved: {{_ea_metrics_path}}")
+
+                # ── Line comparison ───────────────────────────────────
+                if {config.ea_do_line}:
+                    _ea_ncols = min(4, _ea_n_t)
+                    _ea_nrows = (_ea_n_t + _ea_ncols - 1) // _ea_ncols
+                    fig, axes = plt.subplots(_ea_nrows, _ea_ncols, figsize=(4*_ea_ncols, 3.5*_ea_nrows), squeeze=False)
+                    fig.suptitle("PINN vs Ground Truth — Line Comparison", fontsize=13, fontweight='bold')
+                    _ea_ax_flat = axes.flatten()
+                    for _ei in range(_ea_n_t):
+                        ax = _ea_ax_flat[_ei]
+                        _xv = _ea_x_refs[_ei]
+                        if _is_3d:
+                            # For 3D line plot: extract mid-y, mid-z slice along x
+                            _yv = _ea_y_refs[_ei]; _zv = _ea_z_refs[_ei]
+                            _y_mid = ({config.y_min} + {config.y_max}) / 2.0
+                            _z_mid = ({config.z_min} + {config.z_max}) / 2.0
+                            _y_tol = ({config.y_max} - {config.y_min}) / 20.0
+                            _z_tol = ({config.z_max} - {config.z_min}) / 20.0
+                            _mid_mask = (np.abs(_yv - _y_mid) < _y_tol) & (np.abs(_zv - _z_mid) < _z_tol)
+                            if _mid_mask.sum() < 5:
+                                _y_tol2 = ({config.y_max} - {config.y_min}) / 5.0
+                                _z_tol2 = ({config.z_max} - {config.z_min}) / 5.0
+                                _mid_mask = (np.abs(_yv - _y_mid) < _y_tol2) & (np.abs(_zv - _z_mid) < _z_tol2)
+                            if _mid_mask.sum() < 2:
+                                _mid_mask = np.ones_like(_xv, dtype=bool)  # fall back to all points
+                            _ea_sort = np.argsort(_xv[_mid_mask])
+                            _xv_s   = _xv[_mid_mask][_ea_sort]
+                            _gt_s   = _ea_u_refs[_ei][_mid_mask][_ea_sort]
+                            _pinn_s = _ea_u_pinns[_ei][_mid_mask][_ea_sort]
+                        elif _is_2d:
+                            # For 2D line plot: extract mid-y slice
+                            _yv = _ea_y_refs[_ei]
+                            _y_mid = ({config.y_min} + {config.y_max}) / 2.0
+                            _y_tol = ({config.y_max} - {config.y_min}) / 20.0
+                            _mid_mask = np.abs(_yv - _y_mid) < _y_tol
+                            if _mid_mask.sum() < 5:
+                                _mid_mask = np.abs(_yv - _y_mid) < ({config.y_max} - {config.y_min}) / 5.0
+                            _ea_sort = np.argsort(_xv[_mid_mask])
+                            _xv_s   = _xv[_mid_mask][_ea_sort]
+                            _gt_s   = _ea_u_refs[_ei][_mid_mask][_ea_sort]
+                            _pinn_s = _ea_u_pinns[_ei][_mid_mask][_ea_sort]
+                        else:
+                            _ea_sort = np.argsort(_xv)
+                            _xv_s   = _xv[_ea_sort]
+                            _gt_s   = _ea_u_refs[_ei][_ea_sort]
+                            _pinn_s = _ea_u_pinns[_ei][_ea_sort]
+                        _ea_tv, _l2, _mse, _mx, _ma = _ea_metrics[_ei]
+                        ax.plot(_xv_s, _gt_s,   color='#4dabf7', linewidth=2.0, linestyle='-',  label='Ground Truth')
+                        ax.plot(_xv_s, _pinn_s, color='#ff6b6b', linewidth=2.0, linestyle='--', label='PINN')
+                        ax.set_title(f"t = {{_ea_tv:.3f}}  |  L2 = {{_l2:.2e}}", fontsize=10)
+                        ax.set_xlabel("x"); ax.set_ylabel("u(x,t)"); ax.grid(True, alpha=0.3)
+                    for _ej in range(_ea_n_t, len(_ea_ax_flat)):
+                        _ea_ax_flat[_ej].set_visible(False)
+                    handles, labels = _ea_ax_flat[0].get_legend_handles_labels()
+                    fig.legend(handles, labels, loc='lower center', ncol=2, fontsize=10,
+                               framealpha=0.9, bbox_to_anchor=(0.5, 0.01))
+                    plt.tight_layout(rect=[0, 0.06, 1, 1])
+                    _ea_lp = _os.path.join(_ea_dir, f"line_comparison{{_ea_suffix}}.png")
+                    plt.savefig(_ea_lp, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
+                    print(f"  Line comparison saved: {{_ea_lp}}")
+
+                # ── Surface comparison ────────────────────────────────
+                if {config.ea_do_surface}:
+                    _ea_did_surface = True
+                    if _is_3d and _geom_type != "Sphere":
+                        # Box-shaped 3D geometry (Cuboid): a genuine smooth
+                        # surface (PINN | Ground Truth | Error), like a COMSOL
+                        # surface plot. Each of the geometry's 6 flat faces
+                        # (from geom.bbox) is predicted on a fine regular grid;
+                        # ground truth is interpolated (griddata) from reference
+                        # points near that face onto the same grid; and each
+                        # face is drawn with plot_surface's per-quad facecolors
+                        # -- unlike a scatter of discrete points, adjacent
+                        # same-ish-colored grid quads blend into a continuous-
+                        # looking colored surface, matching the smoothness of
+                        # the 2D contourf plots above.
+                        from scipy.interpolate import griddata as _gd3
+                        fig = plt.figure(figsize=(15, 4.5 * _ea_n_t))
+                        fig.suptitle("PINN vs Ground Truth — 3D Surface Comparison", fontsize=13, fontweight='bold')
+                        _geom_bbox_ea = np.asarray(geom.bbox)
+                        _bx0, _by0, _bz0 = _geom_bbox_ea[0]
+                        _bx1, _by1, _bz1 = _geom_bbox_ea[1]
+                        _res3_ea = 36
+                        _xg3_ea = np.linspace(_bx0, _bx1, _res3_ea)
+                        _yg3_ea = np.linspace(_by0, _by1, _res3_ea)
+                        _zg3_ea = np.linspace(_bz0, _bz1, _res3_ea)
+                        _Xxy_ea, _Yxy_ea = np.meshgrid(_xg3_ea, _yg3_ea)   # z-faces (free: x,y)
+                        _Xxz_ea, _Zxz_ea = np.meshgrid(_xg3_ea, _zg3_ea)   # y-faces (free: x,z)
+                        _Yyz_ea, _Zyz_ea = np.meshgrid(_yg3_ea, _zg3_ea)   # x-faces (free: y,z)
+                        # (fixed axis idx into x/y/z, fixed value, X, Y, Z grids, free-axis idx pair)
+                        _faces3_ea = [
+                            (2, _bz0, _Xxy_ea, _Yxy_ea, np.full_like(_Xxy_ea, _bz0), (0, 1)),
+                            (2, _bz1, _Xxy_ea, _Yxy_ea, np.full_like(_Xxy_ea, _bz1), (0, 1)),
+                            (1, _by0, _Xxz_ea, np.full_like(_Xxz_ea, _by0), _Zxz_ea, (0, 2)),
+                            (1, _by1, _Xxz_ea, np.full_like(_Xxz_ea, _by1), _Zxz_ea, (0, 2)),
+                            (0, _bx0, np.full_like(_Yyz_ea, _bx0), _Yyz_ea, _Zyz_ea, (1, 2)),
+                            (0, _bx1, np.full_like(_Yyz_ea, _bx1), _Yyz_ea, _Zyz_ea, (1, 2)),
+                        ]
+                        _face_tol_ea = (
+                            max((_bx1 - _bx0) * 0.02, 1e-6),
+                            max((_by1 - _by0) * 0.02, 1e-6),
+                            max((_bz1 - _bz0) * 0.02, 1e-6),
+                        )
+                        for _ei, _ea_tv in enumerate(_ea_times):
+                            _ea_tv_r, _l2, _mse, _mx, _ma = _ea_metrics[_ei]
+                            _bxr_ea = _ea_x_refs[_ei]; _byr_ea = _ea_y_refs[_ei]; _bzr_ea = _ea_z_refs[_ei]
+                            _ur_ea = _ea_u_refs[_ei]
+                            _all_coords_ea = (_bxr_ea, _byr_ea, _bzr_ea)
+                            _pinn_faces_ea = []
+                            _gt_faces_ea = []
+                            for _fax_ea, _fval_ea, _fX_ea, _fY_ea, _fZ_ea, _free_idx_ea in _faces3_ea:
+                                _fpts_ea = np.column_stack([_fX_ea.ravel(), _fY_ea.ravel(), _fZ_ea.ravel(), np.full(_fX_ea.size, _ea_tv)])
+                                _fpinn_ea = _ea_extract(model.predict(_fpts_ea), _ea_sel).reshape(_fX_ea.shape)
+                                _near_mask_ea = np.abs(_all_coords_ea[_fax_ea] - _fval_ea) < _face_tol_ea[_fax_ea]
+                                if _near_mask_ea.sum() < 4:
+                                    _near_mask_ea = np.ones_like(_bxr_ea, dtype=bool)
+                                _free0_ea = _all_coords_ea[_free_idx_ea[0]][_near_mask_ea]
+                                _free1_ea = _all_coords_ea[_free_idx_ea[1]][_near_mask_ea]
+                                _u_near_ea = _ur_ea[_near_mask_ea]
+                                _face_arrs_ea = (_fX_ea, _fY_ea, _fZ_ea)
+                                _gridA_ea = _face_arrs_ea[_free_idx_ea[0]]
+                                _gridB_ea = _face_arrs_ea[_free_idx_ea[1]]
+                                _fgt_ea = _gd3(np.column_stack([_free0_ea, _free1_ea]), _u_near_ea, (_gridA_ea, _gridB_ea), method='linear')
+                                _nan_mask_ea = np.isnan(_fgt_ea)
+                                if _nan_mask_ea.any():
+                                    _fgt_nn_ea = _gd3(np.column_stack([_free0_ea, _free1_ea]), _u_near_ea, (_gridA_ea, _gridB_ea), method='nearest')
+                                    _fgt_ea[_nan_mask_ea] = _fgt_nn_ea[_nan_mask_ea]
+                                _pinn_faces_ea.append(_fpinn_ea)
+                                _gt_faces_ea.append(_fgt_ea)
+                            _vmin3_ea = min(min(_f.min() for _f in _pinn_faces_ea), min(_f.min() for _f in _gt_faces_ea))
+                            _vmax3_ea = max(max(_f.max() for _f in _pinn_faces_ea), max(_f.max() for _f in _gt_faces_ea))
+                            _err_faces_ea = [np.abs(_pf_ea - _gf_ea) for _pf_ea, _gf_ea in zip(_pinn_faces_ea, _gt_faces_ea)]
+                            _vmax_err_ea = max(_f.max() for _f in _err_faces_ea)
+                            _cols_ea = [
+                                (_pinn_faces_ea, f"PINN  t={{_ea_tv:.3f}}  L2={{_l2:.2e}}", _vmin3_ea, _vmax3_ea, '{config.plot_colormap}'),
+                                (_gt_faces_ea,   f"Ground Truth  t={{_ea_tv:.3f}}",         _vmin3_ea, _vmax3_ea, '{config.plot_colormap}'),
+                                (_err_faces_ea,  f"|Error|  t={{_ea_tv:.3f}}  Max={{_mx:.2e}}", 0.0, _vmax_err_ea, 'inferno'),
+                            ]
+                            for _col_ea, (_face_vals_ea, _ttl_ea, _vmin_c_ea, _vmax_c_ea, _cmap_c_ea) in enumerate(_cols_ea):
+                                _ax3_ea = fig.add_subplot(_ea_n_t, 3, _ei * 3 + _col_ea + 1, projection='3d')
+                                _norm3_ea = plt.Normalize(vmin=_vmin_c_ea, vmax=_vmax_c_ea)
+                                _cmap_obj_ea = plt.get_cmap(_cmap_c_ea)
+                                for _face_i_ea, (_fax_ea, _fval_ea, _fX_ea, _fY_ea, _fZ_ea, _free_idx_ea) in enumerate(_faces3_ea):
+                                    _ax3_ea.plot_surface(
+                                        _fX_ea, _fY_ea, _fZ_ea,
+                                        facecolors=_cmap_obj_ea(_norm3_ea(_face_vals_ea[_face_i_ea])),
+                                        rstride=1, cstride=1, linewidth=0, antialiased=False, shade=False,
+                                    )
+                                _sm3_ea = plt.cm.ScalarMappable(cmap=_cmap_obj_ea, norm=_norm3_ea)
+                                fig.colorbar(_sm3_ea, ax=_ax3_ea, shrink=0.6, pad=0.12)
+                                _ax3_ea.set_title(_ttl_ea, fontsize=10)
+                                _ax3_ea.set_xlabel("x"); _ax3_ea.set_ylabel("y"); _ax3_ea.set_zlabel("z")
+                                try:
+                                    _ax3_ea.set_box_aspect((_bx1 - _bx0, _by1 - _by0, _bz1 - _bz0))
+                                except Exception:
+                                    pass  # older matplotlib without set_box_aspect -- cosmetic only, safe to skip
+                        plt.tight_layout()
+                    elif _is_3d:
+                        # Non-box 3D geometry (Sphere): no flat-face
+                        # parameterization to grid-interpolate onto, so fall
+                        # back to a genuine boundary-point scatter -- real
+                        # (x, y, z) points that already lie on the geometry's
+                        # own boundary (geom.on_boundary()), predicted and
+                        # compared directly (no interpolation needed), with a
+                        # wireframe box from geom.bbox for spatial context.
+                        fig = plt.figure(figsize=(15, 4.5 * _ea_n_t))
+                        fig.suptitle("PINN vs Ground Truth — 3D Surface Comparison", fontsize=13, fontweight='bold')
+                        _geom_bbox_ea = np.asarray(geom.bbox)
+                        _bx0, _by0, _bz0 = _geom_bbox_ea[0]
+                        _bx1, _by1, _bz1 = _geom_bbox_ea[1]
+                        _corners3_ea = [(_bx0,_by0,_bz0),(_bx1,_by0,_bz0),(_bx1,_by1,_bz0),(_bx0,_by1,_bz0),
+                                         (_bx0,_by0,_bz1),(_bx1,_by0,_bz1),(_bx1,_by1,_bz1),(_bx0,_by1,_bz1)]
+                        _edges3_ea = [(0,1),(1,2),(2,3),(3,0),(4,5),(5,6),(6,7),(7,4),(0,4),(1,5),(2,6),(3,7)]
+                        for _ei, _ea_tv in enumerate(_ea_times):
+                            _ea_tv_r, _l2, _mse, _mx, _ma = _ea_metrics[_ei]
+                            _bxr_ea = _ea_x_refs[_ei]; _byr_ea = _ea_y_refs[_ei]; _bzr_ea = _ea_z_refs[_ei]
+                            _bnd_mask_ea = geom.on_boundary(np.column_stack([_bxr_ea, _byr_ea, _bzr_ea]))
+                            if _bnd_mask_ea.sum() < 4:
+                                _bnd_mask_ea = np.ones_like(_bxr_ea, dtype=bool)  # shape has no clean boundary subset -- use all ref points
+                            _bx_ea = _bxr_ea[_bnd_mask_ea]; _by_ea = _byr_ea[_bnd_mask_ea]; _bz_ea = _bzr_ea[_bnd_mask_ea]
+                            _gt_b_ea = _ea_u_refs[_ei][_bnd_mask_ea]
+                            _pinn_b_pts_ea = (np.column_stack([_bx_ea, _by_ea, _bz_ea]) if _is_steady else
+                                              np.column_stack([_bx_ea, _by_ea, _bz_ea, np.full_like(_bx_ea, _ea_tv)]))
+                            _pinn_b_ea = _ea_extract(model.predict(_pinn_b_pts_ea), _ea_sel).flatten()
+                            _err_b_ea = np.abs(_pinn_b_ea - _gt_b_ea)
+                            _vmin3_ea = min(_pinn_b_ea.min(), _gt_b_ea.min())
+                            _vmax3_ea = max(_pinn_b_ea.max(), _gt_b_ea.max())
+                            _cols_ea = [
+                                (_pinn_b_ea, f"PINN  t={{_ea_tv:.3f}}  L2={{_l2:.2e}}", _vmin3_ea, _vmax3_ea, '{config.plot_colormap}'),
+                                (_gt_b_ea,   f"Ground Truth  t={{_ea_tv:.3f}}",         _vmin3_ea, _vmax3_ea, '{config.plot_colormap}'),
+                                (_err_b_ea,  f"|Error|  t={{_ea_tv:.3f}}  Max={{_mx:.2e}}", None, None, 'inferno'),
+                            ]
+                            for _col_ea, (_vals_ea, _ttl_ea, _vmin_c_ea, _vmax_c_ea, _cmap_c_ea) in enumerate(_cols_ea):
+                                _ax3_ea = fig.add_subplot(_ea_n_t, 3, _ei * 3 + _col_ea + 1, projection='3d')
+                                for _i3_ea, _j3_ea in _edges3_ea:
+                                    _p0_ea, _p1_ea = _corners3_ea[_i3_ea], _corners3_ea[_j3_ea]
+                                    _ax3_ea.plot([_p0_ea[0], _p1_ea[0]], [_p0_ea[1], _p1_ea[1]], [_p0_ea[2], _p1_ea[2]],
+                                                 color='#888888', linewidth=0.8, alpha=0.6)
+                                _sc3_ea = _ax3_ea.scatter(_bx_ea, _by_ea, _bz_ea, c=_vals_ea, cmap=_cmap_c_ea, s=14,
+                                                           vmin=_vmin_c_ea, vmax=_vmax_c_ea)
+                                fig.colorbar(_sc3_ea, ax=_ax3_ea, shrink=0.6, pad=0.12)
+                                _ax3_ea.set_title(_ttl_ea, fontsize=10)
+                                _ax3_ea.set_xlabel("x"); _ax3_ea.set_ylabel("y"); _ax3_ea.set_zlabel("z")
+                                try:
+                                    _ax3_ea.set_box_aspect((_bx1 - _bx0, _by1 - _by0, _bz1 - _bz0))
+                                except Exception:
+                                    pass  # older matplotlib without set_box_aspect -- cosmetic only, safe to skip
+                        plt.tight_layout()
+                    elif _is_2d:
+                        # 2D: 3 columns (PINN | FEM | Error), one row per time snapshot
+                        fig, axes = plt.subplots(_ea_n_t, 3,
+                                                 figsize=(15, 4*_ea_n_t), squeeze=False)
+                        fig.suptitle("PINN vs Ground Truth — 2D Heatmaps", fontsize=13, fontweight='bold')
+                        _res_ea = {config.plot_resolution}
+                        _xg_ea = np.linspace({config.x_min}, {config.x_max}, _res_ea)
+                        _yg_ea = np.linspace({config.y_min}, {config.y_max}, _res_ea)
+                        _Xg_ea, _Yg_ea = np.meshgrid(_xg_ea, _yg_ea)
+                        # Outside the shape's own boundary (only differs from
+                        # the bbox for Disk/Ellipse/Triangle/Polygon), mask the
+                        # grid to NaN so neither the PINN prediction nor the
+                        # griddata-interpolated ground truth shows fabricated
+                        # values there -- griddata's Delaunay triangulation
+                        # otherwise happily interpolates straight across a
+                        # concave notch (e.g. the L-Shape's missing quadrant),
+                        # matching the same masking the main solution plot uses.
+                        _inside_2d_ea = geom.inside(np.column_stack([_Xg_ea.ravel(), _Yg_ea.ravel()])).reshape(_res_ea, _res_ea)
+                        from scipy.interpolate import griddata as _gd
+                        for _ei, _ea_tv in enumerate(_ea_times):
+                            _ea_tv_r, _l2, _mse, _mx, _ma = _ea_metrics[_ei]
+                            # PINN prediction on grid
+                            _xy_grid = (np.column_stack([_Xg_ea.ravel(), _Yg_ea.ravel()]) if _is_steady else
+                                        np.column_stack([_Xg_ea.ravel(), _Yg_ea.ravel(), np.full(_Xg_ea.size, _ea_tv)]))
+                            _u_pinn_grid = _ea_extract(model.predict(_xy_grid), _ea_sel).reshape(_res_ea, _res_ea)
+                            _u_pinn_grid = np.where(_inside_2d_ea, _u_pinn_grid, np.nan)
+                            # FEM interpolated onto same grid
+                            _u_fem_grid = _gd(
+                                np.column_stack([_ea_x_refs[_ei], _ea_y_refs[_ei]]),
+                                _ea_u_refs[_ei],
+                                (_Xg_ea, _Yg_ea), method='linear', fill_value=0.0)
+                            _u_fem_grid = np.where(_inside_2d_ea, _u_fem_grid, np.nan)
+                            _u_err_grid = np.abs(_u_pinn_grid - _u_fem_grid)
+                            _vmin_ea = np.nanmin([_u_pinn_grid, _u_fem_grid])
+                            _vmax_ea = np.nanmax([_u_pinn_grid, _u_fem_grid])
+                            # Column 0: PINN
+                            im0 = axes[_ei][0].contourf(_Xg_ea, _Yg_ea, _u_pinn_grid, levels=40,
+                                                         cmap='{config.plot_colormap}', vmin=_vmin_ea, vmax=_vmax_ea)
+                            axes[_ei][0].set_title(f"PINN  t={{_ea_tv:.3f}}  L2={{_l2:.2e}}", fontsize=10)
+                            axes[_ei][0].set_xlabel("x"); axes[_ei][0].set_ylabel("y")
+                            fig.colorbar(im0, ax=axes[_ei][0])
+                            # Column 1: FEM
+                            im1 = axes[_ei][1].contourf(_Xg_ea, _Yg_ea, _u_fem_grid, levels=40,
+                                                         cmap='{config.plot_colormap}', vmin=_vmin_ea, vmax=_vmax_ea)
+                            axes[_ei][1].set_title(f"Ground Truth  t={{_ea_tv:.3f}}", fontsize=10)
+                            axes[_ei][1].set_xlabel("x"); axes[_ei][1].set_ylabel("y")
+                            fig.colorbar(im1, ax=axes[_ei][1])
+                            # Column 2: Absolute error
+                            im2 = axes[_ei][2].contourf(_Xg_ea, _Yg_ea, _u_err_grid, levels={config.plot_levels}, cmap='{config.plot_colormap}')
+                            axes[_ei][2].set_title(f"|Error|  t={{_ea_tv:.3f}}  Max={{_mx:.2e}}", fontsize=10)
+                            axes[_ei][2].set_xlabel("x"); axes[_ei][2].set_ylabel("y")
+                            fig.colorbar(im2, ax=axes[_ei][2])
+                        plt.tight_layout()
+                    elif len(_ea_times) < 2:
+                        # A 1D x-t surface needs at least 2 distinct time
+                        # snapshots to form a non-degenerate grid -- e.g. only
+                        # one reference file provided so far. Skip gracefully
+                        # instead of crashing matplotlib's contourf on a (1, N)
+                        # array; the line comparison above already covers this
+                        # single snapshot.
+                        _ea_did_surface = False
+                        print("  Skipping surface comparison — need at least 2 time snapshots for a 1D x-t surface plot")
                     else:
-                        for _ei in range(_ea_n_t):
-                            _ea_fi_pinn = _interp1d(_ea_x_refs[_ei], _ea_u_pinns[_ei], kind='linear', fill_value='extrapolate')
-                            _ea_U_pinn[_ei, :] = _ea_fi_pinn(_ea_x_common)
-                            _ea_fi_fem = _interp1d(_ea_x_refs[_ei], _ea_u_refs[_ei], kind='linear', fill_value='extrapolate')
-                            _ea_U_fem[_ei, :] = _ea_fi_fem(_ea_x_common)
-                    _ea_Xg, _ea_Tg = np.meshgrid(_ea_x_common, _ea_t_arr)
-                    _ea_U_err = np.abs(_ea_U_pinn - _ea_U_fem)
-                    _ea_vmin = min(_ea_U_pinn.min(), _ea_U_fem.min())
-                    _ea_vmax = max(_ea_U_pinn.max(), _ea_U_fem.max())
-                    fig, axes_s = plt.subplots(1, 3, figsize=(15, 5))
-                    fig.suptitle("PINN vs Ground Truth — Surface Comparison", fontsize=13, fontweight='bold')
-                    im0 = axes_s[0].contourf(_ea_Tg, _ea_Xg, _ea_U_pinn, levels={config.plot_levels}, cmap='{config.plot_colormap}', vmin=_ea_vmin, vmax=_ea_vmax)
-                    axes_s[0].set_title("PINN  u(x,t)"); axes_s[0].set_xlabel("t"); axes_s[0].set_ylabel("x")
-                    fig.colorbar(im0, ax=axes_s[0])
-                    im1 = axes_s[1].contourf(_ea_Tg, _ea_Xg, _ea_U_fem, levels={config.plot_levels}, cmap='{config.plot_colormap}', vmin=_ea_vmin, vmax=_ea_vmax)
-                    axes_s[1].set_title("Ground Truth  u(x,t)"); axes_s[1].set_xlabel("t"); axes_s[1].set_ylabel("x")
-                    fig.colorbar(im1, ax=axes_s[1])
-                    im2 = axes_s[2].contourf(_ea_Tg, _ea_Xg, _ea_U_err, levels={config.plot_levels}, cmap='{config.plot_colormap}')
-                    axes_s[2].set_title("Error  |PINN - Ground Truth|"); axes_s[2].set_xlabel("t"); axes_s[2].set_ylabel("x")
-                    fig.colorbar(im2, ax=axes_s[2])
-                    plt.tight_layout()
-                if _ea_did_surface:
-                    _ea_sp = _os.path.join(_ea_dir, "surface_comparison.png")
-                    plt.savefig(_ea_sp, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
-                    print(f"  Surface comparison saved: {{_ea_sp}}")
+                        # 1D: standard x vs t surface
+                        _ea_x_common = np.linspace({config.x_min}, {config.x_max}, 300)
+                        _ea_t_arr = np.array(_ea_times)
+                        _ea_U_pinn = np.zeros((len(_ea_t_arr), len(_ea_x_common)))
+                        _ea_U_fem  = np.zeros((len(_ea_t_arr), len(_ea_x_common)))
+                        if not {config.time_adaptive}:
+                            for _ei, _ea_tv in enumerate(_ea_times):
+                                _ea_xt_c = np.column_stack([_ea_x_common, np.full_like(_ea_x_common, _ea_tv)])
+                                _ea_U_pinn[_ei, :] = _ea_extract(model.predict(_ea_xt_c), _ea_sel).flatten()
+                                _ea_fi = _interp1d(_ea_x_refs[_ei], _ea_u_refs[_ei], kind='linear', fill_value='extrapolate')
+                                _ea_U_fem[_ei, :] = _ea_fi(_ea_x_common)
+                        else:
+                            for _ei in range(_ea_n_t):
+                                _ea_fi_pinn = _interp1d(_ea_x_refs[_ei], _ea_u_pinns[_ei], kind='linear', fill_value='extrapolate')
+                                _ea_U_pinn[_ei, :] = _ea_fi_pinn(_ea_x_common)
+                                _ea_fi_fem = _interp1d(_ea_x_refs[_ei], _ea_u_refs[_ei], kind='linear', fill_value='extrapolate')
+                                _ea_U_fem[_ei, :] = _ea_fi_fem(_ea_x_common)
+                        _ea_Xg, _ea_Tg = np.meshgrid(_ea_x_common, _ea_t_arr)
+                        _ea_U_err = np.abs(_ea_U_pinn - _ea_U_fem)
+                        _ea_vmin = min(_ea_U_pinn.min(), _ea_U_fem.min())
+                        _ea_vmax = max(_ea_U_pinn.max(), _ea_U_fem.max())
+                        fig, axes_s = plt.subplots(1, 3, figsize=(15, 5))
+                        fig.suptitle("PINN vs Ground Truth — Surface Comparison", fontsize=13, fontweight='bold')
+                        im0 = axes_s[0].contourf(_ea_Tg, _ea_Xg, _ea_U_pinn, levels={config.plot_levels}, cmap='{config.plot_colormap}', vmin=_ea_vmin, vmax=_ea_vmax)
+                        axes_s[0].set_title("PINN  u(x,t)"); axes_s[0].set_xlabel("t"); axes_s[0].set_ylabel("x")
+                        fig.colorbar(im0, ax=axes_s[0])
+                        im1 = axes_s[1].contourf(_ea_Tg, _ea_Xg, _ea_U_fem, levels={config.plot_levels}, cmap='{config.plot_colormap}', vmin=_ea_vmin, vmax=_ea_vmax)
+                        axes_s[1].set_title("Ground Truth  u(x,t)"); axes_s[1].set_xlabel("t"); axes_s[1].set_ylabel("x")
+                        fig.colorbar(im1, ax=axes_s[1])
+                        im2 = axes_s[2].contourf(_ea_Tg, _ea_Xg, _ea_U_err, levels={config.plot_levels}, cmap='{config.plot_colormap}')
+                        axes_s[2].set_title("Error  |PINN - Ground Truth|"); axes_s[2].set_xlabel("t"); axes_s[2].set_ylabel("x")
+                        fig.colorbar(im2, ax=axes_s[2])
+                        plt.tight_layout()
+                    if _ea_did_surface:
+                        _ea_sp = _os.path.join(_ea_dir, f"surface_comparison{{_ea_suffix}}.png")
+                        plt.savefig(_ea_sp, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
+                        print(f"  Surface comparison saved: {{_ea_sp}}")
+                print(f"  Group '{{_ea_group_label(_ea_sel) or 'default'}}' analysis complete")
             print("=== Error Analysis Complete ===")
 
         # ── Export solution data ──────────────────────────────
@@ -3699,291 +3759,340 @@ if {config.time_adaptive}:
     if {config.ea_files}:
         from scipy.interpolate import interp1d as _interp1d
         import glob as _ea_glob, json as _ea_json
-        _ea_files = [(tv, fp) for tv, fp in {config.ea_files}
-                     if {config.t_min} - 1e-10 <= tv <= {config.t_max} + 1e-10]
         _ea_dir = _os.path.join(_save_dir if _use_save else "/tmp", "error_analysis")
         _os.makedirs(_ea_dir, exist_ok=True)
-        print(f"  Filtering to t=[{config.t_min}, {config.t_max}]: {{len(_ea_files)}} files")
+
+        # Same (time, path, output_selector) normalization and per-output
+        # grouping as the Standard Error Analysis path above -- see its own
+        # comment for the full rationale. Kept as its own copy here since
+        # Time-Adaptive is a separate top-level branch that never runs
+        # alongside the Standard one.
+        _ea_files_norm = []
+        for _ea_entry in {config.ea_files}:
+            if len(_ea_entry) >= 3:
+                _ea_tv0, _ea_fp0, _ea_sel0 = _ea_entry[0], _ea_entry[1], _ea_entry[2]
+            else:
+                _ea_tv0, _ea_fp0 = _ea_entry[0], _ea_entry[1]
+                _ea_sel0 = None
+            if {config.t_min} - 1e-10 <= _ea_tv0 <= {config.t_max} + 1e-10:
+                _ea_files_norm.append((_ea_tv0, _ea_fp0, _ea_sel0))
+        print(f"  Filtering to t=[{config.t_min}, {config.t_max}]: {{len(_ea_files_norm)}} files")
         print("\\n=== Running Time-Adaptive Error Analysis ===")
 
-        # Load all ground truth files
-        _ea_times = []; _ea_x_refs = []; _ea_y_refs = []; _ea_u_refs = []
-        for _ea_tv, _ea_fp in _ea_files:
-            _ea_d = np.loadtxt(_ea_fp)
-            if _ea_d.ndim == 1: _ea_d = _ea_d.reshape(1, -1)
-            if _is_2d:
-                _ea_idx = np.lexsort((_ea_d[:, 1], _ea_d[:, 0]))
-                _ea_x_refs.append(_ea_d[_ea_idx, 0])
-                _ea_y_refs.append(_ea_d[_ea_idx, 1])
-                _ea_u_refs.append(_ea_d[_ea_idx, 3])
-                _detected_t = float(_ea_d[0, 2])
-                _ea_times.append(_detected_t)
-                print(f"  Loaded ground truth t={{_detected_t:.4f}}: {{len(_ea_d)}} pts from {{_os.path.basename(_ea_fp)}}")
-            else:
-                _ea_idx = np.argsort(_ea_d[:, 0])
-                _ea_x_refs.append(_ea_d[_ea_idx, 0])
-                _ea_y_refs.append(np.zeros_like(_ea_d[_ea_idx, 0]))
-                _ea_u_refs.append(_ea_d[_ea_idx, 2])
-                _ea_times.append(float(_ea_tv))
-                print(f"  Loaded ground truth t={{_ea_tv:.4f}}: {{len(_ea_d)}} pts from {{_os.path.basename(_ea_fp)}}")
-        # Sort by time
-        _ea_sort_idx = np.argsort(_ea_times)
-        _ea_times  = [_ea_times[_i]  for _i in _ea_sort_idx]
-        _ea_x_refs = [_ea_x_refs[_i] for _i in _ea_sort_idx]
-        _ea_y_refs = [_ea_y_refs[_i] for _i in _ea_sort_idx]
-        _ea_u_refs = [_ea_u_refs[_i] for _i in _ea_sort_idx]
-        _ea_n_t = len(_ea_times)
-        _ea_u_pinns = [None] * _ea_n_t
+        _ea_groups = {{}}
+        for _ea_tv0, _ea_fp0, _ea_sel0 in _ea_files_norm:
+            _ea_gkey = repr(_ea_sel0)
+            if _ea_gkey not in _ea_groups:
+                _ea_groups[_ea_gkey] = {{"sel": _ea_sel0, "files": []}}
+            _ea_groups[_ea_gkey]["files"].append((_ea_tv0, _ea_fp0))
+        _ea_multi_output = len(_ea_groups) > 1
 
-        # Find all step directories
-        _ta_step_dir = _os.path.join(_save_dir, "time_adaptive_steps")
-        _ta_step_dirs = sorted([_sd for _sd in _ea_glob.glob(_os.path.join(_ta_step_dir, "step_*")) if _os.path.isdir(_sd)])
-        _ta_intervals = []
-        for _sd in _ta_step_dirs:
-            _sd_name = _os.path.basename(_sd)
-            try:
-                _parts = _sd_name.split("_")
-                _t0_str = _parts[2].replace("t","")
-                _t1_str = _parts[4].replace("t","")
-                _ta_intervals.append((float(_t0_str), float(_t1_str), _sd))
-            except Exception as _pe:
-                print(f"  Could not parse step dir: {{_sd_name}}: {{_pe}}")
-        print(f"  Found {{len(_ta_intervals)}} time-adaptive step models")
+        def _ea_group_label(_ea_sel):
+            if _ea_sel is None:
+                return ""
+            if isinstance(_ea_sel, int):
+                return (_plot_output_names_list[_ea_sel].strip()
+                        if 0 <= _ea_sel < len(_plot_output_names_list) else f"out{{_ea_sel}}")
+            _ea_lbl = (_ea_sel[1] or "").strip() if len(_ea_sel) > 1 else ""
+            return _ea_lbl if _ea_lbl else "custom"
 
-        for _si, (_t0_i, _t1_i, _sd_i) in enumerate(_ta_intervals):
-            _is_last = (_si == len(_ta_intervals) - 1)
-            _matching = []
-            for _ei, _ea_tv in enumerate(_ea_times):
-                if _is_last:
-                    _in_range = (_t0_i <= _ea_tv <= _t1_i + 1e-10)
-                else:
-                    _in_range = (_t0_i <= _ea_tv < _t1_i - 1e-10) or \
-                                (abs(_ea_tv - _t1_i) < 1e-10)
-                if _in_range and _ea_u_pinns[_ei] is None:
-                    _matching.append(_ei)
+        def _ea_extract(_ea_pred, _ea_sel):
+            if _ea_sel is None:
+                return _extract_plot_field(_ea_pred)
+            if isinstance(_ea_sel, int):
+                return _ea_pred[:, _ea_sel]
+            _ea_ns = {{**_BC_MATH_NS, "np": np}}
+            for _ea_oi, _ea_on in enumerate(_plot_output_names_list):
+                _ea_ns[_ea_on.strip()] = _ea_pred[:, _ea_oi]
+            return np.asarray(eval(_ea_sel[0], _ea_ns))
 
-            if not _matching:
-                continue
+        for _ea_group_key, _ea_group in _ea_groups.items():
+            _ea_files = _ea_group["files"]
+            _ea_sel = _ea_group["sel"]
+            _ea_suffix = f"_{{_ea_group_label(_ea_sel)}}" if _ea_multi_output else ""
+            if _ea_multi_output:
+                print(f"  ── Output group: {{_ea_group_label(_ea_sel) or 'default'}} ({{len(_ea_files)}} files) ──")
 
-            print(f"  Step {{_si+1}} [{{_t0_i:.4f}}→{{_t1_i:.4f}}]: t = {{[_ea_times[_ei] for _ei in _matching]}}")
-
-            _step_cfg_path = _os.path.join(_sd_i, "step_config.json")
-            try:
-                with open(_step_cfg_path) as _scf:
-                    _step_cfg = _ea_json.load(_scf)
-            except Exception:
-                _step_cfg = {{"layers": {config.layers}, "activation": "{config.activation}", "loss_type": "{config.loss_type}"}}
-
-            _step_layers = _step_cfg.get("layers", {config.layers})
-            _step_act    = _step_cfg.get("activation", "{config.activation}")
-            _step_loss   = _step_cfg.get("loss_type", "{config.loss_type}")
-
-            if _is_2d:
-                _step_geom = dde.geometry.Rectangle([{config.x_min}, {config.y_min}], [{config.x_max}, {config.y_max}])
-            else:
-                _step_geom = dde.geometry.Interval({config.x_min}, {config.x_max})
-            _step_td    = dde.geometry.TimeDomain(_t0_i, _t1_i)
-            _step_gt    = dde.geometry.GeometryXTime(_step_geom, _step_td)
-            def _step_pde(x, y): return y[:, 0:1] * 0
-            _step_data  = dde.data.TimePDE(_step_gt, _step_pde, [], num_domain=100, num_test=100)
-            _step_net   = _apply_net_transforms(dde.nn.FNN(_step_layers, _step_act, "Glorot uniform"))
-            _step_model = dde.Model(_step_data, _step_net)
-
-            _step_pt = ""
-            for _pat in ["model_lbfgs-*.pt", "model_lbfgs.pt", "model_adam-*.pt", "model_adam.pt"]:
-                _step_pts = sorted(_ea_glob.glob(_os.path.join(_sd_i, _pat)))
-                if _step_pts:
-                    _step_pt = max(_step_pts, key=_os.path.getmtime)
-                    break
-
-            if not _step_pt:
-                print(f"  ⚠️ No model found for step {{_si+1}}, skipping")
-                continue
-
-            if "lbfgs" in _os.path.basename(_step_pt):
-                dde.optimizers.set_LBFGS_options(maxiter=1)
-                _step_model.compile("L-BFGS", loss=_step_loss)
-            else:
-                _step_model.compile("adam", lr=0.001, loss=_step_loss)
-
-            _step_model.restore(_step_pt, verbose=0)
-            print(f"    Restored: {{_os.path.basename(_step_pt)}}")
-
-            for _ei in _matching:
-                _ea_xf = _ea_x_refs[_ei]
-                _ea_tv = _ea_times[_ei]
+            # Load all ground truth files
+            _ea_times = []; _ea_x_refs = []; _ea_y_refs = []; _ea_u_refs = []
+            for _ea_tv, _ea_fp in _ea_files:
+                _ea_d = np.loadtxt(_ea_fp)
+                if _ea_d.ndim == 1: _ea_d = _ea_d.reshape(1, -1)
                 if _is_2d:
-                    _ea_yf = _ea_y_refs[_ei]
-                    _ea_xt = np.column_stack([_ea_xf, _ea_yf, np.full_like(_ea_xf, _ea_tv)])
+                    _ea_idx = np.lexsort((_ea_d[:, 1], _ea_d[:, 0]))
+                    _ea_x_refs.append(_ea_d[_ea_idx, 0])
+                    _ea_y_refs.append(_ea_d[_ea_idx, 1])
+                    _ea_u_refs.append(_ea_d[_ea_idx, 3])
+                    _detected_t = float(_ea_d[0, 2])
+                    _ea_times.append(_detected_t)
+                    print(f"  Loaded ground truth t={{_detected_t:.4f}}: {{len(_ea_d)}} pts from {{_os.path.basename(_ea_fp)}}")
                 else:
-                    _ea_xt = np.column_stack([_ea_xf, np.full_like(_ea_xf, _ea_tv)])
-                _ea_u_pinns[_ei] = _extract_plot_field(_step_model.predict(_ea_xt)).flatten()
-                print(f"    Predicted at t={{_ea_tv:.4f}}: {{len(_ea_xf)}} points")
+                    _ea_idx = np.argsort(_ea_d[:, 0])
+                    _ea_x_refs.append(_ea_d[_ea_idx, 0])
+                    _ea_y_refs.append(np.zeros_like(_ea_d[_ea_idx, 0]))
+                    _ea_u_refs.append(_ea_d[_ea_idx, 2])
+                    _ea_times.append(float(_ea_tv))
+                    print(f"  Loaded ground truth t={{_ea_tv:.4f}}: {{len(_ea_d)}} pts from {{_os.path.basename(_ea_fp)}}")
+            # Sort by time
+            _ea_sort_idx = np.argsort(_ea_times)
+            _ea_times  = [_ea_times[_i]  for _i in _ea_sort_idx]
+            _ea_x_refs = [_ea_x_refs[_i] for _i in _ea_sort_idx]
+            _ea_y_refs = [_ea_y_refs[_i] for _i in _ea_sort_idx]
+            _ea_u_refs = [_ea_u_refs[_i] for _i in _ea_sort_idx]
+            _ea_n_t = len(_ea_times)
+            _ea_u_pinns = [None] * _ea_n_t
 
-        for _ei in range(_ea_n_t):
-            if _ea_u_pinns[_ei] is None:
-                print(f"  ⚠️ No prediction for t={{_ea_times[_ei]:.4f}} — zero fill")
-                _ea_u_pinns[_ei] = np.zeros_like(_ea_u_refs[_ei])
+            # Find all step directories
+            _ta_step_dir = _os.path.join(_save_dir, "time_adaptive_steps")
+            _ta_step_dirs = sorted([_sd for _sd in _ea_glob.glob(_os.path.join(_ta_step_dir, "step_*")) if _os.path.isdir(_sd)])
+            _ta_intervals = []
+            for _sd in _ta_step_dirs:
+                _sd_name = _os.path.basename(_sd)
+                try:
+                    _parts = _sd_name.split("_")
+                    _t0_str = _parts[2].replace("t","")
+                    _t1_str = _parts[4].replace("t","")
+                    _ta_intervals.append((float(_t0_str), float(_t1_str), _sd))
+                except Exception as _pe:
+                    print(f"  Could not parse step dir: {{_sd_name}}: {{_pe}}")
+            print(f"  Found {{len(_ta_intervals)}} time-adaptive step models")
 
-        # Metrics
-        _ea_metrics = []
-        for _ei, _ea_tv in enumerate(_ea_times):
-            _up = _ea_u_pinns[_ei]; _uf = _ea_u_refs[_ei]
-            _ea_abs = np.abs(_up - _uf)
-            _ea_l2  = np.linalg.norm(_up - _uf) / (np.linalg.norm(_uf) + 1e-10)
-            _ea_mse = np.mean((_up - _uf)**2)
-            _ea_mx  = np.max(_ea_abs)
-            _ea_ma  = np.mean(_ea_abs)
-            _ea_metrics.append((_ea_tv, _ea_l2, _ea_mse, _ea_mx, _ea_ma))
-            print(f"  t={{_ea_tv:.4f}} — L2={{_ea_l2:.4e}}, MSE={{_ea_mse:.4e}}, Max={{_ea_mx:.4e}}")
-
-        with open(_os.path.join(_ea_dir, "error_metrics.txt"), "w") as _emf:
-            _emf.write("t,L2_relative,MSE,Max_error,Mean_abs_error\\n")
-            for _ea_tv, _l2, _mse, _mx, _ma in _ea_metrics:
-                _emf.write(f"{{_ea_tv:.6f}},{{_l2:.6e}},{{_mse:.6e}},{{_mx:.6e}},{{_ma:.6e}}\\n")
-        print(f"  Metrics saved: {{_os.path.join(_ea_dir, 'error_metrics.txt')}}")
-
-        # Line comparison
-        if {config.ea_do_line}:
-            _ea_ncols = min(4, _ea_n_t)
-            _ea_nrows = (_ea_n_t + _ea_ncols - 1) // _ea_ncols
-            fig, axes = plt.subplots(_ea_nrows, _ea_ncols, figsize=(4*_ea_ncols, 3.5*_ea_nrows), squeeze=False)
-            fig.suptitle("PINN vs Ground Truth — Line Comparison", fontsize=13, fontweight='bold')
-            _ea_ax_flat = axes.flatten()
-            for _ei in range(_ea_n_t):
-                ax = _ea_ax_flat[_ei]
-                _xv = _ea_x_refs[_ei]
-                _ea_sort = np.argsort(_xv)
-                _xv_s = _xv[_ea_sort]
-                _gt_s = _ea_u_refs[_ei][_ea_sort]
-                _pinn_s = _ea_u_pinns[_ei][_ea_sort]
-                _ea_tv, _l2, _mse, _mx, _ma = _ea_metrics[_ei]
-                ax.plot(_xv_s, _gt_s,   color='#4dabf7', linewidth=2.0, linestyle='-',  label='Ground Truth')
-                ax.plot(_xv_s, _pinn_s, color='#ff6b6b', linewidth=2.0, linestyle='--', label='PINN')
-                ax.set_title(f"t = {{_ea_tv:.3f}}  |  L2 = {{_l2:.2e}}", fontsize=10)
-                ax.set_xlabel("x"); ax.set_ylabel("u(x,t)"); ax.grid(True, alpha=0.3)
-            for _ej in range(_ea_n_t, len(_ea_ax_flat)):
-                _ea_ax_flat[_ej].set_visible(False)
-            handles, labels = _ea_ax_flat[0].get_legend_handles_labels()
-            fig.legend(handles, labels, loc='lower center', ncol=2, fontsize=10,
-                       framealpha=0.9, bbox_to_anchor=(0.5, 0.01))
-            plt.tight_layout(rect=[0, 0.06, 1, 1])
-            _ea_lp = _os.path.join(_ea_dir, "line_comparison.png")
-            plt.savefig(_ea_lp, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
-            print(f"  Line comparison saved: {{_ea_lp}}")
-
-        # Surface comparison
-        if {config.ea_do_surface}:
-            if _is_2d:
-                # 2D: PINN | FEM | Error heatmaps, one row per time snapshot
-                from scipy.interpolate import griddata as _gd
-                _res_ea = {config.plot_resolution}
-                _xg_ea = np.linspace({config.x_min}, {config.x_max}, _res_ea)
-                _yg_ea = np.linspace({config.y_min}, {config.y_max}, _res_ea)
-                _Xg_ea, _Yg_ea = np.meshgrid(_xg_ea, _yg_ea)
-                fig, axes = plt.subplots(_ea_n_t, 3, figsize=(15, 4*_ea_n_t), squeeze=False)
-                fig.suptitle("PINN vs Ground Truth — 2D Heatmaps", fontsize=13, fontweight='bold')
-                # Need step models to predict on grid — collect from step dirs
-                import glob as _ea_glob2, json as _ea_json2
-                _ta_step_dir2 = _os.path.join(_save_dir, "time_adaptive_steps")
-                _ta_step_dirs2 = sorted([_sd for _sd in _ea_glob2.glob(_os.path.join(_ta_step_dir2, "step_*")) if _os.path.isdir(_sd)])
-                _ta_intervals2 = []
-                for _sd in _ta_step_dirs2:
-                    try:
-                        _parts = _os.path.basename(_sd).split("_")
-                        _ta_intervals2.append((float(_parts[2].replace("t","")), float(_parts[4].replace("t","")), _sd))
-                    except Exception: pass
-                # Map each time to its step model
-                _step_model_map = {{}}
-                for _si2, (_t0_i2, _t1_i2, _sd_i2) in enumerate(_ta_intervals2):
-                    for _ei in range(_ea_n_t):
-                        _tv = _ea_times[_ei]
-                        _is_last2 = (_si2 == len(_ta_intervals2) - 1)
-                        if _is_last2:
-                            _in = (_t0_i2 <= _tv <= _t1_i2 + 1e-10)
-                        else:
-                            _in = (_t0_i2 <= _tv < _t1_i2 - 1e-10) or (abs(_tv - _t1_i2) < 1e-10)
-                        if _in:
-                            _step_model_map[_ei] = _sd_i2
+            for _si, (_t0_i, _t1_i, _sd_i) in enumerate(_ta_intervals):
+                _is_last = (_si == len(_ta_intervals) - 1)
+                _matching = []
                 for _ei, _ea_tv in enumerate(_ea_times):
-                    _ea_tv_r, _l2, _mse, _mx, _ma = _ea_metrics[_ei]
-                    # PINN on grid using step model
-                    _sd_for_ei = _step_model_map.get(_ei, "")
-                    _xyt_grid = np.column_stack([_Xg_ea.ravel(), _Yg_ea.ravel(), np.full(_Xg_ea.size, _ea_tv)])
-                    if _sd_for_ei:
+                    if _is_last:
+                        _in_range = (_t0_i <= _ea_tv <= _t1_i + 1e-10)
+                    else:
+                        _in_range = (_t0_i <= _ea_tv < _t1_i - 1e-10) or \
+                                    (abs(_ea_tv - _t1_i) < 1e-10)
+                    if _in_range and _ea_u_pinns[_ei] is None:
+                        _matching.append(_ei)
+
+                if not _matching:
+                    continue
+
+                print(f"  Step {{_si+1}} [{{_t0_i:.4f}}→{{_t1_i:.4f}}]: t = {{[_ea_times[_ei] for _ei in _matching]}}")
+
+                _step_cfg_path = _os.path.join(_sd_i, "step_config.json")
+                try:
+                    with open(_step_cfg_path) as _scf:
+                        _step_cfg = _ea_json.load(_scf)
+                except Exception:
+                    _step_cfg = {{"layers": {config.layers}, "activation": "{config.activation}", "loss_type": "{config.loss_type}"}}
+
+                _step_layers = _step_cfg.get("layers", {config.layers})
+                _step_act    = _step_cfg.get("activation", "{config.activation}")
+                _step_loss   = _step_cfg.get("loss_type", "{config.loss_type}")
+
+                if _is_2d:
+                    _step_geom = dde.geometry.Rectangle([{config.x_min}, {config.y_min}], [{config.x_max}, {config.y_max}])
+                else:
+                    _step_geom = dde.geometry.Interval({config.x_min}, {config.x_max})
+                _step_td    = dde.geometry.TimeDomain(_t0_i, _t1_i)
+                _step_gt    = dde.geometry.GeometryXTime(_step_geom, _step_td)
+                def _step_pde(x, y): return y[:, 0:1] * 0
+                _step_data  = dde.data.TimePDE(_step_gt, _step_pde, [], num_domain=100, num_test=100)
+                _step_net   = _apply_net_transforms(dde.nn.FNN(_step_layers, _step_act, "Glorot uniform"))
+                _step_model = dde.Model(_step_data, _step_net)
+
+                _step_pt = ""
+                for _pat in ["model_lbfgs-*.pt", "model_lbfgs.pt", "model_adam-*.pt", "model_adam.pt"]:
+                    _step_pts = sorted(_ea_glob.glob(_os.path.join(_sd_i, _pat)))
+                    if _step_pts:
+                        _step_pt = max(_step_pts, key=_os.path.getmtime)
+                        break
+
+                if not _step_pt:
+                    print(f"  ⚠️ No model found for step {{_si+1}}, skipping")
+                    continue
+
+                if "lbfgs" in _os.path.basename(_step_pt):
+                    dde.optimizers.set_LBFGS_options(maxiter=1)
+                    _step_model.compile("L-BFGS", loss=_step_loss)
+                else:
+                    _step_model.compile("adam", lr=0.001, loss=_step_loss)
+
+                _step_model.restore(_step_pt, verbose=0)
+                print(f"    Restored: {{_os.path.basename(_step_pt)}}")
+
+                for _ei in _matching:
+                    _ea_xf = _ea_x_refs[_ei]
+                    _ea_tv = _ea_times[_ei]
+                    if _is_2d:
+                        _ea_yf = _ea_y_refs[_ei]
+                        _ea_xt = np.column_stack([_ea_xf, _ea_yf, np.full_like(_ea_xf, _ea_tv)])
+                    else:
+                        _ea_xt = np.column_stack([_ea_xf, np.full_like(_ea_xf, _ea_tv)])
+                    _ea_u_pinns[_ei] = _ea_extract(_step_model.predict(_ea_xt), _ea_sel).flatten()
+                    print(f"    Predicted at t={{_ea_tv:.4f}}: {{len(_ea_xf)}} points")
+
+            for _ei in range(_ea_n_t):
+                if _ea_u_pinns[_ei] is None:
+                    print(f"  ⚠️ No prediction for t={{_ea_times[_ei]:.4f}} — zero fill")
+                    _ea_u_pinns[_ei] = np.zeros_like(_ea_u_refs[_ei])
+
+            # Metrics
+            _ea_metrics = []
+            for _ei, _ea_tv in enumerate(_ea_times):
+                _up = _ea_u_pinns[_ei]; _uf = _ea_u_refs[_ei]
+                _ea_abs = np.abs(_up - _uf)
+                _ea_l2  = np.linalg.norm(_up - _uf) / (np.linalg.norm(_uf) + 1e-10)
+                _ea_mse = np.mean((_up - _uf)**2)
+                _ea_mx  = np.max(_ea_abs)
+                _ea_ma  = np.mean(_ea_abs)
+                _ea_metrics.append((_ea_tv, _ea_l2, _ea_mse, _ea_mx, _ea_ma))
+                print(f"  t={{_ea_tv:.4f}} — L2={{_ea_l2:.4e}}, MSE={{_ea_mse:.4e}}, Max={{_ea_mx:.4e}}")
+
+            _ea_metrics_path = _os.path.join(_ea_dir, f"error_metrics{{_ea_suffix}}.txt")
+            with open(_ea_metrics_path, "w") as _emf:
+                _emf.write("t,L2_relative,MSE,Max_error,Mean_abs_error\\n")
+                for _ea_tv, _l2, _mse, _mx, _ma in _ea_metrics:
+                    _emf.write(f"{{_ea_tv:.6f}},{{_l2:.6e}},{{_mse:.6e}},{{_mx:.6e}},{{_ma:.6e}}\\n")
+            print(f"  Metrics saved: {{_ea_metrics_path}}")
+
+            # Line comparison
+            if {config.ea_do_line}:
+                _ea_ncols = min(4, _ea_n_t)
+                _ea_nrows = (_ea_n_t + _ea_ncols - 1) // _ea_ncols
+                fig, axes = plt.subplots(_ea_nrows, _ea_ncols, figsize=(4*_ea_ncols, 3.5*_ea_nrows), squeeze=False)
+                fig.suptitle("PINN vs Ground Truth — Line Comparison", fontsize=13, fontweight='bold')
+                _ea_ax_flat = axes.flatten()
+                for _ei in range(_ea_n_t):
+                    ax = _ea_ax_flat[_ei]
+                    _xv = _ea_x_refs[_ei]
+                    _ea_sort = np.argsort(_xv)
+                    _xv_s = _xv[_ea_sort]
+                    _gt_s = _ea_u_refs[_ei][_ea_sort]
+                    _pinn_s = _ea_u_pinns[_ei][_ea_sort]
+                    _ea_tv, _l2, _mse, _mx, _ma = _ea_metrics[_ei]
+                    ax.plot(_xv_s, _gt_s,   color='#4dabf7', linewidth=2.0, linestyle='-',  label='Ground Truth')
+                    ax.plot(_xv_s, _pinn_s, color='#ff6b6b', linewidth=2.0, linestyle='--', label='PINN')
+                    ax.set_title(f"t = {{_ea_tv:.3f}}  |  L2 = {{_l2:.2e}}", fontsize=10)
+                    ax.set_xlabel("x"); ax.set_ylabel("u(x,t)"); ax.grid(True, alpha=0.3)
+                for _ej in range(_ea_n_t, len(_ea_ax_flat)):
+                    _ea_ax_flat[_ej].set_visible(False)
+                handles, labels = _ea_ax_flat[0].get_legend_handles_labels()
+                fig.legend(handles, labels, loc='lower center', ncol=2, fontsize=10,
+                           framealpha=0.9, bbox_to_anchor=(0.5, 0.01))
+                plt.tight_layout(rect=[0, 0.06, 1, 1])
+                _ea_lp = _os.path.join(_ea_dir, f"line_comparison{{_ea_suffix}}.png")
+                plt.savefig(_ea_lp, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
+                print(f"  Line comparison saved: {{_ea_lp}}")
+
+            # Surface comparison
+            if {config.ea_do_surface}:
+                if _is_2d:
+                    # 2D: PINN | FEM | Error heatmaps, one row per time snapshot
+                    from scipy.interpolate import griddata as _gd
+                    _res_ea = {config.plot_resolution}
+                    _xg_ea = np.linspace({config.x_min}, {config.x_max}, _res_ea)
+                    _yg_ea = np.linspace({config.y_min}, {config.y_max}, _res_ea)
+                    _Xg_ea, _Yg_ea = np.meshgrid(_xg_ea, _yg_ea)
+                    fig, axes = plt.subplots(_ea_n_t, 3, figsize=(15, 4*_ea_n_t), squeeze=False)
+                    fig.suptitle("PINN vs Ground Truth — 2D Heatmaps", fontsize=13, fontweight='bold')
+                    # Need step models to predict on grid — collect from step dirs
+                    import glob as _ea_glob2, json as _ea_json2
+                    _ta_step_dir2 = _os.path.join(_save_dir, "time_adaptive_steps")
+                    _ta_step_dirs2 = sorted([_sd for _sd in _ea_glob2.glob(_os.path.join(_ta_step_dir2, "step_*")) if _os.path.isdir(_sd)])
+                    _ta_intervals2 = []
+                    for _sd in _ta_step_dirs2:
                         try:
-                            with open(_os.path.join(_sd_for_ei, "step_config.json")) as _scf2: _sc2 = _ea_json2.load(_scf2)
-                        except: _sc2 = {{"layers": {config.layers}, "activation": "{config.activation}", "loss_type": "{config.loss_type}"}}
-                        _sn2 = _apply_net_transforms(dde.nn.FNN(_sc2.get("layers",{config.layers}), _sc2.get("activation","{config.activation}"), "Glorot uniform"))
-                        _sg2 = dde.geometry.Rectangle([{config.x_min},{config.y_min}],[{config.x_max},{config.y_max}])
-                        _st2 = dde.geometry.TimeDomain(_sc2.get("t_min",0), _sc2.get("t_max",1))
-                        _sgt2 = dde.geometry.GeometryXTime(_sg2, _st2)
-                        _sd2 = dde.data.TimePDE(_sgt2, lambda x,y: y[:,0:1]*0, [], num_domain=100, num_test=100)
-                        _sm2 = dde.Model(_sd2, _sn2)
-                        _spt2 = ""
-                        for _pat2 in ["model_lbfgs-*.pt","model_lbfgs.pt","model_adam-*.pt","model_adam.pt"]:
-                            _pts2 = sorted(_ea_glob2.glob(_os.path.join(_sd_for_ei, _pat2)))
-                            if _pts2: _spt2 = max(_pts2, key=_os.path.getmtime); break
-                        if _spt2:
-                            if "lbfgs" in _os.path.basename(_spt2):
-                                dde.optimizers.set_LBFGS_options(maxiter=1)
-                                _sm2.compile("L-BFGS", loss=_sc2.get("loss_type","{config.loss_type}"))
+                            _parts = _os.path.basename(_sd).split("_")
+                            _ta_intervals2.append((float(_parts[2].replace("t","")), float(_parts[4].replace("t","")), _sd))
+                        except Exception: pass
+                    # Map each time to its step model
+                    _step_model_map = {{}}
+                    for _si2, (_t0_i2, _t1_i2, _sd_i2) in enumerate(_ta_intervals2):
+                        for _ei in range(_ea_n_t):
+                            _tv = _ea_times[_ei]
+                            _is_last2 = (_si2 == len(_ta_intervals2) - 1)
+                            if _is_last2:
+                                _in = (_t0_i2 <= _tv <= _t1_i2 + 1e-10)
                             else:
-                                _sm2.compile("adam", lr=0.001, loss=_sc2.get("loss_type","{config.loss_type}"))
-                            _sm2.restore(_spt2, verbose=0)
-                            _u_pinn_grid = _extract_plot_field(_sm2.predict(_xyt_grid)).reshape(_res_ea, _res_ea)
+                                _in = (_t0_i2 <= _tv < _t1_i2 - 1e-10) or (abs(_tv - _t1_i2) < 1e-10)
+                            if _in:
+                                _step_model_map[_ei] = _sd_i2
+                    for _ei, _ea_tv in enumerate(_ea_times):
+                        _ea_tv_r, _l2, _mse, _mx, _ma = _ea_metrics[_ei]
+                        # PINN on grid using step model
+                        _sd_for_ei = _step_model_map.get(_ei, "")
+                        _xyt_grid = np.column_stack([_Xg_ea.ravel(), _Yg_ea.ravel(), np.full(_Xg_ea.size, _ea_tv)])
+                        if _sd_for_ei:
+                            try:
+                                with open(_os.path.join(_sd_for_ei, "step_config.json")) as _scf2: _sc2 = _ea_json2.load(_scf2)
+                            except: _sc2 = {{"layers": {config.layers}, "activation": "{config.activation}", "loss_type": "{config.loss_type}"}}
+                            _sn2 = _apply_net_transforms(dde.nn.FNN(_sc2.get("layers",{config.layers}), _sc2.get("activation","{config.activation}"), "Glorot uniform"))
+                            _sg2 = dde.geometry.Rectangle([{config.x_min},{config.y_min}],[{config.x_max},{config.y_max}])
+                            _st2 = dde.geometry.TimeDomain(_sc2.get("t_min",0), _sc2.get("t_max",1))
+                            _sgt2 = dde.geometry.GeometryXTime(_sg2, _st2)
+                            _sd2 = dde.data.TimePDE(_sgt2, lambda x,y: y[:,0:1]*0, [], num_domain=100, num_test=100)
+                            _sm2 = dde.Model(_sd2, _sn2)
+                            _spt2 = ""
+                            for _pat2 in ["model_lbfgs-*.pt","model_lbfgs.pt","model_adam-*.pt","model_adam.pt"]:
+                                _pts2 = sorted(_ea_glob2.glob(_os.path.join(_sd_for_ei, _pat2)))
+                                if _pts2: _spt2 = max(_pts2, key=_os.path.getmtime); break
+                            if _spt2:
+                                if "lbfgs" in _os.path.basename(_spt2):
+                                    dde.optimizers.set_LBFGS_options(maxiter=1)
+                                    _sm2.compile("L-BFGS", loss=_sc2.get("loss_type","{config.loss_type}"))
+                                else:
+                                    _sm2.compile("adam", lr=0.001, loss=_sc2.get("loss_type","{config.loss_type}"))
+                                _sm2.restore(_spt2, verbose=0)
+                                _u_pinn_grid = _ea_extract(_sm2.predict(_xyt_grid), _ea_sel).reshape(_res_ea, _res_ea)
+                            else:
+                                _u_pinn_grid = np.zeros((_res_ea, _res_ea))
                         else:
                             _u_pinn_grid = np.zeros((_res_ea, _res_ea))
-                    else:
-                        _u_pinn_grid = np.zeros((_res_ea, _res_ea))
-                    _u_fem_grid = _gd(np.column_stack([_ea_x_refs[_ei], _ea_y_refs[_ei]]),
-                                      _ea_u_refs[_ei], (_Xg_ea, _Yg_ea), method='linear', fill_value=0.0)
-                    _u_err_grid = np.abs(_u_pinn_grid - _u_fem_grid)
-                    _vmin_ea = min(_u_pinn_grid.min(), _u_fem_grid.min())
-                    _vmax_ea = max(_u_pinn_grid.max(), _u_fem_grid.max())
-                    im0 = axes[_ei][0].contourf(_Xg_ea, _Yg_ea, _u_pinn_grid, levels={config.plot_levels}, cmap='{config.plot_colormap}', vmin=_vmin_ea, vmax=_vmax_ea)
-                    axes[_ei][0].set_title(f"PINN  t={{_ea_tv:.3f}}  L2={{_l2:.2e}}", fontsize=10)
-                    axes[_ei][0].set_xlabel("x"); axes[_ei][0].set_ylabel("y")
-                    fig.colorbar(im0, ax=axes[_ei][0])
-                    im1 = axes[_ei][1].contourf(_Xg_ea, _Yg_ea, _u_fem_grid, levels={config.plot_levels}, cmap='{config.plot_colormap}', vmin=_vmin_ea, vmax=_vmax_ea)
-                    axes[_ei][1].set_title(f"Ground Truth  t={{_ea_tv:.3f}}", fontsize=10)
-                    axes[_ei][1].set_xlabel("x"); axes[_ei][1].set_ylabel("y")
-                    fig.colorbar(im1, ax=axes[_ei][1])
-                    im2 = axes[_ei][2].contourf(_Xg_ea, _Yg_ea, _u_err_grid, levels={config.plot_levels}, cmap='{config.plot_colormap}')
-                    axes[_ei][2].set_title(f"|Error|  t={{_ea_tv:.3f}}  Max={{_mx:.2e}}", fontsize=10)
-                    axes[_ei][2].set_xlabel("x"); axes[_ei][2].set_ylabel("y")
-                    fig.colorbar(im2, ax=axes[_ei][2])
-                plt.tight_layout()
-            else:
-                _ea_x_common = np.linspace({config.x_min}, {config.x_max}, 300)
-                _ea_t_arr = np.array(_ea_times)
-                _ea_U_pinn = np.zeros((len(_ea_t_arr), len(_ea_x_common)))
-                _ea_U_fem  = np.zeros((len(_ea_t_arr), len(_ea_x_common)))
-                for _ei in range(_ea_n_t):
-                    _ea_fi_p = _interp1d(_ea_x_refs[_ei], _ea_u_pinns[_ei], kind='linear', fill_value='extrapolate')
-                    _ea_U_pinn[_ei, :] = _ea_fi_p(_ea_x_common)
-                    _ea_fi_f = _interp1d(_ea_x_refs[_ei], _ea_u_refs[_ei], kind='linear', fill_value='extrapolate')
-                    _ea_U_fem[_ei, :] = _ea_fi_f(_ea_x_common)
-                _ea_Xg, _ea_Tg = np.meshgrid(_ea_x_common, _ea_t_arr)
-                _ea_U_err = np.abs(_ea_U_pinn - _ea_U_fem)
-                _ea_vmin = min(_ea_U_pinn.min(), _ea_U_fem.min())
-                _ea_vmax = max(_ea_U_pinn.max(), _ea_U_fem.max())
-                fig, axes = plt.subplots(1, 3, figsize=(15, 5))
-                fig.suptitle("PINN vs Ground Truth — Surface Comparison", fontsize=13, fontweight='bold')
-                im0 = axes[0].contourf(_ea_Tg, _ea_Xg, _ea_U_pinn, levels={config.plot_levels}, cmap='{config.plot_colormap}', vmin=_ea_vmin, vmax=_ea_vmax)
-                axes[0].set_title("PINN  u(x,t)"); axes[0].set_xlabel("t"); axes[0].set_ylabel("x")
-                fig.colorbar(im0, ax=axes[0])
-                im1 = axes[1].contourf(_ea_Tg, _ea_Xg, _ea_U_fem, levels={config.plot_levels}, cmap='{config.plot_colormap}', vmin=_ea_vmin, vmax=_ea_vmax)
-                axes[1].set_title("Ground Truth  u(x,t)"); axes[1].set_xlabel("t"); axes[1].set_ylabel("x")
-                fig.colorbar(im1, ax=axes[1])
-                im2 = axes[2].contourf(_ea_Tg, _ea_Xg, _ea_U_err, levels={config.plot_levels}, cmap='{config.plot_colormap}')
-                axes[2].set_title("Error  |PINN - Ground Truth|"); axes[2].set_xlabel("t"); axes[2].set_ylabel("x")
-                fig.colorbar(im2, ax=axes[2])
-                plt.tight_layout()
-            _ea_sp = _os.path.join(_ea_dir, "surface_comparison.png")
-            plt.savefig(_ea_sp, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
-            print(f"  Surface comparison saved: {{_ea_sp}}")
+                        _u_fem_grid = _gd(np.column_stack([_ea_x_refs[_ei], _ea_y_refs[_ei]]),
+                                          _ea_u_refs[_ei], (_Xg_ea, _Yg_ea), method='linear', fill_value=0.0)
+                        _u_err_grid = np.abs(_u_pinn_grid - _u_fem_grid)
+                        _vmin_ea = min(_u_pinn_grid.min(), _u_fem_grid.min())
+                        _vmax_ea = max(_u_pinn_grid.max(), _u_fem_grid.max())
+                        im0 = axes[_ei][0].contourf(_Xg_ea, _Yg_ea, _u_pinn_grid, levels={config.plot_levels}, cmap='{config.plot_colormap}', vmin=_vmin_ea, vmax=_vmax_ea)
+                        axes[_ei][0].set_title(f"PINN  t={{_ea_tv:.3f}}  L2={{_l2:.2e}}", fontsize=10)
+                        axes[_ei][0].set_xlabel("x"); axes[_ei][0].set_ylabel("y")
+                        fig.colorbar(im0, ax=axes[_ei][0])
+                        im1 = axes[_ei][1].contourf(_Xg_ea, _Yg_ea, _u_fem_grid, levels={config.plot_levels}, cmap='{config.plot_colormap}', vmin=_vmin_ea, vmax=_vmax_ea)
+                        axes[_ei][1].set_title(f"Ground Truth  t={{_ea_tv:.3f}}", fontsize=10)
+                        axes[_ei][1].set_xlabel("x"); axes[_ei][1].set_ylabel("y")
+                        fig.colorbar(im1, ax=axes[_ei][1])
+                        im2 = axes[_ei][2].contourf(_Xg_ea, _Yg_ea, _u_err_grid, levels={config.plot_levels}, cmap='{config.plot_colormap}')
+                        axes[_ei][2].set_title(f"|Error|  t={{_ea_tv:.3f}}  Max={{_mx:.2e}}", fontsize=10)
+                        axes[_ei][2].set_xlabel("x"); axes[_ei][2].set_ylabel("y")
+                        fig.colorbar(im2, ax=axes[_ei][2])
+                    plt.tight_layout()
+                else:
+                    _ea_x_common = np.linspace({config.x_min}, {config.x_max}, 300)
+                    _ea_t_arr = np.array(_ea_times)
+                    _ea_U_pinn = np.zeros((len(_ea_t_arr), len(_ea_x_common)))
+                    _ea_U_fem  = np.zeros((len(_ea_t_arr), len(_ea_x_common)))
+                    for _ei in range(_ea_n_t):
+                        _ea_fi_p = _interp1d(_ea_x_refs[_ei], _ea_u_pinns[_ei], kind='linear', fill_value='extrapolate')
+                        _ea_U_pinn[_ei, :] = _ea_fi_p(_ea_x_common)
+                        _ea_fi_f = _interp1d(_ea_x_refs[_ei], _ea_u_refs[_ei], kind='linear', fill_value='extrapolate')
+                        _ea_U_fem[_ei, :] = _ea_fi_f(_ea_x_common)
+                    _ea_Xg, _ea_Tg = np.meshgrid(_ea_x_common, _ea_t_arr)
+                    _ea_U_err = np.abs(_ea_U_pinn - _ea_U_fem)
+                    _ea_vmin = min(_ea_U_pinn.min(), _ea_U_fem.min())
+                    _ea_vmax = max(_ea_U_pinn.max(), _ea_U_fem.max())
+                    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+                    fig.suptitle("PINN vs Ground Truth — Surface Comparison", fontsize=13, fontweight='bold')
+                    im0 = axes[0].contourf(_ea_Tg, _ea_Xg, _ea_U_pinn, levels={config.plot_levels}, cmap='{config.plot_colormap}', vmin=_ea_vmin, vmax=_ea_vmax)
+                    axes[0].set_title("PINN  u(x,t)"); axes[0].set_xlabel("t"); axes[0].set_ylabel("x")
+                    fig.colorbar(im0, ax=axes[0])
+                    im1 = axes[1].contourf(_ea_Tg, _ea_Xg, _ea_U_fem, levels={config.plot_levels}, cmap='{config.plot_colormap}', vmin=_ea_vmin, vmax=_ea_vmax)
+                    axes[1].set_title("Ground Truth  u(x,t)"); axes[1].set_xlabel("t"); axes[1].set_ylabel("x")
+                    fig.colorbar(im1, ax=axes[1])
+                    im2 = axes[2].contourf(_ea_Tg, _ea_Xg, _ea_U_err, levels={config.plot_levels}, cmap='{config.plot_colormap}')
+                    axes[2].set_title("Error  |PINN - Ground Truth|"); axes[2].set_xlabel("t"); axes[2].set_ylabel("x")
+                    fig.colorbar(im2, ax=axes[2])
+                    plt.tight_layout()
+                _ea_sp = _os.path.join(_ea_dir, f"surface_comparison{{_ea_suffix}}.png")
+                plt.savefig(_ea_sp, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
+                print(f"  Surface comparison saved: {{_ea_sp}}")
 
+            print(f"  Group '{{_ea_group_label(_ea_sel) or 'default'}}' analysis complete")
         print("=== Time-Adaptive Error Analysis Complete ===")
 
 print("DONE")

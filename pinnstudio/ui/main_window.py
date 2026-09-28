@@ -2222,50 +2222,89 @@ class MainWindow(QMainWindow):
         self._ea_settings = None
         if not ref_dir or not os.path.isdir(ref_dir):
             return
+        # This problem's real output names -- used to recognize a reference
+        # file that names its own output explicitly (e.g. "t_0_u.txt" /
+        # "t_0_v.txt" for a 2-output template like 2D Burgers (Mathias)),
+        # matched case-insensitively. Falls back to a single "u" if the
+        # output-name boxes aren't built yet.
+        try:
+            _out_names = [(w.text().strip() or f"output{_oi}")
+                          for _oi, w in enumerate(self.output_name_inputs)]
+        except Exception:
+            _out_names = []
+        if not _out_names:
+            _out_names = ["u"]
+        _name_to_idx = {n.lower(): i for i, n in enumerate(_out_names)}
         if is_steady:
             # Steady-state (time-independent) templates have a single
             # reference file with no time column at all -- "solution.txt",
             # columns x,y,u for 2D / x,y,z,u for 3D -- matching exactly what
             # PINNStudio's own steady-state "Export solution data" writes.
-            # Points outside a non-rectangular geometry (L-Shape's missing
-            # quadrant, Disk/Sphere corners of the bounding box) are NaN in
-            # the file; codegen's error-analysis loader drops those rows
-            # before computing metrics, so nothing needs filtering here.
+            # A multi-output problem can additionally provide one
+            # "solution_<output_name>.txt" per output, the steady-state
+            # counterpart of the time-dependent "t_<time>_<output_name>.txt"
+            # naming below. Points outside a non-rectangular geometry
+            # (L-Shape's missing quadrant, Disk/Sphere corners of the
+            # bounding box) are NaN in the file; codegen's error-analysis
+            # loader drops those rows before computing metrics, so nothing
+            # needs filtering here.
+            _found = []
             _sol_path = os.path.join(ref_dir, "solution.txt")
-            if not os.path.isfile(_sol_path):
+            if os.path.isfile(_sol_path):
+                _found.append((0.0, _sol_path, None))
+            for _on in _out_names:
+                _named_path = os.path.join(ref_dir, f"solution_{_on}.txt")
+                if os.path.isfile(_named_path):
+                    _found.append((0.0, _named_path, _name_to_idx[_on.lower()]))
+            if not _found:
                 return
             self._ea_settings = {
-                'files': [(0.0, _sol_path)],
+                'files': _found,
                 'do_line': True,
                 'do_surface': True,
                 'do_l2': True,
                 'do_mse': True,
                 'do_max': True,
             }
-            self.log_box.append("✅ Error analysis auto-configured — 1 ground truth file (steady-state) from template")
+            _n_groups = len({sel for _, _, sel in _found})
+            _suffix = f" across {_n_groups} outputs" if _n_groups > 1 else ""
+            self.log_box.append(f"✅ Error analysis auto-configured — {len(_found)} ground truth file(s) (steady-state){_suffix} from template")
             return
-        # Ground-truth snapshots for error analysis must match "t_<number>.txt"
-        # exactly -- a sibling file like "t_1.0_LessData.txt" (a thinned-down
-        # version of the same snapshot meant only as an easier Inverse
-        # observation set, see below) is intentionally NOT another ground
-        # truth snapshot and must not be swept in just because it also starts
-        # with "t_" and ends with ".txt".
-        _gt_name_re = re.compile(r'^t_[0-9]+(\.[0-9]+)?\.txt$')
-        txt_files = sorted(
-            fp for fp in glob.glob(os.path.join(ref_dir, 't_*.txt'))
-            if _gt_name_re.match(os.path.basename(fp))
-        )
+        # Ground-truth snapshots for error analysis must match either
+        # "t_<number>.txt" (the implicit-default-output case, unchanged
+        # from before) or "t_<number>_<output_name>.txt" (an explicit
+        # per-output snapshot -- e.g. 2D Burgers (Mathias)'s own
+        # "t_0_u.txt"/"t_0_v.txt", auto-assigned to whichever of this
+        # problem's outputs is named "u"/"v"). A sibling file like
+        # "t_1.0_LessData.txt" (a thinned-down version of the same snapshot
+        # meant only as an easier Inverse observation set, see below) is
+        # intentionally NOT another ground truth snapshot and must not be
+        # swept in just because it also starts with "t_" and ends with
+        # ".txt" -- nor is a "t_<n>_<word>.txt" file whose <word> doesn't
+        # match any real output name of this problem (dropped rather than
+        # silently mis-assigned).
+        _plain_re = re.compile(r'^t_[0-9]+(\.[0-9]+)?\.txt$')
+        _named_re = re.compile(r'^t_([0-9]+(?:\.[0-9]+)?)_([A-Za-z0-9]+)\.txt$')
+        txt_files = sorted(glob.glob(os.path.join(ref_dir, 't_*.txt')))
         if not txt_files:
             return
-        valid_files = []
+        valid_files = []  # (t_val, fp, output_selector)
         for fp in txt_files:
+            base = os.path.basename(fp)
+            m_named = _named_re.match(base)
+            if m_named and m_named.group(2).lower() in _name_to_idx:
+                _sel = _name_to_idx[m_named.group(2).lower()]
+            elif _plain_re.match(base):
+                _sel = None
+            else:
+                continue
             try:
                 d = np.loadtxt(fp)
                 if d.ndim == 1: d = d.reshape(1, -1)
                 is_2d = self.radio_2d.isChecked()
                 is_3d = self.radio_3d.isChecked() if hasattr(self, 'radio_3d') else False
                 t_val = float(d[0, 3]) if is_3d else (float(d[0, 2]) if is_2d else float(d[0, 1]))
-                valid_files.append((t_val, fp))
+                valid_files.append((t_val, fp, _sel))
             except Exception:
                 continue
         if not valid_files:
@@ -2288,14 +2327,19 @@ class MainWindow(QMainWindow):
             'do_mse': True,
             'do_max': True,
         }
-        self.log_box.append(f"✅ Error analysis auto-configured — {len(valid_files)} ground truth files from template")
+        _n_groups = len({sel for _, _, sel in valid_files})
+        _suffix = f" across {_n_groups} outputs" if _n_groups > 1 else ""
+        self.log_box.append(f"✅ Error analysis auto-configured — {len(valid_files)} ground truth files{_suffix} from template")
         # Auto-select the end-time (largest t) reference file as the Inverse
         # observed-data file, so the user doesn't have to browse for it. If a
         # thinned "<name>_LessData.txt" sibling of that snapshot exists in
         # the same folder, prefer it for the Inverse default instead: fewer
         # observation points make the inverse fit numerically easier, while
         # the full snapshot above stays untouched as the error-analysis
-        # ground truth.
+        # ground truth. Unchanged by multi-output grouping -- still just the
+        # single latest-time file overall (Inverse's own observed-data field
+        # is a separate, single-file mechanism from Error Analysis' now
+        # possibly-multiple output groups).
         if hasattr(self, 'inv_data_path'):
             _end_time_file = valid_files[-1][1]
             _less_data_variant = _end_time_file[:-4] + "_LessData.txt"
@@ -6957,6 +7001,13 @@ print("ERROR_ANALYSIS_DONE")
                 'bc_config': 'dirichlet_zero_all',
                 'num_outputs': 2,
                 'output_names': ['u', 'v'],
+                # Ground truth for both outputs -- t_0_u.txt / t_0_v.txt,
+                # auto-assigned to output "u" / "v" respectively by
+                # _auto_configure_ea's per-output filename matching, exactly
+                # like every other template's single-output reference data
+                # (for ease of use). Users can still reassign or add their
+                # own via the "📊 Error Analysis" dialog.
+                'ref_dir': os.path.join(REFERENCE_DATA_DIR, "2D", "burgers_mathias"),
             },
         }
         if text in templates_2d:
@@ -7841,7 +7892,22 @@ print("ERROR_ANALYSIS_DONE")
 
         self._ea_file_rows = []  # list of (path_label, t_label, remove_btn)
 
-        def _add_file_row(path='', t_val=None):
+        # A model with more than one output is ambiguous about which
+        # output a reference file belongs to -- show an "Output:" picker
+        # per row in that case (real output names, or a custom derived
+        # expression reusing the same mechanism as the Results panel's
+        # "Custom..." plot field). A single-output model has nothing to
+        # disambiguate, so the dialog stays exactly as before for it.
+        n_out = self.num_outputs_spin.value() if hasattr(self, 'num_outputs_spin') else 1
+        try:
+            out_names = [(w.text().strip() or f"output{_oi}")
+                         for _oi, w in enumerate(self.output_name_inputs)]
+        except Exception:
+            out_names = []
+        if not out_names:
+            out_names = ["u"]
+
+        def _add_file_row(path='', t_val=None, sel=None):
             row_widget = QWidget()
             row_layout = QHBoxLayout(row_widget)
             row_layout.setContentsMargins(0, 0, 0, 0)
@@ -7862,13 +7928,57 @@ print("ERROR_ANALYSIS_DONE")
             self._register_style(t_label, "hint", lambda css, _c='#69db7c', _e='min-width: 80px; ': f"color: {_c}; {_e}{css}")
             row_layout.addWidget(t_label)
 
+            out_combo = None
+            expr_edit = None
+            label_edit = None
+            if n_out > 1:
+                out_combo = QComboBox()
+                out_combo.setFixedHeight(26)
+                for _on in out_names:
+                    out_combo.addItem(_on)
+                out_combo.addItem("Custom expression...")
+                row_layout.addWidget(out_combo)
+
+                expr_edit = QLineEdit()
+                expr_edit.setPlaceholderText("expression, e.g. sqrt(u**2+v**2)")
+                expr_edit.setFixedHeight(26)
+                expr_edit.setVisible(False)
+                row_layout.addWidget(expr_edit)
+
+                label_edit = QLineEdit()
+                label_edit.setPlaceholderText("label (optional)")
+                label_edit.setFixedHeight(26)
+                label_edit.setFixedWidth(90)
+                label_edit.setVisible(False)
+                row_layout.addWidget(label_edit)
+
+                def _on_out_combo_changed(_txt, _ee=expr_edit, _le=label_edit):
+                    _is_custom = (_txt == "Custom expression...")
+                    _ee.setVisible(_is_custom)
+                    _le.setVisible(_is_custom)
+                out_combo.currentTextChanged.connect(_on_out_combo_changed)
+
+                # Pre-select from an existing selector -- auto-configured
+                # from the template's own ref_dir, or a previously-run
+                # dialog's settings being reopened.
+                if isinstance(sel, int) and 0 <= sel < len(out_names):
+                    out_combo.setCurrentIndex(sel)
+                elif isinstance(sel, (list, tuple)) and len(sel) >= 1:
+                    out_combo.setCurrentText("Custom expression...")
+                    expr_edit.setText(str(sel[0]))
+                    expr_edit.setVisible(True)
+                    if len(sel) > 1 and sel[1]:
+                        label_edit.setText(str(sel[1]))
+                        label_edit.setVisible(True)
+
             remove_btn = QPushButton("✕")
             remove_btn.setFixedHeight(26); remove_btn.setFixedWidth(26)
             remove_btn.setStyleSheet("QPushButton { color: #ff8787; background: transparent; border: none; }")
             row_layout.addWidget(remove_btn)
 
             self._ea_file_list_layout.addWidget(row_widget)
-            row_data = {'widget': row_widget, 'path': path_edit, 't_label': t_label}
+            row_data = {'widget': row_widget, 'path': path_edit, 't_label': t_label,
+                        'out_combo': out_combo, 'expr_edit': expr_edit, 'label_edit': label_edit}
             self._ea_file_rows.append(row_data)
 
             def _on_browse():
@@ -7907,9 +8017,38 @@ print("ERROR_ANALYSIS_DONE")
 
             return row_data
 
-        # Auto-populate from template if available
+        def _row_selector(row):
+            # Reads one file row's UI back into an output_selector value
+            # (None / int / [expr, label]) -- the mirror of the pre-select
+            # logic in _add_file_row above.
+            _oc = row.get('out_combo')
+            if _oc is None:
+                return None
+            _txt = _oc.currentText()
+            if _txt == "Custom expression...":
+                _expr = (row['expr_edit'].text() if row.get('expr_edit') else "").strip()
+                if not _expr:
+                    return None
+                _lbl = (row['label_edit'].text() if row.get('label_edit') else "").strip()
+                return [_expr, _lbl]
+            return out_names.index(_txt) if _txt in out_names else None
+
+        # Auto-populate from the template's own auto-configured Error
+        # Analysis settings when available (already carries the right
+        # output selector per file, e.g. 2D Burgers (Mathias)'s u/v split)
+        # -- falling back to a plain glob of the template's ref_dir, then
+        # to one empty row, for a problem with no auto-config at all.
+        _existing_ea = getattr(self, '_ea_settings', None)
         ref_dir = getattr(self, '_template_ref_dir', '')
-        if ref_dir and os.path.isdir(ref_dir):
+        if _existing_ea and _existing_ea.get('files'):
+            hint2 = QLabel("📂 Auto-loaded from template" + (f": {os.path.basename(ref_dir)}" if ref_dir else ""))
+            self._register_style(hint2, "hint", lambda css, _c='#a0c4ff', _e='': f"color: {_c}; {_e}{css}")
+            files_layout.addWidget(hint2)
+            for _ea_entry in _existing_ea['files']:
+                _tv0, _fp0 = _ea_entry[0], _ea_entry[1]
+                _sel0 = _ea_entry[2] if len(_ea_entry) > 2 else None
+                _add_file_row(_fp0, _tv0, _sel0)
+        elif ref_dir and os.path.isdir(ref_dir):
             txt_files = sorted(glob.glob(os.path.join(ref_dir, 't_*.txt')))
             if txt_files:
                 hint2 = QLabel(f"📂 Auto-loaded from template: {os.path.basename(ref_dir)}")
@@ -7950,7 +8089,10 @@ print("ERROR_ANALYSIS_DONE")
                 p = row['path'].text().strip()
                 t = row.get('t_val', None)
                 if p and os.path.exists(p) and t is not None:
-                    valid_files.append((t, p))
+                    if n_out > 1:
+                        valid_files.append((t, p, _row_selector(row)))
+                    else:
+                        valid_files.append((t, p))
 
             if not valid_files:
                 self.log_box.append("❌ Error Analysis: no valid reference files loaded.")
