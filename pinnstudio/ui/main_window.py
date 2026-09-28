@@ -1509,6 +1509,26 @@ class MainWindow(QMainWindow):
         row_ta2.addStretch(); row_ta2.addWidget(self.ta_grid)
         ta_layout.addLayout(row_ta2)
 
+        # Visible in-panel warning (not just the tooltip above, which is
+        # easy to miss) for the 3D + large-grid combination that's known
+        # to exhaust GPU memory -- confirmed by a real run: an RTX 4090
+        # (24GB) hit a CUDA out-of-memory error training 3D Heat with
+        # Time-Adaptive at grid=101 (~1.03M points/step), on step 2 of 5.
+        # 1D/2D never cube the grid, so they never trigger this.
+        self.ta_grid_warning = QLabel(
+            "⚠ 3D cubes this (grid³ points/step) -- 101 is over 1 million "
+            "points and can exhaust GPU memory during training. Use 11 or "
+            "21 for 3D Time-Adaptive runs."
+        )
+        self.ta_grid_warning.setWordWrap(True)
+        self.ta_grid_warning.setStyleSheet(
+            "QLabel { color: #ffa94d; background: rgba(255, 169, 77, 0.08); "
+            "border: 1px solid #ffa94d; border-radius: 4px; padding: 4px 6px; }"
+        )
+        self.ta_grid_warning.setVisible(False)
+        ta_layout.addWidget(self.ta_grid_warning)
+        self.ta_grid.currentTextChanged.connect(self._update_ta_grid_warning)
+
         # Transfer learning
         self.ta_transfer_cb = QCheckBox("Enable transfer learning (warm start from previous step)")
         self.ta_transfer_cb.setChecked(False)
@@ -2238,9 +2258,38 @@ class MainWindow(QMainWindow):
             self.output_transform_rows_layout.addWidget(row_w)
             self.output_transform_rows.append({"scale": scale_spin, "shift": shift_spin})
 
+    def _update_ta_grid_warning(self, *_args):
+        """Time-Adaptive's "IC grid resolution" is a per-axis count -- 1D
+        uses it directly, 2D squares it, 3D cubes it. A value that's fine
+        in 1D/2D (101 -> 10201 points in 2D) becomes over a million points
+        per step in 3D, which can exhaust GPU memory: confirmed by a real
+        run (RTX 4090, 24GB) that hit a CUDA out-of-memory error training
+        3D Heat with Time-Adaptive at grid=101, on step 2 of 5. The combo's
+        hover tooltip already warns about this but is easy to miss, so
+        show a visible in-panel warning too, specifically when 3D is
+        selected and the grid is at a size known to risk it (51 or 101).
+        1D/2D never cube the grid, so the warning never shows for them."""
+        if not hasattr(self, 'ta_grid_warning'):
+            return
+        is_3d = self.radio_3d.isChecked() if hasattr(self, 'radio_3d') else False
+        try:
+            grid = int(self.ta_grid.currentText())
+        except (ValueError, TypeError):
+            grid = 0
+        self.ta_grid_warning.setVisible(is_3d and grid >= 51)
+
     def _on_dim_changed(self):
         is_2d = self.radio_2d.isChecked()
         is_3d = self.radio_3d.isChecked()
+        # Time-Adaptive's per-axis grid resolution is cubed in 3D (see
+        # _update_ta_grid_warning) -- switching into 3D while it's still
+        # at a size that's only safe because the previous dimension didn't
+        # cube it (101 or 51) silently inherits a risky default. Step it
+        # down automatically; 1D/2D never cube it, so nothing needs to
+        # change when switching away from 3D.
+        if is_3d and hasattr(self, 'ta_grid') and self.ta_grid.currentText() in ("101", "51"):
+            self.ta_grid.setCurrentText("21")
+        self._update_ta_grid_warning()
         # Clear the Boundary Conditions panel -- its rows (template-seeded
         # or hand-built) are location EXPRESSIONS in the previous
         # dimension's variables (e.g. "z <= 0" from a 3D problem), which
@@ -7607,13 +7656,16 @@ print("ERROR_ANALYSIS_DONE")
             for row in list(self.ta_group_rows):
                 row['widget'].deleteLater()
             self.ta_group_rows.clear()
-            # 3D Heat doesn't use Time-Adaptive mode (same as 2D Heat).
+            # 3D Heat doesn't use Time-Adaptive mode (same as 2D Heat), but
+            # if the user turns it on manually afterward, the grid resolution
+            # should already be at a 3D-safe size (see _update_ta_grid_warning)
+            # rather than the 1D/2D-safe "101" default.
             self._current_ta_cfg = None
             self._ta_suspended_for_inverse = False
             self.adapt_combo.setCurrentText("None")
             self._add_ta_step_group(0.0, 1.0, 10)
             self.ta_transfer_cb.setChecked(False)
-            self.ta_grid.setCurrentText("101")
+            self.ta_grid.setCurrentText("21")
             self._set_combo_data(self.ta_transfer_opt, "adam")
             self._template_ref_dir = t.get('ref_dir', '')
             self._current_template = text
@@ -7697,7 +7749,8 @@ print("ERROR_ANALYSIS_DONE")
             self.adapt_combo.setCurrentText("None")
             self._add_ta_step_group(0.0, 1.0, 10)
             self.ta_transfer_cb.setChecked(False)
-            self.ta_grid.setCurrentText("101")
+            # Same 3D-safe default as the 3D Heat block above.
+            self.ta_grid.setCurrentText("21")
             self._set_combo_data(self.ta_transfer_opt, "adam")
             for e in list(self.custom_bc_list):
                 e['widget'].deleteLater()
