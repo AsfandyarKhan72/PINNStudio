@@ -42,3 +42,11 @@ jobs:
           app.processEvents()
           print('MainWindow booted successfully.')
           "
+
+      - name: Template / mode regression suite
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          python tests/test_templates.py
+          python tests/test_config_options.py
+          python tests/test_export_parity.py
