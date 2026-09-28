@@ -200,7 +200,6 @@ class PINNConfig:
     ic_pretrain_num_initial: int = 1000
     ic_pretrain_lr: float = 1e-3
     ic_pretrain_loss: str = "MSE"
-    batch_size: int = 0
     ic_pretrain_restore: bool = False
     ic_pretrain_restore_path: str = ""
     optimizer_scheduler: bool = False

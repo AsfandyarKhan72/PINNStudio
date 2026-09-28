@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import (
     QTextEdit, QGroupBox, QComboBox, QSplitter, QLineEdit,
     QFileDialog, QCheckBox, QRadioButton, QButtonGroup,
     QDialog, QMenuBar, QMenu, QFrame, QApplication, QColorDialog,
-    QTabWidget
+    QTabWidget, QMessageBox
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer
 from PyQt6.QtGui import QPixmap, QFont, QAction, QColor, QMovie
@@ -969,32 +969,20 @@ class MainWindow(QMainWindow):
 
         left_layout.addWidget(nn_group)
 
-        # ── Training (Mini-batch Training folded in at the top, since ──
-        # ── it's a training setting and doesn't need its own panel) ────
+        # ── Training ─────────────────────────────────────────────────
+        # (This group previously also had a "Mini-batch training" checkbox
+        # here -- removed. DeepXDE's dde.data.PDE/TimePDE.train_next_batch
+        # ignores the batch_size argument entirely for this data type
+        # (confirmed against the installed DeepXDE source), and DeepXDE's
+        # own docs say explicitly not to use batch_size with PDE/TimePDE --
+        # use dde.callbacks.PDEPointResampler instead, which this app
+        # already implements as its "RAR" adaptive-refinement feature. The
+        # checkbox and its `data.batch_size = N` codegen were a complete
+        # no-op: every run trained full-batch regardless of the setting.)
         train_group = QGroupBox("Training")
         train_layout = QVBoxLayout(train_group)
         train_layout.setSpacing(5)
         train_layout.setContentsMargins(10, 10, 10, 10)
-
-        self.batch_check = QCheckBox("Enable mini-batch training")
-        self.batch_check.setChecked(True)
-        self.batch_check.stateChanged.connect(self._on_batch_changed)
-        train_layout.addWidget(self.batch_check)
-
-        self.batch_widget = QWidget()
-        bw_layout = QHBoxLayout(self.batch_widget)
-        bw_layout.setContentsMargins(0, 0, 0, 0)
-        bw_layout.addWidget(QLabel("Batch size:"))
-        self.batch_spin = QSpinBox()
-        self.batch_spin.setRange(16, 10000)
-        self.batch_spin.setSingleStep(16)
-        self.batch_spin.setValue(32)
-        self.batch_spin.setFixedWidth(100)
-        self.batch_spin.setFixedHeight(28)
-        bw_layout.addStretch()
-        bw_layout.addWidget(self.batch_spin)
-        self.batch_widget.setVisible(True)
-        train_layout.addWidget(self.batch_widget)
 
         def _train_row(label, widget):
             train_layout.addWidget(QLabel(label))
@@ -4081,7 +4069,6 @@ class MainWindow(QMainWindow):
             lbfgs_maxls=int(self.lbfgs_maxls.value()),
             lbfgs_float_type=self.lbfgs_float_combo.currentText() if hasattr(self, 'lbfgs_float_combo') else 'float64',
             float_type=getattr(self, '_float_type', 'float64'),
-            batch_size=self.batch_spin.value() if self.batch_check.isChecked() else 0,
             ic_pretrain=self.ic_pretrain_cb.isChecked(),
             ic_pretrain_optimizer=self.ic_pretrain_opt.currentData(),
             ic_pretrain_iterations=self.ic_pretrain_iters.value(),
@@ -4699,13 +4686,6 @@ class MainWindow(QMainWindow):
             "timer_minutes": config.cb_timer_minutes,
         }
 
-        # Mini-batch training
-        if config.batch_size and config.batch_size > 0:
-            self.batch_check.setChecked(True)
-            self.batch_spin.setValue(config.batch_size)
-        else:
-            self.batch_check.setChecked(False)
-
         # IC pre-training
         self.ic_pretrain_cb.setChecked(config.ic_pretrain)
         self._set_combo_data(self.ic_pretrain_opt, config.ic_pretrain_optimizer)
@@ -5168,6 +5148,53 @@ class MainWindow(QMainWindow):
             self.solve_btn.setEnabled(True)
             self.solve_btn.setText("▶  Solve")
             self.stop_btn.setEnabled(False)
+
+    def closeEvent(self, event):
+        """Make sure no training/restore subprocess is left running in the
+        background when the window closes. Previously there was no
+        closeEvent override at all, so closing PINNStudio mid-run never
+        stopped the active SolverThread (or _RestoreThread) -- the child
+        Python/PyTorch process, and any GPU memory it holds, kept running
+        detached from the GUI indefinitely. If a run is active, ask before
+        quitting rather than silently killing it."""
+        # isinstance(..., QThread) rather than a plain hasattr check: every
+        # QObject (QMainWindow included) already has its own built-in
+        # .thread() method from Qt itself, so hasattr(self, 'thread') is
+        # True even on a freshly-opened window that never clicked Solve --
+        # self.thread only becomes a real SolverThread once _on_solve()
+        # first assigns it. Without this check, closing a window that never
+        # trained anything would crash here instead of just closing.
+        active = []
+        _th = getattr(self, 'thread', None)
+        if isinstance(_th, QThread) and _th.isRunning():
+            active.append(("training", _th))
+        _rth = getattr(self, '_restore_thread', None)
+        if isinstance(_rth, QThread) and _rth.isRunning():
+            active.append(("restore", _rth))
+        _pth = getattr(self, '_preview_thread', None)
+        if isinstance(_pth, QThread) and _pth.isRunning():
+            active.append(("preview", _pth))
+        if active:
+            names = " and ".join(name for name, _ in active)
+            reply = QMessageBox.question(
+                self, "Run in progress",
+                f"A {names} run is still in progress. Stop it and quit?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
+            if reply != QMessageBox.StandardButton.Yes:
+                event.ignore()
+                return
+            for _name, th in active:
+                if hasattr(th, 'stop'):
+                    th.stop()
+                th.wait(3000)
+                if th.isRunning():
+                    # terminate() didn't get a response in time -- force it
+                    # rather than let the window hang on close.
+                    th.terminate()
+                    th.wait(1000)
+        event.accept()
 
     def _on_output(self, line):
         self.log_box.append(line)
@@ -5783,15 +5810,22 @@ print("DOMAIN_PREVIEW_DONE")
             log_sig  = _sig(str)
             def __init__(self, tmp):
                 super().__init__(); self._tmp = tmp
+                self.process = None
             def run(self):
                 import subprocess, sys
                 proc = subprocess.Popen([sys.executable, self._tmp],
                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+                self.process = proc
                 for line in proc.stdout:
                     self.log_sig.emit(line.rstrip())
                 proc.wait()
                 os.unlink(self._tmp)
                 self.done_sig.emit(proc.returncode == 0)
+            def stop(self):
+                # Same fix as SolverThread/_RestoreThread/_ParamRestoreThread
+                # -- see closeEvent.
+                if self.process and self.process.poll() is None:
+                    self.process.terminate()
 
         self._preview_thread = _PreviewThread(tmp)
         self._preview_thread.done_sig.connect(self._on_preview_done)
@@ -8551,9 +8585,6 @@ print("ERROR_ANALYSIS_V2_DONE")
             _any_ic_from_file = False
         self.ic_pretrain_init_widget.setVisible(not restoring and not _any_ic_from_file)
 
-    def _on_batch_changed(self, state):
-        self.batch_widget.setVisible(state == 2)
-
     def _on_browse_restore_model(self):
         f, _ = QFileDialog.getOpenFileName(self, "Select model file", "", "PyTorch model (*.pt)")
         if f:
@@ -8696,17 +8727,27 @@ print("ERROR_ANALYSIS_V2_DONE")
                 def __init__(self, tmp):
                     super().__init__()
                     self._tmp = tmp
+                    self.process = None
+
                 def run(self):
                     proc = subprocess.Popen(
                         [sys.executable, self._tmp],
                         stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
                     )
+                    self.process = proc
                     for line in proc.stdout:
                         line = line.rstrip()
                         if line: self.line_signal.emit(line)
                     proc.wait()
                     os.unlink(self._tmp)
                     self.done_signal.emit(proc.returncode == 0)
+
+                def stop(self):
+                    # Same fix as _RestoreThread/SolverThread -- see
+                    # closeEvent, which needs this to stop this thread's
+                    # actual subprocess rather than just abandoning it.
+                    if self.process and self.process.poll() is None:
+                        self.process.terminate()
 
             self._restore_thread = _ParamRestoreThread(tmp)
             self._restore_thread.line_signal.connect(self.log_box.append)
@@ -8772,10 +8813,30 @@ print("ERROR_ANALYSIS_V2_DONE")
                 t_max_restore = _sc.get('t_max', t_max_restore)
             except Exception:
                 pass
-            # Filter files within t range
+            # Filter files within t range. ea['files'] entries are always
+            # (time, path, output_selector) 3-tuples since the v40 multi-
+            # output Error Analysis feature (output_selector is None for a
+            # single-output template's file, an int raw output index for a
+            # named per-output file like "t_0_u.txt", or a [expr, label]
+            # pair for a custom derived field) -- unpacking as a 2-tuple
+            # here (as before v40) raises "too many values to unpack" the
+            # moment any reference file is configured, which is effectively
+            # always, since every write site (auto-config and the manual
+            # Error Analysis dialog) has stored 3-tuples since that patch.
+            # This restore-and-visualize path only ever predicts a single
+            # chosen output (output_idx, picked in the Restore panel above),
+            # so rather than building out the full per-group multi-output
+            # report the main Error Analysis paths have, a file is included
+            # here only if it belongs to that same output (selector is None
+            # -- the implicit-default/single-output case -- or an int
+            # matching output_idx exactly); a custom-expression [expr,
+            # label] selector or a named file for a different output is
+            # correctly excluded rather than silently compared against the
+            # wrong prediction.
             matching_files = [
-                (t, f) for t, f in ea['files']
-                if t_min_restore - 1e-10 <= t <= t_max_restore + 1e-10
+                (t, f) for t, f, sel in ea['files']
+                if (sel is None or sel == output_idx)
+                and t_min_restore - 1e-10 <= t <= t_max_restore + 1e-10
             ]
             if matching_files:
                 self.log_box.append(f"📊 Error analysis: {len(matching_files)} reference files match t=[{t_min_restore:.4f}, {t_max_restore:.4f}]")
@@ -8803,17 +8864,29 @@ print("ERROR_ANALYSIS_V2_DONE")
             def __init__(self, tmp):
                 super().__init__()
                 self._tmp = tmp
+                self.process = None
+
             def run(self):
                 proc = subprocess.Popen(
                     [sys.executable, self._tmp],
                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
                 )
+                self.process = proc
                 for line in proc.stdout:
                     line = line.rstrip()
                     if line: self.line_signal.emit(line)
                 proc.wait()
                 os.unlink(self._tmp)
                 self.done_signal.emit(proc.returncode == 0)
+
+            def stop(self):
+                # Mirrors SolverThread.stop() -- previously this thread had
+                # no way at all to be asked to stop (its subprocess handle
+                # wasn't even kept as an attribute), so it could only ever
+                # end on its own or be abandoned as an orphaned process if
+                # the GUI closed mid-restore.
+                if self.process and self.process.poll() is None:
+                    self.process.terminate()
 
         self._restore_thread = _RestoreThread(tmp)
         self._restore_thread.line_signal.connect(self.log_box.append)

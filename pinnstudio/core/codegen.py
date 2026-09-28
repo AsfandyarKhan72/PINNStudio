@@ -272,7 +272,7 @@ def generate_script(config):
     plot_custom_label_resolved = (getattr(config, "plot_custom_label", "") or "").strip() or _plot_custom_expr_raw
 
     if config.forward_ic_from_file:
-        _ta_ic_init = f"""_ic_ta_xt, _ic_ta_vals = _load_ic_from_file(r"{config.forward_ic_file}")
+        _ta_ic_init = f"""_ic_ta_xt, _ic_ta_vals = _load_ic_from_file({repr(config.forward_ic_file)})
     prev_u = _ic_ta_vals"""
     else:
         _ta_ic_init = f"prev_u = np.reshape({ta_ic_expr}, (-1, 1))"
@@ -477,7 +477,7 @@ else:
 
 # ── Save directory setup ─────────────────────────────────────
 import os as _os
-_save_dir = r"{config.save_dir}".strip()
+_save_dir = {repr(config.save_dir)}.strip()
 _use_save = bool(_save_dir)
 if _use_save:
     _os.makedirs(_save_dir, exist_ok=True)
@@ -666,7 +666,7 @@ if _problem_type == "Inverse":
     _obs_u  = _obs_entries[0][1] if _obs_entries else None
 
     if "{config.inverse_ic_type}" == "File (x, t, u)":
-        _ic_data = _load_data(r"{config.inverse_ic_file}")
+        _ic_data = _load_data({repr(config.inverse_ic_file)})
         if _is_3d:
             _ic_xt = _ic_data[:, 0:4]  # x, y, z, t
             _ic_u  = _ic_data[:, 4:5]  # u
@@ -1227,9 +1227,10 @@ if _custom_bc_entries or _bc_panel_data_present:
             if {config.forward_ic_from_file} and _oi == 0:
                 # Load IC from file -- see _load_ic_from_file() above for
                 # the expected column layout per dimension.
-                _ic_xyt, _ic_vals = _load_ic_from_file(r"{config.forward_ic_file}")
+                _ic_xyt, _ic_vals = _load_ic_from_file({repr(config.forward_ic_file)})
                 _constraints.append(dde.icbc.PointSetBC(_ic_xyt, _ic_vals, component=0))
-                print(rf"IC loaded from file: {config.forward_ic_file} — {{len(_ic_xyt)}} points")
+                _ic_file_disp = {repr(config.forward_ic_file)}
+                print(f"IC loaded from file: {{_ic_file_disp}} — {{len(_ic_xyt)}} points")
             elif _oi < len(_ic_active_list) and _ic_active_list[_oi].strip() == "True":
                 _ic_expr = _ic_expressions[_oi].strip() if _oi < len(_ic_expressions) else "np.zeros_like(x[:,0])"
                 def _make_ic(expr, comp):
@@ -1343,9 +1344,10 @@ else:
             if {config.forward_ic_from_file} and _oi == 0:
                 # Load IC from file -- see _load_ic_from_file() above for
                 # the expected column layout per dimension.
-                _ic_xyt, _ic_vals = _load_ic_from_file(r"{config.forward_ic_file}")
+                _ic_xyt, _ic_vals = _load_ic_from_file({repr(config.forward_ic_file)})
                 _constraints.append(dde.icbc.PointSetBC(_ic_xyt, _ic_vals, component=0))
-                print(rf"IC loaded from file: {config.forward_ic_file} — {{len(_ic_xyt)}} points")
+                _ic_file_disp = {repr(config.forward_ic_file)}
+                print(f"IC loaded from file: {{_ic_file_disp}} — {{len(_ic_xyt)}} points")
             elif _oi < len(_ic_active_list) and _ic_active_list[_oi].strip() == "True":
                 _ic_expr = _ic_expressions[_oi].strip() if _oi < len(_ic_expressions) else "np.zeros_like(x[:,0])"
                 def _make_ic(expr, comp):
@@ -1550,8 +1552,6 @@ for _pval in _param_values:
         loss_weights=_multi_weights,
         external_trainable_variables=_inv_vars if _problem_type == "Inverse" else None
     )
-    if {config.batch_size} > 0:
-        print(f"Mini-batch training enabled: batch_size={config.batch_size}")
 
     _iters = int(_pval) if (_parametric and _param_name == "phase1_iterations" and _pval is not None) else {config.iterations}
 
@@ -1572,7 +1572,7 @@ for _pval in _param_values:
         if {config.forward_ic_from_file}:
             # Load IC from file for pre-training -- see _load_ic_from_file()
             # near the top of this script for the expected column layout.
-            _ic_pre_xyt, _ic_pre_vals = _load_ic_from_file(r"{config.forward_ic_file}")
+            _ic_pre_xyt, _ic_pre_vals = _load_ic_from_file({repr(config.forward_ic_file)})
             _ic_ics_pre.append(dde.icbc.PointSetBC(_ic_pre_xyt, _ic_pre_vals, component=0))
         else:
             _ic_exprs_pre = "{config_ic_expressions}".split("|")
@@ -1613,11 +1613,11 @@ for _pval in _param_values:
         print(f"  IC-only weights: {{_ic_only_weights}} — dummy PDE, IC points only")
         _model_pre.compile("{config.ic_pretrain_optimizer}", lr={config.ic_pretrain_lr},
                            loss="{config.ic_pretrain_loss}", loss_weights=_ic_only_weights)
-        _ic_pre_save_dir = _os.path.join(r"{config.save_dir}", "ic_pretrain")
+        _ic_pre_save_dir = _os.path.join({repr(config.save_dir)}, "ic_pretrain")
         _os.makedirs(_ic_pre_save_dir, exist_ok=True)
-        if {config.ic_pretrain_restore} and r"{config.ic_pretrain_restore_path}" and _os.path.exists(r"{config.ic_pretrain_restore_path}"):
-            print(rf"  Restoring IC pre-train model from: {config.ic_pretrain_restore_path}")
-            _ic_ckpt = torch.load(r"{config.ic_pretrain_restore_path}", map_location="cpu")
+        if {config.ic_pretrain_restore} and {repr(config.ic_pretrain_restore_path)} and _os.path.exists({repr(config.ic_pretrain_restore_path)}):
+            print("  Restoring IC pre-train model from: " + {repr(config.ic_pretrain_restore_path)})
+            _ic_ckpt = torch.load({repr(config.ic_pretrain_restore_path)}, map_location="cpu")
             _ic_state = _ic_ckpt.get("model_state_dict", _ic_ckpt)
             _model_pre.net.load_state_dict(_ic_state)
             print("  IC pre-train model restored — skipping training.")
@@ -1647,9 +1647,18 @@ for _pval in _param_values:
                 print(f"  (Scheduler enabled — skipping standalone {{_iters}}-iteration pass; "
                       f"training runs only for the phases below)")
         else:
-            if {config.batch_size} > 0:
-                data.batch_size = {config.batch_size}
-                print(f"Batch size set to: {config.batch_size}")
+            if not _sched_active:
+                # Mirrors the Inverse branch above (which already trains its
+                # Phase 1 here when the Training Phases scheduler is off) --
+                # previously this Forward branch never called model.train()
+                # under any condition, so a Forward problem with the
+                # scheduler off either silently skipped Phase 1 entirely
+                # (going straight into Phase 2 from a random, untrained
+                # network, when optimizer2 was set) or left
+                # loss_history/train_state unbound and crashed with a
+                # confusing NameError at dde.saveplot() (when optimizer2
+                # was also "none").
+                loss_history, train_state = model.train(iterations=_iters, display_every=1000, callbacks=_train_cbs)
             if _use_save:
                 pass  # model saved after scheduler phases
                 _adam_cfg_path = _os.path.join(_sol_dir, f"model_adam-{{_iters}}.json")
@@ -1725,8 +1734,6 @@ for _pval in _param_values:
                     # LR decay (decay is meaningless for a Newton-CG method).
                     model.compile("NNCG", loss=_sp.get('loss', '{config.loss_type}'),
                                   loss_weights=_sp_weights, external_trainable_variables=_sp_ext_vars)
-                    if {config.batch_size} > 0:
-                        data.batch_size = {config.batch_size}
                     if _problem_type == "Inverse":
                         for _icb in _print_cbs: _icb.set_offset(_sched_cum_iters)
                         for _icb in _save_cbs: _icb.set_offset(_sched_cum_iters)
@@ -1769,8 +1776,6 @@ for _pval in _param_values:
                     model.compile(_sp['optimizer'], lr=_sp['lr'], decay=_sp_decay,
                                   loss=_sp.get('loss', '{config.loss_type}'), loss_weights=_sp_weights,
                                   external_trainable_variables=_sp_ext_vars)
-                    if {config.batch_size} > 0:
-                        data.batch_size = {config.batch_size}
                     if _problem_type == "Inverse":
                         for _icb in _print_cbs: _icb.set_offset(_sched_cum_iters)
                         for _icb in _save_cbs: _icb.set_offset(_sched_cum_iters)
@@ -3354,7 +3359,7 @@ if {config.time_adaptive}:
             # Only IC constraint
             _ic_constraints_pt = []
             if {config.forward_ic_from_file}:
-                _ic_ta_xyt, _ic_ta_vals = _load_ic_from_file(r"{config.forward_ic_file}")
+                _ic_ta_xyt, _ic_ta_vals = _load_ic_from_file({repr(config.forward_ic_file)})
                 _ic_constraints_pt.append(dde.icbc.PointSetBC(_ic_ta_xyt, _ic_ta_vals, component=0))
             else:
                 for _oi_pt in range({config.num_outputs}):
@@ -3385,11 +3390,11 @@ if {config.time_adaptive}:
             _ic_only_w_ta = [0.0] * {config.num_outputs} + [1000.0] * len(_ic_constraints_pt)
             _model_pt.compile("{config.ic_pretrain_optimizer}", lr={config.ic_pretrain_lr},
                               loss="{config.ic_pretrain_loss}", loss_weights=_ic_only_w_ta)
-            _ic_pre_save_dir_ta = _os.path.join(r"{config.save_dir}", "ic_pretrain")
+            _ic_pre_save_dir_ta = _os.path.join({repr(config.save_dir)}, "ic_pretrain")
             _os.makedirs(_ic_pre_save_dir_ta, exist_ok=True)
-            if {config.ic_pretrain_restore} and r"{config.ic_pretrain_restore_path}" and _os.path.exists(r"{config.ic_pretrain_restore_path}"):
-                print(rf"  Restoring IC pre-train model from: {config.ic_pretrain_restore_path}")
-                _ic_ckpt_ta = torch.load(r"{config.ic_pretrain_restore_path}", map_location="cpu")
+            if {config.ic_pretrain_restore} and {repr(config.ic_pretrain_restore_path)} and _os.path.exists({repr(config.ic_pretrain_restore_path)}):
+                print("  Restoring IC pre-train model from: " + {repr(config.ic_pretrain_restore_path)})
+                _ic_ckpt_ta = torch.load({repr(config.ic_pretrain_restore_path)}, map_location="cpu")
                 _ic_state_ta = _ic_ckpt_ta.get("model_state_dict", _ic_ckpt_ta)
                 _model_pt.net.load_state_dict(_ic_state_ta)
                 print("  IC pre-train model restored — skipping training.")
@@ -3443,8 +3448,6 @@ if {config.time_adaptive}:
                     # exposed in this app's UI).
                     model_i.compile("NNCG", loss=_sp.get('loss', '{config.loss_type}'),
                                     loss_weights=_sp_weights)
-                    if {config.batch_size} > 0:
-                        data_i.batch_size = {config.batch_size}
                     lh_i, ts_i = model_i.train(iterations=_sp['iterations'], display_every=1000, callbacks=_train_cbs_ta)
                     if _use_save:
                         _sp_iters = lh_i.steps[-1] if lh_i.steps else _sp['iterations']
@@ -3467,8 +3470,6 @@ if {config.time_adaptive}:
                             _sp_decay = ('exponential', float(_sp_p1))
                     model_i.compile(_sp['optimizer'], lr=_sp['lr'], decay=_sp_decay,
                                     loss=_sp.get('loss', '{config.loss_type}'), loss_weights=_sp_weights)
-                    if {config.batch_size} > 0:
-                        data_i.batch_size = {config.batch_size}
                     lh_i, ts_i = model_i.train(iterations=_sp['iterations'], display_every=1000, callbacks=_train_cbs_ta)
                     if _use_save:
                         _sp_iters = lh_i.steps[-1] if lh_i.steps else _sp['iterations']
@@ -4321,12 +4322,12 @@ def _clean_bc_row_code(i, entry, is_2d, is_3d, n_coord_cols):
         append.append(f"constraints.append(dde.icbc.PeriodicBC(geomtime, {axis_idx_map.get(axis, 0)}, "
                        f"{loc_name}, derivative_order={deriv}, component={comp}))")
     elif btype == 'pointset':
-        append.append(f'_pts{i}, _pvals{i} = _load_bc_points(r"{pts_file}", {n_coord_cols})')
+        append.append(f'_pts{i}, _pvals{i} = _load_bc_points({pts_file!r}, {n_coord_cols})')
         append.append(f"constraints.append(dde.icbc.PointSetBC(_pts{i}, _pvals{i}, component={comp}))")
     elif btype == 'pointset_operator':
         op_name = f"_bc{i}_op"
         defs += [f"def {op_name}(inputs, outputs, X):", f"    return {val}"]
-        append.append(f'_pts{i}, _pvals{i} = _load_bc_points(r"{pts_file}", {n_coord_cols})')
+        append.append(f'_pts{i}, _pvals{i} = _load_bc_points({pts_file!r}, {n_coord_cols})')
         append.append(f"constraints.append(dde.icbc.PointSetOperatorBC(_pts{i}, _pvals{i}, {op_name}))")
     elif btype == 'operator':
         op_name = f"_bc{i}_op"
@@ -4434,8 +4435,6 @@ def _clean_phase_train_lines(sp, w, ext_vars_kw, cbs_kw, model_name, data_name, 
         L.append(f"loss_history, train_state = {model_name}.train(display_every=200{cbs_kw})")
     elif opt == 'nncg':
         L.append(f"{model_name}.compile(\"NNCG\", loss={loss!r}, loss_weights={w}{ext_vars_kw})")
-        if config.batch_size > 0:
-            L.append(f"{data_name}.batch_size = {config.batch_size}")
         L.append(f"loss_history, train_state = {model_name}.train(iterations={iters}, display_every=1000{cbs_kw})")
     else:
         decay = None
@@ -4452,8 +4451,6 @@ def _clean_phase_train_lines(sp, w, ext_vars_kw, cbs_kw, model_name, data_name, 
         lr = sp.get('lr', config.learning_rate)
         L.append(f"{model_name}.compile({opt!r}, lr={lr}, decay={decay!r}, loss={loss!r}, "
                   f"loss_weights={w}{ext_vars_kw})")
-        if config.batch_size > 0:
-            L.append(f"{data_name}.batch_size = {config.batch_size}")
         L.append(f"loss_history, train_state = {model_name}.train(iterations={iters}, display_every=1000{cbs_kw})")
     return [f"{indent}{ln}" for ln in L]
 
@@ -4536,7 +4533,7 @@ def generate_clean_script(config):
     ic_defs, ic_appends = [], []
     for oi in (range(n_out) if not is_steady else []):
         if oi == 0 and config.forward_ic_from_file:
-            ic_appends.append(f'_ic_xt, _ic_vals = _load_ic_from_file(r"{config.forward_ic_file}")')
+            ic_appends.append(f'_ic_xt, _ic_vals = _load_ic_from_file({repr(config.forward_ic_file)})')
             ic_appends.append("constraints.append(dde.icbc.PointSetBC(_ic_xt, _ic_vals, component=0))")
         elif oi in active_ic_outputs:
             expr = ic_exprs[oi].strip() if oi < len(ic_exprs) else "np.zeros_like(x[:, 0])"
@@ -4597,7 +4594,34 @@ def generate_clean_script(config):
         ea_files = _clean_ast.literal_eval(config.ea_files) if config.ea_files else []
     except (ValueError, SyntaxError):
         ea_files = []
-    ea_files = [(tv, fp) for tv, fp in ea_files if config.t_min - 1e-10 <= tv <= config.t_max + 1e-10]
+    # ea_files entries are (time, path, output_selector) 3-tuples since the
+    # v40 multi-output Error Analysis feature (see the matching
+    # normalization in generate_script()'s two Error Analysis paths above);
+    # older saved configs only ever wrote 2-tuples (no selector), padded
+    # with None here the same way, so they keep behaving exactly as before.
+    # Unpacking as a plain 2-tuple here (as before v40) raised "too many
+    # values to unpack" for any template with reference data the moment
+    # "Export as DeepXDE Script" was used. This generator doesn't have
+    # per-output grouping/routing at all yet (a separate, larger,
+    # already-flagged gap -- it always predicts a single column,
+    # config.plot_output_idx, below), so a file is only kept here if it
+    # belongs to that same output (selector is None -- the implicit-
+    # default/single-output case -- or an int matching plot_output_idx
+    # exactly); a custom-expression [expr, label] selector or a named file
+    # for a different output is correctly dropped rather than silently
+    # compared against the wrong prediction.
+    _ea_files_norm = []
+    for _entry in ea_files:
+        if len(_entry) >= 3:
+            _tv0, _fp0, _sel0 = _entry[0], _entry[1], _entry[2]
+        else:
+            _tv0, _fp0, _sel0 = _entry[0], _entry[1], None
+        _ea_files_norm.append((_tv0, _fp0, _sel0))
+    ea_files = [
+        (tv, fp) for tv, fp, sel in _ea_files_norm
+        if (sel is None or sel == config.plot_output_idx)
+        and config.t_min - 1e-10 <= tv <= config.t_max + 1e-10
+    ]
     use_ea = bool(ea_files) and (config.ea_do_line or config.ea_do_surface)
 
     use_save = bool((config.save_dir or "").strip())
@@ -4968,7 +4992,7 @@ x_grid = np.column_stack([_Xg.ravel(), _Yg.ravel()])''')
 x_grid = np.linspace({config.x_min}, {config.x_max}, grid_size).reshape(-1, 1)''')
 
         if config.forward_ic_from_file:
-            ta_lines.append(f'_ic_ta_xt, prev_u = _load_ic_from_file(r"{config.forward_ic_file}")')
+            ta_lines.append(f'_ic_ta_xt, prev_u = _load_ic_from_file({repr(config.forward_ic_file)})')
         else:
             # ic_exprs[0] already expects spatial columns only (x, or x & y) --
             # exactly what x_grid holds, so no time column is needed here.
