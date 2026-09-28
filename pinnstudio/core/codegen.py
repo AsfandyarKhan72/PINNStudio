@@ -2273,18 +2273,40 @@ for _pval in _param_values:
                             _pred_gif = _extract_plot_field(model.predict(_xyt_gif)).reshape(80, 80)
                             _all_frames_gif.append((_Xg_gif, _Yg_gif, _pred_gif))
                     else:
+                        # Same configurable axis orientation as the Standard
+                        # path's static 1D "Surface" plot (Plot Settings ->
+                        # "Swap axes") -- there's no real t-variation within
+                        # a single frame (each frame is one instant, u(x) at
+                        # that t, drawn as a color band against a cosmetic
+                        # t-range axis for width), but the swap still needs
+                        # honoring so a GIF frame's orientation matches the
+                        # static Surface plot's, instead of always being
+                        # x-on-horizontal/t-on-vertical regardless of the
+                        # setting. Same no-reshape-of-Z trick: swapping which
+                        # of _X_anim_gif/_T_anim_gif is stored first is
+                        # enough, since contourf reads each array's own
+                        # coordinate values rather than assuming an axis order.
                         _t_anim_gif = np.linspace({config.t_min}, {config.t_max}, 80)
                         _X_anim_gif, _T_anim_gif = np.meshgrid(_x_anim_gif, _t_anim_gif)
                         for _tv in _t_frames:
                             _xt_gif2 = np.vstack([_X_anim_gif.ravel(), np.full(_X_anim_gif.size, _tv)]).T
                             _pred_gif = _extract_plot_field(model.predict(_xt_gif2)).reshape(80, 80)
-                            _all_frames_gif.append((_X_anim_gif, _T_anim_gif, _pred_gif))
+                            if {config.plot_swap_xt}:
+                                _all_frames_gif.append((_T_anim_gif, _X_anim_gif, _pred_gif))
+                            else:
+                                _all_frames_gif.append((_X_anim_gif, _T_anim_gif, _pred_gif))
                     if {config.plot_auto_range}:
                         _v_min_gif = min(_f[2].min() for _f in _all_frames_gif)
                         _v_max_gif = max(_f[2].max() for _f in _all_frames_gif)
                     else:
                         _v_min_gif = {config.plot_vmin}
                         _v_max_gif = {config.plot_vmax}
+                    if _is_2d:
+                        _xlabel_gif, _ylabel_gif = "x", "y"
+                    elif {config.plot_swap_xt}:
+                        _xlabel_gif, _ylabel_gif = "t", "x"
+                    else:
+                        _xlabel_gif, _ylabel_gif = "x", "t"
                     _fig_gif, _ax_gif = plt.subplots(figsize=(7, 5))
                     from mpl_toolkits.axes_grid1 import make_axes_locatable as _make_axes_locatable_gif
                     _div_gif = _make_axes_locatable_gif(_ax_gif)
@@ -2295,8 +2317,8 @@ for _pval in _param_values:
                         _ax_gif.cla()
                         _Xp_gif, _Yp_gif, _Zp_gif = _all_frames_gif[i]
                         _ax_gif.contourf(_Xp_gif, _Yp_gif, _Zp_gif, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_v_min_gif, vmax=_v_max_gif)
-                        _ax_gif.set_xlabel("x")
-                        _ax_gif.set_ylabel("y" if _is_2d else "t")
+                        _ax_gif.set_xlabel(_xlabel_gif)
+                        _ax_gif.set_ylabel(_ylabel_gif)
                         _ax_gif.set_title(f"t = {{_t_frames[i]:.3f}}")
                     _ani_gif = _anim.FuncAnimation(_fig_gif, _update_gif, frames=_n_frames, interval=150)
                     _ani_gif.save(_run_solution_path, writer='pillow', fps=_fps)
@@ -5696,10 +5718,19 @@ for tv in t_frames:
 if v_min is None:
     v_min = min(f.min() for f in frames); v_max = max(f.max() for f in frames)
 fig, ax = plt.subplots(figsize=(7, 5))
+# Same configurable axis orientation as the static "Surface" plot above
+# (Plot Settings -> "Swap axes") -- no reshape of frames[i] needed, just
+# swapping which of Xa/Ta is passed first to contourf (see the static
+# Surface block's comment for why that alone is enough to flip axes).
 def _update(i):
     ax.cla()
-    ax.contourf(Xa, Ta, frames[i], levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=v_min, vmax=v_max)
-    ax.set_xlabel("x"); ax.set_ylabel("t"); ax.set_title(f"t = {{t_frames[i]:.3f}}")
+    if {config.plot_swap_xt}:
+        ax.contourf(Ta, Xa, frames[i], levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=v_min, vmax=v_max)
+        ax.set_xlabel("t"); ax.set_ylabel("x")
+    else:
+        ax.contourf(Xa, Ta, frames[i], levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=v_min, vmax=v_max)
+        ax.set_xlabel("x"); ax.set_ylabel("t")
+    ax.set_title(f"t = {{t_frames[i]:.3f}}")
 ani = animation.FuncAnimation(fig, _update, frames={n_frames}, interval=150)
 ani.save(solution_path, writer="pillow", fps={config.plot_fps})
 plt.close(fig)

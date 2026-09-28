@@ -6936,6 +6936,22 @@ print("ERROR_ANALYSIS_DONE")
 
         is_param = viz_type in getattr(self, '_RESTORE_PARAM_VIZ', [])
 
+        # The dimension that matters for this dialog (e.g. the "Swap axes"
+        # option below, 1D-only) is whatever's being restored, not whatever
+        # the main Setup tab's dimension radios currently show -- those two
+        # can easily differ (e.g. Setup tab left on 3D while restoring an
+        # older 1D checkpoint). Read it from the config about to be
+        # restored; fall back to "1D" (same default _build_restore_script
+        # itself uses) if it can't be read yet, e.g. no config picked yet.
+        _restore_dim = "1D"
+        try:
+            import json as _json_dim
+            with open(self.restore_config_path.text().strip()) as _df:
+                _restore_dim = _json_dim.load(_df).get("problem_dim", "1D")
+        except Exception:
+            pass
+        _restore_is_1d = _restore_dim == "1D"
+
         dialog = QDialog(self)
         dialog.setWindowTitle(f"Settings — {viz_type}")
         dialog.setMinimumWidth(320)
@@ -7072,6 +7088,19 @@ print("ERROR_ANALYSIS_DONE")
         if not is_param:
             layout.addWidget(colorbar_cb)
 
+        # Swap x/t axes — 1D "Surface" and "Animation Surface (GIF)" only,
+        # same convention (and same default) as the main Results panel's
+        # own 1D Surface plot setting: t on the x-axis by default, with
+        # this to go back to x on the x-axis. 2D/3D Surface options here
+        # are spatial snapshots at a fixed time and have no x/t axis to
+        # swap.
+        swap_xt_cb = QCheckBox("Swap axes (x-axis = t, y-axis = x)")
+        swap_xt_cb.setChecked(current.get('swap_xt', True))
+        swap_xt_cb.setVisible(
+            viz_type in ("Surface", "Animation Surface (GIF)") and _restore_is_1d)
+        if not is_param:
+            layout.addWidget(swap_xt_cb)
+
         # Title / axis labels — every viz type gets these; blank keeps the
         # existing default text exactly as before.
         labels_line = QLabel("Leave blank to keep the default title/axis labels.")
@@ -7139,6 +7168,7 @@ print("ERROR_ANALYSIS_DONE")
                     'vmax': vmax_spin.value(),
                     'linewidth': float(lw_combo.currentText()),
                     'fps': int(fps_combo.currentText()),
+                    'swap_xt': swap_xt_cb.isChecked(),
                 })
                 self.restore_tsteps_spin.setValue(steps_spin.value())
             new_settings['title'] = title_edit.text().strip()
@@ -8105,11 +8135,16 @@ print("ERROR_ANALYSIS_DONE")
         snap_widget.setVisible(viz_type == "Surface" and self.radio_2d.isChecked())
         layout.addWidget(snap_widget)
 
-        # Swap x/t axes — 1D "Surface" only (2D/3D Surface plots are
-        # spatial snapshots at fixed times and have no x/t axis to swap).
+        # Swap x/t axes — 1D "Surface" and "Surface Animation (GIF)" only
+        # (2D/3D Surface plots are spatial snapshots at fixed times and
+        # have no x/t axis to swap; 1D "Surface Animation (GIF)" has the
+        # same x/t orientation as the static Surface plot -- each frame is
+        # one instant's u(x) drawn as a color band against a t-range axis
+        # for width -- so it gets the same swap option, defaulting the
+        # same way).
         swap_xt_cb = QCheckBox("Swap axes (x-axis = t, y-axis = x)")
         swap_xt_cb.setChecked(current.get('swap_xt', True))
-        swap_xt_cb.setVisible(viz_type == "Surface" and self.radio_1d.isChecked())
+        swap_xt_cb.setVisible(viz_type in ("Surface", "Surface Animation (GIF)") and self.radio_1d.isChecked())
         layout.addWidget(swap_xt_cb)
 
         # Colorbar — Surface only
@@ -9078,6 +9113,21 @@ print("ERROR_ANALYSIS_V2_DONE")
             self.log_box.append(
                 f"🔄 Building parameter convergence {'animation' if animate else 'plot'} "
                 f"from {len(paths)} file(s)...")
+            # Tracked so _on_restore_done knows which branch just ran --
+            # without this it glob-searched save_dir for *convergence_*
+            # files after EVERY restore regardless of viz_type, picking up
+            # and misreporting stale files left over from an unrelated
+            # earlier restore/solve in the same folder as if freshly
+            # created just now. Also reset both display panels (and stop
+            # any GIF still animating) so nothing left over from an
+            # earlier action can be mistaken for this restore's own
+            # output while it's in flight.
+            self._last_restore_is_param = True
+            self._clear_solution_movie()
+            self.loss_label.setText("⏳ Restoring...")
+            self.solution_label.setText("⏳ Restoring...")
+            self.loss_label._source_path = None
+            self.solution_label._source_path = None
             script = self._build_restore_param_script(paths, save_dir, combine, log_scale, animate)
 
             with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as tf:
@@ -9168,6 +9218,14 @@ print("ERROR_ANALYSIS_V2_DONE")
         self.restore_btn.setEnabled(False)
         self.restore_btn.setText("⏳ Restoring...")
         self.log_box.append(f"🔄 Restoring model from: {model_path}")
+        # See the matching comment in the Parameter Convergence branch
+        # above -- same reasons, same fix.
+        self._last_restore_is_param = False
+        self._clear_solution_movie()
+        self.loss_label.setText("⏳ Restoring...")
+        self.solution_label.setText("⏳ Restoring...")
+        self.loss_label._source_path = None
+        self.solution_label._source_path = None
         viz_settings = getattr(self, '_restore_viz_settings', {})
         # Script-building below is pure computation (no subprocess started
         # yet), but it reads several cfg[...] keys directly rather than
@@ -9309,38 +9367,81 @@ print("ERROR_ANALYSIS_V2_DONE")
         self.restore_btn.setEnabled(True)
         self.restore_btn.setText("🔄  Restore && Visualize")
         save_dir = self.restore_save_path.text().strip()
+        is_param = getattr(self, '_last_restore_is_param', False)
         if success:
             self.log_box.append("✅ Restore complete!")
-            plot_path = os.path.join(save_dir, "restored_plot.png")
-            if os.path.exists(plot_path):
-                self.solution_label.setPixmap(QPixmap(plot_path).scaled(
-                    500, 420, Qt.AspectRatioMode.KeepAspectRatio,
+
+            # LEFT panel: the original run's training loss curve -- always,
+            # regardless of dimension or which viz type was just restored
+            # (matches the main Solve tab's own loss_label/solution_label
+            # split in _on_done: loss always on the left, the requested
+            # visualization always on the right). Same two-location lookup
+            # _on_done itself uses, since restore's save directory is
+            # sometimes pointed at the run's root folder and sometimes
+            # directly at its solution_results/ subfolder.
+            loss_path = os.path.join(save_dir, "solution_results", "loss_plot.png")
+            if not os.path.exists(loss_path):
+                loss_path = os.path.join(save_dir, "loss_plot.png")
+            if os.path.exists(loss_path):
+                self.loss_label.setPixmap(QPixmap(loss_path).scaled(
+                    self.loss_label.width(), self.loss_label.height(),
+                    Qt.AspectRatioMode.KeepAspectRatio,
                     Qt.TransformationMode.SmoothTransformation))
-            gif_path = os.path.join(save_dir, "restored_animation.gif")
-            if os.path.exists(gif_path):
-                self.log_box.append(f"🎬 Animation saved: {gif_path}")
-            # Parameter Convergence Plot/Animation outputs -- combined
-            # (one file) or per-variable (several), PNG or GIF. Preview
-            # whichever comes first alphabetically; every file produced is
-            # already named in the log above from the script's own prints.
-            import glob as _glob_done
-            param_pngs = sorted(_glob_done.glob(os.path.join(save_dir, "*convergence_plot.png")))
-            if param_pngs:
-                self.solution_label.setPixmap(QPixmap(param_pngs[0]).scaled(
-                    500, 420, Qt.AspectRatioMode.KeepAspectRatio,
-                    Qt.TransformationMode.SmoothTransformation))
-            param_gifs = sorted(_glob_done.glob(os.path.join(save_dir, "*convergence_animation.gif")))
-            for _pg in param_gifs:
-                self.log_box.append(f"🎬 Parameter convergence animation saved: {_pg}")
-            # Show error analysis plot if available
+                self.loss_label._source_path = loss_path
+
+            if is_param:
+                # Parameter Convergence Plot/Animation outputs -- combined
+                # (one file) or per-variable (several), PNG or GIF. Preview
+                # whichever comes first alphabetically; every file produced
+                # is already named in the log above from the script's own
+                # prints. Only reached for an actual Parameter Convergence
+                # restore (see _last_restore_is_param) -- previously this
+                # glob ran after every restore, regardless of viz_type, and
+                # could pick up files left over from an unrelated earlier
+                # restore/solve in the same save_dir, misreporting them as
+                # freshly created by a run that never touched them.
+                import glob as _glob_done
+                param_pngs = sorted(_glob_done.glob(os.path.join(save_dir, "*convergence_plot.png")))
+                if param_pngs:
+                    self.solution_label.setPixmap(QPixmap(param_pngs[0]).scaled(
+                        500, 420, Qt.AspectRatioMode.KeepAspectRatio,
+                        Qt.TransformationMode.SmoothTransformation))
+                    self.solution_label._source_path = param_pngs[0]
+                param_gifs = sorted(_glob_done.glob(os.path.join(save_dir, "*convergence_animation.gif")))
+                if param_gifs:
+                    self._set_solution_gif(param_gifs[0])
+                    self.solution_label._source_path = param_gifs[0]
+                for _pg in param_gifs:
+                    self.log_box.append(f"🎬 Parameter convergence animation saved: {_pg}")
+            else:
+                # RIGHT panel: whatever this restore actually produced --
+                # a static image, or an animated GIF played in place (same
+                # _set_solution_gif the main Solve tab uses for its own
+                # Line/Surface Animation plot types), never both.
+                # Previously a GIF result only ever got a log line here --
+                # the file was genuinely saved, but the panel itself never
+                # showed it, static or animated.
+                plot_path = os.path.join(save_dir, "restored_plot.png")
+                gif_path = os.path.join(save_dir, "restored_animation.gif")
+                if os.path.exists(gif_path):
+                    self._set_solution_gif(gif_path)
+                    self.solution_label._source_path = gif_path
+                    self.log_box.append(f"🎬 Animation saved: {gif_path}")
+                elif os.path.exists(plot_path):
+                    self.solution_label.setPixmap(QPixmap(plot_path).scaled(
+                        500, 420, Qt.AspectRatioMode.KeepAspectRatio,
+                        Qt.TransformationMode.SmoothTransformation))
+                    self.solution_label._source_path = plot_path
+
+            # Error Analysis is a supplementary extra on top of whichever
+            # restore actually ran (see _on_restore) -- log where its
+            # output landed, same as the main Solve tab's own EA handling
+            # in _on_done, rather than displacing either display panel
+            # from what was actually requested above.
             for _ea_plot in ["surface_comparison_restore.png", "line_comparison_restore.png"]:
                 _ea_path = os.path.join(save_dir, "error_analysis", _ea_plot)
                 if os.path.exists(_ea_path):
-                    self.loss_label.setPixmap(QPixmap(_ea_path).scaled(
-                        500, 420, Qt.AspectRatioMode.KeepAspectRatio,
-                        Qt.TransformationMode.SmoothTransformation))
                     self.log_box.append(f"📊 Error analysis plot: {_ea_path}")
-                    break
         else:
             self.log_box.append("❌ Restore failed — check architecture matches saved model.")
 
@@ -9541,6 +9642,7 @@ print("RESTORE_DONE")
         vmax_val = viz_settings.get('vmax', 1.0)
         linewidth = viz_settings.get('linewidth', 2.0)
         fps = viz_settings.get('fps', 10)
+        swap_xt = viz_settings.get('swap_xt', True)
         title_override = (viz_settings.get('title') or '').strip()
         xlabel_override = (viz_settings.get('xlabel') or '').strip()
         ylabel_override = (viz_settings.get('ylabel') or '').strip()
@@ -9645,8 +9747,13 @@ is_3d  = {str(is_3d)}
             _xlabel_2d = xlabel_override or "x"
             _ylabel_2d = ylabel_override or "y"
             _title_2d = title_override or f"Restored Model — {out_name}(x,y) at t={surface_time}"
-            _xlabel_1d = xlabel_override or "x"
-            _ylabel_1d = ylabel_override or "t"
+            # Same "Swap axes" convention as the main Results panel's 1D
+            # Surface plot (Plot Settings dialog) -- t on the x-axis by
+            # default, with the setting above to go back to x on the
+            # x-axis; an explicit override in this dialog's own X/Y-axis
+            # label fields still wins over either default.
+            _xlabel_1d = xlabel_override or ("t" if swap_xt else "x")
+            _ylabel_1d = ylabel_override or ("x" if swap_xt else "t")
             _title_1d = title_override or f"Restored Model — {out_name}(x,t) Surface"
             script += f"""
 res = {resolution}
@@ -9717,7 +9824,13 @@ else:
     XT   = np.vstack([X.ravel(), T.ravel()]).T
     pred = model.predict(XT)[:, {output_idx}].reshape(res, res)
     fig, ax = plt.subplots(figsize=(7, 5))
-    im = ax.contourf(X, T, pred, levels={levels}, cmap="{colormap}", {vrange})
+    # Swapping which of X/T is passed first -- no reshape of pred needed,
+    # see the matching comment on the main Results panel's own 1D Surface
+    # plot for why that alone is enough to flip which one is on the x-axis.
+    if {swap_xt}:
+        im = ax.contourf(T, X, pred, levels={levels}, cmap="{colormap}", {vrange})
+    else:
+        im = ax.contourf(X, T, pred, levels={levels}, cmap="{colormap}", {vrange})
     if {show_colorbar}: fig.colorbar(im, ax=ax)
     ax.set_xlabel({_xlabel_1d!r}); ax.set_ylabel({_ylabel_1d!r})
     ax.set_title({_title_1d!r})
@@ -9803,8 +9916,12 @@ print(f"Animation saved to: {{out_path}}")
                 f"ax.set_title({title_override!r})" if title_override
                 else 'ax.set_title(f"t = {t_frames[i]:.3f}")'
             )
-            _xlabel_animsurf_else = xlabel_override or "x"
-            _ylabel_animsurf_else = ylabel_override or ("y" if is_2d else "t")
+            # 1D: same "Swap axes" convention as the static Surface option
+            # above and the main Results panel's own 1D Surface plot -- t
+            # on the x-axis by default. 2D keeps its spatial x/y axes,
+            # which this setting doesn't apply to.
+            _xlabel_animsurf_else = xlabel_override or ("t" if (swap_xt and not is_2d) else "x")
+            _ylabel_animsurf_else = ylabel_override or ("y" if is_2d else ("x" if swap_xt else "t"))
             _animsurf_title_line_else = (
                 f"ax.set_title({title_override!r})" if title_override
                 else 'ax.set_title(f"t = {t_frames[i]:.3f}")'
@@ -9877,12 +9994,19 @@ else:
             pred = model.predict(XYT)[:, {output_idx}].reshape(80, 80)
             all_frames.append((Xg, Yg, pred))
     else:
+        # Same no-reshape-of-pred swap as the static Surface option above
+        # -- storing T_anim/X_anim in swapped order per frame is enough,
+        # since contourf reads each array's own coordinate values rather
+        # than assuming a fixed axis order.
         t_anim = np.linspace({t_min}, {t_max}, 80)
         X_anim, T_anim = np.meshgrid(x_anim, t_anim)
         for tv in t_frames:
             XT = np.vstack([X_anim.ravel(), np.full(X_anim.size, tv)]).T
             pred = model.predict(XT)[:, {output_idx}].reshape(80, 80)
-            all_frames.append((X_anim, T_anim, pred))
+            if {swap_xt}:
+                all_frames.append((T_anim, X_anim, pred))
+            else:
+                all_frames.append((X_anim, T_anim, pred))
     v_min = min(f[2].min() for f in all_frames)
     v_max = max(f[2].max() for f in all_frames)
     fig, ax = plt.subplots(figsize=(8, 6))
