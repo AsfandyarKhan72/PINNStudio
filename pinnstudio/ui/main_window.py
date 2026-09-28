@@ -775,16 +775,30 @@ class MainWindow(QMainWindow):
         domain_layout.addWidget(self.geom_panel_polygon)
 
         # -- Sphere panel: center (x, y, z) + radius --
+        # Two rows, not one -- packing "center x,y,z:" + 3 spinboxes +
+        # "radius:" + 1 spinbox into a single QHBoxLayout made this panel's
+        # minimum width wider than the left configuration panel normally
+        # gets, so the radius box (last in the row) was pushed off the
+        # visible edge; stretching the panel to its maximum still didn't
+        # reliably show it depending on window width. Splitting center
+        # and radius onto their own rows keeps each row's own minimum
+        # width well within the left panel's normal width, same fix
+        # philosophy as the Loss/Solution controls row above.
         self.geom_panel_sphere = QWidget()
-        _p = QHBoxLayout(self.geom_panel_sphere); _p.setContentsMargins(0, 0, 0, 0)
-        _p.addWidget(QLabel("center x,y,z:"))
+        _p = QVBoxLayout(self.geom_panel_sphere); _p.setContentsMargins(0, 0, 0, 0); _p.setSpacing(4)
+        _row_a = QHBoxLayout()
+        _row_a.addWidget(QLabel("center x,y,z:"))
         self.geom_sphere_cx = QDoubleSpinBox(); self.geom_sphere_cx.setRange(-1e6, 1e6); self.geom_sphere_cx.setValue(0.5); self.geom_sphere_cx.setSingleStep(0.1)
         self.geom_sphere_cy = QDoubleSpinBox(); self.geom_sphere_cy.setRange(-1e6, 1e6); self.geom_sphere_cy.setValue(0.5); self.geom_sphere_cy.setSingleStep(0.1)
         self.geom_sphere_cz = QDoubleSpinBox(); self.geom_sphere_cz.setRange(-1e6, 1e6); self.geom_sphere_cz.setValue(0.5); self.geom_sphere_cz.setSingleStep(0.1)
-        _p.addWidget(self.geom_sphere_cx); _p.addWidget(self.geom_sphere_cy); _p.addWidget(self.geom_sphere_cz)
-        _p.addWidget(QLabel("radius:"))
+        _row_a.addWidget(self.geom_sphere_cx); _row_a.addWidget(self.geom_sphere_cy); _row_a.addWidget(self.geom_sphere_cz)
+        _p.addLayout(_row_a)
+        _row_b = QHBoxLayout()
+        _row_b.addWidget(QLabel("radius:"))
         self.geom_sphere_r = QDoubleSpinBox(); self.geom_sphere_r.setRange(1e-6, 1e6); self.geom_sphere_r.setValue(0.5); self.geom_sphere_r.setSingleStep(0.1)
-        _p.addWidget(self.geom_sphere_r)
+        _row_b.addWidget(self.geom_sphere_r)
+        _row_b.addStretch()
+        _p.addLayout(_row_b)
         self.geom_panel_sphere.setVisible(False)
         domain_layout.addWidget(self.geom_panel_sphere)
 
@@ -1992,7 +2006,30 @@ class MainWindow(QMainWindow):
         """)
         self.plot_settings_btn.clicked.connect(self._on_plot_settings)
         ctrl_row.addWidget(self.plot_settings_btn)
+        ctrl_row.addStretch()
+        bottom_layout.addLayout(ctrl_row)
 
+        # Second row for Error Analysis/Export/Save-parameter -- split out
+        # of the row above (which was previously one single QHBoxLayout
+        # for everything from "Plot output:" through "Save parameter:").
+        # That row's own minimum width is the SUM of every widget in it,
+        # including ones that are usually hidden -- the Custom expression/
+        # label boxes (~270px, shown only when a template defines its own
+        # derived plot field, e.g. 1D Schrodinger's |h|) and the Save
+        # Parameter label+combo (~330px, shown only in Inverse mode).
+        # Selecting 1D Schrodinger's Inverse mode reveals BOTH at once,
+        # pushing that single row's minimum width up by ~600px -- more
+        # than the window has spare room for, so the horizontal splitter
+        # was forced to steal the difference from the left configuration
+        # panel, clamping it down to its own hard minimum width and
+        # leaving no way to drag it back out while those fields stayed
+        # visible (only switching to Forward or a different template hid
+        # them again and released the width). Splitting the plotting
+        # controls (this row) from the action buttons (the row below)
+        # keeps each row's own minimum width bounded on its own, so
+        # revealing those optional fields no longer forces the whole
+        # right-hand pane to demand hundreds of extra pixels at once.
+        ctrl_row2 = QHBoxLayout()
         self.ea_btn = QPushButton("📊 Error Analysis")
         self.ea_btn.setFixedHeight(28)
         self._register_style(self.ea_btn, "button", lambda css: f"""
@@ -2001,7 +2038,7 @@ class MainWindow(QMainWindow):
             QPushButton:hover {{ background: #2a5a8a; }}
         """)
         self.ea_btn.clicked.connect(self._on_error_analysis_btn)
-        ctrl_row.addWidget(self.ea_btn)
+        ctrl_row2.addWidget(self.ea_btn)
 
         self._plot_viz_settings = {
             'colormap': 'jet',
@@ -2027,11 +2064,11 @@ class MainWindow(QMainWindow):
             QPushButton:hover {{ background: #2a6a4a; }}
         """)
         self.export_btn.clicked.connect(self._on_export_settings)
-        ctrl_row.addWidget(self.export_btn)
+        ctrl_row2.addWidget(self.export_btn)
 
         self.param_save_label = QLabel("  Save parameter:")
         self.param_save_label.setVisible(False)
-        ctrl_row.addWidget(self.param_save_label)
+        ctrl_row2.addWidget(self.param_save_label)
         self.param_save_combo = QComboBox()
         self.param_save_combo.addItems(["No", "Every 100 iters", "Every 1000 iters"])
         # Default to saving every 100 iterations for every Inverse problem
@@ -2043,14 +2080,14 @@ class MainWindow(QMainWindow):
         self.param_save_combo.setFixedHeight(28)
         self.param_save_combo.setFixedWidth(140)
         self.param_save_combo.setVisible(False)
-        ctrl_row.addWidget(self.param_save_combo)
+        ctrl_row2.addWidget(self.param_save_combo)
 
         self.timesteps_spin = QSpinBox()
         self.timesteps_spin.setRange(2, 20); self.timesteps_spin.setValue(4)
         self.timesteps_spin.setVisible(False)
 
-        ctrl_row.addStretch()
-        bottom_layout.addLayout(ctrl_row)
+        ctrl_row2.addStretch()
+        bottom_layout.addLayout(ctrl_row2)
 
         # Save / export row
         save_row = QHBoxLayout()
