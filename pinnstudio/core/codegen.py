@@ -1,8 +1,14 @@
 import os
 os.environ["DDE_BACKEND"] = "pytorch"
 # ── CUDA performance environment variables ────────────────────
+# (No TORCH_CUDA_ARCH_LIST here -- that used to be pinned to a specific
+# GPU model (RTX 4090 / sm_89) on the original dev machine, which only
+# matters if something JIT-compiles a CUDA extension from source, but
+# would silently restrict that compile to sm_89 on anyone else's card.
+# Leaving it unset lets PyTorch/DeepXDE target whatever GPU is actually
+# present, same as it already does for everyone via the ordinary prebuilt
+# CUDA wheels install.sh/select_torch_index.py picks for their driver.)
 os.environ["CUDA_LAUNCH_BLOCKING"] = "0"        # async CUDA launches
-os.environ["TORCH_CUDA_ARCH_LIST"] = "8.9"      # RTX 4090 = Ada Lovelace = sm_89
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:512,expandable_segments:True"
 
 def _simplify_expr(expr, is_2d=False, is_3d=False):
@@ -439,16 +445,19 @@ if "{config.lbfgs_float_type}" == "float64" and _effective_float == "float32":
     _effective_float = "float64"
     print("  [Info] Using float64 globally (required for L-BFGS float64 mode)")
 dde.config.set_default_float(_effective_float)
+_gpu_device_index = {config.gpu_device_index}
+_gpu_memory_fraction = {config.gpu_memory_fraction}
 if torch.cuda.is_available():
     torch.cuda.init()
-    torch.cuda.set_device(0)
+    torch.cuda.set_device(_gpu_device_index)
 
     # ── Maximize GPU memory usage ─────────────────────────────
-    # Reserve as much memory as possible upfront
+    # Reserve up to gpu_memory_fraction of the selected device's memory
+    # upfront (defaults: device 0, 95% -- unchanged from prior behavior;
+    # both are configurable from the GUI's Hardware settings).
     torch.cuda.empty_cache()
-    total_mem = torch.cuda.get_device_properties(0).total_memory
-    # Allow PyTorch to use up to 95% of GPU memory
-    torch.cuda.set_per_process_memory_fraction(0.95, device=0)
+    total_mem = torch.cuda.get_device_properties(_gpu_device_index).total_memory
+    torch.cuda.set_per_process_memory_fraction(_gpu_memory_fraction, device=_gpu_device_index)
 
     # ── Performance settings ──────────────────────────────────
     _is_f64 = "{config.float_type}" == "float64"
@@ -458,15 +467,15 @@ if torch.cuda.is_available():
     torch.backends.cudnn.deterministic    = False
 
     # ── Warm up CUDA ──────────────────────────────────────────
-    _dummy = torch.zeros(10, 10, requires_grad=True, device='cuda')
+    _dummy = torch.zeros(10, 10, requires_grad=True, device=f'cuda:{{_gpu_device_index}}')
     _loss = (_dummy ** 2).sum()
     _loss.backward()
     torch.cuda.synchronize()
     del _dummy, _loss
     torch.cuda.empty_cache()
 
-    _free, _total = torch.cuda.mem_get_info(0)
-    print(f"✅ GPU: {{torch.cuda.get_device_name(0)}}")
+    _free, _total = torch.cuda.mem_get_info(_gpu_device_index)
+    print(f"✅ GPU: {{torch.cuda.get_device_name(_gpu_device_index)}}")
     print(f"   Total memory: {{_total / 1e9:.1f}} GB")
     print(f"   Available:    {{_free / 1e9:.1f}} GB")
     print(f"   TF32:         False")

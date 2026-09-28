@@ -296,6 +296,16 @@ class PINNConfig:
     # ic_expressions/time_adaptive/adapt_method are all ignored.
     steady_state: bool = False
 
+    # GPU device selection & memory reservation for the generated training
+    # script. device_index picks which CUDA device to train on (0 = first
+    # GPU, matching all prior behavior -- unchanged default); memory_fraction
+    # is the maximum share of that device's memory PyTorch is allowed to
+    # reserve upfront (0.95 = the prior hardcoded default, also unchanged).
+    # Both are ignored when no CUDA device is available -- the generated
+    # script always falls back to CPU in that case regardless of these.
+    gpu_device_index: int = 0
+    gpu_memory_fraction: float = 0.95
+
     def validate(self):
         """Sanity-check the fields that would otherwise either silently
         produce a degenerate run or crash deep inside DeepXDE/PyTorch with a
@@ -433,6 +443,14 @@ class PINNConfig:
                     "Inverse mode needs at least one observed-data file to fit "
                     "against, but no observation row has a file selected."
                 )
+
+        if self.gpu_device_index < 0:
+            errors.append(f"GPU device index cannot be negative; got {self.gpu_device_index}.")
+        if not (0.0 < self.gpu_memory_fraction <= 1.0):
+            errors.append(
+                f"GPU memory fraction must be greater than 0 and at most 1; "
+                f"got {self.gpu_memory_fraction}."
+            )
 
         return errors
 

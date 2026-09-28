@@ -206,6 +206,8 @@ class MainWindow(QMainWindow):
         self._theme = "Solarized Dark"
         self._accent = "Green (#69db7c)"
         self._float_type = "float32"
+        self._gpu_device_index = 0
+        self._gpu_memory_fraction = 0.95
         # ── Per-category display settings (font family/size/weight/color for
         # groups of related text: the app title, section headers, field
         # labels, small hint/note text, buttons, and the log console). Each
@@ -515,6 +517,10 @@ class MainWindow(QMainWindow):
         optimizer_settings_action = QAction("Optimizer Settings...", self)
         optimizer_settings_action.triggered.connect(self._on_optimizer_settings)
         settings_menu.addAction(optimizer_settings_action)
+
+        gpu_settings_action = QAction("GPU / Hardware...", self)
+        gpu_settings_action.triggered.connect(self._on_gpu_settings)
+        settings_menu.addAction(gpu_settings_action)
 
         # Training Callbacks used to live here as its own dialog; it's now
         # an inline section of the Training panel itself (see train_group's
@@ -4330,6 +4336,8 @@ class MainWindow(QMainWindow):
             lbfgs_maxls=int(self.lbfgs_maxls.value()),
             lbfgs_float_type=self.lbfgs_float_combo.currentText() if hasattr(self, 'lbfgs_float_combo') else 'float64',
             float_type=getattr(self, '_float_type', 'float64'),
+            gpu_device_index=getattr(self, '_gpu_device_index', 0),
+            gpu_memory_fraction=getattr(self, '_gpu_memory_fraction', 0.95),
             ic_pretrain=self.ic_pretrain_cb.isChecked(),
             ic_pretrain_optimizer=self.ic_pretrain_opt.currentData(),
             ic_pretrain_iterations=self.ic_pretrain_iters.value(),
@@ -4937,6 +4945,8 @@ class MainWindow(QMainWindow):
         if hasattr(self, "lbfgs_float_combo"):
             self.lbfgs_float_combo.setCurrentText(config.lbfgs_float_type)
         self._float_type = config.float_type
+        self._gpu_device_index = getattr(config, 'gpu_device_index', 0)
+        self._gpu_memory_fraction = getattr(config, 'gpu_memory_fraction', 0.95)
 
         # Optimizer settings
         self._optimizer_settings = {
@@ -5700,6 +5710,75 @@ class MainWindow(QMainWindow):
         def _on_ok():
             self._float_type = self._float_combo.currentText()
             self.log_box.append(f"✅ Float precision set to: {self._float_type}")
+            dialog.accept()
+
+        ok_btn.clicked.connect(_on_ok)
+        dialog.exec()
+
+    def _on_gpu_settings(self):
+        dialog = QDialog(self)
+        dialog.setWindowTitle("GPU / Hardware")
+        dialog.setMinimumWidth(340)
+        layout = QVBoxLayout(dialog)
+
+        # Best-effort GPU detection for a helpful hint only -- never blocks
+        # the dialog from opening if torch/CUDA isn't importable here.
+        _hint_text = "Applies to both the in-app Solve run and any exported script."
+        try:
+            import torch as _torch_probe
+            if _torch_probe.cuda.is_available():
+                _n = _torch_probe.cuda.device_count()
+                _names = ", ".join(
+                    f"{i}: {_torch_probe.cuda.get_device_name(i)}" for i in range(_n)
+                )
+                _hint_text = f"Detected {_n} GPU(s) -- {_names}"
+            else:
+                _hint_text = "No CUDA GPU detected -- training will run on CPU regardless of these settings."
+        except Exception:
+            pass
+
+        info = QLabel(_hint_text)
+        self._register_style(info, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
+        info.setWordWrap(True)
+        layout.addWidget(info)
+
+        dev_row = QHBoxLayout()
+        dev_row.addWidget(QLabel("GPU device index:"))
+        dev_spin = QSpinBox()
+        dev_spin.setRange(0, 31)
+        dev_spin.setValue(getattr(self, '_gpu_device_index', 0))
+        dev_spin.setFixedWidth(100)
+        dev_row.addStretch(); dev_row.addWidget(dev_spin)
+        layout.addLayout(dev_row)
+
+        mem_row = QHBoxLayout()
+        mem_row.addWidget(QLabel("Max GPU memory to reserve (%):"))
+        mem_spin = QSpinBox()
+        mem_spin.setRange(1, 100)
+        mem_spin.setValue(round(getattr(self, '_gpu_memory_fraction', 0.95) * 100))
+        mem_spin.setFixedWidth(100)
+        mem_row.addStretch(); mem_row.addWidget(mem_spin)
+        layout.addLayout(mem_row)
+
+        note = QLabel("Ignored on machines with no GPU (CPU training is unaffected). "
+                       "Device index only matters if you have more than one GPU.")
+        self._register_style(note, "hint", lambda css, _c='#868e96', _e='': f"color: {_c}; {_e}{css}")
+        note.setWordWrap(True)
+        layout.addWidget(note)
+
+        btn_row = QHBoxLayout()
+        ok_btn = QPushButton("OK"); cancel_btn = QPushButton("Cancel")
+        btn_row.addStretch(); btn_row.addWidget(ok_btn); btn_row.addWidget(cancel_btn)
+        layout.addLayout(btn_row)
+        cancel_btn.clicked.connect(dialog.reject)
+
+        def _on_ok():
+            self._gpu_device_index = dev_spin.value()
+            self._gpu_memory_fraction = mem_spin.value() / 100.0
+            self.log_box.append(
+                f"✅ GPU settings: device {self._gpu_device_index}, "
+                f"{mem_spin.value()}% memory reserved"
+            )
             dialog.accept()
 
         ok_btn.clicked.connect(_on_ok)
