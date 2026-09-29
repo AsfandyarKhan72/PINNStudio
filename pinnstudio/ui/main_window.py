@@ -6223,7 +6223,29 @@ print("DOMAIN_PREVIEW_DONE")
     def _launch_preview_thread(self, tmp):
         """Run a generated domain-preview script (2D or 3D) in a background
         thread and stream its output into the log box, same as before this
-        was factored out -- shared by both the 2D and 3D preview paths."""
+        was factored out -- shared by both the 2D and 3D preview paths.
+
+        Point Distribution / num_domain / num_boundary / num_initial changes
+        (_on_dist_changed / _on_pts_changed) call this every time their
+        value changes -- which can fire many times in a row while a spinbox
+        is being dragged or scrolled. Each call spawns a new background
+        subprocess that writes to the SAME two fixed-path PNG files
+        (_DOMAIN_PREVIEW_SPATIAL_PATH / _DOMAIN_PREVIEW_TIME_PATH). Without
+        cancelling a still-running previous preview first, two of these
+        subprocesses' writes to those files can overlap, producing a
+        truncated/corrupted PNG -- which is exactly the "libpng error:
+        IDAT: CRC error" / "QPixmap::scaled: Pixmap is a null pixmap"
+        failure this guards against. Only one preview subprocess is ever
+        allowed to be writing to those files at a time."""
+        old_thread = getattr(self, '_preview_thread', None)
+        if old_thread is not None and old_thread.isRunning():
+            try:
+                old_thread.done_sig.disconnect()
+            except Exception:
+                pass
+            old_thread.stop()
+            old_thread.wait(3000)
+
         self.loss_label.setText("⏳ Generating preview...")
 
         from PyQt6.QtCore import QThread, pyqtSignal as _sig
