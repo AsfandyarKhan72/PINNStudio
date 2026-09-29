@@ -186,7 +186,24 @@ Boundary conditions are added as rows in a panel, each with its own type (Dirich
 <details>
 <summary><strong>Collocation point controls</strong></summary>
 
-Domain, boundary, initial, and test point counts are all independently configurable, along with the sampling distribution, plus a live 2D domain preview so you can see what your point cloud actually looks like against the geometry before training starts.
+Domain, boundary, initial, and test point counts are all independently configurable, along with the sampling distribution, plus a live domain preview — a real, non-uniform PDE-collocation point cloud (domain points, boundary points, and initial-condition points, color-coded) plotted directly against your actual geometry, alongside a second panel showing the same points' distribution over time — so you can see exactly what will be handed to training before you click Solve. This works in 2D against any of the five 2D shapes (Rectangle, Disk, Ellipse, Triangle, Polygon) and in 3D too, with a real 3D scatter plot against a Cuboid or Sphere outline, not just a flat 2D preview.
+
+<table>
+<tr>
+<td width="33%" align="center">
+<img src="assets/screenshots/domain_preview_2d_rectangle.png" alt="PINNStudio — 2D domain preview, Rectangle geometry" width="100%">
+<sub><em>[figure placeholder]</em> 2D preview — Rectangle</sub>
+</td>
+<td width="33%" align="center">
+<img src="assets/screenshots/domain_preview_2d_disk.png" alt="PINNStudio — 2D domain preview, Disk geometry" width="100%">
+<sub><em>[figure placeholder]</em> 2D preview — Disk</sub>
+</td>
+<td width="33%" align="center">
+<img src="assets/screenshots/domain_preview_3d_cuboid.png" alt="PINNStudio — 3D domain preview, Cuboid geometry" width="100%">
+<sub><em>[figure placeholder]</em> 3D preview — Cuboid</sub>
+</td>
+</tr>
+</table>
 
 </details>
 
@@ -195,7 +212,14 @@ Domain, boundary, initial, and test point counts are all independently configura
 <details>
 <summary><strong>Configurable network architecture</strong></summary>
 
-Hidden layer count, neurons per layer, and activation function are all exposed directly — no need to edit a script to try a wider or deeper network.
+Hidden layer count, neurons per layer, activation function (tanh, ReLU, sigmoid, swish), and kernel initializer (Glorot uniform, Glorot normal, He uniform, He normal, zeros) are all exposed directly — no need to edit a script to try a wider or deeper network, a different nonlinearity, or a different weight initialization.
+
+</details>
+
+<details>
+<summary><strong>Input/output scaling</strong></summary>
+
+Optional affine rescaling on the way into and out of the network — $x_{\text{transformed}} = x_{\text{raw}} \times \text{scale} + \text{shift}$ per input dimension, and the same for each output — off by default (scale = 1, shift = 0 is the identity). Useful when a problem's natural coordinate or solution range is far from the network's comfortable operating range (e.g. a domain spanning thousands of units, or a solution that's always around $10^{-6}$) and normalizing it improves training behavior.
 
 </details>
 
@@ -230,9 +254,11 @@ One setting is worth understanding before using it in 3D: the "IC grid resolutio
 </details>
 
 <details>
-<summary><strong>Mini-batch training</strong></summary>
+<summary><strong>Training callbacks — early stopping, checkpointing, time budget</strong></summary>
 
-Train on a random subset of collocation points per iteration instead of the full set every time — useful for very large collocation point counts where a full-batch gradient step would otherwise dominate training time.
+Three optional, independently configurable callbacks, alongside Point Resampling (RAR, described above): **Early Stopping** halts training once the monitored loss (training or testing) stops improving by more than a minimum delta for a set number of iterations, with an optional baseline loss and a minimum iteration count before it can trigger. **Model Checkpoint** periodically saves the model during training — on a fixed iteration interval, either unconditionally or only when the monitored loss improves — which is also what makes a run resumable later through Restore & Visualize. **Training Timer** stops training after a wall-clock time budget (in minutes) regardless of iteration count, useful for a shared or time-limited machine.
+
+*Note: an earlier version of PINNStudio had a separate "Mini-batch training" option. It's gone — DeepXDE's `PDE`/`TimePDE` data classes ignore the `batch_size` argument entirely for this training pattern, so it was a no-op that changed nothing. Point Resampling (RAR) is the actual mechanism DeepXDE recommends in its place, and PINNStudio already implements it.*
 
 </details>
 
@@ -255,7 +281,13 @@ Training runs as a background process with its stdout streamed straight into the
 <details>
 <summary><strong>Error analysis against reference data</strong></summary>
 
-Point a run at one or more reference solution files (at one or more time snapshots) and PINNStudio reports L2 relative error, MSE, and max error against them, alongside line-comparison and surface-comparison plots of the PINN prediction against ground truth. All twelve built-in templates ship with bundled reference data so this works immediately with no setup; it works the same way for a data file of your own.
+Point a run at one or more reference solution files (at one or more time snapshots) and PINNStudio reports, for predicted values $u_{\text{pred}}$ against ground truth $u_{\text{true}}$ over $N$ evaluation points:
+
+$$\Large L_2 \text{ relative error} = \frac{\lVert u_{\text{pred}} - u_{\text{true}} \rVert_2}{\lVert u_{\text{true}} \rVert_2}, \qquad \text{MSE} = \frac{1}{N}\sum_{i=1}^{N}\left(u_{\text{pred},i} - u_{\text{true},i}\right)^2$$
+
+$$\Large \text{Max error} = \max_i \left| u_{\text{pred},i} - u_{\text{true},i} \right|, \qquad \text{Mean absolute error} = \frac{1}{N}\sum_{i=1}^{N}\left| u_{\text{pred},i} - u_{\text{true},i} \right|$$
+
+alongside line-comparison and surface-comparison plots of the PINN prediction against ground truth. All twelve built-in templates ship with bundled reference data so this works immediately with no setup; it works the same way for a data file of your own.
 
 </details>
 
@@ -491,10 +523,9 @@ $$\Large i\,\frac{\partial h}{\partial t} + \frac{1}{2}\frac{\partial^2 h}{\part
 
 which, writing $h = u + iv$ in real and imaginary parts, splits into the coupled real system PINNStudio actually solves:
 
-$$\Large \begin{cases}
-\dfrac{\partial u}{\partial t} + \dfrac{1}{2}\dfrac{\partial^2 v}{\partial x^2} + (u^2+v^2)v = 0 \\
-\dfrac{\partial v}{\partial t} - \dfrac{1}{2}\dfrac{\partial^2 u}{\partial x^2} - (u^2+v^2)u = 0
-\end{cases}$$
+$$\Large \frac{\partial u}{\partial t} + \frac{1}{2}\frac{\partial^2 v}{\partial x^2} + (u^2+v^2)v = 0$$
+
+$$\Large \frac{\partial v}{\partial t} - \frac{1}{2}\frac{\partial^2 u}{\partial x^2} - (u^2+v^2)u = 0$$
 
 $x \in [-5, 5]$, $t \in [0, \pi/2]$
 
@@ -568,19 +599,19 @@ where $D = 0.00625$ is the diffusion coefficient.
 <details id="2d-burgers-mathias">
 <summary><strong>2D Burgers (Mathias)</strong></summary>
 
-Physics after Mathias, de Almeida, de Barros, Coelho, et al. (2022) — see [References](#references). A coupled, two-output system for the velocity components $U$, $V$:
+Physics after Mathias, de Almeida, de Barros, Coelho, et al. (2022) — see [References](#references). A coupled, two-output system for the velocity components $U$, $V$, with kinematic viscosity $\nu = \dfrac{0.01}{\pi}$:
 
-$$\Large \begin{cases}
-\dfrac{\partial U}{\partial t} + U\dfrac{\partial U}{\partial x} + V\dfrac{\partial U}{\partial y} = \nu\left(\dfrac{\partial^2 U}{\partial x^2} + \dfrac{\partial^2 U}{\partial y^2}\right) \\
-\dfrac{\partial V}{\partial t} + U\dfrac{\partial V}{\partial x} + V\dfrac{\partial V}{\partial y} = \nu\left(\dfrac{\partial^2 V}{\partial x^2} + \dfrac{\partial^2 V}{\partial y^2}\right)
-\end{cases} \qquad \nu = \frac{0.01}{\pi}$$
+$$\Large \frac{\partial U}{\partial t} + U\frac{\partial U}{\partial x} + V\frac{\partial U}{\partial y} = \nu\left(\frac{\partial^2 U}{\partial x^2} + \frac{\partial^2 U}{\partial y^2}\right)$$
+
+$$\Large \frac{\partial V}{\partial t} + U\frac{\partial V}{\partial x} + V\frac{\partial V}{\partial y} = \nu\left(\frac{\partial^2 V}{\partial x^2} + \frac{\partial^2 V}{\partial y^2}\right)$$
 
 $(x, y) \in [0, 1]^2$, $t \in [0, 1]$
 
 - **Initial condition:** $U(x,y,0) = \sin(2\pi x)\sin(2\pi y)$, $\ V(x,y,0) = \sin(\pi x)\sin(\pi y)$
 - **Boundary conditions:** Dirichlet, $U = V = 0$ on all four edges
 - **Geometry:** Rectangle
-- **Time-Adaptive default:** on — one step spanning the full domain with L-BFGS transfer, confirmed empirically to give the best results for this problem
+- **Network:** 4 hidden layers × 128 neurons — wider than PINNStudio's global default (3 × 64), which gave better results for this coupled two-output velocity field
+- **Time-Adaptive default:** on — $t \in [0,1]$ split into 4 steps of 0.25, L-BFGS transfer learning between steps
 - **GUI recipe:** Dimension → 2D · Quick Examples → **2D Burgers (Mathias)**
 
 This template reproduces the paper's own PDE, domain, and initial/boundary conditions with PINNStudio's standard soft-constrained loss and plain MLP network — not the paper's own sparse-data augmentation or hard-constrained output layer, which are outside this template's scope.
