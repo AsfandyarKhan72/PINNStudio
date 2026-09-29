@@ -7298,15 +7298,21 @@ print("ERROR_ANALYSIS_DONE")
             # already trains with. No reference data file existed when this
             # template was first added; the user has since generated and
             # supplied real reference data (t_0_u.txt/t_0_v.txt below), and
-            # confirmed the results are good using Time-Adaptive training
-            # (one full-domain step, L-BFGS transfer, 51-point IC grid) --
-            # ta_default below makes that the out-of-the-box default for
-            # this template. This template previously existed alongside an
-            # earlier "2D Burgers" template (Lu/Meng/Mao/Karniadakis's
-            # Re=5000 DeepXDE example); that one was removed at the user's
-            # request once this template's own results proved out, since
-            # its own BC/IC never reproduced the paper's results and it's
-            # no longer needed.
+            # confirmed the best results come from a wider network (4
+            # hidden layers x 128 neurons, up from the app-wide 3x64
+            # default -- a coupled two-output velocity field benefits from
+            # the extra capacity) and real Time-Adaptive stepping (4 steps
+            # of 0.25 each, not one full-domain pass -- an earlier version
+            # of this template used a single full-domain TA step, which
+            # the user has since confirmed is not what they actually run;
+            # the 4-step schedule below, with L-BFGS transfer between
+            # steps, is the corrected out-of-the-box default). This
+            # template previously existed alongside an earlier "2D
+            # Burgers" template (Lu/Meng/Mao/Karniadakis's Re=5000 DeepXDE
+            # example); that one was removed at the user's request once
+            # this template's own results proved out, since its own BC/IC
+            # never reproduced the paper's results and it's no longer
+            # needed.
             "2D Burgers (Mathias)": {
                 'pde': ["du_t + u*du_x + v*du_y - (0.01/pi)*(du_xx + du_yy)",
                         "dv_t + u*dv_x + v*dv_y - (0.01/pi)*(dv_xx + dv_yy)"],
@@ -7315,8 +7321,8 @@ print("ERROR_ANALYSIS_DONE")
                 'num_domain': 8000,
                 'num_boundary': 2000,
                 'num_initial': 2000,
-                'layers': 3,
-                'neurons': 20,
+                'layers': 4,
+                'neurons': 128,
                 'iterations': 15000,
                 'optimizer2': 'lbfgs',
                 'iterations2': 10000,
@@ -7333,13 +7339,11 @@ print("ERROR_ANALYSIS_DONE")
                 # (for ease of use). Users can still reassign or add their
                 # own via the "📊 Error Analysis" dialog.
                 'ref_dir': os.path.join(REFERENCE_DATA_DIR, "2D", "burgers_mathias"),
-                # Confirmed by the user to give good results this way:
-                # one Time-Adaptive step spanning the whole domain (not
-                # actually sub-stepping -- "steps": 1 -- just running the
-                # Time-Adaptive code path's own network/training machinery
-                # once), L-BFGS-only transfer between (in this case,
-                # nonexistent) steps, and a 51-point IC continuity grid.
-                'ta_default': {'step_groups': [(0.0, 1.0, 1)], 'transfer_learning': True, 'ic_grid': 51, 'transfer_optimizer': 'lbfgs'},
+                # 4 real Time-Adaptive steps (0->0.25->0.5->0.75->1.0),
+                # L-BFGS transfer learning between steps, 51-point IC
+                # continuity grid -- matches the 2D Allen-Cahn (Mattey &
+                # Ghosh) template's own step count/grid convention.
+                'ta_default': {'step_groups': [(0.0, 1.0, 4)], 'transfer_learning': True, 'ic_grid': 51, 'transfer_optimizer': 'lbfgs'},
             },
         }
         if text in templates_2d:
