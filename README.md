@@ -407,20 +407,20 @@ Each template preconfigures the PDE, domain, boundary/initial conditions, networ
 
 All twelve templates ship with bundled reference data (see [`reference_data/`](reference_data)), generated independently of the PINN, so Error Analysis auto-configures against real ground truth the moment you load them — no setup, no external download.
 
-| Template | Dimension | Regime | Geometry | Time-Adaptive default | Reference |
-|---|---|---|---|---|---|
-| [1D Heat](#1d-heat) | 1D | Time-dependent | Interval | off | — |
-| [1D Allen-Cahn](#1d-allen-cahn) | 1D | Time-dependent | Interval | on (4 steps) | Wight & Zhao (2021) |
-| [1D Burgers](#1d-burgers) | 1D | Time-dependent | Interval | off | Raissi et al. (2019) |
-| [1D Schrödinger](#1d-schrödinger) | 1D | Time-dependent | Interval | off | Raissi et al. (2019) |
-| [2D Heat](#2d-heat) | 2D | Time-dependent | Rectangle | off | — |
-| [2D Allen-Cahn (Mattey & Ghosh)](#2d-allen-cahn-mattey--ghosh) | 2D | Time-dependent | Rectangle | on (4 steps) | Mattey & Ghosh (2022) |
-| [2D Allen-Cahn (Wight & Zhao)](#2d-allen-cahn-wight--zhao) | 2D | Time-dependent | Rectangle | on (10 steps) | Wight & Zhao (2021) |
-| [2D Burgers (Mathias)](#2d-burgers-mathias) | 2D | Time-dependent | Rectangle | on (1 step) | Mathias et al. (2022) |
-| [2D Poisson (L-Shape)](#2d-poisson-l-shape) | 2D | Steady | Polygon (L-shape) | n/a | — |
-| [2D Poisson (Disk)](#2d-poisson-disk) | 2D | Steady | Disk | n/a | — |
-| [3D Heat](#3d-heat) | 3D | Time-dependent | Cuboid | off | — |
-| [3D Poisson (Sphere)](#3d-poisson-sphere) | 3D | Steady | Sphere | n/a | — |
+| Template | Dimension | Regime | Geometry | Reference |
+|---|---|---|---|---|
+| [1D Heat](#1d-heat) | 1D | Time-dependent | Interval | — |
+| [1D Allen-Cahn](#1d-allen-cahn) | 1D | Time-dependent | Interval | Wight & Zhao (2021) |
+| [1D Burgers](#1d-burgers) | 1D | Time-dependent | Interval | Raissi et al. (2019) |
+| [1D Schrödinger](#1d-schrödinger) | 1D | Time-dependent | Interval | Raissi et al. (2019) |
+| [2D Heat](#2d-heat) | 2D | Time-dependent | Rectangle | — |
+| [2D Allen-Cahn (Mattey & Ghosh)](#2d-allen-cahn-mattey--ghosh) | 2D | Time-dependent | Rectangle | Mattey & Ghosh (2022) |
+| [2D Allen-Cahn (Wight & Zhao)](#2d-allen-cahn-wight--zhao) | 2D | Time-dependent | Rectangle | Wight & Zhao (2021) |
+| [2D Burgers (Mathias)](#2d-burgers-mathias) | 2D | Time-dependent | Rectangle | Mathias et al. (2022) |
+| [2D Poisson (L-Shape)](#2d-poisson-l-shape) | 2D | Steady | Polygon (L-shape) | Lu et al. (2021) |
+| [2D Poisson (Disk)](#2d-poisson-disk) | 2D | Steady | Disk | — |
+| [3D Heat](#3d-heat) | 3D | Time-dependent | Cuboid | — |
+| [3D Poisson (Sphere)](#3d-poisson-sphere) | 3D | Steady | Sphere | — |
 
 *Click a template name below to expand its full definition. "GUI recipe" is the exact dropdown path to load it yourself.*
 
@@ -429,7 +429,7 @@ All twelve templates ship with bundled reference data (see [`reference_data/`](r
 <details id="1d-heat">
 <summary><strong>1D Heat</strong></summary>
 
-$$\frac{\partial u}{\partial t} = 0.4\frac{\partial^2 u}{\partial x^2}, \qquad x \in [0, 1],\ t \in [0, 1]$$
+$$\Large \frac{\partial u}{\partial t} = 0.4\frac{\partial^2 u}{\partial x^2}, \qquad x \in [0, 1],\ t \in [0, 1]$$
 
 - **Initial condition:** $u(x, 0) = \sin(\pi x)$
 - **Boundary conditions:** Dirichlet, $u = 0$ at both ends
@@ -446,7 +446,9 @@ $$\frac{\partial u}{\partial t} = 0.4\frac{\partial^2 u}{\partial x^2}, \qquad x
 
 Benchmark problem after Wight & Zhao (2021) — see [References](#references).
 
-$$\frac{\partial u}{\partial t} = 0.0001\frac{\partial^2 u}{\partial x^2} - 5u^3 + 5u, \qquad x \in [-1, 1],\ t \in [0, 1]$$
+$$\Large \frac{\partial u}{\partial t} = D\frac{\partial^2 u}{\partial x^2} - 5u^3 + 5u, \qquad x \in [-1, 1],\ t \in [0, 1]$$
+
+where $D = 0.0001$ is the diffusion coefficient.
 
 - **Initial condition:** $u(x, 0) = x^2\cos(\pi x)$
 - **Boundary conditions:** Periodic
@@ -467,7 +469,7 @@ $$\frac{\partial u}{\partial t} = 0.0001\frac{\partial^2 u}{\partial x^2} - 5u^3
 
 Exact equation, initial and boundary conditions as in Raissi, Perdikaris & Karniadakis (2019) — see [References](#references).
 
-$$\frac{\partial u}{\partial t} + u\frac{\partial u}{\partial x} = \frac{0.01}{\pi}\frac{\partial^2 u}{\partial x^2}, \qquad x \in [-1, 1],\ t \in [0, 1]$$
+$$\Large \frac{\partial u}{\partial t} + u\frac{\partial u}{\partial x} = \frac{0.01}{\pi}\frac{\partial^2 u}{\partial x^2}, \qquad x \in [-1, 1],\ t \in [0, 1]$$
 
 - **Initial condition:** $u(x, 0) = -\sin(\pi x)$
 - **Boundary conditions:** Dirichlet, $u = 0$ at both ends
@@ -485,9 +487,12 @@ A shock forms near $x = 0$ as $t \to 1$; this template uses a larger fixed collo
 
 Exact equation, initial condition, and periodic boundary condition as in Raissi, Perdikaris & Karniadakis (2019) — see [References](#references). The 1D nonlinear Schrödinger equation is complex-valued and represented here as two real, coupled outputs $h = u + iv$:
 
-$$i\,\frac{\partial h}{\partial t} + \frac{1}{2}\frac{\partial^2 h}{\partial x^2} + |h|^2 h = 0 \quad\Longrightarrow\quad
-\begin{cases}
-\dfrac{\partial u}{\partial t} + \dfrac{1}{2}\dfrac{\partial^2 v}{\partial x^2} + (u^2+v^2)v = 0 \\[6pt]
+$$\Large i\,\frac{\partial h}{\partial t} + \frac{1}{2}\frac{\partial^2 h}{\partial x^2} + |h|^2 h = 0$$
+
+which, writing $h = u + iv$ in real and imaginary parts, splits into the coupled real system PINNStudio actually solves:
+
+$$\Large \begin{cases}
+\dfrac{\partial u}{\partial t} + \dfrac{1}{2}\dfrac{\partial^2 v}{\partial x^2} + (u^2+v^2)v = 0 \\
 \dfrac{\partial v}{\partial t} - \dfrac{1}{2}\dfrac{\partial^2 u}{\partial x^2} - (u^2+v^2)u = 0
 \end{cases}$$
 
@@ -506,12 +511,12 @@ The quantity plotted by default is $|h| = \sqrt{u^2+v^2}$ (a custom derived outp
 
 ---
 
-*The remaining templates are 2D `(x, y, t)` and 3D `(x, y, z, t)` problems.*
+*The remaining templates are 2D `(x, y, t)` problems.*
 
 <details id="2d-heat">
 <summary><strong>2D Heat</strong></summary>
 
-$$\frac{\partial u}{\partial t} = 0.4\left(\frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2}\right), \qquad (x, y) \in [0, 1]^2,\ t \in [0, 1]$$
+$$\Large \frac{\partial u}{\partial t} = 0.4\left(\frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2}\right), \qquad (x, y) \in [0, 1]^2,\ t \in [0, 1]$$
 
 - **Initial condition:** $u(x, y, 0) = 0$
 - **Boundary conditions:** Dirichlet $u = 1$ on the $x = 1$ edge; Neumann (insulated) on the other three
@@ -527,7 +532,9 @@ $$\frac{\partial u}{\partial t} = 0.4\left(\frac{\partial^2 u}{\partial x^2} + \
 
 Benchmark problem after Mattey & Ghosh (2022) — see [References](#references).
 
-$$\frac{\partial u}{\partial t} = 0.0001\left(\frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2}\right) - (u^3 - u), \qquad (x, y) \in [0, 1]^2,\ t \in [0, 1]$$
+$$\Large \frac{\partial u}{\partial t} = D\left(\frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2}\right) - (u^3 - u), \qquad (x, y) \in [0, 1]^2,\ t \in [0, 1]$$
+
+where $D = 0.0001$ is the diffusion coefficient.
 
 - **Initial condition:** $u(x, y, 0) = \sin(4\pi x)\cos(4\pi y)$
 - **Boundary conditions:** Periodic
@@ -544,7 +551,9 @@ $$\frac{\partial u}{\partial t} = 0.0001\left(\frac{\partial^2 u}{\partial x^2} 
 
 Benchmark problem after Wight & Zhao (2021) — see [References](#references).
 
-$$\frac{\partial u}{\partial t} = 0.00625\left(\frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2}\right) - 10(u^3 - u), \qquad (x, y) \in [0, 1]^2,\ t \in [0, 10]$$
+$$\Large \frac{\partial u}{\partial t} = D\left(\frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2}\right) - 10(u^3 - u), \qquad (x, y) \in [0, 1]^2,\ t \in [0, 10]$$
+
+where $D = 0.00625$ is the diffusion coefficient.
 
 - **Initial condition:** a smooth circular interface, $u(x, y, 0) = \tanh\left(\dfrac{0.35 - \sqrt{(x-0.5)^2 + (y-0.5)^2}}{0.05}\right)$
 - **Boundary conditions:** Periodic
@@ -561,8 +570,8 @@ $$\frac{\partial u}{\partial t} = 0.00625\left(\frac{\partial^2 u}{\partial x^2}
 
 Physics after Mathias, de Almeida, de Barros, Coelho, et al. (2022) — see [References](#references). A coupled, two-output system for the velocity components $U$, $V$:
 
-$$\begin{cases}
-\dfrac{\partial U}{\partial t} + U\dfrac{\partial U}{\partial x} + V\dfrac{\partial U}{\partial y} = \nu\left(\dfrac{\partial^2 U}{\partial x^2} + \dfrac{\partial^2 U}{\partial y^2}\right) \\[6pt]
+$$\Large \begin{cases}
+\dfrac{\partial U}{\partial t} + U\dfrac{\partial U}{\partial x} + V\dfrac{\partial U}{\partial y} = \nu\left(\dfrac{\partial^2 U}{\partial x^2} + \dfrac{\partial^2 U}{\partial y^2}\right) \\
 \dfrac{\partial V}{\partial t} + U\dfrac{\partial V}{\partial x} + V\dfrac{\partial V}{\partial y} = \nu\left(\dfrac{\partial^2 V}{\partial x^2} + \dfrac{\partial^2 V}{\partial y^2}\right)
 \end{cases} \qquad \nu = \frac{0.01}{\pi}$$
 
@@ -583,9 +592,9 @@ This template reproduces the paper's own PDE, domain, and initial/boundary condi
 <details id="2d-poisson-l-shape">
 <summary><strong>2D Poisson (L-Shape)</strong></summary>
 
-A classic re-entrant-corner benchmark — the Poisson equation on an L-shaped domain (a unit square with a quadrant notched out), steady-state (no time axis).
+A classic re-entrant-corner benchmark — the Poisson equation on an L-shaped domain (a unit square with a quadrant notched out), steady-state (no time axis). This is the same benchmark used as a demonstration example in the original DeepXDE paper — see Lu, Meng, Mao & Karniadakis (2021) under [References](#references).
 
-$$-\frac{\partial^2 u}{\partial x^2} - \frac{\partial^2 u}{\partial y^2} = 1, \qquad (x, y) \in \Omega_{L}$$
+$$\Large -\frac{\partial^2 u}{\partial x^2} - \frac{\partial^2 u}{\partial y^2} = 1, \qquad (x, y) \in \Omega_{L}$$
 
 - **Boundary conditions:** Dirichlet, $u = 0$ on the whole boundary
 - **Geometry:** Polygon, vertices $(0,0), (1,0), (1,-1), (-1,-1), (-1,1), (0,1)$
@@ -602,7 +611,7 @@ The re-entrant corner at the origin produces a solution singularity that's a sta
 
 The Poisson equation on the unit disk, steady-state (no time axis).
 
-$$-\frac{\partial^2 u}{\partial x^2} - \frac{\partial^2 u}{\partial y^2} = 1, \qquad x^2 + y^2 \le 1$$
+$$\Large -\frac{\partial^2 u}{\partial x^2} - \frac{\partial^2 u}{\partial y^2} = 1, \qquad x^2 + y^2 \le 1$$
 
 - **Boundary conditions:** Dirichlet, $u = 0$ on the boundary circle
 - **Geometry:** Disk, center $(0,0)$, radius $1$
@@ -614,12 +623,16 @@ A companion to the L-Shape template above, on a smooth (curved, non-singular) bo
 
 </details>
 
+---
+
+*The remaining templates are 3D `(x, y, z, t)` problems.*
+
 <details id="3d-heat">
 <summary><strong>3D Heat</strong></summary>
 
 The 2D Heat problem extended with a $z$ axis — diffusion in a unit cube.
 
-$$\frac{\partial u}{\partial t} = 0.4\left(\frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2} + \frac{\partial^2 u}{\partial z^2}\right), \qquad (x, y, z) \in [0, 1]^3,\ t \in [0, 1]$$
+$$\Large \frac{\partial u}{\partial t} = 0.4\left(\frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2} + \frac{\partial^2 u}{\partial z^2}\right), \qquad (x, y, z) \in [0, 1]^3,\ t \in [0, 1]$$
 
 - **Initial condition:** $u(x, y, z, 0) = 0$
 - **Boundary conditions:** Dirichlet $u = 1$ on the $x = 1$ face; Neumann (insulated) on the other five
@@ -637,7 +650,7 @@ Time-Adaptive Training is fully supported for this template if you turn it on �
 
 The Poisson equation on the unit ball, steady-state (no time axis) — the 3D companion to the 2D Poisson (Disk) template above.
 
-$$-\frac{\partial^2 u}{\partial x^2} - \frac{\partial^2 u}{\partial y^2} - \frac{\partial^2 u}{\partial z^2} = 1, \qquad x^2 + y^2 + z^2 \le 1$$
+$$\Large -\frac{\partial^2 u}{\partial x^2} - \frac{\partial^2 u}{\partial y^2} - \frac{\partial^2 u}{\partial z^2} = 1, \qquad x^2 + y^2 + z^2 \le 1$$
 
 - **Boundary conditions:** Dirichlet, $u = 0$ on the boundary sphere
 - **Geometry:** Sphere, center $(0,0,0)$, radius $1$
@@ -655,7 +668,7 @@ The templates above cover twelve specific problems, but PINNStudio isn't limited
 
 We'll use the **Fisher-KPP equation**, a classic reaction-diffusion model of a population (or concentration front) that diffuses and grows logistically toward a carrying capacity of 1:
 
-$$\frac{\partial u}{\partial t} = D\frac{\partial^2 u}{\partial x^2} + r\,u(1-u), \qquad x \in [0, 1],\ t \in [0, 1]$$
+$$\Large \frac{\partial u}{\partial t} = D\frac{\partial^2 u}{\partial x^2} + r\,u(1-u), \qquad x \in [0, 1],\ t \in [0, 1]$$
 
 with $D = 0.01$, $r = 1$, a localized initial bump, and no-flux (Neumann) boundaries — none of the twelve templates have a logistic nonlinearity like this one.
 
@@ -710,7 +723,7 @@ If PINNStudio is useful in your work, please cite it — see [`CITATION.cff`](CI
 
 ## Acknowledgment
 
-PINNStudio is built on [DeepXDE](https://github.com/lululxvi/deepxde) (Lu et al., 2021) and PyQt6. The 1D Burgers and 1D Schrödinger Quick Example templates follow the problem setups in Raissi, Perdikaris & Karniadakis (2019); the 2D Burgers template follows Mathias et al. (2022); the Allen-Cahn templates follow Mattey & Ghosh (2022) and Wight & Zhao (2021) — see [References](#references).
+PINNStudio is built on [DeepXDE](https://github.com/lululxvi/deepxde) (Lu et al., 2021) and PyQt6. Special thanks to Lu Lu and the DeepXDE team — DeepXDE is the scientific-machine-learning engine every generated script in this project ultimately runs on, and PINNStudio wouldn't exist without it. The 1D Burgers and 1D Schrödinger Quick Example templates follow the problem setups in Raissi, Perdikaris & Karniadakis (2019); the 2D Burgers template follows Mathias et al. (2022); the Allen-Cahn templates follow Mattey & Ghosh (2022) and Wight & Zhao (2021); the 2D Poisson (L-Shape) template follows the original DeepXDE paper's own demonstration example — see [References](#references).
 
 Developed under the supervision of Prof. Mahmood Mamivand, Computational Materials Design Lab, Boise State University.
 
