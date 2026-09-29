@@ -3853,12 +3853,21 @@ if {config.time_adaptive}:
                     print(f"  Transfer learning source (adam): {{_os.path.basename(_prev_step_model_path)}}")
 
             # ── Save step config JSON ─────────────────────────
+            # y_min/y_max/z_min/z_max added alongside x_min/x_max so a 2D/3D
+            # Time-Adaptive step's own model_config-equivalent is complete
+            # on its own (previously only x_min/x_max were saved here --
+            # harmless for 1D, since restore already defaults those two,
+            # but silently wrong for 2D/3D if this file were ever used as a
+            # restore config directly, since the y/z bounds would fall back
+            # to the [0,1] default instead of this run's real domain).
             _step_cfg = {{
                 "step": step_i + 1,
                 "t0": t0, "t1": t1,
                 "layers": {config.layers},
                 "activation": "{config.activation}",
                 "x_min": {config.x_min}, "x_max": {config.x_max},
+                "y_min": {config.y_min}, "y_max": {config.y_max},
+                "z_min": {config.z_min}, "z_max": {config.z_max},
                 "t_min": t0, "t_max": t1,
                 "problem_dim": "{config.problem_dim}",
                 "loss_type": "{config.loss_type}",

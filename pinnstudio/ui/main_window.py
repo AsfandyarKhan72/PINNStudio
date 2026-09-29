@@ -1767,6 +1767,10 @@ class MainWindow(QMainWindow):
 
         self._RESTORE_FORWARD_VIZ = ["Surface", "Line (time steps)", "Animation Line (GIF)", "Animation Surface (GIF)"]
         self._RESTORE_PARAM_VIZ = ["Parameter Convergence Plot (PNG)", "Parameter Convergence Animation (GIF)"]
+        # Populated by _detect_restore_ta_steps() when the browsed model
+        # file lives inside a Time-Adaptive run's "time_adaptive_steps/
+        # step_*/" folder -- see that method and _build_restore_script_ta.
+        self._restore_ta_steps = []
 
         self.restore_model_fields_widget = QWidget()
         _rmf_layout = QVBoxLayout(self.restore_model_fields_widget)
@@ -1796,6 +1800,31 @@ class MainWindow(QMainWindow):
         self.restore_config_browse_btn.clicked.connect(self._on_browse_restore_config)
         config_path_row.addWidget(self.restore_config_browse_btn)
         _rmf_layout.addLayout(config_path_row)
+
+        # Time-Adaptive step auto-detection (see _detect_restore_ta_steps)
+        # -- shown only when the browsed model file lives inside a
+        # "time_adaptive_steps/step_*/" folder and at least one sibling
+        # step is found alongside it. For a static viz type (Surface /
+        # Line (time steps)), the checkbox below has no effect -- restore
+        # always auto-routes each requested time to whichever step's
+        # model actually covers it, since a single step's model was never
+        # valid outside its own training window anyway (see
+        # _build_restore_script_ta). It only changes behavior for the two
+        # Animation types: checked (default when detected) produces one
+        # continuous animation spanning the full time domain by restoring
+        # each step's own model in turn; unchecked keeps today's original
+        # behavior of restoring only the one step file you browsed to,
+        # confined to its own narrow window.
+        self.restore_ta_info_label = QLabel("")
+        self._register_style(self.restore_ta_info_label, "hint", lambda css, _c='#69db7c', _e='': f"color: {_c}; {_e}{css}")
+        self.restore_ta_info_label.setWordWrap(True)
+        self.restore_ta_info_label.setVisible(False)
+        _rmf_layout.addWidget(self.restore_ta_info_label)
+        self.restore_ta_combine_cb = QCheckBox("Combine all detected steps into one full-domain animation")
+        self.restore_ta_combine_cb.setChecked(True)
+        self.restore_ta_combine_cb.setVisible(False)
+        _rmf_layout.addWidget(self.restore_ta_combine_cb)
+
         restore_content_layout.addWidget(self.restore_model_fields_widget)
 
         self.restore_optimizer_widget = QWidget()
@@ -6928,7 +6957,18 @@ print("ERROR_ANALYSIS_DONE")
         self.restore_optimizer_widget.setVisible(not is_param)
         self.restore_output_widget.setVisible(not is_param)
         self.restore_param_widget.setVisible(is_param)
+        self._update_restore_ta_combine_visibility()
         self._on_restore_viz_settings(text)
+
+    def _update_restore_ta_combine_visibility(self):
+        """The 'Combine steps' checkbox only makes sense for the two
+        Animation viz types with >=2 Time-Adaptive steps detected -- a
+        static Surface/Line restore always auto-routes to the right step
+        regardless of this checkbox (see _on_restore), so showing it
+        there would just be a confusing no-op control."""
+        has_steps = len(getattr(self, '_restore_ta_steps', []) or []) >= 2
+        is_anim = self.restore_viz_combo.currentText() in ("Animation Line (GIF)", "Animation Surface (GIF)")
+        self.restore_ta_combine_cb.setVisible(has_steps and is_anim)
 
     def _on_restore_viz_settings(self, viz_type=None):
         if viz_type is None:
@@ -9004,7 +9044,40 @@ print("ERROR_ANALYSIS_V2_DONE")
                 self.restore_config_path.setText(os.path.join(base, "model_config.json"))
                 self.log_box.append(f"✅ Auto-detected config (generic): {os.path.join(base, 'model_config.json')}")
             else:
-                self.log_box.append("⚠️ No config found — please browse manually.")
+                # A Time-Adaptive step folder has no model_config.json of
+                # its own (that only lives in the run's top-level
+                # solution_results/ folder) -- but it does have its own
+                # step_config.json, one level up from neither of the two
+                # checks above, which already has THIS step's correct
+                # t_min/t_max/x_min/x_max/... (the run's top-level
+                # model_config.json has the FULL domain's bounds instead,
+                # which would silently let a restore evaluate this step's
+                # model outside the only window it was ever trained on).
+                step_cfg_fallback = os.path.join(base, "step_config.json")
+                if os.path.exists(step_cfg_fallback):
+                    self.restore_config_path.setText(step_cfg_fallback)
+                    self.log_box.append(f"✅ Auto-detected Time-Adaptive step config: {step_cfg_fallback}")
+                else:
+                    self.log_box.append("⚠️ No config found — please browse manually.")
+
+            self._restore_ta_steps = self._detect_restore_ta_steps(f)
+            if self._restore_ta_steps:
+                n_found = len(self._restore_ta_steps)
+                t0_full = self._restore_ta_steps[0]['t0']
+                t1_full = self._restore_ta_steps[-1]['t1']
+                self.restore_ta_info_label.setText(
+                    f"⏱ Detected {n_found} Time-Adaptive steps (t={t0_full:.4g} → {t1_full:.4g}) "
+                    "in this run folder. Surface/Line snapshots now auto-route to whichever "
+                    "step actually covers the requested time; check \"Combine steps\" below "
+                    "for a full-domain animation.")
+                self.restore_ta_info_label.setVisible(True)
+                self.restore_ta_combine_cb.setChecked(True)
+                self.log_box.append(f"✅ Detected {n_found} Time-Adaptive steps (t={t0_full:.4g} → {t1_full:.4g})")
+            else:
+                self.restore_ta_info_label.setVisible(False)
+            self._update_restore_ta_combine_visibility()
+
+            self._refresh_restore_output_combo()
 
             # Inverse-only convenience: auto-detect the *_convergence.txt
             # file(s) saved alongside this run (one level up from
@@ -9037,6 +9110,106 @@ print("ERROR_ANALYSIS_V2_DONE")
         f, _ = QFileDialog.getOpenFileName(self, "Select config file", "", "JSON (*.json)")
         if f:
             self.restore_config_path.setText(f)
+            self._refresh_restore_output_combo()
+
+    def _refresh_restore_output_combo(self):
+        """Repopulate restore_output_combo from the config file about to
+        be restored (its own num_outputs/output_names), not the main
+        Setup tab's current output count -- the two can easily disagree
+        (e.g. the Setup tab left at 1 output while restoring an older
+        2-output checkpoint, which is exactly why this only ever showed
+        "Output 1 (u)" before), same class of fix as _restore_dim already
+        reading the model being restored's own problem_dim instead of
+        trusting the Setup tab's dimension radios. Safe no-op (leaves the
+        combo as whatever it already was) if the config can't be read
+        yet -- e.g. no file picked, or Browse cancelled."""
+        import json
+        try:
+            with open(self.restore_config_path.text().strip()) as f:
+                cfg = json.load(f)
+        except Exception:
+            return
+        n_out = cfg.get("num_outputs", 1)
+        out_names = [n.strip() for n in str(cfg.get("output_names", "u")).split(",")]
+        self.restore_output_combo.clear()
+        for i in range(n_out):
+            name = out_names[i] if i < len(out_names) and out_names[i] else f"u{i + 1}"
+            self.restore_output_combo.addItem(f"Output {i + 1} ({name})")
+
+    def _detect_restore_ta_steps(self, model_path):
+        """If `model_path` lives inside a '.../time_adaptive_steps/
+        step_NNN_t{t0}_to_t{t1}/' folder (the layout generate_script()
+        saves one checkpoint per Time-Adaptive step into -- see the
+        matching _step_cfg comment in codegen.py), return every sibling
+        step's own info, sorted by t0. A Time-Adaptive run's model is
+        really N separate models, each only valid on its own narrow
+        [t0, t1] window, never the training's full [t_min, t_max].
+        Returns [] if model_path isn't inside such a folder, or if fewer
+        than 2 usable sibling steps are found (nothing to combine, and a
+        single "step" folder isn't meaningfully different from an
+        ordinary restore).
+
+        Each returned dict: {'dir', 't0', 't1', 'model_path', 'cfg'} --
+        'cfg' is that step's own step_config.json content when it has
+        one (t_min/t_max already equal to t0/t1 there); a step missing
+        its own file (shouldn't normally happen -- generate_script()
+        writes one for every step -- but an older or hand-edited run
+        might not have it) falls back to parsing t0/t1 from the folder
+        name itself, with every other field copied from whatever's
+        currently in self.restore_config_path (best-effort only)."""
+        import json
+        step_dir = os.path.dirname(model_path)
+        step_base = os.path.basename(step_dir)
+        parent_dir = os.path.dirname(step_dir)
+        if os.path.basename(parent_dir) != "time_adaptive_steps" or not step_base.startswith("step_"):
+            return []
+
+        import glob as _glob_ta
+        candidate_dirs = sorted(
+            d for d in _glob_ta.glob(os.path.join(parent_dir, "step_*")) if os.path.isdir(d))
+        if len(candidate_dirs) < 2:
+            return []
+
+        fallback_cfg = {}
+        try:
+            with open(self.restore_config_path.text().strip()) as f:
+                fallback_cfg = json.load(f)
+        except Exception:
+            pass
+
+        steps = []
+        for d in candidate_dirs:
+            cfg_path = os.path.join(d, "step_config.json")
+            try:
+                with open(cfg_path) as f:
+                    cfg = json.load(f)
+            except Exception:
+                parts = os.path.basename(d).split("_")
+                try:
+                    t0_parsed = float(parts[2].replace("t", ""))
+                    t1_parsed = float(parts[4].replace("t", ""))
+                except Exception:
+                    continue
+                cfg = dict(fallback_cfg)
+                cfg["t_min"] = t0_parsed
+                cfg["t_max"] = t1_parsed
+
+            t0 = cfg.get("t_min", cfg.get("t0", 0.0))
+            t1 = cfg.get("t_max", cfg.get("t1", 1.0))
+
+            pt_path = ""
+            for pat in ["model_lbfgs-*.pt", "model_lbfgs.pt", "model_adam-*.pt", "model_adam.pt"]:
+                pts = sorted(_glob_ta.glob(os.path.join(d, pat)))
+                if pts:
+                    pt_path = max(pts, key=os.path.getmtime)
+                    break
+            if not pt_path:
+                continue
+
+            steps.append({'dir': d, 't0': t0, 't1': t1, 'model_path': pt_path, 'cfg': cfg})
+
+        steps.sort(key=lambda s: s['t0'])
+        return steps
 
     def _on_browse_restore_save(self):
         folder = QFileDialog.getExistingDirectory(self, "Select save directory")
@@ -9240,8 +9413,27 @@ print("ERROR_ANALYSIS_V2_DONE")
         # and reading "⏳ Restoring..." forever, since only the background
         # thread's done_signal (never started in that case) normally
         # re-enables it.
+        # Time-Adaptive combined restore: _restore_ta_steps is only
+        # populated (see _detect_restore_ta_steps, called from
+        # _on_browse_restore_model) when the browsed model file lives in a
+        # "time_adaptive_steps/step_*/" folder alongside >=2 sibling steps.
+        # The two static viz types always route through the TA-aware
+        # builder in that case -- auto-routing to whichever step actually
+        # covers the requested time is strictly more correct than
+        # _build_restore_script's single-model-across-the-whole-domain
+        # behavior, never a regression -- while the two Animation types
+        # only do when the "Combine steps" checkbox (default: checked,
+        # see _update_restore_ta_combine_visibility) is also checked, so
+        # an unchecked box keeps producing exactly the single-step
+        # animation _build_restore_script always has.
+        _ta_steps_for_restore = getattr(self, '_restore_ta_steps', []) or []
+        _is_anim_viz = viz_type in ("Animation Line (GIF)", "Animation Surface (GIF)")
+        _use_ta_restore = len(_ta_steps_for_restore) >= 2 and (not _is_anim_viz or self.restore_ta_combine_cb.isChecked())
         try:
-            script = self._build_restore_script(model_path, cfg, optimizer, viz_type, output_idx, t_steps, save_dir)
+            if _use_ta_restore:
+                script = self._build_restore_script_ta(_ta_steps_for_restore, cfg, optimizer, viz_type, output_idx, t_steps, save_dir)
+            else:
+                script = self._build_restore_script(model_path, cfg, optimizer, viz_type, output_idx, t_steps, save_dir)
         except Exception as e:
             self.log_box.append(f"❌ Could not build the restore script from this config: {e}")
             self.restore_btn.setEnabled(True)
@@ -10034,7 +10226,455 @@ else:
 """
         script += '\nprint("RESTORE_DONE")\n'
         return script
-    
+
+    def _build_restore_script_ta(self, ta_steps, cfg, optimizer, viz_type, output_idx, t_steps, save_dir):
+        """Time-Adaptive-aware counterpart to _build_restore_script.
+
+        Restoring a SINGLE Time-Adaptive step's .pt file and evaluating it
+        across the model_config.json's full [t_min, t_max] (what
+        _build_restore_script always does) silently extrapolates outside
+        the narrow time window that step's model was ever trained on --
+        e.g. step 3 of 4's model asked to predict at t=0.05. This instead
+        restores EACH detected step's own model lazily (only when a
+        requested time actually falls in its window) and picks the right
+        one per time value, mirroring the proven "restore step models,
+        route by t-range" pattern codegen.py's own Time-Adaptive Error
+        Analysis code already uses (see generate_script's two Error
+        Analysis blocks) -- just driven from the Restore & Visualize panel
+        instead of an Error Analysis run.
+
+        Used instead of _build_restore_script when >=2 Time-Adaptive steps
+        were auto-detected next to the browsed model file (see
+        _detect_restore_ta_steps) -- always for the two static viz types
+        (Surface, Line (time steps)), since auto-routing to the correct
+        step is strictly more correct there than the single-model path's
+        behavior, and for the two Animation types only when the "Combine
+        steps" checkbox is checked (see _on_restore for the branch logic
+        and _update_restore_ta_combine_visibility for when the box shows).
+
+        Unlike _build_restore_script this doesn't support Inverse-model
+        restore (Time-Adaptive + Inverse isn't offered together in the
+        Setup tab) or the Error Analysis add-on's per-step t-range
+        narrowing for a *combined* animation (it still narrows to whatever
+        single step's step_config.json happened to load in _on_restore,
+        same as before this feature) -- both fall back to the single-model
+        path's existing (unchanged) behavior in those cases.
+        """
+        viz_settings = getattr(self, '_restore_viz_settings', {})
+        colormap = viz_settings.get('colormap', 'RdBu_r')
+        show_colorbar = viz_settings.get('colorbar', True)
+        n_steps = viz_settings.get('n_steps', t_steps)
+        levels = viz_settings.get('levels', 40)
+        resolution = viz_settings.get('resolution', 100)
+        dpi = viz_settings.get('dpi', 100)
+        auto_range = viz_settings.get('auto_range', True)
+        vmin_val = viz_settings.get('vmin', -1.0)
+        vmax_val = viz_settings.get('vmax', 1.0)
+        linewidth = viz_settings.get('linewidth', 2.0)
+        fps = viz_settings.get('fps', 10)
+        swap_xt = viz_settings.get('swap_xt', True)
+        title_override = (viz_settings.get('title') or '').strip()
+        xlabel_override = (viz_settings.get('xlabel') or '').strip()
+        ylabel_override = (viz_settings.get('ylabel') or '').strip()
+
+        # Spatial bounds / problem dimension / output names come from
+        # whichever config got loaded (the run's top-level
+        # model_config.json, or -- when none was found next to a step
+        # folder -- that step's own step_config.json via the fallback in
+        # _on_browse_restore_model); these don't vary between steps, only
+        # t_min/t_max do. t_min/t_max are overridden below with the FULL
+        # combined range across every detected step rather than trusting
+        # whichever single config happened to load, so a static
+        # Surface/Line restore can request a time anywhere across the
+        # combined run and an Animation can span the whole thing.
+        x_min = cfg.get("x_min", 0.0); x_max = cfg.get("x_max", 1.0)
+        y_min = cfg.get("y_min", 0.0); y_max = cfg.get("y_max", 1.0)
+        z_min = cfg.get("z_min", 0.0); z_max = cfg.get("z_max", 1.0)
+        is_2d = cfg.get("problem_dim", "1D") == "2D"
+        is_3d = cfg.get("problem_dim", "1D") == "3D"
+        out_names = cfg.get("output_names", "u").split(",")
+        out_name = out_names[output_idx].strip() if output_idx < len(out_names) else "u"
+
+        t_min = ta_steps[0]['t0']
+        t_max = ta_steps[-1]['t1']
+        # surface_time defaults to cfg.get('t_max', 1.0) -- for a config
+        # that's really one step's OWN config that's that step's t1, not
+        # the combined range's -- re-default to the combined t_max
+        # whenever the dialog was never given an explicit value of its own.
+        surface_time = viz_settings.get('surface_time', t_max)
+
+        # Per-step literals baked directly into the generated script as
+        # plain data (no step_config.json re-parsing at script-runtime) --
+        # these are exactly the dicts/floats _detect_restore_ta_steps
+        # already validated when populating self._restore_ta_steps.
+        _step_literals = []
+        for _s in ta_steps:
+            _scfg = _s.get('cfg') or {}
+            _step_literals.append({
+                "t0": _s['t0'], "t1": _s['t1'], "model_path": _s['model_path'],
+                "layers": _scfg.get("layers", cfg.get("layers")),
+                "activation": _scfg.get("activation", cfg.get("activation", "tanh")),
+                "loss_type": _scfg.get("loss_type", cfg.get("loss_type", "MSE")),
+                "is_lbfgs": "lbfgs" in os.path.basename(_s['model_path']).lower(),
+            })
+
+        script = f"""
+import os
+os.environ["DDE_BACKEND"] = "pytorch"
+import deepxde as dde
+import numpy as np
+import torch
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+
+is_2d = {str(is_2d)}
+is_3d = {str(is_3d)}
+
+_ta_steps = {_step_literals!r}
+print(f"ℹ️ Time-Adaptive combined restore: {{len(_ta_steps)}} step(s), "
+      f"t=[{{_ta_steps[0]['t0']}}, {{_ta_steps[-1]['t1']}}]")
+
+def _ta_build_geomtime(t0, t1):
+    if is_3d:
+        geom = dde.geometry.Cuboid([{x_min}, {y_min}, {z_min}], [{x_max}, {y_max}, {z_max}])
+    elif is_2d:
+        geom = dde.geometry.Rectangle([{x_min}, {y_min}], [{x_max}, {y_max}])
+    else:
+        geom = dde.geometry.Interval({x_min}, {x_max})
+    timedomain = dde.geometry.TimeDomain(t0, t1)
+    return dde.geometry.GeometryXTime(geom, timedomain)
+
+def _ta_pde(x, y): return y[:, 0:1] * 0
+
+_ta_models = {{}}
+def _ta_get_model(i):
+    if i in _ta_models:
+        return _ta_models[i]
+    _s = _ta_steps[i]
+    _geomtime = _ta_build_geomtime(_s["t0"], _s["t1"])
+    _data = dde.data.TimePDE(_geomtime, _ta_pde, [], num_domain=100, num_test=100)
+    _net = dde.nn.FNN(_s["layers"], _s["activation"], "Glorot uniform")
+    _model = dde.Model(_data, _net)
+    if _s["is_lbfgs"]:
+        dde.optimizers.set_LBFGS_options(maxiter=1)
+        _model.compile("L-BFGS", loss=_s["loss_type"])
+    else:
+        _model.compile("adam", lr=0.001, loss=_s["loss_type"])
+    try:
+        _model.restore(_s["model_path"], verbose=0)
+    except Exception as e:
+        print(f"❌ Restore error on step {{i+1}}/{{len(_ta_steps)}} ({{_s['model_path']}}): {{e}}")
+        raise
+    print(f"✅ Restored step {{i+1}}/{{len(_ta_steps)}}: t=[{{_s['t0']:.4g}}, {{_s['t1']:.4g}}] ({{os.path.basename(_s['model_path'])}})")
+    _ta_models[i] = _model
+    return _model
+
+def _ta_pick_step(tv):
+    n = len(_ta_steps)
+    for i, _s in enumerate(_ta_steps):
+        is_last = (i == n - 1)
+        if is_last:
+            if _s["t0"] - 1e-9 <= tv <= _s["t1"] + 1e-9:
+                return i
+        else:
+            if (_s["t0"] - 1e-9 <= tv < _s["t1"] - 1e-9) or abs(tv - _s["t1"]) < 1e-9:
+                return i
+    return 0 if tv <= _ta_steps[0]["t0"] else n - 1
+
+def _ta_model_for_t(tv):
+    return _ta_get_model(_ta_pick_step(tv))
+
+os.makedirs({save_dir!r}, exist_ok=True)
+x_vals = np.linspace({x_min}, {x_max}, 100)
+y_vals = np.linspace({y_min}, {y_max}, 100)
+z_vals = np.linspace({z_min}, {z_max}, 100)
+"""
+
+        if viz_type == "Surface":
+            vrange = f"vmin={vmin_val}, vmax={vmax_val}" if not auto_range else ""
+            _xlabel_3d = xlabel_override or "x"
+            _ylabel_3d = ylabel_override or "y"
+            _title_3d = title_override or f"Restored Model — {out_name}(x,y,z) at t={surface_time}"
+            _xlabel_2d = xlabel_override or "x"
+            _ylabel_2d = ylabel_override or "y"
+            _title_2d = title_override or f"Restored Model — {out_name}(x,y) at t={surface_time}"
+            _xlabel_1d = xlabel_override or ("t" if swap_xt else "x")
+            _ylabel_1d = ylabel_override or ("x" if swap_xt else "t")
+            _title_1d = title_override or f"Restored Model — {out_name}(x,t) Surface"
+            script += f"""
+res = {resolution}
+x_vals = np.linspace({x_min}, {x_max}, res)
+y_vals = np.linspace({y_min}, {y_max}, res)
+if is_3d:
+    # Snapshot at one time (surface_time) -- 3D+time already needs all
+    # three spatial axes for the plot, so (unlike the 1D branch below)
+    # only one step's model is needed here.
+    model = _ta_model_for_t({surface_time})
+    _res3 = max(24, res // 2)
+    _bbox3 = np.asarray(_ta_build_geomtime({surface_time}, {surface_time}).geometry.bbox)
+    _cx0, _cy0, _cz0 = _bbox3[0]; _cx1, _cy1, _cz1 = _bbox3[1]
+    _xg3 = np.linspace(_cx0, _cx1, _res3)
+    _yg3 = np.linspace(_cy0, _cy1, _res3)
+    _zg3 = np.linspace(_cz0, _cz1, _res3)
+    _Xxy3, _Yxy3 = np.meshgrid(_xg3, _yg3)
+    _Xxz3, _Zxz3 = np.meshgrid(_xg3, _zg3)
+    _Yyz3, _Zyz3 = np.meshgrid(_yg3, _zg3)
+    _faces3 = [
+        (_Xxy3, _Yxy3, np.full_like(_Xxy3, _cz0)),
+        (_Xxy3, _Yxy3, np.full_like(_Xxy3, _cz1)),
+        (_Xxz3, np.full_like(_Xxz3, _cy0), _Zxz3),
+        (_Xxz3, np.full_like(_Xxz3, _cy1), _Zxz3),
+        (np.full_like(_Yyz3, _cx0), _Yyz3, _Zyz3),
+        (np.full_like(_Yyz3, _cx1), _Yyz3, _Zyz3),
+    ]
+    _face_preds3 = []
+    for _fX3, _fY3, _fZ3 in _faces3:
+        _fpts3 = np.column_stack([_fX3.ravel(), _fY3.ravel(), _fZ3.ravel(), np.full(_fX3.size, {surface_time})])
+        _face_preds3.append(model.predict(_fpts3)[:, {output_idx}].reshape(_fX3.shape))
+    if {auto_range}:
+        _pv_min3 = min(_f.min() for _f in _face_preds3)
+        _pv_max3 = max(_f.max() for _f in _face_preds3)
+    else:
+        _pv_min3, _pv_max3 = {vmin_val}, {vmax_val}
+    fig = plt.figure(figsize=(8, 6.5))
+    ax = fig.add_subplot(111, projection='3d')
+    _norm3 = plt.Normalize(vmin=_pv_min3, vmax=_pv_max3)
+    _cmap_obj3 = plt.get_cmap("{colormap}")
+    for _fi3, (_fX3, _fY3, _fZ3) in enumerate(_faces3):
+        ax.plot_surface(_fX3, _fY3, _fZ3, facecolors=_cmap_obj3(_norm3(_face_preds3[_fi3])),
+                         rstride=1, cstride=1, linewidth=0, antialiased=False, shade=False)
+    if {show_colorbar}:
+        _sm3 = plt.cm.ScalarMappable(cmap=_cmap_obj3, norm=_norm3)
+        fig.colorbar(_sm3, ax=ax, shrink=0.6, pad=0.12)
+    ax.set_xlabel({_xlabel_3d!r}); ax.set_ylabel({_ylabel_3d!r}); ax.set_zlabel("z")
+    ax.set_title({_title_3d!r})
+    try:
+        ax.set_box_aspect((_cx1 - _cx0, _cy1 - _cy0, _cz1 - _cz0))
+    except Exception:
+        pass
+elif is_2d:
+    # Snapshot at one time -- same reasoning as the 3D branch above.
+    model = _ta_model_for_t({surface_time})
+    Xg, Yg = np.meshgrid(x_vals, y_vals)
+    XYT = np.column_stack([Xg.ravel(), Yg.ravel(), np.full(Xg.size, {surface_time})])
+    pred = model.predict(XYT)[:, {output_idx}].reshape(res, res)
+    fig, ax = plt.subplots(figsize=(7, 5))
+    im = ax.contourf(Xg, Yg, pred, levels={levels}, cmap="{colormap}", {vrange})
+    if {show_colorbar}: fig.colorbar(im, ax=ax)
+    ax.set_xlabel({_xlabel_2d!r}); ax.set_ylabel({_ylabel_2d!r})
+    ax.set_title({_title_2d!r})
+else:
+    # 1D + time already fully uses (x, t) as the two plot axes, so unlike
+    # the 2D/3D branches above there's no separate "snapshot" concept --
+    # this covers the FULL combined [t_min, t_max] range, evaluating each
+    # row of the grid (one fixed t) with whichever step's model actually
+    # covers that t, same shape/orientation as the single-model
+    # _build_restore_script's own 1D Surface branch.
+    t_vals = np.linspace({t_min}, {t_max}, res)
+    X, T = np.meshgrid(x_vals, t_vals)
+    pred = np.empty_like(X)
+    for _ri, _tv in enumerate(t_vals):
+        _ta_m = _ta_model_for_t(_tv)
+        XT_row = np.column_stack([x_vals, np.full_like(x_vals, _tv)])
+        pred[_ri, :] = _ta_m.predict(XT_row)[:, {output_idx}].flatten()
+    fig, ax = plt.subplots(figsize=(7, 5))
+    if {swap_xt}:
+        im = ax.contourf(T, X, pred, levels={levels}, cmap="{colormap}", {vrange})
+    else:
+        im = ax.contourf(X, T, pred, levels={levels}, cmap="{colormap}", {vrange})
+    if {show_colorbar}: fig.colorbar(im, ax=ax)
+    ax.set_xlabel({_xlabel_1d!r}); ax.set_ylabel({_ylabel_1d!r})
+    ax.set_title({_title_1d!r})
+plt.tight_layout()
+out_path = os.path.join({save_dir!r}, "restored_plot.png")
+plt.savefig(out_path, dpi={dpi}, bbox_inches='tight'); plt.close()
+print(f"Surface plot saved to: {{out_path}}")
+"""
+
+        elif viz_type == "Line (time steps)":
+            _xlabel_line = xlabel_override or "x"
+            _ylabel_line = ylabel_override or out_name
+            _title_line = title_override or f"Restored Model — {out_name}(x,t) Line Plot"
+            script += f"""
+x_vals = np.linspace({x_min}, {x_max}, {resolution})
+t_steps_vals = np.linspace({t_min}, {t_max}, {n_steps})
+fig, ax = plt.subplots(figsize=(8, 5))
+colors = plt.get_cmap("{colormap}")(np.linspace(0, 1, {n_steps}))
+y_mid = ({y_min} + {y_max}) / 2.0
+z_mid = ({z_min} + {z_max}) / 2.0
+for i, tv in enumerate(t_steps_vals):
+    _ta_m = _ta_model_for_t(tv)
+    if is_3d:
+        xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, z_mid), np.full_like(x_vals, tv)])
+    elif is_2d:
+        xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, tv)])
+    else:
+        xt = np.column_stack([x_vals, np.full_like(x_vals, tv)])
+    u_line = _ta_m.predict(xt)[:, {output_idx}].flatten()
+    ax.plot(x_vals, u_line, color=colors[i], linewidth={linewidth}, label=f"t={{tv:.3f}}")
+ax.set_xlabel({_xlabel_line!r}); ax.set_ylabel({_ylabel_line!r})
+ax.set_title({_title_line!r})
+ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
+plt.tight_layout()
+out_path = os.path.join({save_dir!r}, "restored_plot.png")
+plt.savefig(out_path, dpi={dpi}, bbox_inches='tight'); plt.close()
+print(f"Line plot saved to: {{out_path}}")
+"""
+        elif viz_type == "Animation Line (GIF)":
+            _xlabel_animline = xlabel_override or "x"
+            _ylabel_animline = ylabel_override or out_name
+            _title_line_stmt = f"ax.set_title({title_override!r})" if title_override else ""
+            script += f"""
+import matplotlib.animation as _anim
+t_frames = np.linspace({t_min}, {t_max}, {n_steps})
+y_mid = ({y_min} + {y_max}) / 2.0
+z_mid = ({z_min} + {z_max}) / 2.0
+all_u = []
+for tv in t_frames:
+    _ta_m = _ta_model_for_t(tv)
+    if is_3d:
+        xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, z_mid), np.full_like(x_vals, tv)])
+    elif is_2d:
+        xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, tv)])
+    else:
+        xt = np.column_stack([x_vals, np.full_like(x_vals, tv)])
+    all_u.append(_ta_m.predict(xt)[:, {output_idx}].flatten())
+u_min = min(u.min() for u in all_u)
+u_max = max(u.max() for u in all_u)
+fig, ax = plt.subplots(figsize=(7, 4))
+ax.set_xlim({x_min}, {x_max})
+ax.set_ylim(u_min - 0.05*abs(u_min), u_max + 0.05*abs(u_max))
+ax.set_xlabel({_xlabel_animline!r}); ax.set_ylabel({_ylabel_animline!r})
+{_title_line_stmt}
+line, = ax.plot([], [], color="#4dabf7", linewidth=2)
+time_txt = ax.text(0.02, 0.95, '', transform=ax.transAxes, color='#ff8787')
+ax.grid(True, alpha=0.2)
+def init():
+    line.set_data([], []); time_txt.set_text(''); return line, time_txt
+def update(i):
+    line.set_data(x_vals, all_u[i])
+    time_txt.set_text(f"t = {{t_frames[i]:.3f}}")
+    return line, time_txt
+ani = _anim.FuncAnimation(fig, update, init_func=init, frames={n_steps}, interval=100, blit=True)
+out_path = os.path.join({save_dir!r}, "restored_animation.gif")
+ani.save(out_path, writer='pillow', fps={fps})
+plt.close()
+print(f"Animation saved to: {{out_path}}")
+"""
+
+        elif viz_type == "Animation Surface (GIF)":
+            _xlabel_animsurf3d = xlabel_override or "x"
+            _ylabel_animsurf3d = ylabel_override or "y"
+            _animsurf_title_line_3d = (
+                f"ax.set_title({title_override!r})" if title_override
+                else 'ax.set_title(f"t = {t_frames[i]:.3f}")'
+            )
+            _xlabel_animsurf_else = xlabel_override or ("t" if (swap_xt and not is_2d) else "x")
+            _ylabel_animsurf_else = ylabel_override or ("y" if is_2d else ("x" if swap_xt else "t"))
+            _animsurf_title_line_else = (
+                f"ax.set_title({title_override!r})" if title_override
+                else 'ax.set_title(f"t = {t_frames[i]:.3f}")'
+            )
+            script += f"""
+import matplotlib.animation as _anim
+t_frames = np.linspace({t_min}, {t_max}, {n_steps})
+x_anim = np.linspace({x_min}, {x_max}, 80)
+all_frames = []
+if is_3d:
+    _res3a = 28
+    _bbox3a = np.asarray(_ta_build_geomtime(t_frames[0], t_frames[0]).geometry.bbox)
+    _cx0a, _cy0a, _cz0a = _bbox3a[0]; _cx1a, _cy1a, _cz1a = _bbox3a[1]
+    _xg3a = np.linspace(_cx0a, _cx1a, _res3a)
+    _yg3a = np.linspace(_cy0a, _cy1a, _res3a)
+    _zg3a = np.linspace(_cz0a, _cz1a, _res3a)
+    _Xxy3a, _Yxy3a = np.meshgrid(_xg3a, _yg3a)
+    _Xxz3a, _Zxz3a = np.meshgrid(_xg3a, _zg3a)
+    _Yyz3a, _Zyz3a = np.meshgrid(_yg3a, _zg3a)
+    _faces3a = [
+        (_Xxy3a, _Yxy3a, np.full_like(_Xxy3a, _cz0a)),
+        (_Xxy3a, _Yxy3a, np.full_like(_Xxy3a, _cz1a)),
+        (_Xxz3a, np.full_like(_Xxz3a, _cy0a), _Zxz3a),
+        (_Xxz3a, np.full_like(_Xxz3a, _cy1a), _Zxz3a),
+        (np.full_like(_Yyz3a, _cx0a), _Yyz3a, _Zyz3a),
+        (np.full_like(_Yyz3a, _cx1a), _Yyz3a, _Zyz3a),
+    ]
+    for tv in t_frames:
+        _ta_m = _ta_model_for_t(tv)
+        _frame_faces = []
+        for _fX3a, _fY3a, _fZ3a in _faces3a:
+            _fpts3a = np.column_stack([_fX3a.ravel(), _fY3a.ravel(), _fZ3a.ravel(), np.full(_fX3a.size, tv)])
+            _frame_faces.append(_ta_m.predict(_fpts3a)[:, {output_idx}].reshape(_fX3a.shape))
+        all_frames.append(_frame_faces)
+    v_min = min(_f.min() for _frame in all_frames for _f in _frame)
+    v_max = max(_f.max() for _frame in all_frames for _f in _frame)
+    fig = plt.figure(figsize=(8, 6.5))
+    ax = fig.add_subplot(111, projection='3d')
+    _norm3a = plt.Normalize(vmin=v_min, vmax=v_max)
+    _cmap_obj3a = plt.get_cmap("{colormap}")
+    _sm3a = plt.cm.ScalarMappable(cmap=_cmap_obj3a, norm=_norm3a)
+    if {show_colorbar}: fig.colorbar(_sm3a, ax=ax, shrink=0.6, pad=0.12)
+    def update(i):
+        ax.cla()
+        for _fi3a, (_fX3a, _fY3a, _fZ3a) in enumerate(_faces3a):
+            ax.plot_surface(_fX3a, _fY3a, _fZ3a, facecolors=_cmap_obj3a(_norm3a(all_frames[i][_fi3a])),
+                             rstride=1, cstride=1, linewidth=0, antialiased=False, shade=False)
+        ax.set_xlabel({_xlabel_animsurf3d!r}); ax.set_ylabel({_ylabel_animsurf3d!r}); ax.set_zlabel("z")
+        {_animsurf_title_line_3d}
+        try:
+            ax.set_box_aspect((_cx1a - _cx0a, _cy1a - _cy0a, _cz1a - _cz0a))
+        except Exception:
+            pass
+    ani = _anim.FuncAnimation(fig, update, frames={n_steps}, interval=150)
+    out_path = os.path.join({save_dir!r}, "restored_animation.gif")
+    ani.save(out_path, writer='pillow', fps={fps})
+    plt.close()
+    print(f"3D surface animation saved to: {{out_path}}")
+else:
+    if is_2d:
+        y_anim = np.linspace({y_min}, {y_max}, 80)
+        Xg, Yg = np.meshgrid(x_anim, y_anim)
+        for tv in t_frames:
+            _ta_m = _ta_model_for_t(tv)
+            XYT = np.column_stack([Xg.ravel(), Yg.ravel(), np.full(Xg.size, tv)])
+            pred = _ta_m.predict(XYT)[:, {output_idx}].reshape(80, 80)
+            all_frames.append((Xg, Yg, pred))
+    else:
+        t_anim = np.linspace({t_min}, {t_max}, 80)
+        X_anim, T_anim = np.meshgrid(x_anim, t_anim)
+        for tv in t_frames:
+            _ta_m = _ta_model_for_t(tv)
+            XT = np.column_stack([x_anim, np.full_like(x_anim, tv)])
+            pred_row = _ta_m.predict(XT)[:, {output_idx}].flatten()
+            pred = np.tile(pred_row, (80, 1))
+            if {swap_xt}:
+                all_frames.append((T_anim, X_anim, pred))
+            else:
+                all_frames.append((X_anim, T_anim, pred))
+    v_min = min(f[2].min() for f in all_frames)
+    v_max = max(f[2].max() for f in all_frames)
+    fig, ax = plt.subplots(figsize=(8, 6))
+    from mpl_toolkits.axes_grid1 import make_axes_locatable
+    _div = make_axes_locatable(ax)
+    _cax = _div.append_axes("right", size="5%", pad=0.1)
+    _sm = plt.cm.ScalarMappable(cmap="{colormap}", norm=plt.Normalize(vmin=v_min, vmax=v_max))
+    if {show_colorbar}: fig.colorbar(_sm, cax=_cax)
+    def update(i):
+        ax.cla()
+        Xp, Yp, Zp = all_frames[i]
+        ax.contourf(Xp, Yp, Zp, levels={levels}, cmap="{colormap}", vmin=v_min, vmax=v_max)
+        ax.set_xlabel({_xlabel_animsurf_else!r})
+        ax.set_ylabel({_ylabel_animsurf_else!r})
+        {_animsurf_title_line_else}
+    ani = _anim.FuncAnimation(fig, update, frames={n_steps}, interval=150)
+    out_path = os.path.join({save_dir!r}, "restored_animation.gif")
+    ani.save(out_path, writer='pillow', fps={fps})
+    plt.close()
+    print(f"Surface animation saved to: {{out_path}}")
+"""
+        script += '\nprint("RESTORE_DONE")\n'
+        return script
+
     def _build_restore_ea_script(self, files, save_dir, is_2d, do_line, do_surface,
                                   x_min, x_max, y_min, y_max, out_name, viz_settings=None,
                                   is_3d=False, output_idx=0, custom_expr="", output_names="u"):
