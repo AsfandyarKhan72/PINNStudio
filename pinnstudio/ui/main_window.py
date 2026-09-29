@@ -5055,15 +5055,45 @@ class MainWindow(QMainWindow):
     # one triple per (PDE row, constant) pair it needs substituted.
     INVERSE_AUTO_CONST = {
         "1D Heat": [(0, "0.4", 0)],
-        "1D Allen-Cahn": [(0, "0.0001", 0)],
+        # gamma_1 (diffusion, 0.0001) and gamma_2 (reaction, the two
+        # literal "5"s -- one on u**3, one on u), matching Wight & Zhao's
+        # own eq. 3.2/3.5 naming. Two separate (idx, "5", 1) entries are
+        # needed (not one) because the substitution is a single-occurrence
+        # text replace and "5" appears twice in this PDE row -- each entry
+        # replaces the next remaining occurrence, left to right, exactly
+        # like the multi-row substitutions below (D/kf-style) but within
+        # one row instead of across rows.
+        "1D Allen-Cahn": [(0, "0.0001", 0), (0, "5", 1), (0, "5", 1)],
         "2D Heat": [(0, "0.4", 0)],
-        "2D Allen-Cahn (Mattey & Ghosh)": [(0, "0.0001", 0)],
-        "2D Allen-Cahn (Wight & Zhao)": [(0, "0.00625", 0)],
+        # c_1^2 (interfacial-thickness-squared, 0.0001) and c_2 (reaction,
+        # 1) -- Mattey & Ghosh's own eq. 13 coefficients. c_2's "1" isn't
+        # written explicitly in the original PDE box text (an implicit
+        # coefficient on (u**3 - u)), so the forward 'pde' string below was
+        # given an explicit "1.0*" for exactly this purpose -- see that
+        # template's own comment.
+        "2D Allen-Cahn (Mattey & Ghosh)": [(0, "0.0001", 0), (0, "1.0", 1)],
+        # lambda_ (the paper's own lambda=10, the reaction-term
+        # coefficient) and diff_coeff (lambda*epsilon^2=0.00625, the
+        # diffusion-term coefficient) -- Wight & Zhao's own eq. 3.11
+        # parameters. Unlike the two templates above, no PDE-string rewrite
+        # was needed here: both "10" and "0.00625" already appear as their
+        # own literal substrings in the existing forward PDE box text.
+        # NOTE: diff_coeff must NOT be spelled "lambda_eps_sq" (or anything
+        # else starting with "lambda_") -- the substitution/restore logic
+        # matches on substrings, and "lambda_" would then be a literal
+        # prefix of the other variable's own name, corrupting it on
+        # restore (str.replace finds "lambda_" wherever it appears first,
+        # including inside "lambda_eps_sq" itself). Verified with a direct
+        # round-trip simulation before choosing this name.
+        "2D Allen-Cahn (Wight & Zhao)": [(0, "10", 0), (0, "0.00625", 1)],
         "3D Heat": [(0, "0.4", 0)],
-        # Viscosity 0.01 (the paper's nu = 0.01/pi -- the constant that's
-        # actually unknown/inferred in an inverse Burgers problem is
-        # written as its own numerator, not the whole fraction).
-        "1D Burgers": [(0, "0.01", 0)],
+        # lambda_1 (convection, the paper's true value 1.0 -- written
+        # explicitly as "1.0*" in the forward PDE below so there's a
+        # literal substring to substitute, matching the diffusion-reaction-
+        # style pattern used above) and lambda_2 (viscosity numerator,
+        # 0.01/pi) -- Raissi et al.'s own eq. B.1 naming (Appendix B, the
+        # data-driven-discovery form of Burgers' equation).
+        "1D Burgers": [(0, "1.0", 0), (0, "0.01", 1)],
         # nu's numerator 0.01 (nu = 0.01/pi) -- same reasoning as 1D
         # Burgers' viscosity above, appearing identically in both PDE rows
         # (U's and V's).
@@ -5141,22 +5171,53 @@ class MainWindow(QMainWindow):
     # observed-data file (1D/2D/3D Heat, 1D/2D Allen-Cahn) have no
     # INVERSE_AUTO_OBS entry either -- same as 1D Schrodinger, the user
     # just has to Browse to a file of their own.
+    # Every name below is a valid Python identifier (checked against
+    # keyword.iskeyword() and non-identifier characters) since it gets
+    # spliced directly into generated code as "{name} = dde.Variable(...)"
+    # -- codegen.py's _sanitize_python_identifier is a safety net for
+    # anything a user later types into the name box by hand, not a
+    # substitute for picking valid names here. Two names deliberately
+    # aren't the paper's own bare symbol: "lambda_" (2D Allen-Cahn,
+    # Wight & Zhao) has a trailing underscore because "lambda" alone is a
+    # Python keyword; "source_term" (the Poisson family) and "alpha" (the
+    # Heat family) aren't named by their own papers/have no cited paper at
+    # all, so these are just descriptive choices, not paper notation.
     INVERSE_AUTO_VARS = {
-        "1D Heat": [("trainable_variable_1", 1.0, 0.4)],
-        "1D Allen-Cahn": [("trainable_variable_1", 1.0, 0.0001)],
-        "2D Heat": [("trainable_variable_1", 1.0, 0.4)],
-        "2D Allen-Cahn (Mattey & Ghosh)": [("trainable_variable_1", 1.0, 0.0001)],
-        "2D Allen-Cahn (Wight & Zhao)": [("trainable_variable_1", 1.0, 0.00625)],
-        "3D Heat": [("trainable_variable_1", 1.0, 0.4)],
-        "1D Burgers": [("trainable_variable_1", 1.0, 0.01)],
-        "2D Burgers (Mathias)": [("trainable_variable_1", 1.0, 0.01 / math.pi)],
+        "1D Heat": [("alpha", 1.0, 0.4)],
+        # gamma_1 (diffusion) and gamma_2 (reaction) -- Wight & Zhao's own
+        # eq. 3.2/3.5 names. Both start at init=1.0 (neither's true value
+        # is 1, so this doesn't start the fit already at the answer).
+        "1D Allen-Cahn": [("gamma_1", 1.0, 0.0001), ("gamma_2", 1.0, 5.0)],
+        "2D Heat": [("alpha", 1.0, 0.4)],
+        # c_1^2 (interfacial-thickness-squared) and c_2 (reaction) --
+        # Mattey & Ghosh's own eq. 13 names. c_2's true value is already 1
+        # (same situation as the Poisson family below), so its guess also
+        # starts an order of magnitude away instead of right at the answer.
+        "2D Allen-Cahn (Mattey & Ghosh)": [("c1_sq", 1.0, 0.0001), ("c2", 0.1, 1.0)],
+        # lambda_ (reaction-term coefficient) and diff_coeff (the lumped
+        # lambda*epsilon^2 diffusion-term coefficient, written in words
+        # since there's no clean single symbol for a product, and
+        # deliberately NOT "lambda_eps_sq" -- see INVERSE_AUTO_CONST's
+        # comment on this template for why) -- Wight & Zhao's own eq. 3.11
+        # parameters, recovered independently exactly as they appear in
+        # the PDE box (not epsilon on its own).
+        "2D Allen-Cahn (Wight & Zhao)": [("lambda_", 1.0, 10.0), ("diff_coeff", 1.0, 0.00625)],
+        "3D Heat": [("alpha", 1.0, 0.4)],
+        # lambda_1 (convection) and lambda_2 (viscosity numerator) --
+        # Raissi et al.'s own eq. B.1 names (Appendix B). lambda_1's true
+        # value is already 1, so -- same reasoning as the Poisson family --
+        # its guess starts at 0.1 rather than right at the answer;
+        # lambda_2 keeps the existing init=1.0 (true 0.01/pi is nowhere
+        # near it).
+        "1D Burgers": [("lambda_1", 0.1, 1.0), ("lambda_2", 1.0, 0.01)],
+        "2D Burgers (Mathias)": [("nu", 1.0, 0.01 / math.pi)],
         "1D Schrödinger": [("trainable_variable_1", 1.0, 0.5)],
         # True value is already 1 -- starting the initial guess there
         # would make the "inference" trivial (zero iterations needed),
         # so it starts an order of magnitude away instead.
-        "2D Poisson (L-Shape)": [("trainable_variable_1", 0.1, 1.0)],
-        "2D Poisson (Disk)": [("trainable_variable_1", 0.1, 1.0)],
-        "3D Poisson (Sphere)": [("trainable_variable_1", 0.1, 1.0)],
+        "2D Poisson (L-Shape)": [("source_term", 0.1, 1.0)],
+        "2D Poisson (Disk)": [("source_term", 0.1, 1.0)],
+        "3D Poisson (Sphere)": [("source_term", 0.1, 1.0)],
     }
     INVERSE_AUTO_OBS = {
         # No bundled file -- there's no default "the" |h| measurement file
@@ -7426,7 +7487,13 @@ print("ERROR_ANALYSIS_DONE")
                 'ref_dir': os.path.join(REFERENCE_DATA_DIR, "2D", "heat"),
             },
             "2D Allen-Cahn (Mattey & Ghosh)": {
-                'pde': ["du_t - 0.0001*(du_xx + du_yy) + (u**3 - u)"],
+                # The "1.0*" on the reaction term is written explicitly
+                # (rather than the mathematically-equivalent bare
+                # "(u**3 - u)") so there's a literal substring for Inverse
+                # mode to substitute c_2 into -- see INVERSE_AUTO_CONST's
+                # comment above. Forward-mode behavior is identical either
+                # way (1.0 times anything is a no-op).
+                'pde': ["du_t - 0.0001*(du_xx + du_yy) + 1.0*(u**3 - u)"],
                 'ic': ["sin(4*pi*x)*cos(4*pi*y)"],
                 'num_domain': 10000,
                 'num_boundary': 400,
@@ -8035,7 +8102,14 @@ print("ERROR_ANALYSIS_DONE")
             # recipe follows DeepXDE Table 3, Example 2 (depth 3, width 20,
             # Adam then L-BFGS, lr 0.001, 15000 Adam iterations).
             "1D Burgers": {
-                'pde': ["du_t + u*du_x - (0.01/pi)*du_xx"],
+                # The "1.0*" on the convection term is written explicitly
+                # (rather than the mathematically-equivalent bare
+                # "u*du_x") so there's a literal substring for Inverse mode
+                # to substitute lambda_1 into, matching Raissi et al.'s own
+                # eq. B.1 two-coefficient form -- see INVERSE_AUTO_CONST's
+                # comment above. Forward-mode behavior is unchanged (1.0
+                # times anything is a no-op).
+                'pde': ["du_t + 1.0*u*du_x - (0.01/pi)*du_xx"],
                 'ic': ["-sin(pi*x)"],
                 'num_domain': 8000,
                 'num_boundary': 200,
