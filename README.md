@@ -476,11 +476,11 @@ $$\Large \frac{\partial u}{\partial t} = 0.4\frac{\partial^2 u}{\partial x^2}, \
 <details id="1d-allen-cahn">
 <summary><strong>1D Allen-Cahn</strong></summary>
 
-Benchmark problem after Wight & Zhao (2021) — see [References](#references).
+Benchmark problem after Wight & Zhao (2021) — see [References](#references). The paper writes this with its own named coefficients $\gamma_1$, $\gamma_2$ (its general eq. 3.2, instantiated as eq. 3.5):
 
-$$\Large \frac{\partial u}{\partial t} = D\frac{\partial^2 u}{\partial x^2} - 5u^3 + 5u, \qquad x \in [-1, 1],\ t \in [0, 1]$$
+$$\Large \frac{\partial u}{\partial t} = \gamma_1\frac{\partial^2 u}{\partial x^2} - \gamma_2 u^3 + \gamma_2 u, \qquad x \in [-1, 1],\ t \in [0, 1]$$
 
-where $D = 0.0001$ is the diffusion coefficient.
+where $\gamma_1 = 0.0001$ and $\gamma_2 = 5$, matching the paper's own values.
 
 - **Initial condition:** $u(x, 0) = x^2\cos(\pi x)$
 - **Boundary conditions:** Periodic
@@ -490,7 +490,7 @@ where $D = 0.0001$ is the diffusion coefficient.
 
 ![1D Allen-Cahn solution](assets/results/1d_allen_cahn_solution.png)
 
-*Inverse mode* — same template, switched to **Inverse** with the diffusion coefficient as the unknown parameter to recover; the live convergence plot below shows the estimate settling onto the true value during training:
+*Inverse mode* — same template, switched to **Inverse** with $\gamma_1$ (the diffusion coefficient) as the unknown parameter to recover; the live convergence plot below shows the estimate settling onto the true value during training:
 
 ![1D Allen-Cahn inverse parameter convergence](assets/results/1d_allen_cahn_inverse.png)
 
@@ -511,6 +511,12 @@ $$\Large \frac{\partial u}{\partial t} + u\frac{\partial u}{\partial x} = \frac{
 A shock forms near $x = 0$ as $t \to 1$; this template uses a larger fixed collocation count to resolve it rather than adaptive refinement.
 
 *[solution figure placeholder]*
+
+*Inverse mode* — same template, switched to **Inverse**, recovering the diffusion/viscosity coefficient. Raissi, Perdikaris & Karniadakis (2019) pose the general (both-coefficients-unknown) data-driven-discovery form of this equation in Appendix B, eq. B.1 — see [References](#references):
+
+$$\Large \frac{\partial u}{\partial t} + \lambda_1 u\frac{\partial u}{\partial x} - \lambda_2\frac{\partial^2 u}{\partial x^2} = 0$$
+
+with the paper's own true values $\lambda_1 = 1.0$ and $\lambda_2 = 0.01/\pi$. This template's Inverse mode recovers $\lambda_2$ only; $\lambda_1$ is left fixed at its known value of $1$ (matching the forward equation above) rather than jointly inferred alongside it the way the paper's own example does.
 
 </details>
 
@@ -561,11 +567,15 @@ $$\Large \frac{\partial u}{\partial t} = 0.4\left(\frac{\partial^2 u}{\partial x
 <details id="2d-allen-cahn-mattey--ghosh">
 <summary><strong>2D Allen-Cahn (Mattey & Ghosh)</strong></summary>
 
-Benchmark problem after Mattey & Ghosh (2022) — see [References](#references).
+Benchmark problem after Mattey & Ghosh (2022) — see [References](#references). The paper poses its general bc-PINN Allen-Cahn equation for a field it calls $h$, with interfacial-thickness-squared coefficient $c_1^2$ and reaction coefficient $c_2$ (eq. 13):
 
-$$\Large \frac{\partial u}{\partial t} = D\left(\frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2}\right) - (u^3 - u), \qquad (x, y) \in [0, 1]^2,\ t \in [0, 1]$$
+$$\Large \frac{\partial h}{\partial t} = c_1^2\nabla^2 h - c_2(h^3 - h)$$
 
-where $D = 0.0001$ is the diffusion coefficient.
+which, specialized to 2D with the paper's own IBVP-1 parameters (section 6.1) and PINNStudio's own field name $u$ in place of the paper's $h$, is:
+
+$$\Large \frac{\partial u}{\partial t} = c_1^2\left(\frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2}\right) - c_2(u^3 - u), \qquad (x, y) \in [0, 1]^2,\ t \in (0, 1]$$
+
+where $c_1^2 = 0.0001$ and $c_2 = 1$, matching the paper's own values.
 
 - **Initial condition:** $u(x, y, 0) = \sin(4\pi x)\cos(4\pi y)$
 - **Boundary conditions:** Periodic
@@ -580,13 +590,13 @@ where $D = 0.0001$ is the diffusion coefficient.
 <details id="2d-allen-cahn-wight--zhao">
 <summary><strong>2D Allen-Cahn (Wight & Zhao)</strong></summary>
 
-Benchmark problem after Wight & Zhao (2021) — see [References](#references).
+Benchmark problem after Wight & Zhao (2021) — see [References](#references). This is the paper's own shrinking-circle-interface benchmark, posed there for a field it calls $\phi$ (PINNStudio's $u$) with rate constant $\lambda$ and interface-width parameter $\varepsilon$ (eq. 3.11):
 
-$$\Large \frac{\partial u}{\partial t} = D\left(\frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2}\right) - 10(u^3 - u), \qquad (x, y) \in [0, 1]^2,\ t \in [0, 10]$$
+$$\Large \frac{\partial u}{\partial t} = \lambda\left(\varepsilon^2\left(\frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2}\right) - u^3 + u\right), \qquad (x, y) \in [0, 1]^2,\ t \in [0, 10]$$
 
-where $D = 0.00625$ is the diffusion coefficient.
+where $\lambda = 10$ and $\varepsilon = 0.025$, matching the paper's own values ($\lambda\varepsilon^2 = 0.00625$ is the effective diffusion coefficient).
 
-- **Initial condition:** a smooth circular interface, $u(x, y, 0) = \tanh\left(\dfrac{0.35 - \sqrt{(x-0.5)^2 + (y-0.5)^2}}{0.05}\right)$
+- **Initial condition:** a smooth circular interface, $u(x, y, 0) = \tanh\left(\dfrac{0.35 - \sqrt{(x-0.5)^2 + (y-0.5)^2}}{2\varepsilon}\right)$ (paper's eq. 3.12)
 - **Boundary conditions:** Periodic
 - **Geometry:** Rectangle
 - **Time-Adaptive default:** on — $t \in [0,10]$ is a wide window for a single pass, so this template splits it into 10 steps of 1 (`0→1, 1→2, ..., 9→10`), L-BFGS transfer learning between steps
