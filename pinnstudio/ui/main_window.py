@@ -2204,7 +2204,8 @@ class MainWindow(QMainWindow):
         loss_vlayout.setContentsMargins(0, 0, 0, 0)
         loss_vlayout.setSpacing(2)
         loss_header = QHBoxLayout()
-        loss_header.addWidget(QLabel("Loss"))
+        self.loss_header_label = QLabel("Loss")
+        loss_header.addWidget(self.loss_header_label)
         loss_header.addStretch()
         self.loss_save_btn = QPushButton("💾 Save Figure")
         self.loss_save_btn.setFixedHeight(24)
@@ -2224,7 +2225,8 @@ class MainWindow(QMainWindow):
         solution_vlayout.setContentsMargins(0, 0, 0, 0)
         solution_vlayout.setSpacing(2)
         solution_header = QHBoxLayout()
-        solution_header.addWidget(QLabel("Solution"))
+        self.solution_header_label = QLabel("Solution")
+        solution_header.addWidget(self.solution_header_label)
         solution_header.addStretch()
         self.solution_save_btn = QPushButton("💾 Save Figure")
         self.solution_save_btn.setFixedHeight(24)
@@ -5487,6 +5489,7 @@ class MainWindow(QMainWindow):
         self.stop_btn.setEnabled(True)
         self.log_box.clear()
         self._clear_solution_movie()
+        self._reset_plot_headers()
         self.loss_label.setText("⏳ Training...")
         self.solution_label.setText("⏳ Training...")
         self.loss_label._source_path = None
@@ -5582,6 +5585,20 @@ class MainWindow(QMainWindow):
         self.solution_label.setMovie(movie)
         self._solution_movie = movie
         movie.start()
+
+    def _reset_plot_headers(self):
+        """Restore both output panels' headers/tooltips to their normal
+        "Loss"/"Solution" captions and save-button hints. The Domain
+        Preview feature (_preview_domain) temporarily relabels these same
+        two panels ("Domain: Spatial (x,y)" / "Domain: Time (x,t)") since
+        it reuses loss_label/solution_label rather than adding two more
+        panels -- this is called wherever those panels go back to showing
+        an actual Solve or Restore result, so a stale "Domain: ..." header
+        doesn't linger over an unrelated loss/solution plot."""
+        self.loss_header_label.setText("Loss")
+        self.loss_save_btn.setToolTip("Save the loss plot currently shown")
+        self.solution_header_label.setText("Solution")
+        self.solution_save_btn.setToolTip("Save the solution plot currently shown")
 
     def _save_figure(self, label, default_basename):
         """Save whichever figure is currently shown in `label` (loss_label
@@ -5929,11 +5946,87 @@ class MainWindow(QMainWindow):
         if state == 2:
             self._preview_domain()
         else:
+            self._reset_plot_headers()
             self.loss_label.setText("📉 Loss plot")
             self.solution_label.setText("🗺 Solution plot")
+            # Un-checking the box means "nothing shown here" -- without
+            # this, Save Figure on either panel would silently re-save the
+            # stale domain-preview PNG from before the checkbox was
+            # unchecked, even though the panel now just shows placeholder
+            # text (setText() clears the pixmap but not this attribute).
+            self.loss_label._source_path = None
+            self.solution_label._source_path = None
+
+    # Domain Preview ("View domain & point distribution") shared styling.
+    # Previously each panel used a dark theme (#1e1e1e figure / #252526
+    # axes, ~10-11pt fonts) that was visually inconsistent with every
+    # other plot the app generates (loss/solution plots are plain
+    # matplotlib-default white, no special styling) and, per user
+    # feedback, just didn't look good -- too dark, legend/axis text too
+    # small to read comfortably. This is a clean white/light theme with
+    # noticeably larger fonts, a light grid, and higher-DPI output,
+    # matching the professional look of the rest of the app's plots. Kept
+    # as ONE shared constant (rather than duplicated inline in both the
+    # 2D and 3D preview builders below) so both panel types always look
+    # identical and any future tweak only has to be made once.
+    _DOMAIN_PREVIEW_DPI = 150
+    # Point marker sizes -- noticeably bigger than the old dark-theme
+    # defaults (which were tuned for small, dim dots against a busy dark
+    # background) since these now sit on a clean white background with a
+    # visible light grid, so slightly larger, crisper points read better.
+    _DOMAIN_PT_SIZE = 14        # spatial panel: domain points
+    _BND_PT_SIZE = 40           # spatial panel: boundary points
+    _TIME_DOM_PT_SIZE = 10      # time panel: domain points
+    _TIME_BND_PT_SIZE = 26      # time panel: boundary/IC points
+    # Fixed paths -- overwritten by each new preview (2D or 3D, whichever
+    # geometry is currently selected; the two are mutually exclusive) and
+    # read back by _on_preview_done, which also points loss_label's/
+    # solution_label's _source_path at them so the existing "💾 Save
+    # Figure" buttons work for these too, saving exactly what's on screen.
+    _DOMAIN_PREVIEW_SPATIAL_PATH = "/tmp/domain_preview_spatial.png"
+    _DOMAIN_PREVIEW_TIME_PATH = "/tmp/domain_preview_time.png"
+    # Plain string (NOT an f-string) -- spliced verbatim into each
+    # generated preview script via an outer f-string, so its own `{`/`}`
+    # characters must stay literal, not get double-evaluated.
+    _DOMAIN_PREVIEW_STYLE_SETUP = """\
+plt.rcParams['figure.facecolor'] = 'white'
+plt.rcParams['savefig.facecolor'] = 'white'
+plt.rcParams['figure.dpi'] = 100
+
+DOM_COLOR = '#4dabf7'   # same blue used for Train loss elsewhere in the app
+BND_COLOR = '#e03131'   # deeper red -- reads clearly against white
+IC_COLOR  = '#2f9e44'
+TITLE_FS  = 15
+LABEL_FS  = 13
+TICK_FS   = 11
+LEGEND_FS = 11.5
+
+def _style_axes(ax):
+    ax.set_facecolor('#fbfbfc')
+    ax.tick_params(labelsize=TICK_FS, colors='#333333')
+    for _sp in ax.spines.values():
+        _sp.set_color('#999999')
+        _sp.set_linewidth(0.8)
+    ax.grid(True, alpha=0.3, linestyle='--', linewidth=0.6, color='#adb5bd')
+    ax.set_axisbelow(True)
+
+def _style_legend(ax):
+    _leg = ax.legend(fontsize=LEGEND_FS, loc='best', framealpha=0.95,
+                      facecolor='white', edgecolor='#ced4da', markerscale=1.8)
+    if _leg is not None:
+        _leg.get_frame().set_linewidth(0.8)
+"""
 
     def _preview_domain(self):
         import tempfile, subprocess, sys, math
+        spatial_path = self._DOMAIN_PREVIEW_SPATIAL_PATH
+        time_path = self._DOMAIN_PREVIEW_TIME_PATH
+        _DOMAIN_PREVIEW_STYLE_SETUP = self._DOMAIN_PREVIEW_STYLE_SETUP
+        _DOMAIN_PREVIEW_DPI = self._DOMAIN_PREVIEW_DPI
+        _DOMAIN_PT_SIZE = self._DOMAIN_PT_SIZE
+        _BND_PT_SIZE = self._BND_PT_SIZE
+        _TIME_DOM_PT_SIZE = self._TIME_DOM_PT_SIZE
+        _TIME_BND_PT_SIZE = self._TIME_BND_PT_SIZE
         geom_type = self._current_geometry_type()
         if geom_type not in ("Rectangle", "Disk", "Ellipse", "Triangle", "Polygon", "Cuboid", "Sphere"):
             self.log_box.append(
@@ -5961,6 +6054,10 @@ class MainWindow(QMainWindow):
             sb.valueChanged.connect(self._on_pts_changed)
 
         is_3d_shape = geom_type in ("Cuboid", "Sphere")
+        # Read by _on_preview_done to label the spatial panel's header
+        # correctly ("(x,y,z)" vs "(x,y)") once the background script
+        # finishes -- it has no other way to know which builder ran.
+        self._last_preview_is_3d = is_3d_shape
         if is_3d_shape:
             script = self._build_3d_preview_script(
                 geom_type, t_min, t_max, n_domain, n_boundary, n_initial, dist)
@@ -5981,13 +6078,13 @@ class MainWindow(QMainWindow):
             geom_code = f"dde.geometry.Rectangle([{x_min}, {y_min}], [{x_max}, {y_max}])"
             patch_code = (
                 f"plt.Rectangle(({x_min},{y_min}), {x_max}-{x_min}, {y_max}-{y_min}, "
-                "linewidth=2, edgecolor='#a0c4ff', facecolor='none')"
+                "linewidth=2, edgecolor='#1971c2', facecolor='none')"
             )
             bbox = (x_min, x_max, y_min, y_max)
         elif geom_type == "Disk":
             cx = self.geom_disk_cx.value(); cy = self.geom_disk_cy.value(); r = self.geom_disk_r.value()
             geom_code = f"dde.geometry.Disk([{cx}, {cy}], {r})"
-            patch_code = f"plt.Circle(({cx},{cy}), {r}, linewidth=2, edgecolor='#a0c4ff', facecolor='none')"
+            patch_code = f"plt.Circle(({cx},{cy}), {r}, linewidth=2, edgecolor='#1971c2', facecolor='none')"
             bbox = (cx - r, cx + r, cy - r, cy + r)
         elif geom_type == "Ellipse":
             cx = self.geom_ellipse_cx.value(); cy = self.geom_ellipse_cy.value()
@@ -5996,7 +6093,7 @@ class MainWindow(QMainWindow):
             geom_code = f"dde.geometry.Ellipse([{cx}, {cy}], {a}, {b}, {angle})"
             patch_code = (
                 f"matplotlib.patches.Ellipse(({cx},{cy}), {2*a}, {2*b}, angle={math.degrees(angle)}, "
-                "linewidth=2, edgecolor='#a0c4ff', facecolor='none')"
+                "linewidth=2, edgecolor='#1971c2', facecolor='none')"
             )
             dx = math.sqrt((a * math.cos(angle)) ** 2 + (b * math.sin(angle)) ** 2)
             dy = math.sqrt((a * math.sin(angle)) ** 2 + (b * math.cos(angle)) ** 2)
@@ -6035,7 +6132,7 @@ class MainWindow(QMainWindow):
                 geom_code = f"dde.geometry.Triangle({vlist[0]}, {vlist[1]}, {vlist[2]})"
             else:
                 geom_code = f"dde.geometry.Polygon({vlist})"
-            patch_code = f"plt.Polygon({vlist}, closed=True, linewidth=2, edgecolor='#a0c4ff', facecolor='none')"
+            patch_code = f"plt.Polygon({vlist}, closed=True, linewidth=2, edgecolor='#1971c2', facecolor='none')"
             xs = [v[0] for v in verts]; ys = [v[1] for v in verts]
             bbox = (min(xs), max(xs), min(ys), max(ys))
 
@@ -6069,23 +6166,7 @@ pts = data.train_points()
 t_range = {t_max} - {t_min}
 tol = max(t_range * 0.05, 1e-6)
 
-plt.rcParams['figure.dpi'] = 120
-fig, axes = plt.subplots(1, 2, figsize=(14, 6))
-fig.patch.set_facecolor('#1e1e1e')
-
-for ax in axes:
-    ax.set_facecolor('#252526')
-    ax.tick_params(colors='#c0c0c0')
-    for sp in ax.spines.values(): sp.set_color('#3e3e42')
-
-# The shape outline is a spatial (x,y) patch -- it only makes sense on the
-# left, spatial panel. The right panel's y-axis is time, not y, so drawing
-# the same patch there would show the shape's y-extent as if it were a time
-# range, which is meaningless.
-axes[0].set_xlim({xlim_lo}, {xlim_hi})
-axes[0].set_ylim({ylim_lo}, {ylim_hi})
-shape_patch = {patch_code}
-axes[0].add_patch(shape_patch)
+{_DOMAIN_PREVIEW_STYLE_SETUP}
 
 # Classify points using the geometry's own on_boundary() test -- this works
 # for any 2D shape (circle, ellipse, triangle, polygon, ...), not just an
@@ -6097,31 +6178,41 @@ dom_pts = pts[dom_mask]
 bnd_pts = pts[bnd_mask]
 ic_pts  = pts[ic_mask]
 
-# Left: spatial distribution (x,y) -- domain + boundary only. IC points
-# are t=t_min points that live inside the domain, so overlaying them here
-# just adds clutter on top of the domain cloud; they're already shown
-# clearly in the time panel on the right.
-ax = axes[0]
-if len(dom_pts): ax.scatter(dom_pts[:,0], dom_pts[:,1], s=8, c='#74c0fc', alpha=0.7, label=f'Domain ({{len(dom_pts)}})')
-if len(bnd_pts): ax.scatter(bnd_pts[:,0], bnd_pts[:,1], s=20, c='#f03e3e', alpha=1.0, label=f'Boundary ({{len(bnd_pts)}})')
-ax.set_xlabel('x', color='#e0e0e0', fontsize=11)
-ax.set_ylabel('y', color='#e0e0e0', fontsize=11)
-ax.set_title('{geom_type}: Spatial (x,y) | {dist} | D={n_domain} B={n_boundary} IC={n_initial}', color='#74c0fc', fontsize=10, fontweight='bold')
-ax.legend(fontsize=10, facecolor='#2a2a2a', labelcolor='#e0e0e0', edgecolor='#555', markerscale=1.5)
-
-# Right: time distribution (x vs t)
-ax = axes[1]
-ax.set_xlim({xlim_lo}, {xlim_hi}); ax.set_ylim({t_min}, {t_max})
-if len(dom_pts): ax.scatter(dom_pts[:,0], dom_pts[:,2], s=6, c='#74c0fc', alpha=0.5, label=f'Domain ({{len(dom_pts)}})')
-if len(bnd_pts): ax.scatter(bnd_pts[:,0], bnd_pts[:,2], s=14, c='#f03e3e', alpha=0.9, label=f'Boundary ({{len(bnd_pts)}})')
-if len(ic_pts):  ax.scatter(ic_pts[:,0],  ic_pts[:,2],  s=14, c='#2f9e44', alpha=1.0, label=f'IC ({{len(ic_pts)}})')
-ax.set_xlabel('x', color='#e0e0e0', fontsize=11)
-ax.set_ylabel('t', color='#e0e0e0', fontsize=11)
-ax.set_title(f'Time Distribution (x vs t)\\ntotal={{len(pts)}} points', color='#74c0fc', fontsize=10, fontweight='bold')
-ax.legend(fontsize=10, facecolor='#2a2a2a', labelcolor='#e0e0e0', edgecolor='#555', markerscale=1.5)
+# ── Spatial (x,y) panel -- its own standalone figure/file ──────
+# Domain + boundary only. IC points are t=t_min points that live inside
+# the domain, so overlaying them here just adds clutter on top of the
+# domain cloud; they're already shown clearly in the time panel below.
+fig, ax = plt.subplots(figsize=(7, 6.2))
+_style_axes(ax)
+ax.set_xlim({xlim_lo}, {xlim_hi})
+ax.set_ylim({ylim_lo}, {ylim_hi})
+shape_patch = {patch_code}
+ax.add_patch(shape_patch)
+if len(dom_pts): ax.scatter(dom_pts[:,0], dom_pts[:,1], s={_DOMAIN_PT_SIZE}, c=DOM_COLOR, alpha=0.75, edgecolors='none', label=f'Domain ({{len(dom_pts)}})')
+if len(bnd_pts): ax.scatter(bnd_pts[:,0], bnd_pts[:,1], s={_BND_PT_SIZE}, c=BND_COLOR, alpha=1.0, edgecolors='white', linewidths=0.4, label=f'Boundary ({{len(bnd_pts)}})')
+ax.set_xlabel('x', fontsize=LABEL_FS)
+ax.set_ylabel('y', fontsize=LABEL_FS)
+ax.set_aspect('equal', adjustable='box')
+ax.set_title('{geom_type}  |  {dist}  |  D={n_domain}  B={n_boundary}  IC={n_initial}', fontsize=TITLE_FS, fontweight='bold', pad=12)
+_style_legend(ax)
 plt.tight_layout()
-plt.savefig('/tmp/domain_preview.png', dpi=100, bbox_inches='tight', facecolor='#1e1e1e')
-plt.close()
+plt.savefig({spatial_path!r}, dpi={_DOMAIN_PREVIEW_DPI}, bbox_inches='tight')
+plt.close(fig)
+
+# ── Time distribution (x vs t) panel -- its own standalone figure ──
+fig, ax = plt.subplots(figsize=(7, 6.2))
+_style_axes(ax)
+ax.set_xlim({xlim_lo}, {xlim_hi}); ax.set_ylim({t_min}, {t_max})
+if len(dom_pts): ax.scatter(dom_pts[:,0], dom_pts[:,2], s={_TIME_DOM_PT_SIZE}, c=DOM_COLOR, alpha=0.6, edgecolors='none', label=f'Domain ({{len(dom_pts)}})')
+if len(bnd_pts): ax.scatter(bnd_pts[:,0], bnd_pts[:,2], s={_TIME_BND_PT_SIZE}, c=BND_COLOR, alpha=0.9, edgecolors='white', linewidths=0.3, label=f'Boundary ({{len(bnd_pts)}})')
+if len(ic_pts):  ax.scatter(ic_pts[:,0],  ic_pts[:,2],  s={_TIME_BND_PT_SIZE}, c=IC_COLOR, alpha=1.0, edgecolors='white', linewidths=0.3, label=f'IC ({{len(ic_pts)}})')
+ax.set_xlabel('x', fontsize=LABEL_FS)
+ax.set_ylabel('t', fontsize=LABEL_FS)
+ax.set_title(f'Time Distribution (x vs t) — total={{len(pts)}} points', fontsize=TITLE_FS, fontweight='bold', pad=12)
+_style_legend(ax)
+plt.tight_layout()
+plt.savefig({time_path!r}, dpi={_DOMAIN_PREVIEW_DPI}, bbox_inches='tight')
+plt.close(fig)
 print("DOMAIN_PREVIEW_DONE")
 """
         with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as tf:
@@ -6193,7 +6284,7 @@ print("DOMAIN_PREVIEW_DONE")
                 "_edges = [(0,1),(1,2),(2,3),(3,0),(4,5),(5,6),(6,7),(7,4),(0,4),(1,5),(2,6),(3,7)]\n"
                 "for _i, _j in _edges:\n"
                 "    _p0, _p1 = _corners[_i], _corners[_j]\n"
-                "    ax.plot([_p0[0],_p1[0]], [_p0[1],_p1[1]], [_p0[2],_p1[2]], color='#a0c4ff', linewidth=1.5)\n"
+                "    ax.plot([_p0[0],_p1[0]], [_p0[1],_p1[1]], [_p0[2],_p1[2]], color='#1971c2', linewidth=2.0)\n"
             )
         else:  # Sphere
             cx = self.geom_sphere_cx.value(); cy = self.geom_sphere_cy.value()
@@ -6206,7 +6297,7 @@ print("DOMAIN_PREVIEW_DONE")
                 f"_sx = {cx} + {r}*np.outer(np.cos(_u), np.sin(_v))\n"
                 f"_sy = {cy} + {r}*np.outer(np.sin(_u), np.sin(_v))\n"
                 f"_sz = {cz} + {r}*np.outer(np.ones_like(_u), np.cos(_v))\n"
-                "ax.plot_wireframe(_sx, _sy, _sz, color='#a0c4ff', linewidth=0.5, alpha=0.4, rstride=2, cstride=2)\n"
+                "ax.plot_wireframe(_sx, _sy, _sz, color='#1971c2', linewidth=0.7, alpha=0.5, rstride=2, cstride=2)\n"
             )
 
         bx0, bx1, by0, by1, bz0, bz1 = bbox3
@@ -6216,6 +6307,13 @@ print("DOMAIN_PREVIEW_DONE")
         xlim_lo, xlim_hi = bx0 - pad_x, bx1 + pad_x
         ylim_lo, ylim_hi = by0 - pad_y, by1 + pad_y
         zlim_lo, zlim_hi = bz0 - pad_z, bz1 + pad_z
+
+        spatial_path = self._DOMAIN_PREVIEW_SPATIAL_PATH
+        time_path = self._DOMAIN_PREVIEW_TIME_PATH
+        _DOMAIN_PREVIEW_STYLE_SETUP = self._DOMAIN_PREVIEW_STYLE_SETUP
+        _DOMAIN_PREVIEW_DPI = self._DOMAIN_PREVIEW_DPI
+        _TIME_DOM_PT_SIZE = self._TIME_DOM_PT_SIZE
+        _TIME_BND_PT_SIZE = self._TIME_BND_PT_SIZE
 
         return f"""
 import os
@@ -6240,25 +6338,8 @@ pts = data.train_points()
 t_range = {t_max} - {t_min}
 tol = max(t_range * 0.05, 1e-6)
 
-plt.rcParams['figure.dpi'] = 120
-fig = plt.figure(figsize=(14, 6))
-fig.patch.set_facecolor('#1e1e1e')
-ax  = fig.add_subplot(1, 2, 1, projection='3d')
-ax2 = fig.add_subplot(1, 2, 2)
+{_DOMAIN_PREVIEW_STYLE_SETUP}
 
-for _a in (ax, ax2):
-    _a.set_facecolor('#252526')
-    _a.tick_params(colors='#c0c0c0')
-    for sp in _a.spines.values(): sp.set_color('#3e3e42')
-_pane = (0.145, 0.145, 0.149, 1.0)
-ax.xaxis.set_pane_color(_pane); ax.yaxis.set_pane_color(_pane); ax.zaxis.set_pane_color(_pane)
-
-ax.set_xlim({xlim_lo}, {xlim_hi})
-ax.set_ylim({ylim_lo}, {ylim_hi})
-ax.set_zlim({zlim_lo}, {zlim_hi})
-
-# Shape outline -- box edges for Cuboid, a wireframe sphere for Sphere.
-{outline_code}
 # Classify points using the geometry's own on_boundary() test -- same
 # generalization as the 2D preview, just over (x,y,z) instead of (x,y).
 ic_mask  = pts[:, 3] <= {t_min} + tol
@@ -6268,29 +6349,60 @@ dom_pts = pts[dom_mask]
 bnd_pts = pts[bnd_mask]
 ic_pts  = pts[ic_mask]
 
-# Spatial (3D) panel -- domain + boundary only, same reasoning as the 2D
-# preview: IC points are already shown clearly in the time panel below.
-if len(dom_pts): ax.scatter(dom_pts[:,0], dom_pts[:,1], dom_pts[:,2], s=6, c='#74c0fc', alpha=0.5, label=f'Domain ({{len(dom_pts)}})')
-if len(bnd_pts): ax.scatter(bnd_pts[:,0], bnd_pts[:,1], bnd_pts[:,2], s=16, c='#f03e3e', alpha=1.0, label=f'Boundary ({{len(bnd_pts)}})')
-ax.set_xlabel('x', color='#e0e0e0', fontsize=10)
-ax.set_ylabel('y', color='#e0e0e0', fontsize=10)
-ax.set_zlabel('z', color='#e0e0e0', fontsize=10)
-ax.set_title('{geom_type}: Spatial (x,y,z) | {dist} | D={n_domain} B={n_boundary} IC={n_initial}', color='#74c0fc', fontsize=10, fontweight='bold')
-ax.legend(fontsize=9, facecolor='#2a2a2a', labelcolor='#e0e0e0', edgecolor='#555', markerscale=1.5, loc='upper left')
+# ── Spatial (3D) panel -- its own standalone figure/file ───────
+# Domain + boundary only, same reasoning as the 2D preview: IC points are
+# already shown clearly in the time panel below.
+fig = plt.figure(figsize=(7.2, 6.6))
+ax  = fig.add_subplot(1, 1, 1, projection='3d')
+ax.set_facecolor('#fbfbfc')
+ax.tick_params(labelsize=TICK_FS, colors='#333333')
+_pane = (0.98, 0.98, 0.99, 1.0)
+ax.xaxis.set_pane_color(_pane); ax.yaxis.set_pane_color(_pane); ax.zaxis.set_pane_color(_pane)
+ax.xaxis._axinfo["grid"]["color"] = (0.7, 0.7, 0.7, 0.4)
+ax.yaxis._axinfo["grid"]["color"] = (0.7, 0.7, 0.7, 0.4)
+ax.zaxis._axinfo["grid"]["color"] = (0.7, 0.7, 0.7, 0.4)
 
-# Right: time distribution (x vs t) -- same layout as the 2D preview's
-# right panel, just reading column 3 (t) instead of column 2.
-ax2.set_xlim({xlim_lo}, {xlim_hi}); ax2.set_ylim({t_min}, {t_max})
-if len(dom_pts): ax2.scatter(dom_pts[:,0], dom_pts[:,3], s=6, c='#74c0fc', alpha=0.5, label=f'Domain ({{len(dom_pts)}})')
-if len(bnd_pts): ax2.scatter(bnd_pts[:,0], bnd_pts[:,3], s=14, c='#f03e3e', alpha=0.9, label=f'Boundary ({{len(bnd_pts)}})')
-if len(ic_pts):  ax2.scatter(ic_pts[:,0],  ic_pts[:,3],  s=14, c='#2f9e44', alpha=1.0, label=f'IC ({{len(ic_pts)}})')
-ax2.set_xlabel('x', color='#e0e0e0', fontsize=11)
-ax2.set_ylabel('t', color='#e0e0e0', fontsize=11)
-ax2.set_title(f'Time Distribution (x vs t)\\ntotal={{len(pts)}} points', color='#74c0fc', fontsize=10, fontweight='bold')
-ax2.legend(fontsize=10, facecolor='#2a2a2a', labelcolor='#e0e0e0', edgecolor='#555', markerscale=1.5)
+ax.set_xlim({xlim_lo}, {xlim_hi})
+ax.set_ylim({ylim_lo}, {ylim_hi})
+ax.set_zlim({zlim_lo}, {zlim_hi})
+
+# Shape outline -- box edges for Cuboid, a wireframe sphere for Sphere.
+{outline_code}
+if len(dom_pts): ax.scatter(dom_pts[:,0], dom_pts[:,1], dom_pts[:,2], s=10, c=DOM_COLOR, alpha=0.55, edgecolors='none', label=f'Domain ({{len(dom_pts)}})')
+if len(bnd_pts): ax.scatter(bnd_pts[:,0], bnd_pts[:,1], bnd_pts[:,2], s=26, c=BND_COLOR, alpha=1.0, edgecolors='white', linewidths=0.4, label=f'Boundary ({{len(bnd_pts)}})')
+ax.set_xlabel('x', fontsize=LABEL_FS, labelpad=10)
+ax.set_ylabel('y', fontsize=LABEL_FS, labelpad=10)
+ax.set_zlabel('z', fontsize=LABEL_FS, labelpad=6)
+ax.set_title('{geom_type}  |  {dist}  |  D={n_domain}  B={n_boundary}  IC={n_initial}', fontsize=TITLE_FS, fontweight='bold', pad=16)
+_leg3d = ax.legend(fontsize=LEGEND_FS, loc='upper left', framealpha=0.95, facecolor='white', edgecolor='#ced4da', markerscale=1.8)
+if _leg3d is not None: _leg3d.get_frame().set_linewidth(0.8)
 plt.tight_layout()
-plt.savefig('/tmp/domain_preview.png', dpi=100, bbox_inches='tight', facecolor='#1e1e1e')
-plt.close()
+# pad_inches=0.4 (vs. the default/other panels' plain bbox_inches='tight')
+# -- mplot3d's set_zlabel() sits further outside the axes than Matplotlib's
+# tight-bbox calculation accounts for, so without extra padding here the
+# 'z' axis label gets silently cropped off the right edge of the saved
+# PNG. Confirmed by rendering this panel and inspecting the actual output
+# file before landing this fix -- the label really was being cut off, not
+# just theoretically at risk of it.
+plt.savefig({spatial_path!r}, dpi={_DOMAIN_PREVIEW_DPI}, bbox_inches='tight', pad_inches=0.4)
+plt.close(fig)
+
+# ── Time distribution (x vs t) panel -- its own standalone figure ──
+# Same layout as the 2D preview's time panel, just reading column 3 (t)
+# instead of column 2.
+fig, ax2 = plt.subplots(figsize=(7, 6.2))
+_style_axes(ax2)
+ax2.set_xlim({xlim_lo}, {xlim_hi}); ax2.set_ylim({t_min}, {t_max})
+if len(dom_pts): ax2.scatter(dom_pts[:,0], dom_pts[:,3], s={_TIME_DOM_PT_SIZE}, c=DOM_COLOR, alpha=0.6, edgecolors='none', label=f'Domain ({{len(dom_pts)}})')
+if len(bnd_pts): ax2.scatter(bnd_pts[:,0], bnd_pts[:,3], s={_TIME_BND_PT_SIZE}, c=BND_COLOR, alpha=0.9, edgecolors='white', linewidths=0.3, label=f'Boundary ({{len(bnd_pts)}})')
+if len(ic_pts):  ax2.scatter(ic_pts[:,0],  ic_pts[:,3],  s={_TIME_BND_PT_SIZE}, c=IC_COLOR, alpha=1.0, edgecolors='white', linewidths=0.3, label=f'IC ({{len(ic_pts)}})')
+ax2.set_xlabel('x', fontsize=LABEL_FS)
+ax2.set_ylabel('t', fontsize=LABEL_FS)
+ax2.set_title(f'Time Distribution (x vs t) — total={{len(pts)}} points', fontsize=TITLE_FS, fontweight='bold', pad=12)
+_style_legend(ax2)
+plt.tight_layout()
+plt.savefig({time_path!r}, dpi={_DOMAIN_PREVIEW_DPI}, bbox_inches='tight')
+plt.close(fig)
 print("DOMAIN_PREVIEW_DONE")
 """
 
@@ -6303,21 +6415,37 @@ print("DOMAIN_PREVIEW_DONE")
             self._preview_domain()
     
     def _on_preview_done(self, success):
-        if success and os.path.exists('/tmp/domain_preview.png'):
-            # Split the wide image across both panels
-            from PyQt6.QtGui import QPixmap as _QPix
-            full = _QPix('/tmp/domain_preview.png')
-            w = full.width(); h = full.height()
-            left_half  = full.copy(0,       0, w//2, h)
-            right_half = full.copy(w//2, 0, w//2, h)
-            self.loss_label.setPixmap(left_half.scaled(
-                500, 420, Qt.AspectRatioMode.KeepAspectRatio,
+        spatial_path = self._DOMAIN_PREVIEW_SPATIAL_PATH
+        time_path = self._DOMAIN_PREVIEW_TIME_PATH
+        if success and os.path.exists(spatial_path) and os.path.exists(time_path):
+            # Two independently-rendered files now (see _preview_domain /
+            # _build_3d_preview_script) instead of one wide combined image
+            # pixel-cropped in half -- each panel gets its own clean,
+            # correctly-bbox'd figure, and each has a real file on disk to
+            # point _source_path at, so the existing "💾 Save Figure"
+            # buttons on these same two panels work for Domain Preview
+            # too (previously they'd either show the misleading "No
+            # figure to save yet" message or, worse, silently re-save
+            # whatever unrelated Solve/Restore plot was shown last).
+            self.loss_label.setPixmap(QPixmap(spatial_path).scaled(
+                self.loss_label.width(), self.loss_label.height(),
+                Qt.AspectRatioMode.KeepAspectRatio,
                 Qt.TransformationMode.SmoothTransformation))
-            self.solution_label.setPixmap(right_half.scaled(
-                500, 420, Qt.AspectRatioMode.KeepAspectRatio,
+            self.solution_label.setPixmap(QPixmap(time_path).scaled(
+                self.solution_label.width(), self.solution_label.height(),
+                Qt.AspectRatioMode.KeepAspectRatio,
                 Qt.TransformationMode.SmoothTransformation))
+            self.loss_label._source_path = spatial_path
+            self.solution_label._source_path = time_path
+            _spatial_dims = "(x,y,z)" if getattr(self, '_last_preview_is_3d', False) else "(x,y)"
+            self.loss_header_label.setText(f"Domain: Spatial {_spatial_dims}")
+            self.loss_save_btn.setToolTip("Save the domain preview's spatial panel currently shown")
+            self.solution_header_label.setText("Domain: Time (x,t)")
+            self.solution_save_btn.setToolTip("Save the domain preview's time-distribution panel currently shown")
         else:
             self.loss_label.setText("❌ Preview failed")
+            self.loss_label._source_path = None
+            self.solution_label._source_path = None
     
     _DISP_FONT_CHOICES = [
         "Segoe UI", "Arial", "Helvetica", "Verdana", "Tahoma",
@@ -9301,6 +9429,7 @@ print("ERROR_ANALYSIS_V2_DONE")
             # output while it's in flight.
             self._last_restore_is_param = True
             self._clear_solution_movie()
+            self._reset_plot_headers()
             self.loss_label.setText("⏳ Restoring...")
             self.solution_label.setText("⏳ Restoring...")
             self.loss_label._source_path = None
@@ -9399,6 +9528,7 @@ print("ERROR_ANALYSIS_V2_DONE")
         # above -- same reasons, same fix.
         self._last_restore_is_param = False
         self._clear_solution_movie()
+        self._reset_plot_headers()
         self.loss_label.setText("⏳ Restoring...")
         self.solution_label.setText("⏳ Restoring...")
         self.loss_label._source_path = None
