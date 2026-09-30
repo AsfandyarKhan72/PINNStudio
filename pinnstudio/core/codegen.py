@@ -2676,7 +2676,10 @@ for _pval in _param_values:
                         else:
                             _ea_xt = np.column_stack([_ea_xf, np.full_like(_ea_xf, _ea_tv)])
                         _ea_u_pinns[_ei] = _ea_extract(model.predict(_ea_xt), _ea_sel).flatten()
-                        print(f"  PINN predicted at t={{_ea_tv:.4f}}: {{len(_ea_xf)}} points")
+                        if _is_steady:
+                            print(f"  PINN predicted (steady-state): {{len(_ea_xf)}} points")
+                        else:
+                            print(f"  PINN predicted at t={{_ea_tv:.4f}}: {{len(_ea_xf)}} points")
                 else:
                     # ── Time adaptive: match each GT file to correct step model ──
                     # Reconstruct step intervals from saved models
@@ -2842,8 +2845,13 @@ for _pval in _param_values:
                         _ea_tv, _l2, _mse, _mx, _ma = _ea_metrics[_ei]
                         ax.plot(_xv_s, _gt_s,   color='#4dabf7', linewidth=2.0, linestyle='-',  label='Ground Truth')
                         ax.plot(_xv_s, _pinn_s, color='#ff6b6b', linewidth=2.0, linestyle='--', label='PINN')
-                        ax.set_title(f"t = {{_ea_tv:.3f}}  |  L2 = {{_l2:.2e}}", fontsize=10)
-                        ax.set_xlabel("x"); ax.set_ylabel("u(x,t)"); ax.grid(True, alpha=0.3)
+                        # Steady-state (e.g. a Poisson equation) has no time
+                        # axis at all -- every reference file is really just
+                        # a single snapshot at a placeholder t=0, so showing
+                        # "t = 0.000" here would be meaningless noise rather
+                        # than a real time coordinate.
+                        ax.set_title((f"L2 = {{_l2:.2e}}" if _is_steady else f"t = {{_ea_tv:.3f}}  |  L2 = {{_l2:.2e}}"), fontsize=10)
+                        ax.set_xlabel("x"); ax.set_ylabel("u(x)" if _is_steady else "u(x,t)"); ax.grid(True, alpha=0.3)
                     for _ej in range(_ea_n_t, len(_ea_ax_flat)):
                         _ea_ax_flat[_ej].set_visible(False)
                     handles, labels = _ea_ax_flat[0].get_legend_handles_labels()
@@ -2926,10 +2934,13 @@ for _pval in _param_values:
                             _vmax3_ea = max(max(_f.max() for _f in _pinn_faces_ea), max(_f.max() for _f in _gt_faces_ea))
                             _err_faces_ea = [np.abs(_pf_ea - _gf_ea) for _pf_ea, _gf_ea in zip(_pinn_faces_ea, _gt_faces_ea)]
                             _vmax_err_ea = max(_f.max() for _f in _err_faces_ea)
+                            # See the matching comment on the Line comparison
+                            # title above -- steady-state has no time axis,
+                            # so "t=..." is dropped from every column title.
                             _cols_ea = [
-                                (_pinn_faces_ea, f"PINN  t={{_ea_tv:.3f}}  L2={{_l2:.2e}}", _vmin3_ea, _vmax3_ea, '{config.plot_colormap}'),
-                                (_gt_faces_ea,   f"Ground Truth  t={{_ea_tv:.3f}}",         _vmin3_ea, _vmax3_ea, '{config.plot_colormap}'),
-                                (_err_faces_ea,  f"|Error|  t={{_ea_tv:.3f}}  Max={{_mx:.2e}}", 0.0, _vmax_err_ea, 'inferno'),
+                                (_pinn_faces_ea, (f"PINN  L2={{_l2:.2e}}" if _is_steady else f"PINN  t={{_ea_tv:.3f}}  L2={{_l2:.2e}}"), _vmin3_ea, _vmax3_ea, '{config.plot_colormap}'),
+                                (_gt_faces_ea,   ("Ground Truth" if _is_steady else f"Ground Truth  t={{_ea_tv:.3f}}"),         _vmin3_ea, _vmax3_ea, '{config.plot_colormap}'),
+                                (_err_faces_ea,  (f"|Error|  Max={{_mx:.2e}}" if _is_steady else f"|Error|  t={{_ea_tv:.3f}}  Max={{_mx:.2e}}"), 0.0, _vmax_err_ea, 'inferno'),
                             ]
                             for _col_ea, (_face_vals_ea, _ttl_ea, _vmin_c_ea, _vmax_c_ea, _cmap_c_ea) in enumerate(_cols_ea):
                                 _ax3_ea = fig.add_subplot(_ea_n_t, 3, _ei * 3 + _col_ea + 1, projection='3d')
@@ -2980,10 +2991,13 @@ for _pval in _param_values:
                             _err_b_ea = np.abs(_pinn_b_ea - _gt_b_ea)
                             _vmin3_ea = min(_pinn_b_ea.min(), _gt_b_ea.min())
                             _vmax3_ea = max(_pinn_b_ea.max(), _gt_b_ea.max())
+                            # See the matching comment on the Line comparison
+                            # title above -- steady-state has no time axis,
+                            # so "t=..." is dropped from every column title.
                             _cols_ea = [
-                                (_pinn_b_ea, f"PINN  t={{_ea_tv:.3f}}  L2={{_l2:.2e}}", _vmin3_ea, _vmax3_ea, '{config.plot_colormap}'),
-                                (_gt_b_ea,   f"Ground Truth  t={{_ea_tv:.3f}}",         _vmin3_ea, _vmax3_ea, '{config.plot_colormap}'),
-                                (_err_b_ea,  f"|Error|  t={{_ea_tv:.3f}}  Max={{_mx:.2e}}", None, None, 'inferno'),
+                                (_pinn_b_ea, (f"PINN  L2={{_l2:.2e}}" if _is_steady else f"PINN  t={{_ea_tv:.3f}}  L2={{_l2:.2e}}"), _vmin3_ea, _vmax3_ea, '{config.plot_colormap}'),
+                                (_gt_b_ea,   ("Ground Truth" if _is_steady else f"Ground Truth  t={{_ea_tv:.3f}}"),         _vmin3_ea, _vmax3_ea, '{config.plot_colormap}'),
+                                (_err_b_ea,  (f"|Error|  Max={{_mx:.2e}}" if _is_steady else f"|Error|  t={{_ea_tv:.3f}}  Max={{_mx:.2e}}"), None, None, 'inferno'),
                             ]
                             for _col_ea, (_vals_ea, _ttl_ea, _vmin_c_ea, _vmax_c_ea, _cmap_c_ea) in enumerate(_cols_ea):
                                 _ax3_ea = fig.add_subplot(_ea_n_t, 3, _ei * 3 + _col_ea + 1, projection='3d')
@@ -3039,18 +3053,22 @@ for _pval in _param_values:
                             # Column 0: PINN
                             im0 = axes[_ei][0].contourf(_Xg_ea, _Yg_ea, _u_pinn_grid, levels=40,
                                                          cmap='{config.plot_colormap}', vmin=_vmin_ea, vmax=_vmax_ea)
-                            axes[_ei][0].set_title(f"PINN  t={{_ea_tv:.3f}}  L2={{_l2:.2e}}", fontsize=10)
+                            # Steady-state has no time axis -- see the
+                            # matching comment on the Line comparison title
+                            # above -- so "t=..." is dropped from every
+                            # column title here too.
+                            axes[_ei][0].set_title((f"PINN  L2={{_l2:.2e}}" if _is_steady else f"PINN  t={{_ea_tv:.3f}}  L2={{_l2:.2e}}"), fontsize=10)
                             axes[_ei][0].set_xlabel("x"); axes[_ei][0].set_ylabel("y")
                             fig.colorbar(im0, ax=axes[_ei][0])
                             # Column 1: FEM
                             im1 = axes[_ei][1].contourf(_Xg_ea, _Yg_ea, _u_fem_grid, levels=40,
                                                          cmap='{config.plot_colormap}', vmin=_vmin_ea, vmax=_vmax_ea)
-                            axes[_ei][1].set_title(f"Ground Truth  t={{_ea_tv:.3f}}", fontsize=10)
+                            axes[_ei][1].set_title(("Ground Truth" if _is_steady else f"Ground Truth  t={{_ea_tv:.3f}}"), fontsize=10)
                             axes[_ei][1].set_xlabel("x"); axes[_ei][1].set_ylabel("y")
                             fig.colorbar(im1, ax=axes[_ei][1])
                             # Column 2: Absolute error
                             im2 = axes[_ei][2].contourf(_Xg_ea, _Yg_ea, _u_err_grid, levels={config.plot_levels}, cmap='{config.plot_colormap}')
-                            axes[_ei][2].set_title(f"|Error|  t={{_ea_tv:.3f}}  Max={{_mx:.2e}}", fontsize=10)
+                            axes[_ei][2].set_title((f"|Error|  Max={{_mx:.2e}}" if _is_steady else f"|Error|  t={{_ea_tv:.3f}}  Max={{_mx:.2e}}"), fontsize=10)
                             axes[_ei][2].set_xlabel("x"); axes[_ei][2].set_ylabel("y")
                             fig.colorbar(im2, ax=axes[_ei][2])
                         plt.tight_layout()
@@ -6004,6 +6022,12 @@ with open(os.path.join(ea_dir, "error_metrics.txt"), "w") as f:
             else:
                 mid_slice = ""
                 sort_line = "    order_i = np.argsort(ea_x_refs[i]); xv, gt, pn = ea_x_refs[i][order_i], ea_u_refs[i][order_i], ea_u_pinns[i][order_i]"
+            # Steady-state (e.g. a Poisson equation) has no time axis at
+            # all -- every reference file is really just a single snapshot
+            # at a placeholder t=0, so "t = 0.000" in the title would be
+            # meaningless noise rather than a real time coordinate.
+            _ea_line_title = 'f"L2 = {l2:.2e}"' if is_steady else 'f"t = {tv:.3f}  |  L2 = {l2:.2e}"'
+            _ea_line_ylabel = repr(f"{out_name}(x)") if is_steady else repr(f"{out_name}(x, t)")
             ea_lines.append(f'''
 # ── Line comparison ──
 ncols = min(4, n_t); nrows = (n_t + ncols - 1) // ncols
@@ -6016,8 +6040,8 @@ for i, tv in enumerate(ea_times):
     tv_r, l2, mse, mx, ma = ea_metrics[i]
     ax.plot(xv, gt, color="#4dabf7", linewidth=2.0, label="Ground Truth")
     ax.plot(xv, pn, color="#ff6b6b", linewidth=2.0, linestyle="--", label="PINN")
-    ax.set_title(f"t = {{tv:.3f}}  |  L2 = {{l2:.2e}}", fontsize=10)
-    ax.set_xlabel("x"); ax.set_ylabel("{out_name}(x, t)"); ax.grid(True, alpha=0.3)
+    ax.set_title({_ea_line_title}, fontsize=10)
+    ax.set_xlabel("x"); ax.set_ylabel({_ea_line_ylabel}); ax.grid(True, alpha=0.3)
 for j in range(n_t, len(axf)):
     axf[j].set_visible(False)
 handles, labels = axf[0].get_legend_handles_labels()
@@ -6054,6 +6078,10 @@ plt.savefig(os.path.join(ea_dir, "surface_comparison.png"), dpi={config.plot_dpi
 plt.close()
 print("  Surface comparison saved.")''')
         elif config.ea_do_surface and is_2d:
+            # See the matching comment on the Line comparison title above --
+            # steady-state has no time axis, so "t=..." is dropped here too.
+            _ea_pinn_title = 'f"PINN  L2={l2:.2e}"' if is_steady else 'f"PINN  t={tv:.3f}  L2={l2:.2e}"'
+            _ea_gt_title = '"Ground Truth"' if is_steady else 'f"Ground Truth  t={tv:.3f}"'
             ea_lines.append(f'''
 # ── Surface comparison (2D heatmaps) ──
 from scipy.interpolate import griddata
@@ -6070,9 +6098,9 @@ for i, tv in enumerate(ea_times):
     u_ref_grid = griddata(np.column_stack([ea_x_refs[i], ea_y_refs[i]]), ea_u_refs[i], (Xg_ea, Yg_ea), method="linear", fill_value=0.0)
     u_err_grid = np.abs(u_pinn_grid - u_ref_grid)
     im0 = axes[i][0].contourf(Xg_ea, Yg_ea, u_pinn_grid, levels=40, cmap="{config.plot_colormap}")
-    axes[i][0].set_title(f"PINN  t={{tv:.3f}}  L2={{l2:.2e}}"); fig.colorbar(im0, ax=axes[i][0])
+    axes[i][0].set_title({_ea_pinn_title}); fig.colorbar(im0, ax=axes[i][0])
     im1 = axes[i][1].contourf(Xg_ea, Yg_ea, u_ref_grid, levels=40, cmap="{config.plot_colormap}")
-    axes[i][1].set_title(f"Ground Truth  t={{tv:.3f}}"); fig.colorbar(im1, ax=axes[i][1])
+    axes[i][1].set_title({_ea_gt_title}); fig.colorbar(im1, ax=axes[i][1])
     im2 = axes[i][2].contourf(Xg_ea, Yg_ea, u_err_grid, levels={config.plot_levels}, cmap="{config.plot_colormap}")
     axes[i][2].set_title(f"|Error|  Max={{mx:.2e}}"); fig.colorbar(im2, ax=axes[i][2])
 plt.tight_layout()
@@ -6101,6 +6129,10 @@ print("  Surface comparison saved.")''')
             # to that step's loop iteration) -- the Standard path's own
             # geom_line assignment is what defines `geom` here.
             _ea_geom_ref = "_build_geom()" if use_ta else "geom"
+            # See the matching comment on the Line comparison title above --
+            # steady-state has no time axis, so "t=..." is dropped here too.
+            _ea_pinn_title_3d = 'f"PINN  L2={l2:.2e}"' if is_steady else 'f"PINN  t={tv:.3f}  L2={l2:.2e}"'
+            _ea_gt_title_3d = '"Ground Truth"' if is_steady else 'f"Ground Truth  t={tv:.3f}"'
             ea_lines.append(f'''
 # ── Surface comparison (3D: boundary-point scatter vs reference) ──
 fig = plt.figure(figsize=(15, 4.5 * n_t))
@@ -6115,7 +6147,7 @@ for i, tv in enumerate(ea_times):
     gt_b = ea_u_refs[i][bnd]
 {_ea_3d_predict_line}
     err_b = np.abs(pinn_b - gt_b)
-    cols = [(pinn_b, f"PINN  t={{tv:.3f}}  L2={{l2:.2e}}"), (gt_b, f"Ground Truth  t={{tv:.3f}}"), (err_b, f"|Error|  Max={{mx:.2e}}")]
+    cols = [(pinn_b, {_ea_pinn_title_3d}), (gt_b, {_ea_gt_title_3d}), (err_b, f"|Error|  Max={{mx:.2e}}")]
     for ci, (vals, ttl) in enumerate(cols):
         ax3 = fig.add_subplot(n_t, 3, i * 3 + ci + 1, projection="3d")
         sc = ax3.scatter(bx, by, bz, c=vals, cmap="{config.plot_colormap}" if ci < 2 else "inferno", s=14)
