@@ -186,6 +186,34 @@ class UpdateCheckThread(QThread):
 
 
 # ── Main Window ──────────────────────────────────────────────
+# Every font-family CSS declaration below names a single font (default
+# "Segoe UI", or whatever the user picks in Display Settings -> _DISP_FONT_
+# CHOICES, itself a Windows-centric list). "Segoe UI" only actually exists
+# on Windows; on macOS/Linux, Qt has to substitute *some* font for it, and
+# with no fallback names given in these per-widget stylesheets (unlike the
+# base QWidget stylesheet a few lines below, which did already list
+# 'Arial' as a second choice), that substitution picks whatever generic
+# sans-serif Qt's font matcher lands on -- which can render noticeably
+# wider/larger than "Segoe UI" does on Windows. Since the left control
+# panel packs many fixed pixel-width fields/labels into single rows, wider
+# substituted text pushes up that panel's actual minimum content width,
+# which in turn is what a QSplitter honors as how far its handle can be
+# dragged -- so a font substitution difference on macOS/Linux can plausibly
+# show up as "the app looks bigger" and "the divider won't drag as far
+# right" on those platforms, without either being a deliberate size limit
+# anywhere in this file (there is no setMaximumWidth/setMaximumSize on any
+# of these widgets or splitters). Appending this fallback chain after
+# whatever single family name is configured keeps Windows' exact behavior
+# unchanged (that name still resolves first there) while giving macOS/
+# Linux native-appropriate fonts to fall through to instead of an
+# unpredictable Qt-chosen substitute, ending in the generic 'sans-serif'
+# keyword as a final catch-all.
+_CROSS_PLATFORM_FONT_FALLBACK = (
+    "'Helvetica Neue', 'Helvetica', 'Ubuntu', 'Noto Sans', 'DejaVu Sans', "
+    "'Arial', sans-serif"
+)
+
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -315,7 +343,8 @@ class MainWindow(QMainWindow):
         family = cat.get("family") or defaults.get("family", "Segoe UI")
         size = cat.get("size") or defaults.get("size", 12)
         weight = "bold" if cat.get("bold") else "normal"
-        parts = [f"font-family: '{family}';", f"font-size: {size}px;", f"font-weight: {weight};"]
+        parts = [f"font-family: '{family}', {_CROSS_PLATFORM_FONT_FALLBACK};",
+                 f"font-size: {size}px;", f"font-weight: {weight};"]
         color = (cat.get("color") or "").strip()
         if color:
             parts.append(f"color: {color};")
@@ -357,7 +386,7 @@ class MainWindow(QMainWindow):
     def _apply_theme(self):
         self.setStyleSheet("""
             QMainWindow { background: #002b36; }
-            QWidget { background: #002b36; color: #e0e0e0; font-family: 'Segoe UI', Arial; font-size: 16px; }
+            QWidget { background: #002b36; color: #e0e0e0; font-family: 'Segoe UI', 'Helvetica Neue', 'Helvetica', 'Ubuntu', 'Noto Sans', 'DejaVu Sans', 'Arial', sans-serif; font-size: 16px; }
             QGroupBox {
                 border: 1px solid #c8d2d8;
                 border-radius: 6px;
@@ -1704,7 +1733,8 @@ class MainWindow(QMainWindow):
             defaults = self._DISP_CATEGORY_DEFAULTS.get("button", {})
             family = cat.get("family") or defaults.get("family", "Segoe UI")
             size = round((cat.get("size") or defaults.get("size", 12)) * 1.25)
-            return f"font-family: '{family}'; font-size: {size}px; font-weight: bold;"
+            return (f"font-family: '{family}', {_CROSS_PLATFORM_FONT_FALLBACK}; "
+                    f"font-size: {size}px; font-weight: bold;")
 
         self.solve_btn = QPushButton("▶  Solve")
         self.solve_btn.setMinimumHeight(52)
@@ -6816,7 +6846,7 @@ print("DOMAIN_PREVIEW_DONE")
 
         self.setStyleSheet(f"""
             QMainWindow {{ background: {bg}; }}
-            QWidget {{ background: {bg}; color: {text_color}; font-family: 'Segoe UI', Arial; font-size: {fs}px; }}
+            QWidget {{ background: {bg}; color: {text_color}; font-family: 'Segoe UI', {_CROSS_PLATFORM_FONT_FALLBACK}; font-size: {fs}px; }}
             QGroupBox {{
                 border: 1px solid {panel_border};
                 border-radius: 6px;
