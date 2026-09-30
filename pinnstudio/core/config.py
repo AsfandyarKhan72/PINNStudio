@@ -9,8 +9,8 @@ class PINNConfig:
     rar_cycles: int = 3
     rar_candidates: int = 50000
     rar_add_points: int = 500
-    rar_adam_iters: int = 5000
-    rar_lbfgs_iters: int = 0
+    rar_adam_iters: int = 20000
+    rar_lbfgs_iters: int = 10000
 
     time_adaptive: bool = False
     ta_num_steps: int = 5
@@ -62,6 +62,19 @@ class PINNConfig:
     # Neural network
     layers: List[int] = field(default_factory=lambda: [2, 64, 64, 64, 1])
     activation: str = "tanh"
+    kernel_initializer: str = "Glorot uniform"
+
+    # Optional input/output transform: x_transformed = x_raw * scale + shift
+    # (input, one entry per input dimension) and y_transformed = y_raw *
+    # scale + shift (output, one entry per output component). Disabled by
+    # default -- identity scale=1/shift=0 either way, so enabling with
+    # untouched defaults changes nothing.
+    input_transform_enabled: bool = False
+    input_transform_scale: List[float] = field(default_factory=lambda: [1.0, 1.0])
+    input_transform_shift: List[float] = field(default_factory=lambda: [0.0, 0.0])
+    output_transform_enabled: bool = False
+    output_transform_scale: List[float] = field(default_factory=lambda: [1.0])
+    output_transform_shift: List[float] = field(default_factory=lambda: [0.0])
 
     # Training
     optimizer: str = "adam"
@@ -71,7 +84,7 @@ class PINNConfig:
     loss_weights: List[float] = field(default_factory=lambda: [1.0, 1.0, 1.0, 1.0])
     loss_weight_obs: float = 1.0
     inv_param_log_scale: bool = False
-    inv_param_save: str = "No"
+    inv_param_save: str = "Every 100 iters"
 
     # Inverse PINN
     problem_type: str = "Forward"
@@ -116,10 +129,59 @@ class PINNConfig:
     forward_ic_file: str = ""
     template_type: str = ""
 
+    # Multiple trainable variables (Inverse). JSON-encoded list of
+    # {"name": str, "init": float} dicts, one per trainable variable, in
+    # order (variable 1 first). Empty string means "not set" -- fall back
+    # to the single legacy inverse_param_name/inverse_param_init fields
+    # above for configs saved before this feature existed. All trainable
+    # variables are fit against the same shared measured-data setup below
+    # (one or more files) -- variables never get their own private
+    # dataset, no matter how many of them are being estimated.
+    inverse_variables_json: str = ""
+    # Which model output column the (legacy, single) measured-data file
+    # corresponds to (0-based index into output_names). Defaults to
+    # output 0. Superseded by inverse_obs_files_json below when that is
+    # set; kept as the fallback for configs saved before multi-file
+    # support existed.
+    inverse_obs_output_idx: int = 0
+    # Multiple measured-data files (Inverse). JSON-encoded list of
+    # {"path": str, "output_idx": int, "weight": float} dicts, one per
+    # measured-data file, in order (file 1 first) -- each file becomes
+    # its own PointSetBC observation constraint and its own loss-weight
+    # term. Empty string means "not set" -- fall back to a single entry
+    # built from the legacy inverse_data_file/inverse_obs_output_idx/
+    # loss_weight_obs fields above, so configs saved before this feature
+    # existed keep loading as exactly one measured-data file, unchanged.
+    inverse_obs_files_json: str = ""
+
     # Export
     export_grid_size: int = 101
     export_t_steps: int = 11
     plot_output_idx: int = 0
+    # Optional derived scalar field to plot in the Results panel instead of
+    # a single raw output column -- e.g. "sqrt(u**2+v**2)" for the 1D
+    # Schrodinger template's |h|, built from its two real-valued outputs
+    # u (real part) and v (imaginary part). The expression's variables are
+    # this problem's own output_names, so any future multi-output template
+    # can define its own derived field the same way. Empty string (the
+    # default) keeps the existing plot_output_idx-only behavior exactly as
+    # it was -- this is purely additive.
+    plot_custom_expr: str = ""
+    # Display label for the field above (colorbar/axis label, and the
+    # printed output name) -- falls back to the expression itself when left
+    # blank. Ignored when plot_custom_expr is empty.
+    plot_custom_label: str = ""
+    # 1D "Surface" plot axis orientation (both the Standard and
+    # Time-Adaptive final solution plots): True (the default) puts t on the
+    # x-axis and the spatial domain x on the y-axis; False keeps the
+    # original orientation (x on the x-axis, t on the y-axis). Only affects
+    # the 1D x-t heatmap -- 2D/3D "Surface" plots show spatial snapshots at
+    # fixed times and have no x/t axis choice to make. Defaulting to True
+    # (rather than the pre-v32 False) is a deliberate, user-requested
+    # change to what every 1D "Surface" plot looks like by default, not
+    # just a new opt-in -- unlike plot_custom_expr above, which had to stay
+    # inert-by-default for backward compatibility.
+    plot_swap_xt: bool = True
 
     # L-BFGS
     lbfgs_use_default: bool = True
@@ -133,15 +195,51 @@ class PINNConfig:
     lbfgs_float_type: str = "float32"
     ic_pretrain: bool = False
     ic_pretrain_optimizer: str = "adam"
-    ic_pretrain_iterations: int = 10000
+    ic_pretrain_iterations: int = 20000
     ic_pretrain_num_test: int = 10000
     ic_pretrain_num_initial: int = 1000
-    batch_size: int = 0
+    ic_pretrain_lr: float = 1e-3
+    ic_pretrain_loss: str = "MSE"
     ic_pretrain_restore: bool = False
     ic_pretrain_restore_path: str = ""
     optimizer_scheduler: bool = False
     scheduler_phases: str = ""
     scheduler_same_weights: bool = True
+
+    # Weight decay (L2 regularization on the network). Applies to
+    # whichever network is being trained (main model, IC pre-training,
+    # RAR refinement, every scheduler phase) since DeepXDE sets this at
+    # the network level, not per optimizer call. 0.0 = off (default,
+    # matches all pre-existing behavior). Not compatible with L-BFGS or
+    # NNCG (DeepXDE raises an error if weight_decay > 0 for either) --
+    # validated in the GUI before a run starts, not just left to crash.
+    weight_decay: float = 0.0
+
+    # Training Callbacks (all opt-in, off by default). Applied to the
+    # live "Training Phases" scheduler (and the legacy single/dual-phase
+    # fallback path) -- NOT to IC pre-training or the RAR refinement
+    # sub-loop, which are short, purpose-built inner loops of their own
+    # where early-stopping/point-resampling/checkpointing would fight
+    # their intent rather than help it.
+    cb_early_stopping: bool = False
+    cb_early_stopping_min_delta: float = 0.0
+    cb_early_stopping_patience: int = 2000
+    cb_early_stopping_baseline: str = ""  # blank = None (no baseline)
+    cb_early_stopping_monitor: str = "loss_train"  # or "loss_test"
+    cb_early_stopping_start_from: int = 0  # needs deepxde>=1.12.0, guarded at codegen time
+
+    cb_point_resampler: bool = False
+    cb_point_resampler_period: int = 100
+    cb_point_resampler_pde_points: bool = True
+    cb_point_resampler_bc_points: bool = False
+
+    cb_model_checkpoint: bool = False
+    cb_checkpoint_period: int = 1000
+    cb_checkpoint_save_better_only: bool = True
+    cb_checkpoint_monitor: str = "train loss"  # or "test loss"
+
+    cb_timer: bool = False
+    cb_timer_minutes: float = 60.0
 
     plot_colormap: str = "RdBu_r"
     plot_levels: int = 100
@@ -153,8 +251,271 @@ class PINNConfig:
     plot_vmin: float = -1.0
     plot_vmax: float = 1.0
     plot_linewidth: float = 2.0
+    plot_fps: int = 10
 
     ea_files: str = "[]"
     ea_do_line: bool = True
     ea_do_surface: bool = True
+
+    # Geometry type & 3D domain
+    geometry_type: str = "Rectangle"  # 2D: Rectangle|Disk|Ellipse|Triangle|Polygon ; 3D: Cuboid|Sphere
+    z_min: float = 0.0
+    z_max: float = 1.0
+
+    # Disk / Ellipse / Sphere center
+    geom_center_x: float = 0.5
+    geom_center_y: float = 0.5
+    geom_center_z: float = 0.5
+    geom_radius: float = 0.5
+
+    # Ellipse
+    geom_semi_major: float = 0.5
+    geom_semi_minor: float = 0.3
+    geom_angle: float = 0.0
+
+    # Triangle / Polygon vertices, "x1,y1;x2,y2;..." format
+    geom_triangle_vertices: str = "0,0;1,0;0,1"
+    geom_polygon_vertices: str = "0,0;1,0;1,1;0,1"
+
+    # Shape-aware boundary conditions for non-box geometries (JSON-encoded)
+    bc_boundary_json: str = ""  # Disk/Ellipse/Sphere: one BC group per output
+    bc_edge_json: str = ""      # Triangle/Polygon: one BC group per edge per output
+
+    # Fully-customizable BC builder, used when no Quick Example template is
+    # selected -- a flat, user-authored list of BCs (any DeepXDE BC class,
+    # any location, any output), independent of geometry_type. JSON-encoded
+    # list of dicts; see MainWindow._build_custom_bc_json().
+    custom_bc_json: str = ""
+
+    # Steady-state (time-independent) problems, e.g. the Poisson equation.
+    # When True, the generated script builds a plain dde.data.PDE over the
+    # spatial geometry only -- no GeometryXTime, no time axis on the
+    # network input, no Initial Condition, no Time-Adaptive/RAR (both are
+    # inherently time-based). x_min/x_max/y_min/y_max/z_min/z_max still
+    # define the spatial domain as usual; t_min/t_max/num_initial/
+    # ic_expressions/time_adaptive/adapt_method are all ignored.
+    steady_state: bool = False
+
+    # GPU device selection & memory reservation for the generated training
+    # script. device_index picks which CUDA device to train on (0 = first
+    # GPU, matching all prior behavior -- unchanged default); memory_fraction
+    # is the maximum share of that device's memory PyTorch is allowed to
+    # reserve upfront (0.95 = the prior hardcoded default, also unchanged).
+    # Both are ignored when no CUDA device is available -- the generated
+    # script always falls back to CPU in that case regardless of these.
+    gpu_device_index: int = 0
+    gpu_memory_fraction: float = 0.95
+
+    # Reproducibility. When on (the default), the generated script calls
+    # dde.config.set_random_seed(random_seed) once, right at the start --
+    # this seeds NumPy, PyTorch and Python's own `random` together (that's
+    # what DeepXDE's helper does internally), so point sampling and network
+    # weight initialization are the same every run. Deliberately NOT paired
+    # with torch.backends.cudnn.deterministic=True -- that would make GPU
+    # runs bit-for-bit reproducible too, but costs real training speed, and
+    # speed was judged more valuable than that last mile of exactness here.
+    # 2026 is just a fixed, memorable default -- there's nothing special
+    # about the number itself.
+    use_random_seed: bool = True
+    random_seed: int = 2026
+
+    def validate(self):
+        """Sanity-check the fields that would otherwise either silently
+        produce a degenerate run or crash deep inside DeepXDE/PyTorch with a
+        traceback that gives no hint it was a config problem -- most
+        importantly the ones a hand-edited or corrupted .pinn.json save
+        file could set to something the GUI's own spinboxes/combo boxes
+        would never allow (a negative iteration count, an empty layers
+        list, an inverted domain range, etc.). Returns a list of
+        human-readable problem descriptions; an empty list means the config
+        is safe to hand to codegen. Deliberately not exhaustive -- this
+        catches the failure modes that are easy to hit from a hand-edited
+        file and hard to diagnose from the resulting crash, not every
+        possible misconfiguration."""
+        errors = []
+
+        if not isinstance(self.layers, (list, tuple)) or len(self.layers) < 2:
+            errors.append(
+                "Network layers must be a list of at least 2 sizes (input and "
+                f"output); got {self.layers!r}."
+            )
+        else:
+            for _n in self.layers:
+                if not isinstance(_n, int) or _n < 1:
+                    errors.append(
+                        f"Every network layer size must be a positive integer; "
+                        f"found {_n!r} in layers={self.layers!r}."
+                    )
+                    break
+
+        if self.num_domain <= 0:
+            errors.append(f"Domain points (num_domain) must be positive; got {self.num_domain}.")
+        if self.num_boundary < 0:
+            errors.append(f"Boundary points (num_boundary) cannot be negative; got {self.num_boundary}.")
+        if self.num_initial < 0:
+            errors.append(f"Initial points (num_initial) cannot be negative; got {self.num_initial}.")
+        if self.num_test < 0:
+            errors.append(f"Test points (num_test) cannot be negative; got {self.num_test}.")
+
+        # self.iterations / self.iterations2 ("Phase 1"/"Phase 2 iterations")
+        # are only actually read at training time when the Optimizer
+        # Scheduler is off -- this mirrors codegen.py's own gate for which
+        # iteration source is used (config.optimizer_scheduler and
+        # len(config.scheduler_phases) > 0, see _sched_active throughout
+        # codegen.py). When the scheduler *is* active, those two legacy
+        # fields are never read at all, so unconditionally requiring
+        # self.iterations > 0 here rejected otherwise-valid configs: the
+        # scheduler is ON by default in the GUI (with its own default Adam
+        # + L-BFGS phases, both with a real iteration count), while the
+        # legacy "Phase 1 iterations" spinbox is hidden and defaults to 0
+        # of its own accord. Loading a built-in template happens to also
+        # set that hidden spinbox to a real value as a side effect, so this
+        # only ever surfaced when building a config from scratch without
+        # loading a template first -- PDE/IC/BC filled in, default
+        # scheduler phases showing, yet validate() still failed on a field
+        # that was never going to be used for that run.
+        _sched_active = bool(self.optimizer_scheduler) and bool((self.scheduler_phases or "").strip())
+        if not _sched_active:
+            if self.iterations <= 0:
+                errors.append(f"Phase 1 iterations must be positive; got {self.iterations}.")
+            if self.iterations2 < 0:
+                errors.append(f"Phase 2 iterations cannot be negative; got {self.iterations2}.")
+        if self.learning_rate <= 0:
+            errors.append(f"Learning rate must be positive; got {self.learning_rate}.")
+        if self.weight_decay < 0:
+            errors.append(f"Weight decay cannot be negative; got {self.weight_decay}.")
+
+        if self.problem_dim not in ("1D", "2D", "3D"):
+            errors.append(f"problem_dim must be '1D', '2D', or '3D'; got {self.problem_dim!r}.")
+        if self.problem_type not in ("Forward", "Inverse"):
+            errors.append(f"problem_type must be 'Forward' or 'Inverse'; got {self.problem_type!r}.")
+
+        if self.x_min >= self.x_max:
+            errors.append(f"x_min ({self.x_min}) must be less than x_max ({self.x_max}).")
+        if self.problem_dim in ("2D", "3D") and self.y_min >= self.y_max:
+            errors.append(f"y_min ({self.y_min}) must be less than y_max ({self.y_max}).")
+        if self.problem_dim == "3D" and self.z_min >= self.z_max:
+            errors.append(f"z_min ({self.z_min}) must be less than z_max ({self.z_max}).")
+        if not self.steady_state and self.t_min >= self.t_max:
+            errors.append(f"t_min ({self.t_min}) must be less than t_max ({self.t_max}).")
+
+        if self.num_outputs < 1:
+            errors.append(f"num_outputs must be at least 1; got {self.num_outputs}.")
+        else:
+            _names = [n for n in (self.output_names or "").split(",") if n.strip()]
+            if len(_names) < self.num_outputs:
+                errors.append(
+                    f"output_names ({self.output_names!r}) has fewer entries than "
+                    f"num_outputs ({self.num_outputs})."
+                )
+
+        # JSON-encoded fields: a hand-edited file can put invalid JSON in
+        # any of these, which would otherwise only surface as a confusing
+        # crash the moment codegen tries to json.loads() it.
+        import json as _json_cfg
+        for _field in (
+            "scheduler_phases", "custom_bc_json", "bc_boundary_json",
+            "bc_edge_json", "inverse_variables_json", "inverse_obs_files_json",
+        ):
+            _raw = getattr(self, _field, "") or ""
+            if _raw.strip():
+                try:
+                    _json_cfg.loads(_raw)
+                except (ValueError, TypeError) as _e:
+                    errors.append(f"{_field} is not valid JSON: {_e}")
+
+        # When the scheduler path is what's actually going to train (see
+        # _sched_active above), it needs the same "something will actually
+        # run" guarantee that self.iterations > 0 gave the legacy path --
+        # an empty phase list (every phase removed in the GUI, still
+        # possible with the scheduler left on) or every phase sitting at 0
+        # iterations would otherwise train for 0 steps with no error at all.
+        if _sched_active:
+            try:
+                _phases_cfg = _json_cfg.loads(self.scheduler_phases)
+            except (ValueError, TypeError):
+                _phases_cfg = None  # already reported as invalid JSON above
+            if _phases_cfg is not None:
+                if not isinstance(_phases_cfg, list) or len(_phases_cfg) == 0:
+                    errors.append(
+                        "Optimizer Scheduler is enabled but has no phases "
+                        "configured; add at least one phase, or turn the "
+                        "scheduler off and set Phase 1/Phase 2 iterations "
+                        "instead."
+                    )
+                elif not any(
+                    isinstance(_p, dict) and isinstance(_p.get("iterations"), (int, float))
+                    and _p.get("iterations", 0) > 0
+                    for _p in _phases_cfg
+                ):
+                    errors.append(
+                        "Every configured Optimizer Scheduler phase has 0 "
+                        "iterations; at least one phase needs a positive "
+                        "iteration count for training to do anything."
+                    )
+
+        # ea_files is the one exception: it's encoded with repr()/parsed
+        # with ast.literal_eval (a list of (time, path[, output_selector])
+        # tuples) elsewhere in this codebase, not json.dumps/json.loads --
+        # so it must be checked the same way, not lumped in with the
+        # JSON-encoded fields above (which would reject every legitimate
+        # value, since a Python tuple/None literal isn't valid JSON).
+        _raw_ea = getattr(self, "ea_files", "") or ""
+        if _raw_ea.strip():
+            import ast as _ast_cfg
+            try:
+                _ast_cfg.literal_eval(_raw_ea)
+            except (ValueError, TypeError, SyntaxError) as _e:
+                errors.append(f"ea_files is not valid: {_e}")
+
+        # Inverse mode needs at least one real observed-data file path to
+        # fit against. Without one, codegen.py's _parse_inverse_obs_files()
+        # falls all the way through to an empty inverse_data_file, and the
+        # generated script doesn't fail until deep inside its data loader
+        # tries to read from "" -- an uncaught FileNotFoundError with no
+        # hint the actual problem is an unset observed-data path. This is
+        # reachable from the live GUI today: several built-in templates
+        # substitute a PDE constant for a trainable variable in Inverse
+        # mode (INVERSE_AUTO_CONST) without also auto-seeding a matching
+        # observed-data file (INVERSE_AUTO_VARS/OBS) -- e.g. "1D Heat" --
+        # since Inverse mode isn't gated per-template and no ground-truth
+        # data is bundled for every template. This check mirrors codegen's
+        # own fallback order exactly: prefer inverse_obs_files_json's own
+        # per-row paths, falling back to the legacy single-file
+        # inverse_data_file field only when none of that JSON's rows have
+        # a path set -- so it flags exactly the configs that would
+        # otherwise crash, not ones that legitimately rely on the legacy
+        # field.
+        if self.problem_type == "Inverse":
+            _has_obs_path = False
+            _raw_obs = getattr(self, "inverse_obs_files_json", "") or ""
+            if _raw_obs.strip():
+                try:
+                    _parsed_obs = _json_cfg.loads(_raw_obs)
+                except (ValueError, TypeError):
+                    _parsed_obs = []
+                for _of in (_parsed_obs or []):
+                    if str((_of or {}).get("path") or "").strip():
+                        _has_obs_path = True
+                        break
+            if not _has_obs_path and str(self.inverse_data_file or "").strip():
+                _has_obs_path = True
+            if not _has_obs_path:
+                errors.append(
+                    "Inverse mode needs at least one observed-data file to fit "
+                    "against, but no observation row has a file selected."
+                )
+
+        if self.gpu_device_index < 0:
+            errors.append(f"GPU device index cannot be negative; got {self.gpu_device_index}.")
+        if not (0.0 < self.gpu_memory_fraction <= 1.0):
+            errors.append(
+                f"GPU memory fraction must be greater than 0 and at most 1; "
+                f"got {self.gpu_memory_fraction}."
+            )
+
+        if self.use_random_seed and not isinstance(self.random_seed, int):
+            errors.append(f"Random seed must be an integer; got {self.random_seed!r}.")
+
+        return errors
 

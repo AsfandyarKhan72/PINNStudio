@@ -7,3 +7,4 @@ build/
 !assets/screenshots/*.png
 solution_data/
 venv/
+!assets/Images/**/*.png

@@ -4,6 +4,23 @@ All notable changes to PINNStudio are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.3.0] - 2026-09-30
+
+### Added
+
+- Fisher-KPP walkthrough in the README now includes the generated solution figure, and the hero tagline calls out that solving and visualization both happen entirely within PINNStudio.
+- CI smoke-test workflow now also runs the from-scratch (no-template) config validation regression test.
+
+### Changed
+
+- Widened both panel divider handles (control panel / plots, and Training Log / plots) from 2px to 4px, and reduced the Loss/Solution plot boxes' minimum size, so the dividers have real room to move on laptop-sized windows instead of running out of slack almost immediately.
+- Cross-platform font stylesheets now use a full fallback chain (Helvetica Neue, Ubuntu, Noto Sans, DejaVu Sans, Arial, sans-serif) instead of a single Windows-specific font name, avoiding unpredictable substitute-font metrics on macOS/Linux.
+
+### Fixed
+
+- **A custom PDE built from scratch (no template selected) with the default Optimizer Scheduler enabled failed validation with "Phase 1 iterations must be positive"**, even though the visible scheduler phases had valid iteration counts. Config validation was checking the legacy (hidden, unused-when-scheduler-is-on) iteration fields instead of the active scheduler phases. Validation now checks whichever iteration source is actually active, and separately flags a scheduler with no phases or with all-zero-iteration phases.
+- Both panel splitters could snap fully closed on a small drag past their minimum size instead of stopping there, because `childrenCollapsible` was left at Qt's default of `True`. Both splitters now set `childrenCollapsible(False)`.
+
 ## [1.2.2] - 2026-09-07
 
 ### Fixed
@@ -64,7 +81,8 @@ Initial public release. PINNStudio is a no-code PyQt6 GUI for building, training
 - Residual-based adaptive refinement (RAR) and time-adaptive stepping with transfer learning between time windows.
 - Parametric studies over a chosen parameter.
 - Inverse-problem support for estimating unknown PDE parameters from observation data.
-- Eight built-in Quick Example templates: 1D Heat, 1D Allen-Cahn, 1D Cahn-Hilliard, 2D Heat, 2D Allen-Cahn (Mattey & Wight forms), 2D Cahn-Hilliard (Wight), and an FeCr spinodal-decomposition PINN. - Bundled FEM reference data (`reference_data/`) for seven of the eight templates, so Error Analysis auto-configures against real ground truth out of the box on any machine.
+- Seven built-in Quick Example templates: 1D Heat, 1D Allen-Cahn, 1D Cahn-Hilliard, 2D Heat, 2D Allen-Cahn (Mattey & Wight forms), and 2D Cahn-Hilliard (Wight).
+- Bundled FEM reference data (`reference_data/`) for these templates, so Error Analysis auto-configures against real ground truth out of the box on any machine.
 - Error analysis against reference/ground-truth data (L2, MSE, max error; line and surface comparison plots).
 - Configurable result plotting (colormap, resolution, DPI, colorbar, snapshot count) and solution data export.
 - Live training log streaming with a Stop control.
