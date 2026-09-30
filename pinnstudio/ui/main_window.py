@@ -9313,22 +9313,55 @@ print("ERROR_ANALYSIS_V2_DONE")
             # filled in without the user typing anything.
             if getattr(self, 'restore_mode_combo', None) is not None and self.restore_mode_combo.currentText() == "Inverse Model":
                 import glob as _glob_brm
+                import json as _json_brm
                 run_dir = os.path.dirname(base) if os.path.basename(base) == "solution_results" else base
                 conv_files = sorted(_glob_brm.glob(os.path.join(run_dir, "*_convergence.txt")))
                 if conv_files:
-                    self._set_restore_param_rows(conv_files)
-                    self.log_box.append(f"✅ Auto-detected {len(conv_files)} parameter convergence file(s) in {run_dir}")
+                    # names[i] stays aligned with conv_files[i] (an empty
+                    # string for a file with no usable header), unlike the
+                    # restore_inv_var_names text below which -- to keep its
+                    # own prior behavior -- only ever joins the names that
+                    # were actually found. The aligned version is what lets
+                    # true_by_name below match each row to the right file
+                    # even when some file in the middle lacks a header.
                     names = []
                     for cf in conv_files:
+                        name = ""
                         try:
                             with open(cf) as _cf:
                                 header = _cf.readline().strip().split(",")
                             if len(header) >= 2 and header[1].strip():
-                                names.append(header[1].strip())
+                                name = header[1].strip()
                         except Exception:
                             pass
-                    if names and not self.restore_inv_var_names.text().strip():
-                        self.restore_inv_var_names.setText(",".join(names))
+                        names.append(name)
+
+                    # Auto-fill each row's True-value field from this run's
+                    # own model_config.json ("inverse_variables": [{"name",
+                    # "init", "true"}, ...] -- "true" added specifically for
+                    # this) when available, so the plot/GIF can draw the
+                    # same dashed true-value line the training-time plot
+                    # already does. An older run saved before this field
+                    # existed, or a manually-added variable with no known
+                    # ground truth, simply leaves it blank here too --
+                    # exactly as if the user had left it blank themselves.
+                    true_by_name = {}
+                    try:
+                        with open(self.restore_config_path.text().strip()) as _mcf:
+                            _mc = _json_brm.load(_mcf)
+                        for _iv in _mc.get("inverse_variables", []) or []:
+                            if isinstance(_iv, dict) and _iv.get("name") and _iv.get("true") is not None:
+                                true_by_name[_iv["name"]] = _iv["true"]
+                    except Exception:
+                        pass
+                    true_vals = [true_by_name.get(n) if n else None for n in names]
+
+                    self._set_restore_param_rows(conv_files, true_vals)
+                    self.log_box.append(f"✅ Auto-detected {len(conv_files)} parameter convergence file(s) in {run_dir}")
+                    if any(v is not None for v in true_vals):
+                        self.log_box.append("✅ Auto-filled true parameter value(s) from model_config.json")
+                    if any(names) and not self.restore_inv_var_names.text().strip():
+                        self.restore_inv_var_names.setText(",".join(n for n in names if n))
 
     def _on_browse_restore_config(self):
         f, _ = QFileDialog.getOpenFileName(self, "Select config file", "", "JSON (*.json)")
@@ -9440,13 +9473,23 @@ print("ERROR_ANALYSIS_V2_DONE")
         if folder:
             self.restore_save_path.setText(folder)
 
-    def _add_restore_param_row(self, path=""):
+    def _add_restore_param_row(self, path="", true_val=None):
         """Add one parameter-convergence-file row (Inverse restore's
         Parameter Convergence Plot/Animation viz types). Every row is
         freely removable, including the first -- unlike the trainable-
         variable / measured-data-file row lists elsewhere, there's no
         single legacy field a "primary" row needs to stay aliased to
-        here, so at-least-one-path is simply checked at Restore time."""
+        here, so at-least-one-path is simply checked at Restore time.
+
+        The optional True-value field lets the plot/GIF draw the same
+        dashed true-value reference line the training-time parameter-
+        convergence plot already draws -- these two are otherwise
+        disconnected (a *_convergence.txt file only ever has iteration,
+        value rows, no ground truth), so this has to be supplied here,
+        either typed in directly or auto-filled from the run's own
+        model_config.json when known (see _on_browse_restore_model).
+        Left blank -- the default -- simply skips that reference line,
+        same as an unknown/manually-added variable."""
         row_widget = QWidget()
         row_layout = QHBoxLayout(row_widget)
         row_layout.setContentsMargins(0, 0, 0, 0)
@@ -9456,6 +9499,17 @@ print("ERROR_ANALYSIS_V2_DONE")
         path_edit.setPlaceholderText("Browse for <name>_convergence.txt...")
         path_edit.setFixedHeight(26)
         row_layout.addWidget(path_edit)
+        true_edit = QLineEdit()
+        true_edit.setText("" if true_val is None else str(true_val))
+        true_edit.setPlaceholderText("True value (optional)")
+        true_edit.setFixedHeight(26)
+        true_edit.setFixedWidth(130)
+        true_edit.setToolTip(
+            "Known ground-truth value for this parameter, if any -- draws a "
+            "dashed reference line on the plot/GIF, same as the training-time "
+            "convergence plot. Auto-filled when the restored run's own "
+            "model_config.json recorded it; leave blank to skip the line.")
+        row_layout.addWidget(true_edit)
         browse_btn = QPushButton("Browse")
         browse_btn.setFixedHeight(26); browse_btn.setFixedWidth(65)
         browse_btn.clicked.connect(lambda _checked=False, e=path_edit: self._on_browse_restore_param(e))
@@ -9465,7 +9519,7 @@ print("ERROR_ANALYSIS_V2_DONE")
         remove_btn.setStyleSheet("QPushButton { color: #ff8787; background: transparent; border: none; }")
         row_layout.addWidget(remove_btn)
         self.restore_param_files_layout.addWidget(row_widget)
-        row_data = {'widget': row_widget, 'path': path_edit, 'browse': browse_btn}
+        row_data = {'widget': row_widget, 'path': path_edit, 'true': true_edit, 'browse': browse_btn}
         self.restore_param_rows.append(row_data)
 
         def _remove():
@@ -9475,15 +9529,16 @@ print("ERROR_ANALYSIS_V2_DONE")
         remove_btn.clicked.connect(_remove)
         return row_data
 
-    def _set_restore_param_rows(self, paths):
+    def _set_restore_param_rows(self, paths, true_vals=None):
         for row in list(self.restore_param_rows):
             row['widget'].deleteLater()
         self.restore_param_rows.clear()
         if not paths:
             self._add_restore_param_row()
         else:
-            for p in paths:
-                self._add_restore_param_row(p)
+            true_vals = true_vals if true_vals is not None else [None] * len(paths)
+            for p, tv in zip(paths, true_vals):
+                self._add_restore_param_row(p, tv)
 
     def _on_browse_restore_param(self, target):
         f, _ = QFileDialog.getOpenFileName(self, "Select parameter convergence file", "", "Text files (*.txt)")
@@ -9502,9 +9557,20 @@ print("ERROR_ANALYSIS_V2_DONE")
         if viz_type in getattr(self, '_RESTORE_PARAM_VIZ', []):
             if not save_dir:
                 self.log_box.append("❌ Please select a save directory."); return
-            paths = [r['path'].text().strip() for r in self.restore_param_rows if r['path'].text().strip()]
+            _param_rows_used = [r for r in self.restore_param_rows if r['path'].text().strip()]
+            paths = [r['path'].text().strip() for r in _param_rows_used]
             if not paths:
                 self.log_box.append("❌ Please add at least one parameter convergence .txt file."); return
+            # True-value field is optional and free-typed -- an empty or
+            # unparseable entry just means "no known true value" (same as
+            # leaving it blank), never an error that blocks the restore.
+            true_vals = []
+            for r in _param_rows_used:
+                tv_text = r['true'].text().strip()
+                try:
+                    true_vals.append(float(tv_text) if tv_text else None)
+                except ValueError:
+                    true_vals.append(None)
             combine = self.restore_param_combine_combo.currentText().startswith("Combine")
             log_scale = self.restore_param_log_cb.isChecked()
             animate = (viz_type == "Parameter Convergence Animation (GIF)")
@@ -9530,7 +9596,7 @@ print("ERROR_ANALYSIS_V2_DONE")
             self.solution_label.setText("⏳ Restoring...")
             self.loss_label._source_path = None
             self.solution_label._source_path = None
-            script = self._build_restore_param_script(paths, save_dir, combine, log_scale, animate)
+            script = self._build_restore_param_script(paths, save_dir, combine, log_scale, animate, true_vals)
 
             with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as tf:
                 tf.write(script)
@@ -9867,7 +9933,7 @@ print("ERROR_ANALYSIS_V2_DONE")
         else:
             self.log_box.append("❌ Restore failed — check architecture matches saved model.")
 
-    def _build_restore_param_script(self, paths, save_dir, combine, log_scale, animate):
+    def _build_restore_param_script(self, paths, save_dir, combine, log_scale, animate, true_vals=None):
         """Parameter Convergence Plot/Animation (Inverse restore). Reads
         one or more <name>_convergence.txt files (iteration,<name> header
         then iter,value rows -- exactly what _SaveParamCallback writes
@@ -9880,8 +9946,18 @@ print("ERROR_ANALYSIS_V2_DONE")
         variable's actual value (only the network weights and optimizer
         momentum buffers), so there's nothing for a model restore to add
         here; these text files, written throughout training, are the only
-        place the value's full history exists."""
+        place the value's full history exists.
+
+        `true_vals` -- a list of known ground-truth values parallel to
+        `paths` (None entries where unknown) -- lets both the static plot
+        and the GIF draw the same dashed true-value reference line the
+        training-time param_convergence.png already draws (see codegen.py).
+        These files alone never carry that information (only iteration,
+        value rows), so it has to be supplied from outside: typed in by the
+        user, or auto-filled from the restored run's own model_config.json
+        when it was recorded there (see _on_browse_restore_model)."""
         paths_literal = repr(list(paths))
+        true_vals_literal = repr(list(true_vals) if true_vals is not None else [None] * len(paths))
         combine_literal = repr(bool(combine))
         log_literal = repr(bool(log_scale))
         animate_literal = repr(bool(animate))
@@ -9899,6 +9975,7 @@ import matplotlib.animation as _anim
 import numpy as np
 
 _paths = {paths_literal}
+_true_vals = {true_vals_literal}
 _combine = {combine_literal}
 _log_scale = {log_literal}
 _animate = {animate_literal}
@@ -9929,17 +10006,20 @@ def _load_conv(path):
         name = os.path.splitext(os.path.basename(path))[0].replace("_convergence", "")
     return name, np.array(iters), np.array(vals)
 
+# _true_vals stays index-aligned with _paths (both built together in
+# main_window.py from the same row list), so zip before filtering blanks --
+# each series carries its own true value (or None) straight through.
 series = []
-for _p in _paths:
+for _p, _tv in zip(_paths, _true_vals):
     _p = _p.strip()
     if not _p:
         continue
     try:
-        _s = _load_conv(_p)
-        if len(_s[1]) < 1:
+        _name, _iters, _vals = _load_conv(_p)
+        if len(_iters) < 1:
             print(f"⚠️ {{_p}}: no data rows found, skipping")
             continue
-        series.append(_s)
+        series.append((_name, _iters, _vals, _tv))
     except Exception as e:
         print(f"⚠️ Could not read {{_p}}: {{e}}")
 
@@ -9953,7 +10033,7 @@ def _use_log(vals):
         print("⚠️ Log-scale requested but values aren't all positive -- using linear scale instead.")
     return ok
 
-def _draw_static_ax(ax, name, iters, vals):
+def _draw_static_ax(ax, name, iters, vals, true_val=None):
     final_val = vals[-1]
     if _use_log(vals):
         ax.semilogy(iters, vals, color="#69db7c", linewidth=1.5)
@@ -9962,11 +10042,13 @@ def _draw_static_ax(ax, name, iters, vals):
         ax.plot(iters, vals, color="#69db7c", linewidth=1.5)
         ax.set_ylabel(_ylabel_override or name)
     ax.axhline(y=final_val, color="#ff8787", linestyle="--", alpha=0.5, label=f"Final = {{final_val:.6f}}")
+    if true_val is not None:
+        ax.axhline(y=true_val, color="#ffd43b", linestyle="--", alpha=0.8, label=f"True = {{true_val:.6f}}")
     ax.set_xlabel(_xlabel_override or "Iteration")
     ax.set_title(_title_override or f"Inferred Parameter: {{name}}")
     ax.legend(); ax.grid(True, alpha=0.3)
 
-def _setup_anim_ax(ax, name, iters, vals):
+def _setup_anim_ax(ax, name, iters, vals, true_val=None):
     final_val = vals[-1]
     use_log = _use_log(vals)
     if use_log:
@@ -9976,10 +10058,17 @@ def _setup_anim_ax(ax, name, iters, vals):
         ax.set_ylabel(_ylabel_override or name)
     x_hi = iters.max() if iters.max() > iters.min() else iters.min() + 1
     ax.set_xlim(iters.min(), x_hi)
-    vmin, vmax = vals.min(), vals.max()
+    # Include the true value in the y-range too (not just the logged
+    # trajectory) -- otherwise a run that hasn't fully converged yet can
+    # clip the true-value line right off the animated axes, defeating the
+    # point of drawing it.
+    _range_vals = vals if true_val is None else np.append(vals, true_val)
+    vmin, vmax = _range_vals.min(), _range_vals.max()
     pad = 0.05 * (abs(vmax - vmin) if vmax != vmin else (abs(vmax) + 1))
     ax.set_ylim(vmin - pad, vmax + pad)
     ax.axhline(y=final_val, color="#ff8787", linestyle="--", alpha=0.5, label=f"Final = {{final_val:.6f}}")
+    if true_val is not None:
+        ax.axhline(y=true_val, color="#ffd43b", linestyle="--", alpha=0.8, label=f"True = {{true_val:.6f}}")
     ax.set_xlabel(_xlabel_override or "Iteration")
     ax.set_title(_title_override or f"Inferred Parameter: {{name}}")
     ax.legend(loc="upper right"); ax.grid(True, alpha=0.3)
@@ -9990,17 +10079,17 @@ if not _animate:
     if _combine:
         n = len(series)
         fig, axes = plt.subplots(n, 1, figsize=(6, 3.2 * n), squeeze=False)
-        for i, (name, iters, vals) in enumerate(series):
-            _draw_static_ax(axes[i][0], name, iters, vals)
+        for i, (name, iters, vals, true_val) in enumerate(series):
+            _draw_static_ax(axes[i][0], name, iters, vals, true_val)
         plt.tight_layout()
         out_path = os.path.join({save_dir!r}, "param_convergence_plot.png")
         plt.savefig(out_path, dpi=150)
         plt.close(fig)
         print(f"✅ Parameter convergence plot saved: {{out_path}}")
     else:
-        for name, iters, vals in series:
+        for name, iters, vals, true_val in series:
             fig, ax = plt.subplots(figsize=(6, 3.2))
-            _draw_static_ax(ax, name, iters, vals)
+            _draw_static_ax(ax, name, iters, vals, true_val)
             plt.tight_layout()
             out_path = os.path.join({save_dir!r}, f"{{name}}_convergence_plot.png")
             plt.savefig(out_path, dpi=150)
@@ -10016,10 +10105,10 @@ else:
         n = len(series)
         n_frames = min(max(len(s[1]) for s in series), 120)
         fig, axes = plt.subplots(n, 1, figsize=(6, 3.2 * n), squeeze=False)
-        lines = [_setup_anim_ax(axes[i][0], name, iters, vals) for i, (name, iters, vals) in enumerate(series)]
+        lines = [_setup_anim_ax(axes[i][0], name, iters, vals, true_val) for i, (name, iters, vals, true_val) in enumerate(series)]
         plt.tight_layout()
         def update(frame):
-            for line, (name, iters, vals) in zip(lines, series):
+            for line, (name, iters, vals, true_val) in zip(lines, series):
                 frac = (frame + 1) / n_frames
                 idx = max(1, min(len(iters), int(round(frac * len(iters)))))
                 line.set_data(iters[:idx], vals[:idx])
@@ -10030,10 +10119,10 @@ else:
         plt.close(fig)
         print(f"✅ Parameter convergence animation saved: {{out_path}}")
     else:
-        for name, iters, vals in series:
+        for name, iters, vals, true_val in series:
             n_frames = min(len(iters), 120)
             fig, ax = plt.subplots(figsize=(6, 3.2))
-            line = _setup_anim_ax(ax, name, iters, vals)
+            line = _setup_anim_ax(ax, name, iters, vals, true_val)
             plt.tight_layout()
             def update(frame, iters=iters, vals=vals, line=line, n_frames=n_frames):
                 frac = (frame + 1) / n_frames

@@ -377,12 +377,18 @@ def generate_script(config):
     # this run was Inverse and exactly which trainable variables it had --
     # restoring an Inverse checkpoint needs to recompile with the same
     # number of external_trainable_variables the optimizer was originally
-    # given (their value doesn't matter for this -- only the count, since
-    # neither the .pt file nor model.restore() ever stores/recovers a
-    # trainable variable's actual value, only the network weights).
-    # Empty list for Forward configs, where this is irrelevant.
+    # given (init's own value doesn't matter for that -- only the count,
+    # since neither the .pt file nor model.restore() ever stores/recovers a
+    # trainable variable's actual value, only the network weights). "true"
+    # is recorded too (None when not known) purely so a later Restore's
+    # Parameter Convergence Plot/Animation can auto-fill the same true-value
+    # dashed reference line the training-time plot already draws (see
+    # main_window.py's _on_browse_restore_model auto-detect and
+    # _build_restore_param_script) -- it plays no part in the restore
+    # itself. Empty list for Forward configs, where none of this is
+    # relevant.
     _mc_inv_vars_literal = (
-        repr([{"name": n, "init": i} for n, i, _t in _inv_vars_parsed])
+        repr([{"name": n, "init": i, "true": t} for n, i, t in _inv_vars_parsed])
         if config.problem_type == "Inverse" else "[]"
     )
     _inv_var_names_literal = repr([n for n, _i, _t in _inv_vars_parsed])
