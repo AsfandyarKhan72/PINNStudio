@@ -1897,9 +1897,30 @@ class MainWindow(QMainWindow):
         _rout_layout.setSpacing(5)
         _rout_layout.addWidget(QLabel("Output to plot:"))
         self.restore_output_combo = QComboBox()
-        self.restore_output_combo.addItems(["Output 1 (u)"])
+        # "Custom..." mirrors the live Results panel's own Plot output
+        # selector (see plot_output_combo/_on_plot_output_combo_changed) --
+        # picking it reveals the two fields below instead of a raw output
+        # column, so a restored multi-output model can plot any derived
+        # field of its own outputs (e.g. 1D Schrodinger's |h| =
+        # sqrt(u**2+v**2)) the same way the live Results panel already can,
+        # rather than being limited to one raw output at a time.
+        self.restore_output_combo.addItems(["Output 1 (u)", "Custom..."])
         self.restore_output_combo.setFixedHeight(28)
+        self.restore_output_combo.currentTextChanged.connect(self._on_restore_output_combo_changed)
         _rout_layout.addWidget(self.restore_output_combo)
+        _rout_custom_row = QHBoxLayout()
+        self.restore_custom_expr_input = QLineEdit()
+        self.restore_custom_expr_input.setPlaceholderText("expression, e.g. sqrt(u**2+v**2)")
+        self.restore_custom_expr_input.setFixedHeight(26)
+        self.restore_custom_expr_input.setVisible(False)
+        _rout_custom_row.addWidget(self.restore_custom_expr_input)
+        self.restore_custom_label_input = QLineEdit()
+        self.restore_custom_label_input.setPlaceholderText("label, e.g. |h|")
+        self.restore_custom_label_input.setFixedHeight(26)
+        self.restore_custom_label_input.setFixedWidth(90)
+        self.restore_custom_label_input.setVisible(False)
+        _rout_custom_row.addWidget(self.restore_custom_label_input)
+        _rout_layout.addLayout(_rout_custom_row)
         restore_content_layout.addWidget(self.restore_output_widget)
 
         # Inverse-only: Parameter Convergence Plot/Animation settings.
@@ -2695,6 +2716,16 @@ class MainWindow(QMainWindow):
         _is_custom = (text == "Custom...")
         self.plot_custom_expr_input.setVisible(_is_custom)
         self.plot_custom_label_input.setVisible(_is_custom)
+
+    def _on_restore_output_combo_changed(self, text):
+        """Mirrors _on_plot_output_combo_changed for the Restore panel's
+        own output selector -- see _on_restore (which only reads these two
+        fields while "Custom..." is selected) and _build_restore_script/
+        _build_restore_script_ta (whose own _extract_plot_field helper only
+        evaluates the expression in that case)."""
+        _is_custom = (text == "Custom...")
+        self.restore_custom_expr_input.setVisible(_is_custom)
+        self.restore_custom_label_input.setVisible(_is_custom)
 
 
     def _on_line_plot_settings(self):
@@ -4649,13 +4680,12 @@ class MainWindow(QMainWindow):
             self.restore_output_combo.addItem(f"Output {i+1} ({name})")
             for _r in getattr(self, 'inv_data_rows', []):
                 _r['output_combo'].addItem(f"Output {i+1} ({name})")
-        # Restore's own output picker still always needs one real output
-        # column, never a derived one -- but the measured-data-file rows
-        # rebuilt here get replaced wholesale by the inverse_obs_files_json
-        # restore pass further below anyway (each row re-added via
-        # _add_inverse_data_row, which adds its own "Custom..." item), so
-        # this pass doesn't need to add one for them.
+        # The measured-data-file rows rebuilt here get replaced wholesale by
+        # the inverse_obs_files_json restore pass further below anyway (each
+        # row re-added via _add_inverse_data_row, which adds its own
+        # "Custom..." item), so this pass doesn't need to add one for them.
         self.plot_output_combo.addItem("Custom...")
+        self.restore_output_combo.addItem("Custom...")
 
         # PDE expressions
         pdes = _texts(config.pde_expressions, n_out, "|", config.pde_expression)
@@ -5035,6 +5065,7 @@ class MainWindow(QMainWindow):
             for _r in getattr(self, 'inv_data_rows', []):
                 _r['output_combo'].addItem(f"Output {i+1} ({name})")
         self.plot_output_combo.addItem("Custom...")
+        self.restore_output_combo.addItem("Custom...")
         for _r in getattr(self, 'inv_data_rows', []):
             _r['output_combo'].addItem("Custom...")
             # Re-select "Custom..." (and keep the expression box visible)
@@ -9392,6 +9423,7 @@ print("ERROR_ANALYSIS_V2_DONE")
         for i in range(n_out):
             name = out_names[i] if i < len(out_names) and out_names[i] else f"u{i + 1}"
             self.restore_output_combo.addItem(f"Output {i + 1} ({name})")
+        self.restore_output_combo.addItem("Custom...")
 
     def _detect_restore_ta_steps(self, model_path):
         """If `model_path` lives inside a '.../time_adaptive_steps/
@@ -9650,7 +9682,16 @@ print("ERROR_ANALYSIS_V2_DONE")
         model_path  = self.restore_model_path.text().strip()
         config_path = self.restore_config_path.text().strip()
         optimizer   = self.restore_optimizer_combo.currentData()
-        output_idx  = self.restore_output_combo.currentIndex()
+        # "Custom..." mirrors the live Results panel's own Plot output
+        # selector (see plot_output_combo) -- output_idx falls back to 0 in
+        # that case (never actually used for indexing: _build_restore_script/
+        # _build_restore_script_ta's _extract_plot_field only reads it when
+        # custom_expr is empty), and the expression/label are read from the
+        # two fields _on_restore_output_combo_changed reveals.
+        _is_custom_restore = (self.restore_output_combo.currentText() == "Custom...")
+        custom_expr  = self.restore_custom_expr_input.text().strip() if _is_custom_restore else ""
+        custom_label = self.restore_custom_label_input.text().strip() if _is_custom_restore else ""
+        output_idx  = 0 if _is_custom_restore else self.restore_output_combo.currentIndex()
         t_steps     = self.restore_tsteps_spin.value()
 
         if not model_path:
@@ -9723,9 +9764,9 @@ print("ERROR_ANALYSIS_V2_DONE")
         _use_ta_restore = len(_ta_steps_for_restore) >= 2 and (not _is_anim_viz or self.restore_ta_combine_cb.isChecked())
         try:
             if _use_ta_restore:
-                script = self._build_restore_script_ta(_ta_steps_for_restore, cfg, optimizer, viz_type, output_idx, t_steps, save_dir)
+                script = self._build_restore_script_ta(_ta_steps_for_restore, cfg, optimizer, viz_type, output_idx, t_steps, save_dir, custom_expr, custom_label)
             else:
-                script = self._build_restore_script(model_path, cfg, optimizer, viz_type, output_idx, t_steps, save_dir)
+                script = self._build_restore_script(model_path, cfg, optimizer, viz_type, output_idx, t_steps, save_dir, custom_expr, custom_label)
         except Exception as e:
             self.log_box.append(f"❌ Could not build the restore script from this config: {e}")
             self.restore_btn.setEnabled(True)
@@ -9768,32 +9809,49 @@ print("ERROR_ANALYSIS_V2_DONE")
                 # always, since every write site (auto-config and the manual
                 # Error Analysis dialog) has stored 3-tuples since that patch.
                 # This restore-and-visualize path only ever predicts a single
-                # chosen output (output_idx, picked in the Restore panel above),
-                # so rather than building out the full per-group multi-output
-                # report the main Error Analysis paths have, a file is included
-                # here only if it belongs to that same output (selector is None
-                # -- the implicit-default/single-output case -- or an int
-                # matching output_idx exactly); a custom-expression [expr,
-                # label] selector or a named file for a different output is
-                # correctly excluded rather than silently compared against the
-                # wrong prediction.
-                matching_files = [
-                    (t, f) for t, f, sel in ea['files']
-                    if (sel is None or sel == output_idx)
-                    and t_min_restore - 1e-10 <= t <= t_max_restore + 1e-10
-                ]
+                # chosen field (output_idx, or -- since the Restore panel's own
+                # "Custom..." option -- a derived custom_expr), so rather than
+                # building out the full per-group multi-output report the main
+                # Error Analysis paths have, a file is included here only if it
+                # belongs to that same field: when Custom is selected, only a
+                # [expr, label] selector whose expr matches custom_expr exactly
+                # (comparing a derived field's reference data against a
+                # DIFFERENT prediction, raw or derived, would silently compare
+                # the wrong physical quantity); otherwise, same as before this
+                # option existed, selector is None (the implicit-default/
+                # single-output case) or an int matching output_idx exactly --
+                # a [expr, label] selector is excluded in that branch too, same
+                # reasoning in reverse.
+                if custom_expr:
+                    matching_files = [
+                        (t, f) for t, f, sel in ea['files']
+                        if isinstance(sel, (list, tuple)) and len(sel) >= 1
+                        and str(sel[0]).strip() == custom_expr
+                        and t_min_restore - 1e-10 <= t <= t_max_restore + 1e-10
+                    ]
+                else:
+                    matching_files = [
+                        (t, f) for t, f, sel in ea['files']
+                        if (sel is None or sel == output_idx)
+                        and t_min_restore - 1e-10 <= t <= t_max_restore + 1e-10
+                    ]
                 if matching_files:
                     self.log_box.append(f"📊 Error analysis: {len(matching_files)} reference files match t=[{t_min_restore:.4f}, {t_max_restore:.4f}]")
                     is_2d = cfg.get('problem_dim', '1D') == '2D'
                     is_3d = cfg.get('problem_dim', '1D') == '3D'
+                    _ea_out_name = (
+                        (custom_label or custom_expr) if custom_expr
+                        else cfg.get('output_names', 'u').split(',')[output_idx].strip()
+                    )
                     script += self._build_restore_ea_script(
                         matching_files, save_dir, is_2d,
                         ea.get('do_line', True), ea.get('do_surface', True),
                         cfg.get('x_min', 0.0), cfg.get('x_max', 1.0),
                         cfg.get('y_min', 0.0), cfg.get('y_max', 1.0),
-                        cfg.get('output_names', 'u').split(',')[output_idx].strip(),
+                        _ea_out_name,
                         viz_settings,
                         is_3d=is_3d, output_idx=output_idx,
+                        custom_expr=custom_expr,
                         output_names=cfg.get('output_names', 'u'),
                     )
                 else:
@@ -10139,7 +10197,7 @@ print("RESTORE_DONE")
 """
         return script
 
-    def _build_restore_script(self, model_path, cfg, optimizer, viz_type, output_idx, t_steps, save_dir):
+    def _build_restore_script(self, model_path, cfg, optimizer, viz_type, output_idx, t_steps, save_dir, custom_expr="", custom_label=""):
         viz_settings = getattr(self, '_restore_viz_settings', {})
         colormap = viz_settings.get('colormap', 'RdBu_r')
         surface_time = viz_settings.get('surface_time', cfg.get('t_max', 1.0))
@@ -10167,7 +10225,17 @@ print("RESTORE_DONE")
         is_3d = cfg.get("problem_dim", "1D") == "3D"
         loss_type = cfg.get("loss_type", "MSE")
         out_names = cfg.get("output_names", "u").split(",")
-        out_name = out_names[output_idx].strip() if output_idx < len(out_names) else "u"
+        # Optional derived scalar field (e.g. "sqrt(u**2+v**2)" for 1D
+        # Schrodinger's |h|), same "Custom..." mechanism as the live Results
+        # panel's own plot_custom_expr -- see _extract_plot_field, spliced
+        # into the generated script below, which is what actually evaluates
+        # it at predict time instead of indexing a single raw output column.
+        _custom_expr_val = (custom_expr or "").strip()
+        _custom_label_val = (custom_label or "").strip()
+        if _custom_expr_val:
+            out_name = _custom_label_val or _custom_expr_val
+        else:
+            out_name = out_names[output_idx].strip() if output_idx < len(out_names) else "u"
 
         # Inverse models were compiled with one or more external_trainable_
         # variables (D, k, ...) added to the optimizer as an extra parameter
@@ -10248,6 +10316,30 @@ y_vals = np.linspace({y_min}, {y_max}, 100)
 z_vals = np.linspace({z_min}, {z_max}, 100)
 is_2d  = {str(is_2d)}
 is_3d  = {str(is_3d)}
+
+# Predicted field: a raw output column (output_idx, matching the Restore
+# panel's own "Output to plot" selector) or -- when "Custom..." is picked
+# there instead -- a NumPy expression over all of this model's outputs,
+# same math namespace and mechanism as the live Results panel's own
+# _extract_plot_field (codegen.py). Every model.predict(...) call below goes
+# through this instead of indexing a fixed column directly.
+_restore_custom_expr = {_custom_expr_val!r}
+_restore_output_names = {[n.strip() for n in out_names]!r}
+_RESTORE_MATH_NS = {{
+    "sin": np.sin, "cos": np.cos, "tan": np.tan,
+    "sinh": np.sinh, "cosh": np.cosh, "tanh": np.tanh,
+    "arcsin": np.arcsin, "arccos": np.arccos, "arctan": np.arctan,
+    "exp": np.exp, "log": np.log, "log10": np.log10,
+    "sqrt": np.sqrt, "abs": np.abs, "ceil": np.ceil, "floor": np.floor,
+    "pi": np.pi,
+}}
+def _extract_plot_field(pred):
+    if _restore_custom_expr:
+        ns = {{**_RESTORE_MATH_NS, "np": np}}
+        for _i, _n in enumerate(_restore_output_names):
+            ns[_n] = pred[:, _i]
+        return np.asarray(eval(_restore_custom_expr, ns))
+    return pred[:, {output_idx}]
 """
 
         if viz_type == "Surface":
@@ -10298,7 +10390,7 @@ if is_3d:
     _face_preds3 = []
     for _fX3, _fY3, _fZ3 in _faces3:
         _fpts3 = np.column_stack([_fX3.ravel(), _fY3.ravel(), _fZ3.ravel(), np.full(_fX3.size, {surface_time})])
-        _face_preds3.append(model.predict(_fpts3)[:, {output_idx}].reshape(_fX3.shape))
+        _face_preds3.append(_extract_plot_field(model.predict(_fpts3)).reshape(_fX3.shape))
     if {auto_range}:
         _pv_min3 = min(_f.min() for _f in _face_preds3)
         _pv_max3 = max(_f.max() for _f in _face_preds3)
@@ -10323,7 +10415,7 @@ if is_3d:
 elif is_2d:
     Xg, Yg = np.meshgrid(x_vals, y_vals)
     XYT = np.column_stack([Xg.ravel(), Yg.ravel(), np.full(Xg.size, {surface_time})])
-    pred = model.predict(XYT)[:, {output_idx}].reshape(res, res)
+    pred = _extract_plot_field(model.predict(XYT)).reshape(res, res)
     fig, ax = plt.subplots(figsize=(7, 5))
     im = ax.contourf(Xg, Yg, pred, levels={levels}, cmap="{colormap}", {vrange})
     if {show_colorbar}: fig.colorbar(im, ax=ax)
@@ -10333,7 +10425,7 @@ else:
     t_vals = np.linspace({t_min}, {t_max}, res)
     X, T = np.meshgrid(x_vals, t_vals)
     XT   = np.vstack([X.ravel(), T.ravel()]).T
-    pred = model.predict(XT)[:, {output_idx}].reshape(res, res)
+    pred = _extract_plot_field(model.predict(XT)).reshape(res, res)
     fig, ax = plt.subplots(figsize=(7, 5))
     # Swapping which of X/T is passed first -- no reshape of pred needed,
     # see the matching comment on the main Results panel's own 1D Surface
@@ -10369,7 +10461,7 @@ for i, tv in enumerate(t_steps_vals):
         xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, tv)])
     else:
         xt = np.column_stack([x_vals, np.full_like(x_vals, tv)])
-    u_line = model.predict(xt)[:, {output_idx}].flatten()
+    u_line = _extract_plot_field(model.predict(xt)).flatten()
     ax.plot(x_vals, u_line, color=colors[i], linewidth={linewidth}, label=f"t={{tv:.3f}}")
 ax.set_xlabel({_xlabel_line!r}); ax.set_ylabel({_ylabel_line!r})
 ax.set_title({_title_line!r})
@@ -10396,7 +10488,7 @@ for tv in t_frames:
         xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, tv)])
     else:
         xt = np.column_stack([x_vals, np.full_like(x_vals, tv)])
-    all_u.append(model.predict(xt)[:, {output_idx}].flatten())
+    all_u.append(_extract_plot_field(model.predict(xt)).flatten())
 u_min = min(u.min() for u in all_u) 
 u_max = max(u.max() for u in all_u)
 fig, ax = plt.subplots(figsize=(7, 4))
@@ -10470,7 +10562,7 @@ if is_3d:
         _frame_faces = []
         for _fX3a, _fY3a, _fZ3a in _faces3a:
             _fpts3a = np.column_stack([_fX3a.ravel(), _fY3a.ravel(), _fZ3a.ravel(), np.full(_fX3a.size, tv)])
-            _frame_faces.append(model.predict(_fpts3a)[:, {output_idx}].reshape(_fX3a.shape))
+            _frame_faces.append(_extract_plot_field(model.predict(_fpts3a)).reshape(_fX3a.shape))
         all_frames.append(_frame_faces)
     v_min = min(_f.min() for _frame in all_frames for _f in _frame)
     v_max = max(_f.max() for _frame in all_frames for _f in _frame)
@@ -10502,7 +10594,7 @@ else:
         Xg, Yg = np.meshgrid(x_anim, y_anim)
         for tv in t_frames:
             XYT = np.column_stack([Xg.ravel(), Yg.ravel(), np.full(Xg.size, tv)])
-            pred = model.predict(XYT)[:, {output_idx}].reshape(80, 80)
+            pred = _extract_plot_field(model.predict(XYT)).reshape(80, 80)
             all_frames.append((Xg, Yg, pred))
     else:
         # Same no-reshape-of-pred swap as the static Surface option above
@@ -10513,7 +10605,7 @@ else:
         X_anim, T_anim = np.meshgrid(x_anim, t_anim)
         for tv in t_frames:
             XT = np.vstack([X_anim.ravel(), np.full(X_anim.size, tv)]).T
-            pred = model.predict(XT)[:, {output_idx}].reshape(80, 80)
+            pred = _extract_plot_field(model.predict(XT)).reshape(80, 80)
             if {swap_xt}:
                 all_frames.append((T_anim, X_anim, pred))
             else:
@@ -10542,7 +10634,7 @@ else:
         script += '\nprint("RESTORE_DONE")\n'
         return script
 
-    def _build_restore_script_ta(self, ta_steps, cfg, optimizer, viz_type, output_idx, t_steps, save_dir):
+    def _build_restore_script_ta(self, ta_steps, cfg, optimizer, viz_type, output_idx, t_steps, save_dir, custom_expr="", custom_label=""):
         """Time-Adaptive-aware counterpart to _build_restore_script.
 
         Restoring a SINGLE Time-Adaptive step's .pt file and evaluating it
@@ -10608,7 +10700,12 @@ else:
         is_2d = cfg.get("problem_dim", "1D") == "2D"
         is_3d = cfg.get("problem_dim", "1D") == "3D"
         out_names = cfg.get("output_names", "u").split(",")
-        out_name = out_names[output_idx].strip() if output_idx < len(out_names) else "u"
+        _custom_expr_val = (custom_expr or "").strip()
+        _custom_label_val = (custom_label or "").strip()
+        if _custom_expr_val:
+            out_name = _custom_label_val or _custom_expr_val
+        else:
+            out_name = out_names[output_idx].strip() if output_idx < len(out_names) else "u"
 
         t_min = ta_steps[0]['t0']
         t_max = ta_steps[-1]['t1']
@@ -10704,6 +10801,26 @@ os.makedirs({save_dir!r}, exist_ok=True)
 x_vals = np.linspace({x_min}, {x_max}, 100)
 y_vals = np.linspace({y_min}, {y_max}, 100)
 z_vals = np.linspace({z_min}, {z_max}, 100)
+
+# See the matching comment in _build_restore_script -- same mechanism, same
+# math namespace, just spliced into this Time-Adaptive-aware script instead.
+_restore_custom_expr = {_custom_expr_val!r}
+_restore_output_names = {[n.strip() for n in out_names]!r}
+_RESTORE_MATH_NS = {{
+    "sin": np.sin, "cos": np.cos, "tan": np.tan,
+    "sinh": np.sinh, "cosh": np.cosh, "tanh": np.tanh,
+    "arcsin": np.arcsin, "arccos": np.arccos, "arctan": np.arctan,
+    "exp": np.exp, "log": np.log, "log10": np.log10,
+    "sqrt": np.sqrt, "abs": np.abs, "ceil": np.ceil, "floor": np.floor,
+    "pi": np.pi,
+}}
+def _extract_plot_field(pred):
+    if _restore_custom_expr:
+        ns = {{**_RESTORE_MATH_NS, "np": np}}
+        for _i, _n in enumerate(_restore_output_names):
+            ns[_n] = pred[:, _i]
+        return np.asarray(eval(_restore_custom_expr, ns))
+    return pred[:, {output_idx}]
 """
 
         if viz_type == "Surface":
@@ -10746,7 +10863,7 @@ if is_3d:
     _face_preds3 = []
     for _fX3, _fY3, _fZ3 in _faces3:
         _fpts3 = np.column_stack([_fX3.ravel(), _fY3.ravel(), _fZ3.ravel(), np.full(_fX3.size, {surface_time})])
-        _face_preds3.append(model.predict(_fpts3)[:, {output_idx}].reshape(_fX3.shape))
+        _face_preds3.append(_extract_plot_field(model.predict(_fpts3)).reshape(_fX3.shape))
     if {auto_range}:
         _pv_min3 = min(_f.min() for _f in _face_preds3)
         _pv_max3 = max(_f.max() for _f in _face_preds3)
@@ -10773,7 +10890,7 @@ elif is_2d:
     model = _ta_model_for_t({surface_time})
     Xg, Yg = np.meshgrid(x_vals, y_vals)
     XYT = np.column_stack([Xg.ravel(), Yg.ravel(), np.full(Xg.size, {surface_time})])
-    pred = model.predict(XYT)[:, {output_idx}].reshape(res, res)
+    pred = _extract_plot_field(model.predict(XYT)).reshape(res, res)
     fig, ax = plt.subplots(figsize=(7, 5))
     im = ax.contourf(Xg, Yg, pred, levels={levels}, cmap="{colormap}", {vrange})
     if {show_colorbar}: fig.colorbar(im, ax=ax)
@@ -10792,7 +10909,7 @@ else:
     for _ri, _tv in enumerate(t_vals):
         _ta_m = _ta_model_for_t(_tv)
         XT_row = np.column_stack([x_vals, np.full_like(x_vals, _tv)])
-        pred[_ri, :] = _ta_m.predict(XT_row)[:, {output_idx}].flatten()
+        pred[_ri, :] = _extract_plot_field(_ta_m.predict(XT_row)).flatten()
     fig, ax = plt.subplots(figsize=(7, 5))
     if {swap_xt}:
         im = ax.contourf(T, X, pred, levels={levels}, cmap="{colormap}", {vrange})
@@ -10826,7 +10943,7 @@ for i, tv in enumerate(t_steps_vals):
         xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, tv)])
     else:
         xt = np.column_stack([x_vals, np.full_like(x_vals, tv)])
-    u_line = _ta_m.predict(xt)[:, {output_idx}].flatten()
+    u_line = _extract_plot_field(_ta_m.predict(xt)).flatten()
     ax.plot(x_vals, u_line, color=colors[i], linewidth={linewidth}, label=f"t={{tv:.3f}}")
 ax.set_xlabel({_xlabel_line!r}); ax.set_ylabel({_ylabel_line!r})
 ax.set_title({_title_line!r})
@@ -10854,7 +10971,7 @@ for tv in t_frames:
         xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, tv)])
     else:
         xt = np.column_stack([x_vals, np.full_like(x_vals, tv)])
-    all_u.append(_ta_m.predict(xt)[:, {output_idx}].flatten())
+    all_u.append(_extract_plot_field(_ta_m.predict(xt)).flatten())
 u_min = min(u.min() for u in all_u)
 u_max = max(u.max() for u in all_u)
 fig, ax = plt.subplots(figsize=(7, 4))
@@ -10919,7 +11036,7 @@ if is_3d:
         _frame_faces = []
         for _fX3a, _fY3a, _fZ3a in _faces3a:
             _fpts3a = np.column_stack([_fX3a.ravel(), _fY3a.ravel(), _fZ3a.ravel(), np.full(_fX3a.size, tv)])
-            _frame_faces.append(_ta_m.predict(_fpts3a)[:, {output_idx}].reshape(_fX3a.shape))
+            _frame_faces.append(_extract_plot_field(_ta_m.predict(_fpts3a)).reshape(_fX3a.shape))
         all_frames.append(_frame_faces)
     v_min = min(_f.min() for _frame in all_frames for _f in _frame)
     v_max = max(_f.max() for _frame in all_frames for _f in _frame)
@@ -10952,7 +11069,7 @@ else:
         for tv in t_frames:
             _ta_m = _ta_model_for_t(tv)
             XYT = np.column_stack([Xg.ravel(), Yg.ravel(), np.full(Xg.size, tv)])
-            pred = _ta_m.predict(XYT)[:, {output_idx}].reshape(80, 80)
+            pred = _extract_plot_field(_ta_m.predict(XYT)).reshape(80, 80)
             all_frames.append((Xg, Yg, pred))
     else:
         t_anim = np.linspace({t_min}, {t_max}, 80)
@@ -10960,7 +11077,7 @@ else:
         for tv in t_frames:
             _ta_m = _ta_model_for_t(tv)
             XT = np.column_stack([x_anim, np.full_like(x_anim, tv)])
-            pred_row = _ta_m.predict(XT)[:, {output_idx}].flatten()
+            pred_row = _extract_plot_field(_ta_m.predict(XT)).flatten()
             pred = np.tile(pred_row, (80, 1))
             if {swap_xt}:
                 all_frames.append((T_anim, X_anim, pred))
