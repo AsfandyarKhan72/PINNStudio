@@ -12,7 +12,7 @@
 </p>
 
 <p align="center">
-  <em>One PDE, three dimensions — the same panel drives all of them.</em>
+  <em>One PDE, three dimensions — the same panel drives all of them, solved and visualized entirely within PINNStudio.</em>
 </p>
 
 <table>
@@ -780,7 +780,7 @@ with $D = 0.01$, $r = 1$, a localized initial bump, and no-flux (Neumann) bounda
 7. **Solve.** Click **Solve** and watch the Training Log stream progress; the loss and solution plots populate once training finishes. Try the axis-swap option in Plot Settings on the resulting Surface plot — it's the same option described under [Configurable result plotting](#analysis--output).
 8. **Error Analysis (optional).** Since this isn't a bundled template, there's no reference data pre-loaded — Error Analysis is entirely optional here, but if you have your own reference solution (from a separate FEM/FD solver, say), point the Error Analysis dialog at it the same way the built-in templates do automatically.
 
-*[solution figure placeholder — Fisher-KPP front spreading over time]*
+![Fisher-KPP — PINN solution, population front spreading over time](assets/Images/Fisher-KPP.png)
 
 From here, the same eight steps apply to essentially any PDE expressible with the derivative syntax under [Free-form, multi-output PDE editor](#problem-setup) — swap in your own residual, domain, and conditions.
 
