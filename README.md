@@ -18,20 +18,19 @@
 <table>
 <tr>
 <td width="33%" align="center">
-<img src="assets/results/1d_dimension_demo.gif" alt="PINNStudio — 1D PINN solution animated over time" width="100%">
-<sub><strong>1D</strong> — <code>(x, t)</code></sub>
+<img src="assets/Images/Top_GIFs/1D_Burger.gif" alt="PINNStudio — 1D Burgers PINN solution animated over time" width="100%">
+<sub><strong>1D</strong> — <code>(x, t)</code> — Burgers</sub>
 </td>
 <td width="33%" align="center">
-<img src="assets/results/2d_dimension_demo.gif" alt="PINNStudio — 2D PINN solution animated over time" width="100%">
-<sub><strong>2D</strong> — <code>(x, y, t)</code></sub>
+<img src="assets/Images/Top_GIFs/2D_Allen_Cahn_Wight.gif" alt="PINNStudio — 2D Allen-Cahn (Wight & Zhao) PINN solution animated over time" width="100%">
+<sub><strong>2D</strong> — <code>(x, y, t)</code> — Allen-Cahn (Wight & Zhao)</sub>
 </td>
 <td width="33%" align="center">
-<img src="assets/results/3d_dimension_demo.gif" alt="PINNStudio — 3D PINN solution animated over time" width="100%">
-<sub><strong>3D</strong> — <code>(x, y, z, t)</code></sub>
+<img src="assets/Images/Top_GIFs/3D_Heat.gif" alt="PINNStudio — 3D Heat PINN solution animated over time" width="100%">
+<sub><strong>3D</strong> — <code>(x, y, z, t)</code> — Heat</sub>
 </td>
 </tr>
 </table>
-<p align="center"><em>[figure placeholder — one short animated result per dimension, swapped in once final assets are ready]</em></p>
 
 <p align="center">
   <strong><a href="https://asfandyarkhan72.github.io/PINNStudio/">Website</a></strong> &nbsp;·&nbsp;
@@ -48,7 +47,6 @@
 - [Quick Install](#quick-install)
 - [Overview](#overview)
 - [Demo Video](#demo-video)
-- [Screenshots](#screenshots)
 - [Features](#features)
 - [Repository Structure](#repository-structure)
 - [Quick Start](#quick-start)
@@ -119,31 +117,6 @@ The goal is to make physics-informed machine learning accessible to researchers 
 
 *Click to watch a full walkthrough of the PDE setup panel on YouTube.*
 
-## Screenshots
-
-<table>
-<tr>
-<td width="50%">
-<img src="assets/screenshots/pde_builder.png" alt="PINNStudio — PDE, domain, and collocation point setup" width="100%">
-<p align="center"><em>Problem setup: PDE residual, domain, and collocation points.</em></p>
-</td>
-<td width="50%">
-<img src="assets/screenshots/training_panel.png" alt="PINNStudio — network, training schedule, and adaptive training controls" width="100%">
-<p align="center"><em>Network architecture, multi-phase optimizer schedule, loss weights, and adaptive training.</em></p>
-</td>
-</tr>
-<tr>
-<td width="50%">
-<img src="assets/screenshots/3d_setup.png" alt="PINNStudio — 3D domain and geometry setup" width="100%">
-<p align="center"><em>[figure placeholder] 3D problem setup — Cuboid/Sphere geometry and domain bounds.</em></p>
-</td>
-<td width="50%">
-<img src="assets/screenshots/restore_panel.png" alt="PINNStudio — Restore and Visualize panel" width="100%">
-<p align="center"><em>[figure placeholder] Restore & Visualize — reloading a checkpoint without retraining.</em></p>
-</td>
-</tr>
-</table>
-
 ## Features
 
 ### Problem Setup
@@ -191,16 +164,16 @@ Domain, boundary, initial, and test point counts are all independently configura
 <table>
 <tr>
 <td width="33%" align="center">
-<img src="assets/screenshots/domain_preview_2d_rectangle.png" alt="PINNStudio — 2D domain preview, Rectangle geometry" width="100%">
-<sub><em>[figure placeholder]</em> 2D preview — Rectangle</sub>
+<img src="assets/Images/View_Domain_Pictures/2D_Rectangle_combined.png" alt="PINNStudio — 2D domain preview, Rectangle geometry" width="100%">
+<sub>2D preview — Rectangle</sub>
 </td>
 <td width="33%" align="center">
-<img src="assets/screenshots/domain_preview_2d_disk.png" alt="PINNStudio — 2D domain preview, Disk geometry" width="100%">
-<sub><em>[figure placeholder]</em> 2D preview — Disk</sub>
+<img src="assets/Images/View_Domain_Pictures/2D_Disk_combined.png" alt="PINNStudio — 2D domain preview, Disk geometry" width="100%">
+<sub>2D preview — Disk</sub>
 </td>
 <td width="33%" align="center">
-<img src="assets/screenshots/domain_preview_3d_cuboid.png" alt="PINNStudio — 3D domain preview, Cuboid geometry" width="100%">
-<sub><em>[figure placeholder]</em> 3D preview — Cuboid</sub>
+<img src="assets/Images/View_Domain_Pictures/3D_Cuboid_combined.png" alt="PINNStudio — 3D domain preview, Cuboid geometry" width="100%">
+<sub>3D preview — Cuboid</sub>
 </td>
 </tr>
 </table>
@@ -469,7 +442,11 @@ $$\Large \frac{\partial u}{\partial t} = 0.4\frac{\partial^2 u}{\partial x^2}, \
 - **Reference data:** bundled numerical solution (no external source)
 - **GUI recipe:** Dimension → 1D · Quick Examples → **1D Heat**
 
-![1D Heat solution](assets/results/1d_heat_solution.png)
+![1D Heat — PINN vs Ground Truth, Error Analysis surface comparison](assets/Images/1D-Heat/surface_comparison.png)
+
+*Inverse mode* — same template, switched to **Inverse**, recovering the diffusivity coefficient (fixed at $0.4$ in Forward mode above) as an unknown parameter; the live convergence plot below shows the estimate settling onto its true value during training:
+
+![1D Heat inverse parameter convergence animation](assets/Images/1D-Heat/param_convergence_animation.gif)
 
 </details>
 
@@ -488,11 +465,13 @@ where $\gamma_1 = 0.0001$ and $\gamma_2 = 5$.
 - **Time-Adaptive default:** on — $t \in [0,1]$ split into 4 steps of 0.25, L-BFGS transfer learning between steps
 - **GUI recipe:** Dimension → 1D · Quick Examples → **1D Allen-Cahn**
 
-![1D Allen-Cahn solution](assets/results/1d_allen_cahn_solution.png)
+![1D Allen-Cahn — PINN vs Ground Truth, Error Analysis surface comparison](assets/Images/1D-AllenCahn/surface_comparison.png)
 
-*Inverse mode* — same template, switched to **Inverse**, jointly recovering both $\gamma_1$ (diffusion) and $\gamma_2$ (reaction) as unknown parameters; the live convergence plot below shows each estimate settling onto its true value during training:
+![1D Allen-Cahn — line comparison against reference data](assets/Images/1D-AllenCahn/line_comparison.png)
 
-![1D Allen-Cahn inverse parameter convergence](assets/results/1d_allen_cahn_inverse.png)
+*Inverse mode* — same template, switched to **Inverse**, jointly recovering both $\gamma_1$ (diffusion) and $\gamma_2$ (reaction) as unknown parameters; the live convergence animation below shows each estimate settling onto its true value during training:
+
+![1D Allen-Cahn inverse parameter convergence animation](assets/Images/1D-AllenCahn/param_convergence_animation.gif)
 
 </details>
 
@@ -510,13 +489,17 @@ $$\Large \frac{\partial u}{\partial t} + u\frac{\partial u}{\partial x} = \frac{
 
 A shock forms near $x = 0$ as $t \to 1$; this template uses a larger fixed collocation count to resolve it rather than adaptive refinement.
 
-*[solution figure placeholder]*
+![1D Burgers — PINN vs Ground Truth, Error Analysis surface comparison](assets/Images/1D-Burgers/surface_comparison.png)
+
+![1D Burgers — line comparison against reference data](assets/Images/1D-Burgers/line_comparison.png)
 
 *Inverse mode* — same template, switched to **Inverse**, jointly recovering both coefficients of Raissi, Perdikaris & Karniadakis (2019)'s data-driven-discovery form of this equation, Appendix B, eq. B.1 — see [References](#references):
 
 $$\Large \frac{\partial u}{\partial t} + \lambda_1 u\frac{\partial u}{\partial x} - \lambda_2\frac{\partial^2 u}{\partial x^2} = 0$$
 
-with true values $\lambda_1 = 1.0$ and $\lambda_2 = 0.01/\pi$. $\lambda_1$'s initial guess starts at $0.1$ rather than $1.0$, since $1.0$ is already its true value.
+with true values $\lambda_1 = 1.0$ and $\lambda_2 = 0.01/\pi$. $\lambda_1$'s initial guess starts at $0.1$ rather than $1.0$, since $1.0$ is already its true value. The live convergence animation below shows both estimates settling onto their true values during training:
+
+![1D Burgers inverse parameter convergence animation](assets/Images/1D-Burgers/param_convergence_animation.gif)
 
 </details>
 
@@ -542,7 +525,11 @@ $x \in [-5, 5]$, $t \in [0, \pi/2]$
 
 The quantity plotted by default is $|h| = \sqrt{u^2+v^2}$ (a custom derived output), matching Figure 1 of the paper — not $u$ or $v$ individually, since neither alone is physically meaningful.
 
-*[solution figure placeholder]*
+![1D Schrödinger — line comparison against reference data](assets/Images/1D-Schrodinger/line_comparison.png)
+
+*Inverse mode* — same template, switched to **Inverse**, recovering the dispersion coefficient (fixed at $\frac{1}{2}$ in Forward mode above) as an unknown parameter; the live convergence plot below shows the estimate settling onto its true value during training:
+
+![1D Schrödinger inverse parameter convergence](assets/Images/1D-Schrodinger/param_convergence.png)
 
 </details>
 
@@ -560,7 +547,15 @@ $$\Large \frac{\partial u}{\partial t} = 0.4\left(\frac{\partial^2 u}{\partial x
 - **Geometry:** Rectangle
 - **GUI recipe:** Dimension → 2D · Quick Examples → **2D Heat**
 
-*[solution figure placeholder]*
+![2D Heat — PINN vs Ground Truth, Error Analysis surface comparison](assets/Images/2D-Heat/surface_comparison.png)
+
+*Restore & Visualize* — the trained model restored from its saved checkpoint and re-animated without retraining:
+
+![2D Heat — restored solution animation](assets/Images/2D-Heat/restored_animation_2D_Heat.gif)
+
+*Inverse mode* — same template, switched to **Inverse**, recovering the diffusivity coefficient (fixed at $0.4$ in Forward mode above) as an unknown parameter; the live convergence animation below shows the estimate settling onto its true value during training:
+
+![2D Heat inverse parameter convergence animation](assets/Images/2D-Heat/param_convergence_animation.gif)
 
 </details>
 
@@ -579,9 +574,15 @@ where $c_1^2 = 0.0001$ and $c_2 = 1$.
 - **Time-Adaptive default:** on — $t \in [0,1]$ split into 4 steps of 0.25, L-BFGS transfer learning between steps
 - **GUI recipe:** Dimension → 2D · Quick Examples → **2D Allen-Cahn (Mattey & Ghosh)**
 
-*[solution figure placeholder]*
+![2D Allen-Cahn (Mattey & Ghosh) — PINN vs Ground Truth, Error Analysis surface comparison](assets/Images/2D_Allen_Cahn_Mattey/surface_comparison.png)
 
-*Inverse mode* — same template, switched to **Inverse**, jointly recovering both $c_1^2$ (interfacial-thickness-squared) and $c_2$ (reaction) as unknown parameters; $c_2$'s initial guess starts at $0.1$ rather than $1.0$, since $1.0$ is already its true value.
+*Restore & Visualize* — the trained model restored from its saved checkpoint and re-animated without retraining:
+
+![2D Allen-Cahn (Mattey & Ghosh) — restored solution animation](assets/Images/2D_Allen_Cahn_Mattey/restored_animation.gif)
+
+*Inverse mode* — same template, switched to **Inverse**, jointly recovering both $c_1^2$ (interfacial-thickness-squared) and $c_2$ (reaction) as unknown parameters; $c_2$'s initial guess starts at $0.1$ rather than $1.0$, since $1.0$ is already its true value. The live convergence animation below shows both estimates settling onto their true values during training:
+
+![2D Allen-Cahn (Mattey & Ghosh) inverse parameter convergence animation](assets/Images/2D_Allen_Cahn_Mattey/param_convergence_animation.gif)
 
 </details>
 
@@ -600,13 +601,19 @@ where $\lambda = 10$ and $\varepsilon = 0.025$, matching the paper's own values 
 - **Time-Adaptive default:** on — $t \in [0,10]$ is a wide window for a single pass, so this template splits it into 10 steps of 1 (`0→1, 1→2, ..., 9→10`), L-BFGS transfer learning between steps
 - **GUI recipe:** Dimension → 2D · Quick Examples → **2D Allen-Cahn (Wight & Zhao)**
 
-*[solution figure placeholder]*
+![2D Allen-Cahn (Wight & Zhao) — PINN vs Ground Truth, Error Analysis surface comparison](assets/Images/2D_AllenCahn-Wight/surface_comparison.png)
+
+*Restore & Visualize* — the trained model restored from its saved checkpoint and re-animated without retraining:
+
+![2D Allen-Cahn (Wight & Zhao) — restored solution animation](assets/Images/2D_AllenCahn-Wight/restored_animation.gif)
 
 *Inverse mode* — same template, switched to **Inverse**, jointly recovering the two coefficients exactly as they appear in the PDE box — the reaction-term coefficient $\lambda$ and the lumped diffusion-term coefficient $\lambda\varepsilon^2$ (not $\varepsilon$ on its own):
 
 $$\Large \frac{\partial u}{\partial t} = (\lambda\varepsilon^2)\left(\frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2}\right) - \lambda(u^3 - u)$$
 
-with true values $\lambda = 10$ and $\lambda\varepsilon^2 = 0.00625$.
+with true values $\lambda = 10$ and $\lambda\varepsilon^2 = 0.00625$. The live convergence animation below shows both estimates settling onto their true values during training:
+
+![2D Allen-Cahn (Wight & Zhao) inverse parameter convergence animation](assets/Images/2D_AllenCahn-Wight/param_convergence_animation.gif)
 
 </details>
 
@@ -630,7 +637,35 @@ $(x, y) \in [0, 1]^2$, $t \in [0, 1]$
 
 This template reproduces the paper's own PDE, domain, and initial/boundary conditions with PINNStudio's standard soft-constrained loss and plain MLP network — not the paper's own sparse-data augmentation or hard-constrained output layer, which are outside this template's scope.
 
-*[solution figure placeholder]*
+PINN solution animated over time, for each of the two coupled outputs:
+
+<table>
+<tr>
+<td width="50%" align="center">
+<img src="assets/Images/2D_Burgers/solution_plot_u.gif" alt="2D Burgers (Mathias) — U solution animated over time" width="100%">
+<sub><strong>U</strong></sub>
+</td>
+<td width="50%" align="center">
+<img src="assets/Images/2D_Burgers/solution_plot_v.gif" alt="2D Burgers (Mathias) — V solution animated over time" width="100%">
+<sub><strong>V</strong></sub>
+</td>
+</tr>
+</table>
+
+Error Analysis — PINN vs Ground Truth, for each output:
+
+<table>
+<tr>
+<td width="50%" align="center">
+<img src="assets/Images/2D_Burgers/surface_comparison_u.png" alt="2D Burgers (Mathias) — U surface comparison" width="100%">
+<sub><strong>U</strong></sub>
+</td>
+<td width="50%" align="center">
+<img src="assets/Images/2D_Burgers/surface_comparison_v.png" alt="2D Burgers (Mathias) — V surface comparison" width="100%">
+<sub><strong>V</strong></sub>
+</td>
+</tr>
+</table>
 
 *Inverse mode* — same template, switched to **Inverse**, recovering the shared viscosity $\nu$, true value $0.01/\pi$.
 
@@ -649,7 +684,7 @@ $$\Large -\frac{\partial^2 u}{\partial x^2} - \frac{\partial^2 u}{\partial y^2} 
 
 The re-entrant corner at the origin produces a solution singularity that's a standard stress-test for numerical solvers, PINNs included.
 
-*[solution figure placeholder]*
+![2D Poisson (L-Shape) — PINN vs Ground Truth, Error Analysis surface comparison](assets/Images/2D-Poisson-L-Shaped/surface_comparison.png)
 
 </details>
 
@@ -666,7 +701,7 @@ $$\Large -\frac{\partial^2 u}{\partial x^2} - \frac{\partial^2 u}{\partial y^2} 
 
 A companion to the L-Shape template above, on a smooth (curved, non-singular) boundary instead.
 
-*[solution figure placeholder]*
+![2D Poisson (Disk) — PINN vs Ground Truth, Error Analysis surface comparison](assets/Images/2D-Poisson-Disk-Shaped/surface_comparison.png)
 
 </details>
 
@@ -688,7 +723,15 @@ $$\Large \frac{\partial u}{\partial t} = 0.4\left(\frac{\partial^2 u}{\partial x
 
 Time-Adaptive Training is fully supported for this template if you turn it on — see the note on 3D grid resolution under [Time-Adaptive training](#training) in Features before picking a large "IC grid resolution" value.
 
-*[solution figure placeholder]*
+![3D Heat solution surface](assets/Images/3D_Heat/3D_Heat_Solution_Surface.png)
+
+*Restore & Visualize* — the trained model restored from its saved checkpoint and re-animated without retraining:
+
+![3D Heat — restored solution animation](assets/Images/3D_Heat/restored_animation.gif)
+
+*Inverse mode* — same template, switched to **Inverse**, recovering the diffusivity coefficient (fixed at $0.4$ in Forward mode above) as an unknown parameter; the live convergence animation below shows the estimate settling onto its true value during training:
+
+![3D Heat inverse parameter convergence animation](assets/Images/3D_Heat/param_convergence_animation.gif)
 
 </details>
 
@@ -703,7 +746,7 @@ $$\Large -\frac{\partial^2 u}{\partial x^2} - \frac{\partial^2 u}{\partial y^2} 
 - **Geometry:** Sphere, center $(0,0,0)$, radius $1$
 - **GUI recipe:** Dimension → 3D · Quick Examples → **3D Poisson (Sphere)**
 
-*[solution figure placeholder]*
+![3D Poisson (Sphere) — PINN vs Ground Truth, Error Analysis surface comparison](assets/Images/3D-Poisson-Sphere/surface_comparison.png)
 
 </details>
 
