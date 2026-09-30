@@ -50,3 +50,4 @@ jobs:
           python tests/test_templates.py
           python tests/test_config_options.py
           python tests/test_export_parity.py
+          python tests/test_v56_no_template_solve.py
