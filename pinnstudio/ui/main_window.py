@@ -2252,14 +2252,27 @@ class MainWindow(QMainWindow):
         self.loss_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.loss_label.setText("📉 Loss plot")
         self.loss_label.setStyleSheet("border: 1px solid #3e3e42; border-radius: 6px; color: #505080; background: #252526;")
-        self.loss_label.setMinimumSize(500, 450)
+        # Was 500x450 each (1000px combined, just for these two boxes) --
+        # on a laptop-class window (e.g. a 13" MacBook's ~1440-logical-point
+        # width), that alone left the whole right side needing >1000px
+        # minimum, which in turn left almost no slack for the control-panel
+        # <-> plots splitter to actually move: confirmed by measuring this
+        # app's own minimumSizeHint() at 1022px wide for the right side as
+        # a whole. The saved plot image is scaled to fit this box either
+        # way (see the .scaled(...) calls where loss_path/solution_path get
+        # loaded), so shrinking the minimum doesn't crop or distort
+        # anything -- it just lets the box (and so the window, and so the
+        # splitter) go smaller when there isn't 1000+px of laptop screen to
+        # spare, while it's still free to grow as large as the window
+        # allows once there is room.
+        self.loss_label.setMinimumSize(340, 300)
         self.loss_label._source_path = None
 
         self.solution_label = QLabel()
         self.solution_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.solution_label.setText("🗺 Solution plot")
         self.solution_label.setStyleSheet("border: 1px solid #3e3e42; border-radius: 6px; color: #505080; background: #252526;")
-        self.solution_label.setMinimumSize(500, 450)
+        self.solution_label.setMinimumSize(340, 300)
         self.solution_label._source_path = None
 
         # Each figure gets its own small header (title + a "save this
