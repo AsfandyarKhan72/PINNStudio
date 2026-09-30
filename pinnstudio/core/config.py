@@ -357,10 +357,29 @@ class PINNConfig:
         if self.num_test < 0:
             errors.append(f"Test points (num_test) cannot be negative; got {self.num_test}.")
 
-        if self.iterations <= 0:
-            errors.append(f"Phase 1 iterations must be positive; got {self.iterations}.")
-        if self.iterations2 < 0:
-            errors.append(f"Phase 2 iterations cannot be negative; got {self.iterations2}.")
+        # self.iterations / self.iterations2 ("Phase 1"/"Phase 2 iterations")
+        # are only actually read at training time when the Optimizer
+        # Scheduler is off -- this mirrors codegen.py's own gate for which
+        # iteration source is used (config.optimizer_scheduler and
+        # len(config.scheduler_phases) > 0, see _sched_active throughout
+        # codegen.py). When the scheduler *is* active, those two legacy
+        # fields are never read at all, so unconditionally requiring
+        # self.iterations > 0 here rejected otherwise-valid configs: the
+        # scheduler is ON by default in the GUI (with its own default Adam
+        # + L-BFGS phases, both with a real iteration count), while the
+        # legacy "Phase 1 iterations" spinbox is hidden and defaults to 0
+        # of its own accord. Loading a built-in template happens to also
+        # set that hidden spinbox to a real value as a side effect, so this
+        # only ever surfaced when building a config from scratch without
+        # loading a template first -- PDE/IC/BC filled in, default
+        # scheduler phases showing, yet validate() still failed on a field
+        # that was never going to be used for that run.
+        _sched_active = bool(self.optimizer_scheduler) and bool((self.scheduler_phases or "").strip())
+        if not _sched_active:
+            if self.iterations <= 0:
+                errors.append(f"Phase 1 iterations must be positive; got {self.iterations}.")
+            if self.iterations2 < 0:
+                errors.append(f"Phase 2 iterations cannot be negative; got {self.iterations2}.")
         if self.learning_rate <= 0:
             errors.append(f"Learning rate must be positive; got {self.learning_rate}.")
         if self.weight_decay < 0:
@@ -404,6 +423,36 @@ class PINNConfig:
                     _json_cfg.loads(_raw)
                 except (ValueError, TypeError) as _e:
                     errors.append(f"{_field} is not valid JSON: {_e}")
+
+        # When the scheduler path is what's actually going to train (see
+        # _sched_active above), it needs the same "something will actually
+        # run" guarantee that self.iterations > 0 gave the legacy path --
+        # an empty phase list (every phase removed in the GUI, still
+        # possible with the scheduler left on) or every phase sitting at 0
+        # iterations would otherwise train for 0 steps with no error at all.
+        if _sched_active:
+            try:
+                _phases_cfg = _json_cfg.loads(self.scheduler_phases)
+            except (ValueError, TypeError):
+                _phases_cfg = None  # already reported as invalid JSON above
+            if _phases_cfg is not None:
+                if not isinstance(_phases_cfg, list) or len(_phases_cfg) == 0:
+                    errors.append(
+                        "Optimizer Scheduler is enabled but has no phases "
+                        "configured; add at least one phase, or turn the "
+                        "scheduler off and set Phase 1/Phase 2 iterations "
+                        "instead."
+                    )
+                elif not any(
+                    isinstance(_p, dict) and isinstance(_p.get("iterations"), (int, float))
+                    and _p.get("iterations", 0) > 0
+                    for _p in _phases_cfg
+                ):
+                    errors.append(
+                        "Every configured Optimizer Scheduler phase has 0 "
+                        "iterations; at least one phase needs a positive "
+                        "iteration count for training to do anything."
+                    )
 
         # ea_files is the one exception: it's encoded with repr()/parsed
         # with ast.literal_eval (a list of (time, path[, output_selector])

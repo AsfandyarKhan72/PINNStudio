@@ -113,7 +113,7 @@ The goal is to make physics-informed machine learning accessible to researchers 
 
 ## Demo Video
 
-[![PINNStudio demo - setting up a PDE](https://img.youtube.com/vi/Ap-0VRwFbgE/maxresdefault.jpg)](https://youtu.be/Ap-0VRwFbgE)
+[![PINNStudio demo - setting up a PDE](https://img.youtube.com/vi/lxSJTJvU45Q/maxresdefault.jpg)](https://youtu.be/lxSJTJvU45Q)
 
 *Click to watch a full walkthrough of the PDE setup panel on YouTube.*
 
