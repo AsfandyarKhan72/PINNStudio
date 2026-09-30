@@ -472,7 +472,7 @@ class MainWindow(QMainWindow):
                 font-family: 'Courier New', monospace;
                 font-size: 11px;
             }
-            QSplitter::handle { background: #3e3e42; width: 2px; }
+            QSplitter::handle { background: #3e3e42; width: 4px; }
             QMenuBar { background: #252526; color: #c0c0c0; border-bottom: 1px solid #3e3e42; }
             QMenuBar::item:selected { background: #3e3e42; }
             QMenu { background: #252526; border: 1px solid #3e3e42; }
@@ -592,6 +592,16 @@ class MainWindow(QMainWindow):
         outer_layout.addLayout(root)
 
         splitter = QSplitter(Qt.Orientation.Horizontal)
+        # Qt's default for a QSplitter is childrenCollapsible=True: once a
+        # drag would shrink either pane below its minimum size, Qt snaps
+        # that pane fully closed (0 width) instead of just stopping the
+        # drag at the minimum -- so a normal, gentle resize attempt that
+        # happens to cross that boundary looks like the panel "jumping" to
+        # one extreme, with no way to land on an in-between width. Disabling
+        # it makes the handle behave like an ordinary resize: it stops
+        # smoothly at each side's minimum size instead of collapsing past
+        # it, all the way down to a fully intermediate position.
+        splitter.setChildrenCollapsible(False)
         root.addWidget(splitter)
 
         # ── Left panel ───────────────────────────────────────
@@ -2033,6 +2043,11 @@ class MainWindow(QMainWindow):
 
         # Vertical splitter for log + plots
         right_splitter = QSplitter(Qt.Orientation.Vertical)
+        # See the matching comment on the main horizontal `splitter` above --
+        # same fix, same reason (Qt's default childrenCollapsible=True was
+        # making this handle snap the log panel fully open/closed instead
+        # of resizing smoothly).
+        right_splitter.setChildrenCollapsible(False)
         right_layout.addWidget(right_splitter)
 
         # Top part — log
@@ -6926,7 +6941,7 @@ print("DOMAIN_PREVIEW_DONE")
                 font-family: '{lc['family']}';
                 font-size: {lfs}px;
             }}
-            QSplitter::handle {{ background: {border}; width: 2px; }}
+            QSplitter::handle {{ background: {border}; width: 4px; }}
             QMenuBar {{ background: {widget_bg}; color: {label_color}; border-bottom: 1px solid {border}; }}
             QMenuBar::item:selected {{ background: {border}; }}
             QMenu {{ background: {widget_bg}; border: 1px solid {border}; }}
