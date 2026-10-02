@@ -332,13 +332,43 @@ class PINNConfig:
     # inside the generated script, so it has no equivalent dependency on
     # a particular training architecture to go stale over.
     sweep_enabled: bool = False
-    sweep_mode: str = "oat"  # "oat" (one-at-a-time) or "grid" (full Cartesian product)
+    # "oat" (one-at-a-time, every other swept field held at its baseline
+    # value), "grid" (every combination of every parameter's values --
+    # COMSOL calls this "All combinations"), or "zip" (every swept
+    # parameter's Nth value run together as one combination -- COMSOL's
+    # "Specified combinations"; every parameter must have the same
+    # number of values, checked in validate() below).
+    sweep_mode: str = "oat"
     # JSON-encoded list of swept parameters, one dict per added row:
     #   {"id": "<sweep_registry id>", "mode": "list", "values": [..]}
     #   {"id": "...", "mode": "linear"|"log", "min": .., "max": .., "n": ..}
     # "id" is a key into sweep_registry.available_params()'s ids for this
     # config. Empty list ("[]", the default) means no sweep configured.
     sweep_parameters: str = "[]"
+
+    # Where a sweep organizes its own output -- distinct from save_dir
+    # above (which is whatever the Setup tab's own "Save results to" is
+    # set to, and would make every run in a sweep collide into the same
+    # folder if reused as-is). Blank -- the default, since this is a new
+    # field a hand-edited/old save file won't have -- falls back to
+    # sweep_runner.sweep_root_dir()'s own default location. Every run
+    # (baseline included) gets its own descriptively-named subfolder
+    # under <sweep_save_dir>/sweep_<timestamp>/ -- see sweep_runner.py.
+    sweep_save_dir: str = ""
+    # What each run in a sweep actually saves (model, loss/solution
+    # plot, Error Analysis figures if configured) is controlled by the
+    # same plot_type/plot_output_idx/plot_custom_expr/plot_custom_label/
+    # export_t_steps fields a normal Solve already uses -- "same_as_setup"
+    # (the default, i.e. exactly today's behavior) leaves those alone.
+    # "custom" overrides them for every run in the sweep (baseline
+    # included) with the sweep_plot_* fields below, without touching
+    # what the Setup tab itself shows/uses for a normal Solve.
+    sweep_export_mode: str = "same_as_setup"
+    sweep_plot_type: str = "Surface"
+    sweep_plot_output_idx: int = 0
+    sweep_plot_custom_expr: str = ""
+    sweep_plot_custom_label: str = ""
+    sweep_export_t_steps: int = 11
 
     def validate(self):
         """Sanity-check the fields that would otherwise either silently
@@ -539,9 +569,9 @@ class PINNConfig:
             errors.append(f"Random seed must be an integer; got {self.random_seed!r}.")
 
         if self.sweep_enabled:
-            if self.sweep_mode not in ("oat", "grid"):
+            if self.sweep_mode not in ("oat", "grid", "zip"):
                 errors.append(
-                    f"Parameter Sweep mode must be 'oat' or 'grid'; got {self.sweep_mode!r}."
+                    f"Parameter Sweep mode must be 'oat', 'grid', or 'zip'; got {self.sweep_mode!r}."
                 )
             try:
                 _sweep_params = _json_cfg.loads(self.sweep_parameters or "[]")
@@ -565,12 +595,20 @@ class PINNConfig:
                 # same lazy-import style this method already uses for json.
                 from pinnstudio.core import sweep_registry as _sweep_reg
                 _available_ids = {p.id for p in _sweep_reg.available_params(self)}
+                # Collected alongside the per-entry checks below so the
+                # "zip" mode length check after this loop only compares
+                # entries that are themselves well-formed -- an entry
+                # that already has its own error gets None here and is
+                # skipped, rather than piling on a second, confusing
+                # error about its (meaningless) length too.
+                _entry_lengths = []
                 for _si, _sp in enumerate(_sweep_params):
                     if not isinstance(_sp, dict) or "id" not in _sp or "mode" not in _sp:
                         errors.append(
                             f"Parameter Sweep entry #{_si + 1} is missing its "
                             f"'id' or 'mode'; got {_sp!r}."
                         )
+                        _entry_lengths.append(None)
                         continue
                     _pid, _pmode = _sp.get("id"), _sp.get("mode")
                     if _pid not in _available_ids:
@@ -581,6 +619,7 @@ class PINNConfig:
                             "Optimizer Scheduler is off, or that phase no "
                             "longer exists) -- remove and re-add it."
                         )
+                        _entry_lengths.append(None)
                         continue
                     if _pmode == "list":
                         _vals = _sp.get("values")
@@ -589,34 +628,59 @@ class PINNConfig:
                                 f"Parameter Sweep entry #{_si + 1} ('{_pid}') "
                                 "needs at least one value."
                             )
+                            _entry_lengths.append(None)
+                        else:
+                            _entry_lengths.append(len(_vals))
                     elif _pmode in ("linear", "log"):
                         _pmin, _pmax, _pn = _sp.get("min"), _sp.get("max"), _sp.get("n")
+                        _entry_ok = True
                         if not isinstance(_pn, int) or _pn < 2:
                             errors.append(
                                 f"Parameter Sweep entry #{_si + 1} ('{_pid}') "
                                 f"needs at least 2 steps; got {_pn!r}."
                             )
+                            _entry_ok = False
                         if not isinstance(_pmin, (int, float)) or not isinstance(_pmax, (int, float)):
                             errors.append(
                                 f"Parameter Sweep entry #{_si + 1} ('{_pid}') "
                                 "needs numeric min/max values."
                             )
+                            _entry_ok = False
                         elif _pmin >= _pmax:
                             errors.append(
                                 f"Parameter Sweep entry #{_si + 1} ('{_pid}') "
                                 f"needs min < max; got min={_pmin}, max={_pmax}."
                             )
+                            _entry_ok = False
                         elif _pmode == "log" and (_pmin <= 0 or _pmax <= 0):
                             errors.append(
                                 f"Parameter Sweep entry #{_si + 1} ('{_pid}') "
                                 "uses log spacing, which needs both min and max "
                                 f"to be positive; got min={_pmin}, max={_pmax}."
                             )
+                            _entry_ok = False
+                        _entry_lengths.append(_pn if _entry_ok and isinstance(_pn, int) else None)
                     else:
                         errors.append(
                             f"Parameter Sweep entry #{_si + 1} ('{_pid}') has "
                             f"an unrecognized mode {_pmode!r} -- expected "
                             "'list', 'linear', or 'log'."
+                        )
+                        _entry_lengths.append(None)
+
+                # "zip" ("Specified combinations", COMSOL's term) runs
+                # each parameter's Nth value together as one combination
+                # -- e.g. P1=[1,2,3] and P2=[10,20,30] gives exactly 3
+                # runs, (1,10)/(2,20)/(3,30), never the 9-run Cartesian
+                # product "grid" mode would give. That only makes sense
+                # when every parameter has the same number of values.
+                if self.sweep_mode == "zip":
+                    _valid_lengths = [_l for _l in _entry_lengths if _l is not None]
+                    if len(_valid_lengths) > 1 and len(set(_valid_lengths)) > 1:
+                        errors.append(
+                            "Specified Combinations mode needs every swept parameter to "
+                            f"have the same number of values; got {_valid_lengths} -- "
+                            "adjust the value lists/ranges so they match."
                         )
 
         return errors

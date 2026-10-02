@@ -172,6 +172,7 @@ class SweepThread(QThread):
     Solve: a flag SweepThread.run() checks between runs (should_stop), not
     a hard kill -- the run currently in flight is allowed to finish rather
     than leaving a half-written output directory behind."""
+    sweep_root_signal = pyqtSignal(str)
     run_start_signal = pyqtSignal(int, int, str)
     output_signal = pyqtSignal(int, int, str)
     run_done_signal = pyqtSignal(int, int, str, dict)
@@ -186,6 +187,7 @@ class SweepThread(QThread):
         from pinnstudio.core.sweep_runner import run_sweep
         run_sweep(
             self.config,
+            on_sweep_root=lambda root: self.sweep_root_signal.emit(root),
             on_run_start=lambda i, total, label: self.run_start_signal.emit(i, total, label),
             on_output=lambda i, total, line: self.output_signal.emit(i, total, line),
             on_run_done=lambda i, total, label, result: self.run_done_signal.emit(i, total, label, result),
@@ -2392,20 +2394,50 @@ class MainWindow(QMainWindow):
 
     # ── Parameter Sweep tab ─────────────────────────────────────
     def _build_sweep_tab(self):
-        """Builds the new top-level "Parameter Sweep" tab: an Enable
-        checkbox + Grid/One-at-a-time mode picker, a repeatable list of
-        sweep-parameter rows (same add/remove-row pattern as Optimizer
-        Scheduler phases in _add_scheduler_phase), and a Run/Cancel +
-        results table for actually executing the sweep (Phase 4/5).
+        """Builds the new top-level "Parameter Sweep" tab: a Setup pane
+        (Enable checkbox + mode picker, a repeatable list of
+        sweep-parameter rows -- same add/remove-row pattern as Optimizer
+        Scheduler phases in _add_scheduler_phase -- where to save sweep
+        output, and what each run should export) over a Results pane
+        (Run/Cancel/Export + progress + results table + plot), in an
+        adjustable vertical QSplitter -- same resizable-panel pattern as
+        the Setup tab's own Training Log / plots split (see
+        right_splitter above) -- defaulting to roughly half the tab's
+        height each, draggable to whatever split the user prefers.
         Parameter choices are populated from pinnstudio.core.sweep_registry
         against whatever _build_config() currently produces -- refreshed
         whenever this tab is switched to, since the Setup tab's own
         settings (template, dimension, scheduler phases, ...) decide
         which parameters are even sweepable right now."""
         sweep_tab = QWidget()
-        sweep_layout = QVBoxLayout(sweep_tab)
+        sweep_outer_layout = QVBoxLayout(sweep_tab)
+        sweep_outer_layout.setSpacing(4)
+        sweep_outer_layout.setContentsMargins(10, 10, 10, 10)
+
+        sweep_splitter = QSplitter(Qt.Orientation.Vertical)
+        # Same reasoning as the matching comment on the Setup tab's own
+        # splitters: Qt's default childrenCollapsible=True makes a drag
+        # that crosses either pane's minimum size snap it fully shut
+        # instead of just stopping there, so this disables that.
+        sweep_splitter.setChildrenCollapsible(False)
+        sweep_outer_layout.addWidget(sweep_splitter)
+        self.sweep_splitter = sweep_splitter
+
+        # ── Top pane: sweep setup ──────────────────────────────
+        setup_pane = QWidget()
+        setup_pane_layout = QVBoxLayout(setup_pane)
+        setup_pane_layout.setContentsMargins(0, 0, 0, 0)
+        setup_pane_layout.setSpacing(8)
+
+        setup_scroll = QScrollArea()
+        setup_scroll.setWidgetResizable(True)
+        setup_scroll_inner = QWidget()
+        sweep_layout = QVBoxLayout(setup_scroll_inner)
         sweep_layout.setSpacing(8)
-        sweep_layout.setContentsMargins(10, 10, 10, 10)
+        sweep_layout.setContentsMargins(4, 4, 4, 4)
+        setup_scroll.setWidget(setup_scroll_inner)
+        setup_pane_layout.addWidget(setup_scroll)
+        sweep_splitter.addWidget(setup_pane)
 
         intro = QLabel(
             "Sweep one or more of the problem's own settings across several "
@@ -2423,14 +2455,25 @@ class MainWindow(QMainWindow):
         top_row.addSpacing(16)
         top_row.addWidget(QLabel("Mode:"))
         self.sweep_mode_combo = QComboBox()
+        # "All combinations" / "Specified combinations" is COMSOL's own
+        # terminology for its Parametric Sweep feature -- named the same
+        # way here (grid/zip underneath) since it's a familiar framing
+        # for anyone who's used that kind of tool before.
         self.sweep_mode_combo.addItem("One-at-a-time (vary each parameter separately)", "oat")
-        self.sweep_mode_combo.addItem("Grid (every combination of every parameter)", "grid")
+        self.sweep_mode_combo.addItem("All combinations (every value of every parameter)", "grid")
+        self.sweep_mode_combo.addItem("Specified combinations (parameters' Nth values run together)", "zip")
         self.sweep_mode_combo.setFixedHeight(26)
+        self.sweep_mode_combo.setToolTip(
+            "One-at-a-time: baseline, then vary ONE parameter per run, others held at baseline.\n"
+            "All combinations: every value of every parameter, crossed (a Cartesian product/Grid).\n"
+            "Specified combinations: parameter 1's 1st value with parameter 2's 1st value, etc. -- "
+            "every parameter needs the same number of values.")
         top_row.addWidget(self.sweep_mode_combo)
         top_row.addStretch()
         refresh_btn = QPushButton("🔄 Refresh parameter list")
         refresh_btn.setToolTip("Re-reads the Setup tab's current settings to update which parameters can be swept")
-        refresh_btn.clicked.connect(lambda: self._refresh_sweep_param_choices())
+        refresh_btn.clicked.connect(lambda: (self._refresh_sweep_param_choices(),
+                                              self._refresh_sweep_export_output_choices()))
         top_row.addWidget(refresh_btn)
         sweep_layout.addLayout(top_row)
 
@@ -2452,6 +2495,87 @@ class MainWindow(QMainWindow):
         add_row_btn.clicked.connect(lambda: self._add_sweep_row())
         sweep_layout.addWidget(add_row_btn)
 
+        # ── Where to save this sweep's output ───────────────────
+        save_group = QGroupBox("Save Sweep Results To")
+        save_group_layout = QVBoxLayout(save_group)
+        save_hint = QLabel(
+            "Every run (baseline included) gets its own, descriptively-named folder here "
+            "-- e.g. a run that swept a BC's weight to 7.5 lands in a folder named after "
+            "that -- so you can go back later and see exactly which model/figures came "
+            "from which run. Leave blank to use the default location below."
+        )
+        save_hint.setWordWrap(True)
+        self._register_style(save_hint, "hint", lambda css, _c='#8a8a8a', _e='': f"color: {_c}; {_e}{css}")
+        save_group_layout.addWidget(save_hint)
+        save_row = QHBoxLayout()
+        self.sweep_save_dir_input = QLineEdit()
+        self.sweep_save_dir_input.setPlaceholderText(
+            os.path.join(os.path.expanduser("~"), "PINNStudio_Results", "parameter_sweep_results"))
+        self.sweep_save_dir_input.setFixedHeight(28)
+        save_row.addWidget(self.sweep_save_dir_input)
+        sweep_save_browse_btn = QPushButton("Browse")
+        sweep_save_browse_btn.setFixedHeight(28); sweep_save_browse_btn.setFixedWidth(65)
+        sweep_save_browse_btn.clicked.connect(self._on_browse_sweep_save_dir)
+        save_row.addWidget(sweep_save_browse_btn)
+        save_group_layout.addLayout(save_row)
+        sweep_layout.addWidget(save_group)
+
+        # ── What each run in the sweep should export ────────────
+        export_group = QGroupBox("Results To Save (for each run in this sweep)")
+        export_group_layout = QVBoxLayout(export_group)
+        export_mode_row = QHBoxLayout()
+        export_mode_row.addWidget(QLabel("Export settings:"))
+        self.sweep_export_mode_combo = QComboBox()
+        self.sweep_export_mode_combo.addItem("Same as Setup tab (default)", "same_as_setup")
+        self.sweep_export_mode_combo.addItem("Custom for this sweep", "custom")
+        self.sweep_export_mode_combo.setFixedHeight(26)
+        self.sweep_export_mode_combo.currentIndexChanged.connect(
+            lambda _i: self._on_sweep_export_mode_changed())
+        export_mode_row.addWidget(self.sweep_export_mode_combo)
+        export_mode_row.addStretch()
+        export_group_layout.addLayout(export_mode_row)
+
+        self.sweep_export_custom_widget = QWidget()
+        export_custom_layout = QVBoxLayout(self.sweep_export_custom_widget)
+        export_custom_layout.setContentsMargins(0, 0, 0, 0)
+        export_custom_row = QHBoxLayout()
+        export_custom_row.addWidget(QLabel("Plot type:"))
+        self.sweep_plot_type_combo = QComboBox()
+        self.sweep_plot_type_combo.addItems([
+            "Surface", "Line (time steps)",
+            "Line Animation (GIF)", "Surface Animation (GIF)",
+        ])
+        self.sweep_plot_type_combo.setFixedHeight(26)
+        export_custom_row.addWidget(self.sweep_plot_type_combo)
+        export_custom_row.addWidget(QLabel("Output:"))
+        self.sweep_plot_output_combo = QComboBox()
+        self.sweep_plot_output_combo.setFixedHeight(26)
+        self.sweep_plot_output_combo.currentTextChanged.connect(
+            lambda text: self._on_sweep_output_combo_changed(text))
+        export_custom_row.addWidget(self.sweep_plot_output_combo)
+        export_custom_row.addWidget(QLabel("Time steps/frames:"))
+        self.sweep_export_tsteps_spin = QSpinBox()
+        self.sweep_export_tsteps_spin.setRange(2, 50)
+        self.sweep_export_tsteps_spin.setValue(11)
+        export_custom_row.addWidget(self.sweep_export_tsteps_spin)
+        export_custom_row.addStretch()
+        export_custom_layout.addLayout(export_custom_row)
+
+        custom_expr_row = QHBoxLayout()
+        self.sweep_plot_custom_expr_input = QLineEdit()
+        self.sweep_plot_custom_expr_input.setPlaceholderText("expression, e.g. sqrt(u**2+v**2)")
+        self.sweep_plot_custom_expr_input.setFixedHeight(28)
+        custom_expr_row.addWidget(self.sweep_plot_custom_expr_input)
+        self.sweep_plot_custom_label_input = QLineEdit()
+        self.sweep_plot_custom_label_input.setPlaceholderText("label, e.g. |h|")
+        self.sweep_plot_custom_label_input.setFixedHeight(28)
+        self.sweep_plot_custom_label_input.setFixedWidth(100)
+        custom_expr_row.addWidget(self.sweep_plot_custom_label_input)
+        export_custom_layout.addLayout(custom_expr_row)
+        export_group_layout.addWidget(self.sweep_export_custom_widget)
+        self.sweep_export_custom_widget.setVisible(False)
+        sweep_layout.addWidget(export_group)
+
         run_row = QHBoxLayout()
         self.sweep_run_btn = QPushButton("▶ Run Sweep")
         self.sweep_run_btn.clicked.connect(self._on_run_sweep)
@@ -2466,16 +2590,27 @@ class MainWindow(QMainWindow):
         run_row.addWidget(self.sweep_export_btn)
         run_row.addStretch()
         sweep_layout.addLayout(run_row)
+        sweep_layout.addStretch()
+
+        # ── Bottom pane: results ────────────────────────────────
+        results_pane = QWidget()
+        results_layout = QVBoxLayout(results_pane)
+        results_layout.setContentsMargins(0, 4, 0, 0)
+        results_layout.setSpacing(6)
+        sweep_splitter.addWidget(results_pane)
+        # Default to roughly half the tab's height each -- same "initial
+        # split the user can drag away from afterward" convention as
+        # right_splitter.setSizes([320, 600]) above.
+        sweep_splitter.setSizes([450, 450])
 
         self.sweep_progress_label = QLabel("")
-        sweep_layout.addWidget(self.sweep_progress_label)
+        results_layout.addWidget(self.sweep_progress_label)
 
         self.sweep_results_table = QTableWidget(0, 4)
         self.sweep_results_table.setHorizontalHeaderLabels(["Run", "Status", "Final loss", "L2 relative error"])
         self.sweep_results_table.horizontalHeader().setStretchLastSection(True)
         self.sweep_results_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        self.sweep_results_table.setMaximumHeight(220)
-        sweep_layout.addWidget(self.sweep_results_table)
+        results_layout.addWidget(self.sweep_results_table, stretch=1)
 
         plot_header = QHBoxLayout()
         plot_header.addWidget(QLabel("Results Plot"))
@@ -2484,7 +2619,7 @@ class MainWindow(QMainWindow):
         self.sweep_plot_save_btn.setEnabled(False)
         self.sweep_plot_save_btn.clicked.connect(lambda: self._save_figure(self.sweep_plot_label, "sweep_results_plot"))
         plot_header.addWidget(self.sweep_plot_save_btn)
-        sweep_layout.addLayout(plot_header)
+        results_layout.addLayout(plot_header)
 
         self.sweep_plot_label = QLabel(
             "Run a sweep with at least one parameter to see a results plot here "
@@ -2493,9 +2628,9 @@ class MainWindow(QMainWindow):
         self.sweep_plot_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.sweep_plot_label.setWordWrap(True)
         self.sweep_plot_label.setStyleSheet("color: #8a8a8a; border: 1px dashed #3e3e42; border-radius: 6px;")
-        self.sweep_plot_label.setMinimumSize(340, 260)
+        self.sweep_plot_label.setMinimumSize(340, 200)
         self.sweep_plot_label._source_path = None
-        sweep_layout.addWidget(self.sweep_plot_label, stretch=1)
+        results_layout.addWidget(self.sweep_plot_label, stretch=1)
 
         self.central_tabs.addTab(sweep_tab, "Parameter Sweep")
         self.central_tabs.currentChanged.connect(self._on_central_tab_changed)
@@ -2507,11 +2642,62 @@ class MainWindow(QMainWindow):
         # parameters -- learning rate/iterations/optimizer -- aren't
         # available yet at this exact point in __init__).
         self._add_sweep_row()
-        QTimer.singleShot(0, lambda: self._refresh_sweep_param_choices())
+        self._refresh_sweep_export_output_choices()
+        QTimer.singleShot(0, lambda: (self._refresh_sweep_param_choices(),
+                                       self._refresh_sweep_export_output_choices()))
+
+    def _on_browse_sweep_save_dir(self):
+        folder = QFileDialog.getExistingDirectory(self, "Select Sweep Save Directory")
+        if folder:
+            self.sweep_save_dir_input.setText(folder)
+
+    def _on_sweep_export_mode_changed(self):
+        is_custom = self.sweep_export_mode_combo.currentData() == "custom"
+        self.sweep_export_custom_widget.setVisible(is_custom)
+
+    def _on_sweep_output_combo_changed(self, text):
+        """Mirrors _on_plot_output_combo_changed for this tab's own
+        output selector -- the custom expression/label fields only
+        matter while "Custom..." is selected (see _build_config(),
+        which only serializes sweep_plot_custom_expr/label in that
+        case)."""
+        is_custom = (text == "Custom...")
+        self.sweep_plot_custom_expr_input.setVisible(is_custom)
+        self.sweep_plot_custom_label_input.setVisible(is_custom)
+
+    def _refresh_sweep_export_output_choices(self):
+        """Re-populates this tab's own Output selector (Results To Save
+        -> Custom for this sweep) from whatever _build_config() produces
+        right now -- same "Output N (name)" + "Custom..." items as the
+        Setup tab's plot_output_combo, kept as an independent widget/
+        selection here rather than shared, since this is a separate,
+        sweep-only override. Guarded the same way
+        _refresh_sweep_param_choices() is: a transient, not-yet-valid
+        widget state is far less disruptive to tolerate than a crash."""
+        if not hasattr(self, 'sweep_plot_output_combo'):
+            return
+        try:
+            config = self._build_config()
+        except Exception:
+            return
+        combo = self.sweep_plot_output_combo
+        previous_text = combo.currentText()
+        combo.blockSignals(True)
+        combo.clear()
+        names = [n.strip() for n in (config.output_names or "").split(",")]
+        for i in range(config.num_outputs):
+            name = names[i] if i < len(names) else f"u{i}"
+            combo.addItem(f"Output {i + 1} ({name})")
+        combo.addItem("Custom...")
+        idx = combo.findText(previous_text)
+        combo.setCurrentIndex(idx if idx >= 0 else 0)
+        combo.blockSignals(False)
+        self._on_sweep_output_combo_changed(combo.currentText())
 
     def _on_central_tab_changed(self, index):
         if self.central_tabs.tabText(index) == "Parameter Sweep":
             self._refresh_sweep_param_choices()
+            self._refresh_sweep_export_output_choices()
 
     def _add_sweep_row(self):
         row_widget = QWidget()
@@ -2703,12 +2889,22 @@ class MainWindow(QMainWindow):
         self.sweep_plot_label.setText("Sweep running -- the results plot appears once every run finishes...")
         self.sweep_plot_label._source_path = None
 
+        self._sweep_run_root = None
         self.sweep_thread = SweepThread(config)
+        self.sweep_thread.sweep_root_signal.connect(self._on_sweep_root)
         self.sweep_thread.run_start_signal.connect(self._on_sweep_run_start)
         self.sweep_thread.output_signal.connect(self._on_sweep_output)
         self.sweep_thread.run_done_signal.connect(self._on_sweep_run_done)
         self.sweep_thread.finished_signal.connect(self._on_sweep_finished)
         self.sweep_thread.start()
+
+    def _on_sweep_root(self, root):
+        """Fires once, right as the sweep starts -- see
+        sweep_runner.run_sweep()'s on_sweep_root param. Logged
+        immediately so the user knows where results are landing without
+        waiting for the whole sweep to finish."""
+        self._sweep_run_root = root
+        self.log_box.append(f"📁 Sweep results will be saved under: {root}")
 
     def _on_cancel_sweep(self):
         if hasattr(self, 'sweep_thread') and self.sweep_thread.isRunning():
@@ -2739,6 +2935,12 @@ class MainWindow(QMainWindow):
         self.sweep_cancel_btn.setEnabled(False)
         self.sweep_export_btn.setEnabled(self.sweep_results_table.rowCount() > 0)
         self._render_sweep_plot()
+        # sweep_runner.run_sweep() already wrote sweep_manifest.json and
+        # sweep_summary.csv into the sweep's own root folder -- this is
+        # just telling the user that's there, not writing it itself.
+        if getattr(self, '_sweep_run_root', None):
+            self.log_box.append(
+                f"📁 Per-run folders, manifest and summary CSV saved under: {self._sweep_run_root}")
 
     def _on_export_sweep_csv(self):
         path, _ = QFileDialog.getSaveFileName(self, "Export sweep results", "sweep_results.csv", "CSV files (*.csv)")
@@ -5065,6 +5267,23 @@ class MainWindow(QMainWindow):
             sweep_enabled=self.sweep_enable_cb.isChecked() if hasattr(self, 'sweep_enable_cb') else False,
             sweep_mode=self.sweep_mode_combo.currentData() if hasattr(self, 'sweep_mode_combo') else "oat",
             sweep_parameters=self._build_sweep_parameters_json() if hasattr(self, '_build_sweep_parameters_json') else "[]",
+            sweep_save_dir=self.sweep_save_dir_input.text().strip() if hasattr(self, 'sweep_save_dir_input') else "",
+            sweep_export_mode=(self.sweep_export_mode_combo.currentData()
+                                if hasattr(self, 'sweep_export_mode_combo') else "same_as_setup"),
+            sweep_plot_type=(self.sweep_plot_type_combo.currentText()
+                              if hasattr(self, 'sweep_plot_type_combo') else "Surface"),
+            sweep_plot_output_idx=(self.sweep_plot_output_combo.currentIndex()
+                                    if hasattr(self, 'sweep_plot_output_combo') else 0),
+            sweep_plot_custom_expr=(self.sweep_plot_custom_expr_input.text().strip()
+                                     if hasattr(self, 'sweep_plot_custom_expr_input')
+                                     and getattr(self, 'sweep_plot_output_combo', None) is not None
+                                     and self.sweep_plot_output_combo.currentText() == "Custom..." else ""),
+            sweep_plot_custom_label=(self.sweep_plot_custom_label_input.text().strip()
+                                      if hasattr(self, 'sweep_plot_custom_label_input')
+                                      and getattr(self, 'sweep_plot_output_combo', None) is not None
+                                      and self.sweep_plot_output_combo.currentText() == "Custom..." else ""),
+            sweep_export_t_steps=(self.sweep_export_tsteps_spin.value()
+                                   if hasattr(self, 'sweep_export_tsteps_spin') else 11),
         )
 
     # ── Save / Open a problem definition ─────────────────────

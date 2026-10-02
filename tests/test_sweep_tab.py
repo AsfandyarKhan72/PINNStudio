@@ -168,6 +168,21 @@ def run():
     runs_grid = build_runs(cfg_grid)
     check(len(runs_grid) == 1 + 2 * 2, f"Grid with 2x2 values should give 5 runs (1 baseline + 4), got {len(runs_grid)}: {[l for l, _ in runs_grid]}")
 
+    # "zip" ("Specified combinations"): row A (phase0_optimizer, 2 values)
+    # and row B (neurons_per_layer, 2 values) -- zip() pairs them up (NOT
+    # a cross product), so this should give 1 baseline + 2 runs, not 1 + 4
+    # like grid mode above.
+    win.sweep_mode_combo.setCurrentIndex(win.sweep_mode_combo.findData("zip"))
+    cfg_zip = win._build_config()
+    check(cfg_zip.sweep_mode == "zip", "config should record sweep_mode='zip' once selected")
+    check(cfg_zip.validate() == [], f"equal-length zip sweep should validate clean, got {cfg_zip.validate()}")
+    runs_zip = build_runs(cfg_zip)
+    check(len(runs_zip) == 1 + 2, f"zip with 2+2 equal-length values should give 3 runs (1 baseline + 2 paired), "
+                                   f"got {len(runs_zip)}: {[l for l, _ in runs_zip]}")
+    zip_labels = [l for l, _ in runs_zip[1:]]
+    check(zip_labels[0].endswith("=adam, Neurons per layer=32") and zip_labels[1].endswith("=lbfgs, Neurons per layer=64"),
+          f"zip mode should pair each row's Nth value together (not cross them), got {zip_labels}")
+
     # ── Stale-results guard ───────────────────────────────────────────
     # A file that predates `not_before` must be ignored even if present.
     stale_dir = "/tmp/_sweep_tab_test_stale/error_analysis"
@@ -296,6 +311,184 @@ def run():
     w_empty._render_sweep_plot()
     check(w_empty.sweep_plot_label._source_path is None,
           "a baseline-only cache (no sweep parameters) should show a message, not a plot")
+
+    # ── v68: adjustable split between sweep setup and results ────────
+    from PyQt6.QtWidgets import QSplitter
+    check(isinstance(win.sweep_splitter, QSplitter), "expected a QSplitter between sweep setup and results")
+    check(win.sweep_splitter.orientation() == Qt.Orientation.Vertical,
+          "the sweep setup/results split should be vertical (stacked top/bottom), like the Setup tab's own splitter")
+    check(not win.sweep_splitter.childrenCollapsible(),
+          "childrenCollapsible should be disabled so a drag can't snap a pane fully shut")
+    check(win.sweep_splitter.count() == 2, f"expected exactly 2 panes (setup, results), got {win.sweep_splitter.count()}")
+    default_sizes = win.sweep_splitter.sizes()
+    check(len(default_sizes) == 2 and abs(default_sizes[0] - default_sizes[1]) <= max(default_sizes) * 0.05,
+          f"default split should be roughly half/half, got {default_sizes}")
+    # Confirm it's actually adjustable (not fixed): asking for a bigger top
+    # pane should always yield a bigger top pane than asking for a smaller
+    # one, even though Qt clamps the exact pixel values against each
+    # pane's own minimum size in this headless/offscreen window (the
+    # splitter's absolute sizes() here aren't directly comparable to a
+    # real, properly-sized on-screen window -- only the relative
+    # direction is a meaningful thing to assert under offscreen Qt).
+    win.show()
+    _app.processEvents()
+    win.sweep_splitter.setSizes([600, 100])
+    _app.processEvents()
+    top_requested_big = win.sweep_splitter.sizes()[0]
+    win.sweep_splitter.setSizes([100, 600])
+    _app.processEvents()
+    top_requested_small = win.sweep_splitter.sizes()[0]
+    check(top_requested_big > top_requested_small,
+          f"the splitter should respond to setSizes() -- requesting a bigger top pane ({top_requested_big}) "
+          f"should beat requesting a smaller one ({top_requested_small})")
+
+    # ── v68: sweep mode combo now has 3 COMSOL-style options ──────────
+    mode_data = [win.sweep_mode_combo.itemData(i) for i in range(win.sweep_mode_combo.count())]
+    check(mode_data == ["oat", "grid", "zip"],
+          f"expected exactly 3 sweep modes in order [oat, grid, zip], got {mode_data}")
+
+    # ── v68: "Save Sweep Results To" field + Browse button ────────────
+    check(hasattr(win, "sweep_save_dir_input"), "expected a dedicated sweep_save_dir_input field")
+    check(win.sweep_save_dir_input.text() == "", "sweep save dir should start blank (falls back to a default path at run time)")
+    expected_placeholder = os.path.join(os.path.expanduser("~"), "PINNStudio_Results", "parameter_sweep_results")
+    check(win.sweep_save_dir_input.placeholderText() == expected_placeholder,
+          f"placeholder should hint at the real default path, got {win.sweep_save_dir_input.placeholderText()!r}")
+    check(callable(win._on_browse_sweep_save_dir), "expected a working Browse handler for the sweep save dir")
+    win.sweep_save_dir_input.setText("/tmp/_v68_custom_sweep_dir")
+    cfg_savedir = win._build_config()
+    check(cfg_savedir.sweep_save_dir == "/tmp/_v68_custom_sweep_dir",
+          f"_build_config() should carry through the custom sweep save dir, got {cfg_savedir.sweep_save_dir!r}")
+    win.sweep_save_dir_input.setText("")
+
+    # ── v68: per-sweep export/figure override (default vs custom) ────
+    win.show()  # a top-level window must actually be shown for isVisible()
+    # to report real values under offscreen Qt -- a widget whose window
+    # was never shown reports isVisible()==False no matter what
+    # setVisible() calls were made on it or its ancestors (confirmed
+    # against the pre-existing, known-correct plot_custom_expr_input
+    # toggle, which shows the identical false negative without .show()).
+    _sweep_tab_idx = [win.central_tabs.tabText(i) for i in range(win.central_tabs.count())].index("Parameter Sweep")
+    win.central_tabs.setCurrentIndex(_sweep_tab_idx)  # a QTabWidget only
+    # actually shows its CURRENT tab's contents -- without switching to it,
+    # every widget on this tab reports isVisible()==False regardless of
+    # setVisible() calls, the same false negative documented for
+    # plot_custom_expr_input (window-shown-but-wrong-tab is just another
+    # flavor of "ancestor not really shown").
+    _app.processEvents()
+    check(win.sweep_export_mode_combo.currentData() == "same_as_setup",
+          "export override should default to 'same as Setup tab', preserving today's existing behavior")
+    check(not win.sweep_export_custom_widget.isVisible(),
+          "the custom export-settings widgets should be hidden by default")
+    win.sweep_export_mode_combo.setCurrentIndex(win.sweep_export_mode_combo.findData("custom"))
+    _app.processEvents()
+    check(win.sweep_export_custom_widget.isVisible(),
+          "selecting 'Custom for this sweep' should reveal the plot-type/output/t-steps widgets")
+    win.sweep_export_mode_combo.setCurrentIndex(win.sweep_export_mode_combo.findData("same_as_setup"))
+    _app.processEvents()
+    check(not win.sweep_export_custom_widget.isVisible(),
+          "switching back to 'Same as Setup tab' should hide the custom widgets again")
+
+    plot_type_items = [win.sweep_plot_type_combo.itemText(i) for i in range(win.sweep_plot_type_combo.count())]
+    check(plot_type_items == ["Surface", "Line (time steps)", "Line Animation (GIF)", "Surface Animation (GIF)"],
+          f"sweep plot-type choices should mirror the Setup tab's own 4 options, got {plot_type_items}")
+    check(win.sweep_export_tsteps_spin.value() == 11 and win.sweep_export_tsteps_spin.minimum() == 2,
+          "export t-steps spinner should default to 11 (today's existing default) with a sane minimum")
+
+    # Output combo refresh + Custom... expr/label visibility toggle.
+    # (These fields live inside sweep_export_custom_widget, which is only
+    # shown in "custom" export mode -- switch there first.)
+    win.sweep_export_mode_combo.setCurrentIndex(win.sweep_export_mode_combo.findData("custom"))
+    _app.processEvents()
+    win.radio_1d.setChecked(True)
+    win.quick_examples_combo.setCurrentText("1D Heat")
+    win._refresh_sweep_export_output_choices()
+    out_items = [win.sweep_plot_output_combo.itemText(i) for i in range(win.sweep_plot_output_combo.count())]
+    check(out_items[-1] == "Custom...", f"output combo should always end with a 'Custom...' entry, got {out_items}")
+    check(len(out_items) >= 2, f"1D Heat (1 output) should give >=2 entries (1 output + Custom...), got {out_items}")
+    win.sweep_plot_output_combo.setCurrentIndex(win.sweep_plot_output_combo.findText(out_items[0]))
+    _app.processEvents()
+    check(not win.sweep_plot_custom_expr_input.isVisible() and not win.sweep_plot_custom_label_input.isVisible(),
+          "custom expr/label fields should be hidden while a real output is selected")
+    win.sweep_plot_output_combo.setCurrentIndex(win.sweep_plot_output_combo.findText("Custom..."))
+    _app.processEvents()
+    check(win.sweep_plot_custom_expr_input.isVisible() and win.sweep_plot_custom_label_input.isVisible(),
+          "custom expr/label fields should appear once 'Custom...' is selected")
+
+    # ── v68: _build_config() round-trip for all 7 new export fields ──
+    # (export mode is "custom" at this point -- confirm the custom
+    # plot-type/expr/label/t-steps fields all make it into the config.)
+    win.sweep_plot_type_combo.setCurrentText("Line (time steps)")
+    win.sweep_plot_custom_expr_input.setText("sqrt(u**2)")
+    win.sweep_plot_custom_label_input.setText("|u|")
+    win.sweep_export_tsteps_spin.setValue(21)
+    cfg_export2 = win._build_config()
+    check(cfg_export2.sweep_export_mode == "custom", "export mode should round-trip to 'custom'")
+    check(cfg_export2.sweep_plot_type == "Line (time steps)", f"sweep_plot_type should round-trip, got {cfg_export2.sweep_plot_type!r}")
+    check(cfg_export2.sweep_plot_custom_expr == "sqrt(u**2)" and cfg_export2.sweep_plot_custom_label == "|u|",
+          "custom expr/label should round-trip once 'Custom...' output is selected")
+    check(cfg_export2.sweep_export_t_steps == 21, f"sweep_export_t_steps should round-trip, got {cfg_export2.sweep_export_t_steps}")
+    # Selecting a real (non-Custom) output should blank out the expr/label
+    # that get sent to the config, even if the text fields still hold stale text.
+    win.sweep_plot_output_combo.setCurrentIndex(win.sweep_plot_output_combo.findText(out_items[0]))
+    cfg_export3 = win._build_config()
+    check(cfg_export3.sweep_plot_custom_expr == "" and cfg_export3.sweep_plot_custom_label == "",
+          "custom expr/label should be blanked in the built config once a real output (not Custom...) is selected")
+    win.sweep_export_mode_combo.setCurrentIndex(win.sweep_export_mode_combo.findData("same_as_setup"))
+    cfg_export4 = win._build_config()
+    check(cfg_export4.sweep_export_mode == "same_as_setup", "export mode should round-trip back to 'same_as_setup'")
+
+    # ── v68: naming helpers (sweep_root_dir / run_folder_name / _slugify) ──
+    from pinnstudio.core.sweep_runner import sweep_root_dir, run_folder_name, _slugify, _apply_run_output_settings
+    import datetime as _dt
+    cfg_names = win._build_config()
+    cfg_names.sweep_save_dir = ""
+    stamp = _dt.datetime(2026, 1, 2, 3, 4, 5)
+    root_default = sweep_root_dir(cfg_names, started_at=stamp)
+    check(root_default == os.path.join(os.path.expanduser("~"), "PINNStudio_Results",
+                                        "parameter_sweep_results", "sweep_20260102_030405"),
+          f"blank sweep_save_dir should fall back to the documented default path, got {root_default!r}")
+    cfg_names.sweep_save_dir = "/tmp/_v68_custom_root"
+    root_custom = sweep_root_dir(cfg_names, started_at=stamp)
+    check(root_custom == "/tmp/_v68_custom_root/sweep_20260102_030405",
+          f"a custom sweep_save_dir should be used as-is with a timestamped subfolder, got {root_custom!r}")
+    check(run_folder_name(0, "baseline") == "run_000_baseline", "run 0 labeled 'baseline' should get a fixed, predictable folder name")
+    check(run_folder_name(3, "Hidden layers=4, Neurons per layer=64") == "run_003_Hidden_layers=4_Neurons_per_layer=64",
+          f"run folder names should be zero-padded, prefixed, and slugified, got {run_folder_name(3, 'Hidden layers=4, Neurons per layer=64')!r}")
+    check(_slugify("BC 2 (dirichlet, Output 0)=7.5") == "BC_2_dirichlet_Output_0_=7.5",
+          f"_slugify should strip filesystem-unsafe characters while keeping the run identifiable, got {_slugify('BC 2 (dirichlet, Output 0)=7.5')!r}")
+    check(_slugify("") == "run", "an empty label should fall back to a safe non-empty default")
+
+    # _apply_run_output_settings(): same_as_setup leaves plot_type/output/
+    # expr/label/t_steps untouched (today's exact behavior); custom mode
+    # overrides them from the sweep tab's own settings; save_dir is always
+    # overridden to the given per-run folder either way.
+    base_same = win._build_config()
+    base_same.sweep_export_mode = "same_as_setup"
+    base_same.plot_type = "Surface"
+    base_same.export_t_steps = 7
+    import copy as _copy
+    run_cfg_same = _copy.deepcopy(base_same)
+    _apply_run_output_settings(run_cfg_same, base_same, "/tmp/_v68_run_dir_same")
+    check(run_cfg_same.save_dir == "/tmp/_v68_run_dir_same", "save_dir should always be overridden to the run's own folder")
+    check(run_cfg_same.plot_type == "Surface" and run_cfg_same.export_t_steps == 7,
+          "same_as_setup mode must leave plot_type/export_t_steps exactly as the base config had them")
+
+    base_custom = win._build_config()
+    base_custom.sweep_export_mode = "custom"
+    base_custom.sweep_plot_type = "Line"
+    base_custom.sweep_plot_output_idx = 2
+    base_custom.sweep_plot_custom_expr = "u+v"
+    base_custom.sweep_plot_custom_label = "u+v"
+    base_custom.sweep_export_t_steps = 31
+    run_cfg_custom = _copy.deepcopy(base_custom)
+    _apply_run_output_settings(run_cfg_custom, base_custom, "/tmp/_v68_run_dir_custom")
+    check(run_cfg_custom.save_dir == "/tmp/_v68_run_dir_custom", "save_dir should be overridden in custom mode too")
+    check(run_cfg_custom.plot_type == "Line" and run_cfg_custom.plot_output_idx == 2
+          and run_cfg_custom.plot_custom_expr == "u+v" and run_cfg_custom.plot_custom_label == "u+v"
+          and run_cfg_custom.export_t_steps == 31,
+          f"custom mode should override every export setting from the sweep tab's own fields, got "
+          f"plot_type={run_cfg_custom.plot_type!r} idx={run_cfg_custom.plot_output_idx!r} "
+          f"expr={run_cfg_custom.plot_custom_expr!r} t_steps={run_cfg_custom.export_t_steps!r}")
 
     # NOTE: a real, tiny, end-to-end run_sweep() execution (actual
     # subprocess training) is intentionally NOT exercised here -- this

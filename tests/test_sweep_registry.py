@@ -189,6 +189,40 @@ def run():
         unrecognized_mode = [{"id": some_id, "mode": "wat"}]
         check(any("unrecognized mode" in e for e in errs_for(unrecognized_mode)),
               "unrecognized sweep mode should be flagged")
+        check(errs_for(ok_list, mode="zip") == [],
+              f"a single-parameter zip-mode sweep should validate clean (no length "
+              f"mismatch possible with only 1 param), got {errs_for(ok_list, mode='zip')}")
+
+    # ── "zip" (Specified Combinations) sweep mode -- requires every ───
+    # swept parameter to carry the same number of values; mirrors
+    # COMSOL's "Specified combinations" semantics (run i of every
+    # parameter's list together, instead of a full cross product).
+    if len(available) >= 2:
+        id_a, id_b = available[0].id, available[1].id
+        zip_ok = [
+            {"id": id_a, "mode": "list", "values": [1, 2, 3]},
+            {"id": id_b, "mode": "list", "values": [10, 20, 30]},
+        ]
+        check(errs_for(zip_ok, mode="zip") == [],
+              f"equal-length zip-mode sweep should validate clean, got {errs_for(zip_ok, mode='zip')}")
+        zip_mismatch = [
+            {"id": id_a, "mode": "list", "values": [1, 2, 3]},
+            {"id": id_b, "mode": "list", "values": [10, 20]},
+        ]
+        check(any("Specified Combinations" in e for e in errs_for(zip_mismatch, mode="zip")),
+              "mismatched value-list lengths in zip mode should be flagged")
+        zip_mixed_range = [
+            {"id": id_a, "mode": "linear", "min": 1.0, "max": 10.0, "n": 4},
+            {"id": id_b, "mode": "list", "values": [10, 20, 30]},
+        ]
+        check(any("Specified Combinations" in e for e in errs_for(zip_mixed_range, mode="zip")),
+              "mismatched lengths between a linear range (n=4) and a list (3 values) "
+              "in zip mode should be flagged")
+        # Same sweep_parameters is fine under "oat"/"grid" (length check is zip-only).
+        check(errs_for(zip_mismatch, mode="oat") == [],
+              "the zip-only length check must not fire for oat mode")
+        check(errs_for(zip_mismatch, mode="grid") == [],
+              "the zip-only length check must not fire for grid mode")
 
     # ── Loss weight (PDE/BC/IC) sweep entries -- "SCOPE (v2)" ──────────
     # Exercises sweep_registry.py's _weight_* helpers directly against

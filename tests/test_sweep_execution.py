@@ -161,6 +161,117 @@ def run():
               f"swept={swept_loss3} (if these are too close, the swept weight may not actually "
               "be reaching training)")
 
+    # ── v68: real per-run save folders + manifest/summary CSV ────────
+    # (sweep_save_dir set -> every run's own save_dir gets pointed at a
+    # distinct, descriptively-named subfolder, and the EXISTING codegen
+    # save pipeline -- already exercised above for plain save_dir runs
+    # -- writes real model/plot/log files into each one automatically.)
+    import glob
+    import json as _json
+    import shutil
+    import tempfile
+
+    tmp_root = tempfile.mkdtemp(prefix="v68_sweep_exec_")
+    try:
+        win4 = MainWindow()
+        _app.processEvents()
+        win4.quick_examples_combo.setCurrentText("1D Heat")
+        _app.processEvents()
+        for ph in win4.sched_phase_list:
+            ph["iters"].setValue(15)
+        row4 = win4.sweep_row_list[0]
+        row4["param_combo"].setCurrentIndex(row4["param_combo"].findData("hidden_layers"))
+        row4["mode_combo"].setCurrentIndex(row4["mode_combo"].findData("list"))
+        row4["list_edit"].setText("2")
+        win4.sweep_enable_cb.setChecked(True)
+        win4.sweep_save_dir_input.setText(tmp_root)
+        config4 = win4._build_config()
+        check(config4.sweep_save_dir == tmp_root, "sweep_save_dir should round-trip into the config")
+        check(config4.validate() == [], f"per-run-folder sweep config should validate clean: {config4.validate()}")
+
+        captured_root = []
+        results4 = run_sweep(config4, on_sweep_root=lambda r: captured_root.append(r))
+        check(len(captured_root) == 1, "on_sweep_root should fire exactly once with the real sweep root")
+        sweep_root = captured_root[0] if captured_root else None
+        check(bool(sweep_root) and sweep_root.startswith(tmp_root),
+              f"the real sweep root should live under the configured sweep_save_dir, got {sweep_root!r}")
+        check(len(results4) == 2, f"expected 2 runs (baseline + hidden_layers=2), got {len(results4)}")
+
+        expected_folders = ["run_000_baseline", "run_001_Hidden_layers=2"]
+        if sweep_root:
+            for folder in expected_folders:
+                run_dir = os.path.join(sweep_root, folder)
+                check(os.path.isdir(run_dir), f"expected a per-run folder at {run_dir}")
+                check(os.path.isdir(os.path.join(run_dir, "solution_results")),
+                      f"expected the existing codegen save pipeline to populate solution_results/ under {run_dir}")
+                check(len(glob.glob(os.path.join(run_dir, "solution_results", "model*.pt"))) > 0,
+                      f"expected a real saved model checkpoint under {run_dir}/solution_results")
+
+            for label, result in results4:
+                check(result["save_dir"] in (os.path.join(sweep_root, "run_000_baseline"),
+                                              os.path.join(sweep_root, "run_001_Hidden_layers=2")),
+                      f"[{label}] result save_dir should point at that run's own per-run folder, got {result['save_dir']}")
+
+            manifest_path = os.path.join(sweep_root, "sweep_manifest.json")
+            csv_path = os.path.join(sweep_root, "sweep_summary.csv")
+            check(os.path.isfile(manifest_path), f"expected a sweep_manifest.json at {manifest_path}")
+            check(os.path.isfile(csv_path), f"expected a sweep_summary.csv at {csv_path}")
+            if os.path.isfile(manifest_path):
+                with open(manifest_path) as f:
+                    manifest = _json.load(f)
+                check(manifest.get("sweep_mode") == "oat",
+                      f"manifest should record the real sweep_mode, got {manifest.get('sweep_mode')}")
+                check(len(manifest.get("runs", [])) == 2, f"manifest should have one entry per run, got {manifest.get('runs')}")
+                for run_entry in manifest.get("runs", []):
+                    check(run_entry.get("status") == "done" and run_entry.get("final_loss") is not None,
+                          f"manifest run entry should reflect the real completed result: {run_entry}")
+            if os.path.isfile(csv_path):
+                with open(csv_path) as f:
+                    csv_text = f.read()
+                check(csv_text.startswith("Run,Status,Final loss,L2 relative error,Folder"),
+                      f"sweep_summary.csv should have the expected header, got {csv_text.splitlines()[:1]}")
+                check("run_000_baseline" in csv_text and "run_001_Hidden_layers=2" in csv_text,
+                      f"sweep_summary.csv should list both runs' own folder names, got:\n{csv_text}")
+    finally:
+        shutil.rmtree(tmp_root, ignore_errors=True)
+
+    # ── v68: a real "zip" (Specified Combinations) sweep ──────────────
+    # 2 parameters, 2 values each -> zip() pairs them up (3 runs: 1
+    # baseline + 2 paired), NOT a 5-run cross product like grid mode.
+    win5 = MainWindow()
+    _app.processEvents()
+    win5.quick_examples_combo.setCurrentText("1D Heat")
+    _app.processEvents()
+    for ph in win5.sched_phase_list:
+        ph["iters"].setValue(15)
+    row5a = win5.sweep_row_list[0]
+    row5a["param_combo"].setCurrentIndex(row5a["param_combo"].findData("hidden_layers"))
+    row5a["mode_combo"].setCurrentIndex(row5a["mode_combo"].findData("list"))
+    row5a["list_edit"].setText("2, 3")
+    win5._add_sweep_row()
+    row5b = win5.sweep_row_list[1]
+    row5b["param_combo"].setCurrentIndex(row5b["param_combo"].findData("neurons_per_layer"))
+    row5b["mode_combo"].setCurrentIndex(row5b["mode_combo"].findData("list"))
+    row5b["list_edit"].setText("16, 24")
+    win5.sweep_enable_cb.setChecked(True)
+    win5.sweep_mode_combo.setCurrentIndex(win5.sweep_mode_combo.findData("zip"))
+    config5 = win5._build_config()
+    check(config5.sweep_mode == "zip", "config should record sweep_mode='zip'")
+    check(config5.validate() == [], f"real zip-mode sweep config should validate clean: {config5.validate()}")
+
+    results5 = run_sweep(config5)
+    check(len(results5) == 3, f"zip mode with 2+2 equal-length values should give 3 real runs "
+                               f"(1 baseline + 2 paired), got {len(results5)}: {[l for l, _ in results5]}")
+    labels5 = [l for l, _ in results5]
+    if len(labels5) == 3:
+        check(labels5[0] == "baseline"
+              and labels5[1].endswith("=2, Neurons per layer=16")
+              and labels5[2].endswith("=3, Neurons per layer=24"),
+              f"zip mode should pair each row's Nth value together, got {labels5}")
+    for label, result in results5:
+        check(result["status"] == "done", f"[zip sweep] run {label!r} should finish 'done', got {result}")
+        check(result["final_loss"] is not None, f"[zip sweep] run {label!r} should report a real final_loss, got {result}")
+
     if failures:
         print("FAILURES:")
         for f in failures:
