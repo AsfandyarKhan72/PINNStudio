@@ -47,7 +47,7 @@ from pinnstudio.core.runner import run_pinn
 _FINAL_LOSS_RE = re.compile(r"Final loss:\s*([0-9.eE+-]+)")
 
 
-def _expand_values(entry):
+def expand_values(entry):
     """Returns the concrete list of values a single sweep_parameters
     entry represents -- its explicit "values" list for mode "list", or
     `n` points spanning [min, max] for "linear"/"log". Mirrors exactly
@@ -66,6 +66,27 @@ def _expand_values(entry):
     return [float(v) for v in pts]
 
 
+def expand_params(base_config):
+    """Returns [(SweepParam, [concrete values...]), ...] for every entry
+    in base_config.sweep_parameters that still resolves against this
+    config, in the same order build_runs() consumes them (and the same
+    order a Phase 5 results plot needs to regroup run results back by
+    which parameter produced them). Shared by build_runs() below and by
+    MainWindow's sweep-results plot (pinnstudio/ui/main_window.py) so
+    both always agree on exactly which values a sweep actually used."""
+    entries = json.loads(base_config.sweep_parameters or "[]")
+    per_param = []
+    for e in entries:
+        param = reg.get_param(e.get("id"), base_config)
+        if param is None:
+            continue
+        values = expand_values(e)
+        if param.value_type == "int":
+            values = [int(round(float(v))) for v in values]
+        per_param.append((param, values))
+    return per_param
+
+
 def build_runs(base_config):
     """Returns a list of (label, config) pairs for every run this sweep
     implies -- always starting with ("baseline", <base_config exactly as
@@ -74,21 +95,8 @@ def build_runs(base_config):
     phase) are silently skipped here -- PINNConfig.validate() is what's
     responsible for catching that and should already have been called
     before this runs."""
-    entries = json.loads(base_config.sweep_parameters or "[]")
     runs = [("baseline", copy.deepcopy(base_config))]
-    if not entries:
-        return runs
-
-    per_param = []
-    for e in entries:
-        param = reg.get_param(e.get("id"), base_config)
-        if param is None:
-            continue
-        values = _expand_values(e)
-        if param.value_type == "int":
-            values = [int(round(float(v))) for v in values]
-        per_param.append((param, values))
-
+    per_param = expand_params(base_config)
     if not per_param:
         return runs
 

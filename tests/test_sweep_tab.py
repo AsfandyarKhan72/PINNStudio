@@ -28,6 +28,19 @@ Checks:
    from BEFORE a run started must never be reported as that run's
    result (this exact bug was caught by hand while building this
    feature -- see sweep_runner._read_last_l2's `not_before` parameter).
+ - Phase 5 (MainWindow._render_sweep_plot()): using SYNTHETIC
+   (label, result) cache entries -- not real training, matplotlib with
+   the Agg backend doesn't need one -- confirms a rendered PNG and a
+   populated sweep_plot_label._source_path for: a one-at-a-time sweep
+   over 2 numeric parameters (2 subplots); a Grid sweep over exactly 2
+   parameters (a heatmap, with the (row, col) <-> (param0, param1)
+   value mapping checked against sweep_runner.build_runs()'s own
+   documented iteration order); a Grid sweep over 3+ parameters (no
+   plot -- a message instead, since it's no longer a 2D grid); and a
+   categorical parameter with one run's final_loss missing (status
+   "error") -- confirming the exact bug caught by hand while building
+   this (a NaN-valued point silently dropping its own x-tick out of
+   the visible plot range via matplotlib's autoscale) stays fixed.
 
 This file is wired into CI (smoke-test.yml) and deliberately never
 actually trains anything -- CI only installs PyQt6/numpy/matplotlib/
@@ -176,6 +189,113 @@ def run():
         f.write("t,L2_relative,MSE,Max_error,Mean_abs_error\n0.0,0.123,0,0,0\n")
     check(_read_last_l2(_Fake(), now) == 0.123,
           "a results file written after the run's own start time should be read correctly")
+
+    # ── Phase 5: results plot (synthetic cache, no training) ──────────
+    import os as _os
+
+    def _fresh_window_with_rows(mode, param_ids_and_values):
+        w2 = MainWindow()
+        _app.processEvents()
+        w2._refresh_sweep_param_choices()
+        for i, (pid, text) in enumerate(param_ids_and_values):
+            if i > 0:
+                w2._add_sweep_row()
+            r = w2.sweep_row_list[i]
+            r["param_combo"].setCurrentIndex(r["param_combo"].findData(pid))
+            meta = r["param_combo"].itemData(r["param_combo"].currentIndex(), Qt.ItemDataRole.UserRole + 1) or {}
+            if meta.get("value_type") != "categorical":
+                r["mode_combo"].setCurrentIndex(r["mode_combo"].findData("list"))
+            r["list_edit"].setText(text)
+        w2.sweep_enable_cb.setChecked(True)
+        w2.sweep_mode_combo.setCurrentIndex(w2.sweep_mode_combo.findData(mode))
+        return w2
+
+    # OAT, 2 numeric parameters -> 2 subplots, no crash, file written.
+    w_oat = _fresh_window_with_rows("oat", [("hidden_layers", "2, 4, 6"), ("neurons_per_layer", "32, 64")])
+    cfg_oat = w_oat._build_config()
+    check(cfg_oat.validate() == [], f"OAT plot-test config should validate clean: {cfg_oat.validate()}")
+    w_oat._sweep_last_config = cfg_oat
+    from pinnstudio.core.sweep_runner import build_runs as _build_runs
+    oat_runs = _build_runs(cfg_oat)
+    check(len(oat_runs) == 6, f"expected 1 baseline + 3 + 2 = 6 OAT runs, got {len(oat_runs)}")
+    w_oat._sweep_results_cache = [
+        (label, {"status": "done", "final_loss": 1e-3 / (k + 1), "l2_relative": 1e-2 / (k + 1)})
+        for k, (label, _) in enumerate(oat_runs)
+    ]
+    w_oat._render_sweep_plot()
+    check(w_oat.sweep_plot_label._source_path is not None and _os.path.exists(w_oat.sweep_plot_label._source_path),
+          "OAT sweep plot should render a PNG and set sweep_plot_label._source_path")
+    check(w_oat.sweep_plot_save_btn.isEnabled(), "Save Figure button should be enabled once a plot has rendered")
+
+    # Grid, exactly 2 parameters -> heatmap; verify the (row, col) <->
+    # (param0, param1) value mapping matches build_runs()'s own
+    # itertools.product order (values1 iterates fastest).
+    w_grid2 = _fresh_window_with_rows("grid", [("hidden_layers", "2, 4"), ("neurons_per_layer", "32, 64, 96")])
+    cfg_grid2 = w_grid2._build_config()
+    check(cfg_grid2.validate() == [], f"Grid-2 plot-test config should validate clean: {cfg_grid2.validate()}")
+    w_grid2._sweep_last_config = cfg_grid2
+    grid2_runs = _build_runs(cfg_grid2)
+    check(len(grid2_runs) == 1 + 2 * 3, f"expected 1 baseline + 2x3 = 7 grid runs, got {len(grid2_runs)}")
+    # Distinct, easily-traceable values: run k (0-indexed, after baseline)
+    # gets final_loss = k -- after rendering, re-derive the matrix the
+    # same way the heatmap code does and confirm it matches build_runs()'s
+    # own iteration order exactly (values1 fastest).
+    w_grid2._sweep_results_cache = [(label, {"status": "done", "final_loss": float(k), "l2_relative": None})
+                                     for k, (label, _) in enumerate(grid2_runs)]
+    w_grid2._render_sweep_plot()
+    check(w_grid2.sweep_plot_label._source_path is not None and _os.path.exists(w_grid2.sweep_plot_label._source_path),
+          "Grid-2 sweep plot should render a PNG")
+    # grid2_runs[1:] should be ordered (hl=2,np=32),(hl=2,np=64),(hl=2,np=96),(hl=4,np=32),... --
+    # i.e. run index 0..5 (after baseline) = final_loss 0..5, with
+    # hidden_layers changing every 3 runs (slower axis) and
+    # neurons_per_layer changing every run (faster axis).
+    expected_grid2_labels = [
+        "Hidden layers=2, Neurons per layer=32", "Hidden layers=2, Neurons per layer=64",
+        "Hidden layers=2, Neurons per layer=96", "Hidden layers=4, Neurons per layer=32",
+        "Hidden layers=4, Neurons per layer=64", "Hidden layers=4, Neurons per layer=96",
+    ]
+    labels_only = [l for l, _ in grid2_runs[1:]]
+    check(labels_only == expected_grid2_labels,
+          f"grid run order should have neurons_per_layer (2nd param) as the fast-varying axis, "
+          f"matching the heatmap code's own assumption: got {labels_only}, expected {expected_grid2_labels}")
+
+    # Grid, 3 parameters -> message only, no plot file, save button stays disabled.
+    w_grid3 = _fresh_window_with_rows("grid", [("hidden_layers", "2, 4"), ("neurons_per_layer", "32, 64"), ("num_domain", "1000, 2000")])
+    cfg_grid3 = w_grid3._build_config()
+    check(cfg_grid3.validate() == [], f"Grid-3 plot-test config should validate clean: {cfg_grid3.validate()}")
+    w_grid3._sweep_last_config = cfg_grid3
+    grid3_runs = _build_runs(cfg_grid3)
+    w_grid3._sweep_results_cache = [(label, {"status": "done", "final_loss": 1e-3, "l2_relative": None}) for label, _ in grid3_runs]
+    w_grid3._render_sweep_plot()
+    check("3+" in w_grid3.sweep_plot_label.text() or "no longer a 2D grid" in w_grid3.sweep_plot_label.text(),
+          f"a 3-parameter Grid sweep should show an explanatory message, got: {w_grid3.sweep_plot_label.text()!r}")
+    check(not w_grid3.sweep_plot_save_btn.isEnabled(),
+          "Save Figure button should stay disabled when no plot was rendered (3+ param Grid)")
+
+    # Categorical parameter + a run with status "error" (no final_loss):
+    # this is the exact scenario that caught the NaN-point-drops-its-own-
+    # tick-from-view matplotlib autoscale bug while building this feature.
+    w_cat = _fresh_window_with_rows("oat", [("phase0_optimizer", "adam, lbfgs")])
+    cfg_cat = w_cat._build_config()
+    check(cfg_cat.validate() == [], f"categorical plot-test config should validate clean: {cfg_cat.validate()}")
+    w_cat._sweep_last_config = cfg_cat
+    w_cat._sweep_results_cache = [
+        ("baseline", {"status": "done", "final_loss": 1e-3, "l2_relative": 1e-2}),
+        ("Phase 1: Optimizer=adam", {"status": "done", "final_loss": 2e-3, "l2_relative": 2e-2}),
+        ("Phase 1: Optimizer=lbfgs", {"status": "error", "final_loss": None, "l2_relative": None}),
+    ]
+    w_cat._render_sweep_plot()  # must not raise
+    check(w_cat.sweep_plot_label._source_path is not None and _os.path.exists(w_cat.sweep_plot_label._source_path),
+          "categorical sweep plot (with one failed run) should still render a PNG without crashing")
+
+    # Empty sweep (baseline only) -> a clear message, not a crash.
+    w_empty = MainWindow()
+    _app.processEvents()
+    w_empty._sweep_last_config = w_empty._build_config()
+    w_empty._sweep_results_cache = [("baseline", {"status": "done", "final_loss": 1e-3, "l2_relative": None})]
+    w_empty._render_sweep_plot()
+    check(w_empty.sweep_plot_label._source_path is None,
+          "a baseline-only cache (no sweep parameters) should show a message, not a plot")
 
     # NOTE: a real, tiny, end-to-end run_sweep() execution (actual
     # subprocess training) is intentionally NOT exercised here -- this

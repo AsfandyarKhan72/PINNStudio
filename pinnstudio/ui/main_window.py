@@ -2474,7 +2474,28 @@ class MainWindow(QMainWindow):
         self.sweep_results_table.setHorizontalHeaderLabels(["Run", "Status", "Final loss", "L2 relative error"])
         self.sweep_results_table.horizontalHeader().setStretchLastSection(True)
         self.sweep_results_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        sweep_layout.addWidget(self.sweep_results_table, stretch=1)
+        self.sweep_results_table.setMaximumHeight(220)
+        sweep_layout.addWidget(self.sweep_results_table)
+
+        plot_header = QHBoxLayout()
+        plot_header.addWidget(QLabel("Results Plot"))
+        plot_header.addStretch()
+        self.sweep_plot_save_btn = QPushButton("💾 Save Figure")
+        self.sweep_plot_save_btn.setEnabled(False)
+        self.sweep_plot_save_btn.clicked.connect(lambda: self._save_figure(self.sweep_plot_label, "sweep_results_plot"))
+        plot_header.addWidget(self.sweep_plot_save_btn)
+        sweep_layout.addLayout(plot_header)
+
+        self.sweep_plot_label = QLabel(
+            "Run a sweep with at least one parameter to see a results plot here "
+            "(final loss, and L2 relative error if Error Analysis data is configured)."
+        )
+        self.sweep_plot_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.sweep_plot_label.setWordWrap(True)
+        self.sweep_plot_label.setStyleSheet("color: #8a8a8a; border: 1px dashed #3e3e42; border-radius: 6px;")
+        self.sweep_plot_label.setMinimumSize(340, 260)
+        self.sweep_plot_label._source_path = None
+        sweep_layout.addWidget(self.sweep_plot_label, stretch=1)
 
         self.central_tabs.addTab(sweep_tab, "Parameter Sweep")
         self.central_tabs.currentChanged.connect(self._on_central_tab_changed)
@@ -2676,6 +2697,11 @@ class MainWindow(QMainWindow):
         self.sweep_cancel_btn.setEnabled(True)
         self.sweep_progress_label.setText("Starting sweep...")
         self._sweep_results_cache = []
+        self._sweep_last_config = config
+        self.sweep_plot_save_btn.setEnabled(False)
+        self.sweep_plot_label.setPixmap(QPixmap())  # clear any previous plot image
+        self.sweep_plot_label.setText("Sweep running -- the results plot appears once every run finishes...")
+        self.sweep_plot_label._source_path = None
 
         self.sweep_thread = SweepThread(config)
         self.sweep_thread.run_start_signal.connect(self._on_sweep_run_start)
@@ -2712,6 +2738,7 @@ class MainWindow(QMainWindow):
         self.sweep_run_btn.setEnabled(True)
         self.sweep_cancel_btn.setEnabled(False)
         self.sweep_export_btn.setEnabled(self.sweep_results_table.rowCount() > 0)
+        self._render_sweep_plot()
 
     def _on_export_sweep_csv(self):
         path, _ = QFileDialog.getSaveFileName(self, "Export sweep results", "sweep_results.csv", "CSV files (*.csv)")
@@ -2728,6 +2755,191 @@ class MainWindow(QMainWindow):
                     result.get("l2_relative") if result.get("l2_relative") is not None else "",
                 ])
         self.log_box.append(f"💾 Sweep results exported to {path}")
+
+    # ── Parameter Sweep results plot (Phase 5) ──────────────────
+    def _display_sweep_plot_file(self, path):
+        """Loads a just-saved plot PNG into sweep_plot_label, the exact
+        same scale/setPixmap/_source_path pattern the existing Loss and
+        Solution plots use (see e.g. the Solve-done handler) -- so
+        _save_figure(self.sweep_plot_label, ...) works unmodified."""
+        self.sweep_plot_label.setText("")
+        self.sweep_plot_label.setPixmap(QPixmap(path).scaled(
+            self.sweep_plot_label.width(), self.sweep_plot_label.height(),
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation))
+        self.sweep_plot_label._source_path = path
+        self.sweep_plot_save_btn.setEnabled(True)
+
+    def _set_sweep_plot_message(self, text):
+        self.sweep_plot_label.setPixmap(QPixmap())
+        self.sweep_plot_label.setText(text)
+        self.sweep_plot_label._source_path = None
+        self.sweep_plot_save_btn.setEnabled(False)
+
+    def _render_sweep_plot(self):
+        """Builds a results plot from the just-finished sweep's cached
+        (label, result) pairs, once every run is in. One-at-a-time (or a
+        single-parameter Grid sweep, which has the same shape): one line
+        subplot per swept parameter, final loss (and L2 relative error,
+        if Error Analysis data was configured) against that parameter's
+        value, with the baseline run drawn as a dashed reference line.
+        A two-parameter Grid sweep instead gets a heatmap over both
+        parameters' values. Three or more Grid parameters aren't
+        visualized here -- the combination space isn't a 2D grid anymore,
+        and the results table above already lists every combination.
+
+        Regroups cache entries by parameter using
+        sweep_runner.expand_params(config), the SAME function build_runs()
+        itself uses to decide what to run -- never re-deriving that
+        shape by hand, so this can't silently drift out of sync with
+        what the sweep actually ran."""
+        cache = getattr(self, '_sweep_results_cache', [])
+        config = getattr(self, '_sweep_last_config', None)
+        if not cache or config is None:
+            self._set_sweep_plot_message("No sweep results yet.")
+            return
+        if len(cache) < 2:
+            self._set_sweep_plot_message(
+                "This sweep only ran the baseline (no parameters were configured) -- nothing to plot.")
+            return
+
+        from pinnstudio.core.sweep_runner import expand_params
+        per_param = expand_params(config)
+        if not per_param:
+            self._set_sweep_plot_message("No sweep results yet.")
+            return
+
+        baseline_label, baseline_result = cache[0]
+        run_results = cache[1:]
+
+        try:
+            import matplotlib
+            matplotlib.use("Agg")
+            import matplotlib.pyplot as plt
+
+            out_path = "/tmp/sweep_results_plot.png"  # matches /tmp/loss_plot.png etc.'s existing convention in this file
+            if config.sweep_mode == "grid" and len(per_param) >= 3:
+                self._set_sweep_plot_message(
+                    "Grid sweeps with 3+ parameters aren't plotted here (it's no longer a 2D "
+                    "grid) -- see the results table above for every combination.")
+                return
+            elif config.sweep_mode == "grid" and len(per_param) == 2:
+                self._render_sweep_grid_heatmap(plt, per_param, run_results, out_path)
+            else:
+                # One-at-a-time (any number of parameters), or a Grid
+                # sweep with exactly one parameter -- both produce one
+                # contiguous block of results per parameter, in order.
+                groups = []
+                idx = 0
+                for param, values in per_param:
+                    chunk = run_results[idx: idx + len(values)]
+                    idx += len(values)
+                    groups.append((param, values, [r for _, r in chunk]))
+                self._render_sweep_oat_lines(plt, groups, baseline_result, out_path)
+            self._display_sweep_plot_file(out_path)
+        except Exception as e:
+            self.log_box.append(f"⚠️ Could not render the sweep results plot: {e}")
+            self._set_sweep_plot_message(f"Could not render results plot: {e}")
+
+    def _render_sweep_oat_lines(self, plt, groups, baseline_result, out_path):
+        import numpy as np
+        n = len(groups)
+        cols = min(3, n)
+        rows = (n + cols - 1) // cols
+        fig, axes = plt.subplots(rows, cols, figsize=(4.4 * cols, 3.6 * rows), squeeze=False)
+        baseline_loss = baseline_result.get("final_loss")
+
+        for i, (param, values, results) in enumerate(groups):
+            ax = axes[i // cols][i % cols]
+            is_categorical = param.value_type == "categorical"
+            x_pos = list(range(len(values)))
+            losses = [r.get("final_loss") if r.get("final_loss") is not None else np.nan for r in results]
+            l2s = [r.get("l2_relative") for r in results]
+            has_l2 = any(v is not None for v in l2s)
+            l2s = [v if v is not None else np.nan for v in l2s]
+
+            ax.plot(x_pos, losses, "o-", color="#4dabf7", label="Final loss")
+            if baseline_loss is not None:
+                ax.axhline(baseline_loss, color="#999999", linestyle="--", linewidth=1, label="Baseline")
+            if is_categorical:
+                ax.set_xticks(x_pos)
+                ax.set_xticklabels([str(v) for v in values], rotation=20, ha="right")
+            else:
+                ax.set_xticks(x_pos)
+                ax.set_xticklabels([str(v) for v in values])
+            # A run with no final_loss (e.g. it errored) plots as a NaN
+            # point -- matplotlib's autoscale drops a NaN point's x
+            # AND y from the data range entirely, which can push that
+            # run's own tick mark outside the visible range. Pin xlim to
+            # span every tick explicitly so a failed run's position is
+            # never silently cropped out of the plot.
+            ax.set_xlim(-0.5, len(x_pos) - 0.5)
+            ax.set_yscale("log")
+            ax.set_xlabel(param.label)
+            ax.set_ylabel("Final loss (log)", color="#4dabf7")
+            ax.grid(True, alpha=0.3)
+
+            if has_l2:
+                ax2 = ax.twinx()
+                ax2.plot(x_pos, l2s, "s--", color="#ff8787", label="L2 relative error")
+                ax2.set_ylabel("L2 relative error", color="#ff8787")
+
+            lines, labels = ax.get_legend_handles_labels()
+            ax.legend(lines, labels, loc="best", fontsize=7)
+
+        for j in range(n, rows * cols):
+            axes[j // cols][j % cols].axis("off")
+
+        fig.tight_layout()
+        fig.savefig(out_path, dpi=120, bbox_inches="tight")
+        plt.close(fig)
+
+    def _render_sweep_grid_heatmap(self, plt, per_param, run_results, out_path):
+        import numpy as np
+        (param0, values0), (param1, values1) = per_param
+        n0, n1 = len(values0), len(values1)
+        loss_grid = np.full((n0, n1), np.nan)
+        l2_grid = np.full((n0, n1), np.nan)
+        has_l2 = False
+        # itertools.product(values0, values1) iterates values1 fastest --
+        # the exact order build_runs() uses for Grid mode -- so run k
+        # (0-indexed) is (values0[k // n1], values1[k % n1]).
+        for k, (_, result) in enumerate(run_results[: n0 * n1]):
+            i, j = divmod(k, n1)
+            fl = result.get("final_loss")
+            if fl is not None:
+                loss_grid[i, j] = fl
+            l2 = result.get("l2_relative")
+            if l2 is not None:
+                l2_grid[i, j] = l2
+                has_l2 = True
+
+        ncols = 2 if has_l2 else 1
+        fig, axes = plt.subplots(1, ncols, figsize=(6.5 * ncols, 5.5), squeeze=False)
+        axes = axes[0]
+
+        def _draw(ax, grid, title):
+            im = ax.imshow(grid, aspect="auto", cmap="viridis_r")
+            ax.set_xticks(range(n1)); ax.set_xticklabels([str(v) for v in values1], rotation=20, ha="right")
+            ax.set_yticks(range(n0)); ax.set_yticklabels([str(v) for v in values0])
+            ax.set_xlabel(param1.label); ax.set_ylabel(param0.label)
+            ax.set_title(title)
+            fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+            if n0 * n1 <= 100:  # annotate cells only while it stays legible
+                for i in range(n0):
+                    for j in range(n1):
+                        v = grid[i, j]
+                        if not np.isnan(v):
+                            ax.text(j, i, f"{v:.2e}", ha="center", va="center",
+                                     color="white", fontsize=7)
+
+        _draw(axes[0], loss_grid, "Final loss")
+        if has_l2:
+            _draw(axes[1], l2_grid, "L2 relative error")
+
+        fig.tight_layout()
+        fig.savefig(out_path, dpi=120, bbox_inches="tight")
+        plt.close(fig)
 
     # ── Dimension change ──────────────────────────────────────
     GEOM_TYPES_2D = ["Rectangle", "Disk", "Ellipse", "Triangle", "Polygon"]

@@ -23,6 +23,10 @@ Checks:
    back each run's own freshly-written error_metrics.txt rather than a
    stale one left over from an earlier run (the exact bug caught by
    hand while building this feature).
+ - Phase 5's MainWindow._render_sweep_plot() renders a real PNG from
+   each of the above REAL run_sweep() results (not synthetic data --
+   that's covered in test_sweep_tab.py; this just confirms the real
+   data shape flows into it correctly).
 
 Run directly (this trains for real, so budget roughly a minute or two
 depending on the machine):
@@ -75,6 +79,16 @@ def run():
         check(result["l2_relative"] is None,
               f"[1D Heat] run {label!r} should report l2_relative=None (no EA data configured), got {result}")
 
+    # Phase 5: the results plot should render from these REAL results
+    # (not synthetic data -- test_sweep_tab.py already covers the
+    # rendering logic itself with synthetic cache entries; this is the
+    # one check that real run_sweep() output flows into it correctly).
+    win._sweep_last_config = config
+    win._sweep_results_cache = results
+    win._render_sweep_plot()
+    check(win.sweep_plot_label._source_path is not None and os.path.exists(win.sweep_plot_label._source_path),
+          "[1D Heat] sweep results plot should render from real run_sweep() output")
+
     # ── 3D Poisson (Sphere): DOES have Error Analysis data configured ─
     win2 = MainWindow()
     _app.processEvents()
@@ -102,6 +116,12 @@ def run():
         l2s.append(result["l2_relative"])
     check(len(set(l2s)) == len(l2s),
           f"each 3D Sphere run should read back its OWN freshly-written error_metrics.txt, not a shared/stale one -- got identical values: {l2s}")
+
+    win2._sweep_last_config = config2
+    win2._sweep_results_cache = results2
+    win2._render_sweep_plot()
+    check(win2.sweep_plot_label._source_path is not None and os.path.exists(win2.sweep_plot_label._source_path),
+          "[3D Sphere] sweep results plot (with real L2 data) should render from real run_sweep() output")
 
     if failures:
         print("FAILURES:")
