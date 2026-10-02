@@ -27,6 +27,15 @@ Checks:
    each of the above REAL run_sweep() results (not synthetic data --
    that's covered in test_sweep_tab.py; this just confirms the real
    data shape flows into it correctly).
+ - A real sweep over a loss weight (sweep_registry.py's "SCOPE (v2)"
+   entries) on 1D Heat: pushing the Initial Condition weight to an
+   extreme value (100000, vs. the default 100) for a handful of
+   iterations measurably changes the real, parsed final_loss relative
+   to the baseline. test_sweep_registry.py already checks -- without
+   training -- that the swept value reaches every scheduler phase's
+   embedded weights string in the generated script; this is the one
+   check that it also reaches an ACTUAL training run's real result, not
+   just the script text.
 
 Run directly (this trains for real, so budget roughly a minute or two
 depending on the machine):
@@ -122,6 +131,35 @@ def run():
     win2._render_sweep_plot()
     check(win2.sweep_plot_label._source_path is not None and os.path.exists(win2.sweep_plot_label._source_path),
           "[3D Sphere] sweep results plot (with real L2 data) should render from real run_sweep() output")
+
+    # ── Loss weight sweep: a real training run, not just generated-
+    # script text (test_sweep_registry.py already checks the text) ────
+    win3 = MainWindow()
+    _app.processEvents()
+    win3.quick_examples_combo.setCurrentText("1D Heat")
+    _app.processEvents()
+    for ph in win3.sched_phase_list:
+        ph["iters"].setValue(20)
+    row3 = win3.sweep_row_list[0]
+    row3["param_combo"].setCurrentIndex(row3["param_combo"].findData("weight_ic_0"))
+    row3["mode_combo"].setCurrentIndex(row3["mode_combo"].findData("list"))
+    row3["list_edit"].setText("100000")  # the default IC weight is 100 -- a 1000x jump
+    win3.sweep_enable_cb.setChecked(True)
+    config3 = win3._build_config()
+    check(config3.validate() == [], f"1D Heat weight-sweep config should validate clean: {config3.validate()}")
+
+    results3 = run_sweep(config3)
+    check(len(results3) == 2, f"expected 2 runs (baseline + weight_ic_0=100000), got {len(results3)}")
+    losses3 = [r.get("final_loss") for _, r in results3]
+    check(all(v is not None for v in losses3),
+          f"[1D Heat weight sweep] both runs should report a parsed final_loss, got {losses3}")
+    if all(v is not None for v in losses3):
+        baseline_loss3, swept_loss3 = losses3
+        check(abs(swept_loss3 - baseline_loss3) > 1e-6 * max(abs(baseline_loss3), 1e-12),
+              f"[1D Heat weight sweep] pushing the IC weight to 100000 should measurably change "
+              f"the real final_loss vs. baseline -- got baseline={baseline_loss3}, "
+              f"swept={swept_loss3} (if these are too close, the swept weight may not actually "
+              "be reaching training)")
 
     if failures:
         print("FAILURES:")

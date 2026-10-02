@@ -23,6 +23,21 @@ Checks, for a representative spread of templates:
    config.layers as expected, preserving input/output size.
  - PINNConfig.validate()'s new sweep_enabled checks catch each class of
    malformed sweep_parameters JSON, and accept well-formed ones.
+ - Loss weight (PDE/BC/IC) sweep entries ("SCOPE (v2)" in
+   sweep_registry.py): slot order/keys match config.custom_bc_json/
+   ic_active exactly across every CASE below, including a 3D template
+   with several Boundary Conditions panel rows and a steady-state
+   template with none; setting one slot resyncs EVERY scheduler phase's
+   own "weights" string at that index without disturbing any other
+   slot; the swept value is actually present in the generated training
+   script's embedded per-phase weights (the specific class of "shared
+   value looks right, actual training phase is still stale" bug this
+   feature's resync logic exists to prevent); the entries disappear
+   entirely when per-phase weights are allowed to diverge
+   (scheduler_same_weights=False, where "the PDE weight" would be
+   ambiguous) but remain available with the scheduler off entirely
+   (still exactly one unambiguous copy); an Inverse problem's
+   observation-file weight tail is left untouched by a PDE/BC/IC sweep.
 
 Run directly:
     QT_QPA_PLATFORM=offscreen python3 tests/test_sweep_registry.py
@@ -174,6 +189,136 @@ def run():
         unrecognized_mode = [{"id": some_id, "mode": "wat"}]
         check(any("unrecognized mode" in e for e in errs_for(unrecognized_mode)),
               "unrecognized sweep mode should be flagged")
+
+    # ── Loss weight (PDE/BC/IC) sweep entries -- "SCOPE (v2)" ──────────
+    # Exercises sweep_registry.py's _weight_* helpers directly against
+    # real GUI-built configs across the same CASES spread above, plus
+    # the scheduler-phase resync these entries specifically depend on
+    # (the round-trip loop above already covers plain get/set for these
+    # the same way it does every other entry -- this section checks the
+    # things unique to loss weights: slot count/order, the ambiguous
+    # per-phase-weights gate, resync into every phase, and that the
+    # swept value actually reaches the generated training script).
+    for dim, name, inverse in CASES:
+        {"1d": win.radio_1d, "2d": win.radio_2d, "3d": win.radio_3d}[dim].setChecked(True)
+        win.quick_examples_combo.setCurrentText(name)
+        win.radio_forward.setChecked(not inverse)
+        win.radio_inverse.setChecked(inverse)
+        config = win._build_config()
+        label = f"{name} inv={inverse}"
+
+        n_out = config.num_outputs
+        bc_entries = reg._weight_bc_entries(config)
+        active_ic = [] if config.steady_state else reg._weight_active_ic_outputs(config, n_out)
+        slots = reg._weight_slot_descriptors(config)
+        expected_keys = (
+            [f"pde_{i}" for i in range(n_out)]
+            + [f"bc_{j}" for j in range(len(bc_entries))]
+            + [f"ic_{i}" for i in active_ic]
+        )
+        check([s["key"] for s in slots] == expected_keys,
+              f"[{label}] weight slot order/keys mismatch: got {[s['key'] for s in slots]}, "
+              f"expected {expected_keys}")
+        check(len(slots) == len(reg._weight_flat_list(config)),
+              f"[{label}] _weight_flat_list() length doesn't match slot count")
+        check(("ic_0" not in [s["key"] for s in slots]) if config.steady_state else True,
+              f"[{label}] steady-state config should have NO IC weight slot at all")
+
+        weight_ids = {p.id for p in reg.available_params(config) if p.category == "Loss Weights"}
+        expected_weight_ids = {f"weight_{k}" for k in expected_keys}
+        check(weight_ids == expected_weight_ids,
+              f"[{label}] Loss Weights category ids don't match slot descriptors: "
+              f"{weight_ids} vs {expected_weight_ids}")
+
+        # Per-phase resync: setting one slot must update EVERY scheduler
+        # phase's own "weights" string at that same index, not just the
+        # shared config.loss_weights_multi -- codegen.py reads each
+        # phase's own copy once the scheduler is active (the default),
+        # so a resync bug here would silently train with the old value.
+        if expected_keys:
+            target_key = expected_keys[-1]
+            probe_value = 12.5
+            probe_config = win._build_config()
+            reg._weight_set(probe_config, target_key, probe_value)
+            idx = expected_keys.index(target_key)
+            flat = [float(v) for v in probe_config.loss_weights_multi.split(",")]
+            check(abs(flat[idx] - probe_value) < 1e-9,
+                  f"[{label}] loss_weights_multi wasn't updated at slot {idx} for {target_key}")
+            phases = json.loads(probe_config.scheduler_phases) if probe_config.scheduler_phases else []
+            check(bool(phases), f"[{label}] expected scheduler phases to resync against")
+            for pi, ph in enumerate(phases):
+                ph_w = [float(x) for x in ph["weights"].split(",")]
+                check(idx < len(ph_w) and abs(ph_w[idx] - probe_value) < 1e-9,
+                      f"[{label}] phase {pi} weights not resynced for {target_key}: {ph['weights']}")
+                # Everything BEFORE the swept slot must be untouched.
+                for other_idx in range(idx):
+                    check(abs(ph_w[other_idx] - flat[other_idx]) < 1e-9,
+                          f"[{label}] phase {pi} slot {other_idx} changed unexpectedly "
+                          f"when only slot {idx} ({target_key}) was set")
+
+            # Static regression check for the exact bug class this
+            # module's docstring warns about: generate the real training
+            # script and confirm the swept value is present in EVERY
+            # phase's embedded weights string, not just the shared
+            # loss_weights_multi (which would look right even if the
+            # per-phase resync were silently broken).
+            from pinnstudio.core.codegen import generate_script
+            script = generate_script(probe_config)
+            for ph in phases:
+                check(json.dumps(ph["weights"]) in script,
+                      f"[{label}] generated script is missing phase weights string "
+                      f"{ph['weights']!r} for the swept config -- a phase may be "
+                      "training with a stale value")
+
+        # Ambiguous case: per-phase weights allowed to diverge -- loss
+        # weight sweeping must be withdrawn entirely rather than silently
+        # sweeping only one phase's copy.
+        ambiguous_config = win._build_config()
+        ambiguous_config.scheduler_same_weights = False
+        check(not any(p.category == "Loss Weights" for p in reg.available_params(ambiguous_config)),
+              f"[{label}] Loss Weights entries should disappear when scheduler_same_weights=False")
+
+        # Scheduler off entirely: still exactly one unambiguous set of
+        # weights (the synthesized single phase), so still available.
+        no_sched_config = win._build_config()
+        no_sched_config.optimizer_scheduler = False
+        no_sched_ids = {p.id for p in reg.available_params(no_sched_config) if p.category == "Loss Weights"}
+        check(no_sched_ids == expected_weight_ids,
+              f"[{label}] Loss Weights entries should still be offered with the scheduler off")
+
+    # 3D Heat specifically: 6 BC panel rows per output (box faces) --
+    # confirms the slot count genuinely tracks a config with several BC
+    # rows, not just the 1-2 row cases above.
+    win.radio_3d.setChecked(True)
+    win.quick_examples_combo.setCurrentText("3D Heat")
+    win.radio_forward.setChecked(True)
+    heat3d_config = win._build_config()
+    heat3d_slots = reg._weight_slot_descriptors(heat3d_config)
+    n_out_3d = heat3d_config.num_outputs
+    bc_slots_3d = [s for s in heat3d_slots if s["key"].startswith("bc_")]
+    check(len(bc_slots_3d) == 6 * n_out_3d,
+          f"3D Heat should have 6 BC weight slots per output, got {len(bc_slots_3d)} "
+          f"for {n_out_3d} output(s)")
+
+    # Inverse: the observation-file weight tail (inverse_obs_files_json)
+    # must be left completely untouched by a PDE/BC/IC weight sweep --
+    # it's a separate mechanism (see module docstring).
+    win.radio_1d.setChecked(True)
+    win.quick_examples_combo.setCurrentText("1D Heat")
+    win.radio_inverse.setChecked(True)
+    inv_config = win._build_config()
+    if reg.sched_active(inv_config) and json.loads(inv_config.scheduler_phases):
+        n_slots_inv = len(reg._weight_slot_descriptors(inv_config))
+        before_phases = json.loads(inv_config.scheduler_phases)
+        before_tail = [ph["weights"].split(",")[n_slots_inv:] for ph in before_phases]
+        reg._weight_set(inv_config, "pde_0", 42.0)
+        after_phases = json.loads(inv_config.scheduler_phases)
+        after_tail = [ph["weights"].split(",")[n_slots_inv:] for ph in after_phases]
+        check(before_tail == after_tail,
+              f"Inverse observation-weight tail changed after a PDE weight sweep set: "
+              f"{before_tail} -> {after_tail}")
+    win.radio_inverse.setChecked(False)
+    win.radio_forward.setChecked(True)
 
     if failures:
         print("FAILURES:")

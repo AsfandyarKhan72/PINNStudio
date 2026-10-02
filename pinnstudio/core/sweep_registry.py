@@ -18,16 +18,9 @@ exists so every call site resolves a parameter the same, correct way,
 once, instead of each UI/driver re-deriving "which field actually drives
 training right now" and risking getting it wrong.
 
-SCOPE (v1): only scalar, unambiguous fields are registered here --
-per-phase learning rate / iterations / optimizer choice, weight decay,
-network width/depth, and collocation point counts. Loss weights
-(PDE/BC/IC) are deliberately NOT included yet: the active weights for a
-problem live in each scheduler phase's own "weights" comma-separated
-string, whose column order depends on how many BCs are active, whether
-IC is active, and the number of outputs for that specific config --
-mapping "the PDE weight" to the right index generically needs its own
-careful, separately-tested pass before it's safe to expose, rather than
-guessing. A follow-up patch adds it once that mapping is verified.
+SCOPE (v1): scalar, unambiguous fields -- per-phase learning rate /
+iterations / optimizer choice, weight decay, network width/depth, and
+collocation point counts.
 
 Phase-scoped entries (learning rate / iterations / optimizer) are only
 offered when the Optimizer Scheduler is actually enabled and has that
@@ -35,6 +28,52 @@ many phases configured -- which is the state every template is in by
 default. Sweeping those with the scheduler off isn't supported in v1;
 is_available() for those entries returns False in that case rather than
 silently targeting the inert legacy fields.
+
+SCOPE (v2): Loss weights (PDE/BC/IC). These live in config.loss_weights_multi
+(a flat, comma-separated string) in a column order that depends on the
+number of outputs, how many rows are in the Boundary Conditions panel
+(config.custom_bc_json), and which outputs currently have an Initial
+Condition active (config.ic_active / forward_ic_from_file) -- exactly
+the kind of config-dependent indexing this module's docstring originally
+flagged as needing its own careful, separately-tested pass. See the
+"Loss weight helpers" section below:
+
+ - _weight_slot_descriptors(config) is the ONE place that decides this
+   order -- PDE (one per output), then one per Boundary Conditions panel
+   row, then IC (one per currently-active output, none at all for a
+   steady-state problem). It deliberately mirrors, slot for slot,
+   codegen.py's own _clean_loss_weights() (used for "Export as DeepXDE
+   Script") and the equivalent runtime block inside generate_script()
+   (the live Solve/Sweep path) -- both already build PDE-then-BC-then-IC
+   in this same order, gated the same way, so this is not a new scheme,
+   just the first place that *names* each slot so it can be swept.
+ - Observation-file weights (Inverse problems) are NOT included here --
+   those already have their own per-file weight spinbox in the Inverse
+   Data panel (inverse_obs_files_json), a separate mechanism, and always
+   sit after this block in the resolved list, so nothing here needs to
+   touch that tail.
+ - _weight_set() writes the new value into config.loss_weights_multi AND
+   re-syncs every entry in config.scheduler_phases' own per-phase
+   "weights" string at that same slot index. This second part is not
+   optional: once the Optimizer Scheduler is active (the default for
+   every template), codegen.py reads EACH PHASE'S OWN "weights" string
+   at training time, not loss_weights_multi directly -- updating only
+   loss_weights_multi would silently leave every phase training with its
+   stale copy of the old value. In the GUI this never diverges because
+   _build_scheduler_phases_json() rebuilds every phase's weights from the
+   exact same widgets loss_weights_multi comes from on every single
+   _build_config() call -- but a swept config is produced by mutating a
+   deep copy directly (sweep_runner.build_runs()), bypassing that GUI
+   rebuild entirely, so this module has to do the same resync by hand.
+ - Sweeping a loss weight is therefore only offered when there is
+   exactly ONE active copy of the weights across the whole run -- the
+   scheduler is off (a single implicit phase), or "Same weights (all
+   phases)" is checked (config.scheduler_same_weights, the default for
+   every template). When per-phase weights are allowed to diverge
+   (scheduler_same_weights=False), "the PDE weight" is ambiguous -- which
+   phase's copy? -- so is_available() returns False rather than silently
+   sweeping only one phase's copy while the others train with whatever
+   they already had.
 """
 import json
 from dataclasses import dataclass
@@ -131,6 +170,164 @@ def _set_neurons_per_layer(config, w: int) -> None:
     config.layers = [config.layers[0]] + [w] * n + [config.layers[-1]]
 
 
+# ── Loss weight helpers ────────────────────────────────────────────────
+# See the module docstring's "SCOPE (v2)" section for the full rationale.
+# Every function below mirrors a specific piece of codegen.py so there is
+# never a second, independently-guessed definition of "what order are
+# the loss weights in for this config" anywhere in the codebase.
+
+def _weight_bc_entries(config) -> list:
+    """The Boundary Conditions panel rows this config currently has, in
+    order -- mirrors codegen.py's own parsing of config.custom_bc_json
+    (generate_clean_script's bc_entries / generate_script's
+    _custom_bc_entries)."""
+    try:
+        entries = json.loads(config.custom_bc_json) if config.custom_bc_json else []
+    except (ValueError, TypeError):
+        entries = []
+    return entries if isinstance(entries, list) else []
+
+
+def _weight_active_ic_outputs(config, n_out: int) -> list:
+    """Which output indices get an Initial Condition weight slot, in
+    order -- mirrors codegen.py's _clean_active_ic_outputs()/the
+    equivalent runtime check in generate_script(): output 0 counts if
+    forward_ic_from_file is on, every other output counts if its
+    ic_active entry is 'True'. Steady-state problems never have any IC
+    slot at all -- callers check config.steady_state themselves before
+    calling this, matching codegen.py's own is_steady gating."""
+    ic_active_list = (config.ic_active or "").split(",")
+    active = []
+    for oi in range(n_out):
+        if oi == 0 and getattr(config, "forward_ic_from_file", False):
+            active.append(oi)
+        elif oi < len(ic_active_list) and ic_active_list[oi].strip() == "True":
+            active.append(oi)
+    return active
+
+
+def _weight_output_names(config, n_out: int) -> list:
+    names = [n.strip() for n in (config.output_names or "").split(",")]
+    while len(names) < n_out:
+        names.append(f"u{len(names)}")
+    return names
+
+
+def _weight_slot_descriptors(config) -> list:
+    """Ordered [{"key", "label", "default_min", "default_max"}, ...] for
+    every loss-weight slot THIS config currently has: PDE (one per
+    output), then one per Boundary Conditions panel row, then IC (one
+    per currently-active output, none at all if steady-state). This is
+    the single definition every other function in this section, and
+    every SweepParam built from it, resolves against -- see the module
+    docstring."""
+    n_out = config.num_outputs
+    names = _weight_output_names(config, n_out)
+    slots = []
+    for i in range(n_out):
+        slots.append({"key": f"pde_{i}", "label": f"PDE {i + 1} ({names[i]})",
+                       "default_min": 0.1, "default_max": 10.0})
+    for j, e in enumerate(_weight_bc_entries(config)):
+        btype = e.get("type", "dirichlet") if isinstance(e, dict) else "dirichlet"
+        comp = e.get("component", 0) if isinstance(e, dict) else 0
+        slots.append({"key": f"bc_{j}", "label": f"BC {j + 1} ({btype}, Output {comp})",
+                       "default_min": 0.1, "default_max": 10.0})
+    if not config.steady_state:
+        for i in _weight_active_ic_outputs(config, n_out):
+            slots.append({"key": f"ic_{i}", "label": f"IC {i + 1} ({names[i]})",
+                           "default_min": 10.0, "default_max": 1000.0})
+    return slots
+
+
+def _weight_index(config, key: str):
+    for idx, slot in enumerate(_weight_slot_descriptors(config)):
+        if slot["key"] == key:
+            return idx
+    return None
+
+
+def _weight_flat_list(config) -> list:
+    """The full, ordered flat weight list this config's loss_weights_multi
+    SHOULD resolve to -- exactly as many entries as
+    _weight_slot_descriptors() returns, read positionally from
+    config.loss_weights_multi, falling back to 1.0 for any slot not yet
+    present -- the same fallback codegen.py itself uses (its _wm_list
+    lookup is always "value if present else 1.0", for every slot kind,
+    IC included; 100.0 only ever appears as a GUI new-row convenience
+    default, never as codegen's own fallback)."""
+    try:
+        wm = [v.strip() for v in (config.loss_weights_multi or "").split(",") if v.strip()]
+    except AttributeError:
+        wm = []
+    out = []
+    for idx in range(len(_weight_slot_descriptors(config))):
+        try:
+            out.append(float(wm[idx]) if idx < len(wm) else 1.0)
+        except (TypeError, ValueError):
+            out.append(1.0)
+    return out
+
+
+def _weight_get(config, key: str):
+    idx = _weight_index(config, key)
+    if idx is None:
+        return None
+    return _weight_flat_list(config)[idx]
+
+
+def _weight_set(config, key: str, value) -> None:
+    idx = _weight_index(config, key)
+    if idx is None:
+        return  # is_available() guards against this being reachable for a
+                 # slot this config doesn't currently have.
+    values = _weight_flat_list(config)
+    values[idx] = float(value)
+    config.loss_weights_multi = ",".join(str(v) for v in values)
+
+    # Re-sync every scheduler phase's OWN "weights" string at this same
+    # index -- see the module docstring's "SCOPE (v2)" section for why
+    # this is required, not optional. A phase whose weights string is
+    # shorter than this index (a stale/hand-edited save, or a phase that
+    # somehow never matched the current slot count) is left untouched at
+    # that phase -- codegen.py's own length check already falls back to
+    # the freshly-resolved shared list in that case, which now carries
+    # the new value anyway.
+    phases = _load_phases(config)
+    changed = False
+    for ph in phases:
+        try:
+            ph_w = [float(x) for x in str(ph.get("weights", "")).split(",") if x.strip()]
+        except (TypeError, ValueError):
+            continue
+        if idx < len(ph_w):
+            ph_w[idx] = float(value)
+            ph["weights"] = ",".join(str(w) for w in ph_w)
+            changed = True
+    if changed:
+        _save_phases(config, phases)
+
+
+def _weight_available(config) -> bool:
+    """See the module docstring's "SCOPE (v2)" section: sweeping a loss
+    weight is only unambiguous when there's exactly one active copy of
+    the weights for the whole run."""
+    return (not sched_active(config)) or bool(getattr(config, "scheduler_same_weights", True))
+
+
+def _weight_params(config) -> List[SweepParam]:
+    params = []
+    for slot in _weight_slot_descriptors(config):
+        key = slot["key"]
+        params.append(SweepParam(
+            id=f"weight_{key}", label=slot["label"], category="Loss Weights",
+            value_type="float", default_min=slot["default_min"], default_max=slot["default_max"],
+            get_value=lambda c, k=key: _weight_get(c, k),
+            set_value=lambda c, v, k=key: _weight_set(c, k, v),
+            is_available=lambda c: _weight_available(c),
+        ))
+    return params
+
+
 # ── Static (always-available) registry entries ────────────────────────
 
 _STATIC_PARAMS: List[SweepParam] = [
@@ -220,10 +417,13 @@ def available_params(config) -> List[SweepParam]:
     """The full list of sweep-able parameters for the CURRENT state of
     this config -- static entries always included, plus one group of
     phase-scoped entries per currently-configured scheduler phase (none
-    at all if the scheduler is off, see module docstring)."""
+    at all if the scheduler is off, see module docstring), plus one
+    entry per current loss-weight slot (PDE/BC/IC -- none at all when
+    per-phase weights are allowed to diverge, see "SCOPE (v2)" above)."""
     params = list(_STATIC_PARAMS)
     for i in range(num_phases(config)):
         params.extend(_phase_param(i))
+    params.extend(_weight_params(config))
     return [p for p in params if p.is_available(config)]
 
 
