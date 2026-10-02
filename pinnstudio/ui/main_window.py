@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import (
     QTextEdit, QGroupBox, QComboBox, QSplitter, QLineEdit,
     QFileDialog, QCheckBox, QRadioButton, QButtonGroup,
     QDialog, QMenuBar, QMenu, QFrame, QApplication, QColorDialog,
-    QTabWidget, QMessageBox
+    QTabWidget, QMessageBox, QScrollArea, QTableWidget, QTableWidgetItem
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer
 from PyQt6.QtGui import QPixmap, QFont, QAction, QColor, QMovie
@@ -162,6 +162,39 @@ class SolverThread(QThread):
             except subprocess.TimeoutExpired:
                 self.process.kill()
                 self.process.wait()
+
+
+class SweepThread(QThread):
+    """Runs a whole Parameter Sweep (pinnstudio.core.sweep_runner.run_sweep)
+    on a background thread, the same way SolverThread runs a single Solve
+    -- so the sweep's sequence of real training subprocesses never blocks
+    the GUI event loop. Cancel works the same way Stop does for a normal
+    Solve: a flag SweepThread.run() checks between runs (should_stop), not
+    a hard kill -- the run currently in flight is allowed to finish rather
+    than leaving a half-written output directory behind."""
+    run_start_signal = pyqtSignal(int, int, str)
+    output_signal = pyqtSignal(int, int, str)
+    run_done_signal = pyqtSignal(int, int, str, dict)
+    finished_signal = pyqtSignal()
+
+    def __init__(self, config):
+        super().__init__()
+        self.config = config
+        self._stop_requested = False
+
+    def run(self):
+        from pinnstudio.core.sweep_runner import run_sweep
+        run_sweep(
+            self.config,
+            on_run_start=lambda i, total, label: self.run_start_signal.emit(i, total, label),
+            on_output=lambda i, total, line: self.output_signal.emit(i, total, line),
+            on_run_done=lambda i, total, label, result: self.run_done_signal.emit(i, total, label, result),
+            should_stop=lambda: self._stop_requested,
+        )
+        self.finished_signal.emit()
+
+    def stop(self):
+        self._stop_requested = True
 
 
 # --- Update-check background thread ---
@@ -587,9 +620,18 @@ class MainWindow(QMainWindow):
         update_dismiss_btn.clicked.connect(lambda: self.update_banner.setVisible(False))
         banner_layout.addWidget(update_dismiss_btn)
         outer_layout.addWidget(self.update_banner)
-        root = QHBoxLayout()
+
+        # Top-level tabs: the existing Setup UI (everything built below,
+        # unchanged) is now "Setup"; "Parameter Sweep" (built at the end
+        # of _build_ui, once every Setup widget it reads from already
+        # exists) is new.
+        self.central_tabs = QTabWidget()
+        outer_layout.addWidget(self.central_tabs)
+
+        setup_tab = QWidget()
+        root = QHBoxLayout(setup_tab)
         root.setContentsMargins(0, 0, 0, 0)
-        outer_layout.addLayout(root)
+        self.central_tabs.addTab(setup_tab, "Setup")
 
         splitter = QSplitter(Qt.Orientation.Horizontal)
         # Qt's default for a QSplitter is childrenCollapsible=True: once a
@@ -2330,6 +2372,347 @@ class MainWindow(QMainWindow):
         # the old cramped 1100px minimum-sized window) -- same "still just
         # an initial split, drag it anytime" caveat as right_splitter above.
         splitter.setSizes([630, 1010])
+
+        self._build_sweep_tab()
+
+    # ── Parameter Sweep tab ─────────────────────────────────────
+    def _build_sweep_tab(self):
+        """Builds the new top-level "Parameter Sweep" tab: an Enable
+        checkbox + Grid/One-at-a-time mode picker, a repeatable list of
+        sweep-parameter rows (same add/remove-row pattern as Optimizer
+        Scheduler phases in _add_scheduler_phase), and a Run/Cancel +
+        results table for actually executing the sweep (Phase 4/5).
+        Parameter choices are populated from pinnstudio.core.sweep_registry
+        against whatever _build_config() currently produces -- refreshed
+        whenever this tab is switched to, since the Setup tab's own
+        settings (template, dimension, scheduler phases, ...) decide
+        which parameters are even sweepable right now."""
+        sweep_tab = QWidget()
+        sweep_layout = QVBoxLayout(sweep_tab)
+        sweep_layout.setSpacing(8)
+        sweep_layout.setContentsMargins(10, 10, 10, 10)
+
+        intro = QLabel(
+            "Sweep one or more of the problem's own settings across several "
+            "values and run each combination as its own Solve. Switch back "
+            "to the Setup tab to configure the problem itself first -- the "
+            "parameter list below always reflects whatever is set up there."
+        )
+        intro.setWordWrap(True)
+        self._register_style(intro, "hint", lambda css, _c='#8a8a8a', _e='': f"color: {_c}; {_e}{css}")
+        sweep_layout.addWidget(intro)
+
+        top_row = QHBoxLayout()
+        self.sweep_enable_cb = QCheckBox("Enable Parameter Sweep")
+        top_row.addWidget(self.sweep_enable_cb)
+        top_row.addSpacing(16)
+        top_row.addWidget(QLabel("Mode:"))
+        self.sweep_mode_combo = QComboBox()
+        self.sweep_mode_combo.addItem("One-at-a-time (vary each parameter separately)", "oat")
+        self.sweep_mode_combo.addItem("Grid (every combination of every parameter)", "grid")
+        self.sweep_mode_combo.setFixedHeight(26)
+        top_row.addWidget(self.sweep_mode_combo)
+        top_row.addStretch()
+        refresh_btn = QPushButton("🔄 Refresh parameter list")
+        refresh_btn.setToolTip("Re-reads the Setup tab's current settings to update which parameters can be swept")
+        refresh_btn.clicked.connect(lambda: self._refresh_sweep_param_choices())
+        top_row.addWidget(refresh_btn)
+        sweep_layout.addLayout(top_row)
+
+        self.sweep_rows_widget = QWidget()
+        self.sweep_rows_layout = QVBoxLayout(self.sweep_rows_widget)
+        self.sweep_rows_layout.setSpacing(4)
+        self.sweep_rows_layout.setContentsMargins(0, 0, 0, 0)
+        sweep_scroll = QScrollArea()
+        sweep_scroll.setWidgetResizable(True)
+        sweep_scroll.setWidget(self.sweep_rows_widget)
+        sweep_scroll.setMaximumHeight(260)
+        sweep_layout.addWidget(sweep_scroll)
+        self.sweep_row_list = []  # list of dicts with widgets, mirrors sched_phase_list
+
+        add_row_btn = QPushButton("➕ Add Parameter")
+        add_row_btn.setStyleSheet(
+            "QPushButton { color: #69db7c; background: transparent; "
+            "border: 1px solid #2a6a4a; border-radius: 4px; padding: 2px 8px; }")
+        add_row_btn.clicked.connect(lambda: self._add_sweep_row())
+        sweep_layout.addWidget(add_row_btn)
+
+        run_row = QHBoxLayout()
+        self.sweep_run_btn = QPushButton("▶ Run Sweep")
+        self.sweep_run_btn.clicked.connect(self._on_run_sweep)
+        run_row.addWidget(self.sweep_run_btn)
+        self.sweep_cancel_btn = QPushButton("⏹ Cancel")
+        self.sweep_cancel_btn.setEnabled(False)
+        self.sweep_cancel_btn.clicked.connect(self._on_cancel_sweep)
+        run_row.addWidget(self.sweep_cancel_btn)
+        self.sweep_export_btn = QPushButton("💾 Export results (CSV)")
+        self.sweep_export_btn.setEnabled(False)
+        self.sweep_export_btn.clicked.connect(self._on_export_sweep_csv)
+        run_row.addWidget(self.sweep_export_btn)
+        run_row.addStretch()
+        sweep_layout.addLayout(run_row)
+
+        self.sweep_progress_label = QLabel("")
+        sweep_layout.addWidget(self.sweep_progress_label)
+
+        self.sweep_results_table = QTableWidget(0, 4)
+        self.sweep_results_table.setHorizontalHeaderLabels(["Run", "Status", "Final loss", "L2 relative error"])
+        self.sweep_results_table.horizontalHeader().setStretchLastSection(True)
+        self.sweep_results_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        sweep_layout.addWidget(self.sweep_results_table, stretch=1)
+
+        self.central_tabs.addTab(sweep_tab, "Parameter Sweep")
+        self.central_tabs.currentChanged.connect(self._on_central_tab_changed)
+
+        # One default row so the tab isn't empty on first open. Its
+        # parameter list is populated again once the Optimizer Scheduler's
+        # own default phases exist (those are themselves deferred via
+        # QTimer.singleShot(0, ...) in _build_ui, so phase-scoped sweep
+        # parameters -- learning rate/iterations/optimizer -- aren't
+        # available yet at this exact point in __init__).
+        self._add_sweep_row()
+        QTimer.singleShot(0, lambda: self._refresh_sweep_param_choices())
+
+    def _on_central_tab_changed(self, index):
+        if self.central_tabs.tabText(index) == "Parameter Sweep":
+            self._refresh_sweep_param_choices()
+
+    def _add_sweep_row(self):
+        row_widget = QWidget()
+        row_layout = QVBoxLayout(row_widget)
+        row_layout.setSpacing(3)
+        row_layout.setContentsMargins(0, 0, 0, 0)
+
+        header_row = QHBoxLayout()
+        row_num = len(self.sweep_row_list) + 1
+        header_lbl = QLabel(f"── Parameter {row_num} ──")
+        self._register_style(header_lbl, "hint", lambda css, _c='#a0c4ff', _e='': f"color: {_c}; {_e}{css}")
+        header_row.addWidget(header_lbl)
+        remove_btn = QPushButton("✕")
+        remove_btn.setFixedHeight(22); remove_btn.setFixedWidth(24)
+        remove_btn.setStyleSheet(
+            "QPushButton { color: #ff8787; background: transparent; border: none; }")
+        header_row.addStretch(); header_row.addWidget(remove_btn)
+        row_layout.addLayout(header_row)
+
+        param_row = QHBoxLayout()
+        param_row.addWidget(QLabel("Parameter:"))
+        param_combo = QComboBox()
+        param_combo.setFixedHeight(26)
+        param_row.addStretch(); param_row.addWidget(param_combo)
+        row_layout.addLayout(param_row)
+
+        mode_row_widget = QWidget()
+        mode_row = QHBoxLayout(mode_row_widget)
+        mode_row.setContentsMargins(0, 0, 0, 0)
+        mode_row.addWidget(QLabel("Sweep as:"))
+        mode_combo = QComboBox()
+        mode_combo.addItem("List of values", "list")
+        mode_combo.addItem("Linear range", "linear")
+        mode_combo.addItem("Log range", "log")
+        mode_combo.setFixedHeight(26)
+        mode_row.addStretch(); mode_row.addWidget(mode_combo)
+        row_layout.addWidget(mode_row_widget)
+
+        list_widget = QWidget()
+        list_row = QHBoxLayout(list_widget)
+        list_row.setContentsMargins(0, 0, 0, 0)
+        list_row.addWidget(QLabel("Values:"))
+        list_edit = QLineEdit()
+        list_edit.setPlaceholderText("comma-separated, e.g. 0.001, 0.005, 0.01")
+        list_row.addWidget(list_edit)
+        row_layout.addWidget(list_widget)
+
+        range_widget = QWidget()
+        range_row = QHBoxLayout(range_widget)
+        range_row.setContentsMargins(0, 0, 0, 0)
+        range_row.addWidget(QLabel("Min:"))
+        min_spin = QDoubleSpinBox()
+        min_spin.setRange(-1e9, 1e9); min_spin.setDecimals(6)
+        range_row.addWidget(min_spin)
+        range_row.addWidget(QLabel("Max:"))
+        max_spin = QDoubleSpinBox()
+        max_spin.setRange(-1e9, 1e9); max_spin.setDecimals(6); max_spin.setValue(1.0)
+        range_row.addWidget(max_spin)
+        range_row.addWidget(QLabel("Steps:"))
+        n_spin = QSpinBox()
+        n_spin.setRange(2, 100); n_spin.setValue(5)
+        range_row.addWidget(n_spin)
+        range_row.addStretch()
+        row_layout.addWidget(range_widget)
+
+        def _update_value_widgets():
+            meta = param_combo.itemData(param_combo.currentIndex(), Qt.ItemDataRole.UserRole + 1) or {}
+            is_categorical = meta.get("value_type") == "categorical"
+            if is_categorical:
+                mode_row_widget.setVisible(False)
+                range_widget.setVisible(False)
+                list_widget.setVisible(True)
+                choices = meta.get("choices") or []
+                list_edit.setPlaceholderText(f"comma-separated, choices: {', '.join(choices)}")
+            else:
+                mode_row_widget.setVisible(True)
+                mode = mode_combo.currentData()
+                list_widget.setVisible(mode == "list")
+                range_widget.setVisible(mode in ("linear", "log"))
+                list_edit.setPlaceholderText("comma-separated, e.g. 0.001, 0.005, 0.01")
+
+        param_combo.currentIndexChanged.connect(lambda _i: _update_value_widgets())
+        mode_combo.currentIndexChanged.connect(lambda _i: _update_value_widgets())
+
+        self.sweep_rows_layout.addWidget(row_widget)
+        row_data = {
+            'widget': row_widget,
+            'param_combo': param_combo,
+            'mode_combo': mode_combo,
+            'list_edit': list_edit,
+            'min_spin': min_spin,
+            'max_spin': max_spin,
+            'n_spin': n_spin,
+        }
+        self.sweep_row_list.append(row_data)
+
+        def _remove():
+            row_widget.deleteLater()
+            if row_data in self.sweep_row_list:
+                self.sweep_row_list.remove(row_data)
+
+        remove_btn.clicked.connect(_remove)
+        self._refresh_sweep_param_choices()
+
+    def _refresh_sweep_param_choices(self):
+        """Re-populates every sweep row's Parameter dropdown from
+        sweep_registry.available_params() against whatever _build_config()
+        produces right now, preserving each row's current selection when
+        that parameter is still available. Guarded with a try/except: the
+        Setup tab's widgets can be in a transient, not-yet-valid state
+        (e.g. mid-edit) when this fires, and a stale parameter list is far
+        less disruptive than a crash."""
+        try:
+            config = self._build_config()
+        except Exception:
+            return
+        from pinnstudio.core import sweep_registry as reg
+        params = reg.available_params(config)
+        for row in getattr(self, 'sweep_row_list', []):
+            combo = row['param_combo']
+            previous_id = combo.currentData()
+            combo.blockSignals(True)
+            combo.clear()
+            for p in params:
+                combo.addItem(f"{p.category}: {p.label}", p.id)
+                combo.setItemData(
+                    combo.count() - 1,
+                    {"value_type": p.value_type, "choices": p.choices},
+                    Qt.ItemDataRole.UserRole + 1,
+                )
+            if previous_id:
+                idx = combo.findData(previous_id)
+                if idx >= 0:
+                    combo.setCurrentIndex(idx)
+            combo.blockSignals(False)
+
+    def _build_sweep_parameters_json(self):
+        import json
+        entries = []
+        for row in getattr(self, 'sweep_row_list', []):
+            pid = row['param_combo'].currentData()
+            if not pid:
+                continue
+            meta = row['param_combo'].itemData(row['param_combo'].currentIndex(), Qt.ItemDataRole.UserRole + 1) or {}
+            is_categorical = meta.get('value_type') == 'categorical'
+            mode = row['mode_combo'].currentData() if not is_categorical else "list"
+            if mode == "list":
+                raw = row['list_edit'].text().strip()
+                vals = [v.strip() for v in raw.split(',') if v.strip()]
+                if not is_categorical:
+                    parsed = []
+                    for v in vals:
+                        try:
+                            parsed.append(float(v))
+                        except ValueError:
+                            parsed.append(v)
+                    vals = parsed
+                entries.append({"id": pid, "mode": "list", "values": vals})
+            else:
+                entries.append({
+                    "id": pid, "mode": mode,
+                    "min": row['min_spin'].value(),
+                    "max": row['max_spin'].value(),
+                    "n": row['n_spin'].value(),
+                })
+        return json.dumps(entries)
+
+    def _on_run_sweep(self):
+        config = self._build_config()
+        val_errors = config.validate()
+        if val_errors:
+            self.log_box.append("❌ Cannot start sweep -- this configuration has invalid settings:")
+            for ve in val_errors:
+                self.log_box.append(f"   • {ve}")
+            return
+        if not config.sweep_enabled:
+            self.log_box.append("❌ Cannot start sweep -- check \"Enable Parameter Sweep\" first.")
+            return
+
+        self.sweep_results_table.setRowCount(0)
+        self.sweep_export_btn.setEnabled(False)
+        self.sweep_run_btn.setEnabled(False)
+        self.sweep_cancel_btn.setEnabled(True)
+        self.sweep_progress_label.setText("Starting sweep...")
+        self._sweep_results_cache = []
+
+        self.sweep_thread = SweepThread(config)
+        self.sweep_thread.run_start_signal.connect(self._on_sweep_run_start)
+        self.sweep_thread.output_signal.connect(self._on_sweep_output)
+        self.sweep_thread.run_done_signal.connect(self._on_sweep_run_done)
+        self.sweep_thread.finished_signal.connect(self._on_sweep_finished)
+        self.sweep_thread.start()
+
+    def _on_cancel_sweep(self):
+        if hasattr(self, 'sweep_thread') and self.sweep_thread.isRunning():
+            self.sweep_thread.stop()
+            self.sweep_progress_label.setText("Cancelling -- finishing the current run, then stopping...")
+
+    def _on_sweep_run_start(self, i, total, label):
+        self.sweep_progress_label.setText(f"Run {i + 1}/{total}: {label}")
+
+    def _on_sweep_output(self, i, total, line):
+        self.log_box.append(f"[Sweep {i + 1}/{total}] {line}")
+
+    def _on_sweep_run_done(self, i, total, label, result):
+        self._sweep_results_cache.append((label, result))
+        row = self.sweep_results_table.rowCount()
+        self.sweep_results_table.insertRow(row)
+        status_icon = "✅" if result.get("status") == "done" else "❌"
+        self.sweep_results_table.setItem(row, 0, QTableWidgetItem(label))
+        self.sweep_results_table.setItem(row, 1, QTableWidgetItem(f"{status_icon} {result.get('status')}"))
+        fl = result.get("final_loss")
+        self.sweep_results_table.setItem(row, 2, QTableWidgetItem(f"{fl:.4e}" if fl is not None else "—"))
+        l2 = result.get("l2_relative")
+        self.sweep_results_table.setItem(row, 3, QTableWidgetItem(f"{l2:.4e}" if l2 is not None else "—"))
+
+    def _on_sweep_finished(self):
+        self.sweep_progress_label.setText(f"Sweep finished -- {self.sweep_results_table.rowCount()} run(s) completed.")
+        self.sweep_run_btn.setEnabled(True)
+        self.sweep_cancel_btn.setEnabled(False)
+        self.sweep_export_btn.setEnabled(self.sweep_results_table.rowCount() > 0)
+
+    def _on_export_sweep_csv(self):
+        path, _ = QFileDialog.getSaveFileName(self, "Export sweep results", "sweep_results.csv", "CSV files (*.csv)")
+        if not path:
+            return
+        import csv
+        with open(path, "w", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(["Run", "Status", "Final loss", "L2 relative error"])
+            for label, result in getattr(self, '_sweep_results_cache', []):
+                writer.writerow([
+                    label, result.get("status"),
+                    result.get("final_loss") if result.get("final_loss") is not None else "",
+                    result.get("l2_relative") if result.get("l2_relative") is not None else "",
+                ])
+        self.log_box.append(f"💾 Sweep results exported to {path}")
 
     # ── Dimension change ──────────────────────────────────────
     GEOM_TYPES_2D = ["Rectangle", "Disk", "Ellipse", "Triangle", "Polygon"]
@@ -4452,6 +4835,9 @@ class MainWindow(QMainWindow):
             ea_files=repr(self._ea_settings.get('files', [])) if getattr(self, '_ea_settings', None) else "[]",
             ea_do_line=self._ea_settings.get('do_line', True) if getattr(self, '_ea_settings', None) else True,
             ea_do_surface=self._ea_settings.get('do_surface', True) if getattr(self, '_ea_settings', None) else True,
+            sweep_enabled=self.sweep_enable_cb.isChecked() if hasattr(self, 'sweep_enable_cb') else False,
+            sweep_mode=self.sweep_mode_combo.currentData() if hasattr(self, 'sweep_mode_combo') else "oat",
+            sweep_parameters=self._build_sweep_parameters_json() if hasattr(self, '_build_sweep_parameters_json') else "[]",
         )
 
     # ── Save / Open a problem definition ─────────────────────

@@ -52,3 +52,4 @@ jobs:
           python tests/test_export_parity.py
           python tests/test_v56_no_template_solve.py
           python tests/test_sweep_registry.py
+          python tests/test_sweep_tab.py
