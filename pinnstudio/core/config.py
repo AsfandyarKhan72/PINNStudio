@@ -319,6 +319,27 @@ class PINNConfig:
     use_random_seed: bool = True
     random_seed: int = 2026
 
+    # Parameter Sweep. Distinct from the older parametric_study/
+    # parametric_param/parametric_values fields above: those predate the
+    # Optimizer Scheduler and multi-output loss-weights system, and their
+    # own code comment in codegen.py already documents that 4 of their 6
+    # options are dead (silently do nothing) as a result -- they're left
+    # in place rather than removed here to avoid breaking existing script
+    # generation, but nothing new should build on them. This sweep system
+    # is driven from the GUI/a dedicated sweep runner repeatedly calling
+    # the normal, already-correct single-run codegen path (see
+    # pinnstudio/core/sweep_registry.py), not from an internal loop
+    # inside the generated script, so it has no equivalent dependency on
+    # a particular training architecture to go stale over.
+    sweep_enabled: bool = False
+    sweep_mode: str = "oat"  # "oat" (one-at-a-time) or "grid" (full Cartesian product)
+    # JSON-encoded list of swept parameters, one dict per added row:
+    #   {"id": "<sweep_registry id>", "mode": "list", "values": [..]}
+    #   {"id": "...", "mode": "linear"|"log", "min": .., "max": .., "n": ..}
+    # "id" is a key into sweep_registry.available_params()'s ids for this
+    # config. Empty list ("[]", the default) means no sweep configured.
+    sweep_parameters: str = "[]"
+
     def validate(self):
         """Sanity-check the fields that would otherwise either silently
         produce a degenerate run or crash deep inside DeepXDE/PyTorch with a
@@ -516,6 +537,87 @@ class PINNConfig:
 
         if self.use_random_seed and not isinstance(self.random_seed, int):
             errors.append(f"Random seed must be an integer; got {self.random_seed!r}.")
+
+        if self.sweep_enabled:
+            if self.sweep_mode not in ("oat", "grid"):
+                errors.append(
+                    f"Parameter Sweep mode must be 'oat' or 'grid'; got {self.sweep_mode!r}."
+                )
+            try:
+                _sweep_params = _json_cfg.loads(self.sweep_parameters or "[]")
+            except (ValueError, TypeError):
+                _sweep_params = None
+            if not isinstance(_sweep_params, list):
+                errors.append(
+                    "Parameter Sweep's configured parameters are not valid JSON; "
+                    "this usually means a hand-edited save file -- re-add the "
+                    "swept parameters from the Parameter Sweep tab."
+                )
+            elif not _sweep_params:
+                errors.append(
+                    "Parameter Sweep is enabled but no parameters have been "
+                    "added -- add at least one from the Parameter Sweep tab, "
+                    "or turn Parameter Sweep off to run a normal single Solve."
+                )
+            else:
+                # Importing here (not at module level) avoids any import-
+                # order coupling between config.py and sweep_registry.py --
+                # same lazy-import style this method already uses for json.
+                from pinnstudio.core import sweep_registry as _sweep_reg
+                _available_ids = {p.id for p in _sweep_reg.available_params(self)}
+                for _si, _sp in enumerate(_sweep_params):
+                    if not isinstance(_sp, dict) or "id" not in _sp or "mode" not in _sp:
+                        errors.append(
+                            f"Parameter Sweep entry #{_si + 1} is missing its "
+                            f"'id' or 'mode'; got {_sp!r}."
+                        )
+                        continue
+                    _pid, _pmode = _sp.get("id"), _sp.get("mode")
+                    if _pid not in _available_ids:
+                        errors.append(
+                            f"Parameter Sweep entry #{_si + 1} ('{_pid}') is not "
+                            "a sweepable parameter for this problem's current "
+                            "setup (e.g. a scheduler-phase parameter when the "
+                            "Optimizer Scheduler is off, or that phase no "
+                            "longer exists) -- remove and re-add it."
+                        )
+                        continue
+                    if _pmode == "list":
+                        _vals = _sp.get("values")
+                        if not isinstance(_vals, list) or len(_vals) == 0:
+                            errors.append(
+                                f"Parameter Sweep entry #{_si + 1} ('{_pid}') "
+                                "needs at least one value."
+                            )
+                    elif _pmode in ("linear", "log"):
+                        _pmin, _pmax, _pn = _sp.get("min"), _sp.get("max"), _sp.get("n")
+                        if not isinstance(_pn, int) or _pn < 2:
+                            errors.append(
+                                f"Parameter Sweep entry #{_si + 1} ('{_pid}') "
+                                f"needs at least 2 steps; got {_pn!r}."
+                            )
+                        if not isinstance(_pmin, (int, float)) or not isinstance(_pmax, (int, float)):
+                            errors.append(
+                                f"Parameter Sweep entry #{_si + 1} ('{_pid}') "
+                                "needs numeric min/max values."
+                            )
+                        elif _pmin >= _pmax:
+                            errors.append(
+                                f"Parameter Sweep entry #{_si + 1} ('{_pid}') "
+                                f"needs min < max; got min={_pmin}, max={_pmax}."
+                            )
+                        elif _pmode == "log" and (_pmin <= 0 or _pmax <= 0):
+                            errors.append(
+                                f"Parameter Sweep entry #{_si + 1} ('{_pid}') "
+                                "uses log spacing, which needs both min and max "
+                                f"to be positive; got min={_pmin}, max={_pmax}."
+                            )
+                    else:
+                        errors.append(
+                            f"Parameter Sweep entry #{_si + 1} ('{_pid}') has "
+                            f"an unrecognized mode {_pmode!r} -- expected "
+                            "'list', 'linear', or 'log'."
+                        )
 
         return errors
 
