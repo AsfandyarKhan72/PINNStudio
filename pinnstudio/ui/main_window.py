@@ -312,6 +312,21 @@ class MainWindow(QMainWindow):
         self._build_ui()
         self._apply_display_settings()
         self._check_for_updates()
+        # The new top-level QTabWidget (central_tabs, added for Parameter
+        # Sweep) has been reported built correctly but with its tab bar
+        # not actually painted on first show on some real displays --
+        # the exact same class of "built but not painted until something
+        # nudges a repaint" Qt quirk pinnstudio/main.py's own comment
+        # already documents for PyTorch's import ordering (unrelated
+        # widgets, same underlying cause). A deferred hide/show cycle on
+        # just the tab bar is a cheap, reliable nudge; harmless if the
+        # platform never needed it.
+        QTimer.singleShot(0, self._nudge_central_tabs_repaint)
+
+    def _nudge_central_tabs_repaint(self):
+        bar = self.central_tabs.tabBar()
+        bar.hide()
+        bar.show()
 
     # ── Display-settings persistence ──────────────────────────
     def _load_display_settings_from_disk(self):
