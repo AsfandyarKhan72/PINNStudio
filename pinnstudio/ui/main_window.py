@@ -7,7 +7,8 @@ from PyQt6.QtWidgets import (
     QTextEdit, QGroupBox, QComboBox, QSplitter, QLineEdit,
     QFileDialog, QCheckBox, QRadioButton, QButtonGroup,
     QDialog, QMenuBar, QMenu, QFrame, QApplication, QColorDialog,
-    QTabWidget, QMessageBox, QScrollArea, QTableWidget, QTableWidgetItem
+    QTabWidget, QMessageBox, QScrollArea, QTableWidget, QTableWidgetItem,
+    QStackedWidget
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer
 from PyQt6.QtGui import QPixmap, QFont, QAction, QColor, QMovie
@@ -2449,6 +2450,20 @@ class MainWindow(QMainWindow):
         self._register_style(intro, "hint", lambda css, _c='#8a8a8a', _e='': f"color: {_c}; {_e}{css}")
         sweep_layout.addWidget(intro)
 
+        # ── Sweep Parameters -- its own panel, matching "Save Sweep
+        # Results To" and "Results To Save" below so the tab reads as 3
+        # clearly separated panels instead of one long undifferentiated
+        # column. The row list is added directly (no nested, height-
+        # capped QScrollArea) -- same "one continuous column, let the
+        # single outer scroll area handle overflow" pattern the Setup
+        # tab's own scheduler-phase list already uses (see sched_phases_
+        # widget above), so adding more parameters actually grows this
+        # panel (draggable via sweep_splitter) instead of being stuck
+        # scrolling inside a second, inner, fixed-size box.
+        params_group = QGroupBox("Sweep Parameters")
+        params_group_layout = QVBoxLayout(params_group)
+        params_group_layout.setSpacing(6)
+
         top_row = QHBoxLayout()
         self.sweep_enable_cb = QCheckBox("Enable Parameter Sweep")
         top_row.addWidget(self.sweep_enable_cb)
@@ -2475,17 +2490,13 @@ class MainWindow(QMainWindow):
         refresh_btn.clicked.connect(lambda: (self._refresh_sweep_param_choices(),
                                               self._refresh_sweep_export_output_choices()))
         top_row.addWidget(refresh_btn)
-        sweep_layout.addLayout(top_row)
+        params_group_layout.addLayout(top_row)
 
         self.sweep_rows_widget = QWidget()
         self.sweep_rows_layout = QVBoxLayout(self.sweep_rows_widget)
-        self.sweep_rows_layout.setSpacing(4)
-        self.sweep_rows_layout.setContentsMargins(0, 0, 0, 0)
-        sweep_scroll = QScrollArea()
-        sweep_scroll.setWidgetResizable(True)
-        sweep_scroll.setWidget(self.sweep_rows_widget)
-        sweep_scroll.setMaximumHeight(260)
-        sweep_layout.addWidget(sweep_scroll)
+        self.sweep_rows_layout.setSpacing(0)
+        self.sweep_rows_layout.setContentsMargins(0, 2, 0, 2)
+        params_group_layout.addWidget(self.sweep_rows_widget)
         self.sweep_row_list = []  # list of dicts with widgets, mirrors sched_phase_list
 
         add_row_btn = QPushButton("➕ Add Parameter")
@@ -2493,7 +2504,8 @@ class MainWindow(QMainWindow):
             "QPushButton { color: #69db7c; background: transparent; "
             "border: 1px solid #2a6a4a; border-radius: 4px; padding: 2px 8px; }")
         add_row_btn.clicked.connect(lambda: self._add_sweep_row())
-        sweep_layout.addWidget(add_row_btn)
+        params_group_layout.addWidget(add_row_btn)
+        sweep_layout.addWidget(params_group)
 
         # ── Where to save this sweep's output ───────────────────
         save_group = QGroupBox("Save Sweep Results To")
@@ -2701,67 +2713,85 @@ class MainWindow(QMainWindow):
 
     def _add_sweep_row(self):
         row_widget = QWidget()
-        row_layout = QVBoxLayout(row_widget)
-        row_layout.setSpacing(3)
-        row_layout.setContentsMargins(0, 0, 0, 0)
+        # One compact row per parameter (number, Parameter combo, Sweep-as
+        # combo, Values/range fields, remove button, all on a single
+        # line) instead of the old 4-line stacked block -- this is what
+        # lets several parameters sit in view at once without the tab
+        # turning into a wall of near-empty vertical space, and matches
+        # how COMSOL's own Parametric Sweep lists its parameters (one
+        # table row each) rather than a separate labeled block per
+        # field. A thin bottom border on each row stands in for a table's
+        # row separators.
+        row_widget.setObjectName("sweepParamRow")
+        row_widget.setStyleSheet(
+            "QWidget#sweepParamRow { border-bottom: 1px solid #333338; }")
+        row_layout = QHBoxLayout(row_widget)
+        row_layout.setSpacing(8)
+        row_layout.setContentsMargins(0, 5, 0, 5)
 
-        header_row = QHBoxLayout()
         row_num = len(self.sweep_row_list) + 1
-        header_lbl = QLabel(f"── Parameter {row_num} ──")
-        self._register_style(header_lbl, "hint", lambda css, _c='#a0c4ff', _e='': f"color: {_c}; {_e}{css}")
-        header_row.addWidget(header_lbl)
-        remove_btn = QPushButton("✕")
-        remove_btn.setFixedHeight(22); remove_btn.setFixedWidth(24)
-        remove_btn.setStyleSheet(
-            "QPushButton { color: #ff8787; background: transparent; border: none; }")
-        header_row.addStretch(); header_row.addWidget(remove_btn)
-        row_layout.addLayout(header_row)
+        num_lbl = QLabel(f"{row_num}.")
+        num_lbl.setFixedWidth(16)
+        self._register_style(num_lbl, "hint", lambda css, _c='#a0c4ff', _e='': f"color: {_c}; {_e}{css}")
+        row_layout.addWidget(num_lbl)
 
-        param_row = QHBoxLayout()
-        param_row.addWidget(QLabel("Parameter:"))
+        row_layout.addWidget(QLabel("Parameter:"))
         param_combo = QComboBox()
         param_combo.setFixedHeight(26)
-        param_row.addStretch(); param_row.addWidget(param_combo)
-        row_layout.addLayout(param_row)
+        param_combo.setMinimumWidth(190)
+        row_layout.addWidget(param_combo)
 
         mode_row_widget = QWidget()
         mode_row = QHBoxLayout(mode_row_widget)
         mode_row.setContentsMargins(0, 0, 0, 0)
+        mode_row.setSpacing(6)
         mode_row.addWidget(QLabel("Sweep as:"))
         mode_combo = QComboBox()
         mode_combo.addItem("List of values", "list")
         mode_combo.addItem("Linear range", "linear")
         mode_combo.addItem("Log range", "log")
         mode_combo.setFixedHeight(26)
-        mode_row.addStretch(); mode_row.addWidget(mode_combo)
+        mode_combo.setMinimumWidth(110)
+        mode_row.addWidget(mode_combo)
         row_layout.addWidget(mode_row_widget)
 
         list_widget = QWidget()
         list_row = QHBoxLayout(list_widget)
         list_row.setContentsMargins(0, 0, 0, 0)
+        list_row.setSpacing(6)
         list_row.addWidget(QLabel("Values:"))
         list_edit = QLineEdit()
         list_edit.setPlaceholderText("comma-separated, e.g. 0.001, 0.005, 0.01")
         list_row.addWidget(list_edit)
-        row_layout.addWidget(list_widget)
+        row_layout.addWidget(list_widget, 1)
 
         range_widget = QWidget()
         range_row = QHBoxLayout(range_widget)
         range_row.setContentsMargins(0, 0, 0, 0)
+        range_row.setSpacing(6)
         range_row.addWidget(QLabel("Min:"))
         min_spin = QDoubleSpinBox()
         min_spin.setRange(-1e9, 1e9); min_spin.setDecimals(6)
+        min_spin.setFixedWidth(100)
         range_row.addWidget(min_spin)
         range_row.addWidget(QLabel("Max:"))
         max_spin = QDoubleSpinBox()
         max_spin.setRange(-1e9, 1e9); max_spin.setDecimals(6); max_spin.setValue(1.0)
+        max_spin.setFixedWidth(100)
         range_row.addWidget(max_spin)
         range_row.addWidget(QLabel("Steps:"))
         n_spin = QSpinBox()
         n_spin.setRange(2, 100); n_spin.setValue(5)
+        n_spin.setFixedWidth(70)
         range_row.addWidget(n_spin)
         range_row.addStretch()
-        row_layout.addWidget(range_widget)
+        row_layout.addWidget(range_widget, 1)
+
+        remove_btn = QPushButton("✕")
+        remove_btn.setFixedHeight(22); remove_btn.setFixedWidth(24)
+        remove_btn.setStyleSheet(
+            "QPushButton { color: #ff8787; background: transparent; border: none; }")
+        row_layout.addWidget(remove_btn)
 
         def _update_value_widgets():
             meta = param_combo.itemData(param_combo.currentIndex(), Qt.ItemDataRole.UserRole + 1) or {}
@@ -2801,6 +2831,17 @@ class MainWindow(QMainWindow):
 
         remove_btn.clicked.connect(_remove)
         self._refresh_sweep_param_choices()
+        # _refresh_sweep_param_choices() populates param_combo with
+        # blockSignals(True) (so repopulating it elsewhere doesn't spam
+        # currentIndexChanged on every other row), which means
+        # _update_value_widgets() never actually ran for THIS brand new
+        # row -- without this, a freshly added row show both the Values
+        # field AND the Min/Max/Steps range fields at once until the
+        # user happens to touch one of the combos (pre-existing since
+        # the original Phase 3 patch; only cosmetic, but far more
+        # visible now that both sit on the same line instead of one
+        # being further down the old stacked layout).
+        _update_value_widgets()
 
     def _refresh_sweep_param_choices(self):
         """Re-populates every sweep row's Parameter dropdown from
@@ -2822,7 +2863,17 @@ class MainWindow(QMainWindow):
             combo.blockSignals(True)
             combo.clear()
             for p in params:
-                combo.addItem(f"{p.category}: {p.label}", p.id)
+                # Most registry entries have a bare label ("Hidden
+                # layers") that wants its category prefixed for display
+                # ("Network: Hidden layers"). The per-phase entries
+                # (phase{i}_lr/_iterations/_optimizer) already embed
+                # their own "Phase N: " prefix in p.label itself -- that
+                # text is also what ends up in run folder names/labels
+                # (sweep_runner.py), so it's kept as-is there rather
+                # than changed -- only skip re-prepending it here so the
+                # dropdown doesn't read "Phase 1: Phase 1: Optimizer".
+                display = p.label if p.label.startswith(f"{p.category}:") else f"{p.category}: {p.label}"
+                combo.addItem(display, p.id)
                 combo.setItemData(
                     combo.count() - 1,
                     {"value_type": p.value_type, "choices": p.choices},
@@ -2833,6 +2884,11 @@ class MainWindow(QMainWindow):
                 if idx >= 0:
                     combo.setCurrentIndex(idx)
             combo.blockSignals(False)
+            # Longer labels (e.g. a Boundary Conditions entry naming its
+            # side/type/output) shouldn't get clipped now that this combo
+            # has a defined minimum width instead of stretching to fill
+            # the row -- widen it to fit its widest current item.
+            self._fit_combo_width(combo, min_width=190)
 
     def _build_sweep_parameters_json(self):
         import json

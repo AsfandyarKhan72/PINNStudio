@@ -347,6 +347,77 @@ def run():
     check(mode_data == ["oat", "grid", "zip"],
           f"expected exactly 3 sweep modes in order [oat, grid, zip], got {mode_data}")
 
+    # ── v69: Sweep Parameters as its own panel, one compact row per
+    # parameter, no nested/height-capped inner scroll area ────────────
+    from PyQt6.QtWidgets import QGroupBox, QScrollArea
+    sweep_tab_idx = [win.central_tabs.tabText(i) for i in range(win.central_tabs.count())].index("Parameter Sweep")
+    params_groups = [w for w in win.central_tabs.widget(sweep_tab_idx).findChildren(QGroupBox)
+                      if w.title() == "Sweep Parameters"]
+    check(len(params_groups) == 1, f"expected exactly one 'Sweep Parameters' QGroupBox panel, got {len(params_groups)}")
+    if params_groups:
+        # Walk sweep_rows_widget's own parent chain up to confirm it's
+        # nested inside that panel (rather than, say, a sibling further
+        # up the tab).
+        ancestor = win.sweep_rows_widget.parentWidget()
+        found = False
+        while ancestor is not None:
+            if ancestor is params_groups[0]:
+                found = True
+                break
+            ancestor = ancestor.parentWidget()
+        check(found, "the sweep parameter rows should live inside the 'Sweep Parameters' panel")
+    # No more inner QScrollArea wrapping just the rows (that's what caused
+    # the "locked at a fixed height, has to scroll inside a tiny box even
+    # though the splitter has room" complaint) -- the rows sit directly in
+    # the panel, so the row list grows with its content and only the ONE
+    # outer setup_scroll (or dragging sweep_splitter) handles overflow,
+    # same pattern as the Setup tab's own scheduler-phase list.
+    check(not isinstance(win.sweep_rows_widget.parentWidget(), QScrollArea),
+          "sweep_rows_widget's direct parent should NOT be a QScrollArea -- "
+          "no more nested, nested height-capped scroll area around just the parameter rows")
+
+    # A fresh row must show exactly one of (Values field / Min-Max-Steps
+    # range fields) visible, never both and never neither -- this is the
+    # exact bug caught while redesigning this tab: _refresh_sweep_param_
+    # choices() populates the Parameter combo with blockSignals(True), so
+    # _update_value_widgets() previously never ran for a brand new row
+    # until the user happened to touch a combo, leaving BOTH value
+    # widgets visible at once (glaringly obvious once they sit on the
+    # same line instead of further down a stacked layout).
+    win2_fresh = MainWindow()
+    _app.processEvents()
+    win2_fresh.show()
+    _app.processEvents()
+    idx2 = [win2_fresh.central_tabs.tabText(i) for i in range(win2_fresh.central_tabs.count())].index("Parameter Sweep")
+    win2_fresh.central_tabs.setCurrentIndex(idx2)
+    _app.processEvents()
+    fresh_row = win2_fresh.sweep_row_list[0]
+    list_visible = fresh_row['list_edit'].parentWidget().isVisible()
+    range_visible = fresh_row['min_spin'].parentWidget().isVisible()
+    check(list_visible != range_visible,
+          f"a freshly added row should show exactly one of the Values field / range fields, "
+          f"not both or neither -- got list_visible={list_visible}, range_visible={range_visible}")
+
+    # Each parameter row is now a single compact line (num + Parameter +
+    # Sweep as + Values/range + remove), not 3-4 stacked lines -- check
+    # the row's own layout is a QHBoxLayout (not the old per-row QVBoxLayout).
+    from PyQt6.QtWidgets import QHBoxLayout as _QHBoxLayout
+    check(isinstance(row['widget'].layout(), _QHBoxLayout),
+          "each sweep parameter row should be laid out as a single horizontal line")
+
+    # A phase-scoped entry's own label already embeds "Phase N: " --
+    # the dropdown display text should show that once, not doubled up
+    # as "Phase 1: Phase 1: Optimizer".
+    win3_fresh = MainWindow()
+    _app.processEvents()
+    row3_fresh = win3_fresh.sweep_row_list[0]
+    phase_idx = row3_fresh['param_combo'].findData("phase0_optimizer")
+    if phase_idx >= 0:
+        text = row3_fresh['param_combo'].itemText(phase_idx)
+        check(text.count("Phase 1:") == 1,
+              f"a phase-scoped entry's label already says 'Phase 1: ...' -- the dropdown display "
+              f"text shouldn't prepend the category a second time, got {text!r}")
+
     # ── v68: "Save Sweep Results To" field + Browse button ────────────
     check(hasattr(win, "sweep_save_dir_input"), "expected a dedicated sweep_save_dir_input field")
     check(win.sweep_save_dir_input.text() == "", "sweep save dir should start blank (falls back to a default path at run time)")
