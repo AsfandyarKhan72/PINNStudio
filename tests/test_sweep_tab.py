@@ -1,15 +1,20 @@
 #!/usr/bin/env python3
 """
-Regression check for Phase 3 (the "Parameter Sweep" GUI tab in
-main_window.py) and Phase 4 (pinnstudio/core/sweep_runner.py, the
-execution driver). Phase 1/2 (config fields + registry) already has its
-own coverage in test_sweep_registry.py; this file is specifically about
-the GUI wiring on top of it and the driver that turns a configured
-sweep into real runs.
+Regression check for Phase 3 (the Parameter Sweep panel in
+main_window.py, inline in the Setup tab's right side since v70 -- see
+its own "Enable Parameter Sweep" toggle in the left training panel,
+right after Adaptive Training) and Phase 4 (pinnstudio/core/
+sweep_runner.py, the execution driver). Phase 1/2 (config fields +
+registry) already has its own coverage in test_sweep_registry.py; this
+file is specifically about the GUI wiring on top of it and the driver
+that turns a configured sweep into real runs.
 
 Checks:
- - The top-level "Parameter Sweep" tab exists alongside "Setup", and a
-   default row is present on boot.
+ - The sweep panel's own widgets exist (Enable checkbox in the left
+   panel, off by default; sweep_panel_widget hidden/normal_results_
+   widget shown by default; toggling the checkbox swaps the two and
+   disables the main Solve button), and a default row is present on
+   boot.
  - Add/remove row wiring (_add_sweep_row / its remove button closure).
  - Selecting a categorical parameter (e.g. a scheduler phase's
    optimizer) hides the mode/range widgets and shows the list entry
@@ -83,10 +88,31 @@ def run():
     win = MainWindow()
     _app.processEvents()
 
-    # ── Tab structure ───────────────────────────────────────────────
+    # ── v70: tab merge -- sweep lives inline in the Setup tab now ─────
     tab_texts = [win.central_tabs.tabText(i) for i in range(win.central_tabs.count())]
-    check("Setup" in tab_texts, f"expected a 'Setup' tab, got {tab_texts}")
-    check("Parameter Sweep" in tab_texts, f"expected a 'Parameter Sweep' tab, got {tab_texts}")
+    check(tab_texts == ["Setup"], f"expected only a single 'Setup' tab (no separate 'Parameter Sweep' tab anymore), got {tab_texts}")
+    check(not win.central_tabs.tabBar().isVisible() or win.central_tabs.count() <= 1,
+          "the tab bar should stay hidden with only one tab")
+    check(hasattr(win, "sweep_enable_cb"), "expected an Enable Parameter Sweep checkbox")
+    check(not win.sweep_enable_cb.isChecked(), "Parameter Sweep should be OFF by default")
+    check(hasattr(win, "normal_results_widget") and hasattr(win, "sweep_panel_widget"),
+          "expected normal_results_widget and sweep_panel_widget as the two swappable right-panel containers")
+    check(win.sweep_panel_widget.isHidden(), "the sweep panel should be hidden by default (sweep is off by default)")
+    check(not win.normal_results_widget.isHidden(), "the normal results view should be visible by default")
+    check(win.solve_btn.isEnabled(), "Solve should be enabled by default (sweep is off)")
+
+    win.sweep_enable_cb.setChecked(True)
+    check(win.sweep_panel_widget.isHidden() is False, "enabling the sweep should reveal the sweep panel")
+    check(win.normal_results_widget.isHidden(), "enabling the sweep should hide the normal results view")
+    check(not win.solve_btn.isEnabled(), "Solve should be disabled while Parameter Sweep is enabled")
+    win.sweep_enable_cb.setChecked(False)
+    check(win.normal_results_widget.isHidden() is False, "disabling the sweep should restore the normal results view")
+    check(win.sweep_panel_widget.isHidden(), "disabling the sweep should hide the sweep panel again")
+    check(win.solve_btn.isEnabled(), "Solve should be re-enabled once the sweep is disabled")
+    # Leave it enabled for the rest of this test, same as before (most of
+    # what follows configures/exercises the sweep itself).
+    win.sweep_enable_cb.setChecked(True)
+
     check(len(win.sweep_row_list) == 1, f"expected exactly one default sweep row on boot, got {len(win.sweep_row_list)}")
 
     win._refresh_sweep_param_choices()
@@ -350,8 +376,7 @@ def run():
     # ── v69: Sweep Parameters as its own panel, one compact row per
     # parameter, no nested/height-capped inner scroll area ────────────
     from PyQt6.QtWidgets import QGroupBox, QScrollArea
-    sweep_tab_idx = [win.central_tabs.tabText(i) for i in range(win.central_tabs.count())].index("Parameter Sweep")
-    params_groups = [w for w in win.central_tabs.widget(sweep_tab_idx).findChildren(QGroupBox)
+    params_groups = [w for w in win.sweep_panel_widget.findChildren(QGroupBox)
                       if w.title() == "Sweep Parameters"]
     check(len(params_groups) == 1, f"expected exactly one 'Sweep Parameters' QGroupBox panel, got {len(params_groups)}")
     if params_groups:
@@ -388,8 +413,9 @@ def run():
     _app.processEvents()
     win2_fresh.show()
     _app.processEvents()
-    idx2 = [win2_fresh.central_tabs.tabText(i) for i in range(win2_fresh.central_tabs.count())].index("Parameter Sweep")
-    win2_fresh.central_tabs.setCurrentIndex(idx2)
+    # Enabling the sweep (rather than switching tabs -- there's no
+    # separate tab anymore) is what actually shows the sweep panel.
+    win2_fresh.sweep_enable_cb.setChecked(True)
     _app.processEvents()
     fresh_row = win2_fresh.sweep_row_list[0]
     list_visible = fresh_row['list_edit'].parentWidget().isVisible()
@@ -438,13 +464,11 @@ def run():
     # setVisible() calls were made on it or its ancestors (confirmed
     # against the pre-existing, known-correct plot_custom_expr_input
     # toggle, which shows the identical false negative without .show()).
-    _sweep_tab_idx = [win.central_tabs.tabText(i) for i in range(win.central_tabs.count())].index("Parameter Sweep")
-    win.central_tabs.setCurrentIndex(_sweep_tab_idx)  # a QTabWidget only
-    # actually shows its CURRENT tab's contents -- without switching to it,
-    # every widget on this tab reports isVisible()==False regardless of
-    # setVisible() calls, the same false negative documented for
-    # plot_custom_expr_input (window-shown-but-wrong-tab is just another
-    # flavor of "ancestor not really shown").
+    # The sweep panel itself also needs to actually be enabled (sweep_
+    # enable_cb checked) for its own widgets to report real isVisible()
+    # values -- same "ancestor not really shown" flavor as the window-
+    # shown check above, just one level further up the widget tree.
+    win.sweep_enable_cb.setChecked(True)
     _app.processEvents()
     check(win.sweep_export_mode_combo.currentData() == "same_as_setup",
           "export override should default to 'same as Setup tab', preserving today's existing behavior")
