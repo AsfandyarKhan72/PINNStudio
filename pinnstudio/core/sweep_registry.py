@@ -74,6 +74,38 @@ flagged as needing its own careful, separately-tested pass. See the
    phase's copy? -- so is_available() returns False rather than silently
    sweeping only one phase's copy while the others train with whatever
    they already had.
+
+SCOPE (v3): Inverse-problem entries -- only offered when
+config.problem_type == "Inverse". Two kinds, one per row already present
+in the Inverse panel (main_window.py's inv_var_rows/inv_data_rows):
+
+ - Each trainable (unknown) variable's own "initial guess" value
+   (config.inverse_variables_json, falling back to the single legacy
+   inverse_param_name/inverse_param_init fields for a config saved before
+   multi-variable support existed -- mirrors codegen.py's own
+   _parse_inverse_variables() fallback, minus the identifier-sanitizing/
+   de-duplication that function additionally does for generated code,
+   which sweeping a raw numeric value never needs).
+ - Each measured-data file's own "Data loss weight" (config.
+   inverse_obs_files_json, falling back to the single legacy
+   inverse_data_file/inverse_obs_output_idx/loss_weight_obs fields --
+   mirrors codegen.py's own _parse_inverse_obs_files() fallback the same
+   way).
+
+Unlike the PDE/BC/IC weights above, neither of these ever needs a
+scheduler-phase resync: an observation-file weight is its own separate
+loss term, never folded into any scheduler phase's "weights" string
+(see that section's own note that observation weights "always sit after
+this block ... nothing here needs to touch that tail"), and an initial
+guess isn't a loss weight at all -- it only seeds where DeepXDE starts
+optimizing that variable from, so there's exactly one copy of it,
+always. _inv_var_set_init()/_inv_obs_set_weight() below do keep the
+single legacy field (inverse_param_init/loss_weight_obs) in sync for
+the FIRST row only, the same "every representation this config might
+still be read through stays correct" approach _weight_set() above takes
+-- a couple of older call sites (e.g. the primary variable's PDE auto-
+substitution default) read that legacy field directly rather than
+through inverse_variables_json.
 """
 import json
 from dataclasses import dataclass
@@ -328,6 +360,146 @@ def _weight_params(config) -> List[SweepParam]:
     return params
 
 
+# ── Inverse-problem helpers ─────────────────────────────────────────────
+# See the module docstring's "SCOPE (v3)" section for the full rationale.
+
+def _inv_vars_list(config) -> list:
+    """Ordered list of {"name", "init"} dicts, one per trainable
+    (unknown) variable this config currently has -- mirrors codegen.py's
+    own _parse_inverse_variables() fallback (a single entry built from
+    the legacy inverse_param_name/inverse_param_init fields when
+    inverse_variables_json is empty/unparseable)."""
+    raw = getattr(config, "inverse_variables_json", "") or ""
+    variables = []
+    if raw:
+        try:
+            parsed = json.loads(raw)
+        except (ValueError, TypeError):
+            parsed = []
+        for i, v in enumerate(parsed or []):
+            v = v or {}
+            name = str(v.get("name") or f"trainable_variable_{i + 1}").strip() or f"trainable_variable_{i + 1}"
+            try:
+                init = float(v.get("init", 1.0))
+            except (TypeError, ValueError):
+                init = 1.0
+            variables.append({"name": name, "init": init})
+    if not variables:
+        variables.append({
+            "name": config.inverse_param_name or "trainable_variable_1",
+            "init": config.inverse_param_init,
+        })
+    return variables
+
+
+def _inv_var_get_init(config, idx: int):
+    variables = _inv_vars_list(config)
+    return variables[idx]["init"] if idx < len(variables) else None
+
+
+def _inv_var_set_init(config, idx: int, value) -> None:
+    variables = _inv_vars_list(config)
+    if idx >= len(variables):
+        return  # is_available() guards against this being reachable.
+    variables[idx]["init"] = float(value)
+    config.inverse_variables_json = json.dumps(variables)
+    if idx == 0:
+        # Keep the single legacy field in sync too -- see module
+        # docstring. Only the primary (first) variable has a legacy
+        # field at all.
+        config.inverse_param_init = float(value)
+
+
+def _inv_obs_files_list(config) -> list:
+    """Ordered list of {"path", "output_idx", "weight", "custom_expr"}
+    dicts, one per measured-data file this config currently has --
+    mirrors codegen.py's own _parse_inverse_obs_files() fallback (a
+    single entry built from the legacy inverse_data_file/
+    inverse_obs_output_idx/loss_weight_obs fields when
+    inverse_obs_files_json is empty/unparseable)."""
+    raw = getattr(config, "inverse_obs_files_json", "") or ""
+    files = []
+    if raw:
+        try:
+            parsed = json.loads(raw)
+        except (ValueError, TypeError):
+            parsed = []
+        for f in (parsed or []):
+            f = f or {}
+            try:
+                weight = float(f.get("weight", 100.0))
+            except (TypeError, ValueError):
+                weight = 100.0
+            files.append({
+                "path": str(f.get("path") or "").strip(),
+                "output_idx": f.get("output_idx", 0),
+                "weight": weight,
+                "custom_expr": f.get("custom_expr", ""),
+            })
+    if not files:
+        files.append({
+            "path": config.inverse_data_file or "",
+            "output_idx": getattr(config, "inverse_obs_output_idx", 0),
+            "weight": config.loss_weight_obs,
+            "custom_expr": "",
+        })
+    return files
+
+
+def _inv_obs_get_weight(config, idx: int):
+    files = _inv_obs_files_list(config)
+    return files[idx]["weight"] if idx < len(files) else None
+
+
+def _inv_obs_set_weight(config, idx: int, value) -> None:
+    files = _inv_obs_files_list(config)
+    if idx >= len(files):
+        return  # is_available() guards against this being reachable.
+    files[idx]["weight"] = float(value)
+    config.inverse_obs_files_json = json.dumps(files)
+    if idx == 0:
+        # Keep the single legacy field in sync too -- see module
+        # docstring. Only the primary (first) file has a legacy field.
+        config.loss_weight_obs = float(value)
+
+
+def _inv_available(config) -> bool:
+    return getattr(config, "problem_type", "Forward") == "Inverse"
+
+
+def _inv_var_params(config) -> List["SweepParam"]:
+    if not _inv_available(config):
+        return []
+    params = []
+    for i, v in enumerate(_inv_vars_list(config)):
+        params.append(SweepParam(
+            id=f"inv_var_init_{i}", label=f"{v['name']}: initial guess",
+            category="Inverse", value_type="float",
+            default_min=0.1, default_max=10.0,
+            get_value=lambda c, idx=i: _inv_var_get_init(c, idx),
+            set_value=lambda c, val, idx=i: _inv_var_set_init(c, idx, val),
+            is_available=lambda c: _inv_available(c),
+        ))
+    return params
+
+
+def _inv_obs_weight_params(config) -> List["SweepParam"]:
+    if not _inv_available(config):
+        return []
+    params = []
+    for i, f in enumerate(_inv_obs_files_list(config)):
+        tail = f" ({f['path'].rsplit('/', 1)[-1]})" if f.get("path") else ""
+        params.append(SweepParam(
+            id=f"inv_obs_weight_{i}", label=f"Obs {i + 1}{tail}: Data loss weight",
+            category="Inverse", value_type="float",
+            default_min=1.0, default_max=1000.0,
+            get_value=lambda c, idx=i: _inv_obs_get_weight(c, idx),
+            set_value=lambda c, val, idx=i: _inv_obs_set_weight(c, idx, val),
+            is_available=lambda c: _inv_available(c),
+        ))
+    return params
+
+
 # ── Static (always-available) registry entries ────────────────────────
 
 _STATIC_PARAMS: List[SweepParam] = [
@@ -419,11 +591,16 @@ def available_params(config) -> List[SweepParam]:
     phase-scoped entries per currently-configured scheduler phase (none
     at all if the scheduler is off, see module docstring), plus one
     entry per current loss-weight slot (PDE/BC/IC -- none at all when
-    per-phase weights are allowed to diverge, see "SCOPE (v2)" above)."""
+    per-phase weights are allowed to diverge, see "SCOPE (v2)" above),
+    plus one entry per trainable variable's initial guess and one per
+    measured-data file's loss weight when this is an Inverse problem
+    (see "SCOPE (v3)" above)."""
     params = list(_STATIC_PARAMS)
     for i in range(num_phases(config)):
         params.extend(_phase_param(i))
     params.extend(_weight_params(config))
+    params.extend(_inv_var_params(config))
+    params.extend(_inv_obs_weight_params(config))
     return [p for p in params if p.is_available(config)]
 
 

@@ -169,10 +169,13 @@ class SweepThread(QThread):
     """Runs a whole Parameter Sweep (pinnstudio.core.sweep_runner.run_sweep)
     on a background thread, the same way SolverThread runs a single Solve
     -- so the sweep's sequence of real training subprocesses never blocks
-    the GUI event loop. Cancel works the same way Stop does for a normal
-    Solve: a flag SweepThread.run() checks between runs (should_stop), not
-    a hard kill -- the run currently in flight is allowed to finish rather
-    than leaving a half-written output directory behind."""
+    the GUI event loop. Stop/Cancel now hard-stops exactly the way
+    SolverThread.stop() already does for a normal Solve: the CURRENTLY
+    RUNNING training subprocess is terminated (and killed if it doesn't
+    exit promptly) immediately, not allowed to keep training to
+    completion -- an earlier version of this class only set a flag
+    checked between runs, which looked like Stop wasn't doing anything
+    (the in-flight run kept printing iterations for a while longer)."""
     sweep_root_signal = pyqtSignal(str)
     run_start_signal = pyqtSignal(int, int, str)
     output_signal = pyqtSignal(int, int, str)
@@ -183,6 +186,7 @@ class SweepThread(QThread):
         super().__init__()
         self.config = config
         self._stop_requested = False
+        self.process = None
 
     def run(self):
         from pinnstudio.core.sweep_runner import run_sweep
@@ -193,11 +197,28 @@ class SweepThread(QThread):
             on_output=lambda i, total, line: self.output_signal.emit(i, total, line),
             on_run_done=lambda i, total, label, result: self.run_done_signal.emit(i, total, label, result),
             should_stop=lambda: self._stop_requested,
+            set_process=self._set_process,
         )
         self.finished_signal.emit()
 
+    def _set_process(self, proc):
+        self.process = proc
+
     def stop(self):
+        # Mark should_stop() True first so run_sweep()'s loop won't start
+        # another run once the current one is forced to exit below, then
+        # hard-kill whichever subprocess is in flight right now -- same
+        # terminate()-then-kill() approach, and the same deliberate
+        # bounded-wait trade-off, as SolverThread.stop() above.
         self._stop_requested = True
+        if self.process and self.process.poll() is None:
+            import subprocess
+            self.process.terminate()
+            try:
+                self.process.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                self.process.kill()
+                self.process.wait()
 
 
 # --- Update-check background thread ---
@@ -1444,9 +1465,38 @@ class MainWindow(QMainWindow):
         # _train_cbs construction for the full scoping note). Read directly
         # by _build_config() and set directly by _apply_config() -- no
         # intermediate dict, same as every other Training-panel setting.
-        div_cb = QLabel("─── Training Callbacks (optional) ───")
+        div_cb = QLabel("─── Training Callbacks ───")
         self._register_style(div_cb, "hint", lambda css, _c='#505080', _e='': f"color: {_c}; {_e}{css}")
         train_layout.addWidget(div_cb)
+
+        # The four callback groups below (Early Stopping/Point Resampling/
+        # Model Checkpoint/Training Timer) used to always render, even
+        # fully unchecked and unused -- which meant every config paid for
+        # 4 group boxes' worth of vertical space in the left panel no
+        # matter what. They're now tucked inside train_callbacks_container,
+        # hidden by default, and only shown once this switch is ticked --
+        # same "off by default, nothing to look at until you ask for it"
+        # convention as Adaptive Training/Parameter Sweep already use for
+        # their own optional configuration. _apply_config() below also
+        # ticks this automatically when restoring a saved config that
+        # already has any one of the four enabled, so a previously-
+        # configured callback is never hidden from view on load.
+        self.train_callbacks_show_cb = QCheckBox("Show Training Callbacks")
+        self.train_callbacks_show_cb.setChecked(False)
+        self.train_callbacks_show_cb.setToolTip(
+            "Early Stopping / Point Resampling / Model Checkpoint / "
+            "Training Timer -- optional extras most runs don't need, "
+            "hidden by default so they don't take up space when unused.")
+        train_layout.addWidget(self.train_callbacks_show_cb)
+
+        self.train_callbacks_container = QWidget()
+        train_callbacks_layout = QVBoxLayout(self.train_callbacks_container)
+        train_callbacks_layout.setContentsMargins(0, 0, 0, 0)
+        train_callbacks_layout.setSpacing(5)
+        train_layout.addWidget(self.train_callbacks_container)
+        self.train_callbacks_container.setVisible(False)
+        self.train_callbacks_show_cb.stateChanged.connect(
+            lambda s: self.train_callbacks_container.setVisible(s == 2))
 
         def _cb_row(target_layout, label, widget):
             row = QHBoxLayout(); row.addWidget(QLabel(label))
@@ -1482,7 +1532,7 @@ class MainWindow(QMainWindow):
         es_layout.addWidget(es_fields)
         es_fields.setVisible(False)
         self.cb_early_stopping_cb.stateChanged.connect(lambda s: es_fields.setVisible(s == 2))
-        train_layout.addWidget(es_group)
+        train_callbacks_layout.addWidget(es_group)
 
         # Point Resampling
         pr_group = QGroupBox("Point Resampling")
@@ -1505,7 +1555,7 @@ class MainWindow(QMainWindow):
         pr_layout.addWidget(pr_fields)
         pr_fields.setVisible(False)
         self.cb_point_resampler_cb.stateChanged.connect(lambda s: pr_fields.setVisible(s == 2))
-        train_layout.addWidget(pr_group)
+        train_callbacks_layout.addWidget(pr_group)
 
         # Model Checkpoint
         ck_group = QGroupBox("Model Checkpoint")
@@ -1530,7 +1580,7 @@ class MainWindow(QMainWindow):
         ck_layout.addWidget(ck_fields)
         ck_fields.setVisible(False)
         self.cb_model_checkpoint_cb.stateChanged.connect(lambda s: ck_fields.setVisible(s == 2))
-        train_layout.addWidget(ck_group)
+        train_callbacks_layout.addWidget(ck_group)
 
         # Training Timer
         tm_group = QGroupBox("Training Timer")
@@ -1547,7 +1597,7 @@ class MainWindow(QMainWindow):
         tm_layout.addWidget(tm_fields)
         tm_fields.setVisible(False)
         self.cb_timer_cb.stateChanged.connect(lambda s: tm_fields.setVisible(s == 2))
-        train_layout.addWidget(tm_group)
+        train_callbacks_layout.addWidget(tm_group)
 
         left_layout.addWidget(train_group)
 
@@ -5468,6 +5518,13 @@ class MainWindow(QMainWindow):
         self._set_combo_data(self.cb_ck_monitor, config.cb_checkpoint_monitor)
         self.cb_timer_cb.setChecked(config.cb_timer)
         self.cb_tm_minutes.setValue(float(config.cb_timer_minutes))
+        # Auto-reveal the Training Callbacks group on load if this saved
+        # config already has any one of the four enabled -- a previously-
+        # configured callback should never come back hidden just because
+        # the panel defaults to collapsed for a brand-new config.
+        self.train_callbacks_show_cb.setChecked(
+            bool(config.cb_early_stopping or config.cb_point_resampler or
+                 config.cb_model_checkpoint or config.cb_timer))
 
         # IC pre-training
         self.ic_pretrain_cb.setChecked(config.ic_pretrain)
@@ -6099,8 +6156,17 @@ class MainWindow(QMainWindow):
         self.solve_btn.setText("⏳  Running sweep...")
         self.stop_btn.setEnabled(True)
         self.log_box.clear()
+        self._clear_solution_movie()
+        self._reset_plot_headers()
+        self.loss_label.setText("⏳ Training...")
+        self.solution_label.setText("⏳ Training...")
+        self.loss_label._source_path = None
+        self.solution_label._source_path = None
         self._sweep_run_count = 0
         self._sweep_run_root = None
+        self._sweep_base_config = config
+        self._sweep_last_run_dir = None
+        self._sweep_last_run_label = None
         self.sweep_thread = SweepThread(config)
         self.sweep_thread.sweep_root_signal.connect(self._on_sweep_root)
         self.sweep_thread.run_start_signal.connect(self._on_sweep_run_start)
@@ -6134,6 +6200,15 @@ class MainWindow(QMainWindow):
         if l2 is not None:
             msg += f", L2 relative error: {l2:.4e}"
         self.log_box.append(msg)
+        # Remember the last run that actually finished successfully (not
+        # necessarily the last one in the sequence -- if the sweep is
+        # stopped partway or a later run errors, the right panel should
+        # still end up showing a real figure from whichever run last
+        # produced one, not nothing). See _on_sweep_finished, which
+        # displays this once the whole sweep is done.
+        if result.get("status") == "done":
+            self._sweep_last_run_dir = result.get("save_dir")
+            self._sweep_last_run_label = label
 
     def _on_sweep_finished(self):
         self.solve_btn.setEnabled(True)
@@ -6146,18 +6221,34 @@ class MainWindow(QMainWindow):
         if getattr(self, '_sweep_run_root', None):
             self.log_box.append(
                 f"📁 Per-run folders, manifest and summary CSV saved under: {self._sweep_run_root}")
+        # Show the last successfully-completed run's own loss/solution
+        # figure in the right panel -- same as a normal single Solve
+        # already does, using whichever plot type the Setup tab itself
+        # has chosen (Surface by default), since every run in the sweep
+        # reuses that same setting (see sweep_runner._apply_run_output_
+        # settings -- "same_as_setup" leaves plot_type untouched). There
+        # is no separate sweep-vs-parameter comparison chart -- just
+        # this one run's own figure, exactly like a normal Solve leaves
+        # behind.
+        if getattr(self, '_sweep_last_run_dir', None):
+            self._display_run_result_plots(self._sweep_base_config, self._sweep_last_run_dir)
+            self.log_box.append(
+                f"🖼️ Showing the loss/solution figure for the last completed run: {self._sweep_last_run_label}")
 
     def _on_stop(self):
         if hasattr(self, 'sweep_thread') and self.sweep_thread.isRunning():
-            # Same graceful-cancel semantics as before: SweepThread.stop()
-            # just sets a flag build_runs()'s own loop checks between
-            # runs, letting whichever run is currently training finish
-            # rather than killing it mid-write -- so, unlike the normal-
-            # Solve branch below, this doesn't wait()/reset the buttons
-            # immediately; _on_sweep_finished() does that once the
-            # thread's finished_signal actually fires.
+            # Same hard-stop semantics as the normal-Solve branch below:
+            # SweepThread.stop() kills the currently-running training
+            # subprocess right away (see its own docstring) rather than
+            # letting it keep training to completion first.
             self.sweep_thread.stop()
-            self.log_box.append("\n⏹ Cancelling -- finishing the current run, then stopping...")
+            self.sweep_thread.wait(3000)
+            self.log_box.append("\n⏹ Stopped by user.")
+            self.solve_btn.setEnabled(True)
+            self.solve_btn.setText(
+                "▶  Run Sweep" if getattr(self, 'sweep_enable_cb', None) and self.sweep_enable_cb.isChecked()
+                else "▶  Solve")
+            self.stop_btn.setEnabled(False)
             return
         if hasattr(self, 'thread') and self.thread.isRunning():
             self.thread.stop()
@@ -6284,6 +6375,53 @@ class MainWindow(QMainWindow):
         except Exception as e:
             self.log_box.append(f"❌ Failed to save figure: {e}")
 
+    def _display_run_result_plots(self, config, save_dir):
+        """Loads and shows whichever loss/solution plot files a finished
+        run actually wrote into `save_dir` (or /tmp, when blank), honoring
+        config.plot_type to know whether to expect a static PNG or an
+        animated GIF (see codegen.py's _sol_ext) -- exactly the plot-
+        loading logic a normal single Solve already used inline in
+        _on_done(), pulled out here so a finished Parameter Sweep's LAST
+        completed run (see _on_sweep_finished) can show its own figure
+        the same way, without duplicating this. `config` only needs to be
+        whichever PINNConfig that run actually used (for plot_type);
+        `save_dir` is wherever that run's own config.save_dir pointed --
+        the Setup tab's own save location for a normal run, or that run's
+        own per-run folder under the sweep's root for a sweep."""
+        self._clear_solution_movie()
+
+        # The two GIF animation plot types write "solution_plot.gif"
+        # instead of "solution_plot.png" (see codegen.py's _sol_ext).
+        _gif_types = ("Line Animation (GIF)", "Surface Animation (GIF)")
+        _is_gif = config.plot_type in _gif_types
+        _sol_ext = "gif" if _is_gif else "png"
+
+        save_dir = (save_dir or "").strip()
+        sol_dir = os.path.join(save_dir, "solution_results") if save_dir else "/tmp"
+        loss_path = os.path.join(sol_dir, "loss_plot.png")
+        solution_path = os.path.join(sol_dir, f"solution_plot.{_sol_ext}")
+        # Fallback to root save dir for older runs
+        if not os.path.exists(loss_path):
+            loss_path = os.path.join(save_dir, "loss_plot.png") if save_dir else "/tmp/loss_plot.png"
+        if not os.path.exists(solution_path):
+            solution_path = os.path.join(save_dir, f"solution_plot.{_sol_ext}") if save_dir else f"/tmp/solution_plot.{_sol_ext}"
+
+        if os.path.exists(loss_path):
+            self.loss_label.setPixmap(QPixmap(loss_path).scaled(
+                self.loss_label.width(), self.loss_label.height(),
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation))
+            self.loss_label._source_path = loss_path
+        if os.path.exists(solution_path):
+            if _is_gif:
+                self._set_solution_gif(solution_path)
+            else:
+                self.solution_label.setPixmap(QPixmap(solution_path).scaled(
+                    self.solution_label.width(), self.solution_label.height(),
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation))
+            self.solution_label._source_path = solution_path
+
     def _on_done(self, result):
         self.solve_btn.setEnabled(True)
         self.solve_btn.setText("▶  Solve")
@@ -6292,42 +6430,8 @@ class MainWindow(QMainWindow):
         if result == "DONE":
             self.log_box.append("\n✅ Training complete!")
             self._last_config = self._build_config()
-            self._clear_solution_movie()
-
-            # The two GIF animation plot types write "solution_plot.gif"
-            # instead of "solution_plot.png" (see codegen.py's _sol_ext) --
-            # known now from the config that was just used to run this
-            # solve, so look for the right extension instead of assuming
-            # .png.
-            _gif_types = ("Line Animation (GIF)", "Surface Animation (GIF)")
-            _is_gif = self._last_config.plot_type in _gif_types
-            _sol_ext = "gif" if _is_gif else "png"
-
             save_dir = self.save_dir_input.text().strip()
-            sol_dir = os.path.join(save_dir, "solution_results") if save_dir else "/tmp"
-            loss_path = os.path.join(sol_dir, "loss_plot.png")
-            solution_path = os.path.join(sol_dir, f"solution_plot.{_sol_ext}")
-            # Fallback to root save dir for older runs
-            if not os.path.exists(loss_path):
-                loss_path = os.path.join(save_dir, "loss_plot.png") if save_dir else "/tmp/loss_plot.png"
-            if not os.path.exists(solution_path):
-                solution_path = os.path.join(save_dir, f"solution_plot.{_sol_ext}") if save_dir else f"/tmp/solution_plot.{_sol_ext}"
-
-            if os.path.exists(loss_path):
-                self.loss_label.setPixmap(QPixmap(loss_path).scaled(
-                    self.loss_label.width(), self.loss_label.height(),
-                    Qt.AspectRatioMode.KeepAspectRatio,
-                    Qt.TransformationMode.SmoothTransformation))
-                self.loss_label._source_path = loss_path
-            if os.path.exists(solution_path):
-                if _is_gif:
-                    self._set_solution_gif(solution_path)
-                else:
-                    self.solution_label.setPixmap(QPixmap(solution_path).scaled(
-                        self.solution_label.width(), self.solution_label.height(),
-                        Qt.AspectRatioMode.KeepAspectRatio,
-                        Qt.TransformationMode.SmoothTransformation))
-                self.solution_label._source_path = solution_path
+            self._display_run_result_plots(self._last_config, save_dir)
 
             if save_dir:
                 self.log_box.append(f"💾 Results saved to: {save_dir}")

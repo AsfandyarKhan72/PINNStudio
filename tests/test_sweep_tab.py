@@ -196,13 +196,18 @@ def run():
             return True
         def stop(self):
             self.stopped = True
+        def wait(self, _ms):
+            pass
 
     fake_thread = _FakeSweepThread()
     win.sweep_thread = fake_thread
     win.log_box.clear()
     win._on_stop()
-    check(fake_thread.stopped, "Stop should cancel an in-progress sweep thread (graceful: just sets a flag, doesn't wait())")
-    check("Cancelling" in win.log_box.toPlainText(), "Stop should log that cancellation was requested")
+    check(fake_thread.stopped, "Stop should hard-stop an in-progress sweep thread (kills the current run's subprocess, not a graceful finish-then-stop)")
+    check("Stopped by user" in win.log_box.toPlainText(), "Stop should log the same message a normal single-run Stop does")
+    check(win.solve_btn.isEnabled() and "Run Sweep" in win.solve_btn.text(),
+          "Stop should immediately re-enable Solve/relabel it back to Run Sweep, not wait for _on_sweep_finished")
+    check(not win.stop_btn.isEnabled(), "Stop should immediately disable the Stop button itself")
     del win.sweep_thread
 
     # A categorical row's list values should be kept as strings, not
@@ -405,6 +410,57 @@ def run():
     # generate_script(), never actually run it). That real-execution
     # check lives in test_sweep_execution.py instead, run locally where
     # torch/deepxde are installed -- see that file's docstring.
+
+    # ── Once a sweep finishes, the right panel should show the LAST
+    # successfully-completed run's own loss/solution figure -- the same
+    # way a normal single Solve already does (_display_run_result_plots,
+    # shared between _on_done() and _on_sweep_finished()). Exercised here
+    # with synthetic result dicts/fake PNG files (no real training, to
+    # stay CI-safe) by driving the exact signal handlers SweepThread
+    # would fire, in order. ─────────────────────────────────────────────
+    import tempfile
+    tmp_root = tempfile.mkdtemp(prefix="v72_sweep_plot_")
+    try:
+        run0_dir = os.path.join(tmp_root, "run_000_baseline", "solution_results")
+        run1_dir = os.path.join(tmp_root, "run_001_hidden_layers_2", "solution_results")
+        run2_dir = os.path.join(tmp_root, "run_002_hidden_layers_4_FAILED")  # no solution_results at all
+        os.makedirs(run0_dir)
+        os.makedirs(run1_dir)
+        os.makedirs(run2_dir)
+        from PIL import Image
+        for d in (run0_dir, run1_dir):
+            Image.new("RGB", (4, 4)).save(os.path.join(d, "loss_plot.png"))
+            Image.new("RGB", (4, 4)).save(os.path.join(d, "solution_plot.png"))
+
+        sweep_cfg = win._build_config()
+        sweep_cfg.plot_type = "Surface"
+        win._sweep_run_count = 0
+        win._sweep_run_root = tmp_root
+        win._sweep_base_config = sweep_cfg
+        win._sweep_last_run_dir = None
+        win._sweep_last_run_label = None
+
+        win._on_sweep_run_done(0, 3, "baseline", {"status": "done", "final_loss": 1.0, "l2_relative": None, "save_dir": os.path.dirname(run0_dir)})
+        win._on_sweep_run_done(1, 3, "Hidden layers=2", {"status": "done", "final_loss": 0.5, "l2_relative": None, "save_dir": os.path.dirname(run1_dir)})
+        # The LAST run in the sequence errors out -- the panel should
+        # still show run 1's figure (the last one that actually
+        # succeeded), not nothing and not a crash trying to load files
+        # that were never written.
+        win._on_sweep_run_done(2, 3, "Hidden layers=4", {"status": "error", "final_loss": None, "l2_relative": None, "save_dir": run2_dir})
+
+        check(win._sweep_last_run_dir == os.path.dirname(run1_dir),
+              f"the last SUCCESSFUL run's folder should be remembered even though a later run errored, got {win._sweep_last_run_dir}")
+
+        win._on_sweep_finished()
+        check(win.loss_label._source_path == os.path.join(run1_dir, "loss_plot.png"),
+              f"the right panel should show the last successful run's loss figure, got {win.loss_label._source_path!r}")
+        check(win.solution_label._source_path == os.path.join(run1_dir, "solution_plot.png"),
+              f"the right panel should show the last successful run's solution figure, got {win.solution_label._source_path!r}")
+        check("last completed run" in win.log_box.toPlainText(),
+              "the log should mention that it's showing the last completed run's figure")
+    finally:
+        import shutil as _shutil
+        _shutil.rmtree(tmp_root, ignore_errors=True)
 
     if failures:
         print("FAILURES:")

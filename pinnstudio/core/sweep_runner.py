@@ -260,7 +260,7 @@ def _apply_run_output_settings(cfg, base_config, run_dir):
 
 
 def run_sweep(base_config, on_run_start=None, on_output=None, on_run_done=None,
-              should_stop=None, on_sweep_root=None):
+              should_stop=None, on_sweep_root=None, set_process=None):
     """Sequentially executes every run from build_runs(). Runs are
     deliberately sequential, not parallel: these are real training
     subprocesses (potentially GPU-bound), and running several at once
@@ -289,6 +289,12 @@ def run_sweep(base_config, on_run_start=None, on_output=None, on_run_done=None,
     sweep early (without running the remaining combinations) if it
     returns True -- whatever ran before that point is still written to
     sweep_manifest.json/sweep_summary.csv, not discarded.
+    set_process(process), if given, is passed straight through to each
+    run_pinn() call -- exactly the same hook a normal single Solve uses
+    (see runner.run_pinn/SolverThread) to let a caller hard-kill the
+    CURRENTLY RUNNING subprocess immediately (e.g. the GUI's Stop
+    button), rather than only being able to stop the sweep from
+    starting its NEXT run via should_stop().
 
     Returns the full list of (label, result) pairs collected so far.
     """
@@ -323,7 +329,7 @@ def run_sweep(base_config, on_run_start=None, on_output=None, on_run_done=None,
                 on_output(_i, _total, line)
 
         _run_started_at = time.time()
-        status = run_pinn(cfg, on_output=_collect, set_process=None)
+        status = run_pinn(cfg, on_output=_collect, set_process=set_process)
 
         final_loss = None
         for m in _FINAL_LOSS_RE.finditer("\n".join(log_lines)):

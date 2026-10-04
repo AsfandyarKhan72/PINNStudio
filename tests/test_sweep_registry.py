@@ -354,6 +354,88 @@ def run():
     win.radio_inverse.setChecked(False)
     win.radio_forward.setChecked(True)
 
+    # ── Inverse-problem entries -- "SCOPE (v3)" ───────────────────────
+    # Each trainable variable's own initial guess, and each measured-
+    # data file's own loss weight, offered only when problem_type is
+    # Inverse. The generic round-trip loop above already exercises get/
+    # set for whichever of these show up in each CASE; this section
+    # checks the things unique to them: availability gating by problem
+    # type, labels/ids matching row order, legacy-field resync for the
+    # primary (first) row, and that adding more rows adds more entries
+    # without disturbing the existing ones.
+    win.radio_1d.setChecked(True)
+    win.quick_examples_combo.setCurrentText("1D Heat")
+
+    win.radio_forward.setChecked(True)
+    fwd_config = win._build_config()
+    fwd_ids = {p.id for p in reg.available_params(fwd_config)}
+    check(not any(i.startswith("inv_var_init_") or i.startswith("inv_obs_weight_") for i in fwd_ids),
+          f"Forward problem should offer no Inverse sweep entries at all, got {fwd_ids & {i for i in fwd_ids if 'inv_' in i}}")
+    check("Inverse" not in {p.category for p in reg.available_params(fwd_config)},
+          "Forward problem should have no 'Inverse' category at all")
+
+    win.radio_inverse.setChecked(True)
+    inv1_config = win._build_config()
+    inv1_params = {p.id: p for p in reg.available_params(inv1_config)}
+    check("inv_var_init_0" in inv1_params, "Inverse problem should offer the primary trainable variable's initial guess")
+    check("inv_obs_weight_0" in inv1_params, "Inverse problem should offer the primary observation file's data loss weight")
+    check(inv1_params["inv_var_init_0"].category == "Inverse" and inv1_params["inv_obs_weight_0"].category == "Inverse",
+          "Inverse sweep entries should be grouped under the 'Inverse' category")
+
+    # Setting the primary (row 0) entries must resync the legacy single-
+    # value fields too, since a couple of older call sites (e.g. the
+    # built-in template's PDE auto-substitution default) still read
+    # inverse_param_init/loss_weight_obs directly rather than through
+    # the JSON list.
+    probe1 = win._build_config()
+    reg.get_param("inv_var_init_0", probe1).set_value(probe1, 3.25)
+    check(abs(probe1.inverse_param_init - 3.25) < 1e-9,
+          f"setting inv_var_init_0 should resync the legacy inverse_param_init field, got {probe1.inverse_param_init}")
+    check(abs(reg.get_param("inv_var_init_0", probe1).get_value(probe1) - 3.25) < 1e-9,
+          "inv_var_init_0 should read back the value just set")
+    reg.get_param("inv_obs_weight_0", probe1).set_value(probe1, 55.0)
+    check(abs(probe1.loss_weight_obs - 55.0) < 1e-9,
+          f"setting inv_obs_weight_0 should resync the legacy loss_weight_obs field, got {probe1.loss_weight_obs}")
+    check(abs(reg.get_param("inv_obs_weight_0", probe1).get_value(probe1) - 55.0) < 1e-9,
+          "inv_obs_weight_0 should read back the value just set")
+
+    # Multi-row case: add a second trainable variable and a second
+    # observation file via the real GUI rows, rebuild the config, and
+    # confirm both rows show up as independent, correctly-labeled
+    # entries that don't cross-contaminate each other when set.
+    win._add_inverse_var_row("D2", 2.0)
+    win._add_inverse_data_row("/tmp/_v72_fake_obs2.csv", 0, 10.0)
+    multi_config = win._build_config()
+    multi_params = {p.id: p for p in reg.available_params(multi_config)}
+    check("inv_var_init_1" in multi_params, f"adding a second trainable variable should add inv_var_init_1, got {sorted(multi_params)}")
+    check("inv_obs_weight_1" in multi_params, f"adding a second observation file should add inv_obs_weight_1, got {sorted(multi_params)}")
+    check("D2" in multi_params["inv_var_init_1"].label,
+          f"the second variable's own name should appear in its sweep entry's label, got {multi_params['inv_var_init_1'].label!r}")
+    check(abs(reg.get_param("inv_var_init_1", multi_config).get_value(multi_config) - 2.0) < 1e-9,
+          "inv_var_init_1 should read the second row's own initial guess (2.0), not the first row's")
+
+    probe2 = win._build_config()
+    row0_init_before = reg.get_param("inv_var_init_0", probe2).get_value(probe2)
+    reg.get_param("inv_var_init_1", probe2).set_value(probe2, 9.0)
+    check(abs(reg.get_param("inv_var_init_1", probe2).get_value(probe2) - 9.0) < 1e-9,
+          "setting inv_var_init_1 should not disturb inv_var_init_0, and should read back correctly")
+    reg.get_param("inv_var_init_1", probe2).set_value(probe2, 42.0)
+    check(abs(reg.get_param("inv_var_init_0", probe2).get_value(probe2) - row0_init_before) < 1e-9,
+          "setting inv_var_init_1 must not change inv_var_init_0's own value")
+
+    # Clean up the rows added above so later checks in this function (if
+    # any were added after this point) see the default single-row state.
+    for row in list(win.inv_var_rows):
+        if not row['is_primary']:
+            row['widget'].deleteLater()
+            win.inv_var_rows.remove(row)
+    for row in list(win.inv_data_rows):
+        if not row['is_primary']:
+            row['widget'].deleteLater()
+            win.inv_data_rows.remove(row)
+    win.radio_inverse.setChecked(False)
+    win.radio_forward.setChecked(True)
+
     if failures:
         print("FAILURES:")
         for f in failures:
