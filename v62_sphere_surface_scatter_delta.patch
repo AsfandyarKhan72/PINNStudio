@@ -1,0 +1,91 @@
+diff --git a/pinnstudio/core/codegen.py b/pinnstudio/core/codegen.py
+index d9263e1..395d5bc 100644
+--- a/pinnstudio/core/codegen.py
++++ b/pinnstudio/core/codegen.py
+@@ -2981,10 +2981,25 @@ for _pval in _param_values:
+                             _ea_tv_r, _l2, _mse, _mx, _ma = _ea_metrics[_ei]
+                             _bxr_ea = _ea_x_refs[_ei]; _byr_ea = _ea_y_refs[_ei]; _bzr_ea = _ea_z_refs[_ei]
+                             _bnd_mask_ea = geom.on_boundary(np.column_stack([_bxr_ea, _byr_ea, _bzr_ea]))
+-                            if _bnd_mask_ea.sum() < 4:
++                            # A Cartesian reference grid only reliably
++                            # intersects a FLAT boundary (a Cuboid's faces,
++                            # handled by the box-face branch above) in large
++                            # numbers; a CURVED boundary is essentially never
++                            # landed on exactly by an axis-aligned grid, so
++                            # on_boundary() can come back with only a handful
++                            # of coincidental exact matches (e.g. a unit
++                            # sphere's 6 axis points) even when the dataset
++                            # has thousands of valid points. Falling back
++                            # whenever the boundary subset is a small
++                            # fraction of the data -- not just when it's
++                            # nearly empty -- catches that case too.
++                            if _bnd_mask_ea.sum() < 4 or _bnd_mask_ea.sum() < 0.05 * len(_bxr_ea):
+                                 _bnd_mask_ea = np.ones_like(_bxr_ea, dtype=bool)  # shape has no clean boundary subset -- use all ref points
+                             _bx_ea = _bxr_ea[_bnd_mask_ea]; _by_ea = _byr_ea[_bnd_mask_ea]; _bz_ea = _bzr_ea[_bnd_mask_ea]
+                             _gt_b_ea = _ea_u_refs[_ei][_bnd_mask_ea]
++                            if len(_bx_ea) > 3000:
++                                _ea_sub = np.random.default_rng(0).choice(len(_bx_ea), size=3000, replace=False)
++                                _bx_ea, _by_ea, _bz_ea, _gt_b_ea = _bx_ea[_ea_sub], _by_ea[_ea_sub], _bz_ea[_ea_sub], _gt_b_ea[_ea_sub]
+                             _pinn_b_pts_ea = (np.column_stack([_bx_ea, _by_ea, _bz_ea]) if _is_steady else
+                                               np.column_stack([_bx_ea, _by_ea, _bz_ea, np.full_like(_bx_ea, _ea_tv)]))
+                             _pinn_b_ea = _ea_extract(model.predict(_pinn_b_pts_ea), _ea_sel).flatten()
+@@ -4370,11 +4385,25 @@ if {config.time_adaptive}:
+                     for _ei, _ea_tv in enumerate(_ea_times):
+                         _ea_tv_r, _l2, _mse, _mx, _ma = _ea_metrics[_ei]
+                         _bnd_ta = _ea_geom_ta.on_boundary(np.column_stack([_ea_x_refs[_ei], _ea_y_refs[_ei], _ea_z_refs[_ei]]))
+-                        if _bnd_ta.sum() < 4:
++                        # A Cartesian reference grid only reliably intersects a
++                        # FLAT boundary (a Cuboid's faces) in large numbers; a
++                        # CURVED boundary (a Sphere) is essentially never
++                        # landed on exactly by an axis-aligned grid, so
++                        # on_boundary() can come back with only a handful of
++                        # coincidental exact matches (e.g. a unit sphere's 6
++                        # axis points) even when the dataset has thousands of
++                        # valid points -- falling back whenever the boundary
++                        # subset is a small fraction of the data (not just
++                        # when it's nearly empty) catches that case too.
++                        if _bnd_ta.sum() < 4 or _bnd_ta.sum() < 0.05 * len(_ea_x_refs[_ei]):
+                             _bnd_ta = np.ones_like(_ea_x_refs[_ei], dtype=bool)
+                         _bx_ta, _by_ta, _bz_ta = _ea_x_refs[_ei][_bnd_ta], _ea_y_refs[_ei][_bnd_ta], _ea_z_refs[_ei][_bnd_ta]
+                         _gt_b_ta = _ea_u_refs[_ei][_bnd_ta]
+                         _pinn_b_ta = _ea_u_pinns[_ei][_bnd_ta]
++                        if len(_bx_ta) > 3000:
++                            _ea_sub_ta = np.random.default_rng(0).choice(len(_bx_ta), size=3000, replace=False)
++                            _bx_ta, _by_ta, _bz_ta = _bx_ta[_ea_sub_ta], _by_ta[_ea_sub_ta], _bz_ta[_ea_sub_ta]
++                            _gt_b_ta, _pinn_b_ta = _gt_b_ta[_ea_sub_ta], _pinn_b_ta[_ea_sub_ta]
+                         _err_b_ta = np.abs(_pinn_b_ta - _gt_b_ta)
+                         _cols_ta = [(_pinn_b_ta, f"PINN  t={{_ea_tv:.3f}}  L2={{_l2:.2e}}"),
+                                     (_gt_b_ta, f"Ground Truth  t={{_ea_tv:.3f}}"),
+@@ -6141,10 +6170,31 @@ _ea_geom3d = {_ea_geom_ref}
+ for i, tv in enumerate(ea_times):
+     tv_r, l2, mse, mx, ma = ea_metrics[i]
+     bnd = _ea_geom3d.on_boundary(np.column_stack([ea_x_refs[i], ea_y_refs[i], ea_z_refs[i]]))
+-    if bnd.sum() < 4:
++    # A Cartesian reference grid only reliably intersects a FLAT boundary
++    # (e.g. a Cuboid's 6 faces, which are themselves subsets of the grid's
++    # own axis-aligned planes) in large numbers. A CURVED boundary (e.g. a
++    # Sphere) is essentially never landed on exactly by an axis-aligned
++    # grid -- for a unit sphere, only the 6 axis points satisfy x^2+y^2+z^2=1
++    # exactly -- so on_boundary() can come back with a handful of
++    # coincidental exact matches even when the dataset has thousands of
++    # valid points. The old "< 4 points" fallback didn't catch this (6
++    # matches is already >= 4), so it silently plotted a near-empty
++    # scatter instead of a real comparison. Falling back whenever the
++    # boundary subset is a small fraction of the available data -- not
++    # just when it's almost empty -- fixes curved geometries without
++    # changing anything for flat ones (a Cuboid's face points are normally
++    # a large share of its grid, well above this threshold).
++    if bnd.sum() < 4 or bnd.sum() < 0.05 * len(ea_x_refs[i]):
+         bnd = np.ones_like(ea_x_refs[i], dtype=bool)
+     bx, by, bz = ea_x_refs[i][bnd], ea_y_refs[i][bnd], ea_z_refs[i][bnd]
+     gt_b = ea_u_refs[i][bnd]
++    # Cap how many points actually get scattered -- falling back to a
++    # dense volumetric grid (tens of thousands of points) is slow to
++    # render and visually saturates a 3D scatter; a few thousand points
++    # is still plenty to read the solution's shape clearly.
++    if len(bx) > 3000:
++        _ea_sub = np.random.default_rng(0).choice(len(bx), size=3000, replace=False)
++        bx, by, bz, gt_b = bx[_ea_sub], by[_ea_sub], bz[_ea_sub], gt_b[_ea_sub]
+ {_ea_3d_predict_line}
+     err_b = np.abs(pinn_b - gt_b)
+     cols = [(pinn_b, {_ea_pinn_title_3d}), (gt_b, {_ea_gt_title_3d}), (err_b, f"|Error|  Max={{mx:.2e}}")]

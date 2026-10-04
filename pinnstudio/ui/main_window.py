@@ -11635,6 +11635,60 @@ print("RESTORE_DONE")
         inv_var_defs_restore = "\n".join(_inv_var_def_lines)
         inv_var_list_restore = "[" + ", ".join(_inv_var_names_restore) + "]" if is_inverse_restore else "None"
 
+        # Reconstruct the ACTUAL problem geometry (Disk/Ellipse/Triangle/
+        # Polygon/Sphere/Custom CSG combo, not just its rectangular/cuboid
+        # bounding box) from the saved config, instead of always building a
+        # plain Rectangle/Cuboid/Interval here. Without this, a restored
+        # model for e.g. a triangular-cavity Custom geometry would predict
+        # and plot over the full bounding-box rectangle it happens to sit
+        # inside, not the real (possibly non-convex / CSG-combined) domain
+        # -- reusing generate_clean_script()'s own geometry-building helpers
+        # (_clean_geom_line/_build_custom_geom_code/_parse_vertex_list) so
+        # this doesn't reimplement per-shape dispatch a third time, and so
+        # any new geometry type added there is automatically picked up here
+        # too. geometry_type and the geom_* fields are only present in
+        # model_config.json for models saved after this fix -- cfg.get(...)
+        # below falls back to the same defaults PINNConfig itself uses, so
+        # an older saved config just restores as a plain Rectangle/Cuboid/
+        # Interval, exactly as before.
+        import types as _restore_types
+        from pinnstudio.core.codegen import _clean_geom_line, _parse_vertex_list
+        _tri_verts_restore = _parse_vertex_list(cfg.get("geom_triangle_vertices", "0,0;1,0;0,1"))
+        if len(_tri_verts_restore) != 3:
+            _tri_verts_restore = [[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]]
+        _poly_verts_restore = _parse_vertex_list(cfg.get("geom_polygon_vertices", "0,0;1,0;1,1;0,1"))
+        if len(_poly_verts_restore) < 3:
+            _poly_verts_restore = [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]
+        _geom_cfg_restore = _restore_types.SimpleNamespace(
+            geometry_type=cfg.get("geometry_type", "Rectangle"),
+            geom_center_x=cfg.get("geom_center_x", 0.5), geom_center_y=cfg.get("geom_center_y", 0.5),
+            geom_center_z=cfg.get("geom_center_z", 0.5), geom_radius=cfg.get("geom_radius", 0.5),
+            geom_semi_major=cfg.get("geom_semi_major", 0.5), geom_semi_minor=cfg.get("geom_semi_minor", 0.3),
+            geom_angle=cfg.get("geom_angle", 0.0),
+            geom_custom_shapes_json=cfg.get("geom_custom_shapes_json", "[]"),
+            problem_dim=cfg.get("problem_dim", "2D"),
+            x_min=x_min, x_max=x_max, y_min=y_min, y_max=y_max, z_min=z_min, z_max=z_max,
+        )
+        _geom_line_restore, _geom_needs_dtype_wrap = _clean_geom_line(
+            _geom_cfg_restore, is_2d, is_3d, _tri_verts_restore, _poly_verts_restore)
+        # Same wrapper class generate_clean_script() emits for the same
+        # reason (see codegen.py's _DTypeSafeGeom) -- only spliced in when
+        # the reconstructed geometry actually needs it.
+        _dtype_safe_geom_class_restore = '''class _DTypeSafeGeom:
+    def __init__(self, geom):
+        self._geom = geom
+    def __getattr__(self, name):
+        return getattr(self._geom, name)
+    def random_points(self, n, random="pseudo"):
+        return self._geom.random_points(n, random=random).astype(dde.config.real(np))
+    def uniform_points(self, n, boundary=True):
+        return self._geom.uniform_points(n, boundary=boundary).astype(dde.config.real(np))
+    def random_boundary_points(self, n, random="pseudo"):
+        return self._geom.random_boundary_points(n, random=random).astype(dde.config.real(np))
+    def uniform_boundary_points(self, n):
+        return self._geom.uniform_boundary_points(n).astype(dde.config.real(np))
+''' if _geom_needs_dtype_wrap else ''
+
         script = f"""
 import os
 os.environ["DDE_BACKEND"] = "pytorch"
@@ -11645,13 +11699,11 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-# Build minimal geometry for model restore
-if {str(is_3d)}:
-    geom = dde.geometry.Cuboid([{x_min}, {y_min}, {z_min}], [{x_max}, {y_max}, {z_max}])
-elif {str(is_2d)}:
-    geom = dde.geometry.Rectangle([{x_min}, {y_min}], [{x_max}, {y_max}])
-else:
-    geom = dde.geometry.Interval({x_min}, {x_max})
+# Build the actual problem geometry for model restore (not just its
+# bounding box) so the restored prediction can be masked back down to the
+# real domain -- see the comment above this script's construction.
+{_dtype_safe_geom_class_restore}
+{_geom_line_restore}
 if {str(is_steady)}:
     # Steady-state: no time axis at all -- geomtime is just geom itself,
     # same convention generate_script() uses for a steady config (see
@@ -11756,13 +11808,16 @@ res = {resolution}
 x_vals = np.linspace({x_min}, {x_max}, res)
 y_vals = np.linspace({y_min}, {y_max}, res)
 if is_3d:
-    # Genuine smooth 3D surface: the restored model is always a Cuboid
-    # in this restore/visualize flow, so each of its 6 flat faces (from
-    # geom.bbox) is predicted directly on a fine regular grid -- no
+    # Genuine smooth 3D surface: each of the bounding box's 6 flat faces
+    # (from geom.bbox) is predicted directly on a fine regular grid -- no
     # slicing or interpolation needed, it's an exact prediction at every
     # grid point -- and drawn with plot_surface's per-quad facecolors.
     # Unlike a scatter of discrete points, adjacent same-ish-colored grid
-    # quads blend into a continuous-looking colored surface.
+    # quads blend into a continuous-looking colored surface. geom here
+    # may be a Cuboid/Sphere/Custom-3D CSG combo (not always a Cuboid),
+    # so every face is also masked down to the real domain below --
+    # otherwise a Sphere/Custom-3D model would show its full bounding-box
+    # face, not just the part that's actually inside the true geometry.
     _res3 = max(24, res // 2)
     _bbox3 = np.asarray(geom.bbox)
     _cx0, _cy0, _cz0 = _bbox3[0]; _cx1, _cy1, _cz1 = _bbox3[1]
@@ -11781,15 +11836,26 @@ if is_3d:
         (np.full_like(_Yyz3, _cx1), _Yyz3, _Zyz3),
     ]
     _face_preds3 = []
+    _face_inside3 = []
     for _fX3, _fY3, _fZ3 in _faces3:
+        _fspatial3 = np.column_stack([_fX3.ravel(), _fY3.ravel(), _fZ3.ravel()])
         if is_steady:
-            _fpts3 = np.column_stack([_fX3.ravel(), _fY3.ravel(), _fZ3.ravel()])
+            _fpts3 = _fspatial3
         else:
-            _fpts3 = np.column_stack([_fX3.ravel(), _fY3.ravel(), _fZ3.ravel(), np.full(_fX3.size, {surface_time})])
+            _fpts3 = np.column_stack([_fspatial3, np.full(_fX3.size, {surface_time})])
         _face_preds3.append(_extract_plot_field(model.predict(_fpts3)).reshape(_fX3.shape))
+        # Spatial-only inside() check -- the plain geom (not geomtime), same
+        # as the 2D Surface masking below, since whether a point lies in
+        # the domain never depends on t.
+        _face_inside3.append(np.asarray(geom.inside(_fspatial3)).reshape(_fX3.shape))
+    _inside_vals3 = [f[m] for f, m in zip(_face_preds3, _face_inside3) if m.any()]
     if {auto_range}:
-        _pv_min3 = min(_f.min() for _f in _face_preds3)
-        _pv_max3 = max(_f.max() for _f in _face_preds3)
+        if _inside_vals3:
+            _pv_min3 = min(v.min() for v in _inside_vals3)
+            _pv_max3 = max(v.max() for v in _inside_vals3)
+        else:
+            _pv_min3 = min(_f.min() for _f in _face_preds3)
+            _pv_max3 = max(_f.max() for _f in _face_preds3)
     else:
         _pv_min3, _pv_max3 = {vmin_val}, {vmax_val}
     fig = plt.figure(figsize=(8, 6.5))
@@ -11797,7 +11863,11 @@ if is_3d:
     _norm3 = plt.Normalize(vmin=_pv_min3, vmax=_pv_max3)
     _cmap_obj3 = plt.get_cmap("{colormap}")
     for _fi3, (_fX3, _fY3, _fZ3) in enumerate(_faces3):
-        ax.plot_surface(_fX3, _fY3, _fZ3, facecolors=_cmap_obj3(_norm3(_face_preds3[_fi3])),
+        _fc3 = np.array(_cmap_obj3(_norm3(_face_preds3[_fi3])))
+        # Outside-the-domain quads get alpha=0 -- invisible rather than
+        # plotted as if they were a valid prediction on the bounding box.
+        _fc3[..., 3] = np.where(_face_inside3[_fi3], 1.0, 0.0)
+        ax.plot_surface(_fX3, _fY3, _fZ3, facecolors=_fc3,
                          rstride=1, cstride=1, linewidth=0, antialiased=False, shade=False)
     if {show_colorbar}:
         _sm3 = plt.cm.ScalarMappable(cmap=_cmap_obj3, norm=_norm3)
@@ -11815,6 +11885,16 @@ elif is_2d:
     else:
         XYT = np.column_stack([Xg.ravel(), Yg.ravel(), np.full(Xg.size, {surface_time})])
     pred = _extract_plot_field(model.predict(XYT)).reshape(res, res)
+    # Mask the prediction down to the real problem domain -- geom is the
+    # actual (possibly non-rectangular / CSG-combined) geometry built
+    # above, not just its bounding box, so a grid point that falls in
+    # this box but outside the true domain (e.g. outside a triangular
+    # cavity) is blanked out (NaN -> contourf leaves it unfilled) rather
+    # than plotted as if it were a valid prediction there. Same masking
+    # convention codegen.py's own Surface plots already use for every
+    # non-rectangular geometry.
+    _inside2d = np.asarray(geom.inside(np.column_stack([Xg.ravel(), Yg.ravel()]))).reshape(res, res)
+    pred = np.where(_inside2d, pred, np.nan)
     fig, ax = plt.subplots(figsize=(7, 5))
     im = ax.contourf(Xg, Yg, pred, levels={levels}, cmap="{colormap}", {vrange})
     if {show_colorbar}: fig.colorbar(im, ax=ax)

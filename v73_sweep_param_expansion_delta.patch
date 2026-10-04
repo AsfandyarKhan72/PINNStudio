@@ -1,0 +1,1194 @@
+diff --git a/pinnstudio/core/sweep_registry.py b/pinnstudio/core/sweep_registry.py
+index b6b6a30..054b049 100644
+--- a/pinnstudio/core/sweep_registry.py
++++ b/pinnstudio/core/sweep_registry.py
+@@ -106,6 +106,42 @@ still be read through stays correct" approach _weight_set() above takes
+ -- a couple of older call sites (e.g. the primary variable's PDE auto-
+ substitution default) read that legacy field directly rather than
+ through inverse_variables_json.
++
++Also fixed in this pass: _inv_vars_list() (above) previously dropped the
++"true" (known ground-truth) field when round-tripping
++inverse_variables_json, so every call to _inv_var_set_init() silently
++erased it for every variable, not just the one being swept -- which is
++why an Inverse sweep over a variable's own initial guess made the
++Parameter Convergence plot's true-value dashed reference line disappear
++(codegen.py's _parse_inverse_variables(), which draws that line, reads
++the exact same field). Now preserved.
++
++SCOPE (v4): four more sweepable groups, each gated on the GUI feature
++they belong to already being enabled/selected -- sweeping any of them
++with that feature off wouldn't train anything different, so they're
++simply not offered rather than silently doing nothing:
++
++ - RAR (Residual-based Adaptive Refinement)'s five own knobs (training
++   rounds, residual sampling points, points added per cycle, Adam/
++   L-BFGS iterations) -- plain scalar config fields, offered only when
++   config.adapt_method == "RAR".
++ - Time Adaptive Training: one "steps" entry per step group currently
++   configured (config.ta_step_groups, falling back to a single group
++   built from t_min/t_max/ta_num_steps the same way codegen.py's own
++   reader does) plus its IC grid resolution (ta_grid_size) -- offered
++   only when config.adapt_method == "Time Adaptive". Setting a group's
++   steps keeps config.ta_num_steps (the derived flat total several other
++   call sites still read directly) in sync, the same "every
++   representation stays correct" approach the loss-weight section takes.
++ - Input/output transform scale: one entry per axis/output row this
++   config's input_transform_scale/output_transform_scale list already
++   has (sized for the problem's current dimension/output count at
++   _build_config() time), offered only when that transform's own Enable
++   checkbox is on. Only scale is exposed, not shift, matching what was
++   actually asked for -- the GUI's own transform rows already read
++   "label x_raw * scale + shift" (main_window.py's _transform_row()), so
++   no GUI change was needed here at all, only wiring scale into this
++   registry the same way every other per-row value already is.
+ """
+ import json
+ from dataclasses import dataclass
+@@ -364,11 +400,23 @@ def _weight_params(config) -> List[SweepParam]:
+ # See the module docstring's "SCOPE (v3)" section for the full rationale.
+ 
+ def _inv_vars_list(config) -> list:
+-    """Ordered list of {"name", "init"} dicts, one per trainable
+-    (unknown) variable this config currently has -- mirrors codegen.py's
+-    own _parse_inverse_variables() fallback (a single entry built from
+-    the legacy inverse_param_name/inverse_param_init fields when
+-    inverse_variables_json is empty/unparseable)."""
++    """Ordered list of {"name", "init", "true"} dicts (true omitted when
++    not known), one per trainable (unknown) variable this config
++    currently has -- mirrors codegen.py's own _parse_inverse_variables()
++    fallback (a single entry built from the legacy
++    inverse_param_name/inverse_param_init fields when
++    inverse_variables_json is empty/unparseable).
++
++    "true" MUST be round-tripped here, not just name/init: a v72 bug
++    (fixed in v73) had this function keep only name+init, so every call
++    to _inv_var_set_init() -- which rebuilds inverse_variables_json from
++    THIS function's own output -- silently wrote back a JSON list with
++    "true" permanently dropped for every variable, even ones the sweep
++    itself never touched. That's why an Inverse sweep over a variable's
++    initial guess made the Parameter Convergence plot's true-value
++    dashed reference line vanish: codegen.py's _parse_inverse_variables()
++    (which draws that line) reads the exact same inverse_variables_json
++    this function silently stripped it from."""
+     raw = getattr(config, "inverse_variables_json", "") or ""
+     variables = []
+     if raw:
+@@ -383,7 +431,14 @@ def _inv_vars_list(config) -> list:
+                 init = float(v.get("init", 1.0))
+             except (TypeError, ValueError):
+                 init = 1.0
+-            variables.append({"name": name, "init": init})
++            entry = {"name": name, "init": init}
++            _true_raw = v.get("true", None)
++            if _true_raw is not None:
++                try:
++                    entry["true"] = float(_true_raw)
++                except (TypeError, ValueError):
++                    pass
++            variables.append(entry)
+     if not variables:
+         variables.append({
+             "name": config.inverse_param_name or "trainable_variable_1",
+@@ -500,6 +555,245 @@ def _inv_obs_weight_params(config) -> List["SweepParam"]:
+     return params
+ 
+ 
++# ── RAR (Residual-based Adaptive Refinement) helpers ───────────────────
++# See the module docstring's "SCOPE (v4)" section. All five of RAR's own
++# knobs are plain scalar config fields (no per-row/JSON indexing needed,
++# unlike loss weights or Inverse variables) -- only offered when RAR is
++# the selected adaptive method, since they're meaningless otherwise.
++
++def _rar_available(config) -> bool:
++    return getattr(config, "adapt_method", "None") == "RAR"
++
++
++def _rar_params(config) -> List["SweepParam"]:
++    if not _rar_available(config):
++        return []
++    # Bare labels (no leading "RAR " repeated here) -- the dropdown
++    # (main_window.py's _refresh_sweep_param_choices()) already prefixes
++    # every entry with its own category ("RAR: "), same convention as
++    # every other category in this registry (e.g. loss-weight slots are
++    # labelled bare "PDE 1 (u)", not "Loss Weights: PDE 1 (u)").
++    specs = [
++        ("rar_cycles", "Training rounds", "int", 1, 10),
++        ("rar_candidates", "Residual sampling points", "int", 5000, 100000),
++        ("rar_add_points", "Points added per cycle", "int", 100, 2000),
++        ("rar_adam_iters", "Adam iterations", "int", 1000, 30000),
++        ("rar_lbfgs_iters", "L-BFGS iterations", "int", 0, 20000),
++    ]
++    return [
++        SweepParam(
++            id=field, label=label, category="RAR", value_type=vtype,
++            default_min=dmin, default_max=dmax,
++            get_value=lambda c, f=field: getattr(c, f),
++            set_value=lambda c, v, f=field, t=vtype: setattr(c, f, int(v) if t == "int" else float(v)),
++            is_available=lambda c: _rar_available(c),
++        )
++        for field, label, vtype, dmin, dmax in specs
++    ]
++
++
++# ── Time-Adaptive helpers ───────────────────────────────────────────────
++# See the module docstring's "SCOPE (v4)" section. Time-Adaptive's own
++# time range is split into one or more "step groups" (ta_step_groups, a
++# JSON list of {"t_start","t_end","steps"}), each independently
++# configurable in the Time Adaptive panel (main_window.py's
++# ta_group_rows/_add_ta_step_group) -- every template ships with exactly
++# one group by default, so in the common case this surfaces as a single
++# "Time Adaptive: Group 1 steps" entry, matching what most users mean by
++# "the number of time steps." Mirrors the same JSON-list-with-legacy-
++# fallback shape every other per-row section in this module already
++# uses: codegen.py's own reader (generate_script()'s ta_groups parsing)
++# falls back to a single group built from t_min/t_max/ta_num_steps when
++# ta_step_groups is empty, so _ta_groups_list() below does the same.
++# ta_grid_size (the per-axis IC-resample grid resolution) is a separate,
++# single scalar -- one sweep entry, not per-group.
++
++def _ta_available(config) -> bool:
++    return getattr(config, "adapt_method", "None") == "Time Adaptive"
++
++
++def _ta_groups_list(config) -> list:
++    raw = getattr(config, "ta_step_groups", "") or ""
++    groups = []
++    if raw:
++        try:
++            parsed = json.loads(raw)
++        except (ValueError, TypeError):
++            parsed = []
++        for g in (parsed or []):
++            g = g or {}
++            try:
++                t_start = float(g.get("t_start", 0.0))
++                t_end = float(g.get("t_end", 1.0))
++                steps = int(g.get("steps", 10))
++            except (TypeError, ValueError):
++                continue
++            groups.append({"t_start": t_start, "t_end": t_end, "steps": steps})
++    if not groups:
++        groups.append({
++            "t_start": getattr(config, "t_min", 0.0),
++            "t_end": getattr(config, "t_max", 1.0),
++            "steps": getattr(config, "ta_num_steps", 10),
++        })
++    return groups
++
++
++def _ta_group_get_steps(config, idx: int):
++    groups = _ta_groups_list(config)
++    return groups[idx]["steps"] if idx < len(groups) else None
++
++
++def _ta_group_set_steps(config, idx: int, value) -> None:
++    groups = _ta_groups_list(config)
++    if idx >= len(groups):
++        return  # is_available() guards against this being reachable.
++    groups[idx]["steps"] = int(value)
++    config.ta_step_groups = json.dumps(groups)
++    # Keep the derived flat total in sync -- see the module docstring's
++    # "SCOPE (v2)" loss-weight section for the same reasoning: codegen.py
++    # and main_window.py both fall back to ta_num_steps directly whenever
++    # ta_step_groups is empty/absent, so the aggregate has to track the
++    # per-group JSON this function is the one place that edits.
++    config.ta_num_steps = sum(g["steps"] for g in groups)
++
++
++def _ta_group_params(config) -> List["SweepParam"]:
++    if not _ta_available(config):
++        return []
++    params = []
++    for i, g in enumerate(_ta_groups_list(config)):
++        params.append(SweepParam(
++            id=f"ta_group{i}_steps",
++            label=f"Time Adaptive: Group {i + 1} steps ({g['t_start']:g}→{g['t_end']:g})",
++            category="Time Adaptive", value_type="int",
++            default_min=5, default_max=50,
++            get_value=lambda c, idx=i: _ta_group_get_steps(c, idx),
++            set_value=lambda c, v, idx=i: _ta_group_set_steps(c, idx, v),
++            is_available=lambda c: _ta_available(c),
++        ))
++    return params
++
++
++def _ta_grid_param(config) -> List["SweepParam"]:
++    if not _ta_available(config):
++        return []
++    return [SweepParam(
++        id="ta_grid_size", label="Time Adaptive: IC grid resolution",
++        category="Time Adaptive", value_type="categorical",
++        choices=["11", "21", "51", "101"],
++        get_value=lambda c: str(getattr(c, "ta_grid_size", 101)),
++        set_value=lambda c, v: setattr(c, "ta_grid_size", int(v)),
++        is_available=lambda c: _ta_available(c),
++    )]
++
++
++# ── Input / output transform helpers ────────────────────────────────────
++# See the module docstring's "SCOPE (v4)" section. Each transform's rows
++# already exist one-per-axis/one-per-output (main_window.py's
++# input_transform_rows/output_transform_rows, each holding its own scale
++# and shift spin box: "label x_raw * scale + shift") -- only `scale` is
++# exposed here (per the user's own request; shift isn't), one entry per
++# row THIS config currently has, gated on that transform's own Enable
++# checkbox. The row count is read directly off the already-built
++# input_transform_scale/output_transform_scale lists (sized correctly at
++# _build_config() time for the problem's current dimension/output count)
++# rather than re-deriving dimension/num_outputs independently here.
++
++def _it_available(config) -> bool:
++    return bool(getattr(config, "input_transform_enabled", False))
++
++
++def _it_scale_get(config, idx: int):
++    scales = getattr(config, "input_transform_scale", None) or []
++    return scales[idx] if idx < len(scales) else None
++
++
++def _it_scale_set(config, idx: int, value) -> None:
++    scales = list(getattr(config, "input_transform_scale", None) or [])
++    if idx >= len(scales):
++        return  # is_available() guards against this being reachable.
++    scales[idx] = float(value)
++    config.input_transform_scale = scales
++
++
++def _it_dim_labels(n: int) -> list:
++    """Mirrors main_window.py's own _current_input_dim_labels(): input
++    transform rows are one per (x[,y[,z]],t) axis, in that order, sized
++    by the input list's own length rather than re-reading the GUI's
++    radio_2d/radio_3d (config has no dimension field of its own -- the
++    row count this config was built with already encodes it)."""
++    if n <= 2:
++        return ["x", "t"][:n]
++    if n == 3:
++        return ["x", "y", "t"]
++    return ["x", "y", "z", "t"][:n] if n >= 4 else ["x", "t"][:n]
++
++
++def _it_scale_params(config) -> List["SweepParam"]:
++    if not _it_available(config):
++        return []
++    scales = getattr(config, "input_transform_scale", None) or []
++    labels = _it_dim_labels(len(scales))
++    params = []
++    for i in range(len(scales)):
++        tag = labels[i] if i < len(labels) else f"dim {i + 1}"
++        # Bare label (no leading "Input transform: " repeated here) --
++        # the dropdown already prefixes every entry with its own category
++        # ("Input Transform: "). An earlier version of this label DID
++        # repeat it (lowercase "Input transform: "), which, since it
++        # didn't case-match the category string exactly, silently
++        # defeated _refresh_sweep_param_choices()'s own
++        # already-prefixed check and produced a doubled, inconsistently-
++        # cased "Input Transform: Input transform: x scale" in the
++        # dropdown -- caught visually in an Xvfb screenshot, not by any
++        # automated test (none of them render the actual combo text).
++        params.append(SweepParam(
++            id=f"it_scale_{i}", label=f"{tag} scale",
++            category="Input Transform", value_type="float",
++            default_min=0.1, default_max=10.0,
++            get_value=lambda c, idx=i: _it_scale_get(c, idx),
++            set_value=lambda c, v, idx=i: _it_scale_set(c, idx, v),
++            is_available=lambda c: _it_available(c),
++        ))
++    return params
++
++
++def _ot_available(config) -> bool:
++    return bool(getattr(config, "output_transform_enabled", False))
++
++
++def _ot_scale_get(config, idx: int):
++    scales = getattr(config, "output_transform_scale", None) or []
++    return scales[idx] if idx < len(scales) else None
++
++
++def _ot_scale_set(config, idx: int, value) -> None:
++    scales = list(getattr(config, "output_transform_scale", None) or [])
++    if idx >= len(scales):
++        return  # is_available() guards against this being reachable.
++    scales[idx] = float(value)
++    config.output_transform_scale = scales
++
++
++def _ot_scale_params(config) -> List["SweepParam"]:
++    if not _ot_available(config):
++        return []
++    scales = getattr(config, "output_transform_scale", None) or []
++    params = []
++    for i in range(len(scales)):
++        # Bare label here too -- see _it_scale_params()'s own note on the
++        # same doubled-prefix bug this had.
++        params.append(SweepParam(
++            id=f"ot_scale_{i}", label=f"Output {i + 1} scale",
++            category="Output Transform", value_type="float",
++            default_min=0.1, default_max=10.0,
++            get_value=lambda c, idx=i: _ot_scale_get(c, idx),
++            set_value=lambda c, v, idx=i: _ot_scale_set(c, idx, v),
++            is_available=lambda c: _ot_available(c),
++        ))
++    return params
++
++
+ # ── Static (always-available) registry entries ────────────────────────
+ 
+ _STATIC_PARAMS: List[SweepParam] = [
+@@ -554,6 +848,32 @@ _STATIC_PARAMS: List[SweepParam] = [
+         set_value=lambda c, v: setattr(c, "num_test", int(v)),
+         is_available=lambda c: True,
+     ),
++    # SCOPE (v4): three more always-available Network-ish knobs that were
++    # simple scalar/categorical config fields already (no per-row
++    # indexing, no gating needed) but had no sweep entry at all yet.
++    SweepParam(
++        id="point_distribution", label="Point distribution", category="Collocation Points",
++        value_type="categorical",
++        choices=["Hammersley", "uniform", "Halton", "LHS", "Sobol", "pseudorandom"],
++        get_value=lambda c: c.point_distribution,
++        set_value=lambda c, v: setattr(c, "point_distribution", str(v)),
++        is_available=lambda c: True,
++    ),
++    SweepParam(
++        id="activation", label="Activation", category="Network",
++        value_type="categorical", choices=["tanh", "relu", "sigmoid", "swish"],
++        get_value=lambda c: c.activation,
++        set_value=lambda c, v: setattr(c, "activation", str(v)),
++        is_available=lambda c: True,
++    ),
++    SweepParam(
++        id="kernel_initializer", label="Kernel initializer", category="Network",
++        value_type="categorical",
++        choices=["Glorot uniform", "Glorot normal", "He uniform", "He normal", "zeros"],
++        get_value=lambda c: c.kernel_initializer,
++        set_value=lambda c, v: setattr(c, "kernel_initializer", str(v)),
++        is_available=lambda c: True,
++    ),
+ ]
+ 
+ 
+@@ -594,13 +914,22 @@ def available_params(config) -> List[SweepParam]:
+     per-phase weights are allowed to diverge, see "SCOPE (v2)" above),
+     plus one entry per trainable variable's initial guess and one per
+     measured-data file's loss weight when this is an Inverse problem
+-    (see "SCOPE (v3)" above)."""
++    (see "SCOPE (v3)" above), plus RAR's own knobs when RAR is the
++    selected adaptive method, one entry per Time-Adaptive step group plus
++    its IC grid resolution when Time Adaptive is selected, and one scale
++    entry per input/output transform row when that transform is enabled
++    (see "SCOPE (v4)" above)."""
+     params = list(_STATIC_PARAMS)
+     for i in range(num_phases(config)):
+         params.extend(_phase_param(i))
+     params.extend(_weight_params(config))
+     params.extend(_inv_var_params(config))
+     params.extend(_inv_obs_weight_params(config))
++    params.extend(_rar_params(config))
++    params.extend(_ta_group_params(config))
++    params.extend(_ta_grid_param(config))
++    params.extend(_it_scale_params(config))
++    params.extend(_ot_scale_params(config))
+     return [p for p in params if p.is_available(config)]
+ 
+ 
+diff --git a/pinnstudio/ui/main_window.py b/pinnstudio/ui/main_window.py
+index 268a1df..f021dcc 100644
+--- a/pinnstudio/ui/main_window.py
++++ b/pinnstudio/ui/main_window.py
+@@ -2303,7 +2303,7 @@ class MainWindow(QMainWindow):
+         # u,v outputs) rather than only ever one of them individually.
+         self.plot_output_combo.addItems(["Output 1 (u)", "Custom..."])
+         self.plot_output_combo.setFixedHeight(28)
+-        self.plot_output_combo.setFixedWidth(130)
++        self._fit_combo_width(self.plot_output_combo, min_width=130)
+         self.plot_output_combo.currentTextChanged.connect(self._on_plot_output_combo_changed)
+         ctrl_row.addWidget(self.plot_output_combo)
+ 
+@@ -2332,7 +2332,7 @@ class MainWindow(QMainWindow):
+             "Line Animation (GIF)", "Surface Animation (GIF)",
+         ])
+         self.plot_type_combo.setFixedHeight(28)
+-        self.plot_type_combo.setFixedWidth(140)
++        self._fit_combo_width(self.plot_type_combo, min_width=160)
+         self.plot_type_combo.currentTextChanged.connect(self._on_plot_type_changed)
+         ctrl_row.addWidget(self.plot_type_combo)
+ 
+@@ -2350,26 +2350,45 @@ class MainWindow(QMainWindow):
+         ctrl_row.addStretch()
+         bottom_layout.addLayout(ctrl_row)
+ 
+-        # Second row for Error Analysis/Export/Save-parameter -- split out
+-        # of the row above (which was previously one single QHBoxLayout
+-        # for everything from "Plot output:" through "Save parameter:").
+-        # That row's own minimum width is the SUM of every widget in it,
+-        # including ones that are usually hidden -- the Custom expression/
+-        # label boxes (~270px, shown only when a template defines its own
+-        # derived plot field, e.g. 1D Schrodinger's |h|) and the Save
+-        # Parameter label+combo (~330px, shown only in Inverse mode).
+-        # Selecting 1D Schrodinger's Inverse mode reveals BOTH at once,
+-        # pushing that single row's minimum width up by ~600px -- more
+-        # than the window has spare room for, so the horizontal splitter
+-        # was forced to steal the difference from the left configuration
+-        # panel, clamping it down to its own hard minimum width and
+-        # leaving no way to drag it back out while those fields stayed
+-        # visible (only switching to Forward or a different template hid
+-        # them again and released the width). Splitting the plotting
+-        # controls (this row) from the action buttons (the row below)
+-        # keeps each row's own minimum width bounded on its own, so
+-        # revealing those optional fields no longer forces the whole
+-        # right-hand pane to demand hundreds of extra pixels at once.
++        # Save-parameter row -- visually grouped with Plot output/Plot
++        # type (directly below them) since that's conceptually where it
++        # belongs, but deliberately its OWN QHBoxLayout rather than
++        # appended onto ctrl_row itself. ctrl_row already carries the
++        # Custom expression/label fields (~270px, shown only when a
++        # template defines its own derived plot field, e.g. 1D
++        # Schrodinger's |h|), and this row's own Save Parameter label+
++        # combo (~200-300px, shown only in Inverse mode) can be visible
++        # at the same time (1D Schrodinger + Inverse). Summed into one
++        # row, those two optional blocks previously forced that single
++        # row's minimum width up by ~600px -- more than the window has
++        # spare room for, which forced the horizontal splitter to clamp
++        # the left configuration panel down to its own hard minimum width
++        # with no way to drag it back out while both stayed visible. Each
++        # row here keeps its OWN minimum width bounded independently, so
++        # revealing both at once no longer sums them into one oversized
++        # row -- same reasoning as ctrl_row2 (Error Analysis/Export)
++        # already being split out below for the same reason.
++        ctrl_row_save = QHBoxLayout()
++        self.param_save_label = QLabel("Save parameter:")
++        self.param_save_label.setVisible(False)
++        ctrl_row_save.addWidget(self.param_save_label)
++        self.param_save_combo = QComboBox()
++        self.param_save_combo.addItems(["No", "Every 100 iters", "Every 1000 iters"])
++        # Default to saving every 100 iterations for every Inverse problem
++        # -- without this, the per-variable iteration-vs-value convergence
++        # text files never get written unless the user remembers to change
++        # this dropdown first, which is easy to miss since it's a small
++        # control that's only visible once Inverse is selected.
++        self.param_save_combo.setCurrentText("Every 100 iters")
++        self.param_save_combo.setFixedHeight(28)
++        self._fit_combo_width(self.param_save_combo, min_width=150)
++        self.param_save_combo.setVisible(False)
++        ctrl_row_save.addWidget(self.param_save_combo)
++        ctrl_row_save.addStretch()
++        bottom_layout.addLayout(ctrl_row_save)
++
++        # Second row for Error Analysis/Export -- its own row for the same
++        # independent-minimum-width reason as ctrl_row_save above.
+         ctrl_row2 = QHBoxLayout()
+         self.ea_btn = QPushButton("📊 Error Analysis")
+         self.ea_btn.setFixedHeight(28)
+@@ -2407,22 +2426,6 @@ class MainWindow(QMainWindow):
+         self.export_btn.clicked.connect(self._on_export_settings)
+         ctrl_row2.addWidget(self.export_btn)
+ 
+-        self.param_save_label = QLabel("  Save parameter:")
+-        self.param_save_label.setVisible(False)
+-        ctrl_row2.addWidget(self.param_save_label)
+-        self.param_save_combo = QComboBox()
+-        self.param_save_combo.addItems(["No", "Every 100 iters", "Every 1000 iters"])
+-        # Default to saving every 100 iterations for every Inverse problem
+-        # -- without this, the per-variable iteration-vs-value convergence
+-        # text files never get written unless the user remembers to change
+-        # this dropdown first, which is easy to miss since it's a small
+-        # control that's only visible once Inverse is selected.
+-        self.param_save_combo.setCurrentText("Every 100 iters")
+-        self.param_save_combo.setFixedHeight(28)
+-        self.param_save_combo.setFixedWidth(140)
+-        self.param_save_combo.setVisible(False)
+-        ctrl_row2.addWidget(self.param_save_combo)
+-
+         self.timesteps_spin = QSpinBox()
+         self.timesteps_spin.setRange(2, 20); self.timesteps_spin.setValue(4)
+         self.timesteps_spin.setVisible(False)
+@@ -5216,6 +5219,7 @@ class MainWindow(QMainWindow):
+         # "Custom..." item), so this pass doesn't need to add one for them.
+         self.plot_output_combo.addItem("Custom...")
+         self.restore_output_combo.addItem("Custom...")
++        self._fit_combo_width(self.plot_output_combo, min_width=130)
+ 
+         # PDE expressions
+         pdes = _texts(config.pde_expressions, n_out, "|", config.pde_expression)
+@@ -5603,6 +5607,7 @@ class MainWindow(QMainWindow):
+                 _r['output_combo'].addItem(f"Output {i+1} ({name})")
+         self.plot_output_combo.addItem("Custom...")
+         self.restore_output_combo.addItem("Custom...")
++        self._fit_combo_width(self.plot_output_combo, min_width=130)
+         for _r in getattr(self, 'inv_data_rows', []):
+             _r['output_combo'].addItem("Custom...")
+             # Re-select "Custom..." (and keep the expression box visible)
+@@ -5951,6 +5956,11 @@ class MainWindow(QMainWindow):
+         if is_inv:
+             if _pc_idx == -1:
+                 self.plot_type_combo.addItem("Parameter Convergence")
++                # "Parameter Convergence" is the widest item this combo
++                # ever holds -- re-fit now so it isn't clipped the moment
++                # Inverse mode adds it (see _fit_combo_width's own note
++                # that it must be re-called after every addItem).
++                self._fit_combo_width(self.plot_type_combo, min_width=160)
+             self.plot_type_combo.setCurrentText("Parameter Convergence")
+         elif _pc_idx != -1:
+             if self.plot_type_combo.currentText() == "Parameter Convergence":
+diff --git a/tests/test_sweep_execution.py b/tests/test_sweep_execution.py
+index 23ffcad..7bab835 100644
+--- a/tests/test_sweep_execution.py
++++ b/tests/test_sweep_execution.py
+@@ -38,6 +38,14 @@ Checks:
+    (which has a real bundled u_obs.txt and a known true value
+    auto-populated the moment Inverse mode is selected) -- each
+    measurably changes the real, parsed final_loss relative to baseline.
++ - v73: a real RAR sweep (sweeping rar_cycles) and a real Time-Adaptive
++   sweep (sweeping ta_grid_size, one group/one step for speed) each run
++   to completion; a combined sweep over an output-transform scale and
++   Activation (one value each, to bound the number of new real runs this
++   round adds) also runs to completion -- test_sweep_param_expansion.py
++   already confirms every new registry category reaches the generated
++   script's text without running it; this confirms each one also
++   actually trains for real.
+  - Stop hard-kills the CURRENTLY RUNNING training subprocess instead of
+    only preventing the NEXT run from starting -- a huge-iteration-count
+    run is started for real, stopped shortly after it begins, and the
+@@ -363,6 +371,134 @@ def run():
+                   f"100000 should measurably change the real final_loss vs. baseline -- "
+                   f"got baseline={baseline6}, swept={losses6[obs_run6]}")
+ 
++    # ── v73: RAR sweep, real training ─────────────────────────────────
++    # test_sweep_param_expansion.py already confirms rar_cycles reaches
++    # the generated script's text without running it; this confirms a
++    # swept RAR config actually trains to completion for real (RAR's own
++    # knobs -- cycles/candidates/add_points/adam_iters -- are all forced
++    # tiny here purely for test speed).
++    win9 = MainWindow()
++    _app.processEvents()
++    win9.quick_examples_combo.setCurrentText("1D Heat")
++    win9.adapt_combo.setCurrentText("Residual-based Adaptive Refinement (RAR)")
++    _app.processEvents()
++    for ph in win9.sched_phase_list:
++        ph["iters"].setValue(10)
++    win9.rar_candidates.setValue(500)
++    win9.rar_add_points.setValue(50)
++    win9.rar_adam_iters.setValue(10)
++    win9.rar_lbfgs_iters.setValue(0)
++    # The one sweep row already present on a fresh MainWindow was built
++    # at construction time, before RAR was selected above -- its
++    # param_combo's choices are stale until refreshed (same gotcha the
++    # Inverse sweep section above already works around). Without this,
++    # findData("rar_cycles") returns -1, setCurrentIndex(-1) silently
++    # leaves the combo on whatever it already had selected, and the
++    # sweep runs against the WRONG parameter instead of raising anything
++    # -- exactly what happened here before this fix was added (real
++    # training errors against a stale "Weight decay" selection).
++    win9._refresh_sweep_param_choices()
++    row9 = win9.sweep_row_list[0]
++    _idx9 = row9["param_combo"].findData("rar_cycles")
++    check(_idx9 >= 0, "rar_cycles should be selectable once RAR is the adaptive method")
++    row9["param_combo"].setCurrentIndex(_idx9)
++    row9["mode_combo"].setCurrentIndex(row9["mode_combo"].findData("list"))
++    row9["list_edit"].setText("1, 2")
++    win9.sweep_enable_cb.setChecked(True)
++    config9 = win9._build_config()
++    check(config9.validate() == [], f"RAR sweep config should validate clean: {config9.validate()}")
++    check(config9.adapt_method == "RAR", "config should record adapt_method='RAR'")
++
++    results9 = run_sweep(config9)
++    check(len(results9) == 3, f"expected 1 baseline + 2 swept RAR runs, got {len(results9)}")
++    for label, result in results9:
++        check(result["status"] == "done", f"[RAR sweep] run {label!r} should finish 'done', got {result}")
++        check(result["final_loss"] is not None, f"[RAR sweep] run {label!r} should report a parsed final_loss, got {result}")
++
++    # ── v73: Time-Adaptive sweep, real training ───────────────────────
++    # ta_grid_size swept between two small values, with a single tiny
++    # time step. IMPORTANT (found while verifying this real-training run
++    # -- it was taking 30+ minutes per run before this fix): Time-
++    # Adaptive's own per-step training does NOT read the legacy flat
++    # config.iterations field at all once the (GUI-hidden, always-on)
++    # scheduler is active -- it runs through the SAME scheduler-phases
++    # loop the Standard (non-Time-Adaptive) path uses, i.e.
++    # win.sched_phase_list's own iteration counts, once PER STEP. With
++    # the template's default phases (10000 Adam + 5000 L-BFGS) and even
++    # just 1 step, that's 15000+ real iterations per run -- so, exactly
++    # like win9 (RAR) and win11 (Output-transform/Activation) already do,
++    # the scheduler phases themselves must be shrunk for this to actually
++    # be a fast test.
++    win10 = MainWindow()
++    _app.processEvents()
++    win10.quick_examples_combo.setCurrentText("1D Heat")
++    win10.adapt_combo.setCurrentText("Time Adaptive Training")
++    _app.processEvents()
++    for ph in win10.sched_phase_list:
++        ph["iters"].setValue(10)
++    win10.iter1_spin.setValue(10)
++    for row in list(win10.ta_group_rows):
++        row["widget"].deleteLater()
++    win10.ta_group_rows.clear()
++    win10._add_ta_step_group(0.0, 1.0, 1)  # one group, one step -- as fast as Time-Adaptive gets
++    win10._refresh_sweep_param_choices()  # see win9's comment above -- same stale-combo gotcha
++    row10 = win10.sweep_row_list[0]
++    _idx10 = row10["param_combo"].findData("ta_grid_size")
++    check(_idx10 >= 0, "ta_grid_size should be selectable once Time Adaptive is the adaptive method")
++    row10["param_combo"].setCurrentIndex(_idx10)
++    row10["list_edit"].setText("11, 21")
++    win10.sweep_enable_cb.setChecked(True)
++    config10 = win10._build_config()
++    config10.iterations = 10  # belt-and-braces only (see comment above -- this field is NOT
++                               # actually what Time-Adaptive's per-step training reads whenever
++                               # the scheduler is active, which it always is; shrinking
++                               # win10.sched_phase_list above is what actually matters). Still
++                               # set directly in case a future GUI change ever makes the legacy
++                               # field reachable again.
++    check(config10.validate() == [], f"Time-Adaptive sweep config should validate clean: {config10.validate()}")
++    check(config10.time_adaptive, "config should record time_adaptive=True")
++
++    results10 = run_sweep(config10)
++    check(len(results10) == 3, f"expected 1 baseline + 2 swept Time-Adaptive runs, got {len(results10)}")
++    for label, result in results10:
++        check(result["status"] == "done", f"[Time-Adaptive sweep] run {label!r} should finish 'done', got {result}")
++
++    # ── v73: Output transform + Activation sweep, real training ───────
++    # Two independent, cheap one-value sweep rows combined into a single
++    # OAT sweep (1 baseline + 1 + 1 = 3 runs) rather than two separate
++    # tests, purely to bound the number of new real training runs this
++    # round adds -- each still exercises a genuinely different new
++    # registry category end-to-end.
++    win11 = MainWindow()
++    _app.processEvents()
++    win11.quick_examples_combo.setCurrentText("1D Heat")
++    win11.output_transform_cb.setChecked(True)
++    _app.processEvents()
++    for ph in win11.sched_phase_list:
++        ph["iters"].setValue(10)
++    win11._refresh_sweep_param_choices()  # see win9's comment above -- same stale-combo gotcha
++    row11a = win11.sweep_row_list[0]
++    _idx11a = row11a["param_combo"].findData("ot_scale_0")
++    check(_idx11a >= 0, "ot_scale_0 should be selectable once Output transform is enabled")
++    row11a["param_combo"].setCurrentIndex(_idx11a)
++    row11a["mode_combo"].setCurrentIndex(row11a["mode_combo"].findData("list"))
++    row11a["list_edit"].setText("2.0")
++    win11._add_sweep_row()  # _add_sweep_row() itself refreshes choices for the new row
++    row11b = win11.sweep_row_list[1]
++    _idx11b = row11b["param_combo"].findData("activation")
++    check(_idx11b >= 0, "activation should always be selectable")
++    row11b["param_combo"].setCurrentIndex(_idx11b)
++    row11b["list_edit"].setText("relu")
++    win11.sweep_enable_cb.setChecked(True)
++    config11 = win11._build_config()
++    check(config11.validate() == [], f"Output-transform/Activation sweep config should validate clean: {config11.validate()}")
++
++    results11 = run_sweep(config11)
++    check(len(results11) == 3, f"expected 1 baseline + 1 output-transform run + 1 activation run, got {len(results11)}")
++    for label, result in results11:
++        check(result["status"] == "done", f"[OT/Activation sweep] run {label!r} should finish 'done', got {result}")
++        check(result["final_loss"] is not None, f"[OT/Activation sweep] run {label!r} should report a parsed final_loss, got {result}")
++
+     # ── Stop hard-kills the CURRENTLY RUNNING subprocess ──────────────
+     # Earlier behavior (v71 and before) only set a flag SweepThread.run()
+     # checked BETWEEN runs -- the in-flight run kept training to
+diff --git a/tests/test_sweep_param_expansion.py b/tests/test_sweep_param_expansion.py
+new file mode 100644
+index 0000000..734c996
+--- /dev/null
++++ b/tests/test_sweep_param_expansion.py
+@@ -0,0 +1,241 @@
++#!/usr/bin/env python3
++"""
++v73: integration-level coverage for the Parameter Sweep registry's newly
++added entries (RAR, Time Adaptive, Input/Output transform scale,
++Activation/Point distribution/Kernel initializer) and for the true-value
++preservation fix (see sweep_registry.py's module docstring and
++test_sweep_registry.py's own "SCOPE (v4)" section for the unit-level
++registry coverage of all of this).
++
++This file deliberately does NOT launch real training subprocesses --
++everything here goes through the REAL GUI sweep row mechanism (same
++param_combo/mode_combo/list_edit widgets a user actually drives) and the
++REAL sweep_runner.build_runs(), then calls codegen.generate_script()
++directly on each resulting per-run config and inspects the generated
++Python source text for the swept value actually being embedded where
++expected. This is deliberately fast (no subprocess, no torch import) and
++still exercises the exact same code path a real sweep run uses right up
++to the point the script would be executed -- including the class of bug
++this round is actually at risk of (a malformed f-string interpolation
++that would raise or silently produce a syntactically-broken script for
++some new field/value combination), which pure registry-level
++get_value()/set_value() round-trip tests can't catch on their own.
++tests/test_sweep_execution.py separately covers a couple of these same
++categories with a handful of REAL training runs, for end-to-end
++confidence that the generated script not only parses but actually runs.
++
++Checks:
++ - An Inverse sweep over one variable's initial guess still embeds BOTH
++   variables' own true values correctly (generate_script()'s own
++   _inv_var_trues literal, the live Solve/Sweep path's mechanism for the
++   Parameter Convergence plot's true-value dashed line -- distinct from
++   generate_clean_script()'s separate _inv_true_vals, used only by the
++   "Export as DeepXDE Script" button, not by a live sweep run) -- the
++   true-value-line bug, confirmed fixed all the way through codegen, not
++   just at the registry's own data level.
++ - RAR: sweeping rar_cycles changes the embedded RAR loop's range(...).
++ - Time Adaptive: sweeping a step group's steps changes the embedded
++   ta_step_groups JSON; sweeping ta_grid_size changes the embedded
++   grid_size literal.
++ - Output/Input transform: sweeping a scale entry changes the embedded
++   in_scale/out_scale list, leaving shift and the other entries alone.
++ - Activation/Point distribution/Kernel initializer: sweeping each
++   changes the embedded dde.nn.FNN(...)/train_distribution(...) call.
++ - Every swept run's generated script is syntactically valid Python
++   (compile() doesn't raise) -- the actual bug class this file exists to
++   catch.
++
++Run directly:
++    QT_QPA_PLATFORM=offscreen python3 tests/test_sweep_param_expansion.py
++"""
++import json
++import os
++import sys
++
++os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
++os.environ.setdefault("DDE_BACKEND", "pytorch")
++
++_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
++if _REPO_ROOT not in sys.path:
++    sys.path.insert(0, _REPO_ROOT)
++
++from PyQt6.QtWidgets import QApplication
++
++_app = QApplication.instance() or QApplication(sys.argv)
++
++from pinnstudio.ui.main_window import MainWindow
++from pinnstudio.core import codegen
++from pinnstudio.core.sweep_runner import build_runs
++
++
++def _set_row(row, param_id, values, win):
++    win._refresh_sweep_param_choices()
++    idx = row['param_combo'].findData(param_id)
++    assert idx >= 0, f"{param_id!r} not offered by the sweep Parameter dropdown -- available: " \
++        + str([row['param_combo'].itemData(i) for i in range(row['param_combo'].count())])
++    row['param_combo'].setCurrentIndex(idx)
++    is_categorical = row['param_combo'].itemData(idx, 257) and \
++        row['param_combo'].itemData(idx, 257).get('value_type') == 'categorical'
++    if not is_categorical:
++        row['mode_combo'].setCurrentIndex(row['mode_combo'].findData("list"))
++    row['list_edit'].setText(values)
++
++
++def _assert_compiles(script, label):
++    try:
++        compile(script, f"<{label}>", "exec")
++    except SyntaxError as e:
++        raise AssertionError(f"{label}: generated script is not valid Python: {e}")
++
++
++def run():
++    failures = []
++
++    def check(cond, msg):
++        if not cond:
++            failures.append(msg)
++
++    win = MainWindow()
++    _app.processEvents()
++    win.quick_examples_combo.setCurrentText("1D Heat")
++    _app.processEvents()
++
++    # ── True-value-line fix, through full codegen ───────────────────────
++    win.radio_inverse.setChecked(True)
++    _app.processEvents()
++    win.inv_var_rows[0]['name'].setText("D")
++    win.inv_var_rows[0]['init'].setValue(1.0)
++    win.inv_var_rows[0]['true'].setValue(0.02)
++    win._add_inverse_var_row("k", 0.5)  # row 1, no true value set
++    win.sweep_enable_cb.setChecked(True)
++    _app.processEvents()
++    row0 = win.sweep_row_list[0]
++    _set_row(row0, "inv_var_init_0", "0.5, 1.5", win)
++    base_inv = win._build_config()
++    runs_inv = build_runs(base_inv)
++    check(len(runs_inv) == 3, f"expected 1 baseline + 2 swept runs, got {len(runs_inv)}")
++    for label, cfg in runs_inv:
++        script = codegen.generate_script(cfg)
++        _assert_compiles(script, f"inverse sweep run {label!r}")
++        check("_inv_var_trues = [0.02, None]" in script,
++              f"run {label!r}: expected both variables' own true values ([0.02, None]) still embedded, "
++              f"not found in generated script (the true-value-line bug)")
++
++    # Clean up Inverse rows/mode for the rest of this function.
++    for row in list(win.inv_var_rows):
++        if not row['is_primary']:
++            row['widget'].deleteLater()
++            win.inv_var_rows.remove(row)
++    win.sweep_enable_cb.setChecked(False)
++    win.radio_inverse.setChecked(False)
++    win.radio_forward.setChecked(True)
++    _app.processEvents()
++
++    # ── RAR ──────────────────────────────────────────────────────────
++    win.adapt_combo.setCurrentText("Residual-based Adaptive Refinement (RAR)")
++    _app.processEvents()
++    win.sweep_enable_cb.setChecked(True)
++    _app.processEvents()
++    row_rar = win.sweep_row_list[0]
++    _set_row(row_rar, "rar_cycles", "2, 4", win)
++    base_rar = win._build_config()
++    runs_rar = build_runs(base_rar)
++    check(len(runs_rar) == 3, f"expected 1 baseline + 2 swept RAR runs, got {len(runs_rar)}")
++    seen_cycles = set()
++    for label, cfg in runs_rar:
++        script = codegen.generate_script(cfg)
++        _assert_compiles(script, f"RAR sweep run {label!r}")
++        seen_cycles.add(cfg.rar_cycles)
++        check(f"range({cfg.rar_cycles})" in script,
++              f"run {label!r}: expected the RAR loop to embed range({cfg.rar_cycles}), not found")
++    check(seen_cycles == {3, 2, 4}, f"expected baseline(3)+swept(2,4) rar_cycles values, got {seen_cycles}")
++    win.sweep_enable_cb.setChecked(False)
++    win.adapt_combo.setCurrentText("None")
++    _app.processEvents()
++
++    # ── Time Adaptive: step-group steps + IC grid resolution ───────────
++    win.adapt_combo.setCurrentText("Time Adaptive Training")
++    _app.processEvents()
++    win.sweep_enable_cb.setChecked(True)
++    _app.processEvents()
++    row_ta1 = win.sweep_row_list[0]
++    _set_row(row_ta1, "ta_group0_steps", "3, 7", win)
++    win._add_sweep_row()
++    row_ta2 = win.sweep_row_list[1]
++    _set_row(row_ta2, "ta_grid_size", "11, 21", win)
++    base_ta = win._build_config()
++    runs_ta = build_runs(base_ta)
++    check(len(runs_ta) == 1 + 2 + 2, f"expected 1 baseline + 2 + 2 Time-Adaptive runs, got {len(runs_ta)}")
++    for label, cfg in runs_ta:
++        script = codegen.generate_script(cfg)
++        _assert_compiles(script, f"Time-Adaptive sweep run {label!r}")
++        check(f'grid_size = {cfg.ta_grid_size}' in script,
++              f"run {label!r}: expected grid_size = {cfg.ta_grid_size} embedded, not found")
++        check(json.dumps({"steps": json.loads(cfg.ta_step_groups)[0]["steps"]})[10:] in cfg.ta_step_groups,
++              f"run {label!r}: ta_step_groups should carry this run's own steps value")
++    win.sweep_enable_cb.setChecked(False)
++    win.adapt_combo.setCurrentText("None")
++    _app.processEvents()
++
++    # ── Output / Input transform scale ──────────────────────────────────
++    win.output_transform_cb.setChecked(True)
++    win.input_transform_cb.setChecked(True)
++    _app.processEvents()
++    win.sweep_enable_cb.setChecked(True)
++    _app.processEvents()
++    row_ot = win.sweep_row_list[0]
++    _set_row(row_ot, "ot_scale_0", "2.0, 3.0", win)
++    win._add_sweep_row()
++    row_it = win.sweep_row_list[1]
++    _set_row(row_it, "it_scale_0", "0.5, 1.5", win)
++    base_tr = win._build_config()
++    runs_tr = build_runs(base_tr)
++    check(len(runs_tr) == 1 + 2 + 2, f"expected 1 baseline + 2 + 2 transform-scale runs, got {len(runs_tr)}")
++    for label, cfg in runs_tr:
++        script = codegen.generate_script(cfg)
++        _assert_compiles(script, f"transform sweep run {label!r}")
++        check(f"_out_scale = {cfg.output_transform_scale}" in script,
++              f"run {label!r}: expected out_scale {cfg.output_transform_scale} embedded, not found")
++        check(f"_in_scale  = {cfg.input_transform_scale}" in script,
++              f"run {label!r}: expected in_scale {cfg.input_transform_scale} embedded, not found")
++    win.sweep_enable_cb.setChecked(False)
++    win.output_transform_cb.setChecked(False)
++    win.input_transform_cb.setChecked(False)
++    _app.processEvents()
++
++    # ── Activation / Point distribution / Kernel initializer ───────────
++    win.sweep_enable_cb.setChecked(True)
++    _app.processEvents()
++    row_act = win.sweep_row_list[0]
++    _set_row(row_act, "activation", "relu, sigmoid", win)
++    win._add_sweep_row()
++    row_pd = win.sweep_row_list[1]
++    _set_row(row_pd, "point_distribution", "uniform, Sobol", win)
++    base_misc = win._build_config()
++    runs_misc = build_runs(base_misc)
++    check(len(runs_misc) == 1 + 2 + 2, f"expected 1 baseline + 2 + 2 activation/point-dist runs, got {len(runs_misc)}")
++    for label, cfg in runs_misc:
++        script = codegen.generate_script(cfg)
++        _assert_compiles(script, f"activation/point-dist sweep run {label!r}")
++        check(f'"{cfg.activation}"' in script, f"run {label!r}: expected activation {cfg.activation!r} embedded, not found")
++        check(f'train_distribution="{cfg.point_distribution}"' in script,
++              f"run {label!r}: expected point distribution {cfg.point_distribution!r} embedded, not found")
++    win.sweep_enable_cb.setChecked(False)
++    _app.processEvents()
++
++    if failures:
++        print("FAILURES:")
++        for f in failures:
++            print(f"  - {f}")
++    else:
++        print("ALL SWEEP PARAMETER EXPANSION TESTS PASSED")
++    return failures
++
++
++def test_sweep_param_expansion():
++    failures = run()
++    assert not failures, "\n".join(failures)
++
++
++if __name__ == "__main__":
++    sys.exit(1 if run() else 0)
+diff --git a/tests/test_sweep_registry.py b/tests/test_sweep_registry.py
+index 72b585c..236984a 100644
+--- a/tests/test_sweep_registry.py
++++ b/tests/test_sweep_registry.py
+@@ -59,6 +59,7 @@ _app = QApplication.instance() or QApplication(sys.argv)
+ 
+ from pinnstudio.ui.main_window import MainWindow
+ from pinnstudio.core import sweep_registry as reg
++from pinnstudio.core.config import PINNConfig
+ 
+ # A spread across every dimension, steady vs time-dependent, and Forward
+ # vs Inverse -- not the full 24-combination matrix test_templates.py
+@@ -436,6 +437,133 @@ def run():
+     win.radio_inverse.setChecked(False)
+     win.radio_forward.setChecked(True)
+ 
++    # ── SCOPE (v4): true-value preservation fix ────────────────────────
++    # A bug (fixed in this pass) had _inv_vars_list() keep only name/init
++    # when round-tripping inverse_variables_json, so every
++    # inv_var_init_<n> sweep silently erased the "true" field the
++    # Parameter Convergence plot's dashed reference line depends on --
++    # even for variables the sweep never touched. Confirm it survives a
++    # sweep-set now.
++    tv_config = PINNConfig()
++    tv_config.problem_type = "Inverse"
++    tv_config.inverse_variables_json = json.dumps([
++        {"name": "D", "init": 1.0, "true": 2.5},
++        {"name": "k", "init": 0.5, "true": None},  # no known true value
++    ])
++    reg.get_param("inv_var_init_0", tv_config).set_value(tv_config, 1.75)
++    _tv_parsed = json.loads(tv_config.inverse_variables_json)
++    check(_tv_parsed[0].get("true") == 2.5,
++          f"sweeping inv_var_init_0's initial guess must not erase variable 0's own true value, got {_tv_parsed[0]}")
++    check(_tv_parsed[0].get("init") == 1.75, "inv_var_init_0's init should still update to the swept value")
++    check("true" not in _tv_parsed[1] or _tv_parsed[1].get("true") is None,
++          "a variable with no known true value should stay that way (not acquire a fabricated one)")
++    # Sweeping variable 1 (not 0) must equally not disturb variable 0's
++    # true value -- the original bug erased it regardless of which
++    # variable was actually being swept, since it round-tripped the
++    # WHOLE list through a name/init-only shape.
++    reg.get_param("inv_var_init_1", tv_config).set_value(tv_config, 0.9)
++    _tv_parsed2 = json.loads(tv_config.inverse_variables_json)
++    check(_tv_parsed2[0].get("true") == 2.5,
++          "sweeping a DIFFERENT variable's initial guess must also not erase variable 0's true value")
++
++    # ── SCOPE (v4): RAR sweep parameters ────────────────────────────────
++    rar_config = PINNConfig()
++    rar_config.adapt_method = "None"
++    check(not any(p.id.startswith("rar_") for p in reg.available_params(rar_config)),
++          "RAR sweep entries should not appear when RAR isn't the selected adaptive method")
++    rar_config.adapt_method = "RAR"
++    rar_ids = {p.id: p for p in reg.available_params(rar_config) if p.id.startswith("rar_")}
++    expected_rar = {"rar_cycles", "rar_candidates", "rar_add_points", "rar_adam_iters", "rar_lbfgs_iters"}
++    check(set(rar_ids) == expected_rar, f"expected exactly {expected_rar}, got {set(rar_ids)}")
++    check(all(p.category == "RAR" for p in rar_ids.values()), "every RAR sweep entry should be grouped under the 'RAR' category")
++    for pid, default_val in [("rar_cycles", 5), ("rar_candidates", 75000),
++                              ("rar_add_points", 300), ("rar_adam_iters", 15000), ("rar_lbfgs_iters", 5000)]:
++        p = rar_ids[pid]
++        p.set_value(rar_config, default_val)
++        check(p.get_value(rar_config) == default_val, f"{pid} should round-trip set_value/get_value correctly")
++    check(rar_config.rar_cycles == 5, "rar_cycles sweep entry should write straight through to config.rar_cycles")
++
++    # ── SCOPE (v4): Time-Adaptive sweep parameters ──────────────────────
++    ta_config = PINNConfig()
++    ta_config.adapt_method = "None"
++    check(not any(p.id.startswith("ta_") for p in reg.available_params(ta_config)),
++          "Time-Adaptive sweep entries should not appear when it isn't the selected adaptive method")
++    ta_config.adapt_method = "Time Adaptive"
++    ta_params = {p.id: p for p in reg.available_params(ta_config) if p.id.startswith("ta_")}
++    check("ta_group0_steps" in ta_params, "a default (single-group) Time-Adaptive config should offer ta_group0_steps")
++    check("ta_grid_size" in ta_params, "Time-Adaptive should offer its IC grid resolution as a sweep entry")
++    check(ta_params["ta_grid_size"].value_type == "categorical" and ta_params["ta_grid_size"].choices == ["11", "21", "51", "101"],
++          "ta_grid_size should be categorical over the same grid sizes the GUI combo offers")
++    ta_params["ta_group0_steps"].set_value(ta_config, 30)
++    check(ta_config.ta_num_steps == 30, f"setting ta_group0_steps should resync the derived ta_num_steps total, got {ta_config.ta_num_steps}")
++    check(ta_params["ta_group0_steps"].get_value(ta_config) == 30, "ta_group0_steps should read back the value just set")
++    ta_params["ta_grid_size"].set_value(ta_config, "51")
++    check(ta_config.ta_grid_size == 51, "setting ta_grid_size should write through to config.ta_grid_size as an int")
++
++    # Multiple step groups -> one independent entry per group, matching
++    # the per-phase/per-BC-row convention used everywhere else in this
++    # registry.
++    ta_config2 = PINNConfig()
++    ta_config2.adapt_method = "Time Adaptive"
++    ta_config2.ta_step_groups = json.dumps([
++        {"t_start": 0.0, "t_end": 0.5, "steps": 10},
++        {"t_start": 0.5, "t_end": 1.0, "steps": 20},
++    ])
++    ta_params2 = {p.id: p for p in reg.available_params(ta_config2) if p.id.startswith("ta_group")}
++    check(set(ta_params2) == {"ta_group0_steps", "ta_group1_steps"},
++          f"two step groups should produce two independent sweep entries, got {set(ta_params2)}")
++    ta_params2["ta_group1_steps"].set_value(ta_config2, 99)
++    _ta_groups2 = json.loads(ta_config2.ta_step_groups)
++    check(_ta_groups2[1]["steps"] == 99 and _ta_groups2[0]["steps"] == 10,
++          "setting group 1's steps must not disturb group 0's own steps")
++    check(ta_config2.ta_num_steps == 10 + 99, "ta_num_steps should resync to the sum across ALL groups, not just the one changed")
++
++    # ── SCOPE (v4): Input/Output transform scale sweep parameters ──────
++    it_config = PINNConfig()
++    it_config.input_transform_enabled = False
++    check(not any(p.id.startswith("it_scale_") for p in reg.available_params(it_config)),
++          "input-transform scale entries should not appear while input transform is disabled")
++    it_config.input_transform_enabled = True
++    it_config.input_transform_scale = [1.0, 1.0]  # 1D: x, t
++    it_config.input_transform_shift = [0.0, 0.0]
++    it_params = {p.id: p for p in reg.available_params(it_config) if p.id.startswith("it_scale_")}
++    check(set(it_params) == {"it_scale_0", "it_scale_1"}, f"1D input transform should offer 2 scale entries (x, t), got {set(it_params)}")
++    check("x scale" in it_params["it_scale_0"].label and "t scale" in it_params["it_scale_1"].label,
++          f"input-transform entries should name their own axis, got {[p.label for p in it_params.values()]}")
++    it_params["it_scale_0"].set_value(it_config, 2.5)
++    check(it_config.input_transform_scale[0] == 2.5 and it_config.input_transform_scale[1] == 1.0,
++          "setting it_scale_0 must only change axis 0's own scale, leaving axis 1 and shift untouched")
++    check(it_config.input_transform_shift == [0.0, 0.0], "sweeping scale must never touch the shift list")
++
++    ot_config = PINNConfig()
++    ot_config.output_transform_enabled = False
++    check(not any(p.id.startswith("ot_scale_") for p in reg.available_params(ot_config)),
++          "output-transform scale entries should not appear while output transform is disabled")
++    ot_config.output_transform_enabled = True
++    ot_config.output_transform_scale = [1.0, 1.0, 1.0]  # 3-output problem
++    ot_params = {p.id: p for p in reg.available_params(ot_config) if p.id.startswith("ot_scale_")}
++    check(set(ot_params) == {"ot_scale_0", "ot_scale_1", "ot_scale_2"},
++          f"a 3-output problem's output transform should offer 3 scale entries, got {set(ot_params)}")
++    ot_params["ot_scale_1"].set_value(ot_config, 7.0)
++    check(ot_config.output_transform_scale == [1.0, 7.0, 1.0],
++          f"setting ot_scale_1 must only change output 2's own scale, got {ot_config.output_transform_scale}")
++
++    # ── SCOPE (v4): always-available Point distribution/Activation/
++    # Kernel initializer entries ────────────────────────────────────────
++    misc_config = PINNConfig()
++    misc_params = {p.id: p for p in reg.available_params(misc_config)}
++    for pid, field, choices in [
++        ("point_distribution", "point_distribution", ["Hammersley", "uniform", "Halton", "LHS", "Sobol", "pseudorandom"]),
++        ("activation", "activation", ["tanh", "relu", "sigmoid", "swish"]),
++        ("kernel_initializer", "kernel_initializer", ["Glorot uniform", "Glorot normal", "He uniform", "He normal", "zeros"]),
++    ]:
++        check(pid in misc_params, f"{pid} should always be an available sweep entry")
++        p = misc_params[pid]
++        check(p.value_type == "categorical" and p.choices == choices,
++              f"{pid} should be categorical with choices {choices}, got {p.value_type}/{p.choices}")
++        p.set_value(misc_config, choices[-1])
++        check(getattr(misc_config, field) == choices[-1], f"setting {pid} should write straight through to config.{field}")
++
+     if failures:
+         print("FAILURES:")
+         for f in failures:
+diff --git a/tests/test_sweep_tab.py b/tests/test_sweep_tab.py
+index 0e594e3..91ec947 100644
+--- a/tests/test_sweep_tab.py
++++ b/tests/test_sweep_tab.py
+@@ -462,6 +462,108 @@ def run():
+         import shutil as _shutil
+         _shutil.rmtree(tmp_root, ignore_errors=True)
+ 
++    # ── v73: no sweep-dropdown entry ever double-prefixes its own
++    # category ──────────────────────────────────────────────────────────
++    # _refresh_sweep_param_choices() prefixes every entry's displayed
++    # text with "{category}: " UNLESS the registry's own p.label already
++    # starts with "{category}:" (so per-phase entries, which already bake
++    # their own "Phase N: " prefix into the label, don't get it twice).
++    # A v73 bug had two new categories (Input/Output Transform) whose
++    # bare label text started with a DIFFERENTLY-CASED copy of their own
++    # category ("Input transform: x scale" under category "Input
++    # Transform") -- the startswith() check is case-sensitive, so it
++    # silently missed the match and prefixed anyway, producing a visibly
++    # doubled "Input Transform: Input transform: x scale" in the actual
++    # dropdown (only caught by eye in an Xvfb screenshot, no automated
++    # test rendered the real combo text). Build a config that surfaces
++    # EVERY registry category at once and confirm none of them repeats
++    # their own category name in the displayed text.
++    win_allcat = MainWindow()
++    _app.processEvents()
++    win_allcat.quick_examples_combo.setCurrentText("1D Heat")
++    win_allcat.radio_inverse.setChecked(True)
++    win_allcat.output_transform_cb.setChecked(True)
++    win_allcat.input_transform_cb.setChecked(True)
++    win_allcat.adapt_combo.setCurrentText("Residual-based Adaptive Refinement (RAR)")
++    _app.processEvents()
++    win_allcat.sweep_enable_cb.setChecked(True)
++    _app.processEvents()
++    allcat_combo = win_allcat.sweep_row_list[0]['param_combo']
++    for i in range(allcat_combo.count()):
++        text = allcat_combo.itemText(i)
++        category = text.split(":", 1)[0]
++        # Case-INSENSITIVE count -- the actual v73 bug was a case
++        # mismatch ("Input Transform" the category vs. "Input transform"
++        # baked into the label), which an exact-case count would have
++        # missed entirely (it would see "Input Transform" and "Input
++        # transform" as two different strings, each appearing once).
++        check(text.lower().count(category.lower()) == 1,
++              f"sweep dropdown entry {text!r} repeats its own category {category!r} (case-insensitively) -- doubled prefix bug")
++
++    # ── v73: Save-parameter row moved off Error Analysis/Export row,
++    # and Plot output/Plot type/Save parameter widened to fit their text
++    # ──────────────────────────────────────────────────────────────────
++    # The row move: param_save_label/param_save_combo must no longer
++    # share a layout with ea_btn/export_btn -- confirmed structurally via
++    # QWidget.parentWidget() (a QHBoxLayout's widgets all share the same
++    # parent widget, the container bottom_layout was built into) would be
++    # too indirect since every row here shares the SAME overall parent
++    # container; instead confirm it via the actual visible geometry after
++    # a real layout pass: Save Parameter's row sits strictly above (a
++    # smaller y) the Error Analysis/Export Solution row once both are
++    # visible, i.e. it is its own row directly under Plot output/Plot
++    # type, not alongside Error Analysis/Export further down.
++    win.radio_inverse.setChecked(True)
++    _app.processEvents()
++    win.resize(1400, 1000)
++    win.show()
++    _app.processEvents()
++    check(win.param_save_label.isVisible() and win.param_save_combo.isVisible(),
++          "Save parameter label/combo should be visible once Inverse mode is selected")
++    check(win.param_save_label.y() < win.ea_btn.y(),
++          f"Save parameter row should sit above the Error Analysis/Export Solution row, "
++          f"got param_save_label.y()={win.param_save_label.y()}, ea_btn.y()={win.ea_btn.y()}")
++    check(win.param_save_label.y() > win.plot_type_combo.y(),
++          "Save parameter row should sit below the Plot output/Plot type row (directly under it)")
++    win.hide()
++    win.radio_inverse.setChecked(False)
++    win.radio_forward.setChecked(True)
++    _app.processEvents()
++
++    # Combo widening: each of the three combos' minimum width should be
++    # at least wide enough to fit its own widest current item's text,
++    # not a narrower hand-picked fixed width that would clip it (e.g.
++    # "Parameter Convergence"/"Every 100 iters" previously getting cut
++    # off -- see _fit_combo_width's own docstring).
++    fm_pt = win.plot_type_combo.fontMetrics()
++    widest_plot_type = max(fm_pt.horizontalAdvance(win.plot_type_combo.itemText(i))
++                            for i in range(win.plot_type_combo.count()))
++    check(win.plot_type_combo.minimumWidth() >= widest_plot_type,
++          f"plot_type_combo's minimum width ({win.plot_type_combo.minimumWidth()}) should fit its widest "
++          f"item's text ({widest_plot_type}px)")
++
++    fm_ps = win.param_save_combo.fontMetrics()
++    widest_param_save = max(fm_ps.horizontalAdvance(win.param_save_combo.itemText(i))
++                             for i in range(win.param_save_combo.count()))
++    check(win.param_save_combo.minimumWidth() >= widest_param_save,
++          f"param_save_combo's minimum width ({win.param_save_combo.minimumWidth()}) should fit its widest "
++          f"item's text ({widest_param_save}px, e.g. 'Every 1000 iters')")
++
++    # "Parameter Convergence" (added only once Inverse is selected) is
++    # the widest item plot_type_combo ever holds -- confirm the combo
++    # actually widens to fit it when it's added, not just at startup.
++    width_before_inverse = win.plot_type_combo.minimumWidth()
++    win.radio_inverse.setChecked(True)
++    _app.processEvents()
++    fm_pt2 = win.plot_type_combo.fontMetrics()
++    pc_width = fm_pt2.horizontalAdvance("Parameter Convergence")
++    check(win.plot_type_combo.minimumWidth() >= pc_width,
++          f"plot_type_combo should widen to fit 'Parameter Convergence' ({pc_width}px) once Inverse adds it, "
++          f"got minimumWidth={win.plot_type_combo.minimumWidth()}")
++    win.radio_inverse.setChecked(False)
++    win.radio_forward.setChecked(True)
++    _app.processEvents()
++
+     if failures:
+         print("FAILURES:")
+         for f in failures:

@@ -1,0 +1,433 @@
+diff --git a/pinnstudio/ui/main_window.py b/pinnstudio/ui/main_window.py
+index c14c3fe..818c624 100644
+--- a/pinnstudio/ui/main_window.py
++++ b/pinnstudio/ui/main_window.py
+@@ -329,7 +329,13 @@ class MainWindow(QMainWindow):
+     def _nudge_central_tabs_repaint(self):
+         bar = self.central_tabs.tabBar()
+         bar.hide()
+-        bar.show()
++        # Only re-show it if there's more than one tab -- with a single
++        # "Setup" tab (the normal case now that Parameter Sweep lives
++        # inline instead of as its own tab), the bar is meant to stay
++        # hidden permanently (see its setVisible(False) where the tab
++        # is added), and this nudge shouldn't undo that.
++        if self.central_tabs.count() > 1:
++            bar.show()
+ 
+     # ── Display-settings persistence ──────────────────────────
+     def _load_display_settings_from_disk(self):
+@@ -639,10 +645,16 @@ class MainWindow(QMainWindow):
+         banner_layout.addWidget(update_dismiss_btn)
+         outer_layout.addWidget(self.update_banner)
+ 
+-        # Top-level tabs: the existing Setup UI (everything built below,
+-        # unchanged) is now "Setup"; "Parameter Sweep" (built at the end
+-        # of _build_ui, once every Setup widget it reads from already
+-        # exists) is new.
++        # Single top-level tab ("Setup") -- Parameter Sweep used to be a
++        # second tab here, but now lives inline inside this one (an
++        # Enable toggle in the left Training panel, after Adaptive
++        # Training; the actual configuration/results in the right
++        # panel -- see _build_sweep_panel()), so everything about
++        # training, sweep included, is on one screen. QTabWidget is
++        # kept (rather than ripping it out) since central_tabs is
++        # referenced elsewhere and this way nothing else has to change
++        # -- its tab bar is just hidden since a single-tab bar has
++        # nothing useful to show.
+         self.central_tabs = QTabWidget()
+         outer_layout.addWidget(self.central_tabs)
+ 
+@@ -650,6 +662,7 @@ class MainWindow(QMainWindow):
+         root = QHBoxLayout(setup_tab)
+         root.setContentsMargins(0, 0, 0, 0)
+         self.central_tabs.addTab(setup_tab, "Setup")
++        self.central_tabs.tabBar().setVisible(False)
+ 
+         splitter = QSplitter(Qt.Orientation.Horizontal)
+         # Qt's default for a QSplitter is childrenCollapsible=True: once a
+@@ -1681,6 +1694,56 @@ class MainWindow(QMainWindow):
+ 
+         left_layout.addWidget(adapt_group)
+ 
++        # ── Parameter Sweep toggle ──────────────────────────────
++        # Off by default. Only the enable switch and sweep mode live
++        # here, right after Adaptive Training -- the actual parameter
++        # list, save location, export settings, run controls and
++        # results (table + plot) live in the right-hand panel instead
++        # (see _build_sweep_panel(), called from the right-panel
++        # section below) rather than a separate top-level tab. That
++        # panel needs real width to keep each parameter on one compact
++        # line (see the per-row layout there) -- this narrow left
++        # column can't give it that -- but the point of moving this
++        # here at all is the same one screen for the whole training
++        # setup, no tab-switching to configure or run a sweep.
++        sweep_toggle_group = QGroupBox("Parameter Sweep")
++        sweep_toggle_layout = QVBoxLayout(sweep_toggle_group)
++        sweep_toggle_layout.setSpacing(5)
++
++        self.sweep_enable_cb = QCheckBox("Enable Parameter Sweep")
++        self.sweep_enable_cb.toggled.connect(self._on_sweep_enabled_toggled)
++        sweep_toggle_layout.addWidget(self.sweep_enable_cb)
++
++        sweep_mode_row = QHBoxLayout()
++        sweep_mode_row.addWidget(QLabel("Mode:"))
++        self.sweep_mode_combo = QComboBox()
++        # "All combinations" / "Specified combinations" is COMSOL's own
++        # terminology for its Parametric Sweep feature -- named the
++        # same way here (grid/zip underneath) since it's a familiar
++        # framing for anyone who's used that kind of tool before.
++        self.sweep_mode_combo.addItem("One-at-a-time (vary each parameter separately)", "oat")
++        self.sweep_mode_combo.addItem("All combinations (every value of every parameter)", "grid")
++        self.sweep_mode_combo.addItem("Specified combinations (parameters' Nth values run together)", "zip")
++        self.sweep_mode_combo.setFixedHeight(26)
++        self.sweep_mode_combo.setToolTip(
++            "One-at-a-time: baseline, then vary ONE parameter per run, others held at baseline.\n"
++            "All combinations: every value of every parameter, crossed (a Cartesian product/Grid).\n"
++            "Specified combinations: parameter 1's 1st value with parameter 2's 1st value, etc. -- "
++            "every parameter needs the same number of values.")
++        sweep_mode_row.addWidget(self.sweep_mode_combo)
++        sweep_toggle_layout.addLayout(sweep_mode_row)
++
++        sweep_toggle_hint = QLabel(
++            "Sweep one or more of the problem's own settings across several values and "
++            "run each combination as its own Solve. Enable this to configure parameters, "
++            "where to save results, and what to export in the panel on the right."
++        )
++        sweep_toggle_hint.setWordWrap(True)
++        self._register_style(sweep_toggle_hint, "hint", lambda css, _c='#8a8a8a', _e='': f"color: {_c}; {_e}{css}")
++        sweep_toggle_layout.addWidget(sweep_toggle_hint)
++
++        left_layout.addWidget(sweep_toggle_group)
++
+         # ── Inverse PINN panel ────────────────────────────────
+         self.inverse_group = QGroupBox("Inverse PINN Settings")
+         inv_layout = QVBoxLayout(self.inverse_group)
+@@ -2141,6 +2204,19 @@ class MainWindow(QMainWindow):
+         # before this changed.
+         right_splitter.setSizes([320, 600])
+ 
++        # Everything below (the normal single-run plot controls/plots)
++        # lives in its own container so it can be swapped out for the
++        # Parameter Sweep panel (see _build_sweep_panel() at the end of
++        # this method) when Enable Parameter Sweep is checked in the
++        # left panel -- _on_sweep_enabled_toggled() just toggles which
++        # of the two is visible, so the training log above and the
++        # overall Setup tab stay exactly the same either way.
++        self.normal_results_widget = QWidget()
++        normal_results_layout = QVBoxLayout(self.normal_results_widget)
++        normal_results_layout.setContentsMargins(0, 0, 0, 0)
++        normal_results_layout.setSpacing(3)
++        bottom_layout.addWidget(self.normal_results_widget)
++
+         # Controls row
+         ctrl_row = QHBoxLayout()
+ 
+@@ -2200,7 +2276,7 @@ class MainWindow(QMainWindow):
+         self.plot_settings_btn.clicked.connect(self._on_plot_settings)
+         ctrl_row.addWidget(self.plot_settings_btn)
+         ctrl_row.addStretch()
+-        bottom_layout.addLayout(ctrl_row)
++        normal_results_layout.addLayout(ctrl_row)
+ 
+         # Second row for Error Analysis/Export/Save-parameter -- split out
+         # of the row above (which was previously one single QHBoxLayout
+@@ -2280,7 +2356,7 @@ class MainWindow(QMainWindow):
+         self.timesteps_spin.setVisible(False)
+ 
+         ctrl_row2.addStretch()
+-        bottom_layout.addLayout(ctrl_row2)
++        normal_results_layout.addLayout(ctrl_row2)
+ 
+         # Save / export row
+         save_row = QHBoxLayout()
+@@ -2302,7 +2378,7 @@ class MainWindow(QMainWindow):
+         self.export_tsteps_spin = QSpinBox()
+         self.export_tsteps_spin.setRange(2, 50); self.export_tsteps_spin.setValue(11)
+         self.export_tsteps_spin.setVisible(False)
+-        bottom_layout.addLayout(save_row)
++        normal_results_layout.addLayout(save_row)
+ 
+         # Plot area
+         plots_layout = QHBoxLayout()
+@@ -2382,7 +2458,14 @@ class MainWindow(QMainWindow):
+ 
+         plots_layout.addWidget(loss_container)
+         plots_layout.addWidget(solution_container)
+-        bottom_layout.addLayout(plots_layout)
++        normal_results_layout.addLayout(plots_layout)
++
++        # Parameter Sweep panel -- a sibling of normal_results_widget
++        # inside this same bottom_widget, hidden by default (Enable
++        # Parameter Sweep, in the left panel, is off by default too)
++        # and shown in its place once enabled. See _on_sweep_enabled_
++        # toggled() for the swap.
++        self._build_sweep_panel(bottom_layout)
+ 
+         splitter.addWidget(right)
+         # Left configuration panel gets noticeably more default width too
+@@ -2391,27 +2474,31 @@ class MainWindow(QMainWindow):
+         # an initial split, drag it anytime" caveat as right_splitter above.
+         splitter.setSizes([630, 1010])
+ 
+-        self._build_sweep_tab()
+-
+-    # ── Parameter Sweep tab ─────────────────────────────────────
+-    def _build_sweep_tab(self):
+-        """Builds the new top-level "Parameter Sweep" tab: a Setup pane
+-        (Enable checkbox + mode picker, a repeatable list of
+-        sweep-parameter rows -- same add/remove-row pattern as Optimizer
+-        Scheduler phases in _add_scheduler_phase -- where to save sweep
+-        output, and what each run should export) over a Results pane
+-        (Run/Cancel/Export + progress + results table + plot), in an
+-        adjustable vertical QSplitter -- same resizable-panel pattern as
+-        the Setup tab's own Training Log / plots split (see
+-        right_splitter above) -- defaulting to roughly half the tab's
+-        height each, draggable to whatever split the user prefers.
++    # ── Parameter Sweep panel (inline in the Setup tab's right side) ──
++    def _build_sweep_panel(self, parent_layout):
++        """Builds the inline Parameter Sweep panel: a Setup pane
++        (a repeatable list of sweep-parameter rows -- same add/remove-row
++        pattern as Optimizer Scheduler phases in _add_scheduler_phase --
++        where to save sweep output, and what each run should export) over
++        a Results pane (Run/Cancel/Export + progress + results table +
++        plot), in an adjustable vertical QSplitter -- same resizable-panel
++        pattern as the Setup tab's own Training Log / plots split (see
++        right_splitter above) -- defaulting to roughly half the panel's
++        height each, draggable to whatever split the user prefers. Added
++        as a sibling of self.normal_results_widget inside bottom_layout,
++        hidden by default (the Enable Parameter Sweep checkbox, in the
++        left panel, is off by default too) -- see
++        _on_sweep_enabled_toggled() for the visibility swap between the
++        two. The Enable checkbox and Mode picker themselves live in the
++        left panel (right after Adaptive Training), not here -- this
++        panel only holds the parameter rows and everything below them.
+         Parameter choices are populated from pinnstudio.core.sweep_registry
+         against whatever _build_config() currently produces -- refreshed
+-        whenever this tab is switched to, since the Setup tab's own
+-        settings (template, dimension, scheduler phases, ...) decide
+-        which parameters are even sweepable right now."""
+-        sweep_tab = QWidget()
+-        sweep_outer_layout = QVBoxLayout(sweep_tab)
++        whenever the sweep is enabled, since the Setup tab's own settings
++        (template, dimension, scheduler phases, ...) decide which
++        parameters are even sweepable right now."""
++        self.sweep_panel_widget = QWidget()
++        sweep_outer_layout = QVBoxLayout(self.sweep_panel_widget)
+         sweep_outer_layout.setSpacing(4)
+         sweep_outer_layout.setContentsMargins(10, 10, 10, 10)
+ 
+@@ -2442,9 +2529,9 @@ class MainWindow(QMainWindow):
+ 
+         intro = QLabel(
+             "Sweep one or more of the problem's own settings across several "
+-            "values and run each combination as its own Solve. Switch back "
+-            "to the Setup tab to configure the problem itself first -- the "
+-            "parameter list below always reflects whatever is set up there."
++            "values and run each combination as its own Solve. The "
++            "parameter list below always reflects whatever the rest of "
++            "the Setup tab is currently configured to."
+         )
+         intro.setWordWrap(True)
+         self._register_style(intro, "hint", lambda css, _c='#8a8a8a', _e='': f"color: {_c}; {_e}{css}")
+@@ -2464,26 +2551,11 @@ class MainWindow(QMainWindow):
+         params_group_layout = QVBoxLayout(params_group)
+         params_group_layout.setSpacing(6)
+ 
++        # The Enable checkbox and Mode picker live in the left panel
++        # (right after Adaptive Training) now -- see
++        # _on_sweep_enabled_toggled() -- so this row just right-aligns
++        # the refresh button.
+         top_row = QHBoxLayout()
+-        self.sweep_enable_cb = QCheckBox("Enable Parameter Sweep")
+-        top_row.addWidget(self.sweep_enable_cb)
+-        top_row.addSpacing(16)
+-        top_row.addWidget(QLabel("Mode:"))
+-        self.sweep_mode_combo = QComboBox()
+-        # "All combinations" / "Specified combinations" is COMSOL's own
+-        # terminology for its Parametric Sweep feature -- named the same
+-        # way here (grid/zip underneath) since it's a familiar framing
+-        # for anyone who's used that kind of tool before.
+-        self.sweep_mode_combo.addItem("One-at-a-time (vary each parameter separately)", "oat")
+-        self.sweep_mode_combo.addItem("All combinations (every value of every parameter)", "grid")
+-        self.sweep_mode_combo.addItem("Specified combinations (parameters' Nth values run together)", "zip")
+-        self.sweep_mode_combo.setFixedHeight(26)
+-        self.sweep_mode_combo.setToolTip(
+-            "One-at-a-time: baseline, then vary ONE parameter per run, others held at baseline.\n"
+-            "All combinations: every value of every parameter, crossed (a Cartesian product/Grid).\n"
+-            "Specified combinations: parameter 1's 1st value with parameter 2's 1st value, etc. -- "
+-            "every parameter needs the same number of values.")
+-        top_row.addWidget(self.sweep_mode_combo)
+         top_row.addStretch()
+         refresh_btn = QPushButton("🔄 Refresh parameter list")
+         refresh_btn.setToolTip("Re-reads the Setup tab's current settings to update which parameters can be swept")
+@@ -2644,15 +2716,19 @@ class MainWindow(QMainWindow):
+         self.sweep_plot_label._source_path = None
+         results_layout.addWidget(self.sweep_plot_label, stretch=1)
+ 
+-        self.central_tabs.addTab(sweep_tab, "Parameter Sweep")
+-        self.central_tabs.currentChanged.connect(self._on_central_tab_changed)
+-
+-        # One default row so the tab isn't empty on first open. Its
+-        # parameter list is populated again once the Optimizer Scheduler's
+-        # own default phases exist (those are themselves deferred via
+-        # QTimer.singleShot(0, ...) in _build_ui, so phase-scoped sweep
+-        # parameters -- learning rate/iterations/optimizer -- aren't
+-        # available yet at this exact point in __init__).
++        # Hidden by default -- Enable Parameter Sweep (left panel) is off
++        # by default too; _on_sweep_enabled_toggled() shows this panel
++        # (and hides self.normal_results_widget) once it's checked.
++        self.sweep_panel_widget.setVisible(False)
++        parent_layout.addWidget(self.sweep_panel_widget)
++
++        # One default row so the panel isn't empty the first time it's
++        # shown. Its parameter list is populated again once the Optimizer
++        # Scheduler's own default phases exist (those are themselves
++        # deferred via QTimer.singleShot(0, ...) in _build_ui, so
++        # phase-scoped sweep parameters -- learning rate/iterations/
++        # optimizer -- aren't available yet at this exact point in
++        # __init__).
+         self._add_sweep_row()
+         self._refresh_sweep_export_output_choices()
+         QTimer.singleShot(0, lambda: (self._refresh_sweep_param_choices(),
+@@ -2706,8 +2782,29 @@ class MainWindow(QMainWindow):
+         combo.blockSignals(False)
+         self._on_sweep_output_combo_changed(combo.currentText())
+ 
+-    def _on_central_tab_changed(self, index):
+-        if self.central_tabs.tabText(index) == "Parameter Sweep":
++    def _on_sweep_enabled_toggled(self, checked):
++        """Wired to self.sweep_enable_cb (left panel, right after
++        Adaptive Training). Swaps which of self.normal_results_widget /
++        self.sweep_panel_widget is shown in the right panel -- same
++        sibling-containers-in-one-layout pattern used elsewhere in this
++        file, rather than a QStackedWidget, since only one of the two
++        is ever meant to be visible at a time. Also disables the main
++        Solve button while a sweep is enabled (Run Sweep/Cancel/Export
++        CSV, inside the sweep panel, are its own dedicated controls --
++        deliberately kept separate from Solve/Stop rather than merged
++        into one button) and refreshes the sweep panel's own parameter/
++        output choices on enable, mirroring what used to happen on
++        switching to the old separate tab."""
++        if hasattr(self, 'normal_results_widget'):
++            self.normal_results_widget.setVisible(not checked)
++        if hasattr(self, 'sweep_panel_widget'):
++            self.sweep_panel_widget.setVisible(checked)
++        if hasattr(self, 'solve_btn'):
++            self.solve_btn.setEnabled(not checked)
++            self.solve_btn.setToolTip(
++                "Disabled while Parameter Sweep is enabled -- use Run Sweep "
++                "in the panel on the right instead." if checked else "")
++        if checked:
+             self._refresh_sweep_param_choices()
+             self._refresh_sweep_export_output_choices()
+ 
+diff --git a/tests/test_sweep_tab.py b/tests/test_sweep_tab.py
+index 6c5f03e..a5cc23e 100644
+--- a/tests/test_sweep_tab.py
++++ b/tests/test_sweep_tab.py
+@@ -1,15 +1,20 @@
+ #!/usr/bin/env python3
+ """
+-Regression check for Phase 3 (the "Parameter Sweep" GUI tab in
+-main_window.py) and Phase 4 (pinnstudio/core/sweep_runner.py, the
+-execution driver). Phase 1/2 (config fields + registry) already has its
+-own coverage in test_sweep_registry.py; this file is specifically about
+-the GUI wiring on top of it and the driver that turns a configured
+-sweep into real runs.
++Regression check for Phase 3 (the Parameter Sweep panel in
++main_window.py, inline in the Setup tab's right side since v70 -- see
++its own "Enable Parameter Sweep" toggle in the left training panel,
++right after Adaptive Training) and Phase 4 (pinnstudio/core/
++sweep_runner.py, the execution driver). Phase 1/2 (config fields +
++registry) already has its own coverage in test_sweep_registry.py; this
++file is specifically about the GUI wiring on top of it and the driver
++that turns a configured sweep into real runs.
+ 
+ Checks:
+- - The top-level "Parameter Sweep" tab exists alongside "Setup", and a
+-   default row is present on boot.
++ - The sweep panel's own widgets exist (Enable checkbox in the left
++   panel, off by default; sweep_panel_widget hidden/normal_results_
++   widget shown by default; toggling the checkbox swaps the two and
++   disables the main Solve button), and a default row is present on
++   boot.
+  - Add/remove row wiring (_add_sweep_row / its remove button closure).
+  - Selecting a categorical parameter (e.g. a scheduler phase's
+    optimizer) hides the mode/range widgets and shows the list entry
+@@ -83,10 +88,31 @@ def run():
+     win = MainWindow()
+     _app.processEvents()
+ 
+-    # ── Tab structure ───────────────────────────────────────────────
++    # ── v70: tab merge -- sweep lives inline in the Setup tab now ─────
+     tab_texts = [win.central_tabs.tabText(i) for i in range(win.central_tabs.count())]
+-    check("Setup" in tab_texts, f"expected a 'Setup' tab, got {tab_texts}")
+-    check("Parameter Sweep" in tab_texts, f"expected a 'Parameter Sweep' tab, got {tab_texts}")
++    check(tab_texts == ["Setup"], f"expected only a single 'Setup' tab (no separate 'Parameter Sweep' tab anymore), got {tab_texts}")
++    check(not win.central_tabs.tabBar().isVisible() or win.central_tabs.count() <= 1,
++          "the tab bar should stay hidden with only one tab")
++    check(hasattr(win, "sweep_enable_cb"), "expected an Enable Parameter Sweep checkbox")
++    check(not win.sweep_enable_cb.isChecked(), "Parameter Sweep should be OFF by default")
++    check(hasattr(win, "normal_results_widget") and hasattr(win, "sweep_panel_widget"),
++          "expected normal_results_widget and sweep_panel_widget as the two swappable right-panel containers")
++    check(win.sweep_panel_widget.isHidden(), "the sweep panel should be hidden by default (sweep is off by default)")
++    check(not win.normal_results_widget.isHidden(), "the normal results view should be visible by default")
++    check(win.solve_btn.isEnabled(), "Solve should be enabled by default (sweep is off)")
++
++    win.sweep_enable_cb.setChecked(True)
++    check(win.sweep_panel_widget.isHidden() is False, "enabling the sweep should reveal the sweep panel")
++    check(win.normal_results_widget.isHidden(), "enabling the sweep should hide the normal results view")
++    check(not win.solve_btn.isEnabled(), "Solve should be disabled while Parameter Sweep is enabled")
++    win.sweep_enable_cb.setChecked(False)
++    check(win.normal_results_widget.isHidden() is False, "disabling the sweep should restore the normal results view")
++    check(win.sweep_panel_widget.isHidden(), "disabling the sweep should hide the sweep panel again")
++    check(win.solve_btn.isEnabled(), "Solve should be re-enabled once the sweep is disabled")
++    # Leave it enabled for the rest of this test, same as before (most of
++    # what follows configures/exercises the sweep itself).
++    win.sweep_enable_cb.setChecked(True)
++
+     check(len(win.sweep_row_list) == 1, f"expected exactly one default sweep row on boot, got {len(win.sweep_row_list)}")
+ 
+     win._refresh_sweep_param_choices()
+@@ -350,8 +376,7 @@ def run():
+     # ── v69: Sweep Parameters as its own panel, one compact row per
+     # parameter, no nested/height-capped inner scroll area ────────────
+     from PyQt6.QtWidgets import QGroupBox, QScrollArea
+-    sweep_tab_idx = [win.central_tabs.tabText(i) for i in range(win.central_tabs.count())].index("Parameter Sweep")
+-    params_groups = [w for w in win.central_tabs.widget(sweep_tab_idx).findChildren(QGroupBox)
++    params_groups = [w for w in win.sweep_panel_widget.findChildren(QGroupBox)
+                       if w.title() == "Sweep Parameters"]
+     check(len(params_groups) == 1, f"expected exactly one 'Sweep Parameters' QGroupBox panel, got {len(params_groups)}")
+     if params_groups:
+@@ -388,8 +413,9 @@ def run():
+     _app.processEvents()
+     win2_fresh.show()
+     _app.processEvents()
+-    idx2 = [win2_fresh.central_tabs.tabText(i) for i in range(win2_fresh.central_tabs.count())].index("Parameter Sweep")
+-    win2_fresh.central_tabs.setCurrentIndex(idx2)
++    # Enabling the sweep (rather than switching tabs -- there's no
++    # separate tab anymore) is what actually shows the sweep panel.
++    win2_fresh.sweep_enable_cb.setChecked(True)
+     _app.processEvents()
+     fresh_row = win2_fresh.sweep_row_list[0]
+     list_visible = fresh_row['list_edit'].parentWidget().isVisible()
+@@ -438,13 +464,11 @@ def run():
+     # setVisible() calls were made on it or its ancestors (confirmed
+     # against the pre-existing, known-correct plot_custom_expr_input
+     # toggle, which shows the identical false negative without .show()).
+-    _sweep_tab_idx = [win.central_tabs.tabText(i) for i in range(win.central_tabs.count())].index("Parameter Sweep")
+-    win.central_tabs.setCurrentIndex(_sweep_tab_idx)  # a QTabWidget only
+-    # actually shows its CURRENT tab's contents -- without switching to it,
+-    # every widget on this tab reports isVisible()==False regardless of
+-    # setVisible() calls, the same false negative documented for
+-    # plot_custom_expr_input (window-shown-but-wrong-tab is just another
+-    # flavor of "ancestor not really shown").
++    # The sweep panel itself also needs to actually be enabled (sweep_
++    # enable_cb checked) for its own widgets to report real isVisible()
++    # values -- same "ancestor not really shown" flavor as the window-
++    # shown check above, just one level further up the widget tree.
++    win.sweep_enable_cb.setChecked(True)
+     _app.processEvents()
+     check(win.sweep_export_mode_combo.currentData() == "same_as_setup",
+           "export override should default to 'same as Setup tab', preserving today's existing behavior")

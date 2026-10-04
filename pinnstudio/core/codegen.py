@@ -688,6 +688,22 @@ if _use_save:
         # with "mat1 and mat2 shapes cannot be multiplied" the moment you
         # tried to plot or run Error Analysis against it.
         "steady_state": {config.steady_state},
+        # Geometry definition -- without these, a restored model can only
+        # ever be rebuilt against its rectangular/cuboid bounding box (see
+        # _build_restore_script() in main_window.py), so a non-box geometry
+        # (Disk/Ellipse/Triangle/Polygon/Sphere/Custom CSG combos) gets
+        # predicted and plotted over the WRONG domain on restore -- the
+        # actual shape, e.g. a triangular cavity, never gets reconstructed,
+        # and nothing here lets the restored prediction be masked back down
+        # to it either. Missing here before this fix.
+        "geometry_type": {repr(config.geometry_type)},
+        "geom_center_x": {config.geom_center_x}, "geom_center_y": {config.geom_center_y},
+        "geom_center_z": {config.geom_center_z}, "geom_radius": {config.geom_radius},
+        "geom_semi_major": {config.geom_semi_major}, "geom_semi_minor": {config.geom_semi_minor},
+        "geom_angle": {config.geom_angle},
+        "geom_triangle_vertices": {repr(config.geom_triangle_vertices)},
+        "geom_polygon_vertices": {repr(config.geom_polygon_vertices)},
+        "geom_custom_shapes_json": {repr(config.geom_custom_shapes_json)},
         "pde_expressions": {repr(config.pde_expressions)},
         "optimizer": {repr(config.optimizer)},
         "optimizer2": {repr(config.optimizer2)},

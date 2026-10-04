@@ -1,0 +1,1747 @@
+diff --git a/pinnstudio/ui/main_window.py b/pinnstudio/ui/main_window.py
+index 818c624..1484f85 100644
+--- a/pinnstudio/ui/main_window.py
++++ b/pinnstudio/ui/main_window.py
+@@ -646,15 +646,16 @@ class MainWindow(QMainWindow):
+         outer_layout.addWidget(self.update_banner)
+ 
+         # Single top-level tab ("Setup") -- Parameter Sweep used to be a
+-        # second tab here, but now lives inline inside this one (an
+-        # Enable toggle in the left Training panel, after Adaptive
+-        # Training; the actual configuration/results in the right
+-        # panel -- see _build_sweep_panel()), so everything about
+-        # training, sweep included, is on one screen. QTabWidget is
+-        # kept (rather than ripping it out) since central_tabs is
+-        # referenced elsewhere and this way nothing else has to change
+-        # -- its tab bar is just hidden since a single-tab bar has
+-        # nothing useful to show.
++        # second tab here, but now lives inline inside the left Training
++        # panel instead (an Enable toggle plus the parameter list itself,
++        # right after Adaptive Training -- see _add_sweep_row() and the
++        # "Parameter Sweep" group built alongside it), reusing the main
++        # Solve/Stop buttons and Training Log rather than any dedicated
++        # tab or results section, so everything about training, sweep
++        # included, is on one screen. QTabWidget is kept (rather than
++        # ripping it out) since central_tabs is referenced elsewhere and
++        # this way nothing else has to change -- its tab bar is just
++        # hidden since a single-tab bar has nothing useful to show.
+         self.central_tabs = QTabWidget()
+         outer_layout.addWidget(self.central_tabs)
+ 
+@@ -1694,18 +1695,19 @@ class MainWindow(QMainWindow):
+ 
+         left_layout.addWidget(adapt_group)
+ 
+-        # ── Parameter Sweep toggle ──────────────────────────────
+-        # Off by default. Only the enable switch and sweep mode live
+-        # here, right after Adaptive Training -- the actual parameter
+-        # list, save location, export settings, run controls and
+-        # results (table + plot) live in the right-hand panel instead
+-        # (see _build_sweep_panel(), called from the right-panel
+-        # section below) rather than a separate top-level tab. That
+-        # panel needs real width to keep each parameter on one compact
+-        # line (see the per-row layout there) -- this narrow left
+-        # column can't give it that -- but the point of moving this
+-        # here at all is the same one screen for the whole training
+-        # setup, no tab-switching to configure or run a sweep.
++        # ── Parameter Sweep ──────────────────────────────────────
++        # Off by default. Everything about a sweep -- enable switch,
++        # mode, and the parameter list itself -- lives in this one
++        # panel, right after Adaptive Training, the same as every other
++        # training setting: no separate tab, no separate results
++        # section taking over the right panel. A sweep reuses the main
++        # Solve/Stop buttons (see _on_solve/_on_stop) and the main
++        # Training Log for progress -- it doesn't need its own Run/
++        # Cancel/results UI. It also reuses the main "Save to:" folder
++        # and the main plot/export settings below (each run just gets
++        # its own subfolder under that same save location, same as
++        # before) -- there's nothing sweep-specific left to configure
++        # beyond which parameters to vary and how.
+         sweep_toggle_group = QGroupBox("Parameter Sweep")
+         sweep_toggle_layout = QVBoxLayout(sweep_toggle_group)
+         sweep_toggle_layout.setSpacing(5)
+@@ -1733,17 +1735,50 @@ class MainWindow(QMainWindow):
+         sweep_mode_row.addWidget(self.sweep_mode_combo)
+         sweep_toggle_layout.addLayout(sweep_mode_row)
+ 
+-        sweep_toggle_hint = QLabel(
+-            "Sweep one or more of the problem's own settings across several values and "
+-            "run each combination as its own Solve. Enable this to configure parameters, "
+-            "where to save results, and what to export in the panel on the right."
+-        )
+-        sweep_toggle_hint.setWordWrap(True)
+-        self._register_style(sweep_toggle_hint, "hint", lambda css, _c='#8a8a8a', _e='': f"color: {_c}; {_e}{css}")
+-        sweep_toggle_layout.addWidget(sweep_toggle_hint)
++        # ── Sweep Parameters -- same repeatable add/remove-row pattern
++        # as the Training Phases list above (_add_scheduler_phase), and
++        # the same stacked-field-per-row shape (a narrow column has no
++        # room for one wide line per parameter) rather than v69's
++        # single-line-per-row table layout, which needed ~700px of
++        # width this column never has.
++        div_sweep_params = QLabel("─── Sweep Parameters ───")
++        self._register_style(div_sweep_params, "hint", lambda css, _c='#505080', _e='': f"color: {_c}; {_e}{css}")
++        sweep_toggle_layout.addWidget(div_sweep_params)
++
++        sweep_refresh_row = QHBoxLayout()
++        sweep_refresh_row.addStretch()
++        sweep_refresh_btn = QPushButton("🔄 Refresh")
++        sweep_refresh_btn.setToolTip("Re-reads the rest of this panel's current settings to update which parameters can be swept")
++        sweep_refresh_btn.clicked.connect(lambda: self._refresh_sweep_param_choices())
++        sweep_refresh_row.addWidget(sweep_refresh_btn)
++        sweep_toggle_layout.addLayout(sweep_refresh_row)
++
++        self.sweep_rows_widget = QWidget()
++        self.sweep_rows_layout = QVBoxLayout(self.sweep_rows_widget)
++        self.sweep_rows_layout.setSpacing(0)
++        self.sweep_rows_layout.setContentsMargins(0, 2, 0, 2)
++        sweep_toggle_layout.addWidget(self.sweep_rows_widget)
++        self.sweep_row_list = []  # list of dicts with widgets, mirrors sched_phase_list
++
++        sweep_add_row_btn = QPushButton("➕ Add Parameter")
++        sweep_add_row_btn.setStyleSheet(
++            "QPushButton { color: #69db7c; background: transparent; "
++            "border: 1px solid #2a6a4a; border-radius: 4px; padding: 2px 8px; }")
++        sweep_add_row_btn.clicked.connect(lambda: self._add_sweep_row())
++        sweep_toggle_layout.addWidget(sweep_add_row_btn)
+ 
+         left_layout.addWidget(sweep_toggle_group)
+ 
++        # One default row so the panel isn't empty on first open. Its
++        # parameter list is populated again once the Optimizer
++        # Scheduler's own default phases exist (those are themselves
++        # deferred via QTimer.singleShot(0, ...) in _build_ui, so
++        # phase-scoped sweep parameters -- learning rate/iterations/
++        # optimizer -- aren't available yet at this exact point in
++        # __init__).
++        self._add_sweep_row()
++        QTimer.singleShot(0, lambda: self._refresh_sweep_param_choices())
++
+         # ── Inverse PINN panel ────────────────────────────────
+         self.inverse_group = QGroupBox("Inverse PINN Settings")
+         inv_layout = QVBoxLayout(self.inverse_group)
+@@ -2204,19 +2239,6 @@ class MainWindow(QMainWindow):
+         # before this changed.
+         right_splitter.setSizes([320, 600])
+ 
+-        # Everything below (the normal single-run plot controls/plots)
+-        # lives in its own container so it can be swapped out for the
+-        # Parameter Sweep panel (see _build_sweep_panel() at the end of
+-        # this method) when Enable Parameter Sweep is checked in the
+-        # left panel -- _on_sweep_enabled_toggled() just toggles which
+-        # of the two is visible, so the training log above and the
+-        # overall Setup tab stay exactly the same either way.
+-        self.normal_results_widget = QWidget()
+-        normal_results_layout = QVBoxLayout(self.normal_results_widget)
+-        normal_results_layout.setContentsMargins(0, 0, 0, 0)
+-        normal_results_layout.setSpacing(3)
+-        bottom_layout.addWidget(self.normal_results_widget)
+-
+         # Controls row
+         ctrl_row = QHBoxLayout()
+ 
+@@ -2276,7 +2298,7 @@ class MainWindow(QMainWindow):
+         self.plot_settings_btn.clicked.connect(self._on_plot_settings)
+         ctrl_row.addWidget(self.plot_settings_btn)
+         ctrl_row.addStretch()
+-        normal_results_layout.addLayout(ctrl_row)
++        bottom_layout.addLayout(ctrl_row)
+ 
+         # Second row for Error Analysis/Export/Save-parameter -- split out
+         # of the row above (which was previously one single QHBoxLayout
+@@ -2356,7 +2378,7 @@ class MainWindow(QMainWindow):
+         self.timesteps_spin.setVisible(False)
+ 
+         ctrl_row2.addStretch()
+-        normal_results_layout.addLayout(ctrl_row2)
++        bottom_layout.addLayout(ctrl_row2)
+ 
+         # Save / export row
+         save_row = QHBoxLayout()
+@@ -2378,7 +2400,7 @@ class MainWindow(QMainWindow):
+         self.export_tsteps_spin = QSpinBox()
+         self.export_tsteps_spin.setRange(2, 50); self.export_tsteps_spin.setValue(11)
+         self.export_tsteps_spin.setVisible(False)
+-        normal_results_layout.addLayout(save_row)
++        bottom_layout.addLayout(save_row)
+ 
+         # Plot area
+         plots_layout = QHBoxLayout()
+@@ -2458,14 +2480,7 @@ class MainWindow(QMainWindow):
+ 
+         plots_layout.addWidget(loss_container)
+         plots_layout.addWidget(solution_container)
+-        normal_results_layout.addLayout(plots_layout)
+-
+-        # Parameter Sweep panel -- a sibling of normal_results_widget
+-        # inside this same bottom_widget, hidden by default (Enable
+-        # Parameter Sweep, in the left panel, is off by default too)
+-        # and shown in its place once enabled. See _on_sweep_enabled_
+-        # toggled() for the swap.
+-        self._build_sweep_panel(bottom_layout)
++        bottom_layout.addLayout(plots_layout)
+ 
+         splitter.addWidget(right)
+         # Left configuration panel gets noticeably more default width too
+@@ -2475,420 +2490,119 @@ class MainWindow(QMainWindow):
+         splitter.setSizes([630, 1010])
+ 
+     # ── Parameter Sweep panel (inline in the Setup tab's right side) ──
+-    def _build_sweep_panel(self, parent_layout):
+-        """Builds the inline Parameter Sweep panel: a Setup pane
+-        (a repeatable list of sweep-parameter rows -- same add/remove-row
+-        pattern as Optimizer Scheduler phases in _add_scheduler_phase --
+-        where to save sweep output, and what each run should export) over
+-        a Results pane (Run/Cancel/Export + progress + results table +
+-        plot), in an adjustable vertical QSplitter -- same resizable-panel
+-        pattern as the Setup tab's own Training Log / plots split (see
+-        right_splitter above) -- defaulting to roughly half the panel's
+-        height each, draggable to whatever split the user prefers. Added
+-        as a sibling of self.normal_results_widget inside bottom_layout,
+-        hidden by default (the Enable Parameter Sweep checkbox, in the
+-        left panel, is off by default too) -- see
+-        _on_sweep_enabled_toggled() for the visibility swap between the
+-        two. The Enable checkbox and Mode picker themselves live in the
+-        left panel (right after Adaptive Training), not here -- this
+-        panel only holds the parameter rows and everything below them.
+-        Parameter choices are populated from pinnstudio.core.sweep_registry
+-        against whatever _build_config() currently produces -- refreshed
+-        whenever the sweep is enabled, since the Setup tab's own settings
+-        (template, dimension, scheduler phases, ...) decide which
+-        parameters are even sweepable right now."""
+-        self.sweep_panel_widget = QWidget()
+-        sweep_outer_layout = QVBoxLayout(self.sweep_panel_widget)
+-        sweep_outer_layout.setSpacing(4)
+-        sweep_outer_layout.setContentsMargins(10, 10, 10, 10)
+-
+-        sweep_splitter = QSplitter(Qt.Orientation.Vertical)
+-        # Same reasoning as the matching comment on the Setup tab's own
+-        # splitters: Qt's default childrenCollapsible=True makes a drag
+-        # that crosses either pane's minimum size snap it fully shut
+-        # instead of just stopping there, so this disables that.
+-        sweep_splitter.setChildrenCollapsible(False)
+-        sweep_outer_layout.addWidget(sweep_splitter)
+-        self.sweep_splitter = sweep_splitter
+-
+-        # ── Top pane: sweep setup ──────────────────────────────
+-        setup_pane = QWidget()
+-        setup_pane_layout = QVBoxLayout(setup_pane)
+-        setup_pane_layout.setContentsMargins(0, 0, 0, 0)
+-        setup_pane_layout.setSpacing(8)
+-
+-        setup_scroll = QScrollArea()
+-        setup_scroll.setWidgetResizable(True)
+-        setup_scroll_inner = QWidget()
+-        sweep_layout = QVBoxLayout(setup_scroll_inner)
+-        sweep_layout.setSpacing(8)
+-        sweep_layout.setContentsMargins(4, 4, 4, 4)
+-        setup_scroll.setWidget(setup_scroll_inner)
+-        setup_pane_layout.addWidget(setup_scroll)
+-        sweep_splitter.addWidget(setup_pane)
+-
+-        intro = QLabel(
+-            "Sweep one or more of the problem's own settings across several "
+-            "values and run each combination as its own Solve. The "
+-            "parameter list below always reflects whatever the rest of "
+-            "the Setup tab is currently configured to."
+-        )
+-        intro.setWordWrap(True)
+-        self._register_style(intro, "hint", lambda css, _c='#8a8a8a', _e='': f"color: {_c}; {_e}{css}")
+-        sweep_layout.addWidget(intro)
+-
+-        # ── Sweep Parameters -- its own panel, matching "Save Sweep
+-        # Results To" and "Results To Save" below so the tab reads as 3
+-        # clearly separated panels instead of one long undifferentiated
+-        # column. The row list is added directly (no nested, height-
+-        # capped QScrollArea) -- same "one continuous column, let the
+-        # single outer scroll area handle overflow" pattern the Setup
+-        # tab's own scheduler-phase list already uses (see sched_phases_
+-        # widget above), so adding more parameters actually grows this
+-        # panel (draggable via sweep_splitter) instead of being stuck
+-        # scrolling inside a second, inner, fixed-size box.
+-        params_group = QGroupBox("Sweep Parameters")
+-        params_group_layout = QVBoxLayout(params_group)
+-        params_group_layout.setSpacing(6)
+-
+-        # The Enable checkbox and Mode picker live in the left panel
+-        # (right after Adaptive Training) now -- see
+-        # _on_sweep_enabled_toggled() -- so this row just right-aligns
+-        # the refresh button.
+-        top_row = QHBoxLayout()
+-        top_row.addStretch()
+-        refresh_btn = QPushButton("🔄 Refresh parameter list")
+-        refresh_btn.setToolTip("Re-reads the Setup tab's current settings to update which parameters can be swept")
+-        refresh_btn.clicked.connect(lambda: (self._refresh_sweep_param_choices(),
+-                                              self._refresh_sweep_export_output_choices()))
+-        top_row.addWidget(refresh_btn)
+-        params_group_layout.addLayout(top_row)
+-
+-        self.sweep_rows_widget = QWidget()
+-        self.sweep_rows_layout = QVBoxLayout(self.sweep_rows_widget)
+-        self.sweep_rows_layout.setSpacing(0)
+-        self.sweep_rows_layout.setContentsMargins(0, 2, 0, 2)
+-        params_group_layout.addWidget(self.sweep_rows_widget)
+-        self.sweep_row_list = []  # list of dicts with widgets, mirrors sched_phase_list
+-
+-        add_row_btn = QPushButton("➕ Add Parameter")
+-        add_row_btn.setStyleSheet(
+-            "QPushButton { color: #69db7c; background: transparent; "
+-            "border: 1px solid #2a6a4a; border-radius: 4px; padding: 2px 8px; }")
+-        add_row_btn.clicked.connect(lambda: self._add_sweep_row())
+-        params_group_layout.addWidget(add_row_btn)
+-        sweep_layout.addWidget(params_group)
+-
+-        # ── Where to save this sweep's output ───────────────────
+-        save_group = QGroupBox("Save Sweep Results To")
+-        save_group_layout = QVBoxLayout(save_group)
+-        save_hint = QLabel(
+-            "Every run (baseline included) gets its own, descriptively-named folder here "
+-            "-- e.g. a run that swept a BC's weight to 7.5 lands in a folder named after "
+-            "that -- so you can go back later and see exactly which model/figures came "
+-            "from which run. Leave blank to use the default location below."
+-        )
+-        save_hint.setWordWrap(True)
+-        self._register_style(save_hint, "hint", lambda css, _c='#8a8a8a', _e='': f"color: {_c}; {_e}{css}")
+-        save_group_layout.addWidget(save_hint)
+-        save_row = QHBoxLayout()
+-        self.sweep_save_dir_input = QLineEdit()
+-        self.sweep_save_dir_input.setPlaceholderText(
+-            os.path.join(os.path.expanduser("~"), "PINNStudio_Results", "parameter_sweep_results"))
+-        self.sweep_save_dir_input.setFixedHeight(28)
+-        save_row.addWidget(self.sweep_save_dir_input)
+-        sweep_save_browse_btn = QPushButton("Browse")
+-        sweep_save_browse_btn.setFixedHeight(28); sweep_save_browse_btn.setFixedWidth(65)
+-        sweep_save_browse_btn.clicked.connect(self._on_browse_sweep_save_dir)
+-        save_row.addWidget(sweep_save_browse_btn)
+-        save_group_layout.addLayout(save_row)
+-        sweep_layout.addWidget(save_group)
+-
+-        # ── What each run in the sweep should export ────────────
+-        export_group = QGroupBox("Results To Save (for each run in this sweep)")
+-        export_group_layout = QVBoxLayout(export_group)
+-        export_mode_row = QHBoxLayout()
+-        export_mode_row.addWidget(QLabel("Export settings:"))
+-        self.sweep_export_mode_combo = QComboBox()
+-        self.sweep_export_mode_combo.addItem("Same as Setup tab (default)", "same_as_setup")
+-        self.sweep_export_mode_combo.addItem("Custom for this sweep", "custom")
+-        self.sweep_export_mode_combo.setFixedHeight(26)
+-        self.sweep_export_mode_combo.currentIndexChanged.connect(
+-            lambda _i: self._on_sweep_export_mode_changed())
+-        export_mode_row.addWidget(self.sweep_export_mode_combo)
+-        export_mode_row.addStretch()
+-        export_group_layout.addLayout(export_mode_row)
+-
+-        self.sweep_export_custom_widget = QWidget()
+-        export_custom_layout = QVBoxLayout(self.sweep_export_custom_widget)
+-        export_custom_layout.setContentsMargins(0, 0, 0, 0)
+-        export_custom_row = QHBoxLayout()
+-        export_custom_row.addWidget(QLabel("Plot type:"))
+-        self.sweep_plot_type_combo = QComboBox()
+-        self.sweep_plot_type_combo.addItems([
+-            "Surface", "Line (time steps)",
+-            "Line Animation (GIF)", "Surface Animation (GIF)",
+-        ])
+-        self.sweep_plot_type_combo.setFixedHeight(26)
+-        export_custom_row.addWidget(self.sweep_plot_type_combo)
+-        export_custom_row.addWidget(QLabel("Output:"))
+-        self.sweep_plot_output_combo = QComboBox()
+-        self.sweep_plot_output_combo.setFixedHeight(26)
+-        self.sweep_plot_output_combo.currentTextChanged.connect(
+-            lambda text: self._on_sweep_output_combo_changed(text))
+-        export_custom_row.addWidget(self.sweep_plot_output_combo)
+-        export_custom_row.addWidget(QLabel("Time steps/frames:"))
+-        self.sweep_export_tsteps_spin = QSpinBox()
+-        self.sweep_export_tsteps_spin.setRange(2, 50)
+-        self.sweep_export_tsteps_spin.setValue(11)
+-        export_custom_row.addWidget(self.sweep_export_tsteps_spin)
+-        export_custom_row.addStretch()
+-        export_custom_layout.addLayout(export_custom_row)
+-
+-        custom_expr_row = QHBoxLayout()
+-        self.sweep_plot_custom_expr_input = QLineEdit()
+-        self.sweep_plot_custom_expr_input.setPlaceholderText("expression, e.g. sqrt(u**2+v**2)")
+-        self.sweep_plot_custom_expr_input.setFixedHeight(28)
+-        custom_expr_row.addWidget(self.sweep_plot_custom_expr_input)
+-        self.sweep_plot_custom_label_input = QLineEdit()
+-        self.sweep_plot_custom_label_input.setPlaceholderText("label, e.g. |h|")
+-        self.sweep_plot_custom_label_input.setFixedHeight(28)
+-        self.sweep_plot_custom_label_input.setFixedWidth(100)
+-        custom_expr_row.addWidget(self.sweep_plot_custom_label_input)
+-        export_custom_layout.addLayout(custom_expr_row)
+-        export_group_layout.addWidget(self.sweep_export_custom_widget)
+-        self.sweep_export_custom_widget.setVisible(False)
+-        sweep_layout.addWidget(export_group)
+-
+-        run_row = QHBoxLayout()
+-        self.sweep_run_btn = QPushButton("▶ Run Sweep")
+-        self.sweep_run_btn.clicked.connect(self._on_run_sweep)
+-        run_row.addWidget(self.sweep_run_btn)
+-        self.sweep_cancel_btn = QPushButton("⏹ Cancel")
+-        self.sweep_cancel_btn.setEnabled(False)
+-        self.sweep_cancel_btn.clicked.connect(self._on_cancel_sweep)
+-        run_row.addWidget(self.sweep_cancel_btn)
+-        self.sweep_export_btn = QPushButton("💾 Export results (CSV)")
+-        self.sweep_export_btn.setEnabled(False)
+-        self.sweep_export_btn.clicked.connect(self._on_export_sweep_csv)
+-        run_row.addWidget(self.sweep_export_btn)
+-        run_row.addStretch()
+-        sweep_layout.addLayout(run_row)
+-        sweep_layout.addStretch()
+-
+-        # ── Bottom pane: results ────────────────────────────────
+-        results_pane = QWidget()
+-        results_layout = QVBoxLayout(results_pane)
+-        results_layout.setContentsMargins(0, 4, 0, 0)
+-        results_layout.setSpacing(6)
+-        sweep_splitter.addWidget(results_pane)
+-        # Default to roughly half the tab's height each -- same "initial
+-        # split the user can drag away from afterward" convention as
+-        # right_splitter.setSizes([320, 600]) above.
+-        sweep_splitter.setSizes([450, 450])
+-
+-        self.sweep_progress_label = QLabel("")
+-        results_layout.addWidget(self.sweep_progress_label)
+-
+-        self.sweep_results_table = QTableWidget(0, 4)
+-        self.sweep_results_table.setHorizontalHeaderLabels(["Run", "Status", "Final loss", "L2 relative error"])
+-        self.sweep_results_table.horizontalHeader().setStretchLastSection(True)
+-        self.sweep_results_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+-        results_layout.addWidget(self.sweep_results_table, stretch=1)
+-
+-        plot_header = QHBoxLayout()
+-        plot_header.addWidget(QLabel("Results Plot"))
+-        plot_header.addStretch()
+-        self.sweep_plot_save_btn = QPushButton("💾 Save Figure")
+-        self.sweep_plot_save_btn.setEnabled(False)
+-        self.sweep_plot_save_btn.clicked.connect(lambda: self._save_figure(self.sweep_plot_label, "sweep_results_plot"))
+-        plot_header.addWidget(self.sweep_plot_save_btn)
+-        results_layout.addLayout(plot_header)
+-
+-        self.sweep_plot_label = QLabel(
+-            "Run a sweep with at least one parameter to see a results plot here "
+-            "(final loss, and L2 relative error if Error Analysis data is configured)."
+-        )
+-        self.sweep_plot_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+-        self.sweep_plot_label.setWordWrap(True)
+-        self.sweep_plot_label.setStyleSheet("color: #8a8a8a; border: 1px dashed #3e3e42; border-radius: 6px;")
+-        self.sweep_plot_label.setMinimumSize(340, 200)
+-        self.sweep_plot_label._source_path = None
+-        results_layout.addWidget(self.sweep_plot_label, stretch=1)
+-
+-        # Hidden by default -- Enable Parameter Sweep (left panel) is off
+-        # by default too; _on_sweep_enabled_toggled() shows this panel
+-        # (and hides self.normal_results_widget) once it's checked.
+-        self.sweep_panel_widget.setVisible(False)
+-        parent_layout.addWidget(self.sweep_panel_widget)
+-
+-        # One default row so the panel isn't empty the first time it's
+-        # shown. Its parameter list is populated again once the Optimizer
+-        # Scheduler's own default phases exist (those are themselves
+-        # deferred via QTimer.singleShot(0, ...) in _build_ui, so
+-        # phase-scoped sweep parameters -- learning rate/iterations/
+-        # optimizer -- aren't available yet at this exact point in
+-        # __init__).
+-        self._add_sweep_row()
+-        self._refresh_sweep_export_output_choices()
+-        QTimer.singleShot(0, lambda: (self._refresh_sweep_param_choices(),
+-                                       self._refresh_sweep_export_output_choices()))
+-
+-    def _on_browse_sweep_save_dir(self):
+-        folder = QFileDialog.getExistingDirectory(self, "Select Sweep Save Directory")
+-        if folder:
+-            self.sweep_save_dir_input.setText(folder)
+-
+-    def _on_sweep_export_mode_changed(self):
+-        is_custom = self.sweep_export_mode_combo.currentData() == "custom"
+-        self.sweep_export_custom_widget.setVisible(is_custom)
+-
+-    def _on_sweep_output_combo_changed(self, text):
+-        """Mirrors _on_plot_output_combo_changed for this tab's own
+-        output selector -- the custom expression/label fields only
+-        matter while "Custom..." is selected (see _build_config(),
+-        which only serializes sweep_plot_custom_expr/label in that
+-        case)."""
+-        is_custom = (text == "Custom...")
+-        self.sweep_plot_custom_expr_input.setVisible(is_custom)
+-        self.sweep_plot_custom_label_input.setVisible(is_custom)
+-
+-    def _refresh_sweep_export_output_choices(self):
+-        """Re-populates this tab's own Output selector (Results To Save
+-        -> Custom for this sweep) from whatever _build_config() produces
+-        right now -- same "Output N (name)" + "Custom..." items as the
+-        Setup tab's plot_output_combo, kept as an independent widget/
+-        selection here rather than shared, since this is a separate,
+-        sweep-only override. Guarded the same way
+-        _refresh_sweep_param_choices() is: a transient, not-yet-valid
+-        widget state is far less disruptive to tolerate than a crash."""
+-        if not hasattr(self, 'sweep_plot_output_combo'):
+-            return
+-        try:
+-            config = self._build_config()
+-        except Exception:
+-            return
+-        combo = self.sweep_plot_output_combo
+-        previous_text = combo.currentText()
+-        combo.blockSignals(True)
+-        combo.clear()
+-        names = [n.strip() for n in (config.output_names or "").split(",")]
+-        for i in range(config.num_outputs):
+-            name = names[i] if i < len(names) else f"u{i}"
+-            combo.addItem(f"Output {i + 1} ({name})")
+-        combo.addItem("Custom...")
+-        idx = combo.findText(previous_text)
+-        combo.setCurrentIndex(idx if idx >= 0 else 0)
+-        combo.blockSignals(False)
+-        self._on_sweep_output_combo_changed(combo.currentText())
+-
+     def _on_sweep_enabled_toggled(self, checked):
+         """Wired to self.sweep_enable_cb (left panel, right after
+-        Adaptive Training). Swaps which of self.normal_results_widget /
+-        self.sweep_panel_widget is shown in the right panel -- same
+-        sibling-containers-in-one-layout pattern used elsewhere in this
+-        file, rather than a QStackedWidget, since only one of the two
+-        is ever meant to be visible at a time. Also disables the main
+-        Solve button while a sweep is enabled (Run Sweep/Cancel/Export
+-        CSV, inside the sweep panel, are its own dedicated controls --
+-        deliberately kept separate from Solve/Stop rather than merged
+-        into one button) and refreshes the sweep panel's own parameter/
+-        output choices on enable, mirroring what used to happen on
+-        switching to the old separate tab."""
+-        if hasattr(self, 'normal_results_widget'):
+-            self.normal_results_widget.setVisible(not checked)
+-        if hasattr(self, 'sweep_panel_widget'):
+-            self.sweep_panel_widget.setVisible(checked)
++        Adaptive Training). The sweep's own configuration (mode,
++        parameters) lives inline in that same left-panel group -- this
++        doesn't change anything about the right panel (Training Log and
++        plots stay exactly where they are for a normal Solve). All it
++        does is relabel the shared Solve button so it's clear a click
++        will run the sweep instead (see _on_solve, which checks
++        config.sweep_enabled itself to decide which one actually
++        happens, and _on_stop, which does the matching thing for
++        Cancel), and refresh which parameters are available to sweep
++        over against the panel's current settings."""
+         if hasattr(self, 'solve_btn'):
+-            self.solve_btn.setEnabled(not checked)
++            self.solve_btn.setText("▶  Run Sweep" if checked else "▶  Solve")
+             self.solve_btn.setToolTip(
+-                "Disabled while Parameter Sweep is enabled -- use Run Sweep "
+-                "in the panel on the right instead." if checked else "")
++                "Runs every configured sweep combination, one training run "
++                "at a time, saving each to its own folder." if checked else "")
+         if checked:
+             self._refresh_sweep_param_choices()
+-            self._refresh_sweep_export_output_choices()
+ 
+     def _add_sweep_row(self):
++        """One parameter block, stacked top-to-bottom (header row with a
++        remove button, then Parameter, then Sweep-as, then Values/range
++        fields) -- the same layout convention the left panel's own
++        Optimizer Scheduler phases already use (_add_scheduler_phase),
++        rather than v69's single-line-per-row table layout, which needed
++        roughly 700px of width to read well. That traded-off design
++        made sense back when the sweep parameters lived in their own
++        wide tab/panel; now that the whole sweep configuration lives
++        inline in this narrow left column instead (alongside every
++        other training setting), a stacked block fits the same way the
++        rest of this column's multi-field settings already do."""
+         row_widget = QWidget()
+-        # One compact row per parameter (number, Parameter combo, Sweep-as
+-        # combo, Values/range fields, remove button, all on a single
+-        # line) instead of the old 4-line stacked block -- this is what
+-        # lets several parameters sit in view at once without the tab
+-        # turning into a wall of near-empty vertical space, and matches
+-        # how COMSOL's own Parametric Sweep lists its parameters (one
+-        # table row each) rather than a separate labeled block per
+-        # field. A thin bottom border on each row stands in for a table's
+-        # row separators.
+         row_widget.setObjectName("sweepParamRow")
+         row_widget.setStyleSheet(
+             "QWidget#sweepParamRow { border-bottom: 1px solid #333338; }")
+-        row_layout = QHBoxLayout(row_widget)
+-        row_layout.setSpacing(8)
+-        row_layout.setContentsMargins(0, 5, 0, 5)
++        row_layout = QVBoxLayout(row_widget)
++        row_layout.setSpacing(3)
++        row_layout.setContentsMargins(0, 4, 0, 6)
+ 
++        # Header: "── Parameter N ──" + remove button, same shape as
++        # each Training Phase's own header row.
++        header_row = QHBoxLayout()
+         row_num = len(self.sweep_row_list) + 1
+-        num_lbl = QLabel(f"{row_num}.")
+-        num_lbl.setFixedWidth(16)
+-        self._register_style(num_lbl, "hint", lambda css, _c='#a0c4ff', _e='': f"color: {_c}; {_e}{css}")
+-        row_layout.addWidget(num_lbl)
++        header_lbl = QLabel(f"── Parameter {row_num} ──")
++        self._register_style(header_lbl, "hint", lambda css, _c='#a0c4ff', _e='': f"color: {_c}; {_e}{css}")
++        header_row.addWidget(header_lbl)
++        remove_btn = QPushButton("✕")
++        remove_btn.setFixedHeight(22); remove_btn.setFixedWidth(24)
++        remove_btn.setStyleSheet(
++            "QPushButton { color: #ff8787; background: transparent; border: none; }")
++        header_row.addStretch(); header_row.addWidget(remove_btn)
++        row_layout.addLayout(header_row)
+ 
+-        row_layout.addWidget(QLabel("Parameter:"))
++        # Parameter
++        param_row = QHBoxLayout()
++        param_row.addWidget(QLabel("Parameter:"))
+         param_combo = QComboBox()
+         param_combo.setFixedHeight(26)
+-        param_combo.setMinimumWidth(190)
+-        row_layout.addWidget(param_combo)
++        param_row.addStretch(); param_row.addWidget(param_combo)
++        row_layout.addLayout(param_row)
+ 
++        # Sweep as (hidden for categorical parameters -- those are
++        # always a plain list of choices, there's no range to pick)
+         mode_row_widget = QWidget()
+         mode_row = QHBoxLayout(mode_row_widget)
+         mode_row.setContentsMargins(0, 0, 0, 0)
+-        mode_row.setSpacing(6)
+         mode_row.addWidget(QLabel("Sweep as:"))
+         mode_combo = QComboBox()
+         mode_combo.addItem("List of values", "list")
+         mode_combo.addItem("Linear range", "linear")
+         mode_combo.addItem("Log range", "log")
+-        mode_combo.setFixedHeight(26)
+-        mode_combo.setMinimumWidth(110)
+-        mode_row.addWidget(mode_combo)
++        mode_combo.setFixedHeight(24)
++        mode_row.addStretch(); mode_row.addWidget(mode_combo)
+         row_layout.addWidget(mode_row_widget)
+ 
++        # Values (list mode) -- label above the field on its own line
++        # (like "PDE 1 (residual = 0):" elsewhere in this panel) rather
++        # than label-then-field on one line, so a longer comma-separated
++        # list has real room to be typed/read in this narrow column.
+         list_widget = QWidget()
+-        list_row = QHBoxLayout(list_widget)
+-        list_row.setContentsMargins(0, 0, 0, 0)
+-        list_row.setSpacing(6)
+-        list_row.addWidget(QLabel("Values:"))
++        list_layout = QVBoxLayout(list_widget)
++        list_layout.setContentsMargins(0, 0, 0, 0)
++        list_layout.setSpacing(2)
++        list_layout.addWidget(QLabel("Values:"))
+         list_edit = QLineEdit()
+         list_edit.setPlaceholderText("comma-separated, e.g. 0.001, 0.005, 0.01")
+-        list_row.addWidget(list_edit)
+-        row_layout.addWidget(list_widget, 1)
++        list_edit.setFixedHeight(26)
++        list_layout.addWidget(list_edit)
++        row_layout.addWidget(list_widget)
+ 
++        # Range (linear/log mode)
+         range_widget = QWidget()
+         range_row = QHBoxLayout(range_widget)
+         range_row.setContentsMargins(0, 0, 0, 0)
+-        range_row.setSpacing(6)
++        range_row.setSpacing(4)
+         range_row.addWidget(QLabel("Min:"))
+         min_spin = QDoubleSpinBox()
+-        min_spin.setRange(-1e9, 1e9); min_spin.setDecimals(6)
+-        min_spin.setFixedWidth(100)
++        min_spin.setRange(-1e9, 1e9); min_spin.setDecimals(4)
++        min_spin.setFixedWidth(62); min_spin.setFixedHeight(24)
+         range_row.addWidget(min_spin)
+         range_row.addWidget(QLabel("Max:"))
+         max_spin = QDoubleSpinBox()
+-        max_spin.setRange(-1e9, 1e9); max_spin.setDecimals(6); max_spin.setValue(1.0)
+-        max_spin.setFixedWidth(100)
++        max_spin.setRange(-1e9, 1e9); max_spin.setDecimals(4); max_spin.setValue(1.0)
++        max_spin.setFixedWidth(62); max_spin.setFixedHeight(24)
+         range_row.addWidget(max_spin)
+         range_row.addWidget(QLabel("Steps:"))
+         n_spin = QSpinBox()
+         n_spin.setRange(2, 100); n_spin.setValue(5)
+-        n_spin.setFixedWidth(70)
++        n_spin.setFixedWidth(48); n_spin.setFixedHeight(24)
+         range_row.addWidget(n_spin)
+         range_row.addStretch()
+-        row_layout.addWidget(range_widget, 1)
+-
+-        remove_btn = QPushButton("✕")
+-        remove_btn.setFixedHeight(22); remove_btn.setFixedWidth(24)
+-        remove_btn.setStyleSheet(
+-            "QPushButton { color: #ff8787; background: transparent; border: none; }")
+-        row_layout.addWidget(remove_btn)
++        row_layout.addWidget(range_widget)
+ 
+         def _update_value_widgets():
+             meta = param_combo.itemData(param_combo.currentIndex(), Qt.ItemDataRole.UserRole + 1) or {}
+@@ -2932,12 +2646,9 @@ class MainWindow(QMainWindow):
+         # blockSignals(True) (so repopulating it elsewhere doesn't spam
+         # currentIndexChanged on every other row), which means
+         # _update_value_widgets() never actually ran for THIS brand new
+-        # row -- without this, a freshly added row show both the Values
++        # row -- without this, a freshly added row shows both the Values
+         # field AND the Min/Max/Steps range fields at once until the
+-        # user happens to touch one of the combos (pre-existing since
+-        # the original Phase 3 patch; only cosmetic, but far more
+-        # visible now that both sit on the same line instead of one
+-        # being further down the old stacked layout).
++        # user happens to touch one of the combos.
+         _update_value_widgets()
+ 
+     def _refresh_sweep_param_choices(self):
+@@ -2981,11 +2692,14 @@ class MainWindow(QMainWindow):
+                 if idx >= 0:
+                     combo.setCurrentIndex(idx)
+             combo.blockSignals(False)
+-            # Longer labels (e.g. a Boundary Conditions entry naming its
+-            # side/type/output) shouldn't get clipped now that this combo
+-            # has a defined minimum width instead of stretching to fill
+-            # the row -- widen it to fit its widest current item.
+-            self._fit_combo_width(combo, min_width=190)
++            # Same convention as the Training Phases' own Optimizer
++            # combo (opt_combo, min_width=80) a few sections up --
++            # this narrow left column clips long combo text the same
++            # way other long field values here already do (e.g. a
++            # Boundary Conditions entry naming its side/type/output),
++            # which is a pre-existing, accepted tradeoff of this
++            # column's width, not something unique to this combo.
++            self._fit_combo_width(combo, min_width=80)
+ 
+     def _build_sweep_parameters_json(self):
+         import json
+@@ -3018,284 +2732,6 @@ class MainWindow(QMainWindow):
+                 })
+         return json.dumps(entries)
+ 
+-    def _on_run_sweep(self):
+-        config = self._build_config()
+-        val_errors = config.validate()
+-        if val_errors:
+-            self.log_box.append("❌ Cannot start sweep -- this configuration has invalid settings:")
+-            for ve in val_errors:
+-                self.log_box.append(f"   • {ve}")
+-            return
+-        if not config.sweep_enabled:
+-            self.log_box.append("❌ Cannot start sweep -- check \"Enable Parameter Sweep\" first.")
+-            return
+-
+-        self.sweep_results_table.setRowCount(0)
+-        self.sweep_export_btn.setEnabled(False)
+-        self.sweep_run_btn.setEnabled(False)
+-        self.sweep_cancel_btn.setEnabled(True)
+-        self.sweep_progress_label.setText("Starting sweep...")
+-        self._sweep_results_cache = []
+-        self._sweep_last_config = config
+-        self.sweep_plot_save_btn.setEnabled(False)
+-        self.sweep_plot_label.setPixmap(QPixmap())  # clear any previous plot image
+-        self.sweep_plot_label.setText("Sweep running -- the results plot appears once every run finishes...")
+-        self.sweep_plot_label._source_path = None
+-
+-        self._sweep_run_root = None
+-        self.sweep_thread = SweepThread(config)
+-        self.sweep_thread.sweep_root_signal.connect(self._on_sweep_root)
+-        self.sweep_thread.run_start_signal.connect(self._on_sweep_run_start)
+-        self.sweep_thread.output_signal.connect(self._on_sweep_output)
+-        self.sweep_thread.run_done_signal.connect(self._on_sweep_run_done)
+-        self.sweep_thread.finished_signal.connect(self._on_sweep_finished)
+-        self.sweep_thread.start()
+-
+-    def _on_sweep_root(self, root):
+-        """Fires once, right as the sweep starts -- see
+-        sweep_runner.run_sweep()'s on_sweep_root param. Logged
+-        immediately so the user knows where results are landing without
+-        waiting for the whole sweep to finish."""
+-        self._sweep_run_root = root
+-        self.log_box.append(f"📁 Sweep results will be saved under: {root}")
+-
+-    def _on_cancel_sweep(self):
+-        if hasattr(self, 'sweep_thread') and self.sweep_thread.isRunning():
+-            self.sweep_thread.stop()
+-            self.sweep_progress_label.setText("Cancelling -- finishing the current run, then stopping...")
+-
+-    def _on_sweep_run_start(self, i, total, label):
+-        self.sweep_progress_label.setText(f"Run {i + 1}/{total}: {label}")
+-
+-    def _on_sweep_output(self, i, total, line):
+-        self.log_box.append(f"[Sweep {i + 1}/{total}] {line}")
+-
+-    def _on_sweep_run_done(self, i, total, label, result):
+-        self._sweep_results_cache.append((label, result))
+-        row = self.sweep_results_table.rowCount()
+-        self.sweep_results_table.insertRow(row)
+-        status_icon = "✅" if result.get("status") == "done" else "❌"
+-        self.sweep_results_table.setItem(row, 0, QTableWidgetItem(label))
+-        self.sweep_results_table.setItem(row, 1, QTableWidgetItem(f"{status_icon} {result.get('status')}"))
+-        fl = result.get("final_loss")
+-        self.sweep_results_table.setItem(row, 2, QTableWidgetItem(f"{fl:.4e}" if fl is not None else "—"))
+-        l2 = result.get("l2_relative")
+-        self.sweep_results_table.setItem(row, 3, QTableWidgetItem(f"{l2:.4e}" if l2 is not None else "—"))
+-
+-    def _on_sweep_finished(self):
+-        self.sweep_progress_label.setText(f"Sweep finished -- {self.sweep_results_table.rowCount()} run(s) completed.")
+-        self.sweep_run_btn.setEnabled(True)
+-        self.sweep_cancel_btn.setEnabled(False)
+-        self.sweep_export_btn.setEnabled(self.sweep_results_table.rowCount() > 0)
+-        self._render_sweep_plot()
+-        # sweep_runner.run_sweep() already wrote sweep_manifest.json and
+-        # sweep_summary.csv into the sweep's own root folder -- this is
+-        # just telling the user that's there, not writing it itself.
+-        if getattr(self, '_sweep_run_root', None):
+-            self.log_box.append(
+-                f"📁 Per-run folders, manifest and summary CSV saved under: {self._sweep_run_root}")
+-
+-    def _on_export_sweep_csv(self):
+-        path, _ = QFileDialog.getSaveFileName(self, "Export sweep results", "sweep_results.csv", "CSV files (*.csv)")
+-        if not path:
+-            return
+-        import csv
+-        with open(path, "w", newline="") as f:
+-            writer = csv.writer(f)
+-            writer.writerow(["Run", "Status", "Final loss", "L2 relative error"])
+-            for label, result in getattr(self, '_sweep_results_cache', []):
+-                writer.writerow([
+-                    label, result.get("status"),
+-                    result.get("final_loss") if result.get("final_loss") is not None else "",
+-                    result.get("l2_relative") if result.get("l2_relative") is not None else "",
+-                ])
+-        self.log_box.append(f"💾 Sweep results exported to {path}")
+-
+-    # ── Parameter Sweep results plot (Phase 5) ──────────────────
+-    def _display_sweep_plot_file(self, path):
+-        """Loads a just-saved plot PNG into sweep_plot_label, the exact
+-        same scale/setPixmap/_source_path pattern the existing Loss and
+-        Solution plots use (see e.g. the Solve-done handler) -- so
+-        _save_figure(self.sweep_plot_label, ...) works unmodified."""
+-        self.sweep_plot_label.setText("")
+-        self.sweep_plot_label.setPixmap(QPixmap(path).scaled(
+-            self.sweep_plot_label.width(), self.sweep_plot_label.height(),
+-            Qt.AspectRatioMode.KeepAspectRatio,
+-            Qt.TransformationMode.SmoothTransformation))
+-        self.sweep_plot_label._source_path = path
+-        self.sweep_plot_save_btn.setEnabled(True)
+-
+-    def _set_sweep_plot_message(self, text):
+-        self.sweep_plot_label.setPixmap(QPixmap())
+-        self.sweep_plot_label.setText(text)
+-        self.sweep_plot_label._source_path = None
+-        self.sweep_plot_save_btn.setEnabled(False)
+-
+-    def _render_sweep_plot(self):
+-        """Builds a results plot from the just-finished sweep's cached
+-        (label, result) pairs, once every run is in. One-at-a-time (or a
+-        single-parameter Grid sweep, which has the same shape): one line
+-        subplot per swept parameter, final loss (and L2 relative error,
+-        if Error Analysis data was configured) against that parameter's
+-        value, with the baseline run drawn as a dashed reference line.
+-        A two-parameter Grid sweep instead gets a heatmap over both
+-        parameters' values. Three or more Grid parameters aren't
+-        visualized here -- the combination space isn't a 2D grid anymore,
+-        and the results table above already lists every combination.
+-
+-        Regroups cache entries by parameter using
+-        sweep_runner.expand_params(config), the SAME function build_runs()
+-        itself uses to decide what to run -- never re-deriving that
+-        shape by hand, so this can't silently drift out of sync with
+-        what the sweep actually ran."""
+-        cache = getattr(self, '_sweep_results_cache', [])
+-        config = getattr(self, '_sweep_last_config', None)
+-        if not cache or config is None:
+-            self._set_sweep_plot_message("No sweep results yet.")
+-            return
+-        if len(cache) < 2:
+-            self._set_sweep_plot_message(
+-                "This sweep only ran the baseline (no parameters were configured) -- nothing to plot.")
+-            return
+-
+-        from pinnstudio.core.sweep_runner import expand_params
+-        per_param = expand_params(config)
+-        if not per_param:
+-            self._set_sweep_plot_message("No sweep results yet.")
+-            return
+-
+-        baseline_label, baseline_result = cache[0]
+-        run_results = cache[1:]
+-
+-        try:
+-            import matplotlib
+-            matplotlib.use("Agg")
+-            import matplotlib.pyplot as plt
+-
+-            out_path = "/tmp/sweep_results_plot.png"  # matches /tmp/loss_plot.png etc.'s existing convention in this file
+-            if config.sweep_mode == "grid" and len(per_param) >= 3:
+-                self._set_sweep_plot_message(
+-                    "Grid sweeps with 3+ parameters aren't plotted here (it's no longer a 2D "
+-                    "grid) -- see the results table above for every combination.")
+-                return
+-            elif config.sweep_mode == "grid" and len(per_param) == 2:
+-                self._render_sweep_grid_heatmap(plt, per_param, run_results, out_path)
+-            else:
+-                # One-at-a-time (any number of parameters), or a Grid
+-                # sweep with exactly one parameter -- both produce one
+-                # contiguous block of results per parameter, in order.
+-                groups = []
+-                idx = 0
+-                for param, values in per_param:
+-                    chunk = run_results[idx: idx + len(values)]
+-                    idx += len(values)
+-                    groups.append((param, values, [r for _, r in chunk]))
+-                self._render_sweep_oat_lines(plt, groups, baseline_result, out_path)
+-            self._display_sweep_plot_file(out_path)
+-        except Exception as e:
+-            self.log_box.append(f"⚠️ Could not render the sweep results plot: {e}")
+-            self._set_sweep_plot_message(f"Could not render results plot: {e}")
+-
+-    def _render_sweep_oat_lines(self, plt, groups, baseline_result, out_path):
+-        import numpy as np
+-        n = len(groups)
+-        cols = min(3, n)
+-        rows = (n + cols - 1) // cols
+-        fig, axes = plt.subplots(rows, cols, figsize=(4.4 * cols, 3.6 * rows), squeeze=False)
+-        baseline_loss = baseline_result.get("final_loss")
+-
+-        for i, (param, values, results) in enumerate(groups):
+-            ax = axes[i // cols][i % cols]
+-            is_categorical = param.value_type == "categorical"
+-            x_pos = list(range(len(values)))
+-            losses = [r.get("final_loss") if r.get("final_loss") is not None else np.nan for r in results]
+-            l2s = [r.get("l2_relative") for r in results]
+-            has_l2 = any(v is not None for v in l2s)
+-            l2s = [v if v is not None else np.nan for v in l2s]
+-
+-            ax.plot(x_pos, losses, "o-", color="#4dabf7", label="Final loss")
+-            if baseline_loss is not None:
+-                ax.axhline(baseline_loss, color="#999999", linestyle="--", linewidth=1, label="Baseline")
+-            if is_categorical:
+-                ax.set_xticks(x_pos)
+-                ax.set_xticklabels([str(v) for v in values], rotation=20, ha="right")
+-            else:
+-                ax.set_xticks(x_pos)
+-                ax.set_xticklabels([str(v) for v in values])
+-            # A run with no final_loss (e.g. it errored) plots as a NaN
+-            # point -- matplotlib's autoscale drops a NaN point's x
+-            # AND y from the data range entirely, which can push that
+-            # run's own tick mark outside the visible range. Pin xlim to
+-            # span every tick explicitly so a failed run's position is
+-            # never silently cropped out of the plot.
+-            ax.set_xlim(-0.5, len(x_pos) - 0.5)
+-            ax.set_yscale("log")
+-            ax.set_xlabel(param.label)
+-            ax.set_ylabel("Final loss (log)", color="#4dabf7")
+-            ax.grid(True, alpha=0.3)
+-
+-            if has_l2:
+-                ax2 = ax.twinx()
+-                ax2.plot(x_pos, l2s, "s--", color="#ff8787", label="L2 relative error")
+-                ax2.set_ylabel("L2 relative error", color="#ff8787")
+-
+-            lines, labels = ax.get_legend_handles_labels()
+-            ax.legend(lines, labels, loc="best", fontsize=7)
+-
+-        for j in range(n, rows * cols):
+-            axes[j // cols][j % cols].axis("off")
+-
+-        fig.tight_layout()
+-        fig.savefig(out_path, dpi=120, bbox_inches="tight")
+-        plt.close(fig)
+-
+-    def _render_sweep_grid_heatmap(self, plt, per_param, run_results, out_path):
+-        import numpy as np
+-        (param0, values0), (param1, values1) = per_param
+-        n0, n1 = len(values0), len(values1)
+-        loss_grid = np.full((n0, n1), np.nan)
+-        l2_grid = np.full((n0, n1), np.nan)
+-        has_l2 = False
+-        # itertools.product(values0, values1) iterates values1 fastest --
+-        # the exact order build_runs() uses for Grid mode -- so run k
+-        # (0-indexed) is (values0[k // n1], values1[k % n1]).
+-        for k, (_, result) in enumerate(run_results[: n0 * n1]):
+-            i, j = divmod(k, n1)
+-            fl = result.get("final_loss")
+-            if fl is not None:
+-                loss_grid[i, j] = fl
+-            l2 = result.get("l2_relative")
+-            if l2 is not None:
+-                l2_grid[i, j] = l2
+-                has_l2 = True
+-
+-        ncols = 2 if has_l2 else 1
+-        fig, axes = plt.subplots(1, ncols, figsize=(6.5 * ncols, 5.5), squeeze=False)
+-        axes = axes[0]
+-
+-        def _draw(ax, grid, title):
+-            im = ax.imshow(grid, aspect="auto", cmap="viridis_r")
+-            ax.set_xticks(range(n1)); ax.set_xticklabels([str(v) for v in values1], rotation=20, ha="right")
+-            ax.set_yticks(range(n0)); ax.set_yticklabels([str(v) for v in values0])
+-            ax.set_xlabel(param1.label); ax.set_ylabel(param0.label)
+-            ax.set_title(title)
+-            fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+-            if n0 * n1 <= 100:  # annotate cells only while it stays legible
+-                for i in range(n0):
+-                    for j in range(n1):
+-                        v = grid[i, j]
+-                        if not np.isnan(v):
+-                            ax.text(j, i, f"{v:.2e}", ha="center", va="center",
+-                                     color="white", fontsize=7)
+-
+-        _draw(axes[0], loss_grid, "Final loss")
+-        if has_l2:
+-            _draw(axes[1], l2_grid, "L2 relative error")
+-
+-        fig.tight_layout()
+-        fig.savefig(out_path, dpi=120, bbox_inches="tight")
+-        plt.close(fig)
+-
+     # ── Dimension change ──────────────────────────────────────
+     GEOM_TYPES_2D = ["Rectangle", "Disk", "Ellipse", "Triangle", "Polygon"]
+     GEOM_TYPES_3D = ["Cuboid", "Sphere"]
+@@ -5420,23 +4856,24 @@ class MainWindow(QMainWindow):
+             sweep_enabled=self.sweep_enable_cb.isChecked() if hasattr(self, 'sweep_enable_cb') else False,
+             sweep_mode=self.sweep_mode_combo.currentData() if hasattr(self, 'sweep_mode_combo') else "oat",
+             sweep_parameters=self._build_sweep_parameters_json() if hasattr(self, '_build_sweep_parameters_json') else "[]",
+-            sweep_save_dir=self.sweep_save_dir_input.text().strip() if hasattr(self, 'sweep_save_dir_input') else "",
+-            sweep_export_mode=(self.sweep_export_mode_combo.currentData()
+-                                if hasattr(self, 'sweep_export_mode_combo') else "same_as_setup"),
+-            sweep_plot_type=(self.sweep_plot_type_combo.currentText()
+-                              if hasattr(self, 'sweep_plot_type_combo') else "Surface"),
+-            sweep_plot_output_idx=(self.sweep_plot_output_combo.currentIndex()
+-                                    if hasattr(self, 'sweep_plot_output_combo') else 0),
+-            sweep_plot_custom_expr=(self.sweep_plot_custom_expr_input.text().strip()
+-                                     if hasattr(self, 'sweep_plot_custom_expr_input')
+-                                     and getattr(self, 'sweep_plot_output_combo', None) is not None
+-                                     and self.sweep_plot_output_combo.currentText() == "Custom..." else ""),
+-            sweep_plot_custom_label=(self.sweep_plot_custom_label_input.text().strip()
+-                                      if hasattr(self, 'sweep_plot_custom_label_input')
+-                                      and getattr(self, 'sweep_plot_output_combo', None) is not None
+-                                      and self.sweep_plot_output_combo.currentText() == "Custom..." else ""),
+-            sweep_export_t_steps=(self.sweep_export_tsteps_spin.value()
+-                                   if hasattr(self, 'sweep_export_tsteps_spin') else 11),
++            # A sweep no longer has its own separate save-location/export
++            # fields -- it reuses the Setup tab's own "Save to:" folder
++            # (each run still gets its own subfolder under a timestamped
++            # sweep_YYYYmmdd_HHMMSS/ there, so nothing collides with a
++            # normal single-run Solve's own output) and its own plot/
++            # export settings, unconditionally -- "custom" per-sweep
++            # overrides (sweep_plot_type/_plot_output_idx/_plot_custom_
++            # expr/_plot_custom_label/_export_t_steps below) no longer
++            # have a GUI to set them from, so sweep_runner.py's own
++            # _apply_run_output_settings() always takes its "same_as_
++            # setup" branch now and leaves them at these unused defaults.
++            sweep_save_dir=self.save_dir_input.text().strip() if hasattr(self, 'save_dir_input') else "",
++            sweep_export_mode="same_as_setup",
++            sweep_plot_type="Surface",
++            sweep_plot_output_idx=0,
++            sweep_plot_custom_expr="",
++            sweep_plot_custom_label="",
++            sweep_export_t_steps=11,
+         )
+ 
+     # ── Save / Open a problem definition ─────────────────────
+@@ -6619,6 +6056,14 @@ class MainWindow(QMainWindow):
+             for _ve in _val_errors:
+                 self.log_box.append(f"   • {_ve}")
+             return
++        config = _config_preview
++        # Enable Parameter Sweep (left panel, right after Adaptive
++        # Training) is what decides which of the two Solve actually
++        # does -- there's no separate Run Sweep button anymore, and
++        # Stop/Cancel is the matching single branch in _on_stop below.
++        if config.sweep_enabled:
++            self._start_sweep(config)
++            return
+         self.solve_btn.setEnabled(False)
+         self.solve_btn.setText("⏳  Solving...")
+         self.stop_btn.setEnabled(True)
+@@ -6632,19 +6077,96 @@ class MainWindow(QMainWindow):
+         for _p in ["/tmp/loss_plot.png", "/tmp/solution_plot.png", "/tmp/solution_plot.gif", "/tmp/param_plot.png"]:
+             if os.path.exists(_p):
+                 os.remove(_p)
+-        config = _config_preview
+         self.thread = SolverThread(config)
+         self.thread.output_signal.connect(self._on_output)
+         self.thread.done_signal.connect(self._on_done)
+         self.thread.start()
+ 
++    def _start_sweep(self, config):
++        """Runs a Parameter Sweep through the exact same Solve/Stop
++        buttons a normal single run uses (see _on_solve, which routes
++        here once config.sweep_enabled is true, and _on_stop below) --
++        there's no separate Run Sweep/Cancel UI anymore. Progress and
++        each run's result stream into the same Training Log a normal
++        Solve already writes to (see the signal handlers below), rather
++        than a dedicated results table: every run still gets its own
++        folder under the sweep's root (logged once up front, as soon as
++        SweepThread knows it), and sweep_runner.run_sweep() itself
++        already writes a sweep_manifest.json/sweep_summary.csv there
++        once everything finishes, exactly as before -- only where that
++        progress is shown changed, not what gets saved to disk."""
++        self.solve_btn.setEnabled(False)
++        self.solve_btn.setText("⏳  Running sweep...")
++        self.stop_btn.setEnabled(True)
++        self.log_box.clear()
++        self._sweep_run_count = 0
++        self._sweep_run_root = None
++        self.sweep_thread = SweepThread(config)
++        self.sweep_thread.sweep_root_signal.connect(self._on_sweep_root)
++        self.sweep_thread.run_start_signal.connect(self._on_sweep_run_start)
++        self.sweep_thread.output_signal.connect(self._on_sweep_output)
++        self.sweep_thread.run_done_signal.connect(self._on_sweep_run_done)
++        self.sweep_thread.finished_signal.connect(self._on_sweep_finished)
++        self.sweep_thread.start()
++
++    def _on_sweep_root(self, root):
++        """Fires once, right as the sweep starts -- see
++        sweep_runner.run_sweep()'s on_sweep_root param. Logged
++        immediately so the user knows where results are landing without
++        waiting for the whole sweep to finish."""
++        self._sweep_run_root = root
++        self.log_box.append(f"📁 Sweep results will be saved under: {root}")
++
++    def _on_sweep_run_start(self, i, total, label):
++        self.log_box.append(f"▶ Run {i + 1}/{total}: {label}")
++
++    def _on_sweep_output(self, i, total, line):
++        self.log_box.append(f"[Sweep {i + 1}/{total}] {line}")
++
++    def _on_sweep_run_done(self, i, total, label, result):
++        self._sweep_run_count += 1
++        status_icon = "✅" if result.get("status") == "done" else "❌"
++        fl = result.get("final_loss")
++        msg = (f"[Sweep {i + 1}/{total}] {status_icon} {label} -- final loss: "
++               f"{fl:.4e}" if fl is not None else
++               f"[Sweep {i + 1}/{total}] {status_icon} {label} -- final loss: —")
++        l2 = result.get("l2_relative")
++        if l2 is not None:
++            msg += f", L2 relative error: {l2:.4e}"
++        self.log_box.append(msg)
++
++    def _on_sweep_finished(self):
++        self.solve_btn.setEnabled(True)
++        self.solve_btn.setText("▶  Run Sweep" if self.sweep_enable_cb.isChecked() else "▶  Solve")
++        self.stop_btn.setEnabled(False)
++        self.log_box.append(f"✅ Sweep finished -- {self._sweep_run_count} run(s) completed.")
++        # sweep_runner.run_sweep() already wrote sweep_manifest.json and
++        # sweep_summary.csv into the sweep's own root folder -- this is
++        # just telling the user that's there, not writing it itself.
++        if getattr(self, '_sweep_run_root', None):
++            self.log_box.append(
++                f"📁 Per-run folders, manifest and summary CSV saved under: {self._sweep_run_root}")
++
+     def _on_stop(self):
++        if hasattr(self, 'sweep_thread') and self.sweep_thread.isRunning():
++            # Same graceful-cancel semantics as before: SweepThread.stop()
++            # just sets a flag build_runs()'s own loop checks between
++            # runs, letting whichever run is currently training finish
++            # rather than killing it mid-write -- so, unlike the normal-
++            # Solve branch below, this doesn't wait()/reset the buttons
++            # immediately; _on_sweep_finished() does that once the
++            # thread's finished_signal actually fires.
++            self.sweep_thread.stop()
++            self.log_box.append("\n⏹ Cancelling -- finishing the current run, then stopping...")
++            return
+         if hasattr(self, 'thread') and self.thread.isRunning():
+             self.thread.stop()
+             self.thread.wait(3000)
+             self.log_box.append("\n⏹ Stopped by user.")
+             self.solve_btn.setEnabled(True)
+-            self.solve_btn.setText("▶  Solve")
++            self.solve_btn.setText(
++                "▶  Run Sweep" if getattr(self, 'sweep_enable_cb', None) and self.sweep_enable_cb.isChecked()
++                else "▶  Solve")
+             self.stop_btn.setEnabled(False)
+ 
+     def closeEvent(self, event):
+@@ -6666,6 +6188,9 @@ class MainWindow(QMainWindow):
+         _th = getattr(self, 'thread', None)
+         if isinstance(_th, QThread) and _th.isRunning():
+             active.append(("training", _th))
++        _swth = getattr(self, 'sweep_thread', None)
++        if isinstance(_swth, QThread) and _swth.isRunning():
++            active.append(("sweep", _swth))
+         _rth = getattr(self, '_restore_thread', None)
+         if isinstance(_rth, QThread) and _rth.isRunning():
+             active.append(("restore", _rth))
+diff --git a/tests/test_sweep_execution.py b/tests/test_sweep_execution.py
+index d6e4cc9..61d2d07 100644
+--- a/tests/test_sweep_execution.py
++++ b/tests/test_sweep_execution.py
+@@ -23,10 +23,6 @@ Checks:
+    back each run's own freshly-written error_metrics.txt rather than a
+    stale one left over from an earlier run (the exact bug caught by
+    hand while building this feature).
+- - Phase 5's MainWindow._render_sweep_plot() renders a real PNG from
+-   each of the above REAL run_sweep() results (not synthetic data --
+-   that's covered in test_sweep_tab.py; this just confirms the real
+-   data shape flows into it correctly).
+  - A real sweep over a loss weight (sweep_registry.py's "SCOPE (v2)"
+    entries) on 1D Heat: pushing the Initial Condition weight to an
+    extreme value (100000, vs. the default 100) for a handful of
+@@ -88,16 +84,6 @@ def run():
+         check(result["l2_relative"] is None,
+               f"[1D Heat] run {label!r} should report l2_relative=None (no EA data configured), got {result}")
+ 
+-    # Phase 5: the results plot should render from these REAL results
+-    # (not synthetic data -- test_sweep_tab.py already covers the
+-    # rendering logic itself with synthetic cache entries; this is the
+-    # one check that real run_sweep() output flows into it correctly).
+-    win._sweep_last_config = config
+-    win._sweep_results_cache = results
+-    win._render_sweep_plot()
+-    check(win.sweep_plot_label._source_path is not None and os.path.exists(win.sweep_plot_label._source_path),
+-          "[1D Heat] sweep results plot should render from real run_sweep() output")
+-
+     # ── 3D Poisson (Sphere): DOES have Error Analysis data configured ─
+     win2 = MainWindow()
+     _app.processEvents()
+@@ -126,12 +112,6 @@ def run():
+     check(len(set(l2s)) == len(l2s),
+           f"each 3D Sphere run should read back its OWN freshly-written error_metrics.txt, not a shared/stale one -- got identical values: {l2s}")
+ 
+-    win2._sweep_last_config = config2
+-    win2._sweep_results_cache = results2
+-    win2._render_sweep_plot()
+-    check(win2.sweep_plot_label._source_path is not None and os.path.exists(win2.sweep_plot_label._source_path),
+-          "[3D Sphere] sweep results plot (with real L2 data) should render from real run_sweep() output")
+-
+     # ── Loss weight sweep: a real training run, not just generated-
+     # script text (test_sweep_registry.py already checks the text) ────
+     win3 = MainWindow()
+@@ -184,9 +164,10 @@ def run():
+         row4["mode_combo"].setCurrentIndex(row4["mode_combo"].findData("list"))
+         row4["list_edit"].setText("2")
+         win4.sweep_enable_cb.setChecked(True)
+-        win4.sweep_save_dir_input.setText(tmp_root)
++        win4.save_dir_input.setText(tmp_root)
+         config4 = win4._build_config()
+-        check(config4.sweep_save_dir == tmp_root, "sweep_save_dir should round-trip into the config")
++        check(config4.sweep_save_dir == tmp_root, "sweep_save_dir should round-trip into the config "
++              "(from the shared 'Save to:' field, not a dedicated sweep one)")
+         check(config4.validate() == [], f"per-run-folder sweep config should validate clean: {config4.validate()}")
+ 
+         captured_root = []
+diff --git a/tests/test_sweep_tab.py b/tests/test_sweep_tab.py
+index a5cc23e..c89734f 100644
+--- a/tests/test_sweep_tab.py
++++ b/tests/test_sweep_tab.py
+@@ -1,21 +1,35 @@
+ #!/usr/bin/env python3
+ """
+-Regression check for Phase 3 (the Parameter Sweep panel in
+-main_window.py, inline in the Setup tab's right side since v70 -- see
+-its own "Enable Parameter Sweep" toggle in the left training panel,
+-right after Adaptive Training) and Phase 4 (pinnstudio/core/
+-sweep_runner.py, the execution driver). Phase 1/2 (config fields +
+-registry) already has its own coverage in test_sweep_registry.py; this
+-file is specifically about the GUI wiring on top of it and the driver
+-that turns a configured sweep into real runs.
++Regression check for Phase 3 (the Parameter Sweep configuration in
++main_window.py -- since v71, fully inline in the left training panel's
++own "Parameter Sweep" group, right after Adaptive Training: an Enable
++checkbox, Mode picker, and the parameter list itself, with no separate
++tab, no separate results panel, and no dedicated Run/Cancel/Export UI
++-- a sweep reuses the main Solve/Stop buttons and the main Training
++Log, and each run's save location/plot-export settings are just the
++Setup tab's own "Save to:"/plot settings) and Phase 4
++(pinnstudio/core/sweep_runner.py, the execution driver). Phase 1/2
++(config fields + registry) already has its own coverage in
++test_sweep_registry.py; this file is specifically about the GUI wiring
++on top of it and the driver that turns a configured sweep into real
++runs.
+ 
+ Checks:
+- - The sweep panel's own widgets exist (Enable checkbox in the left
+-   panel, off by default; sweep_panel_widget hidden/normal_results_
+-   widget shown by default; toggling the checkbox swaps the two and
+-   disables the main Solve button), and a default row is present on
+-   boot.
+- - Add/remove row wiring (_add_sweep_row / its remove button closure).
++ - The sweep panel's own widgets exist in the left panel (Enable
++   checkbox, off by default; Mode picker; the parameter row list and
++   its Add/Refresh buttons), and a default row is present on boot.
++ - Enabling the sweep does NOT touch solve_btn's enabled state or the
++   right panel at all -- it only relabels Solve to "Run Sweep" (see
++   _on_sweep_enabled_toggled) -- and _on_solve()/_on_stop() route to
++   the sweep (_start_sweep/cancelling the sweep thread) vs. a normal
++   single run purely based on config.sweep_enabled, with no separate
++   Run Sweep/Cancel buttons anymore.
++ - Add/remove row wiring (_add_sweep_row / its remove button closure);
++   each row is a stacked block (QVBoxLayout: header + Parameter +
++   Sweep-as + Values/range), the same layout convention Training
++   Phases already use in this same narrow column -- not v69's single-
++   line-per-row table layout, which needed far more width than this
++   column has.
+  - Selecting a categorical parameter (e.g. a scheduler phase's
+    optimizer) hides the mode/range widgets and shows the list entry
+    with a choices-listing placeholder; selecting a numeric parameter
+@@ -26,26 +40,22 @@ Checks:
+    what was actually entered in the rows (list values parsed as floats
+    where the parameter is numeric, left as strings for a categorical
+    one).
++ - A sweep no longer has its own save-location or export-settings
++   fields: _build_config() always sends sweep_save_dir from the main
++   save_dir_input (the same folder a normal Solve uses) and
++   sweep_export_mode="same_as_setup" unconditionally.
+  - sweep_runner.build_runs(): "oat" produces baseline + one run per
+    listed value per row (not a cross product); "grid" produces
+-   baseline + the full Cartesian product.
++   baseline + the full Cartesian product; "zip" pairs rows instead of
++   crossing them.
+  - sweep_runner's stale-results guard: a leftover error_metrics.txt
+    from BEFORE a run started must never be reported as that run's
+    result (this exact bug was caught by hand while building this
+    feature -- see sweep_runner._read_last_l2's `not_before` parameter).
+- - Phase 5 (MainWindow._render_sweep_plot()): using SYNTHETIC
+-   (label, result) cache entries -- not real training, matplotlib with
+-   the Agg backend doesn't need one -- confirms a rendered PNG and a
+-   populated sweep_plot_label._source_path for: a one-at-a-time sweep
+-   over 2 numeric parameters (2 subplots); a Grid sweep over exactly 2
+-   parameters (a heatmap, with the (row, col) <-> (param0, param1)
+-   value mapping checked against sweep_runner.build_runs()'s own
+-   documented iteration order); a Grid sweep over 3+ parameters (no
+-   plot -- a message instead, since it's no longer a 2D grid); and a
+-   categorical parameter with one run's final_loss missing (status
+-   "error") -- confirming the exact bug caught by hand while building
+-   this (a NaN-valued point silently dropping its own x-tick out of
+-   the visible plot range via matplotlib's autoscale) stays fixed.
++ - sweep_runner naming helpers (sweep_root_dir / run_folder_name /
++   _slugify / _apply_run_output_settings) -- unaffected by the GUI
++   relocation, still exercised directly here since they're what
++   _start_sweep's SweepThread actually calls.
+ 
+ This file is wired into CI (smoke-test.yml) and deliberately never
+ actually trains anything -- CI only installs PyQt6/numpy/matplotlib/
+@@ -88,27 +98,26 @@ def run():
+     win = MainWindow()
+     _app.processEvents()
+ 
+-    # ── v70: tab merge -- sweep lives inline in the Setup tab now ─────
++    # ── Single "Setup" tab (no separate "Parameter Sweep" tab) ───────
+     tab_texts = [win.central_tabs.tabText(i) for i in range(win.central_tabs.count())]
+-    check(tab_texts == ["Setup"], f"expected only a single 'Setup' tab (no separate 'Parameter Sweep' tab anymore), got {tab_texts}")
++    check(tab_texts == ["Setup"], f"expected only a single 'Setup' tab (no separate 'Parameter Sweep' tab), got {tab_texts}")
+     check(not win.central_tabs.tabBar().isVisible() or win.central_tabs.count() <= 1,
+           "the tab bar should stay hidden with only one tab")
++
++    # ── Enable toggle lives in the left panel; no right-panel takeover ─
+     check(hasattr(win, "sweep_enable_cb"), "expected an Enable Parameter Sweep checkbox")
+     check(not win.sweep_enable_cb.isChecked(), "Parameter Sweep should be OFF by default")
+-    check(hasattr(win, "normal_results_widget") and hasattr(win, "sweep_panel_widget"),
+-          "expected normal_results_widget and sweep_panel_widget as the two swappable right-panel containers")
+-    check(win.sweep_panel_widget.isHidden(), "the sweep panel should be hidden by default (sweep is off by default)")
+-    check(not win.normal_results_widget.isHidden(), "the normal results view should be visible by default")
+-    check(win.solve_btn.isEnabled(), "Solve should be enabled by default (sweep is off)")
++    check(not hasattr(win, "sweep_panel_widget") and not hasattr(win, "normal_results_widget"),
++          "there should be no separate sweep results panel/right-panel swap anymore -- "
++          "the sweep lives entirely in the left panel and reuses the normal results view")
++    check(win.solve_btn.isEnabled(), "Solve should start enabled")
++    check(win.solve_btn.text().strip() == "▶  Solve", f"Solve button should read '▶  Solve' by default, got {win.solve_btn.text()!r}")
+ 
+     win.sweep_enable_cb.setChecked(True)
+-    check(win.sweep_panel_widget.isHidden() is False, "enabling the sweep should reveal the sweep panel")
+-    check(win.normal_results_widget.isHidden(), "enabling the sweep should hide the normal results view")
+-    check(not win.solve_btn.isEnabled(), "Solve should be disabled while Parameter Sweep is enabled")
++    check(win.solve_btn.isEnabled(), "Solve should STAY enabled once Parameter Sweep is enabled -- it's reused to run the sweep, not disabled")
++    check(win.solve_btn.text().strip() == "▶  Run Sweep", f"Solve button should relabel to '▶  Run Sweep' once enabled, got {win.solve_btn.text()!r}")
+     win.sweep_enable_cb.setChecked(False)
+-    check(win.normal_results_widget.isHidden() is False, "disabling the sweep should restore the normal results view")
+-    check(win.sweep_panel_widget.isHidden(), "disabling the sweep should hide the sweep panel again")
+-    check(win.solve_btn.isEnabled(), "Solve should be re-enabled once the sweep is disabled")
++    check(win.solve_btn.text().strip() == "▶  Solve", "Solve button should relabel back once disabled")
+     # Leave it enabled for the rest of this test, same as before (most of
+     # what follows configures/exercises the sweep itself).
+     win.sweep_enable_cb.setChecked(True)
+@@ -167,6 +176,35 @@ def run():
+           f"unexpected sweep_parameters payload: {entries}")
+     check(config.validate() == [], f"well-formed sweep config should validate clean, got {config.validate()}")
+ 
++    # ── _on_solve()/_on_stop() route by config.sweep_enabled, with no
++    # separate Run Sweep/Cancel buttons anymore -- exercised now that
++    # the row above makes for a config that actually validates clean,
++    # since _on_solve() refuses to start anything otherwise. ─────────
++    _sweep_calls = []
++    win._start_sweep = lambda cfg: _sweep_calls.append(cfg)
++    win._on_solve()
++    check(len(_sweep_calls) == 1, "clicking Solve while Parameter Sweep is enabled should route to _start_sweep(), not a normal single run")
++    check(_sweep_calls[0].sweep_enabled is True, "the config handed to _start_sweep should itself have sweep_enabled set")
++    check(win.solve_btn.text().strip() != "⏳  Solving...",
++          "routing to a sweep must not touch the normal single-run 'Solving...' button state")
++    del win._start_sweep  # restore the real bound method for the rest of this test
++
++    class _FakeSweepThread:
++        def __init__(self):
++            self.stopped = False
++        def isRunning(self):
++            return True
++        def stop(self):
++            self.stopped = True
++
++    fake_thread = _FakeSweepThread()
++    win.sweep_thread = fake_thread
++    win.log_box.clear()
++    win._on_stop()
++    check(fake_thread.stopped, "Stop should cancel an in-progress sweep thread (graceful: just sets a flag, doesn't wait())")
++    check("Cancelling" in win.log_box.toPlainText(), "Stop should log that cancellation was requested")
++    del win.sweep_thread
++
+     # A categorical row's list values should be kept as strings, not
+     # coerced to floats (they're optimizer names, not numbers).
+     combo.setCurrentIndex(combo.findData("phase0_optimizer"))
+@@ -177,6 +215,17 @@ def run():
+           f"categorical sweep values should stay as strings: {entries2}")
+     check(config2.validate() == [], f"well-formed categorical sweep should validate clean, got {config2.validate()}")
+ 
++    # ── No more separate sweep save-location/export settings -- reuse
++    # the Setup tab's own "Save to:" field and plot/export settings ──
++    check(not hasattr(win, "sweep_save_dir_input"), "there should be no dedicated sweep save-dir field anymore")
++    check(not hasattr(win, "sweep_export_mode_combo"), "there should be no dedicated sweep export-mode combo anymore")
++    win.save_dir_input.setText("/tmp/_v71_shared_save_dir")
++    cfg_savedir = win._build_config()
++    check(cfg_savedir.sweep_save_dir == "/tmp/_v71_shared_save_dir",
++          f"a sweep should reuse the main Save to: folder, got {cfg_savedir.sweep_save_dir!r}")
++    check(cfg_savedir.sweep_export_mode == "same_as_setup",
++          f"sweep export mode should always be 'same_as_setup' now (no GUI override), got {cfg_savedir.sweep_export_mode!r}")
++
+     # ── build_runs(): oat vs grid ─────────────────────────────────────
+     win._add_sweep_row()
+     row_b = win.sweep_row_list[1]
+@@ -231,190 +280,38 @@ def run():
+     check(_read_last_l2(_Fake(), now) == 0.123,
+           "a results file written after the run's own start time should be read correctly")
+ 
+-    # ── Phase 5: results plot (synthetic cache, no training) ──────────
+-    import os as _os
+-
+-    def _fresh_window_with_rows(mode, param_ids_and_values):
+-        w2 = MainWindow()
+-        _app.processEvents()
+-        w2._refresh_sweep_param_choices()
+-        for i, (pid, text) in enumerate(param_ids_and_values):
+-            if i > 0:
+-                w2._add_sweep_row()
+-            r = w2.sweep_row_list[i]
+-            r["param_combo"].setCurrentIndex(r["param_combo"].findData(pid))
+-            meta = r["param_combo"].itemData(r["param_combo"].currentIndex(), Qt.ItemDataRole.UserRole + 1) or {}
+-            if meta.get("value_type") != "categorical":
+-                r["mode_combo"].setCurrentIndex(r["mode_combo"].findData("list"))
+-            r["list_edit"].setText(text)
+-        w2.sweep_enable_cb.setChecked(True)
+-        w2.sweep_mode_combo.setCurrentIndex(w2.sweep_mode_combo.findData(mode))
+-        return w2
+-
+-    # OAT, 2 numeric parameters -> 2 subplots, no crash, file written.
+-    w_oat = _fresh_window_with_rows("oat", [("hidden_layers", "2, 4, 6"), ("neurons_per_layer", "32, 64")])
+-    cfg_oat = w_oat._build_config()
+-    check(cfg_oat.validate() == [], f"OAT plot-test config should validate clean: {cfg_oat.validate()}")
+-    w_oat._sweep_last_config = cfg_oat
+-    from pinnstudio.core.sweep_runner import build_runs as _build_runs
+-    oat_runs = _build_runs(cfg_oat)
+-    check(len(oat_runs) == 6, f"expected 1 baseline + 3 + 2 = 6 OAT runs, got {len(oat_runs)}")
+-    w_oat._sweep_results_cache = [
+-        (label, {"status": "done", "final_loss": 1e-3 / (k + 1), "l2_relative": 1e-2 / (k + 1)})
+-        for k, (label, _) in enumerate(oat_runs)
+-    ]
+-    w_oat._render_sweep_plot()
+-    check(w_oat.sweep_plot_label._source_path is not None and _os.path.exists(w_oat.sweep_plot_label._source_path),
+-          "OAT sweep plot should render a PNG and set sweep_plot_label._source_path")
+-    check(w_oat.sweep_plot_save_btn.isEnabled(), "Save Figure button should be enabled once a plot has rendered")
+-
+-    # Grid, exactly 2 parameters -> heatmap; verify the (row, col) <->
+-    # (param0, param1) value mapping matches build_runs()'s own
+-    # itertools.product order (values1 iterates fastest).
+-    w_grid2 = _fresh_window_with_rows("grid", [("hidden_layers", "2, 4"), ("neurons_per_layer", "32, 64, 96")])
+-    cfg_grid2 = w_grid2._build_config()
+-    check(cfg_grid2.validate() == [], f"Grid-2 plot-test config should validate clean: {cfg_grid2.validate()}")
+-    w_grid2._sweep_last_config = cfg_grid2
+-    grid2_runs = _build_runs(cfg_grid2)
+-    check(len(grid2_runs) == 1 + 2 * 3, f"expected 1 baseline + 2x3 = 7 grid runs, got {len(grid2_runs)}")
+-    # Distinct, easily-traceable values: run k (0-indexed, after baseline)
+-    # gets final_loss = k -- after rendering, re-derive the matrix the
+-    # same way the heatmap code does and confirm it matches build_runs()'s
+-    # own iteration order exactly (values1 fastest).
+-    w_grid2._sweep_results_cache = [(label, {"status": "done", "final_loss": float(k), "l2_relative": None})
+-                                     for k, (label, _) in enumerate(grid2_runs)]
+-    w_grid2._render_sweep_plot()
+-    check(w_grid2.sweep_plot_label._source_path is not None and _os.path.exists(w_grid2.sweep_plot_label._source_path),
+-          "Grid-2 sweep plot should render a PNG")
+-    # grid2_runs[1:] should be ordered (hl=2,np=32),(hl=2,np=64),(hl=2,np=96),(hl=4,np=32),... --
+-    # i.e. run index 0..5 (after baseline) = final_loss 0..5, with
+-    # hidden_layers changing every 3 runs (slower axis) and
+-    # neurons_per_layer changing every run (faster axis).
+-    expected_grid2_labels = [
+-        "Hidden layers=2, Neurons per layer=32", "Hidden layers=2, Neurons per layer=64",
+-        "Hidden layers=2, Neurons per layer=96", "Hidden layers=4, Neurons per layer=32",
+-        "Hidden layers=4, Neurons per layer=64", "Hidden layers=4, Neurons per layer=96",
+-    ]
+-    labels_only = [l for l, _ in grid2_runs[1:]]
+-    check(labels_only == expected_grid2_labels,
+-          f"grid run order should have neurons_per_layer (2nd param) as the fast-varying axis, "
+-          f"matching the heatmap code's own assumption: got {labels_only}, expected {expected_grid2_labels}")
+-
+-    # Grid, 3 parameters -> message only, no plot file, save button stays disabled.
+-    w_grid3 = _fresh_window_with_rows("grid", [("hidden_layers", "2, 4"), ("neurons_per_layer", "32, 64"), ("num_domain", "1000, 2000")])
+-    cfg_grid3 = w_grid3._build_config()
+-    check(cfg_grid3.validate() == [], f"Grid-3 plot-test config should validate clean: {cfg_grid3.validate()}")
+-    w_grid3._sweep_last_config = cfg_grid3
+-    grid3_runs = _build_runs(cfg_grid3)
+-    w_grid3._sweep_results_cache = [(label, {"status": "done", "final_loss": 1e-3, "l2_relative": None}) for label, _ in grid3_runs]
+-    w_grid3._render_sweep_plot()
+-    check("3+" in w_grid3.sweep_plot_label.text() or "no longer a 2D grid" in w_grid3.sweep_plot_label.text(),
+-          f"a 3-parameter Grid sweep should show an explanatory message, got: {w_grid3.sweep_plot_label.text()!r}")
+-    check(not w_grid3.sweep_plot_save_btn.isEnabled(),
+-          "Save Figure button should stay disabled when no plot was rendered (3+ param Grid)")
+-
+-    # Categorical parameter + a run with status "error" (no final_loss):
+-    # this is the exact scenario that caught the NaN-point-drops-its-own-
+-    # tick-from-view matplotlib autoscale bug while building this feature.
+-    w_cat = _fresh_window_with_rows("oat", [("phase0_optimizer", "adam, lbfgs")])
+-    cfg_cat = w_cat._build_config()
+-    check(cfg_cat.validate() == [], f"categorical plot-test config should validate clean: {cfg_cat.validate()}")
+-    w_cat._sweep_last_config = cfg_cat
+-    w_cat._sweep_results_cache = [
+-        ("baseline", {"status": "done", "final_loss": 1e-3, "l2_relative": 1e-2}),
+-        ("Phase 1: Optimizer=adam", {"status": "done", "final_loss": 2e-3, "l2_relative": 2e-2}),
+-        ("Phase 1: Optimizer=lbfgs", {"status": "error", "final_loss": None, "l2_relative": None}),
+-    ]
+-    w_cat._render_sweep_plot()  # must not raise
+-    check(w_cat.sweep_plot_label._source_path is not None and _os.path.exists(w_cat.sweep_plot_label._source_path),
+-          "categorical sweep plot (with one failed run) should still render a PNG without crashing")
+-
+-    # Empty sweep (baseline only) -> a clear message, not a crash.
+-    w_empty = MainWindow()
+-    _app.processEvents()
+-    w_empty._sweep_last_config = w_empty._build_config()
+-    w_empty._sweep_results_cache = [("baseline", {"status": "done", "final_loss": 1e-3, "l2_relative": None})]
+-    w_empty._render_sweep_plot()
+-    check(w_empty.sweep_plot_label._source_path is None,
+-          "a baseline-only cache (no sweep parameters) should show a message, not a plot")
+-
+-    # ── v68: adjustable split between sweep setup and results ────────
+-    from PyQt6.QtWidgets import QSplitter
+-    check(isinstance(win.sweep_splitter, QSplitter), "expected a QSplitter between sweep setup and results")
+-    check(win.sweep_splitter.orientation() == Qt.Orientation.Vertical,
+-          "the sweep setup/results split should be vertical (stacked top/bottom), like the Setup tab's own splitter")
+-    check(not win.sweep_splitter.childrenCollapsible(),
+-          "childrenCollapsible should be disabled so a drag can't snap a pane fully shut")
+-    check(win.sweep_splitter.count() == 2, f"expected exactly 2 panes (setup, results), got {win.sweep_splitter.count()}")
+-    default_sizes = win.sweep_splitter.sizes()
+-    check(len(default_sizes) == 2 and abs(default_sizes[0] - default_sizes[1]) <= max(default_sizes) * 0.05,
+-          f"default split should be roughly half/half, got {default_sizes}")
+-    # Confirm it's actually adjustable (not fixed): asking for a bigger top
+-    # pane should always yield a bigger top pane than asking for a smaller
+-    # one, even though Qt clamps the exact pixel values against each
+-    # pane's own minimum size in this headless/offscreen window (the
+-    # splitter's absolute sizes() here aren't directly comparable to a
+-    # real, properly-sized on-screen window -- only the relative
+-    # direction is a meaningful thing to assert under offscreen Qt).
+-    win.show()
+-    _app.processEvents()
+-    win.sweep_splitter.setSizes([600, 100])
+-    _app.processEvents()
+-    top_requested_big = win.sweep_splitter.sizes()[0]
+-    win.sweep_splitter.setSizes([100, 600])
+-    _app.processEvents()
+-    top_requested_small = win.sweep_splitter.sizes()[0]
+-    check(top_requested_big > top_requested_small,
+-          f"the splitter should respond to setSizes() -- requesting a bigger top pane ({top_requested_big}) "
+-          f"should beat requesting a smaller one ({top_requested_small})")
+-
+-    # ── v68: sweep mode combo now has 3 COMSOL-style options ──────────
++    # ── v68: sweep mode combo still has the 3 COMSOL-style options ───
+     mode_data = [win.sweep_mode_combo.itemData(i) for i in range(win.sweep_mode_combo.count())]
+     check(mode_data == ["oat", "grid", "zip"],
+           f"expected exactly 3 sweep modes in order [oat, grid, zip], got {mode_data}")
+ 
+-    # ── v69: Sweep Parameters as its own panel, one compact row per
+-    # parameter, no nested/height-capped inner scroll area ────────────
++    # ── Sweep Parameters live inline in the left panel's "Parameter
++    # Sweep" group, no nested/height-capped inner scroll area ────────
+     from PyQt6.QtWidgets import QGroupBox, QScrollArea
+-    params_groups = [w for w in win.sweep_panel_widget.findChildren(QGroupBox)
+-                      if w.title() == "Sweep Parameters"]
+-    check(len(params_groups) == 1, f"expected exactly one 'Sweep Parameters' QGroupBox panel, got {len(params_groups)}")
+-    if params_groups:
++    sweep_groups = [w for w in win.findChildren(QGroupBox) if w.title() == "Parameter Sweep"]
++    check(len(sweep_groups) == 1, f"expected exactly one 'Parameter Sweep' QGroupBox panel, got {len(sweep_groups)}")
++    if sweep_groups:
+         # Walk sweep_rows_widget's own parent chain up to confirm it's
+-        # nested inside that panel (rather than, say, a sibling further
+-        # up the tab).
++        # nested inside that one panel (rather than, say, a sibling
++        # further up the left column).
+         ancestor = win.sweep_rows_widget.parentWidget()
+         found = False
+         while ancestor is not None:
+-            if ancestor is params_groups[0]:
++            if ancestor is sweep_groups[0]:
+                 found = True
+                 break
+             ancestor = ancestor.parentWidget()
+-        check(found, "the sweep parameter rows should live inside the 'Sweep Parameters' panel")
+-    # No more inner QScrollArea wrapping just the rows (that's what caused
+-    # the "locked at a fixed height, has to scroll inside a tiny box even
+-    # though the splitter has room" complaint) -- the rows sit directly in
+-    # the panel, so the row list grows with its content and only the ONE
+-    # outer setup_scroll (or dragging sweep_splitter) handles overflow,
+-    # same pattern as the Setup tab's own scheduler-phase list.
++        check(found, "the sweep parameter rows should live inside the 'Parameter Sweep' panel")
+     check(not isinstance(win.sweep_rows_widget.parentWidget(), QScrollArea),
+           "sweep_rows_widget's direct parent should NOT be a QScrollArea -- "
+-          "no more nested, nested height-capped scroll area around just the parameter rows")
++          "no nested, height-capped scroll area around just the parameter rows")
+ 
+     # A fresh row must show exactly one of (Values field / Min-Max-Steps
+-    # range fields) visible, never both and never neither -- this is the
+-    # exact bug caught while redesigning this tab: _refresh_sweep_param_
+-    # choices() populates the Parameter combo with blockSignals(True), so
+-    # _update_value_widgets() previously never ran for a brand new row
+-    # until the user happened to touch a combo, leaving BOTH value
+-    # widgets visible at once (glaringly obvious once they sit on the
+-    # same line instead of further down a stacked layout).
++    # range fields) visible, never both and never neither.
+     win2_fresh = MainWindow()
+     _app.processEvents()
+     win2_fresh.show()
+     _app.processEvents()
+-    # Enabling the sweep (rather than switching tabs -- there's no
+-    # separate tab anymore) is what actually shows the sweep panel.
+     win2_fresh.sweep_enable_cb.setChecked(True)
+     _app.processEvents()
+     fresh_row = win2_fresh.sweep_row_list[0]
+@@ -424,12 +321,13 @@ def run():
+           f"a freshly added row should show exactly one of the Values field / range fields, "
+           f"not both or neither -- got list_visible={list_visible}, range_visible={range_visible}")
+ 
+-    # Each parameter row is now a single compact line (num + Parameter +
+-    # Sweep as + Values/range + remove), not 3-4 stacked lines -- check
+-    # the row's own layout is a QHBoxLayout (not the old per-row QVBoxLayout).
+-    from PyQt6.QtWidgets import QHBoxLayout as _QHBoxLayout
+-    check(isinstance(row['widget'].layout(), _QHBoxLayout),
+-          "each sweep parameter row should be laid out as a single horizontal line")
++    # Each parameter row is now a stacked block (header + Parameter +
++    # Sweep as + Values/range), the same convention Training Phases use
++    # in this same narrow column -- not v69's single-line table layout.
++    from PyQt6.QtWidgets import QVBoxLayout as _QVBoxLayout
++    check(isinstance(row['widget'].layout(), _QVBoxLayout),
++          "each sweep parameter row should be laid out as a stacked (vertical) block, matching "
++          "the Training Phases' own per-row layout in this narrow column")
+ 
+     # A phase-scoped entry's own label already embeds "Phase N: " --
+     # the dropdown display text should show that once, not doubled up
+@@ -444,94 +342,6 @@ def run():
+               f"a phase-scoped entry's label already says 'Phase 1: ...' -- the dropdown display "
+               f"text shouldn't prepend the category a second time, got {text!r}")
+ 
+-    # ── v68: "Save Sweep Results To" field + Browse button ────────────
+-    check(hasattr(win, "sweep_save_dir_input"), "expected a dedicated sweep_save_dir_input field")
+-    check(win.sweep_save_dir_input.text() == "", "sweep save dir should start blank (falls back to a default path at run time)")
+-    expected_placeholder = os.path.join(os.path.expanduser("~"), "PINNStudio_Results", "parameter_sweep_results")
+-    check(win.sweep_save_dir_input.placeholderText() == expected_placeholder,
+-          f"placeholder should hint at the real default path, got {win.sweep_save_dir_input.placeholderText()!r}")
+-    check(callable(win._on_browse_sweep_save_dir), "expected a working Browse handler for the sweep save dir")
+-    win.sweep_save_dir_input.setText("/tmp/_v68_custom_sweep_dir")
+-    cfg_savedir = win._build_config()
+-    check(cfg_savedir.sweep_save_dir == "/tmp/_v68_custom_sweep_dir",
+-          f"_build_config() should carry through the custom sweep save dir, got {cfg_savedir.sweep_save_dir!r}")
+-    win.sweep_save_dir_input.setText("")
+-
+-    # ── v68: per-sweep export/figure override (default vs custom) ────
+-    win.show()  # a top-level window must actually be shown for isVisible()
+-    # to report real values under offscreen Qt -- a widget whose window
+-    # was never shown reports isVisible()==False no matter what
+-    # setVisible() calls were made on it or its ancestors (confirmed
+-    # against the pre-existing, known-correct plot_custom_expr_input
+-    # toggle, which shows the identical false negative without .show()).
+-    # The sweep panel itself also needs to actually be enabled (sweep_
+-    # enable_cb checked) for its own widgets to report real isVisible()
+-    # values -- same "ancestor not really shown" flavor as the window-
+-    # shown check above, just one level further up the widget tree.
+-    win.sweep_enable_cb.setChecked(True)
+-    _app.processEvents()
+-    check(win.sweep_export_mode_combo.currentData() == "same_as_setup",
+-          "export override should default to 'same as Setup tab', preserving today's existing behavior")
+-    check(not win.sweep_export_custom_widget.isVisible(),
+-          "the custom export-settings widgets should be hidden by default")
+-    win.sweep_export_mode_combo.setCurrentIndex(win.sweep_export_mode_combo.findData("custom"))
+-    _app.processEvents()
+-    check(win.sweep_export_custom_widget.isVisible(),
+-          "selecting 'Custom for this sweep' should reveal the plot-type/output/t-steps widgets")
+-    win.sweep_export_mode_combo.setCurrentIndex(win.sweep_export_mode_combo.findData("same_as_setup"))
+-    _app.processEvents()
+-    check(not win.sweep_export_custom_widget.isVisible(),
+-          "switching back to 'Same as Setup tab' should hide the custom widgets again")
+-
+-    plot_type_items = [win.sweep_plot_type_combo.itemText(i) for i in range(win.sweep_plot_type_combo.count())]
+-    check(plot_type_items == ["Surface", "Line (time steps)", "Line Animation (GIF)", "Surface Animation (GIF)"],
+-          f"sweep plot-type choices should mirror the Setup tab's own 4 options, got {plot_type_items}")
+-    check(win.sweep_export_tsteps_spin.value() == 11 and win.sweep_export_tsteps_spin.minimum() == 2,
+-          "export t-steps spinner should default to 11 (today's existing default) with a sane minimum")
+-
+-    # Output combo refresh + Custom... expr/label visibility toggle.
+-    # (These fields live inside sweep_export_custom_widget, which is only
+-    # shown in "custom" export mode -- switch there first.)
+-    win.sweep_export_mode_combo.setCurrentIndex(win.sweep_export_mode_combo.findData("custom"))
+-    _app.processEvents()
+-    win.radio_1d.setChecked(True)
+-    win.quick_examples_combo.setCurrentText("1D Heat")
+-    win._refresh_sweep_export_output_choices()
+-    out_items = [win.sweep_plot_output_combo.itemText(i) for i in range(win.sweep_plot_output_combo.count())]
+-    check(out_items[-1] == "Custom...", f"output combo should always end with a 'Custom...' entry, got {out_items}")
+-    check(len(out_items) >= 2, f"1D Heat (1 output) should give >=2 entries (1 output + Custom...), got {out_items}")
+-    win.sweep_plot_output_combo.setCurrentIndex(win.sweep_plot_output_combo.findText(out_items[0]))
+-    _app.processEvents()
+-    check(not win.sweep_plot_custom_expr_input.isVisible() and not win.sweep_plot_custom_label_input.isVisible(),
+-          "custom expr/label fields should be hidden while a real output is selected")
+-    win.sweep_plot_output_combo.setCurrentIndex(win.sweep_plot_output_combo.findText("Custom..."))
+-    _app.processEvents()
+-    check(win.sweep_plot_custom_expr_input.isVisible() and win.sweep_plot_custom_label_input.isVisible(),
+-          "custom expr/label fields should appear once 'Custom...' is selected")
+-
+-    # ── v68: _build_config() round-trip for all 7 new export fields ──
+-    # (export mode is "custom" at this point -- confirm the custom
+-    # plot-type/expr/label/t-steps fields all make it into the config.)
+-    win.sweep_plot_type_combo.setCurrentText("Line (time steps)")
+-    win.sweep_plot_custom_expr_input.setText("sqrt(u**2)")
+-    win.sweep_plot_custom_label_input.setText("|u|")
+-    win.sweep_export_tsteps_spin.setValue(21)
+-    cfg_export2 = win._build_config()
+-    check(cfg_export2.sweep_export_mode == "custom", "export mode should round-trip to 'custom'")
+-    check(cfg_export2.sweep_plot_type == "Line (time steps)", f"sweep_plot_type should round-trip, got {cfg_export2.sweep_plot_type!r}")
+-    check(cfg_export2.sweep_plot_custom_expr == "sqrt(u**2)" and cfg_export2.sweep_plot_custom_label == "|u|",
+-          "custom expr/label should round-trip once 'Custom...' output is selected")
+-    check(cfg_export2.sweep_export_t_steps == 21, f"sweep_export_t_steps should round-trip, got {cfg_export2.sweep_export_t_steps}")
+-    # Selecting a real (non-Custom) output should blank out the expr/label
+-    # that get sent to the config, even if the text fields still hold stale text.
+-    win.sweep_plot_output_combo.setCurrentIndex(win.sweep_plot_output_combo.findText(out_items[0]))
+-    cfg_export3 = win._build_config()
+-    check(cfg_export3.sweep_plot_custom_expr == "" and cfg_export3.sweep_plot_custom_label == "",
+-          "custom expr/label should be blanked in the built config once a real output (not Custom...) is selected")
+-    win.sweep_export_mode_combo.setCurrentIndex(win.sweep_export_mode_combo.findData("same_as_setup"))
+-    cfg_export4 = win._build_config()
+-    check(cfg_export4.sweep_export_mode == "same_as_setup", "export mode should round-trip back to 'same_as_setup'")
+-
+     # ── v68: naming helpers (sweep_root_dir / run_folder_name / _slugify) ──
+     from pinnstudio.core.sweep_runner import sweep_root_dir, run_folder_name, _slugify, _apply_run_output_settings
+     import datetime as _dt
+@@ -553,10 +363,12 @@ def run():
+           f"_slugify should strip filesystem-unsafe characters while keeping the run identifiable, got {_slugify('BC 2 (dirichlet, Output 0)=7.5')!r}")
+     check(_slugify("") == "run", "an empty label should fall back to a safe non-empty default")
+ 
+-    # _apply_run_output_settings(): same_as_setup leaves plot_type/output/
+-    # expr/label/t_steps untouched (today's exact behavior); custom mode
+-    # overrides them from the sweep tab's own settings; save_dir is always
+-    # overridden to the given per-run folder either way.
++    # _apply_run_output_settings(): same_as_setup (now the GUI's only
++    # option) leaves plot_type/output/expr/label/t_steps untouched;
++    # save_dir is always overridden to the given per-run folder. The
++    # "custom" branch itself is exercised directly here too (it's still
++    # reachable code in sweep_runner.py, just no longer GUI-selectable)
++    # so a future change there doesn't silently go untested.
+     base_same = win._build_config()
+     base_same.sweep_export_mode = "same_as_setup"
+     base_same.plot_type = "Surface"
+@@ -581,8 +393,8 @@ def run():
+     check(run_cfg_custom.plot_type == "Line" and run_cfg_custom.plot_output_idx == 2
+           and run_cfg_custom.plot_custom_expr == "u+v" and run_cfg_custom.plot_custom_label == "u+v"
+           and run_cfg_custom.export_t_steps == 31,
+-          f"custom mode should override every export setting from the sweep tab's own fields, got "
+-          f"plot_type={run_cfg_custom.plot_type!r} idx={run_cfg_custom.plot_output_idx!r} "
++          f"custom mode (still reachable in sweep_runner.py, just unused by the GUI now) should override "
++          f"every export setting, got plot_type={run_cfg_custom.plot_type!r} idx={run_cfg_custom.plot_output_idx!r} "
+           f"expr={run_cfg_custom.plot_custom_expr!r} t_steps={run_cfg_custom.export_t_steps!r}")
+ 
+     # NOTE: a real, tiny, end-to-end run_sweep() execution (actual
