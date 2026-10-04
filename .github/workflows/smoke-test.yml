@@ -57,3 +57,4 @@ jobs:
           python tests/test_training_callbacks_visibility.py
           python tests/test_custom_geometry.py
           python tests/test_steady_state_ic_weights.py
+          python tests/test_restore_steady_state.py

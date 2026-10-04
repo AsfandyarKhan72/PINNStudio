@@ -8497,7 +8497,49 @@ print("ERROR_ANALYSIS_DONE")
         is_inverse = (text == "Inverse Model")
         self.restore_inv_vars_widget.setVisible(is_inverse)
         current_viz = self.restore_viz_combo.currentText()
-        items = list(self._RESTORE_FORWARD_VIZ) + (list(self._RESTORE_PARAM_VIZ) if is_inverse else [])
+        items = self._restore_forward_viz_items() + (list(self._RESTORE_PARAM_VIZ) if is_inverse else [])
+        self.restore_viz_combo.blockSignals(True)
+        self.restore_viz_combo.clear()
+        self.restore_viz_combo.addItems(items)
+        if current_viz in items:
+            self.restore_viz_combo.setCurrentText(current_viz)
+        self.restore_viz_combo.blockSignals(False)
+        self._on_restore_viz_changed(self.restore_viz_combo.currentText())
+
+    def _restore_forward_viz_items(self):
+        """Forward viz-type options for the Restore panel's dropdown --
+        all four (see self._RESTORE_FORWARD_VIZ) normally, but just
+        ["Surface"] when the config about to be restored is steady-state:
+        a steady-state problem has no time axis at all (same reason
+        _on_steady_state_changed already hides Time Adaptive Training and
+        the Initial Condition panel on the main Setup tab), so "Line (time
+        steps)" and the two Animation types -- all inherently about
+        stepping through or animating over time -- don't apply. Read
+        directly from the config file about to be restored (same safe-no-
+        op-on-unreadable-config pattern as _on_restore_viz_settings's own
+        _restore_dim) rather than any cached state, so this always reflects
+        whatever's actually currently browsed to; defaults to showing all
+        four when that file can't be read yet (e.g. nothing picked yet)."""
+        import json
+        try:
+            with open(self.restore_config_path.text().strip()) as f:
+                is_steady = bool(json.load(f).get("steady_state", False))
+        except Exception:
+            is_steady = False
+        return ["Surface"] if is_steady else list(self._RESTORE_FORWARD_VIZ)
+
+    def _refresh_restore_viz_options(self):
+        """Re-apply the steady-state filtering above to the dropdown's
+        current contents -- called alongside _refresh_restore_output_combo
+        (same two call sites: browsing a model file auto-detects its
+        config, browsing a config file directly) so switching to or from a
+        steady-state model's config immediately hides/restores the three
+        time-based options, same as _on_restore_mode_changed already does
+        when switching Forward/Inverse."""
+        is_inverse = (getattr(self, 'restore_mode_combo', None) is not None
+                      and self.restore_mode_combo.currentText() == "Inverse Model")
+        items = self._restore_forward_viz_items() + (list(self._RESTORE_PARAM_VIZ) if is_inverse else [])
+        current_viz = self.restore_viz_combo.currentText()
         self.restore_viz_combo.blockSignals(True)
         self.restore_viz_combo.clear()
         self.restore_viz_combo.addItems(items)
@@ -10650,6 +10692,7 @@ print("ERROR_ANALYSIS_V2_DONE")
             self._update_restore_ta_combine_visibility()
 
             self._refresh_restore_output_combo()
+            self._refresh_restore_viz_options()
 
             # Inverse-only convenience: auto-detect the *_convergence.txt
             # file(s) saved alongside this run (one level up from
@@ -10716,6 +10759,7 @@ print("ERROR_ANALYSIS_V2_DONE")
         if f:
             self.restore_config_path.setText(f)
             self._refresh_restore_output_combo()
+            self._refresh_restore_viz_options()
 
     def _refresh_restore_output_combo(self):
         """Repopulate restore_output_combo from the config file about to
@@ -11170,6 +11214,7 @@ print("ERROR_ANALYSIS_V2_DONE")
                         is_3d=is_3d, output_idx=output_idx,
                         custom_expr=custom_expr,
                         output_names=cfg.get('output_names', 'u'),
+                        is_steady=cfg.get('steady_state', False),
                     )
                 else:
                     self.log_box.append(f"ℹ️ No reference files match t=[{t_min_restore:.4f}, {t_max_restore:.4f}] — skipping error analysis")
@@ -11540,6 +11585,16 @@ print("RESTORE_DONE")
         t_min = cfg["t_min"]; t_max = cfg["t_max"]
         is_2d = cfg.get("problem_dim", "1D") == "2D"
         is_3d = cfg.get("problem_dim", "1D") == "3D"
+        # Steady-state problems have no time axis at all (see
+        # _on_steady_state_changed and generate_script()'s own _is_steady
+        # branch in codegen.py): the restored network's first layer has one
+        # fewer input than a transient model's (cfg["layers"] is already
+        # correctly sized for this -- it's read straight from the saved
+        # config), so every model.predict(...) input array built below must
+        # likewise drop the time column for a steady-state restore, or it
+        # crashes with a shape mismatch like "mat1 and mat2 shapes cannot be
+        # multiplied (Nx3 and 2x64)" -- exactly the bug this fixes.
+        is_steady = bool(cfg.get("steady_state", False))
         loss_type = cfg.get("loss_type", "MSE")
         out_names = cfg.get("output_names", "u").split(",")
         # Optional derived scalar field (e.g. "sqrt(u**2+v**2)" for 1D
@@ -11597,14 +11652,25 @@ elif {str(is_2d)}:
     geom = dde.geometry.Rectangle([{x_min}, {y_min}], [{x_max}, {y_max}])
 else:
     geom = dde.geometry.Interval({x_min}, {x_max})
-timedomain = dde.geometry.TimeDomain({t_min}, {t_max})
-geomtime   = dde.geometry.GeometryXTime(geom, timedomain)
+if {str(is_steady)}:
+    # Steady-state: no time axis at all -- geomtime is just geom itself,
+    # same convention generate_script() uses for a steady config (see
+    # codegen.py's own _is_steady branch). The real architecture match
+    # comes from cfg["layers"]/net below either way; this is only a
+    # placeholder so model.restore() has something to load weights into.
+    geomtime = geom
+else:
+    timedomain = dde.geometry.TimeDomain({t_min}, {t_max})
+    geomtime   = dde.geometry.GeometryXTime(geom, timedomain)
 
 def pde(x, y): return y[:, 0:1] * 0
 
 {inv_var_defs_restore}
 
-data = dde.data.TimePDE(geomtime, pde, [], num_domain=100, num_test=100)
+if {str(is_steady)}:
+    data = dde.data.PDE(geomtime, pde, [], num_domain=100, num_test=100)
+else:
+    data = dde.data.TimePDE(geomtime, pde, [], num_domain=100, num_test=100)
 net  = dde.nn.FNN({layers}, "{activation}", "Glorot uniform")
 model = dde.Model(data, net)
 
@@ -11633,6 +11699,7 @@ y_vals = np.linspace({y_min}, {y_max}, 100)
 z_vals = np.linspace({z_min}, {z_max}, 100)
 is_2d  = {str(is_2d)}
 is_3d  = {str(is_3d)}
+is_steady = {str(is_steady)}
 
 # Predicted field: a raw output column (output_idx, matching the Restore
 # panel's own "Output to plot" selector) or -- when "Custom..." is picked
@@ -11663,18 +11730,27 @@ def _extract_plot_field(pred):
             vrange = f"vmin={vmin_val}, vmax={vmax_val}" if not auto_range else ""
             _xlabel_3d = xlabel_override or "x"
             _ylabel_3d = ylabel_override or "y"
-            _title_3d = title_override or f"Restored Model — {out_name}(x,y,z) at t={surface_time}"
+            _title_3d = title_override or (
+                f"Restored Model — {out_name}(x,y,z)" if is_steady
+                else f"Restored Model — {out_name}(x,y,z) at t={surface_time}")
             _xlabel_2d = xlabel_override or "x"
             _ylabel_2d = ylabel_override or "y"
-            _title_2d = title_override or f"Restored Model — {out_name}(x,y) at t={surface_time}"
+            _title_2d = title_override or (
+                f"Restored Model — {out_name}(x,y)" if is_steady
+                else f"Restored Model — {out_name}(x,y) at t={surface_time}")
             # Same "Swap axes" convention as the main Results panel's 1D
             # Surface plot (Plot Settings dialog) -- t on the x-axis by
             # default, with the setting above to go back to x on the
             # x-axis; an explicit override in this dialog's own X/Y-axis
-            # label fields still wins over either default.
+            # label fields still wins over either default. Steady-state has
+            # no t axis at all, so it gets its own plain x/u(x) line labels
+            # instead -- see the is_steady branch of the 1D/else case below.
             _xlabel_1d = xlabel_override or ("t" if swap_xt else "x")
             _ylabel_1d = ylabel_override or ("x" if swap_xt else "t")
             _title_1d = title_override or f"Restored Model — {out_name}(x,t) Surface"
+            _xlabel_1d_steady = xlabel_override or "x"
+            _ylabel_1d_steady = ylabel_override or out_name
+            _title_1d_steady = title_override or f"Restored Model — {out_name}(x)"
             script += f"""
 res = {resolution}
 x_vals = np.linspace({x_min}, {x_max}, res)
@@ -11706,7 +11782,10 @@ if is_3d:
     ]
     _face_preds3 = []
     for _fX3, _fY3, _fZ3 in _faces3:
-        _fpts3 = np.column_stack([_fX3.ravel(), _fY3.ravel(), _fZ3.ravel(), np.full(_fX3.size, {surface_time})])
+        if is_steady:
+            _fpts3 = np.column_stack([_fX3.ravel(), _fY3.ravel(), _fZ3.ravel()])
+        else:
+            _fpts3 = np.column_stack([_fX3.ravel(), _fY3.ravel(), _fZ3.ravel(), np.full(_fX3.size, {surface_time})])
         _face_preds3.append(_extract_plot_field(model.predict(_fpts3)).reshape(_fX3.shape))
     if {auto_range}:
         _pv_min3 = min(_f.min() for _f in _face_preds3)
@@ -11731,13 +11810,25 @@ if is_3d:
         pass  # older matplotlib without set_box_aspect -- cosmetic only
 elif is_2d:
     Xg, Yg = np.meshgrid(x_vals, y_vals)
-    XYT = np.column_stack([Xg.ravel(), Yg.ravel(), np.full(Xg.size, {surface_time})])
+    if is_steady:
+        XYT = np.column_stack([Xg.ravel(), Yg.ravel()])
+    else:
+        XYT = np.column_stack([Xg.ravel(), Yg.ravel(), np.full(Xg.size, {surface_time})])
     pred = _extract_plot_field(model.predict(XYT)).reshape(res, res)
     fig, ax = plt.subplots(figsize=(7, 5))
     im = ax.contourf(Xg, Yg, pred, levels={levels}, cmap="{colormap}", {vrange})
     if {show_colorbar}: fig.colorbar(im, ax=ax)
     ax.set_xlabel({_xlabel_2d!r}); ax.set_ylabel({_ylabel_2d!r})
     ax.set_title({_title_2d!r})
+elif is_steady:
+    # Steady 1D: no time axis and no second spatial axis either -- there's
+    # nothing left to make a "surface" out of, just the one curve u(x).
+    pred = _extract_plot_field(model.predict(x_vals.reshape(-1, 1))).flatten()
+    fig, ax = plt.subplots(figsize=(7, 5))
+    ax.plot(x_vals, pred, color="#4dabf7", linewidth=2)
+    ax.grid(True, alpha=0.2)
+    ax.set_xlabel({_xlabel_1d_steady!r}); ax.set_ylabel({_ylabel_1d_steady!r})
+    ax.set_title({_title_1d_steady!r})
 else:
     t_vals = np.linspace({t_min}, {t_max}, res)
     X, T = np.meshgrid(x_vals, t_vals)
@@ -11772,14 +11863,25 @@ colors = plt.get_cmap("{colormap}")(np.linspace(0, 1, {n_steps}))
 y_mid = ({y_min} + {y_max}) / 2.0
 z_mid = ({z_min} + {z_max}) / 2.0
 for i, tv in enumerate(t_steps_vals):
-    if is_3d:
+    # Steady-state has no time axis -- "time steps" don't exist, so every
+    # iteration predicts the same single steady solution (this viz type is
+    # hidden from the Restore panel's dropdown for a steady-state config;
+    # this is just a defensive fallback so it can't crash if ever reached).
+    if is_steady and is_3d:
+        xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, z_mid)])
+    elif is_steady and is_2d:
+        xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid)])
+    elif is_steady:
+        xt = x_vals.reshape(-1, 1)
+    elif is_3d:
         xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, z_mid), np.full_like(x_vals, tv)])
     elif is_2d:
         xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, tv)])
     else:
         xt = np.column_stack([x_vals, np.full_like(x_vals, tv)])
     u_line = _extract_plot_field(model.predict(xt)).flatten()
-    ax.plot(x_vals, u_line, color=colors[i], linewidth={linewidth}, label=f"t={{tv:.3f}}")
+    _line_label = "steady-state" if is_steady else f"t={{tv:.3f}}"
+    ax.plot(x_vals, u_line, color=colors[i], linewidth={linewidth}, label=_line_label)
 ax.set_xlabel({_xlabel_line!r}); ax.set_ylabel({_ylabel_line!r})
 ax.set_title({_title_line!r})
 ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
@@ -11799,7 +11901,17 @@ y_mid = ({y_min} + {y_max}) / 2.0
 z_mid = ({z_min} + {z_max}) / 2.0
 all_u = []
 for tv in t_frames:
-    if is_3d:
+    # Defensive fallback for steady-state (see the matching comment in the
+    # "Line (time steps)" branch) -- this viz type is hidden from the
+    # dropdown for a steady-state config, so every "frame" below predicts
+    # the same single steady solution rather than crashing.
+    if is_steady and is_3d:
+        xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, z_mid)])
+    elif is_steady and is_2d:
+        xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid)])
+    elif is_steady:
+        xt = x_vals.reshape(-1, 1)
+    elif is_3d:
         xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, z_mid), np.full_like(x_vals, tv)])
     elif is_2d:
         xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, tv)])
@@ -11878,7 +11990,14 @@ if is_3d:
     for tv in t_frames:
         _frame_faces = []
         for _fX3a, _fY3a, _fZ3a in _faces3a:
-            _fpts3a = np.column_stack([_fX3a.ravel(), _fY3a.ravel(), _fZ3a.ravel(), np.full(_fX3a.size, tv)])
+            # Defensive fallback for steady-state (see the matching comment
+            # in "Line (time steps)") -- this viz type is hidden from the
+            # dropdown for a steady-state config, so every frame below
+            # predicts the same single steady solution rather than crashing.
+            if is_steady:
+                _fpts3a = np.column_stack([_fX3a.ravel(), _fY3a.ravel(), _fZ3a.ravel()])
+            else:
+                _fpts3a = np.column_stack([_fX3a.ravel(), _fY3a.ravel(), _fZ3a.ravel(), np.full(_fX3a.size, tv)])
             _frame_faces.append(_extract_plot_field(model.predict(_fpts3a)).reshape(_fX3a.shape))
         all_frames.append(_frame_faces)
     v_min = min(_f.min() for _frame in all_frames for _f in _frame)
@@ -11910,7 +12029,12 @@ else:
         y_anim = np.linspace({y_min}, {y_max}, 80)
         Xg, Yg = np.meshgrid(x_anim, y_anim)
         for tv in t_frames:
-            XYT = np.column_stack([Xg.ravel(), Yg.ravel(), np.full(Xg.size, tv)])
+            # Defensive fallback for steady-state, same as the 3D branch
+            # above -- hidden from the dropdown for a steady-state config.
+            if is_steady:
+                XYT = np.column_stack([Xg.ravel(), Yg.ravel()])
+            else:
+                XYT = np.column_stack([Xg.ravel(), Yg.ravel(), np.full(Xg.size, tv)])
             pred = _extract_plot_field(model.predict(XYT)).reshape(80, 80)
             all_frames.append((Xg, Yg, pred))
     else:
@@ -12426,7 +12550,8 @@ else:
 
     def _build_restore_ea_script(self, files, save_dir, is_2d, do_line, do_surface,
                                   x_min, x_max, y_min, y_max, out_name, viz_settings=None,
-                                  is_3d=False, output_idx=0, custom_expr="", output_names="u"):
+                                  is_3d=False, output_idx=0, custom_expr="", output_names="u",
+                                  is_steady=False):
         if viz_settings is None:
             viz_settings = {}
         _cmap     = viz_settings.get('colormap', 'viridis')
@@ -12479,7 +12604,23 @@ for _tv, _fp in _ea_files:
     _d = np.loadtxt(_fp)
     if _d.ndim == 1: _d = _d.reshape(1, -1)
     _d_shape = _d.shape[1]
-    if {is_3d}:
+    if {is_steady} and {is_3d}:
+        # Steady 3D reference format: x, y, z, u — no time column at all.
+        _idx = np.lexsort((_d[:, 2], _d[:, 1], _d[:, 0]))
+        _ea_x_refs.append(_d[_idx, 0])
+        _ea_y_refs.append(_d[_idx, 1])
+        _ea_z_refs.append(_d[_idx, 2])
+        _ea_u_refs.append(_d[_idx, 3])
+        _ea_times.append(0.0)
+    elif {is_steady} and {is_2d}:
+        # Steady 2D reference format: x, y, u — no time column at all.
+        _idx = np.lexsort((_d[:, 1], _d[:, 0]))
+        _ea_x_refs.append(_d[_idx, 0])
+        _ea_y_refs.append(_d[_idx, 1])
+        _ea_z_refs.append(np.zeros_like(_d[_idx, 0]))
+        _ea_u_refs.append(_d[_idx, 2])
+        _ea_times.append(0.0)
+    elif {is_3d}:
         # 3D time-dependent reference format: x, y, z, t, u
         _idx = np.lexsort((_d[:, 2], _d[:, 1], _d[:, 0]))
         _ea_x_refs.append(_d[_idx, 0])
@@ -12501,13 +12642,20 @@ for _tv, _fp in _ea_files:
         _ea_z_refs.append(np.zeros_like(_d[_idx, 0]))
         _ea_u_refs.append(_d[_idx, 2])
         _ea_times.append(float(_tv))
-    print(f"  Loaded t={{_ea_times[-1]:.4f}}: {{len(_d)}} pts from {{os.path.basename(_fp)}}")
+    if {is_steady}:
+        print(f"  Loaded ground truth (steady-state): {{len(_d)}} pts from {{os.path.basename(_fp)}}")
+    else:
+        print(f"  Loaded t={{_ea_times[-1]:.4f}}: {{len(_d)}} pts from {{os.path.basename(_fp)}}")
 
 _ea_n_t = len(_ea_times)
 _ea_u_pinns = []
 for _i, _tv in enumerate(_ea_times):
     _xf = _ea_x_refs[_i]
-    if {is_3d}:
+    if {is_steady} and {is_3d}:
+        _xt = np.column_stack([_xf, _ea_y_refs[_i], _ea_z_refs[_i]])
+    elif {is_steady} and {is_2d}:
+        _xt = np.column_stack([_xf, _ea_y_refs[_i]])
+    elif {is_3d}:
         _yf = _ea_y_refs[_i]; _zf = _ea_z_refs[_i]
         _xt = np.column_stack([_xf, _yf, _zf, np.full_like(_xf, _tv)])
     elif {is_2d}:
@@ -12516,7 +12664,10 @@ for _i, _tv in enumerate(_ea_times):
     else:
         _xt = np.column_stack([_xf, np.full_like(_xf, _tv)])
     _ea_u_pinns.append(_extract_restore_field(model.predict(_xt)).flatten())
-    print(f"  Predicted at t={{_tv:.4f}}: {{len(_xf)}} points")
+    if {is_steady}:
+        print(f"  PINN predicted (steady-state): {{len(_xf)}} points")
+    else:
+        print(f"  Predicted at t={{_tv:.4f}}: {{len(_xf)}} points")
 
 # Metrics
 _ea_metrics = []
@@ -12576,18 +12727,23 @@ elif {do_surface}:
         fig.suptitle("Restored Model vs Ground Truth — 2D Heatmaps", fontsize=13, fontweight='bold')
         for _i, _tv in enumerate(_ea_times):
             _tv_r, _l2, _mse, _mx, _ma = _ea_metrics[_i]
-            _xyt_g = np.column_stack([_Xg_ea.ravel(), _Yg_ea.ravel(), np.full(_Xg_ea.size, _tv)])
+            if {is_steady}:
+                _xyt_g = np.column_stack([_Xg_ea.ravel(), _Yg_ea.ravel()])
+            else:
+                _xyt_g = np.column_stack([_Xg_ea.ravel(), _Yg_ea.ravel(), np.full(_Xg_ea.size, _tv)])
             _u_pinn_g = _extract_restore_field(model.predict(_xyt_g)).reshape(_res_ea, _res_ea)
             _u_fem_g  = _gd(np.column_stack([_ea_x_refs[_i], _ea_y_refs[_i]]),
                             _ea_u_refs[_i], (_Xg_ea, _Yg_ea), method='linear', fill_value=0.0)
             _u_err_g  = np.abs(_u_pinn_g - _u_fem_g)
             _vmin_data = min(_u_pinn_g.min(), _u_fem_g.min()) if {_auto} else {_vmin}
             _vmax_data = max(_u_pinn_g.max(), _u_fem_g.max()) if {_auto} else {_vmax}
+            _ea_pinn_title = f"PINN (steady-state) L2={{_l2:.2e}}" if {is_steady} else f"PINN t={{_tv:.3f}} L2={{_l2:.2e}}"
+            _ea_gt_title = "Ground Truth" if {is_steady} else f"Ground Truth t={{_tv:.3f}}"
             im0 = axes[_i][0].contourf(_Xg_ea, _Yg_ea, _u_pinn_g, levels={_levels}, cmap='{_cmap}', vmin=_vmin_data, vmax=_vmax_data)
-            axes[_i][0].set_title(f"PINN t={{_tv:.3f}} L2={{_l2:.2e}}"); axes[_i][0].set_xlabel("x"); axes[_i][0].set_ylabel("y")
+            axes[_i][0].set_title(_ea_pinn_title); axes[_i][0].set_xlabel("x"); axes[_i][0].set_ylabel("y")
             if {_colorbar}: fig.colorbar(im0, ax=axes[_i][0])
             im1 = axes[_i][1].contourf(_Xg_ea, _Yg_ea, _u_fem_g, levels={_levels}, cmap='{_cmap}', vmin=_vmin_data, vmax=_vmax_data)
-            axes[_i][1].set_title(f"Ground Truth t={{_tv:.3f}}"); axes[_i][1].set_xlabel("x"); axes[_i][1].set_ylabel("y")
+            axes[_i][1].set_title(_ea_gt_title); axes[_i][1].set_xlabel("x"); axes[_i][1].set_ylabel("y")
             if {_colorbar}: fig.colorbar(im1, ax=axes[_i][1])
             im2 = axes[_i][2].contourf(_Xg_ea, _Yg_ea, _u_err_g, levels={_levels}, cmap='{_cmap}')
             axes[_i][2].set_title(f"|Error| Max={{_mx:.2e}}"); axes[_i][2].set_xlabel("x"); axes[_i][2].set_ylabel("y")
