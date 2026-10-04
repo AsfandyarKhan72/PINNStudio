@@ -3047,6 +3047,18 @@ class MainWindow(QMainWindow):
                 self.adapt_combo.setCurrentText("None")
             if self.ic_pretrain_cb.isChecked():
                 self.ic_pretrain_cb.setChecked(False)
+        # The Loss Weights panel's own "IC {n} (...)" rows are built by
+        # _build_weight_inputs(), gated on this same checkbox's state --
+        # without refreshing it here too, toggling Steady-state on its own
+        # (with no other change that happens to rebuild the panel, e.g. a
+        # BC row or output-count edit) would leave stale IC weight rows
+        # visible until something else triggered a rebuild. Guarded by
+        # hasattr since weights_main_layout/num_outputs_spin are built
+        # after this checkbox during __init__, and toggled can in
+        # principle fire before that (it won't with today's init order,
+        # but there's no reason to rely on that staying true).
+        if hasattr(self, 'weights_main_layout') and hasattr(self, 'num_outputs_spin'):
+            self._build_weight_inputs(self.num_outputs_spin.value())
 
     def _on_geom_vertices_changed(self, text):
         # Triangle/Polygon edge count changed -- rebuild the per-edge BC rows.
@@ -4929,6 +4941,17 @@ class MainWindow(QMainWindow):
         _sched_enabled = True  # scheduler always on
         _same_weights = hasattr(self, 'sched_same_weights_cb') and self.sched_same_weights_cb.isChecked()
         _skip_main_weights = not _same_weights  # skip main weights when per-phase
+        # Steady-state problems have no time axis, so there's no Initial
+        # Condition to weight at all -- codegen.py already builds an empty
+        # _ic_w list in this case (confirmed at training time by the
+        # "IC weights: []" log line), independently of these widgets. This
+        # mirrors that at the GUI level: skip the "IC {n} (...)" weight
+        # rows below whenever Steady-state is checked, the same way
+        # _on_steady_state_changed() already hides the separate Initial
+        # Condition panel itself. Previously these rows stayed visible
+        # (driven only by ic_active[i], with no steady_state check at
+        # all), showing weight fields that were silently never used.
+        _is_steady = self.steady_state_check.isChecked() if hasattr(self, 'steady_state_check') else False
 
         def _w_row(label, key):
             row = QHBoxLayout()
@@ -4958,16 +4981,17 @@ class MainWindow(QMainWindow):
                 _btype_label = _be['type'].currentText()
                 _bcomp = _be['component'].value()
                 _w_row(f"BC {_bj + 1} ({_btype_label}, Output {_bcomp}):", f"bc_{_bj}")
-            for i in range(n):
-                name = self.output_name_inputs[i].text() if i < len(self.output_name_inputs) else f"u{i+1}"
-                _ic_from_file_checked = (
-                    hasattr(self, 'ic_from_file') and
-                    i < len(self.ic_from_file) and
-                    self.ic_from_file[i] is not None and
-                    self.ic_from_file[i].isChecked()
-                )
-                if (i < len(self.ic_active) and self.ic_active[i].isChecked()) or _ic_from_file_checked:
-                    _w_row(f"IC {i+1} ({name}):", f"ic_{i}")
+            if not _is_steady:
+                for i in range(n):
+                    name = self.output_name_inputs[i].text() if i < len(self.output_name_inputs) else f"u{i+1}"
+                    _ic_from_file_checked = (
+                        hasattr(self, 'ic_from_file') and
+                        i < len(self.ic_from_file) and
+                        self.ic_from_file[i] is not None and
+                        self.ic_from_file[i].isChecked()
+                    )
+                    if (i < len(self.ic_active) and self.ic_active[i].isChecked()) or _ic_from_file_checked:
+                        _w_row(f"IC {i+1} ({name}):", f"ic_{i}")
 
         # Per-phase weight rows if scheduler enabled and different weights
         if _sched_enabled and not _same_weights:
@@ -4985,12 +5009,13 @@ class MainWindow(QMainWindow):
                     _btype_label = _be['type'].currentText()
                     _bcomp = _be['component'].value()
                     _w_row(f"BC {_bj + 1} ({_btype_label}, Output {_bcomp}) P{_phase_num}:", f"bc_{_bj}_p{_phase_num}")
-                for _i in range(n):
-                    _name = self.output_name_inputs[_i].text() if _i < len(self.output_name_inputs) else f"u{_i+1}"
-                    _ic_ff = (hasattr(self, 'ic_from_file') and _i < len(self.ic_from_file)
-                              and self.ic_from_file[_i] is not None and self.ic_from_file[_i].isChecked())
-                    if (_i < len(self.ic_active) and self.ic_active[_i].isChecked()) or _ic_ff:
-                        _w_row(f"IC {_i+1} ({_name}) P{_phase_num}:", f"ic_{_i}_p{_phase_num}")
+                if not _is_steady:
+                    for _i in range(n):
+                        _name = self.output_name_inputs[_i].text() if _i < len(self.output_name_inputs) else f"u{_i+1}"
+                        _ic_ff = (hasattr(self, 'ic_from_file') and _i < len(self.ic_from_file)
+                                  and self.ic_from_file[_i] is not None and self.ic_from_file[_i].isChecked())
+                        if (_i < len(self.ic_active) and self.ic_active[_i].isChecked()) or _ic_ff:
+                            _w_row(f"IC {_i+1} ({_name}) P{_phase_num}:", f"ic_{_i}_p{_phase_num}")
 
     def _flat_loss_weights_string(self, n_out):
         """Build the comma-separated loss_weights_multi string in the exact
