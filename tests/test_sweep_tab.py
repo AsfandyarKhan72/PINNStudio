@@ -462,6 +462,108 @@ def run():
         import shutil as _shutil
         _shutil.rmtree(tmp_root, ignore_errors=True)
 
+    # ── v73: no sweep-dropdown entry ever double-prefixes its own
+    # category ──────────────────────────────────────────────────────────
+    # _refresh_sweep_param_choices() prefixes every entry's displayed
+    # text with "{category}: " UNLESS the registry's own p.label already
+    # starts with "{category}:" (so per-phase entries, which already bake
+    # their own "Phase N: " prefix into the label, don't get it twice).
+    # A v73 bug had two new categories (Input/Output Transform) whose
+    # bare label text started with a DIFFERENTLY-CASED copy of their own
+    # category ("Input transform: x scale" under category "Input
+    # Transform") -- the startswith() check is case-sensitive, so it
+    # silently missed the match and prefixed anyway, producing a visibly
+    # doubled "Input Transform: Input transform: x scale" in the actual
+    # dropdown (only caught by eye in an Xvfb screenshot, no automated
+    # test rendered the real combo text). Build a config that surfaces
+    # EVERY registry category at once and confirm none of them repeats
+    # their own category name in the displayed text.
+    win_allcat = MainWindow()
+    _app.processEvents()
+    win_allcat.quick_examples_combo.setCurrentText("1D Heat")
+    win_allcat.radio_inverse.setChecked(True)
+    win_allcat.output_transform_cb.setChecked(True)
+    win_allcat.input_transform_cb.setChecked(True)
+    win_allcat.adapt_combo.setCurrentText("Residual-based Adaptive Refinement (RAR)")
+    _app.processEvents()
+    win_allcat.sweep_enable_cb.setChecked(True)
+    _app.processEvents()
+    allcat_combo = win_allcat.sweep_row_list[0]['param_combo']
+    for i in range(allcat_combo.count()):
+        text = allcat_combo.itemText(i)
+        category = text.split(":", 1)[0]
+        # Case-INSENSITIVE count -- the actual v73 bug was a case
+        # mismatch ("Input Transform" the category vs. "Input transform"
+        # baked into the label), which an exact-case count would have
+        # missed entirely (it would see "Input Transform" and "Input
+        # transform" as two different strings, each appearing once).
+        check(text.lower().count(category.lower()) == 1,
+              f"sweep dropdown entry {text!r} repeats its own category {category!r} (case-insensitively) -- doubled prefix bug")
+
+    # ── v73: Save-parameter row moved off Error Analysis/Export row,
+    # and Plot output/Plot type/Save parameter widened to fit their text
+    # ──────────────────────────────────────────────────────────────────
+    # The row move: param_save_label/param_save_combo must no longer
+    # share a layout with ea_btn/export_btn -- confirmed structurally via
+    # QWidget.parentWidget() (a QHBoxLayout's widgets all share the same
+    # parent widget, the container bottom_layout was built into) would be
+    # too indirect since every row here shares the SAME overall parent
+    # container; instead confirm it via the actual visible geometry after
+    # a real layout pass: Save Parameter's row sits strictly above (a
+    # smaller y) the Error Analysis/Export Solution row once both are
+    # visible, i.e. it is its own row directly under Plot output/Plot
+    # type, not alongside Error Analysis/Export further down.
+    win.radio_inverse.setChecked(True)
+    _app.processEvents()
+    win.resize(1400, 1000)
+    win.show()
+    _app.processEvents()
+    check(win.param_save_label.isVisible() and win.param_save_combo.isVisible(),
+          "Save parameter label/combo should be visible once Inverse mode is selected")
+    check(win.param_save_label.y() < win.ea_btn.y(),
+          f"Save parameter row should sit above the Error Analysis/Export Solution row, "
+          f"got param_save_label.y()={win.param_save_label.y()}, ea_btn.y()={win.ea_btn.y()}")
+    check(win.param_save_label.y() > win.plot_type_combo.y(),
+          "Save parameter row should sit below the Plot output/Plot type row (directly under it)")
+    win.hide()
+    win.radio_inverse.setChecked(False)
+    win.radio_forward.setChecked(True)
+    _app.processEvents()
+
+    # Combo widening: each of the three combos' minimum width should be
+    # at least wide enough to fit its own widest current item's text,
+    # not a narrower hand-picked fixed width that would clip it (e.g.
+    # "Parameter Convergence"/"Every 100 iters" previously getting cut
+    # off -- see _fit_combo_width's own docstring).
+    fm_pt = win.plot_type_combo.fontMetrics()
+    widest_plot_type = max(fm_pt.horizontalAdvance(win.plot_type_combo.itemText(i))
+                            for i in range(win.plot_type_combo.count()))
+    check(win.plot_type_combo.minimumWidth() >= widest_plot_type,
+          f"plot_type_combo's minimum width ({win.plot_type_combo.minimumWidth()}) should fit its widest "
+          f"item's text ({widest_plot_type}px)")
+
+    fm_ps = win.param_save_combo.fontMetrics()
+    widest_param_save = max(fm_ps.horizontalAdvance(win.param_save_combo.itemText(i))
+                             for i in range(win.param_save_combo.count()))
+    check(win.param_save_combo.minimumWidth() >= widest_param_save,
+          f"param_save_combo's minimum width ({win.param_save_combo.minimumWidth()}) should fit its widest "
+          f"item's text ({widest_param_save}px, e.g. 'Every 1000 iters')")
+
+    # "Parameter Convergence" (added only once Inverse is selected) is
+    # the widest item plot_type_combo ever holds -- confirm the combo
+    # actually widens to fit it when it's added, not just at startup.
+    width_before_inverse = win.plot_type_combo.minimumWidth()
+    win.radio_inverse.setChecked(True)
+    _app.processEvents()
+    fm_pt2 = win.plot_type_combo.fontMetrics()
+    pc_width = fm_pt2.horizontalAdvance("Parameter Convergence")
+    check(win.plot_type_combo.minimumWidth() >= pc_width,
+          f"plot_type_combo should widen to fit 'Parameter Convergence' ({pc_width}px) once Inverse adds it, "
+          f"got minimumWidth={win.plot_type_combo.minimumWidth()}")
+    win.radio_inverse.setChecked(False)
+    win.radio_forward.setChecked(True)
+    _app.processEvents()
+
     if failures:
         print("FAILURES:")
         for f in failures:

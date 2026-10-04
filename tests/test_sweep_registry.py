@@ -59,6 +59,7 @@ _app = QApplication.instance() or QApplication(sys.argv)
 
 from pinnstudio.ui.main_window import MainWindow
 from pinnstudio.core import sweep_registry as reg
+from pinnstudio.core.config import PINNConfig
 
 # A spread across every dimension, steady vs time-dependent, and Forward
 # vs Inverse -- not the full 24-combination matrix test_templates.py
@@ -435,6 +436,133 @@ def run():
             win.inv_data_rows.remove(row)
     win.radio_inverse.setChecked(False)
     win.radio_forward.setChecked(True)
+
+    # ── SCOPE (v4): true-value preservation fix ────────────────────────
+    # A bug (fixed in this pass) had _inv_vars_list() keep only name/init
+    # when round-tripping inverse_variables_json, so every
+    # inv_var_init_<n> sweep silently erased the "true" field the
+    # Parameter Convergence plot's dashed reference line depends on --
+    # even for variables the sweep never touched. Confirm it survives a
+    # sweep-set now.
+    tv_config = PINNConfig()
+    tv_config.problem_type = "Inverse"
+    tv_config.inverse_variables_json = json.dumps([
+        {"name": "D", "init": 1.0, "true": 2.5},
+        {"name": "k", "init": 0.5, "true": None},  # no known true value
+    ])
+    reg.get_param("inv_var_init_0", tv_config).set_value(tv_config, 1.75)
+    _tv_parsed = json.loads(tv_config.inverse_variables_json)
+    check(_tv_parsed[0].get("true") == 2.5,
+          f"sweeping inv_var_init_0's initial guess must not erase variable 0's own true value, got {_tv_parsed[0]}")
+    check(_tv_parsed[0].get("init") == 1.75, "inv_var_init_0's init should still update to the swept value")
+    check("true" not in _tv_parsed[1] or _tv_parsed[1].get("true") is None,
+          "a variable with no known true value should stay that way (not acquire a fabricated one)")
+    # Sweeping variable 1 (not 0) must equally not disturb variable 0's
+    # true value -- the original bug erased it regardless of which
+    # variable was actually being swept, since it round-tripped the
+    # WHOLE list through a name/init-only shape.
+    reg.get_param("inv_var_init_1", tv_config).set_value(tv_config, 0.9)
+    _tv_parsed2 = json.loads(tv_config.inverse_variables_json)
+    check(_tv_parsed2[0].get("true") == 2.5,
+          "sweeping a DIFFERENT variable's initial guess must also not erase variable 0's true value")
+
+    # ── SCOPE (v4): RAR sweep parameters ────────────────────────────────
+    rar_config = PINNConfig()
+    rar_config.adapt_method = "None"
+    check(not any(p.id.startswith("rar_") for p in reg.available_params(rar_config)),
+          "RAR sweep entries should not appear when RAR isn't the selected adaptive method")
+    rar_config.adapt_method = "RAR"
+    rar_ids = {p.id: p for p in reg.available_params(rar_config) if p.id.startswith("rar_")}
+    expected_rar = {"rar_cycles", "rar_candidates", "rar_add_points", "rar_adam_iters", "rar_lbfgs_iters"}
+    check(set(rar_ids) == expected_rar, f"expected exactly {expected_rar}, got {set(rar_ids)}")
+    check(all(p.category == "RAR" for p in rar_ids.values()), "every RAR sweep entry should be grouped under the 'RAR' category")
+    for pid, default_val in [("rar_cycles", 5), ("rar_candidates", 75000),
+                              ("rar_add_points", 300), ("rar_adam_iters", 15000), ("rar_lbfgs_iters", 5000)]:
+        p = rar_ids[pid]
+        p.set_value(rar_config, default_val)
+        check(p.get_value(rar_config) == default_val, f"{pid} should round-trip set_value/get_value correctly")
+    check(rar_config.rar_cycles == 5, "rar_cycles sweep entry should write straight through to config.rar_cycles")
+
+    # ── SCOPE (v4): Time-Adaptive sweep parameters ──────────────────────
+    ta_config = PINNConfig()
+    ta_config.adapt_method = "None"
+    check(not any(p.id.startswith("ta_") for p in reg.available_params(ta_config)),
+          "Time-Adaptive sweep entries should not appear when it isn't the selected adaptive method")
+    ta_config.adapt_method = "Time Adaptive"
+    ta_params = {p.id: p for p in reg.available_params(ta_config) if p.id.startswith("ta_")}
+    check("ta_group0_steps" in ta_params, "a default (single-group) Time-Adaptive config should offer ta_group0_steps")
+    check("ta_grid_size" in ta_params, "Time-Adaptive should offer its IC grid resolution as a sweep entry")
+    check(ta_params["ta_grid_size"].value_type == "categorical" and ta_params["ta_grid_size"].choices == ["11", "21", "51", "101"],
+          "ta_grid_size should be categorical over the same grid sizes the GUI combo offers")
+    ta_params["ta_group0_steps"].set_value(ta_config, 30)
+    check(ta_config.ta_num_steps == 30, f"setting ta_group0_steps should resync the derived ta_num_steps total, got {ta_config.ta_num_steps}")
+    check(ta_params["ta_group0_steps"].get_value(ta_config) == 30, "ta_group0_steps should read back the value just set")
+    ta_params["ta_grid_size"].set_value(ta_config, "51")
+    check(ta_config.ta_grid_size == 51, "setting ta_grid_size should write through to config.ta_grid_size as an int")
+
+    # Multiple step groups -> one independent entry per group, matching
+    # the per-phase/per-BC-row convention used everywhere else in this
+    # registry.
+    ta_config2 = PINNConfig()
+    ta_config2.adapt_method = "Time Adaptive"
+    ta_config2.ta_step_groups = json.dumps([
+        {"t_start": 0.0, "t_end": 0.5, "steps": 10},
+        {"t_start": 0.5, "t_end": 1.0, "steps": 20},
+    ])
+    ta_params2 = {p.id: p for p in reg.available_params(ta_config2) if p.id.startswith("ta_group")}
+    check(set(ta_params2) == {"ta_group0_steps", "ta_group1_steps"},
+          f"two step groups should produce two independent sweep entries, got {set(ta_params2)}")
+    ta_params2["ta_group1_steps"].set_value(ta_config2, 99)
+    _ta_groups2 = json.loads(ta_config2.ta_step_groups)
+    check(_ta_groups2[1]["steps"] == 99 and _ta_groups2[0]["steps"] == 10,
+          "setting group 1's steps must not disturb group 0's own steps")
+    check(ta_config2.ta_num_steps == 10 + 99, "ta_num_steps should resync to the sum across ALL groups, not just the one changed")
+
+    # ── SCOPE (v4): Input/Output transform scale sweep parameters ──────
+    it_config = PINNConfig()
+    it_config.input_transform_enabled = False
+    check(not any(p.id.startswith("it_scale_") for p in reg.available_params(it_config)),
+          "input-transform scale entries should not appear while input transform is disabled")
+    it_config.input_transform_enabled = True
+    it_config.input_transform_scale = [1.0, 1.0]  # 1D: x, t
+    it_config.input_transform_shift = [0.0, 0.0]
+    it_params = {p.id: p for p in reg.available_params(it_config) if p.id.startswith("it_scale_")}
+    check(set(it_params) == {"it_scale_0", "it_scale_1"}, f"1D input transform should offer 2 scale entries (x, t), got {set(it_params)}")
+    check("x scale" in it_params["it_scale_0"].label and "t scale" in it_params["it_scale_1"].label,
+          f"input-transform entries should name their own axis, got {[p.label for p in it_params.values()]}")
+    it_params["it_scale_0"].set_value(it_config, 2.5)
+    check(it_config.input_transform_scale[0] == 2.5 and it_config.input_transform_scale[1] == 1.0,
+          "setting it_scale_0 must only change axis 0's own scale, leaving axis 1 and shift untouched")
+    check(it_config.input_transform_shift == [0.0, 0.0], "sweeping scale must never touch the shift list")
+
+    ot_config = PINNConfig()
+    ot_config.output_transform_enabled = False
+    check(not any(p.id.startswith("ot_scale_") for p in reg.available_params(ot_config)),
+          "output-transform scale entries should not appear while output transform is disabled")
+    ot_config.output_transform_enabled = True
+    ot_config.output_transform_scale = [1.0, 1.0, 1.0]  # 3-output problem
+    ot_params = {p.id: p for p in reg.available_params(ot_config) if p.id.startswith("ot_scale_")}
+    check(set(ot_params) == {"ot_scale_0", "ot_scale_1", "ot_scale_2"},
+          f"a 3-output problem's output transform should offer 3 scale entries, got {set(ot_params)}")
+    ot_params["ot_scale_1"].set_value(ot_config, 7.0)
+    check(ot_config.output_transform_scale == [1.0, 7.0, 1.0],
+          f"setting ot_scale_1 must only change output 2's own scale, got {ot_config.output_transform_scale}")
+
+    # ── SCOPE (v4): always-available Point distribution/Activation/
+    # Kernel initializer entries ────────────────────────────────────────
+    misc_config = PINNConfig()
+    misc_params = {p.id: p for p in reg.available_params(misc_config)}
+    for pid, field, choices in [
+        ("point_distribution", "point_distribution", ["Hammersley", "uniform", "Halton", "LHS", "Sobol", "pseudorandom"]),
+        ("activation", "activation", ["tanh", "relu", "sigmoid", "swish"]),
+        ("kernel_initializer", "kernel_initializer", ["Glorot uniform", "Glorot normal", "He uniform", "He normal", "zeros"]),
+    ]:
+        check(pid in misc_params, f"{pid} should always be an available sweep entry")
+        p = misc_params[pid]
+        check(p.value_type == "categorical" and p.choices == choices,
+              f"{pid} should be categorical with choices {choices}, got {p.value_type}/{p.choices}")
+        p.set_value(misc_config, choices[-1])
+        check(getattr(misc_config, field) == choices[-1], f"setting {pid} should write straight through to config.{field}")
 
     if failures:
         print("FAILURES:")

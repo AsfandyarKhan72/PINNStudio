@@ -2303,7 +2303,7 @@ class MainWindow(QMainWindow):
         # u,v outputs) rather than only ever one of them individually.
         self.plot_output_combo.addItems(["Output 1 (u)", "Custom..."])
         self.plot_output_combo.setFixedHeight(28)
-        self.plot_output_combo.setFixedWidth(130)
+        self._fit_combo_width(self.plot_output_combo, min_width=130)
         self.plot_output_combo.currentTextChanged.connect(self._on_plot_output_combo_changed)
         ctrl_row.addWidget(self.plot_output_combo)
 
@@ -2332,7 +2332,7 @@ class MainWindow(QMainWindow):
             "Line Animation (GIF)", "Surface Animation (GIF)",
         ])
         self.plot_type_combo.setFixedHeight(28)
-        self.plot_type_combo.setFixedWidth(140)
+        self._fit_combo_width(self.plot_type_combo, min_width=160)
         self.plot_type_combo.currentTextChanged.connect(self._on_plot_type_changed)
         ctrl_row.addWidget(self.plot_type_combo)
 
@@ -2350,26 +2350,45 @@ class MainWindow(QMainWindow):
         ctrl_row.addStretch()
         bottom_layout.addLayout(ctrl_row)
 
-        # Second row for Error Analysis/Export/Save-parameter -- split out
-        # of the row above (which was previously one single QHBoxLayout
-        # for everything from "Plot output:" through "Save parameter:").
-        # That row's own minimum width is the SUM of every widget in it,
-        # including ones that are usually hidden -- the Custom expression/
-        # label boxes (~270px, shown only when a template defines its own
-        # derived plot field, e.g. 1D Schrodinger's |h|) and the Save
-        # Parameter label+combo (~330px, shown only in Inverse mode).
-        # Selecting 1D Schrodinger's Inverse mode reveals BOTH at once,
-        # pushing that single row's minimum width up by ~600px -- more
-        # than the window has spare room for, so the horizontal splitter
-        # was forced to steal the difference from the left configuration
-        # panel, clamping it down to its own hard minimum width and
-        # leaving no way to drag it back out while those fields stayed
-        # visible (only switching to Forward or a different template hid
-        # them again and released the width). Splitting the plotting
-        # controls (this row) from the action buttons (the row below)
-        # keeps each row's own minimum width bounded on its own, so
-        # revealing those optional fields no longer forces the whole
-        # right-hand pane to demand hundreds of extra pixels at once.
+        # Save-parameter row -- visually grouped with Plot output/Plot
+        # type (directly below them) since that's conceptually where it
+        # belongs, but deliberately its OWN QHBoxLayout rather than
+        # appended onto ctrl_row itself. ctrl_row already carries the
+        # Custom expression/label fields (~270px, shown only when a
+        # template defines its own derived plot field, e.g. 1D
+        # Schrodinger's |h|), and this row's own Save Parameter label+
+        # combo (~200-300px, shown only in Inverse mode) can be visible
+        # at the same time (1D Schrodinger + Inverse). Summed into one
+        # row, those two optional blocks previously forced that single
+        # row's minimum width up by ~600px -- more than the window has
+        # spare room for, which forced the horizontal splitter to clamp
+        # the left configuration panel down to its own hard minimum width
+        # with no way to drag it back out while both stayed visible. Each
+        # row here keeps its OWN minimum width bounded independently, so
+        # revealing both at once no longer sums them into one oversized
+        # row -- same reasoning as ctrl_row2 (Error Analysis/Export)
+        # already being split out below for the same reason.
+        ctrl_row_save = QHBoxLayout()
+        self.param_save_label = QLabel("Save parameter:")
+        self.param_save_label.setVisible(False)
+        ctrl_row_save.addWidget(self.param_save_label)
+        self.param_save_combo = QComboBox()
+        self.param_save_combo.addItems(["No", "Every 100 iters", "Every 1000 iters"])
+        # Default to saving every 100 iterations for every Inverse problem
+        # -- without this, the per-variable iteration-vs-value convergence
+        # text files never get written unless the user remembers to change
+        # this dropdown first, which is easy to miss since it's a small
+        # control that's only visible once Inverse is selected.
+        self.param_save_combo.setCurrentText("Every 100 iters")
+        self.param_save_combo.setFixedHeight(28)
+        self._fit_combo_width(self.param_save_combo, min_width=150)
+        self.param_save_combo.setVisible(False)
+        ctrl_row_save.addWidget(self.param_save_combo)
+        ctrl_row_save.addStretch()
+        bottom_layout.addLayout(ctrl_row_save)
+
+        # Second row for Error Analysis/Export -- its own row for the same
+        # independent-minimum-width reason as ctrl_row_save above.
         ctrl_row2 = QHBoxLayout()
         self.ea_btn = QPushButton("📊 Error Analysis")
         self.ea_btn.setFixedHeight(28)
@@ -2406,22 +2425,6 @@ class MainWindow(QMainWindow):
         """)
         self.export_btn.clicked.connect(self._on_export_settings)
         ctrl_row2.addWidget(self.export_btn)
-
-        self.param_save_label = QLabel("  Save parameter:")
-        self.param_save_label.setVisible(False)
-        ctrl_row2.addWidget(self.param_save_label)
-        self.param_save_combo = QComboBox()
-        self.param_save_combo.addItems(["No", "Every 100 iters", "Every 1000 iters"])
-        # Default to saving every 100 iterations for every Inverse problem
-        # -- without this, the per-variable iteration-vs-value convergence
-        # text files never get written unless the user remembers to change
-        # this dropdown first, which is easy to miss since it's a small
-        # control that's only visible once Inverse is selected.
-        self.param_save_combo.setCurrentText("Every 100 iters")
-        self.param_save_combo.setFixedHeight(28)
-        self.param_save_combo.setFixedWidth(140)
-        self.param_save_combo.setVisible(False)
-        ctrl_row2.addWidget(self.param_save_combo)
 
         self.timesteps_spin = QSpinBox()
         self.timesteps_spin.setRange(2, 20); self.timesteps_spin.setValue(4)
@@ -5216,6 +5219,7 @@ class MainWindow(QMainWindow):
         # "Custom..." item), so this pass doesn't need to add one for them.
         self.plot_output_combo.addItem("Custom...")
         self.restore_output_combo.addItem("Custom...")
+        self._fit_combo_width(self.plot_output_combo, min_width=130)
 
         # PDE expressions
         pdes = _texts(config.pde_expressions, n_out, "|", config.pde_expression)
@@ -5603,6 +5607,7 @@ class MainWindow(QMainWindow):
                 _r['output_combo'].addItem(f"Output {i+1} ({name})")
         self.plot_output_combo.addItem("Custom...")
         self.restore_output_combo.addItem("Custom...")
+        self._fit_combo_width(self.plot_output_combo, min_width=130)
         for _r in getattr(self, 'inv_data_rows', []):
             _r['output_combo'].addItem("Custom...")
             # Re-select "Custom..." (and keep the expression box visible)
@@ -5951,6 +5956,11 @@ class MainWindow(QMainWindow):
         if is_inv:
             if _pc_idx == -1:
                 self.plot_type_combo.addItem("Parameter Convergence")
+                # "Parameter Convergence" is the widest item this combo
+                # ever holds -- re-fit now so it isn't clipped the moment
+                # Inverse mode adds it (see _fit_combo_width's own note
+                # that it must be re-called after every addItem).
+                self._fit_combo_width(self.plot_type_combo, min_width=160)
             self.plot_type_combo.setCurrentText("Parameter Convergence")
         elif _pc_idx != -1:
             if self.plot_type_combo.currentText() == "Parameter Convergence":

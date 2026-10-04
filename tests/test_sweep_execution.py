@@ -38,6 +38,14 @@ Checks:
    (which has a real bundled u_obs.txt and a known true value
    auto-populated the moment Inverse mode is selected) -- each
    measurably changes the real, parsed final_loss relative to baseline.
+ - v73: a real RAR sweep (sweeping rar_cycles) and a real Time-Adaptive
+   sweep (sweeping ta_grid_size, one group/one step for speed) each run
+   to completion; a combined sweep over an output-transform scale and
+   Activation (one value each, to bound the number of new real runs this
+   round adds) also runs to completion -- test_sweep_param_expansion.py
+   already confirms every new registry category reaches the generated
+   script's text without running it; this confirms each one also
+   actually trains for real.
  - Stop hard-kills the CURRENTLY RUNNING training subprocess instead of
    only preventing the NEXT run from starting -- a huge-iteration-count
    run is started for real, stopped shortly after it begins, and the
@@ -362,6 +370,134 @@ def run():
                   f"[Inverse obs-weight sweep] pushing the observation loss weight to "
                   f"100000 should measurably change the real final_loss vs. baseline -- "
                   f"got baseline={baseline6}, swept={losses6[obs_run6]}")
+
+    # ── v73: RAR sweep, real training ─────────────────────────────────
+    # test_sweep_param_expansion.py already confirms rar_cycles reaches
+    # the generated script's text without running it; this confirms a
+    # swept RAR config actually trains to completion for real (RAR's own
+    # knobs -- cycles/candidates/add_points/adam_iters -- are all forced
+    # tiny here purely for test speed).
+    win9 = MainWindow()
+    _app.processEvents()
+    win9.quick_examples_combo.setCurrentText("1D Heat")
+    win9.adapt_combo.setCurrentText("Residual-based Adaptive Refinement (RAR)")
+    _app.processEvents()
+    for ph in win9.sched_phase_list:
+        ph["iters"].setValue(10)
+    win9.rar_candidates.setValue(500)
+    win9.rar_add_points.setValue(50)
+    win9.rar_adam_iters.setValue(10)
+    win9.rar_lbfgs_iters.setValue(0)
+    # The one sweep row already present on a fresh MainWindow was built
+    # at construction time, before RAR was selected above -- its
+    # param_combo's choices are stale until refreshed (same gotcha the
+    # Inverse sweep section above already works around). Without this,
+    # findData("rar_cycles") returns -1, setCurrentIndex(-1) silently
+    # leaves the combo on whatever it already had selected, and the
+    # sweep runs against the WRONG parameter instead of raising anything
+    # -- exactly what happened here before this fix was added (real
+    # training errors against a stale "Weight decay" selection).
+    win9._refresh_sweep_param_choices()
+    row9 = win9.sweep_row_list[0]
+    _idx9 = row9["param_combo"].findData("rar_cycles")
+    check(_idx9 >= 0, "rar_cycles should be selectable once RAR is the adaptive method")
+    row9["param_combo"].setCurrentIndex(_idx9)
+    row9["mode_combo"].setCurrentIndex(row9["mode_combo"].findData("list"))
+    row9["list_edit"].setText("1, 2")
+    win9.sweep_enable_cb.setChecked(True)
+    config9 = win9._build_config()
+    check(config9.validate() == [], f"RAR sweep config should validate clean: {config9.validate()}")
+    check(config9.adapt_method == "RAR", "config should record adapt_method='RAR'")
+
+    results9 = run_sweep(config9)
+    check(len(results9) == 3, f"expected 1 baseline + 2 swept RAR runs, got {len(results9)}")
+    for label, result in results9:
+        check(result["status"] == "done", f"[RAR sweep] run {label!r} should finish 'done', got {result}")
+        check(result["final_loss"] is not None, f"[RAR sweep] run {label!r} should report a parsed final_loss, got {result}")
+
+    # ── v73: Time-Adaptive sweep, real training ───────────────────────
+    # ta_grid_size swept between two small values, with a single tiny
+    # time step. IMPORTANT (found while verifying this real-training run
+    # -- it was taking 30+ minutes per run before this fix): Time-
+    # Adaptive's own per-step training does NOT read the legacy flat
+    # config.iterations field at all once the (GUI-hidden, always-on)
+    # scheduler is active -- it runs through the SAME scheduler-phases
+    # loop the Standard (non-Time-Adaptive) path uses, i.e.
+    # win.sched_phase_list's own iteration counts, once PER STEP. With
+    # the template's default phases (10000 Adam + 5000 L-BFGS) and even
+    # just 1 step, that's 15000+ real iterations per run -- so, exactly
+    # like win9 (RAR) and win11 (Output-transform/Activation) already do,
+    # the scheduler phases themselves must be shrunk for this to actually
+    # be a fast test.
+    win10 = MainWindow()
+    _app.processEvents()
+    win10.quick_examples_combo.setCurrentText("1D Heat")
+    win10.adapt_combo.setCurrentText("Time Adaptive Training")
+    _app.processEvents()
+    for ph in win10.sched_phase_list:
+        ph["iters"].setValue(10)
+    win10.iter1_spin.setValue(10)
+    for row in list(win10.ta_group_rows):
+        row["widget"].deleteLater()
+    win10.ta_group_rows.clear()
+    win10._add_ta_step_group(0.0, 1.0, 1)  # one group, one step -- as fast as Time-Adaptive gets
+    win10._refresh_sweep_param_choices()  # see win9's comment above -- same stale-combo gotcha
+    row10 = win10.sweep_row_list[0]
+    _idx10 = row10["param_combo"].findData("ta_grid_size")
+    check(_idx10 >= 0, "ta_grid_size should be selectable once Time Adaptive is the adaptive method")
+    row10["param_combo"].setCurrentIndex(_idx10)
+    row10["list_edit"].setText("11, 21")
+    win10.sweep_enable_cb.setChecked(True)
+    config10 = win10._build_config()
+    config10.iterations = 10  # belt-and-braces only (see comment above -- this field is NOT
+                               # actually what Time-Adaptive's per-step training reads whenever
+                               # the scheduler is active, which it always is; shrinking
+                               # win10.sched_phase_list above is what actually matters). Still
+                               # set directly in case a future GUI change ever makes the legacy
+                               # field reachable again.
+    check(config10.validate() == [], f"Time-Adaptive sweep config should validate clean: {config10.validate()}")
+    check(config10.time_adaptive, "config should record time_adaptive=True")
+
+    results10 = run_sweep(config10)
+    check(len(results10) == 3, f"expected 1 baseline + 2 swept Time-Adaptive runs, got {len(results10)}")
+    for label, result in results10:
+        check(result["status"] == "done", f"[Time-Adaptive sweep] run {label!r} should finish 'done', got {result}")
+
+    # ── v73: Output transform + Activation sweep, real training ───────
+    # Two independent, cheap one-value sweep rows combined into a single
+    # OAT sweep (1 baseline + 1 + 1 = 3 runs) rather than two separate
+    # tests, purely to bound the number of new real training runs this
+    # round adds -- each still exercises a genuinely different new
+    # registry category end-to-end.
+    win11 = MainWindow()
+    _app.processEvents()
+    win11.quick_examples_combo.setCurrentText("1D Heat")
+    win11.output_transform_cb.setChecked(True)
+    _app.processEvents()
+    for ph in win11.sched_phase_list:
+        ph["iters"].setValue(10)
+    win11._refresh_sweep_param_choices()  # see win9's comment above -- same stale-combo gotcha
+    row11a = win11.sweep_row_list[0]
+    _idx11a = row11a["param_combo"].findData("ot_scale_0")
+    check(_idx11a >= 0, "ot_scale_0 should be selectable once Output transform is enabled")
+    row11a["param_combo"].setCurrentIndex(_idx11a)
+    row11a["mode_combo"].setCurrentIndex(row11a["mode_combo"].findData("list"))
+    row11a["list_edit"].setText("2.0")
+    win11._add_sweep_row()  # _add_sweep_row() itself refreshes choices for the new row
+    row11b = win11.sweep_row_list[1]
+    _idx11b = row11b["param_combo"].findData("activation")
+    check(_idx11b >= 0, "activation should always be selectable")
+    row11b["param_combo"].setCurrentIndex(_idx11b)
+    row11b["list_edit"].setText("relu")
+    win11.sweep_enable_cb.setChecked(True)
+    config11 = win11._build_config()
+    check(config11.validate() == [], f"Output-transform/Activation sweep config should validate clean: {config11.validate()}")
+
+    results11 = run_sweep(config11)
+    check(len(results11) == 3, f"expected 1 baseline + 1 output-transform run + 1 activation run, got {len(results11)}")
+    for label, result in results11:
+        check(result["status"] == "done", f"[OT/Activation sweep] run {label!r} should finish 'done', got {result}")
+        check(result["final_loss"] is not None, f"[OT/Activation sweep] run {label!r} should report a parsed final_loss, got {result}")
 
     # ── Stop hard-kills the CURRENTLY RUNNING subprocess ──────────────
     # Earlier behavior (v71 and before) only set a flag SweepThread.run()

@@ -106,6 +106,42 @@ still be read through stays correct" approach _weight_set() above takes
 -- a couple of older call sites (e.g. the primary variable's PDE auto-
 substitution default) read that legacy field directly rather than
 through inverse_variables_json.
+
+Also fixed in this pass: _inv_vars_list() (above) previously dropped the
+"true" (known ground-truth) field when round-tripping
+inverse_variables_json, so every call to _inv_var_set_init() silently
+erased it for every variable, not just the one being swept -- which is
+why an Inverse sweep over a variable's own initial guess made the
+Parameter Convergence plot's true-value dashed reference line disappear
+(codegen.py's _parse_inverse_variables(), which draws that line, reads
+the exact same field). Now preserved.
+
+SCOPE (v4): four more sweepable groups, each gated on the GUI feature
+they belong to already being enabled/selected -- sweeping any of them
+with that feature off wouldn't train anything different, so they're
+simply not offered rather than silently doing nothing:
+
+ - RAR (Residual-based Adaptive Refinement)'s five own knobs (training
+   rounds, residual sampling points, points added per cycle, Adam/
+   L-BFGS iterations) -- plain scalar config fields, offered only when
+   config.adapt_method == "RAR".
+ - Time Adaptive Training: one "steps" entry per step group currently
+   configured (config.ta_step_groups, falling back to a single group
+   built from t_min/t_max/ta_num_steps the same way codegen.py's own
+   reader does) plus its IC grid resolution (ta_grid_size) -- offered
+   only when config.adapt_method == "Time Adaptive". Setting a group's
+   steps keeps config.ta_num_steps (the derived flat total several other
+   call sites still read directly) in sync, the same "every
+   representation stays correct" approach the loss-weight section takes.
+ - Input/output transform scale: one entry per axis/output row this
+   config's input_transform_scale/output_transform_scale list already
+   has (sized for the problem's current dimension/output count at
+   _build_config() time), offered only when that transform's own Enable
+   checkbox is on. Only scale is exposed, not shift, matching what was
+   actually asked for -- the GUI's own transform rows already read
+   "label x_raw * scale + shift" (main_window.py's _transform_row()), so
+   no GUI change was needed here at all, only wiring scale into this
+   registry the same way every other per-row value already is.
 """
 import json
 from dataclasses import dataclass
@@ -364,11 +400,23 @@ def _weight_params(config) -> List[SweepParam]:
 # See the module docstring's "SCOPE (v3)" section for the full rationale.
 
 def _inv_vars_list(config) -> list:
-    """Ordered list of {"name", "init"} dicts, one per trainable
-    (unknown) variable this config currently has -- mirrors codegen.py's
-    own _parse_inverse_variables() fallback (a single entry built from
-    the legacy inverse_param_name/inverse_param_init fields when
-    inverse_variables_json is empty/unparseable)."""
+    """Ordered list of {"name", "init", "true"} dicts (true omitted when
+    not known), one per trainable (unknown) variable this config
+    currently has -- mirrors codegen.py's own _parse_inverse_variables()
+    fallback (a single entry built from the legacy
+    inverse_param_name/inverse_param_init fields when
+    inverse_variables_json is empty/unparseable).
+
+    "true" MUST be round-tripped here, not just name/init: a v72 bug
+    (fixed in v73) had this function keep only name+init, so every call
+    to _inv_var_set_init() -- which rebuilds inverse_variables_json from
+    THIS function's own output -- silently wrote back a JSON list with
+    "true" permanently dropped for every variable, even ones the sweep
+    itself never touched. That's why an Inverse sweep over a variable's
+    initial guess made the Parameter Convergence plot's true-value
+    dashed reference line vanish: codegen.py's _parse_inverse_variables()
+    (which draws that line) reads the exact same inverse_variables_json
+    this function silently stripped it from."""
     raw = getattr(config, "inverse_variables_json", "") or ""
     variables = []
     if raw:
@@ -383,7 +431,14 @@ def _inv_vars_list(config) -> list:
                 init = float(v.get("init", 1.0))
             except (TypeError, ValueError):
                 init = 1.0
-            variables.append({"name": name, "init": init})
+            entry = {"name": name, "init": init}
+            _true_raw = v.get("true", None)
+            if _true_raw is not None:
+                try:
+                    entry["true"] = float(_true_raw)
+                except (TypeError, ValueError):
+                    pass
+            variables.append(entry)
     if not variables:
         variables.append({
             "name": config.inverse_param_name or "trainable_variable_1",
@@ -500,6 +555,245 @@ def _inv_obs_weight_params(config) -> List["SweepParam"]:
     return params
 
 
+# ── RAR (Residual-based Adaptive Refinement) helpers ───────────────────
+# See the module docstring's "SCOPE (v4)" section. All five of RAR's own
+# knobs are plain scalar config fields (no per-row/JSON indexing needed,
+# unlike loss weights or Inverse variables) -- only offered when RAR is
+# the selected adaptive method, since they're meaningless otherwise.
+
+def _rar_available(config) -> bool:
+    return getattr(config, "adapt_method", "None") == "RAR"
+
+
+def _rar_params(config) -> List["SweepParam"]:
+    if not _rar_available(config):
+        return []
+    # Bare labels (no leading "RAR " repeated here) -- the dropdown
+    # (main_window.py's _refresh_sweep_param_choices()) already prefixes
+    # every entry with its own category ("RAR: "), same convention as
+    # every other category in this registry (e.g. loss-weight slots are
+    # labelled bare "PDE 1 (u)", not "Loss Weights: PDE 1 (u)").
+    specs = [
+        ("rar_cycles", "Training rounds", "int", 1, 10),
+        ("rar_candidates", "Residual sampling points", "int", 5000, 100000),
+        ("rar_add_points", "Points added per cycle", "int", 100, 2000),
+        ("rar_adam_iters", "Adam iterations", "int", 1000, 30000),
+        ("rar_lbfgs_iters", "L-BFGS iterations", "int", 0, 20000),
+    ]
+    return [
+        SweepParam(
+            id=field, label=label, category="RAR", value_type=vtype,
+            default_min=dmin, default_max=dmax,
+            get_value=lambda c, f=field: getattr(c, f),
+            set_value=lambda c, v, f=field, t=vtype: setattr(c, f, int(v) if t == "int" else float(v)),
+            is_available=lambda c: _rar_available(c),
+        )
+        for field, label, vtype, dmin, dmax in specs
+    ]
+
+
+# ── Time-Adaptive helpers ───────────────────────────────────────────────
+# See the module docstring's "SCOPE (v4)" section. Time-Adaptive's own
+# time range is split into one or more "step groups" (ta_step_groups, a
+# JSON list of {"t_start","t_end","steps"}), each independently
+# configurable in the Time Adaptive panel (main_window.py's
+# ta_group_rows/_add_ta_step_group) -- every template ships with exactly
+# one group by default, so in the common case this surfaces as a single
+# "Time Adaptive: Group 1 steps" entry, matching what most users mean by
+# "the number of time steps." Mirrors the same JSON-list-with-legacy-
+# fallback shape every other per-row section in this module already
+# uses: codegen.py's own reader (generate_script()'s ta_groups parsing)
+# falls back to a single group built from t_min/t_max/ta_num_steps when
+# ta_step_groups is empty, so _ta_groups_list() below does the same.
+# ta_grid_size (the per-axis IC-resample grid resolution) is a separate,
+# single scalar -- one sweep entry, not per-group.
+
+def _ta_available(config) -> bool:
+    return getattr(config, "adapt_method", "None") == "Time Adaptive"
+
+
+def _ta_groups_list(config) -> list:
+    raw = getattr(config, "ta_step_groups", "") or ""
+    groups = []
+    if raw:
+        try:
+            parsed = json.loads(raw)
+        except (ValueError, TypeError):
+            parsed = []
+        for g in (parsed or []):
+            g = g or {}
+            try:
+                t_start = float(g.get("t_start", 0.0))
+                t_end = float(g.get("t_end", 1.0))
+                steps = int(g.get("steps", 10))
+            except (TypeError, ValueError):
+                continue
+            groups.append({"t_start": t_start, "t_end": t_end, "steps": steps})
+    if not groups:
+        groups.append({
+            "t_start": getattr(config, "t_min", 0.0),
+            "t_end": getattr(config, "t_max", 1.0),
+            "steps": getattr(config, "ta_num_steps", 10),
+        })
+    return groups
+
+
+def _ta_group_get_steps(config, idx: int):
+    groups = _ta_groups_list(config)
+    return groups[idx]["steps"] if idx < len(groups) else None
+
+
+def _ta_group_set_steps(config, idx: int, value) -> None:
+    groups = _ta_groups_list(config)
+    if idx >= len(groups):
+        return  # is_available() guards against this being reachable.
+    groups[idx]["steps"] = int(value)
+    config.ta_step_groups = json.dumps(groups)
+    # Keep the derived flat total in sync -- see the module docstring's
+    # "SCOPE (v2)" loss-weight section for the same reasoning: codegen.py
+    # and main_window.py both fall back to ta_num_steps directly whenever
+    # ta_step_groups is empty/absent, so the aggregate has to track the
+    # per-group JSON this function is the one place that edits.
+    config.ta_num_steps = sum(g["steps"] for g in groups)
+
+
+def _ta_group_params(config) -> List["SweepParam"]:
+    if not _ta_available(config):
+        return []
+    params = []
+    for i, g in enumerate(_ta_groups_list(config)):
+        params.append(SweepParam(
+            id=f"ta_group{i}_steps",
+            label=f"Time Adaptive: Group {i + 1} steps ({g['t_start']:g}→{g['t_end']:g})",
+            category="Time Adaptive", value_type="int",
+            default_min=5, default_max=50,
+            get_value=lambda c, idx=i: _ta_group_get_steps(c, idx),
+            set_value=lambda c, v, idx=i: _ta_group_set_steps(c, idx, v),
+            is_available=lambda c: _ta_available(c),
+        ))
+    return params
+
+
+def _ta_grid_param(config) -> List["SweepParam"]:
+    if not _ta_available(config):
+        return []
+    return [SweepParam(
+        id="ta_grid_size", label="Time Adaptive: IC grid resolution",
+        category="Time Adaptive", value_type="categorical",
+        choices=["11", "21", "51", "101"],
+        get_value=lambda c: str(getattr(c, "ta_grid_size", 101)),
+        set_value=lambda c, v: setattr(c, "ta_grid_size", int(v)),
+        is_available=lambda c: _ta_available(c),
+    )]
+
+
+# ── Input / output transform helpers ────────────────────────────────────
+# See the module docstring's "SCOPE (v4)" section. Each transform's rows
+# already exist one-per-axis/one-per-output (main_window.py's
+# input_transform_rows/output_transform_rows, each holding its own scale
+# and shift spin box: "label x_raw * scale + shift") -- only `scale` is
+# exposed here (per the user's own request; shift isn't), one entry per
+# row THIS config currently has, gated on that transform's own Enable
+# checkbox. The row count is read directly off the already-built
+# input_transform_scale/output_transform_scale lists (sized correctly at
+# _build_config() time for the problem's current dimension/output count)
+# rather than re-deriving dimension/num_outputs independently here.
+
+def _it_available(config) -> bool:
+    return bool(getattr(config, "input_transform_enabled", False))
+
+
+def _it_scale_get(config, idx: int):
+    scales = getattr(config, "input_transform_scale", None) or []
+    return scales[idx] if idx < len(scales) else None
+
+
+def _it_scale_set(config, idx: int, value) -> None:
+    scales = list(getattr(config, "input_transform_scale", None) or [])
+    if idx >= len(scales):
+        return  # is_available() guards against this being reachable.
+    scales[idx] = float(value)
+    config.input_transform_scale = scales
+
+
+def _it_dim_labels(n: int) -> list:
+    """Mirrors main_window.py's own _current_input_dim_labels(): input
+    transform rows are one per (x[,y[,z]],t) axis, in that order, sized
+    by the input list's own length rather than re-reading the GUI's
+    radio_2d/radio_3d (config has no dimension field of its own -- the
+    row count this config was built with already encodes it)."""
+    if n <= 2:
+        return ["x", "t"][:n]
+    if n == 3:
+        return ["x", "y", "t"]
+    return ["x", "y", "z", "t"][:n] if n >= 4 else ["x", "t"][:n]
+
+
+def _it_scale_params(config) -> List["SweepParam"]:
+    if not _it_available(config):
+        return []
+    scales = getattr(config, "input_transform_scale", None) or []
+    labels = _it_dim_labels(len(scales))
+    params = []
+    for i in range(len(scales)):
+        tag = labels[i] if i < len(labels) else f"dim {i + 1}"
+        # Bare label (no leading "Input transform: " repeated here) --
+        # the dropdown already prefixes every entry with its own category
+        # ("Input Transform: "). An earlier version of this label DID
+        # repeat it (lowercase "Input transform: "), which, since it
+        # didn't case-match the category string exactly, silently
+        # defeated _refresh_sweep_param_choices()'s own
+        # already-prefixed check and produced a doubled, inconsistently-
+        # cased "Input Transform: Input transform: x scale" in the
+        # dropdown -- caught visually in an Xvfb screenshot, not by any
+        # automated test (none of them render the actual combo text).
+        params.append(SweepParam(
+            id=f"it_scale_{i}", label=f"{tag} scale",
+            category="Input Transform", value_type="float",
+            default_min=0.1, default_max=10.0,
+            get_value=lambda c, idx=i: _it_scale_get(c, idx),
+            set_value=lambda c, v, idx=i: _it_scale_set(c, idx, v),
+            is_available=lambda c: _it_available(c),
+        ))
+    return params
+
+
+def _ot_available(config) -> bool:
+    return bool(getattr(config, "output_transform_enabled", False))
+
+
+def _ot_scale_get(config, idx: int):
+    scales = getattr(config, "output_transform_scale", None) or []
+    return scales[idx] if idx < len(scales) else None
+
+
+def _ot_scale_set(config, idx: int, value) -> None:
+    scales = list(getattr(config, "output_transform_scale", None) or [])
+    if idx >= len(scales):
+        return  # is_available() guards against this being reachable.
+    scales[idx] = float(value)
+    config.output_transform_scale = scales
+
+
+def _ot_scale_params(config) -> List["SweepParam"]:
+    if not _ot_available(config):
+        return []
+    scales = getattr(config, "output_transform_scale", None) or []
+    params = []
+    for i in range(len(scales)):
+        # Bare label here too -- see _it_scale_params()'s own note on the
+        # same doubled-prefix bug this had.
+        params.append(SweepParam(
+            id=f"ot_scale_{i}", label=f"Output {i + 1} scale",
+            category="Output Transform", value_type="float",
+            default_min=0.1, default_max=10.0,
+            get_value=lambda c, idx=i: _ot_scale_get(c, idx),
+            set_value=lambda c, v, idx=i: _ot_scale_set(c, idx, v),
+            is_available=lambda c: _ot_available(c),
+        ))
+    return params
+
+
 # ── Static (always-available) registry entries ────────────────────────
 
 _STATIC_PARAMS: List[SweepParam] = [
@@ -554,6 +848,32 @@ _STATIC_PARAMS: List[SweepParam] = [
         set_value=lambda c, v: setattr(c, "num_test", int(v)),
         is_available=lambda c: True,
     ),
+    # SCOPE (v4): three more always-available Network-ish knobs that were
+    # simple scalar/categorical config fields already (no per-row
+    # indexing, no gating needed) but had no sweep entry at all yet.
+    SweepParam(
+        id="point_distribution", label="Point distribution", category="Collocation Points",
+        value_type="categorical",
+        choices=["Hammersley", "uniform", "Halton", "LHS", "Sobol", "pseudorandom"],
+        get_value=lambda c: c.point_distribution,
+        set_value=lambda c, v: setattr(c, "point_distribution", str(v)),
+        is_available=lambda c: True,
+    ),
+    SweepParam(
+        id="activation", label="Activation", category="Network",
+        value_type="categorical", choices=["tanh", "relu", "sigmoid", "swish"],
+        get_value=lambda c: c.activation,
+        set_value=lambda c, v: setattr(c, "activation", str(v)),
+        is_available=lambda c: True,
+    ),
+    SweepParam(
+        id="kernel_initializer", label="Kernel initializer", category="Network",
+        value_type="categorical",
+        choices=["Glorot uniform", "Glorot normal", "He uniform", "He normal", "zeros"],
+        get_value=lambda c: c.kernel_initializer,
+        set_value=lambda c, v: setattr(c, "kernel_initializer", str(v)),
+        is_available=lambda c: True,
+    ),
 ]
 
 
@@ -594,13 +914,22 @@ def available_params(config) -> List[SweepParam]:
     per-phase weights are allowed to diverge, see "SCOPE (v2)" above),
     plus one entry per trainable variable's initial guess and one per
     measured-data file's loss weight when this is an Inverse problem
-    (see "SCOPE (v3)" above)."""
+    (see "SCOPE (v3)" above), plus RAR's own knobs when RAR is the
+    selected adaptive method, one entry per Time-Adaptive step group plus
+    its IC grid resolution when Time Adaptive is selected, and one scale
+    entry per input/output transform row when that transform is enabled
+    (see "SCOPE (v4)" above)."""
     params = list(_STATIC_PARAMS)
     for i in range(num_phases(config)):
         params.extend(_phase_param(i))
     params.extend(_weight_params(config))
     params.extend(_inv_var_params(config))
     params.extend(_inv_obs_weight_params(config))
+    params.extend(_rar_params(config))
+    params.extend(_ta_group_params(config))
+    params.extend(_ta_grid_param(config))
+    params.extend(_it_scale_params(config))
+    params.extend(_ot_scale_params(config))
     return [p for p in params if p.is_available(config)]
 
 
