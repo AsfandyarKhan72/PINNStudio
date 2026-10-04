@@ -50,6 +50,37 @@ Checks:
    steady 2D model, matching the user's actual Error-Analysis-on-restore
    use case for their corrected Soomro_Paper problem.
 
+SECOND BUG, found when the user re-tried restoring after the first fix
+above and hit the *same* crash again: the checks above all hand-built the
+`cfg` dict directly with "steady_state" already set, which never exercised
+the actual save path at all -- so they missed that codegen.py's own
+`_model_config` dict (what actually gets written to model_config.json by
+a real training run) never included "steady_state" in the first place.
+Every restored steady-state model was silently defaulting to "treat as
+transient" (cfg.get("steady_state", False)) regardless of the fix above,
+because the saved file never said otherwise. Confirmed directly against
+the user's own model_config.json (grep for "steady_state" found nothing).
+
+Second fix: codegen.py's `_model_config` dict (the one write site for
+model_config.json, confirmed via grep -- the Time-Adaptive step_config.json
+writer is separate and already unreachable for steady-state, since Time
+Adaptive is hidden whenever Steady-state is checked) now includes
+"steady_state": config.steady_state, plus "z_min"/"z_max" (present in the
+Time-Adaptive step writer already, but missing here -- needed for a 3D
+steady model's restore to use the right domain instead of silently
+defaulting to [0,1]).
+
+test_real_save_then_restore_steady_2d below closes exactly this gap: it
+goes through the REAL pipeline end to end -- load the GUI's own "2D
+Poisson (Disk)" steady-state Quick Example, build a real PINNConfig via
+_build_config(), run codegen.generate_script()'s actual generated script
+as a subprocess (so model_config.json is written by the real save code,
+not assembled by the test), read that file back, and feed it into
+_build_restore_script() to restore the real checkpoint that run produced.
+Verified this exact test fails without the codegen.py fix (model_config.
+json has no "steady_state" key -> restore script defaults to transient ->
+the same shape-mismatch RuntimeError) and passes with it.
+
 Run directly:
     QT_QPA_PLATFORM=offscreen python3 tests/test_restore_steady_state.py
 """
@@ -245,6 +276,72 @@ def run():
               f"restore+EA script for steady 2D should finish Error Analysis, got:\n{proc.stdout}")
         check(os.path.exists(os.path.join(tmpdir, "error_analysis", "error_metrics_restore.txt")),
               "restore+EA script for steady 2D should save error_metrics_restore.txt")
+
+    # ── Real end-to-end pipeline: GUI template -> _build_config() -> ──
+    # generate_script() -> actual training subprocess writes a REAL
+    # model_config.json -> read it back -> _build_restore_script() restores
+    # the REAL checkpoint that run produced. This is the only check in this
+    # file that exercises codegen.py's own model_config.json writer rather
+    # than a hand-built cfg dict -- which is exactly what let the second bug
+    # (missing "steady_state" key in that writer) slip past every check
+    # above.
+    with tempfile.TemporaryDirectory() as tmpdir:
+        from pinnstudio.core.codegen import generate_script
+
+        win2 = MainWindow()
+        win2.radio_2d.setChecked(True)
+        win2._on_dim_changed()  # repopulates quick_examples_combo with the 2D list
+        win2.quick_examples_combo.setCurrentText("2D Poisson (Disk)")
+        _app.processEvents()
+        check(win2.steady_state_check.isChecked(),
+              "precondition failed: '2D Poisson (Disk)' should load as steady-state")
+        # Trim every phase down to near-nothing -- only the real save-time
+        # behavior matters here, not solution quality.
+        for ph in win2.sched_phase_list:
+            ph['iters'].setValue(1)
+        win2.iter1_spin.setValue(1)
+        win2.iter2_spin.setValue(0)
+        win2.save_dir_input.setText(tmpdir)
+
+        config = win2._build_config()
+        check(config.steady_state is True, "built config should have steady_state=True")
+
+        train_script = generate_script(config)
+        sp = os.path.join(tmpdir, "train_script.py")
+        with open(sp, "w") as f:
+            f.write(train_script)
+        proc = subprocess.run([sys.executable, sp], cwd=tmpdir, capture_output=True, text=True, timeout=180)
+        check(proc.returncode == 0,
+              f"real training run for '2D Poisson (Disk)' should complete, got exit {proc.returncode}:\n{proc.stdout[-2000:]}\n{proc.stderr[-2000:]}")
+
+        mc_path = os.path.join(tmpdir, "solution_results", "model_config.json")
+        check(os.path.exists(mc_path), f"real training run should write {mc_path}")
+        if os.path.exists(mc_path):
+            with open(mc_path) as f:
+                saved_cfg = json.load(f)
+            check(saved_cfg.get("steady_state") is True,
+                  f"model_config.json written by a real steady-state training run should have "
+                  f"\"steady_state\": true, got {saved_cfg.get('steady_state')!r} (full keys: {sorted(saved_cfg)})")
+
+            pt_candidates = [f for f in os.listdir(os.path.join(tmpdir, "solution_results")) if f.endswith(".pt")]
+            check(bool(pt_candidates), "real training run should save at least one .pt checkpoint")
+            if pt_candidates:
+                pt_name = max(pt_candidates, key=lambda f: os.path.getmtime(
+                    os.path.join(tmpdir, "solution_results", f)))
+                pt_path = os.path.join(tmpdir, "solution_results", pt_name)
+                # Match the Restore panel's own "Optimizer used for this model"
+                # selector to whichever phase actually produced this checkpoint
+                # (its optimizer_state_dict only loads correctly into the same
+                # optimizer type it was saved from) -- same as a real user
+                # would pick after checking which phase's file they browsed to.
+                restore_optimizer = "lbfgs" if "lbfgs" in pt_name else "adam"
+                restore_script = win2._build_restore_script(pt_path, saved_cfg, restore_optimizer, "Surface", 0, 5, tmpdir)
+                rproc = _run_script(restore_script, tmpdir, "real_pipeline_restore")
+                check(rproc.returncode == 0,
+                      f"restoring the real checkpoint from model_config.json should work, got exit "
+                      f"{rproc.returncode}:\n{rproc.stdout}\n{rproc.stderr}")
+                check("RESTORE_DONE" in rproc.stdout,
+                      f"real-pipeline restore should finish (RESTORE_DONE), got:\n{rproc.stdout}")
 
     return failures
 

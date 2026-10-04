@@ -674,8 +674,20 @@ if _use_save:
         "output_names": {repr(config.output_names)},
         "x_min": {config.x_min}, "x_max": {config.x_max},
         "y_min": {config.y_min}, "y_max": {config.y_max},
+        "z_min": {config.z_min}, "z_max": {config.z_max},
         "t_min": {config.t_min}, "t_max": {config.t_max},
         "problem_dim": {repr(config.problem_dim)},
+        # Restoring a model has no other way to tell a steady-state
+        # checkpoint from a transient one -- _build_restore_script()/
+        # _build_restore_ea_script() in main_window.py both read this key
+        # (defaulting to False, i.e. transient, when absent) to decide
+        # whether model.predict(...)'s input arrays need a time column.
+        # Missing here before this fix -- so EVERY restored steady-state
+        # model was silently treated as transient, appending a time column
+        # the restored network's first layer was never sized for, crashing
+        # with "mat1 and mat2 shapes cannot be multiplied" the moment you
+        # tried to plot or run Error Analysis against it.
+        "steady_state": {config.steady_state},
         "pde_expressions": {repr(config.pde_expressions)},
         "optimizer": {repr(config.optimizer)},
         "optimizer2": {repr(config.optimizer2)},
