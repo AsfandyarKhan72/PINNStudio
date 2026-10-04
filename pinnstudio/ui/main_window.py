@@ -948,9 +948,33 @@ class MainWindow(QMainWindow):
         self.geom_panel_sphere.setVisible(False)
         domain_layout.addWidget(self.geom_panel_sphere)
 
+        # -- Custom panel (2D only): a list of primitive shapes, each
+        # after the first combined with the running result via a boolean
+        # op (Union/Subtract/Intersect) -- see _add_custom_geom_shape().
+        # This is how a shape outside the fixed list above (e.g. the
+        # triangle-with-a-circular-hole in the reference image) gets
+        # built: as a small CSG chain of the primitives already offered
+        # elsewhere in this panel, rather than as a wholly new shape kind.
+        self.geom_panel_custom = QWidget()
+        _cp = QVBoxLayout(self.geom_panel_custom)
+        _cp.setContentsMargins(0, 0, 0, 0); _cp.setSpacing(4)
+        _cp.addWidget(QLabel("Shapes (combined top to bottom):"))
+        self.custom_geom_shapes_container = QWidget()
+        self.custom_geom_shapes_layout = QVBoxLayout(self.custom_geom_shapes_container)
+        self.custom_geom_shapes_layout.setContentsMargins(0, 0, 0, 0)
+        self.custom_geom_shapes_layout.setSpacing(2)
+        _cp.addWidget(self.custom_geom_shapes_container)
+        custom_geom_add_btn = QPushButton("+ Add Shape")
+        custom_geom_add_btn.setFixedHeight(26)
+        custom_geom_add_btn.clicked.connect(lambda: self._add_custom_geom_shape())
+        _cp.addWidget(custom_geom_add_btn)
+        self.geom_panel_custom.setVisible(False)
+        domain_layout.addWidget(self.geom_panel_custom)
+        self.custom_geom_shape_rows = []
+
         self._geom_shape_panels = [
             self.geom_panel_disk, self.geom_panel_ellipse, self.geom_panel_triangle,
-            self.geom_panel_polygon, self.geom_panel_sphere,
+            self.geom_panel_polygon, self.geom_panel_sphere, self.geom_panel_custom,
         ]
         self.geom_triangle_verts_input.textChanged.connect(self._on_geom_vertices_changed)
         self.geom_polygon_verts_input.textChanged.connect(self._on_geom_vertices_changed)
@@ -2786,8 +2810,10 @@ class MainWindow(QMainWindow):
         return json.dumps(entries)
 
     # ── Dimension change ──────────────────────────────────────
-    GEOM_TYPES_2D = ["Rectangle", "Disk", "Ellipse", "Triangle", "Polygon"]
+    GEOM_TYPES_2D = ["Rectangle", "Disk", "Ellipse", "Triangle", "Polygon", "Custom"]
     GEOM_TYPES_3D = ["Cuboid", "Sphere"]
+    CUSTOM_GEOM_SHAPE_TYPES = ["Rectangle", "Disk", "Ellipse", "Triangle", "Polygon"]
+    CUSTOM_GEOM_OPS = [("Union (add)", "union"), ("Subtract (cut hole)", "subtract"), ("Intersect", "intersect")]
 
     def _current_input_dim_labels(self):
         if self.radio_3d.isChecked():
@@ -2933,6 +2959,15 @@ class MainWindow(QMainWindow):
         return "Interval"
 
     def _on_geometry_type_changed(self, text):
+        # Seed the Custom-geometry builder with one starting shape the
+        # first time it's selected, rather than showing an empty list
+        # with nothing but an "Add Shape" button -- mirrors how the
+        # Parameter Sweep panel always starts with one row already
+        # present. Only seeds once per MainWindow instance (once the
+        # list is non-empty, switching away and back leaves it as the
+        # user left it).
+        if text == "Custom" and hasattr(self, 'custom_geom_shape_rows') and not self.custom_geom_shape_rows:
+            self._add_custom_geom_shape()
         self._update_domain_fields_visibility()
         # Rebuild BCs: the boundary-condition layout (sides / unified /
         # per-edge) depends on which geometry type is now selected.
@@ -2963,6 +2998,7 @@ class MainWindow(QMainWindow):
             "Triangle": self.geom_panel_triangle,
             "Polygon": self.geom_panel_polygon,
             "Sphere": self.geom_panel_sphere,
+            "Custom": self.geom_panel_custom,
         }
         panel = panel_map.get(geom_type)
         if panel is not None:
@@ -3037,6 +3073,271 @@ class MainWindow(QMainWindow):
             if abs((x1 - x0) * (y1 - y0)) > 1e-8:
                 return False
         return True
+
+    def _add_custom_geom_shape(self, shape_type="Rectangle", op="union", params=None):
+        """One shape block in the Custom-geometry builder, stacked top-to-
+        bottom the same way _add_sweep_row's parameter blocks are. The
+        first shape in the list is the starting geometry and has no
+        combine-op; every shape after it is combined with the running
+        result so far via the chosen boolean op (Union/Subtract/
+        Intersect), in list order -- the same semantics as DeepXDE's
+        CSGUnion/CSGDifference/CSGIntersection applied left to right, so
+        e.g. a triangle with a circular hole is just [Triangle, (Disk,
+        subtract)]."""
+        params = params or {}
+        row_widget = QWidget()
+        row_widget.setObjectName("customGeomShapeRow")
+        row_widget.setStyleSheet(
+            "QWidget#customGeomShapeRow { border-bottom: 1px solid #333338; }")
+        row_layout = QVBoxLayout(row_widget)
+        row_layout.setSpacing(3)
+        row_layout.setContentsMargins(0, 4, 0, 6)
+
+        header_row = QHBoxLayout()
+        row_num = len(self.custom_geom_shape_rows) + 1
+        header_lbl = QLabel(f"── Shape {row_num} ──")
+        self._register_style(header_lbl, "hint", lambda css, _c='#a0c4ff', _e='': f"color: {_c}; {_e}{css}")
+        header_row.addWidget(header_lbl)
+        header_row.addStretch()
+        up_btn = QPushButton("▲")
+        down_btn = QPushButton("▼")
+        for _btn in (up_btn, down_btn):
+            _btn.setFixedHeight(22); _btn.setFixedWidth(22)
+            _btn.setStyleSheet(
+                "QPushButton { color: #a0c4ff; background: transparent; border: none; }")
+            header_row.addWidget(_btn)
+        remove_btn = QPushButton("✕")
+        remove_btn.setFixedHeight(22); remove_btn.setFixedWidth(24)
+        remove_btn.setStyleSheet(
+            "QPushButton { color: #ff8787; background: transparent; border: none; }")
+        header_row.addWidget(remove_btn)
+        row_layout.addLayout(header_row)
+
+        # Combine-with-previous op -- hidden for the first shape, which
+        # has nothing before it in the list to combine with.
+        op_row_widget = QWidget()
+        op_row = QHBoxLayout(op_row_widget)
+        op_row.setContentsMargins(0, 0, 0, 0)
+        op_row.addWidget(QLabel("Combine:"))
+        op_combo = QComboBox()
+        for _label, _val in self.CUSTOM_GEOM_OPS:
+            op_combo.addItem(_label, _val)
+        _op_idx = op_combo.findData(op)
+        if _op_idx >= 0:
+            op_combo.setCurrentIndex(_op_idx)
+        op_combo.setFixedHeight(24)
+        op_row.addStretch(); op_row.addWidget(op_combo)
+        row_layout.addWidget(op_row_widget)
+
+        # Shape type
+        type_row = QHBoxLayout()
+        type_row.addWidget(QLabel("Shape type:"))
+        type_combo = QComboBox()
+        type_combo.addItems(self.CUSTOM_GEOM_SHAPE_TYPES)
+        type_combo.setFixedHeight(26)
+        type_row.addStretch(); type_row.addWidget(type_combo)
+        row_layout.addLayout(type_row)
+
+        # Per-type parameter panels -- same fields/defaults as the
+        # top-level Disk/Ellipse/Triangle/Polygon panels above, just
+        # scoped to this one row instead of to the whole Domain group,
+        # since a Custom geometry can hold several shapes of the same
+        # type at once (e.g. two Disks).
+        rect_panel = QWidget()
+        _p = QHBoxLayout(rect_panel); _p.setContentsMargins(0, 0, 0, 0)
+        _p.addWidget(QLabel("x:"))
+        rect_xmin = QDoubleSpinBox(); rect_xmin.setRange(-1e6, 1e6); rect_xmin.setValue(params.get("x_min", 0.0)); rect_xmin.setSingleStep(0.1)
+        rect_xmax = QDoubleSpinBox(); rect_xmax.setRange(-1e6, 1e6); rect_xmax.setValue(params.get("x_max", 1.0)); rect_xmax.setSingleStep(0.1)
+        _p.addWidget(rect_xmin); _p.addWidget(QLabel("to")); _p.addWidget(rect_xmax)
+        _p.addWidget(QLabel("y:"))
+        rect_ymin = QDoubleSpinBox(); rect_ymin.setRange(-1e6, 1e6); rect_ymin.setValue(params.get("y_min", 0.0)); rect_ymin.setSingleStep(0.1)
+        rect_ymax = QDoubleSpinBox(); rect_ymax.setRange(-1e6, 1e6); rect_ymax.setValue(params.get("y_max", 1.0)); rect_ymax.setSingleStep(0.1)
+        _p.addWidget(rect_ymin); _p.addWidget(QLabel("to")); _p.addWidget(rect_ymax)
+        row_layout.addWidget(rect_panel)
+
+        disk_panel = QWidget()
+        _p = QHBoxLayout(disk_panel); _p.setContentsMargins(0, 0, 0, 0)
+        _p.addWidget(QLabel("center x,y:"))
+        disk_cx = QDoubleSpinBox(); disk_cx.setRange(-1e6, 1e6); disk_cx.setValue(params.get("cx", 0.5)); disk_cx.setSingleStep(0.1)
+        disk_cy = QDoubleSpinBox(); disk_cy.setRange(-1e6, 1e6); disk_cy.setValue(params.get("cy", 0.5)); disk_cy.setSingleStep(0.1)
+        _p.addWidget(disk_cx); _p.addWidget(disk_cy)
+        _p.addWidget(QLabel("radius:"))
+        disk_r = QDoubleSpinBox(); disk_r.setRange(1e-6, 1e6); disk_r.setValue(params.get("r", 0.2)); disk_r.setSingleStep(0.1)
+        _p.addWidget(disk_r)
+        row_layout.addWidget(disk_panel)
+
+        ellipse_panel = QWidget()
+        _p = QVBoxLayout(ellipse_panel); _p.setContentsMargins(0, 0, 0, 0); _p.setSpacing(4)
+        _row_a = QHBoxLayout()
+        _row_a.addWidget(QLabel("center x,y:"))
+        ell_cx = QDoubleSpinBox(); ell_cx.setRange(-1e6, 1e6); ell_cx.setValue(params.get("cx", 0.5)); ell_cx.setSingleStep(0.1)
+        ell_cy = QDoubleSpinBox(); ell_cy.setRange(-1e6, 1e6); ell_cy.setValue(params.get("cy", 0.5)); ell_cy.setSingleStep(0.1)
+        _row_a.addWidget(ell_cx); _row_a.addWidget(ell_cy)
+        _p.addLayout(_row_a)
+        _row_b = QHBoxLayout()
+        _row_b.addWidget(QLabel("semi-major, semi-minor:"))
+        ell_a = QDoubleSpinBox(); ell_a.setRange(1e-6, 1e6); ell_a.setValue(params.get("a", 0.5)); ell_a.setSingleStep(0.1)
+        ell_b = QDoubleSpinBox(); ell_b.setRange(1e-6, 1e6); ell_b.setValue(params.get("b", 0.3)); ell_b.setSingleStep(0.1)
+        _row_b.addWidget(ell_a); _row_b.addWidget(ell_b)
+        _p.addLayout(_row_b)
+        _row_c = QHBoxLayout()
+        _row_c.addWidget(QLabel("angle (rad):"))
+        ell_angle = QDoubleSpinBox(); ell_angle.setRange(-100, 100); ell_angle.setValue(params.get("angle", 0.0)); ell_angle.setSingleStep(0.1)
+        _row_c.addWidget(ell_angle)
+        _p.addLayout(_row_c)
+        row_layout.addWidget(ellipse_panel)
+
+        tri_panel = QWidget()
+        _p = QVBoxLayout(tri_panel); _p.setContentsMargins(0, 0, 0, 0); _p.setSpacing(2)
+        _p.addWidget(QLabel("vertices (x1,y1;x2,y2;x3,y3):"))
+        tri_verts = QLineEdit(params.get("vertices_text", "0,0;1,0;0,1"))
+        tri_verts.setFixedHeight(26)
+        _p.addWidget(tri_verts)
+        row_layout.addWidget(tri_panel)
+
+        poly_panel = QWidget()
+        _p = QVBoxLayout(poly_panel); _p.setContentsMargins(0, 0, 0, 0); _p.setSpacing(2)
+        _p.addWidget(QLabel("vertices (x1,y1;x2,y2;...), any count ≥ 3:"))
+        poly_verts = QLineEdit(params.get("vertices_text", "0,0;1,0;1,1;0,1"))
+        poly_verts.setFixedHeight(26)
+        _p.addWidget(poly_verts)
+        row_layout.addWidget(poly_panel)
+
+        type_panel_map = {
+            "Rectangle": rect_panel, "Disk": disk_panel, "Ellipse": ellipse_panel,
+            "Triangle": tri_panel, "Polygon": poly_panel,
+        }
+
+        def _update_type_panels():
+            cur = type_combo.currentText()
+            for _t, _panel in type_panel_map.items():
+                _panel.setVisible(_t == cur)
+
+        type_combo.currentTextChanged.connect(lambda _t: _update_type_panels())
+        type_combo.setCurrentText(shape_type)
+        _update_type_panels()
+
+        self.custom_geom_shapes_layout.addWidget(row_widget)
+        row_data = {
+            'widget': row_widget,
+            'op_row_widget': op_row_widget,
+            'op_combo': op_combo,
+            'type_combo': type_combo,
+            'rect_xmin': rect_xmin, 'rect_xmax': rect_xmax,
+            'rect_ymin': rect_ymin, 'rect_ymax': rect_ymax,
+            'disk_cx': disk_cx, 'disk_cy': disk_cy, 'disk_r': disk_r,
+            'ell_cx': ell_cx, 'ell_cy': ell_cy, 'ell_a': ell_a, 'ell_b': ell_b, 'ell_angle': ell_angle,
+            'tri_verts': tri_verts,
+            'poly_verts': poly_verts,
+        }
+        self.custom_geom_shape_rows.append(row_data)
+        op_row_widget.setVisible(len(self.custom_geom_shape_rows) > 1)
+
+        def _remove():
+            row_widget.deleteLater()
+            if row_data in self.custom_geom_shape_rows:
+                self.custom_geom_shape_rows.remove(row_data)
+            # The shape now first in the list (if any) has nothing before
+            # it any more -- hide its combine-op row the same way it's
+            # hidden for whichever shape is added first.
+            if self.custom_geom_shape_rows:
+                self.custom_geom_shape_rows[0]['op_row_widget'].setVisible(False)
+
+        remove_btn.clicked.connect(_remove)
+        up_btn.clicked.connect(lambda: self._move_custom_geom_shape(row_data, -1))
+        down_btn.clicked.connect(lambda: self._move_custom_geom_shape(row_data, 1))
+        return row_data
+
+    def _move_custom_geom_shape(self, row_data, delta):
+        """Move one shape up/down in the combine order -- CSG ops are not
+        commutative (Triangle-subtract-Disk and Disk-subtract-Triangle are
+        different shapes), so letting the user fix the order without
+        deleting and re-adding every shape matters here more than it does
+        for e.g. the Parameter Sweep rows, which have no such ordering
+        dependency."""
+        if row_data not in self.custom_geom_shape_rows:
+            return
+        i = self.custom_geom_shape_rows.index(row_data)
+        j = i + delta
+        if j < 0 or j >= len(self.custom_geom_shape_rows):
+            return
+        rows = self.custom_geom_shape_rows
+        rows[i], rows[j] = rows[j], rows[i]
+        # Re-lay the row widgets out in the new order (no widgets are
+        # destroyed here -- just taken out of the layout and re-added).
+        while self.custom_geom_shapes_layout.count():
+            self.custom_geom_shapes_layout.takeAt(0)
+        for row in rows:
+            self.custom_geom_shapes_layout.addWidget(row['widget'])
+        # Only the first shape in the list has no combine-op; every other
+        # position (including one that just became/stopped being first)
+        # needs its op row's visibility re-checked.
+        for idx, row in enumerate(rows):
+            row['op_row_widget'].setVisible(idx > 0)
+
+    def _custom_geom_row_to_dict(self, row, is_first):
+        """One shape row's widget values -> the plain dict codegen.py
+        reads (see config.py's geom_custom_shapes_json docs). 'op' is
+        omitted for the first shape -- it's the starting geometry, not
+        combined with anything."""
+        shape_type = row['type_combo'].currentText()
+        if shape_type == "Rectangle":
+            shape_params = {
+                "x_min": row['rect_xmin'].value(), "x_max": row['rect_xmax'].value(),
+                "y_min": row['rect_ymin'].value(), "y_max": row['rect_ymax'].value(),
+            }
+        elif shape_type == "Disk":
+            shape_params = {"cx": row['disk_cx'].value(), "cy": row['disk_cy'].value(), "r": row['disk_r'].value()}
+        elif shape_type == "Ellipse":
+            shape_params = {
+                "cx": row['ell_cx'].value(), "cy": row['ell_cy'].value(),
+                "a": row['ell_a'].value(), "b": row['ell_b'].value(), "angle": row['ell_angle'].value(),
+            }
+        elif shape_type == "Triangle":
+            shape_params = {"vertices_text": row['tri_verts'].text()}
+        else:  # Polygon
+            shape_params = {"vertices_text": row['poly_verts'].text()}
+        entry = {"type": shape_type, "params": shape_params}
+        if not is_first:
+            entry["op"] = row['op_combo'].currentData()
+        return entry
+
+    def _build_custom_geom_shapes_json(self):
+        """The Custom-geometry shape list, in builder order -> JSON, for
+        config.geom_custom_shapes_json. Mirrors _build_custom_bc_json's
+        role for the Boundary Conditions panel: this is the single
+        source of truth codegen.py reads to build the CSG chain."""
+        import json
+        entries = [
+            self._custom_geom_row_to_dict(row, is_first=(i == 0))
+            for i, row in enumerate(self.custom_geom_shape_rows)
+        ]
+        return json.dumps(entries)
+
+    def _apply_custom_geom_shapes_json(self, geom_custom_shapes_json):
+        """Rebuild the Custom-geometry shape list from a saved
+        geom_custom_shapes_json (loading a saved config/template)."""
+        import json
+        for row in list(self.custom_geom_shape_rows):
+            row['widget'].deleteLater()
+        self.custom_geom_shape_rows.clear()
+        if not geom_custom_shapes_json:
+            return
+        try:
+            entries = json.loads(geom_custom_shapes_json)
+        except (ValueError, TypeError):
+            entries = []
+        if not isinstance(entries, list):
+            return
+        for entry in entries:
+            if not isinstance(entry, dict):
+                continue
+            shape_type = entry.get("type")
+            if shape_type not in self.CUSTOM_GEOM_SHAPE_TYPES:
+                continue
+            params = entry.get("params") or {}
+            op = entry.get("op") or "union"
+            self._add_custom_geom_shape(shape_type=shape_type, op=op, params=params)
 
     def _on_quick_example_selected(self, text):
         if text == "None":
@@ -4720,6 +5021,7 @@ class MainWindow(QMainWindow):
             geom_angle=self.geom_ellipse_angle.value(),
             geom_triangle_vertices=self.geom_triangle_verts_input.text(),
             geom_polygon_vertices=self.geom_polygon_verts_input.text(),
+            geom_custom_shapes_json=self._build_custom_geom_shapes_json(),
             bc_boundary_json=_bc_group_json(self.bc_boundary_types, self.bc_boundary_vals, self.bc_boundary_active, n_out),
             bc_edge_json=_bc_edge_json(n_out),
             custom_bc_json=self._build_custom_bc_json(),
@@ -5241,6 +5543,7 @@ class MainWindow(QMainWindow):
         self.geom_sphere_cz.setValue(config.geom_center_z); self.geom_sphere_r.setValue(config.geom_radius)
         self.geom_triangle_verts_input.setText(config.geom_triangle_vertices or "0,0;1,0;0,1")
         self.geom_polygon_verts_input.setText(config.geom_polygon_vertices or "0,0;1,0;1,1;0,1")
+        self._apply_custom_geom_shapes_json(getattr(config, 'geom_custom_shapes_json', '') or '')
 
         # 3.6) Geometry type -- rebuilds the BC rows one more time, this
         # time in the shape (box / unified boundary / per-edge) that
@@ -6791,6 +7094,72 @@ def _style_legend(ax):
         _leg.get_frame().set_linewidth(0.8)
 """
 
+    def _custom_geom_leaf_code(self, shape_type, params):
+        """One leaf shape's own dde.geometry constructor call + matplotlib
+        outline patch + bounding box, from a params dict in the schema
+        _custom_geom_row_to_dict() produces. Used only by the Custom-
+        geometry branch of _preview_domain() below -- the single-shape-
+        type branches there read straight from their own top-level
+        widgets and are left as they are, so this doesn't touch any
+        already-working preview path. Raises ValueError (message meant
+        to be shown to the user) for a Triangle/Polygon whose vertices
+        DeepXDE's own constructors would reject, mirroring the same
+        checks the Triangle/Polygon branch below already makes for the
+        single-shape case."""
+        import math as _math
+        if shape_type == "Rectangle":
+            x_min, x_max = params["x_min"], params["x_max"]
+            y_min, y_max = params["y_min"], params["y_max"]
+            if x_min >= x_max or y_min >= y_max:
+                raise ValueError("needs x_min < x_max and y_min < y_max.")
+            geom_code = f"dde.geometry.Rectangle([{x_min}, {y_min}], [{x_max}, {y_max}])"
+            patch_code = (
+                f"plt.Rectangle(({x_min},{y_min}), {x_max}-{x_min}, {y_max}-{y_min}, "
+                "linewidth=2, edgecolor='#1971c2', facecolor='none')"
+            )
+            bbox = (x_min, x_max, y_min, y_max)
+        elif shape_type == "Disk":
+            cx, cy, r = params["cx"], params["cy"], params["r"]
+            geom_code = f"dde.geometry.Disk([{cx}, {cy}], {r})"
+            patch_code = f"plt.Circle(({cx},{cy}), {r}, linewidth=2, edgecolor='#1971c2', facecolor='none')"
+            bbox = (cx - r, cx + r, cy - r, cy + r)
+        elif shape_type == "Ellipse":
+            cx, cy = params["cx"], params["cy"]
+            a, b, angle = params["a"], params["b"], params["angle"]
+            geom_code = f"dde.geometry.Ellipse([{cx}, {cy}], {a}, {b}, {angle})"
+            patch_code = (
+                f"matplotlib.patches.Ellipse(({cx},{cy}), {2*a}, {2*b}, angle={_math.degrees(angle)}, "
+                "linewidth=2, edgecolor='#1971c2', facecolor='none')"
+            )
+            dx = _math.sqrt((a * _math.cos(angle)) ** 2 + (b * _math.sin(angle)) ** 2)
+            dy = _math.sqrt((a * _math.sin(angle)) ** 2 + (b * _math.cos(angle)) ** 2)
+            bbox = (cx - dx, cx + dx, cy - dy, cy + dy)
+        else:  # Triangle / Polygon
+            verts = self._parse_vertices(params.get("vertices_text", ""))
+            if len(verts) < 3 or (shape_type == "Triangle" and len(verts) != 3):
+                raise ValueError(
+                    f"needs {'exactly 3' if shape_type == 'Triangle' else 'at least 3'} valid vertices."
+                )
+            if shape_type == "Polygon" and len(verts) == 3:
+                raise ValueError(
+                    "has only 3 vertices -- that's a Triangle, not a Polygon; "
+                    "change its shape type, or add a 4th vertex."
+                )
+            if shape_type == "Polygon" and self._is_axis_aligned_rectangle(verts):
+                raise ValueError(
+                    "those 4 vertices form an axis-aligned rectangle -- use the "
+                    "Rectangle shape type instead."
+                )
+            vlist = [list(v) for v in verts]
+            if shape_type == "Triangle":
+                geom_code = f"dde.geometry.Triangle({vlist[0]}, {vlist[1]}, {vlist[2]})"
+            else:
+                geom_code = f"dde.geometry.Polygon({vlist})"
+            patch_code = f"plt.Polygon({vlist}, closed=True, linewidth=2, edgecolor='#1971c2', facecolor='none')"
+            xs = [v[0] for v in verts]; ys = [v[1] for v in verts]
+            bbox = (min(xs), max(xs), min(ys), max(ys))
+        return geom_code, patch_code, bbox
+
     def _preview_domain(self):
         import tempfile, subprocess, sys, math
         spatial_path = self._DOMAIN_PREVIEW_SPATIAL_PATH
@@ -6802,7 +7171,7 @@ def _style_legend(ax):
         _TIME_DOM_PT_SIZE = self._TIME_DOM_PT_SIZE
         _TIME_BND_PT_SIZE = self._TIME_BND_PT_SIZE
         geom_type = self._current_geometry_type()
-        if geom_type not in ("Rectangle", "Disk", "Ellipse", "Triangle", "Polygon", "Cuboid", "Sphere"):
+        if geom_type not in ("Rectangle", "Disk", "Ellipse", "Triangle", "Polygon", "Cuboid", "Sphere", "Custom"):
             self.log_box.append(
                 f"⚠️ Domain preview for '{geom_type}' geometry isn't supported yet."
             )
@@ -6846,7 +7215,46 @@ def _style_legend(ax):
         # per shape, reading that shape's own parameters. x_min/x_max/y_min/
         # y_max only mean something for Rectangle; the others (center +
         # radius, semi-axes, vertex list) live on their own widgets.
-        if geom_type == "Rectangle":
+        if geom_type == "Custom":
+            if not self.custom_geom_shape_rows:
+                self.log_box.append("⚠️ Add at least one shape to preview a Custom domain.")
+                self.loss_label.setText("📉 Loss plot")
+                self.solution_label.setText("🗺 Solution plot")
+                return
+            entries = [
+                self._custom_geom_row_to_dict(row, is_first=(i == 0))
+                for i, row in enumerate(self.custom_geom_shape_rows)
+            ]
+            # No single matplotlib Patch can represent an arbitrary CSG
+            # result, so each leaf shape's own reference outline is drawn
+            # overlaid instead -- correctness of the point cloud itself
+            # comes entirely from on_boundary() below (shape-agnostic,
+            # works for any CSG combination with zero changes), so these
+            # patches are a visual aid only, not what's actually sampled.
+            patch_codes = []
+            bboxes = []
+            _CSG_OP_CTORS = {"union": "CSGUnion", "subtract": "CSGDifference", "intersect": "CSGIntersection"}
+            geom_code = None
+            for i, entry in enumerate(entries, start=1):
+                try:
+                    leaf_code, leaf_patch, leaf_bbox = self._custom_geom_leaf_code(entry["type"], entry["params"])
+                except ValueError as e:
+                    self.log_box.append(f"⚠️ Shape {i} ({entry['type']}) {e}")
+                    self.loss_label.setText("📉 Loss plot")
+                    self.solution_label.setText("🗺 Solution plot")
+                    return
+                patch_codes.append(leaf_patch)
+                bboxes.append(leaf_bbox)
+                if geom_code is None:
+                    geom_code = leaf_code
+                else:
+                    ctor = _CSG_OP_CTORS.get(entry.get("op") or "union", "CSGUnion")
+                    geom_code = f"dde.geometry.{ctor}({geom_code}, {leaf_code})"
+            bbox = (
+                min(b[0] for b in bboxes), max(b[1] for b in bboxes),
+                min(b[2] for b in bboxes), max(b[3] for b in bboxes),
+            )
+        elif geom_type == "Rectangle":
             x_min = self.x_min.value(); x_max = self.x_max.value()
             y_min = self.y_min.value(); y_max = self.y_max.value()
             geom_code = f"dde.geometry.Rectangle([{x_min}, {y_min}], [{x_max}, {y_max}])"
@@ -6910,11 +7318,15 @@ def _style_legend(ax):
             xs = [v[0] for v in verts]; ys = [v[1] for v in verts]
             bbox = (min(xs), max(xs), min(ys), max(ys))
 
+        if geom_type != "Custom":
+            patch_codes = [patch_code]
+
         bbox_x_min, bbox_x_max, bbox_y_min, bbox_y_max = bbox
         pad_x = max((bbox_x_max - bbox_x_min) * 0.05, 1e-6)
         pad_y = max((bbox_y_max - bbox_y_min) * 0.05, 1e-6)
         xlim_lo, xlim_hi = bbox_x_min - pad_x, bbox_x_max + pad_x
         ylim_lo, ylim_hi = bbox_y_min - pad_y, bbox_y_max + pad_y
+        _patch_codes_src = ",\n    ".join(patch_codes)
 
         script = f"""
 import os
@@ -6960,8 +7372,11 @@ fig, ax = plt.subplots(figsize=(7, 6.2))
 _style_axes(ax)
 ax.set_xlim({xlim_lo}, {xlim_hi})
 ax.set_ylim({ylim_lo}, {ylim_hi})
-shape_patch = {patch_code}
-ax.add_patch(shape_patch)
+shape_patches = [
+    {_patch_codes_src}
+]
+for _sp in shape_patches:
+    ax.add_patch(_sp)
 if len(dom_pts): ax.scatter(dom_pts[:,0], dom_pts[:,1], s={_DOMAIN_PT_SIZE}, c=DOM_COLOR, alpha=0.75, edgecolors='none', label=f'Domain ({{len(dom_pts)}})')
 if len(bnd_pts): ax.scatter(bnd_pts[:,0], bnd_pts[:,1], s={_BND_PT_SIZE}, c=BND_COLOR, alpha=1.0, edgecolors='white', linewidths=0.4, label=f'Boundary ({{len(bnd_pts)}})')
 ax.set_xlabel('x', fontsize=LABEL_FS)

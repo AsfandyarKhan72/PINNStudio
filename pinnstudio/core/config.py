@@ -258,9 +258,32 @@ class PINNConfig:
     ea_do_surface: bool = True
 
     # Geometry type & 3D domain
-    geometry_type: str = "Rectangle"  # 2D: Rectangle|Disk|Ellipse|Triangle|Polygon ; 3D: Cuboid|Sphere
+    geometry_type: str = "Rectangle"  # 2D: Rectangle|Disk|Ellipse|Triangle|Polygon|Custom ; 3D: Cuboid|Sphere
     z_min: float = 0.0
     z_max: float = 1.0
+
+    # Custom geometry (2D only, Phase 1): an ORDERED list of primitive
+    # shapes combined with boolean operations -- a small COMSOL-style CSG
+    # sequence, mirroring DeepXDE's own CSGUnion/CSGDifference/
+    # CSGIntersection, which this is built directly on top of (no new
+    # geometry math of our own). JSON-encoded list of dicts, one per shape,
+    # in build order:
+    #   {"type": "Rectangle"|"Disk"|"Ellipse"|"Triangle"|"Polygon",
+    #    "op": "base"|"union"|"subtract"|"intersect", <shape's own params>}
+    # The first shape's "op" is always ignored (it's the starting region);
+    # each later shape's "op" combines it against the RUNNING result built
+    # so far from every earlier shape -- same order-matters sequential-tree
+    # semantics as COMSOL's own Boolean Operations, not a flat set.
+    # Per-type params (same fields/format the single-shape geom_* widgets
+    # above already use, just scoped to one entry in this list instead of
+    # being the problem's only shape):
+    #   Rectangle: x_min, x_max, y_min, y_max
+    #   Disk:      center_x, center_y, radius
+    #   Ellipse:   center_x, center_y, semi_major, semi_minor, angle
+    #   Triangle:  vertices ("x1,y1;x2,y2;x3,y3")
+    #   Polygon:   vertices ("x1,y1;x2,y2;...", 4+ points)
+    # Only read/written when geometry_type == "Custom"; empty/"[]" otherwise.
+    geom_custom_shapes_json: str = "[]"
 
     # Disk / Ellipse / Sphere center
     geom_center_x: float = 0.5
@@ -467,6 +490,7 @@ class PINNConfig:
         for _field in (
             "scheduler_phases", "custom_bc_json", "bc_boundary_json",
             "bc_edge_json", "inverse_variables_json", "inverse_obs_files_json",
+            "geom_custom_shapes_json",
         ):
             _raw = getattr(self, _field, "") or ""
             if _raw.strip():
@@ -474,6 +498,39 @@ class PINNConfig:
                     _json_cfg.loads(_raw)
                 except (ValueError, TypeError) as _e:
                     errors.append(f"{_field} is not valid JSON: {_e}")
+
+        # Custom geometry: geom_custom_shapes_json must actually describe at
+        # least one recognized shape, or there's nothing to build a geometry
+        # from (the GUI should never let this happen via normal use, but a
+        # hand-edited or old config file could leave it empty). This mirrors
+        # the light-touch validation style used elsewhere in this method --
+        # it catches the crash-causing case (nothing to build) without
+        # trying to deeply validate every shape's numeric parameters, the
+        # same way geom_radius/geom_triangle_vertices etc. aren't validated
+        # for the other geometry types today.
+        if self.geometry_type == "Custom":
+            _raw_shapes = getattr(self, "geom_custom_shapes_json", "") or ""
+            _KNOWN_SHAPE_TYPES = ("Rectangle", "Disk", "Ellipse", "Triangle", "Polygon")
+            try:
+                _shapes_cfg = _json_cfg.loads(_raw_shapes) if _raw_shapes.strip() else []
+            except (ValueError, TypeError):
+                _shapes_cfg = None  # already reported as invalid JSON above
+            if _shapes_cfg is not None:
+                if not isinstance(_shapes_cfg, list) or len(_shapes_cfg) == 0:
+                    errors.append(
+                        "Geometry Type is 'Custom' but no shapes have been "
+                        "added; add at least one shape in the Custom "
+                        "geometry builder."
+                    )
+                elif not all(
+                    isinstance(_s, dict) and _s.get("type") in _KNOWN_SHAPE_TYPES
+                    for _s in _shapes_cfg
+                ):
+                    errors.append(
+                        "geom_custom_shapes_json contains a shape with an "
+                        "unrecognized or missing 'type' (expected one of "
+                        f"{', '.join(_KNOWN_SHAPE_TYPES)})."
+                    )
 
         # When the scheduler path is what's actually going to train (see
         # _sched_active above), it needs the same "something will actually
