@@ -604,6 +604,61 @@ def run():
           in clean_script3,
           "generate_script() and generate_clean_script() should build the identical 3D CSG chain")
 
+    # ── Solve-button gate: _geometry_supported_for_training() ────
+    # Regression test for a real gap found after Phase 1 + the 3D
+    # extension both shipped: codegen.py's _build_geom() (used by the
+    # live Solve path) and generate_clean_script() both already fully
+    # supported "Custom" (every check above exercises that), but a
+    # SEPARATE gate in main_window.py -- _geometry_supported_for_training(),
+    # called first thing in _on_solve() -- had its own hardcoded
+    # geometry-type whitelist that was never updated to include "Custom"
+    # when Custom geometry was built. The result: clicking Solve with
+    # Custom selected always refused with "Training for 'Custom' geometry
+    # isn't wired up yet", regardless of the shape list, even though
+    # training the exact same config via generate_script() directly (as
+    # this test file's own checks above do) worked correctly. Caught by
+    # the user actually clicking Solve in their own GUI session -- this
+    # file's prior checks never called _on_solve()/this gate at all, so
+    # nothing here would have caught it before.
+    win_gate_2d = MainWindow()
+    win_gate_2d.radio_2d.setChecked(True)
+    win_gate_2d._on_dim_changed()
+    win_gate_2d.geometry_type_combo.setCurrentText("Custom")
+    ok_2d, msg_2d = win_gate_2d._geometry_supported_for_training()
+    check(ok_2d, f"Custom geometry (2D) should be allowed to train, got: {msg_2d!r}")
+
+    win_gate_3d = MainWindow()
+    win_gate_3d.radio_3d.setChecked(True)
+    win_gate_3d._on_dim_changed()
+    win_gate_3d.geometry_type_combo.setCurrentText("Custom")
+    ok_3d, msg_3d = win_gate_3d._geometry_supported_for_training()
+    check(ok_3d, f"Custom geometry (3D) should be allowed to train, got: {msg_3d!r}")
+
+    # Every other geometry type must still be allowed too -- this gate
+    # should never regress into blocking something that already worked.
+    win_gate_all = MainWindow()
+    for gtype in ("Interval", "Rectangle", "Disk", "Ellipse", "Triangle", "Polygon"):
+        win_gate_all.radio_1d.setChecked(True) if gtype == "Interval" else win_gate_all.radio_2d.setChecked(True)
+        win_gate_all._on_dim_changed()
+        win_gate_all.geometry_type_combo.setCurrentText(gtype)
+        ok, msg = win_gate_all._geometry_supported_for_training()
+        check(ok, f"{gtype} should still be allowed to train, got: {msg!r}")
+    for gtype in ("Cuboid", "Sphere"):
+        win_gate_all.radio_3d.setChecked(True)
+        win_gate_all._on_dim_changed()
+        win_gate_all.geometry_type_combo.setCurrentText(gtype)
+        ok, msg = win_gate_all._geometry_supported_for_training()
+        check(ok, f"{gtype} should still be allowed to train, got: {msg!r}")
+
+    # A genuinely unsupported type should still be refused with a clear
+    # message naming it -- this gate isn't a no-op, it still protects a
+    # future shape added to the selector without matching codegen support.
+    win_gate_all._current_geometry_type = lambda: "Blob"
+    ok_bad, msg_bad = win_gate_all._geometry_supported_for_training()
+    check(not ok_bad, "an unsupported geometry type should still be refused")
+    check("Blob" in msg_bad and "Custom" in msg_bad,
+          "the refusal message should name the bad type and list Custom among the supported ones")
+
     return failures
 
 

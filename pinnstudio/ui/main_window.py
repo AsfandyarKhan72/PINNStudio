@@ -6413,17 +6413,25 @@ class MainWindow(QMainWindow):
 
 
     def _geometry_supported_for_training(self):
-        """Phase 2 of the geometry-type feature: codegen.py's _build_geom()
-        now constructs every shape in the Geometry Type selector (Interval;
-        Rectangle/Disk/Ellipse/Triangle/Polygon in 2D; Cuboid/Sphere in
-        3D), so Solve is no longer blocked for any of them. Kept as a real
-        gate (rather than deleted outright) so a future shape added to the
-        selector without matching codegen support fails the same clean,
-        explicit way Phase 1 did, instead of silently training on the
-        wrong geometry."""
+        """codegen.py's _build_geom() constructs every shape in the
+        Geometry Type selector (Interval; Rectangle/Disk/Ellipse/Triangle/
+        Polygon in 2D; Cuboid/Sphere in 3D; Custom in both, via
+        _build_custom_geom_code()'s CSG chain), so Solve is no longer
+        blocked for any of them. Kept as a real gate (rather than deleted
+        outright) so a future shape added to the selector without
+        matching codegen support fails the same clean, explicit way this
+        always has, instead of silently training on the wrong geometry.
+
+        Custom's own emptiness/malformed-shape-list problems are not this
+        gate's job -- those already surface through config.validate()'s
+        own specific error messages (called right after this gate, in
+        _on_solve), so this only needs to know that the *type* "Custom"
+        itself has codegen support, which it has had since Phase 1 (2D)
+        and the 3D extension (Cuboid/Sphere) -- this list simply hadn't
+        been updated to say so until now."""
         geom_type = self._current_geometry_type()
         _supported = ("Interval", "Rectangle", "Disk", "Ellipse", "Triangle",
-                      "Polygon", "Cuboid", "Sphere")
+                      "Polygon", "Cuboid", "Sphere", "Custom")
         if geom_type not in _supported:
             return False, (
                 f"⚠️ Training for '{geom_type}' geometry isn't wired up yet -- "
