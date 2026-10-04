@@ -67,6 +67,113 @@ def _parse_vertex_list(text):
             continue
     return verts
 
+_CUSTOM_GEOM_OP_CTORS = {"union": "CSGUnion", "subtract": "CSGDifference", "intersect": "CSGIntersection"}
+_CUSTOM_GEOM_BUGGY_LEAF_TYPES = ("Disk", "Ellipse", "Triangle", "Polygon", "Sphere")
+
+
+def _custom_geom_leaf_literal(shape_type, params):
+    """One Custom-geometry leaf shape -> its dde.geometry constructor call,
+    as a literal string, from the params dict the GUI's
+    _custom_geom_row_to_dict() produces (see config.py's
+    geom_custom_shapes_json docs). Mirrors the per-type literal building
+    the other geometry types already do above (_triangle_vertices_literal
+    etc.) and in _clean_geom_line() below -- falls back to a sane default
+    for a missing/malformed param rather than raising, since codegen must
+    never crash on a stale or hand-edited config."""
+    params = params or {}
+    if shape_type == "Disk":
+        cx = params.get("cx", 0.5); cy = params.get("cy", 0.5); r = params.get("r", 0.5)
+        return f"dde.geometry.Disk([{cx}, {cy}], {r})"
+    if shape_type == "Ellipse":
+        cx = params.get("cx", 0.5); cy = params.get("cy", 0.5)
+        a = params.get("a", 0.5); b = params.get("b", 0.3); angle = params.get("angle", 0.0)
+        return f"dde.geometry.Ellipse([{cx}, {cy}], {a}, {b}, {angle})"
+    if shape_type == "Triangle":
+        verts = _parse_vertex_list(params.get("vertices_text", ""))
+        if len(verts) != 3:
+            verts = [[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]]
+        return f"dde.geometry.Triangle({verts[0]}, {verts[1]}, {verts[2]})"
+    if shape_type == "Polygon":
+        verts = _parse_vertex_list(params.get("vertices_text", ""))
+        if len(verts) < 3:
+            verts = [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]
+        return f"dde.geometry.Polygon({verts})"
+    if shape_type == "Cuboid":
+        x_min = params.get("x_min", 0.0); x_max = params.get("x_max", 1.0)
+        y_min = params.get("y_min", 0.0); y_max = params.get("y_max", 1.0)
+        z_min = params.get("z_min", 0.0); z_max = params.get("z_max", 1.0)
+        if x_min >= x_max:
+            x_min, x_max = 0.0, 1.0
+        if y_min >= y_max:
+            y_min, y_max = 0.0, 1.0
+        if z_min >= z_max:
+            z_min, z_max = 0.0, 1.0
+        return f"dde.geometry.Cuboid([{x_min}, {y_min}, {z_min}], [{x_max}, {y_max}, {z_max}])"
+    if shape_type == "Sphere":
+        cx = params.get("cx", 0.5); cy = params.get("cy", 0.5); cz = params.get("cz", 0.5)
+        r = params.get("r", 0.5)
+        return f"dde.geometry.Sphere([{cx}, {cy}, {cz}], {r})"
+    # Rectangle, and any unrecognized/missing type -- fall back to a unit
+    # square Rectangle rather than crashing codegen over a stale entry.
+    x_min = params.get("x_min", 0.0); x_max = params.get("x_max", 1.0)
+    y_min = params.get("y_min", 0.0); y_max = params.get("y_max", 1.0)
+    if x_min >= x_max:
+        x_min, x_max = 0.0, 1.0
+    if y_min >= y_max:
+        y_min, y_max = 0.0, 1.0
+    return f"dde.geometry.Rectangle([{x_min}, {y_min}], [{x_max}, {y_max}])"
+
+
+def _build_custom_geom_code(config):
+    """Custom geometry: config.geom_custom_shapes_json -> (a dde.geometry
+    constructor call chaining CSGUnion/CSGDifference/CSGIntersection in
+    build order, wrap_needed). Shared by generate_script()'s _build_geom()
+    template and generate_clean_script()'s _clean_geom_line() below --
+    the same two call sites every other geometry type already has its own
+    literal-building logic at (see _triangle_vertices_literal above vs
+    tri_verts in _clean_geom_line). Falls back to a unit-square Rectangle
+    (2D) or unit cube Cuboid (3D, per config.problem_dim) if the shape
+    list is empty or unparseable, matching every other shape's
+    fallback-to-sane-default philosophy in this file.
+
+    wrap_needed mirrors _DTypeSafeGeom's existing single-shape rule
+    (Disk/Ellipse/Triangle/Polygon/Sphere get wrapped, Rectangle/Cuboid
+    don't): a CSG combination of 2+ shapes never needs it -- verified
+    empirically against the installed DeepXDE version, in both 2D and 3D,
+    CSGUnion/CSGDifference/CSGIntersection always normalize their sampled
+    points to the network's own configured float dtype regardless of
+    which leaf types feed into them, even when every leaf is individually
+    "buggy" -- so wrapping is only applied for the degenerate single-shape
+    Custom case, exactly like a plain (non-Custom) Disk/Ellipse/Triangle/
+    Polygon/Sphere already gets."""
+    import json as _json_cg
+    try:
+        entries = _json_cg.loads(config.geom_custom_shapes_json or "[]")
+    except (ValueError, TypeError):
+        entries = []
+    if not isinstance(entries, list):
+        entries = []
+    entries = [e for e in entries if isinstance(e, dict)]
+    if not entries:
+        if getattr(config, "problem_dim", "2D") == "3D":
+            entries = [{"type": "Cuboid", "params": {
+                "x_min": 0.0, "x_max": 1.0, "y_min": 0.0, "y_max": 1.0, "z_min": 0.0, "z_max": 1.0}}]
+        else:
+            entries = [{"type": "Rectangle", "params": {"x_min": 0.0, "x_max": 1.0, "y_min": 0.0, "y_max": 1.0}}]
+
+    code = None
+    for entry in entries:
+        leaf = _custom_geom_leaf_literal(entry.get("type"), entry.get("params"))
+        if code is None:
+            code = leaf
+        else:
+            ctor = _CUSTOM_GEOM_OP_CTORS.get(entry.get("op") or "union", "CSGUnion")
+            code = f"dde.geometry.{ctor}({code}, {leaf})"
+
+    wrap_needed = len(entries) == 1 and entries[0].get("type") in _CUSTOM_GEOM_BUGGY_LEAF_TYPES
+    return code, wrap_needed
+
+
 def _simplify_pde_expr(expr):
     """Convert user-friendly math in PDE — only functions and constants, not variables."""
     import re
@@ -356,6 +463,15 @@ def generate_script(config):
         _polygon_verts_parsed = [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]
     _triangle_vertices_literal = repr(_triangle_verts_parsed)
     _polygon_vertices_literal = repr(_polygon_verts_parsed)
+    # Custom geometry: the CSG-chained constructor call is built once here
+    # (at codegen time, not inside the generated script) and baked in as
+    # a literal, same as every other shape's parameters above -- see
+    # _build_custom_geom_code()'s docstring for the wrap_needed rule.
+    _custom_geom_inner_code, _custom_geom_wrap_needed = _build_custom_geom_code(config)
+    _custom_geom_final_literal = (
+        f"_DTypeSafeGeom({_custom_geom_inner_code})" if _custom_geom_wrap_needed
+        else _custom_geom_inner_code
+    )
 
     # Inverse: one or more trainable variables (generalized from the single
     # trainable_variable this used to be limited to). Only the variable
@@ -558,8 +674,36 @@ if _use_save:
         "output_names": {repr(config.output_names)},
         "x_min": {config.x_min}, "x_max": {config.x_max},
         "y_min": {config.y_min}, "y_max": {config.y_max},
+        "z_min": {config.z_min}, "z_max": {config.z_max},
         "t_min": {config.t_min}, "t_max": {config.t_max},
         "problem_dim": {repr(config.problem_dim)},
+        # Restoring a model has no other way to tell a steady-state
+        # checkpoint from a transient one -- _build_restore_script()/
+        # _build_restore_ea_script() in main_window.py both read this key
+        # (defaulting to False, i.e. transient, when absent) to decide
+        # whether model.predict(...)'s input arrays need a time column.
+        # Missing here before this fix -- so EVERY restored steady-state
+        # model was silently treated as transient, appending a time column
+        # the restored network's first layer was never sized for, crashing
+        # with "mat1 and mat2 shapes cannot be multiplied" the moment you
+        # tried to plot or run Error Analysis against it.
+        "steady_state": {config.steady_state},
+        # Geometry definition -- without these, a restored model can only
+        # ever be rebuilt against its rectangular/cuboid bounding box (see
+        # _build_restore_script() in main_window.py), so a non-box geometry
+        # (Disk/Ellipse/Triangle/Polygon/Sphere/Custom CSG combos) gets
+        # predicted and plotted over the WRONG domain on restore -- the
+        # actual shape, e.g. a triangular cavity, never gets reconstructed,
+        # and nothing here lets the restored prediction be masked back down
+        # to it either. Missing here before this fix.
+        "geometry_type": {repr(config.geometry_type)},
+        "geom_center_x": {config.geom_center_x}, "geom_center_y": {config.geom_center_y},
+        "geom_center_z": {config.geom_center_z}, "geom_radius": {config.geom_radius},
+        "geom_semi_major": {config.geom_semi_major}, "geom_semi_minor": {config.geom_semi_minor},
+        "geom_angle": {config.geom_angle},
+        "geom_triangle_vertices": {repr(config.geom_triangle_vertices)},
+        "geom_polygon_vertices": {repr(config.geom_polygon_vertices)},
+        "geom_custom_shapes_json": {repr(config.geom_custom_shapes_json)},
         "pde_expressions": {repr(config.pde_expressions)},
         "optimizer": {repr(config.optimizer)},
         "optimizer2": {repr(config.optimizer2)},
@@ -1076,6 +1220,8 @@ def _build_geom():
     elif _geom_type == "Sphere":
         return _DTypeSafeGeom(dde.geometry.Sphere([{config.geom_center_x}, {config.geom_center_y}, {config.geom_center_z}],
                                     {config.geom_radius}))
+    elif _geom_type == "Custom":
+        return {_custom_geom_final_literal}
     elif _is_2d:
         return dde.geometry.Rectangle([{config.x_min}, {config.y_min}], [{config.x_max}, {config.y_max}])
     elif _is_3d:
@@ -4580,7 +4726,9 @@ def _clean_geom_line(config, is_2d, is_3d, tri_verts, poly_verts):
     fixed per-problem, so no runtime dispatch is needed."""
     gt = config.geometry_type or "Rectangle"
     wrap_needed = gt in ("Disk", "Ellipse", "Triangle", "Polygon", "Sphere")
-    if gt == "Disk":
+    if gt == "Custom":
+        inner, wrap_needed = _build_custom_geom_code(config)
+    elif gt == "Disk":
         inner = f"dde.geometry.Disk([{config.geom_center_x}, {config.geom_center_y}], {config.geom_radius})"
     elif gt == "Ellipse":
         inner = (f"dde.geometry.Ellipse([{config.geom_center_x}, {config.geom_center_y}], "

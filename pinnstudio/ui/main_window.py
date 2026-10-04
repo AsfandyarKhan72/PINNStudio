@@ -948,9 +948,33 @@ class MainWindow(QMainWindow):
         self.geom_panel_sphere.setVisible(False)
         domain_layout.addWidget(self.geom_panel_sphere)
 
+        # -- Custom panel (2D only): a list of primitive shapes, each
+        # after the first combined with the running result via a boolean
+        # op (Union/Subtract/Intersect) -- see _add_custom_geom_shape().
+        # This is how a shape outside the fixed list above (e.g. the
+        # triangle-with-a-circular-hole in the reference image) gets
+        # built: as a small CSG chain of the primitives already offered
+        # elsewhere in this panel, rather than as a wholly new shape kind.
+        self.geom_panel_custom = QWidget()
+        _cp = QVBoxLayout(self.geom_panel_custom)
+        _cp.setContentsMargins(0, 0, 0, 0); _cp.setSpacing(4)
+        _cp.addWidget(QLabel("Shapes (combined top to bottom):"))
+        self.custom_geom_shapes_container = QWidget()
+        self.custom_geom_shapes_layout = QVBoxLayout(self.custom_geom_shapes_container)
+        self.custom_geom_shapes_layout.setContentsMargins(0, 0, 0, 0)
+        self.custom_geom_shapes_layout.setSpacing(2)
+        _cp.addWidget(self.custom_geom_shapes_container)
+        custom_geom_add_btn = QPushButton("+ Add Shape")
+        custom_geom_add_btn.setFixedHeight(26)
+        custom_geom_add_btn.clicked.connect(lambda: self._add_custom_geom_shape())
+        _cp.addWidget(custom_geom_add_btn)
+        self.geom_panel_custom.setVisible(False)
+        domain_layout.addWidget(self.geom_panel_custom)
+        self.custom_geom_shape_rows = []
+
         self._geom_shape_panels = [
             self.geom_panel_disk, self.geom_panel_ellipse, self.geom_panel_triangle,
-            self.geom_panel_polygon, self.geom_panel_sphere,
+            self.geom_panel_polygon, self.geom_panel_sphere, self.geom_panel_custom,
         ]
         self.geom_triangle_verts_input.textChanged.connect(self._on_geom_vertices_changed)
         self.geom_polygon_verts_input.textChanged.connect(self._on_geom_vertices_changed)
@@ -2786,8 +2810,12 @@ class MainWindow(QMainWindow):
         return json.dumps(entries)
 
     # ── Dimension change ──────────────────────────────────────
-    GEOM_TYPES_2D = ["Rectangle", "Disk", "Ellipse", "Triangle", "Polygon"]
-    GEOM_TYPES_3D = ["Cuboid", "Sphere"]
+    GEOM_TYPES_2D = ["Rectangle", "Disk", "Ellipse", "Triangle", "Polygon", "Custom"]
+    GEOM_TYPES_3D = ["Cuboid", "Sphere", "Custom"]
+    CUSTOM_GEOM_SHAPE_TYPES_2D = ["Rectangle", "Disk", "Ellipse", "Triangle", "Polygon"]
+    CUSTOM_GEOM_SHAPE_TYPES_3D = ["Cuboid", "Sphere"]
+    CUSTOM_GEOM_SHAPE_TYPES_ALL = CUSTOM_GEOM_SHAPE_TYPES_2D + CUSTOM_GEOM_SHAPE_TYPES_3D
+    CUSTOM_GEOM_OPS = [("Union (add)", "union"), ("Subtract (cut hole)", "subtract"), ("Intersect", "intersect")]
 
     def _current_input_dim_labels(self):
         if self.radio_3d.isChecked():
@@ -2871,6 +2899,18 @@ class MainWindow(QMainWindow):
             for e in list(self.custom_bc_list):
                 e['widget'].deleteLater()
             self.custom_bc_list.clear()
+        # Same reasoning for the Custom-geometry shape list: a 2D shape
+        # (Rectangle/Disk/Ellipse/Triangle/Polygon) isn't a valid 3D
+        # primitive and vice versa (Cuboid/Sphere aren't valid in 2D), so
+        # carrying shapes across a dimension switch would leave Custom
+        # geometry pointing at constructors that don't exist for the new
+        # dimension. _on_geometry_type_changed() below re-seeds one
+        # dimension-appropriate starting shape if Custom ends up selected
+        # again after this clears the list.
+        if hasattr(self, 'custom_geom_shape_rows') and self.custom_geom_shape_rows:
+            for row in list(self.custom_geom_shape_rows):
+                row['widget'].deleteLater()
+            self.custom_geom_shape_rows.clear()
         # Update quick examples list to match dimension
         self.quick_examples_combo.blockSignals(True)
         self.quick_examples_combo.clear()
@@ -2933,6 +2973,15 @@ class MainWindow(QMainWindow):
         return "Interval"
 
     def _on_geometry_type_changed(self, text):
+        # Seed the Custom-geometry builder with one starting shape the
+        # first time it's selected, rather than showing an empty list
+        # with nothing but an "Add Shape" button -- mirrors how the
+        # Parameter Sweep panel always starts with one row already
+        # present. Only seeds once per MainWindow instance (once the
+        # list is non-empty, switching away and back leaves it as the
+        # user left it).
+        if text == "Custom" and hasattr(self, 'custom_geom_shape_rows') and not self.custom_geom_shape_rows:
+            self._add_custom_geom_shape()
         self._update_domain_fields_visibility()
         # Rebuild BCs: the boundary-condition layout (sides / unified /
         # per-edge) depends on which geometry type is now selected.
@@ -2963,6 +3012,7 @@ class MainWindow(QMainWindow):
             "Triangle": self.geom_panel_triangle,
             "Polygon": self.geom_panel_polygon,
             "Sphere": self.geom_panel_sphere,
+            "Custom": self.geom_panel_custom,
         }
         panel = panel_map.get(geom_type)
         if panel is not None:
@@ -2997,6 +3047,18 @@ class MainWindow(QMainWindow):
                 self.adapt_combo.setCurrentText("None")
             if self.ic_pretrain_cb.isChecked():
                 self.ic_pretrain_cb.setChecked(False)
+        # The Loss Weights panel's own "IC {n} (...)" rows are built by
+        # _build_weight_inputs(), gated on this same checkbox's state --
+        # without refreshing it here too, toggling Steady-state on its own
+        # (with no other change that happens to rebuild the panel, e.g. a
+        # BC row or output-count edit) would leave stale IC weight rows
+        # visible until something else triggered a rebuild. Guarded by
+        # hasattr since weights_main_layout/num_outputs_spin are built
+        # after this checkbox during __init__, and toggled can in
+        # principle fire before that (it won't with today's init order,
+        # but there's no reason to rely on that staying true).
+        if hasattr(self, 'weights_main_layout') and hasattr(self, 'num_outputs_spin'):
+            self._build_weight_inputs(self.num_outputs_spin.value())
 
     def _on_geom_vertices_changed(self, text):
         # Triangle/Polygon edge count changed -- rebuild the per-edge BC rows.
@@ -3037,6 +3099,337 @@ class MainWindow(QMainWindow):
             if abs((x1 - x0) * (y1 - y0)) > 1e-8:
                 return False
         return True
+
+    def _add_custom_geom_shape(self, shape_type="Rectangle", op="union", params=None):
+        """One shape block in the Custom-geometry builder, stacked top-to-
+        bottom the same way _add_sweep_row's parameter blocks are. The
+        first shape in the list is the starting geometry and has no
+        combine-op; every shape after it is combined with the running
+        result so far via the chosen boolean op (Union/Subtract/
+        Intersect), in list order -- the same semantics as DeepXDE's
+        CSGUnion/CSGDifference/CSGIntersection applied left to right, so
+        e.g. a triangle with a circular hole is just [Triangle, (Disk,
+        subtract)]."""
+        params = params or {}
+        row_widget = QWidget()
+        row_widget.setObjectName("customGeomShapeRow")
+        row_widget.setStyleSheet(
+            "QWidget#customGeomShapeRow { border-bottom: 1px solid #333338; }")
+        row_layout = QVBoxLayout(row_widget)
+        row_layout.setSpacing(3)
+        row_layout.setContentsMargins(0, 4, 0, 6)
+
+        header_row = QHBoxLayout()
+        row_num = len(self.custom_geom_shape_rows) + 1
+        header_lbl = QLabel(f"── Shape {row_num} ──")
+        self._register_style(header_lbl, "hint", lambda css, _c='#a0c4ff', _e='': f"color: {_c}; {_e}{css}")
+        header_row.addWidget(header_lbl)
+        header_row.addStretch()
+        up_btn = QPushButton("▲")
+        down_btn = QPushButton("▼")
+        for _btn in (up_btn, down_btn):
+            _btn.setFixedHeight(22); _btn.setFixedWidth(22)
+            _btn.setStyleSheet(
+                "QPushButton { color: #a0c4ff; background: transparent; border: none; }")
+            header_row.addWidget(_btn)
+        remove_btn = QPushButton("✕")
+        remove_btn.setFixedHeight(22); remove_btn.setFixedWidth(24)
+        remove_btn.setStyleSheet(
+            "QPushButton { color: #ff8787; background: transparent; border: none; }")
+        header_row.addWidget(remove_btn)
+        row_layout.addLayout(header_row)
+
+        # Combine-with-previous op -- hidden for the first shape, which
+        # has nothing before it in the list to combine with.
+        op_row_widget = QWidget()
+        op_row = QHBoxLayout(op_row_widget)
+        op_row.setContentsMargins(0, 0, 0, 0)
+        op_row.addWidget(QLabel("Combine:"))
+        op_combo = QComboBox()
+        for _label, _val in self.CUSTOM_GEOM_OPS:
+            op_combo.addItem(_label, _val)
+        _op_idx = op_combo.findData(op)
+        if _op_idx >= 0:
+            op_combo.setCurrentIndex(_op_idx)
+        op_combo.setFixedHeight(24)
+        op_row.addStretch(); op_row.addWidget(op_combo)
+        row_layout.addWidget(op_row_widget)
+
+        # Shape type -- which primitives are offered depends on the
+        # current problem dimension (2D: Rectangle/Disk/Ellipse/Triangle/
+        # Polygon; 3D: Cuboid/Sphere). The shape list is cleared whenever
+        # the dimension changes (see _on_dim_changed), so a row is never
+        # built while the "wrong" dimension's primitives would apply.
+        type_row = QHBoxLayout()
+        type_row.addWidget(QLabel("Shape type:"))
+        type_combo = QComboBox()
+        _is_3d_row = self.radio_3d.isChecked() if hasattr(self, 'radio_3d') else False
+        type_combo.addItems(self.CUSTOM_GEOM_SHAPE_TYPES_3D if _is_3d_row else self.CUSTOM_GEOM_SHAPE_TYPES_2D)
+        type_combo.setFixedHeight(26)
+        type_row.addStretch(); type_row.addWidget(type_combo)
+        row_layout.addLayout(type_row)
+
+        # Per-type parameter panels -- same fields/defaults as the
+        # top-level Disk/Ellipse/Triangle/Polygon panels above, just
+        # scoped to this one row instead of to the whole Domain group,
+        # since a Custom geometry can hold several shapes of the same
+        # type at once (e.g. two Disks).
+        rect_panel = QWidget()
+        _p = QHBoxLayout(rect_panel); _p.setContentsMargins(0, 0, 0, 0)
+        _p.addWidget(QLabel("x:"))
+        rect_xmin = QDoubleSpinBox(); rect_xmin.setRange(-1e6, 1e6); rect_xmin.setValue(params.get("x_min", 0.0)); rect_xmin.setSingleStep(0.1)
+        rect_xmax = QDoubleSpinBox(); rect_xmax.setRange(-1e6, 1e6); rect_xmax.setValue(params.get("x_max", 1.0)); rect_xmax.setSingleStep(0.1)
+        _p.addWidget(rect_xmin); _p.addWidget(QLabel("to")); _p.addWidget(rect_xmax)
+        _p.addWidget(QLabel("y:"))
+        rect_ymin = QDoubleSpinBox(); rect_ymin.setRange(-1e6, 1e6); rect_ymin.setValue(params.get("y_min", 0.0)); rect_ymin.setSingleStep(0.1)
+        rect_ymax = QDoubleSpinBox(); rect_ymax.setRange(-1e6, 1e6); rect_ymax.setValue(params.get("y_max", 1.0)); rect_ymax.setSingleStep(0.1)
+        _p.addWidget(rect_ymin); _p.addWidget(QLabel("to")); _p.addWidget(rect_ymax)
+        row_layout.addWidget(rect_panel)
+
+        disk_panel = QWidget()
+        _p = QHBoxLayout(disk_panel); _p.setContentsMargins(0, 0, 0, 0)
+        _p.addWidget(QLabel("center x,y:"))
+        disk_cx = QDoubleSpinBox(); disk_cx.setRange(-1e6, 1e6); disk_cx.setValue(params.get("cx", 0.5)); disk_cx.setSingleStep(0.1)
+        disk_cy = QDoubleSpinBox(); disk_cy.setRange(-1e6, 1e6); disk_cy.setValue(params.get("cy", 0.5)); disk_cy.setSingleStep(0.1)
+        _p.addWidget(disk_cx); _p.addWidget(disk_cy)
+        _p.addWidget(QLabel("radius:"))
+        disk_r = QDoubleSpinBox(); disk_r.setRange(1e-6, 1e6); disk_r.setValue(params.get("r", 0.2)); disk_r.setSingleStep(0.1)
+        _p.addWidget(disk_r)
+        row_layout.addWidget(disk_panel)
+
+        ellipse_panel = QWidget()
+        _p = QVBoxLayout(ellipse_panel); _p.setContentsMargins(0, 0, 0, 0); _p.setSpacing(4)
+        _row_a = QHBoxLayout()
+        _row_a.addWidget(QLabel("center x,y:"))
+        ell_cx = QDoubleSpinBox(); ell_cx.setRange(-1e6, 1e6); ell_cx.setValue(params.get("cx", 0.5)); ell_cx.setSingleStep(0.1)
+        ell_cy = QDoubleSpinBox(); ell_cy.setRange(-1e6, 1e6); ell_cy.setValue(params.get("cy", 0.5)); ell_cy.setSingleStep(0.1)
+        _row_a.addWidget(ell_cx); _row_a.addWidget(ell_cy)
+        _p.addLayout(_row_a)
+        _row_b = QHBoxLayout()
+        _row_b.addWidget(QLabel("semi-major, semi-minor:"))
+        ell_a = QDoubleSpinBox(); ell_a.setRange(1e-6, 1e6); ell_a.setValue(params.get("a", 0.5)); ell_a.setSingleStep(0.1)
+        ell_b = QDoubleSpinBox(); ell_b.setRange(1e-6, 1e6); ell_b.setValue(params.get("b", 0.3)); ell_b.setSingleStep(0.1)
+        _row_b.addWidget(ell_a); _row_b.addWidget(ell_b)
+        _p.addLayout(_row_b)
+        _row_c = QHBoxLayout()
+        _row_c.addWidget(QLabel("angle (rad):"))
+        ell_angle = QDoubleSpinBox(); ell_angle.setRange(-100, 100); ell_angle.setValue(params.get("angle", 0.0)); ell_angle.setSingleStep(0.1)
+        _row_c.addWidget(ell_angle)
+        _p.addLayout(_row_c)
+        row_layout.addWidget(ellipse_panel)
+
+        tri_panel = QWidget()
+        _p = QVBoxLayout(tri_panel); _p.setContentsMargins(0, 0, 0, 0); _p.setSpacing(2)
+        _p.addWidget(QLabel("vertices (x1,y1;x2,y2;x3,y3):"))
+        tri_verts = QLineEdit(params.get("vertices_text", "0,0;1,0;0,1"))
+        tri_verts.setFixedHeight(26)
+        _p.addWidget(tri_verts)
+        row_layout.addWidget(tri_panel)
+
+        poly_panel = QWidget()
+        _p = QVBoxLayout(poly_panel); _p.setContentsMargins(0, 0, 0, 0); _p.setSpacing(2)
+        _p.addWidget(QLabel("vertices (x1,y1;x2,y2;...), any count ≥ 3:"))
+        poly_verts = QLineEdit(params.get("vertices_text", "0,0;1,0;1,1;0,1"))
+        poly_verts.setFixedHeight(26)
+        _p.addWidget(poly_verts)
+        row_layout.addWidget(poly_panel)
+
+        # -- Cuboid panel (3D): x/y/z ranges, one row each -- same reason
+        # the top-level Sphere panel below splits center/radius onto their
+        # own rows: packing all 6 numbers into one QHBoxLayout pushes the
+        # last field off the visible edge of the narrow left panel.
+        cuboid_panel = QWidget()
+        _p = QVBoxLayout(cuboid_panel); _p.setContentsMargins(0, 0, 0, 0); _p.setSpacing(3)
+        _row_x = QHBoxLayout()
+        _row_x.addWidget(QLabel("x:"))
+        cuboid_xmin = QDoubleSpinBox(); cuboid_xmin.setRange(-1e6, 1e6); cuboid_xmin.setValue(params.get("x_min", 0.0)); cuboid_xmin.setSingleStep(0.1)
+        cuboid_xmax = QDoubleSpinBox(); cuboid_xmax.setRange(-1e6, 1e6); cuboid_xmax.setValue(params.get("x_max", 1.0)); cuboid_xmax.setSingleStep(0.1)
+        _row_x.addWidget(cuboid_xmin); _row_x.addWidget(QLabel("to")); _row_x.addWidget(cuboid_xmax)
+        _p.addLayout(_row_x)
+        _row_y = QHBoxLayout()
+        _row_y.addWidget(QLabel("y:"))
+        cuboid_ymin = QDoubleSpinBox(); cuboid_ymin.setRange(-1e6, 1e6); cuboid_ymin.setValue(params.get("y_min", 0.0)); cuboid_ymin.setSingleStep(0.1)
+        cuboid_ymax = QDoubleSpinBox(); cuboid_ymax.setRange(-1e6, 1e6); cuboid_ymax.setValue(params.get("y_max", 1.0)); cuboid_ymax.setSingleStep(0.1)
+        _row_y.addWidget(cuboid_ymin); _row_y.addWidget(QLabel("to")); _row_y.addWidget(cuboid_ymax)
+        _p.addLayout(_row_y)
+        _row_z = QHBoxLayout()
+        _row_z.addWidget(QLabel("z:"))
+        cuboid_zmin = QDoubleSpinBox(); cuboid_zmin.setRange(-1e6, 1e6); cuboid_zmin.setValue(params.get("z_min", 0.0)); cuboid_zmin.setSingleStep(0.1)
+        cuboid_zmax = QDoubleSpinBox(); cuboid_zmax.setRange(-1e6, 1e6); cuboid_zmax.setValue(params.get("z_max", 1.0)); cuboid_zmax.setSingleStep(0.1)
+        _row_z.addWidget(cuboid_zmin); _row_z.addWidget(QLabel("to")); _row_z.addWidget(cuboid_zmax)
+        _p.addLayout(_row_z)
+        row_layout.addWidget(cuboid_panel)
+
+        # -- Sphere panel (3D): center (x,y,z) + radius, same two-row
+        # layout as the top-level Sphere panel.
+        sphere_panel = QWidget()
+        _p = QVBoxLayout(sphere_panel); _p.setContentsMargins(0, 0, 0, 0); _p.setSpacing(4)
+        _row_a = QHBoxLayout()
+        _row_a.addWidget(QLabel("center x,y,z:"))
+        sphere_cx = QDoubleSpinBox(); sphere_cx.setRange(-1e6, 1e6); sphere_cx.setValue(params.get("cx", 0.5)); sphere_cx.setSingleStep(0.1)
+        sphere_cy = QDoubleSpinBox(); sphere_cy.setRange(-1e6, 1e6); sphere_cy.setValue(params.get("cy", 0.5)); sphere_cy.setSingleStep(0.1)
+        sphere_cz = QDoubleSpinBox(); sphere_cz.setRange(-1e6, 1e6); sphere_cz.setValue(params.get("cz", 0.5)); sphere_cz.setSingleStep(0.1)
+        _row_a.addWidget(sphere_cx); _row_a.addWidget(sphere_cy); _row_a.addWidget(sphere_cz)
+        _p.addLayout(_row_a)
+        _row_b = QHBoxLayout()
+        _row_b.addWidget(QLabel("radius:"))
+        sphere_r = QDoubleSpinBox(); sphere_r.setRange(1e-6, 1e6); sphere_r.setValue(params.get("r", 0.2)); sphere_r.setSingleStep(0.1)
+        _row_b.addWidget(sphere_r)
+        _row_b.addStretch()
+        _p.addLayout(_row_b)
+        row_layout.addWidget(sphere_panel)
+
+        type_panel_map = {
+            "Rectangle": rect_panel, "Disk": disk_panel, "Ellipse": ellipse_panel,
+            "Triangle": tri_panel, "Polygon": poly_panel,
+            "Cuboid": cuboid_panel, "Sphere": sphere_panel,
+        }
+
+        def _update_type_panels():
+            cur = type_combo.currentText()
+            for _t, _panel in type_panel_map.items():
+                _panel.setVisible(_t == cur)
+
+        type_combo.currentTextChanged.connect(lambda _t: _update_type_panels())
+        type_combo.setCurrentText(shape_type)
+        _update_type_panels()
+
+        self.custom_geom_shapes_layout.addWidget(row_widget)
+        row_data = {
+            'widget': row_widget,
+            'op_row_widget': op_row_widget,
+            'op_combo': op_combo,
+            'type_combo': type_combo,
+            'rect_xmin': rect_xmin, 'rect_xmax': rect_xmax,
+            'rect_ymin': rect_ymin, 'rect_ymax': rect_ymax,
+            'disk_cx': disk_cx, 'disk_cy': disk_cy, 'disk_r': disk_r,
+            'ell_cx': ell_cx, 'ell_cy': ell_cy, 'ell_a': ell_a, 'ell_b': ell_b, 'ell_angle': ell_angle,
+            'tri_verts': tri_verts,
+            'poly_verts': poly_verts,
+            'cuboid_xmin': cuboid_xmin, 'cuboid_xmax': cuboid_xmax,
+            'cuboid_ymin': cuboid_ymin, 'cuboid_ymax': cuboid_ymax,
+            'cuboid_zmin': cuboid_zmin, 'cuboid_zmax': cuboid_zmax,
+            'sphere_cx': sphere_cx, 'sphere_cy': sphere_cy, 'sphere_cz': sphere_cz, 'sphere_r': sphere_r,
+        }
+        self.custom_geom_shape_rows.append(row_data)
+        op_row_widget.setVisible(len(self.custom_geom_shape_rows) > 1)
+
+        def _remove():
+            row_widget.deleteLater()
+            if row_data in self.custom_geom_shape_rows:
+                self.custom_geom_shape_rows.remove(row_data)
+            # The shape now first in the list (if any) has nothing before
+            # it any more -- hide its combine-op row the same way it's
+            # hidden for whichever shape is added first.
+            if self.custom_geom_shape_rows:
+                self.custom_geom_shape_rows[0]['op_row_widget'].setVisible(False)
+
+        remove_btn.clicked.connect(_remove)
+        up_btn.clicked.connect(lambda: self._move_custom_geom_shape(row_data, -1))
+        down_btn.clicked.connect(lambda: self._move_custom_geom_shape(row_data, 1))
+        return row_data
+
+    def _move_custom_geom_shape(self, row_data, delta):
+        """Move one shape up/down in the combine order -- CSG ops are not
+        commutative (Triangle-subtract-Disk and Disk-subtract-Triangle are
+        different shapes), so letting the user fix the order without
+        deleting and re-adding every shape matters here more than it does
+        for e.g. the Parameter Sweep rows, which have no such ordering
+        dependency."""
+        if row_data not in self.custom_geom_shape_rows:
+            return
+        i = self.custom_geom_shape_rows.index(row_data)
+        j = i + delta
+        if j < 0 or j >= len(self.custom_geom_shape_rows):
+            return
+        rows = self.custom_geom_shape_rows
+        rows[i], rows[j] = rows[j], rows[i]
+        # Re-lay the row widgets out in the new order (no widgets are
+        # destroyed here -- just taken out of the layout and re-added).
+        while self.custom_geom_shapes_layout.count():
+            self.custom_geom_shapes_layout.takeAt(0)
+        for row in rows:
+            self.custom_geom_shapes_layout.addWidget(row['widget'])
+        # Only the first shape in the list has no combine-op; every other
+        # position (including one that just became/stopped being first)
+        # needs its op row's visibility re-checked.
+        for idx, row in enumerate(rows):
+            row['op_row_widget'].setVisible(idx > 0)
+
+    def _custom_geom_row_to_dict(self, row, is_first):
+        """One shape row's widget values -> the plain dict codegen.py
+        reads (see config.py's geom_custom_shapes_json docs). 'op' is
+        omitted for the first shape -- it's the starting geometry, not
+        combined with anything."""
+        shape_type = row['type_combo'].currentText()
+        if shape_type == "Rectangle":
+            shape_params = {
+                "x_min": row['rect_xmin'].value(), "x_max": row['rect_xmax'].value(),
+                "y_min": row['rect_ymin'].value(), "y_max": row['rect_ymax'].value(),
+            }
+        elif shape_type == "Disk":
+            shape_params = {"cx": row['disk_cx'].value(), "cy": row['disk_cy'].value(), "r": row['disk_r'].value()}
+        elif shape_type == "Ellipse":
+            shape_params = {
+                "cx": row['ell_cx'].value(), "cy": row['ell_cy'].value(),
+                "a": row['ell_a'].value(), "b": row['ell_b'].value(), "angle": row['ell_angle'].value(),
+            }
+        elif shape_type == "Triangle":
+            shape_params = {"vertices_text": row['tri_verts'].text()}
+        elif shape_type == "Polygon":
+            shape_params = {"vertices_text": row['poly_verts'].text()}
+        elif shape_type == "Cuboid":
+            shape_params = {
+                "x_min": row['cuboid_xmin'].value(), "x_max": row['cuboid_xmax'].value(),
+                "y_min": row['cuboid_ymin'].value(), "y_max": row['cuboid_ymax'].value(),
+                "z_min": row['cuboid_zmin'].value(), "z_max": row['cuboid_zmax'].value(),
+            }
+        else:  # Sphere
+            shape_params = {
+                "cx": row['sphere_cx'].value(), "cy": row['sphere_cy'].value(), "cz": row['sphere_cz'].value(),
+                "r": row['sphere_r'].value(),
+            }
+        entry = {"type": shape_type, "params": shape_params}
+        if not is_first:
+            entry["op"] = row['op_combo'].currentData()
+        return entry
+
+    def _build_custom_geom_shapes_json(self):
+        """The Custom-geometry shape list, in builder order -> JSON, for
+        config.geom_custom_shapes_json. Mirrors _build_custom_bc_json's
+        role for the Boundary Conditions panel: this is the single
+        source of truth codegen.py reads to build the CSG chain."""
+        import json
+        entries = [
+            self._custom_geom_row_to_dict(row, is_first=(i == 0))
+            for i, row in enumerate(self.custom_geom_shape_rows)
+        ]
+        return json.dumps(entries)
+
+    def _apply_custom_geom_shapes_json(self, geom_custom_shapes_json):
+        """Rebuild the Custom-geometry shape list from a saved
+        geom_custom_shapes_json (loading a saved config/template)."""
+        import json
+        for row in list(self.custom_geom_shape_rows):
+            row['widget'].deleteLater()
+        self.custom_geom_shape_rows.clear()
+        if not geom_custom_shapes_json:
+            return
+        try:
+            entries = json.loads(geom_custom_shapes_json)
+        except (ValueError, TypeError):
+            entries = []
+        if not isinstance(entries, list):
+            return
+        for entry in entries:
+            if not isinstance(entry, dict):
+                continue
+            shape_type = entry.get("type")
+            if shape_type not in self.CUSTOM_GEOM_SHAPE_TYPES_ALL:
+                continue
+            params = entry.get("params") or {}
+            op = entry.get("op") or "union"
+            self._add_custom_geom_shape(shape_type=shape_type, op=op, params=params)
 
     def _on_quick_example_selected(self, text):
         if text == "None":
@@ -4548,6 +4941,17 @@ class MainWindow(QMainWindow):
         _sched_enabled = True  # scheduler always on
         _same_weights = hasattr(self, 'sched_same_weights_cb') and self.sched_same_weights_cb.isChecked()
         _skip_main_weights = not _same_weights  # skip main weights when per-phase
+        # Steady-state problems have no time axis, so there's no Initial
+        # Condition to weight at all -- codegen.py already builds an empty
+        # _ic_w list in this case (confirmed at training time by the
+        # "IC weights: []" log line), independently of these widgets. This
+        # mirrors that at the GUI level: skip the "IC {n} (...)" weight
+        # rows below whenever Steady-state is checked, the same way
+        # _on_steady_state_changed() already hides the separate Initial
+        # Condition panel itself. Previously these rows stayed visible
+        # (driven only by ic_active[i], with no steady_state check at
+        # all), showing weight fields that were silently never used.
+        _is_steady = self.steady_state_check.isChecked() if hasattr(self, 'steady_state_check') else False
 
         def _w_row(label, key):
             row = QHBoxLayout()
@@ -4577,16 +4981,17 @@ class MainWindow(QMainWindow):
                 _btype_label = _be['type'].currentText()
                 _bcomp = _be['component'].value()
                 _w_row(f"BC {_bj + 1} ({_btype_label}, Output {_bcomp}):", f"bc_{_bj}")
-            for i in range(n):
-                name = self.output_name_inputs[i].text() if i < len(self.output_name_inputs) else f"u{i+1}"
-                _ic_from_file_checked = (
-                    hasattr(self, 'ic_from_file') and
-                    i < len(self.ic_from_file) and
-                    self.ic_from_file[i] is not None and
-                    self.ic_from_file[i].isChecked()
-                )
-                if (i < len(self.ic_active) and self.ic_active[i].isChecked()) or _ic_from_file_checked:
-                    _w_row(f"IC {i+1} ({name}):", f"ic_{i}")
+            if not _is_steady:
+                for i in range(n):
+                    name = self.output_name_inputs[i].text() if i < len(self.output_name_inputs) else f"u{i+1}"
+                    _ic_from_file_checked = (
+                        hasattr(self, 'ic_from_file') and
+                        i < len(self.ic_from_file) and
+                        self.ic_from_file[i] is not None and
+                        self.ic_from_file[i].isChecked()
+                    )
+                    if (i < len(self.ic_active) and self.ic_active[i].isChecked()) or _ic_from_file_checked:
+                        _w_row(f"IC {i+1} ({name}):", f"ic_{i}")
 
         # Per-phase weight rows if scheduler enabled and different weights
         if _sched_enabled and not _same_weights:
@@ -4604,12 +5009,13 @@ class MainWindow(QMainWindow):
                     _btype_label = _be['type'].currentText()
                     _bcomp = _be['component'].value()
                     _w_row(f"BC {_bj + 1} ({_btype_label}, Output {_bcomp}) P{_phase_num}:", f"bc_{_bj}_p{_phase_num}")
-                for _i in range(n):
-                    _name = self.output_name_inputs[_i].text() if _i < len(self.output_name_inputs) else f"u{_i+1}"
-                    _ic_ff = (hasattr(self, 'ic_from_file') and _i < len(self.ic_from_file)
-                              and self.ic_from_file[_i] is not None and self.ic_from_file[_i].isChecked())
-                    if (_i < len(self.ic_active) and self.ic_active[_i].isChecked()) or _ic_ff:
-                        _w_row(f"IC {_i+1} ({_name}) P{_phase_num}:", f"ic_{_i}_p{_phase_num}")
+                if not _is_steady:
+                    for _i in range(n):
+                        _name = self.output_name_inputs[_i].text() if _i < len(self.output_name_inputs) else f"u{_i+1}"
+                        _ic_ff = (hasattr(self, 'ic_from_file') and _i < len(self.ic_from_file)
+                                  and self.ic_from_file[_i] is not None and self.ic_from_file[_i].isChecked())
+                        if (_i < len(self.ic_active) and self.ic_active[_i].isChecked()) or _ic_ff:
+                            _w_row(f"IC {_i+1} ({_name}) P{_phase_num}:", f"ic_{_i}_p{_phase_num}")
 
     def _flat_loss_weights_string(self, n_out):
         """Build the comma-separated loss_weights_multi string in the exact
@@ -4720,6 +5126,7 @@ class MainWindow(QMainWindow):
             geom_angle=self.geom_ellipse_angle.value(),
             geom_triangle_vertices=self.geom_triangle_verts_input.text(),
             geom_polygon_vertices=self.geom_polygon_verts_input.text(),
+            geom_custom_shapes_json=self._build_custom_geom_shapes_json(),
             bc_boundary_json=_bc_group_json(self.bc_boundary_types, self.bc_boundary_vals, self.bc_boundary_active, n_out),
             bc_edge_json=_bc_edge_json(n_out),
             custom_bc_json=self._build_custom_bc_json(),
@@ -5241,6 +5648,7 @@ class MainWindow(QMainWindow):
         self.geom_sphere_cz.setValue(config.geom_center_z); self.geom_sphere_r.setValue(config.geom_radius)
         self.geom_triangle_verts_input.setText(config.geom_triangle_vertices or "0,0;1,0;0,1")
         self.geom_polygon_verts_input.setText(config.geom_polygon_vertices or "0,0;1,0;1,1;0,1")
+        self._apply_custom_geom_shapes_json(getattr(config, 'geom_custom_shapes_json', '') or '')
 
         # 3.6) Geometry type -- rebuilds the BC rows one more time, this
         # time in the shape (box / unified boundary / per-edge) that
@@ -6030,17 +6438,25 @@ class MainWindow(QMainWindow):
 
 
     def _geometry_supported_for_training(self):
-        """Phase 2 of the geometry-type feature: codegen.py's _build_geom()
-        now constructs every shape in the Geometry Type selector (Interval;
-        Rectangle/Disk/Ellipse/Triangle/Polygon in 2D; Cuboid/Sphere in
-        3D), so Solve is no longer blocked for any of them. Kept as a real
-        gate (rather than deleted outright) so a future shape added to the
-        selector without matching codegen support fails the same clean,
-        explicit way Phase 1 did, instead of silently training on the
-        wrong geometry."""
+        """codegen.py's _build_geom() constructs every shape in the
+        Geometry Type selector (Interval; Rectangle/Disk/Ellipse/Triangle/
+        Polygon in 2D; Cuboid/Sphere in 3D; Custom in both, via
+        _build_custom_geom_code()'s CSG chain), so Solve is no longer
+        blocked for any of them. Kept as a real gate (rather than deleted
+        outright) so a future shape added to the selector without
+        matching codegen support fails the same clean, explicit way this
+        always has, instead of silently training on the wrong geometry.
+
+        Custom's own emptiness/malformed-shape-list problems are not this
+        gate's job -- those already surface through config.validate()'s
+        own specific error messages (called right after this gate, in
+        _on_solve), so this only needs to know that the *type* "Custom"
+        itself has codegen support, which it has had since Phase 1 (2D)
+        and the 3D extension (Cuboid/Sphere) -- this list simply hadn't
+        been updated to say so until now."""
         geom_type = self._current_geometry_type()
         _supported = ("Interval", "Rectangle", "Disk", "Ellipse", "Triangle",
-                      "Polygon", "Cuboid", "Sphere")
+                      "Polygon", "Cuboid", "Sphere", "Custom")
         if geom_type not in _supported:
             return False, (
                 f"⚠️ Training for '{geom_type}' geometry isn't wired up yet -- "
@@ -6791,6 +7207,122 @@ def _style_legend(ax):
         _leg.get_frame().set_linewidth(0.8)
 """
 
+    def _custom_geom_leaf_code(self, shape_type, params):
+        """One leaf shape's own dde.geometry constructor call + matplotlib
+        outline patch + bounding box, from a params dict in the schema
+        _custom_geom_row_to_dict() produces. Used only by the Custom-
+        geometry branch of _preview_domain() below -- the single-shape-
+        type branches there read straight from their own top-level
+        widgets and are left as they are, so this doesn't touch any
+        already-working preview path. Raises ValueError (message meant
+        to be shown to the user) for a Triangle/Polygon whose vertices
+        DeepXDE's own constructors would reject, mirroring the same
+        checks the Triangle/Polygon branch below already makes for the
+        single-shape case."""
+        import math as _math
+        if shape_type == "Rectangle":
+            x_min, x_max = params["x_min"], params["x_max"]
+            y_min, y_max = params["y_min"], params["y_max"]
+            if x_min >= x_max or y_min >= y_max:
+                raise ValueError("needs x_min < x_max and y_min < y_max.")
+            geom_code = f"dde.geometry.Rectangle([{x_min}, {y_min}], [{x_max}, {y_max}])"
+            patch_code = (
+                f"plt.Rectangle(({x_min},{y_min}), {x_max}-{x_min}, {y_max}-{y_min}, "
+                "linewidth=2, edgecolor='#1971c2', facecolor='none')"
+            )
+            bbox = (x_min, x_max, y_min, y_max)
+        elif shape_type == "Disk":
+            cx, cy, r = params["cx"], params["cy"], params["r"]
+            geom_code = f"dde.geometry.Disk([{cx}, {cy}], {r})"
+            patch_code = f"plt.Circle(({cx},{cy}), {r}, linewidth=2, edgecolor='#1971c2', facecolor='none')"
+            bbox = (cx - r, cx + r, cy - r, cy + r)
+        elif shape_type == "Ellipse":
+            cx, cy = params["cx"], params["cy"]
+            a, b, angle = params["a"], params["b"], params["angle"]
+            geom_code = f"dde.geometry.Ellipse([{cx}, {cy}], {a}, {b}, {angle})"
+            patch_code = (
+                f"matplotlib.patches.Ellipse(({cx},{cy}), {2*a}, {2*b}, angle={_math.degrees(angle)}, "
+                "linewidth=2, edgecolor='#1971c2', facecolor='none')"
+            )
+            dx = _math.sqrt((a * _math.cos(angle)) ** 2 + (b * _math.sin(angle)) ** 2)
+            dy = _math.sqrt((a * _math.sin(angle)) ** 2 + (b * _math.cos(angle)) ** 2)
+            bbox = (cx - dx, cx + dx, cy - dy, cy + dy)
+        else:  # Triangle / Polygon
+            verts = self._parse_vertices(params.get("vertices_text", ""))
+            if len(verts) < 3 or (shape_type == "Triangle" and len(verts) != 3):
+                raise ValueError(
+                    f"needs {'exactly 3' if shape_type == 'Triangle' else 'at least 3'} valid vertices."
+                )
+            if shape_type == "Polygon" and len(verts) == 3:
+                raise ValueError(
+                    "has only 3 vertices -- that's a Triangle, not a Polygon; "
+                    "change its shape type, or add a 4th vertex."
+                )
+            if shape_type == "Polygon" and self._is_axis_aligned_rectangle(verts):
+                raise ValueError(
+                    "those 4 vertices form an axis-aligned rectangle -- use the "
+                    "Rectangle shape type instead."
+                )
+            vlist = [list(v) for v in verts]
+            if shape_type == "Triangle":
+                geom_code = f"dde.geometry.Triangle({vlist[0]}, {vlist[1]}, {vlist[2]})"
+            else:
+                geom_code = f"dde.geometry.Polygon({vlist})"
+            patch_code = f"plt.Polygon({vlist}, closed=True, linewidth=2, edgecolor='#1971c2', facecolor='none')"
+            xs = [v[0] for v in verts]; ys = [v[1] for v in verts]
+            bbox = (min(xs), max(xs), min(ys), max(ys))
+        return geom_code, patch_code, bbox
+
+    def _custom_geom_3d_leaf_code(self, idx, shape_type, params):
+        """3D counterpart of _custom_geom_leaf_code() -- one leaf shape's
+        dde.geometry constructor call + a 3D outline-drawing code block
+        (box edges for Cuboid, a wireframe sphere for Sphere, same style
+        as _build_3d_preview_script's own single-shape outlines) + its
+        bounding box. idx makes every local variable name in the outline
+        code unique (_corners_3, _sx_3, ...) so several leaves' outline
+        blocks can be concatenated into one script without colliding,
+        since -- unlike the 2D preview, where each leaf is a self-
+        contained matplotlib Patch object -- a 3D outline here is a few
+        lines of plotting code run directly against the shared `ax`."""
+        params = params or {}
+        if shape_type == "Cuboid":
+            x_min, x_max = params.get("x_min", 0.0), params.get("x_max", 1.0)
+            y_min, y_max = params.get("y_min", 0.0), params.get("y_max", 1.0)
+            z_min, z_max = params.get("z_min", 0.0), params.get("z_max", 1.0)
+            if x_min >= x_max or y_min >= y_max or z_min >= z_max:
+                raise ValueError("needs x_min<x_max, y_min<y_max, and z_min<z_max.")
+            geom_code = f"dde.geometry.Cuboid([{x_min}, {y_min}, {z_min}], [{x_max}, {y_max}, {z_max}])"
+            outline_code = (
+                f"_x0_{idx}, _x1_{idx}, _y0_{idx}, _y1_{idx}, _z0_{idx}, _z1_{idx} = "
+                f"{x_min}, {x_max}, {y_min}, {y_max}, {z_min}, {z_max}\n"
+                f"_corners_{idx} = [(_x0_{idx},_y0_{idx},_z0_{idx}),(_x1_{idx},_y0_{idx},_z0_{idx}),"
+                f"(_x1_{idx},_y1_{idx},_z0_{idx}),(_x0_{idx},_y1_{idx},_z0_{idx}),\n"
+                f"               (_x0_{idx},_y0_{idx},_z1_{idx}),(_x1_{idx},_y0_{idx},_z1_{idx}),"
+                f"(_x1_{idx},_y1_{idx},_z1_{idx}),(_x0_{idx},_y1_{idx},_z1_{idx})]\n"
+                f"_edges_{idx} = [(0,1),(1,2),(2,3),(3,0),(4,5),(5,6),(6,7),(7,4),(0,4),(1,5),(2,6),(3,7)]\n"
+                f"for _i, _j in _edges_{idx}:\n"
+                f"    _p0, _p1 = _corners_{idx}[_i], _corners_{idx}[_j]\n"
+                "    ax.plot([_p0[0],_p1[0]], [_p0[1],_p1[1]], [_p0[2],_p1[2]], color='#1971c2', linewidth=2.0)\n"
+            )
+            bbox = (x_min, x_max, y_min, y_max, z_min, z_max)
+        elif shape_type == "Sphere":
+            cx, cy, cz = params.get("cx", 0.5), params.get("cy", 0.5), params.get("cz", 0.5)
+            r = params.get("r", 0.5)
+            geom_code = f"dde.geometry.Sphere([{cx}, {cy}, {cz}], {r})"
+            outline_code = (
+                f"_u_{idx} = np.linspace(0, 2*np.pi, 30)\n"
+                f"_v_{idx} = np.linspace(0, np.pi, 20)\n"
+                f"_sx_{idx} = {cx} + {r}*np.outer(np.cos(_u_{idx}), np.sin(_v_{idx}))\n"
+                f"_sy_{idx} = {cy} + {r}*np.outer(np.sin(_u_{idx}), np.sin(_v_{idx}))\n"
+                f"_sz_{idx} = {cz} + {r}*np.outer(np.ones_like(_u_{idx}), np.cos(_v_{idx}))\n"
+                f"ax.plot_wireframe(_sx_{idx}, _sy_{idx}, _sz_{idx}, color='#1971c2', "
+                "linewidth=0.7, alpha=0.5, rstride=2, cstride=2)\n"
+            )
+            bbox = (cx - r, cx + r, cy - r, cy + r, cz - r, cz + r)
+        else:
+            raise ValueError(f"unsupported 3D shape type: {shape_type!r}")
+        return geom_code, outline_code, bbox
+
     def _preview_domain(self):
         import tempfile, subprocess, sys, math
         spatial_path = self._DOMAIN_PREVIEW_SPATIAL_PATH
@@ -6802,7 +7334,7 @@ def _style_legend(ax):
         _TIME_DOM_PT_SIZE = self._TIME_DOM_PT_SIZE
         _TIME_BND_PT_SIZE = self._TIME_BND_PT_SIZE
         geom_type = self._current_geometry_type()
-        if geom_type not in ("Rectangle", "Disk", "Ellipse", "Triangle", "Polygon", "Cuboid", "Sphere"):
+        if geom_type not in ("Rectangle", "Disk", "Ellipse", "Triangle", "Polygon", "Cuboid", "Sphere", "Custom"):
             self.log_box.append(
                 f"⚠️ Domain preview for '{geom_type}' geometry isn't supported yet."
             )
@@ -6827,14 +7359,58 @@ def _style_legend(ax):
                 pass
             sb.valueChanged.connect(self._on_pts_changed)
 
-        is_3d_shape = geom_type in ("Cuboid", "Sphere")
+        # Custom geometry is 2D or 3D depending on which primitives it's
+        # built from -- since the shape list is cleared on every dimension
+        # switch (see _on_dim_changed) and each row's type combo only ever
+        # offers the current dimension's own primitives, the problem's own
+        # radio_3d state is a reliable proxy for which Custom this is.
+        is_3d_shape = geom_type in ("Cuboid", "Sphere") or (geom_type == "Custom" and self.radio_3d.isChecked())
         # Read by _on_preview_done to label the spatial panel's header
         # correctly ("(x,y,z)" vs "(x,y)") once the background script
         # finishes -- it has no other way to know which builder ran.
         self._last_preview_is_3d = is_3d_shape
         if is_3d_shape:
-            script = self._build_3d_preview_script(
-                geom_type, t_min, t_max, n_domain, n_boundary, n_initial, dist)
+            if geom_type == "Custom":
+                if not self.custom_geom_shape_rows:
+                    self.log_box.append("⚠️ Add at least one shape to preview a Custom domain.")
+                    self.loss_label.setText("📉 Loss plot")
+                    self.solution_label.setText("🗺 Solution plot")
+                    return
+                entries = [
+                    self._custom_geom_row_to_dict(row, is_first=(i == 0))
+                    for i, row in enumerate(self.custom_geom_shape_rows)
+                ]
+                _CSG_OP_CTORS = {"union": "CSGUnion", "subtract": "CSGDifference", "intersect": "CSGIntersection"}
+                geom_code = None
+                outline_blocks = []
+                bboxes = []
+                for i, entry in enumerate(entries, start=1):
+                    try:
+                        leaf_code, leaf_outline, leaf_bbox = self._custom_geom_3d_leaf_code(i, entry["type"], entry["params"])
+                    except ValueError as e:
+                        self.log_box.append(f"⚠️ Shape {i} ({entry['type']}) {e}")
+                        self.loss_label.setText("📉 Loss plot")
+                        self.solution_label.setText("🗺 Solution plot")
+                        return
+                    outline_blocks.append(leaf_outline)
+                    bboxes.append(leaf_bbox)
+                    if geom_code is None:
+                        geom_code = leaf_code
+                    else:
+                        ctor = _CSG_OP_CTORS.get(entry.get("op") or "union", "CSGUnion")
+                        geom_code = f"dde.geometry.{ctor}({geom_code}, {leaf_code})"
+                bbox3 = (
+                    min(b[0] for b in bboxes), max(b[1] for b in bboxes),
+                    min(b[2] for b in bboxes), max(b[3] for b in bboxes),
+                    min(b[4] for b in bboxes), max(b[5] for b in bboxes),
+                )
+                outline_code = "\n".join(outline_blocks)
+                script = self._render_3d_preview_script(
+                    "Custom", geom_code, outline_code, bbox3,
+                    t_min, t_max, n_domain, n_boundary, n_initial, dist)
+            else:
+                script = self._build_3d_preview_script(
+                    geom_type, t_min, t_max, n_domain, n_boundary, n_initial, dist)
             with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as tf:
                 tf.write(script)
                 tmp = tf.name
@@ -6846,7 +7422,46 @@ def _style_legend(ax):
         # per shape, reading that shape's own parameters. x_min/x_max/y_min/
         # y_max only mean something for Rectangle; the others (center +
         # radius, semi-axes, vertex list) live on their own widgets.
-        if geom_type == "Rectangle":
+        if geom_type == "Custom":
+            if not self.custom_geom_shape_rows:
+                self.log_box.append("⚠️ Add at least one shape to preview a Custom domain.")
+                self.loss_label.setText("📉 Loss plot")
+                self.solution_label.setText("🗺 Solution plot")
+                return
+            entries = [
+                self._custom_geom_row_to_dict(row, is_first=(i == 0))
+                for i, row in enumerate(self.custom_geom_shape_rows)
+            ]
+            # No single matplotlib Patch can represent an arbitrary CSG
+            # result, so each leaf shape's own reference outline is drawn
+            # overlaid instead -- correctness of the point cloud itself
+            # comes entirely from on_boundary() below (shape-agnostic,
+            # works for any CSG combination with zero changes), so these
+            # patches are a visual aid only, not what's actually sampled.
+            patch_codes = []
+            bboxes = []
+            _CSG_OP_CTORS = {"union": "CSGUnion", "subtract": "CSGDifference", "intersect": "CSGIntersection"}
+            geom_code = None
+            for i, entry in enumerate(entries, start=1):
+                try:
+                    leaf_code, leaf_patch, leaf_bbox = self._custom_geom_leaf_code(entry["type"], entry["params"])
+                except ValueError as e:
+                    self.log_box.append(f"⚠️ Shape {i} ({entry['type']}) {e}")
+                    self.loss_label.setText("📉 Loss plot")
+                    self.solution_label.setText("🗺 Solution plot")
+                    return
+                patch_codes.append(leaf_patch)
+                bboxes.append(leaf_bbox)
+                if geom_code is None:
+                    geom_code = leaf_code
+                else:
+                    ctor = _CSG_OP_CTORS.get(entry.get("op") or "union", "CSGUnion")
+                    geom_code = f"dde.geometry.{ctor}({geom_code}, {leaf_code})"
+            bbox = (
+                min(b[0] for b in bboxes), max(b[1] for b in bboxes),
+                min(b[2] for b in bboxes), max(b[3] for b in bboxes),
+            )
+        elif geom_type == "Rectangle":
             x_min = self.x_min.value(); x_max = self.x_max.value()
             y_min = self.y_min.value(); y_max = self.y_max.value()
             geom_code = f"dde.geometry.Rectangle([{x_min}, {y_min}], [{x_max}, {y_max}])"
@@ -6910,11 +7525,15 @@ def _style_legend(ax):
             xs = [v[0] for v in verts]; ys = [v[1] for v in verts]
             bbox = (min(xs), max(xs), min(ys), max(ys))
 
+        if geom_type != "Custom":
+            patch_codes = [patch_code]
+
         bbox_x_min, bbox_x_max, bbox_y_min, bbox_y_max = bbox
         pad_x = max((bbox_x_max - bbox_x_min) * 0.05, 1e-6)
         pad_y = max((bbox_y_max - bbox_y_min) * 0.05, 1e-6)
         xlim_lo, xlim_hi = bbox_x_min - pad_x, bbox_x_max + pad_x
         ylim_lo, ylim_hi = bbox_y_min - pad_y, bbox_y_max + pad_y
+        _patch_codes_src = ",\n    ".join(patch_codes)
 
         script = f"""
 import os
@@ -6960,8 +7579,11 @@ fig, ax = plt.subplots(figsize=(7, 6.2))
 _style_axes(ax)
 ax.set_xlim({xlim_lo}, {xlim_hi})
 ax.set_ylim({ylim_lo}, {ylim_hi})
-shape_patch = {patch_code}
-ax.add_patch(shape_patch)
+shape_patches = [
+    {_patch_codes_src}
+]
+for _sp in shape_patches:
+    ax.add_patch(_sp)
 if len(dom_pts): ax.scatter(dom_pts[:,0], dom_pts[:,1], s={_DOMAIN_PT_SIZE}, c=DOM_COLOR, alpha=0.75, edgecolors='none', label=f'Domain ({{len(dom_pts)}})')
 if len(bnd_pts): ax.scatter(bnd_pts[:,0], bnd_pts[:,1], s={_BND_PT_SIZE}, c=BND_COLOR, alpha=1.0, edgecolors='white', linewidths=0.4, label=f'Boundary ({{len(bnd_pts)}})')
 ax.set_xlabel('x', fontsize=LABEL_FS)
@@ -7096,6 +7718,19 @@ print("DOMAIN_PREVIEW_DONE")
                 "ax.plot_wireframe(_sx, _sy, _sz, color='#1971c2', linewidth=0.7, alpha=0.5, rstride=2, cstride=2)\n"
             )
 
+        return self._render_3d_preview_script(
+            geom_type, geom_code, outline_code, bbox3,
+            t_min, t_max, n_domain, n_boundary, n_initial, dist)
+
+    def _render_3d_preview_script(self, geom_type_label, geom_code, outline_code, bbox3,
+                                   t_min, t_max, n_domain, n_boundary, n_initial, dist):
+        """The actual 3D preview script template -- factored out of
+        _build_3d_preview_script() so the Custom-geometry branch of
+        _preview_domain() below can reuse it directly with a CSG-chained
+        geom_code and a concatenation of each leaf shape's own outline
+        code, instead of duplicating this ~60-line template. geom_code/
+        outline_code/bbox3 are pre-built by the caller; geom_type_label is
+        only used for the plot title."""
         bx0, bx1, by0, by1, bz0, bz1 = bbox3
         pad_x = max((bx1 - bx0) * 0.08, 1e-6)
         pad_y = max((by1 - by0) * 0.08, 1e-6)
@@ -7169,7 +7804,7 @@ if len(bnd_pts): ax.scatter(bnd_pts[:,0], bnd_pts[:,1], bnd_pts[:,2], s=26, c=BN
 ax.set_xlabel('x', fontsize=LABEL_FS, labelpad=10)
 ax.set_ylabel('y', fontsize=LABEL_FS, labelpad=10)
 ax.set_zlabel('z', fontsize=LABEL_FS, labelpad=6)
-ax.set_title('{geom_type}  |  {dist}  |  D={n_domain}  B={n_boundary}  IC={n_initial}', fontsize=TITLE_FS, fontweight='bold', pad=16)
+ax.set_title('{geom_type_label}  |  {dist}  |  D={n_domain}  B={n_boundary}  IC={n_initial}', fontsize=TITLE_FS, fontweight='bold', pad=16)
 _leg3d = ax.legend(fontsize=LEGEND_FS, loc='upper left', framealpha=0.95, facecolor='white', edgecolor='#ced4da', markerscale=1.8)
 if _leg3d is not None: _leg3d.get_frame().set_linewidth(0.8)
 plt.tight_layout()
@@ -7862,7 +8497,49 @@ print("ERROR_ANALYSIS_DONE")
         is_inverse = (text == "Inverse Model")
         self.restore_inv_vars_widget.setVisible(is_inverse)
         current_viz = self.restore_viz_combo.currentText()
-        items = list(self._RESTORE_FORWARD_VIZ) + (list(self._RESTORE_PARAM_VIZ) if is_inverse else [])
+        items = self._restore_forward_viz_items() + (list(self._RESTORE_PARAM_VIZ) if is_inverse else [])
+        self.restore_viz_combo.blockSignals(True)
+        self.restore_viz_combo.clear()
+        self.restore_viz_combo.addItems(items)
+        if current_viz in items:
+            self.restore_viz_combo.setCurrentText(current_viz)
+        self.restore_viz_combo.blockSignals(False)
+        self._on_restore_viz_changed(self.restore_viz_combo.currentText())
+
+    def _restore_forward_viz_items(self):
+        """Forward viz-type options for the Restore panel's dropdown --
+        all four (see self._RESTORE_FORWARD_VIZ) normally, but just
+        ["Surface"] when the config about to be restored is steady-state:
+        a steady-state problem has no time axis at all (same reason
+        _on_steady_state_changed already hides Time Adaptive Training and
+        the Initial Condition panel on the main Setup tab), so "Line (time
+        steps)" and the two Animation types -- all inherently about
+        stepping through or animating over time -- don't apply. Read
+        directly from the config file about to be restored (same safe-no-
+        op-on-unreadable-config pattern as _on_restore_viz_settings's own
+        _restore_dim) rather than any cached state, so this always reflects
+        whatever's actually currently browsed to; defaults to showing all
+        four when that file can't be read yet (e.g. nothing picked yet)."""
+        import json
+        try:
+            with open(self.restore_config_path.text().strip()) as f:
+                is_steady = bool(json.load(f).get("steady_state", False))
+        except Exception:
+            is_steady = False
+        return ["Surface"] if is_steady else list(self._RESTORE_FORWARD_VIZ)
+
+    def _refresh_restore_viz_options(self):
+        """Re-apply the steady-state filtering above to the dropdown's
+        current contents -- called alongside _refresh_restore_output_combo
+        (same two call sites: browsing a model file auto-detects its
+        config, browsing a config file directly) so switching to or from a
+        steady-state model's config immediately hides/restores the three
+        time-based options, same as _on_restore_mode_changed already does
+        when switching Forward/Inverse."""
+        is_inverse = (getattr(self, 'restore_mode_combo', None) is not None
+                      and self.restore_mode_combo.currentText() == "Inverse Model")
+        items = self._restore_forward_viz_items() + (list(self._RESTORE_PARAM_VIZ) if is_inverse else [])
+        current_viz = self.restore_viz_combo.currentText()
         self.restore_viz_combo.blockSignals(True)
         self.restore_viz_combo.clear()
         self.restore_viz_combo.addItems(items)
@@ -10015,6 +10692,7 @@ print("ERROR_ANALYSIS_V2_DONE")
             self._update_restore_ta_combine_visibility()
 
             self._refresh_restore_output_combo()
+            self._refresh_restore_viz_options()
 
             # Inverse-only convenience: auto-detect the *_convergence.txt
             # file(s) saved alongside this run (one level up from
@@ -10081,6 +10759,7 @@ print("ERROR_ANALYSIS_V2_DONE")
         if f:
             self.restore_config_path.setText(f)
             self._refresh_restore_output_combo()
+            self._refresh_restore_viz_options()
 
     def _refresh_restore_output_combo(self):
         """Repopulate restore_output_combo from the config file about to
@@ -10535,11 +11214,41 @@ print("ERROR_ANALYSIS_V2_DONE")
                         is_3d=is_3d, output_idx=output_idx,
                         custom_expr=custom_expr,
                         output_names=cfg.get('output_names', 'u'),
+                        is_steady=cfg.get('steady_state', False),
                     )
                 else:
                     self.log_box.append(f"ℹ️ No reference files match t=[{t_min_restore:.4f}, {t_max_restore:.4f}] — skipping error analysis")
         except Exception as e:
             self.log_box.append(f"⚠️ Skipping error analysis for this restore -- couldn't build it from this config: {e}")
+
+        # Clear any restored_plot.png/restored_animation.gif (and the EA
+        # comparison PNGs) already sitting in save_dir from a PREVIOUS,
+        # unrelated restore -- e.g. an earlier Animation-type restore of a
+        # completely different (transient) problem run against this same
+        # folder. _on_restore_done below picks which file to show/log purely
+        # by os.path.exists(...), so a stale leftover with the right
+        # filename was indistinguishable from this run's own output: a
+        # steady-state Surface restore that writes only restored_plot.png
+        # would still show/report a leftover restored_animation.gif (and/or
+        # a leftover surface_comparison_restore.png) from whatever ran in
+        # this folder before, instead of what was actually just produced.
+        # Deleting them here means every os.path.exists(...) check after
+        # the subprocess finishes can only ever see THIS run's own output.
+        for _stale_name in ("restored_plot.png", "restored_animation.gif"):
+            _stale_path = os.path.join(save_dir, _stale_name)
+            if os.path.exists(_stale_path):
+                try:
+                    os.remove(_stale_path)
+                except OSError:
+                    pass
+        for _stale_ea_name in ("surface_comparison_restore.png", "line_comparison_restore.png",
+                                "error_metrics_restore.txt"):
+            _stale_ea_path = os.path.join(save_dir, "error_analysis", _stale_ea_name)
+            if os.path.exists(_stale_ea_path):
+                try:
+                    os.remove(_stale_ea_path)
+                except OSError:
+                    pass
 
         with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as tf:
             tf.write(script)
@@ -10905,6 +11614,16 @@ print("RESTORE_DONE")
         t_min = cfg["t_min"]; t_max = cfg["t_max"]
         is_2d = cfg.get("problem_dim", "1D") == "2D"
         is_3d = cfg.get("problem_dim", "1D") == "3D"
+        # Steady-state problems have no time axis at all (see
+        # _on_steady_state_changed and generate_script()'s own _is_steady
+        # branch in codegen.py): the restored network's first layer has one
+        # fewer input than a transient model's (cfg["layers"] is already
+        # correctly sized for this -- it's read straight from the saved
+        # config), so every model.predict(...) input array built below must
+        # likewise drop the time column for a steady-state restore, or it
+        # crashes with a shape mismatch like "mat1 and mat2 shapes cannot be
+        # multiplied (Nx3 and 2x64)" -- exactly the bug this fixes.
+        is_steady = bool(cfg.get("steady_state", False))
         loss_type = cfg.get("loss_type", "MSE")
         out_names = cfg.get("output_names", "u").split(",")
         # Optional derived scalar field (e.g. "sqrt(u**2+v**2)" for 1D
@@ -10945,6 +11664,60 @@ print("RESTORE_DONE")
         inv_var_defs_restore = "\n".join(_inv_var_def_lines)
         inv_var_list_restore = "[" + ", ".join(_inv_var_names_restore) + "]" if is_inverse_restore else "None"
 
+        # Reconstruct the ACTUAL problem geometry (Disk/Ellipse/Triangle/
+        # Polygon/Sphere/Custom CSG combo, not just its rectangular/cuboid
+        # bounding box) from the saved config, instead of always building a
+        # plain Rectangle/Cuboid/Interval here. Without this, a restored
+        # model for e.g. a triangular-cavity Custom geometry would predict
+        # and plot over the full bounding-box rectangle it happens to sit
+        # inside, not the real (possibly non-convex / CSG-combined) domain
+        # -- reusing generate_clean_script()'s own geometry-building helpers
+        # (_clean_geom_line/_build_custom_geom_code/_parse_vertex_list) so
+        # this doesn't reimplement per-shape dispatch a third time, and so
+        # any new geometry type added there is automatically picked up here
+        # too. geometry_type and the geom_* fields are only present in
+        # model_config.json for models saved after this fix -- cfg.get(...)
+        # below falls back to the same defaults PINNConfig itself uses, so
+        # an older saved config just restores as a plain Rectangle/Cuboid/
+        # Interval, exactly as before.
+        import types as _restore_types
+        from pinnstudio.core.codegen import _clean_geom_line, _parse_vertex_list
+        _tri_verts_restore = _parse_vertex_list(cfg.get("geom_triangle_vertices", "0,0;1,0;0,1"))
+        if len(_tri_verts_restore) != 3:
+            _tri_verts_restore = [[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]]
+        _poly_verts_restore = _parse_vertex_list(cfg.get("geom_polygon_vertices", "0,0;1,0;1,1;0,1"))
+        if len(_poly_verts_restore) < 3:
+            _poly_verts_restore = [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]
+        _geom_cfg_restore = _restore_types.SimpleNamespace(
+            geometry_type=cfg.get("geometry_type", "Rectangle"),
+            geom_center_x=cfg.get("geom_center_x", 0.5), geom_center_y=cfg.get("geom_center_y", 0.5),
+            geom_center_z=cfg.get("geom_center_z", 0.5), geom_radius=cfg.get("geom_radius", 0.5),
+            geom_semi_major=cfg.get("geom_semi_major", 0.5), geom_semi_minor=cfg.get("geom_semi_minor", 0.3),
+            geom_angle=cfg.get("geom_angle", 0.0),
+            geom_custom_shapes_json=cfg.get("geom_custom_shapes_json", "[]"),
+            problem_dim=cfg.get("problem_dim", "2D"),
+            x_min=x_min, x_max=x_max, y_min=y_min, y_max=y_max, z_min=z_min, z_max=z_max,
+        )
+        _geom_line_restore, _geom_needs_dtype_wrap = _clean_geom_line(
+            _geom_cfg_restore, is_2d, is_3d, _tri_verts_restore, _poly_verts_restore)
+        # Same wrapper class generate_clean_script() emits for the same
+        # reason (see codegen.py's _DTypeSafeGeom) -- only spliced in when
+        # the reconstructed geometry actually needs it.
+        _dtype_safe_geom_class_restore = '''class _DTypeSafeGeom:
+    def __init__(self, geom):
+        self._geom = geom
+    def __getattr__(self, name):
+        return getattr(self._geom, name)
+    def random_points(self, n, random="pseudo"):
+        return self._geom.random_points(n, random=random).astype(dde.config.real(np))
+    def uniform_points(self, n, boundary=True):
+        return self._geom.uniform_points(n, boundary=boundary).astype(dde.config.real(np))
+    def random_boundary_points(self, n, random="pseudo"):
+        return self._geom.random_boundary_points(n, random=random).astype(dde.config.real(np))
+    def uniform_boundary_points(self, n):
+        return self._geom.uniform_boundary_points(n).astype(dde.config.real(np))
+''' if _geom_needs_dtype_wrap else ''
+
         script = f"""
 import os
 os.environ["DDE_BACKEND"] = "pytorch"
@@ -10955,21 +11728,30 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-# Build minimal geometry for model restore
-if {str(is_3d)}:
-    geom = dde.geometry.Cuboid([{x_min}, {y_min}, {z_min}], [{x_max}, {y_max}, {z_max}])
-elif {str(is_2d)}:
-    geom = dde.geometry.Rectangle([{x_min}, {y_min}], [{x_max}, {y_max}])
+# Build the actual problem geometry for model restore (not just its
+# bounding box) so the restored prediction can be masked back down to the
+# real domain -- see the comment above this script's construction.
+{_dtype_safe_geom_class_restore}
+{_geom_line_restore}
+if {str(is_steady)}:
+    # Steady-state: no time axis at all -- geomtime is just geom itself,
+    # same convention generate_script() uses for a steady config (see
+    # codegen.py's own _is_steady branch). The real architecture match
+    # comes from cfg["layers"]/net below either way; this is only a
+    # placeholder so model.restore() has something to load weights into.
+    geomtime = geom
 else:
-    geom = dde.geometry.Interval({x_min}, {x_max})
-timedomain = dde.geometry.TimeDomain({t_min}, {t_max})
-geomtime   = dde.geometry.GeometryXTime(geom, timedomain)
+    timedomain = dde.geometry.TimeDomain({t_min}, {t_max})
+    geomtime   = dde.geometry.GeometryXTime(geom, timedomain)
 
 def pde(x, y): return y[:, 0:1] * 0
 
 {inv_var_defs_restore}
 
-data = dde.data.TimePDE(geomtime, pde, [], num_domain=100, num_test=100)
+if {str(is_steady)}:
+    data = dde.data.PDE(geomtime, pde, [], num_domain=100, num_test=100)
+else:
+    data = dde.data.TimePDE(geomtime, pde, [], num_domain=100, num_test=100)
 net  = dde.nn.FNN({layers}, "{activation}", "Glorot uniform")
 model = dde.Model(data, net)
 
@@ -10998,6 +11780,7 @@ y_vals = np.linspace({y_min}, {y_max}, 100)
 z_vals = np.linspace({z_min}, {z_max}, 100)
 is_2d  = {str(is_2d)}
 is_3d  = {str(is_3d)}
+is_steady = {str(is_steady)}
 
 # Predicted field: a raw output column (output_idx, matching the Restore
 # panel's own "Output to plot" selector) or -- when "Custom..." is picked
@@ -11028,30 +11811,42 @@ def _extract_plot_field(pred):
             vrange = f"vmin={vmin_val}, vmax={vmax_val}" if not auto_range else ""
             _xlabel_3d = xlabel_override or "x"
             _ylabel_3d = ylabel_override or "y"
-            _title_3d = title_override or f"Restored Model — {out_name}(x,y,z) at t={surface_time}"
+            _title_3d = title_override or (
+                f"Restored Model — {out_name}(x,y,z)" if is_steady
+                else f"Restored Model — {out_name}(x,y,z) at t={surface_time}")
             _xlabel_2d = xlabel_override or "x"
             _ylabel_2d = ylabel_override or "y"
-            _title_2d = title_override or f"Restored Model — {out_name}(x,y) at t={surface_time}"
+            _title_2d = title_override or (
+                f"Restored Model — {out_name}(x,y)" if is_steady
+                else f"Restored Model — {out_name}(x,y) at t={surface_time}")
             # Same "Swap axes" convention as the main Results panel's 1D
             # Surface plot (Plot Settings dialog) -- t on the x-axis by
             # default, with the setting above to go back to x on the
             # x-axis; an explicit override in this dialog's own X/Y-axis
-            # label fields still wins over either default.
+            # label fields still wins over either default. Steady-state has
+            # no t axis at all, so it gets its own plain x/u(x) line labels
+            # instead -- see the is_steady branch of the 1D/else case below.
             _xlabel_1d = xlabel_override or ("t" if swap_xt else "x")
             _ylabel_1d = ylabel_override or ("x" if swap_xt else "t")
             _title_1d = title_override or f"Restored Model — {out_name}(x,t) Surface"
+            _xlabel_1d_steady = xlabel_override or "x"
+            _ylabel_1d_steady = ylabel_override or out_name
+            _title_1d_steady = title_override or f"Restored Model — {out_name}(x)"
             script += f"""
 res = {resolution}
 x_vals = np.linspace({x_min}, {x_max}, res)
 y_vals = np.linspace({y_min}, {y_max}, res)
 if is_3d:
-    # Genuine smooth 3D surface: the restored model is always a Cuboid
-    # in this restore/visualize flow, so each of its 6 flat faces (from
-    # geom.bbox) is predicted directly on a fine regular grid -- no
+    # Genuine smooth 3D surface: each of the bounding box's 6 flat faces
+    # (from geom.bbox) is predicted directly on a fine regular grid -- no
     # slicing or interpolation needed, it's an exact prediction at every
     # grid point -- and drawn with plot_surface's per-quad facecolors.
     # Unlike a scatter of discrete points, adjacent same-ish-colored grid
-    # quads blend into a continuous-looking colored surface.
+    # quads blend into a continuous-looking colored surface. geom here
+    # may be a Cuboid/Sphere/Custom-3D CSG combo (not always a Cuboid),
+    # so every face is also masked down to the real domain below --
+    # otherwise a Sphere/Custom-3D model would show its full bounding-box
+    # face, not just the part that's actually inside the true geometry.
     _res3 = max(24, res // 2)
     _bbox3 = np.asarray(geom.bbox)
     _cx0, _cy0, _cz0 = _bbox3[0]; _cx1, _cy1, _cz1 = _bbox3[1]
@@ -11070,12 +11865,26 @@ if is_3d:
         (np.full_like(_Yyz3, _cx1), _Yyz3, _Zyz3),
     ]
     _face_preds3 = []
+    _face_inside3 = []
     for _fX3, _fY3, _fZ3 in _faces3:
-        _fpts3 = np.column_stack([_fX3.ravel(), _fY3.ravel(), _fZ3.ravel(), np.full(_fX3.size, {surface_time})])
+        _fspatial3 = np.column_stack([_fX3.ravel(), _fY3.ravel(), _fZ3.ravel()])
+        if is_steady:
+            _fpts3 = _fspatial3
+        else:
+            _fpts3 = np.column_stack([_fspatial3, np.full(_fX3.size, {surface_time})])
         _face_preds3.append(_extract_plot_field(model.predict(_fpts3)).reshape(_fX3.shape))
+        # Spatial-only inside() check -- the plain geom (not geomtime), same
+        # as the 2D Surface masking below, since whether a point lies in
+        # the domain never depends on t.
+        _face_inside3.append(np.asarray(geom.inside(_fspatial3)).reshape(_fX3.shape))
+    _inside_vals3 = [f[m] for f, m in zip(_face_preds3, _face_inside3) if m.any()]
     if {auto_range}:
-        _pv_min3 = min(_f.min() for _f in _face_preds3)
-        _pv_max3 = max(_f.max() for _f in _face_preds3)
+        if _inside_vals3:
+            _pv_min3 = min(v.min() for v in _inside_vals3)
+            _pv_max3 = max(v.max() for v in _inside_vals3)
+        else:
+            _pv_min3 = min(_f.min() for _f in _face_preds3)
+            _pv_max3 = max(_f.max() for _f in _face_preds3)
     else:
         _pv_min3, _pv_max3 = {vmin_val}, {vmax_val}
     fig = plt.figure(figsize=(8, 6.5))
@@ -11083,7 +11892,11 @@ if is_3d:
     _norm3 = plt.Normalize(vmin=_pv_min3, vmax=_pv_max3)
     _cmap_obj3 = plt.get_cmap("{colormap}")
     for _fi3, (_fX3, _fY3, _fZ3) in enumerate(_faces3):
-        ax.plot_surface(_fX3, _fY3, _fZ3, facecolors=_cmap_obj3(_norm3(_face_preds3[_fi3])),
+        _fc3 = np.array(_cmap_obj3(_norm3(_face_preds3[_fi3])))
+        # Outside-the-domain quads get alpha=0 -- invisible rather than
+        # plotted as if they were a valid prediction on the bounding box.
+        _fc3[..., 3] = np.where(_face_inside3[_fi3], 1.0, 0.0)
+        ax.plot_surface(_fX3, _fY3, _fZ3, facecolors=_fc3,
                          rstride=1, cstride=1, linewidth=0, antialiased=False, shade=False)
     if {show_colorbar}:
         _sm3 = plt.cm.ScalarMappable(cmap=_cmap_obj3, norm=_norm3)
@@ -11096,13 +11909,35 @@ if is_3d:
         pass  # older matplotlib without set_box_aspect -- cosmetic only
 elif is_2d:
     Xg, Yg = np.meshgrid(x_vals, y_vals)
-    XYT = np.column_stack([Xg.ravel(), Yg.ravel(), np.full(Xg.size, {surface_time})])
+    if is_steady:
+        XYT = np.column_stack([Xg.ravel(), Yg.ravel()])
+    else:
+        XYT = np.column_stack([Xg.ravel(), Yg.ravel(), np.full(Xg.size, {surface_time})])
     pred = _extract_plot_field(model.predict(XYT)).reshape(res, res)
+    # Mask the prediction down to the real problem domain -- geom is the
+    # actual (possibly non-rectangular / CSG-combined) geometry built
+    # above, not just its bounding box, so a grid point that falls in
+    # this box but outside the true domain (e.g. outside a triangular
+    # cavity) is blanked out (NaN -> contourf leaves it unfilled) rather
+    # than plotted as if it were a valid prediction there. Same masking
+    # convention codegen.py's own Surface plots already use for every
+    # non-rectangular geometry.
+    _inside2d = np.asarray(geom.inside(np.column_stack([Xg.ravel(), Yg.ravel()]))).reshape(res, res)
+    pred = np.where(_inside2d, pred, np.nan)
     fig, ax = plt.subplots(figsize=(7, 5))
     im = ax.contourf(Xg, Yg, pred, levels={levels}, cmap="{colormap}", {vrange})
     if {show_colorbar}: fig.colorbar(im, ax=ax)
     ax.set_xlabel({_xlabel_2d!r}); ax.set_ylabel({_ylabel_2d!r})
     ax.set_title({_title_2d!r})
+elif is_steady:
+    # Steady 1D: no time axis and no second spatial axis either -- there's
+    # nothing left to make a "surface" out of, just the one curve u(x).
+    pred = _extract_plot_field(model.predict(x_vals.reshape(-1, 1))).flatten()
+    fig, ax = plt.subplots(figsize=(7, 5))
+    ax.plot(x_vals, pred, color="#4dabf7", linewidth=2)
+    ax.grid(True, alpha=0.2)
+    ax.set_xlabel({_xlabel_1d_steady!r}); ax.set_ylabel({_ylabel_1d_steady!r})
+    ax.set_title({_title_1d_steady!r})
 else:
     t_vals = np.linspace({t_min}, {t_max}, res)
     X, T = np.meshgrid(x_vals, t_vals)
@@ -11137,14 +11972,25 @@ colors = plt.get_cmap("{colormap}")(np.linspace(0, 1, {n_steps}))
 y_mid = ({y_min} + {y_max}) / 2.0
 z_mid = ({z_min} + {z_max}) / 2.0
 for i, tv in enumerate(t_steps_vals):
-    if is_3d:
+    # Steady-state has no time axis -- "time steps" don't exist, so every
+    # iteration predicts the same single steady solution (this viz type is
+    # hidden from the Restore panel's dropdown for a steady-state config;
+    # this is just a defensive fallback so it can't crash if ever reached).
+    if is_steady and is_3d:
+        xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, z_mid)])
+    elif is_steady and is_2d:
+        xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid)])
+    elif is_steady:
+        xt = x_vals.reshape(-1, 1)
+    elif is_3d:
         xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, z_mid), np.full_like(x_vals, tv)])
     elif is_2d:
         xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, tv)])
     else:
         xt = np.column_stack([x_vals, np.full_like(x_vals, tv)])
     u_line = _extract_plot_field(model.predict(xt)).flatten()
-    ax.plot(x_vals, u_line, color=colors[i], linewidth={linewidth}, label=f"t={{tv:.3f}}")
+    _line_label = "steady-state" if is_steady else f"t={{tv:.3f}}"
+    ax.plot(x_vals, u_line, color=colors[i], linewidth={linewidth}, label=_line_label)
 ax.set_xlabel({_xlabel_line!r}); ax.set_ylabel({_ylabel_line!r})
 ax.set_title({_title_line!r})
 ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
@@ -11164,7 +12010,17 @@ y_mid = ({y_min} + {y_max}) / 2.0
 z_mid = ({z_min} + {z_max}) / 2.0
 all_u = []
 for tv in t_frames:
-    if is_3d:
+    # Defensive fallback for steady-state (see the matching comment in the
+    # "Line (time steps)" branch) -- this viz type is hidden from the
+    # dropdown for a steady-state config, so every "frame" below predicts
+    # the same single steady solution rather than crashing.
+    if is_steady and is_3d:
+        xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, z_mid)])
+    elif is_steady and is_2d:
+        xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid)])
+    elif is_steady:
+        xt = x_vals.reshape(-1, 1)
+    elif is_3d:
         xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, z_mid), np.full_like(x_vals, tv)])
     elif is_2d:
         xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, tv)])
@@ -11243,7 +12099,14 @@ if is_3d:
     for tv in t_frames:
         _frame_faces = []
         for _fX3a, _fY3a, _fZ3a in _faces3a:
-            _fpts3a = np.column_stack([_fX3a.ravel(), _fY3a.ravel(), _fZ3a.ravel(), np.full(_fX3a.size, tv)])
+            # Defensive fallback for steady-state (see the matching comment
+            # in "Line (time steps)") -- this viz type is hidden from the
+            # dropdown for a steady-state config, so every frame below
+            # predicts the same single steady solution rather than crashing.
+            if is_steady:
+                _fpts3a = np.column_stack([_fX3a.ravel(), _fY3a.ravel(), _fZ3a.ravel()])
+            else:
+                _fpts3a = np.column_stack([_fX3a.ravel(), _fY3a.ravel(), _fZ3a.ravel(), np.full(_fX3a.size, tv)])
             _frame_faces.append(_extract_plot_field(model.predict(_fpts3a)).reshape(_fX3a.shape))
         all_frames.append(_frame_faces)
     v_min = min(_f.min() for _frame in all_frames for _f in _frame)
@@ -11275,7 +12138,12 @@ else:
         y_anim = np.linspace({y_min}, {y_max}, 80)
         Xg, Yg = np.meshgrid(x_anim, y_anim)
         for tv in t_frames:
-            XYT = np.column_stack([Xg.ravel(), Yg.ravel(), np.full(Xg.size, tv)])
+            # Defensive fallback for steady-state, same as the 3D branch
+            # above -- hidden from the dropdown for a steady-state config.
+            if is_steady:
+                XYT = np.column_stack([Xg.ravel(), Yg.ravel()])
+            else:
+                XYT = np.column_stack([Xg.ravel(), Yg.ravel(), np.full(Xg.size, tv)])
             pred = _extract_plot_field(model.predict(XYT)).reshape(80, 80)
             all_frames.append((Xg, Yg, pred))
     else:
@@ -11791,7 +12659,8 @@ else:
 
     def _build_restore_ea_script(self, files, save_dir, is_2d, do_line, do_surface,
                                   x_min, x_max, y_min, y_max, out_name, viz_settings=None,
-                                  is_3d=False, output_idx=0, custom_expr="", output_names="u"):
+                                  is_3d=False, output_idx=0, custom_expr="", output_names="u",
+                                  is_steady=False):
         if viz_settings is None:
             viz_settings = {}
         _cmap     = viz_settings.get('colormap', 'viridis')
@@ -11844,7 +12713,23 @@ for _tv, _fp in _ea_files:
     _d = np.loadtxt(_fp)
     if _d.ndim == 1: _d = _d.reshape(1, -1)
     _d_shape = _d.shape[1]
-    if {is_3d}:
+    if {is_steady} and {is_3d}:
+        # Steady 3D reference format: x, y, z, u — no time column at all.
+        _idx = np.lexsort((_d[:, 2], _d[:, 1], _d[:, 0]))
+        _ea_x_refs.append(_d[_idx, 0])
+        _ea_y_refs.append(_d[_idx, 1])
+        _ea_z_refs.append(_d[_idx, 2])
+        _ea_u_refs.append(_d[_idx, 3])
+        _ea_times.append(0.0)
+    elif {is_steady} and {is_2d}:
+        # Steady 2D reference format: x, y, u — no time column at all.
+        _idx = np.lexsort((_d[:, 1], _d[:, 0]))
+        _ea_x_refs.append(_d[_idx, 0])
+        _ea_y_refs.append(_d[_idx, 1])
+        _ea_z_refs.append(np.zeros_like(_d[_idx, 0]))
+        _ea_u_refs.append(_d[_idx, 2])
+        _ea_times.append(0.0)
+    elif {is_3d}:
         # 3D time-dependent reference format: x, y, z, t, u
         _idx = np.lexsort((_d[:, 2], _d[:, 1], _d[:, 0]))
         _ea_x_refs.append(_d[_idx, 0])
@@ -11866,13 +12751,20 @@ for _tv, _fp in _ea_files:
         _ea_z_refs.append(np.zeros_like(_d[_idx, 0]))
         _ea_u_refs.append(_d[_idx, 2])
         _ea_times.append(float(_tv))
-    print(f"  Loaded t={{_ea_times[-1]:.4f}}: {{len(_d)}} pts from {{os.path.basename(_fp)}}")
+    if {is_steady}:
+        print(f"  Loaded ground truth (steady-state): {{len(_d)}} pts from {{os.path.basename(_fp)}}")
+    else:
+        print(f"  Loaded t={{_ea_times[-1]:.4f}}: {{len(_d)}} pts from {{os.path.basename(_fp)}}")
 
 _ea_n_t = len(_ea_times)
 _ea_u_pinns = []
 for _i, _tv in enumerate(_ea_times):
     _xf = _ea_x_refs[_i]
-    if {is_3d}:
+    if {is_steady} and {is_3d}:
+        _xt = np.column_stack([_xf, _ea_y_refs[_i], _ea_z_refs[_i]])
+    elif {is_steady} and {is_2d}:
+        _xt = np.column_stack([_xf, _ea_y_refs[_i]])
+    elif {is_3d}:
         _yf = _ea_y_refs[_i]; _zf = _ea_z_refs[_i]
         _xt = np.column_stack([_xf, _yf, _zf, np.full_like(_xf, _tv)])
     elif {is_2d}:
@@ -11881,7 +12773,10 @@ for _i, _tv in enumerate(_ea_times):
     else:
         _xt = np.column_stack([_xf, np.full_like(_xf, _tv)])
     _ea_u_pinns.append(_extract_restore_field(model.predict(_xt)).flatten())
-    print(f"  Predicted at t={{_tv:.4f}}: {{len(_xf)}} points")
+    if {is_steady}:
+        print(f"  PINN predicted (steady-state): {{len(_xf)}} points")
+    else:
+        print(f"  Predicted at t={{_tv:.4f}}: {{len(_xf)}} points")
 
 # Metrics
 _ea_metrics = []
@@ -11941,18 +12836,23 @@ elif {do_surface}:
         fig.suptitle("Restored Model vs Ground Truth — 2D Heatmaps", fontsize=13, fontweight='bold')
         for _i, _tv in enumerate(_ea_times):
             _tv_r, _l2, _mse, _mx, _ma = _ea_metrics[_i]
-            _xyt_g = np.column_stack([_Xg_ea.ravel(), _Yg_ea.ravel(), np.full(_Xg_ea.size, _tv)])
+            if {is_steady}:
+                _xyt_g = np.column_stack([_Xg_ea.ravel(), _Yg_ea.ravel()])
+            else:
+                _xyt_g = np.column_stack([_Xg_ea.ravel(), _Yg_ea.ravel(), np.full(_Xg_ea.size, _tv)])
             _u_pinn_g = _extract_restore_field(model.predict(_xyt_g)).reshape(_res_ea, _res_ea)
             _u_fem_g  = _gd(np.column_stack([_ea_x_refs[_i], _ea_y_refs[_i]]),
                             _ea_u_refs[_i], (_Xg_ea, _Yg_ea), method='linear', fill_value=0.0)
             _u_err_g  = np.abs(_u_pinn_g - _u_fem_g)
             _vmin_data = min(_u_pinn_g.min(), _u_fem_g.min()) if {_auto} else {_vmin}
             _vmax_data = max(_u_pinn_g.max(), _u_fem_g.max()) if {_auto} else {_vmax}
+            _ea_pinn_title = f"PINN (steady-state) L2={{_l2:.2e}}" if {is_steady} else f"PINN t={{_tv:.3f}} L2={{_l2:.2e}}"
+            _ea_gt_title = "Ground Truth" if {is_steady} else f"Ground Truth t={{_tv:.3f}}"
             im0 = axes[_i][0].contourf(_Xg_ea, _Yg_ea, _u_pinn_g, levels={_levels}, cmap='{_cmap}', vmin=_vmin_data, vmax=_vmax_data)
-            axes[_i][0].set_title(f"PINN t={{_tv:.3f}} L2={{_l2:.2e}}"); axes[_i][0].set_xlabel("x"); axes[_i][0].set_ylabel("y")
+            axes[_i][0].set_title(_ea_pinn_title); axes[_i][0].set_xlabel("x"); axes[_i][0].set_ylabel("y")
             if {_colorbar}: fig.colorbar(im0, ax=axes[_i][0])
             im1 = axes[_i][1].contourf(_Xg_ea, _Yg_ea, _u_fem_g, levels={_levels}, cmap='{_cmap}', vmin=_vmin_data, vmax=_vmax_data)
-            axes[_i][1].set_title(f"Ground Truth t={{_tv:.3f}}"); axes[_i][1].set_xlabel("x"); axes[_i][1].set_ylabel("y")
+            axes[_i][1].set_title(_ea_gt_title); axes[_i][1].set_xlabel("x"); axes[_i][1].set_ylabel("y")
             if {_colorbar}: fig.colorbar(im1, ax=axes[_i][1])
             im2 = axes[_i][2].contourf(_Xg_ea, _Yg_ea, _u_err_g, levels={_levels}, cmap='{_cmap}')
             axes[_i][2].set_title(f"|Error| Max={{_mx:.2e}}"); axes[_i][2].set_xlabel("x"); axes[_i][2].set_ylabel("y")
