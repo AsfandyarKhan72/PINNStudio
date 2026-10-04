@@ -733,9 +733,9 @@ class MainWindow(QMainWindow):
         # ── Dimension selector ────────────────────────────────
         dim_group = QGroupBox("Problem Dimension")
         dim_layout = QHBoxLayout(dim_group)
-        self.radio_1d = QRadioButton("1D  (x, t)")
-        self.radio_2d = QRadioButton("2D  (x, y, t)")
-        self.radio_3d = QRadioButton("3D  (x, y, z, t)")
+        self.radio_1d = QRadioButton("1D  (x)")
+        self.radio_2d = QRadioButton("2D  (x, y)")
+        self.radio_3d = QRadioButton("3D  (x, y, z)")
         self.radio_1d.setChecked(True)
         self.dim_group_btn = QButtonGroup()
         self.dim_group_btn.addButton(self.radio_1d)
