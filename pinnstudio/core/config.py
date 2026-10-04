@@ -510,7 +510,7 @@ class PINNConfig:
         # for the other geometry types today.
         if self.geometry_type == "Custom":
             _raw_shapes = getattr(self, "geom_custom_shapes_json", "") or ""
-            _KNOWN_SHAPE_TYPES = ("Rectangle", "Disk", "Ellipse", "Triangle", "Polygon")
+            _KNOWN_SHAPE_TYPES = ("Rectangle", "Disk", "Ellipse", "Triangle", "Polygon", "Cuboid", "Sphere")
             try:
                 _shapes_cfg = _json_cfg.loads(_raw_shapes) if _raw_shapes.strip() else []
             except (ValueError, TypeError):

@@ -68,7 +68,7 @@ def _parse_vertex_list(text):
     return verts
 
 _CUSTOM_GEOM_OP_CTORS = {"union": "CSGUnion", "subtract": "CSGDifference", "intersect": "CSGIntersection"}
-_CUSTOM_GEOM_BUGGY_LEAF_TYPES = ("Disk", "Ellipse", "Triangle", "Polygon")
+_CUSTOM_GEOM_BUGGY_LEAF_TYPES = ("Disk", "Ellipse", "Triangle", "Polygon", "Sphere")
 
 
 def _custom_geom_leaf_literal(shape_type, params):
@@ -98,6 +98,21 @@ def _custom_geom_leaf_literal(shape_type, params):
         if len(verts) < 3:
             verts = [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]
         return f"dde.geometry.Polygon({verts})"
+    if shape_type == "Cuboid":
+        x_min = params.get("x_min", 0.0); x_max = params.get("x_max", 1.0)
+        y_min = params.get("y_min", 0.0); y_max = params.get("y_max", 1.0)
+        z_min = params.get("z_min", 0.0); z_max = params.get("z_max", 1.0)
+        if x_min >= x_max:
+            x_min, x_max = 0.0, 1.0
+        if y_min >= y_max:
+            y_min, y_max = 0.0, 1.0
+        if z_min >= z_max:
+            z_min, z_max = 0.0, 1.0
+        return f"dde.geometry.Cuboid([{x_min}, {y_min}, {z_min}], [{x_max}, {y_max}, {z_max}])"
+    if shape_type == "Sphere":
+        cx = params.get("cx", 0.5); cy = params.get("cy", 0.5); cz = params.get("cz", 0.5)
+        r = params.get("r", 0.5)
+        return f"dde.geometry.Sphere([{cx}, {cy}, {cz}], {r})"
     # Rectangle, and any unrecognized/missing type -- fall back to a unit
     # square Rectangle rather than crashing codegen over a stale entry.
     x_min = params.get("x_min", 0.0); x_max = params.get("x_max", 1.0)
@@ -117,18 +132,20 @@ def _build_custom_geom_code(config):
     the same two call sites every other geometry type already has its own
     literal-building logic at (see _triangle_vertices_literal above vs
     tri_verts in _clean_geom_line). Falls back to a unit-square Rectangle
-    if the shape list is empty or unparseable, matching every other
-    shape's fallback-to-sane-default philosophy in this file.
+    (2D) or unit cube Cuboid (3D, per config.problem_dim) if the shape
+    list is empty or unparseable, matching every other shape's
+    fallback-to-sane-default philosophy in this file.
 
     wrap_needed mirrors _DTypeSafeGeom's existing single-shape rule
-    (Disk/Ellipse/Triangle/Polygon get wrapped, Rectangle doesn't): a CSG
-    combination of 2+ shapes never needs it -- verified empirically
-    against the installed DeepXDE version, CSGUnion/CSGDifference/
-    CSGIntersection always normalize their sampled points to the network's
-    own configured float dtype regardless of which leaf types feed into
-    them, even when every leaf is individually "buggy" -- so wrapping is
-    only applied for the degenerate single-shape Custom case, exactly
-    like a plain (non-Custom) Disk/Ellipse/Triangle/Polygon already gets."""
+    (Disk/Ellipse/Triangle/Polygon/Sphere get wrapped, Rectangle/Cuboid
+    don't): a CSG combination of 2+ shapes never needs it -- verified
+    empirically against the installed DeepXDE version, in both 2D and 3D,
+    CSGUnion/CSGDifference/CSGIntersection always normalize their sampled
+    points to the network's own configured float dtype regardless of
+    which leaf types feed into them, even when every leaf is individually
+    "buggy" -- so wrapping is only applied for the degenerate single-shape
+    Custom case, exactly like a plain (non-Custom) Disk/Ellipse/Triangle/
+    Polygon/Sphere already gets."""
     import json as _json_cg
     try:
         entries = _json_cg.loads(config.geom_custom_shapes_json or "[]")
@@ -138,7 +155,11 @@ def _build_custom_geom_code(config):
         entries = []
     entries = [e for e in entries if isinstance(e, dict)]
     if not entries:
-        entries = [{"type": "Rectangle", "params": {"x_min": 0.0, "x_max": 1.0, "y_min": 0.0, "y_max": 1.0}}]
+        if getattr(config, "problem_dim", "2D") == "3D":
+            entries = [{"type": "Cuboid", "params": {
+                "x_min": 0.0, "x_max": 1.0, "y_min": 0.0, "y_max": 1.0, "z_min": 0.0, "z_max": 1.0}}]
+        else:
+            entries = [{"type": "Rectangle", "params": {"x_min": 0.0, "x_max": 1.0, "y_min": 0.0, "y_max": 1.0}}]
 
     code = None
     for entry in entries:

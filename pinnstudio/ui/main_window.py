@@ -2811,8 +2811,10 @@ class MainWindow(QMainWindow):
 
     # ── Dimension change ──────────────────────────────────────
     GEOM_TYPES_2D = ["Rectangle", "Disk", "Ellipse", "Triangle", "Polygon", "Custom"]
-    GEOM_TYPES_3D = ["Cuboid", "Sphere"]
-    CUSTOM_GEOM_SHAPE_TYPES = ["Rectangle", "Disk", "Ellipse", "Triangle", "Polygon"]
+    GEOM_TYPES_3D = ["Cuboid", "Sphere", "Custom"]
+    CUSTOM_GEOM_SHAPE_TYPES_2D = ["Rectangle", "Disk", "Ellipse", "Triangle", "Polygon"]
+    CUSTOM_GEOM_SHAPE_TYPES_3D = ["Cuboid", "Sphere"]
+    CUSTOM_GEOM_SHAPE_TYPES_ALL = CUSTOM_GEOM_SHAPE_TYPES_2D + CUSTOM_GEOM_SHAPE_TYPES_3D
     CUSTOM_GEOM_OPS = [("Union (add)", "union"), ("Subtract (cut hole)", "subtract"), ("Intersect", "intersect")]
 
     def _current_input_dim_labels(self):
@@ -2897,6 +2899,18 @@ class MainWindow(QMainWindow):
             for e in list(self.custom_bc_list):
                 e['widget'].deleteLater()
             self.custom_bc_list.clear()
+        # Same reasoning for the Custom-geometry shape list: a 2D shape
+        # (Rectangle/Disk/Ellipse/Triangle/Polygon) isn't a valid 3D
+        # primitive and vice versa (Cuboid/Sphere aren't valid in 2D), so
+        # carrying shapes across a dimension switch would leave Custom
+        # geometry pointing at constructors that don't exist for the new
+        # dimension. _on_geometry_type_changed() below re-seeds one
+        # dimension-appropriate starting shape if Custom ends up selected
+        # again after this clears the list.
+        if hasattr(self, 'custom_geom_shape_rows') and self.custom_geom_shape_rows:
+            for row in list(self.custom_geom_shape_rows):
+                row['widget'].deleteLater()
+            self.custom_geom_shape_rows.clear()
         # Update quick examples list to match dimension
         self.quick_examples_combo.blockSignals(True)
         self.quick_examples_combo.clear()
@@ -3129,11 +3143,16 @@ class MainWindow(QMainWindow):
         op_row.addStretch(); op_row.addWidget(op_combo)
         row_layout.addWidget(op_row_widget)
 
-        # Shape type
+        # Shape type -- which primitives are offered depends on the
+        # current problem dimension (2D: Rectangle/Disk/Ellipse/Triangle/
+        # Polygon; 3D: Cuboid/Sphere). The shape list is cleared whenever
+        # the dimension changes (see _on_dim_changed), so a row is never
+        # built while the "wrong" dimension's primitives would apply.
         type_row = QHBoxLayout()
         type_row.addWidget(QLabel("Shape type:"))
         type_combo = QComboBox()
-        type_combo.addItems(self.CUSTOM_GEOM_SHAPE_TYPES)
+        _is_3d_row = self.radio_3d.isChecked() if hasattr(self, 'radio_3d') else False
+        type_combo.addItems(self.CUSTOM_GEOM_SHAPE_TYPES_3D if _is_3d_row else self.CUSTOM_GEOM_SHAPE_TYPES_2D)
         type_combo.setFixedHeight(26)
         type_row.addStretch(); type_row.addWidget(type_combo)
         row_layout.addLayout(type_row)
@@ -3203,9 +3222,55 @@ class MainWindow(QMainWindow):
         _p.addWidget(poly_verts)
         row_layout.addWidget(poly_panel)
 
+        # -- Cuboid panel (3D): x/y/z ranges, one row each -- same reason
+        # the top-level Sphere panel below splits center/radius onto their
+        # own rows: packing all 6 numbers into one QHBoxLayout pushes the
+        # last field off the visible edge of the narrow left panel.
+        cuboid_panel = QWidget()
+        _p = QVBoxLayout(cuboid_panel); _p.setContentsMargins(0, 0, 0, 0); _p.setSpacing(3)
+        _row_x = QHBoxLayout()
+        _row_x.addWidget(QLabel("x:"))
+        cuboid_xmin = QDoubleSpinBox(); cuboid_xmin.setRange(-1e6, 1e6); cuboid_xmin.setValue(params.get("x_min", 0.0)); cuboid_xmin.setSingleStep(0.1)
+        cuboid_xmax = QDoubleSpinBox(); cuboid_xmax.setRange(-1e6, 1e6); cuboid_xmax.setValue(params.get("x_max", 1.0)); cuboid_xmax.setSingleStep(0.1)
+        _row_x.addWidget(cuboid_xmin); _row_x.addWidget(QLabel("to")); _row_x.addWidget(cuboid_xmax)
+        _p.addLayout(_row_x)
+        _row_y = QHBoxLayout()
+        _row_y.addWidget(QLabel("y:"))
+        cuboid_ymin = QDoubleSpinBox(); cuboid_ymin.setRange(-1e6, 1e6); cuboid_ymin.setValue(params.get("y_min", 0.0)); cuboid_ymin.setSingleStep(0.1)
+        cuboid_ymax = QDoubleSpinBox(); cuboid_ymax.setRange(-1e6, 1e6); cuboid_ymax.setValue(params.get("y_max", 1.0)); cuboid_ymax.setSingleStep(0.1)
+        _row_y.addWidget(cuboid_ymin); _row_y.addWidget(QLabel("to")); _row_y.addWidget(cuboid_ymax)
+        _p.addLayout(_row_y)
+        _row_z = QHBoxLayout()
+        _row_z.addWidget(QLabel("z:"))
+        cuboid_zmin = QDoubleSpinBox(); cuboid_zmin.setRange(-1e6, 1e6); cuboid_zmin.setValue(params.get("z_min", 0.0)); cuboid_zmin.setSingleStep(0.1)
+        cuboid_zmax = QDoubleSpinBox(); cuboid_zmax.setRange(-1e6, 1e6); cuboid_zmax.setValue(params.get("z_max", 1.0)); cuboid_zmax.setSingleStep(0.1)
+        _row_z.addWidget(cuboid_zmin); _row_z.addWidget(QLabel("to")); _row_z.addWidget(cuboid_zmax)
+        _p.addLayout(_row_z)
+        row_layout.addWidget(cuboid_panel)
+
+        # -- Sphere panel (3D): center (x,y,z) + radius, same two-row
+        # layout as the top-level Sphere panel.
+        sphere_panel = QWidget()
+        _p = QVBoxLayout(sphere_panel); _p.setContentsMargins(0, 0, 0, 0); _p.setSpacing(4)
+        _row_a = QHBoxLayout()
+        _row_a.addWidget(QLabel("center x,y,z:"))
+        sphere_cx = QDoubleSpinBox(); sphere_cx.setRange(-1e6, 1e6); sphere_cx.setValue(params.get("cx", 0.5)); sphere_cx.setSingleStep(0.1)
+        sphere_cy = QDoubleSpinBox(); sphere_cy.setRange(-1e6, 1e6); sphere_cy.setValue(params.get("cy", 0.5)); sphere_cy.setSingleStep(0.1)
+        sphere_cz = QDoubleSpinBox(); sphere_cz.setRange(-1e6, 1e6); sphere_cz.setValue(params.get("cz", 0.5)); sphere_cz.setSingleStep(0.1)
+        _row_a.addWidget(sphere_cx); _row_a.addWidget(sphere_cy); _row_a.addWidget(sphere_cz)
+        _p.addLayout(_row_a)
+        _row_b = QHBoxLayout()
+        _row_b.addWidget(QLabel("radius:"))
+        sphere_r = QDoubleSpinBox(); sphere_r.setRange(1e-6, 1e6); sphere_r.setValue(params.get("r", 0.2)); sphere_r.setSingleStep(0.1)
+        _row_b.addWidget(sphere_r)
+        _row_b.addStretch()
+        _p.addLayout(_row_b)
+        row_layout.addWidget(sphere_panel)
+
         type_panel_map = {
             "Rectangle": rect_panel, "Disk": disk_panel, "Ellipse": ellipse_panel,
             "Triangle": tri_panel, "Polygon": poly_panel,
+            "Cuboid": cuboid_panel, "Sphere": sphere_panel,
         }
 
         def _update_type_panels():
@@ -3229,6 +3294,10 @@ class MainWindow(QMainWindow):
             'ell_cx': ell_cx, 'ell_cy': ell_cy, 'ell_a': ell_a, 'ell_b': ell_b, 'ell_angle': ell_angle,
             'tri_verts': tri_verts,
             'poly_verts': poly_verts,
+            'cuboid_xmin': cuboid_xmin, 'cuboid_xmax': cuboid_xmax,
+            'cuboid_ymin': cuboid_ymin, 'cuboid_ymax': cuboid_ymax,
+            'cuboid_zmin': cuboid_zmin, 'cuboid_zmax': cuboid_zmax,
+            'sphere_cx': sphere_cx, 'sphere_cy': sphere_cy, 'sphere_cz': sphere_cz, 'sphere_r': sphere_r,
         }
         self.custom_geom_shape_rows.append(row_data)
         op_row_widget.setVisible(len(self.custom_geom_shape_rows) > 1)
@@ -3295,8 +3364,19 @@ class MainWindow(QMainWindow):
             }
         elif shape_type == "Triangle":
             shape_params = {"vertices_text": row['tri_verts'].text()}
-        else:  # Polygon
+        elif shape_type == "Polygon":
             shape_params = {"vertices_text": row['poly_verts'].text()}
+        elif shape_type == "Cuboid":
+            shape_params = {
+                "x_min": row['cuboid_xmin'].value(), "x_max": row['cuboid_xmax'].value(),
+                "y_min": row['cuboid_ymin'].value(), "y_max": row['cuboid_ymax'].value(),
+                "z_min": row['cuboid_zmin'].value(), "z_max": row['cuboid_zmax'].value(),
+            }
+        else:  # Sphere
+            shape_params = {
+                "cx": row['sphere_cx'].value(), "cy": row['sphere_cy'].value(), "cz": row['sphere_cz'].value(),
+                "r": row['sphere_r'].value(),
+            }
         entry = {"type": shape_type, "params": shape_params}
         if not is_first:
             entry["op"] = row['op_combo'].currentData()
@@ -3333,7 +3413,7 @@ class MainWindow(QMainWindow):
             if not isinstance(entry, dict):
                 continue
             shape_type = entry.get("type")
-            if shape_type not in self.CUSTOM_GEOM_SHAPE_TYPES:
+            if shape_type not in self.CUSTOM_GEOM_SHAPE_TYPES_ALL:
                 continue
             params = entry.get("params") or {}
             op = entry.get("op") or "union"
@@ -7160,6 +7240,56 @@ def _style_legend(ax):
             bbox = (min(xs), max(xs), min(ys), max(ys))
         return geom_code, patch_code, bbox
 
+    def _custom_geom_3d_leaf_code(self, idx, shape_type, params):
+        """3D counterpart of _custom_geom_leaf_code() -- one leaf shape's
+        dde.geometry constructor call + a 3D outline-drawing code block
+        (box edges for Cuboid, a wireframe sphere for Sphere, same style
+        as _build_3d_preview_script's own single-shape outlines) + its
+        bounding box. idx makes every local variable name in the outline
+        code unique (_corners_3, _sx_3, ...) so several leaves' outline
+        blocks can be concatenated into one script without colliding,
+        since -- unlike the 2D preview, where each leaf is a self-
+        contained matplotlib Patch object -- a 3D outline here is a few
+        lines of plotting code run directly against the shared `ax`."""
+        params = params or {}
+        if shape_type == "Cuboid":
+            x_min, x_max = params.get("x_min", 0.0), params.get("x_max", 1.0)
+            y_min, y_max = params.get("y_min", 0.0), params.get("y_max", 1.0)
+            z_min, z_max = params.get("z_min", 0.0), params.get("z_max", 1.0)
+            if x_min >= x_max or y_min >= y_max or z_min >= z_max:
+                raise ValueError("needs x_min<x_max, y_min<y_max, and z_min<z_max.")
+            geom_code = f"dde.geometry.Cuboid([{x_min}, {y_min}, {z_min}], [{x_max}, {y_max}, {z_max}])"
+            outline_code = (
+                f"_x0_{idx}, _x1_{idx}, _y0_{idx}, _y1_{idx}, _z0_{idx}, _z1_{idx} = "
+                f"{x_min}, {x_max}, {y_min}, {y_max}, {z_min}, {z_max}\n"
+                f"_corners_{idx} = [(_x0_{idx},_y0_{idx},_z0_{idx}),(_x1_{idx},_y0_{idx},_z0_{idx}),"
+                f"(_x1_{idx},_y1_{idx},_z0_{idx}),(_x0_{idx},_y1_{idx},_z0_{idx}),\n"
+                f"               (_x0_{idx},_y0_{idx},_z1_{idx}),(_x1_{idx},_y0_{idx},_z1_{idx}),"
+                f"(_x1_{idx},_y1_{idx},_z1_{idx}),(_x0_{idx},_y1_{idx},_z1_{idx})]\n"
+                f"_edges_{idx} = [(0,1),(1,2),(2,3),(3,0),(4,5),(5,6),(6,7),(7,4),(0,4),(1,5),(2,6),(3,7)]\n"
+                f"for _i, _j in _edges_{idx}:\n"
+                f"    _p0, _p1 = _corners_{idx}[_i], _corners_{idx}[_j]\n"
+                "    ax.plot([_p0[0],_p1[0]], [_p0[1],_p1[1]], [_p0[2],_p1[2]], color='#1971c2', linewidth=2.0)\n"
+            )
+            bbox = (x_min, x_max, y_min, y_max, z_min, z_max)
+        elif shape_type == "Sphere":
+            cx, cy, cz = params.get("cx", 0.5), params.get("cy", 0.5), params.get("cz", 0.5)
+            r = params.get("r", 0.5)
+            geom_code = f"dde.geometry.Sphere([{cx}, {cy}, {cz}], {r})"
+            outline_code = (
+                f"_u_{idx} = np.linspace(0, 2*np.pi, 30)\n"
+                f"_v_{idx} = np.linspace(0, np.pi, 20)\n"
+                f"_sx_{idx} = {cx} + {r}*np.outer(np.cos(_u_{idx}), np.sin(_v_{idx}))\n"
+                f"_sy_{idx} = {cy} + {r}*np.outer(np.sin(_u_{idx}), np.sin(_v_{idx}))\n"
+                f"_sz_{idx} = {cz} + {r}*np.outer(np.ones_like(_u_{idx}), np.cos(_v_{idx}))\n"
+                f"ax.plot_wireframe(_sx_{idx}, _sy_{idx}, _sz_{idx}, color='#1971c2', "
+                "linewidth=0.7, alpha=0.5, rstride=2, cstride=2)\n"
+            )
+            bbox = (cx - r, cx + r, cy - r, cy + r, cz - r, cz + r)
+        else:
+            raise ValueError(f"unsupported 3D shape type: {shape_type!r}")
+        return geom_code, outline_code, bbox
+
     def _preview_domain(self):
         import tempfile, subprocess, sys, math
         spatial_path = self._DOMAIN_PREVIEW_SPATIAL_PATH
@@ -7196,14 +7326,58 @@ def _style_legend(ax):
                 pass
             sb.valueChanged.connect(self._on_pts_changed)
 
-        is_3d_shape = geom_type in ("Cuboid", "Sphere")
+        # Custom geometry is 2D or 3D depending on which primitives it's
+        # built from -- since the shape list is cleared on every dimension
+        # switch (see _on_dim_changed) and each row's type combo only ever
+        # offers the current dimension's own primitives, the problem's own
+        # radio_3d state is a reliable proxy for which Custom this is.
+        is_3d_shape = geom_type in ("Cuboid", "Sphere") or (geom_type == "Custom" and self.radio_3d.isChecked())
         # Read by _on_preview_done to label the spatial panel's header
         # correctly ("(x,y,z)" vs "(x,y)") once the background script
         # finishes -- it has no other way to know which builder ran.
         self._last_preview_is_3d = is_3d_shape
         if is_3d_shape:
-            script = self._build_3d_preview_script(
-                geom_type, t_min, t_max, n_domain, n_boundary, n_initial, dist)
+            if geom_type == "Custom":
+                if not self.custom_geom_shape_rows:
+                    self.log_box.append("⚠️ Add at least one shape to preview a Custom domain.")
+                    self.loss_label.setText("📉 Loss plot")
+                    self.solution_label.setText("🗺 Solution plot")
+                    return
+                entries = [
+                    self._custom_geom_row_to_dict(row, is_first=(i == 0))
+                    for i, row in enumerate(self.custom_geom_shape_rows)
+                ]
+                _CSG_OP_CTORS = {"union": "CSGUnion", "subtract": "CSGDifference", "intersect": "CSGIntersection"}
+                geom_code = None
+                outline_blocks = []
+                bboxes = []
+                for i, entry in enumerate(entries, start=1):
+                    try:
+                        leaf_code, leaf_outline, leaf_bbox = self._custom_geom_3d_leaf_code(i, entry["type"], entry["params"])
+                    except ValueError as e:
+                        self.log_box.append(f"⚠️ Shape {i} ({entry['type']}) {e}")
+                        self.loss_label.setText("📉 Loss plot")
+                        self.solution_label.setText("🗺 Solution plot")
+                        return
+                    outline_blocks.append(leaf_outline)
+                    bboxes.append(leaf_bbox)
+                    if geom_code is None:
+                        geom_code = leaf_code
+                    else:
+                        ctor = _CSG_OP_CTORS.get(entry.get("op") or "union", "CSGUnion")
+                        geom_code = f"dde.geometry.{ctor}({geom_code}, {leaf_code})"
+                bbox3 = (
+                    min(b[0] for b in bboxes), max(b[1] for b in bboxes),
+                    min(b[2] for b in bboxes), max(b[3] for b in bboxes),
+                    min(b[4] for b in bboxes), max(b[5] for b in bboxes),
+                )
+                outline_code = "\n".join(outline_blocks)
+                script = self._render_3d_preview_script(
+                    "Custom", geom_code, outline_code, bbox3,
+                    t_min, t_max, n_domain, n_boundary, n_initial, dist)
+            else:
+                script = self._build_3d_preview_script(
+                    geom_type, t_min, t_max, n_domain, n_boundary, n_initial, dist)
             with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as tf:
                 tf.write(script)
                 tmp = tf.name
@@ -7511,6 +7685,19 @@ print("DOMAIN_PREVIEW_DONE")
                 "ax.plot_wireframe(_sx, _sy, _sz, color='#1971c2', linewidth=0.7, alpha=0.5, rstride=2, cstride=2)\n"
             )
 
+        return self._render_3d_preview_script(
+            geom_type, geom_code, outline_code, bbox3,
+            t_min, t_max, n_domain, n_boundary, n_initial, dist)
+
+    def _render_3d_preview_script(self, geom_type_label, geom_code, outline_code, bbox3,
+                                   t_min, t_max, n_domain, n_boundary, n_initial, dist):
+        """The actual 3D preview script template -- factored out of
+        _build_3d_preview_script() so the Custom-geometry branch of
+        _preview_domain() below can reuse it directly with a CSG-chained
+        geom_code and a concatenation of each leaf shape's own outline
+        code, instead of duplicating this ~60-line template. geom_code/
+        outline_code/bbox3 are pre-built by the caller; geom_type_label is
+        only used for the plot title."""
         bx0, bx1, by0, by1, bz0, bz1 = bbox3
         pad_x = max((bx1 - bx0) * 0.08, 1e-6)
         pad_y = max((by1 - by0) * 0.08, 1e-6)
@@ -7584,7 +7771,7 @@ if len(bnd_pts): ax.scatter(bnd_pts[:,0], bnd_pts[:,1], bnd_pts[:,2], s=26, c=BN
 ax.set_xlabel('x', fontsize=LABEL_FS, labelpad=10)
 ax.set_ylabel('y', fontsize=LABEL_FS, labelpad=10)
 ax.set_zlabel('z', fontsize=LABEL_FS, labelpad=6)
-ax.set_title('{geom_type}  |  {dist}  |  D={n_domain}  B={n_boundary}  IC={n_initial}', fontsize=TITLE_FS, fontweight='bold', pad=16)
+ax.set_title('{geom_type_label}  |  {dist}  |  D={n_domain}  B={n_boundary}  IC={n_initial}', fontsize=TITLE_FS, fontweight='bold', pad=16)
 _leg3d = ax.legend(fontsize=LEGEND_FS, loc='upper left', framealpha=0.95, facecolor='white', edgecolor='#ced4da', markerscale=1.8)
 if _leg3d is not None: _leg3d.get_frame().set_linewidth(0.8)
 plt.tight_layout()
