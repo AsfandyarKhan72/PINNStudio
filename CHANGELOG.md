@@ -4,6 +4,15 @@ All notable changes to PINNStudio are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.4.0] - 2026-10-04
+
+### Added
+
+- **Parameter Sweep**: run a batch of training configurations from one setup instead of clicking Solve repeatedly and tracking results by hand. Enable it from the left panel (below Adaptive Training) and the shared Solve/Stop controls drive it, the Training Log streams every run in order, and the right panel shows the last completed run's own figure once the sweep finishes. Three ways to combine multiple swept parameters: one-at-a-time (vary each separately against a shared baseline), all combinations (full grid/cross product), and specified combinations (pair up each parameter's *i*-th value, COMSOL-style). Each run gets its own results subfolder (model checkpoint, plots, Error Analysis metrics) under the same Save to: location as a normal Solve, plus an auto-generated `sweep_manifest.json`/`sweep_summary.csv` summarizing every run.
+  - Sweepable parameters span network architecture (hidden layers, neurons per layer, activation, kernel initializer, weight decay), collocation point counts and sampling distribution, every Optimizer Scheduler phase's iterations/learning rate/optimizer, every PDE/BC/IC loss weight, Inverse mode's trainable-variable initial guesses and observed-data loss weights, RAR's own parameters (training rounds, sampling points, points added per cycle, Adam/L-BFGS iterations), Time Adaptive's own parameters (per-step-group step count, IC grid resolution), and Input/Output Transform's per-axis/per-output scale — gated to only appear when the relevant mode/feature is actually selected.
+  - See the [Parameter Sweep](README.md#parameter-sweep) section of the README for the full walkthrough.
+- CI smoke-test workflow now also runs the Parameter Sweep codegen-integration test (`test_sweep_param_expansion.py`) and the Training Callbacks visibility test (`test_training_callbacks_visibility.py`), alongside the existing sweep registry/panel tests.
+
 ## [1.3.0] - 2026-09-30
 
 ### Added

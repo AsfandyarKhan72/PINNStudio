@@ -53,3 +53,5 @@ jobs:
           python tests/test_v56_no_template_solve.py
           python tests/test_sweep_registry.py
           python tests/test_sweep_tab.py
+          python tests/test_sweep_param_expansion.py
+          python tests/test_training_callbacks_visibility.py
