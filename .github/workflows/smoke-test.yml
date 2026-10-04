@@ -59,3 +59,4 @@ jobs:
           python tests/test_steady_state_ic_weights.py
           python tests/test_restore_steady_state.py
           python tests/test_restore_geometry_masking.py
+          python tests/test_restore_display_refresh.py

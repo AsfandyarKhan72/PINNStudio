@@ -11221,6 +11221,35 @@ print("ERROR_ANALYSIS_V2_DONE")
         except Exception as e:
             self.log_box.append(f"⚠️ Skipping error analysis for this restore -- couldn't build it from this config: {e}")
 
+        # Clear any restored_plot.png/restored_animation.gif (and the EA
+        # comparison PNGs) already sitting in save_dir from a PREVIOUS,
+        # unrelated restore -- e.g. an earlier Animation-type restore of a
+        # completely different (transient) problem run against this same
+        # folder. _on_restore_done below picks which file to show/log purely
+        # by os.path.exists(...), so a stale leftover with the right
+        # filename was indistinguishable from this run's own output: a
+        # steady-state Surface restore that writes only restored_plot.png
+        # would still show/report a leftover restored_animation.gif (and/or
+        # a leftover surface_comparison_restore.png) from whatever ran in
+        # this folder before, instead of what was actually just produced.
+        # Deleting them here means every os.path.exists(...) check after
+        # the subprocess finishes can only ever see THIS run's own output.
+        for _stale_name in ("restored_plot.png", "restored_animation.gif"):
+            _stale_path = os.path.join(save_dir, _stale_name)
+            if os.path.exists(_stale_path):
+                try:
+                    os.remove(_stale_path)
+                except OSError:
+                    pass
+        for _stale_ea_name in ("surface_comparison_restore.png", "line_comparison_restore.png",
+                                "error_metrics_restore.txt"):
+            _stale_ea_path = os.path.join(save_dir, "error_analysis", _stale_ea_name)
+            if os.path.exists(_stale_ea_path):
+                try:
+                    os.remove(_stale_ea_path)
+                except OSError:
+                    pass
+
         with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as tf:
             tf.write(script)
             tmp = tf.name
