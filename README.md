@@ -107,7 +107,7 @@ Setting up a Physics-Informed Neural Network usually means writing a new DeepXDE
 
 PINNStudio replaces that boilerplate with a form. You describe the problem — the PDE, the domain, the boundary and initial conditions, the network architecture, the training schedule — through the interface, and PINNStudio generates a standalone DeepXDE/PyTorch script, runs it, and streams the training log, loss curves, and solution plots back into the GUI.
 
-It supports both **forward problems** (solve a known PDE) and **inverse problems** (estimate unknown PDE parameters from observation data), across **1D `(x, t)`, 2D `(x, y, t)`, and 3D `(x, y, z, t)`**, including coupled, multi-output PDE systems. The domain itself isn't limited to a box either — 2D problems can be posed on a rectangle, disk, ellipse, triangle, or arbitrary polygon, and 3D problems on a cuboid or sphere, so a re-entrant-corner or curved-boundary problem doesn't need any code of your own to set up.
+It supports both **forward problems** (solve a known PDE) and **inverse problems** (estimate unknown PDE parameters from observation data), across **1D (`x`), 2D (`x, y`), and 3D (`x, y, z`)** — time-dependent (with a `t` axis) or steady-state (without one) — including coupled, multi-output PDE systems. The domain itself isn't limited to a box either — 2D problems can be posed on a rectangle, disk, ellipse, triangle, or arbitrary polygon, and 3D problems on a cuboid or sphere; any of those primitives can also be combined into a custom shape with boolean union/subtract/intersect operations (e.g. a cavity with an obstacle cut out of it), so a re-entrant-corner, curved-boundary, or multi-shape problem doesn't need any code of your own to set up.
 
 The goal is to make physics-informed machine learning accessible to researchers who need it but don't want to become deep learning engineers first. Setting up a PINN by hand touches autograd-based residuals, collocation sampling, loss weighting, and optimizer scheduling all at once — details that are easy to get subtly wrong and can cost hours of debugging before a single result can be trusted. PINNStudio lets researchers across science and engineering — materials science, mechanics, chemistry, biology, and beyond — set up and run both forward and inverse PINN problems for their own equations without building that infrastructure from scratch, on a framework that has been thoroughly tested so results are trustworthy from the first run.
 
@@ -153,6 +153,12 @@ Boundary conditions are added as rows in a panel, each with its own type (Dirich
 <summary><strong>Geometry & domains</strong></summary>
 
 2D problems aren't limited to a rectangle: **Rectangle, Disk, Ellipse, Triangle,** and arbitrary **Polygon** (given as a vertex list) are all selectable geometries, each with its own domain-preview and parameter panel. 3D problems support **Cuboid** and **Sphere**. Picking a non-box shape doesn't change how you write BCs — the same location-expression convention still works, since DeepXDE only ever evaluates it on points already confirmed to be on that shape's boundary.
+
+Need a shape that isn't one of those on its own? **Custom** geometry (2D and 3D) lets you stack any number of the primitives above and combine each one with the running result via a boolean **Union**, **Subtract**, or **Intersect** — the way to build something like a cavity with an obstacle cut out of it, without writing any CSG code by hand. The example below is a `Triangle` with a `Disk` subtracted out of it (a two-shape Custom chain), the same construction behind this project's own MHD mixed-convection validation case:
+
+<p align="center">
+<img src="assets/Images/View_Domain_Pictures/Custom_Geometry_Triangle_minus_Disk.png" alt="PINNStudio — Custom geometry domain preview, Triangle with a Disk subtracted out" width="55%">
+</p>
 
 </details>
 
@@ -244,7 +250,7 @@ For an inverse problem, the estimated parameter's value is logged and saved peri
 
 ### Parameter Sweep
 
-<details open>
+<details>
 <summary><strong>Run many training configurations from one setup, varying any parameter</strong></summary>
 
 Rather than clicking Solve once per configuration and tracking the results yourself, tick **Enable Parameter Sweep** in the left panel (directly below Adaptive Training) and PINNStudio runs a whole batch of training configurations in sequence — each one a full, independent training run of the problem you've already set up, varying whichever parameter(s) you choose. The shared **Solve**/**Stop** buttons drive it (relabeled **Run Sweep** while a sweep is enabled), and the Training Log streams every run's progress in order, so nothing about the rest of the workflow changes.
@@ -568,7 +574,7 @@ The quantity plotted by default is $|h| = \sqrt{u^2+v^2}$ (a custom derived outp
 
 ---
 
-*The remaining templates are 2D `(x, y, t)` problems.*
+*The remaining templates are 2D problems — time-dependent `(x, y, t)` or steady-state `(x, y)`, as noted per template.*
 
 <details id="2d-heat">
 <summary><strong>2D Heat</strong></summary>
@@ -740,7 +746,7 @@ A companion to the L-Shape template above, on a smooth (curved, non-singular) bo
 
 ---
 
-*The remaining templates are 3D `(x, y, z, t)` problems.*
+*The remaining templates are 3D problems — time-dependent `(x, y, z, t)` or steady-state `(x, y, z)`, as noted per template.*
 
 <details id="3d-heat">
 <summary><strong>3D Heat</strong></summary>
@@ -830,7 +836,7 @@ If PINNStudio is useful in your work, please cite it — see [`CITATION.cff`](CI
 ```bibtex
 @software{khan2026pinnstudio,
   author  = {Khan, Asfandyar and Mamivand, Mahmood},
-  title   = {PINNStudio: A No-Code GUI for Physics-Informed Neural Networks},
+  title   = {PINNStudio: A No-Code Scientific Computing Environment for Forward and Inverse Physics-Informed Neural Networks},
   year    = {2026},
   url     = {https://github.com/AsfandyarKhan72/PINNStudio}
 }

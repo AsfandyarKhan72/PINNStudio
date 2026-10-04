@@ -2,7 +2,7 @@ cff-version: 1.2.0
 message: "If you use this software in your research or workflow, please cite it as below."
 type: software
 title: "PINNStudio"
-abstract: "A no-code desktop GUI for building, training, and visualizing Physics-Informed Neural Networks, built on DeepXDE."
+abstract: "A no-code scientific computing environment for building, training, and visualizing Physics-Informed Neural Networks, built on DeepXDE."
 authors:
   - family-names: "Khan"
     given-names: "Asfandyar"

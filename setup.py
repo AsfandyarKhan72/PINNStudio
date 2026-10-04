@@ -7,7 +7,7 @@ setup(
     name="pinnstudio",
     version="1.4.0",
     author="AsfandyarKhan72",
-    description="No-code GUI for Physics-Informed Neural Networks using DeepXDE",
+    description="A No-Code Scientific Computing Environment for Forward and Inverse Physics-Informed Neural Networks, built on DeepXDE",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/AsfandyarKhan72/PINNStudio",
