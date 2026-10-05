@@ -11411,6 +11411,7 @@ print("ERROR_ANALYSIS_V2_DONE")
                         custom_expr=custom_expr,
                         output_names=cfg.get('output_names', 'u'),
                         is_steady=cfg.get('steady_state', False),
+                        is_ta=_use_ta_restore,
                     )
                 else:
                     self.log_box.append(f"ℹ️ No reference files match t=[{t_min_restore:.4f}, {t_max_restore:.4f}] — skipping error analysis")
@@ -12910,7 +12911,7 @@ else:
     def _build_restore_ea_script(self, files, save_dir, is_2d, do_line, do_surface,
                                   x_min, x_max, y_min, y_max, out_name, viz_settings=None,
                                   is_3d=False, output_idx=0, custom_expr="", output_names="u",
-                                  is_steady=False):
+                                  is_steady=False, is_ta=False):
         if viz_settings is None:
             viz_settings = {}
         _cmap     = viz_settings.get('colormap', 'viridis')
@@ -12921,6 +12922,18 @@ else:
         _vmin     = viz_settings.get('vmin', -1.0)
         _vmax     = viz_settings.get('vmax', 1.0)
         files_repr = repr(files)
+        # Which model to call .predict() on, per reference time _tv: a
+        # Time-Adaptive combined restore (_build_restore_script_ta) never
+        # defines a plain `model` -- it restores each detected step's own
+        # model lazily and routes by time range via _ta_model_for_t(tv)
+        # (defined unconditionally near the top of that generated script,
+        # before any viz-type branching -- see that method). Calling this
+        # per _tv instead of once is required here anyway: the reference
+        # times being compared can span more than one TA step's own
+        # window, so no single restored model is even valid for all of
+        # them. A plain single-model restore (_build_restore_script) still
+        # just uses its own `model` exactly as before.
+        _predict_call = "_ta_model_for_t(_tv).predict" if is_ta else "model.predict"
         # Predicted field: a raw output column (output_idx, matching the
         # Restore panel's own "output:" selector) or -- when a custom
         # expression is set, e.g. |h| = sqrt(u**2+v**2) -- a NumPy
@@ -13022,7 +13035,7 @@ for _i, _tv in enumerate(_ea_times):
         _xt = np.column_stack([_xf, _yf, np.full_like(_xf, _tv)])
     else:
         _xt = np.column_stack([_xf, np.full_like(_xf, _tv)])
-    _ea_u_pinns.append(_extract_restore_field(model.predict(_xt)).flatten())
+    _ea_u_pinns.append(_extract_restore_field({_predict_call}(_xt)).flatten())
     if {is_steady}:
         print(f"  PINN predicted (steady-state): {{len(_xf)}} points")
     else:
@@ -13090,7 +13103,7 @@ elif {do_surface}:
                 _xyt_g = np.column_stack([_Xg_ea.ravel(), _Yg_ea.ravel()])
             else:
                 _xyt_g = np.column_stack([_Xg_ea.ravel(), _Yg_ea.ravel(), np.full(_Xg_ea.size, _tv)])
-            _u_pinn_g = _extract_restore_field(model.predict(_xyt_g)).reshape(_res_ea, _res_ea)
+            _u_pinn_g = _extract_restore_field({_predict_call}(_xyt_g)).reshape(_res_ea, _res_ea)
             _u_fem_g  = _gd(np.column_stack([_ea_x_refs[_i], _ea_y_refs[_i]]),
                             _ea_u_refs[_i], (_Xg_ea, _Yg_ea), method='linear', fill_value=0.0)
             _u_err_g  = np.abs(_u_pinn_g - _u_fem_g)
@@ -13115,7 +13128,7 @@ elif {do_surface}:
         _U_fem  = np.zeros((len(_t_arr), len(_x_common)))
         for _i, _tv in enumerate(_ea_times):
             _xt_c = np.column_stack([_x_common, np.full_like(_x_common, _tv)])
-            _U_pinn[_i] = _extract_restore_field(model.predict(_xt_c)).flatten()
+            _U_pinn[_i] = _extract_restore_field({_predict_call}(_xt_c)).flatten()
             _fi = _interp1d(_ea_x_refs[_i], _ea_u_refs[_i], kind='linear', fill_value='extrapolate')
             _U_fem[_i]  = _fi(_x_common)
         _Xg, _Tg = np.meshgrid(_x_common, _t_arr)

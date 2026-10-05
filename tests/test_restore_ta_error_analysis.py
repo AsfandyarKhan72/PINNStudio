@@ -1,0 +1,264 @@
+#!/usr/bin/env python3
+"""
+User report: restoring a Time-Adaptive run's combined models (>=2 step
+checkpoints auto-detected and stitched together -- see
+_detect_restore_ta_steps/_build_restore_script_ta) with Error Analysis
+reference files configured crashed every time, for every viz type
+(Animation Surface, Animation Line, Line (time steps) all reproduced it
+in the user's own logs):
+
+    File "<script>", line NNN, in <module>
+      _ea_u_pinns.append(_extract_restore_field(model.predict(_xt)).flatten())
+    NameError: name 'model' is not defined
+    Restore failed -- check architecture matches saved model.
+
+The restore itself (RESTORE_DONE, the actual plot/gif) always completed
+fine -- the crash only hit the separate Error-Analysis-on-restore pass
+that runs right after, confirming it: the restore script and the EA
+script are two pieces of text concatenated together, and the SECOND one
+is what breaks.
+
+Root cause: _build_restore_ea_script() -- the shared EA-on-restore script
+builder _on_restore() appends after EITHER _build_restore_script()
+(single model) OR _build_restore_script_ta() (Time-Adaptive combined,
+multiple per-step models, never a single `model`) -- always generated
+`model.predict(...)` in its 3 prediction call sites (_ea_u_pinns loop,
+and the 2D/1D-3D surface-comparison branches), unconditionally assuming
+whichever restore script ran before it left a plain `model` variable
+bound. _build_restore_script_ta never does -- it restores each detected
+step's own model lazily and routes by time range through
+_ta_model_for_t(tv) (defined unconditionally near the top of its
+generated script, before any viz-type branching), which is also exactly
+right for the EA pass: the reference times being compared can span more
+than one TA step's own time window, so no single model would even be
+valid for all of them.
+
+Fix: _build_restore_ea_script() takes a new `is_ta` parameter. When
+True, all 3 prediction call sites use `_ta_model_for_t(_tv).predict(...)`
+(each already inside a `for _i, _tv in enumerate(_ea_times):` loop, so
+_tv is in scope) instead of a bare `model.predict(...)`. _on_restore()
+now passes `is_ta=_use_ta_restore` -- the same flag it already uses to
+decide which restore-script builder to call in the first place. The
+single-model case (is_ta=False, the default) renders byte-identical text
+to before this fix -- `_predict_call` resolves to the literal string
+"model.predict" -- so test_export_parity.py's existing
+_build_restore_ea_script checks are unaffected.
+
+Checks:
+ - A real Time-Adaptive restore (2 tiny trained step models, each in its
+   own time_adaptive_steps/step_NNN_t.../ folder, auto-detected via the
+   real _detect_restore_ta_steps()) with Error Analysis reference files
+   spanning BOTH steps' time windows runs end to end with no crash,
+   through _on_restore's actual is_ta=_use_ta_restore wiring reproduced
+   here directly against _build_restore_ea_script.
+ - Negative control: appending the EA script with the OLD call
+   convention (omitting is_ta, i.e. is_ta=False) onto that same
+   Time-Adaptive main script reproduces the user's exact crash --
+   "NameError: name 'model' is not defined" -- proving this test's setup
+   genuinely exercises the reported bug and isn't passing vacuously.
+ - test_export_parity.py's pre-existing _build_restore_ea_script checks
+   (single-model case, is_ta omitted) still pass unchanged.
+
+Run directly:
+    QT_QPA_PLATFORM=offscreen python3 tests/test_restore_ta_error_analysis.py
+"""
+import json
+import os
+import subprocess
+import sys
+import tempfile
+
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+os.environ.setdefault("DDE_BACKEND", "pytorch")
+
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
+
+from PyQt6.QtWidgets import QApplication
+
+_app = QApplication.instance() or QApplication(sys.argv)
+
+from pinnstudio.ui.main_window import MainWindow
+
+
+def _train_and_save_ta_step(step_dir, t0, t1, tag):
+    """Tiny real 1D transient model trained and saved as if it were one
+    Time-Adaptive step's own checkpoint -- "model_lbfgs-<N>.pt" naming
+    matches _detect_restore_ta_steps()'s own glob pattern
+    ("model_lbfgs-*.pt"), and a sibling step_config.json gives it its own
+    t_min/t_max (exactly the layout generate_script()'s real Time-
+    Adaptive loop writes -- see that method's docstring)."""
+    import deepxde as dde
+
+    os.makedirs(step_dir, exist_ok=True)
+    geom = dde.geometry.Interval(0, 1)
+    timedomain = dde.geometry.TimeDomain(t0, t1)
+    geomtime = dde.geometry.GeometryXTime(geom, timedomain)
+    data = dde.data.TimePDE(geomtime, lambda x, y: y[:, 0:1] * 0, [], num_domain=20,
+                             num_test=20, num_initial=5)
+    net = dde.nn.FNN([2, 16, 16, 1], "tanh", "Glorot uniform")
+    model = dde.Model(data, net)
+    model.compile("adam", lr=0.001)
+    model.train(iterations=1, display_every=1000)
+    # Saved as "model_lbfgs..." purely to match _detect_restore_ta_steps()'s
+    # own glob pattern ("model_lbfgs-*.pt" is tried first) -- what actually
+    # trained it doesn't matter for this test (only the EA predict()-routing
+    # fix is under test here, not training quality), and a real L-BFGS run
+    # against this trivial always-zero-residual dummy PDE never converges
+    # in a bounded number of steps the way Adam's `iterations=` does.
+    model_path = model.save(os.path.join(step_dir, "model_lbfgs"))
+
+    with open(os.path.join(step_dir, "step_config.json"), "w") as f:
+        json.dump({
+            "t_min": t0, "t_max": t1, "problem_dim": "1D", "steady_state": False,
+            "layers": [2, 16, 16, 1], "activation": "tanh", "output_names": "u",
+            "x_min": 0.0, "x_max": 1.0,
+        }, f)
+    return model_path
+
+
+def _run_script(script, tmpdir, tag):
+    sp = os.path.join(tmpdir, f"{tag}_script.py")
+    with open(sp, "w") as f:
+        f.write(script)
+    proc = subprocess.run(
+        [sys.executable, sp], cwd=tmpdir, capture_output=True, text=True, timeout=120,
+    )
+    return proc
+
+
+def run():
+    failures = []
+
+    def check(cond, msg):
+        if not cond:
+            failures.append(msg)
+            print("FAIL:", msg)
+        else:
+            print("ok:", msg)
+
+    try:
+        import deepxde as _dde_probe  # noqa: F401
+        import torch as _torch_probe  # noqa: F401
+    except ImportError:
+        print("SKIPPED: deepxde/torch not installed in this environment.")
+        return failures
+
+    import numpy as np
+
+    win = MainWindow()
+    win._on_restore_viz_changed = lambda text: None  # skip the "Line Plot Settings"
+    # dialog.exec() side effect -- unrelated to this fix, blocks under headless
+    # test runs with no one to close it. Same guard test_restore_steady_state.py
+    # already uses for the same reason.
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        ta_root = os.path.join(tmpdir, "time_adaptive_steps")
+        step1_dir = os.path.join(ta_root, "step_001_t0.0000_to_t0.5000")
+        step2_dir = os.path.join(ta_root, "step_002_t0.5000_to_t1.0000")
+        step1_model = _train_and_save_ta_step(step1_dir, 0.0, 0.5, "step1")
+        _train_and_save_ta_step(step2_dir, 0.5, 1.0, "step2")
+
+        ta_steps = win._detect_restore_ta_steps(step1_model)
+        check(len(ta_steps) == 2, f"expected 2 auto-detected Time-Adaptive steps, got {len(ta_steps)}")
+
+        cfg = {
+            "layers": [2, 16, 16, 1], "activation": "tanh",
+            "x_min": 0.0, "x_max": 1.0, "y_min": 0.0, "y_max": 1.0,
+            "z_min": 0.0, "z_max": 1.0, "t_min": 0.0, "t_max": 1.0,
+            "problem_dim": "1D", "steady_state": False, "loss_type": "MSE",
+            "output_names": "u",
+        }
+        main_script = win._build_restore_script_ta(
+            ta_steps, cfg, "adam", "Line (time steps)", 0, 5, tmpdir)
+        check("_ta_model_for_t" in main_script,
+              "precondition: the Time-Adaptive restore script should define/use _ta_model_for_t")
+        check("\nmodel =" not in main_script and not main_script.strip().startswith("model ="),
+              "precondition: a combined Time-Adaptive restore script should not bind a plain top-level "
+              "`model` the way a single-model restore does (that's the whole reason this bug exists)")
+
+        # Reference times deliberately span BOTH steps' own windows (0.1 is
+        # step 1's, 0.6 is step 2's) -- exactly the scenario that makes a
+        # single bare `model` wrong even if one happened to be bound.
+        ref1 = os.path.join(tmpdir, "ref_t0.1.txt")
+        ref2 = os.path.join(tmpdir, "ref_t0.6.txt")
+        xs = np.linspace(0, 1, 11)
+        np.savetxt(ref1, np.column_stack([xs, np.full_like(xs, 0.1), np.sin(xs)]))
+        np.savetxt(ref2, np.column_stack([xs, np.full_like(xs, 0.6), np.cos(xs)]))
+        files = [(0.1, ref1), (0.6, ref2)]
+
+        # ── Negative control: the OLD call convention (is_ta omitted) ──
+        # should still reproduce the user's exact crash on this Time-
+        # Adaptive main script, proving this test setup is real.
+        ea_script_old = win._build_restore_ea_script(
+            files, tmpdir, is_2d=False, do_line=True, do_surface=True,
+            x_min=0.0, x_max=1.0, y_min=0.0, y_max=1.0, out_name="u",
+            is_3d=False, output_idx=0, output_names="u", is_steady=False,
+        )
+        proc_old = _run_script(main_script + ea_script_old, tmpdir, "ta_ea_old_buggy")
+        check(proc_old.returncode != 0 and "NameError: name 'model' is not defined" in proc_old.stderr,
+              f"negative control: appending the EA script WITHOUT is_ta=True onto a Time-Adaptive "
+              f"restore script should reproduce the user's exact NameError (proves this test's setup "
+              f"is real) -- got exit {proc_old.returncode}:\n{proc_old.stdout[-1000:]}\n{proc_old.stderr[-1000:]}")
+
+        # ── The fix: is_ta=True (what _on_restore now actually passes) ──
+        ea_script_fixed = win._build_restore_ea_script(
+            files, tmpdir, is_2d=False, do_line=True, do_surface=True,
+            x_min=0.0, x_max=1.0, y_min=0.0, y_max=1.0, out_name="u",
+            is_3d=False, output_idx=0, output_names="u", is_steady=False,
+            is_ta=True,
+        )
+        check("_ta_model_for_t(_tv).predict" in ea_script_fixed,
+              "the fixed EA script should route predictions through _ta_model_for_t(_tv), not a bare model")
+        check("model.predict(" not in ea_script_fixed,
+              "the fixed (is_ta=True) EA script should not reference a bare `model` at all")
+
+        proc_fixed = _run_script(main_script + ea_script_fixed, tmpdir, "ta_ea_fixed")
+        check(proc_fixed.returncode == 0,
+              f"Time-Adaptive restore + Error Analysis should run cleanly with the fix, got exit "
+              f"{proc_fixed.returncode}:\n{proc_fixed.stdout[-2000:]}\n{proc_fixed.stderr[-2000:]}")
+        check("RESTORE_DONE" in proc_fixed.stdout, "restore itself should still finish (RESTORE_DONE)")
+        check("Restore Error Analysis Complete" in proc_fixed.stdout
+              or "error_metrics_restore.txt" in " ".join(os.listdir(os.path.join(tmpdir, "error_analysis")))
+              if os.path.isdir(os.path.join(tmpdir, "error_analysis")) else False,
+              f"Error Analysis should actually complete and save its metrics file, stdout:\n{proc_fixed.stdout[-1500:]}")
+        check(os.path.exists(os.path.join(tmpdir, "error_analysis", "error_metrics_restore.txt")),
+              "error_metrics_restore.txt should exist after a successful Time-Adaptive restore + EA run")
+
+    # ── test_export_parity.py's existing single-model EA checks should ──
+    # still pass unchanged (is_ta omitted/False renders identical text).
+    files2 = [(0.5, "/tmp/fake_1d.txt")]
+    s_1d = win._build_restore_ea_script(
+        files2, "/tmp/save", is_2d=False, do_line=True, do_surface=True,
+        x_min=0.0, x_max=1.0, y_min=0.0, y_max=1.0, out_name="v",
+        is_3d=False, output_idx=1, output_names="u,v",
+    )
+    check("model.predict(_xt)[:, 0]" not in s_1d and "model.predict(_xt_c)[:, 0]" not in s_1d,
+          "single-model EA script should still not hardcode output column 0 (regression check)")
+    check("pred[:, 1]" in s_1d, "single-model EA script should still use the selected output_idx")
+    check("model.predict(_xt)" in s_1d,
+          "single-model (is_ta=False/default) EA script should render the same bare model.predict() as before this fix")
+
+    win.close()
+    return failures
+
+
+def main():
+    failures = run()
+    for f in failures:
+        print("FAIL:", f)
+    if failures:
+        print(f"\n{len(failures)} FAILURE(S)")
+        return 1
+    print("\nALL RESTORE TIME-ADAPTIVE ERROR-ANALYSIS TESTS PASSED")
+    return 0
+
+
+def test_restore_ta_error_analysis():
+    failures = run()
+    assert not failures, "\n".join(failures)
+
+
+if __name__ == "__main__":
+    sys.exit(main())
