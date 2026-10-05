@@ -829,6 +829,16 @@ class MainWindow(QMainWindow):
         # other shape these are replaced by that shape's own parameters
         # (center + radius, vertices, ...) below -- see
         # _update_domain_fields_visibility().
+        #
+        # Shared fixed width for every domain spinbox (x/y/z/t min & max) so
+        # they all render the same size regardless of decimal count -- t_min/
+        # t_max need 4 decimals (precision for domains like 1D Schrodinger's
+        # t_max = pi/2, which 2 decimals would silently round to 1.57), while
+        # x/y/z only need the QDoubleSpinBox default of 2; without a shared
+        # width the 4-decimal boxes render visibly wider than the 2-decimal
+        # ones, an inconsistency fixed here by width rather than by cutting
+        # t's precision.
+        _DOMAIN_SPIN_WIDTH = 85
         self.x_row_widget = QWidget()
         x_row = QHBoxLayout(self.x_row_widget)
         x_row.setContentsMargins(0, 0, 0, 0)
@@ -837,6 +847,12 @@ class MainWindow(QMainWindow):
         self.x_min.setRange(-1e6, 1e6); self.x_min.setValue(0.0); self.x_min.setSingleStep(0.5)
         self.x_max = QDoubleSpinBox()
         self.x_max.setRange(-1e6, 1e6); self.x_max.setValue(1.0); self.x_max.setSingleStep(0.5)
+        # Fixed width so this box is the same size as every other domain
+        # spinbox (x/y/z/t) regardless of how many decimals it shows --
+        # see the matching comment on self.t_min/self.t_max below, which
+        # need 4 decimals (not 2) for precision and would otherwise render
+        # visibly wider than these, uneven row/box sizes across the panel.
+        self.x_min.setFixedWidth(_DOMAIN_SPIN_WIDTH); self.x_max.setFixedWidth(_DOMAIN_SPIN_WIDTH)
         x_row.addWidget(self.x_min); x_row.addWidget(QLabel("to")); x_row.addWidget(self.x_max)
         domain_layout.addWidget(self.x_row_widget)
 
@@ -848,6 +864,7 @@ class MainWindow(QMainWindow):
         self.y_min.setRange(-1e6, 1e6); self.y_min.setValue(0.0); self.y_min.setSingleStep(0.5)
         self.y_max = QDoubleSpinBox()
         self.y_max.setRange(-1e6, 1e6); self.y_max.setValue(1.0); self.y_max.setSingleStep(0.5)
+        self.y_min.setFixedWidth(_DOMAIN_SPIN_WIDTH); self.y_max.setFixedWidth(_DOMAIN_SPIN_WIDTH)
         y_row.addWidget(self.y_min); y_row.addWidget(QLabel("to")); y_row.addWidget(self.y_max)
         self.y_row_widget.setVisible(False)
         domain_layout.addWidget(self.y_row_widget)
@@ -860,6 +877,7 @@ class MainWindow(QMainWindow):
         self.z_min.setRange(-1e6, 1e6); self.z_min.setValue(0.0); self.z_min.setSingleStep(0.5)
         self.z_max = QDoubleSpinBox()
         self.z_max.setRange(-1e6, 1e6); self.z_max.setValue(1.0); self.z_max.setSingleStep(0.5)
+        self.z_min.setFixedWidth(_DOMAIN_SPIN_WIDTH); self.z_max.setFixedWidth(_DOMAIN_SPIN_WIDTH)
         z_row.addWidget(self.z_min); z_row.addWidget(QLabel("to")); z_row.addWidget(self.z_max)
         self.z_row_widget.setVisible(False)
         domain_layout.addWidget(self.z_row_widget)
@@ -993,6 +1011,7 @@ class MainWindow(QMainWindow):
         # t in [0, pi/2] -- can actually be set to it (2 decimals would
         # silently round pi/2 = 1.5707963... down to 1.57).
         self.t_max.setDecimals(4)
+        self.t_min.setFixedWidth(_DOMAIN_SPIN_WIDTH); self.t_max.setFixedWidth(_DOMAIN_SPIN_WIDTH)
         row2.addWidget(self.t_min); row2.addWidget(QLabel("to")); row2.addWidget(self.t_max)
         domain_layout.addWidget(self.t_row_widget)
 
@@ -1086,6 +1105,41 @@ class MainWindow(QMainWindow):
         self._register_style(self.custom_bc_note, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
         self.custom_bc_note.setWordWrap(True)
         self.custom_bc_main_layout.addWidget(self.custom_bc_note)
+
+        # One shared "Where" hint for the whole panel -- shown once here
+        # rather than repeated on every single BC row (which it used to be;
+        # each row had its own collapsed toggle). The hint text itself
+        # doesn't depend on which row you're looking at, so one copy is
+        # enough; each row's own "Where:" field still has a short inline
+        # placeholder example of its own.
+        self.bc_loc_hint_toggle = QCheckBox("📖 Show location examples")
+        self.bc_loc_hint_toggle.setChecked(False)
+        self._register_style(self.bc_loc_hint_toggle, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
+        self.custom_bc_main_layout.addWidget(self.bc_loc_hint_toggle)
+        self.bc_loc_hint = QLabel(
+            "True/False expression in x, y, z that picks out WHICH boundary\n"
+            "you mean (only y if 2D/3D, only z if 3D) -- DeepXDE only ever\n"
+            "calls this on points it has already checked ARE on the\n"
+            "geometry's boundary, so you don't need to re-detect \"on the\n"
+            "boundary\" yourself or add any tolerance; you're only telling\n"
+            "it which edge/face those points belong to.\n"
+            "Compare against THIS problem's own Domain min/max fields above\n"
+            "(x_min/x_max, y_min/y_max, z_min/z_max) -- NOT a fixed number\n"
+            "like 0 or 1. E.g. if your domain is x in [-1, 1], the left\n"
+            "edge is \"x <= -1\"; if it's x in [0, 1] instead, the left edge\n"
+            "is \"x <= 0\". Built-in templates fill this in for you\n"
+            "automatically using their own domain -- these are just examples:\n"
+            "x <= x_min            → left edge (use your own x_min value)\n"
+            "x >= x_max            → right edge (use your own x_max value)\n"
+            "y <= y_min            → bottom edge (2D/3D)\n"
+            "np.isclose(x**2 + y**2, 0.25)  → circle boundary, radius 0.5"
+        )
+        self._register_style(self.bc_loc_hint, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
+        self.bc_loc_hint.setWordWrap(True)
+        self.bc_loc_hint.setVisible(False)
+        self.custom_bc_main_layout.addWidget(self.bc_loc_hint)
+        self.bc_loc_hint_toggle.stateChanged.connect(lambda s: self.bc_loc_hint.setVisible(s == 2))
+
         self.custom_bc_list_widget = QWidget()
         self.custom_bc_list_layout = QVBoxLayout(self.custom_bc_list_widget)
         self.custom_bc_list_layout.setSpacing(4)
@@ -2243,6 +2297,11 @@ class MainWindow(QMainWindow):
         restore_save_row = QHBoxLayout()
         self.restore_save_path = QLineEdit()
         self.restore_save_path.setPlaceholderText("Directory to save output...")
+        # Same default as the main Solve panel's "Save to:" field
+        # (self.save_dir_input) -- the main results directory, so Restore
+        # doesn't open to an empty path the user has to fill in by hand
+        # every time. Still freely editable/browsable afterward.
+        self.restore_save_path.setText(os.path.join(os.path.expanduser("~"), "PINNStudio_Results"))
         self.restore_save_path.setFixedHeight(28)
         restore_save_row.addWidget(self.restore_save_path)
         self.restore_save_browse_btn = QPushButton("Browse")
@@ -4570,7 +4629,13 @@ class MainWindow(QMainWindow):
         header_row.addStretch(); header_row.addWidget(remove_btn)
         entry_layout.addLayout(header_row)
 
-        # Type
+        # Type + Output, on one row -- was two separate rows, each with its
+        # label on the left and its control pushed out to the far right by
+        # an addStretch() before it, leaving a wide empty gap between the
+        # label and the dropdown/spinbox. Putting both on one line, with
+        # the controls right next to their own labels, is more compact and
+        # reads better; a single addStretch() at the end still keeps both
+        # left-aligned instead of spreading across the whole row.
         type_row = QHBoxLayout()
         type_row.addWidget(QLabel("Type:"))
         type_combo = QComboBox()
@@ -4578,8 +4643,8 @@ class MainWindow(QMainWindow):
             type_combo.addItem(label_txt, key)
         self._set_combo_data(type_combo, bc_type)
         type_combo.setFixedHeight(26); type_combo.setFixedWidth(210)
-        type_row.addStretch(); type_row.addWidget(type_combo)
-        entry_layout.addLayout(type_row)
+        type_row.addWidget(type_combo)
+        type_row.addSpacing(14)
 
         # Output (component)
         comp_widget = QWidget()
@@ -4589,11 +4654,17 @@ class MainWindow(QMainWindow):
         comp_spin = QSpinBox(); comp_spin.setRange(0, 7); comp_spin.setValue(component)
         comp_spin.setFixedHeight(26); comp_spin.setFixedWidth(60)
         comp_spin.setToolTip("0-indexed output this BC applies to (0 = first output, 1 = second, ...)")
-        comp_row.addStretch(); comp_row.addWidget(comp_spin)
-        entry_layout.addWidget(comp_widget)
+        comp_row.addWidget(comp_spin)
+        type_row.addWidget(comp_widget)
+        type_row.addStretch()
+        entry_layout.addLayout(type_row)
 
         # Location (hidden for PointSet/PointSetOperator, which take points
-        # from a file instead)
+        # from a file instead). The detailed multi-line example text used to
+        # live here too, behind a per-row toggle -- now shown once for the
+        # whole panel instead (see self.bc_loc_hint_toggle above
+        # custom_bc_list_widget), so this row stays just the input itself
+        # plus its short inline placeholder example.
         loc_widget = QWidget()
         loc_layout = QVBoxLayout(loc_widget)
         loc_layout.setContentsMargins(0, 0, 0, 0); loc_layout.setSpacing(2)
@@ -4604,33 +4675,6 @@ class MainWindow(QMainWindow):
         loc_edit.setFixedHeight(26)
         loc_row.addWidget(loc_edit)
         loc_layout.addLayout(loc_row)
-        loc_hint_toggle = QCheckBox("📖 Show location examples")
-        loc_hint_toggle.setChecked(False)
-        self._register_style(loc_hint_toggle, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
-        loc_layout.addWidget(loc_hint_toggle)
-        loc_hint = QLabel(
-            "True/False expression in x, y, z that picks out WHICH boundary\n"
-            "you mean (only y if 2D/3D, only z if 3D) -- DeepXDE only ever\n"
-            "calls this on points it has already checked ARE on the\n"
-            "geometry's boundary, so you don't need to re-detect \"on the\n"
-            "boundary\" yourself or add any tolerance; you're only telling\n"
-            "it which edge/face those points belong to.\n"
-            "Compare against THIS problem's own Domain min/max fields above\n"
-            "(x_min/x_max, y_min/y_max, z_min/z_max) -- NOT a fixed number\n"
-            "like 0 or 1. E.g. if your domain is x in [-1, 1], the left\n"
-            "edge is \"x <= -1\"; if it's x in [0, 1] instead, the left edge\n"
-            "is \"x <= 0\". Built-in templates fill this in for you\n"
-            "automatically using their own domain -- these are just examples:\n"
-            "x <= x_min            → left edge (use your own x_min value)\n"
-            "x >= x_max            → right edge (use your own x_max value)\n"
-            "y <= y_min            → bottom edge (2D/3D)\n"
-            "np.isclose(x**2 + y**2, 0.25)  → circle boundary, radius 0.5"
-        )
-        self._register_style(loc_hint, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
-        loc_hint.setWordWrap(True)
-        loc_hint.setVisible(False)
-        loc_layout.addWidget(loc_hint)
-        loc_hint_toggle.stateChanged.connect(lambda s, h=loc_hint: h.setVisible(s == 2))
         entry_layout.addWidget(loc_widget)
 
         # Value/function (hidden for Periodic, which has no func; hidden for
@@ -4740,7 +4784,7 @@ class MainWindow(QMainWindow):
         _sync_type()
 
         if locked:
-            for w in (type_combo, comp_spin, loc_edit, loc_hint_toggle, val_edit,
+            for w in (type_combo, comp_spin, loc_edit, val_edit,
                       axis_combo, deriv_spin, pointset_path, pointset_browse,
                       loc2_edit, direction_combo):
                 w.setEnabled(False)
@@ -12035,7 +12079,7 @@ ax.set_ylim(u_min - 0.05*abs(u_min), u_max + 0.05*abs(u_max))
 ax.set_xlabel({_xlabel_animline!r}); ax.set_ylabel({_ylabel_animline!r})
 {_title_line_stmt}
 line, = ax.plot([], [], color="#4dabf7", linewidth=2)
-time_txt = ax.text(0.02, 0.95, '', transform=ax.transAxes, color='#ff8787')
+time_txt = ax.text(0.5, 1.02, '', transform=ax.transAxes, color='black', ha='center', fontsize=11)
 ax.grid(True, alpha=0.2)
 def init():
     line.set_data([], []); time_txt.set_text(''); return line, time_txt
@@ -12530,7 +12574,7 @@ ax.set_ylim(u_min - 0.05*abs(u_min), u_max + 0.05*abs(u_max))
 ax.set_xlabel({_xlabel_animline!r}); ax.set_ylabel({_ylabel_animline!r})
 {_title_line_stmt}
 line, = ax.plot([], [], color="#4dabf7", linewidth=2)
-time_txt = ax.text(0.02, 0.95, '', transform=ax.transAxes, color='#ff8787')
+time_txt = ax.text(0.5, 1.02, '', transform=ax.transAxes, color='black', ha='center', fontsize=11)
 ax.grid(True, alpha=0.2)
 def init():
     line.set_data([], []); time_txt.set_text(''); return line, time_txt

@@ -154,10 +154,10 @@ Boundary conditions are added as rows in a panel, each with its own type (Dirich
 
 2D problems aren't limited to a rectangle: **Rectangle, Disk, Ellipse, Triangle,** and arbitrary **Polygon** (given as a vertex list) are all selectable geometries, each with its own domain-preview and parameter panel. 3D problems support **Cuboid** and **Sphere**. Picking a non-box shape doesn't change how you write BCs — the same location-expression convention still works, since DeepXDE only ever evaluates it on points already confirmed to be on that shape's boundary.
 
-Need a shape that isn't one of those on its own? **Custom** geometry (2D and 3D) lets you stack any number of the primitives above and combine each one with the running result via a boolean **Union**, **Subtract**, or **Intersect** — the way to build something like a cavity with an obstacle cut out of it, without writing any CSG code by hand. The example below is a `Triangle` with a `Disk` subtracted out of it (a two-shape Custom chain), the same construction behind this project's own MHD mixed-convection validation case:
+Need a shape that isn't one of those on its own? **Custom** geometry (2D and 3D) lets you stack any number of the primitives above and combine each one with the running result via a boolean **Union**, **Subtract**, or **Intersect** — the way to build something like a cavity with an obstacle cut out of it, without writing any CSG code by hand. The example below is a classic "plate with a hole" domain — a `Rectangle` with a `Disk` subtracted out of it (a two-shape Custom chain):
 
 <p align="center">
-<img src="assets/Images/View_Domain_Pictures/Custom_Geometry_Triangle_minus_Disk.png" alt="PINNStudio — Custom geometry domain preview, Triangle with a Disk subtracted out" width="55%">
+<img src="assets/Images/View_Domain_Pictures/Custom_Geometry_Rectangle_minus_Disk.png" alt="PINNStudio — Custom geometry domain preview, Rectangle with a Disk subtracted out" width="55%">
 </p>
 
 </details>

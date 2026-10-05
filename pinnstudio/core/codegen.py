@@ -2350,7 +2350,19 @@ for _pval in _param_values:
                 _ax_gif.set_ylim(_u_min_gif - 0.05*abs(_u_min_gif) - 1e-9, _u_max_gif + 0.05*abs(_u_max_gif) + 1e-9)
                 _ax_gif.set_xlabel("x"); _ax_gif.set_ylabel("u(x,t)")
                 _line_gif, = _ax_gif.plot([], [], color="#4dabf7", linewidth={config.plot_linewidth})
-                _time_txt_gif = _ax_gif.text(0.02, 0.95, '', transform=_ax_gif.transAxes, color='#ff8787')
+                # Positioned just above the axes (not set_title()) and
+                # styled to match it (black, centered, top) -- same visual
+                # place the 2D/3D Surface Animation branches below put their
+                # own per-frame "t = ..." via ax.set_title(). A real
+                # set_title() isn't used here because this animation runs
+                # with blit=True (see FuncAnimation below): blitting only
+                # redraws the specific artists returned by _update_gif, and
+                # a title isn't redrawn under blit, so it would never
+                # update frame to frame. A Text artist positioned in axes
+                # coordinates just above y=1.0 renders in the same place a
+                # title would, while still being blit-compatible.
+                _time_txt_gif = _ax_gif.text(0.5, 1.02, '', transform=_ax_gif.transAxes,
+                                              color='black', ha='center', fontsize=11)
                 _ax_gif.grid(True, alpha=0.2)
                 def _init_gif():
                     _line_gif.set_data([], []); _time_txt_gif.set_text(''); return _line_gif, _time_txt_gif
