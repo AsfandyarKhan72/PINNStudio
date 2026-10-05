@@ -1844,6 +1844,18 @@ class MainWindow(QMainWindow):
         self.sweep_enable_cb.toggled.connect(self._on_sweep_enabled_toggled)
         sweep_toggle_layout.addWidget(self.sweep_enable_cb)
 
+        # Everything below (mode, sweep-parameter rows, add/refresh
+        # buttons) is only relevant once the sweep is actually enabled --
+        # wrapped in its own container so the whole cluster can be
+        # shown/hidden with one setVisible() call from
+        # _on_sweep_enabled_toggled, instead of taking up panel space
+        # (several rows' worth) whenever the sweep is off, which is the
+        # default state.
+        self.sweep_options_widget = QWidget()
+        sweep_options_layout = QVBoxLayout(self.sweep_options_widget)
+        sweep_options_layout.setContentsMargins(0, 0, 0, 0)
+        sweep_options_layout.setSpacing(5)
+
         sweep_mode_row = QHBoxLayout()
         sweep_mode_row.addWidget(QLabel("Mode:"))
         self.sweep_mode_combo = QComboBox()
@@ -1861,7 +1873,7 @@ class MainWindow(QMainWindow):
             "Specified combinations: parameter 1's 1st value with parameter 2's 1st value, etc. -- "
             "every parameter needs the same number of values.")
         sweep_mode_row.addWidget(self.sweep_mode_combo)
-        sweep_toggle_layout.addLayout(sweep_mode_row)
+        sweep_options_layout.addLayout(sweep_mode_row)
 
         # ── Sweep Parameters -- same repeatable add/remove-row pattern
         # as the Training Phases list above (_add_scheduler_phase), and
@@ -1871,21 +1883,20 @@ class MainWindow(QMainWindow):
         # width this column never has.
         div_sweep_params = QLabel("─── Sweep Parameters ───")
         self._register_style(div_sweep_params, "hint", lambda css, _c='#505080', _e='': f"color: {_c}; {_e}{css}")
-        sweep_toggle_layout.addWidget(div_sweep_params)
+        sweep_options_layout.addWidget(div_sweep_params)
 
         sweep_refresh_row = QHBoxLayout()
         sweep_refresh_row.addStretch()
         sweep_refresh_btn = QPushButton("🔄 Refresh")
         sweep_refresh_btn.setToolTip("Re-reads the rest of this panel's current settings to update which parameters can be swept")
-        sweep_refresh_btn.clicked.connect(lambda: self._refresh_sweep_param_choices())
         sweep_refresh_row.addWidget(sweep_refresh_btn)
-        sweep_toggle_layout.addLayout(sweep_refresh_row)
+        sweep_options_layout.addLayout(sweep_refresh_row)
 
         self.sweep_rows_widget = QWidget()
         self.sweep_rows_layout = QVBoxLayout(self.sweep_rows_widget)
         self.sweep_rows_layout.setSpacing(0)
         self.sweep_rows_layout.setContentsMargins(0, 2, 0, 2)
-        sweep_toggle_layout.addWidget(self.sweep_rows_widget)
+        sweep_options_layout.addWidget(self.sweep_rows_widget)
         self.sweep_row_list = []  # list of dicts with widgets, mirrors sched_phase_list
 
         sweep_add_row_btn = QPushButton("➕ Add Parameter")
@@ -1893,7 +1904,13 @@ class MainWindow(QMainWindow):
             "QPushButton { color: #69db7c; background: transparent; "
             "border: 1px solid #2a6a4a; border-radius: 4px; padding: 2px 8px; }")
         sweep_add_row_btn.clicked.connect(lambda: self._add_sweep_row())
-        sweep_toggle_layout.addWidget(sweep_add_row_btn)
+        sweep_options_layout.addWidget(sweep_add_row_btn)
+
+        sweep_toggle_layout.addWidget(self.sweep_options_widget)
+        # Hidden by default -- self.sweep_enable_cb starts unchecked, so
+        # these options would otherwise take up panel space for a
+        # feature that's off until the user opts in.
+        self.sweep_options_widget.setVisible(False)
 
         left_layout.addWidget(sweep_toggle_group)
 
@@ -2654,8 +2671,12 @@ class MainWindow(QMainWindow):
         will run the sweep instead (see _on_solve, which checks
         config.sweep_enabled itself to decide which one actually
         happens, and _on_stop, which does the matching thing for
-        Cancel), and refresh which parameters are available to sweep
-        over against the panel's current settings."""
+        Cancel), show/hide the sweep's own options (mode, parameter
+        rows, add/refresh buttons) so they don't take up panel space
+        while the sweep is off, and refresh which parameters are
+        available to sweep over against the panel's current settings."""
+        if hasattr(self, 'sweep_options_widget'):
+            self.sweep_options_widget.setVisible(checked)
         if hasattr(self, 'solve_btn'):
             self.solve_btn.setText("▶  Run Sweep" if checked else "▶  Solve")
             self.solve_btn.setToolTip(

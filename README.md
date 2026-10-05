@@ -19,11 +19,11 @@
 <tr>
 <td width="33%" align="center">
 <img src="assets/Images/Top_GIFs/1D_Burger.gif" alt="PINNStudio — 1D Burgers PINN solution animated over time" width="100%">
-<sub><strong>1D</strong> — <code>(x, t)</code> — Burgers</sub>
+<sub><strong>1D</strong> — <code>(x, t)</code> — <a href="https://doi.org/10.1016/j.jcp.2018.10.045">Burgers</a></sub>
 </td>
 <td width="33%" align="center">
 <img src="assets/Images/Top_GIFs/2D_Allen_Cahn_Wight.gif" alt="PINNStudio — 2D Allen-Cahn (Wight & Zhao) PINN solution animated over time" width="100%">
-<sub><strong>2D</strong> — <code>(x, y, t)</code> — Allen-Cahn (Wight & Zhao)</sub>
+<sub><strong>2D</strong> — <code>(x, y, t)</code> — <a href="https://doi.org/10.4208/cicp.OA-2020-0086">Allen-Cahn (Wight & Zhao)</a></sub>
 </td>
 <td width="33%" align="center">
 <img src="assets/Images/Top_GIFs/3D_Heat.gif" alt="PINNStudio — 3D Heat PINN solution animated over time" width="100%">
@@ -531,6 +531,10 @@ A shock forms near $x = 0$ as $t \to 1$; this template uses a larger fixed collo
 ![1D Burgers — PINN vs Ground Truth, Error Analysis surface comparison](assets/Images/1D-Burgers/surface_comparison.png)
 
 ![1D Burgers — line comparison against reference data](assets/Images/1D-Burgers/line_comparison.png)
+
+*Restore & Visualize* — the trained model restored from its saved checkpoint and re-animated without retraining:
+
+![1D Burgers — restored solution animation](assets/Images/1D-Burgers/restored_animation.gif)
 
 *Inverse mode* — same template, switched to **Inverse**, jointly recovering both coefficients of Raissi, Perdikaris & Karniadakis (2019)'s data-driven-discovery form of this equation, Appendix B, eq. B.1 — see [References](#references):
 
