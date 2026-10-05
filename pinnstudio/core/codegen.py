@@ -3473,6 +3473,37 @@ if {config.time_adaptive}:
             return np.asarray(eval(_plot_custom_expr, _ns_plot))
         return _pred_arr[:, _plot_idx]
 
+    # Accumulates the loss history across EVERY optimizer phase of EVERY
+    # time sub-domain, so the loss plot below (see "_ta_all_train_loss")
+    # shows the full Time-Adaptive run instead of just the LAST phase of
+    # the LAST sub-domain. lh_i/ts_i get overwritten by each new
+    # model_i.train() call below -- there can be several per sub-domain
+    # (one per optimizer-scheduler phase), plus one more for the legacy
+    # Adam-then-L-BFGS path -- so without this, only whichever call
+    # happened to run last for the very last step_i would ever reach the
+    # plot. Each phase's own step counter restarts at 0 (DeepXDE's
+    # LossHistory numbers every train() call's steps from scratch), so
+    # _ta_loss_offset -- the cumulative iteration count so far across
+    # every phase and every sub-domain -- is added to keep the x-axis
+    # continuously increasing across the whole run. Same "steps[-1] added
+    # to a running total" trick already used just for the printed
+    # cumulative-iteration numbers in the scheduler-phase logging below
+    # (see "_sp_iters"/"_sched_cum_iters" elsewhere in this file) --
+    # applied here to the loss arrays themselves, not just a printed
+    # number.
+    _ta_all_train_loss = []
+    _ta_all_test_loss = []
+    _ta_all_steps = []
+    _ta_loss_offset = 0
+    _ta_step_boundaries = []  # cumulative-iteration marks where one time sub-domain ends and the next begins
+
+    def _ta_accumulate_loss(_lh):
+        global _ta_loss_offset
+        _ta_all_steps.extend([_s + _ta_loss_offset for _s in _lh.steps])
+        _ta_all_train_loss.extend(_lh.loss_train)
+        _ta_all_test_loss.extend(_lh.loss_test)
+        _ta_loss_offset += (_lh.steps[-1] if _lh.steps else 0)
+
     for step_i, (t0, t1) in enumerate(_ta_flat_intervals):
         print(f"\\n--- Time step {{step_i+1}}/{{n_steps}}: t = {{t0:.4f}} to {{t1:.4f}} ---")
 
@@ -3757,6 +3788,7 @@ if {config.time_adaptive}:
             model_i.compile("{config.optimizer}", lr={config.learning_rate},
                             loss="{config.loss_type}", loss_weights=_multi_weights)
             lh_i, ts_i = model_i.train(iterations={config.iterations}, display_every=1000, callbacks=_train_cbs_ta)
+            _ta_accumulate_loss(lh_i)
             print(f"  Adam phase done. Steps: {{len(lh_i.steps)}}")
             if _use_save:
                 _step_dir_adam = _os.path.join(_save_dir, "time_adaptive_steps", f"step_{{step_i+1:03d}}_t{{t0:.4f}}_to_t{{t1:.4f}}")
@@ -3794,6 +3826,7 @@ if {config.time_adaptive}:
                     model_i.compile("L-BFGS", loss=_sp.get('loss', '{config.loss_type}'),
                                     loss_weights=_sp_weights)
                     lh_i, ts_i = model_i.train(display_every=200, callbacks=_train_cbs_ta)
+                    _ta_accumulate_loss(lh_i)
                     if _use_save:
                         _sp_step_dir = _os.path.join(_save_dir, "time_adaptive_steps", f"step_{{step_i+1:03d}}_t{{t0:.4f}}_to_t{{t1:.4f}}")
                         _os.makedirs(_sp_step_dir, exist_ok=True)
@@ -3808,6 +3841,7 @@ if {config.time_adaptive}:
                     model_i.compile("NNCG", loss=_sp.get('loss', '{config.loss_type}'),
                                     loss_weights=_sp_weights)
                     lh_i, ts_i = model_i.train(iterations=_sp['iterations'], display_every=1000, callbacks=_train_cbs_ta)
+                    _ta_accumulate_loss(lh_i)
                     if _use_save:
                         _sp_iters = lh_i.steps[-1] if lh_i.steps else _sp['iterations']
                         _sp_step_dir = _os.path.join(_save_dir, "time_adaptive_steps", f"step_{{step_i+1:03d}}_t{{t0:.4f}}_to_t{{t1:.4f}}")
@@ -3830,6 +3864,7 @@ if {config.time_adaptive}:
                     model_i.compile(_sp['optimizer'], lr=_sp['lr'], decay=_sp_decay,
                                     loss=_sp.get('loss', '{config.loss_type}'), loss_weights=_sp_weights)
                     lh_i, ts_i = model_i.train(iterations=_sp['iterations'], display_every=1000, callbacks=_train_cbs_ta)
+                    _ta_accumulate_loss(lh_i)
                     if _use_save:
                         _sp_iters = lh_i.steps[-1] if lh_i.steps else _sp['iterations']
                         _sp_step_dir = _os.path.join(_save_dir, "time_adaptive_steps", f"step_{{step_i+1:03d}}_t{{t0:.4f}}_to_t{{t1:.4f}}")
@@ -3845,6 +3880,7 @@ if {config.time_adaptive}:
             model_i.compile("L-BFGS", loss="{config.loss_type}",
                             loss_weights=_multi_weights)
             lh_i, ts_i = model_i.train(display_every=200, callbacks=_train_cbs_ta)
+            _ta_accumulate_loss(lh_i)
             print(f"  L-BFGS phase done. Steps: {{len(lh_i.steps)}}")
 
             if _use_save:
@@ -3912,6 +3948,7 @@ if {config.time_adaptive}:
             all_x.append(Xp); all_t.append(Tp); all_u.append(Up)
 
         print(f"Step {{step_i+1}} done. Final train loss: {{sum(lh_i.loss_train[-1]):.4e}}")
+        _ta_step_boundaries.append(_ta_loss_offset)
 
         # ── Save step plot & models ───────────────────────────
         if _use_save:
@@ -4181,15 +4218,29 @@ if {config.time_adaptive}:
         ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
         plt.tight_layout(); plt.savefig(_ta_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
 
-    train_loss_ta = lh_i.loss_train; test_loss_ta = lh_i.loss_test
-    steps_ta = list(range(len(train_loss_ta)))
+    # Full Time-Adaptive run -- every optimizer phase of every time
+    # sub-domain, concatenated with a running iteration offset (see
+    # "_ta_accumulate_loss" above) -- not just whichever phase happened
+    # to run last for the very last sub-domain.
+    train_loss_ta = _ta_all_train_loss; test_loss_ta = _ta_all_test_loss
+    steps_ta = _ta_all_steps
     # Same figsize/dpi as the solution plot for consistency -- see the
     # matching comment on the non-adaptive loss plot above.
     plt.figure(figsize=(7, 5))
     plt.semilogy(steps_ta, [sum(l) for l in train_loss_ta], label="Train", color="#4dabf7")
     plt.semilogy(steps_ta, [sum(l) for l in test_loss_ta],  label="Test",  color="#ff8787", linestyle="--")
-    plt.xlabel("Iteration"); plt.ylabel("Loss")
-    plt.title("Loss — Last Time Sub-domain")
+    # Light vertical markers at each time sub-domain's boundary, so a
+    # jump/kink in the loss (a brand-new network starting that
+    # sub-domain, warm-started only via its IC) is visually distinguishable
+    # from an actual optimizer-related loss spike. Skip the very last
+    # boundary (the run's own end -- nothing follows it worth marking) and
+    # don't bother with a boundary at 0 if the first sub-domain starts
+    # right there.
+    for _tb in _ta_step_boundaries[:-1]:
+        if _tb > 0:
+            plt.axvline(_tb, color="gray", linestyle=":", linewidth=0.8, alpha=0.5)
+    plt.xlabel("Iteration (cumulative across all time sub-domains)"); plt.ylabel("Loss")
+    plt.title(f"Loss — All {{n_steps}} Time Sub-domain(s)")
     plt.legend(); plt.tight_layout()
     plt.savefig(_ta_loss_path, dpi={config.plot_dpi}); plt.close()
 

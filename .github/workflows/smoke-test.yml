@@ -61,3 +61,4 @@ jobs:
           python tests/test_restore_geometry_masking.py
           python tests/test_restore_display_refresh.py
           python tests/test_prerelease_gui_tweaks.py
+          python tests/test_ta_loss_history.py
