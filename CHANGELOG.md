@@ -4,14 +4,33 @@ All notable changes to PINNStudio are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [1.4.0] - 2026-10-04
+## [1.4.0] - 2026-10-05
 
 ### Added
 
 - **Parameter Sweep**: run a batch of training configurations from one setup instead of clicking Solve repeatedly and tracking results by hand. Enable it from the left panel (below Adaptive Training) and the shared Solve/Stop controls drive it, the Training Log streams every run in order, and the right panel shows the last completed run's own figure once the sweep finishes. Three ways to combine multiple swept parameters: one-at-a-time (vary each separately against a shared baseline), all combinations (full grid/cross product), and specified combinations (pair up each parameter's *i*-th value, COMSOL-style). Each run gets its own results subfolder (model checkpoint, plots, Error Analysis metrics) under the same Save to: location as a normal Solve, plus an auto-generated `sweep_manifest.json`/`sweep_summary.csv` summarizing every run.
   - Sweepable parameters span network architecture (hidden layers, neurons per layer, activation, kernel initializer, weight decay), collocation point counts and sampling distribution, every Optimizer Scheduler phase's iterations/learning rate/optimizer, every PDE/BC/IC loss weight, Inverse mode's trainable-variable initial guesses and observed-data loss weights, RAR's own parameters (training rounds, sampling points, points added per cycle, Adam/L-BFGS iterations), Time Adaptive's own parameters (per-step-group step count, IC grid resolution), and Input/Output Transform's per-axis/per-output scale — gated to only appear when the relevant mode/feature is actually selected.
   - See the [Parameter Sweep](README.md#parameter-sweep) section of the README for the full walkthrough.
-- CI smoke-test workflow now also runs the Parameter Sweep codegen-integration test (`test_sweep_param_expansion.py`) and the Training Callbacks visibility test (`test_training_callbacks_visibility.py`), alongside the existing sweep registry/panel tests.
+- **Custom Geometry**: build a domain from 2D primitives and boolean (CSG) operations instead of being limited to the built-in template shapes, extended to 3D with Cuboid and Sphere primitives plus the same CSG operations. Works anywhere a geometry is configured; train normally once a shape is built.
+- **Plot Settings figure-size option** (Default / Square / Wide / Custom) for every single-panel results plot -- Loss, Line, Surface, both Animation GIF types, Parameter Convergence, the Parametric-Sweep summary bar chart, and all of their Time-Adaptive equivalents -- configurable from both the Setup tab's Plot Settings dialog and the Restore tab's own viz-settings dialog. "Default" renders identically to before this option existed.
+- README: 1D Burgers and 2D Allen-Cahn (Wight & Zhao) results sections now include a "Restore & Visualize" animation (the trained model restored from its checkpoint and re-animated without retraining); the top example-gallery captions for Burgers and Allen-Cahn (Wight & Zhao) now link to their source papers; Custom Geometry is documented; Fisher-KPP and 3D Poisson (Sphere) sections gained their result images (surface/line comparisons, inverse convergence animations).
+- CI smoke-test workflow now also runs the Parameter Sweep codegen-integration test (`test_sweep_param_expansion.py`), the Training Callbacks visibility test (`test_training_callbacks_visibility.py`), the Custom Geometry test (`test_custom_geometry.py`), the Plot Settings figure-size test (`test_plot_figsize_settings.py`), and the Time-Adaptive Restore + Error Analysis regression test (`test_restore_ta_error_analysis.py`), alongside the existing sweep registry/panel tests.
+
+### Changed
+
+- The Parameter Sweep panel's own configuration (mode, sweep-parameter rows, add/refresh controls) now stays hidden until "Enable Parameter Sweep" is checked, instead of always taking up panel space for a feature that's off by default.
+- IC loss-weight rows are now hidden for steady-state problems, where they don't apply.
+- Removed "1D Surface Animation (GIF)" as a selectable plot type: a 1D animation frame only has one real spatial axis, and this type faked a second axis by stretching the solution across a cosmetic width rather than showing real data. Line Animation already covers 1D's time-animated case, and Surface (static) still shows the full x-t field.
+- Time-Adaptive's loss plot now shows the full run (every sub-domain and every optimizer-scheduler phase within it) instead of only the last phase of the last sub-domain.
+- Restore Model's prediction is now masked to the problem's real domain instead of its bounding box, matching how the main Setup tab already renders curved/non-rectangular geometries (e.g. Sphere).
+
+### Fixed
+
+- Restoring a combined Time-Adaptive model with Error Analysis enabled crashed with a `NameError`.
+- Restore Model crashed on steady-state problems.
+- The Solve button's readiness check incorrectly blocked training when a Custom Geometry was configured.
+- 3D surface comparison plots showed only a sparse handful of points for curved geometries (e.g. Sphere) instead of the full point cloud.
+- The Restore panel could briefly show the previous run's plot/animation before the new one loaded, instead of clearing it first.
 
 ## [1.3.0] - 2026-09-30
 
