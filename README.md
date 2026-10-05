@@ -826,8 +826,8 @@ with $D = 0.01$, $r = 1$, a localized initial bump, and no-flux (Neumann) bounda
 <table>
 <tr>
 <td width="33%" align="center">
-<img src="assets/Images/1D-Fisher-KPP/Fisher-KPP_line_plot.png" alt="Fisher-KPP — line comparison against reference data" width="100%">
-<sub>Line comparison</sub>
+<img src="assets/Images/1D-Fisher-KPP/Fisher-KPP_line_plot.png" alt="Fisher-KPP — PINN solution, line snapshots at several times" width="100%">
+<sub>Line snapshots over time</sub>
 </td>
 <td width="33%" align="center">
 <img src="assets/Images/1D-Fisher-KPP/Fisher-KPP_surface_plot.png" alt="Fisher-KPP — PINN solution surface" width="100%">
