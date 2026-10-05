@@ -62,3 +62,4 @@ jobs:
           python tests/test_restore_display_refresh.py
           python tests/test_prerelease_gui_tweaks.py
           python tests/test_ta_loss_history.py
+          python tests/test_plot_figsize_settings.py

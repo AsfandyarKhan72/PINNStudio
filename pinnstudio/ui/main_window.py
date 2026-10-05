@@ -2215,6 +2215,9 @@ class MainWindow(QMainWindow):
             'title': '',
             'xlabel': '',
             'ylabel': '',
+            'figsize_mode': 'Default',
+            'figsize_w': 7.0,
+            'figsize_h': 5.0,
         }
 
         self.restore_output_widget = QWidget()
@@ -2509,6 +2512,9 @@ class MainWindow(QMainWindow):
             'vmax': 1.0,
             'linewidth': 2.0,
             'fps': 10,
+            'figsize_mode': 'Default',
+            'figsize_w': 7.0,
+            'figsize_h': 5.0,
         }
 
         self.export_btn = QPushButton("💾 Export Solution")
@@ -5401,6 +5407,9 @@ class MainWindow(QMainWindow):
             plot_fps=self._plot_viz_settings.get('fps', 10),
             plot_n_2d_snapshots=self._plot_viz_settings.get('n_2d_snapshots', 2),
             plot_swap_xt=self._plot_viz_settings.get('swap_xt', True),
+            plot_figsize_mode=self._plot_viz_settings.get('figsize_mode', 'Default'),
+            plot_figsize_w=self._plot_viz_settings.get('figsize_w', 7.0),
+            plot_figsize_h=self._plot_viz_settings.get('figsize_h', 5.0),
             ea_files=repr(self._ea_settings.get('files', [])) if getattr(self, '_ea_settings', None) else "[]",
             ea_do_line=self._ea_settings.get('do_line', True) if getattr(self, '_ea_settings', None) else True,
             ea_do_surface=self._ea_settings.get('do_surface', True) if getattr(self, '_ea_settings', None) else True,
@@ -6074,6 +6083,9 @@ class MainWindow(QMainWindow):
             "n_2d_snapshots": config.plot_n_2d_snapshots,
             "fps": getattr(config, "plot_fps", 10),
             "swap_xt": getattr(config, "plot_swap_xt", True),
+            "figsize_mode": getattr(config, "plot_figsize_mode", "Default"),
+            "figsize_w": getattr(config, "plot_figsize_w", 7.0),
+            "figsize_h": getattr(config, "plot_figsize_h", 5.0),
         }
 
         # Error-analysis settings
@@ -8758,6 +8770,37 @@ print("ERROR_ANALYSIS_DONE")
         if not is_param:
             layout.addLayout(dpi_row)
 
+        # Figure size — applies to every single-panel restore plot
+        # (including Parameter Convergence, unlike most of the controls
+        # above); Error Analysis-on-restore comparison grids are left
+        # alone, same as the main Setup tab's Plot Settings dialog.
+        figsize_row = QHBoxLayout()
+        figsize_row.addWidget(QLabel("Figure size:"))
+        figsize_combo = QComboBox()
+        figsize_combo.addItems(["Default", "Square", "Wide", "Custom"])
+        figsize_combo.setCurrentText(current.get('figsize_mode', 'Default'))
+        figsize_combo.setFixedWidth(100)
+        figsize_row.addStretch(); figsize_row.addWidget(figsize_combo)
+        layout.addLayout(figsize_row)
+
+        figsize_custom_widget = QWidget()
+        figsize_custom_layout = QHBoxLayout(figsize_custom_widget)
+        figsize_custom_layout.setContentsMargins(0, 0, 0, 0)
+        figsize_custom_layout.addWidget(QLabel("Width:"))
+        figsize_w_spin = QDoubleSpinBox()
+        figsize_w_spin.setRange(2.0, 30.0); figsize_w_spin.setSingleStep(0.5)
+        figsize_w_spin.setValue(current.get('figsize_w', 7.0)); figsize_w_spin.setFixedWidth(70)
+        figsize_custom_layout.addWidget(figsize_w_spin)
+        figsize_custom_layout.addWidget(QLabel("Height:"))
+        figsize_h_spin = QDoubleSpinBox()
+        figsize_h_spin.setRange(2.0, 30.0); figsize_h_spin.setSingleStep(0.5)
+        figsize_h_spin.setValue(current.get('figsize_h', 5.0)); figsize_h_spin.setFixedWidth(70)
+        figsize_custom_layout.addWidget(figsize_h_spin)
+        figsize_custom_layout.addStretch()
+        figsize_custom_widget.setVisible(figsize_combo.currentText() == "Custom")
+        figsize_combo.currentTextChanged.connect(lambda t: figsize_custom_widget.setVisible(t == "Custom"))
+        layout.addWidget(figsize_custom_widget)
+
         # Surface time — only for Surface
         surface_time_widget = QWidget()
         st_layout = QHBoxLayout(surface_time_widget)
@@ -8930,6 +8973,9 @@ print("ERROR_ANALYSIS_DONE")
             new_settings['title'] = title_edit.text().strip()
             new_settings['xlabel'] = xlabel_edit.text().strip()
             new_settings['ylabel'] = ylabel_edit.text().strip()
+            new_settings['figsize_mode'] = figsize_combo.currentText()
+            new_settings['figsize_w'] = figsize_w_spin.value()
+            new_settings['figsize_h'] = figsize_h_spin.value()
             self._restore_viz_settings = new_settings
             self.log_box.append(f"✅ Viz settings saved — {viz_type}")
             dialog.accept()
@@ -9872,6 +9918,38 @@ print("ERROR_ANALYSIS_DONE")
         dpi_row.addStretch(); dpi_row.addWidget(dpi_combo)
         layout.addLayout(dpi_row)
 
+        # Figure size — applies to this (and every other single-panel)
+        # results plot; Error Analysis comparison grids size themselves
+        # from however many files/columns are being compared and are left
+        # alone. "Default" keeps today's per-plot-type dimensions exactly
+        # as they've always been.
+        figsize_row = QHBoxLayout()
+        figsize_row.addWidget(QLabel("Figure size:"))
+        figsize_combo = QComboBox()
+        figsize_combo.addItems(["Default", "Square", "Wide", "Custom"])
+        figsize_combo.setCurrentText(current.get('figsize_mode', 'Default'))
+        figsize_combo.setFixedWidth(100)
+        figsize_row.addStretch(); figsize_row.addWidget(figsize_combo)
+        layout.addLayout(figsize_row)
+
+        figsize_custom_widget = QWidget()
+        figsize_custom_layout = QHBoxLayout(figsize_custom_widget)
+        figsize_custom_layout.setContentsMargins(0, 0, 0, 0)
+        figsize_custom_layout.addWidget(QLabel("Width:"))
+        figsize_w_spin = QDoubleSpinBox()
+        figsize_w_spin.setRange(2.0, 30.0); figsize_w_spin.setSingleStep(0.5)
+        figsize_w_spin.setValue(current.get('figsize_w', 7.0)); figsize_w_spin.setFixedWidth(70)
+        figsize_custom_layout.addWidget(figsize_w_spin)
+        figsize_custom_layout.addWidget(QLabel("Height:"))
+        figsize_h_spin = QDoubleSpinBox()
+        figsize_h_spin.setRange(2.0, 30.0); figsize_h_spin.setSingleStep(0.5)
+        figsize_h_spin.setValue(current.get('figsize_h', 5.0)); figsize_h_spin.setFixedWidth(70)
+        figsize_custom_layout.addWidget(figsize_h_spin)
+        figsize_custom_layout.addStretch()
+        figsize_custom_widget.setVisible(figsize_combo.currentText() == "Custom")
+        figsize_combo.currentTextChanged.connect(lambda t: figsize_custom_widget.setVisible(t == "Custom"))
+        layout.addWidget(figsize_custom_widget)
+
         # Color range — Surface only
         color_range_widget = QWidget()
         cr_layout = QVBoxLayout(color_range_widget)
@@ -9974,8 +10052,11 @@ print("ERROR_ANALYSIS_DONE")
                 'surface_time': current.get('surface_time', 1.0),
                 'fps': int(fps_combo.currentText()),
                 'swap_xt': swap_xt_cb.isChecked(),
+                'figsize_mode': figsize_combo.currentText(),
+                'figsize_w': figsize_w_spin.value(),
+                'figsize_h': figsize_h_spin.value(),
             }
-            self.log_box.append(f"✅ Plot settings saved — {viz_type}, cmap={cmap_combo.currentText()}, levels={levels_spin.value()}, dpi={dpi_combo.currentText()}")
+            self.log_box.append(f"✅ Plot settings saved — {viz_type}, cmap={cmap_combo.currentText()}, levels={levels_spin.value()}, dpi={dpi_combo.currentText()}, figsize={figsize_combo.currentText()}")
             dialog.accept()
 
         ok_btn.clicked.connect(_on_ok)
@@ -11529,6 +11610,9 @@ print("ERROR_ANALYSIS_V2_DONE")
         title_override = (viz_settings.get('title') or '').strip()
         xlabel_override = (viz_settings.get('xlabel') or '').strip()
         ylabel_override = (viz_settings.get('ylabel') or '').strip()
+        figsize_mode = viz_settings.get('figsize_mode', 'Default')
+        figsize_w = viz_settings.get('figsize_w', 7.0)
+        figsize_h = viz_settings.get('figsize_h', 5.0)
         script = f"""
 import os
 os.makedirs({save_dir!r}, exist_ok=True)
@@ -11546,6 +11630,21 @@ _animate = {animate_literal}
 _title_override = {title_override!r}
 _xlabel_override = {xlabel_override!r}
 _ylabel_override = {ylabel_override!r}
+
+# ── Plot Settings: figure-size standardization (see codegen.py's
+# _plot_figsize for the full rationale) -- "Default" mode renders every
+# figsize=_plot_figsize(w, h) call below byte-identical to before this
+# existed.
+def _plot_figsize(_default_w, _default_h):
+    _fs_mode = {figsize_mode!r}
+    if _fs_mode == "Square":
+        _fs_s = max(_default_w, _default_h)
+        return (_fs_s, _fs_s)
+    elif _fs_mode == "Wide":
+        return (_default_h * 1.8, _default_h)
+    elif _fs_mode == "Custom":
+        return ({figsize_w}, {figsize_h})
+    return (_default_w, _default_h)
 
 def _load_conv(path):
     name = None
@@ -11642,7 +11741,7 @@ def _setup_anim_ax(ax, name, iters, vals, true_val=None):
 if not _animate:
     if _combine:
         n = len(series)
-        fig, axes = plt.subplots(n, 1, figsize=(6, 3.2 * n), squeeze=False)
+        fig, axes = plt.subplots(n, 1, figsize=(_plot_figsize(6, 3.2)[0], _plot_figsize(6, 3.2)[1] * n), squeeze=False)
         for i, (name, iters, vals, true_val) in enumerate(series):
             _draw_static_ax(axes[i][0], name, iters, vals, true_val)
         plt.tight_layout()
@@ -11652,7 +11751,7 @@ if not _animate:
         print(f"✅ Parameter convergence plot saved: {{out_path}}")
     else:
         for name, iters, vals, true_val in series:
-            fig, ax = plt.subplots(figsize=(6, 3.2))
+            fig, ax = plt.subplots(figsize=_plot_figsize(6, 3.2))
             _draw_static_ax(ax, name, iters, vals, true_val)
             plt.tight_layout()
             out_path = os.path.join({save_dir!r}, f"{{name}}_convergence_plot.png")
@@ -11668,7 +11767,7 @@ else:
     if _combine:
         n = len(series)
         n_frames = min(max(len(s[1]) for s in series), 120)
-        fig, axes = plt.subplots(n, 1, figsize=(6, 3.2 * n), squeeze=False)
+        fig, axes = plt.subplots(n, 1, figsize=(_plot_figsize(6, 3.2)[0], _plot_figsize(6, 3.2)[1] * n), squeeze=False)
         lines = [_setup_anim_ax(axes[i][0], name, iters, vals, true_val) for i, (name, iters, vals, true_val) in enumerate(series)]
         plt.tight_layout()
         def update(frame):
@@ -11685,7 +11784,7 @@ else:
     else:
         for name, iters, vals, true_val in series:
             n_frames = min(len(iters), 120)
-            fig, ax = plt.subplots(figsize=(6, 3.2))
+            fig, ax = plt.subplots(figsize=_plot_figsize(6, 3.2))
             line = _setup_anim_ax(ax, name, iters, vals, true_val)
             plt.tight_layout()
             def update(frame, iters=iters, vals=vals, line=line, n_frames=n_frames):
@@ -11721,6 +11820,9 @@ print("RESTORE_DONE")
         title_override = (viz_settings.get('title') or '').strip()
         xlabel_override = (viz_settings.get('xlabel') or '').strip()
         ylabel_override = (viz_settings.get('ylabel') or '').strip()
+        figsize_mode = viz_settings.get('figsize_mode', 'Default')
+        figsize_w = viz_settings.get('figsize_w', 7.0)
+        figsize_h = viz_settings.get('figsize_h', 5.0)
         layers     = cfg["layers"]
         activation = cfg["activation"]
         x_min = cfg["x_min"]; x_max = cfg["x_max"]
@@ -11842,6 +11944,21 @@ import torch
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+
+# ── Plot Settings: figure-size standardization (see codegen.py's
+# _plot_figsize for the full rationale) -- "Default" mode renders every
+# figsize=_plot_figsize(w, h) call below byte-identical to before this
+# existed.
+def _plot_figsize(_default_w, _default_h):
+    _fs_mode = {figsize_mode!r}
+    if _fs_mode == "Square":
+        _fs_s = max(_default_w, _default_h)
+        return (_fs_s, _fs_s)
+    elif _fs_mode == "Wide":
+        return (_default_h * 1.8, _default_h)
+    elif _fs_mode == "Custom":
+        return ({figsize_w}, {figsize_h})
+    return (_default_w, _default_h)
 
 # Build the actual problem geometry for model restore (not just its
 # bounding box) so the restored prediction can be masked back down to the
@@ -12002,7 +12119,7 @@ if is_3d:
             _pv_max3 = max(_f.max() for _f in _face_preds3)
     else:
         _pv_min3, _pv_max3 = {vmin_val}, {vmax_val}
-    fig = plt.figure(figsize=(8, 6.5))
+    fig = plt.figure(figsize=_plot_figsize(8, 6.5))
     ax = fig.add_subplot(111, projection='3d')
     _norm3 = plt.Normalize(vmin=_pv_min3, vmax=_pv_max3)
     _cmap_obj3 = plt.get_cmap("{colormap}")
@@ -12039,7 +12156,7 @@ elif is_2d:
     # non-rectangular geometry.
     _inside2d = np.asarray(geom.inside(np.column_stack([Xg.ravel(), Yg.ravel()]))).reshape(res, res)
     pred = np.where(_inside2d, pred, np.nan)
-    fig, ax = plt.subplots(figsize=(7, 5))
+    fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
     im = ax.contourf(Xg, Yg, pred, levels={levels}, cmap="{colormap}", {vrange})
     if {show_colorbar}: fig.colorbar(im, ax=ax)
     ax.set_xlabel({_xlabel_2d!r}); ax.set_ylabel({_ylabel_2d!r})
@@ -12048,7 +12165,7 @@ elif is_steady:
     # Steady 1D: no time axis and no second spatial axis either -- there's
     # nothing left to make a "surface" out of, just the one curve u(x).
     pred = _extract_plot_field(model.predict(x_vals.reshape(-1, 1))).flatten()
-    fig, ax = plt.subplots(figsize=(7, 5))
+    fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
     ax.plot(x_vals, pred, color="#4dabf7", linewidth=2)
     ax.grid(True, alpha=0.2)
     ax.set_xlabel({_xlabel_1d_steady!r}); ax.set_ylabel({_ylabel_1d_steady!r})
@@ -12058,7 +12175,7 @@ else:
     X, T = np.meshgrid(x_vals, t_vals)
     XT   = np.vstack([X.ravel(), T.ravel()]).T
     pred = _extract_plot_field(model.predict(XT)).reshape(res, res)
-    fig, ax = plt.subplots(figsize=(7, 5))
+    fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
     # Swapping which of X/T is passed first -- no reshape of pred needed,
     # see the matching comment on the main Results panel's own 1D Surface
     # plot for why that alone is enough to flip which one is on the x-axis.
@@ -12082,7 +12199,7 @@ print(f"Surface plot saved to: {{out_path}}")
             script += f"""
 x_vals = np.linspace({x_min}, {x_max}, {resolution})
 t_steps_vals = np.linspace({t_min}, {t_max}, {n_steps})
-fig, ax = plt.subplots(figsize=(8, 5))
+fig, ax = plt.subplots(figsize=_plot_figsize(8, 5))
 colors = plt.get_cmap("{colormap}")(np.linspace(0, 1, {n_steps}))
 y_mid = ({y_min} + {y_max}) / 2.0
 z_mid = ({z_min} + {z_max}) / 2.0
@@ -12144,7 +12261,7 @@ for tv in t_frames:
     all_u.append(_extract_plot_field(model.predict(xt)).flatten())
 u_min = min(u.min() for u in all_u) 
 u_max = max(u.max() for u in all_u)
-fig, ax = plt.subplots(figsize=(7, 4))
+fig, ax = plt.subplots(figsize=_plot_figsize(7, 4))
 ax.set_xlim({x_min}, {x_max})
 ax.set_ylim(u_min - 0.05*abs(u_min), u_max + 0.05*abs(u_max))
 ax.set_xlabel({_xlabel_animline!r}); ax.set_ylabel({_ylabel_animline!r})
@@ -12226,7 +12343,7 @@ if is_3d:
         all_frames.append(_frame_faces)
     v_min = min(_f.min() for _frame in all_frames for _f in _frame)
     v_max = max(_f.max() for _frame in all_frames for _f in _frame)
-    fig = plt.figure(figsize=(8, 6.5))
+    fig = plt.figure(figsize=_plot_figsize(8, 6.5))
     ax = fig.add_subplot(111, projection='3d')
     _norm3a = plt.Normalize(vmin=v_min, vmax=v_max)
     _cmap_obj3a = plt.get_cmap("{colormap}")
@@ -12277,7 +12394,7 @@ else:
                 all_frames.append((X_anim, T_anim, pred))
     v_min = min(f[2].min() for f in all_frames)
     v_max = max(f[2].max() for f in all_frames)
-    fig, ax = plt.subplots(figsize=(8, 6))
+    fig, ax = plt.subplots(figsize=_plot_figsize(8, 6))
     from mpl_toolkits.axes_grid1 import make_axes_locatable
     _div = make_axes_locatable(ax)
     _cax = _div.append_axes("right", size="5%", pad=0.1)
@@ -12348,6 +12465,9 @@ else:
         title_override = (viz_settings.get('title') or '').strip()
         xlabel_override = (viz_settings.get('xlabel') or '').strip()
         ylabel_override = (viz_settings.get('ylabel') or '').strip()
+        figsize_mode = viz_settings.get('figsize_mode', 'Default')
+        figsize_w = viz_settings.get('figsize_w', 7.0)
+        figsize_h = viz_settings.get('figsize_h', 5.0)
 
         # Spatial bounds / problem dimension / output names come from
         # whichever config got loaded (the run's top-level
@@ -12404,6 +12524,21 @@ import torch
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+
+# ── Plot Settings: figure-size standardization (see codegen.py's
+# _plot_figsize for the full rationale) -- "Default" mode renders every
+# figsize=_plot_figsize(w, h) call below byte-identical to before this
+# existed.
+def _plot_figsize(_default_w, _default_h):
+    _fs_mode = {figsize_mode!r}
+    if _fs_mode == "Square":
+        _fs_s = max(_default_w, _default_h)
+        return (_fs_s, _fs_s)
+    elif _fs_mode == "Wide":
+        return (_default_h * 1.8, _default_h)
+    elif _fs_mode == "Custom":
+        return ({figsize_w}, {figsize_h})
+    return (_default_w, _default_h)
 
 is_2d = {str(is_2d)}
 is_3d = {str(is_3d)}
@@ -12534,7 +12669,7 @@ if is_3d:
         _pv_max3 = max(_f.max() for _f in _face_preds3)
     else:
         _pv_min3, _pv_max3 = {vmin_val}, {vmax_val}
-    fig = plt.figure(figsize=(8, 6.5))
+    fig = plt.figure(figsize=_plot_figsize(8, 6.5))
     ax = fig.add_subplot(111, projection='3d')
     _norm3 = plt.Normalize(vmin=_pv_min3, vmax=_pv_max3)
     _cmap_obj3 = plt.get_cmap("{colormap}")
@@ -12556,7 +12691,7 @@ elif is_2d:
     Xg, Yg = np.meshgrid(x_vals, y_vals)
     XYT = np.column_stack([Xg.ravel(), Yg.ravel(), np.full(Xg.size, {surface_time})])
     pred = _extract_plot_field(model.predict(XYT)).reshape(res, res)
-    fig, ax = plt.subplots(figsize=(7, 5))
+    fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
     im = ax.contourf(Xg, Yg, pred, levels={levels}, cmap="{colormap}", {vrange})
     if {show_colorbar}: fig.colorbar(im, ax=ax)
     ax.set_xlabel({_xlabel_2d!r}); ax.set_ylabel({_ylabel_2d!r})
@@ -12575,7 +12710,7 @@ else:
         _ta_m = _ta_model_for_t(_tv)
         XT_row = np.column_stack([x_vals, np.full_like(x_vals, _tv)])
         pred[_ri, :] = _extract_plot_field(_ta_m.predict(XT_row)).flatten()
-    fig, ax = plt.subplots(figsize=(7, 5))
+    fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
     if {swap_xt}:
         im = ax.contourf(T, X, pred, levels={levels}, cmap="{colormap}", {vrange})
     else:
@@ -12596,7 +12731,7 @@ print(f"Surface plot saved to: {{out_path}}")
             script += f"""
 x_vals = np.linspace({x_min}, {x_max}, {resolution})
 t_steps_vals = np.linspace({t_min}, {t_max}, {n_steps})
-fig, ax = plt.subplots(figsize=(8, 5))
+fig, ax = plt.subplots(figsize=_plot_figsize(8, 5))
 colors = plt.get_cmap("{colormap}")(np.linspace(0, 1, {n_steps}))
 y_mid = ({y_min} + {y_max}) / 2.0
 z_mid = ({z_min} + {z_max}) / 2.0
@@ -12639,7 +12774,7 @@ for tv in t_frames:
     all_u.append(_extract_plot_field(_ta_m.predict(xt)).flatten())
 u_min = min(u.min() for u in all_u)
 u_max = max(u.max() for u in all_u)
-fig, ax = plt.subplots(figsize=(7, 4))
+fig, ax = plt.subplots(figsize=_plot_figsize(7, 4))
 ax.set_xlim({x_min}, {x_max})
 ax.set_ylim(u_min - 0.05*abs(u_min), u_max + 0.05*abs(u_max))
 ax.set_xlabel({_xlabel_animline!r}); ax.set_ylabel({_ylabel_animline!r})
@@ -12705,7 +12840,7 @@ if is_3d:
         all_frames.append(_frame_faces)
     v_min = min(_f.min() for _frame in all_frames for _f in _frame)
     v_max = max(_f.max() for _frame in all_frames for _f in _frame)
-    fig = plt.figure(figsize=(8, 6.5))
+    fig = plt.figure(figsize=_plot_figsize(8, 6.5))
     ax = fig.add_subplot(111, projection='3d')
     _norm3a = plt.Normalize(vmin=v_min, vmax=v_max)
     _cmap_obj3a = plt.get_cmap("{colormap}")
@@ -12750,7 +12885,7 @@ else:
                 all_frames.append((X_anim, T_anim, pred))
     v_min = min(f[2].min() for f in all_frames)
     v_max = max(f[2].max() for f in all_frames)
-    fig, ax = plt.subplots(figsize=(8, 6))
+    fig, ax = plt.subplots(figsize=_plot_figsize(8, 6))
     from mpl_toolkits.axes_grid1 import make_axes_locatable
     _div = make_axes_locatable(ax)
     _cax = _div.append_axes("right", size="5%", pad=0.1)

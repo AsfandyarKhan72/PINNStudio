@@ -183,6 +183,25 @@ class PINNConfig:
     # inert-by-default for backward compatibility.
     plot_swap_xt: bool = True
 
+    # Figure-size standardization for single-panel results plots (Loss,
+    # Line, Surface, the two Animation GIF types, Parameter Convergence,
+    # and their Time-Adaptive equivalents) -- deliberately NOT applied to
+    # the multi-column Error Analysis comparison grids, which already pick
+    # their own width from however many reference files/columns are being
+    # compared and would look wrong forced into any of these modes, nor to
+    # the Setup tab's domain-sampling preview plots, whose aspect ratio is
+    # tied to the problem's own geometry. "Default" (the default) keeps
+    # every in-scope figsize=(...) call exactly as it was before this
+    # field existed -- fully backward compatible. "Square" forces a 1:1
+    # aspect ratio (side length = the larger of that plot's own default
+    # width/height). "Wide" keeps that plot's own default height but widens
+    # it to a fixed 1.8x ratio -- useful for presentation slides. "Custom"
+    # uses plot_figsize_w/plot_figsize_h for every in-scope plot regardless
+    # of its own default dimensions.
+    plot_figsize_mode: str = "Default"
+    plot_figsize_w: float = 7.0
+    plot_figsize_h: float = 5.0
+
     # L-BFGS
     lbfgs_use_default: bool = True
     lbfgs_maxcor: int = 200

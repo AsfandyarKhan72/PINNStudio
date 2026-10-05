@@ -613,6 +613,28 @@ import torch
 import matplotlib.pyplot as plt
 import warnings
 warnings.filterwarnings("ignore", message=".*cuBLAS.*")
+
+# ── Plot Settings: figure-size standardization ─────────────────
+# Applied to every single-panel results plot below (Loss, Line, Surface,
+# both Animation GIF types, Parameter Convergence, and their
+# Time-Adaptive equivalents) via figsize=_plot_figsize(default_w,
+# default_h) in place of a bare literal tuple -- "Default" mode (below)
+# returns (default_w, default_h) unchanged, so every one of those call
+# sites renders byte-identical output to before this existed unless the
+# user has actually changed Plot Settings' Figure size option. NOT
+# applied to the multi-column Error Analysis comparison grids (sized by
+# however many files/columns are being compared) or the domain-sampling
+# preview plots (sized to the problem's own geometry).
+def _plot_figsize(_default_w, _default_h):
+    _fs_mode = "{config.plot_figsize_mode}"
+    if _fs_mode == "Square":
+        _fs_s = max(_default_w, _default_h)
+        return (_fs_s, _fs_s)
+    elif _fs_mode == "Wide":
+        return (_default_h * 1.8, _default_h)
+    elif _fs_mode == "Custom":
+        return ({config.plot_figsize_w}, {config.plot_figsize_h})
+    return (_default_w, _default_h)
 {_nncg_guard_code}
 
 # ── Force GPU initialization ──────────────────────────────────
@@ -2205,7 +2227,7 @@ for _pval in _param_values:
         # (Surface/Line/GIF) so the two figures shown side by side in the
         # GUI's output panel read as one consistent, professional-looking
         # pair rather than two different sizes/resolutions.
-        plt.figure(figsize=(7, 5))
+        plt.figure(figsize=_plot_figsize(7, 5))
         plt.semilogy(steps, total_train, label="Train loss", color="#4dabf7")
         plt.semilogy(steps, total_test,  label="Test loss",  color="#ff8787", linestyle="--")
         plt.xlabel("Iteration"); plt.ylabel("Loss")
@@ -2246,7 +2268,7 @@ for _pval in _param_values:
                             _ph_vals_by_var[_vi].append(_vals[_vi])
                 _ph_iters_arr = np.array(_ph_iters)
                 _n_ivars = len(_inv_var_names)
-                _fig, _iv_axes = plt.subplots(_n_ivars, 1, figsize=(6, 3.2 * _n_ivars), squeeze=False)
+                _fig, _iv_axes = plt.subplots(_n_ivars, 1, figsize=(_plot_figsize(6, 3.2)[0], _plot_figsize(6, 3.2)[1] * _n_ivars), squeeze=False)
                 for _vi, _vname in enumerate(_inv_var_names):
                     _ax = _iv_axes[_vi][0]
                     _vvals = np.array(_ph_vals_by_var[_vi])
@@ -2345,7 +2367,7 @@ for _pval in _param_values:
                     _all_u_gif.append(_extract_plot_field(model.predict(_xt_gif)).flatten())
                 _u_min_gif = min(_u.min() for _u in _all_u_gif)
                 _u_max_gif = max(_u.max() for _u in _all_u_gif)
-                _fig_gif, _ax_gif = plt.subplots(figsize=(7, 5))
+                _fig_gif, _ax_gif = plt.subplots(figsize=_plot_figsize(7, 5))
                 _ax_gif.set_xlim(_plot_x_min, _plot_x_max)
                 _ax_gif.set_ylim(_u_min_gif - 0.05*abs(_u_min_gif) - 1e-9, _u_max_gif + 0.05*abs(_u_max_gif) + 1e-9)
                 _ax_gif.set_xlabel("x"); _ax_gif.set_ylabel("u(x,t)")
@@ -2406,7 +2428,7 @@ for _pval in _param_values:
                     else:
                         _v_min_gif = {config.plot_vmin}
                         _v_max_gif = {config.plot_vmax}
-                    _fig_gif = plt.figure(figsize=(7, 5))
+                    _fig_gif = plt.figure(figsize=_plot_figsize(7, 5))
                     _ax_gif = _fig_gif.add_subplot(111, projection='3d')
                     _norm3a = plt.Normalize(vmin=_v_min_gif, vmax=_v_max_gif)
                     _cmap_obj3a = plt.get_cmap("{config.plot_colormap}")
@@ -2471,7 +2493,7 @@ for _pval in _param_values:
                         _xlabel_gif, _ylabel_gif = "t", "x"
                     else:
                         _xlabel_gif, _ylabel_gif = "x", "t"
-                    _fig_gif, _ax_gif = plt.subplots(figsize=(7, 5))
+                    _fig_gif, _ax_gif = plt.subplots(figsize=_plot_figsize(7, 5))
                     from mpl_toolkits.axes_grid1 import make_axes_locatable as _make_axes_locatable_gif
                     _div_gif = _make_axes_locatable_gif(_ax_gif)
                     _cax_gif = _div_gif.append_axes("right", size="5%", pad=0.1)
@@ -2504,7 +2526,7 @@ for _pval in _param_values:
             _XY = np.column_stack([_Xg.ravel(), _Yg.ravel()])
             _pred = _extract_plot_field(model.predict(_XY)).reshape(_res_2d, _res_2d)
             _pred = np.where(_inside_2d, _pred, np.nan)
-            fig, ax = plt.subplots(figsize=(6.5, 5.5))
+            fig, ax = plt.subplots(figsize=_plot_figsize(6.5, 5.5))
             im = ax.contourf(_Xg, _Yg, _pred, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_2d, vmax=_vmax_2d)
             ax.set_xlabel("x"); ax.set_ylabel("y")
             ax.set_aspect("equal", adjustable="box")
@@ -2528,7 +2550,7 @@ for _pval in _param_values:
             _vmin_2d = None if {config.plot_auto_range} else {config.plot_vmin}
             _vmax_2d = None if {config.plot_auto_range} else {config.plot_vmax}
 
-            fig, axes = plt.subplots(1, _n_snaps, figsize=(5*_n_snaps, 5))
+            fig, axes = plt.subplots(1, _n_snaps, figsize=(_plot_figsize(5, 5)[0]*_n_snaps, _plot_figsize(5, 5)[1]))
             if _n_snaps == 1: axes = [axes]
             for _ai, _tv in enumerate(_t_snaps):
                 _XYT = np.column_stack([_Xg.ravel(), _Yg.ravel(), np.full(_Xg.size, _tv)])
@@ -2560,7 +2582,7 @@ for _pval in _param_values:
             _XYZ = np.column_stack([_Xg3.ravel(), _Yg3.ravel(), np.full(_Xg3.size, _z_mid)])
             _pred3 = _extract_plot_field(model.predict(_XYZ)).reshape(_res_3d, _res_3d)
             _pred3 = np.where(_inside_3d, _pred3, np.nan)
-            fig, ax = plt.subplots(figsize=(6.5, 5.5))
+            fig, ax = plt.subplots(figsize=_plot_figsize(6.5, 5.5))
             im = ax.contourf(_Xg3, _Yg3, _pred3, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_3d, vmax=_vmax_3d)
             ax.set_xlabel("x"); ax.set_ylabel("y")
             ax.set_aspect("equal", adjustable="box")
@@ -2591,7 +2613,7 @@ for _pval in _param_values:
             _vmin_3d = None if {config.plot_auto_range} else {config.plot_vmin}
             _vmax_3d = None if {config.plot_auto_range} else {config.plot_vmax}
 
-            fig, axes = plt.subplots(1, _n_snaps, figsize=(5*_n_snaps, 5))
+            fig, axes = plt.subplots(1, _n_snaps, figsize=(_plot_figsize(5, 5)[0]*_n_snaps, _plot_figsize(5, 5)[1]))
             if _n_snaps == 1: axes = [axes]
             for _ai, _tv in enumerate(_t_snaps):
                 _XYZT = np.column_stack([_Xg3.ravel(), _Yg3.ravel(), np.full(_Xg3.size, _z_mid), np.full(_Xg3.size, _tv)])
@@ -2613,7 +2635,7 @@ for _pval in _param_values:
             _x_1d = np.linspace({config.x_min}, {config.x_max}, _res_1d)
             _u_1d = _extract_plot_field(model.predict(_x_1d.reshape(-1, 1))).flatten()
             _out_name_1d = _plot_custom_label if _plot_custom_expr.strip() else {repr(config.output_names)}.split(",")[_plot_idx].strip()
-            fig, ax = plt.subplots(figsize=(7, 5))
+            fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
             ax.plot(_x_1d, _u_1d, color="#4dabf7", linewidth={config.plot_linewidth})
             ax.set_xlabel("x"); ax.set_ylabel(f"{{_out_name_1d}}(x)")
             ax.set_title(f"PINN Solution — {{_param_name}}={{_pval}}" if _parametric else "PINN Solution")
@@ -2632,7 +2654,7 @@ for _pval in _param_values:
                 _vmin_s = None if {config.plot_auto_range} else {config.plot_vmin}
                 _vmax_s = None if {config.plot_auto_range} else {config.plot_vmax}
                 print(f"Plot settings: cmap={config.plot_colormap}, levels={config.plot_levels}, dpi={config.plot_dpi}, res={config.plot_resolution}")
-                fig, ax = plt.subplots(figsize=(7, 5))
+                fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
                 # Axis orientation is configurable (Plot Settings ->
                 # "Swap axes"); contourf just needs its three arrays to
                 # line up element-for-element, so swapping which of
@@ -2653,7 +2675,7 @@ for _pval in _param_values:
                 n_steps_plot = {config.num_timesteps}
                 _x_l = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
                 t_steps_plot = np.linspace({config.t_min}, {config.t_max}, n_steps_plot)
-                fig, ax = plt.subplots(figsize=(8, 5))
+                fig, ax = plt.subplots(figsize=_plot_figsize(8, 5))
                 colors = plt.get_cmap("{config.plot_colormap}")(np.linspace(0, 1, n_steps_plot))
                 _out_name_line = _plot_custom_label if _plot_custom_expr.strip() else {repr(config.output_names)}.split(",")[_plot_idx].strip()
                 for i, t_val in enumerate(t_steps_plot):
@@ -3378,7 +3400,7 @@ for _pval in _param_values:
 if _parametric and len(_summary) > 0:
     labels = [str(v) for v, _ in _summary]
     losses = [l for _, l in _summary]
-    fig, ax = plt.subplots(figsize=(8, 5))
+    fig, ax = plt.subplots(figsize=_plot_figsize(8, 5))
     bars = ax.bar(labels, losses, color="#4dabf7")
     ax.set_yscale("log")
     ax.set_xlabel(_param_name); ax.set_ylabel("Final Loss")
@@ -3989,7 +4011,7 @@ if {config.time_adaptive}:
                     _yg_s = np.linspace({config.y_min}, {config.y_max}, _res_step)
                     _Xg_s, _Yg_s = np.meshgrid(_xg_s, _yg_s)
                     _z_mid_s = ({config.z_min} + {config.z_max}) / 2.0
-                    fig, axes = plt.subplots(1, 2, figsize=(10, 4))
+                    fig, axes = plt.subplots(1, 2, figsize=_plot_figsize(10, 4))
                     for _ai, _tv_s in enumerate([t0, t1]):
                         _xyt_s = np.column_stack([_Xg_s.ravel(), _Yg_s.ravel(), np.full(_Xg_s.size, _z_mid_s), np.full(_Xg_s.size, _tv_s)])
                         _U_s = _extract_plot_field(model_i.predict(_xyt_s)).reshape(_res_step, _res_step)
@@ -4005,7 +4027,7 @@ if {config.time_adaptive}:
                     _xg_s = np.linspace({config.x_min}, {config.x_max}, _res_step)
                     _yg_s = np.linspace({config.y_min}, {config.y_max}, _res_step)
                     _Xg_s, _Yg_s = np.meshgrid(_xg_s, _yg_s)
-                    fig, axes = plt.subplots(1, 2, figsize=(10, 4))
+                    fig, axes = plt.subplots(1, 2, figsize=_plot_figsize(10, 4))
                     for _ai, _tv_s in enumerate([t0, t1]):
                         _xyt_s = np.column_stack([_Xg_s.ravel(), _Yg_s.ravel(), np.full(_Xg_s.size, _tv_s)])
                         _U_s = _extract_plot_field(model_i.predict(_xyt_s)).reshape(_res_step, _res_step)
@@ -4022,7 +4044,7 @@ if {config.time_adaptive}:
                     _Xs2, _Ts2 = np.meshgrid(_x_s2, _t_s2)
                     _XTs2 = np.vstack([_Xs2.ravel(), _Ts2.ravel()]).T
                     _Us2 = _extract_plot_field(model_i.predict(_XTs2)).reshape(_res_step, _res_step)
-                    fig, ax = plt.subplots(figsize=(7, 4))
+                    fig, ax = plt.subplots(figsize=_plot_figsize(7, 4))
                     im = ax.contourf(_Xs2, _Ts2, _Us2, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_step, vmax=_vmax_step)
                     if {config.plot_colorbar}: fig.colorbar(im, ax=ax)
                     ax.set_xlabel("x"); ax.set_ylabel("t")
@@ -4033,7 +4055,7 @@ if {config.time_adaptive}:
                 n_steps_plot = {config.num_timesteps}
                 _x_l2 = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
                 _t_line = np.linspace(t0, t1, n_steps_plot)
-                fig, ax = plt.subplots(figsize=(8, 4))
+                fig, ax = plt.subplots(figsize=_plot_figsize(8, 4))
                 colors = plt.get_cmap("{config.plot_colormap}")(np.linspace(0, 1, n_steps_plot))
                 # A line plot is inherently 1D -- for 2D/3D this is a slice
                 # along x at the domain's other mid-point(s) (same "fix the
@@ -4146,7 +4168,7 @@ if {config.time_adaptive}:
                     _p = _os.path.basename(_sd).split("_")
                     _ta_sol_intervals.append((float(_p[2].replace("t","")), float(_p[4].replace("t","")), _sd))
                 except Exception: pass
-            fig, axes = plt.subplots(1, _n_snaps_ta, figsize=(5*_n_snaps_ta, 5))
+            fig, axes = plt.subplots(1, _n_snaps_ta, figsize=(_plot_figsize(5, 5)[0]*_n_snaps_ta, _plot_figsize(5, 5)[1]))
             if _n_snaps_ta == 1: axes = [axes]
             for _ai, _tv_ta in enumerate(_t_snaps_ta):
                 # Find which step model covers this time
@@ -4193,7 +4215,7 @@ if {config.time_adaptive}:
             # X_full/T_full/U_full, same shape as the 1D case) -- no
             # volumetric renderer, so this mid-plane slice is the final
             # solution plot for 3D as well.
-            fig, ax = plt.subplots(figsize=(7, 5))
+            fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
             # Same configurable axis orientation as the Standard path's 1D
             # "Surface" plot -- see the matching comment there.
             if {config.plot_swap_xt}:
@@ -4208,7 +4230,7 @@ if {config.time_adaptive}:
     elif _plot_type_ta.startswith("Line"):
         n_ts   = {config.num_timesteps}
         t_vals = np.linspace(_ta_flat_intervals[0][0], _ta_flat_intervals[-1][1], n_ts)
-        fig, ax = plt.subplots(figsize=(8, 5))
+        fig, ax = plt.subplots(figsize=_plot_figsize(8, 5))
         colors = plt.get_cmap("{config.plot_colormap}")(np.linspace(0, 1, n_ts))
         for ci, tv in enumerate(t_vals):
             idx = np.argmin(np.abs(T_full[:,0] - tv))
@@ -4226,7 +4248,7 @@ if {config.time_adaptive}:
     steps_ta = _ta_all_steps
     # Same figsize/dpi as the solution plot for consistency -- see the
     # matching comment on the non-adaptive loss plot above.
-    plt.figure(figsize=(7, 5))
+    plt.figure(figsize=_plot_figsize(7, 5))
     plt.semilogy(steps_ta, [sum(l) for l in train_loss_ta], label="Train", color="#4dabf7")
     plt.semilogy(steps_ta, [sum(l) for l in test_loss_ta],  label="Test",  color="#ff8787", linestyle="--")
     # Light vertical markers at each time sub-domain's boundary, so a
