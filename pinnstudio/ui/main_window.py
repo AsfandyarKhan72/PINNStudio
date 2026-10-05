@@ -2410,9 +2410,21 @@ class MainWindow(QMainWindow):
 
         ctrl_row.addWidget(QLabel("  Plot type:"))
         self.plot_type_combo = QComboBox()
+        # "Surface Animation (GIF)" starts OUT of this list -- the app
+        # opens in 1D (self.radio_1d.setChecked(True) above, before this
+        # widget even exists), and that option only means anything in
+        # 2D/3D (see the matching comment in _on_dim_changed, which adds
+        # it back the moment the dimension switches to 2D/3D, and removes
+        # it again switching back to 1D). _on_dim_changed never runs at
+        # startup itself (it's wired to the radio buttons' toggled signal,
+        # which fires on change, not on the initial setChecked(True)
+        # before any connection exists) -- same reason
+        # self.quick_examples_combo a few lines below is seeded with 1D's
+        # own template list directly here rather than relying on
+        # _on_dim_changed to populate it.
         self.plot_type_combo.addItems([
             "Surface", "Line (time steps)",
-            "Line Animation (GIF)", "Surface Animation (GIF)",
+            "Line Animation (GIF)",
         ])
         self.plot_type_combo.setFixedHeight(28)
         self._fit_combo_width(self.plot_type_combo, min_width=160)
@@ -2998,6 +3010,41 @@ class MainWindow(QMainWindow):
         self.view_domain_check.setVisible(is_2d or is_3d)
         for w in self._2d_bc_widgets:
             w.setVisible(is_2d)
+
+        # "Surface Animation (GIF)" only means anything in 2D/3D, where a
+        # frame genuinely has two real spatial axes that vary (an x-y grid,
+        # or 3D faces). In 1D there's only one spatial axis (x); the GIF
+        # code fakes a second axis by drawing a cosmetic t-range alongside
+        # it, but every point along that width within a single frame is
+        # evaluated at the SAME fixed t -- it's u(x) stretched sideways for
+        # padding, not real data varying on that axis. Line Animation
+        # already covers 1D's actual time-animated case correctly, and
+        # Surface (static) still shows the full, real x-t field in one
+        # image -- so remove this one option for 1D specifically rather
+        # than leave a plot type that looks like data but isn't. Same
+        # add/remove-by-index idiom as "Parameter Convergence" above
+        # (_on_radio_inverse_toggled) -- removed (not just hidden) so a
+        # stale selection can't silently linger into a script that no
+        # longer offers it.
+        _sa_idx = self.plot_type_combo.findText("Surface Animation (GIF)")
+        if is_2d or is_3d:
+            if _sa_idx == -1:
+                self.plot_type_combo.addItem("Surface Animation (GIF)")
+                self._fit_combo_width(self.plot_type_combo, min_width=160)
+        elif _sa_idx != -1:
+            if self.plot_type_combo.currentText() == "Surface Animation (GIF)":
+                # blockSignals: this is a programmatic fallback caused by
+                # the dimension switch itself, not a user picking a new
+                # plot type from the combo -- without this,
+                # setCurrentText below fires currentTextChanged ->
+                # _on_plot_type_changed -> _on_line_plot_settings, which
+                # pops the modal "Line Plot Settings" dialog out of
+                # nowhere every time someone switches back to 1D with
+                # this option selected.
+                self.plot_type_combo.blockSignals(True)
+                self.plot_type_combo.setCurrentText("Line Animation (GIF)")
+                self.plot_type_combo.blockSignals(False)
+            self.plot_type_combo.removeItem(_sa_idx)
 
         # Repopulate the geometry-type selector for the new dimension.
         self.geom_type_row_widget.setVisible(is_2d or is_3d)
@@ -8563,14 +8610,38 @@ print("ERROR_ANALYSIS_DONE")
         op-on-unreadable-config pattern as _on_restore_viz_settings's own
         _restore_dim) rather than any cached state, so this always reflects
         whatever's actually currently browsed to; defaults to showing all
-        four when that file can't be read yet (e.g. nothing picked yet)."""
+        four when that file can't be read yet (e.g. nothing picked yet).
+
+        "Animation Surface (GIF)" is further excluded for a 1D config --
+        same reasoning as the main Setup tab's plot_type_combo (see
+        _on_dim_changed): a 1D animation frame has only one real spatial
+        axis, so there's no second axis for a surface to vary across
+        within a single frame. "Animation Line (GIF)" stays -- that's 1D's
+        actual correct time-animated option.
+
+        Only excluded when "problem_dim" is explicitly present and equal
+        to "1D" -- a config saved before this field existed (or written
+        directly in a test/script without it) has it missing entirely,
+        and its real dimension is simply unknown here, not necessarily
+        1D. Defaulting a missing field to "1D" would silently hide this
+        option for an old 2D/3D config too, which is worse than just
+        showing all four the way every config was treated before this
+        exclusion existed."""
         import json
         try:
             with open(self.restore_config_path.text().strip()) as f:
-                is_steady = bool(json.load(f).get("steady_state", False))
+                _restore_cfg_probe = json.load(f)
+            is_steady = bool(_restore_cfg_probe.get("steady_state", False))
+            is_1d = _restore_cfg_probe.get("problem_dim") == "1D"
         except Exception:
             is_steady = False
-        return ["Surface"] if is_steady else list(self._RESTORE_FORWARD_VIZ)
+            is_1d = False
+        if is_steady:
+            return ["Surface"]
+        items = list(self._RESTORE_FORWARD_VIZ)
+        if is_1d:
+            items = [v for v in items if v != "Animation Surface (GIF)"]
+        return items
 
     def _refresh_restore_viz_options(self):
         """Re-apply the steady-state filtering above to the dropdown's

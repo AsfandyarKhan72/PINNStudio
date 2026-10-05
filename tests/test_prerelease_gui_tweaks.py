@@ -15,6 +15,14 @@ widget-construction/state checks -- no training needed:
     single panel-level toggle (self.bc_loc_hint_toggle /
     self.bc_loc_hint), not one repeated on every BC row -- adding several
     BC entries doesn't add any more copies of it.
+ 4. "Surface Animation (GIF)" is no longer offered as a 1D plot type (a 1D
+    animation frame has only one real spatial axis, so there's nothing for
+    a "surface" to vary across within a frame) -- it's absent from
+    plot_type_combo in 1D, appears when switching to 2D/3D, and
+    disappears again switching back to 1D (falling back to "Line
+    Animation (GIF)" if it had been selected). The Restore panel's own,
+    separately-filtered viz dropdown (_restore_forward_viz_items) applies
+    the same exclusion based on a restored config's "problem_dim" field.
 
 Run directly:
     QT_QPA_PLATFORM=offscreen python3 tests/test_prerelease_gui_tweaks.py
@@ -103,6 +111,74 @@ def main():
     for entry in win.custom_bc_list:
         check("location_hint_toggle" not in entry and "loc_hint_toggle" not in entry,
               "BC row entry_data has no leftover per-row hint-toggle key")
+
+    # 4a. plot_type_combo: "Surface Animation (GIF)" excluded in 1D
+    # (default state), appears after switching to 2D/3D, disappears again
+    # switching back to 1D (with fallback off of it if it was selected).
+    def _combo_items(combo):
+        return [combo.itemText(i) for i in range(combo.count())]
+
+    check("Surface Animation (GIF)" not in _combo_items(win.plot_type_combo),
+          f"plot_type_combo excludes Surface Animation (GIF) in default 1D state, got {_combo_items(win.plot_type_combo)}")
+
+    win.radio_2d.setChecked(True)
+    check("Surface Animation (GIF)" in _combo_items(win.plot_type_combo),
+          f"plot_type_combo includes Surface Animation (GIF) after switching to 2D, got {_combo_items(win.plot_type_combo)}")
+
+    # Selecting "Surface Animation (GIF)" through the combo normally pops
+    # the real "Line Plot Settings" dialog (_on_plot_type_changed ->
+    # _on_line_plot_settings, modal exec()) -- blockSignals here sidesteps
+    # that dialog the same way its own Cancel button does, since this
+    # test is only exercising _on_dim_changed's add/remove/fallback logic,
+    # not that dialog.
+    win.plot_type_combo.blockSignals(True)
+    win.plot_type_combo.setCurrentText("Surface Animation (GIF)")
+    win.plot_type_combo.blockSignals(False)
+    win.radio_3d.setChecked(True)
+    check("Surface Animation (GIF)" in _combo_items(win.plot_type_combo),
+          f"plot_type_combo still includes Surface Animation (GIF) after switching 2D->3D, got {_combo_items(win.plot_type_combo)}")
+    check(win.plot_type_combo.currentText() == "Surface Animation (GIF)",
+          "selection preserved across a 2D->3D switch (both support it)")
+
+    win.radio_1d.setChecked(True)
+    check("Surface Animation (GIF)" not in _combo_items(win.plot_type_combo),
+          f"plot_type_combo excludes Surface Animation (GIF) again after switching back to 1D, got {_combo_items(win.plot_type_combo)}")
+    check(win.plot_type_combo.currentText() == "Line Animation (GIF)",
+          f"stale Surface Animation (GIF) selection falls back to Line Animation (GIF), got {win.plot_type_combo.currentText()!r}")
+
+    # 4b. Restore panel's own _restore_forward_viz_items(): same exclusion,
+    # driven by a restored config file's "problem_dim" field rather than
+    # the live dimension radios.
+    import json
+    import tempfile
+
+    def _viz_items_for_config(cfg_dict):
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            json.dump(cfg_dict, f)
+            path = f.name
+        try:
+            win.restore_config_path.setText(path)
+            return win._restore_forward_viz_items()
+        finally:
+            os.unlink(path)
+
+    items_1d = _viz_items_for_config({"steady_state": False, "problem_dim": "1D"})
+    check("Animation Surface (GIF)" not in items_1d,
+          f"_restore_forward_viz_items excludes Animation Surface (GIF) for a 1D config, got {items_1d}")
+    check("Animation Line (GIF)" in items_1d,
+          f"_restore_forward_viz_items still includes Animation Line (GIF) for a 1D config, got {items_1d}")
+
+    items_2d = _viz_items_for_config({"steady_state": False, "problem_dim": "2D"})
+    check("Animation Surface (GIF)" in items_2d,
+          f"_restore_forward_viz_items includes Animation Surface (GIF) for a 2D config, got {items_2d}")
+
+    items_3d = _viz_items_for_config({"steady_state": False, "problem_dim": "3D"})
+    check("Animation Surface (GIF)" in items_3d,
+          f"_restore_forward_viz_items includes Animation Surface (GIF) for a 3D config, got {items_3d}")
+
+    items_1d_steady = _viz_items_for_config({"steady_state": True, "problem_dim": "1D"})
+    check(items_1d_steady == ["Surface"],
+          f"_restore_forward_viz_items still collapses to just ['Surface'] for a steady-state config regardless of dimension, got {items_1d_steady}")
 
     win.close()
 
