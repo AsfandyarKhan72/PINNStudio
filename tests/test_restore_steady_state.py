@@ -305,6 +305,15 @@ def run():
 
         config = win2._build_config()
         check(config.steady_state is True, "built config should have steady_state=True")
+        # _build_config() now points save_dir at its own fresh
+        # "<label>__<timestamp>" subfolder under whatever "Save to:" path
+        # was configured (see MainWindow._run_results_dir) rather than
+        # that path directly -- so the real training run's actual output
+        # location is config.save_dir, not the bare tmpdir this test
+        # configured save_dir_input with.
+        run_dir = config.save_dir
+        check(run_dir and run_dir != tmpdir and os.path.dirname(run_dir) == tmpdir,
+              f"config.save_dir should be its own fresh subfolder under {tmpdir!r}, got {run_dir!r}")
 
         train_script = generate_script(config)
         sp = os.path.join(tmpdir, "train_script.py")
@@ -314,7 +323,7 @@ def run():
         check(proc.returncode == 0,
               f"real training run for '2D Poisson (Disk)' should complete, got exit {proc.returncode}:\n{proc.stdout[-2000:]}\n{proc.stderr[-2000:]}")
 
-        mc_path = os.path.join(tmpdir, "solution_results", "model_config.json")
+        mc_path = os.path.join(run_dir, "solution_results", "model_config.json")
         check(os.path.exists(mc_path), f"real training run should write {mc_path}")
         if os.path.exists(mc_path):
             with open(mc_path) as f:
@@ -323,12 +332,12 @@ def run():
                   f"model_config.json written by a real steady-state training run should have "
                   f"\"steady_state\": true, got {saved_cfg.get('steady_state')!r} (full keys: {sorted(saved_cfg)})")
 
-            pt_candidates = [f for f in os.listdir(os.path.join(tmpdir, "solution_results")) if f.endswith(".pt")]
+            pt_candidates = [f for f in os.listdir(os.path.join(run_dir, "solution_results")) if f.endswith(".pt")]
             check(bool(pt_candidates), "real training run should save at least one .pt checkpoint")
             if pt_candidates:
                 pt_name = max(pt_candidates, key=lambda f: os.path.getmtime(
-                    os.path.join(tmpdir, "solution_results", f)))
-                pt_path = os.path.join(tmpdir, "solution_results", pt_name)
+                    os.path.join(run_dir, "solution_results", f)))
+                pt_path = os.path.join(run_dir, "solution_results", pt_name)
                 # Match the Restore panel's own "Optimizer used for this model"
                 # selector to whichever phase actually produced this checkpoint
                 # (its optimizer_state_dict only loads correctly into the same

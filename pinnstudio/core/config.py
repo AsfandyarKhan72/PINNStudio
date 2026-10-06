@@ -47,7 +47,15 @@ class PINNConfig:
     point_distribution: str = "Hammersley"
 
     plot_type: str = "Surface"
-    num_timesteps: int = 4
+    # Split from a single shared "num_timesteps" field: the static "Line
+    # (time steps)" plot and the GIF animations (Line/Surface Animation)
+    # want different defaults -- fewer steps keeps the static overlay
+    # readable, while more frames makes the animation play back slower/
+    # smoother -- so each now has its own field instead of fighting over
+    # one shared number (see also plot_linewidth / plot_linewidth_anim
+    # below for the same split applied to line width).
+    num_timesteps_line: int = 5
+    num_timesteps_anim: int = 20
 
     # Initial condition
     ic_type: str = "sin"
@@ -270,6 +278,10 @@ class PINNConfig:
     plot_vmin: float = -1.0
     plot_vmax: float = 1.0
     plot_linewidth: float = 2.0
+    # Line Animation (GIF)'s own line width -- kept separate from the
+    # static plots' plot_linewidth above (see num_timesteps_line/_anim
+    # comment) so the two can default differently.
+    plot_linewidth_anim: float = 3.0
     plot_fps: int = 10
 
     ea_files: str = "[]"

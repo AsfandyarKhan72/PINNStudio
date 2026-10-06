@@ -30,7 +30,7 @@ and the stale GIF wins, every time, regardless of what viz_type was just
 requested. The same blind-existence-check problem applies to the Error
 Analysis comparison PNGs logged right below it.
 
-Fix: _on_restore() now deletes any pre-existing restored_plot.png,
+Original fix: _on_restore() deleted any pre-existing restored_plot.png,
 restored_animation.gif, error_analysis/surface_comparison_restore.png,
 error_analysis/line_comparison_restore.png, and
 error_analysis/error_metrics_restore.txt in save_dir BEFORE launching the
@@ -40,21 +40,36 @@ are ones THIS run actually just wrote. Mirrors the existing
 _last_restore_is_param fix for the same class of bug (see that flag's own
 comment) -- stale files misreported as fresh.
 
+Superseded (dev-branch round, standardized per-run results folders): every
+restore now writes into its own fresh "<label>__<timestamp>" subfolder
+under the configured restore save path (see MainWindow._on_restore /
+_timestamped_save_dir) instead of directly into that path -- so two
+restores can never share a folder in the first place, and the deletion
+loop above (left in place, harmless) never actually has anything to
+delete any more. This test now points its checks at the REAL resolved
+folder (win._last_restore_save_dir) instead of the configured base path,
+and simulates "stale file from an unrelated earlier restore" as a file
+sitting in that base path directly (e.g. left over from before this
+per-run-folder feature existed) -- proving it's simply never looked at,
+rather than proving it gets deleted.
+
 Checks:
  - A stale restored_animation.gif (simulating a leftover GIF from an
-   unrelated earlier Animation-type restore) sitting in save_dir before a
-   steady-state Surface restore is gone afterward, and the right panel
-   shows the real restored_plot.png this run produced -- not the stale
-   GIF.
- - A stale restored_plot.png sitting in save_dir before an
-   Animation Surface (GIF) restore (a transient model, since Animation
-   types are hidden for steady configs) is gone afterward, and the right
-   panel shows the real restored_animation.gif this run produced.
- - Stale error_analysis/*_restore.png/.txt files are also cleared before
-   a restore that doesn't configure any Error Analysis files at all (so
-   nothing new gets written there), proving they don't linger either.
+   unrelated earlier Animation-type restore, or from before per-run
+   folders existed) sitting directly in the configured base save path
+   is untouched and ignored by a steady-state Surface restore, which
+   shows the real restored_plot.png it just produced under its own
+   resolved subfolder -- not the stale GIF.
+ - A stale restored_plot.png sitting in that base path is likewise
+   ignored by an Animation Surface (GIF) restore (a transient model,
+   since Animation types are hidden for steady configs), which shows
+   the real restored_animation.gif it just produced.
+ - Stale error_analysis/*_restore.png files in the base path are
+   likewise ignored by a restore that doesn't configure any Error
+   Analysis files at all (so nothing new gets written there either).
  - Verified this test fails (stale GIF still shown for the steady Surface
-   case) against the pre-fix code, and passes with the fix.
+   case) against the original pre-fix code, and passes with both the
+   original fix and the current per-run-folder design.
 
 Run directly:
     QT_QPA_PLATFORM=offscreen python3 tests/test_restore_display_refresh.py
@@ -191,12 +206,15 @@ def run():
 
         _run_restore_and_wait(win)
 
-        check(not os.path.exists(stale_gif),
-              "stale restored_animation.gif from an earlier restore should be deleted before this restore runs")
-        check(not os.path.exists(stale_ea),
-              "stale surface_comparison_restore.png from an earlier restore should be deleted before this restore runs")
-        check(os.path.exists(os.path.join(tmpdir, "restored_plot.png")),
-              "this steady-state Surface restore should have saved its own restored_plot.png")
+        run_dir = win._last_restore_save_dir
+        check(run_dir and run_dir != tmpdir and os.path.dirname(run_dir) == tmpdir,
+              f"this restore should have gotten its own fresh subfolder under {tmpdir!r}, got {run_dir!r}")
+        check(os.path.exists(stale_gif) and os.path.exists(stale_ea),
+              "stale files sitting directly in the configured base save path (left over from "
+              "before per-run folders existed) should be left alone, not touched by this restore")
+        check(run_dir and os.path.exists(os.path.join(run_dir, "restored_plot.png")),
+              "this steady-state Surface restore should have saved its own restored_plot.png "
+              "under its own resolved subfolder")
         shown_path = getattr(win.solution_label, "_source_path", None)
         check(shown_path is not None and os.path.basename(shown_path) == "restored_plot.png",
               f"right panel should show THIS run's restored_plot.png, got {shown_path!r} "
@@ -236,10 +254,15 @@ def run():
 
         _run_restore_and_wait(win)
 
-        check(not os.path.exists(stale_plot),
-              "stale restored_plot.png from an earlier restore should be deleted before this restore runs")
-        check(os.path.exists(os.path.join(tmpdir, "restored_animation.gif")),
-              "this transient Animation Surface restore should have saved its own restored_animation.gif")
+        run_dir = win._last_restore_save_dir
+        check(run_dir and run_dir != tmpdir and os.path.dirname(run_dir) == tmpdir,
+              f"this restore should have gotten its own fresh subfolder under {tmpdir!r}, got {run_dir!r}")
+        check(os.path.exists(stale_plot),
+              "a stale file sitting directly in the configured base save path should be left "
+              "alone, not touched by this restore")
+        check(run_dir and os.path.exists(os.path.join(run_dir, "restored_animation.gif")),
+              "this transient Animation Surface restore should have saved its own "
+              "restored_animation.gif under its own resolved subfolder")
         shown_path = getattr(win.solution_label, "_source_path", None)
         check(shown_path is not None and os.path.basename(shown_path) == "restored_animation.gif",
               f"right panel should show THIS run's restored_animation.gif, got {shown_path!r}")

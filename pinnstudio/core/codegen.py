@@ -2348,7 +2348,7 @@ for _pval in _param_values:
 
         elif (not _is_steady) and _plot_type in ("Line Animation (GIF)", "Surface Animation (GIF)"):
             import matplotlib.animation as _anim
-            _n_frames = max(2, {config.num_timesteps})
+            _n_frames = max(2, {config.num_timesteps_anim})
             _fps = {config.plot_fps}
             _t_frames = np.linspace({config.t_min}, {config.t_max}, _n_frames)
             _y_mid_gif = (_plot_y_min + _plot_y_max) / 2.0 if (_is_2d or _is_3d) else 0.0
@@ -2371,7 +2371,7 @@ for _pval in _param_values:
                 _ax_gif.set_xlim(_plot_x_min, _plot_x_max)
                 _ax_gif.set_ylim(_u_min_gif - 0.05*abs(_u_min_gif) - 1e-9, _u_max_gif + 0.05*abs(_u_max_gif) + 1e-9)
                 _ax_gif.set_xlabel("x"); _ax_gif.set_ylabel("u(x,t)")
-                _line_gif, = _ax_gif.plot([], [], color="#4dabf7", linewidth={config.plot_linewidth})
+                _line_gif, = _ax_gif.plot([], [], color="#4dabf7", linewidth={config.plot_linewidth_anim})
                 # Positioned just above the axes (not set_title()) and
                 # styled to match it (black, centered, top) -- same visual
                 # place the 2D/3D Surface Animation branches below put their
@@ -2672,7 +2672,7 @@ for _pval in _param_values:
                 plt.tight_layout(); plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
 
             elif _plot_type == "Line (time steps)":
-                n_steps_plot = {config.num_timesteps}
+                n_steps_plot = {config.num_timesteps_line}
                 _x_l = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
                 t_steps_plot = np.linspace({config.t_min}, {config.t_max}, n_steps_plot)
                 fig, ax = plt.subplots(figsize=_plot_figsize(8, 5))
@@ -4052,7 +4052,7 @@ if {config.time_adaptive}:
                     plt.tight_layout()
                 plt.savefig(_step_fname, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
             elif _plot_type_step.startswith("Line"):
-                n_steps_plot = {config.num_timesteps}
+                n_steps_plot = {config.num_timesteps_line}
                 _x_l2 = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
                 _t_line = np.linspace(t0, t1, n_steps_plot)
                 fig, ax = plt.subplots(figsize=_plot_figsize(8, 4))
@@ -4228,7 +4228,7 @@ if {config.time_adaptive}:
             ax.set_title("Time-Adaptive PINN Solution")
             plt.tight_layout(); plt.savefig(_ta_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
     elif _plot_type_ta.startswith("Line"):
-        n_ts   = {config.num_timesteps}
+        n_ts   = {config.num_timesteps_line}
         t_vals = np.linspace(_ta_flat_intervals[0][0], _ta_flat_intervals[-1][1], n_ts)
         fig, ax = plt.subplots(figsize=_plot_figsize(8, 5))
         colors = plt.get_cmap("{config.plot_colormap}")(np.linspace(0, 1, n_ts))
@@ -5929,7 +5929,7 @@ plt.close()
 print(f"Solution plot saved: {{solution_path}}")''')
 
     elif config.plot_type in ("Line Animation (GIF)", "Surface Animation (GIF)"):
-        n_frames = max(2, config.num_timesteps)
+        n_frames = max(2, config.num_timesteps_anim)
         anim_kind = "line" if config.plot_type == "Line Animation (GIF)" else "surface"
         vrange = ("v_min, v_max = None, None" if config.plot_auto_range
                   else f"v_min, v_max = {config.plot_vmin}, {config.plot_vmax}")
@@ -5947,7 +5947,7 @@ fig, ax = plt.subplots(figsize=(7, 5))
 ax.set_xlim({config.x_min}, {config.x_max})
 ax.set_ylim(u_min - 0.05 * abs(u_min) - 1e-9, u_max + 0.05 * abs(u_max) + 1e-9)
 ax.set_xlabel("x"); ax.set_ylabel("{out_name}(x, t)"); ax.grid(True, alpha=0.2)
-line, = ax.plot([], [], color="#4dabf7", linewidth={config.plot_linewidth})
+line, = ax.plot([], [], color="#4dabf7", linewidth={config.plot_linewidth_anim})
 time_txt = ax.text(0.02, 0.95, "", transform=ax.transAxes, color="#ff8787")
 def _update(i):
     line.set_data(x_line, frames_u[i])
@@ -6086,7 +6086,7 @@ print(f"Solution plot saved: {{solution_path}}")''')
 
     elif config.plot_type == "Line (time steps)":
         parts.append(f'''# ── Result plot: line, several time steps ──
-n_steps_plot = {config.num_timesteps}
+n_steps_plot = {config.num_timesteps_line}
 x_l = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
 t_steps = np.linspace({config.t_min}, {config.t_max}, n_steps_plot)
 fig, ax = plt.subplots(figsize=(8, 5))

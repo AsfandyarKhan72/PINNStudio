@@ -274,7 +274,7 @@ _CROSS_PLATFORM_FONT_FALLBACK = (
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("PINNStudio — No-Code GUI for Physics-Informed Neural Networks (PINNs)")
+        self.setWindowTitle("PINNStudio — A No-Code Scientific Computing Environment for Forward and Inverse Physics-Informed Neural Networks")
         self.setMinimumSize(1100, 750)
         # Default launch size: previously there was no explicit resize()
         # call anywhere (main.py just does MainWindow().show()), so Qt fell
@@ -713,22 +713,42 @@ class MainWindow(QMainWindow):
 
         # Title -- styled from the "title" Display Settings category (family/
         # size/weight/color) instead of a hardcoded QFont(), which is what
-        # previously made it (and the subtitle below) immune to the Display
-        # Settings font-size control entirely.
+        # previously made it immune to the Display Settings font-size
+        # control entirely. The subtitle label that used to sit here
+        # ("Physics-Informed Neural Network (PINN) Solver") was removed --
+        # the title plus the window title bar (see setWindowTitle below)
+        # already say what this is, so the extra line was redundant.
         title = QLabel("PINNStudio")
-        self._register_style(title, "title", lambda css: f"color: #a0c4ff; margin-bottom: 2px; {css}")
+        self._register_style(title, "title", lambda css: f"color: #a0c4ff; margin-bottom: 8px; {css}")
         left_layout.addWidget(title)
 
-        def _subtitle_style_fn(_css):
-            t = self._disp.get("title", self._DISP_CATEGORY_DEFAULTS["title"])
-            fam = t.get("family") or "Arial"
-            size = max(9, round((t.get("size") or 16) * 0.69))
-            color = (t.get("color") or "").strip() or "#7070a0"
-            return (f"color: {color}; margin-bottom: 6px; "
-                    f"font-family: '{fam}'; font-size: {size}px; font-weight: normal;")
-        subtitle = QLabel("Physics-Informed Neural Network (PINN) Solver")
-        self._register_style(subtitle, "title", _subtitle_style_fn)
-        left_layout.addWidget(subtitle)
+        # ── Quick Examples (shown first: picking one drives everything ──
+        # ── else below it -- dimension, Forward/Inverse, Time ───────────
+        # ── Dependent/Stationary -- instead of the user having to set ───
+        # ── those by hand first before the right examples even appear) ──
+        examples_group = QGroupBox("📋 Quick Examples")
+        examples_layout = QHBoxLayout(examples_group)
+        examples_layout.addWidget(QLabel("Load example:"))
+        self.quick_examples_combo = QComboBox()
+        # Every template across all three dimensions, up front -- not
+        # filtered by whatever dimension happens to be selected right
+        # now (there's nothing to filter BY yet, since this sits above
+        # the Dimension selector). _on_template_selected sets the
+        # matching dimension radio itself once something here is picked;
+        # _on_dim_changed resets this back to "None" when the user
+        # changes dimension by hand instead (see both for the full
+        # two-way sync).
+        self.quick_examples_combo.addItems([
+            "None",
+            "1D Heat", "1D Allen-Cahn", "1D Burgers", "1D Schrödinger",
+            "2D Heat", "2D Allen-Cahn (Mattey & Ghosh)", "2D Allen-Cahn (Wight & Zhao)",
+            "2D Burgers (Mathias)", "2D Poisson (L-Shape)", "2D Poisson (Disk)",
+            "3D Heat", "3D Poisson (Sphere)",
+        ])
+        self.quick_examples_combo.setFixedHeight(28)
+        self.quick_examples_combo.currentTextChanged.connect(self._on_quick_example_selected)
+        examples_layout.addWidget(self.quick_examples_combo)
+        left_layout.addWidget(examples_group)
 
         # ── Dimension selector ────────────────────────────────
         dim_group = QGroupBox("Problem Dimension")
@@ -749,20 +769,36 @@ class MainWindow(QMainWindow):
         self.radio_2d.toggled.connect(self._on_dim_changed)
         self.radio_3d.toggled.connect(self._on_dim_changed)
 
-        # ── Quick Examples (shown right after dimension) ──────
-        examples_group = QGroupBox("📋 Quick Examples")
-        examples_layout = QHBoxLayout(examples_group)
-        examples_layout.addWidget(QLabel("Load example:"))
-        self.quick_examples_combo = QComboBox()
-        self.quick_examples_combo.addItems(["None", "1D Heat", "1D Allen-Cahn", "1D Burgers", "1D Schrödinger"])
-        self.quick_examples_combo.setFixedHeight(28)
-        self.quick_examples_combo.currentTextChanged.connect(self._on_quick_example_selected)
-        examples_layout.addWidget(self.quick_examples_combo)
-        left_layout.addWidget(examples_group)
-
         # ── Problem type ──────────────────────────────────────
+        # Time Dependent/Stationary now lives here too, right above
+        # Forward/Inverse -- grouping "what kind of problem is this" in
+        # one place instead of splitting stationarity off into the
+        # Domain section below, where it read more like a domain-bounds
+        # detail than the fairly fundamental modeling choice it actually
+        # is. The underlying state is still self.steady_state_check (a
+        # QCheckBox, never added to any visible layout -- every one of
+        # its many existing isChecked()/setChecked()/toggled call sites
+        # elsewhere in this file is unaffected): these two radios are a
+        # two-way-synced VIEW onto it, not a replacement, so a template
+        # that calls steady_state_check.setChecked(...) (e.g. a Poisson
+        # template turning Stationary on) updates these radios too, and
+        # picking a radio here updates steady_state_check (and so
+        # _on_steady_state_changed and everything it drives) the same
+        # way checking the old checkbox always did.
         type_group = QGroupBox("Problem Type")
-        type_layout = QHBoxLayout(type_group)
+        type_outer_layout = QVBoxLayout(type_group)
+        stationarity_layout = QHBoxLayout()
+        self.radio_time_dependent = QRadioButton("Time Dependent")
+        self.radio_stationary = QRadioButton("Stationary")
+        self.radio_time_dependent.setChecked(True)
+        self.stationarity_group_btn = QButtonGroup()
+        self.stationarity_group_btn.addButton(self.radio_time_dependent)
+        self.stationarity_group_btn.addButton(self.radio_stationary)
+        stationarity_layout.addWidget(self.radio_time_dependent)
+        stationarity_layout.addWidget(self.radio_stationary)
+        type_outer_layout.addLayout(stationarity_layout)
+
+        type_layout = QHBoxLayout()
         self.radio_forward = QRadioButton("Forward")
         self.radio_inverse = QRadioButton("Inverse")
         self.radio_forward.setChecked(True)
@@ -771,8 +807,11 @@ class MainWindow(QMainWindow):
         self.problem_type_group.addButton(self.radio_inverse)
         type_layout.addWidget(self.radio_forward)
         type_layout.addWidget(self.radio_inverse)
+        type_outer_layout.addLayout(type_layout)
         left_layout.addWidget(type_group)
         self.radio_forward.toggled.connect(self._on_problem_type_changed)
+        # The two-way sync to self.steady_state_check is wired once that
+        # checkbox itself is created, further down (see its own comment).
 
         # ── PDE input (Number of PDEs/Outputs folded in at the top, ────
         # ── since they belong together and don't need their own panel) ─
@@ -1019,9 +1058,19 @@ class MainWindow(QMainWindow):
         # equation -- no time axis at all: no t domain, no Initial
         # Condition, no Time-Adaptive/RAR (both are inherently time-based).
         # See _on_steady_state_changed() for what else this hides/resets.
+        # No longer shown here (or added to any layout) -- the visible
+        # control for this is now the Time Dependent/Stationary radio
+        # pair in the Problem Type section above (self.radio_stationary/
+        # radio_time_dependent), which this stays two-way synced with so
+        # every existing isChecked()/setChecked()/toggled call site for
+        # this checkbox elsewhere in this file keeps working unchanged.
         self.steady_state_check = QCheckBox("Steady-state (no time axis, e.g. Poisson equation)")
+        self.steady_state_check.setVisible(False)
         self.steady_state_check.toggled.connect(self._on_steady_state_changed)
-        domain_layout.addWidget(self.steady_state_check)
+        self.steady_state_check.toggled.connect(
+            lambda checked: self.radio_stationary.setChecked(True) if checked
+            else self.radio_time_dependent.setChecked(True))
+        self.radio_stationary.toggled.connect(self.steady_state_check.setChecked)
         left_layout.addWidget(domain_group)
 
         # ── Collocation Points ────────────────────────────────
@@ -2219,7 +2268,14 @@ class MainWindow(QMainWindow):
         self._restore_viz_settings = {
             'colormap': 'jet',
             'surface_time': 1.0,
-            'n_steps': 10,
+            # Split from one shared "n_steps" into two: a static multi-
+            # snapshot line plot ("Line (time steps)") wants few enough
+            # lines to stay readable, while an animation wants more
+            # frames for a smoother/slower playback -- see
+            # _viz_steps_key()/_viz_linewidth_key() for which one a given
+            # viz_type actually uses.
+            'n_steps_line': 5,
+            'n_steps_anim': 20,
             'colorbar': True,
             'levels': 100,
             'resolution': 200,
@@ -2228,6 +2284,7 @@ class MainWindow(QMainWindow):
             'vmin': -1.0,
             'vmax': 1.0,
             'linewidth': 2.0,
+            'linewidth_anim': 3.0,
             'fps': 10,
             'title': '',
             'xlabel': '',
@@ -2518,7 +2575,11 @@ class MainWindow(QMainWindow):
         self._plot_viz_settings = {
             'colormap': 'jet',
             'surface_time': 1.0,
-            'n_steps': 4,
+            # See the matching comment on self._restore_viz_settings above --
+            # same split, same reasoning, kept consistent between the Setup
+            # tab's own plots and the Restore tab's.
+            'n_steps_line': 5,
+            'n_steps_anim': 20,
             'n_2d_snapshots': 2,
             'colorbar': True,
             'levels': 100,
@@ -2528,6 +2589,7 @@ class MainWindow(QMainWindow):
             'vmin': -1.0,
             'vmax': 1.0,
             'linewidth': 2.0,
+            'linewidth_anim': 3.0,
             'fps': 10,
             'figsize_mode': 'Default',
             'figsize_w': 7.0,
@@ -2544,9 +2606,19 @@ class MainWindow(QMainWindow):
         self.export_btn.clicked.connect(self._on_export_settings)
         ctrl_row2.addWidget(self.export_btn)
 
-        self.timesteps_spin = QSpinBox()
-        self.timesteps_spin.setRange(2, 20); self.timesteps_spin.setValue(4)
-        self.timesteps_spin.setVisible(False)
+        # Split into two hidden value-holders (never added to any layout --
+        # same as the single one this replaces) so "Line (time steps)" and
+        # the two GIF animation types can default differently and keep
+        # separate values instead of fighting over one shared spinbox: 5
+        # steps keeps the static overlay readable, while 20 frames makes
+        # the animation play back slower/smoother. _on_line_plot_settings
+        # picks the right one based on which plot type is active.
+        self.timesteps_spin_line = QSpinBox()
+        self.timesteps_spin_line.setRange(2, 20); self.timesteps_spin_line.setValue(5)
+        self.timesteps_spin_line.setVisible(False)
+        self.timesteps_spin_anim = QSpinBox()
+        self.timesteps_spin_anim.setRange(2, 20); self.timesteps_spin_anim.setValue(20)
+        self.timesteps_spin_anim.setVisible(False)
 
         ctrl_row2.addStretch()
         bottom_layout.addLayout(ctrl_row2)
@@ -3009,30 +3081,21 @@ class MainWindow(QMainWindow):
             for row in list(self.custom_geom_shape_rows):
                 row['widget'].deleteLater()
             self.custom_geom_shape_rows.clear()
-        # Update quick examples list to match dimension
-        self.quick_examples_combo.blockSignals(True)
-        self.quick_examples_combo.clear()
-        if is_2d:
-            self.quick_examples_combo.addItems([
-                "None",
-                "2D Heat",
-                "2D Allen-Cahn (Mattey & Ghosh)",
-                "2D Allen-Cahn (Wight & Zhao)",
-                "2D Burgers (Mathias)",
-                "2D Poisson (L-Shape)",
-                "2D Poisson (Disk)",
-            ])
-        elif is_3d:
-            self.quick_examples_combo.addItems(["None", "3D Heat", "3D Poisson (Sphere)"])
-        else:
-            self.quick_examples_combo.addItems([
-                "None",
-                "1D Heat",
-                "1D Allen-Cahn",
-                "1D Burgers",
-                "1D Schrödinger"
-            ])
-        self.quick_examples_combo.blockSignals(False)
+        # Quick Examples lists every template across all three dimensions
+        # at once now (see _build_ui) -- it no longer needs rebuilding
+        # per dimension here. What it DOES still need: when the user
+        # changes dimension BY HAND (clicking a dimension radio directly,
+        # not via picking a template -- see _on_template_selected's
+        # _applying_template guard), whatever template was active no
+        # longer necessarily matches, so the selection resets to "None",
+        # the same way picking "None" itself leaves everything as a
+        # custom/hand-built problem. A template-driven dimension change
+        # skips this so the combo still shows the template that was just
+        # loaded, instead of immediately reverting to "None".
+        if not getattr(self, '_applying_template', False):
+            self.quick_examples_combo.blockSignals(True)
+            self.quick_examples_combo.setCurrentText("None")
+            self.quick_examples_combo.blockSignals(False)
 
         self.view_domain_check.setVisible(is_2d or is_3d)
         for w in self._2d_bc_widgets:
@@ -3767,20 +3830,30 @@ class MainWindow(QMainWindow):
 
 
     def _on_line_plot_settings(self):
+        # Which plot type opened this dialog decides which of the two
+        # hidden spinboxes (and which wording/default) is in play -- the
+        # static "Line (time steps)" plot and the GIF animations keep
+        # separate step counts now instead of sharing one (see
+        # timesteps_spin_line/_anim).
+        _is_anim = "Animation" in self.plot_type_combo.currentText()
+        _target_spin = self.timesteps_spin_anim if _is_anim else self.timesteps_spin_line
+
         dialog = QDialog(self)
         dialog.setWindowTitle("Line Plot Settings")
         dialog.setMinimumWidth(300)
         layout = QVBoxLayout(dialog)
 
-        info = QLabel("Select number of time steps to plot (also used as the number of frames for the GIF animations).")
+        info = QLabel(
+            "Select number of frames for the GIF animation." if _is_anim
+            else "Select number of time steps to plot.")
         info.setWordWrap(True)
         self._register_style(info, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
         layout.addWidget(info)
 
         steps_row = QHBoxLayout()
-        steps_row.addWidget(QLabel("Time steps to show:"))
+        steps_row.addWidget(QLabel("Frames to show:" if _is_anim else "Time steps to show:"))
         steps_spin = QSpinBox()
-        steps_spin.setRange(2, 20); steps_spin.setValue(self.timesteps_spin.value())
+        steps_spin.setRange(2, 20); steps_spin.setValue(_target_spin.value())
         steps_spin.setFixedWidth(80)
         steps_row.addStretch(); steps_row.addWidget(steps_spin)
         layout.addLayout(steps_row)
@@ -3807,7 +3880,7 @@ class MainWindow(QMainWindow):
         cancel_btn.clicked.connect(_on_cancel)
 
         def _on_ok():
-            self.timesteps_spin.setValue(steps_spin.value())
+            _target_spin.setValue(steps_spin.value())
             self._plot_type_prev = self.plot_type_combo.currentText()
             dialog.accept()
 
@@ -5162,6 +5235,73 @@ class MainWindow(QMainWindow):
                 parts.append(str(self.weight_widgets[key].value()))
         return ",".join(parts)
 
+    # ── Per-run results folder naming ──────────────────────────
+    # Standard naming so results from different runs are never silently
+    # overwritten and each one's save time is obvious at a glance --
+    # useful for anyone (e.g. for a paper) who wants every run's
+    # model/plots to stick around instead of only the latest surviving.
+    # Chosen format: "<template-or-fallback-label>__<timestamp>", e.g.
+    # "2D_Heat__2026-10-05_14-32-07" for a Quick Example, or
+    # "2D_TimeDependent_Forward__2026-10-05_14-32-07" for a custom
+    # (non-template) problem. The "Save to:" base path itself (e.g.
+    # /Users/asykhan/PINNStudio_Results) is left exactly as configured --
+    # only this one subfolder is added underneath it.
+    @staticmethod
+    def _sanitize_run_label(text):
+        import re
+        text = re.sub(r"\s+", "_", text.strip())
+        text = re.sub(r"[^A-Za-z0-9_\-]", "", text)
+        return text
+
+    def _run_folder_label(self, is_2d, is_3d, is_steady):
+        """The non-timestamp half of a run's folder name: the active
+        Quick Example's own name when one is selected (read live from
+        the combo, not a cached attribute -- those aren't reliably kept
+        in sync with "None" yet, see the Quick Examples/dimension
+        reorg this is a smaller, independent piece of), otherwise a
+        short label built from the problem's own shape so a custom
+        (non-template) run still gets something more informative than
+        a bare timestamp."""
+        label = ""
+        if hasattr(self, 'quick_examples_combo'):
+            label = self.quick_examples_combo.currentText().strip()
+        if not label or label == "None":
+            dim = "3D" if is_3d else ("2D" if is_2d else "1D")
+            stationarity = "Stationary" if is_steady else "TimeDependent"
+            problem_kind = "Inverse" if self.radio_inverse.isChecked() else "Forward"
+            label = f"{dim}_{stationarity}_{problem_kind}"
+        return self._sanitize_run_label(label) or "Run"
+
+    @staticmethod
+    def _timestamped_save_dir(base_dir, label):
+        """base_dir (the user's unmodified "Save to:"/restore save-path
+        text) plus a "<label>__<timestamp>" subfolder -- or base_dir
+        unchanged when it's blank (save-to-disk is off entirely, same as
+        before this feature existed). Shared by both the Setup tab's
+        _run_results_dir (below) and the Restore tab's _on_restore. The
+        timestamp is computed here, once per Solve/Export/Restore click,
+        not inside the generated script itself -- Parameter Sweep already
+        points each of its own runs at its own folder right after this
+        (see sweep_runner._apply_run_output_settings), unconditionally
+        overwriting whatever a Solve click computed, so a sweep run never
+        ends up double-nested under an extra timestamped folder of its
+        own."""
+        import datetime
+        base_dir = (base_dir or "").strip()
+        if not base_dir:
+            return base_dir
+        label = MainWindow._sanitize_run_label(label) or "Run"
+        stamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        return os.path.join(base_dir, f"{label}__{stamp}")
+
+    def _run_results_dir(self, base_dir, is_2d, is_3d, is_steady):
+        """The actual directory a Setup-tab Solve/Export run's results
+        should be written to -- see _timestamped_save_dir for the shared
+        "<label>__<timestamp>" mechanics and _run_folder_label for how
+        the label itself is picked."""
+        label = self._run_folder_label(is_2d, is_3d, is_steady)
+        return self._timestamped_save_dir(base_dir, label)
+
     # ── Build config ──────────────────────────────────────────
     def _build_config(self):
         n = self.layers_spin.value()
@@ -5340,8 +5480,9 @@ class MainWindow(QMainWindow):
             num_test=self.num_test.value(),
             point_distribution=self.pts_dist_combo.currentText(),
             plot_type=self.plot_type_combo.currentText(),
-            num_timesteps=self.timesteps_spin.value(),
-            save_dir=self.save_dir_input.text(),
+            num_timesteps_line=self.timesteps_spin_line.value(),
+            num_timesteps_anim=self.timesteps_spin_anim.value(),
+            save_dir=self._run_results_dir(self.save_dir_input.text(), is_2d, is_3d, is_steady),
             adapt_method=self.adapt_combo.currentData(),
             rar_cycles=self.rar_cycles.value(),
             rar_candidates=self.rar_candidates.value(),
@@ -5425,6 +5566,7 @@ class MainWindow(QMainWindow):
             plot_vmin=self._plot_viz_settings.get('vmin', -1.0),
             plot_vmax=self._plot_viz_settings.get('vmax', 1.0),
             plot_linewidth=self._plot_viz_settings.get('linewidth', 2.0),
+            plot_linewidth_anim=self._plot_viz_settings.get('linewidth_anim', 3.0),
             plot_fps=self._plot_viz_settings.get('fps', 10),
             plot_n_2d_snapshots=self._plot_viz_settings.get('n_2d_snapshots', 2),
             plot_swap_xt=self._plot_viz_settings.get('swap_xt', True),
@@ -5888,7 +6030,8 @@ class MainWindow(QMainWindow):
         self.num_test.setValue(config.num_test)
         self.pts_dist_combo.setCurrentText(config.point_distribution)
         self.plot_type_combo.setCurrentText(config.plot_type)
-        self.timesteps_spin.setValue(config.num_timesteps)
+        self.timesteps_spin_line.setValue(getattr(config, 'num_timesteps_line', 5))
+        self.timesteps_spin_anim.setValue(getattr(config, 'num_timesteps_anim', 20))
 
         # Network
         n_hidden = max(0, len(config.layers) - 2)
@@ -6101,6 +6244,7 @@ class MainWindow(QMainWindow):
             "vmin": config.plot_vmin,
             "vmax": config.plot_vmax,
             "linewidth": config.plot_linewidth,
+            "linewidth_anim": getattr(config, "plot_linewidth_anim", 3.0),
             "n_2d_snapshots": config.plot_n_2d_snapshots,
             "fps": getattr(config, "plot_fps", 10),
             "swap_xt": getattr(config, "plot_swap_xt", True),
@@ -8719,6 +8863,26 @@ print("ERROR_ANALYSIS_DONE")
         is_anim = self.restore_viz_combo.currentText() in ("Animation Line (GIF)", "Animation Surface (GIF)")
         self.restore_ta_combine_cb.setVisible(has_steps and is_anim)
 
+    @staticmethod
+    def _viz_steps_key(viz_type):
+        """Which n_steps_* key a given plot-type name reads/writes --
+        an animation ("Line Animation (GIF)" on the Setup tab,
+        "Animation Line (GIF)"/"Animation Surface (GIF)" on Restore --
+        the two tabs order the words differently) wants its own frame
+        count, separate from the static "Line (time steps)" plot's step
+        count, so the two can have different defaults (more frames for a
+        smoother/slower animation; fewer lines for a readable static
+        overlay) instead of fighting over one shared number."""
+        return 'n_steps_anim' if 'Animation' in viz_type else 'n_steps_line'
+
+    @staticmethod
+    def _viz_linewidth_key(viz_type):
+        """Which linewidth_* key a given plot-type name reads/writes --
+        same split as _viz_steps_key, for the same reason, but only
+        matters for the "Line"-named types (a Surface plot has no line
+        width control at all, see lw_widget's own visibility below)."""
+        return 'linewidth_anim' if 'Animation' in viz_type else 'linewidth'
+
     def _on_restore_viz_settings(self, viz_type=None):
         if viz_type is None:
             viz_type = self.restore_viz_combo.currentText()
@@ -8866,7 +9030,8 @@ print("ERROR_ANALYSIS_DONE")
         label_text = "Time steps:" if "Line" in viz_type else "Animation frames:"
         steps_layout.addWidget(QLabel(label_text))
         steps_spin = QSpinBox()
-        steps_spin.setRange(2, 100); steps_spin.setValue(current.get('n_steps', 10))
+        steps_spin.setRange(2, 100)
+        steps_spin.setValue(current.get(self._viz_steps_key(viz_type), 10))
         steps_spin.setFixedWidth(80)
         steps_layout.addStretch(); steps_layout.addWidget(steps_spin)
         steps_widget.setVisible(viz_type != "Surface")
@@ -8880,7 +9045,7 @@ print("ERROR_ANALYSIS_DONE")
         lw_layout.addWidget(QLabel("Line width:"))
         lw_combo = QComboBox()
         lw_combo.addItems(["1.0", "1.5", "2.0", "2.5", "3.0"])
-        lw_combo.setCurrentText(str(current.get('linewidth', 2.0)))
+        lw_combo.setCurrentText(str(current.get(self._viz_linewidth_key(viz_type), 2.0)))
         lw_combo.setFixedWidth(80)
         lw_layout.addStretch(); lw_layout.addWidget(lw_combo)
         lw_widget.setVisible("Line" in viz_type)
@@ -8978,7 +9143,6 @@ print("ERROR_ANALYSIS_DONE")
                 new_settings.update({
                     'colormap': cmap_combo.currentText(),
                     'surface_time': surface_time_spin.value(),
-                    'n_steps': steps_spin.value(),
                     'colorbar': colorbar_cb.isChecked(),
                     'levels': levels_spin.value(),
                     'resolution': int(res_combo.currentText()),
@@ -8986,10 +9150,16 @@ print("ERROR_ANALYSIS_DONE")
                     'auto_range': cr_auto_cb.isChecked(),
                     'vmin': vmin_spin.value(),
                     'vmax': vmax_spin.value(),
-                    'linewidth': float(lw_combo.currentText()),
                     'fps': int(fps_combo.currentText()),
                     'swap_xt': swap_xt_cb.isChecked(),
                 })
+                # Written to whichever n_steps_*/linewidth_* key this
+                # viz_type actually uses (see _viz_steps_key/
+                # _viz_linewidth_key), not a single shared key -- so
+                # setting Animation Line's frame count doesn't clobber
+                # Line (time steps)'s step count or vice versa.
+                new_settings[self._viz_steps_key(viz_type)] = steps_spin.value()
+                new_settings[self._viz_linewidth_key(viz_type)] = float(lw_combo.currentText())
                 self.restore_tsteps_spin.setValue(steps_spin.value())
             new_settings['title'] = title_edit.text().strip()
             new_settings['xlabel'] = xlabel_edit.text().strip()
@@ -9006,6 +9176,38 @@ print("ERROR_ANALYSIS_DONE")
     def _on_template_selected(self, text):
         if text == "📋 Examples":
             return
+
+        # Quick Examples now lists every template across all three
+        # dimensions at once (see _build_ui's Quick Examples combo and
+        # _on_dim_changed, which no longer rebuilds this combo's items per
+        # dimension) -- so picking one has to set the matching dimension
+        # radio itself, rather than relying on the user having already
+        # picked the right dimension before a dimension-filtered list
+        # ever offered this template. Every template name is prefixed
+        # with its own dimension ("1D Heat", "2D Heat", "3D Heat", ...),
+        # so that prefix is the single source of truth here -- no
+        # separate name->dimension table to keep in sync. _applying_
+        # template guards _on_dim_changed's own "a template no longer
+        # matches -- reset Quick Examples to None" logic, so setting the
+        # radio here doesn't immediately wipe the very selection this
+        # function is in the middle of applying. The actual template
+        # dispatch further down (the `if text in templates_2d:` / etc.
+        # chain) doesn't depend on this radio at all -- it matches purely
+        # on which dict `text` is a key of -- but the REST of the GUI
+        # (domain field visibility, z_min/z_max, the 2D/3D geometry-type
+        # selector, ...) does, via _on_dim_changed, so this still has to
+        # happen for the loaded template to actually display correctly.
+        _target_dim_radio = (
+            self.radio_2d if text.startswith("2D") else
+            self.radio_3d if text.startswith("3D") else
+            self.radio_1d if text.startswith("1D") else None
+        )
+        if _target_dim_radio is not None and not _target_dim_radio.isChecked():
+            self._applying_template = True
+            try:
+                _target_dim_radio.setChecked(True)
+            finally:
+                self._applying_template = False
 
         # Every template starts from a clean Steady-state toggle -- only the
         # Poisson (L-Shape/Disk/Sphere) branches below turn it back on for
@@ -10032,7 +10234,7 @@ print("ERROR_ANALYSIS_DONE")
         lw_layout.addWidget(QLabel("Line width:"))
         lw_combo = QComboBox()
         lw_combo.addItems(["1.0", "1.5", "2.0", "2.5", "3.0"])
-        lw_combo.setCurrentText(str(current.get('linewidth', 2.0)))
+        lw_combo.setCurrentText(str(current.get(self._viz_linewidth_key(viz_type), 2.0)))
         lw_combo.setFixedWidth(80)
         lw_layout.addStretch(); lw_layout.addWidget(lw_combo)
         lw_widget.setVisible(viz_type in ("Line (time steps)", "Line Animation (GIF)"))
@@ -10058,7 +10260,14 @@ print("ERROR_ANALYSIS_DONE")
         cancel_btn.clicked.connect(dialog.reject)
 
         def _on_ok():
-            self._plot_viz_settings = {
+            # Start from a copy of the existing settings (rather than a
+            # bare literal) so a key this dialog doesn't itself surface --
+            # e.g. the *other* plot type's linewidth_* / n_steps_* value,
+            # or 'surface_time' -- survives OK instead of silently
+            # reverting to a hardcoded default next time that other type
+            # is used.
+            new_settings = dict(current)
+            new_settings.update({
                 'colormap': cmap_combo.currentText(),
                 'levels': levels_spin.value(),
                 'resolution': int(res_combo.currentText()),
@@ -10067,16 +10276,21 @@ print("ERROR_ANALYSIS_DONE")
                 'vmin': vmin_spin.value(),
                 'vmax': vmax_spin.value(),
                 'colorbar': colorbar_cb.isChecked(),
-                'linewidth': float(lw_combo.currentText()),
-                'n_steps': current.get('n_steps', 4),
                 'n_2d_snapshots': snap_spin.value(),
-                'surface_time': current.get('surface_time', 1.0),
                 'fps': int(fps_combo.currentText()),
                 'swap_xt': swap_xt_cb.isChecked(),
                 'figsize_mode': figsize_combo.currentText(),
                 'figsize_w': figsize_w_spin.value(),
                 'figsize_h': figsize_h_spin.value(),
-            }
+            })
+            # linewidth is kept in a type-specific key (see
+            # _viz_linewidth_key) so "Line (time steps)" and "Line
+            # Animation (GIF)" can have different widths instead of
+            # sharing the one value this dialog used to save under a
+            # single 'linewidth' key regardless of which viz_type was
+            # open.
+            new_settings[self._viz_linewidth_key(viz_type)] = float(lw_combo.currentText())
+            self._plot_viz_settings = new_settings
             self.log_box.append(f"✅ Plot settings saved — {viz_type}, cmap={cmap_combo.currentText()}, levels={levels_spin.value()}, dpi={dpi_combo.currentText()}, figsize={figsize_combo.currentText()}")
             dialog.accept()
 
@@ -10910,6 +11124,7 @@ print("ERROR_ANALYSIS_V2_DONE")
 
             self._refresh_restore_output_combo()
             self._refresh_restore_viz_options()
+            self._auto_detect_restore_optimizer()
 
             # Inverse-only convenience: auto-detect the *_convergence.txt
             # file(s) saved alongside this run (one level up from
@@ -10977,6 +11192,48 @@ print("ERROR_ANALYSIS_V2_DONE")
             self.restore_config_path.setText(f)
             self._refresh_restore_output_combo()
             self._refresh_restore_viz_options()
+            self._auto_detect_restore_optimizer()
+
+    def _auto_detect_restore_optimizer(self):
+        """Pre-select restore_optimizer_combo from the model_config.json
+        about to be restored, instead of leaving it at whatever it already
+        was (Adam by default) and relying on the user to notice and change
+        it themselves -- picking the wrong one here is a real footgun for
+        anyone new to this panel, since model.restore() needs the model
+        compiled with a matching optimizer or it errors.
+
+        Reads "optimizer2" first (a 2-phase legacy scheduler's SECOND
+        phase -- e.g. Adam then L-BFGS -- is the one a saved checkpoint's
+        weights actually match, the same "last phase wins" reasoning
+        generate_script() itself already applies when deciding what to
+        compile with right before saving), falling back to "optimizer"
+        when there's no second phase ("none", or the key is missing
+        entirely on an older save). Only acts when the detected value is
+        one restore_optimizer_combo actually offers (currently "adam" /
+        "lbfgs" -- an NNCG-trained run has no matching item yet, so it's
+        safely left alone rather than guessing). Still fully overridable
+        by hand afterward -- this only changes the starting selection.
+        Safe no-op if the config can't be read yet, same pattern as
+        _refresh_restore_output_combo."""
+        import json
+        try:
+            with open(self.restore_config_path.text().strip()) as f:
+                cfg = json.load(f)
+        except Exception:
+            return
+        opt2 = str(cfg.get("optimizer2", "none") or "none").strip().lower()
+        opt1 = str(cfg.get("optimizer", "") or "").strip().lower()
+        detected = opt2 if opt2 not in ("", "none") else opt1
+        if not hasattr(self, 'restore_optimizer_combo'):
+            return
+        idx = self.restore_optimizer_combo.findData(detected)
+        if idx < 0:
+            return
+        if self.restore_optimizer_combo.currentIndex() != idx:
+            self.restore_optimizer_combo.setCurrentIndex(idx)
+            self.log_box.append(
+                f"✅ Auto-detected optimizer from model_config.json: "
+                f"{self.restore_optimizer_combo.currentText()}")
 
     def _refresh_restore_output_combo(self):
         """Repopulate restore_output_combo from the config file about to
@@ -11158,15 +11415,30 @@ print("ERROR_ANALYSIS_V2_DONE")
     def _on_restore(self):
         import json, tempfile, subprocess, sys
         viz_type    = self.restore_viz_combo.currentText()
-        save_dir    = self.restore_save_path.text().strip()
+        # Every restore run gets its own timestamped subfolder under the
+        # configured save path too (same convention as a normal Solve --
+        # see _run_results_dir/_timestamped_save_dir), not just plain
+        # Solve runs. _on_restore_done() (which looks for this run's
+        # output files once the subprocess finishes) reads the SAME
+        # resolved path back from self._last_restore_save_dir rather than
+        # recomputing it from the raw widget text, so it always looks in
+        # the right folder even though the label below can differ branch
+        # to branch (a restored checkpoint doesn't carry which Quick
+        # Example it came from, so the label is generic here and refined
+        # once a model_config.json is actually loaded, below).
+        _base_restore_dir = self.restore_save_path.text().strip()
+        save_dir    = self._timestamped_save_dir(_base_restore_dir, "Restore")
+        self._last_restore_save_dir = save_dir
 
         # Parameter Convergence Plot/Animation: entirely independent of
         # the model checkpoint (see _build_restore_param_script) -- reads
         # the *_convergence.txt file(s) directly, no model/config/
         # optimizer/output selection needed.
         if viz_type in getattr(self, '_RESTORE_PARAM_VIZ', []):
-            if not save_dir:
+            if not _base_restore_dir:
                 self.log_box.append("❌ Please select a save directory."); return
+            save_dir = self._timestamped_save_dir(_base_restore_dir, "ParameterConvergence")
+            self._last_restore_save_dir = save_dir
             _param_rows_used = [r for r in self.restore_param_rows if r['path'].text().strip()]
             paths = [r['path'].text().strip() for r in _param_rows_used]
             if not paths:
@@ -11284,6 +11556,21 @@ print("ERROR_ANALYSIS_V2_DONE")
                 cfg = json.load(f)
         except Exception as e:
             self.log_box.append(f"❌ Could not read config: {e}"); return
+
+        # Now that the restored model's own config is loaded, refine the
+        # generic "Restore__<timestamp>" folder picked above into one that
+        # says what's actually being restored -- same dimension/
+        # stationarity/problem-type label a fallback (non-template) Solve
+        # run gets (see _run_folder_label), since a restored checkpoint
+        # has no Quick-Example name of its own to use instead.
+        if _base_restore_dir:
+            _restore_label = (
+                f"Restore_{cfg.get('problem_dim', '1D')}_"
+                f"{'Stationary' if cfg.get('steady_state', False) else 'TimeDependent'}_"
+                f"{'Inverse' if cfg.get('problem_type', 'Forward') == 'Inverse' else 'Forward'}"
+            )
+            save_dir = self._timestamped_save_dir(_base_restore_dir, _restore_label)
+            self._last_restore_save_dir = save_dir
 
         # Inverse restore: let the user override/supply the trainable-
         # variable names for an older model saved before model_config.json
@@ -11521,7 +11808,12 @@ print("ERROR_ANALYSIS_V2_DONE")
     def _on_restore_done(self, success):
         self.restore_btn.setEnabled(True)
         self.restore_btn.setText("🔄  Restore && Visualize")
-        save_dir = self.restore_save_path.text().strip()
+        # The run that just finished actually wrote into its own
+        # timestamped subfolder (see _on_restore), not the bare widget
+        # text -- read that resolved path back rather than recomputing a
+        # fresh (and wrong -- a different, nonexistent timestamp) one
+        # from self.restore_save_path here.
+        save_dir = getattr(self, '_last_restore_save_dir', '') or self.restore_save_path.text().strip()
         is_param = getattr(self, '_last_restore_is_param', False)
         if success:
             self.log_box.append("✅ Restore complete!")
@@ -11829,14 +12121,17 @@ print("RESTORE_DONE")
         colormap = viz_settings.get('colormap', 'RdBu_r')
         surface_time = viz_settings.get('surface_time', cfg.get('t_max', 1.0))
         show_colorbar = viz_settings.get('colorbar', True)
-        n_steps = viz_settings.get('n_steps', t_steps)
+        # Type-aware keys (see _viz_steps_key/_viz_linewidth_key): the
+        # static "Line (time steps)" plot and the GIF animations keep
+        # separate step counts and line widths instead of sharing one.
+        n_steps = viz_settings.get(self._viz_steps_key(viz_type), t_steps)
         levels = viz_settings.get('levels', 40)
         resolution = viz_settings.get('resolution', 100)
         dpi = viz_settings.get('dpi', 100)
         auto_range = viz_settings.get('auto_range', True)
         vmin_val = viz_settings.get('vmin', -1.0)
         vmax_val = viz_settings.get('vmax', 1.0)
-        linewidth = viz_settings.get('linewidth', 2.0)
+        linewidth = viz_settings.get(self._viz_linewidth_key(viz_type), 2.0)
         fps = viz_settings.get('fps', 10)
         swap_xt = viz_settings.get('swap_xt', True)
         title_override = (viz_settings.get('title') or '').strip()
@@ -12188,7 +12483,7 @@ elif is_steady:
     # nothing left to make a "surface" out of, just the one curve u(x).
     pred = _extract_plot_field(model.predict(x_vals.reshape(-1, 1))).flatten()
     fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
-    ax.plot(x_vals, pred, color="#4dabf7", linewidth=2)
+    ax.plot(x_vals, pred, color="#4dabf7", linewidth={linewidth})
     ax.grid(True, alpha=0.2)
     ax.set_xlabel({_xlabel_1d_steady!r}); ax.set_ylabel({_ylabel_1d_steady!r})
     ax.set_title({_title_1d_steady!r})
@@ -12288,7 +12583,7 @@ ax.set_xlim({x_min}, {x_max})
 ax.set_ylim(u_min - 0.05*abs(u_min), u_max + 0.05*abs(u_max))
 ax.set_xlabel({_xlabel_animline!r}); ax.set_ylabel({_ylabel_animline!r})
 {_title_line_stmt}
-line, = ax.plot([], [], color="#4dabf7", linewidth=2)
+line, = ax.plot([], [], color="#4dabf7", linewidth={linewidth})
 time_txt = ax.text(0.5, 1.02, '', transform=ax.transAxes, color='black', ha='center', fontsize=11)
 ax.grid(True, alpha=0.2)
 def init():
@@ -12474,14 +12769,17 @@ else:
         viz_settings = getattr(self, '_restore_viz_settings', {})
         colormap = viz_settings.get('colormap', 'RdBu_r')
         show_colorbar = viz_settings.get('colorbar', True)
-        n_steps = viz_settings.get('n_steps', t_steps)
+        # Type-aware keys (see _viz_steps_key/_viz_linewidth_key): the
+        # static "Line (time steps)" plot and the GIF animations keep
+        # separate step counts and line widths instead of sharing one.
+        n_steps = viz_settings.get(self._viz_steps_key(viz_type), t_steps)
         levels = viz_settings.get('levels', 40)
         resolution = viz_settings.get('resolution', 100)
         dpi = viz_settings.get('dpi', 100)
         auto_range = viz_settings.get('auto_range', True)
         vmin_val = viz_settings.get('vmin', -1.0)
         vmax_val = viz_settings.get('vmax', 1.0)
-        linewidth = viz_settings.get('linewidth', 2.0)
+        linewidth = viz_settings.get(self._viz_linewidth_key(viz_type), 2.0)
         fps = viz_settings.get('fps', 10)
         swap_xt = viz_settings.get('swap_xt', True)
         title_override = (viz_settings.get('title') or '').strip()
@@ -12801,7 +13099,7 @@ ax.set_xlim({x_min}, {x_max})
 ax.set_ylim(u_min - 0.05*abs(u_min), u_max + 0.05*abs(u_max))
 ax.set_xlabel({_xlabel_animline!r}); ax.set_ylabel({_ylabel_animline!r})
 {_title_line_stmt}
-line, = ax.plot([], [], color="#4dabf7", linewidth=2)
+line, = ax.plot([], [], color="#4dabf7", linewidth={linewidth})
 time_txt = ax.text(0.5, 1.02, '', transform=ax.transAxes, color='black', ha='center', fontsize=11)
 ax.grid(True, alpha=0.2)
 def init():
