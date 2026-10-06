@@ -205,22 +205,22 @@ def run():
     c = x1 ** 2
     y1 = torch.cat([mu, c], dim=1)
     dvars1 = tm_build_dvars(x1, y1, 2, ["mu", "c"], True, "1D", "mu, dmu_x, dmu_xx, c")
-    x1n = x1.detach().numpy().flatten()
-    check(np.allclose(dvars1["dmu_x"].detach().numpy().flatten(), 3 * x1n ** 2, atol=1e-5), "1D dmu_x should match 3x^2")
-    check(np.allclose(dvars1["dmu_xx"].detach().numpy().flatten(), 6 * x1n, atol=1e-5), "1D dmu_xx should match 6x")
+    x1n = x1.detach().cpu().numpy().flatten()
+    check(np.allclose(dvars1["dmu_x"].detach().cpu().numpy().flatten(), 3 * x1n ** 2, atol=1e-5), "1D dmu_x should match 3x^2")
+    check(np.allclose(dvars1["dmu_xx"].detach().cpu().numpy().flatten(), 6 * x1n, atol=1e-5), "1D dmu_xx should match 6x")
     result1 = tm_eval_terms("mu, dmu_x, dmu_xx, c", x1, y1, dvars1, ["mu", "c"])
     expected1 = np.stack([x1n ** 3, 3 * x1n ** 2, 6 * x1n, x1n ** 2], axis=1)
-    check(np.allclose(result1.detach().numpy(), expected1, atol=1e-5),
+    check(np.allclose(result1.detach().cpu().numpy(), expected1, atol=1e-5),
           "_tm_eval_terms() should return a (batch, k) tensor matching each expression")
 
     # 2D steady, single output, mixed partial: u = x^2 y^3
     xy = torch.tensor([[0.4, 0.6], [0.7, 0.2]], requires_grad=True)
     u2 = (xy[:, 0:1] ** 2) * (xy[:, 1:2] ** 3)
     dvars2 = tm_build_dvars(xy, u2, 1, ["u"], True, "2D", "du_x, du_y, du_xy")
-    xn, yn = xy[:, 0].detach().numpy(), xy[:, 1].detach().numpy()
-    check(np.allclose(dvars2["du_x"].detach().numpy().flatten(), 2 * xn * yn ** 3, atol=1e-5), "2D du_x mismatch")
-    check(np.allclose(dvars2["du_y"].detach().numpy().flatten(), 3 * xn ** 2 * yn ** 2, atol=1e-5), "2D du_y mismatch")
-    check(np.allclose(dvars2["du_xy"].detach().numpy().flatten(), 6 * xn * yn ** 2, atol=1e-5), "2D mixed du_xy mismatch")
+    xn, yn = xy[:, 0].detach().cpu().numpy(), xy[:, 1].detach().cpu().numpy()
+    check(np.allclose(dvars2["du_x"].detach().cpu().numpy().flatten(), 2 * xn * yn ** 3, atol=1e-5), "2D du_x mismatch")
+    check(np.allclose(dvars2["du_y"].detach().cpu().numpy().flatten(), 3 * xn ** 2 * yn ** 2, atol=1e-5), "2D du_y mismatch")
+    check(np.allclose(dvars2["du_xy"].detach().cpu().numpy().flatten(), 6 * xn * yn ** 2, atol=1e-5), "2D mixed du_xy mismatch")
 
     # 3D steady, 2-output (component-indexed hessian path)
     xyz = torch.tensor([[0.3, 0.5, 0.2], [0.6, 0.1, 0.4]], requires_grad=True)
@@ -228,10 +228,10 @@ def run():
     b3 = xyz[:, 1:2] ** 2
     y3 = torch.cat([a3, b3], dim=1)
     dvars3 = tm_build_dvars(xyz, y3, 2, ["a", "b"], True, "3D", "da_z, da_xz, db_y")
-    z3n = xyz[:, 2].detach().numpy()
-    check(np.allclose(dvars3["da_z"].detach().numpy().flatten(), 3 * z3n ** 2, atol=1e-5), "3D da_z mismatch")
-    check(np.allclose(dvars3["da_xz"].detach().numpy().flatten(), np.zeros_like(z3n), atol=1e-5), "3D mixed da_xz should be ~0")
-    check(np.allclose(dvars3["db_y"].detach().numpy().flatten(), 2 * xyz[:, 1].detach().numpy(), atol=1e-5), "3D db_y mismatch")
+    z3n = xyz[:, 2].detach().cpu().numpy()
+    check(np.allclose(dvars3["da_z"].detach().cpu().numpy().flatten(), 3 * z3n ** 2, atol=1e-5), "3D da_z mismatch")
+    check(np.allclose(dvars3["da_xz"].detach().cpu().numpy().flatten(), np.zeros_like(z3n), atol=1e-5), "3D mixed da_xz should be ~0")
+    check(np.allclose(dvars3["db_y"].detach().cpu().numpy().flatten(), 2 * xyz[:, 1].detach().cpu().numpy(), atol=1e-5), "3D db_y mismatch")
 
     # ---------------------------------------------------------------
     # 5) Results-panel wiring
