@@ -1757,7 +1757,7 @@ class MainWindow(QMainWindow):
         self.training_monitors_cb.setChecked(False)
         self.training_monitors_cb.setToolTip(
             "Logs the value of one or more expressions -- an output name "
-            "(e.g. 'mu') and/or a derivative using the same d{name}_x / "
+            "(e.g. 'u') and/or a derivative using the same d{name}_x / "
             "d{name}_xx / d{name}_xy syntax the Custom PDE box uses -- at "
             "a fixed set of points, every N iterations. Read-only: never "
             "affects training. Useful for watching whether a quantity "
@@ -1772,7 +1772,7 @@ class MainWindow(QMainWindow):
             "Points: one per parenthesized group, semicolon-separated,\n"
             "e.g. (0.3, 0.0); (0.5, 0.0) -- matching this problem's own\n"
             "input order (x[, y][, z][, t]). Expressions: comma-separated,\n"
-            "logged together, e.g. mu, dmu_x, dmu_xx")
+            "logged together, e.g. u, du_x, du_xx")
         self._register_style(tmon_hint, "hint", lambda css, _c='#808090', _e='': f"color: {_c}; {_e}{css}")
         tmon_fields_layout.addWidget(tmon_hint)
 
@@ -2379,7 +2379,14 @@ class MainWindow(QMainWindow):
         _rout_layout.addWidget(self.restore_output_combo)
         _rout_custom_row = QHBoxLayout()
         self.restore_custom_expr_input = QLineEdit()
-        self.restore_custom_expr_input.setPlaceholderText("expression, e.g. sqrt(u**2+v**2)")
+        self.restore_custom_expr_input.setPlaceholderText("expression, e.g. sqrt(u**2+v**2) or du_x")
+        self.restore_custom_expr_input.setToolTip(
+            "A combination of this model's outputs (e.g. 'sqrt(u**2+v**2)') "
+            "and/or their derivatives, using the same d{name}_x / d{name}_xx "
+            "/ d{name}_xy syntax the Custom PDE box and Training Monitors "
+            "use (e.g. 'du_x', 'u + du_xx'). Evaluated via DeepXDE's own "
+            "dde.Model.predict(x, operator=...), the same mechanism "
+            "OperatorPredictor uses during training.")
         self.restore_custom_expr_input.setFixedHeight(26)
         self.restore_custom_expr_input.setVisible(False)
         _rout_custom_row.addWidget(self.restore_custom_expr_input)
@@ -2539,7 +2546,14 @@ class MainWindow(QMainWindow):
         # just the colorbar/axis text (falls back to the expression itself
         # when left blank).
         self.plot_custom_expr_input = QLineEdit()
-        self.plot_custom_expr_input.setPlaceholderText("expression, e.g. sqrt(u**2+v**2)")
+        self.plot_custom_expr_input.setPlaceholderText("expression, e.g. sqrt(u**2+v**2) or du_x")
+        self.plot_custom_expr_input.setToolTip(
+            "A combination of this model's outputs (e.g. 'sqrt(u**2+v**2)') "
+            "and/or their derivatives, using the same d{name}_x / d{name}_xx "
+            "/ d{name}_xy syntax the Custom PDE box and Training Monitors "
+            "use (e.g. 'du_x', 'u + du_xx'). Evaluated via DeepXDE's own "
+            "dde.Model.predict(x, operator=...), the same mechanism "
+            "OperatorPredictor uses during training.")
         self.plot_custom_expr_input.setFixedHeight(28)
         self.plot_custom_expr_input.setFixedWidth(190)
         self.plot_custom_expr_input.setVisible(False)
@@ -11132,7 +11146,7 @@ print("ERROR_ANALYSIS_V2_DONE")
 
         header_row = QHBoxLayout()
         name_edit = QLineEdit(name)
-        name_edit.setPlaceholderText("label, e.g. dmu_dc_check")
+        name_edit.setPlaceholderText("label, e.g. u_check")
         header_row.addWidget(name_edit)
         remove_btn = QPushButton("✕")
         remove_btn.setFixedHeight(22); remove_btn.setFixedWidth(24)
@@ -11146,7 +11160,7 @@ print("ERROR_ANALYSIS_V2_DONE")
         row_layout.addWidget(points_edit)
 
         expr_edit = QLineEdit(expr)
-        expr_edit.setPlaceholderText("expression(s), e.g. mu, dmu_x, dmu_xx")
+        expr_edit.setPlaceholderText("expression(s), e.g. u, du_x, du_xx")
         row_layout.addWidget(expr_edit)
 
         period_row = QHBoxLayout()
@@ -12471,14 +12485,21 @@ print("RESTORE_DONE")
         figsize_h = viz_settings.get('figsize_h', 5.0)
         layers     = cfg["layers"]
         activation = cfg["activation"]
-        from pinnstudio.core.codegen import _net_construction_helper_code
+        from pinnstudio.core.codegen import _net_construction_helper_code, _training_monitor_runtime_code
         net_helper_code = _net_construction_helper_code(cfg.get("network_type", "FNN"))
+        # Reuses Training Monitors' own derivative-building helpers
+        # (_tm_hess/_tm_build_dvars) unchanged, so a restored model's
+        # "Custom..." expression can reference derivatives too (du_x,
+        # du_xx, du_xy, ...) via DeepXDE's own dde.Model.predict(x,
+        # operator=...) built-in -- see _extract_plot_field below.
+        _tm_runtime_code_restore = _training_monitor_runtime_code()
         x_min = cfg["x_min"]; x_max = cfg["x_max"]
         y_min = cfg.get("y_min", 0.0); y_max = cfg.get("y_max", 1.0)
         z_min = cfg.get("z_min", 0.0); z_max = cfg.get("z_max", 1.0)
         t_min = cfg["t_min"]; t_max = cfg["t_max"]
         is_2d = cfg.get("problem_dim", "1D") == "2D"
         is_3d = cfg.get("problem_dim", "1D") == "3D"
+        _restore_dim_str = "3D" if is_3d else ("2D" if is_2d else "1D")
         # Steady-state problems have no time axis at all (see
         # _on_steady_state_changed and generate_script()'s own _is_steady
         # branch in codegen.py): the restored network's first layer has one
@@ -12663,29 +12684,44 @@ is_2d  = {str(is_2d)}
 is_3d  = {str(is_3d)}
 is_steady = {str(is_steady)}
 
+{_tm_runtime_code_restore}
+
 # Predicted field: a raw output column (output_idx, matching the Restore
 # panel's own "Output to plot" selector) or -- when "Custom..." is picked
-# there instead -- a NumPy expression over all of this model's outputs,
-# same math namespace and mechanism as the live Results panel's own
-# _extract_plot_field (codegen.py). Every model.predict(...) call below goes
-# through this instead of indexing a fixed column directly.
+# there instead -- an expression over all of this model's outputs AND
+# their derivatives (du_x, du_xx, du_xy, ... -- same syntax the Custom PDE
+# box and Training Monitors already use), evaluated through DeepXDE's own
+# dde.Model.predict(x, operator=...) built-in so autograd is available at
+# predict time -- the same built-in Training Monitors' own callback uses
+# during training, just invoked once here instead of periodically.
+# Same math namespace/mechanism as the live Results panel's own
+# _extract_plot_field (codegen.py). Every model.predict(...) call below
+# goes through this instead of indexing a fixed column directly.
 _restore_custom_expr = {_custom_expr_val!r}
 _restore_output_names = {[n.strip() for n in out_names]!r}
+_restore_n_out = len(_restore_output_names)
+_restore_is_steady = {str(is_steady)}
+_restore_dim = {_restore_dim_str!r}
 _RESTORE_MATH_NS = {{
-    "sin": np.sin, "cos": np.cos, "tan": np.tan,
-    "sinh": np.sinh, "cosh": np.cosh, "tanh": np.tanh,
-    "arcsin": np.arcsin, "arccos": np.arccos, "arctan": np.arctan,
-    "exp": np.exp, "log": np.log, "log10": np.log10,
-    "sqrt": np.sqrt, "abs": np.abs, "ceil": np.ceil, "floor": np.floor,
+    "sin": torch.sin, "cos": torch.cos, "tan": torch.tan,
+    "sinh": torch.sinh, "cosh": torch.cosh, "tanh": torch.tanh,
+    "arcsin": torch.asin, "arccos": torch.acos, "arctan": torch.atan,
+    "exp": torch.exp, "log": torch.log, "log10": torch.log10,
+    "sqrt": torch.sqrt, "abs": torch.abs, "ceil": torch.ceil, "floor": torch.floor,
     "pi": np.pi,
 }}
-def _extract_plot_field(pred):
+def _restore_custom_op(inputs, outputs):
+    _dvars = _tm_build_dvars(inputs, outputs, _restore_n_out, _restore_output_names,
+                              _restore_is_steady, _restore_dim, _restore_custom_expr)
+    _ns = dict(_dvars)
+    _ns.update(_RESTORE_MATH_NS)
+    _ns["torch"] = torch
+    return eval(_restore_custom_expr, _ns)
+
+def _extract_plot_field(x_grid):
     if _restore_custom_expr:
-        ns = {{**_RESTORE_MATH_NS, "np": np}}
-        for _i, _n in enumerate(_restore_output_names):
-            ns[_n] = pred[:, _i]
-        return np.asarray(eval(_restore_custom_expr, ns))
-    return pred[:, {output_idx}]
+        return model.predict(x_grid, operator=_restore_custom_op)[:, 0]
+    return model.predict(x_grid)[:, {output_idx}]
 """
 
         if viz_type == "Surface":
@@ -12753,7 +12789,7 @@ if is_3d:
             _fpts3 = _fspatial3
         else:
             _fpts3 = np.column_stack([_fspatial3, np.full(_fX3.size, {surface_time})])
-        _face_preds3.append(_extract_plot_field(model.predict(_fpts3)).reshape(_fX3.shape))
+        _face_preds3.append(_extract_plot_field(_fpts3).reshape(_fX3.shape))
         # Spatial-only inside() check -- the plain geom (not geomtime), same
         # as the 2D Surface masking below, since whether a point lies in
         # the domain never depends on t.
@@ -12794,7 +12830,7 @@ elif is_2d:
         XYT = np.column_stack([Xg.ravel(), Yg.ravel()])
     else:
         XYT = np.column_stack([Xg.ravel(), Yg.ravel(), np.full(Xg.size, {surface_time})])
-    pred = _extract_plot_field(model.predict(XYT)).reshape(res, res)
+    pred = _extract_plot_field(XYT).reshape(res, res)
     # Mask the prediction down to the real problem domain -- geom is the
     # actual (possibly non-rectangular / CSG-combined) geometry built
     # above, not just its bounding box, so a grid point that falls in
@@ -12813,7 +12849,7 @@ elif is_2d:
 elif is_steady:
     # Steady 1D: no time axis and no second spatial axis either -- there's
     # nothing left to make a "surface" out of, just the one curve u(x).
-    pred = _extract_plot_field(model.predict(x_vals.reshape(-1, 1))).flatten()
+    pred = _extract_plot_field(x_vals.reshape(-1, 1)).flatten()
     fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
     ax.plot(x_vals, pred, color="#4dabf7", linewidth={linewidth})
     ax.grid(True, alpha=0.2)
@@ -12823,7 +12859,7 @@ else:
     t_vals = np.linspace({t_min}, {t_max}, res)
     X, T = np.meshgrid(x_vals, t_vals)
     XT   = np.vstack([X.ravel(), T.ravel()]).T
-    pred = _extract_plot_field(model.predict(XT)).reshape(res, res)
+    pred = _extract_plot_field(XT).reshape(res, res)
     fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
     # Swapping which of X/T is passed first -- no reshape of pred needed,
     # see the matching comment on the main Results panel's own 1D Surface
@@ -12869,7 +12905,7 @@ for i, tv in enumerate(t_steps_vals):
         xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, tv)])
     else:
         xt = np.column_stack([x_vals, np.full_like(x_vals, tv)])
-    u_line = _extract_plot_field(model.predict(xt)).flatten()
+    u_line = _extract_plot_field(xt).flatten()
     _line_label = "steady-state" if is_steady else f"t={{tv:.3f}}"
     ax.plot(x_vals, u_line, color=colors[i], linewidth={linewidth}, label=_line_label)
 ax.set_xlabel({_xlabel_line!r}); ax.set_ylabel({_ylabel_line!r})
@@ -12907,7 +12943,7 @@ for tv in t_frames:
         xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, tv)])
     else:
         xt = np.column_stack([x_vals, np.full_like(x_vals, tv)])
-    all_u.append(_extract_plot_field(model.predict(xt)).flatten())
+    all_u.append(_extract_plot_field(xt).flatten())
 u_min = min(u.min() for u in all_u) 
 u_max = max(u.max() for u in all_u)
 fig, ax = plt.subplots(figsize=_plot_figsize(7, 4))
@@ -12988,7 +13024,7 @@ if is_3d:
                 _fpts3a = np.column_stack([_fX3a.ravel(), _fY3a.ravel(), _fZ3a.ravel()])
             else:
                 _fpts3a = np.column_stack([_fX3a.ravel(), _fY3a.ravel(), _fZ3a.ravel(), np.full(_fX3a.size, tv)])
-            _frame_faces.append(_extract_plot_field(model.predict(_fpts3a)).reshape(_fX3a.shape))
+            _frame_faces.append(_extract_plot_field(_fpts3a).reshape(_fX3a.shape))
         all_frames.append(_frame_faces)
     v_min = min(_f.min() for _frame in all_frames for _f in _frame)
     v_max = max(_f.max() for _frame in all_frames for _f in _frame)
@@ -13025,7 +13061,7 @@ else:
                 XYT = np.column_stack([Xg.ravel(), Yg.ravel()])
             else:
                 XYT = np.column_stack([Xg.ravel(), Yg.ravel(), np.full(Xg.size, tv)])
-            pred = _extract_plot_field(model.predict(XYT)).reshape(80, 80)
+            pred = _extract_plot_field(XYT).reshape(80, 80)
             all_frames.append((Xg, Yg, pred))
     else:
         # Same no-reshape-of-pred swap as the static Surface option above
@@ -13036,7 +13072,7 @@ else:
         X_anim, T_anim = np.meshgrid(x_anim, t_anim)
         for tv in t_frames:
             XT = np.vstack([X_anim.ravel(), np.full(X_anim.size, tv)]).T
-            pred = _extract_plot_field(model.predict(XT)).reshape(80, 80)
+            pred = _extract_plot_field(XT).reshape(80, 80)
             if {swap_xt}:
                 all_frames.append((T_anim, X_anim, pred))
             else:
@@ -13171,8 +13207,12 @@ else:
         # varies step-to-step), so this reads the top-level model_config.json
         # (cfg), not each step's own step_config.json -- same reasoning as
         # this function's docstring already gives for x_min/x_max/etc.
-        from pinnstudio.core.codegen import _net_construction_helper_code
+        from pinnstudio.core.codegen import _net_construction_helper_code, _training_monitor_runtime_code
         net_helper_code = _net_construction_helper_code(cfg.get("network_type", "FNN"))
+        # Same reuse of Training Monitors' derivative-building helpers as
+        # _build_restore_script -- see that function's own comment.
+        _tm_runtime_code_restore = _training_monitor_runtime_code()
+        _restore_dim_str = "3D" if is_3d else ("2D" if is_2d else "1D")
 
         script = f"""
 import os
@@ -13263,25 +13303,39 @@ x_vals = np.linspace({x_min}, {x_max}, 100)
 y_vals = np.linspace({y_min}, {y_max}, 100)
 z_vals = np.linspace({z_min}, {z_max}, 100)
 
+{_tm_runtime_code_restore}
+
 # See the matching comment in _build_restore_script -- same mechanism, same
 # math namespace, just spliced into this Time-Adaptive-aware script instead.
+# One difference from the single-model script: which model.predict(...)
+# to call isn't fixed here -- a different step's restored model may apply
+# per time value (see _ta_model_for_t/_ta_pick_step above) -- so the model
+# object itself is passed in alongside the grid instead of being baked in.
 _restore_custom_expr = {_custom_expr_val!r}
 _restore_output_names = {[n.strip() for n in out_names]!r}
+_restore_n_out = len(_restore_output_names)
+_restore_is_steady = False
+_restore_dim = {_restore_dim_str!r}
 _RESTORE_MATH_NS = {{
-    "sin": np.sin, "cos": np.cos, "tan": np.tan,
-    "sinh": np.sinh, "cosh": np.cosh, "tanh": np.tanh,
-    "arcsin": np.arcsin, "arccos": np.arccos, "arctan": np.arctan,
-    "exp": np.exp, "log": np.log, "log10": np.log10,
-    "sqrt": np.sqrt, "abs": np.abs, "ceil": np.ceil, "floor": np.floor,
+    "sin": torch.sin, "cos": torch.cos, "tan": torch.tan,
+    "sinh": torch.sinh, "cosh": torch.cosh, "tanh": torch.tanh,
+    "arcsin": torch.asin, "arccos": torch.acos, "arctan": torch.atan,
+    "exp": torch.exp, "log": torch.log, "log10": torch.log10,
+    "sqrt": torch.sqrt, "abs": torch.abs, "ceil": torch.ceil, "floor": torch.floor,
     "pi": np.pi,
 }}
-def _extract_plot_field(pred):
+def _restore_custom_op(inputs, outputs):
+    _dvars = _tm_build_dvars(inputs, outputs, _restore_n_out, _restore_output_names,
+                              _restore_is_steady, _restore_dim, _restore_custom_expr)
+    _ns = dict(_dvars)
+    _ns.update(_RESTORE_MATH_NS)
+    _ns["torch"] = torch
+    return eval(_restore_custom_expr, _ns)
+
+def _extract_plot_field(x_grid, _tm_model):
     if _restore_custom_expr:
-        ns = {{**_RESTORE_MATH_NS, "np": np}}
-        for _i, _n in enumerate(_restore_output_names):
-            ns[_n] = pred[:, _i]
-        return np.asarray(eval(_restore_custom_expr, ns))
-    return pred[:, {output_idx}]
+        return _tm_model.predict(x_grid, operator=_restore_custom_op)[:, 0]
+    return _tm_model.predict(x_grid)[:, {output_idx}]
 """
 
         if viz_type == "Surface":
@@ -13324,7 +13378,7 @@ if is_3d:
     _face_preds3 = []
     for _fX3, _fY3, _fZ3 in _faces3:
         _fpts3 = np.column_stack([_fX3.ravel(), _fY3.ravel(), _fZ3.ravel(), np.full(_fX3.size, {surface_time})])
-        _face_preds3.append(_extract_plot_field(model.predict(_fpts3)).reshape(_fX3.shape))
+        _face_preds3.append(_extract_plot_field(_fpts3, model).reshape(_fX3.shape))
     if {auto_range}:
         _pv_min3 = min(_f.min() for _f in _face_preds3)
         _pv_max3 = max(_f.max() for _f in _face_preds3)
@@ -13351,7 +13405,7 @@ elif is_2d:
     model = _ta_model_for_t({surface_time})
     Xg, Yg = np.meshgrid(x_vals, y_vals)
     XYT = np.column_stack([Xg.ravel(), Yg.ravel(), np.full(Xg.size, {surface_time})])
-    pred = _extract_plot_field(model.predict(XYT)).reshape(res, res)
+    pred = _extract_plot_field(XYT, model).reshape(res, res)
     fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
     im = ax.contourf(Xg, Yg, pred, levels={levels}, cmap="{colormap}", {vrange})
     if {show_colorbar}: fig.colorbar(im, ax=ax)
@@ -13370,7 +13424,7 @@ else:
     for _ri, _tv in enumerate(t_vals):
         _ta_m = _ta_model_for_t(_tv)
         XT_row = np.column_stack([x_vals, np.full_like(x_vals, _tv)])
-        pred[_ri, :] = _extract_plot_field(_ta_m.predict(XT_row)).flatten()
+        pred[_ri, :] = _extract_plot_field(XT_row, _ta_m).flatten()
     fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
     if {swap_xt}:
         im = ax.contourf(T, X, pred, levels={levels}, cmap="{colormap}", {vrange})
@@ -13404,7 +13458,7 @@ for i, tv in enumerate(t_steps_vals):
         xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, tv)])
     else:
         xt = np.column_stack([x_vals, np.full_like(x_vals, tv)])
-    u_line = _extract_plot_field(_ta_m.predict(xt)).flatten()
+    u_line = _extract_plot_field(xt, _ta_m).flatten()
     ax.plot(x_vals, u_line, color=colors[i], linewidth={linewidth}, label=f"t={{tv:.3f}}")
 ax.set_xlabel({_xlabel_line!r}); ax.set_ylabel({_ylabel_line!r})
 ax.set_title({_title_line!r})
@@ -13432,7 +13486,7 @@ for tv in t_frames:
         xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, tv)])
     else:
         xt = np.column_stack([x_vals, np.full_like(x_vals, tv)])
-    all_u.append(_extract_plot_field(_ta_m.predict(xt)).flatten())
+    all_u.append(_extract_plot_field(xt, _ta_m).flatten())
 u_min = min(u.min() for u in all_u)
 u_max = max(u.max() for u in all_u)
 fig, ax = plt.subplots(figsize=_plot_figsize(7, 4))
@@ -13497,7 +13551,7 @@ if is_3d:
         _frame_faces = []
         for _fX3a, _fY3a, _fZ3a in _faces3a:
             _fpts3a = np.column_stack([_fX3a.ravel(), _fY3a.ravel(), _fZ3a.ravel(), np.full(_fX3a.size, tv)])
-            _frame_faces.append(_extract_plot_field(_ta_m.predict(_fpts3a)).reshape(_fX3a.shape))
+            _frame_faces.append(_extract_plot_field(_fpts3a, _ta_m).reshape(_fX3a.shape))
         all_frames.append(_frame_faces)
     v_min = min(_f.min() for _frame in all_frames for _f in _frame)
     v_max = max(_f.max() for _frame in all_frames for _f in _frame)
@@ -13530,7 +13584,7 @@ else:
         for tv in t_frames:
             _ta_m = _ta_model_for_t(tv)
             XYT = np.column_stack([Xg.ravel(), Yg.ravel(), np.full(Xg.size, tv)])
-            pred = _extract_plot_field(_ta_m.predict(XYT)).reshape(80, 80)
+            pred = _extract_plot_field(XYT, _ta_m).reshape(80, 80)
             all_frames.append((Xg, Yg, pred))
     else:
         t_anim = np.linspace({t_min}, {t_max}, 80)
@@ -13538,7 +13592,7 @@ else:
         for tv in t_frames:
             _ta_m = _ta_model_for_t(tv)
             XT = np.column_stack([x_anim, np.full_like(x_anim, tv)])
-            pred_row = _extract_plot_field(_ta_m.predict(XT)).flatten()
+            pred_row = _extract_plot_field(XT, _ta_m).flatten()
             pred = np.tile(pred_row, (80, 1))
             if {swap_xt}:
                 all_frames.append((T_anim, X_anim, pred))

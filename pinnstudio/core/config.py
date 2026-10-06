@@ -309,9 +309,9 @@ class PINNConfig:
     #                                     unless steady_state)
     #    "expr": str,                 -- comma-separated list of
     #                                     expressions, each a plain output
-    #                                     name (e.g. "mu") and/or a
-    #                                     derivative name ("dmu_x",
-    #                                     "dmu_xx", "dmu_xy", ...) exactly
+    #                                     name (e.g. "u") and/or a
+    #                                     derivative name ("du_x",
+    #                                     "du_xx", "du_xy", ...) exactly
     #                                     as the Custom PDE box accepts --
     #                                     evaluated together and logged as
     #                                     one multi-column row per

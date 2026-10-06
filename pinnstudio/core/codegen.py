@@ -472,8 +472,8 @@ def _training_monitor_runtime_code():
     built `dvars` (plus x/y/dde/torch/np), and torch.cat's the results
     into one (batch, k) tensor -- the "beyond a single derivative pair"
     capability: one dde.callbacks.OperatorPredictor can then log several
-    related quantities (e.g. "mu, dmu_dc, d2mu_dc2") together, in one
-    file, against the same points, every call."""
+    related quantities (e.g. "u, du_x, du_xx") together, in one file,
+    against the same points, every call."""
     return '''# ── Training Monitors: shared derivative-building/eval helpers ──
 # (see config.py's training_monitors_enabled/training_monitors docstring)
 def _tm_hess(ys, xs, i, j, _oi, _n_out):
@@ -2711,30 +2711,55 @@ for _pval in _param_values:
         _plot_custom_label = "{plot_custom_label_resolved}"
         _plot_output_names_list = {repr(config.output_names)}.split(",")
 
-        def _extract_plot_field(_pred_arr):
-            # Pick the field to plot from a model.predict() output array:
-            # either one raw output column (_plot_idx, the pre-existing
-            # default), or -- when a custom expression is configured, e.g.
-            # |h| = sqrt(u**2+v**2) for the 1D Schrodinger template's
-            # complex-valued u,v outputs -- a derived scalar field built
-            # from ALL of this problem's outputs, addressed by their own
-            # output_names, so any future multi-output template can plot
-            # its own combination of outputs the same way, not just this
-            # one. Used for the main Results panel plot below, and also
-            # by the (non-time-adaptive) Inline Error Analysis section
-            # further down -- so a reference dataset that represents a
-            # derived field like |h| is compared against that same
-            # derived field, not a raw output column. Time-Adaptive has
-            # its own separate model-selection code and can't reach this
-            # definition (a different top-level `if` block) -- it defines
-            # its own copy of this same helper, by the same name, right
-            # before its per-step training loop.
+        _plot_n_out = len(_plot_output_names_list)
+        _plot_dim = "3D" if _is_3d else ("2D" if _is_2d else "1D")
+        _PLOT_TORCH_MATH_NS = {{
+            "sin": torch.sin, "cos": torch.cos, "tan": torch.tan,
+            "sinh": torch.sinh, "cosh": torch.cosh, "tanh": torch.tanh,
+            "arcsin": torch.asin, "arccos": torch.acos, "arctan": torch.atan,
+            "exp": torch.exp, "log": torch.log, "log10": torch.log10,
+            "sqrt": torch.sqrt, "abs": torch.abs, "ceil": torch.ceil, "floor": torch.floor,
+            "pi": np.pi,
+        }}
+
+        def _plot_custom_op(_pf_inputs, _pf_outputs):
+            _pf_dvars = _tm_build_dvars(_pf_inputs, _pf_outputs, _plot_n_out,
+                                         _plot_output_names_list, _is_steady, _plot_dim,
+                                         _plot_custom_expr)
+            _pf_ns = dict(_pf_dvars)
+            _pf_ns.update(_PLOT_TORCH_MATH_NS)
+            _pf_ns["torch"] = torch
+            return eval(_plot_custom_expr, _pf_ns)
+
+        def _extract_plot_field(_x_grid, _pf_model=None):
+            # Pick the field to plot from a model.predict() call: either one
+            # raw output column (_plot_idx, the pre-existing default), or --
+            # when a custom expression is configured, e.g. |h| = sqrt(u**2+
+            # v**2) for the 1D Schrodinger template's complex-valued u,v
+            # outputs -- a derived field built from ALL of this problem's
+            # outputs AND their derivatives (du_x, du_xx, du_xy, ... -- same
+            # syntax the Custom PDE box and Training Monitors already use),
+            # evaluated through DeepXDE's own dde.Model.predict(x,
+            # operator=...) built-in so autograd is available at predict
+            # time -- the same built-in Training Monitors' own callback
+            # uses during training, just invoked once here. Takes the raw
+            # input grid (not a pre-computed prediction array) so it can
+            # call predict itself; _pf_model defaults to the module-level
+            # `model` but can be overridden (used by Error Analysis, which
+            # may compare against a different step's restored model). Used
+            # for the main Results panel plot below, and also by the (non-
+            # time-adaptive) Inline Error Analysis section further down --
+            # so a reference dataset that represents a derived field like
+            # |h| is compared against that same derived field, not a raw
+            # output column. Time-Adaptive has its own separate model-
+            # selection code and can't reach this definition (a different
+            # top-level `if` block) -- it defines its own copy of this same
+            # helper, by the same name, right before its per-step training
+            # loop.
+            _pf_m = _pf_model if _pf_model is not None else model
             if _plot_custom_expr.strip():
-                _ns_plot = {{**_BC_MATH_NS, "np": np}}
-                for _oi_p, _on_p in enumerate(_plot_output_names_list):
-                    _ns_plot[_on_p.strip()] = _pred_arr[:, _oi_p]
-                return np.asarray(eval(_plot_custom_expr, _ns_plot))
-            return _pred_arr[:, _plot_idx]
+                return _pf_m.predict(_x_grid, operator=_plot_custom_op)[:, 0]
+            return _pf_m.predict(_x_grid)[:, _plot_idx]
 
         if _problem_type == "Inverse" and _plot_type == "Parameter Convergence":
             # Parameter Convergence isn't a spatial plot at all -- it's the
@@ -2765,7 +2790,7 @@ for _pval in _param_values:
                         _xt_gif = np.column_stack([_x_gif, np.full_like(_x_gif, _y_mid_gif), np.full_like(_x_gif, _tv)])
                     else:
                         _xt_gif = np.column_stack([_x_gif, np.full_like(_x_gif, _tv)])
-                    _all_u_gif.append(_extract_plot_field(model.predict(_xt_gif)).flatten())
+                    _all_u_gif.append(_extract_plot_field(_xt_gif).flatten())
                 _u_min_gif = min(_u.min() for _u in _all_u_gif)
                 _u_max_gif = max(_u.max() for _u in _all_u_gif)
                 _fig_gif, _ax_gif = plt.subplots(figsize=_plot_figsize(7, 5))
@@ -2821,7 +2846,7 @@ for _pval in _param_values:
                         _frame_faces_gif = []
                         for _fX3a, _fY3a, _fZ3a in _faces3a:
                             _fpts3a = np.column_stack([_fX3a.ravel(), _fY3a.ravel(), _fZ3a.ravel(), np.full(_fX3a.size, _tv)])
-                            _frame_faces_gif.append(_extract_plot_field(model.predict(_fpts3a)).reshape(_fX3a.shape))
+                            _frame_faces_gif.append(_extract_plot_field(_fpts3a).reshape(_fX3a.shape))
                         _all_frames_gif.append(_frame_faces_gif)
                     if {config.plot_auto_range}:
                         _v_min_gif = min(_f.min() for _frame in _all_frames_gif for _f in _frame)
@@ -2857,7 +2882,7 @@ for _pval in _param_values:
                         _Xg_gif, _Yg_gif = np.meshgrid(_x_anim_gif, _y_anim_gif)
                         for _tv in _t_frames:
                             _xyt_gif = np.column_stack([_Xg_gif.ravel(), _Yg_gif.ravel(), np.full(_Xg_gif.size, _tv)])
-                            _pred_gif = _extract_plot_field(model.predict(_xyt_gif)).reshape(80, 80)
+                            _pred_gif = _extract_plot_field(_xyt_gif).reshape(80, 80)
                             _all_frames_gif.append((_Xg_gif, _Yg_gif, _pred_gif))
                     else:
                         # Same configurable axis orientation as the Standard
@@ -2877,7 +2902,7 @@ for _pval in _param_values:
                         _X_anim_gif, _T_anim_gif = np.meshgrid(_x_anim_gif, _t_anim_gif)
                         for _tv in _t_frames:
                             _xt_gif2 = np.vstack([_X_anim_gif.ravel(), np.full(_X_anim_gif.size, _tv)]).T
-                            _pred_gif = _extract_plot_field(model.predict(_xt_gif2)).reshape(80, 80)
+                            _pred_gif = _extract_plot_field(_xt_gif2).reshape(80, 80)
                             if {config.plot_swap_xt}:
                                 _all_frames_gif.append((_T_anim_gif, _X_anim_gif, _pred_gif))
                             else:
@@ -2925,7 +2950,7 @@ for _pval in _param_values:
             _vmax_2d = None if {config.plot_auto_range} else {config.plot_vmax}
 
             _XY = np.column_stack([_Xg.ravel(), _Yg.ravel()])
-            _pred = _extract_plot_field(model.predict(_XY)).reshape(_res_2d, _res_2d)
+            _pred = _extract_plot_field(_XY).reshape(_res_2d, _res_2d)
             _pred = np.where(_inside_2d, _pred, np.nan)
             fig, ax = plt.subplots(figsize=_plot_figsize(6.5, 5.5))
             im = ax.contourf(_Xg, _Yg, _pred, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_2d, vmax=_vmax_2d)
@@ -2955,7 +2980,7 @@ for _pval in _param_values:
             if _n_snaps == 1: axes = [axes]
             for _ai, _tv in enumerate(_t_snaps):
                 _XYT = np.column_stack([_Xg.ravel(), _Yg.ravel(), np.full(_Xg.size, _tv)])
-                _pred = _extract_plot_field(model.predict(_XYT)).reshape(_res_2d, _res_2d)
+                _pred = _extract_plot_field(_XYT).reshape(_res_2d, _res_2d)
                 _pred = np.where(_inside_2d, _pred, np.nan)
                 im = axes[_ai].contourf(_Xg, _Yg, _pred, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_2d, vmax=_vmax_2d)
                 axes[_ai].set_title(f"t = {{_tv:.3f}}")
@@ -2981,7 +3006,7 @@ for _pval in _param_values:
             _vmax_3d = None if {config.plot_auto_range} else {config.plot_vmax}
 
             _XYZ = np.column_stack([_Xg3.ravel(), _Yg3.ravel(), np.full(_Xg3.size, _z_mid)])
-            _pred3 = _extract_plot_field(model.predict(_XYZ)).reshape(_res_3d, _res_3d)
+            _pred3 = _extract_plot_field(_XYZ).reshape(_res_3d, _res_3d)
             _pred3 = np.where(_inside_3d, _pred3, np.nan)
             fig, ax = plt.subplots(figsize=_plot_figsize(6.5, 5.5))
             im = ax.contourf(_Xg3, _Yg3, _pred3, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_3d, vmax=_vmax_3d)
@@ -3018,7 +3043,7 @@ for _pval in _param_values:
             if _n_snaps == 1: axes = [axes]
             for _ai, _tv in enumerate(_t_snaps):
                 _XYZT = np.column_stack([_Xg3.ravel(), _Yg3.ravel(), np.full(_Xg3.size, _z_mid), np.full(_Xg3.size, _tv)])
-                _pred3 = _extract_plot_field(model.predict(_XYZT)).reshape(_res_3d, _res_3d)
+                _pred3 = _extract_plot_field(_XYZT).reshape(_res_3d, _res_3d)
                 _pred3 = np.where(_inside_3d, _pred3, np.nan)
                 im = axes[_ai].contourf(_Xg3, _Yg3, _pred3, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_3d, vmax=_vmax_3d)
                 axes[_ai].set_title(f"t = {{_tv:.3f}}, z = {{_z_mid:.3g}} (mid-plane)")
@@ -3034,7 +3059,7 @@ for _pval in _param_values:
             # ("Surface" over x,t / "Line (time steps)") apply.
             _res_1d = {config.plot_resolution}
             _x_1d = np.linspace({config.x_min}, {config.x_max}, _res_1d)
-            _u_1d = _extract_plot_field(model.predict(_x_1d.reshape(-1, 1))).flatten()
+            _u_1d = _extract_plot_field(_x_1d.reshape(-1, 1)).flatten()
             _out_name_1d = _plot_custom_label if _plot_custom_expr.strip() else {repr(config.output_names)}.split(",")[_plot_idx].strip()
             fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
             ax.plot(_x_1d, _u_1d, color="#4dabf7", linewidth={config.plot_linewidth})
@@ -3050,7 +3075,7 @@ for _pval in _param_values:
                 _t_s = np.linspace({config.t_min}, {config.t_max}, _res)
                 _Xs, _Ts = np.meshgrid(_x_s, _t_s)
                 _XTs = np.vstack([_Xs.ravel(), _Ts.ravel()]).T
-                _u_s = _extract_plot_field(model.predict(_XTs)).reshape(_res, _res)
+                _u_s = _extract_plot_field(_XTs).reshape(_res, _res)
                 _out_name_1dt = _plot_custom_label if _plot_custom_expr.strip() else {repr(config.output_names)}.split(",")[_plot_idx].strip()
                 _vmin_s = None if {config.plot_auto_range} else {config.plot_vmin}
                 _vmax_s = None if {config.plot_auto_range} else {config.plot_vmax}
@@ -3081,7 +3106,7 @@ for _pval in _param_values:
                 _out_name_line = _plot_custom_label if _plot_custom_expr.strip() else {repr(config.output_names)}.split(",")[_plot_idx].strip()
                 for i, t_val in enumerate(t_steps_plot):
                     xt = np.column_stack([_x_l, np.full_like(_x_l, t_val)])
-                    u_line = _extract_plot_field(model.predict(xt)).flatten()
+                    u_line = _extract_plot_field(xt).flatten()
                     ax.plot(_x_l, u_line, color=colors[i], linewidth={config.plot_linewidth}, label=f"t = {{t_val:.3f}}")
                 ax.set_xlabel("x"); ax.set_ylabel(f"{{_out_name_line}}(x,t)")
                 ax.set_title(f"PINN Solution — {{_param_name}}={{_pval}}" if _parametric else "PINN Solution")
@@ -3146,11 +3171,22 @@ for _pval in _param_values:
                 _ea_lbl = (_ea_sel[1] or "").strip() if len(_ea_sel) > 1 else ""
                 return _ea_lbl if _ea_lbl else "custom"
 
-            def _ea_extract(_ea_pred, _ea_sel):
+            def _ea_extract(_ea_grid, _ea_sel, _ea_model=None):
+                # _ea_sel is None: delegate to _extract_plot_field, so the
+                # default plot field (including a derivative-aware custom
+                # expression, if configured) is also what Error Analysis
+                # compares a reference dataset against. _ea_sel an int:
+                # a specific raw output column was picked for this
+                # reference file group. _ea_sel a (expr, label) tuple: a
+                # per-group custom expression of its own -- algebraic only
+                # (no derivative syntax here yet; that's a possible future
+                # extension, not wired up this round).
+                _ea_m = _ea_model if _ea_model is not None else model
                 if _ea_sel is None:
-                    return _extract_plot_field(_ea_pred)
+                    return _extract_plot_field(_ea_grid, _ea_m)
                 if isinstance(_ea_sel, int):
-                    return _ea_pred[:, _ea_sel]
+                    return _ea_m.predict(_ea_grid)[:, _ea_sel]
+                _ea_pred = _ea_m.predict(_ea_grid)
                 _ea_ns = {{**_BC_MATH_NS, "np": np}}
                 for _ea_oi, _ea_on in enumerate(_plot_output_names_list):
                     _ea_ns[_ea_on.strip()] = _ea_pred[:, _ea_oi]
@@ -3256,7 +3292,7 @@ for _pval in _param_values:
                             _ea_xt = np.column_stack([_ea_xf, _ea_yf, np.full_like(_ea_xf, _ea_tv)])
                         else:
                             _ea_xt = np.column_stack([_ea_xf, np.full_like(_ea_xf, _ea_tv)])
-                        _ea_u_pinns[_ei] = _ea_extract(model.predict(_ea_xt), _ea_sel).flatten()
+                        _ea_u_pinns[_ei] = _ea_extract(_ea_xt, _ea_sel, model).flatten()
                         if _is_steady:
                             print(f"  PINN predicted (steady-state): {{len(_ea_xf)}} points")
                         else:
@@ -3351,7 +3387,7 @@ for _pval in _param_values:
                             _ea_xf = _ea_x_refs[_ei]
                             _ea_tv = _ea_times[_ei]
                             _ea_xt = np.column_stack([_ea_xf, np.full_like(_ea_xf, _ea_tv)])
-                            _ea_u_pinns[_ei] = _ea_extract(_step_model.predict(_ea_xt), _ea_sel).flatten()
+                            _ea_u_pinns[_ei] = _ea_extract(_ea_xt, _ea_sel, _step_model).flatten()
                             print(f"    Predicted at t={{_ea_tv:.4f}}: {{len(_ea_xf)}} points")
 
                     # Fill any unmatched with zeros (safety)
@@ -3494,7 +3530,7 @@ for _pval in _param_values:
                             _gt_faces_ea = []
                             for _fax_ea, _fval_ea, _fX_ea, _fY_ea, _fZ_ea, _free_idx_ea in _faces3_ea:
                                 _fpts_ea = np.column_stack([_fX_ea.ravel(), _fY_ea.ravel(), _fZ_ea.ravel(), np.full(_fX_ea.size, _ea_tv)])
-                                _fpinn_ea = _ea_extract(model.predict(_fpts_ea), _ea_sel).reshape(_fX_ea.shape)
+                                _fpinn_ea = _ea_extract(_fpts_ea, _ea_sel, model).reshape(_fX_ea.shape)
                                 _near_mask_ea = np.abs(_all_coords_ea[_fax_ea] - _fval_ea) < _face_tol_ea[_fax_ea]
                                 if _near_mask_ea.sum() < 4:
                                     _near_mask_ea = np.ones_like(_bxr_ea, dtype=bool)
@@ -3583,7 +3619,7 @@ for _pval in _param_values:
                                 _bx_ea, _by_ea, _bz_ea, _gt_b_ea = _bx_ea[_ea_sub], _by_ea[_ea_sub], _bz_ea[_ea_sub], _gt_b_ea[_ea_sub]
                             _pinn_b_pts_ea = (np.column_stack([_bx_ea, _by_ea, _bz_ea]) if _is_steady else
                                               np.column_stack([_bx_ea, _by_ea, _bz_ea, np.full_like(_bx_ea, _ea_tv)]))
-                            _pinn_b_ea = _ea_extract(model.predict(_pinn_b_pts_ea), _ea_sel).flatten()
+                            _pinn_b_ea = _ea_extract(_pinn_b_pts_ea, _ea_sel, model).flatten()
                             _err_b_ea = np.abs(_pinn_b_ea - _gt_b_ea)
                             _vmin3_ea = min(_pinn_b_ea.min(), _gt_b_ea.min())
                             _vmax3_ea = max(_pinn_b_ea.max(), _gt_b_ea.max())
@@ -3635,7 +3671,7 @@ for _pval in _param_values:
                             # PINN prediction on grid
                             _xy_grid = (np.column_stack([_Xg_ea.ravel(), _Yg_ea.ravel()]) if _is_steady else
                                         np.column_stack([_Xg_ea.ravel(), _Yg_ea.ravel(), np.full(_Xg_ea.size, _ea_tv)]))
-                            _u_pinn_grid = _ea_extract(model.predict(_xy_grid), _ea_sel).reshape(_res_ea, _res_ea)
+                            _u_pinn_grid = _ea_extract(_xy_grid, _ea_sel, model).reshape(_res_ea, _res_ea)
                             _u_pinn_grid = np.where(_inside_2d_ea, _u_pinn_grid, np.nan)
                             # FEM interpolated onto same grid
                             _u_fem_grid = _gd(
@@ -3686,7 +3722,7 @@ for _pval in _param_values:
                         if not {config.time_adaptive}:
                             for _ei, _ea_tv in enumerate(_ea_times):
                                 _ea_xt_c = np.column_stack([_ea_x_common, np.full_like(_ea_x_common, _ea_tv)])
-                                _ea_U_pinn[_ei, :] = _ea_extract(model.predict(_ea_xt_c), _ea_sel).flatten()
+                                _ea_U_pinn[_ei, :] = _ea_extract(_ea_xt_c, _ea_sel, model).flatten()
                                 _ea_fi = _interp1d(_ea_x_refs[_ei], _ea_u_refs[_ei], kind='linear', fill_value='extrapolate')
                                 _ea_U_fem[_ei, :] = _ea_fi(_ea_x_common)
                         else:
@@ -3877,24 +3913,46 @@ if {config.time_adaptive}:
     _plot_idx = {config.plot_output_idx}
     _plot_custom_expr = "{plot_custom_expr_converted}"
     _plot_output_names_list = {repr(config.output_names)}.split(",")
+    _plot_n_out = len(_plot_output_names_list)
+    _plot_dim = "3D" if _is_3d else ("2D" if _is_2d else "1D")
+    _PLOT_TORCH_MATH_NS = {{
+        "sin": torch.sin, "cos": torch.cos, "tan": torch.tan,
+        "sinh": torch.sinh, "cosh": torch.cosh, "tanh": torch.tanh,
+        "arcsin": torch.asin, "arccos": torch.acos, "arctan": torch.atan,
+        "exp": torch.exp, "log": torch.log, "log10": torch.log10,
+        "sqrt": torch.sqrt, "abs": torch.abs, "ceil": torch.ceil, "floor": torch.floor,
+        "pi": np.pi,
+    }}
 
-    def _extract_plot_field(_pred_arr):
+    def _plot_custom_op(_pf_inputs, _pf_outputs):
+        _pf_dvars = _tm_build_dvars(_pf_inputs, _pf_outputs, _plot_n_out,
+                                     _plot_output_names_list, _is_steady, _plot_dim,
+                                     _plot_custom_expr)
+        _pf_ns = dict(_pf_dvars)
+        _pf_ns.update(_PLOT_TORCH_MATH_NS)
+        _pf_ns["torch"] = torch
+        return eval(_plot_custom_expr, _pf_ns)
+
+    def _extract_plot_field(_x_grid, _pf_model):
         # Time-Adaptive's own copy of the Standard-path helper of the same
         # name (out of scope here -- it's defined inside `if not
         # {config.time_adaptive}:`, a separate top-level block this one
         # never runs alongside). Same logic: a derived custom field (e.g.
-        # |h| = sqrt(u**2+v**2) for 1D Schrodinger) when one is configured,
-        # else the single raw output column -- so every model.predict()
-        # call in this Time-Adaptive loop plots/animates the same field
-        # the Standard path and the main Results panel would, instead of
-        # indexing a column that may not even exist (e.g. plot_output_idx
-        # pointing past the last real output when "Custom..." is selected).
+        # |h| = sqrt(u**2+v**2) for 1D Schrodinger), now including
+        # derivatives (du_x, du_xx, du_xy, ...) via the same
+        # dde.Model.predict(x, operator=...) mechanism the Standard path
+        # uses, when one is configured, else the single raw output column
+        # -- so every prediction call in this Time-Adaptive loop plots/
+        # animates the same field the Standard path and the main Results
+        # panel would, instead of indexing a column that may not even
+        # exist (e.g. plot_output_idx pointing past the last real output
+        # when "Custom..." is selected). Unlike the Standard path there's
+        # no single module-level `model` here -- each step has its own
+        # restored model -- so the caller's model object is always passed
+        # in explicitly rather than defaulted.
         if _plot_custom_expr.strip():
-            _ns_plot = {{**_BC_MATH_NS, "np": np}}
-            for _oi_p, _on_p in enumerate(_plot_output_names_list):
-                _ns_plot[_on_p.strip()] = _pred_arr[:, _oi_p]
-            return np.asarray(eval(_plot_custom_expr, _ns_plot))
-        return _pred_arr[:, _plot_idx]
+            return _pf_model.predict(_x_grid, operator=_plot_custom_op)[:, 0]
+        return _pf_model.predict(_x_grid)[:, _plot_idx]
 
     # Accumulates the loss history across EVERY optimizer phase of EVERY
     # time sub-domain, so the loss plot below (see "_ta_all_train_loss")
@@ -4351,14 +4409,14 @@ if {config.time_adaptive}:
             z_mid  = ({config.z_min} + {config.z_max}) / 2.0
             Xp, Tp = np.meshgrid(x_plot, t_plot)
             XYZTp  = np.column_stack([Xp.ravel(), np.full(Xp.size, y_mid), np.full(Xp.size, z_mid), Tp.ravel()])
-            Up     = _extract_plot_field(model_i.predict(XYZTp)).reshape(50, 100)
+            Up     = _extract_plot_field(XYZTp, model_i).reshape(50, 100)
             all_x.append(Xp); all_t.append(Tp); all_u.append(Up)
         elif not _is_2d:
             x_plot = np.linspace({config.x_min}, {config.x_max}, 100)
             t_plot = np.linspace(t0, t1, 50)
             Xp, Tp = np.meshgrid(x_plot, t_plot)
             XTp    = np.vstack([Xp.ravel(), Tp.ravel()]).T
-            Up     = _extract_plot_field(model_i.predict(XTp)).reshape(50, 100)
+            Up     = _extract_plot_field(XTp, model_i).reshape(50, 100)
             all_x.append(Xp); all_t.append(Tp); all_u.append(Up)
         else:
             # 2D: store mid-y slice for combined plot
@@ -4367,7 +4425,7 @@ if {config.time_adaptive}:
             y_mid  = ({config.y_min} + {config.y_max}) / 2.0
             Xp, Tp = np.meshgrid(x_plot, t_plot)
             XYTp   = np.column_stack([Xp.ravel(), np.full(Xp.size, y_mid), Tp.ravel()])
-            Up     = _extract_plot_field(model_i.predict(XYTp)).reshape(50, 100)
+            Up     = _extract_plot_field(XYTp, model_i).reshape(50, 100)
             all_x.append(Xp); all_t.append(Tp); all_u.append(Up)
 
         print(f"Step {{step_i+1}} done. Final train loss: {{sum(lh_i.loss_train[-1]):.4e}}")
@@ -4397,7 +4455,7 @@ if {config.time_adaptive}:
                 _XTp_step = np.column_stack([_Xp_step.ravel(), np.full(_Xp_step.size, _y_mid_step), _Tp_step.ravel()])
             else:
                 _XTp_step = np.vstack([_Xp_step.ravel(), _Tp_step.ravel()]).T
-            _Up_step = _extract_plot_field(model_i.predict(_XTp_step)).reshape(50, 100)
+            _Up_step = _extract_plot_field(_XTp_step, model_i).reshape(50, 100)
 
             if _plot_type_step == "Surface" or _plot_type_step.startswith("📊"):
                 _vmin_step = None if {config.plot_auto_range} else {config.plot_vmin}
@@ -4415,7 +4473,7 @@ if {config.time_adaptive}:
                     fig, axes = plt.subplots(1, 2, figsize=_plot_figsize(10, 4))
                     for _ai, _tv_s in enumerate([t0, t1]):
                         _xyt_s = np.column_stack([_Xg_s.ravel(), _Yg_s.ravel(), np.full(_Xg_s.size, _z_mid_s), np.full(_Xg_s.size, _tv_s)])
-                        _U_s = _extract_plot_field(model_i.predict(_xyt_s)).reshape(_res_step, _res_step)
+                        _U_s = _extract_plot_field(_xyt_s, model_i).reshape(_res_step, _res_step)
                         im = axes[_ai].contourf(_Xg_s, _Yg_s, _U_s, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_step, vmax=_vmax_step)
                         if {config.plot_colorbar}: fig.colorbar(im, ax=axes[_ai])
                         axes[_ai].set_xlabel("x"); axes[_ai].set_ylabel("y")
@@ -4431,7 +4489,7 @@ if {config.time_adaptive}:
                     fig, axes = plt.subplots(1, 2, figsize=_plot_figsize(10, 4))
                     for _ai, _tv_s in enumerate([t0, t1]):
                         _xyt_s = np.column_stack([_Xg_s.ravel(), _Yg_s.ravel(), np.full(_Xg_s.size, _tv_s)])
-                        _U_s = _extract_plot_field(model_i.predict(_xyt_s)).reshape(_res_step, _res_step)
+                        _U_s = _extract_plot_field(_xyt_s, model_i).reshape(_res_step, _res_step)
                         im = axes[_ai].contourf(_Xg_s, _Yg_s, _U_s, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_step, vmax=_vmax_step)
                         if {config.plot_colorbar}: fig.colorbar(im, ax=axes[_ai])
                         axes[_ai].set_xlabel("x"); axes[_ai].set_ylabel("y")
@@ -4444,7 +4502,7 @@ if {config.time_adaptive}:
                     _t_s2 = np.linspace(t0, t1, _res_step)
                     _Xs2, _Ts2 = np.meshgrid(_x_s2, _t_s2)
                     _XTs2 = np.vstack([_Xs2.ravel(), _Ts2.ravel()]).T
-                    _Us2 = _extract_plot_field(model_i.predict(_XTs2)).reshape(_res_step, _res_step)
+                    _Us2 = _extract_plot_field(_XTs2, model_i).reshape(_res_step, _res_step)
                     fig, ax = plt.subplots(figsize=_plot_figsize(7, 4))
                     im = ax.contourf(_Xs2, _Ts2, _Us2, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_step, vmax=_vmax_step)
                     if {config.plot_colorbar}: fig.colorbar(im, ax=ax)
@@ -4475,7 +4533,7 @@ if {config.time_adaptive}:
                         _xt_line = np.column_stack([_x_l2, np.full_like(_x_l2, _y_mid_l2), np.full_like(_x_l2, _tv)])
                     else:
                         _xt_line = np.column_stack([_x_l2, np.full_like(_x_l2, _tv)])
-                    _u_line = _extract_plot_field(model_i.predict(_xt_line)).flatten()
+                    _u_line = _extract_plot_field(_xt_line, model_i).flatten()
                     ax.plot(_x_l2, _u_line, color=colors[_ci], linewidth={config.plot_linewidth}, label=f"t={{_tv:.3f}}")
                 ax.set_xlabel("x"); ax.set_ylabel("u")
                 ax.set_title(f"Step {{step_i+1}}: t = {{t0:.4f}} → {{t1:.4f}}")
@@ -4708,11 +4766,15 @@ if {config.time_adaptive}:
             _ea_lbl = (_ea_sel[1] or "").strip() if len(_ea_sel) > 1 else ""
             return _ea_lbl if _ea_lbl else "custom"
 
-        def _ea_extract(_ea_pred, _ea_sel):
+        def _ea_extract(_ea_grid, _ea_sel, _ea_model):
+            # TA has no single module-level `model` (each step restores
+            # its own) -- unlike the Standard path's _ea_extract, the
+            # model object here is always required, never defaulted.
             if _ea_sel is None:
-                return _extract_plot_field(_ea_pred)
+                return _extract_plot_field(_ea_grid, _ea_model)
             if isinstance(_ea_sel, int):
-                return _ea_pred[:, _ea_sel]
+                return _ea_model.predict(_ea_grid)[:, _ea_sel]
+            _ea_pred = _ea_model.predict(_ea_grid)
             _ea_ns = {{**_BC_MATH_NS, "np": np}}
             for _ea_oi, _ea_on in enumerate(_plot_output_names_list):
                 _ea_ns[_ea_on.strip()] = _ea_pred[:, _ea_oi]
@@ -4856,7 +4918,7 @@ if {config.time_adaptive}:
                         _ea_xt = np.column_stack([_ea_xf, _ea_yf, np.full_like(_ea_xf, _ea_tv)])
                     else:
                         _ea_xt = np.column_stack([_ea_xf, np.full_like(_ea_xf, _ea_tv)])
-                    _ea_u_pinns[_ei] = _ea_extract(_step_model.predict(_ea_xt), _ea_sel).flatten()
+                    _ea_u_pinns[_ei] = _ea_extract(_ea_xt, _ea_sel, _step_model).flatten()
                     print(f"    Predicted at t={{_ea_tv:.4f}}: {{len(_ea_xf)}} points")
 
             for _ei in range(_ea_n_t):
@@ -4971,7 +5033,7 @@ if {config.time_adaptive}:
                                 else:
                                     _sm2.compile("adam", lr=0.001, loss=_sc2.get("loss_type","{config.loss_type}"))
                                 _sm2.restore(_spt2, verbose=0)
-                                _u_pinn_grid = _ea_extract(_sm2.predict(_xyt_grid), _ea_sel).reshape(_res_ea, _res_ea)
+                                _u_pinn_grid = _ea_extract(_xyt_grid, _ea_sel, _sm2).reshape(_res_ea, _res_ea)
                             else:
                                 _u_pinn_grid = np.zeros((_res_ea, _res_ea))
                         else:
