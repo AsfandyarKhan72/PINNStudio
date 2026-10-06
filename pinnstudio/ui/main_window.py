@@ -1243,6 +1243,20 @@ class MainWindow(QMainWindow):
         self._fit_combo_width(self.kernel_init_combo, min_width=130)
         _nn_row("Kernel initializer:", self.kernel_init_combo)
 
+        # ── Network type (FNN / PFNN) ──────────────────────────
+        # PFNN (DeepXDE's own built-in dde.nn.PFNN class) gives each
+        # output its own parallel sub-network, merging only at the final
+        # layer, instead of FNN's single shared trunk -- helpful for
+        # multi-output problems where outputs have very different scales/
+        # behavior. PFNN has no `regularization` kwarg in DeepXDE, so
+        # Weight Decay is ignored (and codegen suppresses the arg
+        # entirely) when this is PFNN.
+        self.network_type_combo = QComboBox()
+        self.network_type_combo.addItems(["FNN", "PFNN"])
+        self.network_type_combo.setFixedHeight(28)
+        self._fit_combo_width(self.network_type_combo, min_width=100)
+        _nn_row("Network type:", self.network_type_combo)
+
         # ── Input / output transform (optional) ───────────────
         # x_transformed = x_raw * scale + shift  (one row per input dim)
         # y_transformed = y_raw * scale + shift  (one row per output)
@@ -5464,6 +5478,7 @@ class MainWindow(QMainWindow):
             layers=layers,
             activation=self.activation_combo.currentText(),
             kernel_initializer=self.kernel_init_combo.currentText(),
+            network_type=self.network_type_combo.currentText() if hasattr(self, 'network_type_combo') else "FNN",
             input_transform_enabled=self.input_transform_cb.isChecked(),
             input_transform_scale=[r["scale"].value() for r in self.input_transform_rows],
             input_transform_shift=[r["shift"].value() for r in self.input_transform_rows],
@@ -6040,6 +6055,7 @@ class MainWindow(QMainWindow):
         self.neurons_spin.setValue(neurons)
         self.activation_combo.setCurrentText(config.activation)
         self.kernel_init_combo.setCurrentText(config.kernel_initializer)
+        self.network_type_combo.setCurrentText(getattr(config, 'network_type', 'FNN') or 'FNN')
 
         # Input/output transform rows were already rebuilt to match this
         # config's dimension (step 1 above) and output count (step 3
@@ -8570,6 +8586,14 @@ print("DOMAIN_PREVIEW_DONE")
             self.log_box.append(f"❌ Could not read model config: {e}"); return
 
         layers = cfg["layers"]; activation = cfg["activation"]
+        # Reconstruct the exact architecture the model was trained with
+        # (FNN or DeepXDE's built-in PFNN class) -- see
+        # _net_construction_helper_code()'s docstring in codegen.py for why
+        # this must be byte-for-byte the same helper the training script
+        # used. Older saved configs lack this key entirely; defaulting to
+        # "FNN" reproduces the pre-existing restore behavior.
+        from pinnstudio.core.codegen import _net_construction_helper_code
+        net_helper_code = _net_construction_helper_code(cfg.get("network_type", "FNN"))
         x_min = cfg["x_min"]; x_max = cfg["x_max"]
         y_min = cfg.get("y_min", 0.0); y_max = cfg.get("y_max", 1.0)
         t_min = cfg["t_min"]; t_max = cfg["t_max"]
@@ -8595,6 +8619,7 @@ import os
 os.environ["DDE_BACKEND"] = "pytorch"
 import deepxde as dde
 import numpy as np
+import torch
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -8607,7 +8632,8 @@ td = dde.geometry.TimeDomain({t_min}, {t_max})
 gt = dde.geometry.GeometryXTime(geom, td)
 def pde(x, y): return y[:, 0:1] * 0
 data  = dde.data.TimePDE(gt, pde, [], num_domain=100, num_test=100)
-net   = dde.nn.FNN({layers}, "{activation}", "Glorot uniform")
+{net_helper_code}
+net   = _make_net({layers}, "{activation}", "Glorot uniform")
 model = dde.Model(data, net)
 if "{compile_opt}" == "lbfgs":
     dde.optimizers.set_LBFGS_options(maxiter=1)
@@ -10598,6 +10624,8 @@ print("ERROR_ANALYSIS_DONE")
 
         layers     = cfg["layers"]
         activation = cfg["activation"]
+        from pinnstudio.core.codegen import _net_construction_helper_code
+        net_helper_code = _net_construction_helper_code(cfg.get("network_type", "FNN"))
         x_min = cfg["x_min"]; x_max = cfg["x_max"]
         t_min = cfg["t_min"]; t_max = cfg["t_max"]
         loss_type  = cfg.get("loss_type", "MSE")
@@ -10618,6 +10646,7 @@ import os
 os.environ["DDE_BACKEND"] = "pytorch"
 import deepxde as dde
 import numpy as np
+import torch
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -10632,7 +10661,8 @@ td    = dde.geometry.TimeDomain({t_min}, {t_max})
 gt    = dde.geometry.GeometryXTime(geom, td)
 def pde(x, y): return y[:, 0:1] * 0
 data  = dde.data.TimePDE(gt, pde, [], num_domain=100, num_test=100)
-net   = dde.nn.FNN({layers}, "{activation}", "Glorot uniform")
+{net_helper_code}
+net   = _make_net({layers}, "{activation}", "Glorot uniform")
 model = dde.Model(data, net)
 if "{compile_opt}" == "lbfgs":
     dde.optimizers.set_LBFGS_options(maxiter=1)
@@ -12142,6 +12172,8 @@ print("RESTORE_DONE")
         figsize_h = viz_settings.get('figsize_h', 5.0)
         layers     = cfg["layers"]
         activation = cfg["activation"]
+        from pinnstudio.core.codegen import _net_construction_helper_code
+        net_helper_code = _net_construction_helper_code(cfg.get("network_type", "FNN"))
         x_min = cfg["x_min"]; x_max = cfg["x_max"]
         y_min = cfg.get("y_min", 0.0); y_max = cfg.get("y_max", 1.0)
         z_min = cfg.get("z_min", 0.0); z_max = cfg.get("z_max", 1.0)
@@ -12301,7 +12333,8 @@ if {str(is_steady)}:
     data = dde.data.PDE(geomtime, pde, [], num_domain=100, num_test=100)
 else:
     data = dde.data.TimePDE(geomtime, pde, [], num_domain=100, num_test=100)
-net  = dde.nn.FNN({layers}, "{activation}", "Glorot uniform")
+{net_helper_code}
+net  = _make_net({layers}, "{activation}", "Glorot uniform")
 model = dde.Model(data, net)
 
 if "{optimizer}" == "lbfgs":
@@ -12835,6 +12868,13 @@ else:
                 "is_lbfgs": "lbfgs" in os.path.basename(_s['model_path']).lower(),
             })
 
+        # Network architecture is a whole-run choice (not something that
+        # varies step-to-step), so this reads the top-level model_config.json
+        # (cfg), not each step's own step_config.json -- same reasoning as
+        # this function's docstring already gives for x_min/x_max/etc.
+        from pinnstudio.core.codegen import _net_construction_helper_code
+        net_helper_code = _net_construction_helper_code(cfg.get("network_type", "FNN"))
+
         script = f"""
 import os
 os.environ["DDE_BACKEND"] = "pytorch"
@@ -12879,6 +12919,8 @@ def _ta_build_geomtime(t0, t1):
 
 def _ta_pde(x, y): return y[:, 0:1] * 0
 
+{net_helper_code}
+
 _ta_models = {{}}
 def _ta_get_model(i):
     if i in _ta_models:
@@ -12886,7 +12928,7 @@ def _ta_get_model(i):
     _s = _ta_steps[i]
     _geomtime = _ta_build_geomtime(_s["t0"], _s["t1"])
     _data = dde.data.TimePDE(_geomtime, _ta_pde, [], num_domain=100, num_test=100)
-    _net = dde.nn.FNN(_s["layers"], _s["activation"], "Glorot uniform")
+    _net = _make_net(_s["layers"], _s["activation"], "Glorot uniform")
     _model = dde.Model(_data, _net)
     if _s["is_lbfgs"]:
         dde.optimizers.set_LBFGS_options(maxiter=1)

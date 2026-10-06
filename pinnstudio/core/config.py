@@ -72,6 +72,19 @@ class PINNConfig:
     activation: str = "tanh"
     kernel_initializer: str = "Glorot uniform"
 
+    # Network architecture: "FNN" (plain fully-connected, shared across all
+    # outputs) or "PFNN" (parallel/independent sub-network per output,
+    # merging only at the final layer -- DeepXDE's dde.nn.PFNN). layers[0]
+    # (the raw input dimension) and layers[-1] (num_outputs) are unaffected;
+    # only the hidden-layer entries change shape for PFNN (each becomes a
+    # per-branch width repeated num_outputs times) -- computed where the
+    # layer list is built (main_window.py._build_config()), never stored
+    # here as anything other than the plain FNN-style flat list, to avoid
+    # duplicating that shape logic across files. PFNN has no `regularization`
+    # kwarg in DeepXDE, so weight_decay is silently not applied when this is
+    # "PFNN" (codegen.py suppresses the regularization arg in that case).
+    network_type: str = "FNN"
+
     # Optional input/output transform: x_transformed = x_raw * scale + shift
     # (input, one entry per input dimension) and y_transformed = y_raw *
     # scale + shift (output, one entry per output component). Disabled by

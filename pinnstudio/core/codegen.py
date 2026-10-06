@@ -392,6 +392,53 @@ def _build_train_cbs_code(config, var_name="_train_cbs", indent=4):
         lines.append(f"{pad}{var_name}.append(dde.callbacks.Timer(available_time={config.cb_timer_minutes}))")
     return "\n".join(lines)
 
+
+def _net_construction_helper_code(network_type):
+    """Builds the literal Python source for a `_make_net(_flat_layers,
+    _activation, _kernel_init, _weight_decay=0.0)` helper, embedded once
+    near the top of every generated/restore script and called at every
+    network-construction site in place of a bare `dde.nn.FNN(...)`. This is
+    the SINGLE place that decides network_type (FNN vs DeepXDE's own
+    built-in PFNN class) -- shared verbatim (via this same function) by
+    generate_script(), generate_clean_script(), AND every Model Restore /
+    Error Analysis restore-script builder in main_window.py, so a training
+    script and the script that later restores its checkpoint can never
+    independently drift apart on how the network is shaped. That parity is
+    the critical correctness requirement here: DeepXDE's model.restore()
+    loads a raw state_dict by key/shape, so a restore-side net built with
+    even a slightly different layer shape either crashes outright or
+    silently loads nothing useful.
+
+    layers[0] (raw input dim) and layers[-1] (num_outputs) always come from
+    the caller's flat `_flat_layers` list unchanged -- only the hidden-layer
+    shape (nested per-branch lists for PFNN) is computed here, purely
+    locally, rather than ever being written back into a stored layers list
+    -- deliberately avoiding a second place that needs the same shape
+    derivation (see config.py's network_type field comment).
+
+    PFNN has no `regularization` kwarg in DeepXDE (confirmed against its
+    PyTorch backend) -- weight_decay is silently dropped for PFNN here
+    rather than raising, since weight decay is a secondary training knob,
+    not something that should block switching architectures."""
+    return f'''# ── Network architecture: FNN or DeepXDE's built-in PFNN ──
+_network_type = {network_type!r}
+
+def _make_net(_flat_layers, _activation, _kernel_init, _weight_decay=0.0):
+    _flat_layers = list(_flat_layers)
+    _hidden = list(_flat_layers[1:-1])
+    _n_out = _flat_layers[-1]
+    if _network_type == "PFNN":
+        _eff_layers = [_flat_layers[0]] + [[_w] * _n_out for _w in _hidden] + [_n_out]
+        _net = dde.nn.PFNN(_eff_layers, _activation, _kernel_init)
+    else:
+        if _weight_decay and _weight_decay > 0:
+            _net = dde.nn.FNN(_flat_layers, _activation, _kernel_init, regularization=("l2", _weight_decay))
+        else:
+            _net = dde.nn.FNN(_flat_layers, _activation, _kernel_init)
+    return _net
+'''
+
+
 def generate_script(config):
     is_2d = config.problem_dim == "2D"
     is_3d = config.problem_dim == "3D"
@@ -575,9 +622,19 @@ if _dxde_ver is not None and _dxde_ver < (1, 13, 0):
     # Weight decay (L2 regularization). 0.0 (the default) reproduces every
     # pre-existing generated script byte-for-byte in this section (an empty
     # regularization arg was never emitted before this feature existed).
-    _weight_decay_regularizer_arg = (
-        f', regularization=("l2", {config.weight_decay})' if config.weight_decay > 0 else ""
-    )
+    # Superseded by _make_net()'s own _weight_decay parameter (see
+    # _net_construction_helper_code below), which additionally knows to
+    # drop this entirely for PFNN (no `regularization` kwarg on DeepXDE's
+    # PFNN) -- config.weight_decay is now passed straight through to
+    # _make_net as a plain float at each call site instead of this being
+    # pre-built into an arg-string splice.
+
+    # Network architecture: FNN or DeepXDE's built-in PFNN class. See
+    # _net_construction_helper_code()'s own docstring for the full design
+    # -- this is the literal `_make_net(...)` helper's source, embedded
+    # once near the top of the generated script below and called at every
+    # network-construction site in place of a bare dde.nn.FNN(...).
+    _net_helper_code = _net_construction_helper_code(config.network_type)
 
     # Opt-in training callbacks (EarlyStopping/PDEPointResampler/
     # ModelCheckpoint/Timer) -- one block for the Standard path (built once,
@@ -692,6 +749,13 @@ if _use_save:
     _model_config = {{
         "layers": {config.layers},
         "activation": {repr(config.activation)},
+        # Network architecture -- read back by every Model Restore / Error
+        # Analysis restore-script builder in main_window.py so a restored
+        # net is reconstructed with the exact same shape it was trained
+        # with (see _net_construction_helper_code() in this file). Absent
+        # from a config saved before this feature existed; cfg.get(...) on
+        # the restore side defaults to "FNN", i.e. the old behavior.
+        "network_type": {repr(config.network_type)},
         "num_outputs": {config.num_outputs},
         "output_names": {repr(config.output_names)},
         "x_min": {config.x_min}, "x_max": {config.x_max},
@@ -800,6 +864,8 @@ _in_scale  = {config.input_transform_scale if config.input_transform_enabled els
 _in_shift  = {config.input_transform_shift if config.input_transform_enabled else []}
 _out_scale = {config.output_transform_scale if config.output_transform_enabled else []}
 _out_shift = {config.output_transform_shift if config.output_transform_enabled else []}
+
+{_net_helper_code}
 
 def _apply_net_transforms(_net):
     if _in_scale:
@@ -1817,7 +1883,7 @@ for _pval in _param_values:
         elif _param_name == "neurons_per_layer":
             _layers = [{config.layers[0]}] + [int(_pval)] * {len(config.layers) - 2} + [{config.layers[-1]}]
 
-    net = _apply_net_transforms(dde.nn.FNN(_layers, "{config.activation}", "{config.kernel_initializer}"{_weight_decay_regularizer_arg}))
+    net = _apply_net_transforms(_make_net(_layers, "{config.activation}", "{config.kernel_initializer}", {config.weight_decay}))
     model = dde.Model(data, net)
 
     model.compile(
@@ -2920,7 +2986,7 @@ for _pval in _param_values:
                         _step_gt   = dde.geometry.GeometryXTime(_step_geom, _step_td)
                         def _step_pde(x, y): return y[:, 0:1] * 0
                         _step_data  = dde.data.TimePDE(_step_gt, _step_pde, [], num_domain=100, num_test=100)
-                        _step_net   = _apply_net_transforms(dde.nn.FNN(_step_layers, _step_act, "Glorot uniform"))
+                        _step_net   = _apply_net_transforms(_make_net(_step_layers, _step_act, "Glorot uniform"))
                         _step_model = dde.Model(_step_data, _step_net)
 
                         # Find best saved model for this step (lbfgs preferred)
@@ -3700,7 +3766,7 @@ if {config.time_adaptive}:
             anchors=None if {config.forward_ic_from_file} else (_xyt_ic_anchor if (step_i > 0 and (_is_2d or _is_3d)) else None)
         )
 
-        net_i   = _apply_net_transforms(dde.nn.FNN({config.layers}, "{config.activation}", "{config.kernel_initializer}"{_weight_decay_regularizer_arg}))
+        net_i   = _apply_net_transforms(_make_net({config.layers}, "{config.activation}", "{config.kernel_initializer}", {config.weight_decay}))
         model_i = dde.Model(data_i, net_i)
 
         # ── Training callbacks (opt-in, fresh instances each step) ─
@@ -4185,7 +4251,7 @@ if {config.time_adaptive}:
                     with open(_os.path.join(_sd_for_t, "step_config.json")) as _scf_ta:
                         _sc_ta = _ta_json_sol.load(_scf_ta)
                 except: _sc_ta = {{"layers": {config.layers}, "activation": "{config.activation}", "loss_type": "{config.loss_type}"}}
-                _sn_ta = _apply_net_transforms(dde.nn.FNN(_sc_ta.get("layers",{config.layers}), _sc_ta.get("activation","{config.activation}"), "Glorot uniform"))
+                _sn_ta = _apply_net_transforms(_make_net(_sc_ta.get("layers",{config.layers}), _sc_ta.get("activation","{config.activation}"), "Glorot uniform"))
                 _sg_ta = dde.geometry.Rectangle([{config.x_min},{config.y_min}],[{config.x_max},{config.y_max}])
                 _st_ta = dde.geometry.TimeDomain(_sc_ta.get("t_min",0), _sc_ta.get("t_max",1))
                 _sgt_ta = dde.geometry.GeometryXTime(_sg_ta, _st_ta)
@@ -4421,7 +4487,7 @@ if {config.time_adaptive}:
                 _step_gt    = dde.geometry.GeometryXTime(_step_geom, _step_td)
                 def _step_pde(x, y): return y[:, 0:1] * 0
                 _step_data  = dde.data.TimePDE(_step_gt, _step_pde, [], num_domain=100, num_test=100)
-                _step_net   = _apply_net_transforms(dde.nn.FNN(_step_layers, _step_act, "Glorot uniform"))
+                _step_net   = _apply_net_transforms(_make_net(_step_layers, _step_act, "Glorot uniform"))
                 _step_model = dde.Model(_step_data, _step_net)
 
                 _step_pt = ""
@@ -4553,7 +4619,7 @@ if {config.time_adaptive}:
                             try:
                                 with open(_os.path.join(_sd_for_ei, "step_config.json")) as _scf2: _sc2 = _ea_json2.load(_scf2)
                             except: _sc2 = {{"layers": {config.layers}, "activation": "{config.activation}", "loss_type": "{config.loss_type}"}}
-                            _sn2 = _apply_net_transforms(dde.nn.FNN(_sc2.get("layers",{config.layers}), _sc2.get("activation","{config.activation}"), "Glorot uniform"))
+                            _sn2 = _apply_net_transforms(_make_net(_sc2.get("layers",{config.layers}), _sc2.get("activation","{config.activation}"), "Glorot uniform"))
                             _sg2 = dde.geometry.Rectangle([{config.x_min},{config.y_min}],[{config.x_max},{config.y_max}])
                             _st2 = dde.geometry.TimeDomain(_sc2.get("t_min",0), _sc2.get("t_max",1))
                             _sgt2 = dde.geometry.GeometryXTime(_sg2, _st2)
@@ -5166,8 +5232,13 @@ def generate_clean_script(config):
         cbs_kw = ""
     ext_vars_kw = ", external_trainable_variables=inv_vars" if is_inverse else ""
 
-    # ---- Weight decay (L2) on the network --------------------------------
-    weight_decay_arg = f', regularization=("l2", {config.weight_decay})' if config.weight_decay > 0 else ""
+    # ---- Network architecture: FNN or DeepXDE's built-in PFNN class -------
+    # Same shared helper as generate_script() (see
+    # _net_construction_helper_code()'s docstring) -- _make_net(...)
+    # replaces every bare dde.nn.FNN(...) call below, including the
+    # weight-decay arg this used to splice in directly (now passed through
+    # as a plain float; _make_net silently drops it for PFNN).
+    net_helper_code = _net_construction_helper_code(config.network_type)
 
     # ---- Optional input/output transforms --------------------------------
     has_in_transform = bool(config.input_transform_enabled and config.input_transform_scale)
@@ -5336,6 +5407,8 @@ if save_dir:
     def uniform_boundary_points(self, n):
         return self._geom.uniform_boundary_points(n).astype(dde.config.real(np))''')
 
+    parts.append(net_helper_code)
+
     if needs_transform_helper:
         tlines = ["def _apply_transforms(net):"]
         if has_in_transform:
@@ -5446,8 +5519,8 @@ def _load_obs_data(path):
         parts.append("\n".join(inv_lines))
         parts.append("\n".join(obs_lines))
 
-    net_line = (f'net = dde.nn.FNN({list(config.layers)}, "{config.activation}", '
-                f'"{config.kernel_initializer}"{weight_decay_arg})')
+    net_line = (f'net = _make_net({list(config.layers)}, "{config.activation}", '
+                f'"{config.kernel_initializer}", {config.weight_decay})')
     if needs_transform_helper:
         net_line += "\nnet = _apply_transforms(net)"
 
@@ -5668,7 +5741,7 @@ prev_net = None''')
         train_distribution="{config.point_distribution}",
         anchors={anchors_i},
     )
-    net_i = dde.nn.FNN({list(config.layers)}, "{config.activation}", "{config.kernel_initializer}"{weight_decay_arg})''')
+    net_i = _make_net({list(config.layers)}, "{config.activation}", "{config.kernel_initializer}", {config.weight_decay})''')
         if needs_transform_helper:
             loop_lines.append("    net_i = _apply_transforms(net_i)")
         if config.ta_transfer_learning:
