@@ -439,6 +439,322 @@ def _make_net(_flat_layers, _activation, _kernel_init, _weight_decay=0.0):
 '''
 
 
+def _training_monitor_runtime_code():
+    """Builds the literal Python source for the Training Monitors feature's
+    shared, static derivative-building/expression-evaluation helpers --
+    embedded once near the top of every generated script, exactly like
+    _net_construction_helper_code() above.
+
+    Deliberately NOT shared with _pde_standard()'s own derivative builder
+    (the nested `_hess`/`_dvars` logic inside generate_script()'s PDE
+    definition) even though the math is identical -- this is an
+    intentionally separate, self-contained copy so a diagnostic-only
+    feature can never perturb the already-tested PDE-residual codegen
+    path. The duplication is the deliberate tradeoff (see Round 15's
+    network-architecture lesson about avoiding a second place that needs
+    the same derivation logic -- accepted here specifically to keep this
+    feature's blast radius at zero for the PDE itself).
+
+    `_tm_build_dvars(x, y, n_out, out_names, is_steady, dim, expr_check)`
+    builds only the derivative entries actually referenced as substrings
+    of `expr_check` (a Training Monitor's own expression text), using the
+    same d{name}_x / d{name}_xx / d{name}_xy / d{name}_xxxx naming the
+    Custom PDE expression box already uses -- so a user who already knows
+    that syntax from writing PDEs in this app can use it here unchanged.
+    `dim` is "1D"/"2D"/"3D"; higher-order terms referencing a "t" column
+    that doesn't exist for a steady problem are only safe to write if the
+    monitor's own `is_steady` is False, exactly mirroring the same
+    unenforced assumption _pde_standard()'s PDE box already relies on
+    (there's no "t" in a steady problem's vocabulary to begin with).
+
+    `_tm_eval_terms(expr_list, x, y, dvars, out_names)` splits a monitor's
+    comma-separated expression list, evaluates each term against the
+    built `dvars` (plus x/y/dde/torch/np), and torch.cat's the results
+    into one (batch, k) tensor -- the "beyond a single derivative pair"
+    capability: one dde.callbacks.OperatorPredictor can then log several
+    related quantities (e.g. "mu, dmu_dc, d2mu_dc2") together, in one
+    file, against the same points, every call."""
+    return '''# ── Training Monitors: shared derivative-building/eval helpers ──
+# (see config.py's training_monitors_enabled/training_monitors docstring)
+def _tm_hess(ys, xs, i, j, _oi, _n_out):
+    if _n_out == 1:
+        return dde.grad.hessian(ys, xs, i=i, j=j)
+    return dde.grad.hessian(ys, xs, component=_oi, i=i, j=j)
+
+def _tm_build_dvars(x, y, n_out, out_names, is_steady, dim, expr_check):
+    dvars = {}
+    for oi, oname in enumerate(out_names):
+        dvars[oname] = y[:, oi:oi + 1]
+        if dim == "3D":
+            dvars[f"d{oname}_x"] = dde.grad.jacobian(y, x, i=oi, j=0)
+            dvars[f"d{oname}_y"] = dde.grad.jacobian(y, x, i=oi, j=1)
+            dvars[f"d{oname}_z"] = dde.grad.jacobian(y, x, i=oi, j=2)
+            if not is_steady:
+                dvars[f"d{oname}_t"] = dde.grad.jacobian(y, x, i=oi, j=3)
+            if f"d{oname}_xx" in expr_check:
+                dvars[f"d{oname}_xx"] = _tm_hess(y, x, 0, 0, oi, n_out)
+            if f"d{oname}_yy" in expr_check:
+                dvars[f"d{oname}_yy"] = _tm_hess(y, x, 1, 1, oi, n_out)
+            if f"d{oname}_zz" in expr_check:
+                dvars[f"d{oname}_zz"] = _tm_hess(y, x, 2, 2, oi, n_out)
+            if f"d{oname}_tt" in expr_check:
+                dvars[f"d{oname}_tt"] = _tm_hess(y, x, 3, 3, oi, n_out)
+            if f"d{oname}_xy" in expr_check:
+                dvars[f"d{oname}_xy"] = _tm_hess(y, x, 0, 1, oi, n_out)
+            if f"d{oname}_xz" in expr_check:
+                dvars[f"d{oname}_xz"] = _tm_hess(y, x, 0, 2, oi, n_out)
+            if f"d{oname}_yz" in expr_check:
+                dvars[f"d{oname}_yz"] = _tm_hess(y, x, 1, 2, oi, n_out)
+            if f"d{oname}_xt" in expr_check:
+                dvars[f"d{oname}_xt"] = _tm_hess(y, x, 0, 3, oi, n_out)
+            if f"d{oname}_yt" in expr_check:
+                dvars[f"d{oname}_yt"] = _tm_hess(y, x, 1, 3, oi, n_out)
+            if f"d{oname}_zt" in expr_check:
+                dvars[f"d{oname}_zt"] = _tm_hess(y, x, 2, 3, oi, n_out)
+            if f"d{oname}_xxxx" in expr_check and f"d{oname}_xx" in dvars:
+                dvars[f"d{oname}_xxxx"] = dde.grad.hessian(dvars[f"d{oname}_xx"], x, i=0, j=0)
+            if f"d{oname}_yyyy" in expr_check and f"d{oname}_yy" in dvars:
+                dvars[f"d{oname}_yyyy"] = dde.grad.hessian(dvars[f"d{oname}_yy"], x, i=1, j=1)
+            if f"d{oname}_zzzz" in expr_check and f"d{oname}_zz" in dvars:
+                dvars[f"d{oname}_zzzz"] = dde.grad.hessian(dvars[f"d{oname}_zz"], x, i=2, j=2)
+            if f"d{oname}_xxyy" in expr_check and f"d{oname}_xx" in dvars:
+                dvars[f"d{oname}_xxyy"] = dde.grad.hessian(dvars[f"d{oname}_xx"], x, i=1, j=1)
+            if f"d{oname}_xxzz" in expr_check and f"d{oname}_xx" in dvars:
+                dvars[f"d{oname}_xxzz"] = dde.grad.hessian(dvars[f"d{oname}_xx"], x, i=2, j=2)
+            if f"d{oname}_yyzz" in expr_check and f"d{oname}_yy" in dvars:
+                dvars[f"d{oname}_yyzz"] = dde.grad.hessian(dvars[f"d{oname}_yy"], x, i=2, j=2)
+            if f"d{oname}_xxtt" in expr_check and f"d{oname}_xx" in dvars:
+                dvars[f"d{oname}_xxtt"] = dde.grad.hessian(dvars[f"d{oname}_xx"], x, i=3, j=3)
+            if f"d{oname}_yytt" in expr_check and f"d{oname}_yy" in dvars:
+                dvars[f"d{oname}_yytt"] = dde.grad.hessian(dvars[f"d{oname}_yy"], x, i=3, j=3)
+            if f"d{oname}_zztt" in expr_check and f"d{oname}_zz" in dvars:
+                dvars[f"d{oname}_zztt"] = dde.grad.hessian(dvars[f"d{oname}_zz"], x, i=3, j=3)
+        elif dim == "2D":
+            dvars[f"d{oname}_x"] = dde.grad.jacobian(y, x, i=oi, j=0)
+            dvars[f"d{oname}_y"] = dde.grad.jacobian(y, x, i=oi, j=1)
+            if not is_steady:
+                dvars[f"d{oname}_t"] = dde.grad.jacobian(y, x, i=oi, j=2)
+            if f"d{oname}_xx" in expr_check:
+                dvars[f"d{oname}_xx"] = _tm_hess(y, x, 0, 0, oi, n_out)
+            if f"d{oname}_yy" in expr_check:
+                dvars[f"d{oname}_yy"] = _tm_hess(y, x, 1, 1, oi, n_out)
+            if f"d{oname}_xy" in expr_check:
+                dvars[f"d{oname}_xy"] = _tm_hess(y, x, 0, 1, oi, n_out)
+            if f"d{oname}_tt" in expr_check:
+                dvars[f"d{oname}_tt"] = _tm_hess(y, x, 2, 2, oi, n_out)
+            if f"d{oname}_xt" in expr_check:
+                dvars[f"d{oname}_xt"] = _tm_hess(y, x, 0, 2, oi, n_out)
+            if f"d{oname}_yt" in expr_check:
+                dvars[f"d{oname}_yt"] = _tm_hess(y, x, 1, 2, oi, n_out)
+            if f"d{oname}_xxxx" in expr_check and f"d{oname}_xx" in dvars:
+                dvars[f"d{oname}_xxxx"] = dde.grad.hessian(dvars[f"d{oname}_xx"], x, i=0, j=0)
+            if f"d{oname}_yyyy" in expr_check and f"d{oname}_yy" in dvars:
+                dvars[f"d{oname}_yyyy"] = dde.grad.hessian(dvars[f"d{oname}_yy"], x, i=1, j=1)
+            if f"d{oname}_xxyy" in expr_check and f"d{oname}_xx" in dvars:
+                dvars[f"d{oname}_xxyy"] = dde.grad.hessian(dvars[f"d{oname}_xx"], x, i=1, j=1)
+            if f"d{oname}_xxtt" in expr_check and f"d{oname}_xx" in dvars:
+                dvars[f"d{oname}_xxtt"] = dde.grad.hessian(dvars[f"d{oname}_xx"], x, i=2, j=2)
+            if f"d{oname}_yytt" in expr_check and f"d{oname}_yy" in dvars:
+                dvars[f"d{oname}_yytt"] = dde.grad.hessian(dvars[f"d{oname}_yy"], x, i=2, j=2)
+        else:
+            dvars[f"d{oname}_x"] = dde.grad.jacobian(y, x, i=oi, j=0)
+            if not is_steady:
+                dvars[f"d{oname}_t"] = dde.grad.jacobian(y, x, i=oi, j=1)
+            if f"d{oname}_xx" in expr_check or f"d{oname}_xxx" in expr_check or f"d{oname}_xxxx" in expr_check or f"d{oname}_xxtt" in expr_check:
+                dvars[f"d{oname}_xx"] = _tm_hess(y, x, 0, 0, oi, n_out)
+            if f"d{oname}_tt" in expr_check or f"d{oname}_tttt" in expr_check or f"d{oname}_xxtt" in expr_check:
+                dvars[f"d{oname}_tt"] = _tm_hess(y, x, 1, 1, oi, n_out)
+            if f"d{oname}_xt" in expr_check:
+                dvars[f"d{oname}_xt"] = _tm_hess(y, x, 0, 1, oi, n_out)
+            if f"d{oname}_xxx" in expr_check and f"d{oname}_xx" in dvars:
+                dvars[f"d{oname}_xxx"] = dde.grad.jacobian(dvars[f"d{oname}_xx"], x, i=0, j=0)
+            if f"d{oname}_xxxx" in expr_check and f"d{oname}_xx" in dvars:
+                dvars[f"d{oname}_xxxx"] = dde.grad.hessian(dvars[f"d{oname}_xx"], x, i=0, j=0)
+            if f"d{oname}_xxtt" in expr_check and f"d{oname}_xx" in dvars:
+                dvars[f"d{oname}_xxtt"] = dde.grad.hessian(dvars[f"d{oname}_xx"], x, i=1, j=1)
+            if f"d{oname}_tttt" in expr_check and f"d{oname}_tt" in dvars:
+                dvars[f"d{oname}_tttt"] = dde.grad.hessian(dvars[f"d{oname}_tt"], x, i=1, j=1)
+    return dvars
+
+def _tm_eval_terms(expr_list, x, y, dvars, out_names):
+    _ns = dict(dvars)
+    _ns["x"] = x
+    _ns["y"] = y
+    _ns["dde"] = dde
+    _ns["torch"] = torch
+    _ns["np"] = np
+    _terms = [eval(_e.strip(), _ns) for _e in expr_list.split(",") if _e.strip()]
+    return torch.cat(_terms, dim=1)
+'''
+
+
+def _build_training_monitors_code(config, cbs_var_name="_train_cbs", sol_dir_var="_sol_dir", indent=4):
+    """Builds the literal source that constructs one dde.callbacks.
+    OperatorPredictor per configured Training Monitor (see config.py's
+    training_monitors_enabled/training_monitors) and appends each to the
+    shared `{cbs_var_name}` list that _build_train_cbs_code() builds --
+    so monitors ride along in every Standard-path .train() call exactly
+    like EarlyStopping/PDEPointResampler/ModelCheckpoint/Timer already do,
+    with zero per-call-site changes needed. NOT wired into the Time-
+    Adaptive per-step loop (`_train_cbs_ta`): each TA step trains an
+    independent model from scratch, so a monitor's log file would be
+    truncated and restarted every single step rather than accumulating
+    one continuous trace -- out of scope for this round, not silently
+    wrong.
+
+    Each monitor also gets a small `<name>.meta.json` sidecar (point
+    coordinates + expression labels + period), written directly by this
+    generated code via plain json.dump, separate from the .txt log file
+    OperatorPredictor itself writes -- kept as two separate files
+    specifically because OperatorPredictor's own __init__ opens its log
+    file in "w" mode (truncating), so anything this code wrote into that
+    same file first would simply be wiped the moment the callback is
+    constructed. The Results panel reads both: the sidecar to know how
+    many points/expressions there are and what to label them, the log to
+    get the actual (iteration, value...) time series.
+
+    Returns "" (a true no-op) when Training Monitors is off or no
+    monitors are configured, same convention _build_train_cbs_code() uses."""
+    if not config.training_monitors_enabled:
+        return ""
+    import json as _json_tm
+    try:
+        _monitors = _json_tm.loads(config.training_monitors or "[]")
+    except (ValueError, TypeError):
+        _monitors = []
+    if not isinstance(_monitors, list) or not _monitors:
+        return ""
+
+    pad = " " * indent
+    _out_names_list = [n.strip() for n in (config.output_names or "").split(",") if n.strip()]
+    _dim = config.problem_dim
+    _is_steady = bool(config.steady_state)
+    _n_out = int(config.num_outputs)
+
+    lines = []
+    for _mi, _mon in enumerate(_monitors):
+        if not isinstance(_mon, dict):
+            continue
+        _name = str(_mon.get("name") or f"monitor{_mi}").strip() or f"monitor{_mi}"
+        _safe_name = "".join(c if (c.isalnum() or c in "_-") else "_" for c in _name)
+        _points = _mon.get("points") or []
+        _expr = str(_mon.get("expr") or "").strip()
+        _period = int(_mon.get("period") or 1000)
+        if not _points or not _expr:
+            continue
+        _expr_labels = [e.strip() for e in _expr.split(",") if e.strip()]
+
+        lines.append(f"{pad}_tm_points_{_mi} = {_points!r}")
+        lines.append(f"{pad}_tm_log_path_{_mi} = _os.path.join({sol_dir_var}, 'monitor_{_safe_name}.txt')")
+        lines.append(f"{pad}_tm_meta_path_{_mi} = _os.path.join({sol_dir_var}, 'monitor_{_safe_name}.meta.json')")
+        lines.append(f"{pad}with open(_tm_meta_path_{_mi}, 'w') as _tm_mf_{_mi}:")
+        lines.append(
+            f"{pad}    _json_tm_write.dump({{'name': {_name!r}, 'points': _tm_points_{_mi}, "
+            f"'expressions': {_expr_labels!r}, 'period': {_period}}}, _tm_mf_{_mi})"
+        )
+        lines.append(
+            f"{pad}def _tm_op_{_mi}(x, y, _expr={_expr!r}, _out_names={_out_names_list!r}, "
+            f"_n_out={_n_out}, _is_steady={_is_steady!r}, _dim={_dim!r}):"
+        )
+        lines.append(f"{pad}    _dvars = _tm_build_dvars(x, y, _n_out, _out_names, _is_steady, _dim, _expr)")
+        lines.append(f"{pad}    return _tm_eval_terms(_expr, x, y, _dvars, _out_names)")
+        lines.append(
+            f"{pad}{cbs_var_name}.append(dde.callbacks.OperatorPredictor(_tm_points_{_mi}, _tm_op_{_mi}, "
+            f"period={_period}, filename=_tm_log_path_{_mi}, precision=8))"
+        )
+    if not lines:
+        return ""
+    return (f"{pad}import json as _json_tm_write\n") + "\n".join(lines)
+
+
+def _build_training_monitors_plot_code(config, sol_dir_var="_sol_dir", indent=0):
+    """Builds the literal source (placed near the very end of the
+    generated script, just before the final "DONE" print) that reads
+    each Training Monitor's own .txt log + .meta.json sidecar back in
+    (the exact same files _build_training_monitors_code() wrote the
+    OperatorPredictor callbacks to write) and renders one line plot per
+    monitor via matplotlib (already a hard dependency of this app,
+    imported as `plt` everywhere else in this script), saved as
+    `monitor_<name>_plot.png` next to the log itself -- so the Results
+    panel can display it exactly the way it already displays
+    loss_plot.png/solution_plot.png (see main_window.py's
+    _display_run_result_plots()), with zero new rendering logic needed
+    on the GUI side.
+
+    dde.callbacks.OperatorPredictor logs each line as
+    "<iteration> [v0, v1, ...]" (space before the bracket, DeepXDE's own
+    utils.list_to_str() format) with the flattened values in point-major,
+    expression-minor order -- matching exactly how _tm_eval_terms()
+    builds its (n_points, n_expr) tensor via torch.cat(..., dim=1) before
+    flattening, confirmed by a real training run's logged output during
+    this feature's own development, not just inferred from the source.
+
+    Wrapped in its own try/except per monitor -- a plotting failure
+    (e.g. an empty log because training was stopped at iteration 0)
+    prints a warning and moves on rather than crashing a run that
+    otherwise trained and saved successfully."""
+    if not config.training_monitors_enabled:
+        return ""
+    import json as _json_tm2
+    try:
+        _monitors = _json_tm2.loads(config.training_monitors or "[]")
+    except (ValueError, TypeError):
+        _monitors = []
+    if not isinstance(_monitors, list) or not _monitors:
+        return ""
+
+    pad = " " * indent
+    lines = [f"{pad}import json as _json_tm_read"]
+    _any = False
+    for _mi, _mon in enumerate(_monitors):
+        if not isinstance(_mon, dict):
+            continue
+        _name = str(_mon.get("name") or f"monitor{_mi}").strip() or f"monitor{_mi}"
+        _safe_name = "".join(c if (c.isalnum() or c in "_-") else "_" for c in _name)
+        if not (_mon.get("points") and _mon.get("expr")):
+            continue
+        _any = True
+        lines.append(f"{pad}_tm_plot_log_{_mi} = _os.path.join({sol_dir_var}, 'monitor_{_safe_name}.txt')")
+        lines.append(f"{pad}_tm_plot_meta_{_mi} = _os.path.join({sol_dir_var}, 'monitor_{_safe_name}.meta.json')")
+        lines.append(f"{pad}if _os.path.exists(_tm_plot_log_{_mi}) and _os.path.exists(_tm_plot_meta_{_mi}):")
+        lines.append(f"{pad}    try:")
+        lines.append(f"{pad}        with open(_tm_plot_meta_{_mi}) as _tm_mf_{_mi}:")
+        lines.append(f"{pad}            _tm_meta_{_mi} = _json_tm_read.load(_tm_mf_{_mi})")
+        lines.append(f"{pad}        _tm_npts_{_mi} = len(_tm_meta_{_mi}['points'])")
+        lines.append(f"{pad}        _tm_nexpr_{_mi} = len(_tm_meta_{_mi}['expressions'])")
+        lines.append(f"{pad}        _tm_iters_{_mi} = []")
+        lines.append(f"{pad}        _tm_rows_{_mi} = []")
+        lines.append(f"{pad}        with open(_tm_plot_log_{_mi}) as _tm_lf_{_mi}:")
+        lines.append(f"{pad}            for _tm_line_{_mi} in _tm_lf_{_mi}:")
+        lines.append(f"{pad}                _tm_line_{_mi} = _tm_line_{_mi}.strip()")
+        lines.append(f"{pad}                if not _tm_line_{_mi}:")
+        lines.append(f"{pad}                    continue")
+        lines.append(f"{pad}                _tm_it_s_{_mi}, _tm_rest_{_mi} = _tm_line_{_mi}.split(' ', 1)")
+        lines.append(f"{pad}                _tm_rows_{_mi}.append([float(_v) for _v in _tm_rest_{_mi}.strip('[]').split(',')])")
+        lines.append(f"{pad}                _tm_iters_{_mi}.append(int(_tm_it_s_{_mi}))")
+        lines.append(f"{pad}        if _tm_iters_{_mi} and _tm_npts_{_mi} > 0 and _tm_nexpr_{_mi} > 0:")
+        lines.append(f"{pad}            _tm_arr_{_mi} = np.array(_tm_rows_{_mi}).reshape(-1, _tm_npts_{_mi}, _tm_nexpr_{_mi})")
+        lines.append(f"{pad}            _tm_fig_{_mi}, _tm_ax_{_mi} = plt.subplots(figsize=(7, 5))")
+        lines.append(f"{pad}            for _tm_pi_{_mi} in range(_tm_npts_{_mi}):")
+        lines.append(f"{pad}                for _tm_ei_{_mi} in range(_tm_nexpr_{_mi}):")
+        lines.append(
+            f"{pad}                    _tm_ax_{_mi}.plot(_tm_iters_{_mi}, "
+            f"_tm_arr_{_mi}[:, _tm_pi_{_mi}, _tm_ei_{_mi}], marker='o', markersize=3, "
+            f"label=f\"{{_tm_meta_{_mi}['expressions'][_tm_ei_{_mi}]}} @ pt{{_tm_pi_{_mi}}}\")"
+        )
+        lines.append(f"{pad}            _tm_ax_{_mi}.set_xlabel('Iteration'); _tm_ax_{_mi}.set_ylabel('Value')")
+        lines.append(f"{pad}            _tm_ax_{_mi}.set_title({('Training Monitor: ' + _name)!r})")
+        lines.append(f"{pad}            _tm_ax_{_mi}.legend(fontsize=7, loc='best'); _tm_ax_{_mi}.grid(alpha=0.3)")
+        lines.append(f"{pad}            _tm_plot_path_{_mi} = _os.path.join({sol_dir_var}, 'monitor_{_safe_name}_plot.png')")
+        lines.append(f"{pad}            plt.tight_layout(); plt.savefig(_tm_plot_path_{_mi}, dpi=150); plt.close(_tm_fig_{_mi})")
+        lines.append(f"{pad}            print(f'  Training monitor plot saved: {{_tm_plot_path_{_mi}}}')")
+        lines.append(f"{pad}    except Exception as _tm_plot_err_{_mi}:")
+        lines.append(f'{pad}        print(f"  Warning: failed to plot training monitor {_name!r}: {{_tm_plot_err_{_mi}}}")')
+    if not _any:
+        return ""
+    return "\n".join(lines)
+
+
 def generate_script(config):
     is_2d = config.problem_dim == "2D"
     is_3d = config.problem_dim == "3D"
@@ -636,15 +952,32 @@ if _dxde_ver is not None and _dxde_ver < (1, 13, 0):
     # network-construction site in place of a bare dde.nn.FNN(...).
     _net_helper_code = _net_construction_helper_code(config.network_type)
 
+    # Training Monitors' shared, static derivative-building/expression-
+    # evaluation helpers -- see _training_monitor_runtime_code()'s own
+    # docstring. Embedded once near the top of the generated script
+    # (module level, alongside _net_helper_code) regardless of whether
+    # any monitors are actually configured -- cheap, and keeps this a
+    # true no-op wiring point like _train_cbs_code below.
+    _tm_runtime_code = _training_monitor_runtime_code()
+
     # Opt-in training callbacks (EarlyStopping/PDEPointResampler/
-    # ModelCheckpoint/Timer) -- one block for the Standard path (built once,
-    # reused across every scheduler phase's .train() call so state like
-    # Timer's running clock and EarlyStopping's patience counter carry
-    # correctly across phases within one run), one for the Time-Adaptive
-    # per-step loop (rebuilt fresh each step, since each step is its own
-    # independent training problem).
-    _train_cbs_code = _build_train_cbs_code(config, "_train_cbs", indent=4)
+    # ModelCheckpoint/Timer/Training Monitors) -- one block for the
+    # Standard path (built once, reused across every scheduler phase's
+    # .train() call so state like Timer's running clock and
+    # EarlyStopping's patience counter carry correctly across phases
+    # within one run), one for the Time-Adaptive per-step loop (rebuilt
+    # fresh each step, since each step is its own independent training
+    # problem -- Training Monitors are deliberately NOT appended to this
+    # one, see _build_training_monitors_code()'s docstring for why).
+    _tm_cbs_code = _build_training_monitors_code(config, "_train_cbs", "_sol_dir", indent=4)
+    _train_cbs_code = _build_train_cbs_code(config, "_train_cbs", indent=4) + ("\n" + _tm_cbs_code if _tm_cbs_code else "")
     _train_cbs_code_ta = _build_train_cbs_code(config, "_train_cbs_ta", indent=8)
+    # Rendered at the very end of the script (see the {_tm_plot_code}
+    # splice near the final "DONE" print below) -- reads each monitor's
+    # own .txt/.meta.json back in and saves a line plot PNG, the same way
+    # loss_plot.png/solution_plot.png already get saved, so the Results
+    # panel can display it with no new rendering logic of its own.
+    _tm_plot_code = _build_training_monitors_plot_code(config, "_sol_dir", indent=0)
 
     # IC pre-training needs at least 1 point sampled at the initial-time
     # slice, or DeepXDE's data construction fails outright (see the IC
@@ -866,6 +1199,8 @@ _out_scale = {config.output_transform_scale if config.output_transform_enabled e
 _out_shift = {config.output_transform_shift if config.output_transform_enabled else []}
 
 {_net_helper_code}
+
+{_tm_runtime_code}
 
 def _apply_net_transforms(_net):
     if _in_scale:
@@ -4750,6 +5085,7 @@ if {config.time_adaptive}:
             print(f"  Group '{{_ea_group_label(_ea_sel) or 'default'}}' analysis complete")
         print("=== Time-Adaptive Error Analysis Complete ===")
 
+{_tm_plot_code}
 print("DONE")
 """
     return script
@@ -5215,10 +5551,15 @@ def generate_clean_script(config):
 
     # ---- Training callbacks (opt-in only) --------------------------------
     any_cbs = bool(config.cb_early_stopping or config.cb_point_resampler
-                   or config.cb_model_checkpoint or config.cb_timer)
+                   or config.cb_model_checkpoint or config.cb_timer
+                   or config.training_monitors_enabled)
     cbs_code = ""
     if any_cbs:
-        cbs_code = _build_train_cbs_code(config, "train_cbs", indent=0).replace("_os.path.join", "os.path.join")
+        _tm_clean_cbs_code = _build_training_monitors_code(config, "train_cbs", "(save_dir or '.')", indent=0)
+        cbs_code = (
+            _build_train_cbs_code(config, "train_cbs", indent=0)
+            + ("\n" + _tm_clean_cbs_code if _tm_clean_cbs_code else "")
+        ).replace("_os.path.join", "os.path.join")
 
     var_cb_period = max(1, total_iters // 200) if total_iters else 100
     callbacks_parts = []
@@ -5408,6 +5749,8 @@ if save_dir:
         return self._geom.uniform_boundary_points(n).astype(dde.config.real(np))''')
 
     parts.append(net_helper_code)
+    if any_cbs and config.training_monitors_enabled:
+        parts.append(_training_monitor_runtime_code())
 
     if needs_transform_helper:
         tlines = ["def _apply_transforms(net):"]
@@ -6516,6 +6859,11 @@ plt.close()
 print("  Surface comparison saved.")''')
 
         parts.append("\n".join(ea_lines))
+
+    if any_cbs and config.training_monitors_enabled:
+        _tm_clean_plot_code = _build_training_monitors_plot_code(config, "(save_dir or '.')", indent=0).replace("_os.path.join", "os.path.join")
+        if _tm_clean_plot_code:
+            parts.append(_tm_clean_plot_code)
 
     parts.append('print("DONE")')
     return "\n\n".join(parts) + "\n"

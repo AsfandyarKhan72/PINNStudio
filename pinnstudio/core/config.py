@@ -281,6 +281,46 @@ class PINNConfig:
     cb_timer: bool = False
     cb_timer_minutes: float = 60.0
 
+    # Training Monitors: optional, pure-observability DeepXDE
+    # dde.callbacks.OperatorPredictor instances. Each one watches an
+    # expression (built from plain output names and/or derivative names
+    # using the exact same d{name}_x / d{name}_xx / d{name}_xy naming the
+    # Custom PDE expression box already uses, via dde.grad.jacobian/
+    # dde.grad.hessian -- the same calls _pde_standard() in codegen.py
+    # already makes for the PDE residual itself) at a FIXED set of points,
+    # logged every `period` iterations to its own file. This has zero
+    # effect on training (no loss/gradient involvement, read-only) --
+    # purely a diagnostic tap for things the loss curve can't show, e.g.
+    # watching whether a derivative that should settle (like dfdc in a
+    # split Cahn-Hilliard inverse problem) instead drifts while loss keeps
+    # dropping, a signature of structural non-identifiability.
+    training_monitors_enabled: bool = False
+    # JSON-encoded list of dicts (plain json.dumps/json.loads -- the
+    # convention sweep_parameters/geom_custom_shapes_json use, NOT the
+    # repr()/ast.literal_eval convention ea_files uses):
+    #   {"name": str,                 -- label; used in the log filename
+    #                                     and as the plot legend prefix
+    #    "points": [[x, y, ...], ...] -- fixed evaluation points, one
+    #                                     inner list per point, each of
+    #                                     length equal to this problem's
+    #                                     raw input dimension (matches
+    #                                     config.layers[0]: spatial dims
+    #                                     plus a trailing time coordinate
+    #                                     unless steady_state)
+    #    "expr": str,                 -- comma-separated list of
+    #                                     expressions, each a plain output
+    #                                     name (e.g. "mu") and/or a
+    #                                     derivative name ("dmu_x",
+    #                                     "dmu_xx", "dmu_xy", ...) exactly
+    #                                     as the Custom PDE box accepts --
+    #                                     evaluated together and logged as
+    #                                     one multi-column row per
+    #                                     checkpoint (OperatorPredictor's
+    #                                     op can return a vector, not just
+    #                                     a single value)
+    #    "period": int}               -- epochs between checkpoints
+    training_monitors: str = "[]"
+
     plot_colormap: str = "RdBu_r"
     plot_levels: int = 100
     plot_resolution: int = 200
@@ -534,7 +574,7 @@ class PINNConfig:
         for _field in (
             "scheduler_phases", "custom_bc_json", "bc_boundary_json",
             "bc_edge_json", "inverse_variables_json", "inverse_obs_files_json",
-            "geom_custom_shapes_json",
+            "geom_custom_shapes_json", "training_monitors",
         ):
             _raw = getattr(self, _field, "") or ""
             if _raw.strip():
@@ -783,6 +823,54 @@ class PINNConfig:
                             f"have the same number of values; got {_valid_lengths} -- "
                             "adjust the value lists/ranges so they match."
                         )
+
+        if self.training_monitors_enabled:
+            _raw_tm = (self.training_monitors or "[]").strip()
+            try:
+                _monitors_cfg = _json_cfg.loads(_raw_tm) if _raw_tm else []
+            except (ValueError, TypeError):
+                _monitors_cfg = None  # already reported as invalid JSON above
+            if _monitors_cfg is not None:
+                if not isinstance(_monitors_cfg, list) or len(_monitors_cfg) == 0:
+                    errors.append(
+                        "Training Monitors is enabled but no monitors have "
+                        "been added -- add at least one row in the Training "
+                        "Monitors panel, or turn it off."
+                    )
+                else:
+                    _dim_map = {"1D": 1, "2D": 2, "3D": 3}
+                    _expected_dim = _dim_map.get(self.problem_dim, 1) + (0 if self.steady_state else 1)
+                    for _mi, _mon in enumerate(_monitors_cfg):
+                        if not isinstance(_mon, dict):
+                            errors.append(f"Training Monitor #{_mi + 1} is not a valid entry; got {_mon!r}.")
+                            continue
+                        _mname = (_mon.get("name") or "").strip()
+                        _mexpr = (_mon.get("expr") or "").strip()
+                        _mperiod = _mon.get("period")
+                        _mpoints = _mon.get("points")
+                        if not _mname:
+                            errors.append(f"Training Monitor #{_mi + 1} needs a name.")
+                        if not _mexpr:
+                            errors.append(f"Training Monitor #{_mi + 1} ('{_mname or '?'}') needs at least one expression.")
+                        if not isinstance(_mperiod, int) or _mperiod <= 0:
+                            errors.append(
+                                f"Training Monitor #{_mi + 1} ('{_mname or '?'}') needs a "
+                                f"positive integer period; got {_mperiod!r}."
+                            )
+                        if not isinstance(_mpoints, list) or len(_mpoints) == 0:
+                            errors.append(
+                                f"Training Monitor #{_mi + 1} ('{_mname or '?'}') needs at "
+                                "least one point to watch."
+                            )
+                        else:
+                            for _pi, _pt in enumerate(_mpoints):
+                                if not isinstance(_pt, list) or len(_pt) != _expected_dim:
+                                    errors.append(
+                                        f"Training Monitor #{_mi + 1} ('{_mname or '?'}') point "
+                                        f"#{_pi + 1} ({_pt!r}) must have exactly {_expected_dim} "
+                                        f"coordinate(s) for this {self.problem_dim}"
+                                        f"{'' if self.steady_state else '+time'} problem."
+                                    )
 
         return errors
 

@@ -1740,6 +1740,58 @@ class MainWindow(QMainWindow):
         self.cb_timer_cb.stateChanged.connect(lambda s: tm_fields.setVisible(s == 2))
         train_callbacks_layout.addWidget(tm_group)
 
+        # Training Monitors -- pure-observability dde.callbacks.
+        # OperatorPredictor instances, watching an expression (plain output
+        # names and/or derivative names, same d{name}_x / d{name}_xx syntax
+        # the Custom PDE expression box already uses) at a fixed set of
+        # points, logged every N iterations to its own file. Has zero
+        # effect on training itself -- see config.py's
+        # training_monitors_enabled/training_monitors docstring for the
+        # full design. self.training_monitor_list mirrors
+        # self.sched_phase_list's pattern: a plain list of dicts holding
+        # each row's widgets, read by _build_training_monitors_json() /
+        # rebuilt by _apply_training_monitors_json().
+        tmon_group = QGroupBox("Training Monitors")
+        tmon_layout = QVBoxLayout(tmon_group)
+        self.training_monitors_cb = QCheckBox("Watch expressions during training (diagnostic only)")
+        self.training_monitors_cb.setChecked(False)
+        self.training_monitors_cb.setToolTip(
+            "Logs the value of one or more expressions -- an output name "
+            "(e.g. 'mu') and/or a derivative using the same d{name}_x / "
+            "d{name}_xx / d{name}_xy syntax the Custom PDE box uses -- at "
+            "a fixed set of points, every N iterations. Read-only: never "
+            "affects training. Useful for watching whether a quantity "
+            "that should settle instead drifts while loss keeps dropping "
+            "(e.g. structural non-identifiability).")
+        tmon_layout.addWidget(self.training_monitors_cb)
+
+        tmon_fields = QWidget()
+        tmon_fields_layout = QVBoxLayout(tmon_fields)
+        tmon_fields_layout.setContentsMargins(0, 0, 0, 0)
+        tmon_hint = QLabel(
+            "Points: one per parenthesized group, semicolon-separated,\n"
+            "e.g. (0.3, 0.0); (0.5, 0.0) -- matching this problem's own\n"
+            "input order (x[, y][, z][, t]). Expressions: comma-separated,\n"
+            "logged together, e.g. mu, dmu_x, dmu_xx")
+        self._register_style(tmon_hint, "hint", lambda css, _c='#808090', _e='': f"color: {_c}; {_e}{css}")
+        tmon_fields_layout.addWidget(tmon_hint)
+
+        self.tmon_rows_widget = QWidget()
+        self.tmon_rows_layout = QVBoxLayout(self.tmon_rows_widget)
+        self.tmon_rows_layout.setContentsMargins(0, 0, 0, 0)
+        self.tmon_rows_layout.setSpacing(4)
+        tmon_fields_layout.addWidget(self.tmon_rows_widget)
+        self.training_monitor_list = []
+
+        tmon_add_btn = QPushButton("+ Add Monitor")
+        tmon_add_btn.clicked.connect(lambda: self._add_training_monitor_row())
+        tmon_fields_layout.addWidget(tmon_add_btn)
+
+        tmon_layout.addWidget(tmon_fields)
+        tmon_fields.setVisible(False)
+        self.training_monitors_cb.stateChanged.connect(lambda s: tmon_fields.setVisible(s == 2))
+        train_callbacks_layout.addWidget(tmon_group)
+
         left_layout.addWidget(train_group)
 
         # ── Loss Weights ──────────────────────────────────────
@@ -2738,6 +2790,56 @@ class MainWindow(QMainWindow):
         plots_layout.addWidget(loss_container)
         plots_layout.addWidget(solution_container)
         bottom_layout.addLayout(plots_layout)
+
+        # Training Monitors -- hidden unless the last run actually had at
+        # least one monitor configured (see _display_monitor_plots(),
+        # called from _display_run_result_plots()/_on_done()). A run can
+        # have any number of monitors, unlike the fixed loss/solution
+        # pair above, so instead of a variable-width row this shows one
+        # monitor's plot at a time with Prev/Next, the same bounded-size
+        # box the other two plots already use.
+        self.monitor_container = QWidget()
+        monitor_vlayout = QVBoxLayout(self.monitor_container)
+        monitor_vlayout.setContentsMargins(0, 0, 0, 0)
+        monitor_vlayout.setSpacing(2)
+        monitor_header = QHBoxLayout()
+        self.monitor_header_label = QLabel("Training Monitors")
+        monitor_header.addWidget(self.monitor_header_label)
+        monitor_header.addStretch()
+        self.monitor_prev_btn = QPushButton("◀")
+        self.monitor_prev_btn.setFixedHeight(24); self.monitor_prev_btn.setFixedWidth(28)
+        self.monitor_prev_btn.clicked.connect(lambda: self._show_monitor_plot(self.monitor_plot_idx - 1))
+        monitor_header.addWidget(self.monitor_prev_btn)
+        self.monitor_idx_label = QLabel("")
+        monitor_header.addWidget(self.monitor_idx_label)
+        self.monitor_next_btn = QPushButton("▶")
+        self.monitor_next_btn.setFixedHeight(24); self.monitor_next_btn.setFixedWidth(28)
+        self.monitor_next_btn.clicked.connect(lambda: self._show_monitor_plot(self.monitor_plot_idx + 1))
+        monitor_header.addWidget(self.monitor_next_btn)
+        self.monitor_save_btn = QPushButton("💾 Save Figure")
+        self.monitor_save_btn.setFixedHeight(24)
+        self.monitor_save_btn.setToolTip("Save the training monitor plot currently shown")
+        self._register_style(self.monitor_save_btn, "button", lambda css: f"""
+            QPushButton {{ background: #3e3e42; color: #a0c4ff; {css}
+                          border-radius: 4px; border: 1px solid #586e75; }}
+            QPushButton:hover {{ background: #586e75; }}
+        """)
+        self.monitor_save_btn.clicked.connect(lambda: self._save_figure(self.monitor_label, "monitor_plot"))
+        monitor_header.addWidget(self.monitor_save_btn)
+        monitor_vlayout.addLayout(monitor_header)
+
+        self.monitor_label = QLabel()
+        self.monitor_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.monitor_label.setText("📈 Training monitor plot")
+        self.monitor_label.setStyleSheet("border: 1px solid #3e3e42; border-radius: 6px; color: #505080; background: #252526;")
+        self.monitor_label.setMinimumSize(340, 260)
+        self.monitor_label._source_path = None
+        monitor_vlayout.addWidget(self.monitor_label)
+
+        self.monitor_plot_files = []  # [(display_name, png_path), ...] for the last run
+        self.monitor_plot_idx = 0
+        bottom_layout.addWidget(self.monitor_container)
+        self.monitor_container.setVisible(False)
 
         splitter.addWidget(right)
         # Left configuration panel gets noticeably more default width too
@@ -5572,6 +5674,8 @@ class MainWindow(QMainWindow):
             cb_checkpoint_monitor=self.cb_ck_monitor.currentData(),
             cb_timer=self.cb_timer_cb.isChecked(),
             cb_timer_minutes=self.cb_tm_minutes.value(),
+            training_monitors_enabled=self.training_monitors_cb.isChecked(),
+            training_monitors=self._build_training_monitors_json(),
             plot_colormap=self._plot_viz_settings.get('colormap', 'RdBu_r'),
             plot_levels=self._plot_viz_settings.get('levels', 50),
             plot_resolution=self._plot_viz_settings.get('resolution', 100),
@@ -6210,13 +6314,16 @@ class MainWindow(QMainWindow):
         self._set_combo_data(self.cb_ck_monitor, config.cb_checkpoint_monitor)
         self.cb_timer_cb.setChecked(config.cb_timer)
         self.cb_tm_minutes.setValue(float(config.cb_timer_minutes))
+        self.training_monitors_cb.setChecked(getattr(config, 'training_monitors_enabled', False))
+        self._apply_training_monitors_json(getattr(config, 'training_monitors', '') or '[]')
         # Auto-reveal the Training Callbacks group on load if this saved
-        # config already has any one of the four enabled -- a previously-
+        # config already has any one of the five enabled -- a previously-
         # configured callback should never come back hidden just because
         # the panel defaults to collapsed for a brand-new config.
         self.train_callbacks_show_cb.setChecked(
             bool(config.cb_early_stopping or config.cb_point_resampler or
-                 config.cb_model_checkpoint or config.cb_timer))
+                 config.cb_model_checkpoint or config.cb_timer or
+                 getattr(config, 'training_monitors_enabled', False)))
 
         # IC pre-training
         self.ic_pretrain_cb.setChecked(config.ic_pretrain)
@@ -7131,6 +7238,59 @@ class MainWindow(QMainWindow):
                     Qt.AspectRatioMode.KeepAspectRatio,
                     Qt.TransformationMode.SmoothTransformation))
             self.solution_label._source_path = solution_path
+
+        self._display_monitor_plots(save_dir)
+
+    def _display_monitor_plots(self, save_dir):
+        """Finds every monitor_*_plot.png a finished run's
+        _build_training_monitors_plot_code()-generated code wrote (see
+        codegen.py) into `save_dir`'s solution_results/ (same directory
+        convention as loss_plot.png/solution_plot.png above, including
+        the same older-run root-folder fallback), and shows the first one
+        -- or hides the whole Training Monitors box if none were
+        configured/none wrote a plot (e.g. a run that was stopped before
+        any monitor's first checkpoint)."""
+        save_dir = (save_dir or "").strip()
+        sol_dir = os.path.join(save_dir, "solution_results") if save_dir else "/tmp"
+        search_dirs = [sol_dir]
+        if save_dir and save_dir not in search_dirs:
+            search_dirs.append(save_dir)
+
+        found = []
+        seen_names = set()
+        for d in search_dirs:
+            if not os.path.isdir(d):
+                continue
+            for fname in sorted(os.listdir(d)):
+                if fname.startswith("monitor_") and fname.endswith("_plot.png"):
+                    display_name = fname[len("monitor_"):-len("_plot.png")]
+                    if display_name in seen_names:
+                        continue
+                    seen_names.add(display_name)
+                    found.append((display_name, os.path.join(d, fname)))
+
+        self.monitor_plot_files = found
+        self.monitor_plot_idx = 0
+        self.monitor_container.setVisible(bool(found))
+        if found:
+            self._show_monitor_plot(0)
+
+    def _show_monitor_plot(self, idx):
+        if not self.monitor_plot_files:
+            return
+        idx = idx % len(self.monitor_plot_files)
+        self.monitor_plot_idx = idx
+        name, path = self.monitor_plot_files[idx]
+        if os.path.exists(path):
+            self.monitor_label.setPixmap(QPixmap(path).scaled(
+                self.monitor_label.width(), self.monitor_label.height(),
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation))
+            self.monitor_label._source_path = path
+        multi = len(self.monitor_plot_files) > 1
+        self.monitor_idx_label.setText(f"{idx + 1}/{len(self.monitor_plot_files)}: {name}" if multi else name)
+        self.monitor_prev_btn.setVisible(multi)
+        self.monitor_next_btn.setVisible(multi)
 
     def _on_done(self, result):
         self.solve_btn.setEnabled(True)
@@ -10922,6 +11082,145 @@ print("ERROR_ANALYSIS_V2_DONE")
         self._add_scheduler_phase('lbfgs', lbfgs_iters, 0.001)
         self.sched_same_weights_cb.setChecked(True)
         self._build_weight_inputs(self.num_outputs_spin.value())
+
+    def _parse_monitor_points_text(self, text):
+        """Parses a Training Monitor row's points field: a semicolon-
+        separated list of parenthesized coordinate tuples, e.g.
+        "(0.3, 0.0); (0.5, 0.0)". Uses ast.literal_eval (never bare eval)
+        wrapped in a list, mirroring the same safe-literal-only parsing
+        convention _parse_vertex_list()/ea_files already use elsewhere in
+        this codebase. Returns a list of plain lists of floats (JSON-
+        serializable), or [] if the text is empty or fails to parse."""
+        import ast
+        text = (text or "").strip()
+        if not text:
+            return []
+        try:
+            raw = ast.literal_eval("[" + text.replace(";", ",") + "]")
+        except (ValueError, SyntaxError, TypeError):
+            return []
+        if not isinstance(raw, (list, tuple)):
+            return []
+        points = []
+        for p in raw:
+            if isinstance(p, (list, tuple)):
+                points.append([float(c) for c in p])
+            else:
+                points.append([float(p)])
+        return points
+
+    def _format_monitor_points_text(self, points):
+        """Inverse of _parse_monitor_points_text() -- rebuilds the row's
+        display text from a parsed points list (loading a saved config)."""
+        if not points:
+            return ""
+        return "; ".join(
+            "(" + ", ".join(str(c) for c in p) + ")"
+            for p in points if isinstance(p, (list, tuple))
+        )
+
+    def _add_training_monitor_row(self, name="", points_text="", expr="", period=1000):
+        """Adds one Training Monitor row -- mirrors _add_scheduler_phase()'s
+        pattern exactly (a removable QWidget row appended to a container
+        layout, its field widgets kept in a dict appended to
+        self.training_monitor_list, read later by
+        _build_training_monitors_json())."""
+        row_widget = QWidget()
+        row_layout = QVBoxLayout(row_widget)
+        row_layout.setContentsMargins(0, 0, 0, 0)
+        row_layout.setSpacing(3)
+
+        header_row = QHBoxLayout()
+        name_edit = QLineEdit(name)
+        name_edit.setPlaceholderText("label, e.g. dmu_dc_check")
+        header_row.addWidget(name_edit)
+        remove_btn = QPushButton("✕")
+        remove_btn.setFixedHeight(22); remove_btn.setFixedWidth(24)
+        remove_btn.setStyleSheet(
+            "QPushButton { color: #ff8787; background: transparent; border: none; }")
+        header_row.addWidget(remove_btn)
+        row_layout.addLayout(header_row)
+
+        points_edit = QLineEdit(points_text)
+        points_edit.setPlaceholderText("points, e.g. (0.3, 0.0); (0.5, 0.0)")
+        row_layout.addWidget(points_edit)
+
+        expr_edit = QLineEdit(expr)
+        expr_edit.setPlaceholderText("expression(s), e.g. mu, dmu_x, dmu_xx")
+        row_layout.addWidget(expr_edit)
+
+        period_row = QHBoxLayout()
+        period_row.addWidget(QLabel("Every (iterations):"))
+        period_spin = QSpinBox()
+        period_spin.setRange(1, 1000000); period_spin.setSingleStep(100)
+        period_spin.setValue(int(period) if period else 1000)
+        period_spin.setFixedHeight(24)
+        period_row.addStretch(); period_row.addWidget(period_spin)
+        row_layout.addLayout(period_row)
+
+        sep_line = QLabel()
+        sep_line.setFixedHeight(1)
+        sep_line.setStyleSheet("background-color: #3a3a4a;")
+        row_layout.addWidget(sep_line)
+
+        self.tmon_rows_layout.addWidget(row_widget)
+        row_data = {
+            'widget': row_widget, 'name': name_edit,
+            'points': points_edit, 'expr': expr_edit, 'period': period_spin,
+        }
+        self.training_monitor_list.append(row_data)
+
+        def _remove():
+            if row_data in self.training_monitor_list:
+                self.training_monitor_list.remove(row_data)
+            row_widget.deleteLater()
+        remove_btn.clicked.connect(_remove)
+        return row_data
+
+    def _build_training_monitors_json(self):
+        """Builds config.py's training_monitors JSON string from
+        self.training_monitor_list -- a blank row (no name/points/expr
+        typed at all) is skipped rather than written out as a half-empty
+        entry, same leniency _build_custom_geom_shapes_json() etc. use."""
+        import json
+        monitors = []
+        for row in self.training_monitor_list:
+            name = row['name'].text().strip()
+            points_text = row['points'].text().strip()
+            expr = row['expr'].text().strip()
+            if not (name or points_text or expr):
+                continue
+            monitors.append({
+                "name": name,
+                "points": self._parse_monitor_points_text(points_text),
+                "expr": expr,
+                "period": int(row['period'].value()),
+            })
+        return json.dumps(monitors)
+
+    def _apply_training_monitors_json(self, training_monitors_json):
+        """Rebuilds self.training_monitor_list's rows from saved JSON --
+        mirrors _apply_scheduler_phases_build_only()'s clear-then-rebuild
+        pattern."""
+        import json
+        for row in list(self.training_monitor_list):
+            row['widget'].deleteLater()
+        self.training_monitor_list.clear()
+        try:
+            monitors = json.loads(training_monitors_json) if training_monitors_json else []
+        except (json.JSONDecodeError, TypeError):
+            monitors = []
+        if not isinstance(monitors, list):
+            return
+        for m in monitors:
+            if not isinstance(m, dict):
+                continue
+            self._add_training_monitor_row(
+                name=m.get('name', '') or '',
+                points_text=self._format_monitor_points_text(m.get('points') or []),
+                expr=m.get('expr', '') or '',
+                period=m.get('period', 1000) or 1000,
+            )
 
     def _add_scheduler_phase(self, optimizer='adam', iterations=50000, lr=0.001):
         phase_num = len(self.sched_phase_list) + 1  # phase 1, 2, 3...
