@@ -2581,8 +2581,221 @@ for _pval in _param_values:
                                   loss_weights=_phase2_weights)
                 loss_history, train_state = model.train(iterations={config.iterations2}, display_every=1000, callbacks=_train_cbs)
 
+    # ── Results-field extractor (_extract_plot_field) ──────────
+    # Moved up from the "Plot solution" section below (same "not
+    # time_adaptive" condition -- defined here, unconditionally on RAR,
+    # instead of duplicated in both places) so each RAR round's own
+    # solution snapshot can use it too; the final plot-type dispatch
+    # down there still only runs once, at the very end, and now just
+    # reuses this same definition instead of redefining it.
+    if not {config.time_adaptive}:
+        _plot_idx = {config.plot_output_idx}
+        _plot_type = "{config.plot_type}"
+        _plot_custom_expr = "{plot_custom_expr_converted}"
+        _plot_custom_label = "{plot_custom_label_resolved}"
+        _plot_output_names_list = {repr(config.output_names)}.split(",")
+        _plot_n_out = len(_plot_output_names_list)
+        _plot_dim = "3D" if _is_3d else ("2D" if _is_2d else "1D")
+        _PLOT_TORCH_MATH_NS = {{
+            "sin": torch.sin, "cos": torch.cos, "tan": torch.tan,
+            "sinh": torch.sinh, "cosh": torch.cosh, "tanh": torch.tanh,
+            "arcsin": torch.asin, "arccos": torch.acos, "arctan": torch.atan,
+            "exp": torch.exp, "log": torch.log, "log10": torch.log10,
+            "sqrt": torch.sqrt, "abs": torch.abs, "ceil": torch.ceil, "floor": torch.floor,
+            "pi": np.pi,
+        }}
+
+        def _plot_custom_op(_pf_inputs, _pf_outputs):
+            _pf_dvars = _tm_build_dvars(_pf_inputs, _pf_outputs, _plot_n_out,
+                                         _plot_output_names_list, _is_steady, _plot_dim,
+                                         _plot_custom_expr)
+            _pf_ns = dict(_pf_dvars)
+            _pf_ns.update(_PLOT_TORCH_MATH_NS)
+            _pf_ns["torch"] = torch
+            return eval(_plot_custom_expr, _pf_ns)
+
+        def _extract_plot_field(_x_grid, _pf_model=None):
+            # Pick the field to plot from a model.predict() call: either one
+            # raw output column (_plot_idx, the pre-existing default), or --
+            # when a custom expression is configured -- a derived field
+            # built from ALL of this problem's outputs AND their
+            # derivatives (du_x, du_xx, du_xy, ...), evaluated through
+            # DeepXDE's own dde.Model.predict(x, operator=...) built-in.
+            # _pf_model defaults to the module-level `model` but can be
+            # overridden. Used here for each RAR round's own snapshot,
+            # and below for the main Results panel plot and Inline Error
+            # Analysis -- so every one of them shows/compares the exact
+            # same field.
+            _pf_m = _pf_model if _pf_model is not None else model
+            if _plot_custom_expr.strip():
+                return _pf_m.predict(_x_grid, operator=_plot_custom_op)[:, 0]
+            return _pf_m.predict(_x_grid)[:, _plot_idx]
+
     # ── RAR Loop ─────────────────────────────────────────────
     if "{config.adapt_method}" == "RAR" and not {config.time_adaptive}:
+        # ── Per-round RAR diagnostics ──────────────────────────
+        # For every RAR round: a static snapshot of whatever field is
+        # configured above (raw output or derivative-aware Custom
+        # expression -- same _extract_plot_field every other plot uses),
+        # a lightweight comparison against one Error Analysis reference
+        # file if any are configured (not the full multi-file/multi-time
+        # sweep Inline Error Analysis runs once at the end -- just one
+        # representative reference, so this doesn't meaningfully slow
+        # RAR training down), and a 3-color collocation-points scatter
+        # (original domain points vs. points added in EARLIER rounds vs.
+        # points added THIS round) so sharp-residual/refinement patterns
+        # across rounds are visible afterward, not just the final model.
+        # Saved under this run's own solution_results/rar_rounds/
+        # round_NN/ -- the same per-run-unique save_dir every other plot
+        # already uses (see Round 19's _on_done() fix).
+        _rar_rounds_dir = _os.path.join(_sol_dir, "rar_rounds")
+        _rar_orig_pts = np.array(data.train_x_all, copy=True)
+        _rar_added_so_far = np.empty((0, _rar_orig_pts.shape[1]))
+        _rar_ea_entries = {config.ea_files}
+
+        def _rar_save_round_diagnostics(_rar_idx, _rar_new_pts):
+            _rd = _os.path.join(_rar_rounds_dir, f"round_{{_rar_idx:02d}}")
+            _os.makedirs(_rd, exist_ok=True)
+
+            # -- solution snapshot --
+            try:
+                _res = {config.plot_resolution}
+                if _is_3d:
+                    _xp = np.linspace({config.x_min}, {config.x_max}, _res)
+                    _yp = np.linspace({config.y_min}, {config.y_max}, _res)
+                    _Xg, _Yg = np.meshgrid(_xp, _yp)
+                    _z_mid_r = ({config.z_min} + {config.z_max}) / 2.0
+                    _grid_r = np.column_stack([_Xg.ravel(), _Yg.ravel(), np.full(_Xg.size, _z_mid_r), np.full(_Xg.size, {config.t_max})])
+                    _field_r = _extract_plot_field(_grid_r).reshape(_res, _res)
+                    _fig_r, _ax_r = plt.subplots(figsize=_plot_figsize(6.5, 5.5))
+                    _im_r = _ax_r.contourf(_Xg, _Yg, _field_r, levels={config.plot_levels}, cmap="{config.plot_colormap}")
+                    _ax_r.set_xlabel("x"); _ax_r.set_ylabel("y"); _ax_r.set_aspect("equal", adjustable="box")
+                    _fig_r.colorbar(_im_r, ax=_ax_r)
+                    _fig_r.suptitle(f"RAR round {{_rar_idx}} solution snapshot (z={{_z_mid_r:.3g}}, t={config.t_max:.3g})")
+                elif _is_2d:
+                    _xp = np.linspace({config.x_min}, {config.x_max}, _res)
+                    _yp = np.linspace({config.y_min}, {config.y_max}, _res)
+                    _Xg, _Yg = np.meshgrid(_xp, _yp)
+                    _grid_r = np.column_stack([_Xg.ravel(), _Yg.ravel(), np.full(_Xg.size, {config.t_max})])
+                    _field_r = _extract_plot_field(_grid_r).reshape(_res, _res)
+                    _fig_r, _ax_r = plt.subplots(figsize=_plot_figsize(6.5, 5.5))
+                    _im_r = _ax_r.contourf(_Xg, _Yg, _field_r, levels={config.plot_levels}, cmap="{config.plot_colormap}")
+                    _ax_r.set_xlabel("x"); _ax_r.set_ylabel("y"); _ax_r.set_aspect("equal", adjustable="box")
+                    _fig_r.colorbar(_im_r, ax=_ax_r)
+                    _fig_r.suptitle(f"RAR round {{_rar_idx}} solution snapshot (t={config.t_max:.3g})")
+                else:
+                    _xr = np.linspace({config.x_min}, {config.x_max}, _res)
+                    _tr = np.linspace({config.t_min}, {config.t_max}, _res)
+                    _Xr, _Tr = np.meshgrid(_xr, _tr)
+                    _field_r = _extract_plot_field(np.column_stack([_Xr.ravel(), _Tr.ravel()])).reshape(_res, _res)
+                    _fig_r, _ax_r = plt.subplots(figsize=_plot_figsize(6.5, 5))
+                    _im_r = _ax_r.contourf(_Xr, _Tr, _field_r, levels={config.plot_levels}, cmap="{config.plot_colormap}")
+                    _ax_r.set_xlabel("x"); _ax_r.set_ylabel("t")
+                    _fig_r.colorbar(_im_r, ax=_ax_r)
+                    _fig_r.suptitle(f"RAR round {{_rar_idx}} solution snapshot")
+                plt.tight_layout()
+                plt.savefig(_os.path.join(_rd, "solution_plot.png"), dpi={config.plot_dpi}, bbox_inches="tight")
+                plt.close(_fig_r)
+                print(f"  [RAR round {{_rar_idx}}] solution snapshot saved: {{_os.path.join(_rd, 'solution_plot.png')}}")
+            except Exception as _rar_err1:
+                print(f"  [RAR round {{_rar_idx}}] solution snapshot failed: {{_rar_err1}}")
+
+            # -- collocation points: original vs. earlier rounds vs. this round --
+            try:
+                if _is_2d or _is_3d:
+                    from mpl_toolkits.mplot3d import Axes3D as _Axes3D_unused  # noqa: F401 -- registers the 3D projection
+                    _fig_c = plt.figure(figsize=_plot_figsize(7, 6))
+                    _ax_c = _fig_c.add_subplot(111, projection="3d")
+                    if _is_3d:
+                        # 4 real coordinate dims (x,y,z,t) can't all be axes
+                        # on one static 3D plot -- spatial (x,y,z) get the
+                        # 3 plot axes, and t is folded into per-category
+                        # alpha instead (lighter = earlier in the time
+                        # domain) rather than dropped entirely.
+                        _t_lo_r, _t_hi_r = {config.t_min}, {config.t_max}
+                        _span_t_r = (_t_hi_r - _t_lo_r) or 1.0
+                        def _rar_alpha(_pts):
+                            return float(np.clip(0.25 + 0.65 * (np.mean(_pts[:, 3]) - _t_lo_r) / _span_t_r, 0.15, 0.95)) if len(_pts) else 1.0
+                        _zlab = "z"
+                        _orig_z = _rar_orig_pts[:, 2]; _added_z = _rar_added_so_far[:, 2] if len(_rar_added_so_far) else None; _new_z = _rar_new_pts[:, 2]
+                        _orig_alpha, _added_alpha = _rar_alpha(_rar_orig_pts), _rar_alpha(_rar_added_so_far)
+                    else:
+                        _zlab = "t"
+                        _orig_z = _rar_orig_pts[:, 2]; _added_z = _rar_added_so_far[:, 2] if len(_rar_added_so_far) else None; _new_z = _rar_new_pts[:, 2]
+                        _orig_alpha, _added_alpha = 0.5, 0.85
+                    if len(_rar_orig_pts):
+                        _ax_c.scatter(_rar_orig_pts[:, 0], _rar_orig_pts[:, 1], _orig_z, s=5, c="#adb5bd", alpha=_orig_alpha, label="Original points")
+                    if len(_rar_added_so_far):
+                        _ax_c.scatter(_rar_added_so_far[:, 0], _rar_added_so_far[:, 1], _added_z, s=9, c="#fd7e14", alpha=_added_alpha, label="Added in earlier rounds")
+                    _ax_c.scatter(_rar_new_pts[:, 0], _rar_new_pts[:, 1], _new_z, s=12, c="#e03131", label=f"Added this round ({{len(_rar_new_pts)}})")
+                    _ax_c.set_xlabel("x"); _ax_c.set_ylabel("y"); _ax_c.set_zlabel(_zlab)
+                else:
+                    _fig_c, _ax_c = plt.subplots(figsize=_plot_figsize(6.5, 5))
+                    if len(_rar_orig_pts):
+                        _ax_c.scatter(_rar_orig_pts[:, 0], _rar_orig_pts[:, 1], s=6, c="#adb5bd", alpha=0.6, label="Original points")
+                    if len(_rar_added_so_far):
+                        _ax_c.scatter(_rar_added_so_far[:, 0], _rar_added_so_far[:, 1], s=10, c="#fd7e14", label="Added in earlier rounds")
+                    _ax_c.scatter(_rar_new_pts[:, 0], _rar_new_pts[:, 1], s=14, c="#e03131", label=f"Added this round ({{len(_rar_new_pts)}})")
+                    _ax_c.set_xlabel("x"); _ax_c.set_ylabel("t")
+                _ax_c.legend(loc="best", fontsize=8)
+                _ax_c.set_title(f"RAR round {{_rar_idx}} -- collocation points")
+                plt.tight_layout()
+                plt.savefig(_os.path.join(_rd, "collocation_points.png"), dpi={config.plot_dpi}, bbox_inches="tight")
+                plt.close(_fig_c)
+                print(f"  [RAR round {{_rar_idx}}] collocation-points plot saved: {{_os.path.join(_rd, 'collocation_points.png')}}")
+            except Exception as _rar_err2:
+                print(f"  [RAR round {{_rar_idx}}] collocation-points plot failed: {{_rar_err2}}")
+
+            # -- lightweight error compare vs. ONE reference file, if configured --
+            if _rar_ea_entries:
+                try:
+                    _best_r = min(_rar_ea_entries, key=lambda _e: abs(_e[0] - {config.t_max}))
+                    _ref_t_r, _ref_fp_r = _best_r[0], _best_r[1]
+                    _ref_sel_r = _best_r[2] if len(_best_r) >= 3 else None
+                    _ref_d_r = np.loadtxt(_ref_fp_r)
+                    if _ref_d_r.ndim == 1:
+                        _ref_d_r = _ref_d_r.reshape(1, -1)
+                    if _is_3d:
+                        _ref_xyz_r = _ref_d_r[:, :3]; _ref_u_r = _ref_d_r[:, 4]
+                    elif _is_2d:
+                        _ref_xyz_r = _ref_d_r[:, :2]; _ref_u_r = _ref_d_r[:, 3]
+                    else:
+                        _ref_xyz_r = _ref_d_r[:, :1]; _ref_u_r = _ref_d_r[:, 2]
+                    _ref_grid_r = np.column_stack([_ref_xyz_r, np.full(len(_ref_d_r), _ref_t_r)])
+                    if _ref_sel_r is None:
+                        _ref_pred_r = _extract_plot_field(_ref_grid_r)
+                    elif isinstance(_ref_sel_r, int):
+                        _ref_pred_r = model.predict(_ref_grid_r)[:, _ref_sel_r]
+                    else:
+                        _ref_expr_r = _ref_sel_r[0]
+                        def _rar_ea_op(_rea_i, _rea_o):
+                            _rea_dv = _tm_build_dvars(_rea_i, _rea_o, _plot_n_out, _plot_output_names_list,
+                                                       _is_steady, _plot_dim, _ref_expr_r)
+                            _rea_ns = dict(_rea_dv); _rea_ns.update(_PLOT_TORCH_MATH_NS); _rea_ns["torch"] = torch
+                            return eval(_ref_expr_r, _rea_ns)
+                        _ref_pred_r = model.predict(_ref_grid_r, operator=_rar_ea_op)[:, 0]
+                    _err_r = _ref_pred_r - _ref_u_r
+                    _l2_r = float(np.linalg.norm(_err_r) / (np.linalg.norm(_ref_u_r) + 1e-12))
+                    _mse_r = float(np.mean(_err_r ** 2))
+                    print(f"  [RAR round {{_rar_idx}}] vs reference t={{_ref_t_r:.3g}}: L2 rel error = {{_l2_r:.4e}}, MSE = {{_mse_r:.4e}}")
+                    _fig_e, _ax_e = plt.subplots(figsize=_plot_figsize(6.5, 5))
+                    if _is_2d or _is_3d:
+                        _sc_e = _ax_e.scatter(_ref_xyz_r[:, 0], _ref_xyz_r[:, 1], c=np.abs(_err_r), cmap="inferno", s=10)
+                        _fig_e.colorbar(_sc_e, ax=_ax_e, label="|error|")
+                        _ax_e.set_xlabel("x"); _ax_e.set_ylabel("y")
+                    else:
+                        _ord_e = np.argsort(_ref_xyz_r[:, 0])
+                        _ax_e.plot(_ref_xyz_r[_ord_e, 0], _ref_u_r[_ord_e], label="Reference", color="#2f9e44")
+                        _ax_e.plot(_ref_xyz_r[_ord_e, 0], _ref_pred_r[_ord_e], label="PINN", color="#1971c2", linestyle="--")
+                        _ax_e.legend(loc="best", fontsize=8)
+                        _ax_e.set_xlabel("x"); _ax_e.set_ylabel("u")
+                    _ax_e.set_title(f"RAR round {{_rar_idx}} vs reference t={{_ref_t_r:.3g}} (L2={{_l2_r:.3e}})")
+                    plt.tight_layout()
+                    plt.savefig(_os.path.join(_rd, "error_compare.png"), dpi={config.plot_dpi}, bbox_inches="tight")
+                    plt.close(_fig_e)
+                except Exception as _rar_err3:
+                    print(f"  [RAR round {{_rar_idx}}] error compare failed: {{_rar_err3}}")
+
         print("\\n=== Starting RAR Adaptive Refinement ===")
         for rar_cycle in range({config.rar_cycles}):
             print(f"\\n--- RAR Cycle {{rar_cycle+1}}/{config.rar_cycles} ---")
@@ -2603,7 +2816,16 @@ for _pval in _param_values:
                 xt_cand = np.column_stack([x_cand, t_cand])
             _rar_res = model.predict(xt_cand, operator=pde)
             if isinstance(_rar_res, list):
-                residuals = np.sum([np.abs(r).flatten() for r in _rar_res], axis=0)
+                # Restrict point selection to one equation's residual
+                # (config.rar_output_selector >= 0 -- "Points from:" in the
+                # RAR settings panel; equation order == output order for
+                # every current template) instead of the combined sum --
+                # -1 (the default) always falls through to the original,
+                # unchanged combined behavior.
+                if 0 <= {config.rar_output_selector} < len(_rar_res):
+                    residuals = np.abs(_rar_res[{config.rar_output_selector}]).flatten()
+                else:
+                    residuals = np.sum([np.abs(r).flatten() for r in _rar_res], axis=0)
             else:
                 residuals = np.abs(_rar_res).flatten()
             top_idx    = np.argsort(residuals)[-{config.rar_add_points}:]
@@ -2628,6 +2850,8 @@ for _pval in _param_values:
                     dde.config.set_default_float("float32")
                     model.net.float()
                     print("  [L-BFGS] Restored to float32")
+            _rar_save_round_diagnostics(rar_cycle + 1, new_points)
+            _rar_added_so_far = np.vstack([_rar_added_so_far, new_points])
         print("\\n=== RAR Complete ===")
 
     # ── Save paths ────────────────────────────────────────────
@@ -2731,63 +2955,11 @@ for _pval in _param_values:
         print(f"Final loss: {{_final_loss:.4e}}")
 
     # ── Plot solution ─────────────────────────────────────────
+    # _plot_idx/_plot_type/_plot_custom_expr/_extract_plot_field etc. are
+    # already defined above (see "Results-field extractor"), unconditionally
+    # on "not time_adaptive" -- which this whole section already requires
+    # too, so they're guaranteed to exist here without redefining them.
     if not {config.time_adaptive}:
-        _plot_idx = {config.plot_output_idx}
-        _plot_type = "{config.plot_type}"
-        _plot_custom_expr = "{plot_custom_expr_converted}"
-        _plot_custom_label = "{plot_custom_label_resolved}"
-        _plot_output_names_list = {repr(config.output_names)}.split(",")
-
-        _plot_n_out = len(_plot_output_names_list)
-        _plot_dim = "3D" if _is_3d else ("2D" if _is_2d else "1D")
-        _PLOT_TORCH_MATH_NS = {{
-            "sin": torch.sin, "cos": torch.cos, "tan": torch.tan,
-            "sinh": torch.sinh, "cosh": torch.cosh, "tanh": torch.tanh,
-            "arcsin": torch.asin, "arccos": torch.acos, "arctan": torch.atan,
-            "exp": torch.exp, "log": torch.log, "log10": torch.log10,
-            "sqrt": torch.sqrt, "abs": torch.abs, "ceil": torch.ceil, "floor": torch.floor,
-            "pi": np.pi,
-        }}
-
-        def _plot_custom_op(_pf_inputs, _pf_outputs):
-            _pf_dvars = _tm_build_dvars(_pf_inputs, _pf_outputs, _plot_n_out,
-                                         _plot_output_names_list, _is_steady, _plot_dim,
-                                         _plot_custom_expr)
-            _pf_ns = dict(_pf_dvars)
-            _pf_ns.update(_PLOT_TORCH_MATH_NS)
-            _pf_ns["torch"] = torch
-            return eval(_plot_custom_expr, _pf_ns)
-
-        def _extract_plot_field(_x_grid, _pf_model=None):
-            # Pick the field to plot from a model.predict() call: either one
-            # raw output column (_plot_idx, the pre-existing default), or --
-            # when a custom expression is configured, e.g. |h| = sqrt(u**2+
-            # v**2) for the 1D Schrodinger template's complex-valued u,v
-            # outputs -- a derived field built from ALL of this problem's
-            # outputs AND their derivatives (du_x, du_xx, du_xy, ... -- same
-            # syntax the Custom PDE box and Training Monitors already use),
-            # evaluated through DeepXDE's own dde.Model.predict(x,
-            # operator=...) built-in so autograd is available at predict
-            # time -- the same built-in Training Monitors' own callback
-            # uses during training, just invoked once here. Takes the raw
-            # input grid (not a pre-computed prediction array) so it can
-            # call predict itself; _pf_model defaults to the module-level
-            # `model` but can be overridden (used by Error Analysis, which
-            # may compare against a different step's restored model). Used
-            # for the main Results panel plot below, and also by the (non-
-            # time-adaptive) Inline Error Analysis section further down --
-            # so a reference dataset that represents a derived field like
-            # |h| is compared against that same derived field, not a raw
-            # output column. Time-Adaptive has its own separate model-
-            # selection code and can't reach this definition (a different
-            # top-level `if` block) -- it defines its own copy of this same
-            # helper, by the same name, right before its per-step training
-            # loop.
-            _pf_m = _pf_model if _pf_model is not None else model
-            if _plot_custom_expr.strip():
-                return _pf_m.predict(_x_grid, operator=_plot_custom_op)[:, 0]
-            return _pf_m.predict(_x_grid)[:, _plot_idx]
-
         if _problem_type == "Inverse" and _plot_type == "Parameter Convergence":
             # Parameter Convergence isn't a spatial plot at all -- it's the
             # iteration-vs-inferred-value chart already built just above

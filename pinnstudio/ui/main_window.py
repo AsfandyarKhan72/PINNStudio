@@ -1950,6 +1950,31 @@ class MainWindow(QMainWindow):
         self.rar_add_points  = _rar_row("Data points to add per cycle:", 500,   10,   10000,  100)
         self.rar_adam_iters  = _rar_row("Adam iterations:",              20000, 100,  50000,  1000)
         self.rar_lbfgs_iters = _rar_row("L-BFGS iterations:",            10000, 0,    50000,  1000)
+
+        # Which equation's residual to rank candidate points by, for a
+        # multi-output problem (model.predict(x, operator=pde) returns one
+        # residual per governing equation -- "Output N" here means the Nth
+        # equation entered in the PDE editor, which is equation order, not
+        # a separately tracked output mapping; every current template has
+        # exactly one equation per output, in the same order, so this lines
+        # up correctly in practice). Refreshed by _on_num_outputs_changed()/
+        # _apply_config() alongside plot_output_combo/restore_output_combo
+        # -- see those for the shared refresh pattern. "All outputs
+        # (combined)" (index 0, config.rar_output_selector = -1) is the
+        # default and reproduces the original, unchanged behavior (sum of
+        # absolute residuals across every equation).
+        rar_out_row = QHBoxLayout()
+        rar_out_row.addWidget(QLabel("Points from:"))
+        self.rar_output_combo = QComboBox()
+        # Matches plot_output_combo's own initial seed (addItems(["Output 1
+        # (u)", "Custom..."]) at its creation site) -- num_outputs_spin is
+        # set to 1 before _on_num_outputs_changed is even connected, so
+        # nothing else repopulates this for the single-output default case.
+        self.rar_output_combo.addItems(["All outputs (combined)", "Output 1 (u)"])
+        self.rar_output_combo.setFixedHeight(28)
+        rar_out_row.addStretch(); rar_out_row.addWidget(self.rar_output_combo)
+        rar_layout.addLayout(rar_out_row)
+
         self.rar_widget.setVisible(False)
         adapt_layout.addWidget(self.rar_widget)
 
@@ -5666,6 +5691,9 @@ class MainWindow(QMainWindow):
             rar_add_points=self.rar_add_points.value(),
             rar_adam_iters=self.rar_adam_iters.value(),
             rar_lbfgs_iters=self.rar_lbfgs_iters.value(),
+            # Index 0 ("All outputs (combined)") -> -1 (original, unchanged
+            # behavior); index k (k>=1) -> equation/output (k-1).
+            rar_output_selector=(self.rar_output_combo.currentIndex() - 1),
             time_adaptive=self.adapt_combo.currentData() == "Time Adaptive",
             ta_num_steps=sum(r['steps'].value() for r in self.ta_group_rows) if self.ta_group_rows else self.ta_steps.value(),
             ta_grid_size=int(self.ta_grid.currentText()),
@@ -6054,12 +6082,15 @@ class MainWindow(QMainWindow):
         # changed, before we had the saved names to give them).
         self.plot_output_combo.clear()
         self.restore_output_combo.clear()
+        self.rar_output_combo.clear()
+        self.rar_output_combo.addItem("All outputs (combined)")
         for _r in getattr(self, 'inv_data_rows', []):
             _r['output_combo'].clear()
         for i in range(n_out):
             name = self.output_name_inputs[i].text() if i < len(self.output_name_inputs) else f"u{i+1}"
             self.plot_output_combo.addItem(f"Output {i+1} ({name})")
             self.restore_output_combo.addItem(f"Output {i+1} ({name})")
+            self.rar_output_combo.addItem(f"Output {i+1} ({name})")
             for _r in getattr(self, 'inv_data_rows', []):
                 _r['output_combo'].addItem(f"Output {i+1} ({name})")
         # The measured-data-file rows rebuilt here get replaced wholesale by
@@ -6307,6 +6338,11 @@ class MainWindow(QMainWindow):
         self.rar_add_points.setValue(config.rar_add_points)
         self.rar_adam_iters.setValue(config.rar_adam_iters)
         self.rar_lbfgs_iters.setValue(config.rar_lbfgs_iters)
+        _rar_sel_idx = getattr(config, "rar_output_selector", -1) + 1
+        if 0 <= _rar_sel_idx < self.rar_output_combo.count():
+            self.rar_output_combo.setCurrentIndex(_rar_sel_idx)
+        else:
+            self.rar_output_combo.setCurrentIndex(0)
 
         # Time-adaptive step groups
         for row in list(self.ta_group_rows):
@@ -6456,12 +6492,15 @@ class MainWindow(QMainWindow):
         self._rebuild_output_transform_rows(n)
         self.plot_output_combo.clear()
         self.restore_output_combo.clear()
+        self.rar_output_combo.clear()
+        self.rar_output_combo.addItem("All outputs (combined)")
         for _r in getattr(self, 'inv_data_rows', []):
             _r['output_combo'].clear()
         for i in range(n):
             name = self.output_name_inputs[i].text() if i < len(self.output_name_inputs) else f"u{i+1}"
             self.plot_output_combo.addItem(f"Output {i+1} ({name})")
             self.restore_output_combo.addItem(f"Output {i+1} ({name})")
+            self.rar_output_combo.addItem(f"Output {i+1} ({name})")
             for _r in getattr(self, 'inv_data_rows', []):
                 _r['output_combo'].addItem(f"Output {i+1} ({name})")
         self.plot_output_combo.addItem("Custom...")

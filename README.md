@@ -223,7 +223,16 @@ Beyond the basic two-stage recipe, training can be broken into any number of pha
 <details>
 <summary><strong>Residual-based Adaptive Refinement (RAR)</strong></summary>
 
-Periodically resamples collocation points toward wherever the PDE residual is currently largest, concentrating training effort on the hardest parts of the domain (a sharp front, a boundary layer) instead of spreading points uniformly the whole time. Supported in every dimension.
+Periodically resamples collocation points toward wherever the PDE residual is currently largest, concentrating training effort on the hardest parts of the domain (a sharp front, a boundary layer) instead of spreading points uniformly the whole time. Supported in every dimension. (Time-dependent problems only.)
+
+**Per-round diagnostics.** Every RAR round now saves two snapshots to this run's own `solution_results/rar_rounds/round_NN/` folder, so you can watch the refinement happen round by round instead of only seeing the final result:
+
+- `solution_plot.png` — the same output field you've configured to plot, evaluated at that round's model state. If an Error Analysis reference file is configured, `error_compare.png` is also saved: a lightweight comparison (closest-in-time reference snapshot, evaluated at its exact coordinates) reporting L2 relative error and MSE for that round — not the full multi-file Error Analysis pass, so it stays fast even with many rounds.
+- `collocation_points.png` — a scatter of the training points, colored to show how refinement is progressing: gray for the original points present before RAR started, orange for points added in earlier rounds, and red for the points this round just added. In 2D-plus-time and 3D-plus-time problems this renders as a 3D scatter (with time shown via point transparency where a 4th axis isn't available), so you can see exactly where the sharp features are and where training effort is concentrating.
+
+**Points from:** for a PDE with more than one governing equation, RAR normally ranks candidate points by the combined (summed) residual across every equation. The "Points from" selector lets you restrict that ranking to a single output's equation instead — useful when only one output has the sharp feature you care about and you don't want the other outputs' residuals diluting the point selection.
+
+Currently these per-round diagnostics and the output selector apply to the live **Solve** path. "Export as DeepXDE Script" generates a simpler, standalone RAR loop and does not yet produce the same per-round diagnostics — bringing that in line is a planned follow-up.
 
 </details>
 

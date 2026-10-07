@@ -4,6 +4,18 @@ All notable changes to PINNStudio are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+
+- **RAR per-round diagnostics**: every Residual-based Adaptive Refinement round now saves, under this run's own `solution_results/rar_rounds/round_NN/`:
+  - `solution_plot.png` -- a static snapshot of whatever field is configured (raw output or a derivative-aware Custom expression -- the same field every other plot already shows), regardless of the main Plot Type.
+  - `collocation_points.png` -- a 3-color scatter: original domain points (gray), points added in *earlier* rounds (orange), points added *this* round (red). x-t for 1D; a 3D (x, y, t) scatter for 2D; a 3D (x, y, z) scatter with time folded into per-category transparency for 3D (its 4 real coordinate dimensions can't all be plot axes at once).
+  - `error_compare.png`, plus an "L2 rel error = ..., MSE = ..." log line -- only when at least one Error Analysis reference file is configured. Compares against the single reference closest to `t_max`; the full multi-file/multi-time Inline Error Analysis sweep still runs once, unchanged, at the very end.
+  - This makes it possible to see, after training, exactly where RAR concentrated its effort round over round (sharp gradients, moving fronts, etc.) instead of only ever seeing the final model's plot.
+- **RAR "Points from:"**: for a multi-equation PDE (`model.predict(x, operator=pde)` returns one residual array per governing equation), RAR's point selection can now be restricted to one equation/output's residual instead of always combining every equation (the original, still-default behavior). Equation order is treated as output order, matching every current template (one equation per output, same order).
+- Currently wired into the live "Solve" path (`generate_script()`); "Export as DeepXDE Script" (`generate_clean_script()`) parity is planned as a follow-up.
+
 ## [1.5.1] - 2026-10-07
 
 ### Fixed

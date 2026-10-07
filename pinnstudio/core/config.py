@@ -11,6 +11,15 @@ class PINNConfig:
     rar_add_points: int = 500
     rar_adam_iters: int = 20000
     rar_lbfgs_iters: int = 10000
+    # Which equation's residual to rank candidate points by when the PDE has
+    # more than one governing equation (model.predict(x, operator=pde)
+    # returns a list, one entry per equation, in the same order the
+    # equations were entered in the PDE editor -- which lines up with
+    # output order for every current template, one equation per output).
+    # -1 (default) is the original, unchanged behavior: sum the absolute
+    # residual across every equation. 0, 1, 2, ... restricts point
+    # selection to that one equation/output's residual only.
+    rar_output_selector: int = -1
 
     time_adaptive: bool = False
     ta_num_steps: int = 5
