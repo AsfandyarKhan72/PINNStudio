@@ -22,12 +22,17 @@ Covers:
      docstring that's always embedded) nor an operator= call.
   2. generate_script()'s Time-Adaptive path: same checks, using its own
      separate _extract_plot_field definition.
-  3. generate_clean_script() ("Export as DeepXDE Script") is confirmed
-     UNCHANGED this round -- still the old NumPy-only custom-expression
-     path, no operator= anywhere. This is a deliberate scope decision
-     (see codegen.py/main_window.py's own comments), not an oversight;
-     this test exists so a future round that DOES extend export parity
-     has a clear "this used to not be wired up" baseline to update.
+  3. generate_clean_script() ("Export as DeepXDE Script") was deliberately
+     left on the old NumPy-only custom-expression path THIS round (see
+     codegen.py's own comments at the time) -- a real third code path
+     beyond what this round's AskUserQuestion scoped (Restore tab + live
+     Results panel), flagged as a known gap rather than silently skipped.
+     A follow-up round closed that gap (see tests/test_save_and_export_
+     fixes.py) -- generate_clean_script() is now ALSO derivative-aware,
+     reusing this same operator-based mechanism. This check now confirms
+     the opposite of what it originally asserted: left here (updated,
+     not deleted) as the "this is what changed" baseline the original
+     comment said a future round extending this would want.
   4. main_window.py's _build_restore_script (Standard restore) and
      _build_restore_script_ta (Time-Adaptive restore): both wire a
      derivative-aware custom expression through operator=_restore_custom_op
@@ -123,12 +128,16 @@ def run():
           "an unconfigured Time-Adaptive run should also mention no OperatorPredictor")
 
     # ---------------------------------------------------------------
-    # 3) generate_clean_script() -- confirmed UNCHANGED this round
+    # 3) generate_clean_script() -- extended in a later round (see
+    #    tests/test_save_and_export_fixes.py for the full coverage); this
+    #    check now just confirms the operator wiring reaches this exporter
+    #    too, as the updated docstring above explains.
     # ---------------------------------------------------------------
     clean_script = generate_clean_script(deriv_cfg)
-    check("operator=" not in clean_script or "_plot_custom_op" not in clean_script,
-          "generate_clean_script() is NOT extended this round (deliberate scope "
-          "decision) -- it should still use the old NumPy-only custom-expression path")
+    check("operator=_plot_custom_op" in clean_script,
+          "generate_clean_script() is now also derivative-aware (extended in a "
+          "later round) -- a configured custom expression should route through "
+          "model.predict(..., operator=_plot_custom_op) here too")
 
     # ---------------------------------------------------------------
     # 4) Restore & Visualize panel: Standard + Time-Adaptive

@@ -4,6 +4,23 @@ All notable changes to PINNStudio are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.5.0] - 2026-10-07
+
+### Added
+
+- **Network Type (FNN / PFNN)**: an independent dropdown in the Neural Network panel. FNN (the existing default) is a single shared trunk; PFNN (`dde.nn.PFNN`, a genuine DeepXDE built-in) gives each output its own parallel sub-network merging only at the final layer -- useful for multi-output problems (e.g. 1D Schrödinger's real/imaginary parts) where the outputs have different scales/behavior. A single shared network-construction helper is used everywhere a network gets built (training scripts, exported scripts, all Restore/Error-Analysis script builders), so a training run and the script that later restores its checkpoint can never disagree on how the network was shaped.
+- **Training Monitors**: track an arbitrary expression of the solution and its derivatives (`u`, `du_x`, `du_xx`, `du_xy`, ...) during training, logged alongside the loss curve, instead of only being able to inspect a quantity after training finishes. Built on DeepXDE's own `dde.callbacks.OperatorPredictor`; reuses the Custom PDE editor's own derivative-vocabulary builder, so monitor expressions use the identical `d<output>_<vars>` syntax.
+- **Derivative-aware "Custom..." plotting**: the Custom expression field (previously algebraic combinations of raw outputs only, e.g. `sqrt(u**2+v**2)`) can now also reference derivatives (`du_x`, `du_xx`, ...), evaluated through DeepXDE's own `dde.Model.predict(x, operator=...)` built-in -- the same mechanism Training Monitors uses, and the same derivative-vocabulary builder, reused rather than duplicated. Wired into every place a Custom expression can be configured: the live Results panel, the Restore & Visualize tab (Standard and Time-Adaptive), the "Export as DeepXDE Script" exporter, and Error Analysis's own per-group custom-expression selector.
+
+### Changed
+
+- Training Monitors' and the Custom PDE editor's own in-app example text ("mu", "dmu_x", "dmu_xx") now uses "u, du_x, du_xx" -- "u" is the actual output name in nearly every template, where "mu" never appears.
+
+### Fixed
+
+- **A plain Adam-only training run (Optimizer Scheduler off, no second optimizer phase) with Save enabled never actually saved a model checkpoint** -- it wrote the run's config JSON but never called `model.save()`, so Model Restore would find nothing to load for a run trained exactly this way. For an Inverse problem in this same configuration, nothing was saved at all, not even the config JSON. Every other configuration (scheduler phases, a second optimizer phase, Time-Adaptive) already saved correctly; this was a narrow, specific gap, now fixed for both Forward and Inverse problems.
+- **The "Export as DeepXDE Script" exporter's Time-Adaptive loss plot showed only the last optimizer phase of the last time sub-domain**, not the full run -- a known limitation carried unfixed since 1.1.0. It now stitches the loss history across every phase of every time sub-domain, with a continuously increasing iteration axis, matching how the GUI's own live Time-Adaptive loss plot (and its clean-script non-Time-Adaptive counterpart) already worked.
+
 ## [1.4.0] - 2026-10-05
 
 ### Added
