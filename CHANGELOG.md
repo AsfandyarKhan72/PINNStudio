@@ -4,6 +4,16 @@ All notable changes to PINNStudio are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.5.1] - 2026-10-07
+
+### Fixed
+
+- **The Results panel could show a stale plot left over from a completely different, earlier run** instead of the just-finished run's own loss/solution figure (e.g. a 1D Heat run's surface plot looking like a leftover 3D Heat plot). Root cause: after training finished, `_on_done()` re-derived "where to look" from scratch instead of reusing the run it just finished -- it rebuilt a fresh config (computing a brand-new, never-actually-used timestamped folder name) and read the Setup tab's raw "Save to:" text (the shared *parent* folder, not this run's own unique subfolder), so a plot sitting directly in that parent folder from an unrelated earlier run could win over the real one. Now reuses the exact `PINNConfig` object `SolverThread` actually trained with (and that config's own `save_dir`), the same per-run folder the training subprocess really wrote its files into -- applies to both the solution/surface plot and the loss plot, for whatever output (raw network output or a derivative-aware Custom expression) was configured. This is the same stale-plot bug class the Restore tab already had and fixed (see `_last_restore_save_dir`), just never applied to the plain Solve path.
+
+### Changed
+
+- **Activation function list**: now offers every identifier DeepXDE's own `deepxde.nn.activations` module supports -- tanh, sin, Sigmoid, ReLU, SiLU, Swish, ELU, GELU, SELU -- instead of only tanh/relu/sigmoid/swish, and every label is spelled exactly the way DeepXDE's own documentation capitalizes it (e.g. `ReLU`, `SiLU`, not `relu`/`silu`). `sin` in particular is a well-known good fit for PINN problems with smooth/periodic solutions (SIREN-style sinusoidal activations). A problem saved before this change (with a stored lowercase name like `"relu"`) still reopens showing the matching renamed item (`ReLU`), not a silently different activation.
+
 ## [1.5.0] - 2026-10-07
 
 ### Added

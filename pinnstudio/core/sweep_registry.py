@@ -861,7 +861,17 @@ _STATIC_PARAMS: List[SweepParam] = [
     ),
     SweepParam(
         id="activation", label="Activation", category="Network",
-        value_type="categorical", choices=["tanh", "relu", "sigmoid", "swish"],
+        # Every identifier DeepXDE's own deepxde.nn.activations.get()
+        # dict supports, spelled per its own docstring's capitalization
+        # -- same list as main_window.py's MainWindow._ACTIVATION_CHOICES
+        # (duplicated here rather than imported, same as every other
+        # categorical choices= list in this file being self-contained).
+        # This is just the comma-separated field's placeholder hint text
+        # (see main_window.py's _update_value_widgets) -- the typed value
+        # is never validated against it, so any case still reaches
+        # DeepXDE fine either way.
+        value_type="categorical",
+        choices=["tanh", "sin", "Sigmoid", "ReLU", "SiLU", "Swish", "ELU", "GELU", "SELU"],
         get_value=lambda c: c.activation,
         set_value=lambda c, v: setattr(c, "activation", str(v)),
         is_available=lambda c: True,

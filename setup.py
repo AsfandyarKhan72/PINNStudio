@@ -5,7 +5,7 @@ long_description = (this_dir / "README.md").read_text(encoding="utf-8")
 
 setup(
     name="pinnstudio",
-    version="1.5.0",
+    version="1.5.1",
     author="AsfandyarKhan72",
     description="A No-Code Scientific Computing Environment for Forward and Inverse Physics-Informed Neural Networks, built on DeepXDE",
     long_description=long_description,

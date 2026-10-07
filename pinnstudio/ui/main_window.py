@@ -1231,7 +1231,24 @@ class MainWindow(QMainWindow):
         _nn_row("Neurons per layer:", self.neurons_spin)
 
         self.activation_combo = QComboBox()
-        self.activation_combo.addItems(["tanh", "relu", "sigmoid", "swish"])
+        # Every identifier DeepXDE's own deepxde.nn.activations.get() dict
+        # supports (elu/gelu/relu/selu/sigmoid/silu/sin/swish/tanh -- see
+        # that module's source), spelled exactly the way DeepXDE's own
+        # get() docstring capitalizes them ("ELU, GELU, ReLU, SELU,
+        # Sigmoid, SiLU, sin, Swish, tanh") so the GUI's labels match
+        # DeepXDE's own naming convention instead of an ad hoc lowercase
+        # list. get() itself lowercases whatever string it's handed before
+        # looking it up, so this is a pure labeling/completeness fix --
+        # nothing about how the chosen activation reaches DeepXDE changes.
+        # "swish" and "SiLU" are DeepXDE's own two names for the identical
+        # function (bkd.silu) -- both kept as separate choices since
+        # DeepXDE documents both spellings itself. "sin" is included
+        # un-capitalized, matching DeepXDE's own docstring, and is
+        # specifically relevant for PINNs (SIREN-style sinusoidal
+        # activations are a known good fit for problems with smooth/
+        # periodic solutions). See _ACTIVATION_CHOICES/
+        # _canonical_activation_label() for the shared source of truth.
+        self.activation_combo.addItems(self._ACTIVATION_CHOICES)
         self.activation_combo.setFixedHeight(28)
         self._fit_combo_width(self.activation_combo, min_width=100)
         _nn_row("Activation:", self.activation_combo)
@@ -5383,6 +5400,35 @@ class MainWindow(QMainWindow):
         text = re.sub(r"[^A-Za-z0-9_\-]", "", text)
         return text
 
+    # Every activation identifier deepxde.nn.activations.get() supports,
+    # spelled exactly as DeepXDE's own get() docstring capitalizes them --
+    # the single source of truth for both the Activation combo's item list
+    # (see its own addItems() call) and _canonical_activation_label()
+    # below, which maps an arbitrary-case string (e.g. a pre-existing
+    # saved .json problem's "relu", written back when the combo only ever
+    # offered lowercase names) back onto its canonical display form.
+    _ACTIVATION_CHOICES = ["tanh", "sin", "Sigmoid", "ReLU", "SiLU", "Swish", "ELU", "GELU", "SELU"]
+
+    @staticmethod
+    def _canonical_activation_label(value):
+        """DeepXDE's own activations.get() lowercases whatever string it's
+        handed, so any case reaches DeepXDE identically -- but the combo
+        box matches its current item by exact text (QComboBox.setCurrentText
+        does a case-sensitive lookup), so a saved problem written before
+        the combo's items were renamed to DeepXDE's own capitalization
+        (e.g. a stored "relu"/"sigmoid"/"swish") would otherwise silently
+        fail to select anything, leaving whatever activation happened to
+        already be selected -- changing the restored problem's actual
+        trained-with activation out from under the user. Falls back to the
+        value unchanged if it isn't one of DeepXDE's known identifiers, so
+        a combo that's somehow missing an item still shows the raw text
+        rather than silently losing it."""
+        value = str(value or "").strip()
+        for choice in MainWindow._ACTIVATION_CHOICES:
+            if choice.lower() == value.lower():
+                return choice
+        return value
+
     def _run_folder_label(self, is_2d, is_3d, is_steady):
         """The non-timestamp half of a run's folder name: the active
         Quick Example's own name when one is selected (read live from
@@ -6171,7 +6217,7 @@ class MainWindow(QMainWindow):
         neurons = config.layers[1] if len(config.layers) > 2 else self.neurons_spin.value()
         self.layers_spin.setValue(n_hidden)
         self.neurons_spin.setValue(neurons)
-        self.activation_combo.setCurrentText(config.activation)
+        self.activation_combo.setCurrentText(self._canonical_activation_label(config.activation))
         self.kernel_init_combo.setCurrentText(config.kernel_initializer)
         self.network_type_combo.setCurrentText(getattr(config, 'network_type', 'FNN') or 'FNN')
 
@@ -7313,8 +7359,24 @@ class MainWindow(QMainWindow):
 
         if result == "DONE":
             self.log_box.append("\n✅ Training complete!")
-            self._last_config = self._build_config()
-            save_dir = self.save_dir_input.text().strip()
+            # Reuse the EXACT config object SolverThread actually trained
+            # with (self.thread.config), not a fresh self._build_config()
+            # call -- _run_results_dir()/_timestamped_save_dir() stamp a
+            # brand-new "<label>__<timestamp>" folder name every time
+            # they're called, so rebuilding the config here would compute
+            # a *different* timestamp than the one the subprocess actually
+            # wrote its results into, pointing save_dir at a folder that
+            # was never created. Likewise, self.save_dir_input.text() is
+            # just the Setup tab's parent "Save to:" location (e.g.
+            # PINNStudio_Results/), not this run's own unique subfolder --
+            # reading from it (plus solution_results/'s "older runs"
+            # fallback straight into that parent folder) is how a stale
+            # plot left over from a previous, different run could get
+            # displayed here instead of this run's own figure. The sweep
+            # path (_on_sweep_finished, below) already gets this right by
+            # tracking each run's own save_dir the same way.
+            self._last_config = self.thread.config
+            save_dir = self._last_config.save_dir
             self._display_run_result_plots(self._last_config, save_dir)
 
             if save_dir:

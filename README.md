@@ -191,7 +191,9 @@ Domain, boundary, initial, and test point counts are all independently configura
 <details>
 <summary><strong>Configurable network architecture</strong></summary>
 
-Hidden layer count, neurons per layer, activation function (tanh, ReLU, sigmoid, swish), and kernel initializer (Glorot uniform, Glorot normal, He uniform, He normal, zeros) are all exposed directly — no need to edit a script to try a wider or deeper network, a different nonlinearity, or a different weight initialization.
+Hidden layer count, neurons per layer, activation function, and kernel initializer (Glorot uniform, Glorot normal, He uniform, He normal, zeros) are all exposed directly — no need to edit a script to try a wider or deeper network, a different nonlinearity, or a different weight initialization.
+
+**Activation** offers every identifier DeepXDE's own `deepxde.nn.activations` module supports — tanh, sin, Sigmoid, ReLU, SiLU, Swish, ELU, GELU, SELU — spelled exactly the way DeepXDE's own documentation capitalizes them. (`sin` is worth trying for problems with smooth or periodic solutions — SIREN-style sinusoidal activations are a well-known good fit for PINNs; `Swish` and `SiLU` are DeepXDE's own two names for the identical function, both offered since DeepXDE documents both spellings.)
 
 **Network Type** (FNN / PFNN) is its own independent dropdown: the default **FNN** is a single shared trunk; **PFNN** (DeepXDE's own `dde.nn.PFNN`, a real built-in — not a custom extension) gives each output its own parallel sub-network, merging only at the final layer. Useful for multi-output problems where the outputs have different scales/behavior and a single shared trunk ends up fighting itself trying to serve both — 1D Schrödinger's real/imaginary parts, for example. A training script and the script that later restores its checkpoint always agree on how the network was shaped, since both read it from the same saved `model_config.json`.
 
