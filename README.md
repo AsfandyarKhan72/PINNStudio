@@ -340,6 +340,8 @@ Every configured problem can be exported as a clean, dependency-minimal DeepXDE/
 
 Point the Restore panel at a saved model checkpoint and its <code>model_config.json</code>, and PINNStudio reloads the trained network and regenerates whichever visualization you ask for — a static Surface or Line plot, an animated GIF of either, or (for a saved Inverse run) the parameter convergence history — without retraining anything. An animated result plays directly in the panel, the same as it would right after a fresh Solve, and Error Analysis re-runs against the same reference data if it was configured for that run originally.
 
+The Restore panel's own **Custom...** field is derivative-aware too: a restored model can be plotted or animated as a derivative expression of its outputs (`du_x`, `du_xx`, `sqrt(du_x**2+du_y**2)`, ...), not just the raw solution it was saved with — so a quantity you didn't think to plot during the original training run is still available afterward, straight from the checkpoint, no retraining needed.
+
 </details>
 
 ## Repository Structure
