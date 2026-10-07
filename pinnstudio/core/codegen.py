@@ -2656,43 +2656,223 @@ for _pval in _param_values:
         def _rar_save_round_diagnostics(_rar_idx, _rar_new_pts):
             _rd = _os.path.join(_rar_rounds_dir, f"round_{{_rar_idx:02d}}")
             _os.makedirs(_rd, exist_ok=True)
+            _res = {config.plot_resolution}
 
-            # -- solution snapshot --
-            try:
-                _res = {config.plot_resolution}
-                if _is_3d:
-                    _xp = np.linspace({config.x_min}, {config.x_max}, _res)
-                    _yp = np.linspace({config.y_min}, {config.y_max}, _res)
-                    _Xg, _Yg = np.meshgrid(_xp, _yp)
-                    _z_mid_r = ({config.z_min} + {config.z_max}) / 2.0
-                    _grid_r = np.column_stack([_Xg.ravel(), _Yg.ravel(), np.full(_Xg.size, _z_mid_r), np.full(_Xg.size, {config.t_max})])
-                    _field_r = _extract_plot_field(_grid_r).reshape(_res, _res)
-                    _fig_r, _ax_r = plt.subplots(figsize=_plot_figsize(6.5, 5.5))
-                    _im_r = _ax_r.contourf(_Xg, _Yg, _field_r, levels={config.plot_levels}, cmap="{config.plot_colormap}")
-                    _ax_r.set_xlabel("x"); _ax_r.set_ylabel("y"); _ax_r.set_aspect("equal", adjustable="box")
-                    _fig_r.colorbar(_im_r, ax=_ax_r)
-                    _fig_r.suptitle(f"RAR round {{_rar_idx}} solution snapshot (z={{_z_mid_r:.3g}}, t={config.t_max:.3g})")
-                elif _is_2d:
-                    _xp = np.linspace({config.x_min}, {config.x_max}, _res)
-                    _yp = np.linspace({config.y_min}, {config.y_max}, _res)
-                    _Xg, _Yg = np.meshgrid(_xp, _yp)
-                    _grid_r = np.column_stack([_Xg.ravel(), _Yg.ravel(), np.full(_Xg.size, {config.t_max})])
-                    _field_r = _extract_plot_field(_grid_r).reshape(_res, _res)
-                    _fig_r, _ax_r = plt.subplots(figsize=_plot_figsize(6.5, 5.5))
-                    _im_r = _ax_r.contourf(_Xg, _Yg, _field_r, levels={config.plot_levels}, cmap="{config.plot_colormap}")
-                    _ax_r.set_xlabel("x"); _ax_r.set_ylabel("y"); _ax_r.set_aspect("equal", adjustable="box")
-                    _fig_r.colorbar(_im_r, ax=_ax_r)
-                    _fig_r.suptitle(f"RAR round {{_rar_idx}} solution snapshot (t={config.t_max:.3g})")
-                else:
+            if not _is_2d and not _is_3d:
+                # -- 1D: own two-file structure (solution snapshot +
+                # line-comparison against one reference, if configured).
+                # Axis orientation matches the main Plot Settings "Swap
+                # axes" choice -- the same convention the Surface plot type
+                # and every Error Analysis comparison plot already use
+                # (t on the x-axis, x on the y-axis, by default).
+                try:
                     _xr = np.linspace({config.x_min}, {config.x_max}, _res)
                     _tr = np.linspace({config.t_min}, {config.t_max}, _res)
                     _Xr, _Tr = np.meshgrid(_xr, _tr)
                     _field_r = _extract_plot_field(np.column_stack([_Xr.ravel(), _Tr.ravel()])).reshape(_res, _res)
                     _fig_r, _ax_r = plt.subplots(figsize=_plot_figsize(6.5, 5))
-                    _im_r = _ax_r.contourf(_Xr, _Tr, _field_r, levels={config.plot_levels}, cmap="{config.plot_colormap}")
-                    _ax_r.set_xlabel("x"); _ax_r.set_ylabel("t")
+                    if {config.plot_swap_xt}:
+                        _im_r = _ax_r.contourf(_Tr, _Xr, _field_r, levels={config.plot_levels}, cmap="{config.plot_colormap}")
+                        _ax_r.set_xlabel("t"); _ax_r.set_ylabel("x")
+                    else:
+                        _im_r = _ax_r.contourf(_Xr, _Tr, _field_r, levels={config.plot_levels}, cmap="{config.plot_colormap}")
+                        _ax_r.set_xlabel("x"); _ax_r.set_ylabel("t")
                     _fig_r.colorbar(_im_r, ax=_ax_r)
                     _fig_r.suptitle(f"RAR round {{_rar_idx}} solution snapshot")
+                    plt.tight_layout()
+                    plt.savefig(_os.path.join(_rd, "solution_plot.png"), dpi={config.plot_dpi}, bbox_inches="tight")
+                    plt.close(_fig_r)
+                    print(f"  [RAR round {{_rar_idx}}] solution snapshot saved: {{_os.path.join(_rd, 'solution_plot.png')}}")
+                except Exception as _rar_err1:
+                    print(f"  [RAR round {{_rar_idx}}] solution snapshot failed: {{_rar_err1}}")
+
+                try:
+                    _fig_c, _ax_c = plt.subplots(figsize=_plot_figsize(6.5, 5))
+                    if {config.plot_swap_xt}:
+                        if len(_rar_orig_pts):
+                            _ax_c.scatter(_rar_orig_pts[:, 1], _rar_orig_pts[:, 0], s=6, c="#adb5bd", alpha=0.6, label="Original points")
+                        if len(_rar_added_so_far):
+                            _ax_c.scatter(_rar_added_so_far[:, 1], _rar_added_so_far[:, 0], s=10, c="#fd7e14", label="Added in earlier rounds")
+                        _ax_c.scatter(_rar_new_pts[:, 1], _rar_new_pts[:, 0], s=14, c="#e03131", label=f"Added this round ({{len(_rar_new_pts)}})")
+                        _ax_c.set_xlabel("t"); _ax_c.set_ylabel("x")
+                    else:
+                        if len(_rar_orig_pts):
+                            _ax_c.scatter(_rar_orig_pts[:, 0], _rar_orig_pts[:, 1], s=6, c="#adb5bd", alpha=0.6, label="Original points")
+                        if len(_rar_added_so_far):
+                            _ax_c.scatter(_rar_added_so_far[:, 0], _rar_added_so_far[:, 1], s=10, c="#fd7e14", label="Added in earlier rounds")
+                        _ax_c.scatter(_rar_new_pts[:, 0], _rar_new_pts[:, 1], s=14, c="#e03131", label=f"Added this round ({{len(_rar_new_pts)}})")
+                        _ax_c.set_xlabel("x"); _ax_c.set_ylabel("t")
+                    _ax_c.legend(loc="best", fontsize=8)
+                    _ax_c.set_title(f"RAR round {{_rar_idx}} -- collocation points")
+                    plt.tight_layout()
+                    plt.savefig(_os.path.join(_rd, "collocation_points.png"), dpi={config.plot_dpi}, bbox_inches="tight")
+                    plt.close(_fig_c)
+                    print(f"  [RAR round {{_rar_idx}}] collocation-points plot saved: {{_os.path.join(_rd, 'collocation_points.png')}}")
+                except Exception as _rar_err2:
+                    print(f"  [RAR round {{_rar_idx}}] collocation-points plot failed: {{_rar_err2}}")
+
+                if _rar_ea_entries:
+                    try:
+                        _best_r = min(_rar_ea_entries, key=lambda _e: abs(_e[0] - {config.t_max}))
+                        _ref_t_r, _ref_fp_r = _best_r[0], _best_r[1]
+                        _ref_sel_r = _best_r[2] if len(_best_r) >= 3 else None
+                        _ref_d_r = np.loadtxt(_ref_fp_r)
+                        if _ref_d_r.ndim == 1:
+                            _ref_d_r = _ref_d_r.reshape(1, -1)
+                        _ref_xyz_r = _ref_d_r[:, :1]; _ref_u_r = _ref_d_r[:, 2]
+                        _ref_grid_r = np.column_stack([_ref_xyz_r, np.full(len(_ref_d_r), _ref_t_r)])
+                        if _ref_sel_r is None:
+                            _ref_pred_r = _extract_plot_field(_ref_grid_r)
+                        elif isinstance(_ref_sel_r, int):
+                            _ref_pred_r = model.predict(_ref_grid_r)[:, _ref_sel_r]
+                        else:
+                            _ref_expr_r = _ref_sel_r[0]
+                            def _rar_ea_op(_rea_i, _rea_o):
+                                _rea_dv = _tm_build_dvars(_rea_i, _rea_o, _plot_n_out, _plot_output_names_list,
+                                                           _is_steady, _plot_dim, _ref_expr_r)
+                                _rea_ns = dict(_rea_dv); _rea_ns.update(_PLOT_TORCH_MATH_NS); _rea_ns["torch"] = torch
+                                return eval(_ref_expr_r, _rea_ns)
+                            _ref_pred_r = model.predict(_ref_grid_r, operator=_rar_ea_op)[:, 0]
+                        _err_r = _ref_pred_r - _ref_u_r
+                        _l2_r = float(np.linalg.norm(_err_r) / (np.linalg.norm(_ref_u_r) + 1e-12))
+                        _mse_r = float(np.mean(_err_r ** 2))
+                        print(f"  [RAR round {{_rar_idx}}] vs reference t={{_ref_t_r:.3g}}: L2 rel error = {{_l2_r:.4e}}, MSE = {{_mse_r:.4e}}")
+                        _fig_e, _ax_e = plt.subplots(figsize=_plot_figsize(6.5, 5))
+                        _ord_e = np.argsort(_ref_xyz_r[:, 0])
+                        _ax_e.plot(_ref_xyz_r[_ord_e, 0], _ref_u_r[_ord_e], label="Reference", color="#2f9e44")
+                        _ax_e.plot(_ref_xyz_r[_ord_e, 0], _ref_pred_r[_ord_e], label="PINN", color="#1971c2", linestyle="--")
+                        _ax_e.legend(loc="best", fontsize=8)
+                        _ax_e.set_xlabel("x"); _ax_e.set_ylabel("u")
+                        _ax_e.set_title(f"RAR round {{_rar_idx}} vs reference t={{_ref_t_r:.3g}} (L2={{_l2_r:.3e}})")
+                        plt.tight_layout()
+                        plt.savefig(_os.path.join(_rd, "error_compare.png"), dpi={config.plot_dpi}, bbox_inches="tight")
+                        plt.close(_fig_e)
+                    except Exception as _rar_err3:
+                        print(f"  [RAR round {{_rar_idx}}] error compare failed: {{_rar_err3}}")
+                return
+
+            # -- 2D/3D: solution snapshot merged with the error comparison --
+            # One single file: PINN | Reference | |Error| (same colormap
+            # convention the full Inline Error Analysis already uses --
+            # PINN and Reference share one color scale, |Error| gets its
+            # own, "inferno") whenever a reference file is configured;
+            # just the PINN prediction alone, same as before, when it isn't.
+            try:
+                _ref_ok_r = False
+                _ref_t_r = {config.t_max}
+                if _rar_ea_entries:
+                    try:
+                        _best_r = min(_rar_ea_entries, key=lambda _e: abs(_e[0] - {config.t_max}))
+                        _ref_t_r, _ref_fp_r = _best_r[0], _best_r[1]
+                        _ref_sel_r = _best_r[2] if len(_best_r) >= 3 else None
+                        _ref_d_r = np.loadtxt(_ref_fp_r)
+                        if _ref_d_r.ndim == 1:
+                            _ref_d_r = _ref_d_r.reshape(1, -1)
+                        if _is_3d:
+                            _ref_xyz_r = _ref_d_r[:, :3]; _ref_u_r = _ref_d_r[:, 4]
+                        else:
+                            _ref_xyz_r = _ref_d_r[:, :2]; _ref_u_r = _ref_d_r[:, 3]
+                        _ref_grid_r = np.column_stack([_ref_xyz_r, np.full(len(_ref_d_r), _ref_t_r)])
+                        if _ref_sel_r is None:
+                            _ref_pred_pts_r = _extract_plot_field(_ref_grid_r)
+                        elif isinstance(_ref_sel_r, int):
+                            _ref_pred_pts_r = model.predict(_ref_grid_r)[:, _ref_sel_r]
+                        else:
+                            _ref_expr_r = _ref_sel_r[0]
+                            def _rar_ea_op2(_rea_i, _rea_o):
+                                _rea_dv = _tm_build_dvars(_rea_i, _rea_o, _plot_n_out, _plot_output_names_list,
+                                                           _is_steady, _plot_dim, _ref_expr_r)
+                                _rea_ns = dict(_rea_dv); _rea_ns.update(_PLOT_TORCH_MATH_NS); _rea_ns["torch"] = torch
+                                return eval(_ref_expr_r, _rea_ns)
+                            _ref_pred_pts_r = model.predict(_ref_grid_r, operator=_rar_ea_op2)[:, 0]
+                        _err_pts_r = _ref_pred_pts_r - _ref_u_r
+                        _l2_r = float(np.linalg.norm(_err_pts_r) / (np.linalg.norm(_ref_u_r) + 1e-12))
+                        _mse_r = float(np.mean(_err_pts_r ** 2))
+                        print(f"  [RAR round {{_rar_idx}}] vs reference t={{_ref_t_r:.3g}}: L2 rel error = {{_l2_r:.4e}}, MSE = {{_mse_r:.4e}}")
+                        _ref_ok_r = True
+                    except Exception as _rar_ref_err:
+                        print(f"  [RAR round {{_rar_idx}}] reference compare failed, showing prediction only: {{_rar_ref_err}}")
+                        _ref_ok_r = False
+
+                if _is_3d:
+                    if _ref_ok_r:
+                        _fig_r = plt.figure(figsize=_plot_figsize(15, 5))
+                        _abs_err_r = np.abs(_err_pts_r)
+                        _vmin3_r = min(_ref_pred_pts_r.min(), _ref_u_r.min())
+                        _vmax3_r = max(_ref_pred_pts_r.max(), _ref_u_r.max())
+                        _cols3_r = [
+                            (_ref_pred_pts_r, f"PINN  t={{_ref_t_r:.3g}}  L2={{_l2_r:.2e}}", _vmin3_r, _vmax3_r, "{config.plot_colormap}"),
+                            (_ref_u_r, f"Reference  t={{_ref_t_r:.3g}}", _vmin3_r, _vmax3_r, "{config.plot_colormap}"),
+                            (_abs_err_r, f"|Error|  Max={{_abs_err_r.max():.2e}}", None, None, "inferno"),
+                        ]
+                        for _ci_r, (_vals3_r, _ttl3_r, _vmin_c3_r, _vmax_c3_r, _cmap_c3_r) in enumerate(_cols3_r):
+                            _ax3_r = _fig_r.add_subplot(1, 3, _ci_r + 1, projection="3d")
+                            _sc3_r = _ax3_r.scatter(_ref_xyz_r[:, 0], _ref_xyz_r[:, 1], _ref_xyz_r[:, 2], c=_vals3_r,
+                                                     cmap=_cmap_c3_r, s=10, vmin=_vmin_c3_r, vmax=_vmax_c3_r)
+                            _fig_r.colorbar(_sc3_r, ax=_ax3_r, shrink=0.6, pad=0.12)
+                            _ax3_r.set_title(_ttl3_r, fontsize=10)
+                            _ax3_r.set_xlabel("x"); _ax3_r.set_ylabel("y"); _ax3_r.set_zlabel("z")
+                        _fig_r.suptitle(f"RAR round {{_rar_idx}} -- solution vs reference", fontsize=12, fontweight="bold")
+                    else:
+                        _xp = np.linspace({config.x_min}, {config.x_max}, _res)
+                        _yp = np.linspace({config.y_min}, {config.y_max}, _res)
+                        _Xg, _Yg = np.meshgrid(_xp, _yp)
+                        _z_mid_r = ({config.z_min} + {config.z_max}) / 2.0
+                        _grid_r = np.column_stack([_Xg.ravel(), _Yg.ravel(), np.full(_Xg.size, _z_mid_r), np.full(_Xg.size, {config.t_max})])
+                        _field_r = _extract_plot_field(_grid_r).reshape(_res, _res)
+                        _fig_r, _ax_r = plt.subplots(figsize=_plot_figsize(6.5, 5.5))
+                        _im_r = _ax_r.contourf(_Xg, _Yg, _field_r, levels={config.plot_levels}, cmap="{config.plot_colormap}")
+                        _ax_r.set_xlabel("x"); _ax_r.set_ylabel("y"); _ax_r.set_aspect("equal", adjustable="box")
+                        _fig_r.colorbar(_im_r, ax=_ax_r)
+                        _fig_r.suptitle(f"RAR round {{_rar_idx}} solution snapshot (z={{_z_mid_r:.3g}}, t={config.t_max:.3g})")
+                else:
+                    _xp = np.linspace({config.x_min}, {config.x_max}, _res)
+                    _yp = np.linspace({config.y_min}, {config.y_max}, _res)
+                    _Xg, _Yg = np.meshgrid(_xp, _yp)
+                    _inside_r = geom.inside(np.column_stack([_Xg.ravel(), _Yg.ravel()])).reshape(_res, _res)
+                    if _ref_ok_r:
+                        from scipy.interpolate import griddata as _gd_r
+                        _grid_pinn_r = np.column_stack([_Xg.ravel(), _Yg.ravel(), np.full(_Xg.size, _ref_t_r)])
+                        _u_pinn_g_r = _extract_plot_field(_grid_pinn_r).reshape(_res, _res)
+                        _u_pinn_g_r = np.where(_inside_r, _u_pinn_g_r, np.nan)
+                        _u_ref_g_r = _gd_r(_ref_xyz_r, _ref_u_r, (_Xg, _Yg), method="linear", fill_value=0.0)
+                        _u_ref_g_r = np.where(_inside_r, _u_ref_g_r, np.nan)
+                        _u_err_g_r = np.abs(_u_pinn_g_r - _u_ref_g_r)
+                        _vmin2_r = np.nanmin([_u_pinn_g_r, _u_ref_g_r]); _vmax2_r = np.nanmax([_u_pinn_g_r, _u_ref_g_r])
+                        if _vmax2_r - _vmin2_r < 1e-12:
+                            _vmax2_r = _vmin2_r + 1e-12
+                        # contourf's own vmin/vmax kwargs do NOT restrict
+                        # an integer `levels=N` -- it still auto-ranges
+                        # each panel to that panel's own data, so PINN and
+                        # Reference would silently get two different color
+                        # scales despite passing the same vmin/vmax here.
+                        # Passing the level BOUNDARIES explicitly (instead
+                        # of a level count) is what actually makes both
+                        # panels share one scale.
+                        _levels2_r = np.linspace(_vmin2_r, _vmax2_r, 41)
+                        _fig_r, _axes2_r = plt.subplots(1, 3, figsize=_plot_figsize(15, 5))
+                        _im0_r = _axes2_r[0].contourf(_Xg, _Yg, _u_pinn_g_r, levels=_levels2_r, cmap="{config.plot_colormap}")
+                        _axes2_r[0].set_title(f"PINN  t={{_ref_t_r:.3g}}  L2={{_l2_r:.2e}}", fontsize=10)
+                        _axes2_r[0].set_xlabel("x"); _axes2_r[0].set_ylabel("y"); _axes2_r[0].set_aspect("equal", adjustable="box")
+                        _fig_r.colorbar(_im0_r, ax=_axes2_r[0])
+                        _im1_r = _axes2_r[1].contourf(_Xg, _Yg, _u_ref_g_r, levels=_levels2_r, cmap="{config.plot_colormap}")
+                        _axes2_r[1].set_title(f"Reference  t={{_ref_t_r:.3g}}", fontsize=10)
+                        _axes2_r[1].set_xlabel("x"); _axes2_r[1].set_ylabel("y"); _axes2_r[1].set_aspect("equal", adjustable="box")
+                        _fig_r.colorbar(_im1_r, ax=_axes2_r[1])
+                        _im2_r = _axes2_r[2].contourf(_Xg, _Yg, _u_err_g_r, levels={config.plot_levels}, cmap="inferno")
+                        _axes2_r[2].set_title(f"|Error|  Max={{np.nanmax(_u_err_g_r):.2e}}", fontsize=10)
+                        _axes2_r[2].set_xlabel("x"); _axes2_r[2].set_ylabel("y"); _axes2_r[2].set_aspect("equal", adjustable="box")
+                        _fig_r.colorbar(_im2_r, ax=_axes2_r[2])
+                        _fig_r.suptitle(f"RAR round {{_rar_idx}} -- solution vs reference", fontsize=12, fontweight="bold")
+                    else:
+                        _grid_r = np.column_stack([_Xg.ravel(), _Yg.ravel(), np.full(_Xg.size, {config.t_max})])
+                        _field_r = _extract_plot_field(_grid_r).reshape(_res, _res)
+                        _field_r = np.where(_inside_r, _field_r, np.nan)
+                        _fig_r, _ax_r = plt.subplots(figsize=_plot_figsize(6.5, 5.5))
+                        _im_r = _ax_r.contourf(_Xg, _Yg, _field_r, levels={config.plot_levels}, cmap="{config.plot_colormap}")
+                        _ax_r.set_xlabel("x"); _ax_r.set_ylabel("y"); _ax_r.set_aspect("equal", adjustable="box")
+                        _fig_r.colorbar(_im_r, ax=_ax_r)
+                        _fig_r.suptitle(f"RAR round {{_rar_idx}} solution snapshot (t={config.t_max:.3g})")
                 plt.tight_layout()
                 plt.savefig(_os.path.join(_rd, "solution_plot.png"), dpi={config.plot_dpi}, bbox_inches="tight")
                 plt.close(_fig_r)
@@ -2700,101 +2880,62 @@ for _pval in _param_values:
             except Exception as _rar_err1:
                 print(f"  [RAR round {{_rar_idx}}] solution snapshot failed: {{_rar_err1}}")
 
-            # -- collocation points: original vs. earlier rounds vs. this round --
+            # -- 2D/3D: collocation points (original vs. earlier rounds vs. this round) --
             try:
-                if _is_2d or _is_3d:
-                    from mpl_toolkits.mplot3d import Axes3D as _Axes3D_unused  # noqa: F401 -- registers the 3D projection
+                from mpl_toolkits.mplot3d import Axes3D as _Axes3D_unused  # noqa: F401 -- registers the 3D projection
+                if _is_3d:
                     _fig_c = plt.figure(figsize=_plot_figsize(7, 6))
                     _ax_c = _fig_c.add_subplot(111, projection="3d")
-                    if _is_3d:
-                        # 4 real coordinate dims (x,y,z,t) can't all be axes
-                        # on one static 3D plot -- spatial (x,y,z) get the
-                        # 3 plot axes, and t is folded into per-category
-                        # alpha instead (lighter = earlier in the time
-                        # domain) rather than dropped entirely.
-                        _t_lo_r, _t_hi_r = {config.t_min}, {config.t_max}
-                        _span_t_r = (_t_hi_r - _t_lo_r) or 1.0
-                        def _rar_alpha(_pts):
-                            return float(np.clip(0.25 + 0.65 * (np.mean(_pts[:, 3]) - _t_lo_r) / _span_t_r, 0.15, 0.95)) if len(_pts) else 1.0
-                        _zlab = "z"
-                        _orig_z = _rar_orig_pts[:, 2]; _added_z = _rar_added_so_far[:, 2] if len(_rar_added_so_far) else None; _new_z = _rar_new_pts[:, 2]
-                        _orig_alpha, _added_alpha = _rar_alpha(_rar_orig_pts), _rar_alpha(_rar_added_so_far)
-                    else:
-                        _zlab = "t"
-                        _orig_z = _rar_orig_pts[:, 2]; _added_z = _rar_added_so_far[:, 2] if len(_rar_added_so_far) else None; _new_z = _rar_new_pts[:, 2]
-                        _orig_alpha, _added_alpha = 0.5, 0.85
+                    # 4 real coordinate dims (x,y,z,t) can't all be axes on
+                    # one static 3D plot -- spatial (x,y,z) get the 3 plot
+                    # axes, and t is folded into per-category alpha instead
+                    # (lighter = earlier in the time domain) rather than
+                    # dropped entirely.
+                    _t_lo_r, _t_hi_r = {config.t_min}, {config.t_max}
+                    _span_t_r = (_t_hi_r - _t_lo_r) or 1.0
+                    def _rar_alpha(_pts):
+                        return float(np.clip(0.25 + 0.65 * (np.mean(_pts[:, 3]) - _t_lo_r) / _span_t_r, 0.15, 0.95)) if len(_pts) else 1.0
+                    _orig_alpha, _added_alpha = _rar_alpha(_rar_orig_pts), _rar_alpha(_rar_added_so_far)
                     if len(_rar_orig_pts):
-                        _ax_c.scatter(_rar_orig_pts[:, 0], _rar_orig_pts[:, 1], _orig_z, s=5, c="#adb5bd", alpha=_orig_alpha, label="Original points")
+                        _ax_c.scatter(_rar_orig_pts[:, 0], _rar_orig_pts[:, 1], _rar_orig_pts[:, 2], s=5, c="#adb5bd", alpha=_orig_alpha, label="Original points")
                     if len(_rar_added_so_far):
-                        _ax_c.scatter(_rar_added_so_far[:, 0], _rar_added_so_far[:, 1], _added_z, s=9, c="#fd7e14", alpha=_added_alpha, label="Added in earlier rounds")
-                    _ax_c.scatter(_rar_new_pts[:, 0], _rar_new_pts[:, 1], _new_z, s=12, c="#e03131", label=f"Added this round ({{len(_rar_new_pts)}})")
-                    _ax_c.set_xlabel("x"); _ax_c.set_ylabel("y"); _ax_c.set_zlabel(_zlab)
+                        _ax_c.scatter(_rar_added_so_far[:, 0], _rar_added_so_far[:, 1], _rar_added_so_far[:, 2], s=9, c="#fd7e14", alpha=_added_alpha, label="Added in earlier rounds")
+                    _ax_c.scatter(_rar_new_pts[:, 0], _rar_new_pts[:, 1], _rar_new_pts[:, 2], s=12, c="#e03131", label=f"Added this round ({{len(_rar_new_pts)}})")
+                    _ax_c.set_xlabel("x"); _ax_c.set_ylabel("y"); _ax_c.set_zlabel("z")
+                    _ax_c.legend(loc="best", fontsize=8)
+                    _ax_c.set_title(f"RAR round {{_rar_idx}} -- collocation points")
+                    plt.tight_layout()
                 else:
-                    _fig_c, _ax_c = plt.subplots(figsize=_plot_figsize(6.5, 5))
+                    # 2D: the existing 3D (x, y, t) view, plus a plain 2D
+                    # (x, y) view collapsing time -- side by side -- so the
+                    # spatial concentration of refinement is readable at a
+                    # glance without having to rotate a 3D plot.
+                    _fig_c = plt.figure(figsize=_plot_figsize(13, 6))
+                    _ax_c = _fig_c.add_subplot(1, 2, 1, projection="3d")
                     if len(_rar_orig_pts):
-                        _ax_c.scatter(_rar_orig_pts[:, 0], _rar_orig_pts[:, 1], s=6, c="#adb5bd", alpha=0.6, label="Original points")
+                        _ax_c.scatter(_rar_orig_pts[:, 0], _rar_orig_pts[:, 1], _rar_orig_pts[:, 2], s=5, c="#adb5bd", alpha=0.5, label="Original points")
                     if len(_rar_added_so_far):
-                        _ax_c.scatter(_rar_added_so_far[:, 0], _rar_added_so_far[:, 1], s=10, c="#fd7e14", label="Added in earlier rounds")
-                    _ax_c.scatter(_rar_new_pts[:, 0], _rar_new_pts[:, 1], s=14, c="#e03131", label=f"Added this round ({{len(_rar_new_pts)}})")
-                    _ax_c.set_xlabel("x"); _ax_c.set_ylabel("t")
-                _ax_c.legend(loc="best", fontsize=8)
-                _ax_c.set_title(f"RAR round {{_rar_idx}} -- collocation points")
-                plt.tight_layout()
+                        _ax_c.scatter(_rar_added_so_far[:, 0], _rar_added_so_far[:, 1], _rar_added_so_far[:, 2], s=9, c="#fd7e14", alpha=0.85, label="Added in earlier rounds")
+                    _ax_c.scatter(_rar_new_pts[:, 0], _rar_new_pts[:, 1], _rar_new_pts[:, 2], s=12, c="#e03131", label=f"Added this round ({{len(_rar_new_pts)}})")
+                    _ax_c.set_xlabel("x"); _ax_c.set_ylabel("y"); _ax_c.set_zlabel("t")
+                    _ax_c.legend(loc="best", fontsize=8)
+                    _ax_c.set_title("3D view (x, y, t)")
+                    _ax_c2 = _fig_c.add_subplot(1, 2, 2)
+                    if len(_rar_orig_pts):
+                        _ax_c2.scatter(_rar_orig_pts[:, 0], _rar_orig_pts[:, 1], s=6, c="#adb5bd", alpha=0.5, label="Original points")
+                    if len(_rar_added_so_far):
+                        _ax_c2.scatter(_rar_added_so_far[:, 0], _rar_added_so_far[:, 1], s=10, c="#fd7e14", alpha=0.85, label="Added in earlier rounds")
+                    _ax_c2.scatter(_rar_new_pts[:, 0], _rar_new_pts[:, 1], s=14, c="#e03131", label=f"Added this round ({{len(_rar_new_pts)}})")
+                    _ax_c2.set_xlabel("x"); _ax_c2.set_ylabel("y"); _ax_c2.set_aspect("equal", adjustable="box")
+                    _ax_c2.legend(loc="best", fontsize=8)
+                    _ax_c2.set_title("Spatial view (x, y) -- all times")
+                    _fig_c.suptitle(f"RAR round {{_rar_idx}} -- collocation points", fontsize=12, fontweight="bold")
+                    plt.tight_layout()
                 plt.savefig(_os.path.join(_rd, "collocation_points.png"), dpi={config.plot_dpi}, bbox_inches="tight")
                 plt.close(_fig_c)
                 print(f"  [RAR round {{_rar_idx}}] collocation-points plot saved: {{_os.path.join(_rd, 'collocation_points.png')}}")
             except Exception as _rar_err2:
                 print(f"  [RAR round {{_rar_idx}}] collocation-points plot failed: {{_rar_err2}}")
-
-            # -- lightweight error compare vs. ONE reference file, if configured --
-            if _rar_ea_entries:
-                try:
-                    _best_r = min(_rar_ea_entries, key=lambda _e: abs(_e[0] - {config.t_max}))
-                    _ref_t_r, _ref_fp_r = _best_r[0], _best_r[1]
-                    _ref_sel_r = _best_r[2] if len(_best_r) >= 3 else None
-                    _ref_d_r = np.loadtxt(_ref_fp_r)
-                    if _ref_d_r.ndim == 1:
-                        _ref_d_r = _ref_d_r.reshape(1, -1)
-                    if _is_3d:
-                        _ref_xyz_r = _ref_d_r[:, :3]; _ref_u_r = _ref_d_r[:, 4]
-                    elif _is_2d:
-                        _ref_xyz_r = _ref_d_r[:, :2]; _ref_u_r = _ref_d_r[:, 3]
-                    else:
-                        _ref_xyz_r = _ref_d_r[:, :1]; _ref_u_r = _ref_d_r[:, 2]
-                    _ref_grid_r = np.column_stack([_ref_xyz_r, np.full(len(_ref_d_r), _ref_t_r)])
-                    if _ref_sel_r is None:
-                        _ref_pred_r = _extract_plot_field(_ref_grid_r)
-                    elif isinstance(_ref_sel_r, int):
-                        _ref_pred_r = model.predict(_ref_grid_r)[:, _ref_sel_r]
-                    else:
-                        _ref_expr_r = _ref_sel_r[0]
-                        def _rar_ea_op(_rea_i, _rea_o):
-                            _rea_dv = _tm_build_dvars(_rea_i, _rea_o, _plot_n_out, _plot_output_names_list,
-                                                       _is_steady, _plot_dim, _ref_expr_r)
-                            _rea_ns = dict(_rea_dv); _rea_ns.update(_PLOT_TORCH_MATH_NS); _rea_ns["torch"] = torch
-                            return eval(_ref_expr_r, _rea_ns)
-                        _ref_pred_r = model.predict(_ref_grid_r, operator=_rar_ea_op)[:, 0]
-                    _err_r = _ref_pred_r - _ref_u_r
-                    _l2_r = float(np.linalg.norm(_err_r) / (np.linalg.norm(_ref_u_r) + 1e-12))
-                    _mse_r = float(np.mean(_err_r ** 2))
-                    print(f"  [RAR round {{_rar_idx}}] vs reference t={{_ref_t_r:.3g}}: L2 rel error = {{_l2_r:.4e}}, MSE = {{_mse_r:.4e}}")
-                    _fig_e, _ax_e = plt.subplots(figsize=_plot_figsize(6.5, 5))
-                    if _is_2d or _is_3d:
-                        _sc_e = _ax_e.scatter(_ref_xyz_r[:, 0], _ref_xyz_r[:, 1], c=np.abs(_err_r), cmap="inferno", s=10)
-                        _fig_e.colorbar(_sc_e, ax=_ax_e, label="|error|")
-                        _ax_e.set_xlabel("x"); _ax_e.set_ylabel("y")
-                    else:
-                        _ord_e = np.argsort(_ref_xyz_r[:, 0])
-                        _ax_e.plot(_ref_xyz_r[_ord_e, 0], _ref_u_r[_ord_e], label="Reference", color="#2f9e44")
-                        _ax_e.plot(_ref_xyz_r[_ord_e, 0], _ref_pred_r[_ord_e], label="PINN", color="#1971c2", linestyle="--")
-                        _ax_e.legend(loc="best", fontsize=8)
-                        _ax_e.set_xlabel("x"); _ax_e.set_ylabel("u")
-                    _ax_e.set_title(f"RAR round {{_rar_idx}} vs reference t={{_ref_t_r:.3g}} (L2={{_l2_r:.3e}})")
-                    plt.tight_layout()
-                    plt.savefig(_os.path.join(_rd, "error_compare.png"), dpi={config.plot_dpi}, bbox_inches="tight")
-                    plt.close(_fig_e)
-                except Exception as _rar_err3:
-                    print(f"  [RAR round {{_rar_idx}}] error compare failed: {{_rar_err3}}")
 
         print("\\n=== Starting RAR Adaptive Refinement ===")
         for rar_cycle in range({config.rar_cycles}):
