@@ -2742,6 +2742,25 @@ class MainWindow(QMainWindow):
         self.timesteps_spin_anim.setRange(2, 20); self.timesteps_spin_anim.setValue(20)
         self.timesteps_spin_anim.setVisible(False)
 
+        # Hidden value-holders for the 2D/3D line-type plots' y/z slice
+        # (see PINNConfig.line_slice_y_auto/line_slice_y and the matching
+        # z fields) -- same pattern as the two spinboxes just above.
+        # Checked (default) = "use the domain midpoint", matching every
+        # line-type plot's previous hardcoded behavior exactly; unchecked
+        # lets the paired spinbox's value override it.
+        self.line_slice_y_auto_cb = QCheckBox("Auto (domain midpoint)")
+        self.line_slice_y_auto_cb.setChecked(True)
+        self.line_slice_y_auto_cb.setVisible(False)
+        self.line_slice_y_spin = QDoubleSpinBox()
+        self.line_slice_y_spin.setRange(-1e6, 1e6); self.line_slice_y_spin.setValue(0.0)
+        self.line_slice_y_spin.setVisible(False)
+        self.line_slice_z_auto_cb = QCheckBox("Auto (domain midpoint)")
+        self.line_slice_z_auto_cb.setChecked(True)
+        self.line_slice_z_auto_cb.setVisible(False)
+        self.line_slice_z_spin = QDoubleSpinBox()
+        self.line_slice_z_spin.setRange(-1e6, 1e6); self.line_slice_z_spin.setValue(0.0)
+        self.line_slice_z_spin.setVisible(False)
+
         ctrl_row2.addStretch()
         bottom_layout.addLayout(ctrl_row2)
 
@@ -4030,6 +4049,44 @@ class MainWindow(QMainWindow):
         steps_row.addStretch(); steps_row.addWidget(steps_spin)
         layout.addLayout(steps_row)
 
+        # y/z slice -- only meaningful for 2D/3D, where a line-type plot
+        # (this dialog covers both "Line (time steps)" and the two
+        # Animation GIF types) shows u vs x only, leaving y (and z, in
+        # 3D) fixed at some value. See PINNConfig.line_slice_y_auto/
+        # line_slice_y and the matching z fields -- every line-type plot
+        # across the app (live Solve, Export as DeepXDE Script, Restore &
+        # Visualize, all three Error Analysis line-comparisons) now reads
+        # this instead of each silently hardcoding the domain midpoint.
+        _dlg_is_2d = self.radio_2d.isChecked()
+        _dlg_is_3d = self.radio_3d.isChecked()
+        _y_auto_cb = _y_spin = _z_auto_cb = _z_spin = None
+        if _dlg_is_2d or _dlg_is_3d:
+            slice_info = QLabel(
+                "This plot type only shows u vs x -- pick where to slice "
+                "the rest of the domain.")
+            slice_info.setWordWrap(True)
+            self._register_style(slice_info, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
+            layout.addWidget(slice_info)
+
+            def _make_slice_row(label, auto_cb_src, spin_src):
+                row = QHBoxLayout()
+                auto_cb = QCheckBox("Auto (domain midpoint)")
+                auto_cb.setChecked(auto_cb_src.isChecked())
+                row.addWidget(QLabel(f"{label} value:"))
+                spin = QDoubleSpinBox()
+                spin.setRange(-1e6, 1e6); spin.setValue(spin_src.value())
+                spin.setFixedWidth(90)
+                spin.setVisible(not auto_cb.isChecked())
+                row.addStretch(); row.addWidget(spin)
+                auto_cb.stateChanged.connect(lambda s: spin.setVisible(s != 2))
+                layout.addWidget(auto_cb)
+                layout.addLayout(row)
+                return auto_cb, spin
+
+            _y_auto_cb, _y_spin = _make_slice_row("y", self.line_slice_y_auto_cb, self.line_slice_y_spin)
+            if _dlg_is_3d:
+                _z_auto_cb, _z_spin = _make_slice_row("z", self.line_slice_z_auto_cb, self.line_slice_z_spin)
+
         btn_row = QHBoxLayout()
         ok_btn = QPushButton("OK"); cancel_btn = QPushButton("Cancel")
         btn_row.addStretch(); btn_row.addWidget(ok_btn); btn_row.addWidget(cancel_btn)
@@ -4053,6 +4110,12 @@ class MainWindow(QMainWindow):
 
         def _on_ok():
             _target_spin.setValue(steps_spin.value())
+            if _y_auto_cb is not None:
+                self.line_slice_y_auto_cb.setChecked(_y_auto_cb.isChecked())
+                self.line_slice_y_spin.setValue(_y_spin.value())
+            if _z_auto_cb is not None:
+                self.line_slice_z_auto_cb.setChecked(_z_auto_cb.isChecked())
+                self.line_slice_z_spin.setValue(_z_spin.value())
             self._plot_type_prev = self.plot_type_combo.currentText()
             dialog.accept()
 
@@ -5684,6 +5747,10 @@ class MainWindow(QMainWindow):
             plot_type=self.plot_type_combo.currentText(),
             num_timesteps_line=self.timesteps_spin_line.value(),
             num_timesteps_anim=self.timesteps_spin_anim.value(),
+            line_slice_y_auto=self.line_slice_y_auto_cb.isChecked(),
+            line_slice_y=self.line_slice_y_spin.value(),
+            line_slice_z_auto=self.line_slice_z_auto_cb.isChecked(),
+            line_slice_z=self.line_slice_z_spin.value(),
             save_dir=self._run_results_dir(self.save_dir_input.text(), is_2d, is_3d, is_steady),
             adapt_method=self.adapt_combo.currentData(),
             rar_cycles=self.rar_cycles.value(),
@@ -6242,6 +6309,10 @@ class MainWindow(QMainWindow):
         self.plot_type_combo.setCurrentText(config.plot_type)
         self.timesteps_spin_line.setValue(getattr(config, 'num_timesteps_line', 5))
         self.timesteps_spin_anim.setValue(getattr(config, 'num_timesteps_anim', 20))
+        self.line_slice_y_auto_cb.setChecked(getattr(config, 'line_slice_y_auto', True))
+        self.line_slice_y_spin.setValue(getattr(config, 'line_slice_y', 0.0))
+        self.line_slice_z_auto_cb.setChecked(getattr(config, 'line_slice_z_auto', True))
+        self.line_slice_z_spin.setValue(getattr(config, 'line_slice_z', 0.0))
 
         # Network
         n_hidden = max(0, len(config.layers) - 2)
@@ -12152,11 +12223,23 @@ print("ERROR_ANALYSIS_V2_DONE")
                         (custom_label or custom_expr) if custom_expr
                         else cfg.get('output_names', 'u').split(',')[output_idx].strip()
                     )
+                    # Same configured line-plot slice (PINNConfig.line_slice_y/_z,
+                    # read back from model_config.json, defaulting to the old
+                    # domain-midpoint behavior for saves predating this field)
+                    # that the restore script's own Line plot/animation use --
+                    # so the Error-Analysis line comparison below extracts
+                    # reference points near the SAME y/z slice it is being
+                    # compared against, instead of plotting every reference
+                    # point regardless of its y/z coordinate.
+                    _ea_y_min = cfg.get('y_min', 0.0); _ea_y_max = cfg.get('y_max', 1.0)
+                    _ea_z_min = cfg.get('z_min', 0.0); _ea_z_max = cfg.get('z_max', 1.0)
+                    _ea_line_slice_y = (_ea_y_min + _ea_y_max) / 2.0 if cfg.get('line_slice_y_auto', True) else cfg.get('line_slice_y', 0.0)
+                    _ea_line_slice_z = (_ea_z_min + _ea_z_max) / 2.0 if cfg.get('line_slice_z_auto', True) else cfg.get('line_slice_z', 0.0)
                     script += self._build_restore_ea_script(
                         matching_files, save_dir, is_2d,
                         ea.get('do_line', True), ea.get('do_surface', True),
                         cfg.get('x_min', 0.0), cfg.get('x_max', 1.0),
-                        cfg.get('y_min', 0.0), cfg.get('y_max', 1.0),
+                        _ea_y_min, _ea_y_max,
                         _ea_out_name,
                         viz_settings,
                         is_3d=is_3d, output_idx=output_idx,
@@ -12164,6 +12247,8 @@ print("ERROR_ANALYSIS_V2_DONE")
                         output_names=cfg.get('output_names', 'u'),
                         is_steady=cfg.get('steady_state', False),
                         is_ta=_use_ta_restore,
+                        z_min=_ea_z_min, z_max=_ea_z_max,
+                        line_slice_y=_ea_line_slice_y, line_slice_z=_ea_line_slice_z,
                     )
                 else:
                     self.log_box.append(f"ℹ️ No reference files match t=[{t_min_restore:.4f}, {t_max_restore:.4f}] — skipping error analysis")
@@ -12601,6 +12686,14 @@ print("RESTORE_DONE")
         is_2d = cfg.get("problem_dim", "1D") == "2D"
         is_3d = cfg.get("problem_dim", "1D") == "3D"
         _restore_dim_str = "3D" if is_3d else ("2D" if is_2d else "1D")
+        # Same y/z slice-value convention as generate_script()/
+        # generate_clean_script() in codegen.py -- read back the value
+        # this run was trained/plotted with (model_config.json), rather
+        # than hardcoding the domain midpoint independently here. Absent
+        # from a config saved before this feature existed -> defaults to
+        # "auto" (domain midpoint), i.e. the previous hardcoded behavior.
+        _line_slice_y = (y_min + y_max) / 2.0 if cfg.get("line_slice_y_auto", True) else cfg.get("line_slice_y", 0.0)
+        _line_slice_z = (z_min + z_max) / 2.0 if cfg.get("line_slice_z_auto", True) else cfg.get("line_slice_z", 0.0)
         # Steady-state problems have no time axis at all (see
         # _on_steady_state_changed and generate_script()'s own _is_steady
         # branch in codegen.py): the restored network's first layer has one
@@ -12981,14 +13074,15 @@ print(f"Surface plot saved to: {{out_path}}")
         elif viz_type == "Line (time steps)":
             _xlabel_line = xlabel_override or "x"
             _ylabel_line = ylabel_override or out_name
-            _title_line = title_override or f"Restored Model — {out_name}(x,t) Line Plot"
+            _slice_suffix_line = (f", y={_line_slice_y:.3g}, z={_line_slice_z:.3g}" if is_3d else (f", y={_line_slice_y:.3g}" if is_2d else ""))
+            _title_line = title_override or f"Restored Model — {out_name}(x,t{_slice_suffix_line}) Line Plot"
             script += f"""
 x_vals = np.linspace({x_min}, {x_max}, {resolution})
 t_steps_vals = np.linspace({t_min}, {t_max}, {n_steps})
 fig, ax = plt.subplots(figsize=_plot_figsize(8, 5))
 colors = plt.get_cmap("{colormap}")(np.linspace(0, 1, {n_steps}))
-y_mid = ({y_min} + {y_max}) / 2.0
-z_mid = ({z_min} + {z_max}) / 2.0
+y_mid = {_line_slice_y}
+z_mid = {_line_slice_z}
 for i, tv in enumerate(t_steps_vals):
     # Steady-state has no time axis -- "time steps" don't exist, so every
     # iteration predicts the same single steady solution (this viz type is
@@ -13018,14 +13112,16 @@ plt.savefig(out_path, dpi={dpi}, bbox_inches='tight'); plt.close()
 print(f"Line plot saved to: {{out_path}}")
 """
         elif viz_type == "Animation Line (GIF)":
+            _slice_suffix_animline = (f", y={_line_slice_y:.3g}, z={_line_slice_z:.3g}" if is_3d
+                                       else (f", y={_line_slice_y:.3g}" if is_2d else ""))
             _xlabel_animline = xlabel_override or "x"
-            _ylabel_animline = ylabel_override or out_name
+            _ylabel_animline = ylabel_override or (f"{out_name}(x,t{_slice_suffix_animline})" if (is_2d or is_3d) else out_name)
             _title_line_stmt = f"ax.set_title({title_override!r})" if title_override else ""
             script += f"""
 import matplotlib.animation as _anim
 t_frames = np.linspace({t_min}, {t_max}, {n_steps})
-y_mid = ({y_min} + {y_max}) / 2.0
-z_mid = ({z_min} + {z_max}) / 2.0
+y_mid = {_line_slice_y}
+z_mid = {_line_slice_z}
 all_u = []
 for tv in t_frames:
     # Defensive fallback for steady-state (see the matching comment in the
@@ -13273,6 +13369,10 @@ else:
         z_min = cfg.get("z_min", 0.0); z_max = cfg.get("z_max", 1.0)
         is_2d = cfg.get("problem_dim", "1D") == "2D"
         is_3d = cfg.get("problem_dim", "1D") == "3D"
+        # Same slice-value convention as _build_restore_script -- see the
+        # matching comment there.
+        _line_slice_y = (y_min + y_max) / 2.0 if cfg.get("line_slice_y_auto", True) else cfg.get("line_slice_y", 0.0)
+        _line_slice_z = (z_min + z_max) / 2.0 if cfg.get("line_slice_z_auto", True) else cfg.get("line_slice_z", 0.0)
         out_names = cfg.get("output_names", "u").split(",")
         _custom_expr_val = (custom_expr or "").strip()
         _custom_label_val = (custom_label or "").strip()
@@ -13541,16 +13641,18 @@ print(f"Surface plot saved to: {{out_path}}")
 """
 
         elif viz_type == "Line (time steps)":
+            _slice_suffix_line = (f", y={_line_slice_y:.3g}, z={_line_slice_z:.3g}" if is_3d
+                                   else (f", y={_line_slice_y:.3g}" if is_2d else ""))
             _xlabel_line = xlabel_override or "x"
             _ylabel_line = ylabel_override or out_name
-            _title_line = title_override or f"Restored Model — {out_name}(x,t) Line Plot"
+            _title_line = title_override or f"Restored Model — {out_name}(x,t{_slice_suffix_line}) Line Plot"
             script += f"""
 x_vals = np.linspace({x_min}, {x_max}, {resolution})
 t_steps_vals = np.linspace({t_min}, {t_max}, {n_steps})
 fig, ax = plt.subplots(figsize=_plot_figsize(8, 5))
 colors = plt.get_cmap("{colormap}")(np.linspace(0, 1, {n_steps}))
-y_mid = ({y_min} + {y_max}) / 2.0
-z_mid = ({z_min} + {z_max}) / 2.0
+y_mid = {_line_slice_y}
+z_mid = {_line_slice_z}
 for i, tv in enumerate(t_steps_vals):
     _ta_m = _ta_model_for_t(tv)
     if is_3d:
@@ -13570,14 +13672,16 @@ plt.savefig(out_path, dpi={dpi}, bbox_inches='tight'); plt.close()
 print(f"Line plot saved to: {{out_path}}")
 """
         elif viz_type == "Animation Line (GIF)":
+            _slice_suffix_animline = (f", y={_line_slice_y:.3g}, z={_line_slice_z:.3g}" if is_3d
+                                       else (f", y={_line_slice_y:.3g}" if is_2d else ""))
             _xlabel_animline = xlabel_override or "x"
-            _ylabel_animline = ylabel_override or out_name
+            _ylabel_animline = ylabel_override or (f"{out_name}(x,t{_slice_suffix_animline})" if (is_2d or is_3d) else out_name)
             _title_line_stmt = f"ax.set_title({title_override!r})" if title_override else ""
             script += f"""
 import matplotlib.animation as _anim
 t_frames = np.linspace({t_min}, {t_max}, {n_steps})
-y_mid = ({y_min} + {y_max}) / 2.0
-z_mid = ({z_min} + {z_max}) / 2.0
+y_mid = {_line_slice_y}
+z_mid = {_line_slice_z}
 all_u = []
 for tv in t_frames:
     _ta_m = _ta_model_for_t(tv)
@@ -13726,7 +13830,17 @@ else:
     def _build_restore_ea_script(self, files, save_dir, is_2d, do_line, do_surface,
                                   x_min, x_max, y_min, y_max, out_name, viz_settings=None,
                                   is_3d=False, output_idx=0, custom_expr="", output_names="u",
-                                  is_steady=False, is_ta=False):
+                                  is_steady=False, is_ta=False,
+                                  z_min=0.0, z_max=1.0, line_slice_y=None, line_slice_z=None):
+        # line_slice_y/_z: the same configured 2D/3D line-plot slice value
+        # (PINNConfig.line_slice_y/_z) the restore script's own Line plot
+        # uses. None means "caller didn't pass one" (e.g. an older call
+        # site) -- fall back to the domain midpoint, matching this
+        # feature's behavior everywhere else when left on Auto.
+        if line_slice_y is None:
+            line_slice_y = (y_min + y_max) / 2.0
+        if line_slice_z is None:
+            line_slice_z = (z_min + z_max) / 2.0
         if viz_settings is None:
             viz_settings = {}
         _cmap     = viz_settings.get('colormap', 'viridis')
@@ -13878,16 +13992,60 @@ if {do_line}:
     _ncols = min(4, _ea_n_t)
     _nrows = (_ea_n_t + _ncols - 1) // _ncols
     fig, axes = plt.subplots(_nrows, _ncols, figsize=(4*_ncols, 3.5*_nrows), squeeze=False)
-    fig.suptitle("Restored Model vs Ground Truth — Line Comparison", fontsize=13, fontweight='bold')
+    _ea_line_suptitle = "Restored Model vs Ground Truth — Line Comparison"
+    if {is_3d}:
+        _ea_line_suptitle += f" (y={line_slice_y:.3g}, z={line_slice_z:.3g})"
+    elif {is_2d}:
+        _ea_line_suptitle += f" (y={line_slice_y:.3g})"
+    fig.suptitle(_ea_line_suptitle, fontsize=13, fontweight='bold')
     _ax_flat = axes.flatten()
     for _i in range(_ea_n_t):
         ax = _ax_flat[_i]
         _xv = _ea_x_refs[_i]
         _tv, _l2, _mse, _mx, _ma = _ea_metrics[_i]
-        ax.plot(_xv, _ea_u_refs[_i],  color='#4dabf7', linewidth=2.0, label='Ground Truth')
-        ax.plot(_xv, _ea_u_pinns[_i], color='#ff6b6b', linewidth=2.0, linestyle='--', label='PINN')
+        if {is_3d}:
+            # Extract the reference points nearest the same (y, z) slice
+            # the restored Line plot itself uses, widening the tolerance
+            # band if too few reference points happen to fall near it.
+            _yv = _ea_y_refs[_i]; _zv = _ea_z_refs[_i]
+            _y_mid = {line_slice_y!r}; _z_mid = {line_slice_z!r}
+            _y_tol = ({y_max} - {y_min}) / 20.0; _z_tol = ({z_max} - {z_min}) / 20.0
+            _mid_mask = (np.abs(_yv - _y_mid) < _y_tol) & (np.abs(_zv - _z_mid) < _z_tol)
+            if _mid_mask.sum() < 5:
+                _y_tol2 = ({y_max} - {y_min}) / 5.0; _z_tol2 = ({z_max} - {z_min}) / 5.0
+                _mid_mask = (np.abs(_yv - _y_mid) < _y_tol2) & (np.abs(_zv - _z_mid) < _z_tol2)
+            if _mid_mask.sum() < 2:
+                _mid_mask = np.ones_like(_xv, dtype=bool)  # fall back to all points
+            _ea_sort = np.argsort(_xv[_mid_mask])
+            _xv_s   = _xv[_mid_mask][_ea_sort]
+            _gt_s   = _ea_u_refs[_i][_mid_mask][_ea_sort]
+            _pinn_s = _ea_u_pinns[_i][_mid_mask][_ea_sort]
+        elif {is_2d}:
+            # Same idea for 2D: extract reference points nearest the
+            # configured y slice.
+            _yv = _ea_y_refs[_i]
+            _y_mid = {line_slice_y!r}
+            _y_tol = ({y_max} - {y_min}) / 20.0
+            _mid_mask = np.abs(_yv - _y_mid) < _y_tol
+            if _mid_mask.sum() < 5:
+                _mid_mask = np.abs(_yv - _y_mid) < ({y_max} - {y_min}) / 5.0
+            if _mid_mask.sum() < 2:
+                _mid_mask = np.ones_like(_xv, dtype=bool)
+            _ea_sort = np.argsort(_xv[_mid_mask])
+            _xv_s   = _xv[_mid_mask][_ea_sort]
+            _gt_s   = _ea_u_refs[_i][_mid_mask][_ea_sort]
+            _pinn_s = _ea_u_pinns[_i][_mid_mask][_ea_sort]
+        else:
+            _ea_sort = np.argsort(_xv)
+            _xv_s   = _xv[_ea_sort]
+            _gt_s   = _ea_u_refs[_i][_ea_sort]
+            _pinn_s = _ea_u_pinns[_i][_ea_sort]
+        ax.plot(_xv_s, _gt_s,   color='#4dabf7', linewidth=2.0, label='Ground Truth')
+        ax.plot(_xv_s, _pinn_s, color='#ff6b6b', linewidth=2.0, linestyle='--', label='PINN')
         ax.set_title(f"t={{_tv:.3f}}  |  L2={{_l2:.2e}}", fontsize=10)
-        ax.set_xlabel("x"); ax.set_ylabel("{out_name}"); ax.grid(True, alpha=0.3)
+        _ea_line_ylabel = (f"{out_name}(x,y={line_slice_y:.3g},z={line_slice_z:.3g})" if {is_3d}
+                            else (f"{out_name}(x,y={line_slice_y:.3g})" if {is_2d} else "{out_name}"))
+        ax.set_xlabel("x"); ax.set_ylabel(_ea_line_ylabel); ax.grid(True, alpha=0.3)
     for _j in range(_ea_n_t, len(_ax_flat)):
         _ax_flat[_j].set_visible(False)
     handles, labels = _ax_flat[0].get_legend_handles_labels()

@@ -346,6 +346,27 @@ class PINNConfig:
     plot_linewidth_anim: float = 3.0
     plot_fps: int = 10
 
+    # Line (time steps) and Line Animation (GIF) plot a 1D curve of u vs x
+    # only -- for a 2D/3D problem that leaves y (and z, in 3D) unaccounted
+    # for. Every such line-type plot across the whole app (live Solve,
+    # Export as DeepXDE Script, Restore & Visualize, both plain and
+    # Time-Adaptive, and all three Error Analysis line-comparison
+    # implementations) now reads its y/z slice from here instead of each
+    # silently hardcoding the domain midpoint on its own. _auto=True (the
+    # default, matching the previous hardcoded behavior exactly) means
+    # "use (y_min+y_max)/2 / (z_min+z_max)/2 at codegen time"; _auto=False
+    # uses the paired float value the user typed in. Same
+    # auto-flag-plus-manual-value shape as plot_auto_range/plot_vmin/
+    # plot_vmax just above, for the same reason. Deliberately not
+    # range-validated against y_min/y_max (or z_min/z_max) in validate()
+    # below -- same "not exhaustive" philosophy already applied to
+    # geom_radius/geom_center_x etc.; an out-of-domain slice just
+    # extrapolates rather than being rejected.
+    line_slice_y_auto: bool = True
+    line_slice_y: float = 0.0
+    line_slice_z_auto: bool = True
+    line_slice_z: float = 0.0
+
     ea_files: str = "[]"
     ea_do_line: bool = True
     ea_do_surface: bool = True
