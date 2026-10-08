@@ -4052,9 +4052,28 @@ class MainWindow(QMainWindow):
         row_layout.addWidget(QLabel("Start time:"))
 
         t_start_sb = QDoubleSpinBox()
-        t_start_sb.setRange(0.0, 1e6); t_start_sb.setValue(t_start)
+        t_start_sb.setRange(0.0, 1e6)
+        # 4 decimals (not the QDoubleSpinBox default of 2), matching
+        # self.t_max's own setDecimals(4) elsewhere -- same reasoning: a
+        # template whose time domain isn't a round number -- e.g. 1D
+        # Schrodinger's t in [0, pi/2] -- needs to be enterable here too.
+        # Found via the user's own report: typing "1.5708" as a
+        # Time-Adaptive step's End time silently rounded down to "1.57".
+        # setDecimals() MUST come before setValue() -- QDoubleSpinBox
+        # rounds whatever's passed to setValue() to its decimals setting
+        # AT THAT MOMENT (the default is 2 until changed), so calling
+        # setValue(t_start) first and setDecimals(4) after was already too
+        # late: t_start had already been rounded down to 2 decimals by
+        # then, and widening decimals afterward doesn't recover the lost
+        # precision (self.t_max avoids this same trap by only ever being
+        # setValue()'d by a template AFTER its one-time setDecimals(4)
+        # call at construction, long before any template is selected --
+        # this widget instead gets its real intended value passed straight
+        # into the same call that constructs it, so the two calls had to
+        # be reordered here instead).
+        t_start_sb.setDecimals(4)
+        t_start_sb.setValue(t_start)
         t_start_sb.setFixedHeight(26); t_start_sb.setFixedWidth(85)
-        t_start_sb.setDecimals(2)
         row_layout.addWidget(t_start_sb)
 
         row_layout.addWidget(QLabel("→"))
@@ -4062,9 +4081,10 @@ class MainWindow(QMainWindow):
         row_layout.addWidget(QLabel("End time:"))
 
         t_end_sb = QDoubleSpinBox()
-        t_end_sb.setRange(0.0, 1e6); t_end_sb.setValue(t_end)
+        t_end_sb.setRange(0.0, 1e6)
+        t_end_sb.setDecimals(4)
+        t_end_sb.setValue(t_end)
         t_end_sb.setFixedHeight(26); t_end_sb.setFixedWidth(85)
-        t_end_sb.setDecimals(2)
         row_layout.addWidget(t_end_sb)
 
         row_layout.addWidget(QLabel("Steps (n):"))
@@ -10472,7 +10492,19 @@ print("ERROR_ANALYSIS_DONE")
             self._set_combo_data(self.ta_transfer_opt, ta_cfg.get('transfer_optimizer', 'adam'))
         else:
             self.adapt_combo.setCurrentText("None")
-            self._add_ta_step_group(0.0, 1.0, 10)
+            # End time defaults to THIS template's own t_max (not a bare
+            # hardcoded 1.0) -- so a template whose time domain isn't the
+            # generic default -- e.g. 1D Schrodinger's t in [0, pi/2] --
+            # still gets a sensible pre-filled row here if/when the user
+            # manually switches Adaptation to "Time Adaptive Training"
+            # (this template has no ta_default of its own, so it's not
+            # auto-enabled -- see the branch above). Found via the user's
+            # own report: Schrodinger's Time-Adaptive panel pre-filled End
+            # time as 1.0 instead of its real t_max of ~1.5708. Every other
+            # template without its own ta_default still gets 1.0 here too,
+            # since t.get('t_max', 1.0) is a no-op for any of them (none
+            # override 't_max' in their own template dict).
+            self._add_ta_step_group(0.0, t.get('t_max', 1.0), 10)
             self.ta_transfer_cb.setChecked(False)
             self.ta_grid.setCurrentText("101")
             self._set_combo_data(self.ta_transfer_opt, "adam")
