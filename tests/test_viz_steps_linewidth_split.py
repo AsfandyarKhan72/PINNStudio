@@ -61,11 +61,19 @@ app = QApplication.instance() or QApplication(sys.argv)
 def _click_ok(dialog, set_spin=None, set_lw_combo=None):
     """Stand-in for QDialog.exec() in headless tests: optionally pokes one
     widget's value, then clicks the real OK button so the dialog's own
-    _on_ok() closure runs exactly as it would for a real user."""
+    _on_ok() closure runs exactly as it would for a real user.
+
+    set_spin targets the dialog's "steps/frames" spinbox specifically --
+    since the Setup tab's Plot Settings dialog was unified (Round 24) to
+    show every field in one popup instead of two separate dialogs, it now
+    always has several QSpinBoxes (steps, contour levels, 2D/3D
+    snapshots, ...) rather than just one. The steps spinbox is the only
+    one in range(2, 20) -- contour levels is range(5, 200) and 2D/3D
+    snapshots is range(1, 10) -- so that range uniquely identifies it."""
     if set_spin is not None:
-        spins = dialog.findChildren(QSpinBox)
-        assert len(spins) == 1, spins
-        spins[0].setValue(set_spin)
+        candidates = [s for s in dialog.findChildren(QSpinBox) if s.minimum() == 2 and s.maximum() == 20]
+        assert len(candidates) == 1, dialog.findChildren(QSpinBox)
+        candidates[0].setValue(set_spin)
     if set_lw_combo is not None:
         for c in dialog.findChildren(QComboBox):
             items = [c.itemText(i) for i in range(c.count())]
@@ -118,6 +126,12 @@ def test_build_config_wires_hidden_spinboxes():
 
 
 def test_setup_line_plot_settings_dialog_is_type_aware():
+    """_on_line_plot_settings() was merged into the unified
+    _on_plot_settings() dialog in Round 24 (one popup for every plot
+    type, matching Restore & Visualize's own single-dialog shape, and
+    removing the standalone "⚙" button that used to open the old
+    _on_plot_settings separately) -- same type-aware steps-spinbox
+    behavior, just reached through the merged entry point now."""
     w = MainWindow()
     orig_exec = QDialog.exec
     try:
@@ -126,21 +140,21 @@ def test_setup_line_plot_settings_dialog_is_type_aware():
         w.plot_type_combo.blockSignals(True)
         w.plot_type_combo.setCurrentText("Line (time steps)")
         w.plot_type_combo.blockSignals(False)
-        w._on_line_plot_settings()
+        w._on_plot_settings()
         assert w.timesteps_spin_line.value() == 17
         assert w.timesteps_spin_anim.value() == 20  # untouched
 
         w.plot_type_combo.blockSignals(True)
         w.plot_type_combo.setCurrentText("Line Animation (GIF)")
         w.plot_type_combo.blockSignals(False)
-        w._on_line_plot_settings()
+        w._on_plot_settings()
         assert w.timesteps_spin_anim.value() == 17
         assert w.timesteps_spin_line.value() == 17  # unchanged from before
 
         w.plot_type_combo.blockSignals(True)
         w.plot_type_combo.setCurrentText("Surface Animation (GIF)")
         w.plot_type_combo.blockSignals(False)
-        w._on_line_plot_settings()
+        w._on_plot_settings()
         assert w.timesteps_spin_anim.value() == 17
     finally:
         QDialog.exec = orig_exec

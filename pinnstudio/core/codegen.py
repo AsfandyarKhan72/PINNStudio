@@ -799,6 +799,20 @@ def generate_script(config):
     plot_custom_expr_converted = _simplify_pde_expr(_plot_custom_expr_raw) if _plot_custom_expr_raw else ""
     plot_custom_label_resolved = (getattr(config, "plot_custom_label", "") or "").strip() or _plot_custom_expr_raw
 
+    # Optional title/axis-label overrides for the solution plot -- same
+    # blank-means-default convention, and same reasoning, as Restore &
+    # Visualize's own title_override/xlabel_override/ylabel_override in
+    # _build_restore_script. Baked in as a plain string here (possibly
+    # empty) and combined with each default title/label expression via
+    # `_plot_title_override or <default>` INSIDE the generated script
+    # itself (see the "Plot solution" dispatch below) -- unlike the
+    # restore builders, out_name there is only computed at the generated
+    # script's own runtime, not at codegen time, so the override can't be
+    # resolved here already.
+    plot_title_override = (getattr(config, "plot_title_override", "") or "").strip()
+    plot_xlabel_override = (getattr(config, "plot_xlabel_override", "") or "").strip()
+    plot_ylabel_override = (getattr(config, "plot_ylabel_override", "") or "").strip()
+
     if config.forward_ic_from_file:
         _ta_ic_init = f"""_ic_ta_xt, _ic_ta_vals = _load_ic_from_file({repr(config.forward_ic_file)})
     prev_u = _ic_ta_vals"""
@@ -2618,6 +2632,9 @@ for _pval in _param_values:
         _plot_type = "{config.plot_type}"
         _plot_custom_expr = "{plot_custom_expr_converted}"
         _plot_custom_label = "{plot_custom_label_resolved}"
+        _plot_title_override = {plot_title_override!r}
+        _plot_xlabel_override = {plot_xlabel_override!r}
+        _plot_ylabel_override = {plot_ylabel_override!r}
         _plot_output_names_list = {repr(config.output_names)}.split(",")
         _plot_n_out = len(_plot_output_names_list)
         _plot_dim = "3D" if _is_3d else ("2D" if _is_2d else "1D")
@@ -3093,16 +3110,16 @@ for _pval in _param_values:
                     _final_val = _vvals[-1]
                     if {config.inv_param_log_scale} and np.all(_vvals > 0):
                         _ax.semilogy(_ph_iters_arr, _vvals, color="#69db7c", linewidth=1.5)
-                        _ax.set_ylabel(f"log({{_vname}})")
+                        _ax.set_ylabel(_plot_ylabel_override or f"log({{_vname}})")
                     else:
                         _ax.plot(_ph_iters_arr, _vvals, color="#69db7c", linewidth=1.5)
-                        _ax.set_ylabel(_vname)
+                        _ax.set_ylabel(_plot_ylabel_override or _vname)
                     _ax.axhline(y=_final_val, color="#ff8787", linestyle="--", alpha=0.5, label=f"Final = {{_final_val:.6f}}")
                     _true_val = _inv_var_trues[_vi] if _vi < len(_inv_var_trues) else None
                     if _true_val is not None:
                         _ax.axhline(y=_true_val, color="#ffd43b", linestyle="--", alpha=0.8, label=f"True = {{_true_val:.6f}}")
-                    _ax.set_xlabel("Iteration")
-                    _ax.set_title(f"Inferred Parameter: {{_vname}}")
+                    _ax.set_xlabel(_plot_xlabel_override or "Iteration")
+                    _ax.set_title(_plot_title_override or f"Inferred Parameter: {{_vname}}")
                     _ax.legend(); _ax.grid(True, alpha=0.3)
                     print(f"\\n=== {{_vname}} final value: {{_final_val:.6f}} ===")
                 plt.tight_layout()
@@ -3162,7 +3179,9 @@ for _pval in _param_values:
                 _ax_gif.set_xlim(_plot_x_min, _plot_x_max)
                 _ax_gif.set_ylim(_u_min_gif - 0.05*abs(_u_min_gif) - 1e-9, _u_max_gif + 0.05*abs(_u_max_gif) + 1e-9)
                 _ylabel_gif = (f"u(x,y={{_y_mid_gif:.3g}},z={{_z_mid_gif:.3g}},t)" if _is_3d else f"u(x,y={{_y_mid_gif:.3g}},t)") if (_is_2d or _is_3d) else "u(x,t)"
-                _ax_gif.set_xlabel("x"); _ax_gif.set_ylabel(_ylabel_gif)
+                _ax_gif.set_xlabel(_plot_xlabel_override or "x"); _ax_gif.set_ylabel(_plot_ylabel_override or _ylabel_gif)
+                if _plot_title_override:
+                    _ax_gif.set_title(_plot_title_override)
                 _line_gif, = _ax_gif.plot([], [], color="#4dabf7", linewidth={config.plot_linewidth_anim})
                 # Positioned just above the axes (not set_title()) and
                 # styled to match it (black, centered, top) -- same visual
@@ -3174,9 +3193,18 @@ for _pval in _param_values:
                 # a title isn't redrawn under blit, so it would never
                 # update frame to frame. A Text artist positioned in axes
                 # coordinates just above y=1.0 renders in the same place a
-                # title would, while still being blit-compatible.
-                _time_txt_gif = _ax_gif.text(0.5, 1.02, '', transform=_ax_gif.transAxes,
-                                              color='black', ha='center', fontsize=11)
+                # title would, while still being blit-compatible. When a
+                # title override is also set (just above, a real ax.set_title()
+                # call that blit never touches again, so it's safe to combine
+                # with this blitted artist), that same "just above the axes"
+                # spot is exactly where the override title renders too -- so
+                # this moves inside the axes (top-left corner) instead,
+                # matching "Export as DeepXDE Script"'s own Line Animation
+                # GIF time-indicator placement, to avoid the two overlapping
+                # into illegible text.
+                _time_txt_x, _time_txt_y, _time_txt_ha = (0.02, 0.95, 'left') if _plot_title_override else (0.5, 1.02, 'center')
+                _time_txt_gif = _ax_gif.text(_time_txt_x, _time_txt_y, '', transform=_ax_gif.transAxes,
+                                              color='black', ha=_time_txt_ha, fontsize=11)
                 _ax_gif.grid(True, alpha=0.2)
                 def _init_gif():
                     _line_gif.set_data([], []); _time_txt_gif.set_text(''); return _line_gif, _time_txt_gif
@@ -3231,8 +3259,8 @@ for _pval in _param_values:
                         for _fi3a, (_fX3a, _fY3a, _fZ3a) in enumerate(_faces3a):
                             _ax_gif.plot_surface(_fX3a, _fY3a, _fZ3a, facecolors=_cmap_obj3a(_norm3a(_all_frames_gif[i][_fi3a])),
                                              rstride=1, cstride=1, linewidth=0, antialiased=False, shade=False)
-                        _ax_gif.set_xlabel("x"); _ax_gif.set_ylabel("y"); _ax_gif.set_zlabel("z")
-                        _ax_gif.set_title(f"t = {{_t_frames[i]:.3f}}")
+                        _ax_gif.set_xlabel(_plot_xlabel_override or "x"); _ax_gif.set_ylabel(_plot_ylabel_override or "y"); _ax_gif.set_zlabel("z")
+                        _ax_gif.set_title(_plot_title_override or f"t = {{_t_frames[i]:.3f}}")
                         try:
                             _ax_gif.set_box_aspect((_cx1a - _cx0a, _cy1a - _cy0a, _cz1a - _cz0a))
                         except Exception:
@@ -3295,9 +3323,9 @@ for _pval in _param_values:
                         _ax_gif.cla()
                         _Xp_gif, _Yp_gif, _Zp_gif = _all_frames_gif[i]
                         _ax_gif.contourf(_Xp_gif, _Yp_gif, _Zp_gif, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_v_min_gif, vmax=_v_max_gif)
-                        _ax_gif.set_xlabel(_xlabel_gif)
-                        _ax_gif.set_ylabel(_ylabel_gif)
-                        _ax_gif.set_title(f"t = {{_t_frames[i]:.3f}}")
+                        _ax_gif.set_xlabel(_plot_xlabel_override or _xlabel_gif)
+                        _ax_gif.set_ylabel(_plot_ylabel_override or _ylabel_gif)
+                        _ax_gif.set_title(_plot_title_override or f"t = {{_t_frames[i]:.3f}}")
                     _ani_gif = _anim.FuncAnimation(_fig_gif, _update_gif, frames=_n_frames, interval=150)
                     _ani_gif.save(_run_solution_path, writer='pillow', fps=_fps)
                     plt.close(_fig_gif)
@@ -3315,8 +3343,8 @@ for _pval in _param_values:
             out_name = _plot_custom_label if _plot_custom_expr.strip() else {repr(config.output_names)}.split(",")[_plot_idx].strip()
             fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
             ax.plot(_x_l2ds, _u_l2ds, color="#4dabf7", linewidth={config.plot_linewidth})
-            ax.set_xlabel("x"); ax.set_ylabel(f"{{out_name}}(x,y={_line_slice_y:.3g})")
-            ax.set_title(f"PINN Solution — {{out_name}}(x,y={_line_slice_y:.3g})")
+            ax.set_xlabel(_plot_xlabel_override or "x"); ax.set_ylabel(_plot_ylabel_override or f"{{out_name}}(x,y={_line_slice_y:.3g})")
+            ax.set_title(_plot_title_override or f"PINN Solution — {{out_name}}(x,y={_line_slice_y:.3g})")
             ax.grid(True, alpha=0.2)
             plt.tight_layout(); plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
         elif _is_2d and _is_steady:
@@ -3337,11 +3365,11 @@ for _pval in _param_values:
             _pred = np.where(_inside_2d, _pred, np.nan)
             fig, ax = plt.subplots(figsize=_plot_figsize(6.5, 5.5))
             im = ax.contourf(_Xg, _Yg, _pred, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_2d, vmax=_vmax_2d)
-            ax.set_xlabel("x"); ax.set_ylabel("y")
+            ax.set_xlabel(_plot_xlabel_override or "x"); ax.set_ylabel(_plot_ylabel_override or "y")
             ax.set_aspect("equal", adjustable="box")
             if {config.plot_colorbar}: fig.colorbar(im, ax=ax)
             out_name = _plot_custom_label if _plot_custom_expr.strip() else {repr(config.output_names)}.split(",")[_plot_idx].strip()
-            fig.suptitle(f"PINN Solution — {{out_name}}(x,y)", fontsize=12)
+            fig.suptitle(_plot_title_override or f"PINN Solution — {{out_name}}(x,y)", fontsize=12)
             plt.tight_layout()
             plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
         elif _is_2d and _plot_type == "Line (time steps)":
@@ -3362,8 +3390,8 @@ for _pval in _param_values:
                 _xyt_l2d = np.column_stack([_x_l2d, np.full_like(_x_l2d, {_line_slice_y}), np.full_like(_x_l2d, _tv_l2d)])
                 _u_l2d = _extract_plot_field(_xyt_l2d).flatten()
                 ax.plot(_x_l2d, _u_l2d, color=_colors_l2d[_i_l2d], linewidth={config.plot_linewidth}, label=f"t = {{_tv_l2d:.3f}}")
-            ax.set_xlabel("x"); ax.set_ylabel(f"{{out_name}}(x,y={_line_slice_y:.3g},t)")
-            ax.set_title(f"PINN Solution — {{out_name}}(x,y={_line_slice_y:.3g},t)")
+            ax.set_xlabel(_plot_xlabel_override or "x"); ax.set_ylabel(_plot_ylabel_override or f"{{out_name}}(x,y={_line_slice_y:.3g},t)")
+            ax.set_title(_plot_title_override or f"PINN Solution — {{out_name}}(x,y={_line_slice_y:.3g},t)")
             ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
             plt.tight_layout(); plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
         elif _is_2d:
@@ -3389,10 +3417,10 @@ for _pval in _param_values:
                 _pred = np.where(_inside_2d, _pred, np.nan)
                 im = axes[_ai].contourf(_Xg, _Yg, _pred, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_2d, vmax=_vmax_2d)
                 axes[_ai].set_title(f"t = {{_tv:.3f}}")
-                axes[_ai].set_xlabel("x"); axes[_ai].set_ylabel("y")
+                axes[_ai].set_xlabel(_plot_xlabel_override or "x"); axes[_ai].set_ylabel(_plot_ylabel_override or "y")
                 if {config.plot_colorbar}: fig.colorbar(im, ax=axes[_ai])
             out_name = _plot_custom_label if _plot_custom_expr.strip() else {repr(config.output_names)}.split(",")[_plot_idx].strip()
-            fig.suptitle(f"PINN Solution — {{out_name}}(x,y,t)", fontsize=12)
+            fig.suptitle(_plot_title_override or f"PINN Solution — {{out_name}}(x,y,t)", fontsize=12)
             plt.tight_layout()
             plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
         elif _is_3d and _is_steady and _plot_type == "Line (time steps)":
@@ -3405,8 +3433,8 @@ for _pval in _param_values:
             out_name = _plot_custom_label if _plot_custom_expr.strip() else {repr(config.output_names)}.split(",")[_plot_idx].strip()
             fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
             ax.plot(_x_l3ds, _u_l3ds, color="#4dabf7", linewidth={config.plot_linewidth})
-            ax.set_xlabel("x"); ax.set_ylabel(f"{{out_name}}(x,y={_line_slice_y:.3g},z={_line_slice_z:.3g})")
-            ax.set_title(f"PINN Solution — {{out_name}}(x,y={_line_slice_y:.3g},z={_line_slice_z:.3g})")
+            ax.set_xlabel(_plot_xlabel_override or "x"); ax.set_ylabel(_plot_ylabel_override or f"{{out_name}}(x,y={_line_slice_y:.3g},z={_line_slice_z:.3g})")
+            ax.set_title(_plot_title_override or f"PINN Solution — {{out_name}}(x,y={_line_slice_y:.3g},z={_line_slice_z:.3g})")
             ax.grid(True, alpha=0.2)
             plt.tight_layout(); plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
         elif _is_3d and _is_steady:
@@ -3429,11 +3457,11 @@ for _pval in _param_values:
             _pred3 = np.where(_inside_3d, _pred3, np.nan)
             fig, ax = plt.subplots(figsize=_plot_figsize(6.5, 5.5))
             im = ax.contourf(_Xg3, _Yg3, _pred3, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_3d, vmax=_vmax_3d)
-            ax.set_xlabel("x"); ax.set_ylabel("y")
+            ax.set_xlabel(_plot_xlabel_override or "x"); ax.set_ylabel(_plot_ylabel_override or "y")
             ax.set_aspect("equal", adjustable="box")
             if {config.plot_colorbar}: fig.colorbar(im, ax=ax)
             out_name = _plot_custom_label if _plot_custom_expr.strip() else {repr(config.output_names)}.split(",")[_plot_idx].strip()
-            fig.suptitle(f"PINN Solution — {{out_name}}(x,y,z={{_z_mid:.3g}})", fontsize=12)
+            fig.suptitle(_plot_title_override or f"PINN Solution — {{out_name}}(x,y,z={{_z_mid:.3g}})", fontsize=12)
             plt.tight_layout()
             plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
         elif _is_3d and _plot_type == "Line (time steps)":
@@ -3452,8 +3480,8 @@ for _pval in _param_values:
                 _xyzt_l3d = np.column_stack([_x_l3d, np.full_like(_x_l3d, {_line_slice_y}), np.full_like(_x_l3d, {_line_slice_z}), np.full_like(_x_l3d, _tv_l3d)])
                 _u_l3d = _extract_plot_field(_xyzt_l3d).flatten()
                 ax.plot(_x_l3d, _u_l3d, color=_colors_l3d[_i_l3d], linewidth={config.plot_linewidth}, label=f"t = {{_tv_l3d:.3f}}")
-            ax.set_xlabel("x"); ax.set_ylabel(f"{{out_name}}(x,y={_line_slice_y:.3g},z={_line_slice_z:.3g},t)")
-            ax.set_title(f"PINN Solution — {{out_name}}(x,y={_line_slice_y:.3g},z={_line_slice_z:.3g},t)")
+            ax.set_xlabel(_plot_xlabel_override or "x"); ax.set_ylabel(_plot_ylabel_override or f"{{out_name}}(x,y={_line_slice_y:.3g},z={_line_slice_z:.3g},t)")
+            ax.set_title(_plot_title_override or f"PINN Solution — {{out_name}}(x,y={_line_slice_y:.3g},z={_line_slice_z:.3g},t)")
             ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
             plt.tight_layout(); plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
         elif _is_3d:
@@ -3486,10 +3514,10 @@ for _pval in _param_values:
                 _pred3 = np.where(_inside_3d, _pred3, np.nan)
                 im = axes[_ai].contourf(_Xg3, _Yg3, _pred3, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_3d, vmax=_vmax_3d)
                 axes[_ai].set_title(f"t = {{_tv:.3f}}, z = {{_z_mid:.3g}} (mid-plane)")
-                axes[_ai].set_xlabel("x"); axes[_ai].set_ylabel("y")
+                axes[_ai].set_xlabel(_plot_xlabel_override or "x"); axes[_ai].set_ylabel(_plot_ylabel_override or "y")
                 if {config.plot_colorbar}: fig.colorbar(im, ax=axes[_ai])
             out_name = _plot_custom_label if _plot_custom_expr.strip() else {repr(config.output_names)}.split(",")[_plot_idx].strip()
-            fig.suptitle(f"PINN Solution — {{out_name}}(x,y,z={{_z_mid:.3g}},t)", fontsize=12)
+            fig.suptitle(_plot_title_override or f"PINN Solution — {{out_name}}(x,y,z={{_z_mid:.3g}},t)", fontsize=12)
             plt.tight_layout()
             plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
         elif _is_steady:
@@ -3502,8 +3530,8 @@ for _pval in _param_values:
             _out_name_1d = _plot_custom_label if _plot_custom_expr.strip() else {repr(config.output_names)}.split(",")[_plot_idx].strip()
             fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
             ax.plot(_x_1d, _u_1d, color="#4dabf7", linewidth={config.plot_linewidth})
-            ax.set_xlabel("x"); ax.set_ylabel(f"{{_out_name_1d}}(x)")
-            ax.set_title(f"PINN Solution — {{_param_name}}={{_pval}}" if _parametric else "PINN Solution")
+            ax.set_xlabel(_plot_xlabel_override or "x"); ax.set_ylabel(_plot_ylabel_override or f"{{_out_name_1d}}(x)")
+            ax.set_title(_plot_title_override or (f"PINN Solution — {{_param_name}}={{_pval}}" if _parametric else "PINN Solution"))
             ax.grid(True, alpha=0.2)
             plt.tight_layout(); plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
         else:
@@ -3527,12 +3555,12 @@ for _pval in _param_values:
                 # _u_s -- is enough to flip which one lands on the x-axis.
                 if {config.plot_swap_xt}:
                     im = ax.contourf(_Ts, _Xs, _u_s, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_s, vmax=_vmax_s)
-                    ax.set_xlabel("t"); ax.set_ylabel("x")
+                    ax.set_xlabel(_plot_xlabel_override or "t"); ax.set_ylabel(_plot_ylabel_override or "x")
                 else:
                     im = ax.contourf(_Xs, _Ts, _u_s, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_s, vmax=_vmax_s)
-                    ax.set_xlabel("x"); ax.set_ylabel("t")
+                    ax.set_xlabel(_plot_xlabel_override or "x"); ax.set_ylabel(_plot_ylabel_override or "t")
                 if {config.plot_colorbar}: fig.colorbar(im, ax=ax)
-                ax.set_title((f"PINN Solution — {{_out_name_1dt}}(x,t) — {{_param_name}}={{_pval}}" if _parametric
+                ax.set_title(_plot_title_override or (f"PINN Solution — {{_out_name_1dt}}(x,t) — {{_param_name}}={{_pval}}" if _parametric
                               else f"PINN Solution — {{_out_name_1dt}}(x,t)"))
                 plt.tight_layout(); plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
 
@@ -3547,8 +3575,8 @@ for _pval in _param_values:
                     xt = np.column_stack([_x_l, np.full_like(_x_l, t_val)])
                     u_line = _extract_plot_field(xt).flatten()
                     ax.plot(_x_l, u_line, color=colors[i], linewidth={config.plot_linewidth}, label=f"t = {{t_val:.3f}}")
-                ax.set_xlabel("x"); ax.set_ylabel(f"{{_out_name_line}}(x,t)")
-                ax.set_title(f"PINN Solution — {{_param_name}}={{_pval}}" if _parametric else "PINN Solution")
+                ax.set_xlabel(_plot_xlabel_override or "x"); ax.set_ylabel(_plot_ylabel_override or f"{{_out_name_line}}(x,t)")
+                ax.set_title(_plot_title_override or (f"PINN Solution — {{_param_name}}={{_pval}}" if _parametric else "PINN Solution"))
                 ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
                 plt.tight_layout(); plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
 
@@ -6047,6 +6075,19 @@ def generate_clean_script(config):
     line_slice_y = (config.y_min + config.y_max) / 2.0 if config.line_slice_y_auto else config.line_slice_y
     line_slice_z = (config.z_min + config.z_max) / 2.0 if config.line_slice_z_auto else config.line_slice_z
 
+    # Optional title/axis-label overrides -- same blank-means-default
+    # convention as generate_script() and the Restore & Visualize script
+    # builders. Unlike generate_script()'s runtime `_plot_title_override
+    # or <default>` (where out_name is only known at the generated
+    # script's own runtime), out_name below is a plain Python variable
+    # already known here at codegen time -- same as the restore builders
+    # -- so the override is resolved immediately via `title_override or
+    # <default>` in this function's own Python, baking in the final
+    # fixed string.
+    plot_title_override = (getattr(config, "plot_title_override", "") or "").strip()
+    plot_xlabel_override = (getattr(config, "plot_xlabel_override", "") or "").strip()
+    plot_ylabel_override = (getattr(config, "plot_ylabel_override", "") or "").strip()
+
     # ---- PDE expressions (host-resolved derivative terms) --------------
     pde_exprs = [_simplify_pde_expr(e) for e in config.pde_expressions.split("|")]
     pde_check_str = "|".join(pde_exprs)
@@ -6937,8 +6978,8 @@ xy_l2ds = np.column_stack([x_l2ds, np.full_like(x_l2ds, {line_slice_y})])
 u_l2ds = _extract_plot_field(xy_l2ds).flatten()
 fig, ax = plt.subplots(figsize=(7, 5))
 ax.plot(x_l2ds, u_l2ds, color="#4dabf7", linewidth={config.plot_linewidth})
-ax.set_xlabel("x"); ax.set_ylabel("{out_name}(x, y={line_slice_y:.3g})")
-ax.set_title("PINN Solution")
+ax.set_xlabel({(plot_xlabel_override or "x")!r}); ax.set_ylabel({(plot_ylabel_override or f"{out_name}(x, y={line_slice_y:.3g})")!r})
+ax.set_title({(plot_title_override or "PINN Solution")!r})
 ax.grid(True, alpha=0.2)
 plt.tight_layout()
 plt.savefig(solution_path, dpi={config.plot_dpi}, bbox_inches="tight")
@@ -6957,10 +6998,10 @@ pred = _extract_plot_field(xy).reshape(res, res)
 pred = np.where(inside, pred, np.nan)
 fig, ax = plt.subplots(figsize=(6.5, 5.5))
 im = ax.contourf(Xg, Yg, pred, levels={config.plot_levels}, cmap="{config.plot_colormap}")
-ax.set_xlabel("x"); ax.set_ylabel("y"); ax.set_aspect("equal", adjustable="box")
+ax.set_xlabel({(plot_xlabel_override or "x")!r}); ax.set_ylabel({(plot_ylabel_override or "y")!r}); ax.set_aspect("equal", adjustable="box")
 if {config.plot_colorbar}:
     fig.colorbar(im, ax=ax)
-fig.suptitle(f"PINN Solution — {out_name}(x, y)")
+fig.suptitle({(plot_title_override or f"PINN Solution — {out_name}(x, y)")!r})
 plt.tight_layout()
 plt.savefig(solution_path, dpi={config.plot_dpi}, bbox_inches="tight")
 plt.close()
@@ -6976,8 +7017,8 @@ xyz_l3ds = np.column_stack([x_l3ds, np.full_like(x_l3ds, {line_slice_y}), np.ful
 u_l3ds = _extract_plot_field(xyz_l3ds).flatten()
 fig, ax = plt.subplots(figsize=(7, 5))
 ax.plot(x_l3ds, u_l3ds, color="#4dabf7", linewidth={config.plot_linewidth})
-ax.set_xlabel("x"); ax.set_ylabel("{out_name}(x, y={line_slice_y:.3g}, z={line_slice_z:.3g})")
-ax.set_title("PINN Solution")
+ax.set_xlabel({(plot_xlabel_override or "x")!r}); ax.set_ylabel({(plot_ylabel_override or f"{out_name}(x, y={line_slice_y:.3g}, z={line_slice_z:.3g})")!r})
+ax.set_title({(plot_title_override or "PINN Solution")!r})
 ax.grid(True, alpha=0.2)
 plt.tight_layout()
 plt.savefig(solution_path, dpi={config.plot_dpi}, bbox_inches="tight")
@@ -6997,10 +7038,10 @@ pred = _extract_plot_field(xyz).reshape(res, res)
 pred = np.where(inside, pred, np.nan)
 fig, ax = plt.subplots(figsize=(6.5, 5.5))
 im = ax.contourf(Xg, Yg, pred, levels={config.plot_levels}, cmap="{config.plot_colormap}")
-ax.set_xlabel("x"); ax.set_ylabel("y"); ax.set_aspect("equal", adjustable="box")
+ax.set_xlabel({(plot_xlabel_override or "x")!r}); ax.set_ylabel({(plot_ylabel_override or "y")!r}); ax.set_aspect("equal", adjustable="box")
 if {config.plot_colorbar}:
     fig.colorbar(im, ax=ax)
-fig.suptitle(f"PINN Solution — {out_name}(x, y, z={{z_mid:.3g}})")
+fig.suptitle({plot_title_override!r} if {bool(plot_title_override)} else f"PINN Solution — {out_name}(x, y, z={{z_mid:.3g}})")
 plt.tight_layout()
 plt.savefig(solution_path, dpi={config.plot_dpi}, bbox_inches="tight")
 plt.close()
@@ -7014,8 +7055,8 @@ x_1d = np.linspace({config.x_min}, {config.x_max}, res)
 u_1d = _extract_plot_field(x_1d.reshape(-1, 1)).flatten()
 fig, ax = plt.subplots(figsize=(7, 5))
 ax.plot(x_1d, u_1d, color="#4dabf7", linewidth={config.plot_linewidth})
-ax.set_xlabel("x"); ax.set_ylabel("{out_name}(x)")
-ax.set_title("PINN Solution")
+ax.set_xlabel({(plot_xlabel_override or "x")!r}); ax.set_ylabel({(plot_ylabel_override or f"{out_name}(x)")!r})
+ax.set_title({(plot_title_override or "PINN Solution")!r})
 ax.grid(True, alpha=0.2)
 plt.tight_layout()
 plt.savefig(solution_path, dpi={config.plot_dpi}, bbox_inches="tight")
@@ -7058,7 +7099,8 @@ u_min = min(u.min() for u in frames_u); u_max = max(u.max() for u in frames_u)
 fig, ax = plt.subplots(figsize=(7, 5))
 ax.set_xlim({config.x_min}, {config.x_max})
 ax.set_ylim(u_min - 0.05 * abs(u_min) - 1e-9, u_max + 0.05 * abs(u_max) + 1e-9)
-ax.set_xlabel("x"); ax.set_ylabel("{_ylabel_anim}"); ax.grid(True, alpha=0.2)
+ax.set_xlabel({(plot_xlabel_override or "x")!r}); ax.set_ylabel({(plot_ylabel_override or _ylabel_anim)!r}); ax.grid(True, alpha=0.2)
+{f"ax.set_title({plot_title_override!r})" if plot_title_override else "# (no title override set)"}
 line, = ax.plot([], [], color="#4dabf7", linewidth={config.plot_linewidth_anim})
 time_txt = ax.text(0.02, 0.95, "", transform=ax.transAxes, color="#ff8787")
 def _update(i):
@@ -7092,7 +7134,7 @@ fig, ax = plt.subplots(figsize=(7, 5))
 def _update(i):
     ax.cla()
     ax.contourf(Xa, Ya, frames[i], levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=v_min, vmax=v_max)
-    ax.set_xlabel("x"); ax.set_ylabel("y"); ax.set_title(f"t = {{t_frames[i]:.3f}}")
+    ax.set_xlabel({(plot_xlabel_override or "x")!r}); ax.set_ylabel({(plot_ylabel_override or "y")!r}); ax.set_title({plot_title_override!r} if {bool(plot_title_override)} else f"t = {{t_frames[i]:.3f}}")
 ani = animation.FuncAnimation(fig, _update, frames={n_frames}, interval=150)
 ani.save(solution_path, writer="pillow", fps={config.plot_fps})
 plt.close(fig)
@@ -7110,7 +7152,7 @@ fig, ax = plt.subplots(figsize=(7, 5))
 def _update(i):
     ax.cla()
     ax.contourf(Xa, Ya, frames[i], levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=v_min, vmax=v_max)
-    ax.set_xlabel("x"); ax.set_ylabel("y"); ax.set_title(f"t = {{t_frames[i]:.3f}}")
+    ax.set_xlabel({(plot_xlabel_override or "x")!r}); ax.set_ylabel({(plot_ylabel_override or "y")!r}); ax.set_title({plot_title_override!r} if {bool(plot_title_override)} else f"t = {{t_frames[i]:.3f}}")
 ani = animation.FuncAnimation(fig, _update, frames={n_frames}, interval=150)
 ani.save(solution_path, writer="pillow", fps={config.plot_fps})
 plt.close(fig)
@@ -7133,11 +7175,11 @@ def _update(i):
     ax.cla()
     if {config.plot_swap_xt}:
         ax.contourf(Ta, Xa, frames[i], levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=v_min, vmax=v_max)
-        ax.set_xlabel("t"); ax.set_ylabel("x")
+        ax.set_xlabel({(plot_xlabel_override or "t")!r}); ax.set_ylabel({(plot_ylabel_override or "x")!r})
     else:
         ax.contourf(Xa, Ta, frames[i], levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=v_min, vmax=v_max)
-        ax.set_xlabel("x"); ax.set_ylabel("t")
-    ax.set_title(f"t = {{t_frames[i]:.3f}}")
+        ax.set_xlabel({(plot_xlabel_override or "x")!r}); ax.set_ylabel({(plot_ylabel_override or "t")!r})
+    ax.set_title({plot_title_override!r} if {bool(plot_title_override)} else f"t = {{t_frames[i]:.3f}}")
 ani = animation.FuncAnimation(fig, _update, frames={n_frames}, interval=150)
 ani.save(solution_path, writer="pillow", fps={config.plot_fps})
 plt.close(fig)
@@ -7160,8 +7202,8 @@ for i, tv in enumerate(t_steps_l2d):
     xyt = np.column_stack([x_l2d, np.full_like(x_l2d, {line_slice_y}), np.full_like(x_l2d, tv)])
     u_line = _extract_plot_field(xyt).flatten()
     ax.plot(x_l2d, u_line, color=colors[i], linewidth={config.plot_linewidth}, label=f"t = {{tv:.3f}}")
-ax.set_xlabel("x"); ax.set_ylabel("{out_name}(x, y={line_slice_y:.3g}, t)")
-ax.set_title("PINN Solution")
+ax.set_xlabel({(plot_xlabel_override or "x")!r}); ax.set_ylabel({(plot_ylabel_override or f"{out_name}(x, y={line_slice_y:.3g}, t)")!r})
+ax.set_title({(plot_title_override or "PINN Solution")!r})
 ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
 plt.tight_layout()
 plt.savefig(solution_path, dpi={config.plot_dpi}, bbox_inches="tight")
@@ -7185,10 +7227,10 @@ for ai, tv in enumerate(t_snaps):
     pred = _extract_plot_field(xyt).reshape(res, res)
     pred = np.where(inside, pred, np.nan)
     im = axes[ai].contourf(Xg, Yg, pred, levels={config.plot_levels}, cmap="{config.plot_colormap}")
-    axes[ai].set_title(f"t = {{tv:.3f}}"); axes[ai].set_xlabel("x"); axes[ai].set_ylabel("y")
+    axes[ai].set_title(f"t = {{tv:.3f}}"); axes[ai].set_xlabel({(plot_xlabel_override or "x")!r}); axes[ai].set_ylabel({(plot_ylabel_override or "y")!r})
     if {config.plot_colorbar}:
         fig.colorbar(im, ax=axes[ai])
-fig.suptitle(f"PINN Solution — {out_name}(x, y, t)")
+fig.suptitle({(plot_title_override or f"PINN Solution — {out_name}(x, y, t)")!r})
 plt.tight_layout()
 plt.savefig(solution_path, dpi={config.plot_dpi}, bbox_inches="tight")
 plt.close()
@@ -7207,8 +7249,8 @@ for i, tv in enumerate(t_steps_l3d):
     xyzt = np.column_stack([x_l3d, np.full_like(x_l3d, {line_slice_y}), np.full_like(x_l3d, {line_slice_z}), np.full_like(x_l3d, tv)])
     u_line = _extract_plot_field(xyzt).flatten()
     ax.plot(x_l3d, u_line, color=colors[i], linewidth={config.plot_linewidth}, label=f"t = {{tv:.3f}}")
-ax.set_xlabel("x"); ax.set_ylabel("{out_name}(x, y={line_slice_y:.3g}, z={line_slice_z:.3g}, t)")
-ax.set_title("PINN Solution")
+ax.set_xlabel({(plot_xlabel_override or "x")!r}); ax.set_ylabel({(plot_ylabel_override or f"{out_name}(x, y={line_slice_y:.3g}, z={line_slice_z:.3g}, t)")!r})
+ax.set_title({(plot_title_override or "PINN Solution")!r})
 ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
 plt.tight_layout()
 plt.savefig(solution_path, dpi={config.plot_dpi}, bbox_inches="tight")
@@ -7233,10 +7275,10 @@ for ai, tv in enumerate(t_snaps):
     pred = _extract_plot_field(xyzt).reshape(res, res)
     pred = np.where(inside, pred, np.nan)
     im = axes[ai].contourf(Xg, Yg, pred, levels={config.plot_levels}, cmap="{config.plot_colormap}")
-    axes[ai].set_title(f"t = {{tv:.3f}}, z = {{z_mid:.3g}}"); axes[ai].set_xlabel("x"); axes[ai].set_ylabel("y")
+    axes[ai].set_title(f"t = {{tv:.3f}}, z = {{z_mid:.3g}}"); axes[ai].set_xlabel({(plot_xlabel_override or "x")!r}); axes[ai].set_ylabel({(plot_ylabel_override or "y")!r})
     if {config.plot_colorbar}:
         fig.colorbar(im, ax=axes[ai])
-fig.suptitle(f"PINN Solution — {out_name}(x, y, z={{z_mid:.3g}}, t)")
+fig.suptitle({plot_title_override!r} if {bool(plot_title_override)} else f"PINN Solution — {out_name}(x, y, z={{z_mid:.3g}}, t)")
 plt.tight_layout()
 plt.savefig(solution_path, dpi={config.plot_dpi}, bbox_inches="tight")
 plt.close()
@@ -7253,8 +7295,8 @@ for i, tv in enumerate(t_steps):
     xt = np.column_stack([x_l, np.full_like(x_l, tv)])
     u_line = _extract_plot_field(xt).flatten()
     ax.plot(x_l, u_line, color=colors[i], linewidth={config.plot_linewidth}, label=f"t = {{tv:.3f}}")
-ax.set_xlabel("x"); ax.set_ylabel("{out_name}(x, t)")
-ax.set_title("PINN Solution")
+ax.set_xlabel({(plot_xlabel_override or "x")!r}); ax.set_ylabel({(plot_ylabel_override or f"{out_name}(x, t)")!r})
+ax.set_title({(plot_title_override or "PINN Solution")!r})
 ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
 plt.tight_layout()
 plt.savefig(solution_path, dpi={config.plot_dpi}, bbox_inches="tight")
@@ -7272,13 +7314,13 @@ u_s = _extract_plot_field(xts).reshape(res, res)
 fig, ax = plt.subplots(figsize=(7, 5))
 if {config.plot_swap_xt}:
     im = ax.contourf(Ts, Xs, u_s, levels={config.plot_levels}, cmap="{config.plot_colormap}")
-    ax.set_xlabel("t"); ax.set_ylabel("x")
+    ax.set_xlabel({(plot_xlabel_override or "t")!r}); ax.set_ylabel({(plot_ylabel_override or "x")!r})
 else:
     im = ax.contourf(Xs, Ts, u_s, levels={config.plot_levels}, cmap="{config.plot_colormap}")
-    ax.set_xlabel("x"); ax.set_ylabel("t")
+    ax.set_xlabel({(plot_xlabel_override or "x")!r}); ax.set_ylabel({(plot_ylabel_override or "t")!r})
 if {config.plot_colorbar}:
     fig.colorbar(im, ax=ax)
-ax.set_title("PINN Solution")
+ax.set_title({(plot_title_override or "PINN Solution")!r})
 plt.tight_layout()
 plt.savefig(solution_path, dpi={config.plot_dpi}, bbox_inches="tight")
 plt.close()

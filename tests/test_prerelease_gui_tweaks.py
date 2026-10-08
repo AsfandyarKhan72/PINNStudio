@@ -126,11 +126,12 @@ def main():
           f"plot_type_combo includes Surface Animation (GIF) after switching to 2D, got {_combo_items(win.plot_type_combo)}")
 
     # Selecting "Surface Animation (GIF)" through the combo normally pops
-    # the real "Line Plot Settings" dialog (_on_plot_type_changed ->
-    # _on_line_plot_settings, modal exec()) -- blockSignals here sidesteps
-    # that dialog the same way its own Cancel button does, since this
-    # test is only exercising _on_dim_changed's add/remove/fallback logic,
-    # not that dialog.
+    # the real unified Plot Settings dialog (_on_plot_type_changed ->
+    # _on_plot_settings, modal exec() -- every plot type auto-pops it as
+    # of Round 24, not just line/animation types) -- blockSignals here
+    # sidesteps that dialog the same way its own Cancel button does,
+    # since this test is only exercising _on_dim_changed's add/remove/
+    # fallback logic, not that dialog.
     win.plot_type_combo.blockSignals(True)
     win.plot_type_combo.setCurrentText("Surface Animation (GIF)")
     win.plot_type_combo.blockSignals(False)

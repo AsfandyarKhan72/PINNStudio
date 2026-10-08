@@ -2400,6 +2400,19 @@ class MainWindow(QMainWindow):
             'figsize_mode': 'Default',
             'figsize_w': 7.0,
             'figsize_h': 5.0,
+            # y/z slice for the two Line-type viz types ("Line (time
+            # steps)"/"Animation Line (GIF)") on a 2D/3D restore -- a
+            # genuinely live, independently-overridable control (see
+            # _on_restore_viz_settings' slice rows and the matching
+            # comment in _build_restore_script), not a readback of
+            # whatever the run was originally solved/plotted with.
+            # _auto=True (the default) means "domain midpoint of whatever
+            # model gets restored", recomputed fresh each time since
+            # different restored configs can have different domains.
+            'line_slice_y_auto': True,
+            'line_slice_y': 0.0,
+            'line_slice_z_auto': True,
+            'line_slice_z': 0.0,
         }
 
         self.restore_output_widget = QWidget()
@@ -2627,20 +2640,14 @@ class MainWindow(QMainWindow):
         ])
         self.plot_type_combo.setFixedHeight(28)
         self._fit_combo_width(self.plot_type_combo, min_width=160)
+        # currentTextChanged fires _on_plot_type_changed, which now always
+        # pops the unified plot-settings dialog itself (see that method) --
+        # there's no separate "⚙" button any more (removed: a standalone
+        # settings button beside this combo was confusing alongside a combo
+        # that already auto-pops its own settings on selection, exactly the
+        # mismatch Restore & Visualize's own plot-type combo never had).
         self.plot_type_combo.currentTextChanged.connect(self._on_plot_type_changed)
         ctrl_row.addWidget(self.plot_type_combo)
-
-        self.plot_settings_btn = QPushButton("⚙")
-        self.plot_settings_btn.setFixedHeight(28)
-        self.plot_settings_btn.setFixedWidth(28)
-        self.plot_settings_btn.setToolTip("Plot settings")
-        self._register_style(self.plot_settings_btn, "button", lambda css: f"""
-            QPushButton {{ background: #3e3e42; color: #a0c4ff; {css}
-                          border-radius: 4px; border: 1px solid #586e75; }}
-            QPushButton:hover {{ background: #586e75; }}
-        """)
-        self.plot_settings_btn.clicked.connect(self._on_plot_settings)
-        ctrl_row.addWidget(self.plot_settings_btn)
         ctrl_row.addStretch()
         bottom_layout.addLayout(ctrl_row)
 
@@ -2696,12 +2703,13 @@ class MainWindow(QMainWindow):
 
         self._plot_viz_settings = {
             'colormap': 'jet',
-            'surface_time': 1.0,
-            # See the matching comment on self._restore_viz_settings above --
-            # same split, same reasoning, kept consistent between the Setup
-            # tab's own plots and the Restore tab's.
-            'n_steps_line': 5,
-            'n_steps_anim': 20,
+            # NOTE: steps (n_steps_line/n_steps_anim) and the y/z slice
+            # live in the persistent hidden widgets (self.timesteps_spin_line/
+            # _anim, self.line_slice_y_auto_cb/_spin, self.line_slice_z_auto_cb/
+            # _spin) instead of this dict -- see _build_config()/_apply_config(),
+            # which round-trip those widgets directly into PINNConfig fields.
+            # This dict only backs the settings that don't already have a
+            # dedicated widget of their own.
             'n_2d_snapshots': 2,
             'colorbar': True,
             'levels': 100,
@@ -2716,6 +2724,9 @@ class MainWindow(QMainWindow):
             'figsize_mode': 'Default',
             'figsize_w': 7.0,
             'figsize_h': 5.0,
+            'title': '',
+            'xlabel': '',
+            'ylabel': '',
         }
 
         self.export_btn = QPushButton("💾 Export Solution")
@@ -3989,16 +4000,18 @@ class MainWindow(QMainWindow):
 
     # ── Plot type change ──────────────────────────────────────
     def _on_plot_type_changed(self, text):
-        if text in ("Line (time steps)", "Line Animation (GIF)", "Surface Animation (GIF)"):
-            # _plot_type_prev is deliberately NOT updated here -- it still
-            # holds whatever was selected before this change, which is
-            # exactly what _on_line_plot_settings()'s Cancel button needs
-            # to restore. It's updated below instead, once a selection
-            # actually sticks (either one that doesn't need this dialog at
-            # all, or this dialog's own OK).
-            self._on_line_plot_settings()
-        else:
-            self._plot_type_prev = text
+        # Every plot type auto-pops the unified settings dialog on
+        # selection now -- exactly matching Restore & Visualize's own
+        # plot-type combo (_on_restore_viz_changed -> always
+        # _on_restore_viz_settings()), and removing the need for a
+        # separate "⚙" settings button beside this combo (removed).
+        # _plot_type_prev is deliberately NOT updated here -- it still
+        # holds whatever was selected before this change, which is
+        # exactly what _on_plot_settings()'s Cancel button needs to
+        # restore. It's updated inside _on_plot_settings itself instead,
+        # once a selection actually sticks (either Cancel's own revert, or
+        # this dialog's OK).
+        self._on_plot_settings(text)
 
     def _on_plot_output_combo_changed(self, text):
         """Show the custom expression/label fields only while "Custom..."
@@ -4019,108 +4032,6 @@ class MainWindow(QMainWindow):
         self.restore_custom_expr_input.setVisible(_is_custom)
         self.restore_custom_label_input.setVisible(_is_custom)
 
-
-    def _on_line_plot_settings(self):
-        # Which plot type opened this dialog decides which of the two
-        # hidden spinboxes (and which wording/default) is in play -- the
-        # static "Line (time steps)" plot and the GIF animations keep
-        # separate step counts now instead of sharing one (see
-        # timesteps_spin_line/_anim).
-        _is_anim = "Animation" in self.plot_type_combo.currentText()
-        _target_spin = self.timesteps_spin_anim if _is_anim else self.timesteps_spin_line
-
-        dialog = QDialog(self)
-        dialog.setWindowTitle("Line Plot Settings")
-        dialog.setMinimumWidth(300)
-        layout = QVBoxLayout(dialog)
-
-        info = QLabel(
-            "Select number of frames for the GIF animation." if _is_anim
-            else "Select number of time steps to plot.")
-        info.setWordWrap(True)
-        self._register_style(info, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
-        layout.addWidget(info)
-
-        steps_row = QHBoxLayout()
-        steps_row.addWidget(QLabel("Frames to show:" if _is_anim else "Time steps to show:"))
-        steps_spin = QSpinBox()
-        steps_spin.setRange(2, 20); steps_spin.setValue(_target_spin.value())
-        steps_spin.setFixedWidth(80)
-        steps_row.addStretch(); steps_row.addWidget(steps_spin)
-        layout.addLayout(steps_row)
-
-        # y/z slice -- only meaningful for 2D/3D, where a line-type plot
-        # (this dialog covers both "Line (time steps)" and the two
-        # Animation GIF types) shows u vs x only, leaving y (and z, in
-        # 3D) fixed at some value. See PINNConfig.line_slice_y_auto/
-        # line_slice_y and the matching z fields -- every line-type plot
-        # across the app (live Solve, Export as DeepXDE Script, Restore &
-        # Visualize, all three Error Analysis line-comparisons) now reads
-        # this instead of each silently hardcoding the domain midpoint.
-        _dlg_is_2d = self.radio_2d.isChecked()
-        _dlg_is_3d = self.radio_3d.isChecked()
-        _y_auto_cb = _y_spin = _z_auto_cb = _z_spin = None
-        if _dlg_is_2d or _dlg_is_3d:
-            slice_info = QLabel(
-                "This plot type only shows u vs x -- pick where to slice "
-                "the rest of the domain.")
-            slice_info.setWordWrap(True)
-            self._register_style(slice_info, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
-            layout.addWidget(slice_info)
-
-            def _make_slice_row(label, auto_cb_src, spin_src):
-                row = QHBoxLayout()
-                auto_cb = QCheckBox("Auto (domain midpoint)")
-                auto_cb.setChecked(auto_cb_src.isChecked())
-                row.addWidget(QLabel(f"{label} value:"))
-                spin = QDoubleSpinBox()
-                spin.setRange(-1e6, 1e6); spin.setValue(spin_src.value())
-                spin.setFixedWidth(90)
-                spin.setVisible(not auto_cb.isChecked())
-                row.addStretch(); row.addWidget(spin)
-                auto_cb.stateChanged.connect(lambda s: spin.setVisible(s != 2))
-                layout.addWidget(auto_cb)
-                layout.addLayout(row)
-                return auto_cb, spin
-
-            _y_auto_cb, _y_spin = _make_slice_row("y", self.line_slice_y_auto_cb, self.line_slice_y_spin)
-            if _dlg_is_3d:
-                _z_auto_cb, _z_spin = _make_slice_row("z", self.line_slice_z_auto_cb, self.line_slice_z_spin)
-
-        btn_row = QHBoxLayout()
-        ok_btn = QPushButton("OK"); cancel_btn = QPushButton("Cancel")
-        btn_row.addStretch(); btn_row.addWidget(ok_btn); btn_row.addWidget(cancel_btn)
-        layout.addLayout(btn_row)
-
-        def _on_cancel():
-            # Restore whichever plot type was actually selected before
-            # this dialog opened -- not a hardcoded "Surface" -- so
-            # reconsidering "Surface Animation (GIF)" while "Line (time
-            # steps)" was already selected and then Cancelling lands back
-            # on "Line (time steps)", the same Cancel behavior every other
-            # Settings dialog in this app already has. blockSignals avoids
-            # re-triggering _on_plot_type_changed (and re-opening this
-            # same dialog) for the revert itself.
-            self.plot_type_combo.blockSignals(True)
-            self.plot_type_combo.setCurrentText(getattr(self, '_plot_type_prev', 'Surface'))
-            self.plot_type_combo.blockSignals(False)
-            dialog.reject()
-
-        cancel_btn.clicked.connect(_on_cancel)
-
-        def _on_ok():
-            _target_spin.setValue(steps_spin.value())
-            if _y_auto_cb is not None:
-                self.line_slice_y_auto_cb.setChecked(_y_auto_cb.isChecked())
-                self.line_slice_y_spin.setValue(_y_spin.value())
-            if _z_auto_cb is not None:
-                self.line_slice_z_auto_cb.setChecked(_z_auto_cb.isChecked())
-                self.line_slice_z_spin.setValue(_z_spin.value())
-            self._plot_type_prev = self.plot_type_combo.currentText()
-            dialog.accept()
-
-        ok_btn.clicked.connect(_on_ok)
-        dialog.exec()
 
     # _on_error_analysis_settings / _run_error_analysis / this file's
     # first _on_ea_done were dead code -- only reachable from a
@@ -5847,6 +5758,9 @@ class MainWindow(QMainWindow):
             plot_figsize_mode=self._plot_viz_settings.get('figsize_mode', 'Default'),
             plot_figsize_w=self._plot_viz_settings.get('figsize_w', 7.0),
             plot_figsize_h=self._plot_viz_settings.get('figsize_h', 5.0),
+            plot_title_override=self._plot_viz_settings.get('title', ''),
+            plot_xlabel_override=self._plot_viz_settings.get('xlabel', ''),
+            plot_ylabel_override=self._plot_viz_settings.get('ylabel', ''),
             ea_files=repr(self._ea_settings.get('files', [])) if getattr(self, '_ea_settings', None) else "[]",
             ea_do_line=self._ea_settings.get('do_line', True) if getattr(self, '_ea_settings', None) else True,
             ea_do_surface=self._ea_settings.get('do_surface', True) if getattr(self, '_ea_settings', None) else True,
@@ -6306,7 +6220,16 @@ class MainWindow(QMainWindow):
         self.num_initial.setValue(config.num_initial)
         self.num_test.setValue(config.num_test)
         self.pts_dist_combo.setCurrentText(config.point_distribution)
+        # Blocked like the dimension-switch/Inverse-toggle combos just above:
+        # _on_plot_type_changed() now auto-pops the unified settings dialog on
+        # every change, and it must not fire here -- the hidden holder widgets
+        # it reads (timesteps_spin_line/_anim, line_slice_*) are restored to
+        # this config's real values on the lines right below, so a dialog
+        # popped mid-restore would show stale defaults rather than them.
+        self.plot_type_combo.blockSignals(True)
         self.plot_type_combo.setCurrentText(config.plot_type)
+        self.plot_type_combo.blockSignals(False)
+        self._plot_type_prev = config.plot_type
         self.timesteps_spin_line.setValue(getattr(config, 'num_timesteps_line', 5))
         self.timesteps_spin_anim.setValue(getattr(config, 'num_timesteps_anim', 20))
         self.line_slice_y_auto_cb.setChecked(getattr(config, 'line_slice_y_auto', True))
@@ -6541,6 +6464,9 @@ class MainWindow(QMainWindow):
             "figsize_mode": getattr(config, "plot_figsize_mode", "Default"),
             "figsize_w": getattr(config, "plot_figsize_w", 7.0),
             "figsize_h": getattr(config, "plot_figsize_h", 5.0),
+            "title": getattr(config, "plot_title_override", ""),
+            "xlabel": getattr(config, "plot_xlabel_override", ""),
+            "ylabel": getattr(config, "plot_ylabel_override", ""),
         }
 
         # Error-analysis settings
@@ -6922,6 +6848,13 @@ class MainWindow(QMainWindow):
         # hiding it) keeps a stray leftover selection from silently
         # producing no solution plot for a Forward problem.
         _pc_idx = self.plot_type_combo.findText("Parameter Convergence")
+        # blockSignals: like the dimension-switch fallback above, these two
+        # setCurrentText calls are a programmatic side effect of toggling
+        # Inverse/Forward, not a user picking a new plot type -- now that
+        # _on_plot_type_changed() auto-pops the settings dialog for every
+        # selection (not just line/animation types as before), leaving
+        # these unguarded would pop it out of nowhere every time Inverse
+        # mode is switched on or off.
         if is_inv:
             if _pc_idx == -1:
                 self.plot_type_combo.addItem("Parameter Convergence")
@@ -6930,10 +6863,16 @@ class MainWindow(QMainWindow):
                 # Inverse mode adds it (see _fit_combo_width's own note
                 # that it must be re-called after every addItem).
                 self._fit_combo_width(self.plot_type_combo, min_width=160)
+            self.plot_type_combo.blockSignals(True)
             self.plot_type_combo.setCurrentText("Parameter Convergence")
+            self.plot_type_combo.blockSignals(False)
+            self._plot_type_prev = "Parameter Convergence"
         elif _pc_idx != -1:
             if self.plot_type_combo.currentText() == "Parameter Convergence":
+                self.plot_type_combo.blockSignals(True)
                 self.plot_type_combo.setCurrentText("Surface")
+                self.plot_type_combo.blockSignals(False)
+                self._plot_type_prev = "Surface"
             self.plot_type_combo.removeItem(_pc_idx)
         # Time Adaptive training does not yet wire the inferred parameter
         # into its per-step training loop (no external_trainable_variables
@@ -9269,13 +9208,21 @@ print("ERROR_ANALYSIS_DONE")
         # restored; fall back to "1D" (same default _build_restore_script
         # itself uses) if it can't be read yet, e.g. no config picked yet.
         _restore_dim = "1D"
+        _restore_y_min, _restore_y_max = 0.0, 1.0
+        _restore_z_min, _restore_z_max = 0.0, 1.0
         try:
             import json as _json_dim
             with open(self.restore_config_path.text().strip()) as _df:
-                _restore_dim = _json_dim.load(_df).get("problem_dim", "1D")
+                _restore_cfg_dim = _json_dim.load(_df)
+            _restore_dim = _restore_cfg_dim.get("problem_dim", "1D")
+            _restore_y_min = _restore_cfg_dim.get("y_min", 0.0); _restore_y_max = _restore_cfg_dim.get("y_max", 1.0)
+            _restore_z_min = _restore_cfg_dim.get("z_min", 0.0); _restore_z_max = _restore_cfg_dim.get("z_max", 1.0)
         except Exception:
             pass
         _restore_is_1d = _restore_dim == "1D"
+        _restore_is_2d = _restore_dim == "2D"
+        _restore_is_3d = _restore_dim == "3D"
+        _restore_is_line_type = viz_type in ("Line (time steps)", "Animation Line (GIF)")
 
         dialog = QDialog(self)
         dialog.setWindowTitle(f"Settings — {viz_type}")
@@ -9410,6 +9357,57 @@ print("ERROR_ANALYSIS_DONE")
         if not is_param:
             layout.addWidget(steps_widget)
 
+        # y/z slice — only for the two Line-type viz types ("Line (time
+        # steps)"/"Animation Line (GIF)"), which plot u vs x only, on a
+        # 2D/3D restore -- same control, same reasoning, as the Setup
+        # tab's own Plot Settings dialog (see _on_plot_settings). This is
+        # a genuinely live, independently-overridable control: restoring
+        # a model no longer just replays whatever slice it happened to be
+        # solved/plotted with -- a different slice can be picked here and
+        # re-plotted/re-animated without re-training. Always starts at
+        # "Auto (domain midpoint)" the first time this opens for a given
+        # restore; the midpoint itself is recomputed from whatever config
+        # just got picked (_restore_y_min/_max etc. above), not frozen at
+        # whatever an earlier restored model's domain happened to be.
+        _y_auto_cb = _y_spin = _z_auto_cb = _z_spin = None
+        _show_slice = _restore_is_line_type and (_restore_is_2d or _restore_is_3d)
+        slice_info = QLabel(
+            "This plot type only shows u vs x -- pick where to slice "
+            "the rest of the domain.")
+        slice_info.setWordWrap(True)
+        self._register_style(slice_info, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
+        slice_info.setVisible(_show_slice)
+        if not is_param:
+            layout.addWidget(slice_info)
+
+        def _make_restore_slice_row(label, auto_default, val_default):
+            row = QHBoxLayout()
+            auto_cb = QCheckBox("Auto (domain midpoint)")
+            auto_cb.setChecked(auto_default)
+            row.addWidget(QLabel(f"{label} value:"))
+            spin = QDoubleSpinBox()
+            spin.setRange(-1e6, 1e6); spin.setValue(val_default)
+            spin.setFixedWidth(90)
+            spin.setVisible(_show_slice and not auto_cb.isChecked())
+            row.addStretch(); row.addWidget(spin)
+            auto_cb.stateChanged.connect(lambda s: spin.setVisible(_show_slice and s != 2))
+            auto_cb.setVisible(_show_slice)
+            if not is_param:
+                layout.addWidget(auto_cb)
+                layout.addLayout(row)
+            return auto_cb, spin
+
+        if _restore_is_2d or _restore_is_3d:
+            _y_mid_default = (_restore_y_min + _restore_y_max) / 2.0
+            _y_auto_cb, _y_spin = _make_restore_slice_row(
+                "y", current.get('line_slice_y_auto', True),
+                current.get('line_slice_y', 0.0) if not current.get('line_slice_y_auto', True) else _y_mid_default)
+            if _restore_is_3d:
+                _z_mid_default = (_restore_z_min + _restore_z_max) / 2.0
+                _z_auto_cb, _z_spin = _make_restore_slice_row(
+                    "z", current.get('line_slice_z_auto', True),
+                    current.get('line_slice_z', 0.0) if not current.get('line_slice_z_auto', True) else _z_mid_default)
+
         # Line width — only for Line plots
         lw_widget = QWidget()
         lw_layout = QHBoxLayout(lw_widget)
@@ -9533,6 +9531,12 @@ print("ERROR_ANALYSIS_DONE")
                 new_settings[self._viz_steps_key(viz_type)] = steps_spin.value()
                 new_settings[self._viz_linewidth_key(viz_type)] = float(lw_combo.currentText())
                 self.restore_tsteps_spin.setValue(steps_spin.value())
+                if _y_auto_cb is not None:
+                    new_settings['line_slice_y_auto'] = _y_auto_cb.isChecked()
+                    new_settings['line_slice_y'] = _y_spin.value()
+                if _z_auto_cb is not None:
+                    new_settings['line_slice_z_auto'] = _z_auto_cb.isChecked()
+                    new_settings['line_slice_z'] = _z_spin.value()
             new_settings['title'] = title_edit.text().strip()
             new_settings['xlabel'] = xlabel_edit.text().strip()
             new_settings['ylabel'] = ylabel_edit.text().strip()
@@ -10460,12 +10464,40 @@ print("ERROR_ANALYSIS_DONE")
             self._setup_default_scheduler_phases(t.get('template_type', ''), t['iterations'], t.get('iterations2', 10000))
         self._auto_configure_ea(self._template_ref_dir)
         self.log_box.append(f"✅ Template loaded: {text}")
-    def _on_plot_settings(self):
-        viz_type = self.plot_type_combo.currentText()
-        # (plot_type_combo never actually contains "📊 Error Analysis" --
-        # see the dead-code removal note above _add_ta_step_group -- the
-        # real Error Analysis entry point is the separate ea_btn ->
-        # _on_error_analysis_btn().)
+    def _on_plot_settings(self, viz_type=None):
+        """Unified Plot Settings dialog for the Setup tab's "Plot output"
+        panel -- merges what used to be two separate dialogs (this one,
+        opened via a standalone "⚙" button that's now removed, plus
+        _on_line_plot_settings's own steps/slice-only popup opened
+        automatically for just the line/animation types) into one dialog
+        that auto-pops for every plot-type selection, gating each field's
+        visibility by viz_type/dimension -- the same single-dialog shape
+        _on_restore_viz_settings already uses for the Restore & Visualize
+        panel, so both panels show the exact same settings for a given
+        plot type. (plot_type_combo never actually contains "📊 Error
+        Analysis" -- see the dead-code removal note above
+        _add_ta_step_group -- the real Error Analysis entry point is the
+        separate ea_btn -> _on_error_analysis_btn().)
+        """
+        if viz_type is None:
+            viz_type = self.plot_type_combo.currentText()
+
+        # "Parameter Convergence" isn't a spatial plot at all -- it's the
+        # iteration-vs-inferred-value chart for an Inverse problem (see
+        # codegen.py's own Parameter Convergence branch) -- so, exactly
+        # like Restore & Visualize's own is_param gating for its
+        # "Parameter Convergence Plot/Animation" entries, almost every
+        # field below (colormap, contour levels, resolution, DPI, color
+        # range, 2D snapshots, swap axes, colorbar, line width, steps,
+        # fps) means nothing for it and stays hidden; only figure size and
+        # the title/axis-label overrides still apply.
+        is_param = (viz_type == "Parameter Convergence")
+        _is_1d = self.radio_1d.isChecked()
+        _is_2d = self.radio_2d.isChecked()
+        _is_3d = self.radio_3d.isChecked()
+        _is_steady = bool(self.steady_state_check.isChecked()) if hasattr(self, 'steady_state_check') else False
+        _is_anim = "Animation" in viz_type
+        _is_line_type = viz_type in ("Line (time steps)", "Line Animation (GIF)")
 
         dialog = QDialog(self)
         dialog.setWindowTitle(f"Plot Settings — {viz_type}")
@@ -10482,7 +10514,8 @@ print("ERROR_ANALYSIS_DONE")
         cmap_combo.setCurrentText(current.get('colormap', 'RdBu_r'))
         cmap_combo.setFixedWidth(120)
         cmap_row.addStretch(); cmap_row.addWidget(cmap_combo)
-        layout.addLayout(cmap_row)
+        if not is_param:
+            layout.addLayout(cmap_row)
 
         # Contour levels
         levels_row = QHBoxLayout()
@@ -10491,7 +10524,8 @@ print("ERROR_ANALYSIS_DONE")
         levels_spin.setRange(5, 200); levels_spin.setValue(current.get('levels', 50))
         levels_spin.setFixedWidth(80)
         levels_row.addStretch(); levels_row.addWidget(levels_spin)
-        layout.addLayout(levels_row)
+        if not is_param:
+            layout.addLayout(levels_row)
 
         # Resolution
         res_row = QHBoxLayout()
@@ -10501,7 +10535,8 @@ print("ERROR_ANALYSIS_DONE")
         res_combo.setCurrentText(str(current.get('resolution', 100)))
         res_combo.setFixedWidth(80)
         res_row.addStretch(); res_row.addWidget(res_combo)
-        layout.addLayout(res_row)
+        if not is_param:
+            layout.addLayout(res_row)
 
         # DPI
         dpi_row = QHBoxLayout()
@@ -10511,13 +10546,14 @@ print("ERROR_ANALYSIS_DONE")
         dpi_combo.setCurrentText(str(current.get('dpi', 100)))
         dpi_combo.setFixedWidth(80)
         dpi_row.addStretch(); dpi_row.addWidget(dpi_combo)
-        layout.addLayout(dpi_row)
+        if not is_param:
+            layout.addLayout(dpi_row)
 
         # Figure size — applies to this (and every other single-panel)
-        # results plot; Error Analysis comparison grids size themselves
-        # from however many files/columns are being compared and are left
-        # alone. "Default" keeps today's per-plot-type dimensions exactly
-        # as they've always been.
+        # results plot, including Parameter Convergence; Error Analysis
+        # comparison grids size themselves from however many files/
+        # columns are being compared and are left alone. "Default" keeps
+        # today's per-plot-type dimensions exactly as they've always been.
         figsize_row = QHBoxLayout()
         figsize_row.addWidget(QLabel("Figure size:"))
         figsize_combo = QComboBox()
@@ -10567,19 +10603,30 @@ print("ERROR_ANALYSIS_DONE")
         cr_layout.addWidget(cr_manual_widget)
         cr_auto_cb.stateChanged.connect(lambda s: cr_manual_widget.setVisible(s != 2))
         color_range_widget.setVisible(viz_type in ("Surface", "Surface Animation (GIF)"))
-        layout.addWidget(color_range_widget)
+        if not is_param:
+            layout.addWidget(color_range_widget)
 
-        # 2D snapshots — Surface only, 2D mode
+        # 2D/3D time snapshots — Surface only, and only while it's
+        # actually the multi-snapshot branch in codegen.py (time-dependent
+        # 2D, or time-dependent 3D's z-mid-plane heatmap -- see
+        # generate_script()'s "elif _is_2d:"/"elif _is_3d:" Surface
+        # branches, both keyed off config.plot_n_2d_snapshots). A steady
+        # (no time axis) 2D/3D Surface, or any 1D Surface, is always a
+        # single plot and has no snapshot count to choose -- the previous
+        # version of this dialog only ever showed this control for 2D,
+        # never 3D, and didn't check steady-state at all, even though 3D
+        # non-steady Surface reads this same setting.
         snap_widget = QWidget()
         snap_layout = QHBoxLayout(snap_widget)
         snap_layout.setContentsMargins(0, 0, 0, 0)
-        snap_layout.addWidget(QLabel("2D time snapshots:"))
+        snap_layout.addWidget(QLabel("2D/3D time snapshots:"))
         snap_spin = QSpinBox()
         snap_spin.setRange(1, 10); snap_spin.setValue(current.get('n_2d_snapshots', 2))
         snap_spin.setFixedWidth(80)
         snap_layout.addStretch(); snap_layout.addWidget(snap_spin)
-        snap_widget.setVisible(viz_type == "Surface" and self.radio_2d.isChecked())
-        layout.addWidget(snap_widget)
+        snap_widget.setVisible(viz_type == "Surface" and (_is_2d or _is_3d) and not _is_steady)
+        if not is_param:
+            layout.addWidget(snap_widget)
 
         # Swap x/t axes — 1D "Surface" and "Surface Animation (GIF)" only
         # (2D/3D Surface plots are spatial snapshots at fixed times and
@@ -10590,14 +10637,82 @@ print("ERROR_ANALYSIS_DONE")
         # same way).
         swap_xt_cb = QCheckBox("Swap axes (x-axis = t, y-axis = x)")
         swap_xt_cb.setChecked(current.get('swap_xt', True))
-        swap_xt_cb.setVisible(viz_type in ("Surface", "Surface Animation (GIF)") and self.radio_1d.isChecked())
-        layout.addWidget(swap_xt_cb)
+        swap_xt_cb.setVisible(viz_type in ("Surface", "Surface Animation (GIF)") and _is_1d)
+        if not is_param:
+            layout.addWidget(swap_xt_cb)
 
         # Colorbar — Surface only
         colorbar_cb = QCheckBox("Show colorbar")
         colorbar_cb.setChecked(current.get('colorbar', True))
         colorbar_cb.setVisible(viz_type in ("Surface", "Surface Animation (GIF)"))
-        layout.addWidget(colorbar_cb)
+        if not is_param:
+            layout.addWidget(colorbar_cb)
+
+        # Steps/frames — every type except Surface and Parameter
+        # Convergence (neither has a notion of "how many time steps to
+        # draw" -- Surface's analogous control is the 2D/3D time-
+        # snapshots count just above). Wording and the hidden spinbox this
+        # writes back to (timesteps_spin_line vs. _anim) both depend on
+        # whether this is the static "Line (time steps)" plot or one of
+        # the two GIF animation types -- same split _viz_steps_key encodes
+        # for Restore's own steps/frames control.
+        _target_spin = self.timesteps_spin_anim if _is_anim else self.timesteps_spin_line
+        steps_widget = QWidget()
+        steps_layout = QHBoxLayout(steps_widget)
+        steps_layout.setContentsMargins(0, 0, 0, 0)
+        steps_layout.addWidget(QLabel("Frames to show:" if _is_anim else "Time steps to show:"))
+        steps_spin = QSpinBox()
+        steps_spin.setRange(2, 20); steps_spin.setValue(_target_spin.value())
+        steps_spin.setFixedWidth(80)
+        steps_layout.addStretch(); steps_layout.addWidget(steps_spin)
+        steps_widget.setVisible(viz_type not in ("Surface", "Parameter Convergence"))
+        if not is_param:
+            layout.addWidget(steps_widget)
+
+        # y/z slice — only for the two Line-type plots ("Line (time
+        # steps)"/"Line Animation (GIF)"), which plot u vs x only, leaving
+        # y (and z, in 3D) fixed at some value -- "Surface Animation
+        # (GIF)" shows the full x-y (or x/y/z faces) field over time
+        # instead and has no slice to pick (the previous version of this
+        # dialog showed this control for Surface Animation too, even
+        # though codegen.py's own Surface-Animation branch never reads
+        # it). See PINNConfig.line_slice_y_auto/line_slice_y and the
+        # matching z fields -- every line-type plot across the app (live
+        # Solve, Export as DeepXDE Script, Restore & Visualize, all three
+        # Error Analysis line-comparisons) reads this instead of each
+        # silently hardcoding the domain midpoint.
+        _y_auto_cb = _y_spin = _z_auto_cb = _z_spin = None
+        slice_info = QLabel(
+            "This plot type only shows u vs x -- pick where to slice "
+            "the rest of the domain.")
+        slice_info.setWordWrap(True)
+        self._register_style(slice_info, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
+        _show_slice = _is_line_type and (_is_2d or _is_3d)
+        slice_info.setVisible(_show_slice)
+        if not is_param:
+            layout.addWidget(slice_info)
+
+        def _make_slice_row(label, auto_cb_src, spin_src):
+            row = QHBoxLayout()
+            auto_cb = QCheckBox("Auto (domain midpoint)")
+            auto_cb.setChecked(auto_cb_src.isChecked())
+            row.addWidget(QLabel(f"{label} value:"))
+            spin = QDoubleSpinBox()
+            spin.setRange(-1e6, 1e6); spin.setValue(spin_src.value())
+            spin.setFixedWidth(90)
+            spin.setVisible(_show_slice and not auto_cb.isChecked())
+            row.addStretch(); row.addWidget(spin)
+            auto_cb.stateChanged.connect(lambda s: spin.setVisible(_show_slice and s != 2))
+            auto_cb.setVisible(_show_slice)
+            if not is_param:
+                layout.addWidget(auto_cb)
+                layout.addLayout(row)
+            return auto_cb, spin
+
+        if _is_2d or _is_3d:
+            _y_auto_cb, _y_spin = _make_slice_row("y", self.line_slice_y_auto_cb, self.line_slice_y_spin)
+            if _is_3d:
+                _z_auto_cb, _z_spin = _make_slice_row("z", self.line_slice_z_auto_cb, self.line_slice_z_spin)
 
         # Line width — Line only
         lw_widget = QWidget()
@@ -10609,8 +10724,9 @@ print("ERROR_ANALYSIS_DONE")
         lw_combo.setCurrentText(str(current.get(self._viz_linewidth_key(viz_type), 2.0)))
         lw_combo.setFixedWidth(80)
         lw_layout.addStretch(); lw_layout.addWidget(lw_combo)
-        lw_widget.setVisible(viz_type in ("Line (time steps)", "Line Animation (GIF)"))
-        layout.addWidget(lw_widget)
+        lw_widget.setVisible(_is_line_type)
+        if not is_param:
+            layout.addWidget(lw_widget)
 
         # Frame rate — the two GIF animation types only
         fps_widget = QWidget()
@@ -10623,52 +10739,110 @@ print("ERROR_ANALYSIS_DONE")
         fps_combo.setFixedWidth(80)
         fps_layout.addStretch(); fps_layout.addWidget(fps_combo)
         fps_widget.setVisible(viz_type in ("Line Animation (GIF)", "Surface Animation (GIF)"))
-        layout.addWidget(fps_widget)
+        if not is_param:
+            layout.addWidget(fps_widget)
+
+        # Title / axis labels — every viz type gets these (including
+        # Parameter Convergence); blank keeps the existing default text
+        # exactly as before. Same fields, same blank-means-default
+        # convention, as Restore & Visualize's own dialog.
+        labels_line = QLabel("Leave blank to keep the default title/axis labels.")
+        self._register_style(labels_line, "hint", lambda css, _c='#586e75', _e='': f"color: {_c}; {_e}{css}")
+        labels_line.setWordWrap(True)
+        layout.addWidget(labels_line)
+
+        title_row = QHBoxLayout()
+        title_row.addWidget(QLabel("Title:"))
+        title_edit = QLineEdit()
+        title_edit.setText(current.get('title', ''))
+        title_edit.setPlaceholderText("(default)")
+        title_row.addWidget(title_edit)
+        layout.addLayout(title_row)
+
+        xlabel_row = QHBoxLayout()
+        xlabel_row.addWidget(QLabel("X-axis label:"))
+        xlabel_edit = QLineEdit()
+        xlabel_edit.setText(current.get('xlabel', ''))
+        xlabel_edit.setPlaceholderText("(default)")
+        xlabel_row.addWidget(xlabel_edit)
+        layout.addLayout(xlabel_row)
+
+        ylabel_row = QHBoxLayout()
+        ylabel_row.addWidget(QLabel("Y-axis label:"))
+        ylabel_edit = QLineEdit()
+        ylabel_edit.setText(current.get('ylabel', ''))
+        ylabel_edit.setPlaceholderText("(default)")
+        ylabel_row.addWidget(ylabel_edit)
+        layout.addLayout(ylabel_row)
 
         btn_row = QHBoxLayout()
         ok_btn = QPushButton("OK"); cancel_btn = QPushButton("Cancel")
         btn_row.addStretch(); btn_row.addWidget(ok_btn); btn_row.addWidget(cancel_btn)
         layout.addLayout(btn_row)
-        cancel_btn.clicked.connect(dialog.reject)
+
+        def _on_cancel():
+            # Restore whichever plot type was actually selected before
+            # this dialog opened -- not a hardcoded "Surface" -- so
+            # reconsidering a different plot type and then Cancelling
+            # lands back on the real previous selection, the same Cancel
+            # behavior every other Settings dialog in this app already
+            # has. blockSignals avoids re-triggering _on_plot_type_changed
+            # (and re-opening this same dialog) for the revert itself.
+            self.plot_type_combo.blockSignals(True)
+            self.plot_type_combo.setCurrentText(getattr(self, '_plot_type_prev', 'Surface'))
+            self.plot_type_combo.blockSignals(False)
+            dialog.reject()
+
+        cancel_btn.clicked.connect(_on_cancel)
 
         def _on_ok():
             # Start from a copy of the existing settings (rather than a
-            # bare literal) so a key this dialog doesn't itself surface --
-            # e.g. the *other* plot type's linewidth_* / n_steps_* value,
-            # or 'surface_time' -- survives OK instead of silently
-            # reverting to a hardcoded default next time that other type
-            # is used.
+            # bare literal) so a key this dialog doesn't itself surface
+            # for the current viz_type -- e.g. the *other* plot type's
+            # linewidth_*/n_steps_* value -- survives OK instead of
+            # silently reverting to a hardcoded default next time that
+            # other type is used.
             new_settings = dict(current)
-            new_settings.update({
-                'colormap': cmap_combo.currentText(),
-                'levels': levels_spin.value(),
-                'resolution': int(res_combo.currentText()),
-                'dpi': int(dpi_combo.currentText()),
-                'auto_range': cr_auto_cb.isChecked(),
-                'vmin': vmin_spin.value(),
-                'vmax': vmax_spin.value(),
-                'colorbar': colorbar_cb.isChecked(),
-                'n_2d_snapshots': snap_spin.value(),
-                'fps': int(fps_combo.currentText()),
-                'swap_xt': swap_xt_cb.isChecked(),
-                'figsize_mode': figsize_combo.currentText(),
-                'figsize_w': figsize_w_spin.value(),
-                'figsize_h': figsize_h_spin.value(),
-            })
-            # linewidth is kept in a type-specific key (see
-            # _viz_linewidth_key) so "Line (time steps)" and "Line
-            # Animation (GIF)" can have different widths instead of
-            # sharing the one value this dialog used to save under a
-            # single 'linewidth' key regardless of which viz_type was
-            # open.
-            new_settings[self._viz_linewidth_key(viz_type)] = float(lw_combo.currentText())
+            if not is_param:
+                new_settings.update({
+                    'colormap': cmap_combo.currentText(),
+                    'levels': levels_spin.value(),
+                    'resolution': int(res_combo.currentText()),
+                    'dpi': int(dpi_combo.currentText()),
+                    'auto_range': cr_auto_cb.isChecked(),
+                    'vmin': vmin_spin.value(),
+                    'vmax': vmax_spin.value(),
+                    'colorbar': colorbar_cb.isChecked(),
+                    'n_2d_snapshots': snap_spin.value(),
+                    'fps': int(fps_combo.currentText()),
+                    'swap_xt': swap_xt_cb.isChecked(),
+                })
+                # linewidth is kept in a type-specific key (see
+                # _viz_linewidth_key) so "Line (time steps)" and "Line
+                # Animation (GIF)" can have different widths instead of
+                # sharing one value regardless of which viz_type was open.
+                new_settings[self._viz_linewidth_key(viz_type)] = float(lw_combo.currentText())
+                _target_spin.setValue(steps_spin.value())
+                if _y_auto_cb is not None:
+                    self.line_slice_y_auto_cb.setChecked(_y_auto_cb.isChecked())
+                    self.line_slice_y_spin.setValue(_y_spin.value())
+                if _z_auto_cb is not None:
+                    self.line_slice_z_auto_cb.setChecked(_z_auto_cb.isChecked())
+                    self.line_slice_z_spin.setValue(_z_spin.value())
+            new_settings['title'] = title_edit.text().strip()
+            new_settings['xlabel'] = xlabel_edit.text().strip()
+            new_settings['ylabel'] = ylabel_edit.text().strip()
+            new_settings['figsize_mode'] = figsize_combo.currentText()
+            new_settings['figsize_w'] = figsize_w_spin.value()
+            new_settings['figsize_h'] = figsize_h_spin.value()
             self._plot_viz_settings = new_settings
-            self.log_box.append(f"✅ Plot settings saved — {viz_type}, cmap={cmap_combo.currentText()}, levels={levels_spin.value()}, dpi={dpi_combo.currentText()}, figsize={figsize_combo.currentText()}")
+            self._plot_type_prev = self.plot_type_combo.currentText()
+            self.log_box.append(f"✅ Plot settings saved — {viz_type}")
             dialog.accept()
 
         ok_btn.clicked.connect(_on_ok)
         dialog.exec()
-    
+
     def _on_error_analysis_btn(self):
         """Standalone error analysis button — opens dialog."""
         self._ea_ref_files = getattr(self, '_ea_ref_files', [])
@@ -12223,18 +12397,19 @@ print("ERROR_ANALYSIS_V2_DONE")
                         (custom_label or custom_expr) if custom_expr
                         else cfg.get('output_names', 'u').split(',')[output_idx].strip()
                     )
-                    # Same configured line-plot slice (PINNConfig.line_slice_y/_z,
-                    # read back from model_config.json, defaulting to the old
-                    # domain-midpoint behavior for saves predating this field)
-                    # that the restore script's own Line plot/animation use --
-                    # so the Error-Analysis line comparison below extracts
-                    # reference points near the SAME y/z slice it is being
-                    # compared against, instead of plotting every reference
-                    # point regardless of its y/z coordinate.
+                    # Same live, independently-overridable y/z slice
+                    # (_on_restore_viz_settings' slice rows, in
+                    # viz_settings -- not a passive readback of
+                    # model_config.json) that the restore script's own
+                    # Line plot/animation use -- so the Error-Analysis
+                    # line comparison below extracts reference points near
+                    # the SAME y/z slice it is being compared against,
+                    # instead of plotting every reference point regardless
+                    # of its y/z coordinate.
                     _ea_y_min = cfg.get('y_min', 0.0); _ea_y_max = cfg.get('y_max', 1.0)
                     _ea_z_min = cfg.get('z_min', 0.0); _ea_z_max = cfg.get('z_max', 1.0)
-                    _ea_line_slice_y = (_ea_y_min + _ea_y_max) / 2.0 if cfg.get('line_slice_y_auto', True) else cfg.get('line_slice_y', 0.0)
-                    _ea_line_slice_z = (_ea_z_min + _ea_z_max) / 2.0 if cfg.get('line_slice_z_auto', True) else cfg.get('line_slice_z', 0.0)
+                    _ea_line_slice_y = (_ea_y_min + _ea_y_max) / 2.0 if viz_settings.get('line_slice_y_auto', True) else viz_settings.get('line_slice_y', 0.0)
+                    _ea_line_slice_z = (_ea_z_min + _ea_z_max) / 2.0 if viz_settings.get('line_slice_z_auto', True) else viz_settings.get('line_slice_z', 0.0)
                     script += self._build_restore_ea_script(
                         matching_files, save_dir, is_2d,
                         ea.get('do_line', True), ea.get('do_surface', True),
@@ -12686,14 +12861,16 @@ print("RESTORE_DONE")
         is_2d = cfg.get("problem_dim", "1D") == "2D"
         is_3d = cfg.get("problem_dim", "1D") == "3D"
         _restore_dim_str = "3D" if is_3d else ("2D" if is_2d else "1D")
-        # Same y/z slice-value convention as generate_script()/
-        # generate_clean_script() in codegen.py -- read back the value
-        # this run was trained/plotted with (model_config.json), rather
-        # than hardcoding the domain midpoint independently here. Absent
-        # from a config saved before this feature existed -> defaults to
-        # "auto" (domain midpoint), i.e. the previous hardcoded behavior.
-        _line_slice_y = (y_min + y_max) / 2.0 if cfg.get("line_slice_y_auto", True) else cfg.get("line_slice_y", 0.0)
-        _line_slice_z = (z_min + z_max) / 2.0 if cfg.get("line_slice_z_auto", True) else cfg.get("line_slice_z", 0.0)
+        # y/z slice value -- a genuinely live, independently-overridable
+        # Restore-time control (see _on_restore_viz_settings' slice rows),
+        # NOT a passive readback of whatever this run was originally
+        # solved/plotted with (model_config.json's own line_slice_y/_z,
+        # which this used to read before this round). Always defaults to
+        # the domain midpoint the first time the dialog opens for a given
+        # restore (viz_settings won't have these keys yet); overriding it
+        # there re-plots/re-animates at the new slice without re-training.
+        _line_slice_y = (y_min + y_max) / 2.0 if viz_settings.get("line_slice_y_auto", True) else viz_settings.get("line_slice_y", 0.0)
+        _line_slice_z = (z_min + z_max) / 2.0 if viz_settings.get("line_slice_z_auto", True) else viz_settings.get("line_slice_z", 0.0)
         # Steady-state problems have no time axis at all (see
         # _on_steady_state_changed and generate_script()'s own _is_steady
         # branch in codegen.py): the restored network's first layer has one
@@ -13117,6 +13294,14 @@ print(f"Line plot saved to: {{out_path}}")
             _xlabel_animline = xlabel_override or "x"
             _ylabel_animline = ylabel_override or (f"{out_name}(x,t{_slice_suffix_animline})" if (is_2d or is_3d) else out_name)
             _title_line_stmt = f"ax.set_title({title_override!r})" if title_override else ""
+            # The per-frame "t = ..." indicator below is a blit-compatible
+            # Text artist (not a real title -- see its own comment in
+            # generate_script()'s matching Line Animation (GIF) branch)
+            # normally positioned just above the axes, exactly where a
+            # real title (set once, above) would also render -- so when
+            # title_override is set, move it inside the axes instead, to
+            # avoid the two overlapping into illegible text.
+            _tt_x, _tt_y, _tt_ha = (0.02, 0.95, "left") if title_override else (0.5, 1.02, "center")
             script += f"""
 import matplotlib.animation as _anim
 t_frames = np.linspace({t_min}, {t_max}, {n_steps})
@@ -13149,7 +13334,7 @@ ax.set_ylim(u_min - 0.05*abs(u_min), u_max + 0.05*abs(u_max))
 ax.set_xlabel({_xlabel_animline!r}); ax.set_ylabel({_ylabel_animline!r})
 {_title_line_stmt}
 line, = ax.plot([], [], color="#4dabf7", linewidth={linewidth})
-time_txt = ax.text(0.5, 1.02, '', transform=ax.transAxes, color='black', ha='center', fontsize=11)
+time_txt = ax.text({_tt_x}, {_tt_y}, '', transform=ax.transAxes, color='black', ha={_tt_ha!r}, fontsize=11)
 ax.grid(True, alpha=0.2)
 def init():
     line.set_data([], []); time_txt.set_text(''); return line, time_txt
@@ -13369,10 +13554,10 @@ else:
         z_min = cfg.get("z_min", 0.0); z_max = cfg.get("z_max", 1.0)
         is_2d = cfg.get("problem_dim", "1D") == "2D"
         is_3d = cfg.get("problem_dim", "1D") == "3D"
-        # Same slice-value convention as _build_restore_script -- see the
-        # matching comment there.
-        _line_slice_y = (y_min + y_max) / 2.0 if cfg.get("line_slice_y_auto", True) else cfg.get("line_slice_y", 0.0)
-        _line_slice_z = (z_min + z_max) / 2.0 if cfg.get("line_slice_z_auto", True) else cfg.get("line_slice_z", 0.0)
+        # Same live, independently-overridable slice-value convention as
+        # _build_restore_script -- see the matching comment there.
+        _line_slice_y = (y_min + y_max) / 2.0 if viz_settings.get("line_slice_y_auto", True) else viz_settings.get("line_slice_y", 0.0)
+        _line_slice_z = (z_min + z_max) / 2.0 if viz_settings.get("line_slice_z_auto", True) else viz_settings.get("line_slice_z", 0.0)
         out_names = cfg.get("output_names", "u").split(",")
         _custom_expr_val = (custom_expr or "").strip()
         _custom_label_val = (custom_label or "").strip()
@@ -13677,6 +13862,14 @@ print(f"Line plot saved to: {{out_path}}")
             _xlabel_animline = xlabel_override or "x"
             _ylabel_animline = ylabel_override or (f"{out_name}(x,t{_slice_suffix_animline})" if (is_2d or is_3d) else out_name)
             _title_line_stmt = f"ax.set_title({title_override!r})" if title_override else ""
+            # The per-frame "t = ..." indicator below is a blit-compatible
+            # Text artist (not a real title -- see its own comment in
+            # generate_script()'s matching Line Animation (GIF) branch)
+            # normally positioned just above the axes, exactly where a
+            # real title (set once, above) would also render -- so when
+            # title_override is set, move it inside the axes instead, to
+            # avoid the two overlapping into illegible text.
+            _tt_x, _tt_y, _tt_ha = (0.02, 0.95, "left") if title_override else (0.5, 1.02, "center")
             script += f"""
 import matplotlib.animation as _anim
 t_frames = np.linspace({t_min}, {t_max}, {n_steps})
@@ -13700,7 +13893,7 @@ ax.set_ylim(u_min - 0.05*abs(u_min), u_max + 0.05*abs(u_max))
 ax.set_xlabel({_xlabel_animline!r}); ax.set_ylabel({_ylabel_animline!r})
 {_title_line_stmt}
 line, = ax.plot([], [], color="#4dabf7", linewidth={linewidth})
-time_txt = ax.text(0.5, 1.02, '', transform=ax.transAxes, color='black', ha='center', fontsize=11)
+time_txt = ax.text({_tt_x}, {_tt_y}, '', transform=ax.transAxes, color='black', ha={_tt_ha!r}, fontsize=11)
 ax.grid(True, alpha=0.2)
 def init():
     line.set_data([], []); time_txt.set_text(''); return line, time_txt

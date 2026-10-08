@@ -367,6 +367,15 @@ class PINNConfig:
     line_slice_z_auto: bool = True
     line_slice_z: float = 0.0
 
+    # Optional title/axis-label overrides for the plot built from the
+    # Setup tab's "Plot output" settings (live Solve, "Export as DeepXDE
+    # Script"). Empty string means "keep the auto-generated default" --
+    # same blank-means-default convention Restore & Visualize's own
+    # title/xlabel/ylabel fields already use.
+    plot_title_override: str = ""
+    plot_xlabel_override: str = ""
+    plot_ylabel_override: str = ""
+
     ea_files: str = "[]"
     ea_do_line: bool = True
     ea_do_surface: bool = True
