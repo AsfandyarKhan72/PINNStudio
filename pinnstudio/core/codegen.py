@@ -2108,11 +2108,17 @@ else:
         if _bcr_w[_oi_w] is not None: _multi_weights.append(_bcr_w[_oi_w])
         if _bcb_w[_oi_w] is not None:
             _multi_weights.append(_bcb_w[_oi_w])
-            # Add extra weight for derivative periodic BC if enabled
+            # Add extra weight for derivative periodic BC if enabled -- same
+            # fix as the left-edge block above: must actually consume the
+            # next GUI-provided weight from _wm_list and advance the shared
+            # _wi cursor, not hardcode 1.0. A hardcoded weight here silently
+            # discards whatever weight the user set for this BC, AND (since
+            # _wi was never advanced) desyncs every weight slot still to be
+            # read after it for this or a later output.
             _bbt_is_per = _oi_w < len(_bbt_check) and _bbt_check[_oi_w].strip() == "Periodic"
             _bbd_is_active = _oi_w < len(_bc_bottom_deriv_active) and _bc_bottom_deriv_active[_oi_w].strip() == "True"
             if _bbt_is_per and _bbd_is_active:
-                _multi_weights.append(1.0)  # derivative periodic BC weight
+                _multi_weights.append(_wm_list[_wi] if _wi < len(_wm_list) else 1.0); _wi += 1
         if _bct_w[_oi_w] is not None: _multi_weights.append(_bct_w[_oi_w])
         if _ic_w[_oi_w]  is not None: _multi_weights.append(_ic_w[_oi_w])
 
@@ -4034,9 +4040,19 @@ for _pval in _param_values:
                             _u_err_grid = np.abs(_u_pinn_grid - _u_fem_grid)
                             _vmin_ea = np.nanmin([_u_pinn_grid, _u_fem_grid])
                             _vmax_ea = np.nanmax([_u_pinn_grid, _u_fem_grid])
+                            if _vmax_ea - _vmin_ea < 1e-12:
+                                _vmax_ea = _vmin_ea + 1e-12
+                            # contourf's own vmin/vmax kwargs do NOT constrain
+                            # an integer `levels=N` -- each panel still
+                            # auto-ranges to its own data, so PINN and Ground
+                            # Truth silently got two different color scales
+                            # despite passing the same vmin/vmax here. Passing
+                            # explicit level BOUNDARIES instead of a count is
+                            # what actually makes both panels share one scale.
+                            _levels_ea2d = np.linspace(_vmin_ea, _vmax_ea, 41)
                             # Column 0: PINN
-                            im0 = axes[_ei][0].contourf(_Xg_ea, _Yg_ea, _u_pinn_grid, levels=40,
-                                                         cmap='{config.plot_colormap}', vmin=_vmin_ea, vmax=_vmax_ea)
+                            im0 = axes[_ei][0].contourf(_Xg_ea, _Yg_ea, _u_pinn_grid, levels=_levels_ea2d,
+                                                         cmap='{config.plot_colormap}')
                             # Steady-state has no time axis -- see the
                             # matching comment on the Line comparison title
                             # above -- so "t=..." is dropped from every
@@ -4045,8 +4061,8 @@ for _pval in _param_values:
                             axes[_ei][0].set_xlabel("x"); axes[_ei][0].set_ylabel("y")
                             fig.colorbar(im0, ax=axes[_ei][0])
                             # Column 1: FEM
-                            im1 = axes[_ei][1].contourf(_Xg_ea, _Yg_ea, _u_fem_grid, levels=40,
-                                                         cmap='{config.plot_colormap}', vmin=_vmin_ea, vmax=_vmax_ea)
+                            im1 = axes[_ei][1].contourf(_Xg_ea, _Yg_ea, _u_fem_grid, levels=_levels_ea2d,
+                                                         cmap='{config.plot_colormap}')
                             axes[_ei][1].set_title(("Ground Truth" if _is_steady else f"Ground Truth  t={{_ea_tv:.3f}}"), fontsize=10)
                             axes[_ei][1].set_xlabel("x"); axes[_ei][1].set_ylabel("y")
                             fig.colorbar(im1, ax=axes[_ei][1])
@@ -4087,12 +4103,15 @@ for _pval in _param_values:
                         _ea_U_err = np.abs(_ea_U_pinn - _ea_U_fem)
                         _ea_vmin = min(_ea_U_pinn.min(), _ea_U_fem.min())
                         _ea_vmax = max(_ea_U_pinn.max(), _ea_U_fem.max())
+                        if _ea_vmax - _ea_vmin < 1e-12:
+                            _ea_vmax = _ea_vmin + 1e-12
+                        _levels_ea1d = np.linspace(_ea_vmin, _ea_vmax, 41)  # see the matching comment above -- contourf ignores vmin/vmax with an integer `levels=N`
                         fig, axes_s = plt.subplots(1, 3, figsize=(15, 5))
                         fig.suptitle("PINN vs Ground Truth — Surface Comparison", fontsize=13, fontweight='bold')
-                        im0 = axes_s[0].contourf(_ea_Tg, _ea_Xg, _ea_U_pinn, levels={config.plot_levels}, cmap='{config.plot_colormap}', vmin=_ea_vmin, vmax=_ea_vmax)
+                        im0 = axes_s[0].contourf(_ea_Tg, _ea_Xg, _ea_U_pinn, levels=_levels_ea1d, cmap='{config.plot_colormap}')
                         axes_s[0].set_title("PINN  u(x,t)"); axes_s[0].set_xlabel("t"); axes_s[0].set_ylabel("x")
                         fig.colorbar(im0, ax=axes_s[0])
-                        im1 = axes_s[1].contourf(_ea_Tg, _ea_Xg, _ea_U_fem, levels={config.plot_levels}, cmap='{config.plot_colormap}', vmin=_ea_vmin, vmax=_ea_vmax)
+                        im1 = axes_s[1].contourf(_ea_Tg, _ea_Xg, _ea_U_fem, levels=_levels_ea1d, cmap='{config.plot_colormap}')
                         axes_s[1].set_title("Ground Truth  u(x,t)"); axes_s[1].set_xlabel("t"); axes_s[1].set_ylabel("x")
                         fig.colorbar(im1, ax=axes_s[1])
                         im2 = axes_s[2].contourf(_ea_Tg, _ea_Xg, _ea_U_err, levels={config.plot_levels}, cmap='{config.plot_colormap}')
@@ -4508,7 +4527,17 @@ if {config.time_adaptive}:
             geomtime_i, pde, _constraints_i,
             num_domain={config.num_domain}, num_boundary={config.num_boundary},
             num_initial={config.num_initial}, num_test={config.num_test},
-            anchors=None if {config.forward_ic_from_file} else (_xyt_ic_anchor if (step_i > 0 and (_is_2d or _is_3d)) else None)
+            # forward_ic_from_file only matters for step 0 (loading the
+            # true initial condition from a file there); every later step's
+            # IC constraint comes from the previous window's own predicted
+            # solution (prev_u) via _xyt_ic_anchor, regardless of that flag.
+            # Gating this on the bare flag (rather than "step 0 AND the
+            # flag") silently dropped the previous-window anchor points for
+            # EVERY step after the first whenever forward_ic_from_file was
+            # on, weakening (though not removing -- the PointSetBC loss
+            # term above is still added either way) how strongly later
+            # windows are forced to match their own true starting point.
+            anchors=None if (step_i == 0 and {config.forward_ic_from_file}) else (_xyt_ic_anchor if (step_i > 0 and (_is_2d or _is_3d)) else None)
         )
 
         net_i   = _apply_net_transforms(_make_net({config.layers}, "{config.activation}", "{config.kernel_initializer}", {config.weight_decay}))
@@ -5405,11 +5434,14 @@ if {config.time_adaptive}:
                         _u_err_grid = np.abs(_u_pinn_grid - _u_fem_grid)
                         _vmin_ea = min(_u_pinn_grid.min(), _u_fem_grid.min())
                         _vmax_ea = max(_u_pinn_grid.max(), _u_fem_grid.max())
-                        im0 = axes[_ei][0].contourf(_Xg_ea, _Yg_ea, _u_pinn_grid, levels={config.plot_levels}, cmap='{config.plot_colormap}', vmin=_vmin_ea, vmax=_vmax_ea)
+                        if _vmax_ea - _vmin_ea < 1e-12:
+                            _vmax_ea = _vmin_ea + 1e-12
+                        _levels_ea2d = np.linspace(_vmin_ea, _vmax_ea, 41)  # contourf ignores vmin/vmax with an integer `levels=N` -- see the Standard-path comment on the same pattern above
+                        im0 = axes[_ei][0].contourf(_Xg_ea, _Yg_ea, _u_pinn_grid, levels=_levels_ea2d, cmap='{config.plot_colormap}')
                         axes[_ei][0].set_title(f"PINN  t={{_ea_tv:.3f}}  L2={{_l2:.2e}}", fontsize=10)
                         axes[_ei][0].set_xlabel("x"); axes[_ei][0].set_ylabel("y")
                         fig.colorbar(im0, ax=axes[_ei][0])
-                        im1 = axes[_ei][1].contourf(_Xg_ea, _Yg_ea, _u_fem_grid, levels={config.plot_levels}, cmap='{config.plot_colormap}', vmin=_vmin_ea, vmax=_vmax_ea)
+                        im1 = axes[_ei][1].contourf(_Xg_ea, _Yg_ea, _u_fem_grid, levels=_levels_ea2d, cmap='{config.plot_colormap}')
                         axes[_ei][1].set_title(f"Ground Truth  t={{_ea_tv:.3f}}", fontsize=10)
                         axes[_ei][1].set_xlabel("x"); axes[_ei][1].set_ylabel("y")
                         fig.colorbar(im1, ax=axes[_ei][1])
@@ -5490,12 +5522,15 @@ if {config.time_adaptive}:
                     _ea_U_err = np.abs(_ea_U_pinn - _ea_U_fem)
                     _ea_vmin = min(_ea_U_pinn.min(), _ea_U_fem.min())
                     _ea_vmax = max(_ea_U_pinn.max(), _ea_U_fem.max())
+                    if _ea_vmax - _ea_vmin < 1e-12:
+                        _ea_vmax = _ea_vmin + 1e-12
+                    _levels_ea1d = np.linspace(_ea_vmin, _ea_vmax, 41)  # contourf ignores vmin/vmax with an integer `levels=N` -- see the Standard-path comment on the same pattern above
                     fig, axes = plt.subplots(1, 3, figsize=(15, 5))
                     fig.suptitle("PINN vs Ground Truth — Surface Comparison", fontsize=13, fontweight='bold')
-                    im0 = axes[0].contourf(_ea_Tg, _ea_Xg, _ea_U_pinn, levels={config.plot_levels}, cmap='{config.plot_colormap}', vmin=_ea_vmin, vmax=_ea_vmax)
+                    im0 = axes[0].contourf(_ea_Tg, _ea_Xg, _ea_U_pinn, levels=_levels_ea1d, cmap='{config.plot_colormap}')
                     axes[0].set_title("PINN  u(x,t)"); axes[0].set_xlabel("t"); axes[0].set_ylabel("x")
                     fig.colorbar(im0, ax=axes[0])
-                    im1 = axes[1].contourf(_ea_Tg, _ea_Xg, _ea_U_fem, levels={config.plot_levels}, cmap='{config.plot_colormap}', vmin=_ea_vmin, vmax=_ea_vmax)
+                    im1 = axes[1].contourf(_ea_Tg, _ea_Xg, _ea_U_fem, levels=_levels_ea1d, cmap='{config.plot_colormap}')
                     axes[1].set_title("Ground Truth  u(x,t)"); axes[1].set_xlabel("t"); axes[1].set_ylabel("x")
                     fig.colorbar(im1, ax=axes[1])
                     im2 = axes[2].contourf(_ea_Tg, _ea_Xg, _ea_U_err, levels={config.plot_levels}, cmap='{config.plot_colormap}')
