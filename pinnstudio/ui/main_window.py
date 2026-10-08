@@ -2375,7 +2375,7 @@ class MainWindow(QMainWindow):
 
         self._restore_viz_settings = {
             'colormap': 'jet',
-            'surface_time': 1.0,
+            'n_2d_snapshots': 2,
             # Split from one shared "n_steps" into two: a static multi-
             # snapshot line plot ("Line (time steps)") wants few enough
             # lines to stay readable, while an animation wants more
@@ -9210,6 +9210,7 @@ print("ERROR_ANALYSIS_DONE")
         _restore_dim = "1D"
         _restore_y_min, _restore_y_max = 0.0, 1.0
         _restore_z_min, _restore_z_max = 0.0, 1.0
+        _restore_is_steady = False
         try:
             import json as _json_dim
             with open(self.restore_config_path.text().strip()) as _df:
@@ -9217,6 +9218,7 @@ print("ERROR_ANALYSIS_DONE")
             _restore_dim = _restore_cfg_dim.get("problem_dim", "1D")
             _restore_y_min = _restore_cfg_dim.get("y_min", 0.0); _restore_y_max = _restore_cfg_dim.get("y_max", 1.0)
             _restore_z_min = _restore_cfg_dim.get("z_min", 0.0); _restore_z_max = _restore_cfg_dim.get("z_max", 1.0)
+            _restore_is_steady = bool(_restore_cfg_dim.get("steady_state", False))
         except Exception:
             pass
         _restore_is_1d = _restore_dim == "1D"
@@ -9305,19 +9307,27 @@ print("ERROR_ANALYSIS_DONE")
         figsize_combo.currentTextChanged.connect(lambda t: figsize_custom_widget.setVisible(t == "Custom"))
         layout.addWidget(figsize_custom_widget)
 
-        # Surface time — only for Surface
-        surface_time_widget = QWidget()
-        st_layout = QHBoxLayout(surface_time_widget)
-        st_layout.setContentsMargins(0, 0, 0, 0)
-        st_layout.addWidget(QLabel("Plot at time t ="))
-        surface_time_spin = QDoubleSpinBox()
-        surface_time_spin.setRange(0.0, 1e6)
-        surface_time_spin.setValue(current.get('surface_time', self.t_max.value()))
-        surface_time_spin.setFixedWidth(100)
-        st_layout.addStretch(); st_layout.addWidget(surface_time_spin)
-        surface_time_widget.setVisible(viz_type == "Surface")
+        # 2D/3D time snapshots — Surface only, and only for a non-steady
+        # 2D/3D restore, same gating and same "n_2d_snapshots" key as the
+        # Setup tab's own unified Plot Settings dialog (see
+        # _on_plot_settings' snap_widget) -- replaces the old single
+        # "Plot at time t=" picker (surface_time), which only ever showed
+        # one user-chosen snapshot instead of letting Restore do what
+        # Output already did: several evenly-spaced snapshots side by
+        # side. A steady restore (no time axis) or a 1D restore (the x-t
+        # heatmap already shows the whole time range in one plot) have no
+        # snapshot count to choose, same as Output.
+        snap_widget = QWidget()
+        snap_layout = QHBoxLayout(snap_widget)
+        snap_layout.setContentsMargins(0, 0, 0, 0)
+        snap_layout.addWidget(QLabel("2D/3D time snapshots:"))
+        snap_spin = QSpinBox()
+        snap_spin.setRange(1, 10); snap_spin.setValue(current.get('n_2d_snapshots', 2))
+        snap_spin.setFixedWidth(80)
+        snap_layout.addStretch(); snap_layout.addWidget(snap_spin)
+        snap_widget.setVisible(viz_type == "Surface" and (_restore_is_2d or _restore_is_3d) and not _restore_is_steady)
         if not is_param:
-            layout.addWidget(surface_time_widget)
+            layout.addWidget(snap_widget)
 
         # Color range — for Surface and Animation Surface
         color_range_widget = QWidget()
@@ -9512,7 +9522,7 @@ print("ERROR_ANALYSIS_DONE")
             if not is_param:
                 new_settings.update({
                     'colormap': cmap_combo.currentText(),
-                    'surface_time': surface_time_spin.value(),
+                    'n_2d_snapshots': snap_spin.value(),
                     'colorbar': colorbar_cb.isChecked(),
                     'levels': levels_spin.value(),
                     'resolution': int(res_combo.currentText()),
@@ -10314,8 +10324,26 @@ print("ERROR_ANALYSIS_DONE")
                 # individually. Pre-fills the Plot output panel's "Custom..."
                 # option -- see _populate_locked_bc_entries_from_legacy's
                 # sibling hook below and codegen.py's _extract_plot_field.
+                # The same expression is also what Error Analysis compares
+                # against by default (its own _ea_sel is None -> delegates
+                # to _extract_plot_field, see codegen.py's _ea_extract),
+                # matching this template's own reference_data/1D/schrodinger
+                # files, which are themselves |h| snapshots, not raw u/v.
                 'plot_custom_expr': 'sqrt(u**2+v**2)',
                 'plot_custom_label': '|h|',
+                # L-BFGS in float32 (this GUI's general default) hits a
+                # numerical noise floor around ~1e-7 well before this
+                # problem's loss has actually bottomed out -- a previously
+                # documented lesson from this same user's other PINN work.
+                # float64 lets L-BFGS keep making real progress for its
+                # full iteration budget instead of plateauing early;
+                # confirmed via a real side-by-side run on this exact
+                # template (same PDE/IC/BC, same iteration budget): float64
+                # reached a materially lower final loss (1.75e-04) than
+                # float32 (4.64e-04). Only this template defaults it to
+                # float64 -- every other template's own default (float32,
+                # the Settings tab's own combo default) is unchanged.
+                'lbfgs_float_type': 'float64',
             },
         }
 
@@ -10363,6 +10391,13 @@ print("ERROR_ANALYSIS_DONE")
         self.iter1_spin.setValue(t['iterations'])
         self.opt2_combo.setCurrentText(t['optimizer2'])
         self.iter2_spin.setValue(t['iterations2'])
+        # Same staleness-prevention pattern as t_max/num_test above: reset
+        # to the ordinary float32 default for every template that doesn't
+        # specify its own (currently just 1D Schrodinger -> float64, see
+        # that template's own comment for why), so a previous template's
+        # float64 choice never lingers onto one that never asked for it.
+        if hasattr(self, 'lbfgs_float_combo'):
+            self.lbfgs_float_combo.setCurrentText(t.get('lbfgs_float_type', 'float32'))
 
         # Set IC weight to 100 for Allen-Cahn
         if text in ["1D Allen-Cahn"]:
@@ -12823,7 +12858,17 @@ print("RESTORE_DONE")
     def _build_restore_script(self, model_path, cfg, optimizer, viz_type, output_idx, t_steps, save_dir, custom_expr="", custom_label=""):
         viz_settings = getattr(self, '_restore_viz_settings', {})
         colormap = viz_settings.get('colormap', 'RdBu_r')
-        surface_time = viz_settings.get('surface_time', cfg.get('t_max', 1.0))
+        # A genuinely live, multiple-evenly-spaced-snapshots Surface plot
+        # (one subplot per snapshot, same convention as the Setup tab's own
+        # "Plot output" -> Surface -> 2D/3D non-steady case, see
+        # codegen.py's own "elif _is_2d:"/"elif _is_3d:" branches) -- NOT a
+        # single user-chosen "Plot at time t=" snapshot the way this used
+        # to work (the "surface_time" key/dialog row, now removed). Only
+        # meaningful for a non-steady 2D/3D restore; a steady restore (no
+        # time axis) or a 1D restore (the x-t heatmap already shows the
+        # whole time range in one plot) both ignore this and always render
+        # exactly one panel.
+        n_2d_snapshots = viz_settings.get('n_2d_snapshots', 2)
         show_colorbar = viz_settings.get('colorbar', True)
         # Type-aware keys (see _viz_steps_key/_viz_linewidth_key): the
         # static "Line (time steps)" plot and the GIF animations keep
@@ -13101,12 +13146,12 @@ def _extract_plot_field(x_grid):
             _ylabel_3d = ylabel_override or "y"
             _title_3d = title_override or (
                 f"Restored Model — {out_name}(x,y,z)" if is_steady
-                else f"Restored Model — {out_name}(x,y,z) at t={surface_time}")
+                else f"Restored Model — {out_name}(x,y,z,t)")
             _xlabel_2d = xlabel_override or "x"
             _ylabel_2d = ylabel_override or "y"
             _title_2d = title_override or (
                 f"Restored Model — {out_name}(x,y)" if is_steady
-                else f"Restored Model — {out_name}(x,y) at t={surface_time}")
+                else f"Restored Model — {out_name}(x,y,t)")
             # Same "Swap axes" convention as the main Results panel's 1D
             # Surface plot (Plot Settings dialog) -- t on the x-axis by
             # default, with the setting above to go back to x on the
@@ -13135,6 +13180,13 @@ if is_3d:
     # so every face is also masked down to the real domain below --
     # otherwise a Sphere/Custom-3D model would show its full bounding-box
     # face, not just the part that's actually inside the true geometry.
+    #
+    # Non-steady: several evenly-spaced time snapshots, each its own 3D
+    # subplot side by side in one figure -- matching the Setup tab's own
+    # "Plot output" -> Surface -> 3D non-steady convention (see
+    # codegen.py's "elif _is_3d:" Surface branch), not a single
+    # user-picked time the way this used to work. Steady: no time axis at
+    # all, always exactly one panel, unaffected by n_2d_snapshots.
     _res3 = max(24, res // 2)
     _bbox3 = np.asarray(geom.bbox)
     _cx0, _cy0, _cz0 = _bbox3[0]; _cx1, _cy1, _cz1 = _bbox3[1]
@@ -13152,56 +13204,65 @@ if is_3d:
         (np.full_like(_Yyz3, _cx0), _Yyz3, _Zyz3),
         (np.full_like(_Yyz3, _cx1), _Yyz3, _Zyz3),
     ]
-    _face_preds3 = []
+    # Spatial-only inside() check -- the plain geom (not geomtime), since
+    # whether a point lies in the domain never depends on t; computed once
+    # and reused for every snapshot panel.
     _face_inside3 = []
     for _fX3, _fY3, _fZ3 in _faces3:
         _fspatial3 = np.column_stack([_fX3.ravel(), _fY3.ravel(), _fZ3.ravel()])
-        if is_steady:
-            _fpts3 = _fspatial3
-        else:
-            _fpts3 = np.column_stack([_fspatial3, np.full(_fX3.size, {surface_time})])
-        _face_preds3.append(_extract_plot_field(_fpts3).reshape(_fX3.shape))
-        # Spatial-only inside() check -- the plain geom (not geomtime), same
-        # as the 2D Surface masking below, since whether a point lies in
-        # the domain never depends on t.
         _face_inside3.append(np.asarray(geom.inside(_fspatial3)).reshape(_fX3.shape))
-    _inside_vals3 = [f[m] for f, m in zip(_face_preds3, _face_inside3) if m.any()]
-    if {auto_range}:
-        if _inside_vals3:
-            _pv_min3 = min(v.min() for v in _inside_vals3)
-            _pv_max3 = max(v.max() for v in _inside_vals3)
-        else:
-            _pv_min3 = min(_f.min() for _f in _face_preds3)
-            _pv_max3 = max(_f.max() for _f in _face_preds3)
-    else:
-        _pv_min3, _pv_max3 = {vmin_val}, {vmax_val}
-    fig = plt.figure(figsize=_plot_figsize(8, 6.5))
-    ax = fig.add_subplot(111, projection='3d')
-    _norm3 = plt.Normalize(vmin=_pv_min3, vmax=_pv_max3)
+    _n_snaps3 = 1 if is_steady else {n_2d_snapshots}
+    _t_snaps3 = [None] if is_steady else np.linspace({t_min}, {t_max}, _n_snaps3)
     _cmap_obj3 = plt.get_cmap("{colormap}")
-    for _fi3, (_fX3, _fY3, _fZ3) in enumerate(_faces3):
-        _fc3 = np.array(_cmap_obj3(_norm3(_face_preds3[_fi3])))
-        # Outside-the-domain quads get alpha=0 -- invisible rather than
-        # plotted as if they were a valid prediction on the bounding box.
-        _fc3[..., 3] = np.where(_face_inside3[_fi3], 1.0, 0.0)
-        ax.plot_surface(_fX3, _fY3, _fZ3, facecolors=_fc3,
-                         rstride=1, cstride=1, linewidth=0, antialiased=False, shade=False)
-    if {show_colorbar}:
-        _sm3 = plt.cm.ScalarMappable(cmap=_cmap_obj3, norm=_norm3)
-        fig.colorbar(_sm3, ax=ax, shrink=0.6, pad=0.12)
-    ax.set_xlabel({_xlabel_3d!r}); ax.set_ylabel({_ylabel_3d!r}); ax.set_zlabel("z")
-    ax.set_title({_title_3d!r})
-    try:
-        ax.set_box_aspect((_cx1 - _cx0, _cy1 - _cy0, _cz1 - _cz0))
-    except Exception:
-        pass  # older matplotlib without set_box_aspect -- cosmetic only
+    _panel_w3, _panel_h3 = _plot_figsize(8, 6.5)
+    fig = plt.figure(figsize=(_panel_w3 * _n_snaps3, _panel_h3))
+    for _ai3, _tv3 in enumerate(_t_snaps3):
+        _face_preds3 = []
+        for _fX3, _fY3, _fZ3 in _faces3:
+            _fspatial3 = np.column_stack([_fX3.ravel(), _fY3.ravel(), _fZ3.ravel()])
+            _fpts3 = _fspatial3 if is_steady else np.column_stack([_fspatial3, np.full(_fX3.size, _tv3)])
+            _face_preds3.append(_extract_plot_field(_fpts3).reshape(_fX3.shape))
+        # Each panel normalizes its own color scale independently when
+        # auto-range is on (matching the 2D branch below, and the Setup
+        # tab's own multi-snapshot convention: contourf with vmin=vmax=None
+        # auto-ranges per panel) -- only an explicit manual vmin/vmax is
+        # shared across every panel.
+        _inside_vals3 = [f[m] for f, m in zip(_face_preds3, _face_inside3) if m.any()]
+        if {auto_range}:
+            if _inside_vals3:
+                _pv_min3 = min(v.min() for v in _inside_vals3)
+                _pv_max3 = max(v.max() for v in _inside_vals3)
+            else:
+                _pv_min3 = min(_f.min() for _f in _face_preds3)
+                _pv_max3 = max(_f.max() for _f in _face_preds3)
+        else:
+            _pv_min3, _pv_max3 = {vmin_val}, {vmax_val}
+        ax = fig.add_subplot(1, _n_snaps3, _ai3 + 1, projection='3d')
+        _norm3 = plt.Normalize(vmin=_pv_min3, vmax=_pv_max3)
+        for _fi3, (_fX3, _fY3, _fZ3) in enumerate(_faces3):
+            _fc3 = np.array(_cmap_obj3(_norm3(_face_preds3[_fi3])))
+            # Outside-the-domain quads get alpha=0 -- invisible rather than
+            # plotted as if they were a valid prediction on the bounding box.
+            _fc3[..., 3] = np.where(_face_inside3[_fi3], 1.0, 0.0)
+            ax.plot_surface(_fX3, _fY3, _fZ3, facecolors=_fc3,
+                             rstride=1, cstride=1, linewidth=0, antialiased=False, shade=False)
+        if {show_colorbar}:
+            _sm3 = plt.cm.ScalarMappable(cmap=_cmap_obj3, norm=_norm3)
+            fig.colorbar(_sm3, ax=ax, shrink=0.6, pad=0.12)
+        ax.set_xlabel({_xlabel_3d!r}); ax.set_ylabel({_ylabel_3d!r}); ax.set_zlabel("z")
+        ax.set_title({_title_3d!r} if is_steady else f"t = {{_tv3:.3f}}")
+        try:
+            ax.set_box_aspect((_cx1 - _cx0, _cy1 - _cy0, _cz1 - _cz0))
+        except Exception:
+            pass  # older matplotlib without set_box_aspect -- cosmetic only
+    if not is_steady:
+        fig.suptitle({_title_3d!r}, fontsize=12)
 elif is_2d:
+    # Same multi-snapshot convention as the 3D branch above -- several
+    # evenly-spaced x-y heatmaps side by side for a non-steady restore
+    # (matching the Setup tab's own "elif _is_2d:" Surface branch), one
+    # plain single heatmap for a steady restore.
     Xg, Yg = np.meshgrid(x_vals, y_vals)
-    if is_steady:
-        XYT = np.column_stack([Xg.ravel(), Yg.ravel()])
-    else:
-        XYT = np.column_stack([Xg.ravel(), Yg.ravel(), np.full(Xg.size, {surface_time})])
-    pred = _extract_plot_field(XYT).reshape(res, res)
     # Mask the prediction down to the real problem domain -- geom is the
     # actual (possibly non-rectangular / CSG-combined) geometry built
     # above, not just its bounding box, so a grid point that falls in
@@ -13209,14 +13270,24 @@ elif is_2d:
     # cavity) is blanked out (NaN -> contourf leaves it unfilled) rather
     # than plotted as if it were a valid prediction there. Same masking
     # convention codegen.py's own Surface plots already use for every
-    # non-rectangular geometry.
+    # non-rectangular geometry; computed once and reused for every panel.
     _inside2d = np.asarray(geom.inside(np.column_stack([Xg.ravel(), Yg.ravel()]))).reshape(res, res)
-    pred = np.where(_inside2d, pred, np.nan)
-    fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
-    im = ax.contourf(Xg, Yg, pred, levels={levels}, cmap="{colormap}", {vrange})
-    if {show_colorbar}: fig.colorbar(im, ax=ax)
-    ax.set_xlabel({_xlabel_2d!r}); ax.set_ylabel({_ylabel_2d!r})
-    ax.set_title({_title_2d!r})
+    _n_snaps2 = 1 if is_steady else {n_2d_snapshots}
+    _t_snaps2 = [None] if is_steady else np.linspace({t_min}, {t_max}, _n_snaps2)
+    _panel_w2, _panel_h2 = _plot_figsize(7, 5)
+    fig, axes2d = plt.subplots(1, _n_snaps2, figsize=(_panel_w2 * _n_snaps2, _panel_h2))
+    if _n_snaps2 == 1: axes2d = [axes2d]
+    for _ai2, _tv2 in enumerate(_t_snaps2):
+        XYT = (np.column_stack([Xg.ravel(), Yg.ravel()]) if is_steady
+               else np.column_stack([Xg.ravel(), Yg.ravel(), np.full(Xg.size, _tv2)]))
+        pred = _extract_plot_field(XYT).reshape(res, res)
+        pred = np.where(_inside2d, pred, np.nan)
+        im = axes2d[_ai2].contourf(Xg, Yg, pred, levels={levels}, cmap="{colormap}", {vrange})
+        if {show_colorbar}: fig.colorbar(im, ax=axes2d[_ai2])
+        axes2d[_ai2].set_xlabel({_xlabel_2d!r}); axes2d[_ai2].set_ylabel({_ylabel_2d!r})
+        axes2d[_ai2].set_title({_title_2d!r} if is_steady else f"t = {{_tv2:.3f}}")
+    if not is_steady:
+        fig.suptitle({_title_2d!r}, fontsize=12)
 elif is_steady:
     # Steady 1D: no time axis and no second spatial axis either -- there's
     # nothing left to make a "surface" out of, just the one curve u(x).
@@ -13568,11 +13639,12 @@ else:
 
         t_min = ta_steps[0]['t0']
         t_max = ta_steps[-1]['t1']
-        # surface_time defaults to cfg.get('t_max', 1.0) -- for a config
-        # that's really one step's OWN config that's that step's t1, not
-        # the combined range's -- re-default to the combined t_max
-        # whenever the dialog was never given an explicit value of its own.
-        surface_time = viz_settings.get('surface_time', t_max)
+        # Same multi-snapshot convention as _build_restore_script -- see
+        # its own comment. A Time-Adaptive restore is never steady-state
+        # (the whole point of Time-Adaptive training is splitting a real
+        # time axis into phases), so this always applies for 2D/3D here,
+        # with no is_steady gate needed.
+        n_2d_snapshots = viz_settings.get('n_2d_snapshots', 2)
 
         # Per-step literals baked directly into the generated script as
         # plain data (no step_config.json re-parsing at script-runtime) --
@@ -13728,10 +13800,10 @@ def _extract_plot_field(x_grid, _tm_model):
             vrange = f"vmin={vmin_val}, vmax={vmax_val}" if not auto_range else ""
             _xlabel_3d = xlabel_override or "x"
             _ylabel_3d = ylabel_override or "y"
-            _title_3d = title_override or f"Restored Model — {out_name}(x,y,z) at t={surface_time}"
+            _title_3d = title_override or f"Restored Model — {out_name}(x,y,z,t)"
             _xlabel_2d = xlabel_override or "x"
             _ylabel_2d = ylabel_override or "y"
-            _title_2d = title_override or f"Restored Model — {out_name}(x,y) at t={surface_time}"
+            _title_2d = title_override or f"Restored Model — {out_name}(x,y,t)"
             _xlabel_1d = xlabel_override or ("t" if swap_xt else "x")
             _ylabel_1d = ylabel_override or ("x" if swap_xt else "t")
             _title_1d = title_override or f"Restored Model — {out_name}(x,t) Surface"
@@ -13740,12 +13812,16 @@ res = {resolution}
 x_vals = np.linspace({x_min}, {x_max}, res)
 y_vals = np.linspace({y_min}, {y_max}, res)
 if is_3d:
-    # Snapshot at one time (surface_time) -- 3D+time already needs all
-    # three spatial axes for the plot, so (unlike the 1D branch below)
-    # only one step's model is needed here.
-    model = _ta_model_for_t({surface_time})
+    # Several evenly-spaced time snapshots, each its own 3D subplot side
+    # by side -- same convention as _build_restore_script's own 3D Surface
+    # branch (see its comment). Which step's restored model applies can
+    # differ snapshot to snapshot (see _ta_model_for_t/_ta_pick_step
+    # above), so each panel resolves its own model, unlike the rest of
+    # this plot's geometry (x_min/x_max/... are a whole-run choice, not
+    # per-step -- see this function's own docstring -- so the bounding box
+    # itself only needs computing once, not per panel).
     _res3 = max(24, res // 2)
-    _bbox3 = np.asarray(_ta_build_geomtime({surface_time}, {surface_time}).geometry.bbox)
+    _bbox3 = np.asarray(_ta_build_geomtime({t_min}, {t_max}).geometry.bbox)
     _cx0, _cy0, _cz0 = _bbox3[0]; _cx1, _cy1, _cz1 = _bbox3[1]
     _xg3 = np.linspace(_cx0, _cx1, _res3)
     _yg3 = np.linspace(_cy0, _cy1, _res3)
@@ -13761,42 +13837,54 @@ if is_3d:
         (np.full_like(_Yyz3, _cx0), _Yyz3, _Zyz3),
         (np.full_like(_Yyz3, _cx1), _Yyz3, _Zyz3),
     ]
-    _face_preds3 = []
-    for _fX3, _fY3, _fZ3 in _faces3:
-        _fpts3 = np.column_stack([_fX3.ravel(), _fY3.ravel(), _fZ3.ravel(), np.full(_fX3.size, {surface_time})])
-        _face_preds3.append(_extract_plot_field(_fpts3, model).reshape(_fX3.shape))
-    if {auto_range}:
-        _pv_min3 = min(_f.min() for _f in _face_preds3)
-        _pv_max3 = max(_f.max() for _f in _face_preds3)
-    else:
-        _pv_min3, _pv_max3 = {vmin_val}, {vmax_val}
-    fig = plt.figure(figsize=_plot_figsize(8, 6.5))
-    ax = fig.add_subplot(111, projection='3d')
-    _norm3 = plt.Normalize(vmin=_pv_min3, vmax=_pv_max3)
+    _n_snaps3 = {n_2d_snapshots}
+    _t_snaps3 = np.linspace({t_min}, {t_max}, _n_snaps3)
     _cmap_obj3 = plt.get_cmap("{colormap}")
-    for _fi3, (_fX3, _fY3, _fZ3) in enumerate(_faces3):
-        ax.plot_surface(_fX3, _fY3, _fZ3, facecolors=_cmap_obj3(_norm3(_face_preds3[_fi3])),
-                         rstride=1, cstride=1, linewidth=0, antialiased=False, shade=False)
-    if {show_colorbar}:
-        _sm3 = plt.cm.ScalarMappable(cmap=_cmap_obj3, norm=_norm3)
-        fig.colorbar(_sm3, ax=ax, shrink=0.6, pad=0.12)
-    ax.set_xlabel({_xlabel_3d!r}); ax.set_ylabel({_ylabel_3d!r}); ax.set_zlabel("z")
-    ax.set_title({_title_3d!r})
-    try:
-        ax.set_box_aspect((_cx1 - _cx0, _cy1 - _cy0, _cz1 - _cz0))
-    except Exception:
-        pass
+    _panel_w3, _panel_h3 = _plot_figsize(8, 6.5)
+    fig = plt.figure(figsize=(_panel_w3 * _n_snaps3, _panel_h3))
+    for _ai3, _tv3 in enumerate(_t_snaps3):
+        _model3 = _ta_model_for_t(_tv3)
+        _face_preds3 = []
+        for _fX3, _fY3, _fZ3 in _faces3:
+            _fpts3 = np.column_stack([_fX3.ravel(), _fY3.ravel(), _fZ3.ravel(), np.full(_fX3.size, _tv3)])
+            _face_preds3.append(_extract_plot_field(_fpts3, _model3).reshape(_fX3.shape))
+        if {auto_range}:
+            _pv_min3 = min(_f.min() for _f in _face_preds3)
+            _pv_max3 = max(_f.max() for _f in _face_preds3)
+        else:
+            _pv_min3, _pv_max3 = {vmin_val}, {vmax_val}
+        ax = fig.add_subplot(1, _n_snaps3, _ai3 + 1, projection='3d')
+        _norm3 = plt.Normalize(vmin=_pv_min3, vmax=_pv_max3)
+        for _fi3, (_fX3, _fY3, _fZ3) in enumerate(_faces3):
+            ax.plot_surface(_fX3, _fY3, _fZ3, facecolors=_cmap_obj3(_norm3(_face_preds3[_fi3])),
+                             rstride=1, cstride=1, linewidth=0, antialiased=False, shade=False)
+        if {show_colorbar}:
+            _sm3 = plt.cm.ScalarMappable(cmap=_cmap_obj3, norm=_norm3)
+            fig.colorbar(_sm3, ax=ax, shrink=0.6, pad=0.12)
+        ax.set_xlabel({_xlabel_3d!r}); ax.set_ylabel({_ylabel_3d!r}); ax.set_zlabel("z")
+        ax.set_title(f"t = {{_tv3:.3f}}")
+        try:
+            ax.set_box_aspect((_cx1 - _cx0, _cy1 - _cy0, _cz1 - _cz0))
+        except Exception:
+            pass
+    fig.suptitle({_title_3d!r}, fontsize=12)
 elif is_2d:
-    # Snapshot at one time -- same reasoning as the 3D branch above.
-    model = _ta_model_for_t({surface_time})
+    # Same multi-snapshot convention as the 3D branch above.
     Xg, Yg = np.meshgrid(x_vals, y_vals)
-    XYT = np.column_stack([Xg.ravel(), Yg.ravel(), np.full(Xg.size, {surface_time})])
-    pred = _extract_plot_field(XYT, model).reshape(res, res)
-    fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
-    im = ax.contourf(Xg, Yg, pred, levels={levels}, cmap="{colormap}", {vrange})
-    if {show_colorbar}: fig.colorbar(im, ax=ax)
-    ax.set_xlabel({_xlabel_2d!r}); ax.set_ylabel({_ylabel_2d!r})
-    ax.set_title({_title_2d!r})
+    _n_snaps2 = {n_2d_snapshots}
+    _t_snaps2 = np.linspace({t_min}, {t_max}, _n_snaps2)
+    _panel_w2, _panel_h2 = _plot_figsize(7, 5)
+    fig, axes2d = plt.subplots(1, _n_snaps2, figsize=(_panel_w2 * _n_snaps2, _panel_h2))
+    if _n_snaps2 == 1: axes2d = [axes2d]
+    for _ai2, _tv2 in enumerate(_t_snaps2):
+        _model2 = _ta_model_for_t(_tv2)
+        XYT = np.column_stack([Xg.ravel(), Yg.ravel(), np.full(Xg.size, _tv2)])
+        pred = _extract_plot_field(XYT, _model2).reshape(res, res)
+        im = axes2d[_ai2].contourf(Xg, Yg, pred, levels={levels}, cmap="{colormap}", {vrange})
+        if {show_colorbar}: fig.colorbar(im, ax=axes2d[_ai2])
+        axes2d[_ai2].set_xlabel({_xlabel_2d!r}); axes2d[_ai2].set_ylabel({_ylabel_2d!r})
+        axes2d[_ai2].set_title(f"t = {{_tv2:.3f}}")
+    fig.suptitle({_title_2d!r}, fontsize=12)
 else:
     # 1D + time already fully uses (x, t) as the two plot axes, so unlike
     # the 2D/3D branches above there's no separate "snapshot" concept --

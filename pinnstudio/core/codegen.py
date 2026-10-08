@@ -790,13 +790,28 @@ def generate_script(config):
     _line_slice_y = (config.y_min + config.y_max) / 2.0 if config.line_slice_y_auto else config.line_slice_y
     _line_slice_z = (config.z_min + config.z_max) / 2.0 if config.line_slice_z_auto else config.line_slice_z
 
-    # Convert the optional custom Results-panel plot expression (e.g.
-    # Schrodinger's "sqrt(u**2+v**2)") the same way PDE expressions are
-    # converted -- function names only (sqrt/sin/exp/...), never variable
-    # names, since here the variables are this problem's own output names
-    # (u, v, ...), substituted by name at runtime below, not x/y/z.
+    # The optional custom Results-panel plot expression (e.g. Schrodinger's
+    # "sqrt(u**2+v**2)") is passed through UNCONVERTED, deliberately NOT
+    # run through _simplify_pde_expr() the way PDE expressions are above.
+    # PDE expressions are eval'd in the generated script's own MODULE
+    # namespace (where `import numpy as np` already ran), so prefixing
+    # their function calls with "np." is correct there. This expression is
+    # instead eval'd by _plot_custom_op/_extract_plot_field below inside a
+    # small, ISOLATED namespace dict (_pf_ns) built from _PLOT_TORCH_MATH_NS
+    # -- which already maps every one of the same bare names
+    # (sin/cos/.../sqrt/pi, ...) straight to their torch equivalent, so a
+    # raw "sqrt(...)" resolves correctly there. Running _simplify_pde_expr
+    # on it rewrites "sqrt(" to "np.sqrt(" instead, which that namespace
+    # has no "np" binding for -- a real bug, caught via an actual exec-level
+    # run of the 1D Schrodinger template's GIF export ("NameError: name
+    # 'np' is not defined"), since _plot_custom_op's eval() only sees
+    # whatever's in _pf_ns, not the module's real globals. Both
+    # generate_clean_script()'s own _plot_custom_expr_val and every Restore
+    # & Visualize script builder's _custom_expr_val already pass this value
+    # through raw/unconverted -- this just brings generate_script() in
+    # line with them.
     _plot_custom_expr_raw = (getattr(config, "plot_custom_expr", "") or "").strip()
-    plot_custom_expr_converted = _simplify_pde_expr(_plot_custom_expr_raw) if _plot_custom_expr_raw else ""
+    plot_custom_expr_converted = _plot_custom_expr_raw
     plot_custom_label_resolved = (getattr(config, "plot_custom_label", "") or "").strip() or _plot_custom_expr_raw
 
     # Optional title/axis-label overrides for the solution plot -- same
@@ -2028,8 +2043,23 @@ else:
                     elif _btt == "Periodic":
                         pass  # Periodic BC handled by bottom side only
 
-            # ── IC ────────────────────────────────────────────────
-            if {config.forward_ic_from_file} and _oi == 0:
+            # ── IC (skipped entirely for a steady-state problem, same
+            # reasoning/fix as the Boundary-Conditions-panel-active branch
+            # above: a steady-state geomtime is just a plain spatial
+            # geometry with no on_initial() to match against, so building a
+            # dde.icbc.IC() here crashed with "'Rectangle' object has no
+            # attribute 'on_initial'" the moment any output's IC was
+            # active -- caught via an actual exec-level steady-state
+            # training run through this exact legacy branch, which only
+            # the custom_bc_json-empty path reaches (any config built by
+            # the current GUI always sends a non-empty custom_bc_json,
+            # even "[]", routing to the other branch instead -- so this hit
+            # only an old pre-Boundary-Conditions-panel config, loaded with
+            # steady_state=True and one of its legacy ic_active entries
+            # still "True") ──────────────────────────────────────────
+            if _is_steady:
+                pass
+            elif {config.forward_ic_from_file} and _oi == 0:
                 # Load IC from file -- see _load_ic_from_file() above for
                 # the expected column layout per dimension.
                 _ic_xyt, _ic_vals = _load_ic_from_file({repr(config.forward_ic_file)})
@@ -2113,10 +2143,18 @@ else:
                 _bct_w.append(None)  # do NOT advance _wi — GUI sends no value for this slot
         else:
             _bcb_w.append(None); _bct_w.append(None)
-        if (_oi_w == 0 and {config.forward_ic_from_file}) or (_oi_w < len(_ic_a) and _ic_a[_oi_w].strip() == "True"):
+        # Same _is_steady guard as the constraints block above and as the
+        # Boundary-Conditions-panel-active branch's own _ic_w loop just
+        # above (which already checks "not _is_steady and (...)") -- a
+        # steady-state problem builds no IC constraint at all now, so a
+        # weight entry for one here (this legacy branch forgot the check
+        # before this fix) would desync _multi_weights from the real
+        # constraints list by one slot, and shift every weight after it
+        # for any later output too.
+        if (not _is_steady) and ((_oi_w == 0 and {config.forward_ic_from_file}) or (_oi_w < len(_ic_a) and _ic_a[_oi_w].strip() == "True")):
             _ic_w.append(_wm_list[_wi] if _wi < len(_wm_list) else 1.0); _wi += 1
         else:
-            _ic_w.append(None); _wi += 1 if _wi < len(_wm_list) else 0
+            _ic_w.append(None); _wi += 1 if (not _is_steady and _wi < len(_wm_list)) else 0
 
     _bc_left_deriv_active  = "{config.bc_left_deriv}".split(",")
     _bc_bottom_deriv_active = "{config.bc_bottom_deriv}".split(",")
