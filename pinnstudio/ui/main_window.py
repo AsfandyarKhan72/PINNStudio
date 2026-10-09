@@ -5139,10 +5139,22 @@ class MainWindow(QMainWindow):
     _BC_NEEDS_POINTS_FILE = {"pointset", "pointset_operator"}
     _BC_NEEDS_ADVANCED_NOTE = {"operator", "pointset_operator"}
     _BC_NEEDS_INTERFACE_ROW = {"interface2d"}
+    # PointSetBC's component can match several output columns at once
+    # (DeepXDE's own list-of-ints support, PyTorch backend) -- not offered
+    # for Point Set Operator BC, whose DeepXDE constructor has no
+    # `component` parameter at all (its func already returns exactly what
+    # gets compared against `values`).
+    _BC_NEEDS_MULTI_COMPONENT = {"pointset"}
+    # PointSetBC/PointSetOperatorBC minibatching (DeepXDE's own batch_size/
+    # shuffle constructor kwargs, requiring dde.callbacks.PDEPointResampler
+    # (bc_points=True) in the training callbacks to actually resample each
+    # batch -- wired in automatically by codegen whenever this is used).
+    _BC_NEEDS_BATCH_ROW = {"pointset", "pointset_operator"}
 
     def _add_custom_bc_entry(self, bc_type="dirichlet", component=0, location="",
                               value="0", axis="x", deriv_order=0, points_file="",
-                              location2="", direction="normal", locked=False):
+                              location2="", direction="normal", locked=False,
+                              components="", batch_size=0, shuffle=True):
         entry_widget = QWidget()
         entry_layout = QVBoxLayout(entry_widget)
         entry_layout.setSpacing(3)
@@ -5258,6 +5270,42 @@ class MainWindow(QMainWindow):
         pointset_layout.addWidget(pointset_browse)
         entry_layout.addWidget(pointset_widget)
 
+        # PointSetBC-only: match several output components against the
+        # same points file at once (DeepXDE's own component=[i, j, ...]
+        # support) instead of just the single "Output #:" above -- the
+        # points file then needs one extra value column per entry here,
+        # in the same order. Left blank (the default), "Output #:" above
+        # is used exactly as before -- purely additive, no behavior change
+        # for any existing single-component row.
+        multi_comp_widget = QWidget()
+        multi_comp_layout = QHBoxLayout(multi_comp_widget)
+        multi_comp_layout.setContentsMargins(0, 0, 0, 0)
+        multi_comp_layout.addWidget(QLabel("Components (comma-separated):"))
+        multi_comp_edit = QLineEdit(components)
+        multi_comp_edit.setPlaceholderText("e.g. 0,1 -- overrides Output # above, needs matching extra file columns")
+        multi_comp_edit.setFixedHeight(26)
+        multi_comp_layout.addWidget(multi_comp_edit)
+        entry_layout.addWidget(multi_comp_widget)
+
+        # PointSet / PointSetOperator minibatching: DeepXDE resamples a new
+        # random batch of this size from the points file each training
+        # step (via the PDEPointResampler callback, added automatically by
+        # codegen whenever any BC row here uses batching) instead of using
+        # every point every step. 0 (the default) means no batching at
+        # all -- unchanged from before this existed.
+        batch_widget = QWidget()
+        batch_layout = QHBoxLayout(batch_widget)
+        batch_layout.setContentsMargins(0, 0, 0, 0)
+        batch_layout.addWidget(QLabel("Batch size (0 = off):"))
+        batch_spin = QSpinBox(); batch_spin.setRange(0, 1_000_000); batch_spin.setValue(int(batch_size or 0))
+        batch_spin.setFixedHeight(26); batch_spin.setFixedWidth(90)
+        batch_layout.addWidget(batch_spin)
+        shuffle_check = QCheckBox("Shuffle")
+        shuffle_check.setChecked(bool(shuffle))
+        batch_layout.addWidget(shuffle_check)
+        batch_layout.addStretch()
+        entry_layout.addWidget(batch_widget)
+
         # Interface2DBC-only: a second location (its geometry needs two
         # matching-length boundary pieces) + normal/tangent direction.
         interface_widget = QWidget()
@@ -5303,6 +5351,8 @@ class MainWindow(QMainWindow):
             val_widget.setVisible(key in self._BC_NEEDS_VALUE)
             periodic_widget.setVisible(key in self._BC_NEEDS_PERIODIC_ROW)
             pointset_widget.setVisible(key in self._BC_NEEDS_POINTS_FILE)
+            multi_comp_widget.setVisible(key in self._BC_NEEDS_MULTI_COMPONENT)
+            batch_widget.setVisible(key in self._BC_NEEDS_BATCH_ROW)
             interface_widget.setVisible(key in self._BC_NEEDS_INTERFACE_ROW)
             advanced_note.setVisible(key in self._BC_NEEDS_ADVANCED_NOTE)
             val_edit.setPlaceholderText(val_placeholders.get(key, default_val_placeholder))
@@ -5320,7 +5370,8 @@ class MainWindow(QMainWindow):
         if locked:
             for w in (type_combo, comp_spin, loc_edit, val_edit,
                       axis_combo, deriv_spin, pointset_path, pointset_browse,
-                      loc2_edit, direction_combo):
+                      loc2_edit, direction_combo, multi_comp_edit, batch_spin,
+                      shuffle_check):
                 w.setEnabled(False)
 
         self.custom_bc_list_layout.addWidget(entry_widget)
@@ -5335,6 +5386,9 @@ class MainWindow(QMainWindow):
             'points_file': pointset_path,
             'location2': loc2_edit,
             'direction': direction_combo,
+            'components': multi_comp_edit,
+            'batch_size': batch_spin,
+            'shuffle': shuffle_check,
             'locked': locked,
             # Containers, exposed mainly so tests can check per-type
             # visibility directly rather than guessing from the leaf inputs.
@@ -5344,6 +5398,8 @@ class MainWindow(QMainWindow):
             'pointset_widget': pointset_widget,
             'interface_widget': interface_widget,
             'component_widget': comp_widget,
+            'multi_component_widget': multi_comp_widget,
+            'batch_widget': batch_widget,
         }
         self.custom_bc_list.append(entry_data)
 
@@ -5381,6 +5437,9 @@ class MainWindow(QMainWindow):
                 'points_file': e['points_file'].text(),
                 'location2': e['location2'].text(),
                 'direction': e['direction'].currentText(),
+                'components': e['components'].text(),
+                'batch_size': e['batch_size'].value(),
+                'shuffle': e['shuffle'].isChecked(),
             })
         return json.dumps(entries)
 
@@ -5399,9 +5458,21 @@ class MainWindow(QMainWindow):
             entries = json.loads(custom_bc_json)
         except (ValueError, TypeError):
             return
-        for e in entries:
+        _known_bc_types = {key for _, key in self.CUSTOM_BC_TYPES}
+        _unknown_bc_rows = []
+        for _ei, e in enumerate(entries):
+            _bc_type = e.get('type', 'dirichlet')
+            if _bc_type not in _known_bc_types:
+                # The combo box itself already falls back to its first item
+                # (Dirichlet) silently when the saved value isn't one of its
+                # entries (QComboBox.findData returns -1, setCurrentIndex is
+                # just skipped) -- that's a real, permanent change to this
+                # BC's type the moment the project is saved again, so it's
+                # tracked here and surfaced to the user instead of passing
+                # unnoticed.
+                _unknown_bc_rows.append((_ei + 1, _bc_type))
             self._add_custom_bc_entry(
-                bc_type=e.get('type', 'dirichlet'),
+                bc_type=_bc_type,
                 component=e.get('component', 0),
                 location=e.get('location', ''),
                 value=e.get('value', '0'),
@@ -5410,7 +5481,20 @@ class MainWindow(QMainWindow):
                 points_file=e.get('points_file', ''),
                 location2=e.get('location2', ''),
                 direction=e.get('direction', 'normal'),
+                components=e.get('components', ''),
+                batch_size=e.get('batch_size', 0),
+                shuffle=e.get('shuffle', True),
                 locked=False,
+            )
+        if _unknown_bc_rows:
+            _rows_txt = ", ".join(f"BC {n} (was {t!r})" for n, t in _unknown_bc_rows)
+            QMessageBox.warning(
+                self, "Unrecognized boundary condition type",
+                "This project has a boundary condition with a type this version "
+                f"of PINNStudio doesn't recognize: {_rows_txt}. It has been reset "
+                "to Dirichlet in the Boundary Conditions panel -- please review "
+                "and fix it before solving, since saving the project again will "
+                "make this change permanent."
             )
 
     def _populate_locked_bc_entries_from_legacy(self, n_out, is_2d):

@@ -11,6 +11,108 @@ os.environ["DDE_BACKEND"] = "pytorch"
 os.environ["CUDA_LAUNCH_BLOCKING"] = "0"        # async CUDA launches
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:512,expandable_segments:True"
 
+import ast as _bc_ast
+import json as _bc_json_std
+
+
+def _bc_op_expr_uses_X(expr):
+    """Does a user-written Operator/PointSetOperator BC "Value" expression
+    reference the raw ``X`` argument (the BC function's own 3rd positional
+    arg, exposed by ``_bc_operator_fn`` in the generated script)?
+
+    DeepXDE's own OperatorBC/PointSetOperatorBC docstrings warn that if
+    ``func`` uses ``X``, ``num_test`` must NOT be set on the owning
+    ``dde.data.PDE``/``TimePDE`` (DeepXDE raises an error otherwise, since
+    the X-usage path requires every collocation point to be evaluated, not
+    a random test subsample). Detected with a real ``ast`` parse (not a
+    substring/regex search) so identifiers like "Xavier" or a string
+    literal containing the letter X are never mistaken for the argument.
+
+    Malformed expressions are reported as "doesn't use X" here -- they will
+    raise their own clear error later at the real ``compile()``/eval call
+    inside the generated script, so there's nothing useful to flag yet.
+    """
+    if not expr or "X" not in expr:
+        return False
+    try:
+        tree = _bc_ast.parse(expr, mode="eval")
+    except SyntaxError:
+        return False
+    for node in _bc_ast.walk(tree):
+        if isinstance(node, _bc_ast.Name) and node.id == "X":
+            return True
+    return False
+
+
+def _bc_entries_use_operator_X(bc_entries):
+    """True if any ``operator``/``pointset_operator`` row in a parsed
+    ``custom_bc_json`` entry list references the raw ``X`` argument in its
+    "Value" expression (see ``_bc_op_expr_uses_X``)."""
+    for entry in bc_entries or []:
+        if entry.get("type") in ("operator", "pointset_operator"):
+            if _bc_op_expr_uses_X(entry.get("value", "")):
+                return True
+    return False
+
+
+def _bc_entries_use_batching(bc_entries):
+    """True if any ``pointset``/``pointset_operator`` row in a parsed
+    ``custom_bc_json`` entry list has a nonzero ``batch_size`` -- i.e.
+    needs ``dde.callbacks.PDEPointResampler(bc_points=True)`` in the
+    training callbacks for that batching to actually do anything (see
+    ``_build_train_cbs_code``'s own comment)."""
+    for entry in bc_entries or []:
+        if entry.get("type") in ("pointset", "pointset_operator"):
+            try:
+                if int(entry.get("batch_size", 0) or 0) > 0:
+                    return True
+            except (TypeError, ValueError):
+                pass
+    return False
+
+
+def _bc_entries_use_batching_json(custom_bc_json):
+    """``_bc_entries_use_batching``, parsing ``custom_bc_json`` itself --
+    convenience for call sites (like ``_build_train_cbs_code``) that only
+    have the raw config string, not an already-parsed entry list."""
+    try:
+        entries = _bc_json_std.loads(custom_bc_json) if custom_bc_json else []
+    except (ValueError, TypeError):
+        entries = []
+    return _bc_entries_use_batching(entries)
+
+
+def _bc_check_interface2d_preconditions(bc_entries, geometry_type, safe_point_distribution):
+    """DeepXDE's own Interface2DBC requires a Rectangle or Polygon geometry
+    (so the two sides it's told about are real, equal-length edges) and
+    ``train_distribution="uniform"`` -- without a uniform grid, the two
+    edges don't get the same number of matched points along their length,
+    and Interface2DBC's error() silently compares two differently-shaped
+    arrays (or crashes with a shape-mismatch deep inside DeepXDE, nowhere
+    near the actual cause). The GUI's BC panel only ever advises this via
+    the type dropdown's own label ("Rectangle/Polygon only") -- nothing
+    stops selecting Interface 2D BC with the wrong geometry or point
+    distribution, so this is enforced here with a clear message instead,
+    at codegen time (both are already plain config values by then), right
+    when Solve is clicked / the script is exported -- before any
+    GPU/training time is spent on a run that would be silently wrong.
+    """
+    if not any(e.get("type") == "interface2d" for e in (bc_entries or [])):
+        return
+    if geometry_type not in ("Rectangle", "Polygon"):
+        raise ValueError(
+            "Interface 2D BC requires a Rectangle or Polygon geometry "
+            f"(current geometry: {geometry_type!r}). Change the geometry, "
+            "or remove the Interface 2D BC row."
+        )
+    if safe_point_distribution != "uniform":
+        raise ValueError(
+            "Interface 2D BC requires the point distribution to be "
+            f"\"uniform\" (current: {safe_point_distribution!r}). Change "
+            "Point Distribution to Uniform, or remove the Interface 2D BC row."
+        )
+
+
 def _simplify_expr(expr, is_2d=False, is_3d=False):
     """Convert user-friendly math syntax to numpy syntax."""
     import re
@@ -380,6 +482,16 @@ def _build_train_cbs_code(config, var_name="_train_cbs", indent=4):
             f"pde_points={bool(config.cb_point_resampler_pde_points)}, "
             f"bc_points={bool(config.cb_point_resampler_bc_points)}))"
         )
+    elif _bc_entries_use_batching_json(config.custom_bc_json):
+        # A Point Set / Point Set Operator BC row has batch_size set (see
+        # the Boundary Conditions panel), but the user never separately
+        # turned on Training Callbacks' own Point Resampler (bc_points) --
+        # without it, DeepXDE draws that BC's random batch once and keeps
+        # training on the exact same points forever, which isn't what
+        # "batch size" implies. Added automatically here instead, with
+        # DeepXDE's own default period (not forced to any particular
+        # value, so it stays correct if that default ever changes).
+        lines.append(f"{pad}{var_name}.append(dde.callbacks.PDEPointResampler(bc_points=True))")
     if config.cb_model_checkpoint:
         lines.append(
             f'{pad}{var_name}.append(dde.callbacks.ModelCheckpoint('
@@ -918,6 +1030,27 @@ def generate_script(config):
     # before that fix, so an old saved file with the bad literal still
     # works instead of crashing.
     _safe_point_distribution = "pseudo" if config.point_distribution == "pseudorandom" else config.point_distribution
+    # DeepXDE's own OperatorBC/PointSetOperatorBC docstrings warn that if the
+    # BC function uses the raw X argument, num_test must not be set on the
+    # owning dde.data.PDE/TimePDE (DeepXDE raises an error otherwise). The
+    # BC panel's "Value" expression for operator/pointset_operator rows is
+    # free-form user text that can reference X (see _bc_operator_fn below),
+    # so detect that here -- at codegen time, since custom_bc_json is
+    # already a plain Python string available right now -- and silently
+    # fall back to no test set (num_test=None) only when it's actually
+    # needed, leaving every other problem's num_test exactly as configured.
+    try:
+        _bc_entries_for_numtest = _bc_json_std.loads(config.custom_bc_json) if config.custom_bc_json else []
+    except (ValueError, TypeError):
+        _bc_entries_for_numtest = []
+    _bc_op_uses_X = _bc_entries_use_operator_X(_bc_entries_for_numtest)
+    _safe_num_test = None if _bc_op_uses_X else config.num_test
+    # Interface 2D BC's real DeepXDE preconditions (Rectangle/Polygon
+    # geometry, uniform point distribution) -- both already plain config
+    # values at this point, so checked here immediately rather than
+    # letting a wrong combination reach DeepXDE's own far-less-clear error
+    # (or, worse, train silently wrong) -- see the helper's own docstring.
+    _bc_check_interface2d_preconditions(_bc_entries_for_numtest, config.geometry_type, _safe_point_distribution)
     # The "solution" output is a static PNG for every plot type except the
     # two GIF animations, where it's an actual animated .gif file instead
     # -- known now (at generation time) from the selected plot type, so the
@@ -2015,14 +2148,23 @@ def _bc_operator_fn(_expr):
         return eval(_code, {{"inputs": _inputs, "outputs": _outputs, "X": _X, "np": np, "torch": torch}})
     return _f
 
-def _bc_load_points_file(_path, _bc_label):
+def _bc_load_points_file(_path, _bc_label, _n_values=1):
     if not _path or not _os.path.isfile(_path):
         raise RuntimeError(f"Boundary Conditions panel: {{_bc_label}} needs a points file, but "
                             f"'{{_path}}' was not found. Browse for a valid file in that BC's row.")
     _data = np.loadtxt(_path, delimiter=",") if _path.lower().endswith(".csv") else np.loadtxt(_path)
     if _data.ndim == 1:
         _data = _data.reshape(1, -1)
-    return _data[:, :_n_coord_cols_bc], _data[:, _n_coord_cols_bc:_n_coord_cols_bc + 1]
+    # _n_values > 1 is PointSetBC's multi-component case (component=[i, j,
+    # ...]): one extra trailing value column per listed component, in the
+    # same order, matching DeepXDE's own expectation that `values` has one
+    # column per entry in a list-valued `component`.
+    _n_have = _data.shape[1] - _n_coord_cols_bc
+    if _n_have < _n_values:
+        raise RuntimeError(f"Boundary Conditions panel: {{_bc_label}} needs {{_n_values}} value "
+                            f"column(s) after its {{_n_coord_cols_bc}} coordinate column(s), but "
+                            f"'{{_path}}' only has {{_n_have}}.")
+    return _data[:, :_n_coord_cols_bc], _data[:, _n_coord_cols_bc:_n_coord_cols_bc + _n_values]
 
 _axis_idx_map = {{"x": 0, "y": 1, "z": 2}}
 
@@ -2035,12 +2177,21 @@ class _Interface2DGeomAdapter:
     # (GeometryXTime already strips the time column itself), so this
     # adapter only needs to trim boundary_normal's result back down to
     # the spatial dimensions Interface2DBC actually expects.
-    def __init__(self, gt):
+    #
+    # For a steady-state problem geomtime is just geom itself (a plain
+    # Rectangle/Polygon, aliased above -- see _is_steady), which has no
+    # extra time-normal column to begin with, so the trim must be skipped
+    # there -- otherwise it would wrongly chop off a real spatial normal
+    # component instead, silently corrupting every steady-state Interface
+    # 2D BC's error term.
+    def __init__(self, gt, is_steady=False):
         self._gt = gt
+        self._is_steady = is_steady
     def on_boundary(self, x):
         return self._gt.on_boundary(x)
     def boundary_normal(self, x):
-        return self._gt.boundary_normal(x)[:, :-1]
+        _n = self._gt.boundary_normal(x)
+        return _n if self._is_steady else _n[:, :-1]
 
 if _custom_bc_entries or _bc_panel_data_present:
     for _bi, _be in enumerate(_custom_bc_entries):
@@ -2049,11 +2200,28 @@ if _custom_bc_entries or _bc_panel_data_present:
         _bloc  = _be.get('location', '')
         _bval  = _be.get('value', '0')
         _baxis = _be.get('axis', 'x')
-        _bderiv = int(_be.get('deriv_order', 0) or 0)
+        # Defense-in-depth clamp (same idea as the point-distribution remap
+        # above): the GUI's own spinbox already restricts this to 0-1, but
+        # a hand-edited or legacy saved file with a bigger value would
+        # otherwise reach dde.icbc.PeriodicBC raw and hit its own
+        # NotImplementedError at training time with no clear explanation.
+        _bderiv = min(max(int(_be.get('deriv_order', 0) or 0), 0), 1)
         _bpts_file = _be.get('points_file', '')
         _bloc2 = _be.get('location2', '')
         _bdir  = _be.get('direction', 'normal')
         _blabel = f"BC {{_bi + 1}} ({{_btype}})"
+        # PointSetBC's component as a list of ints (DeepXDE's own support,
+        # PyTorch backend): "Components" overrides the single "Output #:"
+        # above when non-empty, one extra points-file value column per
+        # entry. PointSetOperatorBC has no `component` at all, so this is
+        # only ever consulted for 'pointset' below.
+        _bcomponents_txt = (_be.get('components', '') or '').strip()
+        _bcomponents = [int(_c.strip()) for _c in _bcomponents_txt.split(',') if _c.strip()] if _bcomponents_txt else None
+        # PointSet/PointSetOperator minibatching (DeepXDE's own batch_size/
+        # shuffle kwargs) -- 0 means off, unchanged from before this existed.
+        _bbatch = int(_be.get('batch_size', 0) or 0)
+        _bshuffle = bool(_be.get('shuffle', True))
+        _bbatch_kwargs = {{"batch_size": _bbatch, "shuffle": _bshuffle}} if _bbatch > 0 else {{}}
 
         if _btype == 'neumann':
             _constraints.append(dde.icbc.NeumannBC(geomtime, _bc_val_fn(_bval), _bc_loc_fn(_bloc), component=_bcomp))
@@ -2063,18 +2231,30 @@ if _custom_bc_entries or _bc_panel_data_present:
             _constraints.append(dde.icbc.PeriodicBC(geomtime, _axis_idx_map.get(_baxis, 0), _bc_loc_fn(_bloc),
                                                       derivative_order=_bderiv, component=_bcomp))
         elif _btype == 'pointset':
-            _pts, _pvals = _bc_load_points_file(_bpts_file, _blabel)
-            _constraints.append(dde.icbc.PointSetBC(_pts, _pvals, component=_bcomp))
+            _pts, _pvals = _bc_load_points_file(_bpts_file, _blabel, len(_bcomponents) if _bcomponents else 1)
+            _constraints.append(dde.icbc.PointSetBC(_pts, _pvals, component=(_bcomponents if _bcomponents else _bcomp), **_bbatch_kwargs))
         elif _btype == 'pointset_operator':
             _pts, _pvals = _bc_load_points_file(_bpts_file, _blabel)
-            _constraints.append(dde.icbc.PointSetOperatorBC(_pts, _pvals, _bc_operator_fn(_bval)))
+            _constraints.append(dde.icbc.PointSetOperatorBC(_pts, _pvals, _bc_operator_fn(_bval), **_bbatch_kwargs))
         elif _btype == 'operator':
             _constraints.append(dde.icbc.OperatorBC(geomtime, _bc_operator_fn(_bval), _bc_loc_fn(_bloc)))
         elif _btype == 'interface2d':
-            _constraints.append(dde.icbc.Interface2DBC(_Interface2DGeomAdapter(geomtime), _bc_val_fn(_bval),
+            _constraints.append(dde.icbc.Interface2DBC(_Interface2DGeomAdapter(geomtime, _is_steady), _bc_val_fn(_bval),
                                                          _bc_loc_fn(_bloc), _bc_loc_fn(_bloc2), direction=_bdir))
-        else:  # 'dirichlet' and any unrecognized type fall back to Dirichlet
+        elif _btype == 'dirichlet':
             _constraints.append(dde.icbc.DirichletBC(geomtime, _bc_val_fn(_bval), _bc_loc_fn(_bloc), component=_bcomp))
+        else:
+            # An unrecognized "type" used to fall back to Dirichlet
+            # silently -- which trains and reports normally, giving no
+            # hint that the saved config's boundary condition isn't what
+            # was actually requested. Failing loudly here instead, right
+            # where the problem is introduced, matches how a missing
+            # points file is already handled elsewhere in this function.
+            raise ValueError(
+                f"{{_blabel}}: unrecognized boundary condition type {{_btype!r}}. "
+                "Expected one of: dirichlet, neumann, robin, periodic, pointset, "
+                "pointset_operator, operator, interface2d."
+            )
 
     # ── IC (independent of the BC panel -- same IC config as always;
     # skipped entirely for a steady-state problem, which has no initial
@@ -2377,6 +2557,7 @@ if _problem_type == "Inverse":
     _multi_weights = _multi_weights + [_e[3] for _e in _obs_entries]
 
 print(f"Loss weights: {{_multi_weights}} ({{len(_multi_weights)}} terms for {{len(_constraints)}} constraints)")
+{"print('Note: num_test disabled (left at None) because an Operator or Point Set Operator BC Value expression references X -- DeepXDE requires this whenever a boundary condition function uses the raw input points.')" if _bc_op_uses_X else ""}
 
 # ── Data ─────────────────────────────────────────────────────
 # Steady-state problems have no time axis/Initial Condition, so they use a
@@ -2395,7 +2576,7 @@ if _problem_type == "Inverse":
         data = dde.data.PDE(
             geomtime, pde, _constraints,
             num_domain={config.num_domain}, num_boundary={config.num_boundary},
-            num_test={config.num_test},
+            num_test={_safe_num_test!r},
             train_distribution="{_safe_point_distribution}",
             anchors=_obs_anchors
         )
@@ -2403,7 +2584,7 @@ if _problem_type == "Inverse":
         data = dde.data.TimePDE(
             geomtime, pde, _constraints,
             num_domain={config.num_domain}, num_boundary={config.num_boundary},
-            num_initial={config.num_initial}, num_test={config.num_test},
+            num_initial={config.num_initial}, num_test={_safe_num_test!r},
             train_distribution="{_safe_point_distribution}",
             anchors=_obs_anchors
         )
@@ -2412,7 +2593,7 @@ else:
         data = dde.data.PDE(
             geomtime, pde, _constraints,
             num_domain={config.num_domain}, num_boundary={config.num_boundary},
-            num_test={config.num_test},
+            num_test={_safe_num_test!r},
             train_distribution="{_safe_point_distribution}",
             anchors=None
         )
@@ -2420,7 +2601,7 @@ else:
         data = dde.data.TimePDE(
             geomtime, pde, _constraints,
             num_domain={config.num_domain}, num_boundary={config.num_boundary},
-            num_initial={config.num_initial}, num_test={config.num_test},
+            num_initial={config.num_initial}, num_test={_safe_num_test!r},
             train_distribution="{_safe_point_distribution}",
             anchors=None
         )
@@ -4895,11 +5076,17 @@ if {config.time_adaptive}:
                 _bloc_ta  = _be_ta.get('location', '')
                 _bval_ta  = _be_ta.get('value', '0')
                 _baxis_ta = _be_ta.get('axis', 'x')
-                _bderiv_ta = int(_be_ta.get('deriv_order', 0) or 0)
+                _bderiv_ta = min(max(int(_be_ta.get('deriv_order', 0) or 0), 0), 1)  # same clamp as the main path above
                 _bpts_file_ta = _be_ta.get('points_file', '')
                 _bloc2_ta = _be_ta.get('location2', '')
                 _bdir_ta  = _be_ta.get('direction', 'normal')
                 _blabel_ta = f"BC {{_bi_ta + 1}} ({{_btype_ta}})"
+                # Same component-list/batching parsing as the main path above.
+                _bcomponents_txt_ta = (_be_ta.get('components', '') or '').strip()
+                _bcomponents_ta = [int(_c.strip()) for _c in _bcomponents_txt_ta.split(',') if _c.strip()] if _bcomponents_txt_ta else None
+                _bbatch_ta = int(_be_ta.get('batch_size', 0) or 0)
+                _bshuffle_ta = bool(_be_ta.get('shuffle', True))
+                _bbatch_kwargs_ta = {{"batch_size": _bbatch_ta, "shuffle": _bshuffle_ta}} if _bbatch_ta > 0 else {{}}
 
                 if _btype_ta == 'neumann':
                     _constraints_i.append(dde.icbc.NeumannBC(geomtime_i, _bc_val_fn(_bval_ta), _bc_loc_fn(_bloc_ta), component=_bcomp_ta))
@@ -4909,18 +5096,30 @@ if {config.time_adaptive}:
                     _constraints_i.append(dde.icbc.PeriodicBC(geomtime_i, _axis_idx_map.get(_baxis_ta, 0), _bc_loc_fn(_bloc_ta),
                                                                 derivative_order=_bderiv_ta, component=_bcomp_ta))
                 elif _btype_ta == 'pointset':
-                    _pts_ta, _pvals_ta = _bc_load_points_file(_bpts_file_ta, _blabel_ta)
-                    _constraints_i.append(dde.icbc.PointSetBC(_pts_ta, _pvals_ta, component=_bcomp_ta))
+                    _pts_ta, _pvals_ta = _bc_load_points_file(_bpts_file_ta, _blabel_ta, len(_bcomponents_ta) if _bcomponents_ta else 1)
+                    _constraints_i.append(dde.icbc.PointSetBC(_pts_ta, _pvals_ta, component=(_bcomponents_ta if _bcomponents_ta else _bcomp_ta), **_bbatch_kwargs_ta))
                 elif _btype_ta == 'pointset_operator':
                     _pts_ta, _pvals_ta = _bc_load_points_file(_bpts_file_ta, _blabel_ta)
-                    _constraints_i.append(dde.icbc.PointSetOperatorBC(_pts_ta, _pvals_ta, _bc_operator_fn(_bval_ta)))
+                    _constraints_i.append(dde.icbc.PointSetOperatorBC(_pts_ta, _pvals_ta, _bc_operator_fn(_bval_ta), **_bbatch_kwargs_ta))
                 elif _btype_ta == 'operator':
                     _constraints_i.append(dde.icbc.OperatorBC(geomtime_i, _bc_operator_fn(_bval_ta), _bc_loc_fn(_bloc_ta)))
                 elif _btype_ta == 'interface2d':
-                    _constraints_i.append(dde.icbc.Interface2DBC(_Interface2DGeomAdapter(geomtime_i), _bc_val_fn(_bval_ta),
+                    # Time-Adaptive steps are never steady-state (geomtime_i
+                    # is always a real GeometryXTime here), so the adapter's
+                    # trim is always correct -- passed explicitly (rather
+                    # than relying on the default) to document that.
+                    _constraints_i.append(dde.icbc.Interface2DBC(_Interface2DGeomAdapter(geomtime_i, False), _bc_val_fn(_bval_ta),
                                                                     _bc_loc_fn(_bloc_ta), _bc_loc_fn(_bloc2_ta), direction=_bdir_ta))
-                else:  # 'dirichlet' and any unrecognized type fall back to Dirichlet
+                elif _btype_ta == 'dirichlet':
                     _constraints_i.append(dde.icbc.DirichletBC(geomtime_i, _bc_val_fn(_bval_ta), _bc_loc_fn(_bloc_ta), component=_bcomp_ta))
+                else:
+                    # Same loud failure as the main (non-Time-Adaptive) path
+                    # above, instead of silently training with the wrong BC.
+                    raise ValueError(
+                        f"{{_blabel_ta}}: unrecognized boundary condition type {{_btype_ta!r}}. "
+                        "Expected one of: dirichlet, neumann, robin, periodic, pointset, "
+                        "pointset_operator, operator, interface2d."
+                    )
 
             # IC (independent of the BC panel -- same per-step IC scheme as always)
             for _oi_ta in range({config.num_outputs}):
@@ -5046,7 +5245,7 @@ if {config.time_adaptive}:
         data_i = dde.data.TimePDE(
             geomtime_i, pde, _constraints_i,
             num_domain={config.num_domain}, num_boundary={config.num_boundary},
-            num_initial={config.num_initial}, num_test={config.num_test},
+            num_initial={config.num_initial}, num_test={_safe_num_test!r},
             # forward_ic_from_file only matters for step 0 (loading the
             # true initial condition from a file there); every later step's
             # IC constraint comes from the previous window's own predicted
@@ -6408,7 +6607,7 @@ def _clean_coord_unpack(indent, is_batch, is_2d, is_3d):
     return lines
 
 
-def _clean_bc_row_code(i, entry, is_2d, is_3d, n_coord_cols):
+def _clean_bc_row_code(i, entry, is_2d, is_3d, n_coord_cols, is_steady=False):
     """Everything needed for one Boundary Conditions panel row: the small
     helper function(s) its location/value expression needs (the
     expression text itself is spliced straight into the function body --
@@ -6420,11 +6619,24 @@ def _clean_bc_row_code(i, entry, is_2d, is_3d, n_coord_cols):
     loc = (entry.get('location', '') or '').strip() or 'True'
     val = (entry.get('value', '') or '').strip() or '0'
     axis = entry.get('axis', 'x')
-    deriv = int(entry.get('deriv_order', 0) or 0)
+    # Same defense-in-depth clamp as generate_script() -- see its comment.
+    deriv = min(max(int(entry.get('deriv_order', 0) or 0), 0), 1)
     pts_file = entry.get('points_file', '')
     loc2 = (entry.get('location2', '') or '').strip() or 'True'
     direction = entry.get('direction', 'normal')
     axis_idx_map = {"x": 0, "y": 1, "z": 2}
+    # PointSetBC's component as a list of ints (see generate_script()'s
+    # matching comment) -- resolved here directly since it's known at
+    # codegen time too. PointSetOperatorBC has no `component` at all, so
+    # `components`/`comp` are irrelevant there.
+    _components_txt = (entry.get('components', '') or '').strip()
+    components = [int(c.strip()) for c in _components_txt.split(',') if c.strip()] if _components_txt else None
+    n_values = len(components) if components else 1
+    # Same batching kwargs as generate_script() -- baked as a literal here
+    # since batch_size/shuffle are already known at codegen time.
+    batch_size = int(entry.get('batch_size', 0) or 0)
+    shuffle = bool(entry.get('shuffle', True))
+    batch_kwargs_str = f", batch_size={batch_size}, shuffle={shuffle!r}" if batch_size > 0 else ""
 
     loc_name = f"_bc{i}_loc"
     loc2_name = f"_bc{i}_loc2"
@@ -6466,26 +6678,199 @@ def _clean_bc_row_code(i, entry, is_2d, is_3d, n_coord_cols):
         append.append(f"constraints.append(dde.icbc.PeriodicBC(geomtime, {axis_idx_map.get(axis, 0)}, "
                        f"{loc_name}, derivative_order={deriv}, component={comp}))")
     elif btype == 'pointset':
-        append.append(f'_pts{i}, _pvals{i} = _load_bc_points({pts_file!r}, {n_coord_cols})')
-        append.append(f"constraints.append(dde.icbc.PointSetBC(_pts{i}, _pvals{i}, component={comp}))")
+        append.append(f'_pts{i}, _pvals{i} = _load_bc_points({pts_file!r}, {n_coord_cols}, {n_values})')
+        _comp_arg = components if components else comp
+        append.append(f"constraints.append(dde.icbc.PointSetBC(_pts{i}, _pvals{i}, component={_comp_arg!r}{batch_kwargs_str}))")
     elif btype == 'pointset_operator':
         op_name = f"_bc{i}_op"
         defs += [f"def {op_name}(inputs, outputs, X):", f"    return {val}"]
         append.append(f'_pts{i}, _pvals{i} = _load_bc_points({pts_file!r}, {n_coord_cols})')
-        append.append(f"constraints.append(dde.icbc.PointSetOperatorBC(_pts{i}, _pvals{i}, {op_name}))")
+        append.append(f"constraints.append(dde.icbc.PointSetOperatorBC(_pts{i}, _pvals{i}, {op_name}{batch_kwargs_str}))")
     elif btype == 'operator':
         op_name = f"_bc{i}_op"
         defs += [f"def {op_name}(inputs, outputs, X):", f"    return {val}"] + loc_fn(loc_name, loc)
         append.append(f"constraints.append(dde.icbc.OperatorBC(geomtime, {op_name}, {loc_name}))")
     elif btype == 'interface2d':
         defs += loc_fn(loc_name, loc) + loc_fn(loc2_name, loc2) + val_fn(val_name, val)
-        append.append(f"constraints.append(dde.icbc.Interface2DBC(_Interface2DGeomAdapter(geomtime), {val_name}, "
+        # Steady-state: geomtime is just geom (no extra time-normal column),
+        # so the adapter must be told not to trim boundary_normal()'s
+        # result -- see _Interface2DGeomAdapter's own docstring/comment.
+        append.append(f"constraints.append(dde.icbc.Interface2DBC(_Interface2DGeomAdapter(geomtime, {is_steady!r}), {val_name}, "
                        f"{loc_name}, {loc2_name}, direction={direction!r}))")
-    else:  # 'dirichlet' and any unrecognized type fall back to Dirichlet
+    elif btype == 'dirichlet':
         defs += loc_fn(loc_name, loc) + val_fn(val_name, val)
         append.append(f"constraints.append(dde.icbc.DirichletBC(geomtime, {val_name}, {loc_name}, component={comp}))")
+    else:
+        # Same loud failure as generate_script()'s matching fallback --
+        # raised here at export time (rather than baked silently into the
+        # exported script as a wrong Dirichlet BC) so the problem surfaces
+        # immediately as an "Export failed" error instead of training
+        # quietly with the wrong boundary condition forever after.
+        raise ValueError(
+            f"BC {i + 1}: unrecognized boundary condition type {btype!r}. "
+            "Expected one of: dirichlet, neumann, robin, periodic, pointset, "
+            "pointset_operator, operator, interface2d."
+        )
 
     return defs, append
+
+
+def _clean_legacy_bc_code(config, is_2d, n_out):
+    """Codegen-time port of generate_script()'s legacy per-side BC fallback
+    (bc_left_types/bc_right_types/bc_bottom_types/bc_top_types and their
+    matching values/active/deriv fields), for a config saved before the
+    Boundary Conditions panel existed (custom_bc_json empty/absent).
+
+    Without this, generate_clean_script() had no fallback at all for that
+    case -- bc_entries came back as an empty list and the exported script
+    silently ended up with zero boundary conditions, no warning, nothing.
+    Mirrors generate_script()'s runtime `else:` branch, but resolved here
+    directly in real Python since every one of these fields is already a
+    plain string on `config`, known at codegen time. Returns (defs,
+    appends) in the same shape _clean_bc_row_code uses."""
+
+    def _split(value):
+        return (value or "").split(",")
+
+    def _get(lst, i, default):
+        return lst[i].strip() if i < len(lst) and lst[i].strip() else default
+
+    def _getf(lst, i, default=0.0):
+        try:
+            return float(_get(lst, i, str(default)))
+        except ValueError:
+            return default
+
+    bc_left_types   = _split(config.bc_left_types)
+    bc_right_types  = _split(config.bc_right_types)
+    bc_left_values  = _split(config.bc_left_values)
+    bc_right_values = _split(config.bc_right_values)
+    bc_left_active  = _split(config.bc_left_active)
+    bc_right_active = _split(config.bc_right_active)
+    bc_left_deriv   = _split(config.bc_left_deriv)
+    bc_right_deriv  = _split(config.bc_right_deriv)
+    bc_bottom_types   = _split(config.bc_bottom_types)
+    bc_top_types      = _split(config.bc_top_types)
+    bc_bottom_values  = _split(config.bc_bottom_values)
+    bc_top_values     = _split(config.bc_top_values)
+    bc_bottom_active  = _split(config.bc_bottom_active)
+    bc_top_active     = _split(config.bc_top_active)
+    bc_bottom_deriv   = _split(config.bc_bottom_deriv)
+    bc_top_deriv      = _split(config.bc_top_deriv)
+
+    defs, append = [], []
+
+    def _side(prefix, oi, comp, btype, bval, on_bd_name, on_bd_body, deriv_list, deriv_axis, is_second_side):
+        defs.append(f"def {on_bd_name}(x, on_boundary):")
+        defs.append(f"    return on_boundary and {on_bd_body}")
+        if btype == "Dirichlet":
+            append.append(f"constraints.append(dde.icbc.DirichletBC(geomtime, lambda x: np.full((len(x), 1), {bval!r}), {on_bd_name}, component={comp}))")
+        elif btype == "Neumann":
+            append.append(f"constraints.append(dde.icbc.NeumannBC(geomtime, lambda x: np.full((len(x), 1), {bval!r}), {on_bd_name}, component={comp}))")
+        elif btype == "Periodic":
+            if is_second_side:
+                pass  # Periodic BC is handled by the first side only -- DeepXDE enforces both ends together
+            else:
+                append.append(f"constraints.append(dde.icbc.PeriodicBC(geomtime, {deriv_axis}, {on_bd_name}, derivative_order=0, component={comp}))")
+                if _get(deriv_list, oi, "False") == "True":
+                    append.append(f"constraints.append(dde.icbc.PeriodicBC(geomtime, {deriv_axis}, {on_bd_name}, derivative_order=1, component={comp}))")
+
+    for oi in range(n_out):
+        comp = oi
+        blt = _get(bc_left_types, oi, "Dirichlet")
+        brt = _get(bc_right_types, oi, "Dirichlet")
+        blv = _getf(bc_left_values, oi)
+        brv = _getf(bc_right_values, oi)
+
+        if _get(bc_left_active, oi, "False") == "True":
+            _side("l", oi, comp, blt, blv, f"_leg{oi}_l_on_bd",
+                  f"dde.utils.isclose(x[0], {config.x_min})", bc_left_deriv, 0, False)
+        if _get(bc_right_active, oi, "False") == "True":
+            _side("r", oi, comp, brt, brv, f"_leg{oi}_r_on_bd",
+                  f"dde.utils.isclose(x[0], {config.x_max})", bc_right_deriv, 0, True)
+
+        if is_2d:
+            bbt = _get(bc_bottom_types, oi, "Dirichlet")
+            btt = _get(bc_top_types, oi, "Dirichlet")
+            bbv = _getf(bc_bottom_values, oi)
+            btv = _getf(bc_top_values, oi)
+
+            if _get(bc_bottom_active, oi, "False") == "True":
+                _side("b", oi, comp, bbt, bbv, f"_leg{oi}_b_on_bd",
+                      f"dde.utils.isclose(x[1], {config.y_min})", bc_bottom_deriv, 1, False)
+            if _get(bc_top_active, oi, "False") == "True":
+                _side("t", oi, comp, btt, btv, f"_leg{oi}_t_on_bd",
+                      f"dde.utils.isclose(x[1], {config.y_max})", bc_top_deriv, 1, True)
+
+    return defs, append
+
+
+def _clean_legacy_bc_weights(config, is_2d, n_out, wm_list, wi):
+    """One loss-weight value per constraint ``_clean_legacy_bc_code`` will
+    actually append, in the exact same order (per output: left [+ extra
+    for a periodic+derivative left side], right, [2D] bottom [+ extra],
+    top) -- so ``_clean_loss_weights``'s weight list stays the same length
+    as the real constraints list it's multiplied against. Without this,
+    a legacy config (bc_entries empty, so len(bc_entries) == 0) got ZERO
+    BC weight slots here while the legacy per-side fallback it now gets
+    (see _clean_legacy_bc_code) can add several real constraints --
+    DeepXDE's own `losses *= torch.as_tensor(self.loss_weights)` then
+    crashes with a tensor-size mismatch the moment training starts.
+
+    Mirrors generate_script()'s own legacy weight-building loop (same
+    per-side active/periodic/derivative checks), consuming from the same
+    shared ``wm_list``/``wi`` cursor used for PDE weights before this and
+    IC weights after it. Returns (weights, new_wi)."""
+
+    def _split(value):
+        return (value or "").split(",")
+
+    def _get(lst, i, default):
+        return lst[i].strip() if i < len(lst) and lst[i].strip() else default
+
+    bc_left_types   = _split(config.bc_left_types)
+    bc_right_types  = _split(config.bc_right_types)
+    bc_left_active  = _split(config.bc_left_active)
+    bc_right_active = _split(config.bc_right_active)
+    bc_left_deriv   = _split(config.bc_left_deriv)
+    bc_right_deriv  = _split(config.bc_right_deriv)
+    bc_bottom_types   = _split(config.bc_bottom_types)
+    bc_top_types      = _split(config.bc_top_types)
+    bc_bottom_active  = _split(config.bc_bottom_active)
+    bc_top_active     = _split(config.bc_top_active)
+    bc_bottom_deriv   = _split(config.bc_bottom_deriv)
+    bc_top_deriv      = _split(config.bc_top_deriv)
+
+    weights = []
+
+    def _next():
+        nonlocal wi
+        w = wm_list[wi] if wi < len(wm_list) else 1.0
+        wi += 1
+        return w
+
+    for oi in range(n_out):
+        blt = _get(bc_left_types, oi, "Dirichlet")
+        brt = _get(bc_right_types, oi, "Dirichlet")
+
+        if _get(bc_left_active, oi, "False") == "True":
+            weights.append(_next())
+            if blt == "Periodic" and _get(bc_left_deriv, oi, "False") == "True":
+                weights.append(_next())
+        if _get(bc_right_active, oi, "False") == "True" and brt != "Periodic":
+            weights.append(_next())
+
+        if is_2d:
+            bbt = _get(bc_bottom_types, oi, "Dirichlet")
+            btt = _get(bc_top_types, oi, "Dirichlet")
+            if _get(bc_bottom_active, oi, "False") == "True":
+                weights.append(_next())
+                if bbt == "Periodic" and _get(bc_bottom_deriv, oi, "False") == "True":
+                    weights.append(_next())
+            if _get(bc_top_active, oi, "False") == "True" and btt != "Periodic":
+                weights.append(_next())
+
+    return weights, wi
 
 
 def _clean_active_ic_outputs(config, n_out, ic_active_list):
@@ -6501,7 +6886,8 @@ def _clean_active_ic_outputs(config, n_out, ic_active_list):
     return active
 
 
-def _clean_loss_weights(config, n_out, bc_entries, ic_active_list, obs_weights, is_steady=False):
+def _clean_loss_weights(config, n_out, bc_entries, ic_active_list, obs_weights, is_steady=False,
+                          is_2d=False, bc_panel_data_present=True):
     """Fully resolves the loss-weight list at export time -- same slot
     ordering as the running app's runtime reconstruction (PDE per output,
     then one per Boundary Conditions panel row, then one per active IC,
@@ -6509,17 +6895,30 @@ def _clean_loss_weights(config, n_out, bc_entries, ic_active_list, obs_weights, 
     of on every run. Returns (weights, expected_len) -- expected_len is
     how many terms a Training Phase's own weight string must have to be
     used as-is (see _clean_phase_weights below). A steady-state problem
-    has no Initial Condition at all, so it never gets an IC weight slot."""
+    has no Initial Condition at all, so it never gets an IC weight slot.
+
+    bc_panel_data_present=False (custom_bc_json empty/absent -- a config
+    saved before the Boundary Conditions panel existed) switches the BC
+    weight slots from "one per custom_bc_json row" (bc_entries is empty
+    in that case) to one per constraint the legacy per-side fallback
+    actually builds (see _clean_legacy_bc_code/_clean_legacy_bc_weights)
+    -- otherwise this list stayed empty while that fallback could still
+    add several real BC constraints, and DeepXDE's own
+    `losses *= torch.as_tensor(self.loss_weights)` crashed with a
+    tensor-size mismatch the moment training started."""
     wm_list = [float(v) for v in (config.loss_weights_multi or "").split(",") if v.strip()]
     wi = 0
     pde_w = []
     for _ in range(n_out):
         pde_w.append(wm_list[wi] if wi < len(wm_list) else 1.0)
         wi += 1
-    bc_w = []
-    for _ in range(len(bc_entries)):
-        bc_w.append(wm_list[wi] if wi < len(wm_list) else 1.0)
-        wi += 1
+    if bc_entries or bc_panel_data_present:
+        bc_w = []
+        for _ in range(len(bc_entries)):
+            bc_w.append(wm_list[wi] if wi < len(wm_list) else 1.0)
+            wi += 1
+    else:
+        bc_w, wi = _clean_legacy_bc_weights(config, is_2d, n_out, wm_list, wi)
     ic_w = []
     if not is_steady:
         for oi in range(n_out):
@@ -6530,7 +6929,7 @@ def _clean_loss_weights(config, n_out, bc_entries, ic_active_list, obs_weights, 
             elif wi < len(wm_list):
                 wi += 1
     weights = pde_w + bc_w + ic_w + list(obs_weights)
-    expected_len = n_out + len(bc_entries) + len(ic_w) + len(obs_weights)
+    expected_len = n_out + len(bc_w) + len(ic_w) + len(obs_weights)
     return weights, expected_len
 
 
@@ -6755,6 +7154,17 @@ def generate_clean_script(config):
     geom_line, needs_dtype_wrap = _clean_geom_line(config, is_2d, is_3d, tri_verts, poly_verts)
 
     # ---- Boundary conditions (custom_bc_json is the live source) --------
+    # bc_panel_data_present distinguishes "the panel is active but has zero
+    # rows" (custom_bc_json == "[]", a non-empty string -- the user's
+    # intentional choice of no BCs) from "custom_bc_json was never set at
+    # all" (a config saved before the Boundary Conditions panel existed),
+    # matching generate_script()'s own `_custom_bc_entries or
+    # _bc_panel_data_present` runtime check. Without this distinction, the
+    # legacy fallback below would also fire (wrongly) for an intentionally
+    # empty panel, or -- as this generator did before this fix -- never
+    # fire at all, silently exporting zero boundary conditions for any
+    # pre-panel config.
+    bc_panel_data_present = bool(config.custom_bc_json)
     try:
         bc_entries = _clean_json.loads(config.custom_bc_json) if config.custom_bc_json else []
     except (ValueError, TypeError):
@@ -6762,12 +7172,27 @@ def generate_clean_script(config):
     bc_used_types = {e.get('type', 'dirichlet') for e in bc_entries}
     needs_points_loader = bool({'pointset', 'pointset_operator'} & bc_used_types)
     needs_interface_adapter = 'interface2d' in bc_used_types
+    # Same num_test/X rule as generate_script() (see _bc_op_expr_uses_X's
+    # docstring): resolved here at codegen time too, since bc_entries is
+    # already parsed real Python at this point. The legacy per-side
+    # fallback below never exposes X (no free-form Operator BC there), so
+    # it's always left out of this check.
+    _clean_bc_op_uses_X = _bc_entries_use_operator_X(bc_entries)
+    _clean_safe_num_test = None if _clean_bc_op_uses_X else config.num_test
+    # Same Interface 2D BC precondition check as generate_script() -- see
+    # _bc_check_interface2d_preconditions's docstring. Raised here at
+    # export time so a broken combination is caught immediately instead
+    # of being baked into the exported script.
+    _bc_check_interface2d_preconditions(bc_entries, config.geometry_type, _safe_point_distribution)
 
     bc_defs, bc_appends = [], []
-    for i, entry in enumerate(bc_entries):
-        d, a = _clean_bc_row_code(i, entry, is_2d, is_3d, n_coord_cols)
-        bc_defs += d
-        bc_appends += a
+    if bc_entries or bc_panel_data_present:
+        for i, entry in enumerate(bc_entries):
+            d, a = _clean_bc_row_code(i, entry, is_2d, is_3d, n_coord_cols, is_steady)
+            bc_defs += d
+            bc_appends += a
+    else:
+        bc_defs, bc_appends = _clean_legacy_bc_code(config, is_2d, n_out)
 
     # ---- Initial condition(s) --------------------------------------------
     ic_exprs = [_simplify_expr(e, is_2d, is_3d) for e in config.ic_expressions.split("|")]
@@ -6793,7 +7218,8 @@ def generate_clean_script(config):
     obs_weights = [e['weight'] for e in obs_files_parsed] if is_inverse else []
 
     # ---- Loss weights (fully resolved now, not reconstructed at runtime) -
-    multi_weights, expected_len = _clean_loss_weights(config, n_out, bc_entries, ic_active_list, obs_weights, is_steady)
+    multi_weights, expected_len = _clean_loss_weights(config, n_out, bc_entries, ic_active_list, obs_weights, is_steady,
+                                                       is_2d, bc_panel_data_present)
 
     # ---- Training-phase list, resolved to literal per-phase weights ------
     sched_phases = _clean_sched_phases(config, multi_weights)
@@ -6803,9 +7229,15 @@ def generate_clean_script(config):
     total_iters = sum(int(sp.get('iterations', 0) or 0) for sp in sched_phases)
 
     # ---- Training callbacks (opt-in only) --------------------------------
+    # Also turned on by BC batching even if the user never opened Training
+    # Callbacks themselves -- _build_train_cbs_code() auto-adds
+    # PDEPointResampler(bc_points=True) in that case (see its own comment),
+    # so this block must actually run for that line to make it into the
+    # script at all.
     any_cbs = bool(config.cb_early_stopping or config.cb_point_resampler
                    or config.cb_model_checkpoint or config.cb_timer
-                   or config.training_monitors_enabled)
+                   or config.training_monitors_enabled
+                   or _bc_entries_use_batching(bc_entries))
     cbs_code = ""
     if any_cbs:
         _tm_clean_cbs_code = _build_training_monitors_code(config, "train_cbs", "(save_dir or '.')", indent=0)
@@ -6966,26 +7398,38 @@ if save_dir:
     return np.hstack([coords, t0]), raw[mask, v_col:v_col + 1]''')
 
     if needs_points_loader:
-        parts.append(f'''def _load_bc_points(path, n_coord_cols={n_coord_cols}):
+        parts.append(f'''def _load_bc_points(path, n_coord_cols={n_coord_cols}, n_values=1):
     """Loads a points file for a PointSetBC / PointSetOperatorBC row:
-    n_coord_cols coordinate (+ time) columns, then the target value."""
+    n_coord_cols coordinate (+ time) columns, then n_values target value
+    column(s) -- n_values > 1 is PointSetBC's multi-component case
+    (component=[i, j, ...]), one extra trailing column per listed
+    component, in the same order DeepXDE expects."""
     if not path or not os.path.isfile(path):
         raise RuntimeError(f"Boundary condition points file not found: {{path!r}}")
     data = np.loadtxt(path, delimiter=",") if path.lower().endswith(".csv") else np.loadtxt(path)
     if data.ndim == 1:
         data = data.reshape(1, -1)
-    return data[:, :n_coord_cols], data[:, n_coord_cols:n_coord_cols + 1]''')
+    n_have = data.shape[1] - n_coord_cols
+    if n_have < n_values:
+        raise RuntimeError(f"Boundary condition points file {{path!r}} needs {{n_values}} value "
+                            f"column(s) after its {{n_coord_cols}} coordinate column(s), but only has {{n_have}}.")
+    return data[:, :n_coord_cols], data[:, n_coord_cols:n_coord_cols + n_values]''')
 
     if needs_interface_adapter:
         parts.append('''class _Interface2DGeomAdapter:
     """Interface2DBC expects boundary_normal() without GeometryXTime's
-    extra (always-zero) time-normal column."""
-    def __init__(self, gt):
+    extra (always-zero) time-normal column. For a steady-state problem
+    geomtime is just geom (no such extra column), so the trim must be
+    skipped there -- otherwise it would wrongly chop off a real spatial
+    normal component instead."""
+    def __init__(self, gt, is_steady=False):
         self._gt = gt
+        self._is_steady = is_steady
     def on_boundary(self, x):
         return self._gt.on_boundary(x)
     def boundary_normal(self, x):
-        return self._gt.boundary_normal(x)[:, :-1]''')
+        _n = self._gt.boundary_normal(x)
+        return _n if self._is_steady else _n[:, :-1]''')
 
     if needs_dtype_wrap:
         parts.append('''class _DTypeSafeGeom:
@@ -7153,13 +7597,18 @@ def _load_obs_data(path):
         if is_inverse:
             constraints_lines.append("constraints.extend(obs_bcs)")
         parts.append("\n".join(constraints_lines))
+        if _clean_bc_op_uses_X:
+            parts.append(
+                "# num_test disabled (left at None) because an Operator or Point Set\n"
+                "# Operator BC's Value expression references X -- DeepXDE requires this\n"
+                "# whenever a boundary condition function uses the raw input points.")
 
         anchors_arg = "obs_anchors" if is_inverse else "None"
         if is_steady:
             data_lines = [f'''data = dde.data.PDE(
     geomtime, pde, constraints,
     num_domain={config.num_domain}, num_boundary={config.num_boundary},
-    num_test={config.num_test},
+    num_test={_clean_safe_num_test!r},
     train_distribution="{_safe_point_distribution}",
     anchors={anchors_arg},
 )''']
@@ -7167,7 +7616,7 @@ def _load_obs_data(path):
             data_lines = [f'''data = dde.data.TimePDE(
     geomtime, pde, constraints,
     num_domain={config.num_domain}, num_boundary={config.num_boundary},
-    num_initial={config.num_initial}, num_test={config.num_test},
+    num_initial={config.num_initial}, num_test={_clean_safe_num_test!r},
     train_distribution="{_safe_point_distribution}",
     anchors={anchors_arg},
 )''']
@@ -7358,7 +7807,7 @@ _ta_loss_offset = 0''')
         loop_lines.append(f'''    data_i = dde.data.TimePDE(
         geomtime_i, pde, constraints_i,
         num_domain={config.num_domain}, num_boundary={config.num_boundary},
-        num_initial={config.num_initial}, num_test={config.num_test},
+        num_initial={config.num_initial}, num_test={_clean_safe_num_test!r},
         train_distribution="{_safe_point_distribution}",
         anchors={anchors_i},
     )
