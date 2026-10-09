@@ -1096,7 +1096,11 @@ class MainWindow(QMainWindow):
         pts_dist_row = QHBoxLayout()
         pts_dist_row.addWidget(QLabel("Point distribution:"))
         self.pts_dist_combo = QComboBox()
-        self.pts_dist_combo.addItems(["Hammersley", "uniform", "Halton", "LHS", "Sobol", "pseudorandom"])
+        # "pseudo" is DeepXDE's own accepted name for this (see
+        # deepxde/geometry/sampler.py) -- it used to be listed here as
+        # "pseudorandom", which DeepXDE actually rejects with
+        # ValueError: pseudorandom sampling is not available.
+        self.pts_dist_combo.addItems(["Hammersley", "uniform", "Halton", "LHS", "Sobol", "pseudo"])
         self.pts_dist_combo.setFixedHeight(28)
         pts_dist_row.addStretch()
         pts_dist_row.addWidget(self.pts_dist_combo)
@@ -1111,8 +1115,36 @@ class MainWindow(QMainWindow):
 
         # ── Boundary & Initial conditions ─────────────────────
         self.bc_group = QGroupBox("Initial Condition")
-        self.bc_main_layout = QVBoxLayout(self.bc_group)
+        _ic_group_top_layout = QVBoxLayout(self.bc_group)
+        _ic_group_top_layout.setSpacing(4)
+
+        # One shared "Show IC reference" toggle for the whole panel -- shown
+        # once here rather than once per output (which it used to be,
+        # duplicated under every output's own IC box). The reference text
+        # only depends on the problem's dimension (1D/2D/3D), not which
+        # output it's under, so one copy covers all of them; its text is
+        # kept up to date by _build_bc_inputs() whenever dimension changes.
+        self.ic_hint_toggle = QCheckBox("📖 Show IC reference")
+        self.ic_hint_toggle.setChecked(False)
+        self._register_style(self.ic_hint_toggle, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
+        _ic_group_top_layout.addWidget(self.ic_hint_toggle)
+        self.ic_hint = QLabel()
+        self._register_style(self.ic_hint, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
+        self.ic_hint.setWordWrap(True)
+        self.ic_hint.setVisible(False)
+        _ic_group_top_layout.addWidget(self.ic_hint)
+        self.ic_hint_toggle.stateChanged.connect(lambda s: self.ic_hint.setVisible(s == 2))
+
+        # Nested container whose own layout (bc_main_layout) is what
+        # _build_bc_inputs() freely clears and rebuilds every time the
+        # number of outputs, dimension, or template changes -- the two
+        # widgets above live in the group box's own top-level layout
+        # instead, so they're never touched by that rebuild.
+        _ic_rows_widget = QWidget()
+        self.bc_main_layout = QVBoxLayout(_ic_rows_widget)
         self.bc_main_layout.setSpacing(4)
+        _ic_group_top_layout.addWidget(_ic_rows_widget)
+
         self.bc_left_types = [];  self.bc_left_vals = [];   self.bc_left_active = [];  self.bc_left_deriv = []
         self.bc_right_types = []; self.bc_right_vals = [];  self.bc_right_active = []; self.bc_right_deriv = []
         self.bc_bottom_types = []; self.bc_bottom_vals = []; self.bc_bottom_active = []; self.bc_bottom_deriv = []
@@ -2832,10 +2864,25 @@ class MainWindow(QMainWindow):
         self.export_grid_combo = QComboBox()
         self.export_grid_combo.addItems(["101", "51", "21", "11"])
         self.export_grid_combo.setVisible(False)
+        # Editable, same mechanism as Time-Adaptive's ta_grid (see
+        # _ta_grid_size()): lets the user type a custom per-axis
+        # resolution instead of being limited to the 4 presets.
+        # _export_grid_size() below is the single place that parses it
+        # back out safely.
+        self.export_grid_combo.setEditable(True)
+        self.export_grid_combo.setValidator(QIntValidator(1, 1_000_000, self.export_grid_combo))
 
         self.export_tsteps_spin = QSpinBox()
         self.export_tsteps_spin.setRange(2, 50); self.export_tsteps_spin.setValue(11)
         self.export_tsteps_spin.setVisible(False)
+
+        # Off by default: solution data used to be written unconditionally
+        # on every non-Inverse run, whether or not the user ever opened
+        # this panel. Now it's opt-in -- see _on_export_settings() for the
+        # one visible checkbox that drives this.
+        self.export_enabled_cb = QCheckBox("Enable solution data export")
+        self.export_enabled_cb.setChecked(False)
+        self.export_enabled_cb.setVisible(False)
         bottom_layout.addLayout(save_row)
 
         # Plot area
@@ -3276,6 +3323,18 @@ class MainWindow(QMainWindow):
         so the two can't disagree on what an unparseable value means."""
         try:
             grid = int(self.ta_grid.currentText())
+        except (ValueError, TypeError):
+            grid = 101
+        return max(grid, 1)
+
+    def _export_grid_size(self):
+        """Safely parse export_grid_combo's current text (one of the 4
+        presets, or a custom value typed into the now-editable combo) back
+        into the int config.export_grid_size needs -- exact same pattern
+        as _ta_grid_size() above, for the exact same reason (a QIntValidator
+        restricts keystrokes but not every transient mid-edit state)."""
+        try:
+            grid = int(self.export_grid_combo.currentText())
         except (ValueError, TypeError):
             grid = 101
         return max(grid, 1)
@@ -4620,6 +4679,54 @@ class MainWindow(QMainWindow):
         unified_shape = geom_type in ("Disk", "Ellipse", "Sphere")
         edge_shape = geom_type in ("Triangle", "Polygon")
 
+        # Keep the panel's one shared IC-reference hint text (see its
+        # construction above, outside this rebuilt region) up to date with
+        # the current dimension -- this used to be rebuilt fresh under every
+        # single output's own IC box; the text never actually varied with
+        # the output, only with dimension, so one update here covers all of
+        # them.
+        if hasattr(self, 'ic_hint'):
+            if is_3d:
+                self.ic_hint.setText(
+                    "The IC expression describes u at t = t_min, as a function of x, y, z.\n"
+                    "Use x, y, z as spatial variables (t is fixed at t_min here, so it\n"
+                    "should not appear in this expression).\n"
+                    "── ── ──\n"
+                    "sin(pi*x)*sin(pi*y)*sin(pi*z)  →  3D sine wave\n"
+                    "exp(-(x**2+y**2+z**2))         →  3D Gaussian\n"
+                    "sin(4*pi*x)*cos(4*pi*y)*sin(4*pi*z)  →  higher freq\n"
+                    "0                              →  zero IC\n"
+                    "── ── ──\n"
+                    "No need for np. or x[:,0] — handled automatically."
+                )
+            elif is_2d:
+                self.ic_hint.setText(
+                    "The IC expression describes u at t = t_min, as a function of x, y.\n"
+                    "Use x, y as spatial variables (t is fixed at t_min here, so it\n"
+                    "should not appear in this expression).\n"
+                    "── ── ──\n"
+                    "sin(pi*x)*cos(pi*y)      →  2D sine wave\n"
+                    "exp(-(x**2+y**2))        →  2D Gaussian\n"
+                    "sin(4*pi*x)*cos(4*pi*y)  →  higher freq\n"
+                    "0                        →  zero IC\n"
+                    "── ── ──\n"
+                    "No need for np. or x[:,0] — handled automatically."
+                )
+            else:
+                self.ic_hint.setText(
+                    "The IC expression describes u at t = t_min, as a function of x.\n"
+                    "Use x as the spatial variable (t is fixed at t_min here, so it\n"
+                    "should not appear in this expression).\n"
+                    "── ── ──\n"
+                    "sin(pi*x)       →  sine wave\n"
+                    "exp(-x**2)      →  Gaussian\n"
+                    "sin(4*pi*x)     →  higher frequency\n"
+                    "x*(1-x)         →  parabola\n"
+                    "0               →  zero IC\n"
+                    "── ── ──\n"
+                    "No need for np. or x[:,0] — handled automatically."
+                )
+
         def _make_bc_block(label_txt, types_list, vals_list, active_list, deriv_list, x_pos):
             """Create a BC row: checkbox + type combo + value spinbox + deriv checkbox"""
             active = QCheckBox(label_txt); active.setChecked(True)
@@ -4674,15 +4781,6 @@ class MainWindow(QMainWindow):
             sep = QLabel(f"── Output {i+1} ({name}) ──")
             self._register_style(sep, "hint", lambda css, _c='#505080', _e='margin-top: 4px; ': f"color: {_c}; {_e}{css}")
             self.bc_main_layout.addWidget(sep)
-
-            # Master toggle for outputs > 0
-            if i > 0:
-                _bc_enable_cb = QCheckBox(f"Enable boundary conditions for {name}")
-                _bc_enable_cb.setChecked(True)
-                self._register_style(_bc_enable_cb, "hint", lambda css, _c='#ffa94d', _e='': f"color: {_c}; {_e}{css}")
-                self.bc_main_layout.addWidget(_bc_enable_cb)
-            else:
-                _bc_enable_cb = None
 
             # Container widget for all BC+IC of this output
             _bc_container = QWidget()
@@ -4790,59 +4888,6 @@ class MainWindow(QMainWindow):
             self.ic_inputs.append(ic_inp)
             self.bc_main_layout.addWidget(ic_inp)
 
-            # IC reference toggle
-            ic_hint_toggle = QCheckBox("📖 Show IC reference")
-            ic_hint_toggle.setChecked(False)
-            self._register_style(ic_hint_toggle, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
-            self.bc_main_layout.addWidget(ic_hint_toggle)
-
-            if is_3d:
-                ic_hint_text = (
-                    "The IC expression describes u at t = t_min, as a function of x, y, z.\n"
-                    "Use x, y, z as spatial variables (t is fixed at t_min here, so it\n"
-                    "should not appear in this expression).\n"
-                    "── ── ──\n"
-                    "sin(pi*x)*sin(pi*y)*sin(pi*z)  →  3D sine wave\n"
-                    "exp(-(x**2+y**2+z**2))         →  3D Gaussian\n"
-                    "sin(4*pi*x)*cos(4*pi*y)*sin(4*pi*z)  →  higher freq\n"
-                    "0                              →  zero IC\n"
-                    "── ── ──\n"
-                    "No need for np. or x[:,0] — handled automatically."
-                )
-            elif is_2d:
-                ic_hint_text = (
-                    "The IC expression describes u at t = t_min, as a function of x, y.\n"
-                    "Use x, y as spatial variables (t is fixed at t_min here, so it\n"
-                    "should not appear in this expression).\n"
-                    "── ── ──\n"
-                    "sin(pi*x)*cos(pi*y)      →  2D sine wave\n"
-                    "exp(-(x**2+y**2))        →  2D Gaussian\n"
-                    "sin(4*pi*x)*cos(4*pi*y)  →  higher freq\n"
-                    "0                        →  zero IC\n"
-                    "── ── ──\n"
-                    "No need for np. or x[:,0] — handled automatically."
-                )
-            else:
-                ic_hint_text = (
-                    "The IC expression describes u at t = t_min, as a function of x.\n"
-                    "Use x as the spatial variable (t is fixed at t_min here, so it\n"
-                    "should not appear in this expression).\n"
-                    "── ── ──\n"
-                    "sin(pi*x)       →  sine wave\n"
-                    "exp(-x**2)      →  Gaussian\n"
-                    "sin(4*pi*x)     →  higher frequency\n"
-                    "x*(1-x)         →  parabola\n"
-                    "0               →  zero IC\n"
-                    "── ── ──\n"
-                    "No need for np. or x[:,0] — handled automatically."
-                )
-            ic_hint = QLabel(ic_hint_text)
-            self._register_style(ic_hint, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
-            ic_hint.setWordWrap(True)
-            ic_hint.setVisible(False)
-            self.bc_main_layout.addWidget(ic_hint)
-            ic_hint_toggle.stateChanged.connect(lambda state, h=ic_hint: h.setVisible(state == 2))
-
             # IC from file option — available for 1D, 2D, and 3D; the
             # expected no-header column format changes with dimension:
             # 1D: x,t,c   2D: x,y,t,c   3D: x,y,z,t,c. Expression stays the
@@ -4885,24 +4930,6 @@ class MainWindow(QMainWindow):
             # Restore layout and add container
             self.bc_main_layout = _main_layout_save
             self.bc_main_layout.addWidget(_bc_container)
-
-            # Wire master toggle
-            if _bc_enable_cb is not None:
-                def _make_toggle(cont, la, ra, ica):
-                    def _tog(state):
-                        cont.setVisible(state == 2)
-                        if la: la.setChecked(state == 2)
-                        if ra: ra.setChecked(state == 2)
-                        if ica: ica.setChecked(state == 2)
-                        self._build_weight_inputs(self.num_outputs_spin.value())
-                    return _tog
-                _i_capture = i
-                _bc_enable_cb.stateChanged.connect(_make_toggle(
-                    _bc_container,
-                    self.bc_left_active[_i_capture] if _i_capture < len(self.bc_left_active) else None,
-                    self.bc_right_active[_i_capture] if _i_capture < len(self.bc_right_active) else None,
-                    self.ic_active[_i_capture] if _i_capture < len(self.ic_active) else None
-                ))
 
         self._update_bc_mode_visibility()
 
@@ -5772,7 +5799,8 @@ class MainWindow(QMainWindow):
             # so codegen always takes the Initial Condition panel's path.
             inverse_ic_type="expression",
             inverse_ic_file="",
-            export_grid_size=int(self.export_grid_combo.currentText()),
+            export_enabled=self.export_enabled_cb.isChecked(),
+            export_grid_size=self._export_grid_size(),
             export_t_steps=self.export_tsteps_spin.value(),
             template_type=getattr(self, '_current_template_type', ''),
             optimizer_scheduler=self.sched_cb.isChecked() if hasattr(self, 'sched_cb') else False,
@@ -6300,7 +6328,12 @@ class MainWindow(QMainWindow):
         self.num_boundary.setValue(config.num_boundary)
         self.num_initial.setValue(config.num_initial)
         self.num_test.setValue(config.num_test)
-        self.pts_dist_combo.setCurrentText(config.point_distribution)
+        # Backward compat: a config saved before the dropdown's item was
+        # renamed from "pseudorandom" to "pseudo" (see its construction)
+        # still restores to the right item instead of silently matching
+        # nothing and leaving the combo on its previous value.
+        _pd = "pseudo" if config.point_distribution == "pseudorandom" else config.point_distribution
+        self.pts_dist_combo.setCurrentText(_pd)
         # Blocked like the dimension-switch/Inverse-toggle combos just above:
         # _on_plot_type_changed() now auto-pops the unified settings dialog on
         # every change, and it must not fire here -- the hidden holder widgets
@@ -6437,6 +6470,7 @@ class MainWindow(QMainWindow):
         self._set_combo_data(self.ta_transfer_opt, config.ta_transfer_optimizer)
 
         # Export / plot-output settings
+        self.export_enabled_cb.setChecked(getattr(config, "export_enabled", False))
         self.export_grid_combo.setCurrentText(str(config.export_grid_size))
         self.export_tsteps_spin.setValue(config.export_t_steps)
         if 0 <= config.plot_output_idx < self.plot_output_combo.count():
@@ -8898,17 +8932,33 @@ print("DOMAIN_PREVIEW_DONE")
         info.setWordWrap(True)
         layout.addWidget(info)
 
+        # Off by default -- solution data used to be written on every run
+        # whether or not this dialog was ever opened; now it only happens
+        # when the user turns this on. Everything below only matters once
+        # it's checked, so it's disabled (not hidden) otherwise, to make
+        # that dependency obvious.
+        enable_cb = QCheckBox("Enable solution data export")
+        enable_cb.setChecked(self.export_enabled_cb.isChecked())
+        layout.addWidget(enable_cb)
+
         grid_row = QHBoxLayout()
-        grid_row.addWidget(QLabel("Grid size (points per axis):"))
+        grid_row_label = QLabel("Grid size (points per axis):")
+        grid_row.addWidget(grid_row_label)
         grid_combo = QComboBox()
         grid_combo.addItems(["101", "51", "21", "11"])
         grid_combo.setCurrentText(self.export_grid_combo.currentText())
         grid_combo.setFixedWidth(80)
+        # Editable, same as Time-Adaptive's ta_grid -- lets the user type a
+        # custom per-axis resolution for 1D/2D/3D instead of only picking
+        # one of the 4 presets.
+        grid_combo.setEditable(True)
+        grid_combo.setValidator(QIntValidator(1, 1_000_000, grid_combo))
         grid_row.addStretch(); grid_row.addWidget(grid_combo)
         layout.addLayout(grid_row)
 
         tsteps_row = QHBoxLayout()
-        tsteps_row.addWidget(QLabel("Number of time snapshots:"))
+        tsteps_row_label = QLabel("Number of time snapshots:")
+        tsteps_row.addWidget(tsteps_row_label)
         tsteps_spin = QSpinBox()
         tsteps_spin.setRange(2, 50); tsteps_spin.setValue(self.export_tsteps_spin.value())
         tsteps_spin.setFixedWidth(80)
@@ -8920,6 +8970,12 @@ print("DOMAIN_PREVIEW_DONE")
         note.setWordWrap(True)
         layout.addWidget(note)
 
+        def _sync_enabled_state(checked):
+            for w in (grid_row_label, grid_combo, tsteps_row_label, tsteps_spin, note):
+                w.setEnabled(checked)
+        enable_cb.stateChanged.connect(lambda s: _sync_enabled_state(s == 2))
+        _sync_enabled_state(enable_cb.isChecked())
+
         btn_row = QHBoxLayout()
         ok_btn = QPushButton("OK"); cancel_btn = QPushButton("Cancel")
         btn_row.addStretch(); btn_row.addWidget(ok_btn); btn_row.addWidget(cancel_btn)
@@ -8927,6 +8983,7 @@ print("DOMAIN_PREVIEW_DONE")
         cancel_btn.clicked.connect(dialog.reject)
 
         def _on_ok():
+            self.export_enabled_cb.setChecked(enable_cb.isChecked())
             self.export_grid_combo.setCurrentText(grid_combo.currentText())
             self.export_tsteps_spin.setValue(tsteps_spin.value())
             dialog.accept()

@@ -845,6 +845,16 @@ def _build_training_monitors_plot_code(config, sol_dir_var="_sol_dir", indent=0)
 def generate_script(config):
     is_2d = config.problem_dim == "2D"
     is_3d = config.problem_dim == "3D"
+    # Backward-compat / defense-in-depth: the GUI's point-distribution
+    # dropdown and the Parametric Sweep registry used to offer the literal
+    # string "pseudorandom" as a choice, but DeepXDE's own train_distribution
+    # only ever accepts "pseudo" -- selecting "pseudorandom" raised
+    # ValueError: pseudorandom sampling is not available. right as training
+    # started. Both the dropdown and the sweep registry's choices list now
+    # say "pseudo" directly, but this remap also covers any config saved
+    # before that fix, so an old saved file with the bad literal still
+    # works instead of crashing.
+    _safe_point_distribution = "pseudo" if config.point_distribution == "pseudorandom" else config.point_distribution
     # The "solution" output is a static PNG for every plot type except the
     # two GIF animations, where it's an actual animated .gif file instead
     # -- known now (at generation time) from the selected plot type, so the
@@ -2323,7 +2333,7 @@ if _problem_type == "Inverse":
             geomtime, pde, _constraints,
             num_domain={config.num_domain}, num_boundary={config.num_boundary},
             num_test={config.num_test},
-            train_distribution="{config.point_distribution}",
+            train_distribution="{_safe_point_distribution}",
             anchors=_obs_anchors
         )
     else:
@@ -2331,7 +2341,7 @@ if _problem_type == "Inverse":
             geomtime, pde, _constraints,
             num_domain={config.num_domain}, num_boundary={config.num_boundary},
             num_initial={config.num_initial}, num_test={config.num_test},
-            train_distribution="{config.point_distribution}",
+            train_distribution="{_safe_point_distribution}",
             anchors=_obs_anchors
         )
 else:
@@ -2340,7 +2350,7 @@ else:
             geomtime, pde, _constraints,
             num_domain={config.num_domain}, num_boundary={config.num_boundary},
             num_test={config.num_test},
-            train_distribution="{config.point_distribution}",
+            train_distribution="{_safe_point_distribution}",
             anchors=None
         )
     else:
@@ -2348,7 +2358,7 @@ else:
             geomtime, pde, _constraints,
             num_domain={config.num_domain}, num_boundary={config.num_boundary},
             num_initial={config.num_initial}, num_test={config.num_test},
-            train_distribution="{config.point_distribution}",
+            train_distribution="{_safe_point_distribution}",
             anchors=None
         )
 
@@ -2453,7 +2463,7 @@ for _pval in _param_values:
             _ic_gt_pre, _pde_dummy_pre, _ic_pre_constraints,
             num_domain=0, num_boundary=0,
             num_initial={_ic_pretrain_num_initial_safe}, num_test={config.ic_pretrain_num_test},
-            train_distribution="{config.point_distribution}",
+            train_distribution="{_safe_point_distribution}",
             anchors=None
         )
         _model_pre = dde.Model(_data_pre, net)
@@ -3438,7 +3448,18 @@ for _pval in _param_values:
 
             else:  # Surface Animation (GIF)
                 if _is_3d:
-                    _res3a = 28
+                    # Capped, unlike every other plot_resolution use in this
+                    # file: this renders 6 faces via ax.plot_surface(rstride=1,
+                    # cstride=1, ...) -- a per-quad renderer, not contourf --
+                    # for EVERY animation frame. At plot_resolution's own
+                    # default (200) that's ~31x more quads per face than the
+                    # resolution (36) this used to be hardcoded to, and
+                    # measured well over 10x slower wall-clock as a direct
+                    # result (not from prediction cost, from matplotlib's own
+                    # per-quad rendering). A user who explicitly lowers
+                    # plot_resolution below this cap still gets an even
+                    # coarser/faster 3D GIF, same as every other plot type.
+                    _res3a = min({config.plot_resolution}, 40)
                     _bbox3a = np.asarray(geom.bbox)
                     _cx0a, _cy0a, _cz0a = _bbox3a[0]; _cx1a, _cy1a, _cz1a = _bbox3a[1]
                     _xg3a = np.linspace(_cx0a, _cx1a, _res3a)
@@ -3489,14 +3510,15 @@ for _pval in _param_values:
                     _ani_gif.save(_run_solution_path, writer='pillow', fps=_fps)
                     plt.close(_fig_gif)
                 else:
-                    _x_anim_gif = np.linspace(_plot_x_min, _plot_x_max, 80)
+                    _res_anim_gif = {config.plot_resolution}
+                    _x_anim_gif = np.linspace(_plot_x_min, _plot_x_max, _res_anim_gif)
                     _all_frames_gif = []
                     if _is_2d:
-                        _y_anim_gif = np.linspace(_plot_y_min, _plot_y_max, 80)
+                        _y_anim_gif = np.linspace(_plot_y_min, _plot_y_max, _res_anim_gif)
                         _Xg_gif, _Yg_gif = np.meshgrid(_x_anim_gif, _y_anim_gif)
                         for _tv in _t_frames:
                             _xyt_gif = np.column_stack([_Xg_gif.ravel(), _Yg_gif.ravel(), np.full(_Xg_gif.size, _tv)])
-                            _pred_gif = _extract_plot_field(_xyt_gif).reshape(80, 80)
+                            _pred_gif = _extract_plot_field(_xyt_gif).reshape(_res_anim_gif, _res_anim_gif)
                             _all_frames_gif.append((_Xg_gif, _Yg_gif, _pred_gif))
                     else:
                         # Same configurable axis orientation as the Standard
@@ -3512,11 +3534,11 @@ for _pval in _param_values:
                         # of _X_anim_gif/_T_anim_gif is stored first is
                         # enough, since contourf reads each array's own
                         # coordinate values rather than assuming an axis order.
-                        _t_anim_gif = np.linspace({config.t_min}, {config.t_max}, 80)
+                        _t_anim_gif = np.linspace({config.t_min}, {config.t_max}, _res_anim_gif)
                         _X_anim_gif, _T_anim_gif = np.meshgrid(_x_anim_gif, _t_anim_gif)
                         for _tv in _t_frames:
                             _xt_gif2 = np.vstack([_X_anim_gif.ravel(), np.full(_X_anim_gif.size, _tv)]).T
-                            _pred_gif = _extract_plot_field(_xt_gif2).reshape(80, 80)
+                            _pred_gif = _extract_plot_field(_xt_gif2).reshape(_res_anim_gif, _res_anim_gif)
                             if {config.plot_swap_xt}:
                                 _all_frames_gif.append((_T_anim_gif, _X_anim_gif, _pred_gif))
                             else:
@@ -4210,7 +4232,16 @@ for _pval in _param_values:
                         _geom_bbox_ea = np.asarray(geom.bbox)
                         _bx0, _by0, _bz0 = _geom_bbox_ea[0]
                         _bx1, _by1, _bz1 = _geom_bbox_ea[1]
-                        _res3_ea = 36
+                        # Capped the same way, and for the same reason, as
+                        # the Surface Animation GIF's _res3a above: per-face
+                        # griddata + plot_surface(rstride=1, cstride=1, ...)
+                        # at plot_resolution's own default (200) measured
+                        # well over 10x slower than this used to be hardcoded
+                        # to (36) -- a per-quad renderer, not contourf, so it
+                        # doesn't scale the way the 2D Error Analysis surface
+                        # comparison (which does use contourf, and already
+                        # read plot_resolution directly) does.
+                        _res3_ea = min({config.plot_resolution}, 40)
                         _xg3_ea = np.linspace(_bx0, _bx1, _res3_ea)
                         _yg3_ea = np.linspace(_by0, _by1, _res3_ea)
                         _zg3_ea = np.linspace(_bz0, _bz1, _res3_ea)
@@ -4435,7 +4466,7 @@ for _pval in _param_values:
                         print("  Skipping surface comparison — need at least 2 time snapshots for a 1D x-t surface plot")
                     else:
                         # 1D: standard x vs t surface
-                        _ea_x_common = np.linspace({config.x_min}, {config.x_max}, 300)
+                        _ea_x_common = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
                         _ea_t_arr = np.array(_ea_times)
                         _ea_U_pinn = np.zeros((len(_ea_t_arr), len(_ea_x_common)))
                         _ea_U_fem  = np.zeros((len(_ea_t_arr), len(_ea_x_common)))
@@ -4478,7 +4509,10 @@ for _pval in _param_values:
             print("=== Error Analysis Complete ===")
 
         # ── Export solution data ──────────────────────────────
-        if _problem_type != "Inverse":
+        # Opt-in (config.export_enabled, default False) -- this used to run
+        # unconditionally on every non-Inverse run even if the user never
+        # opened the Export Solution Data dialog.
+        if _problem_type != "Inverse" and {config.export_enabled}:
             _data_dir = _os.path.join(
                 _run_dir if (_parametric and _pval is not None)
                 else (_sol_dir if _use_save else "/tmp"),
@@ -4993,7 +5027,7 @@ if {config.time_adaptive}:
                 _ic_gt_pt, _pde_dummy_ta, _ic_pre_constraints_ta,
                 num_domain=0, num_boundary=0,
                 num_initial={_ic_pretrain_num_initial_safe}, num_test={config.ic_pretrain_num_test},
-                train_distribution="{config.point_distribution}",
+                train_distribution="{_safe_point_distribution}",
                 anchors=None
             )
             _net_pt = model_i.net
@@ -5170,29 +5204,29 @@ if {config.time_adaptive}:
             # keeps all_x/all_t/all_u in the same shape regardless of
             # dimension, so the final combined plot needs no 3D-specific
             # branch of its own.
-            x_plot = np.linspace({config.x_min}, {config.x_max}, 100)
-            t_plot = np.linspace(t0, t1, 50)
+            x_plot = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
+            t_plot = np.linspace(t0, t1, {config.plot_resolution})
             y_mid  = {_line_slice_y}
             z_mid  = {_line_slice_z}
             Xp, Tp = np.meshgrid(x_plot, t_plot)
             XYZTp  = np.column_stack([Xp.ravel(), np.full(Xp.size, y_mid), np.full(Xp.size, z_mid), Tp.ravel()])
-            Up     = _extract_plot_field(XYZTp, model_i).reshape(50, 100)
+            Up     = _extract_plot_field(XYZTp, model_i).reshape({config.plot_resolution}, {config.plot_resolution})
             all_x.append(Xp); all_t.append(Tp); all_u.append(Up)
         elif not _is_2d:
-            x_plot = np.linspace({config.x_min}, {config.x_max}, 100)
-            t_plot = np.linspace(t0, t1, 50)
+            x_plot = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
+            t_plot = np.linspace(t0, t1, {config.plot_resolution})
             Xp, Tp = np.meshgrid(x_plot, t_plot)
             XTp    = np.vstack([Xp.ravel(), Tp.ravel()]).T
-            Up     = _extract_plot_field(XTp, model_i).reshape(50, 100)
+            Up     = _extract_plot_field(XTp, model_i).reshape({config.plot_resolution}, {config.plot_resolution})
             all_x.append(Xp); all_t.append(Tp); all_u.append(Up)
         else:
             # 2D: store mid-y slice for combined plot
-            x_plot = np.linspace({config.x_min}, {config.x_max}, 100)
-            t_plot = np.linspace(t0, t1, 50)
+            x_plot = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
+            t_plot = np.linspace(t0, t1, {config.plot_resolution})
             y_mid  = {_line_slice_y}
             Xp, Tp = np.meshgrid(x_plot, t_plot)
             XYTp   = np.column_stack([Xp.ravel(), np.full(Xp.size, y_mid), Tp.ravel()])
-            Up     = _extract_plot_field(XYTp, model_i).reshape(50, 100)
+            Up     = _extract_plot_field(XYTp, model_i).reshape({config.plot_resolution}, {config.plot_resolution})
             all_x.append(Xp); all_t.append(Tp); all_u.append(Up)
 
         print(f"Step {{step_i+1}} done. Final train loss: {{sum(lh_i.loss_train[-1]):.4e}}")
@@ -5228,7 +5262,7 @@ if {config.time_adaptive}:
                         # real (time x space) comparison surface, same
                         # technique the Standard path's Inline Error
                         # Analysis "1D: standard x vs t surface" uses.
-                        _tea_x_common = np.linspace({config.x_min}, {config.x_max}, 300)
+                        _tea_x_common = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
                         _tea_times_m = [_m[0] for _m in _step_matches]
                         _tea_U_pinn = np.zeros((len(_step_matches), len(_tea_x_common)))
                         _tea_U_ref = np.zeros((len(_step_matches), len(_tea_x_common)))
@@ -6058,7 +6092,7 @@ if {config.time_adaptive}:
                     _ea_did_surface_ta = False
                     print("  Skipping surface comparison — need at least 2 time snapshots for a 1D x-t surface plot")
                 else:
-                    _ea_x_common = np.linspace({config.x_min}, {config.x_max}, 300)
+                    _ea_x_common = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
                     _ea_t_arr = np.array(_ea_times)
                     _ea_U_pinn = np.zeros((len(_ea_t_arr), len(_ea_x_common)))
                     _ea_U_fem  = np.zeros((len(_ea_t_arr), len(_ea_x_common)))
@@ -6517,6 +6551,9 @@ def generate_clean_script(config):
     untouched; this is a second, independent generator."""
     is_2d = config.problem_dim == "2D"
     is_3d = config.problem_dim == "3D"
+    # See generate_script()'s matching comment -- backward-compat remap for
+    # the old "pseudorandom" literal DeepXDE never actually accepted.
+    _safe_point_distribution = "pseudo" if config.point_distribution == "pseudorandom" else config.point_distribution
     # Steady-state (time-independent) problem -- see generate_script()'s
     # _is_steady for the full rationale; this generator mirrors the same
     # dispatch (plain dde.data.PDE, no GeometryXTime/Initial Condition/
@@ -6978,7 +7015,7 @@ def _load_obs_data(path):
     geomtime, pde, constraints,
     num_domain={config.num_domain}, num_boundary={config.num_boundary},
     num_test={config.num_test},
-    train_distribution="{config.point_distribution}",
+    train_distribution="{_safe_point_distribution}",
     anchors={anchors_arg},
 )''']
         else:
@@ -6986,7 +7023,7 @@ def _load_obs_data(path):
     geomtime, pde, constraints,
     num_domain={config.num_domain}, num_boundary={config.num_boundary},
     num_initial={config.num_initial}, num_test={config.num_test},
-    train_distribution="{config.point_distribution}",
+    train_distribution="{_safe_point_distribution}",
     anchors={anchors_arg},
 )''']
         parts.append("\n".join(data_lines))
@@ -7014,7 +7051,7 @@ _data_pre = dde.data.TimePDE(
     _ic_pre_geomtime, _pde_dummy_pre, _ic_pre_constraints,
     num_domain=0, num_boundary=0,
     num_initial=_ic_pretrain_num_initial, num_test={config.ic_pretrain_num_test},
-    train_distribution="{config.point_distribution}",
+    train_distribution="{_safe_point_distribution}",
 )
 _model_pre = dde.Model(_data_pre, net)
 _model_pre.compile("{config.ic_pretrain_optimizer}", lr={config.ic_pretrain_lr},
@@ -7177,7 +7214,7 @@ _ta_loss_offset = 0''')
         geomtime_i, pde, constraints_i,
         num_domain={config.num_domain}, num_boundary={config.num_boundary},
         num_initial={config.num_initial}, num_test={config.num_test},
-        train_distribution="{config.point_distribution}",
+        train_distribution="{_safe_point_distribution}",
         anchors={anchors_i},
     )
     net_i = _make_net({list(config.layers)}, "{config.activation}", "{config.kernel_initializer}", {config.weight_decay})''')
@@ -7203,7 +7240,7 @@ _ta_loss_offset = 0''')
             _ic_pre_geomtime_i, _pde_dummy_pre, _ic_pre_constraints_i,
             num_domain=0, num_boundary=0,
             num_initial={max(1, config.ic_pretrain_num_initial)}, num_test={config.ic_pretrain_num_test},
-            train_distribution="{config.point_distribution}",
+            train_distribution="{_safe_point_distribution}",
         )
         _model_pre_i = dde.Model(_data_pre_i, net_i)
         _model_pre_i.compile("{config.ic_pretrain_optimizer}", lr={config.ic_pretrain_lr},
@@ -7232,36 +7269,36 @@ _ta_loss_offset = 0''')
         if is_3d:
             loop_lines.append('''    _xyzt_pred = np.column_stack([x_grid, np.full(len(x_grid), t1)])
     prev_u = model_i.predict(_xyzt_pred)
-    _x_plot = np.linspace({0}, {1}, 100)
-    _t_plot = np.linspace(t0, t1, 50)
+    _x_plot = np.linspace({0}, {1}, {7})
+    _t_plot = np.linspace(t0, t1, {7})
     _y_mid = ({2} + {3}) / 2.0
     _z_mid = ({4} + {5}) / 2.0
     _Xp, _Tp = np.meshgrid(_x_plot, _t_plot)
     _XYZTp = np.column_stack([_Xp.ravel(), np.full(_Xp.size, _y_mid), np.full(_Xp.size, _z_mid), _Tp.ravel()])
-    _Up = model_i.predict(_XYZTp)[:, {6}].reshape(50, 100)
+    _Up = model_i.predict(_XYZTp)[:, {6}].reshape({7}, {7})
     all_x.append(_Xp); all_t.append(_Tp); all_u.append(_Up)'''.format(
-                config.x_min, config.x_max, line_slice_y, line_slice_y, line_slice_z, line_slice_z, config.plot_output_idx))
+                config.x_min, config.x_max, line_slice_y, line_slice_y, line_slice_z, line_slice_z, config.plot_output_idx, config.plot_resolution))
         elif is_2d:
             loop_lines.append('''    _xyt_pred = np.column_stack([x_grid, np.full(len(x_grid), t1)])
     prev_u = model_i.predict(_xyt_pred)
-    _x_plot = np.linspace({0}, {1}, 100)
-    _t_plot = np.linspace(t0, t1, 50)
+    _x_plot = np.linspace({0}, {1}, {5})
+    _t_plot = np.linspace(t0, t1, {5})
     _y_mid = ({2} + {3}) / 2.0
     _Xp, _Tp = np.meshgrid(_x_plot, _t_plot)
     _XYTp = np.column_stack([_Xp.ravel(), np.full(_Xp.size, _y_mid), _Tp.ravel()])
-    _Up = model_i.predict(_XYTp)[:, {4}].reshape(50, 100)
+    _Up = model_i.predict(_XYTp)[:, {4}].reshape({5}, {5})
     all_x.append(_Xp); all_t.append(_Tp); all_u.append(_Up)'''.format(
-                config.x_min, config.x_max, line_slice_y, line_slice_y, config.plot_output_idx))
+                config.x_min, config.x_max, line_slice_y, line_slice_y, config.plot_output_idx, config.plot_resolution))
         else:
             loop_lines.append('''    _xt_pred = np.column_stack([x_grid.ravel(), np.full(grid_size, t1)])
     prev_u = model_i.predict(_xt_pred)
-    _x_plot = np.linspace({0}, {1}, 100)
-    _t_plot = np.linspace(t0, t1, 50)
+    _x_plot = np.linspace({0}, {1}, {3})
+    _t_plot = np.linspace(t0, t1, {3})
     _Xp, _Tp = np.meshgrid(_x_plot, _t_plot)
     _XTp = np.vstack([_Xp.ravel(), _Tp.ravel()]).T
-    _Up = model_i.predict(_XTp)[:, {2}].reshape(50, 100)
+    _Up = model_i.predict(_XTp)[:, {2}].reshape({3}, {3})
     all_x.append(_Xp); all_t.append(_Tp); all_u.append(_Up)'''.format(
-                config.x_min, config.x_max, config.plot_output_idx))
+                config.x_min, config.x_max, config.plot_output_idx, config.plot_resolution))
         loop_lines.append(f'    print(f"Step {{step_i + 1}}/{{len(intervals)}} done. '
                            f'Final train loss: {{sum(loss_history.loss_train[-1]):.4e}}")')
         parts.append("\n".join(loop_lines))
@@ -7574,7 +7611,7 @@ print(f"Solution plot saved: {{solution_path}}")''')
             parts.append(f'''# ── Result plot: surface animation (GIF) ──
 import matplotlib.animation as animation
 t_frames = np.linspace({config.t_min}, {config.t_max}, {n_frames})
-res = 80
+res = {config.plot_resolution}
 x_a = np.linspace({config.x_min}, {config.x_max}, res)
 frames = []''')
             if is_3d:
@@ -7994,7 +8031,7 @@ print("  Line comparison saved.")''')
             ea_lines.append(f'''
 # ── Surface comparison (1D: x-t) ──
 from scipy.interpolate import interp1d
-x_common = np.linspace({config.x_min}, {config.x_max}, 300)
+x_common = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
 t_arr = np.array(ea_times)
 U_pinn = np.zeros((len(t_arr), len(x_common)))
 U_ref  = np.zeros((len(t_arr), len(x_common)))

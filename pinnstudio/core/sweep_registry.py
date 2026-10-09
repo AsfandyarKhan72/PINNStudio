@@ -854,7 +854,11 @@ _STATIC_PARAMS: List[SweepParam] = [
     SweepParam(
         id="point_distribution", label="Point distribution", category="Collocation Points",
         value_type="categorical",
-        choices=["Hammersley", "uniform", "Halton", "LHS", "Sobol", "pseudorandom"],
+        # "pseudo" is DeepXDE's own accepted name (see main_window.py's
+        # pts_dist_combo construction) -- this used to say "pseudorandom",
+        # which DeepXDE rejects with ValueError: pseudorandom sampling is
+        # not available.
+        choices=["Hammersley", "uniform", "Halton", "LHS", "Sobol", "pseudo"],
         get_value=lambda c: c.point_distribution,
         set_value=lambda c, v: setattr(c, "point_distribution", str(v)),
         is_available=lambda c: True,

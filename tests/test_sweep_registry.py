@@ -553,7 +553,7 @@ def run():
     misc_config = PINNConfig()
     misc_params = {p.id: p for p in reg.available_params(misc_config)}
     for pid, field, choices in [
-        ("point_distribution", "point_distribution", ["Hammersley", "uniform", "Halton", "LHS", "Sobol", "pseudorandom"]),
+        ("point_distribution", "point_distribution", ["Hammersley", "uniform", "Halton", "LHS", "Sobol", "pseudo"]),
         ("activation", "activation",
          ["tanh", "sin", "Sigmoid", "ReLU", "SiLU", "Swish", "ELU", "GELU", "SELU"]),
         ("kernel_initializer", "kernel_initializer", ["Glorot uniform", "Glorot normal", "He uniform", "He normal", "zeros"]),

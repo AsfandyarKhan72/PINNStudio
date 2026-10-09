@@ -185,6 +185,10 @@ class PINNConfig:
     inverse_obs_files_json: str = ""
 
     # Export
+    # Off by default -- solution data used to be written on every
+    # non-Inverse run unconditionally; now it only happens when the user
+    # opts in via the Export Solution Data dialog's checkbox.
+    export_enabled: bool = False
     export_grid_size: int = 101
     export_t_steps: int = 11
     plot_output_idx: int = 0
