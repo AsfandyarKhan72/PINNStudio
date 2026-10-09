@@ -2460,6 +2460,12 @@ class MainWindow(QMainWindow):
             'line_slice_y': 0.0,
             'line_slice_z_auto': True,
             'line_slice_z': 0.0,
+            # Round 31: same 3 font-size settings as the Setup tab's own
+            # Plot Settings dialog (self._plot_viz_settings) -- independent
+            # of it, same defaults, same keys (see _on_restore_viz_settings).
+            'title_fontsize': 13.0,
+            'subplot_title_fontsize': 10.0,
+            'axis_label_fontsize': 10.0,
         }
 
         self.restore_output_widget = QWidget()
@@ -2800,6 +2806,14 @@ class MainWindow(QMainWindow):
             'title': '',
             'xlabel': '',
             'ylabel': '',
+            # Round 31: figure-suptitle / per-panel-subplot-title / axis-
+            # label font sizes -- same 3 settings, same defaults, as
+            # PINNConfig.plot_title_fontsize/plot_subplot_title_fontsize/
+            # plot_axis_label_fontsize (see config.py for why these 3
+            # particular values were chosen as the app-wide defaults).
+            'title_fontsize': 13.0,
+            'subplot_title_fontsize': 10.0,
+            'axis_label_fontsize': 10.0,
         }
 
         self.export_btn = QPushButton("💾 Export Solution")
@@ -4015,9 +4029,16 @@ class MainWindow(QMainWindow):
                 'files': _found,
                 'do_line': True,
                 'do_surface': True,
+                # Round 31: default changed to L2-only -- these three
+                # previously had no effect at all (see PINNConfig.
+                # ea_metric_l2/mse/max's own comment), so their old
+                # all-checked default silently did nothing. Now that they
+                # actually gate the Restore/Solve Error Analysis metrics
+                # print line and error_metrics.txt columns, the default
+                # matches what the user asked for.
                 'do_l2': True,
-                'do_mse': True,
-                'do_max': True,
+                'do_mse': False,
+                'do_max': False,
             }
             _n_groups = len({sel for _, _, sel in _found})
             _suffix = f" across {_n_groups} outputs" if _n_groups > 1 else ""
@@ -4076,9 +4097,12 @@ class MainWindow(QMainWindow):
             'files': valid_files,
             'do_line': True,
             'do_surface': True,
+            # Round 31: see the matching comment on the steady-state
+            # branch above -- default changed to L2-only now that these
+            # flags actually do something.
             'do_l2': True,
-            'do_mse': True,
-            'do_max': True,
+            'do_mse': False,
+            'do_max': False,
         }
         _n_groups = len({sel for _, _, sel in valid_files})
         _suffix = f" across {_n_groups} outputs" if _n_groups > 1 else ""
@@ -5866,6 +5890,9 @@ class MainWindow(QMainWindow):
             plot_title_override=self._plot_viz_settings.get('title', ''),
             plot_xlabel_override=self._plot_viz_settings.get('xlabel', ''),
             plot_ylabel_override=self._plot_viz_settings.get('ylabel', ''),
+            plot_title_fontsize=self._plot_viz_settings.get('title_fontsize', 13.0),
+            plot_subplot_title_fontsize=self._plot_viz_settings.get('subplot_title_fontsize', 10.0),
+            plot_axis_label_fontsize=self._plot_viz_settings.get('axis_label_fontsize', 10.0),
             loss_plot_mode=self._loss_plot_settings.get('mode', 'train_test') if getattr(self, '_loss_plot_settings', None) else 'train_test',
             loss_display_every=self._loss_plot_settings.get('display_every', 1000) if getattr(self, '_loss_plot_settings', None) else 1000,
             loss_plot_linewidth=self._loss_plot_settings.get('linewidth', 2.0) if getattr(self, '_loss_plot_settings', None) else 2.0,
@@ -5873,6 +5900,14 @@ class MainWindow(QMainWindow):
             ea_files=repr(self._ea_settings.get('files', [])) if getattr(self, '_ea_settings', None) else "[]",
             ea_do_line=self._ea_settings.get('do_line', True) if getattr(self, '_ea_settings', None) else True,
             ea_do_surface=self._ea_settings.get('do_surface', True) if getattr(self, '_ea_settings', None) else True,
+            # Round 31: forward the "Error Metrics to Compute" checkboxes
+            # into config too -- previously ea['do_l2']/['do_mse']/['do_max']
+            # were stored in self._ea_settings but never read past this
+            # point, so the live Solve-time Error Analysis always computed
+            # and showed every metric regardless of what was checked.
+            ea_metric_l2=self._ea_settings.get('do_l2', True) if getattr(self, '_ea_settings', None) else True,
+            ea_metric_mse=self._ea_settings.get('do_mse', False) if getattr(self, '_ea_settings', None) else False,
+            ea_metric_max=self._ea_settings.get('do_max', False) if getattr(self, '_ea_settings', None) else False,
             sweep_enabled=self.sweep_enable_cb.isChecked() if hasattr(self, 'sweep_enable_cb') else False,
             sweep_mode=self.sweep_mode_combo.currentData() if hasattr(self, 'sweep_mode_combo') else "oat",
             sweep_parameters=self._build_sweep_parameters_json() if hasattr(self, '_build_sweep_parameters_json') else "[]",
@@ -6582,6 +6617,9 @@ class MainWindow(QMainWindow):
             "title": getattr(config, "plot_title_override", ""),
             "xlabel": getattr(config, "plot_xlabel_override", ""),
             "ylabel": getattr(config, "plot_ylabel_override", ""),
+            "title_fontsize": getattr(config, "plot_title_fontsize", 13.0),
+            "subplot_title_fontsize": getattr(config, "plot_subplot_title_fontsize", 10.0),
+            "axis_label_fontsize": getattr(config, "plot_axis_label_fontsize", 10.0),
         }
 
         # Loss Plot Settings (Round 28) -- getattr defaults so a config
@@ -9644,6 +9682,32 @@ print("ERROR_ANALYSIS_DONE")
         ylabel_row.addWidget(ylabel_edit)
         layout.addLayout(ylabel_row)
 
+        # Round 31: font sizes -- same 3 controls, same defaults, as the
+        # Setup tab's own Plot Settings dialog (_on_plot_settings).
+        title_fs_row = QHBoxLayout()
+        title_fs_row.addWidget(QLabel("Title font size:"))
+        title_fs_spin = QDoubleSpinBox()
+        title_fs_spin.setRange(6.0, 36.0); title_fs_spin.setSingleStep(0.5)
+        title_fs_spin.setValue(current.get('title_fontsize', 13.0)); title_fs_spin.setFixedWidth(70)
+        title_fs_row.addStretch(); title_fs_row.addWidget(title_fs_spin)
+        layout.addLayout(title_fs_row)
+
+        subplot_title_fs_row = QHBoxLayout()
+        subplot_title_fs_row.addWidget(QLabel("Subplot title font size:"))
+        subplot_title_fs_spin = QDoubleSpinBox()
+        subplot_title_fs_spin.setRange(6.0, 36.0); subplot_title_fs_spin.setSingleStep(0.5)
+        subplot_title_fs_spin.setValue(current.get('subplot_title_fontsize', 10.0)); subplot_title_fs_spin.setFixedWidth(70)
+        subplot_title_fs_row.addStretch(); subplot_title_fs_row.addWidget(subplot_title_fs_spin)
+        layout.addLayout(subplot_title_fs_row)
+
+        axis_label_fs_row = QHBoxLayout()
+        axis_label_fs_row.addWidget(QLabel("Axis label font size:"))
+        axis_label_fs_spin = QDoubleSpinBox()
+        axis_label_fs_spin.setRange(6.0, 36.0); axis_label_fs_spin.setSingleStep(0.5)
+        axis_label_fs_spin.setValue(current.get('axis_label_fontsize', 10.0)); axis_label_fs_spin.setFixedWidth(70)
+        axis_label_fs_row.addStretch(); axis_label_fs_row.addWidget(axis_label_fs_spin)
+        layout.addLayout(axis_label_fs_row)
+
         info_texts = {
             "Surface": "Single heatmap/contour at specified time.",
             "Line (time steps)": "Solution lines at evenly spaced time steps.",
@@ -9700,6 +9764,9 @@ print("ERROR_ANALYSIS_DONE")
             new_settings['figsize_mode'] = figsize_combo.currentText()
             new_settings['figsize_w'] = figsize_w_spin.value()
             new_settings['figsize_h'] = figsize_h_spin.value()
+            new_settings['title_fontsize'] = title_fs_spin.value()
+            new_settings['subplot_title_fontsize'] = subplot_title_fs_spin.value()
+            new_settings['axis_label_fontsize'] = axis_label_fs_spin.value()
             self._restore_viz_settings = new_settings
             self.log_box.append(f"✅ Viz settings saved — {viz_type}")
             dialog.accept()
@@ -11072,6 +11139,35 @@ print("ERROR_ANALYSIS_DONE")
         ylabel_row.addWidget(ylabel_edit)
         layout.addLayout(ylabel_row)
 
+        # Round 31: font sizes -- figure-suptitle, per-panel subplot title,
+        # axis labels. Same 3 controls, same defaults, as Restore &
+        # Visualize's own dialog (_on_restore_viz_settings); applies to
+        # every viz type (including Parameter Convergence, same as figure
+        # size above) since every plot has at least a title and axis labels.
+        title_fs_row = QHBoxLayout()
+        title_fs_row.addWidget(QLabel("Title font size:"))
+        title_fs_spin = QDoubleSpinBox()
+        title_fs_spin.setRange(6.0, 36.0); title_fs_spin.setSingleStep(0.5)
+        title_fs_spin.setValue(current.get('title_fontsize', 13.0)); title_fs_spin.setFixedWidth(70)
+        title_fs_row.addStretch(); title_fs_row.addWidget(title_fs_spin)
+        layout.addLayout(title_fs_row)
+
+        subplot_title_fs_row = QHBoxLayout()
+        subplot_title_fs_row.addWidget(QLabel("Subplot title font size:"))
+        subplot_title_fs_spin = QDoubleSpinBox()
+        subplot_title_fs_spin.setRange(6.0, 36.0); subplot_title_fs_spin.setSingleStep(0.5)
+        subplot_title_fs_spin.setValue(current.get('subplot_title_fontsize', 10.0)); subplot_title_fs_spin.setFixedWidth(70)
+        subplot_title_fs_row.addStretch(); subplot_title_fs_row.addWidget(subplot_title_fs_spin)
+        layout.addLayout(subplot_title_fs_row)
+
+        axis_label_fs_row = QHBoxLayout()
+        axis_label_fs_row.addWidget(QLabel("Axis label font size:"))
+        axis_label_fs_spin = QDoubleSpinBox()
+        axis_label_fs_spin.setRange(6.0, 36.0); axis_label_fs_spin.setSingleStep(0.5)
+        axis_label_fs_spin.setValue(current.get('axis_label_fontsize', 10.0)); axis_label_fs_spin.setFixedWidth(70)
+        axis_label_fs_row.addStretch(); axis_label_fs_row.addWidget(axis_label_fs_spin)
+        layout.addLayout(axis_label_fs_row)
+
         btn_row = QHBoxLayout()
         ok_btn = QPushButton("OK"); cancel_btn = QPushButton("Cancel")
         btn_row.addStretch(); btn_row.addWidget(ok_btn); btn_row.addWidget(cancel_btn)
@@ -11132,6 +11228,9 @@ print("ERROR_ANALYSIS_DONE")
             new_settings['figsize_mode'] = figsize_combo.currentText()
             new_settings['figsize_w'] = figsize_w_spin.value()
             new_settings['figsize_h'] = figsize_h_spin.value()
+            new_settings['title_fontsize'] = title_fs_spin.value()
+            new_settings['subplot_title_fontsize'] = subplot_title_fs_spin.value()
+            new_settings['axis_label_fontsize'] = axis_label_fs_spin.value()
             self._plot_viz_settings = new_settings
             self._plot_type_prev = self.plot_type_combo.currentText()
             self.log_box.append(f"✅ Plot settings saved — {viz_type}")
@@ -11167,9 +11266,12 @@ print("ERROR_ANALYSIS_DONE")
         # ── Error metrics ──────────────────────────────────────
         metrics_group = QGroupBox("Error Metrics to Compute")
         metrics_layout = QHBoxLayout(metrics_group)
+        # Round 31: default changed to L2-only (previously all three
+        # were checked by default even though none of them had any
+        # effect -- see PINNConfig.ea_metric_l2/mse/max's own comment).
         self._ea_l2_cb  = QCheckBox("L2 Relative"); self._ea_l2_cb.setChecked(True)
-        self._ea_mse_cb = QCheckBox("MSE");          self._ea_mse_cb.setChecked(True)
-        self._ea_max_cb = QCheckBox("Max Error");    self._ea_max_cb.setChecked(True)
+        self._ea_mse_cb = QCheckBox("MSE");          self._ea_mse_cb.setChecked(False)
+        self._ea_max_cb = QCheckBox("Max Error");    self._ea_max_cb.setChecked(False)
         for w in [self._ea_l2_cb, self._ea_mse_cb, self._ea_max_cb]:
             metrics_layout.addWidget(w)
         layout.addWidget(metrics_group)
@@ -12762,6 +12864,17 @@ print("ERROR_ANALYSIS_V2_DONE")
                         is_ta=_use_ta_restore,
                         z_min=_ea_z_min, z_max=_ea_z_max,
                         line_slice_y=_ea_line_slice_y, line_slice_z=_ea_line_slice_z,
+                        # Round 31: the same "Error Metrics to Compute"
+                        # checkboxes (ea['do_l2']/['do_mse']/['do_max'],
+                        # already stored by both the auto-configure path
+                        # and the manual Error Analysis dialog) now also
+                        # gate the Restore & Visualize path's own metrics
+                        # print line and error_metrics_restore.txt columns
+                        # -- previously always computed/shown all three
+                        # here regardless of the dialog's checkboxes.
+                        ea_metric_l2=ea.get('do_l2', True),
+                        ea_metric_mse=ea.get('do_mse', False),
+                        ea_metric_max=ea.get('do_max', False),
                     )
                 else:
                     self.log_box.append(f"ℹ️ No reference files match t=[{t_min_restore:.4f}, {t_max_restore:.4f}] — skipping error analysis")
@@ -12969,6 +13082,8 @@ print("ERROR_ANALYSIS_V2_DONE")
         figsize_mode = viz_settings.get('figsize_mode', 'Default')
         figsize_w = viz_settings.get('figsize_w', 7.0)
         figsize_h = viz_settings.get('figsize_h', 5.0)
+        subplot_title_fontsize = viz_settings.get('subplot_title_fontsize', 10.0)
+        axis_label_fontsize = viz_settings.get('axis_label_fontsize', 10.0)
         script = f"""
 import os
 os.makedirs({save_dir!r}, exist_ok=True)
@@ -13056,15 +13171,15 @@ def _draw_static_ax(ax, name, iters, vals, true_val=None):
     final_val = vals[-1]
     if _use_log(vals):
         ax.semilogy(iters, vals, color="#69db7c", linewidth=1.5)
-        ax.set_ylabel(_ylabel_override or f"log({{name}})")
+        ax.set_ylabel(_ylabel_override or f"log({{name}})", fontsize={axis_label_fontsize})
     else:
         ax.plot(iters, vals, color="#69db7c", linewidth=1.5)
-        ax.set_ylabel(_ylabel_override or name)
+        ax.set_ylabel(_ylabel_override or name, fontsize={axis_label_fontsize})
     ax.axhline(y=final_val, color="#ff8787", linestyle="--", alpha=0.5, label=f"Final = {{final_val:.6f}}")
     if true_val is not None:
         ax.axhline(y=true_val, color="#ffd43b", linestyle="--", alpha=0.8, label=f"True = {{true_val:.6f}}")
-    ax.set_xlabel(_xlabel_override or "Iteration")
-    ax.set_title(_title_override or f"Inferred Parameter: {{name}}")
+    ax.set_xlabel(_xlabel_override or "Iteration", fontsize={axis_label_fontsize})
+    ax.set_title(_title_override or f"Inferred Parameter: {{name}}", fontsize={subplot_title_fontsize})
     ax.legend(); ax.grid(True, alpha=0.3)
 
 def _setup_anim_ax(ax, name, iters, vals, true_val=None):
@@ -13072,9 +13187,9 @@ def _setup_anim_ax(ax, name, iters, vals, true_val=None):
     use_log = _use_log(vals)
     if use_log:
         ax.set_yscale("log")
-        ax.set_ylabel(_ylabel_override or f"log({{name}})")
+        ax.set_ylabel(_ylabel_override or f"log({{name}})", fontsize={axis_label_fontsize})
     else:
-        ax.set_ylabel(_ylabel_override or name)
+        ax.set_ylabel(_ylabel_override or name, fontsize={axis_label_fontsize})
     x_hi = iters.max() if iters.max() > iters.min() else iters.min() + 1
     ax.set_xlim(iters.min(), x_hi)
     # Include the true value in the y-range too (not just the logged
@@ -13088,8 +13203,8 @@ def _setup_anim_ax(ax, name, iters, vals, true_val=None):
     ax.axhline(y=final_val, color="#ff8787", linestyle="--", alpha=0.5, label=f"Final = {{final_val:.6f}}")
     if true_val is not None:
         ax.axhline(y=true_val, color="#ffd43b", linestyle="--", alpha=0.8, label=f"True = {{true_val:.6f}}")
-    ax.set_xlabel(_xlabel_override or "Iteration")
-    ax.set_title(_title_override or f"Inferred Parameter: {{name}}")
+    ax.set_xlabel(_xlabel_override or "Iteration", fontsize={axis_label_fontsize})
+    ax.set_title(_title_override or f"Inferred Parameter: {{name}}", fontsize={subplot_title_fontsize})
     ax.legend(loc="upper right"); ax.grid(True, alpha=0.3)
     line, = ax.plot([], [], color="#69db7c", linewidth=1.5)
     return line
@@ -13192,6 +13307,9 @@ print("RESTORE_DONE")
         figsize_mode = viz_settings.get('figsize_mode', 'Default')
         figsize_w = viz_settings.get('figsize_w', 7.0)
         figsize_h = viz_settings.get('figsize_h', 5.0)
+        title_fontsize = viz_settings.get('title_fontsize', 13.0)
+        subplot_title_fontsize = viz_settings.get('subplot_title_fontsize', 10.0)
+        axis_label_fontsize = viz_settings.get('axis_label_fontsize', 10.0)
         layers     = cfg["layers"]
         activation = cfg["activation"]
         from pinnstudio.core.codegen import _net_construction_helper_code, _training_monitor_runtime_code
@@ -13472,6 +13590,12 @@ def _extract_plot_field(x_grid):
 res = {resolution}
 x_vals = np.linspace({x_min}, {x_max}, res)
 y_vals = np.linspace({y_min}, {y_max}, res)
+# Round 31: only the 3D/2D multi-snapshot branches below ever add a
+# fig.suptitle() above their own per-panel subplot titles -- the steady-1D
+# and 1D-surface branches are single-panel with no suptitle at all -- so
+# the shared plt.tight_layout() after this if/elif chain only needs to
+# reserve top margin for the suptitle when one was actually drawn.
+_had_suptitle = False
 if is_3d:
     # Genuine smooth 3D surface: each of the bounding box's 6 flat faces
     # (from geom.bbox) is predicted directly on a fine regular grid -- no
@@ -13552,14 +13676,15 @@ if is_3d:
         if {show_colorbar}:
             _sm3 = plt.cm.ScalarMappable(cmap=_cmap_obj3, norm=_norm3)
             fig.colorbar(_sm3, ax=ax, shrink=0.6, pad=0.12)
-        ax.set_xlabel({_xlabel_3d!r}); ax.set_ylabel({_ylabel_3d!r}); ax.set_zlabel("z")
-        ax.set_title({_title_3d!r} if is_steady else f"t = {{_tv3:.3f}}")
+        ax.set_xlabel({_xlabel_3d!r}, fontsize={axis_label_fontsize}); ax.set_ylabel({_ylabel_3d!r}, fontsize={axis_label_fontsize}); ax.set_zlabel("z", fontsize={axis_label_fontsize})
+        ax.set_title({_title_3d!r} if is_steady else f"t = {{_tv3:.3f}}", fontsize={subplot_title_fontsize})
         try:
             ax.set_box_aspect((_cx1 - _cx0, _cy1 - _cy0, _cz1 - _cz0))
         except Exception:
             pass  # older matplotlib without set_box_aspect -- cosmetic only
     if not is_steady:
-        fig.suptitle({_title_3d!r}, fontsize=12)
+        fig.suptitle({_title_3d!r}, fontsize={title_fontsize})
+        _had_suptitle = True
 elif is_2d:
     # Same multi-snapshot convention as the 3D branch above -- several
     # evenly-spaced x-y heatmaps side by side for a non-steady restore
@@ -13587,10 +13712,11 @@ elif is_2d:
         pred = np.where(_inside2d, pred, np.nan)
         im = axes2d[_ai2].contourf(Xg, Yg, pred, levels={levels}, cmap="{colormap}", {vrange})
         if {show_colorbar}: fig.colorbar(im, ax=axes2d[_ai2])
-        axes2d[_ai2].set_xlabel({_xlabel_2d!r}); axes2d[_ai2].set_ylabel({_ylabel_2d!r})
-        axes2d[_ai2].set_title({_title_2d!r} if is_steady else f"t = {{_tv2:.3f}}")
+        axes2d[_ai2].set_xlabel({_xlabel_2d!r}, fontsize={axis_label_fontsize}); axes2d[_ai2].set_ylabel({_ylabel_2d!r}, fontsize={axis_label_fontsize})
+        axes2d[_ai2].set_title({_title_2d!r} if is_steady else f"t = {{_tv2:.3f}}", fontsize={subplot_title_fontsize})
     if not is_steady:
-        fig.suptitle({_title_2d!r}, fontsize=12)
+        fig.suptitle({_title_2d!r}, fontsize={title_fontsize})
+        _had_suptitle = True
 elif is_steady:
     # Steady 1D: no time axis and no second spatial axis either -- there's
     # nothing left to make a "surface" out of, just the one curve u(x).
@@ -13598,8 +13724,8 @@ elif is_steady:
     fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
     ax.plot(x_vals, pred, color="#4dabf7", linewidth={linewidth})
     ax.grid(True, alpha=0.2)
-    ax.set_xlabel({_xlabel_1d_steady!r}); ax.set_ylabel({_ylabel_1d_steady!r})
-    ax.set_title({_title_1d_steady!r})
+    ax.set_xlabel({_xlabel_1d_steady!r}, fontsize={axis_label_fontsize}); ax.set_ylabel({_ylabel_1d_steady!r}, fontsize={axis_label_fontsize})
+    ax.set_title({_title_1d_steady!r}, fontsize={subplot_title_fontsize})
 else:
     t_vals = np.linspace({t_min}, {t_max}, res)
     X, T = np.meshgrid(x_vals, t_vals)
@@ -13614,9 +13740,9 @@ else:
     else:
         im = ax.contourf(X, T, pred, levels={levels}, cmap="{colormap}", {vrange})
     if {show_colorbar}: fig.colorbar(im, ax=ax)
-    ax.set_xlabel({_xlabel_1d!r}); ax.set_ylabel({_ylabel_1d!r})
-    ax.set_title({_title_1d!r})
-plt.tight_layout()
+    ax.set_xlabel({_xlabel_1d!r}, fontsize={axis_label_fontsize}); ax.set_ylabel({_ylabel_1d!r}, fontsize={axis_label_fontsize})
+    ax.set_title({_title_1d!r}, fontsize={subplot_title_fontsize})
+plt.tight_layout(rect=[0, 0, 1, 0.93] if _had_suptitle else None)
 out_path = os.path.join({save_dir!r}, "restored_plot.png")
 plt.savefig(out_path, dpi={dpi}, bbox_inches='tight'); plt.close()
 print(f"Surface plot saved to: {{out_path}}")
@@ -13654,8 +13780,8 @@ for i, tv in enumerate(t_steps_vals):
     u_line = _extract_plot_field(xt).flatten()
     _line_label = "steady-state" if is_steady else f"t={{tv:.3f}}"
     ax.plot(x_vals, u_line, color=colors[i], linewidth={linewidth}, label=_line_label)
-ax.set_xlabel({_xlabel_line!r}); ax.set_ylabel({_ylabel_line!r})
-ax.set_title({_title_line!r})
+ax.set_xlabel({_xlabel_line!r}, fontsize={axis_label_fontsize}); ax.set_ylabel({_ylabel_line!r}, fontsize={axis_label_fontsize})
+ax.set_title({_title_line!r}, fontsize={subplot_title_fontsize})
 ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
 plt.tight_layout()
 out_path = os.path.join({save_dir!r}, "restored_plot.png")
@@ -13667,7 +13793,7 @@ print(f"Line plot saved to: {{out_path}}")
                                        else (f", y={_line_slice_y:.3g}" if is_2d else ""))
             _xlabel_animline = xlabel_override or "x"
             _ylabel_animline = ylabel_override or (f"{out_name}(x,t{_slice_suffix_animline})" if (is_2d or is_3d) else out_name)
-            _title_line_stmt = f"ax.set_title({title_override!r})" if title_override else ""
+            _title_line_stmt = f"ax.set_title({title_override!r}, fontsize={subplot_title_fontsize})" if title_override else ""
             # The per-frame "t = ..." indicator below is a blit-compatible
             # Text artist (not a real title -- see its own comment in
             # generate_script()'s matching Line Animation (GIF) branch)
@@ -13705,7 +13831,7 @@ u_max = max(u.max() for u in all_u)
 fig, ax = plt.subplots(figsize=_plot_figsize(7, 4))
 ax.set_xlim({x_min}, {x_max})
 ax.set_ylim(u_min - 0.05*abs(u_min), u_max + 0.05*abs(u_max))
-ax.set_xlabel({_xlabel_animline!r}); ax.set_ylabel({_ylabel_animline!r})
+ax.set_xlabel({_xlabel_animline!r}, fontsize={axis_label_fontsize}); ax.set_ylabel({_ylabel_animline!r}, fontsize={axis_label_fontsize})
 {_title_line_stmt}
 line, = ax.plot([], [], color="#4dabf7", linewidth={linewidth})
 time_txt = ax.text({_tt_x}, {_tt_y}, '', transform=ax.transAxes, color='black', ha={_tt_ha!r}, fontsize=11)
@@ -13727,8 +13853,8 @@ print(f"Animation saved to: {{out_path}}")
             _xlabel_animsurf3d = xlabel_override or "x"
             _ylabel_animsurf3d = ylabel_override or "y"
             _animsurf_title_line_3d = (
-                f"ax.set_title({title_override!r})" if title_override
-                else 'ax.set_title(f"t = {t_frames[i]:.3f}")'
+                f"ax.set_title({title_override!r}, fontsize={subplot_title_fontsize})" if title_override
+                else f'ax.set_title(f"t = {{t_frames[i]:.3f}}", fontsize={subplot_title_fontsize})'
             )
             # 1D: same "Swap axes" convention as the static Surface option
             # above and the main Results panel's own 1D Surface plot -- t
@@ -13737,8 +13863,8 @@ print(f"Animation saved to: {{out_path}}")
             _xlabel_animsurf_else = xlabel_override or ("t" if (swap_xt and not is_2d) else "x")
             _ylabel_animsurf_else = ylabel_override or ("y" if is_2d else ("x" if swap_xt else "t"))
             _animsurf_title_line_else = (
-                f"ax.set_title({title_override!r})" if title_override
-                else 'ax.set_title(f"t = {t_frames[i]:.3f}")'
+                f"ax.set_title({title_override!r}, fontsize={subplot_title_fontsize})" if title_override
+                else f'ax.set_title(f"t = {{t_frames[i]:.3f}}", fontsize={subplot_title_fontsize})'
             )
             script += f"""
 import matplotlib.animation as _anim
@@ -13795,7 +13921,7 @@ if is_3d:
         for _fi3a, (_fX3a, _fY3a, _fZ3a) in enumerate(_faces3a):
             ax.plot_surface(_fX3a, _fY3a, _fZ3a, facecolors=_cmap_obj3a(_norm3a(all_frames[i][_fi3a])),
                              rstride=1, cstride=1, linewidth=0, antialiased=False, shade=False)
-        ax.set_xlabel({_xlabel_animsurf3d!r}); ax.set_ylabel({_ylabel_animsurf3d!r}); ax.set_zlabel("z")
+        ax.set_xlabel({_xlabel_animsurf3d!r}, fontsize={axis_label_fontsize}); ax.set_ylabel({_ylabel_animsurf3d!r}, fontsize={axis_label_fontsize}); ax.set_zlabel("z", fontsize={axis_label_fontsize})
         {_animsurf_title_line_3d}
         try:
             ax.set_box_aspect((_cx1a - _cx0a, _cy1a - _cy0a, _cz1a - _cz0a))
@@ -13845,8 +13971,8 @@ else:
         ax.cla()
         Xp, Yp, Zp = all_frames[i]
         ax.contourf(Xp, Yp, Zp, levels={levels}, cmap="{colormap}", vmin=v_min, vmax=v_max)
-        ax.set_xlabel({_xlabel_animsurf_else!r})
-        ax.set_ylabel({_ylabel_animsurf_else!r})
+        ax.set_xlabel({_xlabel_animsurf_else!r}, fontsize={axis_label_fontsize})
+        ax.set_ylabel({_ylabel_animsurf_else!r}, fontsize={axis_label_fontsize})
         {_animsurf_title_line_else}
     ani = _anim.FuncAnimation(fig, update, frames={n_steps}, interval=150)
     out_path = os.path.join({save_dir!r}, "restored_animation.gif")
@@ -13912,6 +14038,9 @@ else:
         figsize_mode = viz_settings.get('figsize_mode', 'Default')
         figsize_w = viz_settings.get('figsize_w', 7.0)
         figsize_h = viz_settings.get('figsize_h', 5.0)
+        title_fontsize = viz_settings.get('title_fontsize', 13.0)
+        subplot_title_fontsize = viz_settings.get('subplot_title_fontsize', 10.0)
+        axis_label_fontsize = viz_settings.get('axis_label_fontsize', 10.0)
 
         # Spatial bounds / problem dimension / output names come from
         # whichever config got loaded (the run's top-level
@@ -14114,6 +14243,10 @@ def _extract_plot_field(x_grid, _tm_model):
 res = {resolution}
 x_vals = np.linspace({x_min}, {x_max}, res)
 y_vals = np.linspace({y_min}, {y_max}, res)
+# Round 31: only the 3D/2D branches below add a fig.suptitle() above
+# their own per-panel subplot titles; the final 1D branch is single-panel
+# with no suptitle -- see the matching comment in _build_restore_script.
+_had_suptitle = False
 if is_3d:
     # Several evenly-spaced time snapshots, each its own 3D subplot side
     # by side -- same convention as _build_restore_script's own 3D Surface
@@ -14164,13 +14297,14 @@ if is_3d:
         if {show_colorbar}:
             _sm3 = plt.cm.ScalarMappable(cmap=_cmap_obj3, norm=_norm3)
             fig.colorbar(_sm3, ax=ax, shrink=0.6, pad=0.12)
-        ax.set_xlabel({_xlabel_3d!r}); ax.set_ylabel({_ylabel_3d!r}); ax.set_zlabel("z")
-        ax.set_title(f"t = {{_tv3:.3f}}")
+        ax.set_xlabel({_xlabel_3d!r}, fontsize={axis_label_fontsize}); ax.set_ylabel({_ylabel_3d!r}, fontsize={axis_label_fontsize}); ax.set_zlabel("z", fontsize={axis_label_fontsize})
+        ax.set_title(f"t = {{_tv3:.3f}}", fontsize={subplot_title_fontsize})
         try:
             ax.set_box_aspect((_cx1 - _cx0, _cy1 - _cy0, _cz1 - _cz0))
         except Exception:
             pass
-    fig.suptitle({_title_3d!r}, fontsize=12)
+    fig.suptitle({_title_3d!r}, fontsize={title_fontsize})
+    _had_suptitle = True
 elif is_2d:
     # Same multi-snapshot convention as the 3D branch above.
     Xg, Yg = np.meshgrid(x_vals, y_vals)
@@ -14185,9 +14319,10 @@ elif is_2d:
         pred = _extract_plot_field(XYT, _model2).reshape(res, res)
         im = axes2d[_ai2].contourf(Xg, Yg, pred, levels={levels}, cmap="{colormap}", {vrange})
         if {show_colorbar}: fig.colorbar(im, ax=axes2d[_ai2])
-        axes2d[_ai2].set_xlabel({_xlabel_2d!r}); axes2d[_ai2].set_ylabel({_ylabel_2d!r})
-        axes2d[_ai2].set_title(f"t = {{_tv2:.3f}}")
-    fig.suptitle({_title_2d!r}, fontsize=12)
+        axes2d[_ai2].set_xlabel({_xlabel_2d!r}, fontsize={axis_label_fontsize}); axes2d[_ai2].set_ylabel({_ylabel_2d!r}, fontsize={axis_label_fontsize})
+        axes2d[_ai2].set_title(f"t = {{_tv2:.3f}}", fontsize={subplot_title_fontsize})
+    fig.suptitle({_title_2d!r}, fontsize={title_fontsize})
+    _had_suptitle = True
 else:
     # 1D + time already fully uses (x, t) as the two plot axes, so unlike
     # the 2D/3D branches above there's no separate "snapshot" concept --
@@ -14208,9 +14343,9 @@ else:
     else:
         im = ax.contourf(X, T, pred, levels={levels}, cmap="{colormap}", {vrange})
     if {show_colorbar}: fig.colorbar(im, ax=ax)
-    ax.set_xlabel({_xlabel_1d!r}); ax.set_ylabel({_ylabel_1d!r})
-    ax.set_title({_title_1d!r})
-plt.tight_layout()
+    ax.set_xlabel({_xlabel_1d!r}, fontsize={axis_label_fontsize}); ax.set_ylabel({_ylabel_1d!r}, fontsize={axis_label_fontsize})
+    ax.set_title({_title_1d!r}, fontsize={subplot_title_fontsize})
+plt.tight_layout(rect=[0, 0, 1, 0.93] if _had_suptitle else None)
 out_path = os.path.join({save_dir!r}, "restored_plot.png")
 plt.savefig(out_path, dpi={dpi}, bbox_inches='tight'); plt.close()
 print(f"Surface plot saved to: {{out_path}}")
@@ -14239,8 +14374,8 @@ for i, tv in enumerate(t_steps_vals):
         xt = np.column_stack([x_vals, np.full_like(x_vals, tv)])
     u_line = _extract_plot_field(xt, _ta_m).flatten()
     ax.plot(x_vals, u_line, color=colors[i], linewidth={linewidth}, label=f"t={{tv:.3f}}")
-ax.set_xlabel({_xlabel_line!r}); ax.set_ylabel({_ylabel_line!r})
-ax.set_title({_title_line!r})
+ax.set_xlabel({_xlabel_line!r}, fontsize={axis_label_fontsize}); ax.set_ylabel({_ylabel_line!r}, fontsize={axis_label_fontsize})
+ax.set_title({_title_line!r}, fontsize={subplot_title_fontsize})
 ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
 plt.tight_layout()
 out_path = os.path.join({save_dir!r}, "restored_plot.png")
@@ -14252,7 +14387,7 @@ print(f"Line plot saved to: {{out_path}}")
                                        else (f", y={_line_slice_y:.3g}" if is_2d else ""))
             _xlabel_animline = xlabel_override or "x"
             _ylabel_animline = ylabel_override or (f"{out_name}(x,t{_slice_suffix_animline})" if (is_2d or is_3d) else out_name)
-            _title_line_stmt = f"ax.set_title({title_override!r})" if title_override else ""
+            _title_line_stmt = f"ax.set_title({title_override!r}, fontsize={subplot_title_fontsize})" if title_override else ""
             # The per-frame "t = ..." indicator below is a blit-compatible
             # Text artist (not a real title -- see its own comment in
             # generate_script()'s matching Line Animation (GIF) branch)
@@ -14281,7 +14416,7 @@ u_max = max(u.max() for u in all_u)
 fig, ax = plt.subplots(figsize=_plot_figsize(7, 4))
 ax.set_xlim({x_min}, {x_max})
 ax.set_ylim(u_min - 0.05*abs(u_min), u_max + 0.05*abs(u_max))
-ax.set_xlabel({_xlabel_animline!r}); ax.set_ylabel({_ylabel_animline!r})
+ax.set_xlabel({_xlabel_animline!r}, fontsize={axis_label_fontsize}); ax.set_ylabel({_ylabel_animline!r}, fontsize={axis_label_fontsize})
 {_title_line_stmt}
 line, = ax.plot([], [], color="#4dabf7", linewidth={linewidth})
 time_txt = ax.text({_tt_x}, {_tt_y}, '', transform=ax.transAxes, color='black', ha={_tt_ha!r}, fontsize=11)
@@ -14303,14 +14438,14 @@ print(f"Animation saved to: {{out_path}}")
             _xlabel_animsurf3d = xlabel_override or "x"
             _ylabel_animsurf3d = ylabel_override or "y"
             _animsurf_title_line_3d = (
-                f"ax.set_title({title_override!r})" if title_override
-                else 'ax.set_title(f"t = {t_frames[i]:.3f}")'
+                f"ax.set_title({title_override!r}, fontsize={subplot_title_fontsize})" if title_override
+                else f'ax.set_title(f"t = {{t_frames[i]:.3f}}", fontsize={subplot_title_fontsize})'
             )
             _xlabel_animsurf_else = xlabel_override or ("t" if (swap_xt and not is_2d) else "x")
             _ylabel_animsurf_else = ylabel_override or ("y" if is_2d else ("x" if swap_xt else "t"))
             _animsurf_title_line_else = (
-                f"ax.set_title({title_override!r})" if title_override
-                else 'ax.set_title(f"t = {t_frames[i]:.3f}")'
+                f"ax.set_title({title_override!r}, fontsize={subplot_title_fontsize})" if title_override
+                else f'ax.set_title(f"t = {{t_frames[i]:.3f}}", fontsize={subplot_title_fontsize})'
             )
             script += f"""
 import matplotlib.animation as _anim
@@ -14355,7 +14490,7 @@ if is_3d:
         for _fi3a, (_fX3a, _fY3a, _fZ3a) in enumerate(_faces3a):
             ax.plot_surface(_fX3a, _fY3a, _fZ3a, facecolors=_cmap_obj3a(_norm3a(all_frames[i][_fi3a])),
                              rstride=1, cstride=1, linewidth=0, antialiased=False, shade=False)
-        ax.set_xlabel({_xlabel_animsurf3d!r}); ax.set_ylabel({_ylabel_animsurf3d!r}); ax.set_zlabel("z")
+        ax.set_xlabel({_xlabel_animsurf3d!r}, fontsize={axis_label_fontsize}); ax.set_ylabel({_ylabel_animsurf3d!r}, fontsize={axis_label_fontsize}); ax.set_zlabel("z", fontsize={axis_label_fontsize})
         {_animsurf_title_line_3d}
         try:
             ax.set_box_aspect((_cx1a - _cx0a, _cy1a - _cy0a, _cz1a - _cz0a))
@@ -14399,8 +14534,8 @@ else:
         ax.cla()
         Xp, Yp, Zp = all_frames[i]
         ax.contourf(Xp, Yp, Zp, levels={levels}, cmap="{colormap}", vmin=v_min, vmax=v_max)
-        ax.set_xlabel({_xlabel_animsurf_else!r})
-        ax.set_ylabel({_ylabel_animsurf_else!r})
+        ax.set_xlabel({_xlabel_animsurf_else!r}, fontsize={axis_label_fontsize})
+        ax.set_ylabel({_ylabel_animsurf_else!r}, fontsize={axis_label_fontsize})
         {_animsurf_title_line_else}
     ani = _anim.FuncAnimation(fig, update, frames={n_steps}, interval=150)
     out_path = os.path.join({save_dir!r}, "restored_animation.gif")
@@ -14415,7 +14550,8 @@ else:
                                   x_min, x_max, y_min, y_max, out_name, viz_settings=None,
                                   is_3d=False, output_idx=0, custom_expr="", output_names="u",
                                   is_steady=False, is_ta=False,
-                                  z_min=0.0, z_max=1.0, line_slice_y=None, line_slice_z=None):
+                                  z_min=0.0, z_max=1.0, line_slice_y=None, line_slice_z=None,
+                                  ea_metric_l2=True, ea_metric_mse=False, ea_metric_max=False):
         # line_slice_y/_z: the same configured 2D/3D line-plot slice value
         # (PINNConfig.line_slice_y/_z) the restore script's own Line plot
         # uses. None means "caller didn't pass one" (e.g. an older call
@@ -14434,6 +14570,11 @@ else:
         _auto     = viz_settings.get('auto_range', True)
         _vmin     = viz_settings.get('vmin', -1.0)
         _vmax     = viz_settings.get('vmax', 1.0)
+        # Round 31: same 3 font-size settings as the restore surface/line
+        # builders above (see _build_restore_script's matching comment).
+        _title_fs      = viz_settings.get('title_fontsize', 13.0)
+        _subtitle_fs   = viz_settings.get('subplot_title_fontsize', 10.0)
+        _axislabel_fs  = viz_settings.get('axis_label_fontsize', 10.0)
         files_repr = repr(files)
         # Which model to call .predict() on, per reference time _tv: a
         # Time-Adaptive combined restore (_build_restore_script_ta) never
@@ -14455,6 +14596,33 @@ else:
         # actually selected above, silently analyzing the wrong field for
         # any multi-output model where "Output 1" wasn't the one chosen.
         _custom_expr_val = (custom_expr or "").strip()
+        # Round 31: build the metrics print/CSV fragments once here,
+        # honoring ea_metric_l2/mse/max (the "Error Metrics to Compute"
+        # checkboxes) -- t and Mean_abs_error have no corresponding
+        # checkbox in that dialog, so both always show, same as the
+        # matching codegen.py helpers this mirrors
+        # (_ea_metrics_csv_header/_ea_metrics_row_code/
+        # _ea_metrics_print_fragment).
+        _ea_csv_header = ",".join(
+            ["t"]
+            + (["L2_relative"] if ea_metric_l2 else [])
+            + (["MSE"] if ea_metric_mse else [])
+            + (["Max_error"] if ea_metric_max else [])
+            + ["Mean_abs_error"]
+        )
+        _ea_csv_row = ",".join(
+            ["{_tv:.6f}"]
+            + (["{_l2:.6e}"] if ea_metric_l2 else [])
+            + (["{_mse:.6e}"] if ea_metric_mse else [])
+            + (["{_mx:.6e}"] if ea_metric_max else [])
+            + ["{_ma:.6e}"]
+        )
+        _ea_print_frag = ", ".join(
+            (["L2={_l2:.4e}"] if ea_metric_l2 else [])
+            + (["MSE={_mse:.4e}"] if ea_metric_mse else [])
+            + (["Max={_mx:.4e}"] if ea_metric_max else [])
+            + ["MeanAbs={_ma:.4e}"]
+        )
         _extract_field_code = f'''_ea_custom_expr = {_custom_expr_val!r}
 _ea_output_names = {[n.strip() for n in output_names.split(",")]!r}
 _EA_MATH_NS = {{
@@ -14563,12 +14731,12 @@ for _i, _tv in enumerate(_ea_times):
     _mx  = np.max(np.abs(_up - _uf))
     _ma  = np.mean(np.abs(_up - _uf))
     _ea_metrics.append((_tv, _l2, _mse, _mx, _ma))
-    print(f"  t={{_tv:.4f}} — L2={{_l2:.4e}}, MSE={{_mse:.4e}}, Max={{_mx:.4e}}")
+    print(f"  t={{_tv:.4f}} — {_ea_print_frag}")
 
 with open(os.path.join(_ea_dir, "error_metrics_restore.txt"), "w") as _mf:
-    _mf.write("t,L2_relative,MSE,Max_error,Mean_abs_error\\n")
+    _mf.write("{_ea_csv_header}\\n")
     for _tv, _l2, _mse, _mx, _ma in _ea_metrics:
-        _mf.write(f"{{_tv:.6f}},{{_l2:.6e}},{{_mse:.6e}},{{_mx:.6e}},{{_ma:.6e}}\\n")
+        _mf.write(f"{_ea_csv_row}\\n")
 print(f"  Metrics saved: {{os.path.join(_ea_dir, 'error_metrics_restore.txt')}}")
 
 # Line comparison
@@ -14576,12 +14744,12 @@ if {do_line}:
     _ncols = min(4, _ea_n_t)
     _nrows = (_ea_n_t + _ncols - 1) // _ncols
     fig, axes = plt.subplots(_nrows, _ncols, figsize=(4*_ncols, 3.5*_nrows), squeeze=False)
-    _ea_line_suptitle = "Restored Model vs Ground Truth — Line Comparison"
+    _ea_line_suptitle = "Restored Model vs Reference — Line Comparison"
     if {is_3d}:
         _ea_line_suptitle += f" (y={line_slice_y:.3g}, z={line_slice_z:.3g})"
     elif {is_2d}:
         _ea_line_suptitle += f" (y={line_slice_y:.3g})"
-    fig.suptitle(_ea_line_suptitle, fontsize=13, fontweight='bold')
+    fig.suptitle(_ea_line_suptitle, fontsize={_title_fs}, fontweight='bold')
     _ax_flat = axes.flatten()
     for _i in range(_ea_n_t):
         ax = _ax_flat[_i]
@@ -14624,18 +14792,18 @@ if {do_line}:
             _xv_s   = _xv[_ea_sort]
             _gt_s   = _ea_u_refs[_i][_ea_sort]
             _pinn_s = _ea_u_pinns[_i][_ea_sort]
-        ax.plot(_xv_s, _gt_s,   color='#4dabf7', linewidth=2.0, label='Ground Truth')
+        ax.plot(_xv_s, _gt_s,   color='#4dabf7', linewidth=2.0, label='Reference')
         ax.plot(_xv_s, _pinn_s, color='#ff6b6b', linewidth=2.0, linestyle='--', label='PINN')
-        ax.set_title(f"t={{_tv:.3f}}  |  L2={{_l2:.2e}}", fontsize=10)
+        ax.set_title(f"t={{_tv:.3f}}  |  L2={{_l2:.2e}}", fontsize={_subtitle_fs})
         _ea_line_ylabel = (f"{out_name}(x,y={line_slice_y:.3g},z={line_slice_z:.3g})" if {is_3d}
                             else (f"{out_name}(x,y={line_slice_y:.3g})" if {is_2d} else "{out_name}"))
-        ax.set_xlabel("x"); ax.set_ylabel(_ea_line_ylabel); ax.grid(True, alpha=0.3)
+        ax.set_xlabel("x", fontsize={_axislabel_fs}); ax.set_ylabel(_ea_line_ylabel, fontsize={_axislabel_fs}); ax.grid(True, alpha=0.3)
     for _j in range(_ea_n_t, len(_ax_flat)):
         _ax_flat[_j].set_visible(False)
     handles, labels = _ax_flat[0].get_legend_handles_labels()
     fig.legend(handles, labels, loc='lower center', ncol=2, fontsize=10,
                framealpha=0.9, bbox_to_anchor=(0.5, 0.01))
-    plt.tight_layout(rect=[0, 0.06, 1, 1])
+    plt.tight_layout(rect=[0, 0.06, 1, 0.93])
     _lp = os.path.join(_ea_dir, "line_comparison_restore.png")
     plt.savefig(_lp, dpi={_dpi}, bbox_inches='tight'); plt.close()
     print(f"  Line comparison saved: {{_lp}}")
@@ -14653,7 +14821,7 @@ elif {do_surface}:
         _yg_ea = np.linspace({y_min}, {y_max}, _res_ea)
         _Xg_ea, _Yg_ea = np.meshgrid(_xg_ea, _yg_ea)
         fig, axes = plt.subplots(_ea_n_t, 3, figsize=(15, 4*_ea_n_t), squeeze=False)
-        fig.suptitle("Restored Model vs Ground Truth — 2D Heatmaps", fontsize=13, fontweight='bold')
+        fig.suptitle("Restored Model vs Reference — 2D Heatmaps", fontsize={_title_fs}, fontweight='bold')
         for _i, _tv in enumerate(_ea_times):
             _tv_r, _l2, _mse, _mx, _ma = _ea_metrics[_i]
             if {is_steady}:
@@ -14667,17 +14835,17 @@ elif {do_surface}:
             _vmin_data = min(_u_pinn_g.min(), _u_fem_g.min()) if {_auto} else {_vmin}
             _vmax_data = max(_u_pinn_g.max(), _u_fem_g.max()) if {_auto} else {_vmax}
             _ea_pinn_title = f"PINN (steady-state) L2={{_l2:.2e}}" if {is_steady} else f"PINN t={{_tv:.3f}} L2={{_l2:.2e}}"
-            _ea_gt_title = "Ground Truth" if {is_steady} else f"Ground Truth t={{_tv:.3f}}"
+            _ea_gt_title = "Reference" if {is_steady} else f"Reference t={{_tv:.3f}}"
             im0 = axes[_i][0].contourf(_Xg_ea, _Yg_ea, _u_pinn_g, levels={_levels}, cmap='{_cmap}', vmin=_vmin_data, vmax=_vmax_data)
-            axes[_i][0].set_title(_ea_pinn_title); axes[_i][0].set_xlabel("x"); axes[_i][0].set_ylabel("y")
+            axes[_i][0].set_title(_ea_pinn_title, fontsize={_subtitle_fs}); axes[_i][0].set_xlabel("x", fontsize={_axislabel_fs}); axes[_i][0].set_ylabel("y", fontsize={_axislabel_fs})
             if {_colorbar}: fig.colorbar(im0, ax=axes[_i][0])
             im1 = axes[_i][1].contourf(_Xg_ea, _Yg_ea, _u_fem_g, levels={_levels}, cmap='{_cmap}', vmin=_vmin_data, vmax=_vmax_data)
-            axes[_i][1].set_title(_ea_gt_title); axes[_i][1].set_xlabel("x"); axes[_i][1].set_ylabel("y")
+            axes[_i][1].set_title(_ea_gt_title, fontsize={_subtitle_fs}); axes[_i][1].set_xlabel("x", fontsize={_axislabel_fs}); axes[_i][1].set_ylabel("y", fontsize={_axislabel_fs})
             if {_colorbar}: fig.colorbar(im1, ax=axes[_i][1])
             im2 = axes[_i][2].contourf(_Xg_ea, _Yg_ea, _u_err_g, levels={_levels}, cmap='{_cmap}')
-            axes[_i][2].set_title(f"|Error| Max={{_mx:.2e}}"); axes[_i][2].set_xlabel("x"); axes[_i][2].set_ylabel("y")
+            axes[_i][2].set_title(f"|Error| Max={{_mx:.2e}}", fontsize={_subtitle_fs}); axes[_i][2].set_xlabel("x", fontsize={_axislabel_fs}); axes[_i][2].set_ylabel("y", fontsize={_axislabel_fs})
             if {_colorbar}: fig.colorbar(im2, ax=axes[_i][2])
-        plt.tight_layout()
+        plt.tight_layout(rect=[0, 0, 1, 0.93])
     else:
         _x_common = np.linspace({x_min}, {x_max}, 300)
         _t_arr = np.array(_ea_times)
@@ -14693,17 +14861,17 @@ elif {do_surface}:
         _vmin_data = min(_U_pinn.min(), _U_fem.min()) if {_auto} else {_vmin}
         _vmax_data = max(_U_pinn.max(), _U_fem.max()) if {_auto} else {_vmax}
         fig, axes = plt.subplots(1, 3, figsize=(15, 5))
-        fig.suptitle("Restored Model vs Ground Truth — Surface", fontsize=13, fontweight='bold')
+        fig.suptitle("Restored Model vs Reference — Surface", fontsize={_title_fs}, fontweight='bold')
         im0 = axes[0].contourf(_Tg, _Xg, _U_pinn, levels={_levels}, cmap='{_cmap}', vmin=_vmin_data, vmax=_vmax_data)
-        axes[0].set_title("PINN"); axes[0].set_xlabel("t"); axes[0].set_ylabel("x")
+        axes[0].set_title("PINN", fontsize={_subtitle_fs}); axes[0].set_xlabel("t", fontsize={_axislabel_fs}); axes[0].set_ylabel("x", fontsize={_axislabel_fs})
         if {_colorbar}: fig.colorbar(im0, ax=axes[0])
         im1 = axes[1].contourf(_Tg, _Xg, _U_fem, levels={_levels}, cmap='{_cmap}', vmin=_vmin_data, vmax=_vmax_data)
-        axes[1].set_title("Ground Truth"); axes[1].set_xlabel("t")
+        axes[1].set_title("Reference", fontsize={_subtitle_fs}); axes[1].set_xlabel("t", fontsize={_axislabel_fs})
         if {_colorbar}: fig.colorbar(im1, ax=axes[1])
         im2 = axes[2].contourf(_Tg, _Xg, _U_err, levels={_levels}, cmap='{_cmap}')
-        axes[2].set_title("|Error|"); axes[2].set_xlabel("t")
+        axes[2].set_title("|Error|", fontsize={_subtitle_fs}); axes[2].set_xlabel("t", fontsize={_axislabel_fs})
         if {_colorbar}: fig.colorbar(im2, ax=axes[2])
-        plt.tight_layout()
+        plt.tight_layout(rect=[0, 0, 1, 0.93])
     _sp = os.path.join(_ea_dir, "surface_comparison_restore.png")
     plt.savefig(_sp, dpi={_dpi}, bbox_inches='tight'); plt.close()
     print(f"  Surface comparison saved: {{_sp}}")

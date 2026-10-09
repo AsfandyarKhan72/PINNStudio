@@ -350,6 +350,33 @@ class PINNConfig:
     plot_linewidth_anim: float = 3.0
     plot_fps: int = 10
 
+    # Font-size standardization (Round 31): previously every plot across
+    # the app hardcoded its own title/axis-label font sizes ad hoc, with
+    # real inconsistencies even within the same plot type (e.g. Time-
+    # Adaptive's own per-step suptitle was fontsize 11 in one branch and
+    # 12 in another). These three settings now drive every multi-panel
+    # comparison plot and single-panel plot across Standard/RAR/TA/Error
+    # Analysis/Parametric Sweep, in both generate_script() and
+    # generate_clean_script(), plus all three Restore & Visualize script
+    # builders. plot_title_fontsize is the figure-level suptitle (e.g.
+    # "Step 1: t = 0.00 -> 0.25 -- PINN vs Reference"); plot_subplot_title_
+    # fontsize is each individual panel's own title (e.g. "PINN", "Reference",
+    # "Error (L2 rel = ...)"); plot_axis_label_fontsize covers x/y axis
+    # label text and tick labels. Defaults match each role's own dominant
+    # existing value app-wide (13 for the figure-suptitle convention
+    # already used by the Error Analysis/Loss Plot title text; 10 for the
+    # overwhelming majority of per-panel .set_title(..., fontsize=10)
+    # calls; 10 for axis labels, matching matplotlib's own un-set
+    # default, since no call site passed an explicit axis-label fontsize
+    # before this existed); a few minor, previously-inconsistent outlier
+    # call sites (e.g. a couple of stray fontsize=11/12 suptitles)
+    # intentionally converge onto these single defaults rather than
+    # preserving every prior ad hoc value, same precedent as Round 30's
+    # plot_resolution unification.
+    plot_title_fontsize: float = 13.0
+    plot_subplot_title_fontsize: float = 10.0
+    plot_axis_label_fontsize: float = 10.0
+
     # Loss Plot Settings (Round 28): previously every loss plot across the
     # app hardcoded "semilogy of summed Train/Test loss" with no user
     # control, and model.train()'s own display_every -- which doubles as
@@ -414,6 +441,24 @@ class PINNConfig:
     ea_files: str = "[]"
     ea_do_line: bool = True
     ea_do_surface: bool = True
+
+    # Error Metrics to Compute (Round 31): previously the Error Analysis
+    # dialog's "L2 Relative"/"MSE"/"Max Error" checkboxes were pure dead
+    # UI -- their state was stored but nothing downstream ever read it,
+    # so every metric was always computed and shown regardless of what
+    # was checked, and different plots/log lines showed different
+    # subsets (RAR's log line showed L2+MSE, its plot panel showed Max,
+    # Time-Adaptive showed Max in one branch and RMSE in another, the 1D
+    # standalone Error Analysis surface plot showed no metric value at
+    # all). These three fields now actually gate what gets computed and
+    # displayed, consistently, everywhere a comparison plot or log line
+    # shows an error metric. Default changed to ONLY L2 relative error
+    # enabled (previously all three were checked by default in the
+    # dialog, even though none of them did anything) -- a real behavior
+    # change, matching what the user asked for.
+    ea_metric_l2: bool = True
+    ea_metric_mse: bool = False
+    ea_metric_max: bool = False
 
     # Geometry type & 3D domain
     geometry_type: str = "Rectangle"  # 2D: Rectangle|Disk|Ellipse|Triangle|Polygon|Custom ; 3D: Cuboid|Sphere

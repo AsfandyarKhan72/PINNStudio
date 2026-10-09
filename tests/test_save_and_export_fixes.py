@@ -102,27 +102,35 @@ def run():
           "model.save() -- previously this configuration saved nothing "
           "at all, not even a config JSON")
 
-    # With optimizer2 set, the early save in the Phase-1 block must be
-    # skipped (the Phase 2 block below saves the real final checkpoint) --
-    # no double/premature save.
+    # Round 31: standardized app-wide on "save one checkpoint per optimizer
+    # phase" (matching Time-Adaptive's own established per-step
+    # convention), including for this plain Solve path -- so with
+    # optimizer2 set, the Phase-1 (Adam) block now saves its OWN
+    # checkpoint too, in addition to Phase 2's, rather than skipping its
+    # early save the way it used to (that older "skip it, Phase 2 saves
+    # the real final checkpoint" convention is what this test originally
+    # checked for; see verify_checkpoints.py's real exec-level RAR/Solve
+    # tests for the behavior this was changed to).
     phase2_cfg = dataclasses.replace(save_cfg, optimizer2="lbfgs", iterations2=5)
     phase2_script = generate_script(phase2_cfg)
     ast.parse(phase2_script)
-    check("model saved after scheduler phases / Phase 2 below" in phase2_script,
-          "with optimizer2 set, the Phase-1 block should skip its own "
-          "early save (Phase 2 saves the real final checkpoint)")
+    check("_adam_model_path" in phase2_script and "model.save(_adam_model_path)" in phase2_script,
+          "with optimizer2 set, the Phase-1 (Adam) block should now save "
+          "its own checkpoint too (Round 31's 'one checkpoint per "
+          "optimizer phase' convention), not just Phase 2's")
 
-    # With the scheduler active, the early save must also be skipped (each
-    # scheduler phase already saves its own checkpoint).
+    # Same convention applies with the scheduler active: each phase
+    # (including the first) saves its own checkpoint.
     sched_cfg = dataclasses.replace(
         save_cfg, optimizer_scheduler=True,
         scheduler_phases='[{"optimizer": "adam", "iterations": 5, "weights": "1,1,1,1"}]',
     )
     sched_script = generate_script(sched_cfg)
     ast.parse(sched_script)
-    check("model saved after scheduler phases / Phase 2 below" in sched_script,
-          "with the scheduler active, the Phase-1 block should also skip "
-          "its own early save")
+    check("_adam_model_path" in sched_script and "model.save(_adam_model_path)" in sched_script,
+          "with the scheduler active, the Phase-1 block should also save "
+          "its own checkpoint (Round 31's 'one checkpoint per optimizer "
+          "phase' convention)")
 
     # Real end-to-end: train a plain Adam-only run with Save on, confirm an
     # actual .pt checkpoint lands on disk (previously none would exist).
