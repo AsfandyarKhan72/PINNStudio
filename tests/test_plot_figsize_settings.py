@@ -27,10 +27,16 @@ comparison grids (sized from however many reference files/columns are
 being compared -- forcing any fixed mode on those would misshape a grid
 whose whole point is to lay out N columns), and the Setup tab's
 domain-sampling preview plots (sized to the problem's own geometry, not
-a "results" plot). generate_clean_script (a separate, less-central
-exporter) is also left alone, consistent with the precedent set when the
-Time-Adaptive loss-history fix (a prior round) deliberately didn't touch
-its own copy of that bug either.
+a "results" plot).
+
+A later round brought generate_clean_script (a separate, less-central
+exporter) to parity with this feature: its own in-scope single-panel
+sites (Loss, single Line/Surface plot) now also get
+figsize=_plot_figsize(w, h), via its own independent `_plot_figsize`
+helper. Its EA grid(s) remain correctly excluded, same as above, and
+RAR's own fixed-3-panel 1D solution_plot.png comparison (a separate
+plot from the EA grids, not a "multi-column, N varies" grid) is in
+scope for this feature in both generators.
 
 "Default" mode must render every one of the ~40 in-scope figsize=(...)
 call sites touched by this feature *exactly* as they rendered before this
@@ -46,6 +52,7 @@ checked byte-for-pixel against figsize*dpi under all four modes.
 Run directly:
     QT_QPA_PLATFORM=offscreen python3 tests/test_plot_figsize_settings.py
 """
+import dataclasses
 import os
 import re
 import subprocess
@@ -129,23 +136,65 @@ def run():
     for snippet in in_scope_snippets:
         check(snippet in script_default, f"Expected in-scope figsize call missing from generated script: {snippet!r}")
 
+    # These two have no other (15, 5)-shaped call site anywhere in the
+    # generated script, so the simple wrap-and-check-absent pattern is safe.
     ea_untouched_snippets = [
         "figsize=(4*_ea_ncols, 3.5*_ea_nrows)",
         "figsize=(15, 4.5 * _ea_n_t)",
-        "figsize=(15, 5)",
     ]
     for snippet in ea_untouched_snippets:
         check(snippet in script_default, f"Error Analysis grid figsize should stay a bare literal (untouched): {snippet!r}")
         wrapped = snippet.replace("figsize=(", "figsize=_plot_figsize(")
         check(wrapped not in script_default, f"Error Analysis grid figsize must NOT be wrapped by _plot_figsize: found {wrapped!r}")
 
-    # generate_clean_script is a separate, less-central exporter -- explicitly
-    # out of scope for this feature (same precedent as the earlier
-    # Time-Adaptive loss-history fix, which also deliberately left its
-    # parallel copy of that bug alone).
+    # "figsize=(15, 5)" / "figsize=_plot_figsize(15, 5)" and even the
+    # "fig, axes_s = plt.subplots(1, 3, ...)" statement text are NOT unique
+    # to the standard Error Analysis grid: both RAR's own 1D
+    # solution_plot.png comparison and the Time-Adaptive per-step reference
+    # overlay (a different plot, which happens to reuse the same local
+    # variable name "axes_s") default to the same dimensions and ARE
+    # legitimately wrapped. Disambiguate with each site's unique neighboring
+    # line instead of matching the subplots() statement alone.
+    _ea_1d_bare = (
+        "                        _levels_ea1d = np.linspace(_ea_vmin, _ea_vmax, 41)  # see the matching comment above -- contourf ignores vmin/vmax with an integer `levels=N`\n"
+        "                        fig, axes_s = plt.subplots(1, 3, figsize=(15, 5))"
+    )
+    _ea_1d_wrapped = _ea_1d_bare.replace("figsize=(15, 5)", "figsize=_plot_figsize(15, 5)")
+    check(_ea_1d_bare in script_default,
+          "Error Analysis 1D surface-comparison grid figsize should stay a bare literal (untouched)")
+    check(_ea_1d_wrapped not in script_default,
+          "Error Analysis 1D surface-comparison grid figsize must NOT be wrapped by _plot_figsize")
+    check(
+        "_tea_levels = np.linspace(_tea_vmin, _tea_vmax, 41)\n"
+        "                        fig, axes_s = plt.subplots(1, 3, figsize=_plot_figsize(15, 5))"
+        in script_default,
+        "Time-Adaptive per-step reference-overlay figsize IS in scope for this feature and should use _plot_figsize",
+    )
+    check("_fig_r, _axes_r = plt.subplots(1, 3, figsize=_plot_figsize(15, 5))" in script_default,
+          "RAR's own 1D solution_plot.png comparison IS in scope for this feature and should use _plot_figsize")
+
+    # generate_clean_script is a separate, less-central exporter. Its
+    # in-scope single-panel sites (Loss, single Line/Surface plot) use their
+    # own independent _plot_figsize helper; its EA grid(s) stay bare, same
+    # as the main generator, whenever Error Analysis data is configured.
     clean_script = codegen.generate_clean_script(cfg_default)
-    check("_plot_figsize" not in clean_script,
-          "generate_clean_script() should be untouched by this feature (out of scope, like the EA grids)")
+    check("_plot_figsize" in clean_script,
+          "generate_clean_script() should define its own _plot_figsize helper")
+    check("plt.figure(figsize=_plot_figsize(7, 5))" in clean_script,
+          "generate_clean_script()'s Loss plot should use _plot_figsize")
+    check("fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))" in clean_script,
+          "generate_clean_script()'s single Line/Surface plot should use _plot_figsize")
+
+    cfg_clean_ea = dataclasses.replace(
+        cfg_default,
+        ea_files=repr([(0.0, "/tmp/_fake_ref_for_figsize_test.txt", None)]),
+        ea_do_surface=True, ea_do_line=False, t_min=0.0, t_max=1.0,
+    )
+    clean_script_ea = codegen.generate_clean_script(cfg_clean_ea)
+    check("fig, axes = plt.subplots(1, 3, figsize=(15, 5))" in clean_script_ea,
+          "generate_clean_script()'s EA surface-comparison grid figsize should stay a bare literal (untouched)")
+    check("fig, axes = plt.subplots(1, 3, figsize=_plot_figsize(15, 5))" not in clean_script_ea,
+          "generate_clean_script()'s EA surface-comparison grid figsize must NOT be wrapped by _plot_figsize")
 
     # Time-Adaptive path has its own set of in-scope sites.
     cfg_ta = PINNConfig(time_adaptive=True)
