@@ -346,6 +346,37 @@ class PINNConfig:
     plot_linewidth_anim: float = 3.0
     plot_fps: int = 10
 
+    # Loss Plot Settings (Round 28): previously every loss plot across the
+    # app hardcoded "semilogy of summed Train/Test loss" with no user
+    # control, and model.train()'s own display_every -- which doubles as
+    # the loss plot's own sampling granularity, since DeepXDE's
+    # LossHistory only ever records a row every display_every steps --
+    # was scattered across ~20 call sites at different hardcoded values
+    # (1000 for Adam-like phases, 200 for L-BFGS-like phases, 500 for RAR's
+    # own Adam rounds). loss_plot_mode: "train_test" (default, unchanged
+    # behavior) plots only the summed Train/Test totals; "individual"
+    # plots each individual loss TERM's train value as its own line (PDE
+    # terms labeled by output name, e.g. "PDE (u)"; every other term --
+    # boundary/initial conditions -- labeled generically as "Constraint N"
+    # since codegen's own BC/IC term list is built from runtime JSON, not
+    # statically enumerable at codegen time without duplicating that
+    # logic and risking a label/term mismatch) -- DeepXDE tracks Test loss
+    # only as a single summed total, never per-term, so "individual" has
+    # no per-term Test lines; "all" plots both the Train/Test totals AND
+    # every individual Train term together. loss_display_every: a single
+    # value applied to every model.train() call that feeds the plotted
+    # loss curve (confirmed with the user: one shared value, not kept
+    # split by phase) -- replaces the old scattered 1000/200/500
+    # constants; does NOT touch the few display_every call sites that are
+    # unrelated short pretraining phases whose own loss_history is
+    # discarded, never plotted (IC pretraining's display_every=10000).
+    # loss_plot_log_y: True (default) matches the always-semilogy behavior
+    # every loss plot in the app has always had.
+    loss_plot_mode: str = "train_test"
+    loss_display_every: int = 1000
+    loss_plot_linewidth: float = 2.0
+    loss_plot_log_y: bool = True
+
     # Line (time steps) and Line Animation (GIF) plot a 1D curve of u vs x
     # only -- for a 2D/3D problem that leaves y (and z, in 3D) unaccounted
     # for. Every such line-type plot across the whole app (live Solve,

@@ -2716,6 +2716,32 @@ class MainWindow(QMainWindow):
         self.ea_btn.clicked.connect(self._on_error_analysis_btn)
         ctrl_row2.addWidget(self.ea_btn)
 
+        # Loss Plot Settings (Round 28) -- which losses to show (Train+Test
+        # totals / individual components / all), the shared display_every
+        # sampling cadence, line thickness, and log/linear y-axis -- see
+        # _on_loss_plot_settings() and codegen.py's _loss_plot_runtime_code/
+        # _clean_loss_series_lines, which both read config.loss_plot_* at
+        # generation time. Backed by this dict (not dedicated widgets),
+        # same pattern as self._plot_viz_settings just below, and
+        # round-tripped into/out of PINNConfig by _build_config()/
+        # _apply_config().
+        self.loss_plot_btn = QPushButton("📉 Loss Plot Settings")
+        self.loss_plot_btn.setFixedHeight(28)
+        self._register_style(self.loss_plot_btn, "button", lambda css: f"""
+            QPushButton {{ background: #3a2a1a; color: #ffa94d; {css}
+                          border-radius: 4px; border: 1px solid #6a4a2a; padding: 0 8px; }}
+            QPushButton:hover {{ background: #5a3a2a; }}
+        """)
+        self.loss_plot_btn.clicked.connect(self._on_loss_plot_settings)
+        ctrl_row2.addWidget(self.loss_plot_btn)
+
+        self._loss_plot_settings = {
+            'mode': 'train_test',       # "train_test" | "individual" | "all"
+            'display_every': 1000,
+            'linewidth': 2.0,
+            'log_y': True,
+        }
+
         self._plot_viz_settings = {
             'colormap': 'jet',
             # NOTE: steps (n_steps_line/n_steps_anim) and the y/z slice
@@ -5812,6 +5838,10 @@ class MainWindow(QMainWindow):
             plot_title_override=self._plot_viz_settings.get('title', ''),
             plot_xlabel_override=self._plot_viz_settings.get('xlabel', ''),
             plot_ylabel_override=self._plot_viz_settings.get('ylabel', ''),
+            loss_plot_mode=self._loss_plot_settings.get('mode', 'train_test') if getattr(self, '_loss_plot_settings', None) else 'train_test',
+            loss_display_every=self._loss_plot_settings.get('display_every', 1000) if getattr(self, '_loss_plot_settings', None) else 1000,
+            loss_plot_linewidth=self._loss_plot_settings.get('linewidth', 2.0) if getattr(self, '_loss_plot_settings', None) else 2.0,
+            loss_plot_log_y=self._loss_plot_settings.get('log_y', True) if getattr(self, '_loss_plot_settings', None) else True,
             ea_files=repr(self._ea_settings.get('files', [])) if getattr(self, '_ea_settings', None) else "[]",
             ea_do_line=self._ea_settings.get('do_line', True) if getattr(self, '_ea_settings', None) else True,
             ea_do_surface=self._ea_settings.get('do_surface', True) if getattr(self, '_ea_settings', None) else True,
@@ -6518,6 +6548,15 @@ class MainWindow(QMainWindow):
             "title": getattr(config, "plot_title_override", ""),
             "xlabel": getattr(config, "plot_xlabel_override", ""),
             "ylabel": getattr(config, "plot_ylabel_override", ""),
+        }
+
+        # Loss Plot Settings (Round 28) -- getattr defaults so a config
+        # saved before this feature existed restores cleanly.
+        self._loss_plot_settings = {
+            "mode": getattr(config, "loss_plot_mode", "train_test"),
+            "display_every": getattr(config, "loss_display_every", 1000),
+            "linewidth": getattr(config, "loss_plot_linewidth", 2.0),
+            "log_y": getattr(config, "loss_plot_log_y", True),
         }
 
         # Error-analysis settings
@@ -10562,6 +10601,109 @@ print("ERROR_ANALYSIS_DONE")
             self._setup_default_scheduler_phases(t.get('template_type', ''), t['iterations'], t.get('iterations2', 10000))
         self._auto_configure_ea(self._template_ref_dir)
         self.log_box.append(f"✅ Template loaded: {text}")
+
+    def _on_loss_plot_settings(self):
+        """Loss Plot Settings dialog (Round 28) -- the chat-agreed design:
+        which losses to show (Train+Test totals / Individual components /
+        All), a single display_every sampling cadence applied everywhere
+        (per the user's "should be a single value that applies everywhere"
+        -- replaces the old scattered 1000/200/500 constants across every
+        model.train() call site, see codegen.py), line thickness, and a
+        log/linear y-axis toggle (log matches every loss plot's previous,
+        always-semilogy behavior). Backed by self._loss_plot_settings,
+        read into PINNConfig by _build_config() and restored by
+        _apply_config() -- same shape as self._plot_viz_settings and
+        _on_plot_settings() just below, but a separate, self-contained
+        dialog since Loss Plot Settings apply globally (not per plot-type
+        like Surface/Line/GIF's own settings)."""
+        current = self._loss_plot_settings
+
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Loss Plot Settings")
+        dialog.setMinimumWidth(340)
+        layout = QVBoxLayout(dialog)
+
+        info = QLabel(
+            "Controls every loss plot in the app (live Solve, RAR, "
+            "Time-Adaptive, and \"Export as DeepXDE Script\").")
+        info.setWordWrap(True)
+        self._register_style(info, "hint", lambda css, _c='#586e75', _e='': f"color: {_c}; {_e}{css}")
+        layout.addWidget(info)
+
+        # Which losses to show
+        mode_row = QHBoxLayout()
+        mode_row.addWidget(QLabel("Show:"))
+        mode_combo = QComboBox()
+        mode_combo.addItem("Train + Test totals", "train_test")
+        mode_combo.addItem("Individual components", "individual")
+        mode_combo.addItem("All (totals + individual)", "all")
+        _mode_idx = {"train_test": 0, "individual": 1, "all": 2}.get(current.get('mode', 'train_test'), 0)
+        mode_combo.setCurrentIndex(_mode_idx)
+        mode_combo.setFixedWidth(190)
+        mode_row.addStretch(); mode_row.addWidget(mode_combo)
+        layout.addLayout(mode_row)
+
+        mode_hint = QLabel(
+            "\"Individual\" and \"All\" plot each PDE/BC/IC loss term "
+            "separately (PDE terms named by output; others as "
+            "\"Constraint N\") -- DeepXDE only tracks a single combined "
+            "Test loss, so individual Test-term lines aren't available.")
+        mode_hint.setWordWrap(True)
+        self._register_style(mode_hint, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
+        layout.addWidget(mode_hint)
+
+        # display_every -- single shared value
+        de_row = QHBoxLayout()
+        de_row.addWidget(QLabel("Display every (iterations):"))
+        de_spin = QSpinBox()
+        de_spin.setRange(1, 100000)
+        de_spin.setValue(int(current.get('display_every', 1000)))
+        de_spin.setFixedWidth(90)
+        de_row.addStretch(); de_row.addWidget(de_spin)
+        layout.addLayout(de_row)
+
+        de_hint = QLabel(
+            "How often loss is recorded during training -- one shared "
+            "value used everywhere (Adam, L-BFGS, RAR rounds, every "
+            "Time-Adaptive step). Smaller = more detail, slower logging.")
+        de_hint.setWordWrap(True)
+        self._register_style(de_hint, "hint", lambda css, _c='#586e75', _e='': f"color: {_c}; {_e}{css}")
+        layout.addWidget(de_hint)
+
+        # Line thickness
+        lw_row = QHBoxLayout()
+        lw_row.addWidget(QLabel("Line width:"))
+        lw_combo = QComboBox()
+        lw_combo.addItems(["1.0", "1.5", "2.0", "2.5", "3.0"])
+        lw_combo.setCurrentText(str(current.get('linewidth', 2.0)))
+        lw_combo.setFixedWidth(90)
+        lw_row.addStretch(); lw_row.addWidget(lw_combo)
+        layout.addLayout(lw_row)
+
+        # Log / linear y-axis
+        log_cb = QCheckBox("Logarithmic y-axis (semilogy)")
+        log_cb.setChecked(bool(current.get('log_y', True)))
+        layout.addWidget(log_cb)
+
+        btn_row = QHBoxLayout()
+        ok_btn = QPushButton("OK"); cancel_btn = QPushButton("Cancel")
+        btn_row.addStretch(); btn_row.addWidget(ok_btn); btn_row.addWidget(cancel_btn)
+        layout.addLayout(btn_row)
+
+        cancel_btn.clicked.connect(dialog.reject)
+
+        def _on_ok():
+            self._loss_plot_settings = {
+                'mode': mode_combo.currentData(),
+                'display_every': de_spin.value(),
+                'linewidth': float(lw_combo.currentText()),
+                'log_y': log_cb.isChecked(),
+            }
+            dialog.accept()
+
+        ok_btn.clicked.connect(_on_ok)
+        dialog.exec()
+
     def _on_plot_settings(self, viz_type=None):
         """Unified Plot Settings dialog for the Setup tab's "Plot output"
         panel -- merges what used to be two separate dialogs (this one,

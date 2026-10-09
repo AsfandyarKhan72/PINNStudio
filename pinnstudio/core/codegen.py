@@ -439,6 +439,93 @@ def _make_net(_flat_layers, _activation, _kernel_init, _weight_decay=0.0):
 '''
 
 
+def _loss_plot_runtime_code(config):
+    """Builds the literal Python source for a module-level `_make_loss_plot(
+    train_rows, test_rows, steps, save_path, title, xlabel="Iteration",
+    extra_fn=None)` helper, embedded once near the top of the generated
+    script (alongside `_net_helper_code`/`_tm_runtime_code`, same pattern)
+    and called at every loss-plotting site in generate_script() (the
+    Standard/RAR path and the Time-Adaptive path) and
+    generate_clean_script() -- honoring the Round 28 Loss Plot Settings
+    (config.loss_plot_mode/loss_plot_log_y/loss_plot_linewidth).
+
+    Defining this as a reusable FUNCTION at module level, rather than a
+    block of statements spliced in at each (differently-indented) call
+    site, sidesteps the indentation problem a multi-line splice would
+    hit inside, e.g., the Standard path's `if not {{config.time_adaptive}}:`
+    block -- every call site only needs ONE correctly-indented statement
+    calling this function, exactly like `_make_net(...)` below it.
+
+    `train_rows`/`test_rows` must be DeepXDE's own loss_history.loss_train/
+    loss_test shape: one row per recorded step, each row a list of every
+    individual loss TERM's value that step, PDE terms first -- one per
+    output, in output order -- followed by every BC/IC term in whatever
+    order codegen's own data.add_boundary_condition/IC-constraint-building
+    added them.
+
+    loss_plot_mode="train_test" (default) reproduces the exact plot every
+    loss figure in the app already drew before this feature existed --
+    summed Train + Test, semilogy -- so this is a verified no-op for any
+    config that doesn't touch the new setting. "individual" additionally
+    needs per-term labels: DeepXDE provides no per-term names at all, and
+    reconstructing codegen's own full BC/IC term order statically (outside
+    the generated script, which builds `_constraints`/`_constraints_i`
+    from runtime-parsed custom_bc_json) would risk a label drifting out of
+    sync with the real term it's attached to -- a mislabeled line is worse
+    than an unlabeled one. So only the leading `config.num_outputs` PDE
+    terms (a static, always-true fact -- see the matching comment in
+    _rar_save_round_diagnostics/_ea_extract's own loss-term-adjacent code)
+    get a real label ("PDE (u)", from config.output_names); every
+    following term is labeled generically ("Constraint 1", "Constraint
+    2", ...) by its position past the PDE terms. DeepXDE never tracks Test
+    loss per-term (only the single summed total loss_history.loss_test
+    itself), so "individual"/"all" only ever add TRAIN per-term lines.
+
+    `extra_fn`, if given, is called with the Axes object AFTER the loss
+    lines are drawn but BEFORE the figure is finalized/saved -- the one
+    call site with its own extra (the Time-Adaptive accumulated loss
+    plot's per-sub-domain-boundary `axvline` markers) passes a small
+    closure here instead of this shared helper needing to know about
+    Time-Adaptive sub-domain boundaries at all."""
+    _pde_names = [n.strip() or f"u{i+1}" for i, n in enumerate((config.output_names or "u").split(","))]
+    return f'''_LOSS_MODE = {config.loss_plot_mode!r}
+_LOSS_LOG_Y = {config.loss_plot_log_y!r}
+_LOSS_LW = {config.loss_plot_linewidth!r}
+_LOSS_PDE_NAMES = {_pde_names!r}
+
+def _loss_term_label(li):
+    if li < len(_LOSS_PDE_NAMES):
+        return f"PDE ({{_LOSS_PDE_NAMES[li]}})"
+    return f"Constraint {{li - len(_LOSS_PDE_NAMES) + 1}}"
+
+def _make_loss_plot(train_rows, test_rows, steps, save_path, title, xlabel="Iteration", extra_fn=None):
+    train_rows = list(train_rows); steps = list(steps)
+    total_train = [sum(r) for r in train_rows]
+    total_test = [sum(r) for r in test_rows] if test_rows else []
+
+    fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
+    plotfn = ax.semilogy if _LOSS_LOG_Y else ax.plot
+    if _LOSS_MODE in ("train_test", "all"):
+        plotfn(steps, total_train, label="Train loss", color="#4dabf7", linewidth=_LOSS_LW)
+        if total_test:
+            plotfn(steps, total_test, label="Test loss", color="#ff8787", linestyle="--", linewidth=_LOSS_LW)
+    if _LOSS_MODE in ("individual", "all") and train_rows:
+        n_terms = len(train_rows[0])
+        term_colors = plt.get_cmap("tab10")(np.linspace(0, 1, max(n_terms, 1)))
+        for li in range(n_terms):
+            plotfn(steps, [r[li] if li < len(r) else float("nan") for r in train_rows],
+                   label=_loss_term_label(li), color=term_colors[li],
+                   linewidth=max(_LOSS_LW - 0.5, 0.5), alpha=0.85)
+    if extra_fn is not None:
+        extra_fn(ax)
+    ax.set_xlabel(xlabel); ax.set_ylabel("Loss")
+    ax.set_title(title)
+    ax.legend(fontsize=8 if _LOSS_MODE != "train_test" else 10)
+    fig.tight_layout()
+    fig.savefig(save_path, dpi={config.plot_dpi}); plt.close(fig)
+'''
+
+
 def _training_monitor_runtime_code():
     """Builds the literal Python source for the Training Monitors feature's
     shared, static derivative-building/expression-evaluation helpers --
@@ -999,6 +1086,14 @@ if _dxde_ver is not None and _dxde_ver < (1, 13, 0):
     # true no-op wiring point like _train_cbs_code below.
     _tm_runtime_code = _training_monitor_runtime_code()
 
+    # Loss Plot Settings (Round 28) -- see _loss_plot_runtime_code()'s own
+    # docstring. Embeds a single reusable `_make_loss_plot(...)` helper
+    # once at module level (same pattern as _net_helper_code/_make_net);
+    # every loss-plotting call site (Standard/RAR path, Time-Adaptive
+    # path, and generate_clean_script()'s own two analogous sites) then
+    # just calls it with its own data/title/extra_fn, no further splicing.
+    _loss_helper_code = _loss_plot_runtime_code(config)
+
     # Opt-in training callbacks (EarlyStopping/PDEPointResampler/
     # ModelCheckpoint/Timer/Training Monitors) -- one block for the
     # Standard path (built once, reused across every scheduler phase's
@@ -1249,6 +1344,8 @@ _out_shift = {config.output_transform_shift if config.output_transform_enabled e
 {_net_helper_code}
 
 {_tm_runtime_code}
+
+{_loss_helper_code}
 
 def _apply_net_transforms(_net):
     if _in_scale:
@@ -2390,7 +2487,7 @@ for _pval in _param_values:
                     _inv_vars, period=1000, filename="/tmp/param_history.txt",
                     precision=6
                 )
-                loss_history, train_state = model.train(iterations=_iters, display_every=1000, callbacks=[_var_cb] + _print_cbs + _save_cbs + _train_cbs)
+                loss_history, train_state = model.train(iterations=_iters, display_every={config.loss_display_every}, callbacks=[_var_cb] + _print_cbs + _save_cbs + _train_cbs)
                 # A plain Adam-only Inverse run (scheduler off, optimizer2
                 # "none") is a terminal phase just like the Forward case
                 # below -- nothing runs afterward to save the model, so it
@@ -2423,7 +2520,7 @@ for _pval in _param_values:
                 # loss_history/train_state unbound and crashed with a
                 # confusing NameError at dde.saveplot() (when optimizer2
                 # was also "none").
-                loss_history, train_state = model.train(iterations=_iters, display_every=1000, callbacks=_train_cbs)
+                loss_history, train_state = model.train(iterations=_iters, display_every={config.loss_display_every}, callbacks=_train_cbs)
             if _use_save:
                 # A plain Adam-only run (scheduler off, optimizer2 "none")
                 # is itself the terminal phase -- the scheduler-phase loop
@@ -2484,7 +2581,7 @@ for _pval in _param_values:
                             _inv_vars, period=200,
                             filename=f"/tmp/param_history_sp{{_sp_i}}.txt", precision=6)
                         loss_history, train_state = model.train(
-                            display_every=200, callbacks=[_sp_var_cb] + _print_cbs + _save_cbs + _train_cbs)
+                            display_every={config.loss_display_every}, callbacks=[_sp_var_cb] + _print_cbs + _save_cbs + _train_cbs)
                         try:
                             with open(f"/tmp/param_history_sp{{_sp_i}}.txt", "r") as _spf:
                                 _sp_lines = [l.strip() for l in _spf if l.strip()]
@@ -2498,7 +2595,7 @@ for _pval in _param_values:
                             print(f"Could not merge phase {{_sp_i+1}} parameter history: {{_spe}}")
                         _sched_cum_iters = loss_history.steps[-1] if loss_history.steps else (_sched_cum_iters + _sp['iterations'])
                     else:
-                        loss_history, train_state = model.train(display_every=200, callbacks=_train_cbs)
+                        loss_history, train_state = model.train(display_every={config.loss_display_every}, callbacks=_train_cbs)
                     if _use_save:
                         _nta_save_path = _os.path.join(_sol_dir, f"model_lbfgs-phase{{_sp_i+1}}")
                         model.save(_nta_save_path)
@@ -2519,7 +2616,7 @@ for _pval in _param_values:
                             _inv_vars, period=1000,
                             filename=f"/tmp/param_history_sp{{_sp_i}}.txt", precision=6)
                         loss_history, train_state = model.train(
-                            iterations=_sp['iterations'], display_every=1000,
+                            iterations=_sp['iterations'], display_every={config.loss_display_every},
                             callbacks=[_sp_var_cb] + _print_cbs + _save_cbs + _train_cbs)
                         try:
                             with open(f"/tmp/param_history_sp{{_sp_i}}.txt", "r") as _spf:
@@ -2534,7 +2631,7 @@ for _pval in _param_values:
                             print(f"Could not merge phase {{_sp_i+1}} parameter history: {{_spe}}")
                         _sched_cum_iters = loss_history.steps[-1] if loss_history.steps else (_sched_cum_iters + _sp['iterations'])
                     else:
-                        loss_history, train_state = model.train(iterations=_sp['iterations'], display_every=1000, callbacks=_train_cbs)
+                        loss_history, train_state = model.train(iterations=_sp['iterations'], display_every={config.loss_display_every}, callbacks=_train_cbs)
                     if _use_save:
                         _nta_save_path = _os.path.join(_sol_dir, f"model_nncg-phase{{_sp_i+1}}")
                         model.save(_nta_save_path)
@@ -2561,7 +2658,7 @@ for _pval in _param_values:
                             _inv_vars, period=1000,
                             filename=f"/tmp/param_history_sp{{_sp_i}}.txt", precision=6)
                         loss_history, train_state = model.train(
-                            iterations=_sp['iterations'], display_every=1000,
+                            iterations=_sp['iterations'], display_every={config.loss_display_every},
                             callbacks=[_sp_var_cb] + _print_cbs + _save_cbs + _train_cbs)
                         try:
                             with open(f"/tmp/param_history_sp{{_sp_i}}.txt", "r") as _spf:
@@ -2576,7 +2673,7 @@ for _pval in _param_values:
                             print(f"Could not merge phase {{_sp_i+1}} parameter history: {{_spe}}")
                         _sched_cum_iters = loss_history.steps[-1] if loss_history.steps else (_sched_cum_iters + _sp['iterations'])
                     else:
-                        loss_history, train_state = model.train(iterations=_sp['iterations'], display_every=1000, callbacks=_train_cbs)
+                        loss_history, train_state = model.train(iterations=_sp['iterations'], display_every={config.loss_display_every}, callbacks=_train_cbs)
                     if _use_save:
                         _nta_save_path = _os.path.join(_sol_dir, f"model_adam-phase{{_sp_i+1}}")
                         model.save(_nta_save_path)
@@ -2601,7 +2698,7 @@ for _pval in _param_values:
                     model.compile("L-BFGS", loss="{config.loss_type}", loss_weights=_phase2_weights,
                                   external_trainable_variables=_inv_vars)
                     for _icb in _print_cbs: _icb.set_offset(_iters)
-                    loss_history, train_state = model.train(display_every=200, callbacks=[_var_cb2] + _print_cbs + _train_cbs)
+                    loss_history, train_state = model.train(display_every={config.loss_display_every}, callbacks=[_var_cb2] + _print_cbs + _train_cbs)
                     # Append L-BFGS history to each variable's own convergence file
                     if _param_save_period > 0:
                         try:
@@ -2635,7 +2732,7 @@ for _pval in _param_values:
                         print(f"Could not append phase 2 history: {{_ae}}")
                 else:
                     model.compile("L-BFGS", loss="{config.loss_type}", loss_weights=_phase2_weights)
-                    loss_history, train_state = model.train(display_every=200, callbacks=_train_cbs)
+                    loss_history, train_state = model.train(display_every={config.loss_display_every}, callbacks=_train_cbs)
                     if "{config.lbfgs_float_type}" == "float64":
                         dde.config.set_default_float("float32")
                         model.net.float()
@@ -2656,7 +2753,7 @@ for _pval in _param_values:
                 else:
                     model.compile("{config.optimizer2}", lr=_lr, loss="{config.loss_type}",
                                   loss_weights=_phase2_weights)
-                loss_history, train_state = model.train(iterations={config.iterations2}, display_every=1000, callbacks=_train_cbs)
+                loss_history, train_state = model.train(iterations={config.iterations2}, display_every={config.loss_display_every}, callbacks=_train_cbs)
 
     # ── Results-field extractor (_extract_plot_field) ──────────
     # Moved up from the "Plot solution" section below (same "not
@@ -3071,7 +3168,7 @@ for _pval in _param_values:
             print(f"Max residual: {{residuals.max():.4e}}, Mean: {{residuals.mean():.4e}}")
             data.add_anchors(new_points)
             model.compile("{config.optimizer}", lr=_lr, loss="{config.loss_type}", loss_weights=_multi_weights)
-            loss_history, train_state = model.train(iterations={config.rar_adam_iters}, display_every=500)
+            loss_history, train_state = model.train(iterations={config.rar_adam_iters}, display_every={config.loss_display_every})
             if {config.rar_lbfgs_iters} > 0:
                 dde.optimizers.set_LBFGS_options(
                     maxcor={config.lbfgs_maxcor}, ftol={config.lbfgs_ftol},
@@ -3083,7 +3180,7 @@ for _pval in _param_values:
                     model.net.double()
                     print("  [L-BFGS] Switched to float64")
                 model.compile("L-BFGS", loss="{config.loss_type}", loss_weights=_multi_weights)
-                loss_history, train_state = model.train(display_every=200)
+                loss_history, train_state = model.train(display_every={config.loss_display_every})
                 if "{config.lbfgs_float_type}" == "float64":
                     dde.config.set_default_float("float32")
                     model.net.float()
@@ -3104,27 +3201,15 @@ for _pval in _param_values:
         _run_solution_path = _solution_path
         _run_log_path      = _log_path
 
-    # ── Plot loss ────────────────────────────────────────────
+    # ── Plot loss (Loss Plot Settings -- see _loss_plot_runtime_code) ────
     if not {config.time_adaptive}:
         dde.saveplot(loss_history, train_state, issave=False, isplot=False)
         train_loss = loss_history.loss_train
         test_loss  = loss_history.loss_test
         steps      = loss_history.steps
-        total_train = [sum(l) for l in train_loss]
-        total_test  = [sum(l) for l in test_loss]
 
-        # Same figsize/dpi as the default single-panel solution plot below
-        # (Surface/Line/GIF) so the two figures shown side by side in the
-        # GUI's output panel read as one consistent, professional-looking
-        # pair rather than two different sizes/resolutions.
-        plt.figure(figsize=_plot_figsize(7, 5))
-        plt.semilogy(steps, total_train, label="Train loss", color="#4dabf7")
-        plt.semilogy(steps, total_test,  label="Test loss",  color="#ff8787", linestyle="--")
-        plt.xlabel("Iteration"); plt.ylabel("Loss")
         title_str = f"Loss — {{_param_name}}={{_pval}}" if _parametric else "Training & Test Loss"
-        plt.title(title_str)
-        plt.legend(); plt.tight_layout()
-        plt.savefig(_run_loss_path, dpi={config.plot_dpi}); plt.close()
+        _make_loss_plot(train_loss, test_loss, steps, _run_loss_path, title_str)
 
         if _run_log_path:
             with open(_run_log_path, "w") as f:
@@ -4836,7 +4921,7 @@ if {config.time_adaptive}:
         if not ({config.optimizer_scheduler} and {len(config.scheduler_phases) > 0}):
             model_i.compile("{config.optimizer}", lr={config.learning_rate},
                             loss="{config.loss_type}", loss_weights=_multi_weights)
-            lh_i, ts_i = model_i.train(iterations={config.iterations}, display_every=1000, callbacks=_train_cbs_ta)
+            lh_i, ts_i = model_i.train(iterations={config.iterations}, display_every={config.loss_display_every}, callbacks=_train_cbs_ta)
             _ta_accumulate_loss(lh_i)
             print(f"  Adam phase done. Steps: {{len(lh_i.steps)}}")
             if _use_save:
@@ -4874,7 +4959,7 @@ if {config.time_adaptive}:
                     _lbfgs_float = "{config.lbfgs_float_type}"
                     model_i.compile("L-BFGS", loss=_sp.get('loss', '{config.loss_type}'),
                                     loss_weights=_sp_weights)
-                    lh_i, ts_i = model_i.train(display_every=200, callbacks=_train_cbs_ta)
+                    lh_i, ts_i = model_i.train(display_every={config.loss_display_every}, callbacks=_train_cbs_ta)
                     _ta_accumulate_loss(lh_i)
                     if _use_save:
                         _sp_step_dir = _os.path.join(_save_dir, "time_adaptive_steps", f"step_{{step_i+1:03d}}_t{{t0:.4f}}_to_t{{t1:.4f}}")
@@ -4889,7 +4974,7 @@ if {config.time_adaptive}:
                     # exposed in this app's UI).
                     model_i.compile("NNCG", loss=_sp.get('loss', '{config.loss_type}'),
                                     loss_weights=_sp_weights)
-                    lh_i, ts_i = model_i.train(iterations=_sp['iterations'], display_every=1000, callbacks=_train_cbs_ta)
+                    lh_i, ts_i = model_i.train(iterations=_sp['iterations'], display_every={config.loss_display_every}, callbacks=_train_cbs_ta)
                     _ta_accumulate_loss(lh_i)
                     if _use_save:
                         _sp_iters = lh_i.steps[-1] if lh_i.steps else _sp['iterations']
@@ -4912,7 +4997,7 @@ if {config.time_adaptive}:
                             _sp_decay = ('exponential', float(_sp_p1))
                     model_i.compile(_sp['optimizer'], lr=_sp['lr'], decay=_sp_decay,
                                     loss=_sp.get('loss', '{config.loss_type}'), loss_weights=_sp_weights)
-                    lh_i, ts_i = model_i.train(iterations=_sp['iterations'], display_every=1000, callbacks=_train_cbs_ta)
+                    lh_i, ts_i = model_i.train(iterations=_sp['iterations'], display_every={config.loss_display_every}, callbacks=_train_cbs_ta)
                     _ta_accumulate_loss(lh_i)
                     if _use_save:
                         _sp_iters = lh_i.steps[-1] if lh_i.steps else _sp['iterations']
@@ -4928,7 +5013,7 @@ if {config.time_adaptive}:
                     maxfun={config.lbfgs_maxfun}, maxls={config.lbfgs_maxls})
             model_i.compile("L-BFGS", loss="{config.loss_type}",
                             loss_weights=_multi_weights)
-            lh_i, ts_i = model_i.train(display_every=200, callbacks=_train_cbs_ta)
+            lh_i, ts_i = model_i.train(display_every={config.loss_display_every}, callbacks=_train_cbs_ta)
             _ta_accumulate_loss(lh_i)
             print(f"  L-BFGS phase done. Steps: {{len(lh_i.steps)}}")
 
@@ -5292,11 +5377,6 @@ if {config.time_adaptive}:
     # to run last for the very last sub-domain.
     train_loss_ta = _ta_all_train_loss; test_loss_ta = _ta_all_test_loss
     steps_ta = _ta_all_steps
-    # Same figsize/dpi as the solution plot for consistency -- see the
-    # matching comment on the non-adaptive loss plot above.
-    plt.figure(figsize=_plot_figsize(7, 5))
-    plt.semilogy(steps_ta, [sum(l) for l in train_loss_ta], label="Train", color="#4dabf7")
-    plt.semilogy(steps_ta, [sum(l) for l in test_loss_ta],  label="Test",  color="#ff8787", linestyle="--")
     # Light vertical markers at each time sub-domain's boundary, so a
     # jump/kink in the loss (a brand-new network starting that
     # sub-domain, warm-started only via its IC) is visually distinguishable
@@ -5304,13 +5384,14 @@ if {config.time_adaptive}:
     # boundary (the run's own end -- nothing follows it worth marking) and
     # don't bother with a boundary at 0 if the first sub-domain starts
     # right there.
-    for _tb in _ta_step_boundaries[:-1]:
-        if _tb > 0:
-            plt.axvline(_tb, color="gray", linestyle=":", linewidth=0.8, alpha=0.5)
-    plt.xlabel("Iteration (cumulative across all time sub-domains)"); plt.ylabel("Loss")
-    plt.title(f"Loss — All {{n_steps}} Time Sub-domain(s)")
-    plt.legend(); plt.tight_layout()
-    plt.savefig(_ta_loss_path, dpi={config.plot_dpi}); plt.close()
+    def _ta_loss_boundary_markers(_ax):
+        for _tb in _ta_step_boundaries[:-1]:
+            if _tb > 0:
+                _ax.axvline(_tb, color="gray", linestyle=":", linewidth=0.8, alpha=0.5)
+    _make_loss_plot(train_loss_ta, test_loss_ta, steps_ta, _ta_loss_path,
+                     f"Loss — All {{n_steps}} Time Sub-domain(s)",
+                     xlabel="Iteration (cumulative across all time sub-domains)",
+                     extra_fn=_ta_loss_boundary_markers)
 
     # ── Time Adaptive Error Analysis ──────────────────────────
     if {config.ea_files}:
@@ -6089,10 +6170,10 @@ def _clean_phase_train_lines(sp, w, ext_vars_kw, cbs_kw, model_name, data_name, 
         L.append(f"dde.optimizers.set_LBFGS_options(maxcor={config.lbfgs_maxcor}, ftol={config.lbfgs_ftol}, "
                   f"gtol={config.lbfgs_gtol}, maxiter={iters}, maxfun={int(iters * 1.25)}, maxls={config.lbfgs_maxls})")
         L.append(f"{model_name}.compile(\"L-BFGS\", loss={loss!r}, loss_weights={w}{ext_vars_kw})")
-        L.append(f"loss_history, train_state = {model_name}.train(display_every=200{cbs_kw})")
+        L.append(f"loss_history, train_state = {model_name}.train(display_every={config.loss_display_every}{cbs_kw})")
     elif opt == 'nncg':
         L.append(f"{model_name}.compile(\"NNCG\", loss={loss!r}, loss_weights={w}{ext_vars_kw})")
-        L.append(f"loss_history, train_state = {model_name}.train(iterations={iters}, display_every=1000{cbs_kw})")
+        L.append(f"loss_history, train_state = {model_name}.train(iterations={iters}, display_every={config.loss_display_every}{cbs_kw})")
     else:
         decay = None
         dtype = sp.get('decay_type', 'none')
@@ -6108,8 +6189,56 @@ def _clean_phase_train_lines(sp, w, ext_vars_kw, cbs_kw, model_name, data_name, 
         lr = sp.get('lr', config.learning_rate)
         L.append(f"{model_name}.compile({opt!r}, lr={lr}, decay={decay!r}, loss={loss!r}, "
                   f"loss_weights={w}{ext_vars_kw})")
-        L.append(f"loss_history, train_state = {model_name}.train(iterations={iters}, display_every=1000{cbs_kw})")
+        L.append(f"loss_history, train_state = {model_name}.train(iterations={iters}, display_every={config.loss_display_every}{cbs_kw})")
     return [f"{indent}{ln}" for ln in L]
+
+
+def _clean_loss_series_lines(config, train_rows_expr, test_rows_expr, steps_expr):
+    """Builds the plain `plt.<semilogy|plot>(...)` lines for one "Export as
+    DeepXDE Script" loss plot, honoring the Round 28 Loss Plot Settings
+    (config.loss_plot_mode/loss_plot_log_y/loss_plot_linewidth) -- the same
+    settings generate_script()'s _make_loss_plot applies, but resolved HERE,
+    directly into fixed plt calls at codegen time, since generate_clean_script
+    deliberately bakes every option into plain literal calls rather than a
+    shared runtime helper/dispatch (see its own docstring and the
+    plot_title_override precedent above). The surrounding xlabel/title/
+    legend/savefig lines at each call site are unaffected and stay as they
+    were; only the data-series lines themselves are replaced by this.
+
+    Mirrors _loss_plot_runtime_code's own term-labeling rule: only the
+    leading len(output_names) PDE terms get a real name ("PDE (u)"), every
+    later term (BC/IC, in whatever order they were added) is labeled
+    generically as "Constraint N" -- DeepXDE never tracks per-term Test
+    loss, so "individual"/"all" only ever add TRAIN per-term lines.
+
+    Keeps the pre-existing `train_loss = [sum(l) for l in <rows>]` /
+    `test_loss = [...]` intermediate-variable assignment (rather than
+    summing inline in the plt call) so the default "train_test" mode's
+    output is byte-for-byte identical to the pre-Round-28 code -- a
+    verified no-op for any config that doesn't touch the new setting,
+    and what tests/test_save_and_export_fixes.py's own literal
+    "plt.semilogy(..., train_loss" substring check still expects."""
+    mode = config.loss_plot_mode
+    plotfn = "semilogy" if config.loss_plot_log_y else "plot"
+    lw = config.loss_plot_linewidth
+    lines = [
+        f"train_loss = [sum(l) for l in {train_rows_expr}]",
+        f"test_loss = [sum(l) for l in {test_rows_expr}]",
+    ]
+    if mode in ("train_test", "all"):
+        lines.append(f'plt.{plotfn}({steps_expr}, train_loss, label="Train loss", color="#4dabf7", linewidth={lw})')
+        lines.append(f'plt.{plotfn}({steps_expr}, test_loss, label="Test loss", color="#ff8787", linestyle="--", linewidth={lw})')
+    if mode in ("individual", "all"):
+        pde_names = [n.strip() or f"u{i+1}" for i, n in enumerate((config.output_names or "u").split(","))]
+        lines.append(f"_loss_pde_names = {pde_names!r}")
+        lines.append(f"_loss_term_rows = {train_rows_expr}")
+        lines.append("_loss_n_terms = len(_loss_term_rows[0]) if _loss_term_rows else 0")
+        lines.append('_loss_term_colors = plt.get_cmap("tab10")(np.linspace(0, 1, max(_loss_n_terms, 1)))')
+        lines.append("for _li in range(_loss_n_terms):")
+        lines.append('    _loss_lbl = f"PDE ({_loss_pde_names[_li]})" if _li < len(_loss_pde_names) else f"Constraint {_li - len(_loss_pde_names) + 1}"')
+        lines.append(f'    plt.{plotfn}({steps_expr}, [r[_li] if _li < len(r) else float("nan") for r in _loss_term_rows], '
+                      f'label=_loss_lbl, color=_loss_term_colors[_li], linewidth=max({lw} - 0.5, 0.5), alpha=0.85)')
+    return lines
 
 
 def generate_clean_script(config):
@@ -6668,13 +6797,13 @@ for rar_cycle in range({config.rar_cycles}):''']
     top_idx = np.argsort(residuals)[-{config.rar_add_points}:]
     data.add_anchors(xt_cand[top_idx])
     model.compile("{config.optimizer}", lr={config.learning_rate}, loss="{config.loss_type}", loss_weights={multi_weights})
-    loss_history, train_state = model.train(iterations={config.rar_adam_iters}, display_every=500)''')
+    loss_history, train_state = model.train(iterations={config.rar_adam_iters}, display_every={config.loss_display_every})''')
             if config.rar_lbfgs_iters > 0:
                 rar_lines.append(f'''    dde.optimizers.set_LBFGS_options(maxcor={config.lbfgs_maxcor}, ftol={config.lbfgs_ftol},
                                      gtol={config.lbfgs_gtol}, maxiter={config.rar_lbfgs_iters},
                                      maxfun={config.lbfgs_maxfun}, maxls={config.lbfgs_maxls})
     model.compile("L-BFGS", loss="{config.loss_type}", loss_weights={multi_weights})
-    loss_history, train_state = model.train(display_every=200)''')
+    loss_history, train_state = model.train(display_every={config.loss_display_every})''')
             parts.append("\n".join(rar_lines))
 
         if use_save:
@@ -6893,12 +7022,10 @@ solution_path = os.path.join(sol_dir, "solution_plot.{sol_ext}")''')
         # history), which is what the old "last Time-Adaptive step's loss
         # curve" comment here was flagging as a known limitation.
         loss_comment = "  # full run: every phase of every time sub-domain, stitched together"
+        _loss_series = "\n".join(_clean_loss_series_lines(config, "_ta_all_train_loss", "_ta_all_test_loss", "_ta_all_steps"))
         parts.append(f'''# ── Loss plot ──{loss_comment}
-train_loss = [sum(l) for l in _ta_all_train_loss]
-test_loss = [sum(l) for l in _ta_all_test_loss]
 plt.figure(figsize=(7, 5))
-plt.semilogy(_ta_all_steps, train_loss, label="Train loss", color="#4dabf7")
-plt.semilogy(_ta_all_steps, test_loss, label="Test loss", color="#ff8787", linestyle="--")
+{_loss_series}
 plt.xlabel("Iteration (cumulative across all time sub-domains)"); plt.ylabel("Loss")
 plt.title("Training & Test Loss — All Time Sub-domains")
 plt.legend(); plt.tight_layout()
@@ -6906,12 +7033,10 @@ plt.savefig(loss_path, dpi={config.plot_dpi})
 plt.close()
 print(f"Loss plot saved: {{loss_path}}")''')
     else:
+        _loss_series = "\n".join(_clean_loss_series_lines(config, "loss_history.loss_train", "loss_history.loss_test", "loss_history.steps"))
         parts.append(f'''# ── Loss plot ──
-train_loss = [sum(l) for l in loss_history.loss_train]
-test_loss = [sum(l) for l in loss_history.loss_test]
 plt.figure(figsize=(7, 5))
-plt.semilogy(loss_history.steps, train_loss, label="Train loss", color="#4dabf7")
-plt.semilogy(loss_history.steps, test_loss, label="Test loss", color="#ff8787", linestyle="--")
+{_loss_series}
 plt.xlabel("Iteration"); plt.ylabel("Loss"); plt.title("Training & Test Loss")
 plt.legend(); plt.tight_layout()
 plt.savefig(loss_path, dpi={config.plot_dpi})
