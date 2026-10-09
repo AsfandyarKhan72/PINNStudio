@@ -2829,6 +2829,31 @@ for _pval in _param_values:
         _rar_orig_pts = np.array(data.train_x_all, copy=True)
         _rar_added_so_far = np.empty((0, _rar_orig_pts.shape[1]))
         _rar_ea_entries = {config.ea_files}
+        from scipy.interpolate import interp1d as _rar_interp1d
+
+        def _rar_ref_extract(_rre_grid, _rre_sel, _rre_model):
+            # Generalized reference-field extractor for RAR's own diagnostics
+            # -- mirrors `_ea_extract` (Inline/Restore Error Analysis) and the
+            # `_rar_ea_op`/`_rar_ea_op2` closures already used lower down in
+            # this function, but as a single reusable helper: _rre_sel is
+            # None (delegate to the default plot field), an int (a raw
+            # output column), or an [expr, label] pair (a custom derived
+            # field, derivative-aware via the same _tm_build_dvars mechanism).
+            if _rre_sel is None:
+                return _extract_plot_field(_rre_grid, _rre_model)
+            if isinstance(_rre_sel, int):
+                return _rre_model.predict(_rre_grid)[:, _rre_sel]
+            _rre_expr = _rre_sel[0]
+
+            def _rre_op(_rre_i, _rre_o):
+                _rre_dv = _tm_build_dvars(_rre_i, _rre_o, _plot_n_out, _plot_output_names_list,
+                                           _is_steady, _plot_dim, _rre_expr)
+                _rre_ns = dict(_rre_dv)
+                _rre_ns.update(_PLOT_TORCH_MATH_NS)
+                _rre_ns["torch"] = torch
+                return eval(_rre_expr, _rre_ns)
+
+            return _rre_model.predict(_rre_grid, operator=_rre_op)[:, 0]
 
         def _rar_save_round_diagnostics(_rar_idx, _rar_new_pts):
             _rd = _os.path.join(_rar_rounds_dir, f"round_{{_rar_idx:02d}}")
@@ -2860,19 +2885,74 @@ for _pval in _param_values:
                 # and every Error Analysis comparison plot already use
                 # (t on the x-axis, x on the y-axis, by default).
                 try:
-                    _xr = np.linspace({config.x_min}, {config.x_max}, _res)
-                    _tr = np.linspace({config.t_min}, {config.t_max}, _res)
-                    _Xr, _Tr = np.meshgrid(_xr, _tr)
-                    _field_r = _extract_plot_field(np.column_stack([_Xr.ravel(), _Tr.ravel()])).reshape(_res, _res)
-                    _fig_r, _ax_r = plt.subplots(figsize=_plot_figsize(6.5, 5))
-                    if {config.plot_swap_xt}:
-                        _im_r = _ax_r.contourf(_Tr, _Xr, _field_r, levels={config.plot_levels}, cmap="{config.plot_colormap}")
-                        _ax_r.set_xlabel("t"); _ax_r.set_ylabel("x")
+                    if len(_rar_ea_entries) >= 2:
+                        # 1D solution snapshot merged with reference -- same
+                        # spirit as the 2D/3D branch below (PINN | Reference
+                        # | |Error|, sharing one color scale), built as a
+                        # full x-t surface interpolated across every
+                        # configured reference file's own time (same
+                        # technique the Standard path's own Inline Error
+                        # Analysis "1D: standard x vs t surface" uses --
+                        # needs >= 2 distinct time snapshots to form a
+                        # non-degenerate (time x space) grid). With 0 or 1
+                        # reference file, falls back to the original
+                        # PINN-only snapshot below -- the single-reference
+                        # case is already covered by error_compare.png's own
+                        # line comparison.
+                        _rar_x_common = np.linspace({config.x_min}, {config.x_max}, _res)
+                        _rar_times_m = sorted(set(_e[0] for _e in _rar_ea_entries))
+                        _rar_U_pinn = np.zeros((len(_rar_times_m), len(_rar_x_common)))
+                        _rar_U_ref = np.zeros((len(_rar_times_m), len(_rar_x_common)))
+                        for _rmi, _rmtv in enumerate(_rar_times_m):
+                            _rmentry = next(_e for _e in _rar_ea_entries if _e[0] == _rmtv)
+                            _rmfp = _rmentry[1]
+                            _rmsel = _rmentry[2] if len(_rmentry) >= 3 else None
+                            _rar_xt_c = np.column_stack([_rar_x_common, np.full_like(_rar_x_common, _rmtv)])
+                            _rar_U_pinn[_rmi, :] = _rar_ref_extract(_rar_xt_c, _rmsel, model).flatten()
+                            _rd_ld = np.loadtxt(_rmfp)
+                            if _rd_ld.ndim == 1:
+                                _rd_ld = _rd_ld.reshape(1, -1)
+                            _rd_ord = np.argsort(_rd_ld[:, 0])
+                            _rd_fi = _rar_interp1d(_rd_ld[_rd_ord, 0], _rd_ld[_rd_ord, 2], kind="linear", fill_value="extrapolate")
+                            _rar_U_ref[_rmi, :] = _rd_fi(_rar_x_common)
+                        _rar_Xg, _rar_Tg = np.meshgrid(_rar_x_common, _rar_times_m)
+                        _rar_U_err = np.abs(_rar_U_pinn - _rar_U_ref)
+                        _rar_vmin = min(_rar_U_pinn.min(), _rar_U_ref.min())
+                        _rar_vmax = max(_rar_U_pinn.max(), _rar_U_ref.max())
+                        if _rar_vmax - _rar_vmin < 1e-12:
+                            _rar_vmax = _rar_vmin + 1e-12
+                        _rar_levels = np.linspace(_rar_vmin, _rar_vmax, 41)
+                        _fig_r, _axes_r = plt.subplots(1, 3, figsize=_plot_figsize(15, 5))
+                        _rar_cols = [
+                            (_rar_U_pinn, "PINN", _rar_levels, "{config.plot_colormap}"),
+                            (_rar_U_ref, "Reference", _rar_levels, "{config.plot_colormap}"),
+                            (_rar_U_err, f"|Error|  Max={{_rar_U_err.max():.2e}}", {config.plot_levels}, "inferno"),
+                        ]
+                        for _rci, (_rvals, _rttl, _rlv, _rcmap) in enumerate(_rar_cols):
+                            if {config.plot_swap_xt}:
+                                _rim = _axes_r[_rci].contourf(_rar_Tg, _rar_Xg, _rvals, levels=_rlv, cmap=_rcmap)
+                                _axes_r[_rci].set_xlabel("t"); _axes_r[_rci].set_ylabel("x")
+                            else:
+                                _rim = _axes_r[_rci].contourf(_rar_Xg.T, _rar_Tg.T, _rvals.T, levels=_rlv, cmap=_rcmap)
+                                _axes_r[_rci].set_xlabel("x"); _axes_r[_rci].set_ylabel("t")
+                            _axes_r[_rci].set_title(_rttl, fontsize=10)
+                            _fig_r.colorbar(_rim, ax=_axes_r[_rci])
+                        _fig_r.suptitle(f"RAR round {{_rar_idx}} solution vs reference", fontsize=12, fontweight="bold")
+                        print(f"  [RAR round {{_rar_idx}}] solution snapshot merged with reference ({{len(_rar_times_m)}} time(s))")
                     else:
-                        _im_r = _ax_r.contourf(_Xr, _Tr, _field_r, levels={config.plot_levels}, cmap="{config.plot_colormap}")
-                        _ax_r.set_xlabel("x"); _ax_r.set_ylabel("t")
-                    _fig_r.colorbar(_im_r, ax=_ax_r)
-                    _fig_r.suptitle(f"RAR round {{_rar_idx}} solution snapshot")
+                        _xr = np.linspace({config.x_min}, {config.x_max}, _res)
+                        _tr = np.linspace({config.t_min}, {config.t_max}, _res)
+                        _Xr, _Tr = np.meshgrid(_xr, _tr)
+                        _field_r = _extract_plot_field(np.column_stack([_Xr.ravel(), _Tr.ravel()])).reshape(_res, _res)
+                        _fig_r, _ax_r = plt.subplots(figsize=_plot_figsize(6.5, 5))
+                        if {config.plot_swap_xt}:
+                            _im_r = _ax_r.contourf(_Tr, _Xr, _field_r, levels={config.plot_levels}, cmap="{config.plot_colormap}")
+                            _ax_r.set_xlabel("t"); _ax_r.set_ylabel("x")
+                        else:
+                            _im_r = _ax_r.contourf(_Xr, _Tr, _field_r, levels={config.plot_levels}, cmap="{config.plot_colormap}")
+                            _ax_r.set_xlabel("x"); _ax_r.set_ylabel("t")
+                        _fig_r.colorbar(_im_r, ax=_ax_r)
+                        _fig_r.suptitle(f"RAR round {{_rar_idx}} solution snapshot")
                     plt.tight_layout()
                     plt.savefig(_os.path.join(_rd, "solution_plot.png"), dpi={config.plot_dpi}, bbox_inches="tight")
                     plt.close(_fig_r)
@@ -4597,6 +4677,40 @@ if {config.time_adaptive}:
             return _pf_model.predict(_x_grid, operator=_plot_custom_op)[:, 0]
         return _pf_model.predict(_x_grid)[:, _plot_idx]
 
+    # ── Reference-data matching for per-step comparison plots ────
+    # Each entry is (time, path, output_selector) -- same convention RAR's
+    # own `_rar_ea_entries` and the inline/Restore Error Analysis sections
+    # use (output_selector: None = the default plot field, an int = a raw
+    # output column, or an [expr, label] pair = a custom derived field).
+    # A reference file is matched to the Time-Adaptive step whose own
+    # [t0, t1) window contains that file's time value (closed on the right
+    # only for the LAST step, so a file sitting exactly on a shared
+    # boundary between two adjacent steps is matched to exactly one of
+    # them, not both). This step's own model_i is already in scope live in
+    # this loop, so matching only needs the time-range filter below --
+    # unlike Restore's own TA Error Analysis, which has to reconstruct and
+    # restore each step's model from the saved step directories after the
+    # fact.
+    from scipy.interpolate import interp1d as _ta_interp1d
+    _ta_ea_entries = {config.ea_files}
+
+    def _ta_ref_extract(_tea_grid, _tea_sel, _tea_model):
+        if _tea_sel is None:
+            return _extract_plot_field(_tea_grid, _tea_model)
+        if isinstance(_tea_sel, int):
+            return _tea_model.predict(_tea_grid)[:, _tea_sel]
+        _tea_expr = _tea_sel[0]
+
+        def _tea_ref_op(_tea_i, _tea_o):
+            _tea_dv = _tm_build_dvars(_tea_i, _tea_o, _plot_n_out, _plot_output_names_list,
+                                       _is_steady, _plot_dim, _tea_expr)
+            _tea_ns = dict(_tea_dv)
+            _tea_ns.update(_PLOT_TORCH_MATH_NS)
+            _tea_ns["torch"] = torch
+            return eval(_tea_expr, _tea_ns)
+
+        return _tea_model.predict(_tea_grid, operator=_tea_ref_op)[:, 0]
+
     # Accumulates the loss history across EVERY optimizer phase of EVERY
     # time sub-domain, so the loss plot below (see "_ta_all_train_loss")
     # shows the full Time-Adaptive run instead of just the LAST phase of
@@ -5088,130 +5202,264 @@ if {config.time_adaptive}:
         if _use_save:
             _step_dir = _os.path.join(_save_dir, "time_adaptive_steps", f"step_{{step_i+1:03d}}_t{{t0:.4f}}_to_t{{t1:.4f}}")
             _os.makedirs(_step_dir, exist_ok=True)
-            _plot_type_step = "{config.plot_type}"
-            if _plot_type_step not in ("Surface", "Line (time steps)"):
-                # GIF animations and Parameter Convergence aren't wired up
-                # for Time-Adaptive per-step preview images yet -- fall
-                # back to the static Surface heatmap rather than silently
-                # skipping this step's preview entirely.
-                _plot_type_step = "Surface"
-            _x_plot_step = np.linspace({config.x_min}, {config.x_max}, 100)
-            _t_plot_step = np.linspace(t0, t1, 50)
-            _Xp_step, _Tp_step = np.meshgrid(_x_plot_step, _t_plot_step)
-            if _is_3d:
-                _y_mid_step = {_line_slice_y}
-                _z_mid_step = {_line_slice_z}
-                _XTp_step = np.column_stack([_Xp_step.ravel(), np.full(_Xp_step.size, _y_mid_step),
-                                              np.full(_Xp_step.size, _z_mid_step), _Tp_step.ravel()])
-            elif _is_2d:
-                _y_mid_step = {_line_slice_y}
-                _XTp_step = np.column_stack([_Xp_step.ravel(), np.full(_Xp_step.size, _y_mid_step), _Tp_step.ravel()])
-            else:
-                _XTp_step = np.vstack([_Xp_step.ravel(), _Tp_step.ravel()]).T
-            _Up_step = _extract_plot_field(_XTp_step, model_i).reshape(50, 100)
+            # ── Reference matches for this step's own time range ──
+            # Half-open [t0, t1) except the LAST step, whose upper bound is
+            # inclusive -- avoids double-counting a reference file sitting
+            # exactly on the shared boundary between two adjacent steps
+            # (ta_step_groups splits time into contiguous sub-domains, so
+            # t1 of step i always equals t0 of step i+1).
+            _step_matches = sorted(
+                [_tea for _tea in _ta_ea_entries
+                 if (t0 - 1e-9) <= _tea[0] <= (t1 + 1e-9 if step_i == n_steps - 1 else t1 - 1e-9)],
+                key=lambda _tea: _tea[0],
+            )
+            if _step_matches:
+                print(f"  Step {{step_i+1}}: {{len(_step_matches)}} reference file(s) in t=[{{t0:.4f}}, {{t1:.4f}}]")
 
-            if _plot_type_step == "Surface" or _plot_type_step.startswith("📊"):
-                _vmin_step = None if {config.plot_auto_range} else {config.plot_vmin}
-                _vmax_step = None if {config.plot_auto_range} else {config.plot_vmax}
-                _step_fname = _os.path.join(_step_dir, f"step_{{step_i+1:03d}}_t{{t0:.4f}}_to_t{{t1:.4f}}.png")
-                if _is_3d:
-                    # 3D: same "x-y heatmap at the z mid-plane" convention as
-                    # the Standard (non-Time-Adaptive) 3D solution plot --
-                    # at t=t0 and t=t1.
-                    _res_step = {config.plot_resolution}
-                    _xg_s = np.linspace({config.x_min}, {config.x_max}, _res_step)
-                    _yg_s = np.linspace({config.y_min}, {config.y_max}, _res_step)
-                    _Xg_s, _Yg_s = np.meshgrid(_xg_s, _yg_s)
-                    _z_mid_s = {_line_slice_z}
-                    fig, axes = plt.subplots(1, 2, figsize=_plot_figsize(10, 4))
-                    for _ai, _tv_s in enumerate([t0, t1]):
-                        _xyt_s = np.column_stack([_Xg_s.ravel(), _Yg_s.ravel(), np.full(_Xg_s.size, _z_mid_s), np.full(_Xg_s.size, _tv_s)])
-                        _U_s = _extract_plot_field(_xyt_s, model_i).reshape(_res_step, _res_step)
-                        im = axes[_ai].contourf(_Xg_s, _Yg_s, _U_s, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_step, vmax=_vmax_step)
-                        if {config.plot_colorbar}: fig.colorbar(im, ax=axes[_ai])
-                        axes[_ai].set_xlabel("x"); axes[_ai].set_ylabel("y")
-                        axes[_ai].set_title(f"t = {{_tv_s:.4f}}  (z={{_z_mid_s:.3g}})")
-                    fig.suptitle(f"Step {{step_i+1}}: t = {{t0:.4f}} → {{t1:.4f}}", fontsize=11)
-                    plt.tight_layout()
-                elif _is_2d:
-                    # 2D: x-y heatmaps at t=t0 and t=t1
-                    _res_step = {config.plot_resolution}
-                    _xg_s = np.linspace({config.x_min}, {config.x_max}, _res_step)
-                    _yg_s = np.linspace({config.y_min}, {config.y_max}, _res_step)
-                    _Xg_s, _Yg_s = np.meshgrid(_xg_s, _yg_s)
-                    fig, axes = plt.subplots(1, 2, figsize=_plot_figsize(10, 4))
-                    for _ai, _tv_s in enumerate([t0, t1]):
-                        _xyt_s = np.column_stack([_Xg_s.ravel(), _Yg_s.ravel(), np.full(_Xg_s.size, _tv_s)])
-                        _U_s = _extract_plot_field(_xyt_s, model_i).reshape(_res_step, _res_step)
-                        im = axes[_ai].contourf(_Xg_s, _Yg_s, _U_s, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_step, vmax=_vmax_step)
-                        if {config.plot_colorbar}: fig.colorbar(im, ax=axes[_ai])
-                        axes[_ai].set_xlabel("x"); axes[_ai].set_ylabel("y")
-                        axes[_ai].set_title(f"t = {{_tv_s:.4f}}")
-                    fig.suptitle(f"Step {{step_i+1}}: t = {{t0:.4f}} → {{t1:.4f}}", fontsize=11)
-                    plt.tight_layout()
-                else:
-                    _res_step = {config.plot_resolution}
-                    _x_s2 = np.linspace({config.x_min}, {config.x_max}, _res_step)
-                    _t_s2 = np.linspace(t0, t1, _res_step)
-                    _Xs2, _Ts2 = np.meshgrid(_x_s2, _t_s2)
-                    _XTs2 = np.vstack([_Xs2.ravel(), _Ts2.ravel()]).T
-                    _Us2 = _extract_plot_field(_XTs2, model_i).reshape(_res_step, _res_step)
-                    fig, ax = plt.subplots(figsize=_plot_figsize(7, 4))
-                    # Same configurable axis orientation as the Standard
-                    # (non-Time-Adaptive) static Surface plot's own "Swap
-                    # axes" setting (plot_swap_xt, default True -- x-axis=t,
-                    # y-axis=domain x) -- this per-step preview used to
-                    # always hardcode the opposite (x-axis=x, y-axis=t),
-                    # ignoring the setting entirely, so a Time-Adaptive run's
-                    # step-by-step plots looked inconsistent with every
-                    # other 1D surface plot in the app. No reshape of
-                    # _Us2 needed, just swapping which of _Xs2/_Ts2 is
-                    # passed first to contourf (same trick used by the
-                    # Standard plot and its GIF-animation sibling).
-                    if {config.plot_swap_xt}:
-                        im = ax.contourf(_Ts2, _Xs2, _Us2, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_step, vmax=_vmax_step)
-                        ax.set_xlabel("t"); ax.set_ylabel("x")
+            if not _is_2d and not _is_3d:
+                # ── 1D: always both a surface and a line comparison --
+                # merged with reference when this step's time range has
+                # matching reference file(s), else PINN-only (same as
+                # before this feature existed).
+                _step_fname = _os.path.join(_step_dir, f"step_{{step_i+1:03d}}_t{{t0:.4f}}_to_t{{t1:.4f}}_surface.png")
+                try:
+                    if len(_step_matches) >= 2:
+                        # >= 2 distinct reference times in range -- build a
+                        # real (time x space) comparison surface, same
+                        # technique the Standard path's Inline Error
+                        # Analysis "1D: standard x vs t surface" uses.
+                        _tea_x_common = np.linspace({config.x_min}, {config.x_max}, 300)
+                        _tea_times_m = [_m[0] for _m in _step_matches]
+                        _tea_U_pinn = np.zeros((len(_step_matches), len(_tea_x_common)))
+                        _tea_U_ref = np.zeros((len(_step_matches), len(_tea_x_common)))
+                        for _mi, (_mtv, _mfp, _msel) in enumerate(_step_matches):
+                            _tea_xt_c = np.column_stack([_tea_x_common, np.full_like(_tea_x_common, _mtv)])
+                            _tea_U_pinn[_mi, :] = _ta_ref_extract(_tea_xt_c, _msel, model_i).flatten()
+                            _tea_d = np.loadtxt(_mfp)
+                            if _tea_d.ndim == 1:
+                                _tea_d = _tea_d.reshape(1, -1)
+                            _tea_ord = np.argsort(_tea_d[:, 0])
+                            _tea_fi = _ta_interp1d(_tea_d[_tea_ord, 0], _tea_d[_tea_ord, 2], kind="linear", fill_value="extrapolate")
+                            _tea_U_ref[_mi, :] = _tea_fi(_tea_x_common)
+                        _tea_Xg, _tea_Tg = np.meshgrid(_tea_x_common, _tea_times_m)
+                        _tea_U_err = np.abs(_tea_U_pinn - _tea_U_ref)
+                        _tea_vmin = min(_tea_U_pinn.min(), _tea_U_ref.min())
+                        _tea_vmax = max(_tea_U_pinn.max(), _tea_U_ref.max())
+                        if _tea_vmax - _tea_vmin < 1e-12:
+                            _tea_vmax = _tea_vmin + 1e-12
+                        _tea_levels = np.linspace(_tea_vmin, _tea_vmax, 41)
+                        fig, axes_s = plt.subplots(1, 3, figsize=_plot_figsize(15, 5))
+                        fig.suptitle(f"Step {{step_i+1}}: t = {{t0:.4f}} → {{t1:.4f}} -- vs reference", fontsize=12, fontweight="bold")
+                        _tea_cols = [
+                            (_tea_U_pinn, "PINN", _tea_levels, "{config.plot_colormap}"),
+                            (_tea_U_ref, "Reference", _tea_levels, "{config.plot_colormap}"),
+                            (_tea_U_err, f"|Error|  Max={{_tea_U_err.max():.2e}}", {config.plot_levels}, "inferno"),
+                        ]
+                        for _tea_ci, (_tea_vals, _tea_ttl, _tea_lv, _tea_cmap) in enumerate(_tea_cols):
+                            if {config.plot_swap_xt}:
+                                _tea_im = axes_s[_tea_ci].contourf(_tea_Tg, _tea_Xg, _tea_vals, levels=_tea_lv, cmap=_tea_cmap)
+                                axes_s[_tea_ci].set_xlabel("t"); axes_s[_tea_ci].set_ylabel("x")
+                            else:
+                                _tea_im = axes_s[_tea_ci].contourf(_tea_Xg.T, _tea_Tg.T, _tea_vals.T, levels=_tea_lv, cmap=_tea_cmap)
+                                axes_s[_tea_ci].set_xlabel("x"); axes_s[_tea_ci].set_ylabel("t")
+                            axes_s[_tea_ci].set_title(_tea_ttl, fontsize=10)
+                            fig.colorbar(_tea_im, ax=axes_s[_tea_ci])
+                        plt.tight_layout()
                     else:
-                        im = ax.contourf(_Xs2, _Ts2, _Us2, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_step, vmax=_vmax_step)
-                        ax.set_xlabel("x"); ax.set_ylabel("t")
-                    if {config.plot_colorbar}: fig.colorbar(im, ax=ax)
-                    ax.set_title(f"Step {{step_i+1}}: t = {{t0:.4f}} → {{t1:.4f}}")
-                    plt.tight_layout()
-                plt.savefig(_step_fname, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
-            elif _plot_type_step.startswith("Line"):
-                n_steps_plot = {config.num_timesteps_line}
-                _x_l2 = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
-                _t_line = np.linspace(t0, t1, n_steps_plot)
-                fig, ax = plt.subplots(figsize=_plot_figsize(8, 4))
-                colors = plt.get_cmap("{config.plot_colormap}")(np.linspace(0, 1, n_steps_plot))
-                # A line plot is inherently 1D -- for 2D/3D this is a slice
-                # along x at the domain's other mid-point(s) (same "fix the
-                # other axes at their mid-point" convention used throughout
-                # this Time-Adaptive loop for 2D/3D previews).
-                if _is_3d:
-                    _y_mid_l2 = {_line_slice_y}
-                    _z_mid_l2 = {_line_slice_z}
-                elif _is_2d:
-                    _y_mid_l2 = {_line_slice_y}
-                for _ci, _tv in enumerate(_t_line):
-                    if _is_3d:
-                        _xt_line = np.column_stack([_x_l2, np.full_like(_x_l2, _y_mid_l2),
-                                                     np.full_like(_x_l2, _z_mid_l2), np.full_like(_x_l2, _tv)])
-                    elif _is_2d:
-                        _xt_line = np.column_stack([_x_l2, np.full_like(_x_l2, _y_mid_l2), np.full_like(_x_l2, _tv)])
+                        # 0 or 1 reference match -- a surface needs >= 2
+                        # distinct time snapshots to interpolate against;
+                        # fall back to the plain PINN-only step preview
+                        # (the line comparison below still covers a single
+                        # match on its own).
+                        _vmin_step = None if {config.plot_auto_range} else {config.plot_vmin}
+                        _vmax_step = None if {config.plot_auto_range} else {config.plot_vmax}
+                        _res_step = {config.plot_resolution}
+                        _x_s2 = np.linspace({config.x_min}, {config.x_max}, _res_step)
+                        _t_s2 = np.linspace(t0, t1, _res_step)
+                        _Xs2, _Ts2 = np.meshgrid(_x_s2, _t_s2)
+                        _XTs2 = np.vstack([_Xs2.ravel(), _Ts2.ravel()]).T
+                        _Us2 = _extract_plot_field(_XTs2, model_i).reshape(_res_step, _res_step)
+                        fig, ax = plt.subplots(figsize=_plot_figsize(7, 4))
+                        if {config.plot_swap_xt}:
+                            im = ax.contourf(_Ts2, _Xs2, _Us2, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_step, vmax=_vmax_step)
+                            ax.set_xlabel("t"); ax.set_ylabel("x")
+                        else:
+                            im = ax.contourf(_Xs2, _Ts2, _Us2, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_step, vmax=_vmax_step)
+                            ax.set_xlabel("x"); ax.set_ylabel("t")
+                        if {config.plot_colorbar}:
+                            fig.colorbar(im, ax=ax)
+                        ax.set_title(f"Step {{step_i+1}}: t = {{t0:.4f}} → {{t1:.4f}}")
+                        plt.tight_layout()
+                    plt.savefig(_step_fname, dpi={config.plot_dpi}, bbox_inches="tight")
+                    plt.close()
+                    print(f"Step surface plot saved: {{_step_fname}}")
+                except Exception as _tea_err_surf:
+                    print(f"  Step {{step_i+1}} surface plot failed: {{_tea_err_surf}}")
+
+                _step_line_fname = _os.path.join(_step_dir, f"step_{{step_i+1:03d}}_t{{t0:.4f}}_to_t{{t1:.4f}}_line.png")
+                try:
+                    if _step_matches:
+                        # One subplot per matching reference time (showing
+                        # ALL of them when there's more than one, since
+                        # that's more informative) instead of the plain
+                        # evenly-spaced time sampling used below.
+                        _tea_ncols = min(4, len(_step_matches))
+                        _tea_nrows = (len(_step_matches) + _tea_ncols - 1) // _tea_ncols
+                        fig, axes = plt.subplots(_tea_nrows, _tea_ncols, figsize=(4*_tea_ncols, 3.5*_tea_nrows), squeeze=False)
+                        fig.suptitle(f"Step {{step_i+1}}: t = {{t0:.4f}} → {{t1:.4f}} -- PINN vs Reference", fontsize=12, fontweight="bold")
+                        _tea_ax_flat = axes.flatten()
+                        for _mi, (_mtv, _mfp, _msel) in enumerate(_step_matches):
+                            _tea_d = np.loadtxt(_mfp)
+                            if _tea_d.ndim == 1:
+                                _tea_d = _tea_d.reshape(1, -1)
+                            _tea_ord = np.argsort(_tea_d[:, 0])
+                            _tea_xv = _tea_d[_tea_ord, 0]
+                            _tea_uv = _tea_d[_tea_ord, 2]
+                            _tea_xt_l = np.column_stack([_tea_xv, np.full_like(_tea_xv, _mtv)])
+                            _tea_up = _ta_ref_extract(_tea_xt_l, _msel, model_i).flatten()
+                            _tea_l2 = float(np.linalg.norm(_tea_up - _tea_uv) / (np.linalg.norm(_tea_uv) + 1e-10))
+                            _ax = _tea_ax_flat[_mi]
+                            _ax.plot(_tea_xv, _tea_uv, color="#4dabf7", linewidth=2.0, label="Reference")
+                            _ax.plot(_tea_xv, _tea_up, color="#ff6b6b", linewidth=2.0, linestyle="--", label="PINN")
+                            _ax.set_title(f"t={{_mtv:.4f}}  L2={{_tea_l2:.2e}}", fontsize=10)
+                            _ax.set_xlabel("x"); _ax.set_ylabel("u"); _ax.grid(True, alpha=0.3)
+                        for _mj in range(len(_step_matches), len(_tea_ax_flat)):
+                            _tea_ax_flat[_mj].set_visible(False)
+                        _tea_h, _tea_l = _tea_ax_flat[0].get_legend_handles_labels()
+                        fig.legend(_tea_h, _tea_l, loc="lower center", ncol=2, fontsize=9, framealpha=0.9, bbox_to_anchor=(0.5, 0.01))
+                        plt.tight_layout(rect=[0, 0.06, 1, 1])
                     else:
-                        _xt_line = np.column_stack([_x_l2, np.full_like(_x_l2, _tv)])
-                    _u_line = _extract_plot_field(_xt_line, model_i).flatten()
-                    ax.plot(_x_l2, _u_line, color=colors[_ci], linewidth={config.plot_linewidth}, label=f"t={{_tv:.3f}}")
-                _ylabel_l2 = (f"u(x,y={_line_slice_y:.3g},z={_line_slice_z:.3g})" if _is_3d
-                              else (f"u(x,y={_line_slice_y:.3g})" if _is_2d else "u"))
-                ax.set_xlabel("x"); ax.set_ylabel(_ylabel_l2)
-                ax.set_title(f"Step {{step_i+1}}: t = {{t0:.4f}} → {{t1:.4f}}")
-                ax.legend(loc="upper right", fontsize=7); ax.grid(True, alpha=0.2)
-                plt.tight_layout()
+                        n_steps_plot = {config.num_timesteps_line}
+                        _x_l2 = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
+                        _t_line = np.linspace(t0, t1, n_steps_plot)
+                        fig, ax = plt.subplots(figsize=_plot_figsize(8, 4))
+                        colors = plt.get_cmap("{config.plot_colormap}")(np.linspace(0, 1, n_steps_plot))
+                        for _ci, _tv in enumerate(_t_line):
+                            _xt_line = np.column_stack([_x_l2, np.full_like(_x_l2, _tv)])
+                            _u_line = _extract_plot_field(_xt_line, model_i).flatten()
+                            ax.plot(_x_l2, _u_line, color=colors[_ci], linewidth={config.plot_linewidth}, label=f"t={{_tv:.3f}}")
+                        ax.set_xlabel("x"); ax.set_ylabel("u")
+                        ax.set_title(f"Step {{step_i+1}}: t = {{t0:.4f}} → {{t1:.4f}}")
+                        ax.legend(loc="upper right", fontsize=7); ax.grid(True, alpha=0.2)
+                        plt.tight_layout()
+                    plt.savefig(_step_line_fname, dpi={config.plot_dpi}, bbox_inches="tight")
+                    plt.close()
+                    print(f"Step line plot saved: {{_step_line_fname}}")
+                except Exception as _tea_err_line:
+                    print(f"  Step {{step_i+1}} line plot failed: {{_tea_err_line}}")
+            else:
+                # ── 2D/3D: surface only -- merged with reference (ALL
+                # matching files, not just the closest one) when this
+                # step's time range has matches, else the plain PINN-only
+                # t0/t1 preview (unchanged from before this feature).
                 _step_fname = _os.path.join(_step_dir, f"step_{{step_i+1:03d}}_t{{t0:.4f}}_to_t{{t1:.4f}}.png")
-                plt.savefig(_step_fname, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
-            print(f"Step plot saved: {{_step_fname}}")
+                try:
+                    if _step_matches:
+                        from mpl_toolkits.mplot3d import Axes3D as _tea_Axes3D_unused  # noqa: F401 -- registers the 3D projection
+                        _tea_n = len(_step_matches)
+                        if _is_3d:
+                            fig = plt.figure(figsize=_plot_figsize(15, 4.5 * _tea_n))
+                            for _mi, (_mtv, _mfp, _msel) in enumerate(_step_matches):
+                                _tea_d = np.loadtxt(_mfp)
+                                if _tea_d.ndim == 1:
+                                    _tea_d = _tea_d.reshape(1, -1)
+                                _tea_xyz = _tea_d[:, :3]
+                                _tea_u = _tea_d[:, 4]
+                                _tea_grid = np.column_stack([_tea_xyz, np.full(len(_tea_d), _mtv)])
+                                _tea_pred = _ta_ref_extract(_tea_grid, _msel, model_i)
+                                _tea_err = np.abs(_tea_pred - _tea_u)
+                                _tea_l2 = float(np.linalg.norm(_tea_pred - _tea_u) / (np.linalg.norm(_tea_u) + 1e-12))
+                                _tea_vmin = min(_tea_pred.min(), _tea_u.min())
+                                _tea_vmax = max(_tea_pred.max(), _tea_u.max())
+                                _tea_cols3 = [
+                                    (_tea_pred, f"PINN  t={{_mtv:.4f}}  L2={{_tea_l2:.2e}}", _tea_vmin, _tea_vmax, "{config.plot_colormap}"),
+                                    (_tea_u, f"Reference  t={{_mtv:.4f}}", _tea_vmin, _tea_vmax, "{config.plot_colormap}"),
+                                    (_tea_err, f"|Error|  Max={{_tea_err.max():.2e}}", None, None, "inferno"),
+                                ]
+                                for _tea_ci, (_tea_vals, _tea_ttl, _tea_vmn, _tea_vmx, _tea_cmap) in enumerate(_tea_cols3):
+                                    _tea_ax = fig.add_subplot(_tea_n, 3, _mi * 3 + _tea_ci + 1, projection="3d")
+                                    _tea_sc = _tea_ax.scatter(_tea_xyz[:, 0], _tea_xyz[:, 1], _tea_xyz[:, 2], c=_tea_vals,
+                                                               cmap=_tea_cmap, s=10, vmin=_tea_vmn, vmax=_tea_vmx)
+                                    fig.colorbar(_tea_sc, ax=_tea_ax, shrink=0.6, pad=0.12)
+                                    _tea_ax.set_title(_tea_ttl, fontsize=10)
+                                    _tea_ax.set_xlabel("x"); _tea_ax.set_ylabel("y"); _tea_ax.set_zlabel("z")
+                            fig.suptitle(f"Step {{step_i+1}} -- solution vs reference", fontsize=12, fontweight="bold")
+                        else:
+                            fig, axes = plt.subplots(_tea_n, 3, figsize=(15, 4*_tea_n), squeeze=False)
+                            fig.suptitle(f"Step {{step_i+1}}: t = {{t0:.4f}} → {{t1:.4f}} -- vs reference", fontsize=12, fontweight="bold")
+                            _res_step = {config.plot_resolution}
+                            _xg_s = np.linspace({config.x_min}, {config.x_max}, _res_step)
+                            _yg_s = np.linspace({config.y_min}, {config.y_max}, _res_step)
+                            _Xg_s, _Yg_s = np.meshgrid(_xg_s, _yg_s)
+                            _inside_s = geom_i.inside(np.column_stack([_Xg_s.ravel(), _Yg_s.ravel()])).reshape(_res_step, _res_step)
+                            from scipy.interpolate import griddata as _tea_gd
+                            for _mi, (_mtv, _mfp, _msel) in enumerate(_step_matches):
+                                _tea_d = np.loadtxt(_mfp)
+                                if _tea_d.ndim == 1:
+                                    _tea_d = _tea_d.reshape(1, -1)
+                                _tea_xy = _tea_d[:, :2]
+                                _tea_u = _tea_d[:, 3]
+                                _tea_grid_pinn = np.column_stack([_Xg_s.ravel(), _Yg_s.ravel(), np.full(_Xg_s.size, _mtv)])
+                                _tea_u_pinn = _ta_ref_extract(_tea_grid_pinn, _msel, model_i).reshape(_res_step, _res_step)
+                                _tea_u_pinn = np.where(_inside_s, _tea_u_pinn, np.nan)
+                                _tea_u_ref = _tea_gd(_tea_xy, _tea_u, (_Xg_s, _Yg_s), method="linear", fill_value=0.0)
+                                _tea_u_ref = np.where(_inside_s, _tea_u_ref, np.nan)
+                                _tea_u_err = np.abs(_tea_u_pinn - _tea_u_ref)
+                                _tea_vmin = np.nanmin([_tea_u_pinn, _tea_u_ref])
+                                _tea_vmax = np.nanmax([_tea_u_pinn, _tea_u_ref])
+                                if _tea_vmax - _tea_vmin < 1e-12:
+                                    _tea_vmax = _tea_vmin + 1e-12
+                                _tea_levels = np.linspace(_tea_vmin, _tea_vmax, 41)
+                                _tea_rmse = float(np.sqrt(np.nanmean((_tea_u_pinn - _tea_u_ref) ** 2)))
+                                im0 = axes[_mi][0].contourf(_Xg_s, _Yg_s, _tea_u_pinn, levels=_tea_levels, cmap="{config.plot_colormap}")
+                                axes[_mi][0].set_title(f"PINN  t={{_mtv:.4f}}", fontsize=10)
+                                axes[_mi][0].set_xlabel("x"); axes[_mi][0].set_ylabel("y")
+                                fig.colorbar(im0, ax=axes[_mi][0])
+                                im1 = axes[_mi][1].contourf(_Xg_s, _Yg_s, _tea_u_ref, levels=_tea_levels, cmap="{config.plot_colormap}")
+                                axes[_mi][1].set_title(f"Reference  t={{_mtv:.4f}}", fontsize=10)
+                                axes[_mi][1].set_xlabel("x"); axes[_mi][1].set_ylabel("y")
+                                fig.colorbar(im1, ax=axes[_mi][1])
+                                im2 = axes[_mi][2].contourf(_Xg_s, _Yg_s, _tea_u_err, levels={config.plot_levels}, cmap="inferno")
+                                axes[_mi][2].set_title(f"|Error|  RMSE={{_tea_rmse:.2e}}", fontsize=10)
+                                axes[_mi][2].set_xlabel("x"); axes[_mi][2].set_ylabel("y")
+                                fig.colorbar(im2, ax=axes[_mi][2])
+                        plt.tight_layout()
+                    else:
+                        _vmin_step = None if {config.plot_auto_range} else {config.plot_vmin}
+                        _vmax_step = None if {config.plot_auto_range} else {config.plot_vmax}
+                        _res_step = {config.plot_resolution}
+                        _xg_s = np.linspace({config.x_min}, {config.x_max}, _res_step)
+                        _yg_s = np.linspace({config.y_min}, {config.y_max}, _res_step)
+                        _Xg_s, _Yg_s = np.meshgrid(_xg_s, _yg_s)
+                        if _is_3d:
+                            _z_mid_s = {_line_slice_z}
+                            fig, axes = plt.subplots(1, 2, figsize=_plot_figsize(10, 4))
+                            for _ai, _tv_s in enumerate([t0, t1]):
+                                _xyt_s = np.column_stack([_Xg_s.ravel(), _Yg_s.ravel(), np.full(_Xg_s.size, _z_mid_s), np.full(_Xg_s.size, _tv_s)])
+                                _U_s = _extract_plot_field(_xyt_s, model_i).reshape(_res_step, _res_step)
+                                im = axes[_ai].contourf(_Xg_s, _Yg_s, _U_s, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_step, vmax=_vmax_step)
+                                if {config.plot_colorbar}:
+                                    fig.colorbar(im, ax=axes[_ai])
+                                axes[_ai].set_xlabel("x"); axes[_ai].set_ylabel("y")
+                                axes[_ai].set_title(f"t = {{_tv_s:.4f}}  (z={{_z_mid_s:.3g}})")
+                            fig.suptitle(f"Step {{step_i+1}}: t = {{t0:.4f}} → {{t1:.4f}}", fontsize=11)
+                        else:
+                            fig, axes = plt.subplots(1, 2, figsize=_plot_figsize(10, 4))
+                            for _ai, _tv_s in enumerate([t0, t1]):
+                                _xyt_s = np.column_stack([_Xg_s.ravel(), _Yg_s.ravel(), np.full(_Xg_s.size, _tv_s)])
+                                _U_s = _extract_plot_field(_xyt_s, model_i).reshape(_res_step, _res_step)
+                                im = axes[_ai].contourf(_Xg_s, _Yg_s, _U_s, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_step, vmax=_vmax_step)
+                                if {config.plot_colorbar}:
+                                    fig.colorbar(im, ax=axes[_ai])
+                                axes[_ai].set_xlabel("x"); axes[_ai].set_ylabel("y")
+                                axes[_ai].set_title(f"t = {{_tv_s:.4f}}")
+                            fig.suptitle(f"Step {{step_i+1}}: t = {{t0:.4f}} → {{t1:.4f}}", fontsize=11)
+                        plt.tight_layout()
+                    plt.savefig(_step_fname, dpi={config.plot_dpi}, bbox_inches="tight")
+                    plt.close()
+                    print(f"Step plot saved: {{_step_fname}}")
+                except Exception as _tea_err_23d:
+                    print(f"  Step {{step_i+1}} plot failed: {{_tea_err_23d}}")
 
             # ── Final model already saved per-phase, just track for transfer learning ───
             _last_phase_opt = "{config.optimizer}"
@@ -5737,6 +5985,7 @@ if {config.time_adaptive}:
                         axes[_ei][2].set_xlabel("x"); axes[_ei][2].set_ylabel("y")
                         fig.colorbar(im2, ax=axes[_ei][2])
                     plt.tight_layout()
+                    _ea_did_surface_ta = True
                 elif _is_3d:
                     # 3D: same "boundary-point scatter" convention as the
                     # Standard path's non-box-geometry 3D surface comparison
@@ -5795,6 +6044,19 @@ if {config.time_adaptive}:
                             _ax3_ta.set_title(_ttl_ta, fontsize=10)
                             _ax3_ta.set_xlabel("x"); _ax3_ta.set_ylabel("y"); _ax3_ta.set_zlabel("z")
                     plt.tight_layout()
+                    _ea_did_surface_ta = True
+                elif len(_ea_times) < 2:
+                    # Same fix as the Standard path's own copy of this
+                    # section (see "need at least 2 time snapshots" above):
+                    # a 1D x-t surface needs >= 2 distinct time snapshots to
+                    # form a non-degenerate grid -- e.g. only one reference
+                    # file falls within this Time-Adaptive run's range so
+                    # far. This path didn't have the guard, so a single
+                    # reference file crashed matplotlib's contourf on a
+                    # (1, N) array instead of skipping gracefully (the line
+                    # comparison above already covers this single snapshot).
+                    _ea_did_surface_ta = False
+                    print("  Skipping surface comparison — need at least 2 time snapshots for a 1D x-t surface plot")
                 else:
                     _ea_x_common = np.linspace({config.x_min}, {config.x_max}, 300)
                     _ea_t_arr = np.array(_ea_times)
@@ -5824,9 +6086,11 @@ if {config.time_adaptive}:
                     axes[2].set_title("Error  |PINN - Ground Truth|"); axes[2].set_xlabel("t"); axes[2].set_ylabel("x")
                     fig.colorbar(im2, ax=axes[2])
                     plt.tight_layout()
-                _ea_sp = _os.path.join(_ea_dir, f"surface_comparison{{_ea_suffix}}.png")
-                plt.savefig(_ea_sp, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
-                print(f"  Surface comparison saved: {{_ea_sp}}")
+                    _ea_did_surface_ta = True
+                if _ea_did_surface_ta:
+                    _ea_sp = _os.path.join(_ea_dir, f"surface_comparison{{_ea_suffix}}.png")
+                    plt.savefig(_ea_sp, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
+                    print(f"  Surface comparison saved: {{_ea_sp}}")
 
             print(f"  Group '{{_ea_group_label(_ea_sel) or 'default'}}' analysis complete")
         print("=== Time-Adaptive Error Analysis Complete ===")
