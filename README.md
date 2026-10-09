@@ -225,9 +225,9 @@ Beyond the basic two-stage recipe, training can be broken into any number of pha
 
 Periodically resamples collocation points toward wherever the PDE residual is currently largest, concentrating training effort on the hardest parts of the domain (a sharp front, a boundary layer) instead of spreading points uniformly the whole time. Supported in every dimension. (Time-dependent problems only.)
 
-**Per-round diagnostics.** Every RAR round now saves two snapshots to this run's own `solution_results/rar_rounds/round_NN/` folder, so you can watch the refinement happen round by round instead of only seeing the final result:
+**Per-round diagnostics.** Every RAR round now saves two snapshots to this run's own `solution_results/rar_rounds/round_NN/` folder, so you can watch the refinement happen round by round instead of only seeing the final result, plus a checkpoint for each optimizer phase that actually ran that round (`model_adam-*.pt` and/or `model_lbfgs-*.pt` — a round with both phases active saves both, not just the last one):
 
-- `solution_plot.png` — the same output field you've configured to plot, evaluated at that round's model state. For **1D**, this is just the x-t plane (axis orientation follows your Plot Settings "Swap axes" choice, same as every other 1D plot); a lightweight error comparison is saved separately as `error_compare.png` when an Error Analysis reference file is configured — closest-in-time reference snapshot, evaluated at its exact coordinates, reporting L2 relative error and MSE. For **2D and 3D**, the solution snapshot and the error comparison are one and the same file: with a reference configured, `solution_plot.png` becomes a 3-panel PINN | Reference | |Error| figure sharing one color scale between PINN and Reference; with no reference, it's just the PINN prediction. Either way this stays a lightweight, single-reference comparison, not the full multi-file Error Analysis pass, so it stays fast even with many rounds.
+- `solution_plot.png` — the same output field you've configured to plot, evaluated at that round's model state, titled **"PINN vs Reference"** whenever a comparison is shown. With 2+ matching Error Analysis reference files available anywhere in the domain, this becomes a 3-panel PINN | Reference | Error figure in **every dimension including 1D** — a real time × space comparison, not just a single-snapshot one — sharing one color scale between the PINN and Reference panels, and reading its Error panel's own colormap from the same Plot Settings as the other two panels rather than a fixed one. With fewer than 2 matching references, it's just the PINN prediction.
 - `collocation_points.png` — a scatter of the training points, colored to show how refinement is progressing: gray for the original points present before RAR started, orange for points added in earlier rounds, and red for the points this round just added. In 3D-plus-time problems this renders as a single 3D scatter (with time shown via point transparency where a 4th axis isn't available). In **2D-plus-time problems this shows two views side by side**: the same 3D (x, y, t) scatter, plus a plain 2D (x, y) view collapsing time, so the spatial concentration of added points is readable at a glance without having to rotate the 3D view.
 
 **Points from:** for a PDE with more than one governing equation, RAR normally ranks candidate points by the combined (summed) residual across every equation. The "Points from" selector lets you restrict that ranking to a single output's equation instead — useful when only one output has the sharp feature you care about and you don't want the other outputs' residuals diluting the point selection.
@@ -241,7 +241,9 @@ Currently these per-round diagnostics and the output selector apply to the live 
 
 Splits the time domain into a sequence of step groups and trains through them in order, optionally with transfer learning so each step warm-starts from the previous one's converged weights instead of training from scratch — effective for problems with a wide time window or fast-evolving dynamics that a single training pass struggles to fit all at once (see the two 2D Allen-Cahn templates below, both wide time windows that ship with Time-Adaptive on by default for exactly this reason). It works in 1D, 2D, and 3D alike.
 
-One setting is worth understanding before using it in 3D: the "IC grid resolution" control is a *per-axis* point count for the grid handed between steps — 1D uses it directly, 2D squares it, and 3D **cubes** it, so a value that's perfectly reasonable in 1D/2D (101, say — 101² ≈ 10,201 points in 2D) becomes over a million points per step in 3D. PINNStudio defaults this to a 3D-safe value automatically when you switch into 3D, and shows an in-panel warning if you manually pick a larger one anyway — both added after exactly this scenario ran a real GPU out of memory partway through a 3D run.
+One setting is worth understanding before using it in 3D: the "IC grid resolution" control is a *per-axis* point count for the grid handed between steps — 1D uses it directly, 2D squares it, and 3D **cubes** it, so a value that's perfectly reasonable in 1D/2D (101, say — 101² ≈ 10,201 points in 2D) becomes over a million points per step in 3D. PINNStudio defaults this to a 3D-safe value automatically when you switch into 3D, and shows an in-panel warning if you manually pick a larger one anyway — both added after exactly this scenario ran a real GPU out of memory partway through a 3D run. The control is an editable dropdown — pick one of the usual presets (101/51/21/11) or type any custom per-axis resolution of your own.
+
+Each step also gets its own reference comparison when Error Analysis data is configured: 1D produces both a surface and a line comparison (merged against **every** reference file whose time falls inside that step's own window, not just the closest one); 2D/3D produce the surface comparison only. A step with no reference in its time window still gets a PINN-only plot.
 
 </details>
 
@@ -309,6 +311,13 @@ Training runs as a background process with its stdout streamed straight into the
 </details>
 
 <details>
+<summary><strong>Loss Plot Settings</strong></summary>
+
+A standalone dialog controlling how the loss curve itself is plotted, separate from the per-plot-type Plot Settings above since it applies to the whole run rather than one specific output plot: which losses to show (train+test totals, each individual loss term, or all of them together), a single shared "plot every N iterations" frequency applied everywhere a loss gets plotted (replacing what used to be several independent hardcoded values), line width, and a log/linear y-axis toggle.
+
+</details>
+
+<details>
 <summary><strong>Error analysis against reference data</strong></summary>
 
 Point a run at one or more reference solution files (at one or more time snapshots) and PINNStudio reports, for predicted values $u_{\text{pred}}$ against ground truth $u_{\text{true}}$ over $N$ evaluation points:
@@ -317,14 +326,20 @@ $$\Large L_2 \text{ relative error} = \frac{\lVert u_{\text{pred}} - u_{\text{tr
 
 $$\Large \text{Max error} = \max_i \left| u_{\text{pred},i} - u_{\text{true},i} \right|, \qquad \text{Mean absolute error} = \frac{1}{N}\sum_{i=1}^{N}\left| u_{\text{pred},i} - u_{\text{true},i} \right|$$
 
-alongside line-comparison and surface-comparison plots of the PINN prediction against ground truth. All twelve built-in templates ship with bundled reference data so this works immediately with no setup; it works the same way for a data file of your own. A reference file can be checked against a derivative expression too (e.g. a reference `du_x` dataset), not just a raw output.
+alongside line-comparison and surface-comparison plots of the PINN prediction against reference, consistently titled **"PINN vs Reference"** everywhere these comparisons appear. All twelve built-in templates ship with bundled reference data so this works immediately with no setup; it works the same way for a data file of your own. A reference file can be checked against a derivative expression too (e.g. a reference `du_x` dataset), not just a raw output.
+
+**Error Metrics to Compute** lets you choose which of L2 relative error, MSE, and Max error are actually computed and reported — unchecking one leaves it out of the console log, the saved metrics file, and any on-plot annotation entirely, rather than just hiding it from view. Mean absolute error always appears alongside whichever metrics you've enabled. Defaults to **L2 only**.
+
+Every comparison plot's Error panel reads its colormap, levels, figure size, and axis settings from the same Plot Settings as the PINN and Reference panels beside it, so all three stay visually consistent rather than the Error panel defaulting to its own fixed look.
 
 </details>
 
 <details>
 <summary><strong>Configurable result plotting</strong></summary>
 
-Static Surface or Line plots, or animated GIFs of either over time, with colormap, contour resolution, DPI, colorbar, and snapshot-count all configurable. For a 1D time-dependent Surface plot (static or animated), the two axes can be swapped between "x on the x-axis, t on the y-axis" and the reverse — whichever reads more naturally for your problem.
+Static Surface or Line plots, or animated GIFs of either over time, with colormap, contour resolution, DPI, colorbar, and snapshot-count all configurable. For a 1D time-dependent Surface plot (static or animated), the two axes can be swapped between "x on the x-axis, t on the y-axis" and the reverse — whichever reads more naturally for your problem. For a 2D/3D Line plot or Line Animation, the y/z "slice" position the line is cut through is its own configurable value too (defaulting to the domain midpoint), rather than a silent hardcoded one.
+
+Figure size can be left at its default aspect ratio or switched to **Square** or **Wide**, or you can type an exact **Custom** width/height — and the title, per-panel subplot title, and axis-label font sizes are each independently adjustable too, without changing anything else about a plot's default look if you leave them alone. This Plot Settings dialog and the matching one in Restore & Visualize mirror each other field-for-field, so a setting you're used to on one side behaves identically on the other.
 
 Beyond plotting a raw output column, the **Custom...** field lets you plot (and animate) any expression of the outputs **and their derivatives** — `sqrt(u**2+v**2)`, `du_x`, `du_xx`, any combination — evaluated through DeepXDE's own `dde.Model.predict(x, operator=...)` built-in, the same mechanism Training Monitors uses. This works in the live Results panel, the Restore & Visualize tab, and in Error Analysis's own per-group custom field, so a derivative you can watch during training is also one you can plot, animate, and error-check afterward.
 
@@ -333,7 +348,7 @@ Beyond plotting a raw output column, the **Custom...** field lets you plot (and 
 <details>
 <summary><strong>Solution data export</strong></summary>
 
-The raw predicted solution — not just the rendered plot — is saved alongside the run's other output, so it's available for your own downstream analysis outside the GUI.
+The raw predicted solution — not just the rendered plot — is saved alongside the run's other output, so it's available for your own downstream analysis outside the GUI. Off by default — enable it with its own checkbox when you actually want the raw arrays — and the export grid resolution is an editable dropdown, same as Time-Adaptive's IC grid resolution: pick a preset or type your own.
 
 </details>
 
