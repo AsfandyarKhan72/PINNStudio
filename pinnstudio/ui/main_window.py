@@ -290,6 +290,13 @@ class MainWindow(QMainWindow):
         self._log_font_size = 18
         self._theme = "Solarized Dark"
         self._accent = "Green (#69db7c)"
+        # Panel border (the outline drawn around each Setup-tab section and
+        # the loss/solution figure panels). '' color = keep the existing
+        # theme-derived default exactly as before; width 1 matches the
+        # hardcoded "1px solid" every panel always used before this setting
+        # existed, so the default look is unchanged.
+        self._panel_border_color = ""
+        self._panel_border_width = 1
         self._float_type = "float32"
         self._gpu_device_index = 0
         self._gpu_memory_fraction = 0.95
@@ -378,6 +385,8 @@ class MainWindow(QMainWindow):
             self._log_font_size = int(data.get("log_font_size", self._log_font_size))
             self._theme = data.get("theme", self._theme)
             self._accent = data.get("accent", self._accent)
+            self._panel_border_color = str(data.get("panel_border_color", self._panel_border_color))
+            self._panel_border_width = int(data.get("panel_border_width", self._panel_border_width))
             cats = data.get("categories", {})
             for key, defaults in self._DISP_CATEGORY_DEFAULTS.items():
                 saved = cats.get(key, {})
@@ -403,6 +412,8 @@ class MainWindow(QMainWindow):
                 "log_font_size": self._log_font_size,
                 "theme": self._theme,
                 "accent": self._accent,
+                "panel_border_color": self._panel_border_color,
+                "panel_border_width": self._panel_border_width,
                 "categories": self._disp,
             }
             with open(self._display_settings_path, "w", encoding="utf-8") as f:
@@ -831,6 +842,28 @@ class MainWindow(QMainWindow):
         nout_row.addStretch()
         pde_outer_layout.addLayout(nout_row)
 
+        # One shared "📖 Show derivative reference" toggle + hint, at the
+        # TOP of this panel (same persistent-outside-the-rebuild pattern
+        # the IC panel's "Show IC reference" toggle already uses) rather
+        # than once per output-count rebuild at the bottom -- shown once
+        # here, kept up to date (text only, dimension/output-count can
+        # change what it says) by _build_pde_inputs() below, never itself
+        # torn down or recreated.
+        pde_ref_row = QHBoxLayout()
+        self.pde_hint_toggle = QCheckBox("📖 Show derivative reference")
+        self.pde_hint_toggle.setChecked(False)
+        self._register_style(self.pde_hint_toggle, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
+        pde_ref_row.addWidget(self.pde_hint_toggle)
+        pde_ref_row.addStretch()
+        pde_outer_layout.addLayout(pde_ref_row)
+
+        self.pde_hint = QLabel("")
+        self._register_style(self.pde_hint, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
+        self.pde_hint.setWordWrap(True)
+        self.pde_hint.setVisible(False)
+        pde_outer_layout.addWidget(self.pde_hint)
+        self.pde_hint_toggle.stateChanged.connect(lambda state: self.pde_hint.setVisible(state == 2))
+
         # self.pde_main_layout stays a nested layout (not the group's own
         # top-level layout) so _build_pde_inputs() can freely clear/rebuild
         # it on every output-count change without disturbing the "How many
@@ -1199,8 +1232,8 @@ class MainWindow(QMainWindow):
         self.custom_bc_main_layout.addWidget(self.bc_loc_hint_toggle)
         self.bc_loc_hint = QLabel(
             "True/False expression in x, y, z that picks out WHICH boundary\n"
-            "you mean (only y if 2D/3D, only z if 3D) -- DeepXDE only ever\n"
-            "calls this on points it has already checked ARE on the\n"
+            "you mean (only y if 2D/3D, only z if 3D) -- this is only ever\n"
+            "called on points already checked to BE on the\n"
             "geometry's boundary, so you don't need to re-detect \"on the\n"
             "boundary\" yourself or add any tolerance; you're only telling\n"
             "it which edge/face those points belong to.\n"
@@ -1868,6 +1901,29 @@ class MainWindow(QMainWindow):
         row_a1.addWidget(self.adapt_combo)
         adapt_layout.addLayout(row_a1)
 
+        # "📖 Show reference" toggle + hint, at the top of this panel, same
+        # pattern as the other panels' own reference toggles. Its text
+        # tracks whichever method is currently selected above (None/Time
+        # Adaptive/RAR), refreshed by _update_adapt_ref_hint() below.
+        adapt_ref_row = QHBoxLayout()
+        self.adapt_ref_toggle = QCheckBox("\U0001F4D6 Show reference")
+        self.adapt_ref_toggle.setChecked(False)
+        self._register_style(self.adapt_ref_toggle, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
+        adapt_ref_row.addWidget(self.adapt_ref_toggle)
+        adapt_ref_row.addStretch()
+        adapt_ref_row_widget = QWidget()
+        adapt_ref_row_widget.setLayout(adapt_ref_row)
+        adapt_layout.addWidget(adapt_ref_row_widget)
+
+        self.adapt_ref_hint = QLabel("")
+        self._register_style(self.adapt_ref_hint, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
+        self.adapt_ref_hint.setWordWrap(True)
+        self.adapt_ref_hint.setVisible(False)
+        adapt_layout.addWidget(self.adapt_ref_hint)
+        self.adapt_ref_toggle.stateChanged.connect(lambda state: self.adapt_ref_hint.setVisible(state == 2))
+        self.adapt_combo.currentTextChanged.connect(lambda _t: self._update_adapt_ref_hint())
+        self._update_adapt_ref_hint()
+
         # Time Adaptive widget
         self.ta_widget = QWidget()
         ta_layout = QVBoxLayout(self.ta_widget)
@@ -2048,6 +2104,39 @@ class MainWindow(QMainWindow):
         self.sweep_enable_cb.toggled.connect(self._on_sweep_enabled_toggled)
         sweep_toggle_layout.addWidget(self.sweep_enable_cb)
 
+        # "📖 Show sweep reference" toggle + hint, at the top of this
+        # panel, same pattern as the other panels' own reference toggles.
+        sweep_ref_row = QHBoxLayout()
+        sweep_ref_toggle = QCheckBox("\U0001F4D6 Show sweep reference")
+        sweep_ref_toggle.setChecked(False)
+        self._register_style(sweep_ref_toggle, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
+        sweep_ref_row.addWidget(sweep_ref_toggle)
+        sweep_ref_row.addStretch()
+        sweep_ref_row_widget = QWidget()
+        sweep_ref_row_widget.setLayout(sweep_ref_row)
+        sweep_toggle_layout.addWidget(sweep_ref_row_widget)
+        sweep_ref_text = ("Runs the SAME problem multiple times while varying one or more\n"
+                        "settings (learning rate, a PDE coefficient, number of iterations, ...),\n"
+                        "so you can compare results side by side instead of changing a value\n"
+                        "and re-running by hand each time. Each run gets its own numbered\n"
+                        "subfolder under the main \"Save to:\" location, with the full normal set\n"
+                        "of plots/checkpoints for that one run.\n"
+                        "One-at-a-time: a baseline run, then one run per value of each swept\n"
+                        "parameter in turn, everything else held at baseline.\n"
+                        "All combinations: every value of every swept parameter, crossed --\n"
+                        "N parameters with k values each means k^N total runs.\n"
+                        "Specified combinations: parameter 1's 1st value runs together with\n"
+                        "parameter 2's 1st value, and so on -- every parameter needs the same\n"
+                        "number of values listed.\n"
+                        "\"Points from:\" (where shown) picks which equation's values are read\n"
+                        "when a parameter lives inside a PDE coefficient.")
+        sweep_ref_hint = QLabel(sweep_ref_text)
+        self._register_style(sweep_ref_hint, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
+        sweep_ref_hint.setWordWrap(True)
+        sweep_ref_hint.setVisible(False)
+        sweep_toggle_layout.addWidget(sweep_ref_hint)
+        sweep_ref_toggle.stateChanged.connect(lambda state, h=sweep_ref_hint: h.setVisible(state == 2))
+
         # Everything below (mode, sweep-parameter rows, add/refresh
         # buttons) is only relevant once the sweep is actually enabled --
         # wrapped in its own container so the whole cluster can be
@@ -2133,6 +2222,40 @@ class MainWindow(QMainWindow):
         inv_layout = QVBoxLayout(self.inverse_group)
         inv_layout.setSpacing(5)
 
+        # "📖 Show inverse reference" toggle + hint, at the TOP of this
+        # panel (same positioning as the IC/BC/PDE panels' own reference
+        # toggles) rather than mid-panel, after the trainable-variable
+        # rows -- shown once here, applies to the whole panel.
+        inv_ref_row = QHBoxLayout()
+        inv_ref_toggle = QCheckBox("\U0001F4D6 Show inverse reference")
+        inv_ref_toggle.setChecked(False)
+        self._register_style(inv_ref_toggle, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
+        inv_ref_row.addWidget(inv_ref_toggle)
+        inv_ref_row.addStretch()
+        inv_ref_row_widget = QWidget()
+        inv_ref_row_widget.setLayout(inv_ref_row)
+        inv_layout.addWidget(inv_ref_row_widget)
+        inv_ref_text = ("Each trainable (unknown) variable is a value the solver infers (fits)\n"
+                        "during training, e.g. a diffusion coefficient or reaction rate.\n"
+                        "The first is named 'trainable_variable_1' by default -- rename any of\n"
+                        "them to anything you like (any valid Python identifier); renaming the\n"
+                        "first one keeps a loaded Quick Example's PDE box in sync automatically.\n"
+                        "For a custom PDE (no example), or for any variable beyond the first,\n"
+                        "make sure the same name also appears in your PDE expression(s) (PDE\n"
+                        "Builder tab) wherever that quantity belongs, e.g. rename to D and write:\n"
+                        "du_t - D*du_xx\n"
+                        "Initial guess sets each variable's starting value before optimization.\n"
+                        "All trainable variables are fit against the same shared measured data\n"
+                        "file(s) below (x, t, u, ...) -- add more than one if you have several\n"
+                        "observation datasets; each gets its own \"which output\" selector and its\n"
+                        "own loss weight, since each becomes a separate loss term.")
+        inv_ref_hint = QLabel(inv_ref_text)
+        self._register_style(inv_ref_hint, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
+        inv_ref_hint.setWordWrap(True)
+        inv_ref_hint.setVisible(False)
+        inv_layout.addWidget(inv_ref_hint)
+        inv_ref_toggle.stateChanged.connect(lambda state, h=inv_ref_hint: h.setVisible(state == 2))
+
         inv_layout.addWidget(QLabel("Trainable (unknown) variables:"))
         self.inv_vars_widget = QWidget()
         self.inv_vars_layout = QVBoxLayout(self.inv_vars_widget)
@@ -2162,36 +2285,6 @@ class MainWindow(QMainWindow):
         # (INVERSE_AUTO_CONST / _sync_inverse_pde_substitution), same as the
         # single-variable behavior this replaces.
         self._add_inverse_var_row("trainable_variable_1", 1.0)
-
-        inv_ref_row = QHBoxLayout()
-        inv_ref_toggle = QCheckBox("\U0001F4D6 Show inverse reference")
-        inv_ref_toggle.setChecked(False)
-        self._register_style(inv_ref_toggle, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
-        inv_ref_row.addWidget(inv_ref_toggle)
-        inv_ref_row.addStretch()
-        inv_ref_row_widget = QWidget()
-        inv_ref_row_widget.setLayout(inv_ref_row)
-        inv_layout.addWidget(inv_ref_row_widget)
-        inv_ref_text = ("Each trainable (unknown) variable is a value DeepXDE infers (optimizes)\n"
-                        "during training, e.g. a diffusion coefficient or reaction rate.\n"
-                        "The first is named 'trainable_variable_1' by default -- rename any of\n"
-                        "them to anything you like (any valid Python identifier); renaming the\n"
-                        "first one keeps a loaded Quick Example's PDE box in sync automatically.\n"
-                        "For a custom PDE (no example), or for any variable beyond the first,\n"
-                        "make sure the same name also appears in your PDE expression(s) (PDE\n"
-                        "Builder tab) wherever that quantity belongs, e.g. rename to D and write:\n"
-                        "du_t - D*du_xx\n"
-                        "Initial guess sets each variable's starting value before optimization.\n"
-                        "All trainable variables are fit against the same shared measured data\n"
-                        "file(s) below (x, t, u, ...) -- add more than one if you have several\n"
-                        "observation datasets; each gets its own \"which output\" selector and its\n"
-                        "own loss weight, since each becomes a separate loss term.")
-        inv_ref_hint = QLabel(inv_ref_text)
-        self._register_style(inv_ref_hint, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
-        inv_ref_hint.setWordWrap(True)
-        inv_ref_hint.setVisible(False)
-        inv_layout.addWidget(inv_ref_hint)
-        inv_ref_toggle.stateChanged.connect(lambda state, h=inv_ref_hint: h.setVisible(state == 2))
 
         inv_layout.addWidget(QLabel("Measured data file(s) (x, t, u):"))
         self.inv_data_files_widget = QWidget()
@@ -2232,7 +2325,11 @@ class MainWindow(QMainWindow):
         inv_layout.addWidget(self.inv_param_log_scale)
 
         self.inverse_group.setVisible(False)
-        left_layout.insertWidget(7, self.inverse_group)  # right after PDE Definition
+        # Index 5 = right after PDE Definition (0 title, 1 examples, 2 dim,
+        # 3 type, 4 PDE Definition), before Domain -- trainable variables
+        # are conceptually tied to the PDE, so they're shown immediately
+        # after it rather than after Domain/Collocation Points.
+        left_layout.insertWidget(5, self.inverse_group)  # right after PDE Definition
 
         # Parametric Study removed (untested, not exposed in the GUI).
 
@@ -4540,7 +4637,37 @@ class MainWindow(QMainWindow):
     def _on_adapt_changed(self, text):
         self.rar_widget.setVisible(text == "Residual-based Adaptive Refinement (RAR)")
         self.ta_widget.setVisible(text == "Time Adaptive Training")
-    
+
+    def _update_adapt_ref_hint(self):
+        """Keeps the Adaptive Training panel's "Show reference" hint text
+        matched to whichever method is currently selected -- only one of
+        Time Adaptive/RAR is ever visible at a time, so one shared toggle
+        (rather than a separate one per method, most of the time hidden
+        anyway) explains whichever one applies right now."""
+        text = self.adapt_combo.currentText()
+        if text == "Time Adaptive Training":
+            ref = ("Splits the time domain into consecutive steps (see the step groups\n"
+                   "above) and trains one model per step in sequence, each only over its\n"
+                   "own narrow time window instead of the whole domain at once --\n"
+                   "usually tracks fast-changing solutions better than a single model\n"
+                   "trained over the full time range.\n"
+                   "\"Transfer learning\" warm-starts each new step's model from the\n"
+                   "previous step's trained weights instead of starting fresh every time.\n"
+                   "\"IC grid resolution\" sets how finely the previous step's solution is\n"
+                   "sampled to build the next step's initial condition.")
+        elif text == "Residual-based Adaptive Refinement (RAR)":
+            ref = ("Periodically samples a large pool of random points, checks how badly\n"
+                   "each one currently satisfies the PDE (its \"residual\"), and adds the\n"
+                   "worst-residual points to training -- concentrating effort where the\n"
+                   "model is currently least accurate, instead of resampling uniformly.\n"
+                   "That's one \"round\"; it repeats for the configured number of rounds,\n"
+                   "retraining for a fixed number of iterations after each one.\n"
+                   "\"Points from:\" picks which equation's residual to rank candidate\n"
+                   "points by, for a problem with more than one output/equation.")
+        else:
+            ref = "Pick Time Adaptive Training or RAR above to see what each one does."
+        self.adapt_ref_hint.setText(ref)
+
     def _build_ta_step_groups_json(self):
         import json
         groups = []
@@ -4648,28 +4775,14 @@ class MainWindow(QMainWindow):
                          f"e.g. Burgers:        du_t + u*du_x - 0.01*du_xx\n"
                          f"e.g. 4th-order:      du_t - (du_xx - du_xxxx)\n"
                          f"e.g. Nonlinear:      du_t - sin(u)*du_xx")
-            
-        # Templates + derivative reference row
-        tmpl_ref_row = QHBoxLayout()
 
-        hint_toggle = QCheckBox("📖 Show derivative reference")
-        hint_toggle.setChecked(False)
-        self._register_style(hint_toggle, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
-        tmpl_ref_row.addWidget(hint_toggle)
-
-        tmpl_ref_row.addStretch()
-
-        tmpl_ref_row_widget = QWidget()
-        tmpl_ref_row_widget.setLayout(tmpl_ref_row)
-        self.pde_main_layout.addWidget(tmpl_ref_row_widget)
-
-        hint = QLabel(hint_text)
-        self._register_style(hint, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
-        hint.setWordWrap(True)
-        hint.setVisible(False)
-        self.pde_main_layout.addWidget(hint)
-
-        hint_toggle.stateChanged.connect(lambda state, h=hint: h.setVisible(state == 2))
+        # The toggle+hint widgets themselves now live once at the top of
+        # this panel (see pde_outer_layout, above, where they're built) --
+        # only the TEXT needs refreshing here each time dimension/output
+        # count changes what it should say; its current shown/hidden state
+        # and the toggle's checked state are both left exactly as the user
+        # last set them.
+        self.pde_hint.setText(hint_text)
 
     # ── Build BC inputs ───────────────────────────────────────
     def _build_bc_inputs(self, n):
@@ -8617,7 +8730,7 @@ print("DOMAIN_PREVIEW_DONE")
     _DISP_CATEGORY_LABELS = [
         ("title", "App Title / Subtitle"),
         ("section_header", 'Section Headers (e.g. "Problem Definition", "Quick Examples")'),
-        ("field_label", "Field Labels (regular text next to inputs)"),
+        ("field_label", "Field Labels (regular text, checkboxes && radio buttons)"),
         ("hint", "Hints / Notes (small tips && warnings)"),
         ("button", "Buttons"),
         ("log_console", "Log Console"),
@@ -8631,6 +8744,8 @@ print("DOMAIN_PREVIEW_DONE")
             "log_font_size": self._log_font_size,
             "theme": self._theme,
             "accent": self._accent,
+            "panel_border_color": self._panel_border_color,
+            "panel_border_width": self._panel_border_width,
             "disp": {k: dict(v) for k, v in self._disp.items()},
         }
 
@@ -8663,7 +8778,10 @@ print("DOMAIN_PREVIEW_DONE")
         theme_row = QHBoxLayout()
         theme_row.addWidget(QLabel("Color theme:"))
         theme_combo = QComboBox()
-        theme_combo.addItems(["Dark Grey", "GitHub Dark", "Monokai", "Solarized Dark", "Navy Blue", "White"])
+        theme_combo.addItems([
+            "Dark Grey", "GitHub Dark", "Monokai", "Solarized Dark", "Navy Blue", "White",
+            "Nord", "Dracula", "One Dark", "Gruvbox Dark", "Light Gray",
+        ])
         theme_combo.setCurrentText(self._theme)
         theme_combo.setFixedWidth(160)
         theme_row.addStretch(); theme_row.addWidget(theme_combo)
@@ -8677,6 +8795,61 @@ print("DOMAIN_PREVIEW_DONE")
         accent_combo.setFixedWidth(160)
         accent_row.addStretch(); accent_row.addWidget(accent_combo)
         theme_layout.addLayout(accent_row)
+
+        # Panel border: the outline drawn around every Setup-tab section
+        # (QGroupBox) and the loss/solution figure panels. Color left on
+        # "Auto" keeps the existing theme-derived border color exactly as
+        # before; thickness defaults to 1px, also matching every panel's
+        # previous hardcoded border.
+        border_row = QHBoxLayout()
+        border_row.addWidget(QLabel("Panel border color:"))
+        border_color_btn = QPushButton()
+        border_color_btn.setFixedWidth(90)
+        border_color_btn.setToolTip("Click to pick a border color for every panel section; Reset keeps the theme's own default")
+        border_color_state = {"color": (self._panel_border_color or "").strip()}
+
+        def _refresh_border_color_btn(btn=border_color_btn, state=border_color_state):
+            c = state["color"]
+            if c:
+                btn.setText(c)
+                btn.setStyleSheet(f"background: {c}; color: {'#000' if QColor(c).lightnessF() > 0.5 else '#fff'};")
+            else:
+                btn.setText("Color: Auto")
+                btn.setStyleSheet("")
+        _refresh_border_color_btn()
+
+        def _pick_border_color(_checked=False, state=border_color_state, btn=border_color_btn):
+            start = QColor(state["color"]) if state["color"] else QColor("#c8d2d8")
+            picked = QColorDialog.getColor(start, dialog, "Choose panel border color")
+            if picked.isValid():
+                state["color"] = picked.name()
+                _refresh_border_color_btn(btn, state)
+                _apply_preview()
+        border_color_btn.clicked.connect(_pick_border_color)
+        border_row.addStretch(); border_row.addWidget(border_color_btn)
+
+        border_reset_btn = QPushButton("✕ Reset")
+        border_reset_btn.setFixedWidth(60)
+        border_reset_btn.setToolTip("Clear the border color override, back to the theme's own default")
+
+        def _reset_border_color(_checked=False, state=border_color_state, btn=border_color_btn):
+            state["color"] = ""
+            _refresh_border_color_btn(btn, state)
+            _apply_preview()
+        border_reset_btn.clicked.connect(_reset_border_color)
+        border_row.addWidget(border_reset_btn)
+        theme_layout.addLayout(border_row)
+
+        border_width_row = QHBoxLayout()
+        border_width_row.addWidget(QLabel("Panel border thickness:"))
+        border_width_spin = QSpinBox()
+        border_width_spin.setRange(0, 6)
+        border_width_spin.setValue(self._panel_border_width)
+        border_width_spin.setSuffix(" px")
+        border_width_spin.setFixedWidth(80)
+        border_width_row.addStretch(); border_width_row.addWidget(border_width_spin)
+        theme_layout.addLayout(border_width_row)
+
         theme_layout.addStretch()
         tabs.addTab(theme_tab, "Theme")
 
@@ -8766,6 +8939,8 @@ print("DOMAIN_PREVIEW_DONE")
             self._log_font_size = log_font_spin.value()
             self._theme = theme_combo.currentText()
             self._accent = accent_combo.currentText()
+            self._panel_border_color = border_color_state["color"]
+            self._panel_border_width = border_width_spin.value()
             for cat_key, widgets in cat_widgets.items():
                 self._disp[cat_key] = {
                     "family": widgets["family"].currentText(),
@@ -8782,6 +8957,7 @@ print("DOMAIN_PREVIEW_DONE")
         log_font_spin.valueChanged.connect(_apply_preview)
         theme_combo.currentTextChanged.connect(_apply_preview)
         accent_combo.currentTextChanged.connect(_apply_preview)
+        border_width_spin.valueChanged.connect(_apply_preview)
         for widgets in cat_widgets.values():
             widgets["family"].currentTextChanged.connect(_apply_preview)
             widgets["size"].valueChanged.connect(_apply_preview)
@@ -8800,6 +8976,8 @@ print("DOMAIN_PREVIEW_DONE")
             self._log_font_size = snapshot["log_font_size"]
             self._theme = snapshot["theme"]
             self._accent = snapshot["accent"]
+            self._panel_border_color = snapshot["panel_border_color"]
+            self._panel_border_width = snapshot["panel_border_width"]
             self._disp = snapshot["disp"]
             self._apply_display_settings()
 
@@ -8822,6 +9000,13 @@ print("DOMAIN_PREVIEW_DONE")
             "Solarized Dark":("#002b36", "#073642", "#586e75"),
             "Navy Blue":     ("#1a1a2e", "#16213e", "#3a3a5c"),
             "White":         ("#ffffff", "#f5f5f5", "#d0d0d0"),
+            # New themes -- existing ones and the default ("Solarized Dark")
+            # above are all unchanged.
+            "Nord":          ("#2e3440", "#3b4252", "#4c566a"),
+            "Dracula":       ("#282a36", "#343746", "#44475a"),
+            "One Dark":      ("#282c34", "#21252b", "#3e4451"),
+            "Gruvbox Dark":  ("#282828", "#3c3836", "#504945"),
+            "Light Gray":    ("#f0f0f0", "#ffffff", "#c0c0c0"),
         }
         accents = {
             "Blue (#a0c4ff)":   "#a0c4ff",
@@ -8835,7 +9020,10 @@ print("DOMAIN_PREVIEW_DONE")
         accent = accents.get(self._accent, "#a0c4ff")
         fs = self._font_size
         lfs = self._log_font_size
-        is_white = self._theme == "White"
+        # Luminance-based (not name-keyed to "White" specifically), so any
+        # new light theme gets correctly-contrasting text/borders too
+        # without needing its own special case here.
+        is_white = QColor(bg).lightnessF() > 0.5
         text_color = "#1e1e1e" if is_white else "#e0e0e0"
         label_color = "#333333" if is_white else "#c0c0c0"
         arrow_color = "#333333" if is_white else "#ffffff"
@@ -8843,9 +9031,12 @@ print("DOMAIN_PREVIEW_DONE")
         # the theme's general-purpose {border} color (also used for input
         # fields/scrollbars/menus, which should keep their own subtler
         # value) so separate panels read clearly against a dark
-        # background. The White theme's own border is already light
-        # against its white background, so it's left as-is.
-        panel_border = border if is_white else "#c8d2d8"
+        # background. A light theme's own border is already dark enough
+        # against its light background, so it's left as-is. An explicit
+        # user-picked panel border color (see the Display Settings dialog)
+        # always wins over either default.
+        panel_border = (self._panel_border_color or "").strip() or (border if is_white else "#c8d2d8")
+        panel_border_width = self._panel_border_width
 
         # Section Headers (QGroupBox titles, e.g. "Problem Definition",
         # "Quick Examples") and Field Labels (plain QLabel text) each get
@@ -8866,7 +9057,7 @@ print("DOMAIN_PREVIEW_DONE")
             QMainWindow {{ background: {bg}; }}
             QWidget {{ background: {bg}; color: {text_color}; font-family: 'Segoe UI', {_CROSS_PLATFORM_FONT_FALLBACK}; font-size: {fs}px; }}
             QGroupBox {{
-                border: 1px solid {panel_border};
+                border: {panel_border_width}px solid {panel_border};
                 border-radius: 6px;
                 margin-top: 8px;
                 padding-top: 4px;
@@ -8913,7 +9104,10 @@ print("DOMAIN_PREVIEW_DONE")
                 border-top: 6px solid {arrow_color};
                 width: 0px; height: 0px;
             }}
-            QCheckBox {{ color: {label_color}; spacing: 6px; }}
+            QCheckBox {{
+                color: {fl_color}; spacing: 6px;
+                font-family: '{fl['family']}'; font-size: {fl['size']}px; font-weight: {fl_weight};
+            }}
             QCheckBox::indicator {{
                 width: 14px; height: 14px;
                 border: 1px solid {border};
@@ -8921,7 +9115,10 @@ print("DOMAIN_PREVIEW_DONE")
                 background: {widget_bg};
             }}
             QCheckBox::indicator:checked {{ background: {accent}; border-color: {accent}; }}
-            QRadioButton {{ color: {label_color}; spacing: 6px; }}
+            QRadioButton {{
+                color: {fl_color}; spacing: 6px;
+                font-family: '{fl['family']}'; font-size: {fl['size']}px; font-weight: {fl_weight};
+            }}
             QRadioButton::indicator {{
                 width: 14px; height: 14px;
                 border: 1px solid {border};
@@ -8950,8 +9147,12 @@ print("DOMAIN_PREVIEW_DONE")
             QMenu {{ background: {widget_bg}; border: 1px solid {border}; }}
             QMenu::item:selected {{ background: {border}; }}
         """)
-        self.loss_label.setStyleSheet(f"border: 1px solid {border}; border-radius: 6px; color: #505080; background: {widget_bg};")
-        self.solution_label.setStyleSheet(f"border: 1px solid {border}; border-radius: 6px; color: #505080; background: {widget_bg};")
+        # Same panel-border color/thickness setting as every QGroupBox
+        # above, for visual consistency across every panel section
+        # (including these two figure panels, not just the Setup tab's
+        # input groups).
+        self.loss_label.setStyleSheet(f"border: {panel_border_width}px solid {panel_border}; border-radius: 6px; color: #505080; background: {widget_bg};")
+        self.solution_label.setStyleSheet(f"border: {panel_border_width}px solid {panel_border}; border-radius: 6px; color: #505080; background: {widget_bg};")
         # Re-apply every registered per-category widget (App Title,
         # Hint/Note labels, Buttons) so they pick up the latest settings too
         # -- the QSS block above only covers Section Headers/Field Labels/
@@ -12601,6 +12802,12 @@ print("ERROR_ANALYSIS_V2_DONE")
             # earlier action can be mistaken for this restore's own
             # output while it's in flight.
             self._last_restore_is_param = True
+            # No single original model/training folder exists for this
+            # branch (the user can list several unrelated *_convergence.txt
+            # files) -- clear any directory list a PREVIOUS model-based
+            # restore left behind so _on_restore_done doesn't mistakenly
+            # show that earlier run's loss plot here.
+            self._last_restore_model_dirs = []
             self._clear_solution_movie()
             self._reset_plot_headers()
             self.loss_label.setText("⏳ Restoring...")
@@ -12679,6 +12886,26 @@ print("ERROR_ANALYSIS_V2_DONE")
             self.log_box.append("❌ Please select a model_config.json file."); return
         if not save_dir:
             self.log_box.append("❌ Please select a save directory."); return
+
+        # Loss plot: lives alongside the ORIGINAL model being restored,
+        # never in this restore run's own brand-new save_dir (a restore
+        # run doesn't retrain, so it never writes its own loss_plot.png --
+        # looking in save_dir, as this used to, could never find one).
+        # For the Standard/RAR path, model_path already points straight
+        # into the run's "solution_results" folder, sibling to
+        # loss_plot.png. For a Time-Adaptive combined restore, model_path
+        # instead points into a "time_adaptive_steps/step_*/" folder (see
+        # _detect_restore_ta_steps) -- TA's own loss plot is one shared
+        # file for the whole run, saved under that run's own
+        # "solution_results" folder, two levels up from there.
+        _model_dir = os.path.dirname(model_path)
+        _step_base = os.path.basename(_model_dir)
+        _step_parent = os.path.dirname(_model_dir)
+        if os.path.basename(_step_parent) == "time_adaptive_steps" and _step_base.startswith("step_"):
+            _orig_run_dir = os.path.dirname(_step_parent)
+            self._last_restore_model_dirs = [os.path.join(_orig_run_dir, "solution_results"), _model_dir]
+        else:
+            self._last_restore_model_dirs = [_model_dir]
 
         try:
             with open(config_path, "r") as f:
@@ -12973,18 +13200,28 @@ print("ERROR_ANALYSIS_V2_DONE")
         if success:
             self.log_box.append("✅ Restore complete!")
 
-            # LEFT panel: the original run's training loss curve -- always,
+            # LEFT panel: the ORIGINAL run's training loss curve -- always,
             # regardless of dimension or which viz type was just restored
             # (matches the main Solve tab's own loss_label/solution_label
             # split in _on_done: loss always on the left, the requested
-            # visualization always on the right). Same two-location lookup
-            # _on_done itself uses, since restore's save directory is
-            # sometimes pointed at the run's root folder and sometimes
-            # directly at its solution_results/ subfolder.
-            loss_path = os.path.join(save_dir, "solution_results", "loss_plot.png")
-            if not os.path.exists(loss_path):
-                loss_path = os.path.join(save_dir, "loss_plot.png")
-            if os.path.exists(loss_path):
+            # visualization always on the right). This has to look inside
+            # the model's own original training folder(s) (see
+            # _last_restore_model_dirs, set in _on_restore) -- NOT this
+            # restore run's own brand-new save_dir, which never gets its
+            # own loss_plot.png written into it (a restore doesn't retrain
+            # anything). Looking in save_dir, as this previously did, could
+            # never succeed, leaving this panel stuck on "Restoring..."
+            # forever for every restore, forward or inverse alike.
+            loss_path = None
+            for _mdir in getattr(self, '_last_restore_model_dirs', []) or []:
+                for _candidate in (os.path.join(_mdir, "loss_plot.png"),
+                                    os.path.join(_mdir, "solution_results", "loss_plot.png")):
+                    if os.path.exists(_candidate):
+                        loss_path = _candidate
+                        break
+                if loss_path:
+                    break
+            if loss_path:
                 self.loss_label.setPixmap(QPixmap(loss_path).scaled(
                     self.loss_label.width(), self.loss_label.height(),
                     Qt.AspectRatioMode.KeepAspectRatio,
