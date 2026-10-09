@@ -2738,6 +2738,23 @@ for _pval in _param_values:
             _os.makedirs(_rd, exist_ok=True)
             _res = {config.plot_resolution}
 
+            # Per-round model checkpoint -- same convention Time-Adaptive's
+            # per-step diagnostics already use (a model file saved
+            # alongside that unit's own plots), closing a gap RAR's own
+            # per-round diagnostics had since they were first added
+            # (Round 20): this round's trained model is NOT saved anywhere
+            # unless it happens to also be the FINAL round's model (saved
+            # separately, after the whole RAR loop ends, as this run's one
+            # overall model). Without this, every earlier round's model is
+            # unrecoverable once RAR moves on -- only its plots/metrics
+            # survive, not the weights themselves.
+            if _use_save:
+                try:
+                    model.save(_os.path.join(_rd, "model"))
+                    print(f"  [RAR round {{_rar_idx}}] model saved: {{_os.path.join(_rd, 'model')}}.pt")
+                except Exception as _rar_err_save:
+                    print(f"  [RAR round {{_rar_idx}}] model save failed: {{_rar_err_save}}")
+
             if not _is_2d and not _is_3d:
                 # -- 1D: own two-file structure (solution snapshot +
                 # line-comparison against one reference, if configured).
@@ -5055,9 +5072,24 @@ if {config.time_adaptive}:
                     _XTs2 = np.vstack([_Xs2.ravel(), _Ts2.ravel()]).T
                     _Us2 = _extract_plot_field(_XTs2, model_i).reshape(_res_step, _res_step)
                     fig, ax = plt.subplots(figsize=_plot_figsize(7, 4))
-                    im = ax.contourf(_Xs2, _Ts2, _Us2, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_step, vmax=_vmax_step)
+                    # Same configurable axis orientation as the Standard
+                    # (non-Time-Adaptive) static Surface plot's own "Swap
+                    # axes" setting (plot_swap_xt, default True -- x-axis=t,
+                    # y-axis=domain x) -- this per-step preview used to
+                    # always hardcode the opposite (x-axis=x, y-axis=t),
+                    # ignoring the setting entirely, so a Time-Adaptive run's
+                    # step-by-step plots looked inconsistent with every
+                    # other 1D surface plot in the app. No reshape of
+                    # _Us2 needed, just swapping which of _Xs2/_Ts2 is
+                    # passed first to contourf (same trick used by the
+                    # Standard plot and its GIF-animation sibling).
+                    if {config.plot_swap_xt}:
+                        im = ax.contourf(_Ts2, _Xs2, _Us2, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_step, vmax=_vmax_step)
+                        ax.set_xlabel("t"); ax.set_ylabel("x")
+                    else:
+                        im = ax.contourf(_Xs2, _Ts2, _Us2, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_step, vmax=_vmax_step)
+                        ax.set_xlabel("x"); ax.set_ylabel("t")
                     if {config.plot_colorbar}: fig.colorbar(im, ax=ax)
-                    ax.set_xlabel("x"); ax.set_ylabel("t")
                     ax.set_title(f"Step {{step_i+1}}: t = {{t0:.4f}} → {{t1:.4f}}")
                     plt.tight_layout()
                 plt.savefig(_step_fname, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()

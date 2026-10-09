@@ -11,7 +11,7 @@ from PyQt6.QtWidgets import (
     QStackedWidget
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer
-from PyQt6.QtGui import QPixmap, QFont, QAction, QColor, QMovie
+from PyQt6.QtGui import QPixmap, QFont, QAction, QColor, QMovie, QIntValidator
 from pinnstudio.core.config import PINNConfig
 from pinnstudio.core.runner import run_pinn
 REFERENCE_DATA_DIR = os.path.join(
@@ -1873,11 +1873,26 @@ class MainWindow(QMainWindow):
         row_ta2.addWidget(QLabel("IC grid resolution:"))
         self.ta_grid = QComboBox(); self.ta_grid.addItems(["101", "51", "21", "11"])
         self.ta_grid.setFixedHeight(28); self.ta_grid.setFixedWidth(100)
+        # Editable so a user can type their own per-axis resolution (e.g.
+        # 5000 for a fine 1D grid) instead of being limited to the 4
+        # presets -- same mechanism either way: whatever integer ends up
+        # in ta_grid.currentText() is read straight into config.ta_grid_size
+        # (see _build_config()) and used as-is for np.linspace's point
+        # count (1D), squared (2D), or cubed (3D) -- see codegen.py's
+        # Time-Adaptive grid-building block. A QIntValidator keeps typed
+        # input to positive integers only; _ta_grid_size() below is the
+        # single place that parses it back out safely (falls back to 101
+        # on anything unparseable, e.g. while the field is mid-edit/empty).
+        self.ta_grid.setEditable(True)
+        self.ta_grid.setValidator(QIntValidator(1, 1_000_000, self.ta_grid))
         self.ta_grid.setToolTip(
             "Per-axis resolution for the grid handed between time steps.\n"
             "1D: this many points. 2D: squared. 3D: cubed -- e.g. 101 in "
             "3D is over a million points. Pick a smaller value (11 or 21) "
-            "for 3D Time-Adaptive runs."
+            "for 3D Time-Adaptive runs.\n"
+            "Pick a preset or type your own value -- e.g. typing 5000 for "
+            "a 1D problem uses 5000 evenly-spaced points (25,000,000 for "
+            "2D since it's squared, so keep custom values modest in 2D/3D)."
         )
         row_ta2.addStretch(); row_ta2.addWidget(self.ta_grid)
         ta_layout.addLayout(row_ta2)
@@ -3222,6 +3237,23 @@ class MainWindow(QMainWindow):
             self.output_transform_rows_layout.addWidget(row_w)
             self.output_transform_rows.append({"scale": scale_spin, "shift": shift_spin})
 
+    def _ta_grid_size(self):
+        """Safely parse ta_grid's current text (one of the 4 presets, or
+        a custom value the user typed directly into the now-editable
+        combo -- see its construction) back into the int config.ta_grid_size
+        actually needs. The QIntValidator on the widget keeps keystrokes
+        restricted to digits, but currentText() can still be empty or
+        transiently invalid while the user is mid-edit (e.g. selected-all-
+        then-about-to-type), so this falls back to the ordinary 101
+        default rather than letting int() raise. The single place both
+        _update_ta_grid_warning and _build_config should read this from,
+        so the two can't disagree on what an unparseable value means."""
+        try:
+            grid = int(self.ta_grid.currentText())
+        except (ValueError, TypeError):
+            grid = 101
+        return max(grid, 1)
+
     def _update_ta_grid_warning(self, *_args):
         """Time-Adaptive's "IC grid resolution" is a per-axis count -- 1D
         uses it directly, 2D squares it, 3D cubes it. A value that's fine
@@ -3231,15 +3263,14 @@ class MainWindow(QMainWindow):
         3D Heat with Time-Adaptive at grid=101, on step 2 of 5. The combo's
         hover tooltip already warns about this but is easy to miss, so
         show a visible in-panel warning too, specifically when 3D is
-        selected and the grid is at a size known to risk it (51 or 101).
-        1D/2D never cube the grid, so the warning never shows for them."""
+        selected and the grid is at a size known to risk it (51 or 101,
+        or now, since the field accepts custom typed values too, anything
+        >= 51). 1D/2D never cube the grid, so the warning never shows for
+        them."""
         if not hasattr(self, 'ta_grid_warning'):
             return
         is_3d = self.radio_3d.isChecked() if hasattr(self, 'radio_3d') else False
-        try:
-            grid = int(self.ta_grid.currentText())
-        except (ValueError, TypeError):
-            grid = 0
+        grid = self._ta_grid_size()
         self.ta_grid_warning.setVisible(is_3d and grid >= 51)
 
     def _on_dim_changed(self):
@@ -5694,7 +5725,7 @@ class MainWindow(QMainWindow):
             rar_output_selector=(self.rar_output_combo.currentIndex() - 1),
             time_adaptive=self.adapt_combo.currentData() == "Time Adaptive",
             ta_num_steps=sum(r['steps'].value() for r in self.ta_group_rows) if self.ta_group_rows else self.ta_steps.value(),
-            ta_grid_size=int(self.ta_grid.currentText()),
+            ta_grid_size=self._ta_grid_size(),
             ta_step_groups=self._build_ta_step_groups_json(),
             ta_transfer_learning=self.ta_transfer_cb.isChecked(),
             ta_transfer_optimizer=self.ta_transfer_opt.currentData(),
@@ -11039,6 +11070,47 @@ print("ERROR_ANALYSIS_DONE")
                     if len(sel) > 1 and sel[1]:
                         label_edit.setText(str(sel[1]))
                         label_edit.setVisible(True)
+                elif sel is None:
+                    # sel=None means "delegate to the Results panel's own
+                    # plot field" (see codegen.py's _ea_extract: _ea_sel is
+                    # None -> _extract_plot_field). But this combo has no
+                    # "delegate" item of its own, so leaving it untouched
+                    # just silently sits at index 0 (whatever out_names[0]
+                    # happens to be -- "u" for Schrodinger) by accident of
+                    # Qt's own default, not by any deliberate choice. That's
+                    # not just cosmetic: clicking "Run Error Analysis"
+                    # always freezes the combo's *current* text into a
+                    # concrete selector via _row_selector() below (reading
+                    # back "u" produces sel=0, a raw-output-only comparison)
+                    # -- so an auto-populated row the user never touches
+                    # would silently replace the correct delegate-to-
+                    # Custom-expression comparison (e.g. Schrodinger's
+                    # sqrt(u**2+v**2) / "|h|") with a bare "u" comparison
+                    # the instant Run is clicked. Mirror the Results panel's
+                    # CURRENT plot-field choice here instead, so the combo
+                    # shows -- and, if Run is clicked without changes,
+                    # produces -- the exact same comparison target that
+                    # sel=None would have delegated to anyway.
+                    _po_combo = getattr(self, 'plot_output_combo', None)
+                    _po_is_custom = (_po_combo is not None
+                                      and _po_combo.currentText() == "Custom...")
+                    _po_expr = (self.plot_custom_expr_input.text().strip()
+                                if hasattr(self, 'plot_custom_expr_input') else "")
+                    if _po_is_custom and _po_expr:
+                        out_combo.setCurrentText("Custom expression...")
+                        expr_edit.setText(_po_expr)
+                        expr_edit.setVisible(True)
+                        _po_label = (self.plot_custom_label_input.text().strip()
+                                     if hasattr(self, 'plot_custom_label_input') else "")
+                        if _po_label:
+                            label_edit.setText(_po_label)
+                            label_edit.setVisible(True)
+                    elif (_po_combo is not None
+                          and 0 <= _po_combo.currentIndex() < len(out_names)):
+                        out_combo.setCurrentIndex(_po_combo.currentIndex())
+                    # else: no Results-panel reference available (shouldn't
+                    # normally happen) -- leave the combo at its implicit
+                    # default, same as before this fix.
 
             remove_btn = QPushButton("✕")
             remove_btn.setFixedHeight(26); remove_btn.setFixedWidth(26)
