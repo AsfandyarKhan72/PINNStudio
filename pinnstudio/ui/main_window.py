@@ -4301,10 +4301,17 @@ class MainWindow(QMainWindow):
     # viz_type == "\U0001F4CA Error Analysis" branch in _on_plot_settings()
     # that could never actually fire (plot_type_combo never contains that
     # string; the real Error Analysis entry point is the separate ea_btn
-    # -> _on_error_analysis_btn()). The real, reachable _on_ea_done
-    # (connected to _ea_thread.done_sig further down) was silently
-    # shadowing this dead duplicate the entire time -- removed together
-    # rather than leaving a same-named method that only looked live.
+    # -> _on_error_analysis_btn()). This round found that the "real,
+    # reachable" _on_ea_done this comment used to point to (connected to
+    # _ea_thread.done_sig inside _execute_error_analysis) was itself dead
+    # for the same reason -- _execute_error_analysis/_execute_error_analysis_v2
+    # (and their own _on_ea_done/_on_ea_v2_done done-handlers) were never
+    # called from anywhere either; the actual, live Error Analysis path
+    # runs entirely through codegen.py's generated scripts (ea_btn's
+    # dialog just populates self._ea_settings, which feeds
+    # generate_script()'s config fields -- see _on_error_analysis_btn/
+    # _show_ea_dialog and generate_script()'s own EA config handling).
+    # All four were removed together.
 
     def _add_ta_step_group(self, t_start=0.0, t_end=1.0, steps=10):
         row_widget = QWidget()
@@ -4722,12 +4729,6 @@ class MainWindow(QMainWindow):
 
     def _on_lbfgs_default_changed(self, state):
         self.lbfgs_manual_widget.setVisible(state != 2)
-
-    def _on_bc_left_changed(self, text):
-        pass
-
-    def _on_bc_right_changed(self, text):
-        pass
 
     # ── Build PDE inputs ──────────────────────────────────────
     def _build_pde_inputs(self, n):
@@ -9506,234 +9507,6 @@ print("DOMAIN_PREVIEW_DONE")
         ok_btn.clicked.connect(_on_ok)
         dialog.exec()
     
-    def _execute_error_analysis(self, ea, config):
-        import tempfile, glob, json
-        save_dir = self.save_dir_input.text().strip()
-        is_2d = config.problem_dim == "2D"
-
-        # Find most recently modified model
-        model_path = ""
-        all_models = glob.glob(os.path.join(save_dir, "model_lbfgs-*.pt")) + \
-                     glob.glob(os.path.join(save_dir, "model_adam-*.pt"))
-        if all_models:
-            model_path = max(all_models, key=os.path.getmtime)
-            self.log_box.append(f"📂 Using model: {os.path.basename(model_path)}")
-
-        if not model_path:
-            self.log_box.append("❌ No saved model found — set save directory before training."); return
-
-        config_path = model_path.replace(".pt", ".json")
-        if not os.path.exists(config_path):
-            config_path = os.path.join(save_dir, "model_config.json")
-
-        try:
-            with open(config_path) as f:
-                cfg = json.load(f)
-        except Exception as e:
-            self.log_box.append(f"❌ Could not read model config: {e}"); return
-
-        layers = cfg["layers"]; activation = cfg["activation"]
-        # Reconstruct the exact architecture the model was trained with
-        # (FNN or DeepXDE's built-in PFNN class) -- see
-        # _net_construction_helper_code()'s docstring in codegen.py for why
-        # this must be byte-for-byte the same helper the training script
-        # used. Older saved configs lack this key entirely; defaulting to
-        # "FNN" reproduces the pre-existing restore behavior.
-        from pinnstudio.core.codegen import _net_construction_helper_code
-        net_helper_code = _net_construction_helper_code(cfg.get("network_type", "FNN"))
-        x_min = cfg["x_min"]; x_max = cfg["x_max"]
-        y_min = cfg.get("y_min", 0.0); y_max = cfg.get("y_max", 1.0)
-        t_min = cfg["t_min"]; t_max = cfg["t_max"]
-        loss_type = cfg.get("loss_type", "MSE")
-        compile_opt = "lbfgs" if "lbfgs" in model_path else "adam"
-
-        use_expr = ea['use_expr']
-        expr_raw = ea['expr']
-        csv_path = ea['csv_path']
-        times_str = ea['times']
-        snap_time = ea['snap_time']
-
-        from pinnstudio.core.codegen import _simplify_expr
-        expr_converted = _simplify_expr(expr_raw, is_2d) if use_expr else ""
-
-        try:
-            times = [float(t.strip()) for t in times_str.split(",") if t.strip()]
-        except Exception:
-            times = [0.5]
-
-        script = f"""
-import os
-os.environ["DDE_BACKEND"] = "pytorch"
-import deepxde as dde
-import numpy as np
-import torch
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-
-if {str(is_2d)}:
-    geom = dde.geometry.Rectangle([{x_min}, {y_min}], [{x_max}, {y_max}])
-else:
-    geom = dde.geometry.Interval({x_min}, {x_max})
-td = dde.geometry.TimeDomain({t_min}, {t_max})
-gt = dde.geometry.GeometryXTime(geom, td)
-def pde(x, y): return y[:, 0:1] * 0
-data  = dde.data.TimePDE(gt, pde, [], num_domain=100, num_test=100)
-{net_helper_code}
-net   = _make_net({layers}, "{activation}", "Glorot uniform")
-model = dde.Model(data, net)
-if "{compile_opt}" == "lbfgs":
-    dde.optimizers.set_LBFGS_options(maxiter=1)
-    model.compile("L-BFGS", loss="{loss_type}")
-else:
-    model.compile("adam", lr=0.001, loss="{loss_type}")
-model.restore({model_path!r}, verbose=0)
-print("Model restored for error analysis.")
-os.makedirs({save_dir!r}, exist_ok=True)
-metrics_lines = []
-"""
-        if not is_2d:
-            script += f"""
-x_vals = np.linspace({x_min}, {x_max}, 200)
-times  = {times}
-n_t = len(times)
-fig, axes = plt.subplots(n_t, 3, figsize=(15, 4*n_t))
-if n_t == 1: axes = [axes]
-fig.suptitle("PINN vs Reference — Error Analysis", fontsize=13, fontweight='bold')
-for row, tv in enumerate(times):
-    xt = np.column_stack([x_vals, np.full_like(x_vals, tv)])
-    u_pred = model.predict(xt)[:, 0].flatten()
-"""
-            if use_expr:
-                script += f"""
-    x = x_vals; t = tv
-    u_ref = {expr_converted}
-    u_ref = np.atleast_1d(u_ref)
-    if len(u_ref) != len(x_vals):
-        u_ref = np.full_like(x_vals, float(u_ref[0]))
-"""
-            else:
-                script += f"""
-    data_csv = np.loadtxt({csv_path!r}, delimiter=",", skiprows=1)
-    t_col = data_csv[:, 1]
-    t_unique = np.unique(t_col)
-    t_closest = t_unique[np.argmin(np.abs(t_unique - tv))]
-    mask = np.abs(t_col - t_closest) < 1e-10
-    u_ref = np.interp(x_vals, data_csv[mask, 0], data_csv[mask, 2])
-"""
-            script += f"""
-    abs_err = np.abs(u_pred - u_ref)
-    l2   = np.linalg.norm(u_pred - u_ref) / (np.linalg.norm(u_ref) + 1e-10)
-    mse  = np.mean((u_pred - u_ref)**2)
-    maxe = np.max(abs_err)
-    metrics_lines.append(f"t={{tv:.4f}}: L2={{l2:.4e}}, MSE={{mse:.4e}}, Max={{maxe:.4e}}")
-    print(f"  t={{tv:.3f}} — L2={{l2:.4e}}, MSE={{mse:.4e}}, Max={{maxe:.4e}}")
-    ax0, ax1, ax2 = axes[row]
-    ax0.plot(x_vals, u_pred, color='#4dabf7', lw=2, label='PINN')
-    ax0.plot(x_vals, u_ref,  color='#ff8787', lw=2, ls='--', label='Reference')
-    ax0.set_title(f"t={{tv:.3f}} — PINN vs Reference"); ax0.legend(); ax0.grid(True, alpha=0.3)
-    ax1.plot(x_vals, u_ref, color='#ff8787', lw=2)
-    ax1.set_title(f"t={{tv:.3f}} — Reference"); ax1.grid(True, alpha=0.3)
-    ax2.plot(x_vals, abs_err, color='#69db7c', lw=2)
-    ax2.fill_between(x_vals, abs_err, alpha=0.3, color='#69db7c')
-    ax2.set_title(f"t={{tv:.3f}} — |Error| L2={{l2:.2e}}"); ax2.grid(True, alpha=0.3)
-plt.tight_layout()
-"""
-        else:
-            script += f"""
-tv = {snap_time}
-x_vals = np.linspace({x_min}, {x_max}, 80)
-y_vals = np.linspace({y_min}, {y_max}, 80)
-Xg, Yg = np.meshgrid(x_vals, y_vals)
-XYT = np.column_stack([Xg.ravel(), Yg.ravel(), np.full(Xg.size, tv)])
-u_pred = model.predict(XYT)[:, 0].reshape(80, 80)
-"""
-            if use_expr:
-                script += f"""
-x = Xg; y = Yg; t = tv
-u_ref = {expr_converted}
-if not hasattr(u_ref, 'shape') or u_ref.shape != (80, 80):
-    u_ref = np.full((80, 80), float(u_ref))
-"""
-            else:
-                script += f"""
-data_csv = np.loadtxt({csv_path!r}, delimiter=",", skiprows=1)
-t_col = data_csv[:, 2]
-t_unique = np.unique(t_col)
-t_closest = t_unique[np.argmin(np.abs(t_unique - tv))]
-mask = np.abs(t_col - t_closest) < 1e-10
-from scipy.interpolate import griddata
-u_ref = griddata(data_csv[mask, :2], data_csv[mask, 3], (Xg, Yg), method='linear', fill_value=0.0)
-"""
-            script += f"""
-abs_err = np.abs(u_pred - u_ref)
-l2   = np.linalg.norm(u_pred - u_ref) / (np.linalg.norm(u_ref) + 1e-10)
-mse  = np.mean((u_pred - u_ref)**2)
-maxe = np.max(abs_err)
-metrics_lines.append(f"t={snap_time:.4f}: L2={{l2:.4e}}, MSE={{mse:.4e}}, Max={{maxe:.4e}}")
-print(f"  t={snap_time:.3f} — L2={{l2:.4e}}, MSE={{mse:.4e}}, Max={{maxe:.4e}}")
-vmin = min(u_pred.min(), u_ref.min()); vmax = max(u_pred.max(), u_ref.max())
-fig, axes = plt.subplots(1, 3, figsize=(15, 5))
-im0 = axes[0].contourf(Xg, Yg, u_pred, levels=40, cmap='RdBu_r', vmin=vmin, vmax=vmax)
-axes[0].set_title(f"PINN at t={snap_time}"); axes[0].set_xlabel("x"); axes[0].set_ylabel("y")
-fig.colorbar(im0, ax=axes[0])
-im1 = axes[1].contourf(Xg, Yg, u_ref, levels=40, cmap='RdBu_r', vmin=vmin, vmax=vmax)
-axes[1].set_title(f"Reference at t={snap_time}"); axes[1].set_xlabel("x")
-fig.colorbar(im1, ax=axes[1])
-im2 = axes[2].contourf(Xg, Yg, abs_err, levels=40, cmap='YlOrRd')
-axes[2].set_title(f"|Error| L2={{l2:.2e}}"); axes[2].set_xlabel("x")
-fig.colorbar(im2, ax=axes[2])
-fig.suptitle("PINN vs Reference — Error Analysis", fontsize=13, fontweight='bold')
-plt.tight_layout()
-"""
-        script += f"""
-out_path = os.path.join({save_dir!r}, "comparison_plot.png")
-plt.savefig(out_path, dpi=100); plt.close()
-print(f"Comparison plot saved: {{out_path}}")
-metrics_path = os.path.join({save_dir!r}, "error_metrics.txt")
-with open(metrics_path, "w") as f:
-    f.write("Error Analysis Results\\n" + "="*40 + "\\n")
-    for line in metrics_lines:
-        f.write(line + "\\n")
-print(f"Metrics saved: {{metrics_path}}")
-print("ERROR_ANALYSIS_DONE")
-"""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as tf:
-            tf.write(script); tmp = tf.name
-
-        from PyQt6.QtCore import QThread, pyqtSignal as _sig
-        class _EAThread(QThread):
-            line_sig = _sig(str)
-            done_sig = _sig(bool)
-            def __init__(self, tmp):
-                super().__init__(); self._tmp = tmp
-            def run(self):
-                import subprocess, sys
-                proc = subprocess.Popen([sys.executable, self._tmp],
-                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-                for line in proc.stdout:
-                    self.line_sig.emit(line.rstrip())
-                proc.wait()
-                os.unlink(self._tmp)
-                self.done_sig.emit(proc.returncode == 0)
-
-        self._ea_thread = _EAThread(tmp)
-        self._ea_thread.line_sig.connect(self.log_box.append)
-        self._ea_thread.done_sig.connect(self._on_ea_done)
-        self._ea_thread.start()
-
-    def _on_ea_done(self, success):
-        save_dir = self.save_dir_input.text().strip()
-        if success:
-            self.log_box.append("✅ Error analysis complete!")
-            plot_path = os.path.join(save_dir, "comparison_plot.png")
-            if os.path.exists(plot_path):
-                self.solution_label.setPixmap(QPixmap(plot_path).scaled(
-                    500, 420, Qt.AspectRatioMode.KeepAspectRatio,
-                    Qt.TransformationMode.SmoothTransformation))
-        else:
-            self.log_box.append("❌ Error analysis failed — check log.")
-    
     def _on_restore_mode_changed(self, text):
         is_inverse = (text == "Inverse Model")
         self.restore_inv_vars_widget.setVisible(is_inverse)
@@ -12035,271 +11808,6 @@ print("ERROR_ANALYSIS_DONE")
         run_btn.clicked.connect(_on_run)
         dialog.exec()
 
-    def _execute_error_analysis_v2(self, ea, config):
-        import tempfile, glob, json
-        save_dir = self.save_dir_input.text().strip()
-        is_2d = config.problem_dim == "2D"
-
-        # Find most recently modified model
-        model_path = ""
-        all_models = glob.glob(os.path.join(save_dir, "model_lbfgs-*.pt")) + \
-                     glob.glob(os.path.join(save_dir, "model_adam-*.pt"))
-        if all_models:
-            model_path = max(all_models, key=os.path.getmtime)
-            self.log_box.append(f"📂 Using model: {os.path.basename(model_path)}")
-
-        if not model_path:
-            self.log_box.append("❌ No saved model found."); return
-
-        config_path = model_path.replace(".pt", ".json")
-        if not os.path.exists(config_path):
-            config_path = os.path.join(save_dir, "model_config.json")
-
-        try:
-            with open(config_path) as f:
-                cfg = json.load(f)
-        except Exception as e:
-            self.log_box.append(f"❌ Could not read model config: {e}"); return
-
-        layers     = cfg["layers"]
-        activation = cfg["activation"]
-        from pinnstudio.core.codegen import _net_construction_helper_code
-        net_helper_code = _net_construction_helper_code(cfg.get("network_type", "FNN"))
-        x_min = cfg["x_min"]; x_max = cfg["x_max"]
-        t_min = cfg["t_min"]; t_max = cfg["t_max"]
-        loss_type  = cfg.get("loss_type", "MSE")
-        compile_opt = "lbfgs" if "lbfgs" in model_path else "adam"
-
-        files_list = ea['files']   # list of (t_val, filepath)
-        do_line    = ea['do_line']
-        do_surface = ea['do_surface']
-        do_l2      = ea['do_l2']
-        do_mse     = ea['do_mse']
-        do_max     = ea['do_max']
-
-        # Serialise file list for script
-        files_repr = repr(files_list)
-
-        script = f"""
-import os
-os.environ["DDE_BACKEND"] = "pytorch"
-import deepxde as dde
-import numpy as np
-import torch
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-from scipy.interpolate import interp1d
-
-# ── Restore model ─────────────────────────────────────────────
-if {is_2d}:
-    geom = dde.geometry.Rectangle([{x_min}, {cfg.get('y_min', 0.0)}], [{x_max}, {cfg.get('y_max', 1.0)}])
-else:
-    geom  = dde.geometry.Interval({x_min}, {x_max})
-td    = dde.geometry.TimeDomain({t_min}, {t_max})
-gt    = dde.geometry.GeometryXTime(geom, td)
-def pde(x, y): return y[:, 0:1] * 0
-data  = dde.data.TimePDE(gt, pde, [], num_domain=100, num_test=100)
-{net_helper_code}
-net   = _make_net({layers}, "{activation}", "Glorot uniform")
-model = dde.Model(data, net)
-if "{compile_opt}" == "lbfgs":
-    dde.optimizers.set_LBFGS_options(maxiter=1)
-    model.compile("L-BFGS", loss="{loss_type}")
-else:
-    model.compile("adam", lr=0.001, loss="{loss_type}")
-
-model.restore({model_path!r}, verbose=0)
-print("✅ Model restored for error analysis.")
-print(f"   Model path: {model_path}")
-print(f"   x range: [{x_min}, {x_max}]")
-print(f"   t range: [{t_min}, {t_max}]")
-
-# ── Output directory ──────────────────────────────────────────
-_ea_dir = os.path.join({save_dir!r}, "error_analysis")
-os.makedirs(_ea_dir, exist_ok=True)
-
-# ── Load reference files ──────────────────────────────────────
-_files = {files_repr}
-_times = []; _x_refs = []; _u_refs = []; _d_refs = []; _d_shape = 0
-for _tv, _fp in _files:
-    _d = np.loadtxt(_fp)
-    if _d.ndim == 1: _d = _d.reshape(1, -1)
-    _d_shape = _d.shape[1]
-    _idx = np.argsort(_d[:, 0])
-    _x_refs.append(_d[_idx, 0])
-    _u_col = 3 if _d_shape >= 4 else 2
-    _u_refs.append(_d[_idx, _u_col])
-    _d_refs.append(_d[_idx])
-    _times.append(float(_tv))
-    print(f"  Loaded t={{_tv:.4f}}: {{len(_d)}} points from {{os.path.basename(_fp)}}")
-
-_n_t = len(_times)
-
-# ── Predict PINN at EXACT FEM x values for each time ─────────
-_u_pinns = []
-for _i, _tv in enumerate(_times):
-    _x_fem = _x_refs[_i]
-    if _d_shape >= 4:  # 2D file: has x,y,t,c columns
-        _y_fem = _d_refs[_i][:, 1]
-        _xt = np.column_stack([_x_fem, _y_fem, np.full_like(_x_fem, _tv)])
-    else:
-        _xt = np.column_stack([_x_fem, np.full_like(_x_fem, _tv)])
-    _u_pinns.append(model.predict(_xt)[:, 0].flatten())
-    print(f"  PINN predicted at t={{_tv:.4f}}: {{len(_x_fem)}} points")
-
-# ── Error metrics at exact FEM points ────────────────────────
-_metrics = []
-for _i, _tv in enumerate(_times):
-    _up = _u_pinns[_i]; _uf = _u_refs[_i]
-    _abs_err = np.abs(_up - _uf)
-    _l2      = np.linalg.norm(_up - _uf) / (np.linalg.norm(_uf) + 1e-10)
-    _mse     = np.mean((_up - _uf)**2)
-    _mx      = np.max(_abs_err)
-    _ma      = np.mean(_abs_err)
-    _metrics.append((_tv, _l2, _mse, _mx, _ma))
-    print(f"  t={{_tv:.4f}} — L2={{_l2:.4e}}, MSE={{_mse:.4e}}, Max={{_mx:.4e}}, MeanAbs={{_ma:.4e}}")
-
-# Save metrics
-with open(os.path.join(_ea_dir, "error_metrics.txt"), "w") as _mf:
-    _mf.write("t,L2_relative,MSE,Max_error,Mean_abs_error\\n")
-    for _tv, _l2, _mse, _mx, _ma in _metrics:
-        _mf.write(f"{{_tv:.6f}},{{_l2:.6e}},{{_mse:.6e}},{{_mx:.6e}},{{_ma:.6e}}\\n")
-print(f"Metrics saved: {{os.path.join(_ea_dir, 'error_metrics.txt')}}")
-
-# ── Line comparison — PINN vs FEM at exact x values ──────────
-if {do_line}:
-    _ncols = min(4, _n_t)
-    _nrows = (_n_t + _ncols - 1) // _ncols
-    fig, axes = plt.subplots(_nrows, _ncols, figsize=(4*_ncols, 3.5*_nrows), squeeze=False)
-    fig.suptitle("PINN vs FEM — Line Comparison", fontsize=13, fontweight='bold')
-    _ax_flat = axes.flatten()
-    for _i in range(_n_t):
-        ax = _ax_flat[_i]
-        _xv = _x_refs[_i]
-        _tv, _l2, _mse, _mx, _ma = _metrics[_i]
-        ax.plot(_xv, _u_refs[_i],  color='#4dabf7', linewidth=2.0, label='FEM (Exact)')
-        ax.plot(_xv, _u_pinns[_i], color='#ff6b6b', linewidth=1.8, linestyle='--', label='PINN')
-        ax.set_title(f"t = {{_tv:.3f}}  |  L2 = {{_l2:.2e}}", fontsize=10)
-        ax.set_xlabel("x"); ax.set_ylabel("u(x,t)")
-        ax.grid(True, alpha=0.3)
-    for _j in range(_n_t, len(_ax_flat)):
-        _ax_flat[_j].set_visible(False)
-    handles, labels = _ax_flat[0].get_legend_handles_labels()
-    fig.legend(handles, labels, loc='lower center', ncol=2, fontsize=10,
-               framealpha=0.9, bbox_to_anchor=(0.5, 0.01))
-    plt.tight_layout(rect=[0, 0.06, 1, 1])
-    _lp = os.path.join(_ea_dir, "line_comparison.png")
-    plt.savefig(_lp, dpi=150, bbox_inches='tight'); plt.close()
-    print(f"Line comparison saved: {{_lp}}")
-
-# ── Absolute error lines ──────────────────────────────────────
-if {do_line}:
-    _ncols = min(4, _n_t)
-    _nrows = (_n_t + _ncols - 1) // _ncols
-    fig, axes = plt.subplots(_nrows, _ncols, figsize=(4*_ncols, 3.5*_nrows), squeeze=False)
-    fig.suptitle("Absolute Error  |PINN - FEM|", fontsize=13, fontweight='bold')
-    _ax_flat = axes.flatten()
-    for _i in range(_n_t):
-        ax = _ax_flat[_i]
-        _xv = _x_refs[_i]
-        _abs_err = np.abs(_u_pinns[_i] - _u_refs[_i])
-        _tv, _l2, _mse, _mx, _ma = _metrics[_i]
-        ax.plot(_xv, _abs_err, color='#69db7c', linewidth=2.0)
-        ax.fill_between(_xv, _abs_err, alpha=0.25, color='#69db7c')
-        ax.set_title(f"t = {{_tv:.3f}}  |  Max = {{_mx:.2e}}", fontsize=10)
-        ax.set_xlabel("x"); ax.set_ylabel("|error|")
-        ax.grid(True, alpha=0.3)
-    for _j in range(_n_t, len(_ax_flat)):
-        _ax_flat[_j].set_visible(False)
-    plt.tight_layout()
-    _ep = os.path.join(_ea_dir, "absolute_error_lines.png")
-    plt.savefig(_ep, dpi=150, bbox_inches='tight'); plt.close()
-    print(f"Absolute error saved: {{_ep}}")
-
-# ── Surface comparison — interpolate FEM to common grid ──────
-if {do_surface}:
-    _x_common = np.linspace({x_min}, {x_max}, 300)
-    _t_arr = np.array(_times)
-    _U_pinn_surf = np.zeros((len(_t_arr), len(_x_common)))
-    _U_fem_surf  = np.zeros((len(_t_arr), len(_x_common)))
-
-    for _i, _tv in enumerate(_times):
-        if _d_shape >= 4:
-            _y_common = _d_refs[_i][:, 1].mean() * np.ones_like(_x_common)
-            _xt_c = np.column_stack([_x_common, _y_common, np.full_like(_x_common, _tv)])
-        else:
-            _xt_c = np.column_stack([_x_common, np.full_like(_x_common, _tv)])
-        _U_pinn_surf[_i, :] = model.predict(_xt_c)[:, 0].flatten()
-        _fi = interp1d(_x_refs[_i], _u_refs[_i], kind='linear', fill_value='extrapolate')
-        _U_fem_surf[_i, :] = _fi(_x_common)
-
-    _Xg, _Tg = np.meshgrid(_x_common, _t_arr)
-    _U_err_surf = np.abs(_U_pinn_surf - _U_fem_surf)
-    _vmin = min(_U_pinn_surf.min(), _U_fem_surf.min())
-    _vmax = max(_U_pinn_surf.max(), _U_fem_surf.max())
-
-    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
-    fig.suptitle("PINN vs FEM — Surface Comparison", fontsize=13, fontweight='bold')
-
-    im0 = axes[0].contourf(_Tg, _Xg, _U_pinn_surf, levels=50, cmap='viridis', vmin=_vmin, vmax=_vmax)
-    axes[0].set_title("PINN  u(x,t)"); axes[0].set_xlabel("t"); axes[0].set_ylabel("x")
-    fig.colorbar(im0, ax=axes[0])
-
-    im1 = axes[1].contourf(_Tg, _Xg, _U_fem_surf, levels=50, cmap='viridis', vmin=_vmin, vmax=_vmax)
-    axes[1].set_title("FEM  u(x,t)"); axes[1].set_xlabel("t"); axes[1].set_ylabel("x")
-    fig.colorbar(im1, ax=axes[1])
-
-    im2 = axes[2].contourf(_Tg, _Xg, _U_err_surf, levels=50, cmap='YlOrRd')
-    axes[2].set_title("Error  |PINN - FEM|"); axes[2].set_xlabel("t"); axes[2].set_ylabel("x")
-    fig.colorbar(im2, ax=axes[2])
-
-    plt.tight_layout()
-    _sp = os.path.join(_ea_dir, "surface_comparison.png")
-    plt.savefig(_sp, dpi=150, bbox_inches='tight'); plt.close()
-    print(f"Surface comparison saved: {{_sp}}")
-
-print("ERROR_ANALYSIS_V2_DONE")
-"""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as tf:
-            tf.write(script); tmp = tf.name
-
-        from PyQt6.QtCore import QThread, pyqtSignal as _sig
-        class _EAThread2(QThread):
-            line_sig = _sig(str)
-            done_sig = _sig(bool)
-            def __init__(self, tmp):
-                super().__init__(); self._tmp = tmp
-            def run(self):
-                import subprocess, sys
-                proc = subprocess.Popen([sys.executable, self._tmp],
-                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-                for line in proc.stdout:
-                    self.line_sig.emit(line.rstrip())
-                proc.wait()
-                os.unlink(self._tmp)
-                self.done_sig.emit(proc.returncode == 0)
-
-        self._ea_thread2 = _EAThread2(tmp)
-        self._ea_thread2.line_sig.connect(self.log_box.append)
-        self._ea_thread2.done_sig.connect(self._on_ea_v2_done)
-        self._ea_thread2.start()
-
-    def _on_ea_v2_done(self, success):
-        save_dir = self.save_dir_input.text().strip()
-        if success:
-            self.log_box.append("✅ Error analysis complete! Results in error_analysis/ folder.")
-            # Show surface comparison if it exists
-            for name in ["surface_comparison.png", "line_comparison.png"]:
-                p = os.path.join(save_dir, "error_analysis", name)
-                if os.path.exists(p):
-                    self.solution_label.setPixmap(QPixmap(p).scaled(
-                        500, 420, Qt.AspectRatioMode.KeepAspectRatio,
-                        Qt.TransformationMode.SmoothTransformation))
-                    break
-        else:
-            self.log_box.append("❌ Error analysis failed — check log.")
-    
     def _build_scheduler_phases_json(self):
         import json
         if not hasattr(self, 'sched_cb') or not self.sched_cb.isChecked():
@@ -14271,33 +13779,47 @@ print(f"Surface plot saved to: {{out_path}}")
             script += f"""
 x_vals = np.linspace({x_min}, {x_max}, {resolution})
 t_steps_vals = np.linspace({t_min}, {t_max}, {n_steps})
-fig, ax = plt.subplots(figsize=_plot_figsize(8, 5))
-colors = plt.get_cmap("{colormap}")(np.linspace(0, 1, {n_steps}))
 y_mid = {_line_slice_y}
 z_mid = {_line_slice_z}
-for i, tv in enumerate(t_steps_vals):
-    # Steady-state has no time axis -- "time steps" don't exist, so every
-    # iteration predicts the same single steady solution (this viz type is
-    # hidden from the Restore panel's dropdown for a steady-state config;
-    # this is just a defensive fallback so it can't crash if ever reached).
-    if is_steady and is_3d:
-        xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, z_mid)])
-    elif is_steady and is_2d:
-        xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid)])
-    elif is_steady:
-        xt = x_vals.reshape(-1, 1)
-    elif is_3d:
-        xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, z_mid), np.full_like(x_vals, tv)])
-    elif is_2d:
-        xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, tv)])
-    else:
-        xt = np.column_stack([x_vals, np.full_like(x_vals, tv)])
-    u_line = _extract_plot_field(xt).flatten()
-    _line_label = "steady-state" if is_steady else f"t={{tv:.3f}}"
-    ax.plot(x_vals, u_line, color=colors[i], linewidth={linewidth}, label=_line_label)
-ax.set_xlabel({_xlabel_line!r}, fontsize={axis_label_fontsize}); ax.set_ylabel({_ylabel_line!r}, fontsize={axis_label_fontsize})
+# Masked to the real geometry with geom.inside(...) -- same convention
+# the Surface branch above already uses. The mask only depends on
+# (x[, y, z]), not t, so it's computed once before the time loop. 1D has
+# no non-Interval geometry, so no masking is needed there.
+if is_3d:
+    _line_in = geom.inside(np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, z_mid)]))
+    x_vals = x_vals[_line_in]
+elif is_2d:
+    _line_in = geom.inside(np.column_stack([x_vals, np.full_like(x_vals, y_mid)]))
+    x_vals = x_vals[_line_in]
+fig, ax = plt.subplots(figsize=_plot_figsize(8, 5))
+if len(x_vals) < 2:
+    ax.text(0.5, 0.5, "Line outside the domain at this slice", ha="center", va="center", transform=ax.transAxes)
+    ax.set_xticks([]); ax.set_yticks([])
+else:
+    colors = plt.get_cmap("{colormap}")(np.linspace(0, 1, {n_steps}))
+    for i, tv in enumerate(t_steps_vals):
+        # Steady-state has no time axis -- "time steps" don't exist, so every
+        # iteration predicts the same single steady solution (this viz type is
+        # hidden from the Restore panel's dropdown for a steady-state config;
+        # this is just a defensive fallback so it can't crash if ever reached).
+        if is_steady and is_3d:
+            xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, z_mid)])
+        elif is_steady and is_2d:
+            xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid)])
+        elif is_steady:
+            xt = x_vals.reshape(-1, 1)
+        elif is_3d:
+            xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, z_mid), np.full_like(x_vals, tv)])
+        elif is_2d:
+            xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, tv)])
+        else:
+            xt = np.column_stack([x_vals, np.full_like(x_vals, tv)])
+        u_line = _extract_plot_field(xt).flatten()
+        _line_label = "steady-state" if is_steady else f"t={{tv:.3f}}"
+        ax.plot(x_vals, u_line, color=colors[i], linewidth={linewidth}, label=_line_label)
+    ax.set_xlabel({_xlabel_line!r}, fontsize={axis_label_fontsize}); ax.set_ylabel({_ylabel_line!r}, fontsize={axis_label_fontsize})
+    ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
 ax.set_title({_title_line!r}, fontsize={subplot_title_fontsize})
-ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
 plt.tight_layout()
 out_path = os.path.join({save_dir!r}, "restored_plot.png")
 plt.savefig(out_path, dpi={dpi}, bbox_inches='tight'); plt.close()
@@ -14322,46 +13844,66 @@ import matplotlib.animation as _anim
 t_frames = np.linspace({t_min}, {t_max}, {n_steps})
 y_mid = {_line_slice_y}
 z_mid = {_line_slice_z}
-all_u = []
-for tv in t_frames:
-    # Defensive fallback for steady-state (see the matching comment in the
-    # "Line (time steps)" branch) -- this viz type is hidden from the
-    # dropdown for a steady-state config, so every "frame" below predicts
-    # the same single steady solution rather than crashing.
-    if is_steady and is_3d:
-        xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, z_mid)])
-    elif is_steady and is_2d:
-        xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid)])
-    elif is_steady:
-        xt = x_vals.reshape(-1, 1)
-    elif is_3d:
-        xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, z_mid), np.full_like(x_vals, tv)])
-    elif is_2d:
-        xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, tv)])
-    else:
-        xt = np.column_stack([x_vals, np.full_like(x_vals, tv)])
-    all_u.append(_extract_plot_field(xt).flatten())
-u_min = min(u.min() for u in all_u) 
-u_max = max(u.max() for u in all_u)
-fig, ax = plt.subplots(figsize=_plot_figsize(7, 4))
-ax.set_xlim({x_min}, {x_max})
-ax.set_ylim(u_min - 0.05*abs(u_min), u_max + 0.05*abs(u_max))
-ax.set_xlabel({_xlabel_animline!r}, fontsize={axis_label_fontsize}); ax.set_ylabel({_ylabel_animline!r}, fontsize={axis_label_fontsize})
-{_title_line_stmt}
-line, = ax.plot([], [], color="#4dabf7", linewidth={linewidth})
-time_txt = ax.text({_tt_x}, {_tt_y}, '', transform=ax.transAxes, color='black', ha={_tt_ha!r}, fontsize=11)
-ax.grid(True, alpha=0.2)
-def init():
-    line.set_data([], []); time_txt.set_text(''); return line, time_txt
-def update(i):
-    line.set_data(x_vals, all_u[i])
-    time_txt.set_text(f"t = {{t_frames[i]:.3f}}")
-    return line, time_txt
-ani = _anim.FuncAnimation(fig, update, init_func=init, frames={n_steps}, interval=100, blit=True)
-out_path = os.path.join({save_dir!r}, "restored_animation.gif")
-ani.save(out_path, writer='pillow', fps={fps})
-plt.close()
-print(f"Animation saved to: {{out_path}}")
+# Masked to the real geometry with geom.inside(...) -- same convention as
+# the "Line (time steps)" branch above. If the slice leaves fewer than 2
+# in-domain points, there's nothing to animate -- save a static fallback
+# note as restored_plot.png instead (the path _on_restore's result
+# display already falls back to when no .gif was produced) rather than
+# crashing or silently animating a line outside the real domain.
+if is_3d:
+    _line_in = geom.inside(np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, z_mid)]))
+    x_vals = x_vals[_line_in]
+elif is_2d:
+    _line_in = geom.inside(np.column_stack([x_vals, np.full_like(x_vals, y_mid)]))
+    x_vals = x_vals[_line_in]
+if len(x_vals) < 2:
+    fig, ax = plt.subplots(figsize=_plot_figsize(7, 4))
+    ax.text(0.5, 0.5, "Line outside the domain at this slice", ha="center", va="center", transform=ax.transAxes)
+    ax.set_xticks([]); ax.set_yticks([])
+    out_path = os.path.join({save_dir!r}, "restored_plot.png")
+    plt.savefig(out_path, dpi={dpi}, bbox_inches='tight'); plt.close()
+    print(f"⚠️ Line outside the domain at this slice -- no animation produced; static note saved to: {{out_path}}")
+else:
+    all_u = []
+    for tv in t_frames:
+        # Defensive fallback for steady-state (see the matching comment in the
+        # "Line (time steps)" branch) -- this viz type is hidden from the
+        # dropdown for a steady-state config, so every "frame" below predicts
+        # the same single steady solution rather than crashing.
+        if is_steady and is_3d:
+            xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, z_mid)])
+        elif is_steady and is_2d:
+            xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid)])
+        elif is_steady:
+            xt = x_vals.reshape(-1, 1)
+        elif is_3d:
+            xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, z_mid), np.full_like(x_vals, tv)])
+        elif is_2d:
+            xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, tv)])
+        else:
+            xt = np.column_stack([x_vals, np.full_like(x_vals, tv)])
+        all_u.append(_extract_plot_field(xt).flatten())
+    u_min = min(u.min() for u in all_u)
+    u_max = max(u.max() for u in all_u)
+    fig, ax = plt.subplots(figsize=_plot_figsize(7, 4))
+    ax.set_xlim({x_min}, {x_max})
+    ax.set_ylim(u_min - 0.05*abs(u_min), u_max + 0.05*abs(u_max))
+    ax.set_xlabel({_xlabel_animline!r}, fontsize={axis_label_fontsize}); ax.set_ylabel({_ylabel_animline!r}, fontsize={axis_label_fontsize})
+    {_title_line_stmt}
+    line, = ax.plot([], [], color="#4dabf7", linewidth={linewidth})
+    time_txt = ax.text({_tt_x}, {_tt_y}, '', transform=ax.transAxes, color='black', ha={_tt_ha!r}, fontsize=11)
+    ax.grid(True, alpha=0.2)
+    def init():
+        line.set_data([], []); time_txt.set_text(''); return line, time_txt
+    def update(i):
+        line.set_data(x_vals, all_u[i])
+        time_txt.set_text(f"t = {{t_frames[i]:.3f}}")
+        return line, time_txt
+    ani = _anim.FuncAnimation(fig, update, init_func=init, frames={n_steps}, interval=100, blit=True)
+    out_path = os.path.join({save_dir!r}, "restored_animation.gif")
+    ani.save(out_path, writer='pillow', fps={fps})
+    plt.close()
+    print(f"Animation saved to: {{out_path}}")
 """
         
         elif viz_type == "Animation Surface (GIF)":
@@ -14619,6 +14161,54 @@ else:
         _tm_runtime_code_restore = _training_monitor_runtime_code()
         _restore_dim_str = "3D" if is_3d else ("2D" if is_2d else "1D")
 
+        # Reconstruct the ACTUAL problem geometry (Disk/Ellipse/Triangle/
+        # Polygon/Sphere/Custom CSG combo, not just its rectangular/cuboid
+        # bounding box) -- same reasoning and the same reused
+        # generate_clean_script() helpers as _build_restore_script's own
+        # geometry-reconstruction comment (see there for the full
+        # rationale). Previously _ta_build_geomtime() below always built a
+        # plain Cuboid/Rectangle/Interval, so a Time-Adaptive restore of
+        # e.g. an L-Shape/Disk/Triangle problem would evaluate and plot
+        # the model across the full bounding box, past the true (possibly
+        # non-convex) boundary.
+        import types as _restore_types_ta
+        from pinnstudio.core.codegen import _clean_geom_line, _parse_vertex_list
+        _tri_verts_restore_ta = _parse_vertex_list(cfg.get("geom_triangle_vertices", "0,0;1,0;0,1"))
+        if len(_tri_verts_restore_ta) != 3:
+            _tri_verts_restore_ta = [[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]]
+        _poly_verts_restore_ta = _parse_vertex_list(cfg.get("geom_polygon_vertices", "0,0;1,0;1,1;0,1"))
+        if len(_poly_verts_restore_ta) < 3:
+            _poly_verts_restore_ta = [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]
+        _geom_cfg_restore_ta = _restore_types_ta.SimpleNamespace(
+            geometry_type=cfg.get("geometry_type", "Rectangle"),
+            geom_center_x=cfg.get("geom_center_x", 0.5), geom_center_y=cfg.get("geom_center_y", 0.5),
+            geom_center_z=cfg.get("geom_center_z", 0.5), geom_radius=cfg.get("geom_radius", 0.5),
+            geom_semi_major=cfg.get("geom_semi_major", 0.5), geom_semi_minor=cfg.get("geom_semi_minor", 0.3),
+            geom_angle=cfg.get("geom_angle", 0.0),
+            geom_custom_shapes_json=cfg.get("geom_custom_shapes_json", "[]"),
+            problem_dim=cfg.get("problem_dim", "2D"),
+            x_min=x_min, x_max=x_max, y_min=y_min, y_max=y_max, z_min=z_min, z_max=z_max,
+        )
+        _geom_line_restore_ta, _geom_needs_dtype_wrap_ta = _clean_geom_line(
+            _geom_cfg_restore_ta, is_2d, is_3d, _tri_verts_restore_ta, _poly_verts_restore_ta)
+        # Same wrapper class _build_restore_script splices in for the same
+        # reason (see codegen.py's _DTypeSafeGeom) -- only included when
+        # the reconstructed geometry actually needs it.
+        _dtype_safe_geom_class_restore_ta = '''class _DTypeSafeGeom:
+    def __init__(self, geom):
+        self._geom = geom
+    def __getattr__(self, name):
+        return getattr(self._geom, name)
+    def random_points(self, n, random="pseudo"):
+        return self._geom.random_points(n, random=random).astype(dde.config.real(np))
+    def uniform_points(self, n, boundary=True):
+        return self._geom.uniform_points(n, boundary=boundary).astype(dde.config.real(np))
+    def random_boundary_points(self, n, random="pseudo"):
+        return self._geom.random_boundary_points(n, random=random).astype(dde.config.real(np))
+    def uniform_boundary_points(self, n):
+        return self._geom.uniform_boundary_points(n).astype(dde.config.real(np))
+''' if _geom_needs_dtype_wrap_ta else ''
+
         script = f"""
 import os
 os.environ["DDE_BACKEND"] = "pytorch"
@@ -14651,13 +14241,14 @@ _ta_steps = {_step_literals!r}
 print(f"ℹ️ Time-Adaptive combined restore: {{len(_ta_steps)}} step(s), "
       f"t=[{{_ta_steps[0]['t0']}}, {{_ta_steps[-1]['t1']}}]")
 
+{_dtype_safe_geom_class_restore_ta}
+# Built once at module scope (geometry is time-independent, same across
+# every step) -- reused both by _ta_build_geomtime() below and directly by
+# the Line (time steps)/Animation Line (GIF) branches further down to
+# mask a line slice down to the real domain with geom.inside(...).
+{_geom_line_restore_ta}
+
 def _ta_build_geomtime(t0, t1):
-    if is_3d:
-        geom = dde.geometry.Cuboid([{x_min}, {y_min}, {z_min}], [{x_max}, {y_max}, {z_max}])
-    elif is_2d:
-        geom = dde.geometry.Rectangle([{x_min}, {y_min}], [{x_max}, {y_max}])
-    else:
-        geom = dde.geometry.Interval({x_min}, {x_max})
     timedomain = dde.geometry.TimeDomain(t0, t1)
     return dde.geometry.GeometryXTime(geom, timedomain)
 
@@ -14875,23 +14466,39 @@ print(f"Surface plot saved to: {{out_path}}")
             script += f"""
 x_vals = np.linspace({x_min}, {x_max}, {resolution})
 t_steps_vals = np.linspace({t_min}, {t_max}, {n_steps})
-fig, ax = plt.subplots(figsize=_plot_figsize(8, 5))
-colors = plt.get_cmap("{colormap}")(np.linspace(0, 1, {n_steps}))
 y_mid = {_line_slice_y}
 z_mid = {_line_slice_z}
-for i, tv in enumerate(t_steps_vals):
-    _ta_m = _ta_model_for_t(tv)
-    if is_3d:
-        xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, z_mid), np.full_like(x_vals, tv)])
-    elif is_2d:
-        xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, tv)])
-    else:
-        xt = np.column_stack([x_vals, np.full_like(x_vals, tv)])
-    u_line = _extract_plot_field(xt, _ta_m).flatten()
-    ax.plot(x_vals, u_line, color=colors[i], linewidth={linewidth}, label=f"t={{tv:.3f}}")
-ax.set_xlabel({_xlabel_line!r}, fontsize={axis_label_fontsize}); ax.set_ylabel({_ylabel_line!r}, fontsize={axis_label_fontsize})
+# Masked to the real geometry with geom.inside(...) -- same convention as
+# generate_script()'s own (already-fixed) Time-Adaptive-aware Error
+# Analysis Line Comparison, and the single-model restore path's own
+# Line (time steps) branch. The mask only depends on (x[, y, z]), not t,
+# so it's computed once before the time loop. 1D has no non-Interval
+# geometry, so no masking is needed there.
+if is_3d:
+    _line_in = geom.inside(np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, z_mid)]))
+    x_vals = x_vals[_line_in]
+elif is_2d:
+    _line_in = geom.inside(np.column_stack([x_vals, np.full_like(x_vals, y_mid)]))
+    x_vals = x_vals[_line_in]
+fig, ax = plt.subplots(figsize=_plot_figsize(8, 5))
+if len(x_vals) < 2:
+    ax.text(0.5, 0.5, "Line outside the domain at this slice", ha="center", va="center", transform=ax.transAxes)
+    ax.set_xticks([]); ax.set_yticks([])
+else:
+    colors = plt.get_cmap("{colormap}")(np.linspace(0, 1, {n_steps}))
+    for i, tv in enumerate(t_steps_vals):
+        _ta_m = _ta_model_for_t(tv)
+        if is_3d:
+            xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, z_mid), np.full_like(x_vals, tv)])
+        elif is_2d:
+            xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, tv)])
+        else:
+            xt = np.column_stack([x_vals, np.full_like(x_vals, tv)])
+        u_line = _extract_plot_field(xt, _ta_m).flatten()
+        ax.plot(x_vals, u_line, color=colors[i], linewidth={linewidth}, label=f"t={{tv:.3f}}")
+    ax.set_xlabel({_xlabel_line!r}, fontsize={axis_label_fontsize}); ax.set_ylabel({_ylabel_line!r}, fontsize={axis_label_fontsize})
+    ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
 ax.set_title({_title_line!r}, fontsize={subplot_title_fontsize})
-ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
 plt.tight_layout()
 out_path = os.path.join({save_dir!r}, "restored_plot.png")
 plt.savefig(out_path, dpi={dpi}, bbox_inches='tight'); plt.close()
@@ -14916,37 +14523,57 @@ import matplotlib.animation as _anim
 t_frames = np.linspace({t_min}, {t_max}, {n_steps})
 y_mid = {_line_slice_y}
 z_mid = {_line_slice_z}
-all_u = []
-for tv in t_frames:
-    _ta_m = _ta_model_for_t(tv)
-    if is_3d:
-        xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, z_mid), np.full_like(x_vals, tv)])
-    elif is_2d:
-        xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, tv)])
-    else:
-        xt = np.column_stack([x_vals, np.full_like(x_vals, tv)])
-    all_u.append(_extract_plot_field(xt, _ta_m).flatten())
-u_min = min(u.min() for u in all_u)
-u_max = max(u.max() for u in all_u)
-fig, ax = plt.subplots(figsize=_plot_figsize(7, 4))
-ax.set_xlim({x_min}, {x_max})
-ax.set_ylim(u_min - 0.05*abs(u_min), u_max + 0.05*abs(u_max))
-ax.set_xlabel({_xlabel_animline!r}, fontsize={axis_label_fontsize}); ax.set_ylabel({_ylabel_animline!r}, fontsize={axis_label_fontsize})
-{_title_line_stmt}
-line, = ax.plot([], [], color="#4dabf7", linewidth={linewidth})
-time_txt = ax.text({_tt_x}, {_tt_y}, '', transform=ax.transAxes, color='black', ha={_tt_ha!r}, fontsize=11)
-ax.grid(True, alpha=0.2)
-def init():
-    line.set_data([], []); time_txt.set_text(''); return line, time_txt
-def update(i):
-    line.set_data(x_vals, all_u[i])
-    time_txt.set_text(f"t = {{t_frames[i]:.3f}}")
-    return line, time_txt
-ani = _anim.FuncAnimation(fig, update, init_func=init, frames={n_steps}, interval=100, blit=True)
-out_path = os.path.join({save_dir!r}, "restored_animation.gif")
-ani.save(out_path, writer='pillow', fps={fps})
-plt.close()
-print(f"Animation saved to: {{out_path}}")
+# Masked to the real geometry with geom.inside(...) -- same convention as
+# the "Line (time steps)" branch above. If the slice leaves fewer than 2
+# in-domain points, there's nothing to animate -- save a static fallback
+# note as restored_plot.png instead (the path _on_restore's result
+# display already falls back to when no .gif was produced) rather than
+# crashing or silently animating a line outside the real domain.
+if is_3d:
+    _line_in = geom.inside(np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, z_mid)]))
+    x_vals = x_vals[_line_in]
+elif is_2d:
+    _line_in = geom.inside(np.column_stack([x_vals, np.full_like(x_vals, y_mid)]))
+    x_vals = x_vals[_line_in]
+if len(x_vals) < 2:
+    fig, ax = plt.subplots(figsize=_plot_figsize(7, 4))
+    ax.text(0.5, 0.5, "Line outside the domain at this slice", ha="center", va="center", transform=ax.transAxes)
+    ax.set_xticks([]); ax.set_yticks([])
+    out_path = os.path.join({save_dir!r}, "restored_plot.png")
+    plt.savefig(out_path, dpi={dpi}, bbox_inches='tight'); plt.close()
+    print(f"⚠️ Line outside the domain at this slice -- no animation produced; static note saved to: {{out_path}}")
+else:
+    all_u = []
+    for tv in t_frames:
+        _ta_m = _ta_model_for_t(tv)
+        if is_3d:
+            xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, z_mid), np.full_like(x_vals, tv)])
+        elif is_2d:
+            xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, tv)])
+        else:
+            xt = np.column_stack([x_vals, np.full_like(x_vals, tv)])
+        all_u.append(_extract_plot_field(xt, _ta_m).flatten())
+    u_min = min(u.min() for u in all_u)
+    u_max = max(u.max() for u in all_u)
+    fig, ax = plt.subplots(figsize=_plot_figsize(7, 4))
+    ax.set_xlim({x_min}, {x_max})
+    ax.set_ylim(u_min - 0.05*abs(u_min), u_max + 0.05*abs(u_max))
+    ax.set_xlabel({_xlabel_animline!r}, fontsize={axis_label_fontsize}); ax.set_ylabel({_ylabel_animline!r}, fontsize={axis_label_fontsize})
+    {_title_line_stmt}
+    line, = ax.plot([], [], color="#4dabf7", linewidth={linewidth})
+    time_txt = ax.text({_tt_x}, {_tt_y}, '', transform=ax.transAxes, color='black', ha={_tt_ha!r}, fontsize=11)
+    ax.grid(True, alpha=0.2)
+    def init():
+        line.set_data([], []); time_txt.set_text(''); return line, time_txt
+    def update(i):
+        line.set_data(x_vals, all_u[i])
+        time_txt.set_text(f"t = {{t_frames[i]:.3f}}")
+        return line, time_txt
+    ani = _anim.FuncAnimation(fig, update, init_func=init, frames={n_steps}, interval=100, blit=True)
+    out_path = os.path.join({save_dir!r}, "restored_animation.gif")
+    ani.save(out_path, writer='pillow', fps={fps})
+    plt.close()
+    print(f"Animation saved to: {{out_path}}")
 """
 
         elif viz_type == "Animation Surface (GIF)":
@@ -15090,6 +14717,9 @@ else:
         _title_fs      = viz_settings.get('title_fontsize', 13.0)
         _subtitle_fs   = viz_settings.get('subplot_title_fontsize', 10.0)
         _axislabel_fs  = viz_settings.get('axis_label_fontsize', 10.0)
+        # Same resolution the restore script's own Line plot uses for its
+        # true-line x scan -- see the Line comparison section below.
+        _ea_line_res = viz_settings.get('resolution', 100)
         files_repr = repr(files)
         # Which model to call .predict() on, per reference time _tv: a
         # Time-Adaptive combined restore (_build_restore_script_ta) never
@@ -15266,43 +14896,62 @@ if {do_line}:
         _ea_line_suptitle += f" (y={line_slice_y:.3g})"
     fig.suptitle(_ea_line_suptitle, fontsize={_title_fs}, fontweight='bold')
     _ax_flat = axes.flatten()
+    if {is_2d} or {is_3d}:
+        # A true line at the exact slice (the restore panel's own
+        # line_slice_y/_z), masked to the real geometry with
+        # geom.inside(...) -- not a scatter of whichever reference-file
+        # points happened to fall within a tolerance BAND around it. The
+        # PINN curve is evaluated directly on that line, and the
+        # reference is interpolated onto it from its own scattered points
+        # via griddata (nearest-neighbor fallback for any point outside
+        # its convex hull). Same fix Rounds 36/37 already gave
+        # generate_script()'s own Error Analysis Line Comparison (see its
+        # comment for the full "why" -- the previous tolerance-band
+        # approach smeared multiple y/z values onto the same x, especially
+        # badly on a non-box geometry). geom is the real reconstructed
+        # geometry built above, for both the single-model and
+        # Time-Adaptive restore paths.
+        from scipy.interpolate import griddata as _gd_line
+        _xv_line = np.linspace({x_min}, {x_max}, {_ea_line_res})
+        _y_mid = {line_slice_y!r}
+        _z_mid = {line_slice_z!r}
     for _i in range(_ea_n_t):
         ax = _ax_flat[_i]
-        _xv = _ea_x_refs[_i]
         _tv, _l2, _mse, _mx, _ma = _ea_metrics[_i]
         if {is_3d}:
-            # Extract the reference points nearest the same (y, z) slice
-            # the restored Line plot itself uses, widening the tolerance
-            # band if too few reference points happen to fall near it.
-            _yv = _ea_y_refs[_i]; _zv = _ea_z_refs[_i]
-            _y_mid = {line_slice_y!r}; _z_mid = {line_slice_z!r}
-            _y_tol = ({y_max} - {y_min}) / 20.0; _z_tol = ({z_max} - {z_min}) / 20.0
-            _mid_mask = (np.abs(_yv - _y_mid) < _y_tol) & (np.abs(_zv - _z_mid) < _z_tol)
-            if _mid_mask.sum() < 5:
-                _y_tol2 = ({y_max} - {y_min}) / 5.0; _z_tol2 = ({z_max} - {z_min}) / 5.0
-                _mid_mask = (np.abs(_yv - _y_mid) < _y_tol2) & (np.abs(_zv - _z_mid) < _z_tol2)
-            if _mid_mask.sum() < 2:
-                _mid_mask = np.ones_like(_xv, dtype=bool)  # fall back to all points
-            _ea_sort = np.argsort(_xv[_mid_mask])
-            _xv_s   = _xv[_mid_mask][_ea_sort]
-            _gt_s   = _ea_u_refs[_i][_mid_mask][_ea_sort]
-            _pinn_s = _ea_u_pinns[_i][_mid_mask][_ea_sort]
+            _line_pts3 = np.column_stack([_xv_line, np.full_like(_xv_line, _y_mid), np.full_like(_xv_line, _z_mid)])
+            _line_in3 = geom.inside(_line_pts3)
+            _xv_s = _xv_line[_line_in3]
+            _line_pts3_in = _line_pts3[_line_in3]
+            if len(_xv_s) < 2:
+                ax.text(0.5, 0.5, "Line outside the domain at this (y, z) slice", ha='center', va='center', transform=ax.transAxes)
+                ax.set_xticks([]); ax.set_yticks([])
+                continue
+            _line_eval3 = _line_pts3_in if {is_steady} else np.column_stack([_line_pts3_in, np.full(len(_xv_s), _tv)])
+            _pinn_s = _extract_restore_field({_predict_call}(_line_eval3)).flatten()
+            _ref_pts3 = np.column_stack([_ea_x_refs[_i], _ea_y_refs[_i], _ea_z_refs[_i]])
+            _gt_s = _gd_line(_ref_pts3, _ea_u_refs[_i], _line_pts3_in, method='linear')
+            _gt_nan3 = np.isnan(_gt_s)
+            if _gt_nan3.any():
+                _gt_s[_gt_nan3] = _gd_line(_ref_pts3, _ea_u_refs[_i], _line_pts3_in[_gt_nan3], method='nearest')
         elif {is_2d}:
-            # Same idea for 2D: extract reference points nearest the
-            # configured y slice.
-            _yv = _ea_y_refs[_i]
-            _y_mid = {line_slice_y!r}
-            _y_tol = ({y_max} - {y_min}) / 20.0
-            _mid_mask = np.abs(_yv - _y_mid) < _y_tol
-            if _mid_mask.sum() < 5:
-                _mid_mask = np.abs(_yv - _y_mid) < ({y_max} - {y_min}) / 5.0
-            if _mid_mask.sum() < 2:
-                _mid_mask = np.ones_like(_xv, dtype=bool)
-            _ea_sort = np.argsort(_xv[_mid_mask])
-            _xv_s   = _xv[_mid_mask][_ea_sort]
-            _gt_s   = _ea_u_refs[_i][_mid_mask][_ea_sort]
-            _pinn_s = _ea_u_pinns[_i][_mid_mask][_ea_sort]
+            _line_pts2 = np.column_stack([_xv_line, np.full_like(_xv_line, _y_mid)])
+            _line_in2 = geom.inside(_line_pts2)
+            _xv_s = _xv_line[_line_in2]
+            _line_pts2_in = _line_pts2[_line_in2]
+            if len(_xv_s) < 2:
+                ax.text(0.5, 0.5, "Line outside the domain at this y slice", ha='center', va='center', transform=ax.transAxes)
+                ax.set_xticks([]); ax.set_yticks([])
+                continue
+            _line_eval2 = _line_pts2_in if {is_steady} else np.column_stack([_line_pts2_in, np.full(len(_xv_s), _tv)])
+            _pinn_s = _extract_restore_field({_predict_call}(_line_eval2)).flatten()
+            _ref_pts2 = np.column_stack([_ea_x_refs[_i], _ea_y_refs[_i]])
+            _gt_s = _gd_line(_ref_pts2, _ea_u_refs[_i], _line_pts2_in, method='linear')
+            _gt_nan2 = np.isnan(_gt_s)
+            if _gt_nan2.any():
+                _gt_s[_gt_nan2] = _gd_line(_ref_pts2, _ea_u_refs[_i], _line_pts2_in[_gt_nan2], method='nearest')
         else:
+            _xv = _ea_x_refs[_i]
             _ea_sort = np.argsort(_xv)
             _xv_s   = _xv[_ea_sort]
             _gt_s   = _ea_u_refs[_i][_ea_sort]

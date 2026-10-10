@@ -2391,15 +2391,15 @@ if _custom_bc_entries or _bc_panel_data_present:
     # selector was removed -- confusing to have two places to set the
     # IC when the Initial Condition panel above already covers both
     # expression and file-based ICs, for every problem type and
-    # dimension. This branch is permanently disabled (never True) so
-    # every problem -- inverse included -- now goes through that one
-    # panel's own logic just below. _ic_xt/_ic_u above are kept only
+    # dimension. Every problem -- inverse included -- goes through that
+    # one panel's own logic just below. _ic_xt/_ic_u above are kept only
     # so a config saved before this change (inverse_ic_type could
-    # still be "File (x, t, u)" in it) still loads without error.
+    # still be "File (x, t, u)" in it) still loads without error -- this
+    # function just never builds a constraint from them anymore (the
+    # dead "elif False: PointSetBC(_ic_xt, _ic_u, ...)" branch that used
+    # to sit here, from before this v19 change, was removed this round).
     if _is_steady:
         pass
-    elif False:
-        _constraints.append(dde.icbc.PointSetBC(_ic_xt, _ic_u, component=0))
     else:
         for _oi in range({config.num_outputs}):
             _comp = _oi
@@ -2426,131 +2426,130 @@ else:
     # selector was removed -- confusing to have two places to set the
     # IC when the Initial Condition panel above already covers both
     # expression and file-based ICs, for every problem type and
-    # dimension. This branch is permanently disabled (never True) so
-    # every problem -- inverse included -- now goes through that one
-    # panel's own logic just below. _ic_xt/_ic_u above are kept only
+    # dimension. Every problem -- inverse included -- goes through that
+    # one panel's own logic just below. _ic_xt/_ic_u above are kept only
     # so a config saved before this change (inverse_ic_type could
-    # still be "File (x, t, u)" in it) still loads without error.
-    if False:
-        _constraints.append(dde.icbc.PointSetBC(_ic_xt, _ic_u, component=0))
-    else:
-        for _oi in range({config.num_outputs}):
-            _comp = _oi
-            _blt = _bc_left_types[_oi].strip()  if _oi < len(_bc_left_types)  else "Dirichlet"
-            _brt = _bc_right_types[_oi].strip() if _oi < len(_bc_right_types) else "Dirichlet"
-            _blv = float(_bc_left_values[_oi].strip())  if _oi < len(_bc_left_values)  else 0.0
-            _brv = float(_bc_right_values[_oi].strip()) if _oi < len(_bc_right_values) else 0.0
+    # still be "File (x, t, u)" in it) still loads without error -- this
+    # branch just never builds a constraint from them anymore (the dead
+    # "if False: PointSetBC(_ic_xt, _ic_u, ...)" wrapper that used to sit
+    # here, from before this v19 change, was removed this round).
+    for _oi in range({config.num_outputs}):
+        _comp = _oi
+        _blt = _bc_left_types[_oi].strip()  if _oi < len(_bc_left_types)  else "Dirichlet"
+        _brt = _bc_right_types[_oi].strip() if _oi < len(_bc_right_types) else "Dirichlet"
+        _blv = float(_bc_left_values[_oi].strip())  if _oi < len(_bc_left_values)  else 0.0
+        _brv = float(_bc_right_values[_oi].strip()) if _oi < len(_bc_right_values) else 0.0
 
-            # ── BC left (x = x_min) ──────────────────────────────
-            if _oi < len(_bc_left_active) and _bc_left_active[_oi].strip() == "True":
-                def _bl_on_boundary(x, on_boundary):
-                    return on_boundary and dde.utils.isclose(x[0], {config.x_min})
-                if _blt == "Dirichlet":
-                    def _make_dbc_l(v, comp, on_bd):
+        # ── BC left (x = x_min) ──────────────────────────────
+        if _oi < len(_bc_left_active) and _bc_left_active[_oi].strip() == "True":
+            def _bl_on_boundary(x, on_boundary):
+                return on_boundary and dde.utils.isclose(x[0], {config.x_min})
+            if _blt == "Dirichlet":
+                def _make_dbc_l(v, comp, on_bd):
+                    def _val_fn(x): return np.full((len(x), 1), v)
+                    return dde.icbc.DirichletBC(geomtime, _val_fn, on_bd, component=comp)
+                _constraints.append(_make_dbc_l(_blv, _comp, _bl_on_boundary))
+            elif _blt == "Neumann":
+                def _make_nbc_l(v, comp, on_bd):
+                    def _val_fn(x): return np.full((len(x), 1), v)
+                    return dde.icbc.NeumannBC(geomtime, _val_fn, on_bd, component=comp)
+                _constraints.append(_make_nbc_l(_blv, _comp, _bl_on_boundary))
+            elif _blt == "Periodic":
+                _constraints.append(dde.icbc.PeriodicBC(geomtime, 0, _bl_on_boundary, derivative_order=0, component=_comp))
+                if _oi < len(_bc_left_deriv_list) and _bc_left_deriv_list[_oi].strip() == "True":
+                    _constraints.append(dde.icbc.PeriodicBC(geomtime, 0, _bl_on_boundary, derivative_order=1, component=_comp))
+
+        # ── BC right (x = x_max) ─────────────────────────────
+        if _oi < len(_bc_right_active) and _bc_right_active[_oi].strip() == "True":
+            def _br_on_boundary(x, on_boundary):
+                return on_boundary and dde.utils.isclose(x[0], {config.x_max})
+            if _brt == "Dirichlet":
+                def _make_dbc_r(v, comp, on_bd):
+                    def _val_fn(x): return np.full((len(x), 1), v)
+                    return dde.icbc.DirichletBC(geomtime, _val_fn, on_bd, component=comp)
+                _constraints.append(_make_dbc_r(_brv, _comp, _br_on_boundary))
+            elif _brt == "Neumann":
+                def _make_nbc_r(v, comp, on_bd):
+                    def _val_fn(x): return np.full((len(x), 1), v)
+                    return dde.icbc.NeumannBC(geomtime, _val_fn, on_bd, component=comp)
+                _constraints.append(_make_nbc_r(_brv, _comp, _br_on_boundary))
+            elif _brt == "Periodic":
+                pass  # Periodic BC is handled by left side only — DeepXDE enforces both ends together
+
+        # ── BC bottom (y = y_min) — 2D only ──────────────────
+        if _is_2d:
+            _bbt = _bc_bottom_types[_oi].strip()  if _oi < len(_bc_bottom_types)  else "Dirichlet"
+            _btt = _bc_top_types[_oi].strip()     if _oi < len(_bc_top_types)     else "Dirichlet"
+            _bbv = float(_bc_bottom_values[_oi].strip()) if _oi < len(_bc_bottom_values) else 0.0
+            _btv = float(_bc_top_values[_oi].strip())    if _oi < len(_bc_top_values)    else 0.0
+
+            if _oi < len(_bc_bottom_active) and _bc_bottom_active[_oi].strip() == "True":
+                def _bb_on_boundary(x, on_boundary):
+                    return on_boundary and dde.utils.isclose(x[1], {config.y_min})
+                if _bbt == "Dirichlet":
+                    def _make_dbc_b(v, comp, on_bd):
                         def _val_fn(x): return np.full((len(x), 1), v)
                         return dde.icbc.DirichletBC(geomtime, _val_fn, on_bd, component=comp)
-                    _constraints.append(_make_dbc_l(_blv, _comp, _bl_on_boundary))
-                elif _blt == "Neumann":
-                    def _make_nbc_l(v, comp, on_bd):
+                    _constraints.append(_make_dbc_b(_bbv, _comp, _bb_on_boundary))
+                elif _bbt == "Neumann":
+                    def _make_nbc_b(v, comp, on_bd):
                         def _val_fn(x): return np.full((len(x), 1), v)
                         return dde.icbc.NeumannBC(geomtime, _val_fn, on_bd, component=comp)
-                    _constraints.append(_make_nbc_l(_blv, _comp, _bl_on_boundary))
-                elif _blt == "Periodic":
-                    _constraints.append(dde.icbc.PeriodicBC(geomtime, 0, _bl_on_boundary, derivative_order=0, component=_comp))
-                    if _oi < len(_bc_left_deriv_list) and _bc_left_deriv_list[_oi].strip() == "True":
-                        _constraints.append(dde.icbc.PeriodicBC(geomtime, 0, _bl_on_boundary, derivative_order=1, component=_comp))
+                    _constraints.append(_make_nbc_b(_bbv, _comp, _bb_on_boundary))
+                elif _bbt == "Periodic":
+                    _constraints.append(dde.icbc.PeriodicBC(geomtime, 1, _bb_on_boundary, derivative_order=0, component=_comp))
+                    if _oi < len(_bc_bottom_deriv_list) and _bc_bottom_deriv_list[_oi].strip() == "True":
+                        _constraints.append(dde.icbc.PeriodicBC(geomtime, 1, _bb_on_boundary, derivative_order=1, component=_comp))
 
-            # ── BC right (x = x_max) ─────────────────────────────
-            if _oi < len(_bc_right_active) and _bc_right_active[_oi].strip() == "True":
-                def _br_on_boundary(x, on_boundary):
-                    return on_boundary and dde.utils.isclose(x[0], {config.x_max})
-                if _brt == "Dirichlet":
-                    def _make_dbc_r(v, comp, on_bd):
+            # ── BC top (y = y_max) ────────────────────────────
+            if _oi < len(_bc_top_active) and _bc_top_active[_oi].strip() == "True":
+                def _bt_on_boundary(x, on_boundary):
+                    return on_boundary and dde.utils.isclose(x[1], {config.y_max})
+                if _btt == "Dirichlet":
+                    def _make_dbc_t(v, comp, on_bd):
                         def _val_fn(x): return np.full((len(x), 1), v)
                         return dde.icbc.DirichletBC(geomtime, _val_fn, on_bd, component=comp)
-                    _constraints.append(_make_dbc_r(_brv, _comp, _br_on_boundary))
-                elif _brt == "Neumann":
-                    def _make_nbc_r(v, comp, on_bd):
+                    _constraints.append(_make_dbc_t(_btv, _comp, _bt_on_boundary))
+                elif _btt == "Neumann":
+                    def _make_nbc_t(v, comp, on_bd):
                         def _val_fn(x): return np.full((len(x), 1), v)
                         return dde.icbc.NeumannBC(geomtime, _val_fn, on_bd, component=comp)
-                    _constraints.append(_make_nbc_r(_brv, _comp, _br_on_boundary))
-                elif _brt == "Periodic":
-                    pass  # Periodic BC is handled by left side only — DeepXDE enforces both ends together
+                    _constraints.append(_make_nbc_t(_btv, _comp, _bt_on_boundary))
+                elif _btt == "Periodic":
+                    pass  # Periodic BC handled by bottom side only
 
-            # ── BC bottom (y = y_min) — 2D only ──────────────────
-            if _is_2d:
-                _bbt = _bc_bottom_types[_oi].strip()  if _oi < len(_bc_bottom_types)  else "Dirichlet"
-                _btt = _bc_top_types[_oi].strip()     if _oi < len(_bc_top_types)     else "Dirichlet"
-                _bbv = float(_bc_bottom_values[_oi].strip()) if _oi < len(_bc_bottom_values) else 0.0
-                _btv = float(_bc_top_values[_oi].strip())    if _oi < len(_bc_top_values)    else 0.0
-
-                if _oi < len(_bc_bottom_active) and _bc_bottom_active[_oi].strip() == "True":
-                    def _bb_on_boundary(x, on_boundary):
-                        return on_boundary and dde.utils.isclose(x[1], {config.y_min})
-                    if _bbt == "Dirichlet":
-                        def _make_dbc_b(v, comp, on_bd):
-                            def _val_fn(x): return np.full((len(x), 1), v)
-                            return dde.icbc.DirichletBC(geomtime, _val_fn, on_bd, component=comp)
-                        _constraints.append(_make_dbc_b(_bbv, _comp, _bb_on_boundary))
-                    elif _bbt == "Neumann":
-                        def _make_nbc_b(v, comp, on_bd):
-                            def _val_fn(x): return np.full((len(x), 1), v)
-                            return dde.icbc.NeumannBC(geomtime, _val_fn, on_bd, component=comp)
-                        _constraints.append(_make_nbc_b(_bbv, _comp, _bb_on_boundary))
-                    elif _bbt == "Periodic":
-                        _constraints.append(dde.icbc.PeriodicBC(geomtime, 1, _bb_on_boundary, derivative_order=0, component=_comp))
-                        if _oi < len(_bc_bottom_deriv_list) and _bc_bottom_deriv_list[_oi].strip() == "True":
-                            _constraints.append(dde.icbc.PeriodicBC(geomtime, 1, _bb_on_boundary, derivative_order=1, component=_comp))
-
-                # ── BC top (y = y_max) ────────────────────────────
-                if _oi < len(_bc_top_active) and _bc_top_active[_oi].strip() == "True":
-                    def _bt_on_boundary(x, on_boundary):
-                        return on_boundary and dde.utils.isclose(x[1], {config.y_max})
-                    if _btt == "Dirichlet":
-                        def _make_dbc_t(v, comp, on_bd):
-                            def _val_fn(x): return np.full((len(x), 1), v)
-                            return dde.icbc.DirichletBC(geomtime, _val_fn, on_bd, component=comp)
-                        _constraints.append(_make_dbc_t(_btv, _comp, _bt_on_boundary))
-                    elif _btt == "Neumann":
-                        def _make_nbc_t(v, comp, on_bd):
-                            def _val_fn(x): return np.full((len(x), 1), v)
-                            return dde.icbc.NeumannBC(geomtime, _val_fn, on_bd, component=comp)
-                        _constraints.append(_make_nbc_t(_btv, _comp, _bt_on_boundary))
-                    elif _btt == "Periodic":
-                        pass  # Periodic BC handled by bottom side only
-
-            # ── IC (skipped entirely for a steady-state problem, same
-            # reasoning/fix as the Boundary-Conditions-panel-active branch
-            # above: a steady-state geomtime is just a plain spatial
-            # geometry with no on_initial() to match against, so building a
-            # dde.icbc.IC() here crashed with "'Rectangle' object has no
-            # attribute 'on_initial'" the moment any output's IC was
-            # active -- caught via an actual exec-level steady-state
-            # training run through this exact legacy branch, which only
-            # the custom_bc_json-empty path reaches (any config built by
-            # the current GUI always sends a non-empty custom_bc_json,
-            # even "[]", routing to the other branch instead -- so this hit
-            # only an old pre-Boundary-Conditions-panel config, loaded with
-            # steady_state=True and one of its legacy ic_active entries
-            # still "True") ──────────────────────────────────────────
-            if _is_steady:
-                pass
-            elif {config.forward_ic_from_file} and _oi == 0:
-                # Load IC from file -- see _load_ic_from_file() above for
-                # the expected column layout per dimension.
-                _ic_xyt, _ic_vals = _load_ic_from_file({repr(config.forward_ic_file)})
-                _constraints.append(dde.icbc.PointSetBC(_ic_xyt, _ic_vals, component=0))
-                _ic_file_disp = {repr(config.forward_ic_file)}
-                print(f"IC loaded from file: {{_ic_file_disp}} — {{len(_ic_xyt)}} points")
-            elif _oi < len(_ic_active_list) and _ic_active_list[_oi].strip() == "True":
-                _ic_expr = _ic_expressions[_oi].strip() if _oi < len(_ic_expressions) else "np.zeros_like(x[:,0])"
-                def _make_ic(expr, comp):
-                    def _ic_fn(x):
-                        if x.ndim == 1:
-                            x = x.reshape(-1, 1)
-                        return np.reshape(eval(expr, {{"np": np, "x": x, "__builtins__": __builtins__}}), (-1, 1))
-                    return dde.icbc.IC(geomtime, _ic_fn, lambda x, on_initial: on_initial, component=comp)
-                _constraints.append(_make_ic(_ic_expr, _comp))
+        # ── IC (skipped entirely for a steady-state problem, same
+        # reasoning/fix as the Boundary-Conditions-panel-active branch
+        # above: a steady-state geomtime is just a plain spatial
+        # geometry with no on_initial() to match against, so building a
+        # dde.icbc.IC() here crashed with "'Rectangle' object has no
+        # attribute 'on_initial'" the moment any output's IC was
+        # active -- caught via an actual exec-level steady-state
+        # training run through this exact legacy branch, which only
+        # the custom_bc_json-empty path reaches (any config built by
+        # the current GUI always sends a non-empty custom_bc_json,
+        # even "[]", routing to the other branch instead -- so this hit
+        # only an old pre-Boundary-Conditions-panel config, loaded with
+        # steady_state=True and one of its legacy ic_active entries
+        # still "True") ──────────────────────────────────────────
+        if _is_steady:
+            pass
+        elif {config.forward_ic_from_file} and _oi == 0:
+            # Load IC from file -- see _load_ic_from_file() above for
+            # the expected column layout per dimension.
+            _ic_xyt, _ic_vals = _load_ic_from_file({repr(config.forward_ic_file)})
+            _constraints.append(dde.icbc.PointSetBC(_ic_xyt, _ic_vals, component=0))
+            _ic_file_disp = {repr(config.forward_ic_file)}
+            print(f"IC loaded from file: {{_ic_file_disp}} — {{len(_ic_xyt)}} points")
+        elif _oi < len(_ic_active_list) and _ic_active_list[_oi].strip() == "True":
+            _ic_expr = _ic_expressions[_oi].strip() if _oi < len(_ic_expressions) else "np.zeros_like(x[:,0])"
+            def _make_ic(expr, comp):
+                def _ic_fn(x):
+                    if x.ndim == 1:
+                        x = x.reshape(-1, 1)
+                    return np.reshape(eval(expr, {{"np": np, "x": x, "__builtins__": __builtins__}}), (-1, 1))
+                return dde.icbc.IC(geomtime, _ic_fn, lambda x, on_initial: on_initial, component=comp)
+            _constraints.append(_make_ic(_ic_expr, _comp))
 
 # ── Loss weights ─────────────────────────────────────────────
 _n_out_w = {config.num_outputs}
@@ -4222,15 +4221,28 @@ for _pval in _param_values:
             # steady-1D branch below already uses. Previously this
             # selection silently fell through to the x-y heatmap branch
             # just below (plot_type was never checked for 2D/3D at all).
+            # Masked to the real geometry with geom.inside(...) -- same
+            # pattern the x-y heatmap branch below already uses, and the
+            # same fix Error Analysis's own Line Comparison plot got in
+            # Rounds 36/37 -- so a non-rectangular domain (L-Shape, Disk,
+            # ...) doesn't evaluate/plot the model somewhere it was never
+            # trained, past the true boundary at this y slice.
             _x_l2ds = np.linspace(_plot_x_min, _plot_x_max, {config.plot_resolution})
             _xy_l2ds = np.column_stack([_x_l2ds, np.full_like(_x_l2ds, {_line_slice_y})])
-            _u_l2ds = _extract_plot_field(_xy_l2ds).flatten()
+            _line_in_l2ds = geom.inside(_xy_l2ds)
+            _x_l2ds = _x_l2ds[_line_in_l2ds]
+            _xy_l2ds = _xy_l2ds[_line_in_l2ds]
             out_name = _plot_custom_label if _plot_custom_expr.strip() else {repr(config.output_names)}.split(",")[_plot_idx].strip()
             fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
-            ax.plot(_x_l2ds, _u_l2ds, color="#4dabf7", linewidth={config.plot_linewidth})
-            ax.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or f"{{out_name}}(x,y={_line_slice_y:.3g})", fontsize={config.plot_axis_label_fontsize})
+            if len(_x_l2ds) < 2:
+                ax.text(0.5, 0.5, "Line outside the domain at this y slice", ha="center", va="center", transform=ax.transAxes)
+                ax.set_xticks([]); ax.set_yticks([])
+            else:
+                _u_l2ds = _extract_plot_field(_xy_l2ds).flatten()
+                ax.plot(_x_l2ds, _u_l2ds, color="#4dabf7", linewidth={config.plot_linewidth})
+                ax.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or f"{{out_name}}(x,y={_line_slice_y:.3g})", fontsize={config.plot_axis_label_fontsize})
+                ax.grid(True, alpha=0.2)
             ax.set_title(_plot_title_override or f"PINN Solution — {{out_name}}(x,y={_line_slice_y:.3g})")
-            ax.grid(True, alpha=0.2)
             plt.tight_layout(); plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
         elif _is_2d and _is_steady:
             # Steady-state 2D: a single static x-y heatmap of u(x,y) -- no
@@ -4264,20 +4276,30 @@ for _pval in _param_values:
             # (num_timesteps_line curves, color-graded by time, legend by
             # t). Previously this selection silently fell through to the
             # x-y heatmap branch just below (plot_type was never checked
-            # for 2D/3D at all).
+            # for 2D/3D at all). Masked to the real geometry with
+            # geom.inside(...) -- the mask only depends on (x, y), not t,
+            # so it's computed once outside the time loop -- same pattern
+            # as the steady-2D Line branch above.
             _n_steps_l2d = {config.num_timesteps_line}
             _x_l2d = np.linspace(_plot_x_min, _plot_x_max, {config.plot_resolution})
+            _xy_l2d = np.column_stack([_x_l2d, np.full_like(_x_l2d, {_line_slice_y})])
+            _line_in_l2d = geom.inside(_xy_l2d)
+            _x_l2d = _x_l2d[_line_in_l2d]
             _t_steps_l2d = np.linspace({config.t_min}, {config.t_max}, _n_steps_l2d)
-            fig, ax = plt.subplots(figsize=_plot_figsize(8, 5))
-            _colors_l2d = plt.get_cmap("{config.plot_colormap}")(np.linspace(0, 1, _n_steps_l2d))
             out_name = _plot_custom_label if _plot_custom_expr.strip() else {repr(config.output_names)}.split(",")[_plot_idx].strip()
-            for _i_l2d, _tv_l2d in enumerate(_t_steps_l2d):
-                _xyt_l2d = np.column_stack([_x_l2d, np.full_like(_x_l2d, {_line_slice_y}), np.full_like(_x_l2d, _tv_l2d)])
-                _u_l2d = _extract_plot_field(_xyt_l2d).flatten()
-                ax.plot(_x_l2d, _u_l2d, color=_colors_l2d[_i_l2d], linewidth={config.plot_linewidth}, label=f"t = {{_tv_l2d:.3f}}")
-            ax.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or f"{{out_name}}(x,y={_line_slice_y:.3g},t)", fontsize={config.plot_axis_label_fontsize})
+            fig, ax = plt.subplots(figsize=_plot_figsize(8, 5))
+            if len(_x_l2d) < 2:
+                ax.text(0.5, 0.5, "Line outside the domain at this y slice", ha="center", va="center", transform=ax.transAxes)
+                ax.set_xticks([]); ax.set_yticks([])
+            else:
+                _colors_l2d = plt.get_cmap("{config.plot_colormap}")(np.linspace(0, 1, _n_steps_l2d))
+                for _i_l2d, _tv_l2d in enumerate(_t_steps_l2d):
+                    _xyt_l2d = np.column_stack([_x_l2d, np.full_like(_x_l2d, {_line_slice_y}), np.full_like(_x_l2d, _tv_l2d)])
+                    _u_l2d = _extract_plot_field(_xyt_l2d).flatten()
+                    ax.plot(_x_l2d, _u_l2d, color=_colors_l2d[_i_l2d], linewidth={config.plot_linewidth}, label=f"t = {{_tv_l2d:.3f}}")
+                ax.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or f"{{out_name}}(x,y={_line_slice_y:.3g},t)", fontsize={config.plot_axis_label_fontsize})
+                ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
             ax.set_title(_plot_title_override or f"PINN Solution — {{out_name}}(x,y={_line_slice_y:.3g},t)")
-            ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
             plt.tight_layout(); plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
         elif _is_2d:
             # 2D: x-y heatmaps at user-selected number of time snapshots
@@ -4312,15 +4334,24 @@ for _pval in _param_values:
             # Steady 3D "Line (time steps)": no time axis, so a single
             # curve u(x) at the configured y and z slice -- same "one
             # curve" simplification the steady-2D Line branch above uses.
+            # Masked to the real geometry with geom.inside(...) -- same
+            # pattern as the steady-2D Line branch above.
             _x_l3ds = np.linspace(_plot_x_min, _plot_x_max, {config.plot_resolution})
             _xyz_l3ds = np.column_stack([_x_l3ds, np.full_like(_x_l3ds, {_line_slice_y}), np.full_like(_x_l3ds, {_line_slice_z})])
-            _u_l3ds = _extract_plot_field(_xyz_l3ds).flatten()
+            _line_in_l3ds = geom.inside(_xyz_l3ds)
+            _x_l3ds = _x_l3ds[_line_in_l3ds]
+            _xyz_l3ds = _xyz_l3ds[_line_in_l3ds]
             out_name = _plot_custom_label if _plot_custom_expr.strip() else {repr(config.output_names)}.split(",")[_plot_idx].strip()
             fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
-            ax.plot(_x_l3ds, _u_l3ds, color="#4dabf7", linewidth={config.plot_linewidth})
-            ax.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or f"{{out_name}}(x,y={_line_slice_y:.3g},z={_line_slice_z:.3g})", fontsize={config.plot_axis_label_fontsize})
+            if len(_x_l3ds) < 2:
+                ax.text(0.5, 0.5, "Line outside the domain at this y/z slice", ha="center", va="center", transform=ax.transAxes)
+                ax.set_xticks([]); ax.set_yticks([])
+            else:
+                _u_l3ds = _extract_plot_field(_xyz_l3ds).flatten()
+                ax.plot(_x_l3ds, _u_l3ds, color="#4dabf7", linewidth={config.plot_linewidth})
+                ax.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or f"{{out_name}}(x,y={_line_slice_y:.3g},z={_line_slice_z:.3g})", fontsize={config.plot_axis_label_fontsize})
+                ax.grid(True, alpha=0.2)
             ax.set_title(_plot_title_override or f"PINN Solution — {{out_name}}(x,y={_line_slice_y:.3g},z={_line_slice_z:.3g})")
-            ax.grid(True, alpha=0.2)
             plt.tight_layout(); plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
         elif _is_3d and _is_steady:
             # Steady-state 3D: same "x-y heatmap at the z mid-plane"
@@ -4354,20 +4385,31 @@ for _pval in _param_values:
             # times, all at the configured y and z slice -- same
             # convention as the 2D Line branch above and the 1D one
             # further below. Previously this selection silently fell
-            # through to the x-y heatmap branch just below.
+            # through to the x-y heatmap branch just below. Masked to the
+            # real geometry with geom.inside(...) -- the mask only depends
+            # on (x, y, z), not t, so it's computed once outside the time
+            # loop -- same pattern as the 2D time-dependent Line branch
+            # above.
             _n_steps_l3d = {config.num_timesteps_line}
             _x_l3d = np.linspace(_plot_x_min, _plot_x_max, {config.plot_resolution})
+            _xyz_l3d = np.column_stack([_x_l3d, np.full_like(_x_l3d, {_line_slice_y}), np.full_like(_x_l3d, {_line_slice_z})])
+            _line_in_l3d = geom.inside(_xyz_l3d)
+            _x_l3d = _x_l3d[_line_in_l3d]
             _t_steps_l3d = np.linspace({config.t_min}, {config.t_max}, _n_steps_l3d)
-            fig, ax = plt.subplots(figsize=_plot_figsize(8, 5))
-            _colors_l3d = plt.get_cmap("{config.plot_colormap}")(np.linspace(0, 1, _n_steps_l3d))
             out_name = _plot_custom_label if _plot_custom_expr.strip() else {repr(config.output_names)}.split(",")[_plot_idx].strip()
-            for _i_l3d, _tv_l3d in enumerate(_t_steps_l3d):
-                _xyzt_l3d = np.column_stack([_x_l3d, np.full_like(_x_l3d, {_line_slice_y}), np.full_like(_x_l3d, {_line_slice_z}), np.full_like(_x_l3d, _tv_l3d)])
-                _u_l3d = _extract_plot_field(_xyzt_l3d).flatten()
-                ax.plot(_x_l3d, _u_l3d, color=_colors_l3d[_i_l3d], linewidth={config.plot_linewidth}, label=f"t = {{_tv_l3d:.3f}}")
-            ax.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or f"{{out_name}}(x,y={_line_slice_y:.3g},z={_line_slice_z:.3g},t)", fontsize={config.plot_axis_label_fontsize})
+            fig, ax = plt.subplots(figsize=_plot_figsize(8, 5))
+            if len(_x_l3d) < 2:
+                ax.text(0.5, 0.5, "Line outside the domain at this y/z slice", ha="center", va="center", transform=ax.transAxes)
+                ax.set_xticks([]); ax.set_yticks([])
+            else:
+                _colors_l3d = plt.get_cmap("{config.plot_colormap}")(np.linspace(0, 1, _n_steps_l3d))
+                for _i_l3d, _tv_l3d in enumerate(_t_steps_l3d):
+                    _xyzt_l3d = np.column_stack([_x_l3d, np.full_like(_x_l3d, {_line_slice_y}), np.full_like(_x_l3d, {_line_slice_z}), np.full_like(_x_l3d, _tv_l3d)])
+                    _u_l3d = _extract_plot_field(_xyzt_l3d).flatten()
+                    ax.plot(_x_l3d, _u_l3d, color=_colors_l3d[_i_l3d], linewidth={config.plot_linewidth}, label=f"t = {{_tv_l3d:.3f}}")
+                ax.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or f"{{out_name}}(x,y={_line_slice_y:.3g},z={_line_slice_z:.3g},t)", fontsize={config.plot_axis_label_fontsize})
+                ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
             ax.set_title(_plot_title_override or f"PINN Solution — {{out_name}}(x,y={_line_slice_y:.3g},z={_line_slice_z:.3g},t)")
-            ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
             plt.tight_layout(); plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
         elif _is_3d:
             # 3D: no volumetric renderer yet -- plot an x-y heatmap at the
@@ -8637,17 +8679,26 @@ print(f"Solution plot saved: {solution_path}")''')
         # u(x) at the configured y slice -- previously this selection
         # silently fell through to the x-y heatmap branch just below
         # (plot_type was never checked for 2D/3D at all in this
-        # generator either).
+        # generator either). Masked to the real geometry with
+        # geom.inside(...) -- same pattern generate_script()'s own
+        # equivalent branch already uses.
         parts.append(f'''# ── Result plot: line at y={line_slice_y:.3g} (steady, no time axis) ──
 res = {config.plot_resolution}
 x_l2ds = np.linspace({config.x_min}, {config.x_max}, res)
 xy_l2ds = np.column_stack([x_l2ds, np.full_like(x_l2ds, {line_slice_y})])
-u_l2ds = _extract_plot_field(xy_l2ds).flatten()
+line_in_l2ds = geom.inside(xy_l2ds)
+x_l2ds = x_l2ds[line_in_l2ds]
+xy_l2ds = xy_l2ds[line_in_l2ds]
 fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
-ax.plot(x_l2ds, u_l2ds, color="#4dabf7", linewidth={config.plot_linewidth})
-ax.set_xlabel({(plot_xlabel_override or "x")!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel({(plot_ylabel_override or f"{out_name}(x, y={line_slice_y:.3g})")!r}, fontsize={config.plot_axis_label_fontsize})
+if len(x_l2ds) < 2:
+    ax.text(0.5, 0.5, "Line outside the domain at this y slice", ha="center", va="center", transform=ax.transAxes)
+    ax.set_xticks([]); ax.set_yticks([])
+else:
+    u_l2ds = _extract_plot_field(xy_l2ds).flatten()
+    ax.plot(x_l2ds, u_l2ds, color="#4dabf7", linewidth={config.plot_linewidth})
+    ax.set_xlabel({(plot_xlabel_override or "x")!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel({(plot_ylabel_override or f"{out_name}(x, y={line_slice_y:.3g})")!r}, fontsize={config.plot_axis_label_fontsize})
+    ax.grid(True, alpha=0.2)
 ax.set_title({(plot_title_override or "PINN Solution")!r})
-ax.grid(True, alpha=0.2)
 plt.tight_layout()
 plt.savefig(solution_path, dpi={config.plot_dpi}, bbox_inches="tight")
 plt.close()
@@ -8676,17 +8727,26 @@ print(f"Solution plot saved: {{solution_path}}")''')
 
     elif is_3d and is_steady and config.plot_type == "Line (time steps)":
         # Steady 3D "Line (time steps)": single curve u(x) at the
-        # configured y and z slice.
+        # configured y and z slice. Masked to the real geometry with
+        # geom.inside(...) -- same pattern as the steady-2D Line block
+        # above.
         parts.append(f'''# ── Result plot: line at y={line_slice_y:.3g}, z={line_slice_z:.3g} (steady, no time axis) ──
 res = {config.plot_resolution}
 x_l3ds = np.linspace({config.x_min}, {config.x_max}, res)
 xyz_l3ds = np.column_stack([x_l3ds, np.full_like(x_l3ds, {line_slice_y}), np.full_like(x_l3ds, {line_slice_z})])
-u_l3ds = _extract_plot_field(xyz_l3ds).flatten()
+line_in_l3ds = geom.inside(xyz_l3ds)
+x_l3ds = x_l3ds[line_in_l3ds]
+xyz_l3ds = xyz_l3ds[line_in_l3ds]
 fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
-ax.plot(x_l3ds, u_l3ds, color="#4dabf7", linewidth={config.plot_linewidth})
-ax.set_xlabel({(plot_xlabel_override or "x")!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel({(plot_ylabel_override or f"{out_name}(x, y={line_slice_y:.3g}, z={line_slice_z:.3g})")!r}, fontsize={config.plot_axis_label_fontsize})
+if len(x_l3ds) < 2:
+    ax.text(0.5, 0.5, "Line outside the domain at this y/z slice", ha="center", va="center", transform=ax.transAxes)
+    ax.set_xticks([]); ax.set_yticks([])
+else:
+    u_l3ds = _extract_plot_field(xyz_l3ds).flatten()
+    ax.plot(x_l3ds, u_l3ds, color="#4dabf7", linewidth={config.plot_linewidth})
+    ax.set_xlabel({(plot_xlabel_override or "x")!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel({(plot_ylabel_override or f"{out_name}(x, y={line_slice_y:.3g}, z={line_slice_z:.3g})")!r}, fontsize={config.plot_axis_label_fontsize})
+    ax.grid(True, alpha=0.2)
 ax.set_title({(plot_title_override or "PINN Solution")!r})
-ax.grid(True, alpha=0.2)
 plt.tight_layout()
 plt.savefig(solution_path, dpi={config.plot_dpi}, bbox_inches="tight")
 plt.close()
@@ -8858,20 +8918,30 @@ print(f"Solution plot saved: {{solution_path}}")''')
         # "Line (time steps)" branch further below, and as
         # generate_script()'s own already-fixed equivalent. Previously
         # this selection silently fell through to the x-y heatmap branch
-        # just below.
+        # just below. Masked to the real geometry with geom.inside(...)
+        # -- the mask only depends on (x, y), not t, so it's computed
+        # once outside the time loop -- same pattern as the steady-2D
+        # Line block above.
         parts.append(f'''# ── Result plot: line, several time steps, at y={line_slice_y:.3g} ──
 n_steps_l2d = {config.num_timesteps_line}
 x_l2d = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
+xy_l2d = np.column_stack([x_l2d, np.full_like(x_l2d, {line_slice_y})])
+line_in_l2d = geom.inside(xy_l2d)
+x_l2d = x_l2d[line_in_l2d]
 t_steps_l2d = np.linspace({config.t_min}, {config.t_max}, n_steps_l2d)
 fig, ax = plt.subplots(figsize=_plot_figsize(8, 5))
-colors = plt.get_cmap("{config.plot_colormap}")(np.linspace(0, 1, n_steps_l2d))
-for i, tv in enumerate(t_steps_l2d):
-    xyt = np.column_stack([x_l2d, np.full_like(x_l2d, {line_slice_y}), np.full_like(x_l2d, tv)])
-    u_line = _extract_plot_field(xyt).flatten()
-    ax.plot(x_l2d, u_line, color=colors[i], linewidth={config.plot_linewidth}, label=f"t = {{tv:.3f}}")
-ax.set_xlabel({(plot_xlabel_override or "x")!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel({(plot_ylabel_override or f"{out_name}(x, y={line_slice_y:.3g}, t)")!r}, fontsize={config.plot_axis_label_fontsize})
+if len(x_l2d) < 2:
+    ax.text(0.5, 0.5, "Line outside the domain at this y slice", ha="center", va="center", transform=ax.transAxes)
+    ax.set_xticks([]); ax.set_yticks([])
+else:
+    colors = plt.get_cmap("{config.plot_colormap}")(np.linspace(0, 1, n_steps_l2d))
+    for i, tv in enumerate(t_steps_l2d):
+        xyt = np.column_stack([x_l2d, np.full_like(x_l2d, {line_slice_y}), np.full_like(x_l2d, tv)])
+        u_line = _extract_plot_field(xyt).flatten()
+        ax.plot(x_l2d, u_line, color=colors[i], linewidth={config.plot_linewidth}, label=f"t = {{tv:.3f}}")
+    ax.set_xlabel({(plot_xlabel_override or "x")!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel({(plot_ylabel_override or f"{out_name}(x, y={line_slice_y:.3g}, t)")!r}, fontsize={config.plot_axis_label_fontsize})
+    ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
 ax.set_title({(plot_title_override or "PINN Solution")!r})
-ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
 plt.tight_layout()
 plt.savefig(solution_path, dpi={config.plot_dpi}, bbox_inches="tight")
 plt.close()
@@ -8905,20 +8975,30 @@ print(f"Solution plot saved: {{solution_path}}")''')
 
     elif is_3d and config.plot_type == "Line (time steps)":
         # 3D "Line (time steps)": overlaid u(x) curves at several times,
-        # at the configured y and z slice.
+        # at the configured y and z slice. Masked to the real geometry
+        # with geom.inside(...) -- the mask only depends on (x, y, z),
+        # not t, so it's computed once outside the time loop -- same
+        # pattern as the 2D time-dependent Line block above.
         parts.append(f'''# ── Result plot: line, several time steps, at y={line_slice_y:.3g}, z={line_slice_z:.3g} ──
 n_steps_l3d = {config.num_timesteps_line}
 x_l3d = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
+xyz_l3d = np.column_stack([x_l3d, np.full_like(x_l3d, {line_slice_y}), np.full_like(x_l3d, {line_slice_z})])
+line_in_l3d = geom.inside(xyz_l3d)
+x_l3d = x_l3d[line_in_l3d]
 t_steps_l3d = np.linspace({config.t_min}, {config.t_max}, n_steps_l3d)
 fig, ax = plt.subplots(figsize=_plot_figsize(8, 5))
-colors = plt.get_cmap("{config.plot_colormap}")(np.linspace(0, 1, n_steps_l3d))
-for i, tv in enumerate(t_steps_l3d):
-    xyzt = np.column_stack([x_l3d, np.full_like(x_l3d, {line_slice_y}), np.full_like(x_l3d, {line_slice_z}), np.full_like(x_l3d, tv)])
-    u_line = _extract_plot_field(xyzt).flatten()
-    ax.plot(x_l3d, u_line, color=colors[i], linewidth={config.plot_linewidth}, label=f"t = {{tv:.3f}}")
-ax.set_xlabel({(plot_xlabel_override or "x")!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel({(plot_ylabel_override or f"{out_name}(x, y={line_slice_y:.3g}, z={line_slice_z:.3g}, t)")!r}, fontsize={config.plot_axis_label_fontsize})
+if len(x_l3d) < 2:
+    ax.text(0.5, 0.5, "Line outside the domain at this y/z slice", ha="center", va="center", transform=ax.transAxes)
+    ax.set_xticks([]); ax.set_yticks([])
+else:
+    colors = plt.get_cmap("{config.plot_colormap}")(np.linspace(0, 1, n_steps_l3d))
+    for i, tv in enumerate(t_steps_l3d):
+        xyzt = np.column_stack([x_l3d, np.full_like(x_l3d, {line_slice_y}), np.full_like(x_l3d, {line_slice_z}), np.full_like(x_l3d, tv)])
+        u_line = _extract_plot_field(xyzt).flatten()
+        ax.plot(x_l3d, u_line, color=colors[i], linewidth={config.plot_linewidth}, label=f"t = {{tv:.3f}}")
+    ax.set_xlabel({(plot_xlabel_override or "x")!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel({(plot_ylabel_override or f"{out_name}(x, y={line_slice_y:.3g}, z={line_slice_z:.3g}, t)")!r}, fontsize={config.plot_axis_label_fontsize})
+    ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
 ax.set_title({(plot_title_override or "PINN Solution")!r})
-ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
 plt.tight_layout()
 plt.savefig(solution_path, dpi={config.plot_dpi}, bbox_inches="tight")
 plt.close()
