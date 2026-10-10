@@ -82,34 +82,118 @@ def _bc_entries_use_batching_json(custom_bc_json):
     return _bc_entries_use_batching(entries)
 
 
-def _bc_check_interface2d_preconditions(bc_entries, geometry_type, safe_point_distribution):
-    """DeepXDE's own Interface2DBC requires a Rectangle or Polygon geometry
-    (so the two sides it's told about are real, equal-length edges) and
-    ``train_distribution="uniform"`` -- without a uniform grid, the two
-    edges don't get the same number of matched points along their length,
-    and Interface2DBC's error() silently compares two differently-shaped
-    arrays (or crashes with a shape-mismatch deep inside DeepXDE, nowhere
-    near the actual cause). The GUI's BC panel only ever advises this via
-    the type dropdown's own label ("Rectangle/Polygon only") -- nothing
-    stops selecting Interface 2D BC with the wrong geometry or point
-    distribution, so this is enforced here with a clear message instead,
-    at codegen time (both are already plain config values by then), right
-    when Solve is clicked / the script is exported -- before any
-    GPU/training time is spent on a run that would be silently wrong.
+def _bc_entries_use_interface2d(bc_entries):
+    """True if any row in a parsed ``custom_bc_json`` entry list is an
+    Interface 2D BC -- used both by ``_bc_check_interface2d_preconditions``
+    (the geometry check, which has no sensible auto-fix) and by both
+    generators' own point-distribution override (see the comment at each
+    ``_safe_point_distribution`` computation): unlike the geometry
+    requirement, the "must be uniform" requirement always has exactly one
+    valid answer whenever this BC type is used at all, so it's corrected
+    automatically there instead of being enforced as a second hard error
+    here."""
+    return any(e.get("type") == "interface2d" for e in (bc_entries or []))
+
+
+def _bc_check_interface2d_preconditions(bc_entries, geometry_type, is_2d=None, num_outputs=None):
+    """DeepXDE's own real Interface2DBC requirements (see the class's own
+    docstring and error() method in deepxde/icbc/boundary_conditions.py):
+    (1) the problem must be 2D -- Rectangle/Polygon, the only geometries
+    it accepts, only exist in 2D DeepXDE at all; (2) the network output
+    must have exactly 2 elements -- error()'s "normal" mode dots the
+    whole output against a 2-column normal vector, and its "tangent" mode
+    hardcodes outputs[:, 0:1]/outputs[:, 1:2] by position; (3) the
+    geometry itself must be Rectangle or Polygon, so the two sides it's
+    told about are real, equal-length edges.
+
+    The GUI's own Type dropdown already keeps (1) and (2) from being
+    reachable in the first place -- "Interface 2D BC" simply isn't
+    offered unless Dimension=2D and Output Size=2 (see
+    _interface2d_eligible/_refresh_bc_interface2d_availability in
+    main_window.py) -- so is_2d/num_outputs are checked here only as
+    defense-in-depth for a hand-edited or legacy saved config that
+    reaches codegen with a stale/corrupted combination (e.g. geometry
+    left at "Rectangle" after a dimension was changed by hand-editing
+    JSON). (3), the geometry shape itself, has no GUI equivalent at all
+    -- there's no sensible geometry to auto-pick the way the companion
+    "train_distribution must be uniform" requirement is auto-corrected
+    for instead (see _bc_entries_use_interface2d's docstring) -- so it
+    always raises a clear error here, at codegen time, rather than a
+    confusing crash deep inside DeepXDE or Interface2DBC.error()'s own
+    "different number of points on each edge" RuntimeError, right when
+    Solve is clicked / the script is exported, before any GPU/training
+    time is spent on a run that would be silently wrong.
     """
-    if not any(e.get("type") == "interface2d" for e in (bc_entries or [])):
+    if not _bc_entries_use_interface2d(bc_entries):
         return
+    if is_2d is False:
+        raise ValueError(
+            "Interface 2D BC only applies to 2D problems (current "
+            "Dimension setting isn't 2D). Switch Dimension to 2D, or "
+            "remove the Interface 2D BC row."
+        )
+    if num_outputs is not None and num_outputs != 2:
+        raise ValueError(
+            "Interface 2D BC requires Output Size = 2 "
+            f"(current Output Size: {num_outputs}). Set Output Size to 2, "
+            "or remove the Interface 2D BC row."
+        )
     if geometry_type not in ("Rectangle", "Polygon"):
         raise ValueError(
             "Interface 2D BC requires a Rectangle or Polygon geometry "
             f"(current geometry: {geometry_type!r}). Change the geometry, "
             "or remove the Interface 2D BC row."
         )
-    if safe_point_distribution != "uniform":
+
+
+def _bc_entries_use_periodic(bc_entries):
+    """True if any row in a parsed ``custom_bc_json`` entry list is a
+    Periodic BC -- used by ``_bc_check_periodic_preconditions``."""
+    return any(e.get("type") == "periodic" for e in (bc_entries or []))
+
+
+def _bc_check_periodic_preconditions(bc_entries, geometry_type):
+    """DeepXDE's own PeriodicBC calls ``geom.periodic_point(x,
+    component_x)``, which is only implemented for ``Interval`` (1D),
+    the ``Hypercube`` base class shared by ``Rectangle`` (2D) and
+    ``Cuboid`` (3D), and the three CSG combination classes (which
+    delegate to their own ``geom1``/``geom2``) -- see
+    deepxde/geometry/geometry.py's base ``Geometry.periodic_point``,
+    which raises ``NotImplementedError`` for every other shape (``Disk``,
+    ``Ellipse``, ``Triangle``, ``Polygon``, ``Sphere``).
+
+    Unlike Interface 2D BC's codegen-time check, nothing here is an
+    app-crash risk: this would only ever surface later, inside the
+    generated script's own training subprocess, which ``run_pinn()``'s
+    existing ``on_output``/returncode handling already reports as a
+    normal (if confusing) training failure rather than crashing the GUI.
+    It's checked here anyway for the same reason as every other
+    precondition in this file: a clear PINNStudio message naming the
+    actual requirement, right when Solve is clicked / the script is
+    exported, beats a bare ``NotImplementedError`` with no explanation
+    surfacing minutes into a training run.
+
+    ``geometry_type in ("Interval", "Rectangle", "Cuboid")`` is the same
+    "box-shaped" test already used elsewhere in this app (see
+    main_window.py's own ``box_shape = geom_type in (...)`` checks) --
+    each of those three strings only exists for exactly one dimension, so
+    this alone is enough to cover 1D/2D/3D without a separate
+    is_2d/is_3d check. "Custom" (CSG-combination) geometries are treated
+    as ineligible here too: validating an arbitrary CSG tree's
+    periodic_point support would mean walking its geom1/geom2 recursively
+    to confirm every leaf is itself box-shaped, which is out of scope for
+    this round -- a Custom-geometry user who needs this can still express
+    the same periodicity by hand with Operator BC.
+    """
+    if not _bc_entries_use_periodic(bc_entries):
+        return
+    if geometry_type not in ("Interval", "Rectangle", "Cuboid"):
         raise ValueError(
-            "Interface 2D BC requires the point distribution to be "
-            f"\"uniform\" (current: {safe_point_distribution!r}). Change "
-            "Point Distribution to Uniform, or remove the Interface 2D BC row."
+            "Periodic BC requires an Interval (1D), Rectangle (2D), or "
+            f"Cuboid (3D) geometry (current geometry: {geometry_type!r}); "
+            "DeepXDE doesn't implement periodic boundary matching for "
+            "other geometry shapes. Change the geometry, or remove the "
+            "Periodic BC row."
         )
 
 
@@ -1045,12 +1129,37 @@ def generate_script(config):
         _bc_entries_for_numtest = []
     _bc_op_uses_X = _bc_entries_use_operator_X(_bc_entries_for_numtest)
     _safe_num_test = None if _bc_op_uses_X else config.num_test
-    # Interface 2D BC's real DeepXDE preconditions (Rectangle/Polygon
-    # geometry, uniform point distribution) -- both already plain config
-    # values at this point, so checked here immediately rather than
-    # letting a wrong combination reach DeepXDE's own far-less-clear error
-    # (or, worse, train silently wrong) -- see the helper's own docstring.
-    _bc_check_interface2d_preconditions(_bc_entries_for_numtest, config.geometry_type, _safe_point_distribution)
+    # Interface 2D BC's real DeepXDE "train_distribution must be uniform"
+    # requirement (see _bc_entries_use_interface2d's docstring) has exactly
+    # one valid answer whenever this BC type is active at all, so it's
+    # corrected here automatically instead of making the user hunt down
+    # and change the Point Distribution setting themselves -- the GUI's BC
+    # panel already mirrors this (switching its own Point Distribution
+    # combo to "uniform" the moment an Interface 2D row is selected), this
+    # is the defense-in-depth codegen-level guarantee for any config that
+    # reaches here with a stale/hand-edited value regardless. Only the
+    # DISTRIBUTION half of the precondition is auto-fixed this way -- the
+    # GEOMETRY half (Rectangle/Polygon) has no sensible value to guess, so
+    # it still raises via _bc_check_interface2d_preconditions below.
+    _bc_forced_uniform = (
+        _bc_entries_use_interface2d(_bc_entries_for_numtest)
+        and _safe_point_distribution != "uniform"
+    )
+    if _bc_forced_uniform:
+        _safe_point_distribution = "uniform"
+    # Interface 2D BC's real DeepXDE geometry precondition (Rectangle/
+    # Polygon only) -- already a plain config value at this point, so
+    # checked here immediately rather than letting a wrong geometry reach
+    # DeepXDE's own far-less-clear error (or, worse, train silently wrong)
+    # -- see the helper's own docstring.
+    _bc_check_interface2d_preconditions(_bc_entries_for_numtest, config.geometry_type,
+                                        is_2d=(config.problem_dim == "2D"), num_outputs=config.num_outputs)
+    # Periodic BC's own real DeepXDE geometry precondition -- see
+    # _bc_check_periodic_preconditions's docstring. Same "clear message
+    # instead of a confusing one" rationale as Interface 2D BC's check
+    # just above, though this one isn't an app-crash risk the way that
+    # one was.
+    _bc_check_periodic_preconditions(_bc_entries_for_numtest, config.geometry_type)
     # The "solution" output is a static PNG for every plot type except the
     # two GIF animations, where it's an actual animated .gif file instead
     # -- known now (at generation time) from the selected plot type, so the
@@ -2142,10 +2251,27 @@ def _bc_robin_fn(_expr, _comp):
     return _f
 
 def _bc_operator_fn(_expr):
+    # DeepXDE's own real signature for OperatorBC/PointSetOperatorBC's
+    # func (see each class's docstring): inputs/outputs are the network's
+    # raw input/output tensors, X is the plain NumPy array of inputs --
+    # all three already exposed below, unchanged. Additionally (new),
+    # the same derivative shorthand the PDE box/Training Monitors/Custom
+    # plot expressions already use (u, du_x, du_xx, ...) is available too,
+    # via Training Monitors' own _tm_build_dvars helper (already defined
+    # earlier in this script, unconditionally) -- so an expression can
+    # use either vocabulary, or mix them, without hand-writing raw
+    # dde.grad.jacobian/hessian calls.
     _src = _expr if _expr.strip() else "0"
     _code = compile(_src, "<bc_operator>", "eval")
+    _bc_op_out_names = [_n.strip() for _n in {repr(config.output_names)}.split(",") if _n.strip()]
+    _bc_op_n_out = len(_bc_op_out_names) or 1
+    _bc_op_dim = "3D" if _is_3d else ("2D" if _is_2d else "1D")
     def _f(_inputs, _outputs, _X):
-        return eval(_code, {{"inputs": _inputs, "outputs": _outputs, "X": _X, "np": np, "torch": torch}})
+        _dvars = _tm_build_dvars(_inputs, _outputs, _bc_op_n_out, _bc_op_out_names,
+                                  _is_steady, _bc_op_dim, _expr)
+        _ns = dict(_dvars)
+        _ns.update({{"inputs": _inputs, "outputs": _outputs, "X": _X, "np": np, "torch": torch}})
+        return eval(_code, _ns)
     return _f
 
 def _bc_load_points_file(_path, _bc_label, _n_values=1):
@@ -2558,6 +2684,7 @@ if _problem_type == "Inverse":
 
 print(f"Loss weights: {{_multi_weights}} ({{len(_multi_weights)}} terms for {{len(_constraints)}} constraints)")
 {"print('Note: num_test disabled (left at None) because an Operator or Point Set Operator BC Value expression references X -- DeepXDE requires this whenever a boundary condition function uses the raw input points.')" if _bc_op_uses_X else ""}
+{"print('Note: Point Distribution was switched to uniform automatically because an Interface 2D boundary condition is active (DeepXDE requires evenly-spaced boundary points so Interface 2D BC can pair corresponding points correctly across its two edges).')" if _bc_forced_uniform else ""}
 
 # ── Data ─────────────────────────────────────────────────────
 # Steady-state problems have no time axis/Initial Condition, so they use a
@@ -6607,13 +6734,39 @@ def _clean_coord_unpack(indent, is_batch, is_2d, is_3d):
     return lines
 
 
-def _clean_bc_row_code(i, entry, is_2d, is_3d, n_coord_cols, is_steady=False):
+def _bc_operator_def_lines(name, expr, is_steady, dim_str, out_names_list, n_out):
+    """def lines for an Operator BC / Point Set Operator BC row's func, in
+    DeepXDE's own real signature -- func(inputs, outputs, X), see each
+    class's docstring. Unlike every other BC row's helper (whose
+    expression is spliced directly into the function body for a plain,
+    readable script), this one goes through Training Monitors' own
+    _tm_build_dvars + eval() so the same derivative shorthand already
+    available in the PDE box/Training Monitors/Custom plot expressions
+    (u, du_x, du_xx, ...) also works here, instead of forcing raw
+    dde.grad.jacobian/hessian calls -- the tradeoff accepted specifically
+    for these two "advanced" BC types (already raw-tensor-level, unlike
+    every other BC's plain x/y/u expressions)."""
+    return [
+        f"def {name}(inputs, outputs, X):",
+        f"    _dvars = _tm_build_dvars(inputs, outputs, {n_out}, {out_names_list!r}, "
+        f"{is_steady!r}, {dim_str!r}, {expr!r})",
+        "    _ns = dict(_dvars)",
+        "    _ns['inputs'] = inputs; _ns['outputs'] = outputs; _ns['X'] = X",
+        f"    return eval({expr!r}, _ns)",
+    ]
+
+
+def _clean_bc_row_code(i, entry, is_2d, is_3d, n_coord_cols, is_steady=False, n_out=1, out_names=""):
     """Everything needed for one Boundary Conditions panel row: the small
     helper function(s) its location/value expression needs (the
     expression text itself is spliced straight into the function body --
     no eval() indirection, since the whole point is a script someone can
-    read and edit) plus the one dde.icbc.XxxBC(...) call that adds it to
-    `constraints`. Returns (def_lines, append_lines)."""
+    read and edit -- except Operator BC/Point Set Operator BC's func,
+    which needs the derivative-shorthand machinery; see
+    _bc_operator_def_lines) plus the one dde.icbc.XxxBC(...) call that
+    adds it to `constraints`. Returns (def_lines, append_lines)."""
+    _out_names_list = [n.strip() for n in (out_names or "").split(",") if n.strip()] or ["u"]
+    _dim_str = "3D" if is_3d else ("2D" if is_2d else "1D")
     btype = entry.get('type', 'dirichlet')
     comp = int(entry.get('component', 0) or 0)
     loc = (entry.get('location', '') or '').strip() or 'True'
@@ -6683,12 +6836,12 @@ def _clean_bc_row_code(i, entry, is_2d, is_3d, n_coord_cols, is_steady=False):
         append.append(f"constraints.append(dde.icbc.PointSetBC(_pts{i}, _pvals{i}, component={_comp_arg!r}{batch_kwargs_str}))")
     elif btype == 'pointset_operator':
         op_name = f"_bc{i}_op"
-        defs += [f"def {op_name}(inputs, outputs, X):", f"    return {val}"]
+        defs += _bc_operator_def_lines(op_name, val, is_steady, _dim_str, _out_names_list, n_out)
         append.append(f'_pts{i}, _pvals{i} = _load_bc_points({pts_file!r}, {n_coord_cols})')
         append.append(f"constraints.append(dde.icbc.PointSetOperatorBC(_pts{i}, _pvals{i}, {op_name}{batch_kwargs_str}))")
     elif btype == 'operator':
         op_name = f"_bc{i}_op"
-        defs += [f"def {op_name}(inputs, outputs, X):", f"    return {val}"] + loc_fn(loc_name, loc)
+        defs += _bc_operator_def_lines(op_name, val, is_steady, _dim_str, _out_names_list, n_out) + loc_fn(loc_name, loc)
         append.append(f"constraints.append(dde.icbc.OperatorBC(geomtime, {op_name}, {loc_name}))")
     elif btype == 'interface2d':
         defs += loc_fn(loc_name, loc) + loc_fn(loc2_name, loc2) + val_fn(val_name, val)
@@ -7172,6 +7325,13 @@ def generate_clean_script(config):
     bc_used_types = {e.get('type', 'dirichlet') for e in bc_entries}
     needs_points_loader = bool({'pointset', 'pointset_operator'} & bc_used_types)
     needs_interface_adapter = 'interface2d' in bc_used_types
+    # Operator BC / Point Set Operator BC's func now goes through Training
+    # Monitors' own _tm_build_dvars/_tm_hess helpers (see
+    # _bc_operator_def_lines) so its expression can use the same u/du_x/
+    # du_xx shorthand as everywhere else, not just raw inputs/outputs/X --
+    # needs that helper embedded even if Training Monitors itself is off
+    # and there's no custom plot expression either.
+    needs_bc_operator_dvars = bool({'operator', 'pointset_operator'} & bc_used_types)
     # Same num_test/X rule as generate_script() (see _bc_op_expr_uses_X's
     # docstring): resolved here at codegen time too, since bc_entries is
     # already parsed real Python at this point. The legacy per-side
@@ -7179,16 +7339,30 @@ def generate_clean_script(config):
     # it's always left out of this check.
     _clean_bc_op_uses_X = _bc_entries_use_operator_X(bc_entries)
     _clean_safe_num_test = None if _clean_bc_op_uses_X else config.num_test
-    # Same Interface 2D BC precondition check as generate_script() -- see
-    # _bc_check_interface2d_preconditions's docstring. Raised here at
-    # export time so a broken combination is caught immediately instead
+    # Same Interface 2D BC "train_distribution must be uniform" auto-fix as
+    # generate_script() above -- see that generator's own matching comment
+    # for the full rationale (only the distribution half is auto-corrected;
+    # the geometry half has no sensible value to guess).
+    _clean_bc_forced_uniform = (
+        _bc_entries_use_interface2d(bc_entries) and _safe_point_distribution != "uniform"
+    )
+    if _clean_bc_forced_uniform:
+        _safe_point_distribution = "uniform"
+    # Same Interface 2D BC geometry precondition check as generate_script()
+    # -- see _bc_check_interface2d_preconditions's docstring. Raised here
+    # at export time so a broken combination is caught immediately instead
     # of being baked into the exported script.
-    _bc_check_interface2d_preconditions(bc_entries, config.geometry_type, _safe_point_distribution)
+    _bc_check_interface2d_preconditions(bc_entries, config.geometry_type,
+                                        is_2d=(config.problem_dim == "2D"), num_outputs=config.num_outputs)
+    # Same Periodic BC geometry precondition as generate_script() above --
+    # see _bc_check_periodic_preconditions's docstring.
+    _bc_check_periodic_preconditions(bc_entries, config.geometry_type)
 
     bc_defs, bc_appends = [], []
     if bc_entries or bc_panel_data_present:
         for i, entry in enumerate(bc_entries):
-            d, a = _clean_bc_row_code(i, entry, is_2d, is_3d, n_coord_cols, is_steady)
+            d, a = _clean_bc_row_code(i, entry, is_2d, is_3d, n_coord_cols, is_steady,
+                                       n_out=n_out, out_names=config.output_names)
             bc_defs += d
             bc_appends += a
     else:
@@ -7459,7 +7633,7 @@ if save_dir:
     # this exporter. Embed the helper whenever either needs it, not just
     # for Training Monitors, so a custom expression works even if Training
     # Monitors itself is off.
-    if (any_cbs and config.training_monitors_enabled) or _plot_custom_expr_val:
+    if (any_cbs and config.training_monitors_enabled) or _plot_custom_expr_val or needs_bc_operator_dvars:
         parts.append(_training_monitor_runtime_code())
 
     if needs_transform_helper:
@@ -7602,6 +7776,12 @@ def _load_obs_data(path):
                 "# num_test disabled (left at None) because an Operator or Point Set\n"
                 "# Operator BC's Value expression references X -- DeepXDE requires this\n"
                 "# whenever a boundary condition function uses the raw input points.")
+        if _clean_bc_forced_uniform:
+            parts.append(
+                "# Point Distribution was switched to uniform automatically because an\n"
+                "# Interface 2D boundary condition is active (DeepXDE requires evenly-\n"
+                "# spaced boundary points so Interface 2D BC can pair corresponding\n"
+                "# points correctly across its two edges).")
 
         anchors_arg = "obs_anchors" if is_inverse else "None"
         if is_steady:

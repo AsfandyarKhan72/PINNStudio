@@ -5151,6 +5151,67 @@ class MainWindow(QMainWindow):
     # batch -- wired in automatically by codegen whenever this is used).
     _BC_NEEDS_BATCH_ROW = {"pointset", "pointset_operator"}
 
+    def _interface2d_eligible(self):
+        """Interface 2D BC's real DeepXDE preconditions that this GUI can
+        check up front, before Solve/Export even runs. dde.icbc.Interface2DBC
+        requires the network output to have exactly 2 elements -- its
+        "tangent" direction indexes outputs[:, 0:1] / outputs[:, 1:2] by
+        position, and its "normal" direction treats the whole output as a
+        2-column normal vector -- and it only exists for 2D geometries at
+        all (its matching-length-edge requirement is checked against
+        Rectangle/Polygon, both 2D-only DeepXDE classes). The geometry
+        check itself (Rectangle/Polygon specifically, within 2D) still
+        happens as an error+hint at codegen time in
+        _bc_check_interface2d_preconditions, since there's no sensible
+        geometry to auto-pick the way Point Distribution was auto-corrected
+        in Round 33b -- but Dimension and Output Size can be checked here,
+        so this BC type simply isn't offered until both are right."""
+        return self.radio_2d.isChecked() and self.num_outputs_spin.value() == 2
+
+    def _refresh_bc_interface2d_availability(self):
+        """Add/remove "Interface 2D BC" from every existing row's Type
+        dropdown as Output Size changes (Dimension changes don't need this:
+        _on_dim_changed() already wipes the whole Boundary Conditions list,
+        so any row built afterward already goes through the eligibility
+        filter in _add_custom_bc_entry below). A row currently set to
+        Interface 2D BC that becomes ineligible is reset to Dirichlet --
+        the same "demoted" convention _apply_custom_bc_json already uses
+        for a type this version of PINNStudio doesn't recognize at all --
+        and the user is warned once for all affected rows."""
+        if not hasattr(self, 'custom_bc_list'):
+            return
+        eligible = self._interface2d_eligible()
+        _label = next(lbl for lbl, key in self.CUSTOM_BC_TYPES if key == "interface2d")
+        _demoted_rows = []
+        for _i, e in enumerate(self.custom_bc_list):
+            combo = e['type']
+            idx = combo.findData("interface2d")
+            if eligible:
+                if idx == -1:
+                    combo.addItem(_label, "interface2d")
+                continue
+            if idx == -1:
+                continue
+            if combo.currentData() == "interface2d":
+                _demoted_rows.append(_i + 1)
+                # Not blocked: this fires _sync_type_and_refresh_weights,
+                # which is what actually updates this row's visible
+                # widgets and the Loss Weights panel label for it.
+                combo.setCurrentIndex(0)
+                idx = combo.findData("interface2d")
+            if idx != -1:
+                combo.removeItem(idx)
+        if _demoted_rows:
+            _rows_txt = ", ".join(f"BC {n}" for n in _demoted_rows)
+            QMessageBox.warning(
+                self, "Interface 2D BC no longer available",
+                f"{_rows_txt} (was Interface 2D BC) reset to Dirichlet: "
+                "Interface 2D BC requires Dimension = 2D and Output Size = 2 "
+                "(DeepXDE's own requirements for this boundary condition), "
+                "and that's no longer the case -- please review and fix "
+                "before solving."
+            )
+
     def _add_custom_bc_entry(self, bc_type="dirichlet", component=0, location="",
                               value="0", axis="x", deriv_order=0, points_file="",
                               location2="", direction="normal", locked=False,
@@ -5186,6 +5247,13 @@ class MainWindow(QMainWindow):
         type_row.addWidget(QLabel("Type:"))
         type_combo = QComboBox()
         for label_txt, key in self.CUSTOM_BC_TYPES:
+            # Interface 2D BC only ever makes sense for Dimension=2D,
+            # Output Size=2 (see _interface2d_eligible) -- left out of the
+            # dropdown entirely rather than offered and then erroring at
+            # Solve/Export time. _refresh_bc_interface2d_availability keeps
+            # already-built rows in sync as Output Size changes later.
+            if key == "interface2d" and not self._interface2d_eligible():
+                continue
             type_combo.addItem(label_txt, key)
         self._set_combo_data(type_combo, bc_type)
         type_combo.setFixedHeight(26); type_combo.setFixedWidth(210)
@@ -5229,7 +5297,8 @@ class MainWindow(QMainWindow):
         val_layout = QVBoxLayout(val_widget)
         val_layout.setContentsMargins(0, 0, 0, 0); val_layout.setSpacing(2)
         val_row = QHBoxLayout()
-        val_row.addWidget(QLabel("Value:"))
+        val_label = QLabel("Value:")
+        val_row.addWidget(val_label)
         val_edit = QLineEdit(value)
         val_edit.setPlaceholderText("e.g. 0, sin(pi*y), x**2  (Robin: may also use u)")
         val_edit.setFixedHeight(26)
@@ -5242,7 +5311,21 @@ class MainWindow(QMainWindow):
         periodic_layout = QHBoxLayout(periodic_widget)
         periodic_layout.setContentsMargins(0, 0, 0, 0)
         periodic_layout.addWidget(QLabel("Periodic in:"))
-        axis_combo = QComboBox(); axis_combo.addItems(["x", "y", "z"])
+        # PeriodicBC's geom.periodic_point(x, component_x) only ever
+        # indexes the coordinate columns the CURRENT dimension actually
+        # has (see _bc_check_periodic_preconditions in codegen.py) -- "y"
+        # in 1D or "z" outside 3D would reference a column that doesn't
+        # exist, so only offer the axes this dimension really has. No
+        # dimension-change refresh hook is needed: _on_dim_changed() already
+        # wipes the whole Boundary Conditions list, so a row built after a
+        # dimension switch is always constructed fresh, right here, under
+        # the new dimension.
+        _axis_choices = ["x"]
+        if self.radio_2d.isChecked() or self.radio_3d.isChecked():
+            _axis_choices.append("y")
+        if self.radio_3d.isChecked():
+            _axis_choices.append("z")
+        axis_combo = QComboBox(); axis_combo.addItems(_axis_choices)
         axis_combo.setCurrentText(axis); axis_combo.setFixedHeight(26); axis_combo.setFixedWidth(60)
         periodic_layout.addWidget(axis_combo)
         periodic_layout.addWidget(QLabel("Derivative order:"))
@@ -5327,10 +5410,42 @@ class MainWindow(QMainWindow):
         interface_layout.addLayout(dir_row)
         entry_layout.addWidget(interface_widget)
 
+        # Interface2DBC-only: DeepXDE's own real requirement that
+        # train_distribution="uniform" for this BC type to pair points
+        # correctly across its two edges (see codegen.py's
+        # _bc_entries_use_interface2d docstring) -- surfaced here, in the
+        # panel itself, rather than only at Solve/Export time, so the user
+        # sees it the moment they pick this type. _sync_type() below also
+        # switches the Point Distribution combo to "uniform" automatically
+        # right then, so this note explains what just happened rather than
+        # asking the user to go make the change themselves.
+        interface2d_note = QLabel(
+            "Interface 2D BC requires Point Distribution = Uniform (DeepXDE's\n"
+            "own requirement, so matching points can be paired correctly\n"
+            "across the two edges). PINNStudio switches Point Distribution to\n"
+            "Uniform automatically while this BC type is selected."
+        )
+        self._register_style(interface2d_note, "hint", lambda css, _c='#ffa94d', _e='': f"color: {_c}; {_e}{css}")
+        interface2d_note.setWordWrap(True)
+        interface2d_note.setVisible(False)
+        entry_layout.addWidget(interface2d_note)
+
+        # Operator BC / Point Set Operator BC: DeepXDE's own real signature
+        # for this func (see dde.icbc.OperatorBC/PointSetOperatorBC's own
+        # docstrings) is func(inputs, outputs, X) -> tensor, where inputs/
+        # outputs are the network's raw input/output tensors and X is the
+        # plain NumPy array of inputs -- all three still usable directly,
+        # unchanged. New: the same derivative shorthand already available
+        # in the PDE box, Training Monitors, and Custom plot expressions
+        # (the output name itself, e.g. u, plus du_x/du_xx/du_xy/...) can
+        # be used here too, instead of writing out raw
+        # dde.grad.jacobian/hessian calls by hand.
         advanced_note = QLabel(
-            "Advanced: Value is a Python expression using inputs, outputs, X\n"
-            "directly, i.e. DeepXDE's raw func(inputs, outputs, X) -- it should\n"
-            "evaluate to 0 on the boundary/points selected above."
+            "Advanced -- DeepXDE's own func(inputs, outputs, X): inputs/\n"
+            "outputs are the network's raw input/output tensors, X is the\n"
+            "NumPy array of inputs. Derivative shorthand also works here\n"
+            "(e.g. u, du_x, du_xx -- same as the PDE box). Should evaluate\n"
+            "to 0 on the boundary/points selected above."
         )
         self._register_style(advanced_note, "hint", lambda css, _c='#ffa94d', _e='': f"color: {_c}; {_e}{css}")
         advanced_note.setWordWrap(True)
@@ -5340,9 +5455,15 @@ class MainWindow(QMainWindow):
         val_placeholders = {
             "robin": "e.g. 0, sin(pi*y), u   (Robin: x, y, z, and u for the solution)",
             "interface2d": "Python expression in x, y, z for the interface func(x)",
-            "pointset_operator": "Python expression using inputs, outputs, X (advanced)",
+            "operator": "e.g. du_x - u  (func(inputs, outputs, X); u/du_x/... shorthand OK)",
+            "pointset_operator": "e.g. du_x - u  (func(inputs, outputs, X); u/du_x/... shorthand OK)",
         }
         default_val_placeholder = "e.g. 0, sin(pi*y), x**2  (Robin: may also use u)"
+        val_labels = {
+            "operator": "Function (func):",
+            "pointset_operator": "Function (func):",
+        }
+        default_val_label = "Value:"
 
         def _sync_type(_t=None):
             key = type_combo.currentData()
@@ -5356,6 +5477,19 @@ class MainWindow(QMainWindow):
             interface_widget.setVisible(key in self._BC_NEEDS_INTERFACE_ROW)
             advanced_note.setVisible(key in self._BC_NEEDS_ADVANCED_NOTE)
             val_edit.setPlaceholderText(val_placeholders.get(key, default_val_placeholder))
+            val_label.setText(val_labels.get(key, default_val_label))
+            # Interface 2D BC's real DeepXDE "uniform" requirement (see
+            # interface2d_note above) -- shown and auto-applied the moment
+            # this row's type is Interface 2D, not just at Solve/Export
+            # time. Deliberately one-directional: switching this row away
+            # from Interface 2D (or removing it) never reverts Point
+            # Distribution back on its own -- whatever the user had it set
+            # to before stays, same as every other config value in the app.
+            _is_interface2d = key == "interface2d"
+            interface2d_note.setVisible(_is_interface2d)
+            if _is_interface2d and hasattr(self, "pts_dist_combo"):
+                if self.pts_dist_combo.currentText() != "uniform":
+                    self.pts_dist_combo.setCurrentText("uniform")
 
         def _sync_type_and_refresh_weights(_t=None):
             _sync_type(_t)
@@ -5460,6 +5594,12 @@ class MainWindow(QMainWindow):
             return
         _known_bc_types = {key for _, key in self.CUSTOM_BC_TYPES}
         _unknown_bc_rows = []
+        # Dimension/Output Size are already restored by the time this is
+        # called (_apply_config sets radio_2d/radio_3d and num_outputs_spin
+        # before calling this) -- so this reflects the real, current state
+        # a saved "interface2d" row is being loaded into.
+        _interface2d_ineligible_rows = []
+        _interface2d_now_eligible = self._interface2d_eligible()
         for _ei, e in enumerate(entries):
             _bc_type = e.get('type', 'dirichlet')
             if _bc_type not in _known_bc_types:
@@ -5471,6 +5611,14 @@ class MainWindow(QMainWindow):
                 # tracked here and surfaced to the user instead of passing
                 # unnoticed.
                 _unknown_bc_rows.append((_ei + 1, _bc_type))
+            elif _bc_type == "interface2d" and not _interface2d_now_eligible:
+                # Same silent-fallback mechanism as above (the combo simply
+                # won't have an "interface2d" item to select -- see
+                # _add_custom_bc_entry's own eligibility filter), but the
+                # type itself is perfectly recognized; it's just not valid
+                # for THIS project's current Dimension/Output Size. Worth
+                # its own, more specific message.
+                _interface2d_ineligible_rows.append(_ei + 1)
             self._add_custom_bc_entry(
                 bc_type=_bc_type,
                 component=e.get('component', 0),
@@ -5495,6 +5643,18 @@ class MainWindow(QMainWindow):
                 "to Dirichlet in the Boundary Conditions panel -- please review "
                 "and fix it before solving, since saving the project again will "
                 "make this change permanent."
+            )
+        if _interface2d_ineligible_rows:
+            _rows_txt = ", ".join(f"BC {n}" for n in _interface2d_ineligible_rows)
+            QMessageBox.warning(
+                self, "Interface 2D BC not available",
+                "This project has a boundary condition set to Interface 2D BC, "
+                "but the current Dimension/Output Size settings don't support "
+                f"it (Interface 2D BC requires Dimension = 2D and Output Size "
+                f"= 2): {_rows_txt}. It has been reset to Dirichlet in the "
+                "Boundary Conditions panel -- please review and fix it before "
+                "solving, since saving the project again will make this "
+                "change permanent."
             )
 
     def _populate_locked_bc_entries_from_legacy(self, n_out, is_2d):
@@ -6842,6 +7002,12 @@ class MainWindow(QMainWindow):
         self._sync_inverse_pde_substitution(self.radio_inverse.isChecked())
 
     def _on_num_outputs_changed(self, n):
+        # Interface 2D BC requires Output Size = 2; keep the Boundary
+        # Conditions panel's Type dropdowns (and any row currently set to
+        # it) in sync with the new value. Dimension changes don't need the
+        # equivalent call here -- _on_dim_changed() already wipes the whole
+        # Boundary Conditions list.
+        self._refresh_bc_interface2d_availability()
         self._build_pde_inputs(n)
         self._build_bc_inputs(n)
         self._build_weight_inputs(n)

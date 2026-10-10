@@ -13,10 +13,29 @@ def run_pinn(config: PINNConfig, on_output=None, set_process=None):
     writes it to a temp file, and runs it.
     Calls on_output(line) for each output line.
     Returns 'DONE' or 'ERROR'.
+
+    A config-level problem that codegen itself catches (e.g. an
+    incompatible Boundary Condition combination, or an unrecognized BC
+    "type") raises directly out of generate_script() below, before any
+    subprocess is ever spawned -- unlike every other kind of training
+    failure, which only ever surfaces later, inside the generated script's
+    own subprocess (already reported gracefully via the on_output stream
+    further down). Both of this function's callers (SolverThread.run() and
+    sweep_runner.py's per-combination loop) call this with no exception
+    handling of their own, since generate_script() never used to raise at
+    all -- so without catching it here, that exception propagates straight
+    out of a background QThread uncaught, which can abort the whole app
+    instead of reporting a clean, readable error the same way every other
+    training failure already does.
     """
 
     # Generate the script
-    script = generate_script(config)
+    try:
+        script = generate_script(config)
+    except Exception as e:
+        if on_output:
+            on_output(f"ERROR: {e}")
+        return "ERROR"
 
     # Write to a temporary file
     with tempfile.NamedTemporaryFile(
