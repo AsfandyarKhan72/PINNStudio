@@ -3840,39 +3840,30 @@ for _pval in _param_values:
         print("\\n=== Starting RAR Adaptive Refinement ===")
         for rar_cycle in range({config.rar_cycles}):
             print(f"\\n--- RAR Cycle {{rar_cycle+1}}/{config.rar_cycles} ---")
-            if _is_steady:
-                # No time axis at all -- candidate points are purely
-                # spatial, matching the steady network's own input size
-                # (one fewer column than the time-dependent case; see
-                # _build_config's input_size branch in main_window.py and
-                # the plain dde.data.PDE built above for this same reason).
-                if _is_3d:
-                    x_cand = np.random.uniform({config.x_min}, {config.x_max}, {config.rar_candidates})
-                    y_cand = np.random.uniform({config.y_min}, {config.y_max}, {config.rar_candidates})
-                    z_cand = np.random.uniform({config.z_min}, {config.z_max}, {config.rar_candidates})
-                    xt_cand = np.column_stack([x_cand, y_cand, z_cand])
-                elif _is_2d:
-                    x_cand = np.random.uniform({config.x_min}, {config.x_max}, {config.rar_candidates})
-                    y_cand = np.random.uniform({config.y_min}, {config.y_max}, {config.rar_candidates})
-                    xt_cand = np.column_stack([x_cand, y_cand])
-                else:
-                    x_cand  = np.random.uniform({config.x_min}, {config.x_max}, {config.rar_candidates})
-                    xt_cand = x_cand.reshape(-1, 1)
-            elif _is_3d:
-                x_cand = np.random.uniform({config.x_min}, {config.x_max}, {config.rar_candidates})
-                y_cand = np.random.uniform({config.y_min}, {config.y_max}, {config.rar_candidates})
-                z_cand = np.random.uniform({config.z_min}, {config.z_max}, {config.rar_candidates})
-                t_cand = np.random.uniform({config.t_min}, {config.t_max}, {config.rar_candidates})
-                xt_cand = np.column_stack([x_cand, y_cand, z_cand, t_cand])
-            elif _is_2d:
-                x_cand = np.random.uniform({config.x_min}, {config.x_max}, {config.rar_candidates})
-                y_cand = np.random.uniform({config.y_min}, {config.y_max}, {config.rar_candidates})
-                t_cand = np.random.uniform({config.t_min}, {config.t_max}, {config.rar_candidates})
-                xt_cand = np.column_stack([x_cand, y_cand, t_cand])
-            else:
-                x_cand  = np.random.uniform({config.x_min}, {config.x_max}, {config.rar_candidates})
-                t_cand  = np.random.uniform({config.t_min}, {config.t_max}, {config.rar_candidates})
-                xt_cand = np.column_stack([x_cand, t_cand])
+            # Candidate points come straight from the real geometry's own
+            # random_points() -- geomtime (an alias for geom when the
+            # problem is steady, see the plain dde.data.PDE built above;
+            # otherwise a GeometryXTime wrapping geom and the time domain)
+            # -- instead of independently uniform-sampling each axis over
+            # the domain's bounding box, which used to be the case here.
+            # The two agree for a Rectangle/Cuboid/Interval domain, but for
+            # any non-box geometry (L-Shape, Disk, Polygon, Triangle, an
+            # Annulus or other CSG shape with a hole, ...) the bounding box
+            # is strictly larger than the real domain, so bounding-box
+            # sampling put candidate points -- and then, since RAR just
+            # keeps whichever candidates have the largest predicted PDE
+            # residual, sometimes the actual added points too -- outside
+            # the geometry entirely (e.g. inside the L-Shape's missing
+            # quadrant), where the model's prediction is meaningless.
+            # geom/geomtime's own random_points() is exactly what
+            # dde.data.PDE/TimePDE already use to generate ordinary
+            # training collocation points elsewhere in this same script,
+            # and it performs real rejection sampling against the
+            # geometry for every non-box shape (see e.g.
+            # CSGDifference.random_points in DeepXDE's own geometry/csg.py),
+            # so RAR's candidates are now guaranteed to lie inside the
+            # actual domain for any geometry, not just a rectangular one.
+            xt_cand = geomtime.random_points({config.rar_candidates})
             _rar_res = model.predict(xt_cand, operator=pde)
             if isinstance(_rar_res, list):
                 # Restrict point selection to one equation's residual
@@ -8135,37 +8126,26 @@ var_cb = dde.callbacks.VariableValue(inv_vars, period={var_cb_period}, filename=
         if use_rar:
             rar_lines = [f'''# ── RAR: residual-based adaptive refinement ──
 for rar_cycle in range({config.rar_cycles}):''']
-            if is_steady:
-                # No time axis at all -- candidate points are purely
-                # spatial, matching the steady network's own (one column
-                # fewer) input size.
-                if is_3d:
-                    rar_lines.append(f'''    x_cand = np.random.uniform({config.x_min}, {config.x_max}, {config.rar_candidates})
-    y_cand = np.random.uniform({config.y_min}, {config.y_max}, {config.rar_candidates})
-    z_cand = np.random.uniform({config.z_min}, {config.z_max}, {config.rar_candidates})
-    xt_cand = np.column_stack([x_cand, y_cand, z_cand])''')
-                elif is_2d:
-                    rar_lines.append(f'''    x_cand = np.random.uniform({config.x_min}, {config.x_max}, {config.rar_candidates})
-    y_cand = np.random.uniform({config.y_min}, {config.y_max}, {config.rar_candidates})
-    xt_cand = np.column_stack([x_cand, y_cand])''')
-                else:
-                    rar_lines.append(f'''    x_cand = np.random.uniform({config.x_min}, {config.x_max}, {config.rar_candidates})
-    xt_cand = x_cand.reshape(-1, 1)''')
-            elif is_3d:
-                rar_lines.append(f'''    x_cand = np.random.uniform({config.x_min}, {config.x_max}, {config.rar_candidates})
-    y_cand = np.random.uniform({config.y_min}, {config.y_max}, {config.rar_candidates})
-    z_cand = np.random.uniform({config.z_min}, {config.z_max}, {config.rar_candidates})
-    t_cand = np.random.uniform({config.t_min}, {config.t_max}, {config.rar_candidates})
-    xt_cand = np.column_stack([x_cand, y_cand, z_cand, t_cand])''')
-            elif is_2d:
-                rar_lines.append(f'''    x_cand = np.random.uniform({config.x_min}, {config.x_max}, {config.rar_candidates})
-    y_cand = np.random.uniform({config.y_min}, {config.y_max}, {config.rar_candidates})
-    t_cand = np.random.uniform({config.t_min}, {config.t_max}, {config.rar_candidates})
-    xt_cand = np.column_stack([x_cand, y_cand, t_cand])''')
-            else:
-                rar_lines.append(f'''    x_cand = np.random.uniform({config.x_min}, {config.x_max}, {config.rar_candidates})
-    t_cand = np.random.uniform({config.t_min}, {config.t_max}, {config.rar_candidates})
-    xt_cand = np.column_stack([x_cand, t_cand])''')
+            # Candidate points come straight from the real geometry's own
+            # random_points() -- geomtime (an alias for geom when the
+            # problem is steady; otherwise a GeometryXTime wrapping geom
+            # and the time domain) -- instead of independently
+            # uniform-sampling each axis over the domain's bounding box.
+            # The two agree for a Rectangle/Cuboid/Interval domain, but for
+            # any non-box geometry (L-Shape, Disk, Polygon, Triangle, an
+            # Annulus or other CSG shape with a hole, ...) the bounding box
+            # is strictly larger than the real domain, so bounding-box
+            # sampling could put candidate points -- and then, since RAR
+            # keeps whichever candidates have the largest predicted PDE
+            # residual, sometimes the actual added points too -- outside
+            # the geometry entirely. geom/geomtime's own random_points()
+            # is exactly what dde.data.PDE/TimePDE already use for
+            # ordinary training collocation points elsewhere in this same
+            # script, and it performs real rejection sampling against the
+            # geometry for every non-box shape, so RAR's candidates are
+            # now guaranteed to lie inside the actual domain for any
+            # geometry, not just a rectangular one.
+            rar_lines.append(f'''    xt_cand = geomtime.random_points({config.rar_candidates})''')
             rar_lines.append(f'''    res = model.predict(xt_cand, operator=pde)
     residuals = np.sum([np.abs(r).flatten() for r in res], axis=0) if isinstance(res, list) else np.abs(res).flatten()
     top_idx = np.argsort(residuals)[-{config.rar_add_points}:]

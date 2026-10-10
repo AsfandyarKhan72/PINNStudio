@@ -112,6 +112,30 @@ box-face prediction grid always appended a placeholder time column.
    both round_01/solution_plot.png and the Inline Error Analysis
    surface_comparison.png are written without the matmul crash.
 
+RAR's own candidate-point sampling had a separate, independent bug
+(found after shipping steady-state RAR above, on a real 2D Poisson
+L-Shape run): candidates were built by uniformly sampling each axis
+over the domain's bounding box (np.random.uniform(x_min, x_max, ...),
+same for y/z/t) rather than drawing from the actual geometry. For a
+Rectangle/Cuboid/Interval domain the bounding box IS the domain, so
+this was invisible, but for any non-box geometry (L-Shape/Polygon,
+Disk, Triangle, an Annulus or other CSG shape with a hole, ...) the
+bounding box is strictly larger than the real domain -- so candidate
+points, and then (since RAR just keeps whichever candidates have the
+largest predicted PDE residual) sometimes the actual added points too,
+could land outside the geometry entirely, e.g. inside the L-Shape's
+own missing quadrant. Fixed by sampling candidates from
+geomtime.random_points(...) instead (geomtime is geom itself when
+steady, or geom wrapped in GeometryXTime otherwise) -- exactly what
+dde.data.PDE/TimePDE already use for ordinary training collocation
+points elsewhere in the very same generated script, which performs
+real rejection sampling against the geometry for every non-box shape
+(see DeepXDE's own CSGDifference/Polygon/Disk random_points()).
+ - A REAL, tiny 1-round RAR run on the 2D Poisson L-Shape template's own
+   Polygon geometry (steady-state) exits cleanly, and the generated
+   script's RAR candidate-sampling line is geomtime.random_points(...)
+   rather than independent per-axis np.random.uniform(...) calls.
+
 Run directly:
     QT_QPA_PLATFORM=offscreen python3 tests/test_rar_round_diagnostics.py
 """
@@ -554,6 +578,52 @@ def run():
               "3D steady Cuboid Inline Error Analysis surface_comparison.png should exist and be non-empty "
               "(previously crashed with a matmul shape mismatch)")
 
+    # ── Real, tiny 1-round RAR run on a non-rectangular geometry
+    # (2D Poisson L-Shape's own Polygon, steady-state) -- confirms RAR's
+    # candidate sampling now respects the real geometry instead of its
+    # bounding box, so no candidate (and so no added point) can land in
+    # the L-Shape's own missing quadrant. ──
+    with tempfile.TemporaryDirectory() as tmpdir11:
+        cfg11 = PINNConfig()
+        cfg11.problem_dim = "2D"; cfg11.steady_state = True
+        cfg11.num_outputs = 1; cfg11.output_names = "u"
+        cfg11.geometry_type = "Polygon"
+        cfg11.geom_polygon_vertices = "0,0;1,0;1,-1;-1,-1;-1,1;0,1"
+        cfg11.x_min, cfg11.x_max = -1.0, 1.0
+        cfg11.y_min, cfg11.y_max = -1.0, 1.0
+        cfg11.num_domain = 300; cfg11.num_boundary = 60; cfg11.num_test = 300
+        cfg11.layers = [2, 20, 20, 1]
+        import json as _json11
+        cfg11.custom_bc_json = _json11.dumps([
+            {"type": "dirichlet", "location": "True", "value": "0", "component": 0}
+        ])
+        cfg11.adapt_method = "RAR"
+        cfg11.rar_cycles = 1; cfg11.rar_candidates = 2000; cfg11.rar_add_points = 100
+        cfg11.rar_adam_iters = 10; cfg11.rar_lbfgs_iters = 0
+        cfg11.iterations = 10; cfg11.optimizer_scheduler = False; cfg11.iterations2 = 0
+        cfg11.save_dir = tmpdir11
+        cfg11.pde_expression = "-du_xx - du_yy - 1"; cfg11.pde_expressions = cfg11.pde_expression
+
+        script11 = generate_script(cfg11)
+        rar_block11 = script11.split("Starting RAR Adaptive Refinement")[1] if "Starting RAR Adaptive Refinement" in script11 else ""
+        check("geomtime.random_points(" in rar_block11,
+              "RAR candidate sampling should call geomtime.random_points(...) so it respects the real geometry")
+        check("np.random.uniform" not in rar_block11,
+              "RAR candidate sampling should no longer build candidates with independent per-axis "
+              "np.random.uniform(...) over the domain's bounding box -- that let candidates (and "
+              "potentially added points) land outside a non-rectangular geometry like the L-Shape's "
+              "own missing quadrant")
+
+        proc11 = _run_script(script11, tmpdir11, "rar_2d_lshape_polygon", timeout_s=150)
+        check(proc11.returncode == 0,
+              f"2D Poisson L-Shape (Polygon, steady) RAR script should exit cleanly, got {proc11.returncode}: "
+              f"{proc11.stdout[-2000:]}\n{proc11.stderr[-2000:]}")
+
+        rd11 = os.path.join(tmpdir11, "solution_results", "rar_rounds", "round_01")
+        coll11 = os.path.join(rd11, "collocation_points.png")
+        check(os.path.exists(coll11) and os.path.getsize(coll11) > 0,
+              "L-Shape RAR round_01/collocation_points.png should exist and be non-empty")
+
     if failures:
         print("FAILURES:")
         for f in failures:
@@ -561,9 +631,11 @@ def run():
     else:
         print("OK: RAR per-round diagnostics (solution snapshot, collocation-points scatter, "
               "lightweight error compare -- including the merged 2D/3D solution+error figure and "
-              "the 2D dual-panel collocation plot), the 'Points from:' output selector, and RAR for "
+              "the 2D dual-panel collocation plot), the 'Points from:' output selector, RAR for "
               "steady-state problems (1D/2D/3D, with and without a reference file, including the "
-              "3D Cuboid surface-comparison fix) all work correctly.")
+              "3D Cuboid surface-comparison fix), and RAR candidate sampling on a non-rectangular "
+              "geometry (2D Poisson L-Shape's own Polygon) staying inside the real domain -- "
+              "not just its bounding box -- all work correctly.")
     return failures
 
 
