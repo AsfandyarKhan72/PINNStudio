@@ -4815,46 +4815,76 @@ for _pval in _param_values:
                         _ea_line_suptitle += f" (y={_line_slice_y:.3g})"
                     fig.suptitle(_ea_line_suptitle, fontsize={config.plot_title_fontsize}, fontweight='bold')
                     _ea_ax_flat = axes.flatten()
+                    if _is_2d or _is_3d:
+                        # A true line at the exact slice (PINNConfig.
+                        # line_slice_y/_z), not a scatter of whichever
+                        # reference-file points happened to fall within a
+                        # tolerance BAND around it. The PINN curve is
+                        # evaluated directly on that line (same convention
+                        # the Surface Comparison above already uses: PINN
+                        # exact, reference interpolated), and the reference
+                        # is interpolated onto it from its own scattered
+                        # points via griddata (nearest-neighbor fallback
+                        # for any point outside its convex hull), masked to
+                        # the real geometry so a non-rectangular domain
+                        # (e.g. the L-Shape) doesn't interpolate straight
+                        # across its own missing region. The previous
+                        # tolerance-band approach plotted every reference
+                        # point within (range)/20 of the slice (widened to
+                        # /5 if fewer than 5 matched) at that point's own x
+                        # -- for any problem where u genuinely varies with
+                        # y (or z) within that band, several different u
+                        # values landed on top of each other at the same x,
+                        # smearing the curve into an unreadable band instead
+                        # of a clean line. That's especially likely on a
+                        # non-box geometry, where the band is asymmetric
+                        # near the slice (e.g. the L-Shape only has y<=0
+                        # past x=0), which both shrinks the matched-point
+                        # count (triggering the wider /5 fallback) and
+                        # concentrates it right where RAR already found the
+                        # sharpest residuals.
+                        from scipy.interpolate import griddata as _gd_line
+                        _xv_line = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
+                        _y_mid = {_line_slice_y}
+                        _z_mid = {_line_slice_z}
                     for _ei in range(_ea_n_t):
                         ax = _ea_ax_flat[_ei]
-                        _xv = _ea_x_refs[_ei]
                         if _is_3d:
-                            # For 3D line plot: extract the reference points
-                            # nearest the same (y, z) slice the Line plot
-                            # itself uses (PINNConfig.line_slice_y/_z),
-                            # widening the tolerance band if too few
-                            # reference points happen to fall near it.
-                            _yv = _ea_y_refs[_ei]; _zv = _ea_z_refs[_ei]
-                            _y_mid = {_line_slice_y}
-                            _z_mid = {_line_slice_z}
-                            _y_tol = ({config.y_max} - {config.y_min}) / 20.0
-                            _z_tol = ({config.z_max} - {config.z_min}) / 20.0
-                            _mid_mask = (np.abs(_yv - _y_mid) < _y_tol) & (np.abs(_zv - _z_mid) < _z_tol)
-                            if _mid_mask.sum() < 5:
-                                _y_tol2 = ({config.y_max} - {config.y_min}) / 5.0
-                                _z_tol2 = ({config.z_max} - {config.z_min}) / 5.0
-                                _mid_mask = (np.abs(_yv - _y_mid) < _y_tol2) & (np.abs(_zv - _z_mid) < _z_tol2)
-                            if _mid_mask.sum() < 2:
-                                _mid_mask = np.ones_like(_xv, dtype=bool)  # fall back to all points
-                            _ea_sort = np.argsort(_xv[_mid_mask])
-                            _xv_s   = _xv[_mid_mask][_ea_sort]
-                            _gt_s   = _ea_u_refs[_ei][_mid_mask][_ea_sort]
-                            _pinn_s = _ea_u_pinns[_ei][_mid_mask][_ea_sort]
+                            _line_pts3 = np.column_stack([_xv_line, np.full_like(_xv_line, _y_mid), np.full_like(_xv_line, _z_mid)])
+                            _line_in3 = geom.inside(_line_pts3)
+                            _xv_s = _xv_line[_line_in3]
+                            _line_pts3_in = _line_pts3[_line_in3]
+                            if len(_xv_s) < 2:
+                                ax.text(0.5, 0.5, "Line outside the domain at this (y, z) slice", ha='center', va='center', transform=ax.transAxes)
+                                ax.set_xticks([]); ax.set_yticks([])
+                                continue
+                            _line_eval3 = (_line_pts3_in if _is_steady else
+                                           np.column_stack([_line_pts3_in, np.full(len(_xv_s), _ea_times[_ei])]))
+                            _pinn_s = _ea_extract(_line_eval3, _ea_sel, model).flatten()
+                            _ref_pts3 = np.column_stack([_ea_x_refs[_ei], _ea_y_refs[_ei], _ea_z_refs[_ei]])
+                            _gt_s = _gd_line(_ref_pts3, _ea_u_refs[_ei], _line_pts3_in, method='linear')
+                            _gt_nan3 = np.isnan(_gt_s)
+                            if _gt_nan3.any():
+                                _gt_s[_gt_nan3] = _gd_line(_ref_pts3, _ea_u_refs[_ei], _line_pts3_in[_gt_nan3], method='nearest')
                         elif _is_2d:
-                            # For 2D line plot: extract the reference points
-                            # nearest the same y slice the Line plot itself
-                            # uses (PINNConfig.line_slice_y).
-                            _yv = _ea_y_refs[_ei]
-                            _y_mid = {_line_slice_y}
-                            _y_tol = ({config.y_max} - {config.y_min}) / 20.0
-                            _mid_mask = np.abs(_yv - _y_mid) < _y_tol
-                            if _mid_mask.sum() < 5:
-                                _mid_mask = np.abs(_yv - _y_mid) < ({config.y_max} - {config.y_min}) / 5.0
-                            _ea_sort = np.argsort(_xv[_mid_mask])
-                            _xv_s   = _xv[_mid_mask][_ea_sort]
-                            _gt_s   = _ea_u_refs[_ei][_mid_mask][_ea_sort]
-                            _pinn_s = _ea_u_pinns[_ei][_mid_mask][_ea_sort]
+                            _line_pts2 = np.column_stack([_xv_line, np.full_like(_xv_line, _y_mid)])
+                            _line_in2 = geom.inside(_line_pts2)
+                            _xv_s = _xv_line[_line_in2]
+                            _line_pts2_in = _line_pts2[_line_in2]
+                            if len(_xv_s) < 2:
+                                ax.text(0.5, 0.5, "Line outside the domain at this y slice", ha='center', va='center', transform=ax.transAxes)
+                                ax.set_xticks([]); ax.set_yticks([])
+                                continue
+                            _line_eval2 = (_line_pts2_in if _is_steady else
+                                           np.column_stack([_line_pts2_in, np.full(len(_xv_s), _ea_times[_ei])]))
+                            _pinn_s = _ea_extract(_line_eval2, _ea_sel, model).flatten()
+                            _ref_pts2 = np.column_stack([_ea_x_refs[_ei], _ea_y_refs[_ei]])
+                            _gt_s = _gd_line(_ref_pts2, _ea_u_refs[_ei], _line_pts2_in, method='linear')
+                            _gt_nan2 = np.isnan(_gt_s)
+                            if _gt_nan2.any():
+                                _gt_s[_gt_nan2] = _gd_line(_ref_pts2, _ea_u_refs[_ei], _line_pts2_in[_gt_nan2], method='nearest')
                         else:
+                            _xv = _ea_x_refs[_ei]
                             _ea_sort = np.argsort(_xv)
                             _xv_s   = _xv[_ea_sort]
                             _gt_s   = _ea_u_refs[_ei][_ea_sort]
@@ -9014,35 +9044,75 @@ with open(os.path.join(ea_dir, "error_metrics.txt"), "w") as f:
 
         if config.ea_do_line:
             if is_2d or is_3d:
-                # Extract the reference points nearest the same slice the
-                # Line plot itself uses (PINNConfig.line_slice_y/_z),
-                # widening the tolerance band if too few reference points
-                # fall near it -- previously this searched around the
-                # domain midpoint unconditionally, and for the 3D case
-                # the y_mid/y_tol computation was accidentally built from
-                # config.x_min/x_max instead of config.y_min/y_max (a
-                # copy-paste bug, fixed here along with the slice-value
-                # change).
-                if not is_3d:
+                # A true line at the exact slice (PINNConfig.line_slice_y/_z),
+                # not a scatter of whichever reference-file points happened
+                # to fall within a tolerance BAND around it -- that approach
+                # smeared multiple different-y (or y,z) reference/PINN values
+                # together at the same x whenever u varies meaningfully with
+                # y within the band, which is exactly what made this plot
+                # look like a dense cloud instead of a clean line for cases
+                # like the L-Shape Poisson problem (worse right near its
+                # reentrant-corner singularity). Mirrors the same fix already
+                # made in generate_script()'s copy of this block, and reuses
+                # the exact-eval + griddata-interpolate + geom.inside()-mask
+                # pattern the (untouched) 2D/3D Surface Comparison blocks
+                # already use elsewhere in this function: the PINN is
+                # evaluated directly on the exact line (no interpolation
+                # needed -- the model can be queried anywhere), the Reference
+                # is interpolated onto that same line from its own scattered
+                # points via scipy's griddata, and both are masked with
+                # geom.inside(...) so a non-rectangular domain's excluded
+                # region (e.g. L-Shape's missing quadrant) is never plotted
+                # straight across.
+                _ea_geom_ref = "_build_geom()" if use_ta else "geom"
+                if use_ta:
+                    _line_pred_line = "    pn = _predict_at_time(_line_pts_in, tv)"
+                elif is_steady:
+                    _line_pred_line = "    pn = _extract_plot_field(_line_pts_in).flatten()"
+                else:
+                    _line_pred_line = "    pn = _extract_plot_field(np.column_stack([_line_pts_in, np.full(len(xv), tv)])).flatten()"
+                if is_3d:
                     mid_slice = f'''
-    y_mid = {line_slice_y}
-    y_tol = ({config.y_max} - {config.y_min}) / 20.0
-    mask = np.abs(ea_y_refs[i] - y_mid) < y_tol
-    if mask.sum() < 5:
-        mask = np.abs(ea_y_refs[i] - y_mid) < ({config.y_max} - {config.y_min}) / 5.0'''
+    _line_geom = {_ea_geom_ref}
+    xv = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
+    _line_pts = np.column_stack([xv, np.full_like(xv, {line_slice_y}), np.full_like(xv, {line_slice_z})])
+    _line_in = _line_geom.inside(_line_pts)
+    xv = xv[_line_in]
+    _line_pts_in = _line_pts[_line_in]
+    if len(xv) < 2:
+        ax.text(0.5, 0.5, "Line outside the domain at this (y, z) slice", ha="center", va="center", transform=ax.transAxes)
+        ax.set_xticks([]); ax.set_yticks([])
+        continue
+{_line_pred_line}
+    _ref_pts_line = np.column_stack([ea_x_refs[i], ea_y_refs[i], ea_z_refs[i]])
+    gt = griddata(_ref_pts_line, ea_u_refs[i], _line_pts_in, method="linear")
+    _gt_nan_line = np.isnan(gt)
+    if _gt_nan_line.any():
+        gt[_gt_nan_line] = griddata(_ref_pts_line, ea_u_refs[i], _line_pts_in[_gt_nan_line], method="nearest")'''
                 else:
                     mid_slice = f'''
-    y_mid = {line_slice_y}; z_mid = {line_slice_z}
-    y_tol = ({config.y_max} - {config.y_min}) / 20.0; z_tol = ({config.z_max} - {config.z_min}) / 20.0
-    mask = (np.abs(ea_y_refs[i] - y_mid) < y_tol) & (np.abs(ea_z_refs[i] - z_mid) < z_tol)
-    if mask.sum() < 5:
-        y_tol2 = ({config.y_max} - {config.y_min}) / 5.0; z_tol2 = ({config.z_max} - {config.z_min}) / 5.0
-        mask = (np.abs(ea_y_refs[i] - y_mid) < y_tol2) & (np.abs(ea_z_refs[i] - z_mid) < z_tol2)'''
-                mid_slice += "\n    if mask.sum() < 2:\n        mask = np.ones_like(ea_x_refs[i], dtype=bool)"
-                sort_line = "    order_i = np.argsort(ea_x_refs[i][mask]); xv, gt, pn = ea_x_refs[i][mask][order_i], ea_u_refs[i][mask][order_i], ea_u_pinns[i][mask][order_i]"
+    _line_geom = {_ea_geom_ref}
+    xv = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
+    _line_pts = np.column_stack([xv, np.full_like(xv, {line_slice_y})])
+    _line_in = _line_geom.inside(_line_pts)
+    xv = xv[_line_in]
+    _line_pts_in = _line_pts[_line_in]
+    if len(xv) < 2:
+        ax.text(0.5, 0.5, "Line outside the domain at this y slice", ha="center", va="center", transform=ax.transAxes)
+        ax.set_xticks([]); ax.set_yticks([])
+        continue
+{_line_pred_line}
+    _ref_pts_line = np.column_stack([ea_x_refs[i], ea_y_refs[i]])
+    gt = griddata(_ref_pts_line, ea_u_refs[i], _line_pts_in, method="linear")
+    _gt_nan_line = np.isnan(gt)
+    if _gt_nan_line.any():
+        gt[_gt_nan_line] = griddata(_ref_pts_line, ea_u_refs[i], _line_pts_in[_gt_nan_line], method="nearest")'''
+                sort_line = ""
+                _ea_line_needs_griddata = True
             else:
                 mid_slice = ""
                 sort_line = "    order_i = np.argsort(ea_x_refs[i]); xv, gt, pn = ea_x_refs[i][order_i], ea_u_refs[i][order_i], ea_u_pinns[i][order_i]"
+                _ea_line_needs_griddata = False
             # Steady-state (e.g. a Poisson equation) has no time axis at
             # all -- every reference file is really just a single snapshot
             # at a placeholder t=0, so "t = 0.000" in the title would be
@@ -9058,7 +9128,7 @@ with open(os.path.join(ea_dir, "error_metrics.txt"), "w") as f:
                 _ea_line_ylabel = repr(f"{out_name}(x)") if is_steady else repr(f"{out_name}(x, t)")
                 _ea_line_suptitle = "PINN vs Reference -- Line Comparison"
             ea_lines.append(f'''
-# ── Line comparison ──
+# ── Line comparison ──{chr(10) + "from scipy.interpolate import griddata" if _ea_line_needs_griddata else ""}
 ncols = min(4, n_t); nrows = (n_t + ncols - 1) // ncols
 fig, axes = plt.subplots(nrows, ncols, figsize=(4 * ncols, 3.5 * nrows), squeeze=False)
 fig.suptitle("{_ea_line_suptitle}", fontsize={config.plot_title_fontsize}, fontweight="bold")
