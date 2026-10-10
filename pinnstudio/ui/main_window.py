@@ -1583,7 +1583,6 @@ class MainWindow(QMainWindow):
         self.sched_cb.setChecked(True)
         self.sched_cb.setVisible(False)  # always on, hidden
         train_layout.addWidget(self.sched_cb)
-        self.sched_widget = QWidget()
 
         # Hidden legacy widgets — kept for _build_config compatibility
         self.opt1_combo = QComboBox(); self.opt1_combo.addItems(["adam", "sgd", "rmsprop"])
@@ -11852,10 +11851,6 @@ print("DOMAIN_PREVIEW_DONE")
             })
         import json
         return json.dumps(phases)
-    
-    def _on_scheduler_changed(self, state):
-        self.sched_widget.setVisible(state == 2)
-        self._build_weight_inputs(self.num_outputs_spin.value())
 
     def _setup_default_scheduler_phases(self, template_type='', adam_iters=10000, lbfgs_iters=10000):
         """Clear existing phases and add defaults based on template."""
@@ -13107,6 +13102,7 @@ print("DOMAIN_PREVIEW_DONE")
         figsize_h = viz_settings.get('figsize_h', 5.0)
         subplot_title_fontsize = viz_settings.get('subplot_title_fontsize', 10.0)
         axis_label_fontsize = viz_settings.get('axis_label_fontsize', 10.0)
+        from pinnstudio.core.codegen import _figsize_helper_code
         script = f"""
 import os
 os.makedirs({save_dir!r}, exist_ok=True)
@@ -13126,19 +13122,10 @@ _xlabel_override = {xlabel_override!r}
 _ylabel_override = {ylabel_override!r}
 
 # ── Plot Settings: figure-size standardization (see codegen.py's
-# _plot_figsize for the full rationale) -- "Default" mode renders every
-# figsize=_plot_figsize(w, h) call below byte-identical to before this
-# existed.
-def _plot_figsize(_default_w, _default_h):
-    _fs_mode = {figsize_mode!r}
-    if _fs_mode == "Square":
-        _fs_s = max(_default_w, _default_h)
-        return (_fs_s, _fs_s)
-    elif _fs_mode == "Wide":
-        return (_default_h * 1.8, _default_h)
-    elif _fs_mode == "Custom":
-        return ({figsize_w}, {figsize_h})
-    return (_default_w, _default_h)
+# _figsize_helper_code for the full rationale) -- "Default" mode renders
+# every figsize=_plot_figsize(w, h) call below byte-identical to before
+# this existed.
+{_figsize_helper_code(figsize_mode, figsize_w, figsize_h)}
 
 def _load_conv(path):
     name = None
@@ -13335,7 +13322,8 @@ print("RESTORE_DONE")
         axis_label_fontsize = viz_settings.get('axis_label_fontsize', 10.0)
         layers     = cfg["layers"]
         activation = cfg["activation"]
-        from pinnstudio.core.codegen import _net_construction_helper_code, _training_monitor_runtime_code
+        from pinnstudio.core.codegen import (_net_construction_helper_code,
+            _training_monitor_runtime_code, _figsize_helper_code)
         net_helper_code = _net_construction_helper_code(cfg.get("network_type", "FNN"))
         # Reuses Training Monitors' own derivative-building helpers
         # (_tm_hess/_tm_build_dvars) unchanged, so a restored model's
@@ -13475,19 +13463,10 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 # ── Plot Settings: figure-size standardization (see codegen.py's
-# _plot_figsize for the full rationale) -- "Default" mode renders every
-# figsize=_plot_figsize(w, h) call below byte-identical to before this
-# existed.
-def _plot_figsize(_default_w, _default_h):
-    _fs_mode = {figsize_mode!r}
-    if _fs_mode == "Square":
-        _fs_s = max(_default_w, _default_h)
-        return (_fs_s, _fs_s)
-    elif _fs_mode == "Wide":
-        return (_default_h * 1.8, _default_h)
-    elif _fs_mode == "Custom":
-        return ({figsize_w}, {figsize_h})
-    return (_default_w, _default_h)
+# _figsize_helper_code for the full rationale) -- "Default" mode renders
+# every figsize=_plot_figsize(w, h) call below byte-identical to before
+# this existed.
+{_figsize_helper_code(figsize_mode, figsize_w, figsize_h)}
 
 # Build the actual problem geometry for model restore (not just its
 # bounding box) so the restored prediction can be masked back down to the
@@ -14154,7 +14133,8 @@ else:
         # varies step-to-step), so this reads the top-level model_config.json
         # (cfg), not each step's own step_config.json -- same reasoning as
         # this function's docstring already gives for x_min/x_max/etc.
-        from pinnstudio.core.codegen import _net_construction_helper_code, _training_monitor_runtime_code
+        from pinnstudio.core.codegen import (_net_construction_helper_code,
+            _training_monitor_runtime_code, _figsize_helper_code)
         net_helper_code = _net_construction_helper_code(cfg.get("network_type", "FNN"))
         # Same reuse of Training Monitors' derivative-building helpers as
         # _build_restore_script -- see that function's own comment.
@@ -14220,19 +14200,10 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 # ── Plot Settings: figure-size standardization (see codegen.py's
-# _plot_figsize for the full rationale) -- "Default" mode renders every
-# figsize=_plot_figsize(w, h) call below byte-identical to before this
-# existed.
-def _plot_figsize(_default_w, _default_h):
-    _fs_mode = {figsize_mode!r}
-    if _fs_mode == "Square":
-        _fs_s = max(_default_w, _default_h)
-        return (_fs_s, _fs_s)
-    elif _fs_mode == "Wide":
-        return (_default_h * 1.8, _default_h)
-    elif _fs_mode == "Custom":
-        return ({figsize_w}, {figsize_h})
-    return (_default_w, _default_h)
+# _figsize_helper_code for the full rationale) -- "Default" mode renders
+# every figsize=_plot_figsize(w, h) call below byte-identical to before
+# this existed.
+{_figsize_helper_code(figsize_mode, figsize_w, figsize_h)}
 
 is_2d = {str(is_2d)}
 is_3d = {str(is_3d)}

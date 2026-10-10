@@ -1464,16 +1464,7 @@ warnings.filterwarnings("ignore", message=".*cuBLAS.*")
 # applied to the multi-column Error Analysis comparison grids (sized by
 # however many files/columns are being compared) or the domain-sampling
 # preview plots (sized to the problem's own geometry).
-def _plot_figsize(_default_w, _default_h):
-    _fs_mode = "{config.plot_figsize_mode}"
-    if _fs_mode == "Square":
-        _fs_s = max(_default_w, _default_h)
-        return (_fs_s, _fs_s)
-    elif _fs_mode == "Wide":
-        return (_default_h * 1.8, _default_h)
-    elif _fs_mode == "Custom":
-        return ({config.plot_figsize_w}, {config.plot_figsize_h})
-    return (_default_w, _default_h)
+{_figsize_helper_code(config.plot_figsize_mode, config.plot_figsize_w, config.plot_figsize_h)}
 {_nncg_guard_code}
 
 # ── Force GPU initialization ──────────────────────────────────
@@ -7633,35 +7624,46 @@ def _clean_loss_series_lines(config, train_rows_expr, test_rows_expr, steps_expr
     return lines
 
 
-def _clean_figsize_runtime_code(config):
+def _figsize_helper_code(mode, w, h):
     """Builds the literal Python source for a module-level `_plot_figsize(
-    default_w, default_h)` helper for generate_clean_script()'s own output,
-    embedded once near its other runtime helpers (_make_net, the Training
-    Monitors helper, ...) and called at every single-panel plot site
-    below in place of a bare figsize=(W, H) literal -- same Round 31 Plot
-    Settings figure-size standardization (config.plot_figsize_mode/
-    plot_figsize_w/plot_figsize_h) generate_script()'s own _plot_figsize
-    already applies (see its comment right above its definition), brought
-    to parity here. "Default" mode (the only one before this existed)
-    returns (default_w, default_h) unchanged, so every wrapped call site
-    renders byte-identical output to before this existed unless the user
-    has actually changed Plot Settings' Figure size option.
+    default_w, default_h)` helper -- the Round 31 Plot Settings figure-size
+    standardization, called at every single-panel plot site in place of a
+    bare figsize=(W, H) literal. "Default" mode returns (default_w,
+    default_h) unchanged, so every wrapped call site renders byte-identical
+    output to before this existed unless the user has actually changed
+    Plot Settings' Figure size option.
 
-    Deliberately NOT applied to the multi-column Error Analysis
-    comparison grids (sized by however many files/columns are being
-    compared) -- same scope line generate_script()'s own _plot_figsize
-    draws, kept for the same reason and so both generators stay
-    consistent with each other."""
+    This is the ONE shared definition of that helper's source text, used by
+    every code path that embeds it in a generated script: generate_script()
+    (inline, below), generate_clean_script() (via _clean_figsize_runtime_code()
+    right below this function), and main_window.py's three restore/GIF
+    script builders (_build_restore_param_script, _build_restore_script,
+    _build_restore_script_ta -- imported from here rather than hand-copied,
+    cleanup Round 39). Previously this exact block existed as 5 separate
+    hand-typed copies; this is now the only one.
+
+    Deliberately NOT applied to the multi-column Error Analysis comparison
+    grids (sized by however many files/columns are being compared) or the
+    domain-sampling preview plots (sized to the problem's own geometry)."""
     return f'''def _plot_figsize(_default_w, _default_h):
-    _fs_mode = "{config.plot_figsize_mode}"
+    _fs_mode = {mode!r}
     if _fs_mode == "Square":
         _fs_s = max(_default_w, _default_h)
         return (_fs_s, _fs_s)
     elif _fs_mode == "Wide":
         return (_default_h * 1.8, _default_h)
     elif _fs_mode == "Custom":
-        return ({config.plot_figsize_w}, {config.plot_figsize_h})
+        return ({w}, {h})
     return (_default_w, _default_h)'''
+
+
+def _clean_figsize_runtime_code(config):
+    """Thin wrapper around _figsize_helper_code() for generate_clean_script()'s
+    own call sites -- kept as its own name/signature since generate_clean_script()
+    already calls it this way (see Round 31). See _figsize_helper_code()'s own
+    docstring for the full rationale; this just extracts the 3 relevant fields
+    from a PINNConfig."""
+    return _figsize_helper_code(config.plot_figsize_mode, config.plot_figsize_w, config.plot_figsize_h)
 
 
 def generate_clean_script(config):
@@ -8644,7 +8646,7 @@ def _plot_custom_op(_pf_inputs, _pf_outputs):
 
 def _extract_plot_field(_x_grid, _pf_model=None):
     _pf_m = _pf_model if _pf_model is not None else model
-    if _plot_custom_expr:
+    if _plot_custom_expr.strip():
         return _pf_m.predict(_x_grid, operator=_plot_custom_op)[:, 0]
     return _pf_m.predict(_x_grid)[:, {plot_idx}]''')
 
