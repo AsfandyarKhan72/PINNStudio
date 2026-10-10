@@ -6648,15 +6648,103 @@ if {config.time_adaptive}:
                 _ea_ncols = min(4, _ea_n_t)
                 _ea_nrows = (_ea_n_t + _ea_ncols - 1) // _ea_ncols
                 fig, axes = plt.subplots(_ea_nrows, _ea_ncols, figsize=(4*_ea_ncols, 3.5*_ea_nrows), squeeze=False)
-                fig.suptitle("PINN vs Reference — Line Comparison", fontsize={config.plot_title_fontsize}, fontweight='bold')
+                _ea_line_suptitle_ta = "PINN vs Reference — Line Comparison"
+                if _is_3d:
+                    _ea_line_suptitle_ta += f" (y={_line_slice_y:.3g}, z={_line_slice_z:.3g})"
+                elif _is_2d:
+                    _ea_line_suptitle_ta += f" (y={_line_slice_y:.3g})"
+                fig.suptitle(_ea_line_suptitle_ta, fontsize={config.plot_title_fontsize}, fontweight='bold')
                 _ea_ax_flat = axes.flatten()
+                if _is_2d or _is_3d:
+                    # Same true-line-at-the-exact-slice fix as the Standard
+                    # path's own Line Comparison above (see its comment for
+                    # the full rationale) -- adapted for Time-Adaptive, which
+                    # has no single `model`: each time snapshot's PINN curve
+                    # must come from whichever step model actually covers
+                    # that snapshot's time, not an unfiltered scatter of
+                    # every reference point regardless of y(/z) (the old
+                    # behavior here, which didn't even have the Standard
+                    # path's tolerance-band narrowing -- it was strictly
+                    # worse). `_ta_intervals` was already built above for
+                    # the per-time prediction loop; reused here rather than
+                    # re-scanning the step directories again.
+                    from scipy.interpolate import griddata as _gd_line_ta
+                    _xv_line_ta = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
+                    _y_mid_ta = {_line_slice_y}
+                    _z_mid_ta = {_line_slice_z}
+                    _ea_geom_line_ta = _build_geom()
+                    _step_dir_map_line = {{}}
+                    for _si3, (_t0_i3, _t1_i3, _sd_i3) in enumerate(_ta_intervals):
+                        _is_last3 = (_si3 == len(_ta_intervals) - 1)
+                        for _ei3 in range(_ea_n_t):
+                            _tv3 = _ea_times[_ei3]
+                            if _is_last3:
+                                _in3 = (_t0_i3 <= _tv3 <= _t1_i3 + 1e-10)
+                            else:
+                                _in3 = (_t0_i3 <= _tv3 < _t1_i3 - 1e-10) or (abs(_tv3 - _t1_i3) < 1e-10)
+                            if _in3:
+                                _step_dir_map_line[_ei3] = _sd_i3
                 for _ei in range(_ea_n_t):
                     ax = _ea_ax_flat[_ei]
-                    _xv = _ea_x_refs[_ei]
-                    _ea_sort = np.argsort(_xv)
-                    _xv_s = _xv[_ea_sort]
-                    _gt_s = _ea_u_refs[_ei][_ea_sort]
-                    _pinn_s = _ea_u_pinns[_ei][_ea_sort]
+                    if _is_2d or _is_3d:
+                        if _is_3d:
+                            _line_pts_ta = np.column_stack([_xv_line_ta, np.full_like(_xv_line_ta, _y_mid_ta), np.full_like(_xv_line_ta, _z_mid_ta)])
+                        else:
+                            _line_pts_ta = np.column_stack([_xv_line_ta, np.full_like(_xv_line_ta, _y_mid_ta)])
+                        _line_in_ta = _ea_geom_line_ta.inside(_line_pts_ta)
+                        _xv_s = _xv_line_ta[_line_in_ta]
+                        _line_pts_ta_in = _line_pts_ta[_line_in_ta]
+                        if len(_xv_s) < 2:
+                            ax.text(0.5, 0.5, "Line outside the domain at this (y, z) slice" if _is_3d else "Line outside the domain at this y slice",
+                                    ha='center', va='center', transform=ax.transAxes)
+                            ax.set_xticks([]); ax.set_yticks([])
+                            continue
+                        _sd_for_line = _step_dir_map_line.get(_ei, "")
+                        _pinn_s = None
+                        if _sd_for_line:
+                            try:
+                                with open(_os.path.join(_sd_for_line, "step_config.json")) as _scfl:
+                                    _sc_l = _ea_json.load(_scfl)
+                            except Exception:
+                                _sc_l = {{"layers": {config.layers}, "activation": "{config.activation}", "loss_type": "{config.loss_type}"}}
+                            _net_l = _apply_net_transforms(_make_net(_sc_l.get("layers", {config.layers}), _sc_l.get("activation", "{config.activation}"), "Glorot uniform"))
+                            if _is_3d:
+                                _geom_l = dde.geometry.Cuboid([{config.x_min}, {config.y_min}, {config.z_min}], [{config.x_max}, {config.y_max}, {config.z_max}])
+                            else:
+                                _geom_l = dde.geometry.Rectangle([{config.x_min}, {config.y_min}], [{config.x_max}, {config.y_max}])
+                            _td_l = dde.geometry.TimeDomain(_sc_l.get("t_min", 0), _sc_l.get("t_max", 1))
+                            _gt_l = dde.geometry.GeometryXTime(_geom_l, _td_l)
+                            _data_l = dde.data.TimePDE(_gt_l, lambda x, y: y[:, 0:1] * 0, [], num_domain=100, num_test=100)
+                            _model_l = dde.Model(_data_l, _net_l)
+                            _pt_l = ""
+                            for _pat_l in ["model_lbfgs-*.pt", "model_lbfgs.pt", "model_adam-*.pt", "model_adam.pt"]:
+                                _pts_l = sorted(_ea_glob.glob(_os.path.join(_sd_for_line, _pat_l)))
+                                if _pts_l:
+                                    _pt_l = max(_pts_l, key=_os.path.getmtime)
+                                    break
+                            if _pt_l:
+                                if "lbfgs" in _os.path.basename(_pt_l):
+                                    dde.optimizers.set_LBFGS_options(maxiter=1)
+                                    _model_l.compile("L-BFGS", loss=_sc_l.get("loss_type", "{config.loss_type}"))
+                                else:
+                                    _model_l.compile("adam", lr=0.001, loss=_sc_l.get("loss_type", "{config.loss_type}"))
+                                _model_l.restore(_pt_l, verbose=0)
+                                _line_eval_ta = np.column_stack([_line_pts_ta_in, np.full(len(_xv_s), _ea_times[_ei])])
+                                _pinn_s = _ea_extract(_line_eval_ta, _ea_sel, _model_l).flatten()
+                        if _pinn_s is None:
+                            _pinn_s = np.zeros(len(_xv_s))
+                        _ref_pts_ta = (np.column_stack([_ea_x_refs[_ei], _ea_y_refs[_ei], _ea_z_refs[_ei]]) if _is_3d
+                                       else np.column_stack([_ea_x_refs[_ei], _ea_y_refs[_ei]]))
+                        _gt_s = _gd_line_ta(_ref_pts_ta, _ea_u_refs[_ei], _line_pts_ta_in, method='linear')
+                        _gt_nan_ta = np.isnan(_gt_s)
+                        if _gt_nan_ta.any():
+                            _gt_s[_gt_nan_ta] = _gd_line_ta(_ref_pts_ta, _ea_u_refs[_ei], _line_pts_ta_in[_gt_nan_ta], method='nearest')
+                    else:
+                        _xv = _ea_x_refs[_ei]
+                        _ea_sort = np.argsort(_xv)
+                        _xv_s = _xv[_ea_sort]
+                        _gt_s = _ea_u_refs[_ei][_ea_sort]
+                        _pinn_s = _ea_u_pinns[_ei][_ea_sort]
                     _ea_tv, _l2, _mse, _mx, _ma = _ea_metrics[_ei]
                     ax.plot(_xv_s, _gt_s,   color='#4dabf7', linewidth=2.0, linestyle='-',  label='Reference')
                     ax.plot(_xv_s, _pinn_s, color='#ff6b6b', linewidth=2.0, linestyle='--', label='PINN')
