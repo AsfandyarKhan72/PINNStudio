@@ -516,10 +516,16 @@ class PINNConfig:
     # Steady-state (time-independent) problems, e.g. the Poisson equation.
     # When True, the generated script builds a plain dde.data.PDE over the
     # spatial geometry only -- no GeometryXTime, no time axis on the
-    # network input, no Initial Condition, no Time-Adaptive/RAR (both are
-    # inherently time-based). x_min/x_max/y_min/y_max/z_min/z_max still
+    # network input, no Initial Condition, no Time Adaptive Training
+    # (inherently time-stepped). x_min/x_max/y_min/y_max/z_min/z_max still
     # define the spatial domain as usual; t_min/t_max/num_initial/
-    # ic_expressions/time_adaptive/adapt_method are all ignored.
+    # ic_expressions/time_adaptive are all ignored. adapt_method is NOT
+    # ignored -- Residual-based Adaptive Refinement (RAR, adapt_method ==
+    # "RAR") has no dependency on a time axis (it just resamples
+    # collocation points toward the largest current PDE residual) and
+    # remains fully usable for a steady-state problem; see codegen.py's
+    # RAR loop and per-round diagnostics for the _is_steady-aware code
+    # paths this takes.
     steady_state: bool = False
 
     # GPU device selection & memory reservation for the generated training

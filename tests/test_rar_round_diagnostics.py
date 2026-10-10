@@ -84,6 +84,34 @@ Checks:
    error_compare.png does NOT exist as a separate file, same as the 2D
    case -- exercising the 3D scatter-comparison branch.
 
+RAR is also now available for STEADY-STATE problems (e.g. a Poisson
+equation) -- previously the GUI's whole "Adaptive Training" panel was
+hidden whenever Steady-state was on, even though only Time Adaptive
+Training (not RAR) actually needs a time axis. Steady 1D/2D/3D each get
+their own no-time-axis round diagnostics (a plain u(x) line + 3-row
+scatter for 1D; the usual 2D/3D panels evaluated once, with no time
+slicing, for 2D/3D). Fixing this also surfaced two related pre-existing
+bugs in Error Analysis for steady problems, fixed alongside it: a steady
+1D reference file (x, u -- 2 columns) crashed with an IndexError because
+the loader unconditionally assumed the time-dependent 3-column (x, t, u)
+layout, and a steady 3D reference file on the default Cuboid geometry
+crashed the Surface Comparison with a matmul shape mismatch because its
+box-face prediction grid always appended a placeholder time column.
+ - A REAL, tiny 2-round RAR run (1D STEADY, no reference): round_01 and
+   round_02 each write a non-empty solution_plot.png and
+   collocation_points.png.
+ - A REAL, tiny 1-round RAR run (1D STEADY) WITH a reference file (x, u):
+   error_compare.png is written, Error Analysis loads the file without
+   an IndexError, and the (inapplicable) x-t surface comparison is
+   skipped gracefully instead of crashing.
+ - A REAL, tiny 1-round RAR run (2D STEADY) WITH a reference file (x, y,
+   u): the merged solution_plot.png is written, and the Inline Error
+   Analysis surface_comparison.png is also written.
+ - A REAL, tiny 1-round RAR run (3D STEADY, default Cuboid geometry)
+   WITH a reference file (x, y, z, u) and surface comparison enabled:
+   both round_01/solution_plot.png and the Inline Error Analysis
+   surface_comparison.png are written without the matmul crash.
+
 Run directly:
     QT_QPA_PLATFORM=offscreen python3 tests/test_rar_round_diagnostics.py
 """
@@ -377,6 +405,155 @@ def run():
         l2_3d = _extract_l2(proc6.stdout, "[RAR round 1]")
         check(l2_3d is not None, f"3D+ref round-level L2 should be printed in the log, got stdout tail: {proc6.stdout[-1500:]}")
 
+    # ── Real, tiny 2-round RAR run (1D STEADY, e.g. a Poisson equation,
+    # no reference) -- RAR previously only ever ran for time-dependent
+    # problems; the GUI didn't even show the Adaptive Training panel for
+    # a steady one. Steady-1D's own round diagnostics are a plain u(x)
+    # line (solution_plot.png) and a 3-row (original/earlier/this-round)
+    # scatter (collocation_points.png) -- no x-t axes, since there's no
+    # time axis at all. ──
+    with tempfile.TemporaryDirectory() as tmpdir7:
+        cfg7 = PINNConfig()
+        cfg7.problem_dim = "1D"; cfg7.steady_state = True
+        cfg7.layers = [1, 20, 20, 1]  # steady 1D: x only, no t input column
+        cfg7.adapt_method = "RAR"
+        cfg7.rar_cycles = 2; cfg7.rar_candidates = 200; cfg7.rar_add_points = 10
+        cfg7.rar_adam_iters = 5; cfg7.rar_lbfgs_iters = 0
+        cfg7.iterations = 5; cfg7.optimizer_scheduler = False; cfg7.iterations2 = 0
+        cfg7.save_dir = tmpdir7
+        cfg7.pde_expression = "du_xx + 1"; cfg7.pde_expressions = "du_xx + 1"
+
+        proc7 = _run_script(generate_script(cfg7), tmpdir7, "rar_1d_steady")
+        check(proc7.returncode == 0,
+              f"1D steady 2-round RAR script should exit cleanly, got {proc7.returncode}: {proc7.stdout[-2000:]}\n{proc7.stderr[-2000:]}")
+
+        for rn, label in [("round_01", "round_01"), ("round_02", "round_02")]:
+            rd7 = os.path.join(tmpdir7, "solution_results", "rar_rounds", rn)
+            sol7 = os.path.join(rd7, "solution_plot.png")
+            coll7 = os.path.join(rd7, "collocation_points.png")
+            check(os.path.exists(sol7) and os.path.getsize(sol7) > 0,
+                  f"1D steady {label}/solution_plot.png should exist and be non-empty")
+            check(os.path.exists(coll7) and os.path.getsize(coll7) > 0,
+                  f"1D steady {label}/collocation_points.png should exist and be non-empty")
+
+    # ── Real, tiny 1-round RAR run (1D STEADY) WITH a reference file --
+    # steady reference files have no time column at all (x, u -- 2
+    # columns, one fewer than the time-dependent x, t, u layout), and
+    # this is the format the live-Solve Error Analysis loader needs to
+    # read correctly to avoid an IndexError. ──
+    with tempfile.TemporaryDirectory() as tmpdir8:
+        import numpy as np
+        ref1ds = os.path.join(tmpdir8, "ref_1d_steady.txt")
+        xr8 = np.linspace(0, 1, 20)
+        np.savetxt(ref1ds, np.column_stack([xr8, np.sin(np.pi * xr8)]))
+
+        cfg8 = PINNConfig()
+        cfg8.problem_dim = "1D"; cfg8.steady_state = True
+        cfg8.layers = [1, 20, 20, 1]  # steady 1D: x only, no t input column
+        cfg8.adapt_method = "RAR"
+        cfg8.rar_cycles = 1; cfg8.rar_candidates = 200; cfg8.rar_add_points = 10
+        cfg8.rar_adam_iters = 5; cfg8.rar_lbfgs_iters = 0
+        cfg8.iterations = 5; cfg8.optimizer_scheduler = False; cfg8.iterations2 = 0
+        cfg8.save_dir = tmpdir8
+        cfg8.pde_expression = "du_xx + 1"; cfg8.pde_expressions = "du_xx + 1"
+        cfg8.ea_files = [(0.0, ref1ds, None)]
+        cfg8.ea_do_line = True; cfg8.ea_do_surface = True
+
+        proc8 = _run_script(generate_script(cfg8), tmpdir8, "rar_1d_steady_ref")
+        check(proc8.returncode == 0,
+              f"1D steady+reference RAR script should exit cleanly, got {proc8.returncode}: {proc8.stdout[-2000:]}\n{proc8.stderr[-2000:]}")
+
+        err8 = os.path.join(tmpdir8, "solution_results", "rar_rounds", "round_01", "error_compare.png")
+        check(os.path.exists(err8) and os.path.getsize(err8) > 0,
+              "1D steady round_01/error_compare.png should exist and be non-empty when a reference file is configured")
+        check("Loaded ground truth (steady-state)" in proc8.stdout,
+              f"Error Analysis should load the steady 2-column (x, u) reference file without an IndexError, "
+              f"got stdout tail: {proc8.stdout[-1500:]}\nstderr tail: {proc8.stderr[-1500:]}")
+        check("Skipping surface comparison" in proc8.stdout and "IndexError" not in proc8.stderr,
+              f"1D steady Error Analysis should skip the (inapplicable, no time axis) x-t surface comparison "
+              f"gracefully rather than crashing, got stdout tail: {proc8.stdout[-1500:]}\nstderr tail: {proc8.stderr[-1500:]}")
+        l2_round8 = _extract_l2(proc8.stdout, "[RAR round 1]")
+        check(l2_round8 is not None, f"1D steady round-level L2 should be printed, got stdout tail: {proc8.stdout[-1500:]}")
+
+    # ── Real, tiny 1-round RAR run (2D STEADY, e.g. 2D Poisson) WITH a
+    # reference file (x, y, u -- 3 columns, no time column) ──
+    with tempfile.TemporaryDirectory() as tmpdir9:
+        import numpy as np
+        ref2ds = os.path.join(tmpdir9, "ref_2d_steady.txt")
+        n9 = 12
+        xg9, yg9 = np.meshgrid(np.linspace(0, 1, n9), np.linspace(0, 1, n9))
+        xg9 = xg9.ravel(); yg9 = yg9.ravel()
+        uu9 = np.sin(np.pi * xg9) * np.sin(np.pi * yg9)
+        np.savetxt(ref2ds, np.column_stack([xg9, yg9, uu9]))
+
+        cfg9 = PINNConfig()
+        cfg9.problem_dim = "2D"; cfg9.steady_state = True
+        cfg9.layers = [2, 16, 16, 1]
+        cfg9.adapt_method = "RAR"
+        cfg9.rar_cycles = 1; cfg9.rar_candidates = 150; cfg9.rar_add_points = 10
+        cfg9.rar_adam_iters = 5; cfg9.rar_lbfgs_iters = 0
+        cfg9.iterations = 5; cfg9.optimizer_scheduler = False; cfg9.iterations2 = 0
+        cfg9.save_dir = tmpdir9
+        cfg9.pde_expression = "du_xx + du_yy + 1"; cfg9.pde_expressions = cfg9.pde_expression
+        cfg9.ea_files = [(0.0, ref2ds, None)]
+        cfg9.ea_do_surface = True
+
+        proc9 = _run_script(generate_script(cfg9), tmpdir9, "rar_2d_steady_ref")
+        check(proc9.returncode == 0,
+              f"2D steady+reference RAR script should exit cleanly, got {proc9.returncode}: {proc9.stdout[-2000:]}\n{proc9.stderr[-2000:]}")
+
+        rd9 = os.path.join(tmpdir9, "solution_results", "rar_rounds", "round_01")
+        sol9 = os.path.join(rd9, "solution_plot.png")
+        check(os.path.exists(sol9) and os.path.getsize(sol9) > 0,
+              "2D steady+ref round_01/solution_plot.png (merged PINN|Reference|Error) should exist and be non-empty")
+        l2_2ds = _extract_l2(proc9.stdout, "[RAR round 1]")
+        check(l2_2ds is not None, f"2D steady round-level L2 should be printed, got stdout tail: {proc9.stdout[-1500:]}")
+        surf9 = os.path.join(tmpdir9, "error_analysis", "surface_comparison.png")
+        check(os.path.exists(surf9) and os.path.getsize(surf9) > 0,
+              "2D steady Inline Error Analysis surface_comparison.png should exist and be non-empty")
+
+    # ── Real, tiny 1-round RAR run (3D STEADY, default Cuboid geometry)
+    # WITH a reference file AND surface comparison enabled -- this is the
+    # exact combination that used to crash the live-Solve Error Analysis
+    # ("mat1 and mat2 shapes cannot be multiplied"): the box-face surface
+    # comparison for a Cuboid always appended a placeholder time column
+    # to its prediction grid, even though a steady-state network has no
+    # time input at all. ──
+    with tempfile.TemporaryDirectory() as tmpdir10:
+        import numpy as np
+        ref3ds = os.path.join(tmpdir10, "ref_3d_steady.txt")
+        n10 = 6
+        xg10, yg10, zg10 = np.meshgrid(np.linspace(0, 1, n10), np.linspace(0, 1, n10), np.linspace(0, 1, n10))
+        xg10 = xg10.ravel(); yg10 = yg10.ravel(); zg10 = zg10.ravel()
+        uu10 = np.sin(np.pi * xg10) * np.sin(np.pi * yg10) * np.sin(np.pi * zg10)
+        np.savetxt(ref3ds, np.column_stack([xg10, yg10, zg10, uu10]))
+
+        cfg10 = PINNConfig()
+        cfg10.problem_dim = "3D"; cfg10.steady_state = True
+        cfg10.layers = [3, 16, 16, 1]
+        cfg10.adapt_method = "RAR"
+        cfg10.rar_cycles = 1; cfg10.rar_candidates = 120; cfg10.rar_add_points = 8
+        cfg10.rar_adam_iters = 5; cfg10.rar_lbfgs_iters = 0
+        cfg10.iterations = 5; cfg10.optimizer_scheduler = False; cfg10.iterations2 = 0
+        cfg10.save_dir = tmpdir10
+        cfg10.pde_expression = "du_xx + du_yy + du_zz + 1"; cfg10.pde_expressions = cfg10.pde_expression
+        cfg10.ea_files = [(0.0, ref3ds, None)]
+        cfg10.ea_do_surface = True
+
+        proc10 = _run_script(generate_script(cfg10), tmpdir10, "rar_3d_steady_ref", timeout_s=150)
+        check(proc10.returncode == 0,
+              f"3D steady+reference (Cuboid, surface comparison on) RAR script should exit cleanly, "
+              f"got {proc10.returncode}: {proc10.stdout[-2000:]}\n{proc10.stderr[-2000:]}")
+
+        rd10 = os.path.join(tmpdir10, "solution_results", "rar_rounds", "round_01")
+        sol10 = os.path.join(rd10, "solution_plot.png")
+        check(os.path.exists(sol10) and os.path.getsize(sol10) > 0,
+              "3D steady+ref round_01/solution_plot.png (merged PINN|Reference|Error 3D scatter) should exist and be non-empty")
+        surf10 = os.path.join(tmpdir10, "error_analysis", "surface_comparison.png")
+        check(os.path.exists(surf10) and os.path.getsize(surf10) > 0,
+              "3D steady Cuboid Inline Error Analysis surface_comparison.png should exist and be non-empty "
+              "(previously crashed with a matmul shape mismatch)")
+
     if failures:
         print("FAILURES:")
         for f in failures:
@@ -384,7 +561,9 @@ def run():
     else:
         print("OK: RAR per-round diagnostics (solution snapshot, collocation-points scatter, "
               "lightweight error compare -- including the merged 2D/3D solution+error figure and "
-              "the 2D dual-panel collocation plot) and the 'Points from:' output selector all work correctly.")
+              "the 2D dual-panel collocation plot), the 'Points from:' output selector, and RAR for "
+              "steady-state problems (1D/2D/3D, with and without a reference file, including the "
+              "3D Cuboid surface-comparison fix) all work correctly.")
     return failures
 
 

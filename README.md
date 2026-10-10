@@ -223,12 +223,40 @@ Beyond the basic two-stage recipe, training can be broken into any number of pha
 <details>
 <summary><strong>Residual-based Adaptive Refinement (RAR)</strong></summary>
 
-Periodically resamples collocation points toward wherever the PDE residual is currently largest, concentrating training effort on the hardest parts of the domain (a sharp front, a boundary layer) instead of spreading points uniformly the whole time. Supported in every dimension. (Time-dependent problems only.)
+Periodically resamples collocation points toward wherever the PDE residual is currently largest, concentrating training effort on the hardest parts of the domain (a sharp front, a boundary layer) instead of spreading points uniformly the whole time. Supported in every dimension — for time-dependent problems and steady-state problems (e.g. a Poisson equation) alike, since residual-based resampling has no dependency on a time axis to begin with.
 
 **Per-round diagnostics.** Every RAR round now saves two snapshots to this run's own `solution_results/rar_rounds/round_NN/` folder, so you can watch the refinement happen round by round instead of only seeing the final result, plus a checkpoint for each optimizer phase that actually ran that round (`model_adam-*.pt` and/or `model_lbfgs-*.pt` — a round with both phases active saves both, not just the last one):
 
-- `solution_plot.png` — the same output field you've configured to plot, evaluated at that round's model state, titled **"PINN vs Reference"** whenever a comparison is shown. With 2+ matching Error Analysis reference files available anywhere in the domain, this becomes a 3-panel PINN | Reference | Error figure in **every dimension including 1D** — a real time × space comparison, not just a single-snapshot one — sharing one color scale between the PINN and Reference panels, and reading its Error panel's own colormap from the same Plot Settings as the other two panels rather than a fixed one. With fewer than 2 matching references, it's just the PINN prediction.
-- `collocation_points.png` — a scatter of the training points, colored to show how refinement is progressing: gray for the original points present before RAR started, orange for points added in earlier rounds, and red for the points this round just added. In 3D-plus-time problems this renders as a single 3D scatter (with time shown via point transparency where a 4th axis isn't available). In **2D-plus-time problems this shows two views side by side**: the same 3D (x, y, t) scatter, plus a plain 2D (x, y) view collapsing time, so the spatial concentration of added points is readable at a glance without having to rotate the 3D view.
+- `solution_plot.png` — the same output field you've configured to plot, evaluated at that round's model state, titled **"PINN vs Reference"** whenever a comparison is shown. With 2+ matching Error Analysis reference files available anywhere in the domain, this becomes a 3-panel PINN | Reference | Error figure in **every dimension including 1D** — a real time × space comparison, not just a single-snapshot one — sharing one color scale between the PINN and Reference panels, and reading its Error panel's own colormap from the same Plot Settings as the other two panels rather than a fixed one. With fewer than 2 matching references, it's just the PINN prediction. For a steady-state problem there's no time axis to compare across, so this is instead a single PINN | Reference | Error snapshot (or just the PINN prediction with no reference configured) — 1D keeps its own plain `u(x)` line either way.
+- `collocation_points.png` — a scatter of the training points, colored to show how refinement is progressing: gray for the original points present before RAR started, orange for points added in earlier rounds, and red for the points this round just added. In 3D-plus-time problems this renders as a single 3D scatter (with time shown via point transparency where a 4th axis isn't available). In **2D-plus-time problems this shows two views side by side**: the same 3D (x, y, t) scatter, plus a plain 2D (x, y) view collapsing time, so the spatial concentration of added points is readable at a glance without having to rotate the 3D view. A steady-state problem has no time axis to plot at all, so 2D/3D stay a single spatial scatter and 1D becomes three stacked rows (original / earlier rounds / this round).
+
+**The added points track the error.** Comparing a round's `collocation_points.png` against its `solution_plot.png` shows RAR doing exactly what it's meant to: the points it adds cluster right where the current model is still least accurate, not spread evenly across the domain.
+
+<table>
+<tr>
+<td width="50%" align="center">
+<img src="assets/Images/1D-Burgers/rar_collocation_points.png" alt="PINNStudio — 1D Burgers RAR round 2, collocation points: the points added this round (red) concentrate where the model is least accurate" width="100%">
+<sub>1D Burgers, RAR round 2 — points added (red) vs. earlier/original points</sub>
+</td>
+<td width="50%" align="center">
+<img src="assets/Images/1D-Burgers/rar_solution_plot.png" alt="PINNStudio — 1D Burgers RAR round 2, PINN vs Reference solution/error snapshot" width="100%">
+<sub>1D Burgers, RAR round 2 — solution/error snapshot: the added points line up with the highest-error region above</sub>
+</td>
+</tr>
+</table>
+
+<table>
+<tr>
+<td width="50%" align="center">
+<img src="assets/Images/2D_AllenCahn-Wight/rar_collocation_points.png" alt="PINNStudio — 2D Allen-Cahn (Wight & Zhao) RAR round 1, collocation points: the points added this round concentrate near the sharpest part of the interface" width="100%">
+<sub>2D Allen-Cahn (Wight & Zhao), RAR round 1 — points added vs. original points</sub>
+</td>
+<td width="50%" align="center">
+<img src="assets/Images/2D_AllenCahn-Wight/rar_solution_plot.png" alt="PINNStudio — 2D Allen-Cahn (Wight & Zhao) RAR round 1, PINN vs Reference solution/error surface" width="100%">
+<sub>2D Allen-Cahn (Wight & Zhao), RAR round 1 — solution/error surface: the added points track the highest-error region above</sub>
+</td>
+</tr>
+</table>
 
 **Points from:** for a PDE with more than one governing equation, RAR normally ranks candidate points by the combined (summed) residual across every equation. The "Points from" selector lets you restrict that ranking to a single output's equation instead — useful when only one output has the sharp feature you care about and you don't want the other outputs' residuals diluting the point selection.
 

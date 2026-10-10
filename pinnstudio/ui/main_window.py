@@ -1089,8 +1089,12 @@ class MainWindow(QMainWindow):
 
         # -- Steady-state (time-independent) toggle, e.g. a Poisson
         # equation -- no time axis at all: no t domain, no Initial
-        # Condition, no Time-Adaptive/RAR (both are inherently time-based).
-        # See _on_steady_state_changed() for what else this hides/resets.
+        # Condition, no Time Adaptive Training (inherently time-stepped).
+        # RAR has no such dependency on a time axis -- it just resamples
+        # collocation points toward wherever the PDE residual is currently
+        # largest, which works the same with or without a time dimension
+        # -- so it stays available for a steady-state problem too. See
+        # _on_steady_state_changed() for what else this hides/resets.
         # No longer shown here (or added to any layout) -- the visible
         # control for this is now the Time Dependent/Stationary radio
         # pair in the Problem Type section above (self.radio_stationary/
@@ -3649,26 +3653,48 @@ class MainWindow(QMainWindow):
         """Steady-state (time-independent) problems, e.g. a Poisson
         equation, have no time axis at all -- hide everything that only
         means something with one: the "t:" domain row, the Initial
-        Condition panel, IC Pre-Training, and Adaptive Training (Time
-        Adaptive Training is inherently time-stepped; RAR is allowed for
-        steady problems in principle, but the whole "Adaptive Training"
-        group is folded away here too since Time Adaptive is normally the
-        default choice a user reaches for first). Turning it back off
-        restores all of them -- nothing is destroyed, just hidden, except
-        for the two settings (adapt method, IC pre-training) explicitly
-        reset below so a stale time-based choice doesn't silently linger
-        under the hood while its panel is hidden.
+        Condition panel, and IC Pre-Training. Time Adaptive Training is
+        inherently time-stepped (it trains one model per time step) and
+        stays unavailable for a steady problem -- its "Adaptive Training"
+        combo item is disabled below (not removed -- that would mean
+        rebuilding the same suspend/restore bookkeeping Inverse mode
+        already uses to disable this same item for a different reason,
+        see _current_ta_cfg/_ta_suspended_for_inverse further down this
+        file), and the selection is forced back to "None" if it was the
+        one active when this toggles on. Residual-based Adaptive
+        Refinement (RAR) has no such dependency on a time axis -- it just
+        resamples collocation points toward wherever the PDE residual is
+        currently largest, which works identically whether or not the
+        domain has a time dimension -- so the "Adaptive Training" group
+        itself now stays visible, and RAR stays selectable and usable,
+        for steady problems too (previously the whole group was folded
+        away here, hiding RAR along with Time Adaptive even though only
+        the latter actually needs a time axis). Turning Steady-state back
+        off restores Time Adaptive Training as a selectable option again;
+        nothing else is destroyed by any of this, just hidden/disabled,
+        except for the two settings (adapt method when it was Time
+        Adaptive, IC pre-training) explicitly reset below so a stale
+        time-based choice doesn't silently linger under the hood while
+        its panel is hidden.
         """
         self.t_row_widget.setVisible(not checked)
         self.bc_group.setVisible(not checked)
-        if hasattr(self, 'adapt_group'):
-            self.adapt_group.setVisible(not checked)
         if hasattr(self, 'ic_pretrain_divider'):
             self.ic_pretrain_divider.setVisible(not checked)
         self.ic_pretrain_cb.setVisible(not checked)
         self.ic_pretrain_widget.setVisible(not checked and self.ic_pretrain_cb.isChecked())
+        if hasattr(self, 'adapt_combo'):
+            _ta_item_idx = self.adapt_combo.findText("Time Adaptive Training")
+            if _ta_item_idx != -1:
+                _ta_item = self.adapt_combo.model().item(_ta_item_idx)
+                if _ta_item is not None:
+                    _ta_item.setEnabled(not checked)
+                    _ta_item.setToolTip(
+                        "Time Adaptive Training needs a time axis -- not available for a "
+                        "steady-state problem. Residual-based Adaptive Refinement (RAR) "
+                        "still works here." if checked else "")
         if checked:
-            if self.adapt_combo.currentText() != "None":
+            if self.adapt_combo.currentText() == "Time Adaptive Training":
                 self.adapt_combo.setCurrentText("None")
             if self.ic_pretrain_cb.isChecked():
                 self.ic_pretrain_cb.setChecked(False)
@@ -10646,9 +10672,11 @@ print("ERROR_ANALYSIS_DONE")
                 self.geom_disk_cx.setValue(t['geom_center_x'])
                 self.geom_disk_cy.setValue(t['geom_center_y'])
                 self.geom_disk_r.setValue(t['geom_radius'])
-            # Steady-state: no time axis, no Initial Condition, no Time-
-            # Adaptive/RAR -- see _on_steady_state_changed() for what this
-            # hides/resets (adapt_combo -> None, IC pre-training off).
+            # Steady-state: no time axis, no Initial Condition, no Time
+            # Adaptive Training -- see _on_steady_state_changed() for what
+            # this hides/resets/disables (adapt_combo -> None when it was
+            # Time Adaptive, IC pre-training off). RAR remains available
+            # and can still be turned on manually after this template loads.
             self.steady_state_check.setChecked(True)
             # _on_steady_state_changed()'s adapt_combo reset above only
             # fires when steady_state_check actually transitions False ->

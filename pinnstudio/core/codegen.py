@@ -3277,6 +3277,85 @@ for _pval in _param_values:
                     print(f"  [RAR round {{_rar_idx}}] model save failed: {{_rar_err_save}}")
 
             if not _is_2d and not _is_3d:
+                if _is_steady:
+                    # Steady-state 1D (e.g. a Poisson equation): a single
+                    # static u(x) curve -- no time axis at all, so neither
+                    # the x-t surface nor the "earlier-time-steps" framing
+                    # the time-dependent branch below uses applies here.
+                    # Mirrors the plain (non-RAR) Solve path's own
+                    # steady-1D solution plot further above in this file.
+                    try:
+                        _xr = np.linspace({config.x_min}, {config.x_max}, _res)
+                        _field_r = _extract_plot_field(_xr.reshape(-1, 1))
+                        _fig_r, _ax_r = plt.subplots(figsize=_plot_figsize(6.5, 5))
+                        _ax_r.plot(_xr, _field_r, color="#1971c2", linewidth=2.0)
+                        _ax_r.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_r.set_ylabel("u", fontsize={config.plot_axis_label_fontsize})
+                        _ax_r.grid(True, alpha=0.3)
+                        _fig_r.suptitle(f"RAR round {{_rar_idx}} solution snapshot")
+                        plt.tight_layout(rect=[0, 0, 1, 0.93])
+                        plt.savefig(_os.path.join(_rd, "solution_plot.png"), dpi={config.plot_dpi}, bbox_inches="tight")
+                        plt.close(_fig_r)
+                        print(f"  [RAR round {{_rar_idx}}] solution snapshot saved: {{_os.path.join(_rd, 'solution_plot.png')}}")
+                    except Exception as _rar_err1:
+                        print(f"  [RAR round {{_rar_idx}}] solution snapshot failed: {{_rar_err1}}")
+
+                    try:
+                        # Three stacked rows (no shared meaning on the y
+                        # axis -- just one row per category) instead of the
+                        # time-dependent branch's x-t scatter, since a
+                        # steady 1D point has no second coordinate at all.
+                        _fig_c, _ax_c = plt.subplots(figsize=_plot_figsize(8, 3.2))
+                        if len(_rar_orig_pts):
+                            _ax_c.scatter(_rar_orig_pts[:, 0], np.full(len(_rar_orig_pts), 2.0), s=10, c="#adb5bd", alpha=0.6, label="Original points")
+                        if len(_rar_added_so_far):
+                            _ax_c.scatter(_rar_added_so_far[:, 0], np.full(len(_rar_added_so_far), 1.0), s=14, c="#fd7e14", label="Added in earlier rounds")
+                        _ax_c.scatter(_rar_new_pts[:, 0], np.full(len(_rar_new_pts), 0.0), s=18, c="#e03131", label=f"Added this round ({{len(_rar_new_pts)}})")
+                        _ax_c.set_yticks([]); _ax_c.set_ylim(-0.6, 2.6)
+                        _ax_c.set_xlabel("x", fontsize={config.plot_axis_label_fontsize})
+                        _ax_c.legend(loc="best", fontsize=8)
+                        _ax_c.set_title(f"RAR round {{_rar_idx}} -- collocation points")
+                        plt.tight_layout()
+                        plt.savefig(_os.path.join(_rd, "collocation_points.png"), dpi={config.plot_dpi}, bbox_inches="tight")
+                        plt.close(_fig_c)
+                        print(f"  [RAR round {{_rar_idx}}] collocation-points plot saved: {{_os.path.join(_rd, 'collocation_points.png')}}")
+                    except Exception as _rar_err2:
+                        print(f"  [RAR round {{_rar_idx}}] collocation-points plot failed: {{_rar_err2}}")
+
+                    if _rar_ea_entries:
+                        try:
+                            # Steady-state: at most one reference file
+                            # really means anything (there's no time axis
+                            # to pick "the closest snapshot" by), so just
+                            # use the first one configured -- format is
+                            # x, u (2 columns, no time column), matching
+                            # the steady 2D/3D reference-file convention
+                            # (spatial columns then u, nothing else).
+                            _best_r = _rar_ea_entries[0]
+                            _ref_fp_r = _best_r[1]
+                            _ref_sel_r = _best_r[2] if len(_best_r) >= 3 else None
+                            _ref_d_r = np.loadtxt(_ref_fp_r)
+                            if _ref_d_r.ndim == 1:
+                                _ref_d_r = _ref_d_r.reshape(1, -1)
+                            _ref_x_r = _ref_d_r[:, 0]; _ref_u_r = _ref_d_r[:, 1]
+                            _ref_pred_r = _rar_ref_extract(_ref_x_r.reshape(-1, 1), _ref_sel_r, model)
+                            _err_r = _ref_pred_r - _ref_u_r
+                            _l2_r = float(np.linalg.norm(_err_r) / (np.linalg.norm(_ref_u_r) + 1e-12))
+                            _mse_r = float(np.mean(_err_r ** 2))
+                            print(f"  [RAR round {{_rar_idx}}] vs Reference: L2 rel error = {{_l2_r:.4e}}, MSE = {{_mse_r:.4e}}")
+                            _fig_e, _ax_e = plt.subplots(figsize=_plot_figsize(6.5, 5))
+                            _ord_e = np.argsort(_ref_x_r)
+                            _ax_e.plot(_ref_x_r[_ord_e], _ref_u_r[_ord_e], label="Reference", color="#2f9e44")
+                            _ax_e.plot(_ref_x_r[_ord_e], _ref_pred_r[_ord_e], label="PINN", color="#1971c2", linestyle="--")
+                            _ax_e.legend(loc="best", fontsize=8)
+                            _ax_e.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_e.set_ylabel("u", fontsize={config.plot_axis_label_fontsize})
+                            _ax_e.set_title(f"RAR round {{_rar_idx}} -- PINN vs Reference  (L2={{_l2_r:.3e}})")
+                            plt.tight_layout()
+                            plt.savefig(_os.path.join(_rd, "error_compare.png"), dpi={config.plot_dpi}, bbox_inches="tight")
+                            plt.close(_fig_e)
+                        except Exception as _rar_err3:
+                            print(f"  [RAR round {{_rar_idx}}] error compare failed: {{_rar_err3}}")
+                    return
+
                 # -- 1D: own two-file structure (solution snapshot +
                 # line-comparison against one reference, if configured).
                 # Axis orientation matches the main Plot Settings "Swap
@@ -3422,6 +3501,153 @@ for _pval in _param_values:
                         plt.close(_fig_e)
                     except Exception as _rar_err3:
                         print(f"  [RAR round {{_rar_idx}}] error compare failed: {{_rar_err3}}")
+                return
+
+            if _is_steady:
+                # Steady-state 2D/3D (e.g. a Poisson equation): PINN |
+                # Reference | |Error| when a reference file is configured,
+                # just the PINN prediction alone otherwise -- no time
+                # slicing anywhere (there's no t_max to evaluate "the
+                # final time" at, unlike the time-dependent branch below).
+                try:
+                    _ref_ok_r = False
+                    if _rar_ea_entries:
+                        try:
+                            # Steady-state: at most one reference file
+                            # really means anything (no time axis to pick
+                            # "the closest snapshot" by) -- format is
+                            # x,y,u (2D) / x,y,z,u (3D), no time column.
+                            _best_r = _rar_ea_entries[0]
+                            _ref_fp_r = _best_r[1]
+                            _ref_sel_r = _best_r[2] if len(_best_r) >= 3 else None
+                            _ref_d_r = np.loadtxt(_ref_fp_r)
+                            if _ref_d_r.ndim == 1:
+                                _ref_d_r = _ref_d_r.reshape(1, -1)
+                            if _is_3d:
+                                _ref_xyz_r = _ref_d_r[:, :3]; _ref_u_r = _ref_d_r[:, 3]
+                            else:
+                                _ref_xyz_r = _ref_d_r[:, :2]; _ref_u_r = _ref_d_r[:, 2]
+                            _ref_pred_pts_r = _rar_ref_extract(_ref_xyz_r, _ref_sel_r, model)
+                            _err_pts_r = _ref_pred_pts_r - _ref_u_r
+                            _l2_r = float(np.linalg.norm(_err_pts_r) / (np.linalg.norm(_ref_u_r) + 1e-12))
+                            _mse_r = float(np.mean(_err_pts_r ** 2))
+                            print(f"  [RAR round {{_rar_idx}}] vs Reference: L2 rel error = {{_l2_r:.4e}}, MSE = {{_mse_r:.4e}}")
+                            _ref_ok_r = True
+                        except Exception as _rar_ref_err:
+                            print(f"  [RAR round {{_rar_idx}}] reference compare failed, showing prediction only: {{_rar_ref_err}}")
+                            _ref_ok_r = False
+
+                    if _is_3d:
+                        if _ref_ok_r:
+                            _fig_r = plt.figure(figsize=_plot_figsize(15, 5))
+                            _abs_err_r = np.abs(_err_pts_r)
+                            _vmin3_r = min(_ref_pred_pts_r.min(), _ref_u_r.min())
+                            _vmax3_r = max(_ref_pred_pts_r.max(), _ref_u_r.max())
+                            _cols3_r = [
+                                (_ref_pred_pts_r, f"PINN  L2={{_l2_r:.2e}}", _vmin3_r, _vmax3_r, "{config.plot_colormap}"),
+                                (_ref_u_r, "Reference", _vmin3_r, _vmax3_r, "{config.plot_colormap}"),
+                                (_abs_err_r, f"|Error|  Max={{_abs_err_r.max():.2e}}", None, None, "{config.plot_colormap}"),
+                            ]
+                            for _ci_r, (_vals3_r, _ttl3_r, _vmin_c3_r, _vmax_c3_r, _cmap_c3_r) in enumerate(_cols3_r):
+                                _ax3_r = _fig_r.add_subplot(1, 3, _ci_r + 1, projection="3d")
+                                _sc3_r = _ax3_r.scatter(_ref_xyz_r[:, 0], _ref_xyz_r[:, 1], _ref_xyz_r[:, 2], c=_vals3_r,
+                                                         cmap=_cmap_c3_r, s=10, vmin=_vmin_c3_r, vmax=_vmax_c3_r)
+                                _fig_r.colorbar(_sc3_r, ax=_ax3_r, shrink=0.6, pad=0.12)
+                                _ax3_r.set_title(_ttl3_r, fontsize={config.plot_subplot_title_fontsize})
+                                _ax3_r.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax3_r.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _ax3_r.set_zlabel("z", fontsize={config.plot_axis_label_fontsize})
+                            _fig_r.suptitle(f"RAR round {{_rar_idx}} -- PINN vs Reference", fontsize={config.plot_title_fontsize}, fontweight="bold")
+                        else:
+                            _xp = np.linspace({config.x_min}, {config.x_max}, _res)
+                            _yp = np.linspace({config.y_min}, {config.y_max}, _res)
+                            _Xg, _Yg = np.meshgrid(_xp, _yp)
+                            _z_mid_r = ({config.z_min} + {config.z_max}) / 2.0
+                            _grid_r = np.column_stack([_Xg.ravel(), _Yg.ravel(), np.full(_Xg.size, _z_mid_r)])
+                            _field_r = _extract_plot_field(_grid_r).reshape(_res, _res)
+                            _fig_r, _ax_r = plt.subplots(figsize=_plot_figsize(6.5, 5.5))
+                            _im_r = _ax_r.contourf(_Xg, _Yg, _field_r, levels={config.plot_levels}, cmap="{config.plot_colormap}")
+                            _ax_r.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_r.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _ax_r.set_aspect("equal", adjustable="box")
+                            _fig_r.colorbar(_im_r, ax=_ax_r, fraction=0.046, pad=0.04)
+                            _fig_r.suptitle(f"RAR round {{_rar_idx}} solution snapshot (z={{_z_mid_r:.3g}})")
+                    else:
+                        _xp = np.linspace({config.x_min}, {config.x_max}, _res)
+                        _yp = np.linspace({config.y_min}, {config.y_max}, _res)
+                        _Xg, _Yg = np.meshgrid(_xp, _yp)
+                        _inside_r = geom.inside(np.column_stack([_Xg.ravel(), _Yg.ravel()])).reshape(_res, _res)
+                        if _ref_ok_r:
+                            from scipy.interpolate import griddata as _gd_r
+                            _grid_pinn_r = np.column_stack([_Xg.ravel(), _Yg.ravel()])
+                            _u_pinn_g_r = _extract_plot_field(_grid_pinn_r).reshape(_res, _res)
+                            _u_pinn_g_r = np.where(_inside_r, _u_pinn_g_r, np.nan)
+                            _u_ref_g_r = _gd_r(_ref_xyz_r, _ref_u_r, (_Xg, _Yg), method="linear", fill_value=0.0)
+                            _u_ref_g_r = np.where(_inside_r, _u_ref_g_r, np.nan)
+                            _u_err_g_r = np.abs(_u_pinn_g_r - _u_ref_g_r)
+                            _vmin2_r = np.nanmin([_u_pinn_g_r, _u_ref_g_r]); _vmax2_r = np.nanmax([_u_pinn_g_r, _u_ref_g_r])
+                            if _vmax2_r - _vmin2_r < 1e-12:
+                                _vmax2_r = _vmin2_r + 1e-12
+                            _levels2_r = np.linspace(_vmin2_r, _vmax2_r, 41)
+                            _fig_r, _axes2_r = plt.subplots(1, 3, figsize=_plot_figsize(15, 5))
+                            _im0_r = _axes2_r[0].contourf(_Xg, _Yg, _u_pinn_g_r, levels=_levels2_r, cmap="{config.plot_colormap}")
+                            _axes2_r[0].set_title(f"PINN  L2={{_l2_r:.2e}}", fontsize={config.plot_subplot_title_fontsize})
+                            _axes2_r[0].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _axes2_r[0].set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _axes2_r[0].set_aspect("equal", adjustable="box")
+                            _fig_r.colorbar(_im0_r, ax=_axes2_r[0], fraction=0.046, pad=0.04)
+                            _im1_r = _axes2_r[1].contourf(_Xg, _Yg, _u_ref_g_r, levels=_levels2_r, cmap="{config.plot_colormap}")
+                            _axes2_r[1].set_title("Reference", fontsize={config.plot_subplot_title_fontsize})
+                            _axes2_r[1].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _axes2_r[1].set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _axes2_r[1].set_aspect("equal", adjustable="box")
+                            _fig_r.colorbar(_im1_r, ax=_axes2_r[1], fraction=0.046, pad=0.04)
+                            _im2_r = _axes2_r[2].contourf(_Xg, _Yg, _u_err_g_r, levels={config.plot_levels}, cmap="{config.plot_colormap}")
+                            _axes2_r[2].set_title(f"|Error|  Max={{np.nanmax(_u_err_g_r):.2e}}", fontsize={config.plot_subplot_title_fontsize})
+                            _axes2_r[2].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _axes2_r[2].set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _axes2_r[2].set_aspect("equal", adjustable="box")
+                            _fig_r.colorbar(_im2_r, ax=_axes2_r[2], fraction=0.046, pad=0.04)
+                            _fig_r.suptitle(f"RAR round {{_rar_idx}} -- PINN vs Reference", fontsize={config.plot_title_fontsize}, fontweight="bold")
+                        else:
+                            _grid_r = np.column_stack([_Xg.ravel(), _Yg.ravel()])
+                            _field_r = _extract_plot_field(_grid_r).reshape(_res, _res)
+                            _field_r = np.where(_inside_r, _field_r, np.nan)
+                            _fig_r, _ax_r = plt.subplots(figsize=_plot_figsize(6.5, 5.5))
+                            _im_r = _ax_r.contourf(_Xg, _Yg, _field_r, levels={config.plot_levels}, cmap="{config.plot_colormap}")
+                            _ax_r.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_r.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _ax_r.set_aspect("equal", adjustable="box")
+                            _fig_r.colorbar(_im_r, ax=_ax_r, fraction=0.046, pad=0.04)
+                            _fig_r.suptitle(f"RAR round {{_rar_idx}} solution snapshot")
+                    plt.tight_layout(rect=[0, 0, 1, 0.93])
+                    plt.savefig(_os.path.join(_rd, "solution_plot.png"), dpi={config.plot_dpi}, bbox_inches="tight")
+                    plt.close(_fig_r)
+                    print(f"  [RAR round {{_rar_idx}}] solution snapshot saved: {{_os.path.join(_rd, 'solution_plot.png')}}")
+                except Exception as _rar_err1:
+                    print(f"  [RAR round {{_rar_idx}}] solution snapshot failed: {{_rar_err1}}")
+
+                # -- collocation points (steady: no time dimension at all,
+                # so no alpha-for-time trick in 3D and no second "spatial-
+                # only" side panel in 2D -- just the points themselves) --
+                try:
+                    if _is_3d:
+                        from mpl_toolkits.mplot3d import Axes3D as _Axes3D_unused2  # noqa: F401 -- registers the 3D projection
+                        _fig_c = plt.figure(figsize=_plot_figsize(7, 6))
+                        _ax_c = _fig_c.add_subplot(111, projection="3d")
+                        if len(_rar_orig_pts):
+                            _ax_c.scatter(_rar_orig_pts[:, 0], _rar_orig_pts[:, 1], _rar_orig_pts[:, 2], s=5, c="#adb5bd", alpha=0.6, label="Original points")
+                        if len(_rar_added_so_far):
+                            _ax_c.scatter(_rar_added_so_far[:, 0], _rar_added_so_far[:, 1], _rar_added_so_far[:, 2], s=9, c="#fd7e14", label="Added in earlier rounds")
+                        _ax_c.scatter(_rar_new_pts[:, 0], _rar_new_pts[:, 1], _rar_new_pts[:, 2], s=12, c="#e03131", label=f"Added this round ({{len(_rar_new_pts)}})")
+                        _ax_c.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_c.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _ax_c.set_zlabel("z", fontsize={config.plot_axis_label_fontsize})
+                        _ax_c.legend(loc="best", fontsize=8)
+                        _ax_c.set_title(f"RAR round {{_rar_idx}} -- collocation points")
+                        plt.tight_layout()
+                    else:
+                        _fig_c, _ax_c = plt.subplots(figsize=_plot_figsize(6.5, 5.5))
+                        if len(_rar_orig_pts):
+                            _ax_c.scatter(_rar_orig_pts[:, 0], _rar_orig_pts[:, 1], s=6, c="#adb5bd", alpha=0.6, label="Original points")
+                        if len(_rar_added_so_far):
+                            _ax_c.scatter(_rar_added_so_far[:, 0], _rar_added_so_far[:, 1], s=10, c="#fd7e14", label="Added in earlier rounds")
+                        _ax_c.scatter(_rar_new_pts[:, 0], _rar_new_pts[:, 1], s=14, c="#e03131", label=f"Added this round ({{len(_rar_new_pts)}})")
+                        _ax_c.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_c.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _ax_c.set_aspect("equal", adjustable="box")
+                        _ax_c.legend(loc="best", fontsize=8)
+                        _ax_c.set_title(f"RAR round {{_rar_idx}} -- collocation points")
+                        plt.tight_layout()
+                    plt.savefig(_os.path.join(_rd, "collocation_points.png"), dpi={config.plot_dpi}, bbox_inches="tight")
+                    plt.close(_fig_c)
+                    print(f"  [RAR round {{_rar_idx}}] collocation-points plot saved: {{_os.path.join(_rd, 'collocation_points.png')}}")
+                except Exception as _rar_err2:
+                    print(f"  [RAR round {{_rar_idx}}] collocation-points plot failed: {{_rar_err2}}")
                 return
 
             # -- 2D/3D: solution snapshot merged with the error comparison --
@@ -3614,7 +3840,25 @@ for _pval in _param_values:
         print("\\n=== Starting RAR Adaptive Refinement ===")
         for rar_cycle in range({config.rar_cycles}):
             print(f"\\n--- RAR Cycle {{rar_cycle+1}}/{config.rar_cycles} ---")
-            if _is_3d:
+            if _is_steady:
+                # No time axis at all -- candidate points are purely
+                # spatial, matching the steady network's own input size
+                # (one fewer column than the time-dependent case; see
+                # _build_config's input_size branch in main_window.py and
+                # the plain dde.data.PDE built above for this same reason).
+                if _is_3d:
+                    x_cand = np.random.uniform({config.x_min}, {config.x_max}, {config.rar_candidates})
+                    y_cand = np.random.uniform({config.y_min}, {config.y_max}, {config.rar_candidates})
+                    z_cand = np.random.uniform({config.z_min}, {config.z_max}, {config.rar_candidates})
+                    xt_cand = np.column_stack([x_cand, y_cand, z_cand])
+                elif _is_2d:
+                    x_cand = np.random.uniform({config.x_min}, {config.x_max}, {config.rar_candidates})
+                    y_cand = np.random.uniform({config.y_min}, {config.y_max}, {config.rar_candidates})
+                    xt_cand = np.column_stack([x_cand, y_cand])
+                else:
+                    x_cand  = np.random.uniform({config.x_min}, {config.x_max}, {config.rar_candidates})
+                    xt_cand = x_cand.reshape(-1, 1)
+            elif _is_3d:
                 x_cand = np.random.uniform({config.x_min}, {config.x_max}, {config.rar_candidates})
                 y_cand = np.random.uniform({config.y_min}, {config.y_max}, {config.rar_candidates})
                 z_cand = np.random.uniform({config.z_min}, {config.z_max}, {config.rar_candidates})
@@ -4371,6 +4615,23 @@ for _pval in _param_values:
                         _detected_t = float(_ea_d[0, 2])
                         _ea_times.append(_detected_t)
                         print(f"  Loaded ground truth t={{_detected_t:.4f}}: {{len(_ea_d)}} pts from {{_os.path.basename(_ea_fp)}}")
+                    elif _is_steady:
+                        # Steady 1D format: x, u — no time column at all
+                        # (matches generate_clean_script()'s own steady-1D
+                        # EA loader, and the same no-time-column convention
+                        # already used above for steady 2D/3D). This branch
+                        # was missing here -- the "else" below unconditionally
+                        # assumed the time-dependent 3-column (x, t, u)
+                        # layout, so a steady 1D reference file crashed with
+                        # an out-of-bounds IndexError reading a nonexistent
+                        # 3rd column.
+                        _ea_idx = np.argsort(_ea_d[:, 0])
+                        _ea_x_refs.append(_ea_d[_ea_idx, 0])
+                        _ea_y_refs.append(np.zeros_like(_ea_d[_ea_idx, 0]))
+                        _ea_z_refs.append(np.zeros_like(_ea_d[_ea_idx, 0]))
+                        _ea_u_refs.append(_ea_d[_ea_idx, 1])
+                        _ea_times.append(0.0)
+                        print(f"  Loaded ground truth (steady-state): {{len(_ea_d)}} pts from {{_os.path.basename(_ea_fp)}}")
                     else:
                         # 1D format: x, t, u — sort by x
                         _ea_idx = np.argsort(_ea_d[:, 0])
@@ -4419,6 +4680,14 @@ for _pval in _param_values:
                         elif _is_2d:
                             _ea_yf = _ea_y_refs[_ei]
                             _ea_xt = np.column_stack([_ea_xf, _ea_yf, np.full_like(_ea_xf, _ea_tv)])
+                        elif _is_steady:
+                            # Steady 1D: no time column -- this case was
+                            # missing (only the 2D/3D steady variants were
+                            # handled above), so it fell through to the
+                            # time-dependent "else" below and fed the
+                            # network a 2-column (x, t) input instead of
+                            # the 1 column it was actually trained on.
+                            _ea_xt = _ea_xf.reshape(-1, 1)
                         else:
                             _ea_xt = np.column_stack([_ea_xf, np.full_like(_ea_xf, _ea_tv)])
                         _ea_u_pinns[_ei] = _ea_extract(_ea_xt, _ea_sel, model).flatten()
@@ -4678,7 +4947,18 @@ for _pval in _param_values:
                             _pinn_faces_ea = []
                             _gt_faces_ea = []
                             for _fax_ea, _fval_ea, _fX_ea, _fY_ea, _fZ_ea, _free_idx_ea in _faces3_ea:
-                                _fpts_ea = np.column_stack([_fX_ea.ravel(), _fY_ea.ravel(), _fZ_ea.ravel(), np.full(_fX_ea.size, _ea_tv)])
+                                # Steady-state 3D has no time axis at all --
+                                # the network only takes 3 (x,y,z) inputs,
+                                # so appending a 4th placeholder column here
+                                # (as the time-dependent case needs) crashed
+                                # every steady 3D box-geometry (Cuboid)
+                                # surface comparison with a matmul shape
+                                # mismatch the moment Error Analysis was
+                                # configured for one.
+                                if _is_steady:
+                                    _fpts_ea = np.column_stack([_fX_ea.ravel(), _fY_ea.ravel(), _fZ_ea.ravel()])
+                                else:
+                                    _fpts_ea = np.column_stack([_fX_ea.ravel(), _fY_ea.ravel(), _fZ_ea.ravel(), np.full(_fX_ea.size, _ea_tv)])
                                 _fpinn_ea = _ea_extract(_fpts_ea, _ea_sel, model).reshape(_fX_ea.shape)
                                 _near_mask_ea = np.abs(_all_coords_ea[_fax_ea] - _fval_ea) < _face_tol_ea[_fax_ea]
                                 if _near_mask_ea.sum() < 4:
@@ -4871,7 +5151,10 @@ for _pval in _param_values:
                         # array; the line comparison above already covers this
                         # single snapshot.
                         _ea_did_surface = False
-                        print("  Skipping surface comparison — need at least 2 time snapshots for a 1D x-t surface plot")
+                        if _is_steady:
+                            print("  Skipping surface comparison — steady-state 1D has no time axis to build an x-t surface from; see the line comparison above")
+                        else:
+                            print("  Skipping surface comparison — need at least 2 time snapshots for a 1D x-t surface plot")
                     else:
                         # 1D: standard x vs t surface
                         _ea_x_common = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
@@ -7852,7 +8135,23 @@ var_cb = dde.callbacks.VariableValue(inv_vars, period={var_cb_period}, filename=
         if use_rar:
             rar_lines = [f'''# ── RAR: residual-based adaptive refinement ──
 for rar_cycle in range({config.rar_cycles}):''']
-            if is_3d:
+            if is_steady:
+                # No time axis at all -- candidate points are purely
+                # spatial, matching the steady network's own (one column
+                # fewer) input size.
+                if is_3d:
+                    rar_lines.append(f'''    x_cand = np.random.uniform({config.x_min}, {config.x_max}, {config.rar_candidates})
+    y_cand = np.random.uniform({config.y_min}, {config.y_max}, {config.rar_candidates})
+    z_cand = np.random.uniform({config.z_min}, {config.z_max}, {config.rar_candidates})
+    xt_cand = np.column_stack([x_cand, y_cand, z_cand])''')
+                elif is_2d:
+                    rar_lines.append(f'''    x_cand = np.random.uniform({config.x_min}, {config.x_max}, {config.rar_candidates})
+    y_cand = np.random.uniform({config.y_min}, {config.y_max}, {config.rar_candidates})
+    xt_cand = np.column_stack([x_cand, y_cand])''')
+                else:
+                    rar_lines.append(f'''    x_cand = np.random.uniform({config.x_min}, {config.x_max}, {config.rar_candidates})
+    xt_cand = x_cand.reshape(-1, 1)''')
+            elif is_3d:
                 rar_lines.append(f'''    x_cand = np.random.uniform({config.x_min}, {config.x_max}, {config.rar_candidates})
     y_cand = np.random.uniform({config.y_min}, {config.y_max}, {config.rar_candidates})
     z_cand = np.random.uniform({config.z_min}, {config.z_max}, {config.rar_candidates})
@@ -8802,31 +9101,44 @@ plt.close()
 print("  Line comparison saved.")''')
 
         if config.ea_do_surface and not (is_2d or is_3d):
+            # A 1D x-t surface needs >= 2 distinct time snapshots to form a
+            # non-degenerate grid -- unguarded, a single reference file (the
+            # steady-state case always has exactly one meaningful file,
+            # since there's no time axis to vary over) crashed matplotlib's
+            # contourf with "Input z must be at least a (2, 2) shaped
+            # array" instead of skipping gracefully the way the live Solve
+            # path's own copy of this section already does (the line
+            # comparison above already covers a single snapshot either way).
+            _skip_msg_1d = ("steady-state 1D has no time axis to build an x-t surface from; see the line comparison above"
+                             if is_steady else "need at least 2 time snapshots for a 1D x-t surface plot")
             ea_lines.append(f'''
 # ── Surface comparison (1D: x-t) ──
-from scipy.interpolate import interp1d
-x_common = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
-t_arr = np.array(ea_times)
-U_pinn = np.zeros((len(t_arr), len(x_common)))
-U_ref  = np.zeros((len(t_arr), len(x_common)))
-for i, tv in enumerate(ea_times):
-    fi_p = interp1d(ea_x_refs[i], ea_u_pinns[i], kind="linear", fill_value="extrapolate")
-    fi_r = interp1d(ea_x_refs[i], ea_u_refs[i], kind="linear", fill_value="extrapolate")
-    U_pinn[i, :] = fi_p(x_common); U_ref[i, :] = fi_r(x_common)
-Xg, Tg = np.meshgrid(x_common, t_arr)
-U_err = np.abs(U_pinn - U_ref)
-fig, axes = plt.subplots(1, 3, figsize=(15, 5))
-fig.suptitle("PINN vs Reference -- Surface Comparison", fontsize={config.plot_title_fontsize}, fontweight="bold")
-im0 = axes[0].contourf(Tg, Xg, U_pinn, levels={config.plot_levels}, cmap="{config.plot_colormap}")
-axes[0].set_title("PINN"); axes[0].set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); axes[0].set_ylabel("x", fontsize={config.plot_axis_label_fontsize}); fig.colorbar(im0, ax=axes[0])
-im1 = axes[1].contourf(Tg, Xg, U_ref, levels={config.plot_levels}, cmap="{config.plot_colormap}")
-axes[1].set_title("Reference"); axes[1].set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); axes[1].set_ylabel("x", fontsize={config.plot_axis_label_fontsize}); fig.colorbar(im1, ax=axes[1])
-im2 = axes[2].contourf(Tg, Xg, U_err, levels={config.plot_levels}, cmap="{config.plot_colormap}")
-axes[2].set_title("|Error|"); axes[2].set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); axes[2].set_ylabel("x", fontsize={config.plot_axis_label_fontsize}); fig.colorbar(im2, ax=axes[2])
-plt.tight_layout(rect=[0, 0, 1, 0.93])
-plt.savefig(os.path.join(ea_dir, "surface_comparison.png"), dpi={config.plot_dpi}, bbox_inches="tight")
-plt.close()
-print("  Surface comparison saved.")''')
+if len(ea_times) < 2:
+    print("  Skipping surface comparison -- {_skip_msg_1d}")
+else:
+    from scipy.interpolate import interp1d
+    x_common = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
+    t_arr = np.array(ea_times)
+    U_pinn = np.zeros((len(t_arr), len(x_common)))
+    U_ref  = np.zeros((len(t_arr), len(x_common)))
+    for i, tv in enumerate(ea_times):
+        fi_p = interp1d(ea_x_refs[i], ea_u_pinns[i], kind="linear", fill_value="extrapolate")
+        fi_r = interp1d(ea_x_refs[i], ea_u_refs[i], kind="linear", fill_value="extrapolate")
+        U_pinn[i, :] = fi_p(x_common); U_ref[i, :] = fi_r(x_common)
+    Xg, Tg = np.meshgrid(x_common, t_arr)
+    U_err = np.abs(U_pinn - U_ref)
+    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+    fig.suptitle("PINN vs Reference -- Surface Comparison", fontsize={config.plot_title_fontsize}, fontweight="bold")
+    im0 = axes[0].contourf(Tg, Xg, U_pinn, levels={config.plot_levels}, cmap="{config.plot_colormap}")
+    axes[0].set_title("PINN"); axes[0].set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); axes[0].set_ylabel("x", fontsize={config.plot_axis_label_fontsize}); fig.colorbar(im0, ax=axes[0])
+    im1 = axes[1].contourf(Tg, Xg, U_ref, levels={config.plot_levels}, cmap="{config.plot_colormap}")
+    axes[1].set_title("Reference"); axes[1].set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); axes[1].set_ylabel("x", fontsize={config.plot_axis_label_fontsize}); fig.colorbar(im1, ax=axes[1])
+    im2 = axes[2].contourf(Tg, Xg, U_err, levels={config.plot_levels}, cmap="{config.plot_colormap}")
+    axes[2].set_title("|Error|"); axes[2].set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); axes[2].set_ylabel("x", fontsize={config.plot_axis_label_fontsize}); fig.colorbar(im2, ax=axes[2])
+    plt.tight_layout(rect=[0, 0, 1, 0.93])
+    plt.savefig(os.path.join(ea_dir, "surface_comparison.png"), dpi={config.plot_dpi}, bbox_inches="tight")
+    plt.close()
+    print("  Surface comparison saved.")''')
         elif config.ea_do_surface and is_2d:
             # See the matching comment on the Line comparison title above --
             # steady-state has no time axis, so "t=..." is dropped here too.
