@@ -8266,8 +8266,23 @@ _data_pre = dde.data.TimePDE(
 _model_pre = dde.Model(_data_pre, net)
 _model_pre.compile("{config.ic_pretrain_optimizer}", lr={config.ic_pretrain_lr},
                     loss="{config.ic_pretrain_loss}", loss_weights={ic_only_weights})
-_ic_lh, _ = _model_pre.train(iterations={config.ic_pretrain_iterations}, display_every=10000)
-print(f"IC pre-training done. Final IC loss: {{sum(_ic_lh.loss_train[-1]):.4e}}")''')
+# Restore-from-checkpoint vs. train-from-scratch -- same two options the
+# GUI's IC Pre-Training panel offers for the live Solve path (see
+# generate_script()'s own copy of this block), now also honored here so
+# an exported script behaves the same way the GUI run that produced it
+# would have.
+_ic_pretrain_save_dir = os.path.join(save_dir, "ic_pretrain") if save_dir else "ic_pretrain"
+os.makedirs(_ic_pretrain_save_dir, exist_ok=True)
+if {config.ic_pretrain_restore} and {repr(config.ic_pretrain_restore_path)} and os.path.exists({repr(config.ic_pretrain_restore_path)}):
+    print("Restoring IC pre-train model from: " + {repr(config.ic_pretrain_restore_path)})
+    _ic_ckpt = torch.load({repr(config.ic_pretrain_restore_path)}, map_location="cpu")
+    _model_pre.net.load_state_dict(_ic_ckpt.get("model_state_dict", _ic_ckpt))
+    print("IC pre-train model restored -- skipping training.")
+else:
+    _ic_lh, _ = _model_pre.train(iterations={config.ic_pretrain_iterations}, display_every=10000,
+                                  model_save_path=os.path.join(_ic_pretrain_save_dir, "ic_pretrain_model"))
+    print(f"IC pre-training done. Final IC loss: {{sum(_ic_lh.loss_train[-1]):.4e}}")
+    print(f"IC pre-train model saved to: {{_ic_pretrain_save_dir}}")''')
             parts.append("\n".join(ic_pretrain_lines))
 
         parts.append("model = dde.Model(data, net)")
@@ -8460,7 +8475,21 @@ _ta_loss_offset = 0''')
         _model_pre_i = dde.Model(_data_pre_i, net_i)
         _model_pre_i.compile("{config.ic_pretrain_optimizer}", lr={config.ic_pretrain_lr},
                               loss="{config.ic_pretrain_loss}", loss_weights={ic_only_weights})
-        _model_pre_i.train(iterations={config.ic_pretrain_iterations}, display_every=10000)''')
+        # Same restore-from-checkpoint vs. train-from-scratch choice as the
+        # Standard-path IC pre-training block above (and generate_script()'s
+        # own Time-Adaptive copy) -- only the first step (step_i == 0) ever
+        # reaches this branch, same as the rest of this IC pre-training block.
+        _ic_pretrain_save_dir_i = os.path.join(save_dir, "ic_pretrain") if save_dir else "ic_pretrain"
+        os.makedirs(_ic_pretrain_save_dir_i, exist_ok=True)
+        if {config.ic_pretrain_restore} and {repr(config.ic_pretrain_restore_path)} and os.path.exists({repr(config.ic_pretrain_restore_path)}):
+            print("Restoring IC pre-train model from: " + {repr(config.ic_pretrain_restore_path)})
+            _ic_ckpt_i = torch.load({repr(config.ic_pretrain_restore_path)}, map_location="cpu")
+            _model_pre_i.net.load_state_dict(_ic_ckpt_i.get("model_state_dict", _ic_ckpt_i))
+            print("IC pre-train model restored -- skipping training.")
+        else:
+            _model_pre_i.train(iterations={config.ic_pretrain_iterations}, display_every=10000,
+                                model_save_path=os.path.join(_ic_pretrain_save_dir_i, "ic_pretrain_model"))
+            print(f"IC pre-train model saved to: {{_ic_pretrain_save_dir_i}}")''')
 
         loop_lines.append("    model_i = dde.Model(data_i, net_i)")
         if is_inverse:
