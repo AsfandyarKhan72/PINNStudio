@@ -260,7 +260,7 @@ Periodically resamples collocation points toward wherever the PDE residual is cu
 
 **Points from:** for a PDE with more than one governing equation, RAR normally ranks candidate points by the combined (summed) residual across every equation. The "Points from" selector lets you restrict that ranking to a single output's equation instead — useful when only one output has the sharp feature you care about and you don't want the other outputs' residuals diluting the point selection.
 
-Currently these per-round diagnostics and the output selector apply to the live **Solve** path. "Export as DeepXDE Script" generates a simpler, standalone RAR loop and does not yet produce the same per-round diagnostics — bringing that in line is a planned follow-up.
+"Export as DeepXDE Script" honors the output selector too, and writes the same per-round `collocation_points.png` and `solution_plot.png` plus one `model.pt` checkpoint of each round's final weights; the per-round comparison against reference data is live-Solve only (an exported script compares against reference data once, in its end-of-run Error Analysis).
 
 </details>
 

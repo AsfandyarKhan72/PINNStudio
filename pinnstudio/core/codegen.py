@@ -8522,6 +8522,112 @@ else:
     return "\n".join((indent + ln) if ln else ln for ln in body.split("\n"))
 
 
+def _clean_rar_diagnostics_code(config, is_2d, is_3d, is_steady, out_name):
+    """generate_clean_script()'s RAR per-round diagnostics -- cleanup Round 53
+    (long-standing open item: the export had none). For every RAR round,
+    under <sol_dir>/rar_rounds/round_NN/: model.pt (that round's weights, in
+    the same {"model_state_dict": ...} format the Restore tab loads),
+    collocation_points.png (original points gray, earlier rounds' additions
+    orange, this round's red) and solution_plot.png (the configured plot
+    field after that round, masked to the real geometry). The RAR loop above
+    only records each round's weights and added points in memory; this block
+    replays them once _extract_plot_field exists, then restores the final
+    weights. The live Solve path additionally merges each round's snapshot
+    with Error Analysis reference data; the export keeps that comparison to
+    its single end-of-run Error Analysis section."""
+    res = config.plot_resolution
+    tmax = config.t_max
+    if is_3d:
+        scatter = ('''    fig = plt.figure(figsize=_plot_figsize(7, 6))
+    ax = fig.add_subplot(111, projection="3d")
+    for pts, col, lab, sz in groups:
+        if len(pts):
+            ax.scatter(pts[:, 0], pts[:, 1], pts[:, 2], s=sz, c=col, label=lab)
+    ax.set_xlabel("x"); ax.set_ylabel("y"); ax.set_zlabel("z")''')
+        zmid = (config.z_min + config.z_max) / 2.0
+        time_col = "" if is_steady else f", np.full(Xs.size, {tmax})"
+        snap = (f'''    xs = np.linspace({config.x_min}, {config.x_max}, {res}); ys = np.linspace({config.y_min}, {config.y_max}, {res})
+    Xs, Ys = np.meshgrid(xs, ys)
+    pts_s = np.column_stack([Xs.ravel(), Ys.ravel(), np.full(Xs.size, {zmid}){time_col}])
+    inside_s = geom.inside(pts_s[:, :3]).reshape({res}, {res})
+    Us = np.where(inside_s, _extract_plot_field(pts_s).reshape({res}, {res}), np.nan)
+    fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
+    im = ax.contourf(Xs, Ys, Us, levels={config.plot_levels}, cmap="{config.plot_colormap}")
+    fig.colorbar(im, ax=ax)
+    ax.set_xlabel("x"); ax.set_ylabel("y")
+    ax.set_title(f"{out_name} after RAR round {{ri}} (z={zmid:.3g}{"" if is_steady else f", t={tmax:.3g}"})")''')
+    elif is_2d:
+        scatter = ('''    fig, ax = plt.subplots(figsize=_plot_figsize(7, 6))
+    for pts, col, lab, sz in groups:
+        if len(pts):
+            ax.scatter(pts[:, 0], pts[:, 1], s=sz, c=col, label=lab)
+    ax.set_xlabel("x"); ax.set_ylabel("y"); ax.set_aspect("equal", adjustable="box")''')
+        time_col = "" if is_steady else f", np.full(Xs.size, {tmax})"
+        snap = (f'''    xs = np.linspace({config.x_min}, {config.x_max}, {res}); ys = np.linspace({config.y_min}, {config.y_max}, {res})
+    Xs, Ys = np.meshgrid(xs, ys)
+    pts_s = np.column_stack([Xs.ravel(), Ys.ravel(){time_col}])
+    inside_s = geom.inside(pts_s[:, :2]).reshape({res}, {res})
+    Us = np.where(inside_s, _extract_plot_field(pts_s).reshape({res}, {res}), np.nan)
+    fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
+    im = ax.contourf(Xs, Ys, Us, levels={config.plot_levels}, cmap="{config.plot_colormap}")
+    fig.colorbar(im, ax=ax)
+    ax.set_xlabel("x"); ax.set_ylabel("y")
+    ax.set_title(f"{out_name} after RAR round {{ri}}{"" if is_steady else f" (t={tmax:.3g})"}")''')
+    elif is_steady:
+        scatter = ('''    fig, ax = plt.subplots(figsize=_plot_figsize(7, 3))
+    for pts, col, lab, sz in groups:
+        if len(pts):
+            ax.scatter(pts[:, 0], np.zeros(len(pts)), s=sz, c=col, label=lab)
+    ax.set_xlabel("x"); ax.set_yticks([])''')
+        snap = (f'''    xs = np.linspace({config.x_min}, {config.x_max}, {res})
+    fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
+    ax.plot(xs, _extract_plot_field(xs.reshape(-1, 1)), color="#4dabf7")
+    ax.set_xlabel("x"); ax.set_ylabel({out_name!r}); ax.grid(True, alpha=0.2)
+    ax.set_title(f"{out_name} after RAR round {{ri}}")''')
+    else:
+        swap = bool(config.plot_swap_xt)
+        scatter = (f'''    fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
+    for pts, col, lab, sz in groups:
+        if len(pts):
+            if {swap}:
+                ax.scatter(pts[:, 1], pts[:, 0], s=sz, c=col, label=lab)
+            else:
+                ax.scatter(pts[:, 0], pts[:, 1], s=sz, c=col, label=lab)
+    ax.set_xlabel({"t" if swap else "x"!r}); ax.set_ylabel({"x" if swap else "t"!r})''')
+        snap = (f'''    xs = np.linspace({config.x_min}, {config.x_max}, {res}); ts = np.linspace({config.t_min}, {config.t_max}, {res})
+    Xs, Ts = np.meshgrid(xs, ts)
+    Us = _extract_plot_field(np.column_stack([Xs.ravel(), Ts.ravel()])).reshape({res}, {res})
+    fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
+    if {swap}:
+        im = ax.contourf(Ts, Xs, Us, levels={config.plot_levels}, cmap="{config.plot_colormap}")
+    else:
+        im = ax.contourf(Xs, Ts, Us, levels={config.plot_levels}, cmap="{config.plot_colormap}")
+    fig.colorbar(im, ax=ax)
+    ax.set_xlabel({"t" if swap else "x"!r}); ax.set_ylabel({"x" if swap else "t"!r})
+    ax.set_title(f"{out_name}(x,t) after RAR round {{ri}}")''')
+    return f'''# ── RAR per-round diagnostics (rar_rounds/round_NN/) ──
+rar_final_state = copy.deepcopy(model.net.state_dict())
+rar_added = np.empty((0, rar_orig_pts.shape[1]))
+for ri, (rar_state, rar_new) in enumerate(rar_rounds, start=1):
+    rd = os.path.join(sol_dir, "rar_rounds", f"round_{{ri:02d}}")
+    os.makedirs(rd, exist_ok=True)
+    model.net.load_state_dict(rar_state)
+    if save_dir:
+        torch.save({{"model_state_dict": rar_state}}, os.path.join(rd, "model.pt"))
+    groups = [(rar_orig_pts, "#adb5bd", f"Original ({{len(rar_orig_pts)}})", 4),
+              (rar_added, "#ffa94d", f"Earlier rounds ({{len(rar_added)}})", 10),
+              (rar_new, "#e03131", f"Round {{ri}} ({{len(rar_new)}})", 16)]
+{scatter}
+    ax.set_title(f"RAR collocation points -- round {{ri}}")
+    ax.legend(fontsize=8)
+    plt.tight_layout(); plt.savefig(os.path.join(rd, "collocation_points.png"), dpi={config.plot_dpi}); plt.close()
+{snap}
+    plt.tight_layout(); plt.savefig(os.path.join(rd, "solution_plot.png"), dpi={config.plot_dpi}); plt.close()
+    rar_added = np.vstack([rar_added, rar_new])
+model.net.load_state_dict(rar_final_state)
+print(f"RAR per-round diagnostics saved under: {{os.path.join(sol_dir, 'rar_rounds')}}")'''
+
+
 def generate_clean_script(config):
     """Builds the "Export as DeepXDE Script" file: a short, plain,
     tutorial-style DeepXDE/PyTorch + matplotlib script for exactly this
@@ -9159,6 +9265,12 @@ var_cb = dde.callbacks.VariableValue(inv_vars, period={var_cb_period}, filename=
 
         if use_rar:
             rar_lines = [f'''# ── RAR: residual-based adaptive refinement ──
+# Each round's weights and newly added points are kept in memory so the
+# per-round diagnostics further down (after _extract_plot_field exists) can
+# replay them -- same rar_rounds/round_NN/ outputs as the live Solve path.
+import copy
+rar_orig_pts = np.array(data.train_x_all, copy=True)
+rar_rounds = []
 for rar_cycle in range({config.rar_cycles}):''']
             # Candidate points come straight from the real geometry's own
             # random_points() -- geomtime (an alias for geom when the
@@ -9180,9 +9292,17 @@ for rar_cycle in range({config.rar_cycles}):''']
             # now guaranteed to lie inside the actual domain for any
             # geometry, not just a rectangular one.
             rar_lines.append(f'''    xt_cand = geomtime.random_points({config.rar_candidates})''')
+            # "Points from:" (rar_output_selector): restrict selection to one
+            # equation's residual, same as the live Solve path; -1 (default)
+            # combines every equation.
+            if 0 <= config.rar_output_selector < n_out and n_out > 1:
+                _rar_resid_line = f"    residuals = np.abs(res[{config.rar_output_selector}]).flatten()"
+            else:
+                _rar_resid_line = "    residuals = np.sum([np.abs(r).flatten() for r in res], axis=0) if isinstance(res, list) else np.abs(res).flatten()"
             rar_lines.append(f'''    res = model.predict(xt_cand, operator=pde)
-    residuals = np.sum([np.abs(r).flatten() for r in res], axis=0) if isinstance(res, list) else np.abs(res).flatten()
+{_rar_resid_line}
     top_idx = np.argsort(residuals)[-{config.rar_add_points}:]
+    print(f"RAR round {{rar_cycle + 1}}: max residual {{residuals.max():.4e}}, mean {{residuals.mean():.4e}}")
     data.add_anchors(xt_cand[top_idx])
     model.compile("{config.optimizer}", lr={config.learning_rate}, loss="{config.loss_type}", loss_weights={multi_weights})
     loss_history, train_state = model.train(iterations={config.rar_adam_iters}, display_every={config.loss_display_every})''')
@@ -9192,6 +9312,7 @@ for rar_cycle in range({config.rar_cycles}):''']
                                      maxfun={config.lbfgs_maxfun}, maxls={config.lbfgs_maxls})
     model.compile("L-BFGS", loss="{config.loss_type}", loss_weights={multi_weights})
     loss_history, train_state = model.train(display_every={config.loss_display_every})''')
+            rar_lines.append("    rar_rounds.append((copy.deepcopy(model.net.state_dict()), xt_cand[top_idx]))")
             parts.append("\n".join(rar_lines))
 
         if use_save:
@@ -9510,6 +9631,9 @@ def _extract_plot_field(_x_grid, _pf_model=None):
     if _plot_custom_expr.strip():
         return _pf_m.predict(_x_grid, operator=_plot_custom_op)[:, 0]
     return _pf_m.predict(_x_grid)[:, {plot_idx}]''')
+
+    if use_rar:
+        parts.append(_clean_rar_diagnostics_code(config, is_2d, is_3d, is_steady, out_name))
 
     if use_ta:
         parts.append(f'''# ── Result plot: stitched Time-Adaptive solution ──
