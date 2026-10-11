@@ -7666,6 +7666,206 @@ def _clean_figsize_runtime_code(config):
     return _figsize_helper_code(config.plot_figsize_mode, config.plot_figsize_w, config.plot_figsize_h)
 
 
+def _restore_line_plot_code(x_min, x_max, resolution, t_min, t_max, n_steps, colormap,
+                             line_slice_y, line_slice_z, linewidth, xlabel, ylabel,
+                             title, subplot_title_fontsize, axis_label_fontsize, save_dir, dpi,
+                             is_time_adaptive):
+    """Builds the "Line (time steps)" static-plot branch shared between
+    main_window.py's single-model restore (_build_restore_script) and its
+    Time-Adaptive counterpart (_build_restore_script_ta) -- cleanup Round
+    42 (audit §2e, the first of the "six mini script generators" to get a
+    shared helper). Before this round these were two independently
+    hand-typed ~50-line copies, identical except for (a) whether a
+    steady-state restore is even possible at all (only the single-model
+    path supports it -- Time-Adaptive training always has a real time
+    axis, so its own copy never had the extra is_steady branching) and
+    (b) which model object .predict() is called on for a given time value
+    -- a fixed `model` for the single-model path, vs. a per-time-value
+    restored step model (`_ta_model_for_t(tv)`) for the Time-Adaptive
+    path. Verified (before this function existed) to render byte-for-byte
+    identical to both of the original hand-typed copies across a 200-trial
+    randomized fuzz check, not just a couple of hand-picked examples.
+
+    is_time_adaptive selects between the two -- everything else needed to
+    tell them apart (the geometry-mask comment wording, whether a model
+    needs resolving per time value, the extra predict() argument, the
+    is_steady defensive branches, and the plot legend label) follows from
+    it alone; no second flag is needed."""
+    if is_time_adaptive:
+        geom_mask_comment = (
+            "# Masked to the real geometry with geom.inside(...) -- same convention as\n"
+            "# generate_script()'s own (already-fixed) Time-Adaptive-aware Error\n"
+            "# Analysis Line Comparison, and the single-model restore path's own\n"
+            "# Line (time steps) branch. The mask only depends on (x[, y, z]), not t,\n"
+            "# so it's computed once before the time loop. 1D has no non-Interval\n"
+            "# geometry, so no masking is needed there.\n"
+        )
+        pre_xt_lines = "        _ta_m = _ta_model_for_t(tv)\n"
+        predict_model_arg = ", _ta_m"
+        line_label_stmt = ""
+        line_label_arg = 'label=f"t={tv:.3f}"'
+        xt_branch = (
+            "        if is_3d:\n"
+            "            xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, z_mid), np.full_like(x_vals, tv)])\n"
+            "        elif is_2d:\n"
+            "            xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, tv)])\n"
+            "        else:\n"
+            "            xt = np.column_stack([x_vals, np.full_like(x_vals, tv)])\n"
+        )
+    else:
+        geom_mask_comment = (
+            "# Masked to the real geometry with geom.inside(...) -- same convention\n"
+            "# the Surface branch above already uses. The mask only depends on\n"
+            "# (x[, y, z]), not t, so it's computed once before the time loop. 1D has\n"
+            "# no non-Interval geometry, so no masking is needed there.\n"
+        )
+        pre_xt_lines = (
+            "        # Steady-state has no time axis -- \"time steps\" don't exist, so every\n"
+            "        # iteration predicts the same single steady solution (this viz type is\n"
+            "        # hidden from the Restore panel's dropdown for a steady-state config;\n"
+            "        # this is just a defensive fallback so it can't crash if ever reached).\n"
+        )
+        predict_model_arg = ""
+        line_label_stmt = '\n        _line_label = "steady-state" if is_steady else f"t={tv:.3f}"'
+        line_label_arg = "label=_line_label"
+        xt_branch = (
+            "        if is_steady and is_3d:\n"
+            "            xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, z_mid)])\n"
+            "        elif is_steady and is_2d:\n"
+            "            xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid)])\n"
+            "        elif is_steady:\n"
+            "            xt = x_vals.reshape(-1, 1)\n"
+            "        elif is_3d:\n"
+            "            xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, z_mid), np.full_like(x_vals, tv)])\n"
+            "        elif is_2d:\n"
+            "            xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, tv)])\n"
+            "        else:\n"
+            "            xt = np.column_stack([x_vals, np.full_like(x_vals, tv)])\n"
+        )
+
+    return f"""x_vals = np.linspace({x_min}, {x_max}, {resolution})
+t_steps_vals = np.linspace({t_min}, {t_max}, {n_steps})
+y_mid = {line_slice_y}
+z_mid = {line_slice_z}
+{geom_mask_comment}if is_3d:
+    _line_in = geom.inside(np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, z_mid)]))
+    x_vals = x_vals[_line_in]
+elif is_2d:
+    _line_in = geom.inside(np.column_stack([x_vals, np.full_like(x_vals, y_mid)]))
+    x_vals = x_vals[_line_in]
+fig, ax = plt.subplots(figsize=_plot_figsize(8, 5))
+if len(x_vals) < 2:
+    ax.text(0.5, 0.5, "Line outside the domain at this slice", ha="center", va="center", transform=ax.transAxes)
+    ax.set_xticks([]); ax.set_yticks([])
+else:
+    colors = plt.get_cmap("{colormap}")(np.linspace(0, 1, {n_steps}))
+    for i, tv in enumerate(t_steps_vals):
+{pre_xt_lines}{xt_branch}        u_line = _extract_plot_field(xt{predict_model_arg}).flatten(){line_label_stmt}
+        ax.plot(x_vals, u_line, color=colors[i], linewidth={linewidth}, {line_label_arg})
+    ax.set_xlabel({xlabel!r}, fontsize={axis_label_fontsize}); ax.set_ylabel({ylabel!r}, fontsize={axis_label_fontsize})
+    ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
+ax.set_title({title!r}, fontsize={subplot_title_fontsize})
+plt.tight_layout()
+out_path = os.path.join({save_dir!r}, "restored_plot.png")
+plt.savefig(out_path, dpi={dpi}, bbox_inches='tight'); plt.close()
+print(f"Line plot saved to: {{out_path}}")"""
+
+
+def _restore_line_animation_code(x_min, x_max, t_min, t_max, n_steps, line_slice_y, line_slice_z,
+                                  linewidth, xlabel, ylabel, title_stmt, tt_x, tt_y, tt_ha,
+                                  axis_label_fontsize, fps, save_dir, dpi, is_time_adaptive):
+    """Builds the "Animation Line (GIF)" branch shared between
+    main_window.py's single-model restore (_build_restore_script) and its
+    Time-Adaptive counterpart (_build_restore_script_ta) -- cleanup Round
+    42 (audit §2e), the Animation-Line sibling of _restore_line_plot_code
+    right above (see its docstring for the full rationale; is_time_adaptive
+    means the same thing here). Also verified byte-for-byte identical to
+    both original hand-typed copies across a 200-trial randomized fuzz
+    check before this function replaced them."""
+    if is_time_adaptive:
+        pre_xt_lines = "        _ta_m = _ta_model_for_t(tv)\n"
+        predict_model_arg = ", _ta_m"
+        xt_branch = (
+            "        if is_3d:\n"
+            "            xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, z_mid), np.full_like(x_vals, tv)])\n"
+            "        elif is_2d:\n"
+            "            xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, tv)])\n"
+            "        else:\n"
+            "            xt = np.column_stack([x_vals, np.full_like(x_vals, tv)])\n"
+        )
+    else:
+        pre_xt_lines = (
+            "        # Defensive fallback for steady-state (see the matching comment in the\n"
+            "        # \"Line (time steps)\" branch) -- this viz type is hidden from the\n"
+            "        # dropdown for a steady-state config, so every \"frame\" below predicts\n"
+            "        # the same single steady solution rather than crashing.\n"
+        )
+        predict_model_arg = ""
+        xt_branch = (
+            "        if is_steady and is_3d:\n"
+            "            xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, z_mid)])\n"
+            "        elif is_steady and is_2d:\n"
+            "            xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid)])\n"
+            "        elif is_steady:\n"
+            "            xt = x_vals.reshape(-1, 1)\n"
+            "        elif is_3d:\n"
+            "            xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, z_mid), np.full_like(x_vals, tv)])\n"
+            "        elif is_2d:\n"
+            "            xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, tv)])\n"
+            "        else:\n"
+            "            xt = np.column_stack([x_vals, np.full_like(x_vals, tv)])\n"
+        )
+
+    return f"""import matplotlib.animation as _anim
+t_frames = np.linspace({t_min}, {t_max}, {n_steps})
+y_mid = {line_slice_y}
+z_mid = {line_slice_z}
+# Masked to the real geometry with geom.inside(...) -- same convention as
+# the "Line (time steps)" branch above. If the slice leaves fewer than 2
+# in-domain points, there's nothing to animate -- save a static fallback
+# note as restored_plot.png instead (the path _on_restore's result
+# display already falls back to when no .gif was produced) rather than
+# crashing or silently animating a line outside the real domain.
+if is_3d:
+    _line_in = geom.inside(np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, z_mid)]))
+    x_vals = x_vals[_line_in]
+elif is_2d:
+    _line_in = geom.inside(np.column_stack([x_vals, np.full_like(x_vals, y_mid)]))
+    x_vals = x_vals[_line_in]
+if len(x_vals) < 2:
+    fig, ax = plt.subplots(figsize=_plot_figsize(7, 4))
+    ax.text(0.5, 0.5, "Line outside the domain at this slice", ha="center", va="center", transform=ax.transAxes)
+    ax.set_xticks([]); ax.set_yticks([])
+    out_path = os.path.join({save_dir!r}, "restored_plot.png")
+    plt.savefig(out_path, dpi={dpi}, bbox_inches='tight'); plt.close()
+    print(f"⚠️ Line outside the domain at this slice -- no animation produced; static note saved to: {{out_path}}")
+else:
+    all_u = []
+    for tv in t_frames:
+{pre_xt_lines}{xt_branch}        all_u.append(_extract_plot_field(xt{predict_model_arg}).flatten())
+    u_min = min(u.min() for u in all_u)
+    u_max = max(u.max() for u in all_u)
+    fig, ax = plt.subplots(figsize=_plot_figsize(7, 4))
+    ax.set_xlim({x_min}, {x_max})
+    ax.set_ylim(u_min - 0.05*abs(u_min), u_max + 0.05*abs(u_max))
+    ax.set_xlabel({xlabel!r}, fontsize={axis_label_fontsize}); ax.set_ylabel({ylabel!r}, fontsize={axis_label_fontsize})
+    {title_stmt}
+    line, = ax.plot([], [], color="#4dabf7", linewidth={linewidth})
+    time_txt = ax.text({tt_x}, {tt_y}, '', transform=ax.transAxes, color='black', ha={tt_ha!r}, fontsize=11)
+    ax.grid(True, alpha=0.2)
+    def init():
+        line.set_data([], []); time_txt.set_text(''); return line, time_txt
+    def update(i):
+        line.set_data(x_vals, all_u[i])
+        time_txt.set_text(f"t = {{t_frames[i]:.3f}}")
+        return line, time_txt
+    ani = _anim.FuncAnimation(fig, update, init_func=init, frames={n_steps}, interval=100, blit=True)
+    out_path = os.path.join({save_dir!r}, "restored_animation.gif")
+    ani.save(out_path, writer='pillow', fps={fps})
+    plt.close()
+    print(f"Animation saved to: {{out_path}}")"""
+
+
 def generate_clean_script(config):
     """Builds the "Export as DeepXDE Script" file: a short, plain,
     tutorial-style DeepXDE/PyTorch + matplotlib script for exactly this
