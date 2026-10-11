@@ -142,10 +142,10 @@ def run():
         save_dir = os.path.join(tmpdir, "ta_run1")
         cfg_ta = _transient_1d_cfg(save_dir, time_adaptive=True)
         clean_ta = generate_clean_script(cfg_ta)
-        check("_ic_pretrain_save_dir_i = os.path.join" in clean_ta and "skipping training" in clean_ta,
+        check("_ic_pretrain_save_dir = os.path.join" in clean_ta and "skipping training" in clean_ta,
               "generate_clean_script()'s Time-Adaptive IC Pre-Training branch should embed the "
               "restore-from-checkpoint branch now")
-        check("model_save_path=os.path.join(_ic_pretrain_save_dir_i" in clean_ta,
+        check("model_save_path=os.path.join(_ic_pretrain_save_dir" in clean_ta,
               "generate_clean_script()'s Time-Adaptive IC Pre-Training branch should save a "
               "checkpoint after training")
 

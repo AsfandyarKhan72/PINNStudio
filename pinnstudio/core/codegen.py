@@ -1435,6 +1435,18 @@ if _dxde_ver is not None and _dxde_ver < (1, 13, 0):
     # hand-edited) could still carry 0 -- clamp here too as a second line
     # of defense. The field's own default (1000) is unaffected either way.
     _ic_pretrain_num_initial_safe = max(1, config.ic_pretrain_num_initial)
+    # cleanup Round 47: the IC Pre-Training dataset/compile/restore-or-train
+    # block, shared by both of this function's copies (Standard and
+    # Time-Adaptive) and both of generate_clean_script()'s -- see
+    # _ic_pretrain_train_code.
+    _ic_pretrain_block_std = _ic_pretrain_train_code(
+        config, "        ", "_ic_gt_pre", "_ic_ics_pre", _ic_pretrain_num_initial_safe,
+        "_ic_only_weights", "net", f'_os.path.join({config.save_dir!r}, "ic_pretrain")',
+        "_os", "  ", _safe_point_distribution)
+    _ic_pretrain_block_ta = _ic_pretrain_train_code(
+        config, "            ", "_ic_gt_pt", "_ic_constraints_pt", _ic_pretrain_num_initial_safe,
+        "_ic_only_weights", "model_i.net", f'_os.path.join({config.save_dir!r}, "ic_pretrain")',
+        "_os", "  ", _safe_point_distribution)
 
     script = f"""
 
@@ -2803,49 +2815,10 @@ for _pval in _param_values:
                     return dde.icbc.IC(_ic_gt_pre, _ic_fn, lambda x, on_initial: on_initial, component=comp)
                 _ic_ics_pre.append(_mk_ic_pre(_ic_expr_pre, _oi_pre))
         
-        # IC pre-training — dummy PDE (zero residual, same output count as
-        # the real network), IC points only. Real boundary conditions are
-        # deliberately left OUT of this dataset entirely, not just given a
-        # 0 loss weight: with no boundary points sampled here (num_boundary
-        # stays 0 -- only the initial-time slice matters for this step), a
-        # BC term's collocation match is usually empty, and DeepXDE's
-        # MSE(empty, empty) is NaN -- which a 0 weight does NOT neutralize
-        # (0 * nan is still nan), silently corrupting every other loss term
-        # and the whole gradient. Excluding these terms sidesteps that trap
-        # while still training only the initial condition, as intended.
-        # num_initial/num_test use their own IC-pre-training-specific config
-        # fields (not the main run's), and must be nonzero -- with them at
-        # 0, no points are ever sampled at all and construction itself
-        # fails with an unrelated-looking IndexError deep inside DeepXDE.
-        def _pde_dummy_pre(x, y):
-            return [y[:, _oi_d:_oi_d+1] * 0 for _oi_d in range({config.num_outputs})]
-        _ic_pre_constraints = _ic_ics_pre
-        _data_pre = dde.data.TimePDE(
-            _ic_gt_pre, _pde_dummy_pre, _ic_pre_constraints,
-            num_domain=0, num_boundary=0,
-            num_initial={_ic_pretrain_num_initial_safe}, num_test={config.ic_pretrain_num_test},
-            train_distribution="{_safe_point_distribution}",
-            anchors=None
-        )
-        _model_pre = dde.Model(_data_pre, net)
+        # IC-only loss weights: PDE terms 0, every IC term 1000.
         _ic_only_weights = [0.0] * {config.num_outputs} + [1000.0] * len(_ic_ics_pre)
-        print(f"  IC-only weights: {{_ic_only_weights}} — dummy PDE, IC points only")
-        _model_pre.compile("{config.ic_pretrain_optimizer}", lr={config.ic_pretrain_lr},
-                           loss="{config.ic_pretrain_loss}", loss_weights=_ic_only_weights)
-        _ic_pre_save_dir = _os.path.join({repr(config.save_dir)}, "ic_pretrain")
-        _os.makedirs(_ic_pre_save_dir, exist_ok=True)
-        if {config.ic_pretrain_restore} and {repr(config.ic_pretrain_restore_path)} and _os.path.exists({repr(config.ic_pretrain_restore_path)}):
-            print("  Restoring IC pre-train model from: " + {repr(config.ic_pretrain_restore_path)})
-            _ic_ckpt = torch.load({repr(config.ic_pretrain_restore_path)}, map_location="cpu")
-            _ic_state = _ic_ckpt.get("model_state_dict", _ic_ckpt)
-            _model_pre.net.load_state_dict(_ic_state)
-            print("  IC pre-train model restored — skipping training.")
-        else:
-            _ic_lh, _ = _model_pre.train(iterations={config.ic_pretrain_iterations},
-                                          display_every=10000, batch_size=None,
-                                          model_save_path=_os.path.join(_ic_pre_save_dir, "ic_pretrain_model"))
-            print(f"  IC pre-training done. Final IC loss: {{sum(_ic_lh.loss_train[-1]):.4e}}")
-            print(f"  IC pre-train model saved to: {{_ic_pre_save_dir}}")
+        print(f"  IC-only weights: {{_ic_only_weights}} -- dummy PDE, IC points only")
+{_ic_pretrain_block_std}
         print("=== Starting Main Training ===\\n")
 
     if not {config.time_adaptive}:
@@ -5798,41 +5771,9 @@ if {config.time_adaptive}:
                             return np.reshape(eval(expr, {{"np": np, "x": x, "__builtins__": __builtins__}}), (-1, 1))
                         return dde.icbc.IC(_ic_gt_pt, _ic_fn, lambda x, on_initial: on_initial, component=comp)
                     _ic_constraints_pt.append(_mk_ic_pt(_ic_expr_pt, _oi_pt))
-            def _pde_dummy_ta(x, y):
-                return [y[:, _oi_d:_oi_d+1] * 0 for _oi_d in range({config.num_outputs})]
-            # Only IC constraints included -- see the matching comment in
-            # the Standard-path IC pre-training block above for why real
-            # BCs are left out entirely rather than just zero-weighted
-            # (an empty-match BC term's NaN loss isn't neutralized by a 0
-            # weight), and why num_initial/num_test can't stay 0 here.
-            _ic_pre_constraints_ta = _ic_constraints_pt
-            _data_pt = dde.data.TimePDE(
-                _ic_gt_pt, _pde_dummy_ta, _ic_pre_constraints_ta,
-                num_domain=0, num_boundary=0,
-                num_initial={_ic_pretrain_num_initial_safe}, num_test={config.ic_pretrain_num_test},
-                train_distribution="{_safe_point_distribution}",
-                anchors=None
-            )
-            _net_pt = model_i.net
-            _model_pt = dde.Model(_data_pt, _net_pt)
-            # IC-only weights: PDE=0, IC=1000
-            _ic_only_w_ta = [0.0] * {config.num_outputs} + [1000.0] * len(_ic_constraints_pt)
-            _model_pt.compile("{config.ic_pretrain_optimizer}", lr={config.ic_pretrain_lr},
-                              loss="{config.ic_pretrain_loss}", loss_weights=_ic_only_w_ta)
-            _ic_pre_save_dir_ta = _os.path.join({repr(config.save_dir)}, "ic_pretrain")
-            _os.makedirs(_ic_pre_save_dir_ta, exist_ok=True)
-            if {config.ic_pretrain_restore} and {repr(config.ic_pretrain_restore_path)} and _os.path.exists({repr(config.ic_pretrain_restore_path)}):
-                print("  Restoring IC pre-train model from: " + {repr(config.ic_pretrain_restore_path)})
-                _ic_ckpt_ta = torch.load({repr(config.ic_pretrain_restore_path)}, map_location="cpu")
-                _ic_state_ta = _ic_ckpt_ta.get("model_state_dict", _ic_ckpt_ta)
-                _model_pt.net.load_state_dict(_ic_state_ta)
-                print("  IC pre-train model restored — skipping training.")
-            else:
-                _ic_lh_ta, _ = _model_pt.train(iterations={config.ic_pretrain_iterations},
-                                                display_every=10000, batch_size=None,
-                                                model_save_path=_os.path.join(_ic_pre_save_dir_ta, "ic_pretrain_model"))
-                print(f"  IC pre-training done. Final loss: {{sum(_ic_lh_ta.loss_train[-1]):.4e}}")
-                print(f"  IC pre-train model saved to: {{_ic_pre_save_dir_ta}}")
+            # IC-only loss weights: PDE terms 0, every IC term 1000.
+            _ic_only_weights = [0.0] * {config.num_outputs} + [1000.0] * len(_ic_constraints_pt)
+{_ic_pretrain_block_ta}
             print("  === Starting Main Training ===")
 
         # ── Phase 1 (Adam) ──────────────────────────────────────
@@ -8417,6 +8358,65 @@ plt.savefig(out_path, dpi={dpi}, bbox_inches='tight'); plt.close()
 print(f"Surface plot saved to: {{out_path}}")"""
 
 
+def _ic_pretrain_train_code(config, indent, geomtime_var, constraints_var, num_initial, weights_expr,
+                            net_expr, save_dir_expr, os_name, log_prefix, distribution):
+    """Builds the IC Pre-Training "dummy-PDE dataset + compile + restore-or-
+    train" block -- cleanup Round 47 (audit §2b/§4). This block used to be
+    hand-typed four times (generate_script()'s Standard and Time-Adaptive
+    paths, generate_clean_script()'s Standard path and its Time-Adaptive
+    per-step loop), under four different temp-model names (_model_pre,
+    _model_pt, _model_pre again, _model_pre_i) and with small drifts between
+    the copies (one never printed the final IC loss, two passed anchors=None
+    and batch_size=None explicitly while two relied on DeepXDE's identical
+    defaults). Each caller still builds its own IC constraints its own way
+    (runtime eval in generate_script(), static appends in
+    generate_clean_script()) and passes the resulting variable names in;
+    everything from the dummy PDE onward is now this one block, with one set
+    of names everywhere.
+
+    Why the dataset looks like this (unchanged from the original copies):
+    the dummy PDE returns a zero residual per output, and the dataset has
+    no domain or boundary points at all -- real BCs are left out entirely
+    rather than zero-weighted, because an empty-match BC term's MSE is NaN
+    and 0 * NaN is still NaN. num_initial must stay >= 1 or DeepXDE fails
+    at construction with an unrelated-looking IndexError.
+
+    indent: leading whitespace for every emitted line. os_name: "_os"
+    (generate_script()) or "os" (generate_clean_script()). log_prefix: the
+    caller's own console-message indent ("  " or "")."""
+    p = log_prefix
+    rp = repr(config.ic_pretrain_restore_path)
+    body = f'''def _pde_dummy_pre(x, y):
+    return [y[:, _oi_d:_oi_d + 1] * 0 for _oi_d in range({config.num_outputs})]
+_data_pre = dde.data.TimePDE(
+    {geomtime_var}, _pde_dummy_pre, {constraints_var},
+    num_domain=0, num_boundary=0,
+    num_initial={num_initial}, num_test={config.ic_pretrain_num_test},
+    train_distribution="{distribution}",
+    anchors=None,
+)
+_model_pre = dde.Model(_data_pre, {net_expr})
+_model_pre.compile("{config.ic_pretrain_optimizer}", lr={config.ic_pretrain_lr},
+                   loss="{config.ic_pretrain_loss}", loss_weights={weights_expr})
+# Restore-from-checkpoint vs. train-from-scratch -- the two options the GUI's
+# IC Pre-Training panel offers. A checkpoint saved by any copy of this block
+# (live Solve or exported script) restores in any other.
+_ic_pretrain_save_dir = {save_dir_expr}
+{os_name}.makedirs(_ic_pretrain_save_dir, exist_ok=True)
+if {config.ic_pretrain_restore} and {rp} and {os_name}.path.exists({rp}):
+    print("{p}Restoring IC pre-train model from: " + {rp})
+    _ic_ckpt = torch.load({rp}, map_location="cpu")
+    _model_pre.net.load_state_dict(_ic_ckpt.get("model_state_dict", _ic_ckpt))
+    print("{p}IC pre-train model restored -- skipping training.")
+else:
+    _ic_lh, _ = _model_pre.train(iterations={config.ic_pretrain_iterations},
+                                 display_every=10000, batch_size=None,
+                                 model_save_path={os_name}.path.join(_ic_pretrain_save_dir, "ic_pretrain_model"))
+    print(f"{p}IC pre-training done. Final IC loss: {{sum(_ic_lh.loss_train[-1]):.4e}}")
+    print(f"{p}IC pre-train model saved to: {{_ic_pretrain_save_dir}}")'''
+    return "\n".join((indent + ln) if ln else ln for ln in body.split("\n"))
+
+
 def generate_clean_script(config):
     """Builds the "Export as DeepXDE Script" file: a short, plain,
     tutorial-style DeepXDE/PyTorch + matplotlib script for exactly this
@@ -9030,36 +9030,11 @@ _ic_pre_constraints = []''']
                                     for ln in pretrain_ic_appends]
             ic_pretrain_lines[0] += "\n" + "\n".join(pretrain_ic_appends)
             ic_only_weights = [0.0] * n_out + [1000.0] * len(active_ic_outputs)
-            ic_pretrain_lines.append(f'''def _pde_dummy_pre(x, y):
-    return [y[:, i:i + 1] * 0 for i in range({n_out})]
-
-_ic_pretrain_num_initial = {max(1, config.ic_pretrain_num_initial)}
-_data_pre = dde.data.TimePDE(
-    _ic_pre_geomtime, _pde_dummy_pre, _ic_pre_constraints,
-    num_domain=0, num_boundary=0,
-    num_initial=_ic_pretrain_num_initial, num_test={config.ic_pretrain_num_test},
-    train_distribution="{_safe_point_distribution}",
-)
-_model_pre = dde.Model(_data_pre, net)
-_model_pre.compile("{config.ic_pretrain_optimizer}", lr={config.ic_pretrain_lr},
-                    loss="{config.ic_pretrain_loss}", loss_weights={ic_only_weights})
-# Restore-from-checkpoint vs. train-from-scratch -- same two options the
-# GUI's IC Pre-Training panel offers for the live Solve path (see
-# generate_script()'s own copy of this block), now also honored here so
-# an exported script behaves the same way the GUI run that produced it
-# would have.
-_ic_pretrain_save_dir = os.path.join(save_dir, "ic_pretrain") if save_dir else "ic_pretrain"
-os.makedirs(_ic_pretrain_save_dir, exist_ok=True)
-if {config.ic_pretrain_restore} and {repr(config.ic_pretrain_restore_path)} and os.path.exists({repr(config.ic_pretrain_restore_path)}):
-    print("Restoring IC pre-train model from: " + {repr(config.ic_pretrain_restore_path)})
-    _ic_ckpt = torch.load({repr(config.ic_pretrain_restore_path)}, map_location="cpu")
-    _model_pre.net.load_state_dict(_ic_ckpt.get("model_state_dict", _ic_ckpt))
-    print("IC pre-train model restored -- skipping training.")
-else:
-    _ic_lh, _ = _model_pre.train(iterations={config.ic_pretrain_iterations}, display_every=10000,
-                                  model_save_path=os.path.join(_ic_pretrain_save_dir, "ic_pretrain_model"))
-    print(f"IC pre-training done. Final IC loss: {{sum(_ic_lh.loss_train[-1]):.4e}}")
-    print(f"IC pre-train model saved to: {{_ic_pretrain_save_dir}}")''')
+            ic_pretrain_lines.append(_ic_pretrain_train_code(
+                config, "", "_ic_pre_geomtime", "_ic_pre_constraints",
+                max(1, config.ic_pretrain_num_initial), repr(ic_only_weights), "net",
+                'os.path.join(save_dir, "ic_pretrain") if save_dir else "ic_pretrain"',
+                "os", "", _safe_point_distribution))
             parts.append("\n".join(ic_pretrain_lines))
 
         parts.append("model = dde.Model(data, net)")
@@ -9241,32 +9216,11 @@ _ta_loss_offset = 0''')
         _ic_pre_constraints_i = []''')
             for ln in step0_pretrain_ic:
                 loop_lines.append(f"        {ln}")
-            loop_lines.append(f'''        def _pde_dummy_pre(x, y):
-            return [y[:, i:i + 1] * 0 for i in range({n_out})]
-        _data_pre_i = dde.data.TimePDE(
-            _ic_pre_geomtime_i, _pde_dummy_pre, _ic_pre_constraints_i,
-            num_domain=0, num_boundary=0,
-            num_initial={max(1, config.ic_pretrain_num_initial)}, num_test={config.ic_pretrain_num_test},
-            train_distribution="{_safe_point_distribution}",
-        )
-        _model_pre_i = dde.Model(_data_pre_i, net_i)
-        _model_pre_i.compile("{config.ic_pretrain_optimizer}", lr={config.ic_pretrain_lr},
-                              loss="{config.ic_pretrain_loss}", loss_weights={ic_only_weights})
-        # Same restore-from-checkpoint vs. train-from-scratch choice as the
-        # Standard-path IC pre-training block above (and generate_script()'s
-        # own Time-Adaptive copy) -- only the first step (step_i == 0) ever
-        # reaches this branch, same as the rest of this IC pre-training block.
-        _ic_pretrain_save_dir_i = os.path.join(save_dir, "ic_pretrain") if save_dir else "ic_pretrain"
-        os.makedirs(_ic_pretrain_save_dir_i, exist_ok=True)
-        if {config.ic_pretrain_restore} and {repr(config.ic_pretrain_restore_path)} and os.path.exists({repr(config.ic_pretrain_restore_path)}):
-            print("Restoring IC pre-train model from: " + {repr(config.ic_pretrain_restore_path)})
-            _ic_ckpt_i = torch.load({repr(config.ic_pretrain_restore_path)}, map_location="cpu")
-            _model_pre_i.net.load_state_dict(_ic_ckpt_i.get("model_state_dict", _ic_ckpt_i))
-            print("IC pre-train model restored -- skipping training.")
-        else:
-            _model_pre_i.train(iterations={config.ic_pretrain_iterations}, display_every=10000,
-                                model_save_path=os.path.join(_ic_pretrain_save_dir_i, "ic_pretrain_model"))
-            print(f"IC pre-train model saved to: {{_ic_pretrain_save_dir_i}}")''')
+            loop_lines.append(_ic_pretrain_train_code(
+                config, "        ", "_ic_pre_geomtime_i", "_ic_pre_constraints_i",
+                max(1, config.ic_pretrain_num_initial), repr(ic_only_weights), "net_i",
+                'os.path.join(save_dir, "ic_pretrain") if save_dir else "ic_pretrain"',
+                "os", "", _safe_point_distribution))
 
         loop_lines.append("    model_i = dde.Model(data_i, net_i)")
         if is_inverse:
