@@ -4109,6 +4109,13 @@ for _pval in _param_values:
                         (np.full_like(_Yyz3a, _cx0a), _Yyz3a, _Zyz3a),
                         (np.full_like(_Yyz3a, _cx1a), _Yyz3a, _Zyz3a),
                     ]
+                    # cleanup Round 46: mask every bounding-box face to the
+                    # real geometry, same geom.inside(...) convention as the
+                    # static 3D Surface plot -- spatial-only, computed once.
+                    _face_inside3a = []
+                    for _fX3a, _fY3a, _fZ3a in _faces3a:
+                        _fspatial3a = np.column_stack([_fX3a.ravel(), _fY3a.ravel(), _fZ3a.ravel()])
+                        _face_inside3a.append(np.asarray(geom.inside(_fspatial3a)).reshape(_fX3a.shape))
                     _all_frames_gif = []
                     for _tv in _t_frames:
                         _frame_faces_gif = []
@@ -4117,8 +4124,15 @@ for _pval in _param_values:
                             _frame_faces_gif.append(_extract_plot_field(_fpts3a).reshape(_fX3a.shape))
                         _all_frames_gif.append(_frame_faces_gif)
                     if {config.plot_auto_range}:
-                        _v_min_gif = min(_f.min() for _frame in _all_frames_gif for _f in _frame)
-                        _v_max_gif = max(_f.max() for _frame in _all_frames_gif for _f in _frame)
+                        # In-domain values only (every value if no face
+                        # touches the domain, e.g. a Sphere's bounding box).
+                        _inside_vals3a = [_f[_m] for _frame in _all_frames_gif for _f, _m in zip(_frame, _face_inside3a) if _m.any()]
+                        if _inside_vals3a:
+                            _v_min_gif = min(_v.min() for _v in _inside_vals3a)
+                            _v_max_gif = max(_v.max() for _v in _inside_vals3a)
+                        else:
+                            _v_min_gif = min(_f.min() for _frame in _all_frames_gif for _f in _frame)
+                            _v_max_gif = max(_f.max() for _frame in _all_frames_gif for _f in _frame)
                     else:
                         _v_min_gif = {config.plot_vmin}
                         _v_max_gif = {config.plot_vmax}
@@ -4131,7 +4145,9 @@ for _pval in _param_values:
                     def _update_gif(i):
                         _ax_gif.cla()
                         for _fi3a, (_fX3a, _fY3a, _fZ3a) in enumerate(_faces3a):
-                            _ax_gif.plot_surface(_fX3a, _fY3a, _fZ3a, facecolors=_cmap_obj3a(_norm3a(_all_frames_gif[i][_fi3a])),
+                            _fc3a = np.array(_cmap_obj3a(_norm3a(_all_frames_gif[i][_fi3a])))
+                            _fc3a[..., 3] = np.where(_face_inside3a[_fi3a], 1.0, 0.0)
+                            _ax_gif.plot_surface(_fX3a, _fY3a, _fZ3a, facecolors=_fc3a,
                                              rstride=1, cstride=1, linewidth=0, antialiased=False, shade=False)
                         _ax_gif.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); _ax_gif.set_ylabel(_plot_ylabel_override or "y", fontsize={config.plot_axis_label_fontsize}); _ax_gif.set_zlabel("z", fontsize={config.plot_axis_label_fontsize})
                         _ax_gif.set_title(_plot_title_override or f"t = {{_t_frames[i]:.3f}}")
@@ -4149,9 +4165,13 @@ for _pval in _param_values:
                     if _is_2d:
                         _y_anim_gif = np.linspace(_plot_y_min, _plot_y_max, _res_anim_gif)
                         _Xg_gif, _Yg_gif = np.meshgrid(_x_anim_gif, _y_anim_gif)
+                        # cleanup Round 46: NaN out grid points outside the
+                        # real geometry, same as the static 2D Surface plot.
+                        _inside2d_gif = np.asarray(geom.inside(np.column_stack([_Xg_gif.ravel(), _Yg_gif.ravel()]))).reshape(_res_anim_gif, _res_anim_gif)
                         for _tv in _t_frames:
                             _xyt_gif = np.column_stack([_Xg_gif.ravel(), _Yg_gif.ravel(), np.full(_Xg_gif.size, _tv)])
                             _pred_gif = _extract_plot_field(_xyt_gif).reshape(_res_anim_gif, _res_anim_gif)
+                            _pred_gif = np.where(_inside2d_gif, _pred_gif, np.nan)
                             _all_frames_gif.append((_Xg_gif, _Yg_gif, _pred_gif))
                     else:
                         # Same configurable axis orientation as the Standard
@@ -4177,8 +4197,8 @@ for _pval in _param_values:
                             else:
                                 _all_frames_gif.append((_X_anim_gif, _T_anim_gif, _pred_gif))
                     if {config.plot_auto_range}:
-                        _v_min_gif = min(_f[2].min() for _f in _all_frames_gif)
-                        _v_max_gif = max(_f[2].max() for _f in _all_frames_gif)
+                        _v_min_gif = min(np.nanmin(_f[2]) for _f in _all_frames_gif)
+                        _v_max_gif = max(np.nanmax(_f[2]) for _f in _all_frames_gif)
                     else:
                         _v_min_gif = {config.plot_vmin}
                         _v_max_gif = {config.plot_vmax}
@@ -7904,7 +7924,10 @@ def _restore_anim_surface_code(x_min, x_max, y_min, y_max, t_min, t_max, n_steps
     would be wasteful). All of it follows from one is_time_adaptive flag.
     Verified byte-for-byte identical to both original hand-typed copies
     across a 300-trial randomized fuzz check before this function
-    replaced them."""
+    replaced them. cleanup Round 46 then added geometry masking (3D:
+    alpha-0 out-of-domain face quads; 2D: NaN out-of-domain grid points),
+    which neither original copy had -- the same geom.inside(...)
+    convention the static Surface plot (_restore_surface_code) uses."""
     if is_time_adaptive:
         comment_3d = ""
         bbox3a_expr = "_ta_build_geomtime(t_frames[0], t_frames[0]).geometry.bbox"
@@ -7922,6 +7945,7 @@ def _restore_anim_surface_code(x_min, x_max, y_min, y_max, t_min, t_max, n_steps
             "            _ta_m = _ta_model_for_t(tv)\n"
             "            XYT = np.column_stack([Xg.ravel(), Yg.ravel(), np.full(Xg.size, tv)])\n"
             "            pred = _extract_plot_field(XYT, _ta_m).reshape(80, 80)\n"
+            "            pred = np.where(_inside2da, pred, np.nan)\n"
             "            all_frames.append((Xg, Yg, pred))\n"
         )
         comment_else = ""
@@ -7970,6 +7994,7 @@ def _restore_anim_surface_code(x_min, x_max, y_min, y_max, t_min, t_max, n_steps
             "            else:\n"
             "                XYT = np.column_stack([Xg.ravel(), Yg.ravel(), np.full(Xg.size, tv)])\n"
             "            pred = _extract_plot_field(XYT).reshape(80, 80)\n"
+            "            pred = np.where(_inside2da, pred, np.nan)\n"
             "            all_frames.append((Xg, Yg, pred))\n"
         )
         comment_else = (
@@ -8010,8 +8035,23 @@ if is_3d:
         (np.full_like(_Yyz3a, _cx0a), _Yyz3a, _Zyz3a),
         (np.full_like(_Yyz3a, _cx1a), _Yyz3a, _Zyz3a),
     ]
-{loop_3d}    v_min = min(_f.min() for _frame in all_frames for _f in _frame)
-    v_max = max(_f.max() for _frame in all_frames for _f in _frame)
+    # cleanup Round 46: mask every bounding-box face to the real geometry
+    # with geom.inside(...), same convention as the static 3D Surface plot
+    # -- a Sphere/Custom-3D model would otherwise animate its full
+    # bounding-box faces. Spatial-only, so computed once for every frame.
+    _face_inside3a = []
+    for _fX3a, _fY3a, _fZ3a in _faces3a:
+        _fspatial3a = np.column_stack([_fX3a.ravel(), _fY3a.ravel(), _fZ3a.ravel()])
+        _face_inside3a.append(np.asarray(geom.inside(_fspatial3a)).reshape(_fX3a.shape))
+{loop_3d}    # Color range from in-domain values only (every value if no face
+    # touches the domain at all, e.g. a Sphere's tangent-only bounding box).
+    _inside_vals3a = [_f[_m] for _frame in all_frames for _f, _m in zip(_frame, _face_inside3a) if _m.any()]
+    if _inside_vals3a:
+        v_min = min(_v.min() for _v in _inside_vals3a)
+        v_max = max(_v.max() for _v in _inside_vals3a)
+    else:
+        v_min = min(_f.min() for _frame in all_frames for _f in _frame)
+        v_max = max(_f.max() for _frame in all_frames for _f in _frame)
     fig = plt.figure(figsize=_plot_figsize(8, 6.5))
     ax = fig.add_subplot(111, projection='3d')
     _norm3a = plt.Normalize(vmin=v_min, vmax=v_max)
@@ -8021,7 +8061,10 @@ if is_3d:
     def update(i):
         ax.cla()
         for _fi3a, (_fX3a, _fY3a, _fZ3a) in enumerate(_faces3a):
-            ax.plot_surface(_fX3a, _fY3a, _fZ3a, facecolors=_cmap_obj3a(_norm3a(all_frames[i][_fi3a])),
+            _fc3a = np.array(_cmap_obj3a(_norm3a(all_frames[i][_fi3a])))
+            # Outside-the-domain quads get alpha=0, same as the static plot.
+            _fc3a[..., 3] = np.where(_face_inside3a[_fi3a], 1.0, 0.0)
+            ax.plot_surface(_fX3a, _fY3a, _fZ3a, facecolors=_fc3a,
                              rstride=1, cstride=1, linewidth=0, antialiased=False, shade=False)
         ax.set_xlabel({xlabel_animsurf3d!r}, fontsize={axis_label_fontsize}); ax.set_ylabel({ylabel_animsurf3d!r}, fontsize={axis_label_fontsize}); ax.set_zlabel("z", fontsize={axis_label_fontsize})
         {animsurf_title_line_3d}
@@ -8038,11 +8081,14 @@ else:
     if is_2d:
         y_anim = np.linspace({y_min}, {y_max}, 80)
         Xg, Yg = np.meshgrid(x_anim, y_anim)
+        # cleanup Round 46: NaN out grid points outside the real geometry
+        # (contourf leaves them unfilled), same as the static 2D Surface plot.
+        _inside2da = np.asarray(geom.inside(np.column_stack([Xg.ravel(), Yg.ravel()]))).reshape(80, 80)
 {loop_2d}    else:
 {comment_else}        t_anim = np.linspace({t_min}, {t_max}, 80)
         X_anim, T_anim = np.meshgrid(x_anim, t_anim)
-{loop_else}    v_min = min(f[2].min() for f in all_frames)
-    v_max = max(f[2].max() for f in all_frames)
+{loop_else}    v_min = min(np.nanmin(f[2]) for f in all_frames)
+    v_max = max(np.nanmax(f[2]) for f in all_frames)
     fig, ax = plt.subplots(figsize=_plot_figsize(8, 6))
     from mpl_toolkits.axes_grid1 import make_axes_locatable
     _div = make_axes_locatable(ax)
@@ -9613,12 +9659,14 @@ frames = []''')
 y_a = np.linspace({config.y_min}, {config.y_max}, res)
 z_mid_a = ({config.z_min} + {config.z_max}) / 2.0
 Xa, Ya = np.meshgrid(x_a, y_a)
+# Blank out points outside the real geometry (same mask as the static plot).
+inside_a = geom.inside(np.column_stack([Xa.ravel(), Ya.ravel(), np.full(Xa.size, z_mid_a)])).reshape(res, res)
 for tv in t_frames:
     xyzt = np.column_stack([Xa.ravel(), Ya.ravel(), np.full(Xa.size, z_mid_a), np.full(Xa.size, tv)])
-    frames.append(_extract_plot_field(xyzt).reshape(res, res))
+    frames.append(np.where(inside_a, _extract_plot_field(xyzt).reshape(res, res), np.nan))
 {vrange}
 if v_min is None:
-    v_min = min(f.min() for f in frames); v_max = max(f.max() for f in frames)
+    v_min = min(np.nanmin(f) for f in frames); v_max = max(np.nanmax(f) for f in frames)
 fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
 def _update(i):
     ax.cla()
@@ -9631,12 +9679,14 @@ print(f"Solution plot saved: {{solution_path}}")''')
             elif is_2d:
                 parts.append(f'''y_a = np.linspace({config.y_min}, {config.y_max}, res)
 Xa, Ya = np.meshgrid(x_a, y_a)
+# Blank out points outside the real geometry (same mask as the static plot).
+inside_a = geom.inside(np.column_stack([Xa.ravel(), Ya.ravel()])).reshape(res, res)
 for tv in t_frames:
     xyt = np.column_stack([Xa.ravel(), Ya.ravel(), np.full(Xa.size, tv)])
-    frames.append(_extract_plot_field(xyt).reshape(res, res))
+    frames.append(np.where(inside_a, _extract_plot_field(xyt).reshape(res, res), np.nan))
 {vrange}
 if v_min is None:
-    v_min = min(f.min() for f in frames); v_max = max(f.max() for f in frames)
+    v_min = min(np.nanmin(f) for f in frames); v_max = max(np.nanmax(f) for f in frames)
 fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
 def _update(i):
     ax.cla()
