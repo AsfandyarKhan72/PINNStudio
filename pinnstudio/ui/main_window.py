@@ -439,6 +439,28 @@ class MainWindow(QMainWindow):
             parts.append(f"color: {color};")
         return " ".join(parts)
 
+    @staticmethod
+    def _add_ok_cancel_row(layout, dialog=None):
+        """cleanup Round 51 (audit §4): the right-aligned OK/Cancel footer
+        hand-typed in nine settings dialogs. Adds it to `layout` and returns
+        (ok_btn, cancel_btn); when `dialog` is given, Cancel rejects it
+        (pass None for a dialog with its own cancel handler)."""
+        btn_row = QHBoxLayout()
+        ok_btn = QPushButton("OK"); cancel_btn = QPushButton("Cancel")
+        btn_row.addStretch(); btn_row.addWidget(ok_btn); btn_row.addWidget(cancel_btn)
+        layout.addLayout(btn_row)
+        if dialog is not None:
+            cancel_btn.clicked.connect(dialog.reject)
+        return ok_btn, cancel_btn
+
+    def _register_hint(self, widget, color, extra=""):
+        """cleanup Round 51 (audit §4): the "hint" text style, registered
+        with one fixed color (and optional extra CSS) -- this exact
+        _register_style(widget, "hint", lambda css, _c=..., _e=...: ...)
+        call used to be hand-typed at 58 call sites. Same resulting
+        stylesheet ("color: <color>; <extra><Display Settings css>")."""
+        return self._register_style(widget, "hint", lambda css, _c=color, _e=extra: f"color: {_c}; {_e}{css}")
+
     def _register_style(self, widget, category, style_fn):
         """Registers `widget` as styled by `category` and applies it
         immediately. `style_fn(css_fragment)` must return the full
@@ -852,13 +874,13 @@ class MainWindow(QMainWindow):
         pde_ref_row = QHBoxLayout()
         self.pde_hint_toggle = QCheckBox("📖 Show derivative reference")
         self.pde_hint_toggle.setChecked(False)
-        self._register_style(self.pde_hint_toggle, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
+        self._register_hint(self.pde_hint_toggle, '#74c0fc')
         pde_ref_row.addWidget(self.pde_hint_toggle)
         pde_ref_row.addStretch()
         pde_outer_layout.addLayout(pde_ref_row)
 
         self.pde_hint = QLabel("")
-        self._register_style(self.pde_hint, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
+        self._register_hint(self.pde_hint, '#74c0fc')
         self.pde_hint.setWordWrap(True)
         self.pde_hint.setVisible(False)
         pde_outer_layout.addWidget(self.pde_hint)
@@ -1163,10 +1185,10 @@ class MainWindow(QMainWindow):
         # kept up to date by _build_bc_inputs() whenever dimension changes.
         self.ic_hint_toggle = QCheckBox("📖 Show IC reference")
         self.ic_hint_toggle.setChecked(False)
-        self._register_style(self.ic_hint_toggle, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
+        self._register_hint(self.ic_hint_toggle, '#74c0fc')
         _ic_group_top_layout.addWidget(self.ic_hint_toggle)
         self.ic_hint = QLabel()
-        self._register_style(self.ic_hint, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
+        self._register_hint(self.ic_hint, '#74c0fc')
         self.ic_hint.setWordWrap(True)
         self.ic_hint.setVisible(False)
         _ic_group_top_layout.addWidget(self.ic_hint)
@@ -1220,7 +1242,7 @@ class MainWindow(QMainWindow):
         self.custom_bc_main_layout = QVBoxLayout(self.custom_bc_group)
         self.custom_bc_main_layout.setSpacing(4)
         self.custom_bc_note = QLabel()
-        self._register_style(self.custom_bc_note, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
+        self._register_hint(self.custom_bc_note, '#74c0fc')
         self.custom_bc_note.setWordWrap(True)
         self.custom_bc_main_layout.addWidget(self.custom_bc_note)
 
@@ -1232,7 +1254,7 @@ class MainWindow(QMainWindow):
         # placeholder example of its own.
         self.bc_loc_hint_toggle = QCheckBox("📖 Show location examples")
         self.bc_loc_hint_toggle.setChecked(False)
-        self._register_style(self.bc_loc_hint_toggle, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
+        self._register_hint(self.bc_loc_hint_toggle, '#74c0fc')
         self.custom_bc_main_layout.addWidget(self.bc_loc_hint_toggle)
         self.bc_loc_hint = QLabel(
             "True/False expression in x, y, z that picks out WHICH boundary\n"
@@ -1252,7 +1274,7 @@ class MainWindow(QMainWindow):
             "y <= y_min            → bottom edge (2D/3D)\n"
             "np.isclose(x**2 + y**2, 0.25)  → circle boundary, radius 0.5"
         )
-        self._register_style(self.bc_loc_hint, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
+        self._register_hint(self.bc_loc_hint, '#74c0fc')
         self.bc_loc_hint.setWordWrap(True)
         self.bc_loc_hint.setVisible(False)
         self.custom_bc_main_layout.addWidget(self.bc_loc_hint)
@@ -1384,7 +1406,7 @@ class MainWindow(QMainWindow):
         it_layout = QVBoxLayout(self.input_transform_widget)
         it_layout.setSpacing(3); it_layout.setContentsMargins(12, 0, 0, 4)
         it_hint = QLabel("x_transformed = x_raw × scale + shift")
-        self._register_style(it_hint, "hint", lambda css, _c='#586e75', _e='': f"color: {_c}; {_e}{css}")
+        self._register_hint(it_hint, '#586e75')
         it_layout.addWidget(it_hint)
         self.input_transform_rows_layout = QVBoxLayout()
         self.input_transform_rows_layout.setSpacing(3)
@@ -1403,7 +1425,7 @@ class MainWindow(QMainWindow):
         ot_layout = QVBoxLayout(self.output_transform_widget)
         ot_layout.setSpacing(3); ot_layout.setContentsMargins(12, 0, 0, 4)
         ot_hint = QLabel("y_transformed = y_raw × scale + shift")
-        self._register_style(ot_hint, "hint", lambda css, _c='#586e75', _e='': f"color: {_c}; {_e}{css}")
+        self._register_hint(ot_hint, '#586e75')
         ot_layout.addWidget(ot_hint)
         self.output_transform_rows_layout = QVBoxLayout()
         self.output_transform_rows_layout.setSpacing(3)
@@ -1439,13 +1461,13 @@ class MainWindow(QMainWindow):
             train_layout.addWidget(widget)
 
         div0 = QLabel("─── Initial Condition (IC) Pre-Training (optional) ───")
-        self._register_style(div0, "hint", lambda css, _c='#505080', _e='': f"color: {_c}; {_e}{css}")
+        self._register_hint(div0, '#505080')
         train_layout.addWidget(div0)
         self.ic_pretrain_divider = div0
 
         self.ic_pretrain_cb = QCheckBox("Enable IC-guided pre-training")
         self.ic_pretrain_cb.setChecked(False)
-        self._register_style(self.ic_pretrain_cb, "hint", lambda css, _c='#69db7c', _e='': f"color: {_c}; {_e}{css}")
+        self._register_hint(self.ic_pretrain_cb, '#69db7c')
         self.ic_pretrain_cb.stateChanged.connect(self._on_ic_pretrain_changed)
         train_layout.addWidget(self.ic_pretrain_cb)
 
@@ -1577,7 +1599,7 @@ class MainWindow(QMainWindow):
 
         # ── Optimizer Scheduler ───────────────────────────────
         div_sched = QLabel("─── Training Phases ───")
-        self._register_style(div_sched, "hint", lambda css, _c='#505080', _e='': f"color: {_c}; {_e}{css}")
+        self._register_hint(div_sched, '#505080')
         train_layout.addWidget(div_sched)
         self.sched_cb = QCheckBox("Enable Optimizer Scheduler")
         self.sched_cb.setChecked(True)
@@ -1608,7 +1630,7 @@ class MainWindow(QMainWindow):
         # Same weights checkbox
         self.sched_same_weights_cb = QCheckBox("Use same weights for all phases")
         self.sched_same_weights_cb.setChecked(True)
-        self._register_style(self.sched_same_weights_cb, "hint", lambda css, _c='#69db7c', _e='': f"color: {_c}; {_e}{css}")
+        self._register_hint(self.sched_same_weights_cb, '#69db7c')
         self.sched_same_weights_cb.stateChanged.connect(
             lambda s: self._build_weight_inputs(self.num_outputs_spin.value()))
         sched_layout.addWidget(self.sched_same_weights_cb)
@@ -1692,7 +1714,7 @@ class MainWindow(QMainWindow):
         # by _build_config() and set directly by _apply_config() -- no
         # intermediate dict, same as every other Training-panel setting.
         div_cb = QLabel("─── Training Callbacks ───")
-        self._register_style(div_cb, "hint", lambda css, _c='#505080', _e='': f"color: {_c}; {_e}{css}")
+        self._register_hint(div_cb, '#505080')
         train_layout.addWidget(div_cb)
 
         # The four callback groups below (Early Stopping/Point Resampling/
@@ -1858,7 +1880,7 @@ class MainWindow(QMainWindow):
             "e.g. (0.3, 0.0); (0.5, 0.0) -- matching this problem's own\n"
             "input order (x[, y][, z][, t]). Expressions: comma-separated,\n"
             "logged together, e.g. u, du_x, du_xx")
-        self._register_style(tmon_hint, "hint", lambda css, _c='#808090', _e='': f"color: {_c}; {_e}{css}")
+        self._register_hint(tmon_hint, '#808090')
         tmon_fields_layout.addWidget(tmon_hint)
 
         self.tmon_rows_widget = QWidget()
@@ -1911,7 +1933,7 @@ class MainWindow(QMainWindow):
         adapt_ref_row = QHBoxLayout()
         self.adapt_ref_toggle = QCheckBox("\U0001F4D6 Show reference")
         self.adapt_ref_toggle.setChecked(False)
-        self._register_style(self.adapt_ref_toggle, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
+        self._register_hint(self.adapt_ref_toggle, '#74c0fc')
         adapt_ref_row.addWidget(self.adapt_ref_toggle)
         adapt_ref_row.addStretch()
         adapt_ref_row_widget = QWidget()
@@ -1919,7 +1941,7 @@ class MainWindow(QMainWindow):
         adapt_layout.addWidget(adapt_ref_row_widget)
 
         self.adapt_ref_hint = QLabel("")
-        self._register_style(self.adapt_ref_hint, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
+        self._register_hint(self.adapt_ref_hint, '#74c0fc')
         self.adapt_ref_hint.setWordWrap(True)
         self.adapt_ref_hint.setVisible(False)
         adapt_layout.addWidget(self.adapt_ref_hint)
@@ -1934,7 +1956,7 @@ class MainWindow(QMainWindow):
 
         # ── Step groups ───────────────────────────────────────
         ta_groups_label = QLabel("Time step groups:")
-        self._register_style(ta_groups_label, "hint", lambda css, _c='#a0c4ff', _e='': f"color: {_c}; {_e}{css}")
+        self._register_hint(ta_groups_label, '#a0c4ff')
         ta_layout.addWidget(ta_groups_label)
 
         self.ta_groups_widget = QWidget()
@@ -2011,7 +2033,7 @@ class MainWindow(QMainWindow):
         # Transfer learning
         self.ta_transfer_cb = QCheckBox("Enable transfer learning (warm start from previous step)")
         self.ta_transfer_cb.setChecked(False)
-        self._register_style(self.ta_transfer_cb, "hint", lambda css, _c='#69db7c', _e='': f"color: {_c}; {_e}{css}")
+        self._register_hint(self.ta_transfer_cb, '#69db7c')
         ta_layout.addWidget(self.ta_transfer_cb)
 
         self.ta_transfer_opt_widget = QWidget()
@@ -2112,7 +2134,7 @@ class MainWindow(QMainWindow):
         sweep_ref_row = QHBoxLayout()
         sweep_ref_toggle = QCheckBox("\U0001F4D6 Show sweep reference")
         sweep_ref_toggle.setChecked(False)
-        self._register_style(sweep_ref_toggle, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
+        self._register_hint(sweep_ref_toggle, '#74c0fc')
         sweep_ref_row.addWidget(sweep_ref_toggle)
         sweep_ref_row.addStretch()
         sweep_ref_row_widget = QWidget()
@@ -2134,7 +2156,7 @@ class MainWindow(QMainWindow):
                         "\"Points from:\" (where shown) picks which equation's values are read\n"
                         "when a parameter lives inside a PDE coefficient.")
         sweep_ref_hint = QLabel(sweep_ref_text)
-        self._register_style(sweep_ref_hint, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
+        self._register_hint(sweep_ref_hint, '#74c0fc')
         sweep_ref_hint.setWordWrap(True)
         sweep_ref_hint.setVisible(False)
         sweep_toggle_layout.addWidget(sweep_ref_hint)
@@ -2178,7 +2200,7 @@ class MainWindow(QMainWindow):
         # single-line-per-row table layout, which needed ~700px of
         # width this column never has.
         div_sweep_params = QLabel("─── Sweep Parameters ───")
-        self._register_style(div_sweep_params, "hint", lambda css, _c='#505080', _e='': f"color: {_c}; {_e}{css}")
+        self._register_hint(div_sweep_params, '#505080')
         sweep_options_layout.addWidget(div_sweep_params)
 
         sweep_refresh_row = QHBoxLayout()
@@ -2232,7 +2254,7 @@ class MainWindow(QMainWindow):
         inv_ref_row = QHBoxLayout()
         inv_ref_toggle = QCheckBox("\U0001F4D6 Show inverse reference")
         inv_ref_toggle.setChecked(False)
-        self._register_style(inv_ref_toggle, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
+        self._register_hint(inv_ref_toggle, '#74c0fc')
         inv_ref_row.addWidget(inv_ref_toggle)
         inv_ref_row.addStretch()
         inv_ref_row_widget = QWidget()
@@ -2253,7 +2275,7 @@ class MainWindow(QMainWindow):
                         "observation datasets; each gets its own \"which output\" selector and its\n"
                         "own loss weight, since each becomes a separate loss term.")
         inv_ref_hint = QLabel(inv_ref_text)
-        self._register_style(inv_ref_hint, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
+        self._register_hint(inv_ref_hint, '#74c0fc')
         inv_ref_hint.setWordWrap(True)
         inv_ref_hint.setVisible(False)
         inv_layout.addWidget(inv_ref_hint)
@@ -2278,7 +2300,7 @@ class MainWindow(QMainWindow):
         self.inv_multi_var_hint = QLabel(
             "⚠ Add each new variable's name to your PDE expression(s) too\n"
             "(PDE Builder tab), wherever that unknown quantity belongs.")
-        self._register_style(self.inv_multi_var_hint, "hint", lambda css, _c='#ffd43b', _e='': f"color: {_c}; {_e}{css}")
+        self._register_hint(self.inv_multi_var_hint, '#ffd43b')
         self.inv_multi_var_hint.setWordWrap(True)
         self.inv_multi_var_hint.setVisible(False)
         inv_layout.addWidget(self.inv_multi_var_hint)
@@ -2308,7 +2330,7 @@ class MainWindow(QMainWindow):
         self.inv_multi_data_hint = QLabel(
             "⚠ Each additional measured data file adds its own\n"
             "observation loss term, weighted by its own box below.")
-        self._register_style(self.inv_multi_data_hint, "hint", lambda css, _c='#ffd43b', _e='': f"color: {_c}; {_e}{css}")
+        self._register_hint(self.inv_multi_data_hint, '#ffd43b')
         self.inv_multi_data_hint.setWordWrap(True)
         self.inv_multi_data_hint.setVisible(False)
         inv_layout.addWidget(self.inv_multi_data_hint)
@@ -2382,7 +2404,7 @@ class MainWindow(QMainWindow):
 
         restore_toggle = QCheckBox("🔄 Enable Model Restore && Visualization")
         restore_toggle.setChecked(False)
-        self._register_style(restore_toggle, "hint", lambda css, _c='#a0c4ff', _e='': f"color: {_c}; {_e}{css}")
+        self._register_hint(restore_toggle, '#a0c4ff')
         restore_layout.addWidget(restore_toggle)
 
         restore_content = QWidget()
@@ -2463,7 +2485,7 @@ class MainWindow(QMainWindow):
         # behavior of restoring only the one step file you browsed to,
         # confined to its own narrow window.
         self.restore_ta_info_label = QLabel("")
-        self._register_style(self.restore_ta_info_label, "hint", lambda css, _c='#69db7c', _e='': f"color: {_c}; {_e}{css}")
+        self._register_hint(self.restore_ta_info_label, '#69db7c')
         self.restore_ta_info_label.setWordWrap(True)
         self.restore_ta_info_label.setVisible(False)
         _rmf_layout.addWidget(self.restore_ta_info_label)
@@ -2706,7 +2728,7 @@ class MainWindow(QMainWindow):
         log_layout.setSpacing(2)
 
         log_label = QLabel("📋 Training Log")
-        self._register_style(log_label, "hint", lambda css, _c='#a0c4ff', _e='margin-top: 2px; ': f"color: {_c}; {_e}{css}")
+        self._register_hint(log_label, '#a0c4ff', 'margin-top: 2px; ')
         log_label.setFixedHeight(22)
         log_layout.addWidget(log_label)
 
@@ -3186,7 +3208,7 @@ class MainWindow(QMainWindow):
         header_row = QHBoxLayout()
         row_num = len(self.sweep_row_list) + 1
         header_lbl = QLabel(f"── Parameter {row_num} ──")
-        self._register_style(header_lbl, "hint", lambda css, _c='#a0c4ff', _e='': f"color: {_c}; {_e}{css}")
+        self._register_hint(header_lbl, '#a0c4ff')
         header_row.addWidget(header_lbl)
         remove_btn = QPushButton("✕")
         remove_btn.setFixedHeight(22); remove_btn.setFixedWidth(24)
@@ -3764,7 +3786,7 @@ class MainWindow(QMainWindow):
         header_row = QHBoxLayout()
         row_num = len(self.custom_geom_shape_rows) + 1
         header_lbl = QLabel(f"── Shape {row_num} ──")
-        self._register_style(header_lbl, "hint", lambda css, _c='#a0c4ff', _e='': f"color: {_c}; {_e}{css}")
+        self._register_hint(header_lbl, '#a0c4ff')
         header_row.addWidget(header_lbl)
         header_row.addStretch()
         up_btn = QPushButton("▲")
@@ -4934,7 +4956,7 @@ class MainWindow(QMainWindow):
         for i in range(n):
             name = ["u", "v", "w", "p"][i] if i < 4 else f"u{i+1}"
             sep = QLabel(f"── Output {i+1} ({name}) ──")
-            self._register_style(sep, "hint", lambda css, _c='#505080', _e='margin-top: 4px; ': f"color: {_c}; {_e}{css}")
+            self._register_hint(sep, '#505080', 'margin-top: 4px; ')
             self.bc_main_layout.addWidget(sep)
 
             # Container widget for all BC+IC of this output
@@ -5051,7 +5073,7 @@ class MainWindow(QMainWindow):
             _ic_file_fmt = "x,y,z,t,c" if is_3d else ("x,y,t,c" if is_2d else "x,t,c")
             ic_file_cb = QCheckBox(f"📂 Load IC from file ({_ic_file_fmt} format)")
             ic_file_cb.setChecked(False)
-            self._register_style(ic_file_cb, "hint", lambda css, _c='#ffa94d', _e='': f"color: {_c}; {_e}{css}")
+            self._register_hint(ic_file_cb, '#ffa94d')
             self.bc_main_layout.addWidget(ic_file_cb)
             self.ic_from_file.append(ic_file_cb)
 
@@ -5244,7 +5266,7 @@ class MainWindow(QMainWindow):
         header_txt = f"── BC {entry_num} ──" + (" \U0001F512" if locked else "")
         header_lbl = QLabel(header_txt)
         _header_color = "#8a8a8a" if locked else "#a0c4ff"
-        self._register_style(header_lbl, "hint", lambda css, _c=_header_color: f"color: {_c}; {css}")
+        self._register_hint(header_lbl, _header_color)
         header_row.addWidget(header_lbl)
         remove_btn = QPushButton("✕")
         remove_btn.setFixedHeight(22); remove_btn.setFixedWidth(24)
@@ -5443,7 +5465,7 @@ class MainWindow(QMainWindow):
             "across the two edges). PINNStudio switches Point Distribution to\n"
             "Uniform automatically while this BC type is selected."
         )
-        self._register_style(interface2d_note, "hint", lambda css, _c='#ffa94d', _e='': f"color: {_c}; {_e}{css}")
+        self._register_hint(interface2d_note, '#ffa94d')
         interface2d_note.setWordWrap(True)
         interface2d_note.setVisible(False)
         entry_layout.addWidget(interface2d_note)
@@ -5465,7 +5487,7 @@ class MainWindow(QMainWindow):
             "(e.g. u, du_x, du_xx -- same as the PDE box). Should evaluate\n"
             "to 0 on the boundary/points selected above."
         )
-        self._register_style(advanced_note, "hint", lambda css, _c='#ffa94d', _e='': f"color: {_c}; {_e}{css}")
+        self._register_hint(advanced_note, '#ffa94d')
         advanced_note.setWordWrap(True)
         advanced_note.setVisible(False)
         entry_layout.addWidget(advanced_note)
@@ -5805,7 +5827,7 @@ class MainWindow(QMainWindow):
 
         if _same_weights:
             _sep_all = QLabel("── Shared weights (all phases) ──")
-            self._register_style(_sep_all, "hint", lambda css, _c='#505080', _e='': f"color: {_c}; {_e}{css}")
+            self._register_hint(_sep_all, '#505080')
             _sw_all = QWidget(); _sl_all = QHBoxLayout(_sw_all)
             _sl_all.setContentsMargins(0,0,0,0); _sl_all.addWidget(_sep_all)
             self.weights_main_layout.addWidget(_sw_all)
@@ -5838,7 +5860,7 @@ class MainWindow(QMainWindow):
             for _pi, _ph in enumerate(self.sched_phase_list):
                 _phase_num = _ph['phase_num']
                 sep = QLabel(f"── Phase {_phase_num} weights ──")
-                self._register_style(sep, "hint", lambda css, _c='#505080', _e='': f"color: {_c}; {_e}{css}")
+                self._register_hint(sep, '#505080')
                 _sw = QWidget(); _sl = QHBoxLayout(_sw)
                 _sl.setContentsMargins(0,0,0,0); _sl.addWidget(sep)
                 self.weights_main_layout.addWidget(_sw)
@@ -8000,7 +8022,7 @@ class MainWindow(QMainWindow):
         layout = QVBoxLayout(dialog)
 
         info = QLabel("Float64 recommended for L-BFGS convergence.\nFloat32 is faster but L-BFGS may stop early.")
-        self._register_style(info, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
+        self._register_hint(info, '#74c0fc')
         info.setWordWrap(True)
         layout.addWidget(info)
 
@@ -8013,11 +8035,7 @@ class MainWindow(QMainWindow):
         row.addStretch(); row.addWidget(self._float_combo)
         layout.addLayout(row)
 
-        btn_row = QHBoxLayout()
-        ok_btn = QPushButton("OK"); cancel_btn = QPushButton("Cancel")
-        btn_row.addStretch(); btn_row.addWidget(ok_btn); btn_row.addWidget(cancel_btn)
-        layout.addLayout(btn_row)
-        cancel_btn.clicked.connect(dialog.reject)
+        ok_btn, cancel_btn = self._add_ok_cancel_row(layout, dialog)
 
         def _on_ok():
             self._float_type = self._float_combo.currentText()
@@ -8050,7 +8068,7 @@ class MainWindow(QMainWindow):
             pass
 
         info = QLabel(_hint_text)
-        self._register_style(info, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
+        self._register_hint(info, '#74c0fc')
         info.setWordWrap(True)
         layout.addWidget(info)
 
@@ -8074,15 +8092,11 @@ class MainWindow(QMainWindow):
 
         note = QLabel("Ignored on machines with no GPU (CPU training is unaffected). "
                        "Device index only matters if you have more than one GPU.")
-        self._register_style(note, "hint", lambda css, _c='#868e96', _e='': f"color: {_c}; {_e}{css}")
+        self._register_hint(note, '#868e96')
         note.setWordWrap(True)
         layout.addWidget(note)
 
-        btn_row = QHBoxLayout()
-        ok_btn = QPushButton("OK"); cancel_btn = QPushButton("Cancel")
-        btn_row.addStretch(); btn_row.addWidget(ok_btn); btn_row.addWidget(cancel_btn)
-        layout.addLayout(btn_row)
-        cancel_btn.clicked.connect(dialog.reject)
+        ok_btn, cancel_btn = self._add_ok_cancel_row(layout, dialog)
 
         def _on_ok():
             self._gpu_device_index = dev_spin.value()
@@ -8109,7 +8123,7 @@ class MainWindow(QMainWindow):
             "(that costs training speed) -- results will be consistent, "
             "not necessarily byte-identical, on GPU."
         )
-        self._register_style(info, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
+        self._register_hint(info, '#74c0fc')
         info.setWordWrap(True)
         layout.addWidget(info)
 
@@ -8131,11 +8145,7 @@ class MainWindow(QMainWindow):
         seed_spin.setEnabled(use_cb.isChecked())
         use_cb.toggled.connect(_sync_seed_enabled)
 
-        btn_row = QHBoxLayout()
-        ok_btn = QPushButton("OK"); cancel_btn = QPushButton("Cancel")
-        btn_row.addStretch(); btn_row.addWidget(ok_btn); btn_row.addWidget(cancel_btn)
-        layout.addLayout(btn_row)
-        cancel_btn.clicked.connect(dialog.reject)
+        ok_btn, cancel_btn = self._add_ok_cancel_row(layout, dialog)
 
         def _on_ok():
             self._use_random_seed = use_cb.isChecked()
@@ -8182,11 +8192,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(manual_widget)
         use_default.stateChanged.connect(lambda s: manual_widget.setVisible(s != 2))
 
-        btn_row = QHBoxLayout()
-        ok_btn = QPushButton("OK"); cancel_btn = QPushButton("Cancel")
-        btn_row.addStretch(); btn_row.addWidget(ok_btn); btn_row.addWidget(cancel_btn)
-        layout.addLayout(btn_row)
-        cancel_btn.clicked.connect(dialog.reject)
+        ok_btn, cancel_btn = self._add_ok_cancel_row(layout, dialog)
 
         def _on_ok():
             self.lbfgs_use_default_cb.setChecked(use_default.isChecked())
@@ -8220,7 +8226,7 @@ class MainWindow(QMainWindow):
             "leave it at 0 if any phase in Training Phases uses either of\n"
             "those. AdamW requires a non-zero weight decay to be selected.")
         note.setWordWrap(True)
-        self._register_style(note, "hint", lambda css, _c='#586e75', _e='': f"color: {_c}; {_e}{css}")
+        self._register_hint(note, '#586e75')
         layout.addWidget(note)
 
         wd_row = QHBoxLayout()
@@ -8230,11 +8236,7 @@ class MainWindow(QMainWindow):
         wd_row.addStretch(); wd_row.addWidget(wd_spin)
         layout.addLayout(wd_row)
 
-        btn_row = QHBoxLayout()
-        ok_btn = QPushButton("OK"); cancel_btn = QPushButton("Cancel")
-        btn_row.addStretch(); btn_row.addWidget(ok_btn); btn_row.addWidget(cancel_btn)
-        layout.addLayout(btn_row)
-        cancel_btn.clicked.connect(dialog.reject)
+        ok_btn, cancel_btn = self._add_ok_cancel_row(layout, dialog)
 
         def _on_ok():
             self._optimizer_settings["weight_decay"] = wd_spin.value()
@@ -9459,7 +9461,7 @@ print("DOMAIN_PREVIEW_DONE")
         layout = QVBoxLayout(dialog)
 
         info = QLabel("Saves solution as CSV files (one per time step)\nfor forward problems after training.")
-        self._register_style(info, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
+        self._register_hint(info, '#74c0fc')
         info.setWordWrap(True)
         layout.addWidget(info)
 
@@ -9497,7 +9499,7 @@ print("DOMAIN_PREVIEW_DONE")
         layout.addLayout(tsteps_row)
 
         note = QLabel("Output: solution_data/solution_t{time}.txt\nColumns: x, t, u (1D) or x, y, t, u (2D)")
-        self._register_style(note, "hint", lambda css, _c='#586e75', _e='': f"color: {_c}; {_e}{css}")
+        self._register_hint(note, '#586e75')
         note.setWordWrap(True)
         layout.addWidget(note)
 
@@ -9507,11 +9509,7 @@ print("DOMAIN_PREVIEW_DONE")
         enable_cb.stateChanged.connect(lambda s: _sync_enabled_state(s == 2))
         _sync_enabled_state(enable_cb.isChecked())
 
-        btn_row = QHBoxLayout()
-        ok_btn = QPushButton("OK"); cancel_btn = QPushButton("Cancel")
-        btn_row.addStretch(); btn_row.addWidget(ok_btn); btn_row.addWidget(cancel_btn)
-        layout.addLayout(btn_row)
-        cancel_btn.clicked.connect(dialog.reject)
+        ok_btn, cancel_btn = self._add_ok_cancel_row(layout, dialog)
 
         def _on_ok():
             self.export_enabled_cb.setChecked(enable_cb.isChecked())
@@ -9835,7 +9833,7 @@ print("DOMAIN_PREVIEW_DONE")
             "This plot type only shows u vs x -- pick where to slice "
             "the rest of the domain.")
         slice_info.setWordWrap(True)
-        self._register_style(slice_info, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
+        self._register_hint(slice_info, '#74c0fc')
         slice_info.setVisible(_show_slice)
         if not is_param:
             layout.addWidget(slice_info)
@@ -9919,7 +9917,7 @@ print("DOMAIN_PREVIEW_DONE")
         # Title / axis labels — every viz type gets these; blank keeps the
         # existing default text exactly as before.
         labels_line = QLabel("Leave blank to keep the default title/axis labels.")
-        self._register_style(labels_line, "hint", lambda css, _c='#586e75', _e='': f"color: {_c}; {_e}{css}")
+        self._register_hint(labels_line, '#586e75')
         labels_line.setWordWrap(True)
         layout.addWidget(labels_line)
 
@@ -9982,16 +9980,11 @@ print("DOMAIN_PREVIEW_DONE")
             "Parameter Convergence Animation (GIF)": "Animated GIF of each trainable variable's convergence, growing curve up to each logged iteration.",
         }
         info = QLabel(info_texts.get(viz_type, ""))
-        self._register_style(info, "hint", lambda css, _c='#586e75', _e='': f"color: {_c}; {_e}{css}")
+        self._register_hint(info, '#586e75')
         info.setWordWrap(True)
         layout.addWidget(info)
 
-        btn_row = QHBoxLayout()
-        ok_btn = QPushButton("OK"); cancel_btn = QPushButton("Cancel")
-        btn_row.addStretch(); btn_row.addWidget(ok_btn); btn_row.addWidget(cancel_btn)
-        layout.addLayout(btn_row)
-
-        cancel_btn.clicked.connect(dialog.reject)
+        ok_btn, cancel_btn = self._add_ok_cancel_row(layout, dialog)
 
         def _on_ok():
             new_settings = dict(current)
@@ -11018,7 +11011,7 @@ print("DOMAIN_PREVIEW_DONE")
             "Controls every loss plot in the app (live Solve, RAR, "
             "Time-Adaptive, and \"Export as DeepXDE Script\").")
         info.setWordWrap(True)
-        self._register_style(info, "hint", lambda css, _c='#586e75', _e='': f"color: {_c}; {_e}{css}")
+        self._register_hint(info, '#586e75')
         layout.addWidget(info)
 
         # Which losses to show
@@ -11040,7 +11033,7 @@ print("DOMAIN_PREVIEW_DONE")
             "\"Constraint N\") -- DeepXDE only tracks a single combined "
             "Test loss, so individual Test-term lines aren't available.")
         mode_hint.setWordWrap(True)
-        self._register_style(mode_hint, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
+        self._register_hint(mode_hint, '#74c0fc')
         layout.addWidget(mode_hint)
 
         # display_every -- single shared value
@@ -11058,7 +11051,7 @@ print("DOMAIN_PREVIEW_DONE")
             "value used everywhere (Adam, L-BFGS, RAR rounds, every "
             "Time-Adaptive step). Smaller = more detail, slower logging.")
         de_hint.setWordWrap(True)
-        self._register_style(de_hint, "hint", lambda css, _c='#586e75', _e='': f"color: {_c}; {_e}{css}")
+        self._register_hint(de_hint, '#586e75')
         layout.addWidget(de_hint)
 
         # Line thickness
@@ -11076,12 +11069,7 @@ print("DOMAIN_PREVIEW_DONE")
         log_cb.setChecked(bool(current.get('log_y', True)))
         layout.addWidget(log_cb)
 
-        btn_row = QHBoxLayout()
-        ok_btn = QPushButton("OK"); cancel_btn = QPushButton("Cancel")
-        btn_row.addStretch(); btn_row.addWidget(ok_btn); btn_row.addWidget(cancel_btn)
-        layout.addLayout(btn_row)
-
-        cancel_btn.clicked.connect(dialog.reject)
+        ok_btn, cancel_btn = self._add_ok_cancel_row(layout, dialog)
 
         def _on_ok():
             self._loss_plot_settings = {
@@ -11317,7 +11305,7 @@ print("DOMAIN_PREVIEW_DONE")
             "This plot type only shows u vs x -- pick where to slice "
             "the rest of the domain.")
         slice_info.setWordWrap(True)
-        self._register_style(slice_info, "hint", lambda css, _c='#74c0fc', _e='': f"color: {_c}; {_e}{css}")
+        self._register_hint(slice_info, '#74c0fc')
         _show_slice = _is_line_type and (_is_2d or _is_3d)
         slice_info.setVisible(_show_slice)
         if not is_param:
@@ -11378,7 +11366,7 @@ print("DOMAIN_PREVIEW_DONE")
         # exactly as before. Same fields, same blank-means-default
         # convention, as Restore & Visualize's own dialog.
         labels_line = QLabel("Leave blank to keep the default title/axis labels.")
-        self._register_style(labels_line, "hint", lambda css, _c='#586e75', _e='': f"color: {_c}; {_e}{css}")
+        self._register_hint(labels_line, '#586e75')
         labels_line.setWordWrap(True)
         layout.addWidget(labels_line)
 
@@ -11435,10 +11423,7 @@ print("DOMAIN_PREVIEW_DONE")
         axis_label_fs_row.addStretch(); axis_label_fs_row.addWidget(axis_label_fs_spin)
         layout.addLayout(axis_label_fs_row)
 
-        btn_row = QHBoxLayout()
-        ok_btn = QPushButton("OK"); cancel_btn = QPushButton("Cancel")
-        btn_row.addStretch(); btn_row.addWidget(ok_btn); btn_row.addWidget(cancel_btn)
-        layout.addLayout(btn_row)
+        ok_btn, cancel_btn = self._add_ok_cancel_row(layout)
 
         def _on_cancel():
             # Restore whichever plot type was actually selected before
@@ -11548,7 +11533,7 @@ print("DOMAIN_PREVIEW_DONE")
         files_layout = QVBoxLayout(files_group)
 
         hint = QLabel("Format: space-separated, 3 columns: x  t  u  (no header)\nEach file = one time snapshot.")
-        self._register_style(hint, "hint", lambda css, _c='#586e75', _e='': f"color: {_c}; {_e}{css}")
+        self._register_hint(hint, '#586e75')
         files_layout.addWidget(hint)
 
         # File list widget
@@ -11593,7 +11578,7 @@ print("DOMAIN_PREVIEW_DONE")
             row_layout.addWidget(browse_btn)
 
             t_label = QLabel("")
-            self._register_style(t_label, "hint", lambda css, _c='#69db7c', _e='min-width: 80px; ': f"color: {_c}; {_e}{css}")
+            self._register_hint(t_label, '#69db7c', 'min-width: 80px; ')
             row_layout.addWidget(t_label)
 
             out_combo = None
@@ -11751,7 +11736,7 @@ print("DOMAIN_PREVIEW_DONE")
         ref_dir = getattr(self, '_template_ref_dir', '')
         if _existing_ea and _existing_ea.get('files'):
             hint2 = QLabel("📂 Auto-loaded from template" + (f": {os.path.basename(ref_dir)}" if ref_dir else ""))
-            self._register_style(hint2, "hint", lambda css, _c='#a0c4ff', _e='': f"color: {_c}; {_e}{css}")
+            self._register_hint(hint2, '#a0c4ff')
             files_layout.addWidget(hint2)
             for _ea_entry in _existing_ea['files']:
                 _tv0, _fp0 = _ea_entry[0], _ea_entry[1]
@@ -11761,7 +11746,7 @@ print("DOMAIN_PREVIEW_DONE")
             txt_files = sorted(glob.glob(os.path.join(ref_dir, 't_*.txt')))
             if txt_files:
                 hint2 = QLabel(f"📂 Auto-loaded from template: {os.path.basename(ref_dir)}")
-                self._register_style(hint2, "hint", lambda css, _c='#a0c4ff', _e='': f"color: {_c}; {_e}{css}")
+                self._register_hint(hint2, '#a0c4ff')
                 files_layout.addWidget(hint2)
                 for f in txt_files:
                     _add_file_row(f)
@@ -12030,7 +12015,7 @@ print("DOMAIN_PREVIEW_DONE")
         # Header
         header_row = QHBoxLayout()
         header_lbl = QLabel(f"── Phase {phase_num} ──")
-        self._register_style(header_lbl, "hint", lambda css, _c='#a0c4ff', _e='': f"color: {_c}; {_e}{css}")
+        self._register_hint(header_lbl, '#a0c4ff')
         header_row.addWidget(header_lbl)
         remove_btn = QPushButton("✕")
         remove_btn.setFixedHeight(22); remove_btn.setFixedWidth(24)
