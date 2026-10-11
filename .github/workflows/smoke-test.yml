@@ -64,3 +64,31 @@ jobs:
           python tests/test_ta_loss_history.py
           python tests/test_restore_ta_error_analysis.py
           python tests/test_plot_figsize_settings.py
+          # These also run without torch/DeepXDE; any end-to-end parts that need
+          # them print SKIPPED here and run fully under pytest locally.
+          python tests/test_activation_choices.py
+          python tests/test_line_comparison_geometry.py
+          python tests/test_quick_examples_dimension_sync.py
+          python tests/test_rar_round_diagnostics.py
+          python tests/test_run_results_folder_naming.py
+          python tests/test_solve_results_panel_save_dir.py
+          python tests/test_steady_state_rar_gating.py
+          python tests/test_ta_line_comparison_geometry.py
+          python tests/test_viz_steps_linewidth_split.py
+          python tests/test_round38_line_steps_masking.py
+          python tests/test_round39_cleanup.py
+          python tests/test_round40_ic_pretrain_restore_parity.py
+          python tests/test_round41_ea_multi_output.py
+          python tests/test_round42_restore_line_plot_refactor.py
+          python tests/test_round43_restore_anim_surface_refactor.py
+          python tests/test_round44_ta_surface_masking.py
+          python tests/test_round45_restore_surface_refactor.py
+          python tests/test_round46_anim_surface_masking.py
+          python tests/test_round47_ic_pretrain_shared_block.py
+          python tests/test_round48_preview_geometry_shared.py
+          python tests/test_round49_param_axis_shared.py
+          python tests/test_round50_shared_color_scale.py
+          python tests/test_round51_ui_helpers.py
+          python tests/test_round52_generate_script_split.py
+          python tests/test_round53_export_rar_diagnostics.py
+          python tests/test_round54_sweep_obs_weight.py
