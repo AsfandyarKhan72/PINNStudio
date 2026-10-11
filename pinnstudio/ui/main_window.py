@@ -13344,8 +13344,8 @@ print("RESTORE_DONE")
         # the domain midpoint the first time the dialog opens for a given
         # restore (viz_settings won't have these keys yet); overriding it
         # there re-plots/re-animates at the new slice without re-training.
-        _line_slice_y = (y_min + y_max) / 2.0 if viz_settings.get("line_slice_y_auto", True) else viz_settings.get("line_slice_y", 0.0)
-        _line_slice_z = (z_min + z_max) / 2.0 if viz_settings.get("line_slice_z_auto", True) else viz_settings.get("line_slice_z", 0.0)
+        line_slice_y = (y_min + y_max) / 2.0 if viz_settings.get("line_slice_y_auto", True) else viz_settings.get("line_slice_y", 0.0)
+        line_slice_z = (z_min + z_max) / 2.0 if viz_settings.get("line_slice_z_auto", True) else viz_settings.get("line_slice_z", 0.0)
         # Steady-state problems have no time axis at all (see
         # _on_steady_state_changed and generate_script()'s own _is_steady
         # branch in codegen.py): the restored network's first layer has one
@@ -13603,7 +13603,7 @@ def _extract_plot_field(x_grid):
         elif viz_type == "Line (time steps)":
             _xlabel_line = xlabel_override or "x"
             _ylabel_line = ylabel_override or out_name
-            _slice_suffix_line = (f", y={_line_slice_y:.3g}, z={_line_slice_z:.3g}" if is_3d else (f", y={_line_slice_y:.3g}" if is_2d else ""))
+            _slice_suffix_line = (f", y={line_slice_y:.3g}, z={line_slice_z:.3g}" if is_3d else (f", y={line_slice_y:.3g}" if is_2d else ""))
             _title_line = title_override or f"Restored Model — {out_name}(x,t{_slice_suffix_line}) Line Plot"
             # cleanup Round 42 (audit §2e): this branch and its
             # _build_restore_script_ta counterpart were two independently
@@ -13614,12 +13614,12 @@ def _extract_plot_field(x_grid):
             from pinnstudio.core.codegen import _restore_line_plot_code
             script += "\n" + _restore_line_plot_code(
                 x_min, x_max, resolution, t_min, t_max, n_steps, colormap,
-                _line_slice_y, _line_slice_z, linewidth, _xlabel_line, _ylabel_line,
+                line_slice_y, line_slice_z, linewidth, _xlabel_line, _ylabel_line,
                 _title_line, subplot_title_fontsize, axis_label_fontsize, save_dir, dpi,
                 is_time_adaptive=False) + "\n"
         elif viz_type == "Animation Line (GIF)":
-            _slice_suffix_animline = (f", y={_line_slice_y:.3g}, z={_line_slice_z:.3g}" if is_3d
-                                       else (f", y={_line_slice_y:.3g}" if is_2d else ""))
+            _slice_suffix_animline = (f", y={line_slice_y:.3g}, z={line_slice_z:.3g}" if is_3d
+                                       else (f", y={line_slice_y:.3g}" if is_2d else ""))
             _xlabel_animline = xlabel_override or "x"
             _ylabel_animline = ylabel_override or (f"{out_name}(x,t{_slice_suffix_animline})" if (is_2d or is_3d) else out_name)
             _title_line_stmt = f"ax.set_title({title_override!r}, fontsize={subplot_title_fontsize})" if title_override else ""
@@ -13636,7 +13636,7 @@ def _extract_plot_field(x_grid):
             # _restore_line_animation_code's own docstring in codegen.py.
             from pinnstudio.core.codegen import _restore_line_animation_code
             script += "\n" + _restore_line_animation_code(
-                x_min, x_max, t_min, t_max, n_steps, _line_slice_y, _line_slice_z,
+                x_min, x_max, t_min, t_max, n_steps, line_slice_y, line_slice_z,
                 linewidth, _xlabel_animline, _ylabel_animline, _title_line_stmt,
                 _tt_x, _tt_y, _tt_ha, axis_label_fontsize, fps, save_dir, dpi,
                 is_time_adaptive=False) + "\n"
@@ -13743,8 +13743,8 @@ def _extract_plot_field(x_grid):
         is_3d = cfg.get("problem_dim", "1D") == "3D"
         # Same live, independently-overridable slice-value convention as
         # _build_restore_script -- see the matching comment there.
-        _line_slice_y = (y_min + y_max) / 2.0 if viz_settings.get("line_slice_y_auto", True) else viz_settings.get("line_slice_y", 0.0)
-        _line_slice_z = (z_min + z_max) / 2.0 if viz_settings.get("line_slice_z_auto", True) else viz_settings.get("line_slice_z", 0.0)
+        line_slice_y = (y_min + y_max) / 2.0 if viz_settings.get("line_slice_y_auto", True) else viz_settings.get("line_slice_y", 0.0)
+        line_slice_z = (z_min + z_max) / 2.0 if viz_settings.get("line_slice_z_auto", True) else viz_settings.get("line_slice_z", 0.0)
         out_names = cfg.get("output_names", "u").split(",")
         _custom_expr_val = (custom_expr or "").strip()
         _custom_label_val = (custom_label or "").strip()
@@ -13981,8 +13981,8 @@ def _extract_plot_field(x_grid, _tm_model):
                 is_time_adaptive=True) + "\n"
 
         elif viz_type == "Line (time steps)":
-            _slice_suffix_line = (f", y={_line_slice_y:.3g}, z={_line_slice_z:.3g}" if is_3d
-                                   else (f", y={_line_slice_y:.3g}" if is_2d else ""))
+            _slice_suffix_line = (f", y={line_slice_y:.3g}, z={line_slice_z:.3g}" if is_3d
+                                   else (f", y={line_slice_y:.3g}" if is_2d else ""))
             _xlabel_line = xlabel_override or "x"
             _ylabel_line = ylabel_override or out_name
             _title_line = title_override or f"Restored Model — {out_name}(x,t{_slice_suffix_line}) Line Plot"
@@ -13992,12 +13992,12 @@ def _extract_plot_field(x_grid, _tm_model):
             from pinnstudio.core.codegen import _restore_line_plot_code
             script += "\n" + _restore_line_plot_code(
                 x_min, x_max, resolution, t_min, t_max, n_steps, colormap,
-                _line_slice_y, _line_slice_z, linewidth, _xlabel_line, _ylabel_line,
+                line_slice_y, line_slice_z, linewidth, _xlabel_line, _ylabel_line,
                 _title_line, subplot_title_fontsize, axis_label_fontsize, save_dir, dpi,
                 is_time_adaptive=True) + "\n"
         elif viz_type == "Animation Line (GIF)":
-            _slice_suffix_animline = (f", y={_line_slice_y:.3g}, z={_line_slice_z:.3g}" if is_3d
-                                       else (f", y={_line_slice_y:.3g}" if is_2d else ""))
+            _slice_suffix_animline = (f", y={line_slice_y:.3g}, z={line_slice_z:.3g}" if is_3d
+                                       else (f", y={line_slice_y:.3g}" if is_2d else ""))
             _xlabel_animline = xlabel_override or "x"
             _ylabel_animline = ylabel_override or (f"{out_name}(x,t{_slice_suffix_animline})" if (is_2d or is_3d) else out_name)
             _title_line_stmt = f"ax.set_title({title_override!r}, fontsize={subplot_title_fontsize})" if title_override else ""
@@ -14014,7 +14014,7 @@ def _extract_plot_field(x_grid, _tm_model):
             # _restore_line_animation_code's docstring in codegen.py.
             from pinnstudio.core.codegen import _restore_line_animation_code
             script += "\n" + _restore_line_animation_code(
-                x_min, x_max, t_min, t_max, n_steps, _line_slice_y, _line_slice_z,
+                x_min, x_max, t_min, t_max, n_steps, line_slice_y, line_slice_z,
                 linewidth, _xlabel_animline, _ylabel_animline, _title_line_stmt,
                 _tt_x, _tt_y, _tt_ha, axis_label_fontsize, fps, save_dir, dpi,
                 is_time_adaptive=True) + "\n"

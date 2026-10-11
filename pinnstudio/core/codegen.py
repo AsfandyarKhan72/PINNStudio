@@ -639,7 +639,7 @@ def _loss_plot_runtime_code(config):
     """Builds the literal Python source for a module-level `_make_loss_plot(
     train_rows, test_rows, steps, save_path, title, xlabel="Iteration",
     extra_fn=None)` helper, embedded once near the top of the generated
-    script (alongside `_net_helper_code`/`_tm_runtime_code`, same pattern)
+    script (alongside `net_helper_code`/`_tm_runtime_code`, same pattern)
     and called at every loss-plotting site in generate_script() (the
     Standard/RAR path and the Time-Adaptive path) and
     generate_clean_script() -- honoring the Round 28 Loss Plot Settings
@@ -1838,7 +1838,7 @@ def _gs_rar_loop_code(config):
         print("\\n=== RAR Complete ===")"""
 
 
-def _gs_time_adaptive_loop_code(_ic_pretrain_block_ta, _line_slice_y, _line_slice_z, _safe_num_test, _ta_ic_init, _train_cbs_code_ta, config, plot_custom_expr_converted):
+def _gs_time_adaptive_loop_code(_ic_pretrain_block_ta, line_slice_y, line_slice_z, _safe_num_test, _ta_ic_init, _train_cbs_code_ta, config, plot_custom_expr_converted):
     """generate_script()'s Time-Adaptive training loop (per-step models, IC
     pre-training, per-step previews, the combined final plot and the
     Time-Adaptive Error Analysis) -- cleanup Round 52 (audit §5): moved
@@ -2427,8 +2427,8 @@ if {config.time_adaptive}:
             # branch of its own.
             x_plot = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
             t_plot = np.linspace(t0, t1, {config.plot_resolution})
-            y_mid  = {_line_slice_y}
-            z_mid  = {_line_slice_z}
+            y_mid  = {line_slice_y}
+            z_mid  = {line_slice_z}
             Xp, Tp = np.meshgrid(x_plot, t_plot)
             XYZTp  = np.column_stack([Xp.ravel(), np.full(Xp.size, y_mid), np.full(Xp.size, z_mid), Tp.ravel()])
             Up     = _extract_plot_field(XYZTp, model_i).reshape({config.plot_resolution}, {config.plot_resolution})
@@ -2444,7 +2444,7 @@ if {config.time_adaptive}:
             # 2D: store mid-y slice for combined plot
             x_plot = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
             t_plot = np.linspace(t0, t1, {config.plot_resolution})
-            y_mid  = {_line_slice_y}
+            y_mid  = {line_slice_y}
             Xp, Tp = np.meshgrid(x_plot, t_plot)
             XYTp   = np.column_stack([Xp.ravel(), np.full(Xp.size, y_mid), Tp.ravel()])
             Up     = _extract_plot_field(XYTp, model_i).reshape({config.plot_resolution}, {config.plot_resolution})
@@ -2695,7 +2695,7 @@ if {config.time_adaptive}:
                         _yg_s = np.linspace({config.y_min}, {config.y_max}, _res_step)
                         _Xg_s, _Yg_s = np.meshgrid(_xg_s, _yg_s)
                         if _is_3d:
-                            _z_mid_s = {_line_slice_z}
+                            _z_mid_s = {line_slice_z}
                             fig, axes = plt.subplots(1, 2, figsize=_plot_figsize(10, 4))
                             for _ai, _tv_s in enumerate([t0, t1]):
                                 _xyt_s = np.column_stack([_Xg_s.ravel(), _Yg_s.ravel(), np.full(_Xg_s.size, _z_mid_s), np.full(_Xg_s.size, _tv_s)])
@@ -2886,8 +2886,8 @@ if {config.time_adaptive}:
         for ci, tv in enumerate(t_vals):
             idx = np.argmin(np.abs(T_full[:,0] - tv))
             ax.plot(X_full[idx,:], U_full[idx,:], color=colors[ci], linewidth={config.plot_linewidth}, label=f"t={{tv:.3f}}")
-        _ylabel_ta_line = (f"u(x,y={_line_slice_y:.3g},z={_line_slice_z:.3g},t)" if _is_3d
-                           else (f"u(x,y={_line_slice_y:.3g},t)" if _is_2d else "u(x,t)"))
+        _ylabel_ta_line = (f"u(x,y={line_slice_y:.3g},z={line_slice_z:.3g},t)" if _is_3d
+                           else (f"u(x,y={line_slice_y:.3g},t)" if _is_2d else "u(x,t)"))
         ax.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_ylabel_ta_line, fontsize={config.plot_axis_label_fontsize})
         ax.set_title("Time-Adaptive PINN — Line Plot")
         ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
@@ -3152,9 +3152,9 @@ if {config.time_adaptive}:
                 fig, axes = plt.subplots(_ea_nrows, _ea_ncols, figsize=(4*_ea_ncols, 3.5*_ea_nrows), squeeze=False)
                 _ea_line_suptitle_ta = "PINN vs Reference — Line Comparison"
                 if _is_3d:
-                    _ea_line_suptitle_ta += f" (y={_line_slice_y:.3g}, z={_line_slice_z:.3g})"
+                    _ea_line_suptitle_ta += f" (y={line_slice_y:.3g}, z={line_slice_z:.3g})"
                 elif _is_2d:
-                    _ea_line_suptitle_ta += f" (y={_line_slice_y:.3g})"
+                    _ea_line_suptitle_ta += f" (y={line_slice_y:.3g})"
                 fig.suptitle(_ea_line_suptitle_ta, fontsize={config.plot_title_fontsize}, fontweight='bold')
                 _ea_ax_flat = axes.flatten()
                 if _is_2d or _is_3d:
@@ -3172,8 +3172,8 @@ if {config.time_adaptive}:
                     # re-scanning the step directories again.
                     from scipy.interpolate import griddata as _gd_line_ta
                     _xv_line_ta = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
-                    _y_mid_ta = {_line_slice_y}
-                    _z_mid_ta = {_line_slice_z}
+                    _y_mid_ta = {line_slice_y}
+                    _z_mid_ta = {line_slice_z}
                     _ea_geom_line_ta = _build_geom()
                     _step_dir_map_line = {{}}
                     for _si3, (_t0_i3, _t1_i3, _sd_i3) in enumerate(_ta_intervals):
@@ -3459,8 +3459,17 @@ if {config.time_adaptive}:
 
 
 def generate_script(config):
+    # Naming convention (cleanup Round 55): generation-time Python names in
+    # this function use the same plain spelling as generate_clean_script()'s
+    # (is_2d, is_3d, is_steady, line_slice_y, sol_ext, ...), so a fix ported
+    # between the two generators keeps its names. Names INSIDE the script
+    # text this function writes (_is_steady, _is_2d, _save_dir, _plot_*, ...)
+    # keep their leading underscore: that marks every runtime variable of
+    # the live Solve script as private to the app, and it is applied
+    # uniformly there, so it stays.
     is_2d = config.problem_dim == "2D"
     is_3d = config.problem_dim == "3D"
+    is_steady = bool(config.steady_state)
     # Backward-compat / defense-in-depth: the GUI's point-distribution
     # dropdown and the Parametric Sweep registry used to offer the literal
     # string "pseudorandom" as a choice, but DeepXDE's own train_distribution
@@ -3525,7 +3534,7 @@ def generate_script(config):
     # Steady-state problems have no time axis, so a GIF animation (which is
     # inherently a walk over time) never applies -- always .png there, even
     # if a stale config still has one of the GIF plot types selected.
-    _sol_ext = "gif" if (not config.steady_state and config.plot_type in ("Line Animation (GIF)", "Surface Animation (GIF)")) else "png"
+    sol_ext = "gif" if (not is_steady and config.plot_type in ("Line Animation (GIF)", "Surface Animation (GIF)")) else "png"
     # Convert user-friendly IC expressions
     ic_exprs_raw = config.ic_expressions.split("|")
     ic_exprs_converted = [_simplify_expr(e, is_2d, is_3d) for e in ic_exprs_raw]
@@ -3546,8 +3555,8 @@ def generate_script(config):
     # separately; now every site reads the same user-configurable value,
     # computed once here. _auto (the default) reproduces the previous
     # hardcoded behavior exactly.
-    _line_slice_y = (config.y_min + config.y_max) / 2.0 if config.line_slice_y_auto else config.line_slice_y
-    _line_slice_z = (config.z_min + config.z_max) / 2.0 if config.line_slice_z_auto else config.line_slice_z
+    line_slice_y = (config.y_min + config.y_max) / 2.0 if config.line_slice_y_auto else config.line_slice_y
+    line_slice_z = (config.z_min + config.z_max) / 2.0 if config.line_slice_z_auto else config.line_slice_z
 
     # The optional custom Results-panel plot expression (e.g. Schrodinger's
     # "sqrt(u**2+v**2)") is passed through UNCONVERTED, deliberately NOT
@@ -3642,14 +3651,14 @@ def generate_script(config):
     # convergence plot) operates generically over the _inv_vars /
     # _inv_var_names lists built right after these definitions run, so
     # none of that has to be unrolled.
-    _inv_vars_parsed = _parse_inverse_variables(config)
+    inv_vars_parsed = _parse_inverse_variables(config)
     _inv_var_def_lines = []
-    for _iv_name, _iv_init, _iv_true in _inv_vars_parsed:
+    for _iv_name, _iv_init, _iv_true in inv_vars_parsed:
         _inv_var_def_lines.append(f"    {_iv_name} = dde.Variable({_iv_init})")
         _inv_var_def_lines.append(
             f'    print(f"Inverse PINN: inferring {_iv_name}, init = {_iv_init}")')
     _inv_var_defs_code = "\n".join(_inv_var_def_lines)
-    _inv_var_list_literal = "[" + ", ".join(n for n, _i, _t in _inv_vars_parsed) + "]"
+    _inv_var_list_literal = "[" + ", ".join(n for n, _i, _t in inv_vars_parsed) + "]"
     # Recorded into model_config.json below so a later Model Restore knows
     # this run was Inverse and exactly which trainable variables it had --
     # restoring an Inverse checkpoint needs to recompile with the same
@@ -3665,10 +3674,10 @@ def generate_script(config):
     # itself. Empty list for Forward configs, where none of this is
     # relevant.
     _mc_inv_vars_literal = (
-        repr([{"name": n, "init": i, "true": t} for n, i, t in _inv_vars_parsed])
+        repr([{"name": n, "init": i, "true": t} for n, i, t in inv_vars_parsed])
         if config.problem_type == "Inverse" else "[]"
     )
-    _inv_var_names_literal = repr([n for n, _i, _t in _inv_vars_parsed])
+    _inv_var_names_literal = repr([n for n, _i, _t in inv_vars_parsed])
     # One entry per trainable variable, the known ground-truth value for a
     # built-in template's auto-substituted PDE constant (see
     # main_window.py's INVERSE_AUTO_VARS), or None for a manually added
@@ -3676,7 +3685,7 @@ def generate_script(config):
     # parameter-convergence plot below to optionally draw a dashed
     # reference line at the true value, alongside the existing dashed
     # line at the run's own final inferred value.
-    _inv_var_true_literal = repr([t for _n, _i, t in _inv_vars_parsed])
+    _inv_var_true_literal = repr([t for _n, _i, t in inv_vars_parsed])
 
     # Inverse: one or more measured-data files, each with its own output
     # column and its own loss weight (a separate observation loss term
@@ -3684,8 +3693,8 @@ def generate_script(config):
     # identifier, so -- unlike the variables above -- it needs no
     # per-entry unrolling: the whole parsed list is just one repr()
     # literal, looped over at runtime.
-    _obs_files_parsed = _parse_inverse_obs_files(config)
-    _obs_files_literal = repr(_obs_files_parsed)
+    obs_files_parsed = _parse_inverse_obs_files(config)
+    _obs_files_literal = repr(obs_files_parsed)
 
     # Whether this run uses the NNCG optimizer anywhere (a Training Phase,
     # or the legacy phase-2 field for pre-scheduler configs) -- NNCG was
@@ -3702,12 +3711,12 @@ def generate_script(config):
         _sched_phases_for_nncg = _json_nncg.loads(config.scheduler_phases) if config.scheduler_phases else []
     except (ValueError, TypeError):
         _sched_phases_for_nncg = []
-    _uses_nncg = (
+    uses_nncg = (
         any(p.get("optimizer") == "nncg" for p in _sched_phases_for_nncg)
         or config.optimizer2 == "nncg"
     )
     _nncg_guard_code = ""
-    if _uses_nncg:
+    if uses_nncg:
         _nncg_guard_code = '''
 _dxde_ver_parts = dde.__version__.split(".")[:3]
 try:
@@ -3748,19 +3757,19 @@ if _dxde_ver is not None and _dxde_ver < (1, 13, 0):
     # -- this is the literal `_make_net(...)` helper's source, embedded
     # once near the top of the generated script below and called at every
     # network-construction site in place of a bare dde.nn.FNN(...).
-    _net_helper_code = _net_construction_helper_code(config.network_type)
+    net_helper_code = _net_construction_helper_code(config.network_type)
 
     # Training Monitors' shared, static derivative-building/expression-
     # evaluation helpers -- see _training_monitor_runtime_code()'s own
     # docstring. Embedded once near the top of the generated script
-    # (module level, alongside _net_helper_code) regardless of whether
+    # (module level, alongside net_helper_code) regardless of whether
     # any monitors are actually configured -- cheap, and keeps this a
     # true no-op wiring point like _train_cbs_code below.
     _tm_runtime_code = _training_monitor_runtime_code()
 
     # Loss Plot Settings (Round 28) -- see _loss_plot_runtime_code()'s own
     # docstring. Embeds a single reusable `_make_loss_plot(...)` helper
-    # once at module level (same pattern as _net_helper_code/_make_net);
+    # once at module level (same pattern as net_helper_code/_make_net);
     # every loss-plotting call site (Standard/RAR path, Time-Adaptive
     # path, and generate_clean_script()'s own two analogous sites) then
     # just calls it with its own data/title/extra_fn, no further splicing.
@@ -3965,7 +3974,7 @@ _sol_dir = _os.path.join(_save_dir, "solution_results") if _use_save else "/tmp"
 if _use_save:
     _os.makedirs(_sol_dir, exist_ok=True)
 _loss_path     = _os.path.join(_sol_dir, "loss_plot.png")
-_solution_path = _os.path.join(_sol_dir, "solution_plot.{_sol_ext}")
+_solution_path = _os.path.join(_sol_dir, "solution_plot.{sol_ext}")
 _log_path      = _os.path.join(_sol_dir, "training_log.txt") if _use_save else None
 
 # ── Problem dimension ─────────────────────────────────────────
@@ -3975,7 +3984,7 @@ _is_3d = "{config.problem_dim}" == "3D"
 # time axis on the network input, no GeometryXTime, no Initial Condition,
 # a plain dde.data.PDE instead of dde.data.TimePDE. See _build_geom() and
 # the "Data" section below for where this actually changes construction.
-_is_steady = {str(config.steady_state)}
+_is_steady = {str(is_steady)}
 
 # Load an Initial Condition from a plain, header-less data file and
 # return (xt, vals) ready for dde.icbc.PointSetBC -- xt at the domain's
@@ -4023,7 +4032,7 @@ _in_shift  = {config.input_transform_shift if config.input_transform_enabled els
 _out_scale = {config.output_transform_scale if config.output_transform_enabled else []}
 _out_shift = {config.output_transform_shift if config.output_transform_enabled else []}
 
-{_net_helper_code}
+{net_helper_code}
 
 {_tm_runtime_code}
 
@@ -5527,7 +5536,7 @@ for _pval in _param_values:
         _run_dir = _os.path.join(_save_dir if _use_save else "/tmp", f"{{_param_name}}_{{_pval}}")
         _os.makedirs(_run_dir, exist_ok=True)
         _run_loss_path     = _os.path.join(_run_dir, "loss_plot.png")
-        _run_solution_path = _os.path.join(_run_dir, "solution_plot.{_sol_ext}")
+        _run_solution_path = _os.path.join(_run_dir, "solution_plot.{sol_ext}")
         _run_log_path      = _os.path.join(_run_dir, "training_log.txt")
     else:
         _run_loss_path     = _loss_path
@@ -5621,8 +5630,8 @@ for _pval in _param_values:
             _n_frames = max(2, {config.num_timesteps_anim})
             _fps = {config.plot_fps}
             _t_frames = np.linspace({config.t_min}, {config.t_max}, _n_frames)
-            _y_mid_gif = {_line_slice_y} if (_is_2d or _is_3d) else 0.0
-            _z_mid_gif = {_line_slice_z} if _is_3d else 0.0
+            _y_mid_gif = {line_slice_y} if (_is_2d or _is_3d) else 0.0
+            _z_mid_gif = {line_slice_z} if _is_3d else 0.0
 
             if _plot_type == "Line Animation (GIF)":
                 _x_gif = np.linspace(_plot_x_min, _plot_x_max, {config.plot_resolution})
@@ -5838,7 +5847,7 @@ for _pval in _param_values:
             # ...) doesn't evaluate/plot the model somewhere it was never
             # trained, past the true boundary at this y slice.
             _x_l2ds = np.linspace(_plot_x_min, _plot_x_max, {config.plot_resolution})
-            _xy_l2ds = np.column_stack([_x_l2ds, np.full_like(_x_l2ds, {_line_slice_y})])
+            _xy_l2ds = np.column_stack([_x_l2ds, np.full_like(_x_l2ds, {line_slice_y})])
             _line_in_l2ds = geom.inside(_xy_l2ds)
             _x_l2ds = _x_l2ds[_line_in_l2ds]
             _xy_l2ds = _xy_l2ds[_line_in_l2ds]
@@ -5850,9 +5859,9 @@ for _pval in _param_values:
             else:
                 _u_l2ds = _extract_plot_field(_xy_l2ds).flatten()
                 ax.plot(_x_l2ds, _u_l2ds, color="#4dabf7", linewidth={config.plot_linewidth})
-                ax.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or f"{{out_name}}(x,y={_line_slice_y:.3g})", fontsize={config.plot_axis_label_fontsize})
+                ax.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or f"{{out_name}}(x,y={line_slice_y:.3g})", fontsize={config.plot_axis_label_fontsize})
                 ax.grid(True, alpha=0.2)
-            ax.set_title(_plot_title_override or f"PINN Solution — {{out_name}}(x,y={_line_slice_y:.3g})")
+            ax.set_title(_plot_title_override or f"PINN Solution — {{out_name}}(x,y={line_slice_y:.3g})")
             plt.tight_layout(); plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
         elif _is_2d and _is_steady:
             # Steady-state 2D: a single static x-y heatmap of u(x,y) -- no
@@ -5892,7 +5901,7 @@ for _pval in _param_values:
             # as the steady-2D Line branch above.
             _n_steps_l2d = {config.num_timesteps_line}
             _x_l2d = np.linspace(_plot_x_min, _plot_x_max, {config.plot_resolution})
-            _xy_l2d = np.column_stack([_x_l2d, np.full_like(_x_l2d, {_line_slice_y})])
+            _xy_l2d = np.column_stack([_x_l2d, np.full_like(_x_l2d, {line_slice_y})])
             _line_in_l2d = geom.inside(_xy_l2d)
             _x_l2d = _x_l2d[_line_in_l2d]
             _t_steps_l2d = np.linspace({config.t_min}, {config.t_max}, _n_steps_l2d)
@@ -5904,12 +5913,12 @@ for _pval in _param_values:
             else:
                 _colors_l2d = plt.get_cmap("{config.plot_colormap}")(np.linspace(0, 1, _n_steps_l2d))
                 for _i_l2d, _tv_l2d in enumerate(_t_steps_l2d):
-                    _xyt_l2d = np.column_stack([_x_l2d, np.full_like(_x_l2d, {_line_slice_y}), np.full_like(_x_l2d, _tv_l2d)])
+                    _xyt_l2d = np.column_stack([_x_l2d, np.full_like(_x_l2d, {line_slice_y}), np.full_like(_x_l2d, _tv_l2d)])
                     _u_l2d = _extract_plot_field(_xyt_l2d).flatten()
                     ax.plot(_x_l2d, _u_l2d, color=_colors_l2d[_i_l2d], linewidth={config.plot_linewidth}, label=f"t = {{_tv_l2d:.3f}}")
-                ax.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or f"{{out_name}}(x,y={_line_slice_y:.3g},t)", fontsize={config.plot_axis_label_fontsize})
+                ax.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or f"{{out_name}}(x,y={line_slice_y:.3g},t)", fontsize={config.plot_axis_label_fontsize})
                 ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
-            ax.set_title(_plot_title_override or f"PINN Solution — {{out_name}}(x,y={_line_slice_y:.3g},t)")
+            ax.set_title(_plot_title_override or f"PINN Solution — {{out_name}}(x,y={line_slice_y:.3g},t)")
             plt.tight_layout(); plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
         elif _is_2d:
             # 2D: x-y heatmaps at user-selected number of time snapshots
@@ -5947,7 +5956,7 @@ for _pval in _param_values:
             # Masked to the real geometry with geom.inside(...) -- same
             # pattern as the steady-2D Line branch above.
             _x_l3ds = np.linspace(_plot_x_min, _plot_x_max, {config.plot_resolution})
-            _xyz_l3ds = np.column_stack([_x_l3ds, np.full_like(_x_l3ds, {_line_slice_y}), np.full_like(_x_l3ds, {_line_slice_z})])
+            _xyz_l3ds = np.column_stack([_x_l3ds, np.full_like(_x_l3ds, {line_slice_y}), np.full_like(_x_l3ds, {line_slice_z})])
             _line_in_l3ds = geom.inside(_xyz_l3ds)
             _x_l3ds = _x_l3ds[_line_in_l3ds]
             _xyz_l3ds = _xyz_l3ds[_line_in_l3ds]
@@ -5959,9 +5968,9 @@ for _pval in _param_values:
             else:
                 _u_l3ds = _extract_plot_field(_xyz_l3ds).flatten()
                 ax.plot(_x_l3ds, _u_l3ds, color="#4dabf7", linewidth={config.plot_linewidth})
-                ax.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or f"{{out_name}}(x,y={_line_slice_y:.3g},z={_line_slice_z:.3g})", fontsize={config.plot_axis_label_fontsize})
+                ax.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or f"{{out_name}}(x,y={line_slice_y:.3g},z={line_slice_z:.3g})", fontsize={config.plot_axis_label_fontsize})
                 ax.grid(True, alpha=0.2)
-            ax.set_title(_plot_title_override or f"PINN Solution — {{out_name}}(x,y={_line_slice_y:.3g},z={_line_slice_z:.3g})")
+            ax.set_title(_plot_title_override or f"PINN Solution — {{out_name}}(x,y={line_slice_y:.3g},z={line_slice_z:.3g})")
             plt.tight_layout(); plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
         elif _is_3d and _is_steady:
             # Steady-state 3D: same "x-y heatmap at the z mid-plane"
@@ -6002,7 +6011,7 @@ for _pval in _param_values:
             # above.
             _n_steps_l3d = {config.num_timesteps_line}
             _x_l3d = np.linspace(_plot_x_min, _plot_x_max, {config.plot_resolution})
-            _xyz_l3d = np.column_stack([_x_l3d, np.full_like(_x_l3d, {_line_slice_y}), np.full_like(_x_l3d, {_line_slice_z})])
+            _xyz_l3d = np.column_stack([_x_l3d, np.full_like(_x_l3d, {line_slice_y}), np.full_like(_x_l3d, {line_slice_z})])
             _line_in_l3d = geom.inside(_xyz_l3d)
             _x_l3d = _x_l3d[_line_in_l3d]
             _t_steps_l3d = np.linspace({config.t_min}, {config.t_max}, _n_steps_l3d)
@@ -6014,12 +6023,12 @@ for _pval in _param_values:
             else:
                 _colors_l3d = plt.get_cmap("{config.plot_colormap}")(np.linspace(0, 1, _n_steps_l3d))
                 for _i_l3d, _tv_l3d in enumerate(_t_steps_l3d):
-                    _xyzt_l3d = np.column_stack([_x_l3d, np.full_like(_x_l3d, {_line_slice_y}), np.full_like(_x_l3d, {_line_slice_z}), np.full_like(_x_l3d, _tv_l3d)])
+                    _xyzt_l3d = np.column_stack([_x_l3d, np.full_like(_x_l3d, {line_slice_y}), np.full_like(_x_l3d, {line_slice_z}), np.full_like(_x_l3d, _tv_l3d)])
                     _u_l3d = _extract_plot_field(_xyzt_l3d).flatten()
                     ax.plot(_x_l3d, _u_l3d, color=_colors_l3d[_i_l3d], linewidth={config.plot_linewidth}, label=f"t = {{_tv_l3d:.3f}}")
-                ax.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or f"{{out_name}}(x,y={_line_slice_y:.3g},z={_line_slice_z:.3g},t)", fontsize={config.plot_axis_label_fontsize})
+                ax.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or f"{{out_name}}(x,y={line_slice_y:.3g},z={line_slice_z:.3g},t)", fontsize={config.plot_axis_label_fontsize})
                 ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
-            ax.set_title(_plot_title_override or f"PINN Solution — {{out_name}}(x,y={_line_slice_y:.3g},z={_line_slice_z:.3g},t)")
+            ax.set_title(_plot_title_override or f"PINN Solution — {{out_name}}(x,y={line_slice_y:.3g},z={line_slice_z:.3g},t)")
             plt.tight_layout(); plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
         elif _is_3d:
             # 3D: no volumetric renderer yet -- plot an x-y heatmap at the
@@ -6120,7 +6129,7 @@ for _pval in _param_values:
         import shutil as _shutil
         if _run_loss_path != "/tmp/loss_plot.png":
             _shutil.copy(_run_loss_path, "/tmp/loss_plot.png")
-        _tmp_solution_path = "/tmp/solution_plot.{_sol_ext}"
+        _tmp_solution_path = "/tmp/solution_plot.{sol_ext}"
         if _run_solution_path != _tmp_solution_path and _os.path.exists(_run_solution_path):
             _shutil.copy(_run_solution_path, _tmp_solution_path)
 
@@ -6462,9 +6471,9 @@ for _pval in _param_values:
                     fig, axes = plt.subplots(_ea_nrows, _ea_ncols, figsize=(4*_ea_ncols, 3.5*_ea_nrows), squeeze=False)
                     _ea_line_suptitle = "PINN vs Reference — Line Comparison"
                     if _is_3d:
-                        _ea_line_suptitle += f" (y={_line_slice_y:.3g}, z={_line_slice_z:.3g})"
+                        _ea_line_suptitle += f" (y={line_slice_y:.3g}, z={line_slice_z:.3g})"
                     elif _is_2d:
-                        _ea_line_suptitle += f" (y={_line_slice_y:.3g})"
+                        _ea_line_suptitle += f" (y={line_slice_y:.3g})"
                     fig.suptitle(_ea_line_suptitle, fontsize={config.plot_title_fontsize}, fontweight='bold')
                     _ea_ax_flat = axes.flatten()
                     if _is_2d or _is_3d:
@@ -6497,8 +6506,8 @@ for _pval in _param_values:
                         # sharpest residuals.
                         from scipy.interpolate import griddata as _gd_line
                         _xv_line = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
-                        _y_mid = {_line_slice_y}
-                        _z_mid = {_line_slice_z}
+                        _y_mid = {line_slice_y}
+                        _z_mid = {line_slice_z}
                     for _ei in range(_ea_n_t):
                         ax = _ea_ax_flat[_ei]
                         if _is_3d:
@@ -6974,7 +6983,7 @@ if _parametric and len(_summary) > 0:
     print(f"\\n=== Parametric Study Complete ===")
     print(f"Summary saved to: {{_summary_path}}")
 
-{_gs_time_adaptive_loop_code(_ic_pretrain_block_ta, _line_slice_y, _line_slice_z, _safe_num_test, _ta_ic_init, _train_cbs_code_ta, config, plot_custom_expr_converted)}
+{_gs_time_adaptive_loop_code(_ic_pretrain_block_ta, line_slice_y, line_slice_z, _safe_num_test, _ta_ic_init, _train_cbs_code_ta, config, plot_custom_expr_converted)}
 
 {_tm_plot_code}
 print("DONE")
@@ -8735,16 +8744,16 @@ def generate_clean_script(config):
     # already parsed real Python at this point. The legacy per-side
     # fallback below never exposes X (no free-form Operator BC there), so
     # it's always left out of this check.
-    _clean_bc_op_uses_X = _bc_entries_use_operator_X(bc_entries)
-    _clean_safe_num_test = None if _clean_bc_op_uses_X else config.num_test
+    _bc_op_uses_X = _bc_entries_use_operator_X(bc_entries)
+    _safe_num_test = None if _bc_op_uses_X else config.num_test
     # Same Interface 2D BC "train_distribution must be uniform" auto-fix as
     # generate_script() above -- see that generator's own matching comment
     # for the full rationale (only the distribution half is auto-corrected;
     # the geometry half has no sensible value to guess).
-    _clean_bc_forced_uniform = (
+    _bc_forced_uniform = (
         _bc_entries_use_interface2d(bc_entries) and _safe_point_distribution != "uniform"
     )
-    if _clean_bc_forced_uniform:
+    if _bc_forced_uniform:
         _safe_point_distribution = "uniform"
     # Same Interface 2D BC geometry precondition check as generate_script()
     # -- see _bc_check_interface2d_preconditions's docstring. Raised here
@@ -9195,12 +9204,12 @@ def _load_obs_data(path):
         if is_inverse:
             constraints_lines.append("constraints.extend(obs_bcs)")
         parts.append("\n".join(constraints_lines))
-        if _clean_bc_op_uses_X:
+        if _bc_op_uses_X:
             parts.append(
                 "# num_test disabled (left at None) because an Operator or Point Set\n"
                 "# Operator BC's Value expression references X -- DeepXDE requires this\n"
                 "# whenever a boundary condition function uses the raw input points.")
-        if _clean_bc_forced_uniform:
+        if _bc_forced_uniform:
             parts.append(
                 "# Point Distribution was switched to uniform automatically because an\n"
                 "# Interface 2D boundary condition is active (DeepXDE requires evenly-\n"
@@ -9212,7 +9221,7 @@ def _load_obs_data(path):
             data_lines = [f'''data = dde.data.PDE(
     geomtime, pde, constraints,
     num_domain={config.num_domain}, num_boundary={config.num_boundary},
-    num_test={_clean_safe_num_test!r},
+    num_test={_safe_num_test!r},
     train_distribution="{_safe_point_distribution}",
     anchors={anchors_arg},
 )''']
@@ -9220,7 +9229,7 @@ def _load_obs_data(path):
             data_lines = [f'''data = dde.data.TimePDE(
     geomtime, pde, constraints,
     num_domain={config.num_domain}, num_boundary={config.num_boundary},
-    num_initial={config.num_initial}, num_test={_clean_safe_num_test!r},
+    num_initial={config.num_initial}, num_test={_safe_num_test!r},
     train_distribution="{_safe_point_distribution}",
     anchors={anchors_arg},
 )''']
@@ -9421,7 +9430,7 @@ _ta_loss_offset = 0''')
         loop_lines.append(f'''    data_i = dde.data.TimePDE(
         geomtime_i, pde, constraints_i,
         num_domain={config.num_domain}, num_boundary={config.num_boundary},
-        num_initial={config.num_initial}, num_test={_clean_safe_num_test!r},
+        num_initial={config.num_initial}, num_test={_safe_num_test!r},
         train_distribution="{_safe_point_distribution}",
         anchors={anchors_i},
     )
