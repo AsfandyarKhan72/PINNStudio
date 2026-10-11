@@ -1101,6 +1101,2363 @@ def _ea_metrics_print_fragment(config, l2, mse, mx, ma):
     return ", ".join(parts)
 
 
+def _gs_rar_loop_code(config):
+    """generate_script()'s Residual-based Adaptive Refinement loop, including the
+    per-round diagnostics (_rar_save_round_diagnostics) -- cleanup Round 52
+    (audit §5): moved verbatim out of generate_script()'s template, where it
+    was the largest unnamed inline block. Returns the exact same text the
+    template used to contain (byte-for-byte; see the round's notes). Every
+    parameter is a generation-time value the text interpolates."""
+    return f"""    # ── RAR Loop ─────────────────────────────────────────────
+    if "{config.adapt_method}" == "RAR" and not {config.time_adaptive}:
+        # ── Per-round RAR diagnostics ──────────────────────────
+        # For every RAR round: a static snapshot of whatever field is
+        # configured above (raw output or derivative-aware Custom
+        # expression -- same _extract_plot_field every other plot uses),
+        # a lightweight comparison against one Error Analysis reference
+        # file if any are configured (not the full multi-file/multi-time
+        # sweep Inline Error Analysis runs once at the end -- just one
+        # representative reference, so this doesn't meaningfully slow
+        # RAR training down), and a 3-color collocation-points scatter
+        # (original domain points vs. points added in EARLIER rounds vs.
+        # points added THIS round) so sharp-residual/refinement patterns
+        # across rounds are visible afterward, not just the final model.
+        # Saved under this run's own solution_results/rar_rounds/
+        # round_NN/ -- the same per-run-unique save_dir every other plot
+        # already uses (see Round 19's _on_done() fix).
+        _rar_rounds_dir = _os.path.join(_sol_dir, "rar_rounds")
+        _rar_orig_pts = np.array(data.train_x_all, copy=True)
+        _rar_added_so_far = np.empty((0, _rar_orig_pts.shape[1]))
+        _rar_ea_entries = {config.ea_files}
+        from scipy.interpolate import interp1d as _rar_interp1d
+
+        def _rar_ref_extract(_rre_grid, _rre_sel, _rre_model):
+            # Generalized reference-field extractor for RAR's own diagnostics
+            # -- mirrors `_ea_extract` (Inline/Restore Error Analysis) and the
+            # `_rar_ea_op`/`_rar_ea_op2` closures already used lower down in
+            # this function, but as a single reusable helper: _rre_sel is
+            # None (delegate to the default plot field), an int (a raw
+            # output column), or an [expr, label] pair (a custom derived
+            # field, derivative-aware via the same _tm_build_dvars mechanism).
+            if _rre_sel is None:
+                return _extract_plot_field(_rre_grid, _rre_model)
+            if isinstance(_rre_sel, int):
+                return _rre_model.predict(_rre_grid)[:, _rre_sel]
+            _rre_expr = _rre_sel[0]
+
+            def _rre_op(_rre_i, _rre_o):
+                _rre_dv = _tm_build_dvars(_rre_i, _rre_o, _plot_n_out, _plot_output_names_list,
+                                           _is_steady, _plot_dim, _rre_expr)
+                _rre_ns = dict(_rre_dv)
+                _rre_ns.update(_PLOT_TORCH_MATH_NS)
+                _rre_ns["torch"] = torch
+                return eval(_rre_expr, _rre_ns)
+
+            return _rre_model.predict(_rre_grid, operator=_rre_op)[:, 0]
+
+        def _rar_save_round_diagnostics(_rar_idx, _rar_new_pts):
+            _rd = _os.path.join(_rar_rounds_dir, f"round_{{_rar_idx:02d}}")
+            _os.makedirs(_rd, exist_ok=True)
+            _res = {config.plot_resolution}
+
+            # Per-round model checkpoint -- same convention Time-Adaptive's
+            # per-step diagnostics already use (a model file saved
+            # alongside that unit's own plots), closing a gap RAR's own
+            # per-round diagnostics had since they were first added
+            # (Round 20): this round's trained model is NOT saved anywhere
+            # unless it happens to also be the FINAL round's model (saved
+            # separately, after the whole RAR loop ends, as this run's one
+            # overall model). Without this, every earlier round's model is
+            # unrecoverable once RAR moves on -- only its plots/metrics
+            # survive, not the weights themselves.
+            #
+            # Round 31: this save always runs at the END of the round,
+            # after whichever phase(s) ran (Adam-only, or Adam+L-BFGS).
+            # Standardized on "one checkpoint per optimizer phase"
+            # everywhere, matching Time-Adaptive's own per-step
+            # convention -- when this round also ran an L-BFGS phase, the
+            # Adam-phase checkpoint is now saved separately (see
+            # "model_adam" save right after the Adam train() call in the
+            # round loop below), so THIS save represents the L-BFGS
+            # phase's own final state and is named accordingly; when a
+            # round has no L-BFGS phase, this is that round's only
+            # checkpoint and keeps the "model_adam" name for the same
+            # reason the plain Solve path's own Adam-only run does.
+            _rar_final_model_name = "model_lbfgs" if {config.rar_lbfgs_iters} > 0 else "model_adam"
+            if _use_save:
+                try:
+                    model.save(_os.path.join(_rd, _rar_final_model_name))
+                    print(f"  [RAR round {{_rar_idx}}] {{_rar_final_model_name}} model saved: {{_os.path.join(_rd, _rar_final_model_name)}}.pt")
+                except Exception as _rar_err_save:
+                    print(f"  [RAR round {{_rar_idx}}] model save failed: {{_rar_err_save}}")
+
+            if not _is_2d and not _is_3d:
+                if _is_steady:
+                    # Steady-state 1D (e.g. a Poisson equation): a single
+                    # static u(x) curve -- no time axis at all, so neither
+                    # the x-t surface nor the "earlier-time-steps" framing
+                    # the time-dependent branch below uses applies here.
+                    # Mirrors the plain (non-RAR) Solve path's own
+                    # steady-1D solution plot further above in this file.
+                    try:
+                        _xr = np.linspace({config.x_min}, {config.x_max}, _res)
+                        _field_r = _extract_plot_field(_xr.reshape(-1, 1))
+                        _fig_r, _ax_r = plt.subplots(figsize=_plot_figsize(6.5, 5))
+                        _ax_r.plot(_xr, _field_r, color="#1971c2", linewidth=2.0)
+                        _ax_r.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_r.set_ylabel("u", fontsize={config.plot_axis_label_fontsize})
+                        _ax_r.grid(True, alpha=0.3)
+                        _fig_r.suptitle(f"RAR round {{_rar_idx}} solution snapshot")
+                        plt.tight_layout(rect=[0, 0, 1, 0.93])
+                        plt.savefig(_os.path.join(_rd, "solution_plot.png"), dpi={config.plot_dpi}, bbox_inches="tight")
+                        plt.close(_fig_r)
+                        print(f"  [RAR round {{_rar_idx}}] solution snapshot saved: {{_os.path.join(_rd, 'solution_plot.png')}}")
+                    except Exception as _rar_err1:
+                        print(f"  [RAR round {{_rar_idx}}] solution snapshot failed: {{_rar_err1}}")
+
+                    try:
+                        # Three stacked rows (no shared meaning on the y
+                        # axis -- just one row per category) instead of the
+                        # time-dependent branch's x-t scatter, since a
+                        # steady 1D point has no second coordinate at all.
+                        _fig_c, _ax_c = plt.subplots(figsize=_plot_figsize(8, 3.2))
+                        if len(_rar_orig_pts):
+                            _ax_c.scatter(_rar_orig_pts[:, 0], np.full(len(_rar_orig_pts), 2.0), s=10, c="#adb5bd", alpha=0.6, label="Original points")
+                        if len(_rar_added_so_far):
+                            _ax_c.scatter(_rar_added_so_far[:, 0], np.full(len(_rar_added_so_far), 1.0), s=14, c="#fd7e14", label="Added in earlier rounds")
+                        _ax_c.scatter(_rar_new_pts[:, 0], np.full(len(_rar_new_pts), 0.0), s=18, c="#e03131", label=f"Added this round ({{len(_rar_new_pts)}})")
+                        _ax_c.set_yticks([]); _ax_c.set_ylim(-0.6, 2.6)
+                        _ax_c.set_xlabel("x", fontsize={config.plot_axis_label_fontsize})
+                        _ax_c.legend(loc="best", fontsize=8)
+                        _ax_c.set_title(f"RAR round {{_rar_idx}} -- collocation points")
+                        plt.tight_layout()
+                        plt.savefig(_os.path.join(_rd, "collocation_points.png"), dpi={config.plot_dpi}, bbox_inches="tight")
+                        plt.close(_fig_c)
+                        print(f"  [RAR round {{_rar_idx}}] collocation-points plot saved: {{_os.path.join(_rd, 'collocation_points.png')}}")
+                    except Exception as _rar_err2:
+                        print(f"  [RAR round {{_rar_idx}}] collocation-points plot failed: {{_rar_err2}}")
+
+                    if _rar_ea_entries:
+                        try:
+                            # Steady-state: at most one reference file
+                            # really means anything (there's no time axis
+                            # to pick "the closest snapshot" by), so just
+                            # use the first one configured -- format is
+                            # x, u (2 columns, no time column), matching
+                            # the steady 2D/3D reference-file convention
+                            # (spatial columns then u, nothing else).
+                            _best_r = _rar_ea_entries[0]
+                            _ref_fp_r = _best_r[1]
+                            _ref_sel_r = _best_r[2] if len(_best_r) >= 3 else None
+                            _ref_d_r = np.loadtxt(_ref_fp_r)
+                            if _ref_d_r.ndim == 1:
+                                _ref_d_r = _ref_d_r.reshape(1, -1)
+                            _ref_x_r = _ref_d_r[:, 0]; _ref_u_r = _ref_d_r[:, 1]
+                            _ref_pred_r = _rar_ref_extract(_ref_x_r.reshape(-1, 1), _ref_sel_r, model)
+                            _err_r = _ref_pred_r - _ref_u_r
+                            _l2_r = float(np.linalg.norm(_err_r) / (np.linalg.norm(_ref_u_r) + 1e-12))
+                            _mse_r = float(np.mean(_err_r ** 2))
+                            print(f"  [RAR round {{_rar_idx}}] vs Reference: L2 rel error = {{_l2_r:.4e}}, MSE = {{_mse_r:.4e}}")
+                            _fig_e, _ax_e = plt.subplots(figsize=_plot_figsize(6.5, 5))
+                            _ord_e = np.argsort(_ref_x_r)
+                            _ax_e.plot(_ref_x_r[_ord_e], _ref_u_r[_ord_e], label="Reference", color="#2f9e44")
+                            _ax_e.plot(_ref_x_r[_ord_e], _ref_pred_r[_ord_e], label="PINN", color="#1971c2", linestyle="--")
+                            _ax_e.legend(loc="best", fontsize=8)
+                            _ax_e.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_e.set_ylabel("u", fontsize={config.plot_axis_label_fontsize})
+                            _ax_e.set_title(f"RAR round {{_rar_idx}} -- PINN vs Reference  (L2={{_l2_r:.3e}})")
+                            plt.tight_layout()
+                            plt.savefig(_os.path.join(_rd, "error_compare.png"), dpi={config.plot_dpi}, bbox_inches="tight")
+                            plt.close(_fig_e)
+                        except Exception as _rar_err3:
+                            print(f"  [RAR round {{_rar_idx}}] error compare failed: {{_rar_err3}}")
+                    return
+
+                # -- 1D: own two-file structure (solution snapshot +
+                # line-comparison against one reference, if configured).
+                # Axis orientation matches the main Plot Settings "Swap
+                # axes" choice -- the same convention the Surface plot type
+                # and every Error Analysis comparison plot already use
+                # (t on the x-axis, x on the y-axis, by default).
+                try:
+                    if len(_rar_ea_entries) >= 2:
+                        # 1D solution snapshot merged with reference -- same
+                        # spirit as the 2D/3D branch below (PINN | Reference
+                        # | |Error|, sharing one color scale), built as a
+                        # full x-t surface interpolated across every
+                        # configured reference file's own time (same
+                        # technique the Standard path's own Inline Error
+                        # Analysis "1D: standard x vs t surface" uses --
+                        # needs >= 2 distinct time snapshots to form a
+                        # non-degenerate (time x space) grid). With 0 or 1
+                        # reference file, falls back to the original
+                        # PINN-only snapshot below -- the single-reference
+                        # case is already covered by error_compare.png's own
+                        # line comparison.
+                        _rar_x_common = np.linspace({config.x_min}, {config.x_max}, _res)
+                        _rar_times_m = sorted(set(_e[0] for _e in _rar_ea_entries))
+                        _rar_U_pinn = np.zeros((len(_rar_times_m), len(_rar_x_common)))
+                        _rar_U_ref = np.zeros((len(_rar_times_m), len(_rar_x_common)))
+                        for _rmi, _rmtv in enumerate(_rar_times_m):
+                            _rmentry = next(_e for _e in _rar_ea_entries if _e[0] == _rmtv)
+                            _rmfp = _rmentry[1]
+                            _rmsel = _rmentry[2] if len(_rmentry) >= 3 else None
+                            _rar_xt_c = np.column_stack([_rar_x_common, np.full_like(_rar_x_common, _rmtv)])
+                            _rar_U_pinn[_rmi, :] = _rar_ref_extract(_rar_xt_c, _rmsel, model).flatten()
+                            _rd_ld = np.loadtxt(_rmfp)
+                            if _rd_ld.ndim == 1:
+                                _rd_ld = _rd_ld.reshape(1, -1)
+                            _rd_ord = np.argsort(_rd_ld[:, 0])
+                            _rd_fi = _rar_interp1d(_rd_ld[_rd_ord, 0], _rd_ld[_rd_ord, 2], kind="linear", fill_value="extrapolate")
+                            _rar_U_ref[_rmi, :] = _rd_fi(_rar_x_common)
+                        _rar_Xg, _rar_Tg = np.meshgrid(_rar_x_common, _rar_times_m)
+                        _rar_U_err = np.abs(_rar_U_pinn - _rar_U_ref)
+                        _rar_vmin = min(_rar_U_pinn.min(), _rar_U_ref.min())
+                        _rar_vmax = max(_rar_U_pinn.max(), _rar_U_ref.max())
+                        if _rar_vmax - _rar_vmin < 1e-12:
+                            _rar_vmax = _rar_vmin + 1e-12
+                        _rar_levels = _cf_levels({config.plot_levels}, _rar_vmin, _rar_vmax)["levels"]
+                        _fig_r, _axes_r = plt.subplots(1, 3, figsize=_plot_figsize(15, 5))
+                        _rar_cols = [
+                            (_rar_U_pinn, "PINN", _rar_levels, "{config.plot_colormap}"),
+                            (_rar_U_ref, "Reference", _rar_levels, "{config.plot_colormap}"),
+                            (_rar_U_err, f"|Error|  Max={{_rar_U_err.max():.2e}}", {config.plot_levels}, "{config.plot_colormap}"),
+                        ]
+                        for _rci, (_rvals, _rttl, _rlv, _rcmap) in enumerate(_rar_cols):
+                            if {config.plot_swap_xt}:
+                                _rim = _axes_r[_rci].contourf(_rar_Tg, _rar_Xg, _rvals, levels=_rlv, cmap=_rcmap)
+                                _axes_r[_rci].set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); _axes_r[_rci].set_ylabel("x", fontsize={config.plot_axis_label_fontsize})
+                            else:
+                                _rim = _axes_r[_rci].contourf(_rar_Xg.T, _rar_Tg.T, _rvals.T, levels=_rlv, cmap=_rcmap)
+                                _axes_r[_rci].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _axes_r[_rci].set_ylabel("t", fontsize={config.plot_axis_label_fontsize})
+                            _axes_r[_rci].set_title(_rttl, fontsize={config.plot_subplot_title_fontsize})
+                            _fig_r.colorbar(_rim, ax=_axes_r[_rci])
+                        _fig_r.suptitle(f"RAR round {{_rar_idx}} -- PINN vs Reference", fontsize={config.plot_title_fontsize}, fontweight="bold")
+                        print(f"  [RAR round {{_rar_idx}}] solution snapshot merged with reference ({{len(_rar_times_m)}} time(s))")
+                    else:
+                        _xr = np.linspace({config.x_min}, {config.x_max}, _res)
+                        _tr = np.linspace({config.t_min}, {config.t_max}, _res)
+                        _Xr, _Tr = np.meshgrid(_xr, _tr)
+                        _field_r = _extract_plot_field(np.column_stack([_Xr.ravel(), _Tr.ravel()])).reshape(_res, _res)
+                        _fig_r, _ax_r = plt.subplots(figsize=_plot_figsize(6.5, 5))
+                        if {config.plot_swap_xt}:
+                            _im_r = _ax_r.contourf(_Tr, _Xr, _field_r, levels={config.plot_levels}, cmap="{config.plot_colormap}")
+                            _ax_r.set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); _ax_r.set_ylabel("x", fontsize={config.plot_axis_label_fontsize})
+                        else:
+                            _im_r = _ax_r.contourf(_Xr, _Tr, _field_r, levels={config.plot_levels}, cmap="{config.plot_colormap}")
+                            _ax_r.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_r.set_ylabel("t", fontsize={config.plot_axis_label_fontsize})
+                        _fig_r.colorbar(_im_r, ax=_ax_r)
+                        _fig_r.suptitle(f"RAR round {{_rar_idx}} solution snapshot")
+                    plt.tight_layout(rect=[0, 0, 1, 0.93])
+                    plt.savefig(_os.path.join(_rd, "solution_plot.png"), dpi={config.plot_dpi}, bbox_inches="tight")
+                    plt.close(_fig_r)
+                    print(f"  [RAR round {{_rar_idx}}] solution snapshot saved: {{_os.path.join(_rd, 'solution_plot.png')}}")
+                except Exception as _rar_err1:
+                    print(f"  [RAR round {{_rar_idx}}] solution snapshot failed: {{_rar_err1}}")
+
+                try:
+                    _fig_c, _ax_c = plt.subplots(figsize=_plot_figsize(6.5, 5))
+                    if {config.plot_swap_xt}:
+                        if len(_rar_orig_pts):
+                            _ax_c.scatter(_rar_orig_pts[:, 1], _rar_orig_pts[:, 0], s=6, c="#adb5bd", alpha=0.6, label="Original points")
+                        if len(_rar_added_so_far):
+                            _ax_c.scatter(_rar_added_so_far[:, 1], _rar_added_so_far[:, 0], s=10, c="#fd7e14", label="Added in earlier rounds")
+                        _ax_c.scatter(_rar_new_pts[:, 1], _rar_new_pts[:, 0], s=14, c="#e03131", label=f"Added this round ({{len(_rar_new_pts)}})")
+                        _ax_c.set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); _ax_c.set_ylabel("x", fontsize={config.plot_axis_label_fontsize})
+                    else:
+                        if len(_rar_orig_pts):
+                            _ax_c.scatter(_rar_orig_pts[:, 0], _rar_orig_pts[:, 1], s=6, c="#adb5bd", alpha=0.6, label="Original points")
+                        if len(_rar_added_so_far):
+                            _ax_c.scatter(_rar_added_so_far[:, 0], _rar_added_so_far[:, 1], s=10, c="#fd7e14", label="Added in earlier rounds")
+                        _ax_c.scatter(_rar_new_pts[:, 0], _rar_new_pts[:, 1], s=14, c="#e03131", label=f"Added this round ({{len(_rar_new_pts)}})")
+                        _ax_c.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_c.set_ylabel("t", fontsize={config.plot_axis_label_fontsize})
+                    _ax_c.legend(loc="best", fontsize=8)
+                    _ax_c.set_title(f"RAR round {{_rar_idx}} -- collocation points")
+                    plt.tight_layout()
+                    plt.savefig(_os.path.join(_rd, "collocation_points.png"), dpi={config.plot_dpi}, bbox_inches="tight")
+                    plt.close(_fig_c)
+                    print(f"  [RAR round {{_rar_idx}}] collocation-points plot saved: {{_os.path.join(_rd, 'collocation_points.png')}}")
+                except Exception as _rar_err2:
+                    print(f"  [RAR round {{_rar_idx}}] collocation-points plot failed: {{_rar_err2}}")
+
+                if _rar_ea_entries:
+                    try:
+                        _best_r = min(_rar_ea_entries, key=lambda _e: abs(_e[0] - {config.t_max}))
+                        _ref_t_r, _ref_fp_r = _best_r[0], _best_r[1]
+                        _ref_sel_r = _best_r[2] if len(_best_r) >= 3 else None
+                        _ref_d_r = np.loadtxt(_ref_fp_r)
+                        if _ref_d_r.ndim == 1:
+                            _ref_d_r = _ref_d_r.reshape(1, -1)
+                        _ref_xyz_r = _ref_d_r[:, :1]; _ref_u_r = _ref_d_r[:, 2]
+                        _ref_grid_r = np.column_stack([_ref_xyz_r, np.full(len(_ref_d_r), _ref_t_r)])
+                        if _ref_sel_r is None:
+                            _ref_pred_r = _extract_plot_field(_ref_grid_r)
+                        elif isinstance(_ref_sel_r, int):
+                            _ref_pred_r = model.predict(_ref_grid_r)[:, _ref_sel_r]
+                        else:
+                            _ref_expr_r = _ref_sel_r[0]
+                            def _rar_ea_op(_rea_i, _rea_o):
+                                _rea_dv = _tm_build_dvars(_rea_i, _rea_o, _plot_n_out, _plot_output_names_list,
+                                                           _is_steady, _plot_dim, _ref_expr_r)
+                                _rea_ns = dict(_rea_dv); _rea_ns.update(_PLOT_TORCH_MATH_NS); _rea_ns["torch"] = torch
+                                return eval(_ref_expr_r, _rea_ns)
+                            _ref_pred_r = model.predict(_ref_grid_r, operator=_rar_ea_op)[:, 0]
+                        _err_r = _ref_pred_r - _ref_u_r
+                        _l2_r = float(np.linalg.norm(_err_r) / (np.linalg.norm(_ref_u_r) + 1e-12))
+                        _mse_r = float(np.mean(_err_r ** 2))
+                        print(f"  [RAR round {{_rar_idx}}] vs Reference t={{_ref_t_r:.3g}}: L2 rel error = {{_l2_r:.4e}}, MSE = {{_mse_r:.4e}}")
+                        _fig_e, _ax_e = plt.subplots(figsize=_plot_figsize(6.5, 5))
+                        _ord_e = np.argsort(_ref_xyz_r[:, 0])
+                        _ax_e.plot(_ref_xyz_r[_ord_e, 0], _ref_u_r[_ord_e], label="Reference", color="#2f9e44")
+                        _ax_e.plot(_ref_xyz_r[_ord_e, 0], _ref_pred_r[_ord_e], label="PINN", color="#1971c2", linestyle="--")
+                        _ax_e.legend(loc="best", fontsize=8)
+                        _ax_e.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_e.set_ylabel("u", fontsize={config.plot_axis_label_fontsize})
+                        _ax_e.set_title(f"RAR round {{_rar_idx}} -- PINN vs Reference  t={{_ref_t_r:.3g}} (L2={{_l2_r:.3e}})")
+                        plt.tight_layout()
+                        plt.savefig(_os.path.join(_rd, "error_compare.png"), dpi={config.plot_dpi}, bbox_inches="tight")
+                        plt.close(_fig_e)
+                    except Exception as _rar_err3:
+                        print(f"  [RAR round {{_rar_idx}}] error compare failed: {{_rar_err3}}")
+                return
+
+            if _is_steady:
+                # Steady-state 2D/3D (e.g. a Poisson equation): PINN |
+                # Reference | |Error| when a reference file is configured,
+                # just the PINN prediction alone otherwise -- no time
+                # slicing anywhere (there's no t_max to evaluate "the
+                # final time" at, unlike the time-dependent branch below).
+                try:
+                    _ref_ok_r = False
+                    if _rar_ea_entries:
+                        try:
+                            # Steady-state: at most one reference file
+                            # really means anything (no time axis to pick
+                            # "the closest snapshot" by) -- format is
+                            # x,y,u (2D) / x,y,z,u (3D), no time column.
+                            _best_r = _rar_ea_entries[0]
+                            _ref_fp_r = _best_r[1]
+                            _ref_sel_r = _best_r[2] if len(_best_r) >= 3 else None
+                            _ref_d_r = np.loadtxt(_ref_fp_r)
+                            if _ref_d_r.ndim == 1:
+                                _ref_d_r = _ref_d_r.reshape(1, -1)
+                            if _is_3d:
+                                _ref_xyz_r = _ref_d_r[:, :3]; _ref_u_r = _ref_d_r[:, 3]
+                            else:
+                                _ref_xyz_r = _ref_d_r[:, :2]; _ref_u_r = _ref_d_r[:, 2]
+                            _ref_pred_pts_r = _rar_ref_extract(_ref_xyz_r, _ref_sel_r, model)
+                            _err_pts_r = _ref_pred_pts_r - _ref_u_r
+                            _l2_r = float(np.linalg.norm(_err_pts_r) / (np.linalg.norm(_ref_u_r) + 1e-12))
+                            _mse_r = float(np.mean(_err_pts_r ** 2))
+                            print(f"  [RAR round {{_rar_idx}}] vs Reference: L2 rel error = {{_l2_r:.4e}}, MSE = {{_mse_r:.4e}}")
+                            _ref_ok_r = True
+                        except Exception as _rar_ref_err:
+                            print(f"  [RAR round {{_rar_idx}}] reference compare failed, showing prediction only: {{_rar_ref_err}}")
+                            _ref_ok_r = False
+
+                    if _is_3d:
+                        if _ref_ok_r:
+                            _fig_r = plt.figure(figsize=_plot_figsize(15, 5))
+                            _abs_err_r = np.abs(_err_pts_r)
+                            _vmin3_r = min(_ref_pred_pts_r.min(), _ref_u_r.min())
+                            _vmax3_r = max(_ref_pred_pts_r.max(), _ref_u_r.max())
+                            _cols3_r = [
+                                (_ref_pred_pts_r, f"PINN  L2={{_l2_r:.2e}}", _vmin3_r, _vmax3_r, "{config.plot_colormap}"),
+                                (_ref_u_r, "Reference", _vmin3_r, _vmax3_r, "{config.plot_colormap}"),
+                                (_abs_err_r, f"|Error|  Max={{_abs_err_r.max():.2e}}", None, None, "{config.plot_colormap}"),
+                            ]
+                            for _ci_r, (_vals3_r, _ttl3_r, _vmin_c3_r, _vmax_c3_r, _cmap_c3_r) in enumerate(_cols3_r):
+                                _ax3_r = _fig_r.add_subplot(1, 3, _ci_r + 1, projection="3d")
+                                _sc3_r = _ax3_r.scatter(_ref_xyz_r[:, 0], _ref_xyz_r[:, 1], _ref_xyz_r[:, 2], c=_vals3_r,
+                                                         cmap=_cmap_c3_r, s=10, vmin=_vmin_c3_r, vmax=_vmax_c3_r)
+                                _fig_r.colorbar(_sc3_r, ax=_ax3_r, shrink=0.6, pad=0.12)
+                                _ax3_r.set_title(_ttl3_r, fontsize={config.plot_subplot_title_fontsize})
+                                _ax3_r.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax3_r.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _ax3_r.set_zlabel("z", fontsize={config.plot_axis_label_fontsize})
+                            _fig_r.suptitle(f"RAR round {{_rar_idx}} -- PINN vs Reference", fontsize={config.plot_title_fontsize}, fontweight="bold")
+                        else:
+                            _xp = np.linspace({config.x_min}, {config.x_max}, _res)
+                            _yp = np.linspace({config.y_min}, {config.y_max}, _res)
+                            _Xg, _Yg = np.meshgrid(_xp, _yp)
+                            _z_mid_r = ({config.z_min} + {config.z_max}) / 2.0
+                            _grid_r = np.column_stack([_Xg.ravel(), _Yg.ravel(), np.full(_Xg.size, _z_mid_r)])
+                            _field_r = _extract_plot_field(_grid_r).reshape(_res, _res)
+                            _fig_r, _ax_r = plt.subplots(figsize=_plot_figsize(6.5, 5.5))
+                            _im_r = _ax_r.contourf(_Xg, _Yg, _field_r, levels={config.plot_levels}, cmap="{config.plot_colormap}")
+                            _ax_r.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_r.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _ax_r.set_aspect("equal", adjustable="box")
+                            _fig_r.colorbar(_im_r, ax=_ax_r, fraction=0.046, pad=0.04)
+                            _fig_r.suptitle(f"RAR round {{_rar_idx}} solution snapshot (z={{_z_mid_r:.3g}})")
+                    else:
+                        _xp = np.linspace({config.x_min}, {config.x_max}, _res)
+                        _yp = np.linspace({config.y_min}, {config.y_max}, _res)
+                        _Xg, _Yg = np.meshgrid(_xp, _yp)
+                        _inside_r = geom.inside(np.column_stack([_Xg.ravel(), _Yg.ravel()])).reshape(_res, _res)
+                        if _ref_ok_r:
+                            from scipy.interpolate import griddata as _gd_r
+                            _grid_pinn_r = np.column_stack([_Xg.ravel(), _Yg.ravel()])
+                            _u_pinn_g_r = _extract_plot_field(_grid_pinn_r).reshape(_res, _res)
+                            _u_pinn_g_r = np.where(_inside_r, _u_pinn_g_r, np.nan)
+                            _u_ref_g_r = _gd_r(_ref_xyz_r, _ref_u_r, (_Xg, _Yg), method="linear", fill_value=0.0)
+                            _u_ref_g_r = np.where(_inside_r, _u_ref_g_r, np.nan)
+                            _u_err_g_r = np.abs(_u_pinn_g_r - _u_ref_g_r)
+                            _vmin2_r = np.nanmin([_u_pinn_g_r, _u_ref_g_r]); _vmax2_r = np.nanmax([_u_pinn_g_r, _u_ref_g_r])
+                            if _vmax2_r - _vmin2_r < 1e-12:
+                                _vmax2_r = _vmin2_r + 1e-12
+                            _levels2_r = _cf_levels({config.plot_levels}, _vmin2_r, _vmax2_r)["levels"]
+                            _fig_r, _axes2_r = plt.subplots(1, 3, figsize=_plot_figsize(15, 5))
+                            _im0_r = _axes2_r[0].contourf(_Xg, _Yg, _u_pinn_g_r, levels=_levels2_r, cmap="{config.plot_colormap}")
+                            _axes2_r[0].set_title(f"PINN  L2={{_l2_r:.2e}}", fontsize={config.plot_subplot_title_fontsize})
+                            _axes2_r[0].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _axes2_r[0].set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _axes2_r[0].set_aspect("equal", adjustable="box")
+                            _fig_r.colorbar(_im0_r, ax=_axes2_r[0], fraction=0.046, pad=0.04)
+                            _im1_r = _axes2_r[1].contourf(_Xg, _Yg, _u_ref_g_r, levels=_levels2_r, cmap="{config.plot_colormap}")
+                            _axes2_r[1].set_title("Reference", fontsize={config.plot_subplot_title_fontsize})
+                            _axes2_r[1].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _axes2_r[1].set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _axes2_r[1].set_aspect("equal", adjustable="box")
+                            _fig_r.colorbar(_im1_r, ax=_axes2_r[1], fraction=0.046, pad=0.04)
+                            _im2_r = _axes2_r[2].contourf(_Xg, _Yg, _u_err_g_r, levels={config.plot_levels}, cmap="{config.plot_colormap}")
+                            _axes2_r[2].set_title(f"|Error|  Max={{np.nanmax(_u_err_g_r):.2e}}", fontsize={config.plot_subplot_title_fontsize})
+                            _axes2_r[2].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _axes2_r[2].set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _axes2_r[2].set_aspect("equal", adjustable="box")
+                            _fig_r.colorbar(_im2_r, ax=_axes2_r[2], fraction=0.046, pad=0.04)
+                            _fig_r.suptitle(f"RAR round {{_rar_idx}} -- PINN vs Reference", fontsize={config.plot_title_fontsize}, fontweight="bold")
+                        else:
+                            _grid_r = np.column_stack([_Xg.ravel(), _Yg.ravel()])
+                            _field_r = _extract_plot_field(_grid_r).reshape(_res, _res)
+                            _field_r = np.where(_inside_r, _field_r, np.nan)
+                            _fig_r, _ax_r = plt.subplots(figsize=_plot_figsize(6.5, 5.5))
+                            _im_r = _ax_r.contourf(_Xg, _Yg, _field_r, levels={config.plot_levels}, cmap="{config.plot_colormap}")
+                            _ax_r.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_r.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _ax_r.set_aspect("equal", adjustable="box")
+                            _fig_r.colorbar(_im_r, ax=_ax_r, fraction=0.046, pad=0.04)
+                            _fig_r.suptitle(f"RAR round {{_rar_idx}} solution snapshot")
+                    plt.tight_layout(rect=[0, 0, 1, 0.93])
+                    plt.savefig(_os.path.join(_rd, "solution_plot.png"), dpi={config.plot_dpi}, bbox_inches="tight")
+                    plt.close(_fig_r)
+                    print(f"  [RAR round {{_rar_idx}}] solution snapshot saved: {{_os.path.join(_rd, 'solution_plot.png')}}")
+                except Exception as _rar_err1:
+                    print(f"  [RAR round {{_rar_idx}}] solution snapshot failed: {{_rar_err1}}")
+
+                # -- collocation points (steady: no time dimension at all,
+                # so no alpha-for-time trick in 3D and no second "spatial-
+                # only" side panel in 2D -- just the points themselves) --
+                try:
+                    if _is_3d:
+                        from mpl_toolkits.mplot3d import Axes3D as _Axes3D_unused2  # noqa: F401 -- registers the 3D projection
+                        _fig_c = plt.figure(figsize=_plot_figsize(7, 6))
+                        _ax_c = _fig_c.add_subplot(111, projection="3d")
+                        if len(_rar_orig_pts):
+                            _ax_c.scatter(_rar_orig_pts[:, 0], _rar_orig_pts[:, 1], _rar_orig_pts[:, 2], s=5, c="#adb5bd", alpha=0.6, label="Original points")
+                        if len(_rar_added_so_far):
+                            _ax_c.scatter(_rar_added_so_far[:, 0], _rar_added_so_far[:, 1], _rar_added_so_far[:, 2], s=9, c="#fd7e14", label="Added in earlier rounds")
+                        _ax_c.scatter(_rar_new_pts[:, 0], _rar_new_pts[:, 1], _rar_new_pts[:, 2], s=12, c="#e03131", label=f"Added this round ({{len(_rar_new_pts)}})")
+                        _ax_c.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_c.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _ax_c.set_zlabel("z", fontsize={config.plot_axis_label_fontsize})
+                        _ax_c.legend(loc="best", fontsize=8)
+                        _ax_c.set_title(f"RAR round {{_rar_idx}} -- collocation points")
+                        plt.tight_layout()
+                    else:
+                        _fig_c, _ax_c = plt.subplots(figsize=_plot_figsize(6.5, 5.5))
+                        if len(_rar_orig_pts):
+                            _ax_c.scatter(_rar_orig_pts[:, 0], _rar_orig_pts[:, 1], s=6, c="#adb5bd", alpha=0.6, label="Original points")
+                        if len(_rar_added_so_far):
+                            _ax_c.scatter(_rar_added_so_far[:, 0], _rar_added_so_far[:, 1], s=10, c="#fd7e14", label="Added in earlier rounds")
+                        _ax_c.scatter(_rar_new_pts[:, 0], _rar_new_pts[:, 1], s=14, c="#e03131", label=f"Added this round ({{len(_rar_new_pts)}})")
+                        _ax_c.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_c.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _ax_c.set_aspect("equal", adjustable="box")
+                        _ax_c.legend(loc="best", fontsize=8)
+                        _ax_c.set_title(f"RAR round {{_rar_idx}} -- collocation points")
+                        plt.tight_layout()
+                    plt.savefig(_os.path.join(_rd, "collocation_points.png"), dpi={config.plot_dpi}, bbox_inches="tight")
+                    plt.close(_fig_c)
+                    print(f"  [RAR round {{_rar_idx}}] collocation-points plot saved: {{_os.path.join(_rd, 'collocation_points.png')}}")
+                except Exception as _rar_err2:
+                    print(f"  [RAR round {{_rar_idx}}] collocation-points plot failed: {{_rar_err2}}")
+                return
+
+            # -- 2D/3D: solution snapshot merged with the error comparison --
+            # One single file: PINN | Reference | |Error| -- all three
+            # panels now share the SAME colormap (config.plot_colormap),
+            # standardized in Round 31 (previously |Error| hardcoded its
+            # own "inferno" colormap here, inconsistent with the other
+            # two panels) -- whenever a reference file is configured;
+            # just the PINN prediction alone, same as before, when it isn't.
+            try:
+                _ref_ok_r = False
+                _ref_t_r = {config.t_max}
+                if _rar_ea_entries:
+                    try:
+                        _best_r = min(_rar_ea_entries, key=lambda _e: abs(_e[0] - {config.t_max}))
+                        _ref_t_r, _ref_fp_r = _best_r[0], _best_r[1]
+                        _ref_sel_r = _best_r[2] if len(_best_r) >= 3 else None
+                        _ref_d_r = np.loadtxt(_ref_fp_r)
+                        if _ref_d_r.ndim == 1:
+                            _ref_d_r = _ref_d_r.reshape(1, -1)
+                        if _is_3d:
+                            _ref_xyz_r = _ref_d_r[:, :3]; _ref_u_r = _ref_d_r[:, 4]
+                        else:
+                            _ref_xyz_r = _ref_d_r[:, :2]; _ref_u_r = _ref_d_r[:, 3]
+                        _ref_grid_r = np.column_stack([_ref_xyz_r, np.full(len(_ref_d_r), _ref_t_r)])
+                        if _ref_sel_r is None:
+                            _ref_pred_pts_r = _extract_plot_field(_ref_grid_r)
+                        elif isinstance(_ref_sel_r, int):
+                            _ref_pred_pts_r = model.predict(_ref_grid_r)[:, _ref_sel_r]
+                        else:
+                            _ref_expr_r = _ref_sel_r[0]
+                            def _rar_ea_op2(_rea_i, _rea_o):
+                                _rea_dv = _tm_build_dvars(_rea_i, _rea_o, _plot_n_out, _plot_output_names_list,
+                                                           _is_steady, _plot_dim, _ref_expr_r)
+                                _rea_ns = dict(_rea_dv); _rea_ns.update(_PLOT_TORCH_MATH_NS); _rea_ns["torch"] = torch
+                                return eval(_ref_expr_r, _rea_ns)
+                            _ref_pred_pts_r = model.predict(_ref_grid_r, operator=_rar_ea_op2)[:, 0]
+                        _err_pts_r = _ref_pred_pts_r - _ref_u_r
+                        _l2_r = float(np.linalg.norm(_err_pts_r) / (np.linalg.norm(_ref_u_r) + 1e-12))
+                        _mse_r = float(np.mean(_err_pts_r ** 2))
+                        print(f"  [RAR round {{_rar_idx}}] vs Reference t={{_ref_t_r:.3g}}: L2 rel error = {{_l2_r:.4e}}, MSE = {{_mse_r:.4e}}")
+                        _ref_ok_r = True
+                    except Exception as _rar_ref_err:
+                        print(f"  [RAR round {{_rar_idx}}] reference compare failed, showing prediction only: {{_rar_ref_err}}")
+                        _ref_ok_r = False
+
+                if _is_3d:
+                    if _ref_ok_r:
+                        _fig_r = plt.figure(figsize=_plot_figsize(15, 5))
+                        _abs_err_r = np.abs(_err_pts_r)
+                        _vmin3_r = min(_ref_pred_pts_r.min(), _ref_u_r.min())
+                        _vmax3_r = max(_ref_pred_pts_r.max(), _ref_u_r.max())
+                        _cols3_r = [
+                            (_ref_pred_pts_r, f"PINN  t={{_ref_t_r:.3g}}  L2={{_l2_r:.2e}}", _vmin3_r, _vmax3_r, "{config.plot_colormap}"),
+                            (_ref_u_r, f"Reference  t={{_ref_t_r:.3g}}", _vmin3_r, _vmax3_r, "{config.plot_colormap}"),
+                            (_abs_err_r, f"|Error|  Max={{_abs_err_r.max():.2e}}", None, None, "{config.plot_colormap}"),
+                        ]
+                        for _ci_r, (_vals3_r, _ttl3_r, _vmin_c3_r, _vmax_c3_r, _cmap_c3_r) in enumerate(_cols3_r):
+                            _ax3_r = _fig_r.add_subplot(1, 3, _ci_r + 1, projection="3d")
+                            _sc3_r = _ax3_r.scatter(_ref_xyz_r[:, 0], _ref_xyz_r[:, 1], _ref_xyz_r[:, 2], c=_vals3_r,
+                                                     cmap=_cmap_c3_r, s=10, vmin=_vmin_c3_r, vmax=_vmax_c3_r)
+                            _fig_r.colorbar(_sc3_r, ax=_ax3_r, shrink=0.6, pad=0.12)
+                            _ax3_r.set_title(_ttl3_r, fontsize={config.plot_subplot_title_fontsize})
+                            _ax3_r.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax3_r.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _ax3_r.set_zlabel("z", fontsize={config.plot_axis_label_fontsize})
+                        _fig_r.suptitle(f"RAR round {{_rar_idx}} -- PINN vs Reference", fontsize={config.plot_title_fontsize}, fontweight="bold")
+                    else:
+                        _xp = np.linspace({config.x_min}, {config.x_max}, _res)
+                        _yp = np.linspace({config.y_min}, {config.y_max}, _res)
+                        _Xg, _Yg = np.meshgrid(_xp, _yp)
+                        _z_mid_r = ({config.z_min} + {config.z_max}) / 2.0
+                        _grid_r = np.column_stack([_Xg.ravel(), _Yg.ravel(), np.full(_Xg.size, _z_mid_r), np.full(_Xg.size, {config.t_max})])
+                        _field_r = _extract_plot_field(_grid_r).reshape(_res, _res)
+                        _fig_r, _ax_r = plt.subplots(figsize=_plot_figsize(6.5, 5.5))
+                        _im_r = _ax_r.contourf(_Xg, _Yg, _field_r, levels={config.plot_levels}, cmap="{config.plot_colormap}")
+                        _ax_r.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_r.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _ax_r.set_aspect("equal", adjustable="box")
+                        _fig_r.colorbar(_im_r, ax=_ax_r, fraction=0.046, pad=0.04)
+                        _fig_r.suptitle(f"RAR round {{_rar_idx}} solution snapshot (z={{_z_mid_r:.3g}}, t={config.t_max:.3g})")
+                else:
+                    _xp = np.linspace({config.x_min}, {config.x_max}, _res)
+                    _yp = np.linspace({config.y_min}, {config.y_max}, _res)
+                    _Xg, _Yg = np.meshgrid(_xp, _yp)
+                    _inside_r = geom.inside(np.column_stack([_Xg.ravel(), _Yg.ravel()])).reshape(_res, _res)
+                    if _ref_ok_r:
+                        from scipy.interpolate import griddata as _gd_r
+                        _grid_pinn_r = np.column_stack([_Xg.ravel(), _Yg.ravel(), np.full(_Xg.size, _ref_t_r)])
+                        _u_pinn_g_r = _extract_plot_field(_grid_pinn_r).reshape(_res, _res)
+                        _u_pinn_g_r = np.where(_inside_r, _u_pinn_g_r, np.nan)
+                        _u_ref_g_r = _gd_r(_ref_xyz_r, _ref_u_r, (_Xg, _Yg), method="linear", fill_value=0.0)
+                        _u_ref_g_r = np.where(_inside_r, _u_ref_g_r, np.nan)
+                        _u_err_g_r = np.abs(_u_pinn_g_r - _u_ref_g_r)
+                        _vmin2_r = np.nanmin([_u_pinn_g_r, _u_ref_g_r]); _vmax2_r = np.nanmax([_u_pinn_g_r, _u_ref_g_r])
+                        if _vmax2_r - _vmin2_r < 1e-12:
+                            _vmax2_r = _vmin2_r + 1e-12
+                        # contourf's own vmin/vmax kwargs do NOT restrict
+                        # an integer `levels=N` -- it still auto-ranges
+                        # each panel to that panel's own data, so PINN and
+                        # Reference would silently get two different color
+                        # scales despite passing the same vmin/vmax here.
+                        # Passing the level BOUNDARIES explicitly (instead
+                        # of a level count) is what actually makes both
+                        # panels share one scale.
+                        _levels2_r = _cf_levels({config.plot_levels}, _vmin2_r, _vmax2_r)["levels"]
+                        _fig_r, _axes2_r = plt.subplots(1, 3, figsize=_plot_figsize(15, 5))
+                        _im0_r = _axes2_r[0].contourf(_Xg, _Yg, _u_pinn_g_r, levels=_levels2_r, cmap="{config.plot_colormap}")
+                        _axes2_r[0].set_title(f"PINN  t={{_ref_t_r:.3g}}  L2={{_l2_r:.2e}}", fontsize={config.plot_subplot_title_fontsize})
+                        _axes2_r[0].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _axes2_r[0].set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _axes2_r[0].set_aspect("equal", adjustable="box")
+                        _fig_r.colorbar(_im0_r, ax=_axes2_r[0], fraction=0.046, pad=0.04)
+                        _im1_r = _axes2_r[1].contourf(_Xg, _Yg, _u_ref_g_r, levels=_levels2_r, cmap="{config.plot_colormap}")
+                        _axes2_r[1].set_title(f"Reference  t={{_ref_t_r:.3g}}", fontsize={config.plot_subplot_title_fontsize})
+                        _axes2_r[1].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _axes2_r[1].set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _axes2_r[1].set_aspect("equal", adjustable="box")
+                        _fig_r.colorbar(_im1_r, ax=_axes2_r[1], fraction=0.046, pad=0.04)
+                        _im2_r = _axes2_r[2].contourf(_Xg, _Yg, _u_err_g_r, levels={config.plot_levels}, cmap="{config.plot_colormap}")
+                        _axes2_r[2].set_title(f"|Error|  Max={{np.nanmax(_u_err_g_r):.2e}}", fontsize={config.plot_subplot_title_fontsize})
+                        _axes2_r[2].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _axes2_r[2].set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _axes2_r[2].set_aspect("equal", adjustable="box")
+                        _fig_r.colorbar(_im2_r, ax=_axes2_r[2], fraction=0.046, pad=0.04)
+                        _fig_r.suptitle(f"RAR round {{_rar_idx}} -- PINN vs Reference", fontsize={config.plot_title_fontsize}, fontweight="bold")
+                    else:
+                        _grid_r = np.column_stack([_Xg.ravel(), _Yg.ravel(), np.full(_Xg.size, {config.t_max})])
+                        _field_r = _extract_plot_field(_grid_r).reshape(_res, _res)
+                        _field_r = np.where(_inside_r, _field_r, np.nan)
+                        _fig_r, _ax_r = plt.subplots(figsize=_plot_figsize(6.5, 5.5))
+                        _im_r = _ax_r.contourf(_Xg, _Yg, _field_r, levels={config.plot_levels}, cmap="{config.plot_colormap}")
+                        _ax_r.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_r.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _ax_r.set_aspect("equal", adjustable="box")
+                        _fig_r.colorbar(_im_r, ax=_ax_r, fraction=0.046, pad=0.04)
+                        _fig_r.suptitle(f"RAR round {{_rar_idx}} solution snapshot (t={config.t_max:.3g})")
+                plt.tight_layout(rect=[0, 0, 1, 0.93])
+                plt.savefig(_os.path.join(_rd, "solution_plot.png"), dpi={config.plot_dpi}, bbox_inches="tight")
+                plt.close(_fig_r)
+                print(f"  [RAR round {{_rar_idx}}] solution snapshot saved: {{_os.path.join(_rd, 'solution_plot.png')}}")
+            except Exception as _rar_err1:
+                print(f"  [RAR round {{_rar_idx}}] solution snapshot failed: {{_rar_err1}}")
+
+            # -- 2D/3D: collocation points (original vs. earlier rounds vs. this round) --
+            try:
+                from mpl_toolkits.mplot3d import Axes3D as _Axes3D_unused  # noqa: F401 -- registers the 3D projection
+                if _is_3d:
+                    _fig_c = plt.figure(figsize=_plot_figsize(7, 6))
+                    _ax_c = _fig_c.add_subplot(111, projection="3d")
+                    # 4 real coordinate dims (x,y,z,t) can't all be axes on
+                    # one static 3D plot -- spatial (x,y,z) get the 3 plot
+                    # axes, and t is folded into per-category alpha instead
+                    # (lighter = earlier in the time domain) rather than
+                    # dropped entirely.
+                    _t_lo_r, _t_hi_r = {config.t_min}, {config.t_max}
+                    _span_t_r = (_t_hi_r - _t_lo_r) or 1.0
+                    def _rar_alpha(_pts):
+                        return float(np.clip(0.25 + 0.65 * (np.mean(_pts[:, 3]) - _t_lo_r) / _span_t_r, 0.15, 0.95)) if len(_pts) else 1.0
+                    _orig_alpha, _added_alpha = _rar_alpha(_rar_orig_pts), _rar_alpha(_rar_added_so_far)
+                    if len(_rar_orig_pts):
+                        _ax_c.scatter(_rar_orig_pts[:, 0], _rar_orig_pts[:, 1], _rar_orig_pts[:, 2], s=5, c="#adb5bd", alpha=_orig_alpha, label="Original points")
+                    if len(_rar_added_so_far):
+                        _ax_c.scatter(_rar_added_so_far[:, 0], _rar_added_so_far[:, 1], _rar_added_so_far[:, 2], s=9, c="#fd7e14", alpha=_added_alpha, label="Added in earlier rounds")
+                    _ax_c.scatter(_rar_new_pts[:, 0], _rar_new_pts[:, 1], _rar_new_pts[:, 2], s=12, c="#e03131", label=f"Added this round ({{len(_rar_new_pts)}})")
+                    _ax_c.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_c.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _ax_c.set_zlabel("z", fontsize={config.plot_axis_label_fontsize})
+                    _ax_c.legend(loc="best", fontsize=8)
+                    _ax_c.set_title(f"RAR round {{_rar_idx}} -- collocation points")
+                    plt.tight_layout()
+                else:
+                    # 2D: the existing 3D (x, y, t) view, plus a plain 2D
+                    # (x, y) view collapsing time -- side by side -- so the
+                    # spatial concentration of refinement is readable at a
+                    # glance without having to rotate a 3D plot.
+                    _fig_c = plt.figure(figsize=_plot_figsize(13, 6))
+                    _ax_c = _fig_c.add_subplot(1, 2, 1, projection="3d")
+                    if len(_rar_orig_pts):
+                        _ax_c.scatter(_rar_orig_pts[:, 0], _rar_orig_pts[:, 1], _rar_orig_pts[:, 2], s=5, c="#adb5bd", alpha=0.5, label="Original points")
+                    if len(_rar_added_so_far):
+                        _ax_c.scatter(_rar_added_so_far[:, 0], _rar_added_so_far[:, 1], _rar_added_so_far[:, 2], s=9, c="#fd7e14", alpha=0.85, label="Added in earlier rounds")
+                    _ax_c.scatter(_rar_new_pts[:, 0], _rar_new_pts[:, 1], _rar_new_pts[:, 2], s=12, c="#e03131", label=f"Added this round ({{len(_rar_new_pts)}})")
+                    _ax_c.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_c.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _ax_c.set_zlabel("t", fontsize={config.plot_axis_label_fontsize})
+                    _ax_c.legend(loc="best", fontsize=8)
+                    _ax_c.set_title("3D view (x, y, t)")
+                    _ax_c2 = _fig_c.add_subplot(1, 2, 2)
+                    if len(_rar_orig_pts):
+                        _ax_c2.scatter(_rar_orig_pts[:, 0], _rar_orig_pts[:, 1], s=6, c="#adb5bd", alpha=0.5, label="Original points")
+                    if len(_rar_added_so_far):
+                        _ax_c2.scatter(_rar_added_so_far[:, 0], _rar_added_so_far[:, 1], s=10, c="#fd7e14", alpha=0.85, label="Added in earlier rounds")
+                    _ax_c2.scatter(_rar_new_pts[:, 0], _rar_new_pts[:, 1], s=14, c="#e03131", label=f"Added this round ({{len(_rar_new_pts)}})")
+                    _ax_c2.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_c2.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _ax_c2.set_aspect("equal", adjustable="box")
+                    _ax_c2.legend(loc="best", fontsize=8)
+                    _ax_c2.set_title("Spatial view (x, y) -- all times")
+                    _fig_c.suptitle(f"RAR round {{_rar_idx}} -- collocation points", fontsize={config.plot_title_fontsize}, fontweight="bold")
+                    plt.tight_layout(rect=[0, 0, 1, 0.93])
+                plt.savefig(_os.path.join(_rd, "collocation_points.png"), dpi={config.plot_dpi}, bbox_inches="tight")
+                plt.close(_fig_c)
+                print(f"  [RAR round {{_rar_idx}}] collocation-points plot saved: {{_os.path.join(_rd, 'collocation_points.png')}}")
+            except Exception as _rar_err2:
+                print(f"  [RAR round {{_rar_idx}}] collocation-points plot failed: {{_rar_err2}}")
+
+        print("\\n=== Starting RAR Adaptive Refinement ===")
+        for rar_cycle in range({config.rar_cycles}):
+            print(f"\\n--- RAR Cycle {{rar_cycle+1}}/{config.rar_cycles} ---")
+            # Candidate points come straight from the real geometry's own
+            # random_points() -- geomtime (an alias for geom when the
+            # problem is steady, see the plain dde.data.PDE built above;
+            # otherwise a GeometryXTime wrapping geom and the time domain)
+            # -- instead of independently uniform-sampling each axis over
+            # the domain's bounding box, which used to be the case here.
+            # The two agree for a Rectangle/Cuboid/Interval domain, but for
+            # any non-box geometry (L-Shape, Disk, Polygon, Triangle, an
+            # Annulus or other CSG shape with a hole, ...) the bounding box
+            # is strictly larger than the real domain, so bounding-box
+            # sampling put candidate points -- and then, since RAR just
+            # keeps whichever candidates have the largest predicted PDE
+            # residual, sometimes the actual added points too -- outside
+            # the geometry entirely (e.g. inside the L-Shape's missing
+            # quadrant), where the model's prediction is meaningless.
+            # geom/geomtime's own random_points() is exactly what
+            # dde.data.PDE/TimePDE already use to generate ordinary
+            # training collocation points elsewhere in this same script,
+            # and it performs real rejection sampling against the
+            # geometry for every non-box shape (see e.g.
+            # CSGDifference.random_points in DeepXDE's own geometry/csg.py),
+            # so RAR's candidates are now guaranteed to lie inside the
+            # actual domain for any geometry, not just a rectangular one.
+            xt_cand = geomtime.random_points({config.rar_candidates})
+            _rar_res = model.predict(xt_cand, operator=pde)
+            if isinstance(_rar_res, list):
+                # Restrict point selection to one equation's residual
+                # (config.rar_output_selector >= 0 -- "Points from:" in the
+                # RAR settings panel; equation order == output order for
+                # every current template) instead of the combined sum --
+                # -1 (the default) always falls through to the original,
+                # unchanged combined behavior.
+                if 0 <= {config.rar_output_selector} < len(_rar_res):
+                    residuals = np.abs(_rar_res[{config.rar_output_selector}]).flatten()
+                else:
+                    residuals = np.sum([np.abs(r).flatten() for r in _rar_res], axis=0)
+            else:
+                residuals = np.abs(_rar_res).flatten()
+            top_idx    = np.argsort(residuals)[-{config.rar_add_points}:]
+            new_points = xt_cand[top_idx]
+            print(f"Max residual: {{residuals.max():.4e}}, Mean: {{residuals.mean():.4e}}")
+            data.add_anchors(new_points)
+            model.compile("{config.optimizer}", lr=_lr, loss="{config.loss_type}", loss_weights=_multi_weights)
+            loss_history, train_state = model.train(iterations={config.rar_adam_iters}, display_every={config.loss_display_every})
+            if {config.rar_lbfgs_iters} > 0:
+                # Round 31: when this round also runs an L-BFGS phase, save
+                # the Adam phase's own checkpoint here -- standardized on
+                # "one checkpoint per optimizer phase" everywhere, matching
+                # Time-Adaptive's own per-step convention (previously RAR
+                # only ever saved ONE checkpoint per round, representing
+                # whatever state the model was in after ALL of that
+                # round's phases, so an Adam-phase-only snapshot was never
+                # recoverable once L-BFGS started). The round's final
+                # (L-BFGS) state is saved separately at the end of this
+                # round via _rar_save_round_diagnostics, as "model_lbfgs".
+                if _use_save:
+                    _rar_rd_adam = _os.path.join(_rar_rounds_dir, f"round_{{rar_cycle+1:02d}}")
+                    _os.makedirs(_rar_rd_adam, exist_ok=True)
+                    try:
+                        model.save(_os.path.join(_rar_rd_adam, "model_adam"))
+                        print(f"  [RAR round {{rar_cycle+1}}] model_adam model saved: {{_os.path.join(_rar_rd_adam, 'model_adam')}}.pt")
+                    except Exception as _rar_adam_save_err:
+                        print(f"  [RAR round {{rar_cycle+1}}] model_adam save failed: {{_rar_adam_save_err}}")
+                dde.optimizers.set_LBFGS_options(
+                    maxcor={config.lbfgs_maxcor}, ftol={config.lbfgs_ftol},
+                    gtol={config.lbfgs_gtol}, maxiter={config.rar_lbfgs_iters},
+                    maxfun={config.lbfgs_maxfun}, maxls={config.lbfgs_maxls}
+                )
+                if "{config.lbfgs_float_type}" == "float64":
+                    dde.config.set_default_float("float64")
+                    model.net.double()
+                    print("  [L-BFGS] Switched to float64")
+                model.compile("L-BFGS", loss="{config.loss_type}", loss_weights=_multi_weights)
+                loss_history, train_state = model.train(display_every={config.loss_display_every})
+                if "{config.lbfgs_float_type}" == "float64":
+                    dde.config.set_default_float("float32")
+                    model.net.float()
+                    print("  [L-BFGS] Restored to float32")
+            _rar_save_round_diagnostics(rar_cycle + 1, new_points)
+            _rar_added_so_far = np.vstack([_rar_added_so_far, new_points])
+        print("\\n=== RAR Complete ===")"""
+
+
+def _gs_time_adaptive_loop_code(_ic_pretrain_block_ta, _line_slice_y, _line_slice_z, _safe_num_test, _ta_ic_init, _train_cbs_code_ta, config, plot_custom_expr_converted):
+    """generate_script()'s Time-Adaptive training loop (per-step models, IC
+    pre-training, per-step previews, the combined final plot and the
+    Time-Adaptive Error Analysis) -- cleanup Round 52 (audit §5): moved
+    verbatim out of generate_script()'s template, where it was the largest
+    unnamed inline block (~1,600 lines). Returns the exact same text the
+    template used to contain (byte-for-byte; see the round's notes)."""
+    return f"""# ── Time Adaptive Loop ────────────────────────────────────────
+if {config.time_adaptive}:
+    print("\\n=== Starting Time-Adaptive Training ===")
+
+    # Clear old step directories to avoid stale models from previous runs
+    import shutil as _ta_shutil
+    _ta_steps_root = _os.path.join(_save_dir, "time_adaptive_steps")
+    if _os.path.isdir(_ta_steps_root):
+        _ta_shutil.rmtree(_ta_steps_root)
+        print(f"  Cleared old time_adaptive_steps directory")
+    _os.makedirs(_ta_steps_root, exist_ok=True)
+
+    grid_size = {config.ta_grid_size}
+    if _is_3d:
+        # grid_size is a per-axis resolution, so this cubes it (e.g. 51 ->
+        # ~132k points) -- much bigger than the 2D case's square. Left to
+        # the user's own ta_grid_size choice (the GUI's smallest preset,
+        # 11, keeps this to ~1.3k points) rather than silently overriding
+        # it here.
+        _xg_ta = np.linspace({config.x_min}, {config.x_max}, grid_size)
+        _yg_ta = np.linspace({config.y_min}, {config.y_max}, grid_size)
+        _zg_ta = np.linspace({config.z_min}, {config.z_max}, grid_size)
+        _Xmesh, _Ymesh, _Zmesh = np.meshgrid(_xg_ta, _yg_ta, _zg_ta)
+        x_grid = np.column_stack([_Xmesh.ravel(), _Ymesh.ravel(), _Zmesh.ravel()])
+        x = x_grid  # (N*N*N, 3)
+    elif _is_2d:
+        _xg_ta = np.linspace({config.x_min}, {config.x_max}, grid_size)
+        _yg_ta = np.linspace({config.y_min}, {config.y_max}, grid_size)
+        _Xmesh, _Ymesh = np.meshgrid(_xg_ta, _yg_ta)
+        x_grid = np.column_stack([_Xmesh.ravel(), _Ymesh.ravel()])
+        x = x_grid  # (N*N, 2)
+    else:
+        x_grid = np.linspace({config.x_min}, {config.x_max}, grid_size)
+
+    all_x = []; all_t = []; all_u = []
+
+    if _is_2d or _is_3d:
+        x = x_grid
+    else:
+        x = x_grid.reshape(-1, 1)
+    {_ta_ic_init}
+    _lr = {config.learning_rate}
+    _prev_step_model_path = ""
+
+    # ── Build flat interval list from step groups ─────────────
+    import json as _json_ta_groups
+    _ta_groups = _json_ta_groups.loads({repr(config.ta_step_groups) if config.ta_step_groups else repr('[{"t_start":' + str(config.t_min) + ',"t_end":' + str(config.t_max) + ',"steps":' + str(config.ta_num_steps) + '}]')})
+    _ta_flat_intervals = []
+    for _grp in _ta_groups:
+        _grp_dt = (_grp['t_end'] - _grp['t_start']) / _grp['steps']
+        for _gi in range(_grp['steps']):
+            _t0_g = _grp['t_start'] + _gi * _grp_dt
+            _t1_g = _t0_g + _grp_dt
+            _ta_flat_intervals.append((_t0_g, _t1_g))
+    n_steps = len(_ta_flat_intervals)
+    print(f"  Total time steps: {{n_steps}} from {{len(_ta_groups)}} group(s)")
+
+    _plot_idx = {config.plot_output_idx}
+    _plot_custom_expr = "{plot_custom_expr_converted}"
+    _plot_output_names_list = {repr(config.output_names)}.split(",")
+    _plot_n_out = len(_plot_output_names_list)
+    _plot_dim = "3D" if _is_3d else ("2D" if _is_2d else "1D")
+    _PLOT_TORCH_MATH_NS = {{
+        "sin": torch.sin, "cos": torch.cos, "tan": torch.tan,
+        "sinh": torch.sinh, "cosh": torch.cosh, "tanh": torch.tanh,
+        "arcsin": torch.asin, "arccos": torch.acos, "arctan": torch.atan,
+        "exp": torch.exp, "log": torch.log, "log10": torch.log10,
+        "sqrt": torch.sqrt, "abs": torch.abs, "ceil": torch.ceil, "floor": torch.floor,
+        "pi": np.pi,
+    }}
+
+    def _plot_custom_op(_pf_inputs, _pf_outputs):
+        _pf_dvars = _tm_build_dvars(_pf_inputs, _pf_outputs, _plot_n_out,
+                                     _plot_output_names_list, _is_steady, _plot_dim,
+                                     _plot_custom_expr)
+        _pf_ns = dict(_pf_dvars)
+        _pf_ns.update(_PLOT_TORCH_MATH_NS)
+        _pf_ns["torch"] = torch
+        return eval(_plot_custom_expr, _pf_ns)
+
+    def _extract_plot_field(_x_grid, _pf_model):
+        # Time-Adaptive's own copy of the Standard-path helper of the same
+        # name (out of scope here -- it's defined inside `if not
+        # {config.time_adaptive}:`, a separate top-level block this one
+        # never runs alongside). Same logic: a derived custom field (e.g.
+        # |h| = sqrt(u**2+v**2) for 1D Schrodinger), now including
+        # derivatives (du_x, du_xx, du_xy, ...) via the same
+        # dde.Model.predict(x, operator=...) mechanism the Standard path
+        # uses, when one is configured, else the single raw output column
+        # -- so every prediction call in this Time-Adaptive loop plots/
+        # animates the same field the Standard path and the main Results
+        # panel would, instead of indexing a column that may not even
+        # exist (e.g. plot_output_idx pointing past the last real output
+        # when "Custom..." is selected). Unlike the Standard path there's
+        # no single module-level `model` here -- each step has its own
+        # restored model -- so the caller's model object is always passed
+        # in explicitly rather than defaulted.
+        if _plot_custom_expr.strip():
+            return _pf_model.predict(_x_grid, operator=_plot_custom_op)[:, 0]
+        return _pf_model.predict(_x_grid)[:, _plot_idx]
+
+    # ── Reference-data matching for per-step comparison plots ────
+    # Each entry is (time, path, output_selector) -- same convention RAR's
+    # own `_rar_ea_entries` and the inline/Restore Error Analysis sections
+    # use (output_selector: None = the default plot field, an int = a raw
+    # output column, or an [expr, label] pair = a custom derived field).
+    # A reference file is matched to the Time-Adaptive step whose own
+    # [t0, t1) window contains that file's time value (closed on the right
+    # only for the LAST step, so a file sitting exactly on a shared
+    # boundary between two adjacent steps is matched to exactly one of
+    # them, not both). This step's own model_i is already in scope live in
+    # this loop, so matching only needs the time-range filter below --
+    # unlike Restore's own TA Error Analysis, which has to reconstruct and
+    # restore each step's model from the saved step directories after the
+    # fact.
+    from scipy.interpolate import interp1d as _ta_interp1d
+    _ta_ea_entries = {config.ea_files}
+
+    def _ta_ref_extract(_tea_grid, _tea_sel, _tea_model):
+        if _tea_sel is None:
+            return _extract_plot_field(_tea_grid, _tea_model)
+        if isinstance(_tea_sel, int):
+            return _tea_model.predict(_tea_grid)[:, _tea_sel]
+        _tea_expr = _tea_sel[0]
+
+        def _tea_ref_op(_tea_i, _tea_o):
+            _tea_dv = _tm_build_dvars(_tea_i, _tea_o, _plot_n_out, _plot_output_names_list,
+                                       _is_steady, _plot_dim, _tea_expr)
+            _tea_ns = dict(_tea_dv)
+            _tea_ns.update(_PLOT_TORCH_MATH_NS)
+            _tea_ns["torch"] = torch
+            return eval(_tea_expr, _tea_ns)
+
+        return _tea_model.predict(_tea_grid, operator=_tea_ref_op)[:, 0]
+
+    # Accumulates the loss history across EVERY optimizer phase of EVERY
+    # time sub-domain, so the loss plot below (see "_ta_all_train_loss")
+    # shows the full Time-Adaptive run instead of just the LAST phase of
+    # the LAST sub-domain. lh_i/ts_i get overwritten by each new
+    # model_i.train() call below -- there can be several per sub-domain
+    # (one per optimizer-scheduler phase), plus one more for the legacy
+    # Adam-then-L-BFGS path -- so without this, only whichever call
+    # happened to run last for the very last step_i would ever reach the
+    # plot. Each phase's own step counter restarts at 0 (DeepXDE's
+    # LossHistory numbers every train() call's steps from scratch), so
+    # _ta_loss_offset -- the cumulative iteration count so far across
+    # every phase and every sub-domain -- is added to keep the x-axis
+    # continuously increasing across the whole run. Same "steps[-1] added
+    # to a running total" trick already used just for the printed
+    # cumulative-iteration numbers in the scheduler-phase logging below
+    # (see "_sp_iters"/"_sched_cum_iters" elsewhere in this file) --
+    # applied here to the loss arrays themselves, not just a printed
+    # number.
+    _ta_all_train_loss = []
+    _ta_all_test_loss = []
+    _ta_all_steps = []
+    _ta_loss_offset = 0
+    _ta_step_boundaries = []  # cumulative-iteration marks where one time sub-domain ends and the next begins
+
+    def _ta_accumulate_loss(_lh):
+        global _ta_loss_offset
+        _ta_all_steps.extend([_s + _ta_loss_offset for _s in _lh.steps])
+        _ta_all_train_loss.extend(_lh.loss_train)
+        _ta_all_test_loss.extend(_lh.loss_test)
+        _ta_loss_offset += (_lh.steps[-1] if _lh.steps else 0)
+
+    for step_i, (t0, t1) in enumerate(_ta_flat_intervals):
+        print(f"\\n--- Time step {{step_i+1}}/{{n_steps}}: t = {{t0:.4f}} to {{t1:.4f}} ---")
+
+        geom_i = _build_geom()
+        time_i     = dde.geometry.TimeDomain(t0, t1)
+        geomtime_i = dde.geometry.GeometryXTime(geom_i, time_i)
+
+        _constraints_i = []
+        # The Boundary Conditions panel (custom_bc_json, already parsed into
+        # _custom_bc_entries above) is now the source of truth here too --
+        # same as the main (non-time-adaptive) path. The legacy per-side
+        # scheme below only runs for configs saved before the panel existed.
+        if _custom_bc_entries or _bc_panel_data_present:
+            for _bi_ta, _be_ta in enumerate(_custom_bc_entries):
+                _btype_ta = _be_ta.get('type', 'dirichlet')
+                _bcomp_ta = int(_be_ta.get('component', 0) or 0)
+                _bloc_ta  = _be_ta.get('location', '')
+                _bval_ta  = _be_ta.get('value', '0')
+                _baxis_ta = _be_ta.get('axis', 'x')
+                _bderiv_ta = min(max(int(_be_ta.get('deriv_order', 0) or 0), 0), 1)  # same clamp as the main path above
+                _bpts_file_ta = _be_ta.get('points_file', '')
+                _bloc2_ta = _be_ta.get('location2', '')
+                _bdir_ta  = _be_ta.get('direction', 'normal')
+                _blabel_ta = f"BC {{_bi_ta + 1}} ({{_btype_ta}})"
+                # Same component-list/batching parsing as the main path above.
+                _bcomponents_txt_ta = (_be_ta.get('components', '') or '').strip()
+                _bcomponents_ta = [int(_c.strip()) for _c in _bcomponents_txt_ta.split(',') if _c.strip()] if _bcomponents_txt_ta else None
+                _bbatch_ta = int(_be_ta.get('batch_size', 0) or 0)
+                _bshuffle_ta = bool(_be_ta.get('shuffle', True))
+                _bbatch_kwargs_ta = {{"batch_size": _bbatch_ta, "shuffle": _bshuffle_ta}} if _bbatch_ta > 0 else {{}}
+
+                if _btype_ta == 'neumann':
+                    _constraints_i.append(dde.icbc.NeumannBC(geomtime_i, _bc_val_fn(_bval_ta), _bc_loc_fn(_bloc_ta), component=_bcomp_ta))
+                elif _btype_ta == 'robin':
+                    _constraints_i.append(dde.icbc.RobinBC(geomtime_i, _bc_robin_fn(_bval_ta, _bcomp_ta), _bc_loc_fn(_bloc_ta), component=_bcomp_ta))
+                elif _btype_ta == 'periodic':
+                    _constraints_i.append(dde.icbc.PeriodicBC(geomtime_i, _axis_idx_map.get(_baxis_ta, 0), _bc_loc_fn(_bloc_ta),
+                                                                derivative_order=_bderiv_ta, component=_bcomp_ta))
+                elif _btype_ta == 'pointset':
+                    _pts_ta, _pvals_ta = _bc_load_points_file(_bpts_file_ta, _blabel_ta, len(_bcomponents_ta) if _bcomponents_ta else 1)
+                    _constraints_i.append(dde.icbc.PointSetBC(_pts_ta, _pvals_ta, component=(_bcomponents_ta if _bcomponents_ta else _bcomp_ta), **_bbatch_kwargs_ta))
+                elif _btype_ta == 'pointset_operator':
+                    _pts_ta, _pvals_ta = _bc_load_points_file(_bpts_file_ta, _blabel_ta)
+                    _constraints_i.append(dde.icbc.PointSetOperatorBC(_pts_ta, _pvals_ta, _bc_operator_fn(_bval_ta), **_bbatch_kwargs_ta))
+                elif _btype_ta == 'operator':
+                    _constraints_i.append(dde.icbc.OperatorBC(geomtime_i, _bc_operator_fn(_bval_ta), _bc_loc_fn(_bloc_ta)))
+                elif _btype_ta == 'interface2d':
+                    # Time-Adaptive steps are never steady-state (geomtime_i
+                    # is always a real GeometryXTime here), so the adapter's
+                    # trim is always correct -- passed explicitly (rather
+                    # than relying on the default) to document that.
+                    _constraints_i.append(dde.icbc.Interface2DBC(_Interface2DGeomAdapter(geomtime_i, False), _bc_val_fn(_bval_ta),
+                                                                    _bc_loc_fn(_bloc_ta), _bc_loc_fn(_bloc2_ta), direction=_bdir_ta))
+                elif _btype_ta == 'dirichlet':
+                    _constraints_i.append(dde.icbc.DirichletBC(geomtime_i, _bc_val_fn(_bval_ta), _bc_loc_fn(_bloc_ta), component=_bcomp_ta))
+                else:
+                    # Same loud failure as the main (non-Time-Adaptive) path
+                    # above, instead of silently training with the wrong BC.
+                    raise ValueError(
+                        f"{{_blabel_ta}}: unrecognized boundary condition type {{_btype_ta!r}}. "
+                        "Expected one of: dirichlet, neumann, robin, periodic, pointset, "
+                        "pointset_operator, operator, interface2d."
+                    )
+
+            # IC (independent of the BC panel -- same per-step IC scheme as always)
+            for _oi_ta in range({config.num_outputs}):
+                _comp_ta = _oi_ta
+                if step_i == 0:
+                    if {config.forward_ic_from_file} and _oi_ta == 0:
+                        _xyt_ic_anchor = _ic_xyt  # use the already-loaded IC points
+                        _constraints_i.append(dde.icbc.PointSetBC(_ic_xyt, _ic_vals, component=0))
+                    elif _oi_ta < len(_ic_active_list) and _ic_active_list[_oi_ta].strip() == "True":
+                        _ic_expr_ta = _ic_expressions[_oi_ta].strip() if _oi_ta < len(_ic_expressions) else "np.zeros_like(x[:,0])"
+                        def _mk_ic_ta(expr, comp):
+                            def _ic_fn(x):
+                                return np.reshape(eval(expr, {{"np": np, "x": x, "__builtins__": __builtins__}}), (-1, 1))
+                            return dde.icbc.IC(geomtime_i, _ic_fn, lambda x, on_initial: on_initial, component=comp)
+                        _constraints_i.append(_mk_ic_ta(_ic_expr_ta, _comp_ta))
+                else:
+                    if _is_2d or _is_3d:
+                        # x_grid is already an (N, 2) or (N, 3) array of
+                        # spatial points either way, so one column_stack
+                        # covers both.
+                        _xt_ic_2d = np.column_stack([x_grid, np.full(len(x_grid), t0)])
+                        _xyt_ic_anchor = _xt_ic_2d
+                        _constraints_i.append(dde.icbc.PointSetBC(_xt_ic_2d, prev_u[:, _oi_ta:_oi_ta+1], component=_oi_ta))
+                    else:
+                        xt_ic = np.column_stack([x_grid, np.full_like(x_grid.ravel(), t0)])
+                        _xyt_ic_anchor = xt_ic
+                        _constraints_i.append(dde.icbc.PointSetBC(xt_ic, prev_u[:, _oi_ta:_oi_ta+1], component=_oi_ta))
+        else:
+            # Legacy per-side BCs, for configs saved before the Boundary
+            # Conditions panel existed (custom_bc_json empty).
+            for _oi_ta in range({config.num_outputs}):
+                _comp_ta = _oi_ta
+                _blt_ta = _bc_left_types[_oi_ta].strip()  if _oi_ta < len(_bc_left_types)  else "Dirichlet"
+                _brt_ta = _bc_right_types[_oi_ta].strip() if _oi_ta < len(_bc_right_types) else "Dirichlet"
+                _blv_ta = float(_bc_left_values[_oi_ta].strip())  if _oi_ta < len(_bc_left_values)  else 0.0
+                _brv_ta = float(_bc_right_values[_oi_ta].strip()) if _oi_ta < len(_bc_right_values) else 0.0
+
+                if _oi_ta < len(_bc_left_active) and _bc_left_active[_oi_ta].strip() == "True":
+                    def _bl_on_ta(x, on_boundary):
+                        return on_boundary and dde.utils.isclose(x[0], {config.x_min})
+                    if _blt_ta == "Dirichlet":
+                        def _mk_dbl_ta(v, comp, on_bd):
+                            def _vf(x): return np.full((len(x),1), v)
+                            return dde.icbc.DirichletBC(geomtime_i, _vf, on_bd, component=comp)
+                        _constraints_i.append(_mk_dbl_ta(_blv_ta, _comp_ta, _bl_on_ta))
+                    elif _blt_ta == "Neumann":
+                        def _mk_nbl_ta(v, comp, on_bd):
+                            def _vf(x): return np.full((len(x),1), v)
+                            return dde.icbc.NeumannBC(geomtime_i, _vf, on_bd, component=comp)
+                        _constraints_i.append(_mk_nbl_ta(_blv_ta, _comp_ta, _bl_on_ta))
+                    elif _blt_ta == "Periodic":
+                        _constraints_i.append(dde.icbc.PeriodicBC(geomtime_i, 0, _bl_on_ta, derivative_order=0, component=_comp_ta))
+                        if _oi_ta < len(_bc_left_deriv_list) and _bc_left_deriv_list[_oi_ta].strip() == "True":
+                            _constraints_i.append(dde.icbc.PeriodicBC(geomtime_i, 0, _bl_on_ta, derivative_order=1, component=_comp_ta))
+
+                if _oi_ta < len(_bc_right_active) and _bc_right_active[_oi_ta].strip() == "True":
+                    def _br_on_ta(x, on_boundary):
+                        return on_boundary and dde.utils.isclose(x[0], {config.x_max})
+                    if _brt_ta == "Dirichlet":
+                        def _mk_dbr_ta(v, comp, on_bd):
+                            def _vf(x): return np.full((len(x),1), v)
+                            return dde.icbc.DirichletBC(geomtime_i, _vf, on_bd, component=comp)
+                        _constraints_i.append(_mk_dbr_ta(_brv_ta, _comp_ta, _br_on_ta))
+                    elif _brt_ta == "Neumann":
+                        def _mk_nbr_ta(v, comp, on_bd):
+                            def _vf(x): return np.full((len(x),1), v)
+                            return dde.icbc.NeumannBC(geomtime_i, _vf, on_bd, component=comp)
+                        _constraints_i.append(_mk_nbr_ta(_brv_ta, _comp_ta, _br_on_ta))
+                    elif _brt_ta == "Periodic":
+                        _constraints_i.append(dde.icbc.PeriodicBC(geomtime_i, 0, _br_on_ta, derivative_order=0, component=_comp_ta))
+                        if _oi_ta < len(_bc_right_deriv_list) and _bc_right_deriv_list[_oi_ta].strip() == "True":
+                            _constraints_i.append(dde.icbc.PeriodicBC(geomtime_i, 0, _br_on_ta, derivative_order=1, component=_comp_ta))
+
+                if _is_2d:
+                    _bbt_ta = _bc_bottom_types[_oi_ta].strip() if _oi_ta < len(_bc_bottom_types) else "Dirichlet"
+                    _btt_ta = _bc_top_types[_oi_ta].strip()    if _oi_ta < len(_bc_top_types)    else "Dirichlet"
+                    _bbv_ta = float(_bc_bottom_values[_oi_ta].strip()) if _oi_ta < len(_bc_bottom_values) else 0.0
+                    _btv_ta = float(_bc_top_values[_oi_ta].strip())    if _oi_ta < len(_bc_top_values)    else 0.0
+
+                    if _oi_ta < len(_bc_bottom_active) and _bc_bottom_active[_oi_ta].strip() == "True":
+                        def _bb_on_ta(x, on_boundary):
+                            return on_boundary and dde.utils.isclose(x[1], {config.y_min})
+                        if _bbt_ta == "Dirichlet":
+                            def _mk_dbb_ta(v, comp, on_bd):
+                                def _vf(x): return np.full((len(x),1), v)
+                                return dde.icbc.DirichletBC(geomtime_i, _vf, on_bd, component=comp)
+                            _constraints_i.append(_mk_dbb_ta(_bbv_ta, _comp_ta, _bb_on_ta))
+                        elif _bbt_ta == "Periodic":
+                            _constraints_i.append(dde.icbc.PeriodicBC(geomtime_i, 1, _bb_on_ta, derivative_order=0, component=_comp_ta))
+
+                    if _oi_ta < len(_bc_top_active) and _bc_top_active[_oi_ta].strip() == "True":
+                        def _bt_on_ta(x, on_boundary):
+                            return on_boundary and dde.utils.isclose(x[1], {config.y_max})
+                        if _btt_ta == "Dirichlet":
+                            def _mk_dbt_ta(v, comp, on_bd):
+                                def _vf(x): return np.full((len(x),1), v)
+                                return dde.icbc.DirichletBC(geomtime_i, _vf, on_bd, component=comp)
+                            _constraints_i.append(_mk_dbt_ta(_btv_ta, _comp_ta, _bt_on_ta))
+                        elif _btt_ta == "Periodic":
+                            _constraints_i.append(dde.icbc.PeriodicBC(geomtime_i, 1, _bt_on_ta, derivative_order=0, component=_comp_ta))
+
+                if step_i == 0:
+                    if {config.forward_ic_from_file} and _oi_ta == 0:
+                        _xyt_ic_anchor = _ic_xyt  # use the already-loaded IC points
+                        _constraints_i.append(dde.icbc.PointSetBC(_ic_xyt, _ic_vals, component=0))
+                    elif _oi_ta < len(_ic_active_list) and _ic_active_list[_oi_ta].strip() == "True":
+                        _ic_expr_ta = _ic_expressions[_oi_ta].strip() if _oi_ta < len(_ic_expressions) else "np.zeros_like(x[:,0])"
+                        def _mk_ic_ta(expr, comp):
+                            def _ic_fn(x):
+                                return np.reshape(eval(expr, {{"np": np, "x": x, "__builtins__": __builtins__}}), (-1, 1))
+                            return dde.icbc.IC(geomtime_i, _ic_fn, lambda x, on_initial: on_initial, component=comp)
+                        _constraints_i.append(_mk_ic_ta(_ic_expr_ta, _comp_ta))
+                else:
+                    if _is_2d or _is_3d:
+                        _xt_ic_2d = np.column_stack([x_grid, np.full(len(x_grid), t0)])
+                        _xyt_ic_anchor = _xt_ic_2d
+                        _constraints_i.append(dde.icbc.PointSetBC(_xt_ic_2d, prev_u[:, _oi_ta:_oi_ta+1], component=_oi_ta))
+                    else:
+                        xt_ic = np.column_stack([x_grid, np.full_like(x_grid.ravel(), t0)])
+                        _xyt_ic_anchor = xt_ic
+                        _constraints_i.append(dde.icbc.PointSetBC(xt_ic, prev_u[:, _oi_ta:_oi_ta+1], component=_oi_ta))
+
+        data_i = dde.data.TimePDE(
+            geomtime_i, pde, _constraints_i,
+            num_domain={config.num_domain}, num_boundary={config.num_boundary},
+            num_initial={config.num_initial}, num_test={_safe_num_test!r},
+            # forward_ic_from_file only matters for step 0 (loading the
+            # true initial condition from a file there); every later step's
+            # IC constraint comes from the previous window's own predicted
+            # solution (prev_u) via _xyt_ic_anchor, regardless of that flag.
+            # Gating this on the bare flag (rather than "step 0 AND the
+            # flag") silently dropped the previous-window anchor points for
+            # EVERY step after the first whenever forward_ic_from_file was
+            # on, weakening (though not removing -- the PointSetBC loss
+            # term above is still added either way) how strongly later
+            # windows are forced to match their own true starting point.
+            anchors=None if (step_i == 0 and {config.forward_ic_from_file}) else (_xyt_ic_anchor if (step_i > 0 and (_is_2d or _is_3d)) else None)
+        )
+
+        net_i   = _apply_net_transforms(_make_net({config.layers}, "{config.activation}", "{config.kernel_initializer}", {config.weight_decay}))
+        model_i = dde.Model(data_i, net_i)
+
+        # ── Training callbacks (opt-in, fresh instances each step) ─
+{_train_cbs_code_ta}
+
+        # ── Transfer learning — warm start from previous step ─
+        if {config.ta_transfer_learning} and step_i > 0 and _prev_step_model_path:
+            try:
+                import torch as _torch
+                _ckpt = _torch.load(_prev_step_model_path, map_location='cpu')
+                # Extract ONLY weights and biases — nothing else
+                _state = _ckpt["model_state_dict"]
+                _wb_only = {{
+                    k: v for k, v in _state.items()
+                    if k.endswith('.weight') or k.endswith('.bias')
+                }}
+                # Strict=False so geometry mismatch doesn't crash
+                # but we verify shapes match before loading
+                _cur_state = model_i.net.state_dict()
+                _matched = {{}}
+                _skipped = []
+                for k, v in _wb_only.items():
+                    if k in _cur_state and _cur_state[k].shape == v.shape:
+                        _matched[k] = v
+                    else:
+                        _skipped.append(k)
+                _cur_state.update(_matched)
+                model_i.net.load_state_dict(_cur_state)
+                print(f"  ✅ Transfer learning: {{len(_matched)}} weight/bias tensors transferred from step {{step_i}}")
+                if _skipped:
+                    print(f"  ⚠️  Skipped {{len(_skipped)}} tensors (shape mismatch): {{_skipped}}")
+            except Exception as _te:
+                print(f"  ⚠️ Transfer learning failed: {{_te}} — training from scratch")
+
+        # IC pre-training for first step only
+        if {config.ic_pretrain} and step_i == 0:
+            print(f"  === IC Pre-Training: {config.ic_pretrain_iterations} iterations ===")
+            # Build IC-only data: no domain/BC points, only IC points
+            _ic_geom_pt = _build_geom()
+            _ic_td_pt = dde.geometry.TimeDomain(t0, t1)
+            _ic_gt_pt = dde.geometry.GeometryXTime(_ic_geom_pt, _ic_td_pt)
+            # Only IC constraint
+            _ic_constraints_pt = []
+            if {config.forward_ic_from_file}:
+                _ic_ta_xyt, _ic_ta_vals = _load_ic_from_file({repr(config.forward_ic_file)})
+                _ic_constraints_pt.append(dde.icbc.PointSetBC(_ic_ta_xyt, _ic_ta_vals, component=0))
+            else:
+                for _oi_pt in range({config.num_outputs}):
+                    _ic_expr_pt = _ic_expressions[_oi_pt].strip() if _oi_pt < len(_ic_expressions) else "np.zeros_like(x[:,0])"
+                    def _mk_ic_pt(expr, comp):
+                        def _ic_fn(x):
+                            return np.reshape(eval(expr, {{"np": np, "x": x, "__builtins__": __builtins__}}), (-1, 1))
+                        return dde.icbc.IC(_ic_gt_pt, _ic_fn, lambda x, on_initial: on_initial, component=comp)
+                    _ic_constraints_pt.append(_mk_ic_pt(_ic_expr_pt, _oi_pt))
+            # IC-only loss weights: PDE terms 0, every IC term 1000.
+            _ic_only_weights = [0.0] * {config.num_outputs} + [1000.0] * len(_ic_constraints_pt)
+{_ic_pretrain_block_ta}
+            print("  === Starting Main Training ===")
+
+        # ── Phase 1 (Adam) ──────────────────────────────────────
+        # Mirrors the Standard (non-Time-Adaptive) path's own unconditional
+        # Phase 1 training call above (model.train(iterations=_iters, ...)
+        # under "if not _sched_active:") -- this per-step loop previously
+        # had no equivalent: it only ever compiled/trained model_i inside
+        # the scheduler-phases block below or the legacy optimizer2
+        # L-BFGS-only branch's elif, with nothing to fall back on when
+        # neither applied. A legacy/hand-edited config with the (GUI-
+        # hidden, always-on) scheduler off, an empty scheduler_phases, and
+        # optimizer2 left at "none" would then never compile or train
+        # model_i at all for this step -- model_i.predict(...) ran
+        # immediately after on an untrained, randomly-initialized network,
+        # and that garbage became the next step's initial condition, with
+        # no exception raised anywhere.
+        if not ({config.optimizer_scheduler} and {len(config.scheduler_phases) > 0}):
+            model_i.compile("{config.optimizer}", lr={config.learning_rate},
+                            loss="{config.loss_type}", loss_weights=_multi_weights)
+            lh_i, ts_i = model_i.train(iterations={config.iterations}, display_every={config.loss_display_every}, callbacks=_train_cbs_ta)
+            _ta_accumulate_loss(lh_i)
+            print(f"  Adam phase done. Steps: {{len(lh_i.steps)}}")
+            if _use_save:
+                _step_dir_adam = _os.path.join(_save_dir, "time_adaptive_steps", f"step_{{step_i+1:03d}}_t{{t0:.4f}}_to_t{{t1:.4f}}")
+                _os.makedirs(_step_dir_adam, exist_ok=True)
+                _step_adam_path = _os.path.join(_step_dir_adam, "model_adam")
+                model_i.save(_step_adam_path)
+                print(f"Step Adam model saved: {{_step_adam_path}}.pt")
+
+        # ── Optimizer Scheduler phases ────────────────────────
+        if {config.optimizer_scheduler} and {len(config.scheduler_phases) > 0}:
+            import json as _json
+            _sched_phases = _json.loads({repr(config.scheduler_phases)})
+            for _sp_i, _sp in enumerate(_sched_phases):
+                print(f"  === Scheduler Phase {{_sp_i+1}}: {{_sp['optimizer']}} {{_sp['iterations']}} iters ===")
+                _sp_weights = [float(w) for w in _sp['weights'].split(',') if w.strip()]
+                # Same safety net as the main (non-Time-Adaptive) scheduler loop:
+                # each step rebuilds its own _constraints_i, which can be a
+                # different length than what the GUI's scheduler-phase weight
+                # string was built from (e.g. a step boundary changing which IC
+                # constraint applies) -- fall back to uniform weights of the
+                # right length rather than crash mid-training.
+                _sp_expected_len_i = {config.num_outputs} + len(_constraints_i)
+                if len(_sp_weights) != _sp_expected_len_i:
+                    print(f"  ⚠️ Scheduler Phase {{_sp_i+1}} (step {{step_i+1}}): configured weights have "
+                          f"{{len(_sp_weights)}} entries but {{_sp_expected_len_i}} loss terms are active this "
+                          f"step ({{len(_constraints_i)}} constraints + {config.num_outputs} PDE) — using "
+                          f"uniform weights for this phase instead of crashing.")
+                    _sp_weights = [1.0] * _sp_expected_len_i
+                if _sp['optimizer'] == 'lbfgs':
+                    dde.optimizers.set_LBFGS_options(
+                        maxcor={config.lbfgs_maxcor}, ftol={config.lbfgs_ftol},
+                        gtol={config.lbfgs_gtol}, maxiter=_sp['iterations'],
+                        maxfun=int(_sp['iterations']*1.25), maxls={config.lbfgs_maxls})
+                    _lbfgs_float = "{config.lbfgs_float_type}"
+                    model_i.compile("L-BFGS", loss=_sp.get('loss', '{config.loss_type}'),
+                                    loss_weights=_sp_weights)
+                    lh_i, ts_i = model_i.train(display_every={config.loss_display_every}, callbacks=_train_cbs_ta)
+                    _ta_accumulate_loss(lh_i)
+                    if _use_save:
+                        _sp_step_dir = _os.path.join(_save_dir, "time_adaptive_steps", f"step_{{step_i+1:03d}}_t{{t0:.4f}}_to_t{{t1:.4f}}")
+                        _os.makedirs(_sp_step_dir, exist_ok=True)
+                        _sp_save_path = _os.path.join(_sp_step_dir, f"model_lbfgs-phase{{_sp_i+1}}")
+                        model_i.save(_sp_save_path)
+                        print(f"  Phase {{_sp_i+2}} L-BFGS model saved: {{_sp_save_path}}.pt")
+                elif _sp['optimizer'] == 'nncg':
+                    # See the matching NNCG branch in the Standard scheduler
+                    # loop above for why: exact-case "NNCG" name, no lr=, no
+                    # decay (NNCG_options is left at its defaults -- not
+                    # exposed in this app's UI).
+                    model_i.compile("NNCG", loss=_sp.get('loss', '{config.loss_type}'),
+                                    loss_weights=_sp_weights)
+                    lh_i, ts_i = model_i.train(iterations=_sp['iterations'], display_every={config.loss_display_every}, callbacks=_train_cbs_ta)
+                    _ta_accumulate_loss(lh_i)
+                    if _use_save:
+                        _sp_iters = lh_i.steps[-1] if lh_i.steps else _sp['iterations']
+                        _sp_step_dir = _os.path.join(_save_dir, "time_adaptive_steps", f"step_{{step_i+1:03d}}_t{{t0:.4f}}_to_t{{t1:.4f}}")
+                        _os.makedirs(_sp_step_dir, exist_ok=True)
+                        _sp_save_path = _os.path.join(_sp_step_dir, f"model_nncg-phase{{_sp_i+1}}")
+                        model_i.save(_sp_save_path)
+                        print(f"  Phase {{_sp_i+2}} NNCG model saved: {{_sp_save_path}}.pt")
+                else:
+                    _sp_decay = None
+                    _sp_decay_type = _sp.get('decay_type', 'none')
+                    if _sp_decay_type and _sp_decay_type != 'none':
+                        _sp_p1 = _sp.get('decay_p1', 0) or 0
+                        _sp_p2 = _sp.get('decay_p2', 0) or 0
+                        if _sp_decay_type == 'step':
+                            _sp_decay = ('step', int(_sp_p1), float(_sp_p2))
+                        elif _sp_decay_type == 'cosine':
+                            _sp_decay = ('cosine', int(_sp_p1), float(_sp_p2))
+                        elif _sp_decay_type == 'exponential':
+                            _sp_decay = ('exponential', float(_sp_p1))
+                    model_i.compile(_sp['optimizer'], lr=_sp['lr'], decay=_sp_decay,
+                                    loss=_sp.get('loss', '{config.loss_type}'), loss_weights=_sp_weights)
+                    lh_i, ts_i = model_i.train(iterations=_sp['iterations'], display_every={config.loss_display_every}, callbacks=_train_cbs_ta)
+                    _ta_accumulate_loss(lh_i)
+                    if _use_save:
+                        _sp_iters = lh_i.steps[-1] if lh_i.steps else _sp['iterations']
+                        _sp_step_dir = _os.path.join(_save_dir, "time_adaptive_steps", f"step_{{step_i+1:03d}}_t{{t0:.4f}}_to_t{{t1:.4f}}")
+                        _os.makedirs(_sp_step_dir, exist_ok=True)
+                        _sp_save_path = _os.path.join(_sp_step_dir, f"model_adam-phase{{_sp_i+1}}")
+                        model_i.save(_sp_save_path)
+                        print(f"  Phase {{_sp_i+2}} Adam model saved: {{_sp_save_path}}.pt")
+        elif "{config.optimizer2}" != "none":
+            dde.optimizers.set_LBFGS_options(
+                    maxcor={config.lbfgs_maxcor}, ftol={config.lbfgs_ftol},
+                    gtol={config.lbfgs_gtol}, maxiter={config.iterations2},
+                    maxfun={config.lbfgs_maxfun}, maxls={config.lbfgs_maxls})
+            model_i.compile("L-BFGS", loss="{config.loss_type}",
+                            loss_weights=_multi_weights)
+            lh_i, ts_i = model_i.train(display_every={config.loss_display_every}, callbacks=_train_cbs_ta)
+            _ta_accumulate_loss(lh_i)
+            print(f"  L-BFGS phase done. Steps: {{len(lh_i.steps)}}")
+
+            if _use_save:
+                _step_dir_lbfgs = _os.path.join(_save_dir, "time_adaptive_steps", f"step_{{step_i+1:03d}}_t{{t0:.4f}}_to_t{{t1:.4f}}")
+                _os.makedirs(_step_dir_lbfgs, exist_ok=True)
+                _step_lbfgs_path = _os.path.join(_step_dir_lbfgs, "model_lbfgs")
+                model_i.save(_step_lbfgs_path)
+                print(f"Step L-BFGS model saved: {{_step_lbfgs_path}}.pt")
+
+        if _is_3d:
+            # 3D: predict on x-y-z grid at t=t1, store as flat array for PointSetBC next step
+            _x_pred = np.linspace({config.x_min}, {config.x_max}, grid_size)
+            _y_pred = np.linspace({config.y_min}, {config.y_max}, grid_size)
+            _z_pred = np.linspace({config.z_min}, {config.z_max}, grid_size)
+            _Xp, _Yp, _Zp = np.meshgrid(_x_pred, _y_pred, _z_pred)
+            _xyzt_pred = np.column_stack([_Xp.ravel(), _Yp.ravel(), _Zp.ravel(), np.full(_Xp.size, t1)])
+            prev_u  = model_i.predict(_xyzt_pred)
+            x_grid  = _xyzt_pred[:, :3]  # store (x,y,z) triples for next step's PointSetBC
+        elif _is_2d:
+            # 2D: predict on x-y grid at t=t1, store as flat array for PointSetBC next step
+            _x_pred = np.linspace({config.x_min}, {config.x_max}, grid_size)
+            _y_pred = np.linspace({config.y_min}, {config.y_max}, grid_size)
+            _Xp, _Yp = np.meshgrid(_x_pred, _y_pred)
+            _xyt_pred = np.column_stack([_Xp.ravel(), _Yp.ravel(), np.full(_Xp.size, t1)])
+            prev_u  = model_i.predict(_xyt_pred)
+            x_grid  = _xyt_pred[:, :2]  # store (x,y) pairs for next step's PointSetBC
+        else:
+            x_pred  = np.linspace({config.x_min}, {config.x_max}, grid_size)
+            t_pred  = np.full_like(x_pred, t1)
+            xt_pred = np.column_stack([x_pred, t_pred])
+            prev_u  = model_i.predict(xt_pred)
+            x_grid  = x_pred.reshape(-1, 1)
+
+        if _is_3d:
+            # 3D: no volumetric renderer for the stitched plot either (same
+            # limit as the Standard path's own 3D solution plot) -- fix
+            # BOTH y and z at their domain mid-points and store an x-t
+            # slice, exactly like the 2D branch below fixes y alone. This
+            # keeps all_x/all_t/all_u in the same shape regardless of
+            # dimension, so the final combined plot needs no 3D-specific
+            # branch of its own.
+            x_plot = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
+            t_plot = np.linspace(t0, t1, {config.plot_resolution})
+            y_mid  = {_line_slice_y}
+            z_mid  = {_line_slice_z}
+            Xp, Tp = np.meshgrid(x_plot, t_plot)
+            XYZTp  = np.column_stack([Xp.ravel(), np.full(Xp.size, y_mid), np.full(Xp.size, z_mid), Tp.ravel()])
+            Up     = _extract_plot_field(XYZTp, model_i).reshape({config.plot_resolution}, {config.plot_resolution})
+            all_x.append(Xp); all_t.append(Tp); all_u.append(Up)
+        elif not _is_2d:
+            x_plot = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
+            t_plot = np.linspace(t0, t1, {config.plot_resolution})
+            Xp, Tp = np.meshgrid(x_plot, t_plot)
+            XTp    = np.vstack([Xp.ravel(), Tp.ravel()]).T
+            Up     = _extract_plot_field(XTp, model_i).reshape({config.plot_resolution}, {config.plot_resolution})
+            all_x.append(Xp); all_t.append(Tp); all_u.append(Up)
+        else:
+            # 2D: store mid-y slice for combined plot
+            x_plot = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
+            t_plot = np.linspace(t0, t1, {config.plot_resolution})
+            y_mid  = {_line_slice_y}
+            Xp, Tp = np.meshgrid(x_plot, t_plot)
+            XYTp   = np.column_stack([Xp.ravel(), np.full(Xp.size, y_mid), Tp.ravel()])
+            Up     = _extract_plot_field(XYTp, model_i).reshape({config.plot_resolution}, {config.plot_resolution})
+            all_x.append(Xp); all_t.append(Tp); all_u.append(Up)
+
+        print(f"Step {{step_i+1}} done. Final train loss: {{sum(lh_i.loss_train[-1]):.4e}}")
+        _ta_step_boundaries.append(_ta_loss_offset)
+
+        # ── Save step plot & models ───────────────────────────
+        if _use_save:
+            _step_dir = _os.path.join(_save_dir, "time_adaptive_steps", f"step_{{step_i+1:03d}}_t{{t0:.4f}}_to_t{{t1:.4f}}")
+            _os.makedirs(_step_dir, exist_ok=True)
+            # ── Reference matches for this step's own time range ──
+            # Half-open [t0, t1) except the LAST step, whose upper bound is
+            # inclusive -- avoids double-counting a reference file sitting
+            # exactly on the shared boundary between two adjacent steps
+            # (ta_step_groups splits time into contiguous sub-domains, so
+            # t1 of step i always equals t0 of step i+1).
+            _step_matches = sorted(
+                [_tea for _tea in _ta_ea_entries
+                 if (t0 - 1e-9) <= _tea[0] <= (t1 + 1e-9 if step_i == n_steps - 1 else t1 - 1e-9)],
+                key=lambda _tea: _tea[0],
+            )
+            if _step_matches:
+                print(f"  Step {{step_i+1}}: {{len(_step_matches)}} reference file(s) in t=[{{t0:.4f}}, {{t1:.4f}}]")
+
+            if not _is_2d and not _is_3d:
+                # ── 1D: always both a surface and a line comparison --
+                # merged with reference when this step's time range has
+                # matching reference file(s), else PINN-only (same as
+                # before this feature existed).
+                _step_fname = _os.path.join(_step_dir, f"step_{{step_i+1:03d}}_t{{t0:.4f}}_to_t{{t1:.4f}}_surface.png")
+                try:
+                    if len(_step_matches) >= 2:
+                        # >= 2 distinct reference times in range -- build a
+                        # real (time x space) comparison surface, same
+                        # technique the Standard path's Inline Error
+                        # Analysis "1D: standard x vs t surface" uses.
+                        _tea_x_common = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
+                        _tea_times_m = [_m[0] for _m in _step_matches]
+                        _tea_U_pinn = np.zeros((len(_step_matches), len(_tea_x_common)))
+                        _tea_U_ref = np.zeros((len(_step_matches), len(_tea_x_common)))
+                        for _mi, (_mtv, _mfp, _msel) in enumerate(_step_matches):
+                            _tea_xt_c = np.column_stack([_tea_x_common, np.full_like(_tea_x_common, _mtv)])
+                            _tea_U_pinn[_mi, :] = _ta_ref_extract(_tea_xt_c, _msel, model_i).flatten()
+                            _tea_d = np.loadtxt(_mfp)
+                            if _tea_d.ndim == 1:
+                                _tea_d = _tea_d.reshape(1, -1)
+                            _tea_ord = np.argsort(_tea_d[:, 0])
+                            _tea_fi = _ta_interp1d(_tea_d[_tea_ord, 0], _tea_d[_tea_ord, 2], kind="linear", fill_value="extrapolate")
+                            _tea_U_ref[_mi, :] = _tea_fi(_tea_x_common)
+                        _tea_Xg, _tea_Tg = np.meshgrid(_tea_x_common, _tea_times_m)
+                        _tea_U_err = np.abs(_tea_U_pinn - _tea_U_ref)
+                        _tea_vmin = min(_tea_U_pinn.min(), _tea_U_ref.min())
+                        _tea_vmax = max(_tea_U_pinn.max(), _tea_U_ref.max())
+                        if _tea_vmax - _tea_vmin < 1e-12:
+                            _tea_vmax = _tea_vmin + 1e-12
+                        _tea_levels = _cf_levels({config.plot_levels}, _tea_vmin, _tea_vmax)["levels"]
+                        fig, axes_s = plt.subplots(1, 3, figsize=_plot_figsize(15, 5))
+                        fig.suptitle(f"Step {{step_i+1}}: t = {{t0:.4f}} → {{t1:.4f}} -- PINN vs Reference", fontsize={config.plot_title_fontsize}, fontweight="bold")
+                        _tea_cols = [
+                            (_tea_U_pinn, "PINN", _tea_levels, "{config.plot_colormap}"),
+                            (_tea_U_ref, "Reference", _tea_levels, "{config.plot_colormap}"),
+                            (_tea_U_err, f"|Error|  Max={{_tea_U_err.max():.2e}}", {config.plot_levels}, "{config.plot_colormap}"),
+                        ]
+                        for _tea_ci, (_tea_vals, _tea_ttl, _tea_lv, _tea_cmap) in enumerate(_tea_cols):
+                            if {config.plot_swap_xt}:
+                                _tea_im = axes_s[_tea_ci].contourf(_tea_Tg, _tea_Xg, _tea_vals, levels=_tea_lv, cmap=_tea_cmap)
+                                axes_s[_tea_ci].set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); axes_s[_tea_ci].set_ylabel("x", fontsize={config.plot_axis_label_fontsize})
+                            else:
+                                _tea_im = axes_s[_tea_ci].contourf(_tea_Xg.T, _tea_Tg.T, _tea_vals.T, levels=_tea_lv, cmap=_tea_cmap)
+                                axes_s[_tea_ci].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); axes_s[_tea_ci].set_ylabel("t", fontsize={config.plot_axis_label_fontsize})
+                            axes_s[_tea_ci].set_title(_tea_ttl, fontsize={config.plot_subplot_title_fontsize})
+                            fig.colorbar(_tea_im, ax=axes_s[_tea_ci])
+                        plt.tight_layout(rect=[0, 0, 1, 0.93])
+                    else:
+                        # 0 or 1 reference match -- a surface needs >= 2
+                        # distinct time snapshots to interpolate against;
+                        # fall back to the plain PINN-only step preview
+                        # (the line comparison below still covers a single
+                        # match on its own).
+                        _vmin_step = None if {config.plot_auto_range} else {config.plot_vmin}
+                        _vmax_step = None if {config.plot_auto_range} else {config.plot_vmax}
+                        _res_step = {config.plot_resolution}
+                        _x_s2 = np.linspace({config.x_min}, {config.x_max}, _res_step)
+                        _t_s2 = np.linspace(t0, t1, _res_step)
+                        _Xs2, _Ts2 = np.meshgrid(_x_s2, _t_s2)
+                        _XTs2 = np.vstack([_Xs2.ravel(), _Ts2.ravel()]).T
+                        _Us2 = _extract_plot_field(_XTs2, model_i).reshape(_res_step, _res_step)
+                        fig, ax = plt.subplots(figsize=_plot_figsize(7, 4))
+                        if {config.plot_swap_xt}:
+                            im = ax.contourf(_Ts2, _Xs2, _Us2, cmap="{config.plot_colormap}", **_cf_levels({config.plot_levels}, _vmin_step, _vmax_step, _Us2))
+                            ax.set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel("x", fontsize={config.plot_axis_label_fontsize})
+                        else:
+                            im = ax.contourf(_Xs2, _Ts2, _Us2, cmap="{config.plot_colormap}", **_cf_levels({config.plot_levels}, _vmin_step, _vmax_step, _Us2))
+                            ax.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel("t", fontsize={config.plot_axis_label_fontsize})
+                        if {config.plot_colorbar}:
+                            fig.colorbar(im, ax=ax)
+                        ax.set_title(f"Step {{step_i+1}}: t = {{t0:.4f}} → {{t1:.4f}}")
+                        plt.tight_layout()
+                    plt.savefig(_step_fname, dpi={config.plot_dpi}, bbox_inches="tight")
+                    plt.close()
+                    print(f"Step surface plot saved: {{_step_fname}}")
+                except Exception as _tea_err_surf:
+                    print(f"  Step {{step_i+1}} surface plot failed: {{_tea_err_surf}}")
+
+                _step_line_fname = _os.path.join(_step_dir, f"step_{{step_i+1:03d}}_t{{t0:.4f}}_to_t{{t1:.4f}}_line.png")
+                try:
+                    if _step_matches:
+                        # One subplot per matching reference time (showing
+                        # ALL of them when there's more than one, since
+                        # that's more informative) instead of the plain
+                        # evenly-spaced time sampling used below.
+                        _tea_ncols = min(4, len(_step_matches))
+                        _tea_nrows = (len(_step_matches) + _tea_ncols - 1) // _tea_ncols
+                        fig, axes = plt.subplots(_tea_nrows, _tea_ncols, figsize=(4*_tea_ncols, 3.5*_tea_nrows), squeeze=False)
+                        fig.suptitle(f"Step {{step_i+1}}: t = {{t0:.4f}} → {{t1:.4f}} -- PINN vs Reference", fontsize={config.plot_title_fontsize}, fontweight="bold")
+                        _tea_ax_flat = axes.flatten()
+                        for _mi, (_mtv, _mfp, _msel) in enumerate(_step_matches):
+                            _tea_d = np.loadtxt(_mfp)
+                            if _tea_d.ndim == 1:
+                                _tea_d = _tea_d.reshape(1, -1)
+                            _tea_ord = np.argsort(_tea_d[:, 0])
+                            _tea_xv = _tea_d[_tea_ord, 0]
+                            _tea_uv = _tea_d[_tea_ord, 2]
+                            _tea_xt_l = np.column_stack([_tea_xv, np.full_like(_tea_xv, _mtv)])
+                            _tea_up = _ta_ref_extract(_tea_xt_l, _msel, model_i).flatten()
+                            _tea_l2 = float(np.linalg.norm(_tea_up - _tea_uv) / (np.linalg.norm(_tea_uv) + 1e-10))
+                            _ax = _tea_ax_flat[_mi]
+                            _ax.plot(_tea_xv, _tea_uv, color="#4dabf7", linewidth=2.0, label="Reference")
+                            _ax.plot(_tea_xv, _tea_up, color="#ff6b6b", linewidth=2.0, linestyle="--", label="PINN")
+                            _ax.set_title(f"t={{_mtv:.4f}}  L2={{_tea_l2:.2e}}", fontsize={config.plot_subplot_title_fontsize})
+                            _ax.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax.set_ylabel("u", fontsize={config.plot_axis_label_fontsize}); _ax.grid(True, alpha=0.3)
+                        for _mj in range(len(_step_matches), len(_tea_ax_flat)):
+                            _tea_ax_flat[_mj].set_visible(False)
+                        _tea_h, _tea_l = _tea_ax_flat[0].get_legend_handles_labels()
+                        fig.legend(_tea_h, _tea_l, loc="lower center", ncol=2, fontsize=9, framealpha=0.9, bbox_to_anchor=(0.5, 0.01))
+                        plt.tight_layout(rect=[0, 0.06, 1, 1])
+                    else:
+                        n_steps_plot = {config.num_timesteps_line}
+                        _x_l2 = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
+                        _t_line = np.linspace(t0, t1, n_steps_plot)
+                        fig, ax = plt.subplots(figsize=_plot_figsize(8, 4))
+                        colors = plt.get_cmap("{config.plot_colormap}")(np.linspace(0, 1, n_steps_plot))
+                        for _ci, _tv in enumerate(_t_line):
+                            _xt_line = np.column_stack([_x_l2, np.full_like(_x_l2, _tv)])
+                            _u_line = _extract_plot_field(_xt_line, model_i).flatten()
+                            ax.plot(_x_l2, _u_line, color=colors[_ci], linewidth={config.plot_linewidth}, label=f"t={{_tv:.3f}}")
+                        ax.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel("u", fontsize={config.plot_axis_label_fontsize})
+                        ax.set_title(f"Step {{step_i+1}}: t = {{t0:.4f}} → {{t1:.4f}}")
+                        ax.legend(loc="upper right", fontsize=7); ax.grid(True, alpha=0.2)
+                        plt.tight_layout()
+                    plt.savefig(_step_line_fname, dpi={config.plot_dpi}, bbox_inches="tight")
+                    plt.close()
+                    print(f"Step line plot saved: {{_step_line_fname}}")
+                except Exception as _tea_err_line:
+                    print(f"  Step {{step_i+1}} line plot failed: {{_tea_err_line}}")
+            else:
+                # ── 2D/3D: surface only -- merged with reference (ALL
+                # matching files, not just the closest one) when this
+                # step's time range has matches, else the plain PINN-only
+                # t0/t1 preview (unchanged from before this feature).
+                _step_fname = _os.path.join(_step_dir, f"step_{{step_i+1:03d}}_t{{t0:.4f}}_to_t{{t1:.4f}}.png")
+                try:
+                    if _step_matches:
+                        from mpl_toolkits.mplot3d import Axes3D as _tea_Axes3D_unused  # noqa: F401 -- registers the 3D projection
+                        _tea_n = len(_step_matches)
+                        if _is_3d:
+                            fig = plt.figure(figsize=_plot_figsize(15, 4.5 * _tea_n))
+                            for _mi, (_mtv, _mfp, _msel) in enumerate(_step_matches):
+                                _tea_d = np.loadtxt(_mfp)
+                                if _tea_d.ndim == 1:
+                                    _tea_d = _tea_d.reshape(1, -1)
+                                _tea_xyz = _tea_d[:, :3]
+                                _tea_u = _tea_d[:, 4]
+                                _tea_grid = np.column_stack([_tea_xyz, np.full(len(_tea_d), _mtv)])
+                                _tea_pred = _ta_ref_extract(_tea_grid, _msel, model_i)
+                                _tea_err = np.abs(_tea_pred - _tea_u)
+                                _tea_l2 = float(np.linalg.norm(_tea_pred - _tea_u) / (np.linalg.norm(_tea_u) + 1e-12))
+                                _tea_vmin = min(_tea_pred.min(), _tea_u.min())
+                                _tea_vmax = max(_tea_pred.max(), _tea_u.max())
+                                _tea_cols3 = [
+                                    (_tea_pred, f"PINN  t={{_mtv:.4f}}  L2={{_tea_l2:.2e}}", _tea_vmin, _tea_vmax, "{config.plot_colormap}"),
+                                    (_tea_u, f"Reference  t={{_mtv:.4f}}", _tea_vmin, _tea_vmax, "{config.plot_colormap}"),
+                                    (_tea_err, f"|Error|  Max={{_tea_err.max():.2e}}", None, None, "{config.plot_colormap}"),
+                                ]
+                                for _tea_ci, (_tea_vals, _tea_ttl, _tea_vmn, _tea_vmx, _tea_cmap) in enumerate(_tea_cols3):
+                                    _tea_ax = fig.add_subplot(_tea_n, 3, _mi * 3 + _tea_ci + 1, projection="3d")
+                                    _tea_sc = _tea_ax.scatter(_tea_xyz[:, 0], _tea_xyz[:, 1], _tea_xyz[:, 2], c=_tea_vals,
+                                                               cmap=_tea_cmap, s=10, vmin=_tea_vmn, vmax=_tea_vmx)
+                                    fig.colorbar(_tea_sc, ax=_tea_ax, shrink=0.6, pad=0.12)
+                                    _tea_ax.set_title(_tea_ttl, fontsize={config.plot_subplot_title_fontsize})
+                                    _tea_ax.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _tea_ax.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _tea_ax.set_zlabel("z", fontsize={config.plot_axis_label_fontsize})
+                            fig.suptitle(f"Step {{step_i+1}} -- PINN vs Reference", fontsize={config.plot_title_fontsize}, fontweight="bold")
+                        else:
+                            fig, axes = plt.subplots(_tea_n, 3, figsize=(15, 4*_tea_n), squeeze=False)
+                            fig.suptitle(f"Step {{step_i+1}}: t = {{t0:.4f}} → {{t1:.4f}} -- PINN vs Reference", fontsize={config.plot_title_fontsize}, fontweight="bold")
+                            _res_step = {config.plot_resolution}
+                            _xg_s = np.linspace({config.x_min}, {config.x_max}, _res_step)
+                            _yg_s = np.linspace({config.y_min}, {config.y_max}, _res_step)
+                            _Xg_s, _Yg_s = np.meshgrid(_xg_s, _yg_s)
+                            _inside_s = geom_i.inside(np.column_stack([_Xg_s.ravel(), _Yg_s.ravel()])).reshape(_res_step, _res_step)
+                            from scipy.interpolate import griddata as _tea_gd
+                            for _mi, (_mtv, _mfp, _msel) in enumerate(_step_matches):
+                                _tea_d = np.loadtxt(_mfp)
+                                if _tea_d.ndim == 1:
+                                    _tea_d = _tea_d.reshape(1, -1)
+                                _tea_xy = _tea_d[:, :2]
+                                _tea_u = _tea_d[:, 3]
+                                _tea_grid_pinn = np.column_stack([_Xg_s.ravel(), _Yg_s.ravel(), np.full(_Xg_s.size, _mtv)])
+                                _tea_u_pinn = _ta_ref_extract(_tea_grid_pinn, _msel, model_i).reshape(_res_step, _res_step)
+                                _tea_u_pinn = np.where(_inside_s, _tea_u_pinn, np.nan)
+                                _tea_u_ref = _tea_gd(_tea_xy, _tea_u, (_Xg_s, _Yg_s), method="linear", fill_value=0.0)
+                                _tea_u_ref = np.where(_inside_s, _tea_u_ref, np.nan)
+                                _tea_u_err = np.abs(_tea_u_pinn - _tea_u_ref)
+                                _tea_vmin = np.nanmin([_tea_u_pinn, _tea_u_ref])
+                                _tea_vmax = np.nanmax([_tea_u_pinn, _tea_u_ref])
+                                if _tea_vmax - _tea_vmin < 1e-12:
+                                    _tea_vmax = _tea_vmin + 1e-12
+                                _tea_levels = _cf_levels({config.plot_levels}, _tea_vmin, _tea_vmax)["levels"]
+                                # Round 31: standardized on "|Error|  Max=..."
+                                # here -- matching every other per-panel error
+                                # label in the app (RAR's own round diagnostics,
+                                # this same per-step plot's sibling 3D branch,
+                                # and the formal Error Analysis feature) --
+                                # this branch alone used to show RMSE instead,
+                                # one of the inconsistent labels the user
+                                # reported.
+                                _tea_max_err = float(np.nanmax(_tea_u_err))
+                                im0 = axes[_mi][0].contourf(_Xg_s, _Yg_s, _tea_u_pinn, levels=_tea_levels, cmap="{config.plot_colormap}")
+                                axes[_mi][0].set_title(f"PINN  t={{_mtv:.4f}}", fontsize={config.plot_subplot_title_fontsize})
+                                axes[_mi][0].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); axes[_mi][0].set_ylabel("y", fontsize={config.plot_axis_label_fontsize})
+                                fig.colorbar(im0, ax=axes[_mi][0])
+                                im1 = axes[_mi][1].contourf(_Xg_s, _Yg_s, _tea_u_ref, levels=_tea_levels, cmap="{config.plot_colormap}")
+                                axes[_mi][1].set_title(f"Reference  t={{_mtv:.4f}}", fontsize={config.plot_subplot_title_fontsize})
+                                axes[_mi][1].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); axes[_mi][1].set_ylabel("y", fontsize={config.plot_axis_label_fontsize})
+                                fig.colorbar(im1, ax=axes[_mi][1])
+                                im2 = axes[_mi][2].contourf(_Xg_s, _Yg_s, _tea_u_err, levels={config.plot_levels}, cmap="{config.plot_colormap}")
+                                axes[_mi][2].set_title(f"|Error|  Max={{_tea_max_err:.2e}}", fontsize={config.plot_subplot_title_fontsize})
+                                axes[_mi][2].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); axes[_mi][2].set_ylabel("y", fontsize={config.plot_axis_label_fontsize})
+                                fig.colorbar(im2, ax=axes[_mi][2])
+                        plt.tight_layout(rect=[0, 0, 1, 0.93])
+                    else:
+                        _vmin_step = None if {config.plot_auto_range} else {config.plot_vmin}
+                        _vmax_step = None if {config.plot_auto_range} else {config.plot_vmax}
+                        _res_step = {config.plot_resolution}
+                        _xg_s = np.linspace({config.x_min}, {config.x_max}, _res_step)
+                        _yg_s = np.linspace({config.y_min}, {config.y_max}, _res_step)
+                        _Xg_s, _Yg_s = np.meshgrid(_xg_s, _yg_s)
+                        if _is_3d:
+                            _z_mid_s = {_line_slice_z}
+                            fig, axes = plt.subplots(1, 2, figsize=_plot_figsize(10, 4))
+                            for _ai, _tv_s in enumerate([t0, t1]):
+                                _xyt_s = np.column_stack([_Xg_s.ravel(), _Yg_s.ravel(), np.full(_Xg_s.size, _z_mid_s), np.full(_Xg_s.size, _tv_s)])
+                                _U_s = _extract_plot_field(_xyt_s, model_i).reshape(_res_step, _res_step)
+                                im = axes[_ai].contourf(_Xg_s, _Yg_s, _U_s, cmap="{config.plot_colormap}", **_cf_levels({config.plot_levels}, _vmin_step, _vmax_step, _U_s))
+                                if {config.plot_colorbar}:
+                                    fig.colorbar(im, ax=axes[_ai])
+                                axes[_ai].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); axes[_ai].set_ylabel("y", fontsize={config.plot_axis_label_fontsize})
+                                axes[_ai].set_title(f"t = {{_tv_s:.4f}}  (z={{_z_mid_s:.3g}})")
+                            fig.suptitle(f"Step {{step_i+1}}: t = {{t0:.4f}} → {{t1:.4f}}", fontsize={config.plot_title_fontsize})
+                        else:
+                            fig, axes = plt.subplots(1, 2, figsize=_plot_figsize(10, 4))
+                            for _ai, _tv_s in enumerate([t0, t1]):
+                                _xyt_s = np.column_stack([_Xg_s.ravel(), _Yg_s.ravel(), np.full(_Xg_s.size, _tv_s)])
+                                _U_s = _extract_plot_field(_xyt_s, model_i).reshape(_res_step, _res_step)
+                                im = axes[_ai].contourf(_Xg_s, _Yg_s, _U_s, cmap="{config.plot_colormap}", **_cf_levels({config.plot_levels}, _vmin_step, _vmax_step, _U_s))
+                                if {config.plot_colorbar}:
+                                    fig.colorbar(im, ax=axes[_ai])
+                                axes[_ai].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); axes[_ai].set_ylabel("y", fontsize={config.plot_axis_label_fontsize})
+                                axes[_ai].set_title(f"t = {{_tv_s:.4f}}")
+                            fig.suptitle(f"Step {{step_i+1}}: t = {{t0:.4f}} → {{t1:.4f}}", fontsize={config.plot_title_fontsize})
+                        plt.tight_layout(rect=[0, 0, 1, 0.93])
+                    plt.savefig(_step_fname, dpi={config.plot_dpi}, bbox_inches="tight")
+                    plt.close()
+                    print(f"Step plot saved: {{_step_fname}}")
+                except Exception as _tea_err_23d:
+                    print(f"  Step {{step_i+1}} plot failed: {{_tea_err_23d}}")
+
+            # ── Final model already saved per-phase, just track for transfer learning ───
+            _last_phase_opt = "{config.optimizer}"
+            if {config.optimizer_scheduler} and {len(config.scheduler_phases) > 0}:
+                import json as _json_lp
+                _lp_phases = _json_lp.loads({repr(config.scheduler_phases)})
+                if _lp_phases:
+                    _last_phase_opt = _lp_phases[-1]["optimizer"]
+
+            # Track for transfer learning — prefer lbfgs if chosen, else adam
+            _prev_step_model_path = ""
+            import glob as _tl_glob
+            if "{config.ta_transfer_optimizer}" == "lbfgs":
+                # Look for any lbfgs .pt file (may have iteration number suffix)
+                _lbfgs_pts = sorted(_tl_glob.glob(_os.path.join(_step_dir, "model_lbfgs*.pt")))
+                if _lbfgs_pts:
+                    _prev_step_model_path = max(_lbfgs_pts, key=_os.path.getmtime)
+                    print(f"  Transfer learning source (lbfgs): {{_os.path.basename(_prev_step_model_path)}}")
+            if not _prev_step_model_path:
+                # Fall back to adam
+                _adam_pts = sorted(_tl_glob.glob(_os.path.join(_step_dir, "model_adam*.pt")))
+                if _adam_pts:
+                    _prev_step_model_path = max(_adam_pts, key=_os.path.getmtime)
+                    print(f"  Transfer learning source (adam): {{_os.path.basename(_prev_step_model_path)}}")
+
+            # ── Save step config JSON ─────────────────────────
+            # y_min/y_max/z_min/z_max added alongside x_min/x_max so a 2D/3D
+            # Time-Adaptive step's own model_config-equivalent is complete
+            # on its own (previously only x_min/x_max were saved here --
+            # harmless for 1D, since restore already defaults those two,
+            # but silently wrong for 2D/3D if this file were ever used as a
+            # restore config directly, since the y/z bounds would fall back
+            # to the [0,1] default instead of this run's real domain).
+            _step_cfg = {{
+                "step": step_i + 1,
+                "t0": t0, "t1": t1,
+                "layers": {config.layers},
+                "activation": "{config.activation}",
+                "x_min": {config.x_min}, "x_max": {config.x_max},
+                "y_min": {config.y_min}, "y_max": {config.y_max},
+                "z_min": {config.z_min}, "z_max": {config.z_max},
+                "t_min": t0, "t_max": t1,
+                "problem_dim": "{config.problem_dim}",
+                "loss_type": "{config.loss_type}",
+                "optimizer": "{config.optimizer}",
+                "optimizer2": "{config.optimizer2}",
+                "output_names": {repr(config.output_names)},
+                "num_outputs": {config.num_outputs},
+            }}
+            with open(_os.path.join(_step_dir, "step_config.json"), "w") as _scf:
+                _json.dump(_step_cfg, _scf, indent=2)
+            print(f"Step config saved: {{_os.path.join(_step_dir, 'step_config.json')}}")
+
+    X_full = np.vstack(all_x); T_full = np.vstack(all_t); U_full = np.vstack(all_u)
+    print("\\n=== Time-Adaptive Training Complete ===")
+
+    _ta_solution_path = _os.path.join(_sol_dir, "solution_plot.png")
+    _ta_loss_path     = _os.path.join(_sol_dir, "loss_plot.png")
+
+    _plot_type_ta = "{config.plot_type}"
+    if _plot_type_ta not in ("Surface", "Line (time steps)"):
+        # Same fallback reasoning as the per-step preview above -- GIF
+        # animations and Parameter Convergence aren't wired up for
+        # Time-Adaptive's final solution plot yet.
+        _plot_type_ta = "Surface"
+    if _plot_type_ta == "Surface":
+        _vmin_ta = None if {config.plot_auto_range} else {config.plot_vmin}
+        _vmax_ta = None if {config.plot_auto_range} else {config.plot_vmax}
+        if _is_2d:
+            # 2D: x-y heatmaps at n snapshots using the last step model
+            _n_snaps_ta = {config.plot_n_2d_snapshots}
+            _t_snaps_ta = np.linspace({config.t_min}, {config.t_max}, _n_snaps_ta)
+            _res_ta = {config.plot_resolution}
+            _xp_ta = np.linspace({config.x_min}, {config.x_max}, _res_ta)
+            _yp_ta = np.linspace({config.y_min}, {config.y_max}, _res_ta)
+            _Xg_ta, _Yg_ta = np.meshgrid(_xp_ta, _yp_ta)
+            # cleanup Round 44: masked to the real geometry with
+            # geom.inside(...) -- same convention the Standard path's own
+            # 2D Surface branch already uses (geom here is the real
+            # reconstructed geometry built at module scope above, NOT the
+            # plain Rectangle built a few lines below for each step's
+            # throwaway dde.Model -- that Rectangle only exists to satisfy
+            # DeepXDE's Model/TimePDE constructor so .predict() works, it
+            # was never meant to represent the true domain). Spatial-only,
+            # so computed once and reused for every snapshot panel.
+            _inside_ta = np.asarray(geom.inside(np.column_stack([_Xg_ta.ravel(), _Yg_ta.ravel()]))).reshape(_res_ta, _res_ta)
+            # Collect all step models to predict at each snapshot time
+            import glob as _ta_glob_sol, json as _ta_json_sol
+            _ta_sol_dirs = sorted([_sd for _sd in _ta_glob_sol.glob(_os.path.join(_ta_steps_root, "step_*")) if _os.path.isdir(_sd)])
+            _ta_sol_intervals = []
+            for _sd in _ta_sol_dirs:
+                try:
+                    _p = _os.path.basename(_sd).split("_")
+                    _ta_sol_intervals.append((float(_p[2].replace("t","")), float(_p[4].replace("t","")), _sd))
+                except Exception: pass
+            fig, axes = plt.subplots(1, _n_snaps_ta, figsize=(_plot_figsize(5, 5)[0]*_n_snaps_ta, _plot_figsize(5, 5)[1]))
+            if _n_snaps_ta == 1: axes = [axes]
+            for _ai, _tv_ta in enumerate(_t_snaps_ta):
+                # Find which step model covers this time
+                _sd_for_t = _ta_sol_dirs[-1] if _ta_sol_dirs else ""
+                for _t0s, _t1s, _sds in _ta_sol_intervals:
+                    if _t0s <= _tv_ta <= _t1s + 1e-10:
+                        _sd_for_t = _sds; break
+                # Load step model
+                _spt_ta = ""
+                for _pat_ta in ["model_lbfgs-*.pt","model_lbfgs.pt","model_adam-*.pt","model_adam.pt"]:
+                    _pts_ta = sorted(_ta_glob_sol.glob(_os.path.join(_sd_for_t, _pat_ta)))
+                    if _pts_ta: _spt_ta = max(_pts_ta, key=_os.path.getmtime); break
+                try:
+                    with open(_os.path.join(_sd_for_t, "step_config.json")) as _scf_ta:
+                        _sc_ta = _ta_json_sol.load(_scf_ta)
+                except: _sc_ta = {{"layers": {config.layers}, "activation": "{config.activation}", "loss_type": "{config.loss_type}"}}
+                _sn_ta = _apply_net_transforms(_make_net(_sc_ta.get("layers",{config.layers}), _sc_ta.get("activation","{config.activation}"), "Glorot uniform"))
+                _sg_ta = dde.geometry.Rectangle([{config.x_min},{config.y_min}],[{config.x_max},{config.y_max}])
+                _st_ta = dde.geometry.TimeDomain(_sc_ta.get("t_min",0), _sc_ta.get("t_max",1))
+                _sgt_ta = dde.geometry.GeometryXTime(_sg_ta, _st_ta)
+                _sd_ta = dde.data.TimePDE(_sgt_ta, lambda x,y: y[:,0:1]*0, [], num_domain=100, num_test=100)
+                _sm_ta = dde.Model(_sd_ta, _sn_ta)
+                if _spt_ta:
+                    if "lbfgs" in _os.path.basename(_spt_ta):
+                        dde.optimizers.set_LBFGS_options(maxiter=1)
+                        _sm_ta.compile("L-BFGS", loss=_sc_ta.get("loss_type","{config.loss_type}"))
+                    else:
+                        _sm_ta.compile("adam", lr=0.001, loss=_sc_ta.get("loss_type","{config.loss_type}"))
+                    _sm_ta.restore(_spt_ta, verbose=0)
+                    _xyt_ta = np.column_stack([_Xg_ta.ravel(), _Yg_ta.ravel(), np.full(_Xg_ta.size, _tv_ta)])
+                    _pred_ta = _sm_ta.predict(_xyt_ta)[:, {config.plot_output_idx}].reshape(_res_ta, _res_ta)
+                else:
+                    _pred_ta = np.zeros((_res_ta, _res_ta))
+                _pred_ta = np.where(_inside_ta, _pred_ta, np.nan)
+                im = axes[_ai].contourf(_Xg_ta, _Yg_ta, _pred_ta, cmap="{config.plot_colormap}", **_cf_levels({config.plot_levels}, _vmin_ta, _vmax_ta, _pred_ta))
+                axes[_ai].set_title(f"t = {{_tv_ta:.3f}}")
+                axes[_ai].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); axes[_ai].set_ylabel("y", fontsize={config.plot_axis_label_fontsize})
+                if {config.plot_colorbar}: fig.colorbar(im, ax=axes[_ai])
+            fig.suptitle("Time-Adaptive PINN Solution", fontsize={config.plot_title_fontsize})
+            plt.tight_layout(rect=[0, 0, 1, 0.93])
+            plt.savefig(_ta_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
+        else:
+            # 1D, and 3D too (its per-step loop above already fixed y and z
+            # at their domain mid-points and stitched an x-t slice into
+            # X_full/T_full/U_full, same shape as the 1D case) -- no
+            # volumetric renderer, so this mid-plane slice is the final
+            # solution plot for 3D as well.
+            fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
+            # Same configurable axis orientation as the Standard path's 1D
+            # "Surface" plot -- see the matching comment there.
+            if {config.plot_swap_xt}:
+                im = ax.contourf(T_full, X_full, U_full, cmap="{config.plot_colormap}", **_cf_levels({config.plot_levels}, _vmin_ta, _vmax_ta, U_full))
+                ax.set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel("x", fontsize={config.plot_axis_label_fontsize})
+            else:
+                im = ax.contourf(X_full, T_full, U_full, cmap="{config.plot_colormap}", **_cf_levels({config.plot_levels}, _vmin_ta, _vmax_ta, U_full))
+                ax.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel("t", fontsize={config.plot_axis_label_fontsize})
+            if {config.plot_colorbar}: fig.colorbar(im, ax=ax)
+            ax.set_title("Time-Adaptive PINN Solution")
+            plt.tight_layout(); plt.savefig(_ta_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
+    elif _plot_type_ta.startswith("Line"):
+        n_ts   = {config.num_timesteps_line}
+        t_vals = np.linspace(_ta_flat_intervals[0][0], _ta_flat_intervals[-1][1], n_ts)
+        fig, ax = plt.subplots(figsize=_plot_figsize(8, 5))
+        colors = plt.get_cmap("{config.plot_colormap}")(np.linspace(0, 1, n_ts))
+        for ci, tv in enumerate(t_vals):
+            idx = np.argmin(np.abs(T_full[:,0] - tv))
+            ax.plot(X_full[idx,:], U_full[idx,:], color=colors[ci], linewidth={config.plot_linewidth}, label=f"t={{tv:.3f}}")
+        _ylabel_ta_line = (f"u(x,y={_line_slice_y:.3g},z={_line_slice_z:.3g},t)" if _is_3d
+                           else (f"u(x,y={_line_slice_y:.3g},t)" if _is_2d else "u(x,t)"))
+        ax.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_ylabel_ta_line, fontsize={config.plot_axis_label_fontsize})
+        ax.set_title("Time-Adaptive PINN — Line Plot")
+        ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
+        plt.tight_layout(); plt.savefig(_ta_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
+
+    # Full Time-Adaptive run -- every optimizer phase of every time
+    # sub-domain, concatenated with a running iteration offset (see
+    # "_ta_accumulate_loss" above) -- not just whichever phase happened
+    # to run last for the very last sub-domain.
+    train_loss_ta = _ta_all_train_loss; test_loss_ta = _ta_all_test_loss
+    steps_ta = _ta_all_steps
+    # Light vertical markers at each time sub-domain's boundary, so a
+    # jump/kink in the loss (a brand-new network starting that
+    # sub-domain, warm-started only via its IC) is visually distinguishable
+    # from an actual optimizer-related loss spike. Skip the very last
+    # boundary (the run's own end -- nothing follows it worth marking) and
+    # don't bother with a boundary at 0 if the first sub-domain starts
+    # right there.
+    def _ta_loss_boundary_markers(_ax):
+        for _tb in _ta_step_boundaries[:-1]:
+            if _tb > 0:
+                _ax.axvline(_tb, color="gray", linestyle=":", linewidth=0.8, alpha=0.5)
+    _make_loss_plot(train_loss_ta, test_loss_ta, steps_ta, _ta_loss_path,
+                     f"Loss — All {{n_steps}} Time Sub-domain(s)",
+                     xlabel="Iteration (cumulative across all time sub-domains)",
+                     extra_fn=_ta_loss_boundary_markers)
+
+    # ── Time Adaptive Error Analysis ──────────────────────────
+    if {config.ea_files}:
+        from scipy.interpolate import interp1d as _interp1d
+        import glob as _ea_glob, json as _ea_json
+        _ea_dir = _os.path.join(_save_dir if _use_save else "/tmp", "error_analysis")
+        _os.makedirs(_ea_dir, exist_ok=True)
+
+        # Same (time, path, output_selector) normalization and per-output
+        # grouping as the Standard Error Analysis path above -- see its own
+        # comment for the full rationale. Kept as its own copy here since
+        # Time-Adaptive is a separate top-level branch that never runs
+        # alongside the Standard one.
+        _ea_files_norm = []
+        for _ea_entry in {config.ea_files}:
+            if len(_ea_entry) >= 3:
+                _ea_tv0, _ea_fp0, _ea_sel0 = _ea_entry[0], _ea_entry[1], _ea_entry[2]
+            else:
+                _ea_tv0, _ea_fp0 = _ea_entry[0], _ea_entry[1]
+                _ea_sel0 = None
+            if {config.t_min} - 1e-10 <= _ea_tv0 <= {config.t_max} + 1e-10:
+                _ea_files_norm.append((_ea_tv0, _ea_fp0, _ea_sel0))
+        print(f"  Filtering to t=[{config.t_min}, {config.t_max}]: {{len(_ea_files_norm)}} files")
+        print("\\n=== Running Time-Adaptive Error Analysis ===")
+
+        _ea_groups = {{}}
+        for _ea_tv0, _ea_fp0, _ea_sel0 in _ea_files_norm:
+            _ea_gkey = repr(_ea_sel0)
+            if _ea_gkey not in _ea_groups:
+                _ea_groups[_ea_gkey] = {{"sel": _ea_sel0, "files": []}}
+            _ea_groups[_ea_gkey]["files"].append((_ea_tv0, _ea_fp0))
+        _ea_multi_output = len(_ea_groups) > 1
+
+        def _ea_group_label(_ea_sel):
+            if _ea_sel is None:
+                return ""
+            if isinstance(_ea_sel, int):
+                return (_plot_output_names_list[_ea_sel].strip()
+                        if 0 <= _ea_sel < len(_plot_output_names_list) else f"out{{_ea_sel}}")
+            _ea_lbl = (_ea_sel[1] or "").strip() if len(_ea_sel) > 1 else ""
+            return _ea_lbl if _ea_lbl else "custom"
+
+        def _ea_extract(_ea_grid, _ea_sel, _ea_model):
+            # TA has no single module-level `model` (each step restores
+            # its own) -- unlike the Standard path's _ea_extract, the
+            # model object here is always required, never defaulted.
+            # _ea_sel a (expr, label) tuple is now derivative-aware too --
+            # see the matching comment on the Standard path's own
+            # _ea_extract above.
+            if _ea_sel is None:
+                return _extract_plot_field(_ea_grid, _ea_model)
+            if isinstance(_ea_sel, int):
+                return _ea_model.predict(_ea_grid)[:, _ea_sel]
+            _ea_expr = _ea_sel[0]
+
+            def _ea_custom_op(_ea_inputs, _ea_outputs):
+                _ea_dvars = _tm_build_dvars(_ea_inputs, _ea_outputs, _plot_n_out,
+                                             _plot_output_names_list, _is_steady, _plot_dim,
+                                             _ea_expr)
+                _ea_ns = dict(_ea_dvars)
+                _ea_ns.update(_PLOT_TORCH_MATH_NS)
+                _ea_ns["torch"] = torch
+                return eval(_ea_expr, _ea_ns)
+
+            return _ea_model.predict(_ea_grid, operator=_ea_custom_op)[:, 0]
+
+        for _ea_group_key, _ea_group in _ea_groups.items():
+            _ea_files = _ea_group["files"]
+            _ea_sel = _ea_group["sel"]
+            _ea_suffix = f"_{{_ea_group_label(_ea_sel) or 'default'}}" if _ea_multi_output else ""
+            if _ea_multi_output:
+                print(f"  ── Output group: {{_ea_group_label(_ea_sel) or 'default'}} ({{len(_ea_files)}} files) ──")
+
+            # Load all ground truth files
+            _ea_times = []; _ea_x_refs = []; _ea_y_refs = []; _ea_z_refs = []; _ea_u_refs = []
+            for _ea_tv, _ea_fp in _ea_files:
+                _ea_d = np.loadtxt(_ea_fp)
+                if _ea_d.ndim == 1: _ea_d = _ea_d.reshape(1, -1)
+                if _is_3d:
+                    # 3D format: x, y, z, t, u -- same as the Standard path's
+                    # own non-steady 3D Error Analysis loader.
+                    _ea_idx = np.lexsort((_ea_d[:, 2], _ea_d[:, 1], _ea_d[:, 0]))
+                    _ea_x_refs.append(_ea_d[_ea_idx, 0])
+                    _ea_y_refs.append(_ea_d[_ea_idx, 1])
+                    _ea_z_refs.append(_ea_d[_ea_idx, 2])
+                    _ea_u_refs.append(_ea_d[_ea_idx, 4])
+                    _detected_t = float(_ea_d[0, 3])
+                    _ea_times.append(_detected_t)
+                    print(f"  Loaded ground truth t={{_detected_t:.4f}}: {{len(_ea_d)}} pts from {{_os.path.basename(_ea_fp)}}")
+                elif _is_2d:
+                    _ea_idx = np.lexsort((_ea_d[:, 1], _ea_d[:, 0]))
+                    _ea_x_refs.append(_ea_d[_ea_idx, 0])
+                    _ea_y_refs.append(_ea_d[_ea_idx, 1])
+                    _ea_z_refs.append(np.zeros_like(_ea_d[_ea_idx, 0]))
+                    _ea_u_refs.append(_ea_d[_ea_idx, 3])
+                    _detected_t = float(_ea_d[0, 2])
+                    _ea_times.append(_detected_t)
+                    print(f"  Loaded ground truth t={{_detected_t:.4f}}: {{len(_ea_d)}} pts from {{_os.path.basename(_ea_fp)}}")
+                else:
+                    _ea_idx = np.argsort(_ea_d[:, 0])
+                    _ea_x_refs.append(_ea_d[_ea_idx, 0])
+                    _ea_y_refs.append(np.zeros_like(_ea_d[_ea_idx, 0]))
+                    _ea_z_refs.append(np.zeros_like(_ea_d[_ea_idx, 0]))
+                    _ea_u_refs.append(_ea_d[_ea_idx, 2])
+                    _ea_times.append(float(_ea_tv))
+                    print(f"  Loaded ground truth t={{_ea_tv:.4f}}: {{len(_ea_d)}} pts from {{_os.path.basename(_ea_fp)}}")
+            # Sort by time
+            _ea_sort_idx = np.argsort(_ea_times)
+            _ea_times  = [_ea_times[_i]  for _i in _ea_sort_idx]
+            _ea_x_refs = [_ea_x_refs[_i] for _i in _ea_sort_idx]
+            _ea_y_refs = [_ea_y_refs[_i] for _i in _ea_sort_idx]
+            _ea_z_refs = [_ea_z_refs[_i] for _i in _ea_sort_idx]
+            _ea_u_refs = [_ea_u_refs[_i] for _i in _ea_sort_idx]
+            _ea_n_t = len(_ea_times)
+            _ea_u_pinns = [None] * _ea_n_t
+
+            # Find all step directories
+            _ta_step_dir = _os.path.join(_save_dir, "time_adaptive_steps")
+            _ta_step_dirs = sorted([_sd for _sd in _ea_glob.glob(_os.path.join(_ta_step_dir, "step_*")) if _os.path.isdir(_sd)])
+            _ta_intervals = []
+            for _sd in _ta_step_dirs:
+                _sd_name = _os.path.basename(_sd)
+                try:
+                    _parts = _sd_name.split("_")
+                    _t0_str = _parts[2].replace("t","")
+                    _t1_str = _parts[4].replace("t","")
+                    _ta_intervals.append((float(_t0_str), float(_t1_str), _sd))
+                except Exception as _pe:
+                    print(f"  Could not parse step dir: {{_sd_name}}: {{_pe}}")
+            print(f"  Found {{len(_ta_intervals)}} time-adaptive step models")
+
+            for _si, (_t0_i, _t1_i, _sd_i) in enumerate(_ta_intervals):
+                _is_last = (_si == len(_ta_intervals) - 1)
+                _matching = []
+                for _ei, _ea_tv in enumerate(_ea_times):
+                    if _is_last:
+                        _in_range = (_t0_i <= _ea_tv <= _t1_i + 1e-10)
+                    else:
+                        _in_range = (_t0_i <= _ea_tv < _t1_i - 1e-10) or \
+                                    (abs(_ea_tv - _t1_i) < 1e-10)
+                    if _in_range and _ea_u_pinns[_ei] is None:
+                        _matching.append(_ei)
+
+                if not _matching:
+                    continue
+
+                print(f"  Step {{_si+1}} [{{_t0_i:.4f}}→{{_t1_i:.4f}}]: t = {{[_ea_times[_ei] for _ei in _matching]}}")
+
+                _step_cfg_path = _os.path.join(_sd_i, "step_config.json")
+                try:
+                    with open(_step_cfg_path) as _scf:
+                        _step_cfg = _ea_json.load(_scf)
+                except Exception:
+                    _step_cfg = {{"layers": {config.layers}, "activation": "{config.activation}", "loss_type": "{config.loss_type}"}}
+
+                _step_layers = _step_cfg.get("layers", {config.layers})
+                _step_act    = _step_cfg.get("activation", "{config.activation}")
+                _step_loss   = _step_cfg.get("loss_type", "{config.loss_type}")
+
+                if _is_3d:
+                    _step_geom = dde.geometry.Cuboid([{config.x_min}, {config.y_min}, {config.z_min}],
+                                                       [{config.x_max}, {config.y_max}, {config.z_max}])
+                elif _is_2d:
+                    _step_geom = dde.geometry.Rectangle([{config.x_min}, {config.y_min}], [{config.x_max}, {config.y_max}])
+                else:
+                    _step_geom = dde.geometry.Interval({config.x_min}, {config.x_max})
+                _step_td    = dde.geometry.TimeDomain(_t0_i, _t1_i)
+                _step_gt    = dde.geometry.GeometryXTime(_step_geom, _step_td)
+                def _step_pde(x, y): return y[:, 0:1] * 0
+                _step_data  = dde.data.TimePDE(_step_gt, _step_pde, [], num_domain=100, num_test=100)
+                _step_net   = _apply_net_transforms(_make_net(_step_layers, _step_act, "Glorot uniform"))
+                _step_model = dde.Model(_step_data, _step_net)
+
+                _step_pt = ""
+                for _pat in ["model_lbfgs-*.pt", "model_lbfgs.pt", "model_adam-*.pt", "model_adam.pt"]:
+                    _step_pts = sorted(_ea_glob.glob(_os.path.join(_sd_i, _pat)))
+                    if _step_pts:
+                        _step_pt = max(_step_pts, key=_os.path.getmtime)
+                        break
+
+                if not _step_pt:
+                    print(f"  ⚠️ No model found for step {{_si+1}}, skipping")
+                    continue
+
+                if "lbfgs" in _os.path.basename(_step_pt):
+                    dde.optimizers.set_LBFGS_options(maxiter=1)
+                    _step_model.compile("L-BFGS", loss=_step_loss)
+                else:
+                    _step_model.compile("adam", lr=0.001, loss=_step_loss)
+
+                _step_model.restore(_step_pt, verbose=0)
+                print(f"    Restored: {{_os.path.basename(_step_pt)}}")
+
+                for _ei in _matching:
+                    _ea_xf = _ea_x_refs[_ei]
+                    _ea_tv = _ea_times[_ei]
+                    if _is_3d:
+                        _ea_yf = _ea_y_refs[_ei]; _ea_zf = _ea_z_refs[_ei]
+                        _ea_xt = np.column_stack([_ea_xf, _ea_yf, _ea_zf, np.full_like(_ea_xf, _ea_tv)])
+                    elif _is_2d:
+                        _ea_yf = _ea_y_refs[_ei]
+                        _ea_xt = np.column_stack([_ea_xf, _ea_yf, np.full_like(_ea_xf, _ea_tv)])
+                    else:
+                        _ea_xt = np.column_stack([_ea_xf, np.full_like(_ea_xf, _ea_tv)])
+                    _ea_u_pinns[_ei] = _ea_extract(_ea_xt, _ea_sel, _step_model).flatten()
+                    print(f"    Predicted at t={{_ea_tv:.4f}}: {{len(_ea_xf)}} points")
+
+            for _ei in range(_ea_n_t):
+                if _ea_u_pinns[_ei] is None:
+                    print(f"  ⚠️ No prediction for t={{_ea_times[_ei]:.4f}} — zero fill")
+                    _ea_u_pinns[_ei] = np.zeros_like(_ea_u_refs[_ei])
+
+            # Metrics
+            _ea_metrics = []
+            for _ei, _ea_tv in enumerate(_ea_times):
+                _up = _ea_u_pinns[_ei]; _uf = _ea_u_refs[_ei]
+                _ea_abs = np.abs(_up - _uf)
+                _ea_l2  = np.linalg.norm(_up - _uf) / (np.linalg.norm(_uf) + 1e-10)
+                _ea_mse = np.mean((_up - _uf)**2)
+                _ea_mx  = np.max(_ea_abs)
+                _ea_ma  = np.mean(_ea_abs)
+                _ea_metrics.append((_ea_tv, _ea_l2, _ea_mse, _ea_mx, _ea_ma))
+                print(f"  t={{_ea_tv:.4f}} — {_ea_metrics_print_fragment(config, '_ea_l2', '_ea_mse', '_ea_mx', '_ea_ma')}")
+
+            _ea_metrics_path = _os.path.join(_ea_dir, f"error_metrics{{_ea_suffix}}.txt")
+            with open(_ea_metrics_path, "w") as _emf:
+                _emf.write("{_ea_metrics_csv_header(config)}\\n")
+                for _ea_tv, _l2, _mse, _mx, _ma in _ea_metrics:
+                    _emf.write(f"{_ea_metrics_row_code(config, '_ea_tv', '_l2', '_mse', '_mx', '_ma')}\\n")
+            print(f"  Metrics saved: {{_ea_metrics_path}}")
+
+            # Line comparison
+            if {config.ea_do_line}:
+                _ea_ncols = min(4, _ea_n_t)
+                _ea_nrows = (_ea_n_t + _ea_ncols - 1) // _ea_ncols
+                fig, axes = plt.subplots(_ea_nrows, _ea_ncols, figsize=(4*_ea_ncols, 3.5*_ea_nrows), squeeze=False)
+                _ea_line_suptitle_ta = "PINN vs Reference — Line Comparison"
+                if _is_3d:
+                    _ea_line_suptitle_ta += f" (y={_line_slice_y:.3g}, z={_line_slice_z:.3g})"
+                elif _is_2d:
+                    _ea_line_suptitle_ta += f" (y={_line_slice_y:.3g})"
+                fig.suptitle(_ea_line_suptitle_ta, fontsize={config.plot_title_fontsize}, fontweight='bold')
+                _ea_ax_flat = axes.flatten()
+                if _is_2d or _is_3d:
+                    # Same true-line-at-the-exact-slice fix as the Standard
+                    # path's own Line Comparison above (see its comment for
+                    # the full rationale) -- adapted for Time-Adaptive, which
+                    # has no single `model`: each time snapshot's PINN curve
+                    # must come from whichever step model actually covers
+                    # that snapshot's time, not an unfiltered scatter of
+                    # every reference point regardless of y(/z) (the old
+                    # behavior here, which didn't even have the Standard
+                    # path's tolerance-band narrowing -- it was strictly
+                    # worse). `_ta_intervals` was already built above for
+                    # the per-time prediction loop; reused here rather than
+                    # re-scanning the step directories again.
+                    from scipy.interpolate import griddata as _gd_line_ta
+                    _xv_line_ta = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
+                    _y_mid_ta = {_line_slice_y}
+                    _z_mid_ta = {_line_slice_z}
+                    _ea_geom_line_ta = _build_geom()
+                    _step_dir_map_line = {{}}
+                    for _si3, (_t0_i3, _t1_i3, _sd_i3) in enumerate(_ta_intervals):
+                        _is_last3 = (_si3 == len(_ta_intervals) - 1)
+                        for _ei3 in range(_ea_n_t):
+                            _tv3 = _ea_times[_ei3]
+                            if _is_last3:
+                                _in3 = (_t0_i3 <= _tv3 <= _t1_i3 + 1e-10)
+                            else:
+                                _in3 = (_t0_i3 <= _tv3 < _t1_i3 - 1e-10) or (abs(_tv3 - _t1_i3) < 1e-10)
+                            if _in3:
+                                _step_dir_map_line[_ei3] = _sd_i3
+                for _ei in range(_ea_n_t):
+                    ax = _ea_ax_flat[_ei]
+                    if _is_2d or _is_3d:
+                        if _is_3d:
+                            _line_pts_ta = np.column_stack([_xv_line_ta, np.full_like(_xv_line_ta, _y_mid_ta), np.full_like(_xv_line_ta, _z_mid_ta)])
+                        else:
+                            _line_pts_ta = np.column_stack([_xv_line_ta, np.full_like(_xv_line_ta, _y_mid_ta)])
+                        _line_in_ta = _ea_geom_line_ta.inside(_line_pts_ta)
+                        _xv_s = _xv_line_ta[_line_in_ta]
+                        _line_pts_ta_in = _line_pts_ta[_line_in_ta]
+                        if len(_xv_s) < 2:
+                            ax.text(0.5, 0.5, "Line outside the domain at this (y, z) slice" if _is_3d else "Line outside the domain at this y slice",
+                                    ha='center', va='center', transform=ax.transAxes)
+                            ax.set_xticks([]); ax.set_yticks([])
+                            continue
+                        _sd_for_line = _step_dir_map_line.get(_ei, "")
+                        _pinn_s = None
+                        if _sd_for_line:
+                            try:
+                                with open(_os.path.join(_sd_for_line, "step_config.json")) as _scfl:
+                                    _sc_l = _ea_json.load(_scfl)
+                            except Exception:
+                                _sc_l = {{"layers": {config.layers}, "activation": "{config.activation}", "loss_type": "{config.loss_type}"}}
+                            _net_l = _apply_net_transforms(_make_net(_sc_l.get("layers", {config.layers}), _sc_l.get("activation", "{config.activation}"), "Glorot uniform"))
+                            if _is_3d:
+                                _geom_l = dde.geometry.Cuboid([{config.x_min}, {config.y_min}, {config.z_min}], [{config.x_max}, {config.y_max}, {config.z_max}])
+                            else:
+                                _geom_l = dde.geometry.Rectangle([{config.x_min}, {config.y_min}], [{config.x_max}, {config.y_max}])
+                            _td_l = dde.geometry.TimeDomain(_sc_l.get("t_min", 0), _sc_l.get("t_max", 1))
+                            _gt_l = dde.geometry.GeometryXTime(_geom_l, _td_l)
+                            _data_l = dde.data.TimePDE(_gt_l, lambda x, y: y[:, 0:1] * 0, [], num_domain=100, num_test=100)
+                            _model_l = dde.Model(_data_l, _net_l)
+                            _pt_l = ""
+                            for _pat_l in ["model_lbfgs-*.pt", "model_lbfgs.pt", "model_adam-*.pt", "model_adam.pt"]:
+                                _pts_l = sorted(_ea_glob.glob(_os.path.join(_sd_for_line, _pat_l)))
+                                if _pts_l:
+                                    _pt_l = max(_pts_l, key=_os.path.getmtime)
+                                    break
+                            if _pt_l:
+                                if "lbfgs" in _os.path.basename(_pt_l):
+                                    dde.optimizers.set_LBFGS_options(maxiter=1)
+                                    _model_l.compile("L-BFGS", loss=_sc_l.get("loss_type", "{config.loss_type}"))
+                                else:
+                                    _model_l.compile("adam", lr=0.001, loss=_sc_l.get("loss_type", "{config.loss_type}"))
+                                _model_l.restore(_pt_l, verbose=0)
+                                _line_eval_ta = np.column_stack([_line_pts_ta_in, np.full(len(_xv_s), _ea_times[_ei])])
+                                _pinn_s = _ea_extract(_line_eval_ta, _ea_sel, _model_l).flatten()
+                        if _pinn_s is None:
+                            _pinn_s = np.zeros(len(_xv_s))
+                        _ref_pts_ta = (np.column_stack([_ea_x_refs[_ei], _ea_y_refs[_ei], _ea_z_refs[_ei]]) if _is_3d
+                                       else np.column_stack([_ea_x_refs[_ei], _ea_y_refs[_ei]]))
+                        _gt_s = _gd_line_ta(_ref_pts_ta, _ea_u_refs[_ei], _line_pts_ta_in, method='linear')
+                        _gt_nan_ta = np.isnan(_gt_s)
+                        if _gt_nan_ta.any():
+                            _gt_s[_gt_nan_ta] = _gd_line_ta(_ref_pts_ta, _ea_u_refs[_ei], _line_pts_ta_in[_gt_nan_ta], method='nearest')
+                    else:
+                        _xv = _ea_x_refs[_ei]
+                        _ea_sort = np.argsort(_xv)
+                        _xv_s = _xv[_ea_sort]
+                        _gt_s = _ea_u_refs[_ei][_ea_sort]
+                        _pinn_s = _ea_u_pinns[_ei][_ea_sort]
+                    _ea_tv, _l2, _mse, _mx, _ma = _ea_metrics[_ei]
+                    ax.plot(_xv_s, _gt_s,   color='#4dabf7', linewidth=2.0, linestyle='-',  label='Reference')
+                    ax.plot(_xv_s, _pinn_s, color='#ff6b6b', linewidth=2.0, linestyle='--', label='PINN')
+                    ax.set_title(f"t = {{_ea_tv:.3f}}  |  L2 = {{_l2:.2e}}", fontsize={config.plot_subplot_title_fontsize})
+                    ax.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel("u(x,t)", fontsize={config.plot_axis_label_fontsize}); ax.grid(True, alpha=0.3)
+                for _ej in range(_ea_n_t, len(_ea_ax_flat)):
+                    _ea_ax_flat[_ej].set_visible(False)
+                handles, labels = _ea_ax_flat[0].get_legend_handles_labels()
+                fig.legend(handles, labels, loc='lower center', ncol=2, fontsize=10,
+                           framealpha=0.9, bbox_to_anchor=(0.5, 0.01))
+                plt.tight_layout(rect=[0, 0.06, 1, 1])
+                _ea_lp = _os.path.join(_ea_dir, f"line_comparison{{_ea_suffix}}.png")
+                plt.savefig(_ea_lp, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
+                print(f"  Line comparison saved: {{_ea_lp}}")
+
+            # Surface comparison
+            if {config.ea_do_surface}:
+                if _is_2d:
+                    # 2D: PINN | Reference | Error heatmaps, one row per time snapshot
+                    from scipy.interpolate import griddata as _gd
+                    _res_ea = {config.plot_resolution}
+                    _xg_ea = np.linspace({config.x_min}, {config.x_max}, _res_ea)
+                    _yg_ea = np.linspace({config.y_min}, {config.y_max}, _res_ea)
+                    _Xg_ea, _Yg_ea = np.meshgrid(_xg_ea, _yg_ea)
+                    fig, axes = plt.subplots(_ea_n_t, 3, figsize=(15, 4*_ea_n_t), squeeze=False)
+                    fig.suptitle("PINN vs Reference — 2D Heatmaps", fontsize={config.plot_title_fontsize}, fontweight='bold')
+                    # Need step models to predict on grid — collect from step dirs
+                    import glob as _ea_glob2, json as _ea_json2
+                    _ta_step_dir2 = _os.path.join(_save_dir, "time_adaptive_steps")
+                    _ta_step_dirs2 = sorted([_sd for _sd in _ea_glob2.glob(_os.path.join(_ta_step_dir2, "step_*")) if _os.path.isdir(_sd)])
+                    _ta_intervals2 = []
+                    for _sd in _ta_step_dirs2:
+                        try:
+                            _parts = _os.path.basename(_sd).split("_")
+                            _ta_intervals2.append((float(_parts[2].replace("t","")), float(_parts[4].replace("t","")), _sd))
+                        except Exception: pass
+                    # Map each time to its step model
+                    _step_model_map = {{}}
+                    for _si2, (_t0_i2, _t1_i2, _sd_i2) in enumerate(_ta_intervals2):
+                        for _ei in range(_ea_n_t):
+                            _tv = _ea_times[_ei]
+                            _is_last2 = (_si2 == len(_ta_intervals2) - 1)
+                            if _is_last2:
+                                _in = (_t0_i2 <= _tv <= _t1_i2 + 1e-10)
+                            else:
+                                _in = (_t0_i2 <= _tv < _t1_i2 - 1e-10) or (abs(_tv - _t1_i2) < 1e-10)
+                            if _in:
+                                _step_model_map[_ei] = _sd_i2
+                    for _ei, _ea_tv in enumerate(_ea_times):
+                        _ea_tv_r, _l2, _mse, _mx, _ma = _ea_metrics[_ei]
+                        # PINN on grid using step model
+                        _sd_for_ei = _step_model_map.get(_ei, "")
+                        _xyt_grid = np.column_stack([_Xg_ea.ravel(), _Yg_ea.ravel(), np.full(_Xg_ea.size, _ea_tv)])
+                        if _sd_for_ei:
+                            try:
+                                with open(_os.path.join(_sd_for_ei, "step_config.json")) as _scf2: _sc2 = _ea_json2.load(_scf2)
+                            except: _sc2 = {{"layers": {config.layers}, "activation": "{config.activation}", "loss_type": "{config.loss_type}"}}
+                            _sn2 = _apply_net_transforms(_make_net(_sc2.get("layers",{config.layers}), _sc2.get("activation","{config.activation}"), "Glorot uniform"))
+                            _sg2 = dde.geometry.Rectangle([{config.x_min},{config.y_min}],[{config.x_max},{config.y_max}])
+                            _st2 = dde.geometry.TimeDomain(_sc2.get("t_min",0), _sc2.get("t_max",1))
+                            _sgt2 = dde.geometry.GeometryXTime(_sg2, _st2)
+                            _sd2 = dde.data.TimePDE(_sgt2, lambda x,y: y[:,0:1]*0, [], num_domain=100, num_test=100)
+                            _sm2 = dde.Model(_sd2, _sn2)
+                            _spt2 = ""
+                            for _pat2 in ["model_lbfgs-*.pt","model_lbfgs.pt","model_adam-*.pt","model_adam.pt"]:
+                                _pts2 = sorted(_ea_glob2.glob(_os.path.join(_sd_for_ei, _pat2)))
+                                if _pts2: _spt2 = max(_pts2, key=_os.path.getmtime); break
+                            if _spt2:
+                                if "lbfgs" in _os.path.basename(_spt2):
+                                    dde.optimizers.set_LBFGS_options(maxiter=1)
+                                    _sm2.compile("L-BFGS", loss=_sc2.get("loss_type","{config.loss_type}"))
+                                else:
+                                    _sm2.compile("adam", lr=0.001, loss=_sc2.get("loss_type","{config.loss_type}"))
+                                _sm2.restore(_spt2, verbose=0)
+                                _u_pinn_grid = _ea_extract(_xyt_grid, _ea_sel, _sm2).reshape(_res_ea, _res_ea)
+                            else:
+                                _u_pinn_grid = np.zeros((_res_ea, _res_ea))
+                        else:
+                            _u_pinn_grid = np.zeros((_res_ea, _res_ea))
+                        _u_fem_grid = _gd(np.column_stack([_ea_x_refs[_ei], _ea_y_refs[_ei]]),
+                                          _ea_u_refs[_ei], (_Xg_ea, _Yg_ea), method='linear', fill_value=0.0)
+                        _u_err_grid = np.abs(_u_pinn_grid - _u_fem_grid)
+                        _vmin_ea = min(_u_pinn_grid.min(), _u_fem_grid.min())
+                        _vmax_ea = max(_u_pinn_grid.max(), _u_fem_grid.max())
+                        if _vmax_ea - _vmin_ea < 1e-12:
+                            _vmax_ea = _vmin_ea + 1e-12
+                        _levels_ea2d = _cf_levels({config.plot_levels}, _vmin_ea, _vmax_ea)["levels"]  # contourf ignores vmin/vmax with an integer `levels=N` -- see the Standard-path comment on the same pattern above
+                        im0 = axes[_ei][0].contourf(_Xg_ea, _Yg_ea, _u_pinn_grid, levels=_levels_ea2d, cmap='{config.plot_colormap}')
+                        axes[_ei][0].set_title(f"PINN  t={{_ea_tv:.3f}}  L2={{_l2:.2e}}", fontsize={config.plot_subplot_title_fontsize})
+                        axes[_ei][0].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); axes[_ei][0].set_ylabel("y", fontsize={config.plot_axis_label_fontsize})
+                        fig.colorbar(im0, ax=axes[_ei][0])
+                        im1 = axes[_ei][1].contourf(_Xg_ea, _Yg_ea, _u_fem_grid, levels=_levels_ea2d, cmap='{config.plot_colormap}')
+                        axes[_ei][1].set_title(f"Reference  t={{_ea_tv:.3f}}", fontsize={config.plot_subplot_title_fontsize})
+                        axes[_ei][1].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); axes[_ei][1].set_ylabel("y", fontsize={config.plot_axis_label_fontsize})
+                        fig.colorbar(im1, ax=axes[_ei][1])
+                        im2 = axes[_ei][2].contourf(_Xg_ea, _Yg_ea, _u_err_grid, levels={config.plot_levels}, cmap='{config.plot_colormap}')
+                        axes[_ei][2].set_title(f"|Error|  t={{_ea_tv:.3f}}  Max={{_mx:.2e}}", fontsize={config.plot_subplot_title_fontsize})
+                        axes[_ei][2].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); axes[_ei][2].set_ylabel("y", fontsize={config.plot_axis_label_fontsize})
+                        fig.colorbar(im2, ax=axes[_ei][2])
+                    plt.tight_layout(rect=[0, 0, 1, 0.93])
+                    _ea_did_surface_ta = True
+                elif _is_3d:
+                    # 3D: same "boundary-point scatter" convention as the
+                    # Standard path's non-box-geometry 3D surface comparison
+                    # -- no flat-face grid to heatmap onto in general, so
+                    # compare real (x, y, z) points that lie on the
+                    # geometry's own boundary. Reuses the per-time PINN
+                    # predictions already computed above (_ea_u_pinns) --
+                    # each one came from that time's own correctly-restored
+                    # step model -- instead of reloading a step model again
+                    # here just to predict on a dense grid, as the 2D branch
+                    # above does.
+                    _ea_geom_ta = _build_geom()
+                    _ea_bbox_ta = np.asarray(_ea_geom_ta.bbox)
+                    _bx0_ta, _by0_ta, _bz0_ta = _ea_bbox_ta[0]
+                    _bx1_ta, _by1_ta, _bz1_ta = _ea_bbox_ta[1]
+                    _corners_ta = [(_bx0_ta,_by0_ta,_bz0_ta),(_bx1_ta,_by0_ta,_bz0_ta),(_bx1_ta,_by1_ta,_bz0_ta),(_bx0_ta,_by1_ta,_bz0_ta),
+                                    (_bx0_ta,_by0_ta,_bz1_ta),(_bx1_ta,_by0_ta,_bz1_ta),(_bx1_ta,_by1_ta,_bz1_ta),(_bx0_ta,_by1_ta,_bz1_ta)]
+                    _edges_ta = [(0,1),(1,2),(2,3),(3,0),(4,5),(5,6),(6,7),(7,4),(0,4),(1,5),(2,6),(3,7)]
+                    fig = plt.figure(figsize=(15, 4.5 * _ea_n_t))
+                    fig.suptitle("PINN vs Reference — 3D Comparison", fontsize={config.plot_title_fontsize}, fontweight='bold')
+                    for _ei, _ea_tv in enumerate(_ea_times):
+                        _ea_tv_r, _l2, _mse, _mx, _ma = _ea_metrics[_ei]
+                        _bnd_ta = _ea_geom_ta.on_boundary(np.column_stack([_ea_x_refs[_ei], _ea_y_refs[_ei], _ea_z_refs[_ei]]))
+                        # A Cartesian reference grid only reliably intersects a
+                        # FLAT boundary (a Cuboid's faces) in large numbers; a
+                        # CURVED boundary (a Sphere) is essentially never
+                        # landed on exactly by an axis-aligned grid, so
+                        # on_boundary() can come back with only a handful of
+                        # coincidental exact matches (e.g. a unit sphere's 6
+                        # axis points) even when the dataset has thousands of
+                        # valid points -- falling back whenever the boundary
+                        # subset is a small fraction of the data (not just
+                        # when it's nearly empty) catches that case too.
+                        if _bnd_ta.sum() < 4 or _bnd_ta.sum() < 0.05 * len(_ea_x_refs[_ei]):
+                            _bnd_ta = np.ones_like(_ea_x_refs[_ei], dtype=bool)
+                        _bx_ta, _by_ta, _bz_ta = _ea_x_refs[_ei][_bnd_ta], _ea_y_refs[_ei][_bnd_ta], _ea_z_refs[_ei][_bnd_ta]
+                        _gt_b_ta = _ea_u_refs[_ei][_bnd_ta]
+                        _pinn_b_ta = _ea_u_pinns[_ei][_bnd_ta]
+                        if len(_bx_ta) > 3000:
+                            _ea_sub_ta = np.random.default_rng(0).choice(len(_bx_ta), size=3000, replace=False)
+                            _bx_ta, _by_ta, _bz_ta = _bx_ta[_ea_sub_ta], _by_ta[_ea_sub_ta], _bz_ta[_ea_sub_ta]
+                            _gt_b_ta, _pinn_b_ta = _gt_b_ta[_ea_sub_ta], _pinn_b_ta[_ea_sub_ta]
+                        _err_b_ta = np.abs(_pinn_b_ta - _gt_b_ta)
+                        _cols_ta = [(_pinn_b_ta, f"PINN  t={{_ea_tv:.3f}}  L2={{_l2:.2e}}"),
+                                    (_gt_b_ta, f"Reference  t={{_ea_tv:.3f}}"),
+                                    (_err_b_ta, f"|Error|  Max={{_mx:.2e}}")]
+                        for _ci_ta, (_vals_ta, _ttl_ta) in enumerate(_cols_ta):
+                            _ax3_ta = fig.add_subplot(_ea_n_t, 3, _ei * 3 + _ci_ta + 1, projection='3d')
+                            for _i3_ta, _j3_ta in _edges_ta:
+                                _p0_ta, _p1_ta = _corners_ta[_i3_ta], _corners_ta[_j3_ta]
+                                _ax3_ta.plot([_p0_ta[0], _p1_ta[0]], [_p0_ta[1], _p1_ta[1]], [_p0_ta[2], _p1_ta[2]],
+                                             color='#888888', linewidth=0.8, alpha=0.6)
+                            _sc3_ta = _ax3_ta.scatter(_bx_ta, _by_ta, _bz_ta, c=_vals_ta,
+                                                       cmap='{config.plot_colormap}', s=14)
+                            fig.colorbar(_sc3_ta, ax=_ax3_ta, shrink=0.6, pad=0.12)
+                            _ax3_ta.set_title(_ttl_ta, fontsize={config.plot_subplot_title_fontsize})
+                            _ax3_ta.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax3_ta.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _ax3_ta.set_zlabel("z", fontsize={config.plot_axis_label_fontsize})
+                    plt.tight_layout(rect=[0, 0, 1, 0.93])
+                    _ea_did_surface_ta = True
+                elif len(_ea_times) < 2:
+                    # Same fix as the Standard path's own copy of this
+                    # section (see "need at least 2 time snapshots" above):
+                    # a 1D x-t surface needs >= 2 distinct time snapshots to
+                    # form a non-degenerate grid -- e.g. only one reference
+                    # file falls within this Time-Adaptive run's range so
+                    # far. This path didn't have the guard, so a single
+                    # reference file crashed matplotlib's contourf on a
+                    # (1, N) array instead of skipping gracefully (the line
+                    # comparison above already covers this single snapshot).
+                    _ea_did_surface_ta = False
+                    print("  Skipping surface comparison — need at least 2 time snapshots for a 1D x-t surface plot")
+                else:
+                    _ea_x_common = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
+                    _ea_t_arr = np.array(_ea_times)
+                    _ea_U_pinn = np.zeros((len(_ea_t_arr), len(_ea_x_common)))
+                    _ea_U_fem  = np.zeros((len(_ea_t_arr), len(_ea_x_common)))
+                    for _ei in range(_ea_n_t):
+                        _ea_fi_p = _interp1d(_ea_x_refs[_ei], _ea_u_pinns[_ei], kind='linear', fill_value='extrapolate')
+                        _ea_U_pinn[_ei, :] = _ea_fi_p(_ea_x_common)
+                        _ea_fi_f = _interp1d(_ea_x_refs[_ei], _ea_u_refs[_ei], kind='linear', fill_value='extrapolate')
+                        _ea_U_fem[_ei, :] = _ea_fi_f(_ea_x_common)
+                    _ea_Xg, _ea_Tg = np.meshgrid(_ea_x_common, _ea_t_arr)
+                    _ea_U_err = np.abs(_ea_U_pinn - _ea_U_fem)
+                    _ea_vmin = min(_ea_U_pinn.min(), _ea_U_fem.min())
+                    _ea_vmax = max(_ea_U_pinn.max(), _ea_U_fem.max())
+                    if _ea_vmax - _ea_vmin < 1e-12:
+                        _ea_vmax = _ea_vmin + 1e-12
+                    _levels_ea1d = _cf_levels({config.plot_levels}, _ea_vmin, _ea_vmax)["levels"]  # contourf ignores vmin/vmax with an integer `levels=N` -- see the Standard-path comment on the same pattern above
+                    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+                    fig.suptitle("PINN vs Reference — Surface Comparison", fontsize={config.plot_title_fontsize}, fontweight='bold')
+                    im0 = axes[0].contourf(_ea_Tg, _ea_Xg, _ea_U_pinn, levels=_levels_ea1d, cmap='{config.plot_colormap}')
+                    axes[0].set_title("PINN  u(x,t)"); axes[0].set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); axes[0].set_ylabel("x", fontsize={config.plot_axis_label_fontsize})
+                    fig.colorbar(im0, ax=axes[0])
+                    im1 = axes[1].contourf(_ea_Tg, _ea_Xg, _ea_U_fem, levels=_levels_ea1d, cmap='{config.plot_colormap}')
+                    axes[1].set_title("Reference  u(x,t)"); axes[1].set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); axes[1].set_ylabel("x", fontsize={config.plot_axis_label_fontsize})
+                    fig.colorbar(im1, ax=axes[1])
+                    im2 = axes[2].contourf(_ea_Tg, _ea_Xg, _ea_U_err, levels={config.plot_levels}, cmap='{config.plot_colormap}')
+                    axes[2].set_title("Error  |PINN - Reference|"); axes[2].set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); axes[2].set_ylabel("x", fontsize={config.plot_axis_label_fontsize})
+                    fig.colorbar(im2, ax=axes[2])
+                    plt.tight_layout(rect=[0, 0, 1, 0.93])
+                    _ea_did_surface_ta = True
+                if _ea_did_surface_ta:
+                    _ea_sp = _os.path.join(_ea_dir, f"surface_comparison{{_ea_suffix}}.png")
+                    plt.savefig(_ea_sp, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
+                    print(f"  Surface comparison saved: {{_ea_sp}}")
+
+            print(f"  Group '{{_ea_group_label(_ea_sel) or 'default'}}' analysis complete")
+        print("=== Time-Adaptive Error Analysis Complete ===")"""
+
+
 def generate_script(config):
     is_2d = config.problem_dim == "2D"
     is_3d = config.problem_dim == "3D"
@@ -3163,734 +5520,7 @@ for _pval in _param_values:
                 return _pf_m.predict(_x_grid, operator=_plot_custom_op)[:, 0]
             return _pf_m.predict(_x_grid)[:, _plot_idx]
 
-    # ── RAR Loop ─────────────────────────────────────────────
-    if "{config.adapt_method}" == "RAR" and not {config.time_adaptive}:
-        # ── Per-round RAR diagnostics ──────────────────────────
-        # For every RAR round: a static snapshot of whatever field is
-        # configured above (raw output or derivative-aware Custom
-        # expression -- same _extract_plot_field every other plot uses),
-        # a lightweight comparison against one Error Analysis reference
-        # file if any are configured (not the full multi-file/multi-time
-        # sweep Inline Error Analysis runs once at the end -- just one
-        # representative reference, so this doesn't meaningfully slow
-        # RAR training down), and a 3-color collocation-points scatter
-        # (original domain points vs. points added in EARLIER rounds vs.
-        # points added THIS round) so sharp-residual/refinement patterns
-        # across rounds are visible afterward, not just the final model.
-        # Saved under this run's own solution_results/rar_rounds/
-        # round_NN/ -- the same per-run-unique save_dir every other plot
-        # already uses (see Round 19's _on_done() fix).
-        _rar_rounds_dir = _os.path.join(_sol_dir, "rar_rounds")
-        _rar_orig_pts = np.array(data.train_x_all, copy=True)
-        _rar_added_so_far = np.empty((0, _rar_orig_pts.shape[1]))
-        _rar_ea_entries = {config.ea_files}
-        from scipy.interpolate import interp1d as _rar_interp1d
-
-        def _rar_ref_extract(_rre_grid, _rre_sel, _rre_model):
-            # Generalized reference-field extractor for RAR's own diagnostics
-            # -- mirrors `_ea_extract` (Inline/Restore Error Analysis) and the
-            # `_rar_ea_op`/`_rar_ea_op2` closures already used lower down in
-            # this function, but as a single reusable helper: _rre_sel is
-            # None (delegate to the default plot field), an int (a raw
-            # output column), or an [expr, label] pair (a custom derived
-            # field, derivative-aware via the same _tm_build_dvars mechanism).
-            if _rre_sel is None:
-                return _extract_plot_field(_rre_grid, _rre_model)
-            if isinstance(_rre_sel, int):
-                return _rre_model.predict(_rre_grid)[:, _rre_sel]
-            _rre_expr = _rre_sel[0]
-
-            def _rre_op(_rre_i, _rre_o):
-                _rre_dv = _tm_build_dvars(_rre_i, _rre_o, _plot_n_out, _plot_output_names_list,
-                                           _is_steady, _plot_dim, _rre_expr)
-                _rre_ns = dict(_rre_dv)
-                _rre_ns.update(_PLOT_TORCH_MATH_NS)
-                _rre_ns["torch"] = torch
-                return eval(_rre_expr, _rre_ns)
-
-            return _rre_model.predict(_rre_grid, operator=_rre_op)[:, 0]
-
-        def _rar_save_round_diagnostics(_rar_idx, _rar_new_pts):
-            _rd = _os.path.join(_rar_rounds_dir, f"round_{{_rar_idx:02d}}")
-            _os.makedirs(_rd, exist_ok=True)
-            _res = {config.plot_resolution}
-
-            # Per-round model checkpoint -- same convention Time-Adaptive's
-            # per-step diagnostics already use (a model file saved
-            # alongside that unit's own plots), closing a gap RAR's own
-            # per-round diagnostics had since they were first added
-            # (Round 20): this round's trained model is NOT saved anywhere
-            # unless it happens to also be the FINAL round's model (saved
-            # separately, after the whole RAR loop ends, as this run's one
-            # overall model). Without this, every earlier round's model is
-            # unrecoverable once RAR moves on -- only its plots/metrics
-            # survive, not the weights themselves.
-            #
-            # Round 31: this save always runs at the END of the round,
-            # after whichever phase(s) ran (Adam-only, or Adam+L-BFGS).
-            # Standardized on "one checkpoint per optimizer phase"
-            # everywhere, matching Time-Adaptive's own per-step
-            # convention -- when this round also ran an L-BFGS phase, the
-            # Adam-phase checkpoint is now saved separately (see
-            # "model_adam" save right after the Adam train() call in the
-            # round loop below), so THIS save represents the L-BFGS
-            # phase's own final state and is named accordingly; when a
-            # round has no L-BFGS phase, this is that round's only
-            # checkpoint and keeps the "model_adam" name for the same
-            # reason the plain Solve path's own Adam-only run does.
-            _rar_final_model_name = "model_lbfgs" if {config.rar_lbfgs_iters} > 0 else "model_adam"
-            if _use_save:
-                try:
-                    model.save(_os.path.join(_rd, _rar_final_model_name))
-                    print(f"  [RAR round {{_rar_idx}}] {{_rar_final_model_name}} model saved: {{_os.path.join(_rd, _rar_final_model_name)}}.pt")
-                except Exception as _rar_err_save:
-                    print(f"  [RAR round {{_rar_idx}}] model save failed: {{_rar_err_save}}")
-
-            if not _is_2d and not _is_3d:
-                if _is_steady:
-                    # Steady-state 1D (e.g. a Poisson equation): a single
-                    # static u(x) curve -- no time axis at all, so neither
-                    # the x-t surface nor the "earlier-time-steps" framing
-                    # the time-dependent branch below uses applies here.
-                    # Mirrors the plain (non-RAR) Solve path's own
-                    # steady-1D solution plot further above in this file.
-                    try:
-                        _xr = np.linspace({config.x_min}, {config.x_max}, _res)
-                        _field_r = _extract_plot_field(_xr.reshape(-1, 1))
-                        _fig_r, _ax_r = plt.subplots(figsize=_plot_figsize(6.5, 5))
-                        _ax_r.plot(_xr, _field_r, color="#1971c2", linewidth=2.0)
-                        _ax_r.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_r.set_ylabel("u", fontsize={config.plot_axis_label_fontsize})
-                        _ax_r.grid(True, alpha=0.3)
-                        _fig_r.suptitle(f"RAR round {{_rar_idx}} solution snapshot")
-                        plt.tight_layout(rect=[0, 0, 1, 0.93])
-                        plt.savefig(_os.path.join(_rd, "solution_plot.png"), dpi={config.plot_dpi}, bbox_inches="tight")
-                        plt.close(_fig_r)
-                        print(f"  [RAR round {{_rar_idx}}] solution snapshot saved: {{_os.path.join(_rd, 'solution_plot.png')}}")
-                    except Exception as _rar_err1:
-                        print(f"  [RAR round {{_rar_idx}}] solution snapshot failed: {{_rar_err1}}")
-
-                    try:
-                        # Three stacked rows (no shared meaning on the y
-                        # axis -- just one row per category) instead of the
-                        # time-dependent branch's x-t scatter, since a
-                        # steady 1D point has no second coordinate at all.
-                        _fig_c, _ax_c = plt.subplots(figsize=_plot_figsize(8, 3.2))
-                        if len(_rar_orig_pts):
-                            _ax_c.scatter(_rar_orig_pts[:, 0], np.full(len(_rar_orig_pts), 2.0), s=10, c="#adb5bd", alpha=0.6, label="Original points")
-                        if len(_rar_added_so_far):
-                            _ax_c.scatter(_rar_added_so_far[:, 0], np.full(len(_rar_added_so_far), 1.0), s=14, c="#fd7e14", label="Added in earlier rounds")
-                        _ax_c.scatter(_rar_new_pts[:, 0], np.full(len(_rar_new_pts), 0.0), s=18, c="#e03131", label=f"Added this round ({{len(_rar_new_pts)}})")
-                        _ax_c.set_yticks([]); _ax_c.set_ylim(-0.6, 2.6)
-                        _ax_c.set_xlabel("x", fontsize={config.plot_axis_label_fontsize})
-                        _ax_c.legend(loc="best", fontsize=8)
-                        _ax_c.set_title(f"RAR round {{_rar_idx}} -- collocation points")
-                        plt.tight_layout()
-                        plt.savefig(_os.path.join(_rd, "collocation_points.png"), dpi={config.plot_dpi}, bbox_inches="tight")
-                        plt.close(_fig_c)
-                        print(f"  [RAR round {{_rar_idx}}] collocation-points plot saved: {{_os.path.join(_rd, 'collocation_points.png')}}")
-                    except Exception as _rar_err2:
-                        print(f"  [RAR round {{_rar_idx}}] collocation-points plot failed: {{_rar_err2}}")
-
-                    if _rar_ea_entries:
-                        try:
-                            # Steady-state: at most one reference file
-                            # really means anything (there's no time axis
-                            # to pick "the closest snapshot" by), so just
-                            # use the first one configured -- format is
-                            # x, u (2 columns, no time column), matching
-                            # the steady 2D/3D reference-file convention
-                            # (spatial columns then u, nothing else).
-                            _best_r = _rar_ea_entries[0]
-                            _ref_fp_r = _best_r[1]
-                            _ref_sel_r = _best_r[2] if len(_best_r) >= 3 else None
-                            _ref_d_r = np.loadtxt(_ref_fp_r)
-                            if _ref_d_r.ndim == 1:
-                                _ref_d_r = _ref_d_r.reshape(1, -1)
-                            _ref_x_r = _ref_d_r[:, 0]; _ref_u_r = _ref_d_r[:, 1]
-                            _ref_pred_r = _rar_ref_extract(_ref_x_r.reshape(-1, 1), _ref_sel_r, model)
-                            _err_r = _ref_pred_r - _ref_u_r
-                            _l2_r = float(np.linalg.norm(_err_r) / (np.linalg.norm(_ref_u_r) + 1e-12))
-                            _mse_r = float(np.mean(_err_r ** 2))
-                            print(f"  [RAR round {{_rar_idx}}] vs Reference: L2 rel error = {{_l2_r:.4e}}, MSE = {{_mse_r:.4e}}")
-                            _fig_e, _ax_e = plt.subplots(figsize=_plot_figsize(6.5, 5))
-                            _ord_e = np.argsort(_ref_x_r)
-                            _ax_e.plot(_ref_x_r[_ord_e], _ref_u_r[_ord_e], label="Reference", color="#2f9e44")
-                            _ax_e.plot(_ref_x_r[_ord_e], _ref_pred_r[_ord_e], label="PINN", color="#1971c2", linestyle="--")
-                            _ax_e.legend(loc="best", fontsize=8)
-                            _ax_e.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_e.set_ylabel("u", fontsize={config.plot_axis_label_fontsize})
-                            _ax_e.set_title(f"RAR round {{_rar_idx}} -- PINN vs Reference  (L2={{_l2_r:.3e}})")
-                            plt.tight_layout()
-                            plt.savefig(_os.path.join(_rd, "error_compare.png"), dpi={config.plot_dpi}, bbox_inches="tight")
-                            plt.close(_fig_e)
-                        except Exception as _rar_err3:
-                            print(f"  [RAR round {{_rar_idx}}] error compare failed: {{_rar_err3}}")
-                    return
-
-                # -- 1D: own two-file structure (solution snapshot +
-                # line-comparison against one reference, if configured).
-                # Axis orientation matches the main Plot Settings "Swap
-                # axes" choice -- the same convention the Surface plot type
-                # and every Error Analysis comparison plot already use
-                # (t on the x-axis, x on the y-axis, by default).
-                try:
-                    if len(_rar_ea_entries) >= 2:
-                        # 1D solution snapshot merged with reference -- same
-                        # spirit as the 2D/3D branch below (PINN | Reference
-                        # | |Error|, sharing one color scale), built as a
-                        # full x-t surface interpolated across every
-                        # configured reference file's own time (same
-                        # technique the Standard path's own Inline Error
-                        # Analysis "1D: standard x vs t surface" uses --
-                        # needs >= 2 distinct time snapshots to form a
-                        # non-degenerate (time x space) grid). With 0 or 1
-                        # reference file, falls back to the original
-                        # PINN-only snapshot below -- the single-reference
-                        # case is already covered by error_compare.png's own
-                        # line comparison.
-                        _rar_x_common = np.linspace({config.x_min}, {config.x_max}, _res)
-                        _rar_times_m = sorted(set(_e[0] for _e in _rar_ea_entries))
-                        _rar_U_pinn = np.zeros((len(_rar_times_m), len(_rar_x_common)))
-                        _rar_U_ref = np.zeros((len(_rar_times_m), len(_rar_x_common)))
-                        for _rmi, _rmtv in enumerate(_rar_times_m):
-                            _rmentry = next(_e for _e in _rar_ea_entries if _e[0] == _rmtv)
-                            _rmfp = _rmentry[1]
-                            _rmsel = _rmentry[2] if len(_rmentry) >= 3 else None
-                            _rar_xt_c = np.column_stack([_rar_x_common, np.full_like(_rar_x_common, _rmtv)])
-                            _rar_U_pinn[_rmi, :] = _rar_ref_extract(_rar_xt_c, _rmsel, model).flatten()
-                            _rd_ld = np.loadtxt(_rmfp)
-                            if _rd_ld.ndim == 1:
-                                _rd_ld = _rd_ld.reshape(1, -1)
-                            _rd_ord = np.argsort(_rd_ld[:, 0])
-                            _rd_fi = _rar_interp1d(_rd_ld[_rd_ord, 0], _rd_ld[_rd_ord, 2], kind="linear", fill_value="extrapolate")
-                            _rar_U_ref[_rmi, :] = _rd_fi(_rar_x_common)
-                        _rar_Xg, _rar_Tg = np.meshgrid(_rar_x_common, _rar_times_m)
-                        _rar_U_err = np.abs(_rar_U_pinn - _rar_U_ref)
-                        _rar_vmin = min(_rar_U_pinn.min(), _rar_U_ref.min())
-                        _rar_vmax = max(_rar_U_pinn.max(), _rar_U_ref.max())
-                        if _rar_vmax - _rar_vmin < 1e-12:
-                            _rar_vmax = _rar_vmin + 1e-12
-                        _rar_levels = _cf_levels({config.plot_levels}, _rar_vmin, _rar_vmax)["levels"]
-                        _fig_r, _axes_r = plt.subplots(1, 3, figsize=_plot_figsize(15, 5))
-                        _rar_cols = [
-                            (_rar_U_pinn, "PINN", _rar_levels, "{config.plot_colormap}"),
-                            (_rar_U_ref, "Reference", _rar_levels, "{config.plot_colormap}"),
-                            (_rar_U_err, f"|Error|  Max={{_rar_U_err.max():.2e}}", {config.plot_levels}, "{config.plot_colormap}"),
-                        ]
-                        for _rci, (_rvals, _rttl, _rlv, _rcmap) in enumerate(_rar_cols):
-                            if {config.plot_swap_xt}:
-                                _rim = _axes_r[_rci].contourf(_rar_Tg, _rar_Xg, _rvals, levels=_rlv, cmap=_rcmap)
-                                _axes_r[_rci].set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); _axes_r[_rci].set_ylabel("x", fontsize={config.plot_axis_label_fontsize})
-                            else:
-                                _rim = _axes_r[_rci].contourf(_rar_Xg.T, _rar_Tg.T, _rvals.T, levels=_rlv, cmap=_rcmap)
-                                _axes_r[_rci].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _axes_r[_rci].set_ylabel("t", fontsize={config.plot_axis_label_fontsize})
-                            _axes_r[_rci].set_title(_rttl, fontsize={config.plot_subplot_title_fontsize})
-                            _fig_r.colorbar(_rim, ax=_axes_r[_rci])
-                        _fig_r.suptitle(f"RAR round {{_rar_idx}} -- PINN vs Reference", fontsize={config.plot_title_fontsize}, fontweight="bold")
-                        print(f"  [RAR round {{_rar_idx}}] solution snapshot merged with reference ({{len(_rar_times_m)}} time(s))")
-                    else:
-                        _xr = np.linspace({config.x_min}, {config.x_max}, _res)
-                        _tr = np.linspace({config.t_min}, {config.t_max}, _res)
-                        _Xr, _Tr = np.meshgrid(_xr, _tr)
-                        _field_r = _extract_plot_field(np.column_stack([_Xr.ravel(), _Tr.ravel()])).reshape(_res, _res)
-                        _fig_r, _ax_r = plt.subplots(figsize=_plot_figsize(6.5, 5))
-                        if {config.plot_swap_xt}:
-                            _im_r = _ax_r.contourf(_Tr, _Xr, _field_r, levels={config.plot_levels}, cmap="{config.plot_colormap}")
-                            _ax_r.set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); _ax_r.set_ylabel("x", fontsize={config.plot_axis_label_fontsize})
-                        else:
-                            _im_r = _ax_r.contourf(_Xr, _Tr, _field_r, levels={config.plot_levels}, cmap="{config.plot_colormap}")
-                            _ax_r.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_r.set_ylabel("t", fontsize={config.plot_axis_label_fontsize})
-                        _fig_r.colorbar(_im_r, ax=_ax_r)
-                        _fig_r.suptitle(f"RAR round {{_rar_idx}} solution snapshot")
-                    plt.tight_layout(rect=[0, 0, 1, 0.93])
-                    plt.savefig(_os.path.join(_rd, "solution_plot.png"), dpi={config.plot_dpi}, bbox_inches="tight")
-                    plt.close(_fig_r)
-                    print(f"  [RAR round {{_rar_idx}}] solution snapshot saved: {{_os.path.join(_rd, 'solution_plot.png')}}")
-                except Exception as _rar_err1:
-                    print(f"  [RAR round {{_rar_idx}}] solution snapshot failed: {{_rar_err1}}")
-
-                try:
-                    _fig_c, _ax_c = plt.subplots(figsize=_plot_figsize(6.5, 5))
-                    if {config.plot_swap_xt}:
-                        if len(_rar_orig_pts):
-                            _ax_c.scatter(_rar_orig_pts[:, 1], _rar_orig_pts[:, 0], s=6, c="#adb5bd", alpha=0.6, label="Original points")
-                        if len(_rar_added_so_far):
-                            _ax_c.scatter(_rar_added_so_far[:, 1], _rar_added_so_far[:, 0], s=10, c="#fd7e14", label="Added in earlier rounds")
-                        _ax_c.scatter(_rar_new_pts[:, 1], _rar_new_pts[:, 0], s=14, c="#e03131", label=f"Added this round ({{len(_rar_new_pts)}})")
-                        _ax_c.set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); _ax_c.set_ylabel("x", fontsize={config.plot_axis_label_fontsize})
-                    else:
-                        if len(_rar_orig_pts):
-                            _ax_c.scatter(_rar_orig_pts[:, 0], _rar_orig_pts[:, 1], s=6, c="#adb5bd", alpha=0.6, label="Original points")
-                        if len(_rar_added_so_far):
-                            _ax_c.scatter(_rar_added_so_far[:, 0], _rar_added_so_far[:, 1], s=10, c="#fd7e14", label="Added in earlier rounds")
-                        _ax_c.scatter(_rar_new_pts[:, 0], _rar_new_pts[:, 1], s=14, c="#e03131", label=f"Added this round ({{len(_rar_new_pts)}})")
-                        _ax_c.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_c.set_ylabel("t", fontsize={config.plot_axis_label_fontsize})
-                    _ax_c.legend(loc="best", fontsize=8)
-                    _ax_c.set_title(f"RAR round {{_rar_idx}} -- collocation points")
-                    plt.tight_layout()
-                    plt.savefig(_os.path.join(_rd, "collocation_points.png"), dpi={config.plot_dpi}, bbox_inches="tight")
-                    plt.close(_fig_c)
-                    print(f"  [RAR round {{_rar_idx}}] collocation-points plot saved: {{_os.path.join(_rd, 'collocation_points.png')}}")
-                except Exception as _rar_err2:
-                    print(f"  [RAR round {{_rar_idx}}] collocation-points plot failed: {{_rar_err2}}")
-
-                if _rar_ea_entries:
-                    try:
-                        _best_r = min(_rar_ea_entries, key=lambda _e: abs(_e[0] - {config.t_max}))
-                        _ref_t_r, _ref_fp_r = _best_r[0], _best_r[1]
-                        _ref_sel_r = _best_r[2] if len(_best_r) >= 3 else None
-                        _ref_d_r = np.loadtxt(_ref_fp_r)
-                        if _ref_d_r.ndim == 1:
-                            _ref_d_r = _ref_d_r.reshape(1, -1)
-                        _ref_xyz_r = _ref_d_r[:, :1]; _ref_u_r = _ref_d_r[:, 2]
-                        _ref_grid_r = np.column_stack([_ref_xyz_r, np.full(len(_ref_d_r), _ref_t_r)])
-                        if _ref_sel_r is None:
-                            _ref_pred_r = _extract_plot_field(_ref_grid_r)
-                        elif isinstance(_ref_sel_r, int):
-                            _ref_pred_r = model.predict(_ref_grid_r)[:, _ref_sel_r]
-                        else:
-                            _ref_expr_r = _ref_sel_r[0]
-                            def _rar_ea_op(_rea_i, _rea_o):
-                                _rea_dv = _tm_build_dvars(_rea_i, _rea_o, _plot_n_out, _plot_output_names_list,
-                                                           _is_steady, _plot_dim, _ref_expr_r)
-                                _rea_ns = dict(_rea_dv); _rea_ns.update(_PLOT_TORCH_MATH_NS); _rea_ns["torch"] = torch
-                                return eval(_ref_expr_r, _rea_ns)
-                            _ref_pred_r = model.predict(_ref_grid_r, operator=_rar_ea_op)[:, 0]
-                        _err_r = _ref_pred_r - _ref_u_r
-                        _l2_r = float(np.linalg.norm(_err_r) / (np.linalg.norm(_ref_u_r) + 1e-12))
-                        _mse_r = float(np.mean(_err_r ** 2))
-                        print(f"  [RAR round {{_rar_idx}}] vs Reference t={{_ref_t_r:.3g}}: L2 rel error = {{_l2_r:.4e}}, MSE = {{_mse_r:.4e}}")
-                        _fig_e, _ax_e = plt.subplots(figsize=_plot_figsize(6.5, 5))
-                        _ord_e = np.argsort(_ref_xyz_r[:, 0])
-                        _ax_e.plot(_ref_xyz_r[_ord_e, 0], _ref_u_r[_ord_e], label="Reference", color="#2f9e44")
-                        _ax_e.plot(_ref_xyz_r[_ord_e, 0], _ref_pred_r[_ord_e], label="PINN", color="#1971c2", linestyle="--")
-                        _ax_e.legend(loc="best", fontsize=8)
-                        _ax_e.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_e.set_ylabel("u", fontsize={config.plot_axis_label_fontsize})
-                        _ax_e.set_title(f"RAR round {{_rar_idx}} -- PINN vs Reference  t={{_ref_t_r:.3g}} (L2={{_l2_r:.3e}})")
-                        plt.tight_layout()
-                        plt.savefig(_os.path.join(_rd, "error_compare.png"), dpi={config.plot_dpi}, bbox_inches="tight")
-                        plt.close(_fig_e)
-                    except Exception as _rar_err3:
-                        print(f"  [RAR round {{_rar_idx}}] error compare failed: {{_rar_err3}}")
-                return
-
-            if _is_steady:
-                # Steady-state 2D/3D (e.g. a Poisson equation): PINN |
-                # Reference | |Error| when a reference file is configured,
-                # just the PINN prediction alone otherwise -- no time
-                # slicing anywhere (there's no t_max to evaluate "the
-                # final time" at, unlike the time-dependent branch below).
-                try:
-                    _ref_ok_r = False
-                    if _rar_ea_entries:
-                        try:
-                            # Steady-state: at most one reference file
-                            # really means anything (no time axis to pick
-                            # "the closest snapshot" by) -- format is
-                            # x,y,u (2D) / x,y,z,u (3D), no time column.
-                            _best_r = _rar_ea_entries[0]
-                            _ref_fp_r = _best_r[1]
-                            _ref_sel_r = _best_r[2] if len(_best_r) >= 3 else None
-                            _ref_d_r = np.loadtxt(_ref_fp_r)
-                            if _ref_d_r.ndim == 1:
-                                _ref_d_r = _ref_d_r.reshape(1, -1)
-                            if _is_3d:
-                                _ref_xyz_r = _ref_d_r[:, :3]; _ref_u_r = _ref_d_r[:, 3]
-                            else:
-                                _ref_xyz_r = _ref_d_r[:, :2]; _ref_u_r = _ref_d_r[:, 2]
-                            _ref_pred_pts_r = _rar_ref_extract(_ref_xyz_r, _ref_sel_r, model)
-                            _err_pts_r = _ref_pred_pts_r - _ref_u_r
-                            _l2_r = float(np.linalg.norm(_err_pts_r) / (np.linalg.norm(_ref_u_r) + 1e-12))
-                            _mse_r = float(np.mean(_err_pts_r ** 2))
-                            print(f"  [RAR round {{_rar_idx}}] vs Reference: L2 rel error = {{_l2_r:.4e}}, MSE = {{_mse_r:.4e}}")
-                            _ref_ok_r = True
-                        except Exception as _rar_ref_err:
-                            print(f"  [RAR round {{_rar_idx}}] reference compare failed, showing prediction only: {{_rar_ref_err}}")
-                            _ref_ok_r = False
-
-                    if _is_3d:
-                        if _ref_ok_r:
-                            _fig_r = plt.figure(figsize=_plot_figsize(15, 5))
-                            _abs_err_r = np.abs(_err_pts_r)
-                            _vmin3_r = min(_ref_pred_pts_r.min(), _ref_u_r.min())
-                            _vmax3_r = max(_ref_pred_pts_r.max(), _ref_u_r.max())
-                            _cols3_r = [
-                                (_ref_pred_pts_r, f"PINN  L2={{_l2_r:.2e}}", _vmin3_r, _vmax3_r, "{config.plot_colormap}"),
-                                (_ref_u_r, "Reference", _vmin3_r, _vmax3_r, "{config.plot_colormap}"),
-                                (_abs_err_r, f"|Error|  Max={{_abs_err_r.max():.2e}}", None, None, "{config.plot_colormap}"),
-                            ]
-                            for _ci_r, (_vals3_r, _ttl3_r, _vmin_c3_r, _vmax_c3_r, _cmap_c3_r) in enumerate(_cols3_r):
-                                _ax3_r = _fig_r.add_subplot(1, 3, _ci_r + 1, projection="3d")
-                                _sc3_r = _ax3_r.scatter(_ref_xyz_r[:, 0], _ref_xyz_r[:, 1], _ref_xyz_r[:, 2], c=_vals3_r,
-                                                         cmap=_cmap_c3_r, s=10, vmin=_vmin_c3_r, vmax=_vmax_c3_r)
-                                _fig_r.colorbar(_sc3_r, ax=_ax3_r, shrink=0.6, pad=0.12)
-                                _ax3_r.set_title(_ttl3_r, fontsize={config.plot_subplot_title_fontsize})
-                                _ax3_r.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax3_r.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _ax3_r.set_zlabel("z", fontsize={config.plot_axis_label_fontsize})
-                            _fig_r.suptitle(f"RAR round {{_rar_idx}} -- PINN vs Reference", fontsize={config.plot_title_fontsize}, fontweight="bold")
-                        else:
-                            _xp = np.linspace({config.x_min}, {config.x_max}, _res)
-                            _yp = np.linspace({config.y_min}, {config.y_max}, _res)
-                            _Xg, _Yg = np.meshgrid(_xp, _yp)
-                            _z_mid_r = ({config.z_min} + {config.z_max}) / 2.0
-                            _grid_r = np.column_stack([_Xg.ravel(), _Yg.ravel(), np.full(_Xg.size, _z_mid_r)])
-                            _field_r = _extract_plot_field(_grid_r).reshape(_res, _res)
-                            _fig_r, _ax_r = plt.subplots(figsize=_plot_figsize(6.5, 5.5))
-                            _im_r = _ax_r.contourf(_Xg, _Yg, _field_r, levels={config.plot_levels}, cmap="{config.plot_colormap}")
-                            _ax_r.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_r.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _ax_r.set_aspect("equal", adjustable="box")
-                            _fig_r.colorbar(_im_r, ax=_ax_r, fraction=0.046, pad=0.04)
-                            _fig_r.suptitle(f"RAR round {{_rar_idx}} solution snapshot (z={{_z_mid_r:.3g}})")
-                    else:
-                        _xp = np.linspace({config.x_min}, {config.x_max}, _res)
-                        _yp = np.linspace({config.y_min}, {config.y_max}, _res)
-                        _Xg, _Yg = np.meshgrid(_xp, _yp)
-                        _inside_r = geom.inside(np.column_stack([_Xg.ravel(), _Yg.ravel()])).reshape(_res, _res)
-                        if _ref_ok_r:
-                            from scipy.interpolate import griddata as _gd_r
-                            _grid_pinn_r = np.column_stack([_Xg.ravel(), _Yg.ravel()])
-                            _u_pinn_g_r = _extract_plot_field(_grid_pinn_r).reshape(_res, _res)
-                            _u_pinn_g_r = np.where(_inside_r, _u_pinn_g_r, np.nan)
-                            _u_ref_g_r = _gd_r(_ref_xyz_r, _ref_u_r, (_Xg, _Yg), method="linear", fill_value=0.0)
-                            _u_ref_g_r = np.where(_inside_r, _u_ref_g_r, np.nan)
-                            _u_err_g_r = np.abs(_u_pinn_g_r - _u_ref_g_r)
-                            _vmin2_r = np.nanmin([_u_pinn_g_r, _u_ref_g_r]); _vmax2_r = np.nanmax([_u_pinn_g_r, _u_ref_g_r])
-                            if _vmax2_r - _vmin2_r < 1e-12:
-                                _vmax2_r = _vmin2_r + 1e-12
-                            _levels2_r = _cf_levels({config.plot_levels}, _vmin2_r, _vmax2_r)["levels"]
-                            _fig_r, _axes2_r = plt.subplots(1, 3, figsize=_plot_figsize(15, 5))
-                            _im0_r = _axes2_r[0].contourf(_Xg, _Yg, _u_pinn_g_r, levels=_levels2_r, cmap="{config.plot_colormap}")
-                            _axes2_r[0].set_title(f"PINN  L2={{_l2_r:.2e}}", fontsize={config.plot_subplot_title_fontsize})
-                            _axes2_r[0].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _axes2_r[0].set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _axes2_r[0].set_aspect("equal", adjustable="box")
-                            _fig_r.colorbar(_im0_r, ax=_axes2_r[0], fraction=0.046, pad=0.04)
-                            _im1_r = _axes2_r[1].contourf(_Xg, _Yg, _u_ref_g_r, levels=_levels2_r, cmap="{config.plot_colormap}")
-                            _axes2_r[1].set_title("Reference", fontsize={config.plot_subplot_title_fontsize})
-                            _axes2_r[1].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _axes2_r[1].set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _axes2_r[1].set_aspect("equal", adjustable="box")
-                            _fig_r.colorbar(_im1_r, ax=_axes2_r[1], fraction=0.046, pad=0.04)
-                            _im2_r = _axes2_r[2].contourf(_Xg, _Yg, _u_err_g_r, levels={config.plot_levels}, cmap="{config.plot_colormap}")
-                            _axes2_r[2].set_title(f"|Error|  Max={{np.nanmax(_u_err_g_r):.2e}}", fontsize={config.plot_subplot_title_fontsize})
-                            _axes2_r[2].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _axes2_r[2].set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _axes2_r[2].set_aspect("equal", adjustable="box")
-                            _fig_r.colorbar(_im2_r, ax=_axes2_r[2], fraction=0.046, pad=0.04)
-                            _fig_r.suptitle(f"RAR round {{_rar_idx}} -- PINN vs Reference", fontsize={config.plot_title_fontsize}, fontweight="bold")
-                        else:
-                            _grid_r = np.column_stack([_Xg.ravel(), _Yg.ravel()])
-                            _field_r = _extract_plot_field(_grid_r).reshape(_res, _res)
-                            _field_r = np.where(_inside_r, _field_r, np.nan)
-                            _fig_r, _ax_r = plt.subplots(figsize=_plot_figsize(6.5, 5.5))
-                            _im_r = _ax_r.contourf(_Xg, _Yg, _field_r, levels={config.plot_levels}, cmap="{config.plot_colormap}")
-                            _ax_r.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_r.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _ax_r.set_aspect("equal", adjustable="box")
-                            _fig_r.colorbar(_im_r, ax=_ax_r, fraction=0.046, pad=0.04)
-                            _fig_r.suptitle(f"RAR round {{_rar_idx}} solution snapshot")
-                    plt.tight_layout(rect=[0, 0, 1, 0.93])
-                    plt.savefig(_os.path.join(_rd, "solution_plot.png"), dpi={config.plot_dpi}, bbox_inches="tight")
-                    plt.close(_fig_r)
-                    print(f"  [RAR round {{_rar_idx}}] solution snapshot saved: {{_os.path.join(_rd, 'solution_plot.png')}}")
-                except Exception as _rar_err1:
-                    print(f"  [RAR round {{_rar_idx}}] solution snapshot failed: {{_rar_err1}}")
-
-                # -- collocation points (steady: no time dimension at all,
-                # so no alpha-for-time trick in 3D and no second "spatial-
-                # only" side panel in 2D -- just the points themselves) --
-                try:
-                    if _is_3d:
-                        from mpl_toolkits.mplot3d import Axes3D as _Axes3D_unused2  # noqa: F401 -- registers the 3D projection
-                        _fig_c = plt.figure(figsize=_plot_figsize(7, 6))
-                        _ax_c = _fig_c.add_subplot(111, projection="3d")
-                        if len(_rar_orig_pts):
-                            _ax_c.scatter(_rar_orig_pts[:, 0], _rar_orig_pts[:, 1], _rar_orig_pts[:, 2], s=5, c="#adb5bd", alpha=0.6, label="Original points")
-                        if len(_rar_added_so_far):
-                            _ax_c.scatter(_rar_added_so_far[:, 0], _rar_added_so_far[:, 1], _rar_added_so_far[:, 2], s=9, c="#fd7e14", label="Added in earlier rounds")
-                        _ax_c.scatter(_rar_new_pts[:, 0], _rar_new_pts[:, 1], _rar_new_pts[:, 2], s=12, c="#e03131", label=f"Added this round ({{len(_rar_new_pts)}})")
-                        _ax_c.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_c.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _ax_c.set_zlabel("z", fontsize={config.plot_axis_label_fontsize})
-                        _ax_c.legend(loc="best", fontsize=8)
-                        _ax_c.set_title(f"RAR round {{_rar_idx}} -- collocation points")
-                        plt.tight_layout()
-                    else:
-                        _fig_c, _ax_c = plt.subplots(figsize=_plot_figsize(6.5, 5.5))
-                        if len(_rar_orig_pts):
-                            _ax_c.scatter(_rar_orig_pts[:, 0], _rar_orig_pts[:, 1], s=6, c="#adb5bd", alpha=0.6, label="Original points")
-                        if len(_rar_added_so_far):
-                            _ax_c.scatter(_rar_added_so_far[:, 0], _rar_added_so_far[:, 1], s=10, c="#fd7e14", label="Added in earlier rounds")
-                        _ax_c.scatter(_rar_new_pts[:, 0], _rar_new_pts[:, 1], s=14, c="#e03131", label=f"Added this round ({{len(_rar_new_pts)}})")
-                        _ax_c.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_c.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _ax_c.set_aspect("equal", adjustable="box")
-                        _ax_c.legend(loc="best", fontsize=8)
-                        _ax_c.set_title(f"RAR round {{_rar_idx}} -- collocation points")
-                        plt.tight_layout()
-                    plt.savefig(_os.path.join(_rd, "collocation_points.png"), dpi={config.plot_dpi}, bbox_inches="tight")
-                    plt.close(_fig_c)
-                    print(f"  [RAR round {{_rar_idx}}] collocation-points plot saved: {{_os.path.join(_rd, 'collocation_points.png')}}")
-                except Exception as _rar_err2:
-                    print(f"  [RAR round {{_rar_idx}}] collocation-points plot failed: {{_rar_err2}}")
-                return
-
-            # -- 2D/3D: solution snapshot merged with the error comparison --
-            # One single file: PINN | Reference | |Error| -- all three
-            # panels now share the SAME colormap (config.plot_colormap),
-            # standardized in Round 31 (previously |Error| hardcoded its
-            # own "inferno" colormap here, inconsistent with the other
-            # two panels) -- whenever a reference file is configured;
-            # just the PINN prediction alone, same as before, when it isn't.
-            try:
-                _ref_ok_r = False
-                _ref_t_r = {config.t_max}
-                if _rar_ea_entries:
-                    try:
-                        _best_r = min(_rar_ea_entries, key=lambda _e: abs(_e[0] - {config.t_max}))
-                        _ref_t_r, _ref_fp_r = _best_r[0], _best_r[1]
-                        _ref_sel_r = _best_r[2] if len(_best_r) >= 3 else None
-                        _ref_d_r = np.loadtxt(_ref_fp_r)
-                        if _ref_d_r.ndim == 1:
-                            _ref_d_r = _ref_d_r.reshape(1, -1)
-                        if _is_3d:
-                            _ref_xyz_r = _ref_d_r[:, :3]; _ref_u_r = _ref_d_r[:, 4]
-                        else:
-                            _ref_xyz_r = _ref_d_r[:, :2]; _ref_u_r = _ref_d_r[:, 3]
-                        _ref_grid_r = np.column_stack([_ref_xyz_r, np.full(len(_ref_d_r), _ref_t_r)])
-                        if _ref_sel_r is None:
-                            _ref_pred_pts_r = _extract_plot_field(_ref_grid_r)
-                        elif isinstance(_ref_sel_r, int):
-                            _ref_pred_pts_r = model.predict(_ref_grid_r)[:, _ref_sel_r]
-                        else:
-                            _ref_expr_r = _ref_sel_r[0]
-                            def _rar_ea_op2(_rea_i, _rea_o):
-                                _rea_dv = _tm_build_dvars(_rea_i, _rea_o, _plot_n_out, _plot_output_names_list,
-                                                           _is_steady, _plot_dim, _ref_expr_r)
-                                _rea_ns = dict(_rea_dv); _rea_ns.update(_PLOT_TORCH_MATH_NS); _rea_ns["torch"] = torch
-                                return eval(_ref_expr_r, _rea_ns)
-                            _ref_pred_pts_r = model.predict(_ref_grid_r, operator=_rar_ea_op2)[:, 0]
-                        _err_pts_r = _ref_pred_pts_r - _ref_u_r
-                        _l2_r = float(np.linalg.norm(_err_pts_r) / (np.linalg.norm(_ref_u_r) + 1e-12))
-                        _mse_r = float(np.mean(_err_pts_r ** 2))
-                        print(f"  [RAR round {{_rar_idx}}] vs Reference t={{_ref_t_r:.3g}}: L2 rel error = {{_l2_r:.4e}}, MSE = {{_mse_r:.4e}}")
-                        _ref_ok_r = True
-                    except Exception as _rar_ref_err:
-                        print(f"  [RAR round {{_rar_idx}}] reference compare failed, showing prediction only: {{_rar_ref_err}}")
-                        _ref_ok_r = False
-
-                if _is_3d:
-                    if _ref_ok_r:
-                        _fig_r = plt.figure(figsize=_plot_figsize(15, 5))
-                        _abs_err_r = np.abs(_err_pts_r)
-                        _vmin3_r = min(_ref_pred_pts_r.min(), _ref_u_r.min())
-                        _vmax3_r = max(_ref_pred_pts_r.max(), _ref_u_r.max())
-                        _cols3_r = [
-                            (_ref_pred_pts_r, f"PINN  t={{_ref_t_r:.3g}}  L2={{_l2_r:.2e}}", _vmin3_r, _vmax3_r, "{config.plot_colormap}"),
-                            (_ref_u_r, f"Reference  t={{_ref_t_r:.3g}}", _vmin3_r, _vmax3_r, "{config.plot_colormap}"),
-                            (_abs_err_r, f"|Error|  Max={{_abs_err_r.max():.2e}}", None, None, "{config.plot_colormap}"),
-                        ]
-                        for _ci_r, (_vals3_r, _ttl3_r, _vmin_c3_r, _vmax_c3_r, _cmap_c3_r) in enumerate(_cols3_r):
-                            _ax3_r = _fig_r.add_subplot(1, 3, _ci_r + 1, projection="3d")
-                            _sc3_r = _ax3_r.scatter(_ref_xyz_r[:, 0], _ref_xyz_r[:, 1], _ref_xyz_r[:, 2], c=_vals3_r,
-                                                     cmap=_cmap_c3_r, s=10, vmin=_vmin_c3_r, vmax=_vmax_c3_r)
-                            _fig_r.colorbar(_sc3_r, ax=_ax3_r, shrink=0.6, pad=0.12)
-                            _ax3_r.set_title(_ttl3_r, fontsize={config.plot_subplot_title_fontsize})
-                            _ax3_r.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax3_r.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _ax3_r.set_zlabel("z", fontsize={config.plot_axis_label_fontsize})
-                        _fig_r.suptitle(f"RAR round {{_rar_idx}} -- PINN vs Reference", fontsize={config.plot_title_fontsize}, fontweight="bold")
-                    else:
-                        _xp = np.linspace({config.x_min}, {config.x_max}, _res)
-                        _yp = np.linspace({config.y_min}, {config.y_max}, _res)
-                        _Xg, _Yg = np.meshgrid(_xp, _yp)
-                        _z_mid_r = ({config.z_min} + {config.z_max}) / 2.0
-                        _grid_r = np.column_stack([_Xg.ravel(), _Yg.ravel(), np.full(_Xg.size, _z_mid_r), np.full(_Xg.size, {config.t_max})])
-                        _field_r = _extract_plot_field(_grid_r).reshape(_res, _res)
-                        _fig_r, _ax_r = plt.subplots(figsize=_plot_figsize(6.5, 5.5))
-                        _im_r = _ax_r.contourf(_Xg, _Yg, _field_r, levels={config.plot_levels}, cmap="{config.plot_colormap}")
-                        _ax_r.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_r.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _ax_r.set_aspect("equal", adjustable="box")
-                        _fig_r.colorbar(_im_r, ax=_ax_r, fraction=0.046, pad=0.04)
-                        _fig_r.suptitle(f"RAR round {{_rar_idx}} solution snapshot (z={{_z_mid_r:.3g}}, t={config.t_max:.3g})")
-                else:
-                    _xp = np.linspace({config.x_min}, {config.x_max}, _res)
-                    _yp = np.linspace({config.y_min}, {config.y_max}, _res)
-                    _Xg, _Yg = np.meshgrid(_xp, _yp)
-                    _inside_r = geom.inside(np.column_stack([_Xg.ravel(), _Yg.ravel()])).reshape(_res, _res)
-                    if _ref_ok_r:
-                        from scipy.interpolate import griddata as _gd_r
-                        _grid_pinn_r = np.column_stack([_Xg.ravel(), _Yg.ravel(), np.full(_Xg.size, _ref_t_r)])
-                        _u_pinn_g_r = _extract_plot_field(_grid_pinn_r).reshape(_res, _res)
-                        _u_pinn_g_r = np.where(_inside_r, _u_pinn_g_r, np.nan)
-                        _u_ref_g_r = _gd_r(_ref_xyz_r, _ref_u_r, (_Xg, _Yg), method="linear", fill_value=0.0)
-                        _u_ref_g_r = np.where(_inside_r, _u_ref_g_r, np.nan)
-                        _u_err_g_r = np.abs(_u_pinn_g_r - _u_ref_g_r)
-                        _vmin2_r = np.nanmin([_u_pinn_g_r, _u_ref_g_r]); _vmax2_r = np.nanmax([_u_pinn_g_r, _u_ref_g_r])
-                        if _vmax2_r - _vmin2_r < 1e-12:
-                            _vmax2_r = _vmin2_r + 1e-12
-                        # contourf's own vmin/vmax kwargs do NOT restrict
-                        # an integer `levels=N` -- it still auto-ranges
-                        # each panel to that panel's own data, so PINN and
-                        # Reference would silently get two different color
-                        # scales despite passing the same vmin/vmax here.
-                        # Passing the level BOUNDARIES explicitly (instead
-                        # of a level count) is what actually makes both
-                        # panels share one scale.
-                        _levels2_r = _cf_levels({config.plot_levels}, _vmin2_r, _vmax2_r)["levels"]
-                        _fig_r, _axes2_r = plt.subplots(1, 3, figsize=_plot_figsize(15, 5))
-                        _im0_r = _axes2_r[0].contourf(_Xg, _Yg, _u_pinn_g_r, levels=_levels2_r, cmap="{config.plot_colormap}")
-                        _axes2_r[0].set_title(f"PINN  t={{_ref_t_r:.3g}}  L2={{_l2_r:.2e}}", fontsize={config.plot_subplot_title_fontsize})
-                        _axes2_r[0].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _axes2_r[0].set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _axes2_r[0].set_aspect("equal", adjustable="box")
-                        _fig_r.colorbar(_im0_r, ax=_axes2_r[0], fraction=0.046, pad=0.04)
-                        _im1_r = _axes2_r[1].contourf(_Xg, _Yg, _u_ref_g_r, levels=_levels2_r, cmap="{config.plot_colormap}")
-                        _axes2_r[1].set_title(f"Reference  t={{_ref_t_r:.3g}}", fontsize={config.plot_subplot_title_fontsize})
-                        _axes2_r[1].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _axes2_r[1].set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _axes2_r[1].set_aspect("equal", adjustable="box")
-                        _fig_r.colorbar(_im1_r, ax=_axes2_r[1], fraction=0.046, pad=0.04)
-                        _im2_r = _axes2_r[2].contourf(_Xg, _Yg, _u_err_g_r, levels={config.plot_levels}, cmap="{config.plot_colormap}")
-                        _axes2_r[2].set_title(f"|Error|  Max={{np.nanmax(_u_err_g_r):.2e}}", fontsize={config.plot_subplot_title_fontsize})
-                        _axes2_r[2].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _axes2_r[2].set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _axes2_r[2].set_aspect("equal", adjustable="box")
-                        _fig_r.colorbar(_im2_r, ax=_axes2_r[2], fraction=0.046, pad=0.04)
-                        _fig_r.suptitle(f"RAR round {{_rar_idx}} -- PINN vs Reference", fontsize={config.plot_title_fontsize}, fontweight="bold")
-                    else:
-                        _grid_r = np.column_stack([_Xg.ravel(), _Yg.ravel(), np.full(_Xg.size, {config.t_max})])
-                        _field_r = _extract_plot_field(_grid_r).reshape(_res, _res)
-                        _field_r = np.where(_inside_r, _field_r, np.nan)
-                        _fig_r, _ax_r = plt.subplots(figsize=_plot_figsize(6.5, 5.5))
-                        _im_r = _ax_r.contourf(_Xg, _Yg, _field_r, levels={config.plot_levels}, cmap="{config.plot_colormap}")
-                        _ax_r.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_r.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _ax_r.set_aspect("equal", adjustable="box")
-                        _fig_r.colorbar(_im_r, ax=_ax_r, fraction=0.046, pad=0.04)
-                        _fig_r.suptitle(f"RAR round {{_rar_idx}} solution snapshot (t={config.t_max:.3g})")
-                plt.tight_layout(rect=[0, 0, 1, 0.93])
-                plt.savefig(_os.path.join(_rd, "solution_plot.png"), dpi={config.plot_dpi}, bbox_inches="tight")
-                plt.close(_fig_r)
-                print(f"  [RAR round {{_rar_idx}}] solution snapshot saved: {{_os.path.join(_rd, 'solution_plot.png')}}")
-            except Exception as _rar_err1:
-                print(f"  [RAR round {{_rar_idx}}] solution snapshot failed: {{_rar_err1}}")
-
-            # -- 2D/3D: collocation points (original vs. earlier rounds vs. this round) --
-            try:
-                from mpl_toolkits.mplot3d import Axes3D as _Axes3D_unused  # noqa: F401 -- registers the 3D projection
-                if _is_3d:
-                    _fig_c = plt.figure(figsize=_plot_figsize(7, 6))
-                    _ax_c = _fig_c.add_subplot(111, projection="3d")
-                    # 4 real coordinate dims (x,y,z,t) can't all be axes on
-                    # one static 3D plot -- spatial (x,y,z) get the 3 plot
-                    # axes, and t is folded into per-category alpha instead
-                    # (lighter = earlier in the time domain) rather than
-                    # dropped entirely.
-                    _t_lo_r, _t_hi_r = {config.t_min}, {config.t_max}
-                    _span_t_r = (_t_hi_r - _t_lo_r) or 1.0
-                    def _rar_alpha(_pts):
-                        return float(np.clip(0.25 + 0.65 * (np.mean(_pts[:, 3]) - _t_lo_r) / _span_t_r, 0.15, 0.95)) if len(_pts) else 1.0
-                    _orig_alpha, _added_alpha = _rar_alpha(_rar_orig_pts), _rar_alpha(_rar_added_so_far)
-                    if len(_rar_orig_pts):
-                        _ax_c.scatter(_rar_orig_pts[:, 0], _rar_orig_pts[:, 1], _rar_orig_pts[:, 2], s=5, c="#adb5bd", alpha=_orig_alpha, label="Original points")
-                    if len(_rar_added_so_far):
-                        _ax_c.scatter(_rar_added_so_far[:, 0], _rar_added_so_far[:, 1], _rar_added_so_far[:, 2], s=9, c="#fd7e14", alpha=_added_alpha, label="Added in earlier rounds")
-                    _ax_c.scatter(_rar_new_pts[:, 0], _rar_new_pts[:, 1], _rar_new_pts[:, 2], s=12, c="#e03131", label=f"Added this round ({{len(_rar_new_pts)}})")
-                    _ax_c.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_c.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _ax_c.set_zlabel("z", fontsize={config.plot_axis_label_fontsize})
-                    _ax_c.legend(loc="best", fontsize=8)
-                    _ax_c.set_title(f"RAR round {{_rar_idx}} -- collocation points")
-                    plt.tight_layout()
-                else:
-                    # 2D: the existing 3D (x, y, t) view, plus a plain 2D
-                    # (x, y) view collapsing time -- side by side -- so the
-                    # spatial concentration of refinement is readable at a
-                    # glance without having to rotate a 3D plot.
-                    _fig_c = plt.figure(figsize=_plot_figsize(13, 6))
-                    _ax_c = _fig_c.add_subplot(1, 2, 1, projection="3d")
-                    if len(_rar_orig_pts):
-                        _ax_c.scatter(_rar_orig_pts[:, 0], _rar_orig_pts[:, 1], _rar_orig_pts[:, 2], s=5, c="#adb5bd", alpha=0.5, label="Original points")
-                    if len(_rar_added_so_far):
-                        _ax_c.scatter(_rar_added_so_far[:, 0], _rar_added_so_far[:, 1], _rar_added_so_far[:, 2], s=9, c="#fd7e14", alpha=0.85, label="Added in earlier rounds")
-                    _ax_c.scatter(_rar_new_pts[:, 0], _rar_new_pts[:, 1], _rar_new_pts[:, 2], s=12, c="#e03131", label=f"Added this round ({{len(_rar_new_pts)}})")
-                    _ax_c.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_c.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _ax_c.set_zlabel("t", fontsize={config.plot_axis_label_fontsize})
-                    _ax_c.legend(loc="best", fontsize=8)
-                    _ax_c.set_title("3D view (x, y, t)")
-                    _ax_c2 = _fig_c.add_subplot(1, 2, 2)
-                    if len(_rar_orig_pts):
-                        _ax_c2.scatter(_rar_orig_pts[:, 0], _rar_orig_pts[:, 1], s=6, c="#adb5bd", alpha=0.5, label="Original points")
-                    if len(_rar_added_so_far):
-                        _ax_c2.scatter(_rar_added_so_far[:, 0], _rar_added_so_far[:, 1], s=10, c="#fd7e14", alpha=0.85, label="Added in earlier rounds")
-                    _ax_c2.scatter(_rar_new_pts[:, 0], _rar_new_pts[:, 1], s=14, c="#e03131", label=f"Added this round ({{len(_rar_new_pts)}})")
-                    _ax_c2.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_c2.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _ax_c2.set_aspect("equal", adjustable="box")
-                    _ax_c2.legend(loc="best", fontsize=8)
-                    _ax_c2.set_title("Spatial view (x, y) -- all times")
-                    _fig_c.suptitle(f"RAR round {{_rar_idx}} -- collocation points", fontsize={config.plot_title_fontsize}, fontweight="bold")
-                    plt.tight_layout(rect=[0, 0, 1, 0.93])
-                plt.savefig(_os.path.join(_rd, "collocation_points.png"), dpi={config.plot_dpi}, bbox_inches="tight")
-                plt.close(_fig_c)
-                print(f"  [RAR round {{_rar_idx}}] collocation-points plot saved: {{_os.path.join(_rd, 'collocation_points.png')}}")
-            except Exception as _rar_err2:
-                print(f"  [RAR round {{_rar_idx}}] collocation-points plot failed: {{_rar_err2}}")
-
-        print("\\n=== Starting RAR Adaptive Refinement ===")
-        for rar_cycle in range({config.rar_cycles}):
-            print(f"\\n--- RAR Cycle {{rar_cycle+1}}/{config.rar_cycles} ---")
-            # Candidate points come straight from the real geometry's own
-            # random_points() -- geomtime (an alias for geom when the
-            # problem is steady, see the plain dde.data.PDE built above;
-            # otherwise a GeometryXTime wrapping geom and the time domain)
-            # -- instead of independently uniform-sampling each axis over
-            # the domain's bounding box, which used to be the case here.
-            # The two agree for a Rectangle/Cuboid/Interval domain, but for
-            # any non-box geometry (L-Shape, Disk, Polygon, Triangle, an
-            # Annulus or other CSG shape with a hole, ...) the bounding box
-            # is strictly larger than the real domain, so bounding-box
-            # sampling put candidate points -- and then, since RAR just
-            # keeps whichever candidates have the largest predicted PDE
-            # residual, sometimes the actual added points too -- outside
-            # the geometry entirely (e.g. inside the L-Shape's missing
-            # quadrant), where the model's prediction is meaningless.
-            # geom/geomtime's own random_points() is exactly what
-            # dde.data.PDE/TimePDE already use to generate ordinary
-            # training collocation points elsewhere in this same script,
-            # and it performs real rejection sampling against the
-            # geometry for every non-box shape (see e.g.
-            # CSGDifference.random_points in DeepXDE's own geometry/csg.py),
-            # so RAR's candidates are now guaranteed to lie inside the
-            # actual domain for any geometry, not just a rectangular one.
-            xt_cand = geomtime.random_points({config.rar_candidates})
-            _rar_res = model.predict(xt_cand, operator=pde)
-            if isinstance(_rar_res, list):
-                # Restrict point selection to one equation's residual
-                # (config.rar_output_selector >= 0 -- "Points from:" in the
-                # RAR settings panel; equation order == output order for
-                # every current template) instead of the combined sum --
-                # -1 (the default) always falls through to the original,
-                # unchanged combined behavior.
-                if 0 <= {config.rar_output_selector} < len(_rar_res):
-                    residuals = np.abs(_rar_res[{config.rar_output_selector}]).flatten()
-                else:
-                    residuals = np.sum([np.abs(r).flatten() for r in _rar_res], axis=0)
-            else:
-                residuals = np.abs(_rar_res).flatten()
-            top_idx    = np.argsort(residuals)[-{config.rar_add_points}:]
-            new_points = xt_cand[top_idx]
-            print(f"Max residual: {{residuals.max():.4e}}, Mean: {{residuals.mean():.4e}}")
-            data.add_anchors(new_points)
-            model.compile("{config.optimizer}", lr=_lr, loss="{config.loss_type}", loss_weights=_multi_weights)
-            loss_history, train_state = model.train(iterations={config.rar_adam_iters}, display_every={config.loss_display_every})
-            if {config.rar_lbfgs_iters} > 0:
-                # Round 31: when this round also runs an L-BFGS phase, save
-                # the Adam phase's own checkpoint here -- standardized on
-                # "one checkpoint per optimizer phase" everywhere, matching
-                # Time-Adaptive's own per-step convention (previously RAR
-                # only ever saved ONE checkpoint per round, representing
-                # whatever state the model was in after ALL of that
-                # round's phases, so an Adam-phase-only snapshot was never
-                # recoverable once L-BFGS started). The round's final
-                # (L-BFGS) state is saved separately at the end of this
-                # round via _rar_save_round_diagnostics, as "model_lbfgs".
-                if _use_save:
-                    _rar_rd_adam = _os.path.join(_rar_rounds_dir, f"round_{{rar_cycle+1:02d}}")
-                    _os.makedirs(_rar_rd_adam, exist_ok=True)
-                    try:
-                        model.save(_os.path.join(_rar_rd_adam, "model_adam"))
-                        print(f"  [RAR round {{rar_cycle+1}}] model_adam model saved: {{_os.path.join(_rar_rd_adam, 'model_adam')}}.pt")
-                    except Exception as _rar_adam_save_err:
-                        print(f"  [RAR round {{rar_cycle+1}}] model_adam save failed: {{_rar_adam_save_err}}")
-                dde.optimizers.set_LBFGS_options(
-                    maxcor={config.lbfgs_maxcor}, ftol={config.lbfgs_ftol},
-                    gtol={config.lbfgs_gtol}, maxiter={config.rar_lbfgs_iters},
-                    maxfun={config.lbfgs_maxfun}, maxls={config.lbfgs_maxls}
-                )
-                if "{config.lbfgs_float_type}" == "float64":
-                    dde.config.set_default_float("float64")
-                    model.net.double()
-                    print("  [L-BFGS] Switched to float64")
-                model.compile("L-BFGS", loss="{config.loss_type}", loss_weights=_multi_weights)
-                loss_history, train_state = model.train(display_every={config.loss_display_every})
-                if "{config.lbfgs_float_type}" == "float64":
-                    dde.config.set_default_float("float32")
-                    model.net.float()
-                    print("  [L-BFGS] Restored to float32")
-            _rar_save_round_diagnostics(rar_cycle + 1, new_points)
-            _rar_added_so_far = np.vstack([_rar_added_so_far, new_points])
-        print("\\n=== RAR Complete ===")
+{_gs_rar_loop_code(config)}
 
     # ── Save paths ────────────────────────────────────────────
     if _parametric and _pval is not None:
@@ -5344,1617 +6974,7 @@ if _parametric and len(_summary) > 0:
     print(f"\\n=== Parametric Study Complete ===")
     print(f"Summary saved to: {{_summary_path}}")
 
-# ── Time Adaptive Loop ────────────────────────────────────────
-if {config.time_adaptive}:
-    print("\\n=== Starting Time-Adaptive Training ===")
-
-    # Clear old step directories to avoid stale models from previous runs
-    import shutil as _ta_shutil
-    _ta_steps_root = _os.path.join(_save_dir, "time_adaptive_steps")
-    if _os.path.isdir(_ta_steps_root):
-        _ta_shutil.rmtree(_ta_steps_root)
-        print(f"  Cleared old time_adaptive_steps directory")
-    _os.makedirs(_ta_steps_root, exist_ok=True)
-
-    grid_size = {config.ta_grid_size}
-    if _is_3d:
-        # grid_size is a per-axis resolution, so this cubes it (e.g. 51 ->
-        # ~132k points) -- much bigger than the 2D case's square. Left to
-        # the user's own ta_grid_size choice (the GUI's smallest preset,
-        # 11, keeps this to ~1.3k points) rather than silently overriding
-        # it here.
-        _xg_ta = np.linspace({config.x_min}, {config.x_max}, grid_size)
-        _yg_ta = np.linspace({config.y_min}, {config.y_max}, grid_size)
-        _zg_ta = np.linspace({config.z_min}, {config.z_max}, grid_size)
-        _Xmesh, _Ymesh, _Zmesh = np.meshgrid(_xg_ta, _yg_ta, _zg_ta)
-        x_grid = np.column_stack([_Xmesh.ravel(), _Ymesh.ravel(), _Zmesh.ravel()])
-        x = x_grid  # (N*N*N, 3)
-    elif _is_2d:
-        _xg_ta = np.linspace({config.x_min}, {config.x_max}, grid_size)
-        _yg_ta = np.linspace({config.y_min}, {config.y_max}, grid_size)
-        _Xmesh, _Ymesh = np.meshgrid(_xg_ta, _yg_ta)
-        x_grid = np.column_stack([_Xmesh.ravel(), _Ymesh.ravel()])
-        x = x_grid  # (N*N, 2)
-    else:
-        x_grid = np.linspace({config.x_min}, {config.x_max}, grid_size)
-
-    all_x = []; all_t = []; all_u = []
-
-    if _is_2d or _is_3d:
-        x = x_grid
-    else:
-        x = x_grid.reshape(-1, 1)
-    {_ta_ic_init}
-    _lr = {config.learning_rate}
-    _prev_step_model_path = ""
-
-    # ── Build flat interval list from step groups ─────────────
-    import json as _json_ta_groups
-    _ta_groups = _json_ta_groups.loads({repr(config.ta_step_groups) if config.ta_step_groups else repr('[{"t_start":' + str(config.t_min) + ',"t_end":' + str(config.t_max) + ',"steps":' + str(config.ta_num_steps) + '}]')})
-    _ta_flat_intervals = []
-    for _grp in _ta_groups:
-        _grp_dt = (_grp['t_end'] - _grp['t_start']) / _grp['steps']
-        for _gi in range(_grp['steps']):
-            _t0_g = _grp['t_start'] + _gi * _grp_dt
-            _t1_g = _t0_g + _grp_dt
-            _ta_flat_intervals.append((_t0_g, _t1_g))
-    n_steps = len(_ta_flat_intervals)
-    print(f"  Total time steps: {{n_steps}} from {{len(_ta_groups)}} group(s)")
-
-    _plot_idx = {config.plot_output_idx}
-    _plot_custom_expr = "{plot_custom_expr_converted}"
-    _plot_output_names_list = {repr(config.output_names)}.split(",")
-    _plot_n_out = len(_plot_output_names_list)
-    _plot_dim = "3D" if _is_3d else ("2D" if _is_2d else "1D")
-    _PLOT_TORCH_MATH_NS = {{
-        "sin": torch.sin, "cos": torch.cos, "tan": torch.tan,
-        "sinh": torch.sinh, "cosh": torch.cosh, "tanh": torch.tanh,
-        "arcsin": torch.asin, "arccos": torch.acos, "arctan": torch.atan,
-        "exp": torch.exp, "log": torch.log, "log10": torch.log10,
-        "sqrt": torch.sqrt, "abs": torch.abs, "ceil": torch.ceil, "floor": torch.floor,
-        "pi": np.pi,
-    }}
-
-    def _plot_custom_op(_pf_inputs, _pf_outputs):
-        _pf_dvars = _tm_build_dvars(_pf_inputs, _pf_outputs, _plot_n_out,
-                                     _plot_output_names_list, _is_steady, _plot_dim,
-                                     _plot_custom_expr)
-        _pf_ns = dict(_pf_dvars)
-        _pf_ns.update(_PLOT_TORCH_MATH_NS)
-        _pf_ns["torch"] = torch
-        return eval(_plot_custom_expr, _pf_ns)
-
-    def _extract_plot_field(_x_grid, _pf_model):
-        # Time-Adaptive's own copy of the Standard-path helper of the same
-        # name (out of scope here -- it's defined inside `if not
-        # {config.time_adaptive}:`, a separate top-level block this one
-        # never runs alongside). Same logic: a derived custom field (e.g.
-        # |h| = sqrt(u**2+v**2) for 1D Schrodinger), now including
-        # derivatives (du_x, du_xx, du_xy, ...) via the same
-        # dde.Model.predict(x, operator=...) mechanism the Standard path
-        # uses, when one is configured, else the single raw output column
-        # -- so every prediction call in this Time-Adaptive loop plots/
-        # animates the same field the Standard path and the main Results
-        # panel would, instead of indexing a column that may not even
-        # exist (e.g. plot_output_idx pointing past the last real output
-        # when "Custom..." is selected). Unlike the Standard path there's
-        # no single module-level `model` here -- each step has its own
-        # restored model -- so the caller's model object is always passed
-        # in explicitly rather than defaulted.
-        if _plot_custom_expr.strip():
-            return _pf_model.predict(_x_grid, operator=_plot_custom_op)[:, 0]
-        return _pf_model.predict(_x_grid)[:, _plot_idx]
-
-    # ── Reference-data matching for per-step comparison plots ────
-    # Each entry is (time, path, output_selector) -- same convention RAR's
-    # own `_rar_ea_entries` and the inline/Restore Error Analysis sections
-    # use (output_selector: None = the default plot field, an int = a raw
-    # output column, or an [expr, label] pair = a custom derived field).
-    # A reference file is matched to the Time-Adaptive step whose own
-    # [t0, t1) window contains that file's time value (closed on the right
-    # only for the LAST step, so a file sitting exactly on a shared
-    # boundary between two adjacent steps is matched to exactly one of
-    # them, not both). This step's own model_i is already in scope live in
-    # this loop, so matching only needs the time-range filter below --
-    # unlike Restore's own TA Error Analysis, which has to reconstruct and
-    # restore each step's model from the saved step directories after the
-    # fact.
-    from scipy.interpolate import interp1d as _ta_interp1d
-    _ta_ea_entries = {config.ea_files}
-
-    def _ta_ref_extract(_tea_grid, _tea_sel, _tea_model):
-        if _tea_sel is None:
-            return _extract_plot_field(_tea_grid, _tea_model)
-        if isinstance(_tea_sel, int):
-            return _tea_model.predict(_tea_grid)[:, _tea_sel]
-        _tea_expr = _tea_sel[0]
-
-        def _tea_ref_op(_tea_i, _tea_o):
-            _tea_dv = _tm_build_dvars(_tea_i, _tea_o, _plot_n_out, _plot_output_names_list,
-                                       _is_steady, _plot_dim, _tea_expr)
-            _tea_ns = dict(_tea_dv)
-            _tea_ns.update(_PLOT_TORCH_MATH_NS)
-            _tea_ns["torch"] = torch
-            return eval(_tea_expr, _tea_ns)
-
-        return _tea_model.predict(_tea_grid, operator=_tea_ref_op)[:, 0]
-
-    # Accumulates the loss history across EVERY optimizer phase of EVERY
-    # time sub-domain, so the loss plot below (see "_ta_all_train_loss")
-    # shows the full Time-Adaptive run instead of just the LAST phase of
-    # the LAST sub-domain. lh_i/ts_i get overwritten by each new
-    # model_i.train() call below -- there can be several per sub-domain
-    # (one per optimizer-scheduler phase), plus one more for the legacy
-    # Adam-then-L-BFGS path -- so without this, only whichever call
-    # happened to run last for the very last step_i would ever reach the
-    # plot. Each phase's own step counter restarts at 0 (DeepXDE's
-    # LossHistory numbers every train() call's steps from scratch), so
-    # _ta_loss_offset -- the cumulative iteration count so far across
-    # every phase and every sub-domain -- is added to keep the x-axis
-    # continuously increasing across the whole run. Same "steps[-1] added
-    # to a running total" trick already used just for the printed
-    # cumulative-iteration numbers in the scheduler-phase logging below
-    # (see "_sp_iters"/"_sched_cum_iters" elsewhere in this file) --
-    # applied here to the loss arrays themselves, not just a printed
-    # number.
-    _ta_all_train_loss = []
-    _ta_all_test_loss = []
-    _ta_all_steps = []
-    _ta_loss_offset = 0
-    _ta_step_boundaries = []  # cumulative-iteration marks where one time sub-domain ends and the next begins
-
-    def _ta_accumulate_loss(_lh):
-        global _ta_loss_offset
-        _ta_all_steps.extend([_s + _ta_loss_offset for _s in _lh.steps])
-        _ta_all_train_loss.extend(_lh.loss_train)
-        _ta_all_test_loss.extend(_lh.loss_test)
-        _ta_loss_offset += (_lh.steps[-1] if _lh.steps else 0)
-
-    for step_i, (t0, t1) in enumerate(_ta_flat_intervals):
-        print(f"\\n--- Time step {{step_i+1}}/{{n_steps}}: t = {{t0:.4f}} to {{t1:.4f}} ---")
-
-        geom_i = _build_geom()
-        time_i     = dde.geometry.TimeDomain(t0, t1)
-        geomtime_i = dde.geometry.GeometryXTime(geom_i, time_i)
-
-        _constraints_i = []
-        # The Boundary Conditions panel (custom_bc_json, already parsed into
-        # _custom_bc_entries above) is now the source of truth here too --
-        # same as the main (non-time-adaptive) path. The legacy per-side
-        # scheme below only runs for configs saved before the panel existed.
-        if _custom_bc_entries or _bc_panel_data_present:
-            for _bi_ta, _be_ta in enumerate(_custom_bc_entries):
-                _btype_ta = _be_ta.get('type', 'dirichlet')
-                _bcomp_ta = int(_be_ta.get('component', 0) or 0)
-                _bloc_ta  = _be_ta.get('location', '')
-                _bval_ta  = _be_ta.get('value', '0')
-                _baxis_ta = _be_ta.get('axis', 'x')
-                _bderiv_ta = min(max(int(_be_ta.get('deriv_order', 0) or 0), 0), 1)  # same clamp as the main path above
-                _bpts_file_ta = _be_ta.get('points_file', '')
-                _bloc2_ta = _be_ta.get('location2', '')
-                _bdir_ta  = _be_ta.get('direction', 'normal')
-                _blabel_ta = f"BC {{_bi_ta + 1}} ({{_btype_ta}})"
-                # Same component-list/batching parsing as the main path above.
-                _bcomponents_txt_ta = (_be_ta.get('components', '') or '').strip()
-                _bcomponents_ta = [int(_c.strip()) for _c in _bcomponents_txt_ta.split(',') if _c.strip()] if _bcomponents_txt_ta else None
-                _bbatch_ta = int(_be_ta.get('batch_size', 0) or 0)
-                _bshuffle_ta = bool(_be_ta.get('shuffle', True))
-                _bbatch_kwargs_ta = {{"batch_size": _bbatch_ta, "shuffle": _bshuffle_ta}} if _bbatch_ta > 0 else {{}}
-
-                if _btype_ta == 'neumann':
-                    _constraints_i.append(dde.icbc.NeumannBC(geomtime_i, _bc_val_fn(_bval_ta), _bc_loc_fn(_bloc_ta), component=_bcomp_ta))
-                elif _btype_ta == 'robin':
-                    _constraints_i.append(dde.icbc.RobinBC(geomtime_i, _bc_robin_fn(_bval_ta, _bcomp_ta), _bc_loc_fn(_bloc_ta), component=_bcomp_ta))
-                elif _btype_ta == 'periodic':
-                    _constraints_i.append(dde.icbc.PeriodicBC(geomtime_i, _axis_idx_map.get(_baxis_ta, 0), _bc_loc_fn(_bloc_ta),
-                                                                derivative_order=_bderiv_ta, component=_bcomp_ta))
-                elif _btype_ta == 'pointset':
-                    _pts_ta, _pvals_ta = _bc_load_points_file(_bpts_file_ta, _blabel_ta, len(_bcomponents_ta) if _bcomponents_ta else 1)
-                    _constraints_i.append(dde.icbc.PointSetBC(_pts_ta, _pvals_ta, component=(_bcomponents_ta if _bcomponents_ta else _bcomp_ta), **_bbatch_kwargs_ta))
-                elif _btype_ta == 'pointset_operator':
-                    _pts_ta, _pvals_ta = _bc_load_points_file(_bpts_file_ta, _blabel_ta)
-                    _constraints_i.append(dde.icbc.PointSetOperatorBC(_pts_ta, _pvals_ta, _bc_operator_fn(_bval_ta), **_bbatch_kwargs_ta))
-                elif _btype_ta == 'operator':
-                    _constraints_i.append(dde.icbc.OperatorBC(geomtime_i, _bc_operator_fn(_bval_ta), _bc_loc_fn(_bloc_ta)))
-                elif _btype_ta == 'interface2d':
-                    # Time-Adaptive steps are never steady-state (geomtime_i
-                    # is always a real GeometryXTime here), so the adapter's
-                    # trim is always correct -- passed explicitly (rather
-                    # than relying on the default) to document that.
-                    _constraints_i.append(dde.icbc.Interface2DBC(_Interface2DGeomAdapter(geomtime_i, False), _bc_val_fn(_bval_ta),
-                                                                    _bc_loc_fn(_bloc_ta), _bc_loc_fn(_bloc2_ta), direction=_bdir_ta))
-                elif _btype_ta == 'dirichlet':
-                    _constraints_i.append(dde.icbc.DirichletBC(geomtime_i, _bc_val_fn(_bval_ta), _bc_loc_fn(_bloc_ta), component=_bcomp_ta))
-                else:
-                    # Same loud failure as the main (non-Time-Adaptive) path
-                    # above, instead of silently training with the wrong BC.
-                    raise ValueError(
-                        f"{{_blabel_ta}}: unrecognized boundary condition type {{_btype_ta!r}}. "
-                        "Expected one of: dirichlet, neumann, robin, periodic, pointset, "
-                        "pointset_operator, operator, interface2d."
-                    )
-
-            # IC (independent of the BC panel -- same per-step IC scheme as always)
-            for _oi_ta in range({config.num_outputs}):
-                _comp_ta = _oi_ta
-                if step_i == 0:
-                    if {config.forward_ic_from_file} and _oi_ta == 0:
-                        _xyt_ic_anchor = _ic_xyt  # use the already-loaded IC points
-                        _constraints_i.append(dde.icbc.PointSetBC(_ic_xyt, _ic_vals, component=0))
-                    elif _oi_ta < len(_ic_active_list) and _ic_active_list[_oi_ta].strip() == "True":
-                        _ic_expr_ta = _ic_expressions[_oi_ta].strip() if _oi_ta < len(_ic_expressions) else "np.zeros_like(x[:,0])"
-                        def _mk_ic_ta(expr, comp):
-                            def _ic_fn(x):
-                                return np.reshape(eval(expr, {{"np": np, "x": x, "__builtins__": __builtins__}}), (-1, 1))
-                            return dde.icbc.IC(geomtime_i, _ic_fn, lambda x, on_initial: on_initial, component=comp)
-                        _constraints_i.append(_mk_ic_ta(_ic_expr_ta, _comp_ta))
-                else:
-                    if _is_2d or _is_3d:
-                        # x_grid is already an (N, 2) or (N, 3) array of
-                        # spatial points either way, so one column_stack
-                        # covers both.
-                        _xt_ic_2d = np.column_stack([x_grid, np.full(len(x_grid), t0)])
-                        _xyt_ic_anchor = _xt_ic_2d
-                        _constraints_i.append(dde.icbc.PointSetBC(_xt_ic_2d, prev_u[:, _oi_ta:_oi_ta+1], component=_oi_ta))
-                    else:
-                        xt_ic = np.column_stack([x_grid, np.full_like(x_grid.ravel(), t0)])
-                        _xyt_ic_anchor = xt_ic
-                        _constraints_i.append(dde.icbc.PointSetBC(xt_ic, prev_u[:, _oi_ta:_oi_ta+1], component=_oi_ta))
-        else:
-            # Legacy per-side BCs, for configs saved before the Boundary
-            # Conditions panel existed (custom_bc_json empty).
-            for _oi_ta in range({config.num_outputs}):
-                _comp_ta = _oi_ta
-                _blt_ta = _bc_left_types[_oi_ta].strip()  if _oi_ta < len(_bc_left_types)  else "Dirichlet"
-                _brt_ta = _bc_right_types[_oi_ta].strip() if _oi_ta < len(_bc_right_types) else "Dirichlet"
-                _blv_ta = float(_bc_left_values[_oi_ta].strip())  if _oi_ta < len(_bc_left_values)  else 0.0
-                _brv_ta = float(_bc_right_values[_oi_ta].strip()) if _oi_ta < len(_bc_right_values) else 0.0
-
-                if _oi_ta < len(_bc_left_active) and _bc_left_active[_oi_ta].strip() == "True":
-                    def _bl_on_ta(x, on_boundary):
-                        return on_boundary and dde.utils.isclose(x[0], {config.x_min})
-                    if _blt_ta == "Dirichlet":
-                        def _mk_dbl_ta(v, comp, on_bd):
-                            def _vf(x): return np.full((len(x),1), v)
-                            return dde.icbc.DirichletBC(geomtime_i, _vf, on_bd, component=comp)
-                        _constraints_i.append(_mk_dbl_ta(_blv_ta, _comp_ta, _bl_on_ta))
-                    elif _blt_ta == "Neumann":
-                        def _mk_nbl_ta(v, comp, on_bd):
-                            def _vf(x): return np.full((len(x),1), v)
-                            return dde.icbc.NeumannBC(geomtime_i, _vf, on_bd, component=comp)
-                        _constraints_i.append(_mk_nbl_ta(_blv_ta, _comp_ta, _bl_on_ta))
-                    elif _blt_ta == "Periodic":
-                        _constraints_i.append(dde.icbc.PeriodicBC(geomtime_i, 0, _bl_on_ta, derivative_order=0, component=_comp_ta))
-                        if _oi_ta < len(_bc_left_deriv_list) and _bc_left_deriv_list[_oi_ta].strip() == "True":
-                            _constraints_i.append(dde.icbc.PeriodicBC(geomtime_i, 0, _bl_on_ta, derivative_order=1, component=_comp_ta))
-
-                if _oi_ta < len(_bc_right_active) and _bc_right_active[_oi_ta].strip() == "True":
-                    def _br_on_ta(x, on_boundary):
-                        return on_boundary and dde.utils.isclose(x[0], {config.x_max})
-                    if _brt_ta == "Dirichlet":
-                        def _mk_dbr_ta(v, comp, on_bd):
-                            def _vf(x): return np.full((len(x),1), v)
-                            return dde.icbc.DirichletBC(geomtime_i, _vf, on_bd, component=comp)
-                        _constraints_i.append(_mk_dbr_ta(_brv_ta, _comp_ta, _br_on_ta))
-                    elif _brt_ta == "Neumann":
-                        def _mk_nbr_ta(v, comp, on_bd):
-                            def _vf(x): return np.full((len(x),1), v)
-                            return dde.icbc.NeumannBC(geomtime_i, _vf, on_bd, component=comp)
-                        _constraints_i.append(_mk_nbr_ta(_brv_ta, _comp_ta, _br_on_ta))
-                    elif _brt_ta == "Periodic":
-                        _constraints_i.append(dde.icbc.PeriodicBC(geomtime_i, 0, _br_on_ta, derivative_order=0, component=_comp_ta))
-                        if _oi_ta < len(_bc_right_deriv_list) and _bc_right_deriv_list[_oi_ta].strip() == "True":
-                            _constraints_i.append(dde.icbc.PeriodicBC(geomtime_i, 0, _br_on_ta, derivative_order=1, component=_comp_ta))
-
-                if _is_2d:
-                    _bbt_ta = _bc_bottom_types[_oi_ta].strip() if _oi_ta < len(_bc_bottom_types) else "Dirichlet"
-                    _btt_ta = _bc_top_types[_oi_ta].strip()    if _oi_ta < len(_bc_top_types)    else "Dirichlet"
-                    _bbv_ta = float(_bc_bottom_values[_oi_ta].strip()) if _oi_ta < len(_bc_bottom_values) else 0.0
-                    _btv_ta = float(_bc_top_values[_oi_ta].strip())    if _oi_ta < len(_bc_top_values)    else 0.0
-
-                    if _oi_ta < len(_bc_bottom_active) and _bc_bottom_active[_oi_ta].strip() == "True":
-                        def _bb_on_ta(x, on_boundary):
-                            return on_boundary and dde.utils.isclose(x[1], {config.y_min})
-                        if _bbt_ta == "Dirichlet":
-                            def _mk_dbb_ta(v, comp, on_bd):
-                                def _vf(x): return np.full((len(x),1), v)
-                                return dde.icbc.DirichletBC(geomtime_i, _vf, on_bd, component=comp)
-                            _constraints_i.append(_mk_dbb_ta(_bbv_ta, _comp_ta, _bb_on_ta))
-                        elif _bbt_ta == "Periodic":
-                            _constraints_i.append(dde.icbc.PeriodicBC(geomtime_i, 1, _bb_on_ta, derivative_order=0, component=_comp_ta))
-
-                    if _oi_ta < len(_bc_top_active) and _bc_top_active[_oi_ta].strip() == "True":
-                        def _bt_on_ta(x, on_boundary):
-                            return on_boundary and dde.utils.isclose(x[1], {config.y_max})
-                        if _btt_ta == "Dirichlet":
-                            def _mk_dbt_ta(v, comp, on_bd):
-                                def _vf(x): return np.full((len(x),1), v)
-                                return dde.icbc.DirichletBC(geomtime_i, _vf, on_bd, component=comp)
-                            _constraints_i.append(_mk_dbt_ta(_btv_ta, _comp_ta, _bt_on_ta))
-                        elif _btt_ta == "Periodic":
-                            _constraints_i.append(dde.icbc.PeriodicBC(geomtime_i, 1, _bt_on_ta, derivative_order=0, component=_comp_ta))
-
-                if step_i == 0:
-                    if {config.forward_ic_from_file} and _oi_ta == 0:
-                        _xyt_ic_anchor = _ic_xyt  # use the already-loaded IC points
-                        _constraints_i.append(dde.icbc.PointSetBC(_ic_xyt, _ic_vals, component=0))
-                    elif _oi_ta < len(_ic_active_list) and _ic_active_list[_oi_ta].strip() == "True":
-                        _ic_expr_ta = _ic_expressions[_oi_ta].strip() if _oi_ta < len(_ic_expressions) else "np.zeros_like(x[:,0])"
-                        def _mk_ic_ta(expr, comp):
-                            def _ic_fn(x):
-                                return np.reshape(eval(expr, {{"np": np, "x": x, "__builtins__": __builtins__}}), (-1, 1))
-                            return dde.icbc.IC(geomtime_i, _ic_fn, lambda x, on_initial: on_initial, component=comp)
-                        _constraints_i.append(_mk_ic_ta(_ic_expr_ta, _comp_ta))
-                else:
-                    if _is_2d or _is_3d:
-                        _xt_ic_2d = np.column_stack([x_grid, np.full(len(x_grid), t0)])
-                        _xyt_ic_anchor = _xt_ic_2d
-                        _constraints_i.append(dde.icbc.PointSetBC(_xt_ic_2d, prev_u[:, _oi_ta:_oi_ta+1], component=_oi_ta))
-                    else:
-                        xt_ic = np.column_stack([x_grid, np.full_like(x_grid.ravel(), t0)])
-                        _xyt_ic_anchor = xt_ic
-                        _constraints_i.append(dde.icbc.PointSetBC(xt_ic, prev_u[:, _oi_ta:_oi_ta+1], component=_oi_ta))
-
-        data_i = dde.data.TimePDE(
-            geomtime_i, pde, _constraints_i,
-            num_domain={config.num_domain}, num_boundary={config.num_boundary},
-            num_initial={config.num_initial}, num_test={_safe_num_test!r},
-            # forward_ic_from_file only matters for step 0 (loading the
-            # true initial condition from a file there); every later step's
-            # IC constraint comes from the previous window's own predicted
-            # solution (prev_u) via _xyt_ic_anchor, regardless of that flag.
-            # Gating this on the bare flag (rather than "step 0 AND the
-            # flag") silently dropped the previous-window anchor points for
-            # EVERY step after the first whenever forward_ic_from_file was
-            # on, weakening (though not removing -- the PointSetBC loss
-            # term above is still added either way) how strongly later
-            # windows are forced to match their own true starting point.
-            anchors=None if (step_i == 0 and {config.forward_ic_from_file}) else (_xyt_ic_anchor if (step_i > 0 and (_is_2d or _is_3d)) else None)
-        )
-
-        net_i   = _apply_net_transforms(_make_net({config.layers}, "{config.activation}", "{config.kernel_initializer}", {config.weight_decay}))
-        model_i = dde.Model(data_i, net_i)
-
-        # ── Training callbacks (opt-in, fresh instances each step) ─
-{_train_cbs_code_ta}
-
-        # ── Transfer learning — warm start from previous step ─
-        if {config.ta_transfer_learning} and step_i > 0 and _prev_step_model_path:
-            try:
-                import torch as _torch
-                _ckpt = _torch.load(_prev_step_model_path, map_location='cpu')
-                # Extract ONLY weights and biases — nothing else
-                _state = _ckpt["model_state_dict"]
-                _wb_only = {{
-                    k: v for k, v in _state.items()
-                    if k.endswith('.weight') or k.endswith('.bias')
-                }}
-                # Strict=False so geometry mismatch doesn't crash
-                # but we verify shapes match before loading
-                _cur_state = model_i.net.state_dict()
-                _matched = {{}}
-                _skipped = []
-                for k, v in _wb_only.items():
-                    if k in _cur_state and _cur_state[k].shape == v.shape:
-                        _matched[k] = v
-                    else:
-                        _skipped.append(k)
-                _cur_state.update(_matched)
-                model_i.net.load_state_dict(_cur_state)
-                print(f"  ✅ Transfer learning: {{len(_matched)}} weight/bias tensors transferred from step {{step_i}}")
-                if _skipped:
-                    print(f"  ⚠️  Skipped {{len(_skipped)}} tensors (shape mismatch): {{_skipped}}")
-            except Exception as _te:
-                print(f"  ⚠️ Transfer learning failed: {{_te}} — training from scratch")
-
-        # IC pre-training for first step only
-        if {config.ic_pretrain} and step_i == 0:
-            print(f"  === IC Pre-Training: {config.ic_pretrain_iterations} iterations ===")
-            # Build IC-only data: no domain/BC points, only IC points
-            _ic_geom_pt = _build_geom()
-            _ic_td_pt = dde.geometry.TimeDomain(t0, t1)
-            _ic_gt_pt = dde.geometry.GeometryXTime(_ic_geom_pt, _ic_td_pt)
-            # Only IC constraint
-            _ic_constraints_pt = []
-            if {config.forward_ic_from_file}:
-                _ic_ta_xyt, _ic_ta_vals = _load_ic_from_file({repr(config.forward_ic_file)})
-                _ic_constraints_pt.append(dde.icbc.PointSetBC(_ic_ta_xyt, _ic_ta_vals, component=0))
-            else:
-                for _oi_pt in range({config.num_outputs}):
-                    _ic_expr_pt = _ic_expressions[_oi_pt].strip() if _oi_pt < len(_ic_expressions) else "np.zeros_like(x[:,0])"
-                    def _mk_ic_pt(expr, comp):
-                        def _ic_fn(x):
-                            return np.reshape(eval(expr, {{"np": np, "x": x, "__builtins__": __builtins__}}), (-1, 1))
-                        return dde.icbc.IC(_ic_gt_pt, _ic_fn, lambda x, on_initial: on_initial, component=comp)
-                    _ic_constraints_pt.append(_mk_ic_pt(_ic_expr_pt, _oi_pt))
-            # IC-only loss weights: PDE terms 0, every IC term 1000.
-            _ic_only_weights = [0.0] * {config.num_outputs} + [1000.0] * len(_ic_constraints_pt)
-{_ic_pretrain_block_ta}
-            print("  === Starting Main Training ===")
-
-        # ── Phase 1 (Adam) ──────────────────────────────────────
-        # Mirrors the Standard (non-Time-Adaptive) path's own unconditional
-        # Phase 1 training call above (model.train(iterations=_iters, ...)
-        # under "if not _sched_active:") -- this per-step loop previously
-        # had no equivalent: it only ever compiled/trained model_i inside
-        # the scheduler-phases block below or the legacy optimizer2
-        # L-BFGS-only branch's elif, with nothing to fall back on when
-        # neither applied. A legacy/hand-edited config with the (GUI-
-        # hidden, always-on) scheduler off, an empty scheduler_phases, and
-        # optimizer2 left at "none" would then never compile or train
-        # model_i at all for this step -- model_i.predict(...) ran
-        # immediately after on an untrained, randomly-initialized network,
-        # and that garbage became the next step's initial condition, with
-        # no exception raised anywhere.
-        if not ({config.optimizer_scheduler} and {len(config.scheduler_phases) > 0}):
-            model_i.compile("{config.optimizer}", lr={config.learning_rate},
-                            loss="{config.loss_type}", loss_weights=_multi_weights)
-            lh_i, ts_i = model_i.train(iterations={config.iterations}, display_every={config.loss_display_every}, callbacks=_train_cbs_ta)
-            _ta_accumulate_loss(lh_i)
-            print(f"  Adam phase done. Steps: {{len(lh_i.steps)}}")
-            if _use_save:
-                _step_dir_adam = _os.path.join(_save_dir, "time_adaptive_steps", f"step_{{step_i+1:03d}}_t{{t0:.4f}}_to_t{{t1:.4f}}")
-                _os.makedirs(_step_dir_adam, exist_ok=True)
-                _step_adam_path = _os.path.join(_step_dir_adam, "model_adam")
-                model_i.save(_step_adam_path)
-                print(f"Step Adam model saved: {{_step_adam_path}}.pt")
-
-        # ── Optimizer Scheduler phases ────────────────────────
-        if {config.optimizer_scheduler} and {len(config.scheduler_phases) > 0}:
-            import json as _json
-            _sched_phases = _json.loads({repr(config.scheduler_phases)})
-            for _sp_i, _sp in enumerate(_sched_phases):
-                print(f"  === Scheduler Phase {{_sp_i+1}}: {{_sp['optimizer']}} {{_sp['iterations']}} iters ===")
-                _sp_weights = [float(w) for w in _sp['weights'].split(',') if w.strip()]
-                # Same safety net as the main (non-Time-Adaptive) scheduler loop:
-                # each step rebuilds its own _constraints_i, which can be a
-                # different length than what the GUI's scheduler-phase weight
-                # string was built from (e.g. a step boundary changing which IC
-                # constraint applies) -- fall back to uniform weights of the
-                # right length rather than crash mid-training.
-                _sp_expected_len_i = {config.num_outputs} + len(_constraints_i)
-                if len(_sp_weights) != _sp_expected_len_i:
-                    print(f"  ⚠️ Scheduler Phase {{_sp_i+1}} (step {{step_i+1}}): configured weights have "
-                          f"{{len(_sp_weights)}} entries but {{_sp_expected_len_i}} loss terms are active this "
-                          f"step ({{len(_constraints_i)}} constraints + {config.num_outputs} PDE) — using "
-                          f"uniform weights for this phase instead of crashing.")
-                    _sp_weights = [1.0] * _sp_expected_len_i
-                if _sp['optimizer'] == 'lbfgs':
-                    dde.optimizers.set_LBFGS_options(
-                        maxcor={config.lbfgs_maxcor}, ftol={config.lbfgs_ftol},
-                        gtol={config.lbfgs_gtol}, maxiter=_sp['iterations'],
-                        maxfun=int(_sp['iterations']*1.25), maxls={config.lbfgs_maxls})
-                    _lbfgs_float = "{config.lbfgs_float_type}"
-                    model_i.compile("L-BFGS", loss=_sp.get('loss', '{config.loss_type}'),
-                                    loss_weights=_sp_weights)
-                    lh_i, ts_i = model_i.train(display_every={config.loss_display_every}, callbacks=_train_cbs_ta)
-                    _ta_accumulate_loss(lh_i)
-                    if _use_save:
-                        _sp_step_dir = _os.path.join(_save_dir, "time_adaptive_steps", f"step_{{step_i+1:03d}}_t{{t0:.4f}}_to_t{{t1:.4f}}")
-                        _os.makedirs(_sp_step_dir, exist_ok=True)
-                        _sp_save_path = _os.path.join(_sp_step_dir, f"model_lbfgs-phase{{_sp_i+1}}")
-                        model_i.save(_sp_save_path)
-                        print(f"  Phase {{_sp_i+2}} L-BFGS model saved: {{_sp_save_path}}.pt")
-                elif _sp['optimizer'] == 'nncg':
-                    # See the matching NNCG branch in the Standard scheduler
-                    # loop above for why: exact-case "NNCG" name, no lr=, no
-                    # decay (NNCG_options is left at its defaults -- not
-                    # exposed in this app's UI).
-                    model_i.compile("NNCG", loss=_sp.get('loss', '{config.loss_type}'),
-                                    loss_weights=_sp_weights)
-                    lh_i, ts_i = model_i.train(iterations=_sp['iterations'], display_every={config.loss_display_every}, callbacks=_train_cbs_ta)
-                    _ta_accumulate_loss(lh_i)
-                    if _use_save:
-                        _sp_iters = lh_i.steps[-1] if lh_i.steps else _sp['iterations']
-                        _sp_step_dir = _os.path.join(_save_dir, "time_adaptive_steps", f"step_{{step_i+1:03d}}_t{{t0:.4f}}_to_t{{t1:.4f}}")
-                        _os.makedirs(_sp_step_dir, exist_ok=True)
-                        _sp_save_path = _os.path.join(_sp_step_dir, f"model_nncg-phase{{_sp_i+1}}")
-                        model_i.save(_sp_save_path)
-                        print(f"  Phase {{_sp_i+2}} NNCG model saved: {{_sp_save_path}}.pt")
-                else:
-                    _sp_decay = None
-                    _sp_decay_type = _sp.get('decay_type', 'none')
-                    if _sp_decay_type and _sp_decay_type != 'none':
-                        _sp_p1 = _sp.get('decay_p1', 0) or 0
-                        _sp_p2 = _sp.get('decay_p2', 0) or 0
-                        if _sp_decay_type == 'step':
-                            _sp_decay = ('step', int(_sp_p1), float(_sp_p2))
-                        elif _sp_decay_type == 'cosine':
-                            _sp_decay = ('cosine', int(_sp_p1), float(_sp_p2))
-                        elif _sp_decay_type == 'exponential':
-                            _sp_decay = ('exponential', float(_sp_p1))
-                    model_i.compile(_sp['optimizer'], lr=_sp['lr'], decay=_sp_decay,
-                                    loss=_sp.get('loss', '{config.loss_type}'), loss_weights=_sp_weights)
-                    lh_i, ts_i = model_i.train(iterations=_sp['iterations'], display_every={config.loss_display_every}, callbacks=_train_cbs_ta)
-                    _ta_accumulate_loss(lh_i)
-                    if _use_save:
-                        _sp_iters = lh_i.steps[-1] if lh_i.steps else _sp['iterations']
-                        _sp_step_dir = _os.path.join(_save_dir, "time_adaptive_steps", f"step_{{step_i+1:03d}}_t{{t0:.4f}}_to_t{{t1:.4f}}")
-                        _os.makedirs(_sp_step_dir, exist_ok=True)
-                        _sp_save_path = _os.path.join(_sp_step_dir, f"model_adam-phase{{_sp_i+1}}")
-                        model_i.save(_sp_save_path)
-                        print(f"  Phase {{_sp_i+2}} Adam model saved: {{_sp_save_path}}.pt")
-        elif "{config.optimizer2}" != "none":
-            dde.optimizers.set_LBFGS_options(
-                    maxcor={config.lbfgs_maxcor}, ftol={config.lbfgs_ftol},
-                    gtol={config.lbfgs_gtol}, maxiter={config.iterations2},
-                    maxfun={config.lbfgs_maxfun}, maxls={config.lbfgs_maxls})
-            model_i.compile("L-BFGS", loss="{config.loss_type}",
-                            loss_weights=_multi_weights)
-            lh_i, ts_i = model_i.train(display_every={config.loss_display_every}, callbacks=_train_cbs_ta)
-            _ta_accumulate_loss(lh_i)
-            print(f"  L-BFGS phase done. Steps: {{len(lh_i.steps)}}")
-
-            if _use_save:
-                _step_dir_lbfgs = _os.path.join(_save_dir, "time_adaptive_steps", f"step_{{step_i+1:03d}}_t{{t0:.4f}}_to_t{{t1:.4f}}")
-                _os.makedirs(_step_dir_lbfgs, exist_ok=True)
-                _step_lbfgs_path = _os.path.join(_step_dir_lbfgs, "model_lbfgs")
-                model_i.save(_step_lbfgs_path)
-                print(f"Step L-BFGS model saved: {{_step_lbfgs_path}}.pt")
-
-        if _is_3d:
-            # 3D: predict on x-y-z grid at t=t1, store as flat array for PointSetBC next step
-            _x_pred = np.linspace({config.x_min}, {config.x_max}, grid_size)
-            _y_pred = np.linspace({config.y_min}, {config.y_max}, grid_size)
-            _z_pred = np.linspace({config.z_min}, {config.z_max}, grid_size)
-            _Xp, _Yp, _Zp = np.meshgrid(_x_pred, _y_pred, _z_pred)
-            _xyzt_pred = np.column_stack([_Xp.ravel(), _Yp.ravel(), _Zp.ravel(), np.full(_Xp.size, t1)])
-            prev_u  = model_i.predict(_xyzt_pred)
-            x_grid  = _xyzt_pred[:, :3]  # store (x,y,z) triples for next step's PointSetBC
-        elif _is_2d:
-            # 2D: predict on x-y grid at t=t1, store as flat array for PointSetBC next step
-            _x_pred = np.linspace({config.x_min}, {config.x_max}, grid_size)
-            _y_pred = np.linspace({config.y_min}, {config.y_max}, grid_size)
-            _Xp, _Yp = np.meshgrid(_x_pred, _y_pred)
-            _xyt_pred = np.column_stack([_Xp.ravel(), _Yp.ravel(), np.full(_Xp.size, t1)])
-            prev_u  = model_i.predict(_xyt_pred)
-            x_grid  = _xyt_pred[:, :2]  # store (x,y) pairs for next step's PointSetBC
-        else:
-            x_pred  = np.linspace({config.x_min}, {config.x_max}, grid_size)
-            t_pred  = np.full_like(x_pred, t1)
-            xt_pred = np.column_stack([x_pred, t_pred])
-            prev_u  = model_i.predict(xt_pred)
-            x_grid  = x_pred.reshape(-1, 1)
-
-        if _is_3d:
-            # 3D: no volumetric renderer for the stitched plot either (same
-            # limit as the Standard path's own 3D solution plot) -- fix
-            # BOTH y and z at their domain mid-points and store an x-t
-            # slice, exactly like the 2D branch below fixes y alone. This
-            # keeps all_x/all_t/all_u in the same shape regardless of
-            # dimension, so the final combined plot needs no 3D-specific
-            # branch of its own.
-            x_plot = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
-            t_plot = np.linspace(t0, t1, {config.plot_resolution})
-            y_mid  = {_line_slice_y}
-            z_mid  = {_line_slice_z}
-            Xp, Tp = np.meshgrid(x_plot, t_plot)
-            XYZTp  = np.column_stack([Xp.ravel(), np.full(Xp.size, y_mid), np.full(Xp.size, z_mid), Tp.ravel()])
-            Up     = _extract_plot_field(XYZTp, model_i).reshape({config.plot_resolution}, {config.plot_resolution})
-            all_x.append(Xp); all_t.append(Tp); all_u.append(Up)
-        elif not _is_2d:
-            x_plot = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
-            t_plot = np.linspace(t0, t1, {config.plot_resolution})
-            Xp, Tp = np.meshgrid(x_plot, t_plot)
-            XTp    = np.vstack([Xp.ravel(), Tp.ravel()]).T
-            Up     = _extract_plot_field(XTp, model_i).reshape({config.plot_resolution}, {config.plot_resolution})
-            all_x.append(Xp); all_t.append(Tp); all_u.append(Up)
-        else:
-            # 2D: store mid-y slice for combined plot
-            x_plot = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
-            t_plot = np.linspace(t0, t1, {config.plot_resolution})
-            y_mid  = {_line_slice_y}
-            Xp, Tp = np.meshgrid(x_plot, t_plot)
-            XYTp   = np.column_stack([Xp.ravel(), np.full(Xp.size, y_mid), Tp.ravel()])
-            Up     = _extract_plot_field(XYTp, model_i).reshape({config.plot_resolution}, {config.plot_resolution})
-            all_x.append(Xp); all_t.append(Tp); all_u.append(Up)
-
-        print(f"Step {{step_i+1}} done. Final train loss: {{sum(lh_i.loss_train[-1]):.4e}}")
-        _ta_step_boundaries.append(_ta_loss_offset)
-
-        # ── Save step plot & models ───────────────────────────
-        if _use_save:
-            _step_dir = _os.path.join(_save_dir, "time_adaptive_steps", f"step_{{step_i+1:03d}}_t{{t0:.4f}}_to_t{{t1:.4f}}")
-            _os.makedirs(_step_dir, exist_ok=True)
-            # ── Reference matches for this step's own time range ──
-            # Half-open [t0, t1) except the LAST step, whose upper bound is
-            # inclusive -- avoids double-counting a reference file sitting
-            # exactly on the shared boundary between two adjacent steps
-            # (ta_step_groups splits time into contiguous sub-domains, so
-            # t1 of step i always equals t0 of step i+1).
-            _step_matches = sorted(
-                [_tea for _tea in _ta_ea_entries
-                 if (t0 - 1e-9) <= _tea[0] <= (t1 + 1e-9 if step_i == n_steps - 1 else t1 - 1e-9)],
-                key=lambda _tea: _tea[0],
-            )
-            if _step_matches:
-                print(f"  Step {{step_i+1}}: {{len(_step_matches)}} reference file(s) in t=[{{t0:.4f}}, {{t1:.4f}}]")
-
-            if not _is_2d and not _is_3d:
-                # ── 1D: always both a surface and a line comparison --
-                # merged with reference when this step's time range has
-                # matching reference file(s), else PINN-only (same as
-                # before this feature existed).
-                _step_fname = _os.path.join(_step_dir, f"step_{{step_i+1:03d}}_t{{t0:.4f}}_to_t{{t1:.4f}}_surface.png")
-                try:
-                    if len(_step_matches) >= 2:
-                        # >= 2 distinct reference times in range -- build a
-                        # real (time x space) comparison surface, same
-                        # technique the Standard path's Inline Error
-                        # Analysis "1D: standard x vs t surface" uses.
-                        _tea_x_common = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
-                        _tea_times_m = [_m[0] for _m in _step_matches]
-                        _tea_U_pinn = np.zeros((len(_step_matches), len(_tea_x_common)))
-                        _tea_U_ref = np.zeros((len(_step_matches), len(_tea_x_common)))
-                        for _mi, (_mtv, _mfp, _msel) in enumerate(_step_matches):
-                            _tea_xt_c = np.column_stack([_tea_x_common, np.full_like(_tea_x_common, _mtv)])
-                            _tea_U_pinn[_mi, :] = _ta_ref_extract(_tea_xt_c, _msel, model_i).flatten()
-                            _tea_d = np.loadtxt(_mfp)
-                            if _tea_d.ndim == 1:
-                                _tea_d = _tea_d.reshape(1, -1)
-                            _tea_ord = np.argsort(_tea_d[:, 0])
-                            _tea_fi = _ta_interp1d(_tea_d[_tea_ord, 0], _tea_d[_tea_ord, 2], kind="linear", fill_value="extrapolate")
-                            _tea_U_ref[_mi, :] = _tea_fi(_tea_x_common)
-                        _tea_Xg, _tea_Tg = np.meshgrid(_tea_x_common, _tea_times_m)
-                        _tea_U_err = np.abs(_tea_U_pinn - _tea_U_ref)
-                        _tea_vmin = min(_tea_U_pinn.min(), _tea_U_ref.min())
-                        _tea_vmax = max(_tea_U_pinn.max(), _tea_U_ref.max())
-                        if _tea_vmax - _tea_vmin < 1e-12:
-                            _tea_vmax = _tea_vmin + 1e-12
-                        _tea_levels = _cf_levels({config.plot_levels}, _tea_vmin, _tea_vmax)["levels"]
-                        fig, axes_s = plt.subplots(1, 3, figsize=_plot_figsize(15, 5))
-                        fig.suptitle(f"Step {{step_i+1}}: t = {{t0:.4f}} → {{t1:.4f}} -- PINN vs Reference", fontsize={config.plot_title_fontsize}, fontweight="bold")
-                        _tea_cols = [
-                            (_tea_U_pinn, "PINN", _tea_levels, "{config.plot_colormap}"),
-                            (_tea_U_ref, "Reference", _tea_levels, "{config.plot_colormap}"),
-                            (_tea_U_err, f"|Error|  Max={{_tea_U_err.max():.2e}}", {config.plot_levels}, "{config.plot_colormap}"),
-                        ]
-                        for _tea_ci, (_tea_vals, _tea_ttl, _tea_lv, _tea_cmap) in enumerate(_tea_cols):
-                            if {config.plot_swap_xt}:
-                                _tea_im = axes_s[_tea_ci].contourf(_tea_Tg, _tea_Xg, _tea_vals, levels=_tea_lv, cmap=_tea_cmap)
-                                axes_s[_tea_ci].set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); axes_s[_tea_ci].set_ylabel("x", fontsize={config.plot_axis_label_fontsize})
-                            else:
-                                _tea_im = axes_s[_tea_ci].contourf(_tea_Xg.T, _tea_Tg.T, _tea_vals.T, levels=_tea_lv, cmap=_tea_cmap)
-                                axes_s[_tea_ci].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); axes_s[_tea_ci].set_ylabel("t", fontsize={config.plot_axis_label_fontsize})
-                            axes_s[_tea_ci].set_title(_tea_ttl, fontsize={config.plot_subplot_title_fontsize})
-                            fig.colorbar(_tea_im, ax=axes_s[_tea_ci])
-                        plt.tight_layout(rect=[0, 0, 1, 0.93])
-                    else:
-                        # 0 or 1 reference match -- a surface needs >= 2
-                        # distinct time snapshots to interpolate against;
-                        # fall back to the plain PINN-only step preview
-                        # (the line comparison below still covers a single
-                        # match on its own).
-                        _vmin_step = None if {config.plot_auto_range} else {config.plot_vmin}
-                        _vmax_step = None if {config.plot_auto_range} else {config.plot_vmax}
-                        _res_step = {config.plot_resolution}
-                        _x_s2 = np.linspace({config.x_min}, {config.x_max}, _res_step)
-                        _t_s2 = np.linspace(t0, t1, _res_step)
-                        _Xs2, _Ts2 = np.meshgrid(_x_s2, _t_s2)
-                        _XTs2 = np.vstack([_Xs2.ravel(), _Ts2.ravel()]).T
-                        _Us2 = _extract_plot_field(_XTs2, model_i).reshape(_res_step, _res_step)
-                        fig, ax = plt.subplots(figsize=_plot_figsize(7, 4))
-                        if {config.plot_swap_xt}:
-                            im = ax.contourf(_Ts2, _Xs2, _Us2, cmap="{config.plot_colormap}", **_cf_levels({config.plot_levels}, _vmin_step, _vmax_step, _Us2))
-                            ax.set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel("x", fontsize={config.plot_axis_label_fontsize})
-                        else:
-                            im = ax.contourf(_Xs2, _Ts2, _Us2, cmap="{config.plot_colormap}", **_cf_levels({config.plot_levels}, _vmin_step, _vmax_step, _Us2))
-                            ax.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel("t", fontsize={config.plot_axis_label_fontsize})
-                        if {config.plot_colorbar}:
-                            fig.colorbar(im, ax=ax)
-                        ax.set_title(f"Step {{step_i+1}}: t = {{t0:.4f}} → {{t1:.4f}}")
-                        plt.tight_layout()
-                    plt.savefig(_step_fname, dpi={config.plot_dpi}, bbox_inches="tight")
-                    plt.close()
-                    print(f"Step surface plot saved: {{_step_fname}}")
-                except Exception as _tea_err_surf:
-                    print(f"  Step {{step_i+1}} surface plot failed: {{_tea_err_surf}}")
-
-                _step_line_fname = _os.path.join(_step_dir, f"step_{{step_i+1:03d}}_t{{t0:.4f}}_to_t{{t1:.4f}}_line.png")
-                try:
-                    if _step_matches:
-                        # One subplot per matching reference time (showing
-                        # ALL of them when there's more than one, since
-                        # that's more informative) instead of the plain
-                        # evenly-spaced time sampling used below.
-                        _tea_ncols = min(4, len(_step_matches))
-                        _tea_nrows = (len(_step_matches) + _tea_ncols - 1) // _tea_ncols
-                        fig, axes = plt.subplots(_tea_nrows, _tea_ncols, figsize=(4*_tea_ncols, 3.5*_tea_nrows), squeeze=False)
-                        fig.suptitle(f"Step {{step_i+1}}: t = {{t0:.4f}} → {{t1:.4f}} -- PINN vs Reference", fontsize={config.plot_title_fontsize}, fontweight="bold")
-                        _tea_ax_flat = axes.flatten()
-                        for _mi, (_mtv, _mfp, _msel) in enumerate(_step_matches):
-                            _tea_d = np.loadtxt(_mfp)
-                            if _tea_d.ndim == 1:
-                                _tea_d = _tea_d.reshape(1, -1)
-                            _tea_ord = np.argsort(_tea_d[:, 0])
-                            _tea_xv = _tea_d[_tea_ord, 0]
-                            _tea_uv = _tea_d[_tea_ord, 2]
-                            _tea_xt_l = np.column_stack([_tea_xv, np.full_like(_tea_xv, _mtv)])
-                            _tea_up = _ta_ref_extract(_tea_xt_l, _msel, model_i).flatten()
-                            _tea_l2 = float(np.linalg.norm(_tea_up - _tea_uv) / (np.linalg.norm(_tea_uv) + 1e-10))
-                            _ax = _tea_ax_flat[_mi]
-                            _ax.plot(_tea_xv, _tea_uv, color="#4dabf7", linewidth=2.0, label="Reference")
-                            _ax.plot(_tea_xv, _tea_up, color="#ff6b6b", linewidth=2.0, linestyle="--", label="PINN")
-                            _ax.set_title(f"t={{_mtv:.4f}}  L2={{_tea_l2:.2e}}", fontsize={config.plot_subplot_title_fontsize})
-                            _ax.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax.set_ylabel("u", fontsize={config.plot_axis_label_fontsize}); _ax.grid(True, alpha=0.3)
-                        for _mj in range(len(_step_matches), len(_tea_ax_flat)):
-                            _tea_ax_flat[_mj].set_visible(False)
-                        _tea_h, _tea_l = _tea_ax_flat[0].get_legend_handles_labels()
-                        fig.legend(_tea_h, _tea_l, loc="lower center", ncol=2, fontsize=9, framealpha=0.9, bbox_to_anchor=(0.5, 0.01))
-                        plt.tight_layout(rect=[0, 0.06, 1, 1])
-                    else:
-                        n_steps_plot = {config.num_timesteps_line}
-                        _x_l2 = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
-                        _t_line = np.linspace(t0, t1, n_steps_plot)
-                        fig, ax = plt.subplots(figsize=_plot_figsize(8, 4))
-                        colors = plt.get_cmap("{config.plot_colormap}")(np.linspace(0, 1, n_steps_plot))
-                        for _ci, _tv in enumerate(_t_line):
-                            _xt_line = np.column_stack([_x_l2, np.full_like(_x_l2, _tv)])
-                            _u_line = _extract_plot_field(_xt_line, model_i).flatten()
-                            ax.plot(_x_l2, _u_line, color=colors[_ci], linewidth={config.plot_linewidth}, label=f"t={{_tv:.3f}}")
-                        ax.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel("u", fontsize={config.plot_axis_label_fontsize})
-                        ax.set_title(f"Step {{step_i+1}}: t = {{t0:.4f}} → {{t1:.4f}}")
-                        ax.legend(loc="upper right", fontsize=7); ax.grid(True, alpha=0.2)
-                        plt.tight_layout()
-                    plt.savefig(_step_line_fname, dpi={config.plot_dpi}, bbox_inches="tight")
-                    plt.close()
-                    print(f"Step line plot saved: {{_step_line_fname}}")
-                except Exception as _tea_err_line:
-                    print(f"  Step {{step_i+1}} line plot failed: {{_tea_err_line}}")
-            else:
-                # ── 2D/3D: surface only -- merged with reference (ALL
-                # matching files, not just the closest one) when this
-                # step's time range has matches, else the plain PINN-only
-                # t0/t1 preview (unchanged from before this feature).
-                _step_fname = _os.path.join(_step_dir, f"step_{{step_i+1:03d}}_t{{t0:.4f}}_to_t{{t1:.4f}}.png")
-                try:
-                    if _step_matches:
-                        from mpl_toolkits.mplot3d import Axes3D as _tea_Axes3D_unused  # noqa: F401 -- registers the 3D projection
-                        _tea_n = len(_step_matches)
-                        if _is_3d:
-                            fig = plt.figure(figsize=_plot_figsize(15, 4.5 * _tea_n))
-                            for _mi, (_mtv, _mfp, _msel) in enumerate(_step_matches):
-                                _tea_d = np.loadtxt(_mfp)
-                                if _tea_d.ndim == 1:
-                                    _tea_d = _tea_d.reshape(1, -1)
-                                _tea_xyz = _tea_d[:, :3]
-                                _tea_u = _tea_d[:, 4]
-                                _tea_grid = np.column_stack([_tea_xyz, np.full(len(_tea_d), _mtv)])
-                                _tea_pred = _ta_ref_extract(_tea_grid, _msel, model_i)
-                                _tea_err = np.abs(_tea_pred - _tea_u)
-                                _tea_l2 = float(np.linalg.norm(_tea_pred - _tea_u) / (np.linalg.norm(_tea_u) + 1e-12))
-                                _tea_vmin = min(_tea_pred.min(), _tea_u.min())
-                                _tea_vmax = max(_tea_pred.max(), _tea_u.max())
-                                _tea_cols3 = [
-                                    (_tea_pred, f"PINN  t={{_mtv:.4f}}  L2={{_tea_l2:.2e}}", _tea_vmin, _tea_vmax, "{config.plot_colormap}"),
-                                    (_tea_u, f"Reference  t={{_mtv:.4f}}", _tea_vmin, _tea_vmax, "{config.plot_colormap}"),
-                                    (_tea_err, f"|Error|  Max={{_tea_err.max():.2e}}", None, None, "{config.plot_colormap}"),
-                                ]
-                                for _tea_ci, (_tea_vals, _tea_ttl, _tea_vmn, _tea_vmx, _tea_cmap) in enumerate(_tea_cols3):
-                                    _tea_ax = fig.add_subplot(_tea_n, 3, _mi * 3 + _tea_ci + 1, projection="3d")
-                                    _tea_sc = _tea_ax.scatter(_tea_xyz[:, 0], _tea_xyz[:, 1], _tea_xyz[:, 2], c=_tea_vals,
-                                                               cmap=_tea_cmap, s=10, vmin=_tea_vmn, vmax=_tea_vmx)
-                                    fig.colorbar(_tea_sc, ax=_tea_ax, shrink=0.6, pad=0.12)
-                                    _tea_ax.set_title(_tea_ttl, fontsize={config.plot_subplot_title_fontsize})
-                                    _tea_ax.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _tea_ax.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _tea_ax.set_zlabel("z", fontsize={config.plot_axis_label_fontsize})
-                            fig.suptitle(f"Step {{step_i+1}} -- PINN vs Reference", fontsize={config.plot_title_fontsize}, fontweight="bold")
-                        else:
-                            fig, axes = plt.subplots(_tea_n, 3, figsize=(15, 4*_tea_n), squeeze=False)
-                            fig.suptitle(f"Step {{step_i+1}}: t = {{t0:.4f}} → {{t1:.4f}} -- PINN vs Reference", fontsize={config.plot_title_fontsize}, fontweight="bold")
-                            _res_step = {config.plot_resolution}
-                            _xg_s = np.linspace({config.x_min}, {config.x_max}, _res_step)
-                            _yg_s = np.linspace({config.y_min}, {config.y_max}, _res_step)
-                            _Xg_s, _Yg_s = np.meshgrid(_xg_s, _yg_s)
-                            _inside_s = geom_i.inside(np.column_stack([_Xg_s.ravel(), _Yg_s.ravel()])).reshape(_res_step, _res_step)
-                            from scipy.interpolate import griddata as _tea_gd
-                            for _mi, (_mtv, _mfp, _msel) in enumerate(_step_matches):
-                                _tea_d = np.loadtxt(_mfp)
-                                if _tea_d.ndim == 1:
-                                    _tea_d = _tea_d.reshape(1, -1)
-                                _tea_xy = _tea_d[:, :2]
-                                _tea_u = _tea_d[:, 3]
-                                _tea_grid_pinn = np.column_stack([_Xg_s.ravel(), _Yg_s.ravel(), np.full(_Xg_s.size, _mtv)])
-                                _tea_u_pinn = _ta_ref_extract(_tea_grid_pinn, _msel, model_i).reshape(_res_step, _res_step)
-                                _tea_u_pinn = np.where(_inside_s, _tea_u_pinn, np.nan)
-                                _tea_u_ref = _tea_gd(_tea_xy, _tea_u, (_Xg_s, _Yg_s), method="linear", fill_value=0.0)
-                                _tea_u_ref = np.where(_inside_s, _tea_u_ref, np.nan)
-                                _tea_u_err = np.abs(_tea_u_pinn - _tea_u_ref)
-                                _tea_vmin = np.nanmin([_tea_u_pinn, _tea_u_ref])
-                                _tea_vmax = np.nanmax([_tea_u_pinn, _tea_u_ref])
-                                if _tea_vmax - _tea_vmin < 1e-12:
-                                    _tea_vmax = _tea_vmin + 1e-12
-                                _tea_levels = _cf_levels({config.plot_levels}, _tea_vmin, _tea_vmax)["levels"]
-                                # Round 31: standardized on "|Error|  Max=..."
-                                # here -- matching every other per-panel error
-                                # label in the app (RAR's own round diagnostics,
-                                # this same per-step plot's sibling 3D branch,
-                                # and the formal Error Analysis feature) --
-                                # this branch alone used to show RMSE instead,
-                                # one of the inconsistent labels the user
-                                # reported.
-                                _tea_max_err = float(np.nanmax(_tea_u_err))
-                                im0 = axes[_mi][0].contourf(_Xg_s, _Yg_s, _tea_u_pinn, levels=_tea_levels, cmap="{config.plot_colormap}")
-                                axes[_mi][0].set_title(f"PINN  t={{_mtv:.4f}}", fontsize={config.plot_subplot_title_fontsize})
-                                axes[_mi][0].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); axes[_mi][0].set_ylabel("y", fontsize={config.plot_axis_label_fontsize})
-                                fig.colorbar(im0, ax=axes[_mi][0])
-                                im1 = axes[_mi][1].contourf(_Xg_s, _Yg_s, _tea_u_ref, levels=_tea_levels, cmap="{config.plot_colormap}")
-                                axes[_mi][1].set_title(f"Reference  t={{_mtv:.4f}}", fontsize={config.plot_subplot_title_fontsize})
-                                axes[_mi][1].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); axes[_mi][1].set_ylabel("y", fontsize={config.plot_axis_label_fontsize})
-                                fig.colorbar(im1, ax=axes[_mi][1])
-                                im2 = axes[_mi][2].contourf(_Xg_s, _Yg_s, _tea_u_err, levels={config.plot_levels}, cmap="{config.plot_colormap}")
-                                axes[_mi][2].set_title(f"|Error|  Max={{_tea_max_err:.2e}}", fontsize={config.plot_subplot_title_fontsize})
-                                axes[_mi][2].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); axes[_mi][2].set_ylabel("y", fontsize={config.plot_axis_label_fontsize})
-                                fig.colorbar(im2, ax=axes[_mi][2])
-                        plt.tight_layout(rect=[0, 0, 1, 0.93])
-                    else:
-                        _vmin_step = None if {config.plot_auto_range} else {config.plot_vmin}
-                        _vmax_step = None if {config.plot_auto_range} else {config.plot_vmax}
-                        _res_step = {config.plot_resolution}
-                        _xg_s = np.linspace({config.x_min}, {config.x_max}, _res_step)
-                        _yg_s = np.linspace({config.y_min}, {config.y_max}, _res_step)
-                        _Xg_s, _Yg_s = np.meshgrid(_xg_s, _yg_s)
-                        if _is_3d:
-                            _z_mid_s = {_line_slice_z}
-                            fig, axes = plt.subplots(1, 2, figsize=_plot_figsize(10, 4))
-                            for _ai, _tv_s in enumerate([t0, t1]):
-                                _xyt_s = np.column_stack([_Xg_s.ravel(), _Yg_s.ravel(), np.full(_Xg_s.size, _z_mid_s), np.full(_Xg_s.size, _tv_s)])
-                                _U_s = _extract_plot_field(_xyt_s, model_i).reshape(_res_step, _res_step)
-                                im = axes[_ai].contourf(_Xg_s, _Yg_s, _U_s, cmap="{config.plot_colormap}", **_cf_levels({config.plot_levels}, _vmin_step, _vmax_step, _U_s))
-                                if {config.plot_colorbar}:
-                                    fig.colorbar(im, ax=axes[_ai])
-                                axes[_ai].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); axes[_ai].set_ylabel("y", fontsize={config.plot_axis_label_fontsize})
-                                axes[_ai].set_title(f"t = {{_tv_s:.4f}}  (z={{_z_mid_s:.3g}})")
-                            fig.suptitle(f"Step {{step_i+1}}: t = {{t0:.4f}} → {{t1:.4f}}", fontsize={config.plot_title_fontsize})
-                        else:
-                            fig, axes = plt.subplots(1, 2, figsize=_plot_figsize(10, 4))
-                            for _ai, _tv_s in enumerate([t0, t1]):
-                                _xyt_s = np.column_stack([_Xg_s.ravel(), _Yg_s.ravel(), np.full(_Xg_s.size, _tv_s)])
-                                _U_s = _extract_plot_field(_xyt_s, model_i).reshape(_res_step, _res_step)
-                                im = axes[_ai].contourf(_Xg_s, _Yg_s, _U_s, cmap="{config.plot_colormap}", **_cf_levels({config.plot_levels}, _vmin_step, _vmax_step, _U_s))
-                                if {config.plot_colorbar}:
-                                    fig.colorbar(im, ax=axes[_ai])
-                                axes[_ai].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); axes[_ai].set_ylabel("y", fontsize={config.plot_axis_label_fontsize})
-                                axes[_ai].set_title(f"t = {{_tv_s:.4f}}")
-                            fig.suptitle(f"Step {{step_i+1}}: t = {{t0:.4f}} → {{t1:.4f}}", fontsize={config.plot_title_fontsize})
-                        plt.tight_layout(rect=[0, 0, 1, 0.93])
-                    plt.savefig(_step_fname, dpi={config.plot_dpi}, bbox_inches="tight")
-                    plt.close()
-                    print(f"Step plot saved: {{_step_fname}}")
-                except Exception as _tea_err_23d:
-                    print(f"  Step {{step_i+1}} plot failed: {{_tea_err_23d}}")
-
-            # ── Final model already saved per-phase, just track for transfer learning ───
-            _last_phase_opt = "{config.optimizer}"
-            if {config.optimizer_scheduler} and {len(config.scheduler_phases) > 0}:
-                import json as _json_lp
-                _lp_phases = _json_lp.loads({repr(config.scheduler_phases)})
-                if _lp_phases:
-                    _last_phase_opt = _lp_phases[-1]["optimizer"]
-
-            # Track for transfer learning — prefer lbfgs if chosen, else adam
-            _prev_step_model_path = ""
-            import glob as _tl_glob
-            if "{config.ta_transfer_optimizer}" == "lbfgs":
-                # Look for any lbfgs .pt file (may have iteration number suffix)
-                _lbfgs_pts = sorted(_tl_glob.glob(_os.path.join(_step_dir, "model_lbfgs*.pt")))
-                if _lbfgs_pts:
-                    _prev_step_model_path = max(_lbfgs_pts, key=_os.path.getmtime)
-                    print(f"  Transfer learning source (lbfgs): {{_os.path.basename(_prev_step_model_path)}}")
-            if not _prev_step_model_path:
-                # Fall back to adam
-                _adam_pts = sorted(_tl_glob.glob(_os.path.join(_step_dir, "model_adam*.pt")))
-                if _adam_pts:
-                    _prev_step_model_path = max(_adam_pts, key=_os.path.getmtime)
-                    print(f"  Transfer learning source (adam): {{_os.path.basename(_prev_step_model_path)}}")
-
-            # ── Save step config JSON ─────────────────────────
-            # y_min/y_max/z_min/z_max added alongside x_min/x_max so a 2D/3D
-            # Time-Adaptive step's own model_config-equivalent is complete
-            # on its own (previously only x_min/x_max were saved here --
-            # harmless for 1D, since restore already defaults those two,
-            # but silently wrong for 2D/3D if this file were ever used as a
-            # restore config directly, since the y/z bounds would fall back
-            # to the [0,1] default instead of this run's real domain).
-            _step_cfg = {{
-                "step": step_i + 1,
-                "t0": t0, "t1": t1,
-                "layers": {config.layers},
-                "activation": "{config.activation}",
-                "x_min": {config.x_min}, "x_max": {config.x_max},
-                "y_min": {config.y_min}, "y_max": {config.y_max},
-                "z_min": {config.z_min}, "z_max": {config.z_max},
-                "t_min": t0, "t_max": t1,
-                "problem_dim": "{config.problem_dim}",
-                "loss_type": "{config.loss_type}",
-                "optimizer": "{config.optimizer}",
-                "optimizer2": "{config.optimizer2}",
-                "output_names": {repr(config.output_names)},
-                "num_outputs": {config.num_outputs},
-            }}
-            with open(_os.path.join(_step_dir, "step_config.json"), "w") as _scf:
-                _json.dump(_step_cfg, _scf, indent=2)
-            print(f"Step config saved: {{_os.path.join(_step_dir, 'step_config.json')}}")
-
-    X_full = np.vstack(all_x); T_full = np.vstack(all_t); U_full = np.vstack(all_u)
-    print("\\n=== Time-Adaptive Training Complete ===")
-
-    _ta_solution_path = _os.path.join(_sol_dir, "solution_plot.png")
-    _ta_loss_path     = _os.path.join(_sol_dir, "loss_plot.png")
-
-    _plot_type_ta = "{config.plot_type}"
-    if _plot_type_ta not in ("Surface", "Line (time steps)"):
-        # Same fallback reasoning as the per-step preview above -- GIF
-        # animations and Parameter Convergence aren't wired up for
-        # Time-Adaptive's final solution plot yet.
-        _plot_type_ta = "Surface"
-    if _plot_type_ta == "Surface":
-        _vmin_ta = None if {config.plot_auto_range} else {config.plot_vmin}
-        _vmax_ta = None if {config.plot_auto_range} else {config.plot_vmax}
-        if _is_2d:
-            # 2D: x-y heatmaps at n snapshots using the last step model
-            _n_snaps_ta = {config.plot_n_2d_snapshots}
-            _t_snaps_ta = np.linspace({config.t_min}, {config.t_max}, _n_snaps_ta)
-            _res_ta = {config.plot_resolution}
-            _xp_ta = np.linspace({config.x_min}, {config.x_max}, _res_ta)
-            _yp_ta = np.linspace({config.y_min}, {config.y_max}, _res_ta)
-            _Xg_ta, _Yg_ta = np.meshgrid(_xp_ta, _yp_ta)
-            # cleanup Round 44: masked to the real geometry with
-            # geom.inside(...) -- same convention the Standard path's own
-            # 2D Surface branch already uses (geom here is the real
-            # reconstructed geometry built at module scope above, NOT the
-            # plain Rectangle built a few lines below for each step's
-            # throwaway dde.Model -- that Rectangle only exists to satisfy
-            # DeepXDE's Model/TimePDE constructor so .predict() works, it
-            # was never meant to represent the true domain). Spatial-only,
-            # so computed once and reused for every snapshot panel.
-            _inside_ta = np.asarray(geom.inside(np.column_stack([_Xg_ta.ravel(), _Yg_ta.ravel()]))).reshape(_res_ta, _res_ta)
-            # Collect all step models to predict at each snapshot time
-            import glob as _ta_glob_sol, json as _ta_json_sol
-            _ta_sol_dirs = sorted([_sd for _sd in _ta_glob_sol.glob(_os.path.join(_ta_steps_root, "step_*")) if _os.path.isdir(_sd)])
-            _ta_sol_intervals = []
-            for _sd in _ta_sol_dirs:
-                try:
-                    _p = _os.path.basename(_sd).split("_")
-                    _ta_sol_intervals.append((float(_p[2].replace("t","")), float(_p[4].replace("t","")), _sd))
-                except Exception: pass
-            fig, axes = plt.subplots(1, _n_snaps_ta, figsize=(_plot_figsize(5, 5)[0]*_n_snaps_ta, _plot_figsize(5, 5)[1]))
-            if _n_snaps_ta == 1: axes = [axes]
-            for _ai, _tv_ta in enumerate(_t_snaps_ta):
-                # Find which step model covers this time
-                _sd_for_t = _ta_sol_dirs[-1] if _ta_sol_dirs else ""
-                for _t0s, _t1s, _sds in _ta_sol_intervals:
-                    if _t0s <= _tv_ta <= _t1s + 1e-10:
-                        _sd_for_t = _sds; break
-                # Load step model
-                _spt_ta = ""
-                for _pat_ta in ["model_lbfgs-*.pt","model_lbfgs.pt","model_adam-*.pt","model_adam.pt"]:
-                    _pts_ta = sorted(_ta_glob_sol.glob(_os.path.join(_sd_for_t, _pat_ta)))
-                    if _pts_ta: _spt_ta = max(_pts_ta, key=_os.path.getmtime); break
-                try:
-                    with open(_os.path.join(_sd_for_t, "step_config.json")) as _scf_ta:
-                        _sc_ta = _ta_json_sol.load(_scf_ta)
-                except: _sc_ta = {{"layers": {config.layers}, "activation": "{config.activation}", "loss_type": "{config.loss_type}"}}
-                _sn_ta = _apply_net_transforms(_make_net(_sc_ta.get("layers",{config.layers}), _sc_ta.get("activation","{config.activation}"), "Glorot uniform"))
-                _sg_ta = dde.geometry.Rectangle([{config.x_min},{config.y_min}],[{config.x_max},{config.y_max}])
-                _st_ta = dde.geometry.TimeDomain(_sc_ta.get("t_min",0), _sc_ta.get("t_max",1))
-                _sgt_ta = dde.geometry.GeometryXTime(_sg_ta, _st_ta)
-                _sd_ta = dde.data.TimePDE(_sgt_ta, lambda x,y: y[:,0:1]*0, [], num_domain=100, num_test=100)
-                _sm_ta = dde.Model(_sd_ta, _sn_ta)
-                if _spt_ta:
-                    if "lbfgs" in _os.path.basename(_spt_ta):
-                        dde.optimizers.set_LBFGS_options(maxiter=1)
-                        _sm_ta.compile("L-BFGS", loss=_sc_ta.get("loss_type","{config.loss_type}"))
-                    else:
-                        _sm_ta.compile("adam", lr=0.001, loss=_sc_ta.get("loss_type","{config.loss_type}"))
-                    _sm_ta.restore(_spt_ta, verbose=0)
-                    _xyt_ta = np.column_stack([_Xg_ta.ravel(), _Yg_ta.ravel(), np.full(_Xg_ta.size, _tv_ta)])
-                    _pred_ta = _sm_ta.predict(_xyt_ta)[:, {config.plot_output_idx}].reshape(_res_ta, _res_ta)
-                else:
-                    _pred_ta = np.zeros((_res_ta, _res_ta))
-                _pred_ta = np.where(_inside_ta, _pred_ta, np.nan)
-                im = axes[_ai].contourf(_Xg_ta, _Yg_ta, _pred_ta, cmap="{config.plot_colormap}", **_cf_levels({config.plot_levels}, _vmin_ta, _vmax_ta, _pred_ta))
-                axes[_ai].set_title(f"t = {{_tv_ta:.3f}}")
-                axes[_ai].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); axes[_ai].set_ylabel("y", fontsize={config.plot_axis_label_fontsize})
-                if {config.plot_colorbar}: fig.colorbar(im, ax=axes[_ai])
-            fig.suptitle("Time-Adaptive PINN Solution", fontsize={config.plot_title_fontsize})
-            plt.tight_layout(rect=[0, 0, 1, 0.93])
-            plt.savefig(_ta_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
-        else:
-            # 1D, and 3D too (its per-step loop above already fixed y and z
-            # at their domain mid-points and stitched an x-t slice into
-            # X_full/T_full/U_full, same shape as the 1D case) -- no
-            # volumetric renderer, so this mid-plane slice is the final
-            # solution plot for 3D as well.
-            fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
-            # Same configurable axis orientation as the Standard path's 1D
-            # "Surface" plot -- see the matching comment there.
-            if {config.plot_swap_xt}:
-                im = ax.contourf(T_full, X_full, U_full, cmap="{config.plot_colormap}", **_cf_levels({config.plot_levels}, _vmin_ta, _vmax_ta, U_full))
-                ax.set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel("x", fontsize={config.plot_axis_label_fontsize})
-            else:
-                im = ax.contourf(X_full, T_full, U_full, cmap="{config.plot_colormap}", **_cf_levels({config.plot_levels}, _vmin_ta, _vmax_ta, U_full))
-                ax.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel("t", fontsize={config.plot_axis_label_fontsize})
-            if {config.plot_colorbar}: fig.colorbar(im, ax=ax)
-            ax.set_title("Time-Adaptive PINN Solution")
-            plt.tight_layout(); plt.savefig(_ta_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
-    elif _plot_type_ta.startswith("Line"):
-        n_ts   = {config.num_timesteps_line}
-        t_vals = np.linspace(_ta_flat_intervals[0][0], _ta_flat_intervals[-1][1], n_ts)
-        fig, ax = plt.subplots(figsize=_plot_figsize(8, 5))
-        colors = plt.get_cmap("{config.plot_colormap}")(np.linspace(0, 1, n_ts))
-        for ci, tv in enumerate(t_vals):
-            idx = np.argmin(np.abs(T_full[:,0] - tv))
-            ax.plot(X_full[idx,:], U_full[idx,:], color=colors[ci], linewidth={config.plot_linewidth}, label=f"t={{tv:.3f}}")
-        _ylabel_ta_line = (f"u(x,y={_line_slice_y:.3g},z={_line_slice_z:.3g},t)" if _is_3d
-                           else (f"u(x,y={_line_slice_y:.3g},t)" if _is_2d else "u(x,t)"))
-        ax.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_ylabel_ta_line, fontsize={config.plot_axis_label_fontsize})
-        ax.set_title("Time-Adaptive PINN — Line Plot")
-        ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
-        plt.tight_layout(); plt.savefig(_ta_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
-
-    # Full Time-Adaptive run -- every optimizer phase of every time
-    # sub-domain, concatenated with a running iteration offset (see
-    # "_ta_accumulate_loss" above) -- not just whichever phase happened
-    # to run last for the very last sub-domain.
-    train_loss_ta = _ta_all_train_loss; test_loss_ta = _ta_all_test_loss
-    steps_ta = _ta_all_steps
-    # Light vertical markers at each time sub-domain's boundary, so a
-    # jump/kink in the loss (a brand-new network starting that
-    # sub-domain, warm-started only via its IC) is visually distinguishable
-    # from an actual optimizer-related loss spike. Skip the very last
-    # boundary (the run's own end -- nothing follows it worth marking) and
-    # don't bother with a boundary at 0 if the first sub-domain starts
-    # right there.
-    def _ta_loss_boundary_markers(_ax):
-        for _tb in _ta_step_boundaries[:-1]:
-            if _tb > 0:
-                _ax.axvline(_tb, color="gray", linestyle=":", linewidth=0.8, alpha=0.5)
-    _make_loss_plot(train_loss_ta, test_loss_ta, steps_ta, _ta_loss_path,
-                     f"Loss — All {{n_steps}} Time Sub-domain(s)",
-                     xlabel="Iteration (cumulative across all time sub-domains)",
-                     extra_fn=_ta_loss_boundary_markers)
-
-    # ── Time Adaptive Error Analysis ──────────────────────────
-    if {config.ea_files}:
-        from scipy.interpolate import interp1d as _interp1d
-        import glob as _ea_glob, json as _ea_json
-        _ea_dir = _os.path.join(_save_dir if _use_save else "/tmp", "error_analysis")
-        _os.makedirs(_ea_dir, exist_ok=True)
-
-        # Same (time, path, output_selector) normalization and per-output
-        # grouping as the Standard Error Analysis path above -- see its own
-        # comment for the full rationale. Kept as its own copy here since
-        # Time-Adaptive is a separate top-level branch that never runs
-        # alongside the Standard one.
-        _ea_files_norm = []
-        for _ea_entry in {config.ea_files}:
-            if len(_ea_entry) >= 3:
-                _ea_tv0, _ea_fp0, _ea_sel0 = _ea_entry[0], _ea_entry[1], _ea_entry[2]
-            else:
-                _ea_tv0, _ea_fp0 = _ea_entry[0], _ea_entry[1]
-                _ea_sel0 = None
-            if {config.t_min} - 1e-10 <= _ea_tv0 <= {config.t_max} + 1e-10:
-                _ea_files_norm.append((_ea_tv0, _ea_fp0, _ea_sel0))
-        print(f"  Filtering to t=[{config.t_min}, {config.t_max}]: {{len(_ea_files_norm)}} files")
-        print("\\n=== Running Time-Adaptive Error Analysis ===")
-
-        _ea_groups = {{}}
-        for _ea_tv0, _ea_fp0, _ea_sel0 in _ea_files_norm:
-            _ea_gkey = repr(_ea_sel0)
-            if _ea_gkey not in _ea_groups:
-                _ea_groups[_ea_gkey] = {{"sel": _ea_sel0, "files": []}}
-            _ea_groups[_ea_gkey]["files"].append((_ea_tv0, _ea_fp0))
-        _ea_multi_output = len(_ea_groups) > 1
-
-        def _ea_group_label(_ea_sel):
-            if _ea_sel is None:
-                return ""
-            if isinstance(_ea_sel, int):
-                return (_plot_output_names_list[_ea_sel].strip()
-                        if 0 <= _ea_sel < len(_plot_output_names_list) else f"out{{_ea_sel}}")
-            _ea_lbl = (_ea_sel[1] or "").strip() if len(_ea_sel) > 1 else ""
-            return _ea_lbl if _ea_lbl else "custom"
-
-        def _ea_extract(_ea_grid, _ea_sel, _ea_model):
-            # TA has no single module-level `model` (each step restores
-            # its own) -- unlike the Standard path's _ea_extract, the
-            # model object here is always required, never defaulted.
-            # _ea_sel a (expr, label) tuple is now derivative-aware too --
-            # see the matching comment on the Standard path's own
-            # _ea_extract above.
-            if _ea_sel is None:
-                return _extract_plot_field(_ea_grid, _ea_model)
-            if isinstance(_ea_sel, int):
-                return _ea_model.predict(_ea_grid)[:, _ea_sel]
-            _ea_expr = _ea_sel[0]
-
-            def _ea_custom_op(_ea_inputs, _ea_outputs):
-                _ea_dvars = _tm_build_dvars(_ea_inputs, _ea_outputs, _plot_n_out,
-                                             _plot_output_names_list, _is_steady, _plot_dim,
-                                             _ea_expr)
-                _ea_ns = dict(_ea_dvars)
-                _ea_ns.update(_PLOT_TORCH_MATH_NS)
-                _ea_ns["torch"] = torch
-                return eval(_ea_expr, _ea_ns)
-
-            return _ea_model.predict(_ea_grid, operator=_ea_custom_op)[:, 0]
-
-        for _ea_group_key, _ea_group in _ea_groups.items():
-            _ea_files = _ea_group["files"]
-            _ea_sel = _ea_group["sel"]
-            _ea_suffix = f"_{{_ea_group_label(_ea_sel) or 'default'}}" if _ea_multi_output else ""
-            if _ea_multi_output:
-                print(f"  ── Output group: {{_ea_group_label(_ea_sel) or 'default'}} ({{len(_ea_files)}} files) ──")
-
-            # Load all ground truth files
-            _ea_times = []; _ea_x_refs = []; _ea_y_refs = []; _ea_z_refs = []; _ea_u_refs = []
-            for _ea_tv, _ea_fp in _ea_files:
-                _ea_d = np.loadtxt(_ea_fp)
-                if _ea_d.ndim == 1: _ea_d = _ea_d.reshape(1, -1)
-                if _is_3d:
-                    # 3D format: x, y, z, t, u -- same as the Standard path's
-                    # own non-steady 3D Error Analysis loader.
-                    _ea_idx = np.lexsort((_ea_d[:, 2], _ea_d[:, 1], _ea_d[:, 0]))
-                    _ea_x_refs.append(_ea_d[_ea_idx, 0])
-                    _ea_y_refs.append(_ea_d[_ea_idx, 1])
-                    _ea_z_refs.append(_ea_d[_ea_idx, 2])
-                    _ea_u_refs.append(_ea_d[_ea_idx, 4])
-                    _detected_t = float(_ea_d[0, 3])
-                    _ea_times.append(_detected_t)
-                    print(f"  Loaded ground truth t={{_detected_t:.4f}}: {{len(_ea_d)}} pts from {{_os.path.basename(_ea_fp)}}")
-                elif _is_2d:
-                    _ea_idx = np.lexsort((_ea_d[:, 1], _ea_d[:, 0]))
-                    _ea_x_refs.append(_ea_d[_ea_idx, 0])
-                    _ea_y_refs.append(_ea_d[_ea_idx, 1])
-                    _ea_z_refs.append(np.zeros_like(_ea_d[_ea_idx, 0]))
-                    _ea_u_refs.append(_ea_d[_ea_idx, 3])
-                    _detected_t = float(_ea_d[0, 2])
-                    _ea_times.append(_detected_t)
-                    print(f"  Loaded ground truth t={{_detected_t:.4f}}: {{len(_ea_d)}} pts from {{_os.path.basename(_ea_fp)}}")
-                else:
-                    _ea_idx = np.argsort(_ea_d[:, 0])
-                    _ea_x_refs.append(_ea_d[_ea_idx, 0])
-                    _ea_y_refs.append(np.zeros_like(_ea_d[_ea_idx, 0]))
-                    _ea_z_refs.append(np.zeros_like(_ea_d[_ea_idx, 0]))
-                    _ea_u_refs.append(_ea_d[_ea_idx, 2])
-                    _ea_times.append(float(_ea_tv))
-                    print(f"  Loaded ground truth t={{_ea_tv:.4f}}: {{len(_ea_d)}} pts from {{_os.path.basename(_ea_fp)}}")
-            # Sort by time
-            _ea_sort_idx = np.argsort(_ea_times)
-            _ea_times  = [_ea_times[_i]  for _i in _ea_sort_idx]
-            _ea_x_refs = [_ea_x_refs[_i] for _i in _ea_sort_idx]
-            _ea_y_refs = [_ea_y_refs[_i] for _i in _ea_sort_idx]
-            _ea_z_refs = [_ea_z_refs[_i] for _i in _ea_sort_idx]
-            _ea_u_refs = [_ea_u_refs[_i] for _i in _ea_sort_idx]
-            _ea_n_t = len(_ea_times)
-            _ea_u_pinns = [None] * _ea_n_t
-
-            # Find all step directories
-            _ta_step_dir = _os.path.join(_save_dir, "time_adaptive_steps")
-            _ta_step_dirs = sorted([_sd for _sd in _ea_glob.glob(_os.path.join(_ta_step_dir, "step_*")) if _os.path.isdir(_sd)])
-            _ta_intervals = []
-            for _sd in _ta_step_dirs:
-                _sd_name = _os.path.basename(_sd)
-                try:
-                    _parts = _sd_name.split("_")
-                    _t0_str = _parts[2].replace("t","")
-                    _t1_str = _parts[4].replace("t","")
-                    _ta_intervals.append((float(_t0_str), float(_t1_str), _sd))
-                except Exception as _pe:
-                    print(f"  Could not parse step dir: {{_sd_name}}: {{_pe}}")
-            print(f"  Found {{len(_ta_intervals)}} time-adaptive step models")
-
-            for _si, (_t0_i, _t1_i, _sd_i) in enumerate(_ta_intervals):
-                _is_last = (_si == len(_ta_intervals) - 1)
-                _matching = []
-                for _ei, _ea_tv in enumerate(_ea_times):
-                    if _is_last:
-                        _in_range = (_t0_i <= _ea_tv <= _t1_i + 1e-10)
-                    else:
-                        _in_range = (_t0_i <= _ea_tv < _t1_i - 1e-10) or \
-                                    (abs(_ea_tv - _t1_i) < 1e-10)
-                    if _in_range and _ea_u_pinns[_ei] is None:
-                        _matching.append(_ei)
-
-                if not _matching:
-                    continue
-
-                print(f"  Step {{_si+1}} [{{_t0_i:.4f}}→{{_t1_i:.4f}}]: t = {{[_ea_times[_ei] for _ei in _matching]}}")
-
-                _step_cfg_path = _os.path.join(_sd_i, "step_config.json")
-                try:
-                    with open(_step_cfg_path) as _scf:
-                        _step_cfg = _ea_json.load(_scf)
-                except Exception:
-                    _step_cfg = {{"layers": {config.layers}, "activation": "{config.activation}", "loss_type": "{config.loss_type}"}}
-
-                _step_layers = _step_cfg.get("layers", {config.layers})
-                _step_act    = _step_cfg.get("activation", "{config.activation}")
-                _step_loss   = _step_cfg.get("loss_type", "{config.loss_type}")
-
-                if _is_3d:
-                    _step_geom = dde.geometry.Cuboid([{config.x_min}, {config.y_min}, {config.z_min}],
-                                                       [{config.x_max}, {config.y_max}, {config.z_max}])
-                elif _is_2d:
-                    _step_geom = dde.geometry.Rectangle([{config.x_min}, {config.y_min}], [{config.x_max}, {config.y_max}])
-                else:
-                    _step_geom = dde.geometry.Interval({config.x_min}, {config.x_max})
-                _step_td    = dde.geometry.TimeDomain(_t0_i, _t1_i)
-                _step_gt    = dde.geometry.GeometryXTime(_step_geom, _step_td)
-                def _step_pde(x, y): return y[:, 0:1] * 0
-                _step_data  = dde.data.TimePDE(_step_gt, _step_pde, [], num_domain=100, num_test=100)
-                _step_net   = _apply_net_transforms(_make_net(_step_layers, _step_act, "Glorot uniform"))
-                _step_model = dde.Model(_step_data, _step_net)
-
-                _step_pt = ""
-                for _pat in ["model_lbfgs-*.pt", "model_lbfgs.pt", "model_adam-*.pt", "model_adam.pt"]:
-                    _step_pts = sorted(_ea_glob.glob(_os.path.join(_sd_i, _pat)))
-                    if _step_pts:
-                        _step_pt = max(_step_pts, key=_os.path.getmtime)
-                        break
-
-                if not _step_pt:
-                    print(f"  ⚠️ No model found for step {{_si+1}}, skipping")
-                    continue
-
-                if "lbfgs" in _os.path.basename(_step_pt):
-                    dde.optimizers.set_LBFGS_options(maxiter=1)
-                    _step_model.compile("L-BFGS", loss=_step_loss)
-                else:
-                    _step_model.compile("adam", lr=0.001, loss=_step_loss)
-
-                _step_model.restore(_step_pt, verbose=0)
-                print(f"    Restored: {{_os.path.basename(_step_pt)}}")
-
-                for _ei in _matching:
-                    _ea_xf = _ea_x_refs[_ei]
-                    _ea_tv = _ea_times[_ei]
-                    if _is_3d:
-                        _ea_yf = _ea_y_refs[_ei]; _ea_zf = _ea_z_refs[_ei]
-                        _ea_xt = np.column_stack([_ea_xf, _ea_yf, _ea_zf, np.full_like(_ea_xf, _ea_tv)])
-                    elif _is_2d:
-                        _ea_yf = _ea_y_refs[_ei]
-                        _ea_xt = np.column_stack([_ea_xf, _ea_yf, np.full_like(_ea_xf, _ea_tv)])
-                    else:
-                        _ea_xt = np.column_stack([_ea_xf, np.full_like(_ea_xf, _ea_tv)])
-                    _ea_u_pinns[_ei] = _ea_extract(_ea_xt, _ea_sel, _step_model).flatten()
-                    print(f"    Predicted at t={{_ea_tv:.4f}}: {{len(_ea_xf)}} points")
-
-            for _ei in range(_ea_n_t):
-                if _ea_u_pinns[_ei] is None:
-                    print(f"  ⚠️ No prediction for t={{_ea_times[_ei]:.4f}} — zero fill")
-                    _ea_u_pinns[_ei] = np.zeros_like(_ea_u_refs[_ei])
-
-            # Metrics
-            _ea_metrics = []
-            for _ei, _ea_tv in enumerate(_ea_times):
-                _up = _ea_u_pinns[_ei]; _uf = _ea_u_refs[_ei]
-                _ea_abs = np.abs(_up - _uf)
-                _ea_l2  = np.linalg.norm(_up - _uf) / (np.linalg.norm(_uf) + 1e-10)
-                _ea_mse = np.mean((_up - _uf)**2)
-                _ea_mx  = np.max(_ea_abs)
-                _ea_ma  = np.mean(_ea_abs)
-                _ea_metrics.append((_ea_tv, _ea_l2, _ea_mse, _ea_mx, _ea_ma))
-                print(f"  t={{_ea_tv:.4f}} — {_ea_metrics_print_fragment(config, '_ea_l2', '_ea_mse', '_ea_mx', '_ea_ma')}")
-
-            _ea_metrics_path = _os.path.join(_ea_dir, f"error_metrics{{_ea_suffix}}.txt")
-            with open(_ea_metrics_path, "w") as _emf:
-                _emf.write("{_ea_metrics_csv_header(config)}\\n")
-                for _ea_tv, _l2, _mse, _mx, _ma in _ea_metrics:
-                    _emf.write(f"{_ea_metrics_row_code(config, '_ea_tv', '_l2', '_mse', '_mx', '_ma')}\\n")
-            print(f"  Metrics saved: {{_ea_metrics_path}}")
-
-            # Line comparison
-            if {config.ea_do_line}:
-                _ea_ncols = min(4, _ea_n_t)
-                _ea_nrows = (_ea_n_t + _ea_ncols - 1) // _ea_ncols
-                fig, axes = plt.subplots(_ea_nrows, _ea_ncols, figsize=(4*_ea_ncols, 3.5*_ea_nrows), squeeze=False)
-                _ea_line_suptitle_ta = "PINN vs Reference — Line Comparison"
-                if _is_3d:
-                    _ea_line_suptitle_ta += f" (y={_line_slice_y:.3g}, z={_line_slice_z:.3g})"
-                elif _is_2d:
-                    _ea_line_suptitle_ta += f" (y={_line_slice_y:.3g})"
-                fig.suptitle(_ea_line_suptitle_ta, fontsize={config.plot_title_fontsize}, fontweight='bold')
-                _ea_ax_flat = axes.flatten()
-                if _is_2d or _is_3d:
-                    # Same true-line-at-the-exact-slice fix as the Standard
-                    # path's own Line Comparison above (see its comment for
-                    # the full rationale) -- adapted for Time-Adaptive, which
-                    # has no single `model`: each time snapshot's PINN curve
-                    # must come from whichever step model actually covers
-                    # that snapshot's time, not an unfiltered scatter of
-                    # every reference point regardless of y(/z) (the old
-                    # behavior here, which didn't even have the Standard
-                    # path's tolerance-band narrowing -- it was strictly
-                    # worse). `_ta_intervals` was already built above for
-                    # the per-time prediction loop; reused here rather than
-                    # re-scanning the step directories again.
-                    from scipy.interpolate import griddata as _gd_line_ta
-                    _xv_line_ta = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
-                    _y_mid_ta = {_line_slice_y}
-                    _z_mid_ta = {_line_slice_z}
-                    _ea_geom_line_ta = _build_geom()
-                    _step_dir_map_line = {{}}
-                    for _si3, (_t0_i3, _t1_i3, _sd_i3) in enumerate(_ta_intervals):
-                        _is_last3 = (_si3 == len(_ta_intervals) - 1)
-                        for _ei3 in range(_ea_n_t):
-                            _tv3 = _ea_times[_ei3]
-                            if _is_last3:
-                                _in3 = (_t0_i3 <= _tv3 <= _t1_i3 + 1e-10)
-                            else:
-                                _in3 = (_t0_i3 <= _tv3 < _t1_i3 - 1e-10) or (abs(_tv3 - _t1_i3) < 1e-10)
-                            if _in3:
-                                _step_dir_map_line[_ei3] = _sd_i3
-                for _ei in range(_ea_n_t):
-                    ax = _ea_ax_flat[_ei]
-                    if _is_2d or _is_3d:
-                        if _is_3d:
-                            _line_pts_ta = np.column_stack([_xv_line_ta, np.full_like(_xv_line_ta, _y_mid_ta), np.full_like(_xv_line_ta, _z_mid_ta)])
-                        else:
-                            _line_pts_ta = np.column_stack([_xv_line_ta, np.full_like(_xv_line_ta, _y_mid_ta)])
-                        _line_in_ta = _ea_geom_line_ta.inside(_line_pts_ta)
-                        _xv_s = _xv_line_ta[_line_in_ta]
-                        _line_pts_ta_in = _line_pts_ta[_line_in_ta]
-                        if len(_xv_s) < 2:
-                            ax.text(0.5, 0.5, "Line outside the domain at this (y, z) slice" if _is_3d else "Line outside the domain at this y slice",
-                                    ha='center', va='center', transform=ax.transAxes)
-                            ax.set_xticks([]); ax.set_yticks([])
-                            continue
-                        _sd_for_line = _step_dir_map_line.get(_ei, "")
-                        _pinn_s = None
-                        if _sd_for_line:
-                            try:
-                                with open(_os.path.join(_sd_for_line, "step_config.json")) as _scfl:
-                                    _sc_l = _ea_json.load(_scfl)
-                            except Exception:
-                                _sc_l = {{"layers": {config.layers}, "activation": "{config.activation}", "loss_type": "{config.loss_type}"}}
-                            _net_l = _apply_net_transforms(_make_net(_sc_l.get("layers", {config.layers}), _sc_l.get("activation", "{config.activation}"), "Glorot uniform"))
-                            if _is_3d:
-                                _geom_l = dde.geometry.Cuboid([{config.x_min}, {config.y_min}, {config.z_min}], [{config.x_max}, {config.y_max}, {config.z_max}])
-                            else:
-                                _geom_l = dde.geometry.Rectangle([{config.x_min}, {config.y_min}], [{config.x_max}, {config.y_max}])
-                            _td_l = dde.geometry.TimeDomain(_sc_l.get("t_min", 0), _sc_l.get("t_max", 1))
-                            _gt_l = dde.geometry.GeometryXTime(_geom_l, _td_l)
-                            _data_l = dde.data.TimePDE(_gt_l, lambda x, y: y[:, 0:1] * 0, [], num_domain=100, num_test=100)
-                            _model_l = dde.Model(_data_l, _net_l)
-                            _pt_l = ""
-                            for _pat_l in ["model_lbfgs-*.pt", "model_lbfgs.pt", "model_adam-*.pt", "model_adam.pt"]:
-                                _pts_l = sorted(_ea_glob.glob(_os.path.join(_sd_for_line, _pat_l)))
-                                if _pts_l:
-                                    _pt_l = max(_pts_l, key=_os.path.getmtime)
-                                    break
-                            if _pt_l:
-                                if "lbfgs" in _os.path.basename(_pt_l):
-                                    dde.optimizers.set_LBFGS_options(maxiter=1)
-                                    _model_l.compile("L-BFGS", loss=_sc_l.get("loss_type", "{config.loss_type}"))
-                                else:
-                                    _model_l.compile("adam", lr=0.001, loss=_sc_l.get("loss_type", "{config.loss_type}"))
-                                _model_l.restore(_pt_l, verbose=0)
-                                _line_eval_ta = np.column_stack([_line_pts_ta_in, np.full(len(_xv_s), _ea_times[_ei])])
-                                _pinn_s = _ea_extract(_line_eval_ta, _ea_sel, _model_l).flatten()
-                        if _pinn_s is None:
-                            _pinn_s = np.zeros(len(_xv_s))
-                        _ref_pts_ta = (np.column_stack([_ea_x_refs[_ei], _ea_y_refs[_ei], _ea_z_refs[_ei]]) if _is_3d
-                                       else np.column_stack([_ea_x_refs[_ei], _ea_y_refs[_ei]]))
-                        _gt_s = _gd_line_ta(_ref_pts_ta, _ea_u_refs[_ei], _line_pts_ta_in, method='linear')
-                        _gt_nan_ta = np.isnan(_gt_s)
-                        if _gt_nan_ta.any():
-                            _gt_s[_gt_nan_ta] = _gd_line_ta(_ref_pts_ta, _ea_u_refs[_ei], _line_pts_ta_in[_gt_nan_ta], method='nearest')
-                    else:
-                        _xv = _ea_x_refs[_ei]
-                        _ea_sort = np.argsort(_xv)
-                        _xv_s = _xv[_ea_sort]
-                        _gt_s = _ea_u_refs[_ei][_ea_sort]
-                        _pinn_s = _ea_u_pinns[_ei][_ea_sort]
-                    _ea_tv, _l2, _mse, _mx, _ma = _ea_metrics[_ei]
-                    ax.plot(_xv_s, _gt_s,   color='#4dabf7', linewidth=2.0, linestyle='-',  label='Reference')
-                    ax.plot(_xv_s, _pinn_s, color='#ff6b6b', linewidth=2.0, linestyle='--', label='PINN')
-                    ax.set_title(f"t = {{_ea_tv:.3f}}  |  L2 = {{_l2:.2e}}", fontsize={config.plot_subplot_title_fontsize})
-                    ax.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel("u(x,t)", fontsize={config.plot_axis_label_fontsize}); ax.grid(True, alpha=0.3)
-                for _ej in range(_ea_n_t, len(_ea_ax_flat)):
-                    _ea_ax_flat[_ej].set_visible(False)
-                handles, labels = _ea_ax_flat[0].get_legend_handles_labels()
-                fig.legend(handles, labels, loc='lower center', ncol=2, fontsize=10,
-                           framealpha=0.9, bbox_to_anchor=(0.5, 0.01))
-                plt.tight_layout(rect=[0, 0.06, 1, 1])
-                _ea_lp = _os.path.join(_ea_dir, f"line_comparison{{_ea_suffix}}.png")
-                plt.savefig(_ea_lp, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
-                print(f"  Line comparison saved: {{_ea_lp}}")
-
-            # Surface comparison
-            if {config.ea_do_surface}:
-                if _is_2d:
-                    # 2D: PINN | Reference | Error heatmaps, one row per time snapshot
-                    from scipy.interpolate import griddata as _gd
-                    _res_ea = {config.plot_resolution}
-                    _xg_ea = np.linspace({config.x_min}, {config.x_max}, _res_ea)
-                    _yg_ea = np.linspace({config.y_min}, {config.y_max}, _res_ea)
-                    _Xg_ea, _Yg_ea = np.meshgrid(_xg_ea, _yg_ea)
-                    fig, axes = plt.subplots(_ea_n_t, 3, figsize=(15, 4*_ea_n_t), squeeze=False)
-                    fig.suptitle("PINN vs Reference — 2D Heatmaps", fontsize={config.plot_title_fontsize}, fontweight='bold')
-                    # Need step models to predict on grid — collect from step dirs
-                    import glob as _ea_glob2, json as _ea_json2
-                    _ta_step_dir2 = _os.path.join(_save_dir, "time_adaptive_steps")
-                    _ta_step_dirs2 = sorted([_sd for _sd in _ea_glob2.glob(_os.path.join(_ta_step_dir2, "step_*")) if _os.path.isdir(_sd)])
-                    _ta_intervals2 = []
-                    for _sd in _ta_step_dirs2:
-                        try:
-                            _parts = _os.path.basename(_sd).split("_")
-                            _ta_intervals2.append((float(_parts[2].replace("t","")), float(_parts[4].replace("t","")), _sd))
-                        except Exception: pass
-                    # Map each time to its step model
-                    _step_model_map = {{}}
-                    for _si2, (_t0_i2, _t1_i2, _sd_i2) in enumerate(_ta_intervals2):
-                        for _ei in range(_ea_n_t):
-                            _tv = _ea_times[_ei]
-                            _is_last2 = (_si2 == len(_ta_intervals2) - 1)
-                            if _is_last2:
-                                _in = (_t0_i2 <= _tv <= _t1_i2 + 1e-10)
-                            else:
-                                _in = (_t0_i2 <= _tv < _t1_i2 - 1e-10) or (abs(_tv - _t1_i2) < 1e-10)
-                            if _in:
-                                _step_model_map[_ei] = _sd_i2
-                    for _ei, _ea_tv in enumerate(_ea_times):
-                        _ea_tv_r, _l2, _mse, _mx, _ma = _ea_metrics[_ei]
-                        # PINN on grid using step model
-                        _sd_for_ei = _step_model_map.get(_ei, "")
-                        _xyt_grid = np.column_stack([_Xg_ea.ravel(), _Yg_ea.ravel(), np.full(_Xg_ea.size, _ea_tv)])
-                        if _sd_for_ei:
-                            try:
-                                with open(_os.path.join(_sd_for_ei, "step_config.json")) as _scf2: _sc2 = _ea_json2.load(_scf2)
-                            except: _sc2 = {{"layers": {config.layers}, "activation": "{config.activation}", "loss_type": "{config.loss_type}"}}
-                            _sn2 = _apply_net_transforms(_make_net(_sc2.get("layers",{config.layers}), _sc2.get("activation","{config.activation}"), "Glorot uniform"))
-                            _sg2 = dde.geometry.Rectangle([{config.x_min},{config.y_min}],[{config.x_max},{config.y_max}])
-                            _st2 = dde.geometry.TimeDomain(_sc2.get("t_min",0), _sc2.get("t_max",1))
-                            _sgt2 = dde.geometry.GeometryXTime(_sg2, _st2)
-                            _sd2 = dde.data.TimePDE(_sgt2, lambda x,y: y[:,0:1]*0, [], num_domain=100, num_test=100)
-                            _sm2 = dde.Model(_sd2, _sn2)
-                            _spt2 = ""
-                            for _pat2 in ["model_lbfgs-*.pt","model_lbfgs.pt","model_adam-*.pt","model_adam.pt"]:
-                                _pts2 = sorted(_ea_glob2.glob(_os.path.join(_sd_for_ei, _pat2)))
-                                if _pts2: _spt2 = max(_pts2, key=_os.path.getmtime); break
-                            if _spt2:
-                                if "lbfgs" in _os.path.basename(_spt2):
-                                    dde.optimizers.set_LBFGS_options(maxiter=1)
-                                    _sm2.compile("L-BFGS", loss=_sc2.get("loss_type","{config.loss_type}"))
-                                else:
-                                    _sm2.compile("adam", lr=0.001, loss=_sc2.get("loss_type","{config.loss_type}"))
-                                _sm2.restore(_spt2, verbose=0)
-                                _u_pinn_grid = _ea_extract(_xyt_grid, _ea_sel, _sm2).reshape(_res_ea, _res_ea)
-                            else:
-                                _u_pinn_grid = np.zeros((_res_ea, _res_ea))
-                        else:
-                            _u_pinn_grid = np.zeros((_res_ea, _res_ea))
-                        _u_fem_grid = _gd(np.column_stack([_ea_x_refs[_ei], _ea_y_refs[_ei]]),
-                                          _ea_u_refs[_ei], (_Xg_ea, _Yg_ea), method='linear', fill_value=0.0)
-                        _u_err_grid = np.abs(_u_pinn_grid - _u_fem_grid)
-                        _vmin_ea = min(_u_pinn_grid.min(), _u_fem_grid.min())
-                        _vmax_ea = max(_u_pinn_grid.max(), _u_fem_grid.max())
-                        if _vmax_ea - _vmin_ea < 1e-12:
-                            _vmax_ea = _vmin_ea + 1e-12
-                        _levels_ea2d = _cf_levels({config.plot_levels}, _vmin_ea, _vmax_ea)["levels"]  # contourf ignores vmin/vmax with an integer `levels=N` -- see the Standard-path comment on the same pattern above
-                        im0 = axes[_ei][0].contourf(_Xg_ea, _Yg_ea, _u_pinn_grid, levels=_levels_ea2d, cmap='{config.plot_colormap}')
-                        axes[_ei][0].set_title(f"PINN  t={{_ea_tv:.3f}}  L2={{_l2:.2e}}", fontsize={config.plot_subplot_title_fontsize})
-                        axes[_ei][0].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); axes[_ei][0].set_ylabel("y", fontsize={config.plot_axis_label_fontsize})
-                        fig.colorbar(im0, ax=axes[_ei][0])
-                        im1 = axes[_ei][1].contourf(_Xg_ea, _Yg_ea, _u_fem_grid, levels=_levels_ea2d, cmap='{config.plot_colormap}')
-                        axes[_ei][1].set_title(f"Reference  t={{_ea_tv:.3f}}", fontsize={config.plot_subplot_title_fontsize})
-                        axes[_ei][1].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); axes[_ei][1].set_ylabel("y", fontsize={config.plot_axis_label_fontsize})
-                        fig.colorbar(im1, ax=axes[_ei][1])
-                        im2 = axes[_ei][2].contourf(_Xg_ea, _Yg_ea, _u_err_grid, levels={config.plot_levels}, cmap='{config.plot_colormap}')
-                        axes[_ei][2].set_title(f"|Error|  t={{_ea_tv:.3f}}  Max={{_mx:.2e}}", fontsize={config.plot_subplot_title_fontsize})
-                        axes[_ei][2].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); axes[_ei][2].set_ylabel("y", fontsize={config.plot_axis_label_fontsize})
-                        fig.colorbar(im2, ax=axes[_ei][2])
-                    plt.tight_layout(rect=[0, 0, 1, 0.93])
-                    _ea_did_surface_ta = True
-                elif _is_3d:
-                    # 3D: same "boundary-point scatter" convention as the
-                    # Standard path's non-box-geometry 3D surface comparison
-                    # -- no flat-face grid to heatmap onto in general, so
-                    # compare real (x, y, z) points that lie on the
-                    # geometry's own boundary. Reuses the per-time PINN
-                    # predictions already computed above (_ea_u_pinns) --
-                    # each one came from that time's own correctly-restored
-                    # step model -- instead of reloading a step model again
-                    # here just to predict on a dense grid, as the 2D branch
-                    # above does.
-                    _ea_geom_ta = _build_geom()
-                    _ea_bbox_ta = np.asarray(_ea_geom_ta.bbox)
-                    _bx0_ta, _by0_ta, _bz0_ta = _ea_bbox_ta[0]
-                    _bx1_ta, _by1_ta, _bz1_ta = _ea_bbox_ta[1]
-                    _corners_ta = [(_bx0_ta,_by0_ta,_bz0_ta),(_bx1_ta,_by0_ta,_bz0_ta),(_bx1_ta,_by1_ta,_bz0_ta),(_bx0_ta,_by1_ta,_bz0_ta),
-                                    (_bx0_ta,_by0_ta,_bz1_ta),(_bx1_ta,_by0_ta,_bz1_ta),(_bx1_ta,_by1_ta,_bz1_ta),(_bx0_ta,_by1_ta,_bz1_ta)]
-                    _edges_ta = [(0,1),(1,2),(2,3),(3,0),(4,5),(5,6),(6,7),(7,4),(0,4),(1,5),(2,6),(3,7)]
-                    fig = plt.figure(figsize=(15, 4.5 * _ea_n_t))
-                    fig.suptitle("PINN vs Reference — 3D Comparison", fontsize={config.plot_title_fontsize}, fontweight='bold')
-                    for _ei, _ea_tv in enumerate(_ea_times):
-                        _ea_tv_r, _l2, _mse, _mx, _ma = _ea_metrics[_ei]
-                        _bnd_ta = _ea_geom_ta.on_boundary(np.column_stack([_ea_x_refs[_ei], _ea_y_refs[_ei], _ea_z_refs[_ei]]))
-                        # A Cartesian reference grid only reliably intersects a
-                        # FLAT boundary (a Cuboid's faces) in large numbers; a
-                        # CURVED boundary (a Sphere) is essentially never
-                        # landed on exactly by an axis-aligned grid, so
-                        # on_boundary() can come back with only a handful of
-                        # coincidental exact matches (e.g. a unit sphere's 6
-                        # axis points) even when the dataset has thousands of
-                        # valid points -- falling back whenever the boundary
-                        # subset is a small fraction of the data (not just
-                        # when it's nearly empty) catches that case too.
-                        if _bnd_ta.sum() < 4 or _bnd_ta.sum() < 0.05 * len(_ea_x_refs[_ei]):
-                            _bnd_ta = np.ones_like(_ea_x_refs[_ei], dtype=bool)
-                        _bx_ta, _by_ta, _bz_ta = _ea_x_refs[_ei][_bnd_ta], _ea_y_refs[_ei][_bnd_ta], _ea_z_refs[_ei][_bnd_ta]
-                        _gt_b_ta = _ea_u_refs[_ei][_bnd_ta]
-                        _pinn_b_ta = _ea_u_pinns[_ei][_bnd_ta]
-                        if len(_bx_ta) > 3000:
-                            _ea_sub_ta = np.random.default_rng(0).choice(len(_bx_ta), size=3000, replace=False)
-                            _bx_ta, _by_ta, _bz_ta = _bx_ta[_ea_sub_ta], _by_ta[_ea_sub_ta], _bz_ta[_ea_sub_ta]
-                            _gt_b_ta, _pinn_b_ta = _gt_b_ta[_ea_sub_ta], _pinn_b_ta[_ea_sub_ta]
-                        _err_b_ta = np.abs(_pinn_b_ta - _gt_b_ta)
-                        _cols_ta = [(_pinn_b_ta, f"PINN  t={{_ea_tv:.3f}}  L2={{_l2:.2e}}"),
-                                    (_gt_b_ta, f"Reference  t={{_ea_tv:.3f}}"),
-                                    (_err_b_ta, f"|Error|  Max={{_mx:.2e}}")]
-                        for _ci_ta, (_vals_ta, _ttl_ta) in enumerate(_cols_ta):
-                            _ax3_ta = fig.add_subplot(_ea_n_t, 3, _ei * 3 + _ci_ta + 1, projection='3d')
-                            for _i3_ta, _j3_ta in _edges_ta:
-                                _p0_ta, _p1_ta = _corners_ta[_i3_ta], _corners_ta[_j3_ta]
-                                _ax3_ta.plot([_p0_ta[0], _p1_ta[0]], [_p0_ta[1], _p1_ta[1]], [_p0_ta[2], _p1_ta[2]],
-                                             color='#888888', linewidth=0.8, alpha=0.6)
-                            _sc3_ta = _ax3_ta.scatter(_bx_ta, _by_ta, _bz_ta, c=_vals_ta,
-                                                       cmap='{config.plot_colormap}', s=14)
-                            fig.colorbar(_sc3_ta, ax=_ax3_ta, shrink=0.6, pad=0.12)
-                            _ax3_ta.set_title(_ttl_ta, fontsize={config.plot_subplot_title_fontsize})
-                            _ax3_ta.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax3_ta.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _ax3_ta.set_zlabel("z", fontsize={config.plot_axis_label_fontsize})
-                    plt.tight_layout(rect=[0, 0, 1, 0.93])
-                    _ea_did_surface_ta = True
-                elif len(_ea_times) < 2:
-                    # Same fix as the Standard path's own copy of this
-                    # section (see "need at least 2 time snapshots" above):
-                    # a 1D x-t surface needs >= 2 distinct time snapshots to
-                    # form a non-degenerate grid -- e.g. only one reference
-                    # file falls within this Time-Adaptive run's range so
-                    # far. This path didn't have the guard, so a single
-                    # reference file crashed matplotlib's contourf on a
-                    # (1, N) array instead of skipping gracefully (the line
-                    # comparison above already covers this single snapshot).
-                    _ea_did_surface_ta = False
-                    print("  Skipping surface comparison — need at least 2 time snapshots for a 1D x-t surface plot")
-                else:
-                    _ea_x_common = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
-                    _ea_t_arr = np.array(_ea_times)
-                    _ea_U_pinn = np.zeros((len(_ea_t_arr), len(_ea_x_common)))
-                    _ea_U_fem  = np.zeros((len(_ea_t_arr), len(_ea_x_common)))
-                    for _ei in range(_ea_n_t):
-                        _ea_fi_p = _interp1d(_ea_x_refs[_ei], _ea_u_pinns[_ei], kind='linear', fill_value='extrapolate')
-                        _ea_U_pinn[_ei, :] = _ea_fi_p(_ea_x_common)
-                        _ea_fi_f = _interp1d(_ea_x_refs[_ei], _ea_u_refs[_ei], kind='linear', fill_value='extrapolate')
-                        _ea_U_fem[_ei, :] = _ea_fi_f(_ea_x_common)
-                    _ea_Xg, _ea_Tg = np.meshgrid(_ea_x_common, _ea_t_arr)
-                    _ea_U_err = np.abs(_ea_U_pinn - _ea_U_fem)
-                    _ea_vmin = min(_ea_U_pinn.min(), _ea_U_fem.min())
-                    _ea_vmax = max(_ea_U_pinn.max(), _ea_U_fem.max())
-                    if _ea_vmax - _ea_vmin < 1e-12:
-                        _ea_vmax = _ea_vmin + 1e-12
-                    _levels_ea1d = _cf_levels({config.plot_levels}, _ea_vmin, _ea_vmax)["levels"]  # contourf ignores vmin/vmax with an integer `levels=N` -- see the Standard-path comment on the same pattern above
-                    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
-                    fig.suptitle("PINN vs Reference — Surface Comparison", fontsize={config.plot_title_fontsize}, fontweight='bold')
-                    im0 = axes[0].contourf(_ea_Tg, _ea_Xg, _ea_U_pinn, levels=_levels_ea1d, cmap='{config.plot_colormap}')
-                    axes[0].set_title("PINN  u(x,t)"); axes[0].set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); axes[0].set_ylabel("x", fontsize={config.plot_axis_label_fontsize})
-                    fig.colorbar(im0, ax=axes[0])
-                    im1 = axes[1].contourf(_ea_Tg, _ea_Xg, _ea_U_fem, levels=_levels_ea1d, cmap='{config.plot_colormap}')
-                    axes[1].set_title("Reference  u(x,t)"); axes[1].set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); axes[1].set_ylabel("x", fontsize={config.plot_axis_label_fontsize})
-                    fig.colorbar(im1, ax=axes[1])
-                    im2 = axes[2].contourf(_ea_Tg, _ea_Xg, _ea_U_err, levels={config.plot_levels}, cmap='{config.plot_colormap}')
-                    axes[2].set_title("Error  |PINN - Reference|"); axes[2].set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); axes[2].set_ylabel("x", fontsize={config.plot_axis_label_fontsize})
-                    fig.colorbar(im2, ax=axes[2])
-                    plt.tight_layout(rect=[0, 0, 1, 0.93])
-                    _ea_did_surface_ta = True
-                if _ea_did_surface_ta:
-                    _ea_sp = _os.path.join(_ea_dir, f"surface_comparison{{_ea_suffix}}.png")
-                    plt.savefig(_ea_sp, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
-                    print(f"  Surface comparison saved: {{_ea_sp}}")
-
-            print(f"  Group '{{_ea_group_label(_ea_sel) or 'default'}}' analysis complete")
-        print("=== Time-Adaptive Error Analysis Complete ===")
+{_gs_time_adaptive_loop_code(_ic_pretrain_block_ta, _line_slice_y, _line_slice_z, _safe_num_test, _ta_ic_init, _train_cbs_code_ta, config, plot_custom_expr_converted)}
 
 {_tm_plot_code}
 print("DONE")
