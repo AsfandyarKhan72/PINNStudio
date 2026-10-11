@@ -1477,6 +1477,10 @@ warnings.filterwarnings("ignore", message=".*cuBLAS.*")
 # however many files/columns are being compared) or the domain-sampling
 # preview plots (sized to the problem's own geometry).
 {_figsize_helper_code(config.plot_figsize_mode, config.plot_figsize_w, config.plot_figsize_h)}
+
+# Parameter-convergence axis drawing, shared with the exported script and
+# Restore & Visualize (see codegen.py's _param_axis_helper_code).
+{_param_axis_helper_code(config.plot_axis_label_fontsize, config.plot_subplot_title_fontsize)}
 {_nncg_guard_code}
 
 # ── Force GPU initialization ──────────────────────────────────
@@ -3941,22 +3945,11 @@ for _pval in _param_values:
                 _n_ivars = len(_inv_var_names)
                 _fig, _iv_axes = plt.subplots(_n_ivars, 1, figsize=(_plot_figsize(6, 3.2)[0], _plot_figsize(6, 3.2)[1] * _n_ivars), squeeze=False)
                 for _vi, _vname in enumerate(_inv_var_names):
-                    _ax = _iv_axes[_vi][0]
-                    _vvals = np.array(_ph_vals_by_var[_vi])
-                    _final_val = _vvals[-1]
-                    if {config.inv_param_log_scale} and np.all(_vvals > 0):
-                        _ax.semilogy(_ph_iters_arr, _vvals, color="#69db7c", linewidth=1.5)
-                        _ax.set_ylabel(_plot_ylabel_override or f"log({{_vname}})", fontsize={config.plot_axis_label_fontsize})
-                    else:
-                        _ax.plot(_ph_iters_arr, _vvals, color="#69db7c", linewidth=1.5)
-                        _ax.set_ylabel(_plot_ylabel_override or _vname, fontsize={config.plot_axis_label_fontsize})
-                    _ax.axhline(y=_final_val, color="#ff8787", linestyle="--", alpha=0.5, label=f"Final = {{_final_val:.6f}}")
                     _true_val = _inv_var_trues[_vi] if _vi < len(_inv_var_trues) else None
-                    if _true_val is not None:
-                        _ax.axhline(y=_true_val, color="#ffd43b", linestyle="--", alpha=0.8, label=f"True = {{_true_val:.6f}}")
-                    _ax.set_xlabel(_plot_xlabel_override or "Iteration", fontsize={config.plot_axis_label_fontsize})
-                    _ax.set_title(_plot_title_override or f"Inferred Parameter: {{_vname}}")
-                    _ax.legend(); _ax.grid(True, alpha=0.3)
+                    _final_val = _draw_param_ax(
+                        _iv_axes[_vi][0], _vname, _ph_iters_arr, _ph_vals_by_var[_vi], _true_val,
+                        {config.inv_param_log_scale}, _plot_title_override,
+                        _plot_xlabel_override, _plot_ylabel_override)
                     print(f"\\n=== {{_vname}} final value: {{_final_val:.6f}} ===")
                 plt.tight_layout()
                 plt.savefig("/tmp/param_plot.png", dpi=100)
@@ -7639,6 +7632,43 @@ def _figsize_helper_code(mode, w, h):
     return (_default_w, _default_h)'''
 
 
+def _param_axis_helper_code(axis_label_fontsize, subplot_title_fontsize):
+    """Runtime source for _draw_param_ax(...), the one "draw a single
+    inferred parameter's convergence curve on an axis" function -- cleanup
+    Round 49 (audit §2e, _build_restore_param_script). It used to be hand-typed
+    three times with drift between the copies: generate_script()'s live
+    param_plot.png (log scale + title/axis overrides, default title size),
+    generate_clean_script()'s exported param_convergence.png (no log scale,
+    no overrides at all -- the export silently ignored both settings), and
+    Restore & Visualize's Parameter Convergence plot (log scale + overrides
+    + the subplot-title font size). All three now emit this one function and
+    call it, so the export honors the log-scale and override settings too
+    and every copy uses the configured subplot-title font size.
+
+    Log scale needs every value > 0; otherwise it falls back to linear and
+    says so (matching the restore path's existing warning)."""
+    return f'''def _draw_param_ax(ax, name, iters, vals, true_val=None, log_scale=False,
+                   title_override="", xlabel_override="", ylabel_override=""):
+    vals = np.asarray(vals, dtype=float)
+    final_val = vals[-1] if len(vals) else float("nan")
+    use_log = bool(log_scale) and len(vals) > 0 and bool(np.all(vals > 0))
+    if log_scale and not use_log:
+        print(f"⚠️ {{name}}: log scale requested but values aren't all positive -- using linear scale instead.")
+    if use_log:
+        ax.semilogy(iters, vals, color="#69db7c", linewidth=1.5)
+        ax.set_ylabel(ylabel_override or f"log({{name}})", fontsize={axis_label_fontsize})
+    else:
+        ax.plot(iters, vals, color="#69db7c", linewidth=1.5)
+        ax.set_ylabel(ylabel_override or name, fontsize={axis_label_fontsize})
+    ax.axhline(y=final_val, color="#ff8787", linestyle="--", alpha=0.5, label=f"Final = {{final_val:.6f}}")
+    if true_val is not None:
+        ax.axhline(y=true_val, color="#ffd43b", linestyle="--", alpha=0.8, label=f"True = {{true_val:.6f}}")
+    ax.set_xlabel(xlabel_override or "Iteration", fontsize={axis_label_fontsize})
+    ax.set_title(title_override or f"Inferred Parameter: {{name}}", fontsize={subplot_title_fontsize})
+    ax.legend(); ax.grid(True, alpha=0.3)
+    return final_val'''
+
+
 def _clean_figsize_runtime_code(config):
     """Thin wrapper around _figsize_helper_code() for generate_clean_script()'s
     own call sites -- kept as its own name/signature since generate_clean_script()
@@ -9346,19 +9376,15 @@ with open(var_history_path, "r") as f:
             param_vals[vi].append(v)
 param_iters = np.array(param_iters)
 _inv_true_vals = {[t for _n, _i, t in inv_vars_parsed]!r}
+
+{_param_axis_helper_code(config.plot_axis_label_fontsize, config.plot_subplot_title_fontsize)}
+
 fig, axes = plt.subplots(len(inv_vars), 1, figsize=(_plot_figsize(6, 3.2)[0], _plot_figsize(6, 3.2)[1] * len(inv_vars)), squeeze=False)
 for vi, name in enumerate({[n for n, _i, _t in inv_vars_parsed]!r}):
-    ax = axes[vi][0]
-    vals = np.array(param_vals[vi])
-    final_val = vals[-1] if len(vals) else float("nan")
-    ax.plot(param_iters, vals, color="#69db7c", linewidth=1.5)
-    ax.axhline(y=final_val, color="#ff8787", linestyle="--", alpha=0.5, label=f"Final = {{final_val:.6f}}")
     true_val = _inv_true_vals[vi] if vi < len(_inv_true_vals) else None
-    if true_val is not None:
-        ax.axhline(y=true_val, color="#ffd43b", linestyle="--", alpha=0.8, label=f"True = {{true_val:.6f}}")
-    ax.set_xlabel("Iteration", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(name, fontsize={config.plot_axis_label_fontsize})
-    ax.set_title(f"Inferred Parameter: {{name}}")
-    ax.legend(); ax.grid(True, alpha=0.3)
+    final_val = _draw_param_ax(axes[vi][0], name, param_iters, param_vals[vi], true_val,
+                               {bool(config.inv_param_log_scale)}, {plot_title_override!r},
+                               {plot_xlabel_override!r}, {plot_ylabel_override!r})
     print(f"Final inferred {{name}}: {{final_val:.6f}}")
 plt.tight_layout()
 param_plot_path = os.path.join(sol_dir, "param_convergence.png")

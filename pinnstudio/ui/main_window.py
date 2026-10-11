@@ -13118,7 +13118,7 @@ print("DOMAIN_PREVIEW_DONE")
         figsize_h = viz_settings.get('figsize_h', 5.0)
         subplot_title_fontsize = viz_settings.get('subplot_title_fontsize', 10.0)
         axis_label_fontsize = viz_settings.get('axis_label_fontsize', 10.0)
-        from pinnstudio.core.codegen import _figsize_helper_code
+        from pinnstudio.core.codegen import _figsize_helper_code, _param_axis_helper_code
         script = f"""
 import os
 os.makedirs({save_dir!r}, exist_ok=True)
@@ -13193,20 +13193,14 @@ def _use_log(vals):
         print("⚠️ Log-scale requested but values aren't all positive -- using linear scale instead.")
     return ok
 
+# cleanup Round 49: the static plot draws through _draw_param_ax, the same
+# function the live Solve and exported scripts use (codegen.py's
+# _param_axis_helper_code), instead of its own hand-typed copy.
+{_param_axis_helper_code(axis_label_fontsize, subplot_title_fontsize)}
+
 def _draw_static_ax(ax, name, iters, vals, true_val=None):
-    final_val = vals[-1]
-    if _use_log(vals):
-        ax.semilogy(iters, vals, color="#69db7c", linewidth=1.5)
-        ax.set_ylabel(_ylabel_override or f"log({{name}})", fontsize={axis_label_fontsize})
-    else:
-        ax.plot(iters, vals, color="#69db7c", linewidth=1.5)
-        ax.set_ylabel(_ylabel_override or name, fontsize={axis_label_fontsize})
-    ax.axhline(y=final_val, color="#ff8787", linestyle="--", alpha=0.5, label=f"Final = {{final_val:.6f}}")
-    if true_val is not None:
-        ax.axhline(y=true_val, color="#ffd43b", linestyle="--", alpha=0.8, label=f"True = {{true_val:.6f}}")
-    ax.set_xlabel(_xlabel_override or "Iteration", fontsize={axis_label_fontsize})
-    ax.set_title(_title_override or f"Inferred Parameter: {{name}}", fontsize={subplot_title_fontsize})
-    ax.legend(); ax.grid(True, alpha=0.3)
+    _draw_param_ax(ax, name, iters, vals, true_val, _log_scale,
+                   _title_override, _xlabel_override, _ylabel_override)
 
 def _setup_anim_ax(ax, name, iters, vals, true_val=None):
     final_val = vals[-1]
