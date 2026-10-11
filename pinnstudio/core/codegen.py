@@ -1478,6 +1478,9 @@ warnings.filterwarnings("ignore", message=".*cuBLAS.*")
 # preview plots (sized to the problem's own geometry).
 {_figsize_helper_code(config.plot_figsize_mode, config.plot_figsize_w, config.plot_figsize_h)}
 
+# Shared-color-scale contourf levels (see codegen.py's _contour_levels_helper_code).
+{_contour_levels_helper_code()}
+
 # Parameter-convergence axis drawing, shared with the exported script and
 # Restore & Visualize (see codegen.py's _param_axis_helper_code).
 {_param_axis_helper_code(config.plot_axis_label_fontsize, config.plot_subplot_title_fontsize)}
@@ -3366,7 +3369,7 @@ for _pval in _param_values:
                         _rar_vmax = max(_rar_U_pinn.max(), _rar_U_ref.max())
                         if _rar_vmax - _rar_vmin < 1e-12:
                             _rar_vmax = _rar_vmin + 1e-12
-                        _rar_levels = np.linspace(_rar_vmin, _rar_vmax, 41)
+                        _rar_levels = _cf_levels({config.plot_levels}, _rar_vmin, _rar_vmax)["levels"]
                         _fig_r, _axes_r = plt.subplots(1, 3, figsize=_plot_figsize(15, 5))
                         _rar_cols = [
                             (_rar_U_pinn, "PINN", _rar_levels, "{config.plot_colormap}"),
@@ -3551,7 +3554,7 @@ for _pval in _param_values:
                             _vmin2_r = np.nanmin([_u_pinn_g_r, _u_ref_g_r]); _vmax2_r = np.nanmax([_u_pinn_g_r, _u_ref_g_r])
                             if _vmax2_r - _vmin2_r < 1e-12:
                                 _vmax2_r = _vmin2_r + 1e-12
-                            _levels2_r = np.linspace(_vmin2_r, _vmax2_r, 41)
+                            _levels2_r = _cf_levels({config.plot_levels}, _vmin2_r, _vmax2_r)["levels"]
                             _fig_r, _axes2_r = plt.subplots(1, 3, figsize=_plot_figsize(15, 5))
                             _im0_r = _axes2_r[0].contourf(_Xg, _Yg, _u_pinn_g_r, levels=_levels2_r, cmap="{config.plot_colormap}")
                             _axes2_r[0].set_title(f"PINN  L2={{_l2_r:.2e}}", fontsize={config.plot_subplot_title_fontsize})
@@ -3716,7 +3719,7 @@ for _pval in _param_values:
                         # Passing the level BOUNDARIES explicitly (instead
                         # of a level count) is what actually makes both
                         # panels share one scale.
-                        _levels2_r = np.linspace(_vmin2_r, _vmax2_r, 41)
+                        _levels2_r = _cf_levels({config.plot_levels}, _vmin2_r, _vmax2_r)["levels"]
                         _fig_r, _axes2_r = plt.subplots(1, 3, figsize=_plot_figsize(15, 5))
                         _im0_r = _axes2_r[0].contourf(_Xg, _Yg, _u_pinn_g_r, levels=_levels2_r, cmap="{config.plot_colormap}")
                         _axes2_r[0].set_title(f"PINN  t={{_ref_t_r:.3g}}  L2={{_l2_r:.2e}}", fontsize={config.plot_subplot_title_fontsize})
@@ -4183,7 +4186,7 @@ for _pval in _param_values:
                     def _update_gif(i):
                         _ax_gif.cla()
                         _Xp_gif, _Yp_gif, _Zp_gif = _all_frames_gif[i]
-                        _ax_gif.contourf(_Xp_gif, _Yp_gif, _Zp_gif, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_v_min_gif, vmax=_v_max_gif)
+                        _ax_gif.contourf(_Xp_gif, _Yp_gif, _Zp_gif, cmap="{config.plot_colormap}", **_cf_levels({config.plot_levels}, _v_min_gif, _v_max_gif, _Zp_gif))
                         _ax_gif.set_xlabel(_plot_xlabel_override or _xlabel_gif, fontsize={config.plot_axis_label_fontsize})
                         _ax_gif.set_ylabel(_plot_ylabel_override or _ylabel_gif, fontsize={config.plot_axis_label_fontsize})
                         _ax_gif.set_title(_plot_title_override or f"t = {{_t_frames[i]:.3f}}")
@@ -4238,7 +4241,7 @@ for _pval in _param_values:
             _pred = _extract_plot_field(_XY).reshape(_res_2d, _res_2d)
             _pred = np.where(_inside_2d, _pred, np.nan)
             fig, ax = plt.subplots(figsize=_plot_figsize(6.5, 5.5))
-            im = ax.contourf(_Xg, _Yg, _pred, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_2d, vmax=_vmax_2d)
+            im = ax.contourf(_Xg, _Yg, _pred, cmap="{config.plot_colormap}", **_cf_levels({config.plot_levels}, _vmin_2d, _vmax_2d, _pred))
             ax.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or "y", fontsize={config.plot_axis_label_fontsize})
             ax.set_aspect("equal", adjustable="box")
             if {config.plot_colorbar}: fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
@@ -4299,7 +4302,7 @@ for _pval in _param_values:
                 _XYT = np.column_stack([_Xg.ravel(), _Yg.ravel(), np.full(_Xg.size, _tv)])
                 _pred = _extract_plot_field(_XYT).reshape(_res_2d, _res_2d)
                 _pred = np.where(_inside_2d, _pred, np.nan)
-                im = axes[_ai].contourf(_Xg, _Yg, _pred, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_2d, vmax=_vmax_2d)
+                im = axes[_ai].contourf(_Xg, _Yg, _pred, cmap="{config.plot_colormap}", **_cf_levels({config.plot_levels}, _vmin_2d, _vmax_2d, _pred))
                 axes[_ai].set_title(f"t = {{_tv:.3f}}")
                 axes[_ai].set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); axes[_ai].set_ylabel(_plot_ylabel_override or "y", fontsize={config.plot_axis_label_fontsize})
                 if {config.plot_colorbar}: fig.colorbar(im, ax=axes[_ai])
@@ -4349,7 +4352,7 @@ for _pval in _param_values:
             _pred3 = _extract_plot_field(_XYZ).reshape(_res_3d, _res_3d)
             _pred3 = np.where(_inside_3d, _pred3, np.nan)
             fig, ax = plt.subplots(figsize=_plot_figsize(6.5, 5.5))
-            im = ax.contourf(_Xg3, _Yg3, _pred3, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_3d, vmax=_vmax_3d)
+            im = ax.contourf(_Xg3, _Yg3, _pred3, cmap="{config.plot_colormap}", **_cf_levels({config.plot_levels}, _vmin_3d, _vmax_3d, _pred3))
             ax.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or "y", fontsize={config.plot_axis_label_fontsize})
             ax.set_aspect("equal", adjustable="box")
             if {config.plot_colorbar}: fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
@@ -4416,7 +4419,7 @@ for _pval in _param_values:
                 _XYZT = np.column_stack([_Xg3.ravel(), _Yg3.ravel(), np.full(_Xg3.size, _z_mid), np.full(_Xg3.size, _tv)])
                 _pred3 = _extract_plot_field(_XYZT).reshape(_res_3d, _res_3d)
                 _pred3 = np.where(_inside_3d, _pred3, np.nan)
-                im = axes[_ai].contourf(_Xg3, _Yg3, _pred3, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_3d, vmax=_vmax_3d)
+                im = axes[_ai].contourf(_Xg3, _Yg3, _pred3, cmap="{config.plot_colormap}", **_cf_levels({config.plot_levels}, _vmin_3d, _vmax_3d, _pred3))
                 axes[_ai].set_title(f"t = {{_tv:.3f}}, z = {{_z_mid:.3g}} (mid-plane)")
                 axes[_ai].set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); axes[_ai].set_ylabel(_plot_ylabel_override or "y", fontsize={config.plot_axis_label_fontsize})
                 if {config.plot_colorbar}: fig.colorbar(im, ax=axes[_ai])
@@ -4458,10 +4461,10 @@ for _pval in _param_values:
                 # _Xs/_Ts is passed first -- with no reshape/transpose of
                 # _u_s -- is enough to flip which one lands on the x-axis.
                 if {config.plot_swap_xt}:
-                    im = ax.contourf(_Ts, _Xs, _u_s, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_s, vmax=_vmax_s)
+                    im = ax.contourf(_Ts, _Xs, _u_s, cmap="{config.plot_colormap}", **_cf_levels({config.plot_levels}, _vmin_s, _vmax_s, _u_s))
                     ax.set_xlabel(_plot_xlabel_override or "t", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or "x", fontsize={config.plot_axis_label_fontsize})
                 else:
-                    im = ax.contourf(_Xs, _Ts, _u_s, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_s, vmax=_vmax_s)
+                    im = ax.contourf(_Xs, _Ts, _u_s, cmap="{config.plot_colormap}", **_cf_levels({config.plot_levels}, _vmin_s, _vmax_s, _u_s))
                     ax.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or "t", fontsize={config.plot_axis_label_fontsize})
                 if {config.plot_colorbar}: fig.colorbar(im, ax=ax)
                 ax.set_title(_plot_title_override or (f"PINN Solution — {{_out_name_1dt}}(x,t) — {{_param_name}}={{_pval}}" if _parametric
@@ -5160,7 +5163,7 @@ for _pval in _param_values:
                             # despite passing the same vmin/vmax here. Passing
                             # explicit level BOUNDARIES instead of a count is
                             # what actually makes both panels share one scale.
-                            _levels_ea2d = np.linspace(_vmin_ea, _vmax_ea, 41)
+                            _levels_ea2d = _cf_levels({config.plot_levels}, _vmin_ea, _vmax_ea)["levels"]
                             # Column 0: PINN
                             im0 = axes[_ei][0].contourf(_Xg_ea, _Yg_ea, _u_pinn_grid, levels=_levels_ea2d,
                                                          cmap='{config.plot_colormap}')
@@ -5219,7 +5222,7 @@ for _pval in _param_values:
                         _ea_vmax = max(_ea_U_pinn.max(), _ea_U_fem.max())
                         if _ea_vmax - _ea_vmin < 1e-12:
                             _ea_vmax = _ea_vmin + 1e-12
-                        _levels_ea1d = np.linspace(_ea_vmin, _ea_vmax, 41)  # see the matching comment above -- contourf ignores vmin/vmax with an integer `levels=N`
+                        _levels_ea1d = _cf_levels({config.plot_levels}, _ea_vmin, _ea_vmax)["levels"]  # see the matching comment above -- contourf ignores vmin/vmax with an integer `levels=N`
                         fig, axes_s = plt.subplots(1, 3, figsize=(15, 5))
                         fig.suptitle("PINN vs Reference — Surface Comparison", fontsize={config.plot_title_fontsize}, fontweight='bold')
                         im0 = axes_s[0].contourf(_ea_Tg, _ea_Xg, _ea_U_pinn, levels=_levels_ea1d, cmap='{config.plot_colormap}')
@@ -5998,7 +6001,7 @@ if {config.time_adaptive}:
                         _tea_vmax = max(_tea_U_pinn.max(), _tea_U_ref.max())
                         if _tea_vmax - _tea_vmin < 1e-12:
                             _tea_vmax = _tea_vmin + 1e-12
-                        _tea_levels = np.linspace(_tea_vmin, _tea_vmax, 41)
+                        _tea_levels = _cf_levels({config.plot_levels}, _tea_vmin, _tea_vmax)["levels"]
                         fig, axes_s = plt.subplots(1, 3, figsize=_plot_figsize(15, 5))
                         fig.suptitle(f"Step {{step_i+1}}: t = {{t0:.4f}} → {{t1:.4f}} -- PINN vs Reference", fontsize={config.plot_title_fontsize}, fontweight="bold")
                         _tea_cols = [
@@ -6032,10 +6035,10 @@ if {config.time_adaptive}:
                         _Us2 = _extract_plot_field(_XTs2, model_i).reshape(_res_step, _res_step)
                         fig, ax = plt.subplots(figsize=_plot_figsize(7, 4))
                         if {config.plot_swap_xt}:
-                            im = ax.contourf(_Ts2, _Xs2, _Us2, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_step, vmax=_vmax_step)
+                            im = ax.contourf(_Ts2, _Xs2, _Us2, cmap="{config.plot_colormap}", **_cf_levels({config.plot_levels}, _vmin_step, _vmax_step, _Us2))
                             ax.set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel("x", fontsize={config.plot_axis_label_fontsize})
                         else:
-                            im = ax.contourf(_Xs2, _Ts2, _Us2, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_step, vmax=_vmax_step)
+                            im = ax.contourf(_Xs2, _Ts2, _Us2, cmap="{config.plot_colormap}", **_cf_levels({config.plot_levels}, _vmin_step, _vmax_step, _Us2))
                             ax.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel("t", fontsize={config.plot_axis_label_fontsize})
                         if {config.plot_colorbar}:
                             fig.colorbar(im, ax=ax)
@@ -6160,7 +6163,7 @@ if {config.time_adaptive}:
                                 _tea_vmax = np.nanmax([_tea_u_pinn, _tea_u_ref])
                                 if _tea_vmax - _tea_vmin < 1e-12:
                                     _tea_vmax = _tea_vmin + 1e-12
-                                _tea_levels = np.linspace(_tea_vmin, _tea_vmax, 41)
+                                _tea_levels = _cf_levels({config.plot_levels}, _tea_vmin, _tea_vmax)["levels"]
                                 # Round 31: standardized on "|Error|  Max=..."
                                 # here -- matching every other per-panel error
                                 # label in the app (RAR's own round diagnostics,
@@ -6196,7 +6199,7 @@ if {config.time_adaptive}:
                             for _ai, _tv_s in enumerate([t0, t1]):
                                 _xyt_s = np.column_stack([_Xg_s.ravel(), _Yg_s.ravel(), np.full(_Xg_s.size, _z_mid_s), np.full(_Xg_s.size, _tv_s)])
                                 _U_s = _extract_plot_field(_xyt_s, model_i).reshape(_res_step, _res_step)
-                                im = axes[_ai].contourf(_Xg_s, _Yg_s, _U_s, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_step, vmax=_vmax_step)
+                                im = axes[_ai].contourf(_Xg_s, _Yg_s, _U_s, cmap="{config.plot_colormap}", **_cf_levels({config.plot_levels}, _vmin_step, _vmax_step, _U_s))
                                 if {config.plot_colorbar}:
                                     fig.colorbar(im, ax=axes[_ai])
                                 axes[_ai].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); axes[_ai].set_ylabel("y", fontsize={config.plot_axis_label_fontsize})
@@ -6207,7 +6210,7 @@ if {config.time_adaptive}:
                             for _ai, _tv_s in enumerate([t0, t1]):
                                 _xyt_s = np.column_stack([_Xg_s.ravel(), _Yg_s.ravel(), np.full(_Xg_s.size, _tv_s)])
                                 _U_s = _extract_plot_field(_xyt_s, model_i).reshape(_res_step, _res_step)
-                                im = axes[_ai].contourf(_Xg_s, _Yg_s, _U_s, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_step, vmax=_vmax_step)
+                                im = axes[_ai].contourf(_Xg_s, _Yg_s, _U_s, cmap="{config.plot_colormap}", **_cf_levels({config.plot_levels}, _vmin_step, _vmax_step, _U_s))
                                 if {config.plot_colorbar}:
                                     fig.colorbar(im, ax=axes[_ai])
                                 axes[_ai].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); axes[_ai].set_ylabel("y", fontsize={config.plot_axis_label_fontsize})
@@ -6349,7 +6352,7 @@ if {config.time_adaptive}:
                 else:
                     _pred_ta = np.zeros((_res_ta, _res_ta))
                 _pred_ta = np.where(_inside_ta, _pred_ta, np.nan)
-                im = axes[_ai].contourf(_Xg_ta, _Yg_ta, _pred_ta, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_ta, vmax=_vmax_ta)
+                im = axes[_ai].contourf(_Xg_ta, _Yg_ta, _pred_ta, cmap="{config.plot_colormap}", **_cf_levels({config.plot_levels}, _vmin_ta, _vmax_ta, _pred_ta))
                 axes[_ai].set_title(f"t = {{_tv_ta:.3f}}")
                 axes[_ai].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); axes[_ai].set_ylabel("y", fontsize={config.plot_axis_label_fontsize})
                 if {config.plot_colorbar}: fig.colorbar(im, ax=axes[_ai])
@@ -6366,10 +6369,10 @@ if {config.time_adaptive}:
             # Same configurable axis orientation as the Standard path's 1D
             # "Surface" plot -- see the matching comment there.
             if {config.plot_swap_xt}:
-                im = ax.contourf(T_full, X_full, U_full, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_ta, vmax=_vmax_ta)
+                im = ax.contourf(T_full, X_full, U_full, cmap="{config.plot_colormap}", **_cf_levels({config.plot_levels}, _vmin_ta, _vmax_ta, U_full))
                 ax.set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel("x", fontsize={config.plot_axis_label_fontsize})
             else:
-                im = ax.contourf(X_full, T_full, U_full, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_ta, vmax=_vmax_ta)
+                im = ax.contourf(X_full, T_full, U_full, cmap="{config.plot_colormap}", **_cf_levels({config.plot_levels}, _vmin_ta, _vmax_ta, U_full))
                 ax.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel("t", fontsize={config.plot_axis_label_fontsize})
             if {config.plot_colorbar}: fig.colorbar(im, ax=ax)
             ax.set_title("Time-Adaptive PINN Solution")
@@ -6829,7 +6832,7 @@ if {config.time_adaptive}:
                         _vmax_ea = max(_u_pinn_grid.max(), _u_fem_grid.max())
                         if _vmax_ea - _vmin_ea < 1e-12:
                             _vmax_ea = _vmin_ea + 1e-12
-                        _levels_ea2d = np.linspace(_vmin_ea, _vmax_ea, 41)  # contourf ignores vmin/vmax with an integer `levels=N` -- see the Standard-path comment on the same pattern above
+                        _levels_ea2d = _cf_levels({config.plot_levels}, _vmin_ea, _vmax_ea)["levels"]  # contourf ignores vmin/vmax with an integer `levels=N` -- see the Standard-path comment on the same pattern above
                         im0 = axes[_ei][0].contourf(_Xg_ea, _Yg_ea, _u_pinn_grid, levels=_levels_ea2d, cmap='{config.plot_colormap}')
                         axes[_ei][0].set_title(f"PINN  t={{_ea_tv:.3f}}  L2={{_l2:.2e}}", fontsize={config.plot_subplot_title_fontsize})
                         axes[_ei][0].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); axes[_ei][0].set_ylabel("y", fontsize={config.plot_axis_label_fontsize})
@@ -6931,7 +6934,7 @@ if {config.time_adaptive}:
                     _ea_vmax = max(_ea_U_pinn.max(), _ea_U_fem.max())
                     if _ea_vmax - _ea_vmin < 1e-12:
                         _ea_vmax = _ea_vmin + 1e-12
-                    _levels_ea1d = np.linspace(_ea_vmin, _ea_vmax, 41)  # contourf ignores vmin/vmax with an integer `levels=N` -- see the Standard-path comment on the same pattern above
+                    _levels_ea1d = _cf_levels({config.plot_levels}, _ea_vmin, _ea_vmax)["levels"]  # contourf ignores vmin/vmax with an integer `levels=N` -- see the Standard-path comment on the same pattern above
                     fig, axes = plt.subplots(1, 3, figsize=(15, 5))
                     fig.suptitle("PINN vs Reference — Surface Comparison", fontsize={config.plot_title_fontsize}, fontweight='bold')
                     im0 = axes[0].contourf(_ea_Tg, _ea_Xg, _ea_U_pinn, levels=_levels_ea1d, cmap='{config.plot_colormap}')
@@ -7669,6 +7672,48 @@ def _param_axis_helper_code(axis_label_fontsize, subplot_title_fontsize):
     return final_val'''
 
 
+def _contour_levels_helper_code():
+    """Runtime source for _cf_levels(n, vmin, vmax, *data) -- cleanup Round
+    50 (open item from Round 22). matplotlib's contourf IGNORES vmin/vmax
+    when choosing its level boundaries if `levels` is a plain integer count:
+    the fill colors still go through the vmin/vmax norm, but the bands and
+    the colorbar auto-range to each panel's own data. So two panels meant to
+    share one color scale (PINN vs Reference) showed different colorbars,
+    and a manual color range set in Plot Settings never showed up on the
+    colorbar. A few comparison plots already worked around this with a
+    hardcoded _cf_levels({config.plot_levels}, vmin, vmax)["levels"] (40 bands, ignoring the configured
+    level count); everything now goes through this one function instead.
+
+    Returns contourf keyword arguments: with no range (vmin or vmax None),
+    just levels=n, exactly as before; with a range, ~n "nice" band
+    boundaries covering [vmin, vmax] -- matplotlib's own MaxNLocator rule,
+    the same one contourf uses for an integer count, so colorbar ticks stay
+    round numbers -- plus extend="min"/"max"/"both" when any of `data` falls
+    outside those boundaries (so out-of-range values are still filled, as
+    they were with an integer level count) -- and plain levels=n plus the
+    norm range for a degenerate range (vmin >= vmax, e.g. a constant
+    field)."""
+    return '''def _cf_levels(n, vmin=None, vmax=None, *data):
+    if vmin is None or vmax is None:
+        return {"levels": n}
+    try:
+        lo, hi = float(vmin), float(vmax)
+    except (TypeError, ValueError):
+        return {"levels": n}
+    if not (np.isfinite(lo) and np.isfinite(hi)) or hi <= lo:
+        return {"levels": n, "vmin": vmin, "vmax": vmax}
+    from matplotlib.ticker import MaxNLocator as _MNL
+    lv = _MNL(int(n) + 1).tick_values(lo, hi)
+    below = above = False
+    for _d in data:
+        _d = np.asarray(_d, dtype=float)
+        if _d.size and np.isfinite(_d).any():
+            below = below or bool(np.nanmin(_d) < lv[0])
+            above = above or bool(np.nanmax(_d) > lv[-1])
+    ext = "both" if (below and above) else ("min" if below else ("max" if above else "neither"))
+    return {"levels": lv, "vmin": lo, "vmax": hi, "extend": ext}'''
+
+
 def _clean_figsize_runtime_code(config):
     """Thin wrapper around _figsize_helper_code() for generate_clean_script()'s
     own call sites -- kept as its own name/signature since generate_clean_script()
@@ -8079,7 +8124,7 @@ else:
     def update(i):
         ax.cla()
         Xp, Yp, Zp = all_frames[i]
-        ax.contourf(Xp, Yp, Zp, levels={levels}, cmap="{colormap}", vmin=v_min, vmax=v_max)
+        ax.contourf(Xp, Yp, Zp, cmap="{colormap}", **_cf_levels({levels}, v_min, v_max, Zp))
         ax.set_xlabel({xlabel_animsurf_else!r}, fontsize={axis_label_fontsize})
         ax.set_ylabel({ylabel_animsurf_else!r}, fontsize={axis_label_fontsize})
         {animsurf_title_line_else}
@@ -8123,7 +8168,7 @@ def _restore_surface_code(resolution, x_min, x_max, y_min, y_max, t_min, t_max, 
     them from the Time-Adaptive builder. Verified byte-for-byte identical to
     both original hand-typed copies across a randomized fuzz check plus a
     full generated-script diff before this function replaced them."""
-    vrange = f"vmin={vmin_val}, vmax={vmax_val}" if not auto_range else ""
+    cf_range = "None, None" if auto_range else f"{vmin_val}, {vmax_val}"
     if is_time_adaptive:
         suptitle_note = (
             "# Round 31: only the 3D/2D branches below add a fig.suptitle() above\n"
@@ -8380,15 +8425,15 @@ if is_3d:
     if _n_snaps2 == 1: axes2d = [axes2d]
     for _ai2, _tv2 in enumerate(_t_snaps2):
 {xyt_lines}        pred = np.where(_inside2d, pred, np.nan)
-        im = axes2d[_ai2].contourf(Xg, Yg, pred, levels={levels}, cmap="{colormap}", {vrange})
+        im = axes2d[_ai2].contourf(Xg, Yg, pred, cmap="{colormap}", **_cf_levels({levels}, {cf_range}, pred))
         if {show_colorbar}: fig.colorbar(im, ax=axes2d[_ai2])
         axes2d[_ai2].set_xlabel({xlabel_2d!r}, fontsize={axis_label_fontsize}); axes2d[_ai2].set_ylabel({ylabel_2d!r}, fontsize={axis_label_fontsize})
         axes2d[_ai2].set_title({title2_expr}, fontsize={subplot_title_fontsize})
 {suptitle2}{steady_1d_block}else:
 {body_1d}    if {swap_xt}:
-        im = ax.contourf(T, X, pred, levels={levels}, cmap="{colormap}", {vrange})
+        im = ax.contourf(T, X, pred, cmap="{colormap}", **_cf_levels({levels}, {cf_range}, pred))
     else:
-        im = ax.contourf(X, T, pred, levels={levels}, cmap="{colormap}", {vrange})
+        im = ax.contourf(X, T, pred, cmap="{colormap}", **_cf_levels({levels}, {cf_range}, pred))
     if {show_colorbar}: fig.colorbar(im, ax=ax)
     ax.set_xlabel({xlabel_1d!r}, fontsize={axis_label_fontsize}); ax.set_ylabel({ylabel_1d!r}, fontsize={axis_label_fontsize})
     ax.set_title({title_1d!r}, fontsize={subplot_title_fontsize})
@@ -8670,7 +8715,7 @@ def generate_clean_script(config):
     # ---- Plot Settings: figure-size standardization (Round 31) -----------
     # Same shared-helper pattern as net_helper_code just above -- see
     # _clean_figsize_runtime_code()'s own docstring.
-    figsize_helper_code = _clean_figsize_runtime_code(config)
+    figsize_helper_code = _clean_figsize_runtime_code(config) + "\n\n" + _contour_levels_helper_code()
 
     # ---- Optional input/output transforms --------------------------------
     has_in_transform = bool(config.input_transform_enabled and config.input_transform_scale)
@@ -9660,7 +9705,7 @@ if v_min is None:
 fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
 def _update(i):
     ax.cla()
-    ax.contourf(Xa, Ya, frames[i], levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=v_min, vmax=v_max)
+    ax.contourf(Xa, Ya, frames[i], cmap="{config.plot_colormap}", **_cf_levels({config.plot_levels}, v_min, v_max, frames[i]))
     ax.set_xlabel({(plot_xlabel_override or "x")!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel({(plot_ylabel_override or "y")!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_title({plot_title_override!r} if {bool(plot_title_override)} else f"t = {{t_frames[i]:.3f}}")
 ani = animation.FuncAnimation(fig, _update, frames={n_frames}, interval=150)
 ani.save(solution_path, writer="pillow", fps={config.plot_fps})
@@ -9680,7 +9725,7 @@ if v_min is None:
 fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
 def _update(i):
     ax.cla()
-    ax.contourf(Xa, Ya, frames[i], levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=v_min, vmax=v_max)
+    ax.contourf(Xa, Ya, frames[i], cmap="{config.plot_colormap}", **_cf_levels({config.plot_levels}, v_min, v_max, frames[i]))
     ax.set_xlabel({(plot_xlabel_override or "x")!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel({(plot_ylabel_override or "y")!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_title({plot_title_override!r} if {bool(plot_title_override)} else f"t = {{t_frames[i]:.3f}}")
 ani = animation.FuncAnimation(fig, _update, frames={n_frames}, interval=150)
 ani.save(solution_path, writer="pillow", fps={config.plot_fps})
@@ -9703,10 +9748,10 @@ fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
 def _update(i):
     ax.cla()
     if {config.plot_swap_xt}:
-        ax.contourf(Ta, Xa, frames[i], levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=v_min, vmax=v_max)
+        ax.contourf(Ta, Xa, frames[i], cmap="{config.plot_colormap}", **_cf_levels({config.plot_levels}, v_min, v_max, frames[i]))
         ax.set_xlabel({(plot_xlabel_override or "t")!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel({(plot_ylabel_override or "x")!r}, fontsize={config.plot_axis_label_fontsize})
     else:
-        ax.contourf(Xa, Ta, frames[i], levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=v_min, vmax=v_max)
+        ax.contourf(Xa, Ta, frames[i], cmap="{config.plot_colormap}", **_cf_levels({config.plot_levels}, v_min, v_max, frames[i]))
         ax.set_xlabel({(plot_xlabel_override or "x")!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel({(plot_ylabel_override or "t")!r}, fontsize={config.plot_axis_label_fontsize})
     ax.set_title({plot_title_override!r} if {bool(plot_title_override)} else f"t = {{t_frames[i]:.3f}}")
 ani = animation.FuncAnimation(fig, _update, frames={n_frames}, interval=150)
@@ -10192,11 +10237,13 @@ else:
         U_pinn[i, :] = fi_p(x_common); U_ref[i, :] = fi_r(x_common)
     Xg, Tg = np.meshgrid(x_common, t_arr)
     U_err = np.abs(U_pinn - U_ref)
+    # PINN and Reference share one color scale (same as the live Solve path).
+    _ea_cf = _cf_levels({config.plot_levels}, np.nanmin([U_pinn, U_ref]), np.nanmax([U_pinn, U_ref]))
     fig, axes = plt.subplots(1, 3, figsize=(15, 5))
     fig.suptitle("PINN vs Reference -- Surface Comparison", fontsize={config.plot_title_fontsize}, fontweight="bold")
-    im0 = axes[0].contourf(Tg, Xg, U_pinn, levels={config.plot_levels}, cmap="{config.plot_colormap}")
+    im0 = axes[0].contourf(Tg, Xg, U_pinn, cmap="{config.plot_colormap}", **_ea_cf)
     axes[0].set_title("PINN"); axes[0].set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); axes[0].set_ylabel("x", fontsize={config.plot_axis_label_fontsize}); fig.colorbar(im0, ax=axes[0])
-    im1 = axes[1].contourf(Tg, Xg, U_ref, levels={config.plot_levels}, cmap="{config.plot_colormap}")
+    im1 = axes[1].contourf(Tg, Xg, U_ref, cmap="{config.plot_colormap}", **_ea_cf)
     axes[1].set_title("Reference"); axes[1].set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); axes[1].set_ylabel("x", fontsize={config.plot_axis_label_fontsize}); fig.colorbar(im1, ax=axes[1])
     im2 = axes[2].contourf(Tg, Xg, U_err, levels={config.plot_levels}, cmap="{config.plot_colormap}")
     axes[2].set_title("|Error|"); axes[2].set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); axes[2].set_ylabel("x", fontsize={config.plot_axis_label_fontsize}); fig.colorbar(im2, ax=axes[2])
@@ -10209,6 +10256,9 @@ else:
                 # steady-state has no time axis, so "t=..." is dropped here too.
                 _ea_pinn_title = 'f"PINN  L2={l2:.2e}"' if is_steady else 'f"PINN  t={tv:.3f}  L2={l2:.2e}"'
                 _ea_gt_title = '"Reference"' if is_steady else 'f"Reference  t={tv:.3f}"'
+                # Same geometry source as the 3D block below: Time-Adaptive
+                # never keeps a bare module-level `geom` around.
+                _ea_geom2d_ref = "_build_geom()" if use_ta else "geom"
                 ea_lines.append(f'''
 # ── Surface comparison (2D heatmaps) ──
 from scipy.interpolate import griddata
@@ -10216,17 +10266,21 @@ res_ea = {config.plot_resolution}
 xg_ea = np.linspace({config.x_min}, {config.x_max}, res_ea)
 yg_ea = np.linspace({config.y_min}, {config.y_max}, res_ea)
 Xg_ea, Yg_ea = np.meshgrid(xg_ea, yg_ea)
+# Blank out grid points outside the real geometry (same as the live Solve
+# path): no extrapolated PINN values and no fabricated reference values there.
+inside_ea = {_ea_geom2d_ref}.inside(np.column_stack([Xg_ea.ravel(), Yg_ea.ravel()])).reshape(res_ea, res_ea)
 fig, axes = plt.subplots(n_t, 3, figsize=(15, 4 * n_t), squeeze=False)
 fig.suptitle("PINN vs Reference -- 2D Heatmaps", fontsize={config.plot_title_fontsize}, fontweight="bold")
 for i, tv in enumerate(ea_times):
     tv_r, l2, mse, mx, ma = ea_metrics[i]
     xyt_grid = np.column_stack([Xg_ea.ravel(), Yg_ea.ravel()]{"" if is_steady else " + [np.full(Xg_ea.size, tv)]"})
-    u_pinn_grid = _ea_extract_group(xyt_grid, model, {_ea_sel!r}).reshape(res_ea, res_ea)
-    u_ref_grid = griddata(np.column_stack([ea_x_refs[i], ea_y_refs[i]]), ea_u_refs[i], (Xg_ea, Yg_ea), method="linear", fill_value=0.0)
+    u_pinn_grid = np.where(inside_ea, _ea_extract_group(xyt_grid, model, {_ea_sel!r}).reshape(res_ea, res_ea), np.nan)
+    u_ref_grid = np.where(inside_ea, griddata(np.column_stack([ea_x_refs[i], ea_y_refs[i]]), ea_u_refs[i], (Xg_ea, Yg_ea), method="linear", fill_value=np.nan), np.nan)
     u_err_grid = np.abs(u_pinn_grid - u_ref_grid)
-    im0 = axes[i][0].contourf(Xg_ea, Yg_ea, u_pinn_grid, levels={config.plot_levels}, cmap="{config.plot_colormap}")
+    _ea_cf = _cf_levels({config.plot_levels}, np.nanmin([u_pinn_grid, u_ref_grid]), np.nanmax([u_pinn_grid, u_ref_grid]))
+    im0 = axes[i][0].contourf(Xg_ea, Yg_ea, u_pinn_grid, cmap="{config.plot_colormap}", **_ea_cf)
     axes[i][0].set_title({_ea_pinn_title}); fig.colorbar(im0, ax=axes[i][0])
-    im1 = axes[i][1].contourf(Xg_ea, Yg_ea, u_ref_grid, levels={config.plot_levels}, cmap="{config.plot_colormap}")
+    im1 = axes[i][1].contourf(Xg_ea, Yg_ea, u_ref_grid, cmap="{config.plot_colormap}", **_ea_cf)
     axes[i][1].set_title({_ea_gt_title}); fig.colorbar(im1, ax=axes[i][1])
     im2 = axes[i][2].contourf(Xg_ea, Yg_ea, u_err_grid, levels={config.plot_levels}, cmap="{config.plot_colormap}")
     axes[i][2].set_title(f"|Error|  Max={{mx:.2e}}"); fig.colorbar(im2, ax=axes[i][2])
@@ -10296,9 +10350,12 @@ for i, tv in enumerate(ea_times):
 {_ea_3d_predict_line}
     err_b = np.abs(pinn_b - gt_b)
     cols = [(pinn_b, {_ea_pinn_title_3d}), (gt_b, {_ea_gt_title_3d}), (err_b, f"|Error|  Max={{mx:.2e}}")]
+    _ea_v3 = (float(np.nanmin([pinn_b, gt_b])), float(np.nanmax([pinn_b, gt_b])))
     for ci, (vals, ttl) in enumerate(cols):
         ax3 = fig.add_subplot(n_t, 3, i * 3 + ci + 1, projection="3d")
-        sc = ax3.scatter(bx, by, bz, c=vals, cmap="{config.plot_colormap}", s=14)
+        # PINN and Reference (ci 0/1) share one scale; |Error| keeps its own.
+        _ea_vr = dict(vmin=_ea_v3[0], vmax=_ea_v3[1]) if ci < 2 else {{}}
+        sc = ax3.scatter(bx, by, bz, c=vals, cmap="{config.plot_colormap}", s=14, **_ea_vr)
         fig.colorbar(sc, ax=ax3, shrink=0.6, pad=0.12)
         ax3.set_title(ttl, fontsize={config.plot_subplot_title_fontsize})
         ax3.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); ax3.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); ax3.set_zlabel("z", fontsize={config.plot_axis_label_fontsize})

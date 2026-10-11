@@ -13118,7 +13118,7 @@ print("DOMAIN_PREVIEW_DONE")
         figsize_h = viz_settings.get('figsize_h', 5.0)
         subplot_title_fontsize = viz_settings.get('subplot_title_fontsize', 10.0)
         axis_label_fontsize = viz_settings.get('axis_label_fontsize', 10.0)
-        from pinnstudio.core.codegen import _figsize_helper_code, _param_axis_helper_code
+        from pinnstudio.core.codegen import _figsize_helper_code, _param_axis_helper_code, _contour_levels_helper_code
         script = f"""
 import os
 os.makedirs({save_dir!r}, exist_ok=True)
@@ -13142,6 +13142,9 @@ _ylabel_override = {ylabel_override!r}
 # every figsize=_plot_figsize(w, h) call below byte-identical to before
 # this existed.
 {_figsize_helper_code(figsize_mode, figsize_w, figsize_h)}
+
+# Shared-color-scale contourf levels (see codegen.py's _contour_levels_helper_code).
+{_contour_levels_helper_code()}
 
 def _load_conv(path):
     name = None
@@ -13333,7 +13336,7 @@ print("RESTORE_DONE")
         layers     = cfg["layers"]
         activation = cfg["activation"]
         from pinnstudio.core.codegen import (_net_construction_helper_code,
-            _training_monitor_runtime_code, _figsize_helper_code)
+            _training_monitor_runtime_code, _figsize_helper_code, _contour_levels_helper_code)
         net_helper_code = _net_construction_helper_code(cfg.get("network_type", "FNN"))
         # Reuses Training Monitors' own derivative-building helpers
         # (_tm_hess/_tm_build_dvars) unchanged, so a restored model's
@@ -13477,6 +13480,9 @@ import matplotlib.pyplot as plt
 # every figsize=_plot_figsize(w, h) call below byte-identical to before
 # this existed.
 {_figsize_helper_code(figsize_mode, figsize_w, figsize_h)}
+
+# Shared-color-scale contourf levels (see codegen.py's _contour_levels_helper_code).
+{_contour_levels_helper_code()}
 
 # Build the actual problem geometry for model restore (not just its
 # bounding box) so the restored prediction can be masked back down to the
@@ -13791,7 +13797,7 @@ def _extract_plot_field(x_grid):
         # (cfg), not each step's own step_config.json -- same reasoning as
         # this function's docstring already gives for x_min/x_max/etc.
         from pinnstudio.core.codegen import (_net_construction_helper_code,
-            _training_monitor_runtime_code, _figsize_helper_code)
+            _training_monitor_runtime_code, _figsize_helper_code, _contour_levels_helper_code)
         net_helper_code = _net_construction_helper_code(cfg.get("network_type", "FNN"))
         # Same reuse of Training Monitors' derivative-building helpers as
         # _build_restore_script -- see that function's own comment.
@@ -13861,6 +13867,9 @@ import matplotlib.pyplot as plt
 # every figsize=_plot_figsize(w, h) call below byte-identical to before
 # this existed.
 {_figsize_helper_code(figsize_mode, figsize_w, figsize_h)}
+
+# Shared-color-scale contourf levels (see codegen.py's _contour_levels_helper_code).
+{_contour_levels_helper_code()}
 
 is_2d = {str(is_2d)}
 is_3d = {str(is_3d)}
@@ -14362,10 +14371,10 @@ elif {do_surface}:
             _vmax_data = max(_u_pinn_g.max(), _u_fem_g.max()) if {_auto} else {_vmax}
             _ea_pinn_title = f"PINN (steady-state) L2={{_l2:.2e}}" if {is_steady} else f"PINN t={{_tv:.3f}} L2={{_l2:.2e}}"
             _ea_gt_title = "Reference" if {is_steady} else f"Reference t={{_tv:.3f}}"
-            im0 = axes[_i][0].contourf(_Xg_ea, _Yg_ea, _u_pinn_g, levels={_levels}, cmap='{_cmap}', vmin=_vmin_data, vmax=_vmax_data)
+            im0 = axes[_i][0].contourf(_Xg_ea, _Yg_ea, _u_pinn_g, cmap='{_cmap}', **_cf_levels({_levels}, _vmin_data, _vmax_data, _u_pinn_g))
             axes[_i][0].set_title(_ea_pinn_title, fontsize={_subtitle_fs}); axes[_i][0].set_xlabel("x", fontsize={_axislabel_fs}); axes[_i][0].set_ylabel("y", fontsize={_axislabel_fs})
             if {_colorbar}: fig.colorbar(im0, ax=axes[_i][0])
-            im1 = axes[_i][1].contourf(_Xg_ea, _Yg_ea, _u_fem_g, levels={_levels}, cmap='{_cmap}', vmin=_vmin_data, vmax=_vmax_data)
+            im1 = axes[_i][1].contourf(_Xg_ea, _Yg_ea, _u_fem_g, cmap='{_cmap}', **_cf_levels({_levels}, _vmin_data, _vmax_data, _u_fem_g))
             axes[_i][1].set_title(_ea_gt_title, fontsize={_subtitle_fs}); axes[_i][1].set_xlabel("x", fontsize={_axislabel_fs}); axes[_i][1].set_ylabel("y", fontsize={_axislabel_fs})
             if {_colorbar}: fig.colorbar(im1, ax=axes[_i][1])
             im2 = axes[_i][2].contourf(_Xg_ea, _Yg_ea, _u_err_g, levels={_levels}, cmap='{_cmap}')
@@ -14388,10 +14397,10 @@ elif {do_surface}:
         _vmax_data = max(_U_pinn.max(), _U_fem.max()) if {_auto} else {_vmax}
         fig, axes = plt.subplots(1, 3, figsize=(15, 5))
         fig.suptitle("Restored Model vs Reference — Surface", fontsize={_title_fs}, fontweight='bold')
-        im0 = axes[0].contourf(_Tg, _Xg, _U_pinn, levels={_levels}, cmap='{_cmap}', vmin=_vmin_data, vmax=_vmax_data)
+        im0 = axes[0].contourf(_Tg, _Xg, _U_pinn, cmap='{_cmap}', **_cf_levels({_levels}, _vmin_data, _vmax_data, _U_pinn))
         axes[0].set_title("PINN", fontsize={_subtitle_fs}); axes[0].set_xlabel("t", fontsize={_axislabel_fs}); axes[0].set_ylabel("x", fontsize={_axislabel_fs})
         if {_colorbar}: fig.colorbar(im0, ax=axes[0])
-        im1 = axes[1].contourf(_Tg, _Xg, _U_fem, levels={_levels}, cmap='{_cmap}', vmin=_vmin_data, vmax=_vmax_data)
+        im1 = axes[1].contourf(_Tg, _Xg, _U_fem, cmap='{_cmap}', **_cf_levels({_levels}, _vmin_data, _vmax_data, _U_fem))
         axes[1].set_title("Reference", fontsize={_subtitle_fs}); axes[1].set_xlabel("t", fontsize={_axislabel_fs})
         if {_colorbar}: fig.colorbar(im1, ax=axes[1])
         im2 = axes[2].contourf(_Tg, _Xg, _U_err, levels={_levels}, cmap='{_cmap}')
