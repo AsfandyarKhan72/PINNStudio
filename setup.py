@@ -26,7 +26,11 @@ setup(
         # Linux/macOS keep using the latest compatible version.
         "PyQt6==6.6.1; sys_platform == 'win32'",
         "PyQt6-Qt6==6.6.1; sys_platform == 'win32'",
-        "numpy",
+        # DeepXDE 1.15's 2D Polygon/Triangle geometry calls np.cross on
+        # 2-element vectors, which NumPy deprecated in 2.0 and removed in
+        # 2.5 (it now raises ValueError) -- keep NumPy below 2.5 until a
+        # DeepXDE release fixes that.
+        "numpy<2.5",
         "matplotlib",
         "pandas",
     ],

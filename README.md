@@ -506,7 +506,7 @@ That's it - no need to reinstall or recreate the virtual environment.
 - [DeepXDE](https://github.com/lululxvi/deepxde) (PyTorch backend)
 - PyTorch
 - PyQt6
-- NumPy
+- NumPy (below 2.5 -- DeepXDE 1.15's Polygon/Triangle geometry breaks on NumPy 2.5+)
 - Matplotlib
 - Pandas
 

@@ -1,6 +1,6 @@
 deepxde>=1.10.0
 torch>=2.0
 PyQt6>=6.4
-numpy
+numpy<2.5
 matplotlib
 pandas
