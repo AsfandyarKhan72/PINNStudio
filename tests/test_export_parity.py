@@ -78,13 +78,26 @@ def run():
     check("fake_h_0.5.txt" in s_match,
           "an EA file tagged with the SAME custom expression should be kept")
 
+    # As of Round 41 (audit §2d), a file tagged for a DIFFERENT field is no
+    # longer silently dropped -- it's grouped and error-analyzed under its
+    # own field instead, the same way generate_script() (the live Solve
+    # path) already handled multiple output fields. Before this round this
+    # file (tagged "u", a different field than the main plot's own
+    # "sqrt(u**2+v**2)") would have been correctly dropped rather than
+    # compared against the wrong prediction -- the fix upgrades that to
+    # "compared against the RIGHT prediction, in its own group" instead of
+    # leaving it silently unused.
     mismatching = repr([(0.5, "/tmp/fake_other.txt", ["u", "raw u"])])
     c_mismatch = dataclasses.replace(config, ea_files=mismatching, ea_do_line=True,
                                       ea_do_surface=False, t_min=0.0, t_max=1.0)
     s_mismatch = generate_clean_script(c_mismatch)
     ast.parse(s_mismatch)
-    check("fake_other.txt" not in s_mismatch,
-          "an EA file tagged for a DIFFERENT field should still be dropped, not silently compared")
+    check("fake_other.txt" in s_mismatch,
+          "an EA file tagged for a different field is now kept and error-analyzed under its own "
+          "output group, instead of being silently dropped")
+    check("_ea_extract_group" in s_mismatch,
+          "the multi-output (or, as here, single-but-non-default-group) extraction helper should "
+          "be embedded whenever any EA file carries its own selector")
 
     # ---- Non-custom template: old int-selector behavior preserved ----
     win2 = MainWindow()

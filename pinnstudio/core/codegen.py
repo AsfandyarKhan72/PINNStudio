@@ -7903,28 +7903,8 @@ def generate_clean_script(config):
     # with None here the same way, so they keep behaving exactly as before.
     # Unpacking as a plain 2-tuple here (as before v40) raised "too many
     # values to unpack" for any template with reference data the moment
-    # "Export as DeepXDE Script" was used. This generator still doesn't
-    # have per-output grouping/routing (a separate, larger, still-open
-    # gap) -- it always predicts a single field, below -- but that one
-    # field can now be either a raw column OR a custom derived expression
-    # (see _extract_plot_field, added below), matching what the Results
-    # panel/main Solve path already show. A file is kept here only if it
-    # belongs to that same field: selector is None (the implicit-default
-    # case -- always follows whichever field this script is actually
-    # plotting), or an int matching plot_output_idx when no custom field
-    # is configured, or a [expr, label] pair whose expression matches this
-    # problem's own custom plot expression when one is. A named file for a
-    # genuinely different output/expression is correctly dropped rather
-    # than silently compared against the wrong prediction.
+    # "Export as DeepXDE Script" was used.
     _plot_custom_expr_val = (config.plot_custom_expr or "").strip()
-
-    def _ea_sel_matches(_sel):
-        if _sel is None:
-            return True
-        if _plot_custom_expr_val:
-            return (isinstance(_sel, (list, tuple)) and len(_sel) >= 1
-                    and str(_sel[0]).strip() == _plot_custom_expr_val)
-        return isinstance(_sel, int) and _sel == config.plot_output_idx
 
     _ea_files_norm = []
     for _entry in ea_files:
@@ -7932,13 +7912,57 @@ def generate_clean_script(config):
             _tv0, _fp0, _sel0 = _entry[0], _entry[1], _entry[2]
         else:
             _tv0, _fp0, _sel0 = _entry[0], _entry[1], None
-        _ea_files_norm.append((_tv0, _fp0, _sel0))
-    ea_files = [
-        (tv, fp) for tv, fp, sel in _ea_files_norm
-        if _ea_sel_matches(sel)
-        and config.t_min - 1e-10 <= tv <= config.t_max + 1e-10
-    ]
-    use_ea = bool(ea_files) and (config.ea_do_line or config.ea_do_surface)
+        if config.t_min - 1e-10 <= _tv0 <= config.t_max + 1e-10:
+            _ea_files_norm.append((_tv0, _fp0, _sel0))
+
+    # Group reference files by which model output they belong to -- same
+    # grouping key convention as generate_script()'s own two Error
+    # Analysis copies (repr() of the raw selector: None for the implicit
+    # default field, an int for a raw output column, or a [expr, label]
+    # pair for a per-group custom derived field). Each group gets its own
+    # fully unrolled metrics/line/surface report below, with filenames
+    # suffixed by the group's own output label when there's more than
+    # one group. This fixes the gap flagged when this generator first
+    # grew Error Analysis support (v40): until now, every ea_files entry
+    # that didn't belong to the one field this script happens to be
+    # plotting was silently DROPPED rather than compared against its own
+    # output -- a template with reference files for two different
+    # outputs only ever error-analyzed one of them, with no warning the
+    # other was ignored.
+    #
+    # Unlike generate_script() (which groups at RUNTIME inside the
+    # exported/live script, since that generator emits one generic,
+    # config-driven script body), generate_clean_script() groups HERE,
+    # at generation time, consistent with its own "decide the shape
+    # once, emit only that one static code path" design: the Python
+    # `for` loop over `_ea_groups.items()` below (not a loop in the
+    # generated script) runs once per group while THIS FUNCTION builds
+    # the script, so a single-group problem (the common case) still
+    # gets byte-for-byte the same unsuffixed code as before this round.
+    _ea_groups = {}
+    for _tv0, _fp0, _sel0 in _ea_files_norm:
+        _gkey = repr(_sel0)
+        if _gkey not in _ea_groups:
+            _ea_groups[_gkey] = {"sel": _sel0, "files": []}
+        _ea_groups[_gkey]["files"].append((_tv0, _fp0))
+    _ea_multi_output = len(_ea_groups) > 1
+
+    def _ea_group_label(_sel):
+        if _sel is None:
+            return ""
+        if isinstance(_sel, int):
+            return (out_names[_sel].strip() if 0 <= _sel < len(out_names) else f"out{_sel}")
+        _lbl = (_sel[1] or "").strip() if len(_sel) > 1 else ""
+        return _lbl if _lbl else "custom"
+
+    # Whether any group needs a custom derived field of its own (as
+    # opposed to a raw output column or the implicit default field) --
+    # if so, Training Monitors' _tm_build_dvars helper must be embedded
+    # even when the main plot and Training Monitors themselves don't
+    # otherwise need it (see the embedding condition below).
+    _ea_needs_custom_op = any(isinstance(_g["sel"], (list, tuple)) for _g in _ea_groups.values())
+
+    use_ea = bool(_ea_groups) and (config.ea_do_line or config.ea_do_surface)
 
     use_save = bool((config.save_dir or "").strip())
 
@@ -8066,10 +8090,12 @@ if save_dir:
     # the custom plot-field expression (_extract_plot_field, below) routes
     # through once configured -- same derivative-aware mechanism Round 17
     # wired into generate_script()/the Restore scripts, now also reaching
-    # this exporter. Embed the helper whenever either needs it, not just
-    # for Training Monitors, so a custom expression works even if Training
-    # Monitors itself is off.
-    if (any_cbs and config.training_monitors_enabled) or _plot_custom_expr_val or needs_bc_operator_dvars:
+    # this exporter. Embed the helper whenever any of these needs it, not
+    # just for Training Monitors, so a custom expression works even if
+    # Training Monitors itself is off -- including a multi-output Error
+    # Analysis group whose own selector is a custom derived field rather
+    # than the main plot's.
+    if (any_cbs and config.training_monitors_enabled) or _plot_custom_expr_val or needs_bc_operator_dvars or _ea_needs_custom_op:
         parts.append(_training_monitor_runtime_code())
 
     if needs_transform_helper:
@@ -9109,57 +9135,105 @@ print(f"Solution plot saved: {{solution_path}}")''')
     # configured for this problem)
     # =========================================================================
     if use_ea:
-        ea_lines = [f'''# ── Error Analysis: compare against reference data ──
+        # Shared, per-output-group extraction helper -- generated once,
+        # reused by every group's own unrolled EA code block below. Mirrors
+        # generate_script()'s own runtime _ea_extract closure: sel=None
+        # delegates to this script's one default field (_extract_plot_field,
+        # defined above), an int picks a raw output column, and a
+        # [expr, label] pair builds its own derivative-aware custom field
+        # via Training Monitors' _tm_build_dvars, reusing the exact same
+        # operator-based mechanism _plot_custom_op (above) already uses for
+        # the main plot's own custom expression.
+        _ea_shared_lines = ['''def _ea_extract_group(_ea_grid, _ea_m, _ea_sel):
+    if _ea_sel is None:
+        return _extract_plot_field(_ea_grid, _ea_m)
+    if isinstance(_ea_sel, int):
+        return _ea_m.predict(_ea_grid)[:, _ea_sel]
+    _ea_expr = _ea_sel[0]
+    def _ea_custom_op(_pf_inputs, _pf_outputs):
+        _pf_dvars = _tm_build_dvars(_pf_inputs, _pf_outputs, _plot_n_out,
+                                     _plot_output_names, _plot_is_steady, _plot_dim,
+                                     _ea_expr)
+        _pf_ns = dict(_pf_dvars)
+        _pf_ns.update(_PLOT_TORCH_MATH_NS)
+        _pf_ns["torch"] = torch
+        return eval(_ea_expr, _pf_ns)
+    return _ea_m.predict(_ea_grid, operator=_ea_custom_op)[:, 0]''']
+        if use_ta:
+            _ea_shared_lines.append('''def _predict_at_time(xt_no_time, tv, sel=None):
+    for t0, t1, m in ta_step_models:
+        if t0 - 1e-9 <= tv <= t1 + 1e-9:
+            return _ea_extract_group(np.column_stack([xt_no_time, np.full(len(xt_no_time), tv)]), m, sel).flatten()
+    return _ea_extract_group(
+        np.column_stack([xt_no_time, np.full(len(xt_no_time), tv)]), ta_step_models[-1][2], sel).flatten()''')
+        parts.append("\n".join(_ea_shared_lines))
+
+        # Loop over output groups AT GENERATION TIME (not a runtime loop in
+        # the exported script) -- see the comment above _ea_groups (near the
+        # top of this function) for why this generator groups here rather
+        # than at runtime the way generate_script() does. Each iteration
+        # emits one fully unrolled metrics/line/surface report, with
+        # unsuffixed filenames for the (usual) single-group case -- byte-
+        # for-byte the same code this function already produced before
+        # multi-output grouping existed -- and a per-group suffix (e.g.
+        # "_v", "_custom") whenever more than one distinct output has its
+        # own reference files.
+        for _ea_gkey, _ea_group in _ea_groups.items():
+            _ea_sel = _ea_group["sel"]
+            _ea_group_files = _ea_group["files"]
+            _ea_suffix = f"_{_ea_group_label(_ea_sel)}" if _ea_multi_output else ""
+            _ea_header_note = f" (output: {_ea_group_label(_ea_sel) or 'default'})" if _ea_multi_output else ""
+            ea_lines = [f'''# ── Error Analysis: compare against reference data{_ea_header_note} ──
 ea_dir = os.path.join(sol_dir, "error_analysis")
 os.makedirs(ea_dir, exist_ok=True)
-ea_files = {ea_files}
+ea_files = {_ea_group_files}
 ea_times, ea_x_refs, ea_y_refs, ea_z_refs, ea_u_refs = [], [], [], [], []
 for tv, fp in ea_files:
     d = np.loadtxt(fp)
     if d.ndim == 1:
         d = d.reshape(1, -1)''']
-        # Same distinction as _n_obs_coord_cols/_n_coord_cols_bc elsewhere in
-        # this file: a steady-state reference file (PINNStudio's own
-        # "solution.txt", written by _auto_configure_ea's is_steady branch
-        # in main_window.py) has no time column at all -- x,y,u for 2D /
-        # x,y,z,u for 3D -- one fewer column than the time-dependent layout,
-        # with every column after the coordinates shifted down by one.
-        # Getting this wrong doesn't raise anywhere near the mistake: it
-        # reads a steady 2D file's u column as if it were a time column and
-        # crashes with an out-of-bounds IndexError on the (nonexistent)
-        # column after it instead.
-        if is_3d:
-            if is_steady:
-                ea_lines.append('''    idx = np.lexsort((d[:, 2], d[:, 1], d[:, 0]))
+            # Same distinction as _n_obs_coord_cols/_n_coord_cols_bc elsewhere in
+            # this file: a steady-state reference file (PINNStudio's own
+            # "solution.txt", written by _auto_configure_ea's is_steady branch
+            # in main_window.py) has no time column at all -- x,y,u for 2D /
+            # x,y,z,u for 3D -- one fewer column than the time-dependent layout,
+            # with every column after the coordinates shifted down by one.
+            # Getting this wrong doesn't raise anywhere near the mistake: it
+            # reads a steady 2D file's u column as if it were a time column and
+            # crashes with an out-of-bounds IndexError on the (nonexistent)
+            # column after it instead.
+            if is_3d:
+                if is_steady:
+                    ea_lines.append('''    idx = np.lexsort((d[:, 2], d[:, 1], d[:, 0]))
     ea_x_refs.append(d[idx, 0]); ea_y_refs.append(d[idx, 1]); ea_z_refs.append(d[idx, 2])
     ea_u_refs.append(d[idx, 3]); ea_times.append(float(tv))''')
-            else:
-                ea_lines.append('''    idx = np.lexsort((d[:, 2], d[:, 1], d[:, 0]))
+                else:
+                    ea_lines.append('''    idx = np.lexsort((d[:, 2], d[:, 1], d[:, 0]))
     ea_x_refs.append(d[idx, 0]); ea_y_refs.append(d[idx, 1]); ea_z_refs.append(d[idx, 2])
     ea_u_refs.append(d[idx, 4]); ea_times.append(float(d[0, 3]))''')
-        elif is_2d:
-            if is_steady:
-                ea_lines.append('''    idx = np.lexsort((d[:, 1], d[:, 0]))
+            elif is_2d:
+                if is_steady:
+                    ea_lines.append('''    idx = np.lexsort((d[:, 1], d[:, 0]))
     ea_x_refs.append(d[idx, 0]); ea_y_refs.append(d[idx, 1]); ea_z_refs.append(np.zeros_like(d[idx, 0]))
     ea_u_refs.append(d[idx, 2]); ea_times.append(float(tv))''')
-            else:
-                ea_lines.append('''    idx = np.lexsort((d[:, 1], d[:, 0]))
+                else:
+                    ea_lines.append('''    idx = np.lexsort((d[:, 1], d[:, 0]))
     ea_x_refs.append(d[idx, 0]); ea_y_refs.append(d[idx, 1]); ea_z_refs.append(np.zeros_like(d[idx, 0]))
     ea_u_refs.append(d[idx, 3]); ea_times.append(float(d[0, 2]))''')
-        else:
-            if is_steady:
-                ea_lines.append('''    idx = np.argsort(d[:, 0])
+            else:
+                if is_steady:
+                    ea_lines.append('''    idx = np.argsort(d[:, 0])
     ea_x_refs.append(d[idx, 0]); ea_y_refs.append(np.zeros_like(d[idx, 0])); ea_z_refs.append(np.zeros_like(d[idx, 0]))
     ea_u_refs.append(d[idx, 1]); ea_times.append(float(tv))''')
-            else:
-                ea_lines.append('''    idx = np.argsort(d[:, 0])
+                else:
+                    ea_lines.append('''    idx = np.argsort(d[:, 0])
     ea_x_refs.append(d[idx, 0]); ea_y_refs.append(np.zeros_like(d[idx, 0])); ea_z_refs.append(np.zeros_like(d[idx, 0]))
     ea_u_refs.append(d[idx, 2]); ea_times.append(float(tv))''')
-        # Drop reference points with no solution value (NaN) -- e.g. grid
-        # points outside a non-rectangular geometry like L-Shape's missing
-        # quadrant or Disk's bounding-box corners. A no-op for reference
-        # files that don't have any (the usual case).
-        ea_lines.append('''for _ei in range(len(ea_u_refs)):
+            # Drop reference points with no solution value (NaN) -- e.g. grid
+            # points outside a non-rectangular geometry like L-Shape's missing
+            # quadrant or Disk's bounding-box corners. A no-op for reference
+            # files that don't have any (the usual case).
+            ea_lines.append('''for _ei in range(len(ea_u_refs)):
     _ea_valid = ~np.isnan(ea_u_refs[_ei])
     if not _ea_valid.all():
         _n_dropped = int((~_ea_valid).sum())
@@ -9168,7 +9242,7 @@ for tv, fp in ea_files:
         ea_z_refs[_ei] = ea_z_refs[_ei][_ea_valid]
         ea_u_refs[_ei] = ea_u_refs[_ei][_ea_valid]
         print(f"  Dropped {_n_dropped} NaN reference point(s) outside the geometry")''')
-        ea_lines.append('''order = np.argsort(ea_times)
+            ea_lines.append('''order = np.argsort(ea_times)
 ea_times  = [ea_times[i] for i in order]
 ea_x_refs = [ea_x_refs[i] for i in order]
 ea_y_refs = [ea_y_refs[i] for i in order]
@@ -9176,56 +9250,53 @@ ea_z_refs = [ea_z_refs[i] for i in order]
 ea_u_refs = [ea_u_refs[i] for i in order]
 n_t = len(ea_times)''')
 
-        if use_ta:
-            ea_lines.append(f'''def _predict_at_time(xt_no_time, tv):
-    for t0, t1, m in ta_step_models:
-        if t0 - 1e-9 <= tv <= t1 + 1e-9:
-            return _extract_plot_field(np.column_stack([xt_no_time, np.full(len(xt_no_time), tv)]), m).flatten()
-    return _extract_plot_field(
-        np.column_stack([xt_no_time, np.full(len(xt_no_time), tv)]), ta_step_models[-1][2]).flatten()
-
-ea_u_pinns = []
+            if use_ta:
+                # _predict_at_time itself is defined once, shared across all
+                # output groups, in the pre-loop setup appended just before
+                # this per-group loop begins (see _ea_shared_lines above) --
+                # only the loop header is needed here.
+                ea_lines.append('''ea_u_pinns = []
 for i, tv in enumerate(ea_times):''')
-            if is_3d:
-                ea_lines.append('''    coords = np.column_stack([ea_x_refs[i], ea_y_refs[i], ea_z_refs[i]])
-    ea_u_pinns.append(_predict_at_time(coords, tv))''')
-            elif is_2d:
-                ea_lines.append('''    coords = np.column_stack([ea_x_refs[i], ea_y_refs[i]])
-    ea_u_pinns.append(_predict_at_time(coords, tv))''')
+                if is_3d:
+                    ea_lines.append(f'''    coords = np.column_stack([ea_x_refs[i], ea_y_refs[i], ea_z_refs[i]])
+    ea_u_pinns.append(_predict_at_time(coords, tv, {_ea_sel!r}))''')
+                elif is_2d:
+                    ea_lines.append(f'''    coords = np.column_stack([ea_x_refs[i], ea_y_refs[i]])
+    ea_u_pinns.append(_predict_at_time(coords, tv, {_ea_sel!r}))''')
+                else:
+                    ea_lines.append(f'''    coords = ea_x_refs[i].reshape(-1, 1)
+    ea_u_pinns.append(_predict_at_time(coords, tv, {_ea_sel!r}))''')
             else:
-                ea_lines.append('''    coords = ea_x_refs[i].reshape(-1, 1)
-    ea_u_pinns.append(_predict_at_time(coords, tv))''')
-        else:
-            ea_lines.append("ea_u_pinns = []")
-            ea_lines.append("for i, tv in enumerate(ea_times):")
-            # A steady-state model was trained on (x[, y[, z]]) alone -- no
-            # time input at all -- so predict() must not be fed a time
-            # column here either (same distinction as the ground-truth
-            # loader above); doing so is what produced the earlier
-            # "mat1 and mat2 shapes cannot be multiplied" crash.
-            if is_3d:
-                if is_steady:
-                    ea_lines.append(f'''    xt = np.column_stack([ea_x_refs[i], ea_y_refs[i], ea_z_refs[i]])
-    ea_u_pinns.append(_extract_plot_field(xt).flatten())''')
+                ea_lines.append("ea_u_pinns = []")
+                ea_lines.append("for i, tv in enumerate(ea_times):")
+                # A steady-state model was trained on (x[, y[, z]]) alone -- no
+                # time input at all -- so predict() must not be fed a time
+                # column here either (same distinction as the ground-truth
+                # loader above); doing so is what produced the earlier
+                # "mat1 and mat2 shapes cannot be multiplied" crash.
+                if is_3d:
+                    if is_steady:
+                        ea_lines.append(f'''    xt = np.column_stack([ea_x_refs[i], ea_y_refs[i], ea_z_refs[i]])
+    ea_u_pinns.append(_ea_extract_group(xt, model, {_ea_sel!r}).flatten())''')
+                    else:
+                        ea_lines.append(f'''    xt = np.column_stack([ea_x_refs[i], ea_y_refs[i], ea_z_refs[i], np.full_like(ea_x_refs[i], tv)])
+    ea_u_pinns.append(_ea_extract_group(xt, model, {_ea_sel!r}).flatten())''')
+                elif is_2d:
+                    if is_steady:
+                        ea_lines.append(f'''    xt = np.column_stack([ea_x_refs[i], ea_y_refs[i]])
+    ea_u_pinns.append(_ea_extract_group(xt, model, {_ea_sel!r}).flatten())''')
+                    else:
+                        ea_lines.append(f'''    xt = np.column_stack([ea_x_refs[i], ea_y_refs[i], np.full_like(ea_x_refs[i], tv)])
+    ea_u_pinns.append(_ea_extract_group(xt, model, {_ea_sel!r}).flatten())''')
                 else:
-                    ea_lines.append(f'''    xt = np.column_stack([ea_x_refs[i], ea_y_refs[i], ea_z_refs[i], np.full_like(ea_x_refs[i], tv)])
-    ea_u_pinns.append(_extract_plot_field(xt).flatten())''')
-            elif is_2d:
-                if is_steady:
-                    ea_lines.append(f'''    xt = np.column_stack([ea_x_refs[i], ea_y_refs[i]])
-    ea_u_pinns.append(_extract_plot_field(xt).flatten())''')
-                else:
-                    ea_lines.append(f'''    xt = np.column_stack([ea_x_refs[i], ea_y_refs[i], np.full_like(ea_x_refs[i], tv)])
-    ea_u_pinns.append(_extract_plot_field(xt).flatten())''')
-            else:
-                if is_steady:
-                    ea_lines.append(f'''    xt = ea_x_refs[i].reshape(-1, 1)
-    ea_u_pinns.append(_extract_plot_field(xt).flatten())''')
-                else:
-                    ea_lines.append(f'''    xt = np.column_stack([ea_x_refs[i], np.full_like(ea_x_refs[i], tv)])
-    ea_u_pinns.append(_extract_plot_field(xt).flatten())''')
+                    if is_steady:
+                        ea_lines.append(f'''    xt = ea_x_refs[i].reshape(-1, 1)
+    ea_u_pinns.append(_ea_extract_group(xt, model, {_ea_sel!r}).flatten())''')
+                    else:
+                        ea_lines.append(f'''    xt = np.column_stack([ea_x_refs[i], np.full_like(ea_x_refs[i], tv)])
+    ea_u_pinns.append(_ea_extract_group(xt, model, {_ea_sel!r}).flatten())''')
 
-        ea_lines.append(f'''
+            ea_lines.append(f'''
 # ── Metrics ──
 ea_metrics = []
 for i, tv in enumerate(ea_times):
@@ -9236,42 +9307,42 @@ for i, tv in enumerate(ea_times):
     ma = np.mean(np.abs(up - uf))
     ea_metrics.append((tv, l2, mse, mx, ma))
     print(f"  t={{tv:.4f}} -- {_ea_metrics_print_fragment(config, 'l2', 'mse', 'mx', 'ma')}")
-with open(os.path.join(ea_dir, "error_metrics.txt"), "w") as f:
+with open(os.path.join(ea_dir, "error_metrics{_ea_suffix}.txt"), "w") as f:
     f.write("{_ea_metrics_csv_header(config)}\\n")
     for tv, l2, mse, mx, ma in ea_metrics:
         f.write(f"{_ea_metrics_row_code(config, 'tv', 'l2', 'mse', 'mx', 'ma')}\\n")''')
 
-        if config.ea_do_line:
-            if is_2d or is_3d:
-                # A true line at the exact slice (PINNConfig.line_slice_y/_z),
-                # not a scatter of whichever reference-file points happened
-                # to fall within a tolerance BAND around it -- that approach
-                # smeared multiple different-y (or y,z) reference/PINN values
-                # together at the same x whenever u varies meaningfully with
-                # y within the band, which is exactly what made this plot
-                # look like a dense cloud instead of a clean line for cases
-                # like the L-Shape Poisson problem (worse right near its
-                # reentrant-corner singularity). Mirrors the same fix already
-                # made in generate_script()'s copy of this block, and reuses
-                # the exact-eval + griddata-interpolate + geom.inside()-mask
-                # pattern the (untouched) 2D/3D Surface Comparison blocks
-                # already use elsewhere in this function: the PINN is
-                # evaluated directly on the exact line (no interpolation
-                # needed -- the model can be queried anywhere), the Reference
-                # is interpolated onto that same line from its own scattered
-                # points via scipy's griddata, and both are masked with
-                # geom.inside(...) so a non-rectangular domain's excluded
-                # region (e.g. L-Shape's missing quadrant) is never plotted
-                # straight across.
-                _ea_geom_ref = "_build_geom()" if use_ta else "geom"
-                if use_ta:
-                    _line_pred_line = "    pn = _predict_at_time(_line_pts_in, tv)"
-                elif is_steady:
-                    _line_pred_line = "    pn = _extract_plot_field(_line_pts_in).flatten()"
-                else:
-                    _line_pred_line = "    pn = _extract_plot_field(np.column_stack([_line_pts_in, np.full(len(xv), tv)])).flatten()"
-                if is_3d:
-                    mid_slice = f'''
+            if config.ea_do_line:
+                if is_2d or is_3d:
+                    # A true line at the exact slice (PINNConfig.line_slice_y/_z),
+                    # not a scatter of whichever reference-file points happened
+                    # to fall within a tolerance BAND around it -- that approach
+                    # smeared multiple different-y (or y,z) reference/PINN values
+                    # together at the same x whenever u varies meaningfully with
+                    # y within the band, which is exactly what made this plot
+                    # look like a dense cloud instead of a clean line for cases
+                    # like the L-Shape Poisson problem (worse right near its
+                    # reentrant-corner singularity). Mirrors the same fix already
+                    # made in generate_script()'s copy of this block, and reuses
+                    # the exact-eval + griddata-interpolate + geom.inside()-mask
+                    # pattern the (untouched) 2D/3D Surface Comparison blocks
+                    # already use elsewhere in this function: the PINN is
+                    # evaluated directly on the exact line (no interpolation
+                    # needed -- the model can be queried anywhere), the Reference
+                    # is interpolated onto that same line from its own scattered
+                    # points via scipy's griddata, and both are masked with
+                    # geom.inside(...) so a non-rectangular domain's excluded
+                    # region (e.g. L-Shape's missing quadrant) is never plotted
+                    # straight across.
+                    _ea_geom_ref = "_build_geom()" if use_ta else "geom"
+                    if use_ta:
+                        _line_pred_line = f"    pn = _predict_at_time(_line_pts_in, tv, {_ea_sel!r})"
+                    elif is_steady:
+                        _line_pred_line = f"    pn = _ea_extract_group(_line_pts_in, model, {_ea_sel!r}).flatten()"
+                    else:
+                        _line_pred_line = f"    pn = _ea_extract_group(np.column_stack([_line_pts_in, np.full(len(xv), tv)]), model, {_ea_sel!r}).flatten()"
+                    if is_3d:
+                        mid_slice = f'''
     _line_geom = {_ea_geom_ref}
     xv = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
     _line_pts = np.column_stack([xv, np.full_like(xv, {line_slice_y}), np.full_like(xv, {line_slice_z})])
@@ -9288,8 +9359,8 @@ with open(os.path.join(ea_dir, "error_metrics.txt"), "w") as f:
     _gt_nan_line = np.isnan(gt)
     if _gt_nan_line.any():
         gt[_gt_nan_line] = griddata(_ref_pts_line, ea_u_refs[i], _line_pts_in[_gt_nan_line], method="nearest")'''
-                else:
-                    mid_slice = f'''
+                    else:
+                        mid_slice = f'''
     _line_geom = {_ea_geom_ref}
     xv = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
     _line_pts = np.column_stack([xv, np.full_like(xv, {line_slice_y})])
@@ -9306,27 +9377,27 @@ with open(os.path.join(ea_dir, "error_metrics.txt"), "w") as f:
     _gt_nan_line = np.isnan(gt)
     if _gt_nan_line.any():
         gt[_gt_nan_line] = griddata(_ref_pts_line, ea_u_refs[i], _line_pts_in[_gt_nan_line], method="nearest")'''
-                sort_line = ""
-                _ea_line_needs_griddata = True
-            else:
-                mid_slice = ""
-                sort_line = "    order_i = np.argsort(ea_x_refs[i]); xv, gt, pn = ea_x_refs[i][order_i], ea_u_refs[i][order_i], ea_u_pinns[i][order_i]"
-                _ea_line_needs_griddata = False
-            # Steady-state (e.g. a Poisson equation) has no time axis at
-            # all -- every reference file is really just a single snapshot
-            # at a placeholder t=0, so "t = 0.000" in the title would be
-            # meaningless noise rather than a real time coordinate.
-            _ea_line_title = 'f"L2 = {l2:.2e}"' if is_steady else 'f"t = {tv:.3f}  |  L2 = {l2:.2e}"'
-            if is_3d:
-                _ea_line_ylabel = repr(f"{out_name}(x, y={line_slice_y:.3g}, z={line_slice_z:.3g})") if is_steady else repr(f"{out_name}(x, y={line_slice_y:.3g}, z={line_slice_z:.3g}, t)")
-                _ea_line_suptitle = f"PINN vs Reference -- Line Comparison (y={line_slice_y:.3g}, z={line_slice_z:.3g})"
-            elif is_2d:
-                _ea_line_ylabel = repr(f"{out_name}(x, y={line_slice_y:.3g})") if is_steady else repr(f"{out_name}(x, y={line_slice_y:.3g}, t)")
-                _ea_line_suptitle = f"PINN vs Reference -- Line Comparison (y={line_slice_y:.3g})"
-            else:
-                _ea_line_ylabel = repr(f"{out_name}(x)") if is_steady else repr(f"{out_name}(x, t)")
-                _ea_line_suptitle = "PINN vs Reference -- Line Comparison"
-            ea_lines.append(f'''
+                    sort_line = ""
+                    _ea_line_needs_griddata = True
+                else:
+                    mid_slice = ""
+                    sort_line = "    order_i = np.argsort(ea_x_refs[i]); xv, gt, pn = ea_x_refs[i][order_i], ea_u_refs[i][order_i], ea_u_pinns[i][order_i]"
+                    _ea_line_needs_griddata = False
+                # Steady-state (e.g. a Poisson equation) has no time axis at
+                # all -- every reference file is really just a single snapshot
+                # at a placeholder t=0, so "t = 0.000" in the title would be
+                # meaningless noise rather than a real time coordinate.
+                _ea_line_title = 'f"L2 = {l2:.2e}"' if is_steady else 'f"t = {tv:.3f}  |  L2 = {l2:.2e}"'
+                if is_3d:
+                    _ea_line_ylabel = repr(f"{out_name}(x, y={line_slice_y:.3g}, z={line_slice_z:.3g})") if is_steady else repr(f"{out_name}(x, y={line_slice_y:.3g}, z={line_slice_z:.3g}, t)")
+                    _ea_line_suptitle = f"PINN vs Reference -- Line Comparison (y={line_slice_y:.3g}, z={line_slice_z:.3g})"
+                elif is_2d:
+                    _ea_line_ylabel = repr(f"{out_name}(x, y={line_slice_y:.3g})") if is_steady else repr(f"{out_name}(x, y={line_slice_y:.3g}, t)")
+                    _ea_line_suptitle = f"PINN vs Reference -- Line Comparison (y={line_slice_y:.3g})"
+                else:
+                    _ea_line_ylabel = repr(f"{out_name}(x)") if is_steady else repr(f"{out_name}(x, t)")
+                    _ea_line_suptitle = "PINN vs Reference -- Line Comparison"
+                ea_lines.append(f'''
 # ── Line comparison ──{chr(10) + "from scipy.interpolate import griddata" if _ea_line_needs_griddata else ""}
 ncols = min(4, n_t); nrows = (n_t + ncols - 1) // ncols
 fig, axes = plt.subplots(nrows, ncols, figsize=(4 * ncols, 3.5 * nrows), squeeze=False)
@@ -9345,22 +9416,22 @@ for j in range(n_t, len(axf)):
 handles, labels = axf[0].get_legend_handles_labels()
 fig.legend(handles, labels, loc="lower center", ncol=2, fontsize=10, framealpha=0.9, bbox_to_anchor=(0.5, 0.01))
 plt.tight_layout(rect=[0, 0.06, 1, 1])
-plt.savefig(os.path.join(ea_dir, "line_comparison.png"), dpi={config.plot_dpi}, bbox_inches="tight")
+plt.savefig(os.path.join(ea_dir, "line_comparison{_ea_suffix}.png"), dpi={config.plot_dpi}, bbox_inches="tight")
 plt.close()
 print("  Line comparison saved.")''')
 
-        if config.ea_do_surface and not (is_2d or is_3d):
-            # A 1D x-t surface needs >= 2 distinct time snapshots to form a
-            # non-degenerate grid -- unguarded, a single reference file (the
-            # steady-state case always has exactly one meaningful file,
-            # since there's no time axis to vary over) crashed matplotlib's
-            # contourf with "Input z must be at least a (2, 2) shaped
-            # array" instead of skipping gracefully the way the live Solve
-            # path's own copy of this section already does (the line
-            # comparison above already covers a single snapshot either way).
-            _skip_msg_1d = ("steady-state 1D has no time axis to build an x-t surface from; see the line comparison above"
-                             if is_steady else "need at least 2 time snapshots for a 1D x-t surface plot")
-            ea_lines.append(f'''
+            if config.ea_do_surface and not (is_2d or is_3d):
+                # A 1D x-t surface needs >= 2 distinct time snapshots to form a
+                # non-degenerate grid -- unguarded, a single reference file (the
+                # steady-state case always has exactly one meaningful file,
+                # since there's no time axis to vary over) crashed matplotlib's
+                # contourf with "Input z must be at least a (2, 2) shaped
+                # array" instead of skipping gracefully the way the live Solve
+                # path's own copy of this section already does (the line
+                # comparison above already covers a single snapshot either way).
+                _skip_msg_1d = ("steady-state 1D has no time axis to build an x-t surface from; see the line comparison above"
+                                 if is_steady else "need at least 2 time snapshots for a 1D x-t surface plot")
+                ea_lines.append(f'''
 # ── Surface comparison (1D: x-t) ──
 if len(ea_times) < 2:
     print("  Skipping surface comparison -- {_skip_msg_1d}")
@@ -9385,15 +9456,15 @@ else:
     im2 = axes[2].contourf(Tg, Xg, U_err, levels={config.plot_levels}, cmap="{config.plot_colormap}")
     axes[2].set_title("|Error|"); axes[2].set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); axes[2].set_ylabel("x", fontsize={config.plot_axis_label_fontsize}); fig.colorbar(im2, ax=axes[2])
     plt.tight_layout(rect=[0, 0, 1, 0.93])
-    plt.savefig(os.path.join(ea_dir, "surface_comparison.png"), dpi={config.plot_dpi}, bbox_inches="tight")
+    plt.savefig(os.path.join(ea_dir, "surface_comparison{_ea_suffix}.png"), dpi={config.plot_dpi}, bbox_inches="tight")
     plt.close()
     print("  Surface comparison saved.")''')
-        elif config.ea_do_surface and is_2d:
-            # See the matching comment on the Line comparison title above --
-            # steady-state has no time axis, so "t=..." is dropped here too.
-            _ea_pinn_title = 'f"PINN  L2={l2:.2e}"' if is_steady else 'f"PINN  t={tv:.3f}  L2={l2:.2e}"'
-            _ea_gt_title = '"Reference"' if is_steady else 'f"Reference  t={tv:.3f}"'
-            ea_lines.append(f'''
+            elif config.ea_do_surface and is_2d:
+                # See the matching comment on the Line comparison title above --
+                # steady-state has no time axis, so "t=..." is dropped here too.
+                _ea_pinn_title = 'f"PINN  L2={l2:.2e}"' if is_steady else 'f"PINN  t={tv:.3f}  L2={l2:.2e}"'
+                _ea_gt_title = '"Reference"' if is_steady else 'f"Reference  t={tv:.3f}"'
+                ea_lines.append(f'''
 # ── Surface comparison (2D heatmaps) ──
 from scipy.interpolate import griddata
 res_ea = {config.plot_resolution}
@@ -9405,7 +9476,7 @@ fig.suptitle("PINN vs Reference -- 2D Heatmaps", fontsize={config.plot_title_fon
 for i, tv in enumerate(ea_times):
     tv_r, l2, mse, mx, ma = ea_metrics[i]
     xyt_grid = np.column_stack([Xg_ea.ravel(), Yg_ea.ravel()]{"" if is_steady else " + [np.full(Xg_ea.size, tv)]"})
-    u_pinn_grid = _extract_plot_field(xyt_grid).reshape(res_ea, res_ea)
+    u_pinn_grid = _ea_extract_group(xyt_grid, model, {_ea_sel!r}).reshape(res_ea, res_ea)
     u_ref_grid = griddata(np.column_stack([ea_x_refs[i], ea_y_refs[i]]), ea_u_refs[i], (Xg_ea, Yg_ea), method="linear", fill_value=0.0)
     u_err_grid = np.abs(u_pinn_grid - u_ref_grid)
     im0 = axes[i][0].contourf(Xg_ea, Yg_ea, u_pinn_grid, levels={config.plot_levels}, cmap="{config.plot_colormap}")
@@ -9415,36 +9486,36 @@ for i, tv in enumerate(ea_times):
     im2 = axes[i][2].contourf(Xg_ea, Yg_ea, u_err_grid, levels={config.plot_levels}, cmap="{config.plot_colormap}")
     axes[i][2].set_title(f"|Error|  Max={{mx:.2e}}"); fig.colorbar(im2, ax=axes[i][2])
 plt.tight_layout(rect=[0, 0, 1, 0.93])
-plt.savefig(os.path.join(ea_dir, "surface_comparison.png"), dpi={config.plot_dpi}, bbox_inches="tight")
+plt.savefig(os.path.join(ea_dir, "surface_comparison{_ea_suffix}.png"), dpi={config.plot_dpi}, bbox_inches="tight")
 plt.close()
 print("  Surface comparison saved.")''')
-        elif config.ea_do_surface and is_3d:
-            # Same steady-vs-time-dependent distinction as the metrics
-            # block above (see the "mat1 and mat2 shapes cannot be
-            # multiplied" comment there): a steady-state model takes no
-            # time input at all, so predict() must not be fed a time
-            # column here either. This also now routes through
-            # _extract_plot_field like every other prediction site in
-            # this function, instead of a raw [:, plot_idx] column --
-            # previously a custom derived plot field (e.g. a future
-            # 3D template's own |h|-style field) would have been silently
-            # ignored in this one plot while the metrics/line-comparison
-            # plots above already used it correctly.
-            _ea_3d_predict_line = (
-                "    pinn_b = _extract_plot_field(np.column_stack([bx, by, bz])).flatten()"
-                if is_steady else
-                "    pinn_b = _extract_plot_field(np.column_stack([bx, by, bz, np.full_like(bx, tv)])).flatten()"
-            )
-            # Time-Adaptive never keeps a bare `geom` variable around (it only
-            # ever builds per-step geometry via _build_geom()/geom_i, scoped
-            # to that step's loop iteration) -- the Standard path's own
-            # geom_line assignment is what defines `geom` here.
-            _ea_geom_ref = "_build_geom()" if use_ta else "geom"
-            # See the matching comment on the Line comparison title above --
-            # steady-state has no time axis, so "t=..." is dropped here too.
-            _ea_pinn_title_3d = 'f"PINN  L2={l2:.2e}"' if is_steady else 'f"PINN  t={tv:.3f}  L2={l2:.2e}"'
-            _ea_gt_title_3d = '"Reference"' if is_steady else 'f"Reference  t={tv:.3f}"'
-            ea_lines.append(f'''
+            elif config.ea_do_surface and is_3d:
+                # Same steady-vs-time-dependent distinction as the metrics
+                # block above (see the "mat1 and mat2 shapes cannot be
+                # multiplied" comment there): a steady-state model takes no
+                # time input at all, so predict() must not be fed a time
+                # column here either. This also now routes through
+                # _extract_plot_field like every other prediction site in
+                # this function, instead of a raw [:, plot_idx] column --
+                # previously a custom derived plot field (e.g. a future
+                # 3D template's own |h|-style field) would have been silently
+                # ignored in this one plot while the metrics/line-comparison
+                # plots above already used it correctly.
+                _ea_3d_predict_line = (
+                    f"    pinn_b = _ea_extract_group(np.column_stack([bx, by, bz]), model, {_ea_sel!r}).flatten()"
+                    if is_steady else
+                    f"    pinn_b = _ea_extract_group(np.column_stack([bx, by, bz, np.full_like(bx, tv)]), model, {_ea_sel!r}).flatten()"
+                )
+                # Time-Adaptive never keeps a bare `geom` variable around (it only
+                # ever builds per-step geometry via _build_geom()/geom_i, scoped
+                # to that step's loop iteration) -- the Standard path's own
+                # geom_line assignment is what defines `geom` here.
+                _ea_geom_ref = "_build_geom()" if use_ta else "geom"
+                # See the matching comment on the Line comparison title above --
+                # steady-state has no time axis, so "t=..." is dropped here too.
+                _ea_pinn_title_3d = 'f"PINN  L2={l2:.2e}"' if is_steady else 'f"PINN  t={tv:.3f}  L2={l2:.2e}"'
+                _ea_gt_title_3d = '"Reference"' if is_steady else 'f"Reference  t={tv:.3f}"'
+                ea_lines.append(f'''
 # ── Surface comparison (3D: boundary-point scatter vs reference) ──
 fig = plt.figure(figsize=(15, 4.5 * n_t))
 fig.suptitle("PINN vs Reference -- 3D Comparison", fontsize={config.plot_title_fontsize}, fontweight="bold")
@@ -9487,11 +9558,11 @@ for i, tv in enumerate(ea_times):
         ax3.set_title(ttl, fontsize={config.plot_subplot_title_fontsize})
         ax3.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); ax3.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); ax3.set_zlabel("z", fontsize={config.plot_axis_label_fontsize})
 plt.tight_layout(rect=[0, 0, 1, 0.93])
-plt.savefig(os.path.join(ea_dir, "surface_comparison.png"), dpi={config.plot_dpi}, bbox_inches="tight")
+plt.savefig(os.path.join(ea_dir, "surface_comparison{_ea_suffix}.png"), dpi={config.plot_dpi}, bbox_inches="tight")
 plt.close()
 print("  Surface comparison saved.")''')
 
-        parts.append("\n".join(ea_lines))
+            parts.append("\n".join(ea_lines))
 
     if any_cbs and config.training_monitors_enabled:
         _tm_clean_plot_code = _build_training_monitors_plot_code(config, "(save_dir or '.')", indent=0).replace("_os.path.join", "os.path.join")
