@@ -8063,6 +8063,314 @@ else:
     print(f"Surface animation saved to: {{out_path}}")"""
 
 
+def _restore_surface_code(resolution, x_min, x_max, y_min, y_max, t_min, t_max, n_2d_snapshots,
+                          colormap, show_colorbar, levels, swap_xt, auto_range, vmin_val, vmax_val,
+                          linewidth, title_fontsize, subplot_title_fontsize, axis_label_fontsize,
+                          save_dir, dpi, xlabel_3d, ylabel_3d, title_3d, xlabel_2d, ylabel_2d,
+                          title_2d, xlabel_1d, ylabel_1d, title_1d, xlabel_1d_steady,
+                          ylabel_1d_steady, title_1d_steady, is_time_adaptive):
+    """Builds the static "Surface" branch shared between main_window.py's
+    single-model restore (_build_restore_script) and its Time-Adaptive
+    counterpart (_build_restore_script_ta) -- cleanup Round 45 (audit §2e,
+    sub-round 3). Round 43 measured this pair at only ~47% similar and left
+    it alone, partly because the Time-Adaptive copy never masked to the real
+    geometry; Round 44 fixed that, and with masking now in parity the two
+    copies differ only in things that follow from one is_time_adaptive
+    flag, same as Rounds 42/43's pairs:
+      - which bbox source feeds the 3D face grid (geom.bbox vs. the
+        Time-Adaptive script's _ta_build_geomtime(...).geometry.bbox --
+        the same box either way);
+      - whether each snapshot panel resolves its own step model first
+        (_ta_model_for_t) and passes it to _extract_plot_field;
+      - the is_steady branches, only reachable on the single-model path
+        (a Time-Adaptive run is never steady-state, and its script never
+        even defines is_steady): 1 panel instead of n_2d_snapshots, no
+        time column, the steady per-panel title instead of "t = ...", no
+        suptitle, and the steady-1D u(x) line plot;
+      - 1D: one batched (x, t) grid predict (single model) vs. one row per
+        t, each through whichever step model covers that t (Time-Adaptive);
+      - comment wording, kept per side so generated scripts stay
+        byte-for-byte what they were before this extraction.
+    xlabel_1d_steady/ylabel_1d_steady/title_1d_steady and linewidth are only
+    used on the single-model path (the steady-1D line plot); pass None for
+    them from the Time-Adaptive builder. Verified byte-for-byte identical to
+    both original hand-typed copies across a randomized fuzz check plus a
+    full generated-script diff before this function replaced them."""
+    vrange = f"vmin={vmin_val}, vmax={vmax_val}" if not auto_range else ""
+    if is_time_adaptive:
+        suptitle_note = (
+            "# Round 31: only the 3D/2D branches below add a fig.suptitle() above\n"
+            "# their own per-panel subplot titles; the final 1D branch is single-panel\n"
+            "# with no suptitle -- see the matching comment in _build_restore_script.\n"
+        )
+        comment_3d = (
+            "    # Several evenly-spaced time snapshots, each its own 3D subplot side\n"
+            "    # by side -- same convention as _build_restore_script's own 3D Surface\n"
+            "    # branch (see its comment). Which step's restored model applies can\n"
+            "    # differ snapshot to snapshot (see _ta_model_for_t/_ta_pick_step\n"
+            "    # above), so each panel resolves its own model, unlike the rest of\n"
+            "    # this plot's geometry (x_min/x_max/... are a whole-run choice, not\n"
+            "    # per-step -- see this function's own docstring -- so the bounding box\n"
+            "    # itself only needs computing once, not per panel).\n"
+        )
+        bbox3_expr = f"_ta_build_geomtime({t_min}, {t_max}).geometry.bbox"
+        mesh_xy_note = mesh_xz_note = mesh_yz_note = ""
+        mask_comment_3d = (
+            "    # cleanup Round 44: masked to the real geometry with geom.inside(...) --\n"
+            "    # same convention _build_restore_script's own 3D Surface branch already\n"
+            "    # uses (geom here is the real reconstructed geometry built above, not\n"
+            "    # just its bounding box -- a Sphere/Custom-3D model would otherwise show\n"
+            "    # its full bounding-box face). Spatial-only, so computed once and reused\n"
+            "    # for every snapshot panel, same as the single-model path.\n"
+        )
+        n_snaps_prefix = ""
+        t_snaps_prefix = ""
+        model3_line = "        _model3 = _ta_model_for_t(_tv3)\n"
+        pts3_lines = (
+            "            _fpts3 = np.column_stack([_fX3.ravel(), _fY3.ravel(), _fZ3.ravel(), np.full(_fX3.size, _tv3)])\n"
+            "            _face_preds3.append(_extract_plot_field(_fpts3, _model3).reshape(_fX3.shape))\n"
+        )
+        range_comment_3d = (
+            "        # Auto-range off only the in-domain values, same as the\n"
+            "        # single-model path -- otherwise meaningless bounding-box-only\n"
+            "        # predictions could skew the color scale.\n"
+        )
+        title3_expr = 'f"t = {_tv3:.3f}"'
+        pass_note = ""
+        suptitle3 = (
+            f"    fig.suptitle({title_3d!r}, fontsize={title_fontsize})\n"
+            "    _had_suptitle = True\n"
+        )
+        comment_2d = "    # Same multi-snapshot convention as the 3D branch above.\n"
+        mask_comment_2d = (
+            "    # cleanup Round 44: masked to the real geometry with geom.inside(...) --\n"
+            "    # same convention _build_restore_script's own 2D Surface branch already\n"
+            "    # uses. Spatial-only, so computed once and reused for every panel.\n"
+        )
+        xyt_lines = (
+            "        _model2 = _ta_model_for_t(_tv2)\n"
+            "        XYT = np.column_stack([Xg.ravel(), Yg.ravel(), np.full(Xg.size, _tv2)])\n"
+            "        pred = _extract_plot_field(XYT, _model2).reshape(res, res)\n"
+        )
+        title2_expr = 'f"t = {_tv2:.3f}"'
+        suptitle2 = (
+            f"    fig.suptitle({title_2d!r}, fontsize={title_fontsize})\n"
+            "    _had_suptitle = True\n"
+        )
+        steady_1d_block = ""
+        body_1d = (
+            "    # 1D + time already fully uses (x, t) as the two plot axes, so unlike\n"
+            "    # the 2D/3D branches above there's no separate \"snapshot\" concept --\n"
+            "    # this covers the FULL combined [t_min, t_max] range, evaluating each\n"
+            "    # row of the grid (one fixed t) with whichever step's model actually\n"
+            "    # covers that t, same shape/orientation as the single-model\n"
+            "    # _build_restore_script's own 1D Surface branch.\n"
+            f"    t_vals = np.linspace({t_min}, {t_max}, res)\n"
+            "    X, T = np.meshgrid(x_vals, t_vals)\n"
+            "    pred = np.empty_like(X)\n"
+            "    for _ri, _tv in enumerate(t_vals):\n"
+            "        _ta_m = _ta_model_for_t(_tv)\n"
+            "        XT_row = np.column_stack([x_vals, np.full_like(x_vals, _tv)])\n"
+            "        pred[_ri, :] = _extract_plot_field(XT_row, _ta_m).flatten()\n"
+            "    fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))\n"
+        )
+    else:
+        suptitle_note = (
+            "# Round 31: only the 3D/2D multi-snapshot branches below ever add a\n"
+            "# fig.suptitle() above their own per-panel subplot titles -- the steady-1D\n"
+            "# and 1D-surface branches are single-panel with no suptitle at all -- so\n"
+            "# the shared plt.tight_layout() after this if/elif chain only needs to\n"
+            "# reserve top margin for the suptitle when one was actually drawn.\n"
+        )
+        comment_3d = (
+            "    # Genuine smooth 3D surface: each of the bounding box's 6 flat faces\n"
+            "    # (from geom.bbox) is predicted directly on a fine regular grid -- no\n"
+            "    # slicing or interpolation needed, it's an exact prediction at every\n"
+            "    # grid point -- and drawn with plot_surface's per-quad facecolors.\n"
+            "    # Unlike a scatter of discrete points, adjacent same-ish-colored grid\n"
+            "    # quads blend into a continuous-looking colored surface. geom here\n"
+            "    # may be a Cuboid/Sphere/Custom-3D CSG combo (not always a Cuboid),\n"
+            "    # so every face is also masked down to the real domain below --\n"
+            "    # otherwise a Sphere/Custom-3D model would show its full bounding-box\n"
+            "    # face, not just the part that's actually inside the true geometry.\n"
+            "    #\n"
+            "    # Non-steady: several evenly-spaced time snapshots, each its own 3D\n"
+            "    # subplot side by side in one figure -- matching the Setup tab's own\n"
+            "    # \"Plot output\" -> Surface -> 3D non-steady convention (see\n"
+            "    # codegen.py's \"elif _is_3d:\" Surface branch), not a single\n"
+            "    # user-picked time the way this used to work. Steady: no time axis at\n"
+            "    # all, always exactly one panel, unaffected by n_2d_snapshots.\n"
+        )
+        bbox3_expr = "geom.bbox"
+        mesh_xy_note = "   # z-faces (free: x,y)"
+        mesh_xz_note = "   # y-faces (free: x,z)"
+        mesh_yz_note = "   # x-faces (free: y,z)"
+        mask_comment_3d = (
+            "    # Spatial-only inside() check -- the plain geom (not geomtime), since\n"
+            "    # whether a point lies in the domain never depends on t; computed once\n"
+            "    # and reused for every snapshot panel.\n"
+        )
+        n_snaps_prefix = "1 if is_steady else "
+        t_snaps_prefix = "[None] if is_steady else "
+        model3_line = ""
+        pts3_lines = (
+            "            _fspatial3 = np.column_stack([_fX3.ravel(), _fY3.ravel(), _fZ3.ravel()])\n"
+            "            _fpts3 = _fspatial3 if is_steady else np.column_stack([_fspatial3, np.full(_fX3.size, _tv3)])\n"
+            "            _face_preds3.append(_extract_plot_field(_fpts3).reshape(_fX3.shape))\n"
+        )
+        range_comment_3d = (
+            "        # Each panel normalizes its own color scale independently when\n"
+            "        # auto-range is on (matching the 2D branch below, and the Setup\n"
+            "        # tab's own multi-snapshot convention: contourf with vmin=vmax=None\n"
+            "        # auto-ranges per panel) -- only an explicit manual vmin/vmax is\n"
+            "        # shared across every panel.\n"
+        )
+        title3_expr = f'{title_3d!r} if is_steady else f"t = {{_tv3:.3f}}"'
+        pass_note = "  # older matplotlib without set_box_aspect -- cosmetic only"
+        suptitle3 = (
+            "    if not is_steady:\n"
+            f"        fig.suptitle({title_3d!r}, fontsize={title_fontsize})\n"
+            "        _had_suptitle = True\n"
+        )
+        comment_2d = (
+            "    # Same multi-snapshot convention as the 3D branch above -- several\n"
+            "    # evenly-spaced x-y heatmaps side by side for a non-steady restore\n"
+            "    # (matching the Setup tab's own \"elif _is_2d:\" Surface branch), one\n"
+            "    # plain single heatmap for a steady restore.\n"
+        )
+        mask_comment_2d = (
+            "    # Mask the prediction down to the real problem domain -- geom is the\n"
+            "    # actual (possibly non-rectangular / CSG-combined) geometry built\n"
+            "    # above, not just its bounding box, so a grid point that falls in\n"
+            "    # this box but outside the true domain (e.g. outside a triangular\n"
+            "    # cavity) is blanked out (NaN -> contourf leaves it unfilled) rather\n"
+            "    # than plotted as if it were a valid prediction there. Same masking\n"
+            "    # convention codegen.py's own Surface plots already use for every\n"
+            "    # non-rectangular geometry; computed once and reused for every panel.\n"
+        )
+        xyt_lines = (
+            "        XYT = (np.column_stack([Xg.ravel(), Yg.ravel()]) if is_steady\n"
+            "               else np.column_stack([Xg.ravel(), Yg.ravel(), np.full(Xg.size, _tv2)]))\n"
+            "        pred = _extract_plot_field(XYT).reshape(res, res)\n"
+        )
+        title2_expr = f'{title_2d!r} if is_steady else f"t = {{_tv2:.3f}}"'
+        suptitle2 = (
+            "    if not is_steady:\n"
+            f"        fig.suptitle({title_2d!r}, fontsize={title_fontsize})\n"
+            "        _had_suptitle = True\n"
+        )
+        steady_1d_block = (
+            "elif is_steady:\n"
+            "    # Steady 1D: no time axis and no second spatial axis either -- there's\n"
+            "    # nothing left to make a \"surface\" out of, just the one curve u(x).\n"
+            "    pred = _extract_plot_field(x_vals.reshape(-1, 1)).flatten()\n"
+            "    fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))\n"
+            f"    ax.plot(x_vals, pred, color=\"#4dabf7\", linewidth={linewidth})\n"
+            "    ax.grid(True, alpha=0.2)\n"
+            f"    ax.set_xlabel({xlabel_1d_steady!r}, fontsize={axis_label_fontsize}); ax.set_ylabel({ylabel_1d_steady!r}, fontsize={axis_label_fontsize})\n"
+            f"    ax.set_title({title_1d_steady!r}, fontsize={subplot_title_fontsize})\n"
+        )
+        body_1d = (
+            f"    t_vals = np.linspace({t_min}, {t_max}, res)\n"
+            "    X, T = np.meshgrid(x_vals, t_vals)\n"
+            "    XT   = np.vstack([X.ravel(), T.ravel()]).T\n"
+            "    pred = _extract_plot_field(XT).reshape(res, res)\n"
+            "    fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))\n"
+            "    # Swapping which of X/T is passed first -- no reshape of pred needed,\n"
+            "    # see the matching comment on the main Results panel's own 1D Surface\n"
+            "    # plot for why that alone is enough to flip which one is on the x-axis.\n"
+        )
+
+    return f"""res = {resolution}
+x_vals = np.linspace({x_min}, {x_max}, res)
+y_vals = np.linspace({y_min}, {y_max}, res)
+{suptitle_note}_had_suptitle = False
+if is_3d:
+{comment_3d}    _res3 = max(24, res // 2)
+    _bbox3 = np.asarray({bbox3_expr})
+    _cx0, _cy0, _cz0 = _bbox3[0]; _cx1, _cy1, _cz1 = _bbox3[1]
+    _xg3 = np.linspace(_cx0, _cx1, _res3)
+    _yg3 = np.linspace(_cy0, _cy1, _res3)
+    _zg3 = np.linspace(_cz0, _cz1, _res3)
+    _Xxy3, _Yxy3 = np.meshgrid(_xg3, _yg3){mesh_xy_note}
+    _Xxz3, _Zxz3 = np.meshgrid(_xg3, _zg3){mesh_xz_note}
+    _Yyz3, _Zyz3 = np.meshgrid(_yg3, _zg3){mesh_yz_note}
+    _faces3 = [
+        (_Xxy3, _Yxy3, np.full_like(_Xxy3, _cz0)),
+        (_Xxy3, _Yxy3, np.full_like(_Xxy3, _cz1)),
+        (_Xxz3, np.full_like(_Xxz3, _cy0), _Zxz3),
+        (_Xxz3, np.full_like(_Xxz3, _cy1), _Zxz3),
+        (np.full_like(_Yyz3, _cx0), _Yyz3, _Zyz3),
+        (np.full_like(_Yyz3, _cx1), _Yyz3, _Zyz3),
+    ]
+{mask_comment_3d}    _face_inside3 = []
+    for _fX3, _fY3, _fZ3 in _faces3:
+        _fspatial3 = np.column_stack([_fX3.ravel(), _fY3.ravel(), _fZ3.ravel()])
+        _face_inside3.append(np.asarray(geom.inside(_fspatial3)).reshape(_fX3.shape))
+    _n_snaps3 = {n_snaps_prefix}{n_2d_snapshots}
+    _t_snaps3 = {t_snaps_prefix}np.linspace({t_min}, {t_max}, _n_snaps3)
+    _cmap_obj3 = plt.get_cmap("{colormap}")
+    _panel_w3, _panel_h3 = _plot_figsize(8, 6.5)
+    fig = plt.figure(figsize=(_panel_w3 * _n_snaps3, _panel_h3))
+    for _ai3, _tv3 in enumerate(_t_snaps3):
+{model3_line}        _face_preds3 = []
+        for _fX3, _fY3, _fZ3 in _faces3:
+{pts3_lines}{range_comment_3d}        _inside_vals3 = [f[m] for f, m in zip(_face_preds3, _face_inside3) if m.any()]
+        if {auto_range}:
+            if _inside_vals3:
+                _pv_min3 = min(v.min() for v in _inside_vals3)
+                _pv_max3 = max(v.max() for v in _inside_vals3)
+            else:
+                _pv_min3 = min(_f.min() for _f in _face_preds3)
+                _pv_max3 = max(_f.max() for _f in _face_preds3)
+        else:
+            _pv_min3, _pv_max3 = {vmin_val}, {vmax_val}
+        ax = fig.add_subplot(1, _n_snaps3, _ai3 + 1, projection='3d')
+        _norm3 = plt.Normalize(vmin=_pv_min3, vmax=_pv_max3)
+        for _fi3, (_fX3, _fY3, _fZ3) in enumerate(_faces3):
+            _fc3 = np.array(_cmap_obj3(_norm3(_face_preds3[_fi3])))
+            # Outside-the-domain quads get alpha=0 -- invisible rather than
+            # plotted as if they were a valid prediction on the bounding box.
+            _fc3[..., 3] = np.where(_face_inside3[_fi3], 1.0, 0.0)
+            ax.plot_surface(_fX3, _fY3, _fZ3, facecolors=_fc3,
+                             rstride=1, cstride=1, linewidth=0, antialiased=False, shade=False)
+        if {show_colorbar}:
+            _sm3 = plt.cm.ScalarMappable(cmap=_cmap_obj3, norm=_norm3)
+            fig.colorbar(_sm3, ax=ax, shrink=0.6, pad=0.12)
+        ax.set_xlabel({xlabel_3d!r}, fontsize={axis_label_fontsize}); ax.set_ylabel({ylabel_3d!r}, fontsize={axis_label_fontsize}); ax.set_zlabel("z", fontsize={axis_label_fontsize})
+        ax.set_title({title3_expr}, fontsize={subplot_title_fontsize})
+        try:
+            ax.set_box_aspect((_cx1 - _cx0, _cy1 - _cy0, _cz1 - _cz0))
+        except Exception:
+            pass{pass_note}
+{suptitle3}elif is_2d:
+{comment_2d}    Xg, Yg = np.meshgrid(x_vals, y_vals)
+{mask_comment_2d}    _inside2d = np.asarray(geom.inside(np.column_stack([Xg.ravel(), Yg.ravel()]))).reshape(res, res)
+    _n_snaps2 = {n_snaps_prefix}{n_2d_snapshots}
+    _t_snaps2 = {t_snaps_prefix}np.linspace({t_min}, {t_max}, _n_snaps2)
+    _panel_w2, _panel_h2 = _plot_figsize(7, 5)
+    fig, axes2d = plt.subplots(1, _n_snaps2, figsize=(_panel_w2 * _n_snaps2, _panel_h2))
+    if _n_snaps2 == 1: axes2d = [axes2d]
+    for _ai2, _tv2 in enumerate(_t_snaps2):
+{xyt_lines}        pred = np.where(_inside2d, pred, np.nan)
+        im = axes2d[_ai2].contourf(Xg, Yg, pred, levels={levels}, cmap="{colormap}", {vrange})
+        if {show_colorbar}: fig.colorbar(im, ax=axes2d[_ai2])
+        axes2d[_ai2].set_xlabel({xlabel_2d!r}, fontsize={axis_label_fontsize}); axes2d[_ai2].set_ylabel({ylabel_2d!r}, fontsize={axis_label_fontsize})
+        axes2d[_ai2].set_title({title2_expr}, fontsize={subplot_title_fontsize})
+{suptitle2}{steady_1d_block}else:
+{body_1d}    if {swap_xt}:
+        im = ax.contourf(T, X, pred, levels={levels}, cmap="{colormap}", {vrange})
+    else:
+        im = ax.contourf(X, T, pred, levels={levels}, cmap="{colormap}", {vrange})
+    if {show_colorbar}: fig.colorbar(im, ax=ax)
+    ax.set_xlabel({xlabel_1d!r}, fontsize={axis_label_fontsize}); ax.set_ylabel({ylabel_1d!r}, fontsize={axis_label_fontsize})
+    ax.set_title({title_1d!r}, fontsize={subplot_title_fontsize})
+plt.tight_layout(rect=[0, 0, 1, 0.93] if _had_suptitle else None)
+out_path = os.path.join({save_dir!r}, "restored_plot.png")
+plt.savefig(out_path, dpi={dpi}, bbox_inches='tight'); plt.close()
+print(f"Surface plot saved to: {{out_path}}")"""
+
+
 def generate_clean_script(config):
     """Builds the "Export as DeepXDE Script" file: a short, plain,
     tutorial-style DeepXDE/PyTorch + matplotlib script for exactly this

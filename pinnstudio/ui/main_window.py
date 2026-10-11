@@ -13564,7 +13564,6 @@ def _extract_plot_field(x_grid):
 """
 
         if viz_type == "Surface":
-            vrange = f"vmin={vmin_val}, vmax={vmax_val}" if not auto_range else ""
             _xlabel_3d = xlabel_override or "x"
             _ylabel_3d = ylabel_override or "y"
             _title_3d = title_override or (
@@ -13581,174 +13580,24 @@ def _extract_plot_field(x_grid):
             # x-axis; an explicit override in this dialog's own X/Y-axis
             # label fields still wins over either default. Steady-state has
             # no t axis at all, so it gets its own plain x/u(x) line labels
-            # instead -- see the is_steady branch of the 1D/else case below.
+            # instead (the steady-1D line plot in _restore_surface_code).
             _xlabel_1d = xlabel_override or ("t" if swap_xt else "x")
             _ylabel_1d = ylabel_override or ("x" if swap_xt else "t")
             _title_1d = title_override or f"Restored Model — {out_name}(x,t) Surface"
             _xlabel_1d_steady = xlabel_override or "x"
             _ylabel_1d_steady = ylabel_override or out_name
             _title_1d_steady = title_override or f"Restored Model — {out_name}(x)"
-            script += f"""
-res = {resolution}
-x_vals = np.linspace({x_min}, {x_max}, res)
-y_vals = np.linspace({y_min}, {y_max}, res)
-# Round 31: only the 3D/2D multi-snapshot branches below ever add a
-# fig.suptitle() above their own per-panel subplot titles -- the steady-1D
-# and 1D-surface branches are single-panel with no suptitle at all -- so
-# the shared plt.tight_layout() after this if/elif chain only needs to
-# reserve top margin for the suptitle when one was actually drawn.
-_had_suptitle = False
-if is_3d:
-    # Genuine smooth 3D surface: each of the bounding box's 6 flat faces
-    # (from geom.bbox) is predicted directly on a fine regular grid -- no
-    # slicing or interpolation needed, it's an exact prediction at every
-    # grid point -- and drawn with plot_surface's per-quad facecolors.
-    # Unlike a scatter of discrete points, adjacent same-ish-colored grid
-    # quads blend into a continuous-looking colored surface. geom here
-    # may be a Cuboid/Sphere/Custom-3D CSG combo (not always a Cuboid),
-    # so every face is also masked down to the real domain below --
-    # otherwise a Sphere/Custom-3D model would show its full bounding-box
-    # face, not just the part that's actually inside the true geometry.
-    #
-    # Non-steady: several evenly-spaced time snapshots, each its own 3D
-    # subplot side by side in one figure -- matching the Setup tab's own
-    # "Plot output" -> Surface -> 3D non-steady convention (see
-    # codegen.py's "elif _is_3d:" Surface branch), not a single
-    # user-picked time the way this used to work. Steady: no time axis at
-    # all, always exactly one panel, unaffected by n_2d_snapshots.
-    _res3 = max(24, res // 2)
-    _bbox3 = np.asarray(geom.bbox)
-    _cx0, _cy0, _cz0 = _bbox3[0]; _cx1, _cy1, _cz1 = _bbox3[1]
-    _xg3 = np.linspace(_cx0, _cx1, _res3)
-    _yg3 = np.linspace(_cy0, _cy1, _res3)
-    _zg3 = np.linspace(_cz0, _cz1, _res3)
-    _Xxy3, _Yxy3 = np.meshgrid(_xg3, _yg3)   # z-faces (free: x,y)
-    _Xxz3, _Zxz3 = np.meshgrid(_xg3, _zg3)   # y-faces (free: x,z)
-    _Yyz3, _Zyz3 = np.meshgrid(_yg3, _zg3)   # x-faces (free: y,z)
-    _faces3 = [
-        (_Xxy3, _Yxy3, np.full_like(_Xxy3, _cz0)),
-        (_Xxy3, _Yxy3, np.full_like(_Xxy3, _cz1)),
-        (_Xxz3, np.full_like(_Xxz3, _cy0), _Zxz3),
-        (_Xxz3, np.full_like(_Xxz3, _cy1), _Zxz3),
-        (np.full_like(_Yyz3, _cx0), _Yyz3, _Zyz3),
-        (np.full_like(_Yyz3, _cx1), _Yyz3, _Zyz3),
-    ]
-    # Spatial-only inside() check -- the plain geom (not geomtime), since
-    # whether a point lies in the domain never depends on t; computed once
-    # and reused for every snapshot panel.
-    _face_inside3 = []
-    for _fX3, _fY3, _fZ3 in _faces3:
-        _fspatial3 = np.column_stack([_fX3.ravel(), _fY3.ravel(), _fZ3.ravel()])
-        _face_inside3.append(np.asarray(geom.inside(_fspatial3)).reshape(_fX3.shape))
-    _n_snaps3 = 1 if is_steady else {n_2d_snapshots}
-    _t_snaps3 = [None] if is_steady else np.linspace({t_min}, {t_max}, _n_snaps3)
-    _cmap_obj3 = plt.get_cmap("{colormap}")
-    _panel_w3, _panel_h3 = _plot_figsize(8, 6.5)
-    fig = plt.figure(figsize=(_panel_w3 * _n_snaps3, _panel_h3))
-    for _ai3, _tv3 in enumerate(_t_snaps3):
-        _face_preds3 = []
-        for _fX3, _fY3, _fZ3 in _faces3:
-            _fspatial3 = np.column_stack([_fX3.ravel(), _fY3.ravel(), _fZ3.ravel()])
-            _fpts3 = _fspatial3 if is_steady else np.column_stack([_fspatial3, np.full(_fX3.size, _tv3)])
-            _face_preds3.append(_extract_plot_field(_fpts3).reshape(_fX3.shape))
-        # Each panel normalizes its own color scale independently when
-        # auto-range is on (matching the 2D branch below, and the Setup
-        # tab's own multi-snapshot convention: contourf with vmin=vmax=None
-        # auto-ranges per panel) -- only an explicit manual vmin/vmax is
-        # shared across every panel.
-        _inside_vals3 = [f[m] for f, m in zip(_face_preds3, _face_inside3) if m.any()]
-        if {auto_range}:
-            if _inside_vals3:
-                _pv_min3 = min(v.min() for v in _inside_vals3)
-                _pv_max3 = max(v.max() for v in _inside_vals3)
-            else:
-                _pv_min3 = min(_f.min() for _f in _face_preds3)
-                _pv_max3 = max(_f.max() for _f in _face_preds3)
-        else:
-            _pv_min3, _pv_max3 = {vmin_val}, {vmax_val}
-        ax = fig.add_subplot(1, _n_snaps3, _ai3 + 1, projection='3d')
-        _norm3 = plt.Normalize(vmin=_pv_min3, vmax=_pv_max3)
-        for _fi3, (_fX3, _fY3, _fZ3) in enumerate(_faces3):
-            _fc3 = np.array(_cmap_obj3(_norm3(_face_preds3[_fi3])))
-            # Outside-the-domain quads get alpha=0 -- invisible rather than
-            # plotted as if they were a valid prediction on the bounding box.
-            _fc3[..., 3] = np.where(_face_inside3[_fi3], 1.0, 0.0)
-            ax.plot_surface(_fX3, _fY3, _fZ3, facecolors=_fc3,
-                             rstride=1, cstride=1, linewidth=0, antialiased=False, shade=False)
-        if {show_colorbar}:
-            _sm3 = plt.cm.ScalarMappable(cmap=_cmap_obj3, norm=_norm3)
-            fig.colorbar(_sm3, ax=ax, shrink=0.6, pad=0.12)
-        ax.set_xlabel({_xlabel_3d!r}, fontsize={axis_label_fontsize}); ax.set_ylabel({_ylabel_3d!r}, fontsize={axis_label_fontsize}); ax.set_zlabel("z", fontsize={axis_label_fontsize})
-        ax.set_title({_title_3d!r} if is_steady else f"t = {{_tv3:.3f}}", fontsize={subplot_title_fontsize})
-        try:
-            ax.set_box_aspect((_cx1 - _cx0, _cy1 - _cy0, _cz1 - _cz0))
-        except Exception:
-            pass  # older matplotlib without set_box_aspect -- cosmetic only
-    if not is_steady:
-        fig.suptitle({_title_3d!r}, fontsize={title_fontsize})
-        _had_suptitle = True
-elif is_2d:
-    # Same multi-snapshot convention as the 3D branch above -- several
-    # evenly-spaced x-y heatmaps side by side for a non-steady restore
-    # (matching the Setup tab's own "elif _is_2d:" Surface branch), one
-    # plain single heatmap for a steady restore.
-    Xg, Yg = np.meshgrid(x_vals, y_vals)
-    # Mask the prediction down to the real problem domain -- geom is the
-    # actual (possibly non-rectangular / CSG-combined) geometry built
-    # above, not just its bounding box, so a grid point that falls in
-    # this box but outside the true domain (e.g. outside a triangular
-    # cavity) is blanked out (NaN -> contourf leaves it unfilled) rather
-    # than plotted as if it were a valid prediction there. Same masking
-    # convention codegen.py's own Surface plots already use for every
-    # non-rectangular geometry; computed once and reused for every panel.
-    _inside2d = np.asarray(geom.inside(np.column_stack([Xg.ravel(), Yg.ravel()]))).reshape(res, res)
-    _n_snaps2 = 1 if is_steady else {n_2d_snapshots}
-    _t_snaps2 = [None] if is_steady else np.linspace({t_min}, {t_max}, _n_snaps2)
-    _panel_w2, _panel_h2 = _plot_figsize(7, 5)
-    fig, axes2d = plt.subplots(1, _n_snaps2, figsize=(_panel_w2 * _n_snaps2, _panel_h2))
-    if _n_snaps2 == 1: axes2d = [axes2d]
-    for _ai2, _tv2 in enumerate(_t_snaps2):
-        XYT = (np.column_stack([Xg.ravel(), Yg.ravel()]) if is_steady
-               else np.column_stack([Xg.ravel(), Yg.ravel(), np.full(Xg.size, _tv2)]))
-        pred = _extract_plot_field(XYT).reshape(res, res)
-        pred = np.where(_inside2d, pred, np.nan)
-        im = axes2d[_ai2].contourf(Xg, Yg, pred, levels={levels}, cmap="{colormap}", {vrange})
-        if {show_colorbar}: fig.colorbar(im, ax=axes2d[_ai2])
-        axes2d[_ai2].set_xlabel({_xlabel_2d!r}, fontsize={axis_label_fontsize}); axes2d[_ai2].set_ylabel({_ylabel_2d!r}, fontsize={axis_label_fontsize})
-        axes2d[_ai2].set_title({_title_2d!r} if is_steady else f"t = {{_tv2:.3f}}", fontsize={subplot_title_fontsize})
-    if not is_steady:
-        fig.suptitle({_title_2d!r}, fontsize={title_fontsize})
-        _had_suptitle = True
-elif is_steady:
-    # Steady 1D: no time axis and no second spatial axis either -- there's
-    # nothing left to make a "surface" out of, just the one curve u(x).
-    pred = _extract_plot_field(x_vals.reshape(-1, 1)).flatten()
-    fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
-    ax.plot(x_vals, pred, color="#4dabf7", linewidth={linewidth})
-    ax.grid(True, alpha=0.2)
-    ax.set_xlabel({_xlabel_1d_steady!r}, fontsize={axis_label_fontsize}); ax.set_ylabel({_ylabel_1d_steady!r}, fontsize={axis_label_fontsize})
-    ax.set_title({_title_1d_steady!r}, fontsize={subplot_title_fontsize})
-else:
-    t_vals = np.linspace({t_min}, {t_max}, res)
-    X, T = np.meshgrid(x_vals, t_vals)
-    XT   = np.vstack([X.ravel(), T.ravel()]).T
-    pred = _extract_plot_field(XT).reshape(res, res)
-    fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
-    # Swapping which of X/T is passed first -- no reshape of pred needed,
-    # see the matching comment on the main Results panel's own 1D Surface
-    # plot for why that alone is enough to flip which one is on the x-axis.
-    if {swap_xt}:
-        im = ax.contourf(T, X, pred, levels={levels}, cmap="{colormap}", {vrange})
-    else:
-        im = ax.contourf(X, T, pred, levels={levels}, cmap="{colormap}", {vrange})
-    if {show_colorbar}: fig.colorbar(im, ax=ax)
-    ax.set_xlabel({_xlabel_1d!r}, fontsize={axis_label_fontsize}); ax.set_ylabel({_ylabel_1d!r}, fontsize={axis_label_fontsize})
-    ax.set_title({_title_1d!r}, fontsize={subplot_title_fontsize})
-plt.tight_layout(rect=[0, 0, 1, 0.93] if _had_suptitle else None)
-out_path = os.path.join({save_dir!r}, "restored_plot.png")
-plt.savefig(out_path, dpi={dpi}, bbox_inches='tight'); plt.close()
-print(f"Surface plot saved to: {{out_path}}")
-"""
+            # cleanup Round 45 (audit §2e, sub-round 3): this branch and its
+            # _build_restore_script_ta counterpart were two hand-typed copies
+            # -- see _restore_surface_code's own docstring in codegen.py.
+            from pinnstudio.core.codegen import _restore_surface_code
+            script += "\n" + _restore_surface_code(
+                resolution, x_min, x_max, y_min, y_max, t_min, t_max, n_2d_snapshots,
+                colormap, show_colorbar, levels, swap_xt, auto_range, vmin_val, vmax_val,
+                linewidth, title_fontsize, subplot_title_fontsize, axis_label_fontsize,
+                save_dir, dpi, _xlabel_3d, _ylabel_3d, _title_3d, _xlabel_2d, _ylabel_2d,
+                _title_2d, _xlabel_1d, _ylabel_1d, _title_1d, _xlabel_1d_steady,
+                _ylabel_1d_steady, _title_1d_steady, is_time_adaptive=False) + "\n"
             
         elif viz_type == "Line (time steps)":
             _xlabel_line = xlabel_override or "x"
@@ -14104,7 +13953,6 @@ def _extract_plot_field(x_grid, _tm_model):
 """
 
         if viz_type == "Surface":
-            vrange = f"vmin={vmin_val}, vmax={vmax_val}" if not auto_range else ""
             _xlabel_3d = xlabel_override or "x"
             _ylabel_3d = ylabel_override or "y"
             _title_3d = title_override or f"Restored Model — {out_name}(x,y,z,t)"
@@ -14114,144 +13962,19 @@ def _extract_plot_field(x_grid, _tm_model):
             _xlabel_1d = xlabel_override or ("t" if swap_xt else "x")
             _ylabel_1d = ylabel_override or ("x" if swap_xt else "t")
             _title_1d = title_override or f"Restored Model — {out_name}(x,t) Surface"
-            script += f"""
-res = {resolution}
-x_vals = np.linspace({x_min}, {x_max}, res)
-y_vals = np.linspace({y_min}, {y_max}, res)
-# Round 31: only the 3D/2D branches below add a fig.suptitle() above
-# their own per-panel subplot titles; the final 1D branch is single-panel
-# with no suptitle -- see the matching comment in _build_restore_script.
-_had_suptitle = False
-if is_3d:
-    # Several evenly-spaced time snapshots, each its own 3D subplot side
-    # by side -- same convention as _build_restore_script's own 3D Surface
-    # branch (see its comment). Which step's restored model applies can
-    # differ snapshot to snapshot (see _ta_model_for_t/_ta_pick_step
-    # above), so each panel resolves its own model, unlike the rest of
-    # this plot's geometry (x_min/x_max/... are a whole-run choice, not
-    # per-step -- see this function's own docstring -- so the bounding box
-    # itself only needs computing once, not per panel).
-    _res3 = max(24, res // 2)
-    _bbox3 = np.asarray(_ta_build_geomtime({t_min}, {t_max}).geometry.bbox)
-    _cx0, _cy0, _cz0 = _bbox3[0]; _cx1, _cy1, _cz1 = _bbox3[1]
-    _xg3 = np.linspace(_cx0, _cx1, _res3)
-    _yg3 = np.linspace(_cy0, _cy1, _res3)
-    _zg3 = np.linspace(_cz0, _cz1, _res3)
-    _Xxy3, _Yxy3 = np.meshgrid(_xg3, _yg3)
-    _Xxz3, _Zxz3 = np.meshgrid(_xg3, _zg3)
-    _Yyz3, _Zyz3 = np.meshgrid(_yg3, _zg3)
-    _faces3 = [
-        (_Xxy3, _Yxy3, np.full_like(_Xxy3, _cz0)),
-        (_Xxy3, _Yxy3, np.full_like(_Xxy3, _cz1)),
-        (_Xxz3, np.full_like(_Xxz3, _cy0), _Zxz3),
-        (_Xxz3, np.full_like(_Xxz3, _cy1), _Zxz3),
-        (np.full_like(_Yyz3, _cx0), _Yyz3, _Zyz3),
-        (np.full_like(_Yyz3, _cx1), _Yyz3, _Zyz3),
-    ]
-    # cleanup Round 44: masked to the real geometry with geom.inside(...) --
-    # same convention _build_restore_script's own 3D Surface branch already
-    # uses (geom here is the real reconstructed geometry built above, not
-    # just its bounding box -- a Sphere/Custom-3D model would otherwise show
-    # its full bounding-box face). Spatial-only, so computed once and reused
-    # for every snapshot panel, same as the single-model path.
-    _face_inside3 = []
-    for _fX3, _fY3, _fZ3 in _faces3:
-        _fspatial3 = np.column_stack([_fX3.ravel(), _fY3.ravel(), _fZ3.ravel()])
-        _face_inside3.append(np.asarray(geom.inside(_fspatial3)).reshape(_fX3.shape))
-    _n_snaps3 = {n_2d_snapshots}
-    _t_snaps3 = np.linspace({t_min}, {t_max}, _n_snaps3)
-    _cmap_obj3 = plt.get_cmap("{colormap}")
-    _panel_w3, _panel_h3 = _plot_figsize(8, 6.5)
-    fig = plt.figure(figsize=(_panel_w3 * _n_snaps3, _panel_h3))
-    for _ai3, _tv3 in enumerate(_t_snaps3):
-        _model3 = _ta_model_for_t(_tv3)
-        _face_preds3 = []
-        for _fX3, _fY3, _fZ3 in _faces3:
-            _fpts3 = np.column_stack([_fX3.ravel(), _fY3.ravel(), _fZ3.ravel(), np.full(_fX3.size, _tv3)])
-            _face_preds3.append(_extract_plot_field(_fpts3, _model3).reshape(_fX3.shape))
-        # Auto-range off only the in-domain values, same as the
-        # single-model path -- otherwise meaningless bounding-box-only
-        # predictions could skew the color scale.
-        _inside_vals3 = [f[m] for f, m in zip(_face_preds3, _face_inside3) if m.any()]
-        if {auto_range}:
-            if _inside_vals3:
-                _pv_min3 = min(v.min() for v in _inside_vals3)
-                _pv_max3 = max(v.max() for v in _inside_vals3)
-            else:
-                _pv_min3 = min(_f.min() for _f in _face_preds3)
-                _pv_max3 = max(_f.max() for _f in _face_preds3)
-        else:
-            _pv_min3, _pv_max3 = {vmin_val}, {vmax_val}
-        ax = fig.add_subplot(1, _n_snaps3, _ai3 + 1, projection='3d')
-        _norm3 = plt.Normalize(vmin=_pv_min3, vmax=_pv_max3)
-        for _fi3, (_fX3, _fY3, _fZ3) in enumerate(_faces3):
-            _fc3 = np.array(_cmap_obj3(_norm3(_face_preds3[_fi3])))
-            # Outside-the-domain quads get alpha=0 -- invisible rather than
-            # plotted as if they were a valid prediction on the bounding box.
-            _fc3[..., 3] = np.where(_face_inside3[_fi3], 1.0, 0.0)
-            ax.plot_surface(_fX3, _fY3, _fZ3, facecolors=_fc3,
-                             rstride=1, cstride=1, linewidth=0, antialiased=False, shade=False)
-        if {show_colorbar}:
-            _sm3 = plt.cm.ScalarMappable(cmap=_cmap_obj3, norm=_norm3)
-            fig.colorbar(_sm3, ax=ax, shrink=0.6, pad=0.12)
-        ax.set_xlabel({_xlabel_3d!r}, fontsize={axis_label_fontsize}); ax.set_ylabel({_ylabel_3d!r}, fontsize={axis_label_fontsize}); ax.set_zlabel("z", fontsize={axis_label_fontsize})
-        ax.set_title(f"t = {{_tv3:.3f}}", fontsize={subplot_title_fontsize})
-        try:
-            ax.set_box_aspect((_cx1 - _cx0, _cy1 - _cy0, _cz1 - _cz0))
-        except Exception:
-            pass
-    fig.suptitle({_title_3d!r}, fontsize={title_fontsize})
-    _had_suptitle = True
-elif is_2d:
-    # Same multi-snapshot convention as the 3D branch above.
-    Xg, Yg = np.meshgrid(x_vals, y_vals)
-    # cleanup Round 44: masked to the real geometry with geom.inside(...) --
-    # same convention _build_restore_script's own 2D Surface branch already
-    # uses. Spatial-only, so computed once and reused for every panel.
-    _inside2d = np.asarray(geom.inside(np.column_stack([Xg.ravel(), Yg.ravel()]))).reshape(res, res)
-    _n_snaps2 = {n_2d_snapshots}
-    _t_snaps2 = np.linspace({t_min}, {t_max}, _n_snaps2)
-    _panel_w2, _panel_h2 = _plot_figsize(7, 5)
-    fig, axes2d = plt.subplots(1, _n_snaps2, figsize=(_panel_w2 * _n_snaps2, _panel_h2))
-    if _n_snaps2 == 1: axes2d = [axes2d]
-    for _ai2, _tv2 in enumerate(_t_snaps2):
-        _model2 = _ta_model_for_t(_tv2)
-        XYT = np.column_stack([Xg.ravel(), Yg.ravel(), np.full(Xg.size, _tv2)])
-        pred = _extract_plot_field(XYT, _model2).reshape(res, res)
-        pred = np.where(_inside2d, pred, np.nan)
-        im = axes2d[_ai2].contourf(Xg, Yg, pred, levels={levels}, cmap="{colormap}", {vrange})
-        if {show_colorbar}: fig.colorbar(im, ax=axes2d[_ai2])
-        axes2d[_ai2].set_xlabel({_xlabel_2d!r}, fontsize={axis_label_fontsize}); axes2d[_ai2].set_ylabel({_ylabel_2d!r}, fontsize={axis_label_fontsize})
-        axes2d[_ai2].set_title(f"t = {{_tv2:.3f}}", fontsize={subplot_title_fontsize})
-    fig.suptitle({_title_2d!r}, fontsize={title_fontsize})
-    _had_suptitle = True
-else:
-    # 1D + time already fully uses (x, t) as the two plot axes, so unlike
-    # the 2D/3D branches above there's no separate "snapshot" concept --
-    # this covers the FULL combined [t_min, t_max] range, evaluating each
-    # row of the grid (one fixed t) with whichever step's model actually
-    # covers that t, same shape/orientation as the single-model
-    # _build_restore_script's own 1D Surface branch.
-    t_vals = np.linspace({t_min}, {t_max}, res)
-    X, T = np.meshgrid(x_vals, t_vals)
-    pred = np.empty_like(X)
-    for _ri, _tv in enumerate(t_vals):
-        _ta_m = _ta_model_for_t(_tv)
-        XT_row = np.column_stack([x_vals, np.full_like(x_vals, _tv)])
-        pred[_ri, :] = _extract_plot_field(XT_row, _ta_m).flatten()
-    fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
-    if {swap_xt}:
-        im = ax.contourf(T, X, pred, levels={levels}, cmap="{colormap}", {vrange})
-    else:
-        im = ax.contourf(X, T, pred, levels={levels}, cmap="{colormap}", {vrange})
-    if {show_colorbar}: fig.colorbar(im, ax=ax)
-    ax.set_xlabel({_xlabel_1d!r}, fontsize={axis_label_fontsize}); ax.set_ylabel({_ylabel_1d!r}, fontsize={axis_label_fontsize})
-    ax.set_title({_title_1d!r}, fontsize={subplot_title_fontsize})
-plt.tight_layout(rect=[0, 0, 1, 0.93] if _had_suptitle else None)
-out_path = os.path.join({save_dir!r}, "restored_plot.png")
-plt.savefig(out_path, dpi={dpi}, bbox_inches='tight'); plt.close()
-print(f"Surface plot saved to: {{out_path}}")
-"""
+            # cleanup Round 45 (audit §2e, sub-round 3): shared with
+            # _build_restore_script's own "Surface" branch -- see
+            # _restore_surface_code's docstring in codegen.py. A
+            # Time-Adaptive restore is never steady-state, so the steady-1D
+            # labels and line width are unused here (None).
+            from pinnstudio.core.codegen import _restore_surface_code
+            script += "\n" + _restore_surface_code(
+                resolution, x_min, x_max, y_min, y_max, t_min, t_max, n_2d_snapshots,
+                colormap, show_colorbar, levels, swap_xt, auto_range, vmin_val, vmax_val,
+                None, title_fontsize, subplot_title_fontsize, axis_label_fontsize,
+                save_dir, dpi, _xlabel_3d, _ylabel_3d, _title_3d, _xlabel_2d, _ylabel_2d,
+                _title_2d, _xlabel_1d, _ylabel_1d, _title_1d, None, None, None,
+                is_time_adaptive=True) + "\n"
 
         elif viz_type == "Line (time steps)":
             _slice_suffix_line = (f", y={_line_slice_y:.3g}, z={_line_slice_z:.3g}" if is_3d
