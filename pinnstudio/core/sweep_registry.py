@@ -351,15 +351,21 @@ def _weight_set(config, key: str, value) -> None:
     values = _weight_flat_list(config)
     values[idx] = float(value)
     config.loss_weights_multi = ",".join(str(v) for v in values)
+    _phase_weights_set(config, idx, value)
 
-    # Re-sync every scheduler phase's OWN "weights" string at this same
-    # index -- see the module docstring's "SCOPE (v2)" section for why
-    # this is required, not optional. A phase whose weights string is
-    # shorter than this index (a stale/hand-edited save, or a phase that
-    # somehow never matched the current slot count) is left untouched at
-    # that phase -- codegen.py's own length check already falls back to
-    # the freshly-resolved shared list in that case, which now carries
-    # the new value anyway.
+
+def _phase_weights_set(config, idx: int, value) -> None:
+    """Re-sync every scheduler phase's OWN "weights" string at flat index
+    `idx` -- see the module docstring's "SCOPE (v2)" section for why this
+    is required, not optional: codegen.py compiles each phase with that
+    phase's own weight list verbatim, so changing only the shared value
+    would be silently overridden. A phase whose weights string is shorter
+    than this index (a stale/hand-edited save, or a phase that never
+    matched the current slot count) is left untouched -- codegen.py's own
+    length check already falls back to the freshly-resolved shared list in
+    that case, which carries the new value anyway. Shared by the loss-
+    weight sweeps and (cleanup Round 54) the Inverse data-loss-weight
+    sweep."""
     phases = _load_phases(config)
     changed = False
     for ph in phases:
@@ -516,6 +522,13 @@ def _inv_obs_set_weight(config, idx: int, value) -> None:
         # Keep the single legacy field in sync too -- see module
         # docstring. Only the primary (first) file has a legacy field.
         config.loss_weight_obs = float(value)
+    # cleanup Round 54: the scheduler phases carry their own copy of every
+    # loss weight, observation terms included (appended after the PDE/BC/IC
+    # slots, one per measured-data file, in file order -- codegen.py's own
+    # _multi_weights order). Without re-syncing them, a swept data-loss
+    # weight never reached training: every phase still compiled with the
+    # template's original value.
+    _phase_weights_set(config, len(_weight_slot_descriptors(config)) + idx, value)
 
 
 def _inv_available(config) -> bool:
