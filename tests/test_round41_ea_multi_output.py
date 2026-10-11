@@ -191,21 +191,15 @@ def run():
               f"{proc2.stdout[-3000:]}\n{proc2.stderr[-3000:]}")
 
         ea_dir2 = os.path.join(save_dir, "error_analysis")
-        # The implicit-default group's own label is "" (see _ea_group_label),
-        # so once there's more than one group its suffix is a bare "_" --
-        # "error_metrics_.txt", not the unsuffixed "error_metrics.txt" test 1
-        # checks for. This exact formula (f"_{_ea_group_label(_ea_sel)}" when
-        # multi-output) is copied verbatim from generate_script()'s own
-        # already-shipped multi-output Error Analysis, which has the same
-        # quirk -- confirmed by reading its generated runtime code directly.
-        # Replicating it here keeps the two generators in parity (this
-        # round's whole point); it's a pre-existing cosmetic oversight in
-        # the donor code, not something this round introduces, and fixing
-        # it unasked here would make the two generators diverge again.
-        default_metrics = os.path.join(ea_dir2, "error_metrics_.txt")
+        # The implicit-default group's own label is "" (see _ea_group_label);
+        # once there's more than one group it's suffixed "_default" (Round 50
+        # fixed both generators together -- it used to be a bare "_", e.g.
+        # "error_metrics_.txt"), not the unsuffixed "error_metrics.txt" test 1
+        # checks for.
+        default_metrics = os.path.join(ea_dir2, "error_metrics_default.txt")
         const_metrics = os.path.join(ea_dir2, "error_metrics_const.txt")
         v_metrics = os.path.join(ea_dir2, "error_metrics_v.txt")
-        check(os.path.exists(default_metrics), "default-group error_metrics_.txt should exist")
+        check(os.path.exists(default_metrics), "default-group error_metrics_default.txt should exist")
         check(os.path.exists(const_metrics), "custom-expr-group error_metrics_const.txt should exist")
         check(os.path.exists(v_metrics), "raw-int-group error_metrics_v.txt should exist")
 
@@ -224,8 +218,8 @@ def run():
                 check(l2_const < 1e-6,
                       f"const-group L2 error should be ~0 (constant field vs constant reference), got {l2_const}")
 
-        check(os.path.exists(os.path.join(ea_dir2, "line_comparison_.png")),
-              "default-group line_comparison_.png should exist (see the error_metrics_.txt comment above)")
+        check(os.path.exists(os.path.join(ea_dir2, "line_comparison_default.png")),
+              "default-group line_comparison_default.png should exist (see the error_metrics_default.txt comment above)")
         check(os.path.exists(os.path.join(ea_dir2, "line_comparison_const.png")),
               "const-group line_comparison_const.png should exist")
         check(os.path.exists(os.path.join(ea_dir2, "line_comparison_v.png")),
@@ -260,8 +254,8 @@ def run():
 
         ea_dir3 = os.path.join(save_dir, "error_analysis")
         const_metrics_ta = os.path.join(ea_dir3, "error_metrics_const.txt")
-        check(os.path.exists(os.path.join(ea_dir3, "error_metrics_.txt")),
-              "TA default-group error_metrics_.txt should exist (bare-underscore suffix, see above)")
+        check(os.path.exists(os.path.join(ea_dir3, "error_metrics_default.txt")),
+              "TA default-group error_metrics_default.txt should exist (see the suffix comment above)")
         check(os.path.exists(const_metrics_ta),
               "TA const-group error_metrics_const.txt should exist")
         if os.path.exists(const_metrics_ta):

@@ -4581,7 +4581,7 @@ for _pval in _param_values:
             for _ea_group_key, _ea_group in _ea_groups.items():
                 _ea_files = _ea_group["files"]
                 _ea_sel = _ea_group["sel"]
-                _ea_suffix = f"_{{_ea_group_label(_ea_sel)}}" if _ea_multi_output else ""
+                _ea_suffix = f"_{{_ea_group_label(_ea_sel) or 'default'}}" if _ea_multi_output else ""
                 if _ea_multi_output:
                     print(f"  ── Output group: {{_ea_group_label(_ea_sel) or 'default'}} ({{len(_ea_files)}} files) ──")
 
@@ -6482,7 +6482,7 @@ if {config.time_adaptive}:
         for _ea_group_key, _ea_group in _ea_groups.items():
             _ea_files = _ea_group["files"]
             _ea_sel = _ea_group["sel"]
-            _ea_suffix = f"_{{_ea_group_label(_ea_sel)}}" if _ea_multi_output else ""
+            _ea_suffix = f"_{{_ea_group_label(_ea_sel) or 'default'}}" if _ea_multi_output else ""
             if _ea_multi_output:
                 print(f"  ── Output group: {{_ea_group_label(_ea_sel) or 'default'}} ({{len(_ea_files)}} files) ──")
 
@@ -9971,7 +9971,7 @@ print(f"Solution plot saved: {{solution_path}}")''')
         for _ea_gkey, _ea_group in _ea_groups.items():
             _ea_sel = _ea_group["sel"]
             _ea_group_files = _ea_group["files"]
-            _ea_suffix = f"_{_ea_group_label(_ea_sel)}" if _ea_multi_output else ""
+            _ea_suffix = f"_{_ea_group_label(_ea_sel) or 'default'}" if _ea_multi_output else ""
             _ea_header_note = f" (output: {_ea_group_label(_ea_sel) or 'default'})" if _ea_multi_output else ""
             ea_lines = [f'''# ── Error Analysis: compare against reference data{_ea_header_note} ──
 ea_dir = os.path.join(sol_dir, "error_analysis")
