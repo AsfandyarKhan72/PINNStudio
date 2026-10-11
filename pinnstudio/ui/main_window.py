@@ -14148,6 +14148,16 @@ if is_3d:
         (np.full_like(_Yyz3, _cx0), _Yyz3, _Zyz3),
         (np.full_like(_Yyz3, _cx1), _Yyz3, _Zyz3),
     ]
+    # cleanup Round 44: masked to the real geometry with geom.inside(...) --
+    # same convention _build_restore_script's own 3D Surface branch already
+    # uses (geom here is the real reconstructed geometry built above, not
+    # just its bounding box -- a Sphere/Custom-3D model would otherwise show
+    # its full bounding-box face). Spatial-only, so computed once and reused
+    # for every snapshot panel, same as the single-model path.
+    _face_inside3 = []
+    for _fX3, _fY3, _fZ3 in _faces3:
+        _fspatial3 = np.column_stack([_fX3.ravel(), _fY3.ravel(), _fZ3.ravel()])
+        _face_inside3.append(np.asarray(geom.inside(_fspatial3)).reshape(_fX3.shape))
     _n_snaps3 = {n_2d_snapshots}
     _t_snaps3 = np.linspace({t_min}, {t_max}, _n_snaps3)
     _cmap_obj3 = plt.get_cmap("{colormap}")
@@ -14159,15 +14169,27 @@ if is_3d:
         for _fX3, _fY3, _fZ3 in _faces3:
             _fpts3 = np.column_stack([_fX3.ravel(), _fY3.ravel(), _fZ3.ravel(), np.full(_fX3.size, _tv3)])
             _face_preds3.append(_extract_plot_field(_fpts3, _model3).reshape(_fX3.shape))
+        # Auto-range off only the in-domain values, same as the
+        # single-model path -- otherwise meaningless bounding-box-only
+        # predictions could skew the color scale.
+        _inside_vals3 = [f[m] for f, m in zip(_face_preds3, _face_inside3) if m.any()]
         if {auto_range}:
-            _pv_min3 = min(_f.min() for _f in _face_preds3)
-            _pv_max3 = max(_f.max() for _f in _face_preds3)
+            if _inside_vals3:
+                _pv_min3 = min(v.min() for v in _inside_vals3)
+                _pv_max3 = max(v.max() for v in _inside_vals3)
+            else:
+                _pv_min3 = min(_f.min() for _f in _face_preds3)
+                _pv_max3 = max(_f.max() for _f in _face_preds3)
         else:
             _pv_min3, _pv_max3 = {vmin_val}, {vmax_val}
         ax = fig.add_subplot(1, _n_snaps3, _ai3 + 1, projection='3d')
         _norm3 = plt.Normalize(vmin=_pv_min3, vmax=_pv_max3)
         for _fi3, (_fX3, _fY3, _fZ3) in enumerate(_faces3):
-            ax.plot_surface(_fX3, _fY3, _fZ3, facecolors=_cmap_obj3(_norm3(_face_preds3[_fi3])),
+            _fc3 = np.array(_cmap_obj3(_norm3(_face_preds3[_fi3])))
+            # Outside-the-domain quads get alpha=0 -- invisible rather than
+            # plotted as if they were a valid prediction on the bounding box.
+            _fc3[..., 3] = np.where(_face_inside3[_fi3], 1.0, 0.0)
+            ax.plot_surface(_fX3, _fY3, _fZ3, facecolors=_fc3,
                              rstride=1, cstride=1, linewidth=0, antialiased=False, shade=False)
         if {show_colorbar}:
             _sm3 = plt.cm.ScalarMappable(cmap=_cmap_obj3, norm=_norm3)
@@ -14183,6 +14205,10 @@ if is_3d:
 elif is_2d:
     # Same multi-snapshot convention as the 3D branch above.
     Xg, Yg = np.meshgrid(x_vals, y_vals)
+    # cleanup Round 44: masked to the real geometry with geom.inside(...) --
+    # same convention _build_restore_script's own 2D Surface branch already
+    # uses. Spatial-only, so computed once and reused for every panel.
+    _inside2d = np.asarray(geom.inside(np.column_stack([Xg.ravel(), Yg.ravel()]))).reshape(res, res)
     _n_snaps2 = {n_2d_snapshots}
     _t_snaps2 = np.linspace({t_min}, {t_max}, _n_snaps2)
     _panel_w2, _panel_h2 = _plot_figsize(7, 5)
@@ -14192,6 +14218,7 @@ elif is_2d:
         _model2 = _ta_model_for_t(_tv2)
         XYT = np.column_stack([Xg.ravel(), Yg.ravel(), np.full(Xg.size, _tv2)])
         pred = _extract_plot_field(XYT, _model2).reshape(res, res)
+        pred = np.where(_inside2d, pred, np.nan)
         im = axes2d[_ai2].contourf(Xg, Yg, pred, levels={levels}, cmap="{colormap}", {vrange})
         if {show_colorbar}: fig.colorbar(im, ax=axes2d[_ai2])
         axes2d[_ai2].set_xlabel({_xlabel_2d!r}, fontsize={axis_label_fontsize}); axes2d[_ai2].set_ylabel({_ylabel_2d!r}, fontsize={axis_label_fontsize})

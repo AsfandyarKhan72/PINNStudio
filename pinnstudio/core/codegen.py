@@ -6341,6 +6341,16 @@ if {config.time_adaptive}:
             _xp_ta = np.linspace({config.x_min}, {config.x_max}, _res_ta)
             _yp_ta = np.linspace({config.y_min}, {config.y_max}, _res_ta)
             _Xg_ta, _Yg_ta = np.meshgrid(_xp_ta, _yp_ta)
+            # cleanup Round 44: masked to the real geometry with
+            # geom.inside(...) -- same convention the Standard path's own
+            # 2D Surface branch already uses (geom here is the real
+            # reconstructed geometry built at module scope above, NOT the
+            # plain Rectangle built a few lines below for each step's
+            # throwaway dde.Model -- that Rectangle only exists to satisfy
+            # DeepXDE's Model/TimePDE constructor so .predict() works, it
+            # was never meant to represent the true domain). Spatial-only,
+            # so computed once and reused for every snapshot panel.
+            _inside_ta = np.asarray(geom.inside(np.column_stack([_Xg_ta.ravel(), _Yg_ta.ravel()]))).reshape(_res_ta, _res_ta)
             # Collect all step models to predict at each snapshot time
             import glob as _ta_glob_sol, json as _ta_json_sol
             _ta_sol_dirs = sorted([_sd for _sd in _ta_glob_sol.glob(_os.path.join(_ta_steps_root, "step_*")) if _os.path.isdir(_sd)])
@@ -6384,6 +6394,7 @@ if {config.time_adaptive}:
                     _pred_ta = _sm_ta.predict(_xyt_ta)[:, {config.plot_output_idx}].reshape(_res_ta, _res_ta)
                 else:
                     _pred_ta = np.zeros((_res_ta, _res_ta))
+                _pred_ta = np.where(_inside_ta, _pred_ta, np.nan)
                 im = axes[_ai].contourf(_Xg_ta, _Yg_ta, _pred_ta, levels={config.plot_levels}, cmap="{config.plot_colormap}", vmin=_vmin_ta, vmax=_vmax_ta)
                 axes[_ai].set_title(f"t = {{_tv_ta:.3f}}")
                 axes[_ai].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); axes[_ai].set_ylabel("y", fontsize={config.plot_axis_label_fontsize})
