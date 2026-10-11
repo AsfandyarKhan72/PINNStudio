@@ -7086,6 +7086,18 @@ def _clean_needed_derivs(oname, oi, n_out, pde_check, is_2d, is_3d, is_steady=Fa
 def _clean_geom_line(config, is_2d, is_3d, tri_verts, poly_verts):
     """One literal geom = dde.geometry.XXX(...) line -- geometry type is
     fixed per-problem, so no runtime dispatch is needed."""
+    inner, wrap_needed = _clean_geom_inner(config, is_2d, is_3d, tri_verts, poly_verts)
+    if wrap_needed:
+        return f"geom = _DTypeSafeGeom({inner})", True
+    return f"geom = {inner}", False
+
+
+def _clean_geom_inner(config, is_2d, is_3d, tri_verts, poly_verts):
+    """The bare dde.geometry.XXX(...) constructor call behind
+    _clean_geom_line(), plus whether it needs the _DTypeSafeGeom wrapper.
+    Split out in cleanup Round 48 so the GUI's Domain Preview builds its
+    geometry with exactly the constructor the exported script trains on,
+    instead of its own hand-typed per-shape copy."""
     gt = config.geometry_type or "Rectangle"
     wrap_needed = gt in ("Disk", "Ellipse", "Triangle", "Polygon", "Sphere")
     if gt == "Custom":
@@ -7109,9 +7121,7 @@ def _clean_geom_line(config, is_2d, is_3d, tri_verts, poly_verts):
                   f"[{config.x_max}, {config.y_max}, {config.z_max}])")
     else:
         inner = f"dde.geometry.Interval({config.x_min}, {config.x_max})"
-    if wrap_needed:
-        return f"geom = _DTypeSafeGeom({inner})", True
-    return f"geom = {inner}", False
+    return inner, wrap_needed
 
 
 def _clean_coord_unpack(indent, is_batch, is_2d, is_3d):

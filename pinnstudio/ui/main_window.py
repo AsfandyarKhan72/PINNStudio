@@ -3719,20 +3719,12 @@ class MainWindow(QMainWindow):
 
     @staticmethod
     def _parse_vertices(text):
-        """'x1,y1;x2,y2;...' -> [(x1,y1), (x2,y2), ...]. Skips malformed pairs."""
-        verts = []
-        for chunk in text.split(";"):
-            chunk = chunk.strip()
-            if not chunk:
-                continue
-            parts = chunk.split(",")
-            if len(parts) != 2:
-                continue
-            try:
-                verts.append((float(parts[0].strip()), float(parts[1].strip())))
-            except ValueError:
-                continue
-        return verts
+        """'x1,y1;x2,y2;...' -> [(x1,y1), (x2,y2), ...]. Skips malformed pairs.
+        cleanup Round 48: delegates to codegen.py's _parse_vertex_list (the
+        parser training uses), which was already a line-for-line mirror of
+        this one -- now there's only one copy to keep in sync."""
+        from pinnstudio.core.codegen import _parse_vertex_list
+        return [tuple(v) for v in _parse_vertex_list(text)]
 
     @staticmethod
     def _is_axis_aligned_rectangle(verts):
@@ -8327,6 +8319,30 @@ def _style_legend(ax):
         _leg.get_frame().set_linewidth(0.8)
 """
 
+    @staticmethod
+    def _preview_single_geom_code(geom_type, **vals):
+        """cleanup Round 48: the dde.geometry constructor for a single-shape
+        Domain Preview, built by the same codegen.py function the exported
+        script trains on (_clean_geom_inner, behind _clean_geom_line) from
+        the preview's own widget values -- previously each preview branch
+        hand-typed its own copy of that constructor."""
+        import types as _types
+        from pinnstudio.core.codegen import _clean_geom_inner
+        ns = _types.SimpleNamespace(
+            geometry_type=geom_type,
+            x_min=vals.get("x_min", 0.0), x_max=vals.get("x_max", 1.0),
+            y_min=vals.get("y_min", 0.0), y_max=vals.get("y_max", 1.0),
+            z_min=vals.get("z_min", 0.0), z_max=vals.get("z_max", 1.0),
+            geom_center_x=vals.get("cx", 0.5), geom_center_y=vals.get("cy", 0.5),
+            geom_center_z=vals.get("cz", 0.5), geom_radius=vals.get("r", 0.5),
+            geom_semi_major=vals.get("a", 0.5), geom_semi_minor=vals.get("b", 0.3),
+            geom_angle=vals.get("angle", 0.0),
+        )
+        is_3d = geom_type in ("Cuboid", "Sphere")
+        verts = vals.get("verts") or []
+        inner, _wrap = _clean_geom_inner(ns, not is_3d, is_3d, verts, verts)
+        return inner
+
     def _custom_geom_leaf_code(self, shape_type, params):
         """One leaf shape's own dde.geometry constructor call + matplotlib
         outline patch + bounding box, from a params dict in the schema
@@ -8345,7 +8361,6 @@ def _style_legend(ax):
             y_min, y_max = params["y_min"], params["y_max"]
             if x_min >= x_max or y_min >= y_max:
                 raise ValueError("needs x_min < x_max and y_min < y_max.")
-            geom_code = f"dde.geometry.Rectangle([{x_min}, {y_min}], [{x_max}, {y_max}])"
             patch_code = (
                 f"plt.Rectangle(({x_min},{y_min}), {x_max}-{x_min}, {y_max}-{y_min}, "
                 "linewidth=2, edgecolor='#1971c2', facecolor='none')"
@@ -8353,13 +8368,11 @@ def _style_legend(ax):
             bbox = (x_min, x_max, y_min, y_max)
         elif shape_type == "Disk":
             cx, cy, r = params["cx"], params["cy"], params["r"]
-            geom_code = f"dde.geometry.Disk([{cx}, {cy}], {r})"
             patch_code = f"plt.Circle(({cx},{cy}), {r}, linewidth=2, edgecolor='#1971c2', facecolor='none')"
             bbox = (cx - r, cx + r, cy - r, cy + r)
         elif shape_type == "Ellipse":
             cx, cy = params["cx"], params["cy"]
             a, b, angle = params["a"], params["b"], params["angle"]
-            geom_code = f"dde.geometry.Ellipse([{cx}, {cy}], {a}, {b}, {angle})"
             patch_code = (
                 f"matplotlib.patches.Ellipse(({cx},{cy}), {2*a}, {2*b}, angle={_math.degrees(angle)}, "
                 "linewidth=2, edgecolor='#1971c2', facecolor='none')"
@@ -8384,13 +8397,15 @@ def _style_legend(ax):
                     "Rectangle shape type instead."
                 )
             vlist = [list(v) for v in verts]
-            if shape_type == "Triangle":
-                geom_code = f"dde.geometry.Triangle({vlist[0]}, {vlist[1]}, {vlist[2]})"
-            else:
-                geom_code = f"dde.geometry.Polygon({vlist})"
             patch_code = f"plt.Polygon({vlist}, closed=True, linewidth=2, edgecolor='#1971c2', facecolor='none')"
             xs = [v[0] for v in verts]; ys = [v[1] for v in verts]
             bbox = (min(xs), max(xs), min(ys), max(ys))
+        # cleanup Round 48: the constructor itself comes from the same
+        # codegen.py function training uses for a Custom leaf, so the preview
+        # can never sample a different shape than the one that gets trained.
+        # The branches above only validate and build the outline/bbox.
+        from pinnstudio.core.codegen import _custom_geom_leaf_literal
+        geom_code = _custom_geom_leaf_literal(shape_type, params)
         return geom_code, patch_code, bbox
 
     def _custom_geom_3d_leaf_code(self, idx, shape_type, params):
@@ -8411,7 +8426,6 @@ def _style_legend(ax):
             z_min, z_max = params.get("z_min", 0.0), params.get("z_max", 1.0)
             if x_min >= x_max or y_min >= y_max or z_min >= z_max:
                 raise ValueError("needs x_min<x_max, y_min<y_max, and z_min<z_max.")
-            geom_code = f"dde.geometry.Cuboid([{x_min}, {y_min}, {z_min}], [{x_max}, {y_max}, {z_max}])"
             outline_code = (
                 f"_x0_{idx}, _x1_{idx}, _y0_{idx}, _y1_{idx}, _z0_{idx}, _z1_{idx} = "
                 f"{x_min}, {x_max}, {y_min}, {y_max}, {z_min}, {z_max}\n"
@@ -8428,7 +8442,6 @@ def _style_legend(ax):
         elif shape_type == "Sphere":
             cx, cy, cz = params.get("cx", 0.5), params.get("cy", 0.5), params.get("cz", 0.5)
             r = params.get("r", 0.5)
-            geom_code = f"dde.geometry.Sphere([{cx}, {cy}, {cz}], {r})"
             outline_code = (
                 f"_u_{idx} = np.linspace(0, 2*np.pi, 30)\n"
                 f"_v_{idx} = np.linspace(0, np.pi, 20)\n"
@@ -8441,6 +8454,10 @@ def _style_legend(ax):
             bbox = (cx - r, cx + r, cy - r, cy + r, cz - r, cz + r)
         else:
             raise ValueError(f"unsupported 3D shape type: {shape_type!r}")
+        # cleanup Round 48: same single source for the constructor as the 2D
+        # leaf above -- codegen.py's _custom_geom_leaf_literal.
+        from pinnstudio.core.codegen import _custom_geom_leaf_literal
+        geom_code = _custom_geom_leaf_literal(shape_type, params)
         return geom_code, outline_code, bbox
 
     def _preview_domain(self):
@@ -8500,7 +8517,7 @@ def _style_legend(ax):
                     self._custom_geom_row_to_dict(row, is_first=(i == 0))
                     for i, row in enumerate(self.custom_geom_shape_rows)
                 ]
-                _CSG_OP_CTORS = {"union": "CSGUnion", "subtract": "CSGDifference", "intersect": "CSGIntersection"}
+                from pinnstudio.core.codegen import _CUSTOM_GEOM_OP_CTORS as _CSG_OP_CTORS
                 geom_code = None
                 outline_blocks = []
                 bboxes = []
@@ -8560,7 +8577,7 @@ def _style_legend(ax):
             # patches are a visual aid only, not what's actually sampled.
             patch_codes = []
             bboxes = []
-            _CSG_OP_CTORS = {"union": "CSGUnion", "subtract": "CSGDifference", "intersect": "CSGIntersection"}
+            from pinnstudio.core.codegen import _CUSTOM_GEOM_OP_CTORS as _CSG_OP_CTORS
             geom_code = None
             for i, entry in enumerate(entries, start=1):
                 try:
@@ -8584,7 +8601,8 @@ def _style_legend(ax):
         elif geom_type == "Rectangle":
             x_min = self.x_min.value(); x_max = self.x_max.value()
             y_min = self.y_min.value(); y_max = self.y_max.value()
-            geom_code = f"dde.geometry.Rectangle([{x_min}, {y_min}], [{x_max}, {y_max}])"
+            geom_code = self._preview_single_geom_code(
+                "Rectangle", x_min=x_min, x_max=x_max, y_min=y_min, y_max=y_max)
             patch_code = (
                 f"plt.Rectangle(({x_min},{y_min}), {x_max}-{x_min}, {y_max}-{y_min}, "
                 "linewidth=2, edgecolor='#1971c2', facecolor='none')"
@@ -8592,14 +8610,14 @@ def _style_legend(ax):
             bbox = (x_min, x_max, y_min, y_max)
         elif geom_type == "Disk":
             cx = self.geom_disk_cx.value(); cy = self.geom_disk_cy.value(); r = self.geom_disk_r.value()
-            geom_code = f"dde.geometry.Disk([{cx}, {cy}], {r})"
+            geom_code = self._preview_single_geom_code("Disk", cx=cx, cy=cy, r=r)
             patch_code = f"plt.Circle(({cx},{cy}), {r}, linewidth=2, edgecolor='#1971c2', facecolor='none')"
             bbox = (cx - r, cx + r, cy - r, cy + r)
         elif geom_type == "Ellipse":
             cx = self.geom_ellipse_cx.value(); cy = self.geom_ellipse_cy.value()
             a = self.geom_ellipse_a.value(); b = self.geom_ellipse_b.value()
             angle = self.geom_ellipse_angle.value()
-            geom_code = f"dde.geometry.Ellipse([{cx}, {cy}], {a}, {b}, {angle})"
+            geom_code = self._preview_single_geom_code("Ellipse", cx=cx, cy=cy, a=a, b=b, angle=angle)
             patch_code = (
                 f"matplotlib.patches.Ellipse(({cx},{cy}), {2*a}, {2*b}, angle={math.degrees(angle)}, "
                 "linewidth=2, edgecolor='#1971c2', facecolor='none')"
@@ -8637,10 +8655,7 @@ def _style_legend(ax):
                 self.solution_label.setText("🗺 Solution plot")
                 return
             vlist = [list(v) for v in verts]
-            if geom_type == "Triangle":
-                geom_code = f"dde.geometry.Triangle({vlist[0]}, {vlist[1]}, {vlist[2]})"
-            else:
-                geom_code = f"dde.geometry.Polygon({vlist})"
+            geom_code = self._preview_single_geom_code(geom_type, verts=vlist)
             patch_code = f"plt.Polygon({vlist}, closed=True, linewidth=2, edgecolor='#1971c2', facecolor='none')"
             xs = [v[0] for v in verts]; ys = [v[1] for v in verts]
             bbox = (min(xs), max(xs), min(ys), max(ys))
@@ -8813,7 +8828,8 @@ print("DOMAIN_PREVIEW_DONE")
             x_min = self.x_min.value(); x_max = self.x_max.value()
             y_min = self.y_min.value(); y_max = self.y_max.value()
             z_min = self.z_min.value(); z_max = self.z_max.value()
-            geom_code = f"dde.geometry.Cuboid([{x_min}, {y_min}, {z_min}], [{x_max}, {y_max}, {z_max}])"
+            geom_code = self._preview_single_geom_code(
+                "Cuboid", x_min=x_min, x_max=x_max, y_min=y_min, y_max=y_max, z_min=z_min, z_max=z_max)
             bbox3 = (x_min, x_max, y_min, y_max, z_min, z_max)
             outline_code = (
                 f"_x0, _x1, _y0, _y1, _z0, _z1 = {x_min}, {x_max}, {y_min}, {y_max}, {z_min}, {z_max}\n"
@@ -8827,7 +8843,7 @@ print("DOMAIN_PREVIEW_DONE")
         else:  # Sphere
             cx = self.geom_sphere_cx.value(); cy = self.geom_sphere_cy.value()
             cz = self.geom_sphere_cz.value(); r = self.geom_sphere_r.value()
-            geom_code = f"dde.geometry.Sphere([{cx}, {cy}, {cz}], {r})"
+            geom_code = self._preview_single_geom_code("Sphere", cx=cx, cy=cy, cz=cz, r=r)
             bbox3 = (cx - r, cx + r, cy - r, cy + r, cz - r, cz + r)
             outline_code = (
                 "_u = np.linspace(0, 2*np.pi, 30)\n"
