@@ -13798,130 +13798,22 @@ print(f"Surface plot saved to: {{out_path}}")
                 f"ax.set_title({title_override!r}, fontsize={subplot_title_fontsize})" if title_override
                 else f'ax.set_title(f"t = {{t_frames[i]:.3f}}", fontsize={subplot_title_fontsize})'
             )
-            # 1D: same "Swap axes" convention as the static Surface option
-            # above and the main Results panel's own 1D Surface plot -- t
-            # on the x-axis by default. 2D keeps its spatial x/y axes,
-            # which this setting doesn't apply to.
             _xlabel_animsurf_else = xlabel_override or ("t" if (swap_xt and not is_2d) else "x")
             _ylabel_animsurf_else = ylabel_override or ("y" if is_2d else ("x" if swap_xt else "t"))
             _animsurf_title_line_else = (
                 f"ax.set_title({title_override!r}, fontsize={subplot_title_fontsize})" if title_override
                 else f'ax.set_title(f"t = {{t_frames[i]:.3f}}", fontsize={subplot_title_fontsize})'
             )
-            script += f"""
-import matplotlib.animation as _anim
-t_frames = np.linspace({t_min}, {t_max}, {n_steps})
-x_anim = np.linspace({x_min}, {x_max}, 80)
-all_frames = []
-if is_3d:
-    # Genuine smooth 3D surface animated over time: same 6-flat-face
-    # exact-prediction approach as the static 3D Surface option above,
-    # repeated once per frame (the face grids are fixed across frames,
-    # only the predicted color values change per t) and rendered with
-    # plot_surface's per-quad facecolors for a continuous-looking colored
-    # surface instead of a scatter of discrete points.
-    _res3a = 28
-    _bbox3a = np.asarray(geom.bbox)
-    _cx0a, _cy0a, _cz0a = _bbox3a[0]; _cx1a, _cy1a, _cz1a = _bbox3a[1]
-    _xg3a = np.linspace(_cx0a, _cx1a, _res3a)
-    _yg3a = np.linspace(_cy0a, _cy1a, _res3a)
-    _zg3a = np.linspace(_cz0a, _cz1a, _res3a)
-    _Xxy3a, _Yxy3a = np.meshgrid(_xg3a, _yg3a)
-    _Xxz3a, _Zxz3a = np.meshgrid(_xg3a, _zg3a)
-    _Yyz3a, _Zyz3a = np.meshgrid(_yg3a, _zg3a)
-    _faces3a = [
-        (_Xxy3a, _Yxy3a, np.full_like(_Xxy3a, _cz0a)),
-        (_Xxy3a, _Yxy3a, np.full_like(_Xxy3a, _cz1a)),
-        (_Xxz3a, np.full_like(_Xxz3a, _cy0a), _Zxz3a),
-        (_Xxz3a, np.full_like(_Xxz3a, _cy1a), _Zxz3a),
-        (np.full_like(_Yyz3a, _cx0a), _Yyz3a, _Zyz3a),
-        (np.full_like(_Yyz3a, _cx1a), _Yyz3a, _Zyz3a),
-    ]
-    for tv in t_frames:
-        _frame_faces = []
-        for _fX3a, _fY3a, _fZ3a in _faces3a:
-            # Defensive fallback for steady-state (see the matching comment
-            # in "Line (time steps)") -- this viz type is hidden from the
-            # dropdown for a steady-state config, so every frame below
-            # predicts the same single steady solution rather than crashing.
-            if is_steady:
-                _fpts3a = np.column_stack([_fX3a.ravel(), _fY3a.ravel(), _fZ3a.ravel()])
-            else:
-                _fpts3a = np.column_stack([_fX3a.ravel(), _fY3a.ravel(), _fZ3a.ravel(), np.full(_fX3a.size, tv)])
-            _frame_faces.append(_extract_plot_field(_fpts3a).reshape(_fX3a.shape))
-        all_frames.append(_frame_faces)
-    v_min = min(_f.min() for _frame in all_frames for _f in _frame)
-    v_max = max(_f.max() for _frame in all_frames for _f in _frame)
-    fig = plt.figure(figsize=_plot_figsize(8, 6.5))
-    ax = fig.add_subplot(111, projection='3d')
-    _norm3a = plt.Normalize(vmin=v_min, vmax=v_max)
-    _cmap_obj3a = plt.get_cmap("{colormap}")
-    _sm3a = plt.cm.ScalarMappable(cmap=_cmap_obj3a, norm=_norm3a)
-    if {show_colorbar}: fig.colorbar(_sm3a, ax=ax, shrink=0.6, pad=0.12)
-    def update(i):
-        ax.cla()
-        for _fi3a, (_fX3a, _fY3a, _fZ3a) in enumerate(_faces3a):
-            ax.plot_surface(_fX3a, _fY3a, _fZ3a, facecolors=_cmap_obj3a(_norm3a(all_frames[i][_fi3a])),
-                             rstride=1, cstride=1, linewidth=0, antialiased=False, shade=False)
-        ax.set_xlabel({_xlabel_animsurf3d!r}, fontsize={axis_label_fontsize}); ax.set_ylabel({_ylabel_animsurf3d!r}, fontsize={axis_label_fontsize}); ax.set_zlabel("z", fontsize={axis_label_fontsize})
-        {_animsurf_title_line_3d}
-        try:
-            ax.set_box_aspect((_cx1a - _cx0a, _cy1a - _cy0a, _cz1a - _cz0a))
-        except Exception:
-            pass
-    ani = _anim.FuncAnimation(fig, update, frames={n_steps}, interval=150)
-    out_path = os.path.join({save_dir!r}, "restored_animation.gif")
-    ani.save(out_path, writer='pillow', fps={fps})
-    plt.close()
-    print(f"3D surface animation saved to: {{out_path}}")
-else:
-    if is_2d:
-        y_anim = np.linspace({y_min}, {y_max}, 80)
-        Xg, Yg = np.meshgrid(x_anim, y_anim)
-        for tv in t_frames:
-            # Defensive fallback for steady-state, same as the 3D branch
-            # above -- hidden from the dropdown for a steady-state config.
-            if is_steady:
-                XYT = np.column_stack([Xg.ravel(), Yg.ravel()])
-            else:
-                XYT = np.column_stack([Xg.ravel(), Yg.ravel(), np.full(Xg.size, tv)])
-            pred = _extract_plot_field(XYT).reshape(80, 80)
-            all_frames.append((Xg, Yg, pred))
-    else:
-        # Same no-reshape-of-pred swap as the static Surface option above
-        # -- storing T_anim/X_anim in swapped order per frame is enough,
-        # since contourf reads each array's own coordinate values rather
-        # than assuming a fixed axis order.
-        t_anim = np.linspace({t_min}, {t_max}, 80)
-        X_anim, T_anim = np.meshgrid(x_anim, t_anim)
-        for tv in t_frames:
-            XT = np.vstack([X_anim.ravel(), np.full(X_anim.size, tv)]).T
-            pred = _extract_plot_field(XT).reshape(80, 80)
-            if {swap_xt}:
-                all_frames.append((T_anim, X_anim, pred))
-            else:
-                all_frames.append((X_anim, T_anim, pred))
-    v_min = min(f[2].min() for f in all_frames)
-    v_max = max(f[2].max() for f in all_frames)
-    fig, ax = plt.subplots(figsize=_plot_figsize(8, 6))
-    from mpl_toolkits.axes_grid1 import make_axes_locatable
-    _div = make_axes_locatable(ax)
-    _cax = _div.append_axes("right", size="5%", pad=0.1)
-    _sm = plt.cm.ScalarMappable(cmap="{colormap}", norm=plt.Normalize(vmin=v_min, vmax=v_max))
-    if {show_colorbar}: fig.colorbar(_sm, cax=_cax)
-    def update(i):
-        ax.cla()
-        Xp, Yp, Zp = all_frames[i]
-        ax.contourf(Xp, Yp, Zp, levels={levels}, cmap="{colormap}", vmin=v_min, vmax=v_max)
-        ax.set_xlabel({_xlabel_animsurf_else!r}, fontsize={axis_label_fontsize})
-        ax.set_ylabel({_ylabel_animsurf_else!r}, fontsize={axis_label_fontsize})
-        {_animsurf_title_line_else}
-    ani = _anim.FuncAnimation(fig, update, frames={n_steps}, interval=150)
-    out_path = os.path.join({save_dir!r}, "restored_animation.gif")
-    ani.save(out_path, writer='pillow', fps={fps})
-    plt.close()
-    print(f"Surface animation saved to: {{out_path}}")
-"""
+            # cleanup Round 43 (audit §2e, sub-round 2): this branch and its
+            # Time-Adaptive counterpart below were ~82% textually identical --
+            # see _restore_anim_surface_code's own docstring in codegen.py.
+            from pinnstudio.core.codegen import _restore_anim_surface_code
+            script += "\n" + _restore_anim_surface_code(
+                x_min, x_max, y_min, y_max, t_min, t_max, n_steps, colormap,
+                show_colorbar, levels, swap_xt, axis_label_fontsize, fps, save_dir,
+                _xlabel_animsurf3d, _ylabel_animsurf3d, _animsurf_title_line_3d,
+                _xlabel_animsurf_else, _ylabel_animsurf_else, _animsurf_title_line_else,
+                is_time_adaptive=False) + "\n"
         script += '\nprint("RESTORE_DONE")\n'
         return script
 
@@ -14386,102 +14278,15 @@ print(f"Surface plot saved to: {{out_path}}")
                 f"ax.set_title({title_override!r}, fontsize={subplot_title_fontsize})" if title_override
                 else f'ax.set_title(f"t = {{t_frames[i]:.3f}}", fontsize={subplot_title_fontsize})'
             )
-            script += f"""
-import matplotlib.animation as _anim
-t_frames = np.linspace({t_min}, {t_max}, {n_steps})
-x_anim = np.linspace({x_min}, {x_max}, 80)
-all_frames = []
-if is_3d:
-    _res3a = 28
-    _bbox3a = np.asarray(_ta_build_geomtime(t_frames[0], t_frames[0]).geometry.bbox)
-    _cx0a, _cy0a, _cz0a = _bbox3a[0]; _cx1a, _cy1a, _cz1a = _bbox3a[1]
-    _xg3a = np.linspace(_cx0a, _cx1a, _res3a)
-    _yg3a = np.linspace(_cy0a, _cy1a, _res3a)
-    _zg3a = np.linspace(_cz0a, _cz1a, _res3a)
-    _Xxy3a, _Yxy3a = np.meshgrid(_xg3a, _yg3a)
-    _Xxz3a, _Zxz3a = np.meshgrid(_xg3a, _zg3a)
-    _Yyz3a, _Zyz3a = np.meshgrid(_yg3a, _zg3a)
-    _faces3a = [
-        (_Xxy3a, _Yxy3a, np.full_like(_Xxy3a, _cz0a)),
-        (_Xxy3a, _Yxy3a, np.full_like(_Xxy3a, _cz1a)),
-        (_Xxz3a, np.full_like(_Xxz3a, _cy0a), _Zxz3a),
-        (_Xxz3a, np.full_like(_Xxz3a, _cy1a), _Zxz3a),
-        (np.full_like(_Yyz3a, _cx0a), _Yyz3a, _Zyz3a),
-        (np.full_like(_Yyz3a, _cx1a), _Yyz3a, _Zyz3a),
-    ]
-    for tv in t_frames:
-        _ta_m = _ta_model_for_t(tv)
-        _frame_faces = []
-        for _fX3a, _fY3a, _fZ3a in _faces3a:
-            _fpts3a = np.column_stack([_fX3a.ravel(), _fY3a.ravel(), _fZ3a.ravel(), np.full(_fX3a.size, tv)])
-            _frame_faces.append(_extract_plot_field(_fpts3a, _ta_m).reshape(_fX3a.shape))
-        all_frames.append(_frame_faces)
-    v_min = min(_f.min() for _frame in all_frames for _f in _frame)
-    v_max = max(_f.max() for _frame in all_frames for _f in _frame)
-    fig = plt.figure(figsize=_plot_figsize(8, 6.5))
-    ax = fig.add_subplot(111, projection='3d')
-    _norm3a = plt.Normalize(vmin=v_min, vmax=v_max)
-    _cmap_obj3a = plt.get_cmap("{colormap}")
-    _sm3a = plt.cm.ScalarMappable(cmap=_cmap_obj3a, norm=_norm3a)
-    if {show_colorbar}: fig.colorbar(_sm3a, ax=ax, shrink=0.6, pad=0.12)
-    def update(i):
-        ax.cla()
-        for _fi3a, (_fX3a, _fY3a, _fZ3a) in enumerate(_faces3a):
-            ax.plot_surface(_fX3a, _fY3a, _fZ3a, facecolors=_cmap_obj3a(_norm3a(all_frames[i][_fi3a])),
-                             rstride=1, cstride=1, linewidth=0, antialiased=False, shade=False)
-        ax.set_xlabel({_xlabel_animsurf3d!r}, fontsize={axis_label_fontsize}); ax.set_ylabel({_ylabel_animsurf3d!r}, fontsize={axis_label_fontsize}); ax.set_zlabel("z", fontsize={axis_label_fontsize})
-        {_animsurf_title_line_3d}
-        try:
-            ax.set_box_aspect((_cx1a - _cx0a, _cy1a - _cy0a, _cz1a - _cz0a))
-        except Exception:
-            pass
-    ani = _anim.FuncAnimation(fig, update, frames={n_steps}, interval=150)
-    out_path = os.path.join({save_dir!r}, "restored_animation.gif")
-    ani.save(out_path, writer='pillow', fps={fps})
-    plt.close()
-    print(f"3D surface animation saved to: {{out_path}}")
-else:
-    if is_2d:
-        y_anim = np.linspace({y_min}, {y_max}, 80)
-        Xg, Yg = np.meshgrid(x_anim, y_anim)
-        for tv in t_frames:
-            _ta_m = _ta_model_for_t(tv)
-            XYT = np.column_stack([Xg.ravel(), Yg.ravel(), np.full(Xg.size, tv)])
-            pred = _extract_plot_field(XYT, _ta_m).reshape(80, 80)
-            all_frames.append((Xg, Yg, pred))
-    else:
-        t_anim = np.linspace({t_min}, {t_max}, 80)
-        X_anim, T_anim = np.meshgrid(x_anim, t_anim)
-        for tv in t_frames:
-            _ta_m = _ta_model_for_t(tv)
-            XT = np.column_stack([x_anim, np.full_like(x_anim, tv)])
-            pred_row = _extract_plot_field(XT, _ta_m).flatten()
-            pred = np.tile(pred_row, (80, 1))
-            if {swap_xt}:
-                all_frames.append((T_anim, X_anim, pred))
-            else:
-                all_frames.append((X_anim, T_anim, pred))
-    v_min = min(f[2].min() for f in all_frames)
-    v_max = max(f[2].max() for f in all_frames)
-    fig, ax = plt.subplots(figsize=_plot_figsize(8, 6))
-    from mpl_toolkits.axes_grid1 import make_axes_locatable
-    _div = make_axes_locatable(ax)
-    _cax = _div.append_axes("right", size="5%", pad=0.1)
-    _sm = plt.cm.ScalarMappable(cmap="{colormap}", norm=plt.Normalize(vmin=v_min, vmax=v_max))
-    if {show_colorbar}: fig.colorbar(_sm, cax=_cax)
-    def update(i):
-        ax.cla()
-        Xp, Yp, Zp = all_frames[i]
-        ax.contourf(Xp, Yp, Zp, levels={levels}, cmap="{colormap}", vmin=v_min, vmax=v_max)
-        ax.set_xlabel({_xlabel_animsurf_else!r}, fontsize={axis_label_fontsize})
-        ax.set_ylabel({_ylabel_animsurf_else!r}, fontsize={axis_label_fontsize})
-        {_animsurf_title_line_else}
-    ani = _anim.FuncAnimation(fig, update, frames={n_steps}, interval=150)
-    out_path = os.path.join({save_dir!r}, "restored_animation.gif")
-    ani.save(out_path, writer='pillow', fps={fps})
-    plt.close()
-    print(f"Surface animation saved to: {{out_path}}")
-"""
+            # cleanup Round 43 (audit §2e, sub-round 2): see
+            # _restore_anim_surface_code's docstring in codegen.py.
+            from pinnstudio.core.codegen import _restore_anim_surface_code
+            script += "\n" + _restore_anim_surface_code(
+                x_min, x_max, y_min, y_max, t_min, t_max, n_steps, colormap,
+                show_colorbar, levels, swap_xt, axis_label_fontsize, fps, save_dir,
+                _xlabel_animsurf3d, _ylabel_animsurf3d, _animsurf_title_line_3d,
+                _xlabel_animsurf_else, _ylabel_animsurf_else, _animsurf_title_line_else,
+                is_time_adaptive=True) + "\n"
         script += '\nprint("RESTORE_DONE")\n'
         return script
 

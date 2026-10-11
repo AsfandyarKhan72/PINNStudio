@@ -7866,6 +7866,192 @@ else:
     print(f"Animation saved to: {{out_path}}")"""
 
 
+def _restore_anim_surface_code(x_min, x_max, y_min, y_max, t_min, t_max, n_steps, colormap,
+                                show_colorbar, levels, swap_xt, axis_label_fontsize, fps, save_dir,
+                                xlabel_animsurf3d, ylabel_animsurf3d, animsurf_title_line_3d,
+                                xlabel_animsurf_else, ylabel_animsurf_else, animsurf_title_line_else,
+                                is_time_adaptive):
+    """Builds the "Animation Surface (GIF)" branch shared between
+    main_window.py's single-model restore (_build_restore_script) and its
+    Time-Adaptive counterpart (_build_restore_script_ta) -- cleanup Round
+    43 (audit §2e, sub-round 2). Unlike the Line/Animation-Line pair
+    (Round 42), the "Surface" branch itself turned out to be only ~47%
+    textually similar between the two builders (real structural
+    differences under Time-Adaptive routing -- left for a separate
+    investigation, see that round's notes) -- but THIS branch,
+    "Animation Surface (GIF)", measured ~82% similar, concentrated in
+    large matching blocks, and is in fact a clean is_time_adaptive-only
+    difference exactly like Round 42's pair: which bbox source feeds the
+    3D face grid (geom.bbox vs. a geomtime helper's own bbox), whether a
+    per-frame Time-Adaptive model needs resolving before each predict
+    call (and the extra model argument that goes with it), the
+    is_steady-only-possible-on-the-single-model-path defensive branches,
+    and (1D case only) whether the frame is predicted as one batched
+    res-independent grid (single model, cheap to over-predict) or as one
+    row's worth of points per frame then tiled (Time-Adaptive, where
+    re-resolving + re-predicting 80x more points than needed per frame
+    would be wasteful). All of it follows from one is_time_adaptive flag.
+    Verified byte-for-byte identical to both original hand-typed copies
+    across a 300-trial randomized fuzz check before this function
+    replaced them."""
+    if is_time_adaptive:
+        comment_3d = ""
+        bbox3a_expr = "_ta_build_geomtime(t_frames[0], t_frames[0]).geometry.bbox"
+        loop_3d = (
+            "    for tv in t_frames:\n"
+            "        _ta_m = _ta_model_for_t(tv)\n"
+            "        _frame_faces = []\n"
+            "        for _fX3a, _fY3a, _fZ3a in _faces3a:\n"
+            "            _fpts3a = np.column_stack([_fX3a.ravel(), _fY3a.ravel(), _fZ3a.ravel(), np.full(_fX3a.size, tv)])\n"
+            "            _frame_faces.append(_extract_plot_field(_fpts3a, _ta_m).reshape(_fX3a.shape))\n"
+            "        all_frames.append(_frame_faces)\n"
+        )
+        loop_2d = (
+            "        for tv in t_frames:\n"
+            "            _ta_m = _ta_model_for_t(tv)\n"
+            "            XYT = np.column_stack([Xg.ravel(), Yg.ravel(), np.full(Xg.size, tv)])\n"
+            "            pred = _extract_plot_field(XYT, _ta_m).reshape(80, 80)\n"
+            "            all_frames.append((Xg, Yg, pred))\n"
+        )
+        comment_else = ""
+        loop_else = (
+            "        for tv in t_frames:\n"
+            "            _ta_m = _ta_model_for_t(tv)\n"
+            "            XT = np.column_stack([x_anim, np.full_like(x_anim, tv)])\n"
+            "            pred_row = _extract_plot_field(XT, _ta_m).flatten()\n"
+            "            pred = np.tile(pred_row, (80, 1))\n"
+            "            if {swap_xt}:\n"
+            "                all_frames.append((T_anim, X_anim, pred))\n"
+            "            else:\n"
+            "                all_frames.append((X_anim, T_anim, pred))\n"
+        ).format(swap_xt=swap_xt)
+    else:
+        comment_3d = (
+            "    # Genuine smooth 3D surface animated over time: same 6-flat-face\n"
+            "    # exact-prediction approach as the static 3D Surface option above,\n"
+            "    # repeated once per frame (the face grids are fixed across frames,\n"
+            "    # only the predicted color values change per t) and rendered with\n"
+            "    # plot_surface's per-quad facecolors for a continuous-looking colored\n"
+            "    # surface instead of a scatter of discrete points.\n"
+        )
+        bbox3a_expr = "geom.bbox"
+        loop_3d = (
+            "    for tv in t_frames:\n"
+            "        _frame_faces = []\n"
+            "        for _fX3a, _fY3a, _fZ3a in _faces3a:\n"
+            "            # Defensive fallback for steady-state (see the matching comment\n"
+            "            # in \"Line (time steps)\") -- this viz type is hidden from the\n"
+            "            # dropdown for a steady-state config, so every frame below\n"
+            "            # predicts the same single steady solution rather than crashing.\n"
+            "            if is_steady:\n"
+            "                _fpts3a = np.column_stack([_fX3a.ravel(), _fY3a.ravel(), _fZ3a.ravel()])\n"
+            "            else:\n"
+            "                _fpts3a = np.column_stack([_fX3a.ravel(), _fY3a.ravel(), _fZ3a.ravel(), np.full(_fX3a.size, tv)])\n"
+            "            _frame_faces.append(_extract_plot_field(_fpts3a).reshape(_fX3a.shape))\n"
+            "        all_frames.append(_frame_faces)\n"
+        )
+        loop_2d = (
+            "        for tv in t_frames:\n"
+            "            # Defensive fallback for steady-state, same as the 3D branch\n"
+            "            # above -- hidden from the dropdown for a steady-state config.\n"
+            "            if is_steady:\n"
+            "                XYT = np.column_stack([Xg.ravel(), Yg.ravel()])\n"
+            "            else:\n"
+            "                XYT = np.column_stack([Xg.ravel(), Yg.ravel(), np.full(Xg.size, tv)])\n"
+            "            pred = _extract_plot_field(XYT).reshape(80, 80)\n"
+            "            all_frames.append((Xg, Yg, pred))\n"
+        )
+        comment_else = (
+            "        # Same no-reshape-of-pred swap as the static Surface option above\n"
+            "        # -- storing T_anim/X_anim in swapped order per frame is enough,\n"
+            "        # since contourf reads each array's own coordinate values rather\n"
+            "        # than assuming a fixed axis order.\n"
+        )
+        loop_else = (
+            "        for tv in t_frames:\n"
+            "            XT = np.vstack([X_anim.ravel(), np.full(X_anim.size, tv)]).T\n"
+            "            pred = _extract_plot_field(XT).reshape(80, 80)\n"
+            "            if {swap_xt}:\n"
+            "                all_frames.append((T_anim, X_anim, pred))\n"
+            "            else:\n"
+            "                all_frames.append((X_anim, T_anim, pred))\n"
+        ).format(swap_xt=swap_xt)
+
+    return f"""import matplotlib.animation as _anim
+t_frames = np.linspace({t_min}, {t_max}, {n_steps})
+x_anim = np.linspace({x_min}, {x_max}, 80)
+all_frames = []
+if is_3d:
+{comment_3d}    _res3a = 28
+    _bbox3a = np.asarray({bbox3a_expr})
+    _cx0a, _cy0a, _cz0a = _bbox3a[0]; _cx1a, _cy1a, _cz1a = _bbox3a[1]
+    _xg3a = np.linspace(_cx0a, _cx1a, _res3a)
+    _yg3a = np.linspace(_cy0a, _cy1a, _res3a)
+    _zg3a = np.linspace(_cz0a, _cz1a, _res3a)
+    _Xxy3a, _Yxy3a = np.meshgrid(_xg3a, _yg3a)
+    _Xxz3a, _Zxz3a = np.meshgrid(_xg3a, _zg3a)
+    _Yyz3a, _Zyz3a = np.meshgrid(_yg3a, _zg3a)
+    _faces3a = [
+        (_Xxy3a, _Yxy3a, np.full_like(_Xxy3a, _cz0a)),
+        (_Xxy3a, _Yxy3a, np.full_like(_Xxy3a, _cz1a)),
+        (_Xxz3a, np.full_like(_Xxz3a, _cy0a), _Zxz3a),
+        (_Xxz3a, np.full_like(_Xxz3a, _cy1a), _Zxz3a),
+        (np.full_like(_Yyz3a, _cx0a), _Yyz3a, _Zyz3a),
+        (np.full_like(_Yyz3a, _cx1a), _Yyz3a, _Zyz3a),
+    ]
+{loop_3d}    v_min = min(_f.min() for _frame in all_frames for _f in _frame)
+    v_max = max(_f.max() for _frame in all_frames for _f in _frame)
+    fig = plt.figure(figsize=_plot_figsize(8, 6.5))
+    ax = fig.add_subplot(111, projection='3d')
+    _norm3a = plt.Normalize(vmin=v_min, vmax=v_max)
+    _cmap_obj3a = plt.get_cmap("{colormap}")
+    _sm3a = plt.cm.ScalarMappable(cmap=_cmap_obj3a, norm=_norm3a)
+    if {show_colorbar}: fig.colorbar(_sm3a, ax=ax, shrink=0.6, pad=0.12)
+    def update(i):
+        ax.cla()
+        for _fi3a, (_fX3a, _fY3a, _fZ3a) in enumerate(_faces3a):
+            ax.plot_surface(_fX3a, _fY3a, _fZ3a, facecolors=_cmap_obj3a(_norm3a(all_frames[i][_fi3a])),
+                             rstride=1, cstride=1, linewidth=0, antialiased=False, shade=False)
+        ax.set_xlabel({xlabel_animsurf3d!r}, fontsize={axis_label_fontsize}); ax.set_ylabel({ylabel_animsurf3d!r}, fontsize={axis_label_fontsize}); ax.set_zlabel("z", fontsize={axis_label_fontsize})
+        {animsurf_title_line_3d}
+        try:
+            ax.set_box_aspect((_cx1a - _cx0a, _cy1a - _cy0a, _cz1a - _cz0a))
+        except Exception:
+            pass
+    ani = _anim.FuncAnimation(fig, update, frames={n_steps}, interval=150)
+    out_path = os.path.join({save_dir!r}, "restored_animation.gif")
+    ani.save(out_path, writer='pillow', fps={fps})
+    plt.close()
+    print(f"3D surface animation saved to: {{out_path}}")
+else:
+    if is_2d:
+        y_anim = np.linspace({y_min}, {y_max}, 80)
+        Xg, Yg = np.meshgrid(x_anim, y_anim)
+{loop_2d}    else:
+{comment_else}        t_anim = np.linspace({t_min}, {t_max}, 80)
+        X_anim, T_anim = np.meshgrid(x_anim, t_anim)
+{loop_else}    v_min = min(f[2].min() for f in all_frames)
+    v_max = max(f[2].max() for f in all_frames)
+    fig, ax = plt.subplots(figsize=_plot_figsize(8, 6))
+    from mpl_toolkits.axes_grid1 import make_axes_locatable
+    _div = make_axes_locatable(ax)
+    _cax = _div.append_axes("right", size="5%", pad=0.1)
+    _sm = plt.cm.ScalarMappable(cmap="{colormap}", norm=plt.Normalize(vmin=v_min, vmax=v_max))
+    if {show_colorbar}: fig.colorbar(_sm, cax=_cax)
+    def update(i):
+        ax.cla()
+        Xp, Yp, Zp = all_frames[i]
+        ax.contourf(Xp, Yp, Zp, levels={levels}, cmap="{colormap}", vmin=v_min, vmax=v_max)
+        ax.set_xlabel({xlabel_animsurf_else!r}, fontsize={axis_label_fontsize})
+        ax.set_ylabel({ylabel_animsurf_else!r}, fontsize={axis_label_fontsize})
+        {animsurf_title_line_else}
+    ani = _anim.FuncAnimation(fig, update, frames={n_steps}, interval=150)
+    out_path = os.path.join({save_dir!r}, "restored_animation.gif")
+    ani.save(out_path, writer='pillow', fps={fps})
+    plt.close()
+    print(f"Surface animation saved to: {{out_path}}")"""
+
+
 def generate_clean_script(config):
     """Builds the "Export as DeepXDE Script" file: a short, plain,
     tutorial-style DeepXDE/PyTorch + matplotlib script for exactly this
