@@ -555,5 +555,12 @@ def run():
     return failures
 
 
+def test_sweep_execution():
+    # pytest entry point (this file used to be runnable only as a script).
+    # Trains for real -- the slowest test in the suite.
+    failures = run()
+    assert not failures, "\n".join(failures)
+
+
 if __name__ == "__main__":
     sys.exit(1 if run() else 0)

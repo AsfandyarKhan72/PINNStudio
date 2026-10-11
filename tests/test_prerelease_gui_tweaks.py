@@ -190,5 +190,15 @@ def main():
     sys.exit(0)
 
 
+def test_prerelease_gui_tweaks():
+    # pytest entry point (this file used to be runnable only as a script);
+    # main() reports through sys.exit, so translate that into an assertion.
+    _FAILURES.clear()
+    try:
+        main()
+    except SystemExit as e:
+        assert e.code == 0, "\n".join(_FAILURES)
+
+
 if __name__ == "__main__":
     main()

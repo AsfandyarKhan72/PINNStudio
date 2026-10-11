@@ -155,19 +155,19 @@ def run():
     # variable name "axes_s") default to the same dimensions and ARE
     # legitimately wrapped. Disambiguate with each site's unique neighboring
     # line instead of matching the subplots() statement alone.
-    _ea_1d_bare = (
-        "                        _levels_ea1d = np.linspace(_ea_vmin, _ea_vmax, 41)  # see the matching comment above -- contourf ignores vmin/vmax with an integer `levels=N`\n"
-        "                        fig, axes_s = plt.subplots(1, 3, figsize=(15, 5))"
-    )
-    _ea_1d_wrapped = _ea_1d_bare.replace("figsize=(15, 5)", "figsize=_plot_figsize(15, 5)")
-    check(_ea_1d_bare in script_default,
+    # Anchored on each site's own levels-variable assignment line (its
+    # right-hand side changed in Round 50 -- _cf_levels instead of a
+    # hardcoded np.linspace(..., 41) -- so match the line, not its value).
+    import re as _re_fs
+    _m_ea = _re_fs.search(r"\n( *_levels_ea1d = [^\n]*)\n( *fig, axes_s = plt\.subplots\(1, 3, figsize=[^\n]*\))", script_default)
+    _ea_1d_line = _m_ea.group(2) if _m_ea else ""
+    check(_ea_1d_line.endswith("figsize=(15, 5))"),
           "Error Analysis 1D surface-comparison grid figsize should stay a bare literal (untouched)")
-    check(_ea_1d_wrapped not in script_default,
+    check("_plot_figsize" not in _ea_1d_line,
           "Error Analysis 1D surface-comparison grid figsize must NOT be wrapped by _plot_figsize")
+    _m_tea = _re_fs.search(r"\n *_tea_levels = [^\n]*\n( *fig, axes_s = plt\.subplots\(1, 3, figsize=[^\n]*\))", script_default)
     check(
-        "_tea_levels = np.linspace(_tea_vmin, _tea_vmax, 41)\n"
-        "                        fig, axes_s = plt.subplots(1, 3, figsize=_plot_figsize(15, 5))"
-        in script_default,
+        bool(_m_tea) and _m_tea.group(1).endswith("figsize=_plot_figsize(15, 5))"),
         "Time-Adaptive per-step reference-overlay figsize IS in scope for this feature and should use _plot_figsize",
     )
     check("_fig_r, _axes_r = plt.subplots(1, 3, figsize=_plot_figsize(15, 5))" in script_default,
@@ -381,6 +381,12 @@ def run():
 
     print("Checks:", len(failures), "failing" if failures else "all passing")
     return failures
+
+
+def test_plot_figsize_settings():
+    # pytest entry point (this file used to be runnable only as a script).
+    failures = run()
+    assert not failures, "\n".join(failures)
 
 
 if __name__ == "__main__":
