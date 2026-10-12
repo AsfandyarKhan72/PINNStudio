@@ -107,3 +107,7 @@ jobs:
           python tests/test_round67_formula_reference.py
           python tests/test_round68_bc_where_names.py
           python tests/test_deepxde_examples.py
+          python tests/test_round69_output_named_plots.py
+          python tests/test_round70_constants.py
+          python tests/test_round71_pointset_points.py
+          python tests/test_round73_msffn.py

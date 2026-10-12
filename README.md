@@ -143,6 +143,8 @@ Write the PDE residual directly as an expression, not through a fixed set of pre
 
 The coordinates `x`, `y`, `z` and `t` can appear in an equation too, along with numpy-style math (`sin`, `exp`, `cosh`, `relu`, ...), so source terms such as `-du_xx - pi**2*sin(pi*x)` are written as they are. The number of **equations** is set separately from the number of **outputs**: three residuals for one output (as in DeepXDE's American-put example), or one equation for two outputs when the second output is an unknown field to be learned.
 
+**Constants** ("+ Add constant") give names to numbers used across the problem — e.g. `Re = 20`, `nu = 1/Re` — usable in the equations, boundary and initial conditions, transforms and the exact-solution reference; each row shows its computed value.
+
 </details>
 
 <details>
@@ -151,6 +153,8 @@ The coordinates `x`, `y`, `z` and `t` can appear in an equation too, along with 
 Boundary conditions are added as rows in a panel, each with its own type — Dirichlet, Neumann, Robin, Periodic, Point Set (values from a data file), Point Set Operator (a function of the network's own tensors, evaluated at those same file points), a general Operator condition (any function of the network's input/output tensors), or Interface 2D (DeepXDE's own `Interface2DBC`, pairing two matching boundary pieces) — the output(s) it applies to, and **Where** it applies: pick *Whole boundary*, *Left*, *Right*, *Bottom*, *Top* (and *Front*/*Back* in 3D) from the list, or type any `True`/`False` expression in `x`, `y`, `z`. The side names (`left`, `right`, `bottom`, `top`, `front`, `back`) and the domain limits (`x_min`, `x_max`, `y_min`, ...) are defined from your own domain, so `left or right` or `x <= x_min` still mean the right thing if you change the domain later; a shape without named sides uses an expression such as `np.isclose(x**2 + y**2, 0.25)`. Neumann and Robin values are the derivative along the outward normal, $du/dn$ — $+du/dx$ at a right side, $-du/dx$ at a left side. Point Set rows can target several output components from one data file at once, and both Point Set types can be minibatched (DeepXDE's own `batch_size`/`shuffle`) instead of using every point every step. Operator and Point Set Operator conditions accept the same `u`, `du_x`, `du_xx`-style derivative shorthand the PDE editor uses, alongside DeepXDE's own raw `inputs`/`outputs`/`X` tensors, so a custom condition rarely needs hand-written `dde.grad` calls. Periodic is only meaningful on an Interval/Rectangle/Cuboid-shaped domain (DeepXDE's own real requirement, enforced with a clear message rather than a confusing failure) and Interface 2D only on a 2-output, 2D Rectangle/Polygon problem — the panel keeps Interface 2D out of the Type list until both of those are true. Initial conditions are set from an expression in `x` (`y`, `z` too in 2D/3D) or loaded from a data file, per output.
 
 An Operator condition can also apply at the initial time instead of on the boundary (*Applies on: the initial time*), which is how a second initial condition such as $\partial u/\partial t = 0$ at $t = 0$ is given for a wave-type equation.
+
+Point Set and Point Set Operator rows can take their points from a file, a typed list (`1`, `0.2, 0.5`, `0,0; 1,0.5`) or N random points (on the boundary part picked by Where, or inside the domain), with target values from the file or a formula — so a single measured value needs no file.
 
 </details>
 
@@ -203,6 +207,8 @@ Hidden layer count, neurons per layer, activation function, and kernel initializ
 **Activation** offers every identifier DeepXDE's own `deepxde.nn.activations` module supports — tanh, sin, Sigmoid, ReLU, SiLU, Swish, ELU, GELU, SELU — spelled exactly the way DeepXDE's own documentation capitalizes them. (`sin` is worth trying for problems with smooth or periodic solutions — SIREN-style sinusoidal activations are a well-known good fit for PINNs; `Swish` and `SiLU` are DeepXDE's own two names for the identical function, both offered since DeepXDE documents both spellings.)
 
 **Network Type** (FNN / PFNN) is its own independent dropdown: the default **FNN** is a single shared trunk; **PFNN** (DeepXDE's own `dde.nn.PFNN`, a real built-in — not a custom extension) gives each output its own parallel sub-network, merging only at the final layer. Useful for multi-output problems where the outputs have different scales/behavior and a single shared trunk ends up fighting itself trying to serve both — 1D Schrödinger's real/imaginary parts, for example. A training script and the script that later restores its checkpoint always agree on how the network was shaped, since both read it from the same saved `model_config.json`.
+
+**MsFFN** and **STMsFFN** (multi-scale Fourier feature networks) pass the inputs through random Fourier features at several scales (`Fourier scales (σ)`, e.g. `1, 10`), which lets a PINN capture slow and fast variations together — see the multi-scale Poisson example under [DeepXDE Examples](#deepxde-examples).
 
 </details>
 
@@ -385,6 +391,8 @@ Static Surface or Line plots, or animated GIFs of either over time, with colorma
 Figure size can be left at its default aspect ratio or switched to **Square** or **Wide**, or you can type an exact **Custom** width/height — and the title, per-panel subplot title, and axis-label font sizes are each independently adjustable too, without changing anything else about a plot's default look if you leave them alone. This Plot Settings dialog and the matching one in Restore & Visualize mirror each other field-for-field, so a setting you're used to on one side behaves identically on the other.
 
 Beyond plotting a raw output column, the **Custom...** field lets you plot (and animate) any expression of the outputs **and their derivatives** — `sqrt(u**2+v**2)`, `du_x`, `du_xx`, any combination — evaluated through DeepXDE's own `dde.Model.predict(x, operator=...)` built-in, the same mechanism Training Monitors uses. This works in the live Results panel, the Restore & Visualize tab, and in Error Analysis's own per-group custom field, so a derivative you can watch during training is also one you can plot, animate, and error-check afterward.
+
+For a problem with several outputs, every output is also saved as its own plot, `solution_plot_<name>.png`, and Error Analysis titles name the output they show.
 
 </details>
 
