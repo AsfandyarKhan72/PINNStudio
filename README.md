@@ -1217,6 +1217,10 @@ $$\Large \frac{\partial u}{\partial t} + u\frac{\partial u}{\partial x} = \frac{
 
 **Result (RTX 4090):** L2 = 8.3e-4 ($t = 0$), 1.4e-2 ($t = 0.25$), 1.7e-2 ($t = 0.5$), 1.4e-2 ($t = 0.75$)
 
+![Burgers equation — PINN solution over time](assets/Images/DeepXDE/Burgers_equation/animation.gif)
+
+![Burgers equation — PINN vs reference, error analysis](assets/Images/DeepXDE/Burgers_equation/surface_comparison.png)
+
 </details>
 
 <details id="dx-burgers-equation-with-rar">
@@ -1233,6 +1237,10 @@ $$\Large \frac{\partial u}{\partial t} + u\frac{\partial u}{\partial x} = \frac{
 - **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Burgers equation with RAR**
 
 **Result (RTX 4090):** L2 = 6.3e-4 ($t = 0$), 1.3e-2 ($t = 0.25$), 1.7e-2 ($t = 0.5$), 1.4e-2 ($t = 0.75$)
+
+![Burgers equation with RAR — PINN solution over time](assets/Images/DeepXDE/Burgers_equation_with_RAR/animation.gif)
+
+![Burgers equation with RAR — PINN vs reference, error analysis](assets/Images/DeepXDE/Burgers_equation_with_RAR/surface_comparison.png)
 
 </details>
 
@@ -1253,6 +1261,10 @@ The solution decays to about 2% of its initial size by $t = 1$, so the relative 
 
 **Result (RTX 4090):** L2 = 4.2e-4 ($t = 0$), 9.1e-4 ($t = 0.25$), 2.2e-3 ($t = 0.5$), 9.5e-3 ($t = 0.75$), 5.0e-2 ($t = 1$)
 
+![Heat equation — PINN solution over time](assets/Images/DeepXDE/Heat_equation/animation.gif)
+
+![Heat equation — PINN vs reference, error analysis](assets/Images/DeepXDE/Heat_equation/surface_comparison.png)
+
 </details>
 
 <details id="dx-heat-equation-with-resampling">
@@ -1271,6 +1283,10 @@ $$\Large \frac{\partial u}{\partial t} = 0.4\frac{\partial^2 u}{\partial x^2}, \
 
 **Result (RTX 4090):** L2 = 1.6e-4 ($t = 0$), 4.6e-4 ($t = 0.25$), 5.8e-4 ($t = 0.5$), 4.1e-3 ($t = 0.75$), 1.4e-2 ($t = 1$)
 
+![Heat equation with resampling — PINN solution over time](assets/Images/DeepXDE/Heat_equation_with_resampling/animation.gif)
+
+![Heat equation with resampling — PINN vs reference, error analysis](assets/Images/DeepXDE/Heat_equation_with_resampling/surface_comparison.png)
+
 </details>
 
 <details id="dx-diffusion-equation">
@@ -1287,6 +1303,10 @@ $$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} - e^{
 - **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Diffusion equation**
 
 **Result (RTX 4090):** L2 = 2.5e-3 ($t = 0$), 2.9e-3 ($t = 0.25$), 1.8e-3 ($t = 0.5$), 4.1e-3 ($t = 0.75$), 2.0e-2 ($t = 1$)
+
+![Diffusion equation — PINN solution over time](assets/Images/DeepXDE/Diffusion_equation/animation.gif)
+
+![Diffusion equation — PINN vs reference, error analysis](assets/Images/DeepXDE/Diffusion_equation/surface_comparison.png)
 
 </details>
 
@@ -1305,6 +1325,10 @@ $$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} - e^{
 
 **Result (RTX 4090):** L2 = 9.4e-8 ($t = 0$), 1.6e-4 ($t = 0.25$), 4.6e-4 ($t = 0.5$), 1.3e-3 ($t = 0.75$), 2.8e-3 ($t = 1$)
 
+![Diffusion equation with hard IC and BC — PINN solution over time](assets/Images/DeepXDE/Diffusion_equation_with_hard_IC_and_BC/animation.gif)
+
+![Diffusion equation with hard IC and BC — PINN vs reference, error analysis](assets/Images/DeepXDE/Diffusion_equation_with_hard_IC_and_BC/surface_comparison.png)
+
 </details>
 
 <details id="dx-diffusion-equation-with-resampling">
@@ -1322,6 +1346,10 @@ $$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} - e^{
 - **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Diffusion equation with resampling**
 
 **Result (RTX 4090):** L2 = 1.8e-2 ($t = 0$), 2.5e-2 ($t = 0.25$), 1.5e-2 ($t = 0.5$), 1.4e-2 ($t = 0.75$), 4.3e-2 ($t = 1$)
+
+![Diffusion equation with resampling — PINN solution over time](assets/Images/DeepXDE/Diffusion_equation_with_resampling/animation.gif)
+
+![Diffusion equation with resampling — PINN vs reference, error analysis](assets/Images/DeepXDE/Diffusion_equation_with_resampling/surface_comparison.png)
 
 </details>
 
@@ -1342,6 +1370,10 @@ DeepXDE's own script, run unchanged on the same GPU, ends with a similar loss (a
 
 **Result (RTX 4090):** L2 = 9.9e-8 ($t = 0$), 1.4e-2 ($t = 0.25$), 3.4e-2 ($t = 0.5$), 6.7e-2 ($t = 0.75$), 0.11 ($t = 1$)
 
+![Diffusion-reaction equation — PINN solution over time](assets/Images/DeepXDE/Diffusion_reaction_equation/animation.gif)
+
+![Diffusion-reaction equation — PINN vs reference, error analysis](assets/Images/DeepXDE/Diffusion_reaction_equation/surface_comparison.png)
+
 </details>
 
 <details id="dx-allen-cahn-equation">
@@ -1358,6 +1390,10 @@ $$\Large \frac{\partial u}{\partial t} = 0.001\frac{\partial^2 u}{\partial x^2} 
 - **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Allen-Cahn equation**
 
 **Result (RTX 4090):** L2 = 9.5e-8 ($t = 0$), 1.9e-3 ($t = 0.25$), 5.2e-3 ($t = 0.5$), 1.3e-2 ($t = 0.75$), 2.9e-2 ($t = 1$)
+
+![Allen-Cahn equation — PINN solution over time](assets/Images/DeepXDE/Allen_Cahn_equation/animation.gif)
+
+![Allen-Cahn equation — PINN vs reference, error analysis](assets/Images/DeepXDE/Allen_Cahn_equation/surface_comparison.png)
 
 </details>
 
@@ -1378,6 +1414,10 @@ $$\Large \frac{\partial^2 u}{\partial t^2} - \frac{\partial^2 u}{\partial x^2} +
 
 **Result (RTX 4090):** L2 = 1.4e-3 ($t = 0$), 1.6e-2 ($t = 2.5$), 8.5e-2 ($t = 5$), 6.5e-2 ($t = 7.5$), 8.1e-2 ($t = 10$)
 
+![Klein-Gordon equation — PINN solution over time](assets/Images/DeepXDE/Klein_Gordon_equation/animation.gif)
+
+![Klein-Gordon equation — PINN vs reference, error analysis](assets/Images/DeepXDE/Klein_Gordon_equation/surface_comparison.png)
+
 </details>
 
 <details id="dx-schr-dinger-equation">
@@ -1395,6 +1435,10 @@ $$\Large i\frac{\partial h}{\partial t} + \frac{1}{2}\frac{\partial^2 h}{\partia
 - **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Schrödinger equation**
 
 **Result (RTX 4090):** L2 of $|h|$ = 1.5e-3 ($t = 0$), 3.2e-2 ($t = 0.25$), 5.8e-2 ($t = 0.5$), 0.12 ($t = 0.75$), 0.14 ($t = 1$), 0.13 ($t = 1.25$), 8.6e-2 ($t = 1.5$)
+
+![Schrödinger equation — PINN solution over time](assets/Images/DeepXDE/Schr_dinger_equation/animation.gif)
+
+![Schrödinger equation — PINN vs reference, error analysis](assets/Images/DeepXDE/Schr_dinger_equation/surface_comparison.png)
 
 </details>
 
@@ -1434,6 +1478,10 @@ $$\Large \frac{\partial V}{\partial \tau} = \frac{\sigma^2}{2}S^2\frac{\partial^
 
 **Result (RTX 4090):** L2 = 5.7e-4 ($t = 0.25$), 3.2e-4 ($t = 0.5$), 4.3e-4 ($t = 1$)
 
+![Black-Scholes equation (call option) — PINN solution over time](assets/Images/DeepXDE/Black_Scholes_equation_call_option/animation.gif)
+
+![Black-Scholes equation (call option) — PINN vs reference, error analysis](assets/Images/DeepXDE/Black_Scholes_equation_call_option/surface_comparison.png)
+
 </details>
 
 <details id="dx-american-put-option">
@@ -1452,6 +1500,8 @@ $$\Large \min\left(-\mathcal{L}V,\ V - \max(K - S, 0)\right) = 0, \qquad \mathca
 - **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **American put option**
 
 **Result (RTX 4090):** trained without errors; no bundled reference to compare against
+
+![American put option — PINN solution over time](assets/Images/DeepXDE/American_put_option/animation.gif)
 
 </details>
 
@@ -1473,6 +1523,12 @@ $$\Large \frac{\partial u}{\partial t} = C\frac{\partial^2 u}{\partial x^2} - e^
 
 **Result (RTX 4090):** $C$ = 0.9987 (true 1); L2 = 1.5e-3 ($t = 0$), 2.1e-3 ($t = 0.25$), 1.8e-3 ($t = 0.5$), 1.7e-3 ($t = 0.75$), 5.5e-3 ($t = 1$)
 
+![Inverse: diffusion equation — PINN solution over time](assets/Images/DeepXDE/Inverse_diffusion_equation/animation.gif)
+
+![Inverse: diffusion equation — PINN vs reference, error analysis](assets/Images/DeepXDE/Inverse_diffusion_equation/surface_comparison.png)
+
+![Inverse: diffusion equation — inferred parameters during training](assets/Images/DeepXDE/Inverse_diffusion_equation/param_plot.png)
+
 </details>
 
 <details id="dx-inverse-diffusion-reaction-system">
@@ -1490,6 +1546,10 @@ $$\Large \frac{\partial C_A}{\partial t} = D\frac{\partial^2 C_A}{\partial x^2} 
 - **GUI recipe:** Quick Examples → Category **DeepXDE Inverse** → **Inverse: diffusion-reaction system**
 
 **Result (RTX 4090):** $k_f$ = 0.0992 (true 0.1), $D$ = 1.995 (true 2)
+
+![Inverse: diffusion-reaction system — PINN solution over time](assets/Images/DeepXDE/Inverse_diffusion_reaction_system/animation.gif)
+
+![Inverse: diffusion-reaction system — inferred parameters during training](assets/Images/DeepXDE/Inverse_diffusion_reaction_system/param_plot.png)
 
 </details>
 
