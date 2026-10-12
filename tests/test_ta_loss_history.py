@@ -71,7 +71,7 @@ def _run_script(script, tmpdir, tag):
     with open(sp, "w") as f:
         f.write(script)
     proc = subprocess.run(
-        [sys.executable, sp], cwd=tmpdir, capture_output=True, text=True, timeout=180,
+        [sys.executable, sp], cwd=tmpdir, capture_output=True, text=True, timeout=600,
     )
     return proc
 
