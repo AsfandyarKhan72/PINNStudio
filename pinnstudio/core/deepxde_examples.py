@@ -387,7 +387,10 @@ EXAMPLES = [
                       "-(exp(z)*sin(x + y) + exp(y)*cos(z + x))*exp(-t)",
                       "-0.5*(exp(2*x) + exp(2*y) + exp(2*z) + 2*sin(x + y)*cos(z + x)*exp(y + z)"
                       " + 2*sin(y + z)*cos(x + y)*exp(z + x) + 2*sin(z + x)*cos(y + z)*exp(x + y))*exp(-2*t)"],
-                     "0, 0.5, 1")),
+                     "0, 0.5, 1"),
+        note="Only the velocity has boundary and initial conditions, so the pressure p is determined only up to "
+             "a constant: its predicted values are typically off by a fixed offset, which makes p's relative "
+             "error large (and growing with t, as p decays like exp(-2t)) even when u, v, w are accurate."),
 
     _ex("Black-Scholes equation (call option)", FORWARD, _DOCS + "pinn_forward/black_scholes.html",
         _time_1d(0, 150, 0, 1),
