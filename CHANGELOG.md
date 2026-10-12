@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **PDE expressions can use the coordinates x, y, z, t** (y/z in 2D/3D, t when time-dependent) -- needed for any source term, e.g. `-du_xx - pi**2*sin(pi*x)` or `du_t - du_xx + exp(-t)*sin(pi*x)`, as in most of DeepXDE's own examples. They're bound only when an equation uses them, so existing problems generate exactly the same scripts.
 - **"Export as DeepXDE Script" now writes RAR per-round diagnostics**, like the live Solve path: for every RAR round, `rar_rounds/round_NN/` gets that round's `model.pt` (same checkpoint format Restore & Visualize loads), `collocation_points.png` (original / earlier rounds / this round) and `solution_plot.png` (the configured plot field after that round, masked to the real geometry). The live path's per-round reference-comparison panels stay live-only; the export keeps comparison to its end-of-run Error Analysis.
 
 - **Three new font-size settings in Plot Settings** (figure title, per-panel subplot title, axis labels), alongside the existing colormap/levels/resolution/figure-size controls -- in both the Setup tab's "Plot output" dialog and Restore & Visualize's own, plus the standalone "Error Analysis" restore dialog's comparison plots. Defaults (13 / 10 / 10) match whatever value already dominated across the app before this setting existed, so nothing's default appearance changes unless these are explicitly adjusted. Wired through every plot-building path: the live Solve path, "Export as DeepXDE Script", RAR, Time-Adaptive, Error Analysis, and all of Restore & Visualize's own script builders (plain, Time-Adaptive, Parameter Convergence, and its Error-Analysis comparison).
@@ -80,6 +81,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **A PDE using a math function -- `sin(u)*du_xx`, `exp(-t)`, ... -- crashed at the first training step** ("Can't call numpy() on Tensor that requires grad"): the functions were turned into numpy calls, which can't run on the network's tensors. They're torch calls now. This included the examples shown in the PDE panel's own "derivative reference". Also in "Export as DeepXDE Script": a boundary-condition value using a math function (e.g. `sin(pi*x)`) raised NameError; the Solve path already handled it.
 - **Quick Examples: picking "1D Schrödinger" and then any 2D or 3D template kept Schrödinger's float64 L-BFGS precision** (only the 1D templates reset it). Every template now resets it to float32 unless it asks for float64.
 - **"2D Allen-Cahn (Wight & Zhao)" in Inverse mode pre-filled a 0→1 Time-Adaptive row** although the problem runs to t = 10; the row now ends at the template's own end time, as it already did for the 1D templates.
 - **A problem saved with both Steady-state and Time-Adaptive on** (e.g. a hand-edited save) **now runs as a plain steady problem.** Time-Adaptive is documented as ignored for a steady problem, but the live Solve script still took its Time-Adaptive branch and "Export as DeepXDE Script" produced a script that didn't run at all.

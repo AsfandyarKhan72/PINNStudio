@@ -360,15 +360,77 @@ def _build_custom_geom_code(config):
     return code, wrap_needed
 
 
+# PDE expressions are evaluated on the network's own tensors (with
+# autograd), so their math functions must be torch's, not numpy's: numpy's
+# would try to convert a grad-tracking tensor and crash. The names users
+# type are numpy-style (arcsin, ...); the right side is torch's spelling.
+_PDE_TORCH_FUNCS = (
+    ("sin", "sin"), ("cos", "cos"), ("tan", "tan"),
+    ("sinh", "sinh"), ("cosh", "cosh"), ("tanh", "tanh"),
+    ("arcsin", "asin"), ("arccos", "acos"), ("arctan", "atan"),
+    ("exp", "exp"), ("log", "log"), ("log10", "log10"), ("sqrt", "sqrt"),
+    ("abs", "abs"), ("ceil", "ceil"), ("floor", "floor"),
+)
+
+
 def _simplify_pde_expr(expr):
-    """Convert user-friendly math in PDE — only functions and constants, not variables."""
+    """Convert user-friendly math in a PDE expression: bare function calls
+    become torch calls (sin(...) -> torch.sin(...)) and pi becomes np.pi.
+    A call the user already qualified (np.sin, torch.sin) is left alone.
+    (Before Round 61 these became np.sin(...), which crashed on the
+    network's tensors -- no built-in template used one, so it never showed.)"""
     import re
     e = expr.strip()
-    for fn in ["sin","cos","tan","sinh","cosh","tanh","arcsin","arccos","arctan",
-               "exp","log","log10","sqrt","abs","ceil","floor"]:
-        e = re.sub(rf'(?<![a-zA-Z_]){fn}\(', f'np.{fn}(', e)
-    e = re.sub(r'(?<![a-zA-Z_])pi(?![a-zA-Z_])', 'np.pi', e)
+    for fn, tfn in _PDE_TORCH_FUNCS:
+        e = re.sub(rf'(?<![a-zA-Z_.]){fn}\(', f'torch.{tfn}(', e)
+    e = re.sub(r'(?<![a-zA-Z_.])pi(?![a-zA-Z_])', 'np.pi', e)
     return e
+
+
+def _np_math_expr(expr):
+    """Bare math names in a boundary-condition expression -> numpy calls
+    (sin(...) -> np.sin(...), pi -> np.pi), for the exported script, which
+    pastes these expressions straight into small functions instead of
+    eval'ing them with the live script's _BC_MATH_NS namespace. Same names
+    as that namespace (_MATH_NS_ROWS); np.-qualified calls are left alone."""
+    import re
+    e = (expr or "").strip()
+    for row in _MATH_NS_ROWS:
+        for fn in row:
+            e = re.sub(rf'(?<![a-zA-Z_.]){fn}\(', f'np.{fn}(', e)
+    return re.sub(r'(?<![a-zA-Z_.])pi(?![a-zA-Z_0-9])', 'np.pi', e)
+
+
+def _pde_coord_names(exprs):
+    """The coordinate names (x, y, z, t) a set of PDE expressions actually
+    uses -- found with ast, so du_x/du_t and the like don't count. Both
+    generators bind only these, as one column each, so an equation without
+    a source term generates exactly the code it always did."""
+    import ast as _ast_pde
+    used = set()
+    for e in exprs:
+        try:
+            tree = _ast_pde.parse((e or "").strip() or "0", mode="eval")
+        except SyntaxError:
+            continue
+        used |= {n.id for n in _ast_pde.walk(tree) if isinstance(n, _ast_pde.Name)}
+    return used & {"x", "y", "z", "t"}
+
+
+def _pde_coord_columns(used, is_2d, is_3d, is_steady):
+    """[(name, column index)] for the coordinates in `used` that exist for
+    this problem's dimension (y only in 2D/3D, z only in 3D, t only when
+    time-dependent; t is always the last input column)."""
+    n_space = 3 if is_3d else (2 if is_2d else 1)
+    cols = {"x": 0}
+    if is_2d or is_3d:
+        cols["y"] = 1
+    if is_3d:
+        cols["z"] = 2
+    if not is_steady:
+        cols["t"] = n_space
+    return [(n, cols[n]) for n in ("x", "y", "z", "t") if n in used and n in cols]
+
 
 def _sanitize_python_identifier(name, fallback):
     """Coerce a free-typed string into a legal Python identifier. Inverse
@@ -3566,6 +3628,14 @@ def generate_script(config):
     config_pde_expressions = "|".join(pde_exprs_converted)
 
     pde_expr_single = _simplify_pde_expr(config.pde_expression)
+    # Coordinates the equation itself uses (a source term like sin(pi*x)):
+    # bound as one column each, after the default x/y (inputs/outputs)
+    # bindings, only when used -- see _pde_coord_names.
+    _pde_cols = _pde_coord_columns(_pde_coord_names(pde_exprs_converted + [pde_expr_single]),
+                                   config.problem_dim == "2D", config.problem_dim == "3D", bool(config.steady_state))
+    pde_coord_ns_code = "".join(f"\n    _eval_ns[{n!r}] = x[:, {c}:{c + 1}]" for n, c in _pde_cols)
+    if pde_coord_ns_code:
+        pde_coord_ns_code = "\n    # coordinates used by the equation itself" + pde_coord_ns_code
 
     # Every 2D/3D line-type plot (Line (time steps), Line Animation (GIF),
     # the Time-Adaptive per-step preview, and the inline Error Analysis
@@ -3581,14 +3651,14 @@ def generate_script(config):
     # "sqrt(u**2+v**2)") is passed through UNCONVERTED, deliberately NOT
     # run through _simplify_pde_expr() the way PDE expressions are above.
     # PDE expressions are eval'd in the generated script's own MODULE
-    # namespace (where `import numpy as np` already ran), so prefixing
-    # their function calls with "np." is correct there. This expression is
+    # namespace (where `import numpy as np` and `import torch` already ran),
+    # so the "torch."/"np.pi" prefixes added there resolve. This expression is
     # instead eval'd by _plot_custom_op/_extract_plot_field below inside a
     # small, ISOLATED namespace dict (_pf_ns) built from _PLOT_TORCH_MATH_NS
     # -- which already maps every one of the same bare names
     # (sin/cos/.../sqrt/pi, ...) straight to their torch equivalent, so a
     # raw "sqrt(...)" resolves correctly there. Running _simplify_pde_expr
-    # on it rewrites "sqrt(" to "np.sqrt(" instead, which that namespace
+    # on it rewrites "sqrt(" to "torch.sqrt(" instead, which that namespace
     # has no "np" binding for -- a real bug, caught via an actual exec-level
     # run of the 1D Schrodinger template's GIF export ("NameError: name
     # 'np' is not defined"), since _plot_custom_op's eval() only sees
@@ -4426,7 +4496,7 @@ def _pde_standard(x, y):
     _eval_ns["np"]  = np
     _eval_ns["x"]   = x
     _eval_ns["y"]   = y
-    _eval_ns["torch"] = torch
+    _eval_ns["torch"] = torch{pde_coord_ns_code}
 
     if _problem_type == "Inverse":
         for _iv_name, _iv_var in zip(_inv_var_names, _inv_vars):
@@ -7118,13 +7188,14 @@ def _clean_bc_row_code(i, entry, is_2d, is_3d, n_coord_cols, is_steady=False, n_
     _dim_str = "3D" if is_3d else ("2D" if is_2d else "1D")
     btype = entry.get('type', 'dirichlet')
     comp = int(entry.get('component', 0) or 0)
-    loc = (entry.get('location', '') or '').strip() or 'True'
-    val = (entry.get('value', '') or '').strip() or '0'
+    loc = _np_math_expr((entry.get('location', '') or '').strip() or 'True')
+    val_raw = (entry.get('value', '') or '').strip() or '0'
+    val = _np_math_expr(val_raw)
     axis = entry.get('axis', 'x')
     # Same defense-in-depth clamp as generate_script() -- see its comment.
     deriv = min(max(int(entry.get('deriv_order', 0) or 0), 0), 1)
     pts_file = entry.get('points_file', '')
-    loc2 = (entry.get('location2', '') or '').strip() or 'True'
+    loc2 = _np_math_expr((entry.get('location2', '') or '').strip() or 'True')
     direction = entry.get('direction', 'normal')
     axis_idx_map = {"x": 0, "y": 1, "z": 2}
     # PointSetBC's component as a list of ints (see generate_script()'s
@@ -7185,12 +7256,12 @@ def _clean_bc_row_code(i, entry, is_2d, is_3d, n_coord_cols, is_steady=False, n_
         append.append(f"constraints.append(dde.icbc.PointSetBC(_pts{i}, _pvals{i}, component={_comp_arg!r}{batch_kwargs_str}))")
     elif btype == 'pointset_operator':
         op_name = f"_bc{i}_op"
-        defs += _bc_operator_def_lines(op_name, val, is_steady, _dim_str, _out_names_list, n_out)
+        defs += _bc_operator_def_lines(op_name, val_raw, is_steady, _dim_str, _out_names_list, n_out)
         append.append(f'_pts{i}, _pvals{i} = _load_bc_points({pts_file!r}, {n_coord_cols})')
         append.append(f"constraints.append(dde.icbc.PointSetOperatorBC(_pts{i}, _pvals{i}, {op_name}{batch_kwargs_str}))")
     elif btype == 'operator':
         op_name = f"_bc{i}_op"
-        defs += _bc_operator_def_lines(op_name, val, is_steady, _dim_str, _out_names_list, n_out) + loc_fn(loc_name, loc)
+        defs += _bc_operator_def_lines(op_name, val_raw, is_steady, _dim_str, _out_names_list, n_out) + loc_fn(loc_name, loc)
         append.append(f"constraints.append(dde.icbc.OperatorBC(geomtime, {op_name}, {loc_name}))")
     elif btype == 'interface2d':
         defs += loc_fn(loc_name, loc) + loc_fn(loc2_name, loc2) + val_fn(val_name, val)
@@ -8656,6 +8727,12 @@ def generate_clean_script(config):
         pde_body.append(f"    {oname} = y[:, {oi}:{oi + 1}]")
         for varname, rhs in _clean_needed_derivs(oname, oi, n_out, pde_check_str, is_2d, is_3d, is_steady):
             pde_body.append(f"    {varname} = {rhs}")
+    pde_cols = _pde_coord_columns(_pde_coord_names(pde_exprs[:n_out]), is_2d, is_3d, is_steady)
+    if pde_cols:
+        pde_body.append("    # coordinates used by the equation itself (one column each)")
+        pde_body.append("    _X = x")
+        for _cn, _cc in pde_cols:
+            pde_body.append(f"    {_cn} = _X[:, {_cc}:{_cc + 1}]")
     if n_out == 1:
         pde_body.append(f"    return {pde_exprs[0].strip()}")
     else:

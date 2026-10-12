@@ -4807,7 +4807,8 @@ class MainWindow(QMainWindow):
                          f"du_xxyy→∂⁴u/∂x²∂y²;  du_xxzz→∂⁴u/∂x²∂z²;  du_yyzz→∂⁴u/∂y²∂z²;\n"
                          f"du_xxtt→∂⁴u/∂x²∂t²;  du_yytt→∂⁴u/∂y²∂t²;  du_zztt→∂⁴u/∂z²∂t².\n"
                          f"── ── ──\n"
-                         f"Functions: sin, cos, exp, log, sqrt, tanh, pi\n\n"
+                         f"Functions: sin, cos, exp, log, sqrt, tanh, pi;  coordinates: x, y, z, t\n"
+                         f"(e.g. a source term: - exp(-t)*sin(pi*x))\n\n"
                          f"e.g. 3D Heat:       du_t - 0.4*(du_xx+du_yy+du_zz)\n"
                          f"e.g. 3D Reaction:   du_t - 0.001*(du_xx+du_yy+du_zz) + u**3 - u")
         elif is_2d:
@@ -4818,7 +4819,8 @@ class MainWindow(QMainWindow):
                          f"du_xxxx→∂⁴u/∂x⁴;  du_yyyy→∂⁴u/∂y⁴;\n"
                          f"du_xxyy→∂⁴u/∂x²∂y²;  du_xxtt→∂⁴u/∂x²∂t².\n"
                          f"── ── ──\n"
-                         f"Functions: sin, cos, exp, log, sqrt, tanh, pi\n\n"
+                         f"Functions: sin, cos, exp, log, sqrt, tanh, pi;  coordinates: x, y, t\n"
+                         f"(e.g. a source term: - exp(-t)*sin(pi*x))\n\n"
                          f"e.g. 2D Heat:        du_t - 0.4*(du_xx+du_yy)\n"
                          f"e.g. Allen-Cahn 2D:  du_t - 0.001*(du_xx+du_yy) + u**3 - u\n"
                          f"e.g. sin(pi*u)*du_xx + cos(u)*du_yy")
@@ -4828,7 +4830,8 @@ class MainWindow(QMainWindow):
                          f"du_xx→∂²u/∂x²;  du_tt→∂²u/∂t²;  du_xt→∂²u/∂x∂t;\n"
                          f"du_xxxx→∂⁴u/∂x⁴;  du_tttt→∂⁴u/∂t⁴;  du_xxtt→∂⁴u/∂x²∂t².\n"
                          f"── ── ──\n"
-                         f"Functions: sin, cos, exp, log, sqrt, tanh, pi\n\n"
+                         f"Functions: sin, cos, exp, log, sqrt, tanh, pi;  coordinates: x, t\n"
+                         f"(e.g. a source term: - exp(-t)*sin(pi*x))\n\n"
                          f"e.g. Diffusion:      du_t - 0.4*du_xx\n"
                          f"e.g. Burgers:        du_t + u*du_x - 0.01*du_xx\n"
                          f"e.g. 4th-order:      du_t - (du_xx - du_xxxx)\n"
