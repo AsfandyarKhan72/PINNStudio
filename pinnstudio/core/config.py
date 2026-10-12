@@ -136,6 +136,8 @@ class PINNConfig:
 
     # Multi-output
     num_outputs: int = 1
+    # Number of PDE residuals (Round 63); 0 = one per output, as before.
+    num_equations: int = 0
     output_names: str = "u"
     pde_expressions: str = "du_t - 0.4 * du_xx"
 

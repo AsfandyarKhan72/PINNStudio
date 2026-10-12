@@ -100,3 +100,4 @@ jobs:
           python tests/test_round60_adapt_reference_toggles.py
           python tests/test_round61_pde_coordinates.py
           python tests/test_round62_transform_formulas.py
+          python tests/test_round63_equation_count.py

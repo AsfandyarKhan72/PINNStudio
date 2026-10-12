@@ -868,14 +868,27 @@ class MainWindow(QMainWindow):
         pde_outer_layout.setSpacing(6)
 
         nout_row = QHBoxLayout()
-        nout_row.addWidget(QLabel("How many PDEs:"))
+        nout_row.addWidget(QLabel("Outputs:"))
         self.num_outputs_spin = QSpinBox()
-        self.num_outputs_spin.setRange(1, 4)
+        self.num_outputs_spin.setRange(1, 10)
         self.num_outputs_spin.setValue(1)
         self.num_outputs_spin.setFixedHeight(30)
         self.num_outputs_spin.setFixedWidth(60)
         self.num_outputs_spin.valueChanged.connect(self._on_num_outputs_changed)
         nout_row.addWidget(self.num_outputs_spin)
+        # Equations (Round 63): how many PDE residuals -- follows Outputs
+        # unless changed (DeepXDE allows any number, e.g. three for one
+        # output, or one for two outputs when the second is an unknown field).
+        nout_row.addSpacing(12)
+        nout_row.addWidget(QLabel("Equations:"))
+        self.num_equations_spin = QSpinBox()
+        self.num_equations_spin.setRange(1, 10)
+        self.num_equations_spin.setValue(1)
+        self.num_equations_spin.setFixedHeight(30)
+        self.num_equations_spin.setFixedWidth(60)
+        self.num_equations_spin.setToolTip("Number of PDE residuals; resets to the number of outputs when that changes.")
+        self.num_equations_spin.valueChanged.connect(self._on_num_equations_changed)
+        nout_row.addWidget(self.num_equations_spin)
         nout_row.addStretch()
         pde_outer_layout.addLayout(nout_row)
 
@@ -4841,7 +4854,38 @@ class MainWindow(QMainWindow):
         self.lbfgs_manual_widget.setVisible(state != 2)
 
     # ── Build PDE inputs ──────────────────────────────────────
-    def _build_pde_inputs(self, n):
+    def _n_equations(self):
+        """Number of PDE residuals currently set (Round 63)."""
+        return self.num_equations_spin.value() if hasattr(self, "num_equations_spin") else self.num_outputs_spin.value()
+
+    def _on_num_equations_changed(self, _m):
+        """Rebuild just the PDE rows (keeping what's typed) and the weights."""
+        self._build_pde_inputs(self.num_outputs_spin.value(), keep_text=True)
+        self._build_weight_inputs(self.num_outputs_spin.value())
+        self._refresh_rar_points_combo()
+
+    def _refresh_rar_points_combo(self):
+        """RAR's "Points from:" -- one entry per equation, since it picks
+        which residual ranks candidate points."""
+        if not hasattr(self, "rar_output_combo"):
+            return
+        idx = self.rar_output_combo.currentIndex()
+        n_out, n_eq = self.num_outputs_spin.value(), self._n_equations()
+        self.rar_output_combo.clear()
+        self.rar_output_combo.addItem("All outputs (combined)" if n_eq == n_out else "All equations (combined)")
+        for i in range(n_eq):
+            if n_eq == n_out:
+                name = self.output_name_inputs[i].text() if i < len(self.output_name_inputs) else f"u{i+1}"
+                self.rar_output_combo.addItem(f"Output {i+1} ({name})")
+            else:
+                self.rar_output_combo.addItem(f"Equation {i+1}")
+        if 0 <= idx < self.rar_output_combo.count():
+            self.rar_output_combo.setCurrentIndex(idx)
+
+    def _build_pde_inputs(self, n, keep_text=False):
+        kept_names = [w.text() for w in self.output_name_inputs] if keep_text else []
+        kept_pdes = [w.text() for w in self.pde_inputs] if keep_text else []
+        n_eq = self._n_equations()
         for i in reversed(range(self.pde_main_layout.count())):
             w = self.pde_main_layout.itemAt(i).widget()
             if w:
@@ -4852,28 +4896,34 @@ class MainWindow(QMainWindow):
         is_2d = self.radio_2d.isChecked() if hasattr(self, 'radio_2d') else False
         is_3d = self.radio_3d.isChecked() if hasattr(self, 'radio_3d') else False
 
-        for i in range(n):
-            name_row = QHBoxLayout()
-            name_row.addWidget(QLabel(f"Output {i+1} name:"))
-            name_input = QLineEdit()
-            name_input.setText(["u", "v", "w", "p"][i] if i < 4 else f"u{i+1}")
-            name_input.setFixedHeight(26); name_input.setFixedWidth(55)
-            name_row.addWidget(name_input); name_row.addStretch()
-            self.output_name_inputs.append(name_input)
-            nw = QWidget(); nw.setLayout(name_row)
-            self.pde_main_layout.addWidget(nw)
+        # Output name i then PDE i, for as many rows as the larger count --
+        # identical to the old one-PDE-per-output layout when they match.
+        for i in range(max(n, n_eq)):
+            if i < n:
+                name_row = QHBoxLayout()
+                name_row.addWidget(QLabel(f"Output {i+1} name:"))
+                name_input = QLineEdit()
+                name_input.setText(kept_names[i] if i < len(kept_names) else (["u", "v", "w", "p"][i] if i < 4 else f"u{i+1}"))
+                name_input.setFixedHeight(26); name_input.setFixedWidth(55)
+                name_row.addWidget(name_input); name_row.addStretch()
+                self.output_name_inputs.append(name_input)
+                nw = QWidget(); nw.setLayout(name_row)
+                self.pde_main_layout.addWidget(nw)
 
-            self.pde_main_layout.addWidget(QLabel(f"PDE {i+1} (residual = 0):"))
-            pde_inp = QLineEdit()
-            if is_3d:
-                pde_inp.setText("du_t - 0.4 * (du_xx + du_yy + du_zz)" if i == 0 else "dv_t - 0.1 * (dv_xx + dv_yy + dv_zz)")
-            elif is_2d:
-                pde_inp.setText("du_t - 0.0001 * (du_xx + du_yy) + 1 * (u**3 - u)" if i == 0 else "dv_t - 0.0001 * (dv_xx + dv_yy) + 1 * (v**3 - v)")
-            else:
-                pde_inp.setText("du_t - 0.4 * du_xx" if i == 0 else "dv_t - 0.1 * dv_xx")
-            pde_inp.setFixedHeight(28)
-            self.pde_inputs.append(pde_inp)
-            self.pde_main_layout.addWidget(pde_inp)
+            if i < n_eq:
+                self.pde_main_layout.addWidget(QLabel(f"PDE {i+1} (residual = 0):"))
+                pde_inp = QLineEdit()
+                if is_3d:
+                    pde_inp.setText("du_t - 0.4 * (du_xx + du_yy + du_zz)" if i == 0 else "dv_t - 0.1 * (dv_xx + dv_yy + dv_zz)")
+                elif is_2d:
+                    pde_inp.setText("du_t - 0.0001 * (du_xx + du_yy) + 1 * (u**3 - u)" if i == 0 else "dv_t - 0.0001 * (dv_xx + dv_yy) + 1 * (v**3 - v)")
+                else:
+                    pde_inp.setText("du_t - 0.4 * du_xx" if i == 0 else "dv_t - 0.1 * dv_xx")
+                if i < len(kept_pdes):
+                    pde_inp.setText(kept_pdes[i])
+                pde_inp.setFixedHeight(28)
+                self.pde_inputs.append(pde_inp)
+                self.pde_main_layout.addWidget(pde_inp)
 
         names_ex = ", ".join([["u","v","w","p"][i] if i < 4 else f"u{i+1}" for i in range(n)])
         if is_3d:
@@ -5930,9 +5980,9 @@ class MainWindow(QMainWindow):
             _sl_all.setContentsMargins(0,0,0,0); _sl_all.addWidget(_sep_all)
             self.weights_main_layout.addWidget(_sw_all)
 
-            for i in range(n):
+            for i in range(self._n_equations()):
                 name = self.output_name_inputs[i].text() if i < len(self.output_name_inputs) else f"u{i+1}"
-                _w_row(f"PDE {i+1} ({name}):", f"pde_{i}")
+                _w_row(f"PDE {i+1} ({name}):" if self._n_equations() == n else f"PDE {i+1}:", f"pde_{i}")
             # One weight row per row in the Boundary Conditions panel --
             # matches exactly what will train (see codegen.py's
             # custom_bc_json path), whether it's a hand-built row or one
@@ -5962,9 +6012,10 @@ class MainWindow(QMainWindow):
                 _sw = QWidget(); _sl = QHBoxLayout(_sw)
                 _sl.setContentsMargins(0,0,0,0); _sl.addWidget(sep)
                 self.weights_main_layout.addWidget(_sw)
-                for _i in range(n):
+                for _i in range(self._n_equations()):
                     _name = self.output_name_inputs[_i].text() if _i < len(self.output_name_inputs) else f"u{_i+1}"
-                    _w_row(f"PDE {_i+1} ({_name}) P{_phase_num}:", f"pde_{_i}_p{_phase_num}")
+                    _w_row(f"PDE {_i+1} ({_name}) P{_phase_num}:" if self._n_equations() == n else f"PDE {_i+1} P{_phase_num}:",
+                           f"pde_{_i}_p{_phase_num}")
                 for _bj, _be in enumerate(getattr(self, 'custom_bc_list', [])):
                     _btype_label = _be['type'].currentText()
                     _bcomp = _be['component'].value()
@@ -5990,7 +6041,7 @@ class MainWindow(QMainWindow):
                       and not self.sched_same_weights_cb.isChecked())
         suffix = f"_p{self.sched_phase_list[0]['phase_num']}" if use_phase1 else ""
         parts = []
-        for i in range(n_out):
+        for i in range(self._n_equations()):
             key = f"pde_{i}{suffix}"
             if key in self.weight_widgets:
                 parts.append(str(self.weight_widgets[key].value()))
@@ -6188,7 +6239,8 @@ class MainWindow(QMainWindow):
             custom_bc_json=self._build_custom_bc_json(),
             num_outputs=n_out,
             output_names=",".join([self.output_name_inputs[i].text() for i in range(n_out)]),
-            pde_expressions="|".join([self.pde_inputs[i].text() for i in range(n_out)]),
+            pde_expressions="|".join([self.pde_inputs[i].text() for i in range(self._n_equations())]),
+            num_equations=(self._n_equations() if self._n_equations() != n_out else 0),
 
             bc_left_types=",".join([_safe_text(self.bc_left_types, i) for i in range(n_out)]),
             bc_right_types=",".join([_safe_text(self.bc_right_types, i) for i in range(n_out)]),
@@ -6585,7 +6637,7 @@ class MainWindow(QMainWindow):
         # PDE per output, then one weight per Boundary Conditions panel row,
         # then IC per output. is_2d is accepted for call-site compatibility
         # but no longer changes which keys are read.
-        keys = [f"pde_{i}" for i in range(n_out)]
+        keys = [f"pde_{i}" for i in range(self._n_equations())]
         keys.extend(f"bc_{j}" for j in range(len(getattr(self, 'custom_bc_list', []))))
         keys.extend(f"ic_{i}" for i in range(n_out))
         self._apply_weight_string(weights_str, keys)
@@ -6622,7 +6674,7 @@ class MainWindow(QMainWindow):
         first, then one weight per Boundary Conditions panel row, then IC
         for every output."""
         for pn, ph in enumerate(phases, start=1):
-            keys = [f"pde_{i}_p{pn}" for i in range(n_out)]
+            keys = [f"pde_{i}_p{pn}" for i in range(self._n_equations())]
             keys.extend(f"bc_{j}_p{pn}" for j in range(len(getattr(self, 'custom_bc_list', []))))
             keys.extend(f"ic_{i}_p{pn}" for i in range(n_out))
             self._apply_weight_string(ph.get("weights", ""), keys)
@@ -6706,15 +6758,12 @@ class MainWindow(QMainWindow):
         # changed, before we had the saved names to give them).
         self.plot_output_combo.clear()
         self.restore_output_combo.clear()
-        self.rar_output_combo.clear()
-        self.rar_output_combo.addItem("All outputs (combined)")
         for _r in getattr(self, 'inv_data_rows', []):
             _r['output_combo'].clear()
         for i in range(n_out):
             name = self.output_name_inputs[i].text() if i < len(self.output_name_inputs) else f"u{i+1}"
             self.plot_output_combo.addItem(f"Output {i+1} ({name})")
             self.restore_output_combo.addItem(f"Output {i+1} ({name})")
-            self.rar_output_combo.addItem(f"Output {i+1} ({name})")
             for _r in getattr(self, 'inv_data_rows', []):
                 _r['output_combo'].addItem(f"Output {i+1} ({name})")
         # The measured-data-file rows rebuilt here get replaced wholesale by
@@ -6725,9 +6774,15 @@ class MainWindow(QMainWindow):
         self.restore_output_combo.addItem("Custom...")
         self._fit_combo_width(self.plot_output_combo, min_width=130)
 
+        # Equations (Round 63; 0 = one per output) -- rebuilds the PDE rows
+        # and weights, keeping the output names just set.
+        n_eq = int(getattr(config, "num_equations", 0) or 0) or n_out
+        self.num_equations_spin.setValue(n_eq)
+        self._refresh_rar_points_combo()
+
         # PDE expressions
-        pdes = _texts(config.pde_expressions, n_out, "|", config.pde_expression)
-        for i in range(n_out):
+        pdes = _texts(config.pde_expressions, n_eq, "|", config.pde_expression)
+        for i in range(n_eq):
             if i < len(self.pde_inputs):
                 self.pde_inputs[i].setText(pdes[i])
 
@@ -7156,21 +7211,25 @@ class MainWindow(QMainWindow):
         # equivalent call here -- _on_dim_changed() already wipes the whole
         # Boundary Conditions list.
         self._refresh_bc_interface2d_availability()
+        # Equations follow the output count when it changes (Round 63);
+        # signals blocked so the PDE rows are built once, just below.
+        if hasattr(self, "num_equations_spin"):
+            self.num_equations_spin.blockSignals(True)
+            self.num_equations_spin.setValue(n)
+            self.num_equations_spin.blockSignals(False)
         self._build_pde_inputs(n)
         self._build_bc_inputs(n)
         self._build_weight_inputs(n)
         self._rebuild_output_transform_rows(n)
         self.plot_output_combo.clear()
         self.restore_output_combo.clear()
-        self.rar_output_combo.clear()
-        self.rar_output_combo.addItem("All outputs (combined)")
+        self._refresh_rar_points_combo()
         for _r in getattr(self, 'inv_data_rows', []):
             _r['output_combo'].clear()
         for i in range(n):
             name = self.output_name_inputs[i].text() if i < len(self.output_name_inputs) else f"u{i+1}"
             self.plot_output_combo.addItem(f"Output {i+1} ({name})")
             self.restore_output_combo.addItem(f"Output {i+1} ({name})")
-            self.rar_output_combo.addItem(f"Output {i+1} ({name})")
             for _r in getattr(self, 'inv_data_rows', []):
                 _r['output_combo'].addItem(f"Output {i+1} ({name})")
         self.plot_output_combo.addItem("Custom...")
@@ -11332,7 +11391,7 @@ print("DOMAIN_PREVIEW_DONE")
             _suffix = "" if same_w else f"_p{pn}"
             w_str = ",".join(
                 [str(self.weight_widgets.get(f"pde_{i}{_suffix}", SciLineEdit(1.0)).value())
-                 for i in range(n_out_sc)]
+                 for i in range(self._n_equations())]
                 + [str(self.weight_widgets.get(k, SciLineEdit(1.0)).value())
                    for j in range(n_bc_sc)
                    for k in [f"bc_{j}{_suffix}"]

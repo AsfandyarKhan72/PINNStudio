@@ -291,9 +291,12 @@ def _weight_slot_descriptors(config) -> list:
     docstring."""
     n_out = config.num_outputs
     names = _weight_output_names(config, n_out)
+    # One PDE slot per equation -- the same as one per output unless the
+    # problem sets its own equation count (Round 63, num_equations).
+    n_eq = int(getattr(config, "num_equations", 0) or 0) or n_out
     slots = []
-    for i in range(n_out):
-        slots.append({"key": f"pde_{i}", "label": f"PDE {i + 1} ({names[i]})",
+    for i in range(n_eq):
+        slots.append({"key": f"pde_{i}", "label": f"PDE {i + 1} ({names[i]})" if n_eq == n_out else f"PDE {i + 1}",
                        "default_min": 0.1, "default_max": 10.0})
     for j, e in enumerate(_weight_bc_entries(config)):
         btype = e.get("type", "dirichlet") if isinstance(e, dict) else "dirichlet"

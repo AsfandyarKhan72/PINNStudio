@@ -370,6 +370,7 @@ _PDE_TORCH_FUNCS = (
     ("arcsin", "asin"), ("arccos", "acos"), ("arctan", "atan"),
     ("exp", "exp"), ("log", "log"), ("log10", "log10"), ("sqrt", "sqrt"),
     ("abs", "abs"), ("ceil", "ceil"), ("floor", "floor"),
+    ("relu", "relu"), ("sigmoid", "sigmoid"),
 )
 
 
@@ -3522,6 +3523,14 @@ if {config.time_adaptive}:
         print("=== Time-Adaptive Error Analysis Complete ===")"""
 
 
+def _n_equations(config):
+    """How many PDE residuals the problem has (Round 63): config.num_equations,
+    or one per output when it's 0 (every config saved before this round).
+    DeepXDE itself allows any number -- e.g. its American-put example has
+    three for one output, its unknown-field inverse problems one for two."""
+    return int(_cfg_get(config, "num_equations", 0) or 0) or int(_cfg_get(config, "num_outputs", 1) or 1)
+
+
 def _cfg_get(cfg, key, default=None):
     """Attribute or dict access -- the transform helpers below take either a
     PINNConfig or a restored model_config.json dict."""
@@ -4440,6 +4449,7 @@ _IS_FECR = False
 # ── PDE definition (standard) ───────────────────────────────
 def _pde_standard(x, y):
     _n_out = {config.num_outputs}
+    _n_eq = {_n_equations(config)}
     _out_names = [n.strip() for n in {repr(config.output_names)}.split(",")]
     _is_2d_pde = "{config.problem_dim}" == "2D"
     _is_3d_pde = "{config.problem_dim}" == "3D"
@@ -4591,10 +4601,10 @@ def _pde_standard(x, y):
         for _iv_name, _iv_var in zip(_inv_var_names, _inv_vars):
             _eval_ns[_iv_name] = _iv_var
 
-    if _n_out == 1:
+    if _n_eq == 1:
         return eval({repr(pde_expr_single)}, _eval_ns)
     else:
-        _pde_exprs = {repr(config_pde_expressions)}.split("|")
+        _pde_exprs = {repr(config_pde_expressions)}.split("|")[:_n_eq]
         return [eval(_expr.strip(), _eval_ns) for _expr in _pde_exprs]
 if not _IS_FECR:
     pde = _pde_standard
@@ -5093,7 +5103,7 @@ _wm_list = [float(v) for v in "{config.loss_weights_multi}".split(",") if v.stri
 
 _pde_w = []
 _wi = 0
-for _oi_w in range(_n_out_w):
+for _ei_w in range({_n_equations(config)}):  # one per equation
     _pde_w.append(_wm_list[_wi] if _wi < len(_wm_list) else 1.0); _wi += 1
 
 if _custom_bc_entries or _bc_panel_data_present:
@@ -5168,9 +5178,7 @@ else:
 
     _bc_left_deriv_active  = "{config.bc_left_deriv}".split(",")
     _bc_bottom_deriv_active = "{config.bc_bottom_deriv}".split(",")
-    _multi_weights = []
-    for _oi_w in range(_n_out_w):
-        _multi_weights.append(_pde_w[_oi_w])
+    _multi_weights = list(_pde_w)
     for _oi_w in range(_n_out_w):
         if _bcl_w[_oi_w] is not None:
             _multi_weights.append(_bcl_w[_oi_w])
@@ -7569,7 +7577,7 @@ def _clean_loss_weights(config, n_out, bc_entries, ic_active_list, obs_weights, 
     wm_list = [float(v) for v in (config.loss_weights_multi or "").split(",") if v.strip()]
     wi = 0
     pde_w = []
-    for _ in range(n_out):
+    for _ in range(_n_equations(config)):  # one per equation
         pde_w.append(wm_list[wi] if wi < len(wm_list) else 1.0)
         wi += 1
     if bc_entries or bc_panel_data_present:
@@ -8785,7 +8793,10 @@ def generate_clean_script(config):
     while len(out_names) < n_out:
         out_names.append(f"u{len(out_names)}")
     n_coord = 3 if is_3d else (2 if is_2d else 1)      # spatial dims
-    n_coord_cols = n_coord + 1                          # + time, for points files
+    # Coordinate columns in a points file: + time only when time-dependent
+    # (matches the live script's _n_coord_cols_bc -- a steady problem's
+    # points files have no time column; this used to always expect one).
+    n_coord_cols = n_coord + (0 if is_steady else 1)
     sol_ext = "gif" if (not is_steady and config.plot_type in ("Line Animation (GIF)", "Surface Animation (GIF)")) else "png"
     is_inverse = problem_type == "Inverse"
 
@@ -8816,16 +8827,17 @@ def generate_clean_script(config):
         pde_body.append(f"    {oname} = y[:, {oi}:{oi + 1}]")
         for varname, rhs in _clean_needed_derivs(oname, oi, n_out, pde_check_str, is_2d, is_3d, is_steady):
             pde_body.append(f"    {varname} = {rhs}")
-    pde_cols = _pde_coord_columns(_pde_coord_names(pde_exprs[:n_out]), is_2d, is_3d, is_steady)
+    n_eq = _n_equations(config)
+    pde_cols = _pde_coord_columns(_pde_coord_names(pde_exprs[:n_eq]), is_2d, is_3d, is_steady)
     if pde_cols:
         pde_body.append("    # coordinates used by the equation itself (one column each)")
         pde_body.append("    _X = x")
         for _cn, _cc in pde_cols:
             pde_body.append(f"    {_cn} = _X[:, {_cc}:{_cc + 1}]")
-    if n_out == 1:
+    if n_eq == 1:
         pde_body.append(f"    return {pde_exprs[0].strip()}")
     else:
-        exprs = [e.strip() for e in pde_exprs[:n_out]]
+        exprs = [e.strip() for e in pde_exprs[:n_eq]]
         pde_body.append("    return [")
         for e in exprs:
             pde_body.append(f"        {e},")
@@ -9398,7 +9410,7 @@ for rar_cycle in range({config.rar_cycles}):''']
             # "Points from:" (rar_output_selector): restrict selection to one
             # equation's residual, same as the live Solve path; -1 (default)
             # combines every equation.
-            if 0 <= config.rar_output_selector < n_out and n_out > 1:
+            if 0 <= config.rar_output_selector < _n_equations(config) and _n_equations(config) > 1:
                 _rar_resid_line = f"    residuals = np.abs(res[{config.rar_output_selector}]).flatten()"
             else:
                 _rar_resid_line = "    residuals = np.sum([np.abs(r).flatten() for r in res], axis=0) if isinstance(res, list) else np.abs(res).flatten()"
