@@ -176,6 +176,21 @@ EXAMPLES = [
         _scheduler(_phase("adam", 30000, 1e-4, ("inverse time", 1000, 0.3))),
         _formula_ref(["x + sin(x) + sin(2*x)/2 + sin(3*x)/3 + sin(4*x)/4 + sin(8*x)/8"])),
 
+    _ex("Poisson 1D – multi-scale Fourier features", FORWARD, _GH + "pinn_forward/Poisson_multiscale_1d.py",
+        _steady_1d(0, 1),
+        _consts(("A", "2"), ("B", "50")),
+        dict(pde_expressions="du_xx + (pi*A)**2*sin(pi*A*x) + 0.1*(pi*B)**2*sin(pi*B*x)",
+             custom_bc_json=_bcs(_bc("dirichlet", "True", "0")),
+             num_domain=1280, num_boundary=2, num_test=10000, point_distribution="pseudo",
+             cb_point_resampler=True, cb_point_resampler_period=1, cb_point_resampler_pde_points=True,
+             network_type="MsFFN", msffn_sigmas="1, 10", plot_resolution=2000, ea_ref_grid=2001),
+        _net([1, 100, 100, 100, 1], network_type="MsFFN"), _adam(20000), _NO_LBFGS,
+        _scheduler(_phase("adam", 20000, 1e-3, ("inverse time", 2000, 0.9))),
+        _formula_ref(["sin(pi*A*x) + 0.1*sin(pi*B*x)"]),
+        note="Multi-scale Fourier feature network (scales 1 and 10): the solution has a slow wave sin(2 pi x) "
+             "and a fast one 0.1 sin(50 pi x). DeepXDE's script passes the exact solution as the boundary value; "
+             "it is 0 at x = 0 and 1. Collocation points are redrawn every iteration."),
+
     _ex("Poisson over an L-shaped domain", FORWARD, _DOCS + "pinn_forward/poisson.Lshape.html",
         dict(problem_dim="2D", steady_state=True, geometry_type="Polygon",
              geom_polygon_vertices="0,0;1,0;1,-1;-1,-1;-1,1;0,1",
@@ -291,7 +306,8 @@ EXAMPLES = [
              ea_files=repr([(0.0, "@REF/1D/burgers/t_0.txt", None), (0.25, "@REF/1D/burgers/t_0.25.txt", None),
                             (0.5, "@REF/1D/burgers/t_0.50.txt", None), (0.75, "@REF/1D/burgers/t_0.75.txt", None)])),
         _net([2, 20, 20, 20, 1], "Glorot normal"), _adam(15000), _LBFGS,
-        note="Compared against PINNStudio's own Burgers reference solution (DeepXDE uses its Burgers.npz)."),
+        note="Time runs from 0 to 0.99, as in DeepXDE's script (its Burgers.npz reference ends at t = 0.99). "
+             "Compared against PINNStudio's own Burgers reference solution."),
 
     _ex("Burgers equation with RAR", FORWARD, _DOCS + "pinn_forward/burgers.rar.html",
         _time_1d(-1, 1, 0, 0.99),
@@ -303,7 +319,8 @@ EXAMPLES = [
              ea_files=repr([(0.0, "@REF/1D/burgers/t_0.txt", None), (0.25, "@REF/1D/burgers/t_0.25.txt", None),
                             (0.5, "@REF/1D/burgers/t_0.50.txt", None), (0.75, "@REF/1D/burgers/t_0.75.txt", None)])),
         _net([2, 20, 20, 20, 1], "Glorot normal"), _adam(10000), _LBFGS,
-        note="DeepXDE adds one point per round until the mean residual is below 0.005, with early stopping "
+        note="Time runs from 0 to 0.99, as in DeepXDE's script. "
+             "DeepXDE adds one point per round until the mean residual is below 0.005, with early stopping "
              "inside each round's Adam phase; here rounds stop at the same tolerance (capped at 100) and "
              "run their full Adam iterations."),
 

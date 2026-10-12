@@ -1500,11 +1500,15 @@ class MainWindow(QMainWindow):
         nn_layout.setSpacing(6)
 
         def _nn_row(label, widget):
-            row = QHBoxLayout()
+            # In its own container widget, so a row can be shown/hidden.
+            _w = QWidget()
+            row = QHBoxLayout(_w)
+            row.setContentsMargins(0, 0, 0, 0)
             row.addWidget(QLabel(label))
             row.addStretch()
             row.addWidget(widget)
-            nn_layout.addLayout(row)
+            nn_layout.addWidget(_w)
+            return _w
 
         self.layers_spin = QSpinBox()
         self.layers_spin.setRange(1, 8); self.layers_spin.setValue(3)
@@ -1555,10 +1559,28 @@ class MainWindow(QMainWindow):
         # Weight Decay is ignored (and codegen suppresses the arg
         # entirely) when this is PFNN.
         self.network_type_combo = QComboBox()
-        self.network_type_combo.addItems(["FNN", "PFNN"])
+        self.network_type_combo.addItems(["FNN", "PFNN", "MsFFN", "STMsFFN"])
+        self.network_type_combo.setToolTip(
+            "FNN: one fully-connected network.\n"
+            "PFNN: a separate sub-network for each output.\n"
+            "MsFFN: multi-scale Fourier feature network -- random Fourier features of the inputs at\n"
+            "  several scales (sigma), for solutions with both slow and fast variations.\n"
+            "STMsFFN: the same with separate space and time features (time-dependent problems).")
         self.network_type_combo.setFixedHeight(28)
         self._fit_combo_width(self.network_type_combo, min_width=100)
         _nn_row("Network type:", self.network_type_combo)
+        # Fourier-feature scales (Round 73), shown for MsFFN/STMsFFN.
+        self.msffn_sigmas_edit = QLineEdit("1, 10")
+        self.msffn_sigmas_edit.setFixedHeight(28)
+        self.msffn_sigmas_edit.setToolTip("Scales sigma of the random Fourier features, comma-separated, e.g. 1, 10.\n"
+                                          "Large sigma lets the network represent fast oscillations.")
+        self.msffn_sigmas_row = _nn_row("Fourier scales (σ):", self.msffn_sigmas_edit)
+        self.msffn_sigmas_t_edit = QLineEdit("1, 10")
+        self.msffn_sigmas_t_edit.setFixedHeight(28)
+        self.msffn_sigmas_t_edit.setToolTip("Scales sigma of the time features (STMsFFN), comma-separated.")
+        self.msffn_sigmas_t_row = _nn_row("Time scales (σₜ):", self.msffn_sigmas_t_edit)
+        self.network_type_combo.currentTextChanged.connect(self._on_network_type_changed)
+        self._on_network_type_changed(self.network_type_combo.currentText())
 
         # ── Input / output transform (optional) ───────────────
         # x_transformed = x_raw * scale + shift  (one row per input dim)
@@ -5509,6 +5531,12 @@ class MainWindow(QMainWindow):
             return True
         return self.quick_examples_combo.currentText() == "None"
 
+    def _on_network_type_changed(self, kind):
+        """Fourier scales only for MsFFN / STMsFFN (Round 73)."""
+        if hasattr(self, "msffn_sigmas_row"):
+            self.msffn_sigmas_row.setVisible(kind in ("MsFFN", "STMsFFN"))
+            self.msffn_sigmas_t_row.setVisible(kind == "STMsFFN")
+
     def _bc_note_with_transform(self, text):
         """With no BC rows and an output-transform formula, say where the
         boundary conditions are (hard constraints) -- Round 72."""
@@ -6727,6 +6755,8 @@ class MainWindow(QMainWindow):
             activation=self.activation_combo.currentText(),
             kernel_initializer=self.kernel_init_combo.currentText(),
             network_type=self.network_type_combo.currentText() if hasattr(self, 'network_type_combo') else "FNN",
+            msffn_sigmas=self.msffn_sigmas_edit.text().strip() or "1, 10",
+            msffn_sigmas_t=self.msffn_sigmas_t_edit.text().strip() or "1, 10",
             input_transform_enabled=self.input_transform_cb.isChecked(),
             input_transform_scale=[r["scale"].value() for r in self.input_transform_rows],
             input_transform_shift=[r["shift"].value() for r in self.input_transform_rows],
@@ -7373,6 +7403,8 @@ class MainWindow(QMainWindow):
         self.activation_combo.setCurrentText(self._canonical_activation_label(config.activation))
         self.kernel_init_combo.setCurrentText(config.kernel_initializer)
         self.network_type_combo.setCurrentText(getattr(config, 'network_type', 'FNN') or 'FNN')
+        self.msffn_sigmas_edit.setText(getattr(config, 'msffn_sigmas', '1, 10') or '1, 10')
+        self.msffn_sigmas_t_edit.setText(getattr(config, 'msffn_sigmas_t', '1, 10') or '1, 10')
 
         # Input/output transform rows were already rebuilt to match this
         # config's dimension (step 1 above) and output count (step 3
@@ -13405,7 +13437,8 @@ print("RESTORE_DONE")
         from pinnstudio.core.codegen import (_net_construction_helper_code,
             _training_monitor_runtime_code, _figsize_helper_code, _contour_levels_helper_code,
             _math_namespace_code)
-        net_helper_code = _net_construction_helper_code(cfg.get("network_type", "FNN"))
+        net_helper_code = _net_construction_helper_code(cfg.get("network_type", "FNN"), cfg.get("msffn_sigmas", "1, 10"),
+                                                        cfg.get("msffn_sigmas_t", "1, 10"))
         # Re-attach the model's input/output transforms (Round 62) -- see
         # codegen._net_transforms_code; a model_config.json from before
         # this round has no transform keys and gets none, as before.
@@ -13853,7 +13886,8 @@ def _extract_plot_field(x_grid):
         from pinnstudio.core.codegen import (_net_construction_helper_code,
             _training_monitor_runtime_code, _figsize_helper_code, _contour_levels_helper_code,
             _math_namespace_code)
-        net_helper_code = _net_construction_helper_code(cfg.get("network_type", "FNN"))
+        net_helper_code = _net_construction_helper_code(cfg.get("network_type", "FNN"), cfg.get("msffn_sigmas", "1, 10"),
+                                                        cfg.get("msffn_sigmas_t", "1, 10"))
         # Re-attach the model's input/output transforms (Round 62) -- see
         # codegen._net_transforms_code; a model_config.json from before
         # this round has no transform keys and gets none, as before.

@@ -107,6 +107,11 @@ class PINNConfig:
     # kwarg in DeepXDE, so weight_decay is silently not applied when this is
     # "PFNN" (codegen.py suppresses the regularization arg in that case).
     network_type: str = "FNN"
+    # Multi-scale Fourier feature networks (Round 73): network_type "MsFFN"
+    # (all inputs) or "STMsFFN" (space and time separately); the scales sigma
+    # of the random Fourier features, comma-separated.
+    msffn_sigmas: str = "1, 10"
+    msffn_sigmas_t: str = "1, 10"
 
     # Optional input/output transform: x_transformed = x_raw * scale + shift
     # (input, one entry per input dimension) and y_transformed = y_raw *
@@ -667,6 +672,26 @@ class PINNConfig:
         file and hard to diagnose from the resulting crash, not every
         possible misconfiguration."""
         errors = []
+
+        if self.network_type in ("MsFFN", "STMsFFN"):
+            from pinnstudio.core.codegen import _parse_sigmas
+            for _lbl, _txt in (("Fourier scales", self.msffn_sigmas),) + (
+                    (("Time scales", self.msffn_sigmas_t),) if self.network_type == "STMsFFN" else ()):
+                try:
+                    _sg = _parse_sigmas(_txt)
+                    if not _sg or any(v <= 0 for v in _sg):
+                        raise ValueError
+                except ValueError:
+                    errors.append(f"{self.network_type}: {_lbl} must be positive numbers separated by commas "
+                                  f"(e.g. 1, 10); got {_txt!r}.")
+            if self.network_type == "STMsFFN" and self.steady_state:
+                errors.append("STMsFFN separates space and time, so it needs a time-dependent problem; "
+                              "use MsFFN for a steady one.")
+            if isinstance(self.layers, (list, tuple)) and len(self.layers) >= 3 and self.layers[1] < 2:
+                errors.append(f"{self.network_type}: the first hidden layer needs at least 2 neurons "
+                              "(half of them are cosine and half sine Fourier features).")
+            if isinstance(self.layers, (list, tuple)) and len(self.layers) < 3:
+                errors.append(f"{self.network_type} needs at least one hidden layer.")
 
         if (self.constants or "").strip() not in ("", "[]"):
             try:

@@ -744,7 +744,75 @@ def _build_train_cbs_code(config, var_name="_train_cbs", indent=4):
     return "\n".join(lines)
 
 
-def _net_construction_helper_code(network_type):
+def _parse_sigmas(text):
+    """"1, 10" -> [1.0, 10.0] (Fourier-feature scales, Round 73)."""
+    out = []
+    for p in str(text or "").replace(";", ",").split(","):
+        p = p.strip()
+        if p:
+            out.append(float(p))
+    return out
+
+
+# Multi-scale Fourier feature networks (Wang, Wang & Perdikaris, CMAME 2021),
+# as in DeepXDE's dde.nn.MsFFN / STMsFFN, written here so they work with the
+# released DeepXDE (whose PyTorch backend doesn't have them yet) and keep one
+# checkpoint format for Restore. The random Fourier matrices are buffers, so
+# a saved model restores with exactly the features it was trained with.
+_MSFFN_CODE = """
+class _MsFFN(dde.nn.NN):
+    # Input -> [cos(x B_k), sin(x B_k)] for each scale sigma_k (B_k ~ N(0, sigma_k^2),
+    # fixed) -> the same hidden layers for every scale -> concatenated -> linear output.
+    # Space-time version (sigmas_t given): x and t get their own features,
+    # and every (space, time) pair of branches is multiplied point-wise.
+    def __init__(self, layer_sizes, activation, kernel_initializer, sigmas, sigmas_t=None):
+        super().__init__()
+        self.activation = dde.nn.activations.get(activation)
+        _init = dde.nn.initializers.get(kernel_initializer)
+        _zero = dde.nn.initializers.get("zeros")
+        self.space_time = bool(sigmas_t)
+        _n_ff = layer_sizes[1] // 2
+        _n_x = layer_sizes[0] - (1 if self.space_time else 0)
+        self.n_x_scales = len(sigmas)
+        for _k, _s in enumerate(sigmas):
+            self.register_buffer(f"B_x{_k}", torch.randn(_n_x, _n_ff) * float(_s))
+        self.n_t_scales = len(sigmas_t or [])
+        for _k, _s in enumerate(sigmas_t or []):
+            self.register_buffer(f"B_t{_k}", torch.randn(1, _n_ff) * float(_s))
+        self.linears = torch.nn.ModuleList()
+        for _i in range(2, len(layer_sizes) - 1):
+            _lin = torch.nn.Linear(layer_sizes[_i - 1], layer_sizes[_i])
+            _init(_lin.weight); _zero(_lin.bias)
+            self.linears.append(_lin)
+        _n_branches = self.n_x_scales * (self.n_t_scales if self.space_time else 1)
+        self.dense = torch.nn.Linear(layer_sizes[-2] * _n_branches, layer_sizes[-1])
+        _init(self.dense.weight); _zero(self.dense.bias)
+
+    def _branch(self, _x, _B):
+        _p = _x @ _B
+        _y = torch.cat([torch.cos(_p), torch.sin(_p)], dim=1)
+        for _lin in self.linears:
+            _y = self.activation(_lin(_y))
+        return _y
+
+    def forward(self, inputs):
+        x = inputs
+        if self._input_transform is not None:
+            x = self._input_transform(x)
+        if self.space_time:
+            _yx = [self._branch(x[:, :-1], getattr(self, f"B_x{_k}")) for _k in range(self.n_x_scales)]
+            _yt = [self._branch(x[:, -1:], getattr(self, f"B_t{_k}")) for _k in range(self.n_t_scales)]
+            _ys = [_a * _b for _a in _yx for _b in _yt]
+        else:
+            _ys = [self._branch(x, getattr(self, f"B_x{_k}")) for _k in range(self.n_x_scales)]
+        y = self.dense(torch.cat(_ys, dim=1))
+        if self._output_transform is not None:
+            y = self._output_transform(inputs, y)
+        return y
+"""
+
+
+def _net_construction_helper_code(network_type, sigmas="1, 10", sigmas_t="1, 10"):
     """Builds the literal Python source for a `_make_net(_flat_layers,
     _activation, _kernel_init, _weight_decay=0.0)` helper, embedded once
     near the top of every generated/restore script and called at every
@@ -771,14 +839,20 @@ def _net_construction_helper_code(network_type):
     PyTorch backend) -- weight_decay is silently dropped for PFNN here
     rather than raising, since weight decay is a secondary training knob,
     not something that should block switching architectures."""
-    return f'''# ── Network architecture: FNN or DeepXDE's built-in PFNN ──
+    _ms = network_type in ("MsFFN", "STMsFFN")
+    _ms_code = _MSFFN_CODE if _ms else ""
+    _ms_branch = (f'''    if _network_type in ("MsFFN", "STMsFFN"):
+        return _MsFFN(_flat_layers, _activation, _kernel_init, {_parse_sigmas(sigmas)!r},
+                      {(_parse_sigmas(sigmas_t) if network_type == "STMsFFN" else None)!r})
+''' if _ms else "")
+    return f'''# ── Network architecture: FNN, DeepXDE's built-in PFNN, or a multi-scale Fourier feature network ──
 _network_type = {network_type!r}
-
+{_ms_code}
 def _make_net(_flat_layers, _activation, _kernel_init, _weight_decay=0.0):
     _flat_layers = list(_flat_layers)
     _hidden = list(_flat_layers[1:-1])
     _n_out = _flat_layers[-1]
-    if _network_type == "PFNN":
+{_ms_branch}    if _network_type == "PFNN":
         _eff_layers = [_flat_layers[0]] + [[_w] * _n_out for _w in _hidden] + [_n_out]
         _net = dde.nn.PFNN(_eff_layers, _activation, _kernel_init)
     else:
@@ -4114,7 +4188,7 @@ if _dxde_ver is not None and _dxde_ver < (1, 13, 0):
     # -- this is the literal `_make_net(...)` helper's source, embedded
     # once near the top of the generated script below and called at every
     # network-construction site in place of a bare dde.nn.FNN(...).
-    net_helper_code = _net_construction_helper_code(config.network_type)
+    net_helper_code = _net_construction_helper_code(config.network_type, config.msffn_sigmas, config.msffn_sigmas_t)
 
     # Training Monitors' shared, static derivative-building/expression-
     # evaluation helpers -- see _training_monitor_runtime_code()'s own
@@ -4271,6 +4345,7 @@ if _use_save:
         # from a config saved before this feature existed; cfg.get(...) on
         # the restore side defaults to "FNN", i.e. the old behavior.
         "network_type": {repr(config.network_type)},
+        "msffn_sigmas": {repr(config.msffn_sigmas)}, "msffn_sigmas_t": {repr(config.msffn_sigmas_t)},
         "num_outputs": {config.num_outputs},
         "output_names": {repr(config.output_names)},
         "x_min": {config.x_min}, "x_max": {config.x_max},
@@ -9446,7 +9521,7 @@ def generate_clean_script(config):
     # replaces every bare dde.nn.FNN(...) call below, including the
     # weight-decay arg this used to splice in directly (now passed through
     # as a plain float; _make_net silently drops it for PFNN).
-    net_helper_code = _net_construction_helper_code(config.network_type)
+    net_helper_code = _net_construction_helper_code(config.network_type, config.msffn_sigmas, config.msffn_sigmas_t)
 
     # ---- Plot Settings: figure-size standardization (Round 31) -----------
     # Same shared-helper pattern as net_helper_code just above -- see
