@@ -420,6 +420,66 @@ def _simplify_pde_expr(expr):
     return e
 
 
+def _bc_domain_values(config):
+    """{name: value} of the domain limits a Boundary Conditions expression
+    can use by name (Round 68): x_min/x_max always, y_* in 2D/3D, z_* in
+    3D, t_min/t_max when time-dependent."""
+    dim = getattr(config, "problem_dim", "1D")
+    names = ["x_min", "x_max"]
+    if dim in ("2D", "3D"):
+        names += ["y_min", "y_max"]
+    if dim == "3D":
+        names += ["z_min", "z_max"]
+    if not getattr(config, "steady_state", False):
+        names += ["t_min", "t_max"]
+    return {n: float(getattr(config, n)) for n in names}
+
+
+# Named sides of the domain box for "Where:" -> (coordinate column, limit).
+BC_SIDE_NAMES = (("left", "x", "x_min"), ("right", "x", "x_max"),
+                 ("bottom", "y", "y_min"), ("top", "y", "y_max"),
+                 ("front", "z", "z_min"), ("back", "z", "z_max"))
+
+
+def _bc_sides(config):
+    """[(side name, column, limit value)] for this problem's dimension."""
+    dom = _bc_domain_values(config)
+    col = {"x": 0, "y": 1, "z": 2}
+    return [(n, col[c], dom[lim]) for (n, c, lim) in BC_SIDE_NAMES if lim in dom]
+
+
+def _bc_domain_literal(config):
+    return repr(_bc_domain_values(config))
+
+
+def _bc_sides_literal(config):
+    return repr(_bc_sides(config))
+
+
+def _expr_names(expr):
+    """Every bare name an expression uses (ast; empty set if it doesn't parse)."""
+    import ast as _ast_names
+    try:
+        tree = _ast_names.parse((expr or "").strip() or "0", mode="eval")
+    except SyntaxError:
+        return set()
+    return {n.id for n in _ast_names.walk(tree) if isinstance(n, _ast_names.Name)}
+
+
+def _clean_bc_name_lines(indent, expr, domain, is_location):
+    """For the exported script: define, inside a BC helper function, only
+    the domain names an expression uses -- e.g. `x_min = -1.0` and
+    `left = np.isclose(x, -1.0)  # x = x_min` -- so the expression reads
+    exactly as the user typed it (Round 68)."""
+    used = _expr_names(expr)
+    lines = [f"{indent}{n} = {v!r}" for n, v in domain.items() if n in used]
+    if is_location:
+        for n, c, lim in BC_SIDE_NAMES:
+            if n in used and lim in domain:
+                lines.append(f"{indent}{n} = bool(np.isclose({c}, {domain[lim]!r}))  # {c} = {lim}")
+    return lines
+
+
 def _np_math_expr(expr):
     """Bare math names in a boundary-condition expression -> numpy calls
     (sin(...) -> np.sin(...), pi -> np.pi), for the exported script, which
@@ -4791,19 +4851,29 @@ _n_coord_cols_bc = (3 if _is_3d else (2 if _is_2d else 1)) if _is_steady else (4
 # one, since eval()'s namespace otherwise only has x/y/z/t/np in it.
 {_math_namespace_code('_BC_MATH_NS', 'np', '')}
 
+# The domain's own limits, usable by name in every Boundary Conditions
+# expression (e.g. "x <= x_min", "x_max - x"), and the named sides of the
+# domain box usable in "Where:" (Round 68): left/right (x = x_min/x_max),
+# bottom/top (y = y_min/y_max, 2D/3D), front/back (z = z_min/z_max, 3D).
+_BC_DOMAIN = {_bc_domain_literal(config)}
+_BC_SIDES = {_bc_sides_literal(config)}
+
 def _bc_loc_fn(_expr):
     _src = _expr if _expr.strip() else "True"
     _code = compile(_src, "<bc_location>", "eval")
+    _sides = [(_n, _c, _v) for (_n, _c, _v) in _BC_SIDES if _n in _code.co_names]
     def _f(_X, _on):
         if not _on:
             return False
-        _ns = {{**_BC_MATH_NS, "x": _X[0], "np": np}}
+        _ns = {{**_BC_MATH_NS, **_BC_DOMAIN, "x": _X[0], "np": np}}
         if not _is_steady:
             _ns["t"] = _X[_n_coord_cols_bc - 1]
         if _is_2d or _is_3d:
             _ns["y"] = _X[1]
         if _is_3d:
             _ns["z"] = _X[2]
+        for _n, _c, _v in _sides:
+            _ns[_n] = bool(np.isclose(_X[_c], _v))
         return bool(eval(_code, _ns))
     return _f
 
@@ -4821,7 +4891,7 @@ def _bc_val_fn(_expr):
     _src = _expr if _expr.strip() else "0"
     _code = compile(_src, "<bc_value>", "eval")
     def _f(_Xb):
-        _ns = {{**_BC_MATH_NS, "x": _Xb[:, 0], "np": np}}
+        _ns = {{**_BC_MATH_NS, **_BC_DOMAIN, "x": _Xb[:, 0], "np": np}}
         if not _is_steady:
             _ns["t"] = _Xb[:, _n_coord_cols_bc - 1]
         if _is_2d or _is_3d:
@@ -4842,7 +4912,7 @@ def _bc_robin_fn(_expr, _comp):
     _src = _expr if _expr.strip() else "0"
     _code = compile(_src, "<bc_robin_value>", "eval")
     def _f(_Xb, _Yb):
-        _ns = {{**_BC_MATH_NS, "x": _Xb[:, 0], "np": np, "torch": torch, "u": _Yb[:, _comp:_comp + 1]}}
+        _ns = {{**_BC_MATH_NS, **_BC_DOMAIN, "x": _Xb[:, 0], "np": np, "torch": torch, "u": _Yb[:, _comp:_comp + 1]}}
         if _is_2d or _is_3d:
             _ns["y"] = _Xb[:, 1]
         if _is_3d:
@@ -4876,7 +4946,7 @@ def _bc_operator_fn(_expr):
         _dvars = _tm_build_dvars(_inputs, _outputs, _bc_op_n_out, _bc_op_out_names,
                                   _is_steady, _bc_op_dim, _expr)
         _ns = dict(_dvars)
-        _ns.update({{"inputs": _inputs, "outputs": _outputs, "X": _X, "np": np, "torch": torch}})
+        _ns.update({{**_BC_DOMAIN, "inputs": _inputs, "outputs": _outputs, "X": _X, "np": np, "torch": torch}})
         return eval(_code, _ns)
     return _f
 
@@ -7345,7 +7415,8 @@ def _bc_operator_def_lines(name, expr, is_steady, dim_str, out_names_list, n_out
     ]
 
 
-def _clean_bc_row_code(i, entry, is_2d, is_3d, n_coord_cols, is_steady=False, n_out=1, out_names="", t_min=0.0):
+def _clean_bc_row_code(i, entry, is_2d, is_3d, n_coord_cols, is_steady=False, n_out=1, out_names="", t_min=0.0,
+                       domain=None):
     """Everything needed for one Boundary Conditions panel row: the small
     helper function(s) its location/value expression needs (the
     expression text itself is spliced straight into the function body --
@@ -7386,15 +7457,19 @@ def _clean_bc_row_code(i, entry, is_2d, is_3d, n_coord_cols, is_steady=False, n_
     val_name = f"_bc{i}_val"
     defs, append = [], []
 
+    domain = domain or {}
+
     def loc_fn(name, expr):
         L = [f"def {name}(X, on_boundary):", "    if not on_boundary:", "        return False"]
         L += _clean_coord_unpack("    ", False, is_2d, is_3d, is_steady, _pde_coord_names([expr]))
+        L += _clean_bc_name_lines("    ", expr, domain, True)
         L.append(f"    return bool({expr})")
         return L
 
     def val_fn(name, expr):
         L = [f"def {name}(X):"]
         L += _clean_coord_unpack("    ", True, is_2d, is_3d, is_steady, _pde_coord_names([expr]))
+        L += _clean_bc_name_lines("    ", expr, domain, False)
         L.append(f"    _r = np.asarray({expr}, dtype=float)")
         L.append("    return np.full((len(X), 1), float(_r)) if _r.ndim == 0 else _r.reshape(-1, 1)")
         return L
@@ -7406,6 +7481,7 @@ def _clean_bc_row_code(i, entry, is_2d, is_3d, n_coord_cols, is_steady=False, n_
         rob_name = f"_bc{i}_robin"
         L = [f"def {rob_name}(X, Y):"]
         L += _clean_coord_unpack("    ", True, is_2d, is_3d, is_steady, _pde_coord_names([val]))
+        L += _clean_bc_name_lines("    ", val, domain, False)
         L.append(f"    u = Y[:, {comp}:{comp}+1]")
         L.append(f"    _r = {val}")
         L.append("    if isinstance(_r, torch.Tensor):")
@@ -7438,6 +7514,7 @@ def _clean_bc_row_code(i, entry, is_2d, is_3d, n_coord_cols, is_steady=False, n_
                         f"    if not np.isclose(X[-1], {t_min!r}):",
                         "        return False"]
             init_loc += _clean_coord_unpack("    ", False, is_2d, is_3d, is_steady, _pde_coord_names([loc]))
+            init_loc += _clean_bc_name_lines("    ", loc, domain, True)
             init_loc.append(f"    return bool({loc})")
             defs += _bc_operator_def_lines(op_name, val_raw, is_steady, _dim_str, _out_names_list, n_out) + init_loc
         else:
@@ -9141,7 +9218,8 @@ def generate_clean_script(config):
     if bc_entries or bc_panel_data_present:
         for i, entry in enumerate(bc_entries):
             d, a = _clean_bc_row_code(i, entry, is_2d, is_3d, n_coord_cols, is_steady,
-                                       n_out=n_out, out_names=config.output_names, t_min=config.t_min)
+                                       n_out=n_out, out_names=config.output_names, t_min=config.t_min,
+                                       domain=_bc_domain_values(config))
             bc_defs += d
             bc_appends += a
     else:

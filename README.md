@@ -148,7 +148,7 @@ The coordinates `x`, `y`, `z` and `t` can appear in an equation too, along with 
 <details>
 <summary><strong>Boundary and initial conditions</strong></summary>
 
-Boundary conditions are added as rows in a panel, each with its own type — Dirichlet, Neumann, Robin, Periodic, Point Set (values from a data file), Point Set Operator (a function of the network's own tensors, evaluated at those same file points), a general Operator condition (any function of the network's input/output tensors), or Interface 2D (DeepXDE's own `Interface2DBC`, pairing two matching boundary pieces) — the output(s) it applies to, and a `True`/`False` location expression in `x`, `y`, `z` that picks out which boundary it means (e.g. `x >= 1`) — compared against your own domain bounds, not a hardcoded number, so the same row still makes sense if you change the domain later. Point Set rows can target several output components from one data file at once, and both Point Set types can be minibatched (DeepXDE's own `batch_size`/`shuffle`) instead of using every point every step. Operator and Point Set Operator conditions accept the same `u`, `du_x`, `du_xx`-style derivative shorthand the PDE editor uses, alongside DeepXDE's own raw `inputs`/`outputs`/`X` tensors, so a custom condition rarely needs hand-written `dde.grad` calls. Periodic is only meaningful on an Interval/Rectangle/Cuboid-shaped domain (DeepXDE's own real requirement, enforced with a clear message rather than a confusing failure) and Interface 2D only on a 2-output, 2D Rectangle/Polygon problem — the panel keeps Interface 2D out of the Type list until both of those are true. Initial conditions are set from an expression in `x` (`y`, `z` too in 2D/3D) or loaded from a data file, per output.
+Boundary conditions are added as rows in a panel, each with its own type — Dirichlet, Neumann, Robin, Periodic, Point Set (values from a data file), Point Set Operator (a function of the network's own tensors, evaluated at those same file points), a general Operator condition (any function of the network's input/output tensors), or Interface 2D (DeepXDE's own `Interface2DBC`, pairing two matching boundary pieces) — the output(s) it applies to, and **Where** it applies: pick *Whole boundary*, *Left*, *Right*, *Bottom*, *Top* (and *Front*/*Back* in 3D) from the list, or type any `True`/`False` expression in `x`, `y`, `z`. The side names (`left`, `right`, `bottom`, `top`, `front`, `back`) and the domain limits (`x_min`, `x_max`, `y_min`, ...) are defined from your own domain, so `left or right` or `x <= x_min` still mean the right thing if you change the domain later; a shape without named sides uses an expression such as `np.isclose(x**2 + y**2, 0.25)`. Neumann and Robin values are the derivative along the outward normal, $du/dn$ — $+du/dx$ at a right side, $-du/dx$ at a left side. Point Set rows can target several output components from one data file at once, and both Point Set types can be minibatched (DeepXDE's own `batch_size`/`shuffle`) instead of using every point every step. Operator and Point Set Operator conditions accept the same `u`, `du_x`, `du_xx`-style derivative shorthand the PDE editor uses, alongside DeepXDE's own raw `inputs`/`outputs`/`X` tensors, so a custom condition rarely needs hand-written `dde.grad` calls. Periodic is only meaningful on an Interval/Rectangle/Cuboid-shaped domain (DeepXDE's own real requirement, enforced with a clear message rather than a confusing failure) and Interface 2D only on a 2-output, 2D Rectangle/Polygon problem — the panel keeps Interface 2D out of the Type list until both of those are true. Initial conditions are set from an expression in `x` (`y`, `z` too in 2D/3D) or loaded from a data file, per output.
 
 An Operator condition can also apply at the initial time instead of on the boundary (*Applies on: the initial time*), which is how a second initial condition such as $\partial u/\partial t = 0$ at $t = 0$ is given for a wave-type equation.
 
@@ -946,7 +946,7 @@ DeepXDE example: [poisson.1d.dirichlet.html](https://deepxde.readthedocs.io/en/l
 
 $$\Large -\frac{d^2u}{dx^2} = \pi^2\sin(\pi x), \qquad x \in [-1, 1]$$
 
-- **Boundary conditions:** Dirichlet, $u(\pm 1) = 0$ (DeepXDE's exact solution as the boundary value)
+- **Boundary conditions:** Dirichlet, $u(\pm 1) = 0$ — in the panel: Where `True` (whole boundary), Value `0`
 - **Exact solution:** $u = \sin(\pi x)$
 - **Network:** FNN [1, 50, 50, 50, 1], tanh, Glorot uniform
 - **Training:** Adam 10,000 (lr 0.001); 16 domain, 2 boundary points
@@ -965,7 +965,7 @@ DeepXDE example: [poisson.1d.neumanndirichlet.html](https://deepxde.readthedocs.
 
 $$\Large \frac{d^2u}{dx^2} = 2, \qquad x \in [-1, 1]$$
 
-- **Boundary conditions:** Dirichlet $u(-1) = 0$; Neumann $u'(1) = 4$
+- **Boundary conditions:** Dirichlet $u(-1) = 0$ (Where `left`, Value `0`); Neumann $u'(1) = 4$ (Where `right`, Value `4` — at the right end the outward normal derivative is $du/dx$)
 - **Exact solution:** $u = (x + 1)^2$
 - **Network:** FNN [1, 50, 50, 50, 1], tanh, Glorot uniform
 - **Training:** Adam 10,000 (lr 0.001); 16 domain, 2 boundary points
@@ -984,7 +984,7 @@ DeepXDE example: [poisson.1d.dirichletrobin.html](https://deepxde.readthedocs.io
 
 $$\Large \frac{d^2u}{dx^2} = 2, \qquad x \in [-1, 1]$$
 
-- **Boundary conditions:** Dirichlet $u(-1) = 0$; Robin $u'(1) = u(1)$
+- **Boundary conditions:** Dirichlet $u(-1) = 0$ (Where `left`); Robin $u'(1) = u(1)$ (Where `right`, Value `u`)
 - **Exact solution:** $u = (x + 1)^2$
 - **Network:** FNN [1, 50, 50, 50, 1], tanh, Glorot uniform
 - **Training:** Adam 10,000 (lr 0.001); 16 domain, 2 boundary points
@@ -1003,7 +1003,7 @@ DeepXDE example: [poisson.1d.dirichletperiodic.html](https://deepxde.readthedocs
 
 $$\Large -\frac{d^2u}{dx^2} = \pi^2\sin(\pi x), \qquad x \in [-1, 1]$$
 
-- **Boundary conditions:** Dirichlet $u(-1) = 0$; periodic $u(-1) = u(1)$
+- **Boundary conditions:** Dirichlet $u(-1) = 0$ (Where `left`); periodic $u(-1) = u(1)$ (Where `right`)
 - **Exact solution:** $u = \sin(\pi x)$
 - **Network:** FNN [1, 50, 50, 50, 1], tanh, Glorot uniform
 - **Training:** Adam 10,000 (lr 0.001); 16 domain, 2 boundary points
@@ -1022,7 +1022,7 @@ DeepXDE example: [poisson.1d.pointsetoperator.html](https://deepxde.readthedocs.
 
 $$\Large \frac{d^2u}{dx^2} = 2, \qquad x \in [-1, 1]$$
 
-- **Boundary conditions:** Dirichlet $u(-1) = 0$; point-set operator condition $u'(1) = 4$ (a Point Set Operator BC, a derivative imposed at given points)
+- **Boundary conditions:** Dirichlet $u(-1) = 0$ (Where `left`); point-set operator condition $u'(1) = 4$ (a Point Set Operator BC, a derivative imposed at given points)
 - **Exact solution:** $u = (x + 1)^2$
 - **Network:** FNN [1, 50, 50, 50, 1], tanh, Glorot uniform
 - **Training:** Adam 20,000 (lr 0.001); 16 domain, 2 boundary points
@@ -1460,6 +1460,12 @@ Only the velocity is constrained, so the pressure is determined only up to a con
 
 **Result (RTX 4090):** L2 at $t = 0, 0.5, 1$: $u$ 1.9e-4, 3.5e-4, 1.4e-3; $v$ 1.8e-4, 2.7e-4, 7.3e-4; $w$ 1.9e-4, 3.6e-4, 1.2e-3; $p$ 5.6, 15, 41 (a constant offset of about 24.7, see above)
 
+![Beltrami flow — PINN solution over time](assets/Images/DeepXDE/Beltrami_flow/animation.gif)
+
+![Beltrami flow — PINN vs reference, error analysis (p)](assets/Images/DeepXDE/Beltrami_flow/surface_comparison_p.png)
+
+![Beltrami flow — PINN vs reference, error analysis (u)](assets/Images/DeepXDE/Beltrami_flow/surface_comparison_u.png)
+
 </details>
 
 <details id="dx-black-scholes-equation-call-option">
@@ -1629,6 +1635,8 @@ $$\Large -\frac{\nu_e}{\epsilon}\frac{d^2u}{dx^2} + \frac{\nu u}{K} = g, \qquad 
 - **Training:** Adam 30,000 (lr 0.001); 100 domain points
 - **GUI recipe:** Quick Examples → Category **DeepXDE Inverse** → **Inverse: Brinkman-Forchheimer model**
 
+DeepXDE's own script, run unchanged twice on the same GPU, ends with $\nu_e$ = 1.31–1.35e-3, $K$ = 0.984e-3 and an L2 error of 0.018–0.020 for $u$ — the same picture: $K$ is recovered closely, $\nu_e$ only to within about 30–50% from five measurements.
+
 **Result (RTX 4090):** $\nu_e$ = 1.49e-3, $K$ = 0.985e-3 (both true 1e-3); L2 of $u$ = 2.9e-2
 
 ![Inverse: Brinkman-Forchheimer model — PINN vs reference along a line](assets/Images/DeepXDE/Inverse_Brinkman_Forchheimer_model/line_comparison.png)
@@ -1659,9 +1667,7 @@ with $D = 0.01$, $r = 1$, a localized initial bump, and no-flux (Neumann) bounda
    ```
    exp(-50*(x-0.5)**2)
    ```
-5. **Boundary conditions.** Add two rows in the Boundary Conditions panel, both **Neumann**, value `0` (no-flux — the population can't leave through either edge):
-   - `x <= 0`
-   - `x >= 1`
+5. **Boundary conditions.** Add one row in the Boundary Conditions panel: **Neumann**, value `0` (no-flux — the population can't leave through either edge), and in **Where** pick *Left and right* from the list (it writes `left or right`). Two rows, `left` and `right`, would do the same.
 6. **Network & training.** The defaults (a handful of hidden layers, Adam then L-BFGS) are a reasonable starting point for a problem this size — adjust layer/neuron counts or add Time-Adaptive stepping later if convergence needs help.
 7. **Solve.** Click **Solve** and watch the Training Log stream progress; the loss and solution plots populate once training finishes. Try the axis-swap option in Plot Settings on the resulting Surface plot — it's the same option described under [Configurable result plotting](#analysis--output).
 8. **Error Analysis (optional).** Since this isn't a bundled template, there's no reference data pre-loaded — Error Analysis is entirely optional here, but if you have your own reference solution (from a separate FEM/FD solver, say), point the Error Analysis dialog at it the same way the built-in templates do automatically.

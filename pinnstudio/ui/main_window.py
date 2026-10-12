@@ -1353,22 +1353,22 @@ class MainWindow(QMainWindow):
         self._register_hint(self.bc_loc_hint_toggle, '#74c0fc')
         self.custom_bc_main_layout.addWidget(self.bc_loc_hint_toggle)
         self.bc_loc_hint = QLabel(
-            "True/False expression in x, y, z that picks out WHICH boundary\n"
-            "you mean (only y if 2D/3D, only z if 3D) -- this is only ever\n"
-            "called on points already checked to BE on the\n"
-            "geometry's boundary, so you don't need to re-detect \"on the\n"
-            "boundary\" yourself or add any tolerance; you're only telling\n"
-            "it which edge/face those points belong to.\n"
-            "Compare against THIS problem's own Domain min/max fields above\n"
-            "(x_min/x_max, y_min/y_max, z_min/z_max) -- NOT a fixed number\n"
-            "like 0 or 1. E.g. if your domain is x in [-1, 1], the left\n"
-            "edge is \"x <= -1\"; if it's x in [0, 1] instead, the left edge\n"
-            "is \"x <= 0\". Built-in templates fill this in for you\n"
-            "automatically using their own domain -- these are just examples:\n"
-            "x <= x_min            → left edge (use your own x_min value)\n"
-            "x >= x_max            → right edge (use your own x_max value)\n"
-            "y <= y_min            → bottom edge (2D/3D)\n"
-            "np.isclose(x**2 + y**2, 0.25)  → circle boundary, radius 0.5"
+            "\"Where\" picks WHICH part of the boundary a condition applies to.\n"
+            "It's only checked at points already on the boundary, so you never\n"
+            "need to detect \"on the boundary\" yourself -- only say which part.\n"
+            "Use the picker, or type any True/False expression:\n"
+            "True                  → the whole boundary\n"
+            "left / right          → x = x_min / x = x_max (your domain's own limits)\n"
+            "bottom / top          → y = y_min / y = y_max (2D/3D)\n"
+            "front / back          → z = z_min / z = z_max (3D)\n"
+            "left or right         → both ends\n"
+            "x <= x_min            → same as left; x_min, x_max, y_min, ... are\n"
+            "                        defined in every BC expression, Value included\n"
+            "np.isclose(x**2 + y**2, 0.25) → a circle of radius 0.5 (for shapes\n"
+            "                        without named sides, e.g. a hole)\n"
+            "Neumann/Robin values are du/dn, the derivative along the OUTWARD\n"
+            "normal: at a right/top side that is +du/dx or +du/dy, at a\n"
+            "left/bottom side it is -du/dx or -du/dy."
         )
         self._register_hint(self.bc_loc_hint, '#74c0fc')
         self.bc_loc_hint.setWordWrap(True)
@@ -3693,6 +3693,7 @@ class MainWindow(QMainWindow):
         if is_3d and hasattr(self, 'ta_grid') and self.ta_grid.currentText() in ("101", "51"):
             self.ta_grid.setCurrentText("21")
         self._update_ta_grid_warning()
+        self._refresh_bc_where_pickers()
         # Clear the Boundary Conditions panel -- its rows (template-seeded
         # or hand-built) are location EXPRESSIONS in the previous
         # dimension's variables (e.g. "z <= 0" from a 3D problem), which
@@ -5536,6 +5537,53 @@ class MainWindow(QMainWindow):
                 "before solving."
             )
 
+    _BC_CUSTOM_WHERE = "Custom expression…"
+
+    def _bc_where_choices(self):
+        """(label, expression) pairs for the "Where:" picker, for the
+        current dimension (Round 68). The side names are defined in the
+        generated scripts against this problem's own domain limits."""
+        is_2d = getattr(self, 'radio_2d', None) is not None and self.radio_2d.isChecked()
+        is_3d = getattr(self, 'radio_3d', None) is not None and self.radio_3d.isChecked()
+        ch = [("Whole boundary", "True"),
+              ("Left (x = x_min)", "left"), ("Right (x = x_max)", "right"), ("Left and right", "left or right")]
+        if is_2d or is_3d:
+            ch += [("Bottom (y = y_min)", "bottom"), ("Top (y = y_max)", "top"), ("Bottom and top", "bottom or top")]
+        if is_3d:
+            ch += [("Front (z = z_min)", "front"), ("Back (z = z_max)", "back"), ("Front and back", "front or back")]
+        return ch
+
+    def _fill_bc_where_picker(self, pick, edit):
+        pick.blockSignals(True)
+        pick.clear()
+        for label, expr in self._bc_where_choices():
+            pick.addItem(label, expr)
+        pick.addItem(self._BC_CUSTOM_WHERE, None)
+        pick.blockSignals(False)
+        self._sync_bc_where_picker(pick, edit)
+
+    def _sync_bc_where_picker(self, pick, edit):
+        text = " ".join(edit.text().split())
+        if text == "":
+            text = "True"  # an empty "Where" means the whole boundary
+        idx = pick.findData(text)
+        pick.blockSignals(True)
+        pick.setCurrentIndex(idx if idx >= 0 else pick.count() - 1)
+        pick.blockSignals(False)
+
+    def _on_bc_where_picked(self, pick, edit):
+        expr = pick.currentData()
+        if expr is None:
+            edit.setFocus()
+            return
+        edit.setText(expr)
+
+    def _refresh_bc_where_pickers(self):
+        """Dimension changed: offer that dimension's sides."""
+        for e in getattr(self, 'custom_bc_list', []):
+            if e.get('location_picker') is not None:
+                self._fill_bc_where_picker(e['location_picker'], e['location'])
+
     def _add_custom_bc_entry(self, bc_type="dirichlet", component=0, location="",
                               value="0", axis="x", deriv_order=0, points_file="",
                               location2="", direction="normal", locked=False,
@@ -5608,11 +5656,25 @@ class MainWindow(QMainWindow):
         loc_layout.setContentsMargins(0, 0, 0, 0); loc_layout.setSpacing(2)
         loc_row = QHBoxLayout()
         loc_row.addWidget(QLabel("Where:"))
+        # Quick picker for the common choices (Round 68): it writes the
+        # expression into the field below, and follows whatever is typed
+        # there ("Custom expression" when it's not one of its choices).
+        loc_pick = QComboBox()
+        loc_pick.setFixedHeight(26)
+        loc_pick.setToolTip("Which part of the boundary this condition applies to.\n"
+                            "Sides are the domain's own limits: left = x_min, right = x_max,\n"
+                            "bottom/top = y_min/y_max, front/back = z_min/z_max.")
+        loc_row.addWidget(loc_pick)
         loc_edit = QLineEdit(location)
-        loc_edit.setPlaceholderText("e.g. x <= -1   (compare against YOUR domain's own min/max)")
+        loc_edit.setPlaceholderText("e.g. left, right, x <= x_min, np.isclose(x**2 + y**2, 0.25)")
+        loc_edit.setToolTip(loc_pick.toolTip() + "\nOr any True/False expression in x, y, z (and t), "
+                            "e.g. left or right, x <= x_min, np.isclose(x**2 + y**2, 0.25).")
         loc_edit.setFixedHeight(26)
-        loc_row.addWidget(loc_edit)
+        loc_row.addWidget(loc_edit, 1)
         loc_layout.addLayout(loc_row)
+        self._fill_bc_where_picker(loc_pick, loc_edit)
+        loc_pick.activated.connect(lambda _i: self._on_bc_where_picked(loc_pick, loc_edit))
+        loc_edit.textChanged.connect(lambda _t: self._sync_bc_where_picker(loc_pick, loc_edit))
         entry_layout.addWidget(loc_widget)
 
         # Value/function (hidden for Periodic, which has no func; hidden for
@@ -5793,7 +5855,8 @@ class MainWindow(QMainWindow):
         entry_layout.addWidget(advanced_note)
 
         val_placeholders = {
-            "robin": "e.g. 0, sin(pi*y), u   (Robin: x, y, z, and u for the solution)",
+            "neumann": "du/dn, outward normal: e.g. 4  (at a left/bottom side du/dn = -du/dx or -du/dy)",
+            "robin": "du/dn = this, e.g. u, 2*u - 1  (x, y, z, and u for the solution)",
             "interface2d": "Python expression in x, y, z for the interface func(x)",
             "operator": "e.g. du_x - u  (func(inputs, outputs, X); u/du_x/... shorthand OK)",
             "pointset_operator": "e.g. du_x - u  (func(inputs, outputs, X); u/du_x/... shorthand OK)",
@@ -5861,6 +5924,7 @@ class MainWindow(QMainWindow):
             'deriv_order': deriv_spin,
             'points_file': pointset_path,
             'location2': loc2_edit,
+            'location_picker': loc_pick,
             'direction': direction_combo,
             'components': multi_comp_edit,
             'batch_size': batch_spin,
@@ -6035,12 +6099,10 @@ class MainWindow(QMainWindow):
         vals_map = {"left": self.bc_left_vals, "right": self.bc_right_vals,
                     "bottom": getattr(self, "bc_bottom_vals", []),
                     "top": getattr(self, "bc_top_vals", [])}
-        loc_map = {
-            "left": f"x <= {x_min:g}",
-            "right": f"x >= {x_max:g}",
-            "bottom": f"y <= {y_min:g}" if is_2d else "",
-            "top": f"y >= {y_max:g}" if is_2d else "",
-        }
+        # Named sides (Round 68): defined against the domain's own limits in
+        # the generated scripts, so they stay right if the domain changes.
+        loc_map = {"left": "left", "right": "right",
+                   "bottom": "bottom" if is_2d else "", "top": "top" if is_2d else ""}
         axis_map = {"left": "x", "right": "x", "bottom": "y", "top": "y"}
         bc_type_txt = types_map[side][i].currentText()
         if bc_type_txt == "Periodic":
@@ -6062,18 +6124,15 @@ class MainWindow(QMainWindow):
         for e in list(self.custom_bc_list):
             e['widget'].deleteLater()
         self.custom_bc_list.clear()
-        x_min, x_max = self.x_min.value(), self.x_max.value()
-        y_min, y_max = self.y_min.value(), self.y_max.value()
-        z_min, z_max = self.z_min.value(), self.z_max.value()
         # Same convention as heat2d: one Dirichlet face (right/x-max), the
         # rest Neumann=0 (insulated).
         faces = [
-            (f"x <= {x_min:g}", "neumann", "0"),
-            (f"x >= {x_max:g}", "dirichlet", "1"),
-            (f"y <= {y_min:g}", "neumann", "0"),
-            (f"y >= {y_max:g}", "neumann", "0"),
-            (f"z <= {z_min:g}", "neumann", "0"),
-            (f"z >= {z_max:g}", "neumann", "0"),
+            ("left", "neumann", "0"),
+            ("right", "dirichlet", "1"),
+            ("bottom", "neumann", "0"),
+            ("top", "neumann", "0"),
+            ("front", "neumann", "0"),
+            ("back", "neumann", "0"),
         ]
         for i in range(n_out):
             for loc, btype, val in faces:
@@ -6089,10 +6148,9 @@ class MainWindow(QMainWindow):
         legacy per-side widgets have no concept of derivative order at
         all). Same "template populates the panel directly" pattern as
         _populate_3d_heat_bc_entries above."""
-        x_min = self.x_min.value()
         for i in range(n_out):
             self._add_custom_bc_entry(bc_type="periodic", component=i,
-                                       location=f"x <= {x_min:g}", axis="x",
+                                       location="left", axis="x",
                                        deriv_order=1, locked=False)
 
     # ── Build weight inputs ───────────────────────────────────

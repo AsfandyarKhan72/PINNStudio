@@ -105,3 +105,5 @@ jobs:
           python tests/test_round65_anchors.py
           python tests/test_round66_rar_tolerance.py
           python tests/test_round67_formula_reference.py
+          python tests/test_round68_bc_where_names.py
+          python tests/test_deepxde_examples.py
