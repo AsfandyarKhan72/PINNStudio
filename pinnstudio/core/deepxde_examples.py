@@ -161,10 +161,11 @@ EXAMPLES = [
         dict(pde_expressions="du_xx - 2",
              custom_bc_json=_bcs(_bc("dirichlet", "left", "0"),
                                  _bc("pointset_operator", "True", "du_x",
-                                     points_file="@REF/deepxde/poisson_pointset_operator/dudx_at_x1.txt"))),
+                                     points_mode="list", points_list="1", values_mode="formula", values_formula="4"))),
         _formula_ref(["(x + 1)**2"]),
         note="DeepXDE trains Adam twice for 10,000 iterations (the first run with derivative-logging "
-             "callbacks); here that is one 20,000-iteration Adam run. The left boundary value (x + 1)^2 in DeepXDE's script is 0 at x = -1."),
+             "callbacks); here that is one 20,000-iteration Adam run. The left boundary value (x + 1)^2 in DeepXDE's script is 0 at x = -1, "
+             "and its point-set operator condition is du/dx = 2(x + 1) = 4 at the one point x = 1 (typed in the row, no file)."),
 
     _ex("Poisson 1D – hard boundary conditions", FORWARD, _GH + "pinn_forward/Poisson_Dirichlet_1d_exactBC.py",
         _steady_1d(0, 3.141592653589793), _net([1, 50, 50, 50, 1]),

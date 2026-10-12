@@ -120,7 +120,6 @@ def main():
     xo = np.linspace(1 / 6, 1, 5, endpoint=False)
     _save("brinkman_forchheimer/u_obs.txt", np.column_stack([xo, 1 - np.cosh(20 * (xo - 0.5)) / np.cosh(10)]))
     # Point Set Operator BC target: du/dx = 2(x + 1) = 4 at x = 1.
-    _save("poisson_pointset_operator/dudx_at_x1.txt", np.array([[1.0, 4.0]]))
 
 
 if __name__ == "__main__":

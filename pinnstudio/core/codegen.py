@@ -2273,10 +2273,10 @@ if {config.time_adaptive}:
                     _constraints_i.append(dde.icbc.PeriodicBC(geomtime_i, _axis_idx_map.get(_baxis_ta, 0), _bc_loc_fn(_bloc_ta),
                                                                 derivative_order=_bderiv_ta, component=_bcomp_ta))
                 elif _btype_ta == 'pointset':
-                    _pts_ta, _pvals_ta = _bc_load_points_file(_bpts_file_ta, _blabel_ta, len(_bcomponents_ta) if _bcomponents_ta else 1)
+                    _pts_ta, _pvals_ta = _bc_points(_be_ta, _blabel_ta, len(_bcomponents_ta) if _bcomponents_ta else 1, geomtime_i)
                     _constraints_i.append(dde.icbc.PointSetBC(_pts_ta, _pvals_ta, component=(_bcomponents_ta if _bcomponents_ta else _bcomp_ta), **_bbatch_kwargs_ta))
                 elif _btype_ta == 'pointset_operator':
-                    _pts_ta, _pvals_ta = _bc_load_points_file(_bpts_file_ta, _blabel_ta)
+                    _pts_ta, _pvals_ta = _bc_points(_be_ta, _blabel_ta, 1, geomtime_i)
                     _constraints_i.append(dde.icbc.PointSetOperatorBC(_pts_ta, _pvals_ta, _bc_operator_fn(_bval_ta), **_bbatch_kwargs_ta))
                 elif _btype_ta == 'operator':
                     _constraints_i.append(dde.icbc.OperatorBC(geomtime_i, _bc_operator_fn(_bval_ta), _bc_loc_fn(_bloc_ta)))
@@ -3779,7 +3779,8 @@ def _effective_config(config):
                           "input_feature_formula", "output_transform_formula", "ea_ref_formula",
                           "plot_custom_expr", "sweep_plot_custom_expr", "anchors_box")
                 if isinstance(getattr(config, f, None), str)}
-        _sub["custom_bc_json"] = _cmod.substitute_json(config.custom_bc_json, _consts, ("location", "value", "location2"))
+        _sub["custom_bc_json"] = _cmod.substitute_json(config.custom_bc_json, _consts, ("location", "value", "location2",
+                                                                                      "points_list", "values_formula"))
         _sub["inverse_obs_files_json"] = _cmod.substitute_json(config.inverse_obs_files_json, _consts, ("custom_expr",))
         _sub["training_monitors"] = _cmod.substitute_json(config.training_monitors, _consts, ("expr",))
         config = _dc.replace(config, constants="", **_sub)
@@ -5007,6 +5008,51 @@ def _bc_load_points_file(_path, _bc_label, _n_values=1):
                             f"'{{_path}}' only has {{_n_have}}.")
     return _data[:, :_n_coord_cols_bc], _data[:, _n_coord_cols_bc:_n_coord_cols_bc + _n_values]
 
+def _bc_parse_points(_text, _bc_label):
+    # Typed list of points (Round 71): ';' between points, ',' between
+    # coordinates (x[, y[, z]][, t]); in 1D steady problems ',' also
+    # separates points ("0.2, 0.5, 0.8").
+    _txt = (_text or "").strip()
+    if _n_coord_cols_bc == 1:
+        _txt = _txt.replace(",", ";")
+    _rows = [[float(_v) for _v in _p.replace("(", "").replace(")", "").split(",") if _v.strip()]
+             for _p in _txt.split(";") if _p.strip()]
+    if not _rows or any(len(_r) != _n_coord_cols_bc for _r in _rows):
+        raise RuntimeError(f"Boundary Conditions panel: {{_bc_label}}: each typed point needs "
+                           f"{{_n_coord_cols_bc}} coordinate(s); got {{_text!r}}.")
+    return np.array(_rows, dtype=float)
+
+def _bc_points(_be, _bc_label, _n_values=1, _gt=None):
+    # Points and target values of a Point Set / Point Set Operator row:
+    # points from a file, a typed list or generated at random (on the part
+    # of the boundary picked by "Where", or in the domain); values from the
+    # file's value columns or a formula in x, y, z, t ('|' between
+    # components) -- Round 71.
+    _mode = _be.get('points_mode', 'file') or 'file'
+    _vmode = _be.get('values_mode', 'file') or 'file'
+    if _mode == 'file':
+        _pts, _vals = _bc_load_points_file(_be.get('points_file', ''), _bc_label, _n_values if _vmode == 'file' else 0)
+        if _vmode == 'file':
+            return _pts, _vals
+    elif _mode == 'list':
+        _pts = _bc_parse_points(_be.get('points_list', ''), _bc_label)
+    else:
+        _n = int(_be.get('points_count', 10) or 10)
+        if _be.get('points_where', 'boundary') == 'domain':
+            _pts = _gt.random_points(_n)
+        else:
+            _loc = _bc_loc_fn(_be.get('location', '') or '')
+            _cand = _gt.random_boundary_points(max(20 * _n, 200))
+            _pts = np.array([_p for _p in _cand if _loc(_p, True)][:_n])
+            if len(_pts) == 0:
+                raise RuntimeError(f"Boundary Conditions panel: {{_bc_label}}: no boundary points match its Where expression.")
+    _formulas = [_f for _f in (_be.get('values_formula', '') or '0').split("|")]
+    if len(_formulas) < _n_values:
+        raise RuntimeError(f"Boundary Conditions panel: {{_bc_label}} needs {{_n_values}} value formula(s), "
+                           f"separated by '|'.")
+    _vals = np.hstack([_bc_val_fn(_f)(_pts) for _f in _formulas[:_n_values]])
+    return _pts.astype(float), _vals
+
 _axis_idx_map = {{"x": 0, "y": 1, "z": 2}}
 
 class _Interface2DGeomAdapter:
@@ -5072,10 +5118,10 @@ if _custom_bc_entries or _bc_panel_data_present:
             _constraints.append(dde.icbc.PeriodicBC(geomtime, _axis_idx_map.get(_baxis, 0), _bc_loc_fn(_bloc),
                                                       derivative_order=_bderiv, component=_bcomp))
         elif _btype == 'pointset':
-            _pts, _pvals = _bc_load_points_file(_bpts_file, _blabel, len(_bcomponents) if _bcomponents else 1)
+            _pts, _pvals = _bc_points(_be, _blabel, len(_bcomponents) if _bcomponents else 1, geomtime)
             _constraints.append(dde.icbc.PointSetBC(_pts, _pvals, component=(_bcomponents if _bcomponents else _bcomp), **_bbatch_kwargs))
         elif _btype == 'pointset_operator':
-            _pts, _pvals = _bc_load_points_file(_bpts_file, _blabel)
+            _pts, _pvals = _bc_points(_be, _blabel, 1, geomtime)
             _constraints.append(dde.icbc.PointSetOperatorBC(_pts, _pvals, _bc_operator_fn(_bval), **_bbatch_kwargs))
         elif _btype == 'operator':
             _bloc_fn = _bc_init_loc_fn(_bloc) if _be.get('apply_at', 'boundary') == 'initial' else _bc_loc_fn(_bloc)
@@ -7517,6 +7563,45 @@ def _clean_bc_row_code(i, entry, is_2d, is_3d, n_coord_cols, is_steady=False, n_
     val_name = f"_bc{i}_val"
     defs, append = [], []
 
+    def _clean_points_values(i, entry, n_values):
+        """Points and target values of a Point Set (Operator) row (Round 71):
+        from a file, a typed list or generated; values from the file or a
+        formula. Returns (def_lines, append_lines) defining _pts{i}/_pvals{i}."""
+        mode = entry.get('points_mode', 'file') or 'file'
+        vmode = entry.get('values_mode', 'file') or 'file'
+        if mode != 'file':
+            vmode = 'formula'
+        D, A = [], []
+        if mode == 'file':
+            A.append(f'_pts{i}, _pvals{i} = _load_bc_points({pts_file!r}, {n_coord_cols}, {n_values if vmode == "file" else 0})')
+        elif mode == 'list':
+            txt = (entry.get('points_list', '') or '').strip()
+            if n_coord_cols == 1:
+                txt = txt.replace(",", ";")
+            rows = [[float(v) for v in p.replace("(", "").replace(")", "").split(",") if v.strip()]
+                    for p in txt.split(";") if p.strip()]
+            if not rows or any(len(r) != n_coord_cols for r in rows):
+                raise ValueError(f"BC {i + 1}: each typed point needs {n_coord_cols} coordinate(s); "
+                                 f"got {entry.get('points_list', '')!r}.")
+            A.append(f"_pts{i} = np.array({rows!r}, dtype=float)")
+        else:
+            npts = int(entry.get('points_count', 10) or 10)
+            if entry.get('points_where', 'boundary') == 'domain':
+                A.append(f"_pts{i} = geomtime.random_points({npts})")
+            else:
+                ploc = _np_math_expr((entry.get('location', '') or '').strip() or 'True')
+                D += loc_fn(f"_bc{i}_ploc", ploc)
+                A.append(f"_cand{i} = geomtime.random_boundary_points({max(20 * npts, 200)})")
+                A.append(f"_pts{i} = np.array([p for p in _cand{i} if _bc{i}_ploc(p, True)][:{npts}])")
+        if vmode == 'formula':
+            forms = [(f.strip() or "0") for f in (entry.get('values_formula', '') or '0').split("|")]
+            if len(forms) < n_values:
+                raise ValueError(f"BC {i + 1} needs {n_values} value formula(s), separated by '|'.")
+            for k, f in enumerate(forms[:n_values]):
+                D += val_fn(f"_bc{i}_pval{k}", _np_math_expr(f))
+            A.append(f"_pvals{i} = np.hstack([" + ", ".join(f"_bc{i}_pval{k}(_pts{i})" for k in range(n_values)) + "])")
+        return D, A
+
     domain = domain or {}
 
     def loc_fn(name, expr):
@@ -7557,13 +7642,17 @@ def _clean_bc_row_code(i, entry, is_2d, is_3d, n_coord_cols, is_steady=False, n_
         append.append(f"constraints.append(dde.icbc.PeriodicBC(geomtime, {axis_idx_map.get(axis, 0)}, "
                        f"{loc_name}, derivative_order={deriv}, component={comp}))")
     elif btype == 'pointset':
-        append.append(f'_pts{i}, _pvals{i} = _load_bc_points({pts_file!r}, {n_coord_cols}, {n_values})')
+        _pd, _pa = _clean_points_values(i, entry, n_values)
+        defs += _pd
+        append += _pa
         _comp_arg = components if components else comp
         append.append(f"constraints.append(dde.icbc.PointSetBC(_pts{i}, _pvals{i}, component={_comp_arg!r}{batch_kwargs_str}))")
     elif btype == 'pointset_operator':
         op_name = f"_bc{i}_op"
         defs += _bc_operator_def_lines(op_name, val_raw, is_steady, _dim_str, _out_names_list, n_out)
-        append.append(f'_pts{i}, _pvals{i} = _load_bc_points({pts_file!r}, {n_coord_cols})')
+        _pd, _pa = _clean_points_values(i, entry, 1)
+        defs += _pd
+        append += _pa
         append.append(f"constraints.append(dde.icbc.PointSetOperatorBC(_pts{i}, _pvals{i}, {op_name}{batch_kwargs_str}))")
     elif btype == 'operator':
         op_name = f"_bc{i}_op"

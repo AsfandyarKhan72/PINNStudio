@@ -5691,7 +5691,9 @@ class MainWindow(QMainWindow):
     def _add_custom_bc_entry(self, bc_type="dirichlet", component=0, location="",
                               value="0", axis="x", deriv_order=0, points_file="",
                               location2="", direction="normal", locked=False,
-                              components="", batch_size=0, shuffle=True, apply_at="boundary"):
+                              components="", batch_size=0, shuffle=True, apply_at="boundary",
+                              points_mode="file", points_list="", points_count=10, points_where="boundary",
+                              values_mode="file", values_formula=""):
         entry_widget = QWidget()
         entry_layout = QVBoxLayout(entry_widget)
         entry_layout.setSpacing(3)
@@ -5828,20 +5830,72 @@ class MainWindow(QMainWindow):
         # PointSet / PointSetOperator: a data file of points (+ values,
         # unless PointSetOperator's Value row supplies the func instead) --
         # same convention as the existing "Load IC from file" option above.
+        # Round 71: the points can also be typed in or generated, and the
+        # target values given as a formula -- no file needed for a few points.
         pointset_widget = QWidget()
-        pointset_layout = QHBoxLayout(pointset_widget)
+        _ps_outer = QVBoxLayout(pointset_widget)
+        _ps_outer.setContentsMargins(0, 0, 0, 0); _ps_outer.setSpacing(2)
+        pointset_layout = QHBoxLayout()
         pointset_layout.setContentsMargins(0, 0, 0, 0)
+        pointset_layout.addWidget(QLabel("Points:"))
+        points_mode_combo = QComboBox(); points_mode_combo.setFixedHeight(26)
+        for _lbl, _key in (("From file", "file"), ("Typed list", "list"), ("Generated", "generate")):
+            points_mode_combo.addItem(_lbl, _key)
+        points_mode_combo.setCurrentIndex(max(0, points_mode_combo.findData(points_mode)))
+        pointset_layout.addWidget(points_mode_combo)
         pointset_path = QLineEdit(points_file)
-        pointset_path.setPlaceholderText("Browse for points file (x[,y[,z]],value)...")
+        pointset_path.setPlaceholderText("Browse for points file (x[,y[,z]][,t],value)...")
         pointset_path.setFixedHeight(26)
-        pointset_layout.addWidget(pointset_path)
+        pointset_layout.addWidget(pointset_path, 1)
         pointset_browse = QPushButton("Browse")
         pointset_browse.setFixedHeight(26); pointset_browse.setFixedWidth(65)
         pointset_browse.clicked.connect(lambda: pointset_path.setText(
             QFileDialog.getOpenFileName(None, "Select points file", "", "Data files (*.txt *.csv *.dat)")[0]
             or pointset_path.text()))
         pointset_layout.addWidget(pointset_browse)
+        points_list_edit = QLineEdit(points_list)
+        points_list_edit.setPlaceholderText("e.g. 1   or   0.2, 0.5   (1D);   0,0; 1,0.5   (2D: ';' between points)")
+        points_list_edit.setToolTip("Coordinates of each point, in x, y, z order, with t last when time-dependent.\n"
+                                    "Separate points with ';' (in 1D steady problems ',' also works).")
+        points_list_edit.setFixedHeight(26)
+        pointset_layout.addWidget(points_list_edit, 1)
+        points_count_spin = QSpinBox(); points_count_spin.setRange(1, 1000000); points_count_spin.setValue(int(points_count or 10))
+        points_count_spin.setFixedHeight(26); points_count_spin.setToolTip("Number of random points")
+        pointset_layout.addWidget(points_count_spin)
+        points_where_combo = QComboBox(); points_where_combo.setFixedHeight(26)
+        points_where_combo.addItem("on the boundary (Where)", "boundary"); points_where_combo.addItem("in the domain", "domain")
+        points_where_combo.setCurrentIndex(max(0, points_where_combo.findData(points_where)))
+        pointset_layout.addWidget(points_where_combo)
+        _ps_outer.addLayout(pointset_layout)
+        values_row = QHBoxLayout(); values_row.setContentsMargins(0, 0, 0, 0)
+        values_row.addWidget(QLabel("Target values:"))
+        values_mode_combo = QComboBox(); values_mode_combo.setFixedHeight(26)
+        values_mode_combo.addItem("From the file's value column(s)", "file"); values_mode_combo.addItem("Formula", "formula")
+        values_mode_combo.setCurrentIndex(max(0, values_mode_combo.findData(values_mode)))
+        values_row.addWidget(values_mode_combo)
+        values_formula_edit = QLineEdit(values_formula)
+        values_formula_edit.setPlaceholderText("e.g. 4  or  2*(x + 1)  ('|' between components)")
+        values_formula_edit.setFixedHeight(26)
+        values_row.addWidget(values_formula_edit, 1)
+        _ps_outer.addLayout(values_row)
         entry_layout.addWidget(pointset_widget)
+
+        def _sync_points_mode(_i=None):
+            m = points_mode_combo.currentData()
+            pointset_path.setVisible(m == "file"); pointset_browse.setVisible(m == "file")
+            points_list_edit.setVisible(m == "list")
+            points_count_spin.setVisible(m == "generate"); points_where_combo.setVisible(m == "generate")
+            if m != "file" and values_mode_combo.currentData() == "file":
+                values_mode_combo.setCurrentIndex(values_mode_combo.findData("formula"))
+            values_mode_combo.model().item(0).setEnabled(m == "file")
+            values_formula_edit.setVisible(values_mode_combo.currentData() == "formula")
+            # Generated on the boundary: the Where field picks which part.
+            loc_widget.setVisible(type_combo.currentData() in self._BC_NEEDS_LOCATION
+                                  or (type_combo.currentData() in self._BC_NEEDS_POINTS_FILE
+                                      and m == "generate" and points_where_combo.currentData() == "boundary"))
+        points_mode_combo.currentIndexChanged.connect(_sync_points_mode)
+        points_where_combo.currentIndexChanged.connect(_sync_points_mode)
+        values_mode_combo.currentIndexChanged.connect(_sync_points_mode)
 
         # PointSetBC-only: match several output components against the
         # same points file at once (DeepXDE's own component=[i, j, ...]
@@ -5946,13 +6000,19 @@ class MainWindow(QMainWindow):
         # (the output name itself, e.g. u, plus du_x/du_xx/du_xy/...) can
         # be used here too, instead of writing out raw
         # dde.grad.jacobian/hessian calls by hand.
-        advanced_note = QLabel(
-            "Advanced -- DeepXDE's own func(inputs, outputs, X): inputs/\n"
-            "outputs are the network's raw input/output tensors, X is the\n"
-            "NumPy array of inputs. Derivative shorthand also works here\n"
-            "(e.g. u, du_x, du_xx -- same as the PDE box). Should evaluate\n"
-            "to 0 on the boundary/points selected above."
-        )
+        _op_note_txt = (
+            "Operator BC: the function must equal 0 on the part of the boundary\n"
+            "picked by Where (or at the initial time) -- write the target into it,\n"
+            "e.g. du_x - 4. Use it for a condition along a whole side.\n"
+            "Derivative shorthand works (u, du_x, du_xx, ... as in the PDE box);\n"
+            "DeepXDE's raw inputs/outputs tensors and X are available too.")
+        _pso_note_txt = (
+            "Point Set Operator BC: the function (e.g. du_x) must equal the target\n"
+            "values at the listed points, which can be anywhere -- inside the domain\n"
+            "too. Use it for measured derivatives/fluxes at given locations; for a\n"
+            "condition along a whole side an Operator BC (du_x - 4) or a Neumann BC\n"
+            "does the same. Derivative shorthand works (u, du_x, du_xx, ...).")
+        advanced_note = QLabel(_op_note_txt)
         self._register_hint(advanced_note, '#ffa94d')
         advanced_note.setWordWrap(True)
         advanced_note.setVisible(False)
@@ -5984,6 +6044,8 @@ class MainWindow(QMainWindow):
             interface_widget.setVisible(key in self._BC_NEEDS_INTERFACE_ROW)
             apply_widget.setVisible(key == "operator")
             advanced_note.setVisible(key in self._BC_NEEDS_ADVANCED_NOTE)
+            advanced_note.setText(_pso_note_txt if key == "pointset_operator" else _op_note_txt)
+            _sync_points_mode()
             val_edit.setPlaceholderText(val_placeholders.get(key, default_val_placeholder))
             val_label.setText(val_labels.get(key, default_val_label))
             # Interface 2D BC's real DeepXDE "uniform" requirement (see
@@ -6029,6 +6091,12 @@ class MainWindow(QMainWindow):
             'points_file': pointset_path,
             'location2': loc2_edit,
             'location_picker': loc_pick,
+            'points_mode': points_mode_combo,
+            'points_list': points_list_edit,
+            'points_count': points_count_spin,
+            'points_where': points_where_combo,
+            'values_mode': values_mode_combo,
+            'values_formula': values_formula_edit,
             'direction': direction_combo,
             'components': multi_comp_edit,
             'batch_size': batch_spin,
@@ -6085,6 +6153,12 @@ class MainWindow(QMainWindow):
                 'batch_size': e['batch_size'].value(),
                 'shuffle': e['shuffle'].isChecked(),
                 'apply_at': e['apply_at'].currentData() if 'apply_at' in e else 'boundary',
+                'points_mode': e['points_mode'].currentData(),
+                'points_list': e['points_list'].text(),
+                'points_count': e['points_count'].value(),
+                'points_where': e['points_where'].currentData(),
+                'values_mode': e['values_mode'].currentData(),
+                'values_formula': e['values_formula'].text(),
             })
         return json.dumps(entries)
 
@@ -6144,6 +6218,12 @@ class MainWindow(QMainWindow):
                 batch_size=e.get('batch_size', 0),
                 shuffle=e.get('shuffle', True),
                 apply_at=e.get('apply_at', 'boundary'),
+                points_mode=e.get('points_mode', 'file'),
+                points_list=e.get('points_list', ''),
+                points_count=e.get('points_count', 10),
+                points_where=e.get('points_where', 'boundary'),
+                values_mode=e.get('values_mode', 'file'),
+                values_formula=e.get('values_formula', ''),
                 locked=False,
             )
         if _unknown_bc_rows:
