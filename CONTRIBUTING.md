@@ -29,8 +29,19 @@ python -m pinnstudio.main
 
 If you're adding a feature, it usually touches all three: a new field on `PINNConfig`, a widget to set it in `main_window.py`, and the corresponding code path in `codegen.py`.
 
+## Running the tests
+
+```bash
+pip install pytest
+pytest tests -m "not slow"     # quick run -- everything except the long parameter-sweep test
+pytest tests                   # full run -- do this before merging
+```
+
+On an RTX 4090 the quick run takes about 6 minutes and the full run about 10; on CPU only, expect roughly 35 and 60. Most tests also run on their own as plain scripts (`python tests/test_<name>.py`), which is how CI runs them. The list of tests treated as slow is in `tests/conftest.py`.
+
 ## Before opening a pull request
 
+- Run the tests (above).
 - Launch the app (`python -m pinnstudio.main`) and confirm it still starts cleanly.
 - Run at least one built-in Quick Example end-to-end (Solve → Stop/finish) to confirm script generation still produces a runnable script.
 - Keep PRs focused — one feature or fix per PR is easier to review than a bundle of unrelated changes.
