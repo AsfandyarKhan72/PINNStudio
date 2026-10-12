@@ -502,7 +502,7 @@ EXAMPLES = [
                                                 {"name": "K", "init": 0.1, "true": 0.001}]),
              inverse_obs_files_json=json.dumps([{"path": "@REF/deepxde/brinkman_forchheimer/u_obs.txt",
                                                  "output_idx": 0, "weight": 1.0, "custom_expr": ""}]),
-             loss_weights_multi="1", inv_param_save="Every 100 iters",
+             loss_weights_multi="1", inv_param_save="Every 100 iters", inv_param_log_scale=True,
              output_transform_enabled=True, output_transform_mode="formula", output_transform_formula="x*(1 - x)*u",
              num_domain=100, num_boundary=0, num_test=500, point_distribution="uniform"),
         _net([1, 20, 20, 20, 1]), _adam(30000), _NO_LBFGS,

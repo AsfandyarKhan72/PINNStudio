@@ -56,6 +56,9 @@ def main():
     ap.add_argument("--skip", default="", help="leave out examples whose name contains this text ('|' separates several)")
     ap.add_argument("--smoke", action="store_true")
     ap.add_argument("--export", action="store_true", help="run the exported script instead of the live one")
+    ap.add_argument("--plot-type", default="", choices=["", "Surface", "Line (time steps)", "Line Animation (GIF)",
+                                                         "Surface Animation (GIF)"], help='e.g. "Line Animation (GIF)" for time-dependent problems '
+                    '(steady problems keep their surface plot)')
     ap.add_argument("--timeout", type=float, default=7200)
     args = ap.parse_args()
 
@@ -71,6 +74,8 @@ def main():
         cfg = dx.build_config(ex, REF_ROOT, keep={"save_dir": d})
         if args.smoke:
             _smoke(cfg)
+        if args.plot_type and not cfg.steady_state:
+            cfg.plot_type = args.plot_type
         with open(os.path.join(d, "run.py"), "w") as fh:
             fh.write(gen(cfg))
         t0 = time.time()
