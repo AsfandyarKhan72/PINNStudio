@@ -101,3 +101,4 @@ jobs:
           python tests/test_round61_pde_coordinates.py
           python tests/test_round62_transform_formulas.py
           python tests/test_round63_equation_count.py
+          python tests/test_round64_initial_operator_decay.py

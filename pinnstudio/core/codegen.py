@@ -152,6 +152,30 @@ def _bc_entries_use_periodic(bc_entries):
     return any(e.get("type") == "periodic" for e in (bc_entries or []))
 
 
+def _bc_initial_operator_rows(bc_entries):
+    """Operator BC rows set to apply at the initial time (Round 64)."""
+    return [i for i, e in enumerate(bc_entries or [])
+            if isinstance(e, dict) and e.get("type") == "operator" and e.get("apply_at") == "initial"]
+
+
+def _bc_check_initial_operator_preconditions(bc_entries, is_steady, time_adaptive):
+    """An Operator BC "at the initial time" (e.g. du_t = 0 at t = t_min, the
+    second initial condition of a wave-type equation) needs a time axis, and
+    isn't supported with Time-Adaptive training: only the first time window
+    contains t = t_min, and later windows have no matching points."""
+    rows = _bc_initial_operator_rows(bc_entries)
+    if not rows:
+        return
+    labels = ", ".join(f"BC {i + 1}" for i in rows)
+    if is_steady:
+        raise ValueError(f"{labels}: an Operator BC set to apply at the initial time needs a "
+                         "time-dependent problem (this one is steady-state).")
+    if time_adaptive:
+        raise ValueError(f"{labels}: an Operator BC at the initial time isn't supported with "
+                         "Time-Adaptive training (only the first time window contains t = t_min). "
+                         "Use Adaptation = None or RAR for this problem.")
+
+
 def _bc_check_periodic_preconditions(bc_entries, geometry_type):
     """DeepXDE's own PeriodicBC calls ``geom.periodic_point(x,
     component_x)``, which is only implemented for ``Interval`` (1D),
@@ -2483,6 +2507,8 @@ if {config.time_adaptive}:
                             _sp_decay = ('step', int(_sp_p1), float(_sp_p2))
                         elif _sp_decay_type == 'cosine':
                             _sp_decay = ('cosine', int(_sp_p1), float(_sp_p2))
+                        elif _sp_decay_type == 'inverse time':
+                            _sp_decay = ('inverse time', int(_sp_p1), float(_sp_p2))
                         elif _sp_decay_type == 'exponential':
                             _sp_decay = ('exponential', float(_sp_p1))
                     model_i.compile(_sp['optimizer'], lr=_sp['lr'], decay=_sp_decay,
@@ -3719,6 +3745,8 @@ def generate_script(config):
     # -- see the helper's own docstring.
     _bc_check_interface2d_preconditions(_bc_entries_for_numtest, config.geometry_type,
                                         is_2d=(config.problem_dim == "2D"), num_outputs=config.num_outputs)
+    _bc_check_initial_operator_preconditions(_bc_entries_for_numtest, bool(config.steady_state),
+                                             bool(config.time_adaptive))
     # Periodic BC's own real DeepXDE geometry precondition -- see
     # _bc_check_periodic_preconditions's docstring. Same "clear message
     # instead of a confusing one" rationale as Interface 2D BC's check
@@ -4756,6 +4784,16 @@ def _bc_loc_fn(_expr):
         return bool(eval(_code, _ns))
     return _f
 
+def _bc_init_loc_fn(_expr):
+    # Operator BC applied at the initial time t = t_min (Round 64) instead
+    # of on the spatial boundary -- e.g. a wave equation's du_t = 0 at t = 0.
+    # TimePDE's training points include the initial-time points, so the
+    # filter finds them; the location expression still applies on top.
+    _inner = _bc_loc_fn(_expr)
+    def _f(_X, _on):
+        return bool(np.isclose(_X[_n_coord_cols_bc - 1], {config.t_min})) and _inner(_X, True)
+    return _f
+
 def _bc_val_fn(_expr):
     _src = _expr if _expr.strip() else "0"
     _code = compile(_src, "<bc_value>", "eval")
@@ -4908,7 +4946,8 @@ if _custom_bc_entries or _bc_panel_data_present:
             _pts, _pvals = _bc_load_points_file(_bpts_file, _blabel)
             _constraints.append(dde.icbc.PointSetOperatorBC(_pts, _pvals, _bc_operator_fn(_bval), **_bbatch_kwargs))
         elif _btype == 'operator':
-            _constraints.append(dde.icbc.OperatorBC(geomtime, _bc_operator_fn(_bval), _bc_loc_fn(_bloc)))
+            _bloc_fn = _bc_init_loc_fn(_bloc) if _be.get('apply_at', 'boundary') == 'initial' else _bc_loc_fn(_bloc)
+            _constraints.append(dde.icbc.OperatorBC(geomtime, _bc_operator_fn(_bval), _bloc_fn))
         elif _btype == 'interface2d':
             _constraints.append(dde.icbc.Interface2DBC(_Interface2DGeomAdapter(geomtime, _is_steady), _bc_val_fn(_bval),
                                                          _bc_loc_fn(_bloc), _bc_loc_fn(_bloc2), direction=_bdir))
@@ -5534,6 +5573,8 @@ for _pval in _param_values:
                             _sp_decay = ('step', int(_sp_p1), float(_sp_p2))
                         elif _sp_decay_type == 'cosine':
                             _sp_decay = ('cosine', int(_sp_p1), float(_sp_p2))
+                        elif _sp_decay_type == 'inverse time':
+                            _sp_decay = ('inverse time', int(_sp_p1), float(_sp_p2))
                         elif _sp_decay_type == 'exponential':
                             _sp_decay = ('exponential', float(_sp_p1))
                     model.compile(_sp['optimizer'], lr=_sp['lr'], decay=_sp_decay,
@@ -7233,11 +7274,14 @@ def _clean_geom_inner(config, is_2d, is_3d, tri_verts, poly_verts):
     return inner, wrap_needed
 
 
-def _clean_coord_unpack(indent, is_batch, is_2d, is_3d):
+def _clean_coord_unpack(indent, is_batch, is_2d, is_3d, is_steady=True, used=None):
     """`x = X[:, 0]` (batch) or `x = X[0]` (single point), plus y/z when
     the problem has them -- shared by every BC location/value helper
     below so an expression like "x" or "np.isclose(x, 0)" the user typed
-    means exactly what it looks like."""
+    means exactly what it looks like. A time-dependent problem also gets
+    t (the last column) when the expression uses it -- Round 64; before,
+    a value like x*cos(t) was a NameError in the exported script while
+    the live script supported it."""
     lines = []
     idx = ":, 0" if is_batch else "0"
     lines.append(f"{indent}x = X[{idx}]")
@@ -7247,6 +7291,9 @@ def _clean_coord_unpack(indent, is_batch, is_2d, is_3d):
     if is_3d:
         idx = ":, 2" if is_batch else "2"
         lines.append(f"{indent}z = X[{idx}]")
+    if not is_steady and used is not None and "t" in used:
+        idx = ":, -1" if is_batch else "-1"
+        lines.append(f"{indent}t = X[{idx}]")
     return lines
 
 
@@ -7272,7 +7319,7 @@ def _bc_operator_def_lines(name, expr, is_steady, dim_str, out_names_list, n_out
     ]
 
 
-def _clean_bc_row_code(i, entry, is_2d, is_3d, n_coord_cols, is_steady=False, n_out=1, out_names=""):
+def _clean_bc_row_code(i, entry, is_2d, is_3d, n_coord_cols, is_steady=False, n_out=1, out_names="", t_min=0.0):
     """Everything needed for one Boundary Conditions panel row: the small
     helper function(s) its location/value expression needs (the
     expression text itself is spliced straight into the function body --
@@ -7315,13 +7362,13 @@ def _clean_bc_row_code(i, entry, is_2d, is_3d, n_coord_cols, is_steady=False, n_
 
     def loc_fn(name, expr):
         L = [f"def {name}(X, on_boundary):", "    if not on_boundary:", "        return False"]
-        L += _clean_coord_unpack("    ", False, is_2d, is_3d)
+        L += _clean_coord_unpack("    ", False, is_2d, is_3d, is_steady, _pde_coord_names([expr]))
         L.append(f"    return bool({expr})")
         return L
 
     def val_fn(name, expr):
         L = [f"def {name}(X):"]
-        L += _clean_coord_unpack("    ", True, is_2d, is_3d)
+        L += _clean_coord_unpack("    ", True, is_2d, is_3d, is_steady, _pde_coord_names([expr]))
         L.append(f"    _r = np.asarray({expr}, dtype=float)")
         L.append("    return np.full((len(X), 1), float(_r)) if _r.ndim == 0 else _r.reshape(-1, 1)")
         return L
@@ -7332,7 +7379,7 @@ def _clean_bc_row_code(i, entry, is_2d, is_3d, n_coord_cols, is_steady=False, n_
     elif btype == 'robin':
         rob_name = f"_bc{i}_robin"
         L = [f"def {rob_name}(X, Y):"]
-        L += _clean_coord_unpack("    ", True, is_2d, is_3d)
+        L += _clean_coord_unpack("    ", True, is_2d, is_3d, is_steady, _pde_coord_names([val]))
         L.append(f"    u = Y[:, {comp}:{comp}+1]")
         L.append(f"    _r = {val}")
         L.append("    if isinstance(_r, torch.Tensor):")
@@ -7358,7 +7405,17 @@ def _clean_bc_row_code(i, entry, is_2d, is_3d, n_coord_cols, is_steady=False, n_
         append.append(f"constraints.append(dde.icbc.PointSetOperatorBC(_pts{i}, _pvals{i}, {op_name}{batch_kwargs_str}))")
     elif btype == 'operator':
         op_name = f"_bc{i}_op"
-        defs += _bc_operator_def_lines(op_name, val_raw, is_steady, _dim_str, _out_names_list, n_out) + loc_fn(loc_name, loc)
+        if entry.get('apply_at') == 'initial' and not is_steady:
+            # At the initial time t = t_min (Round 64), not on the boundary --
+            # the initial-time training points pass this filter.
+            init_loc = [f"def {loc_name}(X, on_boundary):",
+                        f"    if not np.isclose(X[-1], {t_min!r}):",
+                        "        return False"]
+            init_loc += _clean_coord_unpack("    ", False, is_2d, is_3d, is_steady, _pde_coord_names([loc]))
+            init_loc.append(f"    return bool({loc})")
+            defs += _bc_operator_def_lines(op_name, val_raw, is_steady, _dim_str, _out_names_list, n_out) + init_loc
+        else:
+            defs += _bc_operator_def_lines(op_name, val_raw, is_steady, _dim_str, _out_names_list, n_out) + loc_fn(loc_name, loc)
         append.append(f"constraints.append(dde.icbc.OperatorBC(geomtime, {op_name}, {loc_name}))")
     elif btype == 'interface2d':
         defs += loc_fn(loc_name, loc) + loc_fn(loc2_name, loc2) + val_fn(val_name, val)
@@ -7657,6 +7714,8 @@ def _clean_phase_train_lines(sp, w, ext_vars_kw, cbs_kw, model_name, data_name, 
                 decay = ('step', int(p1), float(p2))
             elif dtype == 'cosine':
                 decay = ('cosine', int(p1), float(p2))
+            elif dtype == 'inverse time':
+                decay = ('inverse time', int(p1), float(p2))
             elif dtype == 'exponential':
                 decay = ('exponential', float(p1))
         lr = sp.get('lr', config.learning_rate)
@@ -8901,6 +8960,7 @@ def generate_clean_script(config):
     # of being baked into the exported script.
     _bc_check_interface2d_preconditions(bc_entries, config.geometry_type,
                                         is_2d=(config.problem_dim == "2D"), num_outputs=config.num_outputs)
+    _bc_check_initial_operator_preconditions(bc_entries, is_steady, bool(config.time_adaptive))
     # Same Periodic BC geometry precondition as generate_script() above --
     # see _bc_check_periodic_preconditions's docstring.
     _bc_check_periodic_preconditions(bc_entries, config.geometry_type)
@@ -8909,7 +8969,7 @@ def generate_clean_script(config):
     if bc_entries or bc_panel_data_present:
         for i, entry in enumerate(bc_entries):
             d, a = _clean_bc_row_code(i, entry, is_2d, is_3d, n_coord_cols, is_steady,
-                                       n_out=n_out, out_names=config.output_names)
+                                       n_out=n_out, out_names=config.output_names, t_min=config.t_min)
             bc_defs += d
             bc_appends += a
     else:

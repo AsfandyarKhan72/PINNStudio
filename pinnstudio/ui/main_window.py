@@ -5404,7 +5404,7 @@ class MainWindow(QMainWindow):
     def _add_custom_bc_entry(self, bc_type="dirichlet", component=0, location="",
                               value="0", axis="x", deriv_order=0, points_file="",
                               location2="", direction="normal", locked=False,
-                              components="", batch_size=0, shuffle=True):
+                              components="", batch_size=0, shuffle=True, apply_at="boundary"):
         entry_widget = QWidget()
         entry_layout = QVBoxLayout(entry_widget)
         entry_layout.setSpacing(3)
@@ -5578,6 +5578,22 @@ class MainWindow(QMainWindow):
         batch_layout.addStretch()
         entry_layout.addWidget(batch_widget)
 
+        # Operator BC only (Round 64): where it applies -- the spatial
+        # boundary (DeepXDE's OperatorBC default) or the initial time t = t0,
+        # e.g. a wave equation's second initial condition du_t = 0.
+        apply_widget = QWidget()
+        apply_row = QHBoxLayout(apply_widget)
+        apply_row.setContentsMargins(0, 0, 0, 0)
+        apply_row.addWidget(QLabel("Applies on:"))
+        apply_combo = QComboBox()
+        apply_combo.addItem("the boundary", "boundary")
+        apply_combo.addItem("the initial time (t = t₀)", "initial")
+        apply_combo.setFixedHeight(26)
+        _ai = apply_combo.findData(apply_at or "boundary")
+        apply_combo.setCurrentIndex(_ai if _ai >= 0 else 0)
+        apply_row.addWidget(apply_combo); apply_row.addStretch()
+        entry_layout.addWidget(apply_widget)
+
         # Interface2DBC-only: a second location (its geometry needs two
         # matching-length boundary pieces) + normal/tangent direction.
         interface_widget = QWidget()
@@ -5664,6 +5680,7 @@ class MainWindow(QMainWindow):
             multi_comp_widget.setVisible(key in self._BC_NEEDS_MULTI_COMPONENT)
             batch_widget.setVisible(key in self._BC_NEEDS_BATCH_ROW)
             interface_widget.setVisible(key in self._BC_NEEDS_INTERFACE_ROW)
+            apply_widget.setVisible(key == "operator")
             advanced_note.setVisible(key in self._BC_NEEDS_ADVANCED_NOTE)
             val_edit.setPlaceholderText(val_placeholders.get(key, default_val_placeholder))
             val_label.setText(val_labels.get(key, default_val_label))
@@ -5694,12 +5711,13 @@ class MainWindow(QMainWindow):
             for w in (type_combo, comp_spin, loc_edit, val_edit,
                       axis_combo, deriv_spin, pointset_path, pointset_browse,
                       loc2_edit, direction_combo, multi_comp_edit, batch_spin,
-                      shuffle_check):
+                      shuffle_check, apply_combo):
                 w.setEnabled(False)
 
         self.custom_bc_list_layout.addWidget(entry_widget)
         entry_data = {
             'widget': entry_widget,
+            'apply_at': apply_combo,
             'type': type_combo,
             'component': comp_spin,
             'location': loc_edit,
@@ -5763,6 +5781,7 @@ class MainWindow(QMainWindow):
                 'components': e['components'].text(),
                 'batch_size': e['batch_size'].value(),
                 'shuffle': e['shuffle'].isChecked(),
+                'apply_at': e['apply_at'].currentData() if 'apply_at' in e else 'boundary',
             })
         return json.dumps(entries)
 
@@ -5821,6 +5840,7 @@ class MainWindow(QMainWindow):
                 components=e.get('components', ''),
                 batch_size=e.get('batch_size', 0),
                 shuffle=e.get('shuffle', True),
+                apply_at=e.get('apply_at', 'boundary'),
                 locked=False,
             )
         if _unknown_bc_rows:
@@ -11642,6 +11662,8 @@ print("DOMAIN_PREVIEW_DONE")
         decay_type_combo.addItem("Step", "step")
         decay_type_combo.addItem("Cosine", "cosine")
         decay_type_combo.addItem("Exponential", "exponential")
+        # DeepXDE's "inverse time": lr / (1 + rate * step / steps) (Round 64).
+        decay_type_combo.addItem("Inverse time", "inverse time")
         decay_type_combo.setFixedHeight(24); decay_type_combo.setFixedWidth(100)
         decay_type_row.addStretch(); decay_type_row.addWidget(decay_type_combo)
         decay_layout.addLayout(decay_type_row)
@@ -11680,6 +11702,9 @@ print("DOMAIN_PREVIEW_DONE")
             elif kind == "exponential":
                 l1.setText("Gamma:"); s1.setRange(0.0, 1.0); s1.setDecimals(4)
                 r2widget_visible = False
+            elif kind == "inverse time":
+                l1.setText("Decay steps:"); s1.setRange(1, 500000); s1.setDecimals(0)
+                l2.setText("Decay rate:"); r2widget_visible = True
             else:
                 r2widget_visible = False
             s1.setVisible(kind != "none"); l1.setVisible(kind != "none")
