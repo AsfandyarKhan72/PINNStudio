@@ -13,6 +13,7 @@ the run time, the L2 relative errors printed by Error Analysis and, for
 inverse problems, the inferred parameters.
 """
 import argparse
+import ast
 import json
 import os
 import re
@@ -59,6 +60,9 @@ def main():
     ap.add_argument("--plot-type", default="", choices=["", "Surface", "Line (time steps)", "Line Animation (GIF)",
                                                          "Surface Animation (GIF)"], help='e.g. "Line Animation (GIF)" for time-dependent problems '
                     '(steady problems keep their surface plot)')
+    ap.add_argument("--set", action="append", default=[], metavar="FIELD=VALUE",
+                    help="override a setting for every example run, e.g. --set iterations=50000 "
+                         "(the value is read as a Python literal when possible)")
     ap.add_argument("--timeout", type=float, default=7200)
     args = ap.parse_args()
 
@@ -76,6 +80,15 @@ def main():
             _smoke(cfg)
         if args.plot_type and not cfg.steady_state:
             cfg.plot_type = args.plot_type
+        for item in args.set:
+            key, _, raw = item.partition("=")
+            try:
+                val = ast.literal_eval(raw)
+            except (ValueError, SyntaxError):
+                val = raw
+            if not hasattr(cfg, key.strip()):
+                raise SystemExit(f"--set: unknown setting {key!r}")
+            setattr(cfg, key.strip(), val)
         with open(os.path.join(d, "run.py"), "w") as fh:
             fh.write(gen(cfg))
         t0 = time.time()

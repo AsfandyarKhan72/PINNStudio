@@ -4444,7 +4444,7 @@ class MainWindow(QMainWindow):
         # Only the note: _update_bc_mode_visibility() would also rebuild the
         # loss-weight rows, resetting the example's weights to defaults.
         if hasattr(self, 'custom_bc_note'):
-            self.custom_bc_note.setText(f"Pre-filled from the \"{name}\" example.")
+            self.custom_bc_note.setText(self._bc_note_with_transform(f"Pre-filled from the \"{name}\" example."))
         self.log_box.append(f"✅ DeepXDE example loaded: {name}")
         self.log_box.append(f"   Source: {ex.source}")
         if ex.note:
@@ -5509,6 +5509,19 @@ class MainWindow(QMainWindow):
             return True
         return self.quick_examples_combo.currentText() == "None"
 
+    def _bc_note_with_transform(self, text):
+        """With no BC rows and an output-transform formula, say where the
+        boundary conditions are (hard constraints) -- Round 72."""
+        try:
+            hard = (not self.custom_bc_list and self.output_transform_cb.isChecked()
+                    and (self.output_transform_mode_combo.currentData() == "formula"))
+        except AttributeError:
+            hard = False
+        if hard:
+            return (text + "\nNo rows: the boundary conditions are imposed exactly by the output "
+                    "transform formula (Network panel → Output transform).")
+        return text
+
     def _update_bc_mode_visibility(self):
         """The hardcoded per-side widgets (self.bc_left_types etc.) never
         appear in the UI any more -- they're kept alive only as a
@@ -5527,12 +5540,12 @@ class MainWindow(QMainWindow):
             return
         is_custom = self._is_custom_problem()
         if is_custom:
-            self.custom_bc_note.setText(
-                "No template selected — build your own boundary conditions.")
+            self.custom_bc_note.setText(self._bc_note_with_transform(
+                "No template selected — build your own boundary conditions."))
         else:
             template_name = self.quick_examples_combo.currentText() if hasattr(self, 'quick_examples_combo') else ''
-            self.custom_bc_note.setText(
-                f"Pre-filled from the \"{template_name}\" template.")
+            self.custom_bc_note.setText(self._bc_note_with_transform(
+                f"Pre-filled from the \"{template_name}\" template."))
         self.add_custom_bc_btn.setEnabled(True)
         self.add_custom_bc_btn.setToolTip("")
         if hasattr(self, 'weights_main_layout'):

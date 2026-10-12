@@ -222,6 +222,23 @@ EXAMPLES = [
         note="Boundary conditions are imposed exactly through the output transform (DeepXDE's default 'hard' "
              "setting), so the Boundary Conditions panel is empty."),
 
+    _ex("Linear elastostatic plate (soft BCs)", FORWARD, _GH + "pinn_forward/elasticity_plate.py",
+        dict(problem_dim="2D", steady_state=True, geometry_type="Rectangle",
+             x_min=0.0, x_max=1.0, y_min=0.0, y_max=1.0, num_initial=0,
+             num_outputs=5, output_names="ux,uy,sxx,syy,sxy", num_equations=5,
+             pde_expressions=_PLATE_PDE,
+             custom_bc_json=_bcs(_bc("dirichlet", "top", "0", 0), _bc("dirichlet", "bottom", "0", 0),
+                                 _bc("dirichlet", "left", "0", 1), _bc("dirichlet", "bottom", "0", 1),
+                                 _bc("dirichlet", "right", "0", 1),
+                                 _bc("dirichlet", "left", "0", 2), _bc("dirichlet", "right", "0", 2),
+                                 _bc("dirichlet", "top", "(2*mu + lmbd)*Q*sin(pi*x)", 3)),
+             num_domain=500, num_boundary=500, num_test=100),
+        _PLATE_CONSTS,
+        _net([2, 40, 40, 40, 40, 5], network_type="PFNN"), _adam(5000), _NO_LBFGS,
+        _PLATE_REF,
+        note="DeepXDE's script with BC_type = \"soft\": the eight boundary conditions are loss terms (rows in the "
+             "Boundary Conditions panel) instead of being built into the output transform."),
+
     _ex("Helmholtz 2D (Dirichlet)", FORWARD, _DOCS + "pinn_forward/helmholtz.2d.dirichlet.html",
         dict(problem_dim="2D", steady_state=True, geometry_type="Rectangle",
              x_min=0.0, x_max=1.0, y_min=0.0, y_max=1.0, num_initial=0,
