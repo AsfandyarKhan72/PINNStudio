@@ -1424,13 +1424,29 @@ class MainWindow(QMainWindow):
         self.input_transform_widget = QWidget()
         it_layout = QVBoxLayout(self.input_transform_widget)
         it_layout.setSpacing(3); it_layout.setContentsMargins(12, 0, 0, 4)
+        # Mode (Round 62): "Scale/shift" rows, or a formula giving the
+        # network's input features (DeepXDE's apply_feature_transform).
+        self.input_transform_mode_combo, in_scale_w, in_formula_w = self._transform_mode_widgets(it_layout)
+        it_scale_layout = QVBoxLayout(in_scale_w)
+        it_scale_layout.setSpacing(3); it_scale_layout.setContentsMargins(0, 0, 0, 0)
         it_hint = QLabel("x_transformed = x_raw × scale + shift")
         self._register_hint(it_hint, '#586e75')
-        it_layout.addWidget(it_hint)
+        it_scale_layout.addWidget(it_hint)
         self.input_transform_rows_layout = QVBoxLayout()
         self.input_transform_rows_layout.setSpacing(3)
-        it_layout.addLayout(self.input_transform_rows_layout)
+        it_scale_layout.addLayout(self.input_transform_rows_layout)
         self.input_transform_rows = []
+        it_formula_layout = QVBoxLayout(in_formula_w)
+        it_formula_layout.setSpacing(3); it_formula_layout.setContentsMargins(0, 0, 0, 0)
+        it_f_hint = QLabel("Network input features, separated by ';', written in the coordinates "
+                           "x, y, z, t -- e.g. x*sin(y); x*cos(y). The first layer takes one input per feature.")
+        it_f_hint.setWordWrap(True)
+        self._register_hint(it_f_hint, '#586e75')
+        it_formula_layout.addWidget(it_f_hint)
+        self.input_feature_formula_edit = QLineEdit()
+        self.input_feature_formula_edit.setPlaceholderText("e.g. x*sin(y); x*cos(y)")
+        self.input_feature_formula_edit.setFixedHeight(26)
+        it_formula_layout.addWidget(self.input_feature_formula_edit)
         nn_layout.addWidget(self.input_transform_widget)
         self.input_transform_widget.setVisible(False)
         self.input_transform_cb.stateChanged.connect(
@@ -1443,13 +1459,30 @@ class MainWindow(QMainWindow):
         self.output_transform_widget = QWidget()
         ot_layout = QVBoxLayout(self.output_transform_widget)
         ot_layout.setSpacing(3); ot_layout.setContentsMargins(12, 0, 0, 4)
+        # Mode (Round 62): "Scale/shift" rows, or one formula per output --
+        # DeepXDE's apply_output_transform, typically a hard constraint.
+        self.output_transform_mode_combo, out_scale_w, out_formula_w = self._transform_mode_widgets(ot_layout)
+        ot_scale_layout = QVBoxLayout(out_scale_w)
+        ot_scale_layout.setSpacing(3); ot_scale_layout.setContentsMargins(0, 0, 0, 0)
         ot_hint = QLabel("y_transformed = y_raw × scale + shift")
         self._register_hint(ot_hint, '#586e75')
-        ot_layout.addWidget(ot_hint)
+        ot_scale_layout.addWidget(ot_hint)
         self.output_transform_rows_layout = QVBoxLayout()
         self.output_transform_rows_layout.setSpacing(3)
-        ot_layout.addLayout(self.output_transform_rows_layout)
+        ot_scale_layout.addLayout(self.output_transform_rows_layout)
         self.output_transform_rows = []
+        ot_formula_layout = QVBoxLayout(out_formula_w)
+        ot_formula_layout.setSpacing(3); ot_formula_layout.setContentsMargins(0, 0, 0, 0)
+        ot_f_hint = QLabel("One formula per output, in the coordinates x, y, z, t and the raw network "
+                           "output by name -- e.g. a hard constraint u = 0 on x = 0 and x = 1:  x*(1-x)*u. "
+                           "Blank leaves that output unchanged.")
+        ot_f_hint.setWordWrap(True)
+        self._register_hint(ot_f_hint, '#586e75')
+        ot_formula_layout.addWidget(ot_f_hint)
+        self.output_formula_rows_layout = QVBoxLayout()
+        self.output_formula_rows_layout.setSpacing(3)
+        ot_formula_layout.addLayout(self.output_formula_rows_layout)
+        self.output_formula_edits = []
         nn_layout.addWidget(self.output_transform_widget)
         self.output_transform_widget.setVisible(False)
         self.output_transform_cb.stateChanged.connect(
@@ -3444,7 +3477,53 @@ class MainWindow(QMainWindow):
             self.input_transform_rows.append(
                 {"label": label, "scale": scale_spin, "shift": shift_spin})
 
+    def _transform_mode_widgets(self, parent_layout):
+        """A "Mode: Scale/shift | Formula" row plus the two containers it
+        switches between, added to `parent_layout`. Returns
+        (combo, scale_widget, formula_widget); the caller fills both."""
+        row = QHBoxLayout()
+        row.addWidget(QLabel("Mode:"))
+        combo = QComboBox()
+        combo.addItem("Scale/shift", "scale")
+        combo.addItem("Formula", "formula")
+        combo.setFixedHeight(26)
+        row.addWidget(combo)
+        row.addStretch()
+        parent_layout.addLayout(row)
+        scale_w, formula_w = QWidget(), QWidget()
+        parent_layout.addWidget(scale_w)
+        parent_layout.addWidget(formula_w)
+        formula_w.setVisible(False)
+
+        def _on_mode(_i):
+            is_formula = combo.currentData() == "formula"
+            scale_w.setVisible(not is_formula)
+            formula_w.setVisible(is_formula)
+        combo.currentIndexChanged.connect(_on_mode)
+        return combo, scale_w, formula_w
+
+    def _rebuild_output_formula_rows(self, n_outputs):
+        while self.output_formula_rows_layout.count():
+            item = self.output_formula_rows_layout.takeAt(0)
+            w = item.widget()
+            if w is not None:
+                w.deleteLater()
+        self.output_formula_edits = []
+        for i in range(max(1, n_outputs)):
+            row_w = QWidget()
+            row_l = QHBoxLayout(row_w)
+            row_l.setContentsMargins(0, 0, 0, 0)
+            row_l.addWidget(QLabel(f"Output {i + 1} ="))
+            edit = QLineEdit()
+            edit.setFixedHeight(26)
+            edit.setPlaceholderText("unchanged")
+            row_l.addWidget(edit)
+            self.output_formula_rows_layout.addWidget(row_w)
+            self.output_formula_edits.append(edit)
+
     def _rebuild_output_transform_rows(self, n_outputs):
+        if hasattr(self, "output_formula_rows_layout"):
+            self._rebuild_output_formula_rows(n_outputs)
         while self.output_transform_rows_layout.count():
             item = self.output_transform_rows_layout.takeAt(0)
             w = item.widget()
@@ -6190,6 +6269,10 @@ class MainWindow(QMainWindow):
             output_transform_enabled=self.output_transform_cb.isChecked(),
             output_transform_scale=[r["scale"].value() for r in self.output_transform_rows],
             output_transform_shift=[r["shift"].value() for r in self.output_transform_rows],
+            input_transform_mode=self.input_transform_mode_combo.currentData() or "scale",
+            input_feature_formula=self.input_feature_formula_edit.text().strip(),
+            output_transform_mode=self.output_transform_mode_combo.currentData() or "scale",
+            output_transform_formula="|".join(e.text().strip() for e in self.output_formula_edits),
             iterations=self.iter1_spin.value(),
             optimizer=self.opt1_combo.currentText(),
             optimizer2=self.opt2_combo.currentText(),
@@ -6828,6 +6911,12 @@ class MainWindow(QMainWindow):
             shift = config.output_transform_shift[i] if i < len(config.output_transform_shift) else 0.0
             row["scale"].setValue(scale)
             row["shift"].setValue(shift)
+        self._set_combo_data(self.input_transform_mode_combo, getattr(config, "input_transform_mode", "scale") or "scale")
+        self.input_feature_formula_edit.setText(getattr(config, "input_feature_formula", "") or "")
+        self._set_combo_data(self.output_transform_mode_combo, getattr(config, "output_transform_mode", "scale") or "scale")
+        _out_formulas = (getattr(config, "output_transform_formula", "") or "").split("|")
+        for i, edit in enumerate(self.output_formula_edits):
+            edit.setText(_out_formulas[i] if i < len(_out_formulas) else "")
 
         # Training / optimizers
         self.iter1_spin.setValue(config.iterations)
@@ -12741,6 +12830,11 @@ print("RESTORE_DONE")
             _training_monitor_runtime_code, _figsize_helper_code, _contour_levels_helper_code,
             _math_namespace_code)
         net_helper_code = _net_construction_helper_code(cfg.get("network_type", "FNN"))
+        # Re-attach the model's input/output transforms (Round 62) -- see
+        # codegen._net_transforms_code; a model_config.json from before
+        # this round has no transform keys and gets none, as before.
+        from pinnstudio.core.codegen import _net_transforms_code
+        net_transforms_code = _net_transforms_code(cfg)
         # Reuses Training Monitors' own derivative-building helpers
         # (_tm_hess/_tm_build_dvars) unchanged, so a restored model's
         # "Custom..." expression can reference derivatives too (du_x,
@@ -12899,7 +12993,8 @@ if {str(is_steady)}:
 else:
     data = dde.data.TimePDE(geomtime, pde, [], num_domain=100, num_test=100)
 {net_helper_code}
-net  = _make_net({layers}, "{activation}", "Glorot uniform")
+{net_transforms_code}
+net  = _apply_net_transforms(_make_net({layers}, "{activation}", "Glorot uniform"))
 model = dde.Model(data, net)
 
 if "{optimizer}" == "lbfgs":
@@ -13183,6 +13278,11 @@ def _extract_plot_field(x_grid):
             _training_monitor_runtime_code, _figsize_helper_code, _contour_levels_helper_code,
             _math_namespace_code)
         net_helper_code = _net_construction_helper_code(cfg.get("network_type", "FNN"))
+        # Re-attach the model's input/output transforms (Round 62) -- see
+        # codegen._net_transforms_code; a model_config.json from before
+        # this round has no transform keys and gets none, as before.
+        from pinnstudio.core.codegen import _net_transforms_code
+        net_transforms_code = _net_transforms_code(cfg)
         # Same reuse of Training Monitors' derivative-building helpers as
         # _build_restore_script -- see that function's own comment.
         _tm_runtime_code_restore = _training_monitor_runtime_code()
@@ -13263,6 +13363,7 @@ def _ta_build_geomtime(t0, t1):
 def _ta_pde(x, y): return y[:, 0:1] * 0
 
 {net_helper_code}
+{net_transforms_code}
 
 _ta_models = {{}}
 def _ta_get_model(i):
@@ -13271,7 +13372,7 @@ def _ta_get_model(i):
     _s = _ta_steps[i]
     _geomtime = _ta_build_geomtime(_s["t0"], _s["t1"])
     _data = dde.data.TimePDE(_geomtime, _ta_pde, [], num_domain=100, num_test=100)
-    _net = _make_net(_s["layers"], _s["activation"], "Glorot uniform")
+    _net = _apply_net_transforms(_make_net(_s["layers"], _s["activation"], "Glorot uniform"))
     _model = dde.Model(_data, _net)
     if _s["is_lbfgs"]:
         dde.optimizers.set_LBFGS_options(maxiter=1)

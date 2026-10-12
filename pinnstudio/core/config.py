@@ -105,6 +105,21 @@ class PINNConfig:
     output_transform_enabled: bool = False
     output_transform_scale: List[float] = field(default_factory=lambda: [1.0])
     output_transform_shift: List[float] = field(default_factory=lambda: [0.0])
+    # Formula mode (Round 62) -- DeepXDE's apply_feature_transform /
+    # apply_output_transform with an arbitrary function, as its examples
+    # use them: "scale" keeps the scale/shift rows above, "formula" uses:
+    #   input_feature_formula   -- the network's input features, ';'-separated,
+    #                              in the coordinates x, y, z, t
+    #                              (e.g. "x*sin(y); x*cos(y)"); the first
+    #                              layer is sized to the feature count;
+    #   output_transform_formula -- one expression per output, '|'-separated,
+    #                              in the coordinates and the raw network
+    #                              outputs by name (a hard constraint, e.g.
+    #                              "x*(1-x)*y*(1-y)*u"); blank = unchanged.
+    input_transform_mode: str = "scale"
+    input_feature_formula: str = ""
+    output_transform_mode: str = "scale"
+    output_transform_formula: str = ""
 
     # Training
     optimizer: str = "adam"

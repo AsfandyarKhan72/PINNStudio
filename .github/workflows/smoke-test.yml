@@ -99,3 +99,4 @@ jobs:
           python tests/test_round59_templates_and_build_ui.py
           python tests/test_round60_adapt_reference_toggles.py
           python tests/test_round61_pde_coordinates.py
+          python tests/test_round62_transform_formulas.py

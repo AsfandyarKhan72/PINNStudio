@@ -194,9 +194,10 @@ def run():
     for label, cfg in runs_tr:
         script = codegen.generate_script(cfg)
         _assert_compiles(script, f"transform sweep run {label!r}")
-        check(f"_out_scale = {cfg.output_transform_scale}" in script,
+        # Written inside the shared _apply_net_transforms (Round 62).
+        check(f"    out_scale = {cfg.output_transform_scale}" in script,
               f"run {label!r}: expected out_scale {cfg.output_transform_scale} embedded, not found")
-        check(f"_in_scale  = {cfg.input_transform_scale}" in script,
+        check(f"    in_scale = {cfg.input_transform_scale}" in script,
               f"run {label!r}: expected in_scale {cfg.input_transform_scale} embedded, not found")
     win.sweep_enable_cb.setChecked(False)
     win.output_transform_cb.setChecked(False)

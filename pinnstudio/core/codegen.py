@@ -3522,6 +3522,110 @@ if {config.time_adaptive}:
         print("=== Time-Adaptive Error Analysis Complete ===")"""
 
 
+def _cfg_get(cfg, key, default=None):
+    """Attribute or dict access -- the transform helpers below take either a
+    PINNConfig or a restored model_config.json dict."""
+    if isinstance(cfg, dict):
+        return cfg.get(key, default)
+    return getattr(cfg, key, default)
+
+
+def _input_formula_on(cfg):
+    return bool(_cfg_get(cfg, "input_transform_enabled", False)) and \
+        _cfg_get(cfg, "input_transform_mode", "scale") == "formula" and bool(_feature_formula_list(cfg))
+
+
+def _output_formula_on(cfg):
+    return bool(_cfg_get(cfg, "output_transform_enabled", False)) and \
+        _cfg_get(cfg, "output_transform_mode", "scale") == "formula" and \
+        any(e.strip() for e in (_cfg_get(cfg, "output_transform_formula", "") or "").split("|"))
+
+
+def _feature_formula_list(cfg):
+    return [f.strip() for f in (_cfg_get(cfg, "input_feature_formula", "") or "").split(";") if f.strip()]
+
+
+def _net_transforms_code(cfg, fn_name="_apply_net_transforms"):
+    """Source for `<fn_name>(net)`, which attaches this model's input and
+    output transforms to a freshly built network and returns it (cleanup
+    Round 62). Shared by the live Solve script, the exported script and
+    both Restore & Visualize builders: DeepXDE's apply_feature_transform /
+    apply_output_transform attach a Python closure to the net instance,
+    not anything saved in a checkpoint, so every script that rebuilds the
+    net must re-attach the same transforms or its predictions are wrong
+    (the restore builders didn't, before this round).
+
+    Two modes per side: "scale" (x * scale + shift, one value per column)
+    and "formula" (expressions in the coordinates x, y, z, t and, on the
+    output side, the raw network outputs by name -- see PINNConfig).
+    `cfg` is a PINNConfig or a restored model_config.json dict; a dict
+    without these keys (an older save) means no transforms."""
+    is_2d = _cfg_get(cfg, "problem_dim", "1D") == "2D"
+    is_3d = _cfg_get(cfg, "problem_dim", "1D") == "3D"
+    is_steady = bool(_cfg_get(cfg, "steady_state", False))
+    n_out = int(_cfg_get(cfg, "num_outputs", 1) or 1)
+    names = [n.strip() for n in (_cfg_get(cfg, "output_names", "u") or "u").split(",") if n.strip()]
+    while len(names) < n_out:
+        names.append(f"u{len(names)}")
+    names = names[:n_out]
+
+    L = [f"def {fn_name}(net):",
+         '    """Attach this model\'s input/output transforms (none if not configured)."""']
+    in_on = bool(_cfg_get(cfg, "input_transform_enabled", False))
+    out_on = bool(_cfg_get(cfg, "output_transform_enabled", False))
+
+    def _coord_lines(exprs, src):
+        return [f"        {n} = {src}[:, {c}:{c + 1}]"
+                for n, c in _pde_coord_columns(_pde_coord_names(exprs), is_2d, is_3d, is_steady)]
+
+    if _input_formula_on(cfg):
+        feats = [_simplify_pde_expr(f) for f in _feature_formula_list(cfg)]
+        L += ["    def _input_transform(X):"] + _coord_lines(feats, "X")
+        L.append("        return torch.cat([" + ", ".join(feats) + "], dim=1)")
+        L.append("    net.apply_feature_transform(_input_transform)")
+    elif in_on and _cfg_get(cfg, "input_transform_scale", None):
+        L += [f"    in_scale = {list(_cfg_get(cfg, 'input_transform_scale'))}",
+              f"    in_shift = {list(_cfg_get(cfg, 'input_transform_shift', []))}",
+              "    def _input_transform(x):",
+              "        sc = torch.tensor(in_scale, dtype=x.dtype, device=x.device)",
+              "        sh = torch.tensor(in_shift, dtype=x.dtype, device=x.device)",
+              "        return x * sc + sh",
+              "    net.apply_feature_transform(_input_transform)"]
+
+    if _output_formula_on(cfg):
+        raw = (_cfg_get(cfg, "output_transform_formula", "") or "").split("|")
+        exprs = [_simplify_pde_expr(raw[i]) if i < len(raw) and raw[i].strip() else names[i] for i in range(n_out)]
+        L += ["    def _output_transform(X, N):"] + _coord_lines(exprs, "X")
+        L += [f"        {nm} = N[:, {i}:{i + 1}]" for i, nm in enumerate(names)]
+        if n_out == 1:
+            L.append(f"        return {exprs[0]}")
+        else:
+            L.append("        return torch.cat([" + ", ".join(exprs) + "], dim=1)")
+        L.append("    net.apply_output_transform(_output_transform)")
+    elif out_on and _cfg_get(cfg, "output_transform_scale", None):
+        L += [f"    out_scale = {list(_cfg_get(cfg, 'output_transform_scale'))}",
+              f"    out_shift = {list(_cfg_get(cfg, 'output_transform_shift', []))}",
+              "    def _output_transform(x, y):",
+              "        sc = torch.tensor(out_scale, dtype=y.dtype, device=y.device)",
+              "        sh = torch.tensor(out_shift, dtype=y.dtype, device=y.device)",
+              "        return y * sc + sh",
+              "    net.apply_output_transform(_output_transform)"]
+    L.append("    return net")
+    return "\n".join(L)
+
+
+def _transform_config_literal(config):
+    """The transform settings as model_config.json entries (a string of
+    `"key": value,` pairs to splice into the dict literal the generated
+    script writes), so Restore & Visualize can re-attach the same
+    transforms -- see _net_transforms_code."""
+    keys = ("input_transform_enabled", "input_transform_mode", "input_transform_scale",
+            "input_transform_shift", "input_feature_formula",
+            "output_transform_enabled", "output_transform_mode", "output_transform_scale",
+            "output_transform_shift", "output_transform_formula")
+    return " ".join(f"{k!r}: {getattr(config, k)!r}," for k in keys)
+
+
 def _effective_config(config):
     """The config as the generators should read it -- cleanup Round 56.
     PINNConfig documents time_adaptive as IGNORED for a steady-state problem
@@ -3532,9 +3636,14 @@ def _effective_config(config):
     and made generate_clean_script() emit a script that doesn't even parse.
     Returns a copy with time_adaptive switched off in that one case; every
     other config is returned unchanged (the same object)."""
+    import dataclasses as _dc
     if getattr(config, "steady_state", False) and getattr(config, "time_adaptive", False):
-        import dataclasses as _dc
         config = _dc.replace(config, time_adaptive=False)
+    # Round 62: with an input feature formula the network's first layer
+    # takes one input per feature, not one per coordinate.
+    n_feat = len(_feature_formula_list(config)) if _input_formula_on(config) else 0
+    if n_feat and config.layers and config.layers[0] != n_feat:
+        config = _dc.replace(config, layers=[n_feat] + list(config.layers[1:]))
     return config
 
 
@@ -4052,6 +4161,7 @@ if _use_save:
         "loss_type": {repr(config.loss_type)},
         "problem_type": {config.problem_type!r},
         "inverse_variables": {_mc_inv_vars_literal},
+        {_transform_config_literal(config)}
     }}
     _os.makedirs(_os.path.join(_save_dir, "solution_results"), exist_ok=True)
     with open(_os.path.join(_save_dir, "solution_results", "model_config.json"), "w") as _mcf:
@@ -4113,34 +4223,13 @@ def _load_ic_from_file(_path):
 # transform/apply_output_transform just attach a plain Python closure to
 # the net instance rather than something saved in a .pt checkpoint, so a
 # reloaded net needs the same transform re-applied to predict correctly).
-# Empty list means "off"; scale/shift lists line up column-for-column
-# with the net's raw input (x, [y], [z], t) or raw output (one entry per
-# output component).
-_in_scale  = {config.input_transform_scale if config.input_transform_enabled else []}
-_in_shift  = {config.input_transform_shift if config.input_transform_enabled else []}
-_out_scale = {config.output_transform_scale if config.output_transform_enabled else []}
-_out_shift = {config.output_transform_shift if config.output_transform_enabled else []}
-
 {net_helper_code}
 
 {_tm_runtime_code}
 
 {_loss_helper_code}
 
-def _apply_net_transforms(_net):
-    if _in_scale:
-        def _input_transform(x):
-            _sc = torch.tensor(_in_scale, dtype=x.dtype, device=x.device)
-            _sh = torch.tensor(_in_shift, dtype=x.dtype, device=x.device)
-            return x * _sc + _sh
-        _net.apply_feature_transform(_input_transform)
-    if _out_scale:
-        def _output_transform(x, y):
-            _sc = torch.tensor(_out_scale, dtype=y.dtype, device=y.device)
-            _sh = torch.tensor(_out_shift, dtype=y.dtype, device=y.device)
-            return y * _sc + _sh
-        _net.apply_output_transform(_output_transform)
-    return _net
+{_net_transforms_code(config)}
 
 # ── Parametric study setup ────────────────────────────────────
 _parametric = {config.parametric_study}
@@ -8892,8 +8981,8 @@ def generate_clean_script(config):
     figsize_helper_code = _clean_figsize_runtime_code(config) + "\n\n" + _contour_levels_helper_code()
 
     # ---- Optional input/output transforms --------------------------------
-    has_in_transform = bool(config.input_transform_enabled and config.input_transform_scale)
-    has_out_transform = bool(config.output_transform_enabled and config.output_transform_scale)
+    has_in_transform = bool(config.input_transform_enabled and config.input_transform_scale) or _input_formula_on(config)
+    has_out_transform = bool(config.output_transform_enabled and config.output_transform_scale) or _output_formula_on(config)
     needs_transform_helper = has_in_transform or has_out_transform
 
     # ---- RAR / IC Pre-Training / Time-Adaptive flags ----------------------
@@ -9093,25 +9182,7 @@ if save_dir:
         parts.append(_training_monitor_runtime_code())
 
     if needs_transform_helper:
-        tlines = ["def _apply_transforms(net):"]
-        if has_in_transform:
-            tlines.append(f"    in_scale = {list(config.input_transform_scale)}")
-            tlines.append(f"    in_shift = {list(config.input_transform_shift)}")
-            tlines.append("    def _input_transform(x):")
-            tlines.append("        sc = torch.tensor(in_scale, dtype=x.dtype, device=x.device)")
-            tlines.append("        sh = torch.tensor(in_shift, dtype=x.dtype, device=x.device)")
-            tlines.append("        return x * sc + sh")
-            tlines.append("    net.apply_feature_transform(_input_transform)")
-        if has_out_transform:
-            tlines.append(f"    out_scale = {list(config.output_transform_scale)}")
-            tlines.append(f"    out_shift = {list(config.output_transform_shift)}")
-            tlines.append("    def _output_transform(x, y):")
-            tlines.append("        sc = torch.tensor(out_scale, dtype=y.dtype, device=y.device)")
-            tlines.append("        sh = torch.tensor(out_shift, dtype=y.dtype, device=y.device)")
-            tlines.append("        return y * sc + sh")
-            tlines.append("    net.apply_output_transform(_output_transform)")
-        tlines.append("    return net")
-        parts.append("\n".join(tlines))
+        parts.append(_net_transforms_code(config, "_apply_transforms"))
 
     parts.append(pde_block)
 
