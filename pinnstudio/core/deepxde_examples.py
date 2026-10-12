@@ -88,12 +88,37 @@ def _phase(optimizer, iterations, lr=1e-3, decay=None):
     return p
 
 
+def _consts(*pairs):
+    """Named constants (Round 70), as DeepXDE's scripts define them at the top."""
+    return dict(constants=json.dumps([{"name": n, "value": v} for n, v in pairs]))
+
+
 def _ex(name, category, source, *parts, note=""):
     s = {}
     for p in parts:
         s.update(p)
     return Example(name, category, source, s, note)
 
+
+# Linear elastostatic plate (elasticity_plate.py), shared by its hard- and
+# soft-BC versions: Lamé constants lmbd, mu and load Q as in DeepXDE's script.
+_PLATE_CONSTS = _consts(("lmbd", "1"), ("mu", "0.5"), ("Q", "4"))
+_PLATE_FX = ("-lmbd*(4*pi**2*cos(2*pi*x)*sin(pi*y) - Q*y**3*pi*cos(pi*x))"
+             " - mu*(pi**2*cos(2*pi*x)*sin(pi*y) - Q*y**3*pi*cos(pi*x)) - 8*mu*pi**2*cos(2*pi*x)*sin(pi*y)")
+_PLATE_FY = ("lmbd*(3*Q*y**2*sin(pi*x) - 2*pi**2*cos(pi*y)*sin(2*pi*x))"
+             " - mu*(2*pi**2*cos(pi*y)*sin(2*pi*x) + Q*y**4*pi**2*sin(pi*x)/4) + 6*Q*mu*y**2*sin(pi*x)")
+_PLATE_PDE = "|".join([
+    f"dsxx_x + dsxy_y - ({_PLATE_FX})",
+    f"dsxy_x + dsyy_y - ({_PLATE_FY})",
+    "(2*mu + lmbd)*dux_x + lmbd*duy_y - sxx",
+    "(2*mu + lmbd)*duy_y + lmbd*dux_x - syy",
+    "mu*(dux_y + duy_x) - sxy"])
+_PLATE_REF = _formula_ref([
+    "cos(2*pi*x)*sin(pi*y)",
+    "sin(pi*x)*Q*y**4/4",
+    "(2*mu + lmbd)*(-2*pi*sin(2*pi*x)*sin(pi*y)) + lmbd*sin(pi*x)*Q*y**3",
+    "(2*mu + lmbd)*sin(pi*x)*Q*y**3 + lmbd*(-2*pi*sin(2*pi*x)*sin(pi*y))",
+    "mu*(pi*cos(2*pi*x)*cos(pi*y) + pi*cos(pi*x)*Q*y**4/4)"])
 
 # ── Forward problems ──────────────────────────────────────────────────────
 _POISSON_1D_NET = {**_net([1, 50, 50, 50, 1]), **_adam(10000), **_NO_LBFGS,
@@ -186,34 +211,26 @@ EXAMPLES = [
         dict(problem_dim="2D", steady_state=True, geometry_type="Rectangle",
              x_min=0.0, x_max=1.0, y_min=0.0, y_max=1.0, num_initial=0,
              num_outputs=5, output_names="ux,uy,sxx,syy,sxy", num_equations=5,
-             pde_expressions="|".join([
-                 "dsxx_x + dsxy_y - (-(4*pi**2*cos(2*pi*x)*sin(pi*y) - 4*y**3*pi*cos(pi*x))"
-                 " - 0.5*(pi**2*cos(2*pi*x)*sin(pi*y) - 4*y**3*pi*cos(pi*x)) - 4*pi**2*cos(2*pi*x)*sin(pi*y))",
-                 "dsxy_x + dsyy_y - ((12*y**2*sin(pi*x) - 2*pi**2*cos(pi*y)*sin(2*pi*x))"
-                 " - 0.5*(2*pi**2*cos(pi*y)*sin(2*pi*x) + y**4*pi**2*sin(pi*x)) + 12*y**2*sin(pi*x))",
-                 "2*dux_x + duy_y - sxx",
-                 "2*duy_y + dux_x - syy",
-                 "0.5*(dux_y + duy_x) - sxy"]),
+             pde_expressions=_PLATE_PDE,
              custom_bc_json="[]", num_domain=500, num_boundary=500, num_test=100,
              output_transform_enabled=True, output_transform_mode="formula",
-             output_transform_formula="ux*y*(1 - y)|uy*x*(1 - x)*y|sxx*x*(1 - x)|syy*(1 - y) + 8*sin(pi*x)|sxy"),
+             output_transform_formula="ux*y*(1 - y)|uy*x*(1 - x)*y|sxx*x*(1 - x)|syy*(1 - y) + (lmbd + 2*mu)*Q*sin(pi*x)|sxy"),
+        _PLATE_CONSTS,
         _net([2, 40, 40, 40, 40, 5], network_type="PFNN"), _adam(5000), _NO_LBFGS,
-        _formula_ref(["cos(2*pi*x)*sin(pi*y)", "sin(pi*x)*y**4",
-                      "2*(-2*pi*sin(2*pi*x)*sin(pi*y)) + 4*y**3*sin(pi*x)",
-                      "8*y**3*sin(pi*x) - 2*pi*sin(2*pi*x)*sin(pi*y)",
-                      "0.5*(pi*cos(2*pi*x)*cos(pi*y) + pi*cos(pi*x)*y**4)"]),
-        note="Lamé constants lambda = 1, mu = 0.5 and load Q = 4 are written into the equations; boundary "
-             "conditions are imposed exactly through the output transform (DeepXDE's default 'hard' setting)."),
+        _PLATE_REF,
+        note="Boundary conditions are imposed exactly through the output transform (DeepXDE's default 'hard' "
+             "setting), so the Boundary Conditions panel is empty."),
 
     _ex("Helmholtz 2D (Dirichlet)", FORWARD, _DOCS + "pinn_forward/helmholtz.2d.dirichlet.html",
         dict(problem_dim="2D", steady_state=True, geometry_type="Rectangle",
              x_min=0.0, x_max=1.0, y_min=0.0, y_max=1.0, num_initial=0,
-             pde_expressions="-du_xx - du_yy - (4*pi)**2*u - (4*pi)**2*sin(4*pi*x)*sin(4*pi*y)",
+             pde_expressions="-du_xx - du_yy - k0**2*u - k0**2*sin(k0*x)*sin(k0*y)",
              custom_bc_json="[]", num_domain=400, num_boundary=80, num_test=3600,
              output_transform_enabled=True, output_transform_mode="formula",
              output_transform_formula="x*(1 - x)*y*(1 - y)*u"),
+        _consts(("n", "2"), ("k0", "2*pi*n")),
         _net([2, 150, 150, 150, 1], activation="sin"), _adam(5000), _NO_LBFGS,
-        _formula_ref(["sin(4*pi*x)*sin(4*pi*y)"]),
+        _formula_ref(["sin(k0*x)*sin(k0*y)"]),
         note="Boundary conditions imposed exactly through the output transform (DeepXDE's default hard_constraint=True)."),
 
     _ex("Helmholtz 2D with a hole", FORWARD, _DOCS + "pinn_forward/helmholtz.2d.neumann.hole.html",
@@ -222,31 +239,31 @@ EXAMPLES = [
                  {"type": "Rectangle", "params": {"x_min": -0.5, "x_max": 0.5, "y_min": -0.5, "y_max": 0.5}},
                  {"type": "Disk", "op": "subtract", "params": {"cx": 0.0, "cy": 0.0, "r": 0.25}}]),
              x_min=-0.5, x_max=0.5, y_min=-0.5, y_max=0.5, num_initial=0,
-             pde_expressions="-du_xx - du_yy - (2*pi)**2*u - (2*pi)**2*sin(2*pi*x)*sin(2*pi*y)",
+             pde_expressions="-du_xx - du_yy - k0**2*u - k0**2*sin(k0*x)*sin(k0*y)",
              custom_bc_json=_bcs(
-                 _bc("neumann", "np.isclose(x**2 + y**2, 0.0625)",
-                     "-(2*pi*cos(2*pi*x)*sin(2*pi*y)*x + 2*pi*sin(2*pi*x)*cos(2*pi*y)*y)/0.25"),
-                 _bc("dirichlet", "left or right or bottom or top", "sin(2*pi*x)*sin(2*pi*y)")),
+                 _bc("neumann", "np.isclose(x**2 + y**2, R**2)",
+                     "-(k0*cos(k0*x)*sin(k0*y)*x + k0*sin(k0*x)*cos(k0*y)*y)/R"),
+                 _bc("dirichlet", "left or right or bottom or top", "sin(k0*x)*sin(k0*y)")),
              loss_weights_multi="1,10,100", num_domain=225, num_boundary=240, num_test=900),
+        _consts(("n", "1"), ("k0", "2*pi*n"), ("R", "1/4")),
         _net([2, 350, 350, 350, 1], activation="sin"), _adam(5000), _NO_LBFGS,
-        _formula_ref(["sin(2*pi*x)*sin(2*pi*y)"])),
+        _formula_ref(["sin(k0*x)*sin(k0*y)"])),
 
     _ex("Kovasznay flow", FORWARD, _DOCS + "pinn_forward/Kovasznay.flow.html",
         dict(problem_dim="2D", steady_state=True, geometry_type="Rectangle",
              x_min=-0.5, x_max=1.0, y_min=-0.5, y_max=1.5, num_initial=0,
              num_outputs=3, output_names="u,v,p",
-             pde_expressions="u*du_x + v*du_y + dp_x - 0.05*(du_xx + du_yy)"
-                             "|u*dv_x + v*dv_y + dp_y - 0.05*(dv_xx + dv_yy)|du_x + dv_y",
+             pde_expressions="u*du_x + v*du_y + dp_x - 1/Re*(du_xx + du_yy)"
+                             "|u*dv_x + v*dv_y + dp_y - 1/Re*(dv_xx + dv_yy)|du_x + dv_y",
              custom_bc_json=_bcs(
-                 _bc("dirichlet", "True", "1 - exp(-1.8100981200139667*x)*cos(2*pi*y)", 0),
-                 _bc("dirichlet", "True", "-0.2880860632815696*exp(-1.8100981200139667*x)*sin(2*pi*y)", 1),
-                 _bc("dirichlet", "right", "0.5*(1 - exp(-3.6201962400279335*x))", 2)),
+                 _bc("dirichlet", "True", "1 - exp(l*x)*cos(2*pi*y)", 0),
+                 _bc("dirichlet", "True", "l/(2*pi)*exp(l*x)*sin(2*pi*y)", 1),
+                 _bc("dirichlet", "right", "0.5*(1 - exp(2*l*x))", 2)),
              num_domain=2601, num_boundary=400, num_test=100000),
+        _consts(("Re", "20"), ("nu", "1/Re"), ("l", "1/(2*nu) - sqrt(1/(4*nu**2) + 4*pi**2)")),
         _net([2, 50, 50, 50, 50, 3], "Glorot normal"), _adam(30000), _LBFGS,
-        _formula_ref(["1 - exp(-1.8100981200139667*x)*cos(2*pi*y)",
-                      "-0.2880860632815696*exp(-1.8100981200139667*x)*sin(2*pi*y)",
-                      "0.5*(1 - exp(-3.6201962400279335*x))"]),
-        note="Re = 20; lambda = 1/(2 nu) - sqrt(1/(4 nu^2) + 4 pi^2) = -1.81009812... is written into the formulas."),
+        _formula_ref(["1 - exp(l*x)*cos(2*pi*y)", "l/(2*pi)*exp(l*x)*sin(2*pi*y)", "0.5*(1 - exp(2*l*x))"]),
+        note="Constants Re, nu and l are defined as in DeepXDE's script."),
 
     _ex("Burgers equation", FORWARD, _DOCS + "pinn_forward/burgers.html",
         _time_1d(-1, 1, 0, 0.99),
@@ -274,20 +291,22 @@ EXAMPLES = [
 
     _ex("Heat equation", FORWARD, _DOCS + "pinn_forward/heat.html",
         _time_1d(0, 1, 0, 1),
-        dict(pde_expressions="du_t - 0.4*du_xx", ic_expressions="sin(pi*x)",
+        dict(pde_expressions="du_t - a*du_xx", ic_expressions="sin(n*pi*x/L)",
              custom_bc_json=_bcs(_bc("dirichlet", "True", "0")),
              num_domain=2540, num_boundary=80, num_initial=160, num_test=2540),
         _net([2, 20, 20, 20, 1], "Glorot normal"), _adam(20000), _LBFGS,
-        _formula_ref(["exp(-0.4*pi**2*t)*sin(pi*x)"])),
+        _consts(("a", "0.4"), ("L", "1"), ("n", "1")),
+        _formula_ref(["exp(-n**2*pi**2*a*t/L**2)*sin(n*pi*x/L)"])),
 
     _ex("Heat equation with resampling", FORWARD, _DOCS + "pinn_forward/heat.resample.html",
         _time_1d(0, 1, 0, 1),
-        dict(pde_expressions="du_t - 0.4*du_xx", ic_expressions="sin(pi*x)",
+        dict(pde_expressions="du_t - a*du_xx", ic_expressions="sin(n*pi*x/L)",
              custom_bc_json=_bcs(_bc("dirichlet", "True", "0")),
              num_domain=2540, num_boundary=80, num_initial=160, num_test=2540,
              cb_point_resampler=True, cb_point_resampler_period=10, cb_point_resampler_pde_points=True),
         _net([2, 20, 20, 20, 1], "Glorot normal"), _adam(200000), _LBFGS,
-        _formula_ref(["exp(-0.4*pi**2*t)*sin(pi*x)"])),
+        _consts(("a", "0.4"), ("L", "1"), ("n", "1")),
+        _formula_ref(["exp(-n**2*pi**2*a*t/L**2)*sin(n*pi*x/L)"])),
 
     _ex("Diffusion equation", FORWARD, _DOCS + "pinn_forward/diffusion.1d.html",
         _time_1d(-1, 1, 0, 1),
@@ -329,7 +348,8 @@ EXAMPLES = [
 
     _ex("Allen-Cahn equation", FORWARD, _DOCS + "pinn_forward/allen.cahn.html",
         _time_1d(-1, 1, 0, 1),
-        dict(pde_expressions="du_t - 0.001*du_xx - 5*(u - u**3)", ic_expressions="x**2*cos(pi*x)", ic_active="False",
+        _consts(("d", "0.001")),
+        dict(pde_expressions="du_t - d*du_xx - 5*(u - u**3)", ic_expressions="x**2*cos(pi*x)", ic_active="False",
              custom_bc_json="[]", num_domain=8000, num_boundary=400, num_initial=800, num_test=1000,
              output_transform_enabled=True, output_transform_mode="formula",
              output_transform_formula="x**2*cos(pi*x) + t*(1 - x**2)*u",
@@ -339,7 +359,8 @@ EXAMPLES = [
 
     _ex("Klein-Gordon equation", FORWARD, _DOCS + "pinn_forward/klein.gordon.html",
         _time_1d(-1, 1, 0, 10),
-        dict(pde_expressions="du_tt - du_xx + u**2 + x*cos(t) - x**2*cos(t)**2", ic_expressions="x",
+        _consts(("alpha", "-1"), ("beta", "0"), ("gamma", "1"), ("k", "2")),
+        dict(pde_expressions="du_tt + alpha*du_xx + beta*u + gamma*u**k + x*cos(t) - x**2*cos(t)**2", ic_expressions="x",
              custom_bc_json=_bcs(_bc("dirichlet", "True", "x*cos(t)"),
                                  _bc("operator", "True", "du_t", apply_at="initial")),
              num_domain=30000, num_boundary=1500, num_initial=1500, num_test=6000),
@@ -400,28 +421,30 @@ EXAMPLES = [
 
     _ex("Black-Scholes equation (call option)", FORWARD, _DOCS + "pinn_forward/black_scholes.html",
         _time_1d(0, 150, 0, 1),
-        dict(pde_expressions="du_t - (0.02*x**2*du_xx + 0.05*x*du_x - 0.05*u)", ic_expressions="np.maximum(x - 50, 0)",
+        _consts(("K", "50"), ("r", "0.05"), ("sigma", "0.2")),
+        dict(pde_expressions="du_t - (sigma**2/2*x**2*du_xx + r*x*du_x - r*u)", ic_expressions="np.maximum(x - K, 0)",
              custom_bc_json=_bcs(_bc("dirichlet", "left", "0"),
-                                 _bc("dirichlet", "right", "150 - 50*exp(-0.05*t)")),
+                                 _bc("dirichlet", "right", "x_max - K*exp(-r*t)")),
              num_domain=2047, num_boundary=63, num_initial=127, num_test=2047, point_distribution="Sobol"),
         _net([2, 28, 28, 28, 28, 1], "Glorot normal"), _adam(20000), _LBFGS,
         _formula_ref([
-            "np.maximum(x, 1e-10)*norm_cdf((log(np.maximum(x, 1e-10)/50) + 0.07*np.maximum(t, 1e-8))"
-            "/(0.2*sqrt(np.maximum(t, 1e-8)))) - 50*exp(-0.05*np.maximum(t, 1e-8))"
-            "*norm_cdf((log(np.maximum(x, 1e-10)/50) + 0.07*np.maximum(t, 1e-8))/(0.2*sqrt(np.maximum(t, 1e-8)))"
-            " - 0.2*sqrt(np.maximum(t, 1e-8)))"], "0.25, 0.5, 1"),
-        note="x is the stock price S in [0, 150] and t the time to maturity tau; strike 50, rate 0.05, "
-             "volatility 0.2 are written into the equation."),
+            "np.maximum(x, 1e-10)*norm_cdf((log(np.maximum(x, 1e-10)/K) + (r + sigma**2/2)*np.maximum(t, 1e-8))"
+            "/(sigma*sqrt(np.maximum(t, 1e-8)))) - K*exp(-r*np.maximum(t, 1e-8))"
+            "*norm_cdf((log(np.maximum(x, 1e-10)/K) + (r + sigma**2/2)*np.maximum(t, 1e-8))/(sigma*sqrt(np.maximum(t, 1e-8)))"
+            " - sigma*sqrt(np.maximum(t, 1e-8)))"], "0.25, 0.5, 1"),
+        note="x is the stock price S in [0, 150] and t the time to maturity tau; strike K, rate r and "
+             "volatility sigma are constants."),
 
     _ex("American put option", FORWARD, _GH + "pinn_forward/american_put.py",
         _time_1d(0, 4, 0, 1),
+        _consts(("r", "0.05"), ("sigma", "0.2"), ("K", "1")),
         dict(num_equations=3,
              pde_expressions="|".join([
-                 "relu(-du_t + 0.02*x**2*du_xx + 0.05*x*du_x - 0.05*u)",
-                 "relu(relu(1 - x) - u)",
-                 "sqrt((u - relu(1 - x))**2 + (du_t - 0.02*x**2*du_xx - 0.05*x*du_x + 0.05*u)**2 + 1e-8)"
-                 " - ((u - relu(1 - x)) + (du_t - 0.02*x**2*du_xx - 0.05*x*du_x + 0.05*u))"]),
-             ic_expressions="np.maximum(1 - x, 0)",
+                 "relu(-du_t + sigma**2/2*x**2*du_xx + r*x*du_x - r*u)",
+                 "relu(relu(K - x) - u)",
+                 "sqrt((u - relu(K - x))**2 + (du_t - sigma**2/2*x**2*du_xx - r*x*du_x + r*u)**2 + 1e-8)"
+                 " - ((u - relu(K - x)) + (du_t - sigma**2/2*x**2*du_xx - r*x*du_x + r*u))"]),
+             ic_expressions="np.maximum(K - x, 0)",
              custom_bc_json=_bcs(_bc("dirichlet", "left", "1"),
                                  _bc("dirichlet", "right", "0")),
              loss_weights_multi="1,10,5,100,100,100",
@@ -429,7 +452,7 @@ EXAMPLES = [
              anchors_mode="box", anchors_count=1000, anchors_box="0.5,1.5;0,1",
              cb_point_resampler=True, cb_point_resampler_period=1000, cb_point_resampler_pde_points=True),
         _net([2, 128, 128, 128, 128, 1], "Glorot normal"), _adam(12000), _LBFGS,
-        note="Strike 1, rate 0.05, volatility 0.2. DeepXDE resamples points only during its L-BFGS phase; "
+        note="Strike K, rate r and volatility sigma are constants. DeepXDE resamples points only during its L-BFGS phase; "
              "here resampling (every 1000 iterations) is on for the whole run. No closed-form reference "
              "(DeepXDE compares against a binomial-tree price)."),
 
@@ -492,10 +515,11 @@ EXAMPLES = [
 
     _ex("Inverse: diffusion-reaction with space-dependent rate", INVERSE, _GH + "pinn_inverse/diffusion_reaction_rate.py",
         _steady_1d(0, 1),
-        dict(num_outputs=2, output_names="u,k", num_equations=1, pde_expressions="0.01*du_xx - u*k - sin(2*pi*x)",
+        dict(num_outputs=2, output_names="u,k", num_equations=1, pde_expressions="l*du_xx - u*k - sin(2*pi*x)",
              custom_bc_json=_bcs(_bc("dirichlet", "True", "0", 0),
                                  _bc("pointset", "True", "0", 0, points_file="@REF/deepxde/diffusion_reaction_rate/u_obs.txt")),
              num_domain=50, num_boundary=8, num_test=1000, point_distribution="uniform"),
+        _consts(("l", "0.01")),
         _net([1, 20, 20, 2], network_type="PFNN"), _adam(20000), _NO_LBFGS,
         _formula_ref(["", "0.1 + exp(-0.5*(x - 0.5)**2/0.15**2)"]),
         note="The unknown reaction rate k(x) (true: 0.1 + exp(-0.5 (x - 0.5)^2 / 0.15^2)) is a second network "
@@ -503,7 +527,7 @@ EXAMPLES = [
 
     _ex("Inverse: Brinkman-Forchheimer model", INVERSE, _GH + "pinn_inverse/brinkman_forchheimer.py",
         _steady_1d(0, 1),
-        dict(problem_type="Inverse", pde_expressions="-v_e/0.4*du_xx + 1e-3*u/K - 1", custom_bc_json="[]",
+        dict(problem_type="Inverse", pde_expressions="-v_e/e*du_xx + v*u/K - g", custom_bc_json="[]",
              inverse_variables_json=json.dumps([{"name": "v_e", "init": 0.1, "true": 0.001},
                                                 {"name": "K", "init": 0.1, "true": 0.001}]),
              inverse_obs_files_json=json.dumps([{"path": "@REF/deepxde/brinkman_forchheimer/u_obs.txt",
@@ -511,6 +535,7 @@ EXAMPLES = [
              loss_weights_multi="1", inv_param_save="Every 100 iters", inv_param_log_scale=True,
              output_transform_enabled=True, output_transform_mode="formula", output_transform_formula="x*(1 - x)*u",
              num_domain=100, num_boundary=0, num_test=500, point_distribution="uniform"),
+        _consts(("g", "1"), ("v", "1e-3"), ("e", "0.4")),
         _net([1, 20, 20, 20, 1]), _adam(30000), _NO_LBFGS,
         _formula_ref(["1 - cosh(20*(x - 0.5))/cosh(10)"]),
         note="Unknown effective viscosity v_e and permeability K (both 1e-3), from 5 measurements; "
@@ -532,7 +557,8 @@ def build_config(example, ref_root, keep=None):
     cfg = PINNConfig()
     base = dict(optimizer_scheduler=False, adapt_method="None", ea_files="[]", custom_bc_json="[]",
                 loss_weights_multi="", inverse_variables_json="", inverse_obs_files_json="",
-                problem_type="Forward", template_type="")
+                problem_type="Forward", template_type="",
+                plot_colormap="jet")   # same as PINNStudio's own templates
     settings = {**base, **example.settings}
 
     def _resolve(v):

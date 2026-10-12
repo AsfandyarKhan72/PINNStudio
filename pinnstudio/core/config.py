@@ -154,6 +154,10 @@ class PINNConfig:
     num_equations: int = 0
     output_names: str = "u"
     pde_expressions: str = "du_t - 0.4 * du_xx"
+    # Named constants (Round 70): JSON list of {"name", "value"}; each value a
+    # number or an expression in math functions and earlier constants. Usable
+    # by name in every expression of the problem (see core/constants.py).
+    constants: str = ""
 
     # BCs left/right (all dims)
     bc_left_types: str = "Dirichlet"
@@ -366,6 +370,9 @@ class PINNConfig:
     training_monitors: str = "[]"
 
     plot_colormap: str = "RdBu_r"
+    # Multi-output problems: also save every output's own plot, as
+    # solution_plot_<name>.<ext>, besides the selected "Plot output" (Round 69).
+    plot_all_outputs: bool = True
     plot_levels: int = 100
     plot_resolution: int = 200
     plot_dpi: int = 300
@@ -660,6 +667,13 @@ class PINNConfig:
         file and hard to diagnose from the resulting crash, not every
         possible misconfiguration."""
         errors = []
+
+        if (self.constants or "").strip() not in ("", "[]"):
+            try:
+                from pinnstudio.core.codegen import _constant_values
+                _constant_values(self)
+            except ValueError as _ce:
+                errors.append(str(_ce))
 
         if not isinstance(self.layers, (list, tuple)) or len(self.layers) < 2:
             errors.append(

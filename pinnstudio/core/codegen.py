@@ -2037,6 +2037,16 @@ def _ea_group_label(_ea_sel):
     _ea_lbl = (_ea_sel[1] or "").strip() if len(_ea_sel) > 1 else ""
     return _ea_lbl if _ea_lbl else "custom"
 
+def _ea_title_txt(_kind, _ea_sel):
+    # "PINN vs Reference — ux — 2D Heatmaps": the compared field's name in
+    # every Error Analysis title when there is more than one output.
+    _lbl = _ea_group_label(_ea_sel)
+    if not _lbl and len(_plot_output_names_list) > 1:
+        _g = globals()
+        _lbl = (_g.get("_plot_custom_label", "") if str(_g.get("_plot_custom_expr", "")).strip()
+                else _plot_output_names_list[int(_g.get("_plot_idx", 0))].strip())
+    return f"PINN vs Reference — {{_lbl}} — {{_kind}}" if _lbl else f"PINN vs Reference — {{_kind}}"
+
 def _ea_extract(_ea_grid, _ea_sel, _ea_model=None):
     _ea_m = _ea_model if _ea_model is not None else model
     if _ea_sel is None:
@@ -3311,7 +3321,7 @@ if {config.time_adaptive}:
                 _ea_ncols = min(4, _ea_n_t)
                 _ea_nrows = (_ea_n_t + _ea_ncols - 1) // _ea_ncols
                 fig, axes = plt.subplots(_ea_nrows, _ea_ncols, figsize=(4*_ea_ncols, 3.5*_ea_nrows), squeeze=False)
-                _ea_line_suptitle_ta = "PINN vs Reference — Line Comparison"
+                _ea_line_suptitle_ta = _ea_title_txt("Line Comparison", _ea_sel)
                 if _is_3d:
                     _ea_line_suptitle_ta += f" (y={line_slice_y:.3g}, z={line_slice_z:.3g})"
                 elif _is_2d:
@@ -3433,7 +3443,7 @@ if {config.time_adaptive}:
                     _yg_ea = np.linspace({config.y_min}, {config.y_max}, _res_ea)
                     _Xg_ea, _Yg_ea = np.meshgrid(_xg_ea, _yg_ea)
                     fig, axes = plt.subplots(_ea_n_t, 3, figsize=(15, 4*_ea_n_t), squeeze=False)
-                    fig.suptitle("PINN vs Reference — 2D Heatmaps", fontsize={config.plot_title_fontsize}, fontweight='bold')
+                    fig.suptitle(_ea_title_txt("2D Heatmaps", _ea_sel), fontsize={config.plot_title_fontsize}, fontweight='bold')
                     # Need step models to predict on grid — collect from step dirs
                     import glob as _ea_glob2, json as _ea_json2
                     _ta_step_dir2 = _os.path.join(_save_dir, "time_adaptive_steps")
@@ -3528,7 +3538,7 @@ if {config.time_adaptive}:
                                     (_bx0_ta,_by0_ta,_bz1_ta),(_bx1_ta,_by0_ta,_bz1_ta),(_bx1_ta,_by1_ta,_bz1_ta),(_bx0_ta,_by1_ta,_bz1_ta)]
                     _edges_ta = [(0,1),(1,2),(2,3),(3,0),(4,5),(5,6),(6,7),(7,4),(0,4),(1,5),(2,6),(3,7)]
                     fig = plt.figure(figsize=(15, 4.5 * _ea_n_t))
-                    fig.suptitle("PINN vs Reference — 3D Comparison", fontsize={config.plot_title_fontsize}, fontweight='bold')
+                    fig.suptitle(_ea_title_txt("3D Comparison", _ea_sel), fontsize={config.plot_title_fontsize}, fontweight='bold')
                     for _ei, _ea_tv in enumerate(_ea_times):
                         _ea_tv_r, _l2, _mse, _mx, _ma = _ea_metrics[_ei]
                         _bnd_ta = _ea_geom_ta.on_boundary(np.column_stack([_ea_x_refs[_ei], _ea_y_refs[_ei], _ea_z_refs[_ei]]))
@@ -3598,7 +3608,7 @@ if {config.time_adaptive}:
                         _ea_vmax = _ea_vmin + 1e-12
                     _levels_ea1d = _cf_levels({config.plot_levels}, _ea_vmin, _ea_vmax)["levels"]  # contourf ignores vmin/vmax with an integer `levels=N` -- see the Standard-path comment on the same pattern above
                     fig, axes = plt.subplots(1, 3, figsize=(15, 5))
-                    fig.suptitle("PINN vs Reference — Surface Comparison", fontsize={config.plot_title_fontsize}, fontweight='bold')
+                    fig.suptitle(_ea_title_txt("Surface Comparison", _ea_sel), fontsize={config.plot_title_fontsize}, fontweight='bold')
                     im0 = axes[0].contourf(_ea_Tg, _ea_Xg, _ea_U_pinn, levels=_levels_ea1d, cmap='{config.plot_colormap}')
                     axes[0].set_title("PINN  u(x,t)"); axes[0].set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); axes[0].set_ylabel("x", fontsize={config.plot_axis_label_fontsize})
                     fig.colorbar(im0, ax=axes[0])
@@ -3731,6 +3741,22 @@ def _transform_config_literal(config):
     return " ".join(f"{k!r}: {getattr(config, k)!r}," for k in keys)
 
 
+def _constant_values(config):
+    """[(name, expression, value)] of the problem's named constants (Round
+    70); [] when there are none. Invalid constants raise ValueError (the
+    GUI checks them before Solve/Export, see PINNConfig.validate)."""
+    text = getattr(config, "constants", "") or ""
+    if not text.strip() or text.strip() == "[]":
+        return []
+    from pinnstudio.core import constants as _cmod
+    names = [n for n in (config.output_names or "").split(",")]
+    try:
+        names += [v.get("name", "") for v in _bc_json_std.loads(config.inverse_variables_json or "[]")]
+    except (ValueError, AttributeError):
+        pass
+    return _cmod.evaluate(text, names)
+
+
 def _effective_config(config):
     """The config as the generators should read it -- cleanup Round 56.
     PINNConfig documents time_adaptive as IGNORED for a steady-state problem
@@ -3744,6 +3770,19 @@ def _effective_config(config):
     import dataclasses as _dc
     if getattr(config, "steady_state", False) and getattr(config, "time_adaptive", False):
         config = _dc.replace(config, time_adaptive=False)
+    # Round 70: named constants -> their values, in every expression.
+    _consts = _constant_values(config)
+    if _consts:
+        from pinnstudio.core import constants as _cmod
+        _sub = {f: _cmod.substitute(getattr(config, f), _consts)
+                for f in ("pde_expressions", "pde_expression", "ic_expressions", "ic_expression",
+                          "input_feature_formula", "output_transform_formula", "ea_ref_formula",
+                          "plot_custom_expr", "sweep_plot_custom_expr", "anchors_box")
+                if isinstance(getattr(config, f, None), str)}
+        _sub["custom_bc_json"] = _cmod.substitute_json(config.custom_bc_json, _consts, ("location", "value", "location2"))
+        _sub["inverse_obs_files_json"] = _cmod.substitute_json(config.inverse_obs_files_json, _consts, ("custom_expr",))
+        _sub["training_monitors"] = _cmod.substitute_json(config.training_monitors, _consts, ("expr",))
+        config = _dc.replace(config, constants="", **_sub)
     # Round 62: with an input feature formula the network's first layer
     # takes one input per feature, not one per coordinate.
     # Round 67: "reference from a formula" -> the files the scripts will
@@ -5911,518 +5950,539 @@ for _pval in _param_values:
     # on "not time_adaptive" -- which this whole section already requires
     # too, so they're guaranteed to exist here without redefining them.
     if not {config.time_adaptive}:
-        if _problem_type == "Inverse" and _plot_type == "Parameter Convergence":
-            # Parameter Convergence isn't a spatial plot at all -- it's the
-            # iteration-vs-inferred-value chart already built just above
-            # (right after training) from this run's own parameter
-            # history. Use that chart as the "solution" plot instead of
-            # generating a spatial one, since that's what was asked to be
-            # shown by default for an Inverse problem.
-            import shutil as _shutil_pc
-            if _os.path.exists("/tmp/param_plot.png"):
-                _shutil_pc.copy("/tmp/param_plot.png", _run_solution_path)
+        # Every output gets its own plot, named after it (Round 69): the
+        # selected "Plot output" is still solution_plot.<ext>, and with more
+        # than one output each one is also saved as solution_plot_<name>.<ext>.
+        _plot_main_job = (_plot_idx, _run_solution_path)
+        _plot_jobs = [_plot_main_job]
+        if ({config.plot_all_outputs} and _plot_n_out > 1 and not _plot_custom_expr.strip()
+                and not (_problem_type == "Inverse" and _plot_type == "Parameter Convergence")):
+            _sol_root, _sol_ext = _os.path.splitext(_run_solution_path)
+            for _pj, _pj_name in enumerate(_plot_output_names_list):
+                _pj_safe = "".join(_c if (_c.isalnum() or _c in "-_") else "_" for _c in _pj_name.strip()) or f"out{{_pj}}"
+                _plot_jobs.append((_pj, f"{{_sol_root}}_{{_pj_safe}}{{_sol_ext}}"))
+        for _plot_idx, _run_solution_path in _plot_jobs:
+            if (_plot_idx, _run_solution_path) != _plot_main_job and _plot_idx == _plot_main_job[0]:
+                import shutil as _shutil_pj
+                if _os.path.exists(_plot_main_job[1]):
+                    _shutil_pj.copy(_plot_main_job[1], _run_solution_path)
+                continue
+            if _problem_type == "Inverse" and _plot_type == "Parameter Convergence":
+                # Parameter Convergence isn't a spatial plot at all -- it's the
+                # iteration-vs-inferred-value chart already built just above
+                # (right after training) from this run's own parameter
+                # history. Use that chart as the "solution" plot instead of
+                # generating a spatial one, since that's what was asked to be
+                # shown by default for an Inverse problem.
+                import shutil as _shutil_pc
+                if _os.path.exists("/tmp/param_plot.png"):
+                    _shutil_pc.copy("/tmp/param_plot.png", _run_solution_path)
 
-        elif (not _is_steady) and _plot_type in ("Line Animation (GIF)", "Surface Animation (GIF)"):
-            import matplotlib.animation as _anim
-            _n_frames = max(2, {config.num_timesteps_anim})
-            _fps = {config.plot_fps}
-            _t_frames = np.linspace({config.t_min}, {config.t_max}, _n_frames)
-            _y_mid_gif = {line_slice_y} if (_is_2d or _is_3d) else 0.0
-            _z_mid_gif = {line_slice_z} if _is_3d else 0.0
+            elif (not _is_steady) and _plot_type in ("Line Animation (GIF)", "Surface Animation (GIF)"):
+                import matplotlib.animation as _anim
+                _n_frames = max(2, {config.num_timesteps_anim})
+                _fps = {config.plot_fps}
+                _t_frames = np.linspace({config.t_min}, {config.t_max}, _n_frames)
+                _y_mid_gif = {line_slice_y} if (_is_2d or _is_3d) else 0.0
+                _z_mid_gif = {line_slice_z} if _is_3d else 0.0
 
-            if _plot_type == "Line Animation (GIF)":
-                _x_gif = np.linspace(_plot_x_min, _plot_x_max, {config.plot_resolution})
-                _all_u_gif = []
-                for _tv in _t_frames:
-                    if _is_3d:
-                        _xt_gif = np.column_stack([_x_gif, np.full_like(_x_gif, _y_mid_gif), np.full_like(_x_gif, _z_mid_gif), np.full_like(_x_gif, _tv)])
-                    elif _is_2d:
-                        _xt_gif = np.column_stack([_x_gif, np.full_like(_x_gif, _y_mid_gif), np.full_like(_x_gif, _tv)])
-                    else:
-                        _xt_gif = np.column_stack([_x_gif, np.full_like(_x_gif, _tv)])
-                    _all_u_gif.append(_extract_plot_field(_xt_gif).flatten())
-                _u_min_gif = min(_u.min() for _u in _all_u_gif)
-                _u_max_gif = max(_u.max() for _u in _all_u_gif)
-                _fig_gif, _ax_gif = plt.subplots(figsize=_plot_figsize(7, 5))
-                _ax_gif.set_xlim(_plot_x_min, _plot_x_max)
-                _ax_gif.set_ylim(_u_min_gif - 0.05*abs(_u_min_gif) - 1e-9, _u_max_gif + 0.05*abs(_u_max_gif) + 1e-9)
-                _ylabel_gif = (f"u(x,y={{_y_mid_gif:.3g}},z={{_z_mid_gif:.3g}},t)" if _is_3d else f"u(x,y={{_y_mid_gif:.3g}},t)") if (_is_2d or _is_3d) else "u(x,t)"
-                _ax_gif.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); _ax_gif.set_ylabel(_plot_ylabel_override or _ylabel_gif, fontsize={config.plot_axis_label_fontsize})
-                if _plot_title_override:
-                    _ax_gif.set_title(_plot_title_override)
-                _line_gif, = _ax_gif.plot([], [], color="#4dabf7", linewidth={config.plot_linewidth_anim})
-                # Positioned just above the axes (not set_title()) and
-                # styled to match it (black, centered, top) -- same visual
-                # place the 2D/3D Surface Animation branches below put their
-                # own per-frame "t = ..." via ax.set_title(). A real
-                # set_title() isn't used here because this animation runs
-                # with blit=True (see FuncAnimation below): blitting only
-                # redraws the specific artists returned by _update_gif, and
-                # a title isn't redrawn under blit, so it would never
-                # update frame to frame. A Text artist positioned in axes
-                # coordinates just above y=1.0 renders in the same place a
-                # title would, while still being blit-compatible. When a
-                # title override is also set (just above, a real ax.set_title()
-                # call that blit never touches again, so it's safe to combine
-                # with this blitted artist), that same "just above the axes"
-                # spot is exactly where the override title renders too -- so
-                # this moves inside the axes (top-left corner) instead,
-                # matching "Export as DeepXDE Script"'s own Line Animation
-                # GIF time-indicator placement, to avoid the two overlapping
-                # into illegible text.
-                _time_txt_x, _time_txt_y, _time_txt_ha = (0.02, 0.95, 'left') if _plot_title_override else (0.5, 1.02, 'center')
-                _time_txt_gif = _ax_gif.text(_time_txt_x, _time_txt_y, '', transform=_ax_gif.transAxes,
-                                              color='black', ha=_time_txt_ha, fontsize=11)
-                _ax_gif.grid(True, alpha=0.2)
-                def _init_gif():
-                    _line_gif.set_data([], []); _time_txt_gif.set_text(''); return _line_gif, _time_txt_gif
-                def _update_gif(i):
-                    _line_gif.set_data(_x_gif, _all_u_gif[i])
-                    _time_txt_gif.set_text(f"t = {{_t_frames[i]:.3f}}")
-                    return _line_gif, _time_txt_gif
-                _ani_gif = _anim.FuncAnimation(_fig_gif, _update_gif, init_func=_init_gif, frames=_n_frames, interval=100, blit=True)
-                _ani_gif.save(_run_solution_path, writer='pillow', fps=_fps)
-                plt.close(_fig_gif)
-
-            else:  # Surface Animation (GIF)
-                if _is_3d:
-                    # Capped, unlike every other plot_resolution use in this
-                    # file: this renders 6 faces via ax.plot_surface(rstride=1,
-                    # cstride=1, ...) -- a per-quad renderer, not contourf --
-                    # for EVERY animation frame. At plot_resolution's own
-                    # default (200) that's ~31x more quads per face than the
-                    # resolution (36) this used to be hardcoded to, and
-                    # measured well over 10x slower wall-clock as a direct
-                    # result (not from prediction cost, from matplotlib's own
-                    # per-quad rendering). A user who explicitly lowers
-                    # plot_resolution below this cap still gets an even
-                    # coarser/faster 3D GIF, same as every other plot type.
-                    _res3a = min({config.plot_resolution}, 40)
-                    _bbox3a = np.asarray(geom.bbox)
-                    _cx0a, _cy0a, _cz0a = _bbox3a[0]; _cx1a, _cy1a, _cz1a = _bbox3a[1]
-                    _xg3a = np.linspace(_cx0a, _cx1a, _res3a)
-                    _yg3a = np.linspace(_cy0a, _cy1a, _res3a)
-                    _zg3a = np.linspace(_cz0a, _cz1a, _res3a)
-                    _Xxy3a, _Yxy3a = np.meshgrid(_xg3a, _yg3a)
-                    _Xxz3a, _Zxz3a = np.meshgrid(_xg3a, _zg3a)
-                    _Yyz3a, _Zyz3a = np.meshgrid(_yg3a, _zg3a)
-                    _faces3a = [
-                        (_Xxy3a, _Yxy3a, np.full_like(_Xxy3a, _cz0a)),
-                        (_Xxy3a, _Yxy3a, np.full_like(_Xxy3a, _cz1a)),
-                        (_Xxz3a, np.full_like(_Xxz3a, _cy0a), _Zxz3a),
-                        (_Xxz3a, np.full_like(_Xxz3a, _cy1a), _Zxz3a),
-                        (np.full_like(_Yyz3a, _cx0a), _Yyz3a, _Zyz3a),
-                        (np.full_like(_Yyz3a, _cx1a), _Yyz3a, _Zyz3a),
-                    ]
-                    # cleanup Round 46: mask every bounding-box face to the
-                    # real geometry, same geom.inside(...) convention as the
-                    # static 3D Surface plot -- spatial-only, computed once.
-                    _face_inside3a = []
-                    for _fX3a, _fY3a, _fZ3a in _faces3a:
-                        _fspatial3a = np.column_stack([_fX3a.ravel(), _fY3a.ravel(), _fZ3a.ravel()])
-                        _face_inside3a.append(np.asarray(geom.inside(_fspatial3a)).reshape(_fX3a.shape))
-                    _all_frames_gif = []
+                if _plot_type == "Line Animation (GIF)":
+                    _x_gif = np.linspace(_plot_x_min, _plot_x_max, {config.plot_resolution})
+                    _all_u_gif = []
                     for _tv in _t_frames:
-                        _frame_faces_gif = []
-                        for _fX3a, _fY3a, _fZ3a in _faces3a:
-                            _fpts3a = np.column_stack([_fX3a.ravel(), _fY3a.ravel(), _fZ3a.ravel(), np.full(_fX3a.size, _tv)])
-                            _frame_faces_gif.append(_extract_plot_field(_fpts3a).reshape(_fX3a.shape))
-                        _all_frames_gif.append(_frame_faces_gif)
-                    if {config.plot_auto_range}:
-                        # In-domain values only (every value if no face
-                        # touches the domain, e.g. a Sphere's bounding box).
-                        _inside_vals3a = [_f[_m] for _frame in _all_frames_gif for _f, _m in zip(_frame, _face_inside3a) if _m.any()]
-                        if _inside_vals3a:
-                            _v_min_gif = min(_v.min() for _v in _inside_vals3a)
-                            _v_max_gif = max(_v.max() for _v in _inside_vals3a)
+                        if _is_3d:
+                            _xt_gif = np.column_stack([_x_gif, np.full_like(_x_gif, _y_mid_gif), np.full_like(_x_gif, _z_mid_gif), np.full_like(_x_gif, _tv)])
+                        elif _is_2d:
+                            _xt_gif = np.column_stack([_x_gif, np.full_like(_x_gif, _y_mid_gif), np.full_like(_x_gif, _tv)])
                         else:
-                            _v_min_gif = min(_f.min() for _frame in _all_frames_gif for _f in _frame)
-                            _v_max_gif = max(_f.max() for _frame in _all_frames_gif for _f in _frame)
-                    else:
-                        _v_min_gif = {config.plot_vmin}
-                        _v_max_gif = {config.plot_vmax}
-                    _fig_gif = plt.figure(figsize=_plot_figsize(7, 5))
-                    _ax_gif = _fig_gif.add_subplot(111, projection='3d')
-                    _norm3a = plt.Normalize(vmin=_v_min_gif, vmax=_v_max_gif)
-                    _cmap_obj3a = plt.get_cmap("{config.plot_colormap}")
-                    _sm3a = plt.cm.ScalarMappable(cmap=_cmap_obj3a, norm=_norm3a)
-                    if {config.plot_colorbar}: _fig_gif.colorbar(_sm3a, ax=_ax_gif, shrink=0.6, pad=0.12)
-                    def _update_gif(i):
-                        _ax_gif.cla()
-                        for _fi3a, (_fX3a, _fY3a, _fZ3a) in enumerate(_faces3a):
-                            _fc3a = np.array(_cmap_obj3a(_norm3a(_all_frames_gif[i][_fi3a])))
-                            _fc3a[..., 3] = np.where(_face_inside3a[_fi3a], 1.0, 0.0)
-                            _ax_gif.plot_surface(_fX3a, _fY3a, _fZ3a, facecolors=_fc3a,
-                                             rstride=1, cstride=1, linewidth=0, antialiased=False, shade=False)
-                        _ax_gif.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); _ax_gif.set_ylabel(_plot_ylabel_override or "y", fontsize={config.plot_axis_label_fontsize}); _ax_gif.set_zlabel("z", fontsize={config.plot_axis_label_fontsize})
-                        _ax_gif.set_title(_plot_title_override or f"t = {{_t_frames[i]:.3f}}")
-                        try:
-                            _ax_gif.set_box_aspect((_cx1a - _cx0a, _cy1a - _cy0a, _cz1a - _cz0a))
-                        except Exception:
-                            pass
-                    _ani_gif = _anim.FuncAnimation(_fig_gif, _update_gif, frames=_n_frames, interval=150)
-                    _ani_gif.save(_run_solution_path, writer='pillow', fps=_fps)
-                    plt.close(_fig_gif)
-                else:
-                    _res_anim_gif = {config.plot_resolution}
-                    _x_anim_gif = np.linspace(_plot_x_min, _plot_x_max, _res_anim_gif)
-                    _all_frames_gif = []
-                    if _is_2d:
-                        _y_anim_gif = np.linspace(_plot_y_min, _plot_y_max, _res_anim_gif)
-                        _Xg_gif, _Yg_gif = np.meshgrid(_x_anim_gif, _y_anim_gif)
-                        # cleanup Round 46: NaN out grid points outside the
-                        # real geometry, same as the static 2D Surface plot.
-                        _inside2d_gif = np.asarray(geom.inside(np.column_stack([_Xg_gif.ravel(), _Yg_gif.ravel()]))).reshape(_res_anim_gif, _res_anim_gif)
-                        for _tv in _t_frames:
-                            _xyt_gif = np.column_stack([_Xg_gif.ravel(), _Yg_gif.ravel(), np.full(_Xg_gif.size, _tv)])
-                            _pred_gif = _extract_plot_field(_xyt_gif).reshape(_res_anim_gif, _res_anim_gif)
-                            _pred_gif = np.where(_inside2d_gif, _pred_gif, np.nan)
-                            _all_frames_gif.append((_Xg_gif, _Yg_gif, _pred_gif))
-                    else:
-                        # Same configurable axis orientation as the Standard
-                        # path's static 1D "Surface" plot (Plot Settings ->
-                        # "Swap axes") -- there's no real t-variation within
-                        # a single frame (each frame is one instant, u(x) at
-                        # that t, drawn as a color band against a cosmetic
-                        # t-range axis for width), but the swap still needs
-                        # honoring so a GIF frame's orientation matches the
-                        # static Surface plot's, instead of always being
-                        # x-on-horizontal/t-on-vertical regardless of the
-                        # setting. Same no-reshape-of-Z trick: swapping which
-                        # of _X_anim_gif/_T_anim_gif is stored first is
-                        # enough, since contourf reads each array's own
-                        # coordinate values rather than assuming an axis order.
-                        _t_anim_gif = np.linspace({config.t_min}, {config.t_max}, _res_anim_gif)
-                        _X_anim_gif, _T_anim_gif = np.meshgrid(_x_anim_gif, _t_anim_gif)
-                        for _tv in _t_frames:
-                            _xt_gif2 = np.vstack([_X_anim_gif.ravel(), np.full(_X_anim_gif.size, _tv)]).T
-                            _pred_gif = _extract_plot_field(_xt_gif2).reshape(_res_anim_gif, _res_anim_gif)
-                            if {config.plot_swap_xt}:
-                                _all_frames_gif.append((_T_anim_gif, _X_anim_gif, _pred_gif))
-                            else:
-                                _all_frames_gif.append((_X_anim_gif, _T_anim_gif, _pred_gif))
-                    if {config.plot_auto_range}:
-                        _v_min_gif = min(np.nanmin(_f[2]) for _f in _all_frames_gif)
-                        _v_max_gif = max(np.nanmax(_f[2]) for _f in _all_frames_gif)
-                    else:
-                        _v_min_gif = {config.plot_vmin}
-                        _v_max_gif = {config.plot_vmax}
-                    if _is_2d:
-                        _xlabel_gif, _ylabel_gif = "x", "y"
-                    elif {config.plot_swap_xt}:
-                        _xlabel_gif, _ylabel_gif = "t", "x"
-                    else:
-                        _xlabel_gif, _ylabel_gif = "x", "t"
+                            _xt_gif = np.column_stack([_x_gif, np.full_like(_x_gif, _tv)])
+                        _all_u_gif.append(_extract_plot_field(_xt_gif).flatten())
+                    _u_min_gif = min(_u.min() for _u in _all_u_gif)
+                    _u_max_gif = max(_u.max() for _u in _all_u_gif)
                     _fig_gif, _ax_gif = plt.subplots(figsize=_plot_figsize(7, 5))
-                    from mpl_toolkits.axes_grid1 import make_axes_locatable as _make_axes_locatable_gif
-                    _div_gif = _make_axes_locatable_gif(_ax_gif)
-                    _cax_gif = _div_gif.append_axes("right", size="5%", pad=0.1)
-                    _sm_gif = plt.cm.ScalarMappable(cmap="{config.plot_colormap}", norm=plt.Normalize(vmin=_v_min_gif, vmax=_v_max_gif))
-                    if {config.plot_colorbar}: _fig_gif.colorbar(_sm_gif, cax=_cax_gif)
+                    _ax_gif.set_xlim(_plot_x_min, _plot_x_max)
+                    _ax_gif.set_ylim(_u_min_gif - 0.05*abs(_u_min_gif) - 1e-9, _u_max_gif + 0.05*abs(_u_max_gif) + 1e-9)
+                    _gif_name = _plot_custom_label if _plot_custom_expr.strip() else _plot_output_names_list[_plot_idx].strip()
+                    _ylabel_gif = (f"{{_gif_name}}(x,y={{_y_mid_gif:.3g}},z={{_z_mid_gif:.3g}},t)" if _is_3d else f"{{_gif_name}}(x,y={{_y_mid_gif:.3g}},t)") if (_is_2d or _is_3d) else f"{{_gif_name}}(x,t)"
+                    _ax_gif.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); _ax_gif.set_ylabel(_plot_ylabel_override or _ylabel_gif, fontsize={config.plot_axis_label_fontsize})
+                    if _plot_title_override:
+                        _ax_gif.set_title(_plot_title_override)
+                    _line_gif, = _ax_gif.plot([], [], color="#4dabf7", linewidth={config.plot_linewidth_anim})
+                    # Positioned just above the axes (not set_title()) and
+                    # styled to match it (black, centered, top) -- same visual
+                    # place the 2D/3D Surface Animation branches below put their
+                    # own per-frame "t = ..." via ax.set_title(). A real
+                    # set_title() isn't used here because this animation runs
+                    # with blit=True (see FuncAnimation below): blitting only
+                    # redraws the specific artists returned by _update_gif, and
+                    # a title isn't redrawn under blit, so it would never
+                    # update frame to frame. A Text artist positioned in axes
+                    # coordinates just above y=1.0 renders in the same place a
+                    # title would, while still being blit-compatible. When a
+                    # title override is also set (just above, a real ax.set_title()
+                    # call that blit never touches again, so it's safe to combine
+                    # with this blitted artist), that same "just above the axes"
+                    # spot is exactly where the override title renders too -- so
+                    # this moves inside the axes (top-left corner) instead,
+                    # matching "Export as DeepXDE Script"'s own Line Animation
+                    # GIF time-indicator placement, to avoid the two overlapping
+                    # into illegible text.
+                    _time_txt_x, _time_txt_y, _time_txt_ha = (0.02, 0.95, 'left') if _plot_title_override else (0.5, 1.02, 'center')
+                    _time_txt_gif = _ax_gif.text(_time_txt_x, _time_txt_y, '', transform=_ax_gif.transAxes,
+                                                  color='black', ha=_time_txt_ha, fontsize=11)
+                    _ax_gif.grid(True, alpha=0.2)
+                    def _init_gif():
+                        _line_gif.set_data([], []); _time_txt_gif.set_text(''); return _line_gif, _time_txt_gif
                     def _update_gif(i):
-                        _ax_gif.cla()
-                        _Xp_gif, _Yp_gif, _Zp_gif = _all_frames_gif[i]
-                        _ax_gif.contourf(_Xp_gif, _Yp_gif, _Zp_gif, cmap="{config.plot_colormap}", **_cf_levels({config.plot_levels}, _v_min_gif, _v_max_gif, _Zp_gif))
-                        _ax_gif.set_xlabel(_plot_xlabel_override or _xlabel_gif, fontsize={config.plot_axis_label_fontsize})
-                        _ax_gif.set_ylabel(_plot_ylabel_override or _ylabel_gif, fontsize={config.plot_axis_label_fontsize})
-                        _ax_gif.set_title(_plot_title_override or f"t = {{_t_frames[i]:.3f}}")
-                    _ani_gif = _anim.FuncAnimation(_fig_gif, _update_gif, frames=_n_frames, interval=150)
+                        _line_gif.set_data(_x_gif, _all_u_gif[i])
+                        _time_txt_gif.set_text(f"t = {{_t_frames[i]:.3f}}")
+                        return _line_gif, _time_txt_gif
+                    _ani_gif = _anim.FuncAnimation(_fig_gif, _update_gif, init_func=_init_gif, frames=_n_frames, interval=100, blit=True)
                     _ani_gif.save(_run_solution_path, writer='pillow', fps=_fps)
                     plt.close(_fig_gif)
 
-        elif _is_2d and _is_steady and _plot_type == "Line (time steps)":
-            # Steady 2D "Line (time steps)": no time axis to step through,
-            # so this is a single curve u(x) at the configured y slice --
-            # same "one curve regardless of plot type" simplification the
-            # steady-1D branch below already uses. Previously this
-            # selection silently fell through to the x-y heatmap branch
-            # just below (plot_type was never checked for 2D/3D at all).
-            # Masked to the real geometry with geom.inside(...) -- same
-            # pattern the x-y heatmap branch below already uses, and the
-            # same fix Error Analysis's own Line Comparison plot got in
-            # Rounds 36/37 -- so a non-rectangular domain (L-Shape, Disk,
-            # ...) doesn't evaluate/plot the model somewhere it was never
-            # trained, past the true boundary at this y slice.
-            _x_l2ds = np.linspace(_plot_x_min, _plot_x_max, {config.plot_resolution})
-            _xy_l2ds = np.column_stack([_x_l2ds, np.full_like(_x_l2ds, {line_slice_y})])
-            _line_in_l2ds = geom.inside(_xy_l2ds)
-            _x_l2ds = _x_l2ds[_line_in_l2ds]
-            _xy_l2ds = _xy_l2ds[_line_in_l2ds]
-            out_name = _plot_custom_label if _plot_custom_expr.strip() else {repr(config.output_names)}.split(",")[_plot_idx].strip()
-            fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
-            if len(_x_l2ds) < 2:
-                ax.text(0.5, 0.5, "Line outside the domain at this y slice", ha="center", va="center", transform=ax.transAxes)
-                ax.set_xticks([]); ax.set_yticks([])
-            else:
-                _u_l2ds = _extract_plot_field(_xy_l2ds).flatten()
-                ax.plot(_x_l2ds, _u_l2ds, color="#4dabf7", linewidth={config.plot_linewidth})
-                ax.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or f"{{out_name}}(x,y={line_slice_y:.3g})", fontsize={config.plot_axis_label_fontsize})
-                ax.grid(True, alpha=0.2)
-            ax.set_title(_plot_title_override or f"PINN Solution — {{out_name}}(x,y={line_slice_y:.3g})")
-            plt.tight_layout(); plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
-        elif _is_2d and _is_steady:
-            # Steady-state 2D: a single static x-y heatmap of u(x,y) -- no
-            # time axis, so no time snapshots and no time column on the
-            # model input (matches the 2-column network input built for
-            # steady 2D problems).
-            _res_2d = {config.plot_resolution}
-            _xp = np.linspace(_plot_x_min, _plot_x_max, _res_2d)
-            _yp = np.linspace(_plot_y_min, _plot_y_max, _res_2d)
-            _Xg, _Yg = np.meshgrid(_xp, _yp)
-            _inside_2d = geom.inside(np.column_stack([_Xg.ravel(), _Yg.ravel()])).reshape(_res_2d, _res_2d)
-            _vmin_2d = None if {config.plot_auto_range} else {config.plot_vmin}
-            _vmax_2d = None if {config.plot_auto_range} else {config.plot_vmax}
+                else:  # Surface Animation (GIF)
+                    if _is_3d:
+                        # Capped, unlike every other plot_resolution use in this
+                        # file: this renders 6 faces via ax.plot_surface(rstride=1,
+                        # cstride=1, ...) -- a per-quad renderer, not contourf --
+                        # for EVERY animation frame. At plot_resolution's own
+                        # default (200) that's ~31x more quads per face than the
+                        # resolution (36) this used to be hardcoded to, and
+                        # measured well over 10x slower wall-clock as a direct
+                        # result (not from prediction cost, from matplotlib's own
+                        # per-quad rendering). A user who explicitly lowers
+                        # plot_resolution below this cap still gets an even
+                        # coarser/faster 3D GIF, same as every other plot type.
+                        _res3a = min({config.plot_resolution}, 40)
+                        _bbox3a = np.asarray(geom.bbox)
+                        _cx0a, _cy0a, _cz0a = _bbox3a[0]; _cx1a, _cy1a, _cz1a = _bbox3a[1]
+                        _xg3a = np.linspace(_cx0a, _cx1a, _res3a)
+                        _yg3a = np.linspace(_cy0a, _cy1a, _res3a)
+                        _zg3a = np.linspace(_cz0a, _cz1a, _res3a)
+                        _Xxy3a, _Yxy3a = np.meshgrid(_xg3a, _yg3a)
+                        _Xxz3a, _Zxz3a = np.meshgrid(_xg3a, _zg3a)
+                        _Yyz3a, _Zyz3a = np.meshgrid(_yg3a, _zg3a)
+                        _faces3a = [
+                            (_Xxy3a, _Yxy3a, np.full_like(_Xxy3a, _cz0a)),
+                            (_Xxy3a, _Yxy3a, np.full_like(_Xxy3a, _cz1a)),
+                            (_Xxz3a, np.full_like(_Xxz3a, _cy0a), _Zxz3a),
+                            (_Xxz3a, np.full_like(_Xxz3a, _cy1a), _Zxz3a),
+                            (np.full_like(_Yyz3a, _cx0a), _Yyz3a, _Zyz3a),
+                            (np.full_like(_Yyz3a, _cx1a), _Yyz3a, _Zyz3a),
+                        ]
+                        # cleanup Round 46: mask every bounding-box face to the
+                        # real geometry, same geom.inside(...) convention as the
+                        # static 3D Surface plot -- spatial-only, computed once.
+                        _face_inside3a = []
+                        for _fX3a, _fY3a, _fZ3a in _faces3a:
+                            _fspatial3a = np.column_stack([_fX3a.ravel(), _fY3a.ravel(), _fZ3a.ravel()])
+                            _face_inside3a.append(np.asarray(geom.inside(_fspatial3a)).reshape(_fX3a.shape))
+                        _all_frames_gif = []
+                        for _tv in _t_frames:
+                            _frame_faces_gif = []
+                            for _fX3a, _fY3a, _fZ3a in _faces3a:
+                                _fpts3a = np.column_stack([_fX3a.ravel(), _fY3a.ravel(), _fZ3a.ravel(), np.full(_fX3a.size, _tv)])
+                                _frame_faces_gif.append(_extract_plot_field(_fpts3a).reshape(_fX3a.shape))
+                            _all_frames_gif.append(_frame_faces_gif)
+                        if {config.plot_auto_range}:
+                            # In-domain values only (every value if no face
+                            # touches the domain, e.g. a Sphere's bounding box).
+                            _inside_vals3a = [_f[_m] for _frame in _all_frames_gif for _f, _m in zip(_frame, _face_inside3a) if _m.any()]
+                            if _inside_vals3a:
+                                _v_min_gif = min(_v.min() for _v in _inside_vals3a)
+                                _v_max_gif = max(_v.max() for _v in _inside_vals3a)
+                            else:
+                                _v_min_gif = min(_f.min() for _frame in _all_frames_gif for _f in _frame)
+                                _v_max_gif = max(_f.max() for _frame in _all_frames_gif for _f in _frame)
+                        else:
+                            _v_min_gif = {config.plot_vmin}
+                            _v_max_gif = {config.plot_vmax}
+                        _fig_gif = plt.figure(figsize=_plot_figsize(7, 5))
+                        _ax_gif = _fig_gif.add_subplot(111, projection='3d')
+                        _norm3a = plt.Normalize(vmin=_v_min_gif, vmax=_v_max_gif)
+                        _cmap_obj3a = plt.get_cmap("{config.plot_colormap}")
+                        _sm3a = plt.cm.ScalarMappable(cmap=_cmap_obj3a, norm=_norm3a)
+                        if {config.plot_colorbar}: _fig_gif.colorbar(_sm3a, ax=_ax_gif, shrink=0.6, pad=0.12)
+                        def _update_gif(i):
+                            _ax_gif.cla()
+                            for _fi3a, (_fX3a, _fY3a, _fZ3a) in enumerate(_faces3a):
+                                _fc3a = np.array(_cmap_obj3a(_norm3a(_all_frames_gif[i][_fi3a])))
+                                _fc3a[..., 3] = np.where(_face_inside3a[_fi3a], 1.0, 0.0)
+                                _ax_gif.plot_surface(_fX3a, _fY3a, _fZ3a, facecolors=_fc3a,
+                                                 rstride=1, cstride=1, linewidth=0, antialiased=False, shade=False)
+                            _ax_gif.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); _ax_gif.set_ylabel(_plot_ylabel_override or "y", fontsize={config.plot_axis_label_fontsize}); _ax_gif.set_zlabel("z", fontsize={config.plot_axis_label_fontsize})
+                            _ax_gif.set_title(_plot_title_override or f"t = {{_t_frames[i]:.3f}}")
+                            try:
+                                _ax_gif.set_box_aspect((_cx1a - _cx0a, _cy1a - _cy0a, _cz1a - _cz0a))
+                            except Exception:
+                                pass
+                        _ani_gif = _anim.FuncAnimation(_fig_gif, _update_gif, frames=_n_frames, interval=150)
+                        _ani_gif.save(_run_solution_path, writer='pillow', fps=_fps)
+                        plt.close(_fig_gif)
+                    else:
+                        _res_anim_gif = {config.plot_resolution}
+                        _x_anim_gif = np.linspace(_plot_x_min, _plot_x_max, _res_anim_gif)
+                        _all_frames_gif = []
+                        if _is_2d:
+                            _y_anim_gif = np.linspace(_plot_y_min, _plot_y_max, _res_anim_gif)
+                            _Xg_gif, _Yg_gif = np.meshgrid(_x_anim_gif, _y_anim_gif)
+                            # cleanup Round 46: NaN out grid points outside the
+                            # real geometry, same as the static 2D Surface plot.
+                            _inside2d_gif = np.asarray(geom.inside(np.column_stack([_Xg_gif.ravel(), _Yg_gif.ravel()]))).reshape(_res_anim_gif, _res_anim_gif)
+                            for _tv in _t_frames:
+                                _xyt_gif = np.column_stack([_Xg_gif.ravel(), _Yg_gif.ravel(), np.full(_Xg_gif.size, _tv)])
+                                _pred_gif = _extract_plot_field(_xyt_gif).reshape(_res_anim_gif, _res_anim_gif)
+                                _pred_gif = np.where(_inside2d_gif, _pred_gif, np.nan)
+                                _all_frames_gif.append((_Xg_gif, _Yg_gif, _pred_gif))
+                        else:
+                            # Same configurable axis orientation as the Standard
+                            # path's static 1D "Surface" plot (Plot Settings ->
+                            # "Swap axes") -- there's no real t-variation within
+                            # a single frame (each frame is one instant, u(x) at
+                            # that t, drawn as a color band against a cosmetic
+                            # t-range axis for width), but the swap still needs
+                            # honoring so a GIF frame's orientation matches the
+                            # static Surface plot's, instead of always being
+                            # x-on-horizontal/t-on-vertical regardless of the
+                            # setting. Same no-reshape-of-Z trick: swapping which
+                            # of _X_anim_gif/_T_anim_gif is stored first is
+                            # enough, since contourf reads each array's own
+                            # coordinate values rather than assuming an axis order.
+                            _t_anim_gif = np.linspace({config.t_min}, {config.t_max}, _res_anim_gif)
+                            _X_anim_gif, _T_anim_gif = np.meshgrid(_x_anim_gif, _t_anim_gif)
+                            for _tv in _t_frames:
+                                _xt_gif2 = np.vstack([_X_anim_gif.ravel(), np.full(_X_anim_gif.size, _tv)]).T
+                                _pred_gif = _extract_plot_field(_xt_gif2).reshape(_res_anim_gif, _res_anim_gif)
+                                if {config.plot_swap_xt}:
+                                    _all_frames_gif.append((_T_anim_gif, _X_anim_gif, _pred_gif))
+                                else:
+                                    _all_frames_gif.append((_X_anim_gif, _T_anim_gif, _pred_gif))
+                        if {config.plot_auto_range}:
+                            _v_min_gif = min(np.nanmin(_f[2]) for _f in _all_frames_gif)
+                            _v_max_gif = max(np.nanmax(_f[2]) for _f in _all_frames_gif)
+                        else:
+                            _v_min_gif = {config.plot_vmin}
+                            _v_max_gif = {config.plot_vmax}
+                        if _is_2d:
+                            _xlabel_gif, _ylabel_gif = "x", "y"
+                        elif {config.plot_swap_xt}:
+                            _xlabel_gif, _ylabel_gif = "t", "x"
+                        else:
+                            _xlabel_gif, _ylabel_gif = "x", "t"
+                        _fig_gif, _ax_gif = plt.subplots(figsize=_plot_figsize(7, 5))
+                        from mpl_toolkits.axes_grid1 import make_axes_locatable as _make_axes_locatable_gif
+                        _div_gif = _make_axes_locatable_gif(_ax_gif)
+                        _cax_gif = _div_gif.append_axes("right", size="5%", pad=0.1)
+                        _sm_gif = plt.cm.ScalarMappable(cmap="{config.plot_colormap}", norm=plt.Normalize(vmin=_v_min_gif, vmax=_v_max_gif))
+                        if {config.plot_colorbar}: _fig_gif.colorbar(_sm_gif, cax=_cax_gif)
+                        def _update_gif(i):
+                            _ax_gif.cla()
+                            _Xp_gif, _Yp_gif, _Zp_gif = _all_frames_gif[i]
+                            _ax_gif.contourf(_Xp_gif, _Yp_gif, _Zp_gif, cmap="{config.plot_colormap}", **_cf_levels({config.plot_levels}, _v_min_gif, _v_max_gif, _Zp_gif))
+                            _ax_gif.set_xlabel(_plot_xlabel_override or _xlabel_gif, fontsize={config.plot_axis_label_fontsize})
+                            _ax_gif.set_ylabel(_plot_ylabel_override or _ylabel_gif, fontsize={config.plot_axis_label_fontsize})
+                            _ax_gif.set_title(_plot_title_override or f"t = {{_t_frames[i]:.3f}}")
+                        _ani_gif = _anim.FuncAnimation(_fig_gif, _update_gif, frames=_n_frames, interval=150)
+                        _ani_gif.save(_run_solution_path, writer='pillow', fps=_fps)
+                        plt.close(_fig_gif)
 
-            _XY = np.column_stack([_Xg.ravel(), _Yg.ravel()])
-            _pred = _extract_plot_field(_XY).reshape(_res_2d, _res_2d)
-            _pred = np.where(_inside_2d, _pred, np.nan)
-            fig, ax = plt.subplots(figsize=_plot_figsize(6.5, 5.5))
-            im = ax.contourf(_Xg, _Yg, _pred, cmap="{config.plot_colormap}", **_cf_levels({config.plot_levels}, _vmin_2d, _vmax_2d, _pred))
-            ax.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or "y", fontsize={config.plot_axis_label_fontsize})
-            ax.set_aspect("equal", adjustable="box")
-            if {config.plot_colorbar}: fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-            out_name = _plot_custom_label if _plot_custom_expr.strip() else {repr(config.output_names)}.split(",")[_plot_idx].strip()
-            fig.suptitle(_plot_title_override or f"PINN Solution — {{out_name}}(x,y)", fontsize={config.plot_title_fontsize})
-            plt.tight_layout()
-            plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
-        elif _is_2d and _plot_type == "Line (time steps)":
-            # 2D "Line (time steps)": overlaid u(x) curves at several times,
-            # all at the configured y slice -- same convention the 1D
-            # "Line (time steps)" branch further below already uses
-            # (num_timesteps_line curves, color-graded by time, legend by
-            # t). Previously this selection silently fell through to the
-            # x-y heatmap branch just below (plot_type was never checked
-            # for 2D/3D at all). Masked to the real geometry with
-            # geom.inside(...) -- the mask only depends on (x, y), not t,
-            # so it's computed once outside the time loop -- same pattern
-            # as the steady-2D Line branch above.
-            _n_steps_l2d = {config.num_timesteps_line}
-            _x_l2d = np.linspace(_plot_x_min, _plot_x_max, {config.plot_resolution})
-            _xy_l2d = np.column_stack([_x_l2d, np.full_like(_x_l2d, {line_slice_y})])
-            _line_in_l2d = geom.inside(_xy_l2d)
-            _x_l2d = _x_l2d[_line_in_l2d]
-            _t_steps_l2d = np.linspace({config.t_min}, {config.t_max}, _n_steps_l2d)
-            out_name = _plot_custom_label if _plot_custom_expr.strip() else {repr(config.output_names)}.split(",")[_plot_idx].strip()
-            fig, ax = plt.subplots(figsize=_plot_figsize(8, 5))
-            if len(_x_l2d) < 2:
-                ax.text(0.5, 0.5, "Line outside the domain at this y slice", ha="center", va="center", transform=ax.transAxes)
-                ax.set_xticks([]); ax.set_yticks([])
-            else:
-                _colors_l2d = plt.get_cmap("{config.plot_colormap}")(np.linspace(0, 1, _n_steps_l2d))
-                for _i_l2d, _tv_l2d in enumerate(_t_steps_l2d):
-                    _xyt_l2d = np.column_stack([_x_l2d, np.full_like(_x_l2d, {line_slice_y}), np.full_like(_x_l2d, _tv_l2d)])
-                    _u_l2d = _extract_plot_field(_xyt_l2d).flatten()
-                    ax.plot(_x_l2d, _u_l2d, color=_colors_l2d[_i_l2d], linewidth={config.plot_linewidth}, label=f"t = {{_tv_l2d:.3f}}")
-                ax.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or f"{{out_name}}(x,y={line_slice_y:.3g},t)", fontsize={config.plot_axis_label_fontsize})
-                ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
-            ax.set_title(_plot_title_override or f"PINN Solution — {{out_name}}(x,y={line_slice_y:.3g},t)")
-            plt.tight_layout(); plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
-        elif _is_2d:
-            # 2D: x-y heatmaps at user-selected number of time snapshots
-            _n_snaps = {config.plot_n_2d_snapshots}
-            _t_snaps = np.linspace({config.t_min}, {config.t_max}, _n_snaps)
-            _res_2d = {config.plot_resolution}
-            _xp = np.linspace(_plot_x_min, _plot_x_max, _res_2d)
-            _yp = np.linspace(_plot_y_min, _plot_y_max, _res_2d)
-            _Xg, _Yg = np.meshgrid(_xp, _yp)
-            # Outside the shape's own boundary (only differs from the bbox
-            # for Disk/Ellipse/Triangle/Polygon), mask the grid so the plot
-            # doesn't show extrapolated model output past the true domain.
-            _inside_2d = geom.inside(np.column_stack([_Xg.ravel(), _Yg.ravel()])).reshape(_res_2d, _res_2d)
-            _vmin_2d = None if {config.plot_auto_range} else {config.plot_vmin}
-            _vmax_2d = None if {config.plot_auto_range} else {config.plot_vmax}
-
-            fig, axes = plt.subplots(1, _n_snaps, figsize=(_plot_figsize(5, 5)[0]*_n_snaps, _plot_figsize(5, 5)[1]))
-            if _n_snaps == 1: axes = [axes]
-            for _ai, _tv in enumerate(_t_snaps):
-                _XYT = np.column_stack([_Xg.ravel(), _Yg.ravel(), np.full(_Xg.size, _tv)])
-                _pred = _extract_plot_field(_XYT).reshape(_res_2d, _res_2d)
-                _pred = np.where(_inside_2d, _pred, np.nan)
-                im = axes[_ai].contourf(_Xg, _Yg, _pred, cmap="{config.plot_colormap}", **_cf_levels({config.plot_levels}, _vmin_2d, _vmax_2d, _pred))
-                axes[_ai].set_title(f"t = {{_tv:.3f}}")
-                axes[_ai].set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); axes[_ai].set_ylabel(_plot_ylabel_override or "y", fontsize={config.plot_axis_label_fontsize})
-                if {config.plot_colorbar}: fig.colorbar(im, ax=axes[_ai])
-            out_name = _plot_custom_label if _plot_custom_expr.strip() else {repr(config.output_names)}.split(",")[_plot_idx].strip()
-            fig.suptitle(_plot_title_override or f"PINN Solution — {{out_name}}(x,y,t)", fontsize={config.plot_title_fontsize})
-            plt.tight_layout(rect=[0, 0, 1, 0.93])
-            plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
-        elif _is_3d and _is_steady and _plot_type == "Line (time steps)":
-            # Steady 3D "Line (time steps)": no time axis, so a single
-            # curve u(x) at the configured y and z slice -- same "one
-            # curve" simplification the steady-2D Line branch above uses.
-            # Masked to the real geometry with geom.inside(...) -- same
-            # pattern as the steady-2D Line branch above.
-            _x_l3ds = np.linspace(_plot_x_min, _plot_x_max, {config.plot_resolution})
-            _xyz_l3ds = np.column_stack([_x_l3ds, np.full_like(_x_l3ds, {line_slice_y}), np.full_like(_x_l3ds, {line_slice_z})])
-            _line_in_l3ds = geom.inside(_xyz_l3ds)
-            _x_l3ds = _x_l3ds[_line_in_l3ds]
-            _xyz_l3ds = _xyz_l3ds[_line_in_l3ds]
-            out_name = _plot_custom_label if _plot_custom_expr.strip() else {repr(config.output_names)}.split(",")[_plot_idx].strip()
-            fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
-            if len(_x_l3ds) < 2:
-                ax.text(0.5, 0.5, "Line outside the domain at this y/z slice", ha="center", va="center", transform=ax.transAxes)
-                ax.set_xticks([]); ax.set_yticks([])
-            else:
-                _u_l3ds = _extract_plot_field(_xyz_l3ds).flatten()
-                ax.plot(_x_l3ds, _u_l3ds, color="#4dabf7", linewidth={config.plot_linewidth})
-                ax.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or f"{{out_name}}(x,y={line_slice_y:.3g},z={line_slice_z:.3g})", fontsize={config.plot_axis_label_fontsize})
-                ax.grid(True, alpha=0.2)
-            ax.set_title(_plot_title_override or f"PINN Solution — {{out_name}}(x,y={line_slice_y:.3g},z={line_slice_z:.3g})")
-            plt.tight_layout(); plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
-        elif _is_3d and _is_steady:
-            # Steady-state 3D: same "x-y heatmap at the z mid-plane"
-            # simplification as the time-dependent 3D branch below, but a
-            # single static plot -- no time axis, no time snapshots, and a
-            # 3-column (x,y,z) model input rather than 4.
-            _res_3d = {config.plot_resolution}
-            _xp3 = np.linspace(_plot_x_min, _plot_x_max, _res_3d)
-            _yp3 = np.linspace(_plot_y_min, _plot_y_max, _res_3d)
-            _Xg3, _Yg3 = np.meshgrid(_xp3, _yp3)
-            _z_mid = (_plot_z_min + _plot_z_max) / 2.0
-            _inside_3d = geom.inside(np.column_stack(
-                [_Xg3.ravel(), _Yg3.ravel(), np.full(_Xg3.size, _z_mid)])).reshape(_res_3d, _res_3d)
-            _vmin_3d = None if {config.plot_auto_range} else {config.plot_vmin}
-            _vmax_3d = None if {config.plot_auto_range} else {config.plot_vmax}
-
-            _XYZ = np.column_stack([_Xg3.ravel(), _Yg3.ravel(), np.full(_Xg3.size, _z_mid)])
-            _pred3 = _extract_plot_field(_XYZ).reshape(_res_3d, _res_3d)
-            _pred3 = np.where(_inside_3d, _pred3, np.nan)
-            fig, ax = plt.subplots(figsize=_plot_figsize(6.5, 5.5))
-            im = ax.contourf(_Xg3, _Yg3, _pred3, cmap="{config.plot_colormap}", **_cf_levels({config.plot_levels}, _vmin_3d, _vmax_3d, _pred3))
-            ax.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or "y", fontsize={config.plot_axis_label_fontsize})
-            ax.set_aspect("equal", adjustable="box")
-            if {config.plot_colorbar}: fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-            out_name = _plot_custom_label if _plot_custom_expr.strip() else {repr(config.output_names)}.split(",")[_plot_idx].strip()
-            fig.suptitle(_plot_title_override or f"PINN Solution — {{out_name}}(x,y,z={{_z_mid:.3g}})", fontsize={config.plot_title_fontsize})
-            plt.tight_layout()
-            plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
-        elif _is_3d and _plot_type == "Line (time steps)":
-            # 3D "Line (time steps)": overlaid u(x) curves at several
-            # times, all at the configured y and z slice -- same
-            # convention as the 2D Line branch above and the 1D one
-            # further below. Previously this selection silently fell
-            # through to the x-y heatmap branch just below. Masked to the
-            # real geometry with geom.inside(...) -- the mask only depends
-            # on (x, y, z), not t, so it's computed once outside the time
-            # loop -- same pattern as the 2D time-dependent Line branch
-            # above.
-            _n_steps_l3d = {config.num_timesteps_line}
-            _x_l3d = np.linspace(_plot_x_min, _plot_x_max, {config.plot_resolution})
-            _xyz_l3d = np.column_stack([_x_l3d, np.full_like(_x_l3d, {line_slice_y}), np.full_like(_x_l3d, {line_slice_z})])
-            _line_in_l3d = geom.inside(_xyz_l3d)
-            _x_l3d = _x_l3d[_line_in_l3d]
-            _t_steps_l3d = np.linspace({config.t_min}, {config.t_max}, _n_steps_l3d)
-            out_name = _plot_custom_label if _plot_custom_expr.strip() else {repr(config.output_names)}.split(",")[_plot_idx].strip()
-            fig, ax = plt.subplots(figsize=_plot_figsize(8, 5))
-            if len(_x_l3d) < 2:
-                ax.text(0.5, 0.5, "Line outside the domain at this y/z slice", ha="center", va="center", transform=ax.transAxes)
-                ax.set_xticks([]); ax.set_yticks([])
-            else:
-                _colors_l3d = plt.get_cmap("{config.plot_colormap}")(np.linspace(0, 1, _n_steps_l3d))
-                for _i_l3d, _tv_l3d in enumerate(_t_steps_l3d):
-                    _xyzt_l3d = np.column_stack([_x_l3d, np.full_like(_x_l3d, {line_slice_y}), np.full_like(_x_l3d, {line_slice_z}), np.full_like(_x_l3d, _tv_l3d)])
-                    _u_l3d = _extract_plot_field(_xyzt_l3d).flatten()
-                    ax.plot(_x_l3d, _u_l3d, color=_colors_l3d[_i_l3d], linewidth={config.plot_linewidth}, label=f"t = {{_tv_l3d:.3f}}")
-                ax.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or f"{{out_name}}(x,y={line_slice_y:.3g},z={line_slice_z:.3g},t)", fontsize={config.plot_axis_label_fontsize})
-                ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
-            ax.set_title(_plot_title_override or f"PINN Solution — {{out_name}}(x,y={line_slice_y:.3g},z={line_slice_z:.3g},t)")
-            plt.tight_layout(); plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
-        elif _is_3d:
-            # 3D: no volumetric renderer yet -- plot an x-y heatmap at the
-            # domain's z mid-plane, at the same time snapshots the 2D case
-            # uses, so the run finishes with a solution plot instead of
-            # crashing. Full 3D visualization (multiple slices / isosurfaces)
-            # is a possible future addition once there's a template that
-            # needs it.
-            _n_snaps = {config.plot_n_2d_snapshots}
-            _t_snaps = np.linspace({config.t_min}, {config.t_max}, _n_snaps)
-            _res_3d = {config.plot_resolution}
-            _xp3 = np.linspace(_plot_x_min, _plot_x_max, _res_3d)
-            _yp3 = np.linspace(_plot_y_min, _plot_y_max, _res_3d)
-            _Xg3, _Yg3 = np.meshgrid(_xp3, _yp3)
-            _z_mid = (_plot_z_min + _plot_z_max) / 2.0
-            # Mask points outside the true 3D shape at this z-slice (only
-            # differs from the bbox for Sphere) -- same reasoning as the 2D
-            # branch above.
-            _inside_3d = geom.inside(np.column_stack(
-                [_Xg3.ravel(), _Yg3.ravel(), np.full(_Xg3.size, _z_mid)])).reshape(_res_3d, _res_3d)
-            _vmin_3d = None if {config.plot_auto_range} else {config.plot_vmin}
-            _vmax_3d = None if {config.plot_auto_range} else {config.plot_vmax}
-
-            fig, axes = plt.subplots(1, _n_snaps, figsize=(_plot_figsize(5, 5)[0]*_n_snaps, _plot_figsize(5, 5)[1]))
-            if _n_snaps == 1: axes = [axes]
-            for _ai, _tv in enumerate(_t_snaps):
-                _XYZT = np.column_stack([_Xg3.ravel(), _Yg3.ravel(), np.full(_Xg3.size, _z_mid), np.full(_Xg3.size, _tv)])
-                _pred3 = _extract_plot_field(_XYZT).reshape(_res_3d, _res_3d)
-                _pred3 = np.where(_inside_3d, _pred3, np.nan)
-                im = axes[_ai].contourf(_Xg3, _Yg3, _pred3, cmap="{config.plot_colormap}", **_cf_levels({config.plot_levels}, _vmin_3d, _vmax_3d, _pred3))
-                axes[_ai].set_title(f"t = {{_tv:.3f}}, z = {{_z_mid:.3g}} (mid-plane)")
-                axes[_ai].set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); axes[_ai].set_ylabel(_plot_ylabel_override or "y", fontsize={config.plot_axis_label_fontsize})
-                if {config.plot_colorbar}: fig.colorbar(im, ax=axes[_ai])
-            out_name = _plot_custom_label if _plot_custom_expr.strip() else {repr(config.output_names)}.split(",")[_plot_idx].strip()
-            fig.suptitle(_plot_title_override or f"PINN Solution — {{out_name}}(x,y,z={{_z_mid:.3g}},t)", fontsize={config.plot_title_fontsize})
-            plt.tight_layout(rect=[0, 0, 1, 0.93])
-            plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
-        elif _is_steady:
-            # Steady-state 1D: a single static curve u(x) -- no time axis
-            # at all, so neither of the time-dependent 1D plot types
-            # ("Surface" over x,t / "Line (time steps)") apply.
-            _res_1d = {config.plot_resolution}
-            _x_1d = np.linspace({config.x_min}, {config.x_max}, _res_1d)
-            _u_1d = _extract_plot_field(_x_1d.reshape(-1, 1)).flatten()
-            _out_name_1d = _plot_custom_label if _plot_custom_expr.strip() else {repr(config.output_names)}.split(",")[_plot_idx].strip()
-            fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
-            ax.plot(_x_1d, _u_1d, color="#4dabf7", linewidth={config.plot_linewidth})
-            ax.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or f"{{_out_name_1d}}(x)", fontsize={config.plot_axis_label_fontsize})
-            ax.set_title(_plot_title_override or (f"PINN Solution — {{_param_name}}={{_pval}}" if _parametric else "PINN Solution"))
-            ax.grid(True, alpha=0.2)
-            plt.tight_layout(); plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
-        else:
-            # 1D plot (_plot_type already computed above)
-            if _plot_type == "Surface":
-                _res = {config.plot_resolution}
-                _x_s = np.linspace({config.x_min}, {config.x_max}, _res)
-                _t_s = np.linspace({config.t_min}, {config.t_max}, _res)
-                _Xs, _Ts = np.meshgrid(_x_s, _t_s)
-                _XTs = np.vstack([_Xs.ravel(), _Ts.ravel()]).T
-                _u_s = _extract_plot_field(_XTs).reshape(_res, _res)
-                _out_name_1dt = _plot_custom_label if _plot_custom_expr.strip() else {repr(config.output_names)}.split(",")[_plot_idx].strip()
-                _vmin_s = None if {config.plot_auto_range} else {config.plot_vmin}
-                _vmax_s = None if {config.plot_auto_range} else {config.plot_vmax}
-                print(f"Plot settings: cmap={config.plot_colormap}, levels={config.plot_levels}, dpi={config.plot_dpi}, res={config.plot_resolution}")
+            elif _is_2d and _is_steady and _plot_type == "Line (time steps)":
+                # Steady 2D "Line (time steps)": no time axis to step through,
+                # so this is a single curve u(x) at the configured y slice --
+                # same "one curve regardless of plot type" simplification the
+                # steady-1D branch below already uses. Previously this
+                # selection silently fell through to the x-y heatmap branch
+                # just below (plot_type was never checked for 2D/3D at all).
+                # Masked to the real geometry with geom.inside(...) -- same
+                # pattern the x-y heatmap branch below already uses, and the
+                # same fix Error Analysis's own Line Comparison plot got in
+                # Rounds 36/37 -- so a non-rectangular domain (L-Shape, Disk,
+                # ...) doesn't evaluate/plot the model somewhere it was never
+                # trained, past the true boundary at this y slice.
+                _x_l2ds = np.linspace(_plot_x_min, _plot_x_max, {config.plot_resolution})
+                _xy_l2ds = np.column_stack([_x_l2ds, np.full_like(_x_l2ds, {line_slice_y})])
+                _line_in_l2ds = geom.inside(_xy_l2ds)
+                _x_l2ds = _x_l2ds[_line_in_l2ds]
+                _xy_l2ds = _xy_l2ds[_line_in_l2ds]
+                out_name = _plot_custom_label if _plot_custom_expr.strip() else {repr(config.output_names)}.split(",")[_plot_idx].strip()
                 fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
-                # Axis orientation is configurable (Plot Settings ->
-                # "Swap axes"); contourf just needs its three arrays to
-                # line up element-for-element, so swapping which of
-                # _Xs/_Ts is passed first -- with no reshape/transpose of
-                # _u_s -- is enough to flip which one lands on the x-axis.
-                if {config.plot_swap_xt}:
-                    im = ax.contourf(_Ts, _Xs, _u_s, cmap="{config.plot_colormap}", **_cf_levels({config.plot_levels}, _vmin_s, _vmax_s, _u_s))
-                    ax.set_xlabel(_plot_xlabel_override or "t", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or "x", fontsize={config.plot_axis_label_fontsize})
+                if len(_x_l2ds) < 2:
+                    ax.text(0.5, 0.5, "Line outside the domain at this y slice", ha="center", va="center", transform=ax.transAxes)
+                    ax.set_xticks([]); ax.set_yticks([])
                 else:
-                    im = ax.contourf(_Xs, _Ts, _u_s, cmap="{config.plot_colormap}", **_cf_levels({config.plot_levels}, _vmin_s, _vmax_s, _u_s))
-                    ax.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or "t", fontsize={config.plot_axis_label_fontsize})
-                if {config.plot_colorbar}: fig.colorbar(im, ax=ax)
-                ax.set_title(_plot_title_override or (f"PINN Solution — {{_out_name_1dt}}(x,t) — {{_param_name}}={{_pval}}" if _parametric
-                              else f"PINN Solution — {{_out_name_1dt}}(x,t)"))
+                    _u_l2ds = _extract_plot_field(_xy_l2ds).flatten()
+                    ax.plot(_x_l2ds, _u_l2ds, color="#4dabf7", linewidth={config.plot_linewidth})
+                    ax.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or f"{{out_name}}(x,y={line_slice_y:.3g})", fontsize={config.plot_axis_label_fontsize})
+                    ax.grid(True, alpha=0.2)
+                ax.set_title(_plot_title_override or f"PINN Solution — {{out_name}}(x,y={line_slice_y:.3g})")
                 plt.tight_layout(); plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
+            elif _is_2d and _is_steady:
+                # Steady-state 2D: a single static x-y heatmap of u(x,y) -- no
+                # time axis, so no time snapshots and no time column on the
+                # model input (matches the 2-column network input built for
+                # steady 2D problems).
+                _res_2d = {config.plot_resolution}
+                _xp = np.linspace(_plot_x_min, _plot_x_max, _res_2d)
+                _yp = np.linspace(_plot_y_min, _plot_y_max, _res_2d)
+                _Xg, _Yg = np.meshgrid(_xp, _yp)
+                _inside_2d = geom.inside(np.column_stack([_Xg.ravel(), _Yg.ravel()])).reshape(_res_2d, _res_2d)
+                _vmin_2d = None if {config.plot_auto_range} else {config.plot_vmin}
+                _vmax_2d = None if {config.plot_auto_range} else {config.plot_vmax}
 
-            elif _plot_type == "Line (time steps)":
-                n_steps_plot = {config.num_timesteps_line}
-                _x_l = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
-                t_steps_plot = np.linspace({config.t_min}, {config.t_max}, n_steps_plot)
+                _XY = np.column_stack([_Xg.ravel(), _Yg.ravel()])
+                _pred = _extract_plot_field(_XY).reshape(_res_2d, _res_2d)
+                _pred = np.where(_inside_2d, _pred, np.nan)
+                fig, ax = plt.subplots(figsize=_plot_figsize(6.5, 5.5))
+                im = ax.contourf(_Xg, _Yg, _pred, cmap="{config.plot_colormap}", **_cf_levels({config.plot_levels}, _vmin_2d, _vmax_2d, _pred))
+                ax.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or "y", fontsize={config.plot_axis_label_fontsize})
+                ax.set_aspect("equal", adjustable="box")
+                if {config.plot_colorbar}: fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+                out_name = _plot_custom_label if _plot_custom_expr.strip() else {repr(config.output_names)}.split(",")[_plot_idx].strip()
+                fig.suptitle(_plot_title_override or f"PINN Solution — {{out_name}}(x,y)", fontsize={config.plot_title_fontsize})
+                plt.tight_layout()
+                plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
+            elif _is_2d and _plot_type == "Line (time steps)":
+                # 2D "Line (time steps)": overlaid u(x) curves at several times,
+                # all at the configured y slice -- same convention the 1D
+                # "Line (time steps)" branch further below already uses
+                # (num_timesteps_line curves, color-graded by time, legend by
+                # t). Previously this selection silently fell through to the
+                # x-y heatmap branch just below (plot_type was never checked
+                # for 2D/3D at all). Masked to the real geometry with
+                # geom.inside(...) -- the mask only depends on (x, y), not t,
+                # so it's computed once outside the time loop -- same pattern
+                # as the steady-2D Line branch above.
+                _n_steps_l2d = {config.num_timesteps_line}
+                _x_l2d = np.linspace(_plot_x_min, _plot_x_max, {config.plot_resolution})
+                _xy_l2d = np.column_stack([_x_l2d, np.full_like(_x_l2d, {line_slice_y})])
+                _line_in_l2d = geom.inside(_xy_l2d)
+                _x_l2d = _x_l2d[_line_in_l2d]
+                _t_steps_l2d = np.linspace({config.t_min}, {config.t_max}, _n_steps_l2d)
+                out_name = _plot_custom_label if _plot_custom_expr.strip() else {repr(config.output_names)}.split(",")[_plot_idx].strip()
                 fig, ax = plt.subplots(figsize=_plot_figsize(8, 5))
-                colors = plt.get_cmap("{config.plot_colormap}")(np.linspace(0, 1, n_steps_plot))
-                _out_name_line = _plot_custom_label if _plot_custom_expr.strip() else {repr(config.output_names)}.split(",")[_plot_idx].strip()
-                for i, t_val in enumerate(t_steps_plot):
-                    xt = np.column_stack([_x_l, np.full_like(_x_l, t_val)])
-                    u_line = _extract_plot_field(xt).flatten()
-                    ax.plot(_x_l, u_line, color=colors[i], linewidth={config.plot_linewidth}, label=f"t = {{t_val:.3f}}")
-                ax.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or f"{{_out_name_line}}(x,t)", fontsize={config.plot_axis_label_fontsize})
-                ax.set_title(_plot_title_override or (f"PINN Solution — {{_param_name}}={{_pval}}" if _parametric else "PINN Solution"))
-                ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
+                if len(_x_l2d) < 2:
+                    ax.text(0.5, 0.5, "Line outside the domain at this y slice", ha="center", va="center", transform=ax.transAxes)
+                    ax.set_xticks([]); ax.set_yticks([])
+                else:
+                    _colors_l2d = plt.get_cmap("{config.plot_colormap}")(np.linspace(0, 1, _n_steps_l2d))
+                    for _i_l2d, _tv_l2d in enumerate(_t_steps_l2d):
+                        _xyt_l2d = np.column_stack([_x_l2d, np.full_like(_x_l2d, {line_slice_y}), np.full_like(_x_l2d, _tv_l2d)])
+                        _u_l2d = _extract_plot_field(_xyt_l2d).flatten()
+                        ax.plot(_x_l2d, _u_l2d, color=_colors_l2d[_i_l2d], linewidth={config.plot_linewidth}, label=f"t = {{_tv_l2d:.3f}}")
+                    ax.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or f"{{out_name}}(x,y={line_slice_y:.3g},t)", fontsize={config.plot_axis_label_fontsize})
+                    ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
+                ax.set_title(_plot_title_override or f"PINN Solution — {{out_name}}(x,y={line_slice_y:.3g},t)")
                 plt.tight_layout(); plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
+            elif _is_2d:
+                # 2D: x-y heatmaps at user-selected number of time snapshots
+                _n_snaps = {config.plot_n_2d_snapshots}
+                _t_snaps = np.linspace({config.t_min}, {config.t_max}, _n_snaps)
+                _res_2d = {config.plot_resolution}
+                _xp = np.linspace(_plot_x_min, _plot_x_max, _res_2d)
+                _yp = np.linspace(_plot_y_min, _plot_y_max, _res_2d)
+                _Xg, _Yg = np.meshgrid(_xp, _yp)
+                # Outside the shape's own boundary (only differs from the bbox
+                # for Disk/Ellipse/Triangle/Polygon), mask the grid so the plot
+                # doesn't show extrapolated model output past the true domain.
+                _inside_2d = geom.inside(np.column_stack([_Xg.ravel(), _Yg.ravel()])).reshape(_res_2d, _res_2d)
+                _vmin_2d = None if {config.plot_auto_range} else {config.plot_vmin}
+                _vmax_2d = None if {config.plot_auto_range} else {config.plot_vmax}
 
+                fig, axes = plt.subplots(1, _n_snaps, figsize=(_plot_figsize(5, 5)[0]*_n_snaps, _plot_figsize(5, 5)[1]))
+                if _n_snaps == 1: axes = [axes]
+                for _ai, _tv in enumerate(_t_snaps):
+                    _XYT = np.column_stack([_Xg.ravel(), _Yg.ravel(), np.full(_Xg.size, _tv)])
+                    _pred = _extract_plot_field(_XYT).reshape(_res_2d, _res_2d)
+                    _pred = np.where(_inside_2d, _pred, np.nan)
+                    im = axes[_ai].contourf(_Xg, _Yg, _pred, cmap="{config.plot_colormap}", **_cf_levels({config.plot_levels}, _vmin_2d, _vmax_2d, _pred))
+                    axes[_ai].set_title(f"t = {{_tv:.3f}}")
+                    axes[_ai].set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); axes[_ai].set_ylabel(_plot_ylabel_override or "y", fontsize={config.plot_axis_label_fontsize})
+                    if {config.plot_colorbar}: fig.colorbar(im, ax=axes[_ai])
+                out_name = _plot_custom_label if _plot_custom_expr.strip() else {repr(config.output_names)}.split(",")[_plot_idx].strip()
+                fig.suptitle(_plot_title_override or f"PINN Solution — {{out_name}}(x,y,t)", fontsize={config.plot_title_fontsize})
+                plt.tight_layout(rect=[0, 0, 1, 0.93])
+                plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
+            elif _is_3d and _is_steady and _plot_type == "Line (time steps)":
+                # Steady 3D "Line (time steps)": no time axis, so a single
+                # curve u(x) at the configured y and z slice -- same "one
+                # curve" simplification the steady-2D Line branch above uses.
+                # Masked to the real geometry with geom.inside(...) -- same
+                # pattern as the steady-2D Line branch above.
+                _x_l3ds = np.linspace(_plot_x_min, _plot_x_max, {config.plot_resolution})
+                _xyz_l3ds = np.column_stack([_x_l3ds, np.full_like(_x_l3ds, {line_slice_y}), np.full_like(_x_l3ds, {line_slice_z})])
+                _line_in_l3ds = geom.inside(_xyz_l3ds)
+                _x_l3ds = _x_l3ds[_line_in_l3ds]
+                _xyz_l3ds = _xyz_l3ds[_line_in_l3ds]
+                out_name = _plot_custom_label if _plot_custom_expr.strip() else {repr(config.output_names)}.split(",")[_plot_idx].strip()
+                fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
+                if len(_x_l3ds) < 2:
+                    ax.text(0.5, 0.5, "Line outside the domain at this y/z slice", ha="center", va="center", transform=ax.transAxes)
+                    ax.set_xticks([]); ax.set_yticks([])
+                else:
+                    _u_l3ds = _extract_plot_field(_xyz_l3ds).flatten()
+                    ax.plot(_x_l3ds, _u_l3ds, color="#4dabf7", linewidth={config.plot_linewidth})
+                    ax.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or f"{{out_name}}(x,y={line_slice_y:.3g},z={line_slice_z:.3g})", fontsize={config.plot_axis_label_fontsize})
+                    ax.grid(True, alpha=0.2)
+                ax.set_title(_plot_title_override or f"PINN Solution — {{out_name}}(x,y={line_slice_y:.3g},z={line_slice_z:.3g})")
+                plt.tight_layout(); plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
+            elif _is_3d and _is_steady:
+                # Steady-state 3D: same "x-y heatmap at the z mid-plane"
+                # simplification as the time-dependent 3D branch below, but a
+                # single static plot -- no time axis, no time snapshots, and a
+                # 3-column (x,y,z) model input rather than 4.
+                _res_3d = {config.plot_resolution}
+                _xp3 = np.linspace(_plot_x_min, _plot_x_max, _res_3d)
+                _yp3 = np.linspace(_plot_y_min, _plot_y_max, _res_3d)
+                _Xg3, _Yg3 = np.meshgrid(_xp3, _yp3)
+                _z_mid = (_plot_z_min + _plot_z_max) / 2.0
+                _inside_3d = geom.inside(np.column_stack(
+                    [_Xg3.ravel(), _Yg3.ravel(), np.full(_Xg3.size, _z_mid)])).reshape(_res_3d, _res_3d)
+                _vmin_3d = None if {config.plot_auto_range} else {config.plot_vmin}
+                _vmax_3d = None if {config.plot_auto_range} else {config.plot_vmax}
+
+                _XYZ = np.column_stack([_Xg3.ravel(), _Yg3.ravel(), np.full(_Xg3.size, _z_mid)])
+                _pred3 = _extract_plot_field(_XYZ).reshape(_res_3d, _res_3d)
+                _pred3 = np.where(_inside_3d, _pred3, np.nan)
+                fig, ax = plt.subplots(figsize=_plot_figsize(6.5, 5.5))
+                im = ax.contourf(_Xg3, _Yg3, _pred3, cmap="{config.plot_colormap}", **_cf_levels({config.plot_levels}, _vmin_3d, _vmax_3d, _pred3))
+                ax.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or "y", fontsize={config.plot_axis_label_fontsize})
+                ax.set_aspect("equal", adjustable="box")
+                if {config.plot_colorbar}: fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+                out_name = _plot_custom_label if _plot_custom_expr.strip() else {repr(config.output_names)}.split(",")[_plot_idx].strip()
+                fig.suptitle(_plot_title_override or f"PINN Solution — {{out_name}}(x,y,z={{_z_mid:.3g}})", fontsize={config.plot_title_fontsize})
+                plt.tight_layout()
+                plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
+            elif _is_3d and _plot_type == "Line (time steps)":
+                # 3D "Line (time steps)": overlaid u(x) curves at several
+                # times, all at the configured y and z slice -- same
+                # convention as the 2D Line branch above and the 1D one
+                # further below. Previously this selection silently fell
+                # through to the x-y heatmap branch just below. Masked to the
+                # real geometry with geom.inside(...) -- the mask only depends
+                # on (x, y, z), not t, so it's computed once outside the time
+                # loop -- same pattern as the 2D time-dependent Line branch
+                # above.
+                _n_steps_l3d = {config.num_timesteps_line}
+                _x_l3d = np.linspace(_plot_x_min, _plot_x_max, {config.plot_resolution})
+                _xyz_l3d = np.column_stack([_x_l3d, np.full_like(_x_l3d, {line_slice_y}), np.full_like(_x_l3d, {line_slice_z})])
+                _line_in_l3d = geom.inside(_xyz_l3d)
+                _x_l3d = _x_l3d[_line_in_l3d]
+                _t_steps_l3d = np.linspace({config.t_min}, {config.t_max}, _n_steps_l3d)
+                out_name = _plot_custom_label if _plot_custom_expr.strip() else {repr(config.output_names)}.split(",")[_plot_idx].strip()
+                fig, ax = plt.subplots(figsize=_plot_figsize(8, 5))
+                if len(_x_l3d) < 2:
+                    ax.text(0.5, 0.5, "Line outside the domain at this y/z slice", ha="center", va="center", transform=ax.transAxes)
+                    ax.set_xticks([]); ax.set_yticks([])
+                else:
+                    _colors_l3d = plt.get_cmap("{config.plot_colormap}")(np.linspace(0, 1, _n_steps_l3d))
+                    for _i_l3d, _tv_l3d in enumerate(_t_steps_l3d):
+                        _xyzt_l3d = np.column_stack([_x_l3d, np.full_like(_x_l3d, {line_slice_y}), np.full_like(_x_l3d, {line_slice_z}), np.full_like(_x_l3d, _tv_l3d)])
+                        _u_l3d = _extract_plot_field(_xyzt_l3d).flatten()
+                        ax.plot(_x_l3d, _u_l3d, color=_colors_l3d[_i_l3d], linewidth={config.plot_linewidth}, label=f"t = {{_tv_l3d:.3f}}")
+                    ax.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or f"{{out_name}}(x,y={line_slice_y:.3g},z={line_slice_z:.3g},t)", fontsize={config.plot_axis_label_fontsize})
+                    ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
+                ax.set_title(_plot_title_override or f"PINN Solution — {{out_name}}(x,y={line_slice_y:.3g},z={line_slice_z:.3g},t)")
+                plt.tight_layout(); plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
+            elif _is_3d:
+                # 3D: no volumetric renderer yet -- plot an x-y heatmap at the
+                # domain's z mid-plane, at the same time snapshots the 2D case
+                # uses, so the run finishes with a solution plot instead of
+                # crashing. Full 3D visualization (multiple slices / isosurfaces)
+                # is a possible future addition once there's a template that
+                # needs it.
+                _n_snaps = {config.plot_n_2d_snapshots}
+                _t_snaps = np.linspace({config.t_min}, {config.t_max}, _n_snaps)
+                _res_3d = {config.plot_resolution}
+                _xp3 = np.linspace(_plot_x_min, _plot_x_max, _res_3d)
+                _yp3 = np.linspace(_plot_y_min, _plot_y_max, _res_3d)
+                _Xg3, _Yg3 = np.meshgrid(_xp3, _yp3)
+                _z_mid = (_plot_z_min + _plot_z_max) / 2.0
+                # Mask points outside the true 3D shape at this z-slice (only
+                # differs from the bbox for Sphere) -- same reasoning as the 2D
+                # branch above.
+                _inside_3d = geom.inside(np.column_stack(
+                    [_Xg3.ravel(), _Yg3.ravel(), np.full(_Xg3.size, _z_mid)])).reshape(_res_3d, _res_3d)
+                _vmin_3d = None if {config.plot_auto_range} else {config.plot_vmin}
+                _vmax_3d = None if {config.plot_auto_range} else {config.plot_vmax}
+
+                fig, axes = plt.subplots(1, _n_snaps, figsize=(_plot_figsize(5, 5)[0]*_n_snaps, _plot_figsize(5, 5)[1]))
+                if _n_snaps == 1: axes = [axes]
+                for _ai, _tv in enumerate(_t_snaps):
+                    _XYZT = np.column_stack([_Xg3.ravel(), _Yg3.ravel(), np.full(_Xg3.size, _z_mid), np.full(_Xg3.size, _tv)])
+                    _pred3 = _extract_plot_field(_XYZT).reshape(_res_3d, _res_3d)
+                    _pred3 = np.where(_inside_3d, _pred3, np.nan)
+                    im = axes[_ai].contourf(_Xg3, _Yg3, _pred3, cmap="{config.plot_colormap}", **_cf_levels({config.plot_levels}, _vmin_3d, _vmax_3d, _pred3))
+                    axes[_ai].set_title(f"t = {{_tv:.3f}}, z = {{_z_mid:.3g}} (mid-plane)")
+                    axes[_ai].set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); axes[_ai].set_ylabel(_plot_ylabel_override or "y", fontsize={config.plot_axis_label_fontsize})
+                    if {config.plot_colorbar}: fig.colorbar(im, ax=axes[_ai])
+                out_name = _plot_custom_label if _plot_custom_expr.strip() else {repr(config.output_names)}.split(",")[_plot_idx].strip()
+                fig.suptitle(_plot_title_override or f"PINN Solution — {{out_name}}(x,y,z={{_z_mid:.3g}},t)", fontsize={config.plot_title_fontsize})
+                plt.tight_layout(rect=[0, 0, 1, 0.93])
+                plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
+            elif _is_steady:
+                # Steady-state 1D: a single static curve u(x) -- no time axis
+                # at all, so neither of the time-dependent 1D plot types
+                # ("Surface" over x,t / "Line (time steps)") apply.
+                _res_1d = {config.plot_resolution}
+                _x_1d = np.linspace({config.x_min}, {config.x_max}, _res_1d)
+                _u_1d = _extract_plot_field(_x_1d.reshape(-1, 1)).flatten()
+                _out_name_1d = _plot_custom_label if _plot_custom_expr.strip() else {repr(config.output_names)}.split(",")[_plot_idx].strip()
+                fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
+                ax.plot(_x_1d, _u_1d, color="#4dabf7", linewidth={config.plot_linewidth})
+                ax.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or f"{{_out_name_1d}}(x)", fontsize={config.plot_axis_label_fontsize})
+                ax.set_title(_plot_title_override or (f"PINN Solution — {{_param_name}}={{_pval}}" if _parametric
+                              else (f"PINN Solution — {{_out_name_1d}}(x)" if _plot_n_out > 1 or _plot_custom_expr.strip() else "PINN Solution")))
+                ax.grid(True, alpha=0.2)
+                plt.tight_layout(); plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
+            else:
+                # 1D plot (_plot_type already computed above)
+                if _plot_type == "Surface":
+                    _res = {config.plot_resolution}
+                    _x_s = np.linspace({config.x_min}, {config.x_max}, _res)
+                    _t_s = np.linspace({config.t_min}, {config.t_max}, _res)
+                    _Xs, _Ts = np.meshgrid(_x_s, _t_s)
+                    _XTs = np.vstack([_Xs.ravel(), _Ts.ravel()]).T
+                    _u_s = _extract_plot_field(_XTs).reshape(_res, _res)
+                    _out_name_1dt = _plot_custom_label if _plot_custom_expr.strip() else {repr(config.output_names)}.split(",")[_plot_idx].strip()
+                    _vmin_s = None if {config.plot_auto_range} else {config.plot_vmin}
+                    _vmax_s = None if {config.plot_auto_range} else {config.plot_vmax}
+                    print(f"Plot settings: cmap={config.plot_colormap}, levels={config.plot_levels}, dpi={config.plot_dpi}, res={config.plot_resolution}")
+                    fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
+                    # Axis orientation is configurable (Plot Settings ->
+                    # "Swap axes"); contourf just needs its three arrays to
+                    # line up element-for-element, so swapping which of
+                    # _Xs/_Ts is passed first -- with no reshape/transpose of
+                    # _u_s -- is enough to flip which one lands on the x-axis.
+                    if {config.plot_swap_xt}:
+                        im = ax.contourf(_Ts, _Xs, _u_s, cmap="{config.plot_colormap}", **_cf_levels({config.plot_levels}, _vmin_s, _vmax_s, _u_s))
+                        ax.set_xlabel(_plot_xlabel_override or "t", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or "x", fontsize={config.plot_axis_label_fontsize})
+                    else:
+                        im = ax.contourf(_Xs, _Ts, _u_s, cmap="{config.plot_colormap}", **_cf_levels({config.plot_levels}, _vmin_s, _vmax_s, _u_s))
+                        ax.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or "t", fontsize={config.plot_axis_label_fontsize})
+                    if {config.plot_colorbar}: fig.colorbar(im, ax=ax)
+                    ax.set_title(_plot_title_override or (f"PINN Solution — {{_out_name_1dt}}(x,t) — {{_param_name}}={{_pval}}" if _parametric
+                                  else f"PINN Solution — {{_out_name_1dt}}(x,t)"))
+                    plt.tight_layout(); plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
+
+                elif _plot_type == "Line (time steps)":
+                    n_steps_plot = {config.num_timesteps_line}
+                    _x_l = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
+                    t_steps_plot = np.linspace({config.t_min}, {config.t_max}, n_steps_plot)
+                    fig, ax = plt.subplots(figsize=_plot_figsize(8, 5))
+                    colors = plt.get_cmap("{config.plot_colormap}")(np.linspace(0, 1, n_steps_plot))
+                    _out_name_line = _plot_custom_label if _plot_custom_expr.strip() else {repr(config.output_names)}.split(",")[_plot_idx].strip()
+                    for i, t_val in enumerate(t_steps_plot):
+                        xt = np.column_stack([_x_l, np.full_like(_x_l, t_val)])
+                        u_line = _extract_plot_field(xt).flatten()
+                        ax.plot(_x_l, u_line, color=colors[i], linewidth={config.plot_linewidth}, label=f"t = {{t_val:.3f}}")
+                    ax.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or f"{{_out_name_line}}(x,t)", fontsize={config.plot_axis_label_fontsize})
+                    ax.set_title(_plot_title_override or (f"PINN Solution — {{_param_name}}={{_pval}}" if _parametric
+                                  else (f"PINN Solution — {{_out_name_line}}(x,t)" if _plot_n_out > 1 or _plot_custom_expr.strip() else "PINN Solution")))
+                    ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
+                    plt.tight_layout(); plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
+
+        _plot_idx, _run_solution_path = _plot_main_job
         import shutil as _shutil
         if _run_loss_path != "/tmp/loss_plot.png":
             _shutil.copy(_run_loss_path, "/tmp/loss_plot.png")
@@ -6690,7 +6750,7 @@ for _pval in _param_values:
                     _ea_ncols = min(4, _ea_n_t)
                     _ea_nrows = (_ea_n_t + _ea_ncols - 1) // _ea_ncols
                     fig, axes = plt.subplots(_ea_nrows, _ea_ncols, figsize=(4*_ea_ncols, 3.5*_ea_nrows), squeeze=False)
-                    _ea_line_suptitle = "PINN vs Reference — Line Comparison"
+                    _ea_line_suptitle = _ea_title_txt("Line Comparison", _ea_sel)
                     if _is_3d:
                         _ea_line_suptitle += f" (y={line_slice_y:.3g}, z={line_slice_z:.3g})"
                     elif _is_2d:
@@ -6808,7 +6868,7 @@ for _pval in _param_values:
                         # the 2D contourf plots above.
                         from scipy.interpolate import griddata as _gd3
                         fig = plt.figure(figsize=(15, 4.5 * _ea_n_t))
-                        fig.suptitle("PINN vs Reference — 3D Surface Comparison", fontsize={config.plot_title_fontsize}, fontweight='bold')
+                        fig.suptitle(_ea_title_txt("3D Surface Comparison", _ea_sel), fontsize={config.plot_title_fontsize}, fontweight='bold')
                         _geom_bbox_ea = np.asarray(geom.bbox)
                         _bx0, _by0, _bz0 = _geom_bbox_ea[0]
                         _bx1, _by1, _bz1 = _geom_bbox_ea[1]
@@ -6919,7 +6979,7 @@ for _pval in _param_values:
                         # compared directly (no interpolation needed), with a
                         # wireframe box from geom.bbox for spatial context.
                         fig = plt.figure(figsize=(15, 4.5 * _ea_n_t))
-                        fig.suptitle("PINN vs Reference — 3D Surface Comparison", fontsize={config.plot_title_fontsize}, fontweight='bold')
+                        fig.suptitle(_ea_title_txt("3D Surface Comparison", _ea_sel), fontsize={config.plot_title_fontsize}, fontweight='bold')
                         _geom_bbox_ea = np.asarray(geom.bbox)
                         _bx0, _by0, _bz0 = _geom_bbox_ea[0]
                         _bx1, _by1, _bz1 = _geom_bbox_ea[1]
@@ -6983,7 +7043,7 @@ for _pval in _param_values:
                         # 2D: 3 columns (PINN | Reference | Error), one row per time snapshot
                         fig, axes = plt.subplots(_ea_n_t, 3,
                                                  figsize=(15, 4*_ea_n_t), squeeze=False)
-                        fig.suptitle("PINN vs Reference — 2D Heatmaps", fontsize={config.plot_title_fontsize}, fontweight='bold')
+                        fig.suptitle(_ea_title_txt("2D Heatmaps", _ea_sel), fontsize={config.plot_title_fontsize}, fontweight='bold')
                         _res_ea = {config.plot_resolution}
                         _xg_ea = np.linspace({config.x_min}, {config.x_max}, _res_ea)
                         _yg_ea = np.linspace({config.y_min}, {config.y_max}, _res_ea)
@@ -7084,7 +7144,7 @@ for _pval in _param_values:
                             _ea_vmax = _ea_vmin + 1e-12
                         _levels_ea1d = _cf_levels({config.plot_levels}, _ea_vmin, _ea_vmax)["levels"]  # see the matching comment above -- contourf ignores vmin/vmax with an integer `levels=N`
                         fig, axes_s = plt.subplots(1, 3, figsize=(15, 5))
-                        fig.suptitle("PINN vs Reference — Surface Comparison", fontsize={config.plot_title_fontsize}, fontweight='bold')
+                        fig.suptitle(_ea_title_txt("Surface Comparison", _ea_sel), fontsize={config.plot_title_fontsize}, fontweight='bold')
                         im0 = axes_s[0].contourf(_ea_Tg, _ea_Xg, _ea_U_pinn, levels=_levels_ea1d, cmap='{config.plot_colormap}')
                         axes_s[0].set_title("PINN  u(x,t)"); axes_s[0].set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); axes_s[0].set_ylabel("x", fontsize={config.plot_axis_label_fontsize})
                         fig.colorbar(im0, ax=axes_s[0])
@@ -9083,6 +9143,8 @@ def generate_clean_script(config):
     "if" dispatch over every option this app exposes. See generate_script()
     above for the generator Solve itself actually runs -- that one stays
     untouched; this is a second, independent generator."""
+    from pinnstudio.core import constants as _cmod_hdr
+    _const_header = _cmod_hdr.header_lines(_constant_values(config))
     config = _effective_config(config)
     is_2d = config.problem_dim == "2D"
     is_3d = config.problem_dim == "3D"
@@ -10040,6 +10102,7 @@ plt.close(fig)''')
     # that gap.
     _plot_dim_clean = "3D" if is_3d else ("2D" if is_2d else "1D")
     parts.append(f'''_plot_custom_expr = {_plot_custom_expr_val!r}
+_plot_idx = {plot_idx}
 _plot_output_names = {out_names!r}
 _plot_n_out = len(_plot_output_names)
 _plot_is_steady = {is_steady}
@@ -10058,13 +10121,16 @@ def _extract_plot_field(_x_grid, _pf_model=None):
     _pf_m = _pf_model if _pf_model is not None else model
     if _plot_custom_expr.strip():
         return _pf_m.predict(_x_grid, operator=_plot_custom_op)[:, 0]
-    return _pf_m.predict(_x_grid)[:, {plot_idx}]''')
+    return _pf_m.predict(_x_grid)[:, _plot_idx]''')
 
     if use_rar:
         parts.append(_clean_rar_diagnostics_code(config, is_2d, is_3d, is_steady, out_name))
 
-    if use_ta:
-        parts.append(f'''# ── Result plot: stitched Time-Adaptive solution ──
+    def _result_plot_parts(out_name):
+        """The result-plot code for one plotted field (Round 69: called once
+        for the selected output, then once per output when there are several)."""
+        if use_ta:
+            parts.append(f'''# ── Result plot: stitched Time-Adaptive solution ──
 Xg = np.concatenate([a for a in all_x], axis=0)
 Tg = np.concatenate([a for a in all_t], axis=0)
 Ug = np.concatenate([a for a in all_u], axis=0)
@@ -10083,21 +10149,21 @@ plt.savefig(solution_path, dpi={config.plot_dpi}, bbox_inches="tight")
 plt.close()
 print(f"Solution plot saved: {{solution_path}}")''')
 
-    elif is_inverse and config.plot_type == "Parameter Convergence":
-        parts.append('''# ── Result plot: parameter convergence (Inverse default) ──
+        elif is_inverse and config.plot_type == "Parameter Convergence":
+            parts.append('''# ── Result plot: parameter convergence (Inverse default) ──
 import shutil
 shutil.copy(param_plot_path, solution_path)
 print(f"Solution plot saved: {solution_path}")''')
 
-    elif is_2d and is_steady and config.plot_type == "Line (time steps)":
-        # Steady 2D "Line (time steps)": no time axis, so a single curve
-        # u(x) at the configured y slice -- previously this selection
-        # silently fell through to the x-y heatmap branch just below
-        # (plot_type was never checked for 2D/3D at all in this
-        # generator either). Masked to the real geometry with
-        # geom.inside(...) -- same pattern generate_script()'s own
-        # equivalent branch already uses.
-        parts.append(f'''# ── Result plot: line at y={line_slice_y:.3g} (steady, no time axis) ──
+        elif is_2d and is_steady and config.plot_type == "Line (time steps)":
+            # Steady 2D "Line (time steps)": no time axis, so a single curve
+            # u(x) at the configured y slice -- previously this selection
+            # silently fell through to the x-y heatmap branch just below
+            # (plot_type was never checked for 2D/3D at all in this
+            # generator either). Masked to the real geometry with
+            # geom.inside(...) -- same pattern generate_script()'s own
+            # equivalent branch already uses.
+            parts.append(f'''# ── Result plot: line at y={line_slice_y:.3g} (steady, no time axis) ──
 res = {config.plot_resolution}
 x_l2ds = np.linspace({config.x_min}, {config.x_max}, res)
 xy_l2ds = np.column_stack([x_l2ds, np.full_like(x_l2ds, {line_slice_y})])
@@ -10119,8 +10185,8 @@ plt.savefig(solution_path, dpi={config.plot_dpi}, bbox_inches="tight")
 plt.close()
 print(f"Solution plot saved: {{solution_path}}")''')
 
-    elif is_2d and is_steady:
-        parts.append(f'''# ── Result plot: steady-state 2D heatmap (no time axis) ──
+        elif is_2d and is_steady:
+            parts.append(f'''# ── Result plot: steady-state 2D heatmap (no time axis) ──
 res = {config.plot_resolution}
 xp = np.linspace({config.x_min}, {config.x_max}, res)
 yp = np.linspace({config.y_min}, {config.y_max}, res)
@@ -10140,12 +10206,12 @@ plt.savefig(solution_path, dpi={config.plot_dpi}, bbox_inches="tight")
 plt.close()
 print(f"Solution plot saved: {{solution_path}}")''')
 
-    elif is_3d and is_steady and config.plot_type == "Line (time steps)":
-        # Steady 3D "Line (time steps)": single curve u(x) at the
-        # configured y and z slice. Masked to the real geometry with
-        # geom.inside(...) -- same pattern as the steady-2D Line block
-        # above.
-        parts.append(f'''# ── Result plot: line at y={line_slice_y:.3g}, z={line_slice_z:.3g} (steady, no time axis) ──
+        elif is_3d and is_steady and config.plot_type == "Line (time steps)":
+            # Steady 3D "Line (time steps)": single curve u(x) at the
+            # configured y and z slice. Masked to the real geometry with
+            # geom.inside(...) -- same pattern as the steady-2D Line block
+            # above.
+            parts.append(f'''# ── Result plot: line at y={line_slice_y:.3g}, z={line_slice_z:.3g} (steady, no time axis) ──
 res = {config.plot_resolution}
 x_l3ds = np.linspace({config.x_min}, {config.x_max}, res)
 xyz_l3ds = np.column_stack([x_l3ds, np.full_like(x_l3ds, {line_slice_y}), np.full_like(x_l3ds, {line_slice_z})])
@@ -10167,8 +10233,8 @@ plt.savefig(solution_path, dpi={config.plot_dpi}, bbox_inches="tight")
 plt.close()
 print(f"Solution plot saved: {{solution_path}}")''')
 
-    elif is_3d and is_steady:
-        parts.append(f'''# ── Result plot: steady-state 3D heatmap at the z mid-plane (no time axis) ──
+        elif is_3d and is_steady:
+            parts.append(f'''# ── Result plot: steady-state 3D heatmap at the z mid-plane (no time axis) ──
 res = {config.plot_resolution}
 xp = np.linspace({config.x_min}, {config.x_max}, res)
 yp = np.linspace({config.y_min}, {config.y_max}, res)
@@ -10189,9 +10255,9 @@ plt.savefig(solution_path, dpi={config.plot_dpi}, bbox_inches="tight")
 plt.close()
 print(f"Solution plot saved: {{solution_path}}")''')
 
-    elif is_steady:
-        # Steady-state 1D: a single static curve u(x) -- no time axis.
-        parts.append(f'''# ── Result plot: steady-state 1D curve (no time axis) ──
+        elif is_steady:
+            # Steady-state 1D: a single static curve u(x) -- no time axis.
+            parts.append(f'''# ── Result plot: steady-state 1D curve (no time axis) ──
 res = {config.plot_resolution}
 x_1d = np.linspace({config.x_min}, {config.x_max}, res)
 u_1d = _extract_plot_field(x_1d.reshape(-1, 1)).flatten()
@@ -10205,31 +10271,31 @@ plt.savefig(solution_path, dpi={config.plot_dpi}, bbox_inches="tight")
 plt.close()
 print(f"Solution plot saved: {{solution_path}}")''')
 
-    elif config.plot_type in ("Line Animation (GIF)", "Surface Animation (GIF)"):
-        n_frames = max(2, config.num_timesteps_anim)
-        anim_kind = "line" if config.plot_type == "Line Animation (GIF)" else "surface"
-        vrange = ("v_min, v_max = None, None" if config.plot_auto_range
-                  else f"v_min, v_max = {config.plot_vmin}, {config.plot_vmax}")
-        if anim_kind == "line":
-            # 2D/3D previously fell through to the "else" (surface
-            # animation) branch below instead -- plot_type was only
-            # checked against ("Line Animation (GIF)", "Surface Animation
-            # (GIF)") as a pair, never distinguishing anim_kind for 2D/3D,
-            # so picking "Line Animation (GIF)" on a 2D/3D problem
-            # silently produced a Surface Animation GIF instead. Now
-            # handled directly, at the configured y/z slice (same
-            # PINNConfig.line_slice_y/_z generate_script() uses).
-            if is_3d:
-                _xt_build = (f'xt = np.column_stack([x_line, np.full_like(x_line, {line_slice_y}), '
-                             f'np.full_like(x_line, {line_slice_z}), np.full_like(x_line, tv)])')
-                _ylabel_anim = f"{out_name}(x, y={line_slice_y:.3g}, z={line_slice_z:.3g}, t)"
-            elif is_2d:
-                _xt_build = f'xt = np.column_stack([x_line, np.full_like(x_line, {line_slice_y}), np.full_like(x_line, tv)])'
-                _ylabel_anim = f"{out_name}(x, y={line_slice_y:.3g}, t)"
-            else:
-                _xt_build = 'xt = np.column_stack([x_line, np.full_like(x_line, tv)])'
-                _ylabel_anim = f"{out_name}(x, t)"
-            parts.append(f'''# ── Result plot: line animation (GIF) ──
+        elif config.plot_type in ("Line Animation (GIF)", "Surface Animation (GIF)"):
+            n_frames = max(2, config.num_timesteps_anim)
+            anim_kind = "line" if config.plot_type == "Line Animation (GIF)" else "surface"
+            vrange = ("v_min, v_max = None, None" if config.plot_auto_range
+                      else f"v_min, v_max = {config.plot_vmin}, {config.plot_vmax}")
+            if anim_kind == "line":
+                # 2D/3D previously fell through to the "else" (surface
+                # animation) branch below instead -- plot_type was only
+                # checked against ("Line Animation (GIF)", "Surface Animation
+                # (GIF)") as a pair, never distinguishing anim_kind for 2D/3D,
+                # so picking "Line Animation (GIF)" on a 2D/3D problem
+                # silently produced a Surface Animation GIF instead. Now
+                # handled directly, at the configured y/z slice (same
+                # PINNConfig.line_slice_y/_z generate_script() uses).
+                if is_3d:
+                    _xt_build = (f'xt = np.column_stack([x_line, np.full_like(x_line, {line_slice_y}), '
+                                 f'np.full_like(x_line, {line_slice_z}), np.full_like(x_line, tv)])')
+                    _ylabel_anim = f"{out_name}(x, y={line_slice_y:.3g}, z={line_slice_z:.3g}, t)"
+                elif is_2d:
+                    _xt_build = f'xt = np.column_stack([x_line, np.full_like(x_line, {line_slice_y}), np.full_like(x_line, tv)])'
+                    _ylabel_anim = f"{out_name}(x, y={line_slice_y:.3g}, t)"
+                else:
+                    _xt_build = 'xt = np.column_stack([x_line, np.full_like(x_line, tv)])'
+                    _ylabel_anim = f"{out_name}(x, t)"
+                parts.append(f'''# ── Result plot: line animation (GIF) ──
 import matplotlib.animation as animation
 t_frames = np.linspace({config.t_min}, {config.t_max}, {n_frames})
 x_line = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
@@ -10253,15 +10319,15 @@ ani = animation.FuncAnimation(fig, _update, frames={n_frames}, interval=100, bli
 ani.save(solution_path, writer="pillow", fps={config.plot_fps})
 plt.close(fig)
 print(f"Solution plot saved: {{solution_path}}")''')
-        else:
-            parts.append(f'''# ── Result plot: surface animation (GIF) ──
+            else:
+                parts.append(f'''# ── Result plot: surface animation (GIF) ──
 import matplotlib.animation as animation
 t_frames = np.linspace({config.t_min}, {config.t_max}, {n_frames})
 res = {config.plot_resolution}
 x_a = np.linspace({config.x_min}, {config.x_max}, res)
 frames = []''')
-            if is_3d:
-                parts.append(f'''# 3D: same "x-y heatmap at the z mid-plane" convention as the static
+                if is_3d:
+                    parts.append(f'''# 3D: same "x-y heatmap at the z mid-plane" convention as the static
 # 3D solution plot below -- no volumetric GIF renderer.
 y_a = np.linspace({config.y_min}, {config.y_max}, res)
 z_mid_a = ({config.z_min} + {config.z_max}) / 2.0
@@ -10283,8 +10349,8 @@ ani = animation.FuncAnimation(fig, _update, frames={n_frames}, interval=150)
 ani.save(solution_path, writer="pillow", fps={config.plot_fps})
 plt.close(fig)
 print(f"Solution plot saved: {{solution_path}}")''')
-            elif is_2d:
-                parts.append(f'''y_a = np.linspace({config.y_min}, {config.y_max}, res)
+                elif is_2d:
+                    parts.append(f'''y_a = np.linspace({config.y_min}, {config.y_max}, res)
 Xa, Ya = np.meshgrid(x_a, y_a)
 # Blank out points outside the real geometry (same mask as the static plot).
 inside_a = geom.inside(np.column_stack([Xa.ravel(), Ya.ravel()])).reshape(res, res)
@@ -10303,8 +10369,8 @@ ani = animation.FuncAnimation(fig, _update, frames={n_frames}, interval=150)
 ani.save(solution_path, writer="pillow", fps={config.plot_fps})
 plt.close(fig)
 print(f"Solution plot saved: {{solution_path}}")''')
-            else:
-                parts.append(f'''t_a = np.linspace({config.t_min}, {config.t_max}, res)
+                else:
+                    parts.append(f'''t_a = np.linspace({config.t_min}, {config.t_max}, res)
 Xa, Ta = np.meshgrid(x_a, t_a)
 for tv in t_frames:
     xt = np.vstack([Xa.ravel(), np.full(Xa.size, tv)]).T
@@ -10331,17 +10397,17 @@ ani.save(solution_path, writer="pillow", fps={config.plot_fps})
 plt.close(fig)
 print(f"Solution plot saved: {{solution_path}}")''')
 
-    elif is_2d and config.plot_type == "Line (time steps)":
-        # 2D "Line (time steps)": overlaid u(x) curves at several times,
-        # all at the configured y slice -- same convention as the 1D
-        # "Line (time steps)" branch further below, and as
-        # generate_script()'s own already-fixed equivalent. Previously
-        # this selection silently fell through to the x-y heatmap branch
-        # just below. Masked to the real geometry with geom.inside(...)
-        # -- the mask only depends on (x, y), not t, so it's computed
-        # once outside the time loop -- same pattern as the steady-2D
-        # Line block above.
-        parts.append(f'''# ── Result plot: line, several time steps, at y={line_slice_y:.3g} ──
+        elif is_2d and config.plot_type == "Line (time steps)":
+            # 2D "Line (time steps)": overlaid u(x) curves at several times,
+            # all at the configured y slice -- same convention as the 1D
+            # "Line (time steps)" branch further below, and as
+            # generate_script()'s own already-fixed equivalent. Previously
+            # this selection silently fell through to the x-y heatmap branch
+            # just below. Masked to the real geometry with geom.inside(...)
+            # -- the mask only depends on (x, y), not t, so it's computed
+            # once outside the time loop -- same pattern as the steady-2D
+            # Line block above.
+            parts.append(f'''# ── Result plot: line, several time steps, at y={line_slice_y:.3g} ──
 n_steps_l2d = {config.num_timesteps_line}
 x_l2d = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
 xy_l2d = np.column_stack([x_l2d, np.full_like(x_l2d, {line_slice_y})])
@@ -10366,8 +10432,8 @@ plt.savefig(solution_path, dpi={config.plot_dpi}, bbox_inches="tight")
 plt.close()
 print(f"Solution plot saved: {{solution_path}}")''')
 
-    elif is_2d:
-        parts.append(f'''# ── Result plot: 2D snapshots ──
+        elif is_2d:
+            parts.append(f'''# ── Result plot: 2D snapshots ──
 n_snaps = {config.plot_n_2d_snapshots}
 t_snaps = np.linspace({config.t_min}, {config.t_max}, n_snaps)
 res = {config.plot_resolution}
@@ -10392,13 +10458,13 @@ plt.savefig(solution_path, dpi={config.plot_dpi}, bbox_inches="tight")
 plt.close()
 print(f"Solution plot saved: {{solution_path}}")''')
 
-    elif is_3d and config.plot_type == "Line (time steps)":
-        # 3D "Line (time steps)": overlaid u(x) curves at several times,
-        # at the configured y and z slice. Masked to the real geometry
-        # with geom.inside(...) -- the mask only depends on (x, y, z),
-        # not t, so it's computed once outside the time loop -- same
-        # pattern as the 2D time-dependent Line block above.
-        parts.append(f'''# ── Result plot: line, several time steps, at y={line_slice_y:.3g}, z={line_slice_z:.3g} ──
+        elif is_3d and config.plot_type == "Line (time steps)":
+            # 3D "Line (time steps)": overlaid u(x) curves at several times,
+            # at the configured y and z slice. Masked to the real geometry
+            # with geom.inside(...) -- the mask only depends on (x, y, z),
+            # not t, so it's computed once outside the time loop -- same
+            # pattern as the 2D time-dependent Line block above.
+            parts.append(f'''# ── Result plot: line, several time steps, at y={line_slice_y:.3g}, z={line_slice_z:.3g} ──
 n_steps_l3d = {config.num_timesteps_line}
 x_l3d = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
 xyz_l3d = np.column_stack([x_l3d, np.full_like(x_l3d, {line_slice_y}), np.full_like(x_l3d, {line_slice_z})])
@@ -10423,8 +10489,8 @@ plt.savefig(solution_path, dpi={config.plot_dpi}, bbox_inches="tight")
 plt.close()
 print(f"Solution plot saved: {{solution_path}}")''')
 
-    elif is_3d:
-        parts.append(f'''# ── Result plot: 3D snapshots at the domain's z mid-plane ──
+        elif is_3d:
+            parts.append(f'''# ── Result plot: 3D snapshots at the domain's z mid-plane ──
 n_snaps = {config.plot_n_2d_snapshots}
 t_snaps = np.linspace({config.t_min}, {config.t_max}, n_snaps)
 res = {config.plot_resolution}
@@ -10450,8 +10516,8 @@ plt.savefig(solution_path, dpi={config.plot_dpi}, bbox_inches="tight")
 plt.close()
 print(f"Solution plot saved: {{solution_path}}")''')
 
-    elif config.plot_type == "Line (time steps)":
-        parts.append(f'''# ── Result plot: line, several time steps ──
+        elif config.plot_type == "Line (time steps)":
+            parts.append(f'''# ── Result plot: line, several time steps ──
 n_steps_plot = {config.num_timesteps_line}
 x_l = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
 t_steps = np.linspace({config.t_min}, {config.t_max}, n_steps_plot)
@@ -10469,8 +10535,8 @@ plt.savefig(solution_path, dpi={config.plot_dpi}, bbox_inches="tight")
 plt.close()
 print(f"Solution plot saved: {{solution_path}}")''')
 
-    else:  # "Surface" -- 1D x-t heatmap
-        parts.append(f'''# ── Result plot: surface (x-t heatmap) ──
+        else:  # "Surface" -- 1D x-t heatmap
+            parts.append(f'''# ── Result plot: surface (x-t heatmap) ──
 res = {config.plot_resolution}
 x_s = np.linspace({config.x_min}, {config.x_max}, res)
 t_s = np.linspace({config.t_min}, {config.t_max}, res)
@@ -10491,6 +10557,17 @@ plt.tight_layout()
 plt.savefig(solution_path, dpi={config.plot_dpi}, bbox_inches="tight")
 plt.close()
 print(f"Solution plot saved: {{solution_path}}")''')
+
+    _result_plot_parts(out_name)
+    if (config.plot_all_outputs and len(out_names) > 1 and not _plot_custom_expr_val and not use_ta
+            and not (is_inverse and config.plot_type == "Parameter Convergence")):
+        _ext_all = "gif" if (not is_steady and config.plot_type in ("Line Animation (GIF)", "Surface Animation (GIF)")) else "png"
+        parts.append("# ── Every output's own plot, named after it ──\n_main_solution_path = solution_path")
+        for _oi, _oname in enumerate(out_names):
+            _osafe = "".join(c if (c.isalnum() or c in "-_") else "_" for c in _oname.strip()) or f"out{_oi}"
+            parts.append(f'_plot_idx = {_oi}\nsolution_path = os.path.join(sol_dir, "solution_plot_{_osafe}.{_ext_all}")')
+            _result_plot_parts(_oname.strip())
+        parts.append(f"solution_path = _main_solution_path\n_plot_idx = {plot_idx}")
 
     # =========================================================================
     # Error Analysis (only emitted when reference/ground-truth files are
@@ -10944,4 +11021,9 @@ print("  Surface comparison saved.")''')
             parts.append(_tm_clean_plot_code)
 
     parts.append('print("DONE")')
-    return "\n\n".join(parts) + "\n"
+    _script = "\n\n".join(parts) + "\n"
+    if _const_header:
+        # After the module docstring, if the script starts with one.
+        _cut = _script.find('"""', 3) + 3 if _script.startswith('"""') else 0
+        _script = _script[:_cut] + ("\n" if _cut else "") + "\n".join(_const_header) + "\n" + _script[_cut:]
+    return _script

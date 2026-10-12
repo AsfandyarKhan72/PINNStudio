@@ -916,6 +916,32 @@ class MainWindow(QMainWindow):
         nout_row.addStretch()
         pde_outer_layout.addLayout(nout_row)
 
+        # Named constants (Round 70): "Re = 20", "nu = 1/Re", ... usable by
+        # name in the equations, BCs, ICs, transforms and the exact-solution
+        # reference. Empty by default; rows are added with the button.
+        self.constants_widget = QWidget()
+        _cw = QVBoxLayout(self.constants_widget)
+        _cw.setContentsMargins(0, 0, 0, 0); _cw.setSpacing(2)
+        _crow = QHBoxLayout()
+        self.constants_label = QLabel("Constants:")
+        self.constants_label.setToolTip(
+            "Named values used in your expressions, e.g. Re = 20, nu = 1/Re.\n"
+            "A value can be a number or an expression in math functions (sqrt, exp, pi, ...)\n"
+            "and the constants above it. Usable in the equations, boundary and initial\n"
+            "conditions, transforms and the exact-solution reference.")
+        _crow.addWidget(self.constants_label)
+        self.add_constant_btn = QPushButton("+ Add constant")
+        self.add_constant_btn.setFixedHeight(24)
+        self.add_constant_btn.clicked.connect(lambda: self._add_constant_row())
+        _crow.addWidget(self.add_constant_btn)
+        _crow.addStretch()
+        _cw.addLayout(_crow)
+        self.constants_rows_layout = QVBoxLayout()
+        self.constants_rows_layout.setSpacing(2)
+        _cw.addLayout(self.constants_rows_layout)
+        self.constant_rows = []
+        pde_outer_layout.addWidget(self.constants_widget)
+
         # One shared "📖 Show derivative reference" toggle + hint, at the
         # TOP of this panel (same persistent-outside-the-rebuild pattern
         # the IC panel's "Show IC reference" toggle already uses) rather
@@ -949,6 +975,77 @@ class MainWindow(QMainWindow):
         self.output_name_inputs = []
         self._build_pde_inputs(1)
         left_layout.addWidget(self.pde_group)
+
+    # ── Named constants (Round 70) ────────────────────────────
+    def _add_constant_row(self, name="", value=""):
+        row = QWidget()
+        lay = QHBoxLayout(row)
+        lay.setContentsMargins(0, 0, 0, 0); lay.setSpacing(4)
+        name_edit = QLineEdit(name); name_edit.setPlaceholderText("name, e.g. Re"); name_edit.setFixedWidth(80)
+        value_edit = QLineEdit(value); value_edit.setPlaceholderText("value, e.g. 20 or 1/Re")
+        result = QLabel(""); result.setMinimumWidth(70)
+        remove = QPushButton("✕"); remove.setFixedSize(24, 24); remove.setToolTip("Remove this constant")
+        lay.addWidget(name_edit); lay.addWidget(QLabel("=")); lay.addWidget(value_edit, 1); lay.addWidget(result)
+        lay.addWidget(remove)
+        entry = {"widget": row, "name": name_edit, "value": value_edit, "result": result}
+        self.constant_rows.append(entry)
+        self.constants_rows_layout.addWidget(row)
+        name_edit.textChanged.connect(lambda _t: self._refresh_constant_values())
+        value_edit.textChanged.connect(lambda _t: self._refresh_constant_values())
+
+        def _remove():
+            row.deleteLater()
+            if entry in self.constant_rows:
+                self.constant_rows.remove(entry)
+            self._refresh_constant_values()
+        remove.clicked.connect(_remove)
+        self._refresh_constant_values()
+        return entry
+
+    def _constants_json(self):
+        import json as _json_c
+        rows = [{"name": e["name"].text().strip(), "value": e["value"].text().strip()}
+                for e in getattr(self, "constant_rows", [])]
+        rows = [r for r in rows if r["name"] or r["value"]]
+        return _json_c.dumps(rows) if rows else ""
+
+    def _set_constants(self, text):
+        from pinnstudio.core import constants as _cmod
+        for e in list(getattr(self, "constant_rows", [])):
+            e["widget"].deleteLater()
+        self.constant_rows = []
+        try:
+            rows = _cmod.parse(text)
+        except ValueError:
+            rows = []
+        for name, value in rows:
+            self._add_constant_row(name, value)
+
+    def _refresh_constant_values(self):
+        """Show each constant's value next to it, or the problem in red."""
+        from pinnstudio.core import constants as _cmod
+        rows = getattr(self, "constant_rows", [])
+        for e in rows:
+            e["result"].setText(""); e["result"].setStyleSheet(""); e["result"].setToolTip("")
+        if not rows:
+            return
+        names = [w.text() for w in getattr(self, "output_name_inputs", [])]
+        try:
+            vals = {n: v for n, _x, v in _cmod.evaluate(self._constants_json(), names)}
+            for e in rows:
+                n = e["name"].text().strip()
+                if n in vals:
+                    e["result"].setText(f"= {vals[n]:.6g}")
+        except ValueError as exc:
+            for e in rows:
+                if e["name"].text().strip() and e["name"].text().strip() in str(exc):
+                    e["result"].setText("⚠")
+                    e["result"].setStyleSheet("color: #e03131;")
+                    e["result"].setToolTip(str(exc))
+                    break
+            else:
+                rows[-1]["result"].setText("⚠"); rows[-1]["result"].setStyleSheet("color: #e03131;")
+                rows[-1]["result"].setToolTip(str(exc))
 
     def _build_domain_panels(self, left_layout):
         """Domain/geometry, collocation points, and the initial/boundary condition panels."""
@@ -2903,6 +3000,13 @@ class MainWindow(QMainWindow):
         self._fit_combo_width(self.plot_output_combo, min_width=130)
         self.plot_output_combo.currentTextChanged.connect(self._on_plot_output_combo_changed)
         ctrl_row.addWidget(self.plot_output_combo)
+        # Multi-output problems: also save each output's own plot, named
+        # after it (solution_plot_<name>.png) -- Round 69.
+        self.plot_all_outputs_cb = QCheckBox("All outputs")
+        self.plot_all_outputs_cb.setChecked(True)
+        self.plot_all_outputs_cb.setToolTip("With more than one output, also save every output's own plot\n"
+                                            "(solution_plot_<name>.png), not only the one selected here.")
+        ctrl_row.addWidget(self.plot_all_outputs_cb)
 
         # Custom field expression/label -- only visible when "Custom..." is
         # selected above. Expression variables are this problem's own
@@ -6500,6 +6604,8 @@ class MainWindow(QMainWindow):
 
             loss_weights_multi=self._flat_loss_weights_string(n_out),
             plot_output_idx=self.plot_output_combo.currentIndex(),
+            plot_all_outputs=self.plot_all_outputs_cb.isChecked(),
+            constants=self._constants_json(),
             plot_custom_expr=(self.plot_custom_expr_input.text().strip()
                                if self.plot_output_combo.currentText() == "Custom..." else ""),
             plot_custom_label=(self.plot_custom_label_input.text().strip()
@@ -7297,6 +7403,8 @@ class MainWindow(QMainWindow):
         self.export_tsteps_spin.setValue(config.export_t_steps)
         if 0 <= config.plot_output_idx < self.plot_output_combo.count():
             self.plot_output_combo.setCurrentIndex(config.plot_output_idx)
+        self.plot_all_outputs_cb.setChecked(bool(getattr(config, "plot_all_outputs", True)))
+        self._set_constants(getattr(config, "constants", "") or "")
         self.plot_custom_expr_input.setText(getattr(config, 'plot_custom_expr', '') or '')
         self.plot_custom_label_input.setText(getattr(config, 'plot_custom_label', '') or '')
         self._on_plot_output_combo_changed(self.plot_output_combo.currentText())
