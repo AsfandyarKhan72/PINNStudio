@@ -952,7 +952,7 @@ $$\Large -\frac{d^2u}{dx^2} = \pi^2\sin(\pi x), \qquad x \in [-1, 1]$$
 - **Training:** Adam 10,000 (lr 0.001); 16 domain, 2 boundary points
 - **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Poisson 1D – Dirichlet**
 
-**Result (RTX 4090):** L2 = 1.9e-3
+**Result (RTX 4090):** L2 = 3.7e-4
 
 ![Poisson 1D – Dirichlet — PINN vs reference along a line](assets/Images/DeepXDE/Poisson_1D_Dirichlet/line_comparison.png)
 
@@ -1009,7 +1009,7 @@ $$\Large -\frac{d^2u}{dx^2} = \pi^2\sin(\pi x), \qquad x \in [-1, 1]$$
 - **Training:** Adam 10,000 (lr 0.001); 16 domain, 2 boundary points
 - **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Poisson 1D – Dirichlet/Periodic**
 
-**Result (RTX 4090):** L2 = 1.1e-3
+**Result (RTX 4090):** L2 = 1.2e-2
 
 ![Poisson 1D – Dirichlet/Periodic — PINN vs reference along a line](assets/Images/DeepXDE/Poisson_1D_Dirichlet_Periodic/line_comparison.png)
 
@@ -1302,7 +1302,7 @@ $$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} - e^{
 - **Training:** Adam 10,000 (lr 0.001); 40 domain, 20 boundary, 10 initial points
 - **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Diffusion equation**
 
-**Result (RTX 4090):** L2 = 2.5e-3 ($t = 0$), 2.9e-3 ($t = 0.25$), 1.8e-3 ($t = 0.5$), 4.1e-3 ($t = 0.75$), 2.0e-2 ($t = 1$)
+**Result (RTX 4090):** L2 = 4.8e-3 ($t = 0$), 9.0e-3 ($t = 0.25$), 6.4e-3 ($t = 0.5$), 5.8e-3 ($t = 0.75$), 3.0e-2 ($t = 1$)
 
 ![Diffusion equation — PINN solution over time](assets/Images/DeepXDE/Diffusion_equation/animation.gif)
 
@@ -1527,7 +1527,7 @@ $$\Large \frac{\partial u}{\partial t} = C\frac{\partial^2 u}{\partial x^2} - e^
 - **Training:** Adam 50,000 (lr 0.001); 40 domain, 20 boundary, 10 initial points
 - **GUI recipe:** Quick Examples → Category **DeepXDE Inverse** → **Inverse: diffusion equation**
 
-**Result (RTX 4090):** $C$ = 0.9987 (true 1); L2 = 1.5e-3 ($t = 0$), 2.1e-3 ($t = 0.25$), 1.8e-3 ($t = 0.5$), 1.7e-3 ($t = 0.75$), 5.5e-3 ($t = 1$)
+**Result (RTX 4090):** $C$ = 0.9988 (true 1); L2 = 1.2e-3 ($t = 0$), 1.8e-3 ($t = 0.25$), 1.9e-3 ($t = 0.5$), 2.8e-3 ($t = 0.75$), 3.1e-3 ($t = 1$)
 
 ![Inverse: diffusion equation — PINN solution over time](assets/Images/DeepXDE/Inverse_diffusion_equation/animation.gif)
 
@@ -1573,7 +1573,7 @@ $$\Large -\frac{d^2u}{dx^2} + q(x) = 0, \qquad x \in [-1, 1]$$
 - **Training:** Adam 20,000 (lr 0.0001); 200 domain, 2 boundary points
 - **GUI recipe:** Quick Examples → Category **DeepXDE Inverse** → **Inverse: Poisson with unknown forcing field**
 
-**Result (RTX 4090):** L2 = 8.5e-4 ($u$), 4.3e-2 ($q$)
+**Result (RTX 4090):** L2 = 8.3e-4 ($u$), 4.3e-2 ($q$)
 
 ![Inverse: Poisson with unknown forcing field — PINN vs reference along a line (q)](assets/Images/DeepXDE/Inverse_Poisson_with_unknown_forcing_field/line_comparison_q.png)
 
