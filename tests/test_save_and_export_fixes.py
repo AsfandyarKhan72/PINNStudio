@@ -271,7 +271,9 @@ def run():
     ea_ta_cfg = dataclasses.replace(ea_cfg, time_adaptive=True, ta_num_steps=2)
     ea_ta_script = generate_script(ea_ta_cfg)
     ast.parse(ea_ta_script)
-    check("_ea_model.predict(_ea_grid, operator=_ea_custom_op)" in ea_ta_script,
+    # Both paths' setup comes from codegen's _gs_ea_setup_code (Round 58),
+    # so the live script carries the derivative-aware call once per path.
+    check(ea_ta_script.count("_ea_m.predict(_ea_grid, operator=_ea_custom_op)") == 2,
           "the Time-Adaptive path's per-group tuple-selector branch should also be derivative-aware")
 
     # int selector and None selector must be unaffected (no regression):

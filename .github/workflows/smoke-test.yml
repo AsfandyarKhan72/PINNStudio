@@ -95,3 +95,4 @@ jobs:
           python tests/test_round55_generator_naming.py
           python tests/test_round56_snippets_and_steady_ta.py
           python tests/test_round57_plot_settings_shared.py
+          python tests/test_round58_ea_setup_shared.py

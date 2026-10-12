@@ -1838,6 +1838,71 @@ def _gs_rar_loop_code(config):
         print("\\n=== RAR Complete ===")"""
 
 
+def _gs_ea_setup_code(config, banner, indent):
+    """generate_script()'s Error Analysis setup, shared by the Standard and
+    Time-Adaptive paths (cleanup Round 58 -- these were two hand-kept
+    copies): normalize `ea_files` entries to (time, path, output_selector)
+    3-tuples, keep the ones inside [t_min, t_max], group them by output,
+    and define _ea_group_label / _ea_extract.
+
+    output_selector is None (the Results panel's own plot field, via
+    _extract_plot_field), an int (a raw output column), or an [expr, label]
+    pair (a derivative-aware custom field, evaluated through Training
+    Monitors' _tm_build_dvars). Older configs only wrote 2-tuples; those
+    are padded with None. One group means every output filename stays
+    unsuffixed. _ea_extract's model argument is optional: the Standard
+    path falls back to the module-level `model`; Time-Adaptive always
+    passes each step's restored model."""
+    code = f'''_ea_files_norm = []
+for _ea_entry in {config.ea_files}:
+    if len(_ea_entry) >= 3:
+        _ea_tv0, _ea_fp0, _ea_sel0 = _ea_entry[0], _ea_entry[1], _ea_entry[2]
+    else:
+        _ea_tv0, _ea_fp0 = _ea_entry[0], _ea_entry[1]
+        _ea_sel0 = None
+    if {config.t_min} - 1e-10 <= _ea_tv0 <= {config.t_max} + 1e-10:
+        _ea_files_norm.append((_ea_tv0, _ea_fp0, _ea_sel0))
+print("\\n=== Running {banner} ===")
+print(f"  Filtering to t=[{config.t_min}, {config.t_max}]: {{len(_ea_files_norm)}} files")
+
+_ea_groups = {{}}
+for _ea_tv0, _ea_fp0, _ea_sel0 in _ea_files_norm:
+    _ea_gkey = repr(_ea_sel0)
+    if _ea_gkey not in _ea_groups:
+        _ea_groups[_ea_gkey] = {{"sel": _ea_sel0, "files": []}}
+    _ea_groups[_ea_gkey]["files"].append((_ea_tv0, _ea_fp0))
+_ea_multi_output = len(_ea_groups) > 1
+
+def _ea_group_label(_ea_sel):
+    if _ea_sel is None:
+        return ""
+    if isinstance(_ea_sel, int):
+        return (_plot_output_names_list[_ea_sel].strip()
+                if 0 <= _ea_sel < len(_plot_output_names_list) else f"out{{_ea_sel}}")
+    _ea_lbl = (_ea_sel[1] or "").strip() if len(_ea_sel) > 1 else ""
+    return _ea_lbl if _ea_lbl else "custom"
+
+def _ea_extract(_ea_grid, _ea_sel, _ea_model=None):
+    _ea_m = _ea_model if _ea_model is not None else model
+    if _ea_sel is None:
+        return _extract_plot_field(_ea_grid, _ea_m)
+    if isinstance(_ea_sel, int):
+        return _ea_m.predict(_ea_grid)[:, _ea_sel]
+    _ea_expr = _ea_sel[0]
+
+    def _ea_custom_op(_ea_inputs, _ea_outputs):
+        _ea_dvars = _tm_build_dvars(_ea_inputs, _ea_outputs, _plot_n_out,
+                                     _plot_output_names_list, _is_steady, _plot_dim,
+                                     _ea_expr)
+        _ea_ns = dict(_ea_dvars)
+        _ea_ns.update(_PLOT_TORCH_MATH_NS)
+        _ea_ns["torch"] = torch
+        return eval(_ea_expr, _ea_ns)
+
+    return _ea_m.predict(_ea_grid, operator=_ea_custom_op)[:, 0]'''
+    return "\n".join((indent + ln) if ln else ln for ln in code.split("\n"))
+
+
 def _gs_time_adaptive_loop_code(_ic_pretrain_block_ta, line_slice_y, line_slice_z, _safe_num_test, _ta_ic_init, _train_cbs_code_ta, config, plot_custom_expr_converted):
     """generate_script()'s Time-Adaptive training loop (per-step models, IC
     pre-training, per-step previews, the combined final plot and the
@@ -2915,63 +2980,7 @@ if {config.time_adaptive}:
         _ea_dir = _os.path.join(_save_dir if _use_save else "/tmp", "error_analysis")
         _os.makedirs(_ea_dir, exist_ok=True)
 
-        # Same (time, path, output_selector) normalization and per-output
-        # grouping as the Standard Error Analysis path above -- see its own
-        # comment for the full rationale. Kept as its own copy here since
-        # Time-Adaptive is a separate top-level branch that never runs
-        # alongside the Standard one.
-        _ea_files_norm = []
-        for _ea_entry in {config.ea_files}:
-            if len(_ea_entry) >= 3:
-                _ea_tv0, _ea_fp0, _ea_sel0 = _ea_entry[0], _ea_entry[1], _ea_entry[2]
-            else:
-                _ea_tv0, _ea_fp0 = _ea_entry[0], _ea_entry[1]
-                _ea_sel0 = None
-            if {config.t_min} - 1e-10 <= _ea_tv0 <= {config.t_max} + 1e-10:
-                _ea_files_norm.append((_ea_tv0, _ea_fp0, _ea_sel0))
-        print(f"  Filtering to t=[{config.t_min}, {config.t_max}]: {{len(_ea_files_norm)}} files")
-        print("\\n=== Running Time-Adaptive Error Analysis ===")
-
-        _ea_groups = {{}}
-        for _ea_tv0, _ea_fp0, _ea_sel0 in _ea_files_norm:
-            _ea_gkey = repr(_ea_sel0)
-            if _ea_gkey not in _ea_groups:
-                _ea_groups[_ea_gkey] = {{"sel": _ea_sel0, "files": []}}
-            _ea_groups[_ea_gkey]["files"].append((_ea_tv0, _ea_fp0))
-        _ea_multi_output = len(_ea_groups) > 1
-
-        def _ea_group_label(_ea_sel):
-            if _ea_sel is None:
-                return ""
-            if isinstance(_ea_sel, int):
-                return (_plot_output_names_list[_ea_sel].strip()
-                        if 0 <= _ea_sel < len(_plot_output_names_list) else f"out{{_ea_sel}}")
-            _ea_lbl = (_ea_sel[1] or "").strip() if len(_ea_sel) > 1 else ""
-            return _ea_lbl if _ea_lbl else "custom"
-
-        def _ea_extract(_ea_grid, _ea_sel, _ea_model):
-            # TA has no single module-level `model` (each step restores
-            # its own) -- unlike the Standard path's _ea_extract, the
-            # model object here is always required, never defaulted.
-            # _ea_sel a (expr, label) tuple is now derivative-aware too --
-            # see the matching comment on the Standard path's own
-            # _ea_extract above.
-            if _ea_sel is None:
-                return _extract_plot_field(_ea_grid, _ea_model)
-            if isinstance(_ea_sel, int):
-                return _ea_model.predict(_ea_grid)[:, _ea_sel]
-            _ea_expr = _ea_sel[0]
-
-            def _ea_custom_op(_ea_inputs, _ea_outputs):
-                _ea_dvars = _tm_build_dvars(_ea_inputs, _ea_outputs, _plot_n_out,
-                                             _plot_output_names_list, _is_steady, _plot_dim,
-                                             _ea_expr)
-                _ea_ns = dict(_ea_dvars)
-                _ea_ns.update(_PLOT_TORCH_MATH_NS)
-                _ea_ns["torch"] = torch
-                return eval(_ea_expr, _ea_ns)
-
-            return _ea_model.predict(_ea_grid, operator=_ea_custom_op)[:, 0]
+{_gs_ea_setup_code(config, "Time-Adaptive Error Analysis", "        ")}
 
         for _ea_group_key, _ea_group in _ea_groups.items():
             _ea_files = _ea_group["files"]
@@ -6123,83 +6132,7 @@ for _pval in _param_values:
             _ea_dir = _os.path.join(_save_dir if _use_save else "/tmp", "error_analysis")
             _os.makedirs(_ea_dir, exist_ok=True)
 
-            # Normalize `ea_files` entries to (time, path, output_selector)
-            # 3-tuples -- output_selector is None (implicit default: falls
-            # back to whatever single field the Results panel/plot_custom_expr
-            # is already configured to show, exactly like before this
-            # feature existed), an int (a raw output column index), or a
-            # [expr, label] pair (a custom derived field of its own, reusing
-            # the same expression mechanism as the Results panel's
-            # "Custom..." plot field). Older saved configs only ever wrote
-            # 2-tuples (no selector at all) -- padded with None here so they
-            # keep behaving exactly as before.
-            _ea_files_norm = []
-            for _ea_entry in {config.ea_files}:
-                if len(_ea_entry) >= 3:
-                    _ea_tv0, _ea_fp0, _ea_sel0 = _ea_entry[0], _ea_entry[1], _ea_entry[2]
-                else:
-                    _ea_tv0, _ea_fp0 = _ea_entry[0], _ea_entry[1]
-                    _ea_sel0 = None
-                if {config.t_min} - 1e-10 <= _ea_tv0 <= {config.t_max} + 1e-10:
-                    _ea_files_norm.append((_ea_tv0, _ea_fp0, _ea_sel0))
-            print("\\n=== Running Error Analysis ===")
-            print(f"  Filtering to t=[{config.t_min}, {config.t_max}]: {{len(_ea_files_norm)}} files")
-
-            # Group reference files by which model output they belong to --
-            # each distinct output gets its own full metrics/line/surface
-            # report below. When every file resolves to the same (usually
-            # the implicit default) output, there's exactly one group and
-            # every filename below is unsuffixed -- byte-for-byte the same
-            # output as before this feature existed.
-            _ea_groups = {{}}
-            for _ea_tv0, _ea_fp0, _ea_sel0 in _ea_files_norm:
-                _ea_gkey = repr(_ea_sel0)
-                if _ea_gkey not in _ea_groups:
-                    _ea_groups[_ea_gkey] = {{"sel": _ea_sel0, "files": []}}
-                _ea_groups[_ea_gkey]["files"].append((_ea_tv0, _ea_fp0))
-            _ea_multi_output = len(_ea_groups) > 1
-
-            def _ea_group_label(_ea_sel):
-                if _ea_sel is None:
-                    return ""
-                if isinstance(_ea_sel, int):
-                    return (_plot_output_names_list[_ea_sel].strip()
-                            if 0 <= _ea_sel < len(_plot_output_names_list) else f"out{{_ea_sel}}")
-                _ea_lbl = (_ea_sel[1] or "").strip() if len(_ea_sel) > 1 else ""
-                return _ea_lbl if _ea_lbl else "custom"
-
-            def _ea_extract(_ea_grid, _ea_sel, _ea_model=None):
-                # _ea_sel is None: delegate to _extract_plot_field, so the
-                # default plot field (including a derivative-aware custom
-                # expression, if configured) is also what Error Analysis
-                # compares a reference dataset against. _ea_sel an int:
-                # a specific raw output column was picked for this
-                # reference file group. _ea_sel a (expr, label) tuple: a
-                # per-group custom expression of its own -- now also
-                # derivative-aware (du_x, du_xx, ...) via the same
-                # operator-based mechanism _extract_plot_field itself uses,
-                # reusing Training Monitors' own _tm_build_dvars rather than
-                # a second derivative-building copy. This used to be
-                # algebraic-only (NumPy eval on a pre-computed prediction);
-                # that was this feature's one remaining flagged gap from the
-                # round that added derivative-aware custom plotting.
-                _ea_m = _ea_model if _ea_model is not None else model
-                if _ea_sel is None:
-                    return _extract_plot_field(_ea_grid, _ea_m)
-                if isinstance(_ea_sel, int):
-                    return _ea_m.predict(_ea_grid)[:, _ea_sel]
-                _ea_expr = _ea_sel[0]
-
-                def _ea_custom_op(_ea_inputs, _ea_outputs):
-                    _ea_dvars = _tm_build_dvars(_ea_inputs, _ea_outputs, _plot_n_out,
-                                                 _plot_output_names_list, _is_steady, _plot_dim,
-                                                 _ea_expr)
-                    _ea_ns = dict(_ea_dvars)
-                    _ea_ns.update(_PLOT_TORCH_MATH_NS)
-                    _ea_ns["torch"] = torch
-                    return eval(_ea_expr, _ea_ns)
-
-                return _ea_m.predict(_ea_grid, operator=_ea_custom_op)[:, 0]
+{_gs_ea_setup_code(config, "Error Analysis", "            ")}
 
             for _ea_group_key, _ea_group in _ea_groups.items():
                 _ea_files = _ea_group["files"]
