@@ -409,6 +409,7 @@ pinnstudio/
 │   └── core/
 │       ├── config.py          # PINNConfig — the full problem definition
 │       ├── codegen.py         # PINNConfig -> standalone DeepXDE/PyTorch script
+│       ├── deepxde_examples.py # DeepXDE's documented examples as Quick Examples
 │       ├── runner.py          # Runs the generated script, streams output to the GUI
 │       ├── sweep_registry.py  # Parameter Sweep's list of sweepable parameters
 │       └── sweep_runner.py    # Builds and runs each sweep configuration in turn
@@ -418,7 +419,9 @@ pinnstudio/
 ├── reference_data/          # Bundled ground truth for the built-in templates
 │   ├── 1D/
 │   ├── 2D/
-│   └── 3D/
+│   ├── 3D/
+│   └── deepxde/             # Reference/measurement data for the DeepXDE examples
+├── tools/                   # Reference-data generator, DeepXDE example runner
 ├── requirements.txt
 ├── setup.py
 ├── install.sh              # One-command setup (macOS/Linux)
@@ -865,6 +868,55 @@ $$\Large -\frac{\partial^2 u}{\partial x^2} - \frac{\partial^2 u}{\partial y^2} 
 </details>
 
 > **Tip:** Accuracy can generally be improved by refining the time discretization — use more, smaller **Time Adaptive** step groups (a finer time step per phase) rather than one large training pass, or increase collocation points for finer spatial/adaptive refinement of the residual. Several templates above already default to Time-Adaptive for this reason; add or adjust step groups for any template — in any dimension — from the *Adaptive Training* panel.
+
+## DeepXDE Examples
+
+*Quick Examples → Category* also offers **DeepXDE Forward** and **DeepXDE Inverse**: the PINN examples from DeepXDE's documentation ([forward](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward.html), [inverse](https://deepxde.readthedocs.io/en/latest/demos/pinn_inverse.html)), set up with each script's own equation, geometry, boundary/initial conditions, network, optimizers, iteration counts and loss weights, so pressing **Solve** trains what the DeepXDE script trains. Your save folder, GPU, random-seed and plot-style settings are kept when you load one. Anything that differs from the DeepXDE script is printed in the Training Log when the example loads.
+
+Where the problem has an exact solution, Error Analysis compares against it directly (*Reference: Exact solution formula*). Where DeepXDE compares against a dataset, the matching reference files are used: PINNStudio's own for Burgers, Schrödinger and the L-shape, or data computed by [`tools/make_deepxde_reference_data.py`](tools/make_deepxde_reference_data.py) (no data is copied from DeepXDE's repository). Examples marked "—" have no bundled reference; add your own reference files in the Error Analysis dialog.
+
+| Example | Type | Dimension | Regime | Error Analysis reference |
+|---|---|---|---|---|
+| [Poisson 1D – Dirichlet](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/poisson.1d.dirichlet.html) | Forward | 1D | Steady | Exact solution |
+| [Poisson 1D – Dirichlet/Neumann](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/poisson.1d.neumanndirichlet.html) | Forward | 1D | Steady | Exact solution |
+| [Poisson 1D – Dirichlet/Robin](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/poisson.1d.dirichletrobin.html) | Forward | 1D | Steady | Exact solution |
+| [Poisson 1D – Dirichlet/Periodic](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/poisson.1d.dirichletperiodic.html) | Forward | 1D | Steady | Exact solution |
+| [Poisson 1D – Dirichlet/PointSetOperator](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/poisson.1d.pointsetoperator.html) | Forward | 1D | Steady | Exact solution |
+| [Poisson 1D – hard boundary conditions](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Poisson_Dirichlet_1d_exactBC.py) | Forward | 1D | Steady | Exact solution |
+| [Poisson over an L-shaped domain](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/poisson.Lshape.html) | Forward | 2D | Steady | PINNStudio data |
+| [Laplace equation on a disk](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/laplace.disk.html) | Forward | 2D | Steady | Exact solution |
+| [Euler beam](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/eulerbeam.html) | Forward | 1D | Steady | Exact solution |
+| [Linear elastostatic plate](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/elasticity.plate.html) | Forward | 2D | Steady | Exact solution |
+| [Helmholtz 2D (Dirichlet)](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/helmholtz.2d.dirichlet.html) | Forward | 2D | Steady | Exact solution |
+| [Helmholtz 2D with a hole](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/helmholtz.2d.neumann.hole.html) | Forward | 2D | Steady | Exact solution |
+| [Kovasznay flow](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/Kovasznay.flow.html) | Forward | 2D | Steady | Exact solution |
+| [Burgers equation](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/burgers.html) | Forward | 1D | Time-dependent | PINNStudio data |
+| [Burgers equation with RAR](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/burgers.rar.html) | Forward | 1D | Time-dependent | PINNStudio data |
+| [Heat equation](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/heat.html) | Forward | 1D | Time-dependent | Exact solution |
+| [Heat equation with resampling](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/heat.resample.html) | Forward | 1D | Time-dependent | Exact solution |
+| [Diffusion equation](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/diffusion.1d.html) | Forward | 1D | Time-dependent | Exact solution |
+| [Diffusion equation with hard IC and BC](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/diffusion.1d.exactBC.html) | Forward | 1D | Time-dependent | Exact solution |
+| [Diffusion equation with resampling](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/diffusion.1d.resample.html) | Forward | 1D | Time-dependent | Exact solution |
+| [Diffusion-reaction equation](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/diffusion.reaction.html) | Forward | 1D | Time-dependent | Exact solution |
+| [Allen-Cahn equation](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/allen.cahn.html) | Forward | 1D | Time-dependent | Generated data |
+| [Klein-Gordon equation](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/klein.gordon.html) | Forward | 1D | Time-dependent | Exact solution |
+| [Schrödinger equation](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Schrodinger.ipynb) | Forward | 1D | Time-dependent | PINNStudio data |
+| [Beltrami flow](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Beltrami_flow.py) | Forward | 3D | Time-dependent | Exact solution |
+| [Black-Scholes equation (call option)](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/black_scholes.html) | Forward | 1D | Time-dependent | Exact solution |
+| [American put option](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/american_put.py) | Forward | 1D | Time-dependent | — |
+| [Inverse: diffusion equation](https://deepxde.readthedocs.io/en/latest/demos/pinn_inverse/diffusion.1d.inverse.html) | Inverse | 1D | Time-dependent | Exact solution |
+| [Inverse: diffusion-reaction system](https://deepxde.readthedocs.io/en/latest/demos/pinn_inverse/reaction.inverse.html) | Inverse | 1D | Time-dependent | — |
+| [Inverse: Poisson with unknown forcing field](https://deepxde.readthedocs.io/en/latest/demos/pinn_inverse/elliptic.inverse.field.html) | Inverse | 1D | Steady | Exact solution |
+| [Inverse: Poisson with unknown forcing field (batches)](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/elliptic_inverse_field_batch.py) | Inverse | 1D | Steady | Exact solution |
+| [Inverse: diffusion-reaction with space-dependent rate](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/diffusion_reaction_rate.py) | Inverse | 1D | Steady | Exact solution |
+| [Inverse: Brinkman-Forchheimer model](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/brinkman_forchheimer.py) | Inverse | 1D | Steady | Exact solution |
+
+The three "unknown field" inverse examples learn the field as a second network output from measurements given as a Point Set boundary condition, so they run in Forward mode, as in DeepXDE. To train every example from the command line and print its Error Analysis results:
+
+```bash
+python tools/run_deepxde_examples.py --out deepxde_runs            # full settings
+python tools/run_deepxde_examples.py --smoke --out deepxde_runs    # a few hundred iterations each
+```
 
 ## Getting Started with Your Own PDE
 

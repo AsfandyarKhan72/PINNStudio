@@ -6,12 +6,13 @@ from PyQt6.QtWidgets import (
     QTextEdit, QGroupBox, QComboBox, QSplitter, QLineEdit,
     QFileDialog, QCheckBox, QRadioButton, QButtonGroup,
     QDialog, QApplication, QColorDialog,
-    QTabWidget, QMessageBox, QScrollArea,
+    QTabWidget, QMessageBox, QScrollArea, QGridLayout,
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer
 from PyQt6.QtGui import QPixmap, QAction, QColor, QMovie, QIntValidator
 from pinnstudio.core.config import PINNConfig
 from pinnstudio.core.runner import run_pinn
+from pinnstudio.core import deepxde_examples as _dx_examples
 REFERENCE_DATA_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
     "reference_data",
@@ -53,6 +54,21 @@ class SciLineEdit(QLineEdit):
         self._value = float(v)
         self.setText(self._format(v))
         self.setStyleSheet("")
+
+
+class DomainSpinBox(QDoubleSpinBox):
+    """Domain bound spinbox that keeps 10 decimals (so pi, pi/2, 2 pi are
+    stored to ~1e-10, not rounded to 3.14) but shows only the digits a
+    value actually has: 1 shows as "1", 0.5 as "0.5", pi as "3.1415926536"."""
+    DECIMALS = 10
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setDecimals(self.DECIMALS)
+
+    def textFromValue(self, v):
+        s = f"{v:.{self.DECIMALS}f}".rstrip("0").rstrip(".")
+        return "0" if s in ("", "-0") else s
 
 
 class InitGuessLineEdit(SciLineEdit):
@@ -775,8 +791,16 @@ class MainWindow(QMainWindow):
         # ── Dependent/Stationary -- instead of the user having to set ───
         # ── those by hand first before the right examples even appear) ──
         examples_group = QGroupBox("📋 Quick Examples")
-        examples_layout = QHBoxLayout(examples_group)
-        examples_layout.addWidget(QLabel("Load example:"))
+        examples_layout = QGridLayout(examples_group)
+        # Category: PINNStudio's own templates, or DeepXDE's documented
+        # forward / inverse examples (pinnstudio/core/deepxde_examples.py).
+        examples_layout.addWidget(QLabel("Category:"), 0, 0)
+        self.quick_examples_category_combo = QComboBox()
+        self.quick_examples_category_combo.addItems(["PINNStudio", *_dx_examples.CATEGORIES])
+        self.quick_examples_category_combo.setFixedHeight(28)
+        self.quick_examples_category_combo.currentTextChanged.connect(self._on_quick_example_category_changed)
+        examples_layout.addWidget(self.quick_examples_category_combo, 0, 1)
+        examples_layout.addWidget(QLabel("Load example:"), 1, 0)
         self.quick_examples_combo = QComboBox()
         # Every template across all three dimensions, up front -- not
         # filtered by whatever dimension happens to be selected right
@@ -786,16 +810,16 @@ class MainWindow(QMainWindow):
         # _on_dim_changed resets this back to "None" when the user
         # changes dimension by hand instead (see both for the full
         # two-way sync).
-        self.quick_examples_combo.addItems([
-            "None",
-            "1D Heat", "1D Allen-Cahn", "1D Burgers", "1D Schrödinger",
-            "2D Heat", "2D Allen-Cahn (Mattey & Ghosh)", "2D Allen-Cahn (Wight & Zhao)",
-            "2D Burgers (Mathias)", "2D Poisson (L-Shape)", "2D Poisson (Disk)",
-            "3D Heat", "3D Poisson (Sphere)",
-        ])
+        self.quick_examples_combo.addItems(["None", *self._PINNSTUDIO_EXAMPLES])
         self.quick_examples_combo.setFixedHeight(28)
+        # Long DeepXDE names: keep the combo's width set by the panel, and
+        # let the drop-down list itself be as wide as its longest entry.
+        self.quick_examples_combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
+        self.quick_examples_combo.setMinimumContentsLength(18)
+        self.quick_examples_combo.view().setMinimumWidth(320)
         self.quick_examples_combo.currentTextChanged.connect(self._on_quick_example_selected)
-        examples_layout.addWidget(self.quick_examples_combo)
+        examples_layout.addWidget(self.quick_examples_combo, 1, 1)
+        examples_layout.setColumnStretch(1, 1)
         left_layout.addWidget(examples_group)
 
         # ── Dimension selector ────────────────────────────────
@@ -955,21 +979,17 @@ class MainWindow(QMainWindow):
         # _update_domain_fields_visibility().
         #
         # Shared fixed width for every domain spinbox (x/y/z/t min & max) so
-        # they all render the same size regardless of decimal count -- t_min/
-        # t_max need 4 decimals (precision for domains like 1D Schrodinger's
-        # t_max = pi/2, which 2 decimals would silently round to 1.57), while
-        # x/y/z only need the QDoubleSpinBox default of 2; without a shared
-        # width the 4-decimal boxes render visibly wider than the 2-decimal
-        # ones, an inconsistency fixed here by width rather than by cutting
-        # t's precision.
+        # they all render the same size whatever value they show. All are
+        # DomainSpinBox: 10 decimals stored, trailing zeros not shown, so
+        # domains like [-pi, pi] or t in [0, pi/2] are kept exactly.
         _DOMAIN_SPIN_WIDTH = 85
         self.x_row_widget = QWidget()
         x_row = QHBoxLayout(self.x_row_widget)
         x_row.setContentsMargins(0, 0, 0, 0)
         x_row.addWidget(QLabel("x:"))
-        self.x_min = QDoubleSpinBox()
+        self.x_min = DomainSpinBox()
         self.x_min.setRange(-1e6, 1e6); self.x_min.setValue(0.0); self.x_min.setSingleStep(0.5)
-        self.x_max = QDoubleSpinBox()
+        self.x_max = DomainSpinBox()
         self.x_max.setRange(-1e6, 1e6); self.x_max.setValue(1.0); self.x_max.setSingleStep(0.5)
         # Fixed width so this box is the same size as every other domain
         # spinbox (x/y/z/t) regardless of how many decimals it shows --
@@ -984,9 +1004,9 @@ class MainWindow(QMainWindow):
         y_row = QHBoxLayout(self.y_row_widget)
         y_row.setContentsMargins(0, 0, 0, 0)
         y_row.addWidget(QLabel("y:"))
-        self.y_min = QDoubleSpinBox()
+        self.y_min = DomainSpinBox()
         self.y_min.setRange(-1e6, 1e6); self.y_min.setValue(0.0); self.y_min.setSingleStep(0.5)
-        self.y_max = QDoubleSpinBox()
+        self.y_max = DomainSpinBox()
         self.y_max.setRange(-1e6, 1e6); self.y_max.setValue(1.0); self.y_max.setSingleStep(0.5)
         self.y_min.setFixedWidth(_DOMAIN_SPIN_WIDTH); self.y_max.setFixedWidth(_DOMAIN_SPIN_WIDTH)
         y_row.addWidget(self.y_min); y_row.addWidget(QLabel("to")); y_row.addWidget(self.y_max)
@@ -997,9 +1017,9 @@ class MainWindow(QMainWindow):
         z_row = QHBoxLayout(self.z_row_widget)
         z_row.setContentsMargins(0, 0, 0, 0)
         z_row.addWidget(QLabel("z:"))
-        self.z_min = QDoubleSpinBox()
+        self.z_min = DomainSpinBox()
         self.z_min.setRange(-1e6, 1e6); self.z_min.setValue(0.0); self.z_min.setSingleStep(0.5)
-        self.z_max = QDoubleSpinBox()
+        self.z_max = DomainSpinBox()
         self.z_max.setRange(-1e6, 1e6); self.z_max.setValue(1.0); self.z_max.setSingleStep(0.5)
         self.z_min.setFixedWidth(_DOMAIN_SPIN_WIDTH); self.z_max.setFixedWidth(_DOMAIN_SPIN_WIDTH)
         z_row.addWidget(self.z_min); z_row.addWidget(QLabel("to")); z_row.addWidget(self.z_max)
@@ -1125,16 +1145,13 @@ class MainWindow(QMainWindow):
         row2 = QHBoxLayout(self.t_row_widget)
         row2.setContentsMargins(0, 0, 0, 0)
         row2.addWidget(QLabel("t:"))
-        self.t_min = QDoubleSpinBox()
+        self.t_min = DomainSpinBox()
         self.t_min.setRange(0.0, 1e6); self.t_min.setValue(0.0); self.t_min.setSingleStep(0.5)
-        self.t_min.setDecimals(4)
-        self.t_max = QDoubleSpinBox()
+        self.t_max = DomainSpinBox()
         self.t_max.setRange(0.0, 1e6); self.t_max.setValue(1.0); self.t_max.setSingleStep(0.5)
-        # 4 decimals (not the QDoubleSpinBox default of 2) so a template
-        # whose time domain isn't a round number -- e.g. 1D Schrodinger's
-        # t in [0, pi/2] -- can actually be set to it (2 decimals would
-        # silently round pi/2 = 1.5707963... down to 1.57).
-        self.t_max.setDecimals(4)
+        # DomainSpinBox keeps 10 decimals, so a time domain that isn't a
+        # round number -- e.g. 1D Schrodinger's t in [0, pi/2] -- is stored
+        # to full precision rather than rounded to 1.57.
         self.t_min.setFixedWidth(_DOMAIN_SPIN_WIDTH); self.t_max.setFixedWidth(_DOMAIN_SPIN_WIDTH)
         row2.addWidget(self.t_min); row2.addWidget(QLabel("to")); row2.addWidget(self.t_max)
         domain_layout.addWidget(self.t_row_widget)
@@ -4265,7 +4282,73 @@ class MainWindow(QMainWindow):
             op = entry.get("op") or "union"
             self._add_custom_geom_shape(shape_type=shape_type, op=op, params=params)
 
+    _PINNSTUDIO_EXAMPLES = (
+        "1D Heat", "1D Allen-Cahn", "1D Burgers", "1D Schrödinger",
+        "2D Heat", "2D Allen-Cahn (Mattey & Ghosh)", "2D Allen-Cahn (Wight & Zhao)",
+        "2D Burgers (Mathias)", "2D Poisson (L-Shape)", "2D Poisson (Disk)",
+        "3D Heat", "3D Poisson (Sphere)",
+    )
+
+    # Settings that are the user's own preferences rather than part of a
+    # problem: loading a DeepXDE example keeps them as they are (unless the
+    # example itself sets one, e.g. a coarser plot grid for a 3D problem).
+    _DEEPXDE_KEEP_FIELDS = (
+        "save_dir", "sweep_save_dir", "gpu_device_index", "gpu_memory_fraction",
+        "use_random_seed", "random_seed",
+        "plot_colormap", "plot_levels", "plot_dpi", "plot_colorbar", "plot_figsize_mode",
+        "plot_figsize_w", "plot_figsize_h", "plot_linewidth", "plot_linewidth_anim", "plot_fps",
+        "plot_title_fontsize", "plot_subplot_title_fontsize", "plot_axis_label_fontsize",
+        "loss_plot_mode", "loss_display_every", "loss_plot_linewidth", "loss_plot_log_y",
+    )
+
+    def _on_quick_example_category_changed(self, category):
+        """Refill "Load example:" with the chosen category's examples. The
+        problem currently set up is left as it is (the list shows "None")."""
+        names = (list(self._PINNSTUDIO_EXAMPLES) if category == "PINNStudio"
+                 else _dx_examples.names(category))
+        self.quick_examples_combo.blockSignals(True)
+        self.quick_examples_combo.clear()
+        self.quick_examples_combo.addItems(["None", *names])
+        self.quick_examples_combo.setCurrentIndex(0)
+        self.quick_examples_combo.blockSignals(False)
+        self._update_bc_mode_visibility()
+
+    def _apply_deepxde_example(self, name):
+        """Load one of DeepXDE's examples: every setting comes from
+        deepxde_examples.py (DeepXDE's own script), applied through
+        _apply_config() exactly like opening a saved problem."""
+        ex = _dx_examples.BY_NAME[name]
+        try:
+            current = self._build_config()
+            keep = {k: getattr(current, k) for k in self._DEEPXDE_KEEP_FIELDS if hasattr(current, k)}
+        except Exception:
+            keep = {}
+        # The Save-to folder as typed (config.save_dir is the per-run,
+        # timestamped folder inside it).
+        keep["save_dir"] = self.save_dir_input.text()
+        cfg = _dx_examples.build_config(ex, REFERENCE_DATA_DIR, keep=keep)
+        self._applying_template = True
+        try:
+            self._apply_config(cfg)
+        finally:
+            self._applying_template = False
+        self.quick_examples_combo.blockSignals(True)
+        self.quick_examples_combo.setCurrentText(name)
+        self.quick_examples_combo.blockSignals(False)
+        self._current_template = name
+        # Only the note: _update_bc_mode_visibility() would also rebuild the
+        # loss-weight rows, resetting the example's weights to defaults.
+        if hasattr(self, 'custom_bc_note'):
+            self.custom_bc_note.setText(f"Pre-filled from the \"{name}\" example.")
+        self.log_box.append(f"✅ DeepXDE example loaded: {name}")
+        self.log_box.append(f"   Source: {ex.source}")
+        if ex.note:
+            self.log_box.append(f"   Note: {ex.note}")
+
     def _on_quick_example_selected(self, text):
+        if text in _dx_examples.BY_NAME:
+            self._apply_deepxde_example(text)
+            return
         if text == "None":
             # Leave the Boundary Conditions panel exactly as it is -- rows
             # are no longer tied to template identity, so whatever's showing
@@ -4504,27 +4587,12 @@ class MainWindow(QMainWindow):
 
         row_layout.addWidget(QLabel("Start time:"))
 
-        t_start_sb = QDoubleSpinBox()
+        t_start_sb = DomainSpinBox()
         t_start_sb.setRange(0.0, 1e6)
-        # 4 decimals (not the QDoubleSpinBox default of 2), matching
-        # self.t_max's own setDecimals(4) elsewhere -- same reasoning: a
-        # template whose time domain isn't a round number -- e.g. 1D
-        # Schrodinger's t in [0, pi/2] -- needs to be enterable here too.
-        # Found via the user's own report: typing "1.5708" as a
-        # Time-Adaptive step's End time silently rounded down to "1.57".
-        # setDecimals() MUST come before setValue() -- QDoubleSpinBox
-        # rounds whatever's passed to setValue() to its decimals setting
-        # AT THAT MOMENT (the default is 2 until changed), so calling
-        # setValue(t_start) first and setDecimals(4) after was already too
-        # late: t_start had already been rounded down to 2 decimals by
-        # then, and widening decimals afterward doesn't recover the lost
-        # precision (self.t_max avoids this same trap by only ever being
-        # setValue()'d by a template AFTER its one-time setDecimals(4)
-        # call at construction, long before any template is selected --
-        # this widget instead gets its real intended value passed straight
-        # into the same call that constructs it, so the two calls had to
-        # be reordered here instead).
-        t_start_sb.setDecimals(4)
+        # DomainSpinBox (10 decimals), like self.t_min/t_max: a time
+        # domain that isn't a round number -- e.g. 1D Schrodinger's
+        # [0, pi/2] -- has to be enterable here too. The range is set
+        # before the value, since QDoubleSpinBox clamps/rounds on setValue.
         t_start_sb.setValue(t_start)
         t_start_sb.setFixedHeight(26); t_start_sb.setFixedWidth(85)
         row_layout.addWidget(t_start_sb)
@@ -4533,9 +4601,8 @@ class MainWindow(QMainWindow):
 
         row_layout.addWidget(QLabel("End time:"))
 
-        t_end_sb = QDoubleSpinBox()
+        t_end_sb = DomainSpinBox()
         t_end_sb.setRange(0.0, 1e6)
-        t_end_sb.setDecimals(4)
         t_end_sb.setValue(t_end)
         t_end_sb.setFixedHeight(26); t_end_sb.setFixedWidth(85)
         row_layout.addWidget(t_end_sb)

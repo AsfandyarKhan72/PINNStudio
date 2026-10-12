@@ -2459,18 +2459,20 @@ if {config.time_adaptive}:
             _sched_phases = _json.loads({repr(config.scheduler_phases)})
             for _sp_i, _sp in enumerate(_sched_phases):
                 print(f"  === Scheduler Phase {{_sp_i+1}}: {{_sp['optimizer']}} {{_sp['iterations']}} iters ===")
-                _sp_weights = [float(w) for w in _sp['weights'].split(',') if w.strip()]
+                # A phase without its own weights (e.g. written by hand) uses
+                # the Loss Weights panel's.
+                _sp_weights = [float(w) for w in str(_sp.get('weights') or '').split(',') if w.strip()] or list(_multi_weights)
                 # Same safety net as the main (non-Time-Adaptive) scheduler loop:
                 # each step rebuilds its own _constraints_i, which can be a
                 # different length than what the GUI's scheduler-phase weight
                 # string was built from (e.g. a step boundary changing which IC
                 # constraint applies) -- fall back to uniform weights of the
                 # right length rather than crash mid-training.
-                _sp_expected_len_i = {config.num_outputs} + len(_constraints_i)
+                _sp_expected_len_i = {_n_equations(config)} + len(_constraints_i)
                 if len(_sp_weights) != _sp_expected_len_i:
                     print(f"  ⚠️ Scheduler Phase {{_sp_i+1}} (step {{step_i+1}}): configured weights have "
                           f"{{len(_sp_weights)}} entries but {{_sp_expected_len_i}} loss terms are active this "
-                          f"step ({{len(_constraints_i)}} constraints + {config.num_outputs} PDE) — using "
+                          f"step ({{len(_constraints_i)}} constraints + {_n_equations(config)} PDE) — using "
                           f"uniform weights for this phase instead of crashing.")
                     _sp_weights = [1.0] * _sp_expected_len_i
                 if _sp['optimizer'] == 'lbfgs':
@@ -5497,7 +5499,9 @@ for _pval in _param_values:
             _sched_cum_iters = 0
             for _sp_i, _sp in enumerate(_sched_phases):
                 print(f"  === Scheduler Phase {{_sp_i+1}}: {{_sp['optimizer']}} {{_sp['iterations']}} iters ===")
-                _sp_weights = [float(w) for w in _sp['weights'].split(',') if w.strip()]
+                # A phase without its own weights (e.g. written by hand) uses
+                # the Loss Weights panel's.
+                _sp_weights = [float(w) for w in str(_sp.get('weights') or '').split(',') if w.strip()] or list(_multi_weights)
                 # The GUI computes each phase's weight string from the Boundary
                 # Conditions panel's row count at the time the phase was set up;
                 # if the panel (or geometry) changed afterwards without the
@@ -5506,11 +5510,11 @@ for _pval in _param_values:
                 # DeepXDE has no graceful way to handle (a hard crash multiplying
                 # mismatched-length tensors). Fall back to the freshly computed,
                 # always-correct-length weights rather than crash mid-training.
-                _sp_expected_len = {config.num_outputs} + len(_constraints)
+                _sp_expected_len = {_n_equations(config)} + len(_constraints)
                 if len(_sp_weights) != _sp_expected_len:
                     print(f"  ⚠️ Scheduler Phase {{_sp_i+1}}: configured weights have {{len(_sp_weights)}} "
                           f"entries but {{_sp_expected_len}} loss terms are active "
-                          f"({{len(_constraints)}} constraints + {config.num_outputs} PDE) — the Boundary "
+                          f"({{len(_constraints)}} constraints + {_n_equations(config)} PDE) — the Boundary "
                           f"Conditions panel or geometry likely changed after this phase's weights were set. "
                           f"Using the freshly computed weights for this phase instead.")
                     _sp_weights = list(_multi_weights)
@@ -7676,7 +7680,7 @@ def _clean_loss_weights(config, n_out, bc_entries, ic_active_list, obs_weights, 
             elif wi < len(wm_list):
                 wi += 1
     weights = pde_w + bc_w + ic_w + list(obs_weights)
-    expected_len = n_out + len(bc_w) + len(ic_w) + len(obs_weights)
+    expected_len = len(pde_w) + len(bc_w) + len(ic_w) + len(obs_weights)
     return weights, expected_len
 
 

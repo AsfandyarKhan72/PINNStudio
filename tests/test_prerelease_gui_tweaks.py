@@ -27,6 +27,7 @@ widget-construction/state checks -- no training needed:
 Run directly:
     QT_QPA_PLATFORM=offscreen python3 tests/test_prerelease_gui_tweaks.py
 """
+import math
 import os
 import sys
 
@@ -78,10 +79,14 @@ def main():
           f"all 8 domain spinboxes share one fixed (min, max) width, got {fixed_widths}")
     check(all(mn == mx for mn, mx in fixed_widths.values()),
           "each spinbox's width is truly fixed (minimumWidth == maximumWidth)")
-    check(win.t_min.decimals() == 4 and win.t_max.decimals() == 4,
-          "t_min/t_max keep their 4-decimal precision (not reduced to match x/y/z's 2)")
-    check(win.x_min.decimals() == 2 and win.y_min.decimals() == 2 and win.z_min.decimals() == 2,
-          "x/y/z spinboxes still default to 2 decimals (unchanged)")
+    check(all(getattr(win, n).decimals() >= 10
+              for n in ("x_min", "x_max", "y_min", "y_max", "z_min", "z_max", "t_min", "t_max")),
+          "all domain spinboxes keep full precision (pi is not rounded to 3.14)")
+    win.x_max.setValue(math.pi)
+    check(abs(win.x_max.value() - math.pi) < 1e-9 and win.x_max.text() == "3.1415926536",
+          f"x_max keeps pi and shows it without padding, got {win.x_max.text()!r}")
+    win.x_max.setValue(1.0)
+    check(win.x_max.text() == "1", f"a round value shows without trailing zeros, got {win.x_max.text()!r}")
 
     # 3. BC panel: one shared hint, not one per row
     check(hasattr(win, "bc_loc_hint_toggle") and hasattr(win, "bc_loc_hint"),
