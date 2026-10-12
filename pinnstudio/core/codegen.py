@@ -176,6 +176,14 @@ def _bc_check_initial_operator_preconditions(bc_entries, is_steady, time_adaptiv
                          "Use Adaptation = None or RAR for this problem.")
 
 
+def _check_anchor_preconditions(config):
+    """Extra training points (Round 65) aren't supported with Time-Adaptive
+    training -- each step only covers part of the time range."""
+    if (getattr(config, "anchors_mode", "none") or "none") != "none" and getattr(config, "time_adaptive", False):
+        raise ValueError("Extra training points (anchors) aren't supported with Time-Adaptive training "
+                         "(each step covers only part of the time range). Use Adaptation = None or RAR.")
+
+
 def _bc_check_periodic_preconditions(bc_entries, geometry_type):
     """DeepXDE's own PeriodicBC calls ``geom.periodic_point(x,
     component_x)``, which is only implemented for ``Interval`` (1D),
@@ -1879,7 +1887,7 @@ def _gs_rar_loop_code(config):
                 else:
                     residuals = np.sum([np.abs(r).flatten() for r in _rar_res], axis=0)
             else:
-                residuals = np.abs(_rar_res).flatten()
+                residuals = np.abs(_rar_res).flatten(){_rar_tolerance_check(config, "            ")}
             top_idx    = np.argsort(residuals)[-{config.rar_add_points}:]
             new_points = xt_cand[top_idx]
             print(f"Max residual: {{residuals.max():.4e}}, Mean: {{residuals.mean():.4e}}")
@@ -3676,6 +3684,11 @@ def _effective_config(config):
         config = _dc.replace(config, time_adaptive=False)
     # Round 62: with an input feature formula the network's first layer
     # takes one input per feature, not one per coordinate.
+    # Round 67: "reference from a formula" -> the files the scripts will
+    # write (see _formula_reference_code), as ordinary ea_files entries.
+    _ref = _formula_reference_entries(config)
+    if _ref:
+        config = _dc.replace(config, ea_files=repr([(t, p, i) for (t, p, i, _e) in _ref]))
     n_feat = len(_feature_formula_list(config)) if _input_formula_on(config) else 0
     if n_feat and config.layers and config.layers[0] != n_feat:
         config = _dc.replace(config, layers=[n_feat] + list(config.layers[1:]))
@@ -3747,6 +3760,7 @@ def generate_script(config):
                                         is_2d=(config.problem_dim == "2D"), num_outputs=config.num_outputs)
     _bc_check_initial_operator_preconditions(_bc_entries_for_numtest, bool(config.steady_state),
                                              bool(config.time_adaptive))
+    _check_anchor_preconditions(config)
     # Periodic BC's own real DeepXDE geometry precondition -- see
     # _bc_check_periodic_preconditions's docstring. Same "clear message
     # instead of a confusing one" rationale as Interface 2D BC's check
@@ -3774,6 +3788,12 @@ def generate_script(config):
     config_pde_expressions = "|".join(pde_exprs_converted)
 
     pde_expr_single = _simplify_pde_expr(config.pde_expression)
+    # Extra training points (Round 65) -- see _anchor_points_code; the
+    # text stays exactly as before when there are none.
+    _has_user_anchors = bool(_anchor_points_code(config))
+    _live_fwd_anchors = "_user_anchors" if _has_user_anchors else "None"
+    _live_inv_anchors = ("np.vstack([_a for _a in (_obs_anchors, _user_anchors) if _a is not None])"
+                         if _has_user_anchors else "_obs_anchors")
     # Coordinates the equation itself uses (a source term like sin(pi*x)):
     # bound as one column each, after the default x/y (inputs/outputs)
     # bindings, only when used -- see _pde_coord_names.
@@ -4706,6 +4726,7 @@ if _is_steady:
 else:
     timedomain = dde.geometry.TimeDomain({config.t_min}, {config.t_max})
     geomtime   = dde.geometry.GeometryXTime(geom, timedomain)
+{_formula_reference_code(config, "geom")}
 
 # Bounding box of the ACTUAL shape (every DeepXDE geometry exposes this),
 # used for plot/export grids so a Disk/Ellipse/Triangle/Polygon/Sphere gets
@@ -5267,6 +5288,7 @@ print(f"Loss weights: {{_multi_weights}} ({{len(_multi_weights)}} terms for {{le
 {"print('Note: num_test disabled (left at None) because an Operator or Point Set Operator BC Value expression references X -- DeepXDE requires this whenever a boundary condition function uses the raw input points.')" if _bc_op_uses_X else ""}
 {"print('Note: Point Distribution was switched to uniform automatically because an Interface 2D boundary condition is active (DeepXDE requires evenly-spaced boundary points so Interface 2D BC can pair corresponding points correctly across its two edges).')" if _bc_forced_uniform else ""}
 
+{_anchor_points_code(config)}
 # ── Data ─────────────────────────────────────────────────────
 # Steady-state problems have no time axis/Initial Condition, so they use a
 # plain dde.data.PDE (spatial geometry only, no num_initial=) instead of
@@ -5286,7 +5308,7 @@ if _problem_type == "Inverse":
             num_domain={config.num_domain}, num_boundary={config.num_boundary},
             num_test={_safe_num_test!r},
             train_distribution="{_safe_point_distribution}",
-            anchors=_obs_anchors
+            anchors={_live_inv_anchors}
         )
     else:
         data = dde.data.TimePDE(
@@ -5294,7 +5316,7 @@ if _problem_type == "Inverse":
             num_domain={config.num_domain}, num_boundary={config.num_boundary},
             num_initial={config.num_initial}, num_test={_safe_num_test!r},
             train_distribution="{_safe_point_distribution}",
-            anchors=_obs_anchors
+            anchors={_live_inv_anchors}
         )
 else:
     if _is_steady:
@@ -5303,7 +5325,7 @@ else:
             num_domain={config.num_domain}, num_boundary={config.num_boundary},
             num_test={_safe_num_test!r},
             train_distribution="{_safe_point_distribution}",
-            anchors=None
+            anchors={_live_fwd_anchors}
         )
     else:
         data = dde.data.TimePDE(
@@ -5311,7 +5333,7 @@ else:
             num_domain={config.num_domain}, num_boundary={config.num_boundary},
             num_initial={config.num_initial}, num_test={_safe_num_test!r},
             train_distribution="{_safe_point_distribution}",
-            anchors=None
+            anchors={_live_fwd_anchors}
         )
 
 # ── Parametric loop ──────────────────────────────────────────
@@ -7889,6 +7911,151 @@ def _param_axis_helper_code(axis_label_fontsize, subplot_title_fontsize):
     return final_val'''
 
 
+def _rar_tolerance_check(config, indent):
+    """RAR early stop (Round 66): leave the refinement loop once the mean
+    |residual| over the candidate points is below config.rar_tolerance --
+    "" (no code) when it's 0, so existing scripts are unchanged."""
+    tol = float(getattr(config, "rar_tolerance", 0.0) or 0.0)
+    if tol <= 0:
+        return ""
+    return (f"\n{indent}if residuals.mean() < {tol!r}:"
+            f"\n{indent}    print(f\"RAR: mean residual {{residuals.mean():.4e}} is below the tolerance {tol!r} -- refinement done.\")"
+            f"\n{indent}    break")
+
+
+def _formula_reference_dir(config):
+    import os as _os_ref, tempfile as _tf_ref
+    base = (getattr(config, "save_dir", "") or "").strip() or _os_ref.path.join(_tf_ref.gettempdir(), "pinnstudio_run")
+    return _os_ref.path.join(base, "reference_from_formula")
+
+
+def _formula_reference_entries(config):
+    """[(t, path, output index, expression)] for "reference from a formula"
+    Error Analysis (Round 67) -- one reference file per output with a
+    formula and per comparison time (one per output when steady)."""
+    if (getattr(config, "ea_ref_mode", "files") or "files") != "formula":
+        return []
+    import os as _os_ref
+    n_out = int(getattr(config, "num_outputs", 1) or 1)
+    names = [n.strip() for n in (config.output_names or "u").split(",") if n.strip()]
+    while len(names) < n_out:
+        names.append(f"u{len(names)}")
+    exprs = (getattr(config, "ea_ref_formula", "") or "").split("|")
+    if config.steady_state:
+        times = [float(config.t_min)]
+    else:
+        txt = (getattr(config, "ea_ref_times", "") or "").strip()
+        if txt:
+            times = [float(v) for v in txt.replace(";", ",").split(",") if v.strip()]
+        else:
+            times = [config.t_min + k * (config.t_max - config.t_min) / 4.0 for k in range(5)]
+    d = _formula_reference_dir(config)
+    out = []
+    for i in range(n_out):
+        e = exprs[i].strip() if i < len(exprs) else ""
+        if not e:
+            continue
+        for t in times:
+            fname = f"{names[i]}.txt" if config.steady_state else f"{names[i]}_t_{t:.6g}.txt"
+            out.append((float(t), _os_ref.path.join(d, fname), i, e))
+    return out
+
+
+def _formula_reference_code(config, geom_ref="geom"):
+    """Source that writes the formula reference files listed by
+    _formula_reference_entries, in exactly the format Error Analysis reads
+    (x[, y[, z]][, t], value), on a grid over the geometry's bounding box
+    masked to the geometry -- or "" when not in formula mode. Shared by both
+    generators, so the comparison itself goes through the unchanged
+    file-based Error Analysis code."""
+    entries = _formula_reference_entries(config)
+    if not entries:
+        return ""
+    is_2d, is_3d, steady = config.problem_dim == "2D", config.problem_dim == "3D", bool(config.steady_state)
+    n = int(getattr(config, "ea_ref_grid", 0) or 0) or (31 if is_3d else (101 if is_2d else 201))
+    rows = [(t, p, _np_math_expr(e)) for (t, p, _i, e) in entries]
+    L = ["# ── Reference solution from a formula (Error Analysis) ──────────",
+         "def _write_formula_reference():",
+         "    import os as _ref_os",
+         "    from scipy.special import erf as _ref_erf",
+         _math_namespace_code("_ns", "np", "    "),
+         "    _ns['np'] = np",
+         "    _ns['erf'] = _ref_erf",
+         "    _ns['norm_cdf'] = lambda _z: 0.5 * (1.0 + _ref_erf(np.asarray(_z) / np.sqrt(2.0)))",
+         f"    _ref_os.makedirs({_formula_reference_dir(config)!r}, exist_ok=True)",
+         f"    _g = {geom_ref}",
+         "    _lo, _hi = np.asarray(_g.bbox[0], dtype=float), np.asarray(_g.bbox[1], dtype=float)",
+         f"    _axes = [np.linspace(_lo[k], _hi[k], {n}) for k in range(len(_lo))]",
+         "    _pts = np.stack([a.ravel() for a in np.meshgrid(*_axes, indexing='ij')], axis=1)",
+         "    _pts = _pts[_g.inside(_pts)] if _pts.shape[1] > 1 else _pts",
+         "    _cols = {'x': _pts[:, 0]}"]
+    if is_2d or is_3d:
+        L.append("    _cols['y'] = _pts[:, 1]")
+    if is_3d:
+        L.append("    _cols['z'] = _pts[:, 2]")
+    L.append(f"    for _t, _path, _expr in {rows!r}:")
+    L.append("        _u = np.broadcast_to(np.asarray(eval(_expr, dict(_ns, t=_t, **_cols)), dtype=float), (len(_pts),))")
+    if steady:
+        L.append("        np.savetxt(_path, np.column_stack([_pts, _u]))")
+    else:
+        L.append("        np.savetxt(_path, np.column_stack([_pts, np.full(len(_pts), _t), _u]))")
+    L.append(f"    print(f'Reference from formula: wrote {len(rows)} file(s) to {_formula_reference_dir(config)}')")
+    L.append("_write_formula_reference()")
+    return "\n".join(L)
+
+
+def _anchor_columns(config):
+    """[(name, lo, hi)] per network input column -- x[, y[, z]][, t] --
+    with the domain range as the default (anchors box)."""
+    cols = [("x", config.x_min, config.x_max)]
+    if config.problem_dim in ("2D", "3D"):
+        cols.append(("y", config.y_min, config.y_max))
+    if config.problem_dim == "3D":
+        cols.append(("z", config.z_min, config.z_max))
+    if not config.steady_state:
+        cols.append(("t", config.t_min, config.t_max))
+    return cols
+
+
+def _anchor_points_code(config):
+    """Source defining `_user_anchors` (an (N, n_inputs) array) for the
+    extra training points the user asked for (Round 65), or "" when none
+    -- shared by both generators. "box": uniformly random points in the
+    given per-column ranges (blank = the column's domain range); "file":
+    a points file with one column per input."""
+    mode = getattr(config, "anchors_mode", "none") or "none"
+    cols = _anchor_columns(config)
+    if mode == "file" and (getattr(config, "anchors_file", "") or "").strip():
+        path = config.anchors_file.strip()
+        return "\n".join([
+            "# Extra training points (anchors) from a file -- one column per input:",
+            f"# {', '.join(c[0] for c in cols)}",
+            f"_user_anchors = np.loadtxt({path!r}, delimiter=',' if {path!r}.lower().endswith('.csv') else None, ndmin=2)",
+            f"if _user_anchors.shape[1] < {len(cols)}:",
+            f"    raise RuntimeError(f'Anchor points file needs {len(cols)} columns ({', '.join(c[0] for c in cols)}), "
+            "got {_user_anchors.shape[1]}.')",
+            f"_user_anchors = _user_anchors[:, :{len(cols)}]",
+        ])
+    if mode == "box":
+        parts = [p.strip() for p in (getattr(config, "anchors_box", "") or "").split(";")]
+        ranges = []
+        for i, (name, lo, hi) in enumerate(cols):
+            if i < len(parts) and parts[i]:
+                a, b = [float(v) for v in parts[i].split(",")[:2]]
+                ranges.append((a, b))
+            else:
+                ranges.append((float(lo), float(hi)))
+        n = int(getattr(config, "anchors_count", 1000) or 0)
+        lines = [f"# Extra training points (anchors): {n} random points in a box --"]
+        lines.append("# " + ", ".join(f"{c[0]} in [{r[0]:g}, {r[1]:g}]" for c, r in zip(cols, ranges)))
+        lines.append("_user_anchors = np.hstack([")
+        for (a, b) in ranges:
+            lines.append(f"    np.random.uniform({a!r}, {b!r}, ({n}, 1)),")
+        lines.append("])")
+        return "\n".join(lines)
+    return ""
+
+
 def _contour_levels_helper_code():
     """Runtime source for _cf_levels(n, vmin, vmax, *data) -- cleanup Round
     50 (open item from Round 22). matplotlib's contourf IGNORES vmin/vmax
@@ -8961,6 +9128,7 @@ def generate_clean_script(config):
     _bc_check_interface2d_preconditions(bc_entries, config.geometry_type,
                                         is_2d=(config.problem_dim == "2D"), num_outputs=config.num_outputs)
     _bc_check_initial_operator_preconditions(bc_entries, is_steady, bool(config.time_adaptive))
+    _check_anchor_preconditions(config)
     # Same Periodic BC geometry precondition as generate_script() above --
     # see _bc_check_periodic_preconditions's docstring.
     _bc_check_periodic_preconditions(bc_entries, config.geometry_type)
@@ -9365,6 +9533,8 @@ def _load_obs_data(path):
                           f"timedomain = dde.geometry.TimeDomain({config.t_min}, {config.t_max})",
                           "geomtime = dde.geometry.GeometryXTime(geom, timedomain)"]
         parts.append("\n".join(geom_lines))
+        if _formula_reference_code(config):
+            parts.append(_formula_reference_code(config, "geom"))
 
         constraints_lines = ["constraints = []"] + bc_appends + ic_appends
         if is_inverse:
@@ -9382,7 +9552,13 @@ def _load_obs_data(path):
                 "# spaced boundary points so Interface 2D BC can pair corresponding\n"
                 "# points correctly across its two edges).")
 
-        anchors_arg = "obs_anchors" if is_inverse else "None"
+        user_anchor_code = _anchor_points_code(config)
+        if user_anchor_code:
+            parts.append(user_anchor_code)
+            anchors_arg = ("np.vstack([a for a in (obs_anchors, _user_anchors) if a is not None])"
+                           if is_inverse else "_user_anchors")
+        else:
+            anchors_arg = "obs_anchors" if is_inverse else "None"
         if is_steady:
             data_lines = [f'''data = dde.data.PDE(
     geomtime, pde, constraints,
@@ -9475,7 +9651,7 @@ for rar_cycle in range({config.rar_cycles}):''']
             else:
                 _rar_resid_line = "    residuals = np.sum([np.abs(r).flatten() for r in res], axis=0) if isinstance(res, list) else np.abs(res).flatten()"
             rar_lines.append(f'''    res = model.predict(xt_cand, operator=pde)
-{_rar_resid_line}
+{_rar_resid_line}{_rar_tolerance_check(config, "    ")}
     top_idx = np.argsort(residuals)[-{config.rar_add_points}:]
     print(f"RAR round {{rar_cycle + 1}}: max residual {{residuals.max():.4e}}, mean {{residuals.mean():.4e}}")
     data.add_anchors(xt_cand[top_idx])
@@ -9522,6 +9698,8 @@ for rar_cycle in range({config.rar_cycles}):''']
         ta_lines = [f'''def _build_geom():
     return {geom_expr}
 ''']
+        if _formula_reference_code(config):
+            ta_lines.append(_formula_reference_code(config, "_build_geom()"))
         if is_3d:
             # grid_size is a per-axis resolution, so this cubes it.
             ta_lines.append(f'''grid_size = {config.ta_grid_size}

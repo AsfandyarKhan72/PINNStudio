@@ -1177,10 +1177,12 @@ class MainWindow(QMainWindow):
             points_layout.addLayout(row)
             return sb
 
-        self.num_domain   = _pts_row("Domain points:",   2000, 100, 100000, 500)
-        self.num_boundary = _pts_row("Boundary points:", 200,  10,  10000,  100)
-        self.num_initial  = _pts_row("Initial points:",  200,  0,  10000,  100)
-        self.num_test     = _pts_row("Test points:",     1000, 100, 50000,  500)
+        # Minimums low enough for DeepXDE's own small examples (e.g. 16
+        # domain / 2 boundary points for its 1D Poisson problems).
+        self.num_domain   = _pts_row("Domain points:",   2000, 1,   200000, 500)
+        self.num_boundary = _pts_row("Boundary points:", 200,  0,   50000,  100)
+        self.num_initial  = _pts_row("Initial points:",  200,  0,   50000,  100)
+        self.num_test     = _pts_row("Test points:",     1000, 10,  200000, 500)
 
         pts_dist_row = QHBoxLayout()
         pts_dist_row.addWidget(QLabel("Point distribution:"))
@@ -1194,6 +1196,53 @@ class MainWindow(QMainWindow):
         pts_dist_row.addStretch()
         pts_dist_row.addWidget(self.pts_dist_combo)
         points_layout.addLayout(pts_dist_row)
+
+        # Extra training points ("anchors", Round 65): always included in
+        # training on top of the sampled ones -- from a points file, or
+        # random points concentrated in a box (e.g. where the solution
+        # changes fastest).
+        anchors_row = QHBoxLayout()
+        anchors_row.addWidget(QLabel("Extra training points:"))
+        self.anchors_mode_combo = QComboBox()
+        self.anchors_mode_combo.addItem("None", "none")
+        self.anchors_mode_combo.addItem("From a file", "file")
+        self.anchors_mode_combo.addItem("Random in a box", "box")
+        self.anchors_mode_combo.setFixedHeight(28)
+        anchors_row.addStretch(); anchors_row.addWidget(self.anchors_mode_combo)
+        points_layout.addLayout(anchors_row)
+        self.anchors_file_widget = QWidget()
+        af_row = QHBoxLayout(self.anchors_file_widget)
+        af_row.setContentsMargins(12, 0, 0, 0)
+        self.anchors_file_edit = QLineEdit()
+        self.anchors_file_edit.setPlaceholderText("points file: one column per input (x[, y[, z]][, t])")
+        self.anchors_file_edit.setFixedHeight(26)
+        af_browse = QPushButton("Browse")
+        af_browse.setFixedHeight(26)
+        af_browse.clicked.connect(lambda: self._browse_into(self.anchors_file_edit, "Extra training points file",
+                                                            "Data (*.txt *.dat *.csv);;All files (*)"))
+        af_row.addWidget(self.anchors_file_edit); af_row.addWidget(af_browse)
+        points_layout.addWidget(self.anchors_file_widget)
+        self.anchors_box_widget = QWidget()
+        ab_layout = QHBoxLayout(self.anchors_box_widget)
+        ab_layout.setContentsMargins(12, 0, 0, 0)
+        ab_layout.addWidget(QLabel("Count:"))
+        self.anchors_count_spin = QSpinBox()
+        self.anchors_count_spin.setRange(1, 1000000); self.anchors_count_spin.setValue(1000)
+        self.anchors_count_spin.setFixedHeight(26); self.anchors_count_spin.setFixedWidth(90)
+        ab_layout.addWidget(self.anchors_count_spin)
+        ab_layout.addWidget(QLabel("Ranges:"))
+        self.anchors_box_edit = QLineEdit()
+        self.anchors_box_edit.setPlaceholderText("lo,hi per input, ';'-separated; blank = whole domain")
+        self.anchors_box_edit.setFixedHeight(26)
+        ab_layout.addWidget(self.anchors_box_edit)
+        points_layout.addWidget(self.anchors_box_widget)
+
+        def _sync_anchors(_i=None):
+            m = self.anchors_mode_combo.currentData()
+            self.anchors_file_widget.setVisible(m == "file")
+            self.anchors_box_widget.setVisible(m == "box")
+        self.anchors_mode_combo.currentIndexChanged.connect(_sync_anchors)
+        _sync_anchors()
 
         self.view_domain_check = QCheckBox("View domain && point distribution")
         self.view_domain_check.setChecked(False)
@@ -2123,11 +2172,24 @@ class MainWindow(QMainWindow):
         # residual at each one, and adds the worst-residual ones as new
         # training points -- then retrains for a fixed number of iterations.
         # That's one "round"; it repeats for the configured number of rounds.
-        self.rar_cycles      = _rar_row("RAR training rounds:",          3,     1,    20,     1)
-        self.rar_candidates  = _rar_row("Residual sampling points:",     50000, 1000, 200000, 5000)
-        self.rar_add_points  = _rar_row("Data points to add per cycle:", 500,   10,   10000,  100)
-        self.rar_adam_iters  = _rar_row("Adam iterations:",              20000, 100,  50000,  1000)
-        self.rar_lbfgs_iters = _rar_row("L-BFGS iterations:",            10000, 0,    50000,  1000)
+        # Limits wide enough for DeepXDE's own Burgers-RAR recipe (one point
+        # per round, as many rounds as it takes to reach a tolerance).
+        self.rar_cycles      = _rar_row("RAR training rounds:",          3,     1,    1000,   1)
+        self.rar_candidates  = _rar_row("Residual sampling points:",     50000, 1000, 500000, 5000)
+        self.rar_add_points  = _rar_row("Data points to add per cycle:", 500,   1,    10000,  100)
+        self.rar_adam_iters  = _rar_row("Adam iterations:",              20000, 0,    500000, 1000)
+        self.rar_lbfgs_iters = _rar_row("L-BFGS iterations:",            10000, 0,    500000, 1000)
+        # Early stop (Round 66): end refinement once the mean residual over
+        # the sampled candidates is below this; 0 = always run every round.
+        rar_tol_row = QHBoxLayout()
+        rar_tol_row.addWidget(QLabel("Stop when mean residual <"))
+        self.rar_tolerance = QDoubleSpinBox()
+        self.rar_tolerance.setRange(0.0, 1e6); self.rar_tolerance.setDecimals(6)
+        self.rar_tolerance.setSingleStep(0.001); self.rar_tolerance.setValue(0.0)
+        self.rar_tolerance.setSpecialValueText("off")
+        self.rar_tolerance.setFixedHeight(28); self.rar_tolerance.setFixedWidth(100)
+        rar_tol_row.addStretch(); rar_tol_row.addWidget(self.rar_tolerance)
+        rar_layout.addLayout(rar_tol_row)
 
         # Which equation's residual to rank candidate points by, for a
         # multi-output problem (model.predict(x, operator=pde) returns one
@@ -3489,6 +3551,12 @@ class MainWindow(QMainWindow):
             self.input_transform_rows_layout.addWidget(row_w)
             self.input_transform_rows.append(
                 {"label": label, "scale": scale_spin, "shift": shift_spin})
+
+    def _browse_into(self, line_edit, title, file_filter="All files (*)"):
+        """Open-file dialog that writes the chosen path into `line_edit`."""
+        path, _ = QFileDialog.getOpenFileName(self, title, line_edit.text().strip() or "", file_filter)
+        if path:
+            line_edit.setText(path)
 
     def _transform_mode_widgets(self, parent_layout):
         """A "Mode: Scale/shift | Formula" row plus the two containers it
@@ -6341,6 +6409,10 @@ class MainWindow(QMainWindow):
             output_transform_enabled=self.output_transform_cb.isChecked(),
             output_transform_scale=[r["scale"].value() for r in self.output_transform_rows],
             output_transform_shift=[r["shift"].value() for r in self.output_transform_rows],
+            anchors_mode=self.anchors_mode_combo.currentData() or "none",
+            anchors_file=self.anchors_file_edit.text().strip(),
+            anchors_count=self.anchors_count_spin.value(),
+            anchors_box=self.anchors_box_edit.text().strip(),
             input_transform_mode=self.input_transform_mode_combo.currentData() or "scale",
             input_feature_formula=self.input_feature_formula_edit.text().strip(),
             output_transform_mode=self.output_transform_mode_combo.currentData() or "scale",
@@ -6368,6 +6440,7 @@ class MainWindow(QMainWindow):
             rar_add_points=self.rar_add_points.value(),
             rar_adam_iters=self.rar_adam_iters.value(),
             rar_lbfgs_iters=self.rar_lbfgs_iters.value(),
+            rar_tolerance=self.rar_tolerance.value(),
             # Index 0 ("All outputs (combined)") -> -1 (original, unchanged
             # behavior); index k (k>=1) -> equation/output (k-1).
             rar_output_selector=(self.rar_output_combo.currentIndex() - 1),
@@ -6469,6 +6542,10 @@ class MainWindow(QMainWindow):
             loss_plot_linewidth=self._loss_plot_settings.get('linewidth', 2.0) if getattr(self, '_loss_plot_settings', None) else 2.0,
             loss_plot_log_y=self._loss_plot_settings.get('log_y', True) if getattr(self, '_loss_plot_settings', None) else True,
             ea_files=repr(self._ea_settings.get('files', [])) if getattr(self, '_ea_settings', None) else "[]",
+            ea_ref_mode=(self._ea_settings or {}).get('ref_mode', 'files') if getattr(self, '_ea_settings', None) else "files",
+            ea_ref_formula=(self._ea_settings or {}).get('ref_formula', '') if getattr(self, '_ea_settings', None) else "",
+            ea_ref_times=(self._ea_settings or {}).get('ref_times', '') if getattr(self, '_ea_settings', None) else "",
+            ea_ref_grid=int((self._ea_settings or {}).get('ref_grid', 0) or 0) if getattr(self, '_ea_settings', None) else 0,
             ea_do_line=self._ea_settings.get('do_line', True) if getattr(self, '_ea_settings', None) else True,
             ea_do_surface=self._ea_settings.get('do_surface', True) if getattr(self, '_ea_settings', None) else True,
             # Round 31: forward the "Error Metrics to Compute" checkboxes
@@ -6943,6 +7020,10 @@ class MainWindow(QMainWindow):
         # nothing and leaving the combo on its previous value.
         _pd = "pseudo" if config.point_distribution == "pseudorandom" else config.point_distribution
         self.pts_dist_combo.setCurrentText(_pd)
+        self._set_combo_data(self.anchors_mode_combo, getattr(config, "anchors_mode", "none") or "none")
+        self.anchors_file_edit.setText(getattr(config, "anchors_file", "") or "")
+        self.anchors_count_spin.setValue(int(getattr(config, "anchors_count", 1000) or 1000))
+        self.anchors_box_edit.setText(getattr(config, "anchors_box", "") or "")
         # Blocked like the dimension-switch/Inverse-toggle combos just above:
         # _on_plot_type_changed() now auto-pops the unified settings dialog on
         # every change, and it must not fire here -- the hidden holder widgets
@@ -7061,6 +7142,7 @@ class MainWindow(QMainWindow):
         self.rar_add_points.setValue(config.rar_add_points)
         self.rar_adam_iters.setValue(config.rar_adam_iters)
         self.rar_lbfgs_iters.setValue(config.rar_lbfgs_iters)
+        self.rar_tolerance.setValue(float(getattr(config, "rar_tolerance", 0.0) or 0.0))
         _rar_sel_idx = getattr(config, "rar_output_selector", -1) + 1
         if 0 <= _rar_sel_idx < self.rar_output_combo.count():
             self.rar_output_combo.setCurrentIndex(_rar_sel_idx)
@@ -7216,11 +7298,19 @@ class MainWindow(QMainWindow):
             ea_files = _ast.literal_eval(config.ea_files) if config.ea_files else []
         except (ValueError, SyntaxError):
             ea_files = []
+        _ref_formula_mode = (getattr(config, "ea_ref_mode", "files") or "files") == "formula"
         self._ea_settings = {
             "files": ea_files,
             "do_line": config.ea_do_line,
             "do_surface": config.ea_do_surface,
-        } if ea_files else None
+            "do_l2": config.ea_metric_l2,
+            "do_mse": config.ea_metric_mse,
+            "do_max": config.ea_metric_max,
+            "ref_mode": "formula" if _ref_formula_mode else "files",
+            "ref_formula": getattr(config, "ea_ref_formula", "") or "",
+            "ref_times": getattr(config, "ea_ref_times", "") or "",
+            "ref_grid": int(getattr(config, "ea_ref_grid", 0) or 0),
+        } if (ea_files or _ref_formula_mode) else None
 
         self._sync_inverse_pde_substitution(self.radio_inverse.isChecked())
 
@@ -11115,9 +11205,64 @@ print("DOMAIN_PREVIEW_DONE")
             metrics_layout.addWidget(w)
         layout.addWidget(metrics_group)
 
+        # ── Reference source (Round 67): files, or an exact formula ──
+        _prev_ea = getattr(self, '_ea_settings', None) or {}
+        src_row = QHBoxLayout()
+        src_row.addWidget(QLabel("Reference:"))
+        self._ea_ref_mode_combo = QComboBox()
+        self._ea_ref_mode_combo.addItem("Reference files", "files")
+        self._ea_ref_mode_combo.addItem("Exact solution formula", "formula")
+        self._ea_ref_mode_combo.setFixedHeight(26)
+        src_row.addWidget(self._ea_ref_mode_combo); src_row.addStretch()
+        layout.addLayout(src_row)
+
+        formula_group = QGroupBox("Exact Solution Formula")
+        fg_layout = QVBoxLayout(formula_group)
+        fg_hint = QLabel("One formula per output in x, y, z, t -- e.g. exp(-t)*sin(pi*x). Functions: sin, cos, exp, "
+                         "log, sqrt, tanh, erf, norm_cdf, pi. Leave an output blank to skip it. The reference values "
+                         "are computed on a grid over the domain, so no files are needed.")
+        fg_hint.setWordWrap(True)
+        self._register_hint(fg_hint, '#586e75')
+        fg_layout.addWidget(fg_hint)
+        _n_out_f = self.num_outputs_spin.value() if hasattr(self, 'num_outputs_spin') else 1
+        _prev_formulas = (_prev_ea.get('ref_formula', '') or '').split('|')
+        self._ea_formula_edits = []
+        for _i in range(_n_out_f):
+            _row = QHBoxLayout()
+            _nm = self.output_name_inputs[_i].text() if _i < len(self.output_name_inputs) else f"u{_i+1}"
+            _row.addWidget(QLabel(f"{_nm} ="))
+            _ed = QLineEdit(_prev_formulas[_i] if _i < len(_prev_formulas) else "")
+            _ed.setFixedHeight(26)
+            _row.addWidget(_ed)
+            fg_layout.addLayout(_row)
+            self._ea_formula_edits.append(_ed)
+        _tr = QHBoxLayout()
+        _tr.addWidget(QLabel("Compare at times:"))
+        self._ea_ref_times_edit = QLineEdit(_prev_ea.get('ref_times', '') or '')
+        self._ea_ref_times_edit.setPlaceholderText("e.g. 0.25, 0.5, 1  (blank = 5 evenly spaced)")
+        self._ea_ref_times_edit.setFixedHeight(26)
+        _tr.addWidget(self._ea_ref_times_edit)
+        _tr.addWidget(QLabel("Grid:"))
+        self._ea_ref_grid_spin = QSpinBox()
+        self._ea_ref_grid_spin.setRange(0, 2001)
+        self._ea_ref_grid_spin.setSpecialValueText("auto")
+        self._ea_ref_grid_spin.setValue(int(_prev_ea.get('ref_grid', 0) or 0))
+        self._ea_ref_grid_spin.setFixedHeight(26); self._ea_ref_grid_spin.setFixedWidth(70)
+        _tr.addWidget(self._ea_ref_grid_spin)
+        fg_layout.addLayout(_tr)
+        layout.addWidget(formula_group)
+
         # ── Reference files ────────────────────────────────────
         files_group = QGroupBox("Reference Files (FEM/Exact)")
         files_layout = QVBoxLayout(files_group)
+
+        def _sync_ref_mode(_i=None):
+            _is_f = self._ea_ref_mode_combo.currentData() == "formula"
+            formula_group.setVisible(_is_f)
+            files_group.setVisible(not _is_f)
+        self._ea_ref_mode_combo.currentIndexChanged.connect(_sync_ref_mode)
+        self._ea_ref_mode_combo.setCurrentIndex(1 if _prev_ea.get('ref_mode') == "formula" else 0)
+        _sync_ref_mode()
 
         hint = QLabel("Format: space-separated, 3 columns: x  t  u  (no header)\nEach file = one time snapshot.")
         self._register_hint(hint, '#586e75')
@@ -11363,6 +11508,27 @@ print("DOMAIN_PREVIEW_DONE")
             if not save_dir:
                 self.log_box.append("❌ Error Analysis: please set a save directory first.")
                 dialog.reject(); return
+
+            if self._ea_ref_mode_combo.currentData() == "formula":
+                _formulas = [e.text().strip() for e in self._ea_formula_edits]
+                if not any(_formulas):
+                    self.log_box.append("❌ Error Analysis: enter an exact-solution formula for at least one output.")
+                    return
+                self._ea_settings = {
+                    'files': [],
+                    'ref_mode': 'formula',
+                    'ref_formula': "|".join(_formulas),
+                    'ref_times': self._ea_ref_times_edit.text().strip(),
+                    'ref_grid': self._ea_ref_grid_spin.value(),
+                    'do_line': self._ea_line_cb.isChecked(),
+                    'do_surface': self._ea_surface_cb.isChecked(),
+                    'do_l2': self._ea_l2_cb.isChecked(),
+                    'do_mse': self._ea_mse_cb.isChecked(),
+                    'do_max': self._ea_max_cb.isChecked(),
+                }
+                self.log_box.append("✅ Error Analysis configured — exact-solution formula, will run after training.")
+                dialog.accept()
+                return
 
             # Collect valid file rows
             valid_files = []

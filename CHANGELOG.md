@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Error Analysis can use an exact-solution formula instead of reference files**: "Reference: Exact solution formula" takes one formula per output in x, y, z, t (with `erf` and `norm_cdf` available), the comparison times and a grid size. The run writes the formula's values as ordinary reference files in its own folder (`reference_from_formula/`, masked to the geometry), so the comparison, plots and metrics are exactly those of file-based Error Analysis, in Solve and in the exported script.
+- **RAR can stop on a residual tolerance** ("Stop when mean residual <"), the way DeepXDE's Burgers-RAR example refines until the mean residual is below 0.005; "RAR training rounds" is then the cap. RAR's limits were widened for that recipe (from 1 point per round, up to 1000 rounds).
+- **Extra training points (anchors)** in Collocation Points: from a points file or random in a box (e.g. concentrated where the solution changes fastest), added to any measured-data points an inverse problem already uses (DeepXDE's `anchors=`).
 - **Operator boundary conditions can apply at the initial time** ("Applies on: the initial time (t = t₀)"), for a derivative initial condition such as a wave equation's du_t = 0 at t = 0. Not available with Time-Adaptive training (only its first time window contains t = t₀), which is reported clearly. Also **"Inverse time" learning-rate decay** in the Optimizer Scheduler (DeepXDE's `("inverse time", decay_steps, decay_rate)`).
 - **Number of equations independent of the number of outputs** (DeepXDE allows any number of residuals): the PDE panel's count is now "Outputs" (up to 10, was 4) plus a new "Equations" count that follows it unless changed, e.g. three equations for one output, or one equation for two outputs when the second is an unknown field to be inferred. Loss weights, sweeps and RAR's "Points from:" follow the equation count. `relu` and `sigmoid` are available in PDE expressions.
 - **Input/output transforms can be formulas** (DeepXDE's `apply_feature_transform` / `apply_output_transform`): each transform now has a Mode, Scale/shift (as before) or Formula. An input formula gives the network's input features in x, y, z, t (e.g. `x*sin(y); x*cos(y)`, with the first layer sized to match); an output formula, one per output, rewrites the network output, typically as a hard constraint (e.g. `x*(1-x)*u` makes u = 0 at x = 0 and 1 exactly, with no boundary loss term).
@@ -29,6 +32,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **Domain/Boundary point minimums lowered** (100/10 → 1/0) so DeepXDE's own small examples (e.g. 16 domain / 2 boundary points) can be set up as-is.
 - **NumPy is now pinned below 2.5** (`requirements.txt`, `setup.py`). DeepXDE 1.15 (still the latest release) calls `np.cross` on 2-element vectors in its Polygon/Triangle geometry, which NumPy 2.5 turned from a deprecation warning into an error -- a fresh install crashed on any Polygon, Triangle or L-Shape problem.
 - **Contour plots that share a color range now really share it.** With an integer level count, matplotlib's `contourf` ignores `vmin`/`vmax` when choosing its bands, so panels meant to share one scale (PINN vs Reference) showed different colorbars, and a manual color range from Plot Settings never appeared on the colorbar. Every such plot -- live Solve, export, Restore & Visualize, every GIF -- now uses explicit, round-numbered level boundaries over the shared range (filling values outside a manual range via `extend`), and the few comparison plots that already did this now use the configured level count instead of a hardcoded 40 bands.
 - **Multi-output Error Analysis: the default output group's files are now suffixed `_default`** (e.g. `error_metrics_default.txt`) instead of a bare `_` (`error_metrics_.txt`), in both the live Solve path and the export.
@@ -84,6 +88,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **Loading a saved problem reset the Error Analysis metric choices** (L2/MSE/Max) to their defaults.
 - **"Export as DeepXDE Script": a boundary-condition value using t (e.g. `x*cos(t)`) was a NameError** -- the exported boundary functions had no t. Solve already supported it.
 - **"Export as DeepXDE Script" couldn't load a steady problem's point-set data file** (measured data / Point Set BC): it always expected a time column. Solve already handled it.
 - **Restore & Visualize ignored the input/output transform a model was trained with**, so restoring any model trained with a transform predicted wrong values (e.g. a hard-constrained model gave u = ±1.57 where it is exactly 0). The transform settings are now saved in `model_config.json` and re-attached on restore; a model saved before this has no transform recorded and restores as before.

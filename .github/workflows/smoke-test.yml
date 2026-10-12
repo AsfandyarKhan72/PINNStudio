@@ -102,3 +102,6 @@ jobs:
           python tests/test_round62_transform_formulas.py
           python tests/test_round63_equation_count.py
           python tests/test_round64_initial_operator_decay.py
+          python tests/test_round65_anchors.py
+          python tests/test_round66_rar_tolerance.py
+          python tests/test_round67_formula_reference.py

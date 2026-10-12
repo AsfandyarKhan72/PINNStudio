@@ -11,6 +11,10 @@ class PINNConfig:
     rar_add_points: int = 500
     rar_adam_iters: int = 20000
     rar_lbfgs_iters: int = 10000
+    # Stop refining early once the mean |residual| over the candidates is
+    # below this (0 = off; rar_cycles is then a cap) -- DeepXDE's
+    # Burgers-RAR example loops until it's below 0.005. Round 66.
+    rar_tolerance: float = 0.0
     # Which equation's residual to rank candidate points by when the PDE has
     # more than one governing equation (model.predict(x, operator=pde)
     # returns a list, one entry per equation, in the same order the
@@ -54,6 +58,16 @@ class PINNConfig:
     num_initial: int = 200
     num_test: int = 1000
     point_distribution: str = "Hammersley"
+    # Extra training points ("anchors", DeepXDE's anchors=) -- Round 65.
+    # "none", "file" (a points file: one column per input, x[, y[, z]][, t])
+    # or "box" (anchors_count random points; anchors_box gives a "lo,hi"
+    # range per input column, ';'-separated, blank = that column's domain
+    # range). Added to any measured-data points an inverse problem
+    # already anchors.
+    anchors_mode: str = "none"
+    anchors_file: str = ""
+    anchors_count: int = 1000
+    anchors_box: str = ""
 
     plot_type: str = "Surface"
     # Split from a single shared "num_timesteps" field: the static "Line
@@ -476,6 +490,19 @@ class PINNConfig:
     ea_metric_l2: bool = True
     ea_metric_mse: bool = False
     ea_metric_max: bool = False
+    # Reference solution from a formula instead of files (Round 67):
+    # ea_ref_mode "files" | "formula"; ea_ref_formula has one expression
+    # per output ('|'-separated, blank = no reference for that output) in
+    # x, y, z, t with numpy math names plus erf/norm_cdf; ea_ref_times are
+    # the comparison times (comma-separated; blank = 5 evenly spaced over
+    # [t_min, t_max]; ignored when steady); ea_ref_grid is the points per
+    # axis of the reference grid (0 = 201 in 1D, 101 in 2D, 31 in 3D).
+    # The generated scripts write these as ordinary reference files, so
+    # Error Analysis itself is unchanged.
+    ea_ref_mode: str = "files"
+    ea_ref_formula: str = ""
+    ea_ref_times: str = ""
+    ea_ref_grid: int = 0
 
     # Geometry type & 3D domain
     geometry_type: str = "Rectangle"  # 2D: Rectangle|Disk|Ellipse|Triangle|Polygon|Custom ; 3D: Cuboid|Sphere
