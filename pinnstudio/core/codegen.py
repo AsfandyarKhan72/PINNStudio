@@ -7335,13 +7335,11 @@ def _clean_legacy_bc_weights(config, is_2d, n_out, wm_list, wi):
     bc_left_active  = _split(config.bc_left_active)
     bc_right_active = _split(config.bc_right_active)
     bc_left_deriv   = _split(config.bc_left_deriv)
-    bc_right_deriv  = _split(config.bc_right_deriv)
     bc_bottom_types   = _split(config.bc_bottom_types)
     bc_top_types      = _split(config.bc_top_types)
     bc_bottom_active  = _split(config.bc_bottom_active)
     bc_top_active     = _split(config.bc_top_active)
     bc_bottom_deriv   = _split(config.bc_bottom_deriv)
-    bc_top_deriv      = _split(config.bc_top_deriv)
 
     weights = []
 

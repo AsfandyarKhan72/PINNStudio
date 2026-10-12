@@ -1,4 +1,3 @@
-import sys
 import os
 import math
 from PyQt6.QtWidgets import (
@@ -6,12 +5,11 @@ from PyQt6.QtWidgets import (
     QLabel, QDoubleSpinBox, QSpinBox, QPushButton,
     QTextEdit, QGroupBox, QComboBox, QSplitter, QLineEdit,
     QFileDialog, QCheckBox, QRadioButton, QButtonGroup,
-    QDialog, QMenuBar, QMenu, QFrame, QApplication, QColorDialog,
-    QTabWidget, QMessageBox, QScrollArea, QTableWidget, QTableWidgetItem,
-    QStackedWidget
+    QDialog, QApplication, QColorDialog,
+    QTabWidget, QMessageBox, QScrollArea,
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer
-from PyQt6.QtGui import QPixmap, QFont, QAction, QColor, QMovie, QIntValidator
+from PyQt6.QtGui import QPixmap, QAction, QColor, QMovie, QIntValidator
 from pinnstudio.core.config import PINNConfig
 from pinnstudio.core.runner import run_pinn
 REFERENCE_DATA_DIR = os.path.join(
@@ -632,7 +630,6 @@ class MainWindow(QMainWindow):
             self.update_banner.setVisible(True)
 
     def _build_ui(self):
-        from PyQt6.QtWidgets import QScrollArea
 
         # ── Menu bar ─────────────────────────────────────────
         menubar = self.menuBar()
@@ -5002,7 +4999,6 @@ class MainWindow(QMainWindow):
 
             if box_shape:
                 _make_bc_block(f"BC left (x=xmin) for {name}", self.bc_left_types, self.bc_left_vals, self.bc_left_active, self.bc_left_deriv, "x_min")
-                _idx = len(self.bc_left_types) - 1
                 _make_bc_block(f"BC right (x=xmax) for {name}", self.bc_right_types, self.bc_right_vals, self.bc_right_active, self.bc_right_deriv, "x_max")
                 # Hide right BC widgets when left is Periodic
                 _right_active = self.bc_right_active[-1]
@@ -5823,7 +5819,6 @@ class MainWindow(QMainWindow):
         # Check if per-phase weights needed
         _sched_enabled = True  # scheduler always on
         _same_weights = hasattr(self, 'sched_same_weights_cb') and self.sched_same_weights_cb.isChecked()
-        _skip_main_weights = not _same_weights  # skip main weights when per-phase
         # Steady-state problems have no time axis, so there's no Initial
         # Condition to weight at all -- codegen.py already builds an empty
         # _ic_w list in this case (confirmed at training time by the
@@ -8484,7 +8479,7 @@ def _style_legend(ax):
         return geom_code, outline_code, bbox
 
     def _preview_domain(self):
-        import tempfile, subprocess, sys, math
+        import tempfile, math
         spatial_path = self._DOMAIN_PREVIEW_SPATIAL_PATH
         time_path = self._DOMAIN_PREVIEW_TIME_PATH
         _DOMAIN_PREVIEW_STYLE_SETUP = self._DOMAIN_PREVIEW_STYLE_SETUP
@@ -11271,7 +11266,6 @@ print("DOMAIN_PREVIEW_DONE")
                 'decay_p1': ph['decay_p1'].value() if 'decay_p1' in ph else 0,
                 'decay_p2': ph['decay_p2'].value() if 'decay_p2' in ph else 0,
             })
-        import json
         return json.dumps(phases)
 
     def _setup_default_scheduler_phases(self, template_type='', adam_iters=10000, lbfgs_iters=10000):
@@ -11612,7 +11606,6 @@ print("DOMAIN_PREVIEW_DONE")
         if f:
             self.restore_model_path.setText(f)
             base = os.path.dirname(f)
-            fname = os.path.basename(f).lower()
             # First try: same name as .pt but .json
             specific = f.replace(".pt", ".json")
             if os.path.exists(specific):
