@@ -9675,301 +9675,28 @@ print("DOMAIN_PREVIEW_DONE")
         _restore_is_line_type = viz_type in ("Line (time steps)", "Animation Line (GIF)")
 
         dialog = QDialog(self)
-        dialog.setWindowTitle(f"Settings — {viz_type}")
+        dialog.setWindowTitle(f"Plot Settings — {viz_type}")
         dialog.setMinimumWidth(320)
         layout = QVBoxLayout(dialog)
 
         current = self._restore_viz_settings
-
-        # Colormap
-        cmap_row = QHBoxLayout()
-        cmap_row.addWidget(QLabel("Colormap:"))
-        cmap_combo = QComboBox()
-        cmap_combo.addItems(["RdBu_r", "viridis", "plasma", "jet", "coolwarm", "inferno", "turbo", "seismic", "bwr"])
-        cmap_combo.setCurrentText(current.get('colormap', 'RdBu_r'))
-        cmap_combo.setFixedWidth(120)
-        cmap_row.addStretch(); cmap_row.addWidget(cmap_combo)
-        if not is_param:
-            layout.addLayout(cmap_row)
-
-        # Contour levels
-        levels_row = QHBoxLayout()
-        levels_row.addWidget(QLabel("Contour levels:"))
-        levels_spin = QSpinBox()
-        levels_spin.setRange(5, 200); levels_spin.setValue(current.get('levels', 40))
-        levels_spin.setFixedWidth(80)
-        levels_row.addStretch(); levels_row.addWidget(levels_spin)
-        if not is_param:
-            layout.addLayout(levels_row)
-
-        # Resolution
-        res_row = QHBoxLayout()
-        res_row.addWidget(QLabel("Grid resolution:"))
-        res_combo = QComboBox()
-        res_combo.addItems(["80", "100", "150", "200"])
-        res_combo.setCurrentText(str(current.get('resolution', 100)))
-        res_combo.setFixedWidth(80)
-        res_row.addStretch(); res_row.addWidget(res_combo)
-        if not is_param:
-            layout.addLayout(res_row)
-
-        # DPI
-        dpi_row = QHBoxLayout()
-        dpi_row.addWidget(QLabel("Output DPI:"))
-        dpi_combo = QComboBox()
-        dpi_combo.addItems(["100", "150", "200", "300"])
-        dpi_combo.setCurrentText(str(current.get('dpi', 100)))
-        dpi_combo.setFixedWidth(80)
-        dpi_row.addStretch(); dpi_row.addWidget(dpi_combo)
-        if not is_param:
-            layout.addLayout(dpi_row)
-
-        # Figure size — applies to every single-panel restore plot
-        # (including Parameter Convergence, unlike most of the controls
-        # above); Error Analysis-on-restore comparison grids are left
-        # alone, same as the main Setup tab's Plot Settings dialog.
-        figsize_row = QHBoxLayout()
-        figsize_row.addWidget(QLabel("Figure size:"))
-        figsize_combo = QComboBox()
-        figsize_combo.addItems(["Default", "Square", "Wide", "Custom"])
-        figsize_combo.setCurrentText(current.get('figsize_mode', 'Default'))
-        figsize_combo.setFixedWidth(100)
-        figsize_row.addStretch(); figsize_row.addWidget(figsize_combo)
-        layout.addLayout(figsize_row)
-
-        figsize_custom_widget = QWidget()
-        figsize_custom_layout = QHBoxLayout(figsize_custom_widget)
-        figsize_custom_layout.setContentsMargins(0, 0, 0, 0)
-        figsize_custom_layout.addWidget(QLabel("Width:"))
-        figsize_w_spin = QDoubleSpinBox()
-        figsize_w_spin.setRange(2.0, 30.0); figsize_w_spin.setSingleStep(0.5)
-        figsize_w_spin.setValue(current.get('figsize_w', 7.0)); figsize_w_spin.setFixedWidth(70)
-        figsize_custom_layout.addWidget(figsize_w_spin)
-        figsize_custom_layout.addWidget(QLabel("Height:"))
-        figsize_h_spin = QDoubleSpinBox()
-        figsize_h_spin.setRange(2.0, 30.0); figsize_h_spin.setSingleStep(0.5)
-        figsize_h_spin.setValue(current.get('figsize_h', 5.0)); figsize_h_spin.setFixedWidth(70)
-        figsize_custom_layout.addWidget(figsize_h_spin)
-        figsize_custom_layout.addStretch()
-        figsize_custom_widget.setVisible(figsize_combo.currentText() == "Custom")
-        figsize_combo.currentTextChanged.connect(lambda t: figsize_custom_widget.setVisible(t == "Custom"))
-        layout.addWidget(figsize_custom_widget)
-
-        # 2D/3D time snapshots — Surface only, and only for a non-steady
-        # 2D/3D restore, same gating and same "n_2d_snapshots" key as the
-        # Setup tab's own unified Plot Settings dialog (see
-        # _on_plot_settings' snap_widget) -- replaces the old single
-        # "Plot at time t=" picker (surface_time), which only ever showed
-        # one user-chosen snapshot instead of letting Restore do what
-        # Output already did: several evenly-spaced snapshots side by
-        # side. A steady restore (no time axis) or a 1D restore (the x-t
-        # heatmap already shows the whole time range in one plot) have no
-        # snapshot count to choose, same as Output.
-        snap_widget = QWidget()
-        snap_layout = QHBoxLayout(snap_widget)
-        snap_layout.setContentsMargins(0, 0, 0, 0)
-        snap_layout.addWidget(QLabel("2D/3D time snapshots:"))
-        snap_spin = QSpinBox()
-        snap_spin.setRange(1, 10); snap_spin.setValue(current.get('n_2d_snapshots', 2))
-        snap_spin.setFixedWidth(80)
-        snap_layout.addStretch(); snap_layout.addWidget(snap_spin)
-        snap_widget.setVisible(viz_type == "Surface" and (_restore_is_2d or _restore_is_3d) and not _restore_is_steady)
-        if not is_param:
-            layout.addWidget(snap_widget)
-
-        # Color range — for Surface and Animation Surface
-        color_range_widget = QWidget()
-        cr_layout = QVBoxLayout(color_range_widget)
-        cr_layout.setContentsMargins(0, 0, 0, 0)
-        cr_auto_cb = QCheckBox("Auto color range")
-        cr_auto_cb.setChecked(current.get('auto_range', True))
-        cr_layout.addWidget(cr_auto_cb)
-        cr_manual_widget = QWidget()
-        cr_manual_layout = QHBoxLayout(cr_manual_widget)
-        cr_manual_layout.setContentsMargins(0, 0, 0, 0)
-        cr_manual_layout.addWidget(QLabel("vmin:"))
-        vmin_spin = QDoubleSpinBox(); vmin_spin.setRange(-1e6, 1e6); vmin_spin.setValue(current.get('vmin', -1.0)); vmin_spin.setFixedWidth(80)
-        cr_manual_layout.addWidget(vmin_spin)
-        cr_manual_layout.addWidget(QLabel("vmax:"))
-        vmax_spin = QDoubleSpinBox(); vmax_spin.setRange(-1e6, 1e6); vmax_spin.setValue(current.get('vmax', 1.0)); vmax_spin.setFixedWidth(80)
-        cr_manual_layout.addWidget(vmax_spin)
-        cr_manual_widget.setVisible(not cr_auto_cb.isChecked())
-        cr_layout.addWidget(cr_manual_widget)
-        cr_auto_cb.stateChanged.connect(lambda s: cr_manual_widget.setVisible(s != 2))
-        color_range_widget.setVisible("Surface" in viz_type)
-        if not is_param:
-            layout.addWidget(color_range_widget)
-
-        # Steps/frames
-        steps_widget = QWidget()
-        steps_layout = QHBoxLayout(steps_widget)
-        steps_layout.setContentsMargins(0, 0, 0, 0)
-        label_text = "Time steps:" if "Line" in viz_type else "Animation frames:"
-        steps_layout.addWidget(QLabel(label_text))
-        steps_spin = QSpinBox()
-        steps_spin.setRange(2, 100)
-        steps_spin.setValue(current.get(self._viz_steps_key(viz_type), 10))
-        steps_spin.setFixedWidth(80)
-        steps_layout.addStretch(); steps_layout.addWidget(steps_spin)
-        steps_widget.setVisible(viz_type != "Surface")
-        if not is_param:
-            layout.addWidget(steps_widget)
-
-        # y/z slice — only for the two Line-type viz types ("Line (time
-        # steps)"/"Animation Line (GIF)"), which plot u vs x only, on a
-        # 2D/3D restore -- same control, same reasoning, as the Setup
-        # tab's own Plot Settings dialog (see _on_plot_settings). This is
-        # a genuinely live, independently-overridable control: restoring
-        # a model no longer just replays whatever slice it happened to be
-        # solved/plotted with -- a different slice can be picked here and
-        # re-plotted/re-animated without re-training. Always starts at
-        # "Auto (domain midpoint)" the first time this opens for a given
-        # restore; the midpoint itself is recomputed from whatever config
-        # just got picked (_restore_y_min/_max etc. above), not frozen at
-        # whatever an earlier restored model's domain happened to be.
-        _y_auto_cb = _y_spin = _z_auto_cb = _z_spin = None
-        _show_slice = _restore_is_line_type and (_restore_is_2d or _restore_is_3d)
-        slice_info = QLabel(
-            "This plot type only shows u vs x -- pick where to slice "
-            "the rest of the domain.")
-        slice_info.setWordWrap(True)
-        self._register_hint(slice_info, '#74c0fc')
-        slice_info.setVisible(_show_slice)
-        if not is_param:
-            layout.addWidget(slice_info)
-
-        def _make_restore_slice_row(label, auto_default, val_default):
-            row = QHBoxLayout()
-            auto_cb = QCheckBox("Auto (domain midpoint)")
-            auto_cb.setChecked(auto_default)
-            row.addWidget(QLabel(f"{label} value:"))
-            spin = QDoubleSpinBox()
-            spin.setRange(-1e6, 1e6); spin.setValue(val_default)
-            spin.setFixedWidth(90)
-            spin.setVisible(_show_slice and not auto_cb.isChecked())
-            row.addStretch(); row.addWidget(spin)
-            auto_cb.stateChanged.connect(lambda s: spin.setVisible(_show_slice and s != 2))
-            auto_cb.setVisible(_show_slice)
-            if not is_param:
-                layout.addWidget(auto_cb)
-                layout.addLayout(row)
-            return auto_cb, spin
-
+        # Slice defaults: an override saved earlier for this restore, else
+        # the midpoint of the domain about to be restored (recomputed from
+        # whatever config was just picked, not an earlier model's domain).
+        _slice = None
         if _restore_is_2d or _restore_is_3d:
-            _y_mid_default = (_restore_y_min + _restore_y_max) / 2.0
-            _y_auto_cb, _y_spin = _make_restore_slice_row(
-                "y", current.get('line_slice_y_auto', True),
-                current.get('line_slice_y', 0.0) if not current.get('line_slice_y_auto', True) else _y_mid_default)
+            _y_auto = current.get('line_slice_y_auto', True)
+            _slice = {"y": (_y_auto, (_restore_y_min + _restore_y_max) / 2.0 if _y_auto else current.get('line_slice_y', 0.0))}
             if _restore_is_3d:
-                _z_mid_default = (_restore_z_min + _restore_z_max) / 2.0
-                _z_auto_cb, _z_spin = _make_restore_slice_row(
-                    "z", current.get('line_slice_z_auto', True),
-                    current.get('line_slice_z', 0.0) if not current.get('line_slice_z_auto', True) else _z_mid_default)
-
-        # Line width — only for Line plots
-        lw_widget = QWidget()
-        lw_layout = QHBoxLayout(lw_widget)
-        lw_layout.setContentsMargins(0, 0, 0, 0)
-        lw_layout.addWidget(QLabel("Line width:"))
-        lw_combo = QComboBox()
-        lw_combo.addItems(["1.0", "1.5", "2.0", "2.5", "3.0"])
-        lw_combo.setCurrentText(str(current.get(self._viz_linewidth_key(viz_type), 2.0)))
-        lw_combo.setFixedWidth(80)
-        lw_layout.addStretch(); lw_layout.addWidget(lw_combo)
-        lw_widget.setVisible("Line" in viz_type)
-        if not is_param:
-            layout.addWidget(lw_widget)
-
-        # FPS — only for animations
-        fps_widget = QWidget()
-        fps_layout = QHBoxLayout(fps_widget)
-        fps_layout.setContentsMargins(0, 0, 0, 0)
-        fps_layout.addWidget(QLabel("Animation FPS:"))
-        fps_combo = QComboBox()
-        fps_combo.addItems(["5", "8", "10", "15", "20"])
-        fps_combo.setCurrentText(str(current.get('fps', 10)))
-        fps_combo.setFixedWidth(80)
-        fps_layout.addStretch(); fps_layout.addWidget(fps_combo)
-        fps_widget.setVisible("Animation" in viz_type)
-        if not is_param:
-            layout.addWidget(fps_widget)
-
-        # Colorbar
-        colorbar_cb = QCheckBox("Show colorbar")
-        colorbar_cb.setChecked(current.get('colorbar', True))
-        colorbar_cb.setVisible("Surface" in viz_type)
-        if not is_param:
-            layout.addWidget(colorbar_cb)
-
-        # Swap x/t axes — 1D "Surface" and "Animation Surface (GIF)" only,
-        # same convention (and same default) as the main Results panel's
-        # own 1D Surface plot setting: t on the x-axis by default, with
-        # this to go back to x on the x-axis. 2D/3D Surface options here
-        # are spatial snapshots at a fixed time and have no x/t axis to
-        # swap.
-        swap_xt_cb = QCheckBox("Swap axes (x-axis = t, y-axis = x)")
-        swap_xt_cb.setChecked(current.get('swap_xt', True))
-        swap_xt_cb.setVisible(
-            viz_type in ("Surface", "Animation Surface (GIF)") and _restore_is_1d)
-        if not is_param:
-            layout.addWidget(swap_xt_cb)
-
-        # Title / axis labels — every viz type gets these; blank keeps the
-        # existing default text exactly as before.
-        labels_line = QLabel("Leave blank to keep the default title/axis labels.")
-        self._register_hint(labels_line, '#586e75')
-        labels_line.setWordWrap(True)
-        layout.addWidget(labels_line)
-
-        title_row = QHBoxLayout()
-        title_row.addWidget(QLabel("Title:"))
-        title_edit = QLineEdit()
-        title_edit.setText(current.get('title', ''))
-        title_edit.setPlaceholderText("(default)")
-        title_row.addWidget(title_edit)
-        layout.addLayout(title_row)
-
-        xlabel_row = QHBoxLayout()
-        xlabel_row.addWidget(QLabel("X-axis label:"))
-        xlabel_edit = QLineEdit()
-        xlabel_edit.setText(current.get('xlabel', ''))
-        xlabel_edit.setPlaceholderText("(default)")
-        xlabel_row.addWidget(xlabel_edit)
-        layout.addLayout(xlabel_row)
-
-        ylabel_row = QHBoxLayout()
-        ylabel_row.addWidget(QLabel("Y-axis label:"))
-        ylabel_edit = QLineEdit()
-        ylabel_edit.setText(current.get('ylabel', ''))
-        ylabel_edit.setPlaceholderText("(default)")
-        ylabel_row.addWidget(ylabel_edit)
-        layout.addLayout(ylabel_row)
-
-        # Round 31: font sizes -- same 3 controls, same defaults, as the
-        # Setup tab's own Plot Settings dialog (_on_plot_settings).
-        title_fs_row = QHBoxLayout()
-        title_fs_row.addWidget(QLabel("Title font size:"))
-        title_fs_spin = QDoubleSpinBox()
-        title_fs_spin.setRange(6.0, 36.0); title_fs_spin.setSingleStep(0.5)
-        title_fs_spin.setValue(current.get('title_fontsize', 13.0)); title_fs_spin.setFixedWidth(70)
-        title_fs_row.addStretch(); title_fs_row.addWidget(title_fs_spin)
-        layout.addLayout(title_fs_row)
-
-        subplot_title_fs_row = QHBoxLayout()
-        subplot_title_fs_row.addWidget(QLabel("Subplot title font size:"))
-        subplot_title_fs_spin = QDoubleSpinBox()
-        subplot_title_fs_spin.setRange(6.0, 36.0); subplot_title_fs_spin.setSingleStep(0.5)
-        subplot_title_fs_spin.setValue(current.get('subplot_title_fontsize', 10.0)); subplot_title_fs_spin.setFixedWidth(70)
-        subplot_title_fs_row.addStretch(); subplot_title_fs_row.addWidget(subplot_title_fs_spin)
-        layout.addLayout(subplot_title_fs_row)
-
-        axis_label_fs_row = QHBoxLayout()
-        axis_label_fs_row.addWidget(QLabel("Axis label font size:"))
-        axis_label_fs_spin = QDoubleSpinBox()
-        axis_label_fs_spin.setRange(6.0, 36.0); axis_label_fs_spin.setSingleStep(0.5)
-        axis_label_fs_spin.setValue(current.get('axis_label_fontsize', 10.0)); axis_label_fs_spin.setFixedWidth(70)
-        axis_label_fs_row.addStretch(); axis_label_fs_row.addWidget(axis_label_fs_spin)
-        layout.addLayout(axis_label_fs_row)
+                _z_auto = current.get('line_slice_z_auto', True)
+                _slice["z"] = (_z_auto, (_restore_z_min + _restore_z_max) / 2.0 if _z_auto else current.get('line_slice_z', 0.0))
+        # Shared with the Setup tab's dialog -- see _build_plot_settings_fields.
+        w = self._build_plot_settings_fields(
+            layout, current, viz_type, is_param=is_param, is_1d=_restore_is_1d, is_2d=_restore_is_2d,
+            is_3d=_restore_is_3d, is_steady=_restore_is_steady, is_line_type=_restore_is_line_type,
+            is_anim="Animation" in viz_type, surface_types=("Surface", "Animation Surface (GIF)"),
+            levels_default=40, steps_value=current.get(self._viz_steps_key(viz_type), 10), steps_max=100,
+            slice_defaults=_slice)
 
         info_texts = {
             "Surface": "Single heatmap/contour at specified time.",
@@ -9987,50 +9714,25 @@ print("DOMAIN_PREVIEW_DONE")
         ok_btn, cancel_btn = self._add_ok_cancel_row(layout, dialog)
 
         def _on_ok():
-            new_settings = dict(current)
+            new_settings = self._plot_settings_values(w, current, viz_type, is_param)
             if not is_param:
-                new_settings.update({
-                    'colormap': cmap_combo.currentText(),
-                    'n_2d_snapshots': snap_spin.value(),
-                    'colorbar': colorbar_cb.isChecked(),
-                    'levels': levels_spin.value(),
-                    'resolution': int(res_combo.currentText()),
-                    'dpi': int(dpi_combo.currentText()),
-                    'auto_range': cr_auto_cb.isChecked(),
-                    'vmin': vmin_spin.value(),
-                    'vmax': vmax_spin.value(),
-                    'fps': int(fps_combo.currentText()),
-                    'swap_xt': swap_xt_cb.isChecked(),
-                })
-                # Written to whichever n_steps_*/linewidth_* key this
-                # viz_type actually uses (see _viz_steps_key/
-                # _viz_linewidth_key), not a single shared key -- so
-                # setting Animation Line's frame count doesn't clobber
-                # Line (time steps)'s step count or vice versa.
-                new_settings[self._viz_steps_key(viz_type)] = steps_spin.value()
-                new_settings[self._viz_linewidth_key(viz_type)] = float(lw_combo.currentText())
-                self.restore_tsteps_spin.setValue(steps_spin.value())
-                if _y_auto_cb is not None:
-                    new_settings['line_slice_y_auto'] = _y_auto_cb.isChecked()
-                    new_settings['line_slice_y'] = _y_spin.value()
-                if _z_auto_cb is not None:
-                    new_settings['line_slice_z_auto'] = _z_auto_cb.isChecked()
-                    new_settings['line_slice_z'] = _z_spin.value()
-            new_settings['title'] = title_edit.text().strip()
-            new_settings['xlabel'] = xlabel_edit.text().strip()
-            new_settings['ylabel'] = ylabel_edit.text().strip()
-            new_settings['figsize_mode'] = figsize_combo.currentText()
-            new_settings['figsize_w'] = figsize_w_spin.value()
-            new_settings['figsize_h'] = figsize_h_spin.value()
-            new_settings['title_fontsize'] = title_fs_spin.value()
-            new_settings['subplot_title_fontsize'] = subplot_title_fs_spin.value()
-            new_settings['axis_label_fontsize'] = axis_label_fs_spin.value()
+                # Written to whichever n_steps_* key this viz_type actually
+                # uses (see _viz_steps_key), so Animation Line's frame count
+                # doesn't clobber Line (time steps)'s step count or vice versa.
+                new_settings[self._viz_steps_key(viz_type)] = w.steps_spin.value()
+                self.restore_tsteps_spin.setValue(w.steps_spin.value())
+                if w.y_auto_cb is not None:
+                    new_settings['line_slice_y_auto'] = w.y_auto_cb.isChecked()
+                    new_settings['line_slice_y'] = w.y_spin.value()
+                if w.z_auto_cb is not None:
+                    new_settings['line_slice_z_auto'] = w.z_auto_cb.isChecked()
+                    new_settings['line_slice_z'] = w.z_spin.value()
             self._restore_viz_settings = new_settings
             self.log_box.append(f"✅ Viz settings saved — {viz_type}")
             dialog.accept()
         ok_btn.clicked.connect(_on_ok)
         dialog.exec()
-    
+
     def _on_template_selected(self, text):
         if text == "📋 Examples":
             return
@@ -11083,6 +10785,243 @@ print("DOMAIN_PREVIEW_DONE")
         ok_btn.clicked.connect(_on_ok)
         dialog.exec()
 
+    def _build_plot_settings_fields(self, layout, current, viz_type, *, is_param, is_1d, is_2d, is_3d,
+                                    is_steady, is_line_type, is_anim, surface_types, levels_default,
+                                    steps_value, steps_max, slice_defaults):
+        """Builds every field the two Plot Settings dialogs share --
+        cleanup Round 57. The Setup tab's dialog (_on_plot_settings) and
+        Restore & Visualize's (_on_restore_viz_settings) used to build these
+        ~300 lines independently and had drifted: same fields in a different
+        order, different labels ("Animation FPS:" vs "Frame rate (fps):"),
+        different frame-rate choices. Now both show the same fields in the
+        same order with the same labels; what genuinely differs between them
+        comes in as arguments:
+          surface_types -- the two Surface-type names each panel uses;
+          levels_default -- the contour-level default when unset;
+          steps_value/steps_max -- the steps/frames spinbox's start value and
+              upper limit (the Setup tab writes it back to its own hidden
+              spinboxes, which top out lower);
+          slice_defaults -- {"y": (auto, value), "z": (auto, value)} for a
+              2D/3D problem (z only in 3D), or None.
+        Parameter-convergence types (is_param) only get figure size and the
+        title/label/font fields, as before. Returns a namespace of the input
+        widgets; _plot_settings_values() reads the shared ones back."""
+        import types as _types
+        w = _types.SimpleNamespace(y_auto_cb=None, y_spin=None, z_auto_cb=None, z_spin=None)
+
+        def _row(label, widget, width):
+            row = QHBoxLayout()
+            row.addWidget(QLabel(label))
+            widget.setFixedWidth(width)
+            row.addStretch(); row.addWidget(widget)
+            return row
+
+        def _combo(items, value):
+            c = QComboBox()
+            c.addItems(items)
+            c.setCurrentText(value)
+            return c
+
+        def _add(item, always=False):
+            if always or not is_param:
+                if isinstance(item, QHBoxLayout):
+                    layout.addLayout(item)
+                else:
+                    layout.addWidget(item)
+
+        def _wrap(row):
+            box = QWidget()
+            row.setContentsMargins(0, 0, 0, 0)
+            box.setLayout(row)
+            return box
+
+        # Colormap, contour levels, grid resolution, output DPI
+        w.cmap_combo = _combo(["RdBu_r", "viridis", "plasma", "jet", "coolwarm", "inferno", "turbo", "seismic", "bwr"],
+                              current.get('colormap', 'RdBu_r'))
+        _add(_row("Colormap:", w.cmap_combo, 120))
+        w.levels_spin = QSpinBox()
+        w.levels_spin.setRange(5, 200); w.levels_spin.setValue(current.get('levels', levels_default))
+        _add(_row("Contour levels:", w.levels_spin, 80))
+        w.res_combo = _combo(["80", "100", "150", "200"], str(current.get('resolution', 100)))
+        _add(_row("Grid resolution:", w.res_combo, 80))
+        w.dpi_combo = _combo(["100", "150", "200", "300"], str(current.get('dpi', 100)))
+        _add(_row("Output DPI:", w.dpi_combo, 80))
+
+        # Figure size -- every viz type, Parameter Convergence included;
+        # Error Analysis comparison grids size themselves and ignore it.
+        w.figsize_combo = _combo(["Default", "Square", "Wide", "Custom"], current.get('figsize_mode', 'Default'))
+        _add(_row("Figure size:", w.figsize_combo, 100), always=True)
+        figsize_custom_widget = QWidget()
+        figsize_custom_layout = QHBoxLayout(figsize_custom_widget)
+        figsize_custom_layout.setContentsMargins(0, 0, 0, 0)
+        w.figsize_w_spin = QDoubleSpinBox(); w.figsize_h_spin = QDoubleSpinBox()
+        for _lbl, _sp, _key, _dflt in (("Width:", w.figsize_w_spin, 'figsize_w', 7.0),
+                                       ("Height:", w.figsize_h_spin, 'figsize_h', 5.0)):
+            figsize_custom_layout.addWidget(QLabel(_lbl))
+            _sp.setRange(2.0, 30.0); _sp.setSingleStep(0.5)
+            _sp.setValue(current.get(_key, _dflt)); _sp.setFixedWidth(70)
+            figsize_custom_layout.addWidget(_sp)
+        figsize_custom_layout.addStretch()
+        figsize_custom_widget.setVisible(w.figsize_combo.currentText() == "Custom")
+        w.figsize_combo.currentTextChanged.connect(lambda t: figsize_custom_widget.setVisible(t == "Custom"))
+        _add(figsize_custom_widget, always=True)
+
+        # Color range -- Surface types only
+        color_range_widget = QWidget()
+        cr_layout = QVBoxLayout(color_range_widget)
+        cr_layout.setContentsMargins(0, 0, 0, 0)
+        w.cr_auto_cb = QCheckBox("Auto color range")
+        w.cr_auto_cb.setChecked(current.get('auto_range', True))
+        cr_layout.addWidget(w.cr_auto_cb)
+        cr_manual_widget = QWidget()
+        cr_manual_layout = QHBoxLayout(cr_manual_widget)
+        cr_manual_layout.setContentsMargins(0, 0, 0, 0)
+        w.vmin_spin = QDoubleSpinBox(); w.vmax_spin = QDoubleSpinBox()
+        for _lbl, _sp, _key, _dflt in (("vmin:", w.vmin_spin, 'vmin', -1.0), ("vmax:", w.vmax_spin, 'vmax', 1.0)):
+            cr_manual_layout.addWidget(QLabel(_lbl))
+            _sp.setRange(-1e6, 1e6); _sp.setValue(current.get(_key, _dflt)); _sp.setFixedWidth(80)
+            cr_manual_layout.addWidget(_sp)
+        cr_manual_widget.setVisible(not w.cr_auto_cb.isChecked())
+        cr_layout.addWidget(cr_manual_widget)
+        w.cr_auto_cb.stateChanged.connect(lambda st: cr_manual_widget.setVisible(st != 2))
+        color_range_widget.setVisible(viz_type in surface_types)
+        _add(color_range_widget)
+
+        # 2D/3D time snapshots -- Surface only, and only for a time-dependent
+        # 2D/3D problem (the multi-snapshot branch: several evenly spaced
+        # heatmaps side by side). A steady problem or any 1D Surface (the
+        # x-t heatmap already shows the whole time range) is one plot.
+        w.snap_spin = QSpinBox()
+        w.snap_spin.setRange(1, 10); w.snap_spin.setValue(current.get('n_2d_snapshots', 2))
+        snap_widget = _wrap(_row("2D/3D time snapshots:", w.snap_spin, 80))
+        snap_widget.setVisible(viz_type == "Surface" and (is_2d or is_3d) and not is_steady)
+        _add(snap_widget)
+
+        # Swap x/t axes -- 1D Surface types only (2D/3D Surface plots are
+        # spatial snapshots with no x/t axis to swap); t on the x-axis by
+        # default, same as the main Results panel's 1D Surface plot.
+        w.swap_xt_cb = QCheckBox("Swap axes (x-axis = t, y-axis = x)")
+        w.swap_xt_cb.setChecked(current.get('swap_xt', True))
+        w.swap_xt_cb.setVisible(viz_type in surface_types and is_1d)
+        _add(w.swap_xt_cb)
+
+        # Colorbar -- Surface types only
+        w.colorbar_cb = QCheckBox("Show colorbar")
+        w.colorbar_cb.setChecked(current.get('colorbar', True))
+        w.colorbar_cb.setVisible(viz_type in surface_types)
+        _add(w.colorbar_cb)
+
+        # Steps/frames -- every type except Surface (whose analogous
+        # control is the snapshot count above)
+        w.steps_spin = QSpinBox()
+        w.steps_spin.setRange(2, steps_max); w.steps_spin.setValue(steps_value)
+        steps_widget = _wrap(_row("Frames to show:" if is_anim else "Time steps to show:", w.steps_spin, 80))
+        steps_widget.setVisible(viz_type != "Surface")
+        _add(steps_widget)
+
+        # y/z slice -- the two Line-type plots on a 2D/3D problem only:
+        # they plot u vs x, so the rest of the domain is fixed at a slice.
+        show_slice = is_line_type and (is_2d or is_3d)
+        slice_info = QLabel("This plot type only shows u vs x -- pick where to slice the rest of the domain.")
+        slice_info.setWordWrap(True)
+        self._register_hint(slice_info, '#74c0fc')
+        slice_info.setVisible(show_slice)
+        _add(slice_info)
+
+        def _slice_row(label, auto_default, val_default):
+            row = QHBoxLayout()
+            auto_cb = QCheckBox("Auto (domain midpoint)")
+            auto_cb.setChecked(auto_default)
+            row.addWidget(QLabel(f"{label} value:"))
+            spin = QDoubleSpinBox()
+            spin.setRange(-1e6, 1e6); spin.setValue(val_default)
+            spin.setFixedWidth(90)
+            spin.setVisible(show_slice and not auto_cb.isChecked())
+            row.addStretch(); row.addWidget(spin)
+            auto_cb.stateChanged.connect(lambda st: spin.setVisible(show_slice and st != 2))
+            auto_cb.setVisible(show_slice)
+            _add(auto_cb)
+            _add(row)
+            return auto_cb, spin
+
+        if slice_defaults and (is_2d or is_3d):
+            w.y_auto_cb, w.y_spin = _slice_row("y", *slice_defaults["y"])
+            if is_3d and "z" in slice_defaults:
+                w.z_auto_cb, w.z_spin = _slice_row("z", *slice_defaults["z"])
+
+        # Line width -- Line types only
+        w.lw_combo = _combo(["1.0", "1.5", "2.0", "2.5", "3.0"], str(current.get(self._viz_linewidth_key(viz_type), 2.0)))
+        lw_widget = _wrap(_row("Line width:", w.lw_combo, 80))
+        lw_widget.setVisible(is_line_type)
+        _add(lw_widget)
+
+        # Frame rate -- the GIF animation types only
+        w.fps_combo = _combo(["5", "8", "10", "15", "20", "24", "30"], str(current.get('fps', 10)))
+        fps_widget = _wrap(_row("Frame rate (fps):", w.fps_combo, 80))
+        fps_widget.setVisible(is_anim)
+        _add(fps_widget)
+
+        # Title / axis labels -- every viz type; blank keeps the default text
+        labels_line = QLabel("Leave blank to keep the default title/axis labels.")
+        self._register_hint(labels_line, '#586e75')
+        labels_line.setWordWrap(True)
+        _add(labels_line, always=True)
+        w.title_edit = QLineEdit(); w.xlabel_edit = QLineEdit(); w.ylabel_edit = QLineEdit()
+        for _lbl, _ed, _key in (("Title:", w.title_edit, 'title'), ("X-axis label:", w.xlabel_edit, 'xlabel'),
+                                ("Y-axis label:", w.ylabel_edit, 'ylabel')):
+            row = QHBoxLayout()
+            row.addWidget(QLabel(_lbl))
+            _ed.setText(current.get(_key, ''))
+            _ed.setPlaceholderText("(default)")
+            row.addWidget(_ed)
+            _add(row, always=True)
+
+        # Font sizes (Round 31) -- figure title, per-panel subplot title,
+        # axis labels; every viz type
+        w.title_fs_spin = QDoubleSpinBox(); w.subplot_title_fs_spin = QDoubleSpinBox(); w.axis_label_fs_spin = QDoubleSpinBox()
+        for _lbl, _sp, _key, _dflt in (("Title font size:", w.title_fs_spin, 'title_fontsize', 13.0),
+                                       ("Subplot title font size:", w.subplot_title_fs_spin, 'subplot_title_fontsize', 10.0),
+                                       ("Axis label font size:", w.axis_label_fs_spin, 'axis_label_fontsize', 10.0)):
+            _sp.setRange(6.0, 36.0); _sp.setSingleStep(0.5); _sp.setValue(current.get(_key, _dflt))
+            _add(_row(_lbl, _sp, 70), always=True)
+        return w
+
+    def _plot_settings_values(self, w, current, viz_type, is_param):
+        """The settings dict both Plot Settings dialogs save on OK, from the
+        widgets _build_plot_settings_fields() made -- starting from a copy
+        of the existing settings so keys this viz_type doesn't surface
+        (e.g. the other plot type's linewidth) survive. Each dialog then
+        adds what only it handles (steps/slice write-back)."""
+        new_settings = dict(current)
+        if not is_param:
+            new_settings.update({
+                'colormap': w.cmap_combo.currentText(),
+                'levels': w.levels_spin.value(),
+                'resolution': int(w.res_combo.currentText()),
+                'dpi': int(w.dpi_combo.currentText()),
+                'auto_range': w.cr_auto_cb.isChecked(),
+                'vmin': w.vmin_spin.value(),
+                'vmax': w.vmax_spin.value(),
+                'colorbar': w.colorbar_cb.isChecked(),
+                'n_2d_snapshots': w.snap_spin.value(),
+                'fps': int(w.fps_combo.currentText()),
+                'swap_xt': w.swap_xt_cb.isChecked(),
+            })
+            new_settings[self._viz_linewidth_key(viz_type)] = float(w.lw_combo.currentText())
+        new_settings.update({
+            'title': w.title_edit.text().strip(),
+            'xlabel': w.xlabel_edit.text().strip(),
+            'ylabel': w.ylabel_edit.text().strip(),
+            'figsize_mode': w.figsize_combo.currentText(),
+            'figsize_w': w.figsize_w_spin.value(),
+            'figsize_h': w.figsize_h_spin.value(),
+            'title_fontsize': w.title_fs_spin.value(),
+            'subplot_title_fontsize': w.subplot_title_fs_spin.value(),
+            'axis_label_fontsize': w.axis_label_fs_spin.value(),
+        })
+        return new_settings
+
+
     def _on_plot_settings(self, viz_type=None):
         """Unified Plot Settings dialog for the Setup tab's "Plot output"
         panel -- merges what used to be two separate dialogs (this one,
@@ -11124,304 +11063,22 @@ print("DOMAIN_PREVIEW_DONE")
         layout = QVBoxLayout(dialog)
 
         current = self._plot_viz_settings
-
-        # Colormap
-        cmap_row = QHBoxLayout()
-        cmap_row.addWidget(QLabel("Colormap:"))
-        cmap_combo = QComboBox()
-        cmap_combo.addItems(["RdBu_r", "viridis", "plasma", "jet", "coolwarm", "inferno", "turbo", "seismic", "bwr"])
-        cmap_combo.setCurrentText(current.get('colormap', 'RdBu_r'))
-        cmap_combo.setFixedWidth(120)
-        cmap_row.addStretch(); cmap_row.addWidget(cmap_combo)
-        if not is_param:
-            layout.addLayout(cmap_row)
-
-        # Contour levels
-        levels_row = QHBoxLayout()
-        levels_row.addWidget(QLabel("Contour levels:"))
-        levels_spin = QSpinBox()
-        levels_spin.setRange(5, 200); levels_spin.setValue(current.get('levels', 50))
-        levels_spin.setFixedWidth(80)
-        levels_row.addStretch(); levels_row.addWidget(levels_spin)
-        if not is_param:
-            layout.addLayout(levels_row)
-
-        # Resolution
-        res_row = QHBoxLayout()
-        res_row.addWidget(QLabel("Grid resolution:"))
-        res_combo = QComboBox()
-        res_combo.addItems(["80", "100", "150", "200"])
-        res_combo.setCurrentText(str(current.get('resolution', 100)))
-        res_combo.setFixedWidth(80)
-        res_row.addStretch(); res_row.addWidget(res_combo)
-        if not is_param:
-            layout.addLayout(res_row)
-
-        # DPI
-        dpi_row = QHBoxLayout()
-        dpi_row.addWidget(QLabel("Output DPI:"))
-        dpi_combo = QComboBox()
-        dpi_combo.addItems(["100", "150", "200", "300"])
-        dpi_combo.setCurrentText(str(current.get('dpi', 100)))
-        dpi_combo.setFixedWidth(80)
-        dpi_row.addStretch(); dpi_row.addWidget(dpi_combo)
-        if not is_param:
-            layout.addLayout(dpi_row)
-
-        # Figure size — applies to this (and every other single-panel)
-        # results plot, including Parameter Convergence; Error Analysis
-        # comparison grids size themselves from however many files/
-        # columns are being compared and are left alone. "Default" keeps
-        # today's per-plot-type dimensions exactly as they've always been.
-        figsize_row = QHBoxLayout()
-        figsize_row.addWidget(QLabel("Figure size:"))
-        figsize_combo = QComboBox()
-        figsize_combo.addItems(["Default", "Square", "Wide", "Custom"])
-        figsize_combo.setCurrentText(current.get('figsize_mode', 'Default'))
-        figsize_combo.setFixedWidth(100)
-        figsize_row.addStretch(); figsize_row.addWidget(figsize_combo)
-        layout.addLayout(figsize_row)
-
-        figsize_custom_widget = QWidget()
-        figsize_custom_layout = QHBoxLayout(figsize_custom_widget)
-        figsize_custom_layout.setContentsMargins(0, 0, 0, 0)
-        figsize_custom_layout.addWidget(QLabel("Width:"))
-        figsize_w_spin = QDoubleSpinBox()
-        figsize_w_spin.setRange(2.0, 30.0); figsize_w_spin.setSingleStep(0.5)
-        figsize_w_spin.setValue(current.get('figsize_w', 7.0)); figsize_w_spin.setFixedWidth(70)
-        figsize_custom_layout.addWidget(figsize_w_spin)
-        figsize_custom_layout.addWidget(QLabel("Height:"))
-        figsize_h_spin = QDoubleSpinBox()
-        figsize_h_spin.setRange(2.0, 30.0); figsize_h_spin.setSingleStep(0.5)
-        figsize_h_spin.setValue(current.get('figsize_h', 5.0)); figsize_h_spin.setFixedWidth(70)
-        figsize_custom_layout.addWidget(figsize_h_spin)
-        figsize_custom_layout.addStretch()
-        figsize_custom_widget.setVisible(figsize_combo.currentText() == "Custom")
-        figsize_combo.currentTextChanged.connect(lambda t: figsize_custom_widget.setVisible(t == "Custom"))
-        layout.addWidget(figsize_custom_widget)
-
-        # Color range — Surface only
-        color_range_widget = QWidget()
-        cr_layout = QVBoxLayout(color_range_widget)
-        cr_layout.setContentsMargins(0, 0, 0, 0)
-        cr_auto_cb = QCheckBox("Auto color range")
-        cr_auto_cb.setChecked(current.get('auto_range', True))
-        cr_layout.addWidget(cr_auto_cb)
-        cr_manual_widget = QWidget()
-        cr_manual_layout = QHBoxLayout(cr_manual_widget)
-        cr_manual_layout.setContentsMargins(0, 0, 0, 0)
-        cr_manual_layout.addWidget(QLabel("vmin:"))
-        vmin_spin = QDoubleSpinBox(); vmin_spin.setRange(-1e6, 1e6)
-        vmin_spin.setValue(current.get('vmin', -1.0)); vmin_spin.setFixedWidth(80)
-        cr_manual_layout.addWidget(vmin_spin)
-        cr_manual_layout.addWidget(QLabel("vmax:"))
-        vmax_spin = QDoubleSpinBox(); vmax_spin.setRange(-1e6, 1e6)
-        vmax_spin.setValue(current.get('vmax', 1.0)); vmax_spin.setFixedWidth(80)
-        cr_manual_layout.addWidget(vmax_spin)
-        cr_manual_widget.setVisible(not cr_auto_cb.isChecked())
-        cr_layout.addWidget(cr_manual_widget)
-        cr_auto_cb.stateChanged.connect(lambda s: cr_manual_widget.setVisible(s != 2))
-        color_range_widget.setVisible(viz_type in ("Surface", "Surface Animation (GIF)"))
-        if not is_param:
-            layout.addWidget(color_range_widget)
-
-        # 2D/3D time snapshots — Surface only, and only while it's
-        # actually the multi-snapshot branch in codegen.py (time-dependent
-        # 2D, or time-dependent 3D's z-mid-plane heatmap -- see
-        # generate_script()'s "elif _is_2d:"/"elif _is_3d:" Surface
-        # branches, both keyed off config.plot_n_2d_snapshots). A steady
-        # (no time axis) 2D/3D Surface, or any 1D Surface, is always a
-        # single plot and has no snapshot count to choose -- the previous
-        # version of this dialog only ever showed this control for 2D,
-        # never 3D, and didn't check steady-state at all, even though 3D
-        # non-steady Surface reads this same setting.
-        snap_widget = QWidget()
-        snap_layout = QHBoxLayout(snap_widget)
-        snap_layout.setContentsMargins(0, 0, 0, 0)
-        snap_layout.addWidget(QLabel("2D/3D time snapshots:"))
-        snap_spin = QSpinBox()
-        snap_spin.setRange(1, 10); snap_spin.setValue(current.get('n_2d_snapshots', 2))
-        snap_spin.setFixedWidth(80)
-        snap_layout.addStretch(); snap_layout.addWidget(snap_spin)
-        snap_widget.setVisible(viz_type == "Surface" and (_is_2d or _is_3d) and not _is_steady)
-        if not is_param:
-            layout.addWidget(snap_widget)
-
-        # Swap x/t axes — 1D "Surface" and "Surface Animation (GIF)" only
-        # (2D/3D Surface plots are spatial snapshots at fixed times and
-        # have no x/t axis to swap; 1D "Surface Animation (GIF)" has the
-        # same x/t orientation as the static Surface plot -- each frame is
-        # one instant's u(x) drawn as a color band against a t-range axis
-        # for width -- so it gets the same swap option, defaulting the
-        # same way).
-        swap_xt_cb = QCheckBox("Swap axes (x-axis = t, y-axis = x)")
-        swap_xt_cb.setChecked(current.get('swap_xt', True))
-        swap_xt_cb.setVisible(viz_type in ("Surface", "Surface Animation (GIF)") and _is_1d)
-        if not is_param:
-            layout.addWidget(swap_xt_cb)
-
-        # Colorbar — Surface only
-        colorbar_cb = QCheckBox("Show colorbar")
-        colorbar_cb.setChecked(current.get('colorbar', True))
-        colorbar_cb.setVisible(viz_type in ("Surface", "Surface Animation (GIF)"))
-        if not is_param:
-            layout.addWidget(colorbar_cb)
-
-        # Steps/frames — every type except Surface and Parameter
-        # Convergence (neither has a notion of "how many time steps to
-        # draw" -- Surface's analogous control is the 2D/3D time-
-        # snapshots count just above). Wording and the hidden spinbox this
-        # writes back to (timesteps_spin_line vs. _anim) both depend on
-        # whether this is the static "Line (time steps)" plot or one of
-        # the two GIF animation types -- same split _viz_steps_key encodes
-        # for Restore's own steps/frames control.
+        # The steps/frames value and the y/z slice live in the Setup tab's
+        # own (hidden) widgets -- timesteps_spin_line/_anim and
+        # line_slice_*_auto_cb/_spin -- which the generators read via
+        # PINNConfig; this dialog edits those.
         _target_spin = self.timesteps_spin_anim if _is_anim else self.timesteps_spin_line
-        steps_widget = QWidget()
-        steps_layout = QHBoxLayout(steps_widget)
-        steps_layout.setContentsMargins(0, 0, 0, 0)
-        steps_layout.addWidget(QLabel("Frames to show:" if _is_anim else "Time steps to show:"))
-        steps_spin = QSpinBox()
-        steps_spin.setRange(2, 20); steps_spin.setValue(_target_spin.value())
-        steps_spin.setFixedWidth(80)
-        steps_layout.addStretch(); steps_layout.addWidget(steps_spin)
-        steps_widget.setVisible(viz_type not in ("Surface", "Parameter Convergence"))
-        if not is_param:
-            layout.addWidget(steps_widget)
-
-        # y/z slice — only for the two Line-type plots ("Line (time
-        # steps)"/"Line Animation (GIF)"), which plot u vs x only, leaving
-        # y (and z, in 3D) fixed at some value -- "Surface Animation
-        # (GIF)" shows the full x-y (or x/y/z faces) field over time
-        # instead and has no slice to pick (the previous version of this
-        # dialog showed this control for Surface Animation too, even
-        # though codegen.py's own Surface-Animation branch never reads
-        # it). See PINNConfig.line_slice_y_auto/line_slice_y and the
-        # matching z fields -- every line-type plot across the app (live
-        # Solve, Export as DeepXDE Script, Restore & Visualize, all three
-        # Error Analysis line-comparisons) reads this instead of each
-        # silently hardcoding the domain midpoint.
-        _y_auto_cb = _y_spin = _z_auto_cb = _z_spin = None
-        slice_info = QLabel(
-            "This plot type only shows u vs x -- pick where to slice "
-            "the rest of the domain.")
-        slice_info.setWordWrap(True)
-        self._register_hint(slice_info, '#74c0fc')
-        _show_slice = _is_line_type and (_is_2d or _is_3d)
-        slice_info.setVisible(_show_slice)
-        if not is_param:
-            layout.addWidget(slice_info)
-
-        def _make_slice_row(label, auto_cb_src, spin_src):
-            row = QHBoxLayout()
-            auto_cb = QCheckBox("Auto (domain midpoint)")
-            auto_cb.setChecked(auto_cb_src.isChecked())
-            row.addWidget(QLabel(f"{label} value:"))
-            spin = QDoubleSpinBox()
-            spin.setRange(-1e6, 1e6); spin.setValue(spin_src.value())
-            spin.setFixedWidth(90)
-            spin.setVisible(_show_slice and not auto_cb.isChecked())
-            row.addStretch(); row.addWidget(spin)
-            auto_cb.stateChanged.connect(lambda s: spin.setVisible(_show_slice and s != 2))
-            auto_cb.setVisible(_show_slice)
-            if not is_param:
-                layout.addWidget(auto_cb)
-                layout.addLayout(row)
-            return auto_cb, spin
-
+        _slice = None
         if _is_2d or _is_3d:
-            _y_auto_cb, _y_spin = _make_slice_row("y", self.line_slice_y_auto_cb, self.line_slice_y_spin)
+            _slice = {"y": (self.line_slice_y_auto_cb.isChecked(), self.line_slice_y_spin.value())}
             if _is_3d:
-                _z_auto_cb, _z_spin = _make_slice_row("z", self.line_slice_z_auto_cb, self.line_slice_z_spin)
-
-        # Line width — Line only
-        lw_widget = QWidget()
-        lw_layout = QHBoxLayout(lw_widget)
-        lw_layout.setContentsMargins(0, 0, 0, 0)
-        lw_layout.addWidget(QLabel("Line width:"))
-        lw_combo = QComboBox()
-        lw_combo.addItems(["1.0", "1.5", "2.0", "2.5", "3.0"])
-        lw_combo.setCurrentText(str(current.get(self._viz_linewidth_key(viz_type), 2.0)))
-        lw_combo.setFixedWidth(80)
-        lw_layout.addStretch(); lw_layout.addWidget(lw_combo)
-        lw_widget.setVisible(_is_line_type)
-        if not is_param:
-            layout.addWidget(lw_widget)
-
-        # Frame rate — the two GIF animation types only
-        fps_widget = QWidget()
-        fps_layout = QHBoxLayout(fps_widget)
-        fps_layout.setContentsMargins(0, 0, 0, 0)
-        fps_layout.addWidget(QLabel("Frame rate (fps):"))
-        fps_combo = QComboBox()
-        fps_combo.addItems(["5", "10", "15", "20", "24", "30"])
-        fps_combo.setCurrentText(str(current.get('fps', 10)))
-        fps_combo.setFixedWidth(80)
-        fps_layout.addStretch(); fps_layout.addWidget(fps_combo)
-        fps_widget.setVisible(viz_type in ("Line Animation (GIF)", "Surface Animation (GIF)"))
-        if not is_param:
-            layout.addWidget(fps_widget)
-
-        # Title / axis labels — every viz type gets these (including
-        # Parameter Convergence); blank keeps the existing default text
-        # exactly as before. Same fields, same blank-means-default
-        # convention, as Restore & Visualize's own dialog.
-        labels_line = QLabel("Leave blank to keep the default title/axis labels.")
-        self._register_hint(labels_line, '#586e75')
-        labels_line.setWordWrap(True)
-        layout.addWidget(labels_line)
-
-        title_row = QHBoxLayout()
-        title_row.addWidget(QLabel("Title:"))
-        title_edit = QLineEdit()
-        title_edit.setText(current.get('title', ''))
-        title_edit.setPlaceholderText("(default)")
-        title_row.addWidget(title_edit)
-        layout.addLayout(title_row)
-
-        xlabel_row = QHBoxLayout()
-        xlabel_row.addWidget(QLabel("X-axis label:"))
-        xlabel_edit = QLineEdit()
-        xlabel_edit.setText(current.get('xlabel', ''))
-        xlabel_edit.setPlaceholderText("(default)")
-        xlabel_row.addWidget(xlabel_edit)
-        layout.addLayout(xlabel_row)
-
-        ylabel_row = QHBoxLayout()
-        ylabel_row.addWidget(QLabel("Y-axis label:"))
-        ylabel_edit = QLineEdit()
-        ylabel_edit.setText(current.get('ylabel', ''))
-        ylabel_edit.setPlaceholderText("(default)")
-        ylabel_row.addWidget(ylabel_edit)
-        layout.addLayout(ylabel_row)
-
-        # Round 31: font sizes -- figure-suptitle, per-panel subplot title,
-        # axis labels. Same 3 controls, same defaults, as Restore &
-        # Visualize's own dialog (_on_restore_viz_settings); applies to
-        # every viz type (including Parameter Convergence, same as figure
-        # size above) since every plot has at least a title and axis labels.
-        title_fs_row = QHBoxLayout()
-        title_fs_row.addWidget(QLabel("Title font size:"))
-        title_fs_spin = QDoubleSpinBox()
-        title_fs_spin.setRange(6.0, 36.0); title_fs_spin.setSingleStep(0.5)
-        title_fs_spin.setValue(current.get('title_fontsize', 13.0)); title_fs_spin.setFixedWidth(70)
-        title_fs_row.addStretch(); title_fs_row.addWidget(title_fs_spin)
-        layout.addLayout(title_fs_row)
-
-        subplot_title_fs_row = QHBoxLayout()
-        subplot_title_fs_row.addWidget(QLabel("Subplot title font size:"))
-        subplot_title_fs_spin = QDoubleSpinBox()
-        subplot_title_fs_spin.setRange(6.0, 36.0); subplot_title_fs_spin.setSingleStep(0.5)
-        subplot_title_fs_spin.setValue(current.get('subplot_title_fontsize', 10.0)); subplot_title_fs_spin.setFixedWidth(70)
-        subplot_title_fs_row.addStretch(); subplot_title_fs_row.addWidget(subplot_title_fs_spin)
-        layout.addLayout(subplot_title_fs_row)
-
-        axis_label_fs_row = QHBoxLayout()
-        axis_label_fs_row.addWidget(QLabel("Axis label font size:"))
-        axis_label_fs_spin = QDoubleSpinBox()
-        axis_label_fs_spin.setRange(6.0, 36.0); axis_label_fs_spin.setSingleStep(0.5)
-        axis_label_fs_spin.setValue(current.get('axis_label_fontsize', 10.0)); axis_label_fs_spin.setFixedWidth(70)
-        axis_label_fs_row.addStretch(); axis_label_fs_row.addWidget(axis_label_fs_spin)
-        layout.addLayout(axis_label_fs_row)
+                _slice["z"] = (self.line_slice_z_auto_cb.isChecked(), self.line_slice_z_spin.value())
+        # Shared with Restore & Visualize's dialog -- see _build_plot_settings_fields.
+        w = self._build_plot_settings_fields(
+            layout, current, viz_type, is_param=is_param, is_1d=_is_1d, is_2d=_is_2d, is_3d=_is_3d,
+            is_steady=_is_steady, is_line_type=_is_line_type, is_anim=_is_anim,
+            surface_types=("Surface", "Surface Animation (GIF)"), levels_default=50,
+            steps_value=_target_spin.value(), steps_max=_target_spin.maximum(), slice_defaults=_slice)
 
         ok_btn, cancel_btn = self._add_ok_cancel_row(layout)
 
@@ -11441,48 +11098,15 @@ print("DOMAIN_PREVIEW_DONE")
         cancel_btn.clicked.connect(_on_cancel)
 
         def _on_ok():
-            # Start from a copy of the existing settings (rather than a
-            # bare literal) so a key this dialog doesn't itself surface
-            # for the current viz_type -- e.g. the *other* plot type's
-            # linewidth_*/n_steps_* value -- survives OK instead of
-            # silently reverting to a hardcoded default next time that
-            # other type is used.
-            new_settings = dict(current)
+            new_settings = self._plot_settings_values(w, current, viz_type, is_param)
             if not is_param:
-                new_settings.update({
-                    'colormap': cmap_combo.currentText(),
-                    'levels': levels_spin.value(),
-                    'resolution': int(res_combo.currentText()),
-                    'dpi': int(dpi_combo.currentText()),
-                    'auto_range': cr_auto_cb.isChecked(),
-                    'vmin': vmin_spin.value(),
-                    'vmax': vmax_spin.value(),
-                    'colorbar': colorbar_cb.isChecked(),
-                    'n_2d_snapshots': snap_spin.value(),
-                    'fps': int(fps_combo.currentText()),
-                    'swap_xt': swap_xt_cb.isChecked(),
-                })
-                # linewidth is kept in a type-specific key (see
-                # _viz_linewidth_key) so "Line (time steps)" and "Line
-                # Animation (GIF)" can have different widths instead of
-                # sharing one value regardless of which viz_type was open.
-                new_settings[self._viz_linewidth_key(viz_type)] = float(lw_combo.currentText())
-                _target_spin.setValue(steps_spin.value())
-                if _y_auto_cb is not None:
-                    self.line_slice_y_auto_cb.setChecked(_y_auto_cb.isChecked())
-                    self.line_slice_y_spin.setValue(_y_spin.value())
-                if _z_auto_cb is not None:
-                    self.line_slice_z_auto_cb.setChecked(_z_auto_cb.isChecked())
-                    self.line_slice_z_spin.setValue(_z_spin.value())
-            new_settings['title'] = title_edit.text().strip()
-            new_settings['xlabel'] = xlabel_edit.text().strip()
-            new_settings['ylabel'] = ylabel_edit.text().strip()
-            new_settings['figsize_mode'] = figsize_combo.currentText()
-            new_settings['figsize_w'] = figsize_w_spin.value()
-            new_settings['figsize_h'] = figsize_h_spin.value()
-            new_settings['title_fontsize'] = title_fs_spin.value()
-            new_settings['subplot_title_fontsize'] = subplot_title_fs_spin.value()
-            new_settings['axis_label_fontsize'] = axis_label_fs_spin.value()
+                _target_spin.setValue(w.steps_spin.value())
+                if w.y_auto_cb is not None:
+                    self.line_slice_y_auto_cb.setChecked(w.y_auto_cb.isChecked())
+                    self.line_slice_y_spin.setValue(w.y_spin.value())
+                if w.z_auto_cb is not None:
+                    self.line_slice_z_auto_cb.setChecked(w.z_auto_cb.isChecked())
+                    self.line_slice_z_spin.setValue(w.z_spin.value())
             self._plot_viz_settings = new_settings
             self._plot_type_prev = self.plot_type_combo.currentText()
             self.log_box.append(f"✅ Plot settings saved — {viz_type}")
