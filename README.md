@@ -123,9 +123,13 @@ The goal is to make physics-informed machine learning accessible to researchers 
 ### Problem Setup
 
 <details>
-<summary><strong>1D, 2D, and 3D problem definitions</strong></summary>
+<summary><strong>ODE, 1D, 2D, and 3D problem definitions</strong></summary>
 
 Every problem is defined over `(x, t)`, `(x, y, t)`, or `(x, y, z, t)` — switching dimension in the Setup panel rebuilds the relevant controls (geometry selector, boundary condition rows, plot options) for you, so nothing from a previous dimension is left over and silently wrong. Steady-state (time-independent) problems are supported in every dimension too — turn off the time axis and the network trains a pure `u(x)`, `u(x, y)`, or `u(x, y, z)` instead.
+
+**ODE (t)** problems have time as the only variable: write derivatives as `du_t`, `du_tt` (one equation per output for a system, e.g. `dy1_t - y2|dy2_t + y1`), give the initial values in the Initial Conditions panel, and use *Start*/*End* in a BC row for conditions at either end of the time range — see the ODE examples under [DeepXDE Examples](#deepxde-examples). An ODE can also contain integrals of the solution, `integral(f)` from t₀ to t with f in `s` (the integration variable), `t` and the outputs at s — for integro-differential equations such as `du_t + u - integral(exp(s - t)*u)`.
+
+**Fractional equations**: write `frac(u)` for the fractional operator of order α applied to output u (DeepXDE's FPDE discretization — in 1D the left plus right Riemann-Liouville derivative, in 2D/3D the integral of the directional derivative over directions). The fractional settings (α, resolution, mesh) appear under the equations as soon as one uses `frac(...)`; α can be an inverse variable to learn it from data — see the fractional examples under [DeepXDE Examples](#deepxde-examples).
 
 </details>
 
@@ -231,7 +235,7 @@ Every run trains with Adam first, then hands off to L-BFGS for the second stage 
 <details>
 <summary><strong>Multi-phase optimizer scheduling and IC-guided pre-training</strong></summary>
 
-Beyond the basic two-stage recipe, training can be broken into any number of phases (different optimizers, iteration counts, and loss weights per phase), and an optional IC-guided pre-training pass can warm-start the network toward the initial condition before the full PDE-residual loss is even switched on — useful for problems where a cold-start network otherwise struggles to find the right basin.
+Beyond the basic two-stage recipe, training can be broken into any number of phases (different optimizers, iteration counts, and loss weights per phase), and an optional IC-guided pre-training pass can warm-start the network toward the initial condition before the full PDE-residual loss is even switched on — useful for problems where a cold-start network otherwise struggles to find the right basin. Loss weights can also be set automatically from the first evaluation (**Scale by initial losses**, wᵢ = c / Lᵢ(0)), so every loss term starts at the same size, as in DeepXDE's wave-propagation example.
 
 Each phase's learning rate can decay by step, cosine, exponential or **inverse time** schedule (DeepXDE's `("inverse time", decay_steps, decay_rate)`).
 
@@ -326,10 +330,11 @@ Rather than clicking Solve once per configuration and tracking the results yours
 
 ![Parameter Sweep panel — two parameters configured for an all-combinations sweep](assets/Images/Parameter_Sweep/sweep_panel.png)
 
-**Three ways to combine parameters**, picked from the Mode dropdown:
+**Four ways to combine parameters**, picked from the Mode dropdown:
 - **One-at-a-time** — vary each parameter separately against the same baseline (N+1 values across 2 parameters → 1 baseline + N runs per parameter).
 - **All combinations** (grid) — every value of every parameter, crossed together (2 parameters with 3 and 2 values → 6 runs).
 - **Specified combinations** (zip) — pair up each parameter's *i*-th value across all parameters (2 parameters with matching-length value lists, paired index-for-index).
+- **Bayesian search** — after the baseline, each run's settings are chosen by a Gaussian-process model of the results so far, to reach the lowest final loss (or L2 error) in as few runs as possible. Each parameter's Min/Max (linear or log) is its search range, a list its choices; **Runs** is the budget and **Random first** the number of random runs before the model takes over. The sweep folder gets `bayes_search.csv` and a convergence plot, and the best run is printed at the end — see the Helmholtz hyperparameter-optimization example under [DeepXDE Examples](#deepxde-examples).
 
 Each parameter row takes a comma-separated list of values, or a linear/log numeric range (min, max, number of steps); categorical parameters (activation, point distribution, etc.) are always a plain list of choices.
 

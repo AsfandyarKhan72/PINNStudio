@@ -402,8 +402,51 @@ _PDE_TORCH_FUNCS = (
     ("arcsin", "asin"), ("arccos", "acos"), ("arctan", "atan"),
     ("exp", "exp"), ("log", "log"), ("log10", "log10"), ("sqrt", "sqrt"),
     ("abs", "abs"), ("ceil", "ceil"), ("floor", "floor"),
-    ("relu", "relu"), ("sigmoid", "sigmoid"),
+    ("relu", "relu"), ("sigmoid", "sigmoid"), ("lgamma", "lgamma"),
 )
+
+
+def _fold_numeric_calls(e):
+    """sqrt(3), exp(-1), gamma((1 - 1.8)/2), ... -> their values (Round 75):
+    torch's functions take tensors, not numbers, so torch.sqrt(3) in a
+    generated expression fails. Calls whose argument is only numbers, pi,
+    arithmetic and parentheses are evaluated here (innermost first);
+    anything else is left as written."""
+    import math
+    import re
+    fns = {"sin": math.sin, "cos": math.cos, "tan": math.tan, "sinh": math.sinh, "cosh": math.cosh,
+           "tanh": math.tanh, "arcsin": math.asin, "arccos": math.acos, "arctan": math.atan, "exp": math.exp,
+           "log": math.log, "log10": math.log10, "sqrt": math.sqrt, "abs": abs, "ceil": math.ceil,
+           "floor": math.floor, "gamma": math.gamma, "lgamma": math.lgamma}
+    head = re.compile(r"(?<![\w.])(" + "|".join(sorted(fns, key=len, reverse=True)) + r")\(")
+    numeric = re.compile(r"^(?:[0-9eE.+\-*/ ()]|(?<![\w])pi(?![\w]))*$")
+    for _ in range(50):
+        changed = False
+        pos = 0
+        while True:
+            m = head.search(e, pos)
+            if not m:
+                break
+            depth, j = 1, m.end()
+            while j < len(e) and depth:
+                depth += {"(": 1, ")": -1}.get(e[j], 0)
+                j += 1
+            if depth:
+                break
+            arg = e[m.end():j - 1]
+            if arg.strip() and numeric.match(arg) and "e" not in re.sub(r"\d[eE][+-]?\d", "", arg).replace("pi", ""):
+                try:
+                    v = float(fns[m.group(1)](eval(arg, {"__builtins__": {}}, {"pi": math.pi})))
+                except Exception:
+                    pos = m.end()
+                    continue
+                e = e[:m.start()] + (repr(v) if v >= 0 else f"({v!r})") + e[j:]
+                changed = True
+                break
+            pos = m.end()
+        if not changed:
+            break
+    return e
 
 
 def _simplify_pde_expr(expr):
@@ -413,7 +456,7 @@ def _simplify_pde_expr(expr):
     (Before Round 61 these became np.sin(...), which crashed on the
     network's tensors -- no built-in template used one, so it never showed.)"""
     import re
-    e = expr.strip()
+    e = _fold_numeric_calls(expr.strip())
     for fn, tfn in _PDE_TORCH_FUNCS:
         e = re.sub(rf'(?<![a-zA-Z_.]){fn}\(', f'torch.{tfn}(', e)
     e = re.sub(r'(?<![a-zA-Z_.])pi(?![a-zA-Z_])', 'np.pi', e)
@@ -3831,6 +3874,236 @@ def _constant_values(config):
     return _cmod.evaluate(text, names)
 
 
+def _ode_text(expr):
+    """An expression of an ODE problem (independent variable t) rewritten
+    for the 1D machinery that solves it (variable x): du_t -> du_x,
+    dy1_tt -> dy1_xx, t -> x, t_min/t_max -> x_min/x_max, start/end -> left/right."""
+    import re as _re_ode
+    if not isinstance(expr, str) or not expr:
+        return expr
+    e = _re_ode.sub(r"(?<![\w.])(d[A-Za-z]\w*?)_(t+)(?![\w])", lambda m: m.group(1) + "_" + "x" * len(m.group(2)), expr)
+    e = _re_ode.sub(r"(?<![\w.])t_(min|max)(?![\w])", r"x_\1", e)
+    e = _re_ode.sub(r"(?<![\w.])t(?![\w])", "x", e)
+    e = _re_ode.sub(r"(?<![\w.])start(?![\w])", "left", e)
+    e = _re_ode.sub(r"(?<![\w.])end(?![\w])", "right", e)
+    return e
+
+
+def _ode_to_1d(config):
+    """Round 74: an ODE problem (problem_dim "ODE", independent variable t
+    in [t_min, t_max]) solved as a 1D steady problem in x = t. Initial
+    conditions become Dirichlet rows at the start (x = t_min), keeping
+    their place in the loss-weight order; an Operator row "at the initial
+    time" becomes one at the start."""
+    import dataclasses as _dc
+    import re as _re_ode
+    n_out = max(1, int(config.num_outputs or 1))
+    rows = []
+    try:
+        rows = _bc_json_std.loads(config.custom_bc_json or "[]")
+    except ValueError:
+        rows = []
+    for r in rows:
+        for k in ("location", "value", "location2", "values_formula", "points_list"):
+            if isinstance(r.get(k), str):
+                r[k] = _ode_text(r[k])
+        if r.get("type") == "operator" and r.get("apply_at") == "initial":
+            r["apply_at"] = "boundary"
+            loc = (r.get("location") or "").strip()
+            r["location"] = "left" if loc in ("", "True") else f"left and ({loc})"
+    ic_exprs = (config.ic_expressions or "").split("|")
+    ic_act = [a.strip() == "True" for a in (config.ic_active or "").split(",")]
+    for i in range(n_out):
+        if i < len(ic_act) and ic_act[i] and i < len(ic_exprs) and ic_exprs[i].strip():
+            v = _re_ode.sub(r"x\[:,\s*0(:1)?\]", "x", _ode_text(ic_exprs[i].strip()))
+            rows.append({"type": "dirichlet", "location": "left", "value": v, "component": i})
+    tm = config.training_monitors
+    try:
+        _tml = _bc_json_std.loads(tm or "[]")
+        for m in _tml:
+            if isinstance(m, dict) and isinstance(m.get("expr"), str):
+                m["expr"] = _ode_text(m["expr"])
+        tm = _bc_json_std.dumps(_tml)
+    except ValueError:
+        pass
+    obs = config.inverse_obs_files_json
+    try:
+        _ol = _bc_json_std.loads(obs or "[]")
+        for o in _ol:
+            if isinstance(o, dict) and isinstance(o.get("custom_expr"), str):
+                o["custom_expr"] = _ode_text(o["custom_expr"])
+        obs = _bc_json_std.dumps(_ol) if _ol else obs
+    except ValueError:
+        pass
+    return _dc.replace(
+        config, problem_dim="1D", steady_state=True, geometry_type="Interval",
+        x_min=float(config.t_min), x_max=float(config.t_max), num_initial=0,
+        layers=[1] + list(config.layers[1:]) if config.layers else config.layers,
+        time_adaptive=False, adapt_method="None" if config.adapt_method == "Time Adaptive" else config.adapt_method,
+        pde_expressions=_ode_text(config.pde_expressions), pde_expression=_ode_text(config.pde_expression),
+        ic_expressions="|".join(["0"] * n_out), ic_expression="0", ic_active=",".join(["False"] * n_out),
+        forward_ic_from_file=False,
+        custom_bc_json=_bc_json_std.dumps(rows), training_monitors=tm, inverse_obs_files_json=obs,
+        input_feature_formula=_ode_text(config.input_feature_formula),
+        output_transform_formula=_ode_text(config.output_transform_formula),
+        ea_ref_formula=_ode_text(config.ea_ref_formula), plot_custom_expr=_ode_text(config.plot_custom_expr),
+        anchors_box=_ode_text(config.anchors_box),
+        plot_xlabel_override=config.plot_xlabel_override or "t")
+
+
+_INTEGRAL_RE = None
+
+
+def _integral_text(expr, out_names, x0):
+    """Round 76: integro-differential terms. `integral(f)` in an equation
+    of an ODE (or steady 1D) problem is the Volterra integral of f from the
+    start of the range to the current point, f being an expression in the
+    integration variable s, the current point (x, i.e. t) and the outputs
+    evaluated at s -- e.g. integral(exp(s - x)*u). Rewritten to
+    _integral(lambda s, <outputs>: (f), x, x0), which the generated script
+    evaluates by Gauss-Legendre quadrature of the network (as DeepXDE's
+    dde.data.IDE does)."""
+    import re as _re_int
+    if not isinstance(expr, str) or "integral(" not in expr:
+        return expr
+    out, i = [], 0
+    pat = _re_int.compile(r"(?<![\w.])integral\(")
+    names = ", ".join(["s"] + [n for n in out_names if n])
+    while True:
+        m = pat.search(expr, i)
+        if not m:
+            out.append(expr[i:])
+            break
+        out.append(expr[i:m.start()])
+        depth, j = 1, m.end()
+        while j < len(expr) and depth:
+            depth += {"(": 1, ")": -1}.get(expr[j], 0)
+            j += 1
+        if depth:
+            raise ValueError(f"integral( has no closing parenthesis in {expr!r}")
+        inner = expr[m.end():j - 1]
+        out.append(f"_integral(lambda {names}: ({inner}), x, {float(x0)!r})")
+        i = j
+    return "".join(out)
+
+
+def _uses_integral(config):
+    return "_integral(lambda" in (getattr(config, "pde_expressions", "") or "")
+
+
+def _integral_helper_code(config):
+    """Runtime helper for integral(...) terms (see _integral_text); "" when
+    no equation uses one."""
+    if not _uses_integral(config):
+        return ""
+    q = int(getattr(config, "integral_points", 20) or 20)
+    return f'''# ── Integral terms: Gauss-Legendre quadrature of the network ──────────
+_GL_xi, _GL_w = np.polynomial.legendre.leggauss({q})
+def _integral(_f, _xc, _x0):
+    """Integral of _f(s, outputs at s) for s from _x0 to _xc (one per point)."""
+    _xc = _xc[:, 0:1]
+    _xi = torch.as_tensor(_GL_xi, dtype=_xc.dtype, device=_xc.device)
+    _wq = torch.as_tensor(_GL_w, dtype=_xc.dtype, device=_xc.device)
+    _h = (_xc - _x0) / 2
+    _s = _x0 + _h * (_xi[None, :] + 1)
+    _ys = net(_s.reshape(-1, 1)).reshape(_s.shape[0], _s.shape[1], -1)
+    _v = _f(_s, *[_ys[..., _k] for _k in range(_ys.shape[-1])])
+    return (_v * _wq).sum(dim=1, keepdim=True) * _h
+'''
+
+
+_FRAC_RE_SRC = r"(?<![\w.])frac\("
+
+
+def _uses_frac(config):
+    """Round 77: an equation uses the fractional operator frac(...)."""
+    import re as _re_fr
+    return bool(_re_fr.search(_FRAC_RE_SRC, getattr(config, "pde_expressions", "") or ""))
+
+
+def _frac_resolution(config):
+    return [int(float(v)) for v in str(getattr(config, "fractional_resolution", "") or "").replace(";", ",").split(",")
+            if v.strip()]
+
+
+def _frac_alpha_expr(config):
+    """The alpha passed to dde.data.FPDE: a number, or the name of an
+    inverse variable (trainable alpha)."""
+    a = str(getattr(config, "fractional_alpha", "") or "").strip()
+    try:
+        return repr(float(a.strip("() ")))
+    except ValueError:
+        return a
+
+
+def _frac_data_text(text, config, geom, pde, cons):
+    """dde.data.PDE/TimePDE(geom, pde, cons, ...) -> dde.data.FPDE/TimeFPDE(
+    geom, pde, alpha, cons, resolution, meshtype=..., ...) for a fractional
+    problem (Round 77). The loss is tested on the training points
+    (num_test=None, as in DeepXDE's fractional scripts; a static mesh can't
+    have test points at all)."""
+    import re as _re_fr
+    res = _frac_resolution(config)
+    mesh = getattr(config, "fractional_meshtype", "dynamic") or "dynamic"
+    head = _re_fr.compile(r"dde\.data\.(Time)?PDE\((\s*)" + _re_fr.escape(geom) + r", " + _re_fr.escape(pde) + r", "
+                          + _re_fr.escape(cons) + r",")
+
+    def _sub(m):
+        return (f"dde.data.{m.group(1) or ''}FPDE({m.group(2)}{geom}, {pde}, {_frac_alpha_expr(config)}, {cons}, {res!r}, "
+                f"meshtype={mesh!r},")
+    out = head.sub(_sub, text)
+    if True:   # fractional problems test on the training points (DeepXDE's num_test=None)
+        out = _re_fr.sub(r"(dde\.data\.(?:Time)?FPDE\((?:(?!\)\n).)*?)num_test=[^,\n]+,", r"\1num_test=None,", out,
+                         flags=_re_fr.S)
+    return out
+
+
+def _frac_helper_code(config):
+    """Runtime helper for frac(...) terms: DeepXDE's FPDE hands the residual
+    its fractional matrix (dense, or sparse as (indices, values, shape)),
+    which this applies to an output column, zero-padded to all points; the
+    residual is then cut to the matrix's rows (the FPDE points; the rest are
+    DeepXDE's auxiliary points)."""
+    if "_frac(" not in (getattr(config, "pde_expressions", "") or ""):
+        return ""
+    return '''# ── Fractional operator (DeepXDE FPDE matrix) ──────────────────────────
+def _frac_rows(_im):
+    return int(_im[2][0]) if isinstance(_im, (list, tuple)) and len(_im) == 3 else int(_im.shape[0])
+def _frac_apply(_im, _v):
+    """The fractional operator (Grunwald-Letnikov directional derivatives) applied to _v."""
+    if _im is None:
+        raise RuntimeError("frac(...) needs the fractional matrix: it is only defined while training (FPDE data)")
+    if isinstance(_im, (list, tuple)) and len(_im) == 3:
+        _idx, _vals, _shape = _im
+        _idx = torch.as_tensor(np.asarray(_idx), dtype=torch.long, device=_v.device).reshape(-1, 2).T
+        _vals = _vals.to(_v.dtype) if torch.is_tensor(_vals) else torch.as_tensor(np.asarray(_vals), dtype=_v.dtype, device=_v.device)
+        _r = torch.sparse.mm(torch.sparse_coo_tensor(_idx, _vals.to(_v.device), tuple(int(_d) for _d in _shape)), _v)
+    else:
+        _m = _im if torch.is_tensor(_im) else torch.as_tensor(np.asarray(_im), dtype=_v.dtype, device=_v.device)
+        _r = _m.to(_v.dtype) @ _v
+    if _r.shape[0] < _v.shape[0]:
+        _r = torch.cat([_r, _r.new_zeros((_v.shape[0] - _r.shape[0], _r.shape[1]))], dim=0)
+    return _r
+'''
+
+
+def _init_loss_weights_code(config, indent, model, weights_var, lr, ext_vars):
+    """Round 75: 'Scale by initial losses' -- evaluate every loss term once
+    (no training) and set weight_i = c / L_i(0), as DeepXDE's wave example
+    does (loss_weights = 5 / initial_losses). Empty when the option is off."""
+    c = float(getattr(config, "loss_weights_from_initial", 0.0) or 0.0)
+    if c <= 0:
+        return ""
+    lines = [
+        f"# Loss weights from the initial losses: w_i = {c:g} / L_i(0)",
+        f'{model}.compile("{config.optimizer}", lr={lr}, loss="{config.loss_type}", external_trainable_variables={ext_vars})',
+        f"_lh0, _ = {model}.train(iterations=0, display_every=1)",
+        f"{weights_var} = [{c!r} / max(float(_l), 1e-30) for _l in _lh0.loss_train[0]]",
+        f'print("Loss weights from the initial losses:", ["%.4g" % _w for _w in {weights_var}])',
+    ]
+    return "\n".join(indent + ln for ln in lines)
+
+
 def _effective_config(config):
     """The config as the generators should read it -- cleanup Round 56.
     PINNConfig documents time_adaptive as IGNORED for a steady-state problem
@@ -3851,13 +4124,37 @@ def _effective_config(config):
         _sub = {f: _cmod.substitute(getattr(config, f), _consts)
                 for f in ("pde_expressions", "pde_expression", "ic_expressions", "ic_expression",
                           "input_feature_formula", "output_transform_formula", "ea_ref_formula",
-                          "plot_custom_expr", "sweep_plot_custom_expr", "anchors_box")
+                          "plot_custom_expr", "sweep_plot_custom_expr", "anchors_box", "fractional_alpha")
                 if isinstance(getattr(config, f, None), str)}
         _sub["custom_bc_json"] = _cmod.substitute_json(config.custom_bc_json, _consts, ("location", "value", "location2",
                                                                                       "points_list", "values_formula"))
         _sub["inverse_obs_files_json"] = _cmod.substitute_json(config.inverse_obs_files_json, _consts, ("custom_expr",))
         _sub["training_monitors"] = _cmod.substitute_json(config.training_monitors, _consts, ("expr",))
         config = _dc.replace(config, constants="", **_sub)
+    if (getattr(config, "loss_weights_from_initial", 0) or 0) > 0 and getattr(config, "scheduler_phases", ""):
+        # Round 75: weights from the initial losses replace every phase's own.
+        try:
+            _ph = _bc_json_std.loads(config.scheduler_phases)
+            if any(isinstance(p, dict) and "weights" in p for p in _ph):
+                for p in _ph:
+                    if isinstance(p, dict):
+                        p.pop("weights", None)
+                config = _dc.replace(config, scheduler_phases=_bc_json_std.dumps(_ph))
+        except ValueError:
+            pass
+    if _uses_frac(config):
+        import re as _re_fr
+        config = _dc.replace(config,
+                             pde_expressions=_re_fr.sub(_FRAC_RE_SRC, "_frac(", config.pde_expressions),
+                             pde_expression=_re_fr.sub(_FRAC_RE_SRC, "_frac(", config.pde_expression or ""))
+    _was_ode = getattr(config, "problem_dim", "") == "ODE"
+    if _was_ode:
+        config = _ode_to_1d(config)
+    if "integral(" in (config.pde_expressions or "") and config.problem_dim == "1D" and config.steady_state:
+        _names = [n.strip() for n in (config.output_names or "u").split(",")][:max(1, int(config.num_outputs or 1))]
+        config = _dc.replace(config,
+                             pde_expressions=_integral_text(config.pde_expressions, _names, config.x_min),
+                             pde_expression=_integral_text(config.pde_expression, _names, config.x_min))
     # Round 62: with an input feature formula the network's first layer
     # takes one input per feature, not one per coordinate.
     # Round 67: "reference from a formula" -> the files the scripts will
@@ -3868,6 +4165,10 @@ def _effective_config(config):
     n_feat = len(_feature_formula_list(config)) if _input_formula_on(config) else 0
     if n_feat and config.layers and config.layers[0] != n_feat:
         config = _dc.replace(config, layers=[n_feat] + list(config.layers[1:]))
+    if _was_ode:
+        # Round 74: plots of an ODE name its variable t, not x (a fresh
+        # copy, never the caller's config).
+        config._ode = True
     return config
 
 
@@ -4026,6 +4327,7 @@ def generate_script(config):
     plot_title_override = (getattr(config, "plot_title_override", "") or "").strip()
     plot_xlabel_override = (getattr(config, "plot_xlabel_override", "") or "").strip()
     plot_ylabel_override = (getattr(config, "plot_ylabel_override", "") or "").strip()
+    v1 = "t" if getattr(config, "_ode", False) else "x"   # Round 74: an ODE's variable
 
     if config.forward_ic_from_file:
         _ta_ic_init = f"""_ic_ta_xt, _ic_ta_vals = _load_ic_from_file({repr(config.forward_ic_file)})
@@ -4418,6 +4720,7 @@ _is_3d = "{config.problem_dim}" == "3D"
 # a plain dde.data.PDE instead of dde.data.TimePDE. See _build_geom() and
 # the "Data" section below for where this actually changes construction.
 _is_steady = {str(is_steady)}
+_v1d = {v1!r}
 
 # Load an Initial Condition from a plain, header-less data file and
 # return (xt, vals) ready for dde.icbc.PointSetBC -- xt at the domain's
@@ -4670,9 +4973,11 @@ if _problem_type == "Inverse":
 
 
 {_fecr_pde_block}
+{_integral_helper_code(config)}
+{_frac_helper_code(config)}
 _IS_FECR = False
 # ── PDE definition (standard) ───────────────────────────────
-def _pde_standard(x, y):
+def _pde_standard(x, y, _int_mat=None):
     _n_out = {config.num_outputs}
     _n_eq = {_n_equations(config)}
     _out_names = [n.strip() for n in {repr(config.output_names)}.split(",")]
@@ -4821,16 +5126,25 @@ def _pde_standard(x, y):
     _eval_ns["x"]   = x
     _eval_ns["y"]   = y
     _eval_ns["torch"] = torch{pde_coord_ns_code}
+    if "_integral" in globals():
+        _eval_ns["_integral"] = _integral
+    if "_frac_apply" in globals():
+        _eval_ns["_frac"] = lambda _v: _frac_apply(_int_mat, _v)
 
     if _problem_type == "Inverse":
         for _iv_name, _iv_var in zip(_inv_var_names, _inv_vars):
             _eval_ns[_iv_name] = _iv_var
 
     if _n_eq == 1:
-        return eval({repr(pde_expr_single)}, _eval_ns)
+        _res = eval({repr(pde_expr_single)}, _eval_ns)
     else:
         _pde_exprs = {repr(config_pde_expressions)}.split("|")[:_n_eq]
-        return [eval(_expr.strip(), _eval_ns) for _expr in _pde_exprs]
+        _res = [eval(_expr.strip(), _eval_ns) for _expr in _pde_exprs]
+    if _int_mat is not None and "_frac_apply" in globals():
+        # fractional problem: the residual lives on the FPDE points only
+        _nr = _frac_rows(_int_mat)
+        _res = [_r[:_nr] for _r in _res] if isinstance(_res, list) else _res[:_nr]
+    return _res
 if not _IS_FECR:
     pde = _pde_standard
 
@@ -5027,7 +5341,13 @@ def _bc_robin_fn(_expr, _comp):
     _src = _expr if _expr.strip() else "0"
     _code = compile(_src, "<bc_robin_value>", "eval")
     def _f(_Xb, _Yb):
-        _ns = {{**_BC_MATH_NS, **_BC_DOMAIN, "x": _Xb[:, 0], "np": np, "torch": torch, "u": _Yb[:, _comp:_comp + 1]}}
+        _ns = {{**_BC_MATH_NS, **_BC_DOMAIN, "x": _Xb[:, 0], "np": np, "torch": torch}}
+        # Round 75: every output by name (e.g. -k0*u_im for a Helmholtz
+        # absorbing condition on u_re), then u = this row's own output.
+        for _oi, _on in enumerate(_out_names_list):
+            if _on.strip():
+                _ns[_on.strip()] = _Yb[:, _oi:_oi + 1]
+        _ns["u"] = _Yb[:, _comp:_comp + 1]
         if _is_2d or _is_3d:
             _ns["y"] = _Xb[:, 1]
         if _is_3d:
@@ -5610,6 +5930,7 @@ for _pval in _param_values:
 
     net = _apply_net_transforms(_make_net(_layers, "{config.activation}", "{config.kernel_initializer}", {config.weight_decay}))
     model = dde.Model(data, net)
+{_init_loss_weights_code(config, "    ", "model", "_multi_weights", "_lr", "_inv_vars if _problem_type == 'Inverse' else None")}
 
     model.compile(
         "{config.optimizer}", lr=_lr, loss="{config.loss_type}",
@@ -6551,9 +6872,9 @@ for _pval in _param_values:
                 _out_name_1d = _plot_custom_label if _plot_custom_expr.strip() else {repr(config.output_names)}.split(",")[_plot_idx].strip()
                 fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
                 ax.plot(_x_1d, _u_1d, color="#4dabf7", linewidth={config.plot_linewidth})
-                ax.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or f"{{_out_name_1d}}(x)", fontsize={config.plot_axis_label_fontsize})
+                ax.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or f"{{_out_name_1d}}({{_v1d}})", fontsize={config.plot_axis_label_fontsize})
                 ax.set_title(_plot_title_override or (f"PINN Solution — {{_param_name}}={{_pval}}" if _parametric
-                              else (f"PINN Solution — {{_out_name_1d}}(x)" if _plot_n_out > 1 or _plot_custom_expr.strip() else "PINN Solution")))
+                              else (f"PINN Solution — {{_out_name_1d}}({{_v1d}})" if _plot_n_out > 1 or _plot_custom_expr.strip() else "PINN Solution")))
                 ax.grid(True, alpha=0.2)
                 plt.tight_layout(); plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
             else:
@@ -6961,7 +7282,7 @@ for _pval in _param_values:
                         # "t = 0.000" here would be meaningless noise rather
                         # than a real time coordinate.
                         ax.set_title((f"L2 = {{_l2:.2e}}" if _is_steady else f"t = {{_ea_tv:.3f}}  |  L2 = {{_l2:.2e}}"), fontsize={config.plot_subplot_title_fontsize})
-                        ax.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel("u(x)" if _is_steady else "u(x,t)", fontsize={config.plot_axis_label_fontsize}); ax.grid(True, alpha=0.3)
+                        ax.set_xlabel(_v1d, fontsize={config.plot_axis_label_fontsize}); _ea_fn = (_ea_line_suptitle.split(" — ") + ["", ""])[1] if _ea_line_suptitle.count(" — ") >= 2 else "u"; ax.set_ylabel(f"{{_ea_fn}}({{_v1d}})" if _is_steady else f"{{_ea_fn}}(x,t)", fontsize={config.plot_axis_label_fontsize}); ax.grid(True, alpha=0.3)
                     for _ej in range(_ea_n_t, len(_ea_ax_flat)):
                         _ea_ax_flat[_ej].set_visible(False)
                     handles, labels = _ea_ax_flat[0].get_legend_handles_labels()
@@ -7390,6 +7711,8 @@ if _parametric and len(_summary) > 0:
 {_tm_plot_code}
 print("DONE")
 """
+    if "_frac(" in (config.pde_expressions or ""):
+        script = _frac_data_text(script, config, "geomtime", "pde", "_constraints")
     return script
 
 
@@ -7702,6 +8025,10 @@ def _clean_bc_row_code(i, entry, is_2d, is_3d, n_coord_cols, is_steady=False, n_
         L = [f"def {rob_name}(X, Y):"]
         L += _clean_coord_unpack("    ", True, is_2d, is_3d, is_steady, _pde_coord_names([val]))
         L += _clean_bc_name_lines("    ", val, domain, False)
+        _used = _expr_names(val)
+        for _oi, _on in enumerate(n.strip() for n in (out_names or "").split(",")):
+            if _on and _on in _used and _on != "u":
+                L.append(f"    {_on} = Y[:, {_oi}:{_oi + 1}]")
         L.append(f"    u = Y[:, {comp}:{comp}+1]")
         L.append(f"    _r = {val}")
         L.append("    if isinstance(_r, torch.Tensor):")
@@ -9351,6 +9678,7 @@ def generate_clean_script(config):
     plot_title_override = (getattr(config, "plot_title_override", "") or "").strip()
     plot_xlabel_override = (getattr(config, "plot_xlabel_override", "") or "").strip()
     plot_ylabel_override = (getattr(config, "plot_ylabel_override", "") or "").strip()
+    v1 = "t" if getattr(config, "_ode", False) else "x"   # Round 74: an ODE's variable
 
     # ---- PDE expressions (host-resolved derivative terms) --------------
     pde_exprs = [_simplify_pde_expr(e) for e in config.pde_expressions.split("|")]
@@ -9367,15 +9695,23 @@ def generate_clean_script(config):
         pde_body.append("    _X = x")
         for _cn, _cc in pde_cols:
             pde_body.append(f"    {_cn} = _X[:, {_cc}:{_cc + 1}]")
+    uses_frac = "_frac(" in pde_check_str
+    if uses_frac:
+        pde_body.append("    _frac = lambda _v: _frac_apply(int_mat, _v)   # fractional operator")
+    ret = "_res = " if uses_frac else "return "
     if n_eq == 1:
-        pde_body.append(f"    return {pde_exprs[0].strip()}")
+        pde_body.append(f"    {ret}{pde_exprs[0].strip()}")
     else:
         exprs = [e.strip() for e in pde_exprs[:n_eq]]
-        pde_body.append("    return [")
+        pde_body.append(f"    {ret}[")
         for e in exprs:
             pde_body.append(f"        {e},")
         pde_body.append("    ]")
-    pde_block = "def pde(x, y):\n" + "\n".join(pde_body)
+    if uses_frac:
+        pde_body.append("    # the residual lives on the FPDE points only (the rest are auxiliary points)")
+        pde_body.append("    _nr = _frac_rows(int_mat) if int_mat is not None else len(x)")
+        pde_body.append("    return " + ("[_r[:_nr] for _r in _res]" if n_eq > 1 else "_res[:_nr]"))
+    pde_block = ("def pde(x, y, int_mat=None):\n" if uses_frac else "def pde(x, y):\n") + "\n".join(pde_body)
 
     # ---- Geometry --------------------------------------------------------
     tri_verts = _parse_vertex_list(config.geom_triangle_vertices)
@@ -9482,6 +9818,11 @@ def generate_clean_script(config):
     sched_phases = _clean_sched_phases(config, multi_weights)
     for sp in sched_phases:
         sp['_w'] = _clean_phase_weights(sp, expected_len, multi_weights)
+    if (config.loss_weights_from_initial or 0) > 0:
+        # Round 75: weights computed at runtime from the initial losses.
+        multi_weights = "loss_weights"
+        for sp in sched_phases:
+            sp['_w'] = "loss_weights"
     uses_nncg = any(sp.get('optimizer') == 'nncg' for sp in sched_phases)
     total_iters = sum(int(sp.get('iterations', 0) or 0) for sp in sched_phases)
 
@@ -9732,6 +10073,10 @@ if save_dir:
     if needs_transform_helper:
         parts.append(_net_transforms_code(config, "_apply_transforms"))
 
+    if _uses_integral(config):
+        parts.append(_integral_helper_code(config))
+    if "_frac(" in (config.pde_expressions or ""):
+        parts.append(_frac_helper_code(config))
     parts.append(pde_block)
 
     if bc_defs:
@@ -9883,6 +10228,8 @@ def _load_obs_data(path):
     train_distribution="{_safe_point_distribution}",
     anchors={anchors_arg},
 )''']
+        if "_frac(" in (config.pde_expressions or ""):
+            data_lines = [_frac_data_text(t, config, "geomtime", "pde", "constraints") for t in data_lines]
         parts.append("\n".join(data_lines))
         parts.append(net_line)
 
@@ -9908,6 +10255,9 @@ _ic_pre_constraints = []''']
             parts.append("\n".join(ic_pretrain_lines))
 
         parts.append("model = dde.Model(data, net)")
+        if (config.loss_weights_from_initial or 0) > 0:
+            parts.append(_init_loss_weights_code(config, "", "model", "loss_weights", repr(config.learning_rate),
+                                                 "inv_vars" if is_inverse else "None"))
         if cbs_code:
             parts.append(cbs_code)
         if is_inverse:
@@ -10427,7 +10777,7 @@ x_1d = np.linspace({config.x_min}, {config.x_max}, res)
 u_1d = _extract_plot_field(x_1d.reshape(-1, 1)).flatten()
 fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
 ax.plot(x_1d, u_1d, color="#4dabf7", linewidth={config.plot_linewidth})
-ax.set_xlabel({(plot_xlabel_override or "x")!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel({(plot_ylabel_override or f"{out_name}(x)")!r}, fontsize={config.plot_axis_label_fontsize})
+ax.set_xlabel({(plot_xlabel_override or "x")!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel({(plot_ylabel_override or f"{out_name}({v1})")!r}, fontsize={config.plot_axis_label_fontsize})
 ax.set_title({(plot_title_override or "PINN Solution")!r})
 ax.grid(True, alpha=0.2)
 plt.tight_layout()
@@ -10998,7 +11348,7 @@ with open(os.path.join(ea_dir, "error_metrics{_ea_suffix}.txt"), "w") as f:
                     _ea_line_ylabel = repr(f"{out_name}(x, y={line_slice_y:.3g})") if is_steady else repr(f"{out_name}(x, y={line_slice_y:.3g}, t)")
                     _ea_line_suptitle = f"PINN vs Reference -- Line Comparison (y={line_slice_y:.3g})"
                 else:
-                    _ea_line_ylabel = repr(f"{out_name}(x)") if is_steady else repr(f"{out_name}(x, t)")
+                    _ea_line_ylabel = repr(f"{out_name}({v1})") if is_steady else repr(f"{out_name}(x, t)")
                     _ea_line_suptitle = "PINN vs Reference -- Line Comparison"
                 ea_lines.append(f'''
 # ── Line comparison ──{chr(10) + "from scipy.interpolate import griddata" if _ea_line_needs_griddata else ""}
@@ -11013,7 +11363,7 @@ for i, tv in enumerate(ea_times):
     ax.plot(xv, gt, color="#4dabf7", linewidth=2.0, label="Reference")
     ax.plot(xv, pn, color="#ff6b6b", linewidth=2.0, linestyle="--", label="PINN")
     ax.set_title({_ea_line_title}, fontsize={config.plot_subplot_title_fontsize})
-    ax.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel({_ea_line_ylabel}, fontsize={config.plot_axis_label_fontsize}); ax.grid(True, alpha=0.3)
+    ax.set_xlabel({v1!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel({_ea_line_ylabel}, fontsize={config.plot_axis_label_fontsize}); ax.grid(True, alpha=0.3)
 for j in range(n_t, len(axf)):
     axf[j].set_visible(False)
 handles, labels = axf[0].get_legend_handles_labels()

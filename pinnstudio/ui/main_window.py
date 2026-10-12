@@ -828,11 +828,17 @@ class MainWindow(QMainWindow):
         self.radio_1d = QRadioButton("1D  (x)")
         self.radio_2d = QRadioButton("2D  (x, y)")
         self.radio_3d = QRadioButton("3D  (x, y, z)")
+        # ODE (Round 74): only time, no space -- e.g. y1' = y2, y2' = -y1.
+        self.radio_ode = QRadioButton("ODE  (t)")
+        self.radio_ode.setToolTip("Ordinary differential equations in t only (no space): write derivatives\n"
+                                  "as dy_t, dy_tt; initial conditions are values at t = t₀.")
         self.radio_1d.setChecked(True)
         self.dim_group_btn = QButtonGroup()
+        self.dim_group_btn.addButton(self.radio_ode)
         self.dim_group_btn.addButton(self.radio_1d)
         self.dim_group_btn.addButton(self.radio_2d)
         self.dim_group_btn.addButton(self.radio_3d)
+        dim_layout.addWidget(self.radio_ode)
         dim_layout.addWidget(self.radio_1d)
         dim_layout.addWidget(self.radio_2d)
         dim_layout.addWidget(self.radio_3d)
@@ -840,6 +846,7 @@ class MainWindow(QMainWindow):
         self.radio_1d.toggled.connect(self._on_dim_changed)
         self.radio_2d.toggled.connect(self._on_dim_changed)
         self.radio_3d.toggled.connect(self._on_dim_changed)
+        self.radio_ode.toggled.connect(self._on_ode_toggled)
 
         # ── Problem type ──────────────────────────────────────
         # Time Dependent/Stationary now lives here too, right above
@@ -913,6 +920,24 @@ class MainWindow(QMainWindow):
         self.num_equations_spin.setToolTip("Number of PDE residuals; resets to the number of outputs when that changes.")
         self.num_equations_spin.valueChanged.connect(self._on_num_equations_changed)
         nout_row.addWidget(self.num_equations_spin)
+        # Round 76: quadrature points for integral(...) terms (ODE mode).
+        self.integral_points_label = QLabel("∫ points:")
+        self.integral_points_spin = QSpinBox()
+        self.integral_points_spin.setRange(2, 200)
+        self.integral_points_spin.setValue(20)
+        self.integral_points_spin.setFixedHeight(30)
+        self.integral_points_spin.setFixedWidth(60)
+        _int_tip = ("Gauss-Legendre points for integral(...) terms in the equations.\n"
+                    "integral(f) is the integral of f from the start t₀ to the current t, where f uses\n"
+                    "s (the integration variable), t, and the outputs at s -- e.g.\n"
+                    "du_t + u - integral(exp(s - t)*u)   (a Volterra integro-differential equation)")
+        self.integral_points_label.setToolTip(_int_tip)
+        self.integral_points_spin.setToolTip(_int_tip)
+        nout_row.addSpacing(12)
+        nout_row.addWidget(self.integral_points_label)
+        nout_row.addWidget(self.integral_points_spin)
+        self.integral_points_label.setVisible(False)
+        self.integral_points_spin.setVisible(False)
         nout_row.addStretch()
         pde_outer_layout.addLayout(nout_row)
 
@@ -973,6 +998,38 @@ class MainWindow(QMainWindow):
         pde_outer_layout.addLayout(self.pde_main_layout)
         self.pde_inputs = []
         self.output_name_inputs = []
+
+        # Round 77: fractional operator settings -- shown while an equation uses frac(...).
+        self.frac_widget = QWidget()
+        _fl = QHBoxLayout(self.frac_widget)
+        _fl.setContentsMargins(0, 0, 0, 0); _fl.setSpacing(4)
+        _frac_tip = ("frac(u): the fractional operator of order α applied to output u, discretized as DeepXDE's FPDE\n"
+                     "(Grunwald-Letnikov). 1D: the sum of the left and right Riemann-Liouville derivatives;\n"
+                     "2D/3D: the integral over directions of the directional derivative -- times\n"
+                     "C(α, D) = Γ((1-α)/2) Γ((D+α)/2) / (2 π^((D+1)/2)) it is minus the fractional Laplacian.\n"
+                     "α: a number, a constant, or an inverse variable's name (to learn α).\n"
+                     "Resolution: 1D the number of mesh points (static) or points per unit length (dynamic);\n"
+                     "2D '8, 100' = directions, points per unit length; 3D '8, 8, 100'.\n"
+                     "Mesh: static (1D interval only, a fixed uniform mesh) or dynamic.\n"
+                     "The test loss uses the training points (DeepXDE's fractional data), not Test points.")
+        _flab = QLabel("Fractional  α:")
+        _flab.setToolTip(_frac_tip)
+        _fl.addWidget(_flab)
+        self.frac_alpha_edit = QLineEdit("1.5"); self.frac_alpha_edit.setFixedWidth(60)
+        self.frac_alpha_edit.setToolTip(_frac_tip)
+        _fl.addWidget(self.frac_alpha_edit)
+        _fl.addWidget(QLabel("Resolution:"))
+        self.frac_res_edit = QLineEdit("100"); self.frac_res_edit.setFixedWidth(80)
+        self.frac_res_edit.setToolTip(_frac_tip)
+        _fl.addWidget(self.frac_res_edit)
+        _fl.addWidget(QLabel("Mesh:"))
+        self.frac_mesh_combo = QComboBox()
+        self.frac_mesh_combo.addItem("dynamic", "dynamic"); self.frac_mesh_combo.addItem("static", "static")
+        self.frac_mesh_combo.setToolTip(_frac_tip)
+        _fl.addWidget(self.frac_mesh_combo)
+        _fl.addStretch()
+        pde_outer_layout.addWidget(self.frac_widget)
+        self.frac_widget.setVisible(False)
         self._build_pde_inputs(1)
         left_layout.addWidget(self.pde_group)
 
@@ -1127,11 +1184,11 @@ class MainWindow(QMainWindow):
         self.geom_panel_disk = QWidget()
         _p = QHBoxLayout(self.geom_panel_disk); _p.setContentsMargins(0, 0, 0, 0)
         _p.addWidget(QLabel("center x,y:"))
-        self.geom_disk_cx = QDoubleSpinBox(); self.geom_disk_cx.setRange(-1e6, 1e6); self.geom_disk_cx.setValue(0.5); self.geom_disk_cx.setSingleStep(0.1)
-        self.geom_disk_cy = QDoubleSpinBox(); self.geom_disk_cy.setRange(-1e6, 1e6); self.geom_disk_cy.setValue(0.5); self.geom_disk_cy.setSingleStep(0.1)
+        self.geom_disk_cx = DomainSpinBox(); self.geom_disk_cx.setRange(-1e6, 1e6); self.geom_disk_cx.setValue(0.5); self.geom_disk_cx.setSingleStep(0.1)
+        self.geom_disk_cy = DomainSpinBox(); self.geom_disk_cy.setRange(-1e6, 1e6); self.geom_disk_cy.setValue(0.5); self.geom_disk_cy.setSingleStep(0.1)
         _p.addWidget(self.geom_disk_cx); _p.addWidget(self.geom_disk_cy)
         _p.addWidget(QLabel("radius:"))
-        self.geom_disk_r = QDoubleSpinBox(); self.geom_disk_r.setRange(1e-6, 1e6); self.geom_disk_r.setValue(0.5); self.geom_disk_r.setSingleStep(0.1)
+        self.geom_disk_r = DomainSpinBox(); self.geom_disk_r.setRange(1e-6, 1e6); self.geom_disk_r.setValue(0.5); self.geom_disk_r.setSingleStep(0.1)
         _p.addWidget(self.geom_disk_r)
         self.geom_panel_disk.setVisible(False)
         domain_layout.addWidget(self.geom_panel_disk)
@@ -1141,19 +1198,19 @@ class MainWindow(QMainWindow):
         _p = QVBoxLayout(self.geom_panel_ellipse); _p.setContentsMargins(0, 0, 0, 0); _p.setSpacing(4)
         _row_a = QHBoxLayout()
         _row_a.addWidget(QLabel("center x,y:"))
-        self.geom_ellipse_cx = QDoubleSpinBox(); self.geom_ellipse_cx.setRange(-1e6, 1e6); self.geom_ellipse_cx.setValue(0.5); self.geom_ellipse_cx.setSingleStep(0.1)
-        self.geom_ellipse_cy = QDoubleSpinBox(); self.geom_ellipse_cy.setRange(-1e6, 1e6); self.geom_ellipse_cy.setValue(0.5); self.geom_ellipse_cy.setSingleStep(0.1)
+        self.geom_ellipse_cx = DomainSpinBox(); self.geom_ellipse_cx.setRange(-1e6, 1e6); self.geom_ellipse_cx.setValue(0.5); self.geom_ellipse_cx.setSingleStep(0.1)
+        self.geom_ellipse_cy = DomainSpinBox(); self.geom_ellipse_cy.setRange(-1e6, 1e6); self.geom_ellipse_cy.setValue(0.5); self.geom_ellipse_cy.setSingleStep(0.1)
         _row_a.addWidget(self.geom_ellipse_cx); _row_a.addWidget(self.geom_ellipse_cy)
         _p.addLayout(_row_a)
         _row_b = QHBoxLayout()
         _row_b.addWidget(QLabel("semi-major, semi-minor:"))
-        self.geom_ellipse_a = QDoubleSpinBox(); self.geom_ellipse_a.setRange(1e-6, 1e6); self.geom_ellipse_a.setValue(0.5); self.geom_ellipse_a.setSingleStep(0.1)
-        self.geom_ellipse_b = QDoubleSpinBox(); self.geom_ellipse_b.setRange(1e-6, 1e6); self.geom_ellipse_b.setValue(0.3); self.geom_ellipse_b.setSingleStep(0.1)
+        self.geom_ellipse_a = DomainSpinBox(); self.geom_ellipse_a.setRange(1e-6, 1e6); self.geom_ellipse_a.setValue(0.5); self.geom_ellipse_a.setSingleStep(0.1)
+        self.geom_ellipse_b = DomainSpinBox(); self.geom_ellipse_b.setRange(1e-6, 1e6); self.geom_ellipse_b.setValue(0.3); self.geom_ellipse_b.setSingleStep(0.1)
         _row_b.addWidget(self.geom_ellipse_a); _row_b.addWidget(self.geom_ellipse_b)
         _p.addLayout(_row_b)
         _row_c = QHBoxLayout()
         _row_c.addWidget(QLabel("angle (rad):"))
-        self.geom_ellipse_angle = QDoubleSpinBox(); self.geom_ellipse_angle.setRange(-100, 100); self.geom_ellipse_angle.setValue(0.0); self.geom_ellipse_angle.setSingleStep(0.1)
+        self.geom_ellipse_angle = DomainSpinBox(); self.geom_ellipse_angle.setRange(-100, 100); self.geom_ellipse_angle.setValue(0.0); self.geom_ellipse_angle.setSingleStep(0.1)
         _row_c.addWidget(self.geom_ellipse_angle)
         _p.addLayout(_row_c)
         self.geom_panel_ellipse.setVisible(False)
@@ -1193,14 +1250,14 @@ class MainWindow(QMainWindow):
         _p = QVBoxLayout(self.geom_panel_sphere); _p.setContentsMargins(0, 0, 0, 0); _p.setSpacing(4)
         _row_a = QHBoxLayout()
         _row_a.addWidget(QLabel("center x,y,z:"))
-        self.geom_sphere_cx = QDoubleSpinBox(); self.geom_sphere_cx.setRange(-1e6, 1e6); self.geom_sphere_cx.setValue(0.5); self.geom_sphere_cx.setSingleStep(0.1)
-        self.geom_sphere_cy = QDoubleSpinBox(); self.geom_sphere_cy.setRange(-1e6, 1e6); self.geom_sphere_cy.setValue(0.5); self.geom_sphere_cy.setSingleStep(0.1)
-        self.geom_sphere_cz = QDoubleSpinBox(); self.geom_sphere_cz.setRange(-1e6, 1e6); self.geom_sphere_cz.setValue(0.5); self.geom_sphere_cz.setSingleStep(0.1)
+        self.geom_sphere_cx = DomainSpinBox(); self.geom_sphere_cx.setRange(-1e6, 1e6); self.geom_sphere_cx.setValue(0.5); self.geom_sphere_cx.setSingleStep(0.1)
+        self.geom_sphere_cy = DomainSpinBox(); self.geom_sphere_cy.setRange(-1e6, 1e6); self.geom_sphere_cy.setValue(0.5); self.geom_sphere_cy.setSingleStep(0.1)
+        self.geom_sphere_cz = DomainSpinBox(); self.geom_sphere_cz.setRange(-1e6, 1e6); self.geom_sphere_cz.setValue(0.5); self.geom_sphere_cz.setSingleStep(0.1)
         _row_a.addWidget(self.geom_sphere_cx); _row_a.addWidget(self.geom_sphere_cy); _row_a.addWidget(self.geom_sphere_cz)
         _p.addLayout(_row_a)
         _row_b = QHBoxLayout()
         _row_b.addWidget(QLabel("radius:"))
-        self.geom_sphere_r = QDoubleSpinBox(); self.geom_sphere_r.setRange(1e-6, 1e6); self.geom_sphere_r.setValue(0.5); self.geom_sphere_r.setSingleStep(0.1)
+        self.geom_sphere_r = DomainSpinBox(); self.geom_sphere_r.setRange(1e-6, 1e6); self.geom_sphere_r.setValue(0.5); self.geom_sphere_r.setSingleStep(0.1)
         _row_b.addWidget(self.geom_sphere_r)
         _row_b.addStretch()
         _p.addLayout(_row_b)
@@ -2155,8 +2212,25 @@ class MainWindow(QMainWindow):
 
         # ── Loss Weights ──────────────────────────────────────
         self.weights_group = QGroupBox("Loss Weights")
-        self.weights_main_layout = QVBoxLayout(self.weights_group)
+        _wg_outer = QVBoxLayout(self.weights_group)
+        _wg_outer.setSpacing(4)
+        # Round 75: weights from the initial losses (wᵢ = c / Lᵢ(0)).
+        _wi_row = QHBoxLayout()
+        self.loss_w_init_cb = QCheckBox("Scale by initial losses:  wᵢ = c / Lᵢ(0),  c =")
+        self.loss_w_init_cb.setToolTip(
+            "Before training, evaluate every loss term once and set its weight to c divided by\n"
+            "its initial value, so all terms start at the same size (DeepXDE's wave example uses\n"
+            "c = 5). The weights below are then ignored, in every training phase.")
+        self.loss_w_init_c = SciLineEdit(5.0); self.loss_w_init_c.setFixedWidth(70)
+        self.loss_w_init_c.setEnabled(False)
+        self.loss_w_init_cb.toggled.connect(self.loss_w_init_c.setEnabled)
+        _wi_row.addWidget(self.loss_w_init_cb); _wi_row.addWidget(self.loss_w_init_c); _wi_row.addStretch()
+        _wg_outer.addLayout(_wi_row)
+        _wg_inner = QWidget()
+        self.weights_main_layout = QVBoxLayout(_wg_inner)
+        self.weights_main_layout.setContentsMargins(0, 0, 0, 0)
         self.weights_main_layout.setSpacing(4)
+        _wg_outer.addWidget(_wg_inner)
         self.weight_widgets = {}
         self._build_weight_inputs(1)
         left_layout.addWidget(self.weights_group)
@@ -2432,14 +2506,44 @@ class MainWindow(QMainWindow):
         self.sweep_mode_combo.addItem("One-at-a-time (vary each parameter separately)", "oat")
         self.sweep_mode_combo.addItem("All combinations (every value of every parameter)", "grid")
         self.sweep_mode_combo.addItem("Specified combinations (parameters' Nth values run together)", "zip")
+        self.sweep_mode_combo.addItem("Bayesian search (each run chosen from the results so far)", "bayes")
         self.sweep_mode_combo.setFixedHeight(26)
         self.sweep_mode_combo.setToolTip(
             "One-at-a-time: baseline, then vary ONE parameter per run, others held at baseline.\n"
             "All combinations: every value of every parameter, crossed (a Cartesian product/Grid).\n"
             "Specified combinations: parameter 1's 1st value with parameter 2's 1st value, etc. -- "
-            "every parameter needs the same number of values.")
+            "every parameter needs the same number of values.\n"
+            "Bayesian search: baseline, then each run picked by a Gaussian-process model of the\n"
+            "results so far (DeepXDE's hyperparameter-optimization example) -- each parameter's\n"
+            "Min/Max (linear or log) is its search range, a list its choices; Steps is not used.")
         sweep_mode_row.addWidget(self.sweep_mode_combo)
         sweep_options_layout.addLayout(sweep_mode_row)
+
+        # Round 75: Bayesian search settings.
+        self.sweep_bayes_widget = QWidget()
+        _bl = QHBoxLayout(self.sweep_bayes_widget)
+        _bl.setContentsMargins(0, 0, 0, 0); _bl.setSpacing(4)
+        _bl.addWidget(QLabel("Runs:"))
+        self.sweep_bayes_calls_spin = QSpinBox(); self.sweep_bayes_calls_spin.setRange(2, 1000)
+        self.sweep_bayes_calls_spin.setValue(20); self.sweep_bayes_calls_spin.setFixedWidth(60)
+        self.sweep_bayes_calls_spin.setToolTip("Total training runs, the baseline included")
+        _bl.addWidget(self.sweep_bayes_calls_spin)
+        _bl.addWidget(QLabel("Random first:"))
+        self.sweep_bayes_init_spin = QSpinBox(); self.sweep_bayes_init_spin.setRange(1, 100)
+        self.sweep_bayes_init_spin.setValue(5); self.sweep_bayes_init_spin.setFixedWidth(50)
+        self.sweep_bayes_init_spin.setToolTip("Runs (after the baseline) with random settings before the model takes over")
+        _bl.addWidget(self.sweep_bayes_init_spin)
+        _bl.addWidget(QLabel("Minimize:"))
+        self.sweep_bayes_obj_combo = QComboBox()
+        self.sweep_bayes_obj_combo.addItem("Final loss", "loss")
+        self.sweep_bayes_obj_combo.addItem("L2 error", "l2")
+        self.sweep_bayes_obj_combo.setToolTip("L2 error needs Error Analysis reference data (files or a formula)")
+        _bl.addWidget(self.sweep_bayes_obj_combo)
+        _bl.addStretch()
+        sweep_options_layout.addWidget(self.sweep_bayes_widget)
+        self.sweep_bayes_widget.setVisible(False)
+        self.sweep_mode_combo.currentIndexChanged.connect(
+            lambda _i: self.sweep_bayes_widget.setVisible(self.sweep_mode_combo.currentData() == "bayes"))
 
         # ── Sweep Parameters -- same repeatable add/remove-row pattern
         # as the Training Phases list above (_add_scheduler_phase), and
@@ -3635,6 +3739,48 @@ class MainWindow(QMainWindow):
             # column's width, not something unique to this combo.
             self._fit_combo_width(combo, min_width=80)
 
+    def _apply_sweep_config(self, config):
+        """Round 75: a loaded config's Parameter Sweep (enabled, mode,
+        Bayesian settings, parameter rows) back into the panel."""
+        import json
+        if not hasattr(self, 'sweep_enable_cb'):
+            return
+        i = self.sweep_mode_combo.findData(getattr(config, "sweep_mode", "oat") or "oat")
+        self.sweep_mode_combo.setCurrentIndex(max(0, i))
+        self.sweep_bayes_calls_spin.setValue(int(getattr(config, "sweep_bayes_calls", 20) or 20))
+        self.sweep_bayes_init_spin.setValue(int(getattr(config, "sweep_bayes_initial", 5) or 5))
+        j = self.sweep_bayes_obj_combo.findData(getattr(config, "sweep_bayes_objective", "loss"))
+        self.sweep_bayes_obj_combo.setCurrentIndex(max(0, j))
+        try:
+            entries = json.loads(getattr(config, "sweep_parameters", "[]") or "[]")
+        except ValueError:
+            entries = []
+        if entries:
+            for row in list(self.sweep_row_list):
+                row['widget'].setParent(None)
+                row['widget'].deleteLater()
+            self.sweep_row_list.clear()
+            for e in entries:
+                self._add_sweep_row()
+                row = self.sweep_row_list[-1]
+                k = row['param_combo'].findData(e.get("id"))
+                if k >= 0:
+                    row['param_combo'].setCurrentIndex(k)
+                m = row['mode_combo'].findData(e.get("mode", "list"))
+                row['mode_combo'].setCurrentIndex(max(0, m))
+                if e.get("mode") == "list":
+                    row['list_edit'].setText(", ".join(str(v) for v in e.get("values", [])))
+                else:
+                    for key, spin in (("min", 'min_spin'), ("max", 'max_spin')):
+                        v = float(e.get(key, 0.0))
+                        if v:
+                            # enough decimals for small bounds such as a learning rate of 1e-5
+                            row[spin].setDecimals(max(4, 2 - int(math.floor(math.log10(abs(v))))))
+                        row[spin].setValue(v)
+                    row['n_spin'].setValue(int(e.get("n", 5)))
+        self.sweep_enable_cb.setChecked(bool(getattr(config, "sweep_enabled", False)))
+        self.sweep_bayes_widget.setVisible(self.sweep_mode_combo.currentData() == "bayes")
+
     def _build_sweep_parameters_json(self):
         import json
         entries = []
@@ -3953,6 +4099,31 @@ class MainWindow(QMainWindow):
             self._build_bc_inputs(self.num_outputs_spin.value())
             self._build_weight_inputs(self.num_outputs_spin.value())
 
+    def _sync_frac_widget(self):
+        """Show the fractional settings while an equation uses frac(...)."""
+        if hasattr(self, "frac_widget"):
+            import re as _re_fw
+            self.frac_widget.setVisible(any(_re_fw.search(r"(?<![\w.])frac\(", w.text())
+                                            for w in getattr(self, "pde_inputs", [])))
+
+    def _is_ode(self):
+        return hasattr(self, "radio_ode") and self.radio_ode.isChecked()
+
+    def _on_ode_toggled(self, checked):
+        """ODE mode (Round 74) is 1D's machinery with t as the only variable:
+        the x row hides, the problem is always time-dependent (initial
+        conditions at t₀), and Time-Adaptive training is unavailable."""
+        if checked and hasattr(self, "radio_time_dependent"):
+            self.radio_time_dependent.setChecked(True)
+            if self.steady_state_check.isChecked():
+                self.steady_state_check.setChecked(False)
+        if hasattr(self, "radio_stationary"):
+            self.radio_stationary.setEnabled(not checked)
+        if hasattr(self, "integral_points_spin"):
+            self.integral_points_label.setVisible(checked)
+            self.integral_points_spin.setVisible(checked)
+        self._on_dim_changed()
+
     def _update_domain_fields_visibility(self):
         """Show the plain x/y/z domain-bounds rows only for the box shapes
         (Interval/Rectangle/Cuboid). For every other shape, those rows don't
@@ -3965,7 +4136,7 @@ class MainWindow(QMainWindow):
         is_3d = self.radio_3d.isChecked()
         geom_type = self._current_geometry_type()
         box_shape = geom_type in ("Interval", "Rectangle", "Cuboid")
-        self.x_row_widget.setVisible(box_shape)
+        self.x_row_widget.setVisible(box_shape and not self._is_ode())
         self.y_row_widget.setVisible(box_shape and (is_2d or is_3d))
         self.z_row_widget.setVisible(box_shape and is_3d)
         for panel in self._geom_shape_panels:
@@ -4155,23 +4326,23 @@ class MainWindow(QMainWindow):
         rect_panel = QWidget()
         _p = QHBoxLayout(rect_panel); _p.setContentsMargins(0, 0, 0, 0)
         _p.addWidget(QLabel("x:"))
-        rect_xmin = QDoubleSpinBox(); rect_xmin.setRange(-1e6, 1e6); rect_xmin.setValue(params.get("x_min", 0.0)); rect_xmin.setSingleStep(0.1)
-        rect_xmax = QDoubleSpinBox(); rect_xmax.setRange(-1e6, 1e6); rect_xmax.setValue(params.get("x_max", 1.0)); rect_xmax.setSingleStep(0.1)
+        rect_xmin = DomainSpinBox(); rect_xmin.setRange(-1e6, 1e6); rect_xmin.setValue(params.get("x_min", 0.0)); rect_xmin.setSingleStep(0.1)
+        rect_xmax = DomainSpinBox(); rect_xmax.setRange(-1e6, 1e6); rect_xmax.setValue(params.get("x_max", 1.0)); rect_xmax.setSingleStep(0.1)
         _p.addWidget(rect_xmin); _p.addWidget(QLabel("to")); _p.addWidget(rect_xmax)
         _p.addWidget(QLabel("y:"))
-        rect_ymin = QDoubleSpinBox(); rect_ymin.setRange(-1e6, 1e6); rect_ymin.setValue(params.get("y_min", 0.0)); rect_ymin.setSingleStep(0.1)
-        rect_ymax = QDoubleSpinBox(); rect_ymax.setRange(-1e6, 1e6); rect_ymax.setValue(params.get("y_max", 1.0)); rect_ymax.setSingleStep(0.1)
+        rect_ymin = DomainSpinBox(); rect_ymin.setRange(-1e6, 1e6); rect_ymin.setValue(params.get("y_min", 0.0)); rect_ymin.setSingleStep(0.1)
+        rect_ymax = DomainSpinBox(); rect_ymax.setRange(-1e6, 1e6); rect_ymax.setValue(params.get("y_max", 1.0)); rect_ymax.setSingleStep(0.1)
         _p.addWidget(rect_ymin); _p.addWidget(QLabel("to")); _p.addWidget(rect_ymax)
         row_layout.addWidget(rect_panel)
 
         disk_panel = QWidget()
         _p = QHBoxLayout(disk_panel); _p.setContentsMargins(0, 0, 0, 0)
         _p.addWidget(QLabel("center x,y:"))
-        disk_cx = QDoubleSpinBox(); disk_cx.setRange(-1e6, 1e6); disk_cx.setValue(params.get("cx", 0.5)); disk_cx.setSingleStep(0.1)
-        disk_cy = QDoubleSpinBox(); disk_cy.setRange(-1e6, 1e6); disk_cy.setValue(params.get("cy", 0.5)); disk_cy.setSingleStep(0.1)
+        disk_cx = DomainSpinBox(); disk_cx.setRange(-1e6, 1e6); disk_cx.setValue(params.get("cx", 0.5)); disk_cx.setSingleStep(0.1)
+        disk_cy = DomainSpinBox(); disk_cy.setRange(-1e6, 1e6); disk_cy.setValue(params.get("cy", 0.5)); disk_cy.setSingleStep(0.1)
         _p.addWidget(disk_cx); _p.addWidget(disk_cy)
         _p.addWidget(QLabel("radius:"))
-        disk_r = QDoubleSpinBox(); disk_r.setRange(1e-6, 1e6); disk_r.setValue(params.get("r", 0.2)); disk_r.setSingleStep(0.1)
+        disk_r = DomainSpinBox(); disk_r.setRange(1e-6, 1e6); disk_r.setValue(params.get("r", 0.2)); disk_r.setSingleStep(0.1)
         _p.addWidget(disk_r)
         row_layout.addWidget(disk_panel)
 
@@ -4179,19 +4350,19 @@ class MainWindow(QMainWindow):
         _p = QVBoxLayout(ellipse_panel); _p.setContentsMargins(0, 0, 0, 0); _p.setSpacing(4)
         _row_a = QHBoxLayout()
         _row_a.addWidget(QLabel("center x,y:"))
-        ell_cx = QDoubleSpinBox(); ell_cx.setRange(-1e6, 1e6); ell_cx.setValue(params.get("cx", 0.5)); ell_cx.setSingleStep(0.1)
-        ell_cy = QDoubleSpinBox(); ell_cy.setRange(-1e6, 1e6); ell_cy.setValue(params.get("cy", 0.5)); ell_cy.setSingleStep(0.1)
+        ell_cx = DomainSpinBox(); ell_cx.setRange(-1e6, 1e6); ell_cx.setValue(params.get("cx", 0.5)); ell_cx.setSingleStep(0.1)
+        ell_cy = DomainSpinBox(); ell_cy.setRange(-1e6, 1e6); ell_cy.setValue(params.get("cy", 0.5)); ell_cy.setSingleStep(0.1)
         _row_a.addWidget(ell_cx); _row_a.addWidget(ell_cy)
         _p.addLayout(_row_a)
         _row_b = QHBoxLayout()
         _row_b.addWidget(QLabel("semi-major, semi-minor:"))
-        ell_a = QDoubleSpinBox(); ell_a.setRange(1e-6, 1e6); ell_a.setValue(params.get("a", 0.5)); ell_a.setSingleStep(0.1)
-        ell_b = QDoubleSpinBox(); ell_b.setRange(1e-6, 1e6); ell_b.setValue(params.get("b", 0.3)); ell_b.setSingleStep(0.1)
+        ell_a = DomainSpinBox(); ell_a.setRange(1e-6, 1e6); ell_a.setValue(params.get("a", 0.5)); ell_a.setSingleStep(0.1)
+        ell_b = DomainSpinBox(); ell_b.setRange(1e-6, 1e6); ell_b.setValue(params.get("b", 0.3)); ell_b.setSingleStep(0.1)
         _row_b.addWidget(ell_a); _row_b.addWidget(ell_b)
         _p.addLayout(_row_b)
         _row_c = QHBoxLayout()
         _row_c.addWidget(QLabel("angle (rad):"))
-        ell_angle = QDoubleSpinBox(); ell_angle.setRange(-100, 100); ell_angle.setValue(params.get("angle", 0.0)); ell_angle.setSingleStep(0.1)
+        ell_angle = DomainSpinBox(); ell_angle.setRange(-100, 100); ell_angle.setValue(params.get("angle", 0.0)); ell_angle.setSingleStep(0.1)
         _row_c.addWidget(ell_angle)
         _p.addLayout(_row_c)
         row_layout.addWidget(ellipse_panel)
@@ -4220,20 +4391,20 @@ class MainWindow(QMainWindow):
         _p = QVBoxLayout(cuboid_panel); _p.setContentsMargins(0, 0, 0, 0); _p.setSpacing(3)
         _row_x = QHBoxLayout()
         _row_x.addWidget(QLabel("x:"))
-        cuboid_xmin = QDoubleSpinBox(); cuboid_xmin.setRange(-1e6, 1e6); cuboid_xmin.setValue(params.get("x_min", 0.0)); cuboid_xmin.setSingleStep(0.1)
-        cuboid_xmax = QDoubleSpinBox(); cuboid_xmax.setRange(-1e6, 1e6); cuboid_xmax.setValue(params.get("x_max", 1.0)); cuboid_xmax.setSingleStep(0.1)
+        cuboid_xmin = DomainSpinBox(); cuboid_xmin.setRange(-1e6, 1e6); cuboid_xmin.setValue(params.get("x_min", 0.0)); cuboid_xmin.setSingleStep(0.1)
+        cuboid_xmax = DomainSpinBox(); cuboid_xmax.setRange(-1e6, 1e6); cuboid_xmax.setValue(params.get("x_max", 1.0)); cuboid_xmax.setSingleStep(0.1)
         _row_x.addWidget(cuboid_xmin); _row_x.addWidget(QLabel("to")); _row_x.addWidget(cuboid_xmax)
         _p.addLayout(_row_x)
         _row_y = QHBoxLayout()
         _row_y.addWidget(QLabel("y:"))
-        cuboid_ymin = QDoubleSpinBox(); cuboid_ymin.setRange(-1e6, 1e6); cuboid_ymin.setValue(params.get("y_min", 0.0)); cuboid_ymin.setSingleStep(0.1)
-        cuboid_ymax = QDoubleSpinBox(); cuboid_ymax.setRange(-1e6, 1e6); cuboid_ymax.setValue(params.get("y_max", 1.0)); cuboid_ymax.setSingleStep(0.1)
+        cuboid_ymin = DomainSpinBox(); cuboid_ymin.setRange(-1e6, 1e6); cuboid_ymin.setValue(params.get("y_min", 0.0)); cuboid_ymin.setSingleStep(0.1)
+        cuboid_ymax = DomainSpinBox(); cuboid_ymax.setRange(-1e6, 1e6); cuboid_ymax.setValue(params.get("y_max", 1.0)); cuboid_ymax.setSingleStep(0.1)
         _row_y.addWidget(cuboid_ymin); _row_y.addWidget(QLabel("to")); _row_y.addWidget(cuboid_ymax)
         _p.addLayout(_row_y)
         _row_z = QHBoxLayout()
         _row_z.addWidget(QLabel("z:"))
-        cuboid_zmin = QDoubleSpinBox(); cuboid_zmin.setRange(-1e6, 1e6); cuboid_zmin.setValue(params.get("z_min", 0.0)); cuboid_zmin.setSingleStep(0.1)
-        cuboid_zmax = QDoubleSpinBox(); cuboid_zmax.setRange(-1e6, 1e6); cuboid_zmax.setValue(params.get("z_max", 1.0)); cuboid_zmax.setSingleStep(0.1)
+        cuboid_zmin = DomainSpinBox(); cuboid_zmin.setRange(-1e6, 1e6); cuboid_zmin.setValue(params.get("z_min", 0.0)); cuboid_zmin.setSingleStep(0.1)
+        cuboid_zmax = DomainSpinBox(); cuboid_zmax.setRange(-1e6, 1e6); cuboid_zmax.setValue(params.get("z_max", 1.0)); cuboid_zmax.setSingleStep(0.1)
         _row_z.addWidget(cuboid_zmin); _row_z.addWidget(QLabel("to")); _row_z.addWidget(cuboid_zmax)
         _p.addLayout(_row_z)
         row_layout.addWidget(cuboid_panel)
@@ -4244,14 +4415,14 @@ class MainWindow(QMainWindow):
         _p = QVBoxLayout(sphere_panel); _p.setContentsMargins(0, 0, 0, 0); _p.setSpacing(4)
         _row_a = QHBoxLayout()
         _row_a.addWidget(QLabel("center x,y,z:"))
-        sphere_cx = QDoubleSpinBox(); sphere_cx.setRange(-1e6, 1e6); sphere_cx.setValue(params.get("cx", 0.5)); sphere_cx.setSingleStep(0.1)
-        sphere_cy = QDoubleSpinBox(); sphere_cy.setRange(-1e6, 1e6); sphere_cy.setValue(params.get("cy", 0.5)); sphere_cy.setSingleStep(0.1)
-        sphere_cz = QDoubleSpinBox(); sphere_cz.setRange(-1e6, 1e6); sphere_cz.setValue(params.get("cz", 0.5)); sphere_cz.setSingleStep(0.1)
+        sphere_cx = DomainSpinBox(); sphere_cx.setRange(-1e6, 1e6); sphere_cx.setValue(params.get("cx", 0.5)); sphere_cx.setSingleStep(0.1)
+        sphere_cy = DomainSpinBox(); sphere_cy.setRange(-1e6, 1e6); sphere_cy.setValue(params.get("cy", 0.5)); sphere_cy.setSingleStep(0.1)
+        sphere_cz = DomainSpinBox(); sphere_cz.setRange(-1e6, 1e6); sphere_cz.setValue(params.get("cz", 0.5)); sphere_cz.setSingleStep(0.1)
         _row_a.addWidget(sphere_cx); _row_a.addWidget(sphere_cy); _row_a.addWidget(sphere_cz)
         _p.addLayout(_row_a)
         _row_b = QHBoxLayout()
         _row_b.addWidget(QLabel("radius:"))
-        sphere_r = QDoubleSpinBox(); sphere_r.setRange(1e-6, 1e6); sphere_r.setValue(params.get("r", 0.2)); sphere_r.setSingleStep(0.1)
+        sphere_r = DomainSpinBox(); sphere_r.setRange(1e-6, 1e6); sphere_r.setValue(params.get("r", 0.2)); sphere_r.setSingleStep(0.1)
         _row_b.addWidget(sphere_r)
         _row_b.addStretch()
         _p.addLayout(_row_b)
@@ -5184,6 +5355,7 @@ class MainWindow(QMainWindow):
                 if i < len(kept_pdes):
                     pde_inp.setText(kept_pdes[i])
                 pde_inp.setFixedHeight(28)
+                pde_inp.textChanged.connect(lambda _t: self._sync_frac_widget())
                 self.pde_inputs.append(pde_inp)
                 self.pde_main_layout.addWidget(pde_inp)
 
@@ -5234,6 +5406,17 @@ class MainWindow(QMainWindow):
         # count changes what it should say; its current shown/hidden state
         # and the toggle's checked state are both left exactly as the user
         # last set them.
+        if self._is_ode():
+            hint_text = ("ODE mode: the only variable is t.\n"
+                         "Write derivatives as du_t, du_tt (for an output named u), e.g.\n"
+                         "  dy1_t - y2      (one equation per output: y1' = y2)\n"
+                         "  du_tt - 10*du_t + 9*u - 5*t\n"
+                         "Initial values go in the Initial Conditions panel; a derivative\n"
+                         "initial condition (u'(0) = 2) is an Operator BC 'du_t - 2' applied\n"
+                         "at the initial time. Name outputs anything but x, t and s.\n"
+                         "Integro-differential: integral(f) is the integral of f from t₀ to t,\n"
+                         "f in s (integration variable), t and the outputs at s, e.g.\n"
+                         "  du_t + u - integral(exp(s - t)*u)")
         self.pde_hint.setText(hint_text)
 
     # ── Build BC inputs ───────────────────────────────────────
@@ -5690,6 +5873,8 @@ class MainWindow(QMainWindow):
         generated scripts against this problem's own domain limits."""
         is_2d = getattr(self, 'radio_2d', None) is not None and self.radio_2d.isChecked()
         is_3d = getattr(self, 'radio_3d', None) is not None and self.radio_3d.isChecked()
+        if self._is_ode():
+            return [("Both ends (t₀ and t₁)", "True"), ("Start (t = t₀)", "start"), ("End (t = t₁)", "end")]
         ch = [("Whole boundary", "True"),
               ("Left (x = x_min)", "left"), ("Right (x = x_max)", "right"), ("Left and right", "left or right")]
         if is_2d or is_3d:
@@ -6654,7 +6839,7 @@ class MainWindow(QMainWindow):
             return _json.dumps(out)
 
         return PINNConfig(
-            problem_dim="3D" if is_3d else ("2D" if is_2d else "1D"),
+            problem_dim="ODE" if self._is_ode() else ("3D" if is_3d else ("2D" if is_2d else "1D")),
             steady_state=is_steady,
             geometry_type=self._current_geometry_type(),
             z_min=self.z_min.value(), z_max=self.z_max.value(),
@@ -6724,6 +6909,11 @@ class MainWindow(QMainWindow):
             ),
 
             loss_weights_multi=self._flat_loss_weights_string(n_out),
+            loss_weights_from_initial=(self.loss_w_init_c.value() if self.loss_w_init_cb.isChecked() else 0.0),
+            integral_points=self.integral_points_spin.value(),
+            fractional_alpha=self.frac_alpha_edit.text().strip(),
+            fractional_resolution=self.frac_res_edit.text().strip(),
+            fractional_meshtype=self.frac_mesh_combo.currentData(),
             plot_output_idx=self.plot_output_combo.currentIndex(),
             plot_all_outputs=self.plot_all_outputs_cb.isChecked(),
             constants=self._constants_json(),
@@ -6913,6 +7103,9 @@ class MainWindow(QMainWindow):
             sweep_enabled=self.sweep_enable_cb.isChecked() if hasattr(self, 'sweep_enable_cb') else False,
             sweep_mode=self.sweep_mode_combo.currentData() if hasattr(self, 'sweep_mode_combo') else "oat",
             sweep_parameters=self._build_sweep_parameters_json() if hasattr(self, '_build_sweep_parameters_json') else "[]",
+            sweep_bayes_calls=self.sweep_bayes_calls_spin.value() if hasattr(self, 'sweep_bayes_calls_spin') else 20,
+            sweep_bayes_initial=self.sweep_bayes_init_spin.value() if hasattr(self, 'sweep_bayes_init_spin') else 5,
+            sweep_bayes_objective=self.sweep_bayes_obj_combo.currentData() if hasattr(self, 'sweep_bayes_obj_combo') else "loss",
             # A sweep no longer has its own separate save-location/export
             # fields -- it reuses the Setup tab's own "Save to:" folder
             # (each run still gets its own subfolder under a timestamped
@@ -7183,6 +7376,8 @@ class MainWindow(QMainWindow):
             self.radio_3d.setChecked(True)
         elif is_2d:
             self.radio_2d.setChecked(True)
+        elif config.problem_dim == "ODE":
+            self.radio_ode.setChecked(True)
         else:
             self.radio_1d.setChecked(True)
 
@@ -7613,6 +7808,14 @@ class MainWindow(QMainWindow):
         # it's a no-op when scheduler_same_weights is False, since in that
         # case weight_widgets only contains the _p{n}-suffixed keys.
         self._apply_flat_weights(config.loss_weights_multi, n_out, is_2d)
+        self.integral_points_spin.setValue(int(getattr(config, "integral_points", 20) or 20))
+        self.frac_alpha_edit.setText(str(getattr(config, "fractional_alpha", "1.5")))
+        self.frac_res_edit.setText(str(getattr(config, "fractional_resolution", "100")))
+        self.frac_mesh_combo.setCurrentIndex(max(0, self.frac_mesh_combo.findData(getattr(config, "fractional_meshtype", "dynamic"))))
+        self._sync_frac_widget()
+        _wi = float(getattr(config, "loss_weights_from_initial", 0.0) or 0.0)
+        self.loss_w_init_cb.setChecked(_wi > 0)
+        self.loss_w_init_c.setValue(_wi if _wi > 0 else 5.0)
         if phases and not config.scheduler_same_weights:
             self._apply_phase_weights(phases, n_out, is_2d)
 
@@ -7671,6 +7874,7 @@ class MainWindow(QMainWindow):
         } if (ea_files or _ref_formula_mode) else None
 
         self._sync_inverse_pde_substitution(self.radio_inverse.isChecked())
+        self._apply_sweep_config(config)
 
     def _on_num_outputs_changed(self, n):
         # Interface 2D BC requires Output Size = 2; keep the Boundary

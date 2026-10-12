@@ -159,6 +159,112 @@ def build_runs(base_config):
     return runs
 
 
+# ── Bayesian search (Round 75) ──────────────────────────────────────────
+
+def _fmt(v):
+    return f"{v:.4g}" if isinstance(v, float) else str(v)
+
+
+class BayesRuns:
+    """Run source for sweep_mode "bayes": the baseline, then one run at a
+    time chosen by pinnstudio.core.bayes_opt from the results so far
+    (DeepXDE's Helmholtz HPO example, gp_minimize with expected
+    improvement). next_run() gives (label, config); tell(result) records
+    the finished run's objective."""
+
+    def __init__(self, base_config):
+        from pinnstudio.core.bayes_opt import BayesOptimizer, Dim
+        self.base = base_config
+        self.params, dims = [], []
+        for e in json.loads(base_config.sweep_parameters or "[]"):
+            param = reg.get_param(e.get("id"), base_config)
+            if param is None:
+                continue
+            if e.get("mode") in ("linear", "log") and param.value_type in ("float", "int"):
+                dims.append(Dim(param.value_type, float(e["min"]), float(e["max"]), log=e.get("mode") == "log"))
+            else:
+                vals = e.get("values") or expand_values(e)
+                dims.append(Dim("categorical", choices=[str(v) for v in vals]))
+            self.params.append(param)
+        self.dims = dims
+        self.total = max(2, int(getattr(base_config, "sweep_bayes_calls", 20) or 20))
+        self.objective = getattr(base_config, "sweep_bayes_objective", "loss")
+        self.opt = BayesOptimizer(dims, n_initial=int(getattr(base_config, "sweep_bayes_initial", 5) or 5),
+                                  seed=int(getattr(base_config, "sweep_bayes_seed", 0) or 0))
+        self.history = []          # (label, point, objective)
+        self._pending = None
+
+    def _cast(self, param, v):
+        if param.value_type == "int":
+            return int(round(float(v)))
+        if param.value_type == "float":
+            return float(v)
+        return str(v)
+
+    def next_run(self, i):
+        if i == 0:
+            point = []
+            for p, d in zip(self.params, self.dims):
+                v = p.get_value(self.base)
+                point.append(str(v) if d.kind == "categorical" else (v if v is not None else d.low))
+            self._pending = point
+            return "baseline", copy.deepcopy(self.base)
+        point = self.opt.ask()
+        cfg = copy.deepcopy(self.base)
+        parts = []
+        for p, v in zip(self.params, point):
+            cv = self._cast(p, v)
+            p.set_value(cfg, cv)
+            parts.append(f"{p.label}={_fmt(cv)}")
+        self._pending = point
+        return ", ".join(parts), cfg
+
+    def tell(self, label, result):
+        key = "final_loss" if self.objective == "loss" else "l2_relative"
+        val = result.get(key) if result.get("status") == "done" else None
+        self.opt.tell(self._pending, val)
+        self.history.append((label, list(self._pending), val))
+
+    def best(self):
+        ok = [(v, lab, pt) for lab, pt, v in self.history if v is not None and np.isfinite(v)]
+        return min(ok, key=lambda r: r[0]) if ok else None
+
+    def write_outputs(self, sweep_root):
+        """bayes_search.csv (every run, its objective and the best so far)
+        and bayes_convergence.png (best objective vs run)."""
+        try:
+            with open(os.path.join(sweep_root, "bayes_search.csv"), "w", newline="") as f:
+                w = csv.writer(f)
+                w.writerow(["Run"] + [p.label for p in self.params] + [self._objective_label(), "Best so far"])
+                best = float("inf")
+                for k, (_lab, pt, v) in enumerate(self.history):
+                    if v is not None and np.isfinite(v):
+                        best = min(best, v)
+                    w.writerow([k] + [_fmt(x) for x in pt] + ["" if v is None else v,
+                                                              "" if not np.isfinite(best) else best])
+        except OSError:
+            pass
+        try:
+            import matplotlib
+            matplotlib.use("Agg")
+            import matplotlib.pyplot as plt
+            vals = [v if v is not None and np.isfinite(v) else np.nan for _l, _p, v in self.history]
+            best = np.fmin.accumulate(np.where(np.isnan(vals), np.inf, vals))
+            fig, ax = plt.subplots(figsize=(7, 4.5))
+            ax.semilogy(range(len(vals)), vals, "o", color="#adb5bd", label="run")
+            ax.semilogy(range(len(best)), np.where(np.isinf(best), np.nan, best), "-", color="#1c7ed6",
+                        linewidth=2, label="best so far")
+            ax.set_xlabel("run"); ax.set_ylabel(self._objective_label())
+            ax.set_title("Bayesian search -- convergence"); ax.grid(True, alpha=0.3); ax.legend()
+            fig.tight_layout(); fig.savefig(os.path.join(sweep_root, "bayes_convergence.png"), dpi=150)
+            plt.close(fig)
+        except Exception:
+            pass
+
+    def _objective_label(self):
+        return "Final loss" if self.objective == "loss" else "L2 relative error"
+
+
 # ── Per-run output organization ────────────────────────────────────────
 
 def _slugify(text, maxlen=60):
@@ -220,7 +326,8 @@ def _read_last_l2(cfg, not_before):
     silently misreported as this run's own result. Only a file whose
     mtime is at or after `not_before` is trusted; anything older is
     treated the same as the file not existing."""
-    if not getattr(cfg, "ea_files", None) or cfg.ea_files == "[]":
+    if (not getattr(cfg, "ea_files", None) or cfg.ea_files == "[]") and \
+            getattr(cfg, "ea_ref_mode", "files") != "formula":
         return None  # this config has no Error Analysis reference data -- nothing will be written, don't look
     save_dir = getattr(cfg, "save_dir", "") or "/tmp"
     ea_dir = os.path.join(save_dir, "error_analysis")
@@ -298,8 +405,9 @@ def run_sweep(base_config, on_run_start=None, on_output=None, on_run_done=None,
 
     Returns the full list of (label, result) pairs collected so far.
     """
-    runs = build_runs(base_config)
-    total = len(runs)
+    bayes = BayesRuns(base_config) if getattr(base_config, "sweep_mode", "") == "bayes" else None
+    runs = None if bayes else build_runs(base_config)
+    total = bayes.total if bayes else len(runs)
     started_at = datetime.datetime.now()
     sweep_root = sweep_root_dir(base_config, started_at)
     os.makedirs(sweep_root, exist_ok=True)
@@ -313,9 +421,10 @@ def run_sweep(base_config, on_run_start=None, on_output=None, on_run_done=None,
         "runs": [],
     }
     results = []
-    for i, (label, cfg) in enumerate(runs):
+    for i in range(total):
         if should_stop and should_stop():
             break
+        label, cfg = bayes.next_run(i) if bayes else runs[i]
         run_dir = os.path.join(sweep_root, run_folder_name(i, label))
         _apply_run_output_settings(cfg, base_config, run_dir)
         if on_run_start:
@@ -346,9 +455,18 @@ def run_sweep(base_config, on_run_start=None, on_output=None, on_run_done=None,
         }
         results.append((label, result))
         manifest["runs"].append({"index": i, "label": label, **result})
+        if bayes:
+            bayes.tell(label, result)
         if on_run_done:
             on_run_done(i, total, label, result)
 
+    if bayes:
+        b = bayes.best()
+        if b:
+            manifest["bayes_best"] = {"label": b[1], "objective": b[0], "objective_name": bayes.objective}
+            if on_output:
+                on_output(total - 1, total, f"Bayesian search best ({bayes._objective_label()} {b[0]:.4e}): {b[1]}")
+        bayes.write_outputs(sweep_root)
     _write_sweep_manifest(sweep_root, manifest)
     _write_sweep_summary_csv(sweep_root, results)
     return results

@@ -188,6 +188,24 @@ class PINNConfig:
     ic_expressions: str = "np.sin(np.pi * x[:, 0])"
     ic_active: str = "True"
     loss_weights_multi: str = ""
+    # Round 75: > 0 -> before training, each loss weight becomes
+    # c / (that term's initial loss), as in DeepXDE's wave example
+    # (loss_weights = 5 / initial_losses); the weights above are ignored.
+    loss_weights_from_initial: float = 0.0
+    # Round 76: Gauss-Legendre points for integral(...) terms in the
+    # equations (integro-differential ODEs) -- DeepXDE's quad_deg.
+    integral_points: int = 20
+    # Round 77: fractional equations -- frac(u) in an equation is DeepXDE's
+    # discretized fractional operator applied to output u (1D: the sum of
+    # the left and right Riemann-Liouville derivatives of order alpha; 2D/3D:
+    # the integral over directions of the directional derivative, the
+    # fractional Laplacian without its constant). alpha is a number, a
+    # constant, or an inverse variable's name (trainable alpha);
+    # resolution and meshtype as dde.data.FPDE's (e.g. "101" static in 1D,
+    # "8, 100" dynamic in 2D: directions..., Grunwald-Letnikov points).
+    fractional_alpha: str = "1.5"
+    fractional_resolution: str = "100"
+    fractional_meshtype: str = "dynamic"
 
     # Inverse settings
     inverse_param_name: str = "trainable_variable"
@@ -627,6 +645,18 @@ class PINNConfig:
     # "Specified combinations"; every parameter must have the same
     # number of values, checked in validate() below).
     sweep_mode: str = "oat"
+    # Round 75: sweep_mode "bayes" -- Bayesian search (DeepXDE's
+    # Helmholtz HPO example): the baseline, then sweep_bayes_calls - 1
+    # runs each chosen by a Gaussian-process model of the results so far
+    # (pinnstudio/core/bayes_opt.py), minimizing the final training loss
+    # ("loss") or the Error Analysis L2 error ("l2"). Each swept parameter
+    # is a search range: min..max (linear or log scale), or its list of
+    # values as the choices. The first sweep_bayes_initial runs after the
+    # baseline are random.
+    sweep_bayes_calls: int = 20
+    sweep_bayes_initial: int = 5
+    sweep_bayes_objective: str = "loss"
+    sweep_bayes_seed: int = 0
     # JSON-encoded list of swept parameters, one dict per added row:
     #   {"id": "<sweep_registry id>", "mode": "list", "values": [..]}
     #   {"id": "...", "mode": "linear"|"log", "min": .., "max": .., "n": ..}
@@ -672,6 +702,67 @@ class PINNConfig:
         file and hard to diagnose from the resulting crash, not every
         possible misconfiguration."""
         errors = []
+
+        if self.problem_dim == "ODE":
+            _bad = [n.strip() for n in (self.output_names or "").split(",") if n.strip() in ("x", "t")]
+            if _bad:
+                errors.append(f"ODE problems use t as the variable (and x internally), so an output can't be "
+                              f"named {', '.join(repr(b) for b in _bad)} -- rename it (e.g. y1, y2).")
+            if self.network_type == "STMsFFN":
+                errors.append("STMsFFN needs space and time; an ODE has only t -- use MsFFN.")
+
+        if "integral(" in (self.pde_expressions or ""):
+            if not (self.problem_dim == "ODE" or (self.problem_dim == "1D" and self.steady_state)):
+                errors.append("integral(...) terms are available for ODE problems (and steady 1D problems): "
+                              "the integral runs over the one variable, from its start to the current point.")
+            if not isinstance(self.integral_points, int) or not 2 <= self.integral_points <= 200:
+                errors.append(f"Integral quadrature points must be between 2 and 200; got {self.integral_points!r}.")
+            if "s" in [n.strip() for n in (self.output_names or "").split(",")]:
+                errors.append("An output can't be named 's' in a problem with integral(...) terms: s is the integration variable.")
+        import re as _re_frv
+        if _re_frv.search(r"(?<![\w.])frac\(", self.pde_expressions or ""):
+            _sd = {"1D": 1, "2D": 2, "3D": 3}.get(self.problem_dim)
+            try:
+                _res = [int(float(v)) for v in str(self.fractional_resolution).replace(";", ",").split(",") if v.strip()]
+            except ValueError:
+                _res = None
+            if _sd is None:
+                errors.append("frac(...) (fractional operator) needs a 1D, 2D or 3D problem.")
+            elif not _res or len(_res) != _sd or min(_res) < 2:
+                errors.append(f"Fractional resolution needs {_sd} whole number(s) of at least 2 for a {self.problem_dim} problem "
+                              f"(directions..., then Grunwald-Letnikov points); got {self.fractional_resolution!r}.")
+            if self.fractional_meshtype not in ("static", "dynamic"):
+                errors.append(f"Fractional mesh must be 'static' or 'dynamic'; got {self.fractional_meshtype!r}.")
+            elif self.fractional_meshtype == "static" and (self.problem_dim != "1D" or self.geometry_type != "Interval"):
+                errors.append("A static fractional mesh works only on a 1D Interval -- use dynamic.")
+            _a = str(self.fractional_alpha or "").strip()
+            try:
+                _af = float(_a)
+                if not 0 < _af < 2:
+                    errors.append(f"Fractional order alpha must be between 0 and 2; got {_af}.")
+            except ValueError:
+                _inv_names = []
+                if self.problem_type == "Inverse":
+                    try:
+                        import json as _jfr
+                        _inv_names = [v.get("name") for v in _jfr.loads(self.inverse_variables_json or "[]")]
+                    except (ValueError, TypeError, AttributeError):
+                        _inv_names = []
+                try:
+                    from pinnstudio.core import constants as _cfr
+                    _const_names = [n for n, _v in _cfr.parse(self.constants or "")]
+                except Exception:
+                    _const_names = []
+                if _a not in _inv_names and _a not in _const_names:
+                    errors.append(f"Fractional order alpha must be a number, a constant or an inverse variable's name; got {_a!r}.")
+            if self.adapt_method == "RAR" or self.time_adaptive or self.ic_pretrain:
+                errors.append("frac(...) problems can't use RAR, Time-Adaptive training or IC pre-training "
+                              "(DeepXDE's fractional data keeps its own collocation points).")
+        if (self.loss_weights_from_initial or 0) < 0:
+            errors.append("'Scale by initial losses' needs c > 0.")
+        elif self.loss_weights_from_initial and self.time_adaptive and not self.steady_state:
+            errors.append("'Scale by initial losses' isn't available with Time-Adaptive training -- "
+                          "turn one of them off.")
 
         if self.network_type in ("MsFFN", "STMsFFN"):
             from pinnstudio.core.codegen import _parse_sigmas
@@ -751,8 +842,8 @@ class PINNConfig:
         if self.weight_decay < 0:
             errors.append(f"Weight decay cannot be negative; got {self.weight_decay}.")
 
-        if self.problem_dim not in ("1D", "2D", "3D"):
-            errors.append(f"problem_dim must be '1D', '2D', or '3D'; got {self.problem_dim!r}.")
+        if self.problem_dim not in ("1D", "2D", "3D", "ODE"):
+            errors.append(f"problem_dim must be '1D', '2D', '3D' or 'ODE'; got {self.problem_dim!r}.")
         if self.problem_type not in ("Forward", "Inverse"):
             errors.append(f"problem_type must be 'Forward' or 'Inverse'; got {self.problem_type!r}.")
 
@@ -918,10 +1009,21 @@ class PINNConfig:
             errors.append(f"Random seed must be an integer; got {self.random_seed!r}.")
 
         if self.sweep_enabled:
-            if self.sweep_mode not in ("oat", "grid", "zip"):
+            if self.sweep_mode not in ("oat", "grid", "zip", "bayes"):
                 errors.append(
-                    f"Parameter Sweep mode must be 'oat', 'grid', or 'zip'; got {self.sweep_mode!r}."
+                    f"Parameter Sweep mode must be 'oat', 'grid', 'zip' or 'bayes'; got {self.sweep_mode!r}."
                 )
+            if self.sweep_mode == "bayes":
+                if not isinstance(self.sweep_bayes_calls, int) or self.sweep_bayes_calls < 2:
+                    errors.append("Bayesian search needs at least 2 runs (the baseline and one more).")
+                if not isinstance(self.sweep_bayes_initial, int) or self.sweep_bayes_initial < 1:
+                    errors.append("Bayesian search needs at least 1 random starting run.")
+                if self.sweep_bayes_objective not in ("loss", "l2"):
+                    errors.append(f"Bayesian search objective must be 'loss' or 'l2'; got {self.sweep_bayes_objective!r}.")
+                elif self.sweep_bayes_objective == "l2" and not (
+                        (self.ea_files and self.ea_files != "[]") or self.ea_ref_mode == "formula"):
+                    errors.append("Bayesian search on the L2 error needs Error Analysis reference data "
+                                  "(files or an exact-solution formula) -- or minimize the final loss instead.")
             try:
                 _sweep_params = _json_cfg.loads(self.sweep_parameters or "[]")
             except (ValueError, TypeError):

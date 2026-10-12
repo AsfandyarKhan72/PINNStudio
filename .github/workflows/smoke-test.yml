@@ -111,3 +111,7 @@ jobs:
           python tests/test_round70_constants.py
           python tests/test_round71_pointset_points.py
           python tests/test_round73_msffn.py
+          python tests/test_round74_ode.py
+          python tests/test_round75_wave_helmholtz_bayes.py
+          python tests/test_round76_integral.py
+          python tests/test_round77_fractional.py

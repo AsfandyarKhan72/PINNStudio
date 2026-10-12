@@ -17,6 +17,7 @@ deviation from the DeepXDE script is stated in `note`.
 """
 import dataclasses
 import json
+import math
 import os
 
 from pinnstudio.core.config import PINNConfig
@@ -72,6 +73,12 @@ def _time_1d(a, b, t0, t1):
                 t_min=float(t0), t_max=float(t1))
 
 
+def _ode(t0, t1):
+    """ODE problem (Round 74): only t, in [t0, t1]."""
+    return dict(problem_dim="ODE", steady_state=False, geometry_type="Interval", t_min=float(t0), t_max=float(t1),
+                num_initial=0)
+
+
 def _formula_ref(formulas, times=""):
     return dict(ea_ref_mode="formula", ea_ref_formula="|".join(formulas), ea_ref_times=times,
                 ea_do_line=True, ea_do_surface=True)
@@ -125,6 +132,122 @@ _POISSON_1D_NET = {**_net([1, 50, 50, 50, 1]), **_adam(10000), **_NO_LBFGS,
                    "num_domain": 16, "num_boundary": 2, "num_test": 100}
 
 EXAMPLES = [
+    # ── ODEs (Round 74) ───────────────────────────────────────────────────
+    _ex("ODE system", FORWARD, _DOCS + "pinn_forward/ode.system.html",
+        _ode(0, 10),
+        dict(num_outputs=2, output_names="y1,y2", pde_expressions="dy1_t - y2|dy2_t + y1",
+             ic_expressions="0|1", ic_active="True,True", custom_bc_json="[]",
+             num_domain=35, num_boundary=2, num_test=100, plot_resolution=500),
+        _net([1, 50, 50, 50, 2]), _adam(20000), _NO_LBFGS,
+        _formula_ref(["sin(t)", "cos(t)"])),
+
+    _ex("Lotka-Volterra equation", FORWARD, _DOCS + "pinn_forward/Lotka.Volterra.html",
+        _ode(0, 1),
+        _consts(("ub", "200"), ("rb", "20")),
+        dict(num_outputs=2, output_names="r,p",
+             pde_expressions="dr_t - 1/ub*rb*(2.0*ub*r - 0.04*ub*r*ub*p)|dp_t - 1/ub*rb*(0.02*r*ub*p*ub - 1.06*p*ub)",
+             ic_expressions="0|0", ic_active="False,False", custom_bc_json="[]",
+             num_domain=3000, num_boundary=2, num_test=3000, plot_resolution=500,
+             input_transform_enabled=True, input_transform_mode="formula",
+             input_feature_formula="t; sin(t); sin(2*t); sin(3*t); sin(4*t); sin(5*t); sin(6*t)",
+             output_transform_enabled=True, output_transform_mode="formula",
+             output_transform_formula="r*tanh(t) + 100/ub|p*tanh(t) + 15/ub",
+             ea_files=repr([(0.0, "@REF/deepxde/lotka_volterra/r.txt", 0), (0.0, "@REF/deepxde/lotka_volterra/p.txt", 1)])),
+        _net([1, 64, 64, 64, 64, 64, 64, 2], "Glorot normal"), _adam(50000), _LBFGS,
+        note="Populations scaled by ub = 200, time by rb = 20, as in DeepXDE's script; the initial values "
+             "(100/ub, 15/ub) are imposed exactly by the output transform. Reference computed with SciPy's "
+             "solve_ivp by tools/make_deepxde_reference_data.py."),
+
+    _ex("Second-order ODE", FORWARD, _DOCS + "pinn_forward/ode.2nd.html",
+        _ode(0, 0.25),
+        dict(pde_expressions="du_tt - 10*du_t + 9*u - 5*t", ic_expressions="-1", ic_active="True",
+             custom_bc_json=_bcs(_bc("operator", "True", "du_t - 2", apply_at="initial")),
+             loss_weights_multi="0.01,1,1", num_domain=16, num_boundary=2, num_test=500, plot_resolution=500),
+        _net([1, 50, 50, 50, 1]), _adam(10000), _NO_LBFGS,
+        _formula_ref(["50/81 + t*5/9 - 2*exp(t) + 31/81*exp(9*t)"]),
+        note="u(0) = -1 is the initial condition; u'(0) = 2 is an Operator BC 'du_t - 2' at the initial time."),
+
+    _ex("Integro-differential equation", FORWARD, _DOCS + "pinn_forward/ide.html",
+        _ode(0, 1),
+        dict(pde_expressions="du_t + integral(u) - (2*pi*cos(2*pi*t) + sin(pi*t)**2/pi)",
+             ic_expressions="0", ic_active="True", custom_bc_json="[]", integral_points=16,
+             num_domain=16, num_boundary=2, num_test=100, plot_resolution=500),
+        _net([1, 20, 20, 20, 1]), _adam(10000), _NO_LBFGS,
+        _formula_ref(["sin(2*pi*t)"]),
+        note="integral(u) is the integral of u from 0 to t, by 16-point Gauss-Legendre quadrature of the network "
+             "(DeepXDE's dde.data.IDE with quad_deg = 16, which supports only the TensorFlow and Paddle backends)."),
+
+    _ex("Volterra integro-differential equation", FORWARD, _GH + "pinn_forward/Volterra_IDE.py",
+        _ode(0, 5),
+        dict(pde_expressions="du_t + u - integral(exp(s - t)*u)",
+             ic_expressions="1", ic_active="True", custom_bc_json="[]", integral_points=20,
+             num_domain=10, num_boundary=2, num_test=100, point_distribution="uniform", plot_resolution=500),
+        _net([1, 20, 20, 20, 1]), _adam(0), _LBFGS,
+        _scheduler(_phase("lbfgs", 15000)),
+        _formula_ref(["exp(-t)*cosh(t)"]),
+        note="integral(exp(s - t)*u) is the integral of the kernel e^(s - t) times u(s) from 0 to t, by 20-point "
+             "Gauss-Legendre quadrature of the network (DeepXDE's dde.data.IDE, quad_deg = 20). Trained with L-BFGS only, as in DeepXDE's script."),
+
+    _ex("Fractional Poisson equation 1D", FORWARD, _GH + "pinn_forward/fractional_Poisson_1d.py",
+        _steady_1d(0, 1),
+        _consts(("alpha", "1.5")),
+        dict(pde_expressions="frac(u) - (gamma(4)/gamma(4 - alpha)*(x**(3 - alpha) + (1 - x)**(3 - alpha)) - 3*gamma(5)/gamma(5 - alpha)*(x**(4 - alpha) + (1 - x)**(4 - alpha)) + 3*gamma(6)/gamma(6 - alpha)*(x**(5 - alpha) + (1 - x)**(5 - alpha)) - gamma(7)/gamma(7 - alpha)*(x**(6 - alpha) + (1 - x)**(6 - alpha)))",
+             fractional_alpha="alpha", fractional_resolution="101", fractional_meshtype="static",
+             custom_bc_json=_bcs(_bc("dirichlet", "True", "0")),
+             output_transform_enabled=True, output_transform_mode="formula", output_transform_formula="x*(1 - x)*u",
+             num_domain=101, num_boundary=2, num_test=100, plot_resolution=500),
+        _net([1, 20, 20, 20, 20, 1], "Glorot normal"), _adam(10000), _NO_LBFGS,
+        _formula_ref(["x**3*(1 - x)**3"]),
+        note="frac(u) is the sum of the left and right Riemann-Liouville derivatives of order alpha, discretized by "
+             "DeepXDE's FPDE (Grunwald-Letnikov, static mesh of 101 points). DeepXDE's own script supports only the "
+             "TensorFlow and Paddle backends; PINNStudio applies the same FPDE matrix with PyTorch."),
+
+    _ex("Fractional Poisson equation 2D", FORWARD, _GH + "pinn_forward/fractional_Poisson_2d.py",
+        dict(problem_dim="2D", steady_state=True, geometry_type="Disk", geom_center_x=0.0, geom_center_y=0.0,
+             geom_radius=1.0, x_min=-1.0, x_max=1.0, y_min=-1.0, y_max=1.0, num_initial=0),
+        _consts(("alpha", "1.8")),
+        dict(pde_expressions="frac(u)*gamma((1 - alpha)/2)*gamma((2 + alpha)/2)/(2*pi**1.5) - "
+                             "2**alpha*gamma(2 + alpha/2)*gamma(1 + alpha/2)*(1 - (1 + alpha/2)*(x**2 + y**2))",
+             fractional_alpha="alpha", fractional_resolution="8, 100", fractional_meshtype="dynamic",
+             custom_bc_json="[]", output_transform_enabled=True, output_transform_mode="formula",
+             output_transform_formula="(1 - x**2 - y**2)*u",
+             num_domain=100, num_boundary=0, num_test=100, plot_resolution=100),
+        _net([2, 20, 20, 20, 20, 1], "Glorot normal"), _adam(20000), _NO_LBFGS,
+        _formula_ref(["(1 - x**2 - y**2)**(1 + alpha/2)"]),
+        note="frac(u) is the integral over directions of the directional fractional derivative (8 directions, "
+             "100 Grunwald-Letnikov points per unit length); times C(alpha, 2) it is minus the fractional Laplacian. "
+             "u = 0 on the circle through the output transform."),
+
+    _ex("Fractional Poisson equation 3D", FORWARD, _GH + "pinn_forward/fractional_Poisson_3d.py",
+        dict(problem_dim="3D", steady_state=True, geometry_type="Sphere", geom_center_x=0.0, geom_center_y=0.0,
+             geom_center_z=0.0, geom_radius=1.0, x_min=-1.0, x_max=1.0, y_min=-1.0, y_max=1.0, z_min=-1.0, z_max=1.0,
+             num_initial=0),
+        _consts(("alpha", "1.8")),
+        dict(pde_expressions="frac(u)*gamma((1 - alpha)/2)*gamma((3 + alpha)/2)/(2*pi**2) - "
+                             "2**alpha*gamma(2 + alpha/2)*gamma((3 + alpha)/2)/gamma(3/2)*(1 - (1 + alpha/3)*(x**2 + y**2 + z**2))",
+             fractional_alpha="alpha", fractional_resolution="8, 8, 100", fractional_meshtype="dynamic",
+             custom_bc_json="[]", output_transform_enabled=True, output_transform_mode="formula",
+             output_transform_formula="(1 - x**2 - y**2 - z**2)*u",
+             num_domain=256, num_boundary=0, num_test=100, plot_resolution=60),
+        _net([3, 20, 20, 20, 20, 1], "Glorot normal"), _adam(10000), _NO_LBFGS,
+        _formula_ref(["(1 - x**2 - y**2 - z**2)**(1 + alpha/2)"]),
+        note="3D version: 8 x 8 directions, 100 Grunwald-Letnikov points per unit length; u = 0 on the sphere through the output transform."),
+
+    _ex("Fractional diffusion equation", FORWARD, _GH + "pinn_forward/fractional_diffusion_1d.py",
+        _time_1d(0, 1, 0, 1),
+        _consts(("alpha", "1.8")),
+        dict(pde_expressions="du_t - frac(u) + exp(-t)*(x**3*(1 - x)**3 + gamma(4)/gamma(4 - alpha)*(x**(3 - alpha) + (1 - x)**(3 - alpha)) - 3*gamma(5)/gamma(5 - alpha)*(x**(4 - alpha) + (1 - x)**(4 - alpha)) + 3*gamma(6)/gamma(6 - alpha)*(x**(5 - alpha) + (1 - x)**(5 - alpha)) - gamma(7)/gamma(7 - alpha)*(x**(6 - alpha) + (1 - x)**(6 - alpha)))",
+             ic_expressions="x**3*(1 - x)**3", ic_active="True",
+             fractional_alpha="alpha", fractional_resolution="52", fractional_meshtype="static",
+             custom_bc_json=_bcs(_bc("dirichlet", "True", "0")),
+             output_transform_enabled=True, output_transform_mode="formula",
+             output_transform_formula="x*(1 - x)*t*u + x**3*(1 - x)**3",
+             num_domain=400, num_boundary=2, num_initial=2, num_test=100, plot_resolution=100),
+        _net([2, 20, 20, 20, 20, 1], "Glorot normal"), _adam(10000), _NO_LBFGS,
+        _formula_ref(["exp(-t)*x**3*(1 - x)**3"]),
+        note="Time-dependent fractional equation (DeepXDE's TimeFPDE, static mesh of 52 points per time); the boundary "
+             "and initial conditions are imposed exactly by the output transform."),
+
     _ex("Poisson 1D – Dirichlet", FORWARD, _DOCS + "pinn_forward/poisson.1d.dirichlet.html",
         _steady_1d(-1, 1), _POISSON_1D_NET,
         dict(pde_expressions="-du_xx - pi**2*sin(pi*x)",
@@ -190,6 +313,27 @@ EXAMPLES = [
         note="Multi-scale Fourier feature network (scales 1 and 10): the solution has a slow wave sin(2 pi x) "
              "and a fast one 0.1 sin(50 pi x). DeepXDE's script passes the exact solution as the boundary value; "
              "it is 0 at x = 0 and 1. Collocation points are redrawn every iteration."),
+
+    _ex("Wave propagation – space-time multi-scale Fourier features", FORWARD, _GH + "pinn_forward/wave_1d.py",
+        _time_1d(0, 1, 0, 1),
+        _consts(("A", "2"), ("C", "10")),
+        dict(pde_expressions="du_tt - C**2*du_xx", ic_expressions="sin(pi*x) + sin(A*pi*x)", ic_active="True",
+             custom_bc_json=_bcs(_bc("dirichlet", "True", "0"),
+                                 _bc("operator", "True", "du_t", apply_at="initial")),
+             num_domain=360, num_boundary=360, num_initial=360, num_test=10000,
+             cb_point_resampler=True, cb_point_resampler_period=1, cb_point_resampler_pde_points=True,
+             input_transform_enabled=True, input_transform_mode="formula",
+             input_feature_formula="(x - 0.5)*2*sqrt(3); (t - 0.5)*2*sqrt(3)",
+             msffn_sigmas="1", msffn_sigmas_t="1, 10", loss_weights_from_initial=5.0,
+             plot_resolution=200, ea_ref_grid=201),
+        _net([2, 100, 100, 100, 1], network_type="STMsFFN"), _adam(10000), _NO_LBFGS,
+        _scheduler(_phase("adam", 10000, 1e-3, ("inverse time", 2000, 0.9))),
+        _formula_ref(["sin(pi*x)*cos(C*pi*t) + sin(A*pi*x)*cos(A*C*pi*t)"]),
+        note="Space-time multi-scale Fourier feature network (space scale 1, time scales 1 and 10) for a wave "
+             "that oscillates fast in time. Loss weights are set from the initial losses (5 / L_i(0)), as in "
+             "DeepXDE's script; the inputs are rescaled to zero mean and unit variance by an input-transform "
+             "formula; collocation points are redrawn every iteration. DeepXDE's script passes the exact "
+             "solution as the boundary value; it is 0 at x = 0 and 1."),
 
     _ex("Poisson over an L-shaped domain", FORWARD, _DOCS + "pinn_forward/poisson.Lshape.html",
         dict(problem_dim="2D", steady_state=True, geometry_type="Polygon",
@@ -266,6 +410,29 @@ EXAMPLES = [
         _formula_ref(["sin(k0*x)*sin(k0*y)"]),
         note="Boundary conditions imposed exactly through the output transform (DeepXDE's default hard_constraint=True)."),
 
+    _ex("Helmholtz 2D – hyperparameter optimization", FORWARD, _GH + "pinn_forward/Helmholtz_Dirichlet_2d_HPO.py",
+        dict(problem_dim="2D", steady_state=True, geometry_type="Rectangle",
+             x_min=0.0, x_max=1.0, y_min=0.0, y_max=1.0, num_initial=0,
+             pde_expressions="-du_xx - du_yy - k0**2*u - k0**2*sin(k0*x)*sin(k0*y)",
+             custom_bc_json="[]", num_domain=400, num_boundary=80, num_test=3600,
+             output_transform_enabled=True, output_transform_mode="formula",
+             output_transform_formula="x*(1 - x)*y*(1 - y)*u",
+             sweep_enabled=True, sweep_mode="bayes", sweep_bayes_calls=50, sweep_bayes_initial=10,
+             sweep_bayes_objective="loss",
+             sweep_parameters=json.dumps([
+                 {"id": "phase0_lr", "mode": "log", "min": 1e-4, "max": 5e-2, "n": 5},
+                 {"id": "hidden_layers", "mode": "linear", "min": 1, "max": 10, "n": 5},
+                 {"id": "neurons_per_layer", "mode": "linear", "min": 5, "max": 500, "n": 5},
+                 {"id": "activation", "mode": "list", "values": ["sin", "sigmoid", "tanh"]}])),
+        _consts(("n", "2"), ("k0", "2*pi*n")),
+        _net([2, 50, 50, 50, 50, 1], activation="sin"), _adam(10000), _NO_LBFGS,
+        _scheduler(_phase("adam", 10000, 1e-3)),
+        _formula_ref(["sin(k0*x)*sin(k0*y)"]),
+        note="Bayesian search over learning rate (1e-4 to 5e-2, log scale), hidden layers (1 to 10), neurons per "
+             "layer (5 to 500) and activation (sin, sigmoid, tanh): the baseline (1e-3, 4 x 50, sin), 10 random runs, "
+             "then runs chosen by a Gaussian-process model, 50 in all (Parameter Sweep, mode Bayesian search). "
+             "Each run minimizes the final training loss (DeepXDE's script uses the lowest test loss). Click Run Sweep."),
+
     _ex("Helmholtz 2D with a hole", FORWARD, _DOCS + "pinn_forward/helmholtz.2d.neumann.hole.html",
         dict(problem_dim="2D", steady_state=True, geometry_type="Custom",
              geom_custom_shapes_json=json.dumps([
@@ -281,6 +448,29 @@ EXAMPLES = [
         _consts(("n", "1"), ("k0", "2*pi*n"), ("R", "1/4")),
         _net([2, 350, 350, 350, 1], activation="sin"), _adam(5000), _NO_LBFGS,
         _formula_ref(["sin(k0*x)*sin(k0*y)"])),
+
+    _ex("Helmholtz sound-hard scattering (absorbing BC)", FORWARD, _GH + "pinn_forward/Helmholtz_Sound_hard_ABC_2d.py",
+        dict(problem_dim="2D", steady_state=True, geometry_type="Custom",
+             geom_custom_shapes_json=json.dumps([
+                 {"type": "Rectangle", "params": {"x_min": -math.pi, "x_max": math.pi, "y_min": -math.pi, "y_max": math.pi}},
+                 {"type": "Disk", "op": "subtract", "params": {"cx": 0.0, "cy": 0.0, "r": math.pi / 4}}]),
+             x_min=-math.pi, x_max=math.pi, y_min=-math.pi, y_max=math.pi, num_initial=0,
+             num_outputs=2, output_names="u_re,u_im",
+             pde_expressions="-du_re_xx - du_re_yy - k0**2*u_re|-du_im_xx - du_im_yy - k0**2*u_im",
+             custom_bc_json=_bcs(
+                 _bc("neumann", "np.isclose(x**2 + y**2, R**2)", "-k0*x*sin(k0*x)/R", component=0),
+                 _bc("neumann", "np.isclose(x**2 + y**2, R**2)", "k0*x*cos(k0*x)/R", component=1),
+                 _bc("robin", "left or right or bottom or top", "-k0*u_im", component=0),
+                 _bc("robin", "left or right or bottom or top", "k0*u_re", component=1)),
+             loss_weights_multi="1,1,1,1,1,1", num_domain=1600, num_boundary=320, num_test=8000,
+             ea_files=repr([(0.0, "@REF/deepxde/helmholtz_sound_hard/u_re.txt", 0),
+                            (0.0, "@REF/deepxde/helmholtz_sound_hard/u_im.txt", 1)])),
+        _consts(("k0", "2"), ("R", "pi/4")),
+        _net([2, 350, 350, 350, 2]), _adam(10000), _NO_LBFGS,
+        note="Scattering of the plane wave exp(i k0 x) by a sound-hard disk: u_re, u_im are the real and imaginary "
+             "parts of the scattered field. On the disk, du/dn = -d(exp(i k0 x))/dn (Neumann rows); on the outer "
+             "square, the first-order absorbing condition du/dn = i k0 u (Robin rows, each using the other part). "
+             "Reference: the Bessel/Hankel series of DeepXDE's script, written by tools/make_deepxde_reference_data.py."),
 
     _ex("Kovasznay flow", FORWARD, _DOCS + "pinn_forward/Kovasznay.flow.html",
         dict(problem_dim="2D", steady_state=True, geometry_type="Rectangle",
@@ -492,6 +682,40 @@ EXAMPLES = [
              "(DeepXDE compares against a binomial-tree price)."),
 
     # ── Inverse problems ──────────────────────────────────────────────────
+    _ex("Inverse: Lorenz system", INVERSE, _DOCS + "pinn_inverse/Lorenz.inverse.html",
+        _ode(0, 3),
+        dict(problem_type="Inverse", num_outputs=3, output_names="y1,y2,y3",
+             pde_expressions="dy1_t - C1*(y2 - y1)|dy2_t - y1*(C2 - y3) + y2|dy3_t - y1*y2 + C3*y3",
+             ic_expressions="-8|7|27", ic_active="True,True,True", custom_bc_json="[]",
+             inverse_variables_json=json.dumps([{"name": "C1", "init": 1.0, "true": 10.0},
+                                                {"name": "C2", "init": 1.0, "true": 15.0},
+                                                {"name": "C3", "init": 1.0, "true": 2.66667}]),
+             inverse_obs_files_json=json.dumps([{"path": f"@REF/deepxde/lorenz/y{k + 1}_obs.txt", "output_idx": k,
+                                                  "weight": 1.0, "custom_expr": ""} for k in range(3)]),
+             loss_weights_multi="1,1,1,1,1,1", inv_param_save="Every 100 iters",
+             anchors_mode="file", anchors_file="@REF/deepxde/lorenz/obs_times.txt",
+             num_domain=400, num_boundary=2, num_test=400, plot_resolution=600,
+             ea_files=repr([(0.0, f"@REF/deepxde/lorenz/y{k + 1}_ref.txt", k) for k in range(3)])),
+        _net([1, 40, 40, 40, 3]), _adam(20000), _LBFGS,
+        note="Unknown C1, C2, C3 (true 10, 15, 8/3) from measurements of y1, y2, y3 at 50 times in [0, 3], computed with SciPy's solve_ivp by tools/make_deepxde_reference_data.py (DeepXDE uses its Lorenz.npz)."),
+
+    _ex("Inverse: Lorenz system with exogenous input", INVERSE, _DOCS + "pinn_inverse/Lorenz.inverse.forced.html",
+        _ode(0, 3),
+        dict(problem_type="Inverse", num_outputs=3, output_names="y1,y2,y3",
+             pde_expressions="dy1_t - C1*(y2 - y1)|dy2_t - y1*(C2 - y3) + y2|dy3_t - y1*y2 + C3*y3 - 10*sin(2*pi*t)",
+             ic_expressions="-8|7|27", ic_active="True,True,True", custom_bc_json="[]",
+             inverse_variables_json=json.dumps([{"name": "C1", "init": 1.0, "true": 10.0},
+                                                {"name": "C2", "init": 1.0, "true": 15.0},
+                                                {"name": "C3", "init": 1.0, "true": 2.66667}]),
+             inverse_obs_files_json=json.dumps([{"path": f"@REF/deepxde/lorenz_forced/y{k + 1}_obs.txt", "output_idx": k,
+                                                  "weight": 1.0, "custom_expr": ""} for k in range(3)]),
+             loss_weights_multi="1,1,1,1,1,1", inv_param_save="Every 100 iters",
+             anchors_mode="file", anchors_file="@REF/deepxde/lorenz_forced/obs_times.txt",
+             num_domain=400, num_boundary=2, num_test=400, plot_resolution=600,
+             ea_files=repr([(0.0, f"@REF/deepxde/lorenz_forced/y{k + 1}_ref.txt", k) for k in range(3)])),
+        _net([1, 40, 40, 40, 3]), _adam(60000), _NO_LBFGS,
+        note="As the Lorenz example with an exogenous input 10 sin(2 pi t) in the third equation, written as a formula (DeepXDE's script interpolates samples of the same function); measurements at 200 times."),
+
     _ex("Inverse: diffusion equation", INVERSE, _DOCS + "pinn_inverse/diffusion.1d.inverse.html",
         _time_1d(-1, 1, 0, 1),
         dict(problem_type="Inverse",
@@ -575,6 +799,41 @@ EXAMPLES = [
         _formula_ref(["1 - cosh(20*(x - 0.5))/cosh(10)"]),
         note="Unknown effective viscosity v_e and permeability K (both 1e-3), from 5 measurements; "
              "u = 0 at both walls through the output transform."),
+    _ex("Inverse: fractional Poisson equation 1D", INVERSE, _GH + "pinn_inverse/fractional_Poisson_1d_inverse.py",
+        _steady_1d(-1, 1),
+        _consts(("a0", "1.8")),
+        dict(problem_type="Inverse", pde_expressions="frac(u)/(2*cos(alpha*pi/2)) - gamma(a0 + 2)*x", custom_bc_json="[]",
+             fractional_alpha="alpha", fractional_resolution="100", fractional_meshtype="dynamic",
+             inverse_variables_json=json.dumps([{"name": "alpha", "init": 1.5, "true": 1.8}]),
+             inverse_obs_files_json=json.dumps([{"path": "@REF/deepxde/fractional_inverse_1d/u_obs.txt",
+                                                 "output_idx": 0, "weight": 100.0, "custom_expr": ""}]),
+             loss_weights_multi="1", inv_param_save="Every 1000 iters",
+             output_transform_enabled=True, output_transform_mode="formula", output_transform_formula="(1 - x**2)*u",
+             num_domain=20, num_boundary=0, num_test=100, plot_resolution=500),
+        _net([1, 20, 20, 20, 20, 1], "Glorot normal"), _adam(10000), _NO_LBFGS,
+        _formula_ref(["x*abs(1 - x**2)**(a0/2)"]),
+        note="Unknown order alpha (true 1.8, start 1.5) of the fractional operator, from 20 measurements; the fractional "
+             "matrix is rebuilt every step as alpha changes. Measurement loss weight 100, as in DeepXDE's script."),
+
+    _ex("Inverse: fractional Poisson equation 2D", INVERSE, _GH + "pinn_inverse/fractional_Poisson_2d_inverse.py",
+        dict(problem_dim="2D", steady_state=True, geometry_type="Disk", geom_center_x=0.0, geom_center_y=0.0,
+             geom_radius=1.0, x_min=-1.0, x_max=1.0, y_min=-1.0, y_max=1.0, num_initial=0),
+        _consts(("a0", "1.8")),
+        dict(problem_type="Inverse",
+             pde_expressions="-frac(u)*exp(lgamma((1 - alpha)/2) + lgamma((2 + alpha)/2))/(2*pi**1.5) - "
+                             "2**a0*gamma(2 + a0/2)*gamma(1 + a0/2)*(1 - (1 + a0/2)*(x**2 + y**2))",
+             custom_bc_json="[]", fractional_alpha="alpha", fractional_resolution="8, 100", fractional_meshtype="dynamic",
+             inverse_variables_json=json.dumps([{"name": "alpha", "init": 1.5, "true": 1.8}]),
+             inverse_obs_files_json=json.dumps([{"path": "@REF/deepxde/fractional_inverse_2d/u_obs.txt",
+                                                 "output_idx": 0, "weight": 100.0, "custom_expr": ""}]),
+             loss_weights_multi="1", inv_param_save="Every 1000 iters",
+             output_transform_enabled=True, output_transform_mode="formula", output_transform_formula="(1 - x**2 - y**2)*u",
+             num_domain=64, num_boundary=0, num_test=100, plot_resolution=100),
+        _net([2, 20, 20, 20, 20, 1], "Glorot normal"), _adam(10000), _NO_LBFGS,
+        _formula_ref(["(1 - x**2 - y**2)**(1 + a0/2)"]),
+        note="Unknown order alpha (true 1.8, start 1.5) of the fractional Laplacian on the unit disk, from 30 random "
+             "measurements (seeded, written by tools/make_deepxde_reference_data.py). lgamma keeps the constant "
+             "C(alpha, 2) differentiable in alpha, as DeepXDE's script does."),
 ]
 
 BY_NAME = {e.name: e for e in EXAMPLES}

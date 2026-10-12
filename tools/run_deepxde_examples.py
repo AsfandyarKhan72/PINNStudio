@@ -47,6 +47,8 @@ def _smoke(cfg, n=300):
     cfg.rar_adam_iters = min(cfg.rar_adam_iters, n // 3)
     cfg.rar_lbfgs_iters = min(cfg.rar_lbfgs_iters, n // 3)
     cfg.rar_candidates = min(cfg.rar_candidates, 5000)
+    cfg.sweep_bayes_calls = min(cfg.sweep_bayes_calls, 4)
+    cfg.sweep_bayes_initial = min(cfg.sweep_bayes_initial, 1)
     return cfg
 
 
@@ -78,7 +80,7 @@ def main():
         cfg = dx.build_config(ex, REF_ROOT, keep={"save_dir": d})
         if args.smoke:
             _smoke(cfg)
-        if args.plot_type and not cfg.steady_state:
+        if args.plot_type and not cfg.steady_state and cfg.problem_dim != "ODE":
             cfg.plot_type = args.plot_type
         for item in args.set:
             key, _, raw = item.partition("=")
@@ -89,6 +91,21 @@ def main():
             if not hasattr(cfg, key.strip()):
                 raise SystemExit(f"--set: unknown setting {key!r}")
             setattr(cfg, key.strip(), val)
+        if cfg.sweep_enabled:
+            # Round 75: a Parameter Sweep example (e.g. Bayesian search) runs
+            # through the GUI's own sweep runner; folders under <out>/<example>/.
+            from pinnstudio.core.sweep_runner import run_sweep
+            cfg.sweep_save_dir = d
+            t0 = time.time()
+            res = run_sweep(cfg, on_run_done=lambda i, n, lab, r: print(
+                f"   run {i + 1}/{n}: {lab}  loss={r.get('final_loss')}  L2={r.get('l2_relative')}", flush=True))
+            ok = [r for _l, r in res if r.get("status") == "done"]
+            best = min(ok, key=lambda r: r.get("final_loss") or float("inf")) if ok else {}
+            rc = 0 if ok else 1
+            rows.append((ex.name, rc, time.time() - t0, [], ""))
+            print(f"{'OK ' if rc == 0 else 'ERR'} {ex.name:55s} {time.time() - t0:7.0f}s  sweep: {len(ok)}/{len(res)} runs, "
+                  f"best loss {best.get('final_loss')} L2 {best.get('l2_relative')}", flush=True)
+            continue
         with open(os.path.join(d, "run.py"), "w") as fh:
             fh.write(gen(cfg))
         t0 = time.time()
