@@ -1907,14 +1907,7 @@ if {config.time_adaptive}:
     _plot_output_names_list = {repr(config.output_names)}.split(",")
     _plot_n_out = len(_plot_output_names_list)
     _plot_dim = "3D" if _is_3d else ("2D" if _is_2d else "1D")
-    _PLOT_TORCH_MATH_NS = {{
-        "sin": torch.sin, "cos": torch.cos, "tan": torch.tan,
-        "sinh": torch.sinh, "cosh": torch.cosh, "tanh": torch.tanh,
-        "arcsin": torch.asin, "arccos": torch.acos, "arctan": torch.atan,
-        "exp": torch.exp, "log": torch.log, "log10": torch.log10,
-        "sqrt": torch.sqrt, "abs": torch.abs, "ceil": torch.ceil, "floor": torch.floor,
-        "pi": np.pi,
-    }}
+{_math_namespace_code('_PLOT_TORCH_MATH_NS', 'torch', '    ')}
 
     def _plot_custom_op(_pf_inputs, _pf_outputs):
         _pf_dvars = _tm_build_dvars(_pf_inputs, _pf_outputs, _plot_n_out,
@@ -3458,7 +3451,24 @@ if {config.time_adaptive}:
         print("=== Time-Adaptive Error Analysis Complete ===")"""
 
 
+def _effective_config(config):
+    """The config as the generators should read it -- cleanup Round 56.
+    PINNConfig documents time_adaptive as IGNORED for a steady-state problem
+    (Time-Adaptive training splits a time axis a steady problem doesn't
+    have), and the GUI hides it there -- but neither generator enforced
+    that, so a hand-edited or older save with both set made
+    generate_script() take its Time-Adaptive branch for a steady problem
+    and made generate_clean_script() emit a script that doesn't even parse.
+    Returns a copy with time_adaptive switched off in that one case; every
+    other config is returned unchanged (the same object)."""
+    if getattr(config, "steady_state", False) and getattr(config, "time_adaptive", False):
+        import dataclasses as _dc
+        config = _dc.replace(config, time_adaptive=False)
+    return config
+
+
 def generate_script(config):
+    config = _effective_config(config)
     # Naming convention (cleanup Round 55): generation-time Python names in
     # this function use the same plain spelling as generate_clean_script()'s
     # (is_2d, is_3d, is_steady, line_slice_y, sol_ext, ...), so a fix ported
@@ -4451,19 +4461,7 @@ _box_shape_geom = _geom_type in ("Interval", "Rectangle", "Cuboid")
 # float type the run is actually using -- everything else (on_boundary,
 # inside, bbox, dim, ...) passes straight through to the real geometry via
 # __getattr__, same adapter pattern as _Interface2DGeomAdapter below.
-class _DTypeSafeGeom:
-    def __init__(self, geom):
-        self._geom = geom
-    def __getattr__(self, name):
-        return getattr(self._geom, name)
-    def random_points(self, n, random="pseudo"):
-        return self._geom.random_points(n, random=random).astype(dde.config.real(np))
-    def uniform_points(self, n, boundary=True):
-        return self._geom.uniform_points(n, boundary=boundary).astype(dde.config.real(np))
-    def random_boundary_points(self, n, random="pseudo"):
-        return self._geom.random_boundary_points(n, random=random).astype(dde.config.real(np))
-    def uniform_boundary_points(self, n):
-        return self._geom.uniform_boundary_points(n).astype(dde.config.real(np))
+{_dtype_safe_geom_class_code()}
 
 def _build_geom():
     if _geom_type == "Disk":
@@ -4562,14 +4560,7 @@ _n_coord_cols_bc = (3 if _is_3d else (2 if _is_2d else 1)) if _is_steady else (4
 # pass first (see _simplify_expr above), so without this dict "sin(pi*y)"
 # or "exp(...)" would raise a plain NameError the first time anyone typed
 # one, since eval()'s namespace otherwise only has x/y/z/t/np in it.
-_BC_MATH_NS = {{
-    "sin": np.sin, "cos": np.cos, "tan": np.tan,
-    "sinh": np.sinh, "cosh": np.cosh, "tanh": np.tanh,
-    "arcsin": np.arcsin, "arccos": np.arccos, "arctan": np.arctan,
-    "exp": np.exp, "log": np.log, "log10": np.log10,
-    "sqrt": np.sqrt, "abs": np.abs, "ceil": np.ceil, "floor": np.floor,
-    "pi": np.pi,
-}}
+{_math_namespace_code('_BC_MATH_NS', 'np', '')}
 
 def _bc_loc_fn(_expr):
     _src = _expr if _expr.strip() else "True"
@@ -5494,14 +5485,7 @@ for _pval in _param_values:
         _plot_output_names_list = {repr(config.output_names)}.split(",")
         _plot_n_out = len(_plot_output_names_list)
         _plot_dim = "3D" if _is_3d else ("2D" if _is_2d else "1D")
-        _PLOT_TORCH_MATH_NS = {{
-            "sin": torch.sin, "cos": torch.cos, "tan": torch.tan,
-            "sinh": torch.sinh, "cosh": torch.cosh, "tanh": torch.tanh,
-            "arcsin": torch.asin, "arccos": torch.acos, "arctan": torch.atan,
-            "exp": torch.exp, "log": torch.log, "log10": torch.log10,
-            "sqrt": torch.sqrt, "abs": torch.abs, "ceil": torch.ceil, "floor": torch.floor,
-            "pi": np.pi,
-        }}
+{_math_namespace_code('_PLOT_TORCH_MATH_NS', 'torch', '        ')}
 
         def _plot_custom_op(_pf_inputs, _pf_outputs):
             _pf_dvars = _tm_build_dvars(_pf_inputs, _pf_outputs, _plot_n_out,
@@ -7631,6 +7615,52 @@ def _clean_loss_series_lines(config, train_rows_expr, test_rows_expr, steps_expr
     return lines
 
 
+_DTYPE_SAFE_GEOM_CLASS = '''class _DTypeSafeGeom:
+    """Some DeepXDE geometries (Disk/Ellipse/Triangle/Polygon/Sphere on
+    this installed version) return float64 points even when the network
+    is float32 -- cast every sampled point array to the configured float
+    type so training doesn't hit a dtype-mismatch error."""
+    def __init__(self, geom):
+        self._geom = geom
+    def __getattr__(self, name):
+        return getattr(self._geom, name)
+    def random_points(self, n, random="pseudo"):
+        return self._geom.random_points(n, random=random).astype(dde.config.real(np))
+    def uniform_points(self, n, boundary=True):
+        return self._geom.uniform_points(n, boundary=boundary).astype(dde.config.real(np))
+    def random_boundary_points(self, n, random="pseudo"):
+        return self._geom.random_boundary_points(n, random=random).astype(dde.config.real(np))
+    def uniform_boundary_points(self, n):
+        return self._geom.uniform_boundary_points(n).astype(dde.config.real(np))'''
+
+
+def _dtype_safe_geom_class_code():
+    """The _DTypeSafeGeom adapter class every generated script that needs it
+    embeds -- cleanup Round 56: it used to be hand-typed four times (live
+    Solve, export, both restore builders), two with a docstring and two
+    without; now one copy."""
+    return _DTYPE_SAFE_GEOM_CLASS
+
+
+_MATH_NS_ROWS = (("sin", "cos", "tan"), ("sinh", "cosh", "tanh"), ("arcsin", "arccos", "arctan"),
+                 ("exp", "log", "log10"), ("sqrt", "abs", "ceil", "floor"))
+
+
+def _math_namespace_code(var, lib, indent=""):
+    """`<var> = {"sin": ..., ..., "pi": np.pi}` -- the dict of math functions
+    a generated script's eval() namespace offers user expressions, for
+    lib "torch" (custom plot fields, evaluated on tensors) or "np" (BC/EA
+    expressions, evaluated on arrays). cleanup Round 56: this dict was
+    hand-typed seven times across the generators and restore builders."""
+    alias = {"arcsin": "asin", "arccos": "acos", "arctan": "atan"} if lib == "torch" else {}
+    lines = [f"{var} = {{"]
+    for row in _MATH_NS_ROWS:
+        lines.append("    " + ", ".join(f'"{f}": {lib}.{alias.get(f, f)}' for f in row) + ",")
+    lines.append('    "pi": np.pi,')
+    lines.append("}")
+    return "\n".join(indent + ln for ln in lines)
+
+
 def _figsize_helper_code(mode, w, h):
     """Builds the literal Python source for a module-level `_plot_figsize(
     default_w, default_h)` helper -- the Round 31 Plot Settings figure-size
@@ -8647,6 +8677,7 @@ def generate_clean_script(config):
     "if" dispatch over every option this app exposes. See generate_script()
     above for the generator Solve itself actually runs -- that one stays
     untouched; this is a second, independent generator."""
+    config = _effective_config(config)
     is_2d = config.problem_dim == "2D"
     is_3d = config.problem_dim == "3D"
     # See generate_script()'s matching comment -- backward-compat remap for
@@ -9037,23 +9068,7 @@ if save_dir:
         return _n if self._is_steady else _n[:, :-1]''')
 
     if needs_dtype_wrap:
-        parts.append('''class _DTypeSafeGeom:
-    """Some DeepXDE geometries (Disk/Ellipse/Triangle/Polygon/Sphere on
-    this installed version) return float64 points even when the network
-    is float32 -- cast every sampled point array to the configured float
-    type so training doesn't hit a dtype-mismatch error."""
-    def __init__(self, geom):
-        self._geom = geom
-    def __getattr__(self, name):
-        return getattr(self._geom, name)
-    def random_points(self, n, random="pseudo"):
-        return self._geom.random_points(n, random=random).astype(dde.config.real(np))
-    def uniform_points(self, n, boundary=True):
-        return self._geom.uniform_points(n, boundary=boundary).astype(dde.config.real(np))
-    def random_boundary_points(self, n, random="pseudo"):
-        return self._geom.random_boundary_points(n, random=random).astype(dde.config.real(np))
-    def uniform_boundary_points(self, n):
-        return self._geom.uniform_boundary_points(n).astype(dde.config.real(np))''')
+        parts.append(_dtype_safe_geom_class_code())
 
     parts.append(net_helper_code)
     parts.append(figsize_helper_code)
@@ -9618,14 +9633,7 @@ _plot_output_names = {out_names!r}
 _plot_n_out = len(_plot_output_names)
 _plot_is_steady = {is_steady}
 _plot_dim = {_plot_dim_clean!r}
-_PLOT_TORCH_MATH_NS = {{
-    "sin": torch.sin, "cos": torch.cos, "tan": torch.tan,
-    "sinh": torch.sinh, "cosh": torch.cosh, "tanh": torch.tanh,
-    "arcsin": torch.asin, "arccos": torch.acos, "arctan": torch.atan,
-    "exp": torch.exp, "log": torch.log, "log10": torch.log10,
-    "sqrt": torch.sqrt, "abs": torch.abs, "ceil": torch.ceil, "floor": torch.floor,
-    "pi": np.pi,
-}}
+{_math_namespace_code("_PLOT_TORCH_MATH_NS", "torch", "")}
 def _plot_custom_op(_pf_inputs, _pf_outputs):
     _pf_dvars = _tm_build_dvars(_pf_inputs, _pf_outputs, _plot_n_out,
                                  _plot_output_names, _plot_is_steady, _plot_dim,

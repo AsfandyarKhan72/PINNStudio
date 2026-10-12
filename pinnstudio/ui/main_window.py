@@ -13321,7 +13321,8 @@ print("RESTORE_DONE")
         layers     = cfg["layers"]
         activation = cfg["activation"]
         from pinnstudio.core.codegen import (_net_construction_helper_code,
-            _training_monitor_runtime_code, _figsize_helper_code, _contour_levels_helper_code)
+            _training_monitor_runtime_code, _figsize_helper_code, _contour_levels_helper_code,
+            _math_namespace_code)
         net_helper_code = _net_construction_helper_code(cfg.get("network_type", "FNN"))
         # Reuses Training Monitors' own derivative-building helpers
         # (_tm_hess/_tm_build_dvars) unchanged, so a restored model's
@@ -13413,7 +13414,7 @@ print("RESTORE_DONE")
         # an older saved config just restores as a plain Rectangle/Cuboid/
         # Interval, exactly as before.
         import types as _restore_types
-        from pinnstudio.core.codegen import _clean_geom_line, _parse_vertex_list
+        from pinnstudio.core.codegen import _clean_geom_line, _parse_vertex_list, _dtype_safe_geom_class_code
         _tri_verts_restore = _parse_vertex_list(cfg.get("geom_triangle_vertices", "0,0;1,0;0,1"))
         if len(_tri_verts_restore) != 3:
             _tri_verts_restore = [[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]]
@@ -13435,20 +13436,7 @@ print("RESTORE_DONE")
         # Same wrapper class generate_clean_script() emits for the same
         # reason (see codegen.py's _DTypeSafeGeom) -- only spliced in when
         # the reconstructed geometry actually needs it.
-        _dtype_safe_geom_class_restore = '''class _DTypeSafeGeom:
-    def __init__(self, geom):
-        self._geom = geom
-    def __getattr__(self, name):
-        return getattr(self._geom, name)
-    def random_points(self, n, random="pseudo"):
-        return self._geom.random_points(n, random=random).astype(dde.config.real(np))
-    def uniform_points(self, n, boundary=True):
-        return self._geom.uniform_points(n, boundary=boundary).astype(dde.config.real(np))
-    def random_boundary_points(self, n, random="pseudo"):
-        return self._geom.random_boundary_points(n, random=random).astype(dde.config.real(np))
-    def uniform_boundary_points(self, n):
-        return self._geom.uniform_boundary_points(n).astype(dde.config.real(np))
-''' if _geom_needs_dtype_wrap else ''
+        _dtype_safe_geom_class_restore = (_dtype_safe_geom_class_code() + "\n") if _geom_needs_dtype_wrap else ''
 
         script = f"""
 import os
@@ -13542,14 +13530,7 @@ _restore_output_names = {[n.strip() for n in out_names]!r}
 _restore_n_out = len(_restore_output_names)
 _restore_is_steady = {str(is_steady)}
 _restore_dim = {_restore_dim_str!r}
-_RESTORE_MATH_NS = {{
-    "sin": torch.sin, "cos": torch.cos, "tan": torch.tan,
-    "sinh": torch.sinh, "cosh": torch.cosh, "tanh": torch.tanh,
-    "arcsin": torch.asin, "arccos": torch.acos, "arctan": torch.atan,
-    "exp": torch.exp, "log": torch.log, "log10": torch.log10,
-    "sqrt": torch.sqrt, "abs": torch.abs, "ceil": torch.ceil, "floor": torch.floor,
-    "pi": np.pi,
-}}
+{_math_namespace_code('_RESTORE_MATH_NS', 'torch', '')}
 def _restore_custom_op(inputs, outputs):
     _dvars = _tm_build_dvars(inputs, outputs, _restore_n_out, _restore_output_names,
                               _restore_is_steady, _restore_dim, _restore_custom_expr)
@@ -13782,7 +13763,8 @@ def _extract_plot_field(x_grid):
         # (cfg), not each step's own step_config.json -- same reasoning as
         # this function's docstring already gives for x_min/x_max/etc.
         from pinnstudio.core.codegen import (_net_construction_helper_code,
-            _training_monitor_runtime_code, _figsize_helper_code, _contour_levels_helper_code)
+            _training_monitor_runtime_code, _figsize_helper_code, _contour_levels_helper_code,
+            _math_namespace_code)
         net_helper_code = _net_construction_helper_code(cfg.get("network_type", "FNN"))
         # Same reuse of Training Monitors' derivative-building helpers as
         # _build_restore_script -- see that function's own comment.
@@ -13800,7 +13782,7 @@ def _extract_plot_field(x_grid):
         # the model across the full bounding box, past the true (possibly
         # non-convex) boundary.
         import types as _restore_types_ta
-        from pinnstudio.core.codegen import _clean_geom_line, _parse_vertex_list
+        from pinnstudio.core.codegen import _clean_geom_line, _parse_vertex_list, _dtype_safe_geom_class_code
         _tri_verts_restore_ta = _parse_vertex_list(cfg.get("geom_triangle_vertices", "0,0;1,0;0,1"))
         if len(_tri_verts_restore_ta) != 3:
             _tri_verts_restore_ta = [[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]]
@@ -13822,20 +13804,7 @@ def _extract_plot_field(x_grid):
         # Same wrapper class _build_restore_script splices in for the same
         # reason (see codegen.py's _DTypeSafeGeom) -- only included when
         # the reconstructed geometry actually needs it.
-        _dtype_safe_geom_class_restore_ta = '''class _DTypeSafeGeom:
-    def __init__(self, geom):
-        self._geom = geom
-    def __getattr__(self, name):
-        return getattr(self._geom, name)
-    def random_points(self, n, random="pseudo"):
-        return self._geom.random_points(n, random=random).astype(dde.config.real(np))
-    def uniform_points(self, n, boundary=True):
-        return self._geom.uniform_points(n, boundary=boundary).astype(dde.config.real(np))
-    def random_boundary_points(self, n, random="pseudo"):
-        return self._geom.random_boundary_points(n, random=random).astype(dde.config.real(np))
-    def uniform_boundary_points(self, n):
-        return self._geom.uniform_boundary_points(n).astype(dde.config.real(np))
-''' if _geom_needs_dtype_wrap_ta else ''
+        _dtype_safe_geom_class_restore_ta = (_dtype_safe_geom_class_code() + "\n") if _geom_needs_dtype_wrap_ta else ''
 
         script = f"""
 import os
@@ -13934,14 +13903,7 @@ _restore_output_names = {[n.strip() for n in out_names]!r}
 _restore_n_out = len(_restore_output_names)
 _restore_is_steady = False
 _restore_dim = {_restore_dim_str!r}
-_RESTORE_MATH_NS = {{
-    "sin": torch.sin, "cos": torch.cos, "tan": torch.tan,
-    "sinh": torch.sinh, "cosh": torch.cosh, "tanh": torch.tanh,
-    "arcsin": torch.asin, "arccos": torch.acos, "arctan": torch.atan,
-    "exp": torch.exp, "log": torch.log, "log10": torch.log10,
-    "sqrt": torch.sqrt, "abs": torch.abs, "ceil": torch.ceil, "floor": torch.floor,
-    "pi": np.pi,
-}}
+{_math_namespace_code('_RESTORE_MATH_NS', 'torch', '')}
 def _restore_custom_op(inputs, outputs):
     _dvars = _tm_build_dvars(inputs, outputs, _restore_n_out, _restore_output_names,
                               _restore_is_steady, _restore_dim, _restore_custom_expr)
@@ -14055,6 +14017,7 @@ def _extract_plot_field(x_grid, _tm_model):
         # uses. None means "caller didn't pass one" (e.g. an older call
         # site) -- fall back to the domain midpoint, matching this
         # feature's behavior everywhere else when left on Auto.
+        from pinnstudio.core.codegen import _math_namespace_code
         if line_slice_y is None:
             line_slice_y = (y_min + y_max) / 2.0
         if line_slice_z is None:
@@ -14126,14 +14089,7 @@ def _extract_plot_field(x_grid, _tm_model):
         )
         _extract_field_code = f'''_ea_custom_expr = {_custom_expr_val!r}
 _ea_output_names = {[n.strip() for n in output_names.split(",")]!r}
-_EA_MATH_NS = {{
-    "sin": np.sin, "cos": np.cos, "tan": np.tan,
-    "sinh": np.sinh, "cosh": np.cosh, "tanh": np.tanh,
-    "arcsin": np.arcsin, "arccos": np.arccos, "arctan": np.arctan,
-    "exp": np.exp, "log": np.log, "log10": np.log10,
-    "sqrt": np.sqrt, "abs": np.abs, "ceil": np.ceil, "floor": np.floor,
-    "pi": np.pi,
-}}
+{_math_namespace_code("_EA_MATH_NS", "np", "")}
 def _extract_restore_field(pred):
     if _ea_custom_expr:
         ns = {{**_EA_MATH_NS, "np": np}}
