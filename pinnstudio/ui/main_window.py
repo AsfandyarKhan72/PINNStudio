@@ -755,6 +755,24 @@ class MainWindow(QMainWindow):
         self._register_style(title, "title", lambda css: f"color: #a0c4ff; margin-bottom: 8px; {css}")
         left_layout.addWidget(title)
 
+        # cleanup Round 59: each panel is built by its own method below,
+        # in the order it appears top to bottom.
+        self._build_setup_panels(left_layout)
+        self._build_domain_panels(left_layout)
+        self._build_network_panel(left_layout)
+        self._build_training_panel(left_layout)
+        self._build_adaptive_and_sweep_panels(left_layout)
+        self._build_inverse_panel(left_layout)
+        self._build_solve_buttons(left_layout)
+        self._build_restore_panel(left_layout)
+
+        left_layout.addStretch()
+        splitter.addWidget(left_scroll)
+
+        self._build_right_panel(splitter)
+
+    def _build_setup_panels(self, left_layout):
+        """Quick Examples, dimension, Forward/Inverse, and the PDE input panel."""
         # ── Quick Examples (shown first: picking one drives everything ──
         # ── else below it -- dimension, Forward/Inverse, Time ───────────
         # ── Dependent/Stationary -- instead of the user having to set ───
@@ -898,6 +916,8 @@ class MainWindow(QMainWindow):
         self._build_pde_inputs(1)
         left_layout.addWidget(self.pde_group)
 
+    def _build_domain_panels(self, left_layout):
+        """Domain/geometry, collocation points, and the initial/boundary condition panels."""
         # ── Domain (Geometry Type folded in as the first field, since ──
         # ── the shape choice governs what the rest of this panel asks ──
         # ── for below it -- they belong in one panel, not two). ────────
@@ -1299,6 +1319,8 @@ class MainWindow(QMainWindow):
         left_layout.addWidget(self.custom_bc_group)
         QTimer.singleShot(0, self._update_bc_mode_visibility)
 
+    def _build_network_panel(self, left_layout):
+        """Neural Network panel: size, network type, input/output transforms."""
         # ── Neural Network ────────────────────────────────────
         nn_group = QGroupBox("Neural Network")
         nn_layout = QVBoxLayout(nn_group)
@@ -1441,6 +1463,8 @@ class MainWindow(QMainWindow):
 
         left_layout.addWidget(nn_group)
 
+    def _build_training_panel(self, left_layout):
+        """Training panel: optimizers, scheduler, callbacks, loss weights."""
         # ── Training ─────────────────────────────────────────────────
         # (This group previously also had a "Mini-batch training" checkbox
         # here -- removed. DeepXDE's dde.data.PDE/TimePDE.train_next_batch
@@ -1909,6 +1933,8 @@ class MainWindow(QMainWindow):
         self._build_weight_inputs(1)
         left_layout.addWidget(self.weights_group)
 
+    def _build_adaptive_and_sweep_panels(self, left_layout):
+        """Adaptive Training (RAR / Time-Adaptive step groups) and Parameter Sweep panels."""
         # ── Adaptive Training ─────────────────────────────────
         adapt_group = QGroupBox("Adaptive Training")
         self.adapt_group = adapt_group
@@ -2242,6 +2268,8 @@ class MainWindow(QMainWindow):
         self._add_sweep_row()
         QTimer.singleShot(0, lambda: self._refresh_sweep_param_choices())
 
+    def _build_inverse_panel(self, left_layout):
+        """Inverse PINN panel."""
         # ── Inverse PINN panel ────────────────────────────────
         self.inverse_group = QGroupBox("Inverse PINN Settings")
         inv_layout = QVBoxLayout(self.inverse_group)
@@ -2358,6 +2386,8 @@ class MainWindow(QMainWindow):
 
         # Parametric Study removed (untested, not exposed in the GUI).
 
+    def _build_solve_buttons(self, left_layout):
+        """Solve / Stop buttons."""
         # ── Solve / Stop buttons ──────────────────────────────
         # These are the two most important buttons in the app, so they're
         # deliberately sized/weighted up from the shared "Buttons" Display
@@ -2397,6 +2427,8 @@ class MainWindow(QMainWindow):
         self.stop_btn.clicked.connect(self._on_stop)
         left_layout.addWidget(self.stop_btn)
 
+    def _build_restore_panel(self, left_layout):
+        """Model Restore & Visualization panel."""
         # ── Model Restore & Visualization ─────────────────────
         restore_group = QGroupBox("Model Restore && Visualization")
         restore_layout = QVBoxLayout(restore_group)
@@ -2703,9 +2735,8 @@ class MainWindow(QMainWindow):
         restore_content_layout.addWidget(self.restore_btn)
         left_layout.addWidget(restore_group)
 
-        left_layout.addStretch()
-        splitter.addWidget(left_scroll)
-
+    def _build_right_panel(self, splitter):
+        """Right side: training log, results/plots, monitor (added to `splitter`)."""
         # ── Right panel ───────────────────────────────────────
         right = QWidget()
         right_layout = QVBoxLayout(right)
@@ -3157,6 +3188,7 @@ class MainWindow(QMainWindow):
         # the old cramped 1100px minimum-sized window) -- same "still just
         # an initial split, drag it anytime" caveat as right_splitter above.
         splitter.setSizes([630, 1010])
+
 
     # ── Parameter Sweep panel (inline in the Setup tab's right side) ──
     def _on_sweep_enabled_toggled(self, checked):
@@ -9733,6 +9765,122 @@ print("DOMAIN_PREVIEW_DONE")
         ok_btn.clicked.connect(_on_ok)
         dialog.exec()
 
+    # ── Quick Examples: shared template-apply steps (cleanup Round 59) ──
+    # _on_template_selected applies five template tables (2D, 2D steady,
+    # 3D, 3D steady, 1D); each used to repeat these steps by hand, and the
+    # copies had drifted (only the 1D branch reset the L-BFGS float type,
+    # only the 1D branch ended the fallback Time-Adaptive row at the
+    # template's own t_max). Every branch now goes through these.
+
+    def _tpl_set_equations(self, n_out, names, pdes, ics):
+        """Output count (None leaves it alone), output names, PDE and IC text."""
+        if n_out is not None and n_out != self.num_outputs_spin.value():
+            self.num_outputs_spin.setValue(n_out)
+        for widgets, values in ((self.output_name_inputs, names), (self.pde_inputs, pdes), (self.ic_inputs, ics)):
+            for i, value in enumerate(values):
+                if i < len(widgets):
+                    widgets[i].setText(value)
+
+    def _tpl_set_time_range(self, t):
+        """t_max plus the Forward/Inverse t_max pair _on_problem_type_changed
+        switches between; t=None for a steady template (no time axis).
+        Always reset, so a template never inherits another's inverse_t_max."""
+        if t is None:
+            self._current_template_forward_tmax = None
+            self._current_template_inverse_tmax = None
+            return
+        self.t_max.setValue(t.get('t_max', 1.0))
+        self._current_template_forward_tmax = t.get('t_max', 1.0)
+        self._current_template_inverse_tmax = t.get('inverse_t_max')
+        if self._current_template_inverse_tmax is not None and self.radio_inverse.isChecked():
+            self.t_max.setValue(self._current_template_inverse_tmax)
+
+    def _tpl_set_sampling_and_training(self, t, *, num_initial, optimizer2):
+        """Collocation points, network size, both optimizer stages. num_test
+        and the L-BFGS float type fall back to 1000 / float32 when the
+        template doesn't set them, so a previous template's value (3D
+        Heat's num_test=10000, Schrodinger's float64) never lingers."""
+        self.num_domain.setValue(t['num_domain'])
+        self.num_boundary.setValue(t['num_boundary'])
+        self.num_initial.setValue(num_initial)
+        self.num_test.setValue(t.get('num_test', 1000))
+        self.layers_spin.setValue(t['layers'])
+        self.neurons_spin.setValue(t['neurons'])
+        self.iter1_spin.setValue(t['iterations'])
+        self.opt2_combo.setCurrentText(optimizer2)
+        self.iter2_spin.setValue(t['iterations2'])
+        if hasattr(self, 'lbfgs_float_combo'):
+            self.lbfgs_float_combo.setCurrentText(t.get('lbfgs_float_type', 'float32'))
+
+    def _tpl_set_ic_weights(self, n_out, weight):
+        for i in range(n_out):
+            key = f"ic_{i}"
+            if key in self.weight_widgets:
+                self.weight_widgets[key].setValue(weight)
+
+    def _tpl_reset_time_adaptive(self, ta_cfg, t_end, grid_default):
+        """Rebuild the Time-Adaptive panel: the template's own ta_default
+        when it has one (suspended, not applied, in Inverse mode), else
+        Adaptation=None with one pre-filled 0..t_end row ready in case the
+        user turns it on manually. grid_default is "21" for 3D (see
+        _update_ta_grid_warning), "101" otherwise."""
+        for row in list(self.ta_group_rows):
+            row['widget'].deleteLater()
+        self.ta_group_rows.clear()
+        self._current_ta_cfg = ta_cfg
+        self._ta_suspended_for_inverse = False
+        if ta_cfg and not self.radio_inverse.isChecked():
+            self.adapt_combo.setCurrentText("Time Adaptive Training")
+            for g_start, g_end, g_steps in ta_cfg['step_groups']:
+                self._add_ta_step_group(g_start, g_end, g_steps)
+            self.ta_transfer_cb.setChecked(ta_cfg.get('transfer_learning', False))
+            self.ta_grid.setCurrentText(str(ta_cfg.get('ic_grid', 101)))
+            self._set_combo_data(self.ta_transfer_opt, ta_cfg.get('transfer_optimizer', 'adam'))
+        else:
+            self.adapt_combo.setCurrentText("None")
+            self._add_ta_step_group(0.0, t_end, 10)
+            self.ta_transfer_cb.setChecked(False)
+            self.ta_grid.setCurrentText(grid_default)
+            self._set_combo_data(self.ta_transfer_opt, "adam")
+            if ta_cfg and self.radio_inverse.isChecked():
+                self._ta_suspended_for_inverse = True
+
+    def _tpl_set_steady_dirichlet_bc(self):
+        """The steady Poisson templates' BC: Dirichlet u = 0 on the whole
+        boundary -- "True" as the location, the convention for a shape with
+        no natural "side" (DeepXDE's on_boundary restricts it)."""
+        for e in list(self.custom_bc_list):
+            e['widget'].deleteLater()
+        self.custom_bc_list.clear()
+        self._add_custom_bc_entry(bc_type="dirichlet", component=0,
+                                   location="True", value="0", locked=False)
+        self._update_bc_mode_visibility()
+
+    def _tpl_finish(self, text, t, *, steady=False, dirichlet_bc_weight=None):
+        """Common tail: remember the template, sync the Inverse PDE
+        substitution, default scheduler phases, optional Dirichlet BC
+        weight, Error Analysis reference files, log line. The BC weight is
+        set after _setup_default_scheduler_phases(), which rebuilds
+        weight_widgets (and would otherwise reset it to 1.0)."""
+        self._template_ref_dir = t.get('ref_dir', '')
+        self._current_template = text
+        self._current_template_type = t.get('template_type', '')
+        self._sync_inverse_pde_substitution(self.radio_inverse.isChecked())
+        if hasattr(self, 'sched_cb'):
+            self.sched_cb.setChecked(True)
+            self._setup_default_scheduler_phases(t.get('template_type', ''), t['iterations'], t.get('iterations2', 10000))
+        if dirichlet_bc_weight is not None:
+            for _bj, _be in enumerate(self.custom_bc_list):
+                if _be['type'].currentData() == 'dirichlet':
+                    _bk = f"bc_{_bj}"
+                    if _bk in self.weight_widgets:
+                        self.weight_widgets[_bk].setValue(dirichlet_bc_weight)
+        if steady:
+            self._auto_configure_ea(self._template_ref_dir, is_steady=True)
+        else:
+            self._auto_configure_ea(self._template_ref_dir)
+        self.log_box.append(f"✅ Template loaded: {text}")
+
     def _on_template_selected(self, text):
         if text == "📋 Examples":
             return
@@ -9939,62 +10087,17 @@ print("DOMAIN_PREVIEW_DONE")
         }
         if text in templates_2d:
             t = templates_2d[text]
-            # Set number of outputs first
             n_out = t.get('num_outputs', 1)
-            if n_out != self.num_outputs_spin.value():
-                self.num_outputs_spin.setValue(n_out)
-            # Set output names
-            for i, name in enumerate(t.get('output_names', ['u'])):
-                if i < len(self.output_name_inputs):
-                    self.output_name_inputs[i].setText(name)
-            # Set PDEs
-            for i, pde_text in enumerate(t['pde']):
-                if i < len(self.pde_inputs):
-                    self.pde_inputs[i].setText(pde_text)
-            # Set ICs
-            for i, ic_text in enumerate(t['ic']):
-                if i < len(self.ic_inputs):
-                    self.ic_inputs[i].setText(ic_text)
-            # Geometry: every template in this dict (Heat, Allen-Cahn,
-            # Burgers) is a plain rectangular domain -- unlike the steady
-            # Poisson templates below (Polygon/Disk), none of them ever set
-            # their own geometry_type, so without an explicit reset here,
-            # switching TO one of these FROM "2D Poisson (L-Shape)" or "2D
-            # Poisson (Disk)" left the Geometry selector stuck on
-            # Polygon/Disk (and its Polygon-vertices/Disk-center/radius
-            # panel still showing) even though every other field had
-            # already switched over to the new, rectangular template --
-            # the same stale-leftover-from-a-different-template bug class
-            # already fixed elsewhere for t_max/num_test/BC values. Setting
-            # it back to Rectangle here, unconditionally, is always correct
-            # for every template in this dict.
+            self._tpl_set_equations(n_out, t.get('output_names', ['u']), t['pde'], t['ic'])
+            # Every template in this dict is a plain rectangle -- reset the
+            # Geometry selector explicitly, or switching here from a Polygon/
+            # Disk Poisson template left it (and its shape panel) stuck.
             self.geometry_type_combo.setCurrentText('Rectangle')
-            # Set domain
             self.x_min.setValue(t['x_min']); self.x_max.setValue(t['x_max'])
             self.y_min.setValue(t['y_min']); self.y_max.setValue(t['y_max'])
-            self.t_max.setValue(t.get('t_max', 1.0))
-            self._current_template_forward_tmax = t.get('t_max', 1.0)
-            self._current_template_inverse_tmax = t.get('inverse_t_max')
-            if self._current_template_inverse_tmax is not None and self.radio_inverse.isChecked():
-                self.t_max.setValue(self._current_template_inverse_tmax)
-            # Set collocation points
-            self.num_domain.setValue(t['num_domain'])
-            self.num_boundary.setValue(t['num_boundary'])
-            self.num_initial.setValue(t['num_initial'])
-            self.num_test.setValue(t.get('num_test', 1000))
-            # Set network
-            self.layers_spin.setValue(t['layers'])
-            self.neurons_spin.setValue(t['neurons'])
-            # Set training
-            self.iter1_spin.setValue(t['iterations'])
-            self.opt2_combo.setCurrentText(t['optimizer2'])
-            self.iter2_spin.setValue(t['iterations2'])
-            # Set IC weight
-            for i in range(n_out):
-                key = f"ic_{i}"
-                if key in self.weight_widgets:
-                    self.weight_widgets[key].setValue(t.get('ic_weight', 100.0))
-            # Set BCs
+            self._tpl_set_time_range(t)
+            self._tpl_set_sampling_and_training(t, num_initial=t['num_initial'], optimizer2=t['optimizer2'])
+            self._tpl_set_ic_weights(n_out, t.get('ic_weight', 100.0))
             bc_config = t.get('bc_config', 'periodic_all')
             if bc_config == 'periodic_all':
                 # All boundaries periodic for all outputs
@@ -10041,49 +10144,10 @@ print("DOMAIN_PREVIEW_DONE")
                         self.bc_top_vals[i].setValue(0.0)
             self._populate_locked_bc_entries_from_legacy(n_out, is_2d=True)
             self._update_bc_mode_visibility()
-            for row in list(self.ta_group_rows):
-                row['widget'].deleteLater()
-            self.ta_group_rows.clear()
-            ta_cfg = t.get('ta_default')
-            self._current_ta_cfg = ta_cfg
-            self._ta_suspended_for_inverse = False
-            if ta_cfg and not self.radio_inverse.isChecked():
-                self.adapt_combo.setCurrentText("Time Adaptive Training")
-                for g_start, g_end, g_steps in ta_cfg['step_groups']:
-                    self._add_ta_step_group(g_start, g_end, g_steps)
-                self.ta_transfer_cb.setChecked(ta_cfg.get('transfer_learning', False))
-                self.ta_grid.setCurrentText(str(ta_cfg.get('ic_grid', 101)))
-                self._set_combo_data(self.ta_transfer_opt, ta_cfg.get('transfer_optimizer', 'adam'))
-            else:
-                self.adapt_combo.setCurrentText("None")
-                self._add_ta_step_group(0.0, 1.0, 10)
-                self.ta_transfer_cb.setChecked(False)
-                self.ta_grid.setCurrentText("101")
-                self._set_combo_data(self.ta_transfer_opt, "adam")
-                if ta_cfg and self.radio_inverse.isChecked():
-                    self._ta_suspended_for_inverse = True
-            self._template_ref_dir = t.get('ref_dir', '')
-            self._current_template = text
-            self._current_template_type = t.get('template_type', '')
-            self._sync_inverse_pde_substitution(self.radio_inverse.isChecked())
-            # Setup default scheduler phases
-            if hasattr(self, 'sched_cb'):
-                self.sched_cb.setChecked(True)
-                self._setup_default_scheduler_phases(t.get('template_type', ''), t['iterations'], t.get('iterations2', 10000))
-            if bc_config == 'heat2d':
-                # The right-edge Dirichlet BC trains more accurately with a
-                # heavier weight than the default 1 -- 100 matches the other
-                # loss terms' scale here and was confirmed empirically. Set
-                # after _setup_default_scheduler_phases(), since that call
-                # rebuilds the weight_widgets (and would otherwise wipe this
-                # back to the default of 1.0).
-                for _bj, _be in enumerate(self.custom_bc_list):
-                    if _be['type'].currentData() == 'dirichlet':
-                        _bk = f"bc_{_bj}"
-                        if _bk in self.weight_widgets:
-                            self.weight_widgets[_bk].setValue(100.0)
-            self._auto_configure_ea(self._template_ref_dir)
-            self.log_box.append(f"✅ Template loaded: {text}")
+            self._tpl_reset_time_adaptive(t.get('ta_default'), t.get('t_max', 1.0), "101")
+            # heat2d: the right-edge Dirichlet BC trains more accurately at
+            # weight 100 (empirically confirmed).
+            self._tpl_finish(text, t, dirichlet_bc_weight=100.0 if bc_config == 'heat2d' else None)
             return
 
         # ── Steady-state (time-independent) 2D Quick Examples ──────────
@@ -10123,28 +10187,13 @@ print("DOMAIN_PREVIEW_DONE")
         }
         if text in templates_2d_steady:
             t = templates_2d_steady[text]
-            n_out = 1
-            if n_out != self.num_outputs_spin.value():
-                self.num_outputs_spin.setValue(n_out)
-            if self.output_name_inputs:
-                self.output_name_inputs[0].setText('u')
-            if self.pde_inputs:
-                self.pde_inputs[0].setText(t['pde'])
+            self._tpl_set_equations(1, ['u'], [t['pde']], [])
             # Domain bounds (display/bbox-fallback only -- the Polygon/Disk
             # geometry panel below is what actually defines the shape).
             self.x_min.setValue(t['x_min']); self.x_max.setValue(t['x_max'])
             self.y_min.setValue(t['y_min']); self.y_max.setValue(t['y_max'])
-            self._current_template_forward_tmax = None
-            self._current_template_inverse_tmax = None
-            self.num_domain.setValue(t['num_domain'])
-            self.num_boundary.setValue(t['num_boundary'])
-            self.num_initial.setValue(0)
-            self.num_test.setValue(t['num_test'])
-            self.layers_spin.setValue(t['layers'])
-            self.neurons_spin.setValue(t['neurons'])
-            self.iter1_spin.setValue(t['iterations'])
-            self.opt2_combo.setCurrentText('lbfgs')
-            self.iter2_spin.setValue(t['iterations2'])
+            self._tpl_set_time_range(None)
+            self._tpl_set_sampling_and_training(t, num_initial=0, optimizer2='lbfgs')
             # Geometry: switch shape and set that shape's own parameters --
             # setCurrentText fires _on_geometry_type_changed, which shows
             # the right shape panel and hides the plain x/y rows.
@@ -10155,62 +10204,15 @@ print("DOMAIN_PREVIEW_DONE")
                 self.geom_disk_cx.setValue(t['geom_center_x'])
                 self.geom_disk_cy.setValue(t['geom_center_y'])
                 self.geom_disk_r.setValue(t['geom_radius'])
-            # Steady-state: no time axis, no Initial Condition, no Time
-            # Adaptive Training -- see _on_steady_state_changed() for what
-            # this hides/resets/disables (adapt_combo -> None when it was
-            # Time Adaptive, IC pre-training off). RAR remains available
-            # and can still be turned on manually after this template loads.
+            # Steady-state: no time axis, no IC, no Time-Adaptive Training
+            # (see _on_steady_state_changed). The explicit Time-Adaptive reset
+            # below still matters: setChecked(True) is a no-op when already
+            # steady, and a previous TA template (especially one suspended
+            # for Inverse) could otherwise leave config.time_adaptive True.
             self.steady_state_check.setChecked(True)
-            # _on_steady_state_changed()'s adapt_combo reset above only
-            # fires when steady_state_check actually transitions False ->
-            # True -- a no-op setChecked(True) (already steady from a
-            # previous steady template) never runs it at all, and even
-            # when it does fire, it never clears _current_ta_cfg,
-            # _ta_suspended_for_inverse, or the ta_group_rows widgets
-            # themselves. Every other template dispatch block (2D/3D
-            # time-dependent, 3D steady, 1D) explicitly resets all of
-            # these; this steady 2D block never did, so a Time-Adaptive
-            # template selected right before this one (e.g. "2D Burgers
-            # (Mathias)") -- especially one that had TA suspended for
-            # Inverse mode -- could leave config.time_adaptive stuck True
-            # after switching to this template and back to Forward mode.
-            # Time-Adaptive is inherently time-stepped and meaningless for
-            # a steady-state problem, so this silently corrupted both
-            # generate_script() (producing bogus Time-Adaptive training
-            # code for a Poisson equation with no time axis at all,
-            # instead of an error) and generate_clean_script() (which
-            # crashed outright with a SyntaxError from an empty if-block,
-            # caught via regression testing).
-            for row in list(self.ta_group_rows):
-                row['widget'].deleteLater()
-            self.ta_group_rows.clear()
-            self._current_ta_cfg = None
-            self._ta_suspended_for_inverse = False
-            self.adapt_combo.setCurrentText("None")
-            self._add_ta_step_group(0.0, 1.0, 10)
-            self.ta_transfer_cb.setChecked(False)
-            self.ta_grid.setCurrentText("101")
-            self._set_combo_data(self.ta_transfer_opt, "adam")
-            # Boundary Conditions panel: Dirichlet u = 0 on the whole
-            # boundary -- "True" as the location is the established
-            # convention for a shape with no natural "side" (see Disk/
-            # Ellipse/Sphere "unified" BCs elsewhere in this app);
-            # DeepXDE's own on_boundary check already restricts it correctly.
-            for e in list(self.custom_bc_list):
-                e['widget'].deleteLater()
-            self.custom_bc_list.clear()
-            self._add_custom_bc_entry(bc_type="dirichlet", component=0,
-                                       location="True", value="0", locked=False)
-            self._update_bc_mode_visibility()
-            self._template_ref_dir = t.get('ref_dir', '')
-            self._current_template = text
-            self._current_template_type = ''
-            self._sync_inverse_pde_substitution(self.radio_inverse.isChecked())
-            if hasattr(self, 'sched_cb'):
-                self.sched_cb.setChecked(True)
-                self._setup_default_scheduler_phases('', t['iterations'], t['iterations2'])
-            self._auto_configure_ea(self._template_ref_dir, is_steady=True)
-            self.log_box.append(f"✅ Template loaded: {text}")
+            self._tpl_reset_time_adaptive(None, 1.0, "101")
+            self._tpl_set_steady_dirichlet_bc()
+            self._tpl_finish(text, t, steady=True)
             return
 
         templates_3d = {
@@ -10241,78 +10243,25 @@ print("DOMAIN_PREVIEW_DONE")
         if text in templates_3d:
             t = templates_3d[text]
             n_out = t.get('num_outputs', 1)
-            if n_out != self.num_outputs_spin.value():
-                self.num_outputs_spin.setValue(n_out)
-            for i, name in enumerate(t.get('output_names', ['u'])):
-                if i < len(self.output_name_inputs):
-                    self.output_name_inputs[i].setText(name)
-            for i, pde_text in enumerate(t['pde']):
-                if i < len(self.pde_inputs):
-                    self.pde_inputs[i].setText(pde_text)
-            for i, ic_text in enumerate(t['ic']):
-                if i < len(self.ic_inputs):
-                    self.ic_inputs[i].setText(ic_text)
-            # Geometry: same reset as the 2D dict above -- 3D Heat is
-            # always a plain Cuboid, but switching to it FROM "3D Poisson
-            # (Sphere)" (which sets geometry_type to 'Sphere' below) left
-            # the Geometry selector stuck on Sphere without this.
+            self._tpl_set_equations(n_out, t.get('output_names', ['u']), t['pde'], t['ic'])
+            # Same Geometry reset as the 2D dict above (3D Heat is always a
+            # Cuboid; without this, coming from the Sphere template stuck).
             self.geometry_type_combo.setCurrentText('Cuboid')
             self.x_min.setValue(t['x_min']); self.x_max.setValue(t['x_max'])
             self.y_min.setValue(t['y_min']); self.y_max.setValue(t['y_max'])
             self.z_min.setValue(t['z_min']); self.z_max.setValue(t['z_max'])
-            self.t_max.setValue(t.get('t_max', 1.0))
-            self._current_template_forward_tmax = t.get('t_max', 1.0)
-            self._current_template_inverse_tmax = t.get('inverse_t_max')
-            if self._current_template_inverse_tmax is not None and self.radio_inverse.isChecked():
-                self.t_max.setValue(self._current_template_inverse_tmax)
-            self.num_domain.setValue(t['num_domain'])
-            self.num_boundary.setValue(t['num_boundary'])
-            self.num_initial.setValue(t['num_initial'])
-            self.num_test.setValue(t.get('num_test', 1000))
-            self.layers_spin.setValue(t['layers'])
-            self.neurons_spin.setValue(t['neurons'])
-            self.iter1_spin.setValue(t['iterations'])
-            self.opt2_combo.setCurrentText(t['optimizer2'])
-            self.iter2_spin.setValue(t['iterations2'])
-            for i in range(n_out):
-                key = f"ic_{i}"
-                if key in self.weight_widgets:
-                    self.weight_widgets[key].setValue(t.get('ic_weight', 100.0))
+            self._tpl_set_time_range(t)
+            self._tpl_set_sampling_and_training(t, num_initial=t['num_initial'], optimizer2=t['optimizer2'])
+            self._tpl_set_ic_weights(n_out, t.get('ic_weight', 100.0))
             self._populate_3d_heat_bc_entries(n_out)
             self._update_bc_mode_visibility()
-            for row in list(self.ta_group_rows):
-                row['widget'].deleteLater()
-            self.ta_group_rows.clear()
-            # 3D Heat doesn't use Time-Adaptive mode (same as 2D Heat), but
-            # if the user turns it on manually afterward, the grid resolution
-            # should already be at a 3D-safe size (see _update_ta_grid_warning)
-            # rather than the 1D/2D-safe "101" default.
-            self._current_ta_cfg = None
-            self._ta_suspended_for_inverse = False
-            self.adapt_combo.setCurrentText("None")
-            self._add_ta_step_group(0.0, 1.0, 10)
-            self.ta_transfer_cb.setChecked(False)
-            self.ta_grid.setCurrentText("21")
-            self._set_combo_data(self.ta_transfer_opt, "adam")
-            self._template_ref_dir = t.get('ref_dir', '')
-            self._current_template = text
-            self._current_template_type = t.get('template_type', '')
-            self._sync_inverse_pde_substitution(self.radio_inverse.isChecked())
-            if hasattr(self, 'sched_cb'):
-                self.sched_cb.setChecked(True)
-                self._setup_default_scheduler_phases(t.get('template_type', ''), t['iterations'], t.get('iterations2', 10000))
+            # 3D Heat doesn't use Time-Adaptive, but if turned on manually
+            # the grid should already be at a 3D-safe size ("21", see
+            # _update_ta_grid_warning) rather than the 1D/2D "101".
+            self._tpl_reset_time_adaptive(t.get('ta_default'), t.get('t_max', 1.0), "21")
             # The x-max Dirichlet face defaults to weight 100, same
-            # empirically-confirmed convention as 2D Heat's right edge. Set
-            # after _setup_default_scheduler_phases(), since that call
-            # rebuilds weight_widgets (and would otherwise wipe this back
-            # to the default of 1.0).
-            for _bj, _be in enumerate(self.custom_bc_list):
-                if _be['type'].currentData() == 'dirichlet':
-                    _bk = f"bc_{_bj}"
-                    if _bk in self.weight_widgets:
-                        self.weight_widgets[_bk].setValue(100.0)
-            self._auto_configure_ea(self._template_ref_dir)
-            self.log_box.append(f"✅ Template loaded: {text}")
+            # convention as 2D Heat's right edge.
+            self._tpl_finish(text, t, dirichlet_bc_weight=100.0)
             return
 
         # ── Steady-state (time-independent) 3D Quick Example ────────────
@@ -10335,65 +10284,23 @@ print("DOMAIN_PREVIEW_DONE")
         }
         if text in templates_3d_steady:
             t = templates_3d_steady[text]
-            n_out = 1
-            if n_out != self.num_outputs_spin.value():
-                self.num_outputs_spin.setValue(n_out)
-            if self.output_name_inputs:
-                self.output_name_inputs[0].setText('u')
-            if self.pde_inputs:
-                self.pde_inputs[0].setText(t['pde'])
+            self._tpl_set_equations(1, ['u'], [t['pde']], [])
             self.x_min.setValue(t['x_min']); self.x_max.setValue(t['x_max'])
             self.y_min.setValue(t['y_min']); self.y_max.setValue(t['y_max'])
             self.z_min.setValue(t['z_min']); self.z_max.setValue(t['z_max'])
-            self._current_template_forward_tmax = None
-            self._current_template_inverse_tmax = None
-            self.num_domain.setValue(t['num_domain'])
-            self.num_boundary.setValue(t['num_boundary'])
-            self.num_initial.setValue(0)
-            self.num_test.setValue(t['num_test'])
-            self.layers_spin.setValue(t['layers'])
-            self.neurons_spin.setValue(t['neurons'])
-            self.iter1_spin.setValue(t['iterations'])
-            self.opt2_combo.setCurrentText('lbfgs')
-            self.iter2_spin.setValue(t['iterations2'])
+            self._tpl_set_time_range(None)
+            self._tpl_set_sampling_and_training(t, num_initial=0, optimizer2='lbfgs')
             self.geometry_type_combo.setCurrentText('Sphere')
             self.geom_sphere_cx.setValue(t['geom_center_x'])
             self.geom_sphere_cy.setValue(t['geom_center_y'])
             self.geom_sphere_cz.setValue(t['geom_center_z'])
             self.geom_sphere_r.setValue(t['geom_radius'])
+            # Same steady-state / Time-Adaptive reset as templates_2d_steady,
+            # with the 3D-safe grid default.
             self.steady_state_check.setChecked(True)
-            # Same stale Time-Adaptive-state fix as templates_2d_steady
-            # above -- see its comment for the full explanation. Without
-            # this, a Time-Adaptive template selected right before this
-            # one (especially with a suspended-for-Inverse TA config) could
-            # leave config.time_adaptive stuck True for this steady 3D
-            # problem, corrupting both codegen paths.
-            for row in list(self.ta_group_rows):
-                row['widget'].deleteLater()
-            self.ta_group_rows.clear()
-            self._current_ta_cfg = None
-            self._ta_suspended_for_inverse = False
-            self.adapt_combo.setCurrentText("None")
-            self._add_ta_step_group(0.0, 1.0, 10)
-            self.ta_transfer_cb.setChecked(False)
-            # Same 3D-safe default as the 3D Heat block above.
-            self.ta_grid.setCurrentText("21")
-            self._set_combo_data(self.ta_transfer_opt, "adam")
-            for e in list(self.custom_bc_list):
-                e['widget'].deleteLater()
-            self.custom_bc_list.clear()
-            self._add_custom_bc_entry(bc_type="dirichlet", component=0,
-                                       location="True", value="0", locked=False)
-            self._update_bc_mode_visibility()
-            self._template_ref_dir = t.get('ref_dir', '')
-            self._current_template = text
-            self._current_template_type = ''
-            self._sync_inverse_pde_substitution(self.radio_inverse.isChecked())
-            if hasattr(self, 'sched_cb'):
-                self.sched_cb.setChecked(True)
-                self._setup_default_scheduler_phases('', t['iterations'], t['iterations2'])
-            self._auto_configure_ea(self._template_ref_dir, is_steady=True)
-            self.log_box.append(f"✅ Template loaded: {text}")
+            self._tpl_reset_time_adaptive(None, 1.0, "21")
+            self._tpl_set_steady_dirichlet_bc()
+            self._tpl_finish(text, t, steady=True)
             return
 
         templates = {
@@ -10526,68 +10433,21 @@ print("DOMAIN_PREVIEW_DONE")
         t = templates.get(text)
         if not t:
             return
-        
-        # Set num outputs and names if specified
+
         if 'num_outputs' in t:
             self.num_outputs_spin.setValue(t['num_outputs'])
             QApplication.processEvents()
-        if 'output_names' in t:
-            names = [n.strip() for n in t['output_names'].split(',')]
-            for i, name in enumerate(names):
-                if i < len(self.output_name_inputs):
-                    self.output_name_inputs[i].setText(name)
-
-        # Set PDE
-        for i, pde_text in enumerate(t['pde']):
-            if i < len(self.pde_inputs):
-                self.pde_inputs[i].setText(pde_text)
-
-        # Set IC
-        for i, ic_text in enumerate(t['ic']):
-            if i < len(self.ic_inputs):
-                self.ic_inputs[i].setText(ic_text)
-
-        # Set collocation points
-        self.num_domain.setValue(t['num_domain'])
-        self.num_boundary.setValue(t['num_boundary'])
-        self.num_initial.setValue(t['num_initial'])
-        # Same staleness bug class already fixed for t_max: no 1D template
-        # dict entry defines its own num_test, and this dispatch block never
-        # reset it either -- so switching down from "3D Heat"
-        # (num_test=10000) or "2D Poisson (Disk)" (num_test=1500) to any 1D
-        # template left the Test Points field stuck at that wildly-oversized
-        # value instead of the 1000 every 1D template actually expects.
-        self.num_test.setValue(1000)
-
-        # Set network
-        self.layers_spin.setValue(t['layers'])
-        self.neurons_spin.setValue(t['neurons'])
-
-        # Set training
-        self.iter1_spin.setValue(t['iterations'])
-        self.opt2_combo.setCurrentText(t['optimizer2'])
-        self.iter2_spin.setValue(t['iterations2'])
-        # Same staleness-prevention pattern as t_max/num_test above: reset
-        # to the ordinary float32 default for every template that doesn't
-        # specify its own (currently just 1D Schrodinger -> float64, see
-        # that template's own comment for why), so a previous template's
-        # float64 choice never lingers onto one that never asked for it.
-        if hasattr(self, 'lbfgs_float_combo'):
-            self.lbfgs_float_combo.setCurrentText(t.get('lbfgs_float_type', 'float32'))
-
-        # Set IC weight to 100 for Allen-Cahn
-        if text in ["1D Allen-Cahn"]:
-            for i in range(self.num_outputs_spin.value()):
-                key = f"ic_{i}"
-                if key in self.weight_widgets:
-                    self.weight_widgets[key].setValue(100.0)
-
-        # Set domain x range (and t range, for templates whose t domain
-        # isn't the default 1.0 -- e.g. Schrodinger's t in [0, pi/2]).
+        names = [n.strip() for n in t['output_names'].split(',')] if 'output_names' in t else []
+        self._tpl_set_equations(None, names, t['pde'], t['ic'])
+        self._tpl_set_sampling_and_training(t, num_initial=t['num_initial'], optimizer2=t['optimizer2'])
+        if text == "1D Allen-Cahn":
+            self._tpl_set_ic_weights(self.num_outputs_spin.value(), 100.0)
         if 'x_min' in t:
             self.x_min.setValue(t['x_min'])
             self.x_max.setValue(t['x_max'])
-        self.t_max.setValue(t.get('t_max', 1.0))
+        # t range too, for templates whose t domain isn't the default 1.0
+        # (e.g. Schrodinger's t in [0, pi/2]).
+        self._tpl_set_time_range(t)
 
         # Set periodic BC
         if t.get('periodic_bc', False):
@@ -10631,62 +10491,10 @@ print("DOMAIN_PREVIEW_DONE")
             self.plot_custom_expr_input.clear()
             self.plot_custom_label_input.clear()
 
-        # Set Time-Adaptive default (e.g. 1D Allen-Cahn), same pattern as
-        # the 2D/3D template blocks above.
-        for row in list(self.ta_group_rows):
-            row['widget'].deleteLater()
-        self.ta_group_rows.clear()
-        ta_cfg = t.get('ta_default')
-        self._current_ta_cfg = ta_cfg
-        self._ta_suspended_for_inverse = False
-        if ta_cfg and not self.radio_inverse.isChecked():
-            self.adapt_combo.setCurrentText("Time Adaptive Training")
-            for g_start, g_end, g_steps in ta_cfg['step_groups']:
-                self._add_ta_step_group(g_start, g_end, g_steps)
-            self.ta_transfer_cb.setChecked(ta_cfg.get('transfer_learning', False))
-            self.ta_grid.setCurrentText(str(ta_cfg.get('ic_grid', 101)))
-            self._set_combo_data(self.ta_transfer_opt, ta_cfg.get('transfer_optimizer', 'adam'))
-        else:
-            self.adapt_combo.setCurrentText("None")
-            # End time defaults to THIS template's own t_max (not a bare
-            # hardcoded 1.0) -- so a template whose time domain isn't the
-            # generic default -- e.g. 1D Schrodinger's t in [0, pi/2] --
-            # still gets a sensible pre-filled row here if/when the user
-            # manually switches Adaptation to "Time Adaptive Training"
-            # (this template has no ta_default of its own, so it's not
-            # auto-enabled -- see the branch above). Found via the user's
-            # own report: Schrodinger's Time-Adaptive panel pre-filled End
-            # time as 1.0 instead of its real t_max of ~1.5708. Every other
-            # template without its own ta_default still gets 1.0 here too,
-            # since t.get('t_max', 1.0) is a no-op for any of them (none
-            # override 't_max' in their own template dict).
-            self._add_ta_step_group(0.0, t.get('t_max', 1.0), 10)
-            self.ta_transfer_cb.setChecked(False)
-            self.ta_grid.setCurrentText("101")
-            self._set_combo_data(self.ta_transfer_opt, "adam")
-            if ta_cfg and self.radio_inverse.isChecked():
-                self._ta_suspended_for_inverse = True
-
-        # Store ref_dir for error analysis auto-population
-        self._template_ref_dir = t.get('ref_dir', '')
-        self._current_template = text
-        self._current_template_type = t.get('template_type', '')
-        # Reset the Forward/Inverse t_max pair (see _on_problem_type_changed)
-        # so a 1D template never inherits a stale inverse_t_max left behind
-        # by whichever 2D/3D template was selected earlier this session --
-        # none of the 1D templates use a shortened Inverse t range today,
-        # but this keeps that possible without it silently picking up
-        # another template's value.
-        self._current_template_forward_tmax = t.get('t_max', 1.0)
-        self._current_template_inverse_tmax = t.get('inverse_t_max')
-        if self._current_template_inverse_tmax is not None and self.radio_inverse.isChecked():
-            self.t_max.setValue(self._current_template_inverse_tmax)
-        self._sync_inverse_pde_substitution(self.radio_inverse.isChecked())
-        if hasattr(self, 'sched_cb'):
-            self.sched_cb.setChecked(True)
-            self._setup_default_scheduler_phases(t.get('template_type', ''), t['iterations'], t.get('iterations2', 10000))
-        self._auto_configure_ea(self._template_ref_dir)
-        self.log_box.append(f"✅ Template loaded: {text}")
+        # Time-Adaptive default (e.g. 1D Allen-Cahn). The fallback row ends
+        # at this template's own t_max (Schrodinger's ~1.5708, not 1.0).
+        self._tpl_reset_time_adaptive(t.get('ta_default'), t.get('t_max', 1.0), "101")
+        self._tpl_finish(text, t)
 
     def _on_loss_plot_settings(self):
         """Loss Plot Settings dialog (Round 28) -- the chat-agreed design:
