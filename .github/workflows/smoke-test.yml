@@ -97,3 +97,4 @@ jobs:
           python tests/test_round57_plot_settings_shared.py
           python tests/test_round58_ea_setup_shared.py
           python tests/test_round59_templates_and_build_ui.py
+          python tests/test_round60_adapt_reference_toggles.py

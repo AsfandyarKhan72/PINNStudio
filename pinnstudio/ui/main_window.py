@@ -1952,33 +1952,12 @@ class MainWindow(QMainWindow):
         row_a1.addWidget(self.adapt_combo)
         adapt_layout.addLayout(row_a1)
 
-        # "📖 Show reference" toggle + hint, at the top of this panel, same
-        # pattern as the other panels' own reference toggles. Its text
-        # tracks whichever method is currently selected above (None/Time
-        # Adaptive/RAR), refreshed by _update_adapt_ref_hint() below.
-        adapt_ref_row = QHBoxLayout()
-        self.adapt_ref_toggle = QCheckBox("\U0001F4D6 Show reference")
-        self.adapt_ref_toggle.setChecked(False)
-        self._register_hint(self.adapt_ref_toggle, '#74c0fc')
-        adapt_ref_row.addWidget(self.adapt_ref_toggle)
-        adapt_ref_row.addStretch()
-        adapt_ref_row_widget = QWidget()
-        adapt_ref_row_widget.setLayout(adapt_ref_row)
-        adapt_layout.addWidget(adapt_ref_row_widget)
-
-        self.adapt_ref_hint = QLabel("")
-        self._register_hint(self.adapt_ref_hint, '#74c0fc')
-        self.adapt_ref_hint.setWordWrap(True)
-        self.adapt_ref_hint.setVisible(False)
-        adapt_layout.addWidget(self.adapt_ref_hint)
-        self.adapt_ref_toggle.stateChanged.connect(lambda state: self.adapt_ref_hint.setVisible(state == 2))
-        self.adapt_combo.currentTextChanged.connect(lambda _t: self._update_adapt_ref_hint())
-        self._update_adapt_ref_hint()
-
         # Time Adaptive widget
         self.ta_widget = QWidget()
         ta_layout = QVBoxLayout(self.ta_widget)
         ta_layout.setSpacing(4); ta_layout.setContentsMargins(0, 0, 0, 0)
+        self.ta_ref_toggle, self.ta_ref_hint = self._add_reference_toggle(
+            ta_layout, "Show Time-Adaptive reference", self._TA_REFERENCE_TEXT)
 
         # ── Step groups ───────────────────────────────────────
         ta_groups_label = QLabel("Time step groups:")
@@ -2084,6 +2063,8 @@ class MainWindow(QMainWindow):
         self.rar_widget = QWidget()
         rar_layout = QVBoxLayout(self.rar_widget)
         rar_layout.setSpacing(4); rar_layout.setContentsMargins(0, 0, 0, 0)
+        self.rar_ref_toggle, self.rar_ref_hint = self._add_reference_toggle(
+            rar_layout, "Show RAR reference", self._RAR_REFERENCE_TEXT)
 
         def _rar_row(label, default, min_v, max_v, step):
             row = QHBoxLayout()
@@ -4716,35 +4697,43 @@ class MainWindow(QMainWindow):
         self.rar_widget.setVisible(text == "Residual-based Adaptive Refinement (RAR)")
         self.ta_widget.setVisible(text == "Time Adaptive Training")
 
-    def _update_adapt_ref_hint(self):
-        """Keeps the Adaptive Training panel's "Show reference" hint text
-        matched to whichever method is currently selected -- only one of
-        Time Adaptive/RAR is ever visible at a time, so one shared toggle
-        (rather than a separate one per method, most of the time hidden
-        anyway) explains whichever one applies right now."""
-        text = self.adapt_combo.currentText()
-        if text == "Time Adaptive Training":
-            ref = ("Splits the time domain into consecutive steps (see the step groups\n"
-                   "above) and trains one model per step in sequence, each only over its\n"
-                   "own narrow time window instead of the whole domain at once --\n"
-                   "usually tracks fast-changing solutions better than a single model\n"
-                   "trained over the full time range.\n"
-                   "\"Transfer learning\" warm-starts each new step's model from the\n"
-                   "previous step's trained weights instead of starting fresh every time.\n"
-                   "\"IC grid resolution\" sets how finely the previous step's solution is\n"
-                   "sampled to build the next step's initial condition.")
-        elif text == "Residual-based Adaptive Refinement (RAR)":
-            ref = ("Periodically samples a large pool of random points, checks how badly\n"
-                   "each one currently satisfies the PDE (its \"residual\"), and adds the\n"
-                   "worst-residual points to training -- concentrating effort where the\n"
-                   "model is currently least accurate, instead of resampling uniformly.\n"
-                   "That's one \"round\"; it repeats for the configured number of rounds,\n"
-                   "retraining for a fixed number of iterations after each one.\n"
-                   "\"Points from:\" picks which equation's residual to rank candidate\n"
-                   "points by, for a problem with more than one output/equation.")
-        else:
-            ref = "Pick Time Adaptive Training or RAR above to see what each one does."
-        self.adapt_ref_hint.setText(ref)
+    # Adaptive Training reference texts -- one toggle per method, inside
+    # that method's own section, so each only shows while its method is
+    # selected (it used to be one shared toggle whose text followed the
+    # Method dropdown).
+    _TA_REFERENCE_TEXT = ("Splits the time domain into consecutive steps (see the step groups\n"
+        "below) and trains one model per step in sequence, each only over its\n"
+        "own narrow time window instead of the whole domain at once --\n"
+        "usually tracks fast-changing solutions better than a single model\n"
+        "trained over the full time range.\n"
+        "\"Transfer learning\" warm-starts each new step's model from the\n"
+        "previous step's trained weights instead of starting fresh every time.\n"
+        "\"IC grid resolution\" sets how finely the previous step's solution is\n"
+        "sampled to build the next step's initial condition.")
+    _RAR_REFERENCE_TEXT = ("Periodically samples a large pool of random points, checks how badly\n"
+        "each one currently satisfies the PDE (its \"residual\"), and adds the\n"
+        "worst-residual points to training -- concentrating effort where the\n"
+        "model is currently least accurate, instead of resampling uniformly.\n"
+        "That's one \"round\"; it repeats for the configured number of rounds,\n"
+        "retraining for a fixed number of iterations after each one.\n"
+        "\"Points from:\" picks which equation's residual to rank candidate\n"
+        "points by, for a problem with more than one output/equation.")
+
+    def _add_reference_toggle(self, layout, label, text):
+        """A "📖 <label>" checkbox plus the hint text it shows/hides, added
+        to `layout` -- the same look as every panel's reference toggle.
+        Returns (toggle, hint)."""
+        toggle = QCheckBox(f"\U0001F4D6 {label}")
+        toggle.setChecked(False)
+        self._register_hint(toggle, '#74c0fc')
+        hint = QLabel(text)
+        self._register_hint(hint, '#74c0fc')
+        hint.setWordWrap(True)
+        hint.setVisible(False)
+        toggle.stateChanged.connect(lambda state, h=hint: h.setVisible(state == 2))
+        layout.addWidget(toggle)
+        layout.addWidget(hint)
+        return toggle, hint
 
     def _build_ta_step_groups_json(self):
         import json
