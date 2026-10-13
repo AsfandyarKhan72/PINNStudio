@@ -55,7 +55,7 @@ def _smoke(cfg, n=300):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", required=True)
-    ap.add_argument("--only", default="", help="run examples whose name contains this text ('|' separates several)")
+    ap.add_argument("--only", default="", help="run examples whose name (internal or shown) contains this text ('|' separates several)")
     ap.add_argument("--skip", default="", help="leave out examples whose name contains this text ('|' separates several)")
     ap.add_argument("--smoke", action="store_true")
     ap.add_argument("--export", action="store_true", help="run the exported script instead of the live one")
@@ -70,8 +70,12 @@ def main():
 
     wanted = [s for s in args.only.split("|") if s]
     skipped = [s for s in args.skip.split("|") if s]
-    examples = [e for e in dx.EXAMPLES if (not wanted or any(s in e.name for s in wanted))
-                and not any(s in e.name for s in skipped)]
+    from pinnstudio.core.example_catalog import display_name
+
+    def _names(e):   # internal name and the name shown in the GUI/README
+        return (e.name, display_name(e.name))
+    examples = [e for e in dx.EXAMPLES if (not wanted or any(s in n for s in wanted for n in _names(e)))
+                and not any(s in n for s in skipped for n in _names(e))]
     gen = generate_clean_script if args.export else generate_script
     rows = []
     for ex in examples:

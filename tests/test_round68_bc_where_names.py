@@ -133,7 +133,7 @@ def run():
     check(e3["location_picker"].currentText() == "Back (z = z_max)", "3D offers front/back")
 
     # 4) Built-in templates use side names.
-    w.quick_examples_category_combo.setCurrentText("PINNStudio")
+    w.quick_examples_category_combo.setCurrentText("Forward")
     w.quick_examples_combo.setCurrentText("1D Heat")
     locs = [r["location"] for r in json.loads(w._build_config().custom_bc_json)]
     check(locs and set(locs) <= {"left", "right"}, f"1D Heat BC rows use left/right: {locs}")

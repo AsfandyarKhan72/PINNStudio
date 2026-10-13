@@ -134,17 +134,20 @@ def run():
     w = MainWindow()
     w.save_dir_input.setText("/my/runs")
     cats = [w.quick_examples_category_combo.itemText(i) for i in range(w.quick_examples_category_combo.count())]
-    check(cats == ["PINNStudio", dx.FORWARD, dx.INVERSE], f"categories {cats}")
+    check(cats == ["Forward", "Inverse"], f"categories {cats}")
+    from pinnstudio.core import example_catalog as cat_mod
 
-    def items():
-        return [w.quick_examples_combo.itemText(i) for i in range(w.quick_examples_combo.count())]
+    def listed():
+        return w.quick_examples_combo.keys()
 
-    pinnstudio_items = items()
-    check("1D Heat" in pinnstudio_items and items()[0] == "None", "PINNStudio category lists its own templates")
-    for cat in dx.CATEGORIES:
+    fwd_items = listed()
+    check("1D Heat" in fwd_items and fwd_items[0] == "None", "Forward lists the PINNStudio templates")
+    for cat, dx_cat in (("Forward", dx.FORWARD), ("Inverse", dx.INVERSE)):
         w.quick_examples_category_combo.setCurrentText(cat)
-        check(items() == ["None", *dx.names(cat)], f"{cat}: lists its examples")
-        for name in dx.names(cat):
+        check(listed() == ["None", *[e.key for e in cat_mod.for_category(cat)]], f"{cat}: lists its examples in catalogue order")
+        check(set(dx.names(dx_cat)) <= set(listed()) and set(cat_mod.TEMPLATE_KEYS) <= set(listed()),
+              f"{cat}: every DeepXDE {cat.lower()} example and every template")
+        for name in dx.names(dx_cat):
             ex = dx.BY_NAME[name]
             want = dx.build_config(ex, REFERENCE_DATA_DIR)
             w.quick_examples_combo.setCurrentText(name)
@@ -163,9 +166,9 @@ def run():
             check(w.quick_examples_combo.currentText() == name, f"{name}: stays selected")
             check(w.save_dir_input.text() == "/my/runs", f"{name}: user's save folder kept")
 
-    # 4) Back to PINNStudio's own templates.
-    w.quick_examples_category_combo.setCurrentText("PINNStudio")
-    check(items() == pinnstudio_items, "PINNStudio category restored")
+    # 4) Back to the Forward list and a PINNStudio template.
+    w.quick_examples_category_combo.setCurrentText("Forward")
+    check(listed() == fwd_items, "Forward list restored")
     w.quick_examples_combo.setCurrentText("1D Heat")
     cfg = w._build_config()
     check(cfg.problem_dim == "1D" and "du_t" in cfg.pde_expressions and w.quick_examples_combo.currentText() == "1D Heat",

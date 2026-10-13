@@ -15,10 +15,59 @@ from PyQt6.QtGui import QPixmap, QAction, QColor, QMovie, QIntValidator
 from pinnstudio.core.config import PINNConfig
 from pinnstudio.core.runner import run_pinn
 from pinnstudio.core import deepxde_examples as _dx_examples
+from pinnstudio.core import example_catalog as _ex_catalog
 REFERENCE_DATA_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
     "reference_data",
 )
+
+
+class ExampleCombo(QComboBox):
+    """Quick Examples list: shows each example's name and source
+    ("Burgers 1D – RAR  ·  DeepXDE") under dimension headers, while
+    currentText()/setCurrentText() and keyChanged work with the example's
+    internal key ("Burgers equation with RAR", "1D Burgers", or "None") --
+    the name the rest of the GUI, saved projects and tests use."""
+    keyChanged = pyqtSignal(str)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.currentIndexChanged.connect(self._emit_key)
+
+    def set_entries(self, entries):
+        from PyQt6.QtGui import QStandardItem
+        self.blockSignals(True)
+        self.clear()
+        self.addItem("None", "None")
+        last = None
+        for e in entries:
+            if e.dim != last:
+                self.addItem(f"── {e.dim} ──", None)
+                item = self.model().item(self.count() - 1)
+                item.setEnabled(False)
+                last = e.dim
+            self.addItem(e.label, e.key)
+        self.setCurrentIndex(0)
+        self.blockSignals(False)
+
+    def keys(self):
+        return [self.itemData(i) for i in range(self.count()) if self.itemData(i)]
+
+    def currentText(self):
+        k = self.currentData()
+        return k if isinstance(k, str) else super().currentText()
+
+    def setCurrentText(self, text):
+        i = self.findData(text)
+        if i < 0:
+            i = self.findText(text)
+        if i >= 0:
+            self.setCurrentIndex(i)
+
+    def _emit_key(self, _i):
+        k = self.currentData()
+        if isinstance(k, str):
+            self.keyChanged.emit(k)
 
 
 class SciLineEdit(QLineEdit):
@@ -798,12 +847,16 @@ class MainWindow(QMainWindow):
         # forward / inverse examples (pinnstudio/core/deepxde_examples.py).
         examples_layout.addWidget(QLabel("Category:"), 0, 0)
         self.quick_examples_category_combo = QComboBox()
-        self.quick_examples_category_combo.addItems(["PINNStudio", *_dx_examples.CATEGORIES])
+        self.quick_examples_category_combo.addItems(list(_ex_catalog.CATEGORIES))
+        self.quick_examples_category_combo.setToolTip(
+            "Forward: every example, solving for the field.\n"
+            "Inverse: examples that learn unknown parameters or fields from data -- DeepXDE's inverse\n"
+            "examples, and PINNStudio's templates loaded in Inverse mode.")
         self.quick_examples_category_combo.setFixedHeight(28)
         self.quick_examples_category_combo.currentTextChanged.connect(self._on_quick_example_category_changed)
         examples_layout.addWidget(self.quick_examples_category_combo, 0, 1)
         examples_layout.addWidget(QLabel("Load example:"), 1, 0)
-        self.quick_examples_combo = QComboBox()
+        self.quick_examples_combo = ExampleCombo()
         # Every template across all three dimensions, up front -- not
         # filtered by whatever dimension happens to be selected right
         # now (there's nothing to filter BY yet, since this sits above
@@ -812,14 +865,14 @@ class MainWindow(QMainWindow):
         # _on_dim_changed resets this back to "None" when the user
         # changes dimension by hand instead (see both for the full
         # two-way sync).
-        self.quick_examples_combo.addItems(["None", *self._PINNSTUDIO_EXAMPLES])
+        self.quick_examples_combo.set_entries(_ex_catalog.for_category(_ex_catalog.FORWARD))
         self.quick_examples_combo.setFixedHeight(28)
         # Long DeepXDE names: keep the combo's width set by the panel, and
         # let the drop-down list itself be as wide as its longest entry.
         self.quick_examples_combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
         self.quick_examples_combo.setMinimumContentsLength(18)
         self.quick_examples_combo.view().setMinimumWidth(320)
-        self.quick_examples_combo.currentTextChanged.connect(self._on_quick_example_selected)
+        self.quick_examples_combo.keyChanged.connect(self._on_quick_example_selected)
         examples_layout.addWidget(self.quick_examples_combo, 1, 1)
         examples_layout.setColumnStretch(1, 1)
         left_layout.addWidget(examples_group)
@@ -4604,13 +4657,7 @@ class MainWindow(QMainWindow):
     def _on_quick_example_category_changed(self, category):
         """Refill "Load example:" with the chosen category's examples. The
         problem currently set up is left as it is (the list shows "None")."""
-        names = (list(self._PINNSTUDIO_EXAMPLES) if category == "PINNStudio"
-                 else _dx_examples.names(category))
-        self.quick_examples_combo.blockSignals(True)
-        self.quick_examples_combo.clear()
-        self.quick_examples_combo.addItems(["None", *names])
-        self.quick_examples_combo.setCurrentIndex(0)
-        self.quick_examples_combo.blockSignals(False)
+        self.quick_examples_combo.set_entries(_ex_catalog.for_category(category))
         self._update_bc_mode_visibility()
 
     def _apply_deepxde_example(self, name):
@@ -4632,6 +4679,13 @@ class MainWindow(QMainWindow):
             self._apply_config(cfg)
         finally:
             self._applying_template = False
+        # Show it in the list: switch to its category first if needed.
+        want_cat = _ex_catalog.INVERSE if ex.category == _dx_examples.INVERSE else _ex_catalog.FORWARD
+        if name not in self.quick_examples_combo.keys():
+            self.quick_examples_category_combo.blockSignals(True)
+            self.quick_examples_category_combo.setCurrentText(want_cat)
+            self.quick_examples_category_combo.blockSignals(False)
+            self.quick_examples_combo.set_entries(_ex_catalog.for_category(want_cat))
         self.quick_examples_combo.blockSignals(True)
         self.quick_examples_combo.setCurrentText(name)
         self.quick_examples_combo.blockSignals(False)
@@ -4646,7 +4700,7 @@ class MainWindow(QMainWindow):
             self._example_snapshot = (name, self._build_config())
         except Exception:
             self._example_snapshot = None
-        self.log_box.append(f"✅ DeepXDE example loaded: {name}")
+        self.log_box.append(f"✅ DeepXDE example loaded: {_ex_catalog.display_name(name)}")
         self.log_box.append(f"   Source: {ex.source}")
         if ex.note:
             self.log_box.append(f"   Note: {ex.note}")
@@ -4672,6 +4726,12 @@ class MainWindow(QMainWindow):
         # weight rows a second time and silently wipe such a default back
         # to 1.0, so it's intentionally not repeated.
         self._on_template_selected(text)
+        # The Inverse category loads a template in Inverse mode (which brings
+        # in the template's own measured-data file); Forward loads it in
+        # Forward mode.
+        want_inverse = self.quick_examples_category_combo.currentText() == _ex_catalog.INVERSE
+        if want_inverse != self.radio_inverse.isChecked():
+            (self.radio_inverse if want_inverse else self.radio_forward).setChecked(True)
 
     def _auto_configure_ea(self, ref_dir, is_steady=False):
         """Auto-configure error analysis when a template with ground truth files is loaded."""
@@ -8448,11 +8508,11 @@ class MainWindow(QMainWindow):
         except Exception:
             return
         if changes:
-            self.log_box.append(f"✏️ Changed from the \"{snap[0]}\" example:")
+            self.log_box.append(f"✏️ Changed from the \"{_ex_catalog.display_name(snap[0])}\" example:")
             for c in changes:
                 self.log_box.append(f"   • {c}")
         else:
-            self.log_box.append(f"ℹ️ \"{snap[0]}\" example with its own settings (unchanged).")
+            self.log_box.append(f"ℹ️ \"{_ex_catalog.display_name(snap[0])}\" example with its own settings (unchanged).")
 
     def _on_solve(self):
         _ok, _msg = self._geometry_supported_for_training()
