@@ -8684,7 +8684,9 @@ class MainWindow(QMainWindow):
                f"[Sweep {i + 1}/{total}] {status_icon} {label} -- final loss: —")
         l2 = result.get("l2_relative")
         if l2 is not None:
-            msg += f", L₂ relative error: {l2:.4e}"
+            n_t = int((result.get("metrics") or {}).get("n_times", 1))
+            msg += (f", L₂ relative error: {l2:.4e}" if n_t <= 1
+                    else f", L₂ relative error (mean over {n_t} reference times): {l2:.4e}")
         self.log_box.append(msg)
         # Remember the last run that actually finished successfully (not
         # necessarily the last one in the sequence -- if the sweep is
@@ -10845,7 +10847,7 @@ print("DOMAIN_PREVIEW_DONE")
             self._auto_configure_ea(self._template_ref_dir, is_steady=True)
         else:
             self._auto_configure_ea(self._template_ref_dir)
-        self.log_box.append(f"✅ Template loaded: {text}")
+        self.log_box.append(f"✅ Template loaded: {_ex_catalog.display_name(text)}")
 
     def _on_template_selected(self, text):
         if text == "📋 Examples":

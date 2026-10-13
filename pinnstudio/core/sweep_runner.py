@@ -33,9 +33,9 @@ active Optimizer Scheduler phase), never a legacy/inert field.
 Per-run results: each run's final training loss (parsed from the
 "Final loss: ..." line every generated script already prints to
 stdout) and, when the problem has Error Analysis reference data
-configured, the last reported L2 relative error (read back from that
-run's own error_analysis/error_metrics*.txt, which the generated script
-already writes -- see codegen.py).
+configured, the Error Analysis metrics averaged over the reference
+times (read back from that run's own error_analysis/error_metrics*.txt,
+which the generated script already writes -- see codegen.py).
 
 OUTPUT ORGANIZATION: the sweep's folder is named like a normal run's,
 "<label>_sweep__YYYY-MM-DD_HH-MM-SS", and every run gets its own
@@ -353,17 +353,20 @@ def run_folder_name(index, label, total=None):
     return f"run_{index:0{width}d}__" + "__".join(parts)[:100]
 
 
-def _read_last_metrics(cfg, not_before):
-    """Best-effort read of the error_analysis/error_metrics*.txt THIS run
-    just wrote: the last row's columns as {"t": .., "L2_relative": ..,
-    "MSE": .., "Max_error": .., "Mean_abs_error": ..} (only the metrics
-    ticked in Error Analysis are in the file), or {} if there's nothing
-    to read -- no Error Analysis reference configured (nothing is even
-    looked for) or nothing NEW.
+def _read_run_metrics(cfg, not_before):
+    """Best-effort read of the error_analysis/error_metrics*.txt files THIS
+    run just wrote (one per output group), averaged over every row --
+    i.e. over all the reference times set in Error Analysis (and over the
+    output groups, if several): {"L2_relative": .., "MSE": .., "Max_error":
+    .., "Mean_abs_error": .., "n_times": number of reference times}. Only
+    the metrics ticked in Error Analysis are in the files. A steady
+    problem has one row, so its value is just that row's. {} if there's
+    nothing to read -- no Error Analysis reference configured (nothing is
+    even looked for) or nothing NEW.
 
     `not_before` (a time.time() timestamp taken just before this run's
-    subprocess started) is strictly enforced: only a file whose mtime is
-    at or after it is trusted, so a file left over from an earlier run
+    subprocess started) is strictly enforced: only files whose mtime is
+    at or after it are trusted, so a file left over from an earlier run
     or an unrelated Solve in the same folder is never misreported as
     this run's result."""
     if (not getattr(cfg, "ea_files", None) or cfg.ea_files == "[]") and \
@@ -371,34 +374,40 @@ def _read_last_metrics(cfg, not_before):
         return {}
     save_dir = getattr(cfg, "save_dir", "") or "/tmp"
     ea_dir = os.path.join(save_dir, "error_analysis")
-    candidates = [
+    files = [
         p for p in glob.glob(os.path.join(ea_dir, "error_metrics*.txt"))
         if os.path.exists(p) and os.path.getmtime(p) >= not_before
     ]
-    if not candidates:
-        return {}
-    candidates.sort(key=os.path.getmtime)
-    try:
-        with open(candidates[-1]) as f:
-            lines = [ln.strip() for ln in f if ln.strip()]
+    cols, times = {}, set()
+    for path in files:
+        try:
+            with open(path) as f:
+                lines = [ln.strip() for ln in f if ln.strip()]
+        except OSError:
+            continue
         if len(lines) < 2:
-            return {}
+            continue
         head = [h.strip() for h in lines[0].split(",")]
-        row = lines[-1].split(",")
-        out = {}
-        for h, v in zip(head, row):
-            try:
-                out[h] = float(v)
-            except ValueError:
-                pass
-        return out
-    except (OSError, IndexError):
+        for line in lines[1:]:
+            for h, v in zip(head, line.split(",")):
+                try:
+                    x = float(v)
+                except ValueError:
+                    continue
+                if h == "t":
+                    times.add(x)
+                elif np.isfinite(x):
+                    cols.setdefault(h, []).append(x)
+    if not cols:
         return {}
+    out = {h: float(np.mean(v)) for h, v in cols.items()}
+    out["n_times"] = max(1, len(times))
+    return out
 
 
 def _read_last_l2(cfg, not_before):
-    """The last row's L2_relative from _read_last_metrics, or None."""
-    return _read_last_metrics(cfg, not_before).get("L2_relative")
+    """The run's relative L2 error (mean over the reference times), or None."""
+    return _read_run_metrics(cfg, not_before).get("L2_relative")
 
 
 def _apply_run_output_settings(cfg, base_config, run_dir):
@@ -507,7 +516,7 @@ def run_sweep(base_config, on_run_start=None, on_output=None, on_run_done=None,
             except ValueError:
                 pass  # keep the last successfully-parsed value, if any
 
-        metrics = _read_last_metrics(cfg, _run_started_at)
+        metrics = _read_run_metrics(cfg, _run_started_at)
         result = {
             "status": "done" if status == "DONE" else "error",
             "final_loss": final_loss,
@@ -606,7 +615,8 @@ def _num(v):
 def write_sweep_summary_plot(sweep_root, base_config, results):
     """sweep_error_vs_parameter.png in the sweep's folder: the Error
     Analysis error(s) of every run against the swept value (top row, log
-    scale; the metrics ticked in Error Analysis) and the final training
+    scale; the metrics ticked in Error Analysis, each the mean over the
+    run's reference times) and the final training
     loss (bottom row). One column per parameter for One-at-a-time; for
     All/Specified combinations the first parameter is on the x axis and
     the other parameters' values give one line each. Numeric values use
@@ -698,10 +708,9 @@ def write_sweep_summary_plot(sweep_root, base_config, results):
                 ax.legend(loc="best", fontsize=8, framealpha=0.9)
     what = "Error" if metrics else "Final loss"
     title = f"Parameter sweep: {what.lower()} vs " + (" / ".join(names) if ncol > 1 else names[0])
-    if metrics and any(r.get("metrics", {}).get("t") for _l, r in done) and not getattr(base_config, "steady_state", False):
-        ts = {r["metrics"].get("t") for _l, r in done if r.get("metrics")}
-        if len(ts) == 1:
-            title += f"  (error at t = {next(iter(ts)):g})"
+    n_t = max((int((r.get("metrics") or {}).get("n_times", 1)) for _l, r in done), default=1)
+    if metrics and n_t > 1:
+        title += f"\n(error = mean over the {n_t} reference times)"
     fig.suptitle(title, fontsize=12)
     fig.tight_layout()
     path = os.path.join(sweep_root, "sweep_error_vs_parameter.png")

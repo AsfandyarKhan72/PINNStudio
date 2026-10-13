@@ -295,6 +295,12 @@ def run():
         f.write("t,L2_relative,MSE,Max_error,Mean_abs_error\n0.0,0.123,0,0,0\n")
     check(_read_last_l2(_Fake(), now) == 0.123,
           "a results file written after the run's own start time should be read correctly")
+    with open(stale_path, "w") as f:
+        f.write("t,L2_relative,MSE,Max_error,Mean_abs_error\n0.0,0.1,0,0,0\n0.5,0.2,0,0,0\n1.0,0.6,0,0,0\n")
+    from pinnstudio.core.sweep_runner import _read_run_metrics
+    _m = _read_run_metrics(_Fake(), now)
+    check(abs(_m.get("L2_relative", 0) - 0.3) < 1e-12 and _m.get("n_times") == 3,
+          f"a time-dependent run's error is the mean over its reference times: {_m}")
 
     # ── v68: sweep mode combo has the 3 COMSOL-style options, then
     # Round 75's Bayesian search ───
