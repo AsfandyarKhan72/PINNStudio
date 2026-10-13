@@ -35,7 +35,7 @@
 <p align="center">
   <strong><a href="https://asfandyarkhan72.github.io/PINNStudio/">Website</a></strong> &nbsp;·&nbsp;
   <strong><a href="#quick-start">Quick Start</a></strong> &nbsp;·&nbsp;
-  <strong><a href="#built-in-templates">Templates</a></strong> &nbsp;·&nbsp;
+  <strong><a href="#examples">Examples</a></strong> &nbsp;·&nbsp;
   <strong><a href="#getting-started-with-your-own-pde">Your Own PDE</a></strong> &nbsp;·&nbsp;
   <strong><a href="https://github.com/AsfandyarKhan72/PINNStudio/discussions">Discussions</a></strong> &nbsp;·&nbsp;
   <strong><a href="#citation">Citation</a></strong>
@@ -52,8 +52,7 @@
 - [Quick Start](#quick-start)
 - [Running PINNStudio Again](#running-pinnstudio-again)
 - [What Gets Installed](#what-gets-installed)
-- [Built-in Templates](#built-in-templates)
-- [DeepXDE Examples](#deepxde-examples)
+- [Examples](#examples)
 - [Getting Started with Your Own PDE](#getting-started-with-your-own-pde)
 - [How It Works](#how-it-works)
 - [Citation](#citation)
@@ -127,9 +126,9 @@ The goal is to make physics-informed machine learning accessible to researchers 
 
 Every problem is defined over `(x, t)`, `(x, y, t)`, or `(x, y, z, t)` — switching dimension in the Setup panel rebuilds the relevant controls (geometry selector, boundary condition rows, plot options) for you, so nothing from a previous dimension is left over and silently wrong. Steady-state (time-independent) problems are supported in every dimension too — turn off the time axis and the network trains a pure `u(x)`, `u(x, y)`, or `u(x, y, z)` instead.
 
-**ODE (t)** problems have time as the only variable: write derivatives as `du_t`, `du_tt` (one equation per output for a system, e.g. `dy1_t - y2|dy2_t + y1`), give the initial values in the Initial Conditions panel, and use *Start*/*End* in a BC row for conditions at either end of the time range — see the ODE examples under [DeepXDE Examples](#deepxde-examples). An ODE can also contain integrals of the solution, `integral(f)` from t₀ to t with f in `s` (the integration variable), `t` and the outputs at s — for integro-differential equations such as `du_t + u - integral(exp(s - t)*u)`.
+**ODE (t)** problems have time as the only variable: write derivatives as `du_t`, `du_tt` (one equation per output for a system, e.g. `dy1_t - y2|dy2_t + y1`), give the initial values in the Initial Conditions panel, and use *Start*/*End* in a BC row for conditions at either end of the time range — see the ODE examples under [Examples](#examples). An ODE can also contain integrals of the solution, `integral(f)` from t₀ to t with f in `s` (the integration variable), `t` and the outputs at s — for integro-differential equations such as `du_t + u - integral(exp(s - t)*u)`.
 
-**Fractional equations**: write `frac(u)` for the fractional operator of order α applied to output u (DeepXDE's FPDE discretization — in 1D the left plus right Riemann-Liouville derivative, in 2D/3D the integral of the directional derivative over directions). The fractional settings (α, resolution, mesh) appear under the equations as soon as one uses `frac(...)`; α can be an inverse variable to learn it from data — see the fractional examples under [DeepXDE Examples](#deepxde-examples).
+**Fractional equations**: write `frac(u)` for the fractional operator of order α applied to output u (DeepXDE's FPDE discretization — in 1D the left plus right Riemann-Liouville derivative, in 2D/3D the integral of the directional derivative over directions). The fractional settings (α, resolution, mesh) appear under the equations as soon as one uses `frac(...)`; α can be an inverse variable to learn it from data — see the fractional examples under [Examples](#examples).
 
 </details>
 
@@ -212,7 +211,7 @@ Hidden layer count, neurons per layer, activation function, and kernel initializ
 
 **Network Type** (FNN / PFNN) is its own independent dropdown: the default **FNN** is a single shared trunk; **PFNN** (DeepXDE's own `dde.nn.PFNN`, a real built-in — not a custom extension) gives each output its own parallel sub-network, merging only at the final layer. Useful for multi-output problems where the outputs have different scales/behavior and a single shared trunk ends up fighting itself trying to serve both — 1D Schrödinger's real/imaginary parts, for example. A training script and the script that later restores its checkpoint always agree on how the network was shaped, since both read it from the same saved `model_config.json`.
 
-**MsFFN** and **STMsFFN** (multi-scale Fourier feature networks) pass the inputs through random Fourier features at several scales (`Fourier scales (σ)`, e.g. `1, 10`), which lets a PINN capture slow and fast variations together — see the multi-scale Poisson example under [DeepXDE Examples](#deepxde-examples).
+**MsFFN** and **STMsFFN** (multi-scale Fourier feature networks) pass the inputs through random Fourier features at several scales (`Fourier scales (σ)`, e.g. `1, 10`), which lets a PINN capture slow and fast variations together — see the multi-scale Poisson example under [Examples](#examples).
 
 </details>
 
@@ -334,7 +333,7 @@ Rather than clicking Solve once per configuration and tracking the results yours
 - **One-at-a-time** — vary each parameter separately against the same baseline (N+1 values across 2 parameters → 1 baseline + N runs per parameter).
 - **All combinations** (grid) — every value of every parameter, crossed together (2 parameters with 3 and 2 values → 6 runs).
 - **Specified combinations** (zip) — pair up each parameter's *i*-th value across all parameters (2 parameters with matching-length value lists, paired index-for-index).
-- **Bayesian search** — after the baseline, each run's settings are chosen by a Gaussian-process model of the results so far, to reach the lowest final loss (or L2 error) in as few runs as possible. Each parameter's Min/Max (linear or log) is its search range, a list its choices; **Runs** is the budget and **Random first** the number of random runs before the model takes over. The sweep folder gets `bayes_search.csv` and a convergence plot, and the best run is printed at the end — see the Helmholtz hyperparameter-optimization example under [DeepXDE Examples](#deepxde-examples).
+- **Bayesian search** — after the baseline, each run's settings are chosen by a Gaussian-process model of the results so far, to reach the lowest final loss (or L2 error) in as few runs as possible. Each parameter's Min/Max (linear or log) is its search range, a list its choices; **Runs** is the budget and **Random first** the number of random runs before the model takes over. The sweep folder gets `bayes_search.csv` and a convergence plot, and the best run is printed at the end — see the Helmholtz hyperparameter-optimization example under [Examples](#examples).
 
 Each parameter row takes a comma-separated list of values, or a linear/log numeric range (min, max, number of steps); categorical parameters (activation, point distribution, etc.) are always a plain list of choices.
 
@@ -543,47 +542,615 @@ That's it - no need to reinstall or recreate the virtual environment.
 
 A CUDA-capable GPU is optional but recommended for larger 2D/3D problems and inverse runs.
 
-## Built-in Templates
+## Examples
 
-Each template preconfigures the PDE, domain, boundary/initial conditions, network size, and training schedule — pick one from *Quick Examples*, then adjust as needed. All twelve support both **Forward** and **Inverse** mode.
+PINNStudio comes with 63 ready-to-run examples, all listed in the table below and loaded from *Quick Examples*:
 
-All twelve templates ship with bundled reference data (see [`reference_data/`](reference_data)), generated independently of the PINN, so Error Analysis auto-configures against real ground truth the moment you load them — no setup, no external download.
+- **PINNStudio templates** (12, *Category → PINNStudio*): our own problems, several reproducing published PINN results (Raissi et al., Wight & Zhao, Mattey & Ghosh, Mathias et al., Lu et al.). Each one works in both **Forward** and **Inverse** mode, and all of them ship with reference data in [`reference_data/`](reference_data), so Error Analysis is ready as soon as you load one.
+- **DeepXDE examples** (41 forward, 10 inverse, *Category → DeepXDE Forward / DeepXDE Inverse*): the PINN examples from DeepXDE's documentation ([forward](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward.html), [inverse](https://deepxde.readthedocs.io/en/latest/demos/pinn_inverse.html)), set up with each script's own equation, geometry, boundary/initial conditions, network, optimizers, iteration counts and loss weights, so pressing **Solve** trains what the DeepXDE script trains. Anything that differs from the script is printed in the Training Log when the example loads, and noted in its entry below.
 
-| Template | Dimension | Regime | Geometry | Reference |
-|---|---|---|---|---|
-| [1D Heat](#1d-heat) | 1D | Time-dependent | Interval | — |
-| [1D Allen-Cahn](#1d-allen-cahn) | 1D | Time-dependent | Interval | Wight & Zhao (2021) |
-| [1D Burgers](#1d-burgers) | 1D | Time-dependent | Interval | Raissi et al. (2019) |
-| [1D Schrödinger](#1d-schrödinger) | 1D | Time-dependent | Interval | Raissi et al. (2019) |
-| [2D Heat](#2d-heat) | 2D | Time-dependent | Rectangle | — |
-| [2D Allen-Cahn (Mattey & Ghosh)](#2d-allen-cahn-mattey--ghosh) | 2D | Time-dependent | Rectangle | Mattey & Ghosh (2022) |
-| [2D Allen-Cahn (Wight & Zhao)](#2d-allen-cahn-wight--zhao) | 2D | Time-dependent | Rectangle | Wight & Zhao (2021) |
-| [2D Burgers (Mathias)](#2d-burgers-mathias) | 2D | Time-dependent | Rectangle | Mathias et al. (2022) |
-| [2D Poisson (L-Shape)](#2d-poisson-l-shape) | 2D | Steady | Polygon (L-shape) | Lu et al. (2021) |
-| [2D Poisson (Disk)](#2d-poisson-disk) | 2D | Steady | Disk | — |
-| [3D Heat](#3d-heat) | 3D | Time-dependent | Cuboid | — |
-| [3D Poisson (Sphere)](#3d-poisson-sphere) | 3D | Steady | Sphere | — |
+Loading an example fills in every setting, and you can change any of them before pressing **Solve**; if you do, the Training Log lists what you changed. Your save folder, GPU, random-seed and plot-style settings are kept when you load one.
 
-*Click a template name below to expand its full definition. "GUI recipe" is the exact dropdown path to load it yourself.*
+**Error Analysis reference:** where the problem has an exact solution, Error Analysis compares against it directly (*Exact solution*). Otherwise it uses reference files: PINNStudio's own (*PINNStudio data*) or data computed by [`tools/make_deepxde_reference_data.py`](tools/make_deepxde_reference_data.py) (*Generated data*; no data is copied from DeepXDE's repository). Examples marked "—" have no bundled reference; you can add your own files in the Error Analysis dialog.
 
----
+Every result shown below comes from one training run with the example's settings on an RTX 4090. Errors are relative L2 errors from Error Analysis, and they vary a little from run to run.
 
-<details id="1d-heat">
-<summary><strong>1D Heat</strong></summary>
+The table is ordered by dimension (ODE, 1D, 2D, 3D), then steady before time-dependent and forward before inverse; examples of the same problem sit next to each other.
 
-$$\Large \frac{\partial u}{\partial t} = 0.4\frac{\partial^2 u}{\partial x^2}, \qquad x \in [0, 1],\ t \in [0, 1]$$
+| # | Example | Dimension | Regime | Problem | Geometry | Error Analysis reference | Reference |
+|---|---|---|---|---|---|---|---|
+| | **ODE (t only)** | | | | | | |
+| 1 | [Integro-differential equation](#dx-integro-differential-equation) | ODE | Time-dependent | Forward | — (t only) | Exact solution | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/ide.html) |
+| 2 | [Lotka-Volterra equation](#dx-lotka-volterra-equation) | ODE | Time-dependent | Forward | — (t only) | Generated data | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/Lotka.Volterra.html) |
+| 3 | [ODE system](#dx-ode-system) | ODE | Time-dependent | Forward | — (t only) | Exact solution | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/ode.system.html) |
+| 4 | [Second-order ODE](#dx-second-order-ode) | ODE | Time-dependent | Forward | — (t only) | Exact solution | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/ode.2nd.html) |
+| 5 | [Volterra integro-differential equation](#dx-volterra-integro-differential-equation) | ODE | Time-dependent | Forward | — (t only) | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Volterra_IDE.py) |
+| 6 | [Inverse: Lorenz system](#dx-inverse-lorenz-system) | ODE | Time-dependent | Inverse | — (t only) | Generated data | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_inverse/Lorenz.inverse.html) |
+| 7 | [Inverse: Lorenz system with exogenous input](#dx-inverse-lorenz-system-with-exogenous-input) | ODE | Time-dependent | Inverse | — (t only) | Generated data | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_inverse/Lorenz.inverse.forced.html) |
+| | **1D** | | | | | | |
+| 8 | [Euler beam](#dx-euler-beam) | 1D | Steady | Forward | Interval | Exact solution | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/eulerbeam.html) |
+| 9 | [Fractional Poisson equation 1D](#dx-fractional-poisson-equation-1d) | 1D | Steady | Forward | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/fractional_Poisson_1d.py) |
+| 10 | [Poisson 1D – Dirichlet](#dx-poisson-1d-dirichlet) | 1D | Steady | Forward | Interval | Exact solution | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/poisson.1d.dirichlet.html) |
+| 11 | [Poisson 1D – Dirichlet/Neumann](#dx-poisson-1d-dirichlet-neumann) | 1D | Steady | Forward | Interval | Exact solution | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/poisson.1d.neumanndirichlet.html) |
+| 12 | [Poisson 1D – Dirichlet/Periodic](#dx-poisson-1d-dirichlet-periodic) | 1D | Steady | Forward | Interval | Exact solution | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/poisson.1d.dirichletperiodic.html) |
+| 13 | [Poisson 1D – Dirichlet/PointSetOperator](#dx-poisson-1d-dirichlet-pointsetoperator) | 1D | Steady | Forward | Interval | Exact solution | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/poisson.1d.pointsetoperator.html) |
+| 14 | [Poisson 1D – Dirichlet/Robin](#dx-poisson-1d-dirichlet-robin) | 1D | Steady | Forward | Interval | Exact solution | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/poisson.1d.dirichletrobin.html) |
+| 15 | [Poisson 1D – hard boundary conditions](#dx-poisson-1d-hard-boundary-conditions) | 1D | Steady | Forward | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Poisson_Dirichlet_1d_exactBC.py) |
+| 16 | [Poisson 1D – multi-scale Fourier features](#dx-poisson-1d-multi-scale-fourier-features) | 1D | Steady | Forward | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Poisson_multiscale_1d.py) |
+| 17 | [Inverse: Brinkman-Forchheimer model](#dx-inverse-brinkman-forchheimer-model) | 1D | Steady | Inverse | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/brinkman_forchheimer.py) |
+| 18 | [Inverse: diffusion-reaction with space-dependent rate](#dx-inverse-diffusion-reaction-with-space-dependent-rate) | 1D | Steady | Inverse | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/diffusion_reaction_rate.py) |
+| 19 | [Inverse: fractional Poisson equation 1D](#dx-inverse-fractional-poisson-equation-1d) | 1D | Steady | Inverse | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/fractional_Poisson_1d_inverse.py) |
+| 20 | [Inverse: Poisson with unknown forcing field](#dx-inverse-poisson-with-unknown-forcing-field) | 1D | Steady | Inverse | Interval | Exact solution | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_inverse/elliptic.inverse.field.html) |
+| 21 | [Inverse: Poisson with unknown forcing field (batches)](#dx-inverse-poisson-with-unknown-forcing-field-batches) | 1D | Steady | Inverse | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/elliptic_inverse_field_batch.py) |
+| 22 | [1D Allen-Cahn](#1d-allen-cahn) | 1D | Time-dependent | Forward / Inverse | Interval | PINNStudio data | Wight & Zhao (2021) |
+| 23 | [Allen-Cahn equation](#dx-allen-cahn-equation) | 1D | Time-dependent | Forward | Interval | Generated data | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/allen.cahn.html) |
+| 24 | [American put option](#dx-american-put-option) | 1D | Time-dependent | Forward | Interval | — | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/american_put.py) |
+| 25 | [Black-Scholes equation (call option)](#dx-black-scholes-equation-call-option) | 1D | Time-dependent | Forward | Interval | Exact solution | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/black_scholes.html) |
+| 26 | [1D Burgers](#1d-burgers) | 1D | Time-dependent | Forward / Inverse | Interval | PINNStudio data | Raissi et al. (2019) |
+| 27 | [Burgers equation](#dx-burgers-equation) | 1D | Time-dependent | Forward | Interval | PINNStudio data | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/burgers.html) |
+| 28 | [Burgers equation with RAR](#dx-burgers-equation-with-rar) | 1D | Time-dependent | Forward | Interval | PINNStudio data | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/burgers.rar.html) |
+| 29 | [Diffusion equation](#dx-diffusion-equation) | 1D | Time-dependent | Forward | Interval | Exact solution | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/diffusion.1d.html) |
+| 30 | [Diffusion equation with hard IC and BC](#dx-diffusion-equation-with-hard-ic-and-bc) | 1D | Time-dependent | Forward | Interval | Exact solution | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/diffusion.1d.exactBC.html) |
+| 31 | [Diffusion equation with resampling](#dx-diffusion-equation-with-resampling) | 1D | Time-dependent | Forward | Interval | Exact solution | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/diffusion.1d.resample.html) |
+| 32 | [Diffusion-reaction equation](#dx-diffusion-reaction-equation) | 1D | Time-dependent | Forward | Interval | Exact solution | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/diffusion.reaction.html) |
+| 33 | [Fractional diffusion equation](#dx-fractional-diffusion-equation) | 1D | Time-dependent | Forward | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/fractional_diffusion_1d.py) |
+| 34 | [1D Heat](#1d-heat) | 1D | Time-dependent | Forward / Inverse | Interval | PINNStudio data | PINNStudio |
+| 35 | [Heat equation](#dx-heat-equation) | 1D | Time-dependent | Forward | Interval | Exact solution | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/heat.html) |
+| 36 | [Heat equation with resampling](#dx-heat-equation-with-resampling) | 1D | Time-dependent | Forward | Interval | Exact solution | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/heat.resample.html) |
+| 37 | [Klein-Gordon equation](#dx-klein-gordon-equation) | 1D | Time-dependent | Forward | Interval | Exact solution | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/klein.gordon.html) |
+| 38 | [1D Schrödinger](#1d-schrödinger) | 1D | Time-dependent | Forward / Inverse | Interval | PINNStudio data | Raissi et al. (2019) |
+| 39 | [Schrödinger equation](#dx-schr-dinger-equation) | 1D | Time-dependent | Forward | Interval | PINNStudio data | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Schrodinger.ipynb) |
+| 40 | [Wave propagation – space-time multi-scale Fourier features](#dx-wave-propagation-space-time-multi-scale-fourier-features) | 1D | Time-dependent | Forward | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/wave_1d.py) |
+| 41 | [Inverse: diffusion equation](#dx-inverse-diffusion-equation) | 1D | Time-dependent | Inverse | Interval | Exact solution | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_inverse/diffusion.1d.inverse.html) |
+| 42 | [Inverse: diffusion-reaction system](#dx-inverse-diffusion-reaction-system) | 1D | Time-dependent | Inverse | Interval | — | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_inverse/reaction.inverse.html) |
+| | **2D** | | | | | | |
+| 43 | [Fractional Poisson equation 2D](#dx-fractional-poisson-equation-2d) | 2D | Steady | Forward | Disk | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/fractional_Poisson_2d.py) |
+| 44 | [Helmholtz 2D (Dirichlet)](#dx-helmholtz-2d-dirichlet) | 2D | Steady | Forward | Rectangle | Exact solution | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/helmholtz.2d.dirichlet.html) |
+| 45 | [Helmholtz 2D with a hole](#dx-helmholtz-2d-with-a-hole) | 2D | Steady | Forward | Rectangle − Disk | Exact solution | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/helmholtz.2d.neumann.hole.html) |
+| 46 | [Helmholtz 2D – hyperparameter optimization](#dx-helmholtz-2d-hyperparameter-optimization) | 2D | Steady | Forward | Rectangle | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Helmholtz_Dirichlet_2d_HPO.py) |
+| 47 | [Helmholtz sound-hard scattering (absorbing BC)](#dx-helmholtz-sound-hard-scattering-absorbing-bc) | 2D | Steady | Forward | Rectangle − Disk | Generated data | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Helmholtz_Sound_hard_ABC_2d.py) |
+| 48 | [Kovasznay flow](#dx-kovasznay-flow) | 2D | Steady | Forward | Rectangle | Exact solution | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/Kovasznay.flow.html) |
+| 49 | [Laplace equation on a disk](#dx-laplace-equation-on-a-disk) | 2D | Steady | Forward | Rectangle in (r, θ) | Exact solution | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/laplace.disk.html) |
+| 50 | [Linear elastostatic plate](#dx-linear-elastostatic-plate) | 2D | Steady | Forward | Rectangle | Exact solution | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/elasticity.plate.html) |
+| 51 | [Linear elastostatic plate (soft BCs)](#dx-linear-elastostatic-plate-soft-bcs) | 2D | Steady | Forward | Rectangle | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/elasticity_plate.py) |
+| 52 | [2D Poisson (Disk)](#2d-poisson-disk) | 2D | Steady | Forward / Inverse | Disk | PINNStudio data | PINNStudio |
+| 53 | [2D Poisson (L-Shape)](#2d-poisson-l-shape) | 2D | Steady | Forward / Inverse | Polygon (L-shape) | PINNStudio data | Lu et al. (2021) |
+| 54 | [Poisson over an L-shaped domain](#dx-poisson-over-an-l-shaped-domain) | 2D | Steady | Forward | Polygon (L-shape) | PINNStudio data | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/poisson.Lshape.html) |
+| 55 | [Inverse: fractional Poisson equation 2D](#dx-inverse-fractional-poisson-equation-2d) | 2D | Steady | Inverse | Disk | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/fractional_Poisson_2d_inverse.py) |
+| 56 | [2D Allen-Cahn (Mattey & Ghosh)](#2d-allen-cahn-mattey--ghosh) | 2D | Time-dependent | Forward / Inverse | Rectangle | PINNStudio data | Mattey & Ghosh (2022) |
+| 57 | [2D Allen-Cahn (Wight & Zhao)](#2d-allen-cahn-wight--zhao) | 2D | Time-dependent | Forward / Inverse | Rectangle | PINNStudio data | Wight & Zhao (2021) |
+| 58 | [2D Burgers (Mathias)](#2d-burgers-mathias) | 2D | Time-dependent | Forward / Inverse | Rectangle | PINNStudio data | Mathias et al. (2022) |
+| 59 | [2D Heat](#2d-heat) | 2D | Time-dependent | Forward / Inverse | Rectangle | PINNStudio data | PINNStudio |
+| | **3D** | | | | | | |
+| 60 | [Fractional Poisson equation 3D](#dx-fractional-poisson-equation-3d) | 3D | Steady | Forward | Sphere | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/fractional_Poisson_3d.py) |
+| 61 | [3D Poisson (Sphere)](#3d-poisson-sphere) | 3D | Steady | Forward / Inverse | Sphere | PINNStudio data | PINNStudio |
+| 62 | [Beltrami flow](#dx-beltrami-flow) | 3D | Time-dependent | Forward | Cuboid | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Beltrami_flow.py) |
+| 63 | [3D Heat](#3d-heat) | 3D | Time-dependent | Forward / Inverse | Cuboid | PINNStudio data | PINNStudio |
 
-- **Initial condition:** $u(x, 0) = \sin(\pi x)$
-- **Boundary conditions:** Dirichlet, $u = 0$ at both ends
-- **Geometry:** Interval
-- **Reference data:** bundled numerical solution (no external source)
-- **GUI recipe:** Dimension → 1D · Quick Examples → **1D Heat**
+The "unknown field" inverse examples learn the field as an extra network output from measurements given as a Point Set boundary condition, so they run in Forward mode, as in DeepXDE. To train the DeepXDE examples from the command line and print their Error Analysis results:
 
-![1D Heat — PINN vs Ground Truth, Error Analysis surface comparison](assets/Images/1D-Heat/surface_comparison.png)
+```bash
+python tools/run_deepxde_examples.py --out deepxde_runs            # full settings
+python tools/run_deepxde_examples.py --smoke --out deepxde_runs    # a few hundred iterations each
+```
 
-*Inverse mode* — same template, switched to **Inverse**, recovering the diffusivity coefficient (fixed at $0.4$ in Forward mode above) as an unknown parameter; the live convergence plot below shows the estimate settling onto its true value during training:
 
-![1D Heat inverse parameter convergence animation](assets/Images/1D-Heat/param_convergence_animation.gif)
+### ODE examples
+
+*Click an example to expand it.*
+
+<details id="dx-integro-differential-equation">
+<summary><strong>Integro-differential equation</strong></summary>
+
+DeepXDE example: [ide.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/ide.html)
+
+$$\Large \frac{du}{dt} + \int_0^t u(s)\,ds = 2\pi\cos(2\pi t) + \frac{\sin^2(\pi t)}{\pi}, \qquad t \in [0, 1]$$
+
+- **Problem dimension:** ODE (t) — `du_t + integral(u) - (2*pi*cos(2*pi*t) + sin(pi*t)**2/pi)`
+- **Initial condition:** $u(0) = 0$
+- **Integral:** 16-point Gauss-Legendre quadrature of the network (*∫ points* 16, DeepXDE's `quad_deg`)
+- **Exact solution:** $u = \sin(2\pi t)$
+- **Network:** FNN [2, 20, 20, 20, 1], tanh, Glorot uniform
+- **Training:** Adam 10,000; 16 domain, 2 boundary points
+- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Integro-differential equation**
+
+**Result (RTX 4090):** L2 = 1.5e-4
+
+*PINN vs reference along a line*
+
+![Integro-differential equation — PINN vs reference along a line](assets/Images/DeepXDE/Integro_differential_equation/line_comparison.png)
+
+</details>
+
+<details id="dx-lotka-volterra-equation">
+<summary><strong>Lotka-Volterra equation</strong></summary>
+
+DeepXDE example: [Lotka.Volterra.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/Lotka.Volterra.html)
+
+$$\Large \frac{dr}{dt} = \frac{R}{U}\left(2Ur - 0.04U^2 rp\right), \qquad \frac{dp}{dt} = \frac{R}{U}\left(0.02U^2 rp - 1.06Up\right), \qquad t \in [0, 1]$$
+
+- **Problem dimension:** ODE (t); populations scaled by $U = 200$ and time by $R = 20$ (constants `ub`, `rb`)
+- **Initial conditions:** $r(0) = 100/U$, $p(0) = 15/U$, imposed exactly by the output transform $\hat r = r\tanh t + 100/U$, $\hat p = p\tanh t + 15/U$
+- **Input features:** $(t, \sin t, \sin 2t, \ldots, \sin 6t)$ through an input-transform formula
+- **Reference:** SciPy `solve_ivp` solution of the same system
+- **Constants:** `ub = 200`, `rb = 20`
+- **Network:** FNN [2, 64, 64, 64, 64, 64, 64, 2], tanh, Glorot normal
+- **Training:** Adam 50,000 → L-BFGS 15,000; 3,000 domain, 2 boundary points
+- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Lotka-Volterra equation**
+
+**Result (RTX 4090):** L2 = 2.1e-3 ($r$), 1.4e-3 ($p$)
+
+*r — PINN vs reference along a line*
+
+![Lotka-Volterra equation — PINN vs reference along a line (r)](assets/Images/DeepXDE/Lotka_Volterra_equation/line_comparison_r.png)
+
+*p — PINN vs reference along a line*
+
+![Lotka-Volterra equation — PINN vs reference along a line (p)](assets/Images/DeepXDE/Lotka_Volterra_equation/line_comparison_p.png)
+
+</details>
+
+<details id="dx-ode-system">
+<summary><strong>ODE system</strong></summary>
+
+DeepXDE example: [ode.system.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/ode.system.html)
+
+$$\Large \frac{dy_1}{dt} = y_2, \qquad \frac{dy_2}{dt} = -y_1, \qquad t \in [0, 10]$$
+
+- **Problem dimension:** ODE (t) — derivatives written `dy1_t`, `dy2_t`
+- **Initial conditions:** $y_1(0) = 0$, $y_2(0) = 1$
+- **Exact solution:** $y_1 = \sin t$, $y_2 = \cos t$
+- **Network:** FNN [2, 50, 50, 50, 2], tanh, Glorot uniform
+- **Training:** Adam 20,000; 35 domain, 2 boundary points
+- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **ODE system**
+
+**Result (RTX 4090):** L2 = 3.6e-3 ($y_1$), 3.1e-3 ($y_2$)
+
+*y1 — PINN vs reference along a line*
+
+![ODE system — PINN vs reference along a line (y1)](assets/Images/DeepXDE/ODE_system/line_comparison_y1.png)
+
+*y2 — PINN vs reference along a line*
+
+![ODE system — PINN vs reference along a line (y2)](assets/Images/DeepXDE/ODE_system/line_comparison_y2.png)
+
+</details>
+
+<details id="dx-second-order-ode">
+<summary><strong>Second-order ODE</strong></summary>
+
+DeepXDE example: [ode.2nd.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/ode.2nd.html)
+
+$$\Large \frac{d^2u}{dt^2} - 10\frac{du}{dt} + 9u = 5t, \qquad t \in [0, 0.25]$$
+
+- **Problem dimension:** ODE (t) — `du_tt - 10*du_t + 9*u - 5*t`
+- **Initial conditions:** $u(0) = -1$ (initial condition); $u'(0) = 2$ as an Operator BC `du_t - 2` applied at the initial time
+- **Loss weights:** 0.01 for the equation, 1 for both initial conditions, as in DeepXDE's script
+- **Exact solution:** $u = \frac{50}{81} + \frac{5}{9}t - 2e^{t} + \frac{31}{81}e^{9t}$
+- **Network:** FNN [2, 50, 50, 50, 1], tanh, Glorot uniform
+- **Training:** Adam 10,000; 16 domain, 2 boundary points
+- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Second-order ODE**
+
+**Result (RTX 4090):** L2 = 3.2e-5
+
+*PINN vs reference along a line*
+
+![Second-order ODE — PINN vs reference along a line](assets/Images/DeepXDE/Second_order_ODE/line_comparison.png)
+
+</details>
+
+<details id="dx-volterra-integro-differential-equation">
+<summary><strong>Volterra integro-differential equation</strong></summary>
+
+DeepXDE example: [Volterra_IDE.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Volterra_IDE.py)
+
+$$\Large \frac{du}{dt} + u(t) = \int_0^t e^{s - t}\,u(s)\,ds, \qquad t \in [0, 5]$$
+
+- **Problem dimension:** ODE (t) — `du_t + u - integral(exp(s - t)*u)`, the kernel and $u$ written in the integration variable `s`
+- **Initial condition:** $u(0) = 1$
+- **Integral:** 20-point Gauss-Legendre quadrature; 10 uniformly spaced collocation points; L-BFGS only, as in DeepXDE's script
+- **Exact solution:** $u = e^{-t}\cosh t$
+- **Network:** FNN [2, 20, 20, 20, 1], tanh, Glorot uniform
+- **Training:** L-BFGS 15,000; 10 domain, 2 boundary points
+- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Volterra integro-differential equation**
+
+**Result (RTX 4090):** L2 = 2.5e-3
+
+*PINN vs reference along a line*
+
+![Volterra integro-differential equation — PINN vs reference along a line](assets/Images/DeepXDE/Volterra_integro_differential_equation/line_comparison.png)
+
+</details>
+
+<details id="dx-inverse-lorenz-system">
+<summary><strong>Inverse: Lorenz system</strong></summary>
+
+DeepXDE example: [Lorenz.inverse.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_inverse/Lorenz.inverse.html)
+
+$$\Large \frac{dy_1}{dt} = C_1(y_2 - y_1), \qquad \frac{dy_2}{dt} = y_1(C_2 - y_3) - y_2, \qquad \frac{dy_3}{dt} = y_1y_2 - C_3y_3, \qquad t \in [0, 3]$$
+
+- **Problem dimension:** ODE (t); initial conditions $y(0) = (-8, 7, 27)$
+- **Unknowns:** $C_1, C_2, C_3$ (true $10, 15, 8/3$), all starting from 1
+- **Data:** $y_1, y_2, y_3$ measured at 50 times (also used as anchor points), from SciPy's `solve_ivp`
+- **Network:** FNN [2, 40, 40, 40, 3], tanh, Glorot uniform
+- **Training:** Adam 20,000 → L-BFGS 15,000; 400 domain, 2 boundary points
+- **GUI recipe:** Quick Examples → Category **DeepXDE Inverse** → **Inverse: Lorenz system**
+
+**Result (RTX 4090):** $C_1$ = 9.9990, $C_2$ = 14.9997, $C_3$ = 2.66675 (true 10, 15, 8/3); L2 = 1.2e-4 ($y_1$), 1.2e-4 ($y_2$), 6.7e-5 ($y_3$)
+
+*y1 — PINN vs reference along a line*
+
+![Inverse: Lorenz system — PINN vs reference along a line (y1)](assets/Images/DeepXDE/Inverse_Lorenz_system/line_comparison_y1.png)
+
+*y3 — PINN vs reference along a line*
+
+![Inverse: Lorenz system — PINN vs reference along a line (y3)](assets/Images/DeepXDE/Inverse_Lorenz_system/line_comparison_y3.png)
+
+*y1 — inferred parameters during training*
+
+![Inverse: Lorenz system — inferred parameters during training (y1)](assets/Images/DeepXDE/Inverse_Lorenz_system/param_plot.png)
+
+</details>
+
+<details id="dx-inverse-lorenz-system-with-exogenous-input">
+<summary><strong>Inverse: Lorenz system with exogenous input</strong></summary>
+
+DeepXDE example: [Lorenz.inverse.forced.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_inverse/Lorenz.inverse.forced.html)
+
+$$\Large \frac{dy_1}{dt} = C_1(y_2 - y_1), \qquad \frac{dy_2}{dt} = y_1(C_2 - y_3) - y_2, \qquad \frac{dy_3}{dt} = y_1y_2 - C_3y_3 + 10\sin(2\pi t)$$
+
+- **Problem dimension:** ODE (t), $t \in [0, 3]$; initial conditions $y(0) = (-8, 7, 27)$
+- **Exogenous input:** $f(t) = 10\sin(2\pi t)$, written straight into the equation
+- **Unknowns:** $C_1, C_2, C_3$ (true $10, 15, 8/3$), all starting from 1
+- **Data:** $y_1, y_2, y_3$ measured at 200 times, from SciPy's `solve_ivp`
+- **Network:** FNN [2, 40, 40, 40, 3], tanh, Glorot uniform
+- **Training:** Adam 60,000; 400 domain, 2 boundary points
+- **GUI recipe:** Quick Examples → Category **DeepXDE Inverse** → **Inverse: Lorenz system with exogenous input**
+
+**Result (RTX 4090):** $C_1$ = 9.987, $C_2$ = 14.998, $C_3$ = 2.6669 (true 10, 15, 8/3); L2 = 7.3e-4 ($y_1$), 6.6e-4 ($y_2$), 2.9e-4 ($y_3$)
+
+*y1 — PINN vs reference along a line*
+
+![Inverse: Lorenz system with exogenous input — PINN vs reference along a line (y1)](assets/Images/DeepXDE/Inverse_Lorenz_system_with_exogenous_input/line_comparison_y1.png)
+
+*y3 — PINN vs reference along a line*
+
+![Inverse: Lorenz system with exogenous input — PINN vs reference along a line (y3)](assets/Images/DeepXDE/Inverse_Lorenz_system_with_exogenous_input/line_comparison_y3.png)
+
+*y1 — inferred parameters during training*
+
+![Inverse: Lorenz system with exogenous input — inferred parameters during training (y1)](assets/Images/DeepXDE/Inverse_Lorenz_system_with_exogenous_input/param_plot.png)
+
+</details>
+
+### 1D examples
+
+*Click an example to expand it.*
+
+<details id="dx-euler-beam">
+<summary><strong>Euler beam</strong></summary>
+
+DeepXDE example: [eulerbeam.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/eulerbeam.html)
+
+$$\Large \frac{d^4u}{dx^4} = -1, \qquad x \in [0, 1]$$
+
+- **Boundary conditions:** $u(0) = 0$, $u'(0) = 0$ (clamped); $u''(1) = 0$, $u'''(1) = 0$ (free) — the last two as Operator BCs
+- **Exact solution:** $u = -\frac{x^4}{24} + \frac{x^3}{6} - \frac{x^2}{4}$
+- **Network:** FNN [1, 20, 20, 20, 1], tanh, Glorot uniform
+- **Training:** Adam 10,000; 10 domain, 2 boundary points
+- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Euler beam**
+
+**Result (RTX 4090):** L2 = 8.4e-3
+
+*PINN vs reference along a line*
+
+![Euler beam — PINN vs reference along a line](assets/Images/DeepXDE/Euler_beam/line_comparison.png)
+
+</details>
+
+<details id="dx-fractional-poisson-equation-1d">
+<summary><strong>Fractional Poisson equation 1D</strong></summary>
+
+DeepXDE example: [fractional_Poisson_1d.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/fractional_Poisson_1d.py)
+
+$$\Large D_{0+}^{\alpha}u + D_{1-}^{\alpha}u = f(x), \qquad x \in [0, 1],\ \alpha = 1.5$$
+
+- **Equation in the panel:** `frac(u) - (...)`, with $f$ written out with `gamma(...)` as in DeepXDE's script; constant `alpha`
+- **Fractional settings:** α `alpha`, resolution 101, static mesh (DeepXDE's FPDE, Grünwald-Letnikov)
+- **Boundary conditions:** $u(0) = u(1) = 0$, imposed exactly by the output transform $\hat u = x(1-x)N$
+- **Exact solution:** $u = x^3(1-x)^3$
+- **Constants:** `alpha = 1.5`
+- **Network:** FNN [1, 20, 20, 20, 20, 1], tanh, Glorot normal
+- **Training:** Adam 10,000; 101 domain, 2 boundary points
+- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Fractional Poisson equation 1D**
+
+**Result (RTX 4090):** L2 = 3.7e-2
+
+*PINN vs reference along a line*
+
+![Fractional Poisson equation 1D — PINN vs reference along a line](assets/Images/DeepXDE/Fractional_Poisson_equation_1D/line_comparison.png)
+
+</details>
+
+<details id="dx-poisson-1d-dirichlet">
+<summary><strong>Poisson 1D – Dirichlet</strong></summary>
+
+DeepXDE example: [poisson.1d.dirichlet.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/poisson.1d.dirichlet.html)
+
+$$\Large -\frac{d^2u}{dx^2} = \pi^2\sin(\pi x), \qquad x \in [-1, 1]$$
+
+- **Boundary conditions:** Dirichlet, $u(\pm 1) = 0$ — in the panel: Where `True` (whole boundary), Value `0`
+- **Exact solution:** $u = \sin(\pi x)$
+- **Network:** FNN [1, 50, 50, 50, 1], tanh, Glorot uniform
+- **Training:** Adam 10,000; 16 domain, 2 boundary points
+- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Poisson 1D – Dirichlet**
+
+**Result (RTX 4090):** L2 = 3.7e-4
+
+*PINN vs reference along a line*
+
+![Poisson 1D – Dirichlet — PINN vs reference along a line](assets/Images/DeepXDE/Poisson_1D_Dirichlet/line_comparison.png)
+
+</details>
+
+<details id="dx-poisson-1d-dirichlet-neumann">
+<summary><strong>Poisson 1D – Dirichlet/Neumann</strong></summary>
+
+DeepXDE example: [poisson.1d.neumanndirichlet.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/poisson.1d.neumanndirichlet.html)
+
+$$\Large \frac{d^2u}{dx^2} = 2, \qquad x \in [-1, 1]$$
+
+- **Boundary conditions:** Dirichlet $u(-1) = 0$ (Where `left`, Value `0`); Neumann $u'(1) = 4$ (Where `right`, Value `4` — at the right end the outward normal derivative is $du/dx$)
+- **Exact solution:** $u = (x + 1)^2$
+- **Network:** FNN [1, 50, 50, 50, 1], tanh, Glorot uniform
+- **Training:** Adam 10,000; 16 domain, 2 boundary points
+- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Poisson 1D – Dirichlet/Neumann**
+
+**Result (RTX 4090):** L2 = 2.3e-4
+
+*PINN vs reference along a line*
+
+![Poisson 1D – Dirichlet/Neumann — PINN vs reference along a line](assets/Images/DeepXDE/Poisson_1D_Dirichlet_Neumann/line_comparison.png)
+
+</details>
+
+<details id="dx-poisson-1d-dirichlet-periodic">
+<summary><strong>Poisson 1D – Dirichlet/Periodic</strong></summary>
+
+DeepXDE example: [poisson.1d.dirichletperiodic.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/poisson.1d.dirichletperiodic.html)
+
+$$\Large -\frac{d^2u}{dx^2} = \pi^2\sin(\pi x), \qquad x \in [-1, 1]$$
+
+- **Boundary conditions:** Dirichlet $u(-1) = 0$ (Where `left`); periodic $u(-1) = u(1)$ (Where `right`)
+- **Exact solution:** $u = \sin(\pi x)$
+- **Network:** FNN [1, 50, 50, 50, 1], tanh, Glorot uniform
+- **Training:** Adam 10,000; 16 domain, 2 boundary points
+- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Poisson 1D – Dirichlet/Periodic**
+
+**Result (RTX 4090):** L2 = 1.2e-2
+
+*PINN vs reference along a line*
+
+![Poisson 1D – Dirichlet/Periodic — PINN vs reference along a line](assets/Images/DeepXDE/Poisson_1D_Dirichlet_Periodic/line_comparison.png)
+
+</details>
+
+<details id="dx-poisson-1d-dirichlet-pointsetoperator">
+<summary><strong>Poisson 1D – Dirichlet/PointSetOperator</strong></summary>
+
+DeepXDE example: [poisson.1d.pointsetoperator.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/poisson.1d.pointsetoperator.html)
+
+$$\Large \frac{d^2u}{dx^2} = 2, \qquad x \in [-1, 1]$$
+
+- **Boundary conditions:** Dirichlet $u(-1) = 0$ (Where `left`); point-set operator condition $u'(1) = 4$ — a Point Set Operator row with the point typed in (Points `1`, Function `du_x`, Target value `4`; no file)
+- **Exact solution:** $u = (x + 1)^2$
+- **Network:** FNN [1, 50, 50, 50, 1], tanh, Glorot uniform
+- **Training:** Adam 20,000; 16 domain, 2 boundary points
+- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Poisson 1D – Dirichlet/PointSetOperator**
+
+**Result (RTX 4090):** L2 = 2.6e-5
+
+*PINN vs reference along a line*
+
+![Poisson 1D – Dirichlet/PointSetOperator — PINN vs reference along a line](assets/Images/DeepXDE/Poisson_1D_Dirichlet_PointSetOperator/line_comparison.png)
+
+</details>
+
+<details id="dx-poisson-1d-dirichlet-robin">
+<summary><strong>Poisson 1D – Dirichlet/Robin</strong></summary>
+
+DeepXDE example: [poisson.1d.dirichletrobin.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/poisson.1d.dirichletrobin.html)
+
+$$\Large \frac{d^2u}{dx^2} = 2, \qquad x \in [-1, 1]$$
+
+- **Boundary conditions:** Dirichlet $u(-1) = 0$ (Where `left`); Robin $u'(1) = u(1)$ (Where `right`, Value `u`)
+- **Exact solution:** $u = (x + 1)^2$
+- **Network:** FNN [1, 50, 50, 50, 1], tanh, Glorot uniform
+- **Training:** Adam 10,000; 16 domain, 2 boundary points
+- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Poisson 1D – Dirichlet/Robin**
+
+**Result (RTX 4090):** L2 = 2.4e-4
+
+*PINN vs reference along a line*
+
+![Poisson 1D – Dirichlet/Robin — PINN vs reference along a line](assets/Images/DeepXDE/Poisson_1D_Dirichlet_Robin/line_comparison.png)
+
+</details>
+
+<details id="dx-poisson-1d-hard-boundary-conditions">
+<summary><strong>Poisson 1D – hard boundary conditions</strong></summary>
+
+DeepXDE example: [Poisson_Dirichlet_1d_exactBC.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Poisson_Dirichlet_1d_exactBC.py)
+
+$$\Large -\frac{d^2u}{dx^2} = \sum_{k=1}^{4} k\sin(kx) + 8\sin(8x), \qquad x \in [0, \pi]$$
+
+- **Boundary conditions:** $u(0) = 0$, $u(\pi) = \pi$, imposed exactly by the output transform $\hat u = x(\pi - x)\,N(x) + x$
+- **Exact solution:** $u = x + \sum_{k=1}^{4}\frac{\sin(kx)}{k} + \frac{\sin(8x)}{8}$
+- **Learning rate:** inverse-time decay, $10^{-4}/(1 + 0.3\,n/1000)$ at iteration $n$
+- **Network:** FNN [1, 50, 50, 50, 1], tanh, Glorot uniform
+- **Training:** Adam 30,000; 64 domain points
+- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Poisson 1D – hard boundary conditions**
+
+**Result (RTX 4090):** L2 = 2.2e-6
+
+*PINN vs reference along a line*
+
+![Poisson 1D – hard boundary conditions — PINN vs reference along a line](assets/Images/DeepXDE/Poisson_1D_hard_boundary_conditions/line_comparison.png)
+
+</details>
+
+<details id="dx-poisson-1d-multi-scale-fourier-features">
+<summary><strong>Poisson 1D – multi-scale Fourier features</strong></summary>
+
+DeepXDE example: [Poisson_multiscale_1d.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Poisson_multiscale_1d.py)
+
+$$\Large \frac{d^2u}{dx^2} = -(\pi A)^2\sin(\pi A x) - 0.1(\pi B)^2\sin(\pi B x), \qquad x \in [0, 1],\ A = 2,\ B = 50$$
+
+- **Boundary conditions:** $u(0) = u(1) = 0$
+- **Exact solution:** $u = \sin(2\pi x) + 0.1\sin(50\pi x)$ — a slow wave plus a fast, small one
+- **Network:** a multi-scale Fourier feature network (MsFFN): the input goes through random Fourier features with scales $\sigma = 1$ and $10$, each through the same hidden layers, then combined
+- **Points:** 1,280 pseudo-random collocation points, redrawn every iteration; learning rate $10^{-3}/(1 + 0.9\,n/2000)$
+- **Constants:** `A = 2`, `B = 50`
+- **Network:** MsFFN [1, 100, 100, 100, 1], Fourier scales σ = 1, 10, tanh, Glorot uniform
+- **Training:** Adam 20,000; 1,280 domain, 2 boundary points
+- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Poisson 1D – multi-scale Fourier features**
+
+A plain network of the same size learns the slow wave and largely misses the fast one; the Fourier features at scale 10 are what let the PINN represent the sin(50πx) part.
+
+**Result (RTX 4090):** L2 = 3.9e-3
+
+*PINN vs reference along a line*
+
+![Poisson 1D – multi-scale Fourier features — PINN vs reference along a line](assets/Images/DeepXDE/Poisson_1D_multi_scale_Fourier_features/line_comparison.png)
+
+</details>
+
+<details id="dx-inverse-brinkman-forchheimer-model">
+<summary><strong>Inverse: Brinkman-Forchheimer model</strong></summary>
+
+DeepXDE example: [brinkman_forchheimer.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/brinkman_forchheimer.py)
+
+$$\Large -\frac{\nu_e}{\epsilon}\frac{d^2u}{dx^2} + \frac{\nu u}{K} = g, \qquad x \in [0, 1],\ \epsilon = 0.4,\ \nu = 10^{-3},\ g = 1$$
+
+- **Unknowns:** effective viscosity $\nu_e$ and permeability $K$ (both $10^{-3}$, initial guesses 0.1)
+- **Data:** 5 measurements of $u$; $u = 0$ at both walls through the output transform $\hat u = x(1-x)N$
+- **Exact solution:** $u = 1 - \cosh(20(x - 0.5))/\cosh(10)$
+- **Constants:** `g = 1`, `v = 1e-3`, `e = 0.4`
+- **Network:** FNN [1, 20, 20, 20, 1], tanh, Glorot uniform
+- **Training:** Adam 30,000; 100 domain points
+- **GUI recipe:** Quick Examples → Category **DeepXDE Inverse** → **Inverse: Brinkman-Forchheimer model**
+
+DeepXDE's own script, run unchanged twice on the same GPU, ends with $\nu_e$ = 1.31–1.35e-3, $K$ = 0.984e-3 and an L2 error of 0.018–0.020 for $u$ — the same picture: $K$ is recovered closely, $\nu_e$ only to within about 30–50% from five measurements.
+
+**Result (RTX 4090):** $\nu_e$ = 1.49e-3, $K$ = 0.985e-3 (both true 1e-3); L2 of $u$ = 2.9e-2
+
+*PINN vs reference along a line*
+
+![Inverse: Brinkman-Forchheimer model — PINN vs reference along a line](assets/Images/DeepXDE/Inverse_Brinkman_Forchheimer_model/line_comparison.png)
+
+*Inferred parameters during training*
+
+![Inverse: Brinkman-Forchheimer model — inferred parameters during training](assets/Images/DeepXDE/Inverse_Brinkman_Forchheimer_model/param_plot.png)
+
+</details>
+
+<details id="dx-inverse-diffusion-reaction-with-space-dependent-rate">
+<summary><strong>Inverse: diffusion-reaction with space-dependent rate</strong></summary>
+
+DeepXDE example: [diffusion_reaction_rate.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/diffusion_reaction_rate.py)
+
+$$\Large \lambda\frac{d^2u}{dx^2} - k(x)\,u = \sin(2\pi x), \qquad \lambda = 0.01,\ x \in [0, 1]$$
+
+- **Unknown:** the reaction rate $k(x)$ (true $0.1 + e^{-0.5(x - 0.5)^2/0.15^2}$), learned as a second network output
+- **Data:** 100 measurements of $u$ (computed with SciPy's `solve_bvp`, as DeepXDE does), $u = 0$ at both ends
+- **Constants:** `l = 0.01`
+- **Network:** PFNN, a separate [20, 20] subnetwork for each of the 2 outputs, tanh, Glorot uniform
+- **Training:** Adam 20,000; 50 domain, 8 boundary points
+- **GUI recipe:** Quick Examples → Category **DeepXDE Inverse** → **Inverse: diffusion-reaction with space-dependent rate**
+
+**Result (RTX 4090):** L2 = 4.0e-2 ($k$)
+
+*u — PINN vs reference along a line*
+
+![Inverse: diffusion-reaction with space-dependent rate — PINN vs reference along a line (u)](assets/Images/DeepXDE/Inverse_diffusion_reaction_with_space_dependent_rate/line_comparison.png)
+
+*u — PINN solution*
+
+![Inverse: diffusion-reaction with space-dependent rate — PINN solution (u)](assets/Images/DeepXDE/Inverse_diffusion_reaction_with_space_dependent_rate/solution_plot.png)
+
+</details>
+
+<details id="dx-inverse-fractional-poisson-equation-1d">
+<summary><strong>Inverse: fractional Poisson equation 1D</strong></summary>
+
+DeepXDE example: [fractional_Poisson_1d_inverse.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/fractional_Poisson_1d_inverse.py)
+
+$$\Large \frac{D_{-1+}^{\alpha}u + D_{1-}^{\alpha}u}{2\cos(\alpha\pi/2)} = \Gamma(\alpha_0 + 2)\,x, \qquad x \in [-1, 1]$$
+
+- **Unknown:** the order $\alpha$ (true $\alpha_0 = 1.8$, start 1.5) — an inverse variable named `alpha`, also the fractional α
+- **Data:** 20 measurements of $u = x(1 - x^2)^{\alpha_0/2}$, loss weight 100
+- **Fractional settings:** 100 points per unit length, dynamic mesh (rebuilt every step as α changes)
+- **Constants:** `a0 = 1.8`
+- **Network:** FNN [1, 20, 20, 20, 20, 1], tanh, Glorot normal
+- **Training:** Adam 10,000; 20 domain points
+- **GUI recipe:** Quick Examples → Category **DeepXDE Inverse** → **Inverse: fractional Poisson equation 1D**
+
+**Result (RTX 4090):** $\alpha$ = 1.792 (true 1.8); L2 of $u$ = 1.3e-2
+
+*PINN vs reference along a line*
+
+![Inverse: fractional Poisson equation 1D — PINN vs reference along a line](assets/Images/DeepXDE/Inverse_fractional_Poisson_equation_1D/line_comparison.png)
+
+*Inferred parameters during training*
+
+![Inverse: fractional Poisson equation 1D — inferred parameters during training](assets/Images/DeepXDE/Inverse_fractional_Poisson_equation_1D/param_plot.png)
+
+</details>
+
+<details id="dx-inverse-poisson-with-unknown-forcing-field">
+<summary><strong>Inverse: Poisson with unknown forcing field</strong></summary>
+
+DeepXDE example: [elliptic.inverse.field.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_inverse/elliptic.inverse.field.html)
+
+$$\Large -\frac{d^2u}{dx^2} + q(x) = 0, \qquad x \in [-1, 1]$$
+
+- **Unknown:** the field $q(x)$ (true $-\pi^2\sin(\pi x)$), learned as a second network output
+- **Data:** 100 measurements of $u$, given as a Point Set BC (and as anchor points); $u = \sin(\pi x)$ on the boundary
+- **Mode:** Forward — there are no unknown constants, only an unknown field, as in DeepXDE
+- **Network:** PFNN, a separate [20, 20, 20] subnetwork for each of the 2 outputs, tanh, Glorot uniform
+- **Training:** Adam 20,000; 200 domain, 2 boundary points
+- **GUI recipe:** Quick Examples → Category **DeepXDE Inverse** → **Inverse: Poisson with unknown forcing field**
+
+**Result (RTX 4090):** L2 = 8.3e-4 ($u$), 4.3e-2 ($q$)
+
+*u — PINN vs reference along a line*
+
+![Inverse: Poisson with unknown forcing field — PINN vs reference along a line (u)](assets/Images/DeepXDE/Inverse_Poisson_with_unknown_forcing_field/line_comparison_u.png)
+
+*q — PINN vs reference along a line*
+
+![Inverse: Poisson with unknown forcing field — PINN vs reference along a line (q)](assets/Images/DeepXDE/Inverse_Poisson_with_unknown_forcing_field/line_comparison_q.png)
+
+</details>
+
+<details id="dx-inverse-poisson-with-unknown-forcing-field-batches">
+<summary><strong>Inverse: Poisson with unknown forcing field (batches)</strong></summary>
+
+DeepXDE example: [elliptic_inverse_field_batch.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/elliptic_inverse_field_batch.py)
+
+$$\Large -\frac{d^2u}{dx^2} + q(x) = 0, \qquad x \in [-1, 1]$$
+
+- **Unknown:** the field $q(x)$ (true $-\pi^2\sin(\pi x)$)
+- **Data:** 10,000 measurements of $u$, used 100 at a time (Point Set BC with batch size 100, redrawn every iteration)
+- **Network:** PFNN, a separate [20, 20, 20] subnetwork for each of the 2 outputs, tanh, Glorot uniform
+- **Training:** Adam 20,000; 200 domain, 2 boundary points
+- **GUI recipe:** Quick Examples → Category **DeepXDE Inverse** → **Inverse: Poisson with unknown forcing field (batches)**
+
+**Result (RTX 4090):** L2 = 7.6e-3 ($u$), 0.13 ($q$)
+
+*q — PINN vs reference along a line*
+
+![Inverse: Poisson with unknown forcing field (batches) — PINN vs reference along a line (q)](assets/Images/DeepXDE/Inverse_Poisson_with_unknown_forcing_field_batches/line_comparison_q.png)
 
 </details>
 
@@ -609,6 +1176,83 @@ where $\gamma_1 = 0.0001$ and $\gamma_2 = 5$.
 *Inverse mode* — same template, switched to **Inverse**, jointly recovering both $\gamma_1$ (diffusion) and $\gamma_2$ (reaction) as unknown parameters; the live convergence animation below shows each estimate settling onto its true value during training:
 
 ![1D Allen-Cahn inverse parameter convergence animation](assets/Images/1D-AllenCahn/param_convergence_animation.gif)
+
+</details>
+
+<details id="dx-allen-cahn-equation">
+<summary><strong>Allen-Cahn equation</strong></summary>
+
+DeepXDE example: [allen.cahn.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/allen.cahn.html)
+
+$$\Large \frac{\partial u}{\partial t} = 0.001\frac{\partial^2 u}{\partial x^2} + 5(u - u^3), \qquad x \in [-1, 1],\ t \in [0, 1]$$
+
+- **Initial and boundary conditions:** $u(x, 0) = x^2\cos(\pi x)$ and $u(\pm 1, t) = -1$, imposed exactly by $\hat u = x^2\cos(\pi x) + t(1 - x^2)N$
+- **Reference:** computed by `tools/make_deepxde_reference_data.py` (agrees with DeepXDE's `Allen_Cahn.mat` to $5\times 10^{-4}$)
+- **Constants:** `d = 0.001`
+- **Network:** FNN [2, 20, 20, 20, 1], tanh, Glorot normal
+- **Training:** Adam 40,000 → L-BFGS 15,000; 8,000 domain, 400 boundary points
+- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Allen-Cahn equation**
+
+**Result (RTX 4090):** L2 = 9.5e-8 ($t = 0$), 1.9e-3 ($t = 0.25$), 5.2e-3 ($t = 0.5$), 1.3e-2 ($t = 0.75$), 2.9e-2 ($t = 1$)
+
+*u — PINN solution over time*
+
+![Allen-Cahn equation — PINN solution over time (u)](assets/Images/DeepXDE/Allen_Cahn_equation/animation.gif)
+
+*PINN vs reference, error analysis*
+
+![Allen-Cahn equation — PINN vs reference, error analysis](assets/Images/DeepXDE/Allen_Cahn_equation/surface_comparison.png)
+
+</details>
+
+<details id="dx-american-put-option">
+<summary><strong>American put option</strong></summary>
+
+DeepXDE example: [american_put.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/american_put.py)
+
+$$\Large \min\left(-\mathcal{L}V,\ V - \max(K - S, 0)\right) = 0, \qquad \mathcal{L}V = -\frac{\partial V}{\partial \tau} + \frac{\sigma^2}{2}S^2\frac{\partial^2 V}{\partial S^2} + rS\frac{\partial V}{\partial S} - rV$$
+
+- **Domain:** $S \in [0, 4]$, $\tau \in [0, 1]$; strike $K = 1$, $r = 0.05$, $\sigma = 0.2$
+- **Equations:** three residuals for one output (DeepXDE's Fischer-Burmeister form of the complementarity problem)
+- **Extra points:** 1000 anchors in $S \in [0.5, 1.5]$ around the exercise boundary; point resampling every 1000 iterations
+- **Reference:** none bundled (DeepXDE compares against a binomial-tree price) — add your own in Error Analysis
+- **Constants:** `r = 0.05`, `sigma = 0.2`, `K = 1`
+- **Network:** FNN [2, 128, 128, 128, 128, 1], tanh, Glorot normal
+- **Training:** Adam 12,000 → L-BFGS 15,000; 6,000 domain, 1,500 boundary, 1,500 initial points
+- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **American put option**
+
+**Result (RTX 4090):** trained without errors; no bundled reference to compare against
+
+*u — PINN solution over time*
+
+![American put option — PINN solution over time (u)](assets/Images/DeepXDE/American_put_option/animation.gif)
+
+</details>
+
+<details id="dx-black-scholes-equation-call-option">
+<summary><strong>Black-Scholes equation (call option)</strong></summary>
+
+DeepXDE example: [black_scholes.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/black_scholes.html)
+
+$$\Large \frac{\partial V}{\partial \tau} = \frac{\sigma^2}{2}S^2\frac{\partial^2 V}{\partial S^2} + rS\frac{\partial V}{\partial S} - rV, \qquad S \in [0, 150],\ \tau \in [0, 1]$$
+
+- **Parameters:** strike $K = 50$, rate $r = 0.05$, volatility $\sigma = 0.2$; $x$ is the stock price $S$ and $t$ the time to maturity $\tau$
+- **Initial condition:** payoff $V(S, 0) = \max(S - K, 0)$; **boundary conditions:** $V(0, \tau) = 0$, $V(150, \tau) = 150 - Ke^{-r\tau}$
+- **Exact solution:** the Black-Scholes formula (uses `norm_cdf` in the reference formula)
+- **Constants:** `K = 50`, `r = 0.05`, `sigma = 0.2`
+- **Network:** FNN [2, 28, 28, 28, 28, 1], tanh, Glorot normal
+- **Training:** Adam 20,000 → L-BFGS 15,000; 2,047 domain, 63 boundary, 127 initial points
+- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Black-Scholes equation (call option)**
+
+**Result (RTX 4090):** L2 = 5.7e-4 ($t = 0.25$), 3.2e-4 ($t = 0.5$), 4.3e-4 ($t = 1$)
+
+*u — PINN solution over time*
+
+![Black-Scholes equation (call option) — PINN solution over time (u)](assets/Images/DeepXDE/Black_Scholes_equation_call_option/animation.gif)
+
+*PINN vs reference, error analysis*
+
+![Black-Scholes equation (call option) — PINN vs reference, error analysis](assets/Images/DeepXDE/Black_Scholes_equation_call_option/surface_comparison.png)
 
 </details>
 
@@ -644,6 +1288,291 @@ with true values $\lambda_1 = 1.0$ and $\lambda_2 = 0.01/\pi$. $\lambda_1$'s ini
 
 </details>
 
+<details id="dx-burgers-equation">
+<summary><strong>Burgers equation</strong></summary>
+
+DeepXDE example: [burgers.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/burgers.html)
+
+$$\Large \frac{\partial u}{\partial t} + u\frac{\partial u}{\partial x} = \frac{0.01}{\pi}\frac{\partial^2 u}{\partial x^2}, \qquad x \in [-1, 1],\ t \in [0, 0.99]$$
+
+- **Initial condition:** $u(x, 0) = -\sin(\pi x)$
+- **Boundary conditions:** Dirichlet, $u(\pm 1, t) = 0$
+- **Time range:** $t \in [0, 0.99]$, as in DeepXDE's script (its reference data ends at $t = 0.99$)
+- **Reference:** PINNStudio's own Burgers reference solution at $t = 0, 0.25, 0.5, 0.75$
+- **Network:** FNN [2, 20, 20, 20, 1], tanh, Glorot normal
+- **Training:** Adam 15,000 → L-BFGS 15,000; 2,540 domain, 80 boundary, 160 initial points
+- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Burgers equation**
+
+**Result (RTX 4090):** L2 = 8.3e-4 ($t = 0$), 1.4e-2 ($t = 0.25$), 1.7e-2 ($t = 0.5$), 1.4e-2 ($t = 0.75$)
+
+*u — PINN solution over time*
+
+![Burgers equation — PINN solution over time (u)](assets/Images/DeepXDE/Burgers_equation/animation.gif)
+
+*PINN vs reference, error analysis*
+
+![Burgers equation — PINN vs reference, error analysis](assets/Images/DeepXDE/Burgers_equation/surface_comparison.png)
+
+</details>
+
+<details id="dx-burgers-equation-with-rar">
+<summary><strong>Burgers equation with RAR</strong></summary>
+
+DeepXDE example: [burgers.rar.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/burgers.rar.html)
+
+$$\Large \frac{\partial u}{\partial t} + u\frac{\partial u}{\partial x} = \frac{0.01}{\pi}\frac{\partial^2 u}{\partial x^2}, \qquad x \in [-1, 1],\ t \in [0, 0.99]$$
+
+- **Initial / boundary conditions:** $u(x, 0) = -\sin(\pi x)$, $u(\pm 1, t) = 0$
+- **Residual-based adaptive refinement:** each round adds the 1 point with the largest residual (out of 100,000 candidates) and retrains, until the mean residual is below 0.005
+- **Network:** FNN [2, 20, 20, 20, 1], tanh, Glorot normal
+- **Training:** Adam 10,000 → L-BFGS 15,000 per RAR round; 2,500 domain, 100 boundary, 160 initial points
+- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Burgers equation with RAR**
+
+**Result (RTX 4090):** L2 = 6.3e-4 ($t = 0$), 1.3e-2 ($t = 0.25$), 1.7e-2 ($t = 0.5$), 1.4e-2 ($t = 0.75$)
+
+*u — PINN solution over time*
+
+![Burgers equation with RAR — PINN solution over time (u)](assets/Images/DeepXDE/Burgers_equation_with_RAR/animation.gif)
+
+*PINN vs reference, error analysis*
+
+![Burgers equation with RAR — PINN vs reference, error analysis](assets/Images/DeepXDE/Burgers_equation_with_RAR/surface_comparison.png)
+
+</details>
+
+<details id="dx-diffusion-equation">
+<summary><strong>Diffusion equation</strong></summary>
+
+DeepXDE example: [diffusion.1d.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/diffusion.1d.html)
+
+$$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} - e^{-t}\left(\sin(\pi x) - \pi^2\sin(\pi x)\right), \qquad x \in [-1, 1],\ t \in [0, 1]$$
+
+- **Initial condition:** $u(x, 0) = \sin(\pi x)$; **boundary condition:** $u = e^{-t}\sin(\pi x)$
+- **Exact solution:** $u = e^{-t}\sin(\pi x)$
+- **Network:** FNN [2, 32, 32, 32, 1], tanh, Glorot uniform
+- **Training:** Adam 10,000; 40 domain, 20 boundary, 10 initial points
+- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Diffusion equation**
+
+**Result (RTX 4090):** L2 = 4.8e-3 ($t = 0$), 9.0e-3 ($t = 0.25$), 6.4e-3 ($t = 0.5$), 5.8e-3 ($t = 0.75$), 3.0e-2 ($t = 1$)
+
+*u — PINN solution over time*
+
+![Diffusion equation — PINN solution over time (u)](assets/Images/DeepXDE/Diffusion_equation/animation.gif)
+
+*PINN vs reference, error analysis*
+
+![Diffusion equation — PINN vs reference, error analysis](assets/Images/DeepXDE/Diffusion_equation/surface_comparison.png)
+
+</details>
+
+<details id="dx-diffusion-equation-with-hard-ic-and-bc">
+<summary><strong>Diffusion equation with hard IC and BC</strong></summary>
+
+DeepXDE example: [diffusion.1d.exactBC.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/diffusion.1d.exactBC.html)
+
+$$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} - e^{-t}\left(\sin(\pi x) - \pi^2\sin(\pi x)\right), \qquad x \in [-1, 1],\ t \in [0, 1]$$
+
+- **Initial and boundary conditions:** imposed exactly by $\hat u = t(1 - x^2)N + \sin(\pi x)$ — no IC/BC loss terms
+- **Exact solution:** $u = e^{-t}\sin(\pi x)$
+- **Network:** FNN [2, 32, 32, 32, 1], tanh, Glorot uniform
+- **Training:** Adam 10,000; 40 domain points
+- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Diffusion equation with hard IC and BC**
+
+**Result (RTX 4090):** L2 = 9.4e-8 ($t = 0$), 1.6e-4 ($t = 0.25$), 4.6e-4 ($t = 0.5$), 1.3e-3 ($t = 0.75$), 2.8e-3 ($t = 1$)
+
+*u — PINN solution over time*
+
+![Diffusion equation with hard IC and BC — PINN solution over time (u)](assets/Images/DeepXDE/Diffusion_equation_with_hard_IC_and_BC/animation.gif)
+
+*PINN vs reference, error analysis*
+
+![Diffusion equation with hard IC and BC — PINN vs reference, error analysis](assets/Images/DeepXDE/Diffusion_equation_with_hard_IC_and_BC/surface_comparison.png)
+
+</details>
+
+<details id="dx-diffusion-equation-with-resampling">
+<summary><strong>Diffusion equation with resampling</strong></summary>
+
+DeepXDE example: [diffusion.1d.resample.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/diffusion.1d.resample.html)
+
+$$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} - e^{-t}\left(\sin(\pi x) - \pi^2\sin(\pi x)\right), \qquad x \in [-1, 1],\ t \in [0, 1]$$
+
+- **Initial / boundary conditions:** $u(x, 0) = \sin(\pi x)$, $u = e^{-t}\sin(\pi x)$ on the boundary
+- **Point resampling:** pseudo-random collocation points redrawn every 100 iterations
+- **Exact solution:** $u = e^{-t}\sin(\pi x)$
+- **Network:** FNN [2, 32, 32, 32, 1], tanh, Glorot uniform
+- **Training:** Adam 2,000; 40 domain, 20 boundary, 10 initial points
+- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Diffusion equation with resampling**
+
+**Result (RTX 4090):** L2 = 1.8e-2 ($t = 0$), 2.5e-2 ($t = 0.25$), 1.5e-2 ($t = 0.5$), 1.4e-2 ($t = 0.75$), 4.3e-2 ($t = 1$)
+
+*u — PINN solution over time*
+
+![Diffusion equation with resampling — PINN solution over time (u)](assets/Images/DeepXDE/Diffusion_equation_with_resampling/animation.gif)
+
+*PINN vs reference, error analysis*
+
+![Diffusion equation with resampling — PINN vs reference, error analysis](assets/Images/DeepXDE/Diffusion_equation_with_resampling/surface_comparison.png)
+
+</details>
+
+<details id="dx-diffusion-reaction-equation">
+<summary><strong>Diffusion-reaction equation</strong></summary>
+
+DeepXDE example: [diffusion.reaction.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/diffusion.reaction.html)
+
+$$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} + e^{-t}\left(\tfrac{3}{2}\sin 2x + \tfrac{8}{3}\sin 3x + \tfrac{15}{4}\sin 4x + \tfrac{63}{8}\sin 8x\right), \qquad x \in [-\pi, \pi],\ t \in [0, 1]$$
+
+- **Initial and boundary conditions:** imposed exactly by $\hat u = t(\pi^2 - x^2)N + \sum_k \frac{\sin(kx)}{k}$
+- **Exact solution:** $u = e^{-t}\left(\sin x + \tfrac{\sin 2x}{2} + \tfrac{\sin 3x}{3} + \tfrac{\sin 4x}{4} + \tfrac{\sin 8x}{8}\right)$
+- **Network:** FNN [2, 30, 30, 30, 30, 30, 30, 1], tanh, Glorot uniform
+- **Training:** Adam 20,000; 320 domain points
+- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Diffusion-reaction equation**
+
+DeepXDE's own script, run unchanged on the same GPU, ends with a similar loss (and the same Adam loss spikes near the end of training).
+
+**Result (RTX 4090):** L2 = 9.9e-8 ($t = 0$), 1.4e-2 ($t = 0.25$), 3.4e-2 ($t = 0.5$), 6.7e-2 ($t = 0.75$), 0.11 ($t = 1$)
+
+*u — PINN solution over time*
+
+![Diffusion-reaction equation — PINN solution over time (u)](assets/Images/DeepXDE/Diffusion_reaction_equation/animation.gif)
+
+*PINN vs reference, error analysis*
+
+![Diffusion-reaction equation — PINN vs reference, error analysis](assets/Images/DeepXDE/Diffusion_reaction_equation/surface_comparison.png)
+
+</details>
+
+<details id="dx-fractional-diffusion-equation">
+<summary><strong>Fractional diffusion equation</strong></summary>
+
+DeepXDE example: [fractional_diffusion_1d.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/fractional_diffusion_1d.py)
+
+$$\Large \frac{\partial u}{\partial t} = D_{0+}^{\alpha}u + D_{1-}^{\alpha}u - e^{-t}\left(x^3(1-x)^3 + f_\alpha(x)\right), \qquad x \in [0, 1],\ t \in [0, 1],\ \alpha = 1.8$$
+
+- **Equation in the panel:** `du_t - frac(u) + exp(-t)*(x**3*(1 - x)**3 + ...)` (DeepXDE's TimeFPDE)
+- **Fractional settings:** 52-point static mesh in x at each time
+- **Boundary and initial conditions:** $u(0, t) = u(1, t) = 0$, $u(x, 0) = x^3(1-x)^3$, both exact through $\hat u = x(1-x)\,t\,N + x^3(1-x)^3$
+- **Exact solution:** $u = e^{-t}x^3(1-x)^3$
+- **Constants:** `alpha = 1.8`
+- **Network:** FNN [2, 20, 20, 20, 20, 1], tanh, Glorot normal
+- **Training:** Adam 10,000; 400 domain, 2 boundary, 2 initial points
+- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Fractional diffusion equation**
+
+**Result (RTX 4090):** L2 = 1.0e-7 ($t = 0$), 1.4e-3 ($t = 0.25$), 5.8e-3 ($t = 0.5$), 2.4e-3 ($t = 0.75$), 3.3e-3 ($t = 1$)
+
+*u — PINN solution over time*
+
+![Fractional diffusion equation — PINN solution over time (u)](assets/Images/DeepXDE/Fractional_diffusion_equation/animation.gif)
+
+*PINN vs reference, error analysis*
+
+![Fractional diffusion equation — PINN vs reference, error analysis](assets/Images/DeepXDE/Fractional_diffusion_equation/surface_comparison.png)
+
+</details>
+
+<details id="1d-heat">
+<summary><strong>1D Heat</strong></summary>
+
+$$\Large \frac{\partial u}{\partial t} = 0.4\frac{\partial^2 u}{\partial x^2}, \qquad x \in [0, 1],\ t \in [0, 1]$$
+
+- **Initial condition:** $u(x, 0) = \sin(\pi x)$
+- **Boundary conditions:** Dirichlet, $u = 0$ at both ends
+- **Geometry:** Interval
+- **Reference data:** bundled numerical solution (no external source)
+- **GUI recipe:** Dimension → 1D · Quick Examples → **1D Heat**
+
+![1D Heat — PINN vs Ground Truth, Error Analysis surface comparison](assets/Images/1D-Heat/surface_comparison.png)
+
+*Inverse mode* — same template, switched to **Inverse**, recovering the diffusivity coefficient (fixed at $0.4$ in Forward mode above) as an unknown parameter; the live convergence plot below shows the estimate settling onto its true value during training:
+
+![1D Heat inverse parameter convergence animation](assets/Images/1D-Heat/param_convergence_animation.gif)
+
+</details>
+
+<details id="dx-heat-equation">
+<summary><strong>Heat equation</strong></summary>
+
+DeepXDE example: [heat.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/heat.html)
+
+$$\Large \frac{\partial u}{\partial t} = 0.4\frac{\partial^2 u}{\partial x^2}, \qquad x \in [0, 1],\ t \in [0, 1]$$
+
+- **Initial condition:** $u(x, 0) = \sin(\pi x)$; **boundary conditions:** $u(0, t) = u(1, t) = 0$
+- **Exact solution:** $u = e^{-0.4\pi^2 t}\sin(\pi x)$
+- **Constants:** `a = 0.4`, `L = 1`, `n = 1`
+- **Network:** FNN [2, 20, 20, 20, 1], tanh, Glorot normal
+- **Training:** Adam 20,000 → L-BFGS 15,000; 2,540 domain, 80 boundary, 160 initial points
+- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Heat equation**
+
+The solution decays to about 2% of its initial size by $t = 1$, so the relative error grows over time even though the absolute error stays small.
+
+**Result (RTX 4090):** L2 = 4.2e-4 ($t = 0$), 9.1e-4 ($t = 0.25$), 2.2e-3 ($t = 0.5$), 9.5e-3 ($t = 0.75$), 5.0e-2 ($t = 1$)
+
+*u — PINN solution over time*
+
+![Heat equation — PINN solution over time (u)](assets/Images/DeepXDE/Heat_equation/animation.gif)
+
+*PINN vs reference, error analysis*
+
+![Heat equation — PINN vs reference, error analysis](assets/Images/DeepXDE/Heat_equation/surface_comparison.png)
+
+</details>
+
+<details id="dx-heat-equation-with-resampling">
+<summary><strong>Heat equation with resampling</strong></summary>
+
+DeepXDE example: [heat.resample.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/heat.resample.html)
+
+$$\Large \frac{\partial u}{\partial t} = 0.4\frac{\partial^2 u}{\partial x^2}, \qquad x \in [0, 1],\ t \in [0, 1]$$
+
+- **Initial / boundary conditions:** $u(x, 0) = \sin(\pi x)$, $u(0, t) = u(1, t) = 0$
+- **Point resampling:** the collocation points are redrawn every 10 iterations (DeepXDE's `PDEPointResampler`)
+- **Exact solution:** $u = e^{-0.4\pi^2 t}\sin(\pi x)$
+- **Constants:** `a = 0.4`, `L = 1`, `n = 1`
+- **Network:** FNN [2, 20, 20, 20, 1], tanh, Glorot normal
+- **Training:** Adam 200,000 → L-BFGS 15,000; 2,540 domain, 80 boundary, 160 initial points
+- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Heat equation with resampling**
+
+**Result (RTX 4090):** L2 = 1.6e-4 ($t = 0$), 4.6e-4 ($t = 0.25$), 5.8e-4 ($t = 0.5$), 4.1e-3 ($t = 0.75$), 1.4e-2 ($t = 1$)
+
+*u — PINN solution over time*
+
+![Heat equation with resampling — PINN solution over time (u)](assets/Images/DeepXDE/Heat_equation_with_resampling/animation.gif)
+
+*PINN vs reference, error analysis*
+
+![Heat equation with resampling — PINN vs reference, error analysis](assets/Images/DeepXDE/Heat_equation_with_resampling/surface_comparison.png)
+
+</details>
+
+<details id="dx-klein-gordon-equation">
+<summary><strong>Klein-Gordon equation</strong></summary>
+
+DeepXDE example: [klein.gordon.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/klein.gordon.html)
+
+$$\Large \frac{\partial^2 u}{\partial t^2} - \frac{\partial^2 u}{\partial x^2} + u^2 = -x\cos t + x^2\cos^2 t, \qquad x \in [-1, 1],\ t \in [0, 10]$$
+
+- **Initial conditions:** $u(x, 0) = x$ and $\partial u/\partial t\,(x, 0) = 0$ (the second as an Operator BC applied at the initial time)
+- **Boundary condition:** $u = x\cos t$
+- **Training:** Adam with inverse-time decay ($10^{-3}$, steps 3000, rate 0.9), then L-BFGS
+- **Exact solution:** $u = x\cos t$
+- **Constants:** `alpha = -1`, `beta = 0`, `gamma = 1`, `k = 2`
+- **Network:** FNN [2, 40, 40, 1], tanh, Glorot uniform
+- **Training:** Adam 20,000 → L-BFGS 15,000; 30,000 domain, 1,500 boundary, 1,500 initial points
+- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Klein-Gordon equation**
+
+**Result (RTX 4090):** L2 = 1.4e-3 ($t = 0$), 1.6e-2 ($t = 2.5$), 8.5e-2 ($t = 5$), 6.5e-2 ($t = 7.5$), 8.1e-2 ($t = 10$)
+
+*u — PINN solution over time*
+
+![Klein-Gordon equation — PINN solution over time (u)](assets/Images/DeepXDE/Klein_Gordon_equation/animation.gif)
+
+*PINN vs reference, error analysis*
+
+![Klein-Gordon equation — PINN vs reference, error analysis](assets/Images/DeepXDE/Klein_Gordon_equation/surface_comparison.png)
+
+</details>
+
 <details id="1d-schrödinger">
 <summary><strong>1D Schrödinger</strong></summary>
 
@@ -674,29 +1603,462 @@ The quantity plotted by default is $|h| = \sqrt{u^2+v^2}$ (a custom derived outp
 
 </details>
 
----
+<details id="dx-schr-dinger-equation">
+<summary><strong>Schrödinger equation</strong></summary>
 
-*The remaining templates are 2D problems — time-dependent `(x, y, t)` or steady-state `(x, y)`, as noted per template.*
+DeepXDE example: [Schrodinger.ipynb](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Schrodinger.ipynb)
 
-<details id="2d-heat">
-<summary><strong>2D Heat</strong></summary>
+$$\Large i\frac{\partial h}{\partial t} + \frac{1}{2}\frac{\partial^2 h}{\partial x^2} + |h|^2 h = 0, \qquad x \in [-5, 5],\ t \in [0, \pi/2]$$
 
-$$\Large \frac{\partial u}{\partial t} = 0.4\left(\frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2}\right), \qquad (x, y) \in [0, 1]^2,\ t \in [0, 1]$$
+- **Solved as:** two real outputs, $h = u + iv$
+- **Initial condition:** $h(x, 0) = 2\,\mathrm{sech}(x)$; **boundary conditions:** periodic in $u$, $v$ and their $x$-derivatives
+- **Compared:** $|h| = \sqrt{u^2 + v^2}$ against PINNStudio's Schrödinger reference solution
+- **Network:** FNN [2, 100, 100, 100, 100, 2], tanh, Glorot normal
+- **Training:** Adam 10,000 → L-BFGS 10,000; 10,000 domain, 20 boundary, 200 initial points
+- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Schrödinger equation**
 
-- **Initial condition:** $u(x, y, 0) = 0$
-- **Boundary conditions:** Dirichlet $u = 1$ on the $x = 1$ edge; Neumann (insulated) on the other three
-- **Geometry:** Rectangle
-- **GUI recipe:** Dimension → 2D · Quick Examples → **2D Heat**
+**Result (RTX 4090):** L2 of $|h|$ = 1.5e-3 ($t = 0$), 3.2e-2 ($t = 0.25$), 5.8e-2 ($t = 0.5$), 0.12 ($t = 0.75$), 0.14 ($t = 1$), 0.13 ($t = 1.25$), 8.6e-2 ($t = 1.5$)
 
-![2D Heat — PINN vs Ground Truth, Error Analysis surface comparison](assets/Images/2D-Heat/surface_comparison.png)
+*|h| — PINN solution over time*
 
-*Restore & Visualize* — the trained model restored from its saved checkpoint and re-animated without retraining:
+![Schrödinger equation — PINN solution over time (|h|)](assets/Images/DeepXDE/Schr_dinger_equation/animation.gif)
 
-![2D Heat — restored solution animation](assets/Images/2D-Heat/restored_animation_2D_Heat.gif)
+*|h| — PINN vs reference, error analysis*
 
-*Inverse mode* — same template, switched to **Inverse**, recovering the diffusivity coefficient (fixed at $0.4$ in Forward mode above) as an unknown parameter; the live convergence animation below shows the estimate settling onto its true value during training:
+![Schrödinger equation — PINN vs reference, error analysis (|h|)](assets/Images/DeepXDE/Schr_dinger_equation/surface_comparison.png)
 
-![2D Heat inverse parameter convergence animation](assets/Images/2D-Heat/param_convergence_animation.gif)
+</details>
+
+<details id="dx-wave-propagation-space-time-multi-scale-fourier-features">
+<summary><strong>Wave propagation – space-time multi-scale Fourier features</strong></summary>
+
+DeepXDE example: [wave_1d.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/wave_1d.py)
+
+$$\Large \frac{\partial^2 u}{\partial t^2} = C^2\frac{\partial^2 u}{\partial x^2}, \qquad x \in [0, 1],\ t \in [0, 1],\ C = 10$$
+
+- **Boundary conditions:** $u(0, t) = u(1, t) = 0$
+- **Initial conditions:** $u(x, 0) = \sin(\pi x) + \sin(A\pi x)$ ($A = 2$); $\partial u/\partial t(x, 0) = 0$ as an Operator BC `du_t` applied at the initial time
+- **Exact solution:** $u = \sin(\pi x)\cos(C\pi t) + \sin(A\pi x)\cos(AC\pi t)$ — ten and twenty oscillations in time
+- **Network:** space-time multi-scale Fourier features (STMsFFN): space scale $\sigma_x = 1$, time scales $\sigma_t = 1, 10$; inputs rescaled to zero mean, unit variance by the input-transform formula `(x - 0.5)*2*sqrt(3); (t - 0.5)*2*sqrt(3)`
+- **Loss weights:** set from the initial losses, $w_i = 5 / L_i(0)$ (*Scale by initial losses*); learning rate $10^{-3}/(1 + 0.9\,n/2000)$; collocation points redrawn every iteration
+- **Constants:** `A = 2`, `C = 10`
+- **Network:** STMsFFN [2, 100, 100, 100, 1], Fourier scales σ = 1, time scales 1, 10, tanh, Glorot uniform
+- **Training:** Adam 10,000; 360 domain, 360 boundary, 360 initial points
+- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Wave propagation – space-time multi-scale Fourier features**
+
+Collocation points are redrawn every iteration from a pseudo-random distribution. DeepXDE's script keeps the default Hammersley distribution, which is deterministic, so its resampler redraws the same 360 points: run that way, the network fits them (training loss 4e-5) but not the wave in between (test loss near 1, L2 ≈ 1 for t > 0). This is a hard problem in 10,000 iterations — the error grows with t; longer training improves it.
+
+**Result (RTX 4090):** L2 = 7.7e-4 ($t = 0$), 4.5e-2 ($t = 0.25$), 9.8e-2 ($t = 0.5$), 0.10 ($t = 0.75$), 0.14 ($t = 1$)
+
+*u — PINN solution over time*
+
+![Wave propagation – space-time multi-scale Fourier features — PINN solution over time (u)](assets/Images/DeepXDE/Wave_propagation_space_time_multi_scale_Fourier_features/animation.gif)
+
+*PINN vs reference, error analysis*
+
+![Wave propagation – space-time multi-scale Fourier features — PINN vs reference, error analysis](assets/Images/DeepXDE/Wave_propagation_space_time_multi_scale_Fourier_features/surface_comparison.png)
+
+</details>
+
+<details id="dx-inverse-diffusion-equation">
+<summary><strong>Inverse: diffusion equation</strong></summary>
+
+DeepXDE example: [diffusion.1d.inverse.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_inverse/diffusion.1d.inverse.html)
+
+$$\Large \frac{\partial u}{\partial t} = C\frac{\partial^2 u}{\partial x^2} - e^{-t}\left(\sin(\pi x) - \pi^2\sin(\pi x)\right), \qquad x \in [-1, 1],\ t \in [0, 1]$$
+
+- **Unknown:** $C$ (true value 1, initial guess 2)
+- **Data:** 10 measurements of $u$ at $t = 1$, plus the initial and boundary conditions
+- **Exact solution:** $u = e^{-t}\sin(\pi x)$
+- **Network:** FNN [2, 32, 32, 32, 1], tanh, Glorot uniform
+- **Training:** Adam 50,000; 40 domain, 20 boundary, 10 initial points
+- **GUI recipe:** Quick Examples → Category **DeepXDE Inverse** → **Inverse: diffusion equation**
+
+**Result (RTX 4090):** $C$ = 0.9988 (true 1); L2 = 1.2e-3 ($t = 0$), 1.8e-3 ($t = 0.25$), 1.9e-3 ($t = 0.5$), 2.8e-3 ($t = 0.75$), 3.1e-3 ($t = 1$)
+
+*u — PINN solution over time*
+
+![Inverse: diffusion equation — PINN solution over time (u)](assets/Images/DeepXDE/Inverse_diffusion_equation/animation.gif)
+
+*PINN vs reference, error analysis*
+
+![Inverse: diffusion equation — PINN vs reference, error analysis](assets/Images/DeepXDE/Inverse_diffusion_equation/surface_comparison.png)
+
+*Inferred parameters during training*
+
+![Inverse: diffusion equation — inferred parameters during training](assets/Images/DeepXDE/Inverse_diffusion_equation/param_plot.png)
+
+</details>
+
+<details id="dx-inverse-diffusion-reaction-system">
+<summary><strong>Inverse: diffusion-reaction system</strong></summary>
+
+DeepXDE example: [reaction.inverse.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_inverse/reaction.inverse.html)
+
+$$\Large \frac{\partial C_A}{\partial t} = D\frac{\partial^2 C_A}{\partial x^2} - k_f C_A C_B^2, \qquad \frac{\partial C_B}{\partial t} = D\frac{\partial^2 C_B}{\partial x^2} - 2k_f C_A C_B^2$$
+
+- **Domain:** $x \in [0, 1]$, $t \in [0, 10]$; $C_A = C_B = e^{-20x}$ at $t = 0$, $C_A = C_B = 1 - x$ on the boundary
+- **Unknowns:** $k_f$ (true 0.1) and $D$ (true $2\times 10^{-3}$, written as $10^{-3}D$ with $D = 2$)
+- **Data:** $C_A$ and $C_B$ on a space-time grid, computed by `tools/make_deepxde_reference_data.py`
+- **Network:** FNN [2, 20, 20, 20, 2], tanh, Glorot uniform
+- **Training:** Adam 80,000; 2,000 domain, 100 boundary, 100 initial points
+- **GUI recipe:** Quick Examples → Category **DeepXDE Inverse** → **Inverse: diffusion-reaction system**
+
+**Result (RTX 4090):** $k_f$ = 0.0992 (true 0.1), $D$ = 1.995 (true 2)
+
+*ca — PINN solution over time*
+
+![Inverse: diffusion-reaction system — PINN solution over time (ca)](assets/Images/DeepXDE/Inverse_diffusion_reaction_system/animation.gif)
+
+*ca — inferred parameters during training*
+
+![Inverse: diffusion-reaction system — inferred parameters during training (ca)](assets/Images/DeepXDE/Inverse_diffusion_reaction_system/param_plot.png)
+
+</details>
+
+### 2D examples
+
+*Click an example to expand it.*
+
+<details id="dx-fractional-poisson-equation-2d">
+<summary><strong>Fractional Poisson equation 2D</strong></summary>
+
+DeepXDE example: [fractional_Poisson_2d.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/fractional_Poisson_2d.py)
+
+$$\Large -(-\Delta)^{\alpha/2}u = 2^{\alpha}\Gamma(2 + \tfrac{\alpha}{2})\Gamma(1 + \tfrac{\alpha}{2})\left(1 - (1 + \tfrac{\alpha}{2})|x|^2\right), \qquad |x| < 1,\ \alpha = 1.8$$
+
+- **Equation in the panel:** `frac(u)*gamma((1 - alpha)/2)*gamma((2 + alpha)/2)/(2*pi**1.5) - ...` — `frac(u)` times $C(\alpha, 2)$ is $-(-\Delta)^{\alpha/2}u$
+- **Fractional settings:** 8 directions, 100 Grünwald-Letnikov points per unit length, dynamic mesh
+- **Geometry:** unit disk; $u = 0$ on the circle through $\hat u = (1 - x^2 - y^2)N$
+- **Exact solution:** $u = (1 - |x|^2)^{1 + \alpha/2}$
+- **Constants:** `alpha = 1.8`
+- **Network:** FNN [2, 20, 20, 20, 20, 1], tanh, Glorot normal
+- **Training:** Adam 20,000; 100 domain points
+- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Fractional Poisson equation 2D**
+
+**Result (RTX 4090):** L2 = 3.1e-3
+
+*PINN vs reference, error analysis*
+
+![Fractional Poisson equation 2D — PINN vs reference, error analysis](assets/Images/DeepXDE/Fractional_Poisson_equation_2D/surface_comparison.png)
+
+</details>
+
+<details id="dx-helmholtz-2d-dirichlet">
+<summary><strong>Helmholtz 2D (Dirichlet)</strong></summary>
+
+DeepXDE example: [helmholtz.2d.dirichlet.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/helmholtz.2d.dirichlet.html)
+
+$$\Large -\nabla^2 u - k_0^2 u = k_0^2\sin(k_0 x)\sin(k_0 y), \qquad k_0 = 4\pi,\ (x, y) \in [0, 1]^2$$
+
+- **Boundary conditions:** $u = 0$ on the boundary, imposed exactly by $\hat u = x(1-x)y(1-y)N$
+- **Exact solution:** $u = \sin(k_0 x)\sin(k_0 y)$
+- **Constants:** `n = 2`, `k0 = 2*pi*n`
+- **Network:** FNN [2, 150, 150, 150, 1], sin, Glorot uniform
+- **Training:** Adam 5,000; 400 domain, 80 boundary points
+- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Helmholtz 2D (Dirichlet)**
+
+**Result (RTX 4090):** L2 = 1.9e-3
+
+*PINN vs reference, error analysis*
+
+![Helmholtz 2D (Dirichlet) — PINN vs reference, error analysis](assets/Images/DeepXDE/Helmholtz_2D_Dirichlet/surface_comparison.png)
+
+</details>
+
+<details id="dx-helmholtz-2d-with-a-hole">
+<summary><strong>Helmholtz 2D with a hole</strong></summary>
+
+DeepXDE example: [helmholtz.2d.neumann.hole.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/helmholtz.2d.neumann.hole.html)
+
+$$\Large -\nabla^2 u - k_0^2 u = k_0^2\sin(k_0 x)\sin(k_0 y), \qquad k_0 = 2\pi$$
+
+- **Geometry:** Custom — the square $[-0.5, 0.5]^2$ minus a disk of radius 0.25
+- **Boundary conditions:** Dirichlet (exact solution) on the outer square; Neumann (exact normal derivative) on the hole
+- **Exact solution:** $u = \sin(k_0 x)\sin(k_0 y)$
+- **Constants:** `n = 1`, `k0 = 2*pi*n`, `R = 1/4`
+- **Network:** FNN [2, 350, 350, 350, 1], sin, Glorot uniform
+- **Training:** Adam 5,000; 225 domain, 240 boundary points
+- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Helmholtz 2D with a hole**
+
+**Result (RTX 4090):** L2 = 4.6e-2
+
+*PINN vs reference, error analysis*
+
+![Helmholtz 2D with a hole — PINN vs reference, error analysis](assets/Images/DeepXDE/Helmholtz_2D_with_a_hole/surface_comparison.png)
+
+</details>
+
+<details id="dx-helmholtz-2d-hyperparameter-optimization">
+<summary><strong>Helmholtz 2D – hyperparameter optimization</strong></summary>
+
+DeepXDE example: [Helmholtz_Dirichlet_2d_HPO.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Helmholtz_Dirichlet_2d_HPO.py)
+
+$$\Large -\nabla^2 u - k_0^2 u = k_0^2\sin(k_0 x)\sin(k_0 y), \qquad k_0 = 4\pi,\ (x, y) \in [0, 1]^2$$
+
+- **Same problem** as Helmholtz 2D (Dirichlet), with $\hat u = x(1-x)y(1-y)N$
+- **Parameter Sweep, mode Bayesian search:** learning rate $10^{-4}$–$5\times10^{-2}$ (log), hidden layers 1–10, neurons per layer 5–500, activation sin / sigmoid / tanh
+- **Budget:** 50 runs of 10,000 Adam iterations each — the baseline (lr $10^{-3}$, 4 × 50, sin), 10 random runs, then 39 chosen by the Gaussian-process model, minimizing the final loss
+- **Output:** one folder per run, `bayes_search.csv` and `bayes_convergence.png`; the best run is printed at the end of the Training Log
+- **Constants:** `n = 2`, `k0 = 2*pi*n`
+- **Network:** FNN [2, 50, 50, 50, 50, 1], sin, Glorot uniform
+- **Training:** Adam 10,000; 400 domain, 80 boundary points
+- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Helmholtz 2D – hyperparameter optimization**
+
+**Result (RTX 4090):** the baseline (lr $10^{-3}$, 4 × 50, sin) ends at final loss 5.7 (L2 = 0.33); the best of the 50 runs — lr $1.5\times10^{-3}$, 3 hidden layers of 87, sin — reaches final loss 0.020 and **L2 = 1.3e-3** (about 40 minutes for all 50 runs)
+
+*PINN vs reference, error analysis*
+
+![Helmholtz 2D – hyperparameter optimization — PINN vs reference, error analysis](assets/Images/DeepXDE/Helmholtz_2D_hyperparameter_optimization/surface_comparison.png)
+
+*Bayesian search: final loss of every run and the best so far*
+
+![Helmholtz 2D – hyperparameter optimization — Bayesian search: final loss of every run and the best so far](assets/Images/DeepXDE/Helmholtz_2D_hyperparameter_optimization/bayes_convergence.png)
+
+</details>
+
+<details id="dx-helmholtz-sound-hard-scattering-absorbing-bc">
+<summary><strong>Helmholtz sound-hard scattering (absorbing BC)</strong></summary>
+
+DeepXDE example: [Helmholtz_Sound_hard_ABC_2d.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Helmholtz_Sound_hard_ABC_2d.py)
+
+$$\Large -\nabla^2 u - k_0^2 u = 0, \qquad u = u_{re} + i\,u_{im},\ k_0 = 2$$
+
+- **Geometry:** Custom — the square $[-\pi, \pi]^2$ minus a disk of radius $R = \pi/4$
+- **Scattered field** of the plane wave $e^{ik_0x}$ off a sound-hard disk: two outputs `u_re`, `u_im`, one equation each
+- **On the disk** (Neumann): $\partial u/\partial n = -\partial e^{ik_0x}/\partial n$, i.e. `-k0*x*sin(k0*x)/R` and `k0*x*cos(k0*x)/R`
+- **On the outer square** (absorbing, Robin): $\partial u/\partial n = ik_0u$, i.e. `-k0*u_im` on the `u_re` row and `k0*u_re` on the `u_im` row
+- **Reference:** the Bessel/Hankel series solution of DeepXDE's script
+- **Constants:** `k0 = 2`, `R = pi/4`
+- **Network:** FNN [2, 350, 350, 350, 2], tanh, Glorot uniform
+- **Training:** Adam 10,000; 1,600 domain, 320 boundary points
+- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Helmholtz sound-hard scattering (absorbing BC)**
+
+**Result (RTX 4090):** L2 = 7.8e-2 ($u_{re}$), 6.7e-2 ($u_{im}$) — DeepXDE's own script, run unchanged on the same GPU, ends at 9.1e-2 (best 7.1e-2)
+
+*u_re — PINN vs reference, error analysis*
+
+![Helmholtz sound-hard scattering (absorbing BC) — PINN vs reference, error analysis (u_re)](assets/Images/DeepXDE/Helmholtz_sound_hard_scattering_absorbing_BC/surface_comparison_u_re.png)
+
+*u_im — PINN vs reference, error analysis*
+
+![Helmholtz sound-hard scattering (absorbing BC) — PINN vs reference, error analysis (u_im)](assets/Images/DeepXDE/Helmholtz_sound_hard_scattering_absorbing_BC/surface_comparison_u_im.png)
+
+</details>
+
+<details id="dx-kovasznay-flow">
+<summary><strong>Kovasznay flow</strong></summary>
+
+DeepXDE example: [Kovasznay.flow.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/Kovasznay.flow.html)
+
+$$\Large (\mathbf u\cdot\nabla)\mathbf u + \nabla p = \frac{1}{Re}\nabla^2\mathbf u, \qquad \nabla\cdot\mathbf u = 0, \qquad Re = 20$$
+
+- **Domain:** $[-0.5, 1] \times [-0.5, 1.5]$; outputs $u, v, p$
+- **Boundary conditions:** Dirichlet for $u$ and $v$ on the whole boundary, and for $p$ on the outlet $x = 1$
+- **Exact solution:** $u = 1 - e^{\lambda x}\cos(2\pi y)$, $v = \frac{\lambda}{2\pi}e^{\lambda x}\sin(2\pi y)$, $p = \frac{1}{2}(1 - e^{2\lambda x})$, $\lambda = \frac{Re}{2} - \sqrt{\frac{Re^2}{4} + 4\pi^2}$
+- **Constants:** `Re = 20`, `nu = 1/Re`, `l = 1/(2*nu) - sqrt(1/(4*nu**2) + 4*pi**2)`
+- **Network:** FNN [2, 50, 50, 50, 50, 3], tanh, Glorot normal
+- **Training:** Adam 30,000 → L-BFGS 15,000; 2,601 domain, 400 boundary points
+- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Kovasznay flow**
+
+**Result (RTX 4090):** L2 = 2.1e-4 ($u$), 9.0e-4 ($v$), 5.4e-4 ($p$)
+
+*u — PINN vs reference, error analysis*
+
+![Kovasznay flow — PINN vs reference, error analysis (u)](assets/Images/DeepXDE/Kovasznay_flow/surface_comparison_u.png)
+
+*p — PINN vs reference, error analysis*
+
+![Kovasznay flow — PINN vs reference, error analysis (p)](assets/Images/DeepXDE/Kovasznay_flow/surface_comparison_p.png)
+
+</details>
+
+<details id="dx-laplace-equation-on-a-disk">
+<summary><strong>Laplace equation on a disk</strong></summary>
+
+DeepXDE example: [laplace.disk.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/laplace.disk.html)
+
+$$\Large r\frac{\partial u}{\partial r} + r^2\frac{\partial^2 u}{\partial r^2} + \frac{\partial^2 u}{\partial \theta^2} = 0, \qquad r \in [0, 1],\ \theta \in [0, 2\pi]$$
+
+- **Boundary condition:** $u(1, \theta) = \cos\theta$
+- **Input features:** $(r\sin\theta,\ r\cos\theta)$ through an input-transform formula, which makes the solution periodic in $\theta$
+- **Exact solution:** $u = r\cos\theta$
+- **In PINNStudio:** $x$ plays $r$ and $y$ plays $\theta$, so the plots show the $(r, \theta)$ rectangle
+- **Network:** FNN [2, 20, 20, 20, 1], tanh, Glorot normal
+- **Training:** Adam 15,000; 2,540 domain, 80 boundary points
+- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Laplace equation on a disk**
+
+**Result (RTX 4090):** L2 = 1.1e-3
+
+*PINN vs reference, error analysis*
+
+![Laplace equation on a disk — PINN vs reference, error analysis](assets/Images/DeepXDE/Laplace_equation_on_a_disk/surface_comparison.png)
+
+</details>
+
+<details id="dx-linear-elastostatic-plate">
+<summary><strong>Linear elastostatic plate</strong></summary>
+
+DeepXDE example: [elasticity.plate.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/elasticity.plate.html)
+
+$$\Large \frac{\partial \sigma_{xx}}{\partial x} + \frac{\partial \sigma_{xy}}{\partial y} = f_x, \qquad \frac{\partial \sigma_{xy}}{\partial x} + \frac{\partial \sigma_{yy}}{\partial y} = f_y$$
+
+$$\Large \sigma_{xx} = (\lambda + 2\mu)\varepsilon_{xx} + \lambda\varepsilon_{yy}, \quad \sigma_{yy} = (\lambda + 2\mu)\varepsilon_{yy} + \lambda\varepsilon_{xx}, \quad \sigma_{xy} = 2\mu\varepsilon_{xy}$$
+
+- **Domain:** $[0, 1]^2$; $\lambda = 1$, $\mu = 0.5$, $Q = 4$ (constants `lmbd`, `mu`, `Q`); body forces $f_x$, $f_y$ as in DeepXDE's script
+- **Outputs:** five, $u_x, u_y, \sigma_{xx}, \sigma_{yy}, \sigma_{xy}$, with five equations (two momentum, three constitutive)
+- **Boundary conditions:** imposed exactly by an output transform, e.g. $\hat u_x = y(1-y)N_1$, $\hat\sigma_{yy} = (1-y)N_4 + (\lambda+2\mu)Q\sin(\pi x)$
+- **Exact solution:** $u_x = \cos(2\pi x)\sin(\pi y)$, $u_y = \sin(\pi x)\,Qy^4/4$
+- **Constants:** `lmbd = 1`, `mu = 0.5`, `Q = 4`
+- **Network:** PFNN, a separate [40, 40, 40, 40] subnetwork for each of the 5 outputs, tanh, Glorot uniform
+- **Training:** Adam 20,000 → L-BFGS 20,000; 500 domain, 500 boundary points
+- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Linear elastostatic plate**
+
+**Note — more training than DeepXDE's script.** DeepXDE's script trains 5,000 Adam iterations, which are not enough for this problem: with exactly those settings the L2 errors are 0.35, 0.59, 0.19, 0.48 and 1.6 for $u_x, u_y, \sigma_{xx}, \sigma_{yy}, \sigma_{xy}$ (DeepXDE's own script, run unchanged on the same GPU, also ends at 0.33–0.36). This example therefore trains **20,000 Adam + 20,000 L-BFGS iterations** (Training Phases 1 and 2; about 9 minutes on an RTX 4090), and the results below are for these settings.
+
+**Result (RTX 4090):** L2 = 4.9e-2 ($u_x$), 4.3e-2 ($u_y$), 7.2e-3 ($\sigma_{xx}$), 2.0e-2 ($\sigma_{yy}$), 6.7e-2 ($\sigma_{xy}$) — 20,000 Adam + 20,000 L-BFGS (DeepXDE's 5,000 Adam alone: 0.35, 0.59, 0.19, 0.48, 1.6)
+
+*ux — PINN vs reference, error analysis*
+
+![Linear elastostatic plate — PINN vs reference, error analysis (ux)](assets/Images/DeepXDE/Linear_elastostatic_plate/surface_comparison_ux.png)
+
+*uy — PINN vs reference, error analysis*
+
+![Linear elastostatic plate — PINN vs reference, error analysis (uy)](assets/Images/DeepXDE/Linear_elastostatic_plate/surface_comparison_uy.png)
+
+*sxx — PINN vs reference, error analysis*
+
+![Linear elastostatic plate — PINN vs reference, error analysis (sxx)](assets/Images/DeepXDE/Linear_elastostatic_plate/surface_comparison_sxx.png)
+
+*syy — PINN vs reference, error analysis*
+
+![Linear elastostatic plate — PINN vs reference, error analysis (syy)](assets/Images/DeepXDE/Linear_elastostatic_plate/surface_comparison_syy.png)
+
+*sxy — PINN vs reference, error analysis*
+
+![Linear elastostatic plate — PINN vs reference, error analysis (sxy)](assets/Images/DeepXDE/Linear_elastostatic_plate/surface_comparison_sxy.png)
+
+</details>
+
+<details id="dx-linear-elastostatic-plate-soft-bcs">
+<summary><strong>Linear elastostatic plate (soft BCs)</strong></summary>
+
+DeepXDE example: [elasticity_plate.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/elasticity_plate.py)
+
+$$\Large \frac{\partial \sigma_{xx}}{\partial x} + \frac{\partial \sigma_{xy}}{\partial y} = f_x, \qquad \frac{\partial \sigma_{xy}}{\partial x} + \frac{\partial \sigma_{yy}}{\partial y} = f_y$$
+
+- **Same problem** as the plate above (constants `lmbd`, `mu`, `Q`, five outputs and equations)
+- **Boundary conditions as rows** (DeepXDE's `BC_type = \"soft\"`): $u_x = 0$ at top and bottom; $u_y = 0$ at left, bottom and right; $\sigma_{xx} = 0$ at left and right; $\sigma_{yy} = (\lambda + 2\mu)Q\sin(\pi x)$ at the top
+- **Constants:** `lmbd = 1`, `mu = 0.5`, `Q = 4`
+- **Network:** PFNN, a separate [40, 40, 40, 40] subnetwork for each of the 5 outputs, tanh, Glorot uniform
+- **Training:** Adam 20,000 → L-BFGS 20,000; 500 domain, 500 boundary points
+- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Linear elastostatic plate (soft BCs)**
+
+**Note — more training than DeepXDE's script.** As for the plate above, DeepXDE's 5,000 Adam iterations are not enough (L2 errors 0.02–0.08 with exactly those settings), so this example trains **20,000 Adam + 20,000 L-BFGS iterations** (about 7 minutes on an RTX 4090); the results below are for these settings. With soft boundary conditions the plate trains more easily than with the hard output transform.
+
+**Result (RTX 4090):** L2 = 4.9e-4 ($u_x$), 1.1e-3 ($u_y$), 6.4e-4 ($\sigma_{xx}$), 9.6e-4 ($\sigma_{yy}$), 2.7e-3 ($\sigma_{xy}$) — 20,000 Adam + 20,000 L-BFGS (DeepXDE's 5,000 Adam alone: 2.4e-2 to 7.8e-2)
+
+*ux — PINN vs reference, error analysis*
+
+![Linear elastostatic plate (soft BCs) — PINN vs reference, error analysis (ux)](assets/Images/DeepXDE/Linear_elastostatic_plate_soft_BCs/surface_comparison_ux.png)
+
+*uy — PINN vs reference, error analysis*
+
+![Linear elastostatic plate (soft BCs) — PINN vs reference, error analysis (uy)](assets/Images/DeepXDE/Linear_elastostatic_plate_soft_BCs/surface_comparison_uy.png)
+
+*sxx — PINN vs reference, error analysis*
+
+![Linear elastostatic plate (soft BCs) — PINN vs reference, error analysis (sxx)](assets/Images/DeepXDE/Linear_elastostatic_plate_soft_BCs/surface_comparison_sxx.png)
+
+*syy — PINN vs reference, error analysis*
+
+![Linear elastostatic plate (soft BCs) — PINN vs reference, error analysis (syy)](assets/Images/DeepXDE/Linear_elastostatic_plate_soft_BCs/surface_comparison_syy.png)
+
+*sxy — PINN vs reference, error analysis*
+
+![Linear elastostatic plate (soft BCs) — PINN vs reference, error analysis (sxy)](assets/Images/DeepXDE/Linear_elastostatic_plate_soft_BCs/surface_comparison_sxy.png)
+
+</details>
+
+<details id="2d-poisson-disk">
+<summary><strong>2D Poisson (Disk)</strong></summary>
+
+The Poisson equation on the unit disk, steady-state (no time axis).
+
+$$\Large -\frac{\partial^2 u}{\partial x^2} - \frac{\partial^2 u}{\partial y^2} = 1, \qquad x^2 + y^2 \le 1$$
+
+- **Boundary conditions:** Dirichlet, $u = 0$ on the boundary circle
+- **Geometry:** Disk, center $(0,0)$, radius $1$
+- **GUI recipe:** Dimension → 2D · Quick Examples → **2D Poisson (Disk)**
+
+A companion to the L-Shape template above, on a smooth (curved, non-singular) boundary instead.
+
+![2D Poisson (Disk) — PINN vs Ground Truth, Error Analysis surface comparison](assets/Images/2D-Poisson-Disk-Shaped/surface_comparison.png)
+
+</details>
+
+<details id="2d-poisson-l-shape">
+<summary><strong>2D Poisson (L-Shape)</strong></summary>
+
+A classic re-entrant-corner benchmark — the Poisson equation on an L-shaped domain (a unit square with a quadrant notched out), steady-state (no time axis). This is the same benchmark used as a demonstration example in the original DeepXDE paper — see Lu, Meng, Mao & Karniadakis (2021) under [References](#references).
+
+$$\Large -\frac{\partial^2 u}{\partial x^2} - \frac{\partial^2 u}{\partial y^2} = 1, \qquad (x, y) \in \Omega_{L}$$
+
+- **Boundary conditions:** Dirichlet, $u = 0$ on the whole boundary
+- **Geometry:** Polygon, vertices $(0,0), (1,0), (1,-1), (-1,-1), (-1,1), (0,1)$
+- **GUI recipe:** Dimension → 2D · Quick Examples → **2D Poisson (L-Shape)**
+
+The re-entrant corner at the origin produces a solution singularity that's a standard stress-test for numerical solvers, PINNs included.
+
+![2D Poisson (L-Shape) — PINN vs Ground Truth, Error Analysis surface comparison](assets/Images/2D-Poisson-L-Shaped/surface_comparison.png)
+
+</details>
+
+<details id="dx-poisson-over-an-l-shaped-domain">
+<summary><strong>Poisson over an L-shaped domain</strong></summary>
+
+DeepXDE example: [poisson.Lshape.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/poisson.Lshape.html)
+
+$$\Large -\nabla^2 u = 1, \qquad \Omega = [-1, 1]^2 \setminus [0, 1]\times[-1, 0]$$
+
+- **Boundary conditions:** Dirichlet, $u = 0$ on the whole boundary
+- **Geometry:** Polygon (L-shape)
+- **Network:** FNN [2, 50, 50, 50, 50, 1], tanh, Glorot uniform
+- **Training:** Adam 50,000 → L-BFGS 15,000; 1,200 domain, 120 boundary points
+- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Poisson over an L-shaped domain**
+
+**Result (RTX 4090):** L2 = 3.5e-2
+
+*PINN vs reference, error analysis*
+
+![Poisson over an L-shaped domain — PINN vs reference, error analysis](assets/Images/DeepXDE/Poisson_over_an_L_shaped_domain/surface_comparison.png)
+
+</details>
+
+<details id="dx-inverse-fractional-poisson-equation-2d">
+<summary><strong>Inverse: fractional Poisson equation 2D</strong></summary>
+
+DeepXDE example: [fractional_Poisson_2d_inverse.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/fractional_Poisson_2d_inverse.py)
+
+$$\Large -(-\Delta)^{\alpha/2}u = 2^{\alpha_0}\Gamma(2 + \tfrac{\alpha_0}{2})\Gamma(1 + \tfrac{\alpha_0}{2})\left(1 - (1 + \tfrac{\alpha_0}{2})|x|^2\right), \qquad |x| < 1$$
+
+- **Unknown:** the order $\alpha$ (true 1.8, start 1.5); $C(\alpha, 2)$ written with `lgamma` so it stays differentiable in α
+- **Data:** 30 random measurements of $u = (1 - |x|^2)^{1 + \alpha_0/2}$, loss weight 100
+- **Fractional settings:** 8 directions, 100 points per unit length, dynamic mesh
+- **Constants:** `a0 = 1.8`
+- **Network:** FNN [2, 20, 20, 20, 20, 1], tanh, Glorot normal
+- **Training:** Adam 10,000; 64 domain points
+- **GUI recipe:** Quick Examples → Category **DeepXDE Inverse** → **Inverse: fractional Poisson equation 2D**
+
+**Result (RTX 4090):** $\alpha$ = 1.805 (true 1.8); L2 of $u$ = 1.9e-3
+
+*PINN vs reference, error analysis*
+
+![Inverse: fractional Poisson equation 2D — PINN vs reference, error analysis](assets/Images/DeepXDE/Inverse_fractional_Poisson_equation_2D/surface_comparison.png)
+
+*Inferred parameters during training*
+
+![Inverse: fractional Poisson equation 2D — inferred parameters during training](assets/Images/DeepXDE/Inverse_fractional_Poisson_equation_2D/param_plot.png)
 
 </details>
 
@@ -812,43 +2174,105 @@ Error Analysis — PINN vs Ground Truth, for each output:
 
 </details>
 
-<details id="2d-poisson-l-shape">
-<summary><strong>2D Poisson (L-Shape)</strong></summary>
+<details id="2d-heat">
+<summary><strong>2D Heat</strong></summary>
 
-A classic re-entrant-corner benchmark — the Poisson equation on an L-shaped domain (a unit square with a quadrant notched out), steady-state (no time axis). This is the same benchmark used as a demonstration example in the original DeepXDE paper — see Lu, Meng, Mao & Karniadakis (2021) under [References](#references).
+$$\Large \frac{\partial u}{\partial t} = 0.4\left(\frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2}\right), \qquad (x, y) \in [0, 1]^2,\ t \in [0, 1]$$
 
-$$\Large -\frac{\partial^2 u}{\partial x^2} - \frac{\partial^2 u}{\partial y^2} = 1, \qquad (x, y) \in \Omega_{L}$$
+- **Initial condition:** $u(x, y, 0) = 0$
+- **Boundary conditions:** Dirichlet $u = 1$ on the $x = 1$ edge; Neumann (insulated) on the other three
+- **Geometry:** Rectangle
+- **GUI recipe:** Dimension → 2D · Quick Examples → **2D Heat**
 
-- **Boundary conditions:** Dirichlet, $u = 0$ on the whole boundary
-- **Geometry:** Polygon, vertices $(0,0), (1,0), (1,-1), (-1,-1), (-1,1), (0,1)$
-- **GUI recipe:** Dimension → 2D · Quick Examples → **2D Poisson (L-Shape)**
+![2D Heat — PINN vs Ground Truth, Error Analysis surface comparison](assets/Images/2D-Heat/surface_comparison.png)
 
-The re-entrant corner at the origin produces a solution singularity that's a standard stress-test for numerical solvers, PINNs included.
+*Restore & Visualize* — the trained model restored from its saved checkpoint and re-animated without retraining:
 
-![2D Poisson (L-Shape) — PINN vs Ground Truth, Error Analysis surface comparison](assets/Images/2D-Poisson-L-Shaped/surface_comparison.png)
+![2D Heat — restored solution animation](assets/Images/2D-Heat/restored_animation_2D_Heat.gif)
 
-</details>
+*Inverse mode* — same template, switched to **Inverse**, recovering the diffusivity coefficient (fixed at $0.4$ in Forward mode above) as an unknown parameter; the live convergence animation below shows the estimate settling onto its true value during training:
 
-<details id="2d-poisson-disk">
-<summary><strong>2D Poisson (Disk)</strong></summary>
-
-The Poisson equation on the unit disk, steady-state (no time axis).
-
-$$\Large -\frac{\partial^2 u}{\partial x^2} - \frac{\partial^2 u}{\partial y^2} = 1, \qquad x^2 + y^2 \le 1$$
-
-- **Boundary conditions:** Dirichlet, $u = 0$ on the boundary circle
-- **Geometry:** Disk, center $(0,0)$, radius $1$
-- **GUI recipe:** Dimension → 2D · Quick Examples → **2D Poisson (Disk)**
-
-A companion to the L-Shape template above, on a smooth (curved, non-singular) boundary instead.
-
-![2D Poisson (Disk) — PINN vs Ground Truth, Error Analysis surface comparison](assets/Images/2D-Poisson-Disk-Shaped/surface_comparison.png)
+![2D Heat inverse parameter convergence animation](assets/Images/2D-Heat/param_convergence_animation.gif)
 
 </details>
 
----
+### 3D examples
 
-*The remaining templates are 3D problems — time-dependent `(x, y, z, t)` or steady-state `(x, y, z)`, as noted per template.*
+*Click an example to expand it.*
+
+<details id="dx-fractional-poisson-equation-3d">
+<summary><strong>Fractional Poisson equation 3D</strong></summary>
+
+DeepXDE example: [fractional_Poisson_3d.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/fractional_Poisson_3d.py)
+
+$$\Large -(-\Delta)^{\alpha/2}u = \frac{2^{\alpha}\Gamma(2 + \frac{\alpha}{2})\Gamma(\frac{3 + \alpha}{2})}{\Gamma(\frac{3}{2})}\left(1 - (1 + \tfrac{\alpha}{3})|x|^2\right), \qquad |x| < 1,\ \alpha = 1.8$$
+
+- **Fractional settings:** 8 × 8 directions, 100 points per unit length, dynamic mesh; constant $C(\alpha, 3)$ written with `gamma`
+- **Geometry:** unit sphere; $u = 0$ on the sphere through $\hat u = (1 - |x|^2)N$
+- **Exact solution:** $u = (1 - |x|^2)^{1 + \alpha/2}$
+- **Constants:** `alpha = 1.8`
+- **Network:** FNN [3, 20, 20, 20, 20, 1], tanh, Glorot normal
+- **Training:** Adam 10,000; 256 domain points
+- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Fractional Poisson equation 3D**
+
+**Result (RTX 4090):** L2 = 7.5e-3
+
+*PINN vs reference, error analysis*
+
+![Fractional Poisson equation 3D — PINN vs reference, error analysis](assets/Images/DeepXDE/Fractional_Poisson_equation_3D/surface_comparison.png)
+
+</details>
+
+<details id="3d-poisson-sphere">
+<summary><strong>3D Poisson (Sphere)</strong></summary>
+
+The Poisson equation on the unit ball, steady-state (no time axis) — the 3D companion to the 2D Poisson (Disk) template above.
+
+$$\Large -\frac{\partial^2 u}{\partial x^2} - \frac{\partial^2 u}{\partial y^2} - \frac{\partial^2 u}{\partial z^2} = 1, \qquad x^2 + y^2 + z^2 \le 1$$
+
+- **Boundary conditions:** Dirichlet, $u = 0$ on the boundary sphere
+- **Geometry:** Sphere, center $(0,0,0)$, radius $1$
+- **GUI recipe:** Dimension → 3D · Quick Examples → **3D Poisson (Sphere)**
+
+![3D Poisson (Sphere) — PINN vs Ground Truth, Error Analysis surface comparison](assets/Images/3D-Poisson-Sphere/surface_comparison.png)
+
+*Inverse mode* — same template, switched to **Inverse**, recovering the source term (fixed at $1$ in Forward mode above) as an unknown parameter; the live convergence plot below shows the estimate settling onto its true value during training:
+
+![3D Poisson (Sphere) inverse source-term parameter convergence](assets/Images/3D-Poisson-Sphere/sourceterm_inverse_plot.png)
+
+</details>
+
+<details id="dx-beltrami-flow">
+<summary><strong>Beltrami flow</strong></summary>
+
+DeepXDE example: [Beltrami_flow.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Beltrami_flow.py)
+
+$$\Large \frac{\partial \mathbf u}{\partial t} + (\mathbf u\cdot\nabla)\mathbf u + \nabla p = \nabla^2\mathbf u, \qquad \nabla\cdot\mathbf u = 0, \qquad (x, y, z) \in [-1, 1]^3,\ t \in [0, 1]$$
+
+- **Outputs:** $u, v, w, p$; Dirichlet BCs and initial conditions for the velocity (the exact Beltrami solution)
+- **Loss weights:** 1 for the four equations, 100 for the BCs and ICs
+- **Exact solution:** e.g. $u = -\left(e^{x}\sin(y + z) + e^{z}\cos(x + y)\right)e^{-t}$
+- **Network:** FNN [4, 50, 50, 50, 50, 4], tanh, Glorot normal
+- **Training:** Adam 30,000 → L-BFGS 15,000; 50,000 domain, 5,000 boundary, 5,000 initial points
+- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Beltrami flow**
+
+**Why the pressure error is large.** This example is DeepXDE's script without changes: like the script, it gives boundary and initial conditions for the velocity $u, v, w$ only, and none for $p$. The pressure enters the equations only through its gradient $\nabla p$, so $p$ and $p + C$ satisfy them equally well for any constant $C$ — the training has nothing that fixes $C$. The PINN's pressure has the right shape but is shifted by a constant (about 24.7 in this run). The exact pressure decays like $e^{-2t}$ while the shift stays the same, so the relative error of $p$ grows with time: 5.6 at $t = 0$, $5.6\,e^{1} \approx 15$ at $t = 0.5$ and $5.6\,e^{2} \approx 41$ at $t = 1$ — exactly the reported values. DeepXDE's script computes the pressure error too but does not print it; it reports only $u, v, w$. Fixing $p$ at a single point (a Point Set BC row on $p$) would remove the free constant.
+
+**Result (RTX 4090):** L2 at $t = 0, 0.5, 1$: $u$ 1.9e-4, 3.5e-4, 1.4e-3; $v$ 1.8e-4, 2.7e-4, 7.3e-4; $w$ 1.9e-4, 3.6e-4, 1.2e-3; $p$ 5.6, 15, 41 (a constant offset of about 24.7, see above)
+
+*u — PINN solution over time*
+
+![Beltrami flow — PINN solution over time (u)](assets/Images/DeepXDE/Beltrami_flow/animation.gif)
+
+*u — PINN vs reference, error analysis*
+
+![Beltrami flow — PINN vs reference, error analysis (u)](assets/Images/DeepXDE/Beltrami_flow/surface_comparison_u.png)
+
+*p — PINN vs reference, error analysis*
+
+![Beltrami flow — PINN vs reference, error analysis (p)](assets/Images/DeepXDE/Beltrami_flow/surface_comparison_p.png)
+
+</details>
 
 <details id="3d-heat">
 <summary><strong>3D Heat</strong></summary>
@@ -876,1442 +2300,17 @@ Time-Adaptive Training is fully supported for this template if you turn it on �
 
 </details>
 
-<details id="3d-poisson-sphere">
-<summary><strong>3D Poisson (Sphere)</strong></summary>
-
-The Poisson equation on the unit ball, steady-state (no time axis) — the 3D companion to the 2D Poisson (Disk) template above.
-
-$$\Large -\frac{\partial^2 u}{\partial x^2} - \frac{\partial^2 u}{\partial y^2} - \frac{\partial^2 u}{\partial z^2} = 1, \qquad x^2 + y^2 + z^2 \le 1$$
-
-- **Boundary conditions:** Dirichlet, $u = 0$ on the boundary sphere
-- **Geometry:** Sphere, center $(0,0,0)$, radius $1$
-- **GUI recipe:** Dimension → 3D · Quick Examples → **3D Poisson (Sphere)**
-
-![3D Poisson (Sphere) — PINN vs Ground Truth, Error Analysis surface comparison](assets/Images/3D-Poisson-Sphere/surface_comparison.png)
-
-*Inverse mode* — same template, switched to **Inverse**, recovering the source term (fixed at $1$ in Forward mode above) as an unknown parameter; the live convergence plot below shows the estimate settling onto its true value during training:
-
-![3D Poisson (Sphere) inverse source-term parameter convergence](assets/Images/3D-Poisson-Sphere/sourceterm_inverse_plot.png)
-
-</details>
-
 > **Tip:** Accuracy can generally be improved by refining the time discretization — use more, smaller **Time Adaptive** step groups (a finer time step per phase) rather than one large training pass, or increase collocation points for finer spatial/adaptive refinement of the residual. Several templates above already default to Time-Adaptive for this reason; add or adjust step groups for any template — in any dimension — from the *Adaptive Training* panel.
-
-## DeepXDE Examples
-
-*Quick Examples → Category* also offers **DeepXDE Forward** (41 examples) and **DeepXDE Inverse** (10 examples): the PINN examples from DeepXDE's documentation ([forward](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward.html), [inverse](https://deepxde.readthedocs.io/en/latest/demos/pinn_inverse.html)), set up with each script's own equation, geometry, boundary/initial conditions, network, optimizers, iteration counts and loss weights, so pressing **Solve** trains what the DeepXDE script trains. Your save folder, GPU, random-seed and plot-style settings are kept when you load one. Anything that differs from the DeepXDE script is printed in the Training Log when the example loads.
-
-Where the problem has an exact solution, Error Analysis compares against it directly (*Reference: Exact solution formula*). Where DeepXDE compares against a dataset, the matching reference files are used: PINNStudio's own for Burgers, Schrödinger and the L-shape, or data computed by [`tools/make_deepxde_reference_data.py`](tools/make_deepxde_reference_data.py) (no data is copied from DeepXDE's repository). Examples marked "—" have no bundled reference; add your own reference files in the Error Analysis dialog.
-
-Every result below comes from one training run with exactly these settings on an RTX 4090 (errors are relative L2 errors from Error Analysis; a PINN's error varies a little from run to run).
-
-| Example | Dimension | Regime | Error Analysis reference | Source |
-|---|---|---|---|---|
-| [ODE system](#dx-ode-system) | ODE | Time-dependent | Exact solution | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/ode.system.html) |
-| [Lotka-Volterra equation](#dx-lotka-volterra-equation) | ODE | Time-dependent | Generated data | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/Lotka.Volterra.html) |
-| [Second-order ODE](#dx-second-order-ode) | ODE | Time-dependent | Exact solution | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/ode.2nd.html) |
-| [Integro-differential equation](#dx-integro-differential-equation) | ODE | Time-dependent | Exact solution | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/ide.html) |
-| [Volterra integro-differential equation](#dx-volterra-integro-differential-equation) | ODE | Time-dependent | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Volterra_IDE.py) |
-| [Fractional Poisson equation 1D](#dx-fractional-poisson-equation-1d) | 1D | Steady | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/fractional_Poisson_1d.py) |
-| [Fractional Poisson equation 2D](#dx-fractional-poisson-equation-2d) | 2D | Steady | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/fractional_Poisson_2d.py) |
-| [Fractional Poisson equation 3D](#dx-fractional-poisson-equation-3d) | 3D | Steady | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/fractional_Poisson_3d.py) |
-| [Fractional diffusion equation](#dx-fractional-diffusion-equation) | 1D | Time-dependent | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/fractional_diffusion_1d.py) |
-| [Poisson 1D – Dirichlet](#dx-poisson-1d-dirichlet) | 1D | Steady | Exact solution | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/poisson.1d.dirichlet.html) |
-| [Poisson 1D – Dirichlet/Neumann](#dx-poisson-1d-dirichlet-neumann) | 1D | Steady | Exact solution | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/poisson.1d.neumanndirichlet.html) |
-| [Poisson 1D – Dirichlet/Robin](#dx-poisson-1d-dirichlet-robin) | 1D | Steady | Exact solution | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/poisson.1d.dirichletrobin.html) |
-| [Poisson 1D – Dirichlet/Periodic](#dx-poisson-1d-dirichlet-periodic) | 1D | Steady | Exact solution | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/poisson.1d.dirichletperiodic.html) |
-| [Poisson 1D – Dirichlet/PointSetOperator](#dx-poisson-1d-dirichlet-pointsetoperator) | 1D | Steady | Exact solution | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/poisson.1d.pointsetoperator.html) |
-| [Poisson 1D – hard boundary conditions](#dx-poisson-1d-hard-boundary-conditions) | 1D | Steady | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Poisson_Dirichlet_1d_exactBC.py) |
-| [Poisson 1D – multi-scale Fourier features](#dx-poisson-1d-multi-scale-fourier-features) | 1D | Steady | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Poisson_multiscale_1d.py) |
-| [Wave propagation – space-time multi-scale Fourier features](#dx-wave-propagation-space-time-multi-scale-fourier-features) | 1D | Time-dependent | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/wave_1d.py) |
-| [Poisson over an L-shaped domain](#dx-poisson-over-an-l-shaped-domain) | 2D | Steady | PINNStudio data | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/poisson.Lshape.html) |
-| [Laplace equation on a disk](#dx-laplace-equation-on-a-disk) | 2D | Steady | Exact solution | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/laplace.disk.html) |
-| [Euler beam](#dx-euler-beam) | 1D | Steady | Exact solution | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/eulerbeam.html) |
-| [Linear elastostatic plate](#dx-linear-elastostatic-plate) | 2D | Steady | Exact solution | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/elasticity.plate.html) |
-| [Linear elastostatic plate (soft BCs)](#dx-linear-elastostatic-plate-soft-bcs) | 2D | Steady | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/elasticity_plate.py) |
-| [Helmholtz 2D (Dirichlet)](#dx-helmholtz-2d-dirichlet) | 2D | Steady | Exact solution | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/helmholtz.2d.dirichlet.html) |
-| [Helmholtz 2D – hyperparameter optimization](#dx-helmholtz-2d-hyperparameter-optimization) | 2D | Steady | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Helmholtz_Dirichlet_2d_HPO.py) |
-| [Helmholtz 2D with a hole](#dx-helmholtz-2d-with-a-hole) | 2D | Steady | Exact solution | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/helmholtz.2d.neumann.hole.html) |
-| [Helmholtz sound-hard scattering (absorbing BC)](#dx-helmholtz-sound-hard-scattering-absorbing-bc) | 2D | Steady | Generated data | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Helmholtz_Sound_hard_ABC_2d.py) |
-| [Kovasznay flow](#dx-kovasznay-flow) | 2D | Steady | Exact solution | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/Kovasznay.flow.html) |
-| [Burgers equation](#dx-burgers-equation) | 1D | Time-dependent | PINNStudio data | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/burgers.html) |
-| [Burgers equation with RAR](#dx-burgers-equation-with-rar) | 1D | Time-dependent | PINNStudio data | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/burgers.rar.html) |
-| [Heat equation](#dx-heat-equation) | 1D | Time-dependent | Exact solution | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/heat.html) |
-| [Heat equation with resampling](#dx-heat-equation-with-resampling) | 1D | Time-dependent | Exact solution | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/heat.resample.html) |
-| [Diffusion equation](#dx-diffusion-equation) | 1D | Time-dependent | Exact solution | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/diffusion.1d.html) |
-| [Diffusion equation with hard IC and BC](#dx-diffusion-equation-with-hard-ic-and-bc) | 1D | Time-dependent | Exact solution | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/diffusion.1d.exactBC.html) |
-| [Diffusion equation with resampling](#dx-diffusion-equation-with-resampling) | 1D | Time-dependent | Exact solution | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/diffusion.1d.resample.html) |
-| [Diffusion-reaction equation](#dx-diffusion-reaction-equation) | 1D | Time-dependent | Exact solution | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/diffusion.reaction.html) |
-| [Allen-Cahn equation](#dx-allen-cahn-equation) | 1D | Time-dependent | Generated data | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/allen.cahn.html) |
-| [Klein-Gordon equation](#dx-klein-gordon-equation) | 1D | Time-dependent | Exact solution | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/klein.gordon.html) |
-| [Schrödinger equation](#dx-schr-dinger-equation) | 1D | Time-dependent | PINNStudio data | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Schrodinger.ipynb) |
-| [Beltrami flow](#dx-beltrami-flow) | 3D | Time-dependent | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Beltrami_flow.py) |
-| [Black-Scholes equation (call option)](#dx-black-scholes-equation-call-option) | 1D | Time-dependent | Exact solution | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/black_scholes.html) |
-| [American put option](#dx-american-put-option) | 1D | Time-dependent | — | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/american_put.py) |
-| [Inverse: Lorenz system](#dx-inverse-lorenz-system) | ODE | Time-dependent | Generated data | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_inverse/Lorenz.inverse.html) |
-| [Inverse: Lorenz system with exogenous input](#dx-inverse-lorenz-system-with-exogenous-input) | ODE | Time-dependent | Generated data | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_inverse/Lorenz.inverse.forced.html) |
-| [Inverse: diffusion equation](#dx-inverse-diffusion-equation) | 1D | Time-dependent | Exact solution | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_inverse/diffusion.1d.inverse.html) |
-| [Inverse: diffusion-reaction system](#dx-inverse-diffusion-reaction-system) | 1D | Time-dependent | — | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_inverse/reaction.inverse.html) |
-| [Inverse: Poisson with unknown forcing field](#dx-inverse-poisson-with-unknown-forcing-field) | 1D | Steady | Exact solution | [DeepXDE](https://deepxde.readthedocs.io/en/latest/demos/pinn_inverse/elliptic.inverse.field.html) |
-| [Inverse: Poisson with unknown forcing field (batches)](#dx-inverse-poisson-with-unknown-forcing-field-batches) | 1D | Steady | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/elliptic_inverse_field_batch.py) |
-| [Inverse: diffusion-reaction with space-dependent rate](#dx-inverse-diffusion-reaction-with-space-dependent-rate) | 1D | Steady | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/diffusion_reaction_rate.py) |
-| [Inverse: Brinkman-Forchheimer model](#dx-inverse-brinkman-forchheimer-model) | 1D | Steady | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/brinkman_forchheimer.py) |
-| [Inverse: fractional Poisson equation 1D](#dx-inverse-fractional-poisson-equation-1d) | 1D | Steady | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/fractional_Poisson_1d_inverse.py) |
-| [Inverse: fractional Poisson equation 2D](#dx-inverse-fractional-poisson-equation-2d) | 2D | Steady | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/fractional_Poisson_2d_inverse.py) |
-
-The "unknown field" inverse examples learn the field as a second network output from measurements given as a Point Set boundary condition, so they run in Forward mode, as in DeepXDE. To train every example from the command line and print its Error Analysis results:
-
-```bash
-python tools/run_deepxde_examples.py --out deepxde_runs            # full settings
-python tools/run_deepxde_examples.py --smoke --out deepxde_runs    # a few hundred iterations each
-```
-
-### DeepXDE Forward
-
-*Click an example to expand it.*
-
-<details id="dx-ode-system">
-<summary><strong>ODE system</strong></summary>
-
-DeepXDE example: [ode.system.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/ode.system.html)
-
-$$\Large \frac{dy_1}{dt} = y_2, \qquad \frac{dy_2}{dt} = -y_1, \qquad t \in [0, 10]$$
-
-- **Problem dimension:** ODE (t) — derivatives written `dy1_t`, `dy2_t`
-- **Initial conditions:** $y_1(0) = 0$, $y_2(0) = 1$
-- **Exact solution:** $y_1 = \sin t$, $y_2 = \cos t$
-- **Network:** FNN [2, 50, 50, 50, 2], tanh, Glorot uniform
-- **Training:** Adam 20,000; 35 domain, 2 boundary points
-- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **ODE system**
-
-**Result (RTX 4090):** L2 = 3.6e-3 ($y_1$), 3.1e-3 ($y_2$)
-
-*y1 — PINN vs reference along a line*
-
-![ODE system — PINN vs reference along a line (y1)](assets/Images/DeepXDE/ODE_system/line_comparison_y1.png)
-
-*y2 — PINN vs reference along a line*
-
-![ODE system — PINN vs reference along a line (y2)](assets/Images/DeepXDE/ODE_system/line_comparison_y2.png)
-
-</details>
-
-<details id="dx-lotka-volterra-equation">
-<summary><strong>Lotka-Volterra equation</strong></summary>
-
-DeepXDE example: [Lotka.Volterra.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/Lotka.Volterra.html)
-
-$$\Large \frac{dr}{dt} = \frac{R}{U}\left(2Ur - 0.04U^2 rp\right), \qquad \frac{dp}{dt} = \frac{R}{U}\left(0.02U^2 rp - 1.06Up\right), \qquad t \in [0, 1]$$
-
-- **Problem dimension:** ODE (t); populations scaled by $U = 200$ and time by $R = 20$ (constants `ub`, `rb`)
-- **Initial conditions:** $r(0) = 100/U$, $p(0) = 15/U$, imposed exactly by the output transform $\hat r = r\tanh t + 100/U$, $\hat p = p\tanh t + 15/U$
-- **Input features:** $(t, \sin t, \sin 2t, \ldots, \sin 6t)$ through an input-transform formula
-- **Reference:** SciPy `solve_ivp` solution of the same system
-- **Constants:** `ub = 200`, `rb = 20`
-- **Network:** FNN [2, 64, 64, 64, 64, 64, 64, 2], tanh, Glorot normal
-- **Training:** Adam 50,000 → L-BFGS 15,000; 3,000 domain, 2 boundary points
-- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Lotka-Volterra equation**
-
-**Result (RTX 4090):** L2 = 2.1e-3 ($r$), 1.4e-3 ($p$)
-
-*r — PINN vs reference along a line*
-
-![Lotka-Volterra equation — PINN vs reference along a line (r)](assets/Images/DeepXDE/Lotka_Volterra_equation/line_comparison_r.png)
-
-*p — PINN vs reference along a line*
-
-![Lotka-Volterra equation — PINN vs reference along a line (p)](assets/Images/DeepXDE/Lotka_Volterra_equation/line_comparison_p.png)
-
-</details>
-
-<details id="dx-second-order-ode">
-<summary><strong>Second-order ODE</strong></summary>
-
-DeepXDE example: [ode.2nd.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/ode.2nd.html)
-
-$$\Large \frac{d^2u}{dt^2} - 10\frac{du}{dt} + 9u = 5t, \qquad t \in [0, 0.25]$$
-
-- **Problem dimension:** ODE (t) — `du_tt - 10*du_t + 9*u - 5*t`
-- **Initial conditions:** $u(0) = -1$ (initial condition); $u'(0) = 2$ as an Operator BC `du_t - 2` applied at the initial time
-- **Loss weights:** 0.01 for the equation, 1 for both initial conditions, as in DeepXDE's script
-- **Exact solution:** $u = \frac{50}{81} + \frac{5}{9}t - 2e^{t} + \frac{31}{81}e^{9t}$
-- **Network:** FNN [2, 50, 50, 50, 1], tanh, Glorot uniform
-- **Training:** Adam 10,000; 16 domain, 2 boundary points
-- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Second-order ODE**
-
-**Result (RTX 4090):** L2 = 3.2e-5
-
-*PINN vs reference along a line*
-
-![Second-order ODE — PINN vs reference along a line](assets/Images/DeepXDE/Second_order_ODE/line_comparison.png)
-
-</details>
-
-<details id="dx-integro-differential-equation">
-<summary><strong>Integro-differential equation</strong></summary>
-
-DeepXDE example: [ide.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/ide.html)
-
-$$\Large \frac{du}{dt} + \int_0^t u(s)\,ds = 2\pi\cos(2\pi t) + \frac{\sin^2(\pi t)}{\pi}, \qquad t \in [0, 1]$$
-
-- **Problem dimension:** ODE (t) — `du_t + integral(u) - (2*pi*cos(2*pi*t) + sin(pi*t)**2/pi)`
-- **Initial condition:** $u(0) = 0$
-- **Integral:** 16-point Gauss-Legendre quadrature of the network (*∫ points* 16, DeepXDE's `quad_deg`)
-- **Exact solution:** $u = \sin(2\pi t)$
-- **Network:** FNN [2, 20, 20, 20, 1], tanh, Glorot uniform
-- **Training:** Adam 10,000; 16 domain, 2 boundary points
-- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Integro-differential equation**
-
-**Result (RTX 4090):** L2 = 1.5e-4
-
-*PINN vs reference along a line*
-
-![Integro-differential equation — PINN vs reference along a line](assets/Images/DeepXDE/Integro_differential_equation/line_comparison.png)
-
-</details>
-
-<details id="dx-volterra-integro-differential-equation">
-<summary><strong>Volterra integro-differential equation</strong></summary>
-
-DeepXDE example: [Volterra_IDE.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Volterra_IDE.py)
-
-$$\Large \frac{du}{dt} + u(t) = \int_0^t e^{s - t}\,u(s)\,ds, \qquad t \in [0, 5]$$
-
-- **Problem dimension:** ODE (t) — `du_t + u - integral(exp(s - t)*u)`, the kernel and $u$ written in the integration variable `s`
-- **Initial condition:** $u(0) = 1$
-- **Integral:** 20-point Gauss-Legendre quadrature; 10 uniformly spaced collocation points; L-BFGS only, as in DeepXDE's script
-- **Exact solution:** $u = e^{-t}\cosh t$
-- **Network:** FNN [2, 20, 20, 20, 1], tanh, Glorot uniform
-- **Training:** L-BFGS 15,000; 10 domain, 2 boundary points
-- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Volterra integro-differential equation**
-
-**Result (RTX 4090):** L2 = 2.5e-3
-
-*PINN vs reference along a line*
-
-![Volterra integro-differential equation — PINN vs reference along a line](assets/Images/DeepXDE/Volterra_integro_differential_equation/line_comparison.png)
-
-</details>
-
-<details id="dx-fractional-poisson-equation-1d">
-<summary><strong>Fractional Poisson equation 1D</strong></summary>
-
-DeepXDE example: [fractional_Poisson_1d.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/fractional_Poisson_1d.py)
-
-$$\Large D_{0+}^{\alpha}u + D_{1-}^{\alpha}u = f(x), \qquad x \in [0, 1],\ \alpha = 1.5$$
-
-- **Equation in the panel:** `frac(u) - (...)`, with $f$ written out with `gamma(...)` as in DeepXDE's script; constant `alpha`
-- **Fractional settings:** α `alpha`, resolution 101, static mesh (DeepXDE's FPDE, Grünwald-Letnikov)
-- **Boundary conditions:** $u(0) = u(1) = 0$, imposed exactly by the output transform $\hat u = x(1-x)N$
-- **Exact solution:** $u = x^3(1-x)^3$
-- **Constants:** `alpha = 1.5`
-- **Network:** FNN [1, 20, 20, 20, 20, 1], tanh, Glorot normal
-- **Training:** Adam 10,000; 101 domain, 2 boundary points
-- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Fractional Poisson equation 1D**
-
-**Result (RTX 4090):** L2 = 3.7e-2
-
-*PINN vs reference along a line*
-
-![Fractional Poisson equation 1D — PINN vs reference along a line](assets/Images/DeepXDE/Fractional_Poisson_equation_1D/line_comparison.png)
-
-</details>
-
-<details id="dx-fractional-poisson-equation-2d">
-<summary><strong>Fractional Poisson equation 2D</strong></summary>
-
-DeepXDE example: [fractional_Poisson_2d.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/fractional_Poisson_2d.py)
-
-$$\Large -(-\Delta)^{\alpha/2}u = 2^{\alpha}\Gamma(2 + \tfrac{\alpha}{2})\Gamma(1 + \tfrac{\alpha}{2})\left(1 - (1 + \tfrac{\alpha}{2})|x|^2\right), \qquad |x| < 1,\ \alpha = 1.8$$
-
-- **Equation in the panel:** `frac(u)*gamma((1 - alpha)/2)*gamma((2 + alpha)/2)/(2*pi**1.5) - ...` — `frac(u)` times $C(\alpha, 2)$ is $-(-\Delta)^{\alpha/2}u$
-- **Fractional settings:** 8 directions, 100 Grünwald-Letnikov points per unit length, dynamic mesh
-- **Geometry:** unit disk; $u = 0$ on the circle through $\hat u = (1 - x^2 - y^2)N$
-- **Exact solution:** $u = (1 - |x|^2)^{1 + \alpha/2}$
-- **Constants:** `alpha = 1.8`
-- **Network:** FNN [2, 20, 20, 20, 20, 1], tanh, Glorot normal
-- **Training:** Adam 20,000; 100 domain points
-- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Fractional Poisson equation 2D**
-
-**Result (RTX 4090):** L2 = 3.1e-3
-
-*PINN vs reference, error analysis*
-
-![Fractional Poisson equation 2D — PINN vs reference, error analysis](assets/Images/DeepXDE/Fractional_Poisson_equation_2D/surface_comparison.png)
-
-</details>
-
-<details id="dx-fractional-poisson-equation-3d">
-<summary><strong>Fractional Poisson equation 3D</strong></summary>
-
-DeepXDE example: [fractional_Poisson_3d.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/fractional_Poisson_3d.py)
-
-$$\Large -(-\Delta)^{\alpha/2}u = \frac{2^{\alpha}\Gamma(2 + \frac{\alpha}{2})\Gamma(\frac{3 + \alpha}{2})}{\Gamma(\frac{3}{2})}\left(1 - (1 + \tfrac{\alpha}{3})|x|^2\right), \qquad |x| < 1,\ \alpha = 1.8$$
-
-- **Fractional settings:** 8 × 8 directions, 100 points per unit length, dynamic mesh; constant $C(\alpha, 3)$ written with `gamma`
-- **Geometry:** unit sphere; $u = 0$ on the sphere through $\hat u = (1 - |x|^2)N$
-- **Exact solution:** $u = (1 - |x|^2)^{1 + \alpha/2}$
-- **Constants:** `alpha = 1.8`
-- **Network:** FNN [3, 20, 20, 20, 20, 1], tanh, Glorot normal
-- **Training:** Adam 10,000; 256 domain points
-- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Fractional Poisson equation 3D**
-
-**Result (RTX 4090):** L2 = 7.5e-3
-
-*PINN vs reference, error analysis*
-
-![Fractional Poisson equation 3D — PINN vs reference, error analysis](assets/Images/DeepXDE/Fractional_Poisson_equation_3D/surface_comparison.png)
-
-</details>
-
-<details id="dx-fractional-diffusion-equation">
-<summary><strong>Fractional diffusion equation</strong></summary>
-
-DeepXDE example: [fractional_diffusion_1d.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/fractional_diffusion_1d.py)
-
-$$\Large \frac{\partial u}{\partial t} = D_{0+}^{\alpha}u + D_{1-}^{\alpha}u - e^{-t}\left(x^3(1-x)^3 + f_\alpha(x)\right), \qquad x \in [0, 1],\ t \in [0, 1],\ \alpha = 1.8$$
-
-- **Equation in the panel:** `du_t - frac(u) + exp(-t)*(x**3*(1 - x)**3 + ...)` (DeepXDE's TimeFPDE)
-- **Fractional settings:** 52-point static mesh in x at each time
-- **Boundary and initial conditions:** $u(0, t) = u(1, t) = 0$, $u(x, 0) = x^3(1-x)^3$, both exact through $\hat u = x(1-x)\,t\,N + x^3(1-x)^3$
-- **Exact solution:** $u = e^{-t}x^3(1-x)^3$
-- **Constants:** `alpha = 1.8`
-- **Network:** FNN [2, 20, 20, 20, 20, 1], tanh, Glorot normal
-- **Training:** Adam 10,000; 400 domain, 2 boundary, 2 initial points
-- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Fractional diffusion equation**
-
-**Result (RTX 4090):** L2 = 1.0e-7 ($t = 0$), 1.4e-3 ($t = 0.25$), 5.8e-3 ($t = 0.5$), 2.4e-3 ($t = 0.75$), 3.3e-3 ($t = 1$)
-
-*u — PINN solution over time*
-
-![Fractional diffusion equation — PINN solution over time (u)](assets/Images/DeepXDE/Fractional_diffusion_equation/animation.gif)
-
-*PINN vs reference, error analysis*
-
-![Fractional diffusion equation — PINN vs reference, error analysis](assets/Images/DeepXDE/Fractional_diffusion_equation/surface_comparison.png)
-
-</details>
-
-<details id="dx-poisson-1d-dirichlet">
-<summary><strong>Poisson 1D – Dirichlet</strong></summary>
-
-DeepXDE example: [poisson.1d.dirichlet.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/poisson.1d.dirichlet.html)
-
-$$\Large -\frac{d^2u}{dx^2} = \pi^2\sin(\pi x), \qquad x \in [-1, 1]$$
-
-- **Boundary conditions:** Dirichlet, $u(\pm 1) = 0$ — in the panel: Where `True` (whole boundary), Value `0`
-- **Exact solution:** $u = \sin(\pi x)$
-- **Network:** FNN [1, 50, 50, 50, 1], tanh, Glorot uniform
-- **Training:** Adam 10,000; 16 domain, 2 boundary points
-- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Poisson 1D – Dirichlet**
-
-**Result (RTX 4090):** L2 = 3.7e-4
-
-*PINN vs reference along a line*
-
-![Poisson 1D – Dirichlet — PINN vs reference along a line](assets/Images/DeepXDE/Poisson_1D_Dirichlet/line_comparison.png)
-
-</details>
-
-<details id="dx-poisson-1d-dirichlet-neumann">
-<summary><strong>Poisson 1D – Dirichlet/Neumann</strong></summary>
-
-DeepXDE example: [poisson.1d.neumanndirichlet.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/poisson.1d.neumanndirichlet.html)
-
-$$\Large \frac{d^2u}{dx^2} = 2, \qquad x \in [-1, 1]$$
-
-- **Boundary conditions:** Dirichlet $u(-1) = 0$ (Where `left`, Value `0`); Neumann $u'(1) = 4$ (Where `right`, Value `4` — at the right end the outward normal derivative is $du/dx$)
-- **Exact solution:** $u = (x + 1)^2$
-- **Network:** FNN [1, 50, 50, 50, 1], tanh, Glorot uniform
-- **Training:** Adam 10,000; 16 domain, 2 boundary points
-- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Poisson 1D – Dirichlet/Neumann**
-
-**Result (RTX 4090):** L2 = 2.3e-4
-
-*PINN vs reference along a line*
-
-![Poisson 1D – Dirichlet/Neumann — PINN vs reference along a line](assets/Images/DeepXDE/Poisson_1D_Dirichlet_Neumann/line_comparison.png)
-
-</details>
-
-<details id="dx-poisson-1d-dirichlet-robin">
-<summary><strong>Poisson 1D – Dirichlet/Robin</strong></summary>
-
-DeepXDE example: [poisson.1d.dirichletrobin.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/poisson.1d.dirichletrobin.html)
-
-$$\Large \frac{d^2u}{dx^2} = 2, \qquad x \in [-1, 1]$$
-
-- **Boundary conditions:** Dirichlet $u(-1) = 0$ (Where `left`); Robin $u'(1) = u(1)$ (Where `right`, Value `u`)
-- **Exact solution:** $u = (x + 1)^2$
-- **Network:** FNN [1, 50, 50, 50, 1], tanh, Glorot uniform
-- **Training:** Adam 10,000; 16 domain, 2 boundary points
-- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Poisson 1D – Dirichlet/Robin**
-
-**Result (RTX 4090):** L2 = 2.4e-4
-
-*PINN vs reference along a line*
-
-![Poisson 1D – Dirichlet/Robin — PINN vs reference along a line](assets/Images/DeepXDE/Poisson_1D_Dirichlet_Robin/line_comparison.png)
-
-</details>
-
-<details id="dx-poisson-1d-dirichlet-periodic">
-<summary><strong>Poisson 1D – Dirichlet/Periodic</strong></summary>
-
-DeepXDE example: [poisson.1d.dirichletperiodic.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/poisson.1d.dirichletperiodic.html)
-
-$$\Large -\frac{d^2u}{dx^2} = \pi^2\sin(\pi x), \qquad x \in [-1, 1]$$
-
-- **Boundary conditions:** Dirichlet $u(-1) = 0$ (Where `left`); periodic $u(-1) = u(1)$ (Where `right`)
-- **Exact solution:** $u = \sin(\pi x)$
-- **Network:** FNN [1, 50, 50, 50, 1], tanh, Glorot uniform
-- **Training:** Adam 10,000; 16 domain, 2 boundary points
-- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Poisson 1D – Dirichlet/Periodic**
-
-**Result (RTX 4090):** L2 = 1.2e-2
-
-*PINN vs reference along a line*
-
-![Poisson 1D – Dirichlet/Periodic — PINN vs reference along a line](assets/Images/DeepXDE/Poisson_1D_Dirichlet_Periodic/line_comparison.png)
-
-</details>
-
-<details id="dx-poisson-1d-dirichlet-pointsetoperator">
-<summary><strong>Poisson 1D – Dirichlet/PointSetOperator</strong></summary>
-
-DeepXDE example: [poisson.1d.pointsetoperator.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/poisson.1d.pointsetoperator.html)
-
-$$\Large \frac{d^2u}{dx^2} = 2, \qquad x \in [-1, 1]$$
-
-- **Boundary conditions:** Dirichlet $u(-1) = 0$ (Where `left`); point-set operator condition $u'(1) = 4$ — a Point Set Operator row with the point typed in (Points `1`, Function `du_x`, Target value `4`; no file)
-- **Exact solution:** $u = (x + 1)^2$
-- **Network:** FNN [1, 50, 50, 50, 1], tanh, Glorot uniform
-- **Training:** Adam 20,000; 16 domain, 2 boundary points
-- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Poisson 1D – Dirichlet/PointSetOperator**
-
-**Result (RTX 4090):** L2 = 2.6e-5
-
-*PINN vs reference along a line*
-
-![Poisson 1D – Dirichlet/PointSetOperator — PINN vs reference along a line](assets/Images/DeepXDE/Poisson_1D_Dirichlet_PointSetOperator/line_comparison.png)
-
-</details>
-
-<details id="dx-poisson-1d-hard-boundary-conditions">
-<summary><strong>Poisson 1D – hard boundary conditions</strong></summary>
-
-DeepXDE example: [Poisson_Dirichlet_1d_exactBC.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Poisson_Dirichlet_1d_exactBC.py)
-
-$$\Large -\frac{d^2u}{dx^2} = \sum_{k=1}^{4} k\sin(kx) + 8\sin(8x), \qquad x \in [0, \pi]$$
-
-- **Boundary conditions:** $u(0) = 0$, $u(\pi) = \pi$, imposed exactly by the output transform $\hat u = x(\pi - x)\,N(x) + x$
-- **Exact solution:** $u = x + \sum_{k=1}^{4}\frac{\sin(kx)}{k} + \frac{\sin(8x)}{8}$
-- **Learning rate:** inverse-time decay, $10^{-4}/(1 + 0.3\,n/1000)$ at iteration $n$
-- **Network:** FNN [1, 50, 50, 50, 1], tanh, Glorot uniform
-- **Training:** Adam 30,000; 64 domain points
-- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Poisson 1D – hard boundary conditions**
-
-**Result (RTX 4090):** L2 = 2.2e-6
-
-*PINN vs reference along a line*
-
-![Poisson 1D – hard boundary conditions — PINN vs reference along a line](assets/Images/DeepXDE/Poisson_1D_hard_boundary_conditions/line_comparison.png)
-
-</details>
-
-<details id="dx-poisson-1d-multi-scale-fourier-features">
-<summary><strong>Poisson 1D – multi-scale Fourier features</strong></summary>
-
-DeepXDE example: [Poisson_multiscale_1d.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Poisson_multiscale_1d.py)
-
-$$\Large \frac{d^2u}{dx^2} = -(\pi A)^2\sin(\pi A x) - 0.1(\pi B)^2\sin(\pi B x), \qquad x \in [0, 1],\ A = 2,\ B = 50$$
-
-- **Boundary conditions:** $u(0) = u(1) = 0$
-- **Exact solution:** $u = \sin(2\pi x) + 0.1\sin(50\pi x)$ — a slow wave plus a fast, small one
-- **Network:** a multi-scale Fourier feature network (MsFFN): the input goes through random Fourier features with scales $\sigma = 1$ and $10$, each through the same hidden layers, then combined
-- **Points:** 1,280 pseudo-random collocation points, redrawn every iteration; learning rate $10^{-3}/(1 + 0.9\,n/2000)$
-- **Constants:** `A = 2`, `B = 50`
-- **Network:** MsFFN [1, 100, 100, 100, 1], Fourier scales σ = 1, 10, tanh, Glorot uniform
-- **Training:** Adam 20,000; 1,280 domain, 2 boundary points
-- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Poisson 1D – multi-scale Fourier features**
-
-A plain network of the same size learns the slow wave and largely misses the fast one; the Fourier features at scale 10 are what let the PINN represent the sin(50πx) part.
-
-**Result (RTX 4090):** L2 = 3.9e-3
-
-*PINN vs reference along a line*
-
-![Poisson 1D – multi-scale Fourier features — PINN vs reference along a line](assets/Images/DeepXDE/Poisson_1D_multi_scale_Fourier_features/line_comparison.png)
-
-</details>
-
-<details id="dx-wave-propagation-space-time-multi-scale-fourier-features">
-<summary><strong>Wave propagation – space-time multi-scale Fourier features</strong></summary>
-
-DeepXDE example: [wave_1d.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/wave_1d.py)
-
-$$\Large \frac{\partial^2 u}{\partial t^2} = C^2\frac{\partial^2 u}{\partial x^2}, \qquad x \in [0, 1],\ t \in [0, 1],\ C = 10$$
-
-- **Boundary conditions:** $u(0, t) = u(1, t) = 0$
-- **Initial conditions:** $u(x, 0) = \sin(\pi x) + \sin(A\pi x)$ ($A = 2$); $\partial u/\partial t(x, 0) = 0$ as an Operator BC `du_t` applied at the initial time
-- **Exact solution:** $u = \sin(\pi x)\cos(C\pi t) + \sin(A\pi x)\cos(AC\pi t)$ — ten and twenty oscillations in time
-- **Network:** space-time multi-scale Fourier features (STMsFFN): space scale $\sigma_x = 1$, time scales $\sigma_t = 1, 10$; inputs rescaled to zero mean, unit variance by the input-transform formula `(x - 0.5)*2*sqrt(3); (t - 0.5)*2*sqrt(3)`
-- **Loss weights:** set from the initial losses, $w_i = 5 / L_i(0)$ (*Scale by initial losses*); learning rate $10^{-3}/(1 + 0.9\,n/2000)$; collocation points redrawn every iteration
-- **Constants:** `A = 2`, `C = 10`
-- **Network:** STMsFFN [2, 100, 100, 100, 1], Fourier scales σ = 1, time scales 1, 10, tanh, Glorot uniform
-- **Training:** Adam 10,000; 360 domain, 360 boundary, 360 initial points
-- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Wave propagation – space-time multi-scale Fourier features**
-
-Collocation points are redrawn every iteration from a pseudo-random distribution. DeepXDE's script keeps the default Hammersley distribution, which is deterministic, so its resampler redraws the same 360 points: run that way, the network fits them (training loss 4e-5) but not the wave in between (test loss near 1, L2 ≈ 1 for t > 0). This is a hard problem in 10,000 iterations — the error grows with t; longer training improves it.
-
-**Result (RTX 4090):** L2 = 7.7e-4 ($t = 0$), 4.5e-2 ($t = 0.25$), 9.8e-2 ($t = 0.5$), 0.10 ($t = 0.75$), 0.14 ($t = 1$)
-
-*u — PINN solution over time*
-
-![Wave propagation – space-time multi-scale Fourier features — PINN solution over time (u)](assets/Images/DeepXDE/Wave_propagation_space_time_multi_scale_Fourier_features/animation.gif)
-
-*PINN vs reference, error analysis*
-
-![Wave propagation – space-time multi-scale Fourier features — PINN vs reference, error analysis](assets/Images/DeepXDE/Wave_propagation_space_time_multi_scale_Fourier_features/surface_comparison.png)
-
-</details>
-
-<details id="dx-poisson-over-an-l-shaped-domain">
-<summary><strong>Poisson over an L-shaped domain</strong></summary>
-
-DeepXDE example: [poisson.Lshape.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/poisson.Lshape.html)
-
-$$\Large -\nabla^2 u = 1, \qquad \Omega = [-1, 1]^2 \setminus [0, 1]\times[-1, 0]$$
-
-- **Boundary conditions:** Dirichlet, $u = 0$ on the whole boundary
-- **Geometry:** Polygon (L-shape)
-- **Network:** FNN [2, 50, 50, 50, 50, 1], tanh, Glorot uniform
-- **Training:** Adam 50,000 → L-BFGS 15,000; 1,200 domain, 120 boundary points
-- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Poisson over an L-shaped domain**
-
-**Result (RTX 4090):** L2 = 3.5e-2
-
-*PINN vs reference, error analysis*
-
-![Poisson over an L-shaped domain — PINN vs reference, error analysis](assets/Images/DeepXDE/Poisson_over_an_L_shaped_domain/surface_comparison.png)
-
-</details>
-
-<details id="dx-laplace-equation-on-a-disk">
-<summary><strong>Laplace equation on a disk</strong></summary>
-
-DeepXDE example: [laplace.disk.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/laplace.disk.html)
-
-$$\Large r\frac{\partial u}{\partial r} + r^2\frac{\partial^2 u}{\partial r^2} + \frac{\partial^2 u}{\partial \theta^2} = 0, \qquad r \in [0, 1],\ \theta \in [0, 2\pi]$$
-
-- **Boundary condition:** $u(1, \theta) = \cos\theta$
-- **Input features:** $(r\sin\theta,\ r\cos\theta)$ through an input-transform formula, which makes the solution periodic in $\theta$
-- **Exact solution:** $u = r\cos\theta$
-- **In PINNStudio:** $x$ plays $r$ and $y$ plays $\theta$, so the plots show the $(r, \theta)$ rectangle
-- **Network:** FNN [2, 20, 20, 20, 1], tanh, Glorot normal
-- **Training:** Adam 15,000; 2,540 domain, 80 boundary points
-- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Laplace equation on a disk**
-
-**Result (RTX 4090):** L2 = 1.1e-3
-
-*PINN vs reference, error analysis*
-
-![Laplace equation on a disk — PINN vs reference, error analysis](assets/Images/DeepXDE/Laplace_equation_on_a_disk/surface_comparison.png)
-
-</details>
-
-<details id="dx-euler-beam">
-<summary><strong>Euler beam</strong></summary>
-
-DeepXDE example: [eulerbeam.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/eulerbeam.html)
-
-$$\Large \frac{d^4u}{dx^4} = -1, \qquad x \in [0, 1]$$
-
-- **Boundary conditions:** $u(0) = 0$, $u'(0) = 0$ (clamped); $u''(1) = 0$, $u'''(1) = 0$ (free) — the last two as Operator BCs
-- **Exact solution:** $u = -\frac{x^4}{24} + \frac{x^3}{6} - \frac{x^2}{4}$
-- **Network:** FNN [1, 20, 20, 20, 1], tanh, Glorot uniform
-- **Training:** Adam 10,000; 10 domain, 2 boundary points
-- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Euler beam**
-
-**Result (RTX 4090):** L2 = 8.4e-3
-
-*PINN vs reference along a line*
-
-![Euler beam — PINN vs reference along a line](assets/Images/DeepXDE/Euler_beam/line_comparison.png)
-
-</details>
-
-<details id="dx-linear-elastostatic-plate">
-<summary><strong>Linear elastostatic plate</strong></summary>
-
-DeepXDE example: [elasticity.plate.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/elasticity.plate.html)
-
-$$\Large \frac{\partial \sigma_{xx}}{\partial x} + \frac{\partial \sigma_{xy}}{\partial y} = f_x, \qquad \frac{\partial \sigma_{xy}}{\partial x} + \frac{\partial \sigma_{yy}}{\partial y} = f_y$$
-
-$$\Large \sigma_{xx} = (\lambda + 2\mu)\varepsilon_{xx} + \lambda\varepsilon_{yy}, \quad \sigma_{yy} = (\lambda + 2\mu)\varepsilon_{yy} + \lambda\varepsilon_{xx}, \quad \sigma_{xy} = 2\mu\varepsilon_{xy}$$
-
-- **Domain:** $[0, 1]^2$; $\lambda = 1$, $\mu = 0.5$, $Q = 4$ (constants `lmbd`, `mu`, `Q`); body forces $f_x$, $f_y$ as in DeepXDE's script
-- **Outputs:** five, $u_x, u_y, \sigma_{xx}, \sigma_{yy}, \sigma_{xy}$, with five equations (two momentum, three constitutive)
-- **Boundary conditions:** imposed exactly by an output transform, e.g. $\hat u_x = y(1-y)N_1$, $\hat\sigma_{yy} = (1-y)N_4 + (\lambda+2\mu)Q\sin(\pi x)$
-- **Exact solution:** $u_x = \cos(2\pi x)\sin(\pi y)$, $u_y = \sin(\pi x)\,Qy^4/4$
-- **Constants:** `lmbd = 1`, `mu = 0.5`, `Q = 4`
-- **Network:** PFNN, a separate [40, 40, 40, 40] subnetwork for each of the 5 outputs, tanh, Glorot uniform
-- **Training:** Adam 20,000 → L-BFGS 20,000; 500 domain, 500 boundary points
-- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Linear elastostatic plate**
-
-**Note — more training than DeepXDE's script.** DeepXDE's script trains 5,000 Adam iterations, which are not enough for this problem: with exactly those settings the L2 errors are 0.35, 0.59, 0.19, 0.48 and 1.6 for $u_x, u_y, \sigma_{xx}, \sigma_{yy}, \sigma_{xy}$ (DeepXDE's own script, run unchanged on the same GPU, also ends at 0.33–0.36). This example therefore trains **20,000 Adam + 20,000 L-BFGS iterations** (Training Phases 1 and 2; about 9 minutes on an RTX 4090), and the results below are for these settings.
-
-**Result (RTX 4090):** L2 = 4.9e-2 ($u_x$), 4.3e-2 ($u_y$), 7.2e-3 ($\sigma_{xx}$), 2.0e-2 ($\sigma_{yy}$), 6.7e-2 ($\sigma_{xy}$) — 20,000 Adam + 20,000 L-BFGS (DeepXDE's 5,000 Adam alone: 0.35, 0.59, 0.19, 0.48, 1.6)
-
-*ux — PINN vs reference, error analysis*
-
-![Linear elastostatic plate — PINN vs reference, error analysis (ux)](assets/Images/DeepXDE/Linear_elastostatic_plate/surface_comparison_ux.png)
-
-*uy — PINN vs reference, error analysis*
-
-![Linear elastostatic plate — PINN vs reference, error analysis (uy)](assets/Images/DeepXDE/Linear_elastostatic_plate/surface_comparison_uy.png)
-
-*sxx — PINN vs reference, error analysis*
-
-![Linear elastostatic plate — PINN vs reference, error analysis (sxx)](assets/Images/DeepXDE/Linear_elastostatic_plate/surface_comparison_sxx.png)
-
-*syy — PINN vs reference, error analysis*
-
-![Linear elastostatic plate — PINN vs reference, error analysis (syy)](assets/Images/DeepXDE/Linear_elastostatic_plate/surface_comparison_syy.png)
-
-*sxy — PINN vs reference, error analysis*
-
-![Linear elastostatic plate — PINN vs reference, error analysis (sxy)](assets/Images/DeepXDE/Linear_elastostatic_plate/surface_comparison_sxy.png)
-
-</details>
-
-<details id="dx-linear-elastostatic-plate-soft-bcs">
-<summary><strong>Linear elastostatic plate (soft BCs)</strong></summary>
-
-DeepXDE example: [elasticity_plate.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/elasticity_plate.py)
-
-$$\Large \frac{\partial \sigma_{xx}}{\partial x} + \frac{\partial \sigma_{xy}}{\partial y} = f_x, \qquad \frac{\partial \sigma_{xy}}{\partial x} + \frac{\partial \sigma_{yy}}{\partial y} = f_y$$
-
-- **Same problem** as the plate above (constants `lmbd`, `mu`, `Q`, five outputs and equations)
-- **Boundary conditions as rows** (DeepXDE's `BC_type = \"soft\"`): $u_x = 0$ at top and bottom; $u_y = 0$ at left, bottom and right; $\sigma_{xx} = 0$ at left and right; $\sigma_{yy} = (\lambda + 2\mu)Q\sin(\pi x)$ at the top
-- **Constants:** `lmbd = 1`, `mu = 0.5`, `Q = 4`
-- **Network:** PFNN, a separate [40, 40, 40, 40] subnetwork for each of the 5 outputs, tanh, Glorot uniform
-- **Training:** Adam 20,000 → L-BFGS 20,000; 500 domain, 500 boundary points
-- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Linear elastostatic plate (soft BCs)**
-
-**Note — more training than DeepXDE's script.** As for the plate above, DeepXDE's 5,000 Adam iterations are not enough (L2 errors 0.02–0.08 with exactly those settings), so this example trains **20,000 Adam + 20,000 L-BFGS iterations** (about 7 minutes on an RTX 4090); the results below are for these settings. With soft boundary conditions the plate trains more easily than with the hard output transform.
-
-**Result (RTX 4090):** L2 = 4.9e-4 ($u_x$), 1.1e-3 ($u_y$), 6.4e-4 ($\sigma_{xx}$), 9.6e-4 ($\sigma_{yy}$), 2.7e-3 ($\sigma_{xy}$) — 20,000 Adam + 20,000 L-BFGS (DeepXDE's 5,000 Adam alone: 2.4e-2 to 7.8e-2)
-
-*ux — PINN vs reference, error analysis*
-
-![Linear elastostatic plate (soft BCs) — PINN vs reference, error analysis (ux)](assets/Images/DeepXDE/Linear_elastostatic_plate_soft_BCs/surface_comparison_ux.png)
-
-*uy — PINN vs reference, error analysis*
-
-![Linear elastostatic plate (soft BCs) — PINN vs reference, error analysis (uy)](assets/Images/DeepXDE/Linear_elastostatic_plate_soft_BCs/surface_comparison_uy.png)
-
-*sxx — PINN vs reference, error analysis*
-
-![Linear elastostatic plate (soft BCs) — PINN vs reference, error analysis (sxx)](assets/Images/DeepXDE/Linear_elastostatic_plate_soft_BCs/surface_comparison_sxx.png)
-
-*syy — PINN vs reference, error analysis*
-
-![Linear elastostatic plate (soft BCs) — PINN vs reference, error analysis (syy)](assets/Images/DeepXDE/Linear_elastostatic_plate_soft_BCs/surface_comparison_syy.png)
-
-*sxy — PINN vs reference, error analysis*
-
-![Linear elastostatic plate (soft BCs) — PINN vs reference, error analysis (sxy)](assets/Images/DeepXDE/Linear_elastostatic_plate_soft_BCs/surface_comparison_sxy.png)
-
-</details>
-
-<details id="dx-helmholtz-2d-dirichlet">
-<summary><strong>Helmholtz 2D (Dirichlet)</strong></summary>
-
-DeepXDE example: [helmholtz.2d.dirichlet.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/helmholtz.2d.dirichlet.html)
-
-$$\Large -\nabla^2 u - k_0^2 u = k_0^2\sin(k_0 x)\sin(k_0 y), \qquad k_0 = 4\pi,\ (x, y) \in [0, 1]^2$$
-
-- **Boundary conditions:** $u = 0$ on the boundary, imposed exactly by $\hat u = x(1-x)y(1-y)N$
-- **Exact solution:** $u = \sin(k_0 x)\sin(k_0 y)$
-- **Constants:** `n = 2`, `k0 = 2*pi*n`
-- **Network:** FNN [2, 150, 150, 150, 1], sin, Glorot uniform
-- **Training:** Adam 5,000; 400 domain, 80 boundary points
-- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Helmholtz 2D (Dirichlet)**
-
-**Result (RTX 4090):** L2 = 1.9e-3
-
-*PINN vs reference, error analysis*
-
-![Helmholtz 2D (Dirichlet) — PINN vs reference, error analysis](assets/Images/DeepXDE/Helmholtz_2D_Dirichlet/surface_comparison.png)
-
-</details>
-
-<details id="dx-helmholtz-2d-hyperparameter-optimization">
-<summary><strong>Helmholtz 2D – hyperparameter optimization</strong></summary>
-
-DeepXDE example: [Helmholtz_Dirichlet_2d_HPO.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Helmholtz_Dirichlet_2d_HPO.py)
-
-$$\Large -\nabla^2 u - k_0^2 u = k_0^2\sin(k_0 x)\sin(k_0 y), \qquad k_0 = 4\pi,\ (x, y) \in [0, 1]^2$$
-
-- **Same problem** as Helmholtz 2D (Dirichlet), with $\hat u = x(1-x)y(1-y)N$
-- **Parameter Sweep, mode Bayesian search:** learning rate $10^{-4}$–$5\times10^{-2}$ (log), hidden layers 1–10, neurons per layer 5–500, activation sin / sigmoid / tanh
-- **Budget:** 50 runs of 10,000 Adam iterations each — the baseline (lr $10^{-3}$, 4 × 50, sin), 10 random runs, then 39 chosen by the Gaussian-process model, minimizing the final loss
-- **Output:** one folder per run, `bayes_search.csv` and `bayes_convergence.png`; the best run is printed at the end of the Training Log
-- **Constants:** `n = 2`, `k0 = 2*pi*n`
-- **Network:** FNN [2, 50, 50, 50, 50, 1], sin, Glorot uniform
-- **Training:** Adam 10,000; 400 domain, 80 boundary points
-- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Helmholtz 2D – hyperparameter optimization**
-
-**Result (RTX 4090):** the baseline (lr $10^{-3}$, 4 × 50, sin) ends at final loss 5.7 (L2 = 0.33); the best of the 50 runs — lr $1.5\times10^{-3}$, 3 hidden layers of 87, sin — reaches final loss 0.020 and **L2 = 1.3e-3** (about 40 minutes for all 50 runs)
-
-*PINN vs reference, error analysis*
-
-![Helmholtz 2D – hyperparameter optimization — PINN vs reference, error analysis](assets/Images/DeepXDE/Helmholtz_2D_hyperparameter_optimization/surface_comparison.png)
-
-*Bayesian search: final loss of every run and the best so far*
-
-![Helmholtz 2D – hyperparameter optimization — Bayesian search: final loss of every run and the best so far](assets/Images/DeepXDE/Helmholtz_2D_hyperparameter_optimization/bayes_convergence.png)
-
-</details>
-
-<details id="dx-helmholtz-2d-with-a-hole">
-<summary><strong>Helmholtz 2D with a hole</strong></summary>
-
-DeepXDE example: [helmholtz.2d.neumann.hole.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/helmholtz.2d.neumann.hole.html)
-
-$$\Large -\nabla^2 u - k_0^2 u = k_0^2\sin(k_0 x)\sin(k_0 y), \qquad k_0 = 2\pi$$
-
-- **Geometry:** Custom — the square $[-0.5, 0.5]^2$ minus a disk of radius 0.25
-- **Boundary conditions:** Dirichlet (exact solution) on the outer square; Neumann (exact normal derivative) on the hole
-- **Exact solution:** $u = \sin(k_0 x)\sin(k_0 y)$
-- **Constants:** `n = 1`, `k0 = 2*pi*n`, `R = 1/4`
-- **Network:** FNN [2, 350, 350, 350, 1], sin, Glorot uniform
-- **Training:** Adam 5,000; 225 domain, 240 boundary points
-- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Helmholtz 2D with a hole**
-
-**Result (RTX 4090):** L2 = 4.6e-2
-
-*PINN vs reference, error analysis*
-
-![Helmholtz 2D with a hole — PINN vs reference, error analysis](assets/Images/DeepXDE/Helmholtz_2D_with_a_hole/surface_comparison.png)
-
-</details>
-
-<details id="dx-helmholtz-sound-hard-scattering-absorbing-bc">
-<summary><strong>Helmholtz sound-hard scattering (absorbing BC)</strong></summary>
-
-DeepXDE example: [Helmholtz_Sound_hard_ABC_2d.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Helmholtz_Sound_hard_ABC_2d.py)
-
-$$\Large -\nabla^2 u - k_0^2 u = 0, \qquad u = u_{re} + i\,u_{im},\ k_0 = 2$$
-
-- **Geometry:** Custom — the square $[-\pi, \pi]^2$ minus a disk of radius $R = \pi/4$
-- **Scattered field** of the plane wave $e^{ik_0x}$ off a sound-hard disk: two outputs `u_re`, `u_im`, one equation each
-- **On the disk** (Neumann): $\partial u/\partial n = -\partial e^{ik_0x}/\partial n$, i.e. `-k0*x*sin(k0*x)/R` and `k0*x*cos(k0*x)/R`
-- **On the outer square** (absorbing, Robin): $\partial u/\partial n = ik_0u$, i.e. `-k0*u_im` on the `u_re` row and `k0*u_re` on the `u_im` row
-- **Reference:** the Bessel/Hankel series solution of DeepXDE's script
-- **Constants:** `k0 = 2`, `R = pi/4`
-- **Network:** FNN [2, 350, 350, 350, 2], tanh, Glorot uniform
-- **Training:** Adam 10,000; 1,600 domain, 320 boundary points
-- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Helmholtz sound-hard scattering (absorbing BC)**
-
-**Result (RTX 4090):** L2 = 7.8e-2 ($u_{re}$), 6.7e-2 ($u_{im}$) — DeepXDE's own script, run unchanged on the same GPU, ends at 9.1e-2 (best 7.1e-2)
-
-*u_re — PINN vs reference, error analysis*
-
-![Helmholtz sound-hard scattering (absorbing BC) — PINN vs reference, error analysis (u_re)](assets/Images/DeepXDE/Helmholtz_sound_hard_scattering_absorbing_BC/surface_comparison_u_re.png)
-
-*u_im — PINN vs reference, error analysis*
-
-![Helmholtz sound-hard scattering (absorbing BC) — PINN vs reference, error analysis (u_im)](assets/Images/DeepXDE/Helmholtz_sound_hard_scattering_absorbing_BC/surface_comparison_u_im.png)
-
-</details>
-
-<details id="dx-kovasznay-flow">
-<summary><strong>Kovasznay flow</strong></summary>
-
-DeepXDE example: [Kovasznay.flow.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/Kovasznay.flow.html)
-
-$$\Large (\mathbf u\cdot\nabla)\mathbf u + \nabla p = \frac{1}{Re}\nabla^2\mathbf u, \qquad \nabla\cdot\mathbf u = 0, \qquad Re = 20$$
-
-- **Domain:** $[-0.5, 1] \times [-0.5, 1.5]$; outputs $u, v, p$
-- **Boundary conditions:** Dirichlet for $u$ and $v$ on the whole boundary, and for $p$ on the outlet $x = 1$
-- **Exact solution:** $u = 1 - e^{\lambda x}\cos(2\pi y)$, $v = \frac{\lambda}{2\pi}e^{\lambda x}\sin(2\pi y)$, $p = \frac{1}{2}(1 - e^{2\lambda x})$, $\lambda = \frac{Re}{2} - \sqrt{\frac{Re^2}{4} + 4\pi^2}$
-- **Constants:** `Re = 20`, `nu = 1/Re`, `l = 1/(2*nu) - sqrt(1/(4*nu**2) + 4*pi**2)`
-- **Network:** FNN [2, 50, 50, 50, 50, 3], tanh, Glorot normal
-- **Training:** Adam 30,000 → L-BFGS 15,000; 2,601 domain, 400 boundary points
-- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Kovasznay flow**
-
-**Result (RTX 4090):** L2 = 2.1e-4 ($u$), 9.0e-4 ($v$), 5.4e-4 ($p$)
-
-*u — PINN vs reference, error analysis*
-
-![Kovasznay flow — PINN vs reference, error analysis (u)](assets/Images/DeepXDE/Kovasznay_flow/surface_comparison_u.png)
-
-*p — PINN vs reference, error analysis*
-
-![Kovasznay flow — PINN vs reference, error analysis (p)](assets/Images/DeepXDE/Kovasznay_flow/surface_comparison_p.png)
-
-</details>
-
-<details id="dx-burgers-equation">
-<summary><strong>Burgers equation</strong></summary>
-
-DeepXDE example: [burgers.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/burgers.html)
-
-$$\Large \frac{\partial u}{\partial t} + u\frac{\partial u}{\partial x} = \frac{0.01}{\pi}\frac{\partial^2 u}{\partial x^2}, \qquad x \in [-1, 1],\ t \in [0, 0.99]$$
-
-- **Initial condition:** $u(x, 0) = -\sin(\pi x)$
-- **Boundary conditions:** Dirichlet, $u(\pm 1, t) = 0$
-- **Time range:** $t \in [0, 0.99]$, as in DeepXDE's script (its reference data ends at $t = 0.99$)
-- **Reference:** PINNStudio's own Burgers reference solution at $t = 0, 0.25, 0.5, 0.75$
-- **Network:** FNN [2, 20, 20, 20, 1], tanh, Glorot normal
-- **Training:** Adam 15,000 → L-BFGS 15,000; 2,540 domain, 80 boundary, 160 initial points
-- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Burgers equation**
-
-**Result (RTX 4090):** L2 = 8.3e-4 ($t = 0$), 1.4e-2 ($t = 0.25$), 1.7e-2 ($t = 0.5$), 1.4e-2 ($t = 0.75$)
-
-*u — PINN solution over time*
-
-![Burgers equation — PINN solution over time (u)](assets/Images/DeepXDE/Burgers_equation/animation.gif)
-
-*PINN vs reference, error analysis*
-
-![Burgers equation — PINN vs reference, error analysis](assets/Images/DeepXDE/Burgers_equation/surface_comparison.png)
-
-</details>
-
-<details id="dx-burgers-equation-with-rar">
-<summary><strong>Burgers equation with RAR</strong></summary>
-
-DeepXDE example: [burgers.rar.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/burgers.rar.html)
-
-$$\Large \frac{\partial u}{\partial t} + u\frac{\partial u}{\partial x} = \frac{0.01}{\pi}\frac{\partial^2 u}{\partial x^2}, \qquad x \in [-1, 1],\ t \in [0, 0.99]$$
-
-- **Initial / boundary conditions:** $u(x, 0) = -\sin(\pi x)$, $u(\pm 1, t) = 0$
-- **Residual-based adaptive refinement:** each round adds the 1 point with the largest residual (out of 100,000 candidates) and retrains, until the mean residual is below 0.005
-- **Network:** FNN [2, 20, 20, 20, 1], tanh, Glorot normal
-- **Training:** Adam 10,000 → L-BFGS 15,000 per RAR round; 2,500 domain, 100 boundary, 160 initial points
-- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Burgers equation with RAR**
-
-**Result (RTX 4090):** L2 = 6.3e-4 ($t = 0$), 1.3e-2 ($t = 0.25$), 1.7e-2 ($t = 0.5$), 1.4e-2 ($t = 0.75$)
-
-*u — PINN solution over time*
-
-![Burgers equation with RAR — PINN solution over time (u)](assets/Images/DeepXDE/Burgers_equation_with_RAR/animation.gif)
-
-*PINN vs reference, error analysis*
-
-![Burgers equation with RAR — PINN vs reference, error analysis](assets/Images/DeepXDE/Burgers_equation_with_RAR/surface_comparison.png)
-
-</details>
-
-<details id="dx-heat-equation">
-<summary><strong>Heat equation</strong></summary>
-
-DeepXDE example: [heat.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/heat.html)
-
-$$\Large \frac{\partial u}{\partial t} = 0.4\frac{\partial^2 u}{\partial x^2}, \qquad x \in [0, 1],\ t \in [0, 1]$$
-
-- **Initial condition:** $u(x, 0) = \sin(\pi x)$; **boundary conditions:** $u(0, t) = u(1, t) = 0$
-- **Exact solution:** $u = e^{-0.4\pi^2 t}\sin(\pi x)$
-- **Constants:** `a = 0.4`, `L = 1`, `n = 1`
-- **Network:** FNN [2, 20, 20, 20, 1], tanh, Glorot normal
-- **Training:** Adam 20,000 → L-BFGS 15,000; 2,540 domain, 80 boundary, 160 initial points
-- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Heat equation**
-
-The solution decays to about 2% of its initial size by $t = 1$, so the relative error grows over time even though the absolute error stays small.
-
-**Result (RTX 4090):** L2 = 4.2e-4 ($t = 0$), 9.1e-4 ($t = 0.25$), 2.2e-3 ($t = 0.5$), 9.5e-3 ($t = 0.75$), 5.0e-2 ($t = 1$)
-
-*u — PINN solution over time*
-
-![Heat equation — PINN solution over time (u)](assets/Images/DeepXDE/Heat_equation/animation.gif)
-
-*PINN vs reference, error analysis*
-
-![Heat equation — PINN vs reference, error analysis](assets/Images/DeepXDE/Heat_equation/surface_comparison.png)
-
-</details>
-
-<details id="dx-heat-equation-with-resampling">
-<summary><strong>Heat equation with resampling</strong></summary>
-
-DeepXDE example: [heat.resample.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/heat.resample.html)
-
-$$\Large \frac{\partial u}{\partial t} = 0.4\frac{\partial^2 u}{\partial x^2}, \qquad x \in [0, 1],\ t \in [0, 1]$$
-
-- **Initial / boundary conditions:** $u(x, 0) = \sin(\pi x)$, $u(0, t) = u(1, t) = 0$
-- **Point resampling:** the collocation points are redrawn every 10 iterations (DeepXDE's `PDEPointResampler`)
-- **Exact solution:** $u = e^{-0.4\pi^2 t}\sin(\pi x)$
-- **Constants:** `a = 0.4`, `L = 1`, `n = 1`
-- **Network:** FNN [2, 20, 20, 20, 1], tanh, Glorot normal
-- **Training:** Adam 200,000 → L-BFGS 15,000; 2,540 domain, 80 boundary, 160 initial points
-- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Heat equation with resampling**
-
-**Result (RTX 4090):** L2 = 1.6e-4 ($t = 0$), 4.6e-4 ($t = 0.25$), 5.8e-4 ($t = 0.5$), 4.1e-3 ($t = 0.75$), 1.4e-2 ($t = 1$)
-
-*u — PINN solution over time*
-
-![Heat equation with resampling — PINN solution over time (u)](assets/Images/DeepXDE/Heat_equation_with_resampling/animation.gif)
-
-*PINN vs reference, error analysis*
-
-![Heat equation with resampling — PINN vs reference, error analysis](assets/Images/DeepXDE/Heat_equation_with_resampling/surface_comparison.png)
-
-</details>
-
-<details id="dx-diffusion-equation">
-<summary><strong>Diffusion equation</strong></summary>
-
-DeepXDE example: [diffusion.1d.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/diffusion.1d.html)
-
-$$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} - e^{-t}\left(\sin(\pi x) - \pi^2\sin(\pi x)\right), \qquad x \in [-1, 1],\ t \in [0, 1]$$
-
-- **Initial condition:** $u(x, 0) = \sin(\pi x)$; **boundary condition:** $u = e^{-t}\sin(\pi x)$
-- **Exact solution:** $u = e^{-t}\sin(\pi x)$
-- **Network:** FNN [2, 32, 32, 32, 1], tanh, Glorot uniform
-- **Training:** Adam 10,000; 40 domain, 20 boundary, 10 initial points
-- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Diffusion equation**
-
-**Result (RTX 4090):** L2 = 4.8e-3 ($t = 0$), 9.0e-3 ($t = 0.25$), 6.4e-3 ($t = 0.5$), 5.8e-3 ($t = 0.75$), 3.0e-2 ($t = 1$)
-
-*u — PINN solution over time*
-
-![Diffusion equation — PINN solution over time (u)](assets/Images/DeepXDE/Diffusion_equation/animation.gif)
-
-*PINN vs reference, error analysis*
-
-![Diffusion equation — PINN vs reference, error analysis](assets/Images/DeepXDE/Diffusion_equation/surface_comparison.png)
-
-</details>
-
-<details id="dx-diffusion-equation-with-hard-ic-and-bc">
-<summary><strong>Diffusion equation with hard IC and BC</strong></summary>
-
-DeepXDE example: [diffusion.1d.exactBC.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/diffusion.1d.exactBC.html)
-
-$$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} - e^{-t}\left(\sin(\pi x) - \pi^2\sin(\pi x)\right), \qquad x \in [-1, 1],\ t \in [0, 1]$$
-
-- **Initial and boundary conditions:** imposed exactly by $\hat u = t(1 - x^2)N + \sin(\pi x)$ — no IC/BC loss terms
-- **Exact solution:** $u = e^{-t}\sin(\pi x)$
-- **Network:** FNN [2, 32, 32, 32, 1], tanh, Glorot uniform
-- **Training:** Adam 10,000; 40 domain points
-- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Diffusion equation with hard IC and BC**
-
-**Result (RTX 4090):** L2 = 9.4e-8 ($t = 0$), 1.6e-4 ($t = 0.25$), 4.6e-4 ($t = 0.5$), 1.3e-3 ($t = 0.75$), 2.8e-3 ($t = 1$)
-
-*u — PINN solution over time*
-
-![Diffusion equation with hard IC and BC — PINN solution over time (u)](assets/Images/DeepXDE/Diffusion_equation_with_hard_IC_and_BC/animation.gif)
-
-*PINN vs reference, error analysis*
-
-![Diffusion equation with hard IC and BC — PINN vs reference, error analysis](assets/Images/DeepXDE/Diffusion_equation_with_hard_IC_and_BC/surface_comparison.png)
-
-</details>
-
-<details id="dx-diffusion-equation-with-resampling">
-<summary><strong>Diffusion equation with resampling</strong></summary>
-
-DeepXDE example: [diffusion.1d.resample.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/diffusion.1d.resample.html)
-
-$$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} - e^{-t}\left(\sin(\pi x) - \pi^2\sin(\pi x)\right), \qquad x \in [-1, 1],\ t \in [0, 1]$$
-
-- **Initial / boundary conditions:** $u(x, 0) = \sin(\pi x)$, $u = e^{-t}\sin(\pi x)$ on the boundary
-- **Point resampling:** pseudo-random collocation points redrawn every 100 iterations
-- **Exact solution:** $u = e^{-t}\sin(\pi x)$
-- **Network:** FNN [2, 32, 32, 32, 1], tanh, Glorot uniform
-- **Training:** Adam 2,000; 40 domain, 20 boundary, 10 initial points
-- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Diffusion equation with resampling**
-
-**Result (RTX 4090):** L2 = 1.8e-2 ($t = 0$), 2.5e-2 ($t = 0.25$), 1.5e-2 ($t = 0.5$), 1.4e-2 ($t = 0.75$), 4.3e-2 ($t = 1$)
-
-*u — PINN solution over time*
-
-![Diffusion equation with resampling — PINN solution over time (u)](assets/Images/DeepXDE/Diffusion_equation_with_resampling/animation.gif)
-
-*PINN vs reference, error analysis*
-
-![Diffusion equation with resampling — PINN vs reference, error analysis](assets/Images/DeepXDE/Diffusion_equation_with_resampling/surface_comparison.png)
-
-</details>
-
-<details id="dx-diffusion-reaction-equation">
-<summary><strong>Diffusion-reaction equation</strong></summary>
-
-DeepXDE example: [diffusion.reaction.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/diffusion.reaction.html)
-
-$$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} + e^{-t}\left(\tfrac{3}{2}\sin 2x + \tfrac{8}{3}\sin 3x + \tfrac{15}{4}\sin 4x + \tfrac{63}{8}\sin 8x\right), \qquad x \in [-\pi, \pi],\ t \in [0, 1]$$
-
-- **Initial and boundary conditions:** imposed exactly by $\hat u = t(\pi^2 - x^2)N + \sum_k \frac{\sin(kx)}{k}$
-- **Exact solution:** $u = e^{-t}\left(\sin x + \tfrac{\sin 2x}{2} + \tfrac{\sin 3x}{3} + \tfrac{\sin 4x}{4} + \tfrac{\sin 8x}{8}\right)$
-- **Network:** FNN [2, 30, 30, 30, 30, 30, 30, 1], tanh, Glorot uniform
-- **Training:** Adam 20,000; 320 domain points
-- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Diffusion-reaction equation**
-
-DeepXDE's own script, run unchanged on the same GPU, ends with a similar loss (and the same Adam loss spikes near the end of training).
-
-**Result (RTX 4090):** L2 = 9.9e-8 ($t = 0$), 1.4e-2 ($t = 0.25$), 3.4e-2 ($t = 0.5$), 6.7e-2 ($t = 0.75$), 0.11 ($t = 1$)
-
-*u — PINN solution over time*
-
-![Diffusion-reaction equation — PINN solution over time (u)](assets/Images/DeepXDE/Diffusion_reaction_equation/animation.gif)
-
-*PINN vs reference, error analysis*
-
-![Diffusion-reaction equation — PINN vs reference, error analysis](assets/Images/DeepXDE/Diffusion_reaction_equation/surface_comparison.png)
-
-</details>
-
-<details id="dx-allen-cahn-equation">
-<summary><strong>Allen-Cahn equation</strong></summary>
-
-DeepXDE example: [allen.cahn.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/allen.cahn.html)
-
-$$\Large \frac{\partial u}{\partial t} = 0.001\frac{\partial^2 u}{\partial x^2} + 5(u - u^3), \qquad x \in [-1, 1],\ t \in [0, 1]$$
-
-- **Initial and boundary conditions:** $u(x, 0) = x^2\cos(\pi x)$ and $u(\pm 1, t) = -1$, imposed exactly by $\hat u = x^2\cos(\pi x) + t(1 - x^2)N$
-- **Reference:** computed by `tools/make_deepxde_reference_data.py` (agrees with DeepXDE's `Allen_Cahn.mat` to $5\times 10^{-4}$)
-- **Constants:** `d = 0.001`
-- **Network:** FNN [2, 20, 20, 20, 1], tanh, Glorot normal
-- **Training:** Adam 40,000 → L-BFGS 15,000; 8,000 domain, 400 boundary points
-- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Allen-Cahn equation**
-
-**Result (RTX 4090):** L2 = 9.5e-8 ($t = 0$), 1.9e-3 ($t = 0.25$), 5.2e-3 ($t = 0.5$), 1.3e-2 ($t = 0.75$), 2.9e-2 ($t = 1$)
-
-*u — PINN solution over time*
-
-![Allen-Cahn equation — PINN solution over time (u)](assets/Images/DeepXDE/Allen_Cahn_equation/animation.gif)
-
-*PINN vs reference, error analysis*
-
-![Allen-Cahn equation — PINN vs reference, error analysis](assets/Images/DeepXDE/Allen_Cahn_equation/surface_comparison.png)
-
-</details>
-
-<details id="dx-klein-gordon-equation">
-<summary><strong>Klein-Gordon equation</strong></summary>
-
-DeepXDE example: [klein.gordon.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/klein.gordon.html)
-
-$$\Large \frac{\partial^2 u}{\partial t^2} - \frac{\partial^2 u}{\partial x^2} + u^2 = -x\cos t + x^2\cos^2 t, \qquad x \in [-1, 1],\ t \in [0, 10]$$
-
-- **Initial conditions:** $u(x, 0) = x$ and $\partial u/\partial t\,(x, 0) = 0$ (the second as an Operator BC applied at the initial time)
-- **Boundary condition:** $u = x\cos t$
-- **Training:** Adam with inverse-time decay ($10^{-3}$, steps 3000, rate 0.9), then L-BFGS
-- **Exact solution:** $u = x\cos t$
-- **Constants:** `alpha = -1`, `beta = 0`, `gamma = 1`, `k = 2`
-- **Network:** FNN [2, 40, 40, 1], tanh, Glorot uniform
-- **Training:** Adam 20,000 → L-BFGS 15,000; 30,000 domain, 1,500 boundary, 1,500 initial points
-- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Klein-Gordon equation**
-
-**Result (RTX 4090):** L2 = 1.4e-3 ($t = 0$), 1.6e-2 ($t = 2.5$), 8.5e-2 ($t = 5$), 6.5e-2 ($t = 7.5$), 8.1e-2 ($t = 10$)
-
-*u — PINN solution over time*
-
-![Klein-Gordon equation — PINN solution over time (u)](assets/Images/DeepXDE/Klein_Gordon_equation/animation.gif)
-
-*PINN vs reference, error analysis*
-
-![Klein-Gordon equation — PINN vs reference, error analysis](assets/Images/DeepXDE/Klein_Gordon_equation/surface_comparison.png)
-
-</details>
-
-<details id="dx-schr-dinger-equation">
-<summary><strong>Schrödinger equation</strong></summary>
-
-DeepXDE example: [Schrodinger.ipynb](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Schrodinger.ipynb)
-
-$$\Large i\frac{\partial h}{\partial t} + \frac{1}{2}\frac{\partial^2 h}{\partial x^2} + |h|^2 h = 0, \qquad x \in [-5, 5],\ t \in [0, \pi/2]$$
-
-- **Solved as:** two real outputs, $h = u + iv$
-- **Initial condition:** $h(x, 0) = 2\,\mathrm{sech}(x)$; **boundary conditions:** periodic in $u$, $v$ and their $x$-derivatives
-- **Compared:** $|h| = \sqrt{u^2 + v^2}$ against PINNStudio's Schrödinger reference solution
-- **Network:** FNN [2, 100, 100, 100, 100, 2], tanh, Glorot normal
-- **Training:** Adam 10,000 → L-BFGS 10,000; 10,000 domain, 20 boundary, 200 initial points
-- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Schrödinger equation**
-
-**Result (RTX 4090):** L2 of $|h|$ = 1.5e-3 ($t = 0$), 3.2e-2 ($t = 0.25$), 5.8e-2 ($t = 0.5$), 0.12 ($t = 0.75$), 0.14 ($t = 1$), 0.13 ($t = 1.25$), 8.6e-2 ($t = 1.5$)
-
-*|h| — PINN solution over time*
-
-![Schrödinger equation — PINN solution over time (|h|)](assets/Images/DeepXDE/Schr_dinger_equation/animation.gif)
-
-*|h| — PINN vs reference, error analysis*
-
-![Schrödinger equation — PINN vs reference, error analysis (|h|)](assets/Images/DeepXDE/Schr_dinger_equation/surface_comparison.png)
-
-</details>
-
-<details id="dx-beltrami-flow">
-<summary><strong>Beltrami flow</strong></summary>
-
-DeepXDE example: [Beltrami_flow.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Beltrami_flow.py)
-
-$$\Large \frac{\partial \mathbf u}{\partial t} + (\mathbf u\cdot\nabla)\mathbf u + \nabla p = \nabla^2\mathbf u, \qquad \nabla\cdot\mathbf u = 0, \qquad (x, y, z) \in [-1, 1]^3,\ t \in [0, 1]$$
-
-- **Outputs:** $u, v, w, p$; Dirichlet BCs and initial conditions for the velocity (the exact Beltrami solution)
-- **Loss weights:** 1 for the four equations, 100 for the BCs and ICs
-- **Exact solution:** e.g. $u = -\left(e^{x}\sin(y + z) + e^{z}\cos(x + y)\right)e^{-t}$
-- **Network:** FNN [4, 50, 50, 50, 50, 4], tanh, Glorot normal
-- **Training:** Adam 30,000 → L-BFGS 15,000; 50,000 domain, 5,000 boundary, 5,000 initial points
-- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Beltrami flow**
-
-Only the velocity is constrained, so the pressure is determined only up to a constant: its predicted values are off by a fixed amount, which makes $p$'s relative error large, and growing with $t$ as $p \propto e^{-2t}$ decays, while $u, v, w$ are accurate.
-
-**Result (RTX 4090):** L2 at $t = 0, 0.5, 1$: $u$ 1.9e-4, 3.5e-4, 1.4e-3; $v$ 1.8e-4, 2.7e-4, 7.3e-4; $w$ 1.9e-4, 3.6e-4, 1.2e-3; $p$ 5.6, 15, 41 (a constant offset of about 24.7, see above)
-
-*u — PINN solution over time*
-
-![Beltrami flow — PINN solution over time (u)](assets/Images/DeepXDE/Beltrami_flow/animation.gif)
-
-*u — PINN vs reference, error analysis*
-
-![Beltrami flow — PINN vs reference, error analysis (u)](assets/Images/DeepXDE/Beltrami_flow/surface_comparison_u.png)
-
-*p — PINN vs reference, error analysis*
-
-![Beltrami flow — PINN vs reference, error analysis (p)](assets/Images/DeepXDE/Beltrami_flow/surface_comparison_p.png)
-
-</details>
-
-<details id="dx-black-scholes-equation-call-option">
-<summary><strong>Black-Scholes equation (call option)</strong></summary>
-
-DeepXDE example: [black_scholes.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/black_scholes.html)
-
-$$\Large \frac{\partial V}{\partial \tau} = \frac{\sigma^2}{2}S^2\frac{\partial^2 V}{\partial S^2} + rS\frac{\partial V}{\partial S} - rV, \qquad S \in [0, 150],\ \tau \in [0, 1]$$
-
-- **Parameters:** strike $K = 50$, rate $r = 0.05$, volatility $\sigma = 0.2$; $x$ is the stock price $S$ and $t$ the time to maturity $\tau$
-- **Initial condition:** payoff $V(S, 0) = \max(S - K, 0)$; **boundary conditions:** $V(0, \tau) = 0$, $V(150, \tau) = 150 - Ke^{-r\tau}$
-- **Exact solution:** the Black-Scholes formula (uses `norm_cdf` in the reference formula)
-- **Constants:** `K = 50`, `r = 0.05`, `sigma = 0.2`
-- **Network:** FNN [2, 28, 28, 28, 28, 1], tanh, Glorot normal
-- **Training:** Adam 20,000 → L-BFGS 15,000; 2,047 domain, 63 boundary, 127 initial points
-- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Black-Scholes equation (call option)**
-
-**Result (RTX 4090):** L2 = 5.7e-4 ($t = 0.25$), 3.2e-4 ($t = 0.5$), 4.3e-4 ($t = 1$)
-
-*u — PINN solution over time*
-
-![Black-Scholes equation (call option) — PINN solution over time (u)](assets/Images/DeepXDE/Black_Scholes_equation_call_option/animation.gif)
-
-*PINN vs reference, error analysis*
-
-![Black-Scholes equation (call option) — PINN vs reference, error analysis](assets/Images/DeepXDE/Black_Scholes_equation_call_option/surface_comparison.png)
-
-</details>
-
-<details id="dx-american-put-option">
-<summary><strong>American put option</strong></summary>
-
-DeepXDE example: [american_put.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/american_put.py)
-
-$$\Large \min\left(-\mathcal{L}V,\ V - \max(K - S, 0)\right) = 0, \qquad \mathcal{L}V = -\frac{\partial V}{\partial \tau} + \frac{\sigma^2}{2}S^2\frac{\partial^2 V}{\partial S^2} + rS\frac{\partial V}{\partial S} - rV$$
-
-- **Domain:** $S \in [0, 4]$, $\tau \in [0, 1]$; strike $K = 1$, $r = 0.05$, $\sigma = 0.2$
-- **Equations:** three residuals for one output (DeepXDE's Fischer-Burmeister form of the complementarity problem)
-- **Extra points:** 1000 anchors in $S \in [0.5, 1.5]$ around the exercise boundary; point resampling every 1000 iterations
-- **Reference:** none bundled (DeepXDE compares against a binomial-tree price) — add your own in Error Analysis
-- **Constants:** `r = 0.05`, `sigma = 0.2`, `K = 1`
-- **Network:** FNN [2, 128, 128, 128, 128, 1], tanh, Glorot normal
-- **Training:** Adam 12,000 → L-BFGS 15,000; 6,000 domain, 1,500 boundary, 1,500 initial points
-- **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **American put option**
-
-**Result (RTX 4090):** trained without errors; no bundled reference to compare against
-
-*u — PINN solution over time*
-
-![American put option — PINN solution over time (u)](assets/Images/DeepXDE/American_put_option/animation.gif)
-
-</details>
-
-### DeepXDE Inverse
-
-<details id="dx-inverse-lorenz-system">
-<summary><strong>Inverse: Lorenz system</strong></summary>
-
-DeepXDE example: [Lorenz.inverse.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_inverse/Lorenz.inverse.html)
-
-$$\Large \frac{dy_1}{dt} = C_1(y_2 - y_1), \qquad \frac{dy_2}{dt} = y_1(C_2 - y_3) - y_2, \qquad \frac{dy_3}{dt} = y_1y_2 - C_3y_3, \qquad t \in [0, 3]$$
-
-- **Problem dimension:** ODE (t); initial conditions $y(0) = (-8, 7, 27)$
-- **Unknowns:** $C_1, C_2, C_3$ (true $10, 15, 8/3$), all starting from 1
-- **Data:** $y_1, y_2, y_3$ measured at 50 times (also used as anchor points), from SciPy's `solve_ivp`
-- **Network:** FNN [2, 40, 40, 40, 3], tanh, Glorot uniform
-- **Training:** Adam 20,000 → L-BFGS 15,000; 400 domain, 2 boundary points
-- **GUI recipe:** Quick Examples → Category **DeepXDE Inverse** → **Inverse: Lorenz system**
-
-**Result (RTX 4090):** $C_1$ = 9.9990, $C_2$ = 14.9997, $C_3$ = 2.66675 (true 10, 15, 8/3); L2 = 1.2e-4 ($y_1$), 1.2e-4 ($y_2$), 6.7e-5 ($y_3$)
-
-*y1 — PINN vs reference along a line*
-
-![Inverse: Lorenz system — PINN vs reference along a line (y1)](assets/Images/DeepXDE/Inverse_Lorenz_system/line_comparison_y1.png)
-
-*y3 — PINN vs reference along a line*
-
-![Inverse: Lorenz system — PINN vs reference along a line (y3)](assets/Images/DeepXDE/Inverse_Lorenz_system/line_comparison_y3.png)
-
-*y1 — inferred parameters during training*
-
-![Inverse: Lorenz system — inferred parameters during training (y1)](assets/Images/DeepXDE/Inverse_Lorenz_system/param_plot.png)
-
-</details>
-
-<details id="dx-inverse-lorenz-system-with-exogenous-input">
-<summary><strong>Inverse: Lorenz system with exogenous input</strong></summary>
-
-DeepXDE example: [Lorenz.inverse.forced.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_inverse/Lorenz.inverse.forced.html)
-
-$$\Large \frac{dy_1}{dt} = C_1(y_2 - y_1), \qquad \frac{dy_2}{dt} = y_1(C_2 - y_3) - y_2, \qquad \frac{dy_3}{dt} = y_1y_2 - C_3y_3 + 10\sin(2\pi t)$$
-
-- **Problem dimension:** ODE (t), $t \in [0, 3]$; initial conditions $y(0) = (-8, 7, 27)$
-- **Exogenous input:** $f(t) = 10\sin(2\pi t)$, written straight into the equation
-- **Unknowns:** $C_1, C_2, C_3$ (true $10, 15, 8/3$), all starting from 1
-- **Data:** $y_1, y_2, y_3$ measured at 200 times, from SciPy's `solve_ivp`
-- **Network:** FNN [2, 40, 40, 40, 3], tanh, Glorot uniform
-- **Training:** Adam 60,000; 400 domain, 2 boundary points
-- **GUI recipe:** Quick Examples → Category **DeepXDE Inverse** → **Inverse: Lorenz system with exogenous input**
-
-**Result (RTX 4090):** $C_1$ = 9.987, $C_2$ = 14.998, $C_3$ = 2.6669 (true 10, 15, 8/3); L2 = 7.3e-4 ($y_1$), 6.6e-4 ($y_2$), 2.9e-4 ($y_3$)
-
-*y1 — PINN vs reference along a line*
-
-![Inverse: Lorenz system with exogenous input — PINN vs reference along a line (y1)](assets/Images/DeepXDE/Inverse_Lorenz_system_with_exogenous_input/line_comparison_y1.png)
-
-*y3 — PINN vs reference along a line*
-
-![Inverse: Lorenz system with exogenous input — PINN vs reference along a line (y3)](assets/Images/DeepXDE/Inverse_Lorenz_system_with_exogenous_input/line_comparison_y3.png)
-
-*y1 — inferred parameters during training*
-
-![Inverse: Lorenz system with exogenous input — inferred parameters during training (y1)](assets/Images/DeepXDE/Inverse_Lorenz_system_with_exogenous_input/param_plot.png)
-
-</details>
-
-<details id="dx-inverse-diffusion-equation">
-<summary><strong>Inverse: diffusion equation</strong></summary>
-
-DeepXDE example: [diffusion.1d.inverse.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_inverse/diffusion.1d.inverse.html)
-
-$$\Large \frac{\partial u}{\partial t} = C\frac{\partial^2 u}{\partial x^2} - e^{-t}\left(\sin(\pi x) - \pi^2\sin(\pi x)\right), \qquad x \in [-1, 1],\ t \in [0, 1]$$
-
-- **Unknown:** $C$ (true value 1, initial guess 2)
-- **Data:** 10 measurements of $u$ at $t = 1$, plus the initial and boundary conditions
-- **Exact solution:** $u = e^{-t}\sin(\pi x)$
-- **Network:** FNN [2, 32, 32, 32, 1], tanh, Glorot uniform
-- **Training:** Adam 50,000; 40 domain, 20 boundary, 10 initial points
-- **GUI recipe:** Quick Examples → Category **DeepXDE Inverse** → **Inverse: diffusion equation**
-
-**Result (RTX 4090):** $C$ = 0.9988 (true 1); L2 = 1.2e-3 ($t = 0$), 1.8e-3 ($t = 0.25$), 1.9e-3 ($t = 0.5$), 2.8e-3 ($t = 0.75$), 3.1e-3 ($t = 1$)
-
-*u — PINN solution over time*
-
-![Inverse: diffusion equation — PINN solution over time (u)](assets/Images/DeepXDE/Inverse_diffusion_equation/animation.gif)
-
-*PINN vs reference, error analysis*
-
-![Inverse: diffusion equation — PINN vs reference, error analysis](assets/Images/DeepXDE/Inverse_diffusion_equation/surface_comparison.png)
-
-*Inferred parameters during training*
-
-![Inverse: diffusion equation — inferred parameters during training](assets/Images/DeepXDE/Inverse_diffusion_equation/param_plot.png)
-
-</details>
-
-<details id="dx-inverse-diffusion-reaction-system">
-<summary><strong>Inverse: diffusion-reaction system</strong></summary>
-
-DeepXDE example: [reaction.inverse.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_inverse/reaction.inverse.html)
-
-$$\Large \frac{\partial C_A}{\partial t} = D\frac{\partial^2 C_A}{\partial x^2} - k_f C_A C_B^2, \qquad \frac{\partial C_B}{\partial t} = D\frac{\partial^2 C_B}{\partial x^2} - 2k_f C_A C_B^2$$
-
-- **Domain:** $x \in [0, 1]$, $t \in [0, 10]$; $C_A = C_B = e^{-20x}$ at $t = 0$, $C_A = C_B = 1 - x$ on the boundary
-- **Unknowns:** $k_f$ (true 0.1) and $D$ (true $2\times 10^{-3}$, written as $10^{-3}D$ with $D = 2$)
-- **Data:** $C_A$ and $C_B$ on a space-time grid, computed by `tools/make_deepxde_reference_data.py`
-- **Network:** FNN [2, 20, 20, 20, 2], tanh, Glorot uniform
-- **Training:** Adam 80,000; 2,000 domain, 100 boundary, 100 initial points
-- **GUI recipe:** Quick Examples → Category **DeepXDE Inverse** → **Inverse: diffusion-reaction system**
-
-**Result (RTX 4090):** $k_f$ = 0.0992 (true 0.1), $D$ = 1.995 (true 2)
-
-*ca — PINN solution over time*
-
-![Inverse: diffusion-reaction system — PINN solution over time (ca)](assets/Images/DeepXDE/Inverse_diffusion_reaction_system/animation.gif)
-
-*ca — inferred parameters during training*
-
-![Inverse: diffusion-reaction system — inferred parameters during training (ca)](assets/Images/DeepXDE/Inverse_diffusion_reaction_system/param_plot.png)
-
-</details>
-
-<details id="dx-inverse-poisson-with-unknown-forcing-field">
-<summary><strong>Inverse: Poisson with unknown forcing field</strong></summary>
-
-DeepXDE example: [elliptic.inverse.field.html](https://deepxde.readthedocs.io/en/latest/demos/pinn_inverse/elliptic.inverse.field.html)
-
-$$\Large -\frac{d^2u}{dx^2} + q(x) = 0, \qquad x \in [-1, 1]$$
-
-- **Unknown:** the field $q(x)$ (true $-\pi^2\sin(\pi x)$), learned as a second network output
-- **Data:** 100 measurements of $u$, given as a Point Set BC (and as anchor points); $u = \sin(\pi x)$ on the boundary
-- **Mode:** Forward — there are no unknown constants, only an unknown field, as in DeepXDE
-- **Network:** PFNN, a separate [20, 20, 20] subnetwork for each of the 2 outputs, tanh, Glorot uniform
-- **Training:** Adam 20,000; 200 domain, 2 boundary points
-- **GUI recipe:** Quick Examples → Category **DeepXDE Inverse** → **Inverse: Poisson with unknown forcing field**
-
-**Result (RTX 4090):** L2 = 8.3e-4 ($u$), 4.3e-2 ($q$)
-
-*u — PINN vs reference along a line*
-
-![Inverse: Poisson with unknown forcing field — PINN vs reference along a line (u)](assets/Images/DeepXDE/Inverse_Poisson_with_unknown_forcing_field/line_comparison_u.png)
-
-*q — PINN vs reference along a line*
-
-![Inverse: Poisson with unknown forcing field — PINN vs reference along a line (q)](assets/Images/DeepXDE/Inverse_Poisson_with_unknown_forcing_field/line_comparison_q.png)
-
-</details>
-
-<details id="dx-inverse-poisson-with-unknown-forcing-field-batches">
-<summary><strong>Inverse: Poisson with unknown forcing field (batches)</strong></summary>
-
-DeepXDE example: [elliptic_inverse_field_batch.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/elliptic_inverse_field_batch.py)
-
-$$\Large -\frac{d^2u}{dx^2} + q(x) = 0, \qquad x \in [-1, 1]$$
-
-- **Unknown:** the field $q(x)$ (true $-\pi^2\sin(\pi x)$)
-- **Data:** 10,000 measurements of $u$, used 100 at a time (Point Set BC with batch size 100, redrawn every iteration)
-- **Network:** PFNN, a separate [20, 20, 20] subnetwork for each of the 2 outputs, tanh, Glorot uniform
-- **Training:** Adam 20,000; 200 domain, 2 boundary points
-- **GUI recipe:** Quick Examples → Category **DeepXDE Inverse** → **Inverse: Poisson with unknown forcing field (batches)**
-
-**Result (RTX 4090):** L2 = 7.6e-3 ($u$), 0.13 ($q$)
-
-*q — PINN vs reference along a line*
-
-![Inverse: Poisson with unknown forcing field (batches) — PINN vs reference along a line (q)](assets/Images/DeepXDE/Inverse_Poisson_with_unknown_forcing_field_batches/line_comparison_q.png)
-
-</details>
-
-<details id="dx-inverse-diffusion-reaction-with-space-dependent-rate">
-<summary><strong>Inverse: diffusion-reaction with space-dependent rate</strong></summary>
-
-DeepXDE example: [diffusion_reaction_rate.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/diffusion_reaction_rate.py)
-
-$$\Large \lambda\frac{d^2u}{dx^2} - k(x)\,u = \sin(2\pi x), \qquad \lambda = 0.01,\ x \in [0, 1]$$
-
-- **Unknown:** the reaction rate $k(x)$ (true $0.1 + e^{-0.5(x - 0.5)^2/0.15^2}$), learned as a second network output
-- **Data:** 100 measurements of $u$ (computed with SciPy's `solve_bvp`, as DeepXDE does), $u = 0$ at both ends
-- **Constants:** `l = 0.01`
-- **Network:** PFNN, a separate [20, 20] subnetwork for each of the 2 outputs, tanh, Glorot uniform
-- **Training:** Adam 20,000; 50 domain, 8 boundary points
-- **GUI recipe:** Quick Examples → Category **DeepXDE Inverse** → **Inverse: diffusion-reaction with space-dependent rate**
-
-**Result (RTX 4090):** L2 = 4.0e-2 ($k$)
-
-*u — PINN vs reference along a line*
-
-![Inverse: diffusion-reaction with space-dependent rate — PINN vs reference along a line (u)](assets/Images/DeepXDE/Inverse_diffusion_reaction_with_space_dependent_rate/line_comparison.png)
-
-*u — PINN solution*
-
-![Inverse: diffusion-reaction with space-dependent rate — PINN solution (u)](assets/Images/DeepXDE/Inverse_diffusion_reaction_with_space_dependent_rate/solution_plot.png)
-
-</details>
-
-<details id="dx-inverse-brinkman-forchheimer-model">
-<summary><strong>Inverse: Brinkman-Forchheimer model</strong></summary>
-
-DeepXDE example: [brinkman_forchheimer.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/brinkman_forchheimer.py)
-
-$$\Large -\frac{\nu_e}{\epsilon}\frac{d^2u}{dx^2} + \frac{\nu u}{K} = g, \qquad x \in [0, 1],\ \epsilon = 0.4,\ \nu = 10^{-3},\ g = 1$$
-
-- **Unknowns:** effective viscosity $\nu_e$ and permeability $K$ (both $10^{-3}$, initial guesses 0.1)
-- **Data:** 5 measurements of $u$; $u = 0$ at both walls through the output transform $\hat u = x(1-x)N$
-- **Exact solution:** $u = 1 - \cosh(20(x - 0.5))/\cosh(10)$
-- **Constants:** `g = 1`, `v = 1e-3`, `e = 0.4`
-- **Network:** FNN [1, 20, 20, 20, 1], tanh, Glorot uniform
-- **Training:** Adam 30,000; 100 domain points
-- **GUI recipe:** Quick Examples → Category **DeepXDE Inverse** → **Inverse: Brinkman-Forchheimer model**
-
-DeepXDE's own script, run unchanged twice on the same GPU, ends with $\nu_e$ = 1.31–1.35e-3, $K$ = 0.984e-3 and an L2 error of 0.018–0.020 for $u$ — the same picture: $K$ is recovered closely, $\nu_e$ only to within about 30–50% from five measurements.
-
-**Result (RTX 4090):** $\nu_e$ = 1.49e-3, $K$ = 0.985e-3 (both true 1e-3); L2 of $u$ = 2.9e-2
-
-*PINN vs reference along a line*
-
-![Inverse: Brinkman-Forchheimer model — PINN vs reference along a line](assets/Images/DeepXDE/Inverse_Brinkman_Forchheimer_model/line_comparison.png)
-
-*Inferred parameters during training*
-
-![Inverse: Brinkman-Forchheimer model — inferred parameters during training](assets/Images/DeepXDE/Inverse_Brinkman_Forchheimer_model/param_plot.png)
-
-</details>
-
-<details id="dx-inverse-fractional-poisson-equation-1d">
-<summary><strong>Inverse: fractional Poisson equation 1D</strong></summary>
-
-DeepXDE example: [fractional_Poisson_1d_inverse.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/fractional_Poisson_1d_inverse.py)
-
-$$\Large \frac{D_{-1+}^{\alpha}u + D_{1-}^{\alpha}u}{2\cos(\alpha\pi/2)} = \Gamma(\alpha_0 + 2)\,x, \qquad x \in [-1, 1]$$
-
-- **Unknown:** the order $\alpha$ (true $\alpha_0 = 1.8$, start 1.5) — an inverse variable named `alpha`, also the fractional α
-- **Data:** 20 measurements of $u = x(1 - x^2)^{\alpha_0/2}$, loss weight 100
-- **Fractional settings:** 100 points per unit length, dynamic mesh (rebuilt every step as α changes)
-- **Constants:** `a0 = 1.8`
-- **Network:** FNN [1, 20, 20, 20, 20, 1], tanh, Glorot normal
-- **Training:** Adam 10,000; 20 domain points
-- **GUI recipe:** Quick Examples → Category **DeepXDE Inverse** → **Inverse: fractional Poisson equation 1D**
-
-**Result (RTX 4090):** $\alpha$ = 1.792 (true 1.8); L2 of $u$ = 1.3e-2
-
-*PINN vs reference along a line*
-
-![Inverse: fractional Poisson equation 1D — PINN vs reference along a line](assets/Images/DeepXDE/Inverse_fractional_Poisson_equation_1D/line_comparison.png)
-
-*Inferred parameters during training*
-
-![Inverse: fractional Poisson equation 1D — inferred parameters during training](assets/Images/DeepXDE/Inverse_fractional_Poisson_equation_1D/param_plot.png)
-
-</details>
-
-<details id="dx-inverse-fractional-poisson-equation-2d">
-<summary><strong>Inverse: fractional Poisson equation 2D</strong></summary>
-
-DeepXDE example: [fractional_Poisson_2d_inverse.py](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/fractional_Poisson_2d_inverse.py)
-
-$$\Large -(-\Delta)^{\alpha/2}u = 2^{\alpha_0}\Gamma(2 + \tfrac{\alpha_0}{2})\Gamma(1 + \tfrac{\alpha_0}{2})\left(1 - (1 + \tfrac{\alpha_0}{2})|x|^2\right), \qquad |x| < 1$$
-
-- **Unknown:** the order $\alpha$ (true 1.8, start 1.5); $C(\alpha, 2)$ written with `lgamma` so it stays differentiable in α
-- **Data:** 30 random measurements of $u = (1 - |x|^2)^{1 + \alpha_0/2}$, loss weight 100
-- **Fractional settings:** 8 directions, 100 points per unit length, dynamic mesh
-- **Constants:** `a0 = 1.8`
-- **Network:** FNN [2, 20, 20, 20, 20, 1], tanh, Glorot normal
-- **Training:** Adam 10,000; 64 domain points
-- **GUI recipe:** Quick Examples → Category **DeepXDE Inverse** → **Inverse: fractional Poisson equation 2D**
-
-**Result (RTX 4090):** $\alpha$ = 1.805 (true 1.8); L2 of $u$ = 1.9e-3
-
-*PINN vs reference, error analysis*
-
-![Inverse: fractional Poisson equation 2D — PINN vs reference, error analysis](assets/Images/DeepXDE/Inverse_fractional_Poisson_equation_2D/surface_comparison.png)
-
-*Inferred parameters during training*
-
-![Inverse: fractional Poisson equation 2D — inferred parameters during training](assets/Images/DeepXDE/Inverse_fractional_Poisson_equation_2D/param_plot.png)
-
-</details>
-
 
 ## Getting Started with Your Own PDE
 
-The templates above cover twelve specific problems, but PINNStudio isn't limited to them — every field in those templates is just a starting point you can overwrite. Here's a complete walkthrough for a PDE that **isn't** a built-in template, to show the general path from "I have an equation" to "I have a trained PINN."
+The examples above cover 63 specific problems, but PINNStudio isn't limited to them — every field in those examples is just a starting point you can overwrite. Here's a complete walkthrough for a PDE that **isn't** one of the examples, to show the general path from "I have an equation" to "I have a trained PINN."
 
 We'll use the **Fisher-KPP equation**, a classic reaction-diffusion model of a population (or concentration front) that diffuses and grows logistically toward a carrying capacity of 1:
 
 $$\Large \frac{\partial u}{\partial t} = D\frac{\partial^2 u}{\partial x^2} + r\,u(1-u), \qquad x \in [0, 1],\ t \in [0, 1]$$
 
-with $D = 0.01$, $r = 1$, a localized initial bump, and no-flux (Neumann) boundaries — none of the twelve templates have a logistic nonlinearity like this one.
+with $D = 0.01$, $r = 1$, a localized initial bump, and no-flux (Neumann) boundaries — none of the examples above has a logistic nonlinearity like this one.
 
 1. **Dimension & geometry.** Leave Dimension on **1D** (the default) — no geometry selector is needed outside 2D/3D.
 2. **PDE residual.** In the free-form PDE editor, enter the residual (moving everything to one side):
