@@ -2262,11 +2262,31 @@ $$\Large \frac{\partial \mathbf u}{\partial t} + (\mathbf u\cdot\nabla)\mathbf u
 
 *u — PINN solution over time*
 
-![Beltrami flow — PINN solution over time (u)](assets/Images/DeepXDE/Beltrami_flow/animation.gif)
+![Beltrami flow — PINN solution over time (u)](assets/Images/DeepXDE/Beltrami_flow/animation_u.gif)
+
+*v — PINN solution over time*
+
+![Beltrami flow — PINN solution over time (v)](assets/Images/DeepXDE/Beltrami_flow/animation_v.gif)
+
+*w — PINN solution over time*
+
+![Beltrami flow — PINN solution over time (w)](assets/Images/DeepXDE/Beltrami_flow/animation_w.gif)
+
+*p — PINN solution over time*
+
+![Beltrami flow — PINN solution over time (p)](assets/Images/DeepXDE/Beltrami_flow/animation_p.gif)
 
 *u — PINN vs reference, error analysis*
 
 ![Beltrami flow — PINN vs reference, error analysis (u)](assets/Images/DeepXDE/Beltrami_flow/surface_comparison_u.png)
+
+*v — PINN vs reference, error analysis*
+
+![Beltrami flow — PINN vs reference, error analysis (v)](assets/Images/DeepXDE/Beltrami_flow/surface_comparison_v.png)
+
+*w — PINN vs reference, error analysis*
+
+![Beltrami flow — PINN vs reference, error analysis (w)](assets/Images/DeepXDE/Beltrami_flow/surface_comparison_w.png)
 
 *p — PINN vs reference, error analysis*
 
