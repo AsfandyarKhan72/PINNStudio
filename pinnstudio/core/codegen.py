@@ -1741,7 +1741,7 @@ def _gs_rar_loop_code(config):
                                                          cmap=_cmap_c3_r, s=10, vmin=_vmin_c3_r, vmax=_vmax_c3_r)
                                 _fig_r.colorbar(_sc3_r, ax=_ax3_r, shrink=0.6, pad=0.12)
                                 _ax3_r.set_title(_ttl3_r, fontsize={config.plot_subplot_title_fontsize})
-                                _ax3_r.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax3_r.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _ax3_r.set_zlabel("z", fontsize={config.plot_axis_label_fontsize})
+                                _ax3_r.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax3_r.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _ax3_r.set_zlabel("z", fontsize={config.plot_axis_label_fontsize}); [_tk.set_ticks(plt.matplotlib.ticker.MaxNLocator(nbins=4, steps=[1, 2, 5, 10]).tick_values(*_tk.get_data_interval())) for _tk in (_ax3_r.xaxis, _ax3_r.yaxis, _ax3_r.zaxis)]
                             _fig_r.suptitle(f"RAR round {{_rar_idx}} -- PINN vs Reference", fontsize={config.plot_title_fontsize}, fontweight="bold")
                         else:
                             _xp = np.linspace({config.x_min}, {config.x_max}, _res)
@@ -1815,7 +1815,7 @@ def _gs_rar_loop_code(config):
                         if len(_rar_added_so_far):
                             _ax_c.scatter(_rar_added_so_far[:, 0], _rar_added_so_far[:, 1], _rar_added_so_far[:, 2], s=9, c="#fd7e14", label="Added in earlier rounds")
                         _ax_c.scatter(_rar_new_pts[:, 0], _rar_new_pts[:, 1], _rar_new_pts[:, 2], s=12, c="#e03131", label=f"Added this round ({{len(_rar_new_pts)}})")
-                        _ax_c.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_c.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _ax_c.set_zlabel("z", fontsize={config.plot_axis_label_fontsize})
+                        _ax_c.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_c.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _ax_c.set_zlabel("z", fontsize={config.plot_axis_label_fontsize}); [_tk.set_ticks(plt.matplotlib.ticker.MaxNLocator(nbins=4, steps=[1, 2, 5, 10]).tick_values(*_tk.get_data_interval())) for _tk in (_ax_c.xaxis, _ax_c.yaxis, _ax_c.zaxis)]
                         _ax_c.legend(loc="best", fontsize=8)
                         _ax_c.set_title(f"RAR round {{_rar_idx}} -- collocation points")
                         plt.tight_layout()
@@ -1898,7 +1898,7 @@ def _gs_rar_loop_code(config):
                                                      cmap=_cmap_c3_r, s=10, vmin=_vmin_c3_r, vmax=_vmax_c3_r)
                             _fig_r.colorbar(_sc3_r, ax=_ax3_r, shrink=0.6, pad=0.12)
                             _ax3_r.set_title(_ttl3_r, fontsize={config.plot_subplot_title_fontsize})
-                            _ax3_r.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax3_r.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _ax3_r.set_zlabel("z", fontsize={config.plot_axis_label_fontsize})
+                            _ax3_r.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax3_r.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _ax3_r.set_zlabel("z", fontsize={config.plot_axis_label_fontsize}); [_tk.set_ticks(plt.matplotlib.ticker.MaxNLocator(nbins=4, steps=[1, 2, 5, 10]).tick_values(*_tk.get_data_interval())) for _tk in (_ax3_r.xaxis, _ax3_r.yaxis, _ax3_r.zaxis)]
                         _fig_r.suptitle(f"RAR round {{_rar_idx}} -- PINN vs Reference", fontsize={config.plot_title_fontsize}, fontweight="bold")
                     else:
                         _xp = np.linspace({config.x_min}, {config.x_max}, _res)
@@ -1988,7 +1988,7 @@ def _gs_rar_loop_code(config):
                     if len(_rar_added_so_far):
                         _ax_c.scatter(_rar_added_so_far[:, 0], _rar_added_so_far[:, 1], _rar_added_so_far[:, 2], s=9, c="#fd7e14", alpha=_added_alpha, label="Added in earlier rounds")
                     _ax_c.scatter(_rar_new_pts[:, 0], _rar_new_pts[:, 1], _rar_new_pts[:, 2], s=12, c="#e03131", label=f"Added this round ({{len(_rar_new_pts)}})")
-                    _ax_c.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_c.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _ax_c.set_zlabel("z", fontsize={config.plot_axis_label_fontsize})
+                    _ax_c.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_c.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _ax_c.set_zlabel("z", fontsize={config.plot_axis_label_fontsize}); [_tk.set_ticks(plt.matplotlib.ticker.MaxNLocator(nbins=4, steps=[1, 2, 5, 10]).tick_values(*_tk.get_data_interval())) for _tk in (_ax_c.xaxis, _ax_c.yaxis, _ax_c.zaxis)]
                     _ax_c.legend(loc="best", fontsize=8)
                     _ax_c.set_title(f"RAR round {{_rar_idx}} -- collocation points")
                     plt.tight_layout()
@@ -2004,7 +2004,7 @@ def _gs_rar_loop_code(config):
                     if len(_rar_added_so_far):
                         _ax_c.scatter(_rar_added_so_far[:, 0], _rar_added_so_far[:, 1], _rar_added_so_far[:, 2], s=9, c="#fd7e14", alpha=0.85, label="Added in earlier rounds")
                     _ax_c.scatter(_rar_new_pts[:, 0], _rar_new_pts[:, 1], _rar_new_pts[:, 2], s=12, c="#e03131", label=f"Added this round ({{len(_rar_new_pts)}})")
-                    _ax_c.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_c.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _ax_c.set_zlabel("t", fontsize={config.plot_axis_label_fontsize})
+                    _ax_c.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_c.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _ax_c.set_zlabel("t", fontsize={config.plot_axis_label_fontsize}); [_tk.set_ticks(plt.matplotlib.ticker.MaxNLocator(nbins=4, steps=[1, 2, 5, 10]).tick_values(*_tk.get_data_interval())) for _tk in (_ax_c.xaxis, _ax_c.yaxis, _ax_c.zaxis)]
                     _ax_c.legend(loc="best", fontsize=8)
                     _ax_c.set_title("3D view (x, y, t)")
                     _ax_c2 = _fig_c.add_subplot(1, 2, 2)
@@ -2981,7 +2981,7 @@ if {config.time_adaptive}:
                                                                cmap=_tea_cmap, s=10, vmin=_tea_vmn, vmax=_tea_vmx)
                                     fig.colorbar(_tea_sc, ax=_tea_ax, shrink=0.6, pad=0.12)
                                     _tea_ax.set_title(_tea_ttl, fontsize={config.plot_subplot_title_fontsize})
-                                    _tea_ax.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _tea_ax.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _tea_ax.set_zlabel("z", fontsize={config.plot_axis_label_fontsize})
+                                    _tea_ax.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _tea_ax.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _tea_ax.set_zlabel("z", fontsize={config.plot_axis_label_fontsize}); [_tk.set_ticks(plt.matplotlib.ticker.MaxNLocator(nbins=4, steps=[1, 2, 5, 10]).tick_values(*_tk.get_data_interval())) for _tk in (_tea_ax.xaxis, _tea_ax.yaxis, _tea_ax.zaxis)]
                             fig.suptitle(f"Step {{step_i+1}} -- PINN vs Reference", fontsize={config.plot_title_fontsize}, fontweight="bold")
                         else:
                             fig, axes = plt.subplots(_tea_n, 3, figsize=(15, 4*_tea_n), squeeze=False)
@@ -3692,7 +3692,7 @@ if {config.time_adaptive}:
                                                        cmap='{config.plot_colormap}', s=14)
                             fig.colorbar(_sc3_ta, ax=_ax3_ta, shrink=0.6, pad=0.12)
                             _ax3_ta.set_title(_ttl_ta, fontsize={config.plot_subplot_title_fontsize})
-                            _ax3_ta.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax3_ta.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _ax3_ta.set_zlabel("z", fontsize={config.plot_axis_label_fontsize})
+                            _ax3_ta.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax3_ta.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _ax3_ta.set_zlabel("z", fontsize={config.plot_axis_label_fontsize}); [_tk.set_ticks(plt.matplotlib.ticker.MaxNLocator(nbins=4, steps=[1, 2, 5, 10]).tick_values(*_tk.get_data_interval())) for _tk in (_ax3_ta.xaxis, _ax3_ta.yaxis, _ax3_ta.zaxis)]
                     plt.tight_layout(rect=[0, 0, 1, 0.93])
                     _ea_did_surface_ta = True
                 elif len(_ea_times) < 2:
@@ -6552,7 +6552,7 @@ for _pval in _param_values:
                                 _fc3a[..., 3] = np.where(_face_inside3a[_fi3a], 1.0, 0.0)
                                 _ax_gif.plot_surface(_fX3a, _fY3a, _fZ3a, facecolors=_fc3a,
                                                  rstride=1, cstride=1, linewidth=0, antialiased=False, shade=False)
-                            _ax_gif.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); _ax_gif.set_ylabel(_plot_ylabel_override or "y", fontsize={config.plot_axis_label_fontsize}); _ax_gif.set_zlabel("z", fontsize={config.plot_axis_label_fontsize})
+                            _ax_gif.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); _ax_gif.set_ylabel(_plot_ylabel_override or "y", fontsize={config.plot_axis_label_fontsize}); _ax_gif.set_zlabel("z", fontsize={config.plot_axis_label_fontsize}); [_tk.set_ticks(plt.matplotlib.ticker.MaxNLocator(nbins=4, steps=[1, 2, 5, 10]).tick_values(*_tk.get_data_interval())) for _tk in (_ax_gif.xaxis, _ax_gif.yaxis, _ax_gif.zaxis)]
                             _ax_gif.set_title(_plot_title_override or f"t = {{_t_frames[i]:.3f}}")
                             try:
                                 _ax_gif.set_box_aspect((_cx1a - _cx0a, _cy1a - _cy0a, _cz1a - _cz0a))
@@ -7405,7 +7405,7 @@ for _pval in _param_values:
                                 _sm3_ea = plt.cm.ScalarMappable(cmap=_cmap_obj_ea, norm=_norm3_ea)
                                 fig.colorbar(_sm3_ea, ax=_ax3_ea, shrink=0.6, pad=0.12)
                                 _ax3_ea.set_title(_ttl_ea, fontsize={config.plot_subplot_title_fontsize})
-                                _ax3_ea.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax3_ea.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _ax3_ea.set_zlabel("z", fontsize={config.plot_axis_label_fontsize})
+                                _ax3_ea.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax3_ea.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _ax3_ea.set_zlabel("z", fontsize={config.plot_axis_label_fontsize}); [_tk.set_ticks(plt.matplotlib.ticker.MaxNLocator(nbins=4, steps=[1, 2, 5, 10]).tick_values(*_tk.get_data_interval())) for _tk in (_ax3_ea.xaxis, _ax3_ea.yaxis, _ax3_ea.zaxis)]
                                 try:
                                     _ax3_ea.set_box_aspect((_bx1 - _bx0, _by1 - _by0, _bz1 - _bz0))
                                 except Exception:
@@ -7474,7 +7474,7 @@ for _pval in _param_values:
                                                            vmin=_vmin_c_ea, vmax=_vmax_c_ea)
                                 fig.colorbar(_sc3_ea, ax=_ax3_ea, shrink=0.6, pad=0.12)
                                 _ax3_ea.set_title(_ttl_ea, fontsize={config.plot_subplot_title_fontsize})
-                                _ax3_ea.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax3_ea.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _ax3_ea.set_zlabel("z", fontsize={config.plot_axis_label_fontsize})
+                                _ax3_ea.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax3_ea.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _ax3_ea.set_zlabel("z", fontsize={config.plot_axis_label_fontsize}); [_tk.set_ticks(plt.matplotlib.ticker.MaxNLocator(nbins=4, steps=[1, 2, 5, 10]).tick_values(*_tk.get_data_interval())) for _tk in (_ax3_ea.xaxis, _ax3_ea.yaxis, _ax3_ea.zaxis)]
                                 try:
                                     _ax3_ea.set_box_aspect((_bx1 - _bx0, _by1 - _by0, _bz1 - _bz0))
                                 except Exception:
@@ -9107,7 +9107,7 @@ if is_3d:
             _fc3a[..., 3] = np.where(_face_inside3a[_fi3a], 1.0, 0.0)
             ax.plot_surface(_fX3a, _fY3a, _fZ3a, facecolors=_fc3a,
                              rstride=1, cstride=1, linewidth=0, antialiased=False, shade=False)
-        ax.set_xlabel({xlabel_animsurf3d!r}, fontsize={axis_label_fontsize}); ax.set_ylabel({ylabel_animsurf3d!r}, fontsize={axis_label_fontsize}); ax.set_zlabel("z", fontsize={axis_label_fontsize})
+        ax.set_xlabel({xlabel_animsurf3d!r}, fontsize={axis_label_fontsize}); ax.set_ylabel({ylabel_animsurf3d!r}, fontsize={axis_label_fontsize}); ax.set_zlabel("z", fontsize={axis_label_fontsize}); [_tk.set_ticks(plt.matplotlib.ticker.MaxNLocator(nbins=4, steps=[1, 2, 5, 10]).tick_values(*_tk.get_data_interval())) for _tk in (ax.xaxis, ax.yaxis, ax.zaxis)]
         {animsurf_title_line_3d}
         try:
             ax.set_box_aspect((_cx1a - _cx0a, _cy1a - _cy0a, _cz1a - _cz0a))
@@ -9424,7 +9424,7 @@ if is_3d:
         if {show_colorbar}:
             _sm3 = plt.cm.ScalarMappable(cmap=_cmap_obj3, norm=_norm3)
             fig.colorbar(_sm3, ax=ax, shrink=0.6, pad=0.12)
-        ax.set_xlabel({xlabel_3d!r}, fontsize={axis_label_fontsize}); ax.set_ylabel({ylabel_3d!r}, fontsize={axis_label_fontsize}); ax.set_zlabel("z", fontsize={axis_label_fontsize})
+        ax.set_xlabel({xlabel_3d!r}, fontsize={axis_label_fontsize}); ax.set_ylabel({ylabel_3d!r}, fontsize={axis_label_fontsize}); ax.set_zlabel("z", fontsize={axis_label_fontsize}); [_tk.set_ticks(plt.matplotlib.ticker.MaxNLocator(nbins=4, steps=[1, 2, 5, 10]).tick_values(*_tk.get_data_interval())) for _tk in (ax.xaxis, ax.yaxis, ax.zaxis)]
         ax.set_title({title3_expr}, fontsize={subplot_title_fontsize})
         try:
             ax.set_box_aspect((_cx1 - _cx0, _cy1 - _cy0, _cz1 - _cz0))
@@ -9538,7 +9538,7 @@ def _clean_rar_diagnostics_code(config, is_2d, is_3d, is_steady, out_name):
     for pts, col, lab, sz in groups:
         if len(pts):
             ax.scatter(pts[:, 0], pts[:, 1], pts[:, 2], s=sz, c=col, label=lab)
-    ax.set_xlabel("x"); ax.set_ylabel("y"); ax.set_zlabel("z")''')
+    ax.set_xlabel("x"); ax.set_ylabel("y"); ax.set_zlabel("z"); [_tk.set_ticks(plt.matplotlib.ticker.MaxNLocator(nbins=4, steps=[1, 2, 5, 10]).tick_values(*_tk.get_data_interval())) for _tk in (ax.xaxis, ax.yaxis, ax.zaxis)]''')
         zmid = (config.z_min + config.z_max) / 2.0
         time_col = "" if is_steady else f", np.full(Xs.size, {tmax})"
         snap = (f'''    xs = np.linspace({config.x_min}, {config.x_max}, {res}); ys = np.linspace({config.y_min}, {config.y_max}, {res})
@@ -11520,7 +11520,7 @@ for i, tv in enumerate(ea_times):
         sc = ax3.scatter(bx, by, bz, c=vals, cmap="{config.plot_colormap}", s=14, **_ea_vr)
         fig.colorbar(sc, ax=ax3, shrink=0.6, pad=0.12)
         ax3.set_title(ttl, fontsize={config.plot_subplot_title_fontsize})
-        ax3.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); ax3.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); ax3.set_zlabel("z", fontsize={config.plot_axis_label_fontsize})
+        ax3.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); ax3.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); ax3.set_zlabel("z", fontsize={config.plot_axis_label_fontsize}); [_tk.set_ticks(plt.matplotlib.ticker.MaxNLocator(nbins=4, steps=[1, 2, 5, 10]).tick_values(*_tk.get_data_interval())) for _tk in (ax3.xaxis, ax3.yaxis, ax3.zaxis)]
 plt.tight_layout(rect=[0, 0, 1, 0.93])
 plt.savefig(os.path.join(ea_dir, "surface_comparison{_ea_suffix}.png"), dpi={config.plot_dpi}, bbox_inches="tight")
 plt.close()
