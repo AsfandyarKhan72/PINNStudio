@@ -213,7 +213,7 @@ EXAMPLES = [
              output_transform_formula="(1 - x**2 - y**2)*u",
              num_domain=100, num_boundary=0, num_test=100, plot_resolution=100),
         _net([2, 20, 20, 20, 20, 1], "Glorot normal"), _adam(20000), _NO_LBFGS,
-        _formula_ref(["(1 - x**2 - y**2)**(1 + alpha/2)"]),
+        _formula_ref(["abs(1 - x**2 - y**2)**(1 + alpha/2)"]),
         note="frac(u) is the integral over directions of the directional fractional derivative (8 directions, "
              "100 Grunwald-Letnikov points per unit length); times C(alpha, 2) it is minus the fractional Laplacian. "
              "u = 0 on the circle through the output transform."),
@@ -230,7 +230,7 @@ EXAMPLES = [
              output_transform_formula="(1 - x**2 - y**2 - z**2)*u",
              num_domain=256, num_boundary=0, num_test=100, plot_resolution=60),
         _net([3, 20, 20, 20, 20, 1], "Glorot normal"), _adam(10000), _NO_LBFGS,
-        _formula_ref(["(1 - x**2 - y**2 - z**2)**(1 + alpha/2)"]),
+        _formula_ref(["abs(1 - x**2 - y**2 - z**2)**(1 + alpha/2)"]),
         note="3D version: 8 x 8 directions, 100 Grunwald-Letnikov points per unit length; u = 0 on the sphere through the output transform."),
 
     _ex("Fractional diffusion equation", FORWARD, _GH + "pinn_forward/fractional_diffusion_1d.py",
@@ -832,7 +832,7 @@ EXAMPLES = [
              output_transform_enabled=True, output_transform_mode="formula", output_transform_formula="(1 - x**2 - y**2)*u",
              num_domain=64, num_boundary=0, num_test=100, plot_resolution=100),
         _net([2, 20, 20, 20, 20, 1], "Glorot normal"), _adam(10000), _NO_LBFGS,
-        _formula_ref(["(1 - x**2 - y**2)**(1 + a0/2)"]),
+        _formula_ref(["abs(1 - x**2 - y**2)**(1 + a0/2)"]),
         note="Unknown order alpha (true 1.8, start 1.5) of the fractional Laplacian on the unit disk, from 30 random "
              "measurements (seeded, written by tools/make_deepxde_reference_data.py). lgamma keeps the constant "
              "C(alpha, 2) differentiable in alpha, as DeepXDE's script does."),
