@@ -46,6 +46,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **Comparison plots read like a paper figure**: the relative L2 error is written $L_2$ (italic L, subscript 2) with numbers as 8.44 × 10⁻³ in every plot title (line and surface comparisons, RAR and Time-Adaptive figures, Restore), and |Error| maxima use the same format. Line comparisons have one normal-weight title with the error, the legend inside the panel, and a 6 × 4.5 figure for a single panel; several times get one panel each under a small figure title. The Training Log shows L₂; the script's own output and the error_metrics files keep "L2".
 - **DeepXDE examples use the jet colormap**, like PINNStudio's own templates.
 - **Built-in templates and the DeepXDE examples write boundary locations as side names** (`left`, `right`, ...) instead of `x <= 0`-style comparisons or `np.isclose(...)`, and the DeepXDE examples write constant boundary values as numbers (e.g. `0` instead of DeepXDE's `sin(pi*x)`, which is 0 at x = ±1); each example's Training Log note says what DeepXDE's script uses. Same training, easier to read.
 - **Domain bounds (x, y, z, t and the Time-Adaptive start/end times) keep full precision**: values like pi or pi/2 were rounded to 2 (x/y/z) or 4 (t) decimals; they are now kept to 10 decimals and shown without trailing zeros (1 shows as "1", pi as "3.1415926536").
