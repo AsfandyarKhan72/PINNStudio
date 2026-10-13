@@ -65,6 +65,8 @@ def main():
     ap.add_argument("--set", action="append", default=[], metavar="FIELD=VALUE",
                     help="override a setting for every example run, e.g. --set iterations=50000 "
                          "(the value is read as a Python literal when possible)")
+    ap.add_argument("--inverse", action="store_true",
+                    help="run the Inverse-mode version of examples that have one (others are skipped)")
     ap.add_argument("--timeout", type=float, default=7200)
     args = ap.parse_args()
 
@@ -75,13 +77,13 @@ def main():
     def _names(e):   # internal name and the name shown in the GUI/README
         return (e.name, display_name(e.name))
     examples = [e for e in dx.EXAMPLES if (not wanted or any(s in n for s in wanted for n in _names(e)))
-                and not any(s in n for s in skipped for n in _names(e))]
+                and not any(s in n for s in skipped for n in _names(e)) and (e.inverse or not args.inverse)]
     gen = generate_clean_script if args.export else generate_script
     rows = []
     for ex in examples:
-        d = os.path.abspath(os.path.join(args.out, _slug(ex.name)))
+        d = os.path.abspath(os.path.join(args.out, _slug(ex.name) + ("_inverse" if args.inverse else "")))
         os.makedirs(d, exist_ok=True)
-        cfg = dx.build_config(ex, REF_ROOT, keep={"save_dir": d})
+        cfg = dx.build_config(ex, REF_ROOT, keep={"save_dir": d}, inverse=args.inverse)
         if args.smoke:
             _smoke(cfg)
         if args.plot_type and not cfg.steady_state and cfg.problem_dim != "ODE":

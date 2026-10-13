@@ -35,23 +35,37 @@ class ExampleCombo(QComboBox):
         self.currentIndexChanged.connect(self._emit_key)
 
     def set_entries(self, entries):
-        from PyQt6.QtGui import QStandardItem
+        """Entries with `hidden` set (templates a DeepXDE example replaces)
+        go in as hidden, disabled rows at the end: not shown or reachable
+        from the list, but setCurrentText() still loads them by name, so
+        saved projects and scripts that name them keep working."""
         self.blockSignals(True)
         self.clear()
         self.addItem("None", "None")
         last = None
-        for e in entries:
+        shown = [e for e in entries if not getattr(e, "hidden", False)]
+        for e in shown:
             if e.dim != last:
                 self.addItem(f"── {e.dim} ──", None)
                 item = self.model().item(self.count() - 1)
                 item.setEnabled(False)
                 last = e.dim
             self.addItem(e.label, e.key)
+        self._hidden_keys = []
+        for e in entries:
+            if getattr(e, "hidden", False):
+                self.addItem(e.label, e.key)
+                row = self.count() - 1
+                self.model().item(row).setEnabled(False)
+                self.view().setRowHidden(row, True)
+                self._hidden_keys.append(e.key)
         self.setCurrentIndex(0)
         self.blockSignals(False)
 
     def keys(self):
-        return [self.itemData(i) for i in range(self.count()) if self.itemData(i)]
+        """The examples listed (hidden ones left out)."""
+        hidden = getattr(self, "_hidden_keys", [])
+        return [self.itemData(i) for i in range(self.count()) if self.itemData(i) and self.itemData(i) not in hidden]
 
     def currentText(self):
         k = self.currentData()
@@ -865,7 +879,7 @@ class MainWindow(QMainWindow):
         # _on_dim_changed resets this back to "None" when the user
         # changes dimension by hand instead (see both for the full
         # two-way sync).
-        self.quick_examples_combo.set_entries(_ex_catalog.for_category(_ex_catalog.FORWARD))
+        self.quick_examples_combo.set_entries(_ex_catalog.for_category_all(_ex_catalog.FORWARD))
         self.quick_examples_combo.setFixedHeight(28)
         # Long DeepXDE names: keep the combo's width set by the panel, and
         # let the drop-down list itself be as wide as its longest entry.
@@ -4704,13 +4718,14 @@ class MainWindow(QMainWindow):
     def _on_quick_example_category_changed(self, category):
         """Refill "Load example:" with the chosen category's examples. The
         problem currently set up is left as it is (the list shows "None")."""
-        self.quick_examples_combo.set_entries(_ex_catalog.for_category(category))
+        self.quick_examples_combo.set_entries(_ex_catalog.for_category_all(category))
         self._update_bc_mode_visibility()
 
-    def _apply_deepxde_example(self, name):
+    def _apply_deepxde_example(self, name, inverse=False):
         """Load one of DeepXDE's examples: every setting comes from
         deepxde_examples.py (DeepXDE's own script), applied through
-        _apply_config() exactly like opening a saved problem."""
+        _apply_config() exactly like opening a saved problem. `inverse`
+        loads the example's Inverse-mode version (Example.inverse)."""
         ex = _dx_examples.BY_NAME[name]
         try:
             current = self._build_config()
@@ -4720,19 +4735,20 @@ class MainWindow(QMainWindow):
         # The Save-to folder as typed (config.save_dir is the per-run,
         # timestamped folder inside it).
         keep["save_dir"] = self.save_dir_input.text()
-        cfg = _dx_examples.build_config(ex, REFERENCE_DATA_DIR, keep=keep)
+        cfg = _dx_examples.build_config(ex, REFERENCE_DATA_DIR, keep=keep, inverse=inverse)
         self._applying_template = True
         try:
             self._apply_config(cfg)
         finally:
             self._applying_template = False
         # Show it in the list: switch to its category first if needed.
-        want_cat = _ex_catalog.INVERSE if ex.category == _dx_examples.INVERSE else _ex_catalog.FORWARD
-        if name not in self.quick_examples_combo.keys():
+        want_cat = _ex_catalog.INVERSE if (ex.category == _dx_examples.INVERSE or inverse) else _ex_catalog.FORWARD
+        if name not in self.quick_examples_combo.keys() or (
+                inverse and self.quick_examples_category_combo.currentText() != _ex_catalog.INVERSE):
             self.quick_examples_category_combo.blockSignals(True)
             self.quick_examples_category_combo.setCurrentText(want_cat)
             self.quick_examples_category_combo.blockSignals(False)
-            self.quick_examples_combo.set_entries(_ex_catalog.for_category(want_cat))
+            self.quick_examples_combo.set_entries(_ex_catalog.for_category_all(want_cat))
         self.quick_examples_combo.blockSignals(True)
         self.quick_examples_combo.setCurrentText(name)
         self.quick_examples_combo.blockSignals(False)
@@ -4747,14 +4763,21 @@ class MainWindow(QMainWindow):
             self._example_snapshot = (name, self._build_config())
         except Exception:
             self._example_snapshot = None
-        self.log_box.append(f"✅ DeepXDE example loaded: {_ex_catalog.display_name(name)}")
+        self.log_box.append(f"✅ DeepXDE example loaded: {_ex_catalog.display_name(name)}"
+                            + (" (Inverse mode)" if inverse else ""))
         self.log_box.append(f"   Source: {ex.source}")
         if ex.note:
             self.log_box.append(f"   Note: {ex.note}")
+        if inverse and ex.inverse_note:
+            self.log_box.append(f"   Inverse: {ex.inverse_note}")
 
     def _on_quick_example_selected(self, text):
         if text in _dx_examples.BY_NAME:
-            self._apply_deepxde_example(text)
+            # A forward DeepXDE example with an Inverse mode, picked from the
+            # Inverse list, loads its Inverse version (like the templates).
+            self._apply_deepxde_example(
+                text, inverse=(self.quick_examples_category_combo.currentText() == _ex_catalog.INVERSE
+                               and _ex_catalog.has_inverse_mode(text)))
             return
         self._example_snapshot = None
         if text == "None":
@@ -13687,9 +13710,9 @@ def _setup_anim_ax(ax, name, iters, vals, true_val=None):
     vmin, vmax = _range_vals.min(), _range_vals.max()
     pad = 0.05 * (abs(vmax - vmin) if vmax != vmin else (abs(vmax) + 1))
     ax.set_ylim(vmin - pad, vmax + pad)
-    ax.axhline(y=final_val, color="#ff8787", linestyle="--", alpha=0.5, label=f"Final = {{final_val:.6f}}")
+    ax.axhline(y=final_val, color="#ff8787", linestyle="--", alpha=0.5, label=f"Final = {{_num_txt(final_val)}}")
     if true_val is not None:
-        ax.axhline(y=true_val, color="#ffd43b", linestyle="--", alpha=0.8, label=f"True = {{true_val:.6f}}")
+        ax.axhline(y=true_val, color="#ffd43b", linestyle="--", alpha=0.8, label=f"True = {{_num_txt(true_val)}}")
     ax.set_xlabel(_xlabel_override or "Iteration", fontsize={axis_label_fontsize})
     ax.set_title(_title_override or f"Inferred Parameter: {{name}}", fontsize={subplot_title_fontsize})
     ax.legend(loc="upper right"); ax.grid(True, alpha=0.3)

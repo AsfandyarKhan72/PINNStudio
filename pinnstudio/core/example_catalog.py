@@ -24,6 +24,7 @@ DEEPXDE = "DeepXDE"
 FORWARD = "Forward"
 INVERSE = "Inverse"
 CATEGORIES = (FORWARD, INVERSE)
+BOTH = "Forward / Inverse"   # an example with both modes (every template, some DeepXDE examples)
 DIMENSIONS = ("ODE", "1D", "2D", "3D")
 
 
@@ -34,9 +35,10 @@ class Entry:
     source: str         # PINNSTUDIO or DEEPXDE
     dim: str            # ODE / 1D / 2D / 3D
     regime: str         # "Steady" / "Time-dependent"
-    problem: str        # "Forward / Inverse" (templates), "Forward" or "Inverse"
+    problem: str        # FORWARD, INVERSE or BOTH (has an Inverse mode)
     geometry: str
     reference: str      # paper or DeepXDE source URL
+    hidden: bool = False  # not listed (a DeepXDE example covers the same problem); still loadable by key
 
     @property
     def label(self):
@@ -62,6 +64,15 @@ _TEMPLATES = [
     ("3D Poisson (Sphere)", "Poisson 3D – sphere", "3D", "Steady", "Sphere", ""),
 ]
 TEMPLATE_KEYS = tuple(t[0] for t in _TEMPLATES)
+
+# Templates not listed in Quick Examples or the README because a DeepXDE
+# example is the same problem (and has the same Inverse mode): 1D Heat is
+# DeepXDE's Heat 1D – Dirichlet, 1D Schrödinger DeepXDE's Schrödinger 1D.
+# They stay loadable by name, so saved projects and scripts keep working.
+HIDDEN_TEMPLATES = ("1D Heat", "1D Schrödinger")
+
+# Shown before the other examples of the same problem (better results).
+_FIRST_IN_FAMILY = ("1D Allen-Cahn",)
 
 # The templates' papers (Entry.reference) -> DOI / arXiv link.
 PAPERS = {
@@ -181,17 +192,18 @@ def _dx_geometry(cfg, key):
 def _build():
     entries = []
     for key, name, dim, reg, geo, paper in _TEMPLATES:
-        entries.append(Entry(key, name, PINNSTUDIO, dim, reg, "Forward / Inverse", geo, paper))
+        entries.append(Entry(key, name, PINNSTUDIO, dim, reg, BOTH, geo, paper, key in HIDDEN_TEMPLATES))
     for ex in dx.EXAMPLES:
         cfg = dx.build_config(ex, "/r")
+        problem = INVERSE if ex.category == dx.INVERSE else (BOTH if ex.inverse else FORWARD)
         entries.append(Entry(ex.name, DEEPXDE_NAMES.get(ex.name, ex.name), DEEPXDE, cfg.problem_dim,
-                             "Steady" if cfg.steady_state else "Time-dependent",
-                             INVERSE if ex.category == dx.INVERSE else FORWARD,
+                             "Steady" if cfg.steady_state else "Time-dependent", problem,
                              _dx_geometry(cfg, ex.name), ex.source))
 
     def _key(e):
         return (_DIM_ORDER[e.dim], 0 if e.regime == "Steady" else 1, 1 if e.problem == INVERSE else 0,
-                _family(e.name), e.name.lower(), 0 if e.source == PINNSTUDIO else 1)
+                _family(e.name), 0 if e.key in _FIRST_IN_FAMILY else 1, e.name.lower(),
+                0 if e.source == PINNSTUDIO else 1)
     return sorted(entries, key=_key)
 
 
@@ -205,10 +217,26 @@ def display_name(key):
     return e.name if e else key
 
 
-def for_category(category):
+def for_category(category, include_hidden=False):
     """Entries in one Quick Examples category, in catalogue order: Forward
-    has every template and DeepXDE's forward examples; Inverse has DeepXDE's
-    inverse examples and every template (loaded in Inverse mode)."""
+    has every forward example; Inverse has DeepXDE's inverse examples and
+    every example with an Inverse mode (every template, and DeepXDE
+    examples with Example.inverse), which load in Inverse mode from there.
+    Hidden templates are left out unless `include_hidden`."""
     if category == INVERSE:
-        return [e for e in ENTRIES if e.source == PINNSTUDIO or e.problem == INVERSE]
-    return [e for e in ENTRIES if e.problem != INVERSE]
+        out = [e for e in ENTRIES if e.problem in (INVERSE, BOTH)]
+    else:
+        out = [e for e in ENTRIES if e.problem != INVERSE]
+    return out if include_hidden else [e for e in out if not e.hidden]
+
+
+def has_inverse_mode(key):
+    """True for an example that is forward by default but has an Inverse mode."""
+    e = BY_KEY.get(key)
+    return bool(e) and e.problem == BOTH
+
+
+def for_category_all(category):
+    """for_category() with the hidden templates included (the Quick Examples
+    list adds them as hidden rows, see ExampleCombo.set_entries)."""
+    return for_category(category, include_hidden=True)

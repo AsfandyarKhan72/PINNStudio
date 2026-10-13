@@ -43,6 +43,11 @@ class Example:
     source: str          # DeepXDE page / script
     settings: dict       # PINNConfig fields
     note: str = ""       # anything that differs from the DeepXDE script
+    # Optional Inverse-mode version (PINNStudio's addition; DeepXDE's script
+    # is forward only): settings applied on top of `settings` when the
+    # example is picked from the Inverse list, and its note.
+    inverse: dict = None
+    inverse_note: str = ""
 
 
 def _bc(type_, location="True", value="0", component=0, **extra):
@@ -100,11 +105,11 @@ def _consts(*pairs):
     return dict(constants=json.dumps([{"name": n, "value": v} for n, v in pairs]))
 
 
-def _ex(name, category, source, *parts, note=""):
+def _ex(name, category, source, *parts, note="", inverse=None, inverse_note=""):
     s = {}
     for p in parts:
         s.update(p)
-    return Example(name, category, source, s, note)
+    return Example(name, category, source, s, note, inverse, inverse_note)
 
 
 # Linear elastostatic plate (elasticity_plate.py), shared by its hard- and
@@ -528,7 +533,16 @@ EXAMPLES = [
              num_domain=2540, num_boundary=80, num_initial=160, num_test=2540),
         _net([2, 20, 20, 20, 1], "Glorot normal"), _adam(20000), _LBFGS,
         _consts(("a", "0.4"), ("L", "1"), ("n", "1")),
-        _formula_ref(["exp(-n**2*pi**2*a*t/L**2)*sin(n*pi*x/L)"])),
+        _formula_ref(["exp(-n**2*pi**2*a*t/L**2)*sin(n*pi*x/L)"]),
+        inverse=dict(problem_type="Inverse",
+                     constants=json.dumps([{"name": "L", "value": "1"}, {"name": "n", "value": "1"}]),
+                     inverse_variables_json=json.dumps([{"name": "a", "init": 1.0, "true": 0.4}]),
+                     inverse_obs_files_json=json.dumps([{"path": "@REF/1D/heat/t_1.0.txt", "output_idx": 0,
+                                                         "weight": 100.0, "custom_expr": ""}]),
+                     inv_param_save="Every 1000 iters",
+                     ea_ref_formula="exp(-n**2*pi**2*0.4*t/L**2)*sin(n*pi*x/L)"),
+        inverse_note="Inverse mode (PINNStudio's addition): the diffusivity a is unknown (initial guess 1, true 0.4) "
+                     "and learned from u measured at t = 1 (the exact solution, reference_data/1D/heat/t_1.0.txt)."),
 
     _ex("Heat equation with resampling", FORWARD, _DOCS + "pinn_forward/heat.resample.html",
         _time_1d(0, 1, 0, 1),
@@ -620,7 +634,8 @@ EXAMPLES = [
         _net([2, 100, 100, 100, 100, 2], "Glorot normal"), _adam(10000),
         dict(optimizer2="lbfgs", iterations2=10000, lbfgs_use_default=False, lbfgs_maxcor=50,
              lbfgs_ftol=2.220446049250313e-16, lbfgs_gtol=1e-8, lbfgs_maxfun=10000, lbfgs_maxls=50),
-        note="|h| = sqrt(u^2 + v^2) is compared against PINNStudio's own Schrödinger reference solution."),
+        note="|h| = sqrt(u^2 + v^2) is compared against a Fourier pseudo-spectral (split-step) solution in "
+             "PINNStudio's reference_data/1D/schrodinger."),
 
     _ex("Beltrami flow", FORWARD, _GH + "pinn_forward/Beltrami_flow.py",
         dict(problem_dim="3D", steady_state=False, geometry_type="Cuboid",
@@ -850,17 +865,20 @@ def names(category):
     return [e.name for e in EXAMPLES if e.category == category]
 
 
-def build_config(example, ref_root, keep=None):
+def build_config(example, ref_root, keep=None, inverse=False):
     """A PINNConfig for `example`: PINNConfig defaults, then the example's
     settings, with "@REF/" paths resolved against `ref_root`. `keep` is an
     optional dict of the user's own preferences carried over unchanged
-    (save directory, GPU, plot styling, ...)."""
+    (save directory, GPU, plot styling, ...). `inverse` applies the
+    example's Inverse-mode settings (Example.inverse) on top."""
     cfg = PINNConfig()
     base = dict(optimizer_scheduler=False, adapt_method="None", ea_files="[]", custom_bc_json="[]",
                 loss_weights_multi="", inverse_variables_json="", inverse_obs_files_json="",
                 problem_type="Forward", template_type="",
                 plot_colormap="jet")   # same as PINNStudio's own templates
-    settings = {**base, **example.settings}
+    if inverse and not example.inverse:
+        raise ValueError(f"{example.name} has no Inverse-mode version")
+    settings = {**base, **example.settings, **(example.inverse if inverse else {})}
 
     def _resolve(v):
         if isinstance(v, str) and "@REF/" in v:

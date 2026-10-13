@@ -37,9 +37,11 @@ app = QApplication.instance() or QApplication(sys.argv)
 
 def test_quick_examples_combo_lists_every_dimension_up_front():
     w = MainWindow()
-    items = w.quick_examples_combo.keys()   # internal names (the list shows "Heat 1D  ·  PINNStudio", ...)
+    items = w.quick_examples_combo.keys()   # internal names of the listed examples
     assert items[0] == "None"
-    for name in ("1D Heat", "1D Allen-Cahn", "1D Burgers", "1D Schrödinger",
+    # 1D Heat and 1D Schrödinger are not listed (DeepXDE's Heat 1D – Dirichlet
+    # and Schrödinger 1D replace them) but still load by name.
+    for name in ("Heat equation", "1D Allen-Cahn", "1D Burgers", "Schrödinger equation",
                  "2D Heat", "2D Poisson (L-Shape)", "2D Poisson (Disk)",
                  "3D Heat", "3D Poisson (Sphere)"):
         assert name in items, f"{name!r} missing from the combo's full list: {items}"

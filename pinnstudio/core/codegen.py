@@ -4923,7 +4923,7 @@ if _problem_type == "Inverse":
             if bucket > self._last_bucket:
                 self._last_bucket = bucket
                 val = self.var.detach().cpu().numpy().item() if hasattr(self.var, 'detach') else float(self.var.numpy())
-                print(f"  [{{self.name}}] Iter {{cur}}: {{val:.6f}}", flush=True)
+                print(f"  [{{self.name}}] Iter {{cur}}: {{val:.6g}}", flush=True)
 
     _print_cbs = [_PrintParamCallback(_iv, _in, period=1000) for _iv, _in in zip(_inv_vars, _inv_var_names)]
 
@@ -4950,18 +4950,30 @@ if _problem_type == "Inverse":
             self.period = period
             self.path = path
             self._last_bucket = 0
+            self._last_step = None
         def set_offset(self, offset):
             # No-op — see _PrintParamCallback.set_offset above.
             pass
+        def _write(self, cur):
+            val = self.var.detach().cpu().numpy().item() if hasattr(self.var, 'detach') else float(self.var.numpy())
+            with open(self.path, "a") as _f:
+                _f.write(f"{{cur}},{{val:.8f}}\\n")
+            self._last_step = cur
         def on_batch_end(self):
             if self.period == 0: return
             cur = self.model.train_state.step
             bucket = cur // self.period
             if bucket > self._last_bucket:
                 self._last_bucket = bucket
-                val = self.var.detach().cpu().numpy().item() if hasattr(self.var, 'detach') else float(self.var.numpy())
-                with open(self.path, "a") as _f:
-                    _f.write(f"{{cur}},{{val:.8f}}\\n")
+                self._write(cur)
+        def on_train_end(self):
+            # Also the value where training stopped (e.g. an L-BFGS phase that
+            # converged before the next save period), so the saved curve
+            # ends at the final value the run reports.
+            if self.period == 0: return
+            cur = self.model.train_state.step
+            if cur != self._last_step:
+                self._write(cur)
 
     _save_cbs = [
         _SaveParamCallback(_iv, _in, _param_save_period, _ip if _ip else f"/tmp/{{_in}}_param_save.txt")
@@ -6367,7 +6379,7 @@ for _pval in _param_values:
                         _iv_axes[_vi][0], _vname, _ph_iters_arr, _ph_vals_by_var[_vi], _true_val,
                         {config.inv_param_log_scale}, _plot_title_override,
                         _plot_xlabel_override, _plot_ylabel_override)
-                    print(f"\\n=== {{_vname}} final value: {{_final_val:.6f}} ===")
+                    print(f"\\n=== {{_vname}} final value: {{_final_val:.6g}} ===")
                 plt.tight_layout()
                 plt.savefig("/tmp/param_plot.png", dpi=100)
                 if _use_save:
@@ -6376,7 +6388,7 @@ for _pval in _param_values:
                         _run_dir if (_parametric and _pval is not None) else _save_dir, "param_plot.png"))
                 plt.close(_fig)
                 for _vi, _vname in enumerate(_inv_var_names):
-                    print(f"Final inferred {{_vname}}: {{_ph_vals_by_var[_vi][-1]:.6f}}")
+                    print(f"Final inferred {{_vname}}: {{_ph_vals_by_var[_vi][-1]:.6g}}")
             except Exception as _e:
                 print(f"Could not plot parameter history: {{_e}}")
 
@@ -8535,6 +8547,17 @@ def _l2_txt(_v, _d=2):
     # The relative L2 error as it is written in papers: italic L, subscript 2.
     return "$L_2$ = " + _sci_txt(_v, _d)
 
+def _num_txt(_v, _d=4):
+    # A parameter value for a plot label: "1.2038 x 10^-4" when it is small
+    # (or very large), otherwise up to 6 significant digits ("0.398434").
+    try:
+        _f = float(_v)
+    except (TypeError, ValueError):
+        return str(_v)
+    if _f != 0 and (abs(_f) < 1e-2 or abs(_f) >= 1e5):
+        return _sci_txt(_f, _d)
+    return f"{_f:.6g}"
+
 # Axis and colorbar numbers: values below 1e-2 (or from 1e5 up) are shown as
 # plain ticks with one "x 10^n" factor, written in mathtext, instead of long
 # decimals such as 0.000225 or e-notation.
@@ -8558,7 +8581,16 @@ def _param_axis_helper_code(axis_label_fontsize, subplot_title_fontsize):
 
     Log scale needs every value > 0; otherwise it falls back to linear and
     says so (matching the restore path's existing warning)."""
-    return f'''def _draw_param_ax(ax, name, iters, vals, true_val=None, log_scale=False,
+    return f'''def _param_label_num(_v):
+    # A parameter value for the legend: "1.2038 x 10^-4" (mathtext) when it is
+    # small or very large, otherwise up to 6 significant digits ("0.398434").
+    _f = float(_v)
+    if not np.isfinite(_f) or _f == 0 or 1e-2 <= abs(_f) < 1e5:
+        return f"{{_f:.6g}}"
+    _e = int(np.floor(np.log10(abs(_f))))
+    return f"{{_f / 10 ** _e:.4f}} $\\\\times$ 10$^{{{{{{_e}}}}}}$"
+
+def _draw_param_ax(ax, name, iters, vals, true_val=None, log_scale=False,
                    title_override="", xlabel_override="", ylabel_override=""):
     vals = np.asarray(vals, dtype=float)
     final_val = vals[-1] if len(vals) else float("nan")
@@ -8571,9 +8603,9 @@ def _param_axis_helper_code(axis_label_fontsize, subplot_title_fontsize):
     else:
         ax.plot(iters, vals, color="#69db7c", linewidth=1.5)
         ax.set_ylabel(ylabel_override or name, fontsize={axis_label_fontsize})
-    ax.axhline(y=final_val, color="#ff8787", linestyle="--", alpha=0.5, label=f"Final = {{final_val:.6f}}")
+    ax.axhline(y=final_val, color="#ff8787", linestyle="--", alpha=0.5, label=f"Final = {{_param_label_num(final_val)}}")
     if true_val is not None:
-        ax.axhline(y=true_val, color="#ffd43b", linestyle="--", alpha=0.8, label=f"True = {{true_val:.6f}}")
+        ax.axhline(y=true_val, color="#ffd43b", linestyle="--", alpha=0.8, label=f"True = {{_param_label_num(true_val)}}")
     ax.set_xlabel(xlabel_override or "Iteration", fontsize={axis_label_fontsize})
     ax.set_title(title_override or f"Inferred Parameter: {{name}}", fontsize={subplot_title_fontsize})
     ax.legend(); ax.grid(True, alpha=0.3)
@@ -10619,7 +10651,7 @@ for vi, name in enumerate({[n for n, _i, _t in inv_vars_parsed]!r}):
     final_val = _draw_param_ax(axes[vi][0], name, param_iters, param_vals[vi], true_val,
                                {bool(config.inv_param_log_scale)}, {plot_title_override!r},
                                {plot_xlabel_override!r}, {plot_ylabel_override!r})
-    print(f"Final inferred {{name}}: {{final_val:.6f}}")
+    print(f"Final inferred {{name}}: {{final_val:.6g}}")
 plt.tight_layout()
 param_plot_path = os.path.join(sol_dir, "param_convergence.png")
 plt.savefig(param_plot_path, dpi=100)

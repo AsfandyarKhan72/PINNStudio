@@ -141,11 +141,13 @@ def run():
         return w.quick_examples_combo.keys()
 
     fwd_items = listed()
-    check("1D Heat" in fwd_items and fwd_items[0] == "None", "Forward lists the PINNStudio templates")
+    shown_templates = set(cat_mod.TEMPLATE_KEYS) - set(cat_mod.HIDDEN_TEMPLATES)
+    check(shown_templates <= set(fwd_items) and fwd_items[0] == "None", "Forward lists the PINNStudio templates")
+    check(not set(cat_mod.HIDDEN_TEMPLATES) & set(fwd_items), "templates a DeepXDE example replaces are not listed")
     for cat, dx_cat in (("Forward", dx.FORWARD), ("Inverse", dx.INVERSE)):
         w.quick_examples_category_combo.setCurrentText(cat)
         check(listed() == ["None", *[e.key for e in cat_mod.for_category(cat)]], f"{cat}: lists its examples in catalogue order")
-        check(set(dx.names(dx_cat)) <= set(listed()) and set(cat_mod.TEMPLATE_KEYS) <= set(listed()),
+        check(set(dx.names(dx_cat)) <= set(listed()) and shown_templates <= set(listed()),
               f"{cat}: every DeepXDE {cat.lower()} example and every template")
         for name in dx.names(dx_cat):
             ex = dx.BY_NAME[name]
@@ -172,7 +174,20 @@ def run():
     w.quick_examples_combo.setCurrentText("1D Heat")
     cfg = w._build_config()
     check(cfg.problem_dim == "1D" and "du_t" in cfg.pde_expressions and w.quick_examples_combo.currentText() == "1D Heat",
-          "a PINNStudio template still loads after a DeepXDE example")
+          "a PINNStudio template (here a hidden one, loaded by name) still loads after a DeepXDE example")
+
+    # 5) Forward DeepXDE examples with an Inverse mode load it from the Inverse list.
+    for name in [e.key for e in cat_mod.ENTRIES if e.source == cat_mod.DEEPXDE and e.problem == cat_mod.BOTH]:
+        w.quick_examples_category_combo.setCurrentText("Inverse")
+        check(name in listed(), f"{name}: listed under Inverse")
+        w.quick_examples_combo.setCurrentText(name)
+        got, want = w._build_config(), dx.build_config(dx.BY_NAME[name], REFERENCE_DATA_DIR, inverse=True)
+        check(got.problem_type == "Inverse" and w.radio_inverse.isChecked()
+              and same(got.inverse_variables_json, want.inverse_variables_json)
+              and same(got.pde_expressions, want.pde_expressions), f"{name}: Inverse list loads its Inverse mode")
+        w.quick_examples_category_combo.setCurrentText("Forward")
+        w.quick_examples_combo.setCurrentText(name)
+        check(w._build_config().problem_type == "Forward", f"{name}: Forward list loads the forward example")
     return failures
 
 
