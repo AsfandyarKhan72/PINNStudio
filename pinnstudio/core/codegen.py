@@ -3947,8 +3947,7 @@ def _ode_to_1d(config):
         input_feature_formula=_ode_text(config.input_feature_formula),
         output_transform_formula=_ode_text(config.output_transform_formula),
         ea_ref_formula=_ode_text(config.ea_ref_formula), plot_custom_expr=_ode_text(config.plot_custom_expr),
-        anchors_box=_ode_text(config.anchors_box),
-        plot_xlabel_override=config.plot_xlabel_override or "t")
+        anchors_box=_ode_text(config.anchors_box))
 
 
 _INTEGRAL_RE = None
@@ -6872,7 +6871,7 @@ for _pval in _param_values:
                 _out_name_1d = _plot_custom_label if _plot_custom_expr.strip() else {repr(config.output_names)}.split(",")[_plot_idx].strip()
                 fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
                 ax.plot(_x_1d, _u_1d, color="#4dabf7", linewidth={config.plot_linewidth})
-                ax.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or f"{{_out_name_1d}}({{_v1d}})", fontsize={config.plot_axis_label_fontsize})
+                ax.set_xlabel(_plot_xlabel_override or _v1d, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or f"{{_out_name_1d}}({{_v1d}})", fontsize={config.plot_axis_label_fontsize})
                 ax.set_title(_plot_title_override or (f"PINN Solution — {{_param_name}}={{_pval}}" if _parametric
                               else (f"PINN Solution — {{_out_name_1d}}({{_v1d}})" if _plot_n_out > 1 or _plot_custom_expr.strip() else "PINN Solution")))
                 ax.grid(True, alpha=0.2)
@@ -10777,7 +10776,7 @@ x_1d = np.linspace({config.x_min}, {config.x_max}, res)
 u_1d = _extract_plot_field(x_1d.reshape(-1, 1)).flatten()
 fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
 ax.plot(x_1d, u_1d, color="#4dabf7", linewidth={config.plot_linewidth})
-ax.set_xlabel({(plot_xlabel_override or "x")!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel({(plot_ylabel_override or f"{out_name}({v1})")!r}, fontsize={config.plot_axis_label_fontsize})
+ax.set_xlabel({(plot_xlabel_override or v1)!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel({(plot_ylabel_override or f"{out_name}({v1})")!r}, fontsize={config.plot_axis_label_fontsize})
 ax.set_title({(plot_title_override or "PINN Solution")!r})
 ax.grid(True, alpha=0.2)
 plt.tight_layout()
