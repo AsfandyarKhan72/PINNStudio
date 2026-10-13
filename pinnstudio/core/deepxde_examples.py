@@ -511,14 +511,15 @@ EXAMPLES = [
         dict(pde_expressions="du_t + u*du_x - 0.01/pi*du_xx", ic_expressions="-sin(pi*x)",
              custom_bc_json=_bcs(_bc("dirichlet", "True", "0")),
              num_domain=2500, num_boundary=100, num_initial=160, num_test=1000,
-             adapt_method="RAR", rar_candidates=100000, rar_add_points=1, rar_adam_iters=10000,
-             rar_lbfgs_iters=15000, rar_tolerance=0.005, rar_cycles=100,
+             adapt_method="RAR", rar_candidates=100000, rar_add_points=100, rar_adam_iters=10000,
+             rar_lbfgs_iters=15000, rar_tolerance=0.0, rar_cycles=3,
              ea_files=_BURGERS_REF),
         _net([2, 20, 20, 20, 1], "Glorot normal"), _adam(10000), _LBFGS,
         note=_BURGERS_NOTE + " "
-             "DeepXDE adds one point per round until the mean residual is below 0.005, with early stopping "
-             "inside each round's Adam phase; here rounds stop at the same tolerance (capped at 100) and "
-             "run their full Adam iterations."),
+             "RAR: 3 rounds, each adding the 100 points with the largest residual (out of 100,000 candidates) "
+             "and retraining, with no residual tolerance. DeepXDE's script adds 1 point per round until the mean "
+             "residual is below 0.005, but after the first training the mean residual is already below that "
+             "(about 3e-3), so its loop would add a single point and stop -- too little to show refinement."),
 
     _ex("Heat equation", FORWARD, _DOCS + "pinn_forward/heat.html",
         _time_1d(0, 1, 0, 1),

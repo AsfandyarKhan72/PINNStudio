@@ -1315,12 +1315,14 @@ $$\Large \frac{\partial u}{\partial t} + u\frac{\partial u}{\partial x} = \frac{
 
 - **Initial / boundary conditions:** $u(x, 0) = -\sin(\pi x)$, $u(\pm 1, t) = 0$
 - **Time range / reference:** $t \in [0, 1]$, compared with the exact solution at $t = 0, 0.25, 0.5, 0.75, 1$
-- **Residual-based adaptive refinement:** each round adds the 1 point with the largest residual (out of 100,000 candidates) and retrains, until the mean residual is below 0.005
+- **Residual-based adaptive refinement:** 3 rounds, each adding the 100 points with the largest PDE residual (out of 100,000 random candidates) and retraining (Adam 10,000 → L-BFGS 15,000)
 - **Network:** FNN [2, 20, 20, 20, 1], tanh, Glorot normal
 - **Training:** Adam 10,000 → L-BFGS 15,000 per RAR round; 2,500 domain, 100 boundary, 160 initial points
 - **GUI recipe:** Quick Examples → Category **Forward** → **Burgers 1D – RAR**
 
-**Result (RTX 4090):** L2 = 4.9e-4 ($t = 0$), 6.0e-4 ($t = 0.25$), 7.2e-3 ($t = 0.5$), 8.9e-3 ($t = 0.75$), 1.2e-2 ($t = 1$)
+**Why not DeepXDE's one-point refinement.** DeepXDE's script adds 1 point per round until the mean residual is below 0.005. Here, after the first training the mean residual is already about 3–4 × 10⁻³, so that loop would add a single point and stop, which shows nothing. This example therefore turns the tolerance off and runs 3 rounds of 100 points instead. The collocation-point figure below shows where they go: onto the shock at $x = 0$ once it has formed ($t \gtrsim 0.3$), the region of largest error. The $L_2$ error at $t = 1$, where the shock is steepest, falls from 2.6 × 10⁻² after round 1 to 4.0 × 10⁻³ after round 2 and 8.4 × 10⁻⁴ after round 3.
+
+**Result (RTX 4090):** L2 = 3.1e-3 ($t = 0$), 4.6e-3 ($t = 0.25$), 1.0e-3 ($t = 0.5$), 1.3e-3 ($t = 0.75$), 8.4e-4 ($t = 1$)
 
 *u — PINN solution over time*
 
@@ -1329,6 +1331,10 @@ $$\Large \frac{\partial u}{\partial t} + u\frac{\partial u}{\partial x} = \frac{
 *PINN vs reference, error analysis*
 
 ![Burgers 1D – RAR — PINN vs reference, error analysis](assets/Images/DeepXDE/Burgers_equation_with_RAR/surface_comparison.png)
+
+*Collocation points after the last RAR round: original points (gray), points added in earlier rounds (orange) and in the last round (red)*
+
+![Burgers 1D – RAR — collocation points after the last RAR round: original points (gray), points added in earlier rounds (orange) and in the last round (red)](assets/Images/DeepXDE/Burgers_equation_with_RAR/rar_collocation_points.png)
 
 </details>
 
