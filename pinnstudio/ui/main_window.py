@@ -1,5 +1,7 @@
 import os
 import math
+import re as _re_log
+_re_log_l2 = _re_log.compile(r"(?<![A-Za-z0-9_])L2(?![A-Za-z0-9_])")
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QDoubleSpinBox, QSpinBox, QPushButton,
@@ -8550,8 +8552,14 @@ class MainWindow(QMainWindow):
     def _on_sweep_run_start(self, i, total, label):
         self.log_box.append(f"▶ Run {i + 1}/{total}: {label}")
 
+    @staticmethod
+    def _log_text(line):
+        """How a script line is shown in the Training Log: the relative L2
+        error written L₂ (the script's own output and files keep "L2")."""
+        return _re_log_l2.sub("L₂", line) if "L2" in line else line
+
     def _on_sweep_output(self, i, total, line):
-        self.log_box.append(f"[Sweep {i + 1}/{total}] {line}")
+        self.log_box.append(f"[Sweep {i + 1}/{total}] {self._log_text(line)}")
 
     def _on_sweep_run_done(self, i, total, label, result):
         self._sweep_run_count += 1
@@ -8562,7 +8570,7 @@ class MainWindow(QMainWindow):
                f"[Sweep {i + 1}/{total}] {status_icon} {label} -- final loss: —")
         l2 = result.get("l2_relative")
         if l2 is not None:
-            msg += f", L2 relative error: {l2:.4e}"
+            msg += f", L₂ relative error: {l2:.4e}"
         self.log_box.append(msg)
         # Remember the last run that actually finished successfully (not
         # necessarily the last one in the sequence -- if the sweep is
@@ -8675,7 +8683,7 @@ class MainWindow(QMainWindow):
         event.accept()
 
     def _on_output(self, line):
-        self.log_box.append(line)
+        self.log_box.append(self._log_text(line))
         self.log_box.verticalScrollBar().setValue(self.log_box.verticalScrollBar().maximum())
 
     def _clear_solution_movie(self):
@@ -14572,7 +14580,7 @@ if {do_line}:
         _ea_line_suptitle += f" (y={line_slice_y:.3g}, z={line_slice_z:.3g})"
     elif {is_2d}:
         _ea_line_suptitle += f" (y={line_slice_y:.3g})"
-    fig.suptitle(_ea_line_suptitle, fontsize={_title_fs}, fontweight='bold')
+    fig.suptitle(_ea_line_suptitle.replace(" — Line Comparison", ""), fontsize={_subtitle_fs} + 2)
     _ax_flat = axes.flatten()
     if {is_2d} or {is_3d}:
         # A true line at the exact slice (the restore panel's own
@@ -14636,16 +14644,14 @@ if {do_line}:
             _pinn_s = _ea_u_pinns[_i][_ea_sort]
         ax.plot(_xv_s, _gt_s,   color='#4dabf7', linewidth=2.0, label='Reference')
         ax.plot(_xv_s, _pinn_s, color='#ff6b6b', linewidth=2.0, linestyle='--', label='PINN')
-        ax.set_title(f"t={{_tv:.3f}}  |  L2={{_l2:.2e}}", fontsize={_subtitle_fs})
+        ax.set_title(f"t = {{_tv:.3g}}  ({{_l2_txt(_l2)}})", fontsize={_subtitle_fs})
         _ea_line_ylabel = (f"{out_name}(x,y={line_slice_y:.3g},z={line_slice_z:.3g})" if {is_3d}
                             else (f"{out_name}(x,y={line_slice_y:.3g})" if {is_2d} else "{out_name}"))
         ax.set_xlabel("x", fontsize={_axislabel_fs}); ax.set_ylabel(_ea_line_ylabel, fontsize={_axislabel_fs}); ax.grid(True, alpha=0.3)
     for _j in range(_ea_n_t, len(_ax_flat)):
         _ax_flat[_j].set_visible(False)
-    handles, labels = _ax_flat[0].get_legend_handles_labels()
-    fig.legend(handles, labels, loc='lower center', ncol=2, fontsize=10,
-               framealpha=0.9, bbox_to_anchor=(0.5, 0.01))
-    plt.tight_layout(rect=[0, 0.06, 1, 0.93])
+    _ax_flat[0].legend(loc='best', fontsize=10, framealpha=0.9)
+    plt.tight_layout(rect=[0, 0, 1, 0.93])
     _lp = os.path.join(_ea_dir, "line_comparison_restore.png")
     plt.savefig(_lp, dpi={_dpi}, bbox_inches='tight'); plt.close()
     print(f"  Line comparison saved: {{_lp}}")
@@ -14676,7 +14682,7 @@ elif {do_surface}:
             _u_err_g  = np.abs(_u_pinn_g - _u_fem_g)
             _vmin_data = min(_u_pinn_g.min(), _u_fem_g.min()) if {_auto} else {_vmin}
             _vmax_data = max(_u_pinn_g.max(), _u_fem_g.max()) if {_auto} else {_vmax}
-            _ea_pinn_title = f"PINN (steady-state) L2={{_l2:.2e}}" if {is_steady} else f"PINN t={{_tv:.3f}} L2={{_l2:.2e}}"
+            _ea_pinn_title = f"PINN (steady-state) {{_l2_txt(_l2)}}" if {is_steady} else f"PINN t={{_tv:.3f}} {{_l2_txt(_l2)}}"
             _ea_gt_title = "Reference" if {is_steady} else f"Reference t={{_tv:.3f}}"
             im0 = axes[_i][0].contourf(_Xg_ea, _Yg_ea, _u_pinn_g, cmap='{_cmap}', **_cf_levels({_levels}, _vmin_data, _vmax_data, _u_pinn_g))
             axes[_i][0].set_title(_ea_pinn_title, fontsize={_subtitle_fs}); axes[_i][0].set_xlabel("x", fontsize={_axislabel_fs}); axes[_i][0].set_ylabel("y", fontsize={_axislabel_fs})
@@ -14685,7 +14691,7 @@ elif {do_surface}:
             axes[_i][1].set_title(_ea_gt_title, fontsize={_subtitle_fs}); axes[_i][1].set_xlabel("x", fontsize={_axislabel_fs}); axes[_i][1].set_ylabel("y", fontsize={_axislabel_fs})
             if {_colorbar}: fig.colorbar(im1, ax=axes[_i][1])
             im2 = axes[_i][2].contourf(_Xg_ea, _Yg_ea, _u_err_g, levels={_levels}, cmap='{_cmap}')
-            axes[_i][2].set_title(f"|Error| Max={{_mx:.2e}}", fontsize={_subtitle_fs}); axes[_i][2].set_xlabel("x", fontsize={_axislabel_fs}); axes[_i][2].set_ylabel("y", fontsize={_axislabel_fs})
+            axes[_i][2].set_title(f"|Error| max = {{_sci_txt(_mx)}}", fontsize={_subtitle_fs}); axes[_i][2].set_xlabel("x", fontsize={_axislabel_fs}); axes[_i][2].set_ylabel("y", fontsize={_axislabel_fs})
             if {_colorbar}: fig.colorbar(im2, ax=axes[_i][2])
         plt.tight_layout(rect=[0, 0, 1, 0.93])
     else:
