@@ -20,7 +20,7 @@ import json
 import math
 import os
 
-from pinnstudio.core.config import PINNConfig
+from pinnstudio.core.config import PINNConfig, use_training_phases
 
 FORWARD = "DeepXDE Forward"
 INVERSE = "DeepXDE Inverse"
@@ -886,7 +886,75 @@ def build_config(example, ref_root, keep=None):
         n_ic = 0 if cfg.steady_state else sum(
             s.strip() == "True" for s in (cfg.ic_active or "").split(",")[:n_out])
         cfg.loss_weights_multi = ",".join(["1"] * (n_eq + n_bc + n_ic))
+    # Training always goes through the Training Phases the GUI shows, so
+    # what the panel says is what runs and edits to it take effect.
+    use_training_phases(cfg)
     for k, v in (keep or {}).items():
         if k not in example.settings:
             setattr(cfg, k, v)
     return cfg
+
+
+# Settings that are the user's own preferences, not part of an example.
+_NOT_EXAMPLE_FIELDS = {"save_dir", "sweep_save_dir", "gpu_device_index", "gpu_memory_fraction", "use_random_seed",
+                       "random_seed"}
+
+
+def describe_changes(base, current, limit=12):
+    """Readable lines for every setting `current` changed from `base` (the
+    configuration as an example loaded), e.g. "Phase 1 iterations: 5000 ->
+    50000" -- printed in the Training Log when an edited example is solved,
+    so a result is never mistaken for the example's own."""
+    import dataclasses
+
+    def _num_list(v):
+        try:
+            return [round(float(x), 12) for x in str(v).replace(";", ",").split(",") if x.strip()]
+        except ValueError:
+            return None
+
+    def _same(a, b):
+        if a == b:
+            return True
+        try:
+            return abs(float(a) - float(b)) <= 1e-12 * max(1.0, abs(float(a)))
+        except (TypeError, ValueError):
+            pass
+        la, lb = _num_list(a), _num_list(b)
+        return la is not None and la == lb and la != []
+
+    out = []
+    try:
+        pa, pb = json.loads(base.scheduler_phases or "[]"), json.loads(current.scheduler_phases or "[]")
+    except ValueError:
+        pa, pb = [], []
+    for i in range(max(len(pa), len(pb))):
+        if i >= len(pa):
+            out.append(f"Phase {i + 1} added: {pb[i].get('optimizer')} {pb[i].get('iterations')} iterations")
+            continue
+        if i >= len(pb):
+            out.append(f"Phase {i + 1} removed ({pa[i].get('optimizer')} {pa[i].get('iterations')} iterations)")
+            continue
+        for k, lab in (("optimizer", "optimizer"), ("iterations", "iterations"), ("lr", "learning rate"),
+                       ("decay_type", "learning-rate decay")):
+            a, b = pa[i].get(k), pb[i].get(k)
+            if k == "decay_type":
+                a, b = a or "none", b or "none"
+            if not _same(a, b):
+                out.append(f"Phase {i + 1} {lab}: {a} -> {b}")
+    skip = _NOT_EXAMPLE_FIELDS | {"scheduler_phases", "iterations", "iterations2", "optimizer", "optimizer2",
+                                  "learning_rate", "pde_expression", "ic_expression"}
+    for f in dataclasses.fields(current):
+        if f.name in skip or f.name.startswith("plot_") or f.name.startswith("loss_plot"):
+            continue
+        a, b = getattr(base, f.name, None), getattr(current, f.name, None)
+        if _same(a, b):
+            continue
+        sa, sb = str(a), str(b)
+        if len(sa) > 60 or len(sb) > 60:
+            out.append(f"{f.name} changed")
+        else:
+            out.append(f"{f.name}: {sa} -> {sb}")
+    if len(out) > limit:
+        out = out[:limit] + [f"... and {len(out) - limit} more"]
+    return out

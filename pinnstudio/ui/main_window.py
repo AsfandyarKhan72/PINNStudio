@@ -4638,6 +4638,12 @@ class MainWindow(QMainWindow):
         # loss-weight rows, resetting the example's weights to defaults.
         if hasattr(self, 'custom_bc_note'):
             self.custom_bc_note.setText(self._bc_note_with_transform(f"Pre-filled from the \"{name}\" example."))
+        # What this example looks like in the panels right after loading --
+        # Solve compares against it to log any settings the user changed.
+        try:
+            self._example_snapshot = (name, self._build_config())
+        except Exception:
+            self._example_snapshot = None
         self.log_box.append(f"✅ DeepXDE example loaded: {name}")
         self.log_box.append(f"   Source: {ex.source}")
         if ex.note:
@@ -4647,6 +4653,7 @@ class MainWindow(QMainWindow):
         if text in _dx_examples.BY_NAME:
             self._apply_deepxde_example(text)
             return
+        self._example_snapshot = None
         if text == "None":
             # Leave the Boundary Conditions panel exactly as it is -- rows
             # are no longer tied to template identity, so whatever's showing
@@ -7330,6 +7337,7 @@ class MainWindow(QMainWindow):
         output count are set first, since changing any of them rebuilds the
         per-output PDE/BC/IC widget rows from scratch -- only once those rows
         exist can their individual values be populated."""
+        self._example_snapshot = None   # set again by _apply_deepxde_example() when an example is loaded
         import json
         import ast as _ast
 
@@ -7798,6 +7806,13 @@ class MainWindow(QMainWindow):
         # actually enabled at save time; rebuild them first so weight-widget
         # generation below (which depends on phase count when weights differ
         # per phase) sees the right shape.
+        # The scheduler is always on in the GUI: a config that still uses the
+        # older single-optimizer fields gets the equivalent Training Phases,
+        # so the panel shows -- and Solve uses -- what will actually run.
+        if not config.optimizer_scheduler:
+            import copy as _copy_ph
+            from pinnstudio.core.config import use_training_phases
+            config = use_training_phases(_copy_ph.copy(config))
         self.sched_cb.setChecked(config.optimizer_scheduler)
         self.sched_same_weights_cb.setChecked(config.scheduler_same_weights)
         phases = []
@@ -8420,6 +8435,23 @@ class MainWindow(QMainWindow):
                     f"phase to Adam or L-BFGS instead.")
         return True, ""
 
+    def _log_example_changes(self, config):
+        """After the log is cleared for a run: if a DeepXDE example is
+        loaded and some of its settings were changed, say which."""
+        snap = getattr(self, "_example_snapshot", None)
+        if not snap:
+            return
+        try:
+            changes = _dx_examples.describe_changes(snap[1], config)
+        except Exception:
+            return
+        if changes:
+            self.log_box.append(f"✏️ Changed from the \"{snap[0]}\" example:")
+            for c in changes:
+                self.log_box.append(f"   • {c}")
+        else:
+            self.log_box.append(f"ℹ️ \"{snap[0]}\" example with its own settings (unchanged).")
+
     def _on_solve(self):
         _ok, _msg = self._geometry_supported_for_training()
         if not _ok:
@@ -8464,6 +8496,7 @@ class MainWindow(QMainWindow):
         for _p in ["/tmp/loss_plot.png", "/tmp/solution_plot.png", "/tmp/solution_plot.gif", "/tmp/param_plot.png"]:
             if os.path.exists(_p):
                 os.remove(_p)
+        self._log_example_changes(config)
         self.thread = SolverThread(config)
         self.thread.output_signal.connect(self._on_output)
         self.thread.done_signal.connect(self._on_done)
@@ -8492,6 +8525,7 @@ class MainWindow(QMainWindow):
         self.solution_label.setText("⏳ Training...")
         self.loss_label._source_path = None
         self.solution_label._source_path = None
+        self._log_example_changes(config)
         self._sweep_run_count = 0
         self._sweep_run_root = None
         self._sweep_base_config = config

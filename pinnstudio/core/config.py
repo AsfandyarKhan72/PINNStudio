@@ -1184,3 +1184,35 @@ class PINNConfig:
 
         return errors
 
+
+
+def phases_from_legacy(config):
+    """Training Phases equivalent to the older single-optimizer fields
+    (optimizer / iterations / learning_rate, then optimizer2 / iterations2)
+    -- the same phases the exported script already synthesizes from them.
+    Used so a configuration that still sets those fields (a DeepXDE
+    example, an older save) shows -- and trains with -- what the Training
+    Phases panel says: before this, such a config trained from the hidden
+    fields while the panel showed unrelated phases that edits went into."""
+    phases = []
+    if int(config.iterations or 0) > 0:
+        phases.append({"optimizer": config.optimizer or "adam", "iterations": int(config.iterations),
+                       "lr": float(config.learning_rate), "decay_type": "none"})
+    if config.optimizer2 and config.optimizer2 != "none" and int(config.iterations2 or 0) > 0:
+        phases.append({"optimizer": config.optimizer2, "iterations": int(config.iterations2),
+                       "lr": float(config.learning_rate), "decay_type": "none"})
+    return phases
+
+
+def use_training_phases(config):
+    """In place: a config with the scheduler off gets the equivalent
+    Training Phases and the scheduler on (see phases_from_legacy).
+    Returns the config."""
+    import json as _json_ph
+    if not config.optimizer_scheduler:
+        phases = phases_from_legacy(config)
+        if phases:
+            config.scheduler_phases = _json_ph.dumps(phases)
+            config.optimizer_scheduler = True
+            config.scheduler_same_weights = True
+    return config

@@ -105,6 +105,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **DeepXDE examples train through the Training Phases you see**: 45 of the examples kept their training in the older single-optimizer fields (hidden in the GUI) with the scheduler off, so Solve trained from those while the Training Phases panel showed unrelated phases and edits to it were ignored (e.g. the plate kept stopping at 5000 Adam iterations). Every example now loads as its equivalent phases (Adam, then L-BFGS where the script uses it), and any configuration loaded with the scheduler off is converted the same way, so what the panel shows is what runs — in Solve and in the exported script. Training results are unchanged.
+- **Edited examples are labelled in the Training Log**: solving a DeepXDE example with changed settings lists them first (e.g. "Phase 1 iterations: 5000 -> 50000"), so a result is never mistaken for the example's own. Reloading the example restores its settings.
 - **Numbers inside math functions in formulas** (`sqrt(3)`, `exp(-1)`, `sin(pi/4)`) are evaluated when the script is written: they used to become `torch.sqrt(3)`, which fails (torch functions need tensors), e.g. in an input-transform formula `(x - 0.5)*2*sqrt(3)`.
 - **Custom-geometry and shape fields keep 10 decimals** like the domain fields: a disk of radius pi/4 or a square of side 2 pi was rounded to 2 decimals (0.79, 3.14).
 - **ODE plots and Error Analysis name the variable t** (axis label and `y1(t)`), and Error Analysis line plots of a 1D problem label the y axis with the output's name.

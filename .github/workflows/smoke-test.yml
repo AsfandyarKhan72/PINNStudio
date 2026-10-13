@@ -115,3 +115,4 @@ jobs:
           python tests/test_round75_wave_helmholtz_bayes.py
           python tests/test_round76_integral.py
           python tests/test_round77_fractional.py
+          python tests/test_round78_example_phases.py
