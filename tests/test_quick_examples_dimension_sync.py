@@ -37,7 +37,7 @@ app = QApplication.instance() or QApplication(sys.argv)
 
 def test_quick_examples_combo_lists_every_dimension_up_front():
     w = MainWindow()
-    items = [w.quick_examples_combo.itemText(i) for i in range(w.quick_examples_combo.count())]
+    items = w.quick_examples_combo.keys()   # internal names (the list shows "Heat 1D  ·  PINNStudio", ...)
     assert items[0] == "None"
     for name in ("1D Heat", "1D Allen-Cahn", "1D Burgers", "1D Schrödinger",
                  "2D Heat", "2D Poisson (L-Shape)", "2D Poisson (Disk)",

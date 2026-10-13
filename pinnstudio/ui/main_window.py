@@ -4727,11 +4727,11 @@ class MainWindow(QMainWindow):
         # to 1.0, so it's intentionally not repeated.
         self._on_template_selected(text)
         # The Inverse category loads a template in Inverse mode (which brings
-        # in the template's own measured-data file); Forward loads it in
-        # Forward mode.
-        want_inverse = self.quick_examples_category_combo.currentText() == _ex_catalog.INVERSE
-        if want_inverse != self.radio_inverse.isChecked():
-            (self.radio_inverse if want_inverse else self.radio_forward).setChecked(True)
+        # in the template's own measured-data file). The Forward list leaves
+        # the Forward/Inverse choice as it is, as before.
+        if (self.quick_examples_category_combo.currentText() == _ex_catalog.INVERSE
+                and not self.radio_inverse.isChecked()):
+            self.radio_inverse.setChecked(True)
 
     def _auto_configure_ea(self, ref_dir, is_steady=False):
         """Auto-configure error analysis when a template with ground truth files is loaded."""
