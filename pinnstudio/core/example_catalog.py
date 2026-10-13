@@ -123,7 +123,6 @@ DEEPXDE_NAMES = {
     "Inverse: diffusion-reaction with space-dependent rate": "Diffusion-reaction 1D – unknown rate field",
     "Inverse: fractional Poisson equation 1D": "Fractional Poisson 1D – unknown order α",
     "Allen-Cahn equation": "Allen-Cahn 1D",
-    "Burgers equation": "Burgers 1D",
     "Burgers equation with RAR": "Burgers 1D – RAR",
     "Heat equation": "Heat 1D – Dirichlet",
     "Heat equation with resampling": "Heat 1D – resampling",

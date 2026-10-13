@@ -506,15 +506,6 @@ EXAMPLES = [
         _formula_ref(["1 - exp(l*x)*cos(2*pi*y)", "l/(2*pi)*exp(l*x)*sin(2*pi*y)", "0.5*(1 - exp(2*l*x))"]),
         note="Constants Re, nu and l are defined as in DeepXDE's script."),
 
-    _ex("Burgers equation", FORWARD, _DOCS + "pinn_forward/burgers.html",
-        _time_1d(-1, 1, 0, 1.0),
-        dict(pde_expressions="du_t + u*du_x - 0.01/pi*du_xx", ic_expressions="-sin(pi*x)",
-             custom_bc_json=_bcs(_bc("dirichlet", "True", "0")),
-             num_domain=2540, num_boundary=80, num_initial=160, num_test=1000,
-             ea_files=_BURGERS_REF),
-        _net([2, 20, 20, 20, 1], "Glorot normal"), _adam(15000), _LBFGS,
-        note=_BURGERS_NOTE),
-
     _ex("Burgers equation with RAR", FORWARD, _DOCS + "pinn_forward/burgers.rar.html",
         _time_1d(-1, 1, 0, 1.0),
         dict(pde_expressions="du_t + u*du_x - 0.01/pi*du_xx", ic_expressions="-sin(pi*x)",
