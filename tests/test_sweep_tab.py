@@ -241,27 +241,38 @@ def run():
     win.sweep_mode_combo.setCurrentIndex(win.sweep_mode_combo.findData("oat"))
     cfg_oat = win._build_config()
     runs_oat = build_runs(cfg_oat)
-    check(len(runs_oat) == 1 + 2 + 2, f"OAT with 2+2 values should give 5 runs (1 baseline + 2 + 2), got {len(runs_oat)}: {[l for l, _ in runs_oat]}")
+    check(len(runs_oat) == 1 + 2 + 2 and runs_oat[0][0] == "baseline", f"OAT with 2+2 values should give 5 runs (1 baseline + 2 + 2), got {len(runs_oat)}: {[l for l, _ in runs_oat]}")
 
+    check(win.sweep_baseline_cb.isChecked() and cfg_oat.sweep_include_baseline == "auto",
+          "OAT with 2 parameters: baseline checkbox on by default (automatic)")
     win.sweep_mode_combo.setCurrentIndex(win.sweep_mode_combo.findData("grid"))
+    check(not win.sweep_baseline_cb.isChecked(), "All combinations: baseline checkbox off by default")
     cfg_grid = win._build_config()
     runs_grid = build_runs(cfg_grid)
-    check(len(runs_grid) == 1 + 2 * 2, f"Grid with 2x2 values should give 5 runs (1 baseline + 4), got {len(runs_grid)}: {[l for l, _ in runs_grid]}")
+    check(len(runs_grid) == 2 * 2, f"Grid with 2x2 values should give 4 runs (no baseline by default), got {len(runs_grid)}: {[l for l, _ in runs_grid]}")
 
     # "zip" ("Specified combinations"): row A (phase0_optimizer, 2 values)
     # and row B (neurons_per_layer, 2 values) -- zip() pairs them up (NOT
-    # a cross product), so this should give 1 baseline + 2 runs, not 1 + 4
-    # like grid mode above.
+    # a cross product), so this should give 2 runs, not 4 like grid mode
+    # above (and no baseline by default; with the checkbox on, 3).
     win.sweep_mode_combo.setCurrentIndex(win.sweep_mode_combo.findData("zip"))
     cfg_zip = win._build_config()
     check(cfg_zip.sweep_mode == "zip", "config should record sweep_mode='zip' once selected")
     check(cfg_zip.validate() == [], f"equal-length zip sweep should validate clean, got {cfg_zip.validate()}")
     runs_zip = build_runs(cfg_zip)
-    check(len(runs_zip) == 1 + 2, f"zip with 2+2 equal-length values should give 3 runs (1 baseline + 2 paired), "
+    check(len(runs_zip) == 2, f"zip with 2+2 equal-length values should give 2 paired runs (no baseline by default), "
                                    f"got {len(runs_zip)}: {[l for l, _ in runs_zip]}")
-    zip_labels = [l for l, _ in runs_zip[1:]]
+    zip_labels = [l for l, _ in runs_zip]
     check(zip_labels[0].endswith("=adam, Neurons per layer=32") and zip_labels[1].endswith("=lbfgs, Neurons per layer=64"),
           f"zip mode should pair each row's Nth value together (not cross them), got {zip_labels}")
+    win.sweep_baseline_cb.click()
+    cfg_zip_b = win._build_config()
+    check(cfg_zip_b.sweep_include_baseline == "on" and len(build_runs(cfg_zip_b)) == 3
+          and build_runs(cfg_zip_b)[0][0] == "baseline", "ticking the baseline box adds the baseline run first")
+    win.sweep_mode_combo.setCurrentIndex(win.sweep_mode_combo.findData("oat"))
+    check(win.sweep_baseline_cb.isChecked(), "the user's choice is kept when the mode changes")
+    win.sweep_baseline_cb.click()
+    check(win._build_config().sweep_include_baseline == "off", "unticking stores 'off'")
 
     # ── Stale-results guard ───────────────────────────────────────────
     # A file that predates `not_before` must be ignored even if present.
@@ -356,16 +367,23 @@ def run():
     stamp = _dt.datetime(2026, 1, 2, 3, 4, 5)
     root_default = sweep_root_dir(cfg_names, started_at=stamp)
     check(root_default == os.path.join(os.path.expanduser("~"), "PINNStudio_Results",
-                                        "parameter_sweep_results", "sweep_20260102_030405"),
+                                        "parameter_sweep_results", "sweep__2026-01-02_03-04-05"),
           f"blank sweep_save_dir should fall back to the documented default path, got {root_default!r}")
     cfg_names.sweep_save_dir = "/tmp/_v68_custom_root"
     root_custom = sweep_root_dir(cfg_names, started_at=stamp)
-    check(root_custom == "/tmp/_v68_custom_root/sweep_20260102_030405",
+    check(root_custom == "/tmp/_v68_custom_root/sweep__2026-01-02_03-04-05",
           f"a custom sweep_save_dir should be used as-is with a timestamped subfolder, got {root_custom!r}")
-    check(run_folder_name(0, "baseline") == "run_000_baseline", "run 0 labeled 'baseline' should get a fixed, predictable folder name")
-    check(run_folder_name(3, "Hidden layers=4, Neurons per layer=64") == "run_003_Hidden_layers=4_Neurons_per_layer=64",
+    cfg_names.sweep_label = "Poisson_1D-Dirichlet"
+    check(sweep_root_dir(cfg_names, started_at=stamp) == "/tmp/_v68_custom_root/Poisson_1D-Dirichlet_sweep__2026-01-02_03-04-05",
+          f"the sweep folder is named like a normal run's, got {sweep_root_dir(cfg_names, started_at=stamp)!r}")
+    check(run_folder_name(0, "baseline") == "run_00__baseline", "run 0 labeled 'baseline' should get a fixed, predictable folder name")
+    check(run_folder_name(3, "Hidden layers=4, Neurons per layer=64") == "run_03__Hidden-layers_4__Neurons-per-layer_64",
           f"run folder names should be zero-padded, prefixed, and slugified, got {run_folder_name(3, 'Hidden layers=4, Neurons per layer=64')!r}")
-    check(_slugify("BC 2 (dirichlet, Output 0)=7.5") == "BC_2_dirichlet_Output_0_=7.5",
+    check(run_folder_name(7, "Phase 1: Iterations=1000", 150) == "run_007__Phase-1-Iterations_1000",
+          f"3-digit numbers for 100+ runs, got {run_folder_name(7, 'Phase 1: Iterations=1000', 150)!r}")
+    check(run_folder_name(5, "Learning rate=0.001, BC 2 (dirichlet, Output 0)=7.5", 12)
+          == "run_05__Learning-rate_0.001__BC-2-dirichlet-Output-0_7.5", "commas inside parentheses don't split a label")
+    check(_slugify("BC 2 (dirichlet, Output 0)=7.5") == "BC-2-dirichlet-Output-0-7.5",
           f"_slugify should strip filesystem-unsafe characters while keeping the run identifiable, got {_slugify('BC 2 (dirichlet, Output 0)=7.5')!r}")
     check(_slugify("") == "run", "an empty label should fall back to a safe non-empty default")
 

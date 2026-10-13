@@ -671,8 +671,19 @@ class PINNConfig:
     # field a hand-edited/old save file won't have -- falls back to
     # sweep_runner.sweep_root_dir()'s own default location. Every run
     # (baseline included) gets its own descriptively-named subfolder
-    # under <sweep_save_dir>/sweep_<timestamp>/ -- see sweep_runner.py.
+    # under <sweep_save_dir>/<sweep_label>_sweep__<timestamp>/ -- see sweep_runner.py.
     sweep_save_dir: str = ""
+    # Also run the current settings unchanged (the "baseline") before the
+    # swept values: "on", "off", or "auto" (the default) -- on only where
+    # it is a needed reference point, One-at-a-time with 2+ parameters
+    # and Bayesian search (sweep_runner.includes_baseline). The GUI's
+    # checkbox shows the resolved value and stores "on"/"off" once the
+    # user clicks it.
+    sweep_include_baseline: str = "auto"
+    # Name part of the sweep's folder, "<sweep_label>_sweep__<timestamp>"
+    # (set by the GUI from the loaded example / problem, like a normal
+    # run's "<label>__<timestamp>" folder). Blank -> "sweep__<timestamp>".
+    sweep_label: str = ""
     # What each run in a sweep actually saves (model, loss/solution
     # plot, Error Analysis figures if configured) is controlled by the
     # same plot_type/plot_output_idx/plot_custom_expr/plot_custom_label/
@@ -1013,6 +1024,8 @@ class PINNConfig:
                 errors.append(
                     f"Parameter Sweep mode must be 'oat', 'grid', 'zip' or 'bayes'; got {self.sweep_mode!r}."
                 )
+            if str(self.sweep_include_baseline) not in ("auto", "on", "off", "True", "False"):
+                errors.append(f"Parameter Sweep baseline must be 'auto', 'on' or 'off'; got {self.sweep_include_baseline!r}.")
             if self.sweep_mode == "bayes":
                 if not isinstance(self.sweep_bayes_calls, int) or self.sweep_bayes_calls < 2:
                     errors.append("Bayesian search needs at least 2 runs (the baseline and one more).")

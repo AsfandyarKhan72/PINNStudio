@@ -2502,36 +2502,44 @@ class MainWindow(QMainWindow):
         sweep_toggle_layout = QVBoxLayout(sweep_toggle_group)
         sweep_toggle_layout.setSpacing(5)
 
+        # Top row: Enable, the "📖 Show sweep reference" toggle and
+        # Refresh (shown only while the sweep is enabled) side by side.
+        sweep_top_row = QHBoxLayout()
+        sweep_top_row.setSpacing(10)
         self.sweep_enable_cb = QCheckBox("Enable Parameter Sweep")
         self.sweep_enable_cb.toggled.connect(self._on_sweep_enabled_toggled)
-        sweep_toggle_layout.addWidget(self.sweep_enable_cb)
-
-        # "📖 Show sweep reference" toggle + hint, at the top of this
-        # panel, same pattern as the other panels' own reference toggles.
-        sweep_ref_row = QHBoxLayout()
+        sweep_top_row.addWidget(self.sweep_enable_cb)
         sweep_ref_toggle = QCheckBox("\U0001F4D6 Show sweep reference")
         sweep_ref_toggle.setChecked(False)
         self._register_hint(sweep_ref_toggle, '#74c0fc')
-        sweep_ref_row.addWidget(sweep_ref_toggle)
-        sweep_ref_row.addStretch()
-        sweep_ref_row_widget = QWidget()
-        sweep_ref_row_widget.setLayout(sweep_ref_row)
-        sweep_toggle_layout.addWidget(sweep_ref_row_widget)
+        sweep_top_row.addWidget(sweep_ref_toggle)
+        sweep_top_row.addStretch()
+        self.sweep_refresh_btn = QPushButton("🔄 Refresh")
+        self.sweep_refresh_btn.setToolTip(
+            "Re-reads the rest of this panel's current settings to update which parameters can be swept")
+        self.sweep_refresh_btn.clicked.connect(lambda: self._refresh_sweep_param_choices())
+        self.sweep_refresh_btn.setVisible(False)
+        sweep_top_row.addWidget(self.sweep_refresh_btn)
+        sweep_toggle_layout.addLayout(sweep_top_row)
         sweep_ref_text = ("Runs the SAME problem multiple times while varying one or more\n"
                         "settings (learning rate, a PDE coefficient, number of iterations, ...),\n"
                         "so you can compare results side by side instead of changing a value\n"
                         "and re-running by hand each time. Each run gets its own numbered\n"
                         "subfolder under the main \"Save to:\" location, with the full normal set\n"
                         "of plots/checkpoints for that one run.\n"
-                        "One-at-a-time: a baseline run, then one run per value of each swept\n"
-                        "parameter in turn, everything else held at baseline.\n"
+                        "One-at-a-time: one run per value of each swept parameter in turn,\n"
+                        "everything else held at its current value.\n"
                         "All combinations: every value of every swept parameter, crossed --\n"
                         "N parameters with k values each means k^N total runs.\n"
                         "Specified combinations: parameter 1's 1st value runs together with\n"
                         "parameter 2's 1st value, and so on -- every parameter needs the same\n"
                         "number of values listed.\n"
                         "\"Points from:\" (where shown) picks which equation's values are read\n"
-                        "when a parameter lives inside a PDE coefficient.")
+                        "when a parameter lives inside a PDE coefficient.\n"
+                        "Baseline: the box below Mode adds one run with the current settings\n"
+                        "unchanged, before the swept values. When the sweep finishes, its folder\n"
+                        "also holds sweep_error_vs_parameter.png (error and final loss vs the\n"
+                        "swept values) and sweep_summary.csv.")
         sweep_ref_hint = QLabel(sweep_ref_text)
         self._register_hint(sweep_ref_hint, '#74c0fc')
         sweep_ref_hint.setWordWrap(True)
@@ -2564,15 +2572,31 @@ class MainWindow(QMainWindow):
         self.sweep_mode_combo.addItem("Bayesian search (each run chosen from the results so far)", "bayes")
         self.sweep_mode_combo.setFixedHeight(26)
         self.sweep_mode_combo.setToolTip(
-            "One-at-a-time: baseline, then vary ONE parameter per run, others held at baseline.\n"
+            "One-at-a-time: vary ONE parameter per run, the others held at their current values.\n"
             "All combinations: every value of every parameter, crossed (a Cartesian product/Grid).\n"
             "Specified combinations: parameter 1's 1st value with parameter 2's 1st value, etc. -- "
             "every parameter needs the same number of values.\n"
-            "Bayesian search: baseline, then each run picked by a Gaussian-process model of the\n"
+            "Bayesian search: each run picked by a Gaussian-process model of the\n"
             "results so far (DeepXDE's hyperparameter-optimization example) -- each parameter's\n"
             "Min/Max (linear or log) is its search range, a list its choices; Steps is not used.")
         sweep_mode_row.addWidget(self.sweep_mode_combo)
         sweep_options_layout.addLayout(sweep_mode_row)
+
+        # Baseline run (the current settings, unchanged) before the swept
+        # values. Follows the mode and the number of parameters (on for
+        # One-at-a-time with 2+ parameters and Bayesian search, where the
+        # other runs are compared against it) until the user clicks it;
+        # then their choice is kept (config "on"/"off").
+        self.sweep_baseline_cb = QCheckBox("Also run the current settings (baseline)")
+        self.sweep_baseline_cb.setToolTip(
+            "Runs the panel's settings unchanged first, as a reference point.\n"
+            "On by default for One-at-a-time with 2+ parameters and for Bayesian search\n"
+            "(its first point); off otherwise, so only the swept values run.")
+        self._sweep_baseline_user = None   # None = automatic, else True/False
+        self.sweep_baseline_cb.clicked.connect(self._on_sweep_baseline_clicked)
+        sweep_options_layout.addWidget(self.sweep_baseline_cb)
+        self.sweep_mode_combo.currentIndexChanged.connect(lambda _i: self._update_sweep_baseline_default())
+        self._update_sweep_baseline_default()
 
         # Round 75: Bayesian search settings.
         self.sweep_bayes_widget = QWidget()
@@ -2581,12 +2605,12 @@ class MainWindow(QMainWindow):
         _bl.addWidget(QLabel("Runs:"))
         self.sweep_bayes_calls_spin = QSpinBox(); self.sweep_bayes_calls_spin.setRange(2, 1000)
         self.sweep_bayes_calls_spin.setValue(20); self.sweep_bayes_calls_spin.setFixedWidth(60)
-        self.sweep_bayes_calls_spin.setToolTip("Total training runs, the baseline included")
+        self.sweep_bayes_calls_spin.setToolTip("Total training runs (the baseline included, when it runs)")
         _bl.addWidget(self.sweep_bayes_calls_spin)
         _bl.addWidget(QLabel("Random first:"))
         self.sweep_bayes_init_spin = QSpinBox(); self.sweep_bayes_init_spin.setRange(1, 100)
         self.sweep_bayes_init_spin.setValue(5); self.sweep_bayes_init_spin.setFixedWidth(50)
-        self.sweep_bayes_init_spin.setToolTip("Runs (after the baseline) with random settings before the model takes over")
+        self.sweep_bayes_init_spin.setToolTip("Runs with random settings (after the baseline, if any) before the model takes over")
         _bl.addWidget(self.sweep_bayes_init_spin)
         _bl.addWidget(QLabel("Minimize:"))
         self.sweep_bayes_obj_combo = QComboBox()
@@ -2610,12 +2634,6 @@ class MainWindow(QMainWindow):
         self._register_hint(div_sweep_params, '#505080')
         sweep_options_layout.addWidget(div_sweep_params)
 
-        sweep_refresh_row = QHBoxLayout()
-        sweep_refresh_row.addStretch()
-        sweep_refresh_btn = QPushButton("🔄 Refresh")
-        sweep_refresh_btn.setToolTip("Re-reads the rest of this panel's current settings to update which parameters can be swept")
-        sweep_refresh_row.addWidget(sweep_refresh_btn)
-        sweep_options_layout.addLayout(sweep_refresh_row)
 
         self.sweep_rows_widget = QWidget()
         self.sweep_rows_layout = QVBoxLayout(self.sweep_rows_widget)
@@ -3595,6 +3613,8 @@ class MainWindow(QMainWindow):
         available to sweep over against the panel's current settings."""
         if hasattr(self, 'sweep_options_widget'):
             self.sweep_options_widget.setVisible(checked)
+        if hasattr(self, 'sweep_refresh_btn'):
+            self.sweep_refresh_btn.setVisible(checked)
         if hasattr(self, 'solve_btn'):
             self.solve_btn.setText("▶  Run Sweep" if checked else "▶  Solve")
             self.solve_btn.setToolTip(
@@ -3602,6 +3622,28 @@ class MainWindow(QMainWindow):
                 "at a time, saving each to its own folder." if checked else "")
         if checked:
             self._refresh_sweep_param_choices()
+
+    def _on_sweep_baseline_clicked(self, checked):
+        self._sweep_baseline_user = bool(checked)
+
+    def _sweep_baseline_setting(self):
+        """config.sweep_include_baseline from the checkbox: "auto" until
+        the user clicks it, then "on"/"off"."""
+        u = getattr(self, '_sweep_baseline_user', None)
+        return "auto" if u is None else ("on" if u else "off")
+
+    def _update_sweep_baseline_default(self):
+        """Shows the automatic baseline choice for the current mode and
+        number of parameters (sweep_runner.includes_baseline), unless the
+        user has set it themselves."""
+        if not hasattr(self, 'sweep_baseline_cb'):
+            return
+        if self._sweep_baseline_user is not None:
+            self.sweep_baseline_cb.setChecked(self._sweep_baseline_user)
+            return
+        mode = self.sweep_mode_combo.currentData()
+        n = len(getattr(self, 'sweep_row_list', []) or [])
+        self.sweep_baseline_cb.setChecked(mode == "bayes" or (mode == "oat" and n >= 2))
 
     def _add_sweep_row(self):
         """One parameter block, stacked top-to-bottom (header row with a
@@ -3727,11 +3769,13 @@ class MainWindow(QMainWindow):
             'n_spin': n_spin,
         }
         self.sweep_row_list.append(row_data)
+        self._update_sweep_baseline_default()
 
         def _remove():
             row_widget.deleteLater()
             if row_data in self.sweep_row_list:
                 self.sweep_row_list.remove(row_data)
+            self._update_sweep_baseline_default()
 
         remove_btn.clicked.connect(_remove)
         self._refresh_sweep_param_choices()
@@ -3803,6 +3847,8 @@ class MainWindow(QMainWindow):
         i = self.sweep_mode_combo.findData(getattr(config, "sweep_mode", "oat") or "oat")
         self.sweep_mode_combo.setCurrentIndex(max(0, i))
         self.sweep_bayes_calls_spin.setValue(int(getattr(config, "sweep_bayes_calls", 20) or 20))
+        _b = str(getattr(config, "sweep_include_baseline", "auto"))
+        self._sweep_baseline_user = True if _b in ("on", "True") else (False if _b in ("off", "False") else None)
         self.sweep_bayes_init_spin.setValue(int(getattr(config, "sweep_bayes_initial", 5) or 5))
         j = self.sweep_bayes_obj_combo.findData(getattr(config, "sweep_bayes_objective", "loss"))
         self.sweep_bayes_obj_combo.setCurrentIndex(max(0, j))
@@ -3835,6 +3881,7 @@ class MainWindow(QMainWindow):
                     row['n_spin'].setValue(int(e.get("n", 5)))
         self.sweep_enable_cb.setChecked(bool(getattr(config, "sweep_enabled", False)))
         self.sweep_bayes_widget.setVisible(self.sweep_mode_combo.currentData() == "bayes")
+        self._update_sweep_baseline_default()
 
     def _build_sweep_parameters_json(self):
         import json
@@ -4646,7 +4693,7 @@ class MainWindow(QMainWindow):
     # problem: loading a DeepXDE example keeps them as they are (unless the
     # example itself sets one, e.g. a coarser plot grid for a 3D problem).
     _DEEPXDE_KEEP_FIELDS = (
-        "save_dir", "sweep_save_dir", "gpu_device_index", "gpu_memory_fraction",
+        "save_dir", "sweep_save_dir", "sweep_label", "gpu_device_index", "gpu_memory_fraction",
         "use_random_seed", "random_seed",
         "plot_colormap", "plot_levels", "plot_dpi", "plot_colorbar", "plot_figsize_mode",
         "plot_figsize_w", "plot_figsize_h", "plot_linewidth", "plot_linewidth_anim", "plot_fps",
@@ -6761,7 +6808,8 @@ class MainWindow(QMainWindow):
     @staticmethod
     def _sanitize_run_label(text):
         import re
-        text = re.sub(r"\s+", "_", text.strip())
+        text = re.sub(r"\s*[–—]\s*", "-", text.strip())   # "Poisson 1D – Dirichlet" -> "Poisson 1D-Dirichlet"
+        text = re.sub(r"\s+", "_", text)
         text = re.sub(r"[^A-Za-z0-9_\-]", "", text)
         return text
 
@@ -7171,6 +7219,7 @@ class MainWindow(QMainWindow):
             ea_metric_max=self._ea_settings.get('do_max', False) if getattr(self, '_ea_settings', None) else False,
             sweep_enabled=self.sweep_enable_cb.isChecked() if hasattr(self, 'sweep_enable_cb') else False,
             sweep_mode=self.sweep_mode_combo.currentData() if hasattr(self, 'sweep_mode_combo') else "oat",
+            sweep_include_baseline=self._sweep_baseline_setting() if hasattr(self, 'sweep_baseline_cb') else "auto",
             sweep_parameters=self._build_sweep_parameters_json() if hasattr(self, '_build_sweep_parameters_json') else "[]",
             sweep_bayes_calls=self.sweep_bayes_calls_spin.value() if hasattr(self, 'sweep_bayes_calls_spin') else 20,
             sweep_bayes_initial=self.sweep_bayes_init_spin.value() if hasattr(self, 'sweep_bayes_init_spin') else 5,
@@ -8588,6 +8637,11 @@ class MainWindow(QMainWindow):
         self.loss_label._source_path = None
         self.solution_label._source_path = None
         self._log_example_changes(config)
+        # The sweep's folder is named like a normal run's
+        # ("<label>__<timestamp>"): config.save_dir already ends in that
+        # run folder, so its label part names the sweep too.
+        config.sweep_label = os.path.basename(os.path.normpath(config.save_dir or "")).rsplit("__", 1)[0] \
+            if "__" in os.path.basename(os.path.normpath(config.save_dir or "")) else ""
         self._sweep_run_count = 0
         self._sweep_run_root = None
         self._sweep_base_config = config
@@ -8653,6 +8707,9 @@ class MainWindow(QMainWindow):
         if getattr(self, '_sweep_run_root', None):
             self.log_box.append(
                 f"📁 Per-run folders, manifest and summary CSV saved under: {self._sweep_run_root}")
+            _summary = os.path.join(self._sweep_run_root, "sweep_error_vs_parameter.png")
+            if os.path.exists(_summary):
+                self.log_box.append(f"📈 Error vs swept parameter: {_summary}")
         # Show the last successfully-completed run's own loss/solution
         # figure in the right panel -- same as a normal single Solve
         # already does, using whichever plot type the Setup tab itself

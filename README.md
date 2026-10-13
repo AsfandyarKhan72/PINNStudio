@@ -325,19 +325,21 @@ For an inverse problem, the estimated parameter's value is logged and saved peri
 <details>
 <summary><strong>Run many training configurations from one setup, varying any parameter</strong></summary>
 
-Rather than clicking Solve once per configuration and tracking the results yourself, tick **Enable Parameter Sweep** in the left panel (directly below Adaptive Training) and PINNStudio runs a whole batch of training configurations in sequence — each one a full, independent training run of the problem you've already set up, varying whichever parameter(s) you choose. The shared **Solve**/**Stop** buttons drive it (relabeled **Run Sweep** while a sweep is enabled), and the Training Log streams every run's progress in order, so nothing about the rest of the workflow changes.
+Rather than clicking Solve once per configuration and tracking the results yourself, tick **Enable Parameter Sweep** in the left panel (directly below Adaptive Training; the **📖 Show sweep reference** and **🔄 Refresh** buttons sit on the same row) and PINNStudio runs a whole batch of training configurations in sequence — each one a full, independent training run of the problem you've already set up, varying whichever parameter(s) you choose. The shared **Solve**/**Stop** buttons drive it (relabeled **Run Sweep** while a sweep is enabled), and the Training Log streams every run's progress in order, so nothing about the rest of the workflow changes.
 
 ![Parameter Sweep panel — two parameters configured for an all-combinations sweep](assets/Images/Parameter_Sweep/sweep_panel.png)
 
 **Four ways to combine parameters**, picked from the Mode dropdown:
-- **One-at-a-time** — vary each parameter separately against the same baseline (N+1 values across 2 parameters → 1 baseline + N runs per parameter).
+- **One-at-a-time** — vary each parameter separately, the others held at their current values (3 values of one parameter → 3 runs).
 - **All combinations** (grid) — every value of every parameter, crossed together (2 parameters with 3 and 2 values → 6 runs).
 - **Specified combinations** (zip) — pair up each parameter's *i*-th value across all parameters (2 parameters with matching-length value lists, paired index-for-index).
-- **Bayesian search** — after the baseline, each run's settings are chosen by a Gaussian-process model of the results so far, to reach the lowest final loss (or L2 error) in as few runs as possible. Each parameter's Min/Max (linear or log) is its search range, a list its choices; **Runs** is the budget and **Random first** the number of random runs before the model takes over. The sweep folder gets `bayes_search.csv` and a convergence plot, and the best run is printed at the end — see the Helmholtz hyperparameter-optimization example under [Examples](#examples).
+- **Bayesian search** — each run's settings are chosen by a Gaussian-process model of the results so far, to reach the lowest final loss (or L2 error) in as few runs as possible. Each parameter's Min/Max (linear or log) is its search range, a list its choices; **Runs** is the budget and **Random first** the number of random runs before the model takes over. The sweep folder gets `bayes_search.csv` and a convergence plot, and the best run is printed at the end — see the Helmholtz hyperparameter-optimization example under [Examples](#examples).
+
+**Baseline run.** *Also run the current settings (baseline)* adds one run with the panel's settings unchanged, before the swept values, as a reference point. It is on by default for One-at-a-time with 2 or more parameters and for Bayesian search (its first point), and off otherwise; ticking or unticking it keeps your choice.
 
 Each parameter row takes a comma-separated list of values, or a linear/log numeric range (min, max, number of steps); categorical parameters (activation, point distribution, etc.) are always a plain list of choices.
 
-**Essentially anything you can configure elsewhere in the GUI can be swept** — click **Refresh** on the Parameter dropdown to see everything currently available for your problem, which adapts to what's selected. This currently spans:
+**Essentially anything you can configure elsewhere in the GUI can be swept** — click **🔄 Refresh** to update the Parameter dropdown with everything currently available for your problem, which adapts to what's selected. This currently spans:
 
 - **Network** — hidden layers, neurons per layer, activation, kernel initializer, weight decay.
 - **Collocation Points** — domain/boundary/initial/test point counts, sampling distribution.
@@ -348,7 +350,7 @@ Each parameter row takes a comma-separated list of values, or a linear/log numer
 - **Time Adaptive** (when selected as the adaptive method) — each time-step group's own step count, IC grid resolution.
 - **Input/Output Transform** (when enabled) — each input axis's and each output's own scale value.
 
-**Every run gets its own results.** Each configuration trains into its own subfolder (under the same **Save to:** location as a normal Solve) with its own saved model checkpoint, loss/solution plots, and (if configured) Error Analysis metrics — plus an auto-generated `sweep_manifest.json` and `sweep_summary.csv` at the sweep's root, one row per run, recording its status, final loss, L2 relative error (if Error Analysis is configured), and folder name. Once the sweep finishes, the right panel's Loss/Solution plots fill in with the last successfully completed run's own figure, the same as a normal Solve would show. **Stop** hard-stops the in-flight run immediately rather than letting it finish first.
+**Every run gets its own results.** The sweep saves into one folder under the same **Save to:** location as a normal Solve, named like a normal run (`Poisson_1D-Dirichlet_sweep__2026-10-13_11-39-17`), with one subfolder per run named after what it set (`run_01__Phase-1-Iterations_1000`, `run_02__…`; `run_00__baseline` when the baseline runs), each with its own saved model checkpoint, loss/solution plots and (if configured) Error Analysis results. The sweep folder also gets `sweep_manifest.json`, `sweep_summary.csv` (one row per run: the swept values, status, final loss, the Error Analysis metrics you ticked, and the folder) and **`sweep_error_vs_parameter.png`**, a summary plot of the error ($L_2$, plus MSE and Max error if ticked in Error Analysis) and the final loss against the swept value — one panel per parameter for One-at-a-time, one line per value of the other parameters for combinations, the baseline as a star. Once the sweep finishes, the right panel's Loss/Solution plots fill in with the last successfully completed run's own figure, the same as a normal Solve would show. **Stop** hard-stops the in-flight run immediately rather than letting it finish first.
 
 </details>
 

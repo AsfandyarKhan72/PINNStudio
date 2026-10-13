@@ -62,6 +62,7 @@ on the machine):
     QT_QPA_PLATFORM=offscreen python3 tests/test_sweep_execution.py
 """
 import os
+import re
 import sys
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
@@ -97,6 +98,7 @@ def run():
     row["list_edit"].setText("2")
     win.sweep_enable_cb.setChecked(True)
     config = win._build_config()
+    config.sweep_include_baseline = "on"   # compared against the baseline below
     check(config.validate() == [], f"1D Heat sweep config should validate clean: {config.validate()}")
     check(config.ea_files in ("[]", []), "1D Heat should have no Error Analysis data configured by default")
 
@@ -122,6 +124,7 @@ def run():
     row2["list_edit"].setText("2")
     win2.sweep_enable_cb.setChecked(True)
     config2 = win2._build_config()
+    config2.sweep_include_baseline = "on"   # compared against the baseline below
     check(config2.validate() == [], f"3D Sphere sweep config should validate clean: {config2.validate()}")
     check(config2.ea_files not in ("[]", []), "3D Poisson (Sphere) should have Error Analysis data configured by default")
 
@@ -135,6 +138,12 @@ def run():
         l2s.append(result["l2_relative"])
     check(len(set(l2s)) == len(l2s),
           f"each 3D Sphere run should read back its OWN freshly-written error_metrics.txt, not a shared/stale one -- got identical values: {l2s}")
+    if results2:
+        _root2 = os.path.dirname(results2[0][1]["save_dir"])
+        check(all(r.get("metrics", {}).get("L2_relative") == r["l2_relative"] for _l, r in results2),
+              "each run's metrics carry its L2 error")
+        check(os.path.isfile(os.path.join(_root2, "sweep_error_vs_parameter.png")),
+              f"error-vs-parameter summary plot saved in {_root2}")
 
     # ── Loss weight sweep: a real training run, not just generated-
     # script text (test_sweep_registry.py already checks the text) ────
@@ -150,6 +159,7 @@ def run():
     row3["list_edit"].setText("100000")  # the default IC weight is 100 -- a 1000x jump
     win3.sweep_enable_cb.setChecked(True)
     config3 = win3._build_config()
+    config3.sweep_include_baseline = "on"   # compared against the baseline below
     check(config3.validate() == [], f"1D Heat weight-sweep config should validate clean: {config3.validate()}")
 
     results3 = run_sweep(config3)
@@ -190,6 +200,7 @@ def run():
         win4.sweep_enable_cb.setChecked(True)
         win4.save_dir_input.setText(tmp_root)
         config4 = win4._build_config()
+        config4.sweep_include_baseline = "on"   # compared against the baseline below
         check(config4.sweep_save_dir == tmp_root, "sweep_save_dir should round-trip into the config "
               "(from the shared 'Save to:' field, not a dedicated sweep one)")
         check(config4.validate() == [], f"per-run-folder sweep config should validate clean: {config4.validate()}")
@@ -218,7 +229,7 @@ def run():
               f"the real sweep root should live under the configured sweep_save_dir, got {sweep_root!r}")
         check(len(results4) == 2, f"expected 2 runs (baseline + hidden_layers=2), got {len(results4)}")
 
-        expected_folders = ["run_000_baseline", "run_001_Hidden_layers=2"]
+        expected_folders = ["run_00__baseline", "run_01__Hidden-layers_2"]
         if sweep_root:
             for folder in expected_folders:
                 run_dir = os.path.join(sweep_root, folder)
@@ -233,7 +244,7 @@ def run():
                       f"expected a real solution_plot.png under {run_dir}/solution_results")
 
             win4._on_sweep_finished()
-            last_run_dir = os.path.join(sweep_root, "run_001_Hidden_layers=2")
+            last_run_dir = os.path.join(sweep_root, "run_01__Hidden-layers_2")
             check(win4._sweep_last_run_dir == last_run_dir,
                   f"the last completed run's folder should be remembered, got {win4._sweep_last_run_dir}")
             check(win4.loss_label._source_path == os.path.join(last_run_dir, "solution_results", "loss_plot.png"),
@@ -242,10 +253,14 @@ def run():
                   f"after a real sweep finishes, the right panel should show the last run's real solution figure, got {win4.solution_label._source_path!r}")
 
             for label, result in results4:
-                check(result["save_dir"] in (os.path.join(sweep_root, "run_000_baseline"),
-                                              os.path.join(sweep_root, "run_001_Hidden_layers=2")),
+                check(result["save_dir"] in (os.path.join(sweep_root, "run_00__baseline"),
+                                              os.path.join(sweep_root, "run_01__Hidden-layers_2")),
                       f"[{label}] result save_dir should point at that run's own per-run folder, got {result['save_dir']}")
 
+            check(re.fullmatch(r"sweep__\d{4}-\d\d-\d\d_\d\d-\d\d-\d\d", os.path.basename(sweep_root)) is not None,
+                  f"without a label the sweep folder is 'sweep__<YYYY-MM-DD_HH-MM-SS>', got {os.path.basename(sweep_root)}")
+            check(os.path.isfile(os.path.join(sweep_root, "sweep_error_vs_parameter.png")),
+                  "a summary plot (final loss vs the swept value here -- 1D Heat has no reference) is saved")
             manifest_path = os.path.join(sweep_root, "sweep_manifest.json")
             csv_path = os.path.join(sweep_root, "sweep_summary.csv")
             check(os.path.isfile(manifest_path), f"expected a sweep_manifest.json at {manifest_path}")
@@ -262,9 +277,9 @@ def run():
             if os.path.isfile(csv_path):
                 with open(csv_path) as f:
                     csv_text = f.read()
-                check(csv_text.startswith("Run,Status,Final loss,L2 relative error,Folder"),
+                check(csv_text.startswith("Run,Hidden layers,Status,Final loss,L2 relative error,"),
                       f"sweep_summary.csv should have the expected header, got {csv_text.splitlines()[:1]}")
-                check("run_000_baseline" in csv_text and "run_001_Hidden_layers=2" in csv_text,
+                check("run_00__baseline" in csv_text and "run_01__Hidden-layers_2" in csv_text,
                       f"sweep_summary.csv should list both runs' own folder names, got:\n{csv_text}")
     finally:
         shutil.rmtree(tmp_root, ignore_errors=True)
@@ -294,13 +309,14 @@ def run():
     check(config5.validate() == [], f"real zip-mode sweep config should validate clean: {config5.validate()}")
 
     results5 = run_sweep(config5)
-    check(len(results5) == 3, f"zip mode with 2+2 equal-length values should give 3 real runs "
-                               f"(1 baseline + 2 paired), got {len(results5)}: {[l for l, _ in results5]}")
+    check(len(results5) == 2, f"zip mode with 2+2 equal-length values should give 2 real runs "
+                               f"(paired, no baseline by default), got {len(results5)}: {[l for l, _ in results5]}")
     labels5 = [l for l, _ in results5]
-    if len(labels5) == 3:
-        check(labels5[0] == "baseline"
-              and labels5[1].endswith("=2, Neurons per layer=16")
-              and labels5[2].endswith("=3, Neurons per layer=24"),
+    check(all(os.path.basename(r["save_dir"]).startswith(f"run_0{k + 1}__") for k, (_l, r) in enumerate(results5)),
+          f"without a baseline the runs are numbered from 1: {[os.path.basename(r['save_dir']) for _l, r in results5]}")
+    if len(labels5) == 2:
+        check(labels5[0].endswith("=2, Neurons per layer=16")
+              and labels5[1].endswith("=3, Neurons per layer=24"),
               f"zip mode should pair each row's Nth value together, got {labels5}")
     for label, result in results5:
         check(result["status"] == "done", f"[zip sweep] run {label!r} should finish 'done', got {result}")
@@ -345,6 +361,7 @@ def run():
         win6.sweep_enable_cb.setChecked(True)
         win6.sweep_mode_combo.setCurrentIndex(win6.sweep_mode_combo.findData("oat"))
         config6 = win6._build_config()
+        config6.sweep_include_baseline = "on"   # compared against the baseline below
         check(config6.problem_type == "Inverse", "sanity: this config should be Inverse")
         check(config6.validate() == [], f"Inverse one-at-a-time sweep config should validate clean: {config6.validate()}")
 
@@ -406,6 +423,7 @@ def run():
     row9["list_edit"].setText("1, 2")
     win9.sweep_enable_cb.setChecked(True)
     config9 = win9._build_config()
+    config9.sweep_include_baseline = "on"   # compared against the baseline below
     check(config9.validate() == [], f"RAR sweep config should validate clean: {config9.validate()}")
     check(config9.adapt_method == "RAR", "config should record adapt_method='RAR'")
 
@@ -449,6 +467,7 @@ def run():
     row10["list_edit"].setText("11, 21")
     win10.sweep_enable_cb.setChecked(True)
     config10 = win10._build_config()
+    config10.sweep_include_baseline = "on"   # compared against the baseline below
     config10.iterations = 10  # belt-and-braces only (see comment above -- this field is NOT
                                # actually what Time-Adaptive's per-step training reads whenever
                                # the scheduler is active, which it always is; shrinking
@@ -491,6 +510,7 @@ def run():
     row11b["list_edit"].setText("relu")
     win11.sweep_enable_cb.setChecked(True)
     config11 = win11._build_config()
+    config11.sweep_include_baseline = "on"   # compared against the baseline below
     check(config11.validate() == [], f"Output-transform/Activation sweep config should validate clean: {config11.validate()}")
 
     results11 = run_sweep(config11)

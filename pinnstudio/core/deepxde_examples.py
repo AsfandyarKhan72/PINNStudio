@@ -903,7 +903,7 @@ def build_config(example, ref_root, keep=None):
 
 
 # Settings that are the user's own preferences, not part of an example.
-_NOT_EXAMPLE_FIELDS = {"save_dir", "sweep_save_dir", "gpu_device_index", "gpu_memory_fraction", "use_random_seed",
+_NOT_EXAMPLE_FIELDS = {"save_dir", "sweep_save_dir", "sweep_label", "gpu_device_index", "gpu_memory_fraction", "use_random_seed",
                        "random_seed"}
 
 

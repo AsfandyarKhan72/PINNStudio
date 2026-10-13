@@ -19,9 +19,10 @@ field's values; "zip" pairs up each parameter's values position-by-
 position (P1's 1st value with P2's 1st value, P1's 2nd with P2's 2nd,
 ...), which only makes sense when every swept parameter has the same
 number of values -- PINNConfig.validate() checks that before this runs.
-Either way, a "baseline" run (the config exactly as built, completely
-unmodified) is always included first, so there is always a same-
-settings reference point to compare every other run to.
+A "baseline" run (the config exactly as built, unmodified) can come
+first as a same-settings reference point (sweep_include_baseline; by
+default only for One-at-a-time with 2+ parameters and Bayesian search,
+where the other runs are measured against it -- see includes_baseline).
 
 Each concrete config is produced via pinnstudio.core.sweep_registry's
 SweepParam.get_value/set_value accessors -- the same ones Phase 2 built
@@ -36,10 +37,10 @@ configured, the last reported L2 relative error (read back from that
 run's own error_analysis/error_metrics*.txt, which the generated script
 already writes -- see codegen.py).
 
-OUTPUT ORGANIZATION: every run (baseline included) gets its own,
-descriptively-named folder under sweep_root_dir(base_config) -- e.g.
-"run_002_BC_2_dirichlet_Output_0_7p5" for a run that set that BC's
-weight to 7.5 -- with its save_dir pointed there, so the SAME save
+OUTPUT ORGANIZATION: the sweep's folder is named like a normal run's,
+"<label>_sweep__YYYY-MM-DD_HH-MM-SS", and every run gets its own
+descriptively-named folder under it -- e.g. "run_02__Phase-1-Iterations_2000"
+-- with its save_dir pointed there, so the SAME save
 pipeline a normal Solve already uses (model checkpoint, loss/solution
 plot per plot_type, Error Analysis figures) writes into that run's own
 folder automatically; nothing about saving is reimplemented here either.
@@ -50,10 +51,11 @@ folder. base_config.sweep_export_mode == "custom" additionally
 overrides plot_type/plot_output_idx/plot_custom_expr/plot_custom_label/
 export_t_steps for every run from the matching sweep_plot_* fields,
 uniformly across the whole sweep -- "same_as_setup" (the default) makes
-no change here at all. A sweep_manifest.json and sweep_summary.csv are
-written into the sweep's root folder once the sweep finishes (or is
-cancelled -- whatever ran so far is still recorded), so the run/folder/
-result mapping is readable later without reopening the GUI.
+no change here at all. A sweep_manifest.json, sweep_summary.csv and a
+sweep_error_vs_parameter.png summary plot (error and final loss against
+the swept value(s)) are written into the sweep's root folder once the
+sweep finishes (or is cancelled -- whatever ran so far is still
+recorded), so the results are readable later without reopening the GUI.
 """
 import copy
 import csv
@@ -114,49 +116,77 @@ def expand_params(base_config):
     return per_param
 
 
-def build_runs(base_config):
-    """Returns a list of (label, config) pairs for every run this sweep
-    implies -- always starting with ("baseline", <base_config exactly as
-    given, deep-copied>). Parameter entries whose id no longer resolves
-    against this config (e.g. referencing a since-removed scheduler
-    phase) are silently skipped here -- PINNConfig.validate() is what's
-    responsible for catching that and should already have been called
-    before this runs."""
-    runs = [("baseline", copy.deepcopy(base_config))]
+def includes_baseline(base_config):
+    """Whether the sweep starts with a baseline run (the current
+    settings, unchanged). sweep_include_baseline "on"/"off" decide;
+    "auto" (the default) runs it only where the other runs are measured
+    against it: One-at-a-time with 2+ parameters, and Bayesian search
+    (its first point)."""
+    v = str(getattr(base_config, "sweep_include_baseline", "auto"))
+    if v in ("on", "True"):
+        return True
+    if v in ("off", "False"):
+        return False
+    mode = getattr(base_config, "sweep_mode", "oat")
+    if mode == "bayes":
+        return True
+    try:
+        n = len(json.loads(base_config.sweep_parameters or "[]"))
+    except ValueError:
+        n = 0
+    return mode == "oat" and n >= 2
+
+
+def _run_label(parts):
+    return ", ".join(f"{p.label}={v}" for p, v in parts)
+
+
+def build_runs_detailed(base_config):
+    """Every run this sweep implies, as dicts {"label", "config",
+    "values": {param label: value}, "group": index of the parameter a
+    One-at-a-time run varies (None otherwise / for the baseline),
+    "baseline": bool}. The baseline (if includes_baseline) comes first."""
     per_param = expand_params(base_config)
+    runs = []
+    if includes_baseline(base_config) or not per_param:
+        runs.append({"label": "baseline", "config": copy.deepcopy(base_config), "group": None, "baseline": True,
+                     "values": {p.label: p.get_value(base_config) for p, _ in per_param}})
     if not per_param:
         return runs
 
+    def _variant(parts, group=None):
+        cfg = copy.deepcopy(base_config)
+        for param, v in parts:
+            param.set_value(cfg, v)
+        values = {p.label: p.get_value(base_config) for p, _ in per_param}
+        values.update({p.label: v for p, v in parts})
+        return {"label": _run_label(parts), "config": cfg, "group": group, "baseline": False, "values": values}
+
     if base_config.sweep_mode == "grid":
         for combo in itertools.product(*(vals for _, vals in per_param)):
-            cfg = copy.deepcopy(base_config)
-            parts = []
-            for (param, _), v in zip(per_param, combo):
-                param.set_value(cfg, v)
-                parts.append(f"{param.label}={v}")
-            runs.append((", ".join(parts), cfg))
+            runs.append(_variant(list(zip((p for p, _ in per_param), combo))))
     elif base_config.sweep_mode == "zip":
         # "Specified combinations" (COMSOL's term): every parameter's
         # Nth value, together, as one combination -- P1=[1,2] & P2=[10,20]
         # gives exactly 2 runs, (1,10) and (2,20), never grid mode's 4.
-        # zip() itself truncates to the shortest list if lengths somehow
-        # differ (should already be caught by validate()) rather than
-        # raising -- consistent with this module leaving that check to
-        # PINNConfig.validate(), as its docstring above already says.
+        # zip() truncates to the shortest list if lengths somehow differ
+        # (PINNConfig.validate() already rejects that).
         for combo in zip(*(vals for _, vals in per_param)):
-            cfg = copy.deepcopy(base_config)
-            parts = []
-            for (param, _), v in zip(per_param, combo):
-                param.set_value(cfg, v)
-                parts.append(f"{param.label}={v}")
-            runs.append((", ".join(parts), cfg))
+            runs.append(_variant(list(zip((p for p, _ in per_param), combo))))
     else:  # "oat" -- every other swept field stays at the baseline value
-        for param, values in per_param:
+        for k, (param, values) in enumerate(per_param):
             for v in values:
-                cfg = copy.deepcopy(base_config)
-                param.set_value(cfg, v)
-                runs.append((f"{param.label}={v}", cfg))
+                runs.append(_variant([(param, v)], group=k))
     return runs
+
+
+def build_runs(base_config):
+    """[(label, config), ...] for every run this sweep implies -- the
+    baseline first when includes_baseline(base_config). Parameter
+    entries whose id no longer resolves against this config (e.g. a
+    since-removed scheduler phase) are skipped; PINNConfig.validate()
+    catches those before a sweep starts."""
+    return [(r["label"], r["config"]) for r in build_runs_detailed(base_config)]
 
 
 # ── Bayesian search (Round 75) ──────────────────────────────────────────
@@ -166,7 +196,8 @@ def _fmt(v):
 
 
 class BayesRuns:
-    """Run source for sweep_mode "bayes": the baseline, then one run at a
+    """Run source for sweep_mode "bayes": the baseline (unless turned off),
+    then one run at a
     time chosen by pinnstudio.core.bayes_opt from the results so far
     (DeepXDE's Helmholtz HPO example, gp_minimize with expected
     improvement). next_run() gives (label, config); tell(result) records
@@ -193,6 +224,7 @@ class BayesRuns:
                                   seed=int(getattr(base_config, "sweep_bayes_seed", 0) or 0))
         self.history = []          # (label, point, objective)
         self._pending = None
+        self.with_baseline = includes_baseline(base_config)
 
     def _cast(self, param, v):
         if param.value_type == "int":
@@ -201,8 +233,11 @@ class BayesRuns:
             return float(v)
         return str(v)
 
+    def values(self, point):
+        return {p.label: self._cast(p, v) for p, v in zip(self.params, point)}
+
     def next_run(self, i):
-        if i == 0:
+        if i == 0 and self.with_baseline:
             point = []
             for p, d in zip(self.params, self.dims):
                 v = p.get_value(self.base)
@@ -268,67 +303,72 @@ class BayesRuns:
 # ── Per-run output organization ────────────────────────────────────────
 
 def _slugify(text, maxlen=60):
-    """Turns a run label like "BC 2 (dirichlet, Output 0)=7.5" into a
-    filesystem-safe folder-name fragment like "BC_2_dirichlet_Output_0_7.5"
-    -- keeps letters/digits/dot/underscore/dash/equals, collapses
-    everything else (spaces, commas, parens, ...) to a single
-    underscore, and trims to a sane length so a Grid sweep over several
-    parameters at once can't produce an unusably long path."""
-    text = _SLUG_RE.sub("_", text.strip())
-    text = re.sub(r"_+", "_", text).strip("_")
+    """A filesystem-safe folder-name fragment: letters, digits, dots and
+    dashes kept, anything else (spaces, colons, commas, parens, ...)
+    collapsed to one dash -- "Phase 1: Iterations" -> "Phase-1-Iterations"."""
+    text = re.sub(r"[^A-Za-z0-9.+-]+", "-", str(text).strip())
+    text = re.sub(r"-+", "-", text).strip("-")
     return (text or "run")[:maxlen]
 
 
 def sweep_root_dir(base_config, started_at=None):
-    """The folder this sweep's runs are organized under:
-    <sweep_save_dir>/sweep_<timestamp>/ -- `started_at` (a datetime,
-    defaulting to now) fixes the timestamp so every run started by the
-    same run_sweep() call lands under the same root, while a later sweep
-    of the same config gets its own, never silently overwriting the
-    first. Falls back to the same ~/PINNStudio_Results convention the
-    Setup tab's own "Save results to" field already defaults to (see
-    MainWindow._build_ui) when sweep_save_dir is blank -- which it will
-    be for any config built before this field existed."""
+    """The folder this sweep's runs are organized under, named like a
+    normal run's folder: <sweep_save_dir>/<label>_sweep__YYYY-MM-DD_HH-MM-SS
+    (<label> from base_config.sweep_label -- the loaded example or the
+    problem's shape -- or just "sweep__<timestamp>" when it is blank).
+    `started_at` (a datetime, defaulting to now) fixes the timestamp so
+    every run of the same run_sweep() call lands under the same root,
+    while a later sweep gets its own. Blank sweep_save_dir falls back to
+    ~/PINNStudio_Results/parameter_sweep_results."""
     root = (getattr(base_config, "sweep_save_dir", "") or "").strip()
     if not root:
         root = os.path.join(os.path.expanduser("~"), "PINNStudio_Results", "parameter_sweep_results")
-    stamp = (started_at or datetime.datetime.now()).strftime("%Y%m%d_%H%M%S")
-    return os.path.join(root, f"sweep_{stamp}")
+    stamp = (started_at or datetime.datetime.now()).strftime("%Y-%m-%d_%H-%M-%S")
+    label = re.sub(r"[^A-Za-z0-9._-]+", "_", (getattr(base_config, "sweep_label", "") or "").strip()).strip("_")
+    return os.path.join(root, f"{label}_sweep__{stamp}" if label else f"sweep__{stamp}")
 
 
-def run_folder_name(index, label):
-    """The one subfolder name a given run gets, under sweep_root_dir()
-    -- numbered (so ordering survives alphabetical sorting and folder
-    names can never collide even if two runs' labels happen to slugify
-    the same) and, for anything past the baseline, named after exactly
-    which parameter(s) and value(s) that run used -- e.g. a weight sweep
-    over one BC's weight gets "run_001_BC_2_dirichlet_Output_0_7.5", not
-    a generic "run_001" that gives no hint what it actually varied."""
-    if index == 0 and label == "baseline":
-        return "run_000_baseline"
-    return f"run_{index:03d}_{_slugify(label)}"
+def run_folder_name(index, label, total=None):
+    """One run's subfolder under sweep_root_dir(): numbered (so the
+    order survives alphabetical sorting and two runs never collide) and
+    named after what the run set -- "run_00__baseline",
+    "run_02__Phase-1-Iterations_2000", "run_05__Learning-rate_0.001__Width_64"
+    (one "name_value" part per swept parameter). The number has 2 digits,
+    more when a sweep has 100+ runs."""
+    width = max(2, len(str(max(0, (total or 0) - 1))))
+    if label == "baseline":
+        return f"run_{index:0{width}d}__baseline"
+    pieces, depth, cur = [], 0, ""
+    for ch in label:  # split "A=1, B (x, y)=2" at the commas outside parentheses
+        depth += (ch in "([") - (ch in ")]")
+        if ch == "," and depth == 0:
+            pieces.append(cur.strip()); cur = ""
+        else:
+            cur += ch
+    pieces.append(cur.strip())
+    parts = []
+    for part in pieces:
+        name, _, value = part.rpartition("=")
+        parts.append(f"{_slugify(name, 40)}_{_slugify(value, 24)}" if name else _slugify(part))
+    return f"run_{index:0{width}d}__" + "__".join(parts)[:100]
 
 
-def _read_last_l2(cfg, not_before):
-    """Best-effort read of the error_analysis/error_metrics*.txt THIS
-    run just wrote -- returns the last row's L2_relative column, or None
-    if there's nothing to read (no Error Analysis reference data
-    configured for this template at all, in which case nothing is even
-    attempted) or nothing NEW to read.
+def _read_last_metrics(cfg, not_before):
+    """Best-effort read of the error_analysis/error_metrics*.txt THIS run
+    just wrote: the last row's columns as {"t": .., "L2_relative": ..,
+    "MSE": .., "Max_error": .., "Mean_abs_error": ..} (only the metrics
+    ticked in Error Analysis are in the file), or {} if there's nothing
+    to read -- no Error Analysis reference configured (nothing is even
+    looked for) or nothing NEW.
 
     `not_before` (a time.time() timestamp taken just before this run's
-    subprocess started) is required and strictly enforced: the same
-    save_dir/error_analysis folder is reused across every run in a
-    sweep (most configs leave save_dir blank, which falls back to the
-    shared /tmp/error_analysis for every run), so a file left over from
-    an earlier run -- or from a completely unrelated Solve run earlier
-    in the session -- sitting there un-rewritten would otherwise be
-    silently misreported as this run's own result. Only a file whose
-    mtime is at or after `not_before` is trusted; anything older is
-    treated the same as the file not existing."""
+    subprocess started) is strictly enforced: only a file whose mtime is
+    at or after it is trusted, so a file left over from an earlier run
+    or an unrelated Solve in the same folder is never misreported as
+    this run's result."""
     if (not getattr(cfg, "ea_files", None) or cfg.ea_files == "[]") and \
             getattr(cfg, "ea_ref_mode", "files") != "formula":
-        return None  # this config has no Error Analysis reference data -- nothing will be written, don't look
+        return {}
     save_dir = getattr(cfg, "save_dir", "") or "/tmp"
     ea_dir = os.path.join(save_dir, "error_analysis")
     candidates = [
@@ -336,17 +376,29 @@ def _read_last_l2(cfg, not_before):
         if os.path.exists(p) and os.path.getmtime(p) >= not_before
     ]
     if not candidates:
-        return None
+        return {}
     candidates.sort(key=os.path.getmtime)
     try:
         with open(candidates[-1]) as f:
             lines = [ln.strip() for ln in f if ln.strip()]
         if len(lines) < 2:
-            return None
-        last_row = lines[-1].split(",")
-        return float(last_row[1])
-    except (OSError, IndexError, ValueError):
-        return None
+            return {}
+        head = [h.strip() for h in lines[0].split(",")]
+        row = lines[-1].split(",")
+        out = {}
+        for h, v in zip(head, row):
+            try:
+                out[h] = float(v)
+            except ValueError:
+                pass
+        return out
+    except (OSError, IndexError):
+        return {}
+
+
+def _read_last_l2(cfg, not_before):
+    """The last row's L2_relative from _read_last_metrics, or None."""
+    return _read_last_metrics(cfg, not_before).get("L2_relative")
 
 
 def _apply_run_output_settings(cfg, base_config, run_dir):
@@ -406,7 +458,7 @@ def run_sweep(base_config, on_run_start=None, on_output=None, on_run_done=None,
     Returns the full list of (label, result) pairs collected so far.
     """
     bayes = BayesRuns(base_config) if getattr(base_config, "sweep_mode", "") == "bayes" else None
-    runs = None if bayes else build_runs(base_config)
+    runs = None if bayes else build_runs_detailed(base_config)
     total = bayes.total if bayes else len(runs)
     started_at = datetime.datetime.now()
     sweep_root = sweep_root_dir(base_config, started_at)
@@ -424,8 +476,16 @@ def run_sweep(base_config, on_run_start=None, on_output=None, on_run_done=None,
     for i in range(total):
         if should_stop and should_stop():
             break
-        label, cfg = bayes.next_run(i) if bayes else runs[i]
-        run_dir = os.path.join(sweep_root, run_folder_name(i, label))
+        if bayes:
+            label, cfg = bayes.next_run(i)
+            info = {"values": bayes.values(bayes._pending), "group": None, "baseline": label == "baseline"}
+        else:
+            info = runs[i]
+            label, cfg = info["label"], info["config"]
+        # Numbered from 1 for the swept runs; the baseline, when there is
+        # one, is run 0.
+        number = i if (bayes.with_baseline if bayes else runs[0]["baseline"]) else i + 1
+        run_dir = os.path.join(sweep_root, run_folder_name(number, label, total + 1))
         _apply_run_output_settings(cfg, base_config, run_dir)
         if on_run_start:
             on_run_start(i, total, label)
@@ -447,10 +507,16 @@ def run_sweep(base_config, on_run_start=None, on_output=None, on_run_done=None,
             except ValueError:
                 pass  # keep the last successfully-parsed value, if any
 
+        metrics = _read_last_metrics(cfg, _run_started_at)
         result = {
             "status": "done" if status == "DONE" else "error",
             "final_loss": final_loss,
-            "l2_relative": _read_last_l2(cfg, _run_started_at),
+            "l2_relative": metrics.get("L2_relative"),
+            "metrics": metrics,
+            "values": {k: (v if isinstance(v, (int, float, str, bool)) or v is None else str(v))
+                       for k, v in info["values"].items()},
+            "group": info["group"],
+            "baseline": info["baseline"],
             "save_dir": run_dir,
         }
         results.append((label, result))
@@ -469,6 +535,12 @@ def run_sweep(base_config, on_run_start=None, on_output=None, on_run_done=None,
         bayes.write_outputs(sweep_root)
     _write_sweep_manifest(sweep_root, manifest)
     _write_sweep_summary_csv(sweep_root, results)
+    if not bayes:
+        try:
+            write_sweep_summary_plot(sweep_root, base_config, results)
+        except Exception as exc:  # a summary figure must never fail a finished sweep
+            if on_output:
+                on_output(max(0, len(results) - 1), total, f"(sweep summary plot skipped: {exc})")
     return results
 
 
@@ -481,22 +553,158 @@ def _write_sweep_manifest(sweep_root, manifest):
               # safely on disk per-run regardless of this summary file
 
 
+_METRIC_COLS = (("L2_relative", "L2 relative error"), ("MSE", "MSE"), ("Max_error", "Max error"),
+                ("Mean_abs_error", "Mean abs error"))
+
+
 def _write_sweep_summary_csv(sweep_root, results):
-    """Writes the same rows MainWindow._on_export_sweep_csv() lets the
-    user save by hand, automatically, into the sweep's own root folder
-    -- so a CSV index of every run's status/loss/L2 and which folder it
-    landed in always exists afterward, without relying on the user
-    remembering to click "Export results (CSV)"."""
+    """sweep_summary.csv in the sweep's own folder: one row per run --
+    its label, every swept parameter's value, status, final loss, the
+    Error Analysis metrics it reported, and its folder."""
+    params = []
+    for _label, r in results:
+        for k in (r.get("values") or {}):
+            if k not in params:
+                params.append(k)
+    metrics = [(k, name) for k, name in _METRIC_COLS
+               if any((r.get("metrics") or {}).get(k) is not None for _l, r in results)]
+    if not metrics:
+        metrics = [("L2_relative", "L2 relative error")]
     try:
         with open(os.path.join(sweep_root, "sweep_summary.csv"), "w", newline="") as f:
             writer = csv.writer(f)
-            writer.writerow(["Run", "Status", "Final loss", "L2 relative error", "Folder"])
+            writer.writerow(["Run"] + params + ["Status", "Final loss"] + [n for _k, n in metrics] + ["Folder"])
             for label, result in results:
-                writer.writerow([
-                    label, result.get("status"),
-                    result.get("final_loss") if result.get("final_loss") is not None else "",
-                    result.get("l2_relative") if result.get("l2_relative") is not None else "",
-                    os.path.basename(result.get("save_dir", "")),
-                ])
+                m = result.get("metrics") or {}
+                if result.get("l2_relative") is not None:
+                    m = {**m, "L2_relative": result["l2_relative"]}
+                vals = result.get("values") or {}
+                writer.writerow(
+                    [label] + [vals.get(p, "") for p in params]
+                    + [result.get("status"), result.get("final_loss") if result.get("final_loss") is not None else ""]
+                    + [m.get(k, "") for k, _n in metrics]
+                    + [os.path.basename(result.get("save_dir", ""))])
     except OSError:
         pass
+
+
+# ── Summary plot: error vs swept parameter ─────────────────────────────
+
+_METRIC_STYLE = {"L2_relative": ("Relative $L_2$ error", "o", "#1c7ed6"),
+                 "MSE": ("MSE", "s", "#e8590c"),
+                 "Max_error": ("Max error", "^", "#2f9e44")}
+
+
+def _num(v):
+    try:
+        f = float(v)
+        return f if np.isfinite(f) else None
+    except (TypeError, ValueError):
+        return None
+
+
+def write_sweep_summary_plot(sweep_root, base_config, results):
+    """sweep_error_vs_parameter.png in the sweep's folder: the Error
+    Analysis error(s) of every run against the swept value (top row, log
+    scale; the metrics ticked in Error Analysis) and the final training
+    loss (bottom row). One column per parameter for One-at-a-time; for
+    All/Specified combinations the first parameter is on the x axis and
+    the other parameters' values give one line each. Numeric values use
+    a numeric axis (log when they span 100x or more), others a
+    categorical one. The baseline, when run, is a separate marker.
+    Returns the path, or None if there was nothing to plot."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    done = [(lab, r) for lab, r in results if r.get("status") == "done"]
+    per_param = expand_params(base_config)
+    if not done or not per_param:
+        return None
+    names = [p.label for p, _ in per_param]
+    mode = getattr(base_config, "sweep_mode", "oat")
+    metrics = [k for k in _METRIC_STYLE if any(_num((r.get("metrics") or {}).get(k)) is not None for _l, r in done)]
+    has_loss = any(_num(r.get("final_loss")) is not None for _l, r in done)
+    rows = ([("err", metrics)] if metrics else []) + ([("loss", ["final_loss"])] if has_loss else [])
+    if not rows:
+        return None
+
+    def _y(r, key):
+        return _num(r.get("final_loss")) if key == "final_loss" else _num((r.get("metrics") or {}).get(key))
+
+    # Panels: (x parameter index, [(series label, [(x, r), ...]), ...])
+    base_runs = [r for _l, r in done if r.get("baseline")]
+    swept = [r for _l, r in done if not r.get("baseline")]
+    panels = []
+    if mode == "oat" and len(names) > 1:
+        for k, name in enumerate(names):
+            pts = [(r["values"][name], r) for r in swept if r.get("group") == k]
+            panels.append((k, [(None, pts)]))
+    else:
+        series = {}
+        for r in swept:
+            key = ", ".join(f"{n} = {r['values'].get(n)}" for n in names[1:]) or None
+            series.setdefault(key, []).append((r["values"].get(names[0]), r))
+        panels.append((0, list(series.items())))
+
+    ncol, nrow = len(panels), len(rows)
+    fig, axes = plt.subplots(nrow, ncol, figsize=(max(6.5, 5.2 * ncol), 3.6 * nrow + 0.6), squeeze=False)
+    colors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
+    for c, (k, series) in enumerate(panels):
+        xs_all = [x for _s, pts in series for x, _r in pts] + [r["values"].get(names[k]) for r in base_runs]
+        numeric = all(_num(x) is not None for x in xs_all) and xs_all
+        cats = [] if numeric else list(dict.fromkeys(str(x) for x in xs_all))
+
+        def _xpos(x):
+            return float(x) if numeric else cats.index(str(x))
+
+        for rr, (kind, keys) in enumerate(rows):
+            ax = axes[rr][c]
+            for si, (sname, pts) in enumerate(series):
+                pts = sorted(pts, key=lambda p: _xpos(p[0]))
+                for key in keys:
+                    xy = [(_xpos(x), _y(r, key)) for x, r in pts if _y(r, key) is not None]
+                    if not xy:
+                        continue
+                    ylab, marker, col = _METRIC_STYLE.get(key, ("Final loss", "o", "#495057"))
+                    if len(series) > 1:
+                        col = colors[si % len(colors)]
+                        lab = sname if (kind == "loss" or len(keys) == 1) else f"{ylab}, {sname}"
+                    else:
+                        lab = ylab if kind == "err" and len(keys) > 1 else None
+                    ax.plot(*zip(*xy), marker=marker, color=col, linewidth=1.5, markersize=6,
+                            label=lab, linestyle="-" if numeric else ":")
+            for r in base_runs:
+                for key in keys:
+                    y = _y(r, key)
+                    if y is not None:
+                        ax.plot([_xpos(r["values"].get(names[k]))], [y], marker="*", markersize=13,
+                                color="#fab005", markeredgecolor="#5c3d00", linestyle="none",
+                                label="baseline" if key == keys[0] else None, zorder=5)
+            ax.set_yscale("log")
+            if numeric:
+                fx = [float(x) for x in xs_all]
+                if min(fx) > 0 and max(fx) / min(fx) >= 100:
+                    ax.set_xscale("log")
+            else:
+                ax.set_xticks(range(len(cats)))
+                ax.set_xticklabels(cats, rotation=20 if max(len(x) for x in cats) > 6 else 0)
+            ax.grid(True, which="both", alpha=0.25)
+            ax.set_ylabel("Error" if kind == "err" and len(keys) > 1
+                          else _METRIC_STYLE.get(keys[0], ("Final loss",))[0])
+            if rr == nrow - 1:
+                ax.set_xlabel(names[k])
+            if ax.get_legend_handles_labels()[0]:
+                ax.legend(loc="best", fontsize=8, framealpha=0.9)
+    what = "Error" if metrics else "Final loss"
+    title = f"Parameter sweep: {what.lower()} vs " + (" / ".join(names) if ncol > 1 else names[0])
+    if metrics and any(r.get("metrics", {}).get("t") for _l, r in done) and not getattr(base_config, "steady_state", False):
+        ts = {r["metrics"].get("t") for _l, r in done if r.get("metrics")}
+        if len(ts) == 1:
+            title += f"  (error at t = {next(iter(ts)):g})"
+    fig.suptitle(title, fontsize=12)
+    fig.tight_layout()
+    path = os.path.join(sweep_root, "sweep_error_vs_parameter.png")
+    fig.savefig(path, dpi=150)
+    plt.close(fig)
+    return path

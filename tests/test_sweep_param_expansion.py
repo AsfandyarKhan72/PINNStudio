@@ -113,7 +113,7 @@ def run():
     _set_row(row0, "inv_var_init_0", "0.5, 1.5", win)
     base_inv = win._build_config()
     runs_inv = build_runs(base_inv)
-    check(len(runs_inv) == 3, f"expected 1 baseline + 2 swept runs, got {len(runs_inv)}")
+    check(len(runs_inv) == 2, f"expected 2 swept runs (one parameter: no baseline by default), got {len(runs_inv)}")
     for label, cfg in runs_inv:
         script = codegen.generate_script(cfg)
         _assert_compiles(script, f"inverse sweep run {label!r}")
@@ -139,6 +139,7 @@ def run():
     row_rar = win.sweep_row_list[0]
     _set_row(row_rar, "rar_cycles", "2, 4", win)
     base_rar = win._build_config()
+    base_rar.sweep_include_baseline = "on"   # baseline explicitly requested
     runs_rar = build_runs(base_rar)
     check(len(runs_rar) == 3, f"expected 1 baseline + 2 swept RAR runs, got {len(runs_rar)}")
     seen_cycles = set()
