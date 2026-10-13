@@ -981,7 +981,7 @@ $$\Large \frac{dy_1}{dt} = y_2, \qquad \frac{dy_2}{dt} = -y_1, \qquad t \in [0, 
 - **Initial conditions:** $y_1(0) = 0$, $y_2(0) = 1$
 - **Exact solution:** $y_1 = \sin t$, $y_2 = \cos t$
 - **Network:** FNN [2, 50, 50, 50, 2], tanh, Glorot uniform
-- **Training:** Adam 20,000 (lr 0.001); 35 domain, 2 boundary points
+- **Training:** Adam 20,000; 35 domain, 2 boundary points
 - **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **ODE system**
 
 **Result (RTX 4090):** L2 = 3.6e-3 ($y_1$), 3.1e-3 ($y_2$)
@@ -1009,18 +1009,18 @@ $$\Large \frac{dr}{dt} = \frac{R}{U}\left(2Ur - 0.04U^2 rp\right), \qquad \frac{
 - **Reference:** SciPy `solve_ivp` solution of the same system
 - **Constants:** `ub = 200`, `rb = 20`
 - **Network:** FNN [2, 64, 64, 64, 64, 64, 64, 2], tanh, Glorot normal
-- **Training:** Adam 50,000 (lr 0.001) → L-BFGS; 3,000 domain, 2 boundary points
+- **Training:** Adam 50,000 → L-BFGS 15,000; 3,000 domain, 2 boundary points
 - **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Lotka-Volterra equation**
 
 **Result (RTX 4090):** L2 = 2.1e-3 ($r$), 1.4e-3 ($p$)
 
-*p — PINN vs reference along a line*
-
-![Lotka-Volterra equation — PINN vs reference along a line (p)](assets/Images/DeepXDE/Lotka_Volterra_equation/line_comparison_p.png)
-
 *r — PINN vs reference along a line*
 
 ![Lotka-Volterra equation — PINN vs reference along a line (r)](assets/Images/DeepXDE/Lotka_Volterra_equation/line_comparison_r.png)
+
+*p — PINN vs reference along a line*
+
+![Lotka-Volterra equation — PINN vs reference along a line (p)](assets/Images/DeepXDE/Lotka_Volterra_equation/line_comparison_p.png)
 
 </details>
 
@@ -1036,7 +1036,7 @@ $$\Large \frac{d^2u}{dt^2} - 10\frac{du}{dt} + 9u = 5t, \qquad t \in [0, 0.25]$$
 - **Loss weights:** 0.01 for the equation, 1 for both initial conditions, as in DeepXDE's script
 - **Exact solution:** $u = \frac{50}{81} + \frac{5}{9}t - 2e^{t} + \frac{31}{81}e^{9t}$
 - **Network:** FNN [2, 50, 50, 50, 1], tanh, Glorot uniform
-- **Training:** Adam 10,000 (lr 0.001); 16 domain, 2 boundary points
+- **Training:** Adam 10,000; 16 domain, 2 boundary points
 - **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Second-order ODE**
 
 **Result (RTX 4090):** L2 = 3.2e-5
@@ -1059,7 +1059,7 @@ $$\Large \frac{du}{dt} + \int_0^t u(s)\,ds = 2\pi\cos(2\pi t) + \frac{\sin^2(\pi
 - **Integral:** 16-point Gauss-Legendre quadrature of the network (*∫ points* 16, DeepXDE's `quad_deg`)
 - **Exact solution:** $u = \sin(2\pi t)$
 - **Network:** FNN [2, 20, 20, 20, 1], tanh, Glorot uniform
-- **Training:** Adam 10,000 (lr 0.001); 16 domain, 2 boundary points
+- **Training:** Adam 10,000; 16 domain, 2 boundary points
 - **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Integro-differential equation**
 
 **Result (RTX 4090):** L2 = 1.5e-4
@@ -1106,7 +1106,7 @@ $$\Large D_{0+}^{\alpha}u + D_{1-}^{\alpha}u = f(x), \qquad x \in [0, 1],\ \alph
 - **Exact solution:** $u = x^3(1-x)^3$
 - **Constants:** `alpha = 1.5`
 - **Network:** FNN [1, 20, 20, 20, 20, 1], tanh, Glorot normal
-- **Training:** Adam 10,000 (lr 0.001); 101 domain, 2 boundary points
+- **Training:** Adam 10,000; 101 domain, 2 boundary points
 - **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Fractional Poisson equation 1D**
 
 **Result (RTX 4090):** L2 = 3.7e-2
@@ -1130,7 +1130,7 @@ $$\Large -(-\Delta)^{\alpha/2}u = 2^{\alpha}\Gamma(2 + \tfrac{\alpha}{2})\Gamma(
 - **Exact solution:** $u = (1 - |x|^2)^{1 + \alpha/2}$
 - **Constants:** `alpha = 1.8`
 - **Network:** FNN [2, 20, 20, 20, 20, 1], tanh, Glorot normal
-- **Training:** Adam 20,000 (lr 0.001); 100 domain points
+- **Training:** Adam 20,000; 100 domain points
 - **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Fractional Poisson equation 2D**
 
 **Result (RTX 4090):** L2 = 3.1e-3
@@ -1153,7 +1153,7 @@ $$\Large -(-\Delta)^{\alpha/2}u = \frac{2^{\alpha}\Gamma(2 + \frac{\alpha}{2})\G
 - **Exact solution:** $u = (1 - |x|^2)^{1 + \alpha/2}$
 - **Constants:** `alpha = 1.8`
 - **Network:** FNN [3, 20, 20, 20, 20, 1], tanh, Glorot normal
-- **Training:** Adam 10,000 (lr 0.001); 256 domain points
+- **Training:** Adam 10,000; 256 domain points
 - **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Fractional Poisson equation 3D**
 
 **Result (RTX 4090):** L2 = 7.5e-3
@@ -1177,7 +1177,7 @@ $$\Large \frac{\partial u}{\partial t} = D_{0+}^{\alpha}u + D_{1-}^{\alpha}u - e
 - **Exact solution:** $u = e^{-t}x^3(1-x)^3$
 - **Constants:** `alpha = 1.8`
 - **Network:** FNN [2, 20, 20, 20, 20, 1], tanh, Glorot normal
-- **Training:** Adam 10,000 (lr 0.001); 400 domain, 2 boundary, 2 initial points
+- **Training:** Adam 10,000; 400 domain, 2 boundary, 2 initial points
 - **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Fractional diffusion equation**
 
 **Result (RTX 4090):** L2 = 1.0e-7 ($t = 0$), 1.4e-3 ($t = 0.25$), 5.8e-3 ($t = 0.5$), 2.4e-3 ($t = 0.75$), 3.3e-3 ($t = 1$)
@@ -1202,7 +1202,7 @@ $$\Large -\frac{d^2u}{dx^2} = \pi^2\sin(\pi x), \qquad x \in [-1, 1]$$
 - **Boundary conditions:** Dirichlet, $u(\pm 1) = 0$ — in the panel: Where `True` (whole boundary), Value `0`
 - **Exact solution:** $u = \sin(\pi x)$
 - **Network:** FNN [1, 50, 50, 50, 1], tanh, Glorot uniform
-- **Training:** Adam 10,000 (lr 0.001); 16 domain, 2 boundary points
+- **Training:** Adam 10,000; 16 domain, 2 boundary points
 - **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Poisson 1D – Dirichlet**
 
 **Result (RTX 4090):** L2 = 3.7e-4
@@ -1223,7 +1223,7 @@ $$\Large \frac{d^2u}{dx^2} = 2, \qquad x \in [-1, 1]$$
 - **Boundary conditions:** Dirichlet $u(-1) = 0$ (Where `left`, Value `0`); Neumann $u'(1) = 4$ (Where `right`, Value `4` — at the right end the outward normal derivative is $du/dx$)
 - **Exact solution:** $u = (x + 1)^2$
 - **Network:** FNN [1, 50, 50, 50, 1], tanh, Glorot uniform
-- **Training:** Adam 10,000 (lr 0.001); 16 domain, 2 boundary points
+- **Training:** Adam 10,000; 16 domain, 2 boundary points
 - **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Poisson 1D – Dirichlet/Neumann**
 
 **Result (RTX 4090):** L2 = 2.3e-4
@@ -1244,7 +1244,7 @@ $$\Large \frac{d^2u}{dx^2} = 2, \qquad x \in [-1, 1]$$
 - **Boundary conditions:** Dirichlet $u(-1) = 0$ (Where `left`); Robin $u'(1) = u(1)$ (Where `right`, Value `u`)
 - **Exact solution:** $u = (x + 1)^2$
 - **Network:** FNN [1, 50, 50, 50, 1], tanh, Glorot uniform
-- **Training:** Adam 10,000 (lr 0.001); 16 domain, 2 boundary points
+- **Training:** Adam 10,000; 16 domain, 2 boundary points
 - **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Poisson 1D – Dirichlet/Robin**
 
 **Result (RTX 4090):** L2 = 2.4e-4
@@ -1265,7 +1265,7 @@ $$\Large -\frac{d^2u}{dx^2} = \pi^2\sin(\pi x), \qquad x \in [-1, 1]$$
 - **Boundary conditions:** Dirichlet $u(-1) = 0$ (Where `left`); periodic $u(-1) = u(1)$ (Where `right`)
 - **Exact solution:** $u = \sin(\pi x)$
 - **Network:** FNN [1, 50, 50, 50, 1], tanh, Glorot uniform
-- **Training:** Adam 10,000 (lr 0.001); 16 domain, 2 boundary points
+- **Training:** Adam 10,000; 16 domain, 2 boundary points
 - **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Poisson 1D – Dirichlet/Periodic**
 
 **Result (RTX 4090):** L2 = 1.2e-2
@@ -1286,7 +1286,7 @@ $$\Large \frac{d^2u}{dx^2} = 2, \qquad x \in [-1, 1]$$
 - **Boundary conditions:** Dirichlet $u(-1) = 0$ (Where `left`); point-set operator condition $u'(1) = 4$ — a Point Set Operator row with the point typed in (Points `1`, Function `du_x`, Target value `4`; no file)
 - **Exact solution:** $u = (x + 1)^2$
 - **Network:** FNN [1, 50, 50, 50, 1], tanh, Glorot uniform
-- **Training:** Adam 20,000 (lr 0.001); 16 domain, 2 boundary points
+- **Training:** Adam 20,000; 16 domain, 2 boundary points
 - **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Poisson 1D – Dirichlet/PointSetOperator**
 
 **Result (RTX 4090):** L2 = 2.6e-5
@@ -1386,7 +1386,7 @@ $$\Large -\nabla^2 u = 1, \qquad \Omega = [-1, 1]^2 \setminus [0, 1]\times[-1, 0
 - **Boundary conditions:** Dirichlet, $u = 0$ on the whole boundary
 - **Geometry:** Polygon (L-shape)
 - **Network:** FNN [2, 50, 50, 50, 50, 1], tanh, Glorot uniform
-- **Training:** Adam 50,000 (lr 0.001) → L-BFGS; 1,200 domain, 120 boundary points
+- **Training:** Adam 50,000 → L-BFGS 15,000; 1,200 domain, 120 boundary points
 - **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Poisson over an L-shaped domain**
 
 **Result (RTX 4090):** L2 = 3.5e-2
@@ -1409,7 +1409,7 @@ $$\Large r\frac{\partial u}{\partial r} + r^2\frac{\partial^2 u}{\partial r^2} +
 - **Exact solution:** $u = r\cos\theta$
 - **In PINNStudio:** $x$ plays $r$ and $y$ plays $\theta$, so the plots show the $(r, \theta)$ rectangle
 - **Network:** FNN [2, 20, 20, 20, 1], tanh, Glorot normal
-- **Training:** Adam 15,000 (lr 0.001); 2,540 domain, 80 boundary points
+- **Training:** Adam 15,000; 2,540 domain, 80 boundary points
 - **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Laplace equation on a disk**
 
 **Result (RTX 4090):** L2 = 1.1e-3
@@ -1430,7 +1430,7 @@ $$\Large \frac{d^4u}{dx^4} = -1, \qquad x \in [0, 1]$$
 - **Boundary conditions:** $u(0) = 0$, $u'(0) = 0$ (clamped); $u''(1) = 0$, $u'''(1) = 0$ (free) — the last two as Operator BCs
 - **Exact solution:** $u = -\frac{x^4}{24} + \frac{x^3}{6} - \frac{x^2}{4}$
 - **Network:** FNN [1, 20, 20, 20, 1], tanh, Glorot uniform
-- **Training:** Adam 10,000 (lr 0.001); 10 domain, 2 boundary points
+- **Training:** Adam 10,000; 10 domain, 2 boundary points
 - **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Euler beam**
 
 **Result (RTX 4090):** L2 = 8.4e-3
@@ -1456,20 +1456,32 @@ $$\Large \sigma_{xx} = (\lambda + 2\mu)\varepsilon_{xx} + \lambda\varepsilon_{yy
 - **Exact solution:** $u_x = \cos(2\pi x)\sin(\pi y)$, $u_y = \sin(\pi x)\,Qy^4/4$
 - **Constants:** `lmbd = 1`, `mu = 0.5`, `Q = 4`
 - **Network:** PFNN, a separate [40, 40, 40, 40] subnetwork for each of the 5 outputs, tanh, Glorot uniform
-- **Training:** Adam 5,000 (lr 0.001); 500 domain, 500 boundary points
+- **Training:** Adam 20,000 → L-BFGS 20,000; 500 domain, 500 boundary points
 - **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Linear elastostatic plate**
 
-5,000 Adam iterations leave this example under-trained: DeepXDE's own script, run unchanged on the same GPU, ends with a combined L2 error of 0.33–0.36, with training losses matching PINNStudio's. Longer training fixes it: with 50,000 Adam iterations followed by L-BFGS (Iterations set to 50000 and L-BFGS on, about 17 minutes on an RTX 4090) the L2 errors fall to 0.060, 0.046, 0.0087, 0.019 and 0.074 for $u_x, u_y, \sigma_{xx}, \sigma_{yy}, \sigma_{xy}$.
+**Note — more training than DeepXDE's script.** DeepXDE's script trains 5,000 Adam iterations, which are not enough for this problem: with exactly those settings the L2 errors are 0.35, 0.59, 0.19, 0.48 and 1.6 for $u_x, u_y, \sigma_{xx}, \sigma_{yy}, \sigma_{xy}$ (DeepXDE's own script, run unchanged on the same GPU, also ends at 0.33–0.36). This example therefore trains **20,000 Adam + 20,000 L-BFGS iterations** (Training Phases 1 and 2; about 9 minutes on an RTX 4090), and the results below are for these settings.
 
-**Result (RTX 4090):** L2 = 0.35 ($u_x$), 0.59 ($u_y$), 0.19 ($\sigma_{xx}$), 0.48 ($\sigma_{yy}$), 1.6 ($\sigma_{xy}$)
+**Result (RTX 4090):** L2 = 4.9e-2 ($u_x$), 4.3e-2 ($u_y$), 7.2e-3 ($\sigma_{xx}$), 2.0e-2 ($\sigma_{yy}$), 6.7e-2 ($\sigma_{xy}$) — 20,000 Adam + 20,000 L-BFGS (DeepXDE's 5,000 Adam alone: 0.35, 0.59, 0.19, 0.48, 1.6)
+
+*ux — PINN vs reference, error analysis*
+
+![Linear elastostatic plate — PINN vs reference, error analysis (ux)](assets/Images/DeepXDE/Linear_elastostatic_plate/surface_comparison_ux.png)
+
+*uy — PINN vs reference, error analysis*
+
+![Linear elastostatic plate — PINN vs reference, error analysis (uy)](assets/Images/DeepXDE/Linear_elastostatic_plate/surface_comparison_uy.png)
+
+*sxx — PINN vs reference, error analysis*
+
+![Linear elastostatic plate — PINN vs reference, error analysis (sxx)](assets/Images/DeepXDE/Linear_elastostatic_plate/surface_comparison_sxx.png)
 
 *syy — PINN vs reference, error analysis*
 
 ![Linear elastostatic plate — PINN vs reference, error analysis (syy)](assets/Images/DeepXDE/Linear_elastostatic_plate/surface_comparison_syy.png)
 
-*ux — PINN vs reference, error analysis*
+*sxy — PINN vs reference, error analysis*
 
-![Linear elastostatic plate — PINN vs reference, error analysis (ux)](assets/Images/DeepXDE/Linear_elastostatic_plate/surface_comparison_ux.png)
+![Linear elastostatic plate — PINN vs reference, error analysis (sxy)](assets/Images/DeepXDE/Linear_elastostatic_plate/surface_comparison_sxy.png)
 
 </details>
 
@@ -1484,20 +1496,32 @@ $$\Large \frac{\partial \sigma_{xx}}{\partial x} + \frac{\partial \sigma_{xy}}{\
 - **Boundary conditions as rows** (DeepXDE's `BC_type = \"soft\"`): $u_x = 0$ at top and bottom; $u_y = 0$ at left, bottom and right; $\sigma_{xx} = 0$ at left and right; $\sigma_{yy} = (\lambda + 2\mu)Q\sin(\pi x)$ at the top
 - **Constants:** `lmbd = 1`, `mu = 0.5`, `Q = 4`
 - **Network:** PFNN, a separate [40, 40, 40, 40] subnetwork for each of the 5 outputs, tanh, Glorot uniform
-- **Training:** Adam 5,000 (lr 0.001); 500 domain, 500 boundary points
+- **Training:** Adam 20,000 → L-BFGS 20,000; 500 domain, 500 boundary points
 - **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Linear elastostatic plate (soft BCs)**
 
-Soft boundary conditions train more easily here than the hard output transform: 5,000 Adam iterations already give L2 errors of 0.02–0.08, and the same longer run (50,000 Adam + L-BFGS, about 13 minutes) brings them down to 5.6e-4, 1.0e-3, 6.1e-4, 8.5e-4 and 2.6e-3.
+**Note — more training than DeepXDE's script.** As for the plate above, DeepXDE's 5,000 Adam iterations are not enough (L2 errors 0.02–0.08 with exactly those settings), so this example trains **20,000 Adam + 20,000 L-BFGS iterations** (about 7 minutes on an RTX 4090); the results below are for these settings. With soft boundary conditions the plate trains more easily than with the hard output transform.
 
-**Result (RTX 4090):** L2 = 2.4e-2 ($u_x$), 5.3e-2 ($u_y$), 2.1e-2 ($\sigma_{xx}$), 3.2e-2 ($\sigma_{yy}$), 7.8e-2 ($\sigma_{xy}$)
+**Result (RTX 4090):** L2 = 4.9e-4 ($u_x$), 1.1e-3 ($u_y$), 6.4e-4 ($\sigma_{xx}$), 9.6e-4 ($\sigma_{yy}$), 2.7e-3 ($\sigma_{xy}$) — 20,000 Adam + 20,000 L-BFGS (DeepXDE's 5,000 Adam alone: 2.4e-2 to 7.8e-2)
+
+*ux — PINN vs reference, error analysis*
+
+![Linear elastostatic plate (soft BCs) — PINN vs reference, error analysis (ux)](assets/Images/DeepXDE/Linear_elastostatic_plate_soft_BCs/surface_comparison_ux.png)
+
+*uy — PINN vs reference, error analysis*
+
+![Linear elastostatic plate (soft BCs) — PINN vs reference, error analysis (uy)](assets/Images/DeepXDE/Linear_elastostatic_plate_soft_BCs/surface_comparison_uy.png)
+
+*sxx — PINN vs reference, error analysis*
+
+![Linear elastostatic plate (soft BCs) — PINN vs reference, error analysis (sxx)](assets/Images/DeepXDE/Linear_elastostatic_plate_soft_BCs/surface_comparison_sxx.png)
 
 *syy — PINN vs reference, error analysis*
 
 ![Linear elastostatic plate (soft BCs) — PINN vs reference, error analysis (syy)](assets/Images/DeepXDE/Linear_elastostatic_plate_soft_BCs/surface_comparison_syy.png)
 
-*ux — PINN vs reference, error analysis*
+*sxy — PINN vs reference, error analysis*
 
-![Linear elastostatic plate (soft BCs) — PINN vs reference, error analysis (ux)](assets/Images/DeepXDE/Linear_elastostatic_plate_soft_BCs/surface_comparison_ux.png)
+![Linear elastostatic plate (soft BCs) — PINN vs reference, error analysis (sxy)](assets/Images/DeepXDE/Linear_elastostatic_plate_soft_BCs/surface_comparison_sxy.png)
 
 </details>
 
@@ -1512,7 +1536,7 @@ $$\Large -\nabla^2 u - k_0^2 u = k_0^2\sin(k_0 x)\sin(k_0 y), \qquad k_0 = 4\pi,
 - **Exact solution:** $u = \sin(k_0 x)\sin(k_0 y)$
 - **Constants:** `n = 2`, `k0 = 2*pi*n`
 - **Network:** FNN [2, 150, 150, 150, 1], sin, Glorot uniform
-- **Training:** Adam 5,000 (lr 0.001); 400 domain, 80 boundary points
+- **Training:** Adam 5,000; 400 domain, 80 boundary points
 - **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Helmholtz 2D (Dirichlet)**
 
 **Result (RTX 4090):** L2 = 1.9e-3
@@ -1563,7 +1587,7 @@ $$\Large -\nabla^2 u - k_0^2 u = k_0^2\sin(k_0 x)\sin(k_0 y), \qquad k_0 = 2\pi$
 - **Exact solution:** $u = \sin(k_0 x)\sin(k_0 y)$
 - **Constants:** `n = 1`, `k0 = 2*pi*n`, `R = 1/4`
 - **Network:** FNN [2, 350, 350, 350, 1], sin, Glorot uniform
-- **Training:** Adam 5,000 (lr 0.001); 225 domain, 240 boundary points
+- **Training:** Adam 5,000; 225 domain, 240 boundary points
 - **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Helmholtz 2D with a hole**
 
 **Result (RTX 4090):** L2 = 4.6e-2
@@ -1588,18 +1612,18 @@ $$\Large -\nabla^2 u - k_0^2 u = 0, \qquad u = u_{re} + i\,u_{im},\ k_0 = 2$$
 - **Reference:** the Bessel/Hankel series solution of DeepXDE's script
 - **Constants:** `k0 = 2`, `R = pi/4`
 - **Network:** FNN [2, 350, 350, 350, 2], tanh, Glorot uniform
-- **Training:** Adam 10,000 (lr 0.001); 1,600 domain, 320 boundary points
+- **Training:** Adam 10,000; 1,600 domain, 320 boundary points
 - **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Helmholtz sound-hard scattering (absorbing BC)**
 
 **Result (RTX 4090):** L2 = 7.8e-2 ($u_{re}$), 6.7e-2 ($u_{im}$) — DeepXDE's own script, run unchanged on the same GPU, ends at 9.1e-2 (best 7.1e-2)
 
-*u_im — PINN vs reference, error analysis*
-
-![Helmholtz sound-hard scattering (absorbing BC) — PINN vs reference, error analysis (u_im)](assets/Images/DeepXDE/Helmholtz_sound_hard_scattering_absorbing_BC/surface_comparison_u_im.png)
-
 *u_re — PINN vs reference, error analysis*
 
 ![Helmholtz sound-hard scattering (absorbing BC) — PINN vs reference, error analysis (u_re)](assets/Images/DeepXDE/Helmholtz_sound_hard_scattering_absorbing_BC/surface_comparison_u_re.png)
+
+*u_im — PINN vs reference, error analysis*
+
+![Helmholtz sound-hard scattering (absorbing BC) — PINN vs reference, error analysis (u_im)](assets/Images/DeepXDE/Helmholtz_sound_hard_scattering_absorbing_BC/surface_comparison_u_im.png)
 
 </details>
 
@@ -1615,18 +1639,18 @@ $$\Large (\mathbf u\cdot\nabla)\mathbf u + \nabla p = \frac{1}{Re}\nabla^2\mathb
 - **Exact solution:** $u = 1 - e^{\lambda x}\cos(2\pi y)$, $v = \frac{\lambda}{2\pi}e^{\lambda x}\sin(2\pi y)$, $p = \frac{1}{2}(1 - e^{2\lambda x})$, $\lambda = \frac{Re}{2} - \sqrt{\frac{Re^2}{4} + 4\pi^2}$
 - **Constants:** `Re = 20`, `nu = 1/Re`, `l = 1/(2*nu) - sqrt(1/(4*nu**2) + 4*pi**2)`
 - **Network:** FNN [2, 50, 50, 50, 50, 3], tanh, Glorot normal
-- **Training:** Adam 30,000 (lr 0.001) → L-BFGS; 2,601 domain, 400 boundary points
+- **Training:** Adam 30,000 → L-BFGS 15,000; 2,601 domain, 400 boundary points
 - **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Kovasznay flow**
 
 **Result (RTX 4090):** L2 = 2.1e-4 ($u$), 9.0e-4 ($v$), 5.4e-4 ($p$)
 
-*p — PINN vs reference, error analysis*
-
-![Kovasznay flow — PINN vs reference, error analysis (p)](assets/Images/DeepXDE/Kovasznay_flow/surface_comparison_p.png)
-
 *u — PINN vs reference, error analysis*
 
 ![Kovasznay flow — PINN vs reference, error analysis (u)](assets/Images/DeepXDE/Kovasznay_flow/surface_comparison_u.png)
+
+*p — PINN vs reference, error analysis*
+
+![Kovasznay flow — PINN vs reference, error analysis (p)](assets/Images/DeepXDE/Kovasznay_flow/surface_comparison_p.png)
 
 </details>
 
@@ -1642,7 +1666,7 @@ $$\Large \frac{\partial u}{\partial t} + u\frac{\partial u}{\partial x} = \frac{
 - **Time range:** $t \in [0, 0.99]$, as in DeepXDE's script (its reference data ends at $t = 0.99$)
 - **Reference:** PINNStudio's own Burgers reference solution at $t = 0, 0.25, 0.5, 0.75$
 - **Network:** FNN [2, 20, 20, 20, 1], tanh, Glorot normal
-- **Training:** Adam 15,000 (lr 0.001) → L-BFGS; 2,540 domain, 80 boundary, 160 initial points
+- **Training:** Adam 15,000 → L-BFGS 15,000; 2,540 domain, 80 boundary, 160 initial points
 - **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Burgers equation**
 
 **Result (RTX 4090):** L2 = 8.3e-4 ($t = 0$), 1.4e-2 ($t = 0.25$), 1.7e-2 ($t = 0.5$), 1.4e-2 ($t = 0.75$)
@@ -1667,7 +1691,7 @@ $$\Large \frac{\partial u}{\partial t} + u\frac{\partial u}{\partial x} = \frac{
 - **Initial / boundary conditions:** $u(x, 0) = -\sin(\pi x)$, $u(\pm 1, t) = 0$
 - **Residual-based adaptive refinement:** each round adds the 1 point with the largest residual (out of 100,000 candidates) and retrains, until the mean residual is below 0.005
 - **Network:** FNN [2, 20, 20, 20, 1], tanh, Glorot normal
-- **Training:** Adam 10,000 (lr 0.001) → L-BFGS per RAR round; 2,500 domain, 100 boundary, 160 initial points
+- **Training:** Adam 10,000 → L-BFGS 15,000 per RAR round; 2,500 domain, 100 boundary, 160 initial points
 - **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Burgers equation with RAR**
 
 **Result (RTX 4090):** L2 = 6.3e-4 ($t = 0$), 1.3e-2 ($t = 0.25$), 1.7e-2 ($t = 0.5$), 1.4e-2 ($t = 0.75$)
@@ -1693,7 +1717,7 @@ $$\Large \frac{\partial u}{\partial t} = 0.4\frac{\partial^2 u}{\partial x^2}, \
 - **Exact solution:** $u = e^{-0.4\pi^2 t}\sin(\pi x)$
 - **Constants:** `a = 0.4`, `L = 1`, `n = 1`
 - **Network:** FNN [2, 20, 20, 20, 1], tanh, Glorot normal
-- **Training:** Adam 20,000 (lr 0.001) → L-BFGS; 2,540 domain, 80 boundary, 160 initial points
+- **Training:** Adam 20,000 → L-BFGS 15,000; 2,540 domain, 80 boundary, 160 initial points
 - **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Heat equation**
 
 The solution decays to about 2% of its initial size by $t = 1$, so the relative error grows over time even though the absolute error stays small.
@@ -1722,7 +1746,7 @@ $$\Large \frac{\partial u}{\partial t} = 0.4\frac{\partial^2 u}{\partial x^2}, \
 - **Exact solution:** $u = e^{-0.4\pi^2 t}\sin(\pi x)$
 - **Constants:** `a = 0.4`, `L = 1`, `n = 1`
 - **Network:** FNN [2, 20, 20, 20, 1], tanh, Glorot normal
-- **Training:** Adam 200,000 (lr 0.001) → L-BFGS; 2,540 domain, 80 boundary, 160 initial points
+- **Training:** Adam 200,000 → L-BFGS 15,000; 2,540 domain, 80 boundary, 160 initial points
 - **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Heat equation with resampling**
 
 **Result (RTX 4090):** L2 = 1.6e-4 ($t = 0$), 4.6e-4 ($t = 0.25$), 5.8e-4 ($t = 0.5$), 4.1e-3 ($t = 0.75$), 1.4e-2 ($t = 1$)
@@ -1747,7 +1771,7 @@ $$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} - e^{
 - **Initial condition:** $u(x, 0) = \sin(\pi x)$; **boundary condition:** $u = e^{-t}\sin(\pi x)$
 - **Exact solution:** $u = e^{-t}\sin(\pi x)$
 - **Network:** FNN [2, 32, 32, 32, 1], tanh, Glorot uniform
-- **Training:** Adam 10,000 (lr 0.001); 40 domain, 20 boundary, 10 initial points
+- **Training:** Adam 10,000; 40 domain, 20 boundary, 10 initial points
 - **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Diffusion equation**
 
 **Result (RTX 4090):** L2 = 4.8e-3 ($t = 0$), 9.0e-3 ($t = 0.25$), 6.4e-3 ($t = 0.5$), 5.8e-3 ($t = 0.75$), 3.0e-2 ($t = 1$)
@@ -1772,7 +1796,7 @@ $$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} - e^{
 - **Initial and boundary conditions:** imposed exactly by $\hat u = t(1 - x^2)N + \sin(\pi x)$ — no IC/BC loss terms
 - **Exact solution:** $u = e^{-t}\sin(\pi x)$
 - **Network:** FNN [2, 32, 32, 32, 1], tanh, Glorot uniform
-- **Training:** Adam 10,000 (lr 0.001); 40 domain points
+- **Training:** Adam 10,000; 40 domain points
 - **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Diffusion equation with hard IC and BC**
 
 **Result (RTX 4090):** L2 = 9.4e-8 ($t = 0$), 1.6e-4 ($t = 0.25$), 4.6e-4 ($t = 0.5$), 1.3e-3 ($t = 0.75$), 2.8e-3 ($t = 1$)
@@ -1798,7 +1822,7 @@ $$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} - e^{
 - **Point resampling:** pseudo-random collocation points redrawn every 100 iterations
 - **Exact solution:** $u = e^{-t}\sin(\pi x)$
 - **Network:** FNN [2, 32, 32, 32, 1], tanh, Glorot uniform
-- **Training:** Adam 2,000 (lr 0.001); 40 domain, 20 boundary, 10 initial points
+- **Training:** Adam 2,000; 40 domain, 20 boundary, 10 initial points
 - **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Diffusion equation with resampling**
 
 **Result (RTX 4090):** L2 = 1.8e-2 ($t = 0$), 2.5e-2 ($t = 0.25$), 1.5e-2 ($t = 0.5$), 1.4e-2 ($t = 0.75$), 4.3e-2 ($t = 1$)
@@ -1823,7 +1847,7 @@ $$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} + e^{
 - **Initial and boundary conditions:** imposed exactly by $\hat u = t(\pi^2 - x^2)N + \sum_k \frac{\sin(kx)}{k}$
 - **Exact solution:** $u = e^{-t}\left(\sin x + \tfrac{\sin 2x}{2} + \tfrac{\sin 3x}{3} + \tfrac{\sin 4x}{4} + \tfrac{\sin 8x}{8}\right)$
 - **Network:** FNN [2, 30, 30, 30, 30, 30, 30, 1], tanh, Glorot uniform
-- **Training:** Adam 20,000 (lr 0.001); 320 domain points
+- **Training:** Adam 20,000; 320 domain points
 - **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Diffusion-reaction equation**
 
 DeepXDE's own script, run unchanged on the same GPU, ends with a similar loss (and the same Adam loss spikes near the end of training).
@@ -1851,7 +1875,7 @@ $$\Large \frac{\partial u}{\partial t} = 0.001\frac{\partial^2 u}{\partial x^2} 
 - **Reference:** computed by `tools/make_deepxde_reference_data.py` (agrees with DeepXDE's `Allen_Cahn.mat` to $5\times 10^{-4}$)
 - **Constants:** `d = 0.001`
 - **Network:** FNN [2, 20, 20, 20, 1], tanh, Glorot normal
-- **Training:** Adam 40,000 (lr 0.001) → L-BFGS; 8,000 domain, 400 boundary points
+- **Training:** Adam 40,000 → L-BFGS 15,000; 8,000 domain, 400 boundary points
 - **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Allen-Cahn equation**
 
 **Result (RTX 4090):** L2 = 9.5e-8 ($t = 0$), 1.9e-3 ($t = 0.25$), 5.2e-3 ($t = 0.5$), 1.3e-2 ($t = 0.75$), 2.9e-2 ($t = 1$)
@@ -1905,7 +1929,7 @@ $$\Large i\frac{\partial h}{\partial t} + \frac{1}{2}\frac{\partial^2 h}{\partia
 - **Initial condition:** $h(x, 0) = 2\,\mathrm{sech}(x)$; **boundary conditions:** periodic in $u$, $v$ and their $x$-derivatives
 - **Compared:** $|h| = \sqrt{u^2 + v^2}$ against PINNStudio's Schrödinger reference solution
 - **Network:** FNN [2, 100, 100, 100, 100, 2], tanh, Glorot normal
-- **Training:** Adam 10,000 (lr 0.001) → L-BFGS; 10,000 domain, 20 boundary, 200 initial points
+- **Training:** Adam 10,000 → L-BFGS 10,000; 10,000 domain, 20 boundary, 200 initial points
 - **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Schrödinger equation**
 
 **Result (RTX 4090):** L2 of $|h|$ = 1.5e-3 ($t = 0$), 3.2e-2 ($t = 0.25$), 5.8e-2 ($t = 0.5$), 0.12 ($t = 0.75$), 0.14 ($t = 1$), 0.13 ($t = 1.25$), 8.6e-2 ($t = 1.5$)
@@ -1931,7 +1955,7 @@ $$\Large \frac{\partial \mathbf u}{\partial t} + (\mathbf u\cdot\nabla)\mathbf u
 - **Loss weights:** 1 for the four equations, 100 for the BCs and ICs
 - **Exact solution:** e.g. $u = -\left(e^{x}\sin(y + z) + e^{z}\cos(x + y)\right)e^{-t}$
 - **Network:** FNN [4, 50, 50, 50, 50, 4], tanh, Glorot normal
-- **Training:** Adam 30,000 (lr 0.001) → L-BFGS; 50,000 domain, 5,000 boundary, 5,000 initial points
+- **Training:** Adam 30,000 → L-BFGS 15,000; 50,000 domain, 5,000 boundary, 5,000 initial points
 - **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Beltrami flow**
 
 Only the velocity is constrained, so the pressure is determined only up to a constant: its predicted values are off by a fixed amount, which makes $p$'s relative error large, and growing with $t$ as $p \propto e^{-2t}$ decays, while $u, v, w$ are accurate.
@@ -1942,13 +1966,13 @@ Only the velocity is constrained, so the pressure is determined only up to a con
 
 ![Beltrami flow — PINN solution over time (u)](assets/Images/DeepXDE/Beltrami_flow/animation.gif)
 
-*p — PINN vs reference, error analysis*
-
-![Beltrami flow — PINN vs reference, error analysis (p)](assets/Images/DeepXDE/Beltrami_flow/surface_comparison_p.png)
-
 *u — PINN vs reference, error analysis*
 
 ![Beltrami flow — PINN vs reference, error analysis (u)](assets/Images/DeepXDE/Beltrami_flow/surface_comparison_u.png)
+
+*p — PINN vs reference, error analysis*
+
+![Beltrami flow — PINN vs reference, error analysis (p)](assets/Images/DeepXDE/Beltrami_flow/surface_comparison_p.png)
 
 </details>
 
@@ -1964,7 +1988,7 @@ $$\Large \frac{\partial V}{\partial \tau} = \frac{\sigma^2}{2}S^2\frac{\partial^
 - **Exact solution:** the Black-Scholes formula (uses `norm_cdf` in the reference formula)
 - **Constants:** `K = 50`, `r = 0.05`, `sigma = 0.2`
 - **Network:** FNN [2, 28, 28, 28, 28, 1], tanh, Glorot normal
-- **Training:** Adam 20,000 (lr 0.001) → L-BFGS; 2,047 domain, 63 boundary, 127 initial points
+- **Training:** Adam 20,000 → L-BFGS 15,000; 2,047 domain, 63 boundary, 127 initial points
 - **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **Black-Scholes equation (call option)**
 
 **Result (RTX 4090):** L2 = 5.7e-4 ($t = 0.25$), 3.2e-4 ($t = 0.5$), 4.3e-4 ($t = 1$)
@@ -1992,7 +2016,7 @@ $$\Large \min\left(-\mathcal{L}V,\ V - \max(K - S, 0)\right) = 0, \qquad \mathca
 - **Reference:** none bundled (DeepXDE compares against a binomial-tree price) — add your own in Error Analysis
 - **Constants:** `r = 0.05`, `sigma = 0.2`, `K = 1`
 - **Network:** FNN [2, 128, 128, 128, 128, 1], tanh, Glorot normal
-- **Training:** Adam 12,000 (lr 0.001) → L-BFGS; 6,000 domain, 1,500 boundary, 1,500 initial points
+- **Training:** Adam 12,000 → L-BFGS 15,000; 6,000 domain, 1,500 boundary, 1,500 initial points
 - **GUI recipe:** Quick Examples → Category **DeepXDE Forward** → **American put option**
 
 **Result (RTX 4090):** trained without errors; no bundled reference to compare against
@@ -2016,7 +2040,7 @@ $$\Large \frac{dy_1}{dt} = C_1(y_2 - y_1), \qquad \frac{dy_2}{dt} = y_1(C_2 - y_
 - **Unknowns:** $C_1, C_2, C_3$ (true $10, 15, 8/3$), all starting from 1
 - **Data:** $y_1, y_2, y_3$ measured at 50 times (also used as anchor points), from SciPy's `solve_ivp`
 - **Network:** FNN [2, 40, 40, 40, 3], tanh, Glorot uniform
-- **Training:** Adam 20,000 (lr 0.001) → L-BFGS; 400 domain, 2 boundary points
+- **Training:** Adam 20,000 → L-BFGS 15,000; 400 domain, 2 boundary points
 - **GUI recipe:** Quick Examples → Category **DeepXDE Inverse** → **Inverse: Lorenz system**
 
 **Result (RTX 4090):** $C_1$ = 9.9990, $C_2$ = 14.9997, $C_3$ = 2.66675 (true 10, 15, 8/3); L2 = 1.2e-4 ($y_1$), 1.2e-4 ($y_2$), 6.7e-5 ($y_3$)
@@ -2047,7 +2071,7 @@ $$\Large \frac{dy_1}{dt} = C_1(y_2 - y_1), \qquad \frac{dy_2}{dt} = y_1(C_2 - y_
 - **Unknowns:** $C_1, C_2, C_3$ (true $10, 15, 8/3$), all starting from 1
 - **Data:** $y_1, y_2, y_3$ measured at 200 times, from SciPy's `solve_ivp`
 - **Network:** FNN [2, 40, 40, 40, 3], tanh, Glorot uniform
-- **Training:** Adam 60,000 (lr 0.001); 400 domain, 2 boundary points
+- **Training:** Adam 60,000; 400 domain, 2 boundary points
 - **GUI recipe:** Quick Examples → Category **DeepXDE Inverse** → **Inverse: Lorenz system with exogenous input**
 
 **Result (RTX 4090):** $C_1$ = 9.987, $C_2$ = 14.998, $C_3$ = 2.6669 (true 10, 15, 8/3); L2 = 7.3e-4 ($y_1$), 6.6e-4 ($y_2$), 2.9e-4 ($y_3$)
@@ -2077,7 +2101,7 @@ $$\Large \frac{\partial u}{\partial t} = C\frac{\partial^2 u}{\partial x^2} - e^
 - **Data:** 10 measurements of $u$ at $t = 1$, plus the initial and boundary conditions
 - **Exact solution:** $u = e^{-t}\sin(\pi x)$
 - **Network:** FNN [2, 32, 32, 32, 1], tanh, Glorot uniform
-- **Training:** Adam 50,000 (lr 0.001); 40 domain, 20 boundary, 10 initial points
+- **Training:** Adam 50,000; 40 domain, 20 boundary, 10 initial points
 - **GUI recipe:** Quick Examples → Category **DeepXDE Inverse** → **Inverse: diffusion equation**
 
 **Result (RTX 4090):** $C$ = 0.9988 (true 1); L2 = 1.2e-3 ($t = 0$), 1.8e-3 ($t = 0.25$), 1.9e-3 ($t = 0.5$), 2.8e-3 ($t = 0.75$), 3.1e-3 ($t = 1$)
@@ -2107,7 +2131,7 @@ $$\Large \frac{\partial C_A}{\partial t} = D\frac{\partial^2 C_A}{\partial x^2} 
 - **Unknowns:** $k_f$ (true 0.1) and $D$ (true $2\times 10^{-3}$, written as $10^{-3}D$ with $D = 2$)
 - **Data:** $C_A$ and $C_B$ on a space-time grid, computed by `tools/make_deepxde_reference_data.py`
 - **Network:** FNN [2, 20, 20, 20, 2], tanh, Glorot uniform
-- **Training:** Adam 80,000 (lr 0.001); 2,000 domain, 100 boundary, 100 initial points
+- **Training:** Adam 80,000; 2,000 domain, 100 boundary, 100 initial points
 - **GUI recipe:** Quick Examples → Category **DeepXDE Inverse** → **Inverse: diffusion-reaction system**
 
 **Result (RTX 4090):** $k_f$ = 0.0992 (true 0.1), $D$ = 1.995 (true 2)
@@ -2133,18 +2157,18 @@ $$\Large -\frac{d^2u}{dx^2} + q(x) = 0, \qquad x \in [-1, 1]$$
 - **Data:** 100 measurements of $u$, given as a Point Set BC (and as anchor points); $u = \sin(\pi x)$ on the boundary
 - **Mode:** Forward — there are no unknown constants, only an unknown field, as in DeepXDE
 - **Network:** PFNN, a separate [20, 20, 20] subnetwork for each of the 2 outputs, tanh, Glorot uniform
-- **Training:** Adam 20,000 (lr 0.0001); 200 domain, 2 boundary points
+- **Training:** Adam 20,000; 200 domain, 2 boundary points
 - **GUI recipe:** Quick Examples → Category **DeepXDE Inverse** → **Inverse: Poisson with unknown forcing field**
 
 **Result (RTX 4090):** L2 = 8.3e-4 ($u$), 4.3e-2 ($q$)
 
-*q — PINN vs reference along a line*
-
-![Inverse: Poisson with unknown forcing field — PINN vs reference along a line (q)](assets/Images/DeepXDE/Inverse_Poisson_with_unknown_forcing_field/line_comparison_q.png)
-
 *u — PINN vs reference along a line*
 
 ![Inverse: Poisson with unknown forcing field — PINN vs reference along a line (u)](assets/Images/DeepXDE/Inverse_Poisson_with_unknown_forcing_field/line_comparison_u.png)
+
+*q — PINN vs reference along a line*
+
+![Inverse: Poisson with unknown forcing field — PINN vs reference along a line (q)](assets/Images/DeepXDE/Inverse_Poisson_with_unknown_forcing_field/line_comparison_q.png)
 
 </details>
 
@@ -2158,7 +2182,7 @@ $$\Large -\frac{d^2u}{dx^2} + q(x) = 0, \qquad x \in [-1, 1]$$
 - **Unknown:** the field $q(x)$ (true $-\pi^2\sin(\pi x)$)
 - **Data:** 10,000 measurements of $u$, used 100 at a time (Point Set BC with batch size 100, redrawn every iteration)
 - **Network:** PFNN, a separate [20, 20, 20] subnetwork for each of the 2 outputs, tanh, Glorot uniform
-- **Training:** Adam 20,000 (lr 0.0001); 200 domain, 2 boundary points
+- **Training:** Adam 20,000; 200 domain, 2 boundary points
 - **GUI recipe:** Quick Examples → Category **DeepXDE Inverse** → **Inverse: Poisson with unknown forcing field (batches)**
 
 **Result (RTX 4090):** L2 = 7.6e-3 ($u$), 0.13 ($q$)
@@ -2180,7 +2204,7 @@ $$\Large \lambda\frac{d^2u}{dx^2} - k(x)\,u = \sin(2\pi x), \qquad \lambda = 0.0
 - **Data:** 100 measurements of $u$ (computed with SciPy's `solve_bvp`, as DeepXDE does), $u = 0$ at both ends
 - **Constants:** `l = 0.01`
 - **Network:** PFNN, a separate [20, 20] subnetwork for each of the 2 outputs, tanh, Glorot uniform
-- **Training:** Adam 20,000 (lr 0.001); 50 domain, 8 boundary points
+- **Training:** Adam 20,000; 50 domain, 8 boundary points
 - **GUI recipe:** Quick Examples → Category **DeepXDE Inverse** → **Inverse: diffusion-reaction with space-dependent rate**
 
 **Result (RTX 4090):** L2 = 4.0e-2 ($k$)
@@ -2207,7 +2231,7 @@ $$\Large -\frac{\nu_e}{\epsilon}\frac{d^2u}{dx^2} + \frac{\nu u}{K} = g, \qquad 
 - **Exact solution:** $u = 1 - \cosh(20(x - 0.5))/\cosh(10)$
 - **Constants:** `g = 1`, `v = 1e-3`, `e = 0.4`
 - **Network:** FNN [1, 20, 20, 20, 1], tanh, Glorot uniform
-- **Training:** Adam 30,000 (lr 0.001); 100 domain points
+- **Training:** Adam 30,000; 100 domain points
 - **GUI recipe:** Quick Examples → Category **DeepXDE Inverse** → **Inverse: Brinkman-Forchheimer model**
 
 DeepXDE's own script, run unchanged twice on the same GPU, ends with $\nu_e$ = 1.31–1.35e-3, $K$ = 0.984e-3 and an L2 error of 0.018–0.020 for $u$ — the same picture: $K$ is recovered closely, $\nu_e$ only to within about 30–50% from five measurements.
@@ -2236,7 +2260,7 @@ $$\Large \frac{D_{-1+}^{\alpha}u + D_{1-}^{\alpha}u}{2\cos(\alpha\pi/2)} = \Gamm
 - **Fractional settings:** 100 points per unit length, dynamic mesh (rebuilt every step as α changes)
 - **Constants:** `a0 = 1.8`
 - **Network:** FNN [1, 20, 20, 20, 20, 1], tanh, Glorot normal
-- **Training:** Adam 10,000 (lr 0.001); 20 domain points
+- **Training:** Adam 10,000; 20 domain points
 - **GUI recipe:** Quick Examples → Category **DeepXDE Inverse** → **Inverse: fractional Poisson equation 1D**
 
 **Result (RTX 4090):** $\alpha$ = 1.792 (true 1.8); L2 of $u$ = 1.3e-2
@@ -2263,7 +2287,7 @@ $$\Large -(-\Delta)^{\alpha/2}u = 2^{\alpha_0}\Gamma(2 + \tfrac{\alpha_0}{2})\Ga
 - **Fractional settings:** 8 directions, 100 points per unit length, dynamic mesh
 - **Constants:** `a0 = 1.8`
 - **Network:** FNN [2, 20, 20, 20, 20, 1], tanh, Glorot normal
-- **Training:** Adam 10,000 (lr 0.001); 64 domain points
+- **Training:** Adam 10,000; 64 domain points
 - **GUI recipe:** Quick Examples → Category **DeepXDE Inverse** → **Inverse: fractional Poisson equation 2D**
 
 **Result (RTX 4090):** $\alpha$ = 1.805 (true 1.8); L2 of $u$ = 1.9e-3
