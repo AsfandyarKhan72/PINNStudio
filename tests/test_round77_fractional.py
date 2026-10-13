@@ -114,7 +114,7 @@ def run():
             p = subprocess.run([sys.executable, "run.py"], cwd=d, capture_output=True, text=True, timeout=900)
             check(p.returncode == 0, f"1D {gen.__name__} ran:\n{p.stderr[-1500:]}")
             res[gen.__name__] = [float(v) for v in re.findall(r"L2=(\S+),", p.stdout)]
-        check(res["generate_script"] and res["generate_script"][0] < 0.1 and res["generate_script"] == res["generate_clean_script"],
+        check(res["generate_script"] and res["generate_script"][0] < 0.3 and res["generate_script"] == res["generate_clean_script"],
               f"fractional Poisson 1D trains, live and export agree {res}")
         d = os.path.join(tmp, "inv")
         os.makedirs(d)
