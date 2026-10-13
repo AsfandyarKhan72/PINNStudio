@@ -127,6 +127,13 @@ _PLATE_REF = _formula_ref([
     "(2*mu + lmbd)*sin(pi*x)*Q*y**3 + lmbd*(-2*pi*sin(2*pi*x)*sin(pi*y))",
     "mu*(pi*cos(2*pi*x)*cos(pi*y) + pi*cos(pi*x)*Q*y**4/4)"])
 
+# DeepXDE's plate scripts train 5,000 Adam iterations, which leaves the plate
+# under-trained (L2 0.19-1.6 with hard BCs, also with DeepXDE's own script);
+# these examples train longer.
+_PLATE_LBFGS = {**_LBFGS, "iterations2": 20000, "lbfgs_maxfun": 25000}
+_PLATE_TRAIN_NOTE = ("Training: 20,000 Adam + 20,000 L-BFGS iterations instead of DeepXDE's 5,000 Adam, "
+                     "which are not enough for this problem (L2 errors of 0.2-1.6).")
+
 # ── Forward problems ──────────────────────────────────────────────────────
 _POISSON_1D_NET = {**_net([1, 50, 50, 50, 1]), **_adam(10000), **_NO_LBFGS,
                    "num_domain": 16, "num_boundary": 2, "num_test": 100}
@@ -378,10 +385,10 @@ EXAMPLES = [
              output_transform_enabled=True, output_transform_mode="formula",
              output_transform_formula="ux*y*(1 - y)|uy*x*(1 - x)*y|sxx*x*(1 - x)|syy*(1 - y) + (lmbd + 2*mu)*Q*sin(pi*x)|sxy"),
         _PLATE_CONSTS,
-        _net([2, 40, 40, 40, 40, 5], network_type="PFNN"), _adam(5000), _NO_LBFGS,
+        _net([2, 40, 40, 40, 40, 5], network_type="PFNN"), _adam(20000), _PLATE_LBFGS,
         _PLATE_REF,
         note="Boundary conditions are imposed exactly through the output transform (DeepXDE's default 'hard' "
-             "setting), so the Boundary Conditions panel is empty."),
+             "setting), so the Boundary Conditions panel is empty. " + _PLATE_TRAIN_NOTE),
 
     _ex("Linear elastostatic plate (soft BCs)", FORWARD, _GH + "pinn_forward/elasticity_plate.py",
         dict(problem_dim="2D", steady_state=True, geometry_type="Rectangle",
@@ -395,10 +402,10 @@ EXAMPLES = [
                                  _bc("dirichlet", "top", "(2*mu + lmbd)*Q*sin(pi*x)", 3)),
              num_domain=500, num_boundary=500, num_test=100),
         _PLATE_CONSTS,
-        _net([2, 40, 40, 40, 40, 5], network_type="PFNN"), _adam(5000), _NO_LBFGS,
+        _net([2, 40, 40, 40, 40, 5], network_type="PFNN"), _adam(20000), _PLATE_LBFGS,
         _PLATE_REF,
         note="DeepXDE's script with BC_type = \"soft\": the eight boundary conditions are loss terms (rows in the "
-             "Boundary Conditions panel) instead of being built into the output transform."),
+             "Boundary Conditions panel) instead of being built into the output transform. " + _PLATE_TRAIN_NOTE),
 
     _ex("Helmholtz 2D (Dirichlet)", FORWARD, _DOCS + "pinn_forward/helmholtz.2d.dirichlet.html",
         dict(problem_dim="2D", steady_state=True, geometry_type="Rectangle",

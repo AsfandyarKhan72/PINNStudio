@@ -76,8 +76,8 @@ def run():
             want = int(c.iterations) + (int(c.iterations2) if c.optimizer2 != "none" else 0)
             check(sum(int(p["iterations"]) for p in ph) == want, f"{ex.name}: phases = DeepXDE's iterations")
     plate = json.loads(dx.build_config(dx.BY_NAME["Linear elastostatic plate"], "/r").scheduler_phases)
-    check([(p["optimizer"], p["iterations"], p["lr"]) for p in plate] == [("adam", 5000, 0.001)],
-          f"plate: one Adam phase of 5000 {plate}")
+    check([(p["optimizer"], p["iterations"]) for p in plate] == [("adam", 20000), ("lbfgs", 20000)],
+          f"plate: Adam 20000 then L-BFGS 20000 {plate}")
     lor = json.loads(dx.build_config(dx.BY_NAME["Inverse: Lorenz system"], "/r").scheduler_phases)
     check([p["optimizer"] for p in lor] == ["adam", "lbfgs"], "Adam + L-BFGS -> two phases")
 
