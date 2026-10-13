@@ -138,6 +138,15 @@ _PLATE_TRAIN_NOTE = ("Training: 20,000 Adam + 20,000 L-BFGS iterations instead o
 _POISSON_1D_NET = {**_net([1, 50, 50, 50, 1]), **_adam(10000), **_NO_LBFGS,
                    "num_domain": 16, "num_boundary": 2, "num_test": 100}
 
+# Both Burgers examples run to t = 1 (DeepXDE's scripts stop at 0.99, where
+# their Burgers.npz data ends) and compare at five times against the exact
+# solution in reference_data/1D/burgers (tools/make_exact_reference_data.py).
+_BURGERS_REF = repr([(t, f"@REF/1D/burgers/{f}", None) for t, f in
+                     ((0.0, "t_0.txt"), (0.25, "t_0.25.txt"), (0.5, "t_0.50.txt"), (0.75, "t_0.75.txt"),
+                      (1.0, "t_1.0.txt"))])
+_BURGERS_NOTE = ("Time runs from 0 to 1 (DeepXDE's script stops at 0.99, where its Burgers.npz data ends); "
+                 "Error Analysis compares with the exact (Cole-Hopf) solution at t = 0, 0.25, 0.5, 0.75 and 1.")
+
 EXAMPLES = [
     # ── ODEs (Round 74) ───────────────────────────────────────────────────
     _ex("ODE system", FORWARD, _DOCS + "pinn_forward/ode.system.html",
@@ -498,27 +507,24 @@ EXAMPLES = [
         note="Constants Re, nu and l are defined as in DeepXDE's script."),
 
     _ex("Burgers equation", FORWARD, _DOCS + "pinn_forward/burgers.html",
-        _time_1d(-1, 1, 0, 0.99),
+        _time_1d(-1, 1, 0, 1.0),
         dict(pde_expressions="du_t + u*du_x - 0.01/pi*du_xx", ic_expressions="-sin(pi*x)",
              custom_bc_json=_bcs(_bc("dirichlet", "True", "0")),
              num_domain=2540, num_boundary=80, num_initial=160, num_test=1000,
-             ea_files=repr([(0.0, "@REF/1D/burgers/t_0.txt", None), (0.25, "@REF/1D/burgers/t_0.25.txt", None),
-                            (0.5, "@REF/1D/burgers/t_0.50.txt", None), (0.75, "@REF/1D/burgers/t_0.75.txt", None)])),
+             ea_files=_BURGERS_REF),
         _net([2, 20, 20, 20, 1], "Glorot normal"), _adam(15000), _LBFGS,
-        note="Time runs from 0 to 0.99, as in DeepXDE's script (its Burgers.npz reference ends at t = 0.99). "
-             "Compared against PINNStudio's own Burgers reference solution."),
+        note=_BURGERS_NOTE),
 
     _ex("Burgers equation with RAR", FORWARD, _DOCS + "pinn_forward/burgers.rar.html",
-        _time_1d(-1, 1, 0, 0.99),
+        _time_1d(-1, 1, 0, 1.0),
         dict(pde_expressions="du_t + u*du_x - 0.01/pi*du_xx", ic_expressions="-sin(pi*x)",
              custom_bc_json=_bcs(_bc("dirichlet", "True", "0")),
              num_domain=2500, num_boundary=100, num_initial=160, num_test=1000,
              adapt_method="RAR", rar_candidates=100000, rar_add_points=1, rar_adam_iters=10000,
              rar_lbfgs_iters=15000, rar_tolerance=0.005, rar_cycles=100,
-             ea_files=repr([(0.0, "@REF/1D/burgers/t_0.txt", None), (0.25, "@REF/1D/burgers/t_0.25.txt", None),
-                            (0.5, "@REF/1D/burgers/t_0.50.txt", None), (0.75, "@REF/1D/burgers/t_0.75.txt", None)])),
+             ea_files=_BURGERS_REF),
         _net([2, 20, 20, 20, 1], "Glorot normal"), _adam(10000), _LBFGS,
-        note="Time runs from 0 to 0.99, as in DeepXDE's script. "
+        note=_BURGERS_NOTE + " "
              "DeepXDE adds one point per round until the mean residual is below 0.005, with early stopping "
              "inside each round's Adam phase; here rounds stop at the same tolerance (capped at 100) and "
              "run their full Adam iterations."),

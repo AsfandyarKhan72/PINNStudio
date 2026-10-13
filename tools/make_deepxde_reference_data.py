@@ -5,7 +5,8 @@ is copied from the DeepXDE repository (LGPL-2.1; PINNStudio is MIT).
 
 Problems with a closed-form solution use the "Reference from formula"
 Error Analysis option instead and need no files here; the DeepXDE Burgers
-and L-shape examples reuse PINNStudio's existing reference_data/1D/burgers
+and L-shape examples reuse PINNStudio's existing reference_data/1D/burgers (the exact
+solution, written by tools/make_exact_reference_data.py)
 and reference_data/2D/poisson_lshape (same problems).
 
 Run from the repository root:

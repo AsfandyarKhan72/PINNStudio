@@ -327,7 +327,7 @@ For an inverse problem, the estimated parameter's value is logged and saved peri
 
 Rather than clicking Solve once per configuration and tracking the results yourself, tick **Enable Parameter Sweep** in the left panel (directly below Adaptive Training; the **📖 Show sweep reference** and **🔄 Refresh** buttons sit on the same row) and PINNStudio runs a whole batch of training configurations in sequence — each one a full, independent training run of the problem you've already set up, varying whichever parameter(s) you choose. The shared **Solve**/**Stop** buttons drive it (relabeled **Run Sweep** while a sweep is enabled), and the Training Log streams every run's progress in order, so nothing about the rest of the workflow changes.
 
-![Parameter Sweep panel — two parameters configured for an all-combinations sweep](assets/Images/Parameter_Sweep/sweep_panel.png)
+![Parameter Sweep panel — Burgers 1D network-size sweep (hidden layers × neurons, All combinations) after it finished: each run's result in the Training Log, the last run's loss and solution on the right](assets/Images/Parameter_Sweep/sweep_panel.png)
 
 **Four ways to combine parameters**, picked from the Mode dropdown:
 - **One-at-a-time** — vary each parameter separately, the others held at their current values (3 values of one parameter → 3 runs).
@@ -350,7 +350,22 @@ Each parameter row takes a comma-separated list of values, or a linear/log numer
 - **Time Adaptive** (when selected as the adaptive method) — each time-step group's own step count, IC grid resolution.
 - **Input/Output Transform** (when enabled) — each input axis's and each output's own scale value.
 
-**Every run gets its own results.** The sweep saves into one folder under the same **Save to:** location as a normal Solve, named like a normal run (`Poisson_1D-Dirichlet_sweep__2026-10-13_11-39-17`), with one subfolder per run named after what it set (`run_01__Phase-1-Iterations_1000`, `run_02__…`; `run_00__baseline` when the baseline runs), each with its own saved model checkpoint, loss/solution plots and (if configured) Error Analysis results. The sweep folder also gets `sweep_manifest.json`, `sweep_summary.csv` (one row per run: the swept values, status, final loss, the Error Analysis metrics you ticked, and the folder) and **`sweep_error_vs_parameter.png`**, a summary plot of the error ($L_2$, plus MSE and Max error if ticked in Error Analysis; for a time-dependent problem the mean over the reference times set in Error Analysis) and the final loss against the swept value — one panel per parameter for One-at-a-time, one line per value of the other parameters for combinations, the baseline as a star. Once the sweep finishes, the right panel's Loss/Solution plots fill in with the last successfully completed run's own figure, the same as a normal Solve would show. **Stop** hard-stops the in-flight run immediately rather than letting it finish first.
+**Every run gets its own results.** The sweep saves into one folder under the same **Save to:** location as a normal Solve, named like a normal run (`Poisson_1D-Dirichlet_sweep__2026-10-13_11-39-17`), with one subfolder per run named after what it set (`run_01__Phase-1-Iterations_1000`, `run_02__…`; `run_00__baseline` when the baseline runs), each with its own saved model checkpoint, loss/solution plots and (if configured) Error Analysis results. The sweep folder also gets `sweep_manifest.json`, `sweep_summary.csv` (one row per run: the swept values, status, final loss, the Error Analysis metrics you ticked, and the folder) and **`sweep_error_vs_parameter.png`**, a summary plot of the error ($L_2$, plus MSE and Max error if ticked in Error Analysis; for a time-dependent problem the mean over the reference times set in Error Analysis) and the final loss against the swept value — one panel per parameter for One-at-a-time, one line per value of the other parameters for combinations, the baseline as a star.
+
+**Example — network size for Burgers 1D.** Load *Burgers 1D – Raissi et al.*, enable the sweep, choose *All combinations*, and sweep **Network: Hidden layers** over 2, 4, 6, 8 and **Network: Neurons per layer** over 10, 20, 40 — the same study as Table 1 of Raissi et al. (2019). The 12 runs (everything else as the template sets it: Adam 15,000 + L-BFGS 10,000 iterations, 8,000 collocation points) took about 17 minutes on an RTX 4090, and the sweep folder's summary plot shows the result:
+
+![Parameter sweep summary — Burgers 1D, relative L2 error (mean over t = 0, 0.25, 0.5, 0.75, 1) and final loss vs hidden layers, one line per neurons-per-layer value](assets/Images/Parameter_Sweep/burgers_network_size_sweep.png)
+
+Relative $L_2$ error (mean over the five reference times) from `sweep_summary.csv`:
+
+| Hidden layers | 10 neurons | 20 neurons | 40 neurons |
+|---|---|---|---|
+| 2 | 1.4 × 10<sup>-2</sup> | 5.6 × 10<sup>-3</sup> | 3.8 × 10<sup>-3</sup> |
+| 4 | 1.1 × 10<sup>-3</sup> | 1.0 × 10<sup>-3</sup> | 2.4 × 10<sup>-4</sup> |
+| 6 | 5.6 × 10<sup>-4</sup> | 1.2 × 10<sup>-3</sup> | 5.3 × 10<sup>-4</sup> |
+| 8 | 1.3 × 10<sup>-3</sup> | 2.6 × 10<sup>-3</sup> | 3.7 × 10<sup>-4</sup> |
+
+Two hidden layers are too few for the shock at $x = 0$; at four layers the error is 5–16× lower, and 40 neurons per layer gives the lowest error at every depth from four layers. Deeper is not always better here: with 10 or 20 neurons, 8 layers trains to a higher loss and error than 4 or 6. (Raissi et al. trained with L-BFGS only and 10,000 collocation points, so their numbers differ; the trend is the same.) Once the sweep finishes, the right panel's Loss/Solution plots fill in with the last successfully completed run's own figure, the same as a normal Solve would show. **Stop** hard-stops the in-flight run immediately rather than letting it finish first.
 
 </details>
 
@@ -1263,12 +1278,12 @@ $$\Large \frac{\partial V}{\partial \tau} = \frac{\sigma^2}{2}S^2\frac{\partial^
 
 DeepXDE example: [`Burgers.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Burgers.py) ([documentation](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/burgers.html))
 
-$$\Large \frac{\partial u}{\partial t} + u\frac{\partial u}{\partial x} = \frac{0.01}{\pi}\frac{\partial^2 u}{\partial x^2}, \qquad x \in [-1, 1],\ t \in [0, 0.99]$$
+$$\Large \frac{\partial u}{\partial t} + u\frac{\partial u}{\partial x} = \frac{0.01}{\pi}\frac{\partial^2 u}{\partial x^2}, \qquad x \in [-1, 1],\ t \in [0, 1]$$
 
 - **Initial condition:** $u(x, 0) = -\sin(\pi x)$
 - **Boundary conditions:** Dirichlet, $u(\pm 1, t) = 0$
-- **Time range:** $t \in [0, 0.99]$, as in DeepXDE's script (its reference data ends at $t = 0.99$)
-- **Reference:** PINNStudio's own Burgers reference solution at $t = 0, 0.25, 0.5, 0.75$
+- **Time range:** $t \in [0, 1]$ (DeepXDE's script stops at $t = 0.99$, where its reference data ends)
+- **Reference:** the exact (Cole–Hopf) solution at $t = 0, 0.25, 0.5, 0.75, 1$, from PINNStudio's [`reference_data/1D/burgers`](reference_data/1D/burgers) (made by [`tools/make_exact_reference_data.py`](tools/make_exact_reference_data.py))
 - **Network:** FNN [2, 20, 20, 20, 1], tanh, Glorot normal
 - **Training:** Adam 15,000 → L-BFGS 15,000; 2,540 domain, 80 boundary, 160 initial points
 - **GUI recipe:** Quick Examples → Category **Forward** → **Burgers 1D**
@@ -1299,6 +1314,8 @@ $$\Large \frac{\partial u}{\partial t} + u\frac{\partial u}{\partial x} = \frac{
 
 A shock forms near $x = 0$ as $t \to 1$; this template uses a larger fixed collocation count to resolve it rather than adaptive refinement.
 
+**Result (RTX 4090):** $L_2$ = 1.0e-4 ($t = 0$), 4.8e-4 ($t = 0.25$), 7.1e-4 ($t = 0.5$), 9.6e-4 ($t = 0.75$), 7.7e-4 ($t = 1$), against the exact (Cole–Hopf) solution in [`reference_data/1D/burgers`](reference_data/1D/burgers). Inverse mode: $\lambda_1$ = 0.992 (true 1), $\lambda_2$ = 0.01001 (true 0.01; the template writes the viscous term as $\frac{\lambda_2}{\pi}\frac{\partial^2 u}{\partial x^2}$, so $\lambda_2 = 0.01$ is the paper's $0.01/\pi$).
+
 ![1D Burgers — PINN vs Ground Truth, Error Analysis surface comparison](assets/Images/1D-Burgers/surface_comparison.png)
 
 ![1D Burgers — line comparison against reference data](assets/Images/1D-Burgers/line_comparison.png)
@@ -1322,15 +1339,16 @@ with true values $\lambda_1 = 1.0$ and $\lambda_2 = 0.01/\pi$. $\lambda_1$'s ini
 
 DeepXDE example: [`Burgers_RAR.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Burgers_RAR.py) ([documentation](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/burgers.rar.html))
 
-$$\Large \frac{\partial u}{\partial t} + u\frac{\partial u}{\partial x} = \frac{0.01}{\pi}\frac{\partial^2 u}{\partial x^2}, \qquad x \in [-1, 1],\ t \in [0, 0.99]$$
+$$\Large \frac{\partial u}{\partial t} + u\frac{\partial u}{\partial x} = \frac{0.01}{\pi}\frac{\partial^2 u}{\partial x^2}, \qquad x \in [-1, 1],\ t \in [0, 1]$$
 
 - **Initial / boundary conditions:** $u(x, 0) = -\sin(\pi x)$, $u(\pm 1, t) = 0$
+- **Time range / reference:** $t \in [0, 1]$, compared with the exact solution at $t = 0, 0.25, 0.5, 0.75, 1$
 - **Residual-based adaptive refinement:** each round adds the 1 point with the largest residual (out of 100,000 candidates) and retrains, until the mean residual is below 0.005
 - **Network:** FNN [2, 20, 20, 20, 1], tanh, Glorot normal
 - **Training:** Adam 10,000 → L-BFGS 15,000 per RAR round; 2,500 domain, 100 boundary, 160 initial points
 - **GUI recipe:** Quick Examples → Category **Forward** → **Burgers 1D – RAR**
 
-**Result (RTX 4090):** L2 = 6.3e-4 ($t = 0$), 1.3e-2 ($t = 0.25$), 1.7e-2 ($t = 0.5$), 1.4e-2 ($t = 0.75$)
+**Result (RTX 4090):** L2 = 4.9e-4 ($t = 0$), 6.0e-4 ($t = 0.25$), 7.2e-3 ($t = 0.5$), 8.9e-3 ($t = 0.75$), 1.2e-2 ($t = 1$)
 
 *u — PINN solution over time*
 
