@@ -283,6 +283,7 @@ class BayesRuns:
             import matplotlib
             matplotlib.use("Agg")
             import matplotlib.pyplot as plt
+            matplotlib.rcParams["axes.formatter.use_mathtext"] = True
             vals = [v if v is not None and np.isfinite(v) else np.nan for _l, _p, v in self.history]
             best = np.fmin.accumulate(np.where(np.isnan(vals), np.inf, vals))
             fig, ax = plt.subplots(figsize=(7, 4.5))
@@ -625,6 +626,11 @@ def write_sweep_summary_plot(sweep_root, base_config, results):
     Returns the path, or None if there was nothing to plot."""
     import matplotlib
     matplotlib.use("Agg")
+    with matplotlib.rc_context({"axes.formatter.use_mathtext": True, "axes.formatter.limits": (-2, 5)}):
+        return _summary_plot(sweep_root, base_config, results)
+
+
+def _summary_plot(sweep_root, base_config, results):
     import matplotlib.pyplot as plt
 
     done = [(lab, r) for lab, r in results if r.get("status") == "done"]

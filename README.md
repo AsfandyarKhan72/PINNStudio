@@ -333,7 +333,7 @@ Rather than clicking Solve once per configuration and tracking the results yours
 - **One-at-a-time** — vary each parameter separately, the others held at their current values (3 values of one parameter → 3 runs).
 - **All combinations** (grid) — every value of every parameter, crossed together (2 parameters with 3 and 2 values → 6 runs).
 - **Specified combinations** (zip) — pair up each parameter's *i*-th value across all parameters (2 parameters with matching-length value lists, paired index-for-index).
-- **Bayesian search** — each run's settings are chosen by a Gaussian-process model of the results so far, to reach the lowest final loss (or L2 error) in as few runs as possible. Each parameter's Min/Max (linear or log) is its search range, a list its choices; **Runs** is the budget and **Random first** the number of random runs before the model takes over. The sweep folder gets `bayes_search.csv` and a convergence plot, and the best run is printed at the end — see the Helmholtz hyperparameter-optimization example under [Examples](#examples).
+- **Bayesian search** — each run's settings are chosen by a Gaussian-process model of the results so far, to reach the lowest final loss (or $L_2$ error) in as few runs as possible. Each parameter's Min/Max (linear or log) is its search range, a list its choices; **Runs** is the budget and **Random first** the number of random runs before the model takes over. The sweep folder gets `bayes_search.csv` and a convergence plot, and the best run is printed at the end — see the Helmholtz hyperparameter-optimization example under [Examples](#examples).
 
 **Baseline run.** *Also run the current settings (baseline)* adds one run with the panel's settings unchanged, before the swept values, as a reference point. It is on by default for One-at-a-time with 2 or more parameters and for Bayesian search (its first point), and off otherwise; ticking or unticking it keeps your choice.
 
@@ -354,16 +354,16 @@ Each parameter row takes a comma-separated list of values, or a linear/log numer
 
 **Example — network size for Burgers 1D.** Load *Burgers 1D – Raissi et al.*, enable the sweep, choose *All combinations*, and sweep **Network: Hidden layers** over 2, 4, 6, 8 and **Network: Neurons per layer** over 10, 20, 40 — the same study as Table 1 of Raissi et al. (2019). The 12 runs (everything else as the template sets it: Adam 15,000 + L-BFGS 10,000 iterations, 8,000 collocation points) took about 17 minutes on an RTX 4090, and the sweep folder's summary plot shows the result:
 
-![Parameter sweep summary — Burgers 1D, relative L2 error (mean over t = 0, 0.25, 0.5, 0.75, 1) and final loss vs hidden layers, one line per neurons-per-layer value](assets/Images/Parameter_Sweep/burgers_network_size_sweep.png)
+![Parameter sweep summary — Burgers 1D, relative L₂ error (mean over t = 0, 0.25, 0.5, 0.75, 1) and final loss vs hidden layers, one line per neurons-per-layer value](assets/Images/Parameter_Sweep/burgers_network_size_sweep.png)
 
 Relative $L_2$ error (mean over the five reference times) from `sweep_summary.csv`:
 
 | Hidden layers | 10 neurons | 20 neurons | 40 neurons |
 |---|---|---|---|
-| 2 | 1.4 × 10<sup>-2</sup> | 5.6 × 10<sup>-3</sup> | 3.8 × 10<sup>-3</sup> |
-| 4 | 1.1 × 10<sup>-3</sup> | 1.0 × 10<sup>-3</sup> | 2.4 × 10<sup>-4</sup> |
-| 6 | 5.6 × 10<sup>-4</sup> | 1.2 × 10<sup>-3</sup> | 5.3 × 10<sup>-4</sup> |
-| 8 | 1.3 × 10<sup>-3</sup> | 2.6 × 10<sup>-3</sup> | 3.7 × 10<sup>-4</sup> |
+| 2 | 1.4 × 10⁻² | 5.6 × 10⁻³ | 3.8 × 10⁻³ |
+| 4 | 1.1 × 10⁻³ | 1.0 × 10⁻³ | 2.4 × 10⁻⁴ |
+| 6 | 5.6 × 10⁻⁴ | 1.2 × 10⁻³ | 5.3 × 10⁻⁴ |
+| 8 | 1.3 × 10⁻³ | 2.6 × 10⁻³ | 3.7 × 10⁻⁴ |
 
 Two hidden layers are too few for the shock at $x = 0$; at four layers the error is 5–16× lower, and 40 neurons per layer gives the lowest error at every depth from four layers. Deeper is not always better here: with 10 or 20 neurons, 8 layers trains to a higher loss and error than 4 or 6. (Raissi et al. trained with L-BFGS only and 10,000 collocation points, so their numbers differ; the trend is the same.) Once the sweep finishes, the right panel's Loss/Solution plots fill in with the last successfully completed run's own figure, the same as a normal Solve would show. **Stop** hard-stops the in-flight run immediately rather than letting it finish first.
 
@@ -396,7 +396,7 @@ $$\Large \text{Max error} = \max_i \left| u_{\text{pred},i} - u_{\text{true},i} 
 
 alongside line-comparison and surface-comparison plots of the PINN prediction against reference, consistently titled **"PINN vs Reference"** everywhere these comparisons appear. All twelve built-in templates ship with bundled reference data so this works immediately with no setup; it works the same way for a data file of your own. A reference file can be checked against a derivative expression too (e.g. a reference `du_x` dataset), not just a raw output.
 
-**Error Metrics to Compute** lets you choose which of L2 relative error, MSE, and Max error are actually computed and reported — unchecking one leaves it out of the console log, the saved metrics file, and any on-plot annotation entirely, rather than just hiding it from view. Mean absolute error always appears alongside whichever metrics you've enabled. Defaults to **L2 only**.
+**Error Metrics to Compute** lets you choose which of $L_2$ relative error, MSE, and Max error are actually computed and reported — unchecking one leaves it out of the console log, the saved metrics file, and any on-plot annotation entirely, rather than just hiding it from view. Mean absolute error always appears alongside whichever metrics you've enabled. Defaults to **$L_2$ only**.
 
 Every comparison plot's Error panel reads its colormap, levels, figure size, and axis settings from the same Plot Settings as the PINN and Reference panels beside it, so all three stay visually consistent rather than the Error panel defaulting to its own fixed look.
 
@@ -570,7 +570,7 @@ Loading an example fills in every setting, and you can change any of them before
 
 **Error Analysis reference:** where the problem has an exact solution, Error Analysis compares against it directly (*Exact solution*). Otherwise it uses reference files computed independently of the PINN (*Generated data*): PINNStudio's own reference solutions in [`reference_data/`](reference_data), or data computed by [`tools/make_deepxde_reference_data.py`](tools/make_deepxde_reference_data.py) (no data is copied from DeepXDE's repository). Examples marked "—" have no bundled reference; you can add your own files in the Error Analysis dialog.
 
-Every result shown below comes from one training run with the example's settings on an RTX 4090. Errors are relative L2 errors from Error Analysis, and they vary a little from run to run.
+Every result shown below comes from one training run with the example's settings on an RTX 4090. Errors are relative $L_2$ errors from Error Analysis, and they vary a little from run to run.
 
 The table is ordered by dimension (ODE, 1D, 2D, 3D), then steady before time-dependent and forward before inverse; examples of the same problem sit next to each other.
 
@@ -670,7 +670,7 @@ $$\Large \frac{du}{dt} + \int_0^t u(s)\,ds = 2\pi\cos(2\pi t) + \frac{\sin^2(\pi
 - **Training:** Adam 10,000; 16 domain, 2 boundary points
 - **GUI recipe:** Quick Examples → Category **Forward** → **Integro-differential ODE**
 
-**Result (RTX 4090):** L2 = 1.5e-4
+**Result (RTX 4090):** $L_2$ = 1.5 × 10⁻⁴
 
 *PINN vs reference along a line*
 
@@ -693,7 +693,7 @@ $$\Large \frac{du}{dt} + u(t) = \int_0^t e^{s - t}\,u(s)\,ds, \qquad t \in [0, 5
 - **Training:** L-BFGS 15,000; 10 domain, 2 boundary points
 - **GUI recipe:** Quick Examples → Category **Forward** → **Integro-differential ODE – Volterra kernel**
 
-**Result (RTX 4090):** L2 = 2.5e-3
+**Result (RTX 4090):** $L_2$ = 2.5 × 10⁻³
 
 *PINN vs reference along a line*
 
@@ -715,7 +715,7 @@ $$\Large \frac{dy_1}{dt} = y_2, \qquad \frac{dy_2}{dt} = -y_1, \qquad t \in [0, 
 - **Training:** Adam 20,000; 35 domain, 2 boundary points
 - **GUI recipe:** Quick Examples → Category **Forward** → **Linear ODE system**
 
-**Result (RTX 4090):** L2 = 3.6e-3 ($y_1$), 3.1e-3 ($y_2$)
+**Result (RTX 4090):** $L_2$ = 3.6 × 10⁻³ ($y_1$), 3.1 × 10⁻³ ($y_2$)
 
 *y1 — PINN vs reference along a line*
 
@@ -743,7 +743,7 @@ $$\Large \frac{dr}{dt} = \frac{R}{U}\left(2Ur - 0.04U^2 rp\right), \qquad \frac{
 - **Training:** Adam 50,000 → L-BFGS 15,000; 3,000 domain, 2 boundary points
 - **GUI recipe:** Quick Examples → Category **Forward** → **Lotka-Volterra ODE**
 
-**Result (RTX 4090):** L2 = 2.1e-3 ($r$), 1.4e-3 ($p$)
+**Result (RTX 4090):** $L_2$ = 2.1 × 10⁻³ ($r$), 1.4 × 10⁻³ ($p$)
 
 *r — PINN vs reference along a line*
 
@@ -770,7 +770,7 @@ $$\Large \frac{d^2u}{dt^2} - 10\frac{du}{dt} + 9u = 5t, \qquad t \in [0, 0.25]$$
 - **Training:** Adam 10,000; 16 domain, 2 boundary points
 - **GUI recipe:** Quick Examples → Category **Forward** → **Second-order ODE**
 
-**Result (RTX 4090):** L2 = 3.2e-5
+**Result (RTX 4090):** $L_2$ = 3.2 × 10⁻⁵
 
 *PINN vs reference along a line*
 
@@ -792,7 +792,7 @@ $$\Large \frac{dy_1}{dt} = C_1(y_2 - y_1), \qquad \frac{dy_2}{dt} = y_1(C_2 - y_
 - **Training:** Adam 20,000 → L-BFGS 15,000; 400 domain, 2 boundary points
 - **GUI recipe:** Quick Examples → Category **Inverse** → **Lorenz ODE – unknown C₁, C₂, C₃**
 
-**Result (RTX 4090):** $C_1$ = 9.9990, $C_2$ = 14.9997, $C_3$ = 2.66675 (true 10, 15, 8/3); L2 = 1.2e-4 ($y_1$), 1.2e-4 ($y_2$), 6.7e-5 ($y_3$)
+**Result (RTX 4090):** $C_1$ = 9.9990, $C_2$ = 14.9997, $C_3$ = 2.66675 (true 10, 15, 8/3); $L_2$ = 1.2 × 10⁻⁴ ($y_1$), 1.2 × 10⁻⁴ ($y_2$), 6.7 × 10⁻⁵ ($y_3$)
 
 *y1 — PINN vs reference along a line*
 
@@ -823,7 +823,7 @@ $$\Large \frac{dy_1}{dt} = C_1(y_2 - y_1), \qquad \frac{dy_2}{dt} = y_1(C_2 - y_
 - **Training:** Adam 60,000; 400 domain, 2 boundary points
 - **GUI recipe:** Quick Examples → Category **Inverse** → **Lorenz ODE – unknown C₁, C₂, C₃, exogenous input**
 
-**Result (RTX 4090):** $C_1$ = 9.987, $C_2$ = 14.998, $C_3$ = 2.6669 (true 10, 15, 8/3); L2 = 7.3e-4 ($y_1$), 6.6e-4 ($y_2$), 2.9e-4 ($y_3$)
+**Result (RTX 4090):** $C_1$ = 9.987, $C_2$ = 14.998, $C_3$ = 2.6669 (true 10, 15, 8/3); $L_2$ = 7.3 × 10⁻⁴ ($y_1$), 6.6 × 10⁻⁴ ($y_2$), 2.9 × 10⁻⁴ ($y_3$)
 
 *y1 — PINN vs reference along a line*
 
@@ -856,7 +856,7 @@ $$\Large \frac{d^4u}{dx^4} = -1, \qquad x \in [0, 1]$$
 - **Training:** Adam 10,000; 10 domain, 2 boundary points
 - **GUI recipe:** Quick Examples → Category **Forward** → **Euler beam 1D**
 
-**Result (RTX 4090):** L2 = 8.4e-3
+**Result (RTX 4090):** $L_2$ = 8.4 × 10⁻³
 
 *PINN vs reference along a line*
 
@@ -880,7 +880,7 @@ $$\Large D_{0+}^{\alpha}u + D_{1-}^{\alpha}u = f(x), \qquad x \in [0, 1],\ \alph
 - **Training:** Adam 10,000; 101 domain, 2 boundary points
 - **GUI recipe:** Quick Examples → Category **Forward** → **Fractional Poisson 1D**
 
-**Result (RTX 4090):** L2 = 3.7e-2
+**Result (RTX 4090):** $L_2$ = 3.7 × 10⁻²
 
 *PINN vs reference along a line*
 
@@ -901,7 +901,7 @@ $$\Large -\frac{d^2u}{dx^2} = \pi^2\sin(\pi x), \qquad x \in [-1, 1]$$
 - **Training:** Adam 10,000; 16 domain, 2 boundary points
 - **GUI recipe:** Quick Examples → Category **Forward** → **Poisson 1D – Dirichlet**
 
-**Result (RTX 4090):** L2 = 3.7e-4
+**Result (RTX 4090):** $L_2$ = 3.7 × 10⁻⁴
 
 *PINN vs reference along a line*
 
@@ -922,7 +922,7 @@ $$\Large \frac{d^2u}{dx^2} = 2, \qquad x \in [-1, 1]$$
 - **Training:** Adam 10,000; 16 domain, 2 boundary points
 - **GUI recipe:** Quick Examples → Category **Forward** → **Poisson 1D – Dirichlet/Neumann**
 
-**Result (RTX 4090):** L2 = 2.3e-4
+**Result (RTX 4090):** $L_2$ = 2.3 × 10⁻⁴
 
 *PINN vs reference along a line*
 
@@ -943,7 +943,7 @@ $$\Large -\frac{d^2u}{dx^2} = \pi^2\sin(\pi x), \qquad x \in [-1, 1]$$
 - **Training:** Adam 10,000; 16 domain, 2 boundary points
 - **GUI recipe:** Quick Examples → Category **Forward** → **Poisson 1D – Dirichlet/Periodic**
 
-**Result (RTX 4090):** L2 = 1.2e-2
+**Result (RTX 4090):** $L_2$ = 1.2 × 10⁻²
 
 *PINN vs reference along a line*
 
@@ -964,7 +964,7 @@ $$\Large \frac{d^2u}{dx^2} = 2, \qquad x \in [-1, 1]$$
 - **Training:** Adam 20,000; 16 domain, 2 boundary points
 - **GUI recipe:** Quick Examples → Category **Forward** → **Poisson 1D – Dirichlet/point-set operator**
 
-**Result (RTX 4090):** L2 = 2.6e-5
+**Result (RTX 4090):** $L_2$ = 2.6 × 10⁻⁵
 
 *PINN vs reference along a line*
 
@@ -985,7 +985,7 @@ $$\Large \frac{d^2u}{dx^2} = 2, \qquad x \in [-1, 1]$$
 - **Training:** Adam 10,000; 16 domain, 2 boundary points
 - **GUI recipe:** Quick Examples → Category **Forward** → **Poisson 1D – Dirichlet/Robin**
 
-**Result (RTX 4090):** L2 = 2.4e-4
+**Result (RTX 4090):** $L_2$ = 2.4 × 10⁻⁴
 
 *PINN vs reference along a line*
 
@@ -1007,7 +1007,7 @@ $$\Large -\frac{d^2u}{dx^2} = \sum_{k=1}^{4} k\sin(kx) + 8\sin(8x), \qquad x \in
 - **Training:** Adam 30,000; 64 domain points
 - **GUI recipe:** Quick Examples → Category **Forward** → **Poisson 1D – hard BCs**
 
-**Result (RTX 4090):** L2 = 2.2e-6
+**Result (RTX 4090):** $L_2$ = 2.2 × 10⁻⁶
 
 *PINN vs reference along a line*
 
@@ -1033,7 +1033,7 @@ $$\Large \frac{d^2u}{dx^2} = -(\pi A)^2\sin(\pi A x) - 0.1(\pi B)^2\sin(\pi B x)
 
 A plain network of the same size learns the slow wave and largely misses the fast one; the Fourier features at scale 10 are what let the PINN represent the sin(50πx) part.
 
-**Result (RTX 4090):** L2 = 3.9e-3
+**Result (RTX 4090):** $L_2$ = 3.9 × 10⁻³
 
 *PINN vs reference along a line*
 
@@ -1056,9 +1056,9 @@ $$\Large -\frac{\nu_e}{\epsilon}\frac{d^2u}{dx^2} + \frac{\nu u}{K} = g, \qquad 
 - **Training:** Adam 30,000; 100 domain points
 - **GUI recipe:** Quick Examples → Category **Inverse** → **Brinkman-Forchheimer 1D – unknown ν_e, K**
 
-DeepXDE's own script, run unchanged twice on the same GPU, ends with $\nu_e$ = 1.31–1.35e-3, $K$ = 0.984e-3 and an L2 error of 0.018–0.020 for $u$ — the same picture: $K$ is recovered closely, $\nu_e$ only to within about 30–50% from five measurements.
+DeepXDE's own script, run unchanged twice on the same GPU, ends with $\nu_e$ = 1.31–1.35 × 10⁻³, $K$ = 9.84 × 10⁻⁴ and an $L_2$ error of 1.8 × 10⁻²–2.0 × 10⁻² for $u$ — the same picture: $K$ is recovered closely, $\nu_e$ only to within about 30–50% from five measurements.
 
-**Result (RTX 4090):** $\nu_e$ = 1.49e-3, $K$ = 0.985e-3 (both true 1e-3); L2 of $u$ = 2.9e-2
+**Result (RTX 4090):** $\nu_e$ = 1.49 × 10⁻³, $K$ = 9.85 × 10⁻⁴ (both true 1 × 10⁻³); $L_2$ of $u$ = 2.9 × 10⁻²
 
 *PINN vs reference along a line*
 
@@ -1084,7 +1084,7 @@ $$\Large \lambda\frac{d^2u}{dx^2} - k(x)\,u = \sin(2\pi x), \qquad \lambda = 0.0
 - **Training:** Adam 20,000; 50 domain, 8 boundary points
 - **GUI recipe:** Quick Examples → Category **Inverse** → **Diffusion-reaction 1D – unknown rate field**
 
-**Result (RTX 4090):** L2 = 4.0e-2 ($k$)
+**Result (RTX 4090):** $L_2$ = 4.0 × 10⁻² ($k$)
 
 *u — PINN vs reference along a line*
 
@@ -1111,7 +1111,7 @@ $$\Large \frac{D_{-1+}^{\alpha}u + D_{1-}^{\alpha}u}{2\cos(\alpha\pi/2)} = \Gamm
 - **Training:** Adam 10,000; 20 domain points
 - **GUI recipe:** Quick Examples → Category **Inverse** → **Fractional Poisson 1D – unknown order α**
 
-**Result (RTX 4090):** $\alpha$ = 1.792 (true 1.8); L2 of $u$ = 1.3e-2
+**Result (RTX 4090):** $\alpha$ = 1.792 (true 1.8); $L_2$ of $u$ = 1.3 × 10⁻²
 
 *PINN vs reference along a line*
 
@@ -1137,7 +1137,7 @@ $$\Large -\frac{d^2u}{dx^2} + q(x) = 0, \qquad x \in [-1, 1]$$
 - **Training:** Adam 20,000; 200 domain, 2 boundary points
 - **GUI recipe:** Quick Examples → Category **Inverse** → **Poisson 1D – unknown forcing field**
 
-**Result (RTX 4090):** L2 = 8.3e-4 ($u$), 4.3e-2 ($q$)
+**Result (RTX 4090):** $L_2$ = 8.3 × 10⁻⁴ ($u$), 4.3 × 10⁻² ($q$)
 
 *u — PINN vs reference along a line*
 
@@ -1162,7 +1162,7 @@ $$\Large -\frac{d^2u}{dx^2} + q(x) = 0, \qquad x \in [-1, 1]$$
 - **Training:** Adam 20,000; 200 domain, 2 boundary points
 - **GUI recipe:** Quick Examples → Category **Inverse** → **Poisson 1D – unknown forcing field (batches)**
 
-**Result (RTX 4090):** L2 = 7.6e-3 ($u$), 0.13 ($q$)
+**Result (RTX 4090):** $L_2$ = 7.6 × 10⁻³ ($u$), 1.3 × 10⁻¹ ($q$)
 
 *q — PINN vs reference along a line*
 
@@ -1184,7 +1184,7 @@ $$\Large \frac{\partial u}{\partial t} = 0.001\frac{\partial^2 u}{\partial x^2} 
 - **Training:** Adam 40,000 → L-BFGS 15,000; 8,000 domain, 400 boundary points
 - **GUI recipe:** Quick Examples → Category **Forward** → **Allen-Cahn 1D**
 
-**Result (RTX 4090):** L2 = 9.5e-8 ($t = 0$), 1.9e-3 ($t = 0.25$), 5.2e-3 ($t = 0.5$), 1.3e-2 ($t = 0.75$), 2.9e-2 ($t = 1$)
+**Result (RTX 4090):** $L_2$ = 9.5 × 10⁻⁸ ($t = 0$), 1.9 × 10⁻³ ($t = 0.25$), 5.2 × 10⁻³ ($t = 0.5$), 1.3 × 10⁻² ($t = 0.75$), 2.9 × 10⁻² ($t = 1$)
 
 *u — PINN solution over time*
 
@@ -1260,7 +1260,7 @@ $$\Large \frac{\partial V}{\partial \tau} = \frac{\sigma^2}{2}S^2\frac{\partial^
 - **Training:** Adam 20,000 → L-BFGS 15,000; 2,047 domain, 63 boundary, 127 initial points
 - **GUI recipe:** Quick Examples → Category **Forward** → **Black-Scholes 1D – European call**
 
-**Result (RTX 4090):** L2 = 5.7e-4 ($t = 0.25$), 3.2e-4 ($t = 0.5$), 4.3e-4 ($t = 1$)
+**Result (RTX 4090):** $L_2$ = 5.7 × 10⁻⁴ ($t = 0.25$), 3.2 × 10⁻⁴ ($t = 0.5$), 4.3 × 10⁻⁴ ($t = 1$)
 
 *u — PINN solution over time*
 
@@ -1286,7 +1286,7 @@ $$\Large \frac{\partial u}{\partial t} + u\frac{\partial u}{\partial x} = \frac{
 
 A shock forms near $x = 0$ as $t \to 1$; this template uses a larger fixed collocation count to resolve it rather than adaptive refinement.
 
-**Result (RTX 4090):** $L_2$ = 1.0e-4 ($t = 0$), 4.8e-4 ($t = 0.25$), 7.1e-4 ($t = 0.5$), 9.6e-4 ($t = 0.75$), 7.7e-4 ($t = 1$), against the exact (Cole–Hopf) solution in [`reference_data/1D/burgers`](reference_data/1D/burgers). Inverse mode: $\lambda_1$ = 0.992 (true 1), $\lambda_2$ = 0.01001 (true 0.01; the template writes the viscous term as $\frac{\lambda_2}{\pi}\frac{\partial^2 u}{\partial x^2}$, so $\lambda_2 = 0.01$ is the paper's $0.01/\pi$).
+**Result (RTX 4090):** $L_2$ = 1.0 × 10⁻⁴ ($t = 0$), 4.8 × 10⁻⁴ ($t = 0.25$), 7.1 × 10⁻⁴ ($t = 0.5$), 9.6 × 10⁻⁴ ($t = 0.75$), 7.7 × 10⁻⁴ ($t = 1$), against the exact (Cole–Hopf) solution in [`reference_data/1D/burgers`](reference_data/1D/burgers). Inverse mode: $\lambda_1$ = 0.992 (true 1), $\lambda_2$ = 0.01001 (true 0.01; the template writes the viscous term as $\frac{\lambda_2}{\pi}\frac{\partial^2 u}{\partial x^2}$, so $\lambda_2 = 0.01$ is the paper's $0.01/\pi$).
 
 ![1D Burgers — PINN vs Ground Truth, Error Analysis surface comparison](assets/Images/1D-Burgers/surface_comparison.png)
 
@@ -1322,7 +1322,7 @@ $$\Large \frac{\partial u}{\partial t} + u\frac{\partial u}{\partial x} = \frac{
 
 **Why not DeepXDE's one-point refinement.** DeepXDE's script adds 1 point per round until the mean residual is below 0.005. Here, after the first training the mean residual is already about 3–4 × 10⁻³, so that loop would add a single point and stop, which shows nothing. This example therefore turns the tolerance off and runs 3 rounds of 100 points instead. The collocation-point figure below shows where they go: onto the shock at $x = 0$ once it has formed ($t \gtrsim 0.3$), the region of largest error. The $L_2$ error at $t = 1$, where the shock is steepest, falls from 2.6 × 10⁻² after round 1 to 4.0 × 10⁻³ after round 2 and 8.4 × 10⁻⁴ after round 3.
 
-**Result (RTX 4090):** L2 = 3.1e-3 ($t = 0$), 4.6e-3 ($t = 0.25$), 1.0e-3 ($t = 0.5$), 1.3e-3 ($t = 0.75$), 8.4e-4 ($t = 1$)
+**Result (RTX 4090):** $L_2$ = 3.1 × 10⁻³ ($t = 0$), 4.6 × 10⁻³ ($t = 0.25$), 1.0 × 10⁻³ ($t = 0.5$), 1.3 × 10⁻³ ($t = 0.75$), 8.4 × 10⁻⁴ ($t = 1$)
 
 *u — PINN solution over time*
 
@@ -1351,7 +1351,7 @@ $$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} - e^{
 - **Training:** Adam 10,000; 40 domain, 20 boundary, 10 initial points
 - **GUI recipe:** Quick Examples → Category **Forward** → **Diffusion 1D**
 
-**Result (RTX 4090):** L2 = 4.8e-3 ($t = 0$), 9.0e-3 ($t = 0.25$), 6.4e-3 ($t = 0.5$), 5.8e-3 ($t = 0.75$), 3.0e-2 ($t = 1$)
+**Result (RTX 4090):** $L_2$ = 4.8 × 10⁻³ ($t = 0$), 9.0 × 10⁻³ ($t = 0.25$), 6.4 × 10⁻³ ($t = 0.5$), 5.8 × 10⁻³ ($t = 0.75$), 3.0 × 10⁻² ($t = 1$)
 
 *u — PINN solution over time*
 
@@ -1376,7 +1376,7 @@ $$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} - e^{
 - **Training:** Adam 10,000; 40 domain points
 - **GUI recipe:** Quick Examples → Category **Forward** → **Diffusion 1D – hard IC and BCs**
 
-**Result (RTX 4090):** L2 = 9.4e-8 ($t = 0$), 1.6e-4 ($t = 0.25$), 4.6e-4 ($t = 0.5$), 1.3e-3 ($t = 0.75$), 2.8e-3 ($t = 1$)
+**Result (RTX 4090):** $L_2$ = 9.4 × 10⁻⁸ ($t = 0$), 1.6 × 10⁻⁴ ($t = 0.25$), 4.6 × 10⁻⁴ ($t = 0.5$), 1.3 × 10⁻³ ($t = 0.75$), 2.8 × 10⁻³ ($t = 1$)
 
 *u — PINN solution over time*
 
@@ -1402,7 +1402,7 @@ $$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} - e^{
 - **Training:** Adam 2,000; 40 domain, 20 boundary, 10 initial points
 - **GUI recipe:** Quick Examples → Category **Forward** → **Diffusion 1D – resampling**
 
-**Result (RTX 4090):** L2 = 1.8e-2 ($t = 0$), 2.5e-2 ($t = 0.25$), 1.5e-2 ($t = 0.5$), 1.4e-2 ($t = 0.75$), 4.3e-2 ($t = 1$)
+**Result (RTX 4090):** $L_2$ = 1.8 × 10⁻² ($t = 0$), 2.5 × 10⁻² ($t = 0.25$), 1.5 × 10⁻² ($t = 0.5$), 1.4 × 10⁻² ($t = 0.75$), 4.3 × 10⁻² ($t = 1$)
 
 *u — PINN solution over time*
 
@@ -1429,7 +1429,7 @@ $$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} + e^{
 
 DeepXDE's own script, run unchanged on the same GPU, ends with a similar loss (and the same Adam loss spikes near the end of training).
 
-**Result (RTX 4090):** L2 = 9.9e-8 ($t = 0$), 1.4e-2 ($t = 0.25$), 3.4e-2 ($t = 0.5$), 6.7e-2 ($t = 0.75$), 0.11 ($t = 1$)
+**Result (RTX 4090):** $L_2$ = 9.9 × 10⁻⁸ ($t = 0$), 1.4 × 10⁻² ($t = 0.25$), 3.4 × 10⁻² ($t = 0.5$), 6.7 × 10⁻² ($t = 0.75$), 1.1 × 10⁻¹ ($t = 1$)
 
 *u — PINN solution over time*
 
@@ -1457,7 +1457,7 @@ $$\Large \frac{\partial u}{\partial t} = D_{0+}^{\alpha}u + D_{1-}^{\alpha}u - e
 - **Training:** Adam 10,000; 400 domain, 2 boundary, 2 initial points
 - **GUI recipe:** Quick Examples → Category **Forward** → **Fractional diffusion 1D**
 
-**Result (RTX 4090):** L2 = 1.0e-7 ($t = 0$), 1.4e-3 ($t = 0.25$), 5.8e-3 ($t = 0.5$), 2.4e-3 ($t = 0.75$), 3.3e-3 ($t = 1$)
+**Result (RTX 4090):** $L_2$ = 1.0 × 10⁻⁷ ($t = 0$), 1.4 × 10⁻³ ($t = 0.25$), 5.8 × 10⁻³ ($t = 0.5$), 2.4 × 10⁻³ ($t = 0.75$), 3.3 × 10⁻³ ($t = 1$)
 
 *u — PINN solution over time*
 
@@ -1504,7 +1504,7 @@ $$\Large \frac{\partial u}{\partial t} = 0.4\frac{\partial^2 u}{\partial x^2}, \
 
 The solution decays to about 2% of its initial size by $t = 1$, so the relative error grows over time even though the absolute error stays small.
 
-**Result (RTX 4090):** L2 = 4.2e-4 ($t = 0$), 9.1e-4 ($t = 0.25$), 2.2e-3 ($t = 0.5$), 9.5e-3 ($t = 0.75$), 5.0e-2 ($t = 1$)
+**Result (RTX 4090):** $L_2$ = 4.2 × 10⁻⁴ ($t = 0$), 9.1 × 10⁻⁴ ($t = 0.25$), 2.2 × 10⁻³ ($t = 0.5$), 9.5 × 10⁻³ ($t = 0.75$), 5.0 × 10⁻² ($t = 1$)
 
 *u — PINN solution over time*
 
@@ -1531,7 +1531,7 @@ $$\Large \frac{\partial u}{\partial t} = 0.4\frac{\partial^2 u}{\partial x^2}, \
 - **Training:** Adam 200,000 → L-BFGS 15,000; 2,540 domain, 80 boundary, 160 initial points
 - **GUI recipe:** Quick Examples → Category **Forward** → **Heat 1D – resampling**
 
-**Result (RTX 4090):** L2 = 1.6e-4 ($t = 0$), 4.6e-4 ($t = 0.25$), 5.8e-4 ($t = 0.5$), 4.1e-3 ($t = 0.75$), 1.4e-2 ($t = 1$)
+**Result (RTX 4090):** $L_2$ = 1.6 × 10⁻⁴ ($t = 0$), 4.6 × 10⁻⁴ ($t = 0.25$), 5.8 × 10⁻⁴ ($t = 0.5$), 4.1 × 10⁻³ ($t = 0.75$), 1.4 × 10⁻² ($t = 1$)
 
 *u — PINN solution over time*
 
@@ -1559,7 +1559,7 @@ $$\Large \frac{\partial^2 u}{\partial t^2} - \frac{\partial^2 u}{\partial x^2} +
 - **Training:** Adam 20,000 → L-BFGS 15,000; 30,000 domain, 1,500 boundary, 1,500 initial points
 - **GUI recipe:** Quick Examples → Category **Forward** → **Klein-Gordon 1D**
 
-**Result (RTX 4090):** L2 = 1.4e-3 ($t = 0$), 1.6e-2 ($t = 2.5$), 8.5e-2 ($t = 5$), 6.5e-2 ($t = 7.5$), 8.1e-2 ($t = 10$)
+**Result (RTX 4090):** $L_2$ = 1.4 × 10⁻³ ($t = 0$), 1.6 × 10⁻² ($t = 2.5$), 8.5 × 10⁻² ($t = 5$), 6.5 × 10⁻² ($t = 7.5$), 8.1 × 10⁻² ($t = 10$)
 
 *u — PINN solution over time*
 
@@ -1585,7 +1585,7 @@ $$\Large i\frac{\partial h}{\partial t} + \frac{1}{2}\frac{\partial^2 h}{\partia
 - **Training:** Adam 10,000 → L-BFGS 10,000; 10,000 domain, 20 boundary, 200 initial points
 - **GUI recipe:** Quick Examples → Category **Forward** → **Schrödinger 1D**
 
-**Result (RTX 4090):** L2 of $|h|$ = 1.5e-3 ($t = 0$), 3.2e-2 ($t = 0.25$), 5.8e-2 ($t = 0.5$), 0.12 ($t = 0.75$), 0.14 ($t = 1$), 0.13 ($t = 1.25$), 8.6e-2 ($t = 1.5$)
+**Result (RTX 4090):** $L_2$ of $|h|$ = 1.5 × 10⁻³ ($t = 0$), 3.2 × 10⁻² ($t = 0.25$), 5.8 × 10⁻² ($t = 0.5$), 1.2 × 10⁻¹ ($t = 0.75$), 1.4 × 10⁻¹ ($t = 1$), 1.3 × 10⁻¹ ($t = 1.25$), 8.6 × 10⁻² ($t = 1.5$)
 
 *|h| — PINN solution over time*
 
@@ -1644,9 +1644,9 @@ $$\Large \frac{\partial^2 u}{\partial t^2} = C^2\frac{\partial^2 u}{\partial x^2
 - **Training:** Adam 10,000; 360 domain, 360 boundary, 360 initial points
 - **GUI recipe:** Quick Examples → Category **Forward** → **Wave 1D – space-time multi-scale Fourier features**
 
-Collocation points are redrawn every iteration from a pseudo-random distribution. DeepXDE's script keeps the default Hammersley distribution, which is deterministic, so its resampler redraws the same 360 points: run that way, the network fits them (training loss 4e-5) but not the wave in between (test loss near 1, L2 ≈ 1 for t > 0). This is a hard problem in 10,000 iterations — the error grows with t; longer training improves it.
+Collocation points are redrawn every iteration from a pseudo-random distribution. DeepXDE's script keeps the default Hammersley distribution, which is deterministic, so its resampler redraws the same 360 points: run that way, the network fits them (training loss 4 × 10⁻⁵) but not the wave in between (test loss near 1, $L_2$ ≈ 1 for t > 0). This is a hard problem in 10,000 iterations — the error grows with t; longer training improves it.
 
-**Result (RTX 4090):** L2 = 7.7e-4 ($t = 0$), 4.5e-2 ($t = 0.25$), 9.8e-2 ($t = 0.5$), 0.10 ($t = 0.75$), 0.14 ($t = 1$)
+**Result (RTX 4090):** $L_2$ = 7.7 × 10⁻⁴ ($t = 0$), 4.5 × 10⁻² ($t = 0.25$), 9.8 × 10⁻² ($t = 0.5$), 1.0 × 10⁻¹ ($t = 0.75$), 1.4 × 10⁻¹ ($t = 1$)
 
 *u — PINN solution over time*
 
@@ -1672,7 +1672,7 @@ $$\Large \frac{\partial u}{\partial t} = C\frac{\partial^2 u}{\partial x^2} - e^
 - **Training:** Adam 50,000; 40 domain, 20 boundary, 10 initial points
 - **GUI recipe:** Quick Examples → Category **Inverse** → **Diffusion 1D – unknown coefficient**
 
-**Result (RTX 4090):** $C$ = 0.9988 (true 1); L2 = 1.2e-3 ($t = 0$), 1.8e-3 ($t = 0.25$), 1.9e-3 ($t = 0.5$), 2.8e-3 ($t = 0.75$), 3.1e-3 ($t = 1$)
+**Result (RTX 4090):** $C$ = 0.9988 (true 1); $L_2$ = 1.2 × 10⁻³ ($t = 0$), 1.8 × 10⁻³ ($t = 0.25$), 1.9 × 10⁻³ ($t = 0.5$), 2.8 × 10⁻³ ($t = 0.75$), 3.1 × 10⁻³ ($t = 1$)
 
 *u — PINN solution over time*
 
@@ -1734,7 +1734,7 @@ $$\Large -(-\Delta)^{\alpha/2}u = 2^{\alpha}\Gamma(2 + \tfrac{\alpha}{2})\Gamma(
 - **Training:** Adam 20,000; 100 domain points
 - **GUI recipe:** Quick Examples → Category **Forward** → **Fractional Poisson 2D – disk**
 
-**Result (RTX 4090):** L2 = 3.1e-3
+**Result (RTX 4090):** $L_2$ = 3.1 × 10⁻³
 
 *PINN vs reference, error analysis*
 
@@ -1756,7 +1756,7 @@ $$\Large -\nabla^2 u - k_0^2 u = k_0^2\sin(k_0 x)\sin(k_0 y), \qquad k_0 = 4\pi,
 - **Training:** Adam 5,000; 400 domain, 80 boundary points
 - **GUI recipe:** Quick Examples → Category **Forward** → **Helmholtz 2D – Dirichlet**
 
-**Result (RTX 4090):** L2 = 1.9e-3
+**Result (RTX 4090):** $L_2$ = 1.9 × 10⁻³
 
 *PINN vs reference, error analysis*
 
@@ -1780,7 +1780,7 @@ $$\Large -\nabla^2 u - k_0^2 u = k_0^2\sin(k_0 x)\sin(k_0 y), \qquad k_0 = 4\pi,
 - **Training:** Adam 10,000; 400 domain, 80 boundary points
 - **GUI recipe:** Quick Examples → Category **Forward** → **Helmholtz 2D – hyperparameter search**
 
-**Result (RTX 4090):** the baseline (lr $10^{-3}$, 4 × 50, sin) ends at final loss 5.7 (L2 = 0.33); the best of the 50 runs — lr $1.5\times10^{-3}$, 3 hidden layers of 87, sin — reaches final loss 0.020 and **L2 = 1.3e-3** (about 40 minutes for all 50 runs)
+**Result (RTX 4090):** the baseline (lr $10^{-3}$, 4 × 50, sin) ends at final loss 5.7 ($L_2$ = 3.3 × 10⁻¹); the best of the 50 runs — lr $1.5\times10^{-3}$, 3 hidden layers of 87, sin — reaches final loss 0.020 and **$L_2$ = 1.3 × 10⁻³** (about 40 minutes for all 50 runs)
 
 *PINN vs reference, error analysis*
 
@@ -1809,7 +1809,7 @@ $$\Large -\nabla^2 u - k_0^2 u = 0, \qquad u = u_{re} + i\,u_{im},\ k_0 = 2$$
 - **Training:** Adam 10,000; 1,600 domain, 320 boundary points
 - **GUI recipe:** Quick Examples → Category **Forward** → **Helmholtz 2D – sound-hard scattering**
 
-**Result (RTX 4090):** L2 = 7.8e-2 ($u_{re}$), 6.7e-2 ($u_{im}$) — DeepXDE's own script, run unchanged on the same GPU, ends at 9.1e-2 (best 7.1e-2)
+**Result (RTX 4090):** $L_2$ = 7.8 × 10⁻² ($u_{re}$), 6.7 × 10⁻² ($u_{im}$) — DeepXDE's own script, run unchanged on the same GPU, ends at 9.1 × 10⁻² (best 7.1 × 10⁻²)
 
 *u_re — PINN vs reference, error analysis*
 
@@ -1836,7 +1836,7 @@ $$\Large -\nabla^2 u - k_0^2 u = k_0^2\sin(k_0 x)\sin(k_0 y), \qquad k_0 = 2\pi$
 - **Training:** Adam 5,000; 225 domain, 240 boundary points
 - **GUI recipe:** Quick Examples → Category **Forward** → **Helmholtz 2D – square with hole**
 
-**Result (RTX 4090):** L2 = 4.6e-2
+**Result (RTX 4090):** $L_2$ = 4.6 × 10⁻²
 
 *PINN vs reference, error analysis*
 
@@ -1859,7 +1859,7 @@ $$\Large r\frac{\partial u}{\partial r} + r^2\frac{\partial^2 u}{\partial r^2} +
 - **Training:** Adam 15,000; 2,540 domain, 80 boundary points
 - **GUI recipe:** Quick Examples → Category **Forward** → **Laplace 2D – disk**
 
-**Result (RTX 4090):** L2 = 1.1e-3
+**Result (RTX 4090):** $L_2$ = 1.1 × 10⁻³
 
 *PINN vs reference, error analysis*
 
@@ -1885,9 +1885,9 @@ $$\Large \sigma_{xx} = (\lambda + 2\mu)\varepsilon_{xx} + \lambda\varepsilon_{yy
 - **Training:** Adam 20,000 → L-BFGS 20,000; 500 domain, 500 boundary points
 - **GUI recipe:** Quick Examples → Category **Forward** → **Linear elasticity 2D – plate**
 
-**Note — more training than DeepXDE's script.** DeepXDE's script trains 5,000 Adam iterations, which are not enough for this problem: with exactly those settings the L2 errors are 0.35, 0.59, 0.19, 0.48 and 1.6 for $u_x, u_y, \sigma_{xx}, \sigma_{yy}, \sigma_{xy}$ (DeepXDE's own script, run unchanged on the same GPU, also ends at 0.33–0.36). This example therefore trains **20,000 Adam + 20,000 L-BFGS iterations** (Training Phases 1 and 2; about 9 minutes on an RTX 4090), and the results below are for these settings.
+**Note — more training than DeepXDE's script.** DeepXDE's script trains 5,000 Adam iterations, which are not enough for this problem: with exactly those settings the $L_2$ errors are 3.5 × 10⁻¹, 5.9 × 10⁻¹, 1.9 × 10⁻¹, 4.8 × 10⁻¹ and 1.6 for $u_x, u_y, \sigma_{xx}, \sigma_{yy}, \sigma_{xy}$ (DeepXDE's own script, run unchanged on the same GPU, also ends at 3.3 × 10⁻¹–3.6 × 10⁻¹). This example therefore trains **20,000 Adam + 20,000 L-BFGS iterations** (Training Phases 1 and 2; about 9 minutes on an RTX 4090), and the results below are for these settings.
 
-**Result (RTX 4090):** L2 = 4.9e-2 ($u_x$), 4.3e-2 ($u_y$), 7.2e-3 ($\sigma_{xx}$), 2.0e-2 ($\sigma_{yy}$), 6.7e-2 ($\sigma_{xy}$) — 20,000 Adam + 20,000 L-BFGS (DeepXDE's 5,000 Adam alone: 0.35, 0.59, 0.19, 0.48, 1.6)
+**Result (RTX 4090):** $L_2$ = 4.9 × 10⁻² ($u_x$), 4.3 × 10⁻² ($u_y$), 7.2 × 10⁻³ ($\sigma_{xx}$), 2.0 × 10⁻² ($\sigma_{yy}$), 6.7 × 10⁻² ($\sigma_{xy}$) — 20,000 Adam + 20,000 L-BFGS (DeepXDE's 5,000 Adam alone: 3.5 × 10⁻¹, 5.9 × 10⁻¹, 1.9 × 10⁻¹, 4.8 × 10⁻¹, 1.6)
 
 *ux — PINN vs reference, error analysis*
 
@@ -1925,9 +1925,9 @@ $$\Large \frac{\partial \sigma_{xx}}{\partial x} + \frac{\partial \sigma_{xy}}{\
 - **Training:** Adam 20,000 → L-BFGS 20,000; 500 domain, 500 boundary points
 - **GUI recipe:** Quick Examples → Category **Forward** → **Linear elasticity 2D – plate, soft BCs**
 
-**Note — more training than DeepXDE's script.** As for the plate above, DeepXDE's 5,000 Adam iterations are not enough (L2 errors 0.02–0.08 with exactly those settings), so this example trains **20,000 Adam + 20,000 L-BFGS iterations** (about 7 minutes on an RTX 4090); the results below are for these settings. With soft boundary conditions the plate trains more easily than with the hard output transform.
+**Note — more training than DeepXDE's script.** As for the plate above, DeepXDE's 5,000 Adam iterations are not enough ($L_2$ errors 2 × 10⁻²–8 × 10⁻² with exactly those settings), so this example trains **20,000 Adam + 20,000 L-BFGS iterations** (about 7 minutes on an RTX 4090); the results below are for these settings. With soft boundary conditions the plate trains more easily than with the hard output transform.
 
-**Result (RTX 4090):** L2 = 4.9e-4 ($u_x$), 1.1e-3 ($u_y$), 6.4e-4 ($\sigma_{xx}$), 9.6e-4 ($\sigma_{yy}$), 2.7e-3 ($\sigma_{xy}$) — 20,000 Adam + 20,000 L-BFGS (DeepXDE's 5,000 Adam alone: 2.4e-2 to 7.8e-2)
+**Result (RTX 4090):** $L_2$ = 4.9 × 10⁻⁴ ($u_x$), 1.1 × 10⁻³ ($u_y$), 6.4 × 10⁻⁴ ($\sigma_{xx}$), 9.6 × 10⁻⁴ ($\sigma_{yy}$), 2.7 × 10⁻³ ($\sigma_{xy}$) — 20,000 Adam + 20,000 L-BFGS (DeepXDE's 5,000 Adam alone: 2.4 × 10⁻² to 7.8 × 10⁻²)
 
 *ux — PINN vs reference, error analysis*
 
@@ -1966,7 +1966,7 @@ $$\Large (\mathbf u\cdot\nabla)\mathbf u + \nabla p = \frac{1}{Re}\nabla^2\mathb
 - **Training:** Adam 30,000 → L-BFGS 15,000; 2,601 domain, 400 boundary points
 - **GUI recipe:** Quick Examples → Category **Forward** → **Navier-Stokes 2D – Kovasznay flow**
 
-**Result (RTX 4090):** L2 = 2.1e-4 ($u$), 9.0e-4 ($v$), 5.4e-4 ($p$)
+**Result (RTX 4090):** $L_2$ = 2.1 × 10⁻⁴ ($u$), 9.0 × 10⁻⁴ ($v$), 5.4 × 10⁻⁴ ($p$)
 
 *u — PINN vs reference, error analysis*
 
@@ -2008,7 +2008,7 @@ $$\Large -\nabla^2 u = 1, \qquad \Omega = [-1, 1]^2 \setminus [0, 1]\times[-1, 0
 - **Training:** Adam 50,000 → L-BFGS 15,000; 1,200 domain, 120 boundary points
 - **GUI recipe:** Quick Examples → Category **Forward** → **Poisson 2D – L-shape**
 
-**Result (RTX 4090):** L2 = 3.5e-2
+**Result (RTX 4090):** $L_2$ = 3.5 × 10⁻²
 
 *PINN vs reference, error analysis*
 
@@ -2048,7 +2048,7 @@ $$\Large -(-\Delta)^{\alpha/2}u = 2^{\alpha_0}\Gamma(2 + \tfrac{\alpha_0}{2})\Ga
 - **Training:** Adam 10,000; 64 domain points
 - **GUI recipe:** Quick Examples → Category **Inverse** → **Fractional Poisson 2D – unknown order α**
 
-**Result (RTX 4090):** $\alpha$ = 1.805 (true 1.8); L2 of $u$ = 1.9e-3
+**Result (RTX 4090):** $\alpha$ = 1.805 (true 1.8); $L_2$ of $u$ = 1.9 × 10⁻³
 
 *PINN vs reference, error analysis*
 
@@ -2213,7 +2213,7 @@ $$\Large -(-\Delta)^{\alpha/2}u = \frac{2^{\alpha}\Gamma(2 + \frac{\alpha}{2})\G
 - **Training:** Adam 10,000; 256 domain points
 - **GUI recipe:** Quick Examples → Category **Forward** → **Fractional Poisson 3D – sphere**
 
-**Result (RTX 4090):** L2 = 7.5e-3
+**Result (RTX 4090):** $L_2$ = 7.5 × 10⁻³
 
 *PINN vs reference, error analysis*
 
@@ -2282,7 +2282,7 @@ $$\Large \frac{\partial \mathbf u}{\partial t} + (\mathbf u\cdot\nabla)\mathbf u
 
 **Why the pressure error is large.** This example is DeepXDE's script without changes: like the script, it gives boundary and initial conditions for the velocity $u, v, w$ only, and none for $p$. The pressure enters the equations only through its gradient $\nabla p$, so $p$ and $p + C$ satisfy them equally well for any constant $C$ — the training has nothing that fixes $C$. The PINN's pressure has the right shape but is shifted by a constant (about 24.7 in this run). The exact pressure decays like $e^{-2t}$ while the shift stays the same, so the relative error of $p$ grows with time: 5.6 at $t = 0$, $5.6\,e^{1} \approx 15$ at $t = 0.5$ and $5.6\,e^{2} \approx 41$ at $t = 1$ — exactly the reported values. DeepXDE's script computes the pressure error too but does not print it; it reports only $u, v, w$. Fixing $p$ at a single point (a Point Set BC row on $p$) would remove the free constant.
 
-**Result (RTX 4090):** L2 at $t = 0, 0.5, 1$: $u$ 1.9e-4, 3.5e-4, 1.4e-3; $v$ 1.8e-4, 2.7e-4, 7.3e-4; $w$ 1.9e-4, 3.6e-4, 1.2e-3; $p$ 5.6, 15, 41 (a constant offset of about 24.7, see above)
+**Result (RTX 4090):** $L_2$ at $t = 0, 0.5, 1$: $u$ 1.9 × 10⁻⁴, 3.5 × 10⁻⁴, 1.4 × 10⁻³; $v$ 1.8 × 10⁻⁴, 2.7 × 10⁻⁴, 7.3 × 10⁻⁴; $w$ 1.9 × 10⁻⁴, 3.6 × 10⁻⁴, 1.2 × 10⁻³; $p$ 5.6, 15, 41 (a constant offset of about 24.7, see above)
 
 *u — PINN solution over time*
 

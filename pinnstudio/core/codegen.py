@@ -7700,7 +7700,7 @@ if _parametric and len(_summary) > 0:
     ax.set_xlabel(_param_name, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel("Final Loss", fontsize={config.plot_axis_label_fontsize})
     ax.set_title(f"Parametric Study — Effect of {{_param_name}}")
     for bar, loss in zip(bars, losses):
-        ax.text(bar.get_x() + bar.get_width()/2, loss, f"{{loss:.2e}}", ha="center", va="bottom", fontsize=9)
+        ax.text(bar.get_x() + bar.get_width()/2, loss, _sci_txt(loss), ha="center", va="bottom", fontsize=9)
     plt.tight_layout()
     _summary_path = _os.path.join(_save_dir if _use_save else "/tmp", "parametric_summary.png")
     plt.savefig(_summary_path, dpi=100); plt.close()
@@ -8533,7 +8533,14 @@ def _sci_txt(_v, _d=2):
 
 def _l2_txt(_v, _d=2):
     # The relative L2 error as it is written in papers: italic L, subscript 2.
-    return "$L_2$ = " + _sci_txt(_v, _d)"""
+    return "$L_2$ = " + _sci_txt(_v, _d)
+
+# Axis and colorbar numbers: values below 1e-2 (or from 1e5 up) are shown as
+# plain ticks with one "x 10^n" factor, written in mathtext, instead of long
+# decimals such as 0.000225 or e-notation.
+import matplotlib as _mpl_sci
+_mpl_sci.rcParams["axes.formatter.use_mathtext"] = True
+_mpl_sci.rcParams["axes.formatter.limits"] = (-2, 5)"""
 
 
 def _param_axis_helper_code(axis_label_fontsize, subplot_title_fontsize):
