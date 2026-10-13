@@ -23,8 +23,8 @@ REFERENCE_DATA_DIR = os.path.join(
 
 
 class ExampleCombo(QComboBox):
-    """Quick Examples list: shows each example's name and source
-    ("Burgers 1D – RAR  ·  DeepXDE") under dimension headers, while
+    """Quick Examples list: shows each example's name
+    ("Burgers 1D – RAR") under dimension headers, while
     currentText()/setCurrentText() and keyChanged work with the example's
     internal key ("Burgers equation with RAR", "1D Burgers", or "None") --
     the name the rest of the GUI, saved projects and tests use."""

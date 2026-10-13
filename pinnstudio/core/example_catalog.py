@@ -5,8 +5,9 @@ README's Examples table, so both show the same names in the same order.
 
 Names follow one style, "Equation Dimension – detail" (the detail only
 where it is needed: boundary conditions, method, geometry, the paper, or
-what an inverse example learns); the source (PINNStudio / DeepXDE) is a
-separate tag. Each entry keeps its internal key -- the template's or
+what an inverse example learns), and every name is unique, so the GUI
+shows the name alone. The README adds where each example comes from: the
+DeepXDE script (code_url) or the template's paper (PAPERS). Each entry keeps its internal key -- the template's or
 DeepXDE example's original name -- which saved projects, tests and the
 code that sets a template up still use; only the shown name changed.
 
@@ -39,8 +40,8 @@ class Entry:
 
     @property
     def label(self):
-        """How the entry appears in the Quick Examples list."""
-        return f"{self.name}  ·  {self.source}"
+        """How the entry appears in the Quick Examples list (the name alone)."""
+        return self.name
 
 
 # PINNStudio templates: key, shown name, dimension, regime, geometry, paper.
@@ -55,12 +56,48 @@ _TEMPLATES = [
     ("2D Allen-Cahn (Wight & Zhao)", "Allen-Cahn 2D – Wight & Zhao", "2D", "Time-dependent", "Rectangle",
      "Wight & Zhao (2021)"),
     ("2D Burgers (Mathias)", "Burgers 2D – Mathias et al.", "2D", "Time-dependent", "Rectangle", "Mathias et al. (2022)"),
-    ("2D Poisson (L-Shape)", "Poisson 2D – L-shape", "2D", "Steady", "Polygon (L-shape)", "Lu et al. (2021)"),
+    ("2D Poisson (L-Shape)", "Poisson 2D – L-shape, Lu et al.", "2D", "Steady", "Polygon (L-shape)", "Lu et al. (2021)"),
     ("2D Poisson (Disk)", "Poisson 2D – disk", "2D", "Steady", "Disk", ""),
     ("3D Heat", "Heat 3D", "3D", "Time-dependent", "Cuboid", ""),
     ("3D Poisson (Sphere)", "Poisson 3D – sphere", "3D", "Steady", "Sphere", ""),
 ]
 TEMPLATE_KEYS = tuple(t[0] for t in _TEMPLATES)
+
+# The templates' papers (Entry.reference) -> DOI / arXiv link.
+PAPERS = {
+    "Raissi et al. (2019)": "https://doi.org/10.1016/j.jcp.2018.10.045",
+    "Wight & Zhao (2021)": "https://doi.org/10.4208/cicp.OA-2020-0086",
+    "Mattey & Ghosh (2022)": "https://doi.org/10.1016/j.cma.2021.114474",
+    "Mathias et al. (2022)": "https://arxiv.org/abs/2301.07824",
+    "Lu et al. (2021)": "https://doi.org/10.1137/19M1274067",
+}
+
+_DEEPXDE_CODE_ROOT = "https://github.com/lululxvi/deepxde/blob/master/examples/"
+# DeepXDE documentation page -> the example's script in DeepXDE's repository.
+_DOC_TO_SCRIPT = {
+    "ode.system": "ode_system.py", "Lotka.Volterra": "Lotka_Volterra.py", "ode.2nd": "ode_2nd.py", "ide": "ide.py",
+    "poisson.1d.dirichlet": "Poisson_Dirichlet_1d.py", "poisson.1d.neumanndirichlet": "Poisson_Neumann_1d.py",
+    "poisson.1d.dirichletrobin": "Poisson_Robin_1d.py", "poisson.1d.dirichletperiodic": "Poisson_periodic_1d.py",
+    "poisson.1d.pointsetoperator": "Poisson_PointSetOperator_1d.py", "poisson.Lshape": "Poisson_Lshape.py",
+    "laplace.disk": "Laplace_disk.py", "eulerbeam": "Euler_beam.py", "elasticity.plate": "elasticity_plate.py",
+    "helmholtz.2d.dirichlet": "Helmholtz_Dirichlet_2d.py", "helmholtz.2d.neumann.hole": "Helmholtz_Neumann_2d_hole.py",
+    "Kovasznay.flow": "Kovasznay_flow.py", "burgers": "Burgers.py", "burgers.rar": "Burgers_RAR.py", "heat": "heat.py",
+    "heat.resample": "heat_resample.py", "diffusion.1d": "diffusion_1d.py", "diffusion.1d.exactBC": "diffusion_1d_exactBC.py",
+    "diffusion.1d.resample": "diffusion_1d_resample.py", "diffusion.reaction": "diffusion_reaction.py",
+    "allen.cahn": "Allen_Cahn.py", "klein.gordon": "Klein_Gordon.py", "black_scholes": "black_scholes_call.py",
+    "Lorenz.inverse": "Lorenz_inverse.py", "Lorenz.inverse.forced": "Lorenz_inverse_forced.py",
+    "diffusion.1d.inverse": "diffusion_1d_inverse.py", "reaction.inverse": "reaction_inverse.py",
+    "elliptic.inverse.field": "elliptic_inverse_field.py",
+}
+
+
+def code_url(source):
+    """The DeepXDE example's script on GitHub, from its documented source
+    (a documentation page or already the script)."""
+    if "github.com" in source:
+        return source
+    folder, page = source.split("/demos/")[1].split("/")
+    return _DEEPXDE_CODE_ROOT + folder + "/" + _DOC_TO_SCRIPT[page[:-len(".html")]]
 
 # DeepXDE examples: internal name -> shown name.
 DEEPXDE_NAMES = {
@@ -88,7 +125,7 @@ DEEPXDE_NAMES = {
     "Allen-Cahn equation": "Allen-Cahn 1D",
     "Burgers equation": "Burgers 1D",
     "Burgers equation with RAR": "Burgers 1D – RAR",
-    "Heat equation": "Heat 1D",
+    "Heat equation": "Heat 1D – Dirichlet",
     "Heat equation with resampling": "Heat 1D – resampling",
     "Schrödinger equation": "Schrödinger 1D",
     "Diffusion equation": "Diffusion 1D",
