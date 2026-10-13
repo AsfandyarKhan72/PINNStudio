@@ -146,7 +146,8 @@ def run():
         for row in json.loads(ex.settings.get("custom_bc_json", "[]")):
             loc = row.get("location", "")
             if "isclose" in loc:
-                check(ex.name == "Helmholtz 2D with a hole", f"{ex.name}: only the hole needs np.isclose ({loc})")
+                check(ex.name in ("Helmholtz 2D with a hole", "Helmholtz sound-hard scattering (absorbing BC)"),
+                      f"{ex.name}: only the holes need np.isclose ({loc})")
     rows = json.loads(dx.BY_NAME["Poisson 1D – Dirichlet/Neumann"].settings["custom_bc_json"])
     check([(r["location"], r["value"]) for r in rows] == [("left", "0"), ("right", "4")],
           "Dirichlet/Neumann example: left 0, right 4")

@@ -4977,7 +4977,7 @@ if _problem_type == "Inverse":
 {_frac_helper_code(config)}
 _IS_FECR = False
 # ── PDE definition (standard) ───────────────────────────────
-def _pde_standard(x, y, _int_mat=None):
+def _pde_standard(x, y{", _int_mat=None" if "_frac(" in (config.pde_expressions or "") else ""}):
     _n_out = {config.num_outputs}
     _n_eq = {_n_equations(config)}
     _out_names = [n.strip() for n in {repr(config.output_names)}.split(",")]
@@ -5140,7 +5140,7 @@ def _pde_standard(x, y, _int_mat=None):
     else:
         _pde_exprs = {repr(config_pde_expressions)}.split("|")[:_n_eq]
         _res = [eval(_expr.strip(), _eval_ns) for _expr in _pde_exprs]
-    if _int_mat is not None and "_frac_apply" in globals():
+    if "_frac_apply" in globals() and _int_mat is not None:
         # fractional problem: the residual lives on the FPDE points only
         _nr = _frac_rows(_int_mat)
         _res = [_r[:_nr] for _r in _res] if isinstance(_res, list) else _res[:_nr]

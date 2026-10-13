@@ -320,7 +320,7 @@ EXAMPLES = [
         dict(pde_expressions="du_tt - C**2*du_xx", ic_expressions="sin(pi*x) + sin(A*pi*x)", ic_active="True",
              custom_bc_json=_bcs(_bc("dirichlet", "True", "0"),
                                  _bc("operator", "True", "du_t", apply_at="initial")),
-             num_domain=360, num_boundary=360, num_initial=360, num_test=10000,
+             num_domain=360, num_boundary=360, num_initial=360, num_test=10000, point_distribution="pseudo",
              cb_point_resampler=True, cb_point_resampler_period=1, cb_point_resampler_pde_points=True,
              input_transform_enabled=True, input_transform_mode="formula",
              input_feature_formula="(x - 0.5)*2*sqrt(3); (t - 0.5)*2*sqrt(3)",
@@ -332,7 +332,9 @@ EXAMPLES = [
         note="Space-time multi-scale Fourier feature network (space scale 1, time scales 1 and 10) for a wave "
              "that oscillates fast in time. Loss weights are set from the initial losses (5 / L_i(0)), as in "
              "DeepXDE's script; the inputs are rescaled to zero mean and unit variance by an input-transform "
-             "formula; collocation points are redrawn every iteration. DeepXDE's script passes the exact "
+             "formula; collocation points are redrawn every iteration -- pseudo-random here: DeepXDE's script keeps the default "
+             "Hammersley distribution, which is deterministic, so its resampler redraws the same points and the network "
+             "overfits them (test loss stays near 1). DeepXDE's script passes the exact "
              "solution as the boundary value; it is 0 at x = 0 and 1."),
 
     _ex("Poisson over an L-shaped domain", FORWARD, _DOCS + "pinn_forward/poisson.Lshape.html",

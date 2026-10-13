@@ -285,10 +285,11 @@ def run():
     check(_read_last_l2(_Fake(), now) == 0.123,
           "a results file written after the run's own start time should be read correctly")
 
-    # ── v68: sweep mode combo still has the 3 COMSOL-style options ───
+    # ── v68: sweep mode combo has the 3 COMSOL-style options, then
+    # Round 75's Bayesian search ───
     mode_data = [win.sweep_mode_combo.itemData(i) for i in range(win.sweep_mode_combo.count())]
-    check(mode_data == ["oat", "grid", "zip"],
-          f"expected exactly 3 sweep modes in order [oat, grid, zip], got {mode_data}")
+    check(mode_data == ["oat", "grid", "zip", "bayes"],
+          f"expected exactly 4 sweep modes in order [oat, grid, zip, bayes], got {mode_data}")
 
     # ── Sweep Parameters live inline in the left panel's "Parameter
     # Sweep" group, no nested/height-capped inner scroll area ────────
