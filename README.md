@@ -34,9 +34,10 @@
 
 <p align="center">
   <strong><a href="https://asfandyarkhan72.github.io/PINNStudio/">Website</a></strong> &nbsp;·&nbsp;
+  <strong><a href="#installation">Install</a></strong> &nbsp;·&nbsp;
   <strong><a href="#quick-start">Quick Start</a></strong> &nbsp;·&nbsp;
   <strong><a href="#examples">Examples</a></strong> &nbsp;·&nbsp;
-  <strong><a href="#getting-started-with-your-own-pde">Your Own PDE</a></strong> &nbsp;·&nbsp;
+  <strong><a href="#solving-your-own-problem">Your Own Problem</a></strong> &nbsp;·&nbsp;
   <strong><a href="https://github.com/AsfandyarKhan72/PINNStudio/discussions">Discussions</a></strong> &nbsp;·&nbsp;
   <strong><a href="#citation">Citation</a></strong>
 </p>
@@ -44,58 +45,21 @@
 <details>
 <summary><strong>Table of contents</strong></summary>
 
-- [Quick Install](#quick-install)
 - [Overview](#overview)
 - [Demo Video](#demo-video)
-- [Features](#features)
-- [Repository Structure](#repository-structure)
+- [Installation](#installation)
 - [Quick Start](#quick-start)
-- [Running PINNStudio Again](#running-pinnstudio-again)
-- [What Gets Installed](#what-gets-installed)
 - [Examples](#examples)
-- [Getting Started with Your Own PDE](#getting-started-with-your-own-pde)
+- [Features](#features)
+- [Solving Your Own Problem](#solving-your-own-problem)
 - [How It Works](#how-it-works)
+- [Repository Structure](#repository-structure)
 - [Citation](#citation)
 - [References](#references)
 - [Acknowledgment](#acknowledgment)
 - [Contributing](#contributing)
 - [Contact](#contact)
 - [License](#license)
-
-</details>
-
----
-
-## Quick Install
-
-**The fastest way to try PINNStudio** (any OS, no GPU-driver matching):
-
-```bash
-pip install pinnstudio
-pinnstudio
-```
-
-**Have an NVIDIA GPU?** Use the full install script instead - it detects your GPU and automatically installs a matching PyTorch build for you, which the plain pip install above does not do. See [Quick Start](#quick-start) below.
-
-<details>
-<summary><strong>Command not found after <code>pip install</code>?</strong></summary>
-
-- **<code>pip: command not found</code>?** Use <code>pip3</code> instead - many systems (macOS especially) only ship <code>pip3</code>, not a plain <code>pip</code>.
-- **<code>pinnstudio: command not found</code> even though the install said it succeeded?** pip installed it into a per-user folder that is not on your shell's PATH yet. The install output actually tells you the exact folder, in a line like <code>WARNING: The script pinnstudio is installed in '.../bin' which is not on PATH.</code> Add that folder to your PATH:
-
-```bash
-echo 'export PATH="<folder from the warning above>:$PATH"' >> ~/.zshrc
-source ~/.zshrc
-```
-
-(Use <code>~/.bashrc</code> instead of <code>~/.zshrc</code> if your shell is bash.) Then <code>pinnstudio</code> should launch directly. This never comes up with <code>install.sh</code>/<code>install.bat</code>, since those use a virtual environment where the command is always found automatically.
-
-- **The suggested GPU fix command itself fails with a <code>flit_core</code> or "Could not find a version that satisfies" error?** Your pip is too old to resolve PyTorch's package index correctly. Upgrade it first, then retry:
-
-```bash
-python -m pip install --upgrade pip
-pip install torch --index-url https://download.pytorch.org/whl/cu121 --force-reinstall
-```
 
 </details>
 
@@ -136,329 +100,47 @@ PINNStudio is under active development, and we are extending it with newer scien
 
 *Click to watch a full walkthrough of the PDE setup panel on YouTube.*
 
-## Features
+## Installation
 
-### Problem Setup
+**Quickest way to try PINNStudio** (any operating system):
 
-<details>
-<summary><strong>ODE, 1D, 2D, and 3D problems</strong></summary>
-
-Problems are defined over `t` (ODEs), `(x, t)`, `(x, y, t)` or `(x, y, z, t)`, or without the time axis for steady-state problems in `x`, `(x, y)` or `(x, y, z)`. Changing the dimension rebuilds the related controls (geometry, boundary-condition rows, plot options), so no setting from the previous dimension is carried over by mistake.
-
-**ODEs** have time as the only variable: derivatives are written `du_t`, `du_tt` (one equation per output for a system, e.g. `dy1_t - y2|dy2_t + y1`), initial values are set in the Initial Conditions panel, and *Start*/*End* in a boundary-condition row gives a condition at either end of the time range. An ODE can also contain integrals of the solution, `integral(f)` from t₀ to t with f written in the integration variable `s`, `t` and the outputs at s — for integro-differential equations such as `du_t + u - integral(exp(s - t)*u)`.
-
-**Fractional equations**: `frac(u)` is the fractional operator of order α applied to output u (DeepXDE's FPDE discretization — in 1D the sum of the left and right Riemann–Liouville derivatives, in 2D/3D the integral of the directional derivative over all directions). The fractional settings (α, resolution, mesh) appear under the equations as soon as `frac(...)` is used, and α can be an unknown to learn from data. See the ODE and fractional examples under [Examples](#examples).
-
-</details>
-
-<details>
-<summary><strong>Forward and inverse problems</strong></summary>
-
-**Forward**: every coefficient is known and PINNStudio solves for the field. **Inverse**: one or more coefficients — or a whole unknown field — are learned from measured data while the field is solved for at the same time. Any number of unknowns can be learned in one problem, each with its own initial guess and, when it is known, its true value for comparison. Measured data comes from one or more files, each with its own loss weight, and can be a single output or any expression of the outputs (e.g. $|h| = \sqrt{u^2 + v^2}$).
-
-Every PINNStudio template, and several DeepXDE examples, have an Inverse mode that loads with its measured-data file already set — pick the example from the **Inverse** list of Quick Examples.
-
-</details>
-
-<details>
-<summary><strong>Equation editor for single equations and coupled systems</strong></summary>
-
-Equations are typed as residuals, not chosen from presets. Derivatives use a plain `d<output>_<variables>` naming — `du_x`, `du_xx`, `du_t`, `du_xy`, up to mixed fourth-order terms such as `du_xxyy` — so anything from a diffusion equation to a coupled higher-order system can be written directly. Coupled systems work the same way: a second output `v` brings `dv_x`, `dv_t` and so on (the *Burgers 2D – Mathias et al.* and *Schrödinger 1D* examples are two-output systems).
-
-The coordinates `x`, `y`, `z` and `t` can appear in an equation along with standard functions (`sin`, `exp`, `cosh`, ...), so source terms such as `-du_xx - pi**2*sin(pi*x)` are written as they read. The number of **equations** is set separately from the number of **outputs**: for example, three residuals for one output (DeepXDE's American put example), or one equation for two outputs when the second output is an unknown field to be learned.
-
-**Constants** give names to numbers used across the problem — e.g. `Re = 20`, `nu = 1/Re` — and can be used in the equations, boundary and initial conditions, transforms and the exact-solution reference.
-
-</details>
-
-<details>
-<summary><strong>Boundary and initial conditions</strong></summary>
-
-Boundary conditions are rows in a panel, each with its type, the output(s) it applies to, and **where** it applies:
-
-- **Types:** Dirichlet, Neumann, Robin, Periodic, Point Set (values at given points), Point Set Operator (an expression of the outputs and their derivatives at given points), Operator (any expression, applied on the boundary or at the initial time), and Interface 2D (DeepXDE's `Interface2DBC`, pairing two matching boundary pieces).
-- **Where:** *Whole boundary*, *Left*, *Right*, *Bottom*, *Top* (and *Front*/*Back* in 3D), or any `True`/`False` expression in `x`, `y`, `z`. The side names and the domain limits (`x_min`, `x_max`, ...) follow your domain, so `left or right` or `x <= x_min` stay correct if the domain changes; a curved boundary piece uses an expression such as `np.isclose(x**2 + y**2, 0.25)`.
-- Neumann and Robin values are the derivative along the outward normal, $du/dn$ ($+du/dx$ on a right side, $-du/dx$ on a left side).
-- Operator conditions use the same `u`, `du_x`, `du_xx` notation as the equations. Applied at the initial time, they give a second initial condition such as $\partial u/\partial t = 0$ at $t = 0$ for a wave equation.
-- Point Set rows take their points from a file, a typed list (`1`, `0.2, 0.5`, `0,0; 1,0.5`) or N random points, with values from the file or a formula; they can target several outputs at once and can be minibatched.
-
-Initial conditions are given per output as an expression or loaded from a data file. Boundary and initial conditions can also be imposed exactly through an output transform (see *Input and output transforms* below).
-
-</details>
-
-<details>
-<summary><strong>Geometry and domains</strong></summary>
-
-1D problems use an interval; 2D problems a **Rectangle, Disk, Ellipse, Triangle** or any **Polygon** (given by its vertices); 3D problems a **Cuboid** or **Sphere**. Domain bounds accept expressions such as `pi/2`.
-
-**Custom** geometry (2D and 3D) combines any number of these shapes with **Union**, **Subtract** and **Intersect** — for example a plate with a hole, a `Rectangle` with a `Disk` subtracted:
-
-<p align="center">
-<img src="assets/Images/View_Domain_Pictures/Custom_Geometry_Rectangle_minus_Disk.png" alt="PINNStudio — Custom geometry domain preview, Rectangle with a Disk subtracted out" width="55%">
-</p>
-
-</details>
-
-<details>
-<summary><strong>Collocation points and domain preview</strong></summary>
-
-The numbers of domain, boundary, initial and test points are set independently, along with the sampling distribution (Hammersley, uniform, Halton, LHS, Sobol or pseudo-random). A domain preview shows the actual training points — domain, boundary and initial points, color-coded — on the geometry, with a second panel showing their distribution in time, in 2D and in 3D:
-
-<table>
-<tr>
-<td width="33%" align="center">
-<img src="assets/Images/View_Domain_Pictures/2D_Rectangle_combined.png" alt="PINNStudio — 2D domain preview, Rectangle geometry" width="100%">
-<sub>2D preview — Rectangle</sub>
-</td>
-<td width="33%" align="center">
-<img src="assets/Images/View_Domain_Pictures/2D_Disk_combined.png" alt="PINNStudio — 2D domain preview, Disk geometry" width="100%">
-<sub>2D preview — Disk</sub>
-</td>
-<td width="33%" align="center">
-<img src="assets/Images/View_Domain_Pictures/3D_Cuboid_combined.png" alt="PINNStudio — 3D domain preview, Cuboid geometry" width="100%">
-<sub>3D preview — Cuboid</sub>
-</td>
-</tr>
-</table>
-
-**Extra training points (anchors)** can be added on top of the sampled ones, from a file or at random inside a box — for example to concentrate points near a front or a boundary layer.
-
-</details>
-
-### Training
-
-<details>
-<summary><strong>Network architecture</strong></summary>
-
-The number of hidden layers, neurons per layer, activation function (tanh, sin, Sigmoid, ReLU, SiLU/Swish, ELU, GELU, SELU) and weight initializer (Glorot or He, uniform or normal) are all set in the panel. Four network types are available:
-
-- **FNN** — a fully connected network shared by all outputs (the default).
-- **PFNN** — a separate sub-network for each output, useful when outputs have very different scales or behavior.
-- **MsFFN** and **STMsFFN** — multi-scale Fourier feature networks, which pass the inputs through random Fourier features at several scales (e.g. `1, 10`) so the network can capture slow and fast variations together.
-
-</details>
-
-<details>
-<summary><strong>Input and output transforms</strong></summary>
-
-Inputs and outputs can be rescaled ($x \mapsto x \times \text{scale} + \text{shift}$), which helps when a coordinate or the solution is far from order one. Each transform can also be a **formula**: an input formula sets the network's input features (e.g. `x*sin(y); x*cos(y)` for polar coordinates), and an output formula rewrites each output — typically to satisfy boundary or initial conditions exactly, e.g. `x*(1 - x)*u` gives $u = 0$ at $x = 0$ and $x = 1$ without a boundary loss term.
-
-</details>
-
-<details>
-<summary><strong>Training phases, learning-rate schedules and loss weights</strong></summary>
-
-Training is a sequence of **phases**, each with its own optimizer (Adam, AdamW, L-BFGS or NNCG), number of iterations, learning rate and loss weights — for example the common Adam-then-L-BFGS recipe, or several Adam phases with decreasing learning rates. Each phase's learning rate can decay by a step, cosine, exponential or inverse-time schedule. L-BFGS's stopping options and its float precision (float32, or float64 when it needs the extra precision to converge) are adjustable.
-
-Loss weights can be set per term (each equation, boundary condition, initial condition and measured-data file) or automatically from the first evaluation (**Scale by initial losses**, $w_i = c / L_i(0)$), so that every term starts at the same size.
-
-**IC-guided pre-training** first fits the network to the initial condition alone, before the equations are switched on, which helps problems where training from a random start struggles to find the right solution.
-
-</details>
-
-<details>
-<summary><strong>Residual-based adaptive refinement (RAR)</strong></summary>
-
-RAR trains in rounds. After each round it evaluates the equation residual at a large set of candidate points, adds the points where the residual is largest to the training set, and trains again — concentrating effort on the hardest parts of the domain, such as a shock or a thin interface. It works for steady and time-dependent problems in every dimension. For a system of equations, the ranking can use the combined residual or a single equation (*Points from*), and RAR can stop once the mean residual drops below a set value.
-
-Every round saves a checkpoint and two figures to `solution_results/rar_rounds/round_NN/`: the solution at that round (compared with reference data when it is available) and the training points, showing the original points, those added in earlier rounds and those added in this round. Side by side they show the added points landing where the error is largest:
-
-<table>
-<tr>
-<td width="50%" align="center">
-<img src="assets/Images/1D-Burgers/rar_collocation_points.png" alt="PINNStudio — Burgers 1D RAR round 2, collocation points: the points added this round (red) concentrate where the model is least accurate" width="100%">
-<sub>Burgers 1D, RAR round 2 — points added (red) vs. earlier and original points</sub>
-</td>
-<td width="50%" align="center">
-<img src="assets/Images/1D-Burgers/rar_solution_plot.png" alt="PINNStudio — Burgers 1D RAR round 2, PINN vs Reference solution and error" width="100%">
-<sub>Burgers 1D, RAR round 2 — solution and error: the added points line up with the largest error</sub>
-</td>
-</tr>
-</table>
-
-<table>
-<tr>
-<td width="50%" align="center">
-<img src="assets/Images/2D_AllenCahn-Wight/rar_collocation_points.png" alt="PINNStudio — Allen-Cahn 2D (Wight & Zhao) RAR round 1, collocation points: the points added this round concentrate near the sharpest part of the interface" width="100%">
-<sub>Allen-Cahn 2D (Wight & Zhao), RAR round 1 — points added vs. original points</sub>
-</td>
-<td width="50%" align="center">
-<img src="assets/Images/2D_AllenCahn-Wight/rar_solution_plot.png" alt="PINNStudio — Allen-Cahn 2D (Wight & Zhao) RAR round 1, PINN vs Reference solution and error" width="100%">
-<sub>Allen-Cahn 2D (Wight & Zhao), RAR round 1 — solution and error: the added points follow the largest error</sub>
-</td>
-</tr>
-</table>
-
-</details>
-
-<details>
-<summary><strong>Time-adaptive training</strong></summary>
-
-Splits the time range into steps and trains through them in order, each step starting from the network of the previous one (transfer learning) and taking its initial condition from the previous step's solution. This suits problems over a long time window or with fast dynamics that a single network struggles to fit in one pass; the Allen-Cahn templates use it by default. It works in 1D, 2D and 3D, and each step is compared with any reference data that falls inside its time window.
-
-The grid that passes the solution from one step to the next is set per axis (*IC grid resolution*), so its size grows with the dimension — PINNStudio picks a smaller default in 3D and warns when a chosen value would be very large.
-
-</details>
-
-<details>
-<summary><strong>Training callbacks and monitors</strong></summary>
-
-- **Point resampling** redraws the collocation points every N iterations.
-- **Early stopping** ends training once the monitored loss stops improving.
-- **Model checkpoints** save the model at regular intervals, or only when the loss improves.
-- **Training timer** stops a run after a set wall-clock time.
-- **Training monitors** track any expression of the outputs and their derivatives (`u`, `du_x`, a flux, ...) at chosen points during training, alongside the loss.
-
-</details>
-
-<details>
-<summary><strong>Inverse parameters during training</strong></summary>
-
-In an inverse problem, each unknown is saved at regular intervals throughout training, including the final value where training stops, and its convergence can be shown as a plot or an animation — with the true value drawn as a reference line when it is known, both after training and later in Restore & Visualize.
-
-</details>
-
-### Parameter Sweep
-
-<details>
-<summary><strong>Run many training configurations from one setup, varying any parameter</strong></summary>
-
-Instead of changing a value and pressing Solve again for each case, **Enable Parameter Sweep** runs a whole set of configurations of the problem you have set up, one after another, each as a full training run. The Solve and Stop buttons drive the sweep, and the Training Log shows every run in turn.
-
-![Parameter Sweep panel — Burgers 1D network-size sweep (hidden layers × neurons, All combinations) after it finished: each run's result in the Training Log, the last run's loss and solution on the right](assets/Images/Parameter_Sweep/sweep_panel.png)
-
-**Four ways to combine parameters:**
-- **One-at-a-time** — vary each parameter separately, the others held at their current values (3 values of one parameter → 3 runs).
-- **All combinations** — every value of every parameter (2 parameters with 3 and 2 values → 6 runs).
-- **Specified combinations** — the *i*-th values of all parameters run together (lists of equal length).
-- **Bayesian search** — each run's settings are chosen by a Gaussian-process model of the results so far, to reach the lowest final loss or $L_2$ error in as few runs as possible. Each parameter's range (linear or log) or list of choices is its search space; **Runs** sets the budget and **Random first** the number of random runs before the model takes over (see the Helmholtz hyperparameter-search example under [Examples](#examples)).
-
-Each parameter takes a list of values or a linear/log range; text settings (activation, point distribution, ...) take a list of choices. **Almost any setting can be swept** — **🔄 Refresh** lists everything available for the current problem:
-
-- **Network** — hidden layers, neurons per layer, activation, initializer, weight decay.
-- **Collocation points** — domain, boundary, initial and test points, sampling distribution.
-- **Training phases** — each phase's iterations, learning rate and optimizer.
-- **Loss weights** — every equation, boundary and initial-condition weight.
-- **Inverse** — each unknown's initial guess, each measured-data file's weight.
-- **RAR** and **time-adaptive training** — rounds, candidate and added points, iterations; step counts, IC grid resolution.
-- **Input and output transforms** — each scale value.
-
-*Also run the current settings (baseline)* adds one run with the settings unchanged, as a reference point; it is on by default for One-at-a-time with two or more parameters and for Bayesian search.
-
-**Results.** The sweep saves to one folder (e.g. `Poisson_1D-Dirichlet_sweep__2026-10-13_11-39-17`) with a subfolder per run named after what it set (`run_01__Phase-1-Iterations_1000`, …), each with its model, plots and Error Analysis results. The folder also holds `sweep_summary.csv` (the swept values, final loss and error metrics of every run) and **`sweep_error_vs_parameter.png`**, a plot of the error ($L_2$, plus MSE and maximum error when selected; for a time-dependent problem, the mean over the reference times) and the final loss against the swept values.
-
-**Example — network size for Burgers 1D.** Load *Burgers 1D – Raissi et al.*, choose *All combinations*, and sweep **Network: Hidden layers** over 2, 4, 6, 8 and **Network: Neurons per layer** over 10, 20, 40 — the same study as Table 1 of Raissi et al. (2019). The 12 runs (everything else as the template sets it: Adam 15,000 + L-BFGS 10,000 iterations, 8,000 collocation points) took about 17 minutes on an RTX 4090:
-
-![Parameter sweep summary — Burgers 1D, relative L₂ error (mean over t = 0, 0.25, 0.5, 0.75, 1) and final loss vs hidden layers, one line per neurons-per-layer value](assets/Images/Parameter_Sweep/burgers_network_size_sweep.png)
-
-Relative $L_2$ error (mean over the five reference times) from `sweep_summary.csv`:
-
-| Hidden layers | 10 neurons | 20 neurons | 40 neurons |
-|---|---|---|---|
-| 2 | 1.4 × 10⁻² | 5.6 × 10⁻³ | 3.8 × 10⁻³ |
-| 4 | 1.1 × 10⁻³ | 1.0 × 10⁻³ | 2.4 × 10⁻⁴ |
-| 6 | 5.6 × 10⁻⁴ | 1.2 × 10⁻³ | 5.3 × 10⁻⁴ |
-| 8 | 1.3 × 10⁻³ | 2.6 × 10⁻³ | 3.7 × 10⁻⁴ |
-
-Two hidden layers are too few for the shock at $x = 0$; at four layers the error is 5–16× lower, and 40 neurons per layer gives the lowest error at every depth from four layers. Deeper is not always better: with 10 or 20 neurons, 8 layers trains to a higher loss and error than 4 or 6. (Raissi et al. trained with L-BFGS only and 10,000 collocation points, so their numbers differ; the trend is the same.)
-
-</details>
-
-### Analysis & Output
-
-<details>
-<summary><strong>Live training log and loss curves</strong></summary>
-
-Training runs in the background and its output streams into the Training Log as it happens; **Stop** ends the run immediately. The loss curve can show the total training and test losses, each loss term separately, or both, on a log or linear axis (*Loss Plot Settings*).
-
-</details>
-
-<details>
-<summary><strong>Error analysis against reference data</strong></summary>
-
-A run can be compared with reference solution files at one or more times, or — when the problem has an exact solution — with a formula typed in (one per output, in `x`, `y`, `z`, `t`). For predicted values $u_{\text{pred}}$ and reference values $u_{\text{true}}$ at $N$ points, PINNStudio reports
-
-$$\Large L_2 \text{ relative error} = \frac{\lVert u_{\text{pred}} - u_{\text{true}} \rVert_2}{\lVert u_{\text{true}} \rVert_2}, \qquad \text{MSE} = \frac{1}{N}\sum_{i=1}^{N}\left(u_{\text{pred},i} - u_{\text{true},i}\right)^2$$
-
-$$\Large \text{Max error} = \max_i \left| u_{\text{pred},i} - u_{\text{true},i} \right|, \qquad \text{Mean absolute error} = \frac{1}{N}\sum_{i=1}^{N}\left| u_{\text{pred},i} - u_{\text{true},i} \right|$$
-
-with line and surface comparisons of the prediction, the reference and the error. The relative $L_2$ error is reported by default; MSE and maximum error can be added, and the mean absolute error is always included. A reference can also be compared against a derivative or any expression of the outputs (e.g. `du_x`), not only a raw output. All but two of the examples come with an exact solution or reference data, so the comparison works as soon as an example is loaded.
-
-</details>
-
-<details>
-<summary><strong>Plots and animations</strong></summary>
-
-Results can be shown as surface or line plots, or as animations of either over time, with the colormap, contour levels, resolution, snapshots, figure size, font sizes and axis orientation all adjustable. Besides the raw outputs, **Custom...** plots any expression of the outputs and their derivatives (`sqrt(u**2 + v**2)`, `du_x`, ...), during training, in Error Analysis and in Restore & Visualize. For problems with several outputs, each output is also saved as its own figure. Numbers in plots are written in scientific notation.
-
-</details>
-
-<details>
-<summary><strong>Data export and standalone scripts</strong></summary>
-
-The predicted solution can be saved as data on a grid of your choice, for your own analysis. Every problem can also be exported as a standalone DeepXDE/PyTorch script (*Problem → Export as DeepXDE Script...*) — the same code PINNStudio runs — to read, run on a cluster, share with a collaborator, or use as a starting point for your own code.
-
-</details>
-
-<details>
-<summary><strong>Saving problems, reproducibility and hardware</strong></summary>
-
-A whole problem setup can be saved and reopened later (*Problem → Save Problem As* / *Open Saved Problem*). Runs use a fixed random seed by default, so a run can be repeated exactly, and each run saves its settings next to its results. The GPU to train on, its memory share, the float precision, the random seed and the L-BFGS options are set under *Settings*.
-
-</details>
-
-### Restore & Visualize
-
-<details>
-<summary><strong>Reload a trained model without retraining</strong></summary>
-
-Point Restore & Visualize at a saved model and its `model_config.json`, and PINNStudio rebuilds the trained network and produces any of the plots or animations above — including derivative expressions you did not plot during training, Error Analysis against the original reference data, and, for an inverse run, the convergence of the unknowns — without training again.
-
-</details>
-
-
-## Repository Structure
-
-```text
-pinnstudio/
-├── pinnstudio/
-│   ├── main.py            # Entry point
-│   ├── ui/
-│   │   └── main_window.py # PyQt6 interface — every tab, dialog, and control
-│   └── core/
-│       ├── config.py          # PINNConfig — the full problem definition
-│       ├── codegen.py         # PINNConfig -> standalone DeepXDE/PyTorch script
-│       ├── deepxde_examples.py # DeepXDE's documented examples as Quick Examples
-│       ├── runner.py          # Runs the generated script, streams output to the Training Log
-│       ├── sweep_registry.py  # Parameter Sweep's list of sweepable parameters
-│       └── sweep_runner.py    # Builds and runs each sweep configuration in turn
-├── assets/
-│   ├── screenshots/        # README screenshots
-│   └── results/             # Example output (solution images, demo GIFs)
-├── reference_data/          # Bundled ground truth for the built-in templates
-│   ├── 1D/
-│   ├── 2D/
-│   ├── 3D/
-│   └── deepxde/             # Reference/measurement data for the DeepXDE examples
-├── tools/                   # Reference-data generator, DeepXDE example runner
-├── requirements.txt
-├── setup.py
-├── install.sh              # One-command setup (macOS/Linux)
-├── install.bat              # One-command setup (Windows)
-└── README.md
+```bash
+pip install pinnstudio
+pinnstudio
 ```
 
-## Quick Start
+<details>
+<summary><strong>Command not found after <code>pip install</code>?</strong></summary>
 
-### Step 1: Open a terminal
+- **<code>pip: command not found</code>?** Use <code>pip3</code> instead - many systems (macOS especially) only ship <code>pip3</code>, not a plain <code>pip</code>.
+- **<code>pinnstudio: command not found</code> even though the install said it succeeded?** pip installed it into a per-user folder that is not on your shell's PATH yet. The install output actually tells you the exact folder, in a line like <code>WARNING: The script pinnstudio is installed in '.../bin' which is not on PATH.</code> Add that folder to your PATH:
+
+```bash
+echo 'export PATH="<folder from the warning above>:$PATH"' >> ~/.zshrc
+source ~/.zshrc
+```
+
+(Use <code>~/.bashrc</code> instead of <code>~/.zshrc</code> if your shell is bash.) Then <code>pinnstudio</code> should launch directly. This never comes up with <code>install.sh</code>/<code>install.bat</code>, since those use a virtual environment where the command is always found automatically.
+
+- **The GPU fix command PINNStudio suggests fails with a <code>flit_core</code> or "Could not find a version that satisfies" error?** Your pip is too old to resolve PyTorch's package index correctly. Upgrade it first, then retry:
+
+```bash
+python -m pip install --upgrade pip
+pip install torch --index-url https://download.pytorch.org/whl/cu121 --force-reinstall
+```
+
+</details>
+
+**Have an NVIDIA GPU? Use the install script instead.** It creates its own environment and checks that the installed PyTorch can use your GPU, installing a compatible build if the default one cannot (for example with an older driver) — which plain `pip install` does not do.
+
+<details>
+<summary><strong>Before you start: open a terminal and check git and Python 3.9+</strong></summary>
 
 - **Windows:** click the Start menu, type `PowerShell`, and open **Windows PowerShell**.
 - **macOS:** press `Cmd + Space` to open Spotlight, type `Terminal`, and press Enter (or find it under Applications -> Utilities -> Terminal).
 - **Linux:** open your terminal application (commonly `Ctrl + Alt + T`, or search "Terminal" in your application menu).
 
-### Step 2: Check you have git and Python 3.9+
-
-Paste these one at a time:
+Then check git and Python by pasting these one at a time:
 
 ```bash
 git --version
@@ -474,7 +156,7 @@ If either command isn't recognized:
 
 After installing either one, close your terminal window completely and open a new one before continuing, so the change takes effect.
 
-### Step 3: Clone and install
+</details>
 
 ```bash
 git clone https://github.com/AsfandyarKhan72/PINNStudio.git
@@ -493,21 +175,12 @@ install.bat
 .\venv\Scripts\pinnstudio.exe
 ```
 
-The install script creates an isolated virtual environment inside the `PINNStudio` folder and installs PINNStudio and its dependencies into it — nothing is installed system-wide, and deleting the folder removes it completely. If it detects an NVIDIA GPU that the default PyTorch build can't use (an older driver, most commonly), it automatically installs a more compatible PyTorch build instead, so GPU support works out of the box on more machines. This step needs an internet connection and can take a few minutes.
+Everything is installed into a virtual environment inside the `PINNStudio` folder — nothing system-wide, and deleting the folder removes it completely. The install needs an internet connection and takes a few minutes.
 
-> **Already have a working PyTorch + CUDA setup, or no GPU at all?** You can also install with `pip install pinnstudio` - just be aware it skips the GPU compatibility check above, so if you hit a GPU-related error afterward, re-run `install.sh` / `install.bat` instead.
+<details>
+<summary><strong>Running PINNStudio again</strong></summary>
 
-### Step 4: Take the 60-second tour
-
-Maximize the window for the best view — PINNStudio packs a lot of controls into the left panel. With the app open, leave the dimension on **1D**, pick **1D Heat** from the *Quick Examples* dropdown, and click **Solve**. The Training Log panel will stream progress, and the loss/solution plots will populate once the run finishes.
-
-### Something not working?
-
-Open an issue on GitHub with the exact command you ran and the full error message — see [Contributing](#contributing).
-
-## Running PINNStudio Again
-
-You only need to run the install steps above once. After that, launch PINNStudio again anytime with:
+You only need to install once. After that, launch PINNStudio again anytime with:
 
 **macOS / Linux**, from inside the `PINNStudio` folder:
 ```bash
@@ -521,9 +194,12 @@ You only need to run the install steps above once. After that, launch PINNStudio
 
 That's it - no need to reinstall or recreate the virtual environment.
 
-## What Gets Installed
+</details>
 
-`install.sh` / `install.bat` (used in Quick Start above) set up an isolated Python virtual environment and install:
+<details>
+<summary><strong>What gets installed</strong></summary>
+
+`install.sh` / `install.bat` set up an isolated Python virtual environment and install:
 
 - [DeepXDE](https://github.com/lululxvi/deepxde) (PyTorch backend)
 - PyTorch
@@ -533,6 +209,24 @@ That's it - no need to reinstall or recreate the virtual environment.
 - Pandas
 
 A CUDA-capable GPU is optional but recommended for larger 2D/3D problems and inverse runs.
+
+</details>
+
+**Something not working?** Open an issue on GitHub with the exact command you ran and the full error message — see [Contributing](#contributing).
+
+## Quick Start
+
+Your first result takes about a minute:
+
+1. Start PINNStudio (`pinnstudio`, or `./venv/bin/pinnstudio` after the install script) and maximize the window — the left panel holds the problem setup.
+2. In **Quick Examples**, keep the category on **Forward** and pick **Heat 1D – Dirichlet**. Every setting — equation, domain, conditions, network, training — fills in.
+3. Press **Solve**. The Training Log shows the progress, and the loss curve and solution appear when the run finishes.
+4. At the end of the run, the Training Log reports the relative $L_2$ error against the exact solution, and the comparison plots are saved with the results (**Error Analysis** sets which references and metrics are used).
+
+From there:
+- Pick the same example from the **Inverse** list to learn the unknown diffusivity from measured data instead.
+- Browse the other examples below.
+- Follow [Solving Your Own Problem](#solving-your-own-problem) to set up an equation of your own.
 
 ## Examples
 
@@ -2272,9 +1966,289 @@ $$\Large \frac{\partial \mathbf u}{\partial t} + (\mathbf u\cdot\nabla)\mathbf u
 
 > **Tip:** Accuracy can generally be improved by refining the time discretization — use more, smaller **Time Adaptive** step groups (a finer time step per phase) rather than one large training pass, or increase collocation points for finer spatial/adaptive refinement of the residual. Several templates above already default to Time-Adaptive for this reason; add or adjust step groups for any template — in any dimension — from the *Adaptive Training* panel.
 
-## Getting Started with Your Own PDE
+## Features
 
-The examples above cover 62 specific problems, but PINNStudio isn't limited to them — every field in those examples is just a starting point you can overwrite. Here's a complete walkthrough for a PDE that **isn't** one of the examples, to show the general path from "I have an equation" to "I have a trained PINN."
+### Problem Setup
+
+<details>
+<summary><strong>ODE, 1D, 2D, and 3D problems</strong></summary>
+
+Problems are defined over `t` (ODEs), `(x, t)`, `(x, y, t)` or `(x, y, z, t)`, or without the time axis for steady-state problems in `x`, `(x, y)` or `(x, y, z)`. Changing the dimension rebuilds the related controls (geometry, boundary-condition rows, plot options), so no setting from the previous dimension is carried over by mistake.
+
+**ODEs** have time as the only variable: derivatives are written `du_t`, `du_tt` (one equation per output for a system, e.g. `dy1_t - y2|dy2_t + y1`), initial values are set in the Initial Conditions panel, and *Start*/*End* in a boundary-condition row gives a condition at either end of the time range. An ODE can also contain integrals of the solution, `integral(f)` from t₀ to t with f written in the integration variable `s`, `t` and the outputs at s — for integro-differential equations such as `du_t + u - integral(exp(s - t)*u)`.
+
+**Fractional equations**: `frac(u)` is the fractional operator of order α applied to output u (DeepXDE's FPDE discretization — in 1D the sum of the left and right Riemann–Liouville derivatives, in 2D/3D the integral of the directional derivative over all directions). The fractional settings (α, resolution, mesh) appear under the equations as soon as `frac(...)` is used, and α can be an unknown to learn from data. See the ODE and fractional examples under [Examples](#examples).
+
+</details>
+
+<details>
+<summary><strong>Forward and inverse problems</strong></summary>
+
+**Forward**: every coefficient is known and PINNStudio solves for the field. **Inverse**: one or more coefficients — or a whole unknown field — are learned from measured data while the field is solved for at the same time. Any number of unknowns can be learned in one problem, each with its own initial guess and, when it is known, its true value for comparison. Measured data comes from one or more files, each with its own loss weight, and can be a single output or any expression of the outputs (e.g. $|h| = \sqrt{u^2 + v^2}$).
+
+Every PINNStudio template, and several DeepXDE examples, have an Inverse mode that loads with its measured-data file already set — pick the example from the **Inverse** list of Quick Examples.
+
+</details>
+
+<details>
+<summary><strong>Equation editor for single equations and coupled systems</strong></summary>
+
+Equations are typed as residuals, not chosen from presets. Derivatives use a plain `d<output>_<variables>` naming — `du_x`, `du_xx`, `du_t`, `du_xy`, up to mixed fourth-order terms such as `du_xxyy` — so anything from a diffusion equation to a coupled higher-order system can be written directly. Coupled systems work the same way: a second output `v` brings `dv_x`, `dv_t` and so on (the *Burgers 2D – Mathias et al.* and *Schrödinger 1D* examples are two-output systems).
+
+The coordinates `x`, `y`, `z` and `t` can appear in an equation along with standard functions (`sin`, `exp`, `cosh`, ...), so source terms such as `-du_xx - pi**2*sin(pi*x)` are written as they read. The number of **equations** is set separately from the number of **outputs**: for example, three residuals for one output (DeepXDE's American put example), or one equation for two outputs when the second output is an unknown field to be learned.
+
+**Constants** give names to numbers used across the problem — e.g. `Re = 20`, `nu = 1/Re` — and can be used in the equations, boundary and initial conditions, transforms and the exact-solution reference.
+
+</details>
+
+<details>
+<summary><strong>Boundary and initial conditions</strong></summary>
+
+Boundary conditions are rows in a panel, each with its type, the output(s) it applies to, and **where** it applies:
+
+- **Types:** Dirichlet, Neumann, Robin, Periodic, Point Set (values at given points), Point Set Operator (an expression of the outputs and their derivatives at given points), Operator (any expression, applied on the boundary or at the initial time), and Interface 2D (DeepXDE's `Interface2DBC`, pairing two matching boundary pieces).
+- **Where:** *Whole boundary*, *Left*, *Right*, *Bottom*, *Top* (and *Front*/*Back* in 3D), or any `True`/`False` expression in `x`, `y`, `z`. The side names and the domain limits (`x_min`, `x_max`, ...) follow your domain, so `left or right` or `x <= x_min` stay correct if the domain changes; a curved boundary piece uses an expression such as `np.isclose(x**2 + y**2, 0.25)`.
+- Neumann and Robin values are the derivative along the outward normal, $du/dn$ ($+du/dx$ on a right side, $-du/dx$ on a left side).
+- Operator conditions use the same `u`, `du_x`, `du_xx` notation as the equations. Applied at the initial time, they give a second initial condition such as $\partial u/\partial t = 0$ at $t = 0$ for a wave equation.
+- Point Set rows take their points from a file, a typed list (`1`, `0.2, 0.5`, `0,0; 1,0.5`) or N random points, with values from the file or a formula; they can target several outputs at once and can be minibatched.
+
+Initial conditions are given per output as an expression or loaded from a data file. Boundary and initial conditions can also be imposed exactly through an output transform (see *Input and output transforms* below).
+
+</details>
+
+<details>
+<summary><strong>Geometry and domains</strong></summary>
+
+1D problems use an interval; 2D problems a **Rectangle, Disk, Ellipse, Triangle** or any **Polygon** (given by its vertices); 3D problems a **Cuboid** or **Sphere**. Domain bounds accept expressions such as `pi/2`.
+
+**Custom** geometry (2D and 3D) combines any number of these shapes with **Union**, **Subtract** and **Intersect** — for example a plate with a hole, a `Rectangle` with a `Disk` subtracted:
+
+<p align="center">
+<img src="assets/Images/View_Domain_Pictures/Custom_Geometry_Rectangle_minus_Disk.png" alt="PINNStudio — Custom geometry domain preview, Rectangle with a Disk subtracted out" width="55%">
+</p>
+
+</details>
+
+<details>
+<summary><strong>Collocation points and domain preview</strong></summary>
+
+The numbers of domain, boundary, initial and test points are set independently, along with the sampling distribution (Hammersley, uniform, Halton, LHS, Sobol or pseudo-random). A domain preview shows the actual training points — domain, boundary and initial points, color-coded — on the geometry, with a second panel showing their distribution in time, in 2D and in 3D:
+
+<table>
+<tr>
+<td width="33%" align="center">
+<img src="assets/Images/View_Domain_Pictures/2D_Rectangle_combined.png" alt="PINNStudio — 2D domain preview, Rectangle geometry" width="100%">
+<sub>2D preview — Rectangle</sub>
+</td>
+<td width="33%" align="center">
+<img src="assets/Images/View_Domain_Pictures/2D_Disk_combined.png" alt="PINNStudio — 2D domain preview, Disk geometry" width="100%">
+<sub>2D preview — Disk</sub>
+</td>
+<td width="33%" align="center">
+<img src="assets/Images/View_Domain_Pictures/3D_Cuboid_combined.png" alt="PINNStudio — 3D domain preview, Cuboid geometry" width="100%">
+<sub>3D preview — Cuboid</sub>
+</td>
+</tr>
+</table>
+
+**Extra training points (anchors)** can be added on top of the sampled ones, from a file or at random inside a box — for example to concentrate points near a front or a boundary layer.
+
+</details>
+
+### Training
+
+<details>
+<summary><strong>Network architecture</strong></summary>
+
+The number of hidden layers, neurons per layer, activation function (tanh, sin, Sigmoid, ReLU, SiLU/Swish, ELU, GELU, SELU) and weight initializer (Glorot or He, uniform or normal) are all set in the panel. Four network types are available:
+
+- **FNN** — a fully connected network shared by all outputs (the default).
+- **PFNN** — a separate sub-network for each output, useful when outputs have very different scales or behavior.
+- **MsFFN** and **STMsFFN** — multi-scale Fourier feature networks, which pass the inputs through random Fourier features at several scales (e.g. `1, 10`) so the network can capture slow and fast variations together.
+
+</details>
+
+<details>
+<summary><strong>Input and output transforms</strong></summary>
+
+Inputs and outputs can be rescaled ($x \mapsto x \times \text{scale} + \text{shift}$), which helps when a coordinate or the solution is far from order one. Each transform can also be a **formula**: an input formula sets the network's input features (e.g. `x*sin(y); x*cos(y)` for polar coordinates), and an output formula rewrites each output — typically to satisfy boundary or initial conditions exactly, e.g. `x*(1 - x)*u` gives $u = 0$ at $x = 0$ and $x = 1$ without a boundary loss term.
+
+</details>
+
+<details>
+<summary><strong>Training phases, learning-rate schedules and loss weights</strong></summary>
+
+Training is a sequence of **phases**, each with its own optimizer (Adam, AdamW, L-BFGS or NNCG), number of iterations, learning rate and loss weights — for example the common Adam-then-L-BFGS recipe, or several Adam phases with decreasing learning rates. Each phase's learning rate can decay by a step, cosine, exponential or inverse-time schedule. L-BFGS's stopping options and its float precision (float32, or float64 when it needs the extra precision to converge) are adjustable.
+
+Loss weights can be set per term (each equation, boundary condition, initial condition and measured-data file) or automatically from the first evaluation (**Scale by initial losses**, $w_i = c / L_i(0)$), so that every term starts at the same size.
+
+**IC-guided pre-training** first fits the network to the initial condition alone, before the equations are switched on, which helps problems where training from a random start struggles to find the right solution.
+
+</details>
+
+<details>
+<summary><strong>Residual-based adaptive refinement (RAR)</strong></summary>
+
+RAR trains in rounds. After each round it evaluates the equation residual at a large set of candidate points, adds the points where the residual is largest to the training set, and trains again — concentrating effort on the hardest parts of the domain, such as a shock or a thin interface. It works for steady and time-dependent problems in every dimension. For a system of equations, the ranking can use the combined residual or a single equation (*Points from*), and RAR can stop once the mean residual drops below a set value.
+
+Every round saves a checkpoint and two figures to `solution_results/rar_rounds/round_NN/`: the solution at that round (compared with reference data when it is available) and the training points, showing the original points, those added in earlier rounds and those added in this round. Side by side they show the added points landing where the error is largest:
+
+<table>
+<tr>
+<td width="50%" align="center">
+<img src="assets/Images/1D-Burgers/rar_collocation_points.png" alt="PINNStudio — Burgers 1D RAR round 2, collocation points: the points added this round (red) concentrate where the model is least accurate" width="100%">
+<sub>Burgers 1D, RAR round 2 — points added (red) vs. earlier and original points</sub>
+</td>
+<td width="50%" align="center">
+<img src="assets/Images/1D-Burgers/rar_solution_plot.png" alt="PINNStudio — Burgers 1D RAR round 2, PINN vs Reference solution and error" width="100%">
+<sub>Burgers 1D, RAR round 2 — solution and error: the added points line up with the largest error</sub>
+</td>
+</tr>
+</table>
+
+<table>
+<tr>
+<td width="50%" align="center">
+<img src="assets/Images/2D_AllenCahn-Wight/rar_collocation_points.png" alt="PINNStudio — Allen-Cahn 2D (Wight & Zhao) RAR round 1, collocation points: the points added this round concentrate near the sharpest part of the interface" width="100%">
+<sub>Allen-Cahn 2D (Wight & Zhao), RAR round 1 — points added vs. original points</sub>
+</td>
+<td width="50%" align="center">
+<img src="assets/Images/2D_AllenCahn-Wight/rar_solution_plot.png" alt="PINNStudio — Allen-Cahn 2D (Wight & Zhao) RAR round 1, PINN vs Reference solution and error" width="100%">
+<sub>Allen-Cahn 2D (Wight & Zhao), RAR round 1 — solution and error: the added points follow the largest error</sub>
+</td>
+</tr>
+</table>
+
+</details>
+
+<details>
+<summary><strong>Time-adaptive training</strong></summary>
+
+Splits the time range into steps and trains through them in order, each step starting from the network of the previous one (transfer learning) and taking its initial condition from the previous step's solution. This suits problems over a long time window or with fast dynamics that a single network struggles to fit in one pass; the Allen-Cahn templates use it by default. It works in 1D, 2D and 3D, and each step is compared with any reference data that falls inside its time window.
+
+The grid that passes the solution from one step to the next is set per axis (*IC grid resolution*), so its size grows with the dimension — PINNStudio picks a smaller default in 3D and warns when a chosen value would be very large.
+
+</details>
+
+<details>
+<summary><strong>Training callbacks and monitors</strong></summary>
+
+- **Point resampling** redraws the collocation points every N iterations.
+- **Early stopping** ends training once the monitored loss stops improving.
+- **Model checkpoints** save the model at regular intervals, or only when the loss improves.
+- **Training timer** stops a run after a set wall-clock time.
+- **Training monitors** track any expression of the outputs and their derivatives (`u`, `du_x`, a flux, ...) at chosen points during training, alongside the loss.
+
+</details>
+
+<details>
+<summary><strong>Inverse parameters during training</strong></summary>
+
+In an inverse problem, each unknown is saved at regular intervals throughout training, including the final value where training stops, and its convergence can be shown as a plot or an animation — with the true value drawn as a reference line when it is known, both after training and later in Restore & Visualize.
+
+</details>
+
+### Parameter Sweep
+
+<details>
+<summary><strong>Run many training configurations from one setup, varying any parameter</strong></summary>
+
+Instead of changing a value and pressing Solve again for each case, **Enable Parameter Sweep** runs a whole set of configurations of the problem you have set up, one after another, each as a full training run. The Solve and Stop buttons drive the sweep, and the Training Log shows every run in turn.
+
+![Parameter Sweep panel — Burgers 1D network-size sweep (hidden layers × neurons, All combinations) after it finished: each run's result in the Training Log, the last run's loss and solution on the right](assets/Images/Parameter_Sweep/sweep_panel.png)
+
+**Four ways to combine parameters:**
+- **One-at-a-time** — vary each parameter separately, the others held at their current values (3 values of one parameter → 3 runs).
+- **All combinations** — every value of every parameter (2 parameters with 3 and 2 values → 6 runs).
+- **Specified combinations** — the *i*-th values of all parameters run together (lists of equal length).
+- **Bayesian search** — each run's settings are chosen by a Gaussian-process model of the results so far, to reach the lowest final loss or $L_2$ error in as few runs as possible. Each parameter's range (linear or log) or list of choices is its search space; **Runs** sets the budget and **Random first** the number of random runs before the model takes over (see the Helmholtz hyperparameter-search example under [Examples](#examples)).
+
+Each parameter takes a list of values or a linear/log range; text settings (activation, point distribution, ...) take a list of choices. **Almost any setting can be swept** — **🔄 Refresh** lists everything available for the current problem:
+
+- **Network** — hidden layers, neurons per layer, activation, initializer, weight decay.
+- **Collocation points** — domain, boundary, initial and test points, sampling distribution.
+- **Training phases** — each phase's iterations, learning rate and optimizer.
+- **Loss weights** — every equation, boundary and initial-condition weight.
+- **Inverse** — each unknown's initial guess, each measured-data file's weight.
+- **RAR** and **time-adaptive training** — rounds, candidate and added points, iterations; step counts, IC grid resolution.
+- **Input and output transforms** — each scale value.
+
+*Also run the current settings (baseline)* adds one run with the settings unchanged, as a reference point; it is on by default for One-at-a-time with two or more parameters and for Bayesian search.
+
+**Results.** The sweep saves to one folder (e.g. `Poisson_1D-Dirichlet_sweep__2026-10-13_11-39-17`) with a subfolder per run named after what it set (`run_01__Phase-1-Iterations_1000`, …), each with its model, plots and Error Analysis results. The folder also holds `sweep_summary.csv` (the swept values, final loss and error metrics of every run) and **`sweep_error_vs_parameter.png`**, a plot of the error ($L_2$, plus MSE and maximum error when selected; for a time-dependent problem, the mean over the reference times) and the final loss against the swept values.
+
+**Example — network size for Burgers 1D.** Load *Burgers 1D – Raissi et al.*, choose *All combinations*, and sweep **Network: Hidden layers** over 2, 4, 6, 8 and **Network: Neurons per layer** over 10, 20, 40 — the same study as Table 1 of Raissi et al. (2019). The 12 runs (everything else as the template sets it: Adam 15,000 + L-BFGS 10,000 iterations, 8,000 collocation points) took about 17 minutes on an RTX 4090:
+
+![Parameter sweep summary — Burgers 1D, relative L₂ error (mean over t = 0, 0.25, 0.5, 0.75, 1) and final loss vs hidden layers, one line per neurons-per-layer value](assets/Images/Parameter_Sweep/burgers_network_size_sweep.png)
+
+Relative $L_2$ error (mean over the five reference times) from `sweep_summary.csv`:
+
+| Hidden layers | 10 neurons | 20 neurons | 40 neurons |
+|---|---|---|---|
+| 2 | 1.4 × 10⁻² | 5.6 × 10⁻³ | 3.8 × 10⁻³ |
+| 4 | 1.1 × 10⁻³ | 1.0 × 10⁻³ | 2.4 × 10⁻⁴ |
+| 6 | 5.6 × 10⁻⁴ | 1.2 × 10⁻³ | 5.3 × 10⁻⁴ |
+| 8 | 1.3 × 10⁻³ | 2.6 × 10⁻³ | 3.7 × 10⁻⁴ |
+
+Two hidden layers are too few for the shock at $x = 0$; at four layers the error is 5–16× lower, and 40 neurons per layer gives the lowest error at every depth from four layers. Deeper is not always better: with 10 or 20 neurons, 8 layers trains to a higher loss and error than 4 or 6. (Raissi et al. trained with L-BFGS only and 10,000 collocation points, so their numbers differ; the trend is the same.)
+
+</details>
+
+### Analysis & Output
+
+<details>
+<summary><strong>Live training log and loss curves</strong></summary>
+
+Training runs in the background and its output streams into the Training Log as it happens; **Stop** ends the run immediately. The loss curve can show the total training and test losses, each loss term separately, or both, on a log or linear axis (*Loss Plot Settings*).
+
+</details>
+
+<details>
+<summary><strong>Error analysis against reference data</strong></summary>
+
+A run can be compared with reference solution files at one or more times, or — when the problem has an exact solution — with a formula typed in (one per output, in `x`, `y`, `z`, `t`). For predicted values $u_{\text{pred}}$ and reference values $u_{\text{true}}$ at $N$ points, PINNStudio reports
+
+$$\Large L_2 \text{ relative error} = \frac{\lVert u_{\text{pred}} - u_{\text{true}} \rVert_2}{\lVert u_{\text{true}} \rVert_2}, \qquad \text{MSE} = \frac{1}{N}\sum_{i=1}^{N}\left(u_{\text{pred},i} - u_{\text{true},i}\right)^2$$
+
+$$\Large \text{Max error} = \max_i \left| u_{\text{pred},i} - u_{\text{true},i} \right|, \qquad \text{Mean absolute error} = \frac{1}{N}\sum_{i=1}^{N}\left| u_{\text{pred},i} - u_{\text{true},i} \right|$$
+
+with line and surface comparisons of the prediction, the reference and the error. The relative $L_2$ error is reported by default; MSE and maximum error can be added, and the mean absolute error is always included. A reference can also be compared against a derivative or any expression of the outputs (e.g. `du_x`), not only a raw output. All but two of the examples come with an exact solution or reference data, so the comparison works as soon as an example is loaded.
+
+</details>
+
+<details>
+<summary><strong>Plots and animations</strong></summary>
+
+Results can be shown as surface or line plots, or as animations of either over time, with the colormap, contour levels, resolution, snapshots, figure size, font sizes and axis orientation all adjustable. Besides the raw outputs, **Custom...** plots any expression of the outputs and their derivatives (`sqrt(u**2 + v**2)`, `du_x`, ...), during training, in Error Analysis and in Restore & Visualize. For problems with several outputs, each output is also saved as its own figure. Numbers in plots are written in scientific notation.
+
+</details>
+
+<details>
+<summary><strong>Data export and standalone scripts</strong></summary>
+
+The predicted solution can be saved as data on a grid of your choice, for your own analysis. Every problem can also be exported as a standalone DeepXDE/PyTorch script (*Problem → Export as DeepXDE Script...*) — the same code PINNStudio runs — to read, run on a cluster, share with a collaborator, or use as a starting point for your own code.
+
+</details>
+
+<details>
+<summary><strong>Saving problems, reproducibility and hardware</strong></summary>
+
+A whole problem setup can be saved and reopened later (*Problem → Save Problem As* / *Open Saved Problem*). Runs use a fixed random seed by default, so a run can be repeated exactly, and each run saves its settings next to its results. The GPU to train on, its memory share, the float precision, the random seed and the L-BFGS options are set under *Settings*.
+
+</details>
+
+### Restore & Visualize
+
+<details>
+<summary><strong>Reload a trained model without retraining</strong></summary>
+
+Point Restore & Visualize at a saved model and its `model_config.json`, and PINNStudio rebuilds the trained network and produces any of the plots or animations above — including derivative expressions you did not plot during training, Error Analysis against the original reference data, and, for an inverse run, the convergence of the unknowns — without training again.
+
+</details>
+
+## Solving Your Own Problem
+
+The examples above cover 60 specific problems, but PINNStudio isn't limited to them — every field in those examples is just a starting point you can overwrite. Here's a complete walkthrough for a PDE that **isn't** one of the examples, to show the general path from "I have an equation" to "I have a trained PINN."
 
 We'll use the **Fisher-KPP equation**, a classic reaction-diffusion model of a population (or concentration front) that diffuses and grows logistically toward a carrying capacity of 1:
 
@@ -2322,6 +2296,37 @@ From here, the same eight steps apply to essentially any PDE expressible with th
 PINNStudio is built on [DeepXDE](https://github.com/lululxvi/deepxde) and PyTorch, and it doesn't wrap them at runtime — it **generates code**. Every setting you choose maps to a field on a `PINNConfig` dataclass ([`pinnstudio/core/config.py`](pinnstudio/core/config.py)); clicking **Solve** passes that config to [`codegen.py`](pinnstudio/core/codegen.py), which writes out a complete, standalone DeepXDE/PyTorch script, and [`runner.py`](pinnstudio/core/runner.py) executes it as a subprocess, streaming stdout back into the Training Log panel in real time.
 
 Because the output of every run is an ordinary Python script, you can take it and run it outside PINNStudio, hand it to a cluster job, or use it as a starting point for a hand-written DeepXDE project.
+
+## Repository Structure
+
+```text
+pinnstudio/
+├── pinnstudio/
+│   ├── main.py            # Entry point
+│   ├── ui/
+│   │   └── main_window.py # PyQt6 interface — every tab, dialog, and control
+│   └── core/
+│       ├── config.py          # PINNConfig — the full problem definition
+│       ├── codegen.py         # PINNConfig -> standalone DeepXDE/PyTorch script
+│       ├── deepxde_examples.py # DeepXDE's documented examples as Quick Examples
+│       ├── runner.py          # Runs the generated script, streams output to the Training Log
+│       ├── sweep_registry.py  # Parameter Sweep's list of sweepable parameters
+│       └── sweep_runner.py    # Builds and runs each sweep configuration in turn
+├── assets/
+│   ├── screenshots/        # README screenshots
+│   └── results/             # Example output (solution images, demo GIFs)
+├── reference_data/          # Bundled ground truth for the built-in templates
+│   ├── 1D/
+│   ├── 2D/
+│   ├── 3D/
+│   └── deepxde/             # Reference/measurement data for the DeepXDE examples
+├── tools/                   # Reference-data generator, DeepXDE example runner
+├── requirements.txt
+├── setup.py
+├── install.sh              # One-command setup (macOS/Linux)
+├── install.bat              # One-command setup (Windows)
+└── README.md
+```
 
 ## Citation
 
