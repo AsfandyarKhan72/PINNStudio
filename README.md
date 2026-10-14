@@ -1824,7 +1824,9 @@ Error Analysis — PINN vs Ground Truth, for each output:
 </tr>
 </table>
 
-*Inverse mode* — same template, switched to **Inverse**, recovering the shared viscosity $\nu$, true value $0.01/\pi$. This mode does not work yet: $\nu$ ends at 1.46 × 10⁻² instead of 3.18 × 10⁻³, and the $U$ error grows to 1.5 by $t = 1$.
+*Inverse mode* — same template, switched to **Inverse**, recovering the shared viscosity $\nu$ (true value $0.01/\pi \approx 3.18 \times 10^{-3}$, initial guess 1) from $U$ and $V$ measured at $t = 1$, each against its own output. $\nu$ converges to 3.44 × 10⁻³, and the $L_2$ error at $t = 1$ is 3.7 × 10⁻³ for $U$ and 3.1 × 10⁻³ for $V$:
+
+![2D Burgers (Mathias) inverse parameter convergence animation](assets/Images/2D_Burgers/param_convergence_animation.gif)
 
 </details>
 

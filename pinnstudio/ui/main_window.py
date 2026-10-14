@@ -5058,11 +5058,21 @@ class MainWindow(QMainWindow):
         # single latest-time file overall (Inverse's own observed-data field
         # is a separate, single-file mechanism from Error Analysis' now
         # possibly-multiple output groups).
-        if hasattr(self, 'inv_data_path'):
+        # A template with its own observed-data files (INVERSE_AUTO_OBS,
+        # e.g. 2D Burgers (Mathias)'s U and V snapshots, one row each) keeps
+        # them -- this single-file default would overwrite its first row.
+        _tpl_obs = self.INVERSE_AUTO_OBS.get(getattr(self, '_current_template', ''))
+        if hasattr(self, 'inv_data_path') and not (_tpl_obs and _tpl_obs[0][0]):
             _end_time_file = valid_files[-1][1]
             _less_data_variant = _end_time_file[:-4] + "_LessData.txt"
             _inv_default_file = _less_data_variant if os.path.isfile(_less_data_variant) else _end_time_file
             self.inv_data_path.setText(_inv_default_file)
+            # A per-output snapshot ("t_1.0_v.txt") is data for THAT output,
+            # not output 1 -- point the row's output selector at it.
+            _end_sel = valid_files[-1][2]
+            if (_end_sel is not None and hasattr(self, 'inv_obs_output_combo')
+                    and _end_sel < self.inv_obs_output_combo.count()):
+                self.inv_obs_output_combo.setCurrentIndex(_end_sel)
             # Remember which template this path was just auto-loaded for --
             # _sync_inverse_multi_setup reads this to tell "a real file we
             # just found for the CURRENTLY selected template" apart from
@@ -8275,10 +8285,12 @@ class MainWindow(QMainWindow):
         # 0.01/pi) -- Raissi et al.'s own eq. B.1 naming (Appendix B, the
         # data-driven-discovery form of Burgers' equation).
         "1D Burgers": [(0, "1.0", 0), (0, "0.01", 1)],
-        # nu's numerator 0.01 (nu = 0.01/pi) -- same reasoning as 1D
-        # Burgers' viscosity above, appearing identically in both PDE rows
+        # The viscosity nu = 0.01/pi itself (the whole "0.01/pi", so the
+        # unknown IS nu and its true value is 0.01/pi -- substituting only
+        # the "0.01" would make the unknown pi*nu while INVERSE_AUTO_VARS
+        # reported 0.01/pi as its true value), identical in both PDE rows
         # (U's and V's).
-        "2D Burgers (Mathias)": [(0, "0.01", 0), (1, "0.01", 0)],
+        "2D Burgers (Mathias)": [(0, "0.01/pi", 0), (1, "0.01/pi", 0)],
         # The nonlinear Schrodinger equation's shared 0.5 coefficient
         # (on dv_xx in u's PDE, du_xx in v's) -- one unknown, substituted
         # into both rows exactly like D/kf above.
@@ -8434,6 +8446,13 @@ class MainWindow(QMainWindow):
         # elsewhere in this codebase for this exact template.
         "3D Poisson (Sphere)": [
             (os.path.join(REFERENCE_DATA_DIR, "3D", "poisson_sphere", "u_obs.txt"), 0, 100.0),
+        ],
+        # Both velocity components measured at t = 1, each against its own
+        # output (a single file would leave the other component unmeasured,
+        # and the end-time default picked V's file for output U).
+        "2D Burgers (Mathias)": [
+            (os.path.join(REFERENCE_DATA_DIR, "2D", "burgers_mathias", "t_1.0_u.txt"), 0, 100.0),
+            (os.path.join(REFERENCE_DATA_DIR, "2D", "burgers_mathias", "t_1.0_v.txt"), 1, 100.0),
         ],
     }
 
