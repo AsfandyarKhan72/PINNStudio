@@ -2078,7 +2078,7 @@ Inputs and outputs can be rescaled ($x \mapsto x \times \text{scale} + \text{shi
 <details>
 <summary><strong>Training phases, learning-rate schedules and loss weights</strong></summary>
 
-Training is a sequence of **phases**, each with its own optimizer (Adam, AdamW, L-BFGS or NNCG), number of iterations, learning rate and loss weights — for example the common Adam-then-L-BFGS recipe, or several Adam phases with decreasing learning rates. Each phase's learning rate can decay by a step, cosine, exponential or inverse-time schedule. L-BFGS's stopping options and its float precision (float32, or float64 when it needs the extra precision to converge) are adjustable.
+Training is a sequence of **phases**, each with its own optimizer (Adam, AdamW, L-BFGS or NNCG), number of iterations, learning rate and loss weights — for example the common Adam-then-L-BFGS recipe, or several Adam phases with decreasing learning rates. Each phase's learning rate can decay by a step, cosine, exponential or inverse-time schedule. L-BFGS's stopping options are adjustable, and the run's precision can be set to float64 when L-BFGS needs the extra precision to converge (float32 is faster).
 
 Loss weights can be set per term (each equation, boundary condition, initial condition and measured-data file) or automatically from the first evaluation (**Scale by initial losses**, $w_i = c / L_i(0)$), so that every term starts at the same size.
 

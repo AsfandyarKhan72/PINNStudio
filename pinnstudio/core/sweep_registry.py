@@ -301,7 +301,12 @@ def _weight_slot_descriptors(config) -> list:
     for j, e in enumerate(_weight_bc_entries(config)):
         btype = e.get("type", "dirichlet") if isinstance(e, dict) else "dirichlet"
         comp = e.get("component", 0) if isinstance(e, dict) else 0
-        slots.append({"key": f"bc_{j}", "label": f"BC {j + 1} ({btype}, Output {comp})",
+        try:
+            comp = int(comp)
+        except (TypeError, ValueError):
+            comp = 0
+        cname = names[comp] if 0 <= comp < len(names) else f"output {comp + 1}"
+        slots.append({"key": f"bc_{j}", "label": f"BC {j + 1} ({btype}, {cname})",
                        "default_min": 0.1, "default_max": 10.0})
     if not config.steady_state:
         for i in _weight_active_ic_outputs(config, n_out):

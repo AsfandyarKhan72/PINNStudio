@@ -183,6 +183,42 @@ class DomainSpinBox(QDoubleSpinBox):
         return (QValidator.State.Invalid, text, pos)
 
 
+class OutputSpinBox(QSpinBox):
+    """An output index shown to the user counting from 1 ("Output 1" is the
+    first output, as in the PDE Definition panel), while value() stays the
+    0-based index the configs and generated scripts use."""
+
+    def textFromValue(self, v):
+        return str(v + 1)
+
+    def valueFromText(self, text):
+        try:
+            return int(text) - 1
+        except ValueError:
+            return self.value()
+
+
+def _components_display(text):
+    """A PointSet BC's 0-based "Components" field (e.g. "0,1"), shown
+    counting from 1 ("1,2"). Text that isn't a plain list of integers is
+    left as it is."""
+    try:
+        parts = [p.strip() for p in (text or "").split(",") if p.strip()]
+        return ",".join(str(int(p) + 1) for p in parts)
+    except ValueError:
+        return text
+
+
+def _components_stored(text):
+    """Inverse of _components_display: the field's 1-based numbers back to
+    the 0-based indices stored in the config."""
+    try:
+        parts = [p.strip() for p in (text or "").split(",") if p.strip()]
+        return ",".join(str(int(p) - 1) for p in parts)
+    except ValueError:
+        return text
+
+
 class InitGuessLineEdit(SciLineEdit):
     """SciLineEdit variant for Inverse trainable-variable initial guesses.
     SciLineEdit's own _format() (via Python's %g) shows a whole number
@@ -586,6 +622,17 @@ class MainWindow(QMainWindow):
         call used to be hand-typed at 58 call sites. Same resulting
         stylesheet ("color: <color>; <extra><Display Settings css>")."""
         return self._register_style(widget, "hint", lambda css, _c=color, _e=extra: f"color: {_c}; {_e}{css}")
+
+    def _register_section_divider(self, widget, extra=""):
+        """A "── Title ──" divider that starts a part of a panel (Training
+        Phases, Training Callbacks, Output 1 (u), Shared weights, ...): bold,
+        one style everywhere. Item headers inside a part ("── Phase 1 ──",
+        "── BC 1 ──", "── Parameter 1 ──") stay regular weight."""
+        # Bold is set after the Display Settings fragment (which carries its
+        # own font-weight), so it holds whatever hint style is chosen there.
+        return self._register_style(
+            widget, "hint",
+            lambda css, _e=extra: f"color: #8d9fd0; {_e}{css} font-weight: bold;")
 
     def _register_style(self, widget, category, style_fn):
         """Registers `widget` as styled by `category` and applies it
@@ -1256,7 +1303,7 @@ class MainWindow(QMainWindow):
         self.x_row_widget = QWidget()
         x_row = QHBoxLayout(self.x_row_widget)
         x_row.setContentsMargins(0, 0, 0, 0)
-        x_row.addWidget(QLabel("x:"))
+        x_row.addWidget(self._axis_label("x:"))
         self.x_min = DomainSpinBox()
         self.x_min.setRange(-1e6, 1e6); self.x_min.setValue(0.0); self.x_min.setSingleStep(0.5)
         self.x_max = DomainSpinBox()
@@ -1267,32 +1314,32 @@ class MainWindow(QMainWindow):
         # need 4 decimals (not 2) for precision and would otherwise render
         # visibly wider than these, uneven row/box sizes across the panel.
         self.x_min.setFixedWidth(_DOMAIN_SPIN_WIDTH); self.x_max.setFixedWidth(_DOMAIN_SPIN_WIDTH)
-        x_row.addWidget(self.x_min); x_row.addWidget(QLabel("to")); x_row.addWidget(self.x_max)
+        x_row.addWidget(self.x_min); x_row.addWidget(QLabel("to")); x_row.addWidget(self.x_max); x_row.addStretch()
         domain_layout.addWidget(self.x_row_widget)
 
         self.y_row_widget = QWidget()
         y_row = QHBoxLayout(self.y_row_widget)
         y_row.setContentsMargins(0, 0, 0, 0)
-        y_row.addWidget(QLabel("y:"))
+        y_row.addWidget(self._axis_label("y:"))
         self.y_min = DomainSpinBox()
         self.y_min.setRange(-1e6, 1e6); self.y_min.setValue(0.0); self.y_min.setSingleStep(0.5)
         self.y_max = DomainSpinBox()
         self.y_max.setRange(-1e6, 1e6); self.y_max.setValue(1.0); self.y_max.setSingleStep(0.5)
         self.y_min.setFixedWidth(_DOMAIN_SPIN_WIDTH); self.y_max.setFixedWidth(_DOMAIN_SPIN_WIDTH)
-        y_row.addWidget(self.y_min); y_row.addWidget(QLabel("to")); y_row.addWidget(self.y_max)
+        y_row.addWidget(self.y_min); y_row.addWidget(QLabel("to")); y_row.addWidget(self.y_max); y_row.addStretch()
         self.y_row_widget.setVisible(False)
         domain_layout.addWidget(self.y_row_widget)
 
         self.z_row_widget = QWidget()
         z_row = QHBoxLayout(self.z_row_widget)
         z_row.setContentsMargins(0, 0, 0, 0)
-        z_row.addWidget(QLabel("z:"))
+        z_row.addWidget(self._axis_label("z:"))
         self.z_min = DomainSpinBox()
         self.z_min.setRange(-1e6, 1e6); self.z_min.setValue(0.0); self.z_min.setSingleStep(0.5)
         self.z_max = DomainSpinBox()
         self.z_max.setRange(-1e6, 1e6); self.z_max.setValue(1.0); self.z_max.setSingleStep(0.5)
         self.z_min.setFixedWidth(_DOMAIN_SPIN_WIDTH); self.z_max.setFixedWidth(_DOMAIN_SPIN_WIDTH)
-        z_row.addWidget(self.z_min); z_row.addWidget(QLabel("to")); z_row.addWidget(self.z_max)
+        z_row.addWidget(self.z_min); z_row.addWidget(QLabel("to")); z_row.addWidget(self.z_max); z_row.addStretch()
         self.z_row_widget.setVisible(False)
         domain_layout.addWidget(self.z_row_widget)
 
@@ -1414,7 +1461,7 @@ class MainWindow(QMainWindow):
         self.t_row_widget = QWidget()
         row2 = QHBoxLayout(self.t_row_widget)
         row2.setContentsMargins(0, 0, 0, 0)
-        row2.addWidget(QLabel("t:"))
+        row2.addWidget(self._axis_label("t:"))
         self.t_min = DomainSpinBox()
         self.t_min.setRange(0.0, 1e6); self.t_min.setValue(0.0); self.t_min.setSingleStep(0.5)
         self.t_max = DomainSpinBox()
@@ -1423,7 +1470,7 @@ class MainWindow(QMainWindow):
         # round number -- e.g. 1D Schrodinger's t in [0, pi/2] -- is stored
         # to full precision rather than rounded to 1.57.
         self.t_min.setFixedWidth(_DOMAIN_SPIN_WIDTH); self.t_max.setFixedWidth(_DOMAIN_SPIN_WIDTH)
-        row2.addWidget(self.t_min); row2.addWidget(QLabel("to")); row2.addWidget(self.t_max)
+        row2.addWidget(self.t_min); row2.addWidget(QLabel("to")); row2.addWidget(self.t_max); row2.addStretch()
         domain_layout.addWidget(self.t_row_widget)
 
         # -- Steady-state (time-independent) toggle, e.g. a Poisson
@@ -1885,8 +1932,8 @@ class MainWindow(QMainWindow):
             train_layout.addWidget(QLabel(label))
             train_layout.addWidget(widget)
 
-        div0 = QLabel("─── Initial Condition (IC) Pre-Training (optional) ───")
-        self._register_hint(div0, '#505080')
+        div0 = QLabel("── Initial Condition (IC) Pre-Training (optional) ──")
+        self._register_section_divider(div0)
         train_layout.addWidget(div0)
         self.ic_pretrain_divider = div0
 
@@ -2031,8 +2078,8 @@ class MainWindow(QMainWindow):
         train_layout.addWidget(self.ic_pretrain_widget)
 
         # ── Optimizer Scheduler ───────────────────────────────
-        div_sched = QLabel("─── Training Phases ───")
-        self._register_hint(div_sched, '#505080')
+        div_sched = QLabel("── Training Phases ──")
+        self._register_section_divider(div_sched)
         train_layout.addWidget(div_sched)
         self.sched_cb = QCheckBox("Enable Optimizer Scheduler")
         self.sched_cb.setChecked(True)
@@ -2066,7 +2113,8 @@ class MainWindow(QMainWindow):
         self._register_hint(self.sched_same_weights_cb, '#69db7c')
         self.sched_same_weights_cb.stateChanged.connect(
             lambda s: self._build_weight_inputs(self.num_outputs_spin.value()))
-        sched_layout.addWidget(self.sched_same_weights_cb)
+        # (placed at the top of the Loss Weights panel, which it controls --
+        # see _build_training_panel's Loss Weights section)
 
         # Phase list container
         self.sched_phases_widget = QWidget()
@@ -2101,13 +2149,6 @@ class MainWindow(QMainWindow):
         self.lbfgs_use_default_cb.stateChanged.connect(self._on_lbfgs_default_changed)
         _lbfgs_top_row.addWidget(self.lbfgs_use_default_cb)
         _lbfgs_top_row.addStretch()
-        _lbfgs_top_row.addWidget(QLabel("Float:"))
-        self.lbfgs_float_combo = QComboBox()
-        self.lbfgs_float_combo.addItems(["float64", "float32"])
-        self.lbfgs_float_combo.setCurrentText("float32")
-        self.lbfgs_float_combo.setFixedWidth(90)
-        self.lbfgs_float_combo.setToolTip("Float precision for L-BFGS (float64 recommended for accuracy)")
-        _lbfgs_top_row.addWidget(self.lbfgs_float_combo)
         lbfgs_layout.addLayout(_lbfgs_top_row)
 
         self.lbfgs_manual_widget = QWidget()
@@ -2133,6 +2174,24 @@ class MainWindow(QMainWindow):
         lbfgs_layout.addWidget(self.lbfgs_manual_widget)
         self.lbfgs_widget.setVisible(False)
         train_layout.addWidget(self.lbfgs_widget)
+
+        # Precision -- its own row under the phases, since float64 here
+        # switches the whole run to float64 (codegen's _effective_float),
+        # not only the L-BFGS phases.
+        _prec_row = QHBoxLayout()
+        _prec_lbl = QLabel("Precision:")
+        _prec_row.addWidget(_prec_lbl)
+        self.lbfgs_float_combo = QComboBox()
+        self.lbfgs_float_combo.addItems(["float64", "float32"])
+        self.lbfgs_float_combo.setCurrentText("float32")
+        self.lbfgs_float_combo.setFixedHeight(26)
+        self._fit_combo_width(self.lbfgs_float_combo, min_width=80)
+        _prec_tip = ("Floating-point precision for training. float64 runs the whole training in\n"
+                     "double precision: slower, but L-BFGS converges further and is less likely\n"
+                     "to stop early. float32 is faster.")
+        _prec_lbl.setToolTip(_prec_tip); self.lbfgs_float_combo.setToolTip(_prec_tip)
+        _prec_row.addStretch(); _prec_row.addWidget(self.lbfgs_float_combo)
+        train_layout.addLayout(_prec_row)
         self.opt2_combo.currentTextChanged.connect(self._on_opt2_changed)
 
         # ── Training Callbacks (optional) ───────────────────────
@@ -2146,8 +2205,8 @@ class MainWindow(QMainWindow):
         # _train_cbs construction for the full scoping note). Read directly
         # by _build_config() and set directly by _apply_config() -- no
         # intermediate dict, same as every other Training-panel setting.
-        div_cb = QLabel("─── Training Callbacks ───")
-        self._register_hint(div_cb, '#505080')
+        div_cb = QLabel("── Training Callbacks ──")
+        self._register_section_divider(div_cb)
         train_layout.addWidget(div_cb)
 
         # The four callback groups below (Early Stopping/Point Resampling/
@@ -2350,6 +2409,7 @@ class MainWindow(QMainWindow):
         self.loss_w_init_cb.toggled.connect(self.loss_w_init_c.setEnabled)
         _wi_row.addWidget(self.loss_w_init_cb); _wi_row.addWidget(self.loss_w_init_c); _wi_row.addStretch()
         _wg_outer.addLayout(_wi_row)
+        _wg_outer.addWidget(self.sched_same_weights_cb)
         _wg_inner = QWidget()
         self.weights_main_layout = QVBoxLayout(_wg_inner)
         self.weights_main_layout.setContentsMargins(0, 0, 0, 0)
@@ -2699,8 +2759,8 @@ class MainWindow(QMainWindow):
         # room for one wide line per parameter) rather than v69's
         # single-line-per-row table layout, which needed ~700px of
         # width this column never has.
-        div_sweep_params = QLabel("─── Sweep Parameters ───")
-        self._register_hint(div_sweep_params, '#505080')
+        div_sweep_params = QLabel("── Sweep Parameters ──")
+        self._register_section_divider(div_sweep_params)
         sweep_options_layout.addWidget(div_sweep_params)
 
 
@@ -5392,7 +5452,7 @@ class MainWindow(QMainWindow):
         if idx >= 0:
             combo.setCurrentIndex(idx)
 
-    def _fit_combo_width(self, combo, extra=44, min_width=0):
+    def _fit_combo_width(self, combo, extra=56, min_width=0):
         """Widen a QComboBox so its box is at least as wide as its widest
         item's text, instead of a hand-picked fixed width that can cut off
         a longer option (e.g. "Glorot uniform" or "L-BFGS" getting clipped
@@ -5745,7 +5805,7 @@ class MainWindow(QMainWindow):
         for i in range(n):
             name = ["u", "v", "w", "p"][i] if i < 4 else f"u{i+1}"
             sep = QLabel(f"── Output {i+1} ({name}) ──")
-            self._register_hint(sep, '#505080', 'margin-top: 4px; ')
+            self._register_section_divider(sep, 'margin-top: 4px; ')
             self.bc_main_layout.addWidget(sep)
 
             # Container widget for all BC+IC of this output
@@ -6162,10 +6222,11 @@ class MainWindow(QMainWindow):
         comp_widget = QWidget()
         comp_row = QHBoxLayout(comp_widget)
         comp_row.setContentsMargins(0, 0, 0, 0)
-        comp_row.addWidget(QLabel("Output #:"))
-        comp_spin = QSpinBox(); comp_spin.setRange(0, 7); comp_spin.setValue(component)
+        comp_row.addWidget(QLabel("Output:"))
+        comp_spin = OutputSpinBox(); comp_spin.setRange(0, 7); comp_spin.setValue(component)
         comp_spin.setFixedHeight(26); comp_spin.setFixedWidth(60)
-        comp_spin.setToolTip("0-indexed output this BC applies to (0 = first output, 1 = second, ...)")
+        comp_spin.setToolTip("The output this BC applies to (1 = first output, 2 = second, ...), "
+                             "numbered as in the PDE Definition panel")
         comp_row.addWidget(comp_spin)
         type_row.addWidget(comp_widget)
         type_row.addStretch()
@@ -6328,8 +6389,8 @@ class MainWindow(QMainWindow):
         multi_comp_layout = QHBoxLayout(multi_comp_widget)
         multi_comp_layout.setContentsMargins(0, 0, 0, 0)
         multi_comp_layout.addWidget(QLabel("Components (comma-separated):"))
-        multi_comp_edit = QLineEdit(components)
-        multi_comp_edit.setPlaceholderText("e.g. 0,1 -- overrides Output # above, needs matching extra file columns")
+        multi_comp_edit = QLineEdit(_components_display(components))
+        multi_comp_edit.setPlaceholderText("e.g. 1,2 -- overrides Output above, needs matching extra file columns")
         multi_comp_edit.setFixedHeight(26)
         multi_comp_layout.addWidget(multi_comp_edit)
         entry_layout.addWidget(multi_comp_widget)
@@ -6569,7 +6630,7 @@ class MainWindow(QMainWindow):
                 'points_file': e['points_file'].text(),
                 'location2': e['location2'].text(),
                 'direction': e['direction'].currentText(),
-                'components': e['components'].text(),
+                'components': _components_stored(e['components'].text()),
                 'batch_size': e['batch_size'].value(),
                 'shuffle': e['shuffle'].isChecked(),
                 'apply_at': e['apply_at'].currentData() if 'apply_at' in e else 'boundary',
@@ -6757,6 +6818,25 @@ class MainWindow(QMainWindow):
                                        location="left", axis="x",
                                        deriv_order=1, locked=False)
 
+    @staticmethod
+    def _axis_label(text):
+        """"x:", "t:", ... in the Domain panel, all one width so every
+        row's min box starts at the same place."""
+        lbl = QLabel(text)
+        lbl.setFixedWidth(22)
+        return lbl
+
+    def _bc_weight_desc(self, entry):
+        """"Dirichlet, u" for a Boundary Conditions row's loss-weight label:
+        its type without the trailing "BC", and its output by name."""
+        btype = entry['type'].currentText()
+        if btype.endswith(" BC"):
+            btype = btype[:-3]
+        comp = entry['component'].value()
+        names = getattr(self, 'output_name_inputs', [])
+        name = names[comp].text().strip() if comp < len(names) else ""
+        return f"{btype}, {name or f'output {comp + 1}'}"
+
     # ── Build weight inputs ───────────────────────────────────
     def _build_weight_inputs(self, n):
         for i in reversed(range(self.weights_main_layout.count())):
@@ -6782,6 +6862,9 @@ class MainWindow(QMainWindow):
 
         def _w_row(label, key):
             row = QHBoxLayout()
+            # No default layout margins: rows sit as close together as the
+            # other panels' label + field rows.
+            row.setContentsMargins(0, 0, 0, 0)
             row.addWidget(QLabel(label))
             _default_w = 100.0 if key.startswith("ic_") else 1.0
             w = SciLineEdit(_default_w); w.setFixedWidth(100)
@@ -6792,7 +6875,7 @@ class MainWindow(QMainWindow):
 
         if _same_weights:
             _sep_all = QLabel("── Shared weights (all phases) ──")
-            self._register_hint(_sep_all, '#505080')
+            self._register_section_divider(_sep_all)
             _sw_all = QWidget(); _sl_all = QHBoxLayout(_sw_all)
             _sl_all.setContentsMargins(0,0,0,0); _sl_all.addWidget(_sep_all)
             self.weights_main_layout.addWidget(_sw_all)
@@ -6805,9 +6888,7 @@ class MainWindow(QMainWindow):
             # custom_bc_json path), whether it's a hand-built row or one
             # pre-filled from a template.
             for _bj, _be in enumerate(getattr(self, 'custom_bc_list', [])):
-                _btype_label = _be['type'].currentText()
-                _bcomp = _be['component'].value()
-                _w_row(f"BC {_bj + 1} ({_btype_label}, Output {_bcomp}):", f"bc_{_bj}")
+                _w_row(f"BC {_bj + 1} ({self._bc_weight_desc(_be)}):", f"bc_{_bj}")
             if not _is_steady:
                 for i in range(n):
                     name = self.output_name_inputs[i].text() if i < len(self.output_name_inputs) else f"u{i+1}"
@@ -6825,7 +6906,7 @@ class MainWindow(QMainWindow):
             for _pi, _ph in enumerate(self.sched_phase_list):
                 _phase_num = _ph['phase_num']
                 sep = QLabel(f"── Phase {_phase_num} weights ──")
-                self._register_hint(sep, '#505080')
+                self._register_section_divider(sep)
                 _sw = QWidget(); _sl = QHBoxLayout(_sw)
                 _sl.setContentsMargins(0,0,0,0); _sl.addWidget(sep)
                 self.weights_main_layout.addWidget(_sw)
@@ -6834,9 +6915,7 @@ class MainWindow(QMainWindow):
                     _w_row(f"PDE {_i+1} ({_name}) P{_phase_num}:" if self._n_equations() == n else f"PDE {_i+1} P{_phase_num}:",
                            f"pde_{_i}_p{_phase_num}")
                 for _bj, _be in enumerate(getattr(self, 'custom_bc_list', [])):
-                    _btype_label = _be['type'].currentText()
-                    _bcomp = _be['component'].value()
-                    _w_row(f"BC {_bj + 1} ({_btype_label}, Output {_bcomp}) P{_phase_num}:", f"bc_{_bj}_p{_phase_num}")
+                    _w_row(f"BC {_bj + 1} ({self._bc_weight_desc(_be)}) P{_phase_num}:", f"bc_{_bj}_p{_phase_num}")
                 if not _is_steady:
                     for _i in range(n):
                         _name = self.output_name_inputs[_i].text() if _i < len(self.output_name_inputs) else f"u{_i+1}"
