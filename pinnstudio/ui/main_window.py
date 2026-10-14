@@ -913,6 +913,7 @@ class MainWindow(QMainWindow):
         left_layout.setContentsMargins(10, 8, 10, 8)
 
         left_scroll = QScrollArea()
+        self._left_scroll = left_scroll
         left_scroll.setWidget(left_inner)
         left_scroll.setWidgetResizable(True)
         left_scroll.setMinimumWidth(300)
@@ -1363,7 +1364,8 @@ class MainWindow(QMainWindow):
         _p.addWidget(self._domain_row("Semi-axes:", self.geom_ellipse_a, self.geom_ellipse_b,
                                       tip="Semi-major and semi-minor axis"))
         _p.addWidget(self._domain_row("Angle (rad):", self.geom_ellipse_angle,
-                                      tip="Rotation of the major axis from the x axis, in radians"))
+                                      tip="Rotation of the major axis from the x axis, in radians;\n"
+                                                    "a positive angle turns it clockwise (DeepXDE's convention)"))
         self.geom_panel_ellipse.setVisible(False)
         domain_layout.addWidget(self.geom_panel_ellipse)
 
@@ -3268,6 +3270,10 @@ class MainWindow(QMainWindow):
         self.right_tabs.addTab(self.log_box, "📋 Training Log")
         self.sketch_panel = SketchPanel()
         self.sketch_panel.shapes_edited.connect(self._on_sketch_edited)
+        self.sketch_panel.set_bc_provider(self._sketch_bc_rows, self._sketch_domain)
+        self.sketch_panel.new_bc_requested.connect(self._on_sketch_new_bc)
+        self.sketch_panel.add_to_bc_requested.connect(self._on_sketch_add_to_bc)
+        self.sketch_panel.remove_from_bcs_requested.connect(self._on_sketch_remove_from_bcs)
         self._sketch_tab_index = self.right_tabs.addTab(self.sketch_panel, "✏ Sketch")
         self.right_tabs.setTabVisible(self._sketch_tab_index, False)
         self.right_tabs.currentChanged.connect(self._on_right_tab_changed)
@@ -4551,7 +4557,8 @@ class MainWindow(QMainWindow):
         ellipse_panel = _panel(self._domain_row("Center:", ell_cx, ell_cy, tip="Center (x, y)"),
                                self._domain_row("Semi-axes:", ell_a, ell_b, tip="Semi-major and semi-minor axis"),
                                self._domain_row("Angle (rad):", ell_angle,
-                                                tip="Rotation of the major axis from the x axis, in radians"))
+                                                tip="Rotation of the major axis from the x axis, in radians;\n"
+                                                    "a positive angle turns it clockwise (DeepXDE's convention)"))
 
         tri_verts = QLineEdit(P("vertices_text", "0,0;1,0;0,1"))
         tri_verts.setFixedHeight(26)
@@ -4705,6 +4712,92 @@ class MainWindow(QMainWindow):
             self._apply_custom_geom_shapes_json(json.dumps(shapes))
         finally:
             self._sketch_writing_rows = False
+
+    # ── Sketch: edges -> Boundary Conditions rows ──────────────
+    _SKETCH_NO_WHERE_TYPES = ("pointset", "pointset_operator")
+
+    def _sketch_bc_rows(self):
+        """The BC rows the sketch can colour edges by (those with a Where:)."""
+        rows = []
+        for i, e in enumerate(getattr(self, 'custom_bc_list', [])):
+            if e['type'].currentData() in self._SKETCH_NO_WHERE_TYPES:
+                continue
+            rows.append({"index": i, "label": f"BC {i + 1}: {self._bc_weight_desc(e)}",
+                         "expr": e['location'].text()})
+        return rows
+
+    def _sketch_domain(self):
+        names = {"x_min": self.x_min, "x_max": self.x_max, "y_min": self.y_min, "y_max": self.y_max,
+                 "t_min": self.t_min}
+        return {n: w.value() for n, w in names.items()}
+
+    def _sketch_bcs_changed(self, *_a):
+        if hasattr(self, 'sketch_panel') and self.sketch_panel.isVisible():
+            self.sketch_panel.refresh_bcs()
+
+    def _reveal_bc_row(self, entry):
+        """Scroll the left panel to a BC row and briefly highlight it."""
+        def _go():
+            if hasattr(self, '_left_scroll'):
+                self._left_scroll.ensureWidgetVisible(entry['widget'], 0, 60)
+            loc = entry['location']
+            old = loc.styleSheet()
+            loc.setStyleSheet("QLineEdit { border: 2px solid #ffd43b; }")
+            QTimer.singleShot(1600, lambda: loc.setStyleSheet(old))
+        QTimer.singleShot(50, _go)
+
+    def _on_sketch_new_bc(self, where):
+        entry = self._add_custom_bc_entry(bc_type="dirichlet", location=where, value="0")
+        self._update_bc_mode_visibility()
+        if hasattr(self, 'weights_main_layout'):
+            self._build_weight_inputs(self.num_outputs_spin.value())
+        self.log_box.append(f"✏ Sketch: added BC {len(self.custom_bc_list)} (Dirichlet, value 0) on the selected edges -- "
+                  "set its type and value in Boundary Conditions.")
+        self._reveal_bc_row(entry)
+        self.sketch_panel.refresh_bcs()
+
+    def _on_sketch_add_to_bc(self, index, where):
+        from pinnstudio.ui.sketch_edges import add_to_where
+        if not (0 <= index < len(self.custom_bc_list)):
+            return
+        entry = self.custom_bc_list[index]
+        cur = entry['location'].text().strip()
+        if cur in ("", "True"):
+            QMessageBox.information(self, "Add to BC",
+                                    f"BC {index + 1} already applies to the whole boundary, so it covers these "
+                                    "edges already. Use “New BC on selected” to give them their own condition.")
+            return
+        entry['location'].setText(add_to_where(cur, where))
+        self._reveal_bc_row(entry)
+        self.sketch_panel.refresh_bcs()
+
+    def _on_sketch_remove_from_bcs(self, exprs):
+        from pinnstudio.ui.sketch_edges import remove_from_where
+        changed, kept, emptied = [], [], []
+        for i, e in enumerate(self.custom_bc_list):
+            if e['type'].currentData() in self._SKETCH_NO_WHERE_TYPES:
+                continue
+            new = remove_from_where(e['location'].text(), exprs)
+            if new is None:
+                continue
+            if new:
+                e['location'].setText(new)
+                changed.append(i + 1)
+            else:
+                emptied.append(i + 1)
+        # an edge that is still coloured is picked by a Where: written another way
+        self.sketch_panel.refresh_bcs()
+        if emptied:
+            QMessageBox.information(
+                self, "Remove from BC",
+                "No edges would be left in " + ", ".join(f"BC {n}" for n in emptied) +
+                ", so it was left as it is -- remove the row itself with its ✕ if it's no longer needed.")
+        bc_of = self.sketch_panel.canvas.edge_bcs()
+        if any(bc_of[k] for k in self.sketch_panel.canvas.sel_edges if k < len(bc_of)) and not emptied:
+            QMessageBox.information(
+                self, "Remove from BC",
+                "Some selected edges are still picked by a BC whose Where: was typed differently "
+                "(for example 'True' or 'left'); edit that row's Where: in Boundary Conditions.")
 
     def _move_custom_geom_shape(self, row_data, delta):
         """Move one shape up/down in the combine order -- CSG ops are not
@@ -6633,8 +6726,14 @@ class MainWindow(QMainWindow):
             if entry_data in self.custom_bc_list:
                 self.custom_bc_list.remove(entry_data)
             self._update_bc_mode_visibility()
+            self._sketch_bcs_changed()
 
         remove_btn.clicked.connect(_remove)
+        # the sketch colours its edges by these rows' Where:
+        loc_edit.textChanged.connect(self._sketch_bcs_changed)
+        type_combo.currentIndexChanged.connect(self._sketch_bcs_changed)
+        comp_spin.valueChanged.connect(self._sketch_bcs_changed)
+        self._sketch_bcs_changed()
         return entry_data
 
     def _build_custom_bc_json(self):

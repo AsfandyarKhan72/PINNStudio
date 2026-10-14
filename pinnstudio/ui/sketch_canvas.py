@@ -16,19 +16,31 @@ Controls: pick a tool and drag on the grid (Polygon: click each corner, then
 double-click, press Enter or click the first corner to close; Esc cancels).
 Select: click a shape to select it, drag to move it, Delete to remove it.
 Mouse wheel zooms around the cursor; right- or middle-drag pans.
+
+Edges → BCs: the domain's boundary is split into numbered edges (see
+sketch_edges); click one (Ctrl/Shift-click for more) and make a boundary
+condition for it, or add it to an existing one. Each edge is drawn in the
+colour of the BC row whose "Where:" picks it, grey when none does.
 """
+import json
 import math
 
 from PyQt6.QtCore import QPointF, QRectF, Qt, pyqtSignal
 from PyQt6.QtGui import (QBrush, QColor, QFont, QPainter, QPainterPath, QPainterPathStroker, QPen, QPolygonF,
                          QTransform)
 from PyQt6.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QDoubleSpinBox, QHBoxLayout, QLabel,
-                             QPushButton, QSizePolicy, QVBoxLayout, QWidget)
+                             QLineEdit, QPushButton, QSizePolicy, QVBoxLayout, QWidget)
 
-TOOLS = ("Select", "Rectangle", "Circle", "Ellipse", "Polygon")
+from pinnstudio.ui.sketch_edges import boundary_edges, join_where, where_matches
+
+TOOLS = ("Select", "Rectangle", "Circle", "Ellipse", "Polygon", "Edges")
 OPS = (("Union (add)", "union"), ("Subtract (cut hole)", "subtract"), ("Intersect (keep overlap)", "intersect"))
 OP_COLORS = {None: QColor("#1f6fd1"), "union": QColor("#1f6fd1"),
              "subtract": QColor("#d9480f"), "intersect": QColor("#2b8a3e")}
+# one colour per Boundary Conditions row (cycled), and edges without one
+BC_COLORS = ("#1971c2", "#e8590c", "#2f9e44", "#9c36b5", "#c2255c", "#0c8599", "#f08c00", "#5c940d",
+             "#3b5bdb", "#a61e4d")
+NO_BC_COLOR = "#868e96"
 
 
 def _fmt(v):
@@ -75,7 +87,7 @@ def shape_path(shape):
             e.addEllipse(QPointF(0, 0), a, b)
             tr = QTransform()
             tr.translate(cx, cy)
-            tr.rotateRadians(ang)
+            tr.rotateRadians(-ang)  # DeepXDE turns a positive angle clockwise
             path = tr.map(e)
         elif t in ("Triangle", "Polygon"):
             pts = parse_vertices(p.get("vertices_text", ""))
@@ -142,6 +154,8 @@ class _Canvas(QWidget):
     changed = pyqtSignal()           # the shape list was edited (on mouse release)
     selection_changed = pyqtSignal(int)
     cursor_moved = pyqtSignal(float, float)
+    edges_selected = pyqtSignal()    # Edges tool: the selected edges changed
+    edge_hovered = pyqtSignal(int)   # Edges tool: edge under the cursor (-1: none)
 
     def __init__(self, owner):
         super().__init__()
@@ -156,6 +170,10 @@ class _Canvas(QWidget):
         self._drag = None                  # (kind, start world point, extra)
         self._poly = []                    # polygon corners being placed
         self._cursor = None
+        self._edges, self._edges_key = [], None   # boundary edges of the current shapes
+        self._bc_of, self._bc_key = [], None      # per edge: the BC rows that pick it
+        self.sel_edges = []                       # selected edge indices, in click order
+        self.hover_edge = -1
         self.setMouseTracking(True)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.setMinimumSize(320, 240)
@@ -196,6 +214,106 @@ class _Canvas(QWidget):
         w, h = max(self.width(), 50), max(self.height(), 50)
         self.scale = min(w / r.width(), h / r.height())
         self.update()
+
+    # ── edges (Edges → BCs tool) ─────────────────────────────
+    def edges(self):
+        """The domain's boundary edges (recomputed only when the shapes change)."""
+        key = json.dumps(self.shapes, sort_keys=True)
+        if key != self._edges_key:
+            self._edges = boundary_edges(self.shapes)
+            self._edges_key = key
+            self.sel_edges = []
+            self.hover_edge = -1
+        return self._edges
+
+    def edge_bcs(self):
+        """Per edge, the indices of the BC rows whose "Where:" picks it."""
+        edges = self.edges()
+        rows = self.owner.bc_rows()
+        dom = self.owner.domain()
+        key = (self._edges_key, tuple((b["index"], b["expr"]) for b in rows), tuple(sorted(dom.items())))
+        if key != self._bc_key:
+            self._bc_key = key
+            self._bc_of = [[b["index"] for b in rows if where_matches(b["expr"], e["mid"][0], e["mid"][1], dom)]
+                           for e in edges]
+        return self._bc_of
+
+    def _edge_at(self, q, px=8.0):
+        best, best_d = -1, px
+        for k, e in enumerate(self.edges()):
+            pts = [self.to_screen(QPointF(x, y)) for x, y in e["points"]]
+            for a, b in zip(pts, pts[1:]):
+                dx, dy = b.x() - a.x(), b.y() - a.y()
+                L2 = dx * dx + dy * dy
+                t = 0.0 if L2 == 0 else max(0.0, min(1.0, ((q.x() - a.x()) * dx + (q.y() - a.y()) * dy) / L2))
+                d = math.hypot(q.x() - (a.x() + t * dx), q.y() - (a.y() + t * dy))
+                if d < best_d:
+                    best, best_d = k, d
+        return best
+
+    def _paint_edges(self, qp):
+        edges = self.edges()
+        bc_of = self.edge_bcs()
+        if not edges:
+            qp.setPen(QColor("#8a96a3"))
+            qp.drawText(self.rect().adjusted(0, 0, 0, -self.height() // 3), Qt.AlignmentFlag.AlignCenter,
+                        "Draw the domain first, then its edges show up here")
+            return
+        f = QFont(self.font())
+        f.setPointSizeF(9.0)
+        f.setBold(True)
+        qp.setFont(f)
+        fm = qp.fontMetrics()
+        for k, e in enumerate(edges):
+            poly = QPolygonF([self.to_screen(QPointF(x, y)) for x, y in e["points"]])
+            color = QColor(BC_COLORS[bc_of[k][0] % len(BC_COLORS)]) if bc_of[k] else QColor(NO_BC_COLOR)
+            if k in self.sel_edges or k == self.hover_edge:
+                halo = QColor("#ffd43b") if k in self.sel_edges else QColor(255, 212, 59, 110)
+                qp.setPen(QPen(halo, 11, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin))
+                qp.drawPolyline(poly)
+            qp.setPen(QPen(color, 4.0 if bc_of[k] else 3.0, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap,
+                           Qt.PenJoinStyle.RoundJoin))
+            qp.drawPolyline(poly)
+        # labels on top of every edge
+        for k, e in enumerate(edges):
+            color = QColor(BC_COLORS[bc_of[k][0] % len(BC_COLORS)]) if bc_of[k] else QColor(NO_BC_COLOR)
+            m = self.to_screen(QPointF(*e["mid"]))
+            ox, oy = e["out"]
+            text = f"E{k + 1}"
+            w, h = fm.horizontalAdvance(text) + 8, fm.height() + 2
+            c = QPointF(m.x() + ox * (w / 2 + 8), m.y() - oy * (h / 2 + 8))
+            box = QRectF(c.x() - w / 2, c.y() - h / 2, w, h)
+            qp.setPen(QPen(color, 1.4))
+            qp.setBrush(QColor("#fff3bf") if k in self.sel_edges else QColor("white"))
+            qp.drawRoundedRect(box, 4, 4)
+            qp.setPen(color.darker(130))
+            qp.drawText(box, Qt.AlignmentFlag.AlignCenter, text)
+        qp.setBrush(Qt.BrushStyle.NoBrush)
+        # legend: which colour is which BC row
+        rows = self.owner.bc_rows()
+        used = {i for lst in bc_of for i in lst}
+        items = [(QColor(BC_COLORS[b["index"] % len(BC_COLORS)]), b["label"]) for b in rows if b["index"] in used]
+        if any(not lst for lst in bc_of):
+            items.append((QColor(NO_BC_COLOR), "no BC yet"))
+        if items:
+            f.setBold(False)
+            f.setPointSizeF(9.5)
+            qp.setFont(f)
+            fm = qp.fontMetrics()
+            w = max(fm.horizontalAdvance(t) for _, t in items) + 34
+            h = len(items) * (fm.height() + 3) + 8
+            box = QRectF(self.width() - w - 10, 10, w, h)
+            qp.setPen(QPen(QColor("#ced4da"), 1))
+            qp.setBrush(QColor(255, 255, 255, 230))
+            qp.drawRoundedRect(box, 5, 5)
+            y = box.top() + 4
+            for col, t in items:
+                qp.setPen(QPen(col, 4, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
+                qp.drawLine(QPointF(box.left() + 8, y + fm.height() / 2 + 1), QPointF(box.left() + 22, y + fm.height() / 2 + 1))
+                qp.setPen(QColor("#343a40"))
+                qp.drawText(QPointF(box.left() + 28, y + fm.ascent()), t)
+                y += fm.height() + 3
+            qp.setBrush(Qt.BrushStyle.NoBrush)
 
     # ── painting ─────────────────────────────────────────────
     def _nice_step(self):
@@ -254,6 +372,10 @@ class _Canvas(QWidget):
         qp.setPen(QPen(QColor("#0b3d91"), 2.2))
         qp.setBrush(Qt.BrushStyle.NoBrush)
         qp.drawPath(dom)
+        if self.tool == "Edges":
+            self._paint_edges(qp)
+            qp.end()
+            return
         # each shape's own outline (dashed), coloured by how it is combined
         for i, sh in enumerate(self.shapes):
             op = sh.get("op") if i else None
@@ -281,7 +403,7 @@ class _Canvas(QWidget):
                 qp.drawEllipse(self.to_screen(QPointF(x, y)), 3.5, 3.5)
             qp.setBrush(Qt.BrushStyle.NoBrush)
         # snapped cursor
-        if self._cursor is not None and self.tool != "Select":
+        if self._cursor is not None and self.tool not in ("Select", "Edges"):
             c = self.to_screen(self._cursor)
             qp.setPen(QPen(QColor("#e8590c"), 1))
             qp.drawLine(QPointF(c.x() - 6, c.y()), QPointF(c.x() + 6, c.y()))
@@ -369,6 +491,19 @@ class _Canvas(QWidget):
         if ev.button() != Qt.MouseButton.LeftButton:
             return
         sw = self.snapped(w)
+        if self.tool == "Edges":
+            k = self._edge_at(ev.position())
+            if ev.modifiers() & (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier):
+                if k >= 0:
+                    if k in self.sel_edges:
+                        self.sel_edges.remove(k)
+                    else:
+                        self.sel_edges.append(k)
+            else:
+                self.sel_edges = [] if k < 0 or self.sel_edges == [k] else [k]
+            self.edges_selected.emit()
+            self.update()
+            return
         if self.tool == "Select":
             i = self._hit(w)
             self.selected = i
@@ -395,8 +530,14 @@ class _Canvas(QWidget):
 
     def mouseMoveEvent(self, ev):
         w = self.to_world(ev.position())
-        self._cursor = self.snapped(w) if self.tool != "Select" else w
-        shown = self.snapped(w) if self.tool != "Select" else w
+        free = self.tool in ("Select", "Edges")
+        self._cursor = w if free else self.snapped(w)
+        shown = self._cursor
+        if self.tool == "Edges" and self._drag is None:
+            k = self._edge_at(ev.position())
+            if k != self.hover_edge:
+                self.hover_edge = k
+                self.edge_hovered.emit(k)
         self.cursor_moved.emit(shown.x(), shown.y())
         if self._drag is not None:
             kind = self._drag[0]
@@ -446,8 +587,15 @@ class _Canvas(QWidget):
         elif k == Qt.Key.Key_Escape:
             self._poly = []
             self._drag = None
+            if self.sel_edges:
+                self.sel_edges = []
+                self.edges_selected.emit()
             self.update()
-        elif k in (Qt.Key.Key_Delete, Qt.Key.Key_Backspace):
+        elif k == Qt.Key.Key_A and ev.modifiers() & Qt.KeyboardModifier.ControlModifier and self.tool == "Edges":
+            self.sel_edges = list(range(len(self.edges())))
+            self.edges_selected.emit()
+            self.update()
+        elif k in (Qt.Key.Key_Delete, Qt.Key.Key_Backspace) and self.tool != "Edges":
             self.owner.delete_selected()
         else:
             super().keyPressEvent(ev)
@@ -458,6 +606,9 @@ class SketchPanel(QWidget):
     the user changes the sketch; `set_shapes(list)` shows a shape list
     edited elsewhere (the Custom geometry rows) without firing it."""
     shapes_edited = pyqtSignal(list)
+    new_bc_requested = pyqtSignal(str)            # "Where:" of the selected edges
+    add_to_bc_requested = pyqtSignal(int, str)    # BC row index, "Where:" to add
+    remove_from_bcs_requested = pyqtSignal(list)  # edge expressions to take out of their BC rows
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -470,8 +621,10 @@ class SketchPanel(QWidget):
         self.tool_group = QButtonGroup(self)
         self.tool_buttons = {}
         labels = {"Select": "⬚ Select", "Rectangle": "▭ Rectangle", "Circle": "◯ Circle",
-                  "Ellipse": "⬭ Ellipse", "Polygon": "⬠ Polygon"}
+                  "Ellipse": "⬭ Ellipse", "Polygon": "⬠ Polygon", "Edges": "⌁ Edges → BCs"}
         for t in TOOLS:
+            if t == "Edges":
+                bar.addSpacing(10)
             b = QPushButton(labels[t])
             b.setCheckable(True)
             b.setFixedHeight(26)
@@ -480,7 +633,8 @@ class SketchPanel(QWidget):
             bar.addWidget(b)
             b.clicked.connect(lambda _c, tool=t: self.set_tool(tool))
         bar.addSpacing(8)
-        bar.addWidget(QLabel("New shape:"))
+        self.op_label = QLabel("New shape:")
+        bar.addWidget(self.op_label)
         self.op_combo = QComboBox()
         for label, val in OPS:
             self.op_combo.addItem(label, val)
@@ -527,6 +681,52 @@ class SketchPanel(QWidget):
         self.hint.setWordWrap(True)
         lay.addWidget(self.hint)
 
+        # Edges → BCs: what to do with the selected edges
+        self.edge_bar = QWidget()
+        eb = QVBoxLayout(self.edge_bar)
+        eb.setContentsMargins(0, 0, 0, 0)
+        eb.setSpacing(4)
+        r1 = QHBoxLayout()
+        r1.setSpacing(4)
+        self.edge_sel_label = QLabel("No edge selected")
+        self.edge_sel_label.setMinimumWidth(150)
+        r1.addWidget(self.edge_sel_label)
+        self.new_bc_btn = QPushButton("＋ New BC on selected")
+        self.new_bc_btn.setToolTip("Add a Boundary Conditions row (Dirichlet, value 0) whose Where: picks "
+                                   "the selected edges; set its type and value in the panel on the left")
+        self.add_to_combo = QComboBox()
+        self.add_to_combo.setMinimumWidth(170)
+        self.add_to_combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
+        self.add_to_btn = QPushButton("Add to")
+        self.add_to_btn.setToolTip("Add the selected edges to this existing BC row's Where:")
+        self.remove_btn = QPushButton("Remove from BC")
+        self.remove_btn.setToolTip("Take the selected edges out of the BC rows that pick them "
+                                   "(only where Where: lists the edge as the sketch wrote it)")
+        self.sel_free_btn = QPushButton("Select edges without a BC")
+        for b in (self.new_bc_btn, self.add_to_btn, self.remove_btn, self.sel_free_btn, self.add_to_combo):
+            b.setFixedHeight(26)
+        r1.addWidget(self.new_bc_btn)
+        r1.addSpacing(6)
+        r1.addWidget(self.add_to_btn)
+        r1.addWidget(self.add_to_combo)
+        r1.addWidget(self.remove_btn)
+        r1.addStretch()
+        r1.addWidget(self.sel_free_btn)
+        eb.addLayout(r1)
+        r2 = QHBoxLayout()
+        r2.setSpacing(4)
+        r2.addWidget(QLabel("Where:"))
+        self.where_edit = QLineEdit()
+        self.where_edit.setReadOnly(True)
+        self.where_edit.setPlaceholderText("the selected edges' expression appears here")
+        self.where_edit.setFixedHeight(26)
+        r2.addWidget(self.where_edit, 1)
+        eb.addLayout(r2)
+        lay.addWidget(self.edge_bar)
+
+        self._bc_rows_fn = lambda: []
+        self._domain_fn = lambda: {}
+
         self.grid_spin.valueChanged.connect(self._on_grid)
         self.snap_cb.toggled.connect(self._on_snap)
         self.delete_btn.clicked.connect(self.delete_selected)
@@ -534,6 +734,12 @@ class SketchPanel(QWidget):
         self.fit_btn.clicked.connect(self.canvas.fit)
         self.canvas.changed.connect(lambda: self.shapes_edited.emit([dict(s) for s in self.canvas.shapes]))
         self.canvas.cursor_moved.connect(lambda x, y: self.coord_label.setText(f"x = {_fmt(x)},  y = {_fmt(y)}"))
+        self.canvas.edges_selected.connect(self._update_edge_bar)
+        self.canvas.edge_hovered.connect(self._on_edge_hovered)
+        self.new_bc_btn.clicked.connect(lambda: self._emit_selected(self.new_bc_requested))
+        self.add_to_btn.clicked.connect(self._on_add_to)
+        self.remove_btn.clicked.connect(self._on_remove)
+        self.sel_free_btn.clicked.connect(self._select_free_edges)
         self.set_tool("Rectangle")
 
     HINTS = {
@@ -543,6 +749,8 @@ class SketchPanel(QWidget):
         "Circle": "Press at the centre and drag out the radius.",
         "Ellipse": "Drag the box the ellipse fits in.",
         "Polygon": "Click each corner; double-click, press Enter or click the first corner to close. Esc cancels.",
+        "Edges": "Click an edge to select it (Ctrl- or Shift-click for more, Ctrl+A for all), then give it a "
+                 "boundary condition below. Each edge takes the colour of the BC row whose Where: picks it.",
     }
 
     def set_tool(self, tool):
@@ -550,7 +758,100 @@ class SketchPanel(QWidget):
         self.canvas._poly = []
         self.tool_buttons[tool].setChecked(True)
         self.hint.setText(self.HINTS[tool])
-        self.canvas.setCursor(Qt.CursorShape.ArrowCursor if tool == "Select" else Qt.CursorShape.CrossCursor)
+        free = tool in ("Select", "Edges")
+        self.canvas.setCursor(Qt.CursorShape.ArrowCursor if free else Qt.CursorShape.CrossCursor)
+        edges = tool == "Edges"
+        self.edge_bar.setVisible(edges)
+        for w in (self.op_label, self.op_combo, self.delete_btn, self.clear_btn):
+            w.setVisible(not edges)
+        if edges:
+            self.refresh_bcs()
+        self.canvas.update()
+
+    # ── Edges → BCs ──────────────────────────────────────────
+    def set_bc_provider(self, rows_fn, domain_fn):
+        """rows_fn() -> [{"index", "label", "expr"}] for the BC rows that have
+        a Where:; domain_fn() -> {"x_min": .., ...} for the names Where: can use."""
+        self._bc_rows_fn = rows_fn
+        self._domain_fn = domain_fn
+
+    def bc_rows(self):
+        try:
+            return self._bc_rows_fn() or []
+        except Exception:
+            return []
+
+    def domain(self):
+        try:
+            return self._domain_fn() or {}
+        except Exception:
+            return {}
+
+    def refresh_bcs(self):
+        """The BC rows changed: recolour the edges, refresh "Add to"."""
+        if not self.edge_bar.isVisible() and self.canvas.tool != "Edges":
+            return
+        cur = self.add_to_combo.currentData()
+        self.add_to_combo.blockSignals(True)
+        self.add_to_combo.clear()
+        for b in self.bc_rows():
+            self.add_to_combo.addItem(b["label"], b["index"])
+        i = self.add_to_combo.findData(cur)
+        self.add_to_combo.setCurrentIndex(i if i >= 0 else 0)
+        self.add_to_combo.blockSignals(False)
+        self._update_edge_bar()
+        self.canvas.update()
+
+    def selected_where(self):
+        edges = self.canvas.edges()
+        return join_where([edges[k]["expr"] for k in self.canvas.sel_edges if k < len(edges)])
+
+    def _update_edge_bar(self):
+        sel = self.canvas.sel_edges
+        n = len(sel)
+        self.edge_sel_label.setText("No edge selected" if not n else
+                                    "Selected: " + ", ".join(f"E{k + 1}" for k in sel))
+        self.where_edit.setText(self.selected_where())
+        self.where_edit.setCursorPosition(0)
+        has_rows = self.add_to_combo.count() > 0
+        self.new_bc_btn.setEnabled(n > 0)
+        self.add_to_btn.setEnabled(n > 0 and has_rows)
+        self.add_to_combo.setEnabled(has_rows)
+        bc_of = self.canvas.edge_bcs()
+        self.remove_btn.setEnabled(any(k < len(bc_of) and bc_of[k] for k in sel))
+        self.sel_free_btn.setEnabled(any(not lst for lst in bc_of))
+
+    def _on_edge_hovered(self, k):
+        edges = self.canvas.edges()
+        if k < 0 or k >= len(edges):
+            self.hint.setText(self.HINTS["Edges"])
+            return
+        bc_of = self.canvas.edge_bcs()
+        labels = {b["index"]: b["label"] for b in self.bc_rows()}
+        on = "; ".join(labels.get(i, f"BC {i + 1}") for i in bc_of[k]) if bc_of[k] else "no BC yet"
+        self.hint.setText(f"E{k + 1}:  {edges[k]['desc']}   —   {on}")
+
+    def _emit_selected(self, signal):
+        where = self.selected_where()
+        if where:
+            signal.emit(where)
+
+    def _on_add_to(self):
+        where = self.selected_where()
+        idx = self.add_to_combo.currentData()
+        if where and idx is not None:
+            self.add_to_bc_requested.emit(int(idx), where)
+
+    def _on_remove(self):
+        edges = self.canvas.edges()
+        exprs = [edges[k]["expr"] for k in self.canvas.sel_edges if k < len(edges)]
+        if exprs:
+            self.remove_from_bcs_requested.emit(exprs)
+
+    def _select_free_edges(self):
+        bc_of = self.canvas.edge_bcs()
+        self.canvas.sel_edges = [k for k, lst in enumerate(bc_of) if not lst]
+        self._update_edge_bar()
         self.canvas.update()
 
     def _on_grid(self, v):
