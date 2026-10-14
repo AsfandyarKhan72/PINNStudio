@@ -21,6 +21,11 @@ Edges → BCs: the domain's boundary is split into numbered edges (see
 sketch_edges); click one (Ctrl/Shift-click for more) and make a boundary
 condition for it, or add it to an existing one. Each edge is drawn in the
 colour of the BC row whose "Where:" picks it, grey when none does.
+
+Shapes can also be typed (the Type: field) or imported from a DXF/SVG
+drawing (sketch_import). In 3D the canvas draws boxes and spheres on one
+of three views and shows the domain's slice at a chosen depth; boundary
+conditions go on faces (sketch3d).
 """
 import json
 import math
@@ -28,10 +33,12 @@ import math
 from PyQt6.QtCore import QPointF, QRectF, Qt, pyqtSignal
 from PyQt6.QtGui import (QBrush, QColor, QFont, QPainter, QPainterPath, QPainterPathStroker, QPen, QPolygonF,
                          QTransform)
-from PyQt6.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QDoubleSpinBox, QHBoxLayout, QLabel,
-                             QLineEdit, QPushButton, QSizePolicy, QVBoxLayout, QWidget)
+from PyQt6.QtWidgets import (QAbstractItemView, QButtonGroup, QCheckBox, QComboBox, QDoubleSpinBox, QHBoxLayout,
+                             QLabel, QLineEdit, QListWidget, QListWidgetItem, QPushButton, QSizePolicy, QVBoxLayout,
+                             QWidget)
 
-from pinnstudio.ui.sketch_edges import boundary_edges, join_where, where_matches
+from pinnstudio.ui.sketch_edges import boundary_edges, in_region, join_where, where_matches
+from pinnstudio.ui import sketch3d as s3
 
 TOOLS = ("Select", "Rectangle", "Circle", "Ellipse", "Polygon", "Edges")
 OPS = (("Union (add)", "union"), ("Subtract (cut hole)", "subtract"), ("Intersect (keep overlap)", "intersect"))
@@ -174,6 +181,12 @@ class _Canvas(QWidget):
         self._bc_of, self._bc_key = [], None      # per edge: the BC rows that pick it
         self.sel_edges = []                       # selected edge indices, in click order
         self.hover_edge = -1
+        # 3D: shapes are Cuboids/Spheres, shown as the slice at `depth` on one view
+        self.dim = 2
+        self.view = "xy"
+        self.depth = 0.5
+        self.new_depth = (0.0, 1.0)               # depth range of a new box
+        self._traces, self._traces_key = [], None
         self.setMouseTracking(True)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.setMinimumSize(320, 240)
@@ -201,10 +214,24 @@ class _Canvas(QWidget):
         g = self.grid
         return QPointF(round(w.x() / g) * g, round(w.y() / g) * g)
 
+    def shapes2d(self):
+        """What the canvas shows: the shapes (2D), or their slice (3D)."""
+        return self.shapes if self.dim == 2 else s3.section_shapes(self.shapes, self.view, self.depth)
+
+    def outline_shapes(self):
+        """Each shape's own outline: itself (2D), its projection on the view (3D)."""
+        return self.shapes if self.dim == 2 else [s3.projection_shape(sh, self.view) for sh in self.shapes]
+
+    def axis_names(self):
+        if self.dim == 2:
+            return "x", "y", ""
+        h, v, d = s3.VIEWS[self.view]
+        return s3.AX[h], s3.AX[v], s3.AX[d]
+
     def fit(self):
         """Zoom to the shapes (or to [0, 1]² when there are none)."""
-        r = combined_path(self.shapes).boundingRect()
-        for sh in self.shapes:
+        r = QRectF()
+        for sh in self.outline_shapes():
             r = r.united(shape_path(sh).boundingRect())
         if r.width() <= 0 or r.height() <= 0:
             r = QRectF(0, 0, 1, 1)
@@ -217,31 +244,66 @@ class _Canvas(QWidget):
 
     # ── edges (Edges → BCs tool) ─────────────────────────────
     def edges(self):
-        """The domain's boundary edges (recomputed only when the shapes change)."""
-        key = json.dumps(self.shapes, sort_keys=True)
+        """The domain's boundary edges (2D) or faces (3D), recomputed only
+        when the shapes change."""
+        key = json.dumps([self.dim, self.shapes], sort_keys=True)
         if key != self._edges_key:
-            self._edges = boundary_edges(self.shapes)
+            self._edges = boundary_edges(self.shapes) if self.dim == 2 else s3.faces3(self.shapes)
             self._edges_key = key
             self.sel_edges = []
             self.hover_edge = -1
         return self._edges
 
+    def traces(self):
+        """What to draw and click for each edge/face in the current view:
+        [{"idx", "points", "mid", "out"}] in view coordinates. A 3D face
+        shows only where it crosses the slice edge-on."""
+        edges = self.edges()
+        if self.dim == 2:
+            return [{"idx": k, "points": e["points"], "mid": e["mid"], "out": e["out"]} for k, e in enumerate(edges)]
+        key = (self._edges_key, self.view, self.depth)
+        if key != self._traces_key:
+            sec = self.shapes2d()
+            out = []
+            for k, f in enumerate(edges):
+                for pts in s3.face_in_view(f, self.shapes, self.view, self.depth):
+                    if len(pts) == 2:
+                        mid = ((pts[0][0] + pts[1][0]) / 2, (pts[0][1] + pts[1][1]) / 2)
+                        nx, ny = pts[1][1] - pts[0][1], pts[0][0] - pts[1][0]
+                    else:
+                        mid = pts[len(pts) // 2]
+                        a, b = pts[len(pts) // 2 - 1], pts[len(pts) // 2 + 1]
+                        nx, ny = b[1] - a[1], a[0] - b[0]
+                    n = math.hypot(nx, ny) or 1.0
+                    nx, ny = nx / n, ny / n
+                    L = max(abs(pts[0][0] - pts[-1][0]), abs(pts[0][1] - pts[-1][1]), 1e-6)
+                    if in_region(sec, mid[0] + nx * 1e-3 * L, mid[1] + ny * 1e-3 * L):
+                        nx, ny = -nx, -ny
+                    out.append({"idx": k, "points": pts, "mid": mid, "out": (nx, ny)})
+            self._traces, self._traces_key = out, key
+        return self._traces
+
     def edge_bcs(self):
-        """Per edge, the indices of the BC rows whose "Where:" picks it."""
+        """Per edge (face), the indices of the BC rows whose "Where:" picks it."""
         edges = self.edges()
         rows = self.owner.bc_rows()
         dom = self.owner.domain()
         key = (self._edges_key, tuple((b["index"], b["expr"]) for b in rows), tuple(sorted(dom.items())))
         if key != self._bc_key:
             self._bc_key = key
-            self._bc_of = [[b["index"] for b in rows if where_matches(b["expr"], e["mid"][0], e["mid"][1], dom)]
-                           for e in edges]
+            if self.dim == 2:
+                self._bc_of = [[b["index"] for b in rows if where_matches(b["expr"], e["mid"][0], e["mid"][1], dom)]
+                               for e in edges]
+            else:
+                self._bc_of = [[b["index"] for b in rows if s3.where_matches3(b["expr"], e["mid"], dom)]
+                               for e in edges]
         return self._bc_of
 
     def _edge_at(self, q, px=8.0):
         best, best_d = -1, px
-        for k, e in enumerate(self.edges()):
-            pts = [self.to_screen(QPointF(x, y)) for x, y in e["points"]]
+        for tr in self.traces():
+            k = tr["idx"]
+            pts = [self.to_screen(QPointF(x, y)) for x, y in tr["points"]]
             for a, b in zip(pts, pts[1:]):
                 dx, dy = b.x() - a.x(), b.y() - a.y()
                 L2 = dx * dx + dy * dy
@@ -257,14 +319,18 @@ class _Canvas(QWidget):
         if not edges:
             qp.setPen(QColor("#8a96a3"))
             qp.drawText(self.rect().adjusted(0, 0, 0, -self.height() // 3), Qt.AlignmentFlag.AlignCenter,
-                        "Draw the domain first, then its edges show up here")
+                        "Draw the domain first, then its " + ("edges" if self.dim == 2 else "faces") +
+                        " show up here")
             return
+        prefix = "E" if self.dim == 2 else "F"
+        traces = self.traces()
         f = QFont(self.font())
         f.setPointSizeF(9.0)
         f.setBold(True)
         qp.setFont(f)
         fm = qp.fontMetrics()
-        for k, e in enumerate(edges):
+        for e in traces:
+            k = e["idx"]
             poly = QPolygonF([self.to_screen(QPointF(x, y)) for x, y in e["points"]])
             color = QColor(BC_COLORS[bc_of[k][0] % len(BC_COLORS)]) if bc_of[k] else QColor(NO_BC_COLOR)
             if k in self.sel_edges or k == self.hover_edge:
@@ -275,11 +341,12 @@ class _Canvas(QWidget):
                            Qt.PenJoinStyle.RoundJoin))
             qp.drawPolyline(poly)
         # labels on top of every edge
-        for k, e in enumerate(edges):
+        for e in traces:
+            k = e["idx"]
             color = QColor(BC_COLORS[bc_of[k][0] % len(BC_COLORS)]) if bc_of[k] else QColor(NO_BC_COLOR)
             m = self.to_screen(QPointF(*e["mid"]))
             ox, oy = e["out"]
-            text = f"E{k + 1}"
+            text = f"{prefix}{k + 1}"
             w, h = fm.horizontalAdvance(text) + 8, fm.height() + 2
             c = QPointF(m.x() + ox * (w / 2 + 8), m.y() - oy * (h / 2 + 8))
             box = QRectF(c.x() - w / 2, c.y() - h / 2, w, h)
@@ -360,12 +427,27 @@ class _Canvas(QWidget):
         for j in range(math.floor(y0 / major), math.ceil(y1 / major) + 1):
             sy = self.to_screen(QPointF(0, j * major)).y()
             qp.drawText(QPointF(4, sy - 3), _fmt(j * major))
-        qp.drawText(QPointF(self.width() - 14, o.y() - 5), "x")
-        qp.drawText(QPointF(o.x() + 5, 12), "y")
+        hname, vname, dname = self.axis_names()
+        qp.drawText(QPointF(self.width() - 14, o.y() - 5), hname)
+        qp.drawText(QPointF(o.x() + 5, 12), vname)
+        if self.dim == 3:
+            f2 = QFont(f)
+            f2.setPointSizeF(9.5)
+            f2.setBold(True)
+            qp.setFont(f2)
+            txt = f"slice at {dname} = {_fmt(self.depth)}"
+            box = QRectF(40, 8, qp.fontMetrics().horizontalAdvance(txt) + 14, qp.fontMetrics().height() + 4)
+            qp.setPen(QPen(QColor("#ced4da"), 1))
+            qp.setBrush(QColor(255, 255, 255, 230))
+            qp.drawRoundedRect(box, 4, 4)
+            qp.setBrush(Qt.BrushStyle.NoBrush)
+            qp.setPen(QColor("#495057"))
+            qp.drawText(box, Qt.AlignmentFlag.AlignCenter, txt)
+            qp.setFont(f)
 
         wt = self.world_transform()
         # the resulting domain, filled
-        dom = wt.map(combined_path(self.shapes))
+        dom = wt.map(combined_path(self.shapes2d()))
         qp.setPen(Qt.PenStyle.NoPen)
         qp.setBrush(QBrush(QColor(31, 111, 209, 55)))
         qp.drawPath(dom)
@@ -377,7 +459,7 @@ class _Canvas(QWidget):
             qp.end()
             return
         # each shape's own outline (dashed), coloured by how it is combined
-        for i, sh in enumerate(self.shapes):
+        for i, sh in enumerate(self.outline_shapes()):
             op = sh.get("op") if i else None
             pen = QPen(OP_COLORS.get(op, OP_COLORS[None]), 2.6 if i == self.selected else 1.2,
                        Qt.PenStyle.SolidLine if i == self.selected else Qt.PenStyle.DashLine)
@@ -391,6 +473,8 @@ class _Canvas(QWidget):
         qp.setPen(QPen(QColor("#e8590c"), 1.6, Qt.PenStyle.DashLine))
         prev = self._preview_shape()
         if prev is not None:
+            if self.dim == 3:
+                prev = s3.projection_shape(prev, self.view)
             qp.drawPath(wt.map(shape_path(prev)))
         if self._poly:
             pts = [self.to_screen(QPointF(x, y)) for x, y in self._poly]
@@ -413,7 +497,8 @@ class _Canvas(QWidget):
             f.setPointSizeF(10.5)
             qp.setFont(f)
             qp.drawText(self.rect().adjusted(0, 0, 0, -self.height() // 3), Qt.AlignmentFlag.AlignCenter,
-                        "Pick a tool above and draw on the grid")
+                        "Pick a tool above and draw on the grid" if self.dim == 2 else
+                        "Pick Box or Sphere above and draw on the grid")
         qp.end()
 
     # ── drawing tools ────────────────────────────────────────
@@ -427,6 +512,19 @@ class _Canvas(QWidget):
         return self._shape_from_drag(a, b)
 
     def _shape_from_drag(self, a, b):
+        if self.dim == 3:
+            if self.tool == "Rectangle":
+                if abs(a.x() - b.x()) < 1e-12 or abs(a.y() - b.y()) < 1e-12:
+                    return None
+                return s3.box_from_view(self.view, a.x(), b.x(), a.y(), b.y(), *self.new_depth)
+            if self.tool == "Circle":
+                r = math.hypot(b.x() - a.x(), b.y() - a.y())
+                if r < 1e-12:
+                    return None
+                if self.snap and self.grid > 0:
+                    r = max(self.grid, round(r / self.grid) * self.grid)
+                return s3.sphere_from_view(self.view, a.x(), a.y(), self.depth, r)
+            return None
         if self.tool == "Rectangle":
             if abs(a.x() - b.x()) < 1e-12 or abs(a.y() - b.y()) < 1e-12:
                 return None
@@ -471,8 +569,9 @@ class _Canvas(QWidget):
         self.update()
 
     def _hit(self, w):
-        for i in range(len(self.shapes) - 1, -1, -1):
-            p = shape_path(self.shapes[i])
+        outlines = self.outline_shapes()
+        for i in range(len(outlines) - 1, -1, -1):
+            p = shape_path(outlines[i])
             if p.contains(w):
                 return i
             # near the outline counts too (thin shapes, shapes cut away)
@@ -547,7 +646,8 @@ class _Canvas(QWidget):
             elif kind == "move" and self.selected >= 0:
                 sw = self.snapped(w)
                 dx, dy = sw.x() - self._drag[1].x(), sw.y() - self._drag[1].y()
-                self.shapes[self.selected] = translate_shape(self._drag[2], dx, dy)
+                self.shapes[self.selected] = (translate_shape(self._drag[2], dx, dy) if self.dim == 2 else
+                                              s3.translate3(self._drag[2], self.view, dx, dy))
         self.update()
 
     def mouseReleaseEvent(self, ev):
@@ -567,6 +667,20 @@ class _Canvas(QWidget):
         else:
             self._drag = None
         self.update()
+
+    def resizeEvent(self, ev):
+        """Keep the drawing in view when the canvas gets smaller (e.g. when
+        the Edges tool's bar appears below it)."""
+        super().resizeEvent(ev)
+        if not self.shapes or ev.oldSize().width() <= 0:
+            return
+        r = QRectF()
+        for sh in self.outline_shapes():
+            r = r.united(shape_path(sh).boundingRect())
+        tl, br = self.to_world(QPointF(0, 0)), self.to_world(QPointF(self.width(), self.height()))
+        view = QRectF(QPointF(tl.x(), br.y()), QPointF(br.x(), tl.y()))
+        if not view.contains(r):
+            self.fit()
 
     def leaveEvent(self, _ev):
         self._cursor = None
@@ -666,14 +780,72 @@ class SketchPanel(QWidget):
         self.clear_btn = QPushButton("Clear all")
         self.clear_btn.setFixedHeight(26)
         bar2.addWidget(self.clear_btn)
+        self.import_btn = QPushButton("📂 Import DXF/SVG…")
+        self.import_btn.setFixedHeight(26)
+        self.import_btn.setToolTip("Read the closed outlines of a 2D drawing (DXF or SVG): circles, ellipses, "
+                                   "polylines, paths, and lines/arcs that join up. Outlines inside others "
+                                   "become holes.")
+        bar2.addWidget(self.import_btn)
         self.fit_btn = QPushButton("⤢ Fit view")
         self.fit_btn.setFixedHeight(26)
         bar2.addWidget(self.fit_btn)
+        bar2.addSpacing(8)
+        # exact numbers instead of the mouse
+        self.coord_entry_label = QLabel("Type:")
+        bar2.addWidget(self.coord_entry_label)
+        self.coord_edit = QLineEdit()
+        self.coord_edit.setFixedHeight(26)
+        self.coord_edit.setMinimumWidth(230)
+        self.coord_edit.setToolTip("Type the shape's numbers and press Enter to add it "
+                                   "(combined as set in New shape)")
+        bar2.addWidget(self.coord_edit, 1)
         bar2.addStretch()
         self.coord_label = QLabel("")
         self.coord_label.setMinimumWidth(150)
         bar2.addWidget(self.coord_label)
         lay.addLayout(bar2)
+
+        # 3D only: which view, where the slice is, and how deep a new box is
+        self.view_bar = QWidget()
+        b3 = QHBoxLayout(self.view_bar)
+        b3.setContentsMargins(0, 0, 0, 0)
+        b3.setSpacing(4)
+        b3.addWidget(QLabel("View:"))
+        self.view_combo = QComboBox()
+        for key, label in s3.VIEW_LABELS.items():
+            self.view_combo.addItem(label, key)
+        self.view_combo.setFixedHeight(26)
+        b3.addWidget(self.view_combo)
+        b3.addSpacing(8)
+        self.depth_label = QLabel("Slice at z =")
+        b3.addWidget(self.depth_label)
+        self.depth_spin = QDoubleSpinBox()
+        self.depth_spin.setDecimals(3)
+        self.depth_spin.setRange(-1e6, 1e6)
+        self.depth_spin.setSingleStep(0.05)
+        self.depth_spin.setValue(0.5)
+        self.depth_spin.setFixedHeight(26)
+        self.depth_spin.setFixedWidth(100)
+        self.depth_spin.setToolTip("The canvas shows the domain cut at this depth; a new sphere is centred on it")
+        b3.addWidget(self.depth_spin)
+        b3.addSpacing(8)
+        self.new_depth_label = QLabel("New box: z from")
+        b3.addWidget(self.new_depth_label)
+        self.new_d0 = QDoubleSpinBox()
+        self.new_d1 = QDoubleSpinBox()
+        for sp_, v in ((self.new_d0, 0.0), (self.new_d1, 1.0)):
+            sp_.setDecimals(3)
+            sp_.setRange(-1e6, 1e6)
+            sp_.setSingleStep(0.1)
+            sp_.setValue(v)
+            sp_.setFixedHeight(26)
+            sp_.setFixedWidth(90)
+        b3.addWidget(self.new_d0)
+        b3.addWidget(QLabel("to"))
+        b3.addWidget(self.new_d1)
+        b3.addStretch()
+        lay.addWidget(self.view_bar)
+        self.view_bar.setVisible(False)
 
         self.canvas = _Canvas(self)
         lay.addWidget(self.canvas, 1)
@@ -718,10 +890,17 @@ class SketchPanel(QWidget):
         r2.addWidget(QLabel("Where:"))
         self.where_edit = QLineEdit()
         self.where_edit.setReadOnly(True)
-        self.where_edit.setPlaceholderText("the selected edges' expression appears here")
+        self.where_edit.setPlaceholderText("the selection's expression appears here")
         self.where_edit.setFixedHeight(26)
         r2.addWidget(self.where_edit, 1)
         eb.addLayout(r2)
+        self.face_list = QListWidget()
+        self.face_list.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
+        self.face_list.setMaximumHeight(120)
+        self.face_list.setToolTip("Every face of the 3D domain -- select here the ones parallel to the view, "
+                                  "which the slice doesn't show")
+        eb.addWidget(self.face_list)
+        self.face_list.setVisible(False)
         lay.addWidget(self.edge_bar)
 
         self._bc_rows_fn = lambda: []
@@ -731,10 +910,17 @@ class SketchPanel(QWidget):
         self.snap_cb.toggled.connect(self._on_snap)
         self.delete_btn.clicked.connect(self.delete_selected)
         self.clear_btn.clicked.connect(self.clear)
+        self.import_btn.clicked.connect(lambda: self.import_drawing())
         self.fit_btn.clicked.connect(self.canvas.fit)
+        self.coord_edit.returnPressed.connect(self._on_coords_entered)
         self.canvas.changed.connect(lambda: self.shapes_edited.emit([dict(s) for s in self.canvas.shapes]))
-        self.canvas.cursor_moved.connect(lambda x, y: self.coord_label.setText(f"x = {_fmt(x)},  y = {_fmt(y)}"))
+        self.canvas.cursor_moved.connect(self._show_cursor)
         self.canvas.edges_selected.connect(self._update_edge_bar)
+        self.face_list.itemSelectionChanged.connect(self._on_face_list_selection)
+        self.view_combo.currentIndexChanged.connect(self._on_view)
+        self.depth_spin.valueChanged.connect(self._on_depth)
+        self.new_d0.valueChanged.connect(self._on_new_depth)
+        self.new_d1.valueChanged.connect(self._on_new_depth)
         self.canvas.edge_hovered.connect(self._on_edge_hovered)
         self.new_bc_btn.clicked.connect(lambda: self._emit_selected(self.new_bc_requested))
         self.add_to_btn.clicked.connect(self._on_add_to)
@@ -753,14 +939,224 @@ class SketchPanel(QWidget):
                  "boundary condition below. Each edge takes the colour of the BC row whose Where: picks it.",
     }
 
+    HINTS_3D = {
+        "Select": "Click a shape to select it, drag to move it in this view, Delete to remove it. "
+                  "Wheel zooms, right-drag pans.",
+        "Rectangle": "Drag a box's two corners in this view; its depth is set by “New box … from … to”.",
+        "Circle": "Press at the sphere's centre and drag out its radius; the centre's depth is the slice.",
+        "Edges": "Click a face where the slice shows it edge-on (Ctrl/Shift-click for more), or pick faces in "
+                 "the list -- faces parallel to the view are only in the list. Then give them a BC below.",
+    }
+
+    COORD_FORMATS = {
+        "Rectangle": "two corners: x0, y0, x1, y1",
+        "Circle": "centre and radius: cx, cy, r",
+        "Ellipse": "cx, cy, a, b  (or cx, cy, a, b, angle)",
+        "Polygon": "corners: x,y; x,y; x,y …  (or one corner x, y)",
+    }
+    COORD_FORMATS_3D = {
+        "Rectangle": "two corners: x0, y0, z0, x1, y1, z1",
+        "Circle": "centre and radius: cx, cy, cz, r",
+    }
+    LABELS_2D = {"Select": "⬚ Select", "Rectangle": "▭ Rectangle", "Circle": "◯ Circle", "Ellipse": "⬭ Ellipse",
+                 "Polygon": "⬠ Polygon", "Edges": "⌁ Edges → BCs"}
+    LABELS_3D = {"Select": "⬚ Select", "Rectangle": "▣ Box", "Circle": "◉ Sphere", "Edges": "⌁ Faces → BCs"}
+
+    def hints(self):
+        return self.HINTS if self.canvas.dim == 2 else {**self.HINTS, **self.HINTS_3D}
+
+    def coord_formats(self):
+        return self.COORD_FORMATS if self.canvas.dim == 2 else self.COORD_FORMATS_3D
+
+    # ── 3D ───────────────────────────────────────────────────
+    def set_dim(self, dim):
+        """2: rectangles, circles, ellipses, polygons. 3: boxes and spheres on
+        three views."""
+        dim = 3 if dim == 3 else 2
+        if dim == self.canvas.dim:
+            return
+        self.canvas.dim = dim
+        labels = self.LABELS_3D if dim == 3 else self.LABELS_2D
+        for t, b in self.tool_buttons.items():
+            b.setVisible(t in labels)
+            b.setText(labels.get(t, b.text()))
+        self.view_bar.setVisible(dim == 3)
+        self.face_list.setVisible(dim == 3)
+        self.import_btn.setVisible(dim == 2)
+        if self.canvas.tool not in labels:
+            self.set_tool("Rectangle")
+        else:
+            self.set_tool(self.canvas.tool)
+        self._sync_axis_labels()
+
+    def _sync_axis_labels(self):
+        h, v, d = self.canvas.axis_names()
+        if self.canvas.dim == 3:
+            self.depth_label.setText(f"Slice at {d} =")
+            self.new_depth_label.setText(f"New box: {d} from")
+
+    def _on_view(self, _i=None):
+        self.canvas.view = self.view_combo.currentData()
+        self._sync_axis_labels()
+        self._centre_depth()
+        self.canvas.fit()
+        self.canvas.update()
+
+    def _centre_depth(self):
+        """Put the slice through the middle of the shapes along the depth axis."""
+        if not self.canvas.shapes:
+            return
+        lo, hi = s3.bbox3(self.canvas.shapes)
+        d = s3.VIEWS[self.canvas.view][2]
+        self.depth_spin.blockSignals(True)
+        self.depth_spin.setValue(round((lo[d] + hi[d]) / 2, 6))
+        self.depth_spin.blockSignals(False)
+        self.canvas.depth = self.depth_spin.value()
+        self.new_d0.blockSignals(True)
+        self.new_d1.blockSignals(True)
+        self.new_d0.setValue(lo[d])
+        self.new_d1.setValue(hi[d])
+        self.new_d0.blockSignals(False)
+        self.new_d1.blockSignals(False)
+        self.canvas.new_depth = (lo[d], hi[d])
+
+    def _on_depth(self, v):
+        self.canvas.depth = v
+        self.canvas.update()
+
+    def _on_new_depth(self, _v=None):
+        self.canvas.new_depth = (self.new_d0.value(), self.new_d1.value())
+
+    def _show_cursor(self, x, y):
+        h, v, d = self.canvas.axis_names()
+        txt = f"{h} = {_fmt(x)},  {v} = {_fmt(y)}"
+        if self.canvas.dim == 3:
+            txt += f"   ({d} = {_fmt(self.canvas.depth)})"
+        self.coord_label.setText(txt)
+
+    def _fill_face_list(self):
+        if self.canvas.dim != 3:
+            return
+        edges = self.canvas.edges()
+        self.face_list.blockSignals(True)
+        if self.face_list.count() != len(edges) or any(
+                self.face_list.item(k).data(Qt.ItemDataRole.UserRole) != e["expr"] for k, e in enumerate(edges)):
+            self.face_list.clear()
+            for k, e in enumerate(edges):
+                it = QListWidgetItem(f"F{k + 1}:  {e['desc']}")
+                it.setData(Qt.ItemDataRole.UserRole, e["expr"])
+                self.face_list.addItem(it)
+        bc_of = self.canvas.edge_bcs()
+        labels = {b["index"]: b["label"] for b in self.bc_rows()}
+        for k in range(self.face_list.count()):
+            it = self.face_list.item(k)
+            on = ", ".join(labels.get(i, f"BC {i + 1}").split(":")[0] for i in bc_of[k]) if k < len(bc_of) else ""
+            it.setText(f"F{k + 1}:  {edges[k]['desc']}" + (f"   [{on}]" if on else ""))
+            it.setForeground(QColor(BC_COLORS[bc_of[k][0] % len(BC_COLORS)]) if k < len(bc_of) and bc_of[k]
+                             else QColor(NO_BC_COLOR))
+            it.setSelected(k in self.canvas.sel_edges)
+        self.face_list.blockSignals(False)
+
+    def _on_face_list_selection(self):
+        sel = [self.face_list.row(it) for it in self.face_list.selectedItems()]
+        keep = [k for k in self.canvas.sel_edges if k in sel]
+        self.canvas.sel_edges = keep + [k for k in sorted(sel) if k not in keep]
+        self._update_edge_bar(from_list=True)
+        self.canvas.update()
+
+    def _on_coords_entered(self):
+        """Add the shape typed in the Type: field (or, for a polygon, one corner)."""
+        tool = self.canvas.tool
+        text = self.coord_edit.text().strip()
+        if not text:
+            if tool == "Polygon" and len(self.canvas._poly) >= 3:
+                self.canvas._close_polygon()
+                self.hint.setText(self.hints()[tool])
+            return
+        try:
+            shape = self._typed_shape(tool, text) if self.canvas.dim == 2 else self._typed_shape3(tool, text)
+        except ValueError as exc:
+            self.hint.setText(f"<span style='color:#e03131'>{exc}</span>")
+            return
+        if shape is None:      # a polygon corner was added
+            self.coord_edit.clear()
+            self.canvas.update()
+            return
+        self.canvas._add(shape)
+        self.coord_edit.clear()
+        self.hint.setText(self.hints()[tool])
+        c = self.canvas
+        tl, br = c.to_world(QPointF(0, 0)), c.to_world(QPointF(c.width(), c.height()))
+        view = QRectF(QPointF(tl.x(), br.y()), QPointF(br.x(), tl.y()))
+        outline = shape if c.dim == 2 else s3.projection_shape(shape, c.view)
+        if not view.contains(shape_path(outline).boundingRect()):
+            c.fit()
+
+    def _typed_shape3(self, tool, text):
+        fmt_hint = f"Expected {self.COORD_FORMATS_3D.get(tool, '')}."
+        try:
+            v = [float(t) for t in text.replace(";", ",").split(",") if t.strip()]
+        except ValueError:
+            raise ValueError(f"Couldn't read the numbers. {fmt_hint}")
+        if tool == "Rectangle" and len(v) == 6:
+            if v[0] == v[3] or v[1] == v[4] or v[2] == v[5]:
+                raise ValueError("The two corners must differ in x, y and z.")
+            p = {}
+            for k, a in enumerate("xyz"):
+                p[f"{a}_min"], p[f"{a}_max"] = min(v[k], v[k + 3]), max(v[k], v[k + 3])
+            return {"type": "Cuboid", "params": p}
+        if tool == "Circle" and len(v) == 4:
+            if v[3] <= 0:
+                raise ValueError("The radius must be positive.")
+            return {"type": "Sphere", "params": {"cx": v[0], "cy": v[1], "cz": v[2], "r": v[3]}}
+        raise ValueError(fmt_hint)
+
+    def _typed_shape(self, tool, text):
+        fmt_hint = f"Expected {self.COORD_FORMATS.get(tool, '')}."
+        if tool == "Polygon" and ";" in text:
+            pts = parse_vertices(text)
+            if len(pts) < 3:
+                raise ValueError(f"A polygon needs at least 3 corners, written x,y; x,y; x,y.")
+            return polygon_shape(pts)
+        try:
+            v = [float(t) for t in text.replace(";", ",").split(",") if t.strip()]
+        except ValueError:
+            raise ValueError(f"Couldn't read the numbers. {fmt_hint}")
+        if tool == "Rectangle" and len(v) == 4:
+            if v[0] == v[2] or v[1] == v[3]:
+                raise ValueError("The two corners must differ in both x and y.")
+            return {"type": "Rectangle", "params": {"x_min": min(v[0], v[2]), "x_max": max(v[0], v[2]),
+                                                    "y_min": min(v[1], v[3]), "y_max": max(v[1], v[3])}}
+        if tool == "Circle" and len(v) == 3:
+            if v[2] <= 0:
+                raise ValueError("The radius must be positive.")
+            return {"type": "Disk", "params": {"cx": v[0], "cy": v[1], "r": v[2]}}
+        if tool == "Ellipse" and len(v) in (4, 5):
+            if v[2] <= 0 or v[3] <= 0:
+                raise ValueError("The semi-axes must be positive.")
+            a, b, ang = v[2], v[3], (v[4] if len(v) == 5 else 0.0)
+            if b > a:   # DeepXDE wants the semi-major axis first
+                a, b, ang = b, a, ang + math.pi / 2
+            return {"type": "Ellipse", "params": {"cx": v[0], "cy": v[1], "a": a, "b": b, "angle": round(ang, 10)}}
+        if tool == "Polygon" and len(v) == 2:
+            self.canvas._poly.append((v[0], v[1]))
+            self.hint.setText(f"Corner {len(self.canvas._poly)} added; type the next one, or press Enter on an "
+                              "empty field to close the polygon.")
+            return None
+        raise ValueError(fmt_hint)
+
     def set_tool(self, tool):
         self.canvas.tool = tool
         self.canvas._poly = []
         self.tool_buttons[tool].setChecked(True)
-        self.hint.setText(self.HINTS[tool])
+        self.hint.setText(self.hints()[tool])
         free = tool in ("Select", "Edges")
         self.canvas.setCursor(Qt.CursorShape.ArrowCursor if free else Qt.CursorShape.CrossCursor)
         edges = tool == "Edges"
+        typed = tool in self.coord_formats()
+        self.coord_entry_label.setVisible(typed)
+        self.coord_edit.setVisible(typed)
+        self.coord_edit.setPlaceholderText(self.coord_formats().get(tool, ""))
         self.edge_bar.setVisible(edges)
         for w in (self.op_label, self.op_combo, self.delete_btn, self.clear_btn):
             w.setVisible(not edges)
@@ -806,11 +1202,15 @@ class SketchPanel(QWidget):
         edges = self.canvas.edges()
         return join_where([edges[k]["expr"] for k in self.canvas.sel_edges if k < len(edges)])
 
-    def _update_edge_bar(self):
+    def _update_edge_bar(self, from_list=False):
         sel = self.canvas.sel_edges
         n = len(sel)
-        self.edge_sel_label.setText("No edge selected" if not n else
-                                    "Selected: " + ", ".join(f"E{k + 1}" for k in sel))
+        pre, what = ("E", "edge") if self.canvas.dim == 2 else ("F", "face")
+        self.sel_free_btn.setText(f"Select {what}s without a BC")
+        self.edge_sel_label.setText(f"No {what} selected" if not n else
+                                    "Selected: " + ", ".join(f"{pre}{k + 1}" for k in sel))
+        if not from_list:
+            self._fill_face_list()
         self.where_edit.setText(self.selected_where())
         self.where_edit.setCursorPosition(0)
         has_rows = self.add_to_combo.count() > 0
@@ -824,12 +1224,13 @@ class SketchPanel(QWidget):
     def _on_edge_hovered(self, k):
         edges = self.canvas.edges()
         if k < 0 or k >= len(edges):
-            self.hint.setText(self.HINTS["Edges"])
+            self.hint.setText(self.hints()["Edges"])
             return
         bc_of = self.canvas.edge_bcs()
         labels = {b["index"]: b["label"] for b in self.bc_rows()}
         on = "; ".join(labels.get(i, f"BC {i + 1}") for i in bc_of[k]) if bc_of[k] else "no BC yet"
-        self.hint.setText(f"E{k + 1}:  {edges[k]['desc']}   —   {on}")
+        pre = "E" if self.canvas.dim == 2 else "F"
+        self.hint.setText(f"{pre}{k + 1}:  {edges[k]['desc']}   —   {on}")
 
     def _emit_selected(self, signal):
         where = self.selected_where()
@@ -872,6 +1273,58 @@ class SketchPanel(QWidget):
             c.update()
             self.shapes_edited.emit([dict(s) for s in c.shapes])
 
+    def import_drawing(self, path=None, scale=None, replace=None):
+        """Import a DXF/SVG drawing (asks for the file, the scale and, when
+        the sketch isn't empty, whether to replace it)."""
+        from PyQt6.QtWidgets import QFileDialog, QInputDialog, QMessageBox
+        from pinnstudio.ui.sketch_import import drawing_extent, import_file
+        if path is None:
+            path, _ = QFileDialog.getOpenFileName(self, "Import a 2D drawing", "",
+                                                  "Drawings (*.dxf *.svg);;DXF (*.dxf);;SVG (*.svg)")
+            if not path:
+                return False
+        try:
+            shapes, notes = import_file(path)
+        except Exception as exc:
+            QMessageBox.warning(self, "Import drawing", f"Couldn't import {path}:\n{exc}")
+            return False
+        if scale is None:
+            w, h = drawing_extent(shapes)
+            scale, ok = QInputDialog.getDouble(
+                self, "Import drawing",
+                f"The drawing is {_fmt(w)} × {_fmt(h)} in its own units.\n"
+                "Multiply its coordinates by (e.g. 0.001 for mm → m):", 1.0, 1e-9, 1e9, 6)
+            if not ok:
+                return False
+        if scale != 1.0:
+            shapes, notes = import_file(path, scale)
+        if replace is None and self.canvas.shapes:
+            box = QMessageBox(QMessageBox.Icon.Question, "Import drawing",
+                              "Replace the current sketch with the drawing, or add the drawing to it?",
+                              parent=self)
+            rep_btn = box.addButton("Replace", QMessageBox.ButtonRole.AcceptRole)
+            add_btn = box.addButton("Add", QMessageBox.ButtonRole.AcceptRole)
+            box.addButton(QMessageBox.StandardButton.Cancel)
+            box.exec()
+            if box.clickedButton() not in (rep_btn, add_btn):
+                return False
+            replace = box.clickedButton() is rep_btn
+        if replace or not self.canvas.shapes:
+            new = shapes
+        else:
+            new = list(self.canvas.shapes)
+            for sh in shapes:
+                sh = dict(sh)
+                sh.setdefault("op", "union")
+                new.append(sh)
+        self.canvas.shapes = [dict(sh) for sh in new]
+        self.canvas.selected = -1
+        self.canvas.fit()
+        self.shapes_edited.emit([dict(sh) for sh in self.canvas.shapes])
+        msg = f"Imported {len(shapes)} shape(s) from {path.replace(chr(92), '/').split('/')[-1]}"
+        self.hint.setText(msg + (" -- " + "; ".join(notes) if notes else "."))
+        return True
+
     def clear(self):
         if self.canvas.shapes:
             self.canvas.shapes = []
@@ -884,7 +1337,11 @@ class SketchPanel(QWidget):
         if self.canvas.selected >= len(self.canvas.shapes):
             self.canvas.selected = -1
         if fit:
+            if self.canvas.dim == 3:
+                self._centre_depth()
             self.canvas.fit()
+        if self.canvas.tool == "Edges":
+            self._update_edge_bar()
         self.canvas.update()
 
     def shapes(self):

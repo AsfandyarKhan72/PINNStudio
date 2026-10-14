@@ -153,16 +153,125 @@ def _curves(shape):
                      -float(p.get("angle", 0.0)))]
         if t in ("Triangle", "Polygon"):
             pts = parse_vertices(p.get("vertices_text", ""))
-            return [("seg", pts[i], pts[(i + 1) % len(pts)]) for i in range(len(pts))
-                    if pts[i] != pts[(i + 1) % len(pts)]]
+            n = len(pts)
+            runs = arc_runs(pts) if t == "Polygon" else []
+            if runs and runs[0][0] == "full":
+                _, cx, cy, r = runs[0]
+                return [_chain(pts + [pts[0]], True, (cx, cy, r))]
+            in_arc = set()
+            out = []
+            for i0, i1, cx, cy, r in runs:
+                chain = [pts[(i0 + k) % n] for k in range((i1 - i0) % n + 1)]
+                out.append(_chain(chain, False, (cx, cy, r)))
+                in_arc.update((i0 + k) % n for k in range((i1 - i0) % n))
+            out += [("seg", pts[i], pts[(i + 1) % n]) for i in range(n)
+                    if i not in in_arc and pts[i] != pts[(i + 1) % n]]
+            return out
     except (KeyError, TypeError, ValueError):
         return []
     return []
 
 
+def _chain(pts, closed, circle):
+    cum = [0.0]
+    for a, b in zip(pts, pts[1:]):
+        cum.append(cum[-1] + math.hypot(b[0] - a[0], b[1] - a[1]))
+    return ("chain", pts, closed, circle, cum)
+
+
+def _circle3(a, b, c):
+    (ax, ay), (bx, by), (cx, cy) = a, b, c
+    d = 2 * (ax * (by - cy) + bx * (cy - ay) + cx * (ay - by))
+    if abs(d) < 1e-300:
+        return None
+    ux = ((ax * ax + ay * ay) * (by - cy) + (bx * bx + by * by) * (cy - ay) + (cx * cx + cy * cy) * (ay - by)) / d
+    uy = ((ax * ax + ay * ay) * (cx - bx) + (bx * bx + by * by) * (ax - cx) + (cx * cx + cy * cy) * (bx - ax)) / d
+    return ux, uy, math.hypot(ax - ux, ay - uy)
+
+
+def arc_runs(pts, min_segments=4):
+    """Runs of a polygon's corners that trace a circular arc (an arc drawn
+    as many short straight pieces, as imported drawings have). Returns
+    [(i0, i1, cx, cy, r)] -- the arc goes from corner i0 to corner i1
+    (indices mod n, along the polygon) -- or [("full", cx, cy, r)] when the
+    whole polygon is a circle."""
+    n = len(pts)
+    if n < min_segments + 1:
+        return []
+
+    def seg_len(i):
+        a, b = pts[i % n], pts[(i + 1) % n]
+        return math.hypot(b[0] - a[0], b[1] - a[1])
+
+    def fits(idx, through=None):
+        """Do these corners lie on one circle, turning the same way, in short pieces?"""
+        through = through or (idx[0], idx[len(idx) // 2], idx[-1])
+        f = _circle3(*(pts[q] for q in through))
+        if f is None:
+            return None
+        cx, cy, r = f
+        tol = 2e-3 * r
+        if any(abs(math.hypot(pts[q][0] - cx, pts[q][1] - cy) - r) > tol for q in idx):
+            return None
+        lens = [seg_len(q) for q in idx[:-1]]
+        # short pieces of similar length (a long straight side next to an arc is not part of it)
+        if max(lens) > 0.7 * r or max(lens) > 3.0 * min(lens):
+            return None
+        sign = 0
+        for a, b, c in zip(idx, idx[1:], idx[2:]):
+            (ax, ay), (bx, by), (qx, qy) = pts[a], pts[b], pts[c]
+            t = (bx - ax) * (qy - by) - (by - ay) * (qx - bx)
+            sg = 1 if t > 0 else -1
+            if sign and sg != sign:
+                return None
+            sign = sg
+        return f
+
+    def refit(idx):
+        cx, cy, _ = fits(idx)
+        r = sum(math.hypot(pts[q][0] - cx, pts[q][1] - cy) for q in idx) / len(idx)
+        return cx, cy, r
+
+    allidx = list(range(n))
+    f = fits(allidx + [0, 1], through=(0, n // 3, (2 * n) // 3))
+    if f is not None:
+        cx, cy, _ = f
+        r = sum(math.hypot(x - cx, y - cy) for x, y in pts) / n
+        return [("full", cx, cy, r)]
+    # start after the longest piece, which can't be inside an arc of short ones
+    start = (max(range(n), key=seg_len) + 1) % n
+    runs, k = [], 0
+    while k < n:
+        j = k + 2
+        if fits([(start + m) % n for m in range(k, j + 1)]) is None:
+            k += 1
+            continue
+        while j + 1 <= n and fits([(start + m) % n for m in range(k, j + 2)]) is not None:
+            j += 1
+        if j - k >= min_segments:
+            idx = [(start + m) % n for m in range(k, j + 1)]
+            cx, cy, r = refit(idx)
+            runs.append((idx[0], idx[-1], cx, cy, r))
+            k = j
+        else:
+            k += 1
+    return runs
+
+
 # ── one curve -> its visible pieces ──────────────────────────────────────
 def _point_normal(curve, s):
     """Point and (unnormalised) normal of the curve at parameter s in [0, 1]."""
+    if curve[0] == "chain":
+        import bisect
+        pts, cum = curve[1], curve[4]
+        if curve[2]:
+            s %= 1.0
+        d = min(max(s, 0.0), 1.0) * cum[-1]
+        i = max(0, min(len(pts) - 2, bisect.bisect_left(cum, d) - 1))
+        seg = cum[i + 1] - cum[i] or 1.0
+        t = (d - cum[i]) / seg
+        (x0, y0), (x1, y1) = pts[i], pts[i + 1]
+        return (x0 + t * (x1 - x0), y0 + t * (y1 - y0)), (y1 - y0, x0 - x1)
     if curve[0] == "seg":
         (x0, y0), (x1, y1) = curve[1], curve[2]
         return (x0 + s * (x1 - x0), y0 + s * (y1 - y0)), (y1 - y0, x0 - x1)
@@ -198,8 +307,10 @@ def _refine(shapes, curve, s_off, s_on, eps):
 def _visible_pieces(shapes, curve, eps, L=1.0):
     """[(s0, s1)] parameter ranges of the curve that are domain boundary.
     For closed curves a range may wrap (s1 > 1)."""
-    closed = curve[0] != "seg"
-    if closed:
+    closed = curve[0] in ("circle", "ellipse") or (curve[0] == "chain" and curve[2])
+    if curve[0] == "chain":
+        n = min(N_ARC, max(24, 8 * (len(curve[1]) - 1)))
+    elif closed:
         n = N_ARC
     else:
         (x0, y0), (x1, y1) = curve[1], curve[2]
@@ -316,6 +427,38 @@ def _curve_expr(curve, L):
             f"ellipse, centre ({fmt(cx)}, {fmt(cy)}), a = {fmt(a)}, b = {fmt(b)}")
 
 
+def _chain_edge(curve, s0, s1, L):
+    """An arc drawn as short straight pieces: the circle they lie on (with a
+    tolerance covering how far a piece strays from it) and the piece's box."""
+    pts_all, closed, (cx, cy, r), cum = curve[1], curve[2], curve[3], curve[4]
+    total = cum[-1]
+    d0, d1 = s0 * total, s1 * total
+    pts = [_point_normal(curve, s0)[0]]
+    for k, d in enumerate(cum):
+        dd = d if d >= d0 - 1e-15 else d + total if closed else d
+        if d0 < dd < d1:
+            pts.append(pts_all[k])
+    if closed:  # corners past the seam
+        pts += [pts_all[k] for k, d in enumerate(cum) if d0 < d + total < d1 and pts_all[k] not in pts]
+    pts.append(_point_normal(curve, s1)[0])
+    sag = max(r - math.sqrt(max(r * r - (math.hypot(b[0] - a[0], b[1] - a[1]) / 2) ** 2, 0.0))
+              for a, b in zip(pts_all, pts_all[1:]))
+    dev = max(abs(math.hypot(x - cx, y - cy) - r) for x, y in pts_all)
+    tol = 1.5 * max(sag, dev) + 1e-5 * L
+    dxs = "x" if abs(cx) < 1e-12 else f"x - {fmt(cx)}" if cx > 0 else f"x + {fmt(-cx)}"
+    dys = "y" if abs(cy) < 1e-12 else f"y - {fmt(cy)}" if cy > 0 else f"y + {fmt(-cy)}"
+    expr = f"abs(np.hypot({dxs}, {dys}) - {fmt(r)}) < {_tol(tol)}"
+    full = closed and s1 - s0 >= 1.0 - 1e-9
+    if not full:
+        xs, ys = [p[0] for p in pts], [p[1] for p in pts]
+        pad = 1e-5 * L
+        expr += (f" and {fmt(min(xs) - pad)} <= x <= {fmt(max(xs) + pad)}"
+                 f" and {fmt(min(ys) - pad)} <= y <= {fmt(max(ys) + pad)}")
+    mid, nrm = _point_normal(curve, 0.5 * (s0 + s1))
+    return {"kind": "arc", "expr": expr, "points": pts, "mid": mid, "normal": nrm,
+            "desc": f"arc ≈ circle, centre ({fmt(cx)}, {fmt(cy)}), r = {fmt(r)}" + ("" if full else " (arc)")}
+
+
 # ── all edges ────────────────────────────────────────────────────────────
 def boundary_edges(shapes):
     """The domain's boundary as numbered edges. Each edge is a dict:
@@ -327,8 +470,9 @@ def boundary_edges(shapes):
         out     unit outward normal at mid
         kind    "seg" or "arc"
     """
-    shapes = [s for s in shapes if _curves(s)]
-    if not shapes:
+    # (a shape with no outline -- e.g. a 3D shape that misses the slice -- still
+    # takes part in the combination, as the empty set)
+    if not any(_curves(s) for s in shapes):
         return []
     x0, x1, y0, y1 = _bbox(shapes)
     L = max(x1 - x0, y1 - y0, 1e-9)
@@ -389,6 +533,10 @@ def boundary_edges(shapes):
                       "normal": (uy, -ux)})
 
     for curve, pieces in arcs:
+        if curve[0] == "chain":
+            for s0, s1 in pieces:
+                edges.append(_chain_edge(curve, s0, s1, L))
+            continue
         expr, desc = _curve_expr(curve, L)
         for s0, s1 in pieces:
             n = max(8, int(160 * (s1 - s0)))

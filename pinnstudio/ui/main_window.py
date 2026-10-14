@@ -4029,7 +4029,7 @@ class MainWindow(QMainWindow):
 
     # ── Dimension change ──────────────────────────────────────
     GEOM_TYPES_2D = ["Rectangle", "Disk", "Ellipse", "Triangle", "Polygon", "Custom", "Sketch"]
-    GEOM_TYPES_3D = ["Cuboid", "Sphere", "Custom"]
+    GEOM_TYPES_3D = ["Cuboid", "Sphere", "Custom", "Sketch"]
     CUSTOM_GEOM_SHAPE_TYPES_2D = ["Rectangle", "Disk", "Ellipse", "Triangle", "Polygon"]
     CUSTOM_GEOM_SHAPE_TYPES_3D = ["Cuboid", "Sphere"]
     CUSTOM_GEOM_SHAPE_TYPES_ALL = CUSTOM_GEOM_SHAPE_TYPES_2D + CUSTOM_GEOM_SHAPE_TYPES_3D
@@ -4292,7 +4292,8 @@ class MainWindow(QMainWindow):
     def _current_geometry_type(self):
         """The active geometry type, or the implicit box type for 1D/unselected."""
         if self.radio_3d.isChecked():
-            return self.geometry_type_combo.currentText() or "Cuboid"
+            t = self.geometry_type_combo.currentText() or "Cuboid"
+            return "Custom" if t == "Sketch" else t
         if self.radio_2d.isChecked():
             t = self.geometry_type_combo.currentText() or "Rectangle"
             # Sketch draws a Custom geometry (the same shape list, trained by
@@ -4656,6 +4657,7 @@ class MainWindow(QMainWindow):
             return
         self.right_tabs.setTabVisible(self._sketch_tab_index, on)
         if on:
+            self.sketch_panel.set_dim(3 if self.radio_3d.isChecked() else 2)
             self.right_tabs.setCurrentIndex(self._sketch_tab_index)
             self._on_right_tab_changed(self._sketch_tab_index)
             QApplication.processEvents()
@@ -4728,7 +4730,7 @@ class MainWindow(QMainWindow):
 
     def _sketch_domain(self):
         names = {"x_min": self.x_min, "x_max": self.x_max, "y_min": self.y_min, "y_max": self.y_max,
-                 "t_min": self.t_min}
+                 "z_min": self.z_min, "z_max": self.z_max, "t_min": self.t_min}
         return {n: w.value() for n, w in names.items()}
 
     def _sketch_bcs_changed(self, *_a):
@@ -7302,7 +7304,8 @@ class MainWindow(QMainWindow):
             geom_triangle_vertices=self.geom_triangle_verts_input.text(),
             geom_polygon_vertices=self.geom_polygon_verts_input.text(),
             geom_custom_shapes_json=self._build_custom_geom_shapes_json(),
-            geom_sketch=(self.radio_2d.isChecked() and self.geometry_type_combo.currentText() == "Sketch"),
+            geom_sketch=((self.radio_2d.isChecked() or self.radio_3d.isChecked())
+                         and self.geometry_type_combo.currentText() == "Sketch"),
             bc_boundary_json=_bc_group_json(self.bc_boundary_types, self.bc_boundary_vals, self.bc_boundary_active, n_out),
             bc_edge_json=_bc_edge_json(n_out),
             custom_bc_json=self._build_custom_bc_json(),
