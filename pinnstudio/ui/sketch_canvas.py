@@ -106,11 +106,16 @@ def shape_path(shape):
     return path
 
 
-def combined_path(shapes):
-    """The CSG result of the shape list, in list order (DeepXDE's own order)."""
+def combined_path(shapes, transform=None):
+    """The CSG result of the shape list, in list order (DeepXDE's own order).
+    Qt flattens curves when it combines paths, with a tolerance in the
+    path's own units -- so for drawing, pass the world-to-screen transform
+    and the combination is done in pixels (a hole stays round)."""
     result = None
     for i, sh in enumerate(shapes):
         p = shape_path(sh)
+        if transform is not None:
+            p = transform.map(p)
         if result is None:
             result = p
             continue
@@ -447,7 +452,7 @@ class _Canvas(QWidget):
 
         wt = self.world_transform()
         # the resulting domain, filled
-        dom = wt.map(combined_path(self.shapes2d()))
+        dom = combined_path(self.shapes2d(), wt)
         qp.setPen(Qt.PenStyle.NoPen)
         qp.setBrush(QBrush(QColor(31, 111, 209, 55)))
         qp.drawPath(dom)
