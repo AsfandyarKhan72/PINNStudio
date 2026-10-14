@@ -3,20 +3,26 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PINNStudio — No-Code GUI for Physics-Informed Neural Networks</title>
+<title>PINNStudio — Physics-Informed Neural Networks Without Code</title>
 <meta name="description" content="A no-code scientific computing environment for solving forward and inverse problems with physics-informed neural networks — from setting up the equations to training, error analysis, and visualization.">
+<meta property="og:title" content="PINNStudio — Physics-Informed Neural Networks Without Code">
+<meta property="og:description" content="A no-code scientific computing environment for solving forward and inverse problems with physics-informed neural networks.">
+<meta property="og:image" content="https://asfandyarkhan72.github.io/PINNStudio/assets/screen_setup.png">
+<meta property="og:type" content="website">
 <style>
   :root {
     --bg: #0b0d12;
-    --bg-alt: #12151d;
-    --card: #171b26;
+    --bg-alt: #10131a;
+    --card: #161a24;
+    --card-hi: #1b2030;
     --border: #262b3a;
     --text: #e8eaf0;
     --text-dim: #9aa2b8;
     --accent: #6ea8fe;
+    --accent-2: #7ee0b5;
     --accent-soft: rgba(110,168,254,0.12);
     --code-bg: #0d0f16;
-    --radius: 12px;
+    --radius: 14px;
   }
   * { box-sizing: border-box; }
   html { scroll-behavior: smooth; }
@@ -26,290 +32,395 @@
     color: var(--text);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
   }
   a { color: var(--accent); text-decoration: none; }
   a:hover { text-decoration: underline; }
-  .wrap { max-width: 980px; margin: 0 auto; padding: 0 24px; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+  code { font-family: "SF Mono", Consolas, Menlo, monospace; }
 
+  /* nav */
+  nav.top {
+    position: sticky; top: 0; z-index: 10;
+    background: rgba(11,13,18,0.85);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
+  }
+  nav.top .wrap { display: flex; align-items: center; justify-content: space-between; height: 56px; gap: 16px; }
+  nav.top .brand { font-weight: 700; color: var(--text); letter-spacing: -0.01em; }
+  nav.top .links { display: flex; gap: 22px; font-size: 14.5px; }
+  nav.top .links a { color: var(--text-dim); }
+  nav.top .links a:hover { color: var(--text); text-decoration: none; }
+
+  /* hero */
   header.hero {
-    padding: 96px 0 64px;
+    padding: 80px 0 56px;
     text-align: center;
     background:
-      radial-gradient(600px 300px at 50% -10%, rgba(110,168,254,0.15), transparent 70%),
+      radial-gradient(700px 320px at 50% -10%, rgba(110,168,254,0.18), transparent 70%),
+      radial-gradient(500px 260px at 85% 10%, rgba(126,224,181,0.08), transparent 70%),
       var(--bg);
     border-bottom: 1px solid var(--border);
   }
   .eyebrow {
-    display: inline-block;
-    font-size: 13px;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--accent);
-    background: var(--accent-soft);
-    padding: 6px 14px;
-    border-radius: 999px;
-    margin-bottom: 24px;
-    font-weight: 600;
+    display: inline-block; font-size: 12.5px; letter-spacing: 0.07em; text-transform: uppercase;
+    color: var(--accent); background: var(--accent-soft); padding: 6px 14px; border-radius: 999px;
+    margin-bottom: 22px; font-weight: 600;
   }
-  h1 {
-    font-size: clamp(36px, 6vw, 56px);
-    margin: 0 0 16px;
-    letter-spacing: -0.02em;
-    font-weight: 700;
-  }
-  .tagline {
-    font-size: clamp(16px, 2.2vw, 20px);
-    color: var(--text-dim);
-    max-width: 640px;
-    margin: 0 auto 40px;
-  }
+  h1 { font-size: clamp(38px, 6vw, 60px); margin: 0 0 14px; letter-spacing: -0.025em; font-weight: 750; }
+  .tagline { font-size: clamp(16px, 2.2vw, 20px); color: var(--text-dim); max-width: 720px; margin: 0 auto 34px; }
 
   .install-box {
-    display: inline-flex;
-    align-items: center;
-    gap: 12px;
-    background: var(--code-bg);
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    padding: 12px 12px 12px 24px;
-    font-family: "SF Mono", Consolas, Menlo, monospace;
-    font-size: 15px;
-    color: #b7f5c9;
-    max-width: 100%;
+    display: inline-flex; align-items: center; gap: 12px;
+    background: var(--code-bg); border: 1px solid var(--border); border-radius: 999px;
+    padding: 10px 10px 10px 22px; font-size: 15px; max-width: 100%;
   }
   .install-box code { color: #b7f5c9; white-space: nowrap; }
   .copy-btn {
-    background: var(--accent);
-    color: #0b0d12;
-    border: none;
-    border-radius: 999px;
-    padding: 8px 16px;
-    font-weight: 600;
-    font-size: 13px;
-    cursor: pointer;
-    font-family: inherit;
-    flex-shrink: 0;
+    background: var(--accent); color: #0b0d12; border: none; border-radius: 999px;
+    padding: 8px 16px; font-weight: 600; font-size: 13px; cursor: pointer; font-family: inherit; flex-shrink: 0;
   }
   .copy-btn:hover { opacity: 0.9; }
 
-  .cta-row {
-    margin-top: 28px;
-    display: flex;
-    gap: 12px;
-    justify-content: center;
-    flex-wrap: wrap;
-  }
-  .btn {
-    display: inline-block;
-    padding: 12px 22px;
-    border-radius: 10px;
-    font-weight: 600;
-    font-size: 15px;
-    border: 1px solid var(--border);
-  }
+  .cta-row { margin-top: 24px; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .btn { display: inline-block; padding: 12px 22px; border-radius: 10px; font-weight: 600; font-size: 15px; border: 1px solid var(--border); }
   .btn.primary { background: var(--accent); color: #0b0d12; border-color: var(--accent); }
   .btn.primary:hover { opacity: 0.9; text-decoration: none; }
-  .btn.secondary { color: var(--text); }
+  .btn.secondary { color: var(--text); background: var(--card); }
   .btn.secondary:hover { border-color: var(--accent); text-decoration: none; }
 
-  section { padding: 72px 0; border-bottom: 1px solid var(--border); }
-  section:last-of-type { border-bottom: none; }
-  h2 {
-    font-size: clamp(24px, 3vw, 32px);
-    margin: 0 0 12px;
-    letter-spacing: -0.01em;
-  }
-  .section-sub { color: var(--text-dim); max-width: 640px; margin: 0 0 40px; }
+  .stats { display: flex; justify-content: center; flex-wrap: wrap; gap: 10px 34px; margin: 38px 0 0; color: var(--text-dim); font-size: 14.5px; }
+  .stats b { color: var(--text); font-size: 20px; display: block; letter-spacing: -0.01em; }
 
-  .video-frame {
-    position: relative;
-    padding-top: 56.25%;
-    border-radius: var(--radius);
-    overflow: hidden;
-    border: 1px solid var(--border);
-    background: var(--card);
-  }
-  .video-frame iframe {
-    position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;
-  }
+  .gif-strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 44px; }
+  .gif-strip figure { margin: 0; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .gif-strip img { display: block; width: 100%; aspect-ratio: 1 / 1; object-fit: contain; background: #fff; }
+  .gif-strip figcaption { padding: 8px 12px; font-size: 13px; color: var(--text-dim); }
+  .gif-strip figcaption b { color: var(--text); }
 
-  .shot-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 20px;
-  }
-  figure { margin: 0; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
-  figure img { display: block; width: 100%; height: auto; }
-  figcaption { padding: 14px 16px; color: var(--text-dim); font-size: 14px; }
+  /* sections */
+  section { padding: 76px 0; border-bottom: 1px solid var(--border); }
+  section.alt { background: var(--bg-alt); }
+  h2 { font-size: clamp(25px, 3.2vw, 34px); margin: 0 0 12px; letter-spacing: -0.015em; }
+  .kicker { color: var(--accent-2); font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 700; margin-bottom: 8px; }
+  .section-sub { color: var(--text-dim); max-width: 760px; margin: 0 0 36px; font-size: 16.5px; }
 
-  .feature-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 20px;
-  }
-  .feature {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 24px;
-  }
-  .feature h3 { margin: 0 0 8px; font-size: 17px; }
-  .feature p { margin: 0; color: var(--text-dim); font-size: 14.5px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 18px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px 22px 20px; }
+  .card:hover { background: var(--card-hi); }
+  .card h3 { margin: 0 0 8px; font-size: 17px; letter-spacing: -0.005em; }
+  .card p { margin: 0; color: var(--text-dim); font-size: 14.5px; }
+  .card .icon { font-size: 22px; margin-bottom: 8px; display: block; }
+  .card ul { margin: 6px 0 0; padding-left: 18px; color: var(--text-dim); font-size: 14.5px; }
+  .card ul li { margin: 2px 0; }
 
-  .install-tabs { display: flex; flex-direction: column; gap: 24px; }
-  .install-card {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 24px;
-  }
-  .install-card h3 { margin: 0 0 6px; font-size: 17px; }
-  .install-card p.desc { margin: 0 0 16px; color: var(--text-dim); font-size: 14.5px; }
-  pre {
-    background: var(--code-bg);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 16px 18px;
-    overflow-x: auto;
-    font-size: 14px;
-    margin: 0;
-  }
-  code { font-family: "SF Mono", Consolas, Menlo, monospace; }
+  .video-frame { position: relative; padding-top: 56.25%; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); background: var(--card); }
+  .video-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
 
-  footer {
-    padding: 48px 0 64px;
-    text-align: center;
-    color: var(--text-dim);
-    font-size: 14px;
-  }
+  .shots { display: grid; grid-template-columns: 1fr; gap: 22px; }
+  .shot-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 22px; }
+  figure.shot { margin: 0; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  figure.shot img { display: block; width: 100%; height: auto; background: #fff; }
+  figure.shot.dark img { background: transparent; }
+  figure.shot figcaption { padding: 13px 16px; color: var(--text-dim); font-size: 14px; }
+  figure.shot figcaption b { color: var(--text); }
+
+  .ex-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 18px; margin-bottom: 26px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .chip { font-size: 13px; padding: 4px 10px; border-radius: 999px; background: var(--code-bg); border: 1px solid var(--border); color: var(--text); }
+
+  .install-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; }
+  pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; overflow-x: auto; font-size: 14px; margin: 12px 0 0; color: #d6dbe8; }
+  .muted { color: var(--text-dim); font-size: 14.5px; }
+
+  .cite-box { position: relative; }
+  .cite-box .copy-btn { position: absolute; top: 22px; right: 12px; }
+
+  footer { padding: 44px 0 60px; color: var(--text-dim); font-size: 14px; }
+  footer .cols { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; }
   footer a { color: var(--text-dim); }
-  footer .credit { margin-top: 8px; }
+  footer a:hover { color: var(--text); }
+  footer .links { display: flex; flex-wrap: wrap; gap: 8px 18px; justify-content: flex-end; }
 
+  @media (max-width: 760px) {
+    nav.top .links { display: none; }
+    .gif-strip { grid-template-columns: 1fr; }
+    footer .cols { grid-template-columns: 1fr; }
+    footer .links { justify-content: flex-start; }
+  }
   @media (max-width: 560px) {
-    header.hero { padding: 64px 0 48px; }
-    .install-box { flex-direction: column; align-items: stretch; padding: 16px; border-radius: 14px; }
+    header.hero { padding: 56px 0 44px; }
+    .install-box { flex-direction: column; align-items: stretch; padding: 14px; border-radius: 14px; }
     .install-box code { white-space: normal; word-break: break-all; }
   }
 </style>
 </head>
 <body>
 
+<nav class="top">
+  <div class="wrap">
+    <a class="brand" href="#">PINNStudio</a>
+    <div class="links">
+      <a href="#why">Why</a>
+      <a href="#features">Features</a>
+      <a href="#results">Results</a>
+      <a href="#examples">Examples</a>
+      <a href="#install">Install</a>
+      <a href="#cite">Cite</a>
+      <a href="https://github.com/AsfandyarKhan72/PINNStudio">GitHub</a>
+    </div>
+  </div>
+</nav>
+
 <header class="hero">
   <div class="wrap">
-    <span class="eyebrow">Open Source · MIT License</span>
+    <span class="eyebrow">Open source · MIT license · Python</span>
     <h1>PINNStudio</h1>
     <p class="tagline">A no-code scientific computing environment for solving forward and inverse problems with physics-informed neural networks — from setting up the equations to training, error analysis, and visualization.</p>
 
     <div class="install-box">
-      <code id="install-cmd">pip install pinnstudio</code>
+      <code>pip install pinnstudio</code>
       <button class="copy-btn" onclick="navigator.clipboard.writeText('pip install pinnstudio'); this.textContent='Copied!'; setTimeout(() => this.textContent='Copy', 1500)">Copy</button>
     </div>
 
     <div class="cta-row">
-      <a class="btn primary" href="https://github.com/AsfandyarKhan72/PINNStudio">View on GitHub</a>
-      <a class="btn secondary" href="https://github.com/AsfandyarKhan72/PINNStudio#quick-start">Full Install Guide</a>
-      <a class="btn secondary" href="https://github.com/AsfandyarKhan72/PINNStudio/discussions">Discussions</a>
+      <a class="btn primary" href="https://github.com/AsfandyarKhan72/PINNStudio#quick-start">Get started</a>
+      <a class="btn secondary" href="https://github.com/AsfandyarKhan72/PINNStudio">View on GitHub</a>
+      <a class="btn secondary" href="#examples">Browse examples</a>
+    </div>
+
+    <div class="stats">
+      <div><b>60</b>ready-to-run examples</div>
+      <div><b>ODE → 3D</b>steady and time-dependent</div>
+      <div><b>Forward &amp; inverse</b>solve or learn from data</div>
+      <div><b>No code</b>required</div>
+    </div>
+
+    <div class="gif-strip">
+      <figure>
+        <img src="assets/1D_Burger.gif" alt="Burgers equation in 1D: PINN solution over time" loading="lazy">
+        <figcaption><b>1D</b> · Burgers equation</figcaption>
+      </figure>
+      <figure>
+        <img src="assets/2D_Allen_Cahn_Wight.gif" alt="Allen-Cahn equation in 2D: PINN solution over time" loading="lazy">
+        <figcaption><b>2D</b> · Allen-Cahn equation</figcaption>
+      </figure>
+      <figure>
+        <img src="assets/3D_Heat.gif" alt="Heat equation in 3D: PINN solution over time" loading="lazy">
+        <figcaption><b>3D</b> · Heat equation</figcaption>
+      </figure>
     </div>
   </div>
 </header>
 
-<section id="overview">
+<section id="why">
   <div class="wrap">
-    <h2>Skip the boilerplate</h2>
-    <p class="section-sub">Setting up a PINN usually means writing a new DeepXDE script for every problem — defining the PDE residual, wiring up boundary and initial conditions, picking collocation points, and writing your own plotting code afterward. PINNStudio replaces that with a form: describe your problem through the interface, and it generates a standalone DeepXDE/PyTorch script, runs it, and streams the training log, loss curves, and solution plots back into the app.</p>
-
-    <div class="video-frame">
-      <iframe src="https://www.youtube.com/embed/Ap-0VRwFbgE" title="PINNStudio demo" allowfullscreen loading="lazy"></iframe>
+    <div class="kicker">Why PINNStudio</div>
+    <h2>Spend your time on the physics, not the code</h2>
+    <p class="section-sub">Setting up a physics-informed neural network by hand means writing a new script for every problem: the residual of the equations through automatic differentiation, the sampling of collocation points, the weighting of the loss terms, the optimizer schedule, and then the plotting and error analysis afterwards. PINNStudio puts all of it into one place — so researchers and students in science and engineering, including those new to scientific computing or machine learning, can solve their own problems with PINNs.</p>
+    <div class="grid-3">
+      <div class="card">
+        <span class="icon">✍️</span>
+        <h3>Describe, don't program</h3>
+        <p>Type the equations as you would write them — <code>du_t + u*du_x - 0.01/pi*du_xx</code> — and set the domain, conditions, network and training in one panel.</p>
+      </div>
+      <div class="card">
+        <span class="icon">🔁</span>
+        <h3>The whole workflow</h3>
+        <p>Training with live progress, error against reference data, plots and animations, parameter sweeps, and a saved model you can reload without retraining.</p>
+      </div>
+      <div class="card">
+        <span class="icon">📄</span>
+        <h3>Transparent and reproducible</h3>
+        <p>Every problem becomes a standalone Python script you can read, share or run on a cluster, and runs use a fixed random seed so results can be repeated.</p>
+      </div>
     </div>
   </div>
 </section>
 
-<section id="screenshots">
+<section id="demo" class="alt">
   <div class="wrap">
+    <div class="kicker">Demo</div>
     <h2>See it in action</h2>
-    <p class="section-sub">Problem setup, training controls, and live visualization, all in one window.</p>
-    <div class="shot-grid">
-      <figure>
-        <img src="https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/assets/screenshots/pde_builder.png" alt="PINNStudio PDE, domain, and collocation point setup" loading="lazy">
-        <figcaption>Problem setup: PDE residual, domain, and collocation points.</figcaption>
-      </figure>
-      <figure>
-        <img src="https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/assets/screenshots/training_panel.png" alt="PINNStudio network, training schedule, and adaptive training controls" loading="lazy">
-        <figcaption>Network architecture, optimizer schedule, and adaptive training.</figcaption>
-      </figure>
-      <figure>
-        <img src="https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/assets/results/restored_animation.gif" alt="Animated PINN solution over time" loading="lazy">
-        <figcaption>Time evolution of a PINN solution, restored from a saved checkpoint.</figcaption>
-      </figure>
+    <p class="section-sub">A walkthrough of setting up a PDE in PINNStudio.</p>
+    <div class="video-frame">
+      <iframe src="https://www.youtube.com/embed/lxSJTJvU45Q" title="PINNStudio demo" allowfullscreen loading="lazy"></iframe>
     </div>
   </div>
 </section>
 
 <section id="features">
   <div class="wrap">
-    <h2>What it can do</h2>
-    <div class="feature-grid">
-      <div class="feature">
-        <h3>Forward &amp; inverse problems</h3>
-        <p>Solve a known PDE, or estimate unknown PDE parameters from observation data.</p>
+    <div class="kicker">Features</div>
+    <h2>What it can solve, and how it trains</h2>
+    <p class="section-sub">From a first PINN to research problems: the methods are built in, ready to switch on.</p>
+    <div class="grid-3">
+      <div class="card">
+        <h3>Forward and inverse problems</h3>
+        <p>Solve a known equation, or learn unknown coefficients — or whole unknown fields — from measured data.</p>
       </div>
-      <div class="feature">
-        <h3>1D and 2D domains</h3>
-        <p>Including coupled, multi-output PDE systems in space and time.</p>
+      <div class="card">
+        <h3>ODEs and PDEs in 1D, 2D and 3D</h3>
+        <p>Steady or time-dependent, coupled multi-output systems, integro-differential and fractional equations.</p>
       </div>
-      <div class="feature">
-        <h3>Built-in templates</h3>
-        <p>Heat, Allen-Cahn, and Cahn-Hilliard equations ready to run in seconds.</p>
+      <div class="card">
+        <h3>Many kinds of domains</h3>
+        <p>Intervals, rectangles, disks, polygons, cuboids, spheres, and custom shapes combined from them — with Dirichlet, Neumann, Robin, periodic and point-data conditions, or conditions imposed exactly.</p>
       </div>
-      <div class="feature">
-        <h3>Live training feedback</h3>
-        <p>Streaming training log, loss curves, and solution plots as the model trains.</p>
+      <div class="card">
+        <h3>Multi-phase training</h3>
+        <p>Adam, AdamW, L-BFGS and NNCG in any sequence, with learning-rate schedules and loss weights per phase, or weights set from the initial losses.</p>
       </div>
-      <div class="feature">
-        <h3>GPU-aware install</h3>
-        <p>Automatically detects your NVIDIA GPU and installs a compatible PyTorch build.</p>
+      <div class="card">
+        <h3>Adaptive methods</h3>
+        <ul>
+          <li>Residual-based adaptive refinement (RAR)</li>
+          <li>Time-adaptive training with transfer learning</li>
+          <li>Initial-condition-guided pre-training</li>
+        </ul>
       </div>
-      <div class="feature">
-        <h3>Built on DeepXDE</h3>
-        <p>Runs on top of the well-established DeepXDE library, with PyTorch under the hood.</p>
+      <div class="card">
+        <h3>Parameter sweeps</h3>
+        <p>Vary almost any setting — one at a time, all combinations, paired values, or Bayesian search — with a summary of how the error changes.</p>
+      </div>
+      <div class="card">
+        <h3>Error analysis</h3>
+        <p>Relative L₂, MSE and maximum error against reference data or an exact formula, with line and surface comparisons.</p>
+      </div>
+      <div class="card">
+        <h3>Plots and animations</h3>
+        <p>Surface and line plots, animations over time, and any expression of the outputs and their derivatives, such as <code>du_x</code> or <code>sqrt(u**2 + v**2)</code>.</p>
+      </div>
+      <div class="card">
+        <h3>Network choices</h3>
+        <p>Fully connected or parallel networks, multi-scale Fourier features, input and output transforms, and the activation and initializer of your choice.</p>
       </div>
     </div>
   </div>
 </section>
 
-<section id="install">
+<section id="results" class="alt">
   <div class="wrap">
-    <h2>Install</h2>
-    <p class="section-sub">Two ways to get started, depending on what you need.</p>
-    <div class="install-tabs">
-      <div class="install-card">
+    <div class="kicker">Results</div>
+    <h2>Everything you need to trust a result</h2>
+    <p class="section-sub">Each run reports its error against reference data and saves the figures to judge it — here from the Burgers equation, one of the 60 examples.</p>
+    <div class="shots">
+      <figure class="shot dark">
+        <img src="assets/screen_setup.png" alt="PINNStudio with the Burgers 1D example loaded: problem setup on the left, training log with the L2 error, loss curve and solution on the right" loading="lazy">
+        <figcaption><b>One window from setup to result.</b> Burgers 1D (Raissi et al.) loaded from Quick Examples and solved: the relative L₂ error is below 10⁻³ at every reference time.</figcaption>
+      </figure>
+      <figure class="shot">
+        <img src="assets/burgers_error.png" alt="PINN solution, reference solution and their difference for the Burgers equation" loading="lazy">
+        <figcaption><b>Error analysis.</b> PINN, exact reference and their difference over space and time.</figcaption>
+      </figure>
+      <div class="shot-pair">
+        <figure class="shot">
+          <img src="assets/rar_points.png" alt="Collocation points after three rounds of residual-based adaptive refinement, concentrated on the shock" loading="lazy">
+          <figcaption><b>Adaptive refinement.</b> RAR adds the points with the largest residual — they land on the shock at x = 0.</figcaption>
+        </figure>
+        <figure class="shot">
+          <img src="assets/inverse_convergence.gif" alt="Convergence of an unknown coefficient during inverse training" loading="lazy">
+          <figcaption><b>Inverse problems.</b> The unknown coefficient of the Schrödinger equation converging to its true value, 0.5.</figcaption>
+        </figure>
+      </div>
+      <div class="shot-pair">
+        <figure class="shot dark">
+          <img src="assets/screen_sweep.png" alt="Parameter Sweep panel after a sweep over hidden layers and neurons per layer" loading="lazy">
+          <figcaption><b>Parameter sweeps.</b> Twelve network sizes trained in one go, each run's error in the log.</figcaption>
+        </figure>
+        <figure class="shot">
+          <img src="assets/sweep_summary.png" alt="Relative L2 error and final loss against the number of hidden layers, one line per number of neurons" loading="lazy">
+          <figcaption><b>Sweep summary.</b> Error and final loss against the swept settings, saved automatically.</figcaption>
+        </figure>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="examples">
+  <div class="wrap">
+    <div class="kicker">Examples</div>
+    <h2>60 examples, ready to run</h2>
+    <p class="section-sub">Each example loads every setting in one click — pick it, press Solve, and compare with the reference. 58 come with an exact solution or reference data, and 22 can be run as inverse problems.</p>
+    <div class="ex-row">
+      <div class="card">
+        <h3>Published benchmarks</h3>
+        <p>Setups from Raissi et al. (2019), Wight &amp; Zhao (2021), Mattey &amp; Ghosh (2022) and Mathias et al. (2022).</p>
+      </div>
+      <div class="card">
+        <h3>DeepXDE's examples</h3>
+        <p>The documented forward and inverse examples of the DeepXDE library, each linked to its original script.</p>
+      </div>
+      <div class="card">
+        <h3>ODE · 1D · 2D · 3D</h3>
+        <p>7 ODE, 32 one-dimensional, 17 two-dimensional and 4 three-dimensional problems.</p>
+      </div>
+    </div>
+    <div class="chips">
+      <span class="chip">Burgers</span><span class="chip">Allen-Cahn</span><span class="chip">Schrödinger</span>
+      <span class="chip">Navier–Stokes (Kovasznay, Beltrami)</span><span class="chip">Helmholtz</span><span class="chip">Linear elasticity</span>
+      <span class="chip">Heat &amp; diffusion</span><span class="chip">Klein-Gordon</span><span class="chip">Wave</span><span class="chip">Poisson &amp; Laplace</span>
+      <span class="chip">Black-Scholes</span><span class="chip">Fractional equations</span><span class="chip">Lorenz system (inverse)</span>
+      <span class="chip">Diffusion-reaction (inverse)</span><span class="chip">Brinkman-Forchheimer (inverse)</span>
+    </div>
+    <div class="cta-row" style="justify-content:flex-start; margin-top:28px;">
+      <a class="btn secondary" href="https://github.com/AsfandyarKhan72/PINNStudio#examples">See all examples and their results</a>
+    </div>
+  </div>
+</section>
+
+<section id="install" class="alt">
+  <div class="wrap">
+    <div class="kicker">Install</div>
+    <h2>Get started in a few minutes</h2>
+    <p class="section-sub">PINNStudio runs on Windows, macOS and Linux with Python 3.9 or newer. A GPU is optional but helps with larger 2D and 3D problems.</p>
+    <div class="install-cards">
+      <div class="card">
         <h3>Quick install</h3>
-        <p class="desc">Fastest way to try it, on any OS. Skips automatic GPU-driver matching.</p>
+        <p>The fastest way to try it, on any operating system.</p>
         <pre><code>pip install pinnstudio
 pinnstudio</code></pre>
       </div>
-      <div class="install-card">
-        <h3>Full install (recommended for GPU users)</h3>
-        <p class="desc">Creates an isolated environment and installs a PyTorch build matched to your GPU automatically.</p>
+      <div class="card">
+        <h3>With an NVIDIA GPU</h3>
+        <p>The install script creates its own environment and makes sure PyTorch can use your GPU.</p>
         <pre><code>git clone https://github.com/AsfandyarKhan72/PINNStudio.git
 cd PINNStudio
-bash install.sh        # or install.bat on Windows
-./venv/bin/pinnstudio   # or .\venv\Scripts\pinnstudio.exe</code></pre>
+bash install.sh          # Windows: install.bat
+./venv/bin/pinnstudio    # Windows: .\venv\Scripts\pinnstudio.exe</code></pre>
       </div>
+    </div>
+    <p class="muted" style="margin-top:22px;">Then load an example from <b>Quick Examples</b> and press <b>Solve</b> — see the <a href="https://github.com/AsfandyarKhan72/PINNStudio#quick-start">Quick Start</a>.</p>
+  </div>
+</section>
+
+<section id="cite">
+  <div class="wrap">
+    <div class="kicker">Cite</div>
+    <h2>Using PINNStudio in your work?</h2>
+    <p class="section-sub">Please cite it as below. PINNStudio is under active development, and we are extending it with newer scientific machine learning and PINN methods.</p>
+    <div class="cite-box">
+      <pre id="bibtex"><code>@software{khan2026pinnstudio,
+  author  = {Khan, Asfandyar and Mamivand, Mahmood},
+  title   = {PINNStudio: A No-Code Scientific Computing Environment for Forward and Inverse Physics-Informed Neural Networks},
+  year    = {2026},
+  url     = {https://github.com/AsfandyarKhan72/PINNStudio}
+}</code></pre>
+      <button class="copy-btn" onclick="navigator.clipboard.writeText(document.getElementById('bibtex').innerText); this.textContent='Copied!'; setTimeout(() => this.textContent='Copy', 1500)">Copy</button>
     </div>
   </div>
 </section>
 
 <footer>
-  <div class="wrap">
-    <div>Built on <a href="https://github.com/lululxvi/deepxde">DeepXDE</a> — credit to Lu Lu and the DeepXDE team.</div>
-    <div class="credit">
+  <div class="wrap cols">
+    <div>
+      <div>Developed at the Computational Materials Design Lab, Boise State University, with support from the National Science Foundation (grant DMR-2142935).</div>
+      <div style="margin-top:8px;">Built on <a href="https://github.com/lululxvi/deepxde">DeepXDE</a> and PyTorch — with thanks to Lu Lu and the DeepXDE developers.</div>
+    </div>
+    <div class="links">
       <a href="https://github.com/AsfandyarKhan72/PINNStudio">GitHub</a>
-      &nbsp;·&nbsp;
       <a href="https://pypi.org/project/pinnstudio/">PyPI</a>
-      &nbsp;·&nbsp;
       <a href="https://github.com/AsfandyarKhan72/PINNStudio/discussions">Discussions</a>
-      &nbsp;·&nbsp;
       <a href="https://github.com/AsfandyarKhan72/PINNStudio/blob/main/LICENSE">MIT License</a>
     </div>
   </div>
