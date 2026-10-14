@@ -2201,12 +2201,12 @@ Relative $L_2$ error (mean over the five reference times) from `sweep_summary.cs
 
 | Hidden layers | 10 neurons | 20 neurons | 40 neurons |
 |---|---|---|---|
-| 2 | 1.4 × 10⁻² | 5.6 × 10⁻³ | 3.8 × 10⁻³ |
-| 4 | 1.1 × 10⁻³ | 1.0 × 10⁻³ | 2.4 × 10⁻⁴ |
-| 6 | 5.6 × 10⁻⁴ | 1.2 × 10⁻³ | 5.3 × 10⁻⁴ |
-| 8 | 1.3 × 10⁻³ | 2.6 × 10⁻³ | 3.7 × 10⁻⁴ |
+| 2 | 2.7 × 10⁻² | 1.1 × 10⁻² | 4.4 × 10⁻³ |
+| 4 | 1.3 × 10⁻³ | 7.0 × 10⁻⁴ | 3.0 × 10⁻⁴ |
+| 6 | 5.2 × 10⁻⁴ | 4.0 × 10⁻⁴ | 2.3 × 10⁻⁴ |
+| 8 | 7.2 × 10⁻⁴ | 5.9 × 10⁻⁴ | 1.5 × 10⁻⁴ |
 
-Two hidden layers are too few for the shock at $x = 0$; at four layers the error is 5–16× lower, and 40 neurons per layer gives the lowest error at every depth from four layers. Deeper is not always better: with 10 or 20 neurons, 8 layers trains to a higher loss and error than 4 or 6. (Raissi et al. trained with L-BFGS only and 10,000 collocation points, so their numbers differ; the trend is the same.)
+Two hidden layers are too few for the shock at $x = 0$; at four layers the error is 15–21× lower, and 40 neurons per layer gives the lowest error at every depth, down to 1.5 × 10⁻⁴ at eight layers. With 10 or 20 neurons, eight layers is slightly worse than six. (Raissi et al. trained with L-BFGS only and 10,000 collocation points, so their numbers differ; the trend is the same.)
 
 </details>
 
