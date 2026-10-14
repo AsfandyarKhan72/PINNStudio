@@ -141,51 +141,57 @@ PINNStudio is under active development, and we are extending it with newer scien
 ### Problem Setup
 
 <details>
-<summary><strong>ODE, 1D, 2D, and 3D problem definitions</strong></summary>
+<summary><strong>ODE, 1D, 2D, and 3D problems</strong></summary>
 
-Every problem is defined over `(x, t)`, `(x, y, t)`, or `(x, y, z, t)` — switching dimension in the Setup panel rebuilds the relevant controls (geometry selector, boundary condition rows, plot options) for you, so nothing from a previous dimension is left over and silently wrong. Steady-state (time-independent) problems are supported in every dimension too — turn off the time axis and the network trains a pure `u(x)`, `u(x, y)`, or `u(x, y, z)` instead.
+Problems are defined over `t` (ODEs), `(x, t)`, `(x, y, t)` or `(x, y, z, t)`, or without the time axis for steady-state problems in `x`, `(x, y)` or `(x, y, z)`. Changing the dimension rebuilds the related controls (geometry, boundary-condition rows, plot options), so no setting from the previous dimension is carried over by mistake.
 
-**ODE (t)** problems have time as the only variable: write derivatives as `du_t`, `du_tt` (one equation per output for a system, e.g. `dy1_t - y2|dy2_t + y1`), give the initial values in the Initial Conditions panel, and use *Start*/*End* in a BC row for conditions at either end of the time range — see the ODE examples under [Examples](#examples). An ODE can also contain integrals of the solution, `integral(f)` from t₀ to t with f in `s` (the integration variable), `t` and the outputs at s — for integro-differential equations such as `du_t + u - integral(exp(s - t)*u)`.
+**ODEs** have time as the only variable: derivatives are written `du_t`, `du_tt` (one equation per output for a system, e.g. `dy1_t - y2|dy2_t + y1`), initial values are set in the Initial Conditions panel, and *Start*/*End* in a boundary-condition row gives a condition at either end of the time range. An ODE can also contain integrals of the solution, `integral(f)` from t₀ to t with f written in the integration variable `s`, `t` and the outputs at s — for integro-differential equations such as `du_t + u - integral(exp(s - t)*u)`.
 
-**Fractional equations**: write `frac(u)` for the fractional operator of order α applied to output u (DeepXDE's FPDE discretization — in 1D the left plus right Riemann-Liouville derivative, in 2D/3D the integral of the directional derivative over directions). The fractional settings (α, resolution, mesh) appear under the equations as soon as one uses `frac(...)`; α can be an inverse variable to learn it from data — see the fractional examples under [Examples](#examples).
+**Fractional equations**: `frac(u)` is the fractional operator of order α applied to output u (DeepXDE's FPDE discretization — in 1D the sum of the left and right Riemann–Liouville derivatives, in 2D/3D the integral of the directional derivative over all directions). The fractional settings (α, resolution, mesh) appear under the equations as soon as `frac(...)` is used, and α can be an unknown to learn from data. See the ODE and fractional examples under [Examples](#examples).
 
 </details>
 
 <details>
 <summary><strong>Forward and inverse problems</strong></summary>
 
-**Forward**: the PDE's parameters are known — PINNStudio solves for the field itself. **Inverse**: one or more PDE parameters are unknown, and PINNStudio estimates them from observation data (a reference solution file) while solving for the field simultaneously. Every built-in template supports both modes; switching to Inverse auto-loads that template's own end-time reference file as the observed-data source and defaults its loss weight to 100, so estimating a parameter needs no manual file browsing to get started (still fully overridable). Multiple unknown parameters in the same problem are supported, not just one.
+**Forward**: every coefficient is known and PINNStudio solves for the field. **Inverse**: one or more coefficients — or a whole unknown field — are learned from measured data while the field is solved for at the same time. Any number of unknowns can be learned in one problem, each with its own initial guess and, when it is known, its true value for comparison. Measured data comes from one or more files, each with its own loss weight, and can be a single output or any expression of the outputs (e.g. $|h| = \sqrt{u^2 + v^2}$).
+
+Every PINNStudio template, and several DeepXDE examples, have an Inverse mode that loads with its measured-data file already set — pick the example from the **Inverse** list of Quick Examples.
 
 </details>
 
 <details>
-<summary><strong>Free-form, multi-output PDE editor</strong></summary>
+<summary><strong>Equation editor for single equations and coupled systems</strong></summary>
 
-Write the PDE residual directly as an expression, not through a fixed set of presets. Derivatives use a plain `d<output>_<vars>` naming convention — `du_x`, `du_xx`, `du_t`, `du_xy`, `du_xt`, all the way up to mixed fourth-order terms like `du_xxyy` or `du_xxtt` — so anything from a first-order diffusion term to a coupled, higher-order system is expressible without touching any generated code. Multi-output, coupled PDE systems (naming a second output `v` gives you `dv_x`, `dv_t`, and so on, alongside `u`'s own) are supported the same way — the 2D Burgers and 1D Schrödinger templates below are both two-output coupled systems set up entirely through this editor.
+Equations are typed as residuals, not chosen from presets. Derivatives use a plain `d<output>_<variables>` naming — `du_x`, `du_xx`, `du_t`, `du_xy`, up to mixed fourth-order terms such as `du_xxyy` — so anything from a diffusion equation to a coupled higher-order system can be written directly. Coupled systems work the same way: a second output `v` brings `dv_x`, `dv_t` and so on (the *Burgers 2D – Mathias et al.* and *Schrödinger 1D* examples are two-output systems).
 
-The coordinates `x`, `y`, `z` and `t` can appear in an equation too, along with numpy-style math (`sin`, `exp`, `cosh`, `relu`, ...), so source terms such as `-du_xx - pi**2*sin(pi*x)` are written as they are. The number of **equations** is set separately from the number of **outputs**: three residuals for one output (as in DeepXDE's American-put example), or one equation for two outputs when the second output is an unknown field to be learned.
+The coordinates `x`, `y`, `z` and `t` can appear in an equation along with standard functions (`sin`, `exp`, `cosh`, ...), so source terms such as `-du_xx - pi**2*sin(pi*x)` are written as they read. The number of **equations** is set separately from the number of **outputs**: for example, three residuals for one output (DeepXDE's American put example), or one equation for two outputs when the second output is an unknown field to be learned.
 
-**Constants** ("+ Add constant") give names to numbers used across the problem — e.g. `Re = 20`, `nu = 1/Re` — usable in the equations, boundary and initial conditions, transforms and the exact-solution reference; each row shows its computed value.
+**Constants** give names to numbers used across the problem — e.g. `Re = 20`, `nu = 1/Re` — and can be used in the equations, boundary and initial conditions, transforms and the exact-solution reference.
 
 </details>
 
 <details>
 <summary><strong>Boundary and initial conditions</strong></summary>
 
-Boundary conditions are added as rows in a panel, each with its own type — Dirichlet, Neumann, Robin, Periodic, Point Set (values from a data file), Point Set Operator (a function of the network's own tensors, evaluated at those same file points), a general Operator condition (any function of the network's input/output tensors), or Interface 2D (DeepXDE's own `Interface2DBC`, pairing two matching boundary pieces) — the output(s) it applies to, and **Where** it applies: pick *Whole boundary*, *Left*, *Right*, *Bottom*, *Top* (and *Front*/*Back* in 3D) from the list, or type any `True`/`False` expression in `x`, `y`, `z`. The side names (`left`, `right`, `bottom`, `top`, `front`, `back`) and the domain limits (`x_min`, `x_max`, `y_min`, ...) are defined from your own domain, so `left or right` or `x <= x_min` still mean the right thing if you change the domain later; a shape without named sides uses an expression such as `np.isclose(x**2 + y**2, 0.25)`. Neumann and Robin values are the derivative along the outward normal, $du/dn$ — $+du/dx$ at a right side, $-du/dx$ at a left side. Point Set rows can target several output components from one data file at once, and both Point Set types can be minibatched (DeepXDE's own `batch_size`/`shuffle`) instead of using every point every step. Operator and Point Set Operator conditions accept the same `u`, `du_x`, `du_xx`-style derivative shorthand the PDE editor uses, alongside DeepXDE's own raw `inputs`/`outputs`/`X` tensors, so a custom condition rarely needs hand-written `dde.grad` calls. Periodic is only meaningful on an Interval/Rectangle/Cuboid-shaped domain (DeepXDE's own real requirement, enforced with a clear message rather than a confusing failure) and Interface 2D only on a 2-output, 2D Rectangle/Polygon problem — the panel keeps Interface 2D out of the Type list until both of those are true. Initial conditions are set from an expression in `x` (`y`, `z` too in 2D/3D) or loaded from a data file, per output.
+Boundary conditions are rows in a panel, each with its type, the output(s) it applies to, and **where** it applies:
 
-An Operator condition can also apply at the initial time instead of on the boundary (*Applies on: the initial time*), which is how a second initial condition such as $\partial u/\partial t = 0$ at $t = 0$ is given for a wave-type equation.
+- **Types:** Dirichlet, Neumann, Robin, Periodic, Point Set (values at given points), Point Set Operator (an expression of the outputs and their derivatives at given points), Operator (any expression, applied on the boundary or at the initial time), and Interface 2D (DeepXDE's `Interface2DBC`, pairing two matching boundary pieces).
+- **Where:** *Whole boundary*, *Left*, *Right*, *Bottom*, *Top* (and *Front*/*Back* in 3D), or any `True`/`False` expression in `x`, `y`, `z`. The side names and the domain limits (`x_min`, `x_max`, ...) follow your domain, so `left or right` or `x <= x_min` stay correct if the domain changes; a curved boundary piece uses an expression such as `np.isclose(x**2 + y**2, 0.25)`.
+- Neumann and Robin values are the derivative along the outward normal, $du/dn$ ($+du/dx$ on a right side, $-du/dx$ on a left side).
+- Operator conditions use the same `u`, `du_x`, `du_xx` notation as the equations. Applied at the initial time, they give a second initial condition such as $\partial u/\partial t = 0$ at $t = 0$ for a wave equation.
+- Point Set rows take their points from a file, a typed list (`1`, `0.2, 0.5`, `0,0; 1,0.5`) or N random points, with values from the file or a formula; they can target several outputs at once and can be minibatched.
 
-Point Set and Point Set Operator rows can take their points from a file, a typed list (`1`, `0.2, 0.5`, `0,0; 1,0.5`) or N random points (on the boundary part picked by Where, or inside the domain), with target values from the file or a formula — so a single measured value needs no file.
+Initial conditions are given per output as an expression or loaded from a data file. Boundary and initial conditions can also be imposed exactly through an output transform (see *Input and output transforms* below).
 
 </details>
 
 <details>
-<summary><strong>Geometry & domains</strong></summary>
+<summary><strong>Geometry and domains</strong></summary>
 
-2D problems aren't limited to a rectangle: **Rectangle, Disk, Ellipse, Triangle,** and arbitrary **Polygon** (given as a vertex list) are all selectable geometries, each with its own domain-preview and parameter panel. 3D problems support **Cuboid** and **Sphere**. Picking a non-box shape doesn't change how you write BCs — the same location-expression convention still works, since DeepXDE only ever evaluates it on points already confirmed to be on that shape's boundary.
+1D problems use an interval; 2D problems a **Rectangle, Disk, Ellipse, Triangle** or any **Polygon** (given by its vertices); 3D problems a **Cuboid** or **Sphere**. Domain bounds accept expressions such as `pi/2`.
 
-Need a shape that isn't one of those on its own? **Custom** geometry (2D and 3D) lets you stack any number of the primitives above and combine each one with the running result via a boolean **Union**, **Subtract**, or **Intersect** — the way to build something like a cavity with an obstacle cut out of it, without writing any CSG code by hand. The example below is a classic "plate with a hole" domain — a `Rectangle` with a `Disk` subtracted out of it (a two-shape Custom chain):
+**Custom** geometry (2D and 3D) combines any number of these shapes with **Union**, **Subtract** and **Intersect** — for example a plate with a hole, a `Rectangle` with a `Disk` subtracted:
 
 <p align="center">
 <img src="assets/Images/View_Domain_Pictures/Custom_Geometry_Rectangle_minus_Disk.png" alt="PINNStudio — Custom geometry domain preview, Rectangle with a Disk subtracted out" width="55%">
@@ -194,9 +200,9 @@ Need a shape that isn't one of those on its own? **Custom** geometry (2D and 3D)
 </details>
 
 <details>
-<summary><strong>Collocation point controls</strong></summary>
+<summary><strong>Collocation points and domain preview</strong></summary>
 
-Domain, boundary, initial, and test point counts are all independently configurable, along with the sampling distribution, plus a live domain preview — a real, non-uniform PDE-collocation point cloud (domain points, boundary points, and initial-condition points, color-coded) plotted directly against your actual geometry, alongside a second panel showing the same points' distribution over time — so you can see exactly what will be handed to training before you click Solve. This works in 2D against any of the five 2D shapes (Rectangle, Disk, Ellipse, Triangle, Polygon) and in 3D too, with a real 3D scatter plot against a Cuboid or Sphere outline, not just a flat 2D preview.
+The numbers of domain, boundary, initial and test points are set independently, along with the sampling distribution (Hammersley, uniform, Halton, LHS, Sobol or pseudo-random). A domain preview shows the actual training points — domain, boundary and initial points, color-coded — on the geometry, with a second panel showing their distribution in time, in 2D and in 3D:
 
 <table>
 <tr>
@@ -215,71 +221,57 @@ Domain, boundary, initial, and test point counts are all independently configura
 </tr>
 </table>
 
-**Extra training points (anchors)** can be added on top of the sampled ones, either from a points file or at random inside a box, e.g. concentrated near a front or a free boundary (DeepXDE's `anchors=`).
+**Extra training points (anchors)** can be added on top of the sampled ones, from a file or at random inside a box — for example to concentrate points near a front or a boundary layer.
 
 </details>
 
 ### Training
 
 <details>
-<summary><strong>Configurable network architecture</strong></summary>
+<summary><strong>Network architecture</strong></summary>
 
-Hidden layer count, neurons per layer, activation function, and kernel initializer (Glorot uniform, Glorot normal, He uniform, He normal, zeros) are all exposed directly — no need to edit a script to try a wider or deeper network, a different nonlinearity, or a different weight initialization.
+The number of hidden layers, neurons per layer, activation function (tanh, sin, Sigmoid, ReLU, SiLU/Swish, ELU, GELU, SELU) and weight initializer (Glorot or He, uniform or normal) are all set in the panel. Four network types are available:
 
-**Activation** offers every identifier DeepXDE's own `deepxde.nn.activations` module supports — tanh, sin, Sigmoid, ReLU, SiLU, Swish, ELU, GELU, SELU — spelled exactly the way DeepXDE's own documentation capitalizes them. (`sin` is worth trying for problems with smooth or periodic solutions — SIREN-style sinusoidal activations are a well-known good fit for PINNs; `Swish` and `SiLU` are DeepXDE's own two names for the identical function, both offered since DeepXDE documents both spellings.)
-
-**Network Type** (FNN / PFNN) is its own independent dropdown: the default **FNN** is a single shared trunk; **PFNN** (DeepXDE's own `dde.nn.PFNN`, a real built-in — not a custom extension) gives each output its own parallel sub-network, merging only at the final layer. Useful for multi-output problems where the outputs have different scales/behavior and a single shared trunk ends up fighting itself trying to serve both — 1D Schrödinger's real/imaginary parts, for example. A training script and the script that later restores its checkpoint always agree on how the network was shaped, since both read it from the same saved `model_config.json`.
-
-**MsFFN** and **STMsFFN** (multi-scale Fourier feature networks) pass the inputs through random Fourier features at several scales (`Fourier scales (σ)`, e.g. `1, 10`), which lets a PINN capture slow and fast variations together — see the multi-scale Poisson example under [Examples](#examples).
+- **FNN** — a fully connected network shared by all outputs (the default).
+- **PFNN** — a separate sub-network for each output, useful when outputs have very different scales or behavior.
+- **MsFFN** and **STMsFFN** — multi-scale Fourier feature networks, which pass the inputs through random Fourier features at several scales (e.g. `1, 10`) so the network can capture slow and fast variations together.
 
 </details>
 
 <details>
-<summary><strong>Input/output scaling</strong></summary>
+<summary><strong>Input and output transforms</strong></summary>
 
-Optional affine rescaling on the way into and out of the network — $x_{\text{transformed}} = x_{\text{raw}} \times \text{scale} + \text{shift}$ per input dimension, and the same for each output — off by default (scale = 1, shift = 0 is the identity). Useful when a problem's natural coordinate or solution range is far from the network's comfortable operating range (e.g. a domain spanning thousands of units, or a solution that's always around $10^{-6}$) and normalizing it improves training behavior.
-
-Each transform can also be a **formula**. An input formula gives the network's input features (e.g. `x*sin(y); x*cos(y)` for a problem in polar coordinates); an output formula rewrites each output, typically to impose boundary or initial conditions exactly, e.g. `x*(1 - x)*u` makes $u = 0$ at $x = 0$ and $x = 1$ with no boundary loss term at all.
+Inputs and outputs can be rescaled ($x \mapsto x \times \text{scale} + \text{shift}$), which helps when a coordinate or the solution is far from order one. Each transform can also be a **formula**: an input formula sets the network's input features (e.g. `x*sin(y); x*cos(y)` for polar coordinates), and an output formula rewrites each output — typically to satisfy boundary or initial conditions exactly, e.g. `x*(1 - x)*u` gives $u = 0$ at $x = 0$ and $x = 1$ without a boundary loss term.
 
 </details>
 
 <details>
-<summary><strong>Two-stage optimization (Adam + L-BFGS)</strong></summary>
+<summary><strong>Training phases, learning-rate schedules and loss weights</strong></summary>
 
-Every run trains with Adam first, then hands off to L-BFGS for the second stage — a standard, effective PINN training recipe — with L-BFGS's own convergence settings exposed, and a configurable float precision (float32 for speed, float64 when L-BFGS needs the extra precision to converge cleanly).
+Training is a sequence of **phases**, each with its own optimizer (Adam, AdamW, L-BFGS or NNCG), number of iterations, learning rate and loss weights — for example the common Adam-then-L-BFGS recipe, or several Adam phases with decreasing learning rates. Each phase's learning rate can decay by a step, cosine, exponential or inverse-time schedule. L-BFGS's stopping options and its float precision (float32, or float64 when it needs the extra precision to converge) are adjustable.
 
-</details>
+Loss weights can be set per term (each equation, boundary condition, initial condition and measured-data file) or automatically from the first evaluation (**Scale by initial losses**, $w_i = c / L_i(0)$), so that every term starts at the same size.
 
-<details>
-<summary><strong>Multi-phase optimizer scheduling and IC-guided pre-training</strong></summary>
-
-Beyond the basic two-stage recipe, training can be broken into any number of phases (different optimizers, iteration counts, and loss weights per phase), and an optional IC-guided pre-training pass can warm-start the network toward the initial condition before the full PDE-residual loss is even switched on — useful for problems where a cold-start network otherwise struggles to find the right basin. Loss weights can also be set automatically from the first evaluation (**Scale by initial losses**, wᵢ = c / Lᵢ(0)), so every loss term starts at the same size, as in DeepXDE's wave-propagation example.
-
-Each phase's learning rate can decay by step, cosine, exponential or **inverse time** schedule (DeepXDE's `("inverse time", decay_steps, decay_rate)`).
+**IC-guided pre-training** first fits the network to the initial condition alone, before the equations are switched on, which helps problems where training from a random start struggles to find the right solution.
 
 </details>
 
 <details>
-<summary><strong>Residual-based Adaptive Refinement (RAR)</strong></summary>
+<summary><strong>Residual-based adaptive refinement (RAR)</strong></summary>
 
-Periodically resamples collocation points toward wherever the PDE residual is currently largest, concentrating training effort on the hardest parts of the domain (a sharp front, a boundary layer) instead of spreading points uniformly the whole time. Supported in every dimension — for time-dependent problems and steady-state problems (e.g. a Poisson equation) alike, since residual-based resampling has no dependency on a time axis to begin with.
+RAR trains in rounds. After each round it evaluates the equation residual at a large set of candidate points, adds the points where the residual is largest to the training set, and trains again — concentrating effort on the hardest parts of the domain, such as a shock or a thin interface. It works for steady and time-dependent problems in every dimension. For a system of equations, the ranking can use the combined residual or a single equation (*Points from*), and RAR can stop once the mean residual drops below a set value.
 
-**Per-round diagnostics.** Every RAR round now saves two snapshots to this run's own `solution_results/rar_rounds/round_NN/` folder, so you can watch the refinement happen round by round instead of only seeing the final result, plus a checkpoint for each optimizer phase that actually ran that round (`model_adam-*.pt` and/or `model_lbfgs-*.pt` — a round with both phases active saves both, not just the last one):
-
-- `solution_plot.png` — the same output field you've configured to plot, evaluated at that round's model state, titled **"PINN vs Reference"** whenever a comparison is shown. With 2+ matching Error Analysis reference files available anywhere in the domain, this becomes a 3-panel PINN | Reference | Error figure in **every dimension including 1D** — a real time × space comparison, not just a single-snapshot one — sharing one color scale between the PINN and Reference panels, and reading its Error panel's own colormap from the same Plot Settings as the other two panels rather than a fixed one. With fewer than 2 matching references, it's just the PINN prediction. For a steady-state problem there's no time axis to compare across, so this is instead a single PINN | Reference | Error snapshot (or just the PINN prediction with no reference configured) — 1D keeps its own plain `u(x)` line either way.
-- `collocation_points.png` — a scatter of the training points, colored to show how refinement is progressing: gray for the original points present before RAR started, orange for points added in earlier rounds, and red for the points this round just added. In 3D-plus-time problems this renders as a single 3D scatter (with time shown via point transparency where a 4th axis isn't available). In **2D-plus-time problems this shows two views side by side**: the same 3D (x, y, t) scatter, plus a plain 2D (x, y) view collapsing time, so the spatial concentration of added points is readable at a glance without having to rotate the 3D view. A steady-state problem has no time axis to plot at all, so 2D/3D stay a single spatial scatter and 1D becomes three stacked rows (original / earlier rounds / this round).
-
-**The added points track the error.** Comparing a round's `collocation_points.png` against its `solution_plot.png` shows RAR doing exactly what it's meant to: the points it adds cluster right where the current model is still least accurate, not spread evenly across the domain.
+Every round saves a checkpoint and two figures to `solution_results/rar_rounds/round_NN/`: the solution at that round (compared with reference data when it is available) and the training points, showing the original points, those added in earlier rounds and those added in this round. Side by side they show the added points landing where the error is largest:
 
 <table>
 <tr>
 <td width="50%" align="center">
-<img src="assets/Images/1D-Burgers/rar_collocation_points.png" alt="PINNStudio — 1D Burgers RAR round 2, collocation points: the points added this round (red) concentrate where the model is least accurate" width="100%">
-<sub>1D Burgers, RAR round 2 — points added (red) vs. earlier/original points</sub>
+<img src="assets/Images/1D-Burgers/rar_collocation_points.png" alt="PINNStudio — Burgers 1D RAR round 2, collocation points: the points added this round (red) concentrate where the model is least accurate" width="100%">
+<sub>Burgers 1D, RAR round 2 — points added (red) vs. earlier and original points</sub>
 </td>
 <td width="50%" align="center">
-<img src="assets/Images/1D-Burgers/rar_solution_plot.png" alt="PINNStudio — 1D Burgers RAR round 2, PINN vs Reference solution/error snapshot" width="100%">
-<sub>1D Burgers, RAR round 2 — solution/error snapshot: the added points line up with the highest-error region above</sub>
+<img src="assets/Images/1D-Burgers/rar_solution_plot.png" alt="PINNStudio — Burgers 1D RAR round 2, PINN vs Reference solution and error" width="100%">
+<sub>Burgers 1D, RAR round 2 — solution and error: the added points line up with the largest error</sub>
 </td>
 </tr>
 </table>
@@ -287,55 +279,42 @@ Periodically resamples collocation points toward wherever the PDE residual is cu
 <table>
 <tr>
 <td width="50%" align="center">
-<img src="assets/Images/2D_AllenCahn-Wight/rar_collocation_points.png" alt="PINNStudio — 2D Allen-Cahn (Wight & Zhao) RAR round 1, collocation points: the points added this round concentrate near the sharpest part of the interface" width="100%">
-<sub>2D Allen-Cahn (Wight & Zhao), RAR round 1 — points added vs. original points</sub>
+<img src="assets/Images/2D_AllenCahn-Wight/rar_collocation_points.png" alt="PINNStudio — Allen-Cahn 2D (Wight & Zhao) RAR round 1, collocation points: the points added this round concentrate near the sharpest part of the interface" width="100%">
+<sub>Allen-Cahn 2D (Wight & Zhao), RAR round 1 — points added vs. original points</sub>
 </td>
 <td width="50%" align="center">
-<img src="assets/Images/2D_AllenCahn-Wight/rar_solution_plot.png" alt="PINNStudio — 2D Allen-Cahn (Wight & Zhao) RAR round 1, PINN vs Reference solution/error surface" width="100%">
-<sub>2D Allen-Cahn (Wight & Zhao), RAR round 1 — solution/error surface: the added points track the highest-error region above</sub>
+<img src="assets/Images/2D_AllenCahn-Wight/rar_solution_plot.png" alt="PINNStudio — Allen-Cahn 2D (Wight & Zhao) RAR round 1, PINN vs Reference solution and error" width="100%">
+<sub>Allen-Cahn 2D (Wight & Zhao), RAR round 1 — solution and error: the added points follow the largest error</sub>
 </td>
 </tr>
 </table>
 
-**Points from:** for a PDE with more than one governing equation, RAR normally ranks candidate points by the combined (summed) residual across every equation. The "Points from" selector lets you restrict that ranking to a single output's equation instead — useful when only one output has the sharp feature you care about and you don't want the other outputs' residuals diluting the point selection.
+</details>
 
-"Export as DeepXDE Script" honors the output selector too, and writes the same per-round `collocation_points.png` and `solution_plot.png` plus one `model.pt` checkpoint of each round's final weights; the per-round comparison against reference data is live-Solve only (an exported script compares against reference data once, in its end-of-run Error Analysis).
+<details>
+<summary><strong>Time-adaptive training</strong></summary>
 
-**Stop on a tolerance:** RAR can stop as soon as the mean residual drops below a set value (*Stop when mean residual <*), the way DeepXDE's Burgers-RAR example does; the number of rounds is then only an upper limit.
+Splits the time range into steps and trains through them in order, each step starting from the network of the previous one (transfer learning) and taking its initial condition from the previous step's solution. This suits problems over a long time window or with fast dynamics that a single network struggles to fit in one pass; the Allen-Cahn templates use it by default. It works in 1D, 2D and 3D, and each step is compared with any reference data that falls inside its time window.
+
+The grid that passes the solution from one step to the next is set per axis (*IC grid resolution*), so its size grows with the dimension — PINNStudio picks a smaller default in 3D and warns when a chosen value would be very large.
 
 </details>
 
 <details>
-<summary><strong>Time-Adaptive training</strong></summary>
+<summary><strong>Training callbacks and monitors</strong></summary>
 
-Splits the time domain into a sequence of step groups and trains through them in order, optionally with transfer learning so each step warm-starts from the previous one's converged weights instead of training from scratch — effective for problems with a wide time window or fast-evolving dynamics that a single training pass struggles to fit all at once (see the two 2D Allen-Cahn templates below, both wide time windows that ship with Time-Adaptive on by default for exactly this reason). It works in 1D, 2D, and 3D alike.
-
-One setting is worth understanding before using it in 3D: the "IC grid resolution" control is a *per-axis* point count for the grid handed between steps — 1D uses it directly, 2D squares it, and 3D **cubes** it, so a value that's perfectly reasonable in 1D/2D (101, say — 101² ≈ 10,201 points in 2D) becomes over a million points per step in 3D. PINNStudio defaults this to a 3D-safe value automatically when you switch into 3D, and shows an in-panel warning if you manually pick a larger one anyway — both added after exactly this scenario ran a real GPU out of memory partway through a 3D run. The control is an editable dropdown — pick one of the usual presets (101/51/21/11) or type any custom per-axis resolution of your own.
-
-Each step also gets its own reference comparison when Error Analysis data is configured: 1D produces both a surface and a line comparison (merged against **every** reference file whose time falls inside that step's own window, not just the closest one); 2D/3D produce the surface comparison only. A step with no reference in its time window still gets a PINN-only plot.
-
-</details>
-
-<details>
-<summary><strong>Training callbacks — early stopping, checkpointing, time budget</strong></summary>
-
-Three optional, independently configurable callbacks, alongside Point Resampling (RAR, described above): **Early Stopping** halts training once the monitored loss (training or testing) stops improving by more than a minimum delta for a set number of iterations, with an optional baseline loss and a minimum iteration count before it can trigger. **Model Checkpoint** periodically saves the model during training — on a fixed iteration interval, either unconditionally or only when the monitored loss improves — which is also what makes a run resumable later through Restore & Visualize. **Training Timer** stops training after a wall-clock time budget (in minutes) regardless of iteration count, useful for a shared or time-limited machine.
-
-*Note: an earlier version of PINNStudio had a separate "Mini-batch training" option. It's gone — DeepXDE's `PDE`/`TimePDE` data classes ignore the `batch_size` argument entirely for this training pattern, so it was a no-op that changed nothing. Point Resampling (RAR) is the actual mechanism DeepXDE recommends in its place, and PINNStudio already implements it.*
+- **Point resampling** redraws the collocation points every N iterations.
+- **Early stopping** ends training once the monitored loss stops improving.
+- **Model checkpoints** save the model at regular intervals, or only when the loss improves.
+- **Training timer** stops a run after a set wall-clock time.
+- **Training monitors** track any expression of the outputs and their derivatives (`u`, `du_x`, a flux, ...) at chosen points during training, alongside the loss.
 
 </details>
 
 <details>
-<summary><strong>Training Monitors — track any output or derivative expression during training</strong></summary>
+<summary><strong>Inverse parameters during training</strong></summary>
 
-Watch an arbitrary expression of the solution and its derivatives — not just the loss — throughout training: `u`, `du_x`, `du_xx`, `du_xy`, or any algebraic combination, evaluated at a point (or set of points) you choose and logged alongside the usual loss curve. Built on DeepXDE's own `dde.callbacks.OperatorPredictor` mechanism, reusing the same derivative-vocabulary builder the Custom PDE editor already uses — so a monitor expression follows the identical `d<output>_<vars>` syntax. Useful for watching a specific quantity of interest (a boundary flux, a derivative at a known critical point) converge in real time instead of only inferring it after training finishes.
-
-</details>
-
-<details>
-<summary><strong>Live parameter convergence (Inverse mode)</strong></summary>
-
-For an inverse problem, the estimated parameter's value is logged and saved periodically throughout training — including during the L-BFGS phase, not just once at the very end — so you can watch it converge (or fail to) as training progresses, and plot its convergence history afterward as a static figure or an animated GIF. When the parameter's true value is known (every built-in template's Inverse setup, or one you supply yourself), both the plot and the GIF draw it as a dashed reference line alongside the run's own final estimate — including when you revisit an older run through Restore & Visualize's Parameter Convergence Plot/Animation, which reads the true value back from that run's saved `model_config.json`, or lets you type one in directly.
+In an inverse problem, each unknown is saved at regular intervals throughout training, including the final value where training stops, and its convergence can be shown as a plot or an animation — with the true value drawn as a reference line when it is known, both after training and later in Restore & Visualize.
 
 </details>
 
@@ -344,34 +323,31 @@ For an inverse problem, the estimated parameter's value is logged and saved peri
 <details>
 <summary><strong>Run many training configurations from one setup, varying any parameter</strong></summary>
 
-Rather than clicking Solve once per configuration and tracking the results yourself, tick **Enable Parameter Sweep** in the left panel (directly below Adaptive Training; the **📖 Show sweep reference** and **🔄 Refresh** buttons sit on the same row) and PINNStudio runs a whole batch of training configurations in sequence — each one a full, independent training run of the problem you've already set up, varying whichever parameter(s) you choose. The shared **Solve**/**Stop** buttons drive it (relabeled **Run Sweep** while a sweep is enabled), and the Training Log streams every run's progress in order, so nothing about the rest of the workflow changes.
+Instead of changing a value and pressing Solve again for each case, **Enable Parameter Sweep** runs a whole set of configurations of the problem you have set up, one after another, each as a full training run. The Solve and Stop buttons drive the sweep, and the Training Log shows every run in turn.
 
 ![Parameter Sweep panel — Burgers 1D network-size sweep (hidden layers × neurons, All combinations) after it finished: each run's result in the Training Log, the last run's loss and solution on the right](assets/Images/Parameter_Sweep/sweep_panel.png)
 
-**Four ways to combine parameters**, picked from the Mode dropdown:
+**Four ways to combine parameters:**
 - **One-at-a-time** — vary each parameter separately, the others held at their current values (3 values of one parameter → 3 runs).
-- **All combinations** (grid) — every value of every parameter, crossed together (2 parameters with 3 and 2 values → 6 runs).
-- **Specified combinations** (zip) — pair up each parameter's *i*-th value across all parameters (2 parameters with matching-length value lists, paired index-for-index).
-- **Bayesian search** — each run's settings are chosen by a Gaussian-process model of the results so far, to reach the lowest final loss (or $L_2$ error) in as few runs as possible. Each parameter's Min/Max (linear or log) is its search range, a list its choices; **Runs** is the budget and **Random first** the number of random runs before the model takes over. The sweep folder gets `bayes_search.csv` and a convergence plot, and the best run is printed at the end — see the Helmholtz hyperparameter-optimization example under [Examples](#examples).
+- **All combinations** — every value of every parameter (2 parameters with 3 and 2 values → 6 runs).
+- **Specified combinations** — the *i*-th values of all parameters run together (lists of equal length).
+- **Bayesian search** — each run's settings are chosen by a Gaussian-process model of the results so far, to reach the lowest final loss or $L_2$ error in as few runs as possible. Each parameter's range (linear or log) or list of choices is its search space; **Runs** sets the budget and **Random first** the number of random runs before the model takes over (see the Helmholtz hyperparameter-search example under [Examples](#examples)).
 
-**Baseline run.** *Also run the current settings (baseline)* adds one run with the panel's settings unchanged, before the swept values, as a reference point. It is on by default for One-at-a-time with 2 or more parameters and for Bayesian search (its first point), and off otherwise; ticking or unticking it keeps your choice.
+Each parameter takes a list of values or a linear/log range; text settings (activation, point distribution, ...) take a list of choices. **Almost any setting can be swept** — **🔄 Refresh** lists everything available for the current problem:
 
-Each parameter row takes a comma-separated list of values, or a linear/log numeric range (min, max, number of steps); categorical parameters (activation, point distribution, etc.) are always a plain list of choices.
+- **Network** — hidden layers, neurons per layer, activation, initializer, weight decay.
+- **Collocation points** — domain, boundary, initial and test points, sampling distribution.
+- **Training phases** — each phase's iterations, learning rate and optimizer.
+- **Loss weights** — every equation, boundary and initial-condition weight.
+- **Inverse** — each unknown's initial guess, each measured-data file's weight.
+- **RAR** and **time-adaptive training** — rounds, candidate and added points, iterations; step counts, IC grid resolution.
+- **Input and output transforms** — each scale value.
 
-**Essentially anything you can configure elsewhere in PINNStudio can be swept** — click **🔄 Refresh** to update the Parameter dropdown with everything currently available for your problem, which adapts to what's selected. This currently spans:
+*Also run the current settings (baseline)* adds one run with the settings unchanged, as a reference point; it is on by default for One-at-a-time with two or more parameters and for Bayesian search.
 
-- **Network** — hidden layers, neurons per layer, activation, kernel initializer, weight decay.
-- **Collocation Points** — domain/boundary/initial/test point counts, sampling distribution.
-- **Training Phases** — each Optimizer Scheduler phase's own iterations, learning rate, and optimizer.
-- **Loss Weights** — every PDE/BC/IC loss weight, per phase or shared across all phases.
-- **Inverse** (when Inverse mode is selected) — each trainable variable's initial guess, each observed-data file's loss weight.
-- **RAR** (when selected as the adaptive method) — training rounds, residual sampling points, points added per cycle, Adam/L-BFGS iterations.
-- **Time Adaptive** (when selected as the adaptive method) — each time-step group's own step count, IC grid resolution.
-- **Input/Output Transform** (when enabled) — each input axis's and each output's own scale value.
+**Results.** The sweep saves to one folder (e.g. `Poisson_1D-Dirichlet_sweep__2026-10-13_11-39-17`) with a subfolder per run named after what it set (`run_01__Phase-1-Iterations_1000`, …), each with its model, plots and Error Analysis results. The folder also holds `sweep_summary.csv` (the swept values, final loss and error metrics of every run) and **`sweep_error_vs_parameter.png`**, a plot of the error ($L_2$, plus MSE and maximum error when selected; for a time-dependent problem, the mean over the reference times) and the final loss against the swept values.
 
-**Every run gets its own results.** The sweep saves into one folder under the same **Save to:** location as a normal Solve, named like a normal run (`Poisson_1D-Dirichlet_sweep__2026-10-13_11-39-17`), with one subfolder per run named after what it set (`run_01__Phase-1-Iterations_1000`, `run_02__…`; `run_00__baseline` when the baseline runs), each with its own saved model checkpoint, loss/solution plots and (if configured) Error Analysis results. The sweep folder also gets `sweep_manifest.json`, `sweep_summary.csv` (one row per run: the swept values, status, final loss, the Error Analysis metrics you ticked, and the folder) and **`sweep_error_vs_parameter.png`**, a summary plot of the error ($L_2$, plus MSE and Max error if ticked in Error Analysis; for a time-dependent problem the mean over the reference times set in Error Analysis) and the final loss against the swept value — one panel per parameter for One-at-a-time, one line per value of the other parameters for combinations, the baseline as a star.
-
-**Example — network size for Burgers 1D.** Load *Burgers 1D – Raissi et al.*, enable the sweep, choose *All combinations*, and sweep **Network: Hidden layers** over 2, 4, 6, 8 and **Network: Neurons per layer** over 10, 20, 40 — the same study as Table 1 of Raissi et al. (2019). The 12 runs (everything else as the template sets it: Adam 15,000 + L-BFGS 10,000 iterations, 8,000 collocation points) took about 17 minutes on an RTX 4090, and the sweep folder's summary plot shows the result:
+**Example — network size for Burgers 1D.** Load *Burgers 1D – Raissi et al.*, choose *All combinations*, and sweep **Network: Hidden layers** over 2, 4, 6, 8 and **Network: Neurons per layer** over 10, 20, 40 — the same study as Table 1 of Raissi et al. (2019). The 12 runs (everything else as the template sets it: Adam 15,000 + L-BFGS 10,000 iterations, 8,000 collocation points) took about 17 minutes on an RTX 4090:
 
 ![Parameter sweep summary — Burgers 1D, relative L₂ error (mean over t = 0, 0.25, 0.5, 0.75, 1) and final loss vs hidden layers, one line per neurons-per-layer value](assets/Images/Parameter_Sweep/burgers_network_size_sweep.png)
 
@@ -384,82 +360,62 @@ Relative $L_2$ error (mean over the five reference times) from `sweep_summary.cs
 | 6 | 5.6 × 10⁻⁴ | 1.2 × 10⁻³ | 5.3 × 10⁻⁴ |
 | 8 | 1.3 × 10⁻³ | 2.6 × 10⁻³ | 3.7 × 10⁻⁴ |
 
-Two hidden layers are too few for the shock at $x = 0$; at four layers the error is 5–16× lower, and 40 neurons per layer gives the lowest error at every depth from four layers. Deeper is not always better here: with 10 or 20 neurons, 8 layers trains to a higher loss and error than 4 or 6. (Raissi et al. trained with L-BFGS only and 10,000 collocation points, so their numbers differ; the trend is the same.) Once the sweep finishes, the right panel's Loss/Solution plots fill in with the last successfully completed run's own figure, the same as a normal Solve would show. **Stop** hard-stops the in-flight run immediately rather than letting it finish first.
+Two hidden layers are too few for the shock at $x = 0$; at four layers the error is 5–16× lower, and 40 neurons per layer gives the lowest error at every depth from four layers. Deeper is not always better: with 10 or 20 neurons, 8 layers trains to a higher loss and error than 4 or 6. (Raissi et al. trained with L-BFGS only and 10,000 collocation points, so their numbers differ; the trend is the same.)
 
 </details>
 
 ### Analysis & Output
 
 <details>
-<summary><strong>Live training log</strong></summary>
+<summary><strong>Live training log and loss curves</strong></summary>
 
-Training runs as a background process with its stdout streamed straight into the Training Log panel in real time, with a Stop control that actually terminates the running process rather than just detaching from it.
-
-</details>
-
-<details>
-<summary><strong>Loss Plot Settings</strong></summary>
-
-A standalone dialog controlling how the loss curve itself is plotted, separate from the per-plot-type Plot Settings above since it applies to the whole run rather than one specific output plot: which losses to show (train+test totals, each individual loss term, or all of them together), a single shared "plot every N iterations" frequency applied everywhere a loss gets plotted (replacing what used to be several independent hardcoded values), line width, and a log/linear y-axis toggle.
+Training runs in the background and its output streams into the Training Log as it happens; **Stop** ends the run immediately. The loss curve can show the total training and test losses, each loss term separately, or both, on a log or linear axis (*Loss Plot Settings*).
 
 </details>
 
 <details>
 <summary><strong>Error analysis against reference data</strong></summary>
 
-Point a run at one or more reference solution files (at one or more time snapshots) and PINNStudio reports, for predicted values $u_{\text{pred}}$ against ground truth $u_{\text{true}}$ over $N$ evaluation points:
+A run can be compared with reference solution files at one or more times, or — when the problem has an exact solution — with a formula typed in (one per output, in `x`, `y`, `z`, `t`). For predicted values $u_{\text{pred}}$ and reference values $u_{\text{true}}$ at $N$ points, PINNStudio reports
 
 $$\Large L_2 \text{ relative error} = \frac{\lVert u_{\text{pred}} - u_{\text{true}} \rVert_2}{\lVert u_{\text{true}} \rVert_2}, \qquad \text{MSE} = \frac{1}{N}\sum_{i=1}^{N}\left(u_{\text{pred},i} - u_{\text{true},i}\right)^2$$
 
 $$\Large \text{Max error} = \max_i \left| u_{\text{pred},i} - u_{\text{true},i} \right|, \qquad \text{Mean absolute error} = \frac{1}{N}\sum_{i=1}^{N}\left| u_{\text{pred},i} - u_{\text{true},i} \right|$$
 
-alongside line-comparison and surface-comparison plots of the PINN prediction against reference, consistently titled **"PINN vs Reference"** everywhere these comparisons appear. All twelve built-in templates ship with bundled reference data so this works immediately with no setup; it works the same way for a data file of your own. A reference file can be checked against a derivative expression too (e.g. a reference `du_x` dataset), not just a raw output.
-
-**Error Metrics to Compute** lets you choose which of $L_2$ relative error, MSE, and Max error are actually computed and reported — unchecking one leaves it out of the console log, the saved metrics file, and any on-plot annotation entirely, rather than just hiding it from view. Mean absolute error always appears alongside whichever metrics you've enabled. Defaults to **$L_2$ only**.
-
-Every comparison plot's Error panel reads its colormap, levels, figure size, and axis settings from the same Plot Settings as the PINN and Reference panels beside it, so all three stay visually consistent rather than the Error panel defaulting to its own fixed look.
-
-No reference files? If the problem has an exact solution, choose *Reference: Exact solution formula* and type it in (one formula per output, in `x`, `y`, `z`, `t`); the run evaluates it on a grid over the geometry at the chosen times and compares against it exactly as it would against files.
+with line and surface comparisons of the prediction, the reference and the error. The relative $L_2$ error is reported by default; MSE and maximum error can be added, and the mean absolute error is always included. A reference can also be compared against a derivative or any expression of the outputs (e.g. `du_x`), not only a raw output. All but two of the examples come with an exact solution or reference data, so the comparison works as soon as an example is loaded.
 
 </details>
 
 <details>
-<summary><strong>Configurable result plotting</strong></summary>
+<summary><strong>Plots and animations</strong></summary>
 
-Static Surface or Line plots, or animated GIFs of either over time, with colormap, contour resolution, DPI, colorbar, and snapshot-count all configurable. For a 1D time-dependent Surface plot (static or animated), the two axes can be swapped between "x on the x-axis, t on the y-axis" and the reverse — whichever reads more naturally for your problem. For a 2D/3D Line plot or Line Animation, the y/z "slice" position the line is cut through is its own configurable value too (defaulting to the domain midpoint), rather than a silent hardcoded one.
-
-Figure size can be left at its default aspect ratio or switched to **Square** or **Wide**, or you can type an exact **Custom** width/height — and the title, per-panel subplot title, and axis-label font sizes are each independently adjustable too, without changing anything else about a plot's default look if you leave them alone. This Plot Settings dialog and the matching one in Restore & Visualize mirror each other field-for-field, so a setting you're used to on one side behaves identically on the other.
-
-Beyond plotting a raw output column, the **Custom...** field lets you plot (and animate) any expression of the outputs **and their derivatives** — `sqrt(u**2+v**2)`, `du_x`, `du_xx`, any combination — evaluated through DeepXDE's own `dde.Model.predict(x, operator=...)` built-in, the same mechanism Training Monitors uses. This works in the live Results panel, the Restore & Visualize tab, and in Error Analysis's own per-group custom field, so a derivative you can watch during training is also one you can plot, animate, and error-check afterward.
-
-For a problem with several outputs, every output is also saved as its own plot, `solution_plot_<name>.png`, and Error Analysis titles name the output they show.
+Results can be shown as surface or line plots, or as animations of either over time, with the colormap, contour levels, resolution, snapshots, figure size, font sizes and axis orientation all adjustable. Besides the raw outputs, **Custom...** plots any expression of the outputs and their derivatives (`sqrt(u**2 + v**2)`, `du_x`, ...), during training, in Error Analysis and in Restore & Visualize. For problems with several outputs, each output is also saved as its own figure. Numbers in plots are written in scientific notation.
 
 </details>
 
 <details>
-<summary><strong>Solution data export</strong></summary>
+<summary><strong>Data export and standalone scripts</strong></summary>
 
-The raw predicted solution — not just the rendered plot — is saved alongside the run's other output, so it's available for your own downstream analysis outside PINNStudio. Off by default — enable it with its own checkbox when you actually want the raw arrays — and the export grid resolution is an editable dropdown, same as Time-Adaptive's IC grid resolution: pick a preset or type your own.
+The predicted solution can be saved as data on a grid of your choice, for your own analysis. Every problem can also be exported as a standalone DeepXDE/PyTorch script (*Problem → Export as DeepXDE Script...*) — the same code PINNStudio runs — to read, run on a cluster, share with a collaborator, or use as a starting point for your own code.
 
 </details>
 
 <details>
-<summary><strong>Export as a standalone DeepXDE script</strong></summary>
+<summary><strong>Saving problems, reproducibility and hardware</strong></summary>
 
-Every configured problem can be exported as a clean, dependency-minimal DeepXDE/PyTorch script (<code>File → Export as DeepXDE Script...</code>) — the same script PINNStudio itself would run, but meant to be read and handed off: to a cluster job, a collaborator without PINNStudio installed, or as a starting point for a hand-written project. A configured **Custom...** plot expression (including derivatives) and a Time-Adaptive run's full stitched loss history (every phase of every time sub-domain, not just the last one) both export the same way they display in PINNStudio.
+A whole problem setup can be saved and reopened later (*Problem → Save Problem As* / *Open Saved Problem*). Runs use a fixed random seed by default, so a run can be repeated exactly, and each run saves its settings next to its results. The GPU to train on, its memory share, the float precision, the random seed and the L-BFGS options are set under *Settings*.
 
 </details>
 
 ### Restore & Visualize
 
 <details>
-<summary><strong>Reload a saved checkpoint — no retraining needed</strong></summary>
+<summary><strong>Reload a trained model without retraining</strong></summary>
 
-Point the Restore panel at a saved model checkpoint and its <code>model_config.json</code>, and PINNStudio reloads the trained network and regenerates whichever visualization you ask for — a static Surface or Line plot, an animated GIF of either, or (for a saved Inverse run) the parameter convergence history — without retraining anything. An animated result plays directly in the panel, the same as it would right after a fresh Solve, and Error Analysis re-runs against the same reference data if it was configured for that run originally.
-
-The Restore panel's own **Custom...** field is derivative-aware too: a restored model can be plotted or animated as a derivative expression of its outputs (`du_x`, `du_xx`, `sqrt(du_x**2+du_y**2)`, ...), not just the raw solution it was saved with — so a quantity you didn't think to plot during the original training run is still available afterward, straight from the checkpoint, no retraining needed.
+Point Restore & Visualize at a saved model and its `model_config.json`, and PINNStudio rebuilds the trained network and produces any of the plots or animations above — including derivative expressions you did not plot during training, Error Analysis against the original reference data, and, for an inverse run, the convergence of the unknowns — without training again.
 
 </details>
+
 
 ## Repository Structure
 
