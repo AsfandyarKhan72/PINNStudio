@@ -8,6 +8,7 @@ build/
 solution_data/
 venv/
 !assets/Images/**/*.png
+!docs/assets/*.png
 
 # Claude delivery scratch -- apply_*.py / *.patch files Claude sends for
 # review before applying a fix. Save them under this folder (anywhere
