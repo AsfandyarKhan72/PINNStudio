@@ -124,16 +124,63 @@ class SciLineEdit(QLineEdit):
 class DomainSpinBox(QDoubleSpinBox):
     """Domain bound spinbox that keeps 10 decimals (so pi, pi/2, 2 pi are
     stored to ~1e-10, not rounded to 3.14) but shows only the digits a
-    value actually has: 1 shows as "1", 0.5 as "0.5", pi as "3.1415926536"."""
+    value actually has: 1 shows as "1", 0.5 as "0.5". Simple multiples of
+    pi are shown as such ("π/2", "π", "2π", "-3π/4") and can be typed that
+    way too ("pi/2", "2*pi", "π/2", or a plain number)."""
     DECIMALS = 10
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setDecimals(self.DECIMALS)
 
+    @staticmethod
+    def _pi_text(v):
+        import math
+        if v == 0 or abs(v - round(v)) < 1e-12:
+            return None                    # whole numbers stay numbers
+        r = v / math.pi
+        for den in (1, 2, 3, 4, 6, 8):
+            num = round(r * den)
+            if num and abs(r * den - num) < 1e-8 and math.gcd(num, den) == 1:
+                sign = "-" if num < 0 else ""
+                n = abs(num)
+                return f"{sign}{'' if n == 1 else n}π" + ("" if den == 1 else f"/{den}")
+        return None
+
     def textFromValue(self, v):
+        t = self._pi_text(v)
+        if t:
+            return t
         s = f"{v:.{self.DECIMALS}f}".rstrip("0").rstrip(".")
         return "0" if s in ("", "-0") else s
+
+    @staticmethod
+    def _parse(text):
+        import math
+        import re as _re
+        t = (text or "").strip().replace("π", "pi").replace(" ", "")
+        if not t:
+            return None
+        if not _re.fullmatch(r"[0-9.eE+\-*/()pi]+", t):
+            return None
+        t = _re.sub(r"(\d)(pi)", r"\1*\2", t)      # "2pi" -> "2*pi"
+        try:
+            return float(eval(t, {"__builtins__": {}}, {"pi": math.pi}))
+        except Exception:
+            return None
+
+    def valueFromText(self, text):
+        v = self._parse(text)
+        return self.value() if v is None else v
+
+    def validate(self, text, pos):
+        from PyQt6.QtGui import QValidator
+        if self._parse(text) is not None:
+            return (QValidator.State.Acceptable, text, pos)
+        import re as _re
+        if _re.fullmatch(r"[0-9.eE+\-*/() πpi]*", text or ""):
+            return (QValidator.State.Intermediate, text, pos)
+        return (QValidator.State.Invalid, text, pos)
 
 
 class InitGuessLineEdit(SciLineEdit):

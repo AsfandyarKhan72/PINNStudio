@@ -635,7 +635,16 @@ EXAMPLES = [
         dict(optimizer2="lbfgs", iterations2=10000, lbfgs_use_default=False, lbfgs_maxcor=50,
              lbfgs_ftol=2.220446049250313e-16, lbfgs_gtol=1e-8, lbfgs_maxfun=10000, lbfgs_maxls=50),
         note="|h| = sqrt(u^2 + v^2) is compared against a Fourier pseudo-spectral (split-step) solution in "
-             "PINNStudio's reference_data/1D/schrodinger."),
+             "PINNStudio's reference_data/1D/schrodinger.",
+        inverse=dict(problem_type="Inverse",
+                     pde_expressions="du_t + c*dv_xx + (u**2 + v**2)*v|dv_t - c*du_xx - (u**2 + v**2)*u",
+                     inverse_variables_json=json.dumps([{"name": "c", "init": 1.0, "true": 0.5}]),
+                     inverse_obs_files_json=json.dumps([{"path": "@REF/1D/schrodinger/t_0.75.txt", "output_idx": 2,
+                                                         "weight": 100.0, "custom_expr": "sqrt(u**2+v**2+1e-12)"}]),
+                     inv_param_save="Every 100 iters"),
+        inverse_note="Inverse mode (PINNStudio's addition): the coefficient c (0.5 in the equations; initial guess 1) "
+                     "is learned from |h| = sqrt(u^2 + v^2) measured at t = 0.75, with the forward example's training. "
+                     "|h| at t = 1.5 alone would not do: c = 1.95 reproduces it almost as well as c = 0.5."),
 
     _ex("Beltrami flow", FORWARD, _GH + "pinn_forward/Beltrami_flow.py",
         dict(problem_dim="3D", steady_state=False, geometry_type="Cuboid",
