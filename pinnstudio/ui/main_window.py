@@ -1375,12 +1375,12 @@ class MainWindow(QMainWindow):
         self.geom_panel_triangle.setVisible(False)
         domain_layout.addWidget(self.geom_panel_triangle)
 
-        self.geom_polygon_verts_input = QLineEdit("0,0;1,0;1,1;0,1")
+        self.geom_polygon_verts_input = QLineEdit("0,0;1,0;1,0.6;0.5,1;0,0.6")
         self.geom_polygon_verts_input.setFixedHeight(26)
         self.geom_panel_polygon = self._domain_row(
             "Vertices:", self.geom_polygon_verts_input,
             tip="Three or more vertices as x,y pairs separated by semicolons, in order around the boundary, "
-                "e.g. 0,0; 1,0; 1,1; 0,1")
+                "e.g. 0,0; 1,0; 1,0.6; 0.5,1; 0,0.6")
         self.geom_panel_polygon.setVisible(False)
         domain_layout.addWidget(self.geom_panel_polygon)
 
@@ -4547,11 +4547,11 @@ class MainWindow(QMainWindow):
         tri_panel = self._domain_row("Vertices:", tri_verts,
                                      tip="Three vertices as x,y pairs separated by semicolons, e.g. 0,0; 1,0; 0,1")
 
-        poly_verts = QLineEdit(P("vertices_text", "0,0;1,0;1,1;0,1"))
+        poly_verts = QLineEdit(P("vertices_text", "0,0;1,0;1,0.6;0.5,1;0,0.6"))
         poly_verts.setFixedHeight(26)
         poly_panel = self._domain_row("Vertices:", poly_verts,
                                       tip="Three or more vertices as x,y pairs separated by semicolons, "
-                                          "in order around the boundary, e.g. 0,0; 1,0; 1,1; 0,1")
+                                          "in order around the boundary, e.g. 0,0; 1,0; 1,0.6; 0.5,1; 0,0.6")
 
         cuboid_xmin, cuboid_xmax = self._spin(-1e6, 1e6, P("x_min", 0.0)), self._spin(-1e6, 1e6, P("x_max", 1.0))
         cuboid_ymin, cuboid_ymax = self._spin(-1e6, 1e6, P("y_min", 0.0)), self._spin(-1e6, 1e6, P("y_max", 1.0))
@@ -7701,7 +7701,7 @@ class MainWindow(QMainWindow):
         self.geom_sphere_cx.setValue(config.geom_center_x); self.geom_sphere_cy.setValue(config.geom_center_y)
         self.geom_sphere_cz.setValue(config.geom_center_z); self.geom_sphere_r.setValue(config.geom_radius)
         self.geom_triangle_verts_input.setText(config.geom_triangle_vertices or "0,0;1,0;0,1")
-        self.geom_polygon_verts_input.setText(config.geom_polygon_vertices or "0,0;1,0;1,1;0,1")
+        self.geom_polygon_verts_input.setText(config.geom_polygon_vertices or "0,0;1,0;1,0.6;0.5,1;0,0.6")
         self._apply_custom_geom_shapes_json(getattr(config, 'geom_custom_shapes_json', '') or '')
 
         # 3.6) Geometry type -- rebuilds the BC rows one more time, this

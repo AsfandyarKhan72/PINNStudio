@@ -588,7 +588,7 @@ class PINNConfig:
 
     # Triangle / Polygon vertices, "x1,y1;x2,y2;..." format
     geom_triangle_vertices: str = "0,0;1,0;0,1"
-    geom_polygon_vertices: str = "0,0;1,0;1,1;0,1"
+    geom_polygon_vertices: str = "0,0;1,0;1,0.6;0.5,1;0,0.6"
 
     # Shape-aware boundary conditions for non-box geometries (JSON-encoded)
     bc_boundary_json: str = ""  # Disk/Ellipse/Sphere: one BC group per output
