@@ -1249,7 +1249,7 @@ $$\Large \frac{\partial v}{\partial t} - 0.5\frac{\partial^2 u}{\partial x^2} - 
 - **Training:** Adam 10,000 → L-BFGS 10,000; 10,000 domain, 20 boundary, 200 initial points
 - **In PINNStudio:** Quick Examples → Category **Forward** (or **Inverse**) → **Schrödinger 1D**
 
-**Result (RTX 4090):** $L_2$ of $|h|$ = 1.5 × 10⁻³ ($t = 0$), 1.1 × 10⁻³ ($t = 0.25$), 1.1 × 10⁻³ ($t = 0.5$), 1.3 × 10⁻³ ($t = 0.75$), 1.4 × 10⁻³ ($t = 1$), 1.0 × 10⁻³ ($t = 1.25$), 1.7 × 10⁻³ ($t = 1.5$)
+**Result (RTX 4090):** $L_2$ of $|h|$ = 1.5 × 10⁻³ ($t = 0$), 1.1 × 10⁻³ ($t = 0.25$), 1.1 × 10⁻³ ($t = 0.5$), 1.4 × 10⁻³ ($t = 0.75$), 1.4 × 10⁻³ ($t = 1$), 1.1 × 10⁻³ ($t = 1.25$), 1.7 × 10⁻³ ($t = 1.5$)
 
 *|h| — PINN solution over time*
 
@@ -1265,7 +1265,7 @@ $$\Large \frac{\partial u}{\partial t} + c\frac{\partial^2 v}{\partial x^2} + (u
 
 **Why $t = 0.75$.** Measured at $t = 1.5$ only, $|h|$ does not determine $c$: solving the equation with $c = 1.95$ gives an $|h|$ at $t = 1.5$ within 1% of the one for $c = 0.5$, and training from the guess $c = 1$ converges to 1.95, fitting the data at $t = 1.5$ while missing every other time by 27–60%. At $t = 0.75$ (or $0.5$) $|h|$ changes with $c$ in one direction only, and the true value is recovered.
 
-**Inverse result (RTX 4090):** $c$ = 0.50017 (true 0.5); $L_2$ of $|h|$ = 1.4 × 10⁻³ ($t = 0$), 9.3 × 10⁻⁴ ($t = 0.25$), 1.3 × 10⁻³ ($t = 0.5$), 2.3 × 10⁻⁴ ($t = 0.75$), 8.5 × 10⁻⁴ ($t = 1$), 1.3 × 10⁻³ ($t = 1.25$), 1.7 × 10⁻³ ($t = 1.5$)
+**Inverse result (RTX 4090):** $c$ = 0.50017 (true 0.5); $L_2$ of $|h|$ = 1.3 × 10⁻³ ($t = 0$), 9.7 × 10⁻⁴ ($t = 0.25$), 1.4 × 10⁻³ ($t = 0.5$), 2.2 × 10⁻⁴ ($t = 0.75$), 8.4 × 10⁻⁴ ($t = 1$), 1.3 × 10⁻³ ($t = 1.25$), 1.5 × 10⁻³ ($t = 1.5$)
 
 *Inverse mode — inferred parameter during training*
 
@@ -1380,7 +1380,7 @@ $$\Large -(-\Delta)^{\alpha/2}u = 2^{\alpha}\Gamma(2 + \tfrac{\alpha}{2})\Gamma(
 - **Training:** Adam 20,000; 100 domain points
 - **In PINNStudio:** Quick Examples → Category **Forward** → **Fractional Poisson 2D – disk**
 
-**Result (RTX 4090):** $L_2$ = 3.1 × 10⁻³
+**Result (RTX 4090):** $L_2$ = 3.4 × 10⁻³
 
 *PINN vs reference, error analysis*
 
@@ -1694,7 +1694,7 @@ $$\Large -(-\Delta)^{\alpha/2}u = 2^{\alpha_0}\Gamma(2 + \tfrac{\alpha_0}{2})\Ga
 - **Training:** Adam 10,000; 64 domain points
 - **In PINNStudio:** Quick Examples → Category **Inverse** → **Fractional Poisson 2D – unknown order α**
 
-**Result (RTX 4090):** $\alpha$ = 1.805 (true 1.8); $L_2$ of $u$ = 1.9 × 10⁻³
+**Result (RTX 4090):** $\alpha$ = 1.805 (true 1.8); $L_2$ of $u$ = 2.2 × 10⁻³
 
 *PINN vs reference, error analysis*
 
@@ -1859,7 +1859,7 @@ $$\Large -(-\Delta)^{\alpha/2}u = \frac{2^{\alpha}\Gamma(2 + \frac{\alpha}{2})\G
 - **Training:** Adam 10,000; 256 domain points
 - **In PINNStudio:** Quick Examples → Category **Forward** → **Fractional Poisson 3D – sphere**
 
-**Result (RTX 4090):** $L_2$ = 7.5 × 10⁻³
+**Result (RTX 4090):** $L_2$ = 8.2 × 10⁻³
 
 *PINN vs reference, error analysis*
 
