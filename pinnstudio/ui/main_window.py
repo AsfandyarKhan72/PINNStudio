@@ -17,6 +17,7 @@ from pinnstudio.core.runner import run_pinn
 from pinnstudio.core import deepxde_examples as _dx_examples
 from pinnstudio.core import example_catalog as _ex_catalog
 from pinnstudio.core.config import LBFGS_RECOMMENDED
+from pinnstudio.ui.sketch_canvas import SketchPanel
 REFERENCE_DATA_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
     "reference_data",
@@ -3257,16 +3258,22 @@ class MainWindow(QMainWindow):
         log_layout.setContentsMargins(0, 0, 0, 0)
         log_layout.setSpacing(2)
 
-        log_label = QLabel("📋 Training Log")
-        self._register_hint(log_label, '#a0c4ff', 'margin-top: 2px; ')
-        log_label.setFixedHeight(22)
-        log_layout.addWidget(log_label)
-
+        # Training Log, and beside it the Sketch tab (Domain -> Shape ->
+        # Sketch; hidden for every other shape).
+        self.right_tabs = QTabWidget()
+        self.right_tabs.setDocumentMode(True)
         self.log_box = QTextEdit()
         self.log_box.setReadOnly(True)
         self.log_box.setPlaceholderText("Training log will appear here...")
-        log_layout.addWidget(self.log_box)
+        self.right_tabs.addTab(self.log_box, "📋 Training Log")
+        self.sketch_panel = SketchPanel()
+        self.sketch_panel.shapes_edited.connect(self._on_sketch_edited)
+        self._sketch_tab_index = self.right_tabs.addTab(self.sketch_panel, "✏ Sketch")
+        self.right_tabs.setTabVisible(self._sketch_tab_index, False)
+        self.right_tabs.currentChanged.connect(self._on_right_tab_changed)
+        log_layout.addWidget(self.right_tabs)
         right_splitter.addWidget(log_widget)
+        self.right_splitter = right_splitter
 
         # Bottom part — controls + plots
         bottom_widget = QWidget()
@@ -4015,7 +4022,7 @@ class MainWindow(QMainWindow):
         return json.dumps(entries)
 
     # ── Dimension change ──────────────────────────────────────
-    GEOM_TYPES_2D = ["Rectangle", "Disk", "Ellipse", "Triangle", "Polygon", "Custom"]
+    GEOM_TYPES_2D = ["Rectangle", "Disk", "Ellipse", "Triangle", "Polygon", "Custom", "Sketch"]
     GEOM_TYPES_3D = ["Cuboid", "Sphere", "Custom"]
     CUSTOM_GEOM_SHAPE_TYPES_2D = ["Rectangle", "Disk", "Ellipse", "Triangle", "Polygon"]
     CUSTOM_GEOM_SHAPE_TYPES_3D = ["Cuboid", "Sphere"]
@@ -4281,7 +4288,10 @@ class MainWindow(QMainWindow):
         if self.radio_3d.isChecked():
             return self.geometry_type_combo.currentText() or "Cuboid"
         if self.radio_2d.isChecked():
-            return self.geometry_type_combo.currentText() or "Rectangle"
+            t = self.geometry_type_combo.currentText() or "Rectangle"
+            # Sketch draws a Custom geometry (the same shape list, trained by
+            # the same code) -- see _on_geometry_type_changed.
+            return "Custom" if t == "Sketch" else t
         return "Interval"
 
     def _on_geometry_type_changed(self, text):
@@ -4295,6 +4305,7 @@ class MainWindow(QMainWindow):
         if text == "Custom" and hasattr(self, 'custom_geom_shape_rows') and not self.custom_geom_shape_rows:
             self._add_custom_geom_shape()
         self._update_domain_fields_visibility()
+        self._show_sketch_tab(text == "Sketch")
         # Rebuild BCs: the boundary-condition layout (sides / unified /
         # per-edge) depends on which geometry type is now selected.
         if hasattr(self, 'bc_main_layout'):
@@ -4613,9 +4624,87 @@ class MainWindow(QMainWindow):
                 self.custom_geom_shape_rows[0]['op_row_widget'].setVisible(False)
 
         remove_btn.clicked.connect(_remove)
+        remove_btn.clicked.connect(self._schedule_sketch_from_rows)
         up_btn.clicked.connect(lambda: self._move_custom_geom_shape(row_data, -1))
         down_btn.clicked.connect(lambda: self._move_custom_geom_shape(row_data, 1))
+        up_btn.clicked.connect(self._schedule_sketch_from_rows)
+        down_btn.clicked.connect(self._schedule_sketch_from_rows)
+        # Any edit in this shape's fields redraws the sketch (Shape -> Sketch).
+        for _k, _w in row_data.items():
+            if isinstance(_w, QDoubleSpinBox):
+                _w.valueChanged.connect(self._schedule_sketch_from_rows)
+            elif isinstance(_w, QLineEdit):
+                _w.textChanged.connect(self._schedule_sketch_from_rows)
+            elif isinstance(_w, QComboBox):
+                _w.currentIndexChanged.connect(self._schedule_sketch_from_rows)
+        self._schedule_sketch_from_rows()
         return row_data
+
+    # ── Sketch (Domain -> Shape -> Sketch) ─────────────────────
+    def _show_sketch_tab(self, on):
+        """Show the Sketch tab beside the Training Log while Shape is Sketch
+        (switching to it, with the log's area enlarged so there is room to
+        draw); hide it otherwise."""
+        if not hasattr(self, 'right_tabs'):
+            return
+        self.right_tabs.setTabVisible(self._sketch_tab_index, on)
+        if on:
+            self.right_tabs.setCurrentIndex(self._sketch_tab_index)
+            self._on_right_tab_changed(self._sketch_tab_index)
+            QApplication.processEvents()
+            self.sketch_panel.set_shapes(self._custom_geom_shapes_list(), fit=True)
+        elif self.right_tabs.currentIndex() == self._sketch_tab_index:
+            self.right_tabs.setCurrentIndex(0)
+
+    def _on_right_tab_changed(self, idx):
+        """Give the sketch most of the right side while it is shown, and the
+        log its usual share back afterwards."""
+        if not hasattr(self, 'right_splitter'):
+            return
+        sketch = idx == getattr(self, '_sketch_tab_index', -1)
+        before = getattr(self, '_log_split_before_sketch', None)
+        if sketch and before is None:
+            sizes = self.right_splitter.sizes()
+            total = sum(sizes) or 920
+            self._log_split_before_sketch = sizes
+            # the plot area's size hint (~420 px) would otherwise stop it shrinking
+            self.right_splitter.widget(1).setMinimumHeight(120)
+            self.right_splitter.setSizes([int(total * 0.75), total - int(total * 0.75)])
+        elif not sketch and before is not None:
+            self.right_splitter.widget(1).setMinimumHeight(0)
+            self.right_splitter.setSizes(before)
+            self._log_split_before_sketch = None
+
+    def _custom_geom_shapes_list(self):
+        import json
+        try:
+            return json.loads(self._build_custom_geom_shapes_json())
+        except Exception:
+            return []
+
+    def _schedule_sketch_from_rows(self, *_a):
+        """Shape rows edited -> redraw the sketch (once, after the edit
+        settles; not while the sketch itself is rewriting the rows)."""
+        if getattr(self, '_sketch_writing_rows', False) or not hasattr(self, 'sketch_panel'):
+            return
+        if not getattr(self, '_sketch_sync_pending', False):
+            self._sketch_sync_pending = True
+            QTimer.singleShot(120, self._sketch_from_rows)
+
+    def _sketch_from_rows(self):
+        self._sketch_sync_pending = False
+        if hasattr(self, 'sketch_panel') and not getattr(self, '_sketch_writing_rows', False):
+            self.sketch_panel.set_shapes(self._custom_geom_shapes_list())
+
+    def _on_sketch_edited(self, shapes):
+        """The sketch changed -> rewrite the Custom-geometry shape rows (the
+        single source the config and the generated script are built from)."""
+        import json
+        self._sketch_writing_rows = True
+        try:
+            self._apply_custom_geom_shapes_json(json.dumps(shapes))
+        finally:
+            self._sketch_writing_rows = False
 
     def _move_custom_geom_shape(self, row_data, delta):
         """Move one shape up/down in the combine order -- CSG ops are not
@@ -4638,6 +4727,7 @@ class MainWindow(QMainWindow):
             self.custom_geom_shapes_layout.takeAt(0)
         for row in rows:
             self.custom_geom_shapes_layout.addWidget(row['widget'])
+        self._schedule_sketch_from_rows()
         # Only the first shape in the list has no combine-op; every other
         # position (including one that just became/stopped being first)
         # needs its op row's visibility re-checked.
@@ -7113,6 +7203,7 @@ class MainWindow(QMainWindow):
             geom_triangle_vertices=self.geom_triangle_verts_input.text(),
             geom_polygon_vertices=self.geom_polygon_verts_input.text(),
             geom_custom_shapes_json=self._build_custom_geom_shapes_json(),
+            geom_sketch=(self.radio_2d.isChecked() and self.geometry_type_combo.currentText() == "Sketch"),
             bc_boundary_json=_bc_group_json(self.bc_boundary_types, self.bc_boundary_vals, self.bc_boundary_active, n_out),
             bc_edge_json=_bc_edge_json(n_out),
             custom_bc_json=self._build_custom_bc_json(),
@@ -7709,7 +7800,9 @@ class MainWindow(QMainWindow):
         # matches the saved geometry.
         _geom_items = [self.geometry_type_combo.itemText(k) for k in range(self.geometry_type_combo.count())]
         if config.geometry_type in _geom_items:
-            self.geometry_type_combo.setCurrentText(config.geometry_type)
+            self.geometry_type_combo.setCurrentText(
+                "Sketch" if (config.geometry_type == "Custom" and getattr(config, "geom_sketch", False)
+                             and "Sketch" in _geom_items) else config.geometry_type)
         QApplication.processEvents()
         box_shape = self._current_geometry_type() in ("Interval", "Rectangle", "Cuboid")
         unified_shape = self._current_geometry_type() in ("Disk", "Ellipse", "Sphere")
@@ -8714,6 +8807,8 @@ class MainWindow(QMainWindow):
             self.log_box.append(f"ℹ️ \"{_ex_catalog.display_name(snap[0])}\" example with its own settings (unchanged).")
 
     def _on_solve(self):
+        if hasattr(self, 'right_tabs'):
+            self.right_tabs.setCurrentIndex(0)   # the run streams into the log
         _ok, _msg = self._geometry_supported_for_training()
         if not _ok:
             self.log_box.append(_msg)

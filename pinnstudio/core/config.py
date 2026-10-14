@@ -574,6 +574,10 @@ class PINNConfig:
     #   Polygon:   vertices ("x1,y1;x2,y2;...", 4+ points)
     # Only read/written when geometry_type == "Custom"; empty/"[]" otherwise.
     geom_custom_shapes_json: str = "[]"
+    # True when the Custom geometry was drawn on the Sketch canvas (Domain ->
+    # Shape -> Sketch). Only decides which editor the GUI reopens it in;
+    # geometry_type stays "Custom" and the shapes above are what trains.
+    geom_sketch: bool = False
 
     # Disk / Ellipse / Sphere center
     geom_center_x: float = 0.5
