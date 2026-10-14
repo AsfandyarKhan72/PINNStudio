@@ -16,6 +16,7 @@ from pinnstudio.core.config import PINNConfig
 from pinnstudio.core.runner import run_pinn
 from pinnstudio.core import deepxde_examples as _dx_examples
 from pinnstudio.core import example_catalog as _ex_catalog
+from pinnstudio.core.config import LBFGS_RECOMMENDED
 REFERENCE_DATA_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
     "reference_data",
@@ -1932,10 +1933,6 @@ class MainWindow(QMainWindow):
             train_layout.addWidget(QLabel(label))
             train_layout.addWidget(widget)
 
-        div0 = QLabel("── Initial Condition (IC) Pre-Training (optional) ──")
-        self._register_section_divider(div0)
-        train_layout.addWidget(div0)
-        self.ic_pretrain_divider = div0
 
         self.ic_pretrain_cb = QCheckBox("Enable IC-guided pre-training")
         self.ic_pretrain_cb.setChecked(False)
@@ -2144,7 +2141,10 @@ class MainWindow(QMainWindow):
 
         # Row: recommended checkbox + float precision
         _lbfgs_top_row = QHBoxLayout()
-        self.lbfgs_use_default_cb = QCheckBox("Use L-BFGS recommended settings")
+        self.lbfgs_use_default_cb = QCheckBox("Use recommended L-BFGS settings")
+        self.lbfgs_use_default_cb.setToolTip(
+            "maxcor = 200, ftol = 1e-16, gtol = 1e-16, maxls = 50; each L-BFGS phase runs for its\n"
+            "own Iterations (maxfun = 1.25 x Iterations). Untick to set them yourself.")
         self.lbfgs_use_default_cb.setChecked(True)
         self.lbfgs_use_default_cb.stateChanged.connect(self._on_lbfgs_default_changed)
         _lbfgs_top_row.addWidget(self.lbfgs_use_default_cb)
@@ -2163,12 +2163,13 @@ class MainWindow(QMainWindow):
             lbfgs_manual_layout.addLayout(row)
             return sb
 
-        self.lbfgs_maxcor  = _lbfgs_row("maxcor:",  200)
-        self.lbfgs_ftol    = _lbfgs_row("ftol:",     1e-16)
-        self.lbfgs_gtol    = _lbfgs_row("gtol:",     1e-16)
-        self.lbfgs_maxiter = _lbfgs_row("maxiter:",  50000)
-        self.lbfgs_maxfun  = _lbfgs_row("maxfun:",   62500)
-        self.lbfgs_maxls   = _lbfgs_row("maxls:",    50)
+        _rec = LBFGS_RECOMMENDED
+        self.lbfgs_maxcor  = _lbfgs_row("maxcor:",  _rec["maxcor"])
+        self.lbfgs_ftol    = _lbfgs_row("ftol:",    _rec["ftol"])
+        self.lbfgs_gtol    = _lbfgs_row("gtol:",    _rec["gtol"])
+        self.lbfgs_maxiter = _lbfgs_row("maxiter:", _rec["maxiter"])
+        self.lbfgs_maxfun  = _lbfgs_row("maxfun:",  _rec["maxfun"])
+        self.lbfgs_maxls   = _lbfgs_row("maxls:",   _rec["maxls"])
 
         self.lbfgs_manual_widget.setVisible(False)
         lbfgs_layout.addWidget(self.lbfgs_manual_widget)
@@ -4416,8 +4417,6 @@ class MainWindow(QMainWindow):
         """
         self.t_row_widget.setVisible(not checked)
         self.bc_group.setVisible(not checked)
-        if hasattr(self, 'ic_pretrain_divider'):
-            self.ic_pretrain_divider.setVisible(not checked)
         self.ic_pretrain_cb.setVisible(not checked)
         self.ic_pretrain_widget.setVisible(not checked and self.ic_pretrain_cb.isChecked())
         if hasattr(self, 'adapt_combo'):
@@ -5537,7 +5536,31 @@ class MainWindow(QMainWindow):
     def _on_opt2_changed(self, text):
         self.lbfgs_widget.setVisible(text == "lbfgs")
 
+    def _lbfgs_config_values(self):
+        """lbfgs_maxcor ... lbfgs_maxls for the config: the recommended set
+        whenever "Use recommended L-BFGS settings" is ticked (so a hidden
+        field left over from a loaded DeepXDE example can't apply), the
+        fields' own values otherwise."""
+        if self.lbfgs_use_default_cb.isChecked():
+            v = dict(LBFGS_RECOMMENDED)
+        else:
+            v = dict(maxcor=self.lbfgs_maxcor.value(), ftol=self.lbfgs_ftol.value(),
+                     gtol=self.lbfgs_gtol.value(), maxiter=self.lbfgs_maxiter.value(),
+                     maxfun=self.lbfgs_maxfun.value(), maxls=self.lbfgs_maxls.value())
+        ints = ("maxcor", "maxiter", "maxfun", "maxls")
+        return {f"lbfgs_{k}": (int(x) if k in ints else float(x)) for k, x in v.items()}
+
+    def _reset_lbfgs_to_recommended(self):
+        """Tick "Use recommended L-BFGS settings" and put the recommended
+        values in the fields, so unticking starts from them."""
+        self.lbfgs_use_default_cb.setChecked(True)
+        for k, x in LBFGS_RECOMMENDED.items():
+            getattr(self, f"lbfgs_{k}").setValue(x)
+
     def _on_lbfgs_default_changed(self, state):
+        if state == 2 and hasattr(self, 'lbfgs_maxls'):
+            for k, x in LBFGS_RECOMMENDED.items():
+                getattr(self, f"lbfgs_{k}").setValue(x)
         self.lbfgs_manual_widget.setVisible(state != 2)
 
     # ── Build PDE inputs ──────────────────────────────────────
@@ -7293,12 +7316,7 @@ class MainWindow(QMainWindow):
             scheduler_same_weights=self.sched_same_weights_cb.isChecked() if hasattr(self, 'sched_same_weights_cb') else True,
             scheduler_phases=self._build_scheduler_phases_json(),
             lbfgs_use_default=self.lbfgs_use_default_cb.isChecked(),
-            lbfgs_maxcor=int(self.lbfgs_maxcor.value()),
-            lbfgs_ftol=self.lbfgs_ftol.value(),
-            lbfgs_gtol=self.lbfgs_gtol.value(),
-            lbfgs_maxiter=int(self.lbfgs_maxiter.value()),
-            lbfgs_maxfun=int(self.lbfgs_maxfun.value()),
-            lbfgs_maxls=int(self.lbfgs_maxls.value()),
+            **self._lbfgs_config_values(),
             lbfgs_float_type=self.lbfgs_float_combo.currentText() if hasattr(self, 'lbfgs_float_combo') else 'float64',
             float_type=getattr(self, '_float_type', 'float64'),
             gpu_device_index=getattr(self, '_gpu_device_index', 0),
@@ -9329,7 +9347,7 @@ class MainWindow(QMainWindow):
         dialog.setMinimumWidth(340)
         layout = QVBoxLayout(dialog)
 
-        use_default = QCheckBox("Use DeepXDE defaults")
+        use_default = QCheckBox("Use recommended L-BFGS settings")
         use_default.setChecked(self.lbfgs_use_default_cb.isChecked())
         layout.addWidget(use_default)
 
@@ -10943,6 +10961,9 @@ print("DOMAIN_PREVIEW_DONE")
         self.iter2_spin.setValue(t['iterations2'])
         if hasattr(self, 'lbfgs_float_combo'):
             self.lbfgs_float_combo.setCurrentText(t.get('lbfgs_float_type', 'float32'))
+        # A template always trains with the recommended L-BFGS options, even
+        # straight after a DeepXDE example set its own.
+        self._reset_lbfgs_to_recommended()
 
     def _tpl_set_ic_weights(self, n_out, weight):
         for i in range(n_out):

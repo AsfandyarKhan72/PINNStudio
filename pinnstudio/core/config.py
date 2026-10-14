@@ -1,6 +1,15 @@
 from dataclasses import dataclass, field
 from typing import List
 
+# PINNStudio's recommended L-BFGS options -- what "Use recommended L-BFGS
+# settings" applies, and what every PINNStudio template's results were
+# produced with. DeepXDE's examples keep DeepXDE's own options instead
+# (maxcor=100, ftol=0, gtol=1e-8), set per example in deepxde_examples.py.
+# maxiter/maxfun only matter outside the Training Phases (a phase sets
+# maxiter to its own iterations and maxfun to 1.25 times that).
+LBFGS_RECOMMENDED = dict(maxcor=200, ftol=1e-16, gtol=1e-16, maxiter=50000, maxfun=62500, maxls=50)
+
+
 @dataclass
 class PINNConfig:
     save_dir: str = ""
@@ -297,12 +306,12 @@ class PINNConfig:
     # L-BFGS
     lbfgs_use_default: bool = True
     lbfgs_maxcor: int = 200
-    lbfgs_ftol: float = 1e-20
-    lbfgs_gtol: float = 1e-15
+    lbfgs_ftol: float = 1e-16
+    lbfgs_gtol: float = 1e-16
     float_type: str = "float32"
     lbfgs_maxiter: int = 50000
     lbfgs_maxfun: int = 62500
-    lbfgs_maxls: int = 100
+    lbfgs_maxls: int = 50
     lbfgs_float_type: str = "float32"
     ic_pretrain: bool = False
     ic_pretrain_optimizer: str = "adam"
