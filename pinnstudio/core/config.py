@@ -1,13 +1,12 @@
 from dataclasses import dataclass, field
 from typing import List
 
-# PINNStudio's recommended L-BFGS options -- what "Use recommended L-BFGS
-# settings" applies, and what every PINNStudio template's results were
-# produced with. DeepXDE's examples keep DeepXDE's own options instead
-# (maxcor=100, ftol=0, gtol=1e-8), set per example in deepxde_examples.py.
-# maxiter/maxfun only matter outside the Training Phases (a phase sets
-# maxiter to its own iterations and maxfun to 1.25 times that).
-LBFGS_RECOMMENDED = dict(maxcor=200, ftol=1e-16, gtol=1e-16, maxiter=50000, maxfun=62500, maxls=50)
+# The recommended L-BFGS options -- what "Use recommended L-BFGS settings"
+# applies, for every template and example: DeepXDE's own defaults
+# (deepxde.optimizers.config). maxiter/maxfun only matter outside the
+# Training Phases; with the box ticked, every L-BFGS run sets maxfun to 1.25
+# times its own iterations, as DeepXDE does when maxfun is left unset.
+LBFGS_RECOMMENDED = dict(maxcor=100, ftol=0.0, gtol=1e-8, maxiter=15000, maxfun=18750, maxls=50)
 
 
 @dataclass
@@ -305,12 +304,12 @@ class PINNConfig:
 
     # L-BFGS
     lbfgs_use_default: bool = True
-    lbfgs_maxcor: int = 200
-    lbfgs_ftol: float = 1e-16
-    lbfgs_gtol: float = 1e-16
+    lbfgs_maxcor: int = 100
+    lbfgs_ftol: float = 0.0
+    lbfgs_gtol: float = 1e-8
     float_type: str = "float32"
-    lbfgs_maxiter: int = 50000
-    lbfgs_maxfun: int = 62500
+    lbfgs_maxiter: int = 15000
+    lbfgs_maxfun: int = 18750
     lbfgs_maxls: int = 50
     lbfgs_float_type: str = "float32"
     ic_pretrain: bool = False

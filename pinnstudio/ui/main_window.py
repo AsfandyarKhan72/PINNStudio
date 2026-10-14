@@ -2143,8 +2143,9 @@ class MainWindow(QMainWindow):
         _lbfgs_top_row = QHBoxLayout()
         self.lbfgs_use_default_cb = QCheckBox("Use recommended L-BFGS settings")
         self.lbfgs_use_default_cb.setToolTip(
-            "maxcor = 200, ftol = 1e-16, gtol = 1e-16, maxls = 50; each L-BFGS phase runs for its\n"
-            "own Iterations (maxfun = 1.25 x Iterations). Untick to set them yourself.")
+            "DeepXDE's default L-BFGS options: maxcor = 100, ftol = 0, gtol = 1e-8, maxls = 50;\n"
+            "each L-BFGS phase runs for its own Iterations (maxfun = 1.25 x Iterations).\n"
+            "Untick to set them yourself.")
         self.lbfgs_use_default_cb.setChecked(True)
         self.lbfgs_use_default_cb.stateChanged.connect(self._on_lbfgs_default_changed)
         _lbfgs_top_row.addWidget(self.lbfgs_use_default_cb)

@@ -2093,7 +2093,7 @@ def _gs_rar_loop_code(config):
                 dde.optimizers.set_LBFGS_options(
                     maxcor={config.lbfgs_maxcor}, ftol={config.lbfgs_ftol},
                     gtol={config.lbfgs_gtol}, maxiter={config.rar_lbfgs_iters},
-                    maxfun={config.lbfgs_maxfun}, maxls={config.lbfgs_maxls}
+                    maxfun={_lbfgs_maxfun(config, config.rar_lbfgs_iters)}, maxls={config.lbfgs_maxls}
                 )
                 if "{config.lbfgs_float_type}" == "float64":
                     dde.config.set_default_float("float64")
@@ -2723,7 +2723,7 @@ if {config.time_adaptive}:
             dde.optimizers.set_LBFGS_options(
                     maxcor={config.lbfgs_maxcor}, ftol={config.lbfgs_ftol},
                     gtol={config.lbfgs_gtol}, maxiter={config.iterations2},
-                    maxfun={config.lbfgs_maxfun}, maxls={config.lbfgs_maxls})
+                    maxfun={_lbfgs_maxfun(config, config.iterations2)}, maxls={config.lbfgs_maxls})
             model_i.compile("L-BFGS", loss="{config.loss_type}",
                             loss_weights=_multi_weights)
             lh_i, ts_i = model_i.train(display_every={config.loss_display_every}, callbacks=_train_cbs_ta)
@@ -6199,7 +6199,7 @@ for _pval in _param_values:
                 dde.optimizers.set_LBFGS_options(
                     maxcor={config.lbfgs_maxcor}, ftol={config.lbfgs_ftol},
                     gtol={config.lbfgs_gtol}, maxiter={config.iterations2},
-                    maxfun={config.lbfgs_maxfun}, maxls={config.lbfgs_maxls}
+                    maxfun={_lbfgs_maxfun(config, config.iterations2)}, maxls={config.lbfgs_maxls}
                 )
                 if "{config.lbfgs_float_type}" == "float64":
                     dde.config.set_default_float("float64")
@@ -9528,6 +9528,15 @@ plt.savefig(out_path, dpi={dpi}, bbox_inches='tight'); plt.close()
 print(f"Surface plot saved to: {{out_path}}")"""
 
 
+def _lbfgs_maxfun(config, iterations):
+    """L-BFGS maxfun for a run of `iterations`: 1.25 times them with the
+    recommended settings (DeepXDE's own rule when maxfun is unset), the
+    user's own maxfun otherwise."""
+    if getattr(config, "lbfgs_use_default", True):
+        return int(int(iterations) * 1.25)
+    return config.lbfgs_maxfun
+
+
 def _ic_pretrain_train_code(config, indent, geomtime_var, constraints_var, num_initial, weights_expr,
                             net_expr, save_dir_expr, os_name, log_prefix, distribution):
     """Builds the IC Pre-Training "dummy-PDE dataset + compile + restore-or-
@@ -10397,7 +10406,7 @@ for rar_cycle in range({config.rar_cycles}):''']
             if config.rar_lbfgs_iters > 0:
                 rar_lines.append(f'''    dde.optimizers.set_LBFGS_options(maxcor={config.lbfgs_maxcor}, ftol={config.lbfgs_ftol},
                                      gtol={config.lbfgs_gtol}, maxiter={config.rar_lbfgs_iters},
-                                     maxfun={config.lbfgs_maxfun}, maxls={config.lbfgs_maxls})
+                                     maxfun={_lbfgs_maxfun(config, config.rar_lbfgs_iters)}, maxls={config.lbfgs_maxls})
     model.compile("L-BFGS", loss="{config.loss_type}", loss_weights={multi_weights})
     loss_history, train_state = model.train(display_every={config.loss_display_every})''')
             rar_lines.append("    rar_rounds.append((copy.deepcopy(model.net.state_dict()), xt_cand[top_idx]))")

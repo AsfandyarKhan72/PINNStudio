@@ -29,10 +29,9 @@ CATEGORIES = (FORWARD, INVERSE)
 _DOCS = "https://deepxde.readthedocs.io/en/latest/demos/"
 _GH = "https://github.com/lululxvi/deepxde/blob/master/examples/"
 
-# DeepXDE's default L-BFGS stopping options (deepxde.optimizers.config);
-# PINNStudio's own defaults differ, so examples that use L-BFGS set these.
-_LBFGS = dict(optimizer2="lbfgs", iterations2=15000, lbfgs_use_default=False, lbfgs_maxcor=100,
-              lbfgs_ftol=0.0, lbfgs_gtol=1e-8, lbfgs_maxfun=18750, lbfgs_maxls=50)
+# L-BFGS with the recommended options, which are DeepXDE's own defaults
+# (config.LBFGS_RECOMMENDED), for DeepXDE's 15,000 iterations.
+_LBFGS = dict(optimizer2="lbfgs", iterations2=15000)
 _NO_LBFGS = dict(optimizer2="none", iterations2=0)
 
 
@@ -135,7 +134,7 @@ _PLATE_REF = _formula_ref([
 # DeepXDE's plate scripts train 5,000 Adam iterations, which leaves the plate
 # under-trained (L2 0.19-1.6 with hard BCs, also with DeepXDE's own script);
 # these examples train longer.
-_PLATE_LBFGS = {**_LBFGS, "iterations2": 20000, "lbfgs_maxfun": 25000}
+_PLATE_LBFGS = {**_LBFGS, "iterations2": 20000}
 _PLATE_TRAIN_NOTE = ("Training: 20,000 Adam + 20,000 L-BFGS iterations instead of DeepXDE's 5,000 Adam, "
                      "which are not enough for this problem (L2 errors of 0.2-1.6).")
 
@@ -612,7 +611,6 @@ EXAMPLES = [
              num_domain=30000, num_boundary=1500, num_initial=1500, num_test=6000),
         _net([2, 40, 40, 1]), _adam(20000), _NO_LBFGS,
         _scheduler(_phase("adam", 20000, 1e-3, ("inverse time", 3000, 0.9)), _phase("lbfgs", 15000)),
-        dict(lbfgs_use_default=False, lbfgs_maxcor=100, lbfgs_ftol=0.0, lbfgs_gtol=1e-8, lbfgs_maxfun=18750, lbfgs_maxls=50),
         _formula_ref(["x*cos(t)"], "0, 2.5, 5, 7.5, 10"),
         note="The second initial condition du/dt = 0 is applied at t = 0. (DeepXDE's script passes it to an "
              "OperatorBC, which selects spatial-boundary points rather than t = 0.)"),
@@ -632,8 +630,7 @@ EXAMPLES = [
                             for t, name in ((0.0, "0"), (0.25, "0.25"), (0.5, "0.50"), (0.75, "0.75"),
                                             (1.0, "1.0"), (1.25, "1.25"), (1.5, "1.50"))])),
         _net([2, 100, 100, 100, 100, 2], "Glorot normal"), _adam(10000),
-        dict(optimizer2="lbfgs", iterations2=10000, lbfgs_use_default=False, lbfgs_maxcor=50,
-             lbfgs_ftol=2.220446049250313e-16, lbfgs_gtol=1e-8, lbfgs_maxfun=10000, lbfgs_maxls=50),
+        dict(optimizer2="lbfgs", iterations2=10000),
         note="|h| = sqrt(u^2 + v^2) is compared against a Fourier pseudo-spectral (split-step) solution in "
              "PINNStudio's reference_data/1D/schrodinger.",
         inverse=dict(problem_type="Inverse",
