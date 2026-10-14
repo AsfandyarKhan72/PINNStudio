@@ -1,6 +1,6 @@
 # PINNStudio
 
-*A no-code scientific computing environment for building, training, and visualizing Physics-Informed Neural Networks (PINNs) — built on [DeepXDE](https://github.com/lululxvi/deepxde).*
+*A no-code scientific computing environment for solving forward and inverse problems with physics-informed neural networks — from setting up the equations to training, error analysis, and visualization.*
 
 <p align="center">
   <a href="https://pypi.org/project/pinnstudio/"><img src="https://img.shields.io/pypi/v/pinnstudio.svg" alt="PyPI version"></a>
@@ -103,13 +103,32 @@ pip install torch --index-url https://download.pytorch.org/whl/cu121 --force-rei
 
 ## Overview
 
-Setting up a Physics-Informed Neural Network usually means writing a new DeepXDE script for every problem: defining the PDE residual, wiring up boundary and initial conditions, picking collocation points, choosing an optimizer schedule, and writing your own plotting/error-analysis code afterward.
+**PINNStudio** is a scientific computing environment for solving differential equations with physics-informed neural networks (PINNs) and related scientific machine learning methods, without writing any code. You describe the problem — the equations, the domain, the boundary and initial conditions, the network and how it should be trained — and PINNStudio trains the model, tracks it while it runs, and gives back the solution, its error against reference data, plots and animations, and the trained model ready to reload.
 
-PINNStudio replaces that boilerplate with a form. You describe the problem — the PDE, the domain, the boundary and initial conditions, the network architecture, the training schedule — through the interface, and PINNStudio generates a standalone DeepXDE/PyTorch script, runs it, and streams the training log, loss curves, and solution plots back into the GUI.
+Setting up a PINN by hand means writing a new script for every problem: the residual of the equations through automatic differentiation, the sampling of collocation points, the weighting of the loss terms, the optimizer schedule, and then the plotting and error analysis afterwards. Each of these is easy to get subtly wrong. PINNStudio puts all of it into one place, so researchers and students in science and engineering — including those new to scientific computing or machine learning — can spend their time on the physics of their problem rather than on the code around it.
 
-It supports both **forward problems** (solve a known PDE) and **inverse problems** (estimate unknown PDE parameters from observation data), across **1D (`x`), 2D (`x, y`), and 3D (`x, y, z`)** — time-dependent (with a `t` axis) or steady-state (without one) — including coupled, multi-output PDE systems. The domain itself isn't limited to a box either — 2D problems can be posed on a rectangle, disk, ellipse, triangle, or arbitrary polygon, and 3D problems on a cuboid or sphere; any of those primitives can also be combined into a custom shape with boolean union/subtract/intersect operations (e.g. a cavity with an obstacle cut out of it), so a re-entrant-corner, curved-boundary, or multi-shape problem doesn't need any code of your own to set up.
+**What it can solve**
 
-The goal is to make physics-informed machine learning accessible to researchers who need it but don't want to become deep learning engineers first. Setting up a PINN by hand touches autograd-based residuals, collocation sampling, loss weighting, and optimizer scheduling all at once — details that are easy to get subtly wrong and can cost hours of debugging before a single result can be trusted. PINNStudio lets researchers across science and engineering — materials science, mechanics, chemistry, biology, and beyond — set up and run both forward and inverse PINN problems for their own equations without building that infrastructure from scratch, on a framework that has been thoroughly tested so results are trustworthy from the first run.
+- **Forward and inverse problems:** solve a known equation, or learn unknown coefficients or whole unknown fields from measured data.
+- **ODEs and PDEs in 1D, 2D and 3D**, steady or time-dependent, including coupled multi-output systems, integro-differential and fractional equations, typed in a readable form such as `du_t + u*du_x - 0.01/pi*du_xx`.
+- **Many kinds of domains** — intervals, rectangles, disks, polygons, cuboids, spheres, and custom shapes combined from them (e.g. a domain with a hole) — with Dirichlet, Neumann, Robin, periodic and point-data conditions, or conditions imposed exactly through the network output.
+
+**How it trains**
+
+- **Multi-phase training** (e.g. Adam followed by L-BFGS) with learning-rate schedules and loss weights per phase.
+- **Adaptive methods:** residual-based adaptive refinement (RAR), which adds points where the error is largest; time-adaptive training, which marches through time in steps, each starting from the previous one (transfer learning); and initial-condition-guided pre-training.
+- **Point resampling, early stopping, checkpointing and time budgets**, and live monitors of any output or derivative during training.
+- **Parameter sweeps** over almost any setting — one at a time, all combinations, paired values, or Bayesian search — with a summary of how the error changes with each parameter.
+
+**What you get back**
+
+- A live training log, loss curves, and error analysis against reference data or an exact formula (relative $L_2$, MSE, maximum error).
+- Line, surface and animated solution plots, solution data export, and a saved model that can be reloaded and visualized again without retraining.
+- A standalone Python script for every problem, so the work can be inspected, shared and reproduced outside PINNStudio.
+
+**Ready-to-run examples.** PINNStudio comes with 60 worked examples, from simple ODEs to the Navier–Stokes equations in 3D, including published PINN benchmarks (Raissi et al., Wight & Zhao, Mattey & Ghosh, and others) and DeepXDE's examples. Each one loads in one click, and 58 of them come with an exact solution or reference data to compare against — see [Examples](#examples).
+
+PINNStudio is under active development, and we are extending it with newer scientific machine learning and PINN methods, aimed at solving harder problems more accurately and faster.
 
 ## Demo Video
 
@@ -339,7 +358,7 @@ Rather than clicking Solve once per configuration and tracking the results yours
 
 Each parameter row takes a comma-separated list of values, or a linear/log numeric range (min, max, number of steps); categorical parameters (activation, point distribution, etc.) are always a plain list of choices.
 
-**Essentially anything you can configure elsewhere in the GUI can be swept** — click **🔄 Refresh** to update the Parameter dropdown with everything currently available for your problem, which adapts to what's selected. This currently spans:
+**Essentially anything you can configure elsewhere in PINNStudio can be swept** — click **🔄 Refresh** to update the Parameter dropdown with everything currently available for your problem, which adapts to what's selected. This currently spans:
 
 - **Network** — hidden layers, neurons per layer, activation, kernel initializer, weight decay.
 - **Collocation Points** — domain/boundary/initial/test point counts, sampling distribution.
@@ -420,14 +439,14 @@ For a problem with several outputs, every output is also saved as its own plot, 
 <details>
 <summary><strong>Solution data export</strong></summary>
 
-The raw predicted solution — not just the rendered plot — is saved alongside the run's other output, so it's available for your own downstream analysis outside the GUI. Off by default — enable it with its own checkbox when you actually want the raw arrays — and the export grid resolution is an editable dropdown, same as Time-Adaptive's IC grid resolution: pick a preset or type your own.
+The raw predicted solution — not just the rendered plot — is saved alongside the run's other output, so it's available for your own downstream analysis outside PINNStudio. Off by default — enable it with its own checkbox when you actually want the raw arrays — and the export grid resolution is an editable dropdown, same as Time-Adaptive's IC grid resolution: pick a preset or type your own.
 
 </details>
 
 <details>
 <summary><strong>Export as a standalone DeepXDE script</strong></summary>
 
-Every configured problem can be exported as a clean, dependency-minimal DeepXDE/PyTorch script (<code>File → Export as DeepXDE Script...</code>) — the same script the GUI itself would run, but meant to be read and handed off: to a cluster job, a collaborator without PINNStudio installed, or as a starting point for a hand-written project. A configured **Custom...** plot expression (including derivatives) and a Time-Adaptive run's full stitched loss history (every phase of every time sub-domain, not just the last one) both export the same way they display in the GUI.
+Every configured problem can be exported as a clean, dependency-minimal DeepXDE/PyTorch script (<code>File → Export as DeepXDE Script...</code>) — the same script PINNStudio itself would run, but meant to be read and handed off: to a cluster job, a collaborator without PINNStudio installed, or as a starting point for a hand-written project. A configured **Custom...** plot expression (including derivatives) and a Time-Adaptive run's full stitched loss history (every phase of every time sub-domain, not just the last one) both export the same way they display in PINNStudio.
 
 </details>
 
@@ -454,7 +473,7 @@ pinnstudio/
 │       ├── config.py          # PINNConfig — the full problem definition
 │       ├── codegen.py         # PINNConfig -> standalone DeepXDE/PyTorch script
 │       ├── deepxde_examples.py # DeepXDE's documented examples as Quick Examples
-│       ├── runner.py          # Runs the generated script, streams output to the GUI
+│       ├── runner.py          # Runs the generated script, streams output to the Training Log
 │       ├── sweep_registry.py  # Parameter Sweep's list of sweepable parameters
 │       └── sweep_runner.py    # Builds and runs each sweep configuration in turn
 ├── assets/
@@ -666,7 +685,7 @@ $$\Large \frac{du}{dt} + \int_0^t u(s)\ ds = 2\pi\cos(2\pi t) + \frac{\sin^2(\pi
 - **Exact solution:** $u = \sin(2\pi t)$
 - **Network:** FNN [2, 20, 20, 20, 1], tanh, Glorot uniform
 - **Training:** Adam 10,000; 16 domain, 2 boundary points
-- **GUI recipe:** Quick Examples → Category **Forward** → **Integro-differential ODE**
+- **In PINNStudio:** Quick Examples → Category **Forward** → **Integro-differential ODE**
 
 **Result (RTX 4090):** $L_2$ = 1.5 × 10⁻⁴
 
@@ -689,7 +708,7 @@ $$\Large \frac{du}{dt} + u(t) = \int_0^t e^{s - t}\ u(s)\ ds, \qquad t \in [0, 5
 - **Exact solution:** $u = e^{-t}\cosh t$
 - **Network:** FNN [2, 20, 20, 20, 1], tanh, Glorot uniform
 - **Training:** L-BFGS 15,000; 10 domain, 2 boundary points
-- **GUI recipe:** Quick Examples → Category **Forward** → **Integro-differential ODE – Volterra kernel**
+- **In PINNStudio:** Quick Examples → Category **Forward** → **Integro-differential ODE – Volterra kernel**
 
 **Result (RTX 4090):** $L_2$ = 2.5 × 10⁻³
 
@@ -711,7 +730,7 @@ $$\Large \frac{dy_1}{dt} = y_2, \qquad \frac{dy_2}{dt} = -y_1, \qquad t \in [0, 
 - **Exact solution:** $y_1 = \sin t$, $y_2 = \cos t$
 - **Network:** FNN [2, 50, 50, 50, 2], tanh, Glorot uniform
 - **Training:** Adam 20,000; 35 domain, 2 boundary points
-- **GUI recipe:** Quick Examples → Category **Forward** → **Linear ODE system**
+- **In PINNStudio:** Quick Examples → Category **Forward** → **Linear ODE system**
 
 **Result (RTX 4090):** $L_2$ = 3.6 × 10⁻³ ($y_1$), 3.1 × 10⁻³ ($y_2$)
 
@@ -739,7 +758,7 @@ $$\Large \frac{dr}{dt} = \frac{R}{U}\left(2Ur - 0.04U^2 rp\right), \qquad \frac{
 - **Constants:** `ub = 200`, `rb = 20`
 - **Network:** FNN [2, 64, 64, 64, 64, 64, 64, 2], tanh, Glorot normal
 - **Training:** Adam 50,000 → L-BFGS 15,000; 3,000 domain, 2 boundary points
-- **GUI recipe:** Quick Examples → Category **Forward** → **Lotka-Volterra ODE**
+- **In PINNStudio:** Quick Examples → Category **Forward** → **Lotka-Volterra ODE**
 
 **Result (RTX 4090):** $L_2$ = 2.1 × 10⁻³ ($r$), 1.4 × 10⁻³ ($p$)
 
@@ -766,7 +785,7 @@ $$\Large \frac{d^2u}{dt^2} - 10\frac{du}{dt} + 9u = 5t, \qquad t \in [0, 0.25]$$
 - **Exact solution:** $u = \frac{50}{81} + \frac{5}{9}t - 2e^{t} + \frac{31}{81}e^{9t}$
 - **Network:** FNN [2, 50, 50, 50, 1], tanh, Glorot uniform
 - **Training:** Adam 10,000; 16 domain, 2 boundary points
-- **GUI recipe:** Quick Examples → Category **Forward** → **Second-order ODE**
+- **In PINNStudio:** Quick Examples → Category **Forward** → **Second-order ODE**
 
 **Result (RTX 4090):** $L_2$ = 3.2 × 10⁻⁵
 
@@ -788,7 +807,7 @@ $$\Large \frac{dy_1}{dt} = C_1(y_2 - y_1), \qquad \frac{dy_2}{dt} = y_1(C_2 - y_
 - **Data:** $y_1, y_2, y_3$ measured at 50 times (also used as anchor points), from SciPy's `solve_ivp`
 - **Network:** FNN [2, 40, 40, 40, 3], tanh, Glorot uniform
 - **Training:** Adam 20,000 → L-BFGS 15,000; 400 domain, 2 boundary points
-- **GUI recipe:** Quick Examples → Category **Inverse** → **Lorenz ODE – unknown C₁, C₂, C₃**
+- **In PINNStudio:** Quick Examples → Category **Inverse** → **Lorenz ODE – unknown C₁, C₂, C₃**
 
 **Result (RTX 4090):** $C_1$ = 9.9990, $C_2$ = 14.9997, $C_3$ = 2.66675 (true 10, 15, 8/3); $L_2$ = 1.2 × 10⁻⁴ ($y_1$), 1.2 × 10⁻⁴ ($y_2$), 6.7 × 10⁻⁵ ($y_3$)
 
@@ -819,7 +838,7 @@ $$\Large \frac{dy_1}{dt} = C_1(y_2 - y_1), \qquad \frac{dy_2}{dt} = y_1(C_2 - y_
 - **Data:** $y_1, y_2, y_3$ measured at 200 times, from SciPy's `solve_ivp`
 - **Network:** FNN [2, 40, 40, 40, 3], tanh, Glorot uniform
 - **Training:** Adam 60,000; 400 domain, 2 boundary points
-- **GUI recipe:** Quick Examples → Category **Inverse** → **Lorenz ODE – unknown C₁, C₂, C₃, exogenous input**
+- **In PINNStudio:** Quick Examples → Category **Inverse** → **Lorenz ODE – unknown C₁, C₂, C₃, exogenous input**
 
 **Result (RTX 4090):** $C_1$ = 9.987, $C_2$ = 14.998, $C_3$ = 2.6669 (true 10, 15, 8/3); $L_2$ = 7.3 × 10⁻⁴ ($y_1$), 6.6 × 10⁻⁴ ($y_2$), 2.9 × 10⁻⁴ ($y_3$)
 
@@ -852,7 +871,7 @@ $$\Large \frac{d^4u}{dx^4} = -1, \qquad x \in [0, 1]$$
 - **Exact solution:** $u = -\frac{x^4}{24} + \frac{x^3}{6} - \frac{x^2}{4}$
 - **Network:** FNN [1, 20, 20, 20, 1], tanh, Glorot uniform
 - **Training:** Adam 10,000; 10 domain, 2 boundary points
-- **GUI recipe:** Quick Examples → Category **Forward** → **Euler beam 1D**
+- **In PINNStudio:** Quick Examples → Category **Forward** → **Euler beam 1D**
 
 **Result (RTX 4090):** $L_2$ = 8.4 × 10⁻³
 
@@ -876,7 +895,7 @@ $$\Large D_{0+}^{\alpha}u + D_{1-}^{\alpha}u = f(x), \qquad x \in [0, 1],\ \alph
 - **Constants:** `alpha = 1.5`
 - **Network:** FNN [1, 20, 20, 20, 20, 1], tanh, Glorot normal
 - **Training:** Adam 10,000; 101 domain, 2 boundary points
-- **GUI recipe:** Quick Examples → Category **Forward** → **Fractional Poisson 1D**
+- **In PINNStudio:** Quick Examples → Category **Forward** → **Fractional Poisson 1D**
 
 **Result (RTX 4090):** $L_2$ = 3.7 × 10⁻²
 
@@ -897,7 +916,7 @@ $$\Large -\frac{d^2u}{dx^2} = \pi^2\sin(\pi x), \qquad x \in [-1, 1]$$
 - **Exact solution:** $u = \sin(\pi x)$
 - **Network:** FNN [1, 50, 50, 50, 1], tanh, Glorot uniform
 - **Training:** Adam 10,000; 16 domain, 2 boundary points
-- **GUI recipe:** Quick Examples → Category **Forward** → **Poisson 1D – Dirichlet**
+- **In PINNStudio:** Quick Examples → Category **Forward** → **Poisson 1D – Dirichlet**
 
 **Result (RTX 4090):** $L_2$ = 3.7 × 10⁻⁴
 
@@ -918,7 +937,7 @@ $$\Large \frac{d^2u}{dx^2} = 2, \qquad x \in [-1, 1]$$
 - **Exact solution:** $u = (x + 1)^2$
 - **Network:** FNN [1, 50, 50, 50, 1], tanh, Glorot uniform
 - **Training:** Adam 10,000; 16 domain, 2 boundary points
-- **GUI recipe:** Quick Examples → Category **Forward** → **Poisson 1D – Dirichlet/Neumann**
+- **In PINNStudio:** Quick Examples → Category **Forward** → **Poisson 1D – Dirichlet/Neumann**
 
 **Result (RTX 4090):** $L_2$ = 2.3 × 10⁻⁴
 
@@ -939,7 +958,7 @@ $$\Large -\frac{d^2u}{dx^2} = \pi^2\sin(\pi x), \qquad x \in [-1, 1]$$
 - **Exact solution:** $u = \sin(\pi x)$
 - **Network:** FNN [1, 50, 50, 50, 1], tanh, Glorot uniform
 - **Training:** Adam 10,000; 16 domain, 2 boundary points
-- **GUI recipe:** Quick Examples → Category **Forward** → **Poisson 1D – Dirichlet/Periodic**
+- **In PINNStudio:** Quick Examples → Category **Forward** → **Poisson 1D – Dirichlet/Periodic**
 
 **Result (RTX 4090):** $L_2$ = 1.2 × 10⁻²
 
@@ -960,7 +979,7 @@ $$\Large \frac{d^2u}{dx^2} = 2, \qquad x \in [-1, 1]$$
 - **Exact solution:** $u = (x + 1)^2$
 - **Network:** FNN [1, 50, 50, 50, 1], tanh, Glorot uniform
 - **Training:** Adam 20,000; 16 domain, 2 boundary points
-- **GUI recipe:** Quick Examples → Category **Forward** → **Poisson 1D – Dirichlet/point-set operator**
+- **In PINNStudio:** Quick Examples → Category **Forward** → **Poisson 1D – Dirichlet/point-set operator**
 
 **Result (RTX 4090):** $L_2$ = 2.6 × 10⁻⁵
 
@@ -981,7 +1000,7 @@ $$\Large \frac{d^2u}{dx^2} = 2, \qquad x \in [-1, 1]$$
 - **Exact solution:** $u = (x + 1)^2$
 - **Network:** FNN [1, 50, 50, 50, 1], tanh, Glorot uniform
 - **Training:** Adam 10,000; 16 domain, 2 boundary points
-- **GUI recipe:** Quick Examples → Category **Forward** → **Poisson 1D – Dirichlet/Robin**
+- **In PINNStudio:** Quick Examples → Category **Forward** → **Poisson 1D – Dirichlet/Robin**
 
 **Result (RTX 4090):** $L_2$ = 2.4 × 10⁻⁴
 
@@ -1003,7 +1022,7 @@ $$\Large -\frac{d^2u}{dx^2} = \sum_{k=1}^{4} k\sin(kx) + 8\sin(8x), \qquad x \in
 - **Learning rate:** inverse-time decay, $10^{-4}/(1 + 0.3\ n/1000)$ at iteration $n$
 - **Network:** FNN [1, 50, 50, 50, 1], tanh, Glorot uniform
 - **Training:** Adam 30,000; 64 domain points
-- **GUI recipe:** Quick Examples → Category **Forward** → **Poisson 1D – hard BCs**
+- **In PINNStudio:** Quick Examples → Category **Forward** → **Poisson 1D – hard BCs**
 
 **Result (RTX 4090):** $L_2$ = 2.2 × 10⁻⁶
 
@@ -1027,7 +1046,7 @@ $$\Large \frac{d^2u}{dx^2} = -(\pi A)^2\sin(\pi A x) - 0.1(\pi B)^2\sin(\pi B x)
 - **Constants:** `A = 2`, `B = 50`
 - **Network:** MsFFN [1, 100, 100, 100, 1], Fourier scales σ = 1, 10, tanh, Glorot uniform
 - **Training:** Adam 20,000; 1,280 domain, 2 boundary points
-- **GUI recipe:** Quick Examples → Category **Forward** → **Poisson 1D – multi-scale Fourier features**
+- **In PINNStudio:** Quick Examples → Category **Forward** → **Poisson 1D – multi-scale Fourier features**
 
 A plain network of the same size learns the slow wave and largely misses the fast one; the Fourier features at scale 10 are what let the PINN represent the sin(50πx) part.
 
@@ -1052,7 +1071,7 @@ $$\Large -\frac{\nu_e}{\epsilon}\frac{d^2u}{dx^2} + \frac{\nu u}{K} = g, \qquad 
 - **Constants:** `g = 1`, `v = 1e-3`, `e = 0.4`
 - **Network:** FNN [1, 20, 20, 20, 1], tanh, Glorot uniform
 - **Training:** Adam 30,000; 100 domain points
-- **GUI recipe:** Quick Examples → Category **Inverse** → **Brinkman-Forchheimer 1D – unknown ν_e, K**
+- **In PINNStudio:** Quick Examples → Category **Inverse** → **Brinkman-Forchheimer 1D – unknown ν_e, K**
 
 DeepXDE's own script, run unchanged twice on the same GPU, ends with $\nu_e$ = 1.31–1.35 × 10⁻³, $K$ = 9.84 × 10⁻⁴ and an $L_2$ error of 1.8 × 10⁻²–2.0 × 10⁻² for $u$ — the same picture: $K$ is recovered closely, $\nu_e$ only to within about 30–50% from five measurements.
 
@@ -1080,7 +1099,7 @@ $$\Large \lambda\frac{d^2u}{dx^2} - k(x)\ u = \sin(2\pi x), \qquad \lambda = 0.0
 - **Constants:** `l = 0.01`
 - **Network:** PFNN, a separate [20, 20] subnetwork for each of the 2 outputs, tanh, Glorot uniform
 - **Training:** Adam 20,000; 50 domain, 8 boundary points
-- **GUI recipe:** Quick Examples → Category **Inverse** → **Diffusion-reaction 1D – unknown rate field**
+- **In PINNStudio:** Quick Examples → Category **Inverse** → **Diffusion-reaction 1D – unknown rate field**
 
 **Result (RTX 4090):** $L_2$ = 4.0 × 10⁻² ($k$)
 
@@ -1107,7 +1126,7 @@ $$\Large \frac{D_{-1+}^{\alpha}u + D_{1-}^{\alpha}u}{2\cos(\alpha\pi/2)} = \Gamm
 - **Constants:** `a0 = 1.8`
 - **Network:** FNN [1, 20, 20, 20, 20, 1], tanh, Glorot normal
 - **Training:** Adam 10,000; 20 domain points
-- **GUI recipe:** Quick Examples → Category **Inverse** → **Fractional Poisson 1D – unknown order α**
+- **In PINNStudio:** Quick Examples → Category **Inverse** → **Fractional Poisson 1D – unknown order α**
 
 **Result (RTX 4090):** $\alpha$ = 1.792 (true 1.8); $L_2$ of $u$ = 1.3 × 10⁻²
 
@@ -1133,7 +1152,7 @@ $$\Large -\frac{d^2u}{dx^2} + q(x) = 0, \qquad x \in [-1, 1]$$
 - **Mode:** Forward — there are no unknown constants, only an unknown field, as in DeepXDE
 - **Network:** PFNN, a separate [20, 20, 20] subnetwork for each of the 2 outputs, tanh, Glorot uniform
 - **Training:** Adam 20,000; 200 domain, 2 boundary points
-- **GUI recipe:** Quick Examples → Category **Inverse** → **Poisson 1D – unknown forcing field**
+- **In PINNStudio:** Quick Examples → Category **Inverse** → **Poisson 1D – unknown forcing field**
 
 **Result (RTX 4090):** $L_2$ = 8.3 × 10⁻⁴ ($u$), 4.3 × 10⁻² ($q$)
 
@@ -1158,7 +1177,7 @@ $$\Large -\frac{d^2u}{dx^2} + q(x) = 0, \qquad x \in [-1, 1]$$
 - **Data:** 10,000 measurements of $u$, used 100 at a time (Point Set BC with batch size 100, redrawn every iteration)
 - **Network:** PFNN, a separate [20, 20, 20] subnetwork for each of the 2 outputs, tanh, Glorot uniform
 - **Training:** Adam 20,000; 200 domain, 2 boundary points
-- **GUI recipe:** Quick Examples → Category **Inverse** → **Poisson 1D – unknown forcing field (batches)**
+- **In PINNStudio:** Quick Examples → Category **Inverse** → **Poisson 1D – unknown forcing field (batches)**
 
 **Result (RTX 4090):** $L_2$ = 7.6 × 10⁻³ ($u$), 1.3 × 10⁻¹ ($q$)
 
@@ -1181,7 +1200,7 @@ where $\gamma_1 = 0.0001$ and $\gamma_2 = 5$.
 - **Boundary conditions:** Periodic
 - **Geometry:** Interval
 - **Time-Adaptive default:** on — $t \in [0,1]$ split into 4 steps of 0.25, L-BFGS transfer learning between steps
-- **GUI recipe:** Quick Examples → Category **Forward** (or **Inverse**) → **Allen-Cahn 1D – Wight & Zhao**
+- **In PINNStudio:** Quick Examples → Category **Forward** (or **Inverse**) → **Allen-Cahn 1D – Wight & Zhao**
 
 **Result (RTX 4090):** $L_2$ = 3.8 × 10⁻⁴ ($t = 0$), 1.1 × 10⁻³ ($t = 0.25$), 2.3 × 10⁻³ ($t = 0.5$), 3.5 × 10⁻³ ($t = 0.75$), 7.4 × 10⁻³ ($t = 1$), against a Fourier pseudo-spectral solution (ETDRK4) in [`reference_data/1D/allen_cahn`](reference_data/1D/allen_cahn) (made by [`tools/make_exact_reference_data.py`](tools/make_exact_reference_data.py)). Inverse mode: $\gamma_1$ = 1.20 × 10⁻⁴ (true 1 × 10⁻⁴), $\gamma_2$ = 4.998 (true 5).
 
@@ -1207,7 +1226,7 @@ $$\Large \frac{\partial u}{\partial t} = 0.001\frac{\partial^2 u}{\partial x^2} 
 - **Constants:** `d = 0.001`
 - **Network:** FNN [2, 20, 20, 20, 1], tanh, Glorot normal
 - **Training:** Adam 40,000 → L-BFGS 15,000; 8,000 domain, 400 boundary points
-- **GUI recipe:** Quick Examples → Category **Forward** → **Allen-Cahn 1D**
+- **In PINNStudio:** Quick Examples → Category **Forward** → **Allen-Cahn 1D**
 
 **Result (RTX 4090):** $L_2$ = 9.5 × 10⁻⁸ ($t = 0$), 1.9 × 10⁻³ ($t = 0.25$), 5.2 × 10⁻³ ($t = 0.5$), 1.3 × 10⁻² ($t = 0.75$), 2.9 × 10⁻² ($t = 1$)
 
@@ -1235,7 +1254,7 @@ $$\Large \min\left(-\mathcal{L}V,\ V - \max(K - S, 0)\right) = 0, \qquad \mathca
 - **Constants:** `r = 0.05`, `sigma = 0.2`, `K = 1`
 - **Network:** FNN [2, 128, 128, 128, 128, 1], tanh, Glorot normal
 - **Training:** Adam 12,000 → L-BFGS 15,000; 6,000 domain, 1,500 boundary, 1,500 initial points
-- **GUI recipe:** Quick Examples → Category **Forward** → **Black-Scholes 1D – American put**
+- **In PINNStudio:** Quick Examples → Category **Forward** → **Black-Scholes 1D – American put**
 
 **Result (RTX 4090):** trained without errors; no bundled reference to compare against
 
@@ -1258,7 +1277,7 @@ $$\Large \frac{\partial V}{\partial \tau} = \frac{\sigma^2}{2}S^2\frac{\partial^
 - **Constants:** `K = 50`, `r = 0.05`, `sigma = 0.2`
 - **Network:** FNN [2, 28, 28, 28, 28, 1], tanh, Glorot normal
 - **Training:** Adam 20,000 → L-BFGS 15,000; 2,047 domain, 63 boundary, 127 initial points
-- **GUI recipe:** Quick Examples → Category **Forward** → **Black-Scholes 1D – European call**
+- **In PINNStudio:** Quick Examples → Category **Forward** → **Black-Scholes 1D – European call**
 
 **Result (RTX 4090):** $L_2$ = 5.7 × 10⁻⁴ ($t = 0.25$), 3.2 × 10⁻⁴ ($t = 0.5$), 4.3 × 10⁻⁴ ($t = 1$)
 
@@ -1282,7 +1301,7 @@ $$\Large \frac{\partial u}{\partial t} + u\frac{\partial u}{\partial x} = \frac{
 - **Initial condition:** $u(x, 0) = -\sin(\pi x)$
 - **Boundary conditions:** Dirichlet, $u = 0$ at both ends
 - **Geometry:** Interval
-- **GUI recipe:** Quick Examples → Category **Forward** (or **Inverse**) → **Burgers 1D – Raissi et al.**
+- **In PINNStudio:** Quick Examples → Category **Forward** (or **Inverse**) → **Burgers 1D – Raissi et al.**
 
 A shock forms near $x = 0$ as $t \to 1$; this template uses a larger fixed collocation count to resolve it rather than adaptive refinement.
 
@@ -1318,7 +1337,7 @@ $$\Large \frac{\partial u}{\partial t} + u\frac{\partial u}{\partial x} = \frac{
 - **Residual-based adaptive refinement:** 3 rounds, each adding the 100 points with the largest PDE residual (out of 100,000 random candidates) and retraining (Adam 10,000 → L-BFGS 15,000)
 - **Network:** FNN [2, 20, 20, 20, 1], tanh, Glorot normal
 - **Training:** Adam 10,000 → L-BFGS 15,000 per RAR round; 2,500 domain, 100 boundary, 160 initial points
-- **GUI recipe:** Quick Examples → Category **Forward** → **Burgers 1D – RAR**
+- **In PINNStudio:** Quick Examples → Category **Forward** → **Burgers 1D – RAR**
 
 **Why not DeepXDE's one-point refinement.** DeepXDE's script adds 1 point per round until the mean residual is below 0.005. Here, after the first training the mean residual is already about 3–4 × 10⁻³, so that loop would add a single point and stop, which shows nothing. This example therefore turns the tolerance off and runs 3 rounds of 100 points instead. The collocation-point figure below shows where they go: onto the shock at $x = 0$ once it has formed ($t \gtrsim 0.3$), the region of largest error. The $L_2$ error at $t = 1$, where the shock is steepest, falls from 2.6 × 10⁻² after round 1 to 4.0 × 10⁻³ after round 2 and 8.4 × 10⁻⁴ after round 3.
 
@@ -1349,7 +1368,7 @@ $$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} - e^{
 - **Exact solution:** $u = e^{-t}\sin(\pi x)$
 - **Network:** FNN [2, 32, 32, 32, 1], tanh, Glorot uniform
 - **Training:** Adam 10,000; 40 domain, 20 boundary, 10 initial points
-- **GUI recipe:** Quick Examples → Category **Forward** → **Diffusion 1D**
+- **In PINNStudio:** Quick Examples → Category **Forward** → **Diffusion 1D**
 
 **Result (RTX 4090):** $L_2$ = 4.8 × 10⁻³ ($t = 0$), 9.0 × 10⁻³ ($t = 0.25$), 6.4 × 10⁻³ ($t = 0.5$), 5.8 × 10⁻³ ($t = 0.75$), 3.0 × 10⁻² ($t = 1$)
 
@@ -1374,7 +1393,7 @@ $$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} - e^{
 - **Exact solution:** $u = e^{-t}\sin(\pi x)$
 - **Network:** FNN [2, 32, 32, 32, 1], tanh, Glorot uniform
 - **Training:** Adam 10,000; 40 domain points
-- **GUI recipe:** Quick Examples → Category **Forward** → **Diffusion 1D – hard IC and BCs**
+- **In PINNStudio:** Quick Examples → Category **Forward** → **Diffusion 1D – hard IC and BCs**
 
 **Result (RTX 4090):** $L_2$ = 9.4 × 10⁻⁸ ($t = 0$), 1.6 × 10⁻⁴ ($t = 0.25$), 4.6 × 10⁻⁴ ($t = 0.5$), 1.3 × 10⁻³ ($t = 0.75$), 2.8 × 10⁻³ ($t = 1$)
 
@@ -1400,7 +1419,7 @@ $$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} - e^{
 - **Exact solution:** $u = e^{-t}\sin(\pi x)$
 - **Network:** FNN [2, 32, 32, 32, 1], tanh, Glorot uniform
 - **Training:** Adam 2,000; 40 domain, 20 boundary, 10 initial points
-- **GUI recipe:** Quick Examples → Category **Forward** → **Diffusion 1D – resampling**
+- **In PINNStudio:** Quick Examples → Category **Forward** → **Diffusion 1D – resampling**
 
 **Result (RTX 4090):** $L_2$ = 1.8 × 10⁻² ($t = 0$), 2.5 × 10⁻² ($t = 0.25$), 1.5 × 10⁻² ($t = 0.5$), 1.4 × 10⁻² ($t = 0.75$), 4.3 × 10⁻² ($t = 1$)
 
@@ -1425,7 +1444,7 @@ $$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} + e^{
 - **Exact solution:** $u = e^{-t}\left(\sin x + \tfrac{\sin 2x}{2} + \tfrac{\sin 3x}{3} + \tfrac{\sin 4x}{4} + \tfrac{\sin 8x}{8}\right)$
 - **Network:** FNN [2, 30, 30, 30, 30, 30, 30, 1], tanh, Glorot uniform
 - **Training:** Adam 20,000; 320 domain points
-- **GUI recipe:** Quick Examples → Category **Forward** → **Diffusion-reaction 1D**
+- **In PINNStudio:** Quick Examples → Category **Forward** → **Diffusion-reaction 1D**
 
 DeepXDE's own script, run unchanged on the same GPU, ends with a similar loss (and the same Adam loss spikes near the end of training).
 
@@ -1455,7 +1474,7 @@ $$\Large \frac{\partial u}{\partial t} = D_{0+}^{\alpha}u + D_{1-}^{\alpha}u - e
 - **Constants:** `alpha = 1.8`
 - **Network:** FNN [2, 20, 20, 20, 20, 1], tanh, Glorot normal
 - **Training:** Adam 10,000; 400 domain, 2 boundary, 2 initial points
-- **GUI recipe:** Quick Examples → Category **Forward** → **Fractional diffusion 1D**
+- **In PINNStudio:** Quick Examples → Category **Forward** → **Fractional diffusion 1D**
 
 **Result (RTX 4090):** $L_2$ = 1.0 × 10⁻⁷ ($t = 0$), 1.4 × 10⁻³ ($t = 0.25$), 5.8 × 10⁻³ ($t = 0.5$), 2.4 × 10⁻³ ($t = 0.75$), 3.3 × 10⁻³ ($t = 1$)
 
@@ -1481,7 +1500,7 @@ $$\Large \frac{\partial u}{\partial t} = 0.4\frac{\partial^2 u}{\partial x^2}, \
 - **Constants:** `a = 0.4`, `L = 1`, `n = 1`
 - **Network:** FNN [2, 20, 20, 20, 1], tanh, Glorot normal
 - **Training:** Adam 20,000 → L-BFGS 15,000; 2,540 domain, 80 boundary, 160 initial points
-- **GUI recipe:** Quick Examples → Category **Forward** (or **Inverse**) → **Heat 1D – Dirichlet**
+- **In PINNStudio:** Quick Examples → Category **Forward** (or **Inverse**) → **Heat 1D – Dirichlet**
 
 The solution decays to about 2% of its initial size by $t = 1$, so the relative error grows over time even though the absolute error stays small.
 
@@ -1520,7 +1539,7 @@ $$\Large \frac{\partial u}{\partial t} = 0.4\frac{\partial^2 u}{\partial x^2}, \
 - **Constants:** `a = 0.4`, `L = 1`, `n = 1`
 - **Network:** FNN [2, 20, 20, 20, 1], tanh, Glorot normal
 - **Training:** Adam 200,000 → L-BFGS 15,000; 2,540 domain, 80 boundary, 160 initial points
-- **GUI recipe:** Quick Examples → Category **Forward** → **Heat 1D – resampling**
+- **In PINNStudio:** Quick Examples → Category **Forward** → **Heat 1D – resampling**
 
 **Result (RTX 4090):** $L_2$ = 1.6 × 10⁻⁴ ($t = 0$), 4.6 × 10⁻⁴ ($t = 0.25$), 5.8 × 10⁻⁴ ($t = 0.5$), 4.1 × 10⁻³ ($t = 0.75$), 1.4 × 10⁻² ($t = 1$)
 
@@ -1548,7 +1567,7 @@ $$\Large \frac{\partial^2 u}{\partial t^2} - \frac{\partial^2 u}{\partial x^2} +
 - **Constants:** `alpha = -1`, `beta = 0`, `gamma = 1`, `k = 2`
 - **Network:** FNN [2, 40, 40, 1], tanh, Glorot uniform
 - **Training:** Adam 20,000 → L-BFGS 15,000; 30,000 domain, 1,500 boundary, 1,500 initial points
-- **GUI recipe:** Quick Examples → Category **Forward** → **Klein-Gordon 1D**
+- **In PINNStudio:** Quick Examples → Category **Forward** → **Klein-Gordon 1D**
 
 **Result (RTX 4090):** $L_2$ = 1.4 × 10⁻³ ($t = 0$), 1.6 × 10⁻² ($t = 2.5$), 8.5 × 10⁻² ($t = 5$), 6.5 × 10⁻² ($t = 7.5$), 8.1 × 10⁻² ($t = 10$)
 
@@ -1573,12 +1592,12 @@ $$\Large \frac{\partial u}{\partial t} + 0.5\frac{\partial^2 v}{\partial x^2} + 
 
 $$\Large \frac{\partial v}{\partial t} - 0.5\frac{\partial^2 u}{\partial x^2} - (u^2 + v^2)\ u = 0$$
 
-- **Solved as:** two real outputs, $h = u + iv$: the second and third equations above are the real and imaginary parts, entered in the GUI as PDE 1 (`du_t + 0.5*dv_xx + (u**2 + v**2)*v`) and PDE 2 (`dv_t - 0.5*du_xx - (u**2 + v**2)*u`)
+- **Solved as:** two real outputs, $h = u + iv$: the second and third equations above are the real and imaginary parts, entered in PINNStudio as PDE 1 (`du_t + 0.5*dv_xx + (u**2 + v**2)*v`) and PDE 2 (`dv_t - 0.5*du_xx - (u**2 + v**2)*u`)
 - **Initial condition:** $h(x, 0) = 2\ \mathrm{sech}(x)$; **boundary conditions:** periodic in $u$, $v$ and their $x$-derivatives
 - **Compared:** $|h| = \sqrt{u^2 + v^2}$ against a Fourier pseudo-spectral (split-step) solution in [`reference_data/1D/schrodinger`](reference_data/1D/schrodinger), made by [`tools/make_exact_reference_data.py`](tools/make_exact_reference_data.py)
 - **Network:** FNN [2, 100, 100, 100, 100, 2], tanh, Glorot normal
 - **Training:** Adam 10,000 → L-BFGS 10,000; 10,000 domain, 20 boundary, 200 initial points
-- **GUI recipe:** Quick Examples → Category **Forward** (or **Inverse**) → **Schrödinger 1D**
+- **In PINNStudio:** Quick Examples → Category **Forward** (or **Inverse**) → **Schrödinger 1D**
 
 **Result (RTX 4090):** $L_2$ of $|h|$ = 1.5 × 10⁻³ ($t = 0$), 1.1 × 10⁻³ ($t = 0.25$), 1.1 × 10⁻³ ($t = 0.5$), 1.3 × 10⁻³ ($t = 0.75$), 1.4 × 10⁻³ ($t = 1$), 1.0 × 10⁻³ ($t = 1.25$), 1.7 × 10⁻³ ($t = 1.5$)
 
@@ -1619,7 +1638,7 @@ $$\Large \frac{\partial^2 u}{\partial t^2} = C^2\frac{\partial^2 u}{\partial x^2
 - **Constants:** `A = 2`, `C = 10`
 - **Network:** STMsFFN [2, 100, 100, 100, 1], Fourier scales σ = 1, time scales 1, 10, tanh, Glorot uniform
 - **Training:** Adam 10,000; 360 domain, 360 boundary, 360 initial points
-- **GUI recipe:** Quick Examples → Category **Forward** → **Wave 1D – space-time multi-scale Fourier features**
+- **In PINNStudio:** Quick Examples → Category **Forward** → **Wave 1D – space-time multi-scale Fourier features**
 
 Collocation points are redrawn every iteration from a pseudo-random distribution. DeepXDE's script keeps the default Hammersley distribution, which is deterministic, so its resampler redraws the same 360 points: run that way, the network fits them (training loss 4 × 10⁻⁵) but not the wave in between (test loss near 1, $L_2$ ≈ 1 for t > 0). This is a hard problem in 10,000 iterations — the error grows with t; longer training improves it.
 
@@ -1647,7 +1666,7 @@ $$\Large \frac{\partial u}{\partial t} = C\frac{\partial^2 u}{\partial x^2} - e^
 - **Exact solution:** $u = e^{-t}\sin(\pi x)$
 - **Network:** FNN [2, 32, 32, 32, 1], tanh, Glorot uniform
 - **Training:** Adam 50,000; 40 domain, 20 boundary, 10 initial points
-- **GUI recipe:** Quick Examples → Category **Inverse** → **Diffusion 1D – unknown coefficient**
+- **In PINNStudio:** Quick Examples → Category **Inverse** → **Diffusion 1D – unknown coefficient**
 
 **Result (RTX 4090):** $C$ = 0.9988 (true 1); $L_2$ = 1.2 × 10⁻³ ($t = 0$), 1.8 × 10⁻³ ($t = 0.25$), 1.9 × 10⁻³ ($t = 0.5$), 2.8 × 10⁻³ ($t = 0.75$), 3.1 × 10⁻³ ($t = 1$)
 
@@ -1677,7 +1696,7 @@ $$\Large \frac{\partial C_A}{\partial t} = D\frac{\partial^2 C_A}{\partial x^2} 
 - **Data:** $C_A$ and $C_B$ on a space-time grid, computed by `tools/make_deepxde_reference_data.py`
 - **Network:** FNN [2, 20, 20, 20, 2], tanh, Glorot uniform
 - **Training:** Adam 80,000; 2,000 domain, 100 boundary, 100 initial points
-- **GUI recipe:** Quick Examples → Category **Inverse** → **Diffusion-reaction 1D – unknown k_f, D**
+- **In PINNStudio:** Quick Examples → Category **Inverse** → **Diffusion-reaction 1D – unknown k_f, D**
 
 **Result (RTX 4090):** $k_f$ = 0.0992 (true 0.1), $D$ = 1.995 (true 2)
 
@@ -1709,7 +1728,7 @@ $$\Large -(-\Delta)^{\alpha/2}u = 2^{\alpha}\Gamma(2 + \tfrac{\alpha}{2})\Gamma(
 - **Constants:** `alpha = 1.8`
 - **Network:** FNN [2, 20, 20, 20, 20, 1], tanh, Glorot normal
 - **Training:** Adam 20,000; 100 domain points
-- **GUI recipe:** Quick Examples → Category **Forward** → **Fractional Poisson 2D – disk**
+- **In PINNStudio:** Quick Examples → Category **Forward** → **Fractional Poisson 2D – disk**
 
 **Result (RTX 4090):** $L_2$ = 3.1 × 10⁻³
 
@@ -1731,7 +1750,7 @@ $$\Large -\nabla^2 u - k_0^2 u = k_0^2\sin(k_0 x)\sin(k_0 y), \qquad k_0 = 4\pi,
 - **Constants:** `n = 2`, `k0 = 2*pi*n`
 - **Network:** FNN [2, 150, 150, 150, 1], sin, Glorot uniform
 - **Training:** Adam 5,000; 400 domain, 80 boundary points
-- **GUI recipe:** Quick Examples → Category **Forward** → **Helmholtz 2D – Dirichlet**
+- **In PINNStudio:** Quick Examples → Category **Forward** → **Helmholtz 2D – Dirichlet**
 
 **Result (RTX 4090):** $L_2$ = 1.9 × 10⁻³
 
@@ -1755,7 +1774,7 @@ $$\Large -\nabla^2 u - k_0^2 u = k_0^2\sin(k_0 x)\sin(k_0 y), \qquad k_0 = 4\pi,
 - **Constants:** `n = 2`, `k0 = 2*pi*n`
 - **Network:** FNN [2, 50, 50, 50, 50, 1], sin, Glorot uniform
 - **Training:** Adam 10,000; 400 domain, 80 boundary points
-- **GUI recipe:** Quick Examples → Category **Forward** → **Helmholtz 2D – hyperparameter search**
+- **In PINNStudio:** Quick Examples → Category **Forward** → **Helmholtz 2D – hyperparameter search**
 
 **Result (RTX 4090):** the baseline (lr $10^{-3}$, 4 × 50, sin) ends at final loss 5.7 ($L_2$ = 3.3 × 10⁻¹); the best of the 50 runs — lr $1.5\times10^{-3}$, 3 hidden layers of 87, sin — reaches final loss 0.020 and **$L_2$ = 1.3 × 10⁻³** (about 40 minutes for all 50 runs)
 
@@ -1784,7 +1803,7 @@ $$\Large -\nabla^2 u - k_0^2 u = 0, \qquad u = u_{re} + i\ u_{im},\ k_0 = 2$$
 - **Constants:** `k0 = 2`, `R = pi/4`
 - **Network:** FNN [2, 350, 350, 350, 2], tanh, Glorot uniform
 - **Training:** Adam 10,000; 1,600 domain, 320 boundary points
-- **GUI recipe:** Quick Examples → Category **Forward** → **Helmholtz 2D – sound-hard scattering**
+- **In PINNStudio:** Quick Examples → Category **Forward** → **Helmholtz 2D – sound-hard scattering**
 
 **Result (RTX 4090):** $L_2$ = 7.8 × 10⁻² ($u_{re}$), 6.7 × 10⁻² ($u_{im}$) — DeepXDE's own script, run unchanged on the same GPU, ends at 9.1 × 10⁻² (best 7.1 × 10⁻²)
 
@@ -1811,7 +1830,7 @@ $$\Large -\nabla^2 u - k_0^2 u = k_0^2\sin(k_0 x)\sin(k_0 y), \qquad k_0 = 2\pi$
 - **Constants:** `n = 1`, `k0 = 2*pi*n`, `R = 1/4`
 - **Network:** FNN [2, 350, 350, 350, 1], sin, Glorot uniform
 - **Training:** Adam 5,000; 225 domain, 240 boundary points
-- **GUI recipe:** Quick Examples → Category **Forward** → **Helmholtz 2D – square with hole**
+- **In PINNStudio:** Quick Examples → Category **Forward** → **Helmholtz 2D – square with hole**
 
 **Result (RTX 4090):** $L_2$ = 4.6 × 10⁻²
 
@@ -1834,7 +1853,7 @@ $$\Large r\frac{\partial u}{\partial r} + r^2\frac{\partial^2 u}{\partial r^2} +
 - **In PINNStudio:** $x$ plays $r$ and $y$ plays $\theta$, so the plots show the $(r, \theta)$ rectangle
 - **Network:** FNN [2, 20, 20, 20, 1], tanh, Glorot normal
 - **Training:** Adam 15,000; 2,540 domain, 80 boundary points
-- **GUI recipe:** Quick Examples → Category **Forward** → **Laplace 2D – disk**
+- **In PINNStudio:** Quick Examples → Category **Forward** → **Laplace 2D – disk**
 
 **Result (RTX 4090):** $L_2$ = 1.1 × 10⁻³
 
@@ -1860,7 +1879,7 @@ $$\Large \sigma_{xx} = (\lambda + 2\mu)\varepsilon_{xx} + \lambda\varepsilon_{yy
 - **Constants:** `lmbd = 1`, `mu = 0.5`, `Q = 4`
 - **Network:** PFNN, a separate [40, 40, 40, 40] subnetwork for each of the 5 outputs, tanh, Glorot uniform
 - **Training:** Adam 20,000 → L-BFGS 20,000; 500 domain, 500 boundary points
-- **GUI recipe:** Quick Examples → Category **Forward** → **Linear elasticity 2D – plate**
+- **In PINNStudio:** Quick Examples → Category **Forward** → **Linear elasticity 2D – plate**
 
 **Note — more training than DeepXDE's script.** DeepXDE's script trains 5,000 Adam iterations, which are not enough for this problem: with exactly those settings the $L_2$ errors are 3.5 × 10⁻¹, 5.9 × 10⁻¹, 1.9 × 10⁻¹, 4.8 × 10⁻¹ and 1.6 for $u_x, u_y, \sigma_{xx}, \sigma_{yy}, \sigma_{xy}$ (DeepXDE's own script, run unchanged on the same GPU, also ends at 3.3 × 10⁻¹–3.6 × 10⁻¹). This example therefore trains **20,000 Adam + 20,000 L-BFGS iterations** (Training Phases 1 and 2; about 9 minutes on an RTX 4090), and the results below are for these settings.
 
@@ -1900,7 +1919,7 @@ $$\Large \frac{\partial \sigma_{xx}}{\partial x} + \frac{\partial \sigma_{xy}}{\
 - **Constants:** `lmbd = 1`, `mu = 0.5`, `Q = 4`
 - **Network:** PFNN, a separate [40, 40, 40, 40] subnetwork for each of the 5 outputs, tanh, Glorot uniform
 - **Training:** Adam 20,000 → L-BFGS 20,000; 500 domain, 500 boundary points
-- **GUI recipe:** Quick Examples → Category **Forward** → **Linear elasticity 2D – plate, soft BCs**
+- **In PINNStudio:** Quick Examples → Category **Forward** → **Linear elasticity 2D – plate, soft BCs**
 
 **Note — more training than DeepXDE's script.** As for the plate above, DeepXDE's 5,000 Adam iterations are not enough ($L_2$ errors 2 × 10⁻²–8 × 10⁻² with exactly those settings), so this example trains **20,000 Adam + 20,000 L-BFGS iterations** (about 7 minutes on an RTX 4090); the results below are for these settings. With soft boundary conditions the plate trains more easily than with the hard output transform.
 
@@ -1941,7 +1960,7 @@ $$\Large (\mathbf u\cdot\nabla)\mathbf u + \nabla p = \frac{1}{Re}\nabla^2\mathb
 - **Constants:** `Re = 20`, `nu = 1/Re`, `l = 1/(2*nu) - sqrt(1/(4*nu**2) + 4*pi**2)`
 - **Network:** FNN [2, 50, 50, 50, 50, 3], tanh, Glorot normal
 - **Training:** Adam 30,000 → L-BFGS 15,000; 2,601 domain, 400 boundary points
-- **GUI recipe:** Quick Examples → Category **Forward** → **Navier-Stokes 2D – Kovasznay flow**
+- **In PINNStudio:** Quick Examples → Category **Forward** → **Navier-Stokes 2D – Kovasznay flow**
 
 **Result (RTX 4090):** $L_2$ = 2.1 × 10⁻⁴ ($u$), 9.0 × 10⁻⁴ ($v$), 5.4 × 10⁻⁴ ($p$)
 
@@ -1964,7 +1983,7 @@ $$\Large -\frac{\partial^2 u}{\partial x^2} - \frac{\partial^2 u}{\partial y^2} 
 
 - **Boundary conditions:** Dirichlet, $u = 0$ on the boundary circle
 - **Geometry:** Disk, center $(0,0)$, radius $1$
-- **GUI recipe:** Quick Examples → Category **Forward** (or **Inverse**) → **Poisson 2D – disk**
+- **In PINNStudio:** Quick Examples → Category **Forward** (or **Inverse**) → **Poisson 2D – disk**
 
 A companion to the L-Shape template above, on a smooth (curved, non-singular) boundary instead.
 
@@ -1983,7 +2002,7 @@ $$\Large -\nabla^2 u = 1, \qquad \Omega = [-1, 1]^2 \setminus [0, 1]\times[-1, 0
 - **Geometry:** Polygon (L-shape)
 - **Network:** FNN [2, 50, 50, 50, 50, 1], tanh, Glorot uniform
 - **Training:** Adam 50,000 → L-BFGS 15,000; 1,200 domain, 120 boundary points
-- **GUI recipe:** Quick Examples → Category **Forward** → **Poisson 2D – L-shape**
+- **In PINNStudio:** Quick Examples → Category **Forward** → **Poisson 2D – L-shape**
 
 **Result (RTX 4090):** $L_2$ = 3.5 × 10⁻²
 
@@ -2002,7 +2021,7 @@ $$\Large -\frac{\partial^2 u}{\partial x^2} - \frac{\partial^2 u}{\partial y^2} 
 
 - **Boundary conditions:** Dirichlet, $u = 0$ on the whole boundary
 - **Geometry:** Polygon, vertices $(0,0), (1,0), (1,-1), (-1,-1), (-1,1), (0,1)$
-- **GUI recipe:** Quick Examples → Category **Forward** (or **Inverse**) → **Poisson 2D – L-shape, Lu et al.**
+- **In PINNStudio:** Quick Examples → Category **Forward** (or **Inverse**) → **Poisson 2D – L-shape, Lu et al.**
 
 The re-entrant corner at the origin produces a solution singularity that's a standard stress-test for numerical solvers, PINNs included.
 
@@ -2023,7 +2042,7 @@ $$\Large -(-\Delta)^{\alpha/2}u = 2^{\alpha_0}\Gamma(2 + \tfrac{\alpha_0}{2})\Ga
 - **Constants:** `a0 = 1.8`
 - **Network:** FNN [2, 20, 20, 20, 20, 1], tanh, Glorot normal
 - **Training:** Adam 10,000; 64 domain points
-- **GUI recipe:** Quick Examples → Category **Inverse** → **Fractional Poisson 2D – unknown order α**
+- **In PINNStudio:** Quick Examples → Category **Inverse** → **Fractional Poisson 2D – unknown order α**
 
 **Result (RTX 4090):** $\alpha$ = 1.805 (true 1.8); $L_2$ of $u$ = 1.9 × 10⁻³
 
@@ -2050,7 +2069,7 @@ where $c_1^2 = 0.0001$ and $c_2 = 1$.
 - **Boundary conditions:** Periodic
 - **Geometry:** Rectangle
 - **Time-Adaptive default:** on — $t \in [0,1]$ split into 4 steps of 0.25, L-BFGS transfer learning between steps
-- **GUI recipe:** Quick Examples → Category **Forward** (or **Inverse**) → **Allen-Cahn 2D – Mattey & Ghosh**
+- **In PINNStudio:** Quick Examples → Category **Forward** (or **Inverse**) → **Allen-Cahn 2D – Mattey & Ghosh**
 
 ![2D Allen-Cahn (Mattey & Ghosh) — PINN vs Ground Truth, Error Analysis surface comparison](assets/Images/2D_Allen_Cahn_Mattey/surface_comparison.png)
 
@@ -2077,7 +2096,7 @@ where $\lambda = 10$ and $\varepsilon = 0.025$, matching the paper's own values 
 - **Boundary conditions:** Periodic
 - **Geometry:** Rectangle
 - **Time-Adaptive default:** on — $t \in [0,10]$ is a wide window for a single pass, so this template splits it into 10 steps of 1 (`0→1, 1→2, ..., 9→10`), L-BFGS transfer learning between steps
-- **GUI recipe:** Quick Examples → Category **Forward** (or **Inverse**) → **Allen-Cahn 2D – Wight & Zhao**
+- **In PINNStudio:** Quick Examples → Category **Forward** (or **Inverse**) → **Allen-Cahn 2D – Wight & Zhao**
 
 ![2D Allen-Cahn (Wight & Zhao) — PINN vs Ground Truth, Error Analysis surface comparison](assets/Images/2D_AllenCahn-Wight/surface_comparison.png)
 
@@ -2111,7 +2130,7 @@ $(x, y) \in [0, 1]^2$, $t \in [0, 1]$
 - **Geometry:** Rectangle
 - **Network:** 4 hidden layers × 128 neurons — wider than PINNStudio's global default (3 × 64), which gave better results for this coupled two-output velocity field
 - **Time-Adaptive default:** on — $t \in [0,1]$ split into 4 steps of 0.25, L-BFGS transfer learning between steps
-- **GUI recipe:** Quick Examples → Category **Forward** (or **Inverse**) → **Burgers 2D – Mathias et al.**
+- **In PINNStudio:** Quick Examples → Category **Forward** (or **Inverse**) → **Burgers 2D – Mathias et al.**
 
 This template reproduces the paper's own PDE, domain, and initial/boundary conditions with PINNStudio's standard soft-constrained loss and plain MLP network — not the paper's own sparse-data augmentation or hard-constrained output layer, which are outside this template's scope.
 
@@ -2157,7 +2176,7 @@ $$\Large \frac{\partial u}{\partial t} = 0.4\left(\frac{\partial^2 u}{\partial x
 - **Initial condition:** $u(x, y, 0) = 0$
 - **Boundary conditions:** Dirichlet $u = 1$ on the $x = 1$ edge; Neumann (insulated) on the other three
 - **Geometry:** Rectangle
-- **GUI recipe:** Quick Examples → Category **Forward** (or **Inverse**) → **Heat 2D**
+- **In PINNStudio:** Quick Examples → Category **Forward** (or **Inverse**) → **Heat 2D**
 
 ![2D Heat — PINN vs Ground Truth, Error Analysis surface comparison](assets/Images/2D-Heat/surface_comparison.png)
 
@@ -2188,7 +2207,7 @@ $$\Large -(-\Delta)^{\alpha/2}u = \frac{2^{\alpha}\Gamma(2 + \frac{\alpha}{2})\G
 - **Constants:** `alpha = 1.8`
 - **Network:** FNN [3, 20, 20, 20, 20, 1], tanh, Glorot normal
 - **Training:** Adam 10,000; 256 domain points
-- **GUI recipe:** Quick Examples → Category **Forward** → **Fractional Poisson 3D – sphere**
+- **In PINNStudio:** Quick Examples → Category **Forward** → **Fractional Poisson 3D – sphere**
 
 **Result (RTX 4090):** $L_2$ = 7.5 × 10⁻³
 
@@ -2207,7 +2226,7 @@ $$\Large -\frac{\partial^2 u}{\partial x^2} - \frac{\partial^2 u}{\partial y^2} 
 
 - **Boundary conditions:** Dirichlet, $u = 0$ on the boundary sphere
 - **Geometry:** Sphere, center $(0,0,0)$, radius $1$
-- **GUI recipe:** Quick Examples → Category **Forward** (or **Inverse**) → **Poisson 3D – sphere**
+- **In PINNStudio:** Quick Examples → Category **Forward** (or **Inverse**) → **Poisson 3D – sphere**
 
 ![3D Poisson (Sphere) — PINN vs Ground Truth, Error Analysis surface comparison](assets/Images/3D-Poisson-Sphere/surface_comparison.png)
 
@@ -2227,7 +2246,7 @@ $$\Large \frac{\partial u}{\partial t} = 0.4\left(\frac{\partial^2 u}{\partial x
 - **Initial condition:** $u(x, y, z, 0) = 0$
 - **Boundary conditions:** Dirichlet $u = 1$ on the $x = 1$ face; Neumann (insulated) on the other five
 - **Geometry:** Cuboid
-- **GUI recipe:** Quick Examples → Category **Forward** (or **Inverse**) → **Heat 3D**
+- **In PINNStudio:** Quick Examples → Category **Forward** (or **Inverse**) → **Heat 3D**
 
 Time-Adaptive Training is fully supported for this template if you turn it on — see the note on 3D grid resolution under [Time-Adaptive training](#training) in Features before picking a large "IC grid resolution" value.
 
@@ -2255,7 +2274,7 @@ $$\Large \frac{\partial \mathbf u}{\partial t} + (\mathbf u\cdot\nabla)\mathbf u
 - **Exact solution:** e.g. $u = -\left(e^{x}\sin(y + z) + e^{z}\cos(x + y)\right)e^{-t}$
 - **Network:** FNN [4, 50, 50, 50, 50, 4], tanh, Glorot normal
 - **Training:** Adam 30,000 → L-BFGS 15,000; 50,000 domain, 5,000 boundary, 5,000 initial points
-- **GUI recipe:** Quick Examples → Category **Forward** → **Navier-Stokes 3D – Beltrami flow**
+- **In PINNStudio:** Quick Examples → Category **Forward** → **Navier-Stokes 3D – Beltrami flow**
 
 **Why the pressure error is large.** This example is DeepXDE's script without changes: like the script, it gives boundary and initial conditions for the velocity $u, v, w$ only, and none for $p$. The pressure enters the equations only through its gradient $\nabla p$, so $p$ and $p + C$ satisfy them equally well for any constant $C$ — the training has nothing that fixes $C$. The PINN's pressure has the right shape but is shifted by a constant (about 24.7 in this run). The exact pressure decays like $e^{-2t}$ while the shift stays the same, so the relative error of $p$ grows with time: 5.6 at $t = 0$, $5.6\ e^{1} \approx 15$ at $t = 0.5$ and $5.6\ e^{2} \approx 41$ at $t = 1$ — exactly the reported values. DeepXDE's script computes the pressure error too but does not print it; it reports only $u, v, w$. Fixing $p$ at a single point (a Point Set BC row on $p$) would remove the free constant.
 
@@ -2344,9 +2363,9 @@ From here, the same eight steps apply to essentially any PDE expressible with th
 
 ## How It Works
 
-PINNStudio doesn't wrap DeepXDE at runtime — it **generates code**. Every setting in the GUI maps to a field on a `PINNConfig` dataclass ([`pinnstudio/core/config.py`](pinnstudio/core/config.py)); clicking **Solve** passes that config to [`codegen.py`](pinnstudio/core/codegen.py), which writes out a complete, standalone DeepXDE/PyTorch script, and [`runner.py`](pinnstudio/core/runner.py) executes it as a subprocess, streaming stdout back into the Training Log panel in real time.
+PINNStudio is built on [DeepXDE](https://github.com/lululxvi/deepxde) and PyTorch, and it doesn't wrap them at runtime — it **generates code**. Every setting you choose maps to a field on a `PINNConfig` dataclass ([`pinnstudio/core/config.py`](pinnstudio/core/config.py)); clicking **Solve** passes that config to [`codegen.py`](pinnstudio/core/codegen.py), which writes out a complete, standalone DeepXDE/PyTorch script, and [`runner.py`](pinnstudio/core/runner.py) executes it as a subprocess, streaming stdout back into the Training Log panel in real time.
 
-Because the output of every run is an ordinary Python script, you can take it and run it outside the GUI, hand it to a cluster job, or use it as a starting point for a hand-written DeepXDE project.
+Because the output of every run is an ordinary Python script, you can take it and run it outside PINNStudio, hand it to a cluster job, or use it as a starting point for a hand-written DeepXDE project.
 
 ## Citation
 
