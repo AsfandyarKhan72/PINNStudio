@@ -12,7 +12,7 @@
 </p>
 
 <p align="center">
-  <em>One PDE, three dimensions — the same panel drives all of them, solved and visualized entirely within PINNStudio.</em>
+  <em>Three of the 60 built-in examples — Schrödinger in 1D, Allen-Cahn in 2D and heat in 3D — trained and animated in PINNStudio. Click one to see its setup and results.</em>
 </p>
 
 <table>
