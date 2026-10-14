@@ -18,8 +18,8 @@
 <table>
 <tr>
 <td width="33%" align="center">
-<img src="assets/Images/Top_GIFs/1D_Burger.gif" alt="PINNStudio — 1D Burgers PINN solution animated over time" width="100%">
-<sub><strong>1D</strong> — <code>(x, t)</code> — <a href="https://doi.org/10.1016/j.jcp.2018.10.045">Burgers</a></sub>
+<img src="assets/Images/Top_GIFs/1D_Schrodinger.gif" alt="PINNStudio — 1D Schrödinger PINN solution |h| animated over time" width="100%">
+<sub><strong>1D</strong> — <code>(x, t)</code> — <a href="https://doi.org/10.1016/j.jcp.2018.10.045">Schrödinger</a></sub>
 </td>
 <td width="33%" align="center">
 <img src="assets/Images/Top_GIFs/2D_Allen_Cahn_Wight.gif" alt="PINNStudio — 2D Allen-Cahn (Wight & Zhao) PINN solution animated over time" width="100%">
