@@ -18,16 +18,16 @@
 <table>
 <tr>
 <td width="33%" align="center">
-<img src="assets/Images/Top_GIFs/1D_Schrodinger.gif" alt="PINNStudio — 1D Schrödinger PINN solution |h| animated over time" width="100%">
-<sub><strong>1D</strong> — <code>(x, t)</code> — <a href="https://doi.org/10.1016/j.jcp.2018.10.045">Schrödinger</a></sub>
+<a href="#dx-schr-dinger-equation"><img src="assets/Images/Top_GIFs/1D_Schrodinger.gif" alt="PINNStudio — 1D Schrödinger PINN solution |h| animated over time" width="100%"></a>
+<sub><strong>1D</strong> — <code>(x, t)</code> — <a href="#dx-schr-dinger-equation">Schrödinger</a></sub>
 </td>
 <td width="33%" align="center">
-<img src="assets/Images/Top_GIFs/2D_Allen_Cahn_Wight.gif" alt="PINNStudio — 2D Allen-Cahn (Wight & Zhao) PINN solution animated over time" width="100%">
-<sub><strong>2D</strong> — <code>(x, y, t)</code> — <a href="https://doi.org/10.4208/cicp.OA-2020-0086">Allen-Cahn (Wight & Zhao)</a></sub>
+<a href="#2d-allen-cahn-wight--zhao"><img src="assets/Images/Top_GIFs/2D_Allen_Cahn_Wight.gif" alt="PINNStudio — 2D Allen-Cahn (Wight & Zhao) PINN solution animated over time" width="100%"></a>
+<sub><strong>2D</strong> — <code>(x, y, t)</code> — <a href="#2d-allen-cahn-wight--zhao">Allen-Cahn (Wight & Zhao)</a></sub>
 </td>
 <td width="33%" align="center">
-<img src="assets/Images/Top_GIFs/3D_Heat.gif" alt="PINNStudio — 3D Heat PINN solution animated over time" width="100%">
-<sub><strong>3D</strong> — <code>(x, y, z, t)</code> — Heat</sub>
+<a href="#3d-heat"><img src="assets/Images/Top_GIFs/3D_Heat.gif" alt="PINNStudio — 3D Heat PINN solution animated over time" width="100%"></a>
+<sub><strong>3D</strong> — <code>(x, y, z, t)</code> — <a href="#3d-heat">Heat</a></sub>
 </td>
 </tr>
 </table>

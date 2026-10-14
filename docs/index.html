@@ -93,6 +93,8 @@
   .stats b { color: var(--text); font-size: 20px; display: block; letter-spacing: -0.01em; }
 
   .gif-strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 44px; }
+  .gif-link, .gif-link:hover { text-decoration: none; color: inherit; display: block; }
+  .gif-link:hover figure { border-color: var(--accent); }
   .gif-strip figure { margin: 0; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
   .gif-strip img { display: block; width: 100%; aspect-ratio: 1 / 1; object-fit: contain; background: #fff; }
   .gif-strip figcaption { padding: 8px 12px; font-size: 13px; color: var(--text-dim); }
@@ -197,18 +199,18 @@
     </div>
 
     <div class="gif-strip">
-      <figure>
+      <a class="gif-link" href="https://github.com/AsfandyarKhan72/PINNStudio#dx-schr-dinger-equation"><figure>
         <img src="assets/1D_Schrodinger.gif" alt="Schrödinger equation in 1D: PINN solution |h| over time" loading="lazy">
         <figcaption><b>1D</b> · Schrödinger equation</figcaption>
-      </figure>
-      <figure>
+      </figure></a>
+      <a class="gif-link" href="https://github.com/AsfandyarKhan72/PINNStudio#2d-allen-cahn-wight--zhao"><figure>
         <img src="assets/2D_Allen_Cahn_Wight.gif" alt="Allen-Cahn equation in 2D: PINN solution over time" loading="lazy">
         <figcaption><b>2D</b> · Allen-Cahn equation</figcaption>
-      </figure>
-      <figure>
+      </figure></a>
+      <a class="gif-link" href="https://github.com/AsfandyarKhan72/PINNStudio#3d-heat"><figure>
         <img src="assets/3D_Heat.gif" alt="Heat equation in 3D: PINN solution over time" loading="lazy">
         <figcaption><b>3D</b> · Heat equation</figcaption>
-      </figure>
+      </figure></a>
     </div>
   </div>
 </header>
