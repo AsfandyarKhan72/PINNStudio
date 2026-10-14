@@ -1054,6 +1054,13 @@ class MainWindow(QMainWindow):
         nout_row.addWidget(self.integral_points_spin)
         self.integral_points_label.setVisible(False)
         self.integral_points_spin.setVisible(False)
+        # "Show derivative reference" sits on this row, after Equations; its
+        # hint text (self.pde_hint) opens below the Constants row.
+        nout_row.addSpacing(12)
+        self.pde_hint_toggle = QCheckBox("📖 Show derivative reference")
+        self.pde_hint_toggle.setChecked(False)
+        self._register_hint(self.pde_hint_toggle, '#74c0fc')
+        nout_row.addWidget(self.pde_hint_toggle)
         nout_row.addStretch()
         pde_outer_layout.addLayout(nout_row)
 
@@ -1090,13 +1097,6 @@ class MainWindow(QMainWindow):
         # here, kept up to date (text only, dimension/output-count can
         # change what it says) by _build_pde_inputs() below, never itself
         # torn down or recreated.
-        pde_ref_row = QHBoxLayout()
-        self.pde_hint_toggle = QCheckBox("📖 Show derivative reference")
-        self.pde_hint_toggle.setChecked(False)
-        self._register_hint(self.pde_hint_toggle, '#74c0fc')
-        pde_ref_row.addWidget(self.pde_hint_toggle)
-        pde_ref_row.addStretch()
-        pde_outer_layout.addLayout(pde_ref_row)
 
         self.pde_hint = QLabel("")
         self._register_hint(self.pde_hint, '#74c0fc')
@@ -1924,42 +1924,52 @@ class MainWindow(QMainWindow):
         self.ic_pretrain_train_fields_widget = QWidget()
         ic_train_fields_layout = QVBoxLayout(self.ic_pretrain_train_fields_widget)
         ic_train_fields_layout.setSpacing(4); ic_train_fields_layout.setContentsMargins(0, 0, 0, 0)
-        ic_train_fields_layout.addWidget(QLabel("IC pre-train optimizer:"))
+        # Same rows, labels and order as a Training Phase: Optimizer,
+        # Iterations, Learning rate, Learning rate decay, Loss function --
+        # then the two IC-only point counts.
+        ic_opt_row = QHBoxLayout()
+        ic_opt_row.addWidget(QLabel("Optimizer:"))
         self.ic_pretrain_opt = QComboBox()
         self.ic_pretrain_opt.addItem("Adam", "adam")
-        self.ic_pretrain_opt.setFixedHeight(28)
+        self.ic_pretrain_opt.setFixedHeight(26)
         self._fit_combo_width(self.ic_pretrain_opt, min_width=80)
-        ic_train_fields_layout.addWidget(self.ic_pretrain_opt)
-        ic_train_fields_layout.addWidget(QLabel("IC pre-train iterations:"))
+        ic_opt_row.addStretch(); ic_opt_row.addWidget(self.ic_pretrain_opt)
+        ic_train_fields_layout.addLayout(ic_opt_row)
+
+        ic_iter_row = QHBoxLayout()
+        ic_iter_row.addWidget(QLabel("Iterations:"))
         self.ic_pretrain_iters = QSpinBox()
         self.ic_pretrain_iters.setRange(100, 500000)
         self.ic_pretrain_iters.setSingleStep(1000)
         self.ic_pretrain_iters.setValue(20000)
-        self.ic_pretrain_iters.setFixedHeight(28)
-        ic_train_fields_layout.addWidget(self.ic_pretrain_iters)
+        self.ic_pretrain_iters.setFixedHeight(26)
+        ic_iter_row.addStretch(); ic_iter_row.addWidget(self.ic_pretrain_iters)
+        ic_train_fields_layout.addLayout(ic_iter_row)
 
-        # Adam learning rate -- IC pre-training used to silently reuse the
-        # main training's learning rate; it now has its own, so it can be
-        # tuned independently, same as the main Training panel's own LR.
+        # IC pre-training has its own learning rate (it used to silently
+        # reuse the main training's), so it can be tuned independently.
         ic_lr_row = QHBoxLayout()
-        ic_lr_row.addWidget(QLabel("Adam learning rate:"))
+        ic_lr_row.addWidget(QLabel("Learning rate:"))
         self.ic_pretrain_lr = QDoubleSpinBox()
         self.ic_pretrain_lr.setRange(1e-6, 1.0); self.ic_pretrain_lr.setDecimals(6)
         self.ic_pretrain_lr.setSingleStep(0.0001); self.ic_pretrain_lr.setValue(0.001)
-        self.ic_pretrain_lr.setFixedHeight(28); self.ic_pretrain_lr.setFixedWidth(100)
+        self.ic_pretrain_lr.setFixedHeight(26)
         ic_lr_row.addStretch(); ic_lr_row.addWidget(self.ic_pretrain_lr)
         ic_train_fields_layout.addLayout(ic_lr_row)
 
-        # Loss function -- used to be hardcoded to MSE; same option list as
-        # the main Training panel's loss function field.
+        (self.ic_pretrain_decay_widget, self.ic_pretrain_decay_type,
+         self.ic_pretrain_decay_p1, self.ic_pretrain_decay_p2) = self._make_lr_decay_widget()
+        ic_train_fields_layout.addWidget(self.ic_pretrain_decay_widget)
+
+        # Loss function -- same option list as a Training Phase's.
         ic_loss_row = QHBoxLayout()
         ic_loss_row.addWidget(QLabel("Loss function:"))
         self.ic_pretrain_loss_combo = QComboBox()
         self.ic_pretrain_loss_combo.addItems(
             ["MSE", "MAE", "mean l2 relative error",
              "mean absolute percentage error", "softplus"])
-        self.ic_pretrain_loss_combo.setFixedHeight(28)
-        self._fit_combo_width(self.ic_pretrain_loss_combo, min_width=140)
+        self.ic_pretrain_loss_combo.setFixedHeight(26)
+        self._fit_combo_width(self.ic_pretrain_loss_combo, min_width=160)
         ic_loss_row.addStretch(); ic_loss_row.addWidget(self.ic_pretrain_loss_combo)
         ic_train_fields_layout.addLayout(ic_loss_row)
 
@@ -1970,8 +1980,7 @@ class MainWindow(QMainWindow):
         self.ic_pretrain_test.setRange(100, 100000)
         self.ic_pretrain_test.setSingleStep(1000)
         self.ic_pretrain_test.setValue(10000)
-        self.ic_pretrain_test.setFixedHeight(28)
-        self.ic_pretrain_test.setFixedWidth(100)
+        self.ic_pretrain_test.setFixedHeight(26)
         ic_test_row.addStretch(); ic_test_row.addWidget(self.ic_pretrain_test)
         ic_train_fields_layout.addLayout(ic_test_row)
 
@@ -1991,8 +2000,7 @@ class MainWindow(QMainWindow):
         self.ic_pretrain_init.setRange(1, 10000)
         self.ic_pretrain_init.setSingleStep(100)
         self.ic_pretrain_init.setValue(1000)
-        self.ic_pretrain_init.setFixedHeight(28)
-        self.ic_pretrain_init.setFixedWidth(100)
+        self.ic_pretrain_init.setFixedHeight(26)
         ic_init_row.addStretch(); ic_init_row.addWidget(self.ic_pretrain_init)
         ic_train_fields_layout.addWidget(self.ic_pretrain_init_widget)
         ic_pt_layout.addWidget(self.ic_pretrain_train_fields_widget)
@@ -4803,7 +4811,7 @@ class MainWindow(QMainWindow):
         # Only the note: _update_bc_mode_visibility() would also rebuild the
         # loss-weight rows, resetting the example's weights to defaults.
         if hasattr(self, 'custom_bc_note'):
-            self.custom_bc_note.setText(self._bc_note_with_transform(f"Pre-filled from the \"{name}\" example."))
+            self.custom_bc_note.setText(self._bc_note_with_transform(f"Pre-filled from the \"{_ex_catalog.display_name(name)}\" example."))
         # What this example looks like in the panels right after loading --
         # Solve compares against it to log any settings the user changed.
         try:
@@ -5942,7 +5950,7 @@ class MainWindow(QMainWindow):
         else:
             template_name = self.quick_examples_combo.currentText() if hasattr(self, 'quick_examples_combo') else ''
             self.custom_bc_note.setText(self._bc_note_with_transform(
-                f"Pre-filled from the \"{template_name}\" template."))
+                f"Pre-filled from the \"{_ex_catalog.display_name(template_name)}\" example."))
         self.add_custom_bc_btn.setEnabled(True)
         self.add_custom_bc_btn.setToolTip("")
         if hasattr(self, 'weights_main_layout'):
@@ -7224,6 +7232,9 @@ class MainWindow(QMainWindow):
             ic_pretrain_num_test=self.ic_pretrain_test.value(),
             ic_pretrain_num_initial=self.ic_pretrain_init.value(),
             ic_pretrain_lr=self.ic_pretrain_lr.value(),
+            ic_pretrain_decay_type=self.ic_pretrain_decay_type.currentData(),
+            ic_pretrain_decay_p1=self.ic_pretrain_decay_p1.value(),
+            ic_pretrain_decay_p2=self.ic_pretrain_decay_p2.value(),
             ic_pretrain_loss=self.ic_pretrain_loss_combo.currentText(),
             ic_pretrain_restore=self.ic_pretrain_mode_restore.isChecked(),
             ic_pretrain_restore_path=self.ic_pretrain_restore_path.text().strip(),
@@ -7976,6 +7987,10 @@ class MainWindow(QMainWindow):
         self.ic_pretrain_test.setValue(config.ic_pretrain_num_test)
         self.ic_pretrain_init.setValue(config.ic_pretrain_num_initial)
         self.ic_pretrain_lr.setValue(config.ic_pretrain_lr)
+        self._set_combo_data(self.ic_pretrain_decay_type,
+                             getattr(config, "ic_pretrain_decay_type", "none") or "none")
+        self.ic_pretrain_decay_p1.setValue(getattr(config, "ic_pretrain_decay_p1", 5000) or 0)
+        self.ic_pretrain_decay_p2.setValue(getattr(config, "ic_pretrain_decay_p2", 0.9) or 0)
         self.ic_pretrain_loss_combo.setCurrentText(config.ic_pretrain_loss)
         self.ic_pretrain_mode_restore.setChecked(bool(config.ic_pretrain_restore))
         self.ic_pretrain_mode_train.setChecked(not config.ic_pretrain_restore)
@@ -12550,6 +12565,74 @@ print("DOMAIN_PREVIEW_DONE")
                 period=m.get('period', 1000) or 1000,
             )
 
+    def _make_lr_decay_widget(self):
+        """The "Learning rate decay" type combo and its one or two
+        parameters (step size / gamma, T_max / eta min, ...), shared by
+        every Training Phase and by IC-guided pre-training. Returns
+        (widget, type_combo, p1_spin, p2_spin)."""
+        decay_widget = QWidget()
+        decay_layout = QVBoxLayout(decay_widget)
+        decay_layout.setContentsMargins(0, 0, 0, 0)
+        decay_layout.setSpacing(2)
+        decay_type_row = QHBoxLayout()
+        decay_type_row.addWidget(QLabel("Learning rate decay:"))
+        decay_type_combo = QComboBox()
+        decay_type_combo.addItem("None", "none")
+        decay_type_combo.addItem("Step", "step")
+        decay_type_combo.addItem("Cosine", "cosine")
+        decay_type_combo.addItem("Exponential", "exponential")
+        # DeepXDE's "inverse time": lr / (1 + rate * step / steps) (Round 64).
+        decay_type_combo.addItem("Inverse time", "inverse time")
+        decay_type_combo.setFixedHeight(24); decay_type_combo.setFixedWidth(100)
+        decay_type_row.addStretch(); decay_type_row.addWidget(decay_type_combo)
+        decay_layout.addLayout(decay_type_row)
+
+        decay_p1_row = QHBoxLayout()
+        decay_p1_lbl = QLabel("Step size:")
+        decay_p1_row.addWidget(decay_p1_lbl)
+        decay_p1_spin = QDoubleSpinBox()
+        decay_p1_spin.setRange(1, 500000); decay_p1_spin.setDecimals(0)
+        decay_p1_spin.setValue(5000); decay_p1_spin.setFixedHeight(24)
+        decay_p1_row.addStretch(); decay_p1_row.addWidget(decay_p1_spin)
+        decay_layout.addLayout(decay_p1_row)
+
+        decay_p2_row = QHBoxLayout()
+        decay_p2_lbl = QLabel("Gamma:")
+        decay_p2_row.addWidget(decay_p2_lbl)
+        decay_p2_spin = QDoubleSpinBox()
+        decay_p2_spin.setRange(0.0, 1.0); decay_p2_spin.setDecimals(4)
+        decay_p2_spin.setSingleStep(0.01); decay_p2_spin.setValue(0.9)
+        decay_p2_spin.setFixedHeight(24)
+        decay_p2_row.addStretch(); decay_p2_row.addWidget(decay_p2_spin)
+        decay_layout.addLayout(decay_p2_row)
+
+        def _update_decay_fields(_idx=None, c=decay_type_combo, l1=decay_p1_lbl,
+                                  s1=decay_p1_spin, r2=decay_p2_row, l2=decay_p2_lbl,
+                                  s2=decay_p2_spin):
+            kind = c.currentData()
+            if kind == "step":
+                l1.setText("Step size:"); s1.setRange(1, 500000); s1.setDecimals(0)
+                l2.setText("Gamma:"); r2widget_visible = True
+            elif kind == "cosine":
+                l1.setText("T_max (iters):"); s1.setRange(1, 500000); s1.setDecimals(0)
+                l2.setText("Eta min:"); r2widget_visible = True
+            elif kind == "exponential":
+                l1.setText("Gamma:"); s1.setRange(0.0, 1.0); s1.setDecimals(4)
+                r2widget_visible = False
+            elif kind == "inverse time":
+                l1.setText("Decay steps:"); s1.setRange(1, 500000); s1.setDecimals(0)
+                l2.setText("Decay rate:"); r2widget_visible = True
+            else:
+                r2widget_visible = False
+            s1.setVisible(kind != "none"); l1.setVisible(kind != "none")
+            for i in range(r2.count()):
+                item = r2.itemAt(i).widget()
+                if item is not None:
+                    item.setVisible(r2widget_visible)
+        decay_type_combo.currentIndexChanged.connect(_update_decay_fields)
+        _update_decay_fields()
+        return decay_widget, decay_type_combo, decay_p1_spin, decay_p2_spin
+
     def _add_scheduler_phase(self, optimizer='adam', iterations=50000, lr=0.001):
         phase_num = len(self.sched_phase_list) + 1  # phase 1, 2, 3...
         phase_widget = QWidget()
@@ -12610,69 +12693,9 @@ print("DOMAIN_PREVIEW_DONE")
 
         # Learning-rate decay (Adam/AdamW/SGD/RMSprop only — ignored by
         # L-BFGS/NNCG, so hidden together with the learning-rate field)
-        decay_widget = QWidget()
-        decay_layout = QVBoxLayout(decay_widget)
-        decay_layout.setContentsMargins(0, 0, 0, 0)
-        decay_layout.setSpacing(2)
-        decay_type_row = QHBoxLayout()
-        decay_type_row.addWidget(QLabel("Learning rate decay:"))
-        decay_type_combo = QComboBox()
-        decay_type_combo.addItem("None", "none")
-        decay_type_combo.addItem("Step", "step")
-        decay_type_combo.addItem("Cosine", "cosine")
-        decay_type_combo.addItem("Exponential", "exponential")
-        # DeepXDE's "inverse time": lr / (1 + rate * step / steps) (Round 64).
-        decay_type_combo.addItem("Inverse time", "inverse time")
-        decay_type_combo.setFixedHeight(24); decay_type_combo.setFixedWidth(100)
-        decay_type_row.addStretch(); decay_type_row.addWidget(decay_type_combo)
-        decay_layout.addLayout(decay_type_row)
-
-        decay_p1_row = QHBoxLayout()
-        decay_p1_lbl = QLabel("Step size:")
-        decay_p1_row.addWidget(decay_p1_lbl)
-        decay_p1_spin = QDoubleSpinBox()
-        decay_p1_spin.setRange(1, 500000); decay_p1_spin.setDecimals(0)
-        decay_p1_spin.setValue(5000); decay_p1_spin.setFixedHeight(24)
-        decay_p1_row.addStretch(); decay_p1_row.addWidget(decay_p1_spin)
-        decay_layout.addLayout(decay_p1_row)
-
-        decay_p2_row = QHBoxLayout()
-        decay_p2_lbl = QLabel("Gamma:")
-        decay_p2_row.addWidget(decay_p2_lbl)
-        decay_p2_spin = QDoubleSpinBox()
-        decay_p2_spin.setRange(0.0, 1.0); decay_p2_spin.setDecimals(4)
-        decay_p2_spin.setSingleStep(0.01); decay_p2_spin.setValue(0.9)
-        decay_p2_spin.setFixedHeight(24)
-        decay_p2_row.addStretch(); decay_p2_row.addWidget(decay_p2_spin)
-        decay_layout.addLayout(decay_p2_row)
+        decay_widget, decay_type_combo, decay_p1_spin, decay_p2_spin = self._make_lr_decay_widget()
         phase_layout.addWidget(decay_widget)
         decay_widget.setVisible(_lr_capable)
-
-        def _update_decay_fields(_idx=None, c=decay_type_combo, l1=decay_p1_lbl,
-                                  s1=decay_p1_spin, r2=decay_p2_row, l2=decay_p2_lbl,
-                                  s2=decay_p2_spin):
-            kind = c.currentData()
-            if kind == "step":
-                l1.setText("Step size:"); s1.setRange(1, 500000); s1.setDecimals(0)
-                l2.setText("Gamma:"); r2widget_visible = True
-            elif kind == "cosine":
-                l1.setText("T_max (iters):"); s1.setRange(1, 500000); s1.setDecimals(0)
-                l2.setText("Eta min:"); r2widget_visible = True
-            elif kind == "exponential":
-                l1.setText("Gamma:"); s1.setRange(0.0, 1.0); s1.setDecimals(4)
-                r2widget_visible = False
-            elif kind == "inverse time":
-                l1.setText("Decay steps:"); s1.setRange(1, 500000); s1.setDecimals(0)
-                l2.setText("Decay rate:"); r2widget_visible = True
-            else:
-                r2widget_visible = False
-            s1.setVisible(kind != "none"); l1.setVisible(kind != "none")
-            for i in range(r2.count()):
-                item = r2.itemAt(i).widget()
-                if item is not None:
-                    item.setVisible(r2widget_visible)
-        decay_type_combo.currentIndexChanged.connect(_update_decay_fields)
-        _update_decay_fields()
 
         def _update_lr_capable(_idx=None, w1=lr_widget, w2=decay_widget, c=opt_combo):
             capable = c.currentData() not in ("lbfgs", "nncg")

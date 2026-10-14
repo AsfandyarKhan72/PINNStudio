@@ -83,8 +83,8 @@ def main():
               for n in ("x_min", "x_max", "y_min", "y_max", "z_min", "z_max", "t_min", "t_max")),
           "all domain spinboxes keep full precision (pi is not rounded to 3.14)")
     win.x_max.setValue(math.pi)
-    check(abs(win.x_max.value() - math.pi) < 1e-9 and win.x_max.text() == "3.1415926536",
-          f"x_max keeps pi and shows it without padding, got {win.x_max.text()!r}")
+    check(abs(win.x_max.value() - math.pi) < 1e-9 and win.x_max.text() == "π",
+          f"x_max keeps pi and shows it as π, got {win.x_max.text()!r}")
     win.x_max.setValue(1.0)
     check(win.x_max.text() == "1", f"a round value shows without trailing zeros, got {win.x_max.text()!r}")
 

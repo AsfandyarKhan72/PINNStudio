@@ -310,6 +310,11 @@ class PINNConfig:
     ic_pretrain_num_test: int = 10000
     ic_pretrain_num_initial: int = 1000
     ic_pretrain_lr: float = 1e-3
+    # Learning-rate decay for IC pre-training, same choices as a Training
+    # Phase: "none", "step", "cosine", "exponential", "inverse time".
+    ic_pretrain_decay_type: str = "none"
+    ic_pretrain_decay_p1: float = 5000
+    ic_pretrain_decay_p2: float = 0.9
     ic_pretrain_loss: str = "MSE"
     ic_pretrain_restore: bool = False
     ic_pretrain_restore_path: str = ""

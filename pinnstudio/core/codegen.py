@@ -9556,6 +9556,16 @@ def _ic_pretrain_train_code(config, indent, geomtime_var, constraints_var, num_i
     caller's own console-message indent ("  " or "")."""
     p = log_prefix
     rp = repr(config.ic_pretrain_restore_path)
+    _dt = getattr(config, "ic_pretrain_decay_type", "none") or "none"
+    _d1 = getattr(config, "ic_pretrain_decay_p1", 0) or 0
+    _d2 = getattr(config, "ic_pretrain_decay_p2", 0) or 0
+    if _dt in ("step", "cosine", "inverse time"):
+        _ic_decay = (_dt, int(_d1), float(_d2))
+    elif _dt == "exponential":
+        _ic_decay = ("exponential", float(_d1))
+    else:
+        _ic_decay = None
+    _ic_decay_kw = f", decay={_ic_decay!r}" if _ic_decay else ""
     body = f'''def _pde_dummy_pre(x, y):
     return [y[:, _oi_d:_oi_d + 1] * 0 for _oi_d in range({config.num_outputs})]
 _data_pre = dde.data.TimePDE(
@@ -9566,7 +9576,7 @@ _data_pre = dde.data.TimePDE(
     anchors=None,
 )
 _model_pre = dde.Model(_data_pre, {net_expr})
-_model_pre.compile("{config.ic_pretrain_optimizer}", lr={config.ic_pretrain_lr},
+_model_pre.compile("{config.ic_pretrain_optimizer}", lr={config.ic_pretrain_lr}{_ic_decay_kw},
                    loss="{config.ic_pretrain_loss}", loss_weights={weights_expr})
 # Restore-from-checkpoint vs. train-from-scratch -- the two options the GUI's
 # IC Pre-Training panel offers. A checkpoint saved by any copy of this block
