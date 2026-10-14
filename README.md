@@ -852,7 +852,7 @@ where $\gamma_1 = 0.0001$ and $\gamma_2 = 5$.
 - **Time-Adaptive default:** on — $t \in [0,1]$ split into 4 steps of 0.25, L-BFGS transfer learning between steps
 - **In PINNStudio:** Quick Examples → Category **Forward** (or **Inverse**) → **Allen-Cahn 1D – Wight & Zhao**
 
-**Result (RTX 4090):** $L_2$ = 3.8 × 10⁻⁴ ($t = 0$), 1.1 × 10⁻³ ($t = 0.25$), 2.3 × 10⁻³ ($t = 0.5$), 3.5 × 10⁻³ ($t = 0.75$), 7.4 × 10⁻³ ($t = 1$), against a Fourier pseudo-spectral solution (ETDRK4) in [`reference_data/1D/allen_cahn`](reference_data/1D/allen_cahn) (made by [`tools/make_exact_reference_data.py`](tools/make_exact_reference_data.py)). Inverse mode: $\gamma_1$ = 1.20 × 10⁻⁴ (true 1 × 10⁻⁴), $\gamma_2$ = 4.998 (true 5).
+**Result (RTX 4090):** $L_2$ = 1.5 × 10⁻⁴ ($t = 0$), 4.5 × 10⁻⁴ ($t = 0.25$), 1.0 × 10⁻³ ($t = 0.5$), 1.8 × 10⁻³ ($t = 0.75$), 4.8 × 10⁻³ ($t = 1$), against a Fourier pseudo-spectral solution (ETDRK4) in [`reference_data/1D/allen_cahn`](reference_data/1D/allen_cahn) (made by [`tools/make_exact_reference_data.py`](tools/make_exact_reference_data.py)). Inverse mode: $\gamma_1$ = 1.29 × 10⁻⁴ (true 1 × 10⁻⁴), $\gamma_2$ = 5.005 (true 5).
 
 ![1D Allen-Cahn — PINN vs Ground Truth, Error Analysis surface comparison](assets/Images/1D-AllenCahn/surface_comparison.png)
 
@@ -955,7 +955,7 @@ $$\Large \frac{\partial u}{\partial t} + u\frac{\partial u}{\partial x} = \frac{
 
 A shock forms near $x = 0$ as $t \to 1$; this template uses a larger fixed collocation count to resolve it rather than adaptive refinement.
 
-**Result (RTX 4090):** $L_2$ = 1.0 × 10⁻⁴ ($t = 0$), 4.8 × 10⁻⁴ ($t = 0.25$), 7.1 × 10⁻⁴ ($t = 0.5$), 9.6 × 10⁻⁴ ($t = 0.75$), 7.7 × 10⁻⁴ ($t = 1$), against the exact (Cole–Hopf) solution in [`reference_data/1D/burgers`](reference_data/1D/burgers). Inverse mode: $\lambda_1$ = 0.992 (true 1), $\lambda_2$ = 0.01001 (true 0.01; the template writes the viscous term as $\frac{\lambda_2}{\pi}\frac{\partial^2 u}{\partial x^2}$, so $\lambda_2 = 0.01$ is the paper's $0.01/\pi$).
+**Result (RTX 4090):** $L_2$ = 6.0 × 10⁻⁵ ($t = 0$), 3.7 × 10⁻⁴ ($t = 0.25$), 7.2 × 10⁻⁴ ($t = 0.5$), 1.2 × 10⁻³ ($t = 0.75$), 1.3 × 10⁻³ ($t = 1$), against the exact (Cole–Hopf) solution in [`reference_data/1D/burgers`](reference_data/1D/burgers). Inverse mode: $\lambda_1$ = 0.997 (true 1), $\lambda_2$ = 0.01001 (true 0.01; the template writes the viscous term as $\frac{\lambda_2}{\pi}\frac{\partial^2 u}{\partial x^2}$, so $\lambda_2 = 0.01$ is the paper's $0.01/\pi$).
 
 ![1D Burgers — PINN vs Ground Truth, Error Analysis surface comparison](assets/Images/1D-Burgers/surface_comparison.png)
 
@@ -1637,6 +1637,8 @@ $$\Large -\frac{\partial^2 u}{\partial x^2} - \frac{\partial^2 u}{\partial y^2} 
 
 A companion to the L-Shape template above, on a smooth (curved, non-singular) boundary instead.
 
+**Result (RTX 4090):** $L_2$ = 2.8 × 10⁻⁴, against the reference data in [`reference_data/2D/poisson_disk`](reference_data/2D/poisson_disk). Inverse mode: source term = 1.00002 (true 1).
+
 ![2D Poisson (Disk) — PINN vs Ground Truth, Error Analysis surface comparison](assets/Images/2D-Poisson-Disk-Shaped/surface_comparison.png)
 
 </details>
@@ -1674,6 +1676,8 @@ $$\Large -\frac{\partial^2 u}{\partial x^2} - \frac{\partial^2 u}{\partial y^2} 
 - **In PINNStudio:** Quick Examples → Category **Forward** (or **Inverse**) → **Poisson 2D – L-shape, Lu et al.**
 
 The re-entrant corner at the origin produces a solution singularity that's a standard stress-test for numerical solvers, PINNs included.
+
+**Result (RTX 4090):** $L_2$ = 3.5 × 10⁻², against the reference data in [`reference_data/2D/poisson_lshape`](reference_data/2D/poisson_lshape). Inverse mode: source term = 0.99987 (true 1).
 
 ![2D Poisson (L-Shape) — PINN vs Ground Truth, Error Analysis surface comparison](assets/Images/2D-Poisson-L-Shaped/surface_comparison.png)
 
@@ -1721,6 +1725,8 @@ where $c_1^2 = 0.0001$ and $c_2 = 1$.
 - **Time-Adaptive default:** on — $t \in [0,1]$ split into 4 steps of 0.25, L-BFGS transfer learning between steps
 - **In PINNStudio:** Quick Examples → Category **Forward** (or **Inverse**) → **Allen-Cahn 2D – Mattey & Ghosh**
 
+**Result (RTX 4090):** $L_2$ = 6.0 × 10⁻³ ($t = 0$), 5.6 × 10⁻³ ($t = 0.25$), 5.5 × 10⁻³ ($t = 0.5$), 5.6 × 10⁻³ ($t = 0.75$), 6.7 × 10⁻³ ($t = 1$), against the reference data in [`reference_data/2D/allen_cahn_mattey`](reference_data/2D/allen_cahn_mattey). Inverse mode: $c_2$ = 1.050 (true 1); $c_1^2$ = 1.66 × 10⁻⁴ (true 1 × 10⁻⁴) is not recovered — the small diffusion coefficient is only weakly determined by the data, as in the 1D Allen-Cahn template.
+
 ![2D Allen-Cahn (Mattey & Ghosh) — PINN vs Ground Truth, Error Analysis surface comparison](assets/Images/2D_Allen_Cahn_Mattey/surface_comparison.png)
 
 *Restore & Visualize* — the trained model restored from its saved checkpoint and re-animated without retraining:
@@ -1747,6 +1753,8 @@ where $\lambda = 10$ and $\varepsilon = 0.025$, matching the paper's own values 
 - **Geometry:** Rectangle
 - **Time-Adaptive default:** on — $t \in [0,10]$ is a wide window for a single pass, so this template splits it into 10 steps of 1 (`0→1, 1→2, ..., 9→10`), L-BFGS transfer learning between steps
 - **In PINNStudio:** Quick Examples → Category **Forward** (or **Inverse**) → **Allen-Cahn 2D – Wight & Zhao**
+
+**Result (RTX 4090):** $L_2$ = 3.1 × 10⁻⁴ ($t = 0$), 9.3 × 10⁻³ ($t = 2.5$), 2.1 × 10⁻² ($t = 5$), 7.9 × 10⁻³ ($t = 10$), against the reference data in [`reference_data/2D/allen_cahn_wight`](reference_data/2D/allen_cahn_wight). Inverse mode: $\lambda$ = 9.68 (true 10), $\lambda\varepsilon^2$ = 6.07 × 10⁻³ (true 6.25 × 10⁻³).
 
 ![2D Allen-Cahn (Wight & Zhao) — PINN vs Ground Truth, Error Analysis surface comparison](assets/Images/2D_AllenCahn-Wight/surface_comparison.png)
 
@@ -1784,6 +1792,8 @@ $(x, y) \in [0, 1]^2$, $t \in [0, 1]$
 
 This template reproduces the paper's own PDE, domain, and initial/boundary conditions with PINNStudio's standard soft-constrained loss and plain MLP network — not the paper's own sparse-data augmentation or hard-constrained output layer, which are outside this template's scope.
 
+**Result (RTX 4090):** $L_2$ of $U$ = 6.0 × 10⁻⁴ ($t = 0$), 1.9 × 10⁻² ($t = 0.25$), 1.1 × 10⁻² ($t = 0.5$), 1.1 × 10⁻² ($t = 0.75$), 1.1 × 10⁻² ($t = 1$); of $V$ = 4.3 × 10⁻⁴ ($t = 0$), 9.0 × 10⁻³ ($t = 0.25$), 7.5 × 10⁻³ ($t = 0.5$), 5.1 × 10⁻³ ($t = 0.75$), 4.7 × 10⁻³ ($t = 1$), against the reference data in [`reference_data/2D/burgers_mathias`](reference_data/2D/burgers_mathias).
+
 PINN solution animated over time, for each of the two coupled outputs:
 
 <table>
@@ -1814,7 +1824,7 @@ Error Analysis — PINN vs Ground Truth, for each output:
 </tr>
 </table>
 
-*Inverse mode* — same template, switched to **Inverse**, recovering the shared viscosity $\nu$, true value $0.01/\pi$.
+*Inverse mode* — same template, switched to **Inverse**, recovering the shared viscosity $\nu$, true value $0.01/\pi$. This mode does not work yet: $\nu$ ends at 1.46 × 10⁻² instead of 3.18 × 10⁻³, and the $U$ error grows to 1.5 by $t = 1$.
 
 </details>
 
@@ -1827,6 +1837,8 @@ $$\Large \frac{\partial u}{\partial t} = 0.4\left(\frac{\partial^2 u}{\partial x
 - **Boundary conditions:** Dirichlet $u = 1$ on the $x = 1$ edge; Neumann (insulated) on the other three
 - **Geometry:** Rectangle
 - **In PINNStudio:** Quick Examples → Category **Forward** (or **Inverse**) → **Heat 2D**
+
+**Result (RTX 4090):** $L_2$ = 9.1 × 10⁻³ ($t = 0.25$), 1.0 × 10⁻² ($t = 0.5$), 7.9 × 10⁻³ ($t = 0.75$), 3.9 × 10⁻³ ($t = 1$), against the reference data in [`reference_data/2D/heat`](reference_data/2D/heat) ($t = 0$ is left out: the initial condition is $u = 0$, so a relative error there divides by almost nothing). Inverse mode: diffusivity = 0.4005 (true 0.4).
 
 ![2D Heat — PINN vs Ground Truth, Error Analysis surface comparison](assets/Images/2D-Heat/surface_comparison.png)
 
@@ -1878,6 +1890,8 @@ $$\Large -\frac{\partial^2 u}{\partial x^2} - \frac{\partial^2 u}{\partial y^2} 
 - **Geometry:** Sphere, center $(0,0,0)$, radius $1$
 - **In PINNStudio:** Quick Examples → Category **Forward** (or **Inverse**) → **Poisson 3D – sphere**
 
+**Result (RTX 4090):** $L_2$ = 1.5 × 10⁻³, against the reference data in [`reference_data/3D/poisson_sphere`](reference_data/3D/poisson_sphere). Inverse mode: source term = 1.00005 (true 1).
+
 ![3D Poisson (Sphere) — PINN vs Ground Truth, Error Analysis surface comparison](assets/Images/3D-Poisson-Sphere/surface_comparison.png)
 
 *Inverse mode* — same template, switched to **Inverse**, recovering the source term (fixed at $1$ in Forward mode above) as an unknown parameter; the live convergence plot below shows the estimate settling onto its true value during training:
@@ -1899,6 +1913,8 @@ $$\Large \frac{\partial u}{\partial t} = 0.4\left(\frac{\partial^2 u}{\partial x
 - **In PINNStudio:** Quick Examples → Category **Forward** (or **Inverse**) → **Heat 3D**
 
 Time-Adaptive Training is fully supported for this template if you turn it on — see the note on 3D grid resolution under [Time-Adaptive training](#training) in Features before picking a large "IC grid resolution" value.
+
+**Result (RTX 4090):** $L_2$ = 9.0 × 10⁻³ ($t = 0.2$), 5.7 × 10⁻³ ($t = 0.4$), 3.7 × 10⁻³ ($t = 0.6$), 2.8 × 10⁻³ ($t = 0.8$), 2.6 × 10⁻³ ($t = 1$), against the reference data in [`reference_data/3D/heat`](reference_data/3D/heat) ($t = 0$ left out, as for Heat 2D). Inverse mode: diffusivity = 0.4001 (true 0.4).
 
 ![3D Heat solution surface](assets/Images/3D_Heat/3D_Heat_Solution_Surface.png)
 
