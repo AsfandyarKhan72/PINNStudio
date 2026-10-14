@@ -1278,14 +1278,9 @@ class MainWindow(QMainWindow):
         domain_layout = QVBoxLayout(domain_group)
         domain_layout.setSpacing(6)
 
-        self.geom_type_row_widget = QWidget()
-        geom_combo_row = QHBoxLayout(self.geom_type_row_widget)
-        geom_combo_row.setContentsMargins(0, 0, 0, 0)
-        geom_combo_row.addWidget(QLabel("Shape:"))
         self.geometry_type_combo = QComboBox()
         self.geometry_type_combo.setFixedHeight(28)
-        geom_combo_row.addWidget(self.geometry_type_combo)
-        geom_combo_row.addStretch()
+        self.geom_type_row_widget = self._domain_row("Shape:", self.geometry_type_combo)
         self.geom_type_row_widget.setVisible(False)
         domain_layout.addWidget(self.geom_type_row_widget)
         self.geometry_type_combo.currentTextChanged.connect(self._on_geometry_type_changed)
@@ -1304,7 +1299,7 @@ class MainWindow(QMainWindow):
         self.x_row_widget = QWidget()
         x_row = QHBoxLayout(self.x_row_widget)
         x_row.setContentsMargins(0, 0, 0, 0)
-        x_row.addWidget(self._axis_label("x:"))
+        x_row.addWidget(self._domain_label("x:")); x_row.setSpacing(6)
         self.x_min = DomainSpinBox()
         self.x_min.setRange(-1e6, 1e6); self.x_min.setValue(0.0); self.x_min.setSingleStep(0.5)
         self.x_max = DomainSpinBox()
@@ -1321,7 +1316,7 @@ class MainWindow(QMainWindow):
         self.y_row_widget = QWidget()
         y_row = QHBoxLayout(self.y_row_widget)
         y_row.setContentsMargins(0, 0, 0, 0)
-        y_row.addWidget(self._axis_label("y:"))
+        y_row.addWidget(self._domain_label("y:")); y_row.setSpacing(6)
         self.y_min = DomainSpinBox()
         self.y_min.setRange(-1e6, 1e6); self.y_min.setValue(0.0); self.y_min.setSingleStep(0.5)
         self.y_max = DomainSpinBox()
@@ -1334,7 +1329,7 @@ class MainWindow(QMainWindow):
         self.z_row_widget = QWidget()
         z_row = QHBoxLayout(self.z_row_widget)
         z_row.setContentsMargins(0, 0, 0, 0)
-        z_row.addWidget(self._axis_label("z:"))
+        z_row.addWidget(self._domain_label("z:")); z_row.setSpacing(6)
         self.z_min = DomainSpinBox()
         self.z_min.setRange(-1e6, 1e6); self.z_min.setValue(0.0); self.z_min.setSingleStep(0.5)
         self.z_max = DomainSpinBox()
@@ -1345,86 +1340,60 @@ class MainWindow(QMainWindow):
         domain_layout.addWidget(self.z_row_widget)
 
         # -- Disk panel: center (x, y) + radius --
+        self.geom_disk_cx = self._spin(-1e6, 1e6, 0.5)
+        self.geom_disk_cy = self._spin(-1e6, 1e6, 0.5)
+        self.geom_disk_r = self._spin(1e-6, 1e6, 0.5)
         self.geom_panel_disk = QWidget()
-        _p = QHBoxLayout(self.geom_panel_disk); _p.setContentsMargins(0, 0, 0, 0)
-        _p.addWidget(QLabel("center x,y:"))
-        self.geom_disk_cx = DomainSpinBox(); self.geom_disk_cx.setRange(-1e6, 1e6); self.geom_disk_cx.setValue(0.5); self.geom_disk_cx.setSingleStep(0.1)
-        self.geom_disk_cy = DomainSpinBox(); self.geom_disk_cy.setRange(-1e6, 1e6); self.geom_disk_cy.setValue(0.5); self.geom_disk_cy.setSingleStep(0.1)
-        _p.addWidget(self.geom_disk_cx); _p.addWidget(self.geom_disk_cy)
-        _p.addWidget(QLabel("radius:"))
-        self.geom_disk_r = DomainSpinBox(); self.geom_disk_r.setRange(1e-6, 1e6); self.geom_disk_r.setValue(0.5); self.geom_disk_r.setSingleStep(0.1)
-        _p.addWidget(self.geom_disk_r)
+        _p = QVBoxLayout(self.geom_panel_disk); _p.setContentsMargins(0, 0, 0, 0); _p.setSpacing(4)
+        _p.addWidget(self._domain_row("Center:", self.geom_disk_cx, self.geom_disk_cy, tip="Center (x, y)"))
+        _p.addWidget(self._domain_row("Radius:", self.geom_disk_r))
         self.geom_panel_disk.setVisible(False)
         domain_layout.addWidget(self.geom_panel_disk)
 
-        # -- Ellipse panel: center (x, y) + semi-major/minor + angle --
+        # -- Ellipse panel: center (x, y) + semi-axes + rotation angle --
+        self.geom_ellipse_cx = self._spin(-1e6, 1e6, 0.5)
+        self.geom_ellipse_cy = self._spin(-1e6, 1e6, 0.5)
+        self.geom_ellipse_a = self._spin(1e-6, 1e6, 0.5)
+        self.geom_ellipse_b = self._spin(1e-6, 1e6, 0.3)
+        self.geom_ellipse_angle = self._spin(-100, 100, 0.0)
         self.geom_panel_ellipse = QWidget()
         _p = QVBoxLayout(self.geom_panel_ellipse); _p.setContentsMargins(0, 0, 0, 0); _p.setSpacing(4)
-        _row_a = QHBoxLayout()
-        _row_a.addWidget(QLabel("center x,y:"))
-        self.geom_ellipse_cx = DomainSpinBox(); self.geom_ellipse_cx.setRange(-1e6, 1e6); self.geom_ellipse_cx.setValue(0.5); self.geom_ellipse_cx.setSingleStep(0.1)
-        self.geom_ellipse_cy = DomainSpinBox(); self.geom_ellipse_cy.setRange(-1e6, 1e6); self.geom_ellipse_cy.setValue(0.5); self.geom_ellipse_cy.setSingleStep(0.1)
-        _row_a.addWidget(self.geom_ellipse_cx); _row_a.addWidget(self.geom_ellipse_cy)
-        _p.addLayout(_row_a)
-        _row_b = QHBoxLayout()
-        _row_b.addWidget(QLabel("semi-major, semi-minor:"))
-        self.geom_ellipse_a = DomainSpinBox(); self.geom_ellipse_a.setRange(1e-6, 1e6); self.geom_ellipse_a.setValue(0.5); self.geom_ellipse_a.setSingleStep(0.1)
-        self.geom_ellipse_b = DomainSpinBox(); self.geom_ellipse_b.setRange(1e-6, 1e6); self.geom_ellipse_b.setValue(0.3); self.geom_ellipse_b.setSingleStep(0.1)
-        _row_b.addWidget(self.geom_ellipse_a); _row_b.addWidget(self.geom_ellipse_b)
-        _p.addLayout(_row_b)
-        _row_c = QHBoxLayout()
-        _row_c.addWidget(QLabel("angle (rad):"))
-        self.geom_ellipse_angle = DomainSpinBox(); self.geom_ellipse_angle.setRange(-100, 100); self.geom_ellipse_angle.setValue(0.0); self.geom_ellipse_angle.setSingleStep(0.1)
-        _row_c.addWidget(self.geom_ellipse_angle)
-        _p.addLayout(_row_c)
+        _p.addWidget(self._domain_row("Center:", self.geom_ellipse_cx, self.geom_ellipse_cy, tip="Center (x, y)"))
+        _p.addWidget(self._domain_row("Semi-axes:", self.geom_ellipse_a, self.geom_ellipse_b,
+                                      tip="Semi-major and semi-minor axis"))
+        _p.addWidget(self._domain_row("Angle (rad):", self.geom_ellipse_angle,
+                                      tip="Rotation of the major axis from the x axis, in radians"))
         self.geom_panel_ellipse.setVisible(False)
         domain_layout.addWidget(self.geom_panel_ellipse)
 
-        # -- Triangle panel: vertices as "x1,y1;x2,y2;x3,y3" --
-        self.geom_panel_triangle = QWidget()
-        _p = QVBoxLayout(self.geom_panel_triangle); _p.setContentsMargins(0, 0, 0, 0); _p.setSpacing(2)
-        _p.addWidget(QLabel("vertices (x1,y1;x2,y2;x3,y3):"))
+        # -- Triangle / Polygon panels: vertices as "x1,y1;x2,y2;..." --
         self.geom_triangle_verts_input = QLineEdit("0,0;1,0;0,1")
         self.geom_triangle_verts_input.setFixedHeight(26)
-        _p.addWidget(self.geom_triangle_verts_input)
+        self.geom_panel_triangle = self._domain_row(
+            "Vertices:", self.geom_triangle_verts_input,
+            tip="Three vertices as x,y pairs separated by semicolons, e.g. 0,0; 1,0; 0,1")
         self.geom_panel_triangle.setVisible(False)
         domain_layout.addWidget(self.geom_panel_triangle)
 
-        # -- Polygon panel: vertices as "x1,y1;x2,y2;...;xn,yn" --
-        self.geom_panel_polygon = QWidget()
-        _p = QVBoxLayout(self.geom_panel_polygon); _p.setContentsMargins(0, 0, 0, 0); _p.setSpacing(2)
-        _p.addWidget(QLabel("vertices (x1,y1;x2,y2;...), any count ≥ 3:"))
         self.geom_polygon_verts_input = QLineEdit("0,0;1,0;1,1;0,1")
         self.geom_polygon_verts_input.setFixedHeight(26)
-        _p.addWidget(self.geom_polygon_verts_input)
+        self.geom_panel_polygon = self._domain_row(
+            "Vertices:", self.geom_polygon_verts_input,
+            tip="Three or more vertices as x,y pairs separated by semicolons, in order around the boundary, "
+                "e.g. 0,0; 1,0; 1,1; 0,1")
         self.geom_panel_polygon.setVisible(False)
         domain_layout.addWidget(self.geom_panel_polygon)
 
         # -- Sphere panel: center (x, y, z) + radius --
-        # Two rows, not one -- packing "center x,y,z:" + 3 spinboxes +
-        # "radius:" + 1 spinbox into a single QHBoxLayout made this panel's
-        # minimum width wider than the left configuration panel normally
-        # gets, so the radius box (last in the row) was pushed off the
-        # visible edge; stretching the panel to its maximum still didn't
-        # reliably show it depending on window width. Splitting center
-        # and radius onto their own rows keeps each row's own minimum
-        # width well within the left panel's normal width, same fix
-        # philosophy as the Loss/Solution controls row above.
+        self.geom_sphere_cx = self._spin(-1e6, 1e6, 0.5)
+        self.geom_sphere_cy = self._spin(-1e6, 1e6, 0.5)
+        self.geom_sphere_cz = self._spin(-1e6, 1e6, 0.5)
+        self.geom_sphere_r = self._spin(1e-6, 1e6, 0.5)
         self.geom_panel_sphere = QWidget()
         _p = QVBoxLayout(self.geom_panel_sphere); _p.setContentsMargins(0, 0, 0, 0); _p.setSpacing(4)
-        _row_a = QHBoxLayout()
-        _row_a.addWidget(QLabel("center x,y,z:"))
-        self.geom_sphere_cx = DomainSpinBox(); self.geom_sphere_cx.setRange(-1e6, 1e6); self.geom_sphere_cx.setValue(0.5); self.geom_sphere_cx.setSingleStep(0.1)
-        self.geom_sphere_cy = DomainSpinBox(); self.geom_sphere_cy.setRange(-1e6, 1e6); self.geom_sphere_cy.setValue(0.5); self.geom_sphere_cy.setSingleStep(0.1)
-        self.geom_sphere_cz = DomainSpinBox(); self.geom_sphere_cz.setRange(-1e6, 1e6); self.geom_sphere_cz.setValue(0.5); self.geom_sphere_cz.setSingleStep(0.1)
-        _row_a.addWidget(self.geom_sphere_cx); _row_a.addWidget(self.geom_sphere_cy); _row_a.addWidget(self.geom_sphere_cz)
-        _p.addLayout(_row_a)
-        _row_b = QHBoxLayout()
-        _row_b.addWidget(QLabel("radius:"))
-        self.geom_sphere_r = DomainSpinBox(); self.geom_sphere_r.setRange(1e-6, 1e6); self.geom_sphere_r.setValue(0.5); self.geom_sphere_r.setSingleStep(0.1)
-        _row_b.addWidget(self.geom_sphere_r)
-        _row_b.addStretch()
-        _p.addLayout(_row_b)
+        _p.addWidget(self._domain_row("Center:", self.geom_sphere_cx, self.geom_sphere_cy, self.geom_sphere_cz,
+                                      tip="Center (x, y, z)"))
+        _p.addWidget(self._domain_row("Radius:", self.geom_sphere_r))
         self.geom_panel_sphere.setVisible(False)
         domain_layout.addWidget(self.geom_panel_sphere)
 
@@ -1462,7 +1431,7 @@ class MainWindow(QMainWindow):
         self.t_row_widget = QWidget()
         row2 = QHBoxLayout(self.t_row_widget)
         row2.setContentsMargins(0, 0, 0, 0)
-        row2.addWidget(self._axis_label("t:"))
+        row2.addWidget(self._domain_label("t:")); row2.setSpacing(6)
         self.t_min = DomainSpinBox()
         self.t_min.setRange(0.0, 1e6); self.t_min.setValue(0.0); self.t_min.setSingleStep(0.5)
         self.t_max = DomainSpinBox()
@@ -4521,18 +4490,14 @@ class MainWindow(QMainWindow):
 
         # Combine-with-previous op -- hidden for the first shape, which
         # has nothing before it in the list to combine with.
-        op_row_widget = QWidget()
-        op_row = QHBoxLayout(op_row_widget)
-        op_row.setContentsMargins(0, 0, 0, 0)
-        op_row.addWidget(QLabel("Combine:"))
         op_combo = QComboBox()
         for _label, _val in self.CUSTOM_GEOM_OPS:
             op_combo.addItem(_label, _val)
         _op_idx = op_combo.findData(op)
         if _op_idx >= 0:
             op_combo.setCurrentIndex(_op_idx)
-        op_combo.setFixedHeight(24)
-        op_row.addStretch(); op_row.addWidget(op_combo)
+        op_combo.setFixedHeight(26)
+        op_row_widget = self._domain_row("Combine:", op_combo)
         row_layout.addWidget(op_row_widget)
 
         # Shape type -- which primitives are offered depends on the
@@ -4540,124 +4505,67 @@ class MainWindow(QMainWindow):
         # Polygon; 3D: Cuboid/Sphere). The shape list is cleared whenever
         # the dimension changes (see _on_dim_changed), so a row is never
         # built while the "wrong" dimension's primitives would apply.
-        type_row = QHBoxLayout()
-        type_row.addWidget(QLabel("Shape type:"))
         type_combo = QComboBox()
         _is_3d_row = self.radio_3d.isChecked() if hasattr(self, 'radio_3d') else False
         type_combo.addItems(self.CUSTOM_GEOM_SHAPE_TYPES_3D if _is_3d_row else self.CUSTOM_GEOM_SHAPE_TYPES_2D)
         type_combo.setFixedHeight(26)
-        type_row.addStretch(); type_row.addWidget(type_combo)
-        row_layout.addLayout(type_row)
+        self._fit_combo_width(type_combo, min_width=110)
+        row_layout.addWidget(self._domain_row("Shape:", type_combo))
 
-        # Per-type parameter panels -- same fields/defaults as the
-        # top-level Disk/Ellipse/Triangle/Polygon panels above, just
-        # scoped to this one row instead of to the whole Domain group,
-        # since a Custom geometry can hold several shapes of the same
-        # type at once (e.g. two Disks).
-        rect_panel = QWidget()
-        _p = QHBoxLayout(rect_panel); _p.setContentsMargins(0, 0, 0, 0)
-        _p.addWidget(QLabel("x:"))
-        rect_xmin = DomainSpinBox(); rect_xmin.setRange(-1e6, 1e6); rect_xmin.setValue(params.get("x_min", 0.0)); rect_xmin.setSingleStep(0.1)
-        rect_xmax = DomainSpinBox(); rect_xmax.setRange(-1e6, 1e6); rect_xmax.setValue(params.get("x_max", 1.0)); rect_xmax.setSingleStep(0.1)
-        _p.addWidget(rect_xmin); _p.addWidget(QLabel("to")); _p.addWidget(rect_xmax)
-        _p.addWidget(QLabel("y:"))
-        rect_ymin = DomainSpinBox(); rect_ymin.setRange(-1e6, 1e6); rect_ymin.setValue(params.get("y_min", 0.0)); rect_ymin.setSingleStep(0.1)
-        rect_ymax = DomainSpinBox(); rect_ymax.setRange(-1e6, 1e6); rect_ymax.setValue(params.get("y_max", 1.0)); rect_ymax.setSingleStep(0.1)
-        _p.addWidget(rect_ymin); _p.addWidget(QLabel("to")); _p.addWidget(rect_ymax)
-        row_layout.addWidget(rect_panel)
+        # Per-type parameter panels -- same rows as the top-level shape
+        # panels above, scoped to this one shape (a Custom geometry can
+        # hold several shapes of the same type, e.g. two Disks).
+        P = params.get
 
-        disk_panel = QWidget()
-        _p = QHBoxLayout(disk_panel); _p.setContentsMargins(0, 0, 0, 0)
-        _p.addWidget(QLabel("center x,y:"))
-        disk_cx = DomainSpinBox(); disk_cx.setRange(-1e6, 1e6); disk_cx.setValue(params.get("cx", 0.5)); disk_cx.setSingleStep(0.1)
-        disk_cy = DomainSpinBox(); disk_cy.setRange(-1e6, 1e6); disk_cy.setValue(params.get("cy", 0.5)); disk_cy.setSingleStep(0.1)
-        _p.addWidget(disk_cx); _p.addWidget(disk_cy)
-        _p.addWidget(QLabel("radius:"))
-        disk_r = DomainSpinBox(); disk_r.setRange(1e-6, 1e6); disk_r.setValue(params.get("r", 0.2)); disk_r.setSingleStep(0.1)
-        _p.addWidget(disk_r)
-        row_layout.addWidget(disk_panel)
+        def _panel(*rows):
+            w = QWidget()
+            lay = QVBoxLayout(w); lay.setContentsMargins(0, 0, 0, 0); lay.setSpacing(4)
+            for r in rows:
+                lay.addWidget(r)
+            return w
 
-        ellipse_panel = QWidget()
-        _p = QVBoxLayout(ellipse_panel); _p.setContentsMargins(0, 0, 0, 0); _p.setSpacing(4)
-        _row_a = QHBoxLayout()
-        _row_a.addWidget(QLabel("center x,y:"))
-        ell_cx = DomainSpinBox(); ell_cx.setRange(-1e6, 1e6); ell_cx.setValue(params.get("cx", 0.5)); ell_cx.setSingleStep(0.1)
-        ell_cy = DomainSpinBox(); ell_cy.setRange(-1e6, 1e6); ell_cy.setValue(params.get("cy", 0.5)); ell_cy.setSingleStep(0.1)
-        _row_a.addWidget(ell_cx); _row_a.addWidget(ell_cy)
-        _p.addLayout(_row_a)
-        _row_b = QHBoxLayout()
-        _row_b.addWidget(QLabel("semi-major, semi-minor:"))
-        ell_a = DomainSpinBox(); ell_a.setRange(1e-6, 1e6); ell_a.setValue(params.get("a", 0.5)); ell_a.setSingleStep(0.1)
-        ell_b = DomainSpinBox(); ell_b.setRange(1e-6, 1e6); ell_b.setValue(params.get("b", 0.3)); ell_b.setSingleStep(0.1)
-        _row_b.addWidget(ell_a); _row_b.addWidget(ell_b)
-        _p.addLayout(_row_b)
-        _row_c = QHBoxLayout()
-        _row_c.addWidget(QLabel("angle (rad):"))
-        ell_angle = DomainSpinBox(); ell_angle.setRange(-100, 100); ell_angle.setValue(params.get("angle", 0.0)); ell_angle.setSingleStep(0.1)
-        _row_c.addWidget(ell_angle)
-        _p.addLayout(_row_c)
-        row_layout.addWidget(ellipse_panel)
+        rect_xmin, rect_xmax = self._spin(-1e6, 1e6, P("x_min", 0.0)), self._spin(-1e6, 1e6, P("x_max", 1.0))
+        rect_ymin, rect_ymax = self._spin(-1e6, 1e6, P("y_min", 0.0)), self._spin(-1e6, 1e6, P("y_max", 1.0))
+        rect_panel = _panel(self._domain_row("x:", rect_xmin, "to", rect_xmax),
+                            self._domain_row("y:", rect_ymin, "to", rect_ymax))
 
-        tri_panel = QWidget()
-        _p = QVBoxLayout(tri_panel); _p.setContentsMargins(0, 0, 0, 0); _p.setSpacing(2)
-        _p.addWidget(QLabel("vertices (x1,y1;x2,y2;x3,y3):"))
-        tri_verts = QLineEdit(params.get("vertices_text", "0,0;1,0;0,1"))
+        disk_cx, disk_cy = self._spin(-1e6, 1e6, P("cx", 0.5)), self._spin(-1e6, 1e6, P("cy", 0.5))
+        disk_r = self._spin(1e-6, 1e6, P("r", 0.2))
+        disk_panel = _panel(self._domain_row("Center:", disk_cx, disk_cy, tip="Center (x, y)"),
+                            self._domain_row("Radius:", disk_r))
+
+        ell_cx, ell_cy = self._spin(-1e6, 1e6, P("cx", 0.5)), self._spin(-1e6, 1e6, P("cy", 0.5))
+        ell_a, ell_b = self._spin(1e-6, 1e6, P("a", 0.5)), self._spin(1e-6, 1e6, P("b", 0.3))
+        ell_angle = self._spin(-100, 100, P("angle", 0.0))
+        ellipse_panel = _panel(self._domain_row("Center:", ell_cx, ell_cy, tip="Center (x, y)"),
+                               self._domain_row("Semi-axes:", ell_a, ell_b, tip="Semi-major and semi-minor axis"),
+                               self._domain_row("Angle (rad):", ell_angle,
+                                                tip="Rotation of the major axis from the x axis, in radians"))
+
+        tri_verts = QLineEdit(P("vertices_text", "0,0;1,0;0,1"))
         tri_verts.setFixedHeight(26)
-        _p.addWidget(tri_verts)
-        row_layout.addWidget(tri_panel)
+        tri_panel = self._domain_row("Vertices:", tri_verts,
+                                     tip="Three vertices as x,y pairs separated by semicolons, e.g. 0,0; 1,0; 0,1")
 
-        poly_panel = QWidget()
-        _p = QVBoxLayout(poly_panel); _p.setContentsMargins(0, 0, 0, 0); _p.setSpacing(2)
-        _p.addWidget(QLabel("vertices (x1,y1;x2,y2;...), any count ≥ 3:"))
-        poly_verts = QLineEdit(params.get("vertices_text", "0,0;1,0;1,1;0,1"))
+        poly_verts = QLineEdit(P("vertices_text", "0,0;1,0;1,1;0,1"))
         poly_verts.setFixedHeight(26)
-        _p.addWidget(poly_verts)
-        row_layout.addWidget(poly_panel)
+        poly_panel = self._domain_row("Vertices:", poly_verts,
+                                      tip="Three or more vertices as x,y pairs separated by semicolons, "
+                                          "in order around the boundary, e.g. 0,0; 1,0; 1,1; 0,1")
 
-        # -- Cuboid panel (3D): x/y/z ranges, one row each -- same reason
-        # the top-level Sphere panel below splits center/radius onto their
-        # own rows: packing all 6 numbers into one QHBoxLayout pushes the
-        # last field off the visible edge of the narrow left panel.
-        cuboid_panel = QWidget()
-        _p = QVBoxLayout(cuboid_panel); _p.setContentsMargins(0, 0, 0, 0); _p.setSpacing(3)
-        _row_x = QHBoxLayout()
-        _row_x.addWidget(QLabel("x:"))
-        cuboid_xmin = DomainSpinBox(); cuboid_xmin.setRange(-1e6, 1e6); cuboid_xmin.setValue(params.get("x_min", 0.0)); cuboid_xmin.setSingleStep(0.1)
-        cuboid_xmax = DomainSpinBox(); cuboid_xmax.setRange(-1e6, 1e6); cuboid_xmax.setValue(params.get("x_max", 1.0)); cuboid_xmax.setSingleStep(0.1)
-        _row_x.addWidget(cuboid_xmin); _row_x.addWidget(QLabel("to")); _row_x.addWidget(cuboid_xmax)
-        _p.addLayout(_row_x)
-        _row_y = QHBoxLayout()
-        _row_y.addWidget(QLabel("y:"))
-        cuboid_ymin = DomainSpinBox(); cuboid_ymin.setRange(-1e6, 1e6); cuboid_ymin.setValue(params.get("y_min", 0.0)); cuboid_ymin.setSingleStep(0.1)
-        cuboid_ymax = DomainSpinBox(); cuboid_ymax.setRange(-1e6, 1e6); cuboid_ymax.setValue(params.get("y_max", 1.0)); cuboid_ymax.setSingleStep(0.1)
-        _row_y.addWidget(cuboid_ymin); _row_y.addWidget(QLabel("to")); _row_y.addWidget(cuboid_ymax)
-        _p.addLayout(_row_y)
-        _row_z = QHBoxLayout()
-        _row_z.addWidget(QLabel("z:"))
-        cuboid_zmin = DomainSpinBox(); cuboid_zmin.setRange(-1e6, 1e6); cuboid_zmin.setValue(params.get("z_min", 0.0)); cuboid_zmin.setSingleStep(0.1)
-        cuboid_zmax = DomainSpinBox(); cuboid_zmax.setRange(-1e6, 1e6); cuboid_zmax.setValue(params.get("z_max", 1.0)); cuboid_zmax.setSingleStep(0.1)
-        _row_z.addWidget(cuboid_zmin); _row_z.addWidget(QLabel("to")); _row_z.addWidget(cuboid_zmax)
-        _p.addLayout(_row_z)
-        row_layout.addWidget(cuboid_panel)
+        cuboid_xmin, cuboid_xmax = self._spin(-1e6, 1e6, P("x_min", 0.0)), self._spin(-1e6, 1e6, P("x_max", 1.0))
+        cuboid_ymin, cuboid_ymax = self._spin(-1e6, 1e6, P("y_min", 0.0)), self._spin(-1e6, 1e6, P("y_max", 1.0))
+        cuboid_zmin, cuboid_zmax = self._spin(-1e6, 1e6, P("z_min", 0.0)), self._spin(-1e6, 1e6, P("z_max", 1.0))
+        cuboid_panel = _panel(self._domain_row("x:", cuboid_xmin, "to", cuboid_xmax),
+                              self._domain_row("y:", cuboid_ymin, "to", cuboid_ymax),
+                              self._domain_row("z:", cuboid_zmin, "to", cuboid_zmax))
 
-        # -- Sphere panel (3D): center (x,y,z) + radius, same two-row
-        # layout as the top-level Sphere panel.
-        sphere_panel = QWidget()
-        _p = QVBoxLayout(sphere_panel); _p.setContentsMargins(0, 0, 0, 0); _p.setSpacing(4)
-        _row_a = QHBoxLayout()
-        _row_a.addWidget(QLabel("center x,y,z:"))
-        sphere_cx = DomainSpinBox(); sphere_cx.setRange(-1e6, 1e6); sphere_cx.setValue(params.get("cx", 0.5)); sphere_cx.setSingleStep(0.1)
-        sphere_cy = DomainSpinBox(); sphere_cy.setRange(-1e6, 1e6); sphere_cy.setValue(params.get("cy", 0.5)); sphere_cy.setSingleStep(0.1)
-        sphere_cz = DomainSpinBox(); sphere_cz.setRange(-1e6, 1e6); sphere_cz.setValue(params.get("cz", 0.5)); sphere_cz.setSingleStep(0.1)
-        _row_a.addWidget(sphere_cx); _row_a.addWidget(sphere_cy); _row_a.addWidget(sphere_cz)
-        _p.addLayout(_row_a)
-        _row_b = QHBoxLayout()
-        _row_b.addWidget(QLabel("radius:"))
-        sphere_r = DomainSpinBox(); sphere_r.setRange(1e-6, 1e6); sphere_r.setValue(params.get("r", 0.2)); sphere_r.setSingleStep(0.1)
-        _row_b.addWidget(sphere_r)
-        _row_b.addStretch()
-        _p.addLayout(_row_b)
-        row_layout.addWidget(sphere_panel)
+        sphere_cx, sphere_cy = self._spin(-1e6, 1e6, P("cx", 0.5)), self._spin(-1e6, 1e6, P("cy", 0.5))
+        sphere_cz, sphere_r = self._spin(-1e6, 1e6, P("cz", 0.5)), self._spin(1e-6, 1e6, P("r", 0.2))
+        sphere_panel = _panel(self._domain_row("Center:", sphere_cx, sphere_cy, sphere_cz, tip="Center (x, y, z)"),
+                              self._domain_row("Radius:", sphere_r))
+        for _w in (rect_panel, disk_panel, ellipse_panel, tri_panel, poly_panel, cuboid_panel, sphere_panel):
+            row_layout.addWidget(_w)
 
         type_panel_map = {
             "Rectangle": rect_panel, "Disk": disk_panel, "Ellipse": ellipse_panel,
@@ -6852,13 +6760,53 @@ class MainWindow(QMainWindow):
                                        location="left", axis="x",
                                        deriv_order=1, locked=False)
 
-    @staticmethod
-    def _axis_label(text):
-        """"x:", "t:", ... in the Domain panel, all one width so every
-        row's min box starts at the same place."""
+    # Every row of the Domain panel (and of each Custom-geometry shape) is
+    # "label | fields": one label width and one field width throughout, so
+    # the fields line up in a column whatever the shape.
+    DOMAIN_LABEL_WIDTH = 96
+    DOMAIN_FIELD_WIDTH = 85
+
+    def _domain_label(self, text):
         lbl = QLabel(text)
-        lbl.setFixedWidth(22)
+        lbl.setFixedWidth(self.DOMAIN_LABEL_WIDTH)
         return lbl
+
+    def _domain_row(self, label, *items, tip=""):
+        """A Domain-panel row: a fixed-width label, then `items` left to
+        right -- a str becomes a small QLabel (e.g. "to"), a DomainSpinBox
+        gets the shared field width, a QLineEdit stretches to the panel
+        edge. Returns the row's QWidget."""
+        row = QWidget()
+        lay = QHBoxLayout(row)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.setSpacing(6)
+        lbl = self._domain_label(label)
+        if tip:
+            lbl.setToolTip(tip)
+        lay.addWidget(lbl)
+        stretch = True
+        for it in items:
+            if isinstance(it, str):
+                lay.addWidget(QLabel(it))
+                continue
+            if isinstance(it, QDoubleSpinBox):
+                it.setFixedWidth(self.DOMAIN_FIELD_WIDTH)
+            if isinstance(it, QLineEdit):
+                stretch = False
+            if tip:
+                it.setToolTip(tip)
+            lay.addWidget(it)
+        if stretch:
+            lay.addStretch()
+        return row
+
+    @staticmethod
+    def _spin(lo, hi, value, step=0.1):
+        sb = DomainSpinBox()
+        sb.setRange(lo, hi)
+        sb.setValue(value)
+        sb.setSingleStep(step)
+        return sb
 
     def _bc_weight_desc(self, entry):
         """"Dirichlet, u" for a Boundary Conditions row's loss-weight label:
