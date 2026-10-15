@@ -18,6 +18,7 @@ from pinnstudio.core import deepxde_examples as _dx_examples
 from pinnstudio.core import example_catalog as _ex_catalog
 from pinnstudio.core.config import LBFGS_RECOMMENDED
 from pinnstudio.ui.sketch_canvas import SketchPanel
+from pinnstudio.ui import theme as _theme
 REFERENCE_DATA_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
     "reference_data",
@@ -450,10 +451,14 @@ class MainWindow(QMainWindow):
         # window and drag both splitters (see their own setSizes() calls
         # below) afterward exactly as before.
         self.resize(1650, 950)
-        self._font_size = 18
-        self._log_font_size = 18
-        self._theme = "Solarized Dark"
-        self._accent = "Green (#69db7c)"
+        # Every stylesheet a widget sets is translated to the current theme's
+        # colours (see pinnstudio/ui/theme.py).
+        _theme.StyleRemapper.install()
+        self._font_size = 14          # base UI text, px (before the UI scale)
+        self._log_font_size = 13
+        self._ui_scale = 100          # percent
+        self._theme = _theme.DEFAULT_THEME
+        self._accent = "Theme default"
         # Panel border (the outline drawn around each Setup-tab section and
         # the loss/solution figure panels). '' color = keep the existing
         # theme-derived default exactly as before; width 1 matches the
@@ -474,13 +479,15 @@ class MainWindow(QMainWindow):
         # uniformly across the category. self._styled_widgets is the
         # registry of (widget, category, style_fn) used to re-apply these
         # live whenever settings change, without needing to rebuild the UI.
+        # family "" = the system's own UI font (fixed-width for the log);
+        # color "" = the theme's colour for that kind of text.
         self._DISP_CATEGORY_DEFAULTS = {
-            "title":          {"family": "Arial",      "size": 26, "bold": True,  "color": "#ffffff"},
-            "section_header": {"family": "Arial",      "size": 18, "bold": True,  "color": "#ffffff"},
-            "field_label":    {"family": "Segoe UI",    "size": 16, "bold": False, "color": "#ffffff"},
-            "hint":           {"family": "Segoe UI",    "size": 16, "bold": False, "color": "#ffffff"},
-            "button":         {"family": "Segoe UI",    "size": 16, "bold": False, "color": "#ffffff"},
-            "log_console":    {"family": "Arial",       "size": 16, "bold": False, "color": "#ffffff"},
+            "title":          {"family": "", "size": 20, "bold": True,  "color": ""},
+            "section_header": {"family": "", "size": 14, "bold": True,  "color": ""},
+            "field_label":    {"family": "", "size": 14, "bold": False, "color": ""},
+            "hint":           {"family": "", "size": 13, "bold": False, "color": ""},
+            "button":         {"family": "", "size": 14, "bold": False, "color": ""},
+            "log_console":    {"family": "", "size": 13, "bold": False, "color": ""},
         }
         self._disp = {k: dict(v) for k, v in self._DISP_CATEGORY_DEFAULTS.items()}
         self._styled_widgets = []
@@ -544,7 +551,12 @@ class MainWindow(QMainWindow):
                 data = json.load(f)
         except Exception:
             return
+        if int(data.get("style_version", 1) or 1) < 2:
+            # Settings from before the 2026 restyle (18 px fonts, the old
+            # theme list): start from the new defaults instead.
+            return
         try:
+            self._ui_scale = int(data.get("ui_scale", self._ui_scale))
             self._font_size = int(data.get("font_size", self._font_size))
             self._log_font_size = int(data.get("log_font_size", self._log_font_size))
             self._theme = data.get("theme", self._theme)
@@ -572,6 +584,8 @@ class MainWindow(QMainWindow):
             import json
             os.makedirs(os.path.dirname(self._display_settings_path), exist_ok=True)
             payload = {
+                "style_version": 2,
+                "ui_scale": self._ui_scale,
                 "font_size": self._font_size,
                 "log_font_size": self._log_font_size,
                 "theme": self._theme,
@@ -593,15 +607,19 @@ class MainWindow(QMainWindow):
         "leave each widget's own default color alone")."""
         defaults = self._DISP_CATEGORY_DEFAULTS.get(category, {})
         cat = self._disp.get(category, defaults)
-        family = cat.get("family") or defaults.get("family", "Segoe UI")
-        size = cat.get("size") or defaults.get("size", 12)
-        weight = "bold" if cat.get("bold") else "normal"
+        family = cat.get("family") or (_theme.mono_font_family() if category == "log_console"
+                                       else _theme.ui_font_family())
+        size = self._scaled(cat.get("size") or defaults.get("size", 14))
+        weight = "600" if cat.get("bold") else "normal"
         parts = [f"font-family: '{family}', {_CROSS_PLATFORM_FONT_FALLBACK};",
                  f"font-size: {size}px;", f"font-weight: {weight};"]
         color = (cat.get("color") or "").strip()
         if color:
             parts.append(f"color: {color};")
         return " ".join(parts)
+
+    def _scaled(self, px):
+        return max(8, int(round(px * getattr(self, '_ui_scale', 100) / 100.0)))
 
     @staticmethod
     def _add_ok_cancel_row(layout, dialog=None):
@@ -623,6 +641,11 @@ class MainWindow(QMainWindow):
         _register_style(widget, "hint", lambda css, _c=..., _e=...: ...)
         call used to be hand-typed at 58 call sites. Same resulting
         stylesheet ("color: <color>; <extra><Display Settings css>")."""
+        # Informational hints read as quiet text; warning / error / success
+        # colours keep their meaning (theme.remap_css turns them into the
+        # theme's own).
+        if str(color).lower() in ("#a0c4ff", "#74c0fc", "#4dabf7", "#8a8a8a", "#868e96", "#999999", "#adb5bd"):
+            color = "#868e96"
         return self._register_style(widget, "hint", lambda css, _c=color, _e=extra: f"color: {_c}; {_e}{css}")
 
     def _register_section_divider(self, widget, extra=""):
@@ -670,100 +693,7 @@ class MainWindow(QMainWindow):
             self._styled_widgets.remove(entry)
 
     def _apply_theme(self):
-        self.setStyleSheet("""
-            QMainWindow { background: #002b36; }
-            QWidget { background: #002b36; color: #e0e0e0; font-family: 'Segoe UI', 'Helvetica Neue', 'Helvetica', 'Ubuntu', 'Noto Sans', 'DejaVu Sans', 'Arial', sans-serif; font-size: 16px; }
-            QGroupBox {
-                border: 1px solid #c8d2d8;
-                border-radius: 6px;
-                margin-top: 8px;
-                padding-top: 4px;
-                font-weight: bold;
-                color: #a0c4ff;
-            }
-            QGroupBox::title {
-                subcontrol-origin: margin;
-                left: 8px;
-                padding: 0 4px;
-            }
-            QLineEdit, QDoubleSpinBox, QSpinBox, QComboBox {
-                background: #252526;
-                border: 1px solid #3e3e42;
-                border-radius: 4px;
-                padding: 2px 6px;
-                color: #e0e0e0;
-            }
-            QLineEdit:focus, QDoubleSpinBox:focus, QSpinBox:focus, QComboBox:focus {
-                border: 1px solid #a0c4ff;
-            }
-            QSpinBox::up-button, QSpinBox::down-button,
-            QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {
-                background: #586e75;
-                border: none;
-                width: 16px;
-            }
-            QSpinBox::up-arrow, QDoubleSpinBox::up-arrow {
-                border-left: 4px solid transparent;
-                border-right: 4px solid transparent;
-                border-bottom: 6px solid #ffffff;
-                width: 0px; height: 0px;
-            }
-            QSpinBox::down-arrow, QDoubleSpinBox::down-arrow {
-                border-left: 4px solid transparent;
-                border-right: 4px solid transparent;
-                border-top: 6px solid #ffffff;
-                width: 0px; height: 0px;
-            }
-            QComboBox::drop-down {
-                background: #586e75;
-                border: none;
-                width: 20px;
-            }
-            QComboBox::down-arrow {
-                border-left: 4px solid transparent;
-                border-right: 4px solid transparent;
-                border-top: 6px solid #ffffff;
-                width: 0px; height: 0px;
-            }
-            QCheckBox { color: #c0c0c0; spacing: 6px; }
-            QCheckBox::indicator {
-                width: 14px; height: 14px;
-                border: 1px solid #3e3e42;
-                border-radius: 3px;
-                background: #252526;
-            }
-            QCheckBox::indicator:checked { background: #a0c4ff; border-color: #a0c4ff; }
-            QRadioButton { color: #c0c0c0; spacing: 6px; }
-            QRadioButton::indicator {
-                width: 14px; height: 14px;
-                border: 1px solid #3e3e42;
-                border-radius: 7px;
-                background: #252526;
-            }
-            QRadioButton::indicator:checked { background: #a0c4ff; border-color: #a0c4ff; }
-            QLabel { color: #c0c0c0; }
-            QScrollArea { border: none; background: #1e1e1e; }
-            QScrollBar:vertical {
-                background: #252526; width: 14px; border-radius: 6px;
-            }
-            QScrollBar::handle:vertical {
-                background: #586e75; border-radius: 6px; min-height: 30px;
-            }
-
-            QTextEdit {
-                background: #0f0f23;
-                border: 1px solid #3e3e42;
-                border-radius: 6px;
-                color: #a0ffb0;
-                font-family: 'Courier New', monospace;
-                font-size: 11px;
-            }
-            QSplitter::handle { background: #3e3e42; width: 4px; }
-            QMenuBar { background: #252526; color: #c0c0c0; border-bottom: 1px solid #3e3e42; }
-            QMenuBar::item:selected { background: #3e3e42; }
-            QMenu { background: #252526; border: 1px solid #3e3e42; }
-            QMenu::item:selected { background: #3e3e42; }
-        """)
+        self._apply_display_settings()
 
     def _check_for_updates(self):
         """Kick off a background check against PyPI for a newer PINNStudio release."""
@@ -922,7 +852,7 @@ class MainWindow(QMainWindow):
         # Title -- styled from the "title" Display Settings category (family/
         # size/weight/color); it sits at the left of the toolbar.
         title = QLabel("PINNStudio")
-        self._register_style(title, "title", lambda css: f"color: #a0c4ff; {css}")
+        self._register_style(title, "title", lambda css: f"{css}")
         self.app_title_label = title
         left_layout.addWidget(title)
 
@@ -1032,14 +962,14 @@ class MainWindow(QMainWindow):
             b = QPushButton(text)
             b.setObjectName("toolButton")
             b.setToolTip(tip)
-            b.setFixedHeight(34)
+            b.setFixedHeight(32)
             b.clicked.connect(slot)
             bar.addWidget(b)
             return b
 
         self.problems_btn = QPushButton("")
         self.problems_btn.setObjectName("problemsButton")
-        self.problems_btn.setFixedHeight(30)
+        self.problems_btn.setFixedHeight(32)
         self.problems_btn.setVisible(False)
         self.problems_btn.setToolTip("Settings that would stop Solve -- click to go to the first one")
         self.problems_btn.clicked.connect(self._goto_first_problem)
@@ -1049,9 +979,14 @@ class MainWindow(QMainWindow):
         self.tb_save_btn = tool_btn("💾 Save", "Save this problem", self._save_problem)
         self.tb_export_btn = tool_btn("⇪ Export script", "Export as a DeepXDE script", self._export_deepxde_script)
         bar.addSpacing(14)
-        for b, w in ((self.solve_btn, 130), (self.stop_btn, 100)):
-            b.setMinimumHeight(36)
-            b.setMaximumHeight(36)
+        # Solve is the one filled button; Stop turns red while a run can be stopped
+        self._styled_widgets = [e for e in self._styled_widgets if e[0] not in (self.solve_btn, self.stop_btn)]
+        self.solve_btn.setObjectName("solveButton")
+        self.stop_btn.setObjectName("stopButton")
+        for b, w in ((self.solve_btn, 120), (self.stop_btn, 92)):
+            b.setStyleSheet("")
+            b.setMinimumHeight(34)
+            b.setMaximumHeight(34)
             b.setFixedWidth(w)
             bar.addWidget(b)
 
@@ -3640,6 +3575,7 @@ class MainWindow(QMainWindow):
         self.right_tabs.setObjectName("graphicsTabs")
         self.log_box = QTextEdit()
         self.log_box.setReadOnly(True)
+        self._log_highlighter = _theme.LogHighlighter(self.log_box.document())
         self.log_box.setPlaceholderText("Training log will appear here...")
         self.bottom_tabs = QTabWidget()
         self.bottom_tabs.setDocumentMode(True)
@@ -5104,9 +5040,12 @@ class MainWindow(QMainWindow):
             label = f"BC {i + 1}  ·  {desc}"
             color = BC_COLORS[i % len(BC_COLORS)]
             if key not in ws.pages:
+                card = QGroupBox("Condition")
+                QVBoxLayout(card).addWidget(e['widget'])
+                e['card'] = card
                 ws.add_node(key, label, str(i + 1), color,
                             "One boundary condition: its type, the output it applies to, where on the "
-                            "boundary (Where:) and its value.", parent="bcs", widgets=[e['widget']])
+                            "boundary (Where:) and its value.", parent="bcs", widgets=[card])
                 box = QGroupBox("In the sketch")
                 lbl = QLabel("")
                 lbl.setWordWrap(True)
@@ -10800,6 +10739,7 @@ print("DOMAIN_PREVIEW_DONE")
         # Snapshot everything so Cancel can revert live-previewed changes,
         # not just close the dialog leaving a half-applied preview behind.
         snapshot = {
+            "ui_scale": self._ui_scale,
             "font_size": self._font_size,
             "log_font_size": self._log_font_size,
             "theme": self._theme,
@@ -10821,9 +10761,19 @@ print("DOMAIN_PREVIEW_DONE")
         theme_tab = QWidget()
         theme_layout = QVBoxLayout(theme_tab)
 
+        scale_row = QHBoxLayout()
+        scale_row.addWidget(QLabel("UI scale (all text and controls):"))
+        scale_combo = QComboBox()
+        for pct in (90, 100, 110, 125, 150):
+            scale_combo.addItem(f"{pct} %", pct)
+        scale_combo.setCurrentIndex(max(0, scale_combo.findData(self._ui_scale)))
+        scale_combo.setFixedWidth(160)
+        scale_row.addStretch(); scale_row.addWidget(scale_combo)
+        theme_layout.addLayout(scale_row)
+
         font_row = QHBoxLayout()
-        font_row.addWidget(QLabel("Base UI font size (spinboxes, combos, checkboxes):"))
-        font_spin = QSpinBox(); font_spin.setRange(9, 22); font_spin.setValue(self._font_size)
+        font_row.addWidget(QLabel("Base text size (px, at 100 %):"))
+        font_spin = QSpinBox(); font_spin.setRange(10, 22); font_spin.setValue(self._font_size)
         font_spin.setFixedWidth(80)
         font_row.addStretch(); font_row.addWidget(font_spin)
         theme_layout.addLayout(font_row)
@@ -10838,19 +10788,16 @@ print("DOMAIN_PREVIEW_DONE")
         theme_row = QHBoxLayout()
         theme_row.addWidget(QLabel("Color theme:"))
         theme_combo = QComboBox()
-        theme_combo.addItems([
-            "Dark Grey", "GitHub Dark", "Monokai", "Solarized Dark", "Navy Blue", "White",
-            "Nord", "Dracula", "One Dark", "Gruvbox Dark", "Light Gray",
-        ])
+        theme_combo.addItems(list(_theme.THEMES))
         theme_combo.setCurrentText(self._theme)
         theme_combo.setFixedWidth(160)
         theme_row.addStretch(); theme_row.addWidget(theme_combo)
         theme_layout.addLayout(theme_row)
 
         accent_row = QHBoxLayout()
-        accent_row.addWidget(QLabel("Accent color (default Section Header color):"))
+        accent_row.addWidget(QLabel("Accent color (Solve, selection, focus):"))
         accent_combo = QComboBox()
-        accent_combo.addItems(["Blue (#a0c4ff)", "Green (#69db7c)", "Orange (#ffa94d)", "Purple (#cc5de8)", "Teal (#38d9a9)", "Black (#000000)"])
+        accent_combo.addItems(list(_theme.ACCENTS))
         accent_combo.setCurrentText(self._accent)
         accent_combo.setFixedWidth(160)
         accent_row.addStretch(); accent_row.addWidget(accent_combo)
@@ -10932,10 +10879,11 @@ print("DOMAIN_PREVIEW_DONE")
             row = QHBoxLayout(group)
 
             family_combo = QComboBox()
+            family_combo.addItem("System default")
             family_combo.addItems(self._DISP_FONT_CHOICES)
-            if cur["family"] not in self._DISP_FONT_CHOICES:
+            if cur["family"] and cur["family"] not in self._DISP_FONT_CHOICES:
                 family_combo.addItem(cur["family"])
-            family_combo.setCurrentText(cur["family"])
+            family_combo.setCurrentText(cur["family"] or "System default")
             family_combo.setFixedWidth(140)
             row.addWidget(family_combo)
 
@@ -10995,6 +10943,7 @@ print("DOMAIN_PREVIEW_DONE")
         tabs.addTab(text_tab, "Text Styles")
 
         def _apply_preview():
+            self._ui_scale = int(scale_combo.currentData() or 100)
             self._font_size = font_spin.value()
             self._log_font_size = log_font_spin.value()
             self._theme = theme_combo.currentText()
@@ -11003,7 +10952,8 @@ print("DOMAIN_PREVIEW_DONE")
             self._panel_border_width = border_width_spin.value()
             for cat_key, widgets in cat_widgets.items():
                 self._disp[cat_key] = {
-                    "family": widgets["family"].currentText(),
+                    "family": "" if widgets["family"].currentText() == "System default"
+                              else widgets["family"].currentText(),
                     "size": widgets["size"].value(),
                     "bold": widgets["bold"].isChecked(),
                     "color": widgets["color_state"]["color"],
@@ -11013,6 +10963,7 @@ print("DOMAIN_PREVIEW_DONE")
         # Live preview: every control applies immediately, so changes are
         # visible right away while comparing options -- no separate
         # "Preview" click needed.
+        scale_combo.currentIndexChanged.connect(_apply_preview)
         font_spin.valueChanged.connect(_apply_preview)
         log_font_spin.valueChanged.connect(_apply_preview)
         theme_combo.currentTextChanged.connect(_apply_preview)
@@ -11024,14 +10975,35 @@ print("DOMAIN_PREVIEW_DONE")
             widgets["bold"].stateChanged.connect(_apply_preview)
 
         btn_row = QHBoxLayout()
+        defaults_btn = QPushButton("Reset to defaults")
+        defaults_btn.setToolTip("Studio Light, 100 %, the system font -- then OK to keep it")
         ok_btn = QPushButton("OK (save)"); cancel_btn = QPushButton("Cancel (revert)")
+        btn_row.addWidget(defaults_btn)
         btn_row.addStretch(); btn_row.addWidget(ok_btn); btn_row.addWidget(cancel_btn)
+
+        def _defaults():
+            scale_combo.setCurrentIndex(max(0, scale_combo.findData(100)))
+            font_spin.setValue(14)
+            log_font_spin.setValue(13)
+            theme_combo.setCurrentText(_theme.DEFAULT_THEME)
+            accent_combo.setCurrentText("Theme default")
+            border_color_state["color"] = ""
+            border_width_spin.setValue(1)
+            for cat_key, widgets in cat_widgets.items():
+                d = self._DISP_CATEGORY_DEFAULTS[cat_key]
+                widgets["family"].setCurrentText("System default")
+                widgets["size"].setValue(d["size"])
+                widgets["bold"].setChecked(d["bold"])
+                widgets["color_state"]["color"] = ""
+            _apply_preview()
+        defaults_btn.clicked.connect(_defaults)
         outer.addLayout(btn_row)
 
         def _revert_settings():
             # Runs on Cancel AND on closing the dialog via the window's own
             # close button, so a live-previewed-but-not-saved change never
             # silently sticks either way.
+            self._ui_scale = snapshot["ui_scale"]
             self._font_size = snapshot["font_size"]
             self._log_font_size = snapshot["log_font_size"]
             self._theme = snapshot["theme"]
@@ -11052,223 +11024,44 @@ print("DOMAIN_PREVIEW_DONE")
         dialog.exec()
 
 
-    @staticmethod
-    def _workspace_qss(bg, widget_bg, border, accent, text_color, label_color, is_white):
-        """Styles of the workspace frame: toolbar, model tree, settings
-        header, graphics/log tabs."""
-        acc = QColor(accent)
-        sel = f"rgba({acc.red()}, {acc.green()}, {acc.blue()}, {70 if not is_white else 90})"
-        hover = f"rgba({acc.red()}, {acc.green()}, {acc.blue()}, 28)"
-        muted = "#6c7a86" if is_white else "#8a9aa6"
-        return f"""
-            QWidget#appToolbar {{ background: {widget_bg}; border-bottom: 1px solid {border}; }}
-            QWidget#appToolbar QLabel#toolbarLabel {{ color: {muted}; background: transparent; }}
-            QPushButton#toolButton {{
-                background: transparent; color: {text_color}; border: 1px solid {border};
-                border-radius: 5px; padding: 0 12px;
-            }}
-            QPushButton#toolButton:hover {{ background: {hover}; border-color: {accent}; }}
-            QPushButton#problemsButton {{
-                background: rgba(255, 146, 43, 40); color: #ffa94d; border: 1px solid #ff922b;
-                border-radius: 5px; padding: 0 10px; font-weight: bold;
-            }}
-            QWidget#treePanel, QWidget#treePanel QTreeWidget {{ background: {widget_bg}; }}
-            QLabel#panelHeader {{
-                color: {muted}; background: transparent; font-size: 11px; font-weight: bold;
-                letter-spacing: 1px; padding: 2px 4px 4px 4px;
-            }}
-            QTreeWidget#modelTree {{ border: none; outline: 0; color: {text_color}; }}
-            QTreeWidget#modelTree::item {{ padding: 5px 4px; border-radius: 4px; }}
-            QTreeWidget#modelTree::item:hover {{ background: {hover}; }}
-            QTreeWidget#modelTree::item:selected {{ background: {sel}; color: {text_color}; }}
-            QTreeWidget#modelTree::branch {{ background: transparent; }}
-            QTreeWidget#modelTree::branch:selected {{ background: transparent; }}
-            QLabel#pageTitle {{
-                color: {accent}; background: transparent; font-size: 20px; font-weight: bold;
-                padding: 2px 4px 0 4px;
-            }}
-            QLabel#pageDesc {{ color: {muted}; background: transparent; padding: 0 4px 6px 4px; }}
-            QFrame#pageRule {{ background: {border}; border: none; }}
-            QLabel#problemBanner {{
-                color: #ffa94d; background: rgba(255, 146, 43, 28); border: 1px solid rgba(255, 146, 43, 120);
-                border-radius: 5px; padding: 6px 8px; margin: 0 4px 6px 4px;
-            }}
-            QTabWidget#graphicsTabs::pane, QTabWidget#bottomTabs::pane {{ border: none; }}
-            QTabBar::tab {{
-                background: transparent; color: {muted}; padding: 6px 14px; border: none;
-                border-bottom: 2px solid transparent;
-            }}
-            QTabBar::tab:selected {{ color: {text_color}; border-bottom: 2px solid {accent}; }}
-            QTabBar::tab:hover {{ color: {text_color}; }}
-        """
-
     def _apply_display_settings(self):
-        themes = {
-            "Dark Grey":     ("#1e1e1e", "#252526", "#3e3e42"),
-            "GitHub Dark":   ("#0d1117", "#161b22", "#30363d"),
-            "Monokai":       ("#272822", "#1e1f1c", "#49483e"),
-            "Solarized Dark":("#002b36", "#073642", "#586e75"),
-            "Navy Blue":     ("#1a1a2e", "#16213e", "#3a3a5c"),
-            "White":         ("#ffffff", "#f5f5f5", "#d0d0d0"),
-            # New themes -- existing ones and the default ("Solarized Dark")
-            # above are all unchanged.
-            "Nord":          ("#2e3440", "#3b4252", "#4c566a"),
-            "Dracula":       ("#282a36", "#343746", "#44475a"),
-            "One Dark":      ("#282c34", "#21252b", "#3e4451"),
-            "Gruvbox Dark":  ("#282828", "#3c3836", "#504945"),
-            "Light Gray":    ("#f0f0f0", "#ffffff", "#c0c0c0"),
-        }
-        accents = {
-            "Blue (#a0c4ff)":   "#a0c4ff",
-            "Green (#69db7c)":  "#69db7c",
-            "Orange (#ffa94d)": "#ffa94d",
-            "Purple (#cc5de8)": "#cc5de8",
-            "Teal (#38d9a9)":   "#38d9a9",
-            "Black (#000000)":  "#000000",
-        }
-        bg, widget_bg, border = themes.get(self._theme, themes["Dark Grey"])
-        accent = accents.get(self._accent, "#a0c4ff")
-        fs = self._font_size
-        lfs = self._log_font_size
-        # Luminance-based (not name-keyed to "White" specifically), so any
-        # new light theme gets correctly-contrasting text/borders too
-        # without needing its own special case here.
-        is_white = QColor(bg).lightnessF() > 0.5
-        text_color = "#1e1e1e" if is_white else "#e0e0e0"
-        label_color = "#333333" if is_white else "#c0c0c0"
-        arrow_color = "#333333" if is_white else "#ffffff"
-        # Panel (QGroupBox) borders specifically, brightened relative to
-        # the theme's general-purpose {border} color (also used for input
-        # fields/scrollbars/menus, which should keep their own subtler
-        # value) so separate panels read clearly against a dark
-        # background. A light theme's own border is already dark enough
-        # against its light background, so it's left as-is. An explicit
-        # user-picked panel border color (see the Display Settings dialog)
-        # always wins over either default.
-        panel_border = (self._panel_border_color or "").strip() or (border if is_white else "#c8d2d8")
-        panel_border_width = self._panel_border_width
-
-        # Section Headers (QGroupBox titles, e.g. "Problem Definition",
-        # "Quick Examples") and Field Labels (plain QLabel text) each get
-        # their own independently-adjustable family/size/weight, on top of
-        # the base widget font-size above -- these are two of the Display
-        # Settings categories. An unset category color falls back to the
-        # theme's existing accent/label color exactly as before.
-        sh = self._disp.get("section_header", self._DISP_CATEGORY_DEFAULTS["section_header"])
-        sh_color = (sh.get("color") or "").strip() or accent
-        sh_weight = "bold" if sh.get("bold") else "normal"
+        """Theme tokens + fonts -> the window's stylesheet (pinnstudio/ui/theme.py);
+        then every registered widget, and every widget's own stylesheet
+        translated to the theme."""
+        t = _theme.tokens(self._theme, self._accent)
+        _theme.set_current(t)
+        family = _theme.ui_font_family()
+        size = self._scaled(self._font_size)
         fl = self._disp.get("field_label", self._DISP_CATEGORY_DEFAULTS["field_label"])
-        fl_color = (fl.get("color") or "").strip() or label_color
-        fl_weight = "bold" if fl.get("bold") else "normal"
+        sh = self._disp.get("section_header", self._DISP_CATEGORY_DEFAULTS["section_header"])
         lc = self._disp.get("log_console", self._DISP_CATEGORY_DEFAULTS["log_console"])
-        log_color = (lc.get("color") or "").strip() or ('#1e1e1e' if is_white else '#a0ffb0')
 
-        self.setStyleSheet(f"""
-            QMainWindow {{ background: {bg}; }}
-            QWidget {{ background: {bg}; color: {text_color}; font-family: 'Segoe UI', {_CROSS_PLATFORM_FONT_FALLBACK}; font-size: {fs}px; }}
-            QGroupBox {{
-                border: {panel_border_width}px solid {panel_border};
-                border-radius: 6px;
-                margin-top: 8px;
-                padding-top: 4px;
-                font-weight: bold;
-                color: {accent};
-            }}
-            QGroupBox::title {{
-                subcontrol-origin: margin; left: 8px; padding: 0 4px;
-                font-family: '{sh['family']}'; font-size: {sh['size']}px;
-                font-weight: {sh_weight}; color: {sh_color};
-            }}
-            QLineEdit, QDoubleSpinBox, QSpinBox, QComboBox {{
-                background: {widget_bg};
-                border: 1px solid {border};
-                border-radius: 4px;
-                padding: 2px 6px;
-                color: {text_color};
-            }}
-            QLineEdit:focus, QDoubleSpinBox:focus, QSpinBox:focus, QComboBox:focus {{
-                border: 1px solid {accent};
-            }}
-            QSpinBox::up-button, QSpinBox::down-button,
-            QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {{
-                background: {border};
-                border: none;
-                width: 16px;
-            }}
-            QSpinBox::up-arrow, QDoubleSpinBox::up-arrow {{
-                border-left: 4px solid transparent;
-                border-right: 4px solid transparent;
-                border-bottom: 6px solid {arrow_color};
-                width: 0px; height: 0px;
-            }}
-            QSpinBox::down-arrow, QDoubleSpinBox::down-arrow {{
-                border-left: 4px solid transparent;
-                border-right: 4px solid transparent;
-                border-top: 6px solid {arrow_color};
-                width: 0px; height: 0px;
-            }}
-            QComboBox::drop-down {{ background: {border}; border: none; width: 20px; }}
-            QComboBox::down-arrow {{
-                border-left: 4px solid transparent;
-                border-right: 4px solid transparent;
-                border-top: 6px solid {arrow_color};
-                width: 0px; height: 0px;
-            }}
-            QCheckBox {{
-                color: {fl_color}; spacing: 6px;
-                font-family: '{fl['family']}'; font-size: {fl['size']}px; font-weight: {fl_weight};
-            }}
-            QCheckBox::indicator {{
-                width: 14px; height: 14px;
-                border: 1px solid {border};
-                border-radius: 3px;
-                background: {widget_bg};
-            }}
-            QCheckBox::indicator:checked {{ background: {accent}; border-color: {accent}; }}
-            QRadioButton {{
-                color: {fl_color}; spacing: 6px;
-                font-family: '{fl['family']}'; font-size: {fl['size']}px; font-weight: {fl_weight};
-            }}
-            QRadioButton::indicator {{
-                width: 14px; height: 14px;
-                border: 1px solid {border};
-                border-radius: 7px;
-                background: {widget_bg};
-            }}
-            QRadioButton::indicator:checked {{ background: {accent}; border-color: {accent}; }}
-            QLabel {{
-                color: {fl_color};
-                font-family: '{fl['family']}'; font-size: {fl['size']}px; font-weight: {fl_weight};
-            }}
-            QScrollArea {{ border: none; background: {bg}; }}
-            QScrollBar:vertical {{ background: {widget_bg}; width: 14px; border-radius: 6px; }}
-            QScrollBar::handle:vertical {{ background: {border}; border-radius: 6px; min-height: 30px; }}
-            QTextEdit {{
-                background: {'#f8f8f8' if is_white else '#0f0f23'};
-                border: 1px solid {border};
-                border-radius: 6px;
-                color: {log_color};
-                font-family: '{lc['family']}';
-                font-size: {lfs}px;
-            }}
-            QSplitter::handle {{ background: {border}; width: 4px; }}
-            QMenuBar {{ background: {widget_bg}; color: {label_color}; border-bottom: 1px solid {border}; }}
-            QMenuBar::item:selected {{ background: {border}; }}
-            QMenu {{ background: {widget_bg}; border: 1px solid {border}; }}
-            QMenu::item:selected {{ background: {border}; }}
-        """ + self._workspace_qss(bg, widget_bg, border, accent, text_color, label_color, is_white))
-        # Same panel-border color/thickness setting as every QGroupBox
-        # above, for visual consistency across every panel section
-        # (including these two figure panels, not just the Setup tab's
-        # input groups).
-        self.loss_label.setStyleSheet(f"border: {panel_border_width}px solid {panel_border}; border-radius: 6px; color: #505080; background: {widget_bg};")
-        self.solution_label.setStyleSheet(f"border: {panel_border_width}px solid {panel_border}; border-radius: 6px; color: #505080; background: {widget_bg};")
-        # Re-apply every registered per-category widget (App Title,
-        # Hint/Note labels, Buttons) so they pick up the latest settings too
-        # -- the QSS block above only covers Section Headers/Field Labels/
-        # Log Console, which don't need per-widget registration.
+        def _css(cat, default_color):
+            fam = cat.get("family") or family
+            color = (cat.get("color") or "").strip() or default_color
+            return (f"font-family: '{fam}'; font-size: {self._scaled(cat.get('size') or 14)}px; "
+                    f"font-weight: {'600' if cat.get('bold') else 'normal'}; color: {color};")
+
+        qss = _theme.build_qss(
+            t, family, size, self._scaled(18),
+            label_css=_css(fl, t["text"]), header_css=_css(sh, t["text"]),
+            log_family=lc.get("family") or _theme.mono_font_family(), log_size=self._scaled(self._log_font_size),
+            panel_border=(self._panel_border_color or "").strip() or None,
+            panel_border_width=self._panel_border_width)
+        self.setStyleSheet(qss)
+        pb = (self._panel_border_color or "").strip() or t["border"]
+        for name in ("loss_label", "solution_label", "monitor_label"):
+            lbl = getattr(self, name, None)
+            if lbl is not None:
+                lbl.setStyleSheet(f"border: {self._panel_border_width}px solid {pb}; border-radius: 6px; "
+                                  f"color: {t['text_faint']}; background: {t['card']};")
+        if getattr(self, "_log_highlighter", None) is not None:
+            self._log_highlighter.rehighlight()
         if hasattr(self, "_styled_widgets"):
             self._restyle_all()
+        _theme.StyleRemapper.rethemeall(self)
+        if hasattr(self, "workspace"):
+            self.workspace.tree.viewport().update()
 
     def _on_export_settings(self):
         dialog = QDialog(self)

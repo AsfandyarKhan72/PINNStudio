@@ -53,6 +53,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **A new look: Studio Light by default, Studio Dark and Solarized Dark as alternatives.**
+  - **Colours:** each theme is a small set of colours (background, panels, text, muted text, one blue accent, and green/amber/red for success, warning and error), and the whole interface is styled from them, so every panel follows a theme change. Older widgets' own colours, written for the original dark look, are translated to the theme by their role (text, background, border).
+  - **Buttons by role:** Solve is the one filled button and Stop turns red while a run can be stopped. Other buttons share one quiet style instead of each having its own colour.
+  - **Fonts:** the system's own UI font at 14 px (it was 16-18 px), the log in the system's fixed-width font at 13 px, and a **UI scale** (90-150 %) in *Settings → Display Settings*, which also has *Reset to defaults*.
+  - **Training Log:** lines with ❌, ⚠ or ✅ are tinted red, amber or green.
+  - **Boundary-condition colours** (sketch edges, BC nodes) use the Okabe-Ito palette, which people with red-green colour blindness can tell apart.
+  - **Details:** checkboxes, spin boxes and drop-downs have drawn arrows and ticks, and icon-sized buttons (✕, ▲) no longer lose their symbol to padding.
+  - **Older display settings:** settings saved before this change (the eleven old themes, 18 px fonts) are not carried over; the app starts in the new default look.
+
 - **A new three-panel layout, after COMSOL's Model Builder.** The long left column is replaced by:
   - a **model tree** on the left (Problem, Equations, Inverse problem, Geometry, Collocation points, Initial conditions, Boundary conditions, Neural network, Training with Loss weights and Adaptive training, Parameter sweep, Results with Restore & visualize);
   - a **settings panel** in the middle showing only the selected node's panels, with a title and one-line description;

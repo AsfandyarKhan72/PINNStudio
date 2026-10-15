@@ -45,8 +45,7 @@ OPS = (("Union (add)", "union"), ("Subtract (cut hole)", "subtract"), ("Intersec
 OP_COLORS = {None: QColor("#1f6fd1"), "union": QColor("#1f6fd1"),
              "subtract": QColor("#d9480f"), "intersect": QColor("#2b8a3e")}
 # one colour per Boundary Conditions row (cycled), and edges without one
-BC_COLORS = ("#1971c2", "#e8590c", "#2f9e44", "#9c36b5", "#c2255c", "#0c8599", "#f08c00", "#5c940d",
-             "#3b5bdb", "#a61e4d")
+from pinnstudio.ui.theme import BC_COLORS  # noqa: E402  (colour-blind-safe palette)
 NO_BC_COLOR = "#868e96"
 
 
