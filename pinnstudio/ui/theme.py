@@ -267,12 +267,13 @@ QLabel#problemBanner {{
     border-radius: 5px; padding: 6px 8px; margin: 0 4px 6px 4px;
 }}
 QTabWidget#graphicsTabs::pane, QTabWidget#bottomTabs::pane {{ border: none; background: {t['bg']}; }}
-QPushButton#solveButton {{
+QPushButton#solveButton, QPushButton#primaryButton {{
     background: {t['accent']}; color: {t['on_accent']}; border: 1px solid {t['accent']};
     border-radius: 5px; font-weight: 600; padding: 0 14px;
 }}
-QPushButton#solveButton:hover {{ background: {t['accent_hover']}; border-color: {t['accent_hover']}; }}
-QPushButton#solveButton:disabled {{ background: {t['disabled_bg']}; color: {t['disabled_text']}; border-color: {t['border']}; }}
+QPushButton#primaryButton {{ min-height: 24px; padding: 5px 14px; }}
+QPushButton#solveButton:hover, QPushButton#primaryButton:hover {{ background: {t['accent_hover']}; border-color: {t['accent_hover']}; }}
+QPushButton#solveButton:disabled, QPushButton#primaryButton:disabled {{ background: {t['disabled_bg']}; color: {t['disabled_text']}; border-color: {t['border']}; }}
 QPushButton#stopButton {{
     background: {t['danger']}; color: #ffffff; border: 1px solid {t['danger']};
     border-radius: 5px; font-weight: 600; padding: 0 14px;
@@ -420,9 +421,15 @@ def remap_css(css, t=None):
 def _remap_decls(decls, t, selector):
     hover = ":hover" in selector or ":pressed" in selector
     disabled = ":disabled" in selector
+    # a background that becomes an ordinary (light) button colour can't keep
+    # white text written for the old dark-green / dark-blue fills
+    bg_m = re.search(r"background(?:-color)?\s*:\s*[^;]*?(#[0-9a-fA-F]{3,8})", decls)
+    plain_bg = bool(bg_m) and _lookup(_BG, bg_m.group(1)) == "btn"
 
     def repl(m):
         prop, val = m.group("prop").lower(), m.group("val")
+        if prop == "color" and plain_bg and val.strip().lower() in ("white", "#fff", "#ffffff"):
+            return f"{m.group('prop')}: {t['disabled_text'] if disabled else t['text']}"
         if prop == "color" or prop == "selection-color":
             table, role = _TEXT, "text"
         elif prop.startswith("background") or prop == "selection-background-color":
@@ -464,12 +471,29 @@ class StyleRemapper(QObject):
 
     def eventFilter(self, obj, ev):
         if ev.type() in (QEvent.Type.StyleChange, QEvent.Type.Polish) and isinstance(obj, QWidget):
+            self._fit_text_button(obj)
             if ev.type() == QEvent.Type.Polish:
                 self._fit_small_button(obj)
                 from pinnstudio.ui import icons as _icons
                 _icons.iconize(obj)
             self.apply(obj)
         return False
+
+    @staticmethod
+    def _fit_text_button(w):
+        """A button given a fixed width for an older, smaller font ("Browse"
+        at 65 px) is widened until its text fits with the theme's padding."""
+        from PyQt6.QtWidgets import QPushButton
+        if not isinstance(w, QPushButton) or w.minimumWidth() != w.maximumWidth() or w.maximumWidth() <= 48:
+            return
+        text = w.text().replace("&&", "&")
+        if not text.strip():
+            return
+        need = w.fontMetrics().horizontalAdvance(text) + 2 * 12 + 6
+        if not w.icon().isNull():
+            need += w.iconSize().width() + 4
+        if w.maximumWidth() < need:
+            w.setFixedWidth(need)
 
     @staticmethod
     def _fit_small_button(w):

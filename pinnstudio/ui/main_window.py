@@ -4000,15 +4000,11 @@ class MainWindow(QMainWindow):
         restore_save_row.addWidget(self.restore_save_browse_btn)
         restore_content_layout.addLayout(restore_save_row)
 
-        self.restore_btn = QPushButton("🔄  Restore & Visualize")
-
-        self.restore_btn.setMinimumHeight(38)
-        self._register_style(self.restore_btn, "button", lambda css: f"""
-            QPushButton {{ background: #1a5c3a; color: white;
-                          {css} border-radius: 6px; border: none; }}
-            QPushButton:hover {{ background: #2a7c4a; }}
-            QPushButton:disabled {{ background: #333355; color: #666; }}
-        """)
+        self.restore_btn = QPushButton("Restore && Visualize")
+        # the page's main action: filled like Solve, in every theme
+        self.restore_btn.setObjectName("primaryButton")
+        from pinnstudio.ui import icons as _icons_r
+        _icons_r.apply(self.restore_btn, "history", "on_accent", size=16)
         self.restore_btn.clicked.connect(self._on_restore)
         restore_content_layout.addWidget(self.restore_btn)
         left_layout.addWidget(restore_group)
@@ -14400,7 +14396,7 @@ print("DOMAIN_PREVIEW_DONE")
             animate = (viz_type == "Parameter Convergence Animation (GIF)")
 
             self.restore_btn.setEnabled(False)
-            self.restore_btn.setText("⏳ Restoring...")
+            self.restore_btn.setText(" Restoring…")
             self.log_box.append(
                 f"🔄 Building parameter convergence {'animation' if animate else 'plot'} "
                 f"from {len(paths)} file(s)...")
@@ -14558,7 +14554,7 @@ print("DOMAIN_PREVIEW_DONE")
                 cfg["inverse_variables"] = [{"name": n, "init": 1.0} for n in override_names]
 
         self.restore_btn.setEnabled(False)
-        self.restore_btn.setText("⏳ Restoring...")
+        self.restore_btn.setText(" Restoring…")
         self.log_box.append(f"🔄 Restoring model from: {model_path}")
         # See the matching comment in the Parameter Convergence branch
         # above -- same reasons, same fix.
@@ -14603,7 +14599,7 @@ print("DOMAIN_PREVIEW_DONE")
         except Exception as e:
             self.log_box.append(f"❌ Could not build the restore script from this config: {e}")
             self.restore_btn.setEnabled(True)
-            self.restore_btn.setText("🔄  Restore && Visualize")
+            self.restore_btn.setText(" Restore && Visualize")
             return
 
         # ── Append error analysis if files configured ─────────
@@ -14801,7 +14797,7 @@ print("DOMAIN_PREVIEW_DONE")
 
     def _on_restore_done(self, success):
         self.restore_btn.setEnabled(True)
-        self.restore_btn.setText("🔄  Restore && Visualize")
+        self.restore_btn.setText(" Restore && Visualize")
         # The run that just finished actually wrote into its own
         # timestamped subfolder (see _on_restore), not the bare widget
         # text -- read that resolved path back rather than recomputing a
