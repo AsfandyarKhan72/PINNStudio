@@ -1029,7 +1029,7 @@ class MainWindow(QMainWindow):
         _icons.apply(self.solve_btn, "play", "on_accent", size=14)
         _icons.apply(self.stop_btn, "stop", "on_danger", size=14)
         _icons.apply(self.problems_btn, "warning", "text", size=16)
-        _icons.apply((self.right_tabs, 0), "results", "muted", size=16)
+        _icons.apply((self.right_tabs, self._results_tab_index), "results", "muted", size=16)
         _icons.apply((self.right_tabs, self._sketch_tab_index), "sketch", "muted", size=16)
         _icons.apply((self.right_tabs, self._domain_tab_index), "geometry", "muted", size=16)
         _icons.apply((self.bottom_tabs, 0), "log", "muted", size=16)
@@ -1223,7 +1223,7 @@ class MainWindow(QMainWindow):
             elif key == "geometry" and sketched and gp.canvas.tool == "Edges":
                 gp.set_tool("Select")
         elif key in ("results", "restore"):
-            self.right_tabs.setCurrentIndex(0)
+            self.right_tabs.setCurrentWidget(self.results_tabs)
         if other.active_bc is not None:
             other.set_active_bc(None)
         other.edge_bar.setVisible(False)
@@ -4061,7 +4061,15 @@ class MainWindow(QMainWindow):
         self.run_history = RunHistory(lambda: self.save_dir_input.text())
         self.run_history.run_activated.connect(self._show_saved_run)
         self.results_tabs.addTab(self.run_history, "History")
-        self.right_tabs.addTab(self.results_tabs, "Results")
+        # Start (the first tab): new / open / recent / example gallery
+        from pinnstudio.ui.start_page import StartPage
+        self.start_page = StartPage()
+        self.start_page.new_requested.connect(self._new_problem)
+        self.start_page.open_requested.connect(self._open_problem)
+        self.start_page.open_path.connect(self._open_problem)
+        self.start_page.example_requested.connect(self._load_example_from_start)
+        self._start_tab_index = self.right_tabs.addTab(self.start_page, "Start")
+        self._results_tab_index = self.right_tabs.addTab(self.results_tabs, "Results")
         self._sketch_tab_index = self.right_tabs.addTab(self.sketch_panel, "Sketch")
         self.right_tabs.setTabVisible(self._sketch_tab_index, False)
         # Geometry: the domain set in the Domain panel (any 2D/3D shape),
@@ -4080,14 +4088,6 @@ class MainWindow(QMainWindow):
         self._domain_view_timer.setInterval(400)
         self._domain_view_timer.timeout.connect(self._refresh_domain_view)
         self._domain_view_timer.start()
-        # Start: new / open / recent / example gallery
-        from pinnstudio.ui.start_page import StartPage
-        self.start_page = StartPage()
-        self.start_page.new_requested.connect(self._new_problem)
-        self.start_page.open_requested.connect(self._open_problem)
-        self.start_page.open_path.connect(self._open_problem)
-        self.start_page.example_requested.connect(self._load_example_from_start)
-        self._start_tab_index = self.right_tabs.addTab(self.start_page, "Start")
         self.right_tabs.currentChanged.connect(self._on_right_tab_changed)
         right_splitter.addWidget(self.right_tabs)
         # Script: the DeepXDE script Export would write, kept up to date
@@ -5497,7 +5497,7 @@ class MainWindow(QMainWindow):
             QApplication.processEvents()
             self.sketch_panel.set_shapes(self._custom_geom_shapes_list(), fit=True)
         elif self.right_tabs.currentIndex() == self._sketch_tab_index:
-            self.right_tabs.setCurrentIndex(0)
+            self.right_tabs.setCurrentWidget(self.results_tabs)
 
     def _on_right_tab_changed(self, idx):
         """(The graphics area has room for the Sketch now; nothing to resize.)"""
@@ -8106,6 +8106,17 @@ class MainWindow(QMainWindow):
         stamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         return os.path.join(base_dir, f"{label}__{stamp}")
 
+    @staticmethod
+    def _save_root(save_dir):
+        """The Save-to folder a run folder was made in: a config's save_dir is
+        the run's own "<label>__<timestamp>" folder inside it, and putting
+        that back in Save-to would nest every later run one level deeper."""
+        import re
+        d = (save_dir or "").strip()
+        if re.search(r"__\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}$", d.rstrip("/\\")):
+            return os.path.dirname(d.rstrip("/\\"))
+        return d
+
     def _run_results_dir(self, base_dir, is_2d, is_3d, is_steady):
         """The actual directory a Setup-tab Solve/Export run's results
         should be written to -- see _timestamped_save_dir for the shared
@@ -8996,7 +9007,7 @@ class MainWindow(QMainWindow):
         self.opt1_combo.setCurrentText(config.optimizer)
         self.opt2_combo.setCurrentText(config.optimizer2)
         self.iter2_spin.setValue(config.iterations2)
-        self.save_dir_input.setText(config.save_dir)
+        self.save_dir_input.setText(self._save_root(config.save_dir))
         self.lr_spin.setValue(config.learning_rate)
         self.loss_combo.setCurrentText(config.loss_type)
 
@@ -9825,7 +9836,7 @@ class MainWindow(QMainWindow):
 
     def _on_solve(self):
         if hasattr(self, 'right_tabs'):
-            self.right_tabs.setCurrentIndex(0)   # the run streams into the log
+            self.right_tabs.setCurrentWidget(self.results_tabs)   # the run streams into the log
         _ok, _msg = self._geometry_supported_for_training()
         if not _ok:
             self.log_box.append(_msg)
@@ -11755,6 +11766,18 @@ print("DOMAIN_PREVIEW_DONE")
         _theme.StyleRemapper.rethemeall(self)
         from pinnstudio.ui import icons as _icons
         _icons.retint_all()
+        # the typeset equations are drawn in the theme's text colour
+        for w in getattr(self, "pde_inputs", []):
+            prev = getattr(w, "_preview", None)
+            if prev is not None:
+                try:
+                    prev.refresh()
+                except RuntimeError:
+                    pass
+        if getattr(self, "_script_highlighter", None) is not None:
+            self._script_highlighter.rehighlight()
+        if getattr(self, "start_page", None) is not None:
+            self.start_page.retheme()
         if hasattr(self, "workspace"):
             self.workspace.tree.viewport().update()
 

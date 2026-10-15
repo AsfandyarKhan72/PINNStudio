@@ -213,7 +213,7 @@ def run():
     check(sorted(c.sel_edges) == sorted([left, find("y = 0")]), f"GUI: select edges without a BC {c.sel_edges}")
     cfg = w._build_config()
     check(cfg.geometry_type == "Custom" and cfg.geom_sketch and not cfg.validate(), f"GUI config {cfg.validate()}")
-    w.right_tabs.setCurrentIndex(0)
+    w.right_tabs.setCurrentWidget(w.results_tabs)
 
     # ── training on a sketched domain with sketched BCs ─────────
     shapes = [R(0, 2, 0, 1), D(0.6, 0.5, 0.25, "subtract"),

@@ -191,7 +191,7 @@ def test_run_history():
 
     w = _window()
     w.save_dir_input.setText(base)
-    w.right_tabs.setCurrentIndex(0)
+    w.right_tabs.setCurrentWidget(w.results_tabs)
     w.results_tabs.setCurrentWidget(w.run_history)
     _settle()
     assert w.run_history.table.rowCount() == 1

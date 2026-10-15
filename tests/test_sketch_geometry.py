@@ -83,7 +83,7 @@ def test_sketch_draws_rows_and_rows_redraw_sketch():
     w2._apply_config(cfg)
     app.processEvents()
     assert w2.geometry_type_combo.currentText() == "Sketch"
-    w.right_tabs.setCurrentIndex(0)
+    w.right_tabs.setCurrentWidget(w.results_tabs)
 
 
 if __name__ == "__main__":

@@ -181,8 +181,8 @@ def run():
     w2._apply_config(cfg)
     _settle()
     check(w2.geometry_type_combo.currentText() == "Sketch" and w2.sketch_panel.canvas.dim == 3, "3D sketch reloads")
-    w.right_tabs.setCurrentIndex(0)
-    w2.right_tabs.setCurrentIndex(0)
+    w.right_tabs.setCurrentWidget(w.results_tabs)
+    w2.right_tabs.setCurrentWidget(w2.results_tabs)
 
     # ── training ────────────────────────────────────────────────
     shapes = CASES["box, hole, box"][0]

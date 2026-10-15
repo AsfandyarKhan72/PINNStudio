@@ -27,6 +27,7 @@ class _Card(QPushButton):
         lay.setSpacing(10)
         if icon:
             ic = QLabel()
+            self._icon, self._icon_label = icon, ic
             ic.setPixmap(_icons.pixmap(icon, _icons._color("accent"), 22))
             ic.setStyleSheet("background: transparent;")
             ic.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
@@ -127,6 +128,12 @@ class StartPage(QScrollArea):
             n += 1
         lay.addStretch(1)
         self.set_recent([])
+
+    def retheme(self):
+        """Redraw the card icons in the current theme's accent colour."""
+        for c in list(self.new_cards.values()) + [self.open_card]:
+            if getattr(c, "_icon_label", None) is not None:
+                c._icon_label.setPixmap(_icons.pixmap(c._icon, _icons._color("accent"), 22))
 
     @staticmethod
     def _section(text):
