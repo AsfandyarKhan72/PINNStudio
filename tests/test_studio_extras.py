@@ -336,6 +336,40 @@ def test_copy_and_save():
         assert os.path.getsize(out) > 0
 
 
+
+def test_fresh_window_and_new_problem_are_clean_and_valid():
+    w = _window()
+    _settle(0.5)
+    w._check_problems()
+    assert not w.isWindowModified(), "an untouched window has nothing to save"
+    for dim in ("1D", "2D", "3D", "ODE"):
+        w._new_problem(dim)
+        _settle(0.3)
+        assert w._build_config().validate() == [], dim
+        w._check_problems()
+        assert not w.isWindowModified(), dim
+
+
+def test_error_analysis_shows_only_this_runs_folder():
+    from pinnstudio.core.config import PINNConfig
+    w = _window()
+    old = tempfile.mkdtemp()
+    os.makedirs(os.path.join(old, "error_analysis"))
+    from PyQt6.QtGui import QImage
+    img = QImage(10, 10, QImage.Format.Format_RGB32)
+    img.save(os.path.join(old, "error_analysis", "line_comparison.png"))
+    w._last_config = PINNConfig(save_dir=old)          # a previous run's
+    new = tempfile.mkdtemp()                            # this run: no error analysis
+    w._start_progress(PINNConfig(save_dir=new))
+    w._finish_progress("Finished", ok=True, folder=new)
+    assert w.ea_panel.figs_lay.count() <= 1, "no figures from the previous run"
+    # Stop, then the run's own "done": the status keeps saying Stopped
+    w._start_progress(PINNConfig())
+    w._stopped = True
+    w._finish_progress("Stopped", ok=False)
+    assert w.status_text.text().startswith("Stopped") and w._progress is None
+
+
 if __name__ == "__main__":
     test_equation_preview()
     test_start_files_and_unsaved_marker()
@@ -348,4 +382,6 @@ if __name__ == "__main__":
     test_buttons_fit_and_restore_visible()
     test_live_loss_per_time_step_and_ea_cleared()
     test_copy_and_save()
+    test_fresh_window_and_new_problem_are_clean_and_valid()
+    test_error_analysis_shows_only_this_runs_folder()
     print("PASSED")

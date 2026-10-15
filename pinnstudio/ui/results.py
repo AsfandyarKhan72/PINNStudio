@@ -759,12 +759,16 @@ class RunHistory(QWidget):
         lay.addWidget(self.split, 1)
         self._update_buttons()
 
+    stale = True
+    _scanned = None
+
     def refresh(self):
         base = ""
         try:
             base = (self.base_fn() or "").strip()
         except Exception:
             pass
+        self._scanned, self.stale = base, False
         self.runs = scan_runs(base)
         self.table.setRowCount(0)
         for r in self.runs:
@@ -828,8 +832,15 @@ class RunHistory(QWidget):
             QDesktopServices.openUrl(QUrl.fromLocalFile(self.runs[r]["folder"]))
 
     def showEvent(self, ev):
+        # rescanning a large folder on every visit would freeze the window:
+        # only when the folder changed or a run has finished since
         super().showEvent(ev)
-        self.refresh()
+        try:
+            base = (self.base_fn() or "").strip()
+        except Exception:
+            base = ""
+        if self.stale or base != self._scanned:
+            self.refresh()
 
 
 class FitImage(QObject):

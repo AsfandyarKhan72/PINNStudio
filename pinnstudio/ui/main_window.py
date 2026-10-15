@@ -533,11 +533,12 @@ class MainWindow(QMainWindow):
         self.right_tabs.setCurrentIndex(self._start_tab_index)
         self._current_path = None
         self._refresh_recent()
-        try:
-            self._fresh_config = self._build_config()
-        except Exception:
-            self._fresh_config = None
-        self._mark_clean()
+        self._fresh_config = None
+        self._clean_key = None
+        # Some defaults (training phases, sweep rows) are filled in on the
+        # first passes of the event loop: the starting problem -- what New
+        # gives and what counts as "unchanged" -- is taken after them.
+        QTimer.singleShot(0, lambda: QTimer.singleShot(0, self._capture_fresh_problem))
 
     def _nudge_central_tabs_repaint(self):
         bar = self.central_tabs.tabBar()
@@ -1414,6 +1415,14 @@ class MainWindow(QMainWindow):
         except Exception:
             self._clean_key = None
         self._set_dirty(False)
+
+    def _capture_fresh_problem(self):
+        try:
+            self._fresh_config = self._build_config()
+        except Exception:
+            self._fresh_config = None
+        if getattr(self, "_current_path", None) is None and not getattr(self, "_current_problem_name", ""):
+            self._mark_clean(self._fresh_config)
 
     def _set_dirty(self, dirty):
         self._dirty = bool(dirty)
@@ -8568,19 +8577,17 @@ class MainWindow(QMainWindow):
     def _open_problem(self, path=None):
         import json
         import dataclasses
+        if isinstance(path, str) and path and not os.path.isfile(path):
+            self.log_box.append(f"❌ Problem file not found: {path}")
+            self._remove_recent(path)
+            return
+        if not self._maybe_save_changes():
+            return
         if not isinstance(path, str) or not path:
-            if not self._maybe_save_changes():
-                return
             path, _ = QFileDialog.getOpenFileName(
                 self, "Open Saved Problem", "", "PINNStudio Problem (*.pinn.json *.json)"
             )
-        elif not self._maybe_save_changes():
-            return
         if not path:
-            return
-        if not os.path.isfile(path):
-            self.log_box.append(f"❌ Problem file not found: {path}")
-            self._remove_recent(path)
             return
         try:
             with open(path, "r", encoding="utf-8") as f:
@@ -10012,7 +10019,8 @@ class MainWindow(QMainWindow):
             self._sweep_last_run_label = label
 
     def _on_sweep_finished(self):
-        self._finish_progress("Sweep finished")
+        if not getattr(self, "_stopped", False):
+            self._finish_progress("Sweep finished", folder=getattr(self, '_sweep_last_run_dir', None) or "")
         self.solve_btn.setEnabled(True)
         self.solve_btn.setText(" Run Sweep" if self.sweep_enable_cb.isChecked() else " Solve")
         self.stop_btn.setEnabled(False)
@@ -10083,6 +10091,7 @@ class MainWindow(QMainWindow):
             return
         self._progress = RunProgress(config)
         self._progress_label = label
+        self._stopped = False
         self.status_progress.setVisible(True)
         self.status_progress.setRange(0, 1000)
         self.status_progress.setValue(0)
@@ -10131,9 +10140,14 @@ class MainWindow(QMainWindow):
             det.append(f"about {fmt_seconds(eta)} left")
         self.status_detail.setText("   ·   ".join(det))
 
-    def _finish_progress(self, message, ok=True):
+    def _finish_progress(self, message, ok=True, folder=None):
+        """The run ended: sum it up in the status bar and, when it finished,
+        show its error analysis (from `folder`, the run's own folder)."""
         from pinnstudio.ui.results import fmt_seconds
         p = getattr(self, '_progress', None)
+        self._progress = None    # later output (after Stop) is not this run's
+        if hasattr(self, "run_history"):
+            self.run_history.stale = True
         if not hasattr(self, 'status_text'):
             return
         self._progress_timer.stop()
@@ -10153,9 +10167,8 @@ class MainWindow(QMainWindow):
         self.status_text.setText("  ·  ".join(bits))
         self.status_detail.setText("")
         if ok:
-            cfg = getattr(self, '_last_config', None) or getattr(getattr(self, 'thread', None), 'config', None)
-            folder = os.path.join(cfg.save_dir, "error_analysis") if cfg is not None and cfg.save_dir else ""
-            self.ea_panel.show_run(p.metrics, folder, p.figures)
+            ea = os.path.join(folder, "error_analysis") if folder else ""
+            self.ea_panel.show_run(p.metrics, ea, p.figures)
             self.results_tabs.setCurrentIndex(0)
 
     def _open_figure(self, label):
@@ -10173,6 +10186,7 @@ class MainWindow(QMainWindow):
             self.sweep_thread.stop()
             self.sweep_thread.wait(3000)
             self.log_box.append("\n⏹ Stopped by user.")
+            self._stopped = True
             self._finish_progress("Stopped", ok=False)
             self.solve_btn.setEnabled(True)
             self.solve_btn.setText(
@@ -10184,6 +10198,7 @@ class MainWindow(QMainWindow):
             self.thread.stop()
             self.thread.wait(3000)
             self.log_box.append("\n⏹ Stopped by user.")
+            self._stopped = True
             self._finish_progress("Stopped", ok=False)
             self.solve_btn.setEnabled(True)
             self.solve_btn.setText(
@@ -10199,9 +10214,6 @@ class MainWindow(QMainWindow):
         Python/PyTorch process, and any GPU memory it holds, kept running
         detached from the GUI indefinitely. If a run is active, ask before
         quitting rather than silently killing it."""
-        if not self._maybe_save_changes():
-            event.ignore()
-            return
         self._save_layout()
         # isinstance(..., QThread) rather than a plain hasattr check: every
         # QObject (QMainWindow included) already has its own built-in
@@ -10234,6 +10246,10 @@ class MainWindow(QMainWindow):
             if reply != QMessageBox.StandardButton.Yes:
                 event.ignore()
                 return
+        if not self._maybe_save_changes():   # after the run question: cancel there asks nothing more
+            event.ignore()
+            return
+        if active:
             for _name, th in active:
                 if hasattr(th, 'stop'):
                     th.stop()
@@ -10423,8 +10439,10 @@ class MainWindow(QMainWindow):
         self.solve_btn.setEnabled(True)
         self.solve_btn.setText(" Solve")
         self.stop_btn.setEnabled(False)
-        self._finish_progress("Finished" if result == "DONE" else "Failed -- see the Training Log",
-                              ok=result == "DONE")
+        if not getattr(self, "_stopped", False):   # Stop already summed it up
+            _cfg = getattr(getattr(self, 'thread', None), 'config', None)
+            self._finish_progress("Finished" if result == "DONE" else "Failed -- see the Training Log",
+                                  ok=result == "DONE", folder=getattr(_cfg, "save_dir", "") or "")
 
         if result == "DONE":
             self.log_box.append("\n✅ Training complete!")

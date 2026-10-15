@@ -102,7 +102,24 @@ def apply(target, name, role="text", size=18):
     """Set icon `name` on a button (or a (QTabWidget, index) tab), tinted by
     `role`, and keep it tinted when the theme changes."""
     _registry.append((target, name, role, size))
+    if len(_registry) % 200 == 0:
+        _prune()
     _set(target, name, role, size)
+
+
+def _prune():
+    """Forget buttons that have been deleted (removed BC rows, closed dialogs)."""
+    try:
+        from PyQt6 import sip
+    except ImportError:
+        return
+    def alive(t):
+        w = t[0] if isinstance(t, tuple) else t
+        try:
+            return not sip.isdeleted(w)
+        except TypeError:
+            return True
+    _registry[:] = [e for e in _registry if alive(e[0])]
 
 
 def _set(target, name, role, size):
