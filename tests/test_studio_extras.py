@@ -202,6 +202,67 @@ def test_run_history():
     assert w.ea_panel.table.rowCount() == 2
 
 
+
+def _fake_run(base, name, losses, l2s):
+    run = os.path.join(base, name)
+    os.makedirs(os.path.join(run, "solution_results"))
+    os.makedirs(os.path.join(run, "error_analysis"))
+    with open(os.path.join(run, "solution_results", "training_log.txt"), "w") as fh:
+        for i, v in enumerate(losses):
+            fh.write(f"Step {i * 100}: [np.float32({v}), np.float32({v / 10})]\n")
+    with open(os.path.join(run, "error_analysis", "error_metrics.txt"), "w") as fh:
+        fh.write("t,L2_relative,Mean_abs_error\n")
+        for i, e in enumerate(l2s):
+            fh.write(f"{i * 0.5},{e},0.001\n")
+    return run
+
+
+def test_compare_runs():
+    from pinnstudio.ui.results import read_loss_history
+    base = tempfile.mkdtemp()
+    a = _fake_run(base, "run_00__baseline", [1.0, 0.1, 0.01], [0.01, 0.02])
+    _fake_run(base, "run_01__Hidden-layers_4", [2.0, 0.2, 0.05], [0.03, 0.04])
+    hist = read_loss_history(a)
+    assert [h[0] for h in hist] == [0, 100, 200] and abs(hist[-1][1] - 0.011) < 1e-9
+    w = _window()
+    w.save_dir_input.setText(base)
+    w.right_tabs.setCurrentWidget(w.results_tabs)
+    w.results_tabs.setCurrentWidget(w.run_history)
+    _settle()
+    h = w.run_history
+    assert h.table.rowCount() == 2
+    h.table.selectRow(0)
+    _settle()
+    assert not h.compare_btn.isEnabled() and h.show_btn.isEnabled()
+    h.table.selectAll()
+    _settle()
+    assert h.compare_btn.isEnabled() and not h.show_btn.isEnabled()
+    h.compare_btn.click()
+    _settle()
+    assert h.compare.isVisible() and len(h.compare.runs) == 2
+    axes = h.compare._fig.axes
+    assert len(axes) == 2, "loss and error side by side"
+    assert len(axes[0].lines) == 2 and len(axes[1].lines) == 2
+    labels = {t.get_text() for t in axes[1].get_legend().get_texts()}
+    assert labels == {"baseline", "Hidden-layers 4"}, labels
+
+
+def test_help_links_and_start_first():
+    w = _window()
+    assert w.right_tabs.indexOf(w.start_page) == 0, "Start is the first tab"
+    opened = []
+    w.workspace.open_url = opened.append
+    w.workspace.select("weights")
+    _settle()
+    assert w.workspace.help_btn.isVisible()
+    w.workspace.help_btn.click()
+    assert opened == [w.DOCS_URL + "#training"], "a child node uses its parent's section"
+    assert "Help" in [a.text() for a in w.workspace.build_menu("sweep").actions()]
+    # opening a saved problem keeps Save-to at the folder, not the old run's folder
+    assert w._save_root("/r/1D_Forward__2026-10-14_22-02-08") == "/r"
+    assert w._save_root("/r/mine") == "/r/mine"
+
+
 if __name__ == "__main__":
     test_equation_preview()
     test_start_files_and_unsaved_marker()
@@ -209,4 +270,6 @@ if __name__ == "__main__":
     test_tree_menus()
     test_sketch_undo_redo()
     test_run_history()
+    test_compare_runs()
+    test_help_links_and_start_first()
     print("PASSED")
