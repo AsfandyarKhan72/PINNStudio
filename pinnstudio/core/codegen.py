@@ -731,14 +731,15 @@ def _training_methods_defs(config):
 
 
 def _causal_wrap(_f):
-    def _pde_causal(x, y):
-        _r = _f(x, y)
+    def _weigh(x, _r):
         _rs = list(_r) if isinstance(_r, (list, tuple)) else [_r]
         if any(_ri.shape[0] != x.shape[0] for _ri in _rs):
             return _r                      # residual on a subset of points (fractional): unchanged
         _M = _CAUSAL["M"]
         _t = x[:, -1].detach()
-        _idx = ((_t - _CAUSAL["t0"]) / (_CAUSAL["t1"] - _CAUSAL["t0"]) * _M).floor().clamp(0, _M - 1).long()
+        _t0, _t1 = float(_t.min()), float(_t.max())   # this training window (one Time-Adaptive step, or all of it)
+        _CAUSAL["t0"], _CAUSAL["t1"] = _t0, _t1
+        _idx = ((_t - _t0) / max(_t1 - _t0, 1e-12) * _M).floor().clamp(0, _M - 1).long()
         if _CAUSAL["frozen"] and _CAUSAL["w"] is not None:
             _w = _CAUSAL["w"].to(x.device)
         else:
@@ -753,6 +754,13 @@ def _causal_wrap(_f):
         _s = _w[_idx].sqrt().unsqueeze(1).to(_rs[0].dtype)
         _out = [_ri * _s for _ri in _rs]
         return _out if isinstance(_r, (list, tuple)) else _out[0]
+    import inspect as _inspect
+    if len(_inspect.signature(_f).parameters) == 3:    # fractional: pde(x, y, int_mat)
+        def _pde_causal(x, y, int_mat=None):
+            return _weigh(x, _f(x, y, int_mat))
+    else:
+        def _pde_causal(x, y):
+            return _weigh(x, _f(x, y))
     return _pde_causal
 
 
@@ -810,7 +818,8 @@ class _GradNormBalancer(dde.callbacks.Callback):
             g = torch.autograd.grad(li, params, retain_graph=True, allow_unused=True)
             norms.append(float(torch.sqrt(sum((gi.detach() ** 2).sum() for gi in g if gi is not None))))
         tot = sum(norms)
-        old = _BALANCE["w"] or [1.0] * len(norms)
+        old = _BALANCE["w"] or ([float(v) for v in keep] if keep is not None and len(keep) == len(norms)
+                                else [1.0] * len(norms))      # starts from the Loss Weights
         # a term with (almost) no gradient -- e.g. a condition the network
         # already satisfies exactly -- keeps its weight instead of exploding
         new = [tot / n if n > 1e-6 * tot else o for n, o in zip(norms, old)]
@@ -10050,6 +10059,7 @@ def generate_clean_script(config):
     any_cbs = bool(config.cb_early_stopping or config.cb_point_resampler
                    or config.cb_model_checkpoint or config.cb_timer
                    or config.training_monitors_enabled
+                   or bool(_training_methods_cbs(config, "train_cbs", ""))
                    or _bc_entries_use_batching(bc_entries))
     cbs_code = ""
     if any_cbs:
@@ -10293,6 +10303,9 @@ if save_dir:
     if "_frac(" in (config.pde_expressions or ""):
         parts.append(_frac_helper_code(config))
     parts.append(pde_block)
+    _tm_defs = _training_methods_defs(config)
+    if _tm_defs:
+        parts.append(_tm_defs.strip("\n"))
 
     if bc_defs:
         parts.append("\n".join(bc_defs))
@@ -10618,6 +10631,8 @@ prev_net = None
 _ta_all_steps, _ta_all_train_loss, _ta_all_test_loss = [], [], []
 _ta_loss_offset = 0''')
         parts.append("\n".join(ta_lines))
+        if cbs_code:
+            parts.append(cbs_code)
 
         loop_lines = ["for step_i, (t0, t1) in enumerate(intervals):",
                       "    geom_i = _build_geom()",

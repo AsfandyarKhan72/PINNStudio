@@ -934,7 +934,7 @@ class MainWindow(QMainWindow):
         ("weights", "Loss weights", "W", "#91a7ff", "training", ("Loss Weights",),
          "How much each loss term counts."),
         ("adaptive", "Adaptive training", "A", "#91a7ff", "training", ("Adaptive Training",),
-         "Residual-based refinement, point resampling and time-adaptive training."),
+         "Residual-based refinement, time-adaptive training, causal training and loss balancing."),
         ("sweep", "Parameter sweep", "S", "#e599f7", None, ("Parameter Sweep",),
          "Run the problem over a range of settings and compare the results."),
         ("results", "Results", "R", "#fcc419", None, (),
@@ -1137,7 +1137,7 @@ class MainWindow(QMainWindow):
     _PROBLEM_KEYWORDS = (
         ("sweep", "sweep"),
         ("inverse", ("inverse", "observ", "unknown variable", "true value")),
-        ("adaptive", ("rar", "time-adaptive", "time adaptive", "resampl", "adaptive")),
+        ("adaptive", ("rar", "time-adaptive", "time adaptive", "resampl", "adaptive", "causal", "balanc")),
         ("weights", ("scale by initial losses", "loss weight", "weights")),
         ("network", ("network", "layer", "msffn", "neuron", "fourier", "activation", "initializer")),
         ("points", ("domain points", "boundary points", "initial points", "test points", "anchor",
@@ -3376,6 +3376,64 @@ class MainWindow(QMainWindow):
 
         self.rar_widget.setVisible(False)
         adapt_layout.addWidget(self.rar_widget)
+
+        # Loss-level methods: independent of the Method dropdown above (they
+        # change how the loss is weighted, not which points or which time
+        # window is trained), so they can be combined with either.
+        def _num_row(lay, label, spin):
+            row = QHBoxLayout()
+            row.addWidget(QLabel(label))
+            spin.setFixedHeight(28); spin.setFixedWidth(100)
+            row.addStretch(); row.addWidget(spin)
+            lay.addLayout(row)
+
+        self.causal_cb = QCheckBox("Causal training")
+        self.causal_cb.setToolTip(
+            "Wang, Sankaran & Perdikaris (2024), 'Respecting causality for training\n"
+            "physics-informed neural networks'. The time interval is split into chunks;\n"
+            "each chunk's residual is weighted by exp(-ε · the residual loss of all\n"
+            "earlier chunks), so later times only start to count once earlier times\n"
+            "are fitted. The weights are held fixed during L-BFGS.")
+        adapt_layout.addWidget(self.causal_cb)
+        self.causal_widget = QWidget()
+        cz = QVBoxLayout(self.causal_widget)
+        cz.setSpacing(4); cz.setContentsMargins(18, 0, 0, 0)
+        self.causal_chunks = QSpinBox(); self.causal_chunks.setRange(2, 1000); self.causal_chunks.setValue(32)
+        self.causal_chunks.setToolTip("How many equal time chunks the interval is split into.")
+        _num_row(cz, "Time chunks:", self.causal_chunks)
+        self.causal_eps = QDoubleSpinBox(); self.causal_eps.setDecimals(3)
+        self.causal_eps.setRange(0.001, 1e6); self.causal_eps.setValue(1.0)
+        self.causal_eps.setToolTip(
+            "Causality strength ε. Larger values hold later times back more strongly.\n"
+            "It acts on the residual loss itself, so it depends on how large the residuals are:\n"
+            "the log prints how far in time the weights have settled (all close to 1).")
+        _num_row(cz, "Causality ε:", self.causal_eps)
+        self.causal_widget.setVisible(False)
+        adapt_layout.addWidget(self.causal_widget)
+        self.causal_cb.toggled.connect(self.causal_widget.setVisible)
+
+        self.balance_cb = QCheckBox("Loss balancing (gradient norms)")
+        self.balance_cb.setToolTip(
+            "Wang, Teng & Perdikaris (2021), 'Understanding and mitigating gradient flow\n"
+            "pathologies in physics-informed neural networks'. Every N Adam steps each loss\n"
+            "term's weight is set from the size of its gradient, so every term pulls on the\n"
+            "network about equally: w_i ← α·w_i + (1-α)·Σ|∇L_j| / |∇L_i|.\n"
+            "The weights from Loss Weights are the starting point; they are held fixed\n"
+            "during L-BFGS.")
+        adapt_layout.addWidget(self.balance_cb)
+        self.balance_widget = QWidget()
+        bz = QVBoxLayout(self.balance_widget)
+        bz.setSpacing(4); bz.setContentsMargins(18, 0, 0, 0)
+        self.balance_every = QSpinBox(); self.balance_every.setRange(1, 1_000_000)
+        self.balance_every.setSingleStep(100); self.balance_every.setValue(1000)
+        _num_row(bz, "Update every (steps):", self.balance_every)
+        self.balance_alpha = QDoubleSpinBox(); self.balance_alpha.setDecimals(2)
+        self.balance_alpha.setRange(0.0, 0.99); self.balance_alpha.setSingleStep(0.05); self.balance_alpha.setValue(0.9)
+        self.balance_alpha.setToolTip("Smoothing: how much of the previous weight is kept at each update.")
+        _num_row(bz, "Smoothing α:", self.balance_alpha)
+        self.balance_widget.setVisible(False)
+        adapt_layout.addWidget(self.balance_widget)
+        self.balance_cb.toggled.connect(self.balance_widget.setVisible)
 
         left_layout.addWidget(adapt_group)
 
@@ -8440,6 +8498,12 @@ class MainWindow(QMainWindow):
             cb_checkpoint_monitor=self.cb_ck_monitor.currentData(),
             cb_timer=self.cb_timer_cb.isChecked(),
             cb_timer_minutes=self.cb_tm_minutes.value(),
+            causal_training=self.causal_cb.isChecked(),
+            causal_chunks=self.causal_chunks.value(),
+            causal_eps=self.causal_eps.value(),
+            loss_balancing=self.balance_cb.isChecked(),
+            loss_balancing_every=self.balance_every.value(),
+            loss_balancing_alpha=self.balance_alpha.value(),
             training_monitors_enabled=self.training_monitors_cb.isChecked(),
             training_monitors=self._build_training_monitors_json(),
             plot_colormap=self._plot_viz_settings.get('colormap', 'RdBu_r'),
@@ -9176,6 +9240,12 @@ class MainWindow(QMainWindow):
         self._set_combo_data(self.cb_ck_monitor, config.cb_checkpoint_monitor)
         self.cb_timer_cb.setChecked(config.cb_timer)
         self.cb_tm_minutes.setValue(float(config.cb_timer_minutes))
+        self.causal_cb.setChecked(bool(getattr(config, 'causal_training', False)))
+        self.causal_chunks.setValue(int(getattr(config, 'causal_chunks', 32)))
+        self.causal_eps.setValue(float(getattr(config, 'causal_eps', 1.0)))
+        self.balance_cb.setChecked(bool(getattr(config, 'loss_balancing', False)))
+        self.balance_every.setValue(int(getattr(config, 'loss_balancing_every', 1000)))
+        self.balance_alpha.setValue(float(getattr(config, 'loss_balancing_alpha', 0.9)))
         self.training_monitors_cb.setChecked(getattr(config, 'training_monitors_enabled', False))
         self._apply_training_monitors_json(getattr(config, 'training_monitors', '') or '[]')
         # Auto-reveal the Training Callbacks group on load if this saved
