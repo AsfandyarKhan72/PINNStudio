@@ -11778,6 +11778,8 @@ print("DOMAIN_PREVIEW_DONE")
             self._script_highlighter.rehighlight()
         if getattr(self, "start_page", None) is not None:
             self.start_page.retheme()
+        if getattr(self, "run_history", None) is not None and self.run_history.compare.isVisible():
+            self.run_history.compare.redraw()
         if hasattr(self, "workspace"):
             self.workspace.tree.viewport().update()
 

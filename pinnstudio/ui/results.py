@@ -420,8 +420,7 @@ def read_run(folder):
                 if line.strip().startswith("Step"):
                     last = line
         if last:
-            body = re.sub(r"(?:np\.)?float\d*\(|tensor\(|array\(", "", last.split(":", 1)[1])
-            vals = _floats(re.sub(r"[\[\]()]", "", body))
+            vals = _log_values(last)
             if vals:
                 run["loss"] = sum(vals)
     except OSError:
@@ -447,6 +446,30 @@ def read_run(folder):
     except (OSError, ValueError, AttributeError):
         pass
     return run
+
+
+def _log_values(line):
+    body = re.sub(r"(?:np\.)?float\d*\(|tensor\(|array\(", "", line.split(":", 1)[1])
+    return _floats(re.sub(r"[\[\]()]", "", body))
+
+
+def read_loss_history(folder):
+    """[(step, total training loss)] from a run's training_log.txt."""
+    out = []
+    try:
+        with open(os.path.join(folder, "solution_results", "training_log.txt"), encoding="utf-8",
+                  errors="replace") as fh:
+            for line in fh:
+                line = line.strip()
+                m = re.match(r"Step\s+(\d+)\s*:", line)
+                if not m:
+                    continue
+                vals = _log_values(line)
+                if vals:
+                    out.append((int(m.group(1)), sum(vals)))
+    except OSError:
+        pass
+    return out
 
 
 def scan_runs(base, max_depth=3, limit=500):
@@ -480,6 +503,110 @@ def scan_runs(base, max_depth=3, limit=500):
     return out
 
 
+def short_label(run):
+    """A run's name for a legend: without the sweep's "run_01__" prefix."""
+    return re.sub(r"^run_\d+__", "", run.get("label") or run.get("name") or "run").replace("_", " ")
+
+
+class RunCompare(QWidget):
+    """Several runs on one figure: training loss against iteration, and
+    the relative L2 error against time (when the runs have error analysis)."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.setSpacing(2)
+        self._canvas = None
+        self.runs = []
+        self.empty = QLabel("Select two or more runs and press Compare.")
+        self.empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.empty.setObjectName("plotPlaceholder")
+        lay.addWidget(self.empty)
+        self.holder = lay
+
+    def _ensure_canvas(self):
+        if self._canvas is not None:
+            return True
+        try:
+            from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg, NavigationToolbar2QT
+            from matplotlib.figure import Figure
+        except Exception:
+            self.empty.setText("Comparing runs needs matplotlib's Qt backend.")
+            return False
+        self._fig = Figure(figsize=(8, 3.4), dpi=100, layout="constrained")
+        self._canvas = FigureCanvasQTAgg(self._fig)
+        self._canvas.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self._toolbar = NavigationToolbar2QT(self._canvas, self)
+        self.empty.hide()
+        self.holder.addWidget(self._toolbar)
+        self.holder.addWidget(self._canvas, 1)
+        return True
+
+    def set_runs(self, runs):
+        self.runs = list(runs)
+        if self._ensure_canvas():
+            self.redraw()
+
+    def redraw(self):
+        if self._canvas is None:
+            return
+        t = _theme.current()
+        fig = self._fig
+        fig.clear()
+        fig.set_facecolor(t["card"])
+        with_err = [r for r in self.runs if r.get("metrics")]
+        axes = fig.subplots(1, 2 if with_err else 1, squeeze=False)[0]
+        for ax in axes:
+            ax.set_facecolor(t["card"])
+            for sp in ax.spines.values():
+                sp.set_color(t["border_strong"])
+            ax.tick_params(colors=t["text_muted"], labelsize=9)
+            ax.xaxis.label.set_color(t["text_muted"])
+            ax.yaxis.label.set_color(t["text_muted"])
+            ax.title.set_color(t["text"])
+            ax.grid(True, which="major", color=t["border"], linewidth=0.6)
+        cols = _theme.BC_COLORS
+        ax = axes[0]
+        any_loss = False
+        for i, r in enumerate(self.runs):
+            hist = read_loss_history(r["folder"])
+            if hist:
+                any_loss = True
+                ax.plot([h[0] for h in hist], [h[1] for h in hist], color=cols[i % len(cols)], lw=1.6,
+                        label=short_label(r))
+        ax.set_xlabel("iteration")
+        ax.set_ylabel("training loss")
+        ax.set_title("Loss", fontsize=10)
+        if any_loss:
+            ax.set_yscale("log")
+        else:
+            ax.text(0.5, 0.5, "No training log saved for these runs", transform=ax.transAxes, ha="center",
+                    va="center", color=t["text_muted"], fontsize=9)
+            ax.set_xticks([])
+            ax.set_yticks([])
+        if with_err:
+            ax2 = axes[1]
+            for i, r in enumerate(self.runs):
+                m = r.get("metrics") or []
+                if m:
+                    ts = [x[0] for x in m]
+                    style = "o-" if len(m) > 1 else "o"
+                    ax2.plot(ts, [x[1] for x in m], style, color=cols[i % len(cols)], lw=1.6, ms=4,
+                             label=short_label(r))
+            ax2.set_xlabel("t")
+            ax2.set_ylabel("relative L₂ error")
+            ax2.set_title("Error", fontsize=10)
+            ax2.set_yscale("log")
+        leg = axes[-1].legend(loc="best", fontsize=8, frameon=True) if self.runs else None
+        if leg is not None:
+            leg.get_frame().set_facecolor(t["card"])
+            leg.get_frame().set_edgecolor(t["border"])
+            for txt in leg.get_texts():
+                txt.set_color(t["text"])
+        self._canvas.draw_idle()
+
+
 class RunHistory(QWidget):
     """The runs saved in the Save-to folder: when, which, final loss and
     error. Double-click (or Show) brings a run's figures back up."""
@@ -500,11 +627,14 @@ class RunHistory(QWidget):
         self.show_btn = QPushButton("Show")
         self.show_btn.setToolTip("Show this run's figures in Overview and its errors in Error analysis")
         self.show_btn.clicked.connect(self._activate_current)
+        self.compare_btn = QPushButton("Compare")
+        self.compare_btn.setToolTip("Select two or more runs (Ctrl/Shift-click): their loss and error on one plot")
+        self.compare_btn.clicked.connect(self.compare_selected)
         self.folder_btn = QPushButton("Open folder")
         self.folder_btn.clicked.connect(self._open_folder)
         self.refresh_btn = QPushButton("Refresh")
         self.refresh_btn.clicked.connect(self.refresh)
-        for b in (self.show_btn, self.folder_btn, self.refresh_btn):
+        for b in (self.show_btn, self.compare_btn, self.folder_btn, self.refresh_btn):
             bar.addWidget(b)
         lay.addLayout(bar)
         self.table = QTableWidget(0, 4)
@@ -516,11 +646,17 @@ class RunHistory(QWidget):
         self.table.verticalHeader().setVisible(False)
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
-        self.table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
+        self.table.setSelectionMode(QTableWidget.SelectionMode.ExtendedSelection)
         self.table.setSortingEnabled(False)
         self.table.cellDoubleClicked.connect(lambda r, _c: self._activate(r))
         self.table.itemSelectionChanged.connect(self._update_buttons)
-        lay.addWidget(self.table, 1)
+        self.split = QSplitter(Qt.Orientation.Vertical)
+        self.split.addWidget(self.table)
+        self.compare = RunCompare()
+        self.compare.setVisible(False)
+        self.split.addWidget(self.compare)
+        self.split.setChildrenCollapsible(False)
+        lay.addWidget(self.split, 1)
         self._update_buttons()
 
     def refresh(self):
@@ -552,14 +688,28 @@ class RunHistory(QWidget):
                                  "-- double-click one to see its figures.")
         self._update_buttons()
 
+    def selected_rows(self):
+        sm = self.table.selectionModel()
+        rows = sorted(i.row() for i in sm.selectedRows()) if sm else []
+        return [r for r in rows if 0 <= r < len(self.runs)]
+
     def _row(self):
-        rows = self.table.selectionModel().selectedRows() if self.table.selectionModel() else []
-        return rows[0].row() if rows else -1
+        rows = self.selected_rows()
+        return rows[0] if rows else -1
 
     def _update_buttons(self):
-        ok = 0 <= self._row() < len(self.runs)
-        self.show_btn.setEnabled(ok)
-        self.folder_btn.setEnabled(ok)
+        n = len(self.selected_rows())
+        self.show_btn.setEnabled(n == 1)
+        self.folder_btn.setEnabled(n == 1)
+        self.compare_btn.setEnabled(n >= 2)
+
+    def compare_selected(self):
+        rows = self.selected_rows()
+        if len(rows) < 2:
+            return
+        self.compare.setVisible(True)
+        self.compare.set_runs([self.runs[r] for r in rows])
+        self.split.setSizes([max(120, self.split.height() // 3), max(240, 2 * self.split.height() // 3)])
 
     def _activate(self, row):
         if 0 <= row < len(self.runs):
