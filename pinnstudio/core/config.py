@@ -365,6 +365,20 @@ class PINNConfig:
     cb_timer: bool = False
     cb_timer_minutes: float = 60.0
 
+    # Training methods (adaptive training): causal training (Wang,
+    # Sankaran & Perdikaris, CMAME 2024) weights the PDE residual of each
+    # time chunk by exp(-eps * sum of the earlier chunks' residual losses),
+    # so later times count once earlier ones are solved; gradient-norm loss
+    # balancing (Wang, Teng & Perdikaris, SISC 2021) sets every loss term's
+    # weight from the gradient norms, every N steps, smoothed by alpha. Both
+    # are frozen at their last values during L-BFGS.
+    causal_training: bool = False
+    causal_chunks: int = 32
+    causal_eps: float = 1.0
+    loss_balancing: bool = False
+    loss_balancing_every: int = 1000
+    loss_balancing_alpha: float = 0.9
+
     # Training Monitors: optional, pure-observability DeepXDE
     # dde.callbacks.OperatorPredictor instances. Each one watches an
     # expression (built from plain output names and/or derivative names
@@ -730,6 +744,18 @@ class PINNConfig:
         file and hard to diagnose from the resulting crash, not every
         possible misconfiguration."""
         errors = []
+        if self.causal_training:
+            if self.steady_state:
+                errors.append("Causal training needs a time-dependent problem (it weights the residual by time).")
+            if int(self.causal_chunks) < 2:
+                errors.append("Causal training: the number of time chunks must be at least 2.")
+            if float(self.causal_eps) <= 0:
+                errors.append("Causal training: the causality parameter epsilon must be positive.")
+        if self.loss_balancing:
+            if int(self.loss_balancing_every) < 1:
+                errors.append("Loss balancing: the update interval must be at least 1 step.")
+            if not (0.0 <= float(self.loss_balancing_alpha) < 1.0):
+                errors.append("Loss balancing: alpha (the smoothing of the weights) must be in [0, 1).")
 
         if self.problem_dim == "ODE":
             _bad = [n.strip() for n in (self.output_names or "").split(",") if n.strip() in ("x", "t")]

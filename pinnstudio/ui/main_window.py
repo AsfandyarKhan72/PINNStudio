@@ -12718,9 +12718,10 @@ print("DOMAIN_PREVIEW_DONE")
                 'output_names': 'u,mu',
                 'pde': ["du_t - dmu_xx",
                         "mu - 0.01*(u**3 - u) + 1e-6*du_xx"],
-                # mu(0, x) follows from u(0, x): g2 (u0^3 - u0) - g1 u0_xx
-                'ic': ["-cos(2*pi*x)",
-                       "0.01*(cos(2*pi*x) - cos(2*pi*x)**3) - 1e-6*4*pi**2*cos(2*pi*x)"],
+                # mu has no time derivative: it is fixed by u at every time
+                # (its own equation), so it takes no initial condition
+                'ic': ["-cos(2*pi*x)", "0"],
+                'ic_active': [True, False],
                 'num_domain': 10000,
                 'num_boundary': 200,
                 'num_initial': 512,
@@ -12833,11 +12834,16 @@ print("DOMAIN_PREVIEW_DONE")
         if not t:
             return
 
-        if 'num_outputs' in t:
-            self.num_outputs_spin.setValue(t['num_outputs'])
+        # every template sets its output count (a 1-output template after a
+        # 2-output one used to keep the second output and its equation)
+        if self.num_outputs_spin.value() != t.get('num_outputs', 1):
+            self.num_outputs_spin.setValue(t.get('num_outputs', 1))
             QApplication.processEvents()
-        names = [n.strip() for n in t['output_names'].split(',')] if 'output_names' in t else []
+        names = [n.strip() for n in t['output_names'].split(',')] if 'output_names' in t else ['u']
         self._tpl_set_equations(None, names, t['pde'], t['ic'])
+        _ic_on = t.get('ic_active', [])
+        for i, cb in enumerate(self.ic_active):
+            cb.setChecked(_ic_on[i] if i < len(_ic_on) else True)
         self._tpl_set_sampling_and_training(t, num_initial=t['num_initial'], optimizer2=t['optimizer2'])
         if text in ("1D Allen-Cahn", "1D Cahn-Hilliard"):
             self._tpl_set_ic_weights(self.num_outputs_spin.value(), 100.0)

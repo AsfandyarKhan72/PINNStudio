@@ -708,6 +708,132 @@ def _parse_inverse_obs_files(config):
     return files
 
 
+
+def _training_methods_defs(config):
+    """Module-level source for causal training and gradient-norm loss
+    balancing (empty when neither is on). Causal training wraps `pde`: each
+    collocation point's residual is scaled by sqrt(w_i) of its time chunk i,
+    w_i = exp(-eps * sum_{k<i} L_k), L_k the mean squared residual in chunk
+    k (no gradient through w), so the mean-squared PDE loss becomes the
+    causal loss of Wang, Sankaran & Perdikaris (CMAME 2024). Loss balancing
+    is a callback that, every N Adam steps, sets each loss term's weight to
+    sum_j |grad L_j| / |grad L_i|, smoothed by alpha (Wang, Teng &
+    Perdikaris, SISC 2021; Wang et al. 2023's expert's guide). Both are held
+    fixed during L-BFGS, which needs a fixed objective."""
+    causal = bool(getattr(config, "causal_training", False)) and not config.steady_state
+    balance = bool(getattr(config, "loss_balancing", False))
+    if not (causal or balance):
+        return ""
+    out = ["", "# ── Training methods: causal training / loss balancing ─────────"]
+    if causal:
+        out.append(f"""_CAUSAL = {{"M": {int(config.causal_chunks)}, "eps": {float(config.causal_eps)!r}, "t0": {float(config.t_min)!r}, "t1": {float(config.t_max)!r},
+           "w": None, "frozen": False, "n": 0}}
+
+
+def _causal_wrap(_f):
+    def _pde_causal(x, y):
+        _r = _f(x, y)
+        _rs = list(_r) if isinstance(_r, (list, tuple)) else [_r]
+        if any(_ri.shape[0] != x.shape[0] for _ri in _rs):
+            return _r                      # residual on a subset of points (fractional): unchanged
+        _M = _CAUSAL["M"]
+        _t = x[:, -1].detach()
+        _idx = ((_t - _CAUSAL["t0"]) / (_CAUSAL["t1"] - _CAUSAL["t0"]) * _M).floor().clamp(0, _M - 1).long()
+        if _CAUSAL["frozen"] and _CAUSAL["w"] is not None:
+            _w = _CAUSAL["w"].to(x.device)
+        else:
+            with torch.no_grad():
+                _sq = sum(_ri.detach().reshape(-1) ** 2 for _ri in _rs)
+                _L = torch.zeros(_M, dtype=_sq.dtype, device=x.device).scatter_add_(0, _idx, _sq)
+                _c = torch.zeros(_M, dtype=_sq.dtype, device=x.device).scatter_add_(0, _idx, torch.ones_like(_sq))
+                _L = _L / _c.clamp(min=1)
+                _w = torch.exp(-_CAUSAL["eps"] * (torch.cumsum(_L, 0) - _L))
+            if x.shape[0] >= _CAUSAL["n"]:     # the training points (not the smaller test set)
+                _CAUSAL["w"], _CAUSAL["n"] = _w.detach(), x.shape[0]
+        _s = _w[_idx].sqrt().unsqueeze(1).to(_rs[0].dtype)
+        _out = [_ri * _s for _ri in _rs]
+        return _out if isinstance(_r, (list, tuple)) else _out[0]
+    return _pde_causal
+
+
+pde = _causal_wrap(pde)
+print(f"Causal training: {{_CAUSAL['M']}} time chunks, epsilon = {{_CAUSAL['eps']}}")
+
+
+class _CausalMonitor(dde.callbacks.Callback):
+    \"\"\"Prints how far in time the causal weights say the solution is
+    settled, and holds the weights fixed during L-BFGS.\"\"\"
+    def __init__(self, every=1000):
+        super().__init__()
+        self.every = every
+
+    def on_train_begin(self):
+        _CAUSAL["frozen"] = "L-BFGS" in str(getattr(self.model, "opt_name", ""))
+
+    def on_batch_end(self):
+        st = self.model.train_state
+        if st.step % self.every or _CAUSAL["w"] is None:
+            return
+        _w = _CAUSAL["w"].cpu().numpy()
+        _ok = int((_w > 0.99).sum()) if (_w > 0.99).all() else int(np.argmax(_w <= 0.99))
+        _tt = _CAUSAL["t0"] + (_CAUSAL["t1"] - _CAUSAL["t0"]) * _ok / _CAUSAL["M"]
+        print(f"  causal weights: min {{_w.min():.3g}}, settled up to t = {{_tt:.3g}}"
+              + (" (held during L-BFGS)" if _CAUSAL["frozen"] else ""), flush=True)
+""")
+    if balance:
+        out.append(f"""_BALANCE = {{"every": {int(config.loss_balancing_every)}, "alpha": {float(config.loss_balancing_alpha)!r}, "w": None}}
+
+
+class _GradNormBalancer(dde.callbacks.Callback):
+    \"\"\"Every N Adam steps: weight_i <- alpha * weight_i + (1 - alpha) *
+    sum_j |grad L_j| / |grad L_i| (unweighted loss terms, network
+    parameters). Kept fixed during L-BFGS and carried into later phases.\"\"\"
+    def on_train_begin(self):
+        if _BALANCE["w"] is not None:
+            self.model.loss_weights = list(_BALANCE["w"])
+        self.lbfgs = "L-BFGS" in str(getattr(self.model, "opt_name", ""))
+
+    def on_batch_end(self):
+        st = self.model.train_state
+        if self.lbfgs or st.step == 0 or st.step % _BALANCE["every"]:
+            return
+        m = self.model
+        params = [p for p in m.net.parameters() if p.requires_grad]
+        keep = m.loss_weights
+        m.loss_weights = None
+        try:
+            _, losses = m.outputs_losses_train(st.X_train, st.y_train, st.train_aux_vars)
+        finally:
+            m.loss_weights = keep
+        norms = []
+        for li in losses:
+            g = torch.autograd.grad(li, params, retain_graph=True, allow_unused=True)
+            norms.append(float(torch.sqrt(sum((gi.detach() ** 2).sum() for gi in g if gi is not None))))
+        tot = sum(norms)
+        old = _BALANCE["w"] or [1.0] * len(norms)
+        # a term with (almost) no gradient -- e.g. a condition the network
+        # already satisfies exactly -- keeps its weight instead of exploding
+        new = [tot / n if n > 1e-6 * tot else o for n, o in zip(norms, old)]
+        a = _BALANCE["alpha"]
+        _BALANCE["w"] = [a * o + (1 - a) * n for o, n in zip(old, new)]
+        m.loss_weights = list(_BALANCE["w"])
+        print("  balanced loss weights: [" + ", ".join(f"{{w:.3g}}" for w in _BALANCE["w"]) + "]", flush=True)
+
+
+print(f"Loss balancing: gradient norms every {{_BALANCE['every']}} steps, alpha = {{_BALANCE['alpha']}}")
+""")
+    return "\n".join(out) + "\n"
+
+
+def _training_methods_cbs(config, var_name, pad):
+    lines = []
+    if bool(getattr(config, "causal_training", False)) and not config.steady_state:
+        lines.append(f"{pad}{var_name}.append(_CausalMonitor(1000))")
+    if bool(getattr(config, "loss_balancing", False)):
+        lines.append(f"{pad}{var_name}.append(_GradNormBalancer())")
+    return lines
+
+
 def _build_train_cbs_code(config, var_name="_train_cbs", indent=4):
     """Builds the literal Python source (already indented at `indent`
     spaces, matching whatever base indent level the generated script has
@@ -784,6 +910,7 @@ def _build_train_cbs_code(config, var_name="_train_cbs", indent=4):
         )
     if config.cb_timer:
         lines.append(f"{pad}{var_name}.append(dde.callbacks.Timer(available_time={config.cb_timer_minutes}))")
+    lines.extend(_training_methods_cbs(config, var_name, pad))
     return "\n".join(lines)
 
 
@@ -5156,7 +5283,7 @@ def _pde_standard(x, y{", _int_mat=None" if "_frac(" in (config.pde_expressions 
     return _res
 if not _IS_FECR:
     pde = _pde_standard
-
+{_training_methods_defs(config)}
 # ── Geometry & Time domain ──────────────────────────────────
 # _build_geom() is the one place that turns the Geometry Type selector
 # (Rectangle/Disk/Ellipse/Triangle/Polygon in 2D; Cuboid/Sphere in 3D;
