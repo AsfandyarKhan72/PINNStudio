@@ -1984,8 +1984,10 @@ class MainWindow(QMainWindow):
             if entry in self.constant_rows:
                 self.constant_rows.remove(entry)
             self._refresh_constant_values()
+            self._refresh_equation_previews()
         remove.clicked.connect(_remove)
         self._refresh_constant_values()
+        self._refresh_equation_previews()
         return entry
 
     def _constants_json(self):
