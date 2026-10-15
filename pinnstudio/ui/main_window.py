@@ -4443,9 +4443,13 @@ class MainWindow(QMainWindow):
         self.solution_label.setStyleSheet("border: 1px solid #3e3e42; border-radius: 6px; color: #505080; background: #252526;")
         self.solution_label.setMinimumSize(240, 180)
         self.solution_label._source_path = None
+        from pinnstudio.ui.export_tools import attach_image_menu
         for _lbl in (self.loss_label, self.solution_label):
-            _lbl.setToolTip("Double-click to open the figure at full size (zoom and pan)")
+            _lbl.setToolTip("Double-click to open the figure at full size (zoom and pan); "
+                            "right-click to copy or save it")
             _lbl.mouseDoubleClickEvent = (lambda _ev, _l=_lbl: self._open_figure(_l))
+            attach_image_menu(_lbl, lambda _l=_lbl: getattr(_l, "_source_path", None),
+                              lambda _l=_lbl: self._open_figure(_l))
 
         # Each figure gets its own small header (title + a "save this
         # figure" button) above the image itself, both wrapped in one
@@ -4539,6 +4543,9 @@ class MainWindow(QMainWindow):
         self.monitor_label.setStyleSheet("border: 1px solid #3e3e42; border-radius: 6px; color: #505080; background: #252526;")
         self.monitor_label.setMinimumSize(240, 180)
         self.monitor_label._source_path = None
+        from pinnstudio.ui.export_tools import attach_image_menu as _aim
+        _aim(self.monitor_label, lambda: getattr(self.monitor_label, "_source_path", None),
+             lambda: self._open_figure(self.monitor_label))
         monitor_vlayout.addWidget(self.monitor_label)
 
         self.monitor_plot_files = []  # [(display_name, png_path), ...] for the last run

@@ -224,6 +224,8 @@ class LiveLossPlot(QWidget):
         self._canvas = FigureCanvasQTAgg(self._fig)
         self._canvas.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self._toolbar = NavigationToolbar2QT(self._canvas, self)
+        from pinnstudio.ui.export_tools import attach_figure_menu
+        attach_figure_menu(self._canvas, lambda: self._fig, "live_loss.png")
         self.empty.hide()
         self.holder.addWidget(self._toolbar)
         self.holder.addWidget(self._canvas, 1)
@@ -310,7 +312,7 @@ class ImageViewer(QDialog):
         lay.setContentsMargins(4, 4, 4, 4)
         self.view = _ZoomView(path)
         lay.addWidget(self.view)
-        hint = QLabel("Wheel to zoom · drag to pan · double-click to fit")
+        hint = QLabel("Wheel to zoom · drag to pan · double-click to fit · right-click to copy or save")
         hint.setObjectName("pageDesc")
         lay.addWidget(hint)
 
@@ -319,6 +321,9 @@ class _ZoomView(QGraphicsView):
     def __init__(self, path):
         super().__init__()
         self.setScene(QGraphicsScene(self))
+        self.path = path
+        from pinnstudio.ui.export_tools import attach_image_menu
+        attach_image_menu(self, lambda: self.path)
         self._item = QGraphicsPixmapItem(QPixmap(path))
         self._item.setTransformationMode(Qt.TransformationMode.SmoothTransformation)
         self.scene().addItem(self._item)
@@ -349,8 +354,12 @@ class _Thumb(QLabel):
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setObjectName("thumb")
 
-    def mousePressEvent(self, _ev):
-        ImageViewer(self.path, self.window()).exec()
+        from pinnstudio.ui.export_tools import attach_image_menu
+        attach_image_menu(self, lambda: self.path, lambda: ImageViewer(self.path, self.window()).exec())
+
+    def mousePressEvent(self, ev):
+        if ev.button() == Qt.MouseButton.LeftButton:
+            ImageViewer(self.path, self.window()).exec()
 
 
 class ErrorAnalysisPanel(QWidget):
@@ -362,13 +371,25 @@ class ErrorAnalysisPanel(QWidget):
         lay.setContentsMargins(6, 6, 6, 6)
         self.summary = QLabel("Run a problem with Error Analysis set up to see its errors here.")
         self.summary.setWordWrap(True)
-        lay.addWidget(self.summary)
+        bar = QHBoxLayout()
+        bar.addWidget(self.summary, 1)
+        self.copy_btn = QPushButton("Copy")
+        self.copy_btn.setToolTip("Copy the table (or the selected rows) -- it pastes into a spreadsheet")
+        self.export_btn = QPushButton("Export CSV…")
+        bar.addWidget(self.copy_btn)
+        bar.addWidget(self.export_btn)
+        lay.addLayout(bar)
         split = QSplitter(Qt.Orientation.Vertical)
         self.table = QTableWidget(0, 3)
         self.table.setHorizontalHeaderLabels(["time", "relative L₂ error", "mean |error|"])
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.table.verticalHeader().setVisible(False)
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        from pinnstudio.ui.export_tools import attach_table_menu, copy_table, export_table_csv
+        attach_table_menu(self.table, "error_metrics.csv")
+        self.copy_btn.clicked.connect(lambda: copy_table(self.table))
+        self.export_btn.clicked.connect(lambda: export_table_csv(self.table, self, "error_metrics.csv"))
         split.addWidget(self.table)
         self.figs = QWidget()
         self.figs_lay = QVBoxLayout(self.figs)
@@ -396,6 +417,8 @@ class ErrorAnalysisPanel(QWidget):
             self.table.insertRow(r)
             for c, v in enumerate((t, l2, ma)):
                 item = QTableWidgetItem("—" if v is None else (f"{v:g}" if c == 0 else f"{v:.3e}"))
+                if v is not None:
+                    item.setData(Qt.ItemDataRole.UserRole, float(v))
                 item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 self.table.setItem(r, c, item)
         l2s = [m[1] for m in metrics if m[1] is not None]
@@ -567,6 +590,8 @@ class RunCompare(QWidget):
         self._canvas = FigureCanvasQTAgg(self._fig)
         self._canvas.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self._toolbar = NavigationToolbar2QT(self._canvas, self)
+        from pinnstudio.ui.export_tools import attach_figure_menu
+        attach_figure_menu(self._canvas, lambda: self._fig, "run_comparison.png")
         self.empty.hide()
         self.holder.addWidget(self._toolbar)
         self.holder.addWidget(self._canvas, 1)
@@ -663,7 +688,9 @@ class RunHistory(QWidget):
         self.folder_btn.clicked.connect(self._open_folder)
         self.refresh_btn = QPushButton("Refresh")
         self.refresh_btn.clicked.connect(self.refresh)
-        for b in (self.show_btn, self.compare_btn, self.folder_btn, self.refresh_btn):
+        self.export_btn = QPushButton("Export CSV…")
+        self.export_btn.setToolTip("Every run's name, date, final loss and error, as a CSV file")
+        for b in (self.show_btn, self.compare_btn, self.folder_btn, self.export_btn, self.refresh_btn):
             bar.addWidget(b)
         lay.addLayout(bar)
         self.table = QTableWidget(0, 4)
@@ -678,6 +705,9 @@ class RunHistory(QWidget):
         self.table.setSelectionMode(QTableWidget.SelectionMode.ExtendedSelection)
         self.table.setSortingEnabled(False)
         self.table.cellDoubleClicked.connect(lambda r, _c: self._activate(r))
+        from pinnstudio.ui.export_tools import attach_table_menu, export_table_csv
+        attach_table_menu(self.table, "runs.csv")
+        self.export_btn.clicked.connect(lambda: export_table_csv(self.table, self, "runs.csv"))
         self.table.itemSelectionChanged.connect(self._update_buttons)
         self.split = QSplitter(Qt.Orientation.Vertical)
         self.split.addWidget(self.table)
@@ -703,9 +733,11 @@ class RunHistory(QWidget):
             name = QTableWidgetItem(r["label"] if os.sep not in rel else rel.replace(os.sep, " / "))
             name.setToolTip(r["folder"])
             self.table.setItem(i, 0, name)
-            for c, v in ((1, r["when"]), (2, "—" if r["loss"] is None else f"{r['loss']:.3e}"),
-                         (3, "—" if r["l2"] is None else f"{r['l2']:.3e}")):
+            for c, v, full in ((1, r["when"], None), (2, "—" if r["loss"] is None else f"{r['loss']:.3e}", r["loss"]),
+                               (3, "—" if r["l2"] is None else f"{r['l2']:.3e}", r["l2"])):
                 it = QTableWidgetItem(v)
+                if full is not None:
+                    it.setData(Qt.ItemDataRole.UserRole, float(full))
                 it.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 self.table.setItem(i, c, it)
         if not base:
