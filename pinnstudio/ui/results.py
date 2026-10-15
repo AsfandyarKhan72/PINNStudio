@@ -50,6 +50,7 @@ def planned_phases(config):
 _PHASE = re.compile(r"=== (?:Scheduler )?Phase (\d+)[^:]*: *([\w-]+) +(\d+) iters")
 _ROW = re.compile(r"^\s*(\d+)\s+\[([^\]]*)\]\s+\[([^\]]*)\]")
 _FINAL = re.compile(r"Final loss:\s*([-\d.eE+]+)")
+_TSTEP = re.compile(r"--- Time step (\d+)/(\d+)")
 
 
 def _floats(txt):
@@ -82,9 +83,23 @@ class RunProgress:
         self.started = time.time()
         self._phase_step0 = 0
         self._phase_done = 0         # iterations of finished phases
+        self.time_step = 0           # time-adaptive training: step k of n (0 = not time-adaptive)
+        self.n_time_steps = 0
 
     # ── feeding ──
     def feed(self, line):
+        m = _TSTEP.search(line)
+        if m:
+            # a new time window trains from iteration 0: its own loss history
+            self.time_step, self.n_time_steps = int(m.group(1)), int(m.group(2))
+            self.history = []
+            self.phase_starts = []
+            self.phase = 0
+            self.phase_name = ""
+            self.step = 0
+            self._phase_step0 = 0
+            self._phase_done = 0
+            return
         m = _PHASE.search(line)
         if m:
             if self.phase and self.history:
@@ -132,7 +147,10 @@ class RunProgress:
     def fraction(self):
         if not self.total:
             return None
-        return max(0.0, min(1.0, self.step / self.total))
+        f = max(0.0, min(1.0, self.step / self.total))
+        if self.n_time_steps:   # each time window runs the planned phases
+            f = (self.time_step - 1 + f) / self.n_time_steps
+        return f
 
     def train_loss(self):
         return sum(self.history[-1][1]) if self.history else None
@@ -249,6 +267,8 @@ class LiveLossPlot(QWidget):
         ax.set_xlabel("iteration")
         ax.set_ylabel("loss")
         ax.grid(True, which="major", color=t["border"], linewidth=0.6)
+        self.title.setText(f"Loss during training -- time step {p.time_step} of {p.n_time_steps}"
+                           if p.n_time_steps else "Loss during training")
         hist = p.history
         if hist:
             steps = [h[0] for h in hist]

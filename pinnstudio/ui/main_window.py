@@ -10078,6 +10078,8 @@ class MainWindow(QMainWindow):
         if p is None:
             return
         parts = [self._progress_label]
+        if p.n_time_steps:
+            parts.append(f"time step {p.time_step}/{p.n_time_steps}")
         if p.phase:
             name = {"adam": "Adam", "lbfgs": "L-BFGS", "l-bfgs": "L-BFGS"}.get(p.phase_name.lower(), p.phase_name)
             parts.append(f"phase {p.phase}/{max(len(p.phases), p.phase)} ({name})")
