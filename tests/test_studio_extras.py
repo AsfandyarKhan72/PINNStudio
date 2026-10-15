@@ -263,6 +263,79 @@ def test_help_links_and_start_first():
     assert w._save_root("/r/mine") == "/r/mine"
 
 
+
+def test_buttons_fit_and_restore_visible():
+    from PyQt6.QtWidgets import QPushButton
+    from pinnstudio.ui import theme
+    w = _window()
+    for key in ("restore", "ic", "results"):
+        w.workspace.select(key)
+        _settle()
+    for b in w.findChildren(QPushButton):
+        if b.text().strip() and b.minimumWidth() == b.maximumWidth() and b.maximumWidth() > 48:
+            need = b.fontMetrics().horizontalAdvance(b.text().replace("&&", "&")) + 24
+            assert b.width() >= need, (b.text(), b.width(), need)
+    assert w.restore_btn.objectName() == "primaryButton"
+    # white text on a background that becomes an ordinary light button turns dark
+    css = theme.remap_css("QPushButton { background: #1a5c3a; color: white; }", theme.tokens("Studio Light"))
+    assert "white" not in css and theme.tokens("Studio Light")["text"] in css
+
+
+def test_live_loss_per_time_step_and_ea_cleared():
+    from types import SimpleNamespace
+    from pinnstudio.ui.results import RunProgress
+    p = RunProgress(SimpleNamespace(iterations=1000, optimizer="adam", optimizer2="none", iterations2=0))
+    for line in ("--- Time step 1/4: t = 0.0000 to 0.2500 ---", "=== Scheduler Phase 1: adam 1000 iters ===",
+                 "0  [1.0, 2.0]  [1.0, 2.0]  []", "1000  [0.1, 0.2]  [0.1, 0.2]  []",
+                 "--- Time step 2/4: t = 0.2500 to 0.5000 ---", "0  [3.0, 1.0]  [3.0, 1.0]  []"):
+        p.feed(line)
+    assert p.time_step == 2 and p.n_time_steps == 4
+    assert [h[0] for h in p.history] == [0], "the new step's loss starts over"
+    assert abs(p.fraction() - 0.25) < 1e-9
+    w = _window()
+    w.ea_panel.show_run([(0.0, 0.01, 0.001)], "")
+    assert w.ea_panel.table.rowCount() == 1
+    from pinnstudio.core.config import PINNConfig
+    w._start_progress(PINNConfig())
+    assert w.ea_panel.table.rowCount() == 0, "a new run clears the old error analysis"
+    for line in ("--- Time step 3/4: t = 0.5 to 0.75 ---", "0  [1.0]  [1.0]  []"):
+        w._progress_feed(line)
+    w.live_loss._redraw()
+    assert "time step 3 of 4" in w.live_loss.title.text()
+    w._finish_progress("Stopped", ok=False)
+
+
+def test_copy_and_save():
+    from PyQt6.QtGui import QGuiApplication, QImage
+    from pinnstudio.ui import export_tools as ex
+    d = tempfile.mkdtemp()
+    png = os.path.join(d, "fig.png")
+    img = QImage(40, 30, QImage.Format.Format_RGB32)
+    img.fill(0x336699)
+    img.save(png)
+    assert ex.copy_image_file(png) and not QGuiApplication.clipboard().image().isNull()
+    assert ex.save_image_file(png, target=os.path.join(d, "copy")) == os.path.join(d, "copy.png")
+    assert ex.save_image_file(png, target=os.path.join(d, "c.jpg")) and os.path.getsize(os.path.join(d, "c.jpg"))
+    menu = ex.image_menu(None, png, lambda: None)
+    acts = [a.text() for a in menu.actions()]
+    assert acts == ["Copy image", "Save image as…", "Open in viewer", "Show in folder"]
+    w = _window()
+    w.ea_panel.show_run([(0.0, 0.0123456789, 0.001), (0.5, 0.02, None)], "")
+    text = ex.copy_table(w.ea_panel.table)
+    assert text.splitlines()[0].startswith("time\t") and "0.0123456789" in text, "full precision"
+    csv_path = ex.export_table_csv(w.ea_panel.table, target=os.path.join(d, "err"))
+    with open(csv_path) as fh:
+        rows = fh.read().splitlines()
+    assert len(rows) == 3 and rows[2].endswith(","), "an empty cell stays empty"
+    from matplotlib.figure import Figure
+    fig = Figure()
+    fig.add_subplot(111).plot([0, 1], [0, 1])
+    assert ex.copy_figure(fig)
+    for ext in ("png", "pdf", "svg"):
+        out = ex.save_figure(fig, target=os.path.join(d, f"f.{ext}"))
+        assert os.path.getsize(out) > 0
+
+
 if __name__ == "__main__":
     test_equation_preview()
     test_start_files_and_unsaved_marker()
@@ -272,4 +345,7 @@ if __name__ == "__main__":
     test_run_history()
     test_compare_runs()
     test_help_links_and_start_first()
+    test_buttons_fit_and_restore_visible()
+    test_live_loss_per_time_step_and_ea_cleared()
+    test_copy_and_save()
     print("PASSED")
