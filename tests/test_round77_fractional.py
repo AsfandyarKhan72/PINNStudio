@@ -92,6 +92,7 @@ def run():
 
     w = MainWindow()
     w._apply_deepxde_example(NAMES[1])
+    w.workspace.select("equations")
     check(w.frac_widget.isVisibleTo(w) and w.frac_res_edit.text() == "8, 100", "GUI shows the fractional settings")
     g = w._build_config()
     check((g.fractional_alpha, g.fractional_resolution, g.fractional_meshtype) == ("alpha", "8, 100", "dynamic"),

@@ -336,6 +336,7 @@ def run():
     win2_fresh.show()
     _app.processEvents()
     win2_fresh.sweep_enable_cb.setChecked(True)
+    win2_fresh.workspace.select("sweep")
     _app.processEvents()
     fresh_row = win2_fresh.sweep_row_list[0]
     list_visible = fresh_row['list_edit'].parentWidget().isVisible()
@@ -542,6 +543,7 @@ def run():
     _app.processEvents()
     win.resize(1400, 1000)
     win.show()
+    win.workspace.select("results")
     _app.processEvents()
     check(win.param_save_label.isVisible() and win.param_save_combo.isVisible(),
           "Save parameter label/combo should be visible once Inverse mode is selected")

@@ -84,6 +84,7 @@ def run():
     check(not win.steady_state_check.isChecked(), "sanity: steady-state should start unchecked")
 
     win.steady_state_check.setChecked(True)
+    win.workspace.select("adaptive")
     _app.processEvents()
     check(win.adapt_group.isVisible(),
           "the Adaptive Training group should stay visible for a steady-state problem "
@@ -115,6 +116,7 @@ def run():
     win3.adapt_combo.setCurrentText("Residual-based Adaptive Refinement (RAR)")
     _app.processEvents()
     win3.steady_state_check.setChecked(True)
+    win3.workspace.select("adaptive")
     _app.processEvents()
     check(win3.adapt_combo.currentText() == "Residual-based Adaptive Refinement (RAR)",
           f"checking Steady-state while RAR was selected should leave RAR selected (RAR works for "

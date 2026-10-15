@@ -38,6 +38,7 @@ def run():
 
     win = MainWindow()
     win.show()
+    win.workspace.select("adaptive")   # the panel's page in the settings panel
     _app.processEvents()
 
     check(not hasattr(win, "adapt_ref_toggle"), "the old shared toggle should be gone")

@@ -69,6 +69,7 @@ def run():
 
     w = MainWindow()
     w._apply_deepxde_example("Integro-differential equation")
+    w.workspace.select("equations")
     check(w.integral_points_spin.isVisibleTo(w) and w.integral_points_spin.value() == 16, "GUI shows the quadrature points")
     w.integral_points_spin.setValue(24)
     check(w._build_config().integral_points == 24, "GUI -> config")
