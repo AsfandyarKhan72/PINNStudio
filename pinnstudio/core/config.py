@@ -365,19 +365,22 @@ class PINNConfig:
     cb_timer: bool = False
     cb_timer_minutes: float = 60.0
 
-    # Training methods (adaptive training): causal training (Wang,
-    # Sankaran & Perdikaris, CMAME 2024) weights the PDE residual of each
-    # time chunk by exp(-eps * sum of the earlier chunks' residual losses),
-    # so later times count once earlier ones are solved; gradient-norm loss
-    # balancing (Wang, Teng & Perdikaris, SISC 2021) sets every loss term's
-    # weight from the gradient norms, every N steps, smoothed by alpha. Both
-    # are frozen at their last values during L-BFGS.
+    # Training methods (adaptive training). Causal training (Wang, Sankaran
+    # & Perdikaris, CMAME 2024) weights the PDE residual of each time chunk
+    # by exp(-eps * sum of the earlier chunks' residual losses), so later
+    # times count once earlier ones are solved. Per-point weights scale each
+    # training point's residual by its own weight: "RBA" (residual-based
+    # attention, Anagnostopoulos et al., CMAME 2024: lambda <- gamma*lambda
+    # + eta*|r|/max|r|) or "SA-PINN" (self-adaptive weights, McClenny &
+    # Braga-Neto, JCP 2023: lambda trained by gradient ascent, learning rate
+    # sa_lr). All are held fixed during L-BFGS.
     causal_training: bool = False
     causal_chunks: int = 32
     causal_eps: float = 1.0
-    loss_balancing: bool = False
-    loss_balancing_every: int = 1000
-    loss_balancing_alpha: float = 0.9
+    point_weights: str = "None"        # "None", "RBA" or "SA-PINN"
+    rba_gamma: float = 0.999
+    rba_eta: float = 0.01
+    sa_lr: float = 0.005
 
     # Training Monitors: optional, pure-observability DeepXDE
     # dde.callbacks.OperatorPredictor instances. Each one watches an
@@ -751,11 +754,15 @@ class PINNConfig:
                 errors.append("Causal training: the number of time chunks must be at least 2.")
             if float(self.causal_eps) <= 0:
                 errors.append("Causal training: the causality parameter epsilon must be positive.")
-        if self.loss_balancing:
-            if int(self.loss_balancing_every) < 1:
-                errors.append("Loss balancing: the update interval must be at least 1 step.")
-            if not (0.0 <= float(self.loss_balancing_alpha) < 1.0):
-                errors.append("Loss balancing: alpha (the smoothing of the weights) must be in [0, 1).")
+        if self.point_weights not in ("None", "RBA", "SA-PINN"):
+            errors.append(f"Per-point weights: unknown method {self.point_weights!r} (None, RBA or SA-PINN).")
+        elif self.point_weights == "RBA":
+            if not (0.0 < float(self.rba_gamma) < 1.0):
+                errors.append("Per-point weights (RBA): the decay gamma must be between 0 and 1.")
+            if float(self.rba_eta) <= 0:
+                errors.append("Per-point weights (RBA): the step eta must be positive.")
+        elif self.point_weights == "SA-PINN" and float(self.sa_lr) <= 0:
+            errors.append("Per-point weights (SA-PINN): the learning rate must be positive.")
 
         if self.problem_dim == "ODE":
             _bad = [n.strip() for n in (self.output_names or "").split(",") if n.strip() in ("x", "t")]

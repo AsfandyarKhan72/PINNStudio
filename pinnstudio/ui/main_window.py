@@ -934,7 +934,7 @@ class MainWindow(QMainWindow):
         ("weights", "Loss weights", "W", "#91a7ff", "training", ("Loss Weights",),
          "How much each loss term counts."),
         ("adaptive", "Adaptive training", "A", "#91a7ff", "training", ("Adaptive Training",),
-         "Residual-based refinement, time-adaptive training, causal training and loss balancing."),
+         "Residual-based refinement, time-adaptive training, causal training and per-point weights."),
         ("sweep", "Parameter sweep", "S", "#e599f7", None, ("Parameter Sweep",),
          "Run the problem over a range of settings and compare the results."),
         ("results", "Results", "R", "#fcc419", None, (),
@@ -1137,7 +1137,7 @@ class MainWindow(QMainWindow):
     _PROBLEM_KEYWORDS = (
         ("sweep", "sweep"),
         ("inverse", ("inverse", "observ", "unknown variable", "true value")),
-        ("adaptive", ("rar", "time-adaptive", "time adaptive", "resampl", "adaptive", "causal", "balanc")),
+        ("adaptive", ("rar", "time-adaptive", "time adaptive", "resampl", "adaptive", "causal", "per-point")),
         ("weights", ("scale by initial losses", "loss weight", "weights")),
         ("network", ("network", "layer", "msffn", "neuron", "fourier", "activation", "initializer")),
         ("points", ("domain points", "boundary points", "initial points", "test points", "anchor",
@@ -3412,28 +3412,52 @@ class MainWindow(QMainWindow):
         adapt_layout.addWidget(self.causal_widget)
         self.causal_cb.toggled.connect(self.causal_widget.setVisible)
 
-        self.balance_cb = QCheckBox("Loss balancing (gradient norms)")
-        self.balance_cb.setToolTip(
-            "Wang, Teng & Perdikaris (2021), 'Understanding and mitigating gradient flow\n"
-            "pathologies in physics-informed neural networks'. Every N Adam steps each loss\n"
-            "term's weight is set from the size of its gradient, so every term pulls on the\n"
-            "network about equally: w_i ← α·w_i + (1-α)·Σ|∇L_j| / |∇L_i|.\n"
-            "The weights from Loss Weights are the starting point; they are held fixed\n"
-            "during L-BFGS.")
-        adapt_layout.addWidget(self.balance_cb)
-        self.balance_widget = QWidget()
-        bz = QVBoxLayout(self.balance_widget)
-        bz.setSpacing(4); bz.setContentsMargins(18, 0, 0, 0)
-        self.balance_every = QSpinBox(); self.balance_every.setRange(1, 1_000_000)
-        self.balance_every.setSingleStep(100); self.balance_every.setValue(1000)
-        _num_row(bz, "Update every (steps):", self.balance_every)
-        self.balance_alpha = QDoubleSpinBox(); self.balance_alpha.setDecimals(2)
-        self.balance_alpha.setRange(0.0, 0.99); self.balance_alpha.setSingleStep(0.05); self.balance_alpha.setValue(0.9)
-        self.balance_alpha.setToolTip("Smoothing: how much of the previous weight is kept at each update.")
-        _num_row(bz, "Smoothing α:", self.balance_alpha)
-        self.balance_widget.setVisible(False)
-        adapt_layout.addWidget(self.balance_widget)
-        self.balance_cb.toggled.connect(self.balance_widget.setVisible)
+        pw_row = QHBoxLayout()
+        pw_row.addWidget(QLabel("Per-point weights:"))
+        self.point_weights_combo = QComboBox()
+        self.point_weights_combo.addItem("None", "None")
+        self.point_weights_combo.addItem("Residual-based attention (RBA)", "RBA")
+        self.point_weights_combo.addItem("Self-adaptive (SA-PINN)", "SA-PINN")
+        self.point_weights_combo.setFixedHeight(28)
+        self.point_weights_combo.setToolTip(
+            "Each training point's PDE residual gets its own weight, which grows where the\n"
+            "residual stays large -- usually at sharp fronts and interfaces.\n"
+            "RBA: Anagnostopoulos, Toscano, Stergiopulos & Karniadakis (2024), 'Residual-based\n"
+            "attention in physics-informed neural networks': w <- gamma*w + eta*|r|/max|r| after\n"
+            "every Adam step (cheap, nothing extra to train).\n"
+            "SA-PINN: McClenny & Braga-Neto (2023), 'Self-adaptive physics-informed neural networks':\n"
+            "the weights are trained by gradient ascent on the loss the network minimizes.\n"
+            "Only the training points are weighted; the weights are held fixed during L-BFGS.")
+        pw_row.addWidget(self.point_weights_combo, 1)
+        adapt_layout.addLayout(pw_row)
+        self.rba_widget = QWidget()
+        rz = QVBoxLayout(self.rba_widget)
+        rz.setSpacing(4); rz.setContentsMargins(18, 0, 0, 0)
+        self.rba_gamma = QDoubleSpinBox(); self.rba_gamma.setDecimals(4)
+        self.rba_gamma.setRange(0.0001, 0.9999); self.rba_gamma.setSingleStep(0.001); self.rba_gamma.setValue(0.999)
+        self.rba_gamma.setToolTip("How much of a weight is kept each step (memory). The weights level off at about eta / (1 - gamma).")
+        _num_row(rz, "Decay γ:", self.rba_gamma)
+        self.rba_eta = QDoubleSpinBox(); self.rba_eta.setDecimals(4)
+        self.rba_eta.setRange(0.0001, 100.0); self.rba_eta.setSingleStep(0.005); self.rba_eta.setValue(0.01)
+        self.rba_eta.setToolTip("How much the normalized residual |r|/max|r| adds to a weight each step.")
+        _num_row(rz, "Step η:", self.rba_eta)
+        self.rba_widget.setVisible(False)
+        adapt_layout.addWidget(self.rba_widget)
+        self.sa_widget = QWidget()
+        sz = QVBoxLayout(self.sa_widget)
+        sz.setSpacing(4); sz.setContentsMargins(18, 0, 0, 0)
+        self.sa_lr = QDoubleSpinBox(); self.sa_lr.setDecimals(5)
+        self.sa_lr.setRange(0.00001, 10.0); self.sa_lr.setSingleStep(0.001); self.sa_lr.setValue(0.005)
+        self.sa_lr.setToolTip("Learning rate of the weights' gradient ascent (Adam).")
+        _num_row(sz, "Weights' learning rate:", self.sa_lr)
+        self.sa_widget.setVisible(False)
+        adapt_layout.addWidget(self.sa_widget)
+
+        def _pw_changed(_i=None):
+            m = self.point_weights_combo.currentData()
+            self.rba_widget.setVisible(m == "RBA")
+            self.sa_widget.setVisible(m == "SA-PINN")
+        self.point_weights_combo.currentIndexChanged.connect(_pw_changed)
 
         left_layout.addWidget(adapt_group)
 
@@ -8519,9 +8543,10 @@ class MainWindow(QMainWindow):
             causal_training=self.causal_cb.isChecked(),
             causal_chunks=self.causal_chunks.value(),
             causal_eps=self.causal_eps.value(),
-            loss_balancing=self.balance_cb.isChecked(),
-            loss_balancing_every=self.balance_every.value(),
-            loss_balancing_alpha=self.balance_alpha.value(),
+            point_weights=self.point_weights_combo.currentData() or "None",
+            rba_gamma=self.rba_gamma.value(),
+            rba_eta=self.rba_eta.value(),
+            sa_lr=self.sa_lr.value(),
             training_monitors_enabled=self.training_monitors_cb.isChecked(),
             training_monitors=self._build_training_monitors_json(),
             plot_colormap=self._plot_viz_settings.get('colormap', 'RdBu_r'),
@@ -9261,9 +9286,10 @@ class MainWindow(QMainWindow):
         self.causal_cb.setChecked(bool(getattr(config, 'causal_training', False)))
         self.causal_chunks.setValue(int(getattr(config, 'causal_chunks', 32)))
         self.causal_eps.setValue(float(getattr(config, 'causal_eps', 1.0)))
-        self.balance_cb.setChecked(bool(getattr(config, 'loss_balancing', False)))
-        self.balance_every.setValue(int(getattr(config, 'loss_balancing_every', 1000)))
-        self.balance_alpha.setValue(float(getattr(config, 'loss_balancing_alpha', 0.9)))
+        self._set_combo_data(self.point_weights_combo, getattr(config, 'point_weights', 'None') or 'None')
+        self.rba_gamma.setValue(float(getattr(config, 'rba_gamma', 0.999)))
+        self.rba_eta.setValue(float(getattr(config, 'rba_eta', 0.01)))
+        self.sa_lr.setValue(float(getattr(config, 'sa_lr', 0.005)))
         self.training_monitors_cb.setChecked(getattr(config, 'training_monitors_enabled', False))
         self._apply_training_monitors_json(getattr(config, 'training_monitors', '') or '[]')
         # Auto-reveal the Training Callbacks group on load if this saved

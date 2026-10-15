@@ -710,21 +710,31 @@ def _parse_inverse_obs_files(config):
 
 
 def _training_methods_defs(config):
-    """Module-level source for causal training and gradient-norm loss
-    balancing (empty when neither is on). Causal training wraps `pde`: each
-    collocation point's residual is scaled by sqrt(w_i) of its time chunk i,
-    w_i = exp(-eps * sum_{k<i} L_k), L_k the mean squared residual in chunk
-    k (no gradient through w), so the mean-squared PDE loss becomes the
-    causal loss of Wang, Sankaran & Perdikaris (CMAME 2024). Loss balancing
-    is a callback that, every N Adam steps, sets each loss term's weight to
-    sum_j |grad L_j| / |grad L_i|, smoothed by alpha (Wang, Teng &
-    Perdikaris, SISC 2021; Wang et al. 2023's expert's guide). Both are held
-    fixed during L-BFGS, which needs a fixed objective."""
+    """Module-level source for causal training and per-point residual
+    weights (empty when neither is on). Both wrap `pde` and scale each
+    collocation point's residual, so the mean-squared PDE loss becomes the
+    weighted one.
+
+    Causal training (Wang, Sankaran & Perdikaris, CMAME 2024): a point in
+    time chunk i is scaled by sqrt(w_i), w_i = exp(-eps * sum_{k<i} L_k),
+    L_k the mean squared residual in chunk k (no gradient through w).
+
+    Per-point weights lambda (one per training point and equation, the
+    residual scaled by lambda):
+      RBA, residual-based attention (Anagnostopoulos, Toscano, Stergiopulos
+      & Karniadakis, CMAME 2024): lambda <- gamma*lambda + eta*|r|/max|r|
+      after every Adam step (no gradient through lambda);
+      SA-PINN, self-adaptive weights (McClenny & Braga-Neto, JCP 2023):
+      lambda trained by gradient ascent (Adam, maximize) on the same loss
+      the network minimizes.
+    Only the training points are weighted (the test loss stays the plain
+    one), and everything is held fixed during L-BFGS, which needs a fixed
+    objective."""
     causal = bool(getattr(config, "causal_training", False)) and not config.steady_state
-    balance = bool(getattr(config, "loss_balancing", False))
-    if not (causal or balance):
+    pw = _point_weights_mode(config)
+    if not (causal or pw):
         return ""
-    out = ["", "# ── Training methods: causal training / loss balancing ─────────"]
+    out = ["", "# ── Training methods: causal training / per-point weights ──────"]
     if causal:
         out.append(f"""_CAUSAL = {{"M": {int(config.causal_chunks)}, "eps": {float(config.causal_eps)!r}, "t0": {float(config.t_min)!r}, "t1": {float(config.t_max)!r},
            "w": None, "frozen": False, "n": 0}}
@@ -788,58 +798,104 @@ class _CausalMonitor(dde.callbacks.Callback):
         print(f"  causal weights: min {{_w.min():.3g}}, settled up to t = {{_tt:.3g}}"
               + (" (held during L-BFGS)" if _CAUSAL["frozen"] else ""), flush=True)
 """)
-    if balance:
-        out.append(f"""_BALANCE = {{"every": {int(config.loss_balancing_every)}, "alpha": {float(config.loss_balancing_alpha)!r}, "w": None}}
+    if pw:
+        out.append(f"""_PW = {{"mode": {pw!r}, "gamma": {float(config.rba_gamma)!r}, "eta": {float(config.rba_eta)!r}, "lr": {float(config.sa_lr)!r},
+       "lam": None, "fp": None, "frozen": False, "pending": False, "opt": None}}
 
 
-class _GradNormBalancer(dde.callbacks.Callback):
-    \"\"\"Every N Adam steps: weight_i <- alpha * weight_i + (1 - alpha) *
-    sum_j |grad L_j| / |grad L_i| (unweighted loss terms, network
-    parameters). Kept fixed during L-BFGS and carried into later phases.\"\"\"
+def _pw_is_train(x):
+    _fp = _PW["fp"]
+    return (_fp is not None and x.shape[0] == _fp[0]
+            and abs(float(x[0, 0]) - _fp[1]) <= 1e-6 * (1 + abs(_fp[1]))
+            and abs(float(x[-1, -1]) - _fp[2]) <= 1e-6 * (1 + abs(_fp[2])))
+
+
+def _pw_wrap(_f):
+    def _weigh(x, _r):
+        _rs = list(_r) if isinstance(_r, (list, tuple)) else [_r]
+        if any(_ri.shape[0] != x.shape[0] for _ri in _rs) or not _pw_is_train(x):
+            return _r                      # test points, or a residual on a subset of points: unchanged
+        _n, _k = x.shape[0], len(_rs)
+        if _PW["lam"] is None or tuple(_PW["lam"].shape) != (_n, _k):
+            _PW["lam"] = torch.ones(_n, _k, dtype=_rs[0].dtype, device=x.device,
+                                    requires_grad=_PW["mode"] == "SA-PINN")
+            _PW["opt"] = (torch.optim.Adam([_PW["lam"]], lr=_PW["lr"], maximize=True)
+                          if _PW["mode"] == "SA-PINN" else None)
+        _lam = _PW["lam"]
+        if _PW["mode"] == "RBA" and _PW["pending"] and not _PW["frozen"]:
+            with torch.no_grad():
+                _a = torch.cat([_ri.detach().abs().reshape(-1, 1) for _ri in _rs], dim=1)
+                _lam.mul_(_PW["gamma"]).add_(_PW["eta"] * _a / _a.max(dim=0, keepdim=True).values.clamp(min=1e-30))
+            _PW["pending"] = False
+        if _PW["frozen"] or _PW["mode"] == "RBA":
+            _lam = _lam.detach()
+        _out = [_ri * _lam[:, j:j + 1].to(_ri.dtype) for j, _ri in enumerate(_rs)]
+        return _out if isinstance(_r, (list, tuple)) else _out[0]
+    import inspect as _inspect
+    if len(_inspect.signature(_f).parameters) == 3:    # fractional: pde(x, y, int_mat)
+        def _pde_pw(x, y, int_mat=None):
+            return _weigh(x, _f(x, y, int_mat))
+    else:
+        def _pde_pw(x, y):
+            return _weigh(x, _f(x, y))
+    return _pde_pw
+
+
+pde = _pw_wrap(pde)
+print(f"Per-point weights: {{_PW['mode']}}" + (f" (gamma = {{_PW['gamma']}}, eta = {{_PW['eta']}})" if _PW["mode"] == "RBA"
+                                               else f" (learning rate {{_PW['lr']}}, gradient ascent)"))
+
+
+class _PointWeights(dde.callbacks.Callback):
+    \"\"\"Marks the training points, updates the weights once per Adam step
+    (RBA) or takes the ascent step (SA-PINN), and holds them during L-BFGS.\"\"\"
+    def __init__(self, every=1000):
+        super().__init__()
+        self.every = every
+
     def on_train_begin(self):
-        if _BALANCE["w"] is not None:
-            self.model.loss_weights = list(_BALANCE["w"])
-        self.lbfgs = "L-BFGS" in str(getattr(self.model, "opt_name", ""))
+        _PW["frozen"] = "L-BFGS" in str(getattr(self.model, "opt_name", ""))
+        self._mark()
+
+    def _mark(self):
+        X = self.model.train_state.X_train
+        if X is not None and len(X):
+            _PW["fp"] = (len(X), float(X[0][0]), float(X[-1][-1]))
+
+    def on_batch_begin(self):
+        if not _PW["frozen"]:
+            self._mark()
+            _PW["pending"] = True
 
     def on_batch_end(self):
-        st = self.model.train_state
-        if self.lbfgs or st.step == 0 or st.step % _BALANCE["every"]:
+        lam = _PW["lam"]
+        if lam is None:
             return
-        m = self.model
-        params = [p for p in m.net.parameters() if p.requires_grad]
-        keep = m.loss_weights
-        m.loss_weights = None
-        try:
-            _, losses = m.outputs_losses_train(st.X_train, st.y_train, st.train_aux_vars)
-        finally:
-            m.loss_weights = keep
-        norms = []
-        for li in losses:
-            g = torch.autograd.grad(li, params, retain_graph=True, allow_unused=True)
-            norms.append(float(torch.sqrt(sum((gi.detach() ** 2).sum() for gi in g if gi is not None))))
-        tot = sum(norms)
-        old = _BALANCE["w"] or ([float(v) for v in keep] if keep is not None and len(keep) == len(norms)
-                                else [1.0] * len(norms))      # starts from the Loss Weights
-        # a term with (almost) no gradient -- e.g. a condition the network
-        # already satisfies exactly -- keeps its weight instead of exploding
-        new = [tot / n if n > 1e-6 * tot else o for n, o in zip(norms, old)]
-        a = _BALANCE["alpha"]
-        _BALANCE["w"] = [a * o + (1 - a) * n for o, n in zip(old, new)]
-        m.loss_weights = list(_BALANCE["w"])
-        print("  balanced loss weights: [" + ", ".join(f"{{w:.3g}}" for w in _BALANCE["w"]) + "]", flush=True)
-
-
-print(f"Loss balancing: gradient norms every {{_BALANCE['every']}} steps, alpha = {{_BALANCE['alpha']}}")
+        if _PW["mode"] == "SA-PINN" and not _PW["frozen"] and lam.grad is not None:
+            _PW["opt"].step()
+            _PW["opt"].zero_grad()
+            with torch.no_grad():
+                lam.clamp_(min=0.0)
+        st = self.model.train_state
+        if st.step % self.every == 0:
+            l = lam.detach()
+            print(f"  point weights: mean {{float(l.mean()):.3g}}, max {{float(l.max()):.3g}}"
+                  + (" (held during L-BFGS)" if _PW["frozen"] else ""), flush=True)
 """)
     return "\n".join(out) + "\n"
+
+
+def _point_weights_mode(config):
+    m = str(getattr(config, "point_weights", "None") or "None")
+    return m if m in ("RBA", "SA-PINN") else ""
 
 
 def _training_methods_cbs(config, var_name, pad):
     lines = []
     if bool(getattr(config, "causal_training", False)) and not config.steady_state:
         lines.append(f"{pad}{var_name}.append(_CausalMonitor(1000))")
-    if bool(getattr(config, "loss_balancing", False)):
-        lines.append(f"{pad}{var_name}.append(_GradNormBalancer())")
+    if _point_weights_mode(config):
+        lines.append(f"{pad}{var_name}.append(_PointWeights(1000))")
     return lines
 
 
