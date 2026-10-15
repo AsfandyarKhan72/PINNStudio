@@ -467,7 +467,23 @@ class StyleRemapper(QObject):
             return cls._instance
         cls._instance = cls(app)
         app.installEventFilter(cls._instance)
+        # Stop filtering before Python shuts down: otherwise Qt, tearing the
+        # widgets down after the interpreter has started to finalize, calls
+        # back into this Python filter and crashes (seen as a segfault at
+        # the end of scripts that never call app.exec()).
+        import atexit
+        atexit.register(cls._uninstall)
         return cls._instance
+
+    @classmethod
+    def _uninstall(cls):
+        inst, cls._instance = cls._instance, None
+        app = QApplication.instance()
+        if inst is not None and app is not None:
+            try:
+                app.removeEventFilter(inst)
+            except RuntimeError:
+                pass
 
     def eventFilter(self, obj, ev):
         if ev.type() in (QEvent.Type.StyleChange, QEvent.Type.Polish) and isinstance(obj, QWidget):
