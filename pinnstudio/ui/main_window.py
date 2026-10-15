@@ -3450,6 +3450,13 @@ class MainWindow(QMainWindow):
         self.sa_lr.setRange(0.00001, 10.0); self.sa_lr.setSingleStep(0.001); self.sa_lr.setValue(0.005)
         self.sa_lr.setToolTip("Learning rate of the weights' gradient ascent (Adam).")
         _num_row(sz, "Weights' learning rate:", self.sa_lr)
+        self.sa_normalize_cb = QCheckBox("Keep the mean weight at 1")
+        self.sa_normalize_cb.setChecked(True)
+        self.sa_normalize_cb.setToolTip(
+            "Rescale the weights to mean 1 after every step, so only where the emphasis lies changes.\n"
+            "Unchecked is the original method, whose weights only grow (by about the learning rate\n"
+            "every step); on 1D Allen-Cahn that made the loss grow until training diverged.")
+        sz.addWidget(self.sa_normalize_cb)
         self.sa_widget.setVisible(False)
         adapt_layout.addWidget(self.sa_widget)
 
@@ -8547,6 +8554,7 @@ class MainWindow(QMainWindow):
             rba_gamma=self.rba_gamma.value(),
             rba_eta=self.rba_eta.value(),
             sa_lr=self.sa_lr.value(),
+            sa_normalize=self.sa_normalize_cb.isChecked(),
             training_monitors_enabled=self.training_monitors_cb.isChecked(),
             training_monitors=self._build_training_monitors_json(),
             plot_colormap=self._plot_viz_settings.get('colormap', 'RdBu_r'),
@@ -9290,6 +9298,7 @@ class MainWindow(QMainWindow):
         self.rba_gamma.setValue(float(getattr(config, 'rba_gamma', 0.999)))
         self.rba_eta.setValue(float(getattr(config, 'rba_eta', 0.01)))
         self.sa_lr.setValue(float(getattr(config, 'sa_lr', 0.005)))
+        self.sa_normalize_cb.setChecked(bool(getattr(config, 'sa_normalize', True)))
         self.training_monitors_cb.setChecked(getattr(config, 'training_monitors_enabled', False))
         self._apply_training_monitors_json(getattr(config, 'training_monitors', '') or '[]')
         # Auto-reveal the Training Callbacks group on load if this saved

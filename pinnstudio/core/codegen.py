@@ -800,7 +800,7 @@ class _CausalMonitor(dde.callbacks.Callback):
 """)
     if pw:
         out.append(f"""_PW = {{"mode": {pw!r}, "gamma": {float(config.rba_gamma)!r}, "eta": {float(config.rba_eta)!r}, "lr": {float(config.sa_lr)!r},
-       "lam": None, "fp": None, "frozen": False, "pending": False, "opt": None}}
+       "norm": {bool(getattr(config, "sa_normalize", True))!r}, "lam": None, "fp": None, "frozen": False, "pending": False, "opt": None}}
 
 
 def _pw_is_train(x):
@@ -876,6 +876,8 @@ class _PointWeights(dde.callbacks.Callback):
             _PW["opt"].zero_grad()
             with torch.no_grad():
                 lam.clamp_(min=0.0)
+                if _PW["norm"]:          # mean weight 1 per equation: the emphasis moves, the loss scale doesn't grow
+                    lam.div_(lam.mean(dim=0, keepdim=True).clamp(min=1e-30))
         st = self.model.train_state
         if st.step % self.every == 0:
             l = lam.detach()

@@ -381,6 +381,11 @@ class PINNConfig:
     rba_gamma: float = 0.999
     rba_eta: float = 0.01
     sa_lr: float = 0.005
+    # SA-PINN: rescale the weights to mean 1 after every ascent step. Plain
+    # SA-PINN's weights only grow (by ~sa_lr per Adam step), which inflated
+    # the loss until 1D Allen-Cahn diverged; normalized, only their relative
+    # sizes -- where the emphasis is -- change.
+    sa_normalize: bool = True
 
     # Training Monitors: optional, pure-observability DeepXDE
     # dde.callbacks.OperatorPredictor instances. Each one watches an

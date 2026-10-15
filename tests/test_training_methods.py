@@ -58,9 +58,11 @@ def test_gui_round_trip():
     w._set_combo_data(w.point_weights_combo, "SA-PINN")
     assert w.rba_widget.isHidden() and not w.sa_widget.isHidden()
     w.sa_lr.setValue(0.01)
+    w.sa_normalize_cb.setChecked(False)
     c = w._build_config()
     assert (c.causal_training, c.causal_chunks, c.causal_eps) == (True, 16, 25.0)
     assert (c.point_weights, c.rba_gamma, c.rba_eta, c.sa_lr) == ("SA-PINN", 0.99, 0.02, 0.01)
+    assert c.sa_normalize is False
     assert c.validate() == [], c.validate()
     w2 = _window()
     w2._apply_config(PINNConfig(**json.loads(json.dumps(dataclasses.asdict(c)))))   # as saved to .pinn.json
@@ -68,6 +70,7 @@ def test_gui_round_trip():
     c2 = w2._build_config()
     assert (c2.causal_training, c2.causal_chunks, c2.causal_eps) == (True, 16, 25.0)
     assert (c2.point_weights, c2.rba_gamma, c2.rba_eta, c2.sa_lr) == ("SA-PINN", 0.99, 0.02, 0.01)
+    assert c2.sa_normalize is False
     assert not w2.causal_widget.isHidden() and not w2.sa_widget.isHidden()
     for x in (w, w2):
         x.close()
@@ -175,16 +178,20 @@ def test_generated_code_runs():
 
 
 def test_sa_pinn_ascends():
-    c = PINNConfig()
-    c.point_weights = "SA-PINN"
-    c.sa_lr = 0.01
-    ns, dde, torch, np, model = _tiny(c)
-    model.compile("adam", lr=1e-3)
-    model.train(iterations=30, display_every=1000, verbose=0, callbacks=[ns["_PointWeights"](10)])
-    lam = ns["_PW"]["lam"]
-    assert lam.requires_grad and float(lam.min()) >= 0.0
-    # gradient ascent: the weights only grow from 1 (d loss / d lambda >= 0)
-    assert float(lam.min()) >= 1.0 - 1e-6 and float(lam.max()) > 1.05
+    for norm in (False, True):
+        c = PINNConfig()
+        c.point_weights = "SA-PINN"
+        c.sa_lr = 0.01
+        c.sa_normalize = norm
+        ns, dde, torch, np, model = _tiny(c)
+        model.compile("adam", lr=1e-3)
+        model.train(iterations=30, display_every=1000, verbose=0, callbacks=[ns["_PointWeights"](10)])
+        lam = ns["_PW"]["lam"]
+        assert lam.requires_grad and float(lam.min()) >= 0.0
+        if norm:      # mean 1, but no longer uniform
+            assert abs(float(lam.mean()) - 1.0) < 1e-4 and float(lam.max() - lam.min()) > 1e-3
+        else:         # gradient ascent: the weights only grow from 1 (d loss / d lambda >= 0)
+            assert float(lam.min()) >= 1.0 - 1e-6 and float(lam.max()) > 1.05
 
 
 def test_cahn_hilliard_template_scaling():
