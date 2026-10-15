@@ -8,10 +8,10 @@ from PyQt6.QtWidgets import (
     QTextEdit, QGroupBox, QComboBox, QSplitter, QLineEdit,
     QFileDialog, QCheckBox, QRadioButton, QButtonGroup,
     QDialog, QApplication, QColorDialog,
-    QTabWidget, QMessageBox, QScrollArea, QGridLayout,
+    QTabWidget, QMessageBox, QScrollArea, QGridLayout, QPlainTextEdit,
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer
-from PyQt6.QtGui import QPixmap, QAction, QColor, QMovie, QIntValidator
+from PyQt6.QtGui import QPixmap, QAction, QColor, QMovie, QIntValidator, QKeySequence
 from pinnstudio.core.config import PINNConfig
 from pinnstudio.core.runner import run_pinn
 from pinnstudio.core import deepxde_examples as _dx_examples
@@ -529,6 +529,15 @@ class MainWindow(QMainWindow):
         # just the tab bar is a cheap, reliable nudge; harmless if the
         # platform never needed it.
         QTimer.singleShot(0, self._nudge_central_tabs_repaint)
+        # Open on the Start tab; the problem as it is now is "unchanged"
+        self.right_tabs.setCurrentIndex(self._start_tab_index)
+        self._current_path = None
+        self._refresh_recent()
+        try:
+            self._fresh_config = self._build_config()
+        except Exception:
+            self._fresh_config = None
+        self._mark_clean()
 
     def _nudge_central_tabs_repaint(self):
         bar = self.central_tabs.tabBar()
@@ -747,15 +756,40 @@ class MainWindow(QMainWindow):
         menubar = self.menuBar()
         menubar.setNativeMenuBar(False)
         problem_menu = menubar.addMenu("Problem")
+        new_menu = problem_menu.addMenu("New")
+        for _dim, _name, _meta in (("1D", "1D problem", ""), ("2D", "2D problem", ""), ("3D", "3D problem", ""),
+                                   ("ODE", "ODE system", "")):
+            _a = QAction(_name, self)
+            _a.triggered.connect(lambda _c=False, d=_dim: self._new_problem(d))
+            new_menu.addAction(_a)
         open_problem_action = QAction("Open Saved Problem...", self)
-        open_problem_action.triggered.connect(self._open_problem)
+        open_problem_action.setShortcut(QKeySequence.StandardKey.Open)
+        open_problem_action.triggered.connect(lambda: self._open_problem())
         problem_menu.addAction(open_problem_action)
+        self.recent_menu = problem_menu.addMenu("Open Recent")
+        problem_menu.addSeparator()
+        save_action = QAction("Save Problem", self)
+        save_action.setShortcut(QKeySequence.StandardKey.Save)
+        save_action.triggered.connect(lambda: self._save_problem())
+        problem_menu.addAction(save_action)
         save_problem_action = QAction("Save Problem As...", self)
-        save_problem_action.triggered.connect(self._save_problem)
+        save_problem_action.setShortcut(QKeySequence("Ctrl+Shift+S"))
+        save_problem_action.triggered.connect(lambda: self._save_problem(save_as=True))
         problem_menu.addAction(save_problem_action)
         export_script_action = QAction("Export as DeepXDE Script...", self)
+        export_script_action.setShortcut(QKeySequence("Ctrl+E"))
         export_script_action.triggered.connect(self._export_deepxde_script)
         problem_menu.addAction(export_script_action)
+        problem_menu.addSeparator()
+        solve_action = QAction("Solve", self)
+        solve_action.setShortcuts([QKeySequence("Ctrl+Return"), QKeySequence("F5")])
+        solve_action.triggered.connect(self._shortcut_solve)
+        problem_menu.addAction(solve_action)
+        stop_action = QAction("Stop", self)
+        stop_action.setShortcut(QKeySequence("Shift+F5"))
+        stop_action.triggered.connect(self._shortcut_stop)
+        problem_menu.addAction(stop_action)
+        self.solve_action, self.stop_action = solve_action, stop_action
         settings_menu = menubar.addMenu("Settings")
         lbfgs_action = QAction("L-BFGS Options", self)
         lbfgs_action.triggered.connect(self._on_lbfgs_settings)
@@ -985,9 +1019,10 @@ class MainWindow(QMainWindow):
         self.problems_btn.clicked.connect(self._goto_first_problem)
         bar.addWidget(self.problems_btn)
         bar.addSpacing(6)
-        self.tb_open_btn = tool_btn("Open", "Open a saved problem", self._open_problem)
-        self.tb_save_btn = tool_btn("Save", "Save this problem", self._save_problem)
-        self.tb_export_btn = tool_btn("Export script", "Export as a DeepXDE script", self._export_deepxde_script)
+        self.tb_open_btn = tool_btn("Open", "Open a saved problem (Ctrl+O)", lambda: self._open_problem())
+        self.tb_save_btn = tool_btn("Save", "Save this problem (Ctrl+S)", lambda: self._save_problem())
+        self.tb_export_btn = tool_btn("Export script", "Export as a DeepXDE script (Ctrl+E)",
+                                      self._export_deepxde_script)
         from pinnstudio.ui import icons as _icons
         for _b, _n in ((self.tb_open_btn, "open"), (self.tb_save_btn, "save"), (self.tb_export_btn, "export")):
             _icons.apply(_b, _n, "text")
@@ -998,6 +1033,9 @@ class MainWindow(QMainWindow):
         _icons.apply((self.right_tabs, self._sketch_tab_index), "sketch", "muted", size=16)
         _icons.apply((self.right_tabs, self._domain_tab_index), "geometry", "muted", size=16)
         _icons.apply((self.bottom_tabs, 0), "log", "muted", size=16)
+        _icons.apply((self.bottom_tabs, self._script_tab_index), "code", "muted", size=16)
+        _icons.apply((self.right_tabs, self._start_tab_index), "home", "muted", size=16)
+        _icons.apply(self.script_export_btn, "export", "text", size=16)
         bar.addSpacing(14)
         # Solve is the one filled button; Stop turns red while a run can be stopped
         self._styled_widgets = [e for e in self._styled_widgets if e[0] not in (self.solve_btn, self.stop_btn)]
@@ -1125,9 +1163,12 @@ class MainWindow(QMainWindow):
         if not hasattr(self, 'workspace'):
             return
         try:
-            errors = self._build_config().validate()
+            config = self._build_config()
+            errors = config.validate()
         except Exception:
             return
+        self._update_dirty(config)
+        self._refresh_script_tab(config)
         problems = {}
         for msg in errors:
             key = self._problem_node(str(msg))
@@ -1301,6 +1342,206 @@ class MainWindow(QMainWindow):
             entry['location'].setText(new)
         gp.refresh_bcs()
         self._refresh_bc_sketch_boxes()
+
+    # ── New / recent files / unsaved changes / shortcuts ────────────
+    _recent_mem = []   # recent files when settings aren't kept (tests)
+    RECENT_MAX = 8
+
+    def _recent_files(self):
+        if os.environ.get("QT_QPA_PLATFORM") == "offscreen":
+            return list(MainWindow._recent_mem)
+        try:
+            v = self._layout_settings().value("recent_files") or []
+            if isinstance(v, str):
+                v = [v]
+            return [str(x) for x in v]
+        except Exception:
+            return []
+
+    def _set_recent_files(self, paths):
+        paths = paths[:self.RECENT_MAX]
+        if os.environ.get("QT_QPA_PLATFORM") == "offscreen":
+            MainWindow._recent_mem = list(paths)
+        else:
+            try:
+                self._layout_settings().setValue("recent_files", paths)
+            except Exception:
+                pass
+        self._refresh_recent()
+
+    def _add_recent(self, path):
+        path = os.path.abspath(path)
+        self._set_recent_files([path] + [p for p in self._recent_files() if p != path])
+
+    def _remove_recent(self, path):
+        self._set_recent_files([p for p in self._recent_files() if p != os.path.abspath(path)])
+
+    def _refresh_recent(self):
+        paths = self._recent_files()
+        if hasattr(self, "start_page"):
+            self.start_page.set_recent(paths)
+        if hasattr(self, "recent_menu"):
+            self.recent_menu.clear()
+            for i, p in enumerate(paths):
+                a = QAction(f"&{i + 1}  {os.path.basename(p)}", self)
+                a.setToolTip(p)
+                a.triggered.connect(lambda _c=False, q=p: self._open_problem(q))
+                self.recent_menu.addAction(a)
+            if paths:
+                self.recent_menu.addSeparator()
+                clear = QAction("Clear list", self)
+                clear.triggered.connect(lambda: self._set_recent_files([]))
+                self.recent_menu.addAction(clear)
+            self.recent_menu.setEnabled(bool(paths))
+
+    @staticmethod
+    def _config_key(config):
+        """What "changed" compares: every setting except the per-run folder."""
+        import dataclasses
+        import json
+        try:
+            d = dataclasses.asdict(config)
+        except Exception:
+            return None
+        d.pop("save_dir", None)
+        return json.dumps(d, sort_keys=True, default=str)
+
+    def _mark_clean(self, config=None):
+        try:
+            self._clean_key = self._config_key(config or self._build_config())
+        except Exception:
+            self._clean_key = None
+        self._set_dirty(False)
+
+    def _set_dirty(self, dirty):
+        self._dirty = bool(dirty)
+        name = getattr(self, "_current_problem_name", "") or "Untitled"
+        self.setWindowTitle(f"{_ex_catalog.display_name(name)}[*] — PINNStudio")
+        self.setWindowModified(self._dirty)
+
+    def _update_dirty(self, config):
+        if getattr(self, "_clean_key", None) is None:
+            return
+        dirty = self._config_key(config) != self._clean_key
+        if dirty != getattr(self, "_dirty", False):
+            self._set_dirty(dirty)
+
+    def _maybe_save_changes(self):
+        """Before the problem is replaced: offer to save unsaved changes.
+        False = cancel."""
+        if os.environ.get("QT_QPA_PLATFORM") == "offscreen":
+            return True
+        try:
+            self._update_dirty(self._build_config())
+        except Exception:
+            pass
+        if not getattr(self, "_dirty", False):
+            return True
+        name = _ex_catalog.display_name(getattr(self, "_current_problem_name", "") or "Untitled")
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Icon.Question)
+        box.setWindowTitle("Unsaved changes")
+        box.setText(f"Save the changes to \"{name}\"?")
+        box.setInformativeText("Your changes will be lost if you don't save them.")
+        box.setStandardButtons(QMessageBox.StandardButton.Save | QMessageBox.StandardButton.Discard |
+                               QMessageBox.StandardButton.Cancel)
+        box.setDefaultButton(QMessageBox.StandardButton.Save)
+        r = box.exec()
+        if r == QMessageBox.StandardButton.Save:
+            return bool(self._save_problem())
+        return r == QMessageBox.StandardButton.Discard
+
+    def _new_problem(self, dim="1D"):
+        """A fresh problem: the settings PINNStudio starts with (keeping the
+        save folder, GPU and plot preferences), in `dim` (1D/2D/3D/ODE)."""
+        if not self._maybe_save_changes():
+            return
+        fresh = getattr(self, "_fresh_config", None)
+        if fresh is not None:
+            import dataclasses
+            try:
+                current = self._build_config()
+                keep = {k: getattr(current, k) for k in self._DEEPXDE_KEEP_FIELDS if hasattr(current, k)}
+            except Exception:
+                keep = {}
+            keep.pop("save_dir", None)
+            save_dir_text = self.save_dir_input.text()
+            cfg = dataclasses.replace(fresh, **keep)
+            self._applying_template = True
+            try:
+                self._apply_config(cfg)
+            finally:
+                self._applying_template = False
+            self.save_dir_input.setText(save_dir_text)
+        self.quick_examples_combo.blockSignals(True)
+        self.quick_examples_combo.setCurrentText("None")
+        self.quick_examples_combo.blockSignals(False)
+        self._current_template = None
+        self._example_snapshot = None
+        radio = {"1D": self.radio_1d, "2D": self.radio_2d, "3D": self.radio_3d, "ODE": self.radio_ode}.get(dim)
+        if radio is not None and not radio.isChecked():
+            radio.setChecked(True)
+        self._current_path = None
+        self._current_problem_name = ""
+        self._mark_clean()
+        self.workspace.select("equations")
+        self.log_box.append(f"✅ New {dim} problem")
+
+    def _load_example_from_start(self, key):
+        if not self._maybe_save_changes():
+            return
+        cat = _ex_catalog.FORWARD
+        if self.quick_examples_category_combo.currentText() != cat:
+            self.quick_examples_category_combo.setCurrentText(cat)
+        if self.quick_examples_combo.currentText() == key:
+            self._on_quick_example_selected(key)
+        else:
+            self.quick_examples_combo.setCurrentText(key)
+        self._current_problem_name = key
+        self._current_path = None
+        self._mark_clean()
+        self.workspace.select("problem")
+
+    def _shortcut_solve(self):
+        if self.solve_btn.isVisible() and self.solve_btn.isEnabled():
+            self.solve_btn.click()
+
+    def _shortcut_stop(self):
+        if self.stop_btn.isEnabled():
+            self.stop_btn.click()
+
+    def _refresh_script_tab(self, config=None):
+        """Regenerate the Script tab when it's showing and the problem changed."""
+        if not hasattr(self, "script_view") or self.bottom_tabs.currentWidget() is not self.script_tab:
+            return
+        try:
+            config = config or self._build_config()
+        except Exception as e:
+            self.script_status.setText(f"Can't build the problem yet: {e}")
+            return
+        key = self._config_key(config)
+        if key == self._script_key:
+            return
+        self._script_key = key
+        try:
+            from pinnstudio.core.codegen import generate_clean_script
+            script = generate_clean_script(config)
+        except Exception as e:
+            self.script_status.setText(f"The script can't be written for these settings yet: {e}")
+            return
+        bar = self.script_view.verticalScrollBar()
+        pos = bar.value()
+        self.script_view.setPlainText(script)
+        bar.setValue(pos)
+        n = script.count("\n") + 1
+        self.script_status.setText(f"The DeepXDE script for this problem ({n} lines), as Export script would write it.")
+
+    def _copy_script(self):
+        self._script_key = None
+        self._refresh_script_tab()
+        QApplication.clipboard().setText(self.script_view.toPlainText())
+        if hasattr(self, "status_text"):
+            self.status_text.setText("Script copied to the clipboard")
 
     def _layout_settings(self):
         from PyQt6.QtCore import QSettings
@@ -3754,8 +3995,42 @@ class MainWindow(QMainWindow):
         self._domain_view_timer.setInterval(400)
         self._domain_view_timer.timeout.connect(self._refresh_domain_view)
         self._domain_view_timer.start()
+        # Start: new / open / recent / example gallery
+        from pinnstudio.ui.start_page import StartPage
+        self.start_page = StartPage()
+        self.start_page.new_requested.connect(self._new_problem)
+        self.start_page.open_requested.connect(self._open_problem)
+        self.start_page.open_path.connect(self._open_problem)
+        self.start_page.example_requested.connect(self._load_example_from_start)
+        self._start_tab_index = self.right_tabs.addTab(self.start_page, "Start")
         self.right_tabs.currentChanged.connect(self._on_right_tab_changed)
         right_splitter.addWidget(self.right_tabs)
+        # Script: the DeepXDE script Export would write, kept up to date
+        self.script_tab = QWidget()
+        _sl = QVBoxLayout(self.script_tab)
+        _sl.setContentsMargins(0, 2, 0, 0)
+        _sl.setSpacing(2)
+        _sbar = QHBoxLayout()
+        _sbar.setContentsMargins(6, 0, 6, 0)
+        self.script_status = QLabel("The DeepXDE script for this problem, as Export script would write it.")
+        self.script_status.setObjectName("pageDesc")
+        _sbar.addWidget(self.script_status, 1)
+        self.script_copy_btn = QPushButton("Copy")
+        self.script_copy_btn.clicked.connect(self._copy_script)
+        self.script_export_btn = QPushButton("Export…")
+        self.script_export_btn.clicked.connect(self._export_deepxde_script)
+        _sbar.addWidget(self.script_copy_btn)
+        _sbar.addWidget(self.script_export_btn)
+        _sl.addLayout(_sbar)
+        self.script_view = QPlainTextEdit()
+        self.script_view.setObjectName("scriptView")
+        self.script_view.setReadOnly(True)
+        self.script_view.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
+        self._script_highlighter = _theme.PythonHighlighter(self.script_view.document())
+        _sl.addWidget(self.script_view, 1)
+        self._script_key = None
+        self._script_tab_index = self.bottom_tabs.addTab(self.script_tab, "Script")
+        self.bottom_tabs.currentChanged.connect(lambda _i: self._refresh_script_tab())
         right_splitter.addWidget(self.bottom_tabs)
         self.right_splitter = right_splitter
         right_splitter.setStretchFactor(0, 3)
@@ -5485,6 +5760,9 @@ class MainWindow(QMainWindow):
             self._example_snapshot = (name, self._build_config())
         except Exception:
             self._example_snapshot = None
+        self._current_path = None
+        self._current_problem_name = name
+        self._mark_clean()
         self.log_box.append(f"✅ DeepXDE example loaded: {_ex_catalog.display_name(name)}"
                             + (" (Inverse mode)" if inverse else ""))
         self.log_box.append(f"   Source: {ex.source}")
@@ -5524,6 +5802,9 @@ class MainWindow(QMainWindow):
         if (self.quick_examples_category_combo.currentText() == _ex_catalog.INVERSE
                 and not self.radio_inverse.isChecked()):
             self.radio_inverse.setChecked(True)
+        self._current_problem_name = text
+        self._current_path = None
+        self._mark_clean()
 
     def _auto_configure_ea(self, ref_dir, is_steady=False):
         """Auto-configure error analysis when a template with ground truth files is loaded."""
@@ -8107,17 +8388,22 @@ class MainWindow(QMainWindow):
     # every field back onto its widget. Together these make _build_config()
     # and _apply_config() exact mirrors of each other; the split is deliberate
     # so a bug in one direction can't silently paper over a bug in the other.
-    def _save_problem(self):
+    def _save_problem(self, path=None, save_as=False):
+        """Save to `path`; else to the file this problem came from (Ctrl+S),
+        asking for a name when there is none or `save_as`. True when saved."""
         import json
         import dataclasses
         from datetime import datetime
-        default_name = getattr(self, "_current_problem_name", "") or "problem"
-        path, _ = QFileDialog.getSaveFileName(
-            self, "Save Problem As", f"{default_name}.pinn.json",
-            "PINNStudio Problem (*.pinn.json)"
-        )
+        if not path and not save_as:
+            path = getattr(self, "_current_path", None)
         if not path:
-            return
+            default_name = getattr(self, "_current_problem_name", "") or "problem"
+            path, _ = QFileDialog.getSaveFileName(
+                self, "Save Problem As", f"{default_name}.pinn.json",
+                "PINNStudio Problem (*.pinn.json)"
+            )
+        if not path:
+            return False
         if not path.lower().endswith(".json"):
             path += ".pinn.json"
         config = self._build_config()
@@ -8140,17 +8426,31 @@ class MainWindow(QMainWindow):
             with open(path, "w", encoding="utf-8") as f:
                 json.dump(payload, f, indent=2)
             self._current_problem_name = problem_name
+            self._current_path = path
+            self._add_recent(path)
+            self._mark_clean(config)
             self.log_box.append(f"💾 Problem saved: {os.path.basename(path)}")
+            return True
         except Exception as e:
             self.log_box.append(f"❌ Failed to save problem: {e}")
+            return False
 
-    def _open_problem(self):
+    def _open_problem(self, path=None):
         import json
         import dataclasses
-        path, _ = QFileDialog.getOpenFileName(
-            self, "Open Saved Problem", "", "PINNStudio Problem (*.pinn.json *.json)"
-        )
+        if not isinstance(path, str) or not path:
+            if not self._maybe_save_changes():
+                return
+            path, _ = QFileDialog.getOpenFileName(
+                self, "Open Saved Problem", "", "PINNStudio Problem (*.pinn.json *.json)"
+            )
+        elif not self._maybe_save_changes():
+            return
         if not path:
+            return
+        if not os.path.isfile(path):
+            self.log_box.append(f"❌ Problem file not found: {path}")
+            self._remove_recent(path)
             return
         try:
             with open(path, "r", encoding="utf-8") as f:
@@ -8193,6 +8493,9 @@ class MainWindow(QMainWindow):
             if isinstance(data, dict) else os.path.splitext(os.path.basename(path))[0]
         )
         self._current_problem_name = problem_name
+        self._current_path = path
+        self._add_recent(path)
+        self._mark_clean()
         self.log_box.append(f"✅ Problem loaded: {problem_name}")
 
     def _export_deepxde_script(self):
@@ -9761,6 +10064,9 @@ class MainWindow(QMainWindow):
         Python/PyTorch process, and any GPU memory it holds, kept running
         detached from the GUI indefinitely. If a run is active, ask before
         quitting rather than silently killing it."""
+        if not self._maybe_save_changes():
+            event.ignore()
+            return
         self._save_layout()
         # isinstance(..., QThread) rather than a plain hasattr check: every
         # QObject (QMainWindow included) already has its own built-in

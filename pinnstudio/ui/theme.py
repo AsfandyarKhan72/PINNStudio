@@ -279,6 +279,30 @@ QPushButton#stopButton {{
 }}
 QPushButton#stopButton:hover {{ background: {t['danger_hover']}; }}
 QPushButton#stopButton:disabled {{ background: transparent; color: {t['disabled_text']}; border-color: {t['border']}; }}
+QWidget#startPage, QScrollArea#startScroll {{ background: {t['bg']}; }}
+QLabel#startTitle {{ color: {t['text']}; font-size: {heading_size + 10}px; font-weight: 600; }}
+QLabel#startSubtitle {{ color: {t['text_muted']}; }}
+QLabel#startSection {{
+    color: {t['text_faint']}; font-size: {max(10, size - 3)}px; font-weight: 600; letter-spacing: 1px;
+    padding-top: 10px;
+}}
+QPushButton#startCard {{
+    background: {t['card']}; border: 1px solid {t['border']}; border-radius: 8px;
+    padding: 10px 12px; text-align: left; color: {t['text']};
+}}
+QPushButton#startCard:hover {{ border-color: {t['accent']}; background: {t['hover']}; }}
+QLabel#startCardTitle {{ color: {t['text']}; font-weight: 600; background: transparent; }}
+QLabel#startCardMeta {{ color: {t['text_muted']}; background: transparent; }}
+QPushButton#recentLink {{
+    background: transparent; border: none; text-align: left; padding: 3px 4px; color: {t['accent_text']};
+}}
+QPushButton#recentLink:hover {{ text-decoration: underline; }}
+QLabel#recentPath {{ color: {t['text_faint']}; }}
+QPlainTextEdit#scriptView {{
+    background: {t['log_bg']}; color: {t['log_text']}; border: none;
+    font-family: "{log_family}"; font-size: {log_size}px;
+}}
+QLabel#equationNote {{ background: transparent; }}
 """
 
 
@@ -500,3 +524,72 @@ class LogHighlighter(QSyntaxHighlighter):
             f = QTextCharFormat()
             f.setForeground(QColor(color))
             self.setFormat(0, len(text), f)
+
+
+class PythonHighlighter(QSyntaxHighlighter):
+    """The Script tab: Python keywords, strings, numbers and comments in the
+    theme's colours."""
+    _KW = r"\b(?:and|as|assert|break|class|continue|def|del|elif|else|except|False|finally|for|from|global|if|" \
+          r"import|in|is|lambda|None|nonlocal|not|or|pass|raise|return|True|try|while|with|yield)\b"
+
+    def __init__(self, doc):
+        super().__init__(doc)
+        import re
+        self._rules = [(re.compile(self._KW), "kw"), (re.compile(r"\b\d+(?:\.\d*)?(?:[eE][+-]?\d+)?\b"), "num"),
+                       (re.compile(r"\b(?:def|class)\s+(\w+)"), "name")]
+        self._str = re.compile(r"('''|\"\"\"|'(?:[^'\\]|\\.)*'|\"(?:[^\"\\]|\\.)*\")")
+
+    def _fmt(self, role):
+        t = _current
+        f = QTextCharFormat()
+        f.setForeground(QColor({"kw": t["accent_text"], "num": t["warning"], "str": t["success"],
+                                "com": t["text_faint"], "name": t["info"]}[role]))
+        if role == "kw":
+            f.setFontWeight(600)
+        if role == "com":
+            f.setFontItalic(True)
+        return f
+
+    def highlightBlock(self, text):
+        for rx, role in self._rules:
+            for m in rx.finditer(text):
+                g = 1 if role == "name" else 0
+                self.setFormat(m.start(g), m.end(g) - m.start(g), self._fmt(role))
+        # triple-quoted strings span lines: state 1 = inside one
+        start = 0
+        in_doc = self.previousBlockState() == 1
+        strf, comf = self._fmt("str"), self._fmt("com")
+        if in_doc:
+            end = text.find('"""')
+            if end < 0:
+                end = text.find("'''")
+            if end < 0:
+                self.setFormat(0, len(text), strf)
+                self.setCurrentBlockState(1)
+                return
+            self.setFormat(0, end + 3, strf)
+            start = end + 3
+        self.setCurrentBlockState(0)
+        i = start
+        while i < len(text):
+            ch = text[i]
+            if ch == "#":
+                self.setFormat(i, len(text) - i, comf)
+                return
+            if text.startswith('"""', i) or text.startswith("'''", i):
+                q = text[i:i + 3]
+                end = text.find(q, i + 3)
+                if end < 0:
+                    self.setFormat(i, len(text) - i, strf)
+                    self.setCurrentBlockState(1)
+                    return
+                self.setFormat(i, end + 3 - i, strf)
+                i = end + 3
+                continue
+            if ch in "'\"":
+                m = self._str.match(text, i)
+                if m:
+                    self.setFormat(i, m.end() - i, strf)
+                    i = m.end()
+                    continue
+            i += 1
