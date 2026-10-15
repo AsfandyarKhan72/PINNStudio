@@ -935,11 +935,15 @@ class MainWindow(QMainWindow):
         # conditions page, shown while the sketch is picking edges.
         from pinnstudio.ui.workspace import VisibilityFollower
         self.sketch_selection_box = QGroupBox("Edges picked in the sketch")
-        QVBoxLayout(self.sketch_selection_box).addWidget(self.sketch_panel.edge_bar)
+        _sel_lay = QVBoxLayout(self.sketch_selection_box)
+        _sel_lay.addWidget(self.sketch_panel.edge_bar)
+        _sel_lay.addWidget(self.domain_view.edge_bar)
         ws.add_widget("bcs", self.sketch_selection_box)
         bcs_lay = ws.pages["bcs"]["layout"]
         bcs_lay.insertWidget(0, bcs_lay.takeAt(bcs_lay.indexOf(self.sketch_selection_box)).widget())
-        self._sketch_sel_follower = VisibilityFollower(self.sketch_selection_box, [self.sketch_panel.edge_bar])
+        self._sketch_sel_follower = VisibilityFollower(self.sketch_selection_box,
+                                                       [self.sketch_panel.edge_bar, self.domain_view.edge_bar])
+        self.domain_view.edge_bar.setVisible(False)
 
         # ── toolbar ──
         bar = QHBoxLayout(self.app_toolbar)
@@ -1128,41 +1132,112 @@ class MainWindow(QMainWindow):
                 self.workspace.select(key)
                 return
 
+    def _gpanel(self):
+        """The graphics panel showing the domain: the Sketch when the domain
+        is sketched, else the Geometry view."""
+        return self.sketch_panel if self.geometry_type_combo.currentText() == "Sketch" else self.domain_view
+
+    def _has_domain_graphics(self):
+        return self.radio_2d.isChecked() or self.radio_3d.isChecked()
+
     def _on_workspace_node(self, key):
-        """Selecting a node can bring up its graphics: Geometry shows the
-        Sketch when the domain is sketched, Results the plots. With a
-        sketched domain, Boundary conditions switches the sketch to picking
-        edges, and a BC node lets you click that BC's edges in and out."""
+        """Selecting a node brings up its graphics: Geometry, Collocation
+        points, Initial and Boundary conditions show the domain (the Sketch
+        when it is sketched), Results the plots. Boundary conditions
+        switches the domain to picking edges, and a BC node lets you click
+        that BC's edges (faces in 3D) in and out."""
         sketched = self.geometry_type_combo.currentText() == "Sketch"
-        sp = self.sketch_panel
+        gp = self._gpanel()
+        other = self.domain_view if gp is self.sketch_panel else self.sketch_panel
         active = None
-        if sketched and (key == "geometry" or key == "bcs" or key.startswith("bc:")):
-            self.right_tabs.setCurrentIndex(self._sketch_tab_index)
-            if key != "geometry":
-                if sp.canvas.tool != "Edges":
-                    sp.set_tool("Edges")
+        domain_keys = ("geometry", "points", "ic", "bcs")
+        if self._has_domain_graphics() and (key in domain_keys or key.startswith("bc:")):
+            self.right_tabs.setCurrentIndex(self._sketch_tab_index if sketched else self._domain_tab_index)
+            if gp is self.domain_view:
+                self._refresh_domain_view()
+            if key == "bcs" or key.startswith("bc:"):
+                if gp.canvas.tool != "Edges":
+                    gp.set_tool("Edges")
                 if key.startswith("bc:"):
                     entry = next((e for e in self.custom_bc_list if e.get('_node') == key), None)
                     if entry is not None:
                         i = self.custom_bc_list.index(entry)
                         active = (i, f"BC {i + 1}")
-            elif sp.canvas.tool == "Edges":
-                sp.set_tool("Select")
+            elif key == "geometry" and sketched and gp.canvas.tool == "Edges":
+                gp.set_tool("Select")
         elif key in ("results", "restore"):
             self.right_tabs.setCurrentIndex(0)
+        if other.active_bc is not None:
+            other.set_active_bc(None)
+        other.edge_bar.setVisible(False)
+        gp.edge_bar.setVisible(gp.canvas.tool == "Edges" and self._has_domain_graphics())
         if active is None:
-            if sp.active_bc is not None:
-                sp.set_active_bc(None)
+            if gp.active_bc is not None:
+                gp.set_active_bc(None)
         else:
-            sp.set_active_bc(*active)
+            gp.set_active_bc(*active)
+        self._refresh_bc_sketch_boxes()
+
+    def _domain_view_shapes(self):
+        """The domain set in the Domain panel as a shape list (2D/3D)."""
+        import json
+        t = self._current_geometry_type()
+        sp = lambda w: float(w.value())
+        if t == "Custom":
+            return self._custom_geom_shapes_list()
+        if t == "Rectangle":
+            return [{"type": "Rectangle", "params": {"x_min": sp(self.x_min), "x_max": sp(self.x_max),
+                                                     "y_min": sp(self.y_min), "y_max": sp(self.y_max)}}]
+        if t == "Disk":
+            return [{"type": "Disk", "params": {"cx": sp(self.geom_disk_cx), "cy": sp(self.geom_disk_cy),
+                                                "r": sp(self.geom_disk_r)}}]
+        if t == "Ellipse":
+            return [{"type": "Ellipse", "params": {"cx": sp(self.geom_ellipse_cx), "cy": sp(self.geom_ellipse_cy),
+                                                   "a": sp(self.geom_ellipse_a), "b": sp(self.geom_ellipse_b),
+                                                   "angle": sp(self.geom_ellipse_angle)}}]
+        if t == "Triangle":
+            return [{"type": "Triangle", "params": {"vertices_text": self.geom_triangle_verts_input.text()}}]
+        if t == "Polygon":
+            return [{"type": "Polygon", "params": {"vertices_text": self.geom_polygon_verts_input.text()}}]
+        if t == "Cuboid":
+            return [{"type": "Cuboid", "params": {"x_min": sp(self.x_min), "x_max": sp(self.x_max),
+                                                  "y_min": sp(self.y_min), "y_max": sp(self.y_max),
+                                                  "z_min": sp(self.z_min), "z_max": sp(self.z_max)}}]
+        if t == "Sphere":
+            return [{"type": "Sphere", "params": {"cx": sp(self.geom_sphere_cx), "cy": sp(self.geom_sphere_cy),
+                                                  "cz": sp(self.geom_sphere_cz), "r": sp(self.geom_sphere_r)}}]
+        return []
+
+    def _refresh_domain_view(self):
+        """Keep the Geometry tab in step with the Domain panel (cheap check
+        on a timer; redraws only when the domain changed)."""
+        import json
+        if not hasattr(self, 'domain_view'):
+            return
+        on = self._has_domain_graphics() and self.geometry_type_combo.currentText() != "Sketch"
+        if self.right_tabs.isTabVisible(self._domain_tab_index) != on:
+            self.right_tabs.setTabVisible(self._domain_tab_index, on)
+        if not on:
+            return
+        dim = 3 if self.radio_3d.isChecked() else 2
+        shapes = self._domain_view_shapes()
+        key = json.dumps([dim, shapes], sort_keys=True)
+        if key == self._domain_view_key:
+            return
+        first = self._domain_view_key is None or json.loads(self._domain_view_key)[0] != dim
+        self._domain_view_key = key
+        self.domain_view.set_dim(dim)
+        self.domain_view.set_shapes(shapes, fit=True)
+        self.domain_view.refresh_bcs()
         self._refresh_bc_sketch_boxes()
 
     def _refresh_bc_sketch_boxes(self):
         """Each BC page's "In the sketch" box: which edges (faces) the BC's
         Where: picks. Shown only for a sketched domain."""
-        sketched = self.geometry_type_combo.currentText() == "Sketch"
-        bc_of = self.sketch_panel.canvas.edge_bcs() if sketched else []
-        pre = "E" if self.sketch_panel.canvas.dim == 2 else "F"
+        sketched = self._has_domain_graphics()
+        gp = self._gpanel()
+        bc_of = gp.canvas.edge_bcs() if sketched else []
+        pre = "E" if gp.canvas.dim == 2 else "F"
         what = "edges" if pre == "E" else "faces"
         for i, e in enumerate(self.custom_bc_list):
             box = e.get('sketch_box')
@@ -1173,8 +1248,8 @@ class MainWindow(QMainWindow):
                 if sketched:
                     picked = [f"{pre}{k + 1}" for k, lst in enumerate(bc_of) if i in lst]
                     e['sketch_lbl'].setText(
-                        (f"Picks {', '.join(picked)}." if picked else f"Picks no {what} of the sketch yet.") +
-                        f"  Click {what} in the sketch to add them to this BC or take them out.")
+                        (f"Picks {', '.join(picked)}." if picked else f"Picks no {what} of the domain yet.") +
+                        f"  Click {what} in the graphics to add them to this BC or take them out.")
             except RuntimeError:
                 pass
 
@@ -1184,7 +1259,8 @@ class MainWindow(QMainWindow):
         from pinnstudio.ui.sketch_edges import add_to_where, join_where, remove_from_where
         if not (0 <= index < len(self.custom_bc_list)):
             return
-        edges = self.sketch_panel.canvas.edges()
+        gp = self._gpanel()
+        edges = gp.canvas.edges()
         if not (0 <= k < len(edges)):
             return
         entry = self.custom_bc_list[index]
@@ -1199,16 +1275,16 @@ class MainWindow(QMainWindow):
             else:
                 new = remove_from_where(cur, [expr])
             if new is None:
-                self.sketch_panel.hint.setText(
+                gp.hint.setText(
                     f"BC {index + 1}'s Where: was written by hand, so it can't be edited by clicking -- "
                     "change it in the panel, or clear it and pick the edges again.")
                 return
             if not new:
-                self.sketch_panel.hint.setText(
+                gp.hint.setText(
                     f"That's the last edge of BC {index + 1} -- a BC needs at least one; remove the BC instead.")
                 return
             entry['location'].setText(new)
-        self.sketch_panel.refresh_bcs()
+        gp.refresh_bcs()
         self._refresh_bc_sketch_boxes()
 
     def _layout_settings(self):
@@ -3607,6 +3683,22 @@ class MainWindow(QMainWindow):
         self.right_tabs.addTab(self.results_tabs, "📈 Results")
         self._sketch_tab_index = self.right_tabs.addTab(self.sketch_panel, "✏ Sketch")
         self.right_tabs.setTabVisible(self._sketch_tab_index, False)
+        # Geometry: the domain set in the Domain panel (any 2D/3D shape),
+        # its edges / faces numbered and coloured by BC, like the Sketch.
+        self.domain_view = SketchPanel()
+        self.domain_view.make_viewer()
+        self.domain_view.set_bc_provider(self._sketch_bc_rows, self._sketch_domain)
+        self.domain_view.new_bc_requested.connect(self._on_sketch_new_bc)
+        self.domain_view.add_to_bc_requested.connect(self._on_sketch_add_to_bc)
+        self.domain_view.remove_from_bcs_requested.connect(self._on_sketch_remove_from_bcs)
+        self.domain_view.toggle_edge_bc.connect(self._on_sketch_toggle_edge)
+        self._domain_tab_index = self.right_tabs.addTab(self.domain_view, "◇ Geometry")
+        self.right_tabs.setTabVisible(self._domain_tab_index, False)
+        self._domain_view_key = None
+        self._domain_view_timer = QTimer(self)
+        self._domain_view_timer.setInterval(400)
+        self._domain_view_timer.timeout.connect(self._refresh_domain_view)
+        self._domain_view_timer.start()
         self.right_tabs.currentChanged.connect(self._on_right_tab_changed)
         right_splitter.addWidget(self.right_tabs)
         right_splitter.addWidget(self.bottom_tabs)
@@ -5061,7 +5153,7 @@ class MainWindow(QMainWindow):
                 ws.add_node(key, label, str(i + 1), color,
                             "One boundary condition: its type, the output it applies to, where on the "
                             "boundary (Where:) and its value.", parent="bcs", widgets=[card])
-                box = QGroupBox("In the sketch")
+                box = QGroupBox("On the domain")
                 lbl = QLabel("")
                 lbl.setWordWrap(True)
                 QVBoxLayout(box).addWidget(lbl)
@@ -5098,8 +5190,9 @@ class MainWindow(QMainWindow):
         return {n: w.value() for n, w in names.items()}
 
     def _sketch_bcs_changed(self, *_a):
-        if hasattr(self, 'sketch_panel') and self.sketch_panel.isVisible():
-            self.sketch_panel.refresh_bcs()
+        for _p in (getattr(self, 'sketch_panel', None), getattr(self, 'domain_view', None)):
+            if _p is not None and _p.isVisible():
+                _p.refresh_bcs()
         if hasattr(self, 'workspace'):
             self._refresh_bc_sketch_boxes()
 
@@ -5121,7 +5214,7 @@ class MainWindow(QMainWindow):
             self._build_weight_inputs(self.num_outputs_spin.value())
         self.log_box.append(f"✏ Sketch: added BC {len(self.custom_bc_list)} (Dirichlet, value 0) on the selected edges.")
         self._reveal_bc_row(entry)
-        self.sketch_panel.refresh_bcs()
+        self._gpanel().refresh_bcs()
 
     def _on_sketch_add_to_bc(self, index, where):
         from pinnstudio.ui.sketch_edges import add_to_where
@@ -5136,7 +5229,7 @@ class MainWindow(QMainWindow):
             return
         entry['location'].setText(add_to_where(cur, where))
         self._reveal_bc_row(entry)
-        self.sketch_panel.refresh_bcs()
+        self._gpanel().refresh_bcs()
 
     def _on_sketch_remove_from_bcs(self, exprs):
         from pinnstudio.ui.sketch_edges import remove_from_where
@@ -5153,14 +5246,15 @@ class MainWindow(QMainWindow):
             else:
                 emptied.append(i + 1)
         # an edge that is still coloured is picked by a Where: written another way
-        self.sketch_panel.refresh_bcs()
+        gp = self._gpanel()
+        gp.refresh_bcs()
         if emptied:
             QMessageBox.information(
                 self, "Remove from BC",
                 "No edges would be left in " + ", ".join(f"BC {n}" for n in emptied) +
                 ", so it was left as it is -- remove the row itself with its ✕ if it's no longer needed.")
-        bc_of = self.sketch_panel.canvas.edge_bcs()
-        if any(bc_of[k] for k in self.sketch_panel.canvas.sel_edges if k < len(bc_of)) and not emptied:
+        bc_of = gp.canvas.edge_bcs()
+        if any(bc_of[k] for k in gp.canvas.sel_edges if k < len(bc_of)) and not emptied:
             QMessageBox.information(
                 self, "Remove from BC",
                 "Some selected edges are still picked by a BC whose Where: was typed differently "

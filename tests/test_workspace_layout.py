@@ -150,3 +150,41 @@ if __name__ == "__main__":
     test_workspace_layout()
     test_bc_node_edits_sketch_edges()
     print("PASSED")
+
+
+def test_geometry_view_for_ordinary_shapes():
+    """A Rectangle set in the Domain panel shows in the Geometry tab with
+    its edges coloured by BC, and a BC node edits its edges by clicking."""
+    w = MainWindow()
+    w.resize(1700, 1000)
+    w.show()
+    _settle()
+    w.radio_2d.setChecked(True)
+    _settle()
+    w.geometry_type_combo.setCurrentText("Rectangle")
+    w.x_max.setValue(2.0)
+    w._refresh_domain_view()
+    w.workspace.select("geometry")
+    _settle(0.6)
+    assert w.right_tabs.currentIndex() == w._domain_tab_index
+    c = w.domain_view.canvas
+    E = c.edges()
+    assert len(E) == 4 and any(e["desc"].startswith("x = 2") for e in E), [e["desc"] for e in E]
+    w.add_custom_bc_btn.click()
+    _settle()
+    entry = w.custom_bc_list[-1]
+    entry['location'].setText("left")
+    w.workspace.select(entry['_node'])
+    _settle()
+    left = next(i for i, e in enumerate(E) if e["desc"].startswith("x = 0"))
+    right = next(i for i, e in enumerate(E) if e["desc"].startswith("x = 2"))
+    i = len(w.custom_bc_list) - 1
+    assert i in c.edge_bcs()[left] and i not in c.edge_bcs()[right]
+    QTest.mouseClick(c, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier,
+                     c.to_screen(QPointF(*E[right]["mid"])).toPoint())
+    _settle()
+    assert split_where(entry['location'].text()) == ["left", E[right]["expr"]], entry['location'].text()
+    # the domain follows the Domain panel
+    w.x_max.setValue(3.0)
+    _settle(0.6)
+    assert any(e["desc"].startswith("x = 3") for e in w.domain_view.canvas.edges())

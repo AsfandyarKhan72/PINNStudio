@@ -309,7 +309,7 @@ class VisibilityFollower(QObject):
 
 
 # ── page forms: one label column, controls next to their labels ──────────
-def align_forms(root, max_label=230):
+def align_forms(root, max_label=190):
     """Rows built as  [label][stretch][control]  -- control pushed to the far
     right -- become  [label][control][stretch], and every row label on the
     page gets the same width, so a page reads as one aligned form.
@@ -339,12 +339,16 @@ def align_forms(root, max_label=230):
 
     if root.layout() is not None:
         walk(root.layout())
-    if not labels:
+    shown = [l for l in labels if l.isVisibleTo(root)]
+    if not shown:
         return
-    w = min(max_label, max(l.sizeHint().width() for l in labels))
-    for l in labels:
-        if l.minimumWidth() < w:
-            l.setMinimumWidth(w)
+    for l in shown:   # (a label widened earlier for a bigger page state starts over)
+        if l.property("_pinn_col"):
+            l.setMinimumWidth(0)
+    w = min(max_label, max(l.sizeHint().width() for l in shown))
+    for l in shown:
+        l.setMinimumWidth(w)
+        l.setProperty("_pinn_col", True)
 
 
 class _Collapser(QObject):

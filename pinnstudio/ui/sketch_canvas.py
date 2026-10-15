@@ -946,6 +946,7 @@ class SketchPanel(QWidget):
         self.canvas.cursor_moved.connect(self._show_cursor)
         self.canvas.edges_selected.connect(self._update_edge_bar)
         self.face_list.itemSelectionChanged.connect(self._on_face_list_selection)
+        self.face_list.itemClicked.connect(self._on_face_list_clicked)
         self.view_combo.currentIndexChanged.connect(self._on_view)
         self.depth_spin.valueChanged.connect(self._on_depth)
         self.new_d0.valueChanged.connect(self._on_new_depth)
@@ -997,6 +998,23 @@ class SketchPanel(QWidget):
     def coord_formats(self):
         return self.COORD_FORMATS if self.canvas.dim == 2 else self.COORD_FORMATS_3D
 
+    # ── read-only view (Geometry tab) ────────────────────────
+    viewer = False
+
+    def make_viewer(self):
+        """Show a domain made in the Domain panel (not drawn here): no
+        drawing tools, always picking edges for boundary conditions."""
+        self.viewer = True
+        for w in list(self.tool_buttons.values()) + [
+                self.op_label, self.op_combo, self.grid_spin, self.snap_cb, self.delete_btn, self.clear_btn,
+                self.import_btn, self.coord_entry_label, self.coord_edit, self.new_d0, self.new_d1,
+                self.new_depth_label]:
+            w.setVisible(False)
+        for lay_w in self.findChildren(QLabel):
+            if lay_w.text() in ("Grid:", "to"):
+                lay_w.setVisible(False)
+        self.set_tool("Edges")
+
     # ── 3D ───────────────────────────────────────────────────
     def set_dim(self, dim):
         """2: rectangles, circles, ellipses, polygons. 3: boxes and spheres on
@@ -1007,12 +1025,14 @@ class SketchPanel(QWidget):
         self.canvas.dim = dim
         labels = self.LABELS_3D if dim == 3 else self.LABELS_2D
         for t, b in self.tool_buttons.items():
-            b.setVisible(t in labels)
+            b.setVisible(t in labels and not self.viewer)
             b.setText(labels.get(t, b.text()))
         self.view_bar.setVisible(dim == 3)
         self.face_list.setVisible(dim == 3)
-        self.import_btn.setVisible(dim == 2)
-        if self.canvas.tool not in labels:
+        self.import_btn.setVisible(dim == 2 and not self.viewer)
+        if self.viewer:
+            self.set_tool("Edges")
+        elif self.canvas.tool not in labels:
             self.set_tool("Rectangle")
         else:
             self.set_tool(self.canvas.tool)
@@ -1086,7 +1106,13 @@ class SketchPanel(QWidget):
             it.setSelected(k in self.canvas.sel_edges)
         self.face_list.blockSignals(False)
 
+    def _on_face_list_clicked(self, item):
+        if self.active_bc is not None:
+            self.toggle_edge_in_active_bc(self.face_list.row(item))
+
     def _on_face_list_selection(self):
+        if self.active_bc is not None:
+            return   # (a click toggles the face in the BC being edited instead)
         sel = [self.face_list.row(it) for it in self.face_list.selectedItems()]
         keep = [k for k in self.canvas.sel_edges if k in sel]
         self.canvas.sel_edges = keep + [k for k in sorted(sel) if k not in keep]
@@ -1182,13 +1208,13 @@ class SketchPanel(QWidget):
         free = tool in ("Select", "Edges")
         self.canvas.setCursor(Qt.CursorShape.ArrowCursor if free else Qt.CursorShape.CrossCursor)
         edges = tool == "Edges"
-        typed = tool in self.coord_formats()
+        typed = tool in self.coord_formats() and not self.viewer
         self.coord_entry_label.setVisible(typed)
         self.coord_edit.setVisible(typed)
         self.coord_edit.setPlaceholderText(self.coord_formats().get(tool, ""))
         self.edge_bar.setVisible(edges)
         for w in (self.op_label, self.op_combo, self.delete_btn, self.clear_btn):
-            w.setVisible(not edges)
+            w.setVisible(not edges and not self.viewer)
         if edges:
             self.refresh_bcs()
         self.canvas.update()
@@ -1220,12 +1246,15 @@ class SketchPanel(QWidget):
         selecting edges freely."""
         self.active_bc = index
         self._active_label = label
-        self.edge_bar.setEnabled(index is None)
+        for b in (self.new_bc_btn, self.add_to_btn, self.add_to_combo, self.remove_btn, self.sel_free_btn):
+            b.setEnabled(index is None)
         self._sync_active_selection()
         if index is not None:
             what = "edge" if self.canvas.dim == 2 else "face"
-            self._active_hint = (f"Editing {label}: click an {what} to add it to this BC, or click one of its "
-                                 f"{what}s to take it out.")
+            art = "an" if what == "edge" else "a"
+            self._active_hint = (f"Editing {label}: click {art} {what} to add it to this BC, or click one of its "
+                                 f"{what}s to take it out" + (" (or pick it in the face list)." if what == "face"
+                                                              else "."))
             self.hint.setText(self._active_hint)
         elif self.canvas.tool == "Edges":
             self.hint.setText(self.hints()["Edges"])
@@ -1282,6 +1311,9 @@ class SketchPanel(QWidget):
         bc_of = self.canvas.edge_bcs()
         self.remove_btn.setEnabled(any(k < len(bc_of) and bc_of[k] for k in sel))
         self.sel_free_btn.setEnabled(any(not lst for lst in bc_of))
+        if self.active_bc is not None:
+            for b in (self.new_bc_btn, self.add_to_btn, self.add_to_combo, self.remove_btn, self.sel_free_btn):
+                b.setEnabled(False)
 
     def _on_edge_hovered(self, k):
         edges = self.canvas.edges()
