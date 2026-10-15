@@ -744,8 +744,7 @@ class SketchPanel(QWidget):
         bar.setSpacing(4)
         self.tool_group = QButtonGroup(self)
         self.tool_buttons = {}
-        labels = {"Select": "⬚ Select", "Rectangle": "▭ Rectangle", "Circle": "◯ Circle",
-                  "Ellipse": "⬭ Ellipse", "Polygon": "⬠ Polygon", "Edges": "⌁ Edges → BCs"}
+        labels = self.LABELS_2D
         for t in TOOLS:
             if t == "Edges":
                 bar.addSpacing(10)
@@ -788,19 +787,19 @@ class SketchPanel(QWidget):
 
         bar2 = QHBoxLayout()   # row 3: edit the drawing
         bar2.setSpacing(4)
-        self.delete_btn = QPushButton("✕ Delete shape")
+        self.delete_btn = QPushButton("Delete shape")
         self.delete_btn.setFixedHeight(26)
         bar2.addWidget(self.delete_btn)
         self.clear_btn = QPushButton("Clear all")
         self.clear_btn.setFixedHeight(26)
         bar2.addWidget(self.clear_btn)
-        self.import_btn = QPushButton("📂 Import DXF/SVG…")
+        self.import_btn = QPushButton("Import DXF/SVG…")
         self.import_btn.setFixedHeight(26)
         self.import_btn.setToolTip("Read the closed outlines of a 2D drawing (DXF or SVG): circles, ellipses, "
                                    "polylines, paths, and lines/arcs that join up. Outlines inside others "
                                    "become holes.")
         bar2.addWidget(self.import_btn)
-        self.fit_btn = QPushButton("⤢ Fit view")
+        self.fit_btn = QPushButton("Fit view")
         self.fit_btn.setFixedHeight(26)
         bar2.addWidget(self.fit_btn)
         bar2.addStretch()
@@ -957,6 +956,11 @@ class SketchPanel(QWidget):
         self.remove_btn.clicked.connect(self._on_remove)
         self.sel_free_btn.clicked.connect(self._select_free_edges)
         self.set_tool("Rectangle")
+        from pinnstudio.ui import icons as _icons
+        for b, n in ((self.delete_btn, "delete"), (self.clear_btn, "clear"), (self.import_btn, "import"),
+                     (self.fit_btn, "fit")):
+            _icons.apply(b, n, "text", size=16)
+        self._apply_tool_icons()
 
     HINTS = {
         "Select": "Click a shape to select it, drag to move it, Delete to remove it. "
@@ -988,9 +992,19 @@ class SketchPanel(QWidget):
         "Rectangle": "two corners: x0, y0, z0, x1, y1, z1",
         "Circle": "centre and radius: cx, cy, cz, r",
     }
-    LABELS_2D = {"Select": "⬚ Select", "Rectangle": "▭ Rectangle", "Circle": "◯ Circle", "Ellipse": "⬭ Ellipse",
-                 "Polygon": "⬠ Polygon", "Edges": "⌁ Edges → BCs"}
-    LABELS_3D = {"Select": "⬚ Select", "Rectangle": "▣ Box", "Circle": "◉ Sphere", "Edges": "⌁ Faces → BCs"}
+    LABELS_2D = {"Select": "Select", "Rectangle": "Rectangle", "Circle": "Circle", "Ellipse": "Ellipse",
+                 "Polygon": "Polygon", "Edges": "Edges → BCs"}
+    LABELS_3D = {"Select": "Select", "Rectangle": "Box", "Circle": "Sphere", "Edges": "Faces → BCs"}
+    ICONS_2D = {"Select": "select", "Rectangle": "rectangle", "Circle": "circle", "Ellipse": "ellipse",
+                "Polygon": "polygon", "Edges": "edges"}
+    ICONS_3D = {"Select": "select", "Rectangle": "box", "Circle": "sphere", "Edges": "edges"}
+
+    def _apply_tool_icons(self):
+        from pinnstudio.ui import icons as _icons
+        names = self.ICONS_3D if self.canvas.dim == 3 else self.ICONS_2D
+        for t, b in self.tool_buttons.items():
+            if t in names:
+                _icons.apply(b, names[t], "text", size=16)
 
     def hints(self):
         return self.HINTS if self.canvas.dim == 2 else {**self.HINTS, **self.HINTS_3D}
@@ -1027,6 +1041,7 @@ class SketchPanel(QWidget):
         for t, b in self.tool_buttons.items():
             b.setVisible(t in labels and not self.viewer)
             b.setText(labels.get(t, b.text()))
+        self._apply_tool_icons()
         self.view_bar.setVisible(dim == 3)
         self.face_list.setVisible(dim == 3)
         self.import_btn.setVisible(dim == 2 and not self.viewer)

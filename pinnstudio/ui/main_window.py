@@ -441,6 +441,11 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("PINNStudio — A No-Code Scientific Computing Environment for Forward and Inverse Physics-Informed Neural Networks")
         self.setMinimumSize(1100, 750)
+        try:
+            from pinnstudio.ui import icons as _icons_app
+            self.setWindowIcon(_icons_app.app_icon())
+        except Exception:
+            pass
         # Default launch size: previously there was no explicit resize()
         # call anywhere (main.py just does MainWindow().show()), so Qt fell
         # back to the layout's own computed sizeHint(), which lands very
@@ -741,7 +746,7 @@ class MainWindow(QMainWindow):
         # ── Menu bar ─────────────────────────────────────────
         menubar = self.menuBar()
         menubar.setNativeMenuBar(False)
-        problem_menu = menubar.addMenu("📁 Problem")
+        problem_menu = menubar.addMenu("Problem")
         open_problem_action = QAction("Open Saved Problem...", self)
         open_problem_action.triggered.connect(self._open_problem)
         problem_menu.addAction(open_problem_action)
@@ -751,7 +756,7 @@ class MainWindow(QMainWindow):
         export_script_action = QAction("Export as DeepXDE Script...", self)
         export_script_action.triggered.connect(self._export_deepxde_script)
         problem_menu.addAction(export_script_action)
-        settings_menu = menubar.addMenu("⚙ Settings")
+        settings_menu = menubar.addMenu("Settings")
         lbfgs_action = QAction("L-BFGS Options", self)
         lbfgs_action.triggered.connect(self._on_lbfgs_settings)
         settings_menu.addAction(lbfgs_action)
@@ -980,9 +985,19 @@ class MainWindow(QMainWindow):
         self.problems_btn.clicked.connect(self._goto_first_problem)
         bar.addWidget(self.problems_btn)
         bar.addSpacing(6)
-        self.tb_open_btn = tool_btn("📂 Open", "Open a saved problem", self._open_problem)
-        self.tb_save_btn = tool_btn("💾 Save", "Save this problem", self._save_problem)
-        self.tb_export_btn = tool_btn("⇪ Export script", "Export as a DeepXDE script", self._export_deepxde_script)
+        self.tb_open_btn = tool_btn("Open", "Open a saved problem", self._open_problem)
+        self.tb_save_btn = tool_btn("Save", "Save this problem", self._save_problem)
+        self.tb_export_btn = tool_btn("Export script", "Export as a DeepXDE script", self._export_deepxde_script)
+        from pinnstudio.ui import icons as _icons
+        for _b, _n in ((self.tb_open_btn, "open"), (self.tb_save_btn, "save"), (self.tb_export_btn, "export")):
+            _icons.apply(_b, _n, "text")
+        _icons.apply(self.solve_btn, "play", "on_accent", size=14)
+        _icons.apply(self.stop_btn, "stop", "on_danger", size=14)
+        _icons.apply(self.problems_btn, "warning", "text", size=16)
+        _icons.apply((self.right_tabs, 0), "results", "muted", size=16)
+        _icons.apply((self.right_tabs, self._sketch_tab_index), "sketch", "muted", size=16)
+        _icons.apply((self.right_tabs, self._domain_tab_index), "geometry", "muted", size=16)
+        _icons.apply((self.bottom_tabs, 0), "log", "muted", size=16)
         bar.addSpacing(14)
         # Solve is the one filled button; Stop turns red while a run can be stopped
         self._styled_widgets = [e for e in self._styled_widgets if e[0] not in (self.solve_btn, self.stop_btn)]
@@ -1010,7 +1025,7 @@ class MainWindow(QMainWindow):
         self._problems_timer.timeout.connect(self._check_problems)
         self._problems_timer.start()
 
-        view_menu = self.menuBar().addMenu("🗔 View")
+        view_menu = self.menuBar().addMenu("View")
         reset = QAction("Reset Layout", self)
         reset.triggered.connect(self._reset_layout)
         view_menu.addAction(reset)
@@ -1124,7 +1139,7 @@ class MainWindow(QMainWindow):
         self.workspace.set_problems(problems)
         n = sum(len(v) for v in problems.values())
         self.problems_btn.setVisible(n > 0)
-        self.problems_btn.setText(f"⚠  {n} setting{'s' if n != 1 else ''} to fix")
+        self.problems_btn.setText(f" {n} setting{'s' if n != 1 else ''} to fix")
 
     def _goto_first_problem(self):
         for key in self.workspace.order:
@@ -3295,7 +3310,7 @@ class MainWindow(QMainWindow):
             return (f"font-family: '{family}', {_CROSS_PLATFORM_FONT_FALLBACK}; "
                     f"font-size: {size}px; font-weight: bold;")
 
-        self.solve_btn = QPushButton("▶  Solve")
+        self.solve_btn = QPushButton("Solve")
         self.solve_btn.setMinimumHeight(52)
         self._register_style(self.solve_btn, "button", lambda css: f"""
             QPushButton {{ background: qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 #0078d4,stop:1 #005a9e);
@@ -3306,7 +3321,7 @@ class MainWindow(QMainWindow):
         self.solve_btn.clicked.connect(self._on_solve)
         left_layout.addWidget(self.solve_btn)
 
-        self.stop_btn = QPushButton("⏹  Stop")
+        self.stop_btn = QPushButton("Stop")
         self.stop_btn.setMinimumHeight(44)
         self.stop_btn.setEnabled(False)
         self._register_style(self.stop_btn, "button", lambda css: f"""
@@ -3657,7 +3672,7 @@ class MainWindow(QMainWindow):
         self.bottom_tabs = QTabWidget()
         self.bottom_tabs.setDocumentMode(True)
         self.bottom_tabs.setObjectName("bottomTabs")
-        self.bottom_tabs.addTab(self.log_box, "📋 Training Log")
+        self.bottom_tabs.addTab(self.log_box, "Training Log")
         self.sketch_panel = SketchPanel()
         self.sketch_panel.shapes_edited.connect(self._on_sketch_edited)
         self.sketch_panel.set_bc_provider(self._sketch_bc_rows, self._sketch_domain)
@@ -3680,8 +3695,8 @@ class MainWindow(QMainWindow):
         self.results_tabs.addTab(self.live_loss, "Live loss")
         self.ea_panel = ErrorAnalysisPanel()
         self.results_tabs.addTab(self.ea_panel, "Error analysis")
-        self.right_tabs.addTab(self.results_tabs, "📈 Results")
-        self._sketch_tab_index = self.right_tabs.addTab(self.sketch_panel, "✏ Sketch")
+        self.right_tabs.addTab(self.results_tabs, "Results")
+        self._sketch_tab_index = self.right_tabs.addTab(self.sketch_panel, "Sketch")
         self.right_tabs.setTabVisible(self._sketch_tab_index, False)
         # Geometry: the domain set in the Domain panel (any 2D/3D shape),
         # its edges / faces numbered and coloured by BC, like the Sketch.
@@ -3692,7 +3707,7 @@ class MainWindow(QMainWindow):
         self.domain_view.add_to_bc_requested.connect(self._on_sketch_add_to_bc)
         self.domain_view.remove_from_bcs_requested.connect(self._on_sketch_remove_from_bcs)
         self.domain_view.toggle_edge_bc.connect(self._on_sketch_toggle_edge)
-        self._domain_tab_index = self.right_tabs.addTab(self.domain_view, "◇ Geometry")
+        self._domain_tab_index = self.right_tabs.addTab(self.domain_view, "Geometry")
         self.right_tabs.setTabVisible(self._domain_tab_index, False)
         self._domain_view_key = None
         self._domain_view_timer = QTimer(self)
@@ -4147,7 +4162,7 @@ class MainWindow(QMainWindow):
         if hasattr(self, 'sweep_refresh_btn'):
             self.sweep_refresh_btn.setVisible(checked)
         if hasattr(self, 'solve_btn'):
-            self.solve_btn.setText("▶  Run Sweep" if checked else "▶  Solve")
+            self.solve_btn.setText(" Run Sweep" if checked else " Solve")
             self.solve_btn.setToolTip(
                 "Runs every configured sweep combination, one training run "
                 "at a time, saving each to its own folder." if checked else "")
@@ -9408,7 +9423,7 @@ class MainWindow(QMainWindow):
             self._start_sweep(config)
             return
         self.solve_btn.setEnabled(False)
-        self.solve_btn.setText("⏳  Solving...")
+        self.solve_btn.setText(" Solving…")
         self.stop_btn.setEnabled(True)
         self.log_box.clear()
         self._clear_solution_movie()
@@ -9441,7 +9456,7 @@ class MainWindow(QMainWindow):
         once everything finishes, exactly as before -- only where that
         progress is shown changed, not what gets saved to disk."""
         self.solve_btn.setEnabled(False)
-        self.solve_btn.setText("⏳  Running sweep...")
+        self.solve_btn.setText(" Running sweep…")
         self.stop_btn.setEnabled(True)
         self.log_box.clear()
         self._clear_solution_movie()
@@ -9517,7 +9532,7 @@ class MainWindow(QMainWindow):
     def _on_sweep_finished(self):
         self._finish_progress("Sweep finished")
         self.solve_btn.setEnabled(True)
-        self.solve_btn.setText("▶  Run Sweep" if self.sweep_enable_cb.isChecked() else "▶  Solve")
+        self.solve_btn.setText(" Run Sweep" if self.sweep_enable_cb.isChecked() else " Solve")
         self.stop_btn.setEnabled(False)
         self.log_box.append(f"✅ Sweep finished -- {self._sweep_run_count} run(s) completed.")
         # sweep_runner.run_sweep() already wrote sweep_manifest.json and
@@ -9676,8 +9691,8 @@ class MainWindow(QMainWindow):
             self._finish_progress("Stopped", ok=False)
             self.solve_btn.setEnabled(True)
             self.solve_btn.setText(
-                "▶  Run Sweep" if getattr(self, 'sweep_enable_cb', None) and self.sweep_enable_cb.isChecked()
-                else "▶  Solve")
+                " Run Sweep" if getattr(self, 'sweep_enable_cb', None) and self.sweep_enable_cb.isChecked()
+                else " Solve")
             self.stop_btn.setEnabled(False)
             return
         if hasattr(self, 'thread') and self.thread.isRunning():
@@ -9687,8 +9702,8 @@ class MainWindow(QMainWindow):
             self._finish_progress("Stopped", ok=False)
             self.solve_btn.setEnabled(True)
             self.solve_btn.setText(
-                "▶  Run Sweep" if getattr(self, 'sweep_enable_cb', None) and self.sweep_enable_cb.isChecked()
-                else "▶  Solve")
+                " Run Sweep" if getattr(self, 'sweep_enable_cb', None) and self.sweep_enable_cb.isChecked()
+                else " Solve")
             self.stop_btn.setEnabled(False)
 
     def closeEvent(self, event):
@@ -9910,7 +9925,7 @@ class MainWindow(QMainWindow):
 
     def _on_done(self, result):
         self.solve_btn.setEnabled(True)
-        self.solve_btn.setText("▶  Solve")
+        self.solve_btn.setText(" Solve")
         self.stop_btn.setEnabled(False)
         self._finish_progress("Finished" if result == "DONE" else "Failed -- see the Training Log",
                               ok=result == "DONE")
@@ -11299,6 +11314,8 @@ print("DOMAIN_PREVIEW_DONE")
         if hasattr(self, "_styled_widgets"):
             self._restyle_all()
         _theme.StyleRemapper.rethemeall(self)
+        from pinnstudio.ui import icons as _icons
+        _icons.retint_all()
         if hasattr(self, "workspace"):
             self.workspace.tree.viewport().update()
 

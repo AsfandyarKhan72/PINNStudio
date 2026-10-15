@@ -437,6 +437,8 @@ class StyleRemapper(QObject):
         if ev.type() in (QEvent.Type.StyleChange, QEvent.Type.Polish) and isinstance(obj, QWidget):
             if ev.type() == QEvent.Type.Polish:
                 self._fit_small_button(obj)
+                from pinnstudio.ui import icons as _icons
+                _icons.iconize(obj)
             self.apply(obj)
         return False
 

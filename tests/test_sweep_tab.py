@@ -111,13 +111,13 @@ def run():
           "there should be no separate sweep results panel/right-panel swap anymore -- "
           "the sweep lives entirely in the left panel and reuses the normal results view")
     check(win.solve_btn.isEnabled(), "Solve should start enabled")
-    check(win.solve_btn.text().strip() == "▶  Solve", f"Solve button should read '▶  Solve' by default, got {win.solve_btn.text()!r}")
+    check(win.solve_btn.text().strip() == "Solve", f"Solve button should read 'Solve' by default, got {win.solve_btn.text()!r}")
 
     win.sweep_enable_cb.setChecked(True)
     check(win.solve_btn.isEnabled(), "Solve should STAY enabled once Parameter Sweep is enabled -- it's reused to run the sweep, not disabled")
-    check(win.solve_btn.text().strip() == "▶  Run Sweep", f"Solve button should relabel to '▶  Run Sweep' once enabled, got {win.solve_btn.text()!r}")
+    check(win.solve_btn.text().strip() == "Run Sweep", f"Solve button should relabel to 'Run Sweep' once enabled, got {win.solve_btn.text()!r}")
     win.sweep_enable_cb.setChecked(False)
-    check(win.solve_btn.text().strip() == "▶  Solve", "Solve button should relabel back once disabled")
+    check(win.solve_btn.text().strip() == "Solve", "Solve button should relabel back once disabled")
     # Leave it enabled for the rest of this test, same as before (most of
     # what follows configures/exercises the sweep itself).
     win.sweep_enable_cb.setChecked(True)
@@ -185,7 +185,7 @@ def run():
     win._on_solve()
     check(len(_sweep_calls) == 1, "clicking Solve while Parameter Sweep is enabled should route to _start_sweep(), not a normal single run")
     check(_sweep_calls[0].sweep_enabled is True, "the config handed to _start_sweep should itself have sweep_enabled set")
-    check(win.solve_btn.text().strip() != "⏳  Solving...",
+    check(win.solve_btn.text().strip() != "Solving…",
           "routing to a sweep must not touch the normal single-run 'Solving...' button state")
     del win._start_sweep  # restore the real bound method for the rest of this test
 
