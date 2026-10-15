@@ -50,6 +50,7 @@ class Entry:
 _TEMPLATES = [
     ("1D Heat", "Heat 1D", "1D", "Time-dependent", "Interval", ""),
     ("1D Allen-Cahn", "Allen-Cahn 1D – Wight & Zhao", "1D", "Time-dependent", "Interval", "Wight & Zhao (2021)"),
+    ("1D Cahn-Hilliard", "Cahn-Hilliard 1D – Wight & Zhao", "1D", "Time-dependent", "Interval", "Wight & Zhao (2021)"),
     ("1D Burgers", "Burgers 1D – Raissi et al.", "1D", "Time-dependent", "Interval", "Raissi et al. (2019)"),
     ("1D Schrödinger", "Schrödinger 1D – Raissi et al.", "1D", "Time-dependent", "Interval", "Raissi et al. (2019)"),
     ("2D Heat", "Heat 2D", "2D", "Time-dependent", "Rectangle", ""),

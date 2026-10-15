@@ -46,7 +46,7 @@ from pinnstudio.ui.main_window import MainWindow
 from pinnstudio.core.codegen import generate_script, generate_clean_script
 
 TEMPLATES_BY_DIM = {
-    "1d": ["1D Heat", "1D Allen-Cahn", "1D Burgers", "1D Schrödinger"],
+    "1d": ["1D Heat", "1D Allen-Cahn", "1D Cahn-Hilliard", "1D Burgers", "1D Schrödinger"],
     "2d": [
         "2D Heat",
         "2D Allen-Cahn (Mattey & Ghosh)",

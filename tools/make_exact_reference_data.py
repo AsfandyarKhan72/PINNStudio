@@ -28,6 +28,13 @@ Allen-Cahn 1D (Wight & Zhao 2021): u_t = 1e-4 u_xx + 5u - 5u^3 on [-1, 1]
     pseudo-spectral method (1024 modes) and ETDRK4 (dt = 1e-4), converged
     to ~1e-9.
 The earlier Schrödinger and Allen-Cahn files were 5-13% and ~1% off.
+Cahn-Hilliard 1D (Wight & Zhao 2021): u_t = (g2 (u^3 - u) - g1 u_xx)_xx on
+    [-1, 1] (periodic), g2 = 0.01, g1 = 1e-6, u(x, 0) = -cos(2 pi x); written
+    as u and the chemical potential mu = g2 (u^3 - u) - g1 u_xx
+    (t_<T>_u.txt, t_<T>_mu.txt). Computed with a Fourier pseudo-spectral
+    method (2048 modes) and a stabilized semi-implicit scheme (linear
+    4th-order term implicit, nonlinear term explicit with a 2*g2 k^2
+    stabilizer, dt = 2.5e-6); 1024 modes / dt = 1e-5 agree to <1e-4.
 
 Run from the repository root:
     python3 tools/make_exact_reference_data.py
@@ -121,6 +128,50 @@ def allen_cahn_wz(times, n=1024, dt=1e-4):
     return out, L, x0
 
 
+def cahn_hilliard_wz(times, n=2048, dt=2.5e-6, g1=1e-6, g2=0.01):
+    """Wight & Zhao's 1D Cahn-Hilliard: {t: (u coefficients, mu coefficients)}."""
+    L, x0 = 2.0, -1.0
+    x = x0 + L * np.arange(n) / n
+    k = 2 * np.pi * np.fft.fftfreq(n, d=L / n)
+    k2 = k * k
+    S = 2 * g2
+    den = 1 + dt * (g1 * k2 * k2 + S * k2)
+    u = -np.cos(2 * np.pi * x)
+    v = np.fft.fft(u)
+    out, t = {}, 0.0
+
+    def both(v):
+        u = np.real(np.fft.ifft(v))
+        return v.copy(), np.fft.fft(g2 * (u ** 3 - u)) + g1 * k2 * v
+    for T in times:
+        for _ in range(int(round((T - t) / dt))):
+            u = np.real(np.fft.ifft(v))
+            v = (v + dt * (-k2 * np.fft.fft(g2 * (u ** 3 - u)) + S * k2 * v)) / den
+        t = T
+        out[T] = both(v)
+    return out, L, x0
+
+
+CAHN_HILLIARD_TIMES = (0.0, 0.25, 0.5, 0.75, 1.0)
+
+
+def write_cahn_hilliard():
+    d = os.path.join(ROOT, "cahn_hilliard")
+    os.makedirs(d, exist_ok=True)
+    for f in os.listdir(d):
+        if f.startswith("t_") and f.endswith(".txt"):
+            os.remove(os.path.join(d, f))
+    coefs, L, x0 = cahn_hilliard_wz(CAHN_HILLIARD_TIMES)
+    x = np.round(np.arange(-0.999, 1.0, 0.002), 6)
+    for t in CAHN_HILLIARD_TIMES:
+        for name, c in zip(("u", "mu"), coefs[t]):
+            vals = _fourier_eval(c, L, x0, x)
+            with open(os.path.join(d, f"t_{t:g}_{name}.txt"), "w") as fh:
+                for xi, vi in zip(x, vals):
+                    fh.write(f"{xi:.6f}\t{t:.4f}\t{vi:.12e}\n")
+        print(f"cahn_hilliard/t_{t:g}_u.txt, _mu.txt: {len(x)} points")
+
+
 _INITIAL = {"schrodinger": lambda x: 2 / np.cosh(x), "allen_cahn": lambda x: x ** 2 * np.cos(np.pi * x)}
 
 
@@ -161,6 +212,7 @@ def main():
                 for xi, ui in zip(x, u):
                     fh.write(f"{xi:.6f}\t{t:.4f}\t{ui:.12e}\n")
             print(f"{folder}/{name}: {len(x)} points, t = {t}")
+    write_cahn_hilliard()
 
 
 if __name__ == "__main__":

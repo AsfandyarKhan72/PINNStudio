@@ -5800,7 +5800,7 @@ class MainWindow(QMainWindow):
             self._add_custom_geom_shape(shape_type=shape_type, op=op, params=params)
 
     _PINNSTUDIO_EXAMPLES = (
-        "1D Heat", "1D Allen-Cahn", "1D Burgers", "1D Schrödinger",
+        "1D Heat", "1D Allen-Cahn", "1D Cahn-Hilliard", "1D Burgers", "1D Schrödinger",
         "2D Heat", "2D Allen-Cahn (Mattey & Ghosh)", "2D Allen-Cahn (Wight & Zhao)",
         "2D Burgers (Mathias)", "2D Poisson (L-Shape)", "2D Poisson (Disk)",
         "3D Heat", "3D Poisson (Sphere)",
@@ -9354,6 +9354,9 @@ class MainWindow(QMainWindow):
         # like the multi-row substitutions below (D/kf-style) but within
         # one row instead of across rows.
         "1D Allen-Cahn": [(0, "0.0001", 0), (0, "5", 1), (0, "5", 1)],
+        # gamma_1 (interface energy, 1e-6) and gamma_2 (0.01), Wight & Zhao's
+        # eq. 3.15 names, both in the chemical-potential row.
+        "1D Cahn-Hilliard": [(1, "1e-6", 0), (1, "0.01", 1)],
         "2D Heat": [(0, "0.4", 0)],
         # c_1^2 (interfacial-thickness-squared, 0.0001) and c_2 (reaction,
         # 1) -- Mattey & Ghosh's own eq. 13 coefficients. c_2's "1" isn't
@@ -9480,6 +9483,7 @@ class MainWindow(QMainWindow):
         # eq. 3.2/3.5 names. Both start at init=1.0 (neither's true value
         # is 1, so this doesn't start the fit already at the answer).
         "1D Allen-Cahn": [("gamma_1", 1.0, 0.0001), ("gamma_2", 1.0, 5.0)],
+        "1D Cahn-Hilliard": [("gamma_1", 1.0, 1e-6), ("gamma_2", 1.0, 0.01)],
         "2D Heat": [("alpha", 1.0, 0.4)],
         # c_1^2 (interfacial-thickness-squared) and c_2 (reaction) --
         # Mattey & Ghosh's own eq. 13 names. c_2's true value is already 1
@@ -12701,6 +12705,35 @@ print("DOMAIN_PREVIEW_DONE")
                 'ref_dir': os.path.join(REFERENCE_DATA_DIR, "1D", "allen_cahn"),
                 'ta_default': {'step_groups': [(0.0, 1.0, 4)], 'transfer_learning': True, 'ic_grid': 101, 'transfer_optimizer': 'lbfgs'},
             },
+            # Wight & Zhao (2021), section 3.2, eq. 3.15: the 1D
+            # Cahn-Hilliard equation u_t - (g2 (u^3 - u) - g1 u_xx)_xx = 0 on
+            # [-1, 1] x [0, 1], u(0, x) = -cos(2 pi x), periodic, with
+            # g2 = 0.01, g1 = 1e-6. Written in mixed form with the chemical
+            # potential mu = g2 (u^3 - u) - g1 u_xx as a second output, so no
+            # residual needs a 4th derivative: u_t = mu_xx. Both outputs are
+            # periodic in value and slope. Plain PINN (no time-adaptive
+            # training): a hard case to try training methods on.
+            "1D Cahn-Hilliard": {
+                'num_outputs': 2,
+                'output_names': 'u,mu',
+                'pde': ["du_t - dmu_xx",
+                        "mu - 0.01*(u**3 - u) + 1e-6*du_xx"],
+                # mu(0, x) follows from u(0, x): g2 (u0^3 - u0) - g1 u0_xx
+                'ic': ["-cos(2*pi*x)",
+                       "0.01*(cos(2*pi*x) - cos(2*pi*x)**3) - 1e-6*4*pi**2*cos(2*pi*x)"],
+                'num_domain': 10000,
+                'num_boundary': 200,
+                'num_initial': 512,
+                'layers': 4,
+                'neurons': 128,
+                'iterations': 20000,
+                'optimizer2': 'lbfgs',
+                'iterations2': 20000,
+                'x_min': -1.0, 'x_max': 1.0,
+                'periodic_bc': True,
+                'periodic_slope': True,
+                'ref_dir': os.path.join(REFERENCE_DATA_DIR, "1D", "cahn_hilliard"),
+            },
             # Exact equation, IC and BC as in Lu, Meng, Mao & Karniadakis
             # 2019 (DeepXDE), section 4.2 / Raissi, Perdikaris & Karniadakis
             # 2019 (JCP), eq. (A.1): u_t + u u_x - (0.01/pi) u_xx = 0,
@@ -12806,7 +12839,7 @@ print("DOMAIN_PREVIEW_DONE")
         names = [n.strip() for n in t['output_names'].split(',')] if 'output_names' in t else []
         self._tpl_set_equations(None, names, t['pde'], t['ic'])
         self._tpl_set_sampling_and_training(t, num_initial=t['num_initial'], optimizer2=t['optimizer2'])
-        if text == "1D Allen-Cahn":
+        if text in ("1D Allen-Cahn", "1D Cahn-Hilliard"):
             self._tpl_set_ic_weights(self.num_outputs_spin.value(), 100.0)
         if 'x_min' in t:
             self.x_min.setValue(t['x_min'])
@@ -12838,7 +12871,7 @@ print("DOMAIN_PREVIEW_DONE")
                 if i < len(self.bc_left_vals): self.bc_left_vals[i].setValue(0.0)
                 if i < len(self.bc_right_vals): self.bc_right_vals[i].setValue(0.0)
         self._populate_locked_bc_entries_from_legacy(self.num_outputs_spin.value(), is_2d=False)
-        if text == "1D Schrödinger":
+        if text == "1D Schrödinger" or t.get('periodic_slope'):
             self._populate_schrodinger_bc_entries(self.num_outputs_spin.value())
         self._update_bc_mode_visibility()
 
