@@ -1458,6 +1458,7 @@ class MainWindow(QMainWindow):
         type_outer_layout.addLayout(type_layout)
         left_layout.addWidget(type_group)
         self.radio_forward.toggled.connect(self._on_problem_type_changed)
+        self.radio_forward.toggled.connect(lambda _c: self._refresh_equation_previews())
         # The two-way sync to self.steady_state_check is wired once that
         # checkbox itself is created, further down (see its own comment).
 
@@ -1509,11 +1510,10 @@ class MainWindow(QMainWindow):
         self.integral_points_spin.setVisible(False)
         # "Show derivative reference" sits on this row, after Equations; its
         # hint text (self.pde_hint) opens below the Constants row.
-        nout_row.addSpacing(12)
+        # (it sits on the Constants row below, where there's room)
         self.pde_hint_toggle = QCheckBox("📖 Show derivative reference")
         self.pde_hint_toggle.setChecked(False)
         self._register_hint(self.pde_hint_toggle, '#74c0fc')
-        nout_row.addWidget(self.pde_hint_toggle)
         nout_row.addStretch()
         pde_outer_layout.addLayout(nout_row)
 
@@ -1535,6 +1535,8 @@ class MainWindow(QMainWindow):
         self.add_constant_btn.setFixedHeight(24)
         self.add_constant_btn.clicked.connect(lambda: self._add_constant_row())
         _crow.addWidget(self.add_constant_btn)
+        _crow.addSpacing(12)
+        _crow.addWidget(self.pde_hint_toggle)
         _crow.addStretch()
         _cw.addLayout(_crow)
         self.constants_rows_layout = QVBoxLayout()
@@ -1602,6 +1604,43 @@ class MainWindow(QMainWindow):
         self._build_pde_inputs(1)
         left_layout.addWidget(self.pde_group)
 
+    def _refresh_equation_previews(self):
+        for w in getattr(self, "pde_inputs", []):
+            prev = getattr(w, "_preview", None)
+            if prev is not None:
+                try:
+                    prev._timer.start()
+                except RuntimeError:
+                    pass
+
+    def _equation_known_names(self):
+        """Names an equation may use besides functions and constants: the
+        outputs, the named constants and the inverse problem's variables."""
+        outs = {w.text().strip() for w in getattr(self, "output_name_inputs", []) if w.text().strip()}
+        other = set()
+        for r in getattr(self, "constant_rows", []):
+            try:
+                if r["name"].text().strip():
+                    other.add(r["name"].text().strip())
+            except RuntimeError:
+                pass
+        inverse = getattr(self, "radio_inverse", None) is not None and self.radio_inverse.isChecked()
+        for r in (getattr(self, "inv_var_rows", []) if inverse else []):
+            try:
+                if r['name'].text().strip():
+                    other.add(r['name'].text().strip())
+            except (RuntimeError, KeyError):
+                pass
+        if self._is_ode():
+            coords = "t"
+        elif getattr(self, "radio_3d", None) is not None and self.radio_3d.isChecked():
+            coords = "xyzt"
+        elif getattr(self, "radio_2d", None) is not None and self.radio_2d.isChecked():
+            coords = "xyt"
+        else:
+            coords = "xt"
+        return {"outputs": outs, "other": other, "coords": coords}
+
     # ── Named constants (Round 70) ────────────────────────────
     def _add_constant_row(self, name="", value=""):
         row = QWidget()
@@ -1617,6 +1656,7 @@ class MainWindow(QMainWindow):
         self.constant_rows.append(entry)
         self.constants_rows_layout.addWidget(row)
         name_edit.textChanged.connect(lambda _t: self._refresh_constant_values())
+        name_edit.textChanged.connect(lambda _t: self._refresh_equation_previews())
         value_edit.textChanged.connect(lambda _t: self._refresh_constant_values())
 
         def _remove():
@@ -5840,6 +5880,7 @@ class MainWindow(QMainWindow):
             'true': true_edit,
         }
         self.inv_var_rows.append(row_data)
+        name_edit.textChanged.connect(lambda _t: self._refresh_equation_previews())
         if is_primary:
             # Keep the legacy single-variable attribute names as aliases to
             # the primary row's widgets -- every existing call site that
@@ -6195,6 +6236,7 @@ class MainWindow(QMainWindow):
                 name_input.setFixedHeight(26); name_input.setFixedWidth(55)
                 name_row.addWidget(name_input); name_row.addStretch()
                 self.output_name_inputs.append(name_input)
+                name_input.textChanged.connect(lambda _t: self._refresh_equation_previews())
                 nw = QWidget(); nw.setLayout(name_row)
                 self.pde_main_layout.addWidget(nw)
 
@@ -6213,6 +6255,11 @@ class MainWindow(QMainWindow):
                 pde_inp.textChanged.connect(lambda _t: self._sync_frac_widget())
                 self.pde_inputs.append(pde_inp)
                 self.pde_main_layout.addWidget(pde_inp)
+                # the equation typeset under the box, and names it doesn't know
+                from pinnstudio.ui.equation import EquationPreview
+                prev = EquationPreview(pde_inp, self._equation_known_names)
+                pde_inp._preview = prev
+                self.pde_main_layout.addWidget(prev)
 
         names_ex = ", ".join([["u","v","w","p"][i] if i < 4 else f"u{i+1}" for i in range(n)])
         if is_3d:
