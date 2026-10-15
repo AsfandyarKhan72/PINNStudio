@@ -160,7 +160,31 @@ def test_generated_code_runs():
     assert ns["_BALANCE"]["w"] == bw
 
 
+def test_cahn_hilliard_template_scaling():
+    """mu's equation divided by gamma_2 and the network's mu scaled by 0.01;
+    the scaling is switched off again for the next template; the inverse
+    substitution reaches both 0.01s."""
+    w = _window("1D Cahn-Hilliard")
+    c = w._build_config()
+    assert c.output_names == "u,mu" and c.ic_active == "True,False"
+    assert c.pde_expressions.split("|")[1] == "(mu - 0.01*(u**3 - u) + 1e-6*du_xx)/0.01"
+    assert c.output_transform_enabled and c.output_transform_mode == "scale"
+    assert list(c.output_transform_scale) == [1.0, 0.01]
+    w.radio_inverse.setChecked(True)
+    _settle()
+    assert w.pde_inputs[1].text() == "(mu - gamma_2*(u**3 - u) + gamma_1*du_xx)/gamma_2"
+    w.radio_inverse.setChecked(False)
+    w.radio_forward.setChecked(True)
+    _settle()
+    w.quick_examples_combo.setCurrentText("1D Allen-Cahn")
+    _settle()
+    c = w._build_config()
+    assert not c.output_transform_enabled and list(c.output_transform_scale) == [1.0]
+    w.close()
+
+
 if __name__ == "__main__":
+    test_cahn_hilliard_template_scaling()
     test_gui_round_trip()
     test_validation()
     test_scripts()

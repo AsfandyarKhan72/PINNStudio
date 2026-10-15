@@ -5018,6 +5018,24 @@ class MainWindow(QMainWindow):
             self.output_formula_rows_layout.addWidget(row_w)
             self.output_formula_edits.append(edit)
 
+    def _tpl_set_output_scale(self, scale):
+        """A template's output scaling (Output transform, Scale/shift): turned
+        on with its scales, or -- when the previous template set one --
+        turned off again, so it never carries over to the next template."""
+        if scale:
+            self._set_combo_data(self.output_transform_mode_combo, "scale")
+            for i, r in enumerate(self.output_transform_rows):
+                r["scale"].setValue(scale[i] if i < len(scale) else 1.0)
+                r["shift"].setValue(0.0)
+            self.output_transform_cb.setChecked(True)
+            self._tpl_output_scaled = True
+        elif getattr(self, "_tpl_output_scaled", False):
+            for r in self.output_transform_rows:
+                r["scale"].setValue(1.0)
+                r["shift"].setValue(0.0)
+            self.output_transform_cb.setChecked(False)
+            self._tpl_output_scaled = False
+
     def _rebuild_output_transform_rows(self, n_outputs):
         if hasattr(self, "output_formula_rows_layout"):
             self._rebuild_output_formula_rows(n_outputs)
@@ -9426,7 +9444,7 @@ class MainWindow(QMainWindow):
         "1D Allen-Cahn": [(0, "0.0001", 0), (0, "5", 1), (0, "5", 1)],
         # gamma_1 (interface energy, 1e-6) and gamma_2 (0.01), Wight & Zhao's
         # eq. 3.15 names, both in the chemical-potential row.
-        "1D Cahn-Hilliard": [(1, "1e-6", 0), (1, "0.01", 1)],
+        "1D Cahn-Hilliard": [(1, "1e-6", 0), (1, "0.01", 1), (1, "0.01", 1)],
         "2D Heat": [(0, "0.4", 0)],
         # c_1^2 (interfacial-thickness-squared, 0.0001) and c_2 (reaction,
         # 1) -- Mattey & Ghosh's own eq. 13 coefficients. c_2's "1" isn't
@@ -12782,12 +12800,19 @@ print("DOMAIN_PREVIEW_DONE")
             # potential mu = g2 (u^3 - u) - g1 u_xx as a second output, so no
             # residual needs a 4th derivative: u_t = mu_xx. Both outputs are
             # periodic in value and slope. Plain PINN (no time-adaptive
-            # training): a hard case to try training methods on.
+            # training).
+            # Scaling: mu is only ~g2 = 0.01 in size, so as written its
+            # equation's residual is ~100x smaller than u_t's and the network
+            # settles on a wrong solution with a loss of ~1e-5 (28-42% L2
+            # error in u). The network's mu output is scaled by 0.01 (output
+            # transform) and the mu equation divided by g2, so both residuals
+            # are O(1): 0.9-4% L2 error in u with the same network/training.
             "1D Cahn-Hilliard": {
                 'num_outputs': 2,
                 'output_names': 'u,mu',
                 'pde': ["du_t - dmu_xx",
-                        "mu - 0.01*(u**3 - u) + 1e-6*du_xx"],
+                        "(mu - 0.01*(u**3 - u) + 1e-6*du_xx)/0.01"],
+                'output_scale': [1.0, 0.01],
                 # mu has no time derivative: it is fixed by u at every time
                 # (its own equation), so it takes no initial condition
                 'ic': ["-cos(2*pi*x)", "0"],
@@ -12917,6 +12942,7 @@ print("DOMAIN_PREVIEW_DONE")
         self._tpl_set_sampling_and_training(t, num_initial=t['num_initial'], optimizer2=t['optimizer2'])
         if text in ("1D Allen-Cahn", "1D Cahn-Hilliard"):
             self._tpl_set_ic_weights(self.num_outputs_spin.value(), 100.0)
+        self._tpl_set_output_scale(t.get('output_scale'))
         if 'x_min' in t:
             self.x_min.setValue(t['x_min'])
             self.x_max.setValue(t['x_max'])
