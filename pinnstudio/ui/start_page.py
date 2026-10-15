@@ -74,7 +74,7 @@ class StartPage(QScrollArea):
 
         title = QLabel("PINNStudio")
         title.setObjectName("startTitle")
-        sub = QLabel("Physics-informed neural networks for forward and inverse problems -- "
+        sub = QLabel("Physics-informed neural networks for forward and inverse problems — "
                      "set a problem up on the left, then Solve.")
         sub.setObjectName("startSubtitle")
         sub.setWordWrap(True)
