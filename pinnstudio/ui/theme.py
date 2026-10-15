@@ -303,6 +303,11 @@ QPlainTextEdit#scriptView {{
     font-family: "{log_family}"; font-size: {log_size}px;
 }}
 QLabel#equationNote {{ background: transparent; }}
+QToolButton#helpButton {{
+    color: {t['text_muted']}; border: 1px solid {t['border_strong']}; border-radius: 11px;
+    font-weight: 600; background: transparent; padding: 0;
+}}
+QToolButton#helpButton:hover {{ color: {t['accent_text']}; border-color: {t['accent']}; }}
 """
 
 

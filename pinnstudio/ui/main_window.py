@@ -1057,6 +1057,7 @@ class MainWindow(QMainWindow):
         ws.select("problem")
         ws.node_selected.connect(self._on_workspace_node)
         ws.menu_provider = self._tree_menu
+        ws.help_urls = {k: self.DOCS_URL + anchor for k, anchor in self._HELP_ANCHORS.items()}
 
         # Settings that would stop Solve show up on their tree nodes as you go
         self._problems_timer = QTimer(self)
@@ -1502,6 +1503,16 @@ class MainWindow(QMainWindow):
         self._current_path = None
         self._mark_clean()
         self.workspace.select("problem")
+
+    # Each tree node's "?" opens its section of the README.
+    DOCS_URL = "https://github.com/AsfandyarKhan72/pinnstudio"
+    _HELP_ANCHORS = {
+        "problem": "#problem-setup", "equations": "#problem-setup", "inverse": "#problem-setup",
+        "geometry": "#problem-setup", "points": "#problem-setup", "ic": "#problem-setup",
+        "bcs": "#problem-setup", "network": "#problem-setup",
+        "training": "#training", "weights": "#training", "adaptive": "#training",
+        "sweep": "#parameter-sweep", "results": "#analysis--output", "restore": "#restore--visualize",
+    }
 
     def _tree_menu(self, key):
         """Right-click actions on a model-tree node."""

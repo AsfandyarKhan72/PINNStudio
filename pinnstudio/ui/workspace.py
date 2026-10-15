@@ -85,7 +85,23 @@ class ModelWorkspace(QObject):
         sl.addWidget(head)
         self.title = QLabel("")
         self.title.setObjectName("pageTitle")
-        sl.addWidget(self.title)
+        from PyQt6.QtWidgets import QHBoxLayout, QToolButton
+        trow = QHBoxLayout()
+        trow.setContentsMargins(0, 0, 4, 0)
+        trow.addWidget(self.title)
+        trow.addStretch()
+        self.help_btn = QToolButton()
+        self.help_btn.setObjectName("helpButton")
+        self.help_btn.setText("?")
+        self.help_btn.setAutoRaise(True)
+        self.help_btn.setFixedSize(22, 22)
+        self.help_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.help_btn.clicked.connect(self._open_help)
+        self.help_btn.hide()
+        trow.addWidget(self.help_btn)
+        sl.addLayout(trow)
+        self.help_urls = {}   # key -> URL of its section in the documentation
+        self.open_url = None  # callable(url); QDesktopServices when None
         self.desc = QLabel("")
         self.desc.setObjectName("pageDesc")
         self.desc.setWordWrap(True)
@@ -205,10 +221,34 @@ class ModelWorkspace(QObject):
         align_forms(info["page"])
         self.stack.setCurrentWidget(info["scroll"])
         self.title.setText(info["label"])
+        url = self.help_url(key)
+        self.help_btn.setVisible(bool(url))
+        self.help_btn.setToolTip(f"Help: open the documentation for {info['label']}" if url else "")
         self.desc.setText(info["desc"])
         self.desc.setVisible(bool(info["desc"]))
         self._show_banner()
         self.node_selected.emit(key)
+
+    def help_url(self, key):
+        """The documentation for node `key`: its own, else its parent's."""
+        if key in self.help_urls:
+            return self.help_urls[key]
+        info = self.pages.get(key)
+        parent = info["item"].parent() if info else None
+        if parent is not None:
+            return self.help_urls.get(parent.data(0, Qt.ItemDataRole.UserRole))
+        return None
+
+    def _open_help(self):
+        url = self.help_url(self.current_key())
+        if not url:
+            return
+        if self.open_url is not None:
+            self.open_url(url)
+            return
+        from PyQt6.QtCore import QUrl
+        from PyQt6.QtGui import QDesktopServices
+        QDesktopServices.openUrl(QUrl(url))
 
     def build_menu(self, key):
         """The right-click menu of node `key`: the window's actions for it,
@@ -231,10 +271,15 @@ class ModelWorkspace(QObject):
                 if len(e) > 2 and e[2] is not None:
                     from pinnstudio.ui import icons as _icons
                     act.setIcon(_icons.icon(e[2]))
+        if self.help_url(key):
+            if entries:
+                menu.addSeparator()
+            h = menu.addAction("Help")
+            h.triggered.connect(lambda: (self.select(key), self._open_help()))
         boxes = [getattr(w, "_collapser", None) for w in self.pages.get(key, {}).get("widgets", [])]
         boxes = [c for c in boxes if c is not None and not c.box.isHidden()]
         if boxes:
-            if entries:
+            if not menu.isEmpty():
                 menu.addSeparator()
             fold = menu.addAction("Fold all sections")
             fold.triggered.connect(lambda: [c.toggle() for c in boxes if not c.folded])
