@@ -32,7 +32,7 @@ import math
 
 from PyQt6.QtCore import QPointF, QRectF, Qt, pyqtSignal
 from PyQt6.QtGui import (QBrush, QColor, QFont, QPainter, QPainterPath, QPainterPathStroker, QPen, QPolygonF,
-                         QTransform)
+                         QKeySequence, QTransform)
 from PyQt6.QtWidgets import (QAbstractItemView, QButtonGroup, QCheckBox, QComboBox, QDoubleSpinBox, QHBoxLayout,
                              QLabel, QLineEdit, QListWidget, QListWidgetItem, QPushButton, QSizePolicy, QVBoxLayout,
                              QWidget)
@@ -718,6 +718,10 @@ class _Canvas(QWidget):
             self.sel_edges = list(range(len(self.edges())))
             self.edges_selected.emit()
             self.update()
+        elif ev.matches(QKeySequence.StandardKey.Undo) and hasattr(self.owner, "undo"):
+            self.owner.undo()
+        elif ev.matches(QKeySequence.StandardKey.Redo) and hasattr(self.owner, "redo"):
+            self.owner.redo()
         elif k in (Qt.Key.Key_Delete, Qt.Key.Key_Backspace) and self.tool != "Edges":
             self.owner.delete_selected()
         else:
@@ -787,6 +791,14 @@ class SketchPanel(QWidget):
 
         bar2 = QHBoxLayout()   # row 3: edit the drawing
         bar2.setSpacing(4)
+        self.undo_btn = QPushButton("")
+        self.undo_btn.setFixedSize(30, 26)
+        self.undo_btn.setToolTip("Undo (Ctrl+Z)")
+        self.redo_btn = QPushButton("")
+        self.redo_btn.setFixedSize(30, 26)
+        self.redo_btn.setToolTip("Redo (Ctrl+Y)")
+        bar2.addWidget(self.undo_btn)
+        bar2.addWidget(self.redo_btn)
         self.delete_btn = QPushButton("Delete shape")
         self.delete_btn.setFixedHeight(26)
         bar2.addWidget(self.delete_btn)
@@ -942,6 +954,17 @@ class SketchPanel(QWidget):
         self.fit_btn.clicked.connect(self.canvas.fit)
         self.coord_edit.returnPressed.connect(self._on_coords_entered)
         self.canvas.changed.connect(lambda: self.shapes_edited.emit([dict(s) for s in self.canvas.shapes]))
+        # undo / redo: every state the drawing has been in
+        self._hist, self._hpos, self._hist_lock = [[]], 0, False
+        self.shapes_edited.connect(self._record)
+        self.undo_btn.clicked.connect(self.undo)
+        self.redo_btn.clicked.connect(self.redo)
+        from PyQt6.QtGui import QKeySequence, QShortcut
+        for seq, fn in (("Ctrl+Z", self.undo), ("Ctrl+Y", self.redo), ("Ctrl+Shift+Z", self.redo)):
+            sc = QShortcut(QKeySequence(seq), self)
+            sc.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
+            sc.activated.connect(fn)
+        self._update_undo_buttons()
         self.canvas.cursor_moved.connect(self._show_cursor)
         self.canvas.edges_selected.connect(self._update_edge_bar)
         self.face_list.itemSelectionChanged.connect(self._on_face_list_selection)
@@ -1001,6 +1024,10 @@ class SketchPanel(QWidget):
 
     def _apply_tool_icons(self):
         from pinnstudio.ui import icons as _icons
+        if not getattr(self, "_undo_icons", False):
+            self._undo_icons = True
+            _icons.apply(self.undo_btn, "undo", "text", size=16)
+            _icons.apply(self.redo_btn, "redo", "text", size=16)
         names = self.ICONS_3D if self.canvas.dim == 3 else self.ICONS_2D
         for t, b in self.tool_buttons.items():
             if t in names:
@@ -1021,6 +1048,7 @@ class SketchPanel(QWidget):
         self.viewer = True
         for w in list(self.tool_buttons.values()) + [
                 self.op_label, self.op_combo, self.grid_spin, self.snap_cb, self.delete_btn, self.clear_btn,
+                self.undo_btn, self.redo_btn,
                 self.import_btn, self.coord_entry_label, self.coord_edit, self.new_d0, self.new_d1,
                 self.new_depth_label]:
             w.setVisible(False)
@@ -1441,7 +1469,63 @@ class SketchPanel(QWidget):
             self.canvas.update()
             self.shapes_edited.emit([])
 
+    # ── undo / redo ──────────────────────────────────────────
+    UNDO_DEPTH = 100
+
+    def _record(self, shapes):
+        import copy
+        if self._hist_lock:
+            return
+        snap = copy.deepcopy(list(shapes))
+        if self._hist and self._hist[self._hpos] == snap:
+            return
+        del self._hist[self._hpos + 1:]
+        self._hist.append(snap)
+        if len(self._hist) > self.UNDO_DEPTH:
+            del self._hist[0]
+        self._hpos = len(self._hist) - 1
+        self._update_undo_buttons()
+
+    def _update_undo_buttons(self):
+        self.undo_btn.setEnabled(self._hpos > 0)
+        self.redo_btn.setEnabled(self._hpos < len(self._hist) - 1)
+
+    def can_undo(self):
+        return self._hpos > 0
+
+    def _go(self, pos):
+        import copy
+        self._hpos = pos
+        c = self.canvas
+        c.shapes = copy.deepcopy(self._hist[pos])
+        c.selected = -1
+        c._poly = []
+        if c.tool == "Edges":
+            c.sel_edges = []
+            self._update_edge_bar()
+        c.update()
+        self._hist_lock = True
+        try:
+            self.shapes_edited.emit([dict(s) for s in c.shapes])
+        finally:
+            self._hist_lock = False
+        self._update_undo_buttons()
+
+    def undo(self):
+        if self._hpos > 0:
+            self._go(self._hpos - 1)
+
+    def redo(self):
+        if self._hpos < len(self._hist) - 1:
+            self._go(self._hpos + 1)
+
     def set_shapes(self, shapes, fit=False):
+        import copy
+        if fit:   # a different drawing (opened, loaded): its own history
+            self._hist, self._hpos = [copy.deepcopy([dict(s) for s in shapes])], 0
+            self._update_undo_buttons()
+        else:
+            self._record([dict(s) for s in shapes])
         self.canvas.shapes = [dict(s) for s in shapes]
         if self.canvas.selected >= len(self.canvas.shapes):
             self.canvas.selected = -1
