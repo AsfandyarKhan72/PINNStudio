@@ -388,3 +388,193 @@ class ErrorAnalysisPanel(QWidget):
             self.figs_lay.addWidget(cap)
             self.figs_lay.addWidget(_Thumb(path, 520))
         self.figs_lay.addStretch()
+
+
+# ── Run history ──────────────────────────────────────────────────────────
+_STAMP = re.compile(r"(\d{4}-\d{2}-\d{2})_(\d{2})-(\d{2})-(\d{2})")
+
+
+def read_run(folder):
+    """One finished run's summary from its folder (None if it isn't one):
+    when, final training loss, relative L2 error, plot files."""
+    sol = os.path.join(folder, "solution_results")
+    if not os.path.isdir(sol):
+        return None
+    run = {"folder": folder, "name": os.path.basename(folder.rstrip("/\\")), "loss": None, "l2": None,
+           "metrics": [], "plot_type": "", "time": None}
+    m = _STAMP.search(run["name"]) or _STAMP.search(os.path.basename(os.path.dirname(folder)))
+    if m:
+        run["when"] = f"{m.group(1)} {m.group(2)}:{m.group(3)}"
+    try:
+        run["time"] = os.path.getmtime(sol)
+    except OSError:
+        run["time"] = 0
+    if "when" not in run:
+        run["when"] = time.strftime("%Y-%m-%d %H:%M", time.localtime(run["time"] or 0))
+    label = _STAMP.sub("", run["name"]).rstrip("_ ")
+    run["label"] = label or run["name"]
+    try:
+        with open(os.path.join(sol, "training_log.txt"), encoding="utf-8", errors="replace") as fh:
+            last = None
+            for line in fh:
+                if line.strip().startswith("Step"):
+                    last = line
+        if last:
+            body = re.sub(r"(?:np\.)?float\d*\(|tensor\(|array\(", "", last.split(":", 1)[1])
+            vals = _floats(re.sub(r"[\[\]()]", "", body))
+            if vals:
+                run["loss"] = sum(vals)
+    except OSError:
+        pass
+    try:
+        with open(os.path.join(folder, "error_analysis", "error_metrics.txt"), encoding="utf-8") as fh:
+            rows = [ln.strip().split(",") for ln in fh if ln.strip()]
+        for r in rows[1:]:
+            try:
+                run["metrics"].append((float(r[0]), float(r[1]), float(r[2]) if len(r) > 2 else None))
+            except (ValueError, IndexError):
+                pass
+        l2s = [x[1] for x in run["metrics"]]
+        if l2s:
+            run["l2"] = sum(l2s) / len(l2s)
+    except OSError:
+        pass
+    try:
+        with open(os.path.join(sol, "model_config.json"), encoding="utf-8") as fh:
+            cfg = json.load(fh)
+        run["plot_type"] = cfg.get("plot_type", "") or ""
+        run["dim"] = cfg.get("problem_dim", "")
+    except (OSError, ValueError, AttributeError):
+        pass
+    return run
+
+
+def scan_runs(base, max_depth=3, limit=500):
+    """Every run folder under `base` (a run's own folder, or a sweep's runs),
+    newest first."""
+    out = []
+    if not base or not os.path.isdir(base):
+        return out
+
+    def walk(d, depth):
+        if len(out) >= limit:
+            return
+        try:
+            names = os.listdir(d)
+        except OSError:
+            return
+        if "solution_results" in names:
+            r = read_run(d)
+            if r:
+                out.append(r)
+            return
+        if depth >= max_depth:
+            return
+        for n in names:
+            p = os.path.join(d, n)
+            if os.path.isdir(p) and not n.startswith("."):
+                walk(p, depth + 1)
+
+    walk(base, 0)
+    out.sort(key=lambda r: r["time"] or 0, reverse=True)
+    return out
+
+
+class RunHistory(QWidget):
+    """The runs saved in the Save-to folder: when, which, final loss and
+    error. Double-click (or Show) brings a run's figures back up."""
+    run_activated = pyqtSignal(dict)
+
+    def __init__(self, base_fn, parent=None):
+        super().__init__(parent)
+        from PyQt6.QtWidgets import QPushButton
+        self.base_fn = base_fn
+        self.runs = []
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(6, 6, 6, 6)
+        bar = QHBoxLayout()
+        self.summary = QLabel("")
+        self.summary.setObjectName("pageDesc")
+        self.summary.setWordWrap(True)
+        bar.addWidget(self.summary, 1)
+        self.show_btn = QPushButton("Show")
+        self.show_btn.setToolTip("Show this run's figures in Overview and its errors in Error analysis")
+        self.show_btn.clicked.connect(self._activate_current)
+        self.folder_btn = QPushButton("Open folder")
+        self.folder_btn.clicked.connect(self._open_folder)
+        self.refresh_btn = QPushButton("Refresh")
+        self.refresh_btn.clicked.connect(self.refresh)
+        for b in (self.show_btn, self.folder_btn, self.refresh_btn):
+            bar.addWidget(b)
+        lay.addLayout(bar)
+        self.table = QTableWidget(0, 4)
+        self.table.setHorizontalHeaderLabels(["run", "when", "final loss", "relative L₂ error"])
+        hh = self.table.horizontalHeader()
+        hh.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        for c in (1, 2, 3):
+            hh.setSectionResizeMode(c, QHeaderView.ResizeMode.ResizeToContents)
+        self.table.verticalHeader().setVisible(False)
+        self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
+        self.table.setSortingEnabled(False)
+        self.table.cellDoubleClicked.connect(lambda r, _c: self._activate(r))
+        self.table.itemSelectionChanged.connect(self._update_buttons)
+        lay.addWidget(self.table, 1)
+        self._update_buttons()
+
+    def refresh(self):
+        base = ""
+        try:
+            base = (self.base_fn() or "").strip()
+        except Exception:
+            pass
+        self.runs = scan_runs(base)
+        self.table.setRowCount(0)
+        for r in self.runs:
+            i = self.table.rowCount()
+            self.table.insertRow(i)
+            rel = os.path.relpath(r["folder"], base) if base else r["folder"]
+            name = QTableWidgetItem(r["label"] if os.sep not in rel else rel.replace(os.sep, " / "))
+            name.setToolTip(r["folder"])
+            self.table.setItem(i, 0, name)
+            for c, v in ((1, r["when"]), (2, "—" if r["loss"] is None else f"{r['loss']:.3e}"),
+                         (3, "—" if r["l2"] is None else f"{r['l2']:.3e}")):
+                it = QTableWidgetItem(v)
+                it.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                self.table.setItem(i, c, it)
+        if not base:
+            self.summary.setText("Runs are listed from the Save-to folder (Results page); it is empty.")
+        elif not self.runs:
+            self.summary.setText(f"No saved runs yet in {base}.")
+        else:
+            self.summary.setText(f"{len(self.runs)} run{'s' if len(self.runs) != 1 else ''} in {base}  "
+                                 "-- double-click one to see its figures.")
+        self._update_buttons()
+
+    def _row(self):
+        rows = self.table.selectionModel().selectedRows() if self.table.selectionModel() else []
+        return rows[0].row() if rows else -1
+
+    def _update_buttons(self):
+        ok = 0 <= self._row() < len(self.runs)
+        self.show_btn.setEnabled(ok)
+        self.folder_btn.setEnabled(ok)
+
+    def _activate(self, row):
+        if 0 <= row < len(self.runs):
+            self.run_activated.emit(self.runs[row])
+
+    def _activate_current(self):
+        self._activate(self._row())
+
+    def _open_folder(self):
+        from PyQt6.QtCore import QUrl
+        from PyQt6.QtGui import QDesktopServices
+        r = self._row()
+        if 0 <= r < len(self.runs):
+            QDesktopServices.openUrl(QUrl.fromLocalFile(self.runs[r]["folder"]))
+
+    def showEvent(self, ev):
+        super().showEvent(ev)
+        self.refresh()

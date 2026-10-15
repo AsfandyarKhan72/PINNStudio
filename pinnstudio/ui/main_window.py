@@ -1558,6 +1558,29 @@ class MainWindow(QMainWindow):
         if new.get('_node'):
             self.workspace.select(new['_node'])
 
+    def _show_saved_run(self, run):
+        """A run picked in Results -> History: its figures in Overview, its
+        errors in Error analysis."""
+        from types import SimpleNamespace
+        folder = run["folder"]
+        sol = os.path.join(folder, "solution_results")
+        ptype = run.get("plot_type") or ""
+        if not ptype and os.path.exists(os.path.join(sol, "solution_plot.gif")) and \
+                not os.path.exists(os.path.join(sol, "solution_plot.png")):
+            ptype = "Line Animation (GIF)"
+        self.loss_label.setText("No loss plot saved for this run")
+        self.solution_label.setText("No solution plot saved for this run")
+        self._display_run_result_plots(SimpleNamespace(plot_type=ptype), folder)
+        self.ea_panel.show_run(run.get("metrics") or [], os.path.join(folder, "error_analysis"))
+        self.results_tabs.setCurrentIndex(0)
+        if hasattr(self, "status_text"):
+            bits = [f"Showing {run.get('label', os.path.basename(folder))} ({run.get('when', '')})"]
+            if run.get("loss") is not None:
+                bits.append(f"final loss {run['loss']:.3e}")
+            if run.get("l2") is not None:
+                bits.append(f"mean relative L₂ {run['l2']:.3e}")
+            self.status_text.setText("  ·  ".join(bits))
+
     def _shortcut_solve(self):
         if self.solve_btn.isVisible() and self.solve_btn.isEnabled():
             self.solve_btn.click()
@@ -4032,6 +4055,10 @@ class MainWindow(QMainWindow):
         self.results_tabs.addTab(self.live_loss, "Live loss")
         self.ea_panel = ErrorAnalysisPanel()
         self.results_tabs.addTab(self.ea_panel, "Error analysis")
+        from pinnstudio.ui.results import RunHistory
+        self.run_history = RunHistory(lambda: self.save_dir_input.text())
+        self.run_history.run_activated.connect(self._show_saved_run)
+        self.results_tabs.addTab(self.run_history, "History")
         self.right_tabs.addTab(self.results_tabs, "Results")
         self._sketch_tab_index = self.right_tabs.addTab(self.sketch_panel, "Sketch")
         self.right_tabs.setTabVisible(self._sketch_tab_index, False)
