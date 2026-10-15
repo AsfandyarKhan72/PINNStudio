@@ -98,9 +98,9 @@ PINNStudio is under active development, and we are extending it with newer scien
 
 ## Demo Video
 
-[![PINNStudio demo - setting up a PDE](https://img.youtube.com/vi/lxSJTJvU45Q/maxresdefault.jpg)](https://youtu.be/lxSJTJvU45Q)
+[![PINNStudio demo — solving PDEs with physics-informed neural networks, no code](https://img.youtube.com/vi/5ILxuutvEZw/maxresdefault.jpg)](https://youtu.be/5ILxuutvEZw)
 
-*Click to watch a full walkthrough of the PDE setup panel on YouTube (recorded with an earlier version of the interface — see [The Interface](#the-interface) for the current one).*
+*Click to watch the full walkthrough on YouTube: loading an example, setting up your own PDE, sketching a domain and its boundary conditions, training with live loss, error analysis, run history and parameter sweeps.*
 
 ## Installation
 
