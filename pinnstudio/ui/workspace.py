@@ -69,6 +69,9 @@ class ModelWorkspace(QObject):
         self.tree.setFrameShape(QFrame.Shape.NoFrame)
         self.tree.setMinimumWidth(170)
         self.tree.currentItemChanged.connect(self._on_current)
+        self.tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.tree.customContextMenuRequested.connect(self._context_menu)
+        self.menu_provider = None   # key -> [(label, callback) or None for a separator]
         tl.addWidget(self.tree, 1)
 
         # ── settings ──
@@ -206,6 +209,48 @@ class ModelWorkspace(QObject):
         self.desc.setVisible(bool(info["desc"]))
         self._show_banner()
         self.node_selected.emit(key)
+
+    def build_menu(self, key):
+        """The right-click menu of node `key`: the window's actions for it,
+        then folding the page's sections."""
+        from PyQt6.QtWidgets import QMenu
+        menu = QMenu(self.tree)
+        entries = []
+        if self.menu_provider is not None:
+            try:
+                entries = self.menu_provider(key) or []
+            except Exception:
+                entries = []
+        for e in entries:
+            if e is None:
+                menu.addSeparator()
+            else:
+                label, cb = e[0], e[1]
+                act = menu.addAction(label)
+                act.triggered.connect(lambda _c=False, f=cb: f())
+                if len(e) > 2 and e[2] is not None:
+                    from pinnstudio.ui import icons as _icons
+                    act.setIcon(_icons.icon(e[2]))
+        boxes = [getattr(w, "_collapser", None) for w in self.pages.get(key, {}).get("widgets", [])]
+        boxes = [c for c in boxes if c is not None and not c.box.isHidden()]
+        if boxes:
+            if entries:
+                menu.addSeparator()
+            fold = menu.addAction("Fold all sections")
+            fold.triggered.connect(lambda: [c.toggle() for c in boxes if not c.folded])
+            unfold = menu.addAction("Unfold all sections")
+            unfold.triggered.connect(lambda: [c.toggle() for c in boxes if c.folded])
+        return menu
+
+    def _context_menu(self, pos):
+        item = self.tree.itemAt(pos)
+        if item is None:
+            return
+        key = item.data(0, Qt.ItemDataRole.UserRole)
+        self.select(key)
+        menu = self.build_menu(key)
+        if not menu.isEmpty():
+            menu.exec(self.tree.viewport().mapToGlobal(pos))
 
     def _show_banner(self):
         msgs = (getattr(self, "problems", {}) or {}).get(self.current_key()) or []

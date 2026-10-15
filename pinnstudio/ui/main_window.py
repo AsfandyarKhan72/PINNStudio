@@ -1056,6 +1056,7 @@ class MainWindow(QMainWindow):
         self.main_splitter = splitter
         ws.select("problem")
         ws.node_selected.connect(self._on_workspace_node)
+        ws.menu_provider = self._tree_menu
 
         # Settings that would stop Solve show up on their tree nodes as you go
         self._problems_timer = QTimer(self)
@@ -1501,6 +1502,61 @@ class MainWindow(QMainWindow):
         self._current_path = None
         self._mark_clean()
         self.workspace.select("problem")
+
+    def _tree_menu(self, key):
+        """Right-click actions on a model-tree node."""
+        items = []
+        if key == "bcs" or key.startswith("bc:"):
+            if self.add_custom_bc_btn.isEnabled():
+                items.append(("Add boundary condition", self._menu_add_bc, "add"))
+            entry = next((e for e in self.custom_bc_list if e.get('_node') == key), None)
+            if entry is not None:
+                items.append(("Duplicate", lambda e=entry: self._duplicate_bc(e), None))
+                if entry.get('remove_btn') is not None and not entry['remove_btn'].isHidden():
+                    items.append(("Delete", lambda e=entry: e['remove_btn'].click(), "delete"))
+        elif key == "geometry":
+            if self._has_domain_graphics():
+                items.append(("Sketch the domain", lambda: self.geometry_type_combo.setCurrentText("Sketch"),
+                              "sketch"))
+        elif key == "training":
+            items.append(("Add training phase", lambda: self._add_scheduler_phase(), "add"))
+        elif key == "inverse":
+            items.append(("Add trainable variable", lambda: self._add_inverse_var_row(), "add"))
+        elif key == "equations":
+            items.append(("Add constant", lambda: self._add_constant_row(), "add"))
+        elif key in ("results", "restore"):
+            items.append(("Open a saved problem…", lambda: self._open_problem(), "open"))
+        if key == "problem":
+            items += [("New 1D problem", lambda: self._new_problem("1D"), "add"),
+                      ("New 2D problem", lambda: self._new_problem("2D"), None),
+                      ("New 3D problem", lambda: self._new_problem("3D"), None),
+                      ("New ODE system", lambda: self._new_problem("ODE"), None)]
+        return items
+
+    def _menu_add_bc(self):
+        self.add_custom_bc_btn.click()
+        self._sync_bc_nodes()
+        if self.custom_bc_list:
+            self.workspace.select(self.custom_bc_list[-1].get('_node', "bcs"))
+
+    def _duplicate_bc(self, entry):
+        """A copy of a BC row, added at the end."""
+        import json
+        if entry not in self.custom_bc_list:
+            return
+        i = self.custom_bc_list.index(entry)
+        try:
+            d = json.loads(self._build_custom_bc_json())[i]
+        except Exception:
+            return
+        d['bc_type'] = d.pop('type', 'dirichlet')
+        import inspect
+        allowed = set(inspect.signature(self._add_custom_bc_entry).parameters)
+        new = self._add_custom_bc_entry(**{k: v for k, v in d.items() if k in allowed})
+        self._update_bc_mode_visibility()
+        self._sync_bc_nodes()
+        if new.get('_node'):
+            self.workspace.select(new['_node'])
 
     def _shortcut_solve(self):
         if self.solve_btn.isVisible() and self.solve_btn.isEnabled():
@@ -7535,6 +7591,7 @@ class MainWindow(QMainWindow):
 
         remove_btn.clicked.connect(_remove)
         entry_data['header'] = header_lbl
+        entry_data['remove_btn'] = remove_btn
         self._sync_bc_nodes()
         # the sketch colours its edges by these rows' Where:
         loc_edit.textChanged.connect(self._sketch_bcs_changed)
