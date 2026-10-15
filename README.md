@@ -100,7 +100,7 @@ PINNStudio is under active development, and we are extending it with newer scien
 
 [![PINNStudio demo - setting up a PDE](https://img.youtube.com/vi/lxSJTJvU45Q/maxresdefault.jpg)](https://youtu.be/lxSJTJvU45Q)
 
-*Click to watch a full walkthrough of the PDE setup panel on YouTube.*
+*Click to watch a full walkthrough of the PDE setup panel on YouTube (recorded with an earlier version of the interface — see [The Interface](#the-interface) for the current one).*
 
 ## Installation
 
