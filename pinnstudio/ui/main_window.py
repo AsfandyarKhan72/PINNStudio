@@ -868,6 +868,7 @@ class MainWindow(QMainWindow):
         self._build_workspace(splitter, left_layout)
         self._build_right_panel(splitter)
         self._finish_workspace(splitter)
+        self._build_status_bar()
 
     # ── Workspace: model tree | settings | graphics ──────────
     # (key, label, icon glyph, icon colour, parent, panel titles, description)
@@ -3592,7 +3593,18 @@ class MainWindow(QMainWindow):
         bottom_layout = QVBoxLayout(plots_widget)   # (plots and monitors go here)
         bottom_layout.setContentsMargins(4, 6, 4, 4)
         bottom_layout.setSpacing(6)
-        self.right_tabs.addTab(plots_widget, "📈 Results")
+        # Results: the saved figures (Overview), the loss while training
+        # (Live loss) and the error analysis of the last run.
+        from pinnstudio.ui.results import ErrorAnalysisPanel, LiveLossPlot
+        self.results_tabs = QTabWidget()
+        self.results_tabs.setDocumentMode(True)
+        self.results_tabs.setObjectName("resultsTabs")
+        self.results_tabs.addTab(plots_widget, "Overview")
+        self.live_loss = LiveLossPlot()
+        self.results_tabs.addTab(self.live_loss, "Live loss")
+        self.ea_panel = ErrorAnalysisPanel()
+        self.results_tabs.addTab(self.ea_panel, "Error analysis")
+        self.right_tabs.addTab(self.results_tabs, "📈 Results")
         self._sketch_tab_index = self.right_tabs.addTab(self.sketch_panel, "✏ Sketch")
         self.right_tabs.setTabVisible(self._sketch_tab_index, False)
         self.right_tabs.currentChanged.connect(self._on_right_tab_changed)
@@ -3917,6 +3929,9 @@ class MainWindow(QMainWindow):
         self.solution_label.setStyleSheet("border: 1px solid #3e3e42; border-radius: 6px; color: #505080; background: #252526;")
         self.solution_label.setMinimumSize(240, 180)
         self.solution_label._source_path = None
+        for _lbl in (self.loss_label, self.solution_label):
+            _lbl.setToolTip("Double-click to open the figure at full size (zoom and pan)")
+            _lbl.mouseDoubleClickEvent = (lambda _ev, _l=_lbl: self._open_figure(_l))
 
         # Each figure gets its own small header (title + a "save this
         # figure" button) above the image itself, both wrapped in one
@@ -9312,6 +9327,7 @@ class MainWindow(QMainWindow):
             if os.path.exists(_p):
                 os.remove(_p)
         self._log_example_changes(config)
+        self._start_progress(config)
         self.thread = SolverThread(config)
         self.thread.output_signal.connect(self._on_output)
         self.thread.done_signal.connect(self._on_done)
@@ -9369,6 +9385,7 @@ class MainWindow(QMainWindow):
 
     def _on_sweep_run_start(self, i, total, label):
         self.log_box.append(f"▶ Run {i + 1}/{total}: {label}")
+        self._start_progress(getattr(self, '_sweep_base_config', None), f"Sweep run {i + 1}/{total}")
 
     @staticmethod
     def _log_text(line):
@@ -9377,6 +9394,7 @@ class MainWindow(QMainWindow):
         return _re_log_l2.sub("L₂", line) if "L2" in line else line
 
     def _on_sweep_output(self, i, total, line):
+        self._progress_feed(line)
         self.log_box.append(f"[Sweep {i + 1}/{total}] {self._log_text(line)}")
 
     def _on_sweep_run_done(self, i, total, label, result):
@@ -9403,6 +9421,7 @@ class MainWindow(QMainWindow):
             self._sweep_last_run_label = label
 
     def _on_sweep_finished(self):
+        self._finish_progress("Sweep finished")
         self.solve_btn.setEnabled(True)
         self.solve_btn.setText("▶  Run Sweep" if self.sweep_enable_cb.isChecked() else "▶  Solve")
         self.stop_btn.setEnabled(False)
@@ -9430,6 +9449,127 @@ class MainWindow(QMainWindow):
             self.log_box.append(
                 f"🖼️ Showing the loss/solution figure for the last completed run: {self._sweep_last_run_label}")
 
+    # ── run progress: status bar, live loss, error analysis ───
+    def _build_status_bar(self):
+        from PyQt6.QtWidgets import QProgressBar, QStatusBar
+        sb = QStatusBar()
+        sb.setObjectName("appStatus")
+        sb.setSizeGripEnabled(True)
+        self.setStatusBar(sb)
+        self.status_text = QLabel("Ready")
+        self.status_text.setObjectName("statusText")
+        sb.addWidget(self.status_text)
+        self.status_progress = QProgressBar()
+        self.status_progress.setFixedWidth(220)
+        self.status_progress.setFixedHeight(14)
+        self.status_progress.setTextVisible(False)
+        self.status_progress.setVisible(False)
+        sb.addWidget(self.status_progress)
+        self.status_detail = QLabel("")
+        self.status_detail.setObjectName("statusDetail")
+        sb.addWidget(self.status_detail, 1)
+        self.status_env = QLabel("")
+        self.status_env.setObjectName("statusEnv")
+        sb.addPermanentWidget(self.status_env)
+        self._progress = None
+        self._progress_timer = QTimer(self)
+        self._progress_timer.setInterval(1000)
+        self._progress_timer.timeout.connect(self._refresh_status)
+        self._refresh_status_env()
+        self.save_dir_input.textChanged.connect(self._refresh_status_env)
+
+    def _refresh_status_env(self, *_a):
+        if not hasattr(self, 'status_env'):
+            return
+        folder = (self.save_dir_input.text() or "").strip()
+        short = folder if len(folder) <= 42 else "…" + folder[-41:]
+        self.status_env.setText(f"{getattr(self, '_float_type', 'float32')}   ·   Save to: {short}")
+        self.status_env.setToolTip(folder)
+
+    def _start_progress(self, config, label="Training"):
+        from pinnstudio.ui.results import RunProgress
+        if not hasattr(self, 'status_text'):
+            return
+        self._progress = RunProgress(config)
+        self._progress_label = label
+        self.status_progress.setVisible(True)
+        self.status_progress.setRange(0, 1000)
+        self.status_progress.setValue(0)
+        self.live_loss.start(self._progress)
+        self.results_tabs.setCurrentWidget(self.live_loss)
+        self._progress_timer.start()
+        self._refresh_status()
+
+    def _progress_feed(self, line):
+        p = getattr(self, '_progress', None)
+        if p is None:
+            return
+        n = len(p.history)
+        p.feed(line)
+        if len(p.history) != n:
+            self.live_loss.update_from(p)
+
+    def _refresh_status(self):
+        from pinnstudio.ui.results import fmt_seconds
+        p = getattr(self, '_progress', None)
+        if p is None:
+            return
+        parts = [self._progress_label]
+        if p.phase:
+            name = {"adam": "Adam", "lbfgs": "L-BFGS", "l-bfgs": "L-BFGS"}.get(p.phase_name.lower(), p.phase_name)
+            parts.append(f"phase {p.phase}/{max(len(p.phases), p.phase)} ({name})")
+        self.status_text.setText("  ·  ".join(parts))
+        f = p.fraction()
+        if f is None:
+            self.status_progress.setRange(0, 0)   # busy
+        else:
+            self.status_progress.setRange(0, 1000)
+            self.status_progress.setValue(int(1000 * f))
+        det = []
+        if p.total:
+            det.append(f"iteration {p.step:,} / {p.total:,}")
+        tl = p.train_loss()
+        if tl is not None:
+            det.append(f"loss {tl:.3e}")
+        det.append(f"elapsed {fmt_seconds(p.elapsed())}")
+        eta = p.eta()
+        if eta is not None:
+            det.append(f"about {fmt_seconds(eta)} left")
+        self.status_detail.setText("   ·   ".join(det))
+
+    def _finish_progress(self, message, ok=True):
+        from pinnstudio.ui.results import fmt_seconds
+        p = getattr(self, '_progress', None)
+        if not hasattr(self, 'status_text'):
+            return
+        self._progress_timer.stop()
+        self.status_progress.setVisible(False)
+        if p is None:
+            self.status_text.setText(message)
+            return
+        self.live_loss.update_from(p)
+        self.live_loss.stop()
+        tl = p.final_loss if p.final_loss is not None else p.train_loss()
+        bits = [message, f"in {fmt_seconds(p.elapsed())}"]
+        if tl is not None:
+            bits.append(f"final loss {tl:.3e}")
+        l2s = [m[1] for m in p.metrics if m[1] is not None]
+        if l2s:
+            bits.append(f"mean relative L₂ {sum(l2s) / len(l2s):.3e}")
+        self.status_text.setText("  ·  ".join(bits))
+        self.status_detail.setText("")
+        if ok:
+            cfg = getattr(self, '_last_config', None) or getattr(getattr(self, 'thread', None), 'config', None)
+            folder = os.path.join(cfg.save_dir, "error_analysis") if cfg is not None and cfg.save_dir else ""
+            self.ea_panel.show_run(p.metrics, folder, p.figures)
+            self.results_tabs.setCurrentIndex(0)
+
+    def _open_figure(self, label):
+        from pinnstudio.ui.results import ImageViewer
+        path = getattr(label, "_source_path", None)
+        if path and os.path.exists(path) and not path.lower().endswith(".gif"):
+            ImageViewer(path, self).exec()
+
     def _on_stop(self):
         if hasattr(self, 'sweep_thread') and self.sweep_thread.isRunning():
             # Same hard-stop semantics as the normal-Solve branch below:
@@ -9439,6 +9579,7 @@ class MainWindow(QMainWindow):
             self.sweep_thread.stop()
             self.sweep_thread.wait(3000)
             self.log_box.append("\n⏹ Stopped by user.")
+            self._finish_progress("Stopped", ok=False)
             self.solve_btn.setEnabled(True)
             self.solve_btn.setText(
                 "▶  Run Sweep" if getattr(self, 'sweep_enable_cb', None) and self.sweep_enable_cb.isChecked()
@@ -9449,6 +9590,7 @@ class MainWindow(QMainWindow):
             self.thread.stop()
             self.thread.wait(3000)
             self.log_box.append("\n⏹ Stopped by user.")
+            self._finish_progress("Stopped", ok=False)
             self.solve_btn.setEnabled(True)
             self.solve_btn.setText(
                 "▶  Run Sweep" if getattr(self, 'sweep_enable_cb', None) and self.sweep_enable_cb.isChecked()
@@ -9507,6 +9649,7 @@ class MainWindow(QMainWindow):
         event.accept()
 
     def _on_output(self, line):
+        self._progress_feed(line)
         self.log_box.append(self._log_text(line))
         self.log_box.verticalScrollBar().setValue(self.log_box.verticalScrollBar().maximum())
 
@@ -9675,6 +9818,8 @@ class MainWindow(QMainWindow):
         self.solve_btn.setEnabled(True)
         self.solve_btn.setText("▶  Solve")
         self.stop_btn.setEnabled(False)
+        self._finish_progress("Finished" if result == "DONE" else "Failed -- see the Training Log",
+                              ok=result == "DONE")
 
         if result == "DONE":
             self.log_box.append("\n✅ Training complete!")

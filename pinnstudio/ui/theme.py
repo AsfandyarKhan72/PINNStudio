@@ -148,7 +148,7 @@ QCheckBox::indicator {{ border-radius: 3px; }}
 QRadioButton::indicator {{ border-radius: 8px; }}
 QCheckBox::indicator:hover, QRadioButton::indicator:hover {{ border-color: {t['accent']}; }}
 QCheckBox::indicator:checked {{ background: {t['accent']}; border-color: {t['accent']}; }}
-QRadioButton::indicator:checked {{ background: {t['input']}; border: 5px solid {t['accent']}; }}
+QRadioButton::indicator:checked {{ background: {t['input']}; border: 1px solid {t['accent']}; image: url("{dot(t['accent'])}"); }}
 QCheckBox:disabled, QRadioButton:disabled, QLabel:disabled {{ color: {t['disabled_text']}; }}
 
 QLineEdit, QDoubleSpinBox, QSpinBox, QComboBox, QPlainTextEdit {{
@@ -224,6 +224,11 @@ QListWidget, QTreeWidget, QTableWidget {{
 }}
 QListWidget::item:selected, QTableWidget::item:selected {{ background: {t['sel']}; color: {t['text']}; }}
 QHeaderView::section {{ background: {t['surface']}; color: {t['text_muted']}; border: none; padding: 4px; }}
+
+QToolButton#collapseButton {{
+    background: {t['card']}; color: {t['text_muted']}; border: none; font-size: {size}px; font-weight: 600;
+}}
+QToolButton#collapseButton:hover {{ color: {t['accent']}; }}
 
 /* ── workspace frame ── */
 QWidget#appToolbar {{ background: {t['surface']}; border-bottom: 1px solid {t['border']}; }}
@@ -304,6 +309,12 @@ def arrow(color, direction):
            f'<polyline points="{pts}" fill="none" stroke="{color}" stroke-width="1.7" '
            f'stroke-linecap="round" stroke-linejoin="round"/></svg>')
     return _svg_file(f"arrow_{direction}_{color.strip('#')}.svg", svg)
+
+
+def dot(color):
+    svg = (f'<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 14 14">'
+           f'<circle cx="7" cy="7" r="4" fill="{color}"/></svg>')
+    return _svg_file(f"dot_{color.strip('#')}.svg", svg)
 
 
 def check(color):

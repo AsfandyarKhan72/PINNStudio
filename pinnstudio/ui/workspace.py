@@ -135,6 +135,9 @@ class ModelWorkspace(QObject):
         return item
 
     def add_widget(self, key, widget):
+        from PyQt6.QtWidgets import QGroupBox
+        if isinstance(widget, QGroupBox):
+            make_collapsible(widget)
         info = self.pages[key]
         lay = info["layout"]
         lay.insertWidget(lay.count() - 1, widget)   # before the stretch
@@ -192,6 +195,11 @@ class ModelWorkspace(QObject):
             return
         key = item.data(0, Qt.ItemDataRole.UserRole)
         info = self.pages[key]
+        from PyQt6.QtWidgets import QGroupBox
+        for w in info["widgets"]:
+            if isinstance(w, QGroupBox):
+                make_collapsible(w)
+        align_forms(info["page"])
         self.stack.setCurrentWidget(info["scroll"])
         self.title.setText(info["label"])
         self.desc.setText(info["desc"])
@@ -298,3 +306,89 @@ class VisibilityFollower(QObject):
             self.container.setVisible(any(not c.isHidden() for c in self.children_))
         except RuntimeError:
             pass
+
+
+# ── page forms: one label column, controls next to their labels ──────────
+def align_forms(root, max_label=230):
+    """Rows built as  [label][stretch][control]  -- control pushed to the far
+    right -- become  [label][control][stretch], and every row label on the
+    page gets the same width, so a page reads as one aligned form.
+    Idempotent: safe to call again after rows are added."""
+    from PyQt6.QtWidgets import QComboBox, QHBoxLayout, QLineEdit, QSpinBox, QDoubleSpinBox
+    labels = []
+
+    def walk(lay):
+        for i in range(lay.count()):
+            it = lay.itemAt(i)
+            if it.layout() is not None:
+                walk(it.layout())
+            elif it.widget() is not None and it.widget().layout() is not None:
+                walk(it.widget().layout())
+        if not isinstance(lay, QHBoxLayout) or lay.count() < 2:
+            return
+        first = lay.itemAt(0).widget()
+        if not isinstance(first, QLabel) or not first.text().rstrip().endswith(":") or first.wordWrap():
+            return
+        if lay.itemAt(1).spacerItem() is not None and lay.count() >= 3:
+            lay.takeAt(1)
+            last = lay.itemAt(lay.count() - 1).widget()
+            if not isinstance(last, QLineEdit):
+                lay.addStretch(1)
+        if first.minimumWidth() != first.maximumWidth() or first.maximumWidth() > 1000:
+            labels.append(first)
+
+    if root.layout() is not None:
+        walk(root.layout())
+    if not labels:
+        return
+    w = min(max_label, max(l.sizeHint().width() for l in labels))
+    for l in labels:
+        if l.minimumWidth() < w:
+            l.setMinimumWidth(w)
+
+
+class _Collapser(QObject):
+    """A chevron at a group box's top-right corner folds it to its title
+    (by limiting its height, so nothing inside changes state)."""
+
+    def __init__(self, box):
+        super().__init__(box)
+        from PyQt6.QtWidgets import QToolButton
+        self.box = box
+        self.btn = QToolButton(box)
+        self.btn.setObjectName("collapseButton")
+        self.btn.setText("⌄")
+        self.btn.setToolTip("Fold / unfold this section")
+        self.btn.setAutoRaise(True)
+        self.btn.setFixedSize(22, 18)
+        self.btn.clicked.connect(self.toggle)
+        self.folded = False
+        box.installEventFilter(self)
+        self._place()
+
+    def _place(self):
+        self.btn.move(self.box.width() - self.btn.width() - 8, 0)
+        self.btn.raise_()
+
+    def eventFilter(self, obj, ev):
+        if ev.type() == QEvent.Type.Resize:
+            self._place()
+        elif ev.type() == QEvent.Type.MouseButtonDblClick and ev.position().y() < 22:
+            self.toggle()
+            return True
+        return False
+
+    def toggle(self):
+        self.folded = not self.folded
+        if self.folded:
+            self.box.setMaximumHeight(self.box.fontMetrics().height() + 22)
+            self.btn.setText("›")
+        else:
+            self.box.setMaximumHeight(16777215)
+            self.btn.setText("⌄")
+
+
+def make_collapsible(box):
+    if getattr(box, "_collapser", None) is None:
+        box._collapser = _Collapser(box)
+    return box._collapser
