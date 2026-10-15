@@ -892,7 +892,7 @@ class SketchPanel(QWidget):
         self.edge_sel_label = QLabel("No edge selected")
         self.edge_sel_label.setMinimumWidth(100)
         self.edge_sel_label.setWordWrap(True)
-        r1.addWidget(self.edge_sel_label)
+        r1.addWidget(self.edge_sel_label, 1)
         self.new_bc_btn = QPushButton("＋ New BC on selected")
         self.new_bc_btn.setToolTip("Add a Boundary Conditions row (Dirichlet, value 0) whose Where: picks "
                                    "the selected edges; set its type and value in the panel on the left")

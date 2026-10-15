@@ -2089,47 +2089,57 @@ Initial conditions are given per output as an expression or loaded from a data f
 </details>
 
 <details>
-<summary><strong>Geometry and domains</strong></summary>
+<summary><strong>Geometry, the Sketch and boundary edges</strong></summary>
 
-1D problems use an interval; 2D problems a **Rectangle, Disk, Ellipse, Triangle** or any **Polygon** (given by its vertices); 3D problems a **Cuboid** or **Sphere**. Domain bounds accept expressions such as `pi/2`.
+1D problems use an interval; 2D problems a **Rectangle, Disk, Ellipse, Triangle** or any **Polygon** (given by its vertices); 3D problems a **Cuboid** or **Sphere**. Bounds accept expressions such as `pi/2`, and **Custom** geometry combines any number of shapes with **Union**, **Subtract** and **Intersect**.
 
-**Custom** geometry (2D and 3D) combines any number of these shapes with **Union**, **Subtract** and **Intersect** — for example a plate with a hole, a `Rectangle` with a `Disk` subtracted:
+A domain can also be **sketched** (*Geometry → Shape → Sketch*): rectangles, circles, ellipses and polygons drawn on a grid in 2D, boxes and spheres on x–y, x–z or y–z views in 3D, each added, cut out or intersected. Shapes can be typed exactly (`0, 0, 2, 1` for a rectangle, `0.6, 0.5, 0.25` for a circle), imported from a **DXF or SVG** drawing (outlines inside others become holes, arcs stay arcs), moved, deleted, and undone with Ctrl+Z / Ctrl+Y. A sketch is stored as ordinary Custom-geometry rows, so it is saved with the problem and exported like any other domain.
 
-<p align="center">
-<img src="assets/Images/View_Domain_Pictures/Custom_Geometry_Rectangle_minus_Disk.png" alt="PINNStudio — Custom geometry domain preview, Rectangle with a Disk subtracted out" width="55%">
-</p>
+Every 2D and 3D domain is drawn next to the settings with its boundary split into numbered **edges** (faces in 3D) — the straight sides and arcs that actually bound it — each coloured by the boundary condition that uses it. Select a boundary condition in the model tree and click edges to add them to it or take them out: its *Where* is written for you (`np.isclose(x, 0) and 0 <= y <= 1`, `abs(np.hypot(x - 0.6, y - 0.5) - 0.25) < 3e-05`, ...) and works the same in the exported script.
 
-Every 2D and 3D domain is drawn in the **Geometry** tab next to the settings, with its boundary split into numbered edges (faces in 3D) coloured by the boundary condition that uses them.
-
-</details>
-
-<details>
-<summary><strong>Sketch a domain, and pick boundary conditions on it</strong></summary>
-
-With *Geometry → Shape → Sketch*, the domain is drawn on a grid: rectangles, circles, ellipses and polygons in 2D (boxes and spheres on x–y, x–z or y–z views in 3D), each added to the domain, cut out of it, or intersected with it. Shapes can also be typed exactly (`0, 0, 2, 1` for a rectangle, `0.6, 0.5, 0.25` for a circle), imported from a **DXF or SVG** drawing (outlines inside others become holes), moved, deleted, and undone or redone with Ctrl+Z / Ctrl+Y.
-
-The boundary of the drawn domain is split into numbered edges — the straight sides and the arcs that actually bound it. Selecting a boundary condition in the model tree lets you click edges to add them to it or take them out; its *Where* is written for you (`np.isclose(x, 0) and 0 <= y <= 1`, `abs(np.hypot(x - 0.6, y - 0.5) - 0.25) < 3e-05`, ...) and works the same in the exported script. The sketch becomes ordinary Custom-geometry rows, so it is saved with the problem.
+<table>
+<tr>
+<td width="50%" align="center">
+<img src="assets/screenshots/geometry_tab.png" alt="Geometry tab: an L-shaped polygon with its six edges numbered and coloured by three boundary conditions" width="100%">
+<sub><strong>Built-in shape</strong> — an L-shaped polygon, two re-entrant edges picked for BC 3</sub>
+</td>
+<td width="50%" align="center">
+<img src="assets/screenshots/sketch_2d.png" alt="2D Sketch: a rectangle with a circular and an elliptical hole, four boundary conditions on its edges" width="100%">
+<sub><strong>2D Sketch</strong> — a plate with two holes, the holes' arcs as their own edges</sub>
+</td>
+</tr>
+<tr>
+<td width="50%" align="center">
+<img src="assets/screenshots/sketch_3d.png" alt="3D Sketch: two boxes with a spherical hole seen in a slice at z = 0.5, its faces listed and coloured by boundary condition" width="100%">
+<sub><strong>3D Sketch</strong> — boxes and a spherical hole, sliced at z = 0.5, every face in the list</sub>
+</td>
+<td width="50%" align="center">
+<img src="assets/screenshots/sketch_import.png" alt="An SVG drawing of a bracket imported into the Sketch: outline with a notch, two bolt holes and a slot, boundary conditions on the bottom edge and the holes" width="100%">
+<sub><strong>Imported drawing</strong> — an SVG bracket: its notch, bolt holes and slot come in as edges</sub>
+</td>
+</tr>
+</table>
 
 </details>
 
 <details>
 <summary><strong>Collocation points and domain preview</strong></summary>
 
-The numbers of domain, boundary, initial and test points are set independently, along with the sampling distribution (Hammersley, uniform, Halton, LHS, Sobol or pseudo-random). A domain preview shows the actual training points — domain, boundary and initial points, color-coded — on the geometry, with a second panel showing their distribution in time, in 2D and in 3D:
+The numbers of domain, boundary, initial and test points are set independently, along with the sampling distribution (Hammersley, uniform, Halton, LHS, Sobol or pseudo-random). For a 2D or 3D domain, *View domain & point distribution* (on the Collocation points page) shows the actual training points — domain, boundary and initial points, colour-coded — on the geometry, with a second panel showing their spread in time:
 
 <table>
 <tr>
 <td width="33%" align="center">
 <img src="assets/Images/View_Domain_Pictures/2D_Rectangle_combined.png" alt="PINNStudio — 2D domain preview, Rectangle geometry" width="100%">
-<sub>2D preview — Rectangle</sub>
+<sub>Rectangle — Hammersley sampling</sub>
 </td>
 <td width="33%" align="center">
 <img src="assets/Images/View_Domain_Pictures/2D_Disk_combined.png" alt="PINNStudio — 2D domain preview, Disk geometry" width="100%">
-<sub>2D preview — Disk</sub>
+<sub>Disk</sub>
 </td>
 <td width="33%" align="center">
 <img src="assets/Images/View_Domain_Pictures/3D_Cuboid_combined.png" alt="PINNStudio — 3D domain preview, Cuboid geometry" width="100%">
-<sub>3D preview — Cuboid</sub>
+<sub>Cuboid (3D)</sub>
 </td>
 </tr>
 </table>

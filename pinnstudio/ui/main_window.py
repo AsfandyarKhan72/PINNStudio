@@ -1230,6 +1230,8 @@ class MainWindow(QMainWindow):
             other.set_active_bc(None)
         other.edge_bar.setVisible(False)
         gp.edge_bar.setVisible(gp.canvas.tool == "Edges" and self._has_domain_graphics())
+        self.sketch_selection_box.setTitle("Faces picked in the sketch" if gp.canvas.dim == 3
+                                           else "Edges picked in the sketch")
         if active is None:
             if gp.active_bc is not None:
                 gp.set_active_bc(None)
