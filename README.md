@@ -2246,9 +2246,9 @@ In an inverse problem, each unknown is saved at regular intervals throughout tra
 <details>
 <summary><strong>Run many training configurations from one setup, varying any parameter</strong></summary>
 
-Instead of changing a value and pressing Solve again for each case, **Enable Parameter Sweep** runs a whole set of configurations of the problem you have set up, one after another, each as a full training run. The Solve and Stop buttons drive the sweep, and the Training Log shows every run in turn.
+Instead of changing a value and pressing Solve again for each case, **Enable Parameter Sweep** (the *Parameter sweep* node of the model tree) runs a whole set of configurations of the problem you have set up, one after another, each as a full training run. **Run Sweep** and **Stop** drive it, the Training Log sums up every run as it finishes, and the status bar follows the run in progress. Afterwards, *Results → History* lists every run of the sweep, and any of them can be compared on one plot.
 
-![Parameter Sweep panel — Burgers 1D network-size sweep (hidden layers × neurons, All combinations) after it finished: each run's result in the Training Log, the last run's loss and solution on the right](assets/Images/Parameter_Sweep/sweep_panel.png)
+![Parameter sweep page — Burgers 1D network-size sweep (hidden layers 2, 4, 6, 8 × neurons 10, 20, 40, All combinations) after it finished: each run's final loss and L2 error in the Training Log, and History comparing the four 40-neuron networks' loss and error](assets/Images/Parameter_Sweep/sweep_panel.png)
 
 **Four ways to combine parameters:**
 - **One-at-a-time** — vary each parameter separately, the others held at their current values (3 values of one parameter → 3 runs).
@@ -2256,7 +2256,7 @@ Instead of changing a value and pressing Solve again for each case, **Enable Par
 - **Specified combinations** — the *i*-th values of all parameters run together (lists of equal length).
 - **Bayesian search** — each run's settings are chosen by a Gaussian-process model of the results so far, to reach the lowest final loss or $L_2$ error in as few runs as possible. Each parameter's range (linear or log) or list of choices is its search space; **Runs** sets the budget and **Random first** the number of random runs before the model takes over (see the Helmholtz hyperparameter-search example under [Examples](#examples)).
 
-Each parameter takes a list of values or a linear/log range; text settings (activation, point distribution, ...) take a list of choices. **Almost any setting can be swept** — **🔄 Refresh** lists everything available for the current problem:
+Each parameter takes a list of values or a linear/log range; text settings (activation, point distribution, ...) take a list of choices. **Almost any setting can be swept** — **Refresh** lists everything available for the current problem:
 
 - **Network** — hidden layers, neurons per layer, activation, initializer, weight decay.
 - **Collocation points** — domain, boundary, initial and test points, sampling distribution.
@@ -2283,7 +2283,7 @@ Relative $L_2$ error (mean over the five reference times) from `sweep_summary.cs
 | 6 | 5.2 × 10⁻⁴ | 4.0 × 10⁻⁴ | 2.3 × 10⁻⁴ |
 | 8 | 7.2 × 10⁻⁴ | 5.9 × 10⁻⁴ | 1.5 × 10⁻⁴ |
 
-Two hidden layers are too few for the shock at $x = 0$; at four layers the error is 15–21× lower, and 40 neurons per layer gives the lowest error at every depth, down to 1.5 × 10⁻⁴ at eight layers. With 10 or 20 neurons, eight layers is slightly worse than six. (Raissi et al. trained with L-BFGS only and 10,000 collocation points, so their numbers differ; the trend is the same.)
+Two hidden layers are too few for the shock at $x = 0$; at four layers the error is 15–21× lower, and 40 neurons per layer gives the lowest error at every depth, down to 1.5 × 10⁻⁴ at eight layers. With 10 or 20 neurons, eight layers is slightly worse than six. Comparing the 40-neuron runs in *History* (above) shows where the difference comes from: two layers stall during Adam and never reach the others' loss, while four to eight layers follow nearly the same curve and differ mostly after L-BFGS. (Raissi et al. trained with L-BFGS only and 10,000 collocation points, so their numbers differ; the trend is the same.)
 
 </details>
 

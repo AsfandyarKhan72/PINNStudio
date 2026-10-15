@@ -8,7 +8,7 @@ from PyQt6.QtWidgets import (
     QTextEdit, QGroupBox, QComboBox, QSplitter, QLineEdit,
     QFileDialog, QCheckBox, QRadioButton, QButtonGroup,
     QDialog, QApplication, QColorDialog,
-    QTabWidget, QMessageBox, QScrollArea, QGridLayout, QPlainTextEdit,
+    QTabWidget, QMessageBox, QScrollArea, QGridLayout, QPlainTextEdit, QSizePolicy,
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer
 from PyQt6.QtGui import QPixmap, QAction, QColor, QMovie, QIntValidator, QKeySequence
@@ -3408,10 +3408,12 @@ class MainWindow(QMainWindow):
         self._register_hint(sweep_ref_toggle, '#74c0fc')
         sweep_top_row.addWidget(sweep_ref_toggle)
         sweep_top_row.addStretch()
-        self.sweep_refresh_btn = QPushButton("🔄 Refresh")
+        self.sweep_refresh_btn = QPushButton("Refresh")
         self.sweep_refresh_btn.setToolTip(
             "Re-reads the rest of this panel's current settings to update which parameters can be swept")
         self.sweep_refresh_btn.clicked.connect(lambda: self._refresh_sweep_param_choices())
+        from pinnstudio.ui import icons as _icons_s
+        _icons_s.apply(self.sweep_refresh_btn, "refresh", "text", size=16)
         self.sweep_refresh_btn.setVisible(False)
         sweep_top_row.addWidget(self.sweep_refresh_btn)
         sweep_toggle_layout.addLayout(sweep_top_row)
@@ -3456,6 +3458,10 @@ class MainWindow(QMainWindow):
         sweep_mode_row = QHBoxLayout()
         sweep_mode_row.addWidget(QLabel("Mode:"))
         self.sweep_mode_combo = QComboBox()
+        # long item texts shouldn't set the panel's minimum width
+        self.sweep_mode_combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
+        self.sweep_mode_combo.setMinimumContentsLength(18)
+        self.sweep_mode_combo.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         # "All combinations" / "Specified combinations" is COMSOL's own
         # terminology for its Parametric Sweep feature -- named the
         # same way here (grid/zip underneath) since it's a familiar
@@ -4479,14 +4485,8 @@ class MainWindow(QMainWindow):
         self.loss_header_label = QLabel("Loss")
         loss_header.addWidget(self.loss_header_label)
         loss_header.addStretch()
-        self.loss_save_btn = QPushButton("💾 Save Figure")
-        self.loss_save_btn.setFixedHeight(24)
-        self.loss_save_btn.setToolTip("Save the loss plot currently shown")
-        self._register_style(self.loss_save_btn, "button", lambda css: f"""
-            QPushButton {{ background: #3e3e42; color: #a0c4ff; {css}
-                          border-radius: 4px; border: 1px solid #586e75; }}
-            QPushButton:hover {{ background: #586e75; }}
-        """)
+        # a quiet icon: right-clicking the figure also copies or saves it
+        self.loss_save_btn = self._figure_save_button("Save the loss plot shown (or right-click the figure to copy it)")
         self.loss_save_btn.clicked.connect(lambda: self._save_figure(self.loss_label, "loss_plot"))
         loss_header.addWidget(self.loss_save_btn)
         loss_vlayout.addLayout(loss_header)
@@ -4500,14 +4500,8 @@ class MainWindow(QMainWindow):
         self.solution_header_label = QLabel("Solution")
         solution_header.addWidget(self.solution_header_label)
         solution_header.addStretch()
-        self.solution_save_btn = QPushButton("💾 Save Figure")
-        self.solution_save_btn.setFixedHeight(24)
-        self.solution_save_btn.setToolTip("Save the solution plot currently shown")
-        self._register_style(self.solution_save_btn, "button", lambda css: f"""
-            QPushButton {{ background: #3e3e42; color: #a0c4ff; {css}
-                          border-radius: 4px; border: 1px solid #586e75; }}
-            QPushButton:hover {{ background: #586e75; }}
-        """)
+        # a quiet icon: right-clicking the figure also copies or saves it
+        self.solution_save_btn = self._figure_save_button("Save the solution plot shown (or right-click the figure to copy it)")
         self.solution_save_btn.clicked.connect(lambda: self._save_figure(self.solution_label, "solution_plot"))
         solution_header.addWidget(self.solution_save_btn)
         solution_vlayout.addLayout(solution_header)
@@ -4542,14 +4536,8 @@ class MainWindow(QMainWindow):
         self.monitor_next_btn.setFixedHeight(24); self.monitor_next_btn.setFixedWidth(28)
         self.monitor_next_btn.clicked.connect(lambda: self._show_monitor_plot(self.monitor_plot_idx + 1))
         monitor_header.addWidget(self.monitor_next_btn)
-        self.monitor_save_btn = QPushButton("💾 Save Figure")
-        self.monitor_save_btn.setFixedHeight(24)
-        self.monitor_save_btn.setToolTip("Save the training monitor plot currently shown")
-        self._register_style(self.monitor_save_btn, "button", lambda css: f"""
-            QPushButton {{ background: #3e3e42; color: #a0c4ff; {css}
-                          border-radius: 4px; border: 1px solid #586e75; }}
-            QPushButton:hover {{ background: #586e75; }}
-        """)
+        # a quiet icon: right-clicking the figure also copies or saves it
+        self.monitor_save_btn = self._figure_save_button("Save the training monitor plot shown (or right-click the figure to copy it)")
         self.monitor_save_btn.clicked.connect(lambda: self._save_figure(self.monitor_label, "monitor_plot"))
         monitor_header.addWidget(self.monitor_save_btn)
         monitor_vlayout.addLayout(monitor_header)
@@ -10172,6 +10160,18 @@ class MainWindow(QMainWindow):
             ea = os.path.join(folder, "error_analysis") if folder else ""
             self.ea_panel.show_run(p.metrics, ea, p.figures)
             self.results_tabs.setCurrentIndex(0)
+
+    def _figure_save_button(self, tip):
+        from PyQt6.QtWidgets import QToolButton
+        from pinnstudio.ui import icons as _icons_f
+        b = QToolButton()
+        b.setObjectName("figureSaveButton")
+        b.setAutoRaise(True)
+        b.setFixedSize(26, 24)
+        b.setToolTip(tip)
+        b.setCursor(Qt.CursorShape.PointingHandCursor)
+        _icons_f.apply(b, "download", "muted", size=16)
+        return b
 
     def _open_figure(self, label):
         from pinnstudio.ui.results import ImageViewer
