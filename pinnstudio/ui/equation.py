@@ -80,6 +80,10 @@ def _tex(node, outputs, parent=0):
         if isinstance(node.op, ast.Pow):
             base = _tex(node.left, outputs, 5)
             return f"{base}^{{{_tex(node.right, outputs)}}}"
+        if isinstance(node.op, ast.Mult):   # 1*u, u*1.0 -> u
+            for a, b in ((node.left, node.right), (node.right, node.left)):
+                if isinstance(a, ast.Constant) and isinstance(a.value, (int, float)) and a.value == 1:
+                    return _tex(b, outputs, parent)
         left = _tex(node.left, outputs, p)
         right = _tex(node.right, outputs, p + (1 if isinstance(node.op, ast.Sub) else 0))
         op = {ast.Add: " + ", ast.Sub: " - ", ast.Mult: r" \, "}.get(type(node.op), " ? ")

@@ -1495,10 +1495,14 @@ class MainWindow(QMainWindow):
         cat = _ex_catalog.FORWARD
         if self.quick_examples_category_combo.currentText() != cat:
             self.quick_examples_category_combo.setCurrentText(cat)
-        if self.quick_examples_combo.currentText() == key:
-            self._on_quick_example_selected(key)
-        else:
-            self.quick_examples_combo.setCurrentText(key)
+        self._from_start_gallery = True   # already asked above
+        try:
+            if self.quick_examples_combo.currentText() == key:
+                self._on_quick_example_selected(key)
+            else:
+                self.quick_examples_combo.setCurrentText(key)
+        finally:
+            self._from_start_gallery = False
         self._current_problem_name = key
         self._current_path = None
         self._mark_clean()
@@ -4450,6 +4454,8 @@ class MainWindow(QMainWindow):
             _lbl.mouseDoubleClickEvent = (lambda _ev, _l=_lbl: self._open_figure(_l))
             attach_image_menu(_lbl, lambda _l=_lbl: getattr(_l, "_source_path", None),
                               lambda _l=_lbl: self._open_figure(_l))
+            from pinnstudio.ui.results import FitImage
+            _lbl._fit = FitImage(_lbl)
 
         # Each figure gets its own small header (title + a "save this
         # figure" button) above the image itself, both wrapped in one
@@ -4546,6 +4552,8 @@ class MainWindow(QMainWindow):
         from pinnstudio.ui.export_tools import attach_image_menu as _aim
         _aim(self.monitor_label, lambda: getattr(self.monitor_label, "_source_path", None),
              lambda: self._open_figure(self.monitor_label))
+        from pinnstudio.ui.results import FitImage as _FI
+        self.monitor_label._fit = _FI(self.monitor_label)
         monitor_vlayout.addWidget(self.monitor_label)
 
         self.monitor_plot_files = []  # [(display_name, png_path), ...] for the last run
@@ -5871,6 +5879,14 @@ class MainWindow(QMainWindow):
             self.log_box.append(f"   Inverse: {ex.inverse_note}")
 
     def _on_quick_example_selected(self, text):
+        # loading an example replaces the problem: offer to save it first
+        if text != "None" and not getattr(self, "_from_start_gallery", False) \
+                and not self._maybe_save_changes():
+            self.quick_examples_combo.blockSignals(True)
+            self.quick_examples_combo.setCurrentText(getattr(self, "_shown_example", None) or "None")
+            self.quick_examples_combo.blockSignals(False)
+            return
+        self._shown_example = text
         if text in _dx_examples.BY_NAME:
             # A forward DeepXDE example with an Inverse mode, picked from the
             # Inverse list, loads its Inverse version (like the templates).
@@ -7281,6 +7297,9 @@ class MainWindow(QMainWindow):
                             "bottom/top = y_min/y_max, front/back = z_min/z_max.")
         loc_row.addWidget(loc_pick)
         loc_edit = QLineEdit(location)
+        # a long Where: set by the sketch or a template shows from its start
+        loc_edit.setCursorPosition(0)
+        loc_edit.textChanged.connect(lambda _t, _le=loc_edit: None if _le.hasFocus() else _le.setCursorPosition(0))
         loc_edit.setPlaceholderText("e.g. left, right, x <= x_min, np.isclose(x**2 + y**2, 0.25)")
         loc_edit.setToolTip(loc_pick.toolTip() + "\nOr any True/False expression in x, y, z (and t), "
                             "e.g. left or right, x <= x_min, np.isclose(x**2 + y**2, 0.25).")
@@ -9965,6 +9984,8 @@ class MainWindow(QMainWindow):
 
     def _on_sweep_output(self, i, total, line):
         self._progress_feed(line)
+        if line.strip().startswith(self._LOG_NOISE):
+            return
         self.log_box.append(f"[Sweep {i + 1}/{total}] {self._log_text(line)}")
 
     def _on_sweep_run_done(self, i, total, label, result):
@@ -10224,8 +10245,13 @@ class MainWindow(QMainWindow):
                     th.wait(1000)
         event.accept()
 
+    # DeepXDE's import-time advertisement, printed by every script it runs
+    _LOG_NOISE = ("Other supported backends:", "paddle supports more examples now and is recommended")
+
     def _on_output(self, line):
         self._progress_feed(line)
+        if line.strip().startswith(self._LOG_NOISE):
+            return
         self.log_box.append(self._log_text(line))
         self.log_box.verticalScrollBar().setValue(self.log_box.verticalScrollBar().maximum())
 
@@ -10338,6 +10364,9 @@ class MainWindow(QMainWindow):
             self.solution_label._source_path = solution_path
 
         self._display_monitor_plots(save_dir)
+        for _lbl in (self.loss_label, self.solution_label):
+            if getattr(_lbl, "_fit", None) is not None:
+                QTimer.singleShot(0, _lbl._fit.refit)
 
     def _display_monitor_plots(self, save_dir):
         """Finds every monitor_*_plot.png a finished run's

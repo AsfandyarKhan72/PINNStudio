@@ -17,7 +17,7 @@ import os
 import re
 import time
 
-from PyQt6.QtCore import QRectF, Qt, QTimer, pyqtSignal
+from PyQt6.QtCore import QEvent, QObject, QRectF, Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QPainter, QPixmap
 from PyQt6.QtWidgets import (QCheckBox, QDialog, QGraphicsPixmapItem, QGraphicsScene, QGraphicsView, QHBoxLayout,
                              QHeaderView, QLabel, QPushButton, QScrollArea, QSizePolicy, QSplitter, QTableWidget,
@@ -83,11 +83,49 @@ class RunProgress:
         self.started = time.time()
         self._phase_step0 = 0
         self._phase_done = 0         # iterations of finished phases
+        self.term_names = []         # what each loss term is (PDE, BC 1, IC, ...), from the run's output
+        self._groups = {}
         self.time_step = 0           # time-adaptive training: step k of n (0 = not time-adaptive)
         self.n_time_steps = 0
 
     # ── feeding ──
+    def _count(self, line):
+        try:
+            inner = line[line.rindex("[") + 1:line.rindex("]")]
+        except ValueError:
+            return 0
+        return len([v for v in inner.split(",") if v.strip()])
+
+    def _names_from_weights(self, line):
+        g = self._groups
+        m = re.search(r"\((\d+) terms", line)
+        if not m:
+            return
+        k = int(m.group(1))
+        n_pde, n_bc, n_ic = g.get("pde", 0), g.get("bc", 0), g.get("ic", 0)
+        names = (["PDE"] if n_pde == 1 else [f"PDE {i + 1}" for i in range(n_pde)])
+        names += [f"BC {i + 1}" for i in range(n_bc)]
+        names += (["IC"] if n_ic == 1 else [f"IC {i + 1}" for i in range(n_ic)])
+        extra = k - len(names)
+        if extra > 0:
+            names += ["data"] if extra == 1 else [f"data {i + 1}" for i in range(extra)]
+        if len(names) == k:
+            self.term_names = names
+
     def feed(self, line):
+        s = line.strip()
+        if s.startswith("PDE weights:"):
+            self._groups = {"pde": self._count(s)}
+            return
+        if s.startswith("BC weights"):
+            self._groups["bc"] = self._count(s)
+            return
+        if s.startswith("IC weights:"):
+            self._groups["ic"] = self._count(s)
+            return
+        if s.startswith("Loss weights:") and self._groups:
+            self._names_from_weights(s)
+            return
         m = _TSTEP.search(line)
         if m:
             # a new time window trains from iteration 0: its own loss history
@@ -277,9 +315,10 @@ class LiveLossPlot(QWidget):
             if self.terms_cb.isChecked():
                 n = max(len(h[1]) for h in hist)
                 cols = _theme.BC_COLORS
+                names = p.term_names if len(p.term_names) == n else [f"term {k + 1}" for k in range(n)]
                 for k in range(n):
                     ys = [h[1][k] if k < len(h[1]) else math.nan for h in hist]
-                    ax.plot(steps, ys, color=cols[k % len(cols)], lw=1.4, label=f"term {k + 1}")
+                    ax.plot(steps, ys, color=cols[k % len(cols)], lw=1.4, label=names[k])
             else:
                 ax.plot(steps, [sum(h[1]) for h in hist], color=t["accent"], lw=1.8, label="train")
                 if any(h[2] for h in hist):
@@ -551,7 +590,9 @@ def scan_runs(base, max_depth=3, limit=500):
                 walk(p, depth + 1)
 
     walk(base, 0)
-    out.sort(key=lambda r: r["time"] or 0, reverse=True)
+    # newest first; the runs of one sweep (same date) in their own order
+    out.sort(key=lambda r: r["folder"])
+    out.sort(key=lambda r: r.get("when") or "", reverse=True)
     return out
 
 
@@ -789,3 +830,47 @@ class RunHistory(QWidget):
     def showEvent(self, ev):
         super().showEvent(ev)
         self.refresh()
+
+
+class FitImage(QObject):
+    """Keeps a figure label's picture (its `_source_path`) fitted to the
+    label as the panels are resized or the tab is first shown -- a figure
+    loaded while its tab was hidden would otherwise stay thumbnail-sized."""
+
+    def __init__(self, label):
+        super().__init__(label)
+        self.label = label
+        self._cache = (None, None)
+        self._timer = QTimer(self)
+        self._timer.setSingleShot(True)
+        self._timer.setInterval(60)
+        self._timer.timeout.connect(self.refit)
+        label.installEventFilter(self)
+
+    def eventFilter(self, obj, ev):
+        if ev.type() in (QEvent.Type.Resize, QEvent.Type.Show):
+            self._timer.start()
+        return False
+
+    def refit(self):
+        lab = self.label
+        try:
+            path = getattr(lab, "_source_path", None)
+            if not path or path.lower().endswith(".gif") or lab.movie() is not None:
+                return
+            pm = lab.pixmap()
+            if pm is None or pm.isNull() or not os.path.exists(path):
+                return
+            key = (path, os.path.getmtime(path))
+            if self._cache[0] != key:
+                self._cache = (key, QPixmap(path))
+            src = self._cache[1]
+            if src.isNull():
+                return
+            w, h = max(10, lab.width() - 4), max(10, lab.height() - 4)
+            if abs(pm.width() - min(w, src.width() * h / max(1, src.height()))) < 3 and pm.height() <= h:
+                return
+            lab.setPixmap(src.scaled(w, h, Qt.AspectRatioMode.KeepAspectRatio,
+                                     Qt.TransformationMode.SmoothTransformation))
+        except RuntimeError:
+            pass
