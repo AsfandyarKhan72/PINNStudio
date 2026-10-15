@@ -10059,6 +10059,7 @@ class MainWindow(QMainWindow):
         self.status_progress.setRange(0, 1000)
         self.status_progress.setValue(0)
         self.live_loss.start(self._progress)
+        self.ea_panel.clear()
         self.results_tabs.setCurrentWidget(self.live_loss)
         self._progress_timer.start()
         self._refresh_status()

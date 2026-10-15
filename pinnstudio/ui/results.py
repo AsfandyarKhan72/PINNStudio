@@ -380,6 +380,15 @@ class ErrorAnalysisPanel(QWidget):
         split.setSizes([160, 400])
         lay.addWidget(split, 1)
 
+    def clear(self, message="The error analysis of this run appears here when it finishes."):
+        """A new run started: nothing from the last one stays."""
+        self.table.setRowCount(0)
+        self.summary.setText(message)
+        while self.figs_lay.count():
+            w = self.figs_lay.takeAt(0).widget()
+            if w is not None:
+                w.deleteLater()
+
     def show_run(self, metrics, folder, figures=()):
         self.table.setRowCount(0)
         for t, l2, ma in metrics:
