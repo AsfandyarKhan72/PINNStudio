@@ -7,7 +7,7 @@
 <meta name="description" content="A no-code scientific computing environment for solving forward and inverse problems with physics-informed neural networks — from setting up the equations to training, error analysis, and visualization.">
 <meta property="og:title" content="PINNStudio — Physics-Informed Neural Networks Without Code">
 <meta property="og:description" content="A no-code scientific computing environment for solving forward and inverse problems with physics-informed neural networks.">
-<meta property="og:image" content="https://asfandyarkhan72.github.io/PINNStudio/assets/screen_setup.png">
+<meta property="og:image" content="https://asfandyarkhan72.github.io/PINNStudio/assets/interface.png">
 <meta property="og:type" content="website">
 <style>
   :root {
@@ -164,6 +164,7 @@
     <a class="brand" href="#">PINNStudio</a>
     <div class="links">
       <a href="#why">Why</a>
+      <a href="#interface">Interface</a>
       <a href="#features">Features</a>
       <a href="#results">Results</a>
       <a href="#examples">Examples</a>
@@ -240,11 +241,45 @@
   </div>
 </section>
 
+<section id="interface">
+  <div class="wrap">
+    <div class="kicker">The interface</div>
+    <h2>Laid out like the tools you already know</h2>
+    <p class="section-sub">A model tree on the left, the settings of the selected part in the middle, graphics on the right and the training log below — the layout of finite-element tools such as COMSOL. Every panel can be resized, and three themes are built in.</p>
+    <div class="shots">
+      <figure class="shot dark">
+        <img src="assets/interface.png" alt="PINNStudio window: model tree, the Equations page with the Burgers equation typeset, the loss curve and solution of the finished run, training log" loading="lazy">
+        <figcaption><b>One window from setup to result.</b> Burgers 1D (Raissi et al.) loaded from the examples and solved: the equation is typeset as it is typed, and the status bar sums up the run — final loss 1.4 × 10⁻⁵, mean relative L₂ error 7.4 × 10⁻⁴.</figcaption>
+      </figure>
+      <div class="shot-pair">
+        <figure class="shot dark">
+          <img src="assets/sketch.png" alt="Sketch: a rectangle with a circular and an elliptical hole, its edges numbered and coloured by boundary condition" loading="lazy">
+          <figcaption><b>Sketch the domain.</b> Draw it, type it or import a DXF/SVG drawing, then click its edges to give them boundary conditions.</figcaption>
+        </figure>
+        <figure class="shot dark">
+          <img src="assets/live_loss.png" alt="Live loss of each loss term during training, the L-BFGS phase marked, progress in the status bar" loading="lazy">
+          <figcaption><b>Watch it train.</b> Every loss term live, the phases marked, and the time left in the status bar.</figcaption>
+        </figure>
+      </div>
+      <div class="shot-pair">
+        <figure class="shot dark">
+          <img src="assets/error_analysis.png" alt="Error analysis tab: relative L2 and mean absolute error at each reference time with comparison figures" loading="lazy">
+          <figcaption><b>Error analysis.</b> The error at each reference time, with the comparison figures — copy the table into a spreadsheet or export it as CSV.</figcaption>
+        </figure>
+        <figure class="shot dark">
+          <img src="assets/history_compare.png" alt="History of a parameter sweep with four network sizes compared by loss and error" loading="lazy">
+          <figcaption><b>History and comparison.</b> Every saved run in one list; select a few to compare their loss and error on one plot.</figcaption>
+        </figure>
+      </div>
+    </div>
+  </div>
+</section>
+
 <section id="demo" class="alt">
   <div class="wrap">
     <div class="kicker">Demo</div>
     <h2>See it in action</h2>
-    <p class="section-sub">A walkthrough of setting up a PDE in PINNStudio.</p>
+    <p class="section-sub">A walkthrough of setting up a PDE in PINNStudio (recorded with an earlier version of the interface).</p>
     <div class="video-frame">
       <iframe src="https://www.youtube.com/embed/lxSJTJvU45Q" title="PINNStudio demo" allowfullscreen loading="lazy"></iframe>
     </div>
@@ -307,13 +342,9 @@
     <h2>Everything you need to trust a result</h2>
     <p class="section-sub">Each run reports its error against reference data and saves the figures to judge it — here from the Burgers equation, one of the 60 examples.</p>
     <div class="shots">
-      <figure class="shot dark">
-        <img src="assets/screen_setup.png" alt="PINNStudio with the Burgers 1D example loaded: problem setup on the left, training log with the L2 error, loss curve and solution on the right" loading="lazy">
-        <figcaption><b>One window from setup to result.</b> Burgers 1D (Raissi et al.) loaded from Quick Examples and solved: the relative L₂ error stays between 6 × 10⁻⁵ and 1.3 × 10⁻³ over the five reference times.</figcaption>
-      </figure>
       <figure class="shot">
         <img src="assets/burgers_error.png" alt="PINN solution, reference solution and their difference for the Burgers equation" loading="lazy">
-        <figcaption><b>Error analysis.</b> PINN, exact reference and their difference over space and time.</figcaption>
+        <figcaption><b>Error analysis.</b> Burgers 1D (Raissi et al.): PINN, exact reference and their difference over space and time — the relative L₂ error stays between 6 × 10⁻⁵ and 1.3 × 10⁻³ over the five reference times.</figcaption>
       </figure>
       <div class="shot-pair">
         <figure class="shot">
@@ -325,16 +356,10 @@
           <figcaption><b>Inverse problems.</b> The unknown coefficient of the Schrödinger equation converging to its true value, 0.5.</figcaption>
         </figure>
       </div>
-      <div class="shot-pair">
-        <figure class="shot dark">
-          <img src="assets/screen_sweep.png" alt="Parameter Sweep panel after a sweep over hidden layers and neurons per layer" loading="lazy">
-          <figcaption><b>Parameter sweeps.</b> Twelve network sizes trained in one go, each run's error in the log.</figcaption>
-        </figure>
-        <figure class="shot">
-          <img src="assets/sweep_summary.png" alt="Relative L2 error and final loss against the number of hidden layers, one line per number of neurons" loading="lazy">
-          <figcaption><b>Sweep summary.</b> Error and final loss against the swept settings, saved automatically.</figcaption>
-        </figure>
-      </div>
+      <figure class="shot">
+        <img src="assets/sweep_summary.png" alt="Relative L2 error and final loss against the number of hidden layers, one line per number of neurons" loading="lazy">
+        <figcaption><b>Parameter sweeps.</b> Twelve network sizes of Burgers 1D trained in one go; the error and final loss against the swept settings are saved automatically.</figcaption>
+      </figure>
     </div>
   </div>
 </section>
@@ -392,7 +417,7 @@ bash install.sh          # Windows: install.bat
 ./venv/bin/pinnstudio    # Windows: .\venv\Scripts\pinnstudio.exe</code></pre>
       </div>
     </div>
-    <p class="muted" style="margin-top:22px;">Then load an example from <b>Quick Examples</b> and press <b>Solve</b> — see the <a href="https://github.com/AsfandyarKhan72/PINNStudio#quick-start">Quick Start</a>.</p>
+    <p class="muted" style="margin-top:22px;">Then click an example on the <b>Start</b> tab and press <b>Solve</b> — see the <a href="https://github.com/AsfandyarKhan72/PINNStudio#quick-start">Quick Start</a>.</p>
   </div>
 </section>
 
