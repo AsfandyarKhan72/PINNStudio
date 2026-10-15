@@ -872,6 +872,10 @@ class MainWindow(QMainWindow):
         update_dismiss_btn.clicked.connect(lambda: self.update_banner.setVisible(False))
         banner_layout.addWidget(update_dismiss_btn)
         outer_layout.addWidget(self.update_banner)
+        # Toolbar (filled in _build_workspace, once its buttons exist)
+        self.app_toolbar = QWidget()
+        self.app_toolbar.setObjectName("appToolbar")
+        outer_layout.addWidget(self.app_toolbar)
 
         # Single top-level tab ("Setup") -- Parameter Sweep used to be a
         # second tab here, but now lives inline inside the left Training
@@ -906,32 +910,22 @@ class MainWindow(QMainWindow):
         splitter.setChildrenCollapsible(False)
         root.addWidget(splitter)
 
-        # ── Left panel ───────────────────────────────────────
+        # ── Panels ───────────────────────────────────────────
+        # Each panel is built by its own method below, into a holding
+        # column; _build_workspace then moves them onto the pages of the
+        # model tree (tree | settings | graphics, after COMSOL).
         left_inner = QWidget()
         left_layout = QVBoxLayout(left_inner)
         left_layout.setSpacing(8)
         left_layout.setContentsMargins(10, 8, 10, 8)
 
-        left_scroll = QScrollArea()
-        self._left_scroll = left_scroll
-        left_scroll.setWidget(left_inner)
-        left_scroll.setWidgetResizable(True)
-        left_scroll.setMinimumWidth(300)
-        left_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-
         # Title -- styled from the "title" Display Settings category (family/
-        # size/weight/color) instead of a hardcoded QFont(), which is what
-        # previously made it immune to the Display Settings font-size
-        # control entirely. The subtitle label that used to sit here
-        # ("Physics-Informed Neural Network (PINN) Solver") was removed --
-        # the title plus the window title bar (see setWindowTitle below)
-        # already say what this is, so the extra line was redundant.
+        # size/weight/color); it sits at the left of the toolbar.
         title = QLabel("PINNStudio")
-        self._register_style(title, "title", lambda css: f"color: #a0c4ff; margin-bottom: 8px; {css}")
+        self._register_style(title, "title", lambda css: f"color: #a0c4ff; {css}")
+        self.app_title_label = title
         left_layout.addWidget(title)
 
-        # cleanup Round 59: each panel is built by its own method below,
-        # in the order it appears top to bottom.
         self._build_setup_panels(left_layout)
         self._build_domain_panels(left_layout)
         self._build_network_panel(left_layout)
@@ -941,10 +935,392 @@ class MainWindow(QMainWindow):
         self._build_solve_buttons(left_layout)
         self._build_restore_panel(left_layout)
 
-        left_layout.addStretch()
-        splitter.addWidget(left_scroll)
-
+        self._build_workspace(splitter, left_layout)
         self._build_right_panel(splitter)
+        self._finish_workspace(splitter)
+
+    # ── Workspace: model tree | settings | graphics ──────────
+    # (key, label, icon glyph, icon colour, parent, panel titles, description)
+    _WORKSPACE_NODES = (
+        ("problem", "Problem", "P", "#4dabf7", None, ("Problem Dimension", "Problem Type"),
+         "What kind of problem this is: dimension, time dependence, forward or inverse."),
+        ("equations", "Equations", "∂", "#b197fc", None, ("PDE Definition",),
+         "The outputs, the equations (residual = 0) and named constants."),
+        ("inverse", "Inverse problem", "?", "#ffa94d", None, ("Inverse PINN Settings",),
+         "The unknown parameters to learn and the measured data to fit."),
+        ("geometry", "Geometry", "G", "#51cf66", None, ("Domain",),
+         "The domain: a basic shape, a combination of shapes, or a sketch -- and the time interval."),
+        ("points", "Collocation points", "⁙", "#38d9a9", None, ("Collocation Points",),
+         "How many training points are sampled in the domain, on the boundary and at the initial time."),
+        ("ic", "Initial conditions", "t", "#ffd43b", None, ("Initial Condition",),
+         "The outputs' values at the initial time."),
+        ("bcs", "Boundary conditions", "B", "#ff8787", None, ("Boundary Conditions",),
+         "Conditions on the boundary. Where: picks the part of the boundary each one applies to."),
+        ("network", "Neural network", "N", "#63e6be", None, ("Neural Network",),
+         "Network size and type, activation, and input/output transforms."),
+        ("training", "Training", "T", "#74c0fc", None, ("Training",),
+         "Optimizers and training phases, initial-condition pre-training, callbacks."),
+        ("weights", "Loss weights", "W", "#91a7ff", "training", ("Loss Weights",),
+         "How much each loss term counts."),
+        ("adaptive", "Adaptive training", "A", "#91a7ff", "training", ("Adaptive Training",),
+         "Residual-based refinement, point resampling and time-adaptive training."),
+        ("sweep", "Parameter sweep", "S", "#e599f7", None, ("Parameter Sweep",),
+         "Run the problem over a range of settings and compare the results."),
+        ("results", "Results", "R", "#fcc419", None, (),
+         "What to plot and save, error analysis, and solution export."),
+        ("restore", "Restore & visualize", "↺", "#ffe066", "results", ("Model Restore && Visualization",),
+         "Load a trained model and plot it again, without retraining."),
+    )
+
+    def _build_workspace(self, splitter, left_layout):
+        """Move the panels built into `left_layout` onto the model tree's
+        pages, and the title, Quick Examples and Solve/Stop into the toolbar.
+        Adds the tree and settings panels to `splitter`."""
+        from pinnstudio.ui.workspace import ModelWorkspace
+        groups = {}
+        while left_layout.count():
+            it = left_layout.takeAt(0)
+            w = it.widget()
+            if isinstance(w, QGroupBox):
+                groups[w.title()] = w
+        self.workspace = ws = ModelWorkspace(self)
+        for key, label, glyph, color, parent, titles, desc in self._WORKSPACE_NODES:
+            missing = [t for t in titles if t not in groups]
+            assert not missing, f"workspace: panels not found: {missing}"
+            ws.add_node(key, label, glyph, color, desc, parent, [groups[t] for t in titles])
+        self._quick_examples_group = groups.get("📋 Quick Examples")
+        self._sync_bc_nodes()
+        splitter.addWidget(ws.tree_panel)
+        splitter.addWidget(ws.settings_panel)
+
+    def _finish_workspace(self, splitter):
+        """After the graphics panel exists: the Results page, the toolbar,
+        initial sizes and the saved layout."""
+        ws = self.workspace
+        ws.add_widget("results", self.results_controls)
+        self._split_geometry_page()
+        self._split_training_page()
+        # The sketch's "selected edges -> BC" controls sit on the Boundary
+        # conditions page, shown while the sketch is picking edges.
+        from pinnstudio.ui.workspace import VisibilityFollower
+        self.sketch_selection_box = QGroupBox("Edges picked in the sketch")
+        QVBoxLayout(self.sketch_selection_box).addWidget(self.sketch_panel.edge_bar)
+        ws.add_widget("bcs", self.sketch_selection_box)
+        bcs_lay = ws.pages["bcs"]["layout"]
+        bcs_lay.insertWidget(0, bcs_lay.takeAt(bcs_lay.indexOf(self.sketch_selection_box)).widget())
+        self._sketch_sel_follower = VisibilityFollower(self.sketch_selection_box, [self.sketch_panel.edge_bar])
+
+        # ── toolbar ──
+        bar = QHBoxLayout(self.app_toolbar)
+        bar.setContentsMargins(12, 6, 12, 6)
+        bar.setSpacing(8)
+        bar.addWidget(self.app_title_label)
+        bar.addSpacing(18)
+        ex_label = QLabel("Examples:")
+        ex_label.setObjectName("toolbarLabel")
+        bar.addWidget(ex_label)
+        self.quick_examples_category_combo.setFixedWidth(120)
+        bar.addWidget(self.quick_examples_category_combo)
+        self.quick_examples_combo.setMinimumWidth(260)
+        self.quick_examples_combo.setMaximumWidth(380)
+        bar.addWidget(self.quick_examples_combo, 1)
+        if self._quick_examples_group is not None:
+            self._quick_examples_group.hide()
+        bar.addStretch(1)
+
+        def tool_btn(text, tip, slot):
+            b = QPushButton(text)
+            b.setObjectName("toolButton")
+            b.setToolTip(tip)
+            b.setFixedHeight(34)
+            b.clicked.connect(slot)
+            bar.addWidget(b)
+            return b
+
+        self.problems_btn = QPushButton("")
+        self.problems_btn.setObjectName("problemsButton")
+        self.problems_btn.setFixedHeight(30)
+        self.problems_btn.setVisible(False)
+        self.problems_btn.setToolTip("Settings that would stop Solve -- click to go to the first one")
+        self.problems_btn.clicked.connect(self._goto_first_problem)
+        bar.addWidget(self.problems_btn)
+        bar.addSpacing(6)
+        self.tb_open_btn = tool_btn("📂 Open", "Open a saved problem", self._open_problem)
+        self.tb_save_btn = tool_btn("💾 Save", "Save this problem", self._save_problem)
+        self.tb_export_btn = tool_btn("⇪ Export script", "Export as a DeepXDE script", self._export_deepxde_script)
+        bar.addSpacing(14)
+        for b, w in ((self.solve_btn, 130), (self.stop_btn, 100)):
+            b.setMinimumHeight(36)
+            b.setMaximumHeight(36)
+            b.setFixedWidth(w)
+            bar.addWidget(b)
+
+        # ── sizes ──
+        splitter.setStretchFactor(0, 0)
+        splitter.setStretchFactor(1, 1)
+        splitter.setStretchFactor(2, 2)
+        splitter.setSizes([265, 660, 920])
+        self.main_splitter = splitter
+        ws.select("problem")
+        ws.node_selected.connect(self._on_workspace_node)
+
+        # Settings that would stop Solve show up on their tree nodes as you go
+        self._problems_timer = QTimer(self)
+        self._problems_timer.setInterval(1500)
+        self._problems_timer.timeout.connect(self._check_problems)
+        self._problems_timer.start()
+
+        view_menu = self.menuBar().addMenu("🗔 View")
+        reset = QAction("Reset Layout", self)
+        reset.triggered.connect(self._reset_layout)
+        view_menu.addAction(reset)
+        self._restore_layout()
+
+    def _split_geometry_page(self):
+        """Geometry page: the shape picker, the shape's own numbers, and
+        the time interval each in their own box."""
+        from pinnstudio.ui.workspace import VisibilityFollower
+        page = self.workspace.pages["geometry"]
+        lay = page["layout"]
+        self.geom_shape_box = QGroupBox("Shape")
+        QVBoxLayout(self.geom_shape_box).addWidget(self.geom_type_row_widget)
+        self.geom_time_box = QGroupBox("Time interval")
+        QVBoxLayout(self.geom_time_box).addWidget(self.t_row_widget)
+        i = lay.indexOf(self.domain_group)
+        lay.insertWidget(i, self.geom_shape_box)
+        lay.insertWidget(i + 2, self.geom_time_box)
+        page["widgets"] += [self.geom_shape_box, self.geom_time_box]
+        self._geom_followers = [VisibilityFollower(self.geom_shape_box, [self.geom_type_row_widget]),
+                                VisibilityFollower(self.geom_time_box, [self.t_row_widget])]
+        self._update_domain_box_title()
+
+    def _split_training_page(self):
+        """Training page: phases, initial-condition pre-training and
+        callbacks each in their own box (they were parts of one panel)."""
+        page = self.workspace.pages["training"]
+        train = page["widgets"][0]
+        lay = train.layout()
+        for i in range(lay.count()):
+            w = lay.itemAt(i).widget()
+            if isinstance(w, QLabel) and w.text().startswith("──"):
+                w.hide()   # the boxes' titles say it now
+
+        def box(title, widgets):
+            g = QGroupBox(title)
+            gl = QVBoxLayout(g)
+            gl.setSpacing(6)
+            for w in widgets:
+                lay.removeWidget(w)
+                gl.addWidget(w)
+            return g
+
+        ic_box = box("Initial-condition pre-training", (self.ic_pretrain_cb, self.ic_pretrain_widget))
+        cb_box = box("Callbacks", (self.train_callbacks_show_cb, self.train_callbacks_container))
+        train.setTitle("Training phases")
+        self.train_ic_box, self.train_callbacks_box = ic_box, cb_box
+        L = page["layout"]
+        i = L.indexOf(train)
+        L.insertWidget(i + 1, self.train_ic_box)
+        L.insertWidget(i + 2, self.train_callbacks_box)
+        page["widgets"] += [self.train_ic_box, self.train_callbacks_box]
+
+    def _update_domain_box_title(self):
+        """The middle Geometry box is named after what it holds."""
+        if not hasattr(self, 'geom_shape_box'):
+            return
+        t = self._current_geometry_type()
+        if t == "Custom":
+            title = "Shapes"
+        elif t == "Interval":
+            title = "Interval"
+        else:
+            title = f"{t} dimensions"
+        self.domain_group.setTitle(title)
+
+    # (keywords in a validation message -> the node that fixes it; first match wins)
+    _PROBLEM_KEYWORDS = (
+        ("sweep", "sweep"),
+        ("inverse", ("inverse", "observ", "unknown variable", "true value")),
+        ("adaptive", ("rar", "time-adaptive", "time adaptive", "resampl", "adaptive")),
+        ("weights", ("scale by initial losses", "loss weight", "weights")),
+        ("network", ("network", "layer", "msffn", "neuron", "fourier", "activation", "initializer")),
+        ("points", ("domain points", "boundary points", "initial points", "test points", "anchor",
+                    "num_domain", "num_boundary")),
+        ("training", ("phase", "iteration", "learning rate", "weight decay", "optimizer", "l-bfgs", "lbfgs",
+                      "pre-train", "pretrain", "early stopping", "checkpoint", "callback")),
+        ("bcs", ("boundary condition", " bc", "bc ", "where", "periodic", "robin", "dirichlet", "neumann",
+                 "point set", "interface")),
+        ("ic", ("initial condition", " ic ", "ic expression")),
+        ("geometry", ("x_min", "y_min", "z_min", "t_min", "geometry", "shape", "vert", "polygon", "disk",
+                      "ellipse", "rectangle", "cuboid", "sphere", "triangle", "domain")),
+        ("results", ("error analysis", "reference", "plot", "export", "formula")),
+        ("equations", ("integral", "frac", "alpha", "output", "equation", "pde", "constant", "residual")),
+    )
+
+    def _problem_node(self, msg):
+        m = " " + msg.lower() + " "
+        for key, words in self._PROBLEM_KEYWORDS:
+            words = (words,) if isinstance(words, str) else words
+            if any(wd in m for wd in words):
+                return key
+        return "problem"
+
+    def _check_problems(self):
+        """Mark the tree nodes whose settings would stop Solve."""
+        if not hasattr(self, 'workspace'):
+            return
+        try:
+            errors = self._build_config().validate()
+        except Exception:
+            return
+        problems = {}
+        for msg in errors:
+            key = self._problem_node(str(msg))
+            if key not in self.workspace.pages or self.workspace.pages[key]["item"].isHidden():
+                key = "problem"
+            problems.setdefault(key, []).append(str(msg))
+        if problems == getattr(self.workspace, "problems", None):
+            return
+        self.workspace.set_problems(problems)
+        n = sum(len(v) for v in problems.values())
+        self.problems_btn.setVisible(n > 0)
+        self.problems_btn.setText(f"⚠  {n} setting{'s' if n != 1 else ''} to fix")
+
+    def _goto_first_problem(self):
+        for key in self.workspace.order:
+            if (self.workspace.problems or {}).get(key):
+                self.workspace.select(key)
+                return
+
+    def _on_workspace_node(self, key):
+        """Selecting a node can bring up its graphics: Geometry shows the
+        Sketch when the domain is sketched, Results the plots. With a
+        sketched domain, Boundary conditions switches the sketch to picking
+        edges, and a BC node lets you click that BC's edges in and out."""
+        sketched = self.geometry_type_combo.currentText() == "Sketch"
+        sp = self.sketch_panel
+        active = None
+        if sketched and (key == "geometry" or key == "bcs" or key.startswith("bc:")):
+            self.right_tabs.setCurrentIndex(self._sketch_tab_index)
+            if key != "geometry":
+                if sp.canvas.tool != "Edges":
+                    sp.set_tool("Edges")
+                if key.startswith("bc:"):
+                    entry = next((e for e in self.custom_bc_list if e.get('_node') == key), None)
+                    if entry is not None:
+                        i = self.custom_bc_list.index(entry)
+                        active = (i, f"BC {i + 1}")
+            elif sp.canvas.tool == "Edges":
+                sp.set_tool("Select")
+        elif key in ("results", "restore"):
+            self.right_tabs.setCurrentIndex(0)
+        if active is None:
+            if sp.active_bc is not None:
+                sp.set_active_bc(None)
+        else:
+            sp.set_active_bc(*active)
+        self._refresh_bc_sketch_boxes()
+
+    def _refresh_bc_sketch_boxes(self):
+        """Each BC page's "In the sketch" box: which edges (faces) the BC's
+        Where: picks. Shown only for a sketched domain."""
+        sketched = self.geometry_type_combo.currentText() == "Sketch"
+        bc_of = self.sketch_panel.canvas.edge_bcs() if sketched else []
+        pre = "E" if self.sketch_panel.canvas.dim == 2 else "F"
+        what = "edges" if pre == "E" else "faces"
+        for i, e in enumerate(self.custom_bc_list):
+            box = e.get('sketch_box')
+            if box is None:
+                continue
+            try:
+                box.setVisible(sketched and e['type'].currentData() not in self._SKETCH_NO_WHERE_TYPES)
+                if sketched:
+                    picked = [f"{pre}{k + 1}" for k, lst in enumerate(bc_of) if i in lst]
+                    e['sketch_lbl'].setText(
+                        (f"Picks {', '.join(picked)}." if picked else f"Picks no {what} of the sketch yet.") +
+                        f"  Click {what} in the sketch to add them to this BC or take them out.")
+            except RuntimeError:
+                pass
+
+    def _on_sketch_toggle_edge(self, index, k, add):
+        """A click on an edge while a BC node is selected: put the edge in
+        that BC's Where: or take it out."""
+        from pinnstudio.ui.sketch_edges import add_to_where, join_where, remove_from_where
+        if not (0 <= index < len(self.custom_bc_list)):
+            return
+        edges = self.sketch_panel.canvas.edges()
+        if not (0 <= k < len(edges)):
+            return
+        entry = self.custom_bc_list[index]
+        cur = entry['location'].text().strip()
+        expr = edges[k]['expr']
+        if add:
+            entry['location'].setText(add_to_where(cur, expr))
+        else:
+            if cur in ("", "True"):
+                rest = [e['expr'] for j, e in enumerate(edges) if j != k]
+                new = join_where(rest)
+            else:
+                new = remove_from_where(cur, [expr])
+            if new is None:
+                self.sketch_panel.hint.setText(
+                    f"BC {index + 1}'s Where: was written by hand, so it can't be edited by clicking -- "
+                    "change it in the panel, or clear it and pick the edges again.")
+                return
+            if not new:
+                self.sketch_panel.hint.setText(
+                    f"That's the last edge of BC {index + 1} -- a BC needs at least one; remove the BC instead.")
+                return
+            entry['location'].setText(new)
+        self.sketch_panel.refresh_bcs()
+        self._refresh_bc_sketch_boxes()
+
+    def _layout_settings(self):
+        from PyQt6.QtCore import QSettings
+        return QSettings("PINNStudio", "PINNStudio")
+
+    def _restore_layout(self):
+        if os.environ.get("QT_QPA_PLATFORM") == "offscreen":
+            return   # tests: always the default layout
+        try:
+            st = self._layout_settings()
+            main, right = st.value("layout/main"), st.value("layout/right")
+            if main is not None:
+                self._layout_restored = bool(self.main_splitter.restoreState(main))
+            if right is not None:
+                self.right_splitter.restoreState(right)
+        except Exception:
+            pass
+
+    def _save_layout(self):
+        if os.environ.get("QT_QPA_PLATFORM") == "offscreen":
+            return
+        try:
+            st = self._layout_settings()
+            st.setValue("layout/main", self.main_splitter.saveState())
+            st.setValue("layout/right", self.right_splitter.saveState())
+        except Exception:
+            pass
+
+    def _reset_layout(self):
+        self._apply_default_sizes()
+
+    def _apply_default_sizes(self):
+        """Panel sizes for the window's current size: the tree narrow, the
+        settings about a third, the graphics the rest; graphics over log 7:3."""
+        W = max(self.main_splitter.width(), 900)
+        tree = max(200, min(270, int(0.14 * W)))
+        settings = max(420, min(680, int(0.34 * W)))
+        self.main_splitter.setSizes([tree, settings, max(300, W - tree - settings)])
+        H = max(self.right_splitter.height(), 400)
+        self.right_splitter.setSizes([int(0.7 * H), H - int(0.7 * H)])
+
+    def showEvent(self, ev):
+        super().showEvent(ev)
+        if not getattr(self, '_sized_once', False) and hasattr(self, 'main_splitter'):
+            self._sized_once = True
+            if not getattr(self, '_layout_restored', False):
+                QTimer.singleShot(0, self._apply_default_sizes)
 
     def _build_setup_panels(self, left_layout):
         """Quick Examples, dimension, Forward/Inverse, and the PDE input panel."""
@@ -3238,14 +3614,17 @@ class MainWindow(QMainWindow):
         left_layout.addWidget(restore_group)
 
     def _build_right_panel(self, splitter):
-        """Right side: training log, results/plots, monitor (added to `splitter`)."""
+        """Right side (added to `splitter`): the graphics area -- result
+        plots and the Sketch, as tabs -- above the Training Log. The plot
+        and output controls are built here too, into self.results_controls,
+        which the workspace puts on the Results page of the settings panel."""
         # ── Right panel ───────────────────────────────────────
         right = QWidget()
         right_layout = QVBoxLayout(right)
-        right_layout.setContentsMargins(8, 4, 8, 4)
+        right_layout.setContentsMargins(4, 4, 6, 4)
         right_layout.setSpacing(3)
 
-        # Vertical splitter for log + plots
+        # Vertical splitter: graphics above, log below
         right_splitter = QSplitter(Qt.Orientation.Vertical)
         # See the matching comment on the main horizontal `splitter` above --
         # same fix, same reason (Qt's default childrenCollapsible=True was
@@ -3254,46 +3633,44 @@ class MainWindow(QMainWindow):
         right_splitter.setChildrenCollapsible(False)
         right_layout.addWidget(right_splitter)
 
-        # Top part — log
-        log_widget = QWidget()
-        log_layout = QVBoxLayout(log_widget)
-        log_layout.setContentsMargins(0, 0, 0, 0)
-        log_layout.setSpacing(2)
-
-        # Training Log, and beside it the Sketch tab (Domain -> Shape ->
-        # Sketch; hidden for every other shape).
+        # Graphics: the result plots, and the Sketch (Domain -> Shape ->
+        # Sketch; its tab is hidden for every other shape).
         self.right_tabs = QTabWidget()
         self.right_tabs.setDocumentMode(True)
+        self.right_tabs.setObjectName("graphicsTabs")
         self.log_box = QTextEdit()
         self.log_box.setReadOnly(True)
         self.log_box.setPlaceholderText("Training log will appear here...")
-        self.right_tabs.addTab(self.log_box, "📋 Training Log")
+        self.bottom_tabs = QTabWidget()
+        self.bottom_tabs.setDocumentMode(True)
+        self.bottom_tabs.setObjectName("bottomTabs")
+        self.bottom_tabs.addTab(self.log_box, "📋 Training Log")
         self.sketch_panel = SketchPanel()
         self.sketch_panel.shapes_edited.connect(self._on_sketch_edited)
         self.sketch_panel.set_bc_provider(self._sketch_bc_rows, self._sketch_domain)
         self.sketch_panel.new_bc_requested.connect(self._on_sketch_new_bc)
         self.sketch_panel.add_to_bc_requested.connect(self._on_sketch_add_to_bc)
         self.sketch_panel.remove_from_bcs_requested.connect(self._on_sketch_remove_from_bcs)
+        self.sketch_panel.toggle_edge_bc.connect(self._on_sketch_toggle_edge)
+        plots_widget = QWidget()
+        bottom_layout = QVBoxLayout(plots_widget)   # (plots and monitors go here)
+        bottom_layout.setContentsMargins(4, 6, 4, 4)
+        bottom_layout.setSpacing(6)
+        self.right_tabs.addTab(plots_widget, "📈 Results")
         self._sketch_tab_index = self.right_tabs.addTab(self.sketch_panel, "✏ Sketch")
         self.right_tabs.setTabVisible(self._sketch_tab_index, False)
         self.right_tabs.currentChanged.connect(self._on_right_tab_changed)
-        log_layout.addWidget(self.right_tabs)
-        right_splitter.addWidget(log_widget)
+        right_splitter.addWidget(self.right_tabs)
+        right_splitter.addWidget(self.bottom_tabs)
         self.right_splitter = right_splitter
+        right_splitter.setStretchFactor(0, 3)
+        right_splitter.setStretchFactor(1, 1)
+        right_splitter.setSizes([640, 260])
 
-        # Bottom part — controls + plots
-        bottom_widget = QWidget()
-        bottom_layout = QVBoxLayout(bottom_widget)
-        bottom_layout.setContentsMargins(0, 0, 0, 0)
-        bottom_layout.setSpacing(3)
-        right_splitter.addWidget(bottom_widget)
-        # Give the Training Log noticeably more of the vertical space by
-        # default -- previously 150px out of 800 (~19%) left the log
-        # cramped while the plots row below it got "much more space" than
-        # it needed; this is still just an initial split; the user can
-        # drag the divider to whatever they prefer afterward, same as
-        # before this changed.
-        right_splitter.setSizes([320, 600])
+        # Plot / output controls -> the Results page (see _build_workspace)
+        self.results_controls = QGroupBox("Plots && Output")
+        controls_layout = QVBoxLayout(self.results_controls)
+        controls_layout.setSpacing(6)
 
         # Controls row
         ctrl_row = QHBoxLayout()
@@ -3345,7 +3722,10 @@ class MainWindow(QMainWindow):
         self.plot_custom_label_input.setVisible(False)
         ctrl_row.addWidget(self.plot_custom_label_input)
 
-        ctrl_row.addWidget(QLabel("  Plot type:"))
+        ctrl_row.addStretch()
+        controls_layout.addLayout(ctrl_row)
+        ctrl_row = QHBoxLayout()   # plot type on its own line
+        ctrl_row.addWidget(QLabel("Plot type:"))
         self.plot_type_combo = QComboBox()
         # "Surface Animation (GIF)" starts OUT of this list -- the app
         # opens in 1D (self.radio_1d.setChecked(True) above, before this
@@ -3374,7 +3754,7 @@ class MainWindow(QMainWindow):
         self.plot_type_combo.currentTextChanged.connect(self._on_plot_type_changed)
         ctrl_row.addWidget(self.plot_type_combo)
         ctrl_row.addStretch()
-        bottom_layout.addLayout(ctrl_row)
+        controls_layout.addLayout(ctrl_row)
 
         # Save-parameter row -- visually grouped with Plot output/Plot
         # type (directly below them) since that's conceptually where it
@@ -3411,7 +3791,7 @@ class MainWindow(QMainWindow):
         self.param_save_combo.setVisible(False)
         ctrl_row_save.addWidget(self.param_save_combo)
         ctrl_row_save.addStretch()
-        bottom_layout.addLayout(ctrl_row_save)
+        controls_layout.addLayout(ctrl_row_save)
 
         # Second row for Error Analysis/Export -- its own row for the same
         # independent-minimum-width reason as ctrl_row_save above.
@@ -3532,7 +3912,7 @@ class MainWindow(QMainWindow):
         self.line_slice_z_spin.setVisible(False)
 
         ctrl_row2.addStretch()
-        bottom_layout.addLayout(ctrl_row2)
+        controls_layout.addLayout(ctrl_row2)
 
         # Save / export row
         save_row = QHBoxLayout()
@@ -3569,7 +3949,7 @@ class MainWindow(QMainWindow):
         self.export_enabled_cb = QCheckBox("Enable solution data export")
         self.export_enabled_cb.setChecked(False)
         self.export_enabled_cb.setVisible(False)
-        bottom_layout.addLayout(save_row)
+        controls_layout.addLayout(save_row)
 
         # Plot area
         plots_layout = QHBoxLayout()
@@ -3592,14 +3972,14 @@ class MainWindow(QMainWindow):
         # splitter) go smaller when there isn't 1000+px of laptop screen to
         # spare, while it's still free to grow as large as the window
         # allows once there is room.
-        self.loss_label.setMinimumSize(340, 300)
+        self.loss_label.setMinimumSize(240, 180)
         self.loss_label._source_path = None
 
         self.solution_label = QLabel()
         self.solution_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.solution_label.setText("🗺 Solution plot")
         self.solution_label.setStyleSheet("border: 1px solid #3e3e42; border-radius: 6px; color: #505080; background: #252526;")
-        self.solution_label.setMinimumSize(340, 300)
+        self.solution_label.setMinimumSize(240, 180)
         self.solution_label._source_path = None
 
         # Each figure gets its own small header (title + a "save this
@@ -3692,7 +4072,7 @@ class MainWindow(QMainWindow):
         self.monitor_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.monitor_label.setText("📈 Training monitor plot")
         self.monitor_label.setStyleSheet("border: 1px solid #3e3e42; border-radius: 6px; color: #505080; background: #252526;")
-        self.monitor_label.setMinimumSize(340, 260)
+        self.monitor_label.setMinimumSize(240, 180)
         self.monitor_label._source_path = None
         monitor_vlayout.addWidget(self.monitor_label)
 
@@ -3702,11 +4082,6 @@ class MainWindow(QMainWindow):
         self.monitor_container.setVisible(False)
 
         splitter.addWidget(right)
-        # Left configuration panel gets noticeably more default width too
-        # (roughly 38% of the new 1650px-wide default window, vs. 35% of
-        # the old cramped 1100px minimum-sized window) -- same "still just
-        # an initial split, drag it anytime" caveat as right_splitter above.
-        splitter.setSizes([630, 1010])
 
 
     # ── Parameter Sweep panel (inline in the Setup tab's right side) ──
@@ -4197,7 +4572,7 @@ class MainWindow(QMainWindow):
         if hasattr(self, 'custom_bc_list') and self.custom_bc_list:
             for e in list(self.custom_bc_list):
                 e['widget'].deleteLater()
-            self.custom_bc_list.clear()
+            self.custom_bc_list.clear(); self._schedule_bc_nodes_sync()
         # Same reasoning for the Custom-geometry shape list: a 2D shape
         # (Rectangle/Disk/Ellipse/Triangle/Polygon) isn't a valid 3D
         # primitive and vice versa (Cuboid/Sphere aren't valid in 2D), so
@@ -4312,6 +4687,7 @@ class MainWindow(QMainWindow):
         if text == "Custom" and hasattr(self, 'custom_geom_shape_rows') and not self.custom_geom_shape_rows:
             self._add_custom_geom_shape()
         self._update_domain_fields_visibility()
+        self._update_domain_box_title()
         self._show_sketch_tab(text == "Sketch")
         # Rebuild BCs: the boundary-condition layout (sides / unified /
         # per-edge) depends on which geometry type is now selected.
@@ -4666,23 +5042,8 @@ class MainWindow(QMainWindow):
             self.right_tabs.setCurrentIndex(0)
 
     def _on_right_tab_changed(self, idx):
-        """Give the sketch most of the right side while it is shown, and the
-        log its usual share back afterwards."""
-        if not hasattr(self, 'right_splitter'):
-            return
-        sketch = idx == getattr(self, '_sketch_tab_index', -1)
-        before = getattr(self, '_log_split_before_sketch', None)
-        if sketch and before is None:
-            sizes = self.right_splitter.sizes()
-            total = sum(sizes) or 920
-            self._log_split_before_sketch = sizes
-            # the plot area's size hint (~420 px) would otherwise stop it shrinking
-            self.right_splitter.widget(1).setMinimumHeight(120)
-            self.right_splitter.setSizes([int(total * 0.75), total - int(total * 0.75)])
-        elif not sketch and before is not None:
-            self.right_splitter.widget(1).setMinimumHeight(0)
-            self.right_splitter.setSizes(before)
-            self._log_split_before_sketch = None
+        """(The graphics area has room for the Sketch now; nothing to resize.)"""
+        return
 
     def _custom_geom_shapes_list(self):
         import json
@@ -4714,6 +5075,55 @@ class MainWindow(QMainWindow):
             self._apply_custom_geom_shapes_json(json.dumps(shapes))
         finally:
             self._sketch_writing_rows = False
+        if hasattr(self, 'workspace'):
+            self._refresh_bc_sketch_boxes()
+
+    # ── Boundary conditions as model-tree nodes ────────────────
+    def _schedule_bc_nodes_sync(self, *_a):
+        if not getattr(self, '_bc_nodes_pending', False):
+            self._bc_nodes_pending = True
+            QTimer.singleShot(0, self._sync_bc_nodes)
+
+    def _sync_bc_nodes(self):
+        """One child node of "Boundary conditions" per BC row, named and
+        coloured like the sketch draws its edges; each row's panel lives on
+        its node's page."""
+        self._bc_nodes_pending = False
+        ws = getattr(self, 'workspace', None)
+        if ws is None or "bcs" not in ws.pages:
+            return
+        from pinnstudio.ui.sketch_canvas import BC_COLORS
+        live = set()
+        for i, e in enumerate(self.custom_bc_list):
+            key = e.setdefault('_node', f"bc:{id(e)}")
+            live.add(key)
+            try:
+                desc = self._bc_weight_desc(e)
+            except RuntimeError:
+                continue
+            label = f"BC {i + 1}  ·  {desc}"
+            color = BC_COLORS[i % len(BC_COLORS)]
+            if key not in ws.pages:
+                ws.add_node(key, label, str(i + 1), color,
+                            "One boundary condition: its type, the output it applies to, where on the "
+                            "boundary (Where:) and its value.", parent="bcs", widgets=[e['widget']])
+                box = QGroupBox("In the sketch")
+                lbl = QLabel("")
+                lbl.setWordWrap(True)
+                QVBoxLayout(box).addWidget(lbl)
+                box.setVisible(False)
+                e['sketch_box'], e['sketch_lbl'] = box, lbl
+                ws.add_widget(key, box)
+            ws.set_label(key, label, str(i + 1), color)
+            hdr = e.get('header')
+            if hdr is not None:
+                try:
+                    hdr.setText(f"── BC {i + 1} ──" + (" \U0001F512" if e.get('locked') else ""))
+                    hdr.setVisible(False)   # the page title names it
+                except RuntimeError:
+                    pass
+        for key in [k for k in list(ws.pages) if k.startswith("bc:") and k not in live]:
+            ws.remove_node(key)
 
     # ── Sketch: edges -> Boundary Conditions rows ──────────────
     _SKETCH_NO_WHERE_TYPES = ("pointset", "pointset_operator")
@@ -4736,12 +5146,14 @@ class MainWindow(QMainWindow):
     def _sketch_bcs_changed(self, *_a):
         if hasattr(self, 'sketch_panel') and self.sketch_panel.isVisible():
             self.sketch_panel.refresh_bcs()
+        if hasattr(self, 'workspace'):
+            self._refresh_bc_sketch_boxes()
 
     def _reveal_bc_row(self, entry):
         """Scroll the left panel to a BC row and briefly highlight it."""
         def _go():
-            if hasattr(self, '_left_scroll'):
-                self._left_scroll.ensureWidgetVisible(entry['widget'], 0, 60)
+            if hasattr(self, 'workspace'):
+                self.workspace.reveal(entry['widget'])
             loc = entry['location']
             old = loc.styleSheet()
             loc.setStyleSheet("QLineEdit { border: 2px solid #ffd43b; }")
@@ -4753,8 +5165,7 @@ class MainWindow(QMainWindow):
         self._update_bc_mode_visibility()
         if hasattr(self, 'weights_main_layout'):
             self._build_weight_inputs(self.num_outputs_spin.value())
-        self.log_box.append(f"✏ Sketch: added BC {len(self.custom_bc_list)} (Dirichlet, value 0) on the selected edges -- "
-                  "set its type and value in Boundary Conditions.")
+        self.log_box.append(f"✏ Sketch: added BC {len(self.custom_bc_list)} (Dirichlet, value 0) on the selected edges.")
         self._reveal_bc_row(entry)
         self.sketch_panel.refresh_bcs()
 
@@ -6728,13 +7139,18 @@ class MainWindow(QMainWindow):
             if entry_data in self.custom_bc_list:
                 self.custom_bc_list.remove(entry_data)
             self._update_bc_mode_visibility()
+            self._sync_bc_nodes()
             self._sketch_bcs_changed()
 
         remove_btn.clicked.connect(_remove)
+        entry_data['header'] = header_lbl
+        self._sync_bc_nodes()
         # the sketch colours its edges by these rows' Where:
         loc_edit.textChanged.connect(self._sketch_bcs_changed)
         type_combo.currentIndexChanged.connect(self._sketch_bcs_changed)
         comp_spin.valueChanged.connect(self._sketch_bcs_changed)
+        type_combo.currentIndexChanged.connect(self._schedule_bc_nodes_sync)
+        comp_spin.valueChanged.connect(self._schedule_bc_nodes_sync)
         self._sketch_bcs_changed()
         return entry_data
 
@@ -6784,7 +7200,7 @@ class MainWindow(QMainWindow):
         import json
         for e in list(self.custom_bc_list):
             e['widget'].deleteLater()
-        self.custom_bc_list.clear()
+        self.custom_bc_list.clear(); self._schedule_bc_nodes_sync()
         if not custom_bc_json:
             return
         try:
@@ -6875,7 +7291,7 @@ class MainWindow(QMainWindow):
         them) into custom_bc_json, which is what codegen.py actually reads."""
         for e in list(self.custom_bc_list):
             e['widget'].deleteLater()
-        self.custom_bc_list.clear()
+        self.custom_bc_list.clear(); self._schedule_bc_nodes_sync()
         x_min, x_max = self.x_min.value(), self.x_max.value()
         y_min = self.y_min.value() if is_2d else None
         y_max = self.y_max.value() if is_2d else None
@@ -6921,7 +7337,7 @@ class MainWindow(QMainWindow):
         _populate_locked_bc_entries_from_legacy, which only knows 1D/2D."""
         for e in list(self.custom_bc_list):
             e['widget'].deleteLater()
-        self.custom_bc_list.clear()
+        self.custom_bc_list.clear(); self._schedule_bc_nodes_sync()
         # Same convention as heat2d: one Dirichlet face (right/x-max), the
         # rest Neumann=0 (insulated).
         faces = [
@@ -8929,6 +9345,8 @@ class MainWindow(QMainWindow):
         # checks above.
         _val_errors = _config_preview.validate()
         if _val_errors:
+            self._check_problems()
+            self._goto_first_problem()
             self.log_box.append("❌ Cannot start -- this configuration has invalid settings:")
             for _ve in _val_errors:
                 self.log_box.append(f"   • {_ve}")
@@ -9106,6 +9524,7 @@ class MainWindow(QMainWindow):
         Python/PyTorch process, and any GPU memory it holds, kept running
         detached from the GUI indefinitely. If a run is active, ask before
         quitting rather than silently killing it."""
+        self._save_layout()
         # isinstance(..., QThread) rather than a plain hasattr check: every
         # QObject (QMainWindow included) already has its own built-in
         # .thread() method from Qt itself, so hasattr(self, 'thread') is
@@ -10633,6 +11052,56 @@ print("DOMAIN_PREVIEW_DONE")
         dialog.exec()
 
 
+    @staticmethod
+    def _workspace_qss(bg, widget_bg, border, accent, text_color, label_color, is_white):
+        """Styles of the workspace frame: toolbar, model tree, settings
+        header, graphics/log tabs."""
+        acc = QColor(accent)
+        sel = f"rgba({acc.red()}, {acc.green()}, {acc.blue()}, {70 if not is_white else 90})"
+        hover = f"rgba({acc.red()}, {acc.green()}, {acc.blue()}, 28)"
+        muted = "#6c7a86" if is_white else "#8a9aa6"
+        return f"""
+            QWidget#appToolbar {{ background: {widget_bg}; border-bottom: 1px solid {border}; }}
+            QWidget#appToolbar QLabel#toolbarLabel {{ color: {muted}; background: transparent; }}
+            QPushButton#toolButton {{
+                background: transparent; color: {text_color}; border: 1px solid {border};
+                border-radius: 5px; padding: 0 12px;
+            }}
+            QPushButton#toolButton:hover {{ background: {hover}; border-color: {accent}; }}
+            QPushButton#problemsButton {{
+                background: rgba(255, 146, 43, 40); color: #ffa94d; border: 1px solid #ff922b;
+                border-radius: 5px; padding: 0 10px; font-weight: bold;
+            }}
+            QWidget#treePanel, QWidget#treePanel QTreeWidget {{ background: {widget_bg}; }}
+            QLabel#panelHeader {{
+                color: {muted}; background: transparent; font-size: 11px; font-weight: bold;
+                letter-spacing: 1px; padding: 2px 4px 4px 4px;
+            }}
+            QTreeWidget#modelTree {{ border: none; outline: 0; color: {text_color}; }}
+            QTreeWidget#modelTree::item {{ padding: 5px 4px; border-radius: 4px; }}
+            QTreeWidget#modelTree::item:hover {{ background: {hover}; }}
+            QTreeWidget#modelTree::item:selected {{ background: {sel}; color: {text_color}; }}
+            QTreeWidget#modelTree::branch {{ background: transparent; }}
+            QTreeWidget#modelTree::branch:selected {{ background: transparent; }}
+            QLabel#pageTitle {{
+                color: {accent}; background: transparent; font-size: 20px; font-weight: bold;
+                padding: 2px 4px 0 4px;
+            }}
+            QLabel#pageDesc {{ color: {muted}; background: transparent; padding: 0 4px 6px 4px; }}
+            QFrame#pageRule {{ background: {border}; border: none; }}
+            QLabel#problemBanner {{
+                color: #ffa94d; background: rgba(255, 146, 43, 28); border: 1px solid rgba(255, 146, 43, 120);
+                border-radius: 5px; padding: 6px 8px; margin: 0 4px 6px 4px;
+            }}
+            QTabWidget#graphicsTabs::pane, QTabWidget#bottomTabs::pane {{ border: none; }}
+            QTabBar::tab {{
+                background: transparent; color: {muted}; padding: 6px 14px; border: none;
+                border-bottom: 2px solid transparent;
+            }}
+            QTabBar::tab:selected {{ color: {text_color}; border-bottom: 2px solid {accent}; }}
+            QTabBar::tab:hover {{ color: {text_color}; }}
+        """
+
     def _apply_display_settings(self):
         themes = {
             "Dark Grey":     ("#1e1e1e", "#252526", "#3e3e42"),
@@ -10787,7 +11256,7 @@ print("DOMAIN_PREVIEW_DONE")
             QMenuBar::item:selected {{ background: {border}; }}
             QMenu {{ background: {widget_bg}; border: 1px solid {border}; }}
             QMenu::item:selected {{ background: {border}; }}
-        """)
+        """ + self._workspace_qss(bg, widget_bg, border, accent, text_color, label_color, is_white))
         # Same panel-border color/thickness setting as every QGroupBox
         # above, for visual consistency across every panel section
         # (including these two figure panels, not just the Setup tab's
@@ -11169,7 +11638,7 @@ print("DOMAIN_PREVIEW_DONE")
         no natural "side" (DeepXDE's on_boundary restricts it)."""
         for e in list(self.custom_bc_list):
             e['widget'].deleteLater()
-        self.custom_bc_list.clear()
+        self.custom_bc_list.clear(); self._schedule_bc_nodes_sync()
         self._add_custom_bc_entry(bc_type="dirichlet", component=0,
                                    location="True", value="0", locked=False)
         self._update_bc_mode_visibility()

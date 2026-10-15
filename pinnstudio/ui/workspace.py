@@ -1,0 +1,300 @@
+"""The main window's three-panel workspace, after COMSOL's Model Builder.
+
+    ┌ model tree ┐┌ settings of the selected node ┐┌ graphics (plots, sketch) ┐
+    │ Problem    ││ Title                          ││                          │
+    │ Equations  ││ one-line description           ││                          │
+    │ Geometry   ││ [the node's panels]            │├──────────────────────────┤
+    │ ...        ││                                ││ Training Log             │
+    └────────────┘└────────────────────────────────┘└──────────────────────────┘
+
+The model tree lists the steps of setting up a problem; selecting one shows
+its panels in the settings stack. The panels themselves are the window's
+existing QGroupBoxes, moved onto pages -- every widget keeps its name and
+its signals, so building and loading a configuration works unchanged.
+
+A node is hidden when every panel on its page is hidden (e.g. "Inverse
+problem" outside Inverse mode), and shown again when one is shown.
+"""
+from PyQt6.QtCore import QEvent, QObject, QPointF, QRectF, QSize, Qt, QTimer, pyqtSignal
+from PyQt6.QtGui import QColor, QFont, QIcon, QPainter, QPixmap
+from PyQt6.QtWidgets import (QFrame, QLabel, QScrollArea, QSizePolicy, QStackedWidget, QTreeWidget, QTreeWidgetItem,
+                             QVBoxLayout, QWidget)
+
+
+def node_icon(glyph, color, size=18):
+    """A small round badge with a glyph -- the tree's node icons."""
+    pm = QPixmap(size * 2, size * 2)
+    pm.setDevicePixelRatio(2.0)
+    pm.fill(Qt.GlobalColor.transparent)
+    qp = QPainter(pm)
+    qp.setRenderHint(QPainter.RenderHint.Antialiasing)
+    qp.setRenderHint(QPainter.RenderHint.TextAntialiasing)
+    c = QColor(color)
+    qp.setPen(Qt.PenStyle.NoPen)
+    qp.setBrush(c)
+    qp.drawRoundedRect(QRectF(1, 1, size - 2, size - 2), 5, 5)
+    f = QFont()
+    f.setPixelSize(int(size * 0.62))
+    f.setBold(True)
+    qp.setFont(f)
+    qp.setPen(QColor("#0b1a22") if c.lightnessF() > 0.55 else QColor("white"))
+    qp.drawText(QRectF(0, 0, size, size), Qt.AlignmentFlag.AlignCenter, glyph)
+    qp.end()
+    return QIcon(pm)
+
+
+class ModelWorkspace(QObject):
+    """Model tree + settings stack. `tree_panel` and `settings_panel` are
+    the two widgets to put in the window's splitter."""
+    node_selected = pyqtSignal(str)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        # ── tree ──
+        self.tree_panel = QWidget()
+        self.tree_panel.setObjectName("treePanel")
+        tl = QVBoxLayout(self.tree_panel)
+        tl.setContentsMargins(6, 6, 2, 6)
+        tl.setSpacing(4)
+        head = QLabel("MODEL")
+        head.setObjectName("panelHeader")
+        tl.addWidget(head)
+        self.tree = QTreeWidget()
+        self.tree.setObjectName("modelTree")
+        self.tree.setHeaderHidden(True)
+        self.tree.setIndentation(16)
+        self.tree.setIconSize(QSize(18, 18))
+        self.tree.setUniformRowHeights(True)
+        self.tree.setRootIsDecorated(True)
+        self.tree.setFrameShape(QFrame.Shape.NoFrame)
+        self.tree.setMinimumWidth(170)
+        self.tree.currentItemChanged.connect(self._on_current)
+        tl.addWidget(self.tree, 1)
+
+        # ── settings ──
+        self.settings_panel = QWidget()
+        self.settings_panel.setObjectName("settingsPanel")
+        sl = QVBoxLayout(self.settings_panel)
+        sl.setContentsMargins(4, 6, 4, 4)
+        sl.setSpacing(2)
+        head = QLabel("SETTINGS")
+        head.setObjectName("panelHeader")
+        sl.addWidget(head)
+        self.title = QLabel("")
+        self.title.setObjectName("pageTitle")
+        sl.addWidget(self.title)
+        self.desc = QLabel("")
+        self.desc.setObjectName("pageDesc")
+        self.desc.setWordWrap(True)
+        sl.addWidget(self.desc)
+        self.banner = QLabel("")
+        self.banner.setObjectName("problemBanner")
+        self.banner.setWordWrap(True)
+        self.banner.setVisible(False)
+        sl.addWidget(self.banner)
+        line = QFrame()
+        line.setObjectName("pageRule")
+        line.setFixedHeight(1)
+        sl.addWidget(line)
+        self.stack = QStackedWidget()
+        sl.addWidget(self.stack, 1)
+
+        self.pages = {}      # key -> {"item", "scroll", "page", "layout", "label", "desc", "widgets"}
+        self.order = []
+        self._watched = {}   # widget -> key
+        self._vis_pending = False
+
+    # ── building ─────────────────────────────────────────────
+    def add_node(self, key, label, glyph, color, desc="", parent=None, widgets=()):
+        item = QTreeWidgetItem([label])
+        item.setData(0, Qt.ItemDataRole.UserRole, key)
+        item.setIcon(0, node_icon(glyph, color))
+        if parent:
+            self.pages[parent]["item"].addChild(item)
+            self.pages[parent]["item"].setExpanded(True)
+        else:
+            self.tree.addTopLevelItem(item)
+        page = QWidget()
+        page.setObjectName("settingsPage")
+        lay = QVBoxLayout(page)
+        lay.setContentsMargins(2, 6, 10, 10)
+        lay.setSpacing(10)
+        lay.addStretch()
+        scroll = QScrollArea()
+        scroll.setObjectName("settingsScroll")
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        scroll.setWidget(page)
+        self.stack.addWidget(scroll)
+        self.pages[key] = {"item": item, "scroll": scroll, "page": page, "layout": lay, "label": label,
+                           "desc": desc, "widgets": []}
+        self.order.append(key)
+        for w in widgets:
+            self.add_widget(key, w)
+        return item
+
+    def add_widget(self, key, widget):
+        info = self.pages[key]
+        lay = info["layout"]
+        lay.insertWidget(lay.count() - 1, widget)   # before the stretch
+        info["widgets"].append(widget)
+        self._watched[widget] = key
+        widget.installEventFilter(self)
+        self._schedule_visibility()
+
+    def remove_node(self, key):
+        info = self.pages.pop(key, None)
+        if info is None:
+            return
+        self.order.remove(key)
+        for w in info["widgets"]:
+            self._watched.pop(w, None)
+        item = info["item"]
+        was_current = self.tree.currentItem() is item
+        parent = item.parent()
+        if parent is not None:
+            parent.removeChild(item)
+        else:
+            self.tree.takeTopLevelItem(self.tree.indexOfTopLevelItem(item))
+        self.stack.removeWidget(info["scroll"])
+        info["scroll"].deleteLater()
+        if was_current:
+            self.tree.setCurrentItem(parent if parent is not None else self.tree.topLevelItem(0))
+
+    def set_label(self, key, label, glyph=None, color=None):
+        info = self.pages[key]
+        info["label"] = label
+        info["item"].setText(0, label)
+        if glyph is not None:
+            self.set_icon(key, glyph, color)
+        if self.current_key() == key:
+            self.title.setText(label)
+
+    def set_desc(self, key, desc):
+        info = self.pages[key]
+        info["desc"] = desc
+        if self.current_key() == key:
+            self.desc.setText(desc)
+            self.desc.setVisible(bool(desc))
+
+    # ── navigation ───────────────────────────────────────────
+    def current_key(self):
+        it = self.tree.currentItem()
+        return it.data(0, Qt.ItemDataRole.UserRole) if it else None
+
+    def select(self, key):
+        if key in self.pages:
+            self.tree.setCurrentItem(self.pages[key]["item"])
+
+    def _on_current(self, item, _prev):
+        if item is None:
+            return
+        key = item.data(0, Qt.ItemDataRole.UserRole)
+        info = self.pages[key]
+        self.stack.setCurrentWidget(info["scroll"])
+        self.title.setText(info["label"])
+        self.desc.setText(info["desc"])
+        self.desc.setVisible(bool(info["desc"]))
+        self._show_banner()
+        self.node_selected.emit(key)
+
+    def _show_banner(self):
+        msgs = (getattr(self, "problems", {}) or {}).get(self.current_key()) or []
+        self.banner.setText("\n".join("⚠  " + m for m in msgs))
+        self.banner.setVisible(bool(msgs))
+
+    def key_of(self, widget):
+        """The node whose page holds `widget` (None if none does)."""
+        pages = {info["page"]: k for k, info in self.pages.items()}
+        w = widget
+        while w is not None:
+            if w in pages:
+                return pages[w]
+            w = w.parentWidget()
+        return None
+
+    def reveal(self, widget, margin=60):
+        """Select the node holding `widget` and scroll its page to it."""
+        key = self.key_of(widget)
+        if key is None:
+            return False
+        self.select(key)
+        scroll = self.pages[key]["scroll"]
+        QTimer.singleShot(30, lambda: scroll.ensureWidgetVisible(widget, 0, margin))
+        return True
+
+    # ── node visibility follows its panels ───────────────────
+    def eventFilter(self, obj, ev):
+        if ev.type() in (QEvent.Type.ShowToParent, QEvent.Type.HideToParent) and obj in self._watched:
+            self._schedule_visibility()
+        return False
+
+    def _schedule_visibility(self):
+        if not self._vis_pending:
+            self._vis_pending = True
+            QTimer.singleShot(0, self.refresh_visibility)
+
+    def refresh_visibility(self):
+        self._vis_pending = False
+        for key, info in self.pages.items():
+            ws = info["widgets"]
+            if not ws:
+                continue
+            hidden = all(w.isHidden() for w in ws)
+            if info["item"].isHidden() != hidden:
+                info["item"].setHidden(hidden)
+                if hidden and self.current_key() == key:
+                    parent = info["item"].parent()
+                    self.tree.setCurrentItem(parent if parent is not None else self.tree.topLevelItem(0))
+
+    def set_problems(self, problems):
+        """problems: {key: [messages]}. A node with problems gets a warning
+        badge and the messages as its tooltip; the rest get their own icon."""
+        for key, info in self.pages.items():
+            msgs = problems.get(key) or []
+            item = info["item"]
+            if "icon" not in info:
+                info["icon"] = item.icon(0)
+            if msgs:
+                item.setIcon(0, node_icon("!", "#ff922b"))
+                item.setToolTip(0, "\n".join("• " + m for m in msgs))
+            else:
+                item.setIcon(0, info["icon"])
+                item.setToolTip(0, "")
+        self.problems = problems
+        self._show_banner()
+
+    def set_icon(self, key, glyph, color):
+        info = self.pages[key]
+        info["icon"] = node_icon(glyph, color)
+        if not (getattr(self, "problems", {}) or {}).get(key):
+            info["item"].setIcon(0, info["icon"])
+
+    def visible_keys(self):
+        return [k for k in self.order if not self.pages[k]["item"].isHidden()]
+
+
+class VisibilityFollower(QObject):
+    """Keep `container` shown only while at least one of `children` is
+    (explicitly) shown -- e.g. a "Shape" box around a row that the window
+    hides in 1D."""
+
+    def __init__(self, container, children):
+        super().__init__(container)
+        self.container = container
+        self.children_ = list(children)
+        for c in self.children_:
+            c.installEventFilter(self)
+        self.sync()
+
+    def eventFilter(self, obj, ev):
+        if ev.type() in (QEvent.Type.ShowToParent, QEvent.Type.HideToParent):
+            QTimer.singleShot(0, self.sync)
+        return False
+
+    def sync(self):
+        try:
+            self.container.setVisible(any(not c.isHidden() for c in self.children_))
+        except RuntimeError:
+            pass

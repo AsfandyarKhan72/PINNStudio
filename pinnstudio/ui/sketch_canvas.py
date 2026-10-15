@@ -597,6 +597,11 @@ class _Canvas(QWidget):
         sw = self.snapped(w)
         if self.tool == "Edges":
             k = self._edge_at(ev.position())
+            if getattr(self.owner, "active_bc", None) is not None:
+                # a BC is being edited: a click puts the edge in it or takes it out
+                if k >= 0:
+                    self.owner.toggle_edge_in_active_bc(k)
+                return
             if ev.modifiers() & (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier):
                 if k >= 0:
                     if k in self.sel_edges:
@@ -728,6 +733,7 @@ class SketchPanel(QWidget):
     new_bc_requested = pyqtSignal(str)            # "Where:" of the selected edges
     add_to_bc_requested = pyqtSignal(int, str)    # BC row index, "Where:" to add
     remove_from_bcs_requested = pyqtSignal(list)  # edge expressions to take out of their BC rows
+    toggle_edge_bc = pyqtSignal(int, int, bool)   # BC row index, edge index, add (else remove)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -751,21 +757,21 @@ class SketchPanel(QWidget):
             self.tool_buttons[t] = b
             bar.addWidget(b)
             b.clicked.connect(lambda _c, tool=t: self.set_tool(tool))
-        bar.addSpacing(8)
+        bar.addStretch()
+        lay.addLayout(bar)
+
+        bar2 = QHBoxLayout()
+        bar2.setSpacing(4)
         self.op_label = QLabel("New shape:")
-        bar.addWidget(self.op_label)
+        bar2.addWidget(self.op_label)
         self.op_combo = QComboBox()
         for label, val in OPS:
             self.op_combo.addItem(label, val)
         self.op_combo.setFixedHeight(26)
         self.op_combo.setToolTip("How the next shape you draw is combined with the shapes before it "
                                  "(the first shape is always the starting domain)")
-        bar.addWidget(self.op_combo)
-        bar.addStretch()
-        lay.addLayout(bar)
-
-        bar2 = QHBoxLayout()
-        bar2.setSpacing(4)
+        bar2.addWidget(self.op_combo)
+        bar2.addSpacing(10)
         bar2.addWidget(QLabel("Grid:"))
         self.grid_spin = QDoubleSpinBox()
         self.grid_spin.setDecimals(3)
@@ -778,7 +784,11 @@ class SketchPanel(QWidget):
         self.snap_cb = QCheckBox("Snap to grid")
         self.snap_cb.setChecked(True)
         bar2.addWidget(self.snap_cb)
-        bar2.addSpacing(8)
+        bar2.addStretch()
+        lay.addLayout(bar2)
+
+        bar2 = QHBoxLayout()   # row 3: edit the drawing
+        bar2.setSpacing(4)
         self.delete_btn = QPushButton("✕ Delete shape")
         self.delete_btn.setFixedHeight(26)
         bar2.addWidget(self.delete_btn)
@@ -794,7 +804,11 @@ class SketchPanel(QWidget):
         self.fit_btn = QPushButton("⤢ Fit view")
         self.fit_btn.setFixedHeight(26)
         bar2.addWidget(self.fit_btn)
-        bar2.addSpacing(8)
+        bar2.addStretch()
+        lay.addLayout(bar2)
+
+        bar2 = QHBoxLayout()   # row 4: typed numbers, cursor position
+        bar2.setSpacing(4)
         # exact numbers instead of the mouse
         self.coord_entry_label = QLabel("Type:")
         bar2.addWidget(self.coord_entry_label)
@@ -804,7 +818,7 @@ class SketchPanel(QWidget):
         self.coord_edit.setToolTip("Type the shape's numbers and press Enter to add it "
                                    "(combined as set in New shape)")
         bar2.addWidget(self.coord_edit, 1)
-        bar2.addStretch()
+        bar2.addSpacing(10)
         self.coord_label = QLabel("")
         self.coord_label.setMinimumWidth(150)
         bar2.addWidget(self.coord_label)
@@ -866,14 +880,16 @@ class SketchPanel(QWidget):
         r1 = QHBoxLayout()
         r1.setSpacing(4)
         self.edge_sel_label = QLabel("No edge selected")
-        self.edge_sel_label.setMinimumWidth(150)
+        self.edge_sel_label.setMinimumWidth(100)
+        self.edge_sel_label.setWordWrap(True)
         r1.addWidget(self.edge_sel_label)
         self.new_bc_btn = QPushButton("＋ New BC on selected")
         self.new_bc_btn.setToolTip("Add a Boundary Conditions row (Dirichlet, value 0) whose Where: picks "
                                    "the selected edges; set its type and value in the panel on the left")
         self.add_to_combo = QComboBox()
-        self.add_to_combo.setMinimumWidth(170)
-        self.add_to_combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
+        self.add_to_combo.setMinimumWidth(120)
+        self.add_to_combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
+        self.add_to_combo.setMinimumContentsLength(10)
         self.add_to_btn = QPushButton("Add to")
         self.add_to_btn.setToolTip("Add the selected edges to this existing BC row's Where:")
         self.remove_btn = QPushButton("Remove from BC")
@@ -882,14 +898,19 @@ class SketchPanel(QWidget):
         self.sel_free_btn = QPushButton("Select edges without a BC")
         for b in (self.new_bc_btn, self.add_to_btn, self.remove_btn, self.sel_free_btn, self.add_to_combo):
             b.setFixedHeight(26)
-        r1.addWidget(self.new_bc_btn)
-        r1.addSpacing(6)
-        r1.addWidget(self.add_to_btn)
-        r1.addWidget(self.add_to_combo)
-        r1.addWidget(self.remove_btn)
         r1.addStretch()
-        r1.addWidget(self.sel_free_btn)
         eb.addLayout(r1)
+        r1b = QHBoxLayout()
+        r1b.setSpacing(4)
+        r1b.addWidget(self.new_bc_btn)
+        r1b.addWidget(self.remove_btn)
+        r1b.addStretch()
+        eb.addLayout(r1b)
+        r1c = QHBoxLayout()
+        r1c.setSpacing(4)
+        r1c.addWidget(self.add_to_btn)
+        r1c.addWidget(self.add_to_combo, 1)
+        eb.addLayout(r1c)
         r2 = QHBoxLayout()
         r2.setSpacing(4)
         r2.addWidget(QLabel("Where:"))
@@ -899,6 +920,10 @@ class SketchPanel(QWidget):
         self.where_edit.setFixedHeight(26)
         r2.addWidget(self.where_edit, 1)
         eb.addLayout(r2)
+        r3 = QHBoxLayout()
+        r3.addWidget(self.sel_free_btn)
+        r3.addStretch()
+        eb.addLayout(r3)
         self.face_list = QListWidget()
         self.face_list.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.face_list.setMaximumHeight(120)
@@ -1188,6 +1213,38 @@ class SketchPanel(QWidget):
         except Exception:
             return {}
 
+    active_bc = None   # index of the BC row being edited by clicking edges (None: plain selection)
+
+    def set_active_bc(self, index, label=""):
+        """Edit one BC row by clicking edges: its edges are shown selected,
+        and a click adds an edge to it or takes it out. None: back to
+        selecting edges freely."""
+        self.active_bc = index
+        self._active_label = label
+        self.edge_bar.setEnabled(index is None)
+        self._sync_active_selection()
+        if index is not None:
+            what = "edge" if self.canvas.dim == 2 else "face"
+            self._active_hint = (f"Editing {label}: click an {what} to add it to this BC, or click one of its "
+                                 f"{what}s to take it out.")
+            self.hint.setText(self._active_hint)
+        elif self.canvas.tool == "Edges":
+            self.hint.setText(self.hints()["Edges"])
+        self.canvas.update()
+
+    def _sync_active_selection(self):
+        if self.active_bc is not None:
+            bc_of = self.canvas.edge_bcs()
+            self.canvas.sel_edges = [k for k, lst in enumerate(bc_of) if self.active_bc in lst]
+            self._update_edge_bar()
+
+    def toggle_edge_in_active_bc(self, k):
+        if self.active_bc is None:
+            return
+        bc_of = self.canvas.edge_bcs()
+        inside = k < len(bc_of) and self.active_bc in bc_of[k]
+        self.toggle_edge_bc.emit(self.active_bc, k, not inside)
+
     def refresh_bcs(self):
         """The BC rows changed: recolour the edges, refresh "Add to"."""
         if not self.edge_bar.isVisible() and self.canvas.tool != "Edges":
@@ -1201,6 +1258,7 @@ class SketchPanel(QWidget):
         self.add_to_combo.setCurrentIndex(i if i >= 0 else 0)
         self.add_to_combo.blockSignals(False)
         self._update_edge_bar()
+        self._sync_active_selection()
         self.canvas.update()
 
     def selected_where(self):
@@ -1229,7 +1287,7 @@ class SketchPanel(QWidget):
     def _on_edge_hovered(self, k):
         edges = self.canvas.edges()
         if k < 0 or k >= len(edges):
-            self.hint.setText(self.hints()["Edges"])
+            self.hint.setText(self._active_hint if self.active_bc is not None else self.hints()["Edges"])
             return
         bc_of = self.canvas.edge_bcs()
         labels = {b["index"]: b["label"] for b in self.bc_rows()}
