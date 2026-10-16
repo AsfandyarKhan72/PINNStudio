@@ -81,7 +81,7 @@ Setting up a PINN by hand means writing a new script for every problem: the resi
 **How it trains**
 
 - **Multi-phase training** (e.g. Adam followed by L-BFGS) with learning-rate schedules and loss weights per phase.
-- **Adaptive methods:** residual-based adaptive refinement (RAR), which adds points where the error is largest; time-adaptive training, which marches through time in steps, each starting from the previous one (transfer learning); initial-condition-guided pre-training; per-point residual weights (RBA or SA-PINN), which concentrate training where the equation is worst satisfied; and causal training. Which of these help, and on which problems, is measured in the [training methods study](benchmarks/training_methods.md).
+- **Adaptive methods:** residual-based adaptive refinement (RAR), which adds points where the error is largest; time-adaptive training, which marches through time in steps, each starting from the previous one (transfer learning); initial-condition-guided pre-training; plus, on the Loss weights page, automatic weighting -- per-point residual weights (RBA or SA-PINN), which concentrate training where the equation is worst satisfied, and causal training -- and exact constraints: an initial condition built into the network and exact periodicity, one tick box each. Which of these help, and on which problems, is measured in the [training methods study](benchmarks/training_methods.md).
 - **Point resampling, early stopping, checkpointing and time budgets**, and live monitors of any output or derivative during training.
 - **Parameter sweeps** over almost any setting — one at a time, all combinations, paired values, or Bayesian search — with a summary of how the error changes with each parameter.
 
@@ -915,9 +915,9 @@ where $\gamma_1 = 0.0001$ and $\gamma_2 = 5$.
 
 *Without time-adaptive training* — the same problem can also be solved on the whole time interval in one training run (about 2.5 minutes), with three settings from the [training methods study](benchmarks/training_methods.md). Trained this way without them, the PINN reaches only about 10% at $t = 1$.
 
-- **Exact periodicity:** Network → Input transform → *Formula* `cos(pi*x); sin(pi*x); t` -- periodic by construction
-- **Exact initial condition:** Network → Output transform → *Formula* `x**2*cos(pi*x) + t*u`, with the initial condition unticked (it now holds exactly)
-- **Per-point weights:** Adaptive training → Method *None*, Per-point weights *RBA*, During L-BFGS *Keep the weights*
+- **Exact periodicity:** Boundary conditions → *Exact periodicity (periodic inputs)* -- the network's inputs become `cos(pi*x); sin(pi*x); t`, periodic by construction
+- **Exact initial condition:** Initial conditions → *Exact (built into the network)* -- $u = x^2\cos(\pi x) + t\,N$, so the initial condition holds exactly and needs no loss term
+- **Per-point weights:** Loss weights → Per-point weights *RBA*, During L-BFGS *Keep the weights*; Adaptive training → Method *None*
 
 Result: $L_2$ = 9.8 × 10⁻⁸ ($t = 0$), 5.0 × 10⁻⁴ ($t = 0.25$), 8.2 × 10⁻⁴ ($t = 0.5$), 1.5 × 10⁻³ ($t = 0.75$), 2.7 × 10⁻³ ($t = 1$) -- as accurate as time-adaptive training early on and about 1.8× more accurate at $t = 1$.
 
@@ -944,8 +944,9 @@ where $\gamma_1 = 10^{-6}$ and $\gamma_2 = 0.01$. The fourth-order equation is s
 - **Boundary conditions:** Periodic in value and slope, for $u$ and $\mu$
 - **Geometry:** Interval
 - **Scaling:** $\mu$ is only about $\gamma_2 = 0.01$ in size, so written as above its equation's residual is about 100× smaller than $u_t$'s and the network settles on a wrong solution with a small loss (28–42% $L_2$ error in $u$). The template enters the $\mu$ equation divided by $\gamma_2$, `(mu - 0.01*(u**3 - u) + 1e-6*du_xx)/0.01`, and scales the network's $\mu$ output by 0.01, so both residuals are of order 1 — the same equations, with $\mu$ in physical units.
-- **Exact initial condition and periodicity** (Network → Output / Input transform, *Formula*): $u = -\cos(2\pi x) + t\,N_u$ and $\mu = 0.01\,N_\mu$, so the initial condition holds exactly and needs no loss term; the network's inputs are $\cos(\pi x)$, $\sin(\pi x)$, $t$, so the solution is periodic by construction (the periodic BC rows stay on)
-- **Per-point weights:** *RBA* (residual-based attention), kept during L-BFGS (Adaptive training page)
+- **Exact initial condition** (Initial conditions → *Exact (built into the network)*): $u = -\cos(2\pi x) + t\,N_u$, so the initial condition holds exactly and needs no loss term ($\mu = 0.01\,N_\mu$ keeps its scaling)
+- **Exact periodicity** (Boundary conditions → *Exact periodicity (periodic inputs)*): the network's inputs are $\cos(\pi x)$, $\sin(\pi x)$, $t$, so the solution is periodic by construction (the periodic BC rows stay on)
+- **Per-point weights** (Loss weights → *Automatic weighting*): *RBA* (residual-based attention), kept during L-BFGS
 - **Training:** Adam 20,000 → L-BFGS 20,000; 10,000 domain, 200 boundary, 512 initial points; no time-adaptive training
 - **In PINNStudio:** Examples → **Forward** (or **Inverse**) → **Cahn-Hilliard 1D – Wight & Zhao**
 
@@ -1828,9 +1829,9 @@ where $c_1^2 = 0.0001$ and $c_2 = 1$.
 
 *Without time-adaptive training* — trained on the whole time interval at once (about 3.5 minutes) with the same three settings as the 1D example (see the [training methods study](benchmarks/training_methods.md)), the error drops more than 10× below the time-adaptive result:
 
-- **Exact periodicity:** Network → Input transform → *Formula* `cos(2*pi*x); sin(2*pi*x); cos(2*pi*y); sin(2*pi*y); t`
-- **Exact initial condition:** Network → Output transform → *Formula* `sin(4*pi*x)*cos(4*pi*y) + t*u`, with the initial condition unticked
-- **Per-point weights:** Adaptive training → Method *None*, Per-point weights *RBA*, During L-BFGS *Keep the weights*
+- **Exact periodicity:** Boundary conditions → *Exact periodicity (periodic inputs)* -- inputs `cos(2*pi*x); sin(2*pi*x); cos(2*pi*y); sin(2*pi*y); t`
+- **Exact initial condition:** Initial conditions → *Exact (built into the network)* -- $u = \sin(4\pi x)\cos(4\pi y) + t\,N$
+- **Per-point weights:** Loss weights → Per-point weights *RBA*, During L-BFGS *Keep the weights*; Adaptive training → Method *None*
 
 Result: $L_2$ = 2.0 × 10⁻⁵ ($t = 0$), 3.4 × 10⁻⁴ ($t = 0.25$), 5.0 × 10⁻⁴ ($t = 0.5$), 5.4 × 10⁻⁴ ($t = 0.75$), 5.4 × 10⁻⁴ ($t = 1$). The same training without these settings gives about 1.3%.
 
@@ -1867,7 +1868,7 @@ where $\lambda = 10$ and $\varepsilon = 0.025$, matching the paper's own values 
 
 ![2D Allen-Cahn (Wight & Zhao) — PINN vs Ground Truth, Error Analysis surface comparison](assets/Images/2D_AllenCahn-Wight/surface_comparison.png)
 
-*Without time-adaptive training* this problem is not solved: over its long interval ($t$ up to 10) the plain PINN is wrong everywhere (about 200% error), and the best whole-interval setting found -- RBA per-point weights -- still gives 3.5% at $t = 2.5$ and 19% at $t = 10$. Here time-adaptive training is the method to use, and adding RBA per-point weights and periodic inputs (`cos(2*pi*x); sin(2*pi*x); cos(2*pi*y); sin(2*pi*y); t`) to it lowers the error at $t = 10$ about 5× (1.6 × 10⁻³ against 7.9 × 10⁻³), with the same error at $t = 2.5$ and 5 (see the [training methods study](benchmarks/training_methods.md)).
+*Without time-adaptive training* this problem is not solved: over its long interval ($t$ up to 10) the plain PINN is wrong everywhere (about 200% error), and the best whole-interval setting found -- RBA per-point weights -- still gives 3.5% at $t = 2.5$ and 19% at $t = 10$. Here time-adaptive training is the method to use, and adding RBA per-point weights and exact periodicity (inputs `cos(2*pi*x); sin(2*pi*x); cos(2*pi*y); sin(2*pi*y); t`) to it lowers the error at $t = 10$ about 5× (1.6 × 10⁻³ against 7.9 × 10⁻³), with the same error at $t = 2.5$ and 5 (see the [training methods study](benchmarks/training_methods.md)).
 
 *Restore & Visualize* — the trained model restored from its saved checkpoint and re-animated without retraining:
 
@@ -2233,6 +2234,21 @@ Training is a sequence of **phases**, each with its own optimizer (Adam, AdamW, 
 Loss weights can be set per term (each equation, boundary condition, initial condition and measured-data file) or automatically from the first evaluation (**Scale by initial losses**, $w_i = c / L_i(0)$), so that every term starts at the same size.
 
 **IC-guided pre-training** first fits the network to the initial condition alone, before the equations are switched on, which helps problems where training from a random start struggles to find the right solution.
+
+</details>
+
+<details id="hard-problems">
+<summary><strong>When a PINN struggles: exact constraints and automatic weighting</strong></summary>
+
+A plain PINN fits the equation, the boundary conditions and the initial condition all as loss terms that compete with each other. On hard problems -- sharp fronts, phase fields, long time ranges -- it can settle on a wrong solution with a small loss. These settings help, in this order (each measured in the [training methods study](benchmarks/training_methods.md), about 85 runs on 9 problems):
+
+1. **Scale the equations** so every residual is of order 1. If one equation's residual is naturally ~100× smaller than another's, it is barely enforced -- this alone took the Cahn-Hilliard example from 40% to under 1% error. Divide that equation by its small coefficient, and scale the matching output (Network → *Output transform → Scale*).
+2. **Make the initial condition exact** (Initial conditions → *Exact (built into the network)*, per output): the output becomes $\text{IC}(x) + \tau\,N$ with $\tau = (t - t_{min})/(t_{max} - t_{min})$, so it equals the initial condition at the first time whatever the network learns, and the condition needs no loss term.
+3. **Make periodicity exact** (Boundary conditions → *Exact periodicity (periodic inputs)*): each periodic axis enters the network as $\cos(2\pi x/L)$, $\sin(2\pi x/L)$, so values and derivatives match at both ends by construction.
+4. **Add per-point weights** (Loss weights → *Automatic weighting* → *RBA*): each training point's residual gets a weight that grows where the equation stays badly satisfied (residual-based attention, Anagnostopoulos et al., 2024), so training concentrates on interfaces and fronts. *During L-BFGS*: *Keep the weights* is stronger on hard problems; *Plain loss* (the default) is the safe choice elsewhere. SA-PINN (self-adaptive weights) and causal training are there too; they helped on fewer problems.
+5. **For long time ranges, use time-adaptive training** (Adaptive training → *Time Adaptive Training*) -- per-point weights and exact periodicity still help on top of it; an exact initial condition can't be combined with it yet.
+
+Steps 2–4 together solved 1D Allen-Cahn without time-adaptive training 37× more accurately than a plain PINN, the 2D Mattey & Ghosh problem 25× (and 12× better than its time-adaptive template), and are what the Cahn-Hilliard example uses. On problems a plain PINN already solves well (Burgers, Helmholtz, Kovasznay flow, Schrödinger) they add little or make the result worse, so compare against a plain run.
 
 </details>
 

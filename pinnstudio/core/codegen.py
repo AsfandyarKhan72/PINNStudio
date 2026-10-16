@@ -865,7 +865,12 @@ class _PointWeights(dde.callbacks.Callback):
     def _mark(self):
         X = self.model.train_state.X_train
         if X is not None and len(X):
-            _PW["fp"] = (len(X), float(X[0][0]), float(X[-1][-1]))
+            fp = (len(X), float(X[0][0]), float(X[-1][-1]))
+            if _PW["fp"] is not None and fp != _PW["fp"] and _PW["lam"] is not None:
+                # new training points (a resampler, a RAR round, the next
+                # time-adaptive step): weights belong to points -- start over
+                _PW["lam"], _PW["opt"] = None, None
+            _PW["fp"] = fp
 
     def on_batch_begin(self):
         if not _PW["frozen"]:
@@ -4301,6 +4306,83 @@ def _init_loss_weights_code(config, indent, model, weights_var, lr, ext_vars):
     return "\n".join(indent + ln for ln in lines)
 
 
+def _num_lit(v):
+    """A float as a short literal for a generated formula (2.0 -> "2")."""
+    v = float(v)
+    return repr(int(v)) if v == int(v) and abs(v) < 1e15 else repr(v)
+
+
+def _exact_constraints(config):
+    """Exact initial conditions (config.ic_hard) and exact periodicity
+    (config.periodic_inputs), turned into the output / input transform
+    formulas both generators already support. Returns the config unchanged
+    when neither is on, else a copy:
+      output i = IC_i(x) + tau * (network output i), tau = (t - t_min) /
+      (t_max - t_min) -- exact at t = t_min (outputs without an exact IC keep
+      their own scale/shift);
+      inputs = cos(2 pi x / L), sin(2 pi x / L) for each periodic axis
+      (L = that axis' domain length), the other coordinates as they are, t."""
+    import dataclasses as _dc
+    from pinnstudio.core.config import _periodic_axes
+    names = [n.strip() for n in (config.output_names or "u").split(",") if n.strip()]
+    n_out = max(1, int(getattr(config, "num_outputs", 1) or 1))
+    while len(names) < n_out:
+        names.append(f"u{len(names)}")
+    hard = [h.strip() == "True" for h in (getattr(config, "ic_hard", "") or "").split(",")][:n_out]
+    hard += [False] * (n_out - len(hard))
+    per = bool(getattr(config, "periodic_inputs", False))
+    if config.steady_state or config.problem_dim == "ODE":
+        hard = [False] * n_out
+    if not (any(hard) or per):
+        return config
+    upd = {}
+    if any(hard):
+        ics = (config.ic_expressions or "").split("|")
+        t0, t1 = float(config.t_min), float(config.t_max)
+        if t0 == 0.0:
+            tau = "t" if t1 == 1.0 else f"(t/{_num_lit(t1)})"
+        else:
+            tau = f"((t - {_num_lit(t0)})/{_num_lit(t1 - t0)})"
+        scale_on = bool(config.output_transform_enabled) and (config.output_transform_mode or "scale") == "scale"
+        sc = list(config.output_transform_scale or []) if scale_on else []
+        sh = list(config.output_transform_shift or []) if scale_on else []
+        outs = []
+        for i, nm in enumerate(names[:n_out]):
+            base = nm
+            a = float(sc[i]) if i < len(sc) else 1.0
+            b = float(sh[i]) if i < len(sh) else 0.0
+            if a != 1.0:
+                base = f"{_num_lit(a)}*{base}"
+            if b != 0.0:
+                base = f"({base} + {_num_lit(b)})"
+            if hard[i]:
+                ic = ics[i].strip() if i < len(ics) else "0"
+                outs.append(f"({ic}) + {tau}*{base}")
+            else:
+                outs.append(base)
+        upd.update(output_transform_enabled=True, output_transform_mode="formula",
+                   output_transform_formula="|".join(outs))
+    if per:
+        axes = _periodic_axes(config)
+        coords = ["x"] + (["y"] if config.problem_dim in ("2D", "3D") else []) + (["z"] if config.problem_dim == "3D" else [])
+        bounds = {"x": (config.x_min, config.x_max), "y": (getattr(config, "y_min", 0.0), getattr(config, "y_max", 1.0)),
+                  "z": (getattr(config, "z_min", 0.0), getattr(config, "z_max", 1.0))}
+        feats = []
+        for c in coords:
+            if c in axes:
+                L = float(bounds[c][1]) - float(bounds[c][0])
+                k = 2.0 / L
+                arg = f"pi*{c}" if k == 1.0 else f"{_num_lit(k)}*pi*{c}"
+                feats += [f"cos({arg})", f"sin({arg})"]
+            else:
+                feats.append(c)
+        if not config.steady_state:
+            feats.append("t")
+        upd.update(input_transform_enabled=True, input_transform_mode="formula",
+                   input_feature_formula="; ".join(feats))
+    return _dc.replace(config, **upd)
+
+
 def _effective_config(config):
     """The config as the generators should read it -- cleanup Round 56.
     PINNConfig documents time_adaptive as IGNORED for a steady-state problem
@@ -4328,6 +4410,7 @@ def _effective_config(config):
         _sub["inverse_obs_files_json"] = _cmod.substitute_json(config.inverse_obs_files_json, _consts, ("custom_expr",))
         _sub["training_monitors"] = _cmod.substitute_json(config.training_monitors, _consts, ("expr",))
         config = _dc.replace(config, constants="", **_sub)
+    config = _exact_constraints(config)
     if (getattr(config, "loss_weights_from_initial", 0) or 0) > 0 and getattr(config, "scheduler_phases", ""):
         # Round 75: weights from the initial losses replace every phase's own.
         try:

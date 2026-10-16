@@ -932,9 +932,9 @@ class MainWindow(QMainWindow):
         ("training", "Training", "T", "#74c0fc", None, ("Training",),
          "Optimizers and training phases, initial-condition pre-training, callbacks."),
         ("weights", "Loss weights", "W", "#91a7ff", "training", ("Loss Weights",),
-         "How much each loss term counts."),
+         "How much each loss term counts, by hand or automatically: per-point weights (RBA, SA-PINN) and causal training."),
         ("adaptive", "Adaptive training", "A", "#91a7ff", "training", ("Adaptive Training",),
-         "Residual-based refinement, time-adaptive training, causal training and per-point weights."),
+         "Residual-based adaptive refinement (RAR) and time-adaptive training."),
         ("sweep", "Parameter sweep", "S", "#e599f7", None, ("Parameter Sweep",),
          "Run the problem over a range of settings and compare the results."),
         ("results", "Results", "R", "#fcc419", None, (),
@@ -1137,7 +1137,10 @@ class MainWindow(QMainWindow):
     _PROBLEM_KEYWORDS = (
         ("sweep", "sweep"),
         ("inverse", ("inverse", "observ", "unknown variable", "true value")),
-        ("adaptive", ("rar", "time-adaptive", "time adaptive", "resampl", "adaptive", "causal", "per-point")),
+        ("ic", ("exact initial",)),
+        ("bcs", ("exact periodicity",)),
+        ("weights", ("causal", "per-point")),
+        ("adaptive", ("rar", "time-adaptive", "time adaptive", "resampl", "adaptive")),
         ("weights", ("scale by initial losses", "loss weight", "weights")),
         ("network", ("network", "layer", "msffn", "neuron", "fourier", "activation", "initializer")),
         ("points", ("domain points", "boundary points", "initial points", "test points", "anchor",
@@ -2392,7 +2395,7 @@ class MainWindow(QMainWindow):
         self.bc_boundary_types = []; self.bc_boundary_vals = []; self.bc_boundary_active = []
         # Per-edge BC groups, per output (Triangle/Polygon) -- nested: [output][edge]
         self.bc_edge_types = []; self.bc_edge_vals = []; self.bc_edge_active = []
-        self.ic_inputs = [];      self.ic_active = []
+        self.ic_inputs = [];      self.ic_active = [];  self.ic_hard = []
         self._2d_bc_widgets = []
         # Wrapper widgets (one per output) around the hardcoded per-shape BC
         # rows above -- hidden whenever a custom (non-template) problem is
@@ -2456,6 +2459,17 @@ class MainWindow(QMainWindow):
         self.bc_loc_hint.setVisible(False)
         self.custom_bc_main_layout.addWidget(self.bc_loc_hint)
         self.bc_loc_hint_toggle.stateChanged.connect(lambda s: self.bc_loc_hint.setVisible(s == 2))
+
+        self.periodic_inputs_cb = QCheckBox("Exact periodicity (periodic inputs)")
+        self.periodic_inputs_cb.setToolTip(
+            "Make the solution periodic by construction: every axis with a periodic BC row enters\n"
+            "the network as cos(2πx/L), sin(2πx/L) instead of x (L = the domain's length on that\n"
+            "axis), so values and all derivatives match at the two ends exactly. The periodic rows\n"
+            "can stay -- their loss is then about zero. Replaces the Network page's input transform.\n"
+            "With an exact initial condition and RBA this gave the lowest errors on the phase-field\n"
+            "examples -- see benchmarks/training_methods.md.")
+        self.periodic_inputs_cb.toggled.connect(lambda _on: self._update_exact_notes())
+        self.custom_bc_main_layout.addWidget(self.periodic_inputs_cb)
 
         self.custom_bc_list_widget = QWidget()
         self.custom_bc_list_layout = QVBoxLayout(self.custom_bc_list_widget)
@@ -2602,6 +2616,13 @@ class MainWindow(QMainWindow):
         self.input_transform_cb = QCheckBox("Enable input transform")
         self.input_transform_cb.setChecked(False)
         nn_layout.addWidget(self.input_transform_cb)
+        self.exact_inputs_note = QLabel(
+            "Exact periodicity is on (Boundary Conditions page): the network's inputs are cos/sin "
+            "of each periodic axis -- leave this input transform off.")
+        self.exact_inputs_note.setWordWrap(True)
+        self._register_hint(self.exact_inputs_note, '#74c0fc')
+        self.exact_inputs_note.setVisible(False)
+        nn_layout.addWidget(self.exact_inputs_note)
 
         self.input_transform_widget = QWidget()
         it_layout = QVBoxLayout(self.input_transform_widget)
@@ -2637,6 +2658,13 @@ class MainWindow(QMainWindow):
         self.output_transform_cb = QCheckBox("Enable output transform")
         self.output_transform_cb.setChecked(False)
         nn_layout.addWidget(self.output_transform_cb)
+        self.exact_outputs_note = QLabel(
+            "An exact initial condition is on (Initial Conditions page): it is built into the "
+            "output as IC + τ·N, together with any Scale/shift set here; a Formula here can't be combined with it.")
+        self.exact_outputs_note.setWordWrap(True)
+        self._register_hint(self.exact_outputs_note, '#74c0fc')
+        self.exact_outputs_note.setVisible(False)
+        nn_layout.addWidget(self.exact_outputs_note)
 
         self.output_transform_widget = QWidget()
         ot_layout = QVBoxLayout(self.output_transform_widget)
@@ -3377,9 +3405,30 @@ class MainWindow(QMainWindow):
         self.rar_widget.setVisible(False)
         adapt_layout.addWidget(self.rar_widget)
 
-        # Loss-level methods: independent of the Method dropdown above (they
-        # change how the loss is weighted, not which points or which time
-        # window is trained), so they can be combined with either.
+        # Automatic weighting, on the Loss Weights page: per-point weights and
+        # causal training change how the loss is weighted (not which points
+        # or which time window are trained), so they sit with the loss
+        # weights and combine with any Adaptive Training method.
+        self.auto_weights_box = QWidget()
+        _aw = QVBoxLayout(self.auto_weights_box)
+        _aw.setContentsMargins(0, 8, 0, 0); _aw.setSpacing(5)
+        _aw_title = QLabel("Automatic weighting")
+        _aw_title.setStyleSheet("font-weight: 600;")
+        _aw.addWidget(_aw_title)
+        self.auto_weights_note = QLabel(
+            "For hard problems (sharp fronts, phase fields): first make the initial and periodic "
+            "conditions exact (Initial Conditions / Boundary Conditions pages), then try RBA. "
+            "On a problem a plain PINN already solves well these can make the result worse -- "
+            "compare with a plain run. Measured on 9 problems in benchmarks/training_methods.md.")
+        self.auto_weights_note.setWordWrap(True)
+        self._register_hint(self.auto_weights_note, '#74c0fc')
+        _aw.addWidget(self.auto_weights_note)
+        _pl_w = QWidget(); _pl = QVBoxLayout(_pl_w); _pl.setContentsMargins(0, 0, 0, 0); _pl.setSpacing(5)
+        _cl_w = QWidget(); _cl = QVBoxLayout(_cl_w); _cl.setContentsMargins(0, 0, 0, 0); _cl.setSpacing(5)
+        _aw.addWidget(_pl_w)
+        _aw.addWidget(_cl_w)
+        self.weights_group.layout().addWidget(self.auto_weights_box)
+
         def _num_row(lay, label, spin):
             row = QHBoxLayout()
             row.addWidget(QLabel(label))
@@ -3394,7 +3443,7 @@ class MainWindow(QMainWindow):
             "each chunk's residual is weighted by exp(-ε · the residual loss of all\n"
             "earlier chunks), so later times only start to count once earlier times\n"
             "are fitted. The weights are held fixed during L-BFGS.")
-        adapt_layout.addWidget(self.causal_cb)
+        _cl.addWidget(self.causal_cb)
         self.causal_widget = QWidget()
         cz = QVBoxLayout(self.causal_widget)
         cz.setSpacing(4); cz.setContentsMargins(18, 0, 0, 0)
@@ -3409,7 +3458,7 @@ class MainWindow(QMainWindow):
             "the log prints how far in time the weights have settled (all close to 1).")
         _num_row(cz, "Causality ε:", self.causal_eps)
         self.causal_widget.setVisible(False)
-        adapt_layout.addWidget(self.causal_widget)
+        _cl.addWidget(self.causal_widget)
         self.causal_cb.toggled.connect(self.causal_widget.setVisible)
 
         pw_row = QHBoxLayout()
@@ -3431,7 +3480,7 @@ class MainWindow(QMainWindow):
             "They help most where the plain PINN struggles; on a problem it already solves well\n"
             "they can make the result worse -- compare with a run without them.")
         pw_row.addWidget(self.point_weights_combo, 1)
-        adapt_layout.addLayout(pw_row)
+        _pl.addLayout(pw_row)
         self.rba_widget = QWidget()
         rz = QVBoxLayout(self.rba_widget)
         rz.setSpacing(4); rz.setContentsMargins(18, 0, 0, 0)
@@ -3444,7 +3493,7 @@ class MainWindow(QMainWindow):
         self.rba_eta.setToolTip("How much the normalized residual |r|/max|r| adds to a weight each step.")
         _num_row(rz, "Step η:", self.rba_eta)
         self.rba_widget.setVisible(False)
-        adapt_layout.addWidget(self.rba_widget)
+        _pl.addWidget(self.rba_widget)
         self.sa_widget = QWidget()
         sz = QVBoxLayout(self.sa_widget)
         sz.setSpacing(4); sz.setContentsMargins(18, 0, 0, 0)
@@ -3460,7 +3509,7 @@ class MainWindow(QMainWindow):
             "every step); on 1D Allen-Cahn that made the loss grow until training diverged.")
         sz.addWidget(self.sa_normalize_cb)
         self.sa_widget.setVisible(False)
-        adapt_layout.addWidget(self.sa_widget)
+        _pl.addWidget(self.sa_widget)
 
         self.pw_lbfgs_widget = QWidget()
         lz = QHBoxLayout(self.pw_lbfgs_widget)
@@ -3478,7 +3527,7 @@ class MainWindow(QMainWindow):
             "PINN struggles (1D Cahn-Hilliard, Allen-Cahn: about 1.5-2x lower error than plain loss).")
         lz.addWidget(self.pw_lbfgs_combo, 1)
         self.pw_lbfgs_widget.setVisible(False)
-        adapt_layout.addWidget(self.pw_lbfgs_widget)
+        _pl.addWidget(self.pw_lbfgs_widget)
 
         def _pw_changed(_i=None):
             m = self.point_weights_combo.currentData()
@@ -5088,6 +5137,26 @@ class MainWindow(QMainWindow):
             self.output_transform_cb.setChecked(False)
             self._tpl_output_scaled = False
 
+    def _refresh_ic_names(self):
+        """Initial Conditions page: label each output by its current name."""
+        names = [e.text().strip() for e in getattr(self, "output_name_inputs", [])]
+        for i, (sep, act) in enumerate(getattr(self, "_ic_name_widgets", [])):
+            nm = names[i] if i < len(names) and names[i] else f"u{i + 1}"
+            try:
+                sep.setText(f"── Output {i+1} ({nm}) ──")
+                if act is not None:
+                    act.setText(f"IC for {nm}")
+            except RuntimeError:          # a widget already rebuilt away
+                pass
+
+    def _update_exact_notes(self):
+        """Network page: say when the Boundary/Initial Conditions pages' exact
+        constraints build the input / output transform."""
+        if hasattr(self, "exact_inputs_note"):
+            self.exact_inputs_note.setVisible(self.periodic_inputs_cb.isChecked())
+        if hasattr(self, "exact_outputs_note"):
+            self.exact_outputs_note.setVisible(any(cb.isChecked() for cb in getattr(self, "ic_hard", [])))
+
     def _tpl_set_extras(self, t):
         """A template's exact-constraint and training-method settings: an
         input feature formula ('input_features', e.g. a periodic embedding),
@@ -5120,6 +5189,10 @@ class MainWindow(QMainWindow):
             if not t.get('output_scale'):
                 self.output_transform_cb.setChecked(False)
             self._tpl_output_formula = False
+        hard = t.get('ic_hard') or []
+        for i, cb in enumerate(self.ic_hard):
+            cb.setChecked(bool(hard[i]) if i < len(hard) else False)
+        self.periodic_inputs_cb.setChecked(bool(t.get('periodic_inputs', False)))
         pw = t.get('point_weights')
         if pw:
             self._set_combo_data(self.point_weights_combo, pw)
@@ -6810,6 +6883,7 @@ class MainWindow(QMainWindow):
                 name_row.addWidget(name_input); name_row.addStretch()
                 self.output_name_inputs.append(name_input)
                 name_input.textChanged.connect(lambda _t: self._refresh_equation_previews())
+                name_input.textChanged.connect(lambda _t: self._refresh_ic_names())
                 nw = QWidget(); nw.setLayout(name_row)
                 self.pde_main_layout.addWidget(nw)
 
@@ -6908,7 +6982,7 @@ class MainWindow(QMainWindow):
         self.bc_back_types.clear();   self.bc_back_vals.clear();   self.bc_back_active.clear()
         self.bc_boundary_types.clear(); self.bc_boundary_vals.clear(); self.bc_boundary_active.clear()
         self.bc_edge_types.clear();   self.bc_edge_vals.clear();   self.bc_edge_active.clear()
-        self.ic_inputs.clear();       self.ic_active.clear()
+        self.ic_inputs.clear();       self.ic_active.clear();   self.ic_hard.clear()
         if not hasattr(self, 'ic_from_file'): self.ic_from_file = []
         if not hasattr(self, 'ic_file_paths'): self.ic_file_paths = []
         self.ic_from_file.clear()
@@ -7024,8 +7098,13 @@ class MainWindow(QMainWindow):
             )
 
         for i in range(n):
-            name = ["u", "v", "w", "p"][i] if i < 4 else f"u{i+1}"
+            _names_now = [e.text().strip() for e in getattr(self, "output_name_inputs", [])]
+            name = (_names_now[i] if i < len(_names_now) and _names_now[i]
+                    else (["u", "v", "w", "p"][i] if i < 4 else f"u{i+1}"))
             sep = QLabel(f"── Output {i+1} ({name}) ──")
+            if i == 0:
+                self._ic_name_widgets = []
+            self._ic_name_widgets.append([sep, None])
             self._register_section_divider(sep, 'margin-top: 4px; ')
             self.bc_main_layout.addWidget(sep)
 
@@ -7123,7 +7202,23 @@ class MainWindow(QMainWindow):
             # IC
             ic_act = QCheckBox(f"IC for {name}"); ic_act.setChecked(True)
             self.ic_active.append(ic_act)
-            self.bc_main_layout.addWidget(ic_act)
+            self._ic_name_widgets[-1][1] = ic_act
+            _ic_row = QHBoxLayout()
+            _ic_row.addWidget(ic_act)
+            _ic_row.addStretch()
+            ic_hard = QCheckBox("Exact (built into the network)")
+            ic_hard.setToolTip(
+                f"Build the initial condition into the network instead of fitting it:\n"
+                f"{name} = IC(x) + τ·N, τ = (t − t_min)/(t_max − t_min), so {name} equals the IC exactly\n"
+                f"at t_min whatever the network learns, and the IC needs no loss term (its row is\n"
+                f"switched off). Needs the IC as a formula; not with time-adaptive training.\n"
+                f"With RBA and exact periodicity this gave the lowest errors on the phase-field\n"
+                f"examples (Allen-Cahn, Cahn-Hilliard) -- see benchmarks/training_methods.md.")
+            ic_hard.toggled.connect(lambda on, a=ic_act: (a.setChecked(not on), a.setEnabled(not on)))
+            ic_hard.toggled.connect(lambda _on: self._update_exact_notes())
+            self.ic_hard.append(ic_hard)
+            _ic_row.addWidget(ic_hard)
+            self.bc_main_layout.addLayout(_ic_row)
 
             ic_inp = QLineEdit()
             if is_2d:
@@ -8456,6 +8551,8 @@ class MainWindow(QMainWindow):
 
             ic_expressions="|".join([self.ic_inputs[i].text() for i in range(n_out)]),
             ic_active=",".join([str(self.ic_active[i].isChecked()) for i in range(n_out)]),
+            ic_hard=",".join([str(i < len(self.ic_hard) and self.ic_hard[i].isChecked()) for i in range(n_out)]),
+            periodic_inputs=self.periodic_inputs_cb.isChecked(),
             forward_ic_from_file=any(
                 i < len(self.ic_from_file) and self.ic_from_file[i] is not None
                 and self.ic_from_file[i].isChecked()
@@ -9132,8 +9229,15 @@ class MainWindow(QMainWindow):
         for i in range(n_out):
             if i < len(self.ic_inputs):
                 self.ic_inputs[i].setText(ics[i])
+            if i < len(self.ic_hard):
+                self.ic_hard[i].setChecked(False)
             if i < len(self.ic_active):
                 self.ic_active[i].setChecked(ic_active[i])
+        ic_hard = _bools(getattr(config, 'ic_hard', '') or '', n_out, False)
+        for i in range(n_out):
+            if i < len(self.ic_hard) and ic_hard[i]:
+                self.ic_hard[i].setChecked(True)
+        self.periodic_inputs_cb.setChecked(bool(getattr(config, 'periodic_inputs', False)))
 
         # IC-from-file (any dimension; the builder only supports one output at a time)
         if config.forward_ic_from_file and hasattr(self, "ic_from_file"):
@@ -12923,18 +13027,18 @@ print("DOMAIN_PREVIEW_DONE")
                         "(mu - 0.01*(u**3 - u) + 1e-6*du_xx)/0.01"],
                 # Best setup of the training methods study (benchmarks/
                 # training_methods.md), about 4x lower error than the plain
-                # scaled problem: the network's mu is scaled by 0.01 inside
-                # the output transform; u = IC + t*N holds the initial
-                # condition exactly (so no IC loss term -- and mu, with no
-                # time derivative, never takes one); cos/sin inputs make the
-                # solution periodic by construction; RBA per-point weights,
-                # kept during L-BFGS.
-                'output_formula': ["-cos(2*pi*x) + t*u", "0.01*mu"],
-                'input_features': "cos(pi*x); sin(pi*x); t",
+                # scaled problem: the network's mu scaled by 0.01 (output
+                # Scale); u's initial condition exact (u = IC + t*N, so no IC
+                # loss term -- and mu, with no time derivative, never takes
+                # one); exact periodicity (cos/sin inputs); RBA per-point
+                # weights, kept during L-BFGS.
+                'output_scale': [1.0, 0.01],
+                'ic_hard': [True, False],
+                'periodic_inputs': True,
                 'point_weights': 'RBA',
                 'point_weights_lbfgs': 'keep',
                 'ic': ["-cos(2*pi*x)", "0"],
-                'ic_active': [False, False],
+                'ic_active': [True, False],
                 'num_domain': 10000,
                 'num_boundary': 200,
                 'num_initial': 512,

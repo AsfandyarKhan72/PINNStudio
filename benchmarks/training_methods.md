@@ -14,12 +14,12 @@ the row says otherwise.
 | Term | Meaning | Where in PINNStudio |
 |---|---|---|
 | Scaled | each equation written so its residual is O(1) (see 1D Cahn-Hilliard) | the equations / Output transform |
-| Periodic | input embedding `cos(pi*x); sin(pi*x); t` (2D: also in y) -- periodic by construction | Network → Input transform → Formula |
-| Hard IC | output transform `IC(x) + t*u` -- the initial condition holds exactly | Network → Output transform → Formula |
-| RBA | residual-based attention, per-point weights (Anagnostopoulos et al., CMAME 2024) | Adaptive training → Per-point weights |
-| SA-PINN | self-adaptive per-point weights (McClenny & Braga-Neto, JCP 2023) | Adaptive training → Per-point weights |
-| keep / plain L-BFGS | per-point weights kept during L-BFGS, or L-BFGS on the plain loss (the default) | Adaptive training → During L-BFGS |
-| Causal | causal training (Wang, Sankaran & Perdikaris, CMAME 2024) | Adaptive training → Causal training |
+| Periodic | input embedding `cos(pi*x); sin(pi*x); t` (2D: also in y) -- periodic by construction | Boundary conditions → Exact periodicity (or Network → Input transform → Formula) |
+| Hard IC | output transform `IC(x) + t*u` -- the initial condition holds exactly | Initial conditions → Exact (or Network → Output transform → Formula) |
+| RBA | residual-based attention, per-point weights (Anagnostopoulos et al., CMAME 2024) | Loss weights → Per-point weights |
+| SA-PINN | self-adaptive per-point weights (McClenny & Braga-Neto, JCP 2023) | Loss weights → Per-point weights |
+| keep / plain L-BFGS | per-point weights kept during L-BFGS, or L-BFGS on the plain loss (the default) | Loss weights → During L-BFGS |
+| Causal | causal training (Wang, Sankaran & Perdikaris, CMAME 2024) | Loss weights → Causal training |
 | MsFFN | multi-scale Fourier feature network, scales `1, 5` | Network → Network type |
 | Time-adaptive | time-marching in windows (Wight & Zhao) | Adaptive training → Method |
 

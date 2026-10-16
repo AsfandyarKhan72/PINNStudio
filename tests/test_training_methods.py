@@ -211,17 +211,25 @@ def test_cahn_hilliard_template_scaling():
     0.01s of the equation."""
     w = _window("1D Cahn-Hilliard")
     c = w._build_config()
-    assert c.output_names == "u,mu" and c.ic_active == "False,False"
+    assert c.output_names == "u,mu" and c.ic_active == "False,False" and c.ic_hard == "True,False"
+    assert c.periodic_inputs and not c.input_transform_enabled
     assert c.pde_expressions.split("|")[1] == "(mu - 0.01*(u**3 - u) + 1e-6*du_xx)/0.01"
-    assert c.output_transform_enabled and c.output_transform_mode == "formula"
-    assert c.output_transform_formula == "-cos(2*pi*x) + t*u|0.01*mu"
-    assert c.input_transform_enabled and c.input_transform_mode == "formula"
-    assert c.input_feature_formula == "cos(pi*x); sin(pi*x); t"
+    assert c.output_transform_enabled and c.output_transform_mode == "scale"
+    assert list(c.output_transform_scale) == [1.0, 0.01]
     assert (c.point_weights, c.point_weights_lbfgs) == ("RBA", "keep")
+    assert not w.ic_active[0].isEnabled() and not w.ic_active[0].isChecked()
     assert not c.time_adaptive and c.validate() == [], c.validate()
-    src = generate_script(c)
-    ast.parse(src)
-    assert "pde = _pw_wrap(pde)" in src
+    from pinnstudio.core.codegen import _effective_config
+    e = _effective_config(c)
+    assert e.output_transform_mode == "formula" and e.output_transform_formula == "(-cos(2*pi*x)) + t*u|0.01*mu"
+    assert e.input_transform_enabled and e.input_feature_formula == "cos(pi*x); sin(pi*x); t"
+    for gen in (generate_script, generate_clean_script):
+        src = gen(c)
+        ast.parse(src)
+        assert "pde = _pw_wrap(pde)" in src
+        assert "torch.cat([(-torch.cos(2*np.pi*x)) + t*u, 0.01*mu], dim=1)" in src
+        assert "torch.cat([torch.cos(np.pi*x), torch.sin(np.pi*x), t], dim=1)" in src
+    assert not w.exact_inputs_note.isHidden() and not w.exact_outputs_note.isHidden()
     w.radio_inverse.setChecked(True)
     _settle()
     assert w.pde_inputs[1].text() == "(mu - gamma_2*(u**3 - u) + gamma_1*du_xx)/gamma_2"
@@ -236,10 +244,63 @@ def test_cahn_hilliard_template_scaling():
         c = w._build_config()
         assert not c.output_transform_enabled and not c.input_transform_enabled, nxt
         assert c.point_weights == "None" and not (c.output_transform_formula or "").strip("|"), nxt
+        assert not c.periodic_inputs and "True" not in (c.ic_hard or ""), nxt
+        assert all(cb.isEnabled() for cb in w.ic_active), nxt
     w.close()
 
 
+def test_exact_constraints():
+    """Exact IC / periodicity: the formulas they generate, validation."""
+    from pinnstudio.core.codegen import _exact_constraints
+    c = PINNConfig()
+    c.problem_dim, c.num_outputs, c.output_names = "2D", 1, "u"
+    c.x_min, c.x_max, c.y_min, c.y_max, c.t_min, c.t_max = 0.0, 1.0, 0.0, 2.0, 0.0, 10.0
+    c.ic_expressions = "sin(4*pi*x)*cos(4*pi*y)"
+    c.ic_hard, c.ic_active = "True", "False"
+    c.periodic_inputs = True
+    c.custom_bc_json = json.dumps([{"type": "periodic", "component": 0, "axis": "x", "location": "left"}])
+    assert c.validate() == [], c.validate()
+    e = _exact_constraints(c)
+    assert e.output_transform_formula == "(sin(4*pi*x)*cos(4*pi*y)) + (t/10)*u"
+    assert e.input_feature_formula == "cos(2*pi*x); sin(2*pi*x); y; t"      # only x is periodic
+    c.t_min = 1.0
+    assert _exact_constraints(c).output_transform_formula.endswith("((t - 1)/9)*u")
+    # what can't be combined
+    bad = dataclasses.replace(c, time_adaptive=True)
+    assert any("time-adaptive" in m for m in bad.validate())
+    bad = dataclasses.replace(c, input_transform_enabled=True)
+    assert any("Exact periodicity" in m for m in bad.validate())
+    bad = dataclasses.replace(c, output_transform_enabled=True, output_transform_mode="formula",
+                              output_transform_formula="x*u")
+    assert any("output transform formula" in m for m in bad.validate())
+    bad = dataclasses.replace(c, ic_expressions="np.sin(np.pi * x[:, 0])")
+    assert any("as a formula" in m for m in bad.validate())
+    bad = dataclasses.replace(c, custom_bc_json="[]")
+    assert any("no boundary condition is periodic" in m for m in bad.validate())
+    off = dataclasses.replace(c, ic_hard="False", periodic_inputs=False)
+    assert _exact_constraints(off) is off
+
+
+def test_point_weights_reset_on_new_points():
+    """Per-point weights belong to points: new training points start over."""
+    c = PINNConfig()
+    c.point_weights = "RBA"
+    ns, dde, torch, np, model = _tiny(c)
+    model.compile("adam", lr=1e-3)
+    cb = ns["_PointWeights"](1000)
+    model.train(iterations=5, display_every=1000, verbose=0, callbacks=[cb])
+    assert ns["_PW"]["lam"] is not None and float(ns["_PW"]["lam"].max()) > 1.0 - 1e-6
+    model.data.resample_train_points()
+    model.train_state.set_data_train(*model.data.train_next_batch())
+    cb._mark()
+    assert ns["_PW"]["lam"] is None          # reset; re-created at 1 on the next step
+    model.train(iterations=2, display_every=1000, verbose=0, callbacks=[cb])
+    assert ns["_PW"]["lam"] is not None
+
+
 if __name__ == "__main__":
+    test_exact_constraints()
+    test_point_weights_reset_on_new_points()
     test_cahn_hilliard_template_scaling()
     test_gui_round_trip()
     test_validation()
