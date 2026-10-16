@@ -81,7 +81,7 @@ Setting up a PINN by hand means writing a new script for every problem: the resi
 **How it trains**
 
 - **Multi-phase training** (e.g. Adam followed by L-BFGS) with learning-rate schedules and loss weights per phase.
-- **Adaptive methods:** residual-based adaptive refinement (RAR), which adds points where the error is largest; time-adaptive training, which marches through time in steps, each starting from the previous one (transfer learning); and initial-condition-guided pre-training.
+- **Adaptive methods:** residual-based adaptive refinement (RAR), which adds points where the error is largest; time-adaptive training, which marches through time in steps, each starting from the previous one (transfer learning); initial-condition-guided pre-training; per-point residual weights (RBA or SA-PINN), which concentrate training where the equation is worst satisfied; and causal training. Which of these help, and on which problems, is measured in the [training methods study](benchmarks/training_methods.md).
 - **Point resampling, early stopping, checkpointing and time budgets**, and live monitors of any output or derivative during training.
 - **Parameter sweeps** over almost any setting — one at a time, all combinations, paired values, or Bayesian search — with a summary of how the error changes with each parameter.
 
