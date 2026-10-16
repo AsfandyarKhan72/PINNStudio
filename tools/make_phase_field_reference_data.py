@@ -20,12 +20,25 @@ the adaptive physics informed neural networks", Commun. Comput. Phys. 29,
     phi(x, y, z, 0) = tanh((0.35 - sqrt((x-.5)^2 + (y-.5)^2 + (z-.5)^2)) / (2 eps))
     (a shrinking sphere). Fourier pseudo-spectral in space, ETDRK4 in time.
 
+Mattey & Ghosh (2022), "A novel sequential method to train physics informed
+neural networks for Allen Cahn and Cahn Hilliard equations", CMAME 390, 114474,
+Sections 5.2 and 6.2 -- both in the form u_t = lambda lap mu,
+mu = u^3 - u - alpha lap u (their kappa = 1):
+1D Cahn-Hilliard (eq. 25): [-1, 1] (periodic), alpha = 0.02, lambda = 1, t in
+    [0, 1], u(x, 0) = cos(pi x) - exp(-4 (pi x)^2).
+2D Cahn-Hilliard, IBVP-2: [0, 1]^2 (periodic), u(x, y, 0) =
+    0.4 cos(4 pi x) cos(4 pi (x + y)), t in [0, 0.005] -- in rescaled time
+    t' = t / 0.005 in [0, 1], so lambda = 0.005. alpha = 0.0002: with the
+    paper's stated alpha = 0.02 this pattern decays (to +-0.04 at t = 0.005),
+    while its Fig. 16 shows it growing to about +-1, which alpha = 0.0002
+    reproduces (as it does Fig. 15 for IBVP-1).
+
 Each solution is computed twice (finer grid / smaller time step) and the
 difference printed, as a convergence check. Needs PyTorch; uses the GPU if
 there is one (the 3D case is slow on a CPU).
 
 Run from the repository root:
-    python3 tools/make_phase_field_reference_data.py [ch2d] [ac3d]
+    python3 tools/make_phase_field_reference_data.py [ch2d] [ac3d] [mattey_ch1d] [mattey_ch2d]
 """
 import os
 import sys
@@ -187,10 +200,87 @@ def write_ac3d():
     print(f"AC 3D done in {time.time() - t0:.0f} s", flush=True)
 
 
+# ── Cahn-Hilliard, general form (Mattey & Ghosh) ────────────────────────
+def cahn_hilliard(ic, n, lo, length, dim, lam, alpha, times, dt, S=2.0):
+    """u_t = lam lap mu, mu = u^3 - u - alpha lap u, periodic box [lo, lo + length)^dim,
+    stabilized semi-implicit Fourier scheme. Returns {t: (u, mu)} on the n^dim grid."""
+    g = _grid(n, lo, length, dim)
+    u = torch.as_tensor(ic(*g), dtype=DT, device=DEV)
+    k2 = _wavenumbers(n, length, dim)
+    fft, ifft = (torch.fft.fft, torch.fft.ifft) if dim == 1 else (torch.fft.fft2, torch.fft.ifft2)
+    if dim == 1:
+        k2 = k2.reshape(-1)
+    denom = 1 + dt * lam * (alpha * k2 ** 2 + S * k2)
+    uh = fft(u)
+    out, step = {}, 0
+    for tt in sorted(times):
+        while step < int(round(tt / dt)):
+            v = ifft(uh).real
+            uh = (uh + dt * lam * (-k2 * fft(v ** 3 - v) + S * k2 * uh)) / denom
+            step += 1
+        v = ifft(uh).real
+        out[tt] = (v, v ** 3 - v + alpha * ifft(k2 * uh).real)
+    return out
+
+
+MATTEY_CH1D_TIMES = [0.0, 0.05, 0.25, 0.5, 0.75, 1.0]
+
+
+def write_mattey_ch1d():
+    t0 = time.time()
+    ic = lambda x: torch.cos(torch.pi * x) - torch.exp(-4 * (torch.pi * x) ** 2)
+    ref = cahn_hilliard(ic, 1000, -1.0, 2.0, 1, 1.0, 0.02, MATTEY_CH1D_TIMES, 1e-5)
+    fine = cahn_hilliard(ic, 2000, -1.0, 2.0, 1, 1.0, 0.02, MATTEY_CH1D_TIMES, 1e-5)
+    coarse = cahn_hilliard(ic, 1000, -1.0, 2.0, 1, 1.0, 0.02, MATTEY_CH1D_TIMES, 2e-5)
+    d = os.path.join(ROOT, "1D", "cahn_hilliard_mattey")
+    os.makedirs(d, exist_ok=True)
+    x = np.round(-1.0 + 0.002 * np.arange(1000), 6)
+    for tt in MATTEY_CH1D_TIMES:
+        for j, name in enumerate(("u", "mu")):
+            a = ref[tt][j].cpu().numpy()
+            print(f"Mattey CH 1D t={tt:g} {name}: max |N1000 - N2000| = {np.abs(a - fine[tt][j].cpu().numpy()[::2]).max():.2e}, "
+                  f"max |dt - 2dt| = {np.abs(a - coarse[tt][j].cpu().numpy()).max():.2e}, range [{a.min():.4f}, {a.max():.4f}]", flush=True)
+            np.savetxt(os.path.join(d, f"t_{tt:g}_{name}.txt"), np.column_stack([x, np.full(x.size, tt), a]),
+                       fmt="%.10g", delimiter="\t")
+        print(f"   mean of u (conserved): {float(ref[tt][0].mean()):.10f}", flush=True)
+    print(f"Mattey CH 1D done in {time.time() - t0:.0f} s", flush=True)
+
+
+MATTEY_CH2D_TIMES = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]     # rescaled time t' = t / 0.005
+
+
+def write_mattey_ch2d():
+    t0 = time.time()
+    ic = lambda X, Y: 0.4 * torch.cos(4 * torch.pi * X) * torch.cos(4 * torch.pi * (X + Y))
+    args = (0.0, 1.0, 2, 0.005, 0.0002, MATTEY_CH2D_TIMES)
+    ref = cahn_hilliard(ic, 400, *args, 2e-4)
+    fine = cahn_hilliard(ic, 800, *args, 2e-4)
+    coarse = cahn_hilliard(ic, 400, *args, 4e-4)
+    d = os.path.join(ROOT, "2D", "cahn_hilliard_mattey")
+    os.makedirs(d, exist_ok=True)
+    xs = np.round(0.01 * np.arange(101), 6)                   # every 4th point of the 400-grid, plus 1 (= 0)
+    X, Y = np.meshgrid(xs, xs, indexing="ij")
+    for tt in MATTEY_CH2D_TIMES:
+        for j, name in enumerate(("u", "mu")):
+            a = ref[tt][j].cpu().numpy()
+            print(f"Mattey CH 2D t'={tt:g} {name}: max |N400 - N800| = {np.abs(a - fine[tt][j].cpu().numpy()[::2, ::2]).max():.2e}, "
+                  f"max |dt - 2dt| = {np.abs(a - coarse[tt][j].cpu().numpy()).max():.2e}, range [{a.min():.4f}, {a.max():.4f}]", flush=True)
+            a = a[::4, ::4]
+            a = np.concatenate([a, a[:1]], 0); a = np.concatenate([a, a[:, :1]], 1)
+            rows = np.column_stack([X.T.ravel(), Y.T.ravel(), np.full(X.size, tt), a.T.ravel()])
+            np.savetxt(os.path.join(d, f"t_{tt:g}_{name}.txt"), rows, fmt="%.10g", delimiter="  ")
+        print(f"   mean of u (conserved): {float(ref[tt][0].mean()):.10f}", flush=True)
+    print(f"Mattey CH 2D done in {time.time() - t0:.0f} s", flush=True)
+
+
 if __name__ == "__main__":
-    which = sys.argv[1:] or ["ch2d", "ac3d"]
+    which = sys.argv[1:] or ["ch2d", "ac3d", "mattey_ch1d", "mattey_ch2d"]
     print("device:", DEV, flush=True)
     if "ch2d" in which:
         write_ch2d()
     if "ac3d" in which:
         write_ac3d()
+    if "mattey_ch1d" in which:
+        write_mattey_ch1d()
+    if "mattey_ch2d" in which:
+        write_mattey_ch2d()

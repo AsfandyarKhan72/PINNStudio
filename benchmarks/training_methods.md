@@ -6,6 +6,8 @@ relative L2 error of the main output against the reference data the template shi
 (PINNStudio's Error Analysis), at the template's own network and training settings unless
 the row says otherwise.
 
+**Figures.** Each example has a chart of the relative L2 error against time, one line per method (log scale; the dashed gray line is the plain PINN or another reference, the thick line the best setup). They are drawn from the runs' Error Analysis numbers in `figures/runs.json` by `make_figures.py`.
+
 **Run-to-run noise.** Changing only the random seed moves the error by about ±20%
 (1D Cahn-Hilliard, three seeds), so only differences of about 1.5x or more are real.
 
@@ -32,7 +34,9 @@ the row says otherwise.
 | 2D Allen-Cahn, Mattey & Ghosh (t ≤ 1) | 1.3% | 0.054–0.057% (25x) | periodic + hard IC + RBA, or + causal training (time-adaptive template: 0.67%) |
 | 2D Allen-Cahn, Wight & Zhao (t ≤ 10) | 200% (fails) | 0.16–2.0% | time-adaptive + RBA + periodic (template alone 0.79–2.1%); best on the whole domain: RBA, 3.5–19% |
 | 2D Cahn-Hilliard, Wight & Zhao | 16–30% (frozen) | 1.2% / 3.8% (t = 0.25 / 1) | smoothed initial condition + periodic + hard IC + SA-PINN as in the paper (the template) |
-| 3D Allen-Cahn, Wight & Zhao | – | 0.7–0.8% | periodic + hard IC (the template); no method changes it |
+| 1D Cahn-Hilliard, Mattey & Ghosh | 84% (t = 1) | 0.29% / 0.48% (t = 0 / 1) | time-adaptive, 19 windows (10 of 0.01, then 9 of 0.1) + IC as a loss term + periodic (the template); every whole-domain setup failed |
+| 2D Cahn-Hilliard, Mattey & Ghosh | 0.35% (t' = 1) | 0.20% (t' = 1) | periodic + hard IC + SA-PINN as in the paper (the template) |
+| 3D Allen-Cahn, Wight & Zhao | – | 0.03% | periodic + IC as a loss term, weight 100 (the template); 0.7–0.8% with the exact IC, whatever the method |
 | Klein-Gordon | 8% | 0.2–0.35% (25x) | MsFFN, or MsFFN + causal training |
 | Kovasznay flow | 0.02–0.09% | 0.008–0.04% (2x) | MsFFN |
 | 1D Burgers | 0.04–0.13% | same | nothing helps; several hurt |
@@ -54,6 +58,8 @@ here left out the eps schedule and changed SA-PINN's weights, and both looked us
 they were done as published (see *Checked against the papers*).
 
 ## 1D Cahn-Hilliard (u, t = 0.25 / 1)
+
+![1D Cahn-Hilliard: error against time for each method](figures/ch1d.png)
 
 Wight & Zhao (2021), mixed form u_t = mu_xx, mu = g2 (u^3 - u) - g1 u_xx, g1 = 1e-6, g2 = 0.01,
 on [-1, 1] x [0, 1], periodic, 20k Adam + 20k L-BFGS, no time windows.
@@ -98,6 +104,8 @@ reference 5.797e-4.
 
 ## 1D Allen-Cahn (u, t = 0.25 / 1)
 
+![1D Allen-Cahn: error against time for each method](figures/ac1d.png)
+
 Template settings with time-adaptive training switched off unless stated.
 
 | Method | t = 0.25 | t = 1 |
@@ -135,8 +143,8 @@ all with periodic + hard IC, no time windows:
 | + SA-PINN as in the paper (keep) | 0.046 / 0.061 / 0.049% | 0.18 / 0.20 / 0.13% |
 | **+ causal schedule + MsFFN** | **0.040 / 0.041 / 0.042%** | **0.13 / 0.12 / 0.065%** |
 
-(The RBA row was 0.27% at t = 1 in the first round; the rerun with the current code and seed
-gives 0.43%, inside the seed-to-seed spread above.) Causal training with the paper's schedule
+(The RBA row was 0.27% at t = 1 in the first round, with an earlier version of the code; the
+current code gives 0.43% at seed 2026 every time -- two repeats were identical to the digit.) Causal training with the paper's schedule
 and a Fourier-feature network is the most accurate and the most repeatable here; causal
 training together with per-point weights is worse than either alone.
 | Time-adaptive template (4 windows) | 0.05% | 0.48% |
@@ -146,6 +154,8 @@ training together with per-point weights is worse than either alone.
 | Time-adaptive + gradient-norm balancing | 0.18% | 1.4% |
 
 ## 2D Allen-Cahn, Mattey & Ghosh (u, t = 0.25 / 1)
+
+![2D Allen-Cahn, Mattey & Ghosh: error against time](figures/ac2d_mg.png)
 
 | Method | t = 0.25 | t = 1 |
 |---|---|---|
@@ -158,6 +168,8 @@ training together with per-point weights is worse than either alone.
 
 ## 2D Allen-Cahn, Wight & Zhao (u, t = 2.5 / 5 / 10)
 
+![2D Allen-Cahn, Wight & Zhao: error against time](figures/ac2d_wz.png)
+
 | Method | t = 2.5 | t = 5 | t = 10 |
 |---|---|---|---|
 | **Time-adaptive template (10 windows)** | **0.93%** | **2.1%** | **0.79%** |
@@ -168,6 +180,8 @@ training together with per-point weights is worse than either alone.
 | **Time-adaptive + RBA + periodic** | **0.92%** | **2.0%** | **0.16%** |
 
 ## 2D Cahn-Hilliard, Wight & Zhao (u, t = 0.25 / 1)
+
+![2D Cahn-Hilliard, Wight & Zhao: error against time](figures/ch2d_wz.png)
 
 Two bubbles that merge, u_t = lap mu, mu = u^3 - u - 0.0025 lap u on [-1, 1]^2 (periodic),
 t in [0, 1], 4 x 128 network, 20k Adam + 20k L-BFGS, periodic + hard IC, no time windows.
@@ -181,9 +195,13 @@ Leaving u at its initial condition would give 16% / 30%.
 | **Smoothed, + SA-PINN as in the paper (keep)** | **1.2%** | **3.8%** |
 | Smoothed, + SA-PINN, 6 x 128 network (the paper's size) | 3.5% | 3.3% |
 | Smoothed, + SA-PINN, 40k Adam steps | 1.9% | 3.5% |
+| Smoothed, + SA-PINN, time-adaptive (5 windows, 10k + 10k each), IC as a loss term | 0.42% | 1.7% |
 
 A larger network or twice the Adam steps didn't help, so the template keeps 4 x 128 and
-20k + 20k. (Time-adaptive training, the paper's own method here, is not in this table yet.)
+20k + 20k. Time-adaptive training, the paper's own method here, is better after t = 0
+(1.2–1.7% from t = 0.5 on), but its initial condition is only fitted to 3.2%, and it takes
+about 25 minutes instead of 15; the template stays on the whole domain, and time-adaptive
+training is one setting away (Adaptive training → Time Adaptive Training).
 
 With the paper's initial condition every setup learned an almost frozen solution: the max
 has a corner where the bubbles touch, and that corner's curvature is what drives the merging,
@@ -192,23 +210,76 @@ gives no second derivative there). The template writes the max as tanh((r - min(
 with the min smoothed, (R1 + R2 - sqrt((R1 - R2)^2 + 0.0004))/2 (u changes by 0.5%, along the
 line where the bubbles meet), and the reference data uses the same formula.
 
+## 1D Cahn-Hilliard, Mattey & Ghosh (u, t = 0.05 / 0.25 / 1)
+
+![1D Cahn-Hilliard, Mattey & Ghosh: error against time](figures/ch1d_mg.png)
+
+u_t = (u^3 - u - 0.02 u_xx)_xx on [-1, 1] (periodic), u(x, 0) = cos(pi x) - exp(-4 (pi x)^2),
+t in [0, 1] (Mattey & Ghosh 2022, eq. 25), whole domain, periodic + hard IC, 20k Adam + 20k
+L-BFGS. The narrow Gaussian in the initial condition makes the solution change very fast
+early on (it is reshaped well before t = 0.05), then settle. The paper's own plain PINN fails
+here too (86% error over the whole domain); it is solved with their bc-PINN, which trains
+time segments one after another.
+
+| Method | t = 0.05 | t = 0.25 | t = 1 |
+|---|---|---|---|
+| Plain | 68% | 93% | 84% |
+| + RBA (keep) | 71% | 81% | 90% |
+| + causal, eps schedule | 66% | 93% | 77% |
+| + causal schedule + MsFFN | 57% | 90% | 25% |
+| + SA-PINN as in the paper (keep) | 93% | 91% | 51% |
+| **Time-adaptive, 19 windows, IC as a loss term (the template)** | **0.35%** | **0.51%** | **0.48%** |
+| Time-adaptive, 19 windows, + SA-PINN (keep) | 1.5% | 0.27% | 0.39% |
+
+Time-adaptive training does what the paper's bc-PINN does: 10 windows of 0.01 cover the fast
+start, then 9 windows of 0.1, each started from the previous network (L-BFGS transfer),
+5k Adam + 5k L-BFGS per window, the IC (and each window's start) as a loss term with weight
+100. Plain windows are the template: SA-PINN is a little better later on but fits the start
+4x worse (9.4% at t = 0, against 0.29%). mu's relative error is larger (3-13% after the
+merge) because mu is nearly zero once the phases have settled.
+
+## 2D Cahn-Hilliard, Mattey & Ghosh (u, t' = 0.2 / 0.6 / 1)
+
+![2D Cahn-Hilliard, Mattey & Ghosh: error against time](figures/ch2d_mg.png)
+
+Stripes that sharpen into two phases, u_t' = 0.005 lap mu, mu = u^3 - u - 0.0002 lap u on
+[0, 1]^2 (periodic), u(x, y, 0) = 0.4 cos(4 pi x) cos(4 pi (x + y)), t' = t / 0.005 in [0, 1]
+(Mattey & Ghosh 2022, IBVP-2; alpha = 0.0002 reproduces the paper's figures, the stated 0.02
+makes the pattern decay), 4 x 128 network, 20,000 points, 20k Adam + 20k L-BFGS, periodic +
+hard IC.
+
+| Method | t' = 0.2 | t' = 0.6 | t' = 1 |
+|---|---|---|---|
+| Plain | 0.87% | 0.64% | 0.35% |
+| + RBA (keep) | 0.97% | 0.73% | 0.42% |
+| + causal, eps schedule | 0.83% | 0.70% | 0.39% |
+| **+ SA-PINN as in the paper (keep) (the template)** | **0.52%** | **0.40%** | **0.20%** |
+
 ## 3D Allen-Cahn, Wight & Zhao (u, t = 0.25 / 1)
 
 A shrinking sphere, u_t = 0.025 lap u - 10 (u^3 - u) on [0, 1]^3 (periodic), t in [0, 1],
-4 x 128 network, 30,000 points, 20k Adam + 20k L-BFGS, periodic + hard IC.
+4 x 128 network, 30,000 points, 20k Adam + 20k L-BFGS, exact periodicity.
 
 | Method | t = 0.25 | t = 1 |
 |---|---|---|
-| Template (periodic + hard IC) | 0.81% | 0.72% |
-| + RBA (keep) | 0.81% | 0.72% |
-| + causal, eps schedule | 0.81% | 0.72% |
-| + SA-PINN as in the paper (keep) | 0.81% | 0.72% |
+| Exact IC (u = IC + t N) | 0.81% | 0.72% |
+| Exact IC + RBA (keep) | 0.81% | 0.72% |
+| Exact IC + causal, eps schedule | 0.81% | 0.72% |
+| Exact IC + SA-PINN as in the paper (keep) | 0.81% | 0.72% |
+| **IC as a loss term, weight 100 (the template)** | **0.030%** | **0.027%** |
 
-None of the methods changes the result: the remaining error sits on the cube's faces, where
-the paper's initial condition is not smoothly periodic (its tanh tail still has slope +-1.8
-there, so the slope jumps across the periodic boundary), not at the moving interface.
+With the exact IC every method lands on the same error to three digits (the logs confirm RBA
+and the causal schedule were active), so the limit is the t N form itself: the tanh profile
+relaxes quickly at the start, and the network has to produce that change through t N.
+Training the IC as a loss term instead gives 25 times less error. (A first soft-IC attempt,
+made by only clearing the exact-IC box in a script, left the IC loss switched off and gave
+100% error; through the GUI, clearing the box turns the IC loss on with weight 100.)
+On the slice z = 0.5 the sphere stays round, and the largest pointwise error, about 0.013, sits
+on the interface.
 
 ## Klein-Gordon (t = 2.5 / 5 / 7.5 / 10)
+
+![Klein-Gordon: error against time](figures/kg.png)
 
 | Method | 2.5 | 5 | 7.5 | 10 |
 |---|---|---|---|---|
@@ -222,6 +293,8 @@ there, so the slope jumps across the periodic boundary), not at the moving inter
 | **+ causal, eps schedule + MsFFN** | **0.08%** | **0.35%** | **0.24%** | **0.22%** |
 
 ## 1D Burgers (t = 0.25 / 0.5 / 0.75 / 1)
+
+![1D Burgers: error against time](figures/burgers.png)
 
 | Method | 0.25 | 0.5 | 0.75 | 1 |
 |---|---|---|---|---|
@@ -254,7 +327,8 @@ there, so the slope jumps across the periodic boundary), not at the moving inter
 1. Scale the equations so every residual is O(1).
 2. Enforce what is known exactly: the initial condition (hard IC) and periodicity. Write the
    initial condition as a smooth formula -- a corner (max, abs) carries curvature the network
-   can't see.
+   can't see. Compare the hard IC with the IC as a loss term (weight 100): on 3D Allen-Cahn
+   the loss term was 25 times more accurate.
 3. Add one weighting method: RBA (cheap, safe), SA-PINN with the weights held during L-BFGS
    (best on Cahn-Hilliard), or causal training with the eps schedule (best on Allen-Cahn,
    with MsFFN). Not causal training and per-point weights together.

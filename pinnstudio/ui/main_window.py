@@ -8,7 +8,7 @@ from PyQt6.QtWidgets import (
     QTextEdit, QGroupBox, QComboBox, QSplitter, QLineEdit,
     QFileDialog, QCheckBox, QRadioButton, QButtonGroup,
     QDialog, QApplication, QColorDialog,
-    QTabWidget, QMessageBox, QScrollArea, QGridLayout, QPlainTextEdit, QSizePolicy,
+    QTabWidget, QMessageBox, QScrollArea, QGridLayout, QPlainTextEdit, QSizePolicy, QToolButton, QAbstractSpinBox,
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer
 from PyQt6.QtGui import QPixmap, QAction, QColor, QMovie, QIntValidator, QKeySequence
@@ -959,7 +959,7 @@ class MainWindow(QMainWindow):
             missing = [t for t in titles if t not in groups]
             assert not missing, f"workspace: panels not found: {missing}"
             ws.add_node(key, label, glyph, color, desc, parent, [groups[t] for t in titles])
-        self._quick_examples_group = groups.get("📋 Quick Examples")
+        self._quick_examples_group = groups.get("Quick Examples")
         self._sync_bc_nodes()
         splitter.addWidget(ws.tree_panel)
         splitter.addWidget(ws.settings_panel)
@@ -1704,7 +1704,7 @@ class MainWindow(QMainWindow):
         # ── else below it -- dimension, Forward/Inverse, Time ───────────
         # ── Dependent/Stationary -- instead of the user having to set ───
         # ── those by hand first before the right examples even appear) ──
-        examples_group = QGroupBox("📋 Quick Examples")
+        examples_group = QGroupBox("Quick Examples")
         examples_layout = QGridLayout(examples_group)
         # Category: PINNStudio's own templates, or DeepXDE's documented
         # forward / inverse examples (pinnstudio/core/deepxde_examples.py).
@@ -1860,9 +1860,7 @@ class MainWindow(QMainWindow):
         # "Show derivative reference" sits on this row, after Equations; its
         # hint text (self.pde_hint) opens below the Constants row.
         # (it sits on the Constants row below, where there's room)
-        self.pde_hint_toggle = QCheckBox("📖 Show derivative reference")
-        self.pde_hint_toggle.setChecked(False)
-        self._register_hint(self.pde_hint_toggle, '#74c0fc')
+        self.pde_hint_toggle = self._ref_button("Derivative syntax")
         nout_row.addStretch()
         pde_outer_layout.addLayout(nout_row)
 
@@ -1884,9 +1882,8 @@ class MainWindow(QMainWindow):
         self.add_constant_btn.setFixedHeight(24)
         self.add_constant_btn.clicked.connect(lambda: self._add_constant_row())
         _crow.addWidget(self.add_constant_btn)
-        _crow.addSpacing(12)
-        _crow.addWidget(self.pde_hint_toggle)
         _crow.addStretch()
+        _crow.addWidget(self.pde_hint_toggle)
         _cw.addLayout(_crow)
         self.constants_rows_layout = QVBoxLayout()
         self.constants_rows_layout.setSpacing(2)
@@ -1907,7 +1904,7 @@ class MainWindow(QMainWindow):
         self.pde_hint.setWordWrap(True)
         self.pde_hint.setVisible(False)
         pde_outer_layout.addWidget(self.pde_hint)
-        self.pde_hint_toggle.stateChanged.connect(lambda state: self.pde_hint.setVisible(state == 2))
+        self.pde_hint_toggle.toggled.connect(self.pde_hint.setVisible)
 
         # self.pde_main_layout stays a nested layout (not the group's own
         # top-level layout) so _build_pde_inputs() can freely clear/rebuild
@@ -2363,16 +2360,14 @@ class MainWindow(QMainWindow):
         # only depends on the problem's dimension (1D/2D/3D), not which
         # output it's under, so one copy covers all of them; its text is
         # kept up to date by _build_bc_inputs() whenever dimension changes.
-        self.ic_hint_toggle = QCheckBox("📖 Show IC reference")
-        self.ic_hint_toggle.setChecked(False)
-        self._register_hint(self.ic_hint_toggle, '#74c0fc')
-        _ic_group_top_layout.addWidget(self.ic_hint_toggle)
+        self.ic_hint_toggle = self._ref_button("Initial-condition syntax")
+        self._ref_row(_ic_group_top_layout, self.ic_hint_toggle)
         self.ic_hint = QLabel()
         self._register_hint(self.ic_hint, '#74c0fc')
         self.ic_hint.setWordWrap(True)
         self.ic_hint.setVisible(False)
         _ic_group_top_layout.addWidget(self.ic_hint)
-        self.ic_hint_toggle.stateChanged.connect(lambda s: self.ic_hint.setVisible(s == 2))
+        self.ic_hint_toggle.toggled.connect(self.ic_hint.setVisible)
 
         # Nested container whose own layout (bc_main_layout) is what
         # _build_bc_inputs() freely clears and rebuilds every time the
@@ -2432,10 +2427,8 @@ class MainWindow(QMainWindow):
         # doesn't depend on which row you're looking at, so one copy is
         # enough; each row's own "Where:" field still has a short inline
         # placeholder example of its own.
-        self.bc_loc_hint_toggle = QCheckBox("📖 Show location examples")
-        self.bc_loc_hint_toggle.setChecked(False)
-        self._register_hint(self.bc_loc_hint_toggle, '#74c0fc')
-        self.custom_bc_main_layout.addWidget(self.bc_loc_hint_toggle)
+        self.bc_loc_hint_toggle = self._ref_button("\"Where\" examples")
+        self._ref_row(self.custom_bc_main_layout, self.bc_loc_hint_toggle)
         self.bc_loc_hint = QLabel(
             "\"Where\" picks WHICH part of the boundary a condition applies to.\n"
             "It's only checked at points already on the boundary, so you never\n"
@@ -2458,7 +2451,7 @@ class MainWindow(QMainWindow):
         self.bc_loc_hint.setWordWrap(True)
         self.bc_loc_hint.setVisible(False)
         self.custom_bc_main_layout.addWidget(self.bc_loc_hint)
-        self.bc_loc_hint_toggle.stateChanged.connect(lambda s: self.bc_loc_hint.setVisible(s == 2))
+        self.bc_loc_hint_toggle.toggled.connect(self.bc_loc_hint.setVisible)
 
         self.periodic_inputs_cb = QCheckBox("Exact periodicity (periodic inputs)")
         self.periodic_inputs_cb.setToolTip(
@@ -2744,8 +2737,8 @@ class MainWindow(QMainWindow):
         # is chosen are ever shown -- picking "Restore" hides the training
         # fields instead of just adding the restore path underneath them.
         ic_mode_row = QHBoxLayout()
-        self.ic_pretrain_mode_train = QRadioButton("▶ Train from start")
-        self.ic_pretrain_mode_restore = QRadioButton("🔄 Restore from checkpoint")
+        self.ic_pretrain_mode_train = QRadioButton("Train from start")
+        self.ic_pretrain_mode_restore = QRadioButton("Restore from checkpoint")
         self.ic_pretrain_mode_train.setChecked(True)
         self._ic_pretrain_mode_group = QButtonGroup(self.ic_pretrain_widget)
         self._ic_pretrain_mode_group.addButton(self.ic_pretrain_mode_train)
@@ -2767,7 +2760,7 @@ class MainWindow(QMainWindow):
         self.ic_pretrain_opt = QComboBox()
         self.ic_pretrain_opt.addItem("Adam", "adam")
         self.ic_pretrain_opt.setFixedHeight(26)
-        self._fit_combo_width(self.ic_pretrain_opt, min_width=80)
+        self.ic_pretrain_opt.setFixedWidth(self.PHASE_FIELD_W)
         ic_opt_row.addStretch(); ic_opt_row.addWidget(self.ic_pretrain_opt)
         ic_train_fields_layout.addLayout(ic_opt_row)
 
@@ -2778,6 +2771,7 @@ class MainWindow(QMainWindow):
         self.ic_pretrain_iters.setSingleStep(1000)
         self.ic_pretrain_iters.setValue(20000)
         self.ic_pretrain_iters.setFixedHeight(26)
+        self.ic_pretrain_iters.setFixedWidth(self.PHASE_FIELD_W)
         ic_iter_row.addStretch(); ic_iter_row.addWidget(self.ic_pretrain_iters)
         ic_train_fields_layout.addLayout(ic_iter_row)
 
@@ -2789,6 +2783,7 @@ class MainWindow(QMainWindow):
         self.ic_pretrain_lr.setRange(1e-6, 1.0); self.ic_pretrain_lr.setDecimals(6)
         self.ic_pretrain_lr.setSingleStep(0.0001); self.ic_pretrain_lr.setValue(0.001)
         self.ic_pretrain_lr.setFixedHeight(26)
+        self.ic_pretrain_lr.setFixedWidth(self.PHASE_FIELD_W)
         ic_lr_row.addStretch(); ic_lr_row.addWidget(self.ic_pretrain_lr)
         ic_train_fields_layout.addLayout(ic_lr_row)
 
@@ -2804,7 +2799,8 @@ class MainWindow(QMainWindow):
             ["MSE", "MAE", "mean l2 relative error",
              "mean absolute percentage error", "softplus"])
         self.ic_pretrain_loss_combo.setFixedHeight(26)
-        self._fit_combo_width(self.ic_pretrain_loss_combo, min_width=160)
+        self.ic_pretrain_loss_combo.setFixedWidth(self.PHASE_FIELD_W)
+        self.ic_pretrain_loss_combo.view().setMinimumWidth(self.ic_pretrain_loss_combo.view().sizeHintForColumn(0) + 24)
         ic_loss_row.addStretch(); ic_loss_row.addWidget(self.ic_pretrain_loss_combo)
         ic_train_fields_layout.addLayout(ic_loss_row)
 
@@ -2816,6 +2812,7 @@ class MainWindow(QMainWindow):
         self.ic_pretrain_test.setSingleStep(1000)
         self.ic_pretrain_test.setValue(10000)
         self.ic_pretrain_test.setFixedHeight(26)
+        self.ic_pretrain_test.setFixedWidth(self.PHASE_FIELD_W)
         ic_test_row.addStretch(); ic_test_row.addWidget(self.ic_pretrain_test)
         ic_train_fields_layout.addLayout(ic_test_row)
 
@@ -2836,6 +2833,7 @@ class MainWindow(QMainWindow):
         self.ic_pretrain_init.setSingleStep(100)
         self.ic_pretrain_init.setValue(1000)
         self.ic_pretrain_init.setFixedHeight(26)
+        self.ic_pretrain_init.setFixedWidth(self.PHASE_FIELD_W)
         ic_init_row.addStretch(); ic_init_row.addWidget(self.ic_pretrain_init)
         ic_train_fields_layout.addWidget(self.ic_pretrain_init_widget)
         ic_pt_layout.addWidget(self.ic_pretrain_train_fields_widget)
@@ -2978,7 +2976,7 @@ class MainWindow(QMainWindow):
         self.lbfgs_float_combo.addItems(["float64", "float32"])
         self.lbfgs_float_combo.setCurrentText("float32")
         self.lbfgs_float_combo.setFixedHeight(26)
-        self._fit_combo_width(self.lbfgs_float_combo, min_width=80)
+        self.lbfgs_float_combo.setFixedWidth(self.PHASE_FIELD_W)
         _prec_tip = ("Floating-point precision for training. float64 runs the whole training in\n"
                      "double precision: slower, but L-BFGS converges further and is less likely\n"
                      "to stop early. float32 is faster.")
@@ -3196,12 +3194,16 @@ class MainWindow(QMainWindow):
         self.loss_w_init_cb.setToolTip(
             "Before training, evaluate every loss term once and set its weight to c divided by\n"
             "its initial value, so all terms start at the same size (DeepXDE's wave example uses\n"
-            "c = 5). The weights below are then ignored, in every training phase.")
+            "c = 5). The manual weights above are then ignored, in every training phase.\n"
+            "Use it when the loss terms differ by orders of magnitude: on the 1D wave example\n"
+            "it gives 14% error at t = 1, against 80-130% without it (also with IC/BC\n"
+            "weights of 100, RBA or causal training).")
         self.loss_w_init_c = SciLineEdit(5.0); self.loss_w_init_c.setFixedWidth(70)
         self.loss_w_init_c.setEnabled(False)
         self.loss_w_init_cb.toggled.connect(self.loss_w_init_c.setEnabled)
         _wi_row.addWidget(self.loss_w_init_cb); _wi_row.addWidget(self.loss_w_init_c); _wi_row.addStretch()
-        _wg_outer.addLayout(_wi_row)
+        # placed under "Automatic weighting" (it is one), after causal training
+        self._loss_w_init_row = _wi_row
         _wg_outer.addWidget(self.sched_same_weights_cb)
         _wg_inner = QWidget()
         self.weights_main_layout = QVBoxLayout(_wg_inner)
@@ -3236,7 +3238,7 @@ class MainWindow(QMainWindow):
         ta_layout = QVBoxLayout(self.ta_widget)
         ta_layout.setSpacing(4); ta_layout.setContentsMargins(0, 0, 0, 0)
         self.ta_ref_toggle, self.ta_ref_hint = self._add_reference_toggle(
-            ta_layout, "Show Time-Adaptive reference", self._TA_REFERENCE_TEXT)
+            ta_layout, "About time-adaptive training", self._TA_REFERENCE_TEXT)
 
         # ── Step groups ───────────────────────────────────────
         ta_groups_label = QLabel("Time step groups:")
@@ -3268,7 +3270,7 @@ class MainWindow(QMainWindow):
 
         row_ta2 = QHBoxLayout()
         row_ta2.addWidget(QLabel("IC grid resolution:"))
-        self.ta_grid = QComboBox(); self.ta_grid.addItems(["101", "51", "21", "11"])
+        self.ta_grid = QComboBox(); self.ta_grid.addItems(["201", "101", "51", "21", "11"])
         self.ta_grid.setFixedHeight(28); self.ta_grid.setFixedWidth(100)
         # Editable so a user can type their own per-axis resolution (e.g.
         # 5000 for a fine 1D grid) instead of being limited to the 4
@@ -3343,7 +3345,7 @@ class MainWindow(QMainWindow):
         rar_layout = QVBoxLayout(self.rar_widget)
         rar_layout.setSpacing(4); rar_layout.setContentsMargins(0, 0, 0, 0)
         self.rar_ref_toggle, self.rar_ref_hint = self._add_reference_toggle(
-            rar_layout, "Show RAR reference", self._RAR_REFERENCE_TEXT)
+            rar_layout, "About RAR", self._RAR_REFERENCE_TEXT)
 
         def _rar_row(label, default, min_v, max_v, step):
             row = QHBoxLayout()
@@ -3416,8 +3418,9 @@ class MainWindow(QMainWindow):
         _aw_title.setStyleSheet("font-weight: 600;")
         _aw.addWidget(_aw_title)
         self.auto_weights_note = QLabel(
-            "For hard problems (sharp fronts, phase fields): first make the initial and periodic "
-            "conditions exact (Initial Conditions / Boundary Conditions pages), then add one of these: "
+            "For hard problems (sharp fronts, phase fields): first make periodicity exact and try the "
+            "initial condition both exact and as a loss term (Initial Conditions / Boundary Conditions "
+            "pages), then add one of these: "
             "RBA (cheap, safe), SA-PINN with the weights kept during L-BFGS (best on Cahn-Hilliard), or "
             "causal training (best on Allen-Cahn, with an MsFFN network). "
             "On a problem a plain PINN already solves well they can make the result worse -- "
@@ -3429,6 +3432,7 @@ class MainWindow(QMainWindow):
         _cl_w = QWidget(); _cl = QVBoxLayout(_cl_w); _cl.setContentsMargins(0, 0, 0, 0); _cl.setSpacing(5)
         _aw.addWidget(_pl_w)
         _aw.addWidget(_cl_w)
+        _aw.addLayout(self._loss_w_init_row)
         self.weights_group.layout().addWidget(self.auto_weights_box)
 
         def _num_row(lay, label, spin):
@@ -3590,52 +3594,33 @@ class MainWindow(QMainWindow):
         sweep_toggle_layout = QVBoxLayout(sweep_toggle_group)
         sweep_toggle_layout.setSpacing(5)
 
-        # Top row: Enable, the "📖 Show sweep reference" toggle and
-        # Refresh (shown only while the sweep is enabled) side by side.
-        sweep_top_row = QHBoxLayout()
-        sweep_top_row.setSpacing(10)
+        # Top row: Enable on the left, the reference toggle on the right.
+        # The parameter list updates itself (when the sweep is switched on
+        # and whenever a Parameter dropdown opens), so there is no Refresh.
         self.sweep_enable_cb = QCheckBox("Enable Parameter Sweep")
         self.sweep_enable_cb.toggled.connect(self._on_sweep_enabled_toggled)
-        sweep_top_row.addWidget(self.sweep_enable_cb)
-        sweep_ref_toggle = QCheckBox("\U0001F4D6 Show sweep reference")
-        sweep_ref_toggle.setChecked(False)
-        self._register_hint(sweep_ref_toggle, '#74c0fc')
-        sweep_top_row.addWidget(sweep_ref_toggle)
-        sweep_top_row.addStretch()
-        self.sweep_refresh_btn = QPushButton("Refresh")
-        self.sweep_refresh_btn.setToolTip(
-            "Re-reads the rest of this panel's current settings to update which parameters can be swept")
-        self.sweep_refresh_btn.clicked.connect(lambda: self._refresh_sweep_param_choices())
-        from pinnstudio.ui import icons as _icons_s
-        _icons_s.apply(self.sweep_refresh_btn, "refresh", "text", size=16)
-        self.sweep_refresh_btn.setVisible(False)
-        sweep_top_row.addWidget(self.sweep_refresh_btn)
-        sweep_toggle_layout.addLayout(sweep_top_row)
-        sweep_ref_text = ("Runs the SAME problem multiple times while varying one or more\n"
-                        "settings (learning rate, a PDE coefficient, number of iterations, ...),\n"
-                        "so you can compare results side by side instead of changing a value\n"
-                        "and re-running by hand each time. Each run gets its own numbered\n"
-                        "subfolder under the main \"Save to:\" location, with the full normal set\n"
-                        "of plots/checkpoints for that one run.\n"
-                        "One-at-a-time: one run per value of each swept parameter in turn,\n"
-                        "everything else held at its current value.\n"
-                        "All combinations: every value of every swept parameter, crossed --\n"
-                        "N parameters with k values each means k^N total runs.\n"
-                        "Specified combinations: parameter 1's 1st value runs together with\n"
-                        "parameter 2's 1st value, and so on -- every parameter needs the same\n"
-                        "number of values listed.\n"
-                        "\"Points from:\" (where shown) picks which equation's values are read\n"
-                        "when a parameter lives inside a PDE coefficient.\n"
-                        "Baseline: the box below Mode adds one run with the current settings\n"
-                        "unchanged, before the swept values. When the sweep finishes, its folder\n"
-                        "also holds sweep_error_vs_parameter.png (error and final loss vs the\n"
-                        "swept values) and sweep_summary.csv.")
+        sweep_ref_toggle = self._ref_button("About sweeps")
+        self._ref_row(sweep_toggle_layout, sweep_ref_toggle, self.sweep_enable_cb)
+        sweep_ref_text = ("Runs the same problem several times, changing one or more settings (a learning\n"
+                          "rate, a PDE coefficient, the number of iterations, ...), so the results can be\n"
+                          "compared side by side. Each run gets its own numbered folder under \"Save to\".\n"
+                          "One at a time: one run per value of each parameter in turn, the others at\n"
+                          "their current values.\n"
+                          "All combinations: every value of every parameter, crossed -- N parameters\n"
+                          "with k values each make k^N runs.\n"
+                          "Paired values: parameter 1's 1st value runs with parameter 2's 1st value,\n"
+                          "and so on (every parameter needs the same number of values).\n"
+                          "Bayesian search: each run is chosen from the results so far; Min/Max is\n"
+                          "the search range.\n"
+                          "Baseline adds one run with the current settings, first. When the sweep\n"
+                          "finishes, its folder also holds sweep_error_vs_parameter.png (error and final\n"
+                          "loss against the swept values) and sweep_summary.csv.")
         sweep_ref_hint = QLabel(sweep_ref_text)
         self._register_hint(sweep_ref_hint, '#74c0fc')
         sweep_ref_hint.setWordWrap(True)
         sweep_ref_hint.setVisible(False)
         sweep_toggle_layout.addWidget(sweep_ref_hint)
-        sweep_ref_toggle.stateChanged.connect(lambda state, h=sweep_ref_hint: h.setVisible(state == 2))
+        sweep_ref_toggle.toggled.connect(sweep_ref_hint.setVisible)
 
         # Everything below (mode, sweep-parameter rows, add/refresh
         # buttons) is only relevant once the sweep is actually enabled --
@@ -3660,15 +3645,15 @@ class MainWindow(QMainWindow):
         # terminology for its Parametric Sweep feature -- named the
         # same way here (grid/zip underneath) since it's a familiar
         # framing for anyone who's used that kind of tool before.
-        self.sweep_mode_combo.addItem("One-at-a-time (vary each parameter separately)", "oat")
-        self.sweep_mode_combo.addItem("All combinations (every value of every parameter)", "grid")
-        self.sweep_mode_combo.addItem("Specified combinations (parameters' Nth values run together)", "zip")
-        self.sweep_mode_combo.addItem("Bayesian search (each run chosen from the results so far)", "bayes")
+        self.sweep_mode_combo.addItem("One at a time", "oat")
+        self.sweep_mode_combo.addItem("All combinations", "grid")
+        self.sweep_mode_combo.addItem("Paired values", "zip")
+        self.sweep_mode_combo.addItem("Bayesian search", "bayes")
         self.sweep_mode_combo.setFixedHeight(26)
         self.sweep_mode_combo.setToolTip(
-            "One-at-a-time: vary ONE parameter per run, the others held at their current values.\n"
-            "All combinations: every value of every parameter, crossed (a Cartesian product/Grid).\n"
-            "Specified combinations: parameter 1's 1st value with parameter 2's 1st value, etc. -- "
+            "One at a time: vary ONE parameter per run, the others held at their current values.\n"
+            "All combinations: every value of every parameter, crossed (a grid).\n"
+            "Paired values: parameter 1's 1st value with parameter 2's 1st value, etc. --\n"
             "every parameter needs the same number of values.\n"
             "Bayesian search: each run picked by a Gaussian-process model of the\n"
             "results so far (DeepXDE's hyperparameter-optimization example) -- each parameter's\n"
@@ -3684,7 +3669,7 @@ class MainWindow(QMainWindow):
         self.sweep_baseline_cb = QCheckBox("Also run the current settings (baseline)")
         self.sweep_baseline_cb.setToolTip(
             "Runs the panel's settings unchanged first, as a reference point.\n"
-            "On by default for One-at-a-time with 2+ parameters and for Bayesian search\n"
+            "On by default for One at a time with 2+ parameters and for Bayesian search\n"
             "(its first point); off otherwise, so only the swept values run.")
         self._sweep_baseline_user = None   # None = automatic, else True/False
         self.sweep_baseline_cb.clicked.connect(self._on_sweep_baseline_clicked)
@@ -3724,9 +3709,6 @@ class MainWindow(QMainWindow):
         # room for one wide line per parameter) rather than v69's
         # single-line-per-row table layout, which needed ~700px of
         # width this column never has.
-        div_sweep_params = QLabel("── Sweep Parameters ──")
-        self._register_section_divider(div_sweep_params)
-        sweep_options_layout.addWidget(div_sweep_params)
 
 
         self.sweep_rows_widget = QWidget()
@@ -3768,19 +3750,10 @@ class MainWindow(QMainWindow):
         inv_layout = QVBoxLayout(self.inverse_group)
         inv_layout.setSpacing(5)
 
-        # "📖 Show inverse reference" toggle + hint, at the TOP of this
-        # panel (same positioning as the IC/BC/PDE panels' own reference
-        # toggles) rather than mid-panel, after the trainable-variable
-        # rows -- shown once here, applies to the whole panel.
-        inv_ref_row = QHBoxLayout()
-        inv_ref_toggle = QCheckBox("\U0001F4D6 Show inverse reference")
-        inv_ref_toggle.setChecked(False)
-        self._register_hint(inv_ref_toggle, '#74c0fc')
-        inv_ref_row.addWidget(inv_ref_toggle)
-        inv_ref_row.addStretch()
-        inv_ref_row_widget = QWidget()
-        inv_ref_row_widget.setLayout(inv_ref_row)
-        inv_layout.addWidget(inv_ref_row_widget)
+        # Reference toggle on the first row (the standard _ref_button), its
+        # text right below it.
+        inv_ref_toggle = self._ref_button("About inverse problems")
+        self._ref_row(inv_layout, inv_ref_toggle, QLabel("Trainable (unknown) variables:"))
         inv_ref_text = ("Each trainable (unknown) variable is a value the solver infers (fits)\n"
                         "during training, e.g. a diffusion coefficient or reaction rate.\n"
                         "The first is named 'trainable_variable_1' by default -- rename any of\n"
@@ -3800,9 +3773,8 @@ class MainWindow(QMainWindow):
         inv_ref_hint.setWordWrap(True)
         inv_ref_hint.setVisible(False)
         inv_layout.addWidget(inv_ref_hint)
-        inv_ref_toggle.stateChanged.connect(lambda state, h=inv_ref_hint: h.setVisible(state == 2))
+        inv_ref_toggle.toggled.connect(inv_ref_hint.setVisible)
 
-        inv_layout.addWidget(QLabel("Trainable (unknown) variables:"))
         self.inv_vars_widget = QWidget()
         self.inv_vars_layout = QVBoxLayout(self.inv_vars_widget)
         self.inv_vars_layout.setSpacing(3)
@@ -3927,7 +3899,7 @@ class MainWindow(QMainWindow):
         restore_layout = QVBoxLayout(restore_group)
         restore_layout.setSpacing(5)
 
-        restore_toggle = QCheckBox("🔄 Enable Model Restore && Visualization")
+        restore_toggle = QCheckBox("Enable Model Restore && Visualization")
         restore_toggle.setChecked(False)
         self._register_hint(restore_toggle, '#a0c4ff')
         restore_layout.addWidget(restore_toggle)
@@ -4473,7 +4445,7 @@ class MainWindow(QMainWindow):
         # Second row for Error Analysis/Export -- its own row for the same
         # independent-minimum-width reason as ctrl_row_save above.
         ctrl_row2 = QHBoxLayout()
-        self.ea_btn = QPushButton("📊 Error Analysis")
+        self.ea_btn = QPushButton("Error Analysis")
         self.ea_btn.setFixedHeight(28)
         self._register_style(self.ea_btn, "button", lambda css: f"""
             QPushButton {{ background: #1a3a5a; color: #74c0fc; {css}
@@ -4492,7 +4464,7 @@ class MainWindow(QMainWindow):
         # same pattern as self._plot_viz_settings just below, and
         # round-tripped into/out of PINNConfig by _build_config()/
         # _apply_config().
-        self.loss_plot_btn = QPushButton("📉 Loss Plot Settings")
+        self.loss_plot_btn = QPushButton("Loss Plot Settings")
         self.loss_plot_btn.setFixedHeight(28)
         self._register_style(self.loss_plot_btn, "button", lambda css: f"""
             QPushButton {{ background: #3a2a1a; color: #ffa94d; {css}
@@ -4545,7 +4517,7 @@ class MainWindow(QMainWindow):
             'axis_label_fontsize': 10.0,
         }
 
-        self.export_btn = QPushButton("💾 Export Solution")
+        self.export_btn = QPushButton("Export Solution")
         self.export_btn.setFixedHeight(28)
         self._register_style(self.export_btn, "button", lambda css: f"""
             QPushButton {{ background: #1a4a3a; color: #69db7c; {css}
@@ -4774,8 +4746,6 @@ class MainWindow(QMainWindow):
         available to sweep over against the panel's current settings."""
         if hasattr(self, 'sweep_options_widget'):
             self.sweep_options_widget.setVisible(checked)
-        if hasattr(self, 'sweep_refresh_btn'):
-            self.sweep_refresh_btn.setVisible(checked)
         if hasattr(self, 'solve_btn'):
             self.solve_btn.setText(" Run Sweep" if checked else " Solve")
             self.solve_btn.setToolTip(
@@ -4821,7 +4791,7 @@ class MainWindow(QMainWindow):
         row_widget = QWidget()
         row_widget.setObjectName("sweepParamRow")
         row_widget.setStyleSheet(
-            "QWidget#sweepParamRow { border-bottom: 1px solid #333338; }")
+            "QWidget#sweepParamRow { border-bottom: 1px solid palette(midlight); }")
         row_layout = QVBoxLayout(row_widget)
         row_layout.setSpacing(3)
         row_layout.setContentsMargins(0, 4, 0, 6)
@@ -4840,65 +4810,65 @@ class MainWindow(QMainWindow):
         header_row.addStretch(); header_row.addWidget(remove_btn)
         row_layout.addLayout(header_row)
 
-        # Parameter
+        # Parameter -- its list is refreshed from the current settings every
+        # time the dropdown opens (so it never goes stale; no Refresh button)
         param_row = QHBoxLayout()
         param_row.addWidget(QLabel("Parameter:"))
-        param_combo = QComboBox()
+        _self = self
+
+        class _ParamCombo(QComboBox):
+            def showPopup(self_c):
+                _self._refresh_sweep_param_choices()
+                super().showPopup()
+        param_combo = _ParamCombo()
         param_combo.setFixedHeight(26)
-        param_row.addStretch(); param_row.addWidget(param_combo)
+        param_combo.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        param_row.addWidget(param_combo, 1)
         row_layout.addLayout(param_row)
 
-        # Sweep as (hidden for categorical parameters -- those are
-        # always a plain list of choices, there's no range to pick)
-        mode_row_widget = QWidget()
-        mode_row = QHBoxLayout(mode_row_widget)
-        mode_row.setContentsMargins(0, 0, 0, 0)
-        mode_row.addWidget(QLabel("Sweep as:"))
+        # Values: how to give them (a list, or a linear/log range) and the
+        # values themselves, on one line
+        values_row = QHBoxLayout()
+        values_row.setSpacing(4)
+        values_row.addWidget(QLabel("Values:"))
         mode_combo = QComboBox()
-        mode_combo.addItem("List of values", "list")
-        mode_combo.addItem("Linear range", "linear")
-        mode_combo.addItem("Log range", "log")
-        mode_combo.setFixedHeight(24)
-        mode_row.addStretch(); mode_row.addWidget(mode_combo)
-        row_layout.addWidget(mode_row_widget)
+        mode_combo.addItem("List", "list")
+        mode_combo.addItem("Linear", "linear")
+        mode_combo.addItem("Log", "log")
+        mode_combo.setFixedHeight(26)
+        mode_combo.setToolTip("A list of values, or Steps values spread evenly (linearly or on a log scale) from Min to Max")
+        mode_row_widget = mode_combo          # hidden for categorical parameters (always a list of choices)
+        values_row.addWidget(mode_combo)
 
-        # Values (list mode) -- label above the field on its own line
-        # (like "PDE 1 (residual = 0):" elsewhere in this panel) rather
-        # than label-then-field on one line, so a longer comma-separated
-        # list has real room to be typed/read in this narrow column.
-        list_widget = QWidget()
-        list_layout = QVBoxLayout(list_widget)
-        list_layout.setContentsMargins(0, 0, 0, 0)
-        list_layout.setSpacing(2)
-        list_layout.addWidget(QLabel("Values:"))
-        list_edit = QLineEdit()
-        list_edit.setPlaceholderText("comma-separated, e.g. 0.001, 0.005, 0.01")
-        list_edit.setFixedHeight(26)
-        list_layout.addWidget(list_edit)
-        row_layout.addWidget(list_widget)
+        list_widget = QLineEdit()
+        list_widget.setPlaceholderText("comma-separated, e.g. 0.001, 0.005, 0.01")
+        list_widget.setFixedHeight(26)
+        list_edit = list_widget
+        values_row.addWidget(list_widget, 1)
 
-        # Range (linear/log mode)
         range_widget = QWidget()
         range_row = QHBoxLayout(range_widget)
         range_row.setContentsMargins(0, 0, 0, 0)
         range_row.setSpacing(4)
-        range_row.addWidget(QLabel("Min:"))
+        range_row.addWidget(QLabel("Min"))
         min_spin = QDoubleSpinBox()
         min_spin.setRange(-1e9, 1e9); min_spin.setDecimals(4)
-        min_spin.setFixedWidth(62); min_spin.setFixedHeight(24)
-        range_row.addWidget(min_spin)
-        range_row.addWidget(QLabel("Max:"))
+        min_spin.setMinimumWidth(64); min_spin.setFixedHeight(26)
+        min_spin.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
+        range_row.addWidget(min_spin, 1)
+        range_row.addWidget(QLabel("Max"))
         max_spin = QDoubleSpinBox()
         max_spin.setRange(-1e9, 1e9); max_spin.setDecimals(4); max_spin.setValue(1.0)
-        max_spin.setFixedWidth(62); max_spin.setFixedHeight(24)
-        range_row.addWidget(max_spin)
-        range_row.addWidget(QLabel("Steps:"))
+        max_spin.setMinimumWidth(64); max_spin.setFixedHeight(26)
+        max_spin.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
+        range_row.addWidget(max_spin, 1)
+        range_row.addWidget(QLabel("Steps"))
         n_spin = QSpinBox()
         n_spin.setRange(2, 100); n_spin.setValue(5)
-        n_spin.setFixedWidth(48); n_spin.setFixedHeight(24)
+        n_spin.setFixedWidth(52); n_spin.setFixedHeight(26)
         range_row.addWidget(n_spin)
-        range_row.addStretch()
-        row_layout.addWidget(range_widget)
+        values_row.addWidget(range_widget, 1)
+        row_layout.addLayout(values_row)
 
         def _update_value_widgets():
             meta = param_combo.itemData(param_combo.currentIndex(), Qt.ItemDataRole.UserRole + 1) or {}
@@ -4933,7 +4903,7 @@ class MainWindow(QMainWindow):
         self._update_sweep_baseline_default()
 
         def _remove():
-            row_widget.deleteLater()
+            self._drop_row_widget(self.sweep_rows_layout, row_widget)
             if row_data in self.sweep_row_list:
                 self.sweep_row_list.remove(row_data)
             self._update_sweep_baseline_default()
@@ -6080,9 +6050,9 @@ class MainWindow(QMainWindow):
             self._add_custom_geom_shape(shape_type=shape_type, op=op, params=params)
 
     _PINNSTUDIO_EXAMPLES = (
-        "1D Heat", "1D Allen-Cahn", "1D Cahn-Hilliard", "1D Burgers", "1D Schrödinger",
+        "1D Heat", "1D Allen-Cahn", "1D Cahn-Hilliard", "1D Cahn-Hilliard (Mattey & Ghosh)", "1D Burgers", "1D Schrödinger",
         "2D Heat", "2D Allen-Cahn (Mattey & Ghosh)", "2D Allen-Cahn (Wight & Zhao)",
-        "2D Cahn-Hilliard (Wight & Zhao)",
+        "2D Cahn-Hilliard (Mattey & Ghosh)", "2D Cahn-Hilliard (Wight & Zhao)",
         "2D Burgers (Mathias)", "2D Poisson (L-Shape)", "2D Poisson (Disk)",
         "3D Heat", "3D Allen-Cahn (Wight & Zhao)", "3D Poisson (Sphere)",
     )
@@ -6797,19 +6767,44 @@ class MainWindow(QMainWindow):
         "\"Points from:\" picks which equation's residual to rank candidate\n"
         "points by, for a problem with more than one output/equation.")
 
+    def _ref_button(self, label, tip=""):
+        """The standard in-panel reference toggle: a small flat checkable
+        button (info icon + a short label saying what it opens), placed at the
+        right of its row on every page. Its text panel is shown while checked."""
+        b = QToolButton()
+        b.setText(label)
+        b.setCheckable(True)
+        b.setAutoRaise(True)
+        b.setCursor(Qt.CursorShape.PointingHandCursor)
+        b.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        b.setToolTip(tip or f"Show or hide: {label}")
+        from pinnstudio.ui import icons as _icons_r
+        _icons_r.apply(b, "info", "text", size=14)
+        self._register_hint(b, '#74c0fc')
+        return b
+
+    def _ref_row(self, layout, button, *left):
+        """Add a row to `layout`: optional widgets on the left, the reference
+        button on the right."""
+        row = QHBoxLayout()
+        row.setContentsMargins(0, 0, 0, 0)
+        for w in left:
+            row.addWidget(w)
+        row.addStretch()
+        row.addWidget(button)
+        layout.addLayout(row)
+        return row
+
     def _add_reference_toggle(self, layout, label, text):
-        """A "📖 <label>" checkbox plus the hint text it shows/hides, added
-        to `layout` -- the same look as every panel's reference toggle.
-        Returns (toggle, hint)."""
-        toggle = QCheckBox(f"\U0001F4D6 {label}")
-        toggle.setChecked(False)
-        self._register_hint(toggle, '#74c0fc')
+        """A reference toggle (see _ref_button) and the hint text it shows and
+        hides, added to `layout`. Returns (toggle, hint)."""
+        toggle = self._ref_button(label)
         hint = QLabel(text)
         self._register_hint(hint, '#74c0fc')
         hint.setWordWrap(True)
         hint.setVisible(False)
-        toggle.stateChanged.connect(lambda state, h=hint: h.setVisible(state == 2))
-        layout.addWidget(toggle)
+        toggle.toggled.connect(hint.setVisible)
+        self._ref_row(layout, toggle)
         layout.addWidget(hint)
         return toggle, hint
 
@@ -6902,7 +6897,7 @@ class MainWindow(QMainWindow):
         for i in reversed(range(self.pde_main_layout.count())):
             w = self.pde_main_layout.itemAt(i).widget()
             if w:
-                w.deleteLater()
+                self._drop_row_widget(self.pde_main_layout, w)
         self.pde_inputs.clear()
         self.output_name_inputs.clear()
 
@@ -7011,7 +7006,7 @@ class MainWindow(QMainWindow):
         for i in reversed(range(self.bc_main_layout.count())):
             w = self.bc_main_layout.itemAt(i).widget()
             if w:
-                w.deleteLater()
+                self._drop_row_widget(self.bc_main_layout, w)
         self.bc_left_types.clear();   self.bc_left_vals.clear();   self.bc_left_active.clear();   self.bc_left_deriv.clear()
         self.bc_right_types.clear();  self.bc_right_vals.clear();  self.bc_right_active.clear();  self.bc_right_deriv.clear()
         self.bc_bottom_types.clear(); self.bc_bottom_vals.clear(); self.bc_bottom_active.clear(); self.bc_bottom_deriv.clear()
@@ -7239,6 +7234,8 @@ class MainWindow(QMainWindow):
 
             # IC
             ic_act = QCheckBox(f"IC for {name}"); ic_act.setChecked(True)
+            ic_act.toggled.connect(lambda _on: self._build_weight_inputs(self.num_outputs_spin.value(), keep=True)
+                                   if getattr(self, "weight_widgets", None) is not None and hasattr(self, "weights_main_layout") else None)
             self.ic_active.append(ic_act)
             self._ic_name_widgets[-1][1] = ic_act
             _ic_row = QHBoxLayout()
@@ -7273,7 +7270,7 @@ class MainWindow(QMainWindow):
             # default; this is opt-in per output, and only ever applies to
             # output 0's IC (single global IC file per problem).
             _ic_file_fmt = "x,y,z,t,c" if is_3d else ("x,y,t,c" if is_2d else "x,t,c")
-            ic_file_cb = QCheckBox(f"📂 Load IC from file ({_ic_file_fmt} format)")
+            ic_file_cb = QCheckBox(f"Load IC from file ({_ic_file_fmt} format)")
             ic_file_cb.setChecked(False)
             self._register_hint(ic_file_cb, '#ffa94d')
             self.bc_main_layout.addWidget(ic_file_cb)
@@ -8259,10 +8256,26 @@ class MainWindow(QMainWindow):
         return f"{btype}, {name or f'output {comp + 1}'}"
 
     # ── Build weight inputs ───────────────────────────────────
-    def _build_weight_inputs(self, n):
+    def _build_weight_inputs(self, n, keep=False):
+        # keep=True: rows that already exist keep their values (an IC switched
+        # on or off adds or removes only its own row -- it used to leave the
+        # weights and the training phases' weight lists one entry short, and
+        # the IC trained at weight 1 against the PDE's thousands of points)
+        _old_w = {}
+        if keep:
+            for _k, _wd in self.weight_widgets.items():
+                try:
+                    _old_w[_k] = _wd.value()
+                except Exception:
+                    pass
         for i in reversed(range(self.weights_main_layout.count())):
             w = self.weights_main_layout.itemAt(i).widget()
             if w:
+                # out of the layout and hidden now (deleteLater only runs once
+                # the event loop gets to it -- a template that switches several
+                # ICs rebuilds this a few times in a row)
+                self.weights_main_layout.removeWidget(w)
+                w.hide()
                 w.deleteLater()
         self.weight_widgets.clear()
 
@@ -8287,7 +8300,7 @@ class MainWindow(QMainWindow):
             # other panels' label + field rows.
             row.setContentsMargins(0, 0, 0, 0)
             row.addWidget(QLabel(label))
-            _default_w = 100.0 if key.startswith("ic_") else 1.0
+            _default_w = _old_w.get(key, 100.0 if key.startswith("ic_") else 1.0)
             w = SciLineEdit(_default_w); w.setFixedWidth(100)
             row.addStretch(); row.addWidget(w)
             self.weight_widgets[key] = w
@@ -8295,12 +8308,7 @@ class MainWindow(QMainWindow):
             self.weights_main_layout.addWidget(ww)
 
         if _same_weights:
-            _sep_all = QLabel("── Shared weights (all phases) ──")
-            self._register_section_divider(_sep_all)
-            _sw_all = QWidget(); _sl_all = QHBoxLayout(_sw_all)
-            _sl_all.setContentsMargins(0,0,0,0); _sl_all.addWidget(_sep_all)
-            self.weights_main_layout.addWidget(_sw_all)
-
+            # (no heading here: "Use same weights for all phases", right above, says it)
             for i in range(self._n_equations()):
                 name = self.output_name_inputs[i].text() if i < len(self.output_name_inputs) else f"u{i+1}"
                 _w_row(f"PDE {i+1} ({name}):" if self._n_equations() == n else f"PDE {i+1}:", f"pde_{i}")
@@ -9035,7 +9043,7 @@ class MainWindow(QMainWindow):
         except (json.JSONDecodeError, TypeError):
             phases = []
         for ph in list(self.sched_phase_list):
-            ph["widget"].deleteLater()
+            self._drop_row_widget(self.sched_phases_layout, ph["widget"])
         self.sched_phase_list.clear()
         for ph in phases:
             self._add_scheduler_phase(
@@ -9709,6 +9717,8 @@ class MainWindow(QMainWindow):
         # gamma_1 (interface energy, 1e-6) and gamma_2 (0.01), Wight & Zhao's
         # eq. 3.15 names, both in the chemical-potential row.
         "1D Cahn-Hilliard": [(1, "1e-6", 0), (1, "0.01", 1), (1, "0.01", 1)],
+        "1D Cahn-Hilliard (Mattey & Ghosh)": [(1, "0.02", 0), (1, "1.0", 1)],
+        "2D Cahn-Hilliard (Mattey & Ghosh)": [(1, "0.0002", 0), (1, "1.0", 1)],
         "2D Heat": [(0, "0.4", 0)],
         # c_1^2 (interfacial-thickness-squared, 0.0001) and c_2 (reaction,
         # 1) -- Mattey & Ghosh's own eq. 13 coefficients. c_2's "1" isn't
@@ -9838,6 +9848,9 @@ class MainWindow(QMainWindow):
         # is 1, so this doesn't start the fit already at the answer).
         "1D Allen-Cahn": [("gamma_1", 1.0, 0.0001), ("gamma_2", 1.0, 5.0)],
         "1D Cahn-Hilliard": [("gamma_1", 1.0, 1e-6), ("gamma_2", 1.0, 0.01)],
+        # alpha (interface term) and kappa (the "1.0" on f(u)), Mattey & Ghosh eq. 18
+        "1D Cahn-Hilliard (Mattey & Ghosh)": [("alpha", 1.0, 0.02), ("kappa", 0.1, 1.0)],
+        "2D Cahn-Hilliard (Mattey & Ghosh)": [("alpha", 1.0, 0.0002), ("kappa", 0.1, 1.0)],
         "2D Heat": [("alpha", 1.0, 0.4)],
         # c_1^2 (interfacial-thickness-squared) and c_2 (reaction) --
         # Mattey & Ghosh's own eq. 13 names. c_2's true value is already 1
@@ -10846,7 +10859,7 @@ class MainWindow(QMainWindow):
                 # selected (see its own comment), so nothing goes stale
                 # across templates by leaving it set here.
             else:
-                self.log_box.append("ℹ️ No error analysis configured — click '📊 Error Analysis' before training.")
+                self.log_box.append("ℹ️ No error analysis configured — click 'Error Analysis' before training.")
 
         else:
             self.log_box.append("\n❌ Error during training. Check log above.")
@@ -12794,6 +12807,42 @@ print("DOMAIN_PREVIEW_DONE")
                 'point_weights_lbfgs': 'keep',
                 'ref_dir': os.path.join(REFERENCE_DATA_DIR, "2D", "cahn_hilliard_wight"),
             },
+            # Mattey & Ghosh (2022), Section 6.2, IBVP-2: u_t = lap mu,
+            # mu = u^3 - u - alpha lap u on [0, 1]^2 (periodic), t in
+            # [0, 0.005], u(x, y, 0) = 0.4 cos(4 pi x) cos(4 pi (x + y)).
+            # Time is rescaled, t' = t / 0.005 in [0, 1] (a network sees
+            # t in [0, 0.005] as almost constant), so u_t' = 0.005 lap mu,
+            # which also puts both residuals at order 1. alpha = 0.0002: with
+            # the paper's stated alpha = 0.02 this pattern decays (to +-0.04
+            # at t = 0.005), while its Fig. 16 shows it growing to about +-1,
+            # which alpha = 0.0002 reproduces (and Fig. 15, IBVP-1, too).
+            "2D Cahn-Hilliard (Mattey & Ghosh)": {
+                'pde': ["du_t - 0.005*(dmu_xx + dmu_yy)",
+                        "mu - 1.0*(u**3 - u) + 0.0002*(du_xx + du_yy)"],
+                'ic': ["0.4*cos(4*pi*x)*cos(4*pi*(x + y))", "0"],
+                'ic_active': [True, False],
+                'num_domain': 20000,
+                'num_boundary': 800,
+                'num_initial': 1024,
+                'layers': 4,
+                'neurons': 128,
+                'iterations': 20000,
+                'optimizer2': 'lbfgs',
+                'iterations2': 20000,
+                'x_min': 0.0, 'x_max': 1.0,
+                'y_min': 0.0, 'y_max': 1.0,
+                'periodic_bc': True,
+                'bc_config': 'periodic_all',
+                'num_outputs': 2,
+                'output_names': ['u', 'mu'],
+                'ic_weight': 100.0,
+                'ic_hard': [True, False],
+                'periodic_inputs': True,
+                'point_weights': 'SA-PINN',
+                'sa_normalize': False,
+                'point_weights_lbfgs': 'keep',
+                'ref_dir': os.path.join(REFERENCE_DATA_DIR, "2D", "cahn_hilliard_mattey"),
+            },
             # Physics only, from Mathias, de Almeida, de Barros, Coelho et
             # al. 2022 ("Augmenting a Physics-Informed Neural Network for
             # the 2D Burgers Equation by Addition of Solution Data Points",
@@ -12852,7 +12901,7 @@ print("DOMAIN_PREVIEW_DONE")
                 # _auto_configure_ea's per-output filename matching, exactly
                 # like every other template's single-output reference data
                 # (for ease of use). Users can still reassign or add their
-                # own via the "📊 Error Analysis" dialog.
+                # own via the "Error Analysis" dialog.
                 'ref_dir': os.path.join(REFERENCE_DATA_DIR, "2D", "burgers_mathias"),
                 # 4 real Time-Adaptive steps (0->0.25->0.5->0.75->1.0),
                 # L-BFGS transfer learning between steps, 51-point IC
@@ -13047,7 +13096,12 @@ print("DOMAIN_PREVIEW_DONE")
                 'output_names': ['u'],
                 'ic_weight': 100.0,
                 'bc_config': 'periodic_xyz',
-                'ic_hard': [True],
+                # the initial condition as a loss term (weight 100), not built
+                # into the output: on the GPU the soft IC gave 0.03% error at
+                # t = 1, the exact IC (u = IC + t*N) 0.72% -- the t*N form
+                # makes the network fight the fast early relaxation of the
+                # interface profile
+                'ic_hard': [False],
                 'periodic_inputs': True,
                 'ref_dir': os.path.join(REFERENCE_DATA_DIR, "3D", "allen_cahn_wight"),
             },
@@ -13205,6 +13259,43 @@ print("DOMAIN_PREVIEW_DONE")
                 'periodic_slope': True,
                 'ref_dir': os.path.join(REFERENCE_DATA_DIR, "1D", "cahn_hilliard"),
             },
+            # Mattey & Ghosh (2022), Section 5.2, eq. 25: u_t = lap(kappa f(u)
+            # - alpha kappa lap u), f(u) = u^3 - u, alpha = 0.02, kappa = 1,
+            # on [-1, 1] (periodic in value and slope), t in [0, 1],
+            # u(x, 0) = cos(pi x) - exp(-4 (pi x)^2). Mixed form as in the
+            # paper's phase-space version (eq. 19), with mu the chemical
+            # potential u^3 - u - 0.02 u_xx (order 1, so no scaling needed),
+            # and the same setup as the Wight & Zhao template.
+            "1D Cahn-Hilliard (Mattey & Ghosh)": {
+                'num_outputs': 2,
+                'output_names': 'u,mu',
+                'pde': ["du_t - dmu_xx",
+                        "mu - 1.0*(u**3 - u) + 0.02*du_xx"],
+                # Time-adaptive training, like the paper's bc-PINN: 10 windows
+                # of 0.01 over the fast start (the two bumps merge by t ~ 0.05),
+                # then 9 of 0.1, each started from the previous one, with the
+                # IC as a loss term (weight 100). 0.29% error at t = 0, 0.48%
+                # at t = 1; on the whole domain every method failed (25-90%),
+                # as the paper's standard PINN does.
+                'ic_hard': [False, False],
+                'periodic_inputs': True,
+                'ic': ["cos(pi*x) - exp(-4*(pi*x)**2)", "0"],
+                'ic_active': [True, False],
+                'ta_default': {'step_groups': [(0.0, 0.1, 10), (0.1, 1.0, 9)], 'transfer_learning': True,
+                               'ic_grid': 201, 'transfer_optimizer': 'lbfgs'},
+                'num_domain': 10000,
+                'num_boundary': 200,
+                'num_initial': 512,
+                'layers': 4,
+                'neurons': 128,
+                'iterations': 5000,
+                'optimizer2': 'lbfgs',
+                'iterations2': 5000,
+                'x_min': -1.0, 'x_max': 1.0,
+                'periodic_bc': True,
+                'periodic_slope': True,
+                'ref_dir': os.path.join(REFERENCE_DATA_DIR, "1D", "cahn_hilliard_mattey"),
+            },
             # Exact equation, IC and BC as in Lu, Meng, Mao & Karniadakis
             # 2019 (DeepXDE), section 4.2 / Raissi, Perdikaris & Karniadakis
             # 2019 (JCP), eq. (A.1): u_t + u u_x - (0.01/pi) u_xx = 0,
@@ -13315,7 +13406,7 @@ print("DOMAIN_PREVIEW_DONE")
         for i, cb in enumerate(self.ic_active):
             cb.setChecked(_ic_on[i] if i < len(_ic_on) else True)
         self._tpl_set_sampling_and_training(t, num_initial=t['num_initial'], optimizer2=t['optimizer2'])
-        if text in ("1D Allen-Cahn", "1D Cahn-Hilliard"):
+        if text in ("1D Allen-Cahn", "1D Cahn-Hilliard", "1D Cahn-Hilliard (Mattey & Ghosh)"):
             self._tpl_set_ic_weights(self.num_outputs_spin.value(), 100.0)
         self._tpl_set_output_scale(t.get('output_scale'))
         self._tpl_set_extras(t)
@@ -13809,7 +13900,7 @@ print("DOMAIN_PREVIEW_DONE")
         import os, glob
 
         dialog = QDialog(self)
-        dialog.setWindowTitle("📊 Error Analysis")
+        dialog.setWindowTitle("Error Analysis")
         dialog.setMinimumWidth(520)
         layout = QVBoxLayout(dialog)
 
@@ -14099,7 +14190,7 @@ print("DOMAIN_PREVIEW_DONE")
         _existing_ea = getattr(self, '_ea_settings', None)
         ref_dir = getattr(self, '_template_ref_dir', '')
         if _existing_ea and _existing_ea.get('files'):
-            hint2 = QLabel("📂 Auto-loaded from template" + (f": {os.path.basename(ref_dir)}" if ref_dir else ""))
+            hint2 = QLabel("Auto-loaded from template" + (f": {os.path.basename(ref_dir)}" if ref_dir else ""))
             self._register_hint(hint2, '#a0c4ff')
             files_layout.addWidget(hint2)
             for _ea_entry in _existing_ea['files']:
@@ -14109,7 +14200,7 @@ print("DOMAIN_PREVIEW_DONE")
         elif ref_dir and os.path.isdir(ref_dir):
             txt_files = sorted(glob.glob(os.path.join(ref_dir, 't_*.txt')))
             if txt_files:
-                hint2 = QLabel(f"📂 Auto-loaded from template: {os.path.basename(ref_dir)}")
+                hint2 = QLabel(f"Auto-loaded from template: {os.path.basename(ref_dir)}")
                 self._register_hint(hint2, '#a0c4ff')
                 files_layout.addWidget(hint2)
                 for f in txt_files:
@@ -14125,7 +14216,7 @@ print("DOMAIN_PREVIEW_DONE")
 
         # ── Buttons ────────────────────────────────────────────
         btn_row = QHBoxLayout()
-        run_btn = QPushButton("▶ Run Error Analysis")
+        run_btn = QPushButton("Run Error Analysis")
         run_btn.setStyleSheet("QPushButton { background: #1a4a6a; color: #74c0fc; font-weight: bold; border-radius: 4px; padding: 4px 14px; }")
         cancel_btn = QPushButton("Cancel")
         btn_row.addStretch()
@@ -14241,7 +14332,7 @@ print("DOMAIN_PREVIEW_DONE")
         """Clear existing phases and add defaults based on template."""
         # Clear existing phases
         for ph in list(self.sched_phase_list):
-            ph['widget'].deleteLater()
+            self._drop_row_widget(self.sched_phases_layout, ph['widget'])
         self.sched_phase_list.clear()
 
         # Default: Adam warm-up phase, then L-BFGS refinement, using same weights
@@ -14389,6 +14480,19 @@ print("DOMAIN_PREVIEW_DONE")
                 period=m.get('period', 1000) or 1000,
             )
 
+    # one width for every field of a Training phase (and its learning-rate
+    # decay fields), so the column of fields lines up
+    PHASE_FIELD_W = 170
+
+    @staticmethod
+    def _drop_row_widget(layout, widget):
+        """Take a repeatable row (phase, sweep parameter) off the screen
+        now: deleteLater alone leaves it visible until the event loop gets
+        round to it, so a rebuilt list briefly shows old and new rows."""
+        layout.removeWidget(widget)
+        widget.hide()
+        widget.deleteLater()
+
     def _make_lr_decay_widget(self):
         """The "Learning rate decay" type combo and its one or two
         parameters (step size / gamma, T_max / eta min, ...), shared by
@@ -14407,7 +14511,7 @@ print("DOMAIN_PREVIEW_DONE")
         decay_type_combo.addItem("Exponential", "exponential")
         # DeepXDE's "inverse time": lr / (1 + rate * step / steps) (Round 64).
         decay_type_combo.addItem("Inverse time", "inverse time")
-        decay_type_combo.setFixedHeight(24); decay_type_combo.setFixedWidth(100)
+        decay_type_combo.setFixedHeight(26); decay_type_combo.setFixedWidth(self.PHASE_FIELD_W)
         decay_type_row.addStretch(); decay_type_row.addWidget(decay_type_combo)
         decay_layout.addLayout(decay_type_row)
 
@@ -14416,7 +14520,8 @@ print("DOMAIN_PREVIEW_DONE")
         decay_p1_row.addWidget(decay_p1_lbl)
         decay_p1_spin = QDoubleSpinBox()
         decay_p1_spin.setRange(1, 500000); decay_p1_spin.setDecimals(0)
-        decay_p1_spin.setValue(5000); decay_p1_spin.setFixedHeight(24)
+        decay_p1_spin.setValue(5000); decay_p1_spin.setFixedHeight(26)
+        decay_p1_spin.setFixedWidth(self.PHASE_FIELD_W)
         decay_p1_row.addStretch(); decay_p1_row.addWidget(decay_p1_spin)
         decay_layout.addLayout(decay_p1_row)
 
@@ -14426,7 +14531,7 @@ print("DOMAIN_PREVIEW_DONE")
         decay_p2_spin = QDoubleSpinBox()
         decay_p2_spin.setRange(0.0, 1.0); decay_p2_spin.setDecimals(4)
         decay_p2_spin.setSingleStep(0.01); decay_p2_spin.setValue(0.9)
-        decay_p2_spin.setFixedHeight(24)
+        decay_p2_spin.setFixedHeight(26); decay_p2_spin.setFixedWidth(self.PHASE_FIELD_W)
         decay_p2_row.addStretch(); decay_p2_row.addWidget(decay_p2_spin)
         decay_layout.addLayout(decay_p2_row)
 
@@ -14485,8 +14590,7 @@ print("DOMAIN_PREVIEW_DONE")
         opt_combo.addItem("L-BFGS", "lbfgs")
         opt_combo.addItem("NNCG", "nncg")
         self._set_combo_data(opt_combo, optimizer)
-        opt_combo.setFixedHeight(26)
-        self._fit_combo_width(opt_combo, min_width=80)
+        opt_combo.setFixedHeight(26); opt_combo.setFixedWidth(self.PHASE_FIELD_W)
         opt_row.addStretch(); opt_row.addWidget(opt_combo)
         phase_layout.addLayout(opt_row)
 
@@ -14496,6 +14600,7 @@ print("DOMAIN_PREVIEW_DONE")
         iter_spin = QSpinBox()
         iter_spin.setRange(0, 500000); iter_spin.setSingleStep(1000)
         iter_spin.setValue(iterations); iter_spin.setFixedHeight(26)
+        iter_spin.setFixedWidth(self.PHASE_FIELD_W)
         iter_row.addStretch(); iter_row.addWidget(iter_spin)
         phase_layout.addLayout(iter_row)
 
@@ -14509,7 +14614,7 @@ print("DOMAIN_PREVIEW_DONE")
         lr_spin = QDoubleSpinBox()
         lr_spin.setRange(1e-6, 1.0); lr_spin.setDecimals(6)
         lr_spin.setSingleStep(0.0001); lr_spin.setValue(lr)
-        lr_spin.setFixedHeight(26)
+        lr_spin.setFixedHeight(26); lr_spin.setFixedWidth(self.PHASE_FIELD_W)
         lr_row.addStretch(); lr_row.addWidget(lr_spin)
         phase_layout.addWidget(lr_widget)
         _lr_capable = optimizer not in ("lbfgs", "nncg")
@@ -14532,8 +14637,8 @@ print("DOMAIN_PREVIEW_DONE")
         loss_combo_ph = QComboBox()
         loss_combo_ph.addItems(["MSE", "MAE", "mean l2 relative error",
                                  "mean absolute percentage error", "softplus"])
-        loss_combo_ph.setFixedHeight(26)
-        self._fit_combo_width(loss_combo_ph, min_width=160)
+        loss_combo_ph.setFixedHeight(26); loss_combo_ph.setFixedWidth(self.PHASE_FIELD_W)
+        loss_combo_ph.view().setMinimumWidth(loss_combo_ph.view().sizeHintForColumn(0) + 24)
         loss_row.addStretch(); loss_row.addWidget(loss_combo_ph)
         phase_layout.addLayout(loss_row)
 
@@ -14552,7 +14657,7 @@ print("DOMAIN_PREVIEW_DONE")
         self.sched_phase_list.append(phase_data)
 
         def _remove():
-            phase_widget.deleteLater()
+            self._drop_row_widget(self.sched_phases_layout, phase_widget)
             if phase_data in self.sched_phase_list:
                 self.sched_phase_list.remove(phase_data)
             self._build_weight_inputs(self.num_outputs_spin.value())

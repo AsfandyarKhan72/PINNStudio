@@ -1,0 +1,1720 @@
+{
+ "note": "relative L2 error of the main output at each reference time, from Error Analysis of each GPU run (src = job/folder/run)",
+ "figures": [
+  {
+   "file": "ac1d.png",
+   "title": "1D Allen-Cahn (Wight & Zhao)",
+   "subtitle": "whole time interval unless noted; all but the gray line have exact IC + periodicity; seed 2026",
+   "runs": [
+    {
+     "label": "Plain PINN",
+     "l2": [
+      [
+       0.0,
+       0.00049014
+      ],
+      [
+       0.25,
+       0.006933
+      ],
+      [
+       0.5,
+       0.018986
+      ],
+      [
+       0.75,
+       0.043999
+      ],
+      [
+       1.0,
+       0.10018
+      ]
+     ],
+     "baseline": true,
+     "src": "ch6_ac_plain/m/base"
+    },
+    {
+     "label": "Time-adaptive, 4 windows",
+     "l2": [
+      [
+       0.0,
+       0.00014851
+      ],
+      [
+       0.25,
+       0.00045195
+      ],
+      [
+       0.5,
+       0.00099695
+      ],
+      [
+       0.75,
+       0.0017994
+      ],
+      [
+       1.0,
+       0.0047642
+      ]
+     ],
+     "template": true,
+     "src": "ch4_ac/m/base"
+    },
+    {
+     "label": "Exact IC + periodic only",
+     "l2": [
+      [
+       0.0,
+       9.7965e-08
+      ],
+      [
+       0.25,
+       0.0026747
+      ],
+      [
+       0.5,
+       0.0070121
+      ],
+      [
+       0.75,
+       0.016563
+      ],
+      [
+       1.0,
+       0.042623
+      ]
+     ],
+     "src": "cm_paper_base/m/base"
+    },
+    {
+     "label": "+ RBA (keep)",
+     "l2": [
+      [
+       0.0,
+       9.7965e-08
+      ],
+      [
+       0.25,
+       0.00052706
+      ],
+      [
+       0.5,
+       0.00088065
+      ],
+      [
+       0.75,
+       0.001837
+      ],
+      [
+       1.0,
+       0.004271
+      ]
+     ],
+     "src": "cm_paper_base/m/base_rba"
+    },
+    {
+     "label": "+ causal, fixed eps = 1",
+     "l2": [
+      [
+       0.0,
+       9.7965e-08
+      ],
+      [
+       0.25,
+       0.00060839
+      ],
+      [
+       0.5,
+       0.0011726
+      ],
+      [
+       0.75,
+       0.0025622
+      ],
+      [
+       1.0,
+       0.0064676
+      ]
+     ],
+     "src": "cl_paper_methods/m/causal_fixed_e1"
+    },
+    {
+     "label": "+ causal, eps schedule",
+     "l2": [
+      [
+       0.0,
+       9.7965e-08
+      ],
+      [
+       0.25,
+       0.00049076
+      ],
+      [
+       0.5,
+       0.00081311
+      ],
+      [
+       0.75,
+       0.0013013
+      ],
+      [
+       1.0,
+       0.0018373
+      ]
+     ],
+     "src": "cl_paper_methods/m/causal_anneal"
+    },
+    {
+     "label": "+ SA-PINN (paper)",
+     "l2": [
+      [
+       0.0,
+       9.7965e-08
+      ],
+      [
+       0.25,
+       0.00046054
+      ],
+      [
+       0.5,
+       0.00062266
+      ],
+      [
+       0.75,
+       0.00094775
+      ],
+      [
+       1.0,
+       0.0017645
+      ]
+     ],
+     "src": "cl_paper_methods/m/sa_paper"
+    },
+    {
+     "label": "+ causal schedule + MsFFN",
+     "l2": [
+      [
+       0.0,
+       9.7965e-08
+      ],
+      [
+       0.25,
+       0.00039795
+      ],
+      [
+       0.5,
+       0.00043896
+      ],
+      [
+       0.75,
+       0.00061025
+      ],
+      [
+       1.0,
+       0.0012949
+      ]
+     ],
+     "best": true,
+     "src": "cl_paper_methods/m/causal_anneal_msffn"
+    }
+   ]
+  },
+  {
+   "file": "ch1d.png",
+   "title": "1D Cahn-Hilliard (Wight & Zhao), u",
+   "subtitle": "all scaled except the gray line; lines starting with '+' also have exact IC + periodicity",
+   "runs": [
+    {
+     "label": "Unscaled plain PINN",
+     "l2": [
+      [
+       0.0,
+       0.0001009
+      ],
+      [
+       0.25,
+       0.28208
+      ],
+      [
+       0.5,
+       0.40169
+      ],
+      [
+       0.75,
+       0.42005
+      ],
+      [
+       1.0,
+       0.41959
+      ]
+     ],
+     "baseline": true,
+     "src": "ch3_scaled/m/base"
+    },
+    {
+     "label": "Scaled, plain",
+     "l2": [
+      [
+       0.0,
+       9.5459e-05
+      ],
+      [
+       0.25,
+       0.032689
+      ],
+      [
+       0.5,
+       0.0091755
+      ],
+      [
+       0.75,
+       0.0064723
+      ],
+      [
+       1.0,
+       0.0052149
+      ]
+     ],
+     "src": "ch5_tmpl/m/tmpl"
+    },
+    {
+     "label": "Scaled + MsFFN + RBA",
+     "l2": [
+      [
+       0.0,
+       2.2062e-05
+      ],
+      [
+       0.25,
+       0.0053778
+      ],
+      [
+       0.5,
+       0.0022073
+      ],
+      [
+       0.75,
+       0.0013208
+      ],
+      [
+       1.0,
+       0.0011463
+      ]
+     ],
+     "src": "ch11_more/m/ch_msffn_rba"
+    },
+    {
+     "label": "+ RBA (keep), earlier template",
+     "l2": [
+      [
+       0.0,
+       1.5926e-07
+      ],
+      [
+       0.25,
+       0.0060088
+      ],
+      [
+       0.5,
+       0.002739
+      ],
+      [
+       0.75,
+       0.0019156
+      ],
+      [
+       1.0,
+       0.0012459
+      ]
+     ],
+     "src": "cj2_tpl_run/m/ch_template"
+    },
+    {
+     "label": "+ causal, eps schedule",
+     "l2": [
+      [
+       0.0,
+       1.5926e-07
+      ],
+      [
+       0.25,
+       0.0050243
+      ],
+      [
+       0.5,
+       0.0017763
+      ],
+      [
+       0.75,
+       0.0013314
+      ],
+      [
+       1.0,
+       0.0010167
+      ]
+     ],
+     "src": "cn_paper_seeds/m_ch/causal_anneal"
+    },
+    {
+     "label": "+ causal schedule + MsFFN",
+     "l2": [
+      [
+       0.0,
+       1.5926e-07
+      ],
+      [
+       0.25,
+       0.010478
+      ],
+      [
+       0.5,
+       0.0042598
+      ],
+      [
+       0.75,
+       0.0028495
+      ],
+      [
+       1.0,
+       0.0021788
+      ]
+     ],
+     "src": "cn_paper_seeds/m_ch/causal_anneal_msffn"
+    },
+    {
+     "label": "+ SA-PINN, mean-1",
+     "l2": [
+      [
+       0.0,
+       1.5926e-07
+      ],
+      [
+       0.25,
+       0.006882
+      ],
+      [
+       0.5,
+       0.0033307
+      ],
+      [
+       0.75,
+       0.0022019
+      ],
+      [
+       1.0,
+       0.001864
+      ]
+     ],
+     "src": "cn_paper_seeds/m_ch/sa_norm_keep"
+    },
+    {
+     "label": "+ SA-PINN (paper)",
+     "l2": [
+      [
+       0.0,
+       1.5926e-07
+      ],
+      [
+       0.25,
+       0.0023323
+      ],
+      [
+       0.5,
+       0.0011309
+      ],
+      [
+       0.75,
+       0.00071891
+      ],
+      [
+       1.0,
+       0.00059884
+      ]
+     ],
+     "best": true,
+     "template": true,
+     "src": "cq_figs/m/ch1d_tpl"
+    }
+   ]
+  },
+  {
+   "file": "ch2d_wz.png",
+   "title": "2D Cahn-Hilliard (Wight & Zhao), u",
+   "subtitle": "two merging bubbles; exact IC + periodicity; 'smoothed' = the template's smoothed initial condition",
+   "runs": [
+    {
+     "label": "u left at its initial condition",
+     "baseline": true,
+     "l2": [
+      [
+       0.25,
+       0.1616
+      ],
+      [
+       0.5,
+       0.2125
+      ],
+      [
+       0.75,
+       0.2601
+      ],
+      [
+       1.0,
+       0.2996
+      ]
+     ],
+     "src": "computed"
+    },
+    {
+     "label": "Paper's IC, plain",
+     "l2": [
+      [
+       0.0,
+       7.8522e-08
+      ],
+      [
+       0.25,
+       0.13626
+      ],
+      [
+       0.5,
+       0.1925
+      ],
+      [
+       0.75,
+       0.2435
+      ],
+      [
+       1.0,
+       0.28457
+      ]
+     ],
+     "src": "cnb_new/m/ch2d_tpl"
+    },
+    {
+     "label": "Smoothed IC, plain",
+     "l2": [
+      [
+       0.0,
+       1.1559e-07
+      ],
+      [
+       0.25,
+       0.15713
+      ],
+      [
+       0.5,
+       0.2078
+      ],
+      [
+       0.75,
+       0.2556
+      ],
+      [
+       1.0,
+       0.29512
+      ]
+     ],
+     "src": "cnc_new2/m/ch2d_tpl"
+    },
+    {
+     "label": "Smoothed, + causal schedule",
+     "l2": [
+      [
+       0.0,
+       1.1559e-07
+      ],
+      [
+       0.25,
+       0.028705
+      ],
+      [
+       0.5,
+       0.021459
+      ],
+      [
+       0.75,
+       0.03178
+      ],
+      [
+       1.0,
+       0.041885
+      ]
+     ],
+     "src": "cnc_new2/m/ch2d_causal"
+    },
+    {
+     "label": "Smoothed, + SA-PINN, 6x128",
+     "l2": [
+      [
+       0.0,
+       1.1559e-07
+      ],
+      [
+       0.25,
+       0.034904
+      ],
+      [
+       0.5,
+       0.029502
+      ],
+      [
+       0.75,
+       0.033454
+      ],
+      [
+       1.0,
+       0.032603
+      ]
+     ],
+     "src": "cq_figs/m/ch2d_6x128"
+    },
+    {
+     "label": "Smoothed, + SA-PINN, 40k Adam",
+     "l2": [
+      [
+       0.0,
+       1.1559e-07
+      ],
+      [
+       0.25,
+       0.018804
+      ],
+      [
+       0.5,
+       0.020396
+      ],
+      [
+       0.75,
+       0.030299
+      ],
+      [
+       1.0,
+       0.035235
+      ]
+     ],
+     "src": "cqb_ch2d40k/m/ch2d_40k"
+    },
+    {
+     "label": "Smoothed, + SA-PINN (paper)",
+     "l2": [
+      [
+       0.0,
+       1.1559e-07
+      ],
+      [
+       0.25,
+       0.012128
+      ],
+      [
+       0.5,
+       0.012925
+      ],
+      [
+       0.75,
+       0.027532
+      ],
+      [
+       1.0,
+       0.038265
+      ]
+     ],
+     "best": true,
+     "template": true,
+     "src": "cq_figs/m/ch2d_tpl"
+    },
+    {
+     "label": "Smoothed + SA-PINN, time-adaptive, IC loss",
+     "l2": [
+      [
+       0.0,
+       0.032441
+      ],
+      [
+       0.25,
+       0.0042092
+      ],
+      [
+       0.5,
+       0.012023
+      ],
+      [
+       0.75,
+       0.014144
+      ],
+      [
+       1.0,
+       0.017169
+      ]
+     ],
+     "src": "cu_mattey_b2/m/chw_ta5"
+    }
+   ]
+  },
+  {
+   "file": "ac2d_mg.png",
+   "title": "2D Allen-Cahn (Mattey & Ghosh)",
+   "subtitle": "whole time interval unless noted",
+   "runs": [
+    {
+     "label": "Plain PINN",
+     "l2": [
+      [
+       0.0,
+       0.012755
+      ],
+      [
+       0.25,
+       0.011828
+      ],
+      [
+       0.5,
+       0.011363
+      ],
+      [
+       0.75,
+       0.01156
+      ],
+      [
+       1.0,
+       0.012809
+      ]
+     ],
+     "baseline": true,
+     "src": "ch14_ac2d/m/mg_plain"
+    },
+    {
+     "label": "Time-adaptive, 4 windows",
+     "l2": [
+      [
+       0.0,
+       0.0059941
+      ],
+      [
+       0.25,
+       0.0056051
+      ],
+      [
+       0.5,
+       0.0054511
+      ],
+      [
+       0.75,
+       0.0056351
+      ],
+      [
+       1.0,
+       0.0066524
+      ]
+     ],
+     "template": true,
+     "src": "ch14_ac2d/m/mg_ta_template"
+    },
+    {
+     "label": "+ RBA (plain L-BFGS)",
+     "l2": [
+      [
+       0.0,
+       0.017139
+      ],
+      [
+       0.25,
+       0.015873
+      ],
+      [
+       0.5,
+       0.01541
+      ],
+      [
+       0.75,
+       0.015765
+      ],
+      [
+       1.0,
+       0.01707
+      ]
+     ],
+     "src": "ch14_ac2d/m/mg_rba"
+    },
+    {
+     "label": "+ MsFFN + RBA (keep)",
+     "l2": [
+      [
+       0.0,
+       0.0070864
+      ],
+      [
+       0.25,
+       0.007833
+      ],
+      [
+       0.5,
+       0.0092661
+      ],
+      [
+       0.75,
+       0.011612
+      ],
+      [
+       1.0,
+       0.017213
+      ]
+     ],
+     "src": "ch14_ac2d/m/mg_msffn_rba_keep"
+    },
+    {
+     "label": "Exact IC + periodic + causal schedule",
+     "l2": [
+      [
+       0.0,
+       1.9671e-05
+      ],
+      [
+       0.25,
+       0.00036839
+      ],
+      [
+       0.5,
+       0.0005178
+      ],
+      [
+       0.75,
+       0.00053021
+      ],
+      [
+       1.0,
+       0.00056551
+      ]
+     ],
+     "src": "cp_broad/m/mg_wd_ex_causal_sched"
+    },
+    {
+     "label": "Exact IC + periodic + RBA (keep)",
+     "l2": [
+      [
+       0.0,
+       1.9671e-05
+      ],
+      [
+       0.25,
+       0.00033864
+      ],
+      [
+       0.5,
+       0.00050494
+      ],
+      [
+       0.75,
+       0.00054276
+      ],
+      [
+       1.0,
+       0.00053585
+      ]
+     ],
+     "best": true,
+     "src": "ch14_ac2d/m/mg_rba_keep_per_hard"
+    }
+   ]
+  },
+  {
+   "file": "ac2d_wz.png",
+   "title": "2D Allen-Cahn (Wight & Zhao)",
+   "xlabel": "t",
+   "subtitle": "shrinking circle, t up to 10",
+   "runs": [
+    {
+     "label": "Plain PINN, whole interval",
+     "l2": [
+      [
+       0.0,
+       0.00087149
+      ],
+      [
+       2.5,
+       1.7723
+      ],
+      [
+       5.0,
+       1.8729
+      ],
+      [
+       10.0,
+       2.0
+      ]
+     ],
+     "baseline": true,
+     "src": "ch14_ac2d/m/wz_plain"
+    },
+    {
+     "label": "Whole, + MsFFN + RBA",
+     "l2": [
+      [
+       0.0,
+       0.0044252
+      ],
+      [
+       2.5,
+       0.81396
+      ],
+      [
+       5.0,
+       1.0002
+      ],
+      [
+       10.0,
+       1.102
+      ]
+     ],
+     "src": "ch14_ac2d/m/wz_msffn_rba_keep"
+    },
+    {
+     "label": "Whole, exact IC + periodic + RBA",
+     "l2": [
+      [
+       0.0,
+       2.4147e-05
+      ],
+      [
+       2.5,
+       0.16503
+      ],
+      [
+       5.0,
+       0.18586
+      ],
+      [
+       10.0,
+       0.33498
+      ]
+     ],
+     "src": "ch14_ac2d/m/wz_rba_keep_per_hard"
+    },
+    {
+     "label": "Whole, + RBA (plain L-BFGS)",
+     "l2": [
+      [
+       0.0,
+       0.00041057
+      ],
+      [
+       2.5,
+       0.034527
+      ],
+      [
+       5.0,
+       0.057202
+      ],
+      [
+       10.0,
+       0.18802
+      ]
+     ],
+     "src": "ch14_ac2d/m/wz_rba"
+    },
+    {
+     "label": "Time-adaptive, 10 windows",
+     "l2": [
+      [
+       0.0,
+       0.0003142
+      ],
+      [
+       2.5,
+       0.0093183
+      ],
+      [
+       5.0,
+       0.020616
+      ],
+      [
+       10.0,
+       0.0078742
+      ]
+     ],
+     "template": true,
+     "src": "ch14_ac2d/m/wz_ta_template"
+    },
+    {
+     "label": "Time-adaptive + RBA + periodic",
+     "l2": [
+      [
+       0.0,
+       0.00031631
+      ],
+      [
+       2.5,
+       0.0092408
+      ],
+      [
+       5.0,
+       0.020434
+      ],
+      [
+       10.0,
+       0.0015751
+      ]
+     ],
+     "best": true,
+     "src": "ch15_wzta/m/wz_ta_rba_per"
+    }
+   ]
+  },
+  {
+   "file": "kg.png",
+   "title": "Klein-Gordon (DeepXDE example)",
+   "subtitle": "t up to 10",
+   "runs": [
+    {
+     "label": "Plain PINN",
+     "l2": [
+      [
+       0.0,
+       0.0014121
+      ],
+      [
+       2.5,
+       0.015603
+      ],
+      [
+       5.0,
+       0.084891
+      ],
+      [
+       7.5,
+       0.064875
+      ],
+      [
+       10.0,
+       0.08103
+      ]
+     ],
+     "baseline": true,
+     "src": "ch12_broad2/m/kg_base"
+    },
+    {
+     "label": "+ RBA (keep)",
+     "l2": [
+      [
+       0.0,
+       0.0016842
+      ],
+      [
+       2.5,
+       0.011948
+      ],
+      [
+       5.0,
+       0.063967
+      ],
+      [
+       7.5,
+       0.04661
+      ],
+      [
+       10.0,
+       0.060562
+      ]
+     ],
+     "src": "ch12_broad2/m/kg_rba"
+    },
+    {
+     "label": "+ causal, eps schedule",
+     "l2": [
+      [
+       0.0,
+       0.00089608
+      ],
+      [
+       2.5,
+       0.015105
+      ],
+      [
+       5.0,
+       0.087187
+      ],
+      [
+       7.5,
+       0.10624
+      ],
+      [
+       10.0,
+       0.084165
+      ]
+     ],
+     "src": "cp_broad/m/kg_causal_sched"
+    },
+    {
+     "label": "+ SA-PINN (paper, keep)",
+     "l2": [
+      [
+       0.0,
+       0.007138
+      ],
+      [
+       2.5,
+       0.014776
+      ],
+      [
+       5.0,
+       0.22884
+      ],
+      [
+       7.5,
+       0.039236
+      ],
+      [
+       10.0,
+       0.13307
+      ]
+     ],
+     "src": "cp_broad/m/kg_sa_paper"
+    },
+    {
+     "label": "+ SA-PINN, mean-1 (keep)",
+     "l2": [
+      [
+       0.0,
+       0.00035787
+      ],
+      [
+       2.5,
+       0.0014698
+      ],
+      [
+       5.0,
+       0.0054704
+      ],
+      [
+       7.5,
+       0.0041427
+      ],
+      [
+       10.0,
+       0.0061134
+      ]
+     ],
+     "src": "ch12_broad2/m/kg_sa"
+    },
+    {
+     "label": "+ RBA (plain L-BFGS)",
+     "l2": [
+      [
+       0.0,
+       5.5182e-05
+      ],
+      [
+       2.5,
+       0.00098304
+      ],
+      [
+       5.0,
+       0.0067084
+      ],
+      [
+       7.5,
+       0.0040937
+      ],
+      [
+       10.0,
+       0.0067874
+      ]
+     ],
+     "src": "ch12_broad2/m/kg_rba_lbplain"
+    },
+    {
+     "label": "+ MsFFN",
+     "l2": [
+      [
+       0.0,
+       9.0998e-05
+      ],
+      [
+       2.5,
+       0.00077718
+      ],
+      [
+       5.0,
+       0.0043334
+      ],
+      [
+       7.5,
+       0.002795
+      ],
+      [
+       10.0,
+       0.0031416
+      ]
+     ],
+     "src": "ch12_broad2/m/kg_msffn"
+    },
+    {
+     "label": "+ causal schedule + MsFFN",
+     "l2": [
+      [
+       0.0,
+       0.00010438
+      ],
+      [
+       2.5,
+       0.00080622
+      ],
+      [
+       5.0,
+       0.0034911
+      ],
+      [
+       7.5,
+       0.0024296
+      ],
+      [
+       10.0,
+       0.0022153
+      ]
+     ],
+     "best": true,
+     "src": "cp_broad/m/kg_causal_sched_msffn"
+    }
+   ]
+  },
+  {
+   "file": "burgers.png",
+   "title": "1D Burgers (Raissi et al.)",
+   "subtitle": "a problem the plain PINN already solves well",
+   "runs": [
+    {
+     "label": "Plain PINN",
+     "l2": [
+      [
+       0.0,
+       5.9852e-05
+      ],
+      [
+       0.25,
+       0.00036645
+      ],
+      [
+       0.5,
+       0.00072326
+      ],
+      [
+       0.75,
+       0.0012242
+      ],
+      [
+       1.0,
+       0.0013214
+      ]
+     ],
+     "baseline": true,
+     "template": true,
+     "src": "ch10_broad/m/Burgers_base"
+    },
+    {
+     "label": "+ RBA (keep)",
+     "l2": [
+      [
+       0.0,
+       0.00042062
+      ],
+      [
+       0.25,
+       0.0030276
+      ],
+      [
+       0.5,
+       0.010771
+      ],
+      [
+       0.75,
+       0.01563
+      ],
+      [
+       1.0,
+       0.010386
+      ]
+     ],
+     "src": "ch10_broad/m/Burgers_rba"
+    },
+    {
+     "label": "+ SA-PINN, mean-1 (keep)",
+     "l2": [
+      [
+       0.0,
+       0.00019334
+      ],
+      [
+       0.25,
+       0.0022496
+      ],
+      [
+       0.5,
+       0.0075674
+      ],
+      [
+       0.75,
+       0.019897
+      ],
+      [
+       1.0,
+       0.012701
+      ]
+     ],
+     "src": "ch10_broad/m/Burgers_sa"
+    },
+    {
+     "label": "+ SA-PINN (paper, keep)",
+     "l2": [
+      [
+       0.0,
+       0.010756
+      ],
+      [
+       0.25,
+       0.0094646
+      ],
+      [
+       0.5,
+       0.0066312
+      ],
+      [
+       0.75,
+       0.0050709
+      ],
+      [
+       1.0,
+       0.0068901
+      ]
+     ],
+     "src": "cp_broad/m/burgers_sa_paper"
+    },
+    {
+     "label": "+ MsFFN",
+     "l2": [
+      [
+       0.0,
+       0.00040024
+      ],
+      [
+       0.25,
+       0.0041617
+      ],
+      [
+       0.5,
+       0.0018938
+      ],
+      [
+       0.75,
+       0.0024788
+      ],
+      [
+       1.0,
+       0.0043903
+      ]
+     ],
+     "src": "ch12_broad2/m/bu_msffn"
+    },
+    {
+     "label": "+ SA-PINN (plain L-BFGS)",
+     "l2": [
+      [
+       0.0,
+       0.00014354
+      ],
+      [
+       0.25,
+       0.00072744
+      ],
+      [
+       0.5,
+       0.0015053
+      ],
+      [
+       0.75,
+       0.00089674
+      ],
+      [
+       1.0,
+       0.0011887
+      ]
+     ],
+     "src": "ch11_more/m/bu_sa_lbplain"
+    },
+    {
+     "label": "+ causal, eps schedule",
+     "l2": [
+      [
+       0.0,
+       9.1279e-05
+      ],
+      [
+       0.25,
+       0.00049741
+      ],
+      [
+       0.5,
+       0.00045013
+      ],
+      [
+       0.75,
+       0.00072311
+      ],
+      [
+       1.0,
+       0.00077224
+      ]
+     ],
+     "src": "cp_broad/m/burgers_causal_sched"
+    },
+    {
+     "label": "+ RBA (plain L-BFGS)",
+     "l2": [
+      [
+       0.0,
+       8.5647e-05
+      ],
+      [
+       0.25,
+       0.00046169
+      ],
+      [
+       0.5,
+       0.00043451
+      ],
+      [
+       0.75,
+       0.00084559
+      ],
+      [
+       1.0,
+       0.00046159
+      ]
+     ],
+     "best": true,
+     "src": "ch11_more/m/bu_rba_lbplain"
+    }
+   ]
+  },
+  {
+   "file": "ch1d_mg.png",
+   "title": "1D Cahn-Hilliard (Mattey & Ghosh), u",
+   "subtitle": "whole-domain lines have exact IC + periodicity; time-adaptive lines use 19 windows, IC as a loss term",
+   "runs": [
+    {
+     "label": "Whole domain, plain",
+     "l2": [
+      [
+       0.0,
+       1.009699e-07
+      ],
+      [
+       0.05,
+       0.6804231
+      ],
+      [
+       0.25,
+       0.9293219
+      ],
+      [
+       0.5,
+       0.9933493
+      ],
+      [
+       0.75,
+       0.9583009
+      ],
+      [
+       1.0,
+       0.8395933
+      ]
+     ],
+     "baseline": true,
+     "src": "cs_mattey_a/m/m1_plain"
+    },
+    {
+     "label": "Whole domain + RBA (keep)",
+     "l2": [
+      [
+       0.0,
+       1.009699e-07
+      ],
+      [
+       0.05,
+       0.7052729
+      ],
+      [
+       0.25,
+       0.8077388
+      ],
+      [
+       0.5,
+       0.8491446
+      ],
+      [
+       0.75,
+       0.8785243
+      ],
+      [
+       1.0,
+       0.9001609
+      ]
+     ],
+     "src": "cs_mattey_a/m/m1_rba"
+    },
+    {
+     "label": "Whole domain + SA-PINN (keep)",
+     "l2": [
+      [
+       0.0,
+       1.009699e-07
+      ],
+      [
+       0.05,
+       0.9310294
+      ],
+      [
+       0.25,
+       0.9122958
+      ],
+      [
+       0.5,
+       0.8528995
+      ],
+      [
+       0.75,
+       0.7005627
+      ],
+      [
+       1.0,
+       0.5140848
+      ]
+     ],
+     "src": "cs_mattey_a/m/m1_tpl"
+    },
+    {
+     "label": "Whole domain + causal + MsFFN",
+     "l2": [
+      [
+       0.0,
+       1.009699e-07
+      ],
+      [
+       0.05,
+       0.5684233
+      ],
+      [
+       0.25,
+       0.9002367
+      ],
+      [
+       0.5,
+       0.985863
+      ],
+      [
+       0.75,
+       0.8255605
+      ],
+      [
+       1.0,
+       0.2499437
+      ]
+     ],
+     "src": "cs_mattey_a/m/m1_causal_msffn"
+    },
+    {
+     "label": "Time-adaptive + SA-PINN (keep)",
+     "l2": [
+      [
+       0.0,
+       0.09430743
+      ],
+      [
+       0.05,
+       0.01472082
+      ],
+      [
+       0.25,
+       0.00265679
+      ],
+      [
+       0.5,
+       0.003084783
+      ],
+      [
+       0.75,
+       0.003824038
+      ],
+      [
+       1.0,
+       0.003900703
+      ]
+     ],
+     "src": "cu_mattey_b2/m/m1_ta19_sa"
+    },
+    {
+     "label": "Time-adaptive, plain",
+     "l2": [
+      [
+       0.0,
+       0.002862747
+      ],
+      [
+       0.05,
+       0.003489511
+      ],
+      [
+       0.25,
+       0.005081712
+      ],
+      [
+       0.5,
+       0.004943894
+      ],
+      [
+       0.75,
+       0.004841587
+      ],
+      [
+       1.0,
+       0.004766357
+      ]
+     ],
+     "best": true,
+     "template": true,
+     "src": "cu_mattey_b2/m/m1_ta19_plain"
+    }
+   ]
+  },
+  {
+   "file": "ch2d_mg.png",
+   "title": "2D Cahn-Hilliard (Mattey & Ghosh), u",
+   "subtitle": "all with exact IC + periodicity, whole domain",
+   "xlabel": "t' = t / 0.005",
+   "runs": [
+    {
+     "label": "Plain",
+     "l2": [
+      [
+       0.0,
+       8.516906e-07
+      ],
+      [
+       0.2,
+       0.008713006
+      ],
+      [
+       0.4,
+       0.007336294
+      ],
+      [
+       0.6,
+       0.006392615
+      ],
+      [
+       0.8,
+       0.00417788
+      ],
+      [
+       1.0,
+       0.003489929
+      ]
+     ],
+     "baseline": true,
+     "src": "cu_mattey_b2/m/m2_plain"
+    },
+    {
+     "label": "+ RBA (keep)",
+     "l2": [
+      [
+       0.0,
+       8.516906e-07
+      ],
+      [
+       0.2,
+       0.009694116
+      ],
+      [
+       0.4,
+       0.008315315
+      ],
+      [
+       0.6,
+       0.007308378
+      ],
+      [
+       0.8,
+       0.005185166
+      ],
+      [
+       1.0,
+       0.004241145
+      ]
+     ],
+     "src": "cu_mattey_b2/m/m2_rba"
+    },
+    {
+     "label": "+ causal, eps schedule",
+     "l2": [
+      [
+       0.0,
+       8.516906e-07
+      ],
+      [
+       0.2,
+       0.008299846
+      ],
+      [
+       0.4,
+       0.007700165
+      ],
+      [
+       0.6,
+       0.006992485
+      ],
+      [
+       0.8,
+       0.004564579
+      ],
+      [
+       1.0,
+       0.003861868
+      ]
+     ],
+     "src": "cu_mattey_b2/m/m2_causal"
+    },
+    {
+     "label": "+ SA-PINN as in the paper (keep)",
+     "l2": [
+      [
+       0.0,
+       8.516906e-07
+      ],
+      [
+       0.2,
+       0.005239164
+      ],
+      [
+       0.4,
+       0.004484672
+      ],
+      [
+       0.6,
+       0.004021588
+      ],
+      [
+       0.8,
+       0.002397514
+      ],
+      [
+       1.0,
+       0.001989774
+      ]
+     ],
+     "best": true,
+     "template": true,
+     "src": "cu_mattey_b2/m/m2_tpl"
+    }
+   ]
+  }
+ ]
+}

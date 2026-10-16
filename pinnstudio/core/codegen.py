@@ -7921,6 +7921,53 @@ for _pval in _param_values:
                         _ea_sp = _os.path.join(_ea_dir, f"surface_comparison{{_ea_suffix}}.png")
                         plt.savefig(_ea_sp, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
                         print(f"  Surface comparison saved: {{_ea_sp}}")
+                    if _ea_did_surface and _is_3d and _geom_type != "Sphere":
+                        # Mid-plane slice z = const (Settings' line slice z, the
+                        # box's middle by default): the face plot above shows only
+                        # the box's outside, so anything inside it -- a sphere in
+                        # a box, say -- is only visible here (as a circle).
+                        from scipy.interpolate import griddata as _gd_sl
+                        _bb_sl = np.asarray(geom.bbox)
+                        _zs_sl = {line_slice_z}
+                        _res_sl = min({config.plot_resolution}, 120)
+                        _Xs_sl, _Ys_sl = np.meshgrid(np.linspace(_bb_sl[0][0], _bb_sl[1][0], _res_sl),
+                                                     np.linspace(_bb_sl[0][1], _bb_sl[1][1], _res_sl))
+                        fig, _axs_sl = plt.subplots(_ea_n_t, 3, figsize=(15, 4.2 * _ea_n_t), squeeze=False)
+                        fig.suptitle(_ea_title_txt(f"Slice z = {{_zs_sl:.3g}}", _ea_sel), fontsize={config.plot_title_fontsize}, fontweight='bold')
+                        for _ei, _ea_tv in enumerate(_ea_times):
+                            _ea_tv_r, _l2, _mse, _mx, _ma = _ea_metrics[_ei]
+                            _cols_sl = [_Xs_sl.ravel(), _Ys_sl.ravel(), np.full(_Xs_sl.size, _zs_sl)]
+                            if not _is_steady:
+                                _cols_sl.append(np.full(_Xs_sl.size, _ea_tv))
+                            _p_sl = np.asarray(_ea_extract(np.column_stack(_cols_sl), _ea_sel, model)).reshape(_Xs_sl.shape)
+                            # reference: its grid plane nearest the slice, or points close to it
+                            _zr_sl = _ea_z_refs[_ei]
+                            _zn_sl = _zr_sl[np.argmin(np.abs(_zr_sl - _zs_sl))]
+                            _m_sl = np.abs(_zr_sl - _zn_sl) < 1e-9 * (1.0 + abs(_zn_sl))
+                            if _m_sl.sum() < 10:
+                                _m_sl = np.abs(_zr_sl - _zs_sl) < 0.02 * max(_bb_sl[1][2] - _bb_sl[0][2], 1e-12)
+                            _xy_sl = np.column_stack([_ea_x_refs[_ei][_m_sl], _ea_y_refs[_ei][_m_sl]])
+                            _g_sl = _gd_sl(_xy_sl, _ea_u_refs[_ei][_m_sl], (_Xs_sl, _Ys_sl), method='linear')
+                            if np.isnan(_g_sl).any():
+                                _g_sl[np.isnan(_g_sl)] = _gd_sl(_xy_sl, _ea_u_refs[_ei][_m_sl], (_Xs_sl, _Ys_sl), method='nearest')[np.isnan(_g_sl)]
+                            _e_sl = np.abs(_p_sl - _g_sl)
+                            _lo_sl = min(_p_sl.min(), _g_sl.min()); _hi_sl = max(_p_sl.max(), _g_sl.max(), _lo_sl + 1e-12)
+                            _lv_sl = _cf_levels({config.plot_levels}, _lo_sl, _hi_sl)["levels"]
+                            _tt_sl = "" if _is_steady else f"t={{_ea_tv:.3f}}  "
+                            for _c_sl, (_v_sl, _ttl_sl, _lev_sl) in enumerate((
+                                    (_p_sl, f"PINN  {{_tt_sl}}{{_l2_txt(_l2)}}", _lv_sl),
+                                    (_g_sl, f"Reference  {{_tt_sl}}".rstrip(), _lv_sl),
+                                    (_e_sl, f"|Error|  {{_tt_sl}}max = {{_sci_txt(float(_e_sl.max()))}}", {config.plot_levels}))):
+                                _ax_sl = _axs_sl[_ei][_c_sl]
+                                _im_sl = _ax_sl.contourf(_Xs_sl, _Ys_sl, _v_sl, levels=_lev_sl, cmap='{config.plot_colormap}')
+                                fig.colorbar(_im_sl, ax=_ax_sl)
+                                _ax_sl.set_title(_ttl_sl, fontsize={config.plot_subplot_title_fontsize})
+                                _ax_sl.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_sl.set_ylabel("y", fontsize={config.plot_axis_label_fontsize})
+                                _ax_sl.set_aspect('equal')
+                        plt.tight_layout(rect=[0, 0, 1, 0.96])
+                        _ea_slp = _os.path.join(_ea_dir, f"slice_comparison{{_ea_suffix}}.png")
+                        plt.savefig(_ea_slp, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
+                        print(f"  Slice comparison saved: {{_ea_slp}}")
                 print(f"  Group '{{_ea_group_label(_ea_sel) or 'default'}}' analysis complete")
             print("=== Error Analysis Complete ===")
 

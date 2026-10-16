@@ -94,22 +94,23 @@ def main():
     check(not win.bc_loc_hint.isVisible() if win.bc_loc_hint.isVisibleTo(win) is False else True,
           "shared hint starts hidden")
 
-    # Count all "Show location examples" checkboxes in the whole BC group
+    # Count all "Where" examples toggles in the whole BC group
     # before adding any rows, then after adding 3 -- should stay at 1.
     def _count_hint_checkboxes():
+        from PyQt6.QtWidgets import QToolButton
         return sum(
-            1 for cb in win.custom_bc_group.findChildren(QCheckBox)
-            if cb.text() == "📖 Show location examples"
+            1 for cb in win.custom_bc_group.findChildren(QToolButton)
+            if cb.text().strip() == '"Where" examples'
         )
 
     before = _count_hint_checkboxes()
-    check(before == 1, f"exactly one location-examples checkbox before adding rows, got {before}")
+    check(before == 1, f"exactly one location-examples toggle before adding rows, got {before}")
 
     win._add_custom_bc_entry()
     win._add_custom_bc_entry()
     win._add_custom_bc_entry()
     after = _count_hint_checkboxes()
-    check(after == 1, f"still exactly one location-examples checkbox after adding 3 BC rows, got {after}")
+    check(after == 1, f"still exactly one location-examples toggle after adding 3 BC rows, got {after}")
 
     # Each new row should NOT have its own loc_hint_toggle-style widget --
     # confirm the entry_data dict has no such key lingering around.

@@ -146,24 +146,24 @@ def run():
     opt_idx = combo.findData("phase0_optimizer")
     check(opt_idx >= 0, "expected 'phase0_optimizer' to be available with the default Optimizer Scheduler on")
     combo.setCurrentIndex(opt_idx)
-    check(row['mode_combo'].parentWidget().isHidden(),
+    check(row['mode_combo'].isHidden(),
           "mode picker should be hidden for a categorical parameter")
-    check(not row['list_edit'].parentWidget().isHidden(),
+    check(not row['list_edit'].isHidden(),
           "the values field should stay visible for a categorical parameter")
     check("adam" in row['list_edit'].placeholderText(),
           f"categorical placeholder should list its choices, got {row['list_edit'].placeholderText()!r}")
 
     hl_idx = combo.findData("hidden_layers")
     combo.setCurrentIndex(hl_idx)
-    check(not row['mode_combo'].parentWidget().isHidden(),
+    check(not row['mode_combo'].isHidden(),
           "mode picker should reappear for a numeric parameter")
-    check(not row['list_edit'].parentWidget().isHidden(),
+    check(not row['list_edit'].isHidden(),
           "list entry should be visible by default (mode defaults to 'list')")
     check(row['min_spin'].parentWidget().isHidden(),
           "range widgets should stay hidden while mode is 'list'")
 
     row['mode_combo'].setCurrentIndex(row['mode_combo'].findData("linear"))
-    check(row['list_edit'].parentWidget().isHidden(), "list entry should hide once mode is 'linear'")
+    check(row['list_edit'].isHidden(), "list entry should hide once mode is 'linear'")
     check(not row['min_spin'].parentWidget().isHidden(), "range widgets should show once mode is 'linear'")
 
     # ── JSON building + validate() ───────────────────────────────────
@@ -339,14 +339,14 @@ def run():
     win2_fresh.workspace.select("sweep")
     _app.processEvents()
     fresh_row = win2_fresh.sweep_row_list[0]
-    list_visible = fresh_row['list_edit'].parentWidget().isVisible()
+    list_visible = fresh_row['list_edit'].isVisible()
     range_visible = fresh_row['min_spin'].parentWidget().isVisible()
     check(list_visible != range_visible,
           f"a freshly added row should show exactly one of the Values field / range fields, "
           f"not both or neither -- got list_visible={list_visible}, range_visible={range_visible}")
 
-    # Each parameter row is now a stacked block (header + Parameter +
-    # Sweep as + Values/range), the same convention Training Phases use
+    # Each parameter row is now a stacked block (header, Parameter, then
+    # Values: list-or-range kind + the values on one line), the same convention Training Phases use
     # in this same narrow column -- not v69's single-line table layout.
     from PyQt6.QtWidgets import QVBoxLayout as _QVBoxLayout
     check(isinstance(row['widget'].layout(), _QVBoxLayout),

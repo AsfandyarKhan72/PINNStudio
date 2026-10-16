@@ -316,6 +316,29 @@ def test_exact_constraints():
     assert _exact_constraints(off) is off
 
 
+def test_exact_ic_toggle_keeps_weights_in_step():
+    """Ticking Exact removes the IC loss: its weight row leaves every training
+    phase's weights and the other weights keep their values; unticking it
+    brings the IC row back with weight 100. (The 3D Allen-Cahn template
+    starts with the IC as a loss term, weight 100.)"""
+    import json as _j
+    w = _window("3D Allen-Cahn (Wight & Zhao)")
+    c = w._build_config()
+    assert c.ic_active == "True"
+    assert [p["weights"] for p in _j.loads(c.scheduler_phases)] == ["1.0,1.0,1.0,1.0,100.0"] * 2
+    w.weight_widgets["pde_0"].setValue(3.0)
+    w.ic_hard[0].setChecked(True)
+    _settle()
+    c = w._build_config()
+    assert [p["weights"] for p in _j.loads(c.scheduler_phases)] == ["3.0,1.0,1.0,1.0"] * 2
+    w.ic_hard[0].setChecked(False)
+    _settle()
+    c = w._build_config()
+    assert c.ic_active == "True"
+    assert [p["weights"] for p in _j.loads(c.scheduler_phases)] == ["3.0,1.0,1.0,1.0,100.0"] * 2
+    w.close()
+
+
 def test_point_weights_reset_on_new_points():
     """Per-point weights belong to points: new training points start over."""
     c = PINNConfig()
