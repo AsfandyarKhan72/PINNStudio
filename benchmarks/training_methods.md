@@ -166,3 +166,14 @@ Template settings with time-adaptive training switched off unless stated.
 5. For long time ranges, use time-adaptive training.
 6. Always compare against a plain run: on problems a plain PINN already solves well,
    most of these add nothing or make the result worse.
+
+## References
+
+- **RBA** — Anagnostopoulos, Toscano, Stergiopulos & Karniadakis (2024), Residual-based attention in physics-informed neural networks, *CMAME* 421, 116805, [doi:10.1016/j.cma.2024.116805](https://doi.org/10.1016/j.cma.2024.116805), [arXiv:2307.00379](https://arxiv.org/abs/2307.00379)
+- **SA-PINN** — McClenny & Braga-Neto (2023), Self-adaptive physics-informed neural networks, *J. Comput. Phys.* 474, 111722, [doi:10.1016/j.jcp.2022.111722](https://doi.org/10.1016/j.jcp.2022.111722), [arXiv:2009.04544](https://arxiv.org/abs/2009.04544)
+- **Causal training** — Wang, Sankaran & Perdikaris (2024), Respecting causality for training physics-informed neural networks, *CMAME* 421, 116813, [doi:10.1016/j.cma.2024.116813](https://doi.org/10.1016/j.cma.2024.116813), [arXiv:2203.07404](https://arxiv.org/abs/2203.07404)
+- **Gradient-norm loss balancing** (tested, removed) — Wang, Teng & Perdikaris (2021), Understanding and mitigating gradient flow pathologies in physics-informed neural networks, *SIAM J. Sci. Comput.* 43(5), A3055–A3081, [doi:10.1137/20M1318043](https://doi.org/10.1137/20M1318043)
+- **Hard initial condition** — Lagaris, Likas & Fotiadis (1998), Artificial neural networks for solving ordinary and partial differential equations, *IEEE Trans. Neural Netw.* 9(5), 987–1000, [doi:10.1109/72.712178](https://doi.org/10.1109/72.712178)
+- **Exact periodicity** — Dong & Ni (2021), A method for representing periodic functions and enforcing exactly periodic boundary conditions with deep neural networks, *J. Comput. Phys.* 435, 110242, [doi:10.1016/j.jcp.2021.110242](https://doi.org/10.1016/j.jcp.2021.110242)
+- **MsFFN** — Wang, Wang & Perdikaris (2021), On the eigenvector bias of Fourier feature networks, *CMAME* 384, 113938, [doi:10.1016/j.cma.2021.113938](https://doi.org/10.1016/j.cma.2021.113938)
+- **Time-adaptive training and the Allen-Cahn / Cahn-Hilliard problems** — Wight & Zhao (2021), *Commun. Comput. Phys.* 29(3), 930–954, [doi:10.4208/cicp.OA-2020-0086](https://doi.org/10.4208/cicp.OA-2020-0086); Mattey & Ghosh (2022), *CMAME* 390, 114474, [doi:10.1016/j.cma.2021.114474](https://doi.org/10.1016/j.cma.2021.114474)
