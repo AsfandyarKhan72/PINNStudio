@@ -30,7 +30,7 @@ the row says otherwise.
 | 1D Cahn-Hilliard | 28–42% unscaled; 0.4–3% scaled | 0.11–0.6% | scaling, then MsFFN + RBA, or RBA + periodic + hard IC |
 | 1D Allen-Cahn, no time windows | 10% (t = 1) | 0.27% (37x) | RBA + periodic + hard IC |
 | 2D Allen-Cahn, Mattey & Ghosh (t ≤ 1) | 1.3% | 0.054% (25x) | RBA + periodic + hard IC (time-adaptive template: 0.67%) |
-| 2D Allen-Cahn, Wight & Zhao (t ≤ 10) | 200% (fails) | 0.79–2.1% | time-adaptive template; best on the whole domain: RBA, 3.5–19% |
+| 2D Allen-Cahn, Wight & Zhao (t ≤ 10) | 200% (fails) | 0.16–2.0% | time-adaptive + RBA + periodic (template alone 0.79–2.1%); best on the whole domain: RBA, 3.5–19% |
 | Klein-Gordon | 8% | 0.3% (25x) | MsFFN; RBA or SA-PINN ~12x |
 | Kovasznay flow | 0.02–0.09% | 0.008–0.04% (2x) | MsFFN |
 | 1D Burgers | 0.04–0.13% | same | nothing helps; several hurt |
@@ -126,6 +126,7 @@ Template settings with time-adaptive training switched off unless stated.
 | + MsFFN + RBA (keep) | 81% | 100% | 110% |
 | + RBA + periodic + hard IC (keep) | 17% | 19% | 33% |
 | + RBA (plain L-BFGS) | 3.5% | 5.7% | 19% |
+| **Time-adaptive + RBA + periodic** | **0.92%** | **2.0%** | **0.16%** |
 
 ## Klein-Gordon (t = 2.5 / 5 / 7.5 / 10)
 

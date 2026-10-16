@@ -204,25 +204,38 @@ def test_sa_pinn_ascends():
 
 
 def test_cahn_hilliard_template_scaling():
-    """mu's equation divided by gamma_2 and the network's mu scaled by 0.01;
-    the scaling is switched off again for the next template; the inverse
-    substitution reaches both 0.01s."""
+    """The template's best setup (training methods study): mu's equation
+    divided by gamma_2 and the network's mu scaled by 0.01, the exact initial
+    condition u = IC + t*N, periodic inputs, RBA kept during L-BFGS; none of it
+    carries over to the next template; the inverse substitution reaches both
+    0.01s of the equation."""
     w = _window("1D Cahn-Hilliard")
     c = w._build_config()
-    assert c.output_names == "u,mu" and c.ic_active == "True,False"
+    assert c.output_names == "u,mu" and c.ic_active == "False,False"
     assert c.pde_expressions.split("|")[1] == "(mu - 0.01*(u**3 - u) + 1e-6*du_xx)/0.01"
-    assert c.output_transform_enabled and c.output_transform_mode == "scale"
-    assert list(c.output_transform_scale) == [1.0, 0.01]
+    assert c.output_transform_enabled and c.output_transform_mode == "formula"
+    assert c.output_transform_formula == "-cos(2*pi*x) + t*u|0.01*mu"
+    assert c.input_transform_enabled and c.input_transform_mode == "formula"
+    assert c.input_feature_formula == "cos(pi*x); sin(pi*x); t"
+    assert (c.point_weights, c.point_weights_lbfgs) == ("RBA", "keep")
+    assert not c.time_adaptive and c.validate() == [], c.validate()
+    src = generate_script(c)
+    ast.parse(src)
+    assert "pde = _pw_wrap(pde)" in src
     w.radio_inverse.setChecked(True)
     _settle()
     assert w.pde_inputs[1].text() == "(mu - gamma_2*(u**3 - u) + gamma_1*du_xx)/gamma_2"
     w.radio_inverse.setChecked(False)
     w.radio_forward.setChecked(True)
     _settle()
-    w.quick_examples_combo.setCurrentText("1D Allen-Cahn")
-    _settle()
-    c = w._build_config()
-    assert not c.output_transform_enabled and list(c.output_transform_scale) == [1.0]
+    for nxt in ("1D Allen-Cahn", "2D Heat"):
+        w.quick_examples_combo.setCurrentText("1D Cahn-Hilliard")
+        _settle()
+        w.quick_examples_combo.setCurrentText(nxt)
+        _settle()
+        c = w._build_config()
+        assert not c.output_transform_enabled and not c.input_transform_enabled, nxt
+        assert c.point_weights == "None" and not (c.output_transform_formula or "").strip("|"), nxt
     w.close()
 
 

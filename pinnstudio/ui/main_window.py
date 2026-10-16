@@ -5088,6 +5088,48 @@ class MainWindow(QMainWindow):
             self.output_transform_cb.setChecked(False)
             self._tpl_output_scaled = False
 
+    def _tpl_set_extras(self, t):
+        """A template's exact-constraint and training-method settings: an
+        input feature formula ('input_features', e.g. a periodic embedding),
+        output transform formulas ('output_formula', one per output, e.g. an
+        exact initial condition) and per-point weights ('point_weights',
+        'point_weights_lbfgs'). Whatever the previous template turned on and
+        this one doesn't set is turned off again, so it never carries over."""
+        feats = t.get('input_features')
+        if feats:
+            self._set_combo_data(self.input_transform_mode_combo, "formula")
+            self.input_feature_formula_edit.setText(feats)
+            self.input_transform_cb.setChecked(True)
+            self._tpl_input_features = True
+        elif getattr(self, "_tpl_input_features", False):
+            self.input_feature_formula_edit.setText("")
+            self._set_combo_data(self.input_transform_mode_combo, "scale")
+            self.input_transform_cb.setChecked(False)
+            self._tpl_input_features = False
+        forms = t.get('output_formula')
+        if forms:
+            self._set_combo_data(self.output_transform_mode_combo, "formula")
+            for i, e in enumerate(self.output_formula_edits):
+                e.setText(forms[i] if i < len(forms) else "")
+            self.output_transform_cb.setChecked(True)
+            self._tpl_output_formula = True
+        elif getattr(self, "_tpl_output_formula", False):
+            for e in self.output_formula_edits:
+                e.setText("")
+            self._set_combo_data(self.output_transform_mode_combo, "scale")
+            if not t.get('output_scale'):
+                self.output_transform_cb.setChecked(False)
+            self._tpl_output_formula = False
+        pw = t.get('point_weights')
+        if pw:
+            self._set_combo_data(self.point_weights_combo, pw)
+            self._set_combo_data(self.pw_lbfgs_combo, t.get('point_weights_lbfgs', 'plain'))
+            self._tpl_point_weights = True
+        elif getattr(self, "_tpl_point_weights", False):
+            self._set_combo_data(self.point_weights_combo, "None")
+            self._set_combo_data(self.pw_lbfgs_combo, "plain")
+            self._tpl_point_weights = False
+
     def _rebuild_output_transform_rows(self, n_outputs):
         if hasattr(self, "output_formula_rows_layout"):
             self._rebuild_output_formula_rows(n_outputs)
@@ -6015,6 +6057,10 @@ class MainWindow(QMainWindow):
             return
         self._shown_example = text
         if text in _dx_examples.BY_NAME:
+            # a DeepXDE example sets its whole configuration, transforms and
+            # training methods included: nothing left for a template reset
+            self._tpl_output_scaled = self._tpl_input_features = False
+            self._tpl_output_formula = self._tpl_point_weights = False
             # A forward DeepXDE example with an Inverse mode, picked from the
             # Inverse list, loads its Inverse version (like the templates).
             self._apply_deepxde_example(
@@ -6037,6 +6083,10 @@ class MainWindow(QMainWindow):
         # right-Dirichlet BC) -- an extra call here would rebuild the
         # weight rows a second time and silently wipe such a default back
         # to 1.0, so it's intentionally not repeated.
+        # a previous template's transforms / point weights never carry over
+        # (the 1D templates set their own again in _on_template_selected)
+        self._tpl_set_output_scale(None)
+        self._tpl_set_extras({})
         self._on_template_selected(text)
         # The Inverse category loads a template in Inverse mode (which brings
         # in the template's own measured-data file). The Forward list leaves
@@ -12862,19 +12912,29 @@ print("DOMAIN_PREVIEW_DONE")
             # Scaling: mu is only ~g2 = 0.01 in size, so as written its
             # equation's residual is ~100x smaller than u_t's and the network
             # settles on a wrong solution with a loss of ~1e-5 (28-42% L2
-            # error in u). The network's mu output is scaled by 0.01 (output
-            # transform) and the mu equation divided by g2, so both residuals
-            # are O(1): 0.9-4% L2 error in u with the same network/training.
+            # error in u). The network's mu output is scaled by 0.01 and the
+            # mu equation divided by g2, so both residuals are O(1): 0.4-3%
+            # L2 error in u with the same network/training, 0.1-0.6% with the
+            # exact IC, periodic inputs and RBA below.
             "1D Cahn-Hilliard": {
                 'num_outputs': 2,
                 'output_names': 'u,mu',
                 'pde': ["du_t - dmu_xx",
                         "(mu - 0.01*(u**3 - u) + 1e-6*du_xx)/0.01"],
-                'output_scale': [1.0, 0.01],
-                # mu has no time derivative: it is fixed by u at every time
-                # (its own equation), so it takes no initial condition
+                # Best setup of the training methods study (benchmarks/
+                # training_methods.md), about 4x lower error than the plain
+                # scaled problem: the network's mu is scaled by 0.01 inside
+                # the output transform; u = IC + t*N holds the initial
+                # condition exactly (so no IC loss term -- and mu, with no
+                # time derivative, never takes one); cos/sin inputs make the
+                # solution periodic by construction; RBA per-point weights,
+                # kept during L-BFGS.
+                'output_formula': ["-cos(2*pi*x) + t*u", "0.01*mu"],
+                'input_features': "cos(pi*x); sin(pi*x); t",
+                'point_weights': 'RBA',
+                'point_weights_lbfgs': 'keep',
                 'ic': ["-cos(2*pi*x)", "0"],
-                'ic_active': [True, False],
+                'ic_active': [False, False],
                 'num_domain': 10000,
                 'num_boundary': 200,
                 'num_initial': 512,
@@ -13001,6 +13061,7 @@ print("DOMAIN_PREVIEW_DONE")
         if text in ("1D Allen-Cahn", "1D Cahn-Hilliard"):
             self._tpl_set_ic_weights(self.num_outputs_spin.value(), 100.0)
         self._tpl_set_output_scale(t.get('output_scale'))
+        self._tpl_set_extras(t)
         if 'x_min' in t:
             self.x_min.setValue(t['x_min'])
             self.x_max.setValue(t['x_max'])
