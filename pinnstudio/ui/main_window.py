@@ -3427,7 +3427,9 @@ class MainWindow(QMainWindow):
             "every Adam step (cheap, nothing extra to train).\n"
             "SA-PINN: McClenny & Braga-Neto (2023), 'Self-adaptive physics-informed neural networks':\n"
             "the weights are trained by gradient ascent on the loss the network minimizes.\n"
-            "Only the training points are weighted; the weights are held fixed during L-BFGS.")
+            "Only the training points are weighted (the test loss stays the plain one).\n"
+            "They help most where the plain PINN struggles; on a problem it already solves well\n"
+            "they can make the result worse -- compare with a run without them.")
         pw_row.addWidget(self.point_weights_combo, 1)
         adapt_layout.addLayout(pw_row)
         self.rba_widget = QWidget()
@@ -3460,10 +3462,29 @@ class MainWindow(QMainWindow):
         self.sa_widget.setVisible(False)
         adapt_layout.addWidget(self.sa_widget)
 
+        self.pw_lbfgs_widget = QWidget()
+        lz = QHBoxLayout(self.pw_lbfgs_widget)
+        lz.setContentsMargins(18, 0, 0, 0)
+        lz.addWidget(QLabel("During L-BFGS:"))
+        self.pw_lbfgs_combo = QComboBox()
+        self.pw_lbfgs_combo.addItem("Plain loss (weights off)", "plain")
+        self.pw_lbfgs_combo.addItem("Keep the weights", "keep")
+        self.pw_lbfgs_combo.setFixedHeight(26)
+        self.pw_lbfgs_combo.setToolTip(
+            "Plain loss: Adam trains with the point weights, then L-BFGS refines on the ordinary loss.\n"
+            "Safe default -- keeping the weights made already-accurate problems (1D Burgers,\n"
+            "Kovasznay flow) 2-10x worse.\n"
+            "Keep the weights: L-BFGS goes on with the weights Adam ended with. Better where the plain\n"
+            "PINN struggles (1D Cahn-Hilliard, Allen-Cahn: about 1.5-2x lower error than plain loss).")
+        lz.addWidget(self.pw_lbfgs_combo, 1)
+        self.pw_lbfgs_widget.setVisible(False)
+        adapt_layout.addWidget(self.pw_lbfgs_widget)
+
         def _pw_changed(_i=None):
             m = self.point_weights_combo.currentData()
             self.rba_widget.setVisible(m == "RBA")
             self.sa_widget.setVisible(m == "SA-PINN")
+            self.pw_lbfgs_widget.setVisible(m in ("RBA", "SA-PINN"))
         self.point_weights_combo.currentIndexChanged.connect(_pw_changed)
 
         left_layout.addWidget(adapt_group)
@@ -8555,6 +8576,7 @@ class MainWindow(QMainWindow):
             rba_eta=self.rba_eta.value(),
             sa_lr=self.sa_lr.value(),
             sa_normalize=self.sa_normalize_cb.isChecked(),
+            point_weights_lbfgs=self.pw_lbfgs_combo.currentData() or "plain",
             training_monitors_enabled=self.training_monitors_cb.isChecked(),
             training_monitors=self._build_training_monitors_json(),
             plot_colormap=self._plot_viz_settings.get('colormap', 'RdBu_r'),
@@ -9299,6 +9321,7 @@ class MainWindow(QMainWindow):
         self.rba_eta.setValue(float(getattr(config, 'rba_eta', 0.01)))
         self.sa_lr.setValue(float(getattr(config, 'sa_lr', 0.005)))
         self.sa_normalize_cb.setChecked(bool(getattr(config, 'sa_normalize', True)))
+        self._set_combo_data(self.pw_lbfgs_combo, getattr(config, 'point_weights_lbfgs', 'plain') or 'plain')
         self.training_monitors_cb.setChecked(getattr(config, 'training_monitors_enabled', False))
         self._apply_training_monitors_json(getattr(config, 'training_monitors', '') or '[]')
         # Auto-reveal the Training Callbacks group on load if this saved

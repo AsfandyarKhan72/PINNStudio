@@ -59,10 +59,12 @@ def test_gui_round_trip():
     assert w.rba_widget.isHidden() and not w.sa_widget.isHidden()
     w.sa_lr.setValue(0.01)
     w.sa_normalize_cb.setChecked(False)
+    assert not w.pw_lbfgs_widget.isHidden()
+    w._set_combo_data(w.pw_lbfgs_combo, "keep")
     c = w._build_config()
     assert (c.causal_training, c.causal_chunks, c.causal_eps) == (True, 16, 25.0)
     assert (c.point_weights, c.rba_gamma, c.rba_eta, c.sa_lr) == ("SA-PINN", 0.99, 0.02, 0.01)
-    assert c.sa_normalize is False
+    assert c.sa_normalize is False and c.point_weights_lbfgs == "keep"
     assert c.validate() == [], c.validate()
     w2 = _window()
     w2._apply_config(PINNConfig(**json.loads(json.dumps(dataclasses.asdict(c)))))   # as saved to .pinn.json
@@ -70,7 +72,7 @@ def test_gui_round_trip():
     c2 = w2._build_config()
     assert (c2.causal_training, c2.causal_chunks, c2.causal_eps) == (True, 16, 25.0)
     assert (c2.point_weights, c2.rba_gamma, c2.rba_eta, c2.sa_lr) == ("SA-PINN", 0.99, 0.02, 0.01)
-    assert c2.sa_normalize is False
+    assert c2.sa_normalize is False and c2.point_weights_lbfgs == "keep"
     assert not w2.causal_widget.isHidden() and not w2.sa_widget.isHidden()
     for x in (w, w2):
         x.close()
@@ -175,6 +177,13 @@ def test_generated_code_runs():
     model.train(display_every=1000, verbose=0, callbacks=cbs)
     assert ns["_CAUSAL"]["frozen"] and ns["_PW"]["frozen"]
     assert torch.equal(ns["_CAUSAL"]["w"], held_c) and torch.equal(ns["_PW"]["lam"], held_l)
+    # default "plain": during L-BFGS the training residual is not weighted
+    assert not ns["_PW"]["keep"]
+    X = torch.as_tensor(model.train_state.X_train, dtype=torch.float32).requires_grad_(True)
+    plain = lambda x, y: x[:, 0:1] * 0 + 1.0
+    assert torch.equal(ns["_pw_wrap"](plain)(X, model.net(X)), torch.ones(len(X), 1))
+    ns["_PW"]["keep"] = True        # "keep": the held weights apply
+    assert torch.allclose(ns["_pw_wrap"](plain)(X, model.net(X)), held_l[:, 0:1])
 
 
 def test_sa_pinn_ascends():

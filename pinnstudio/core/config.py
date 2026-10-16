@@ -386,6 +386,11 @@ class PINNConfig:
     # the loss until 1D Allen-Cahn diverged; normalized, only their relative
     # sizes -- where the emphasis is -- change.
     sa_normalize: bool = True
+    # During L-BFGS: "plain" drops the point weights (L-BFGS refines on the
+    # plain loss) or "keep" holds them at their last values. Kept weights
+    # helped where the plain PINN struggles (1D Cahn-Hilliard, Allen-Cahn)
+    # but made already-accurate problems (1D Burgers, Kovasznay) 2-10x worse.
+    point_weights_lbfgs: str = "plain"
 
     # Training Monitors: optional, pure-observability DeepXDE
     # dde.callbacks.OperatorPredictor instances. Each one watches an
@@ -766,7 +771,9 @@ class PINNConfig:
                 errors.append("Per-point weights (RBA): the decay gamma must be between 0 and 1.")
             if float(self.rba_eta) <= 0:
                 errors.append("Per-point weights (RBA): the step eta must be positive.")
-        elif self.point_weights == "SA-PINN" and float(self.sa_lr) <= 0:
+        if self.point_weights in ("RBA", "SA-PINN") and self.point_weights_lbfgs not in ("plain", "keep"):
+            errors.append("Per-point weights: during L-BFGS must be 'plain' or 'keep'.")
+        if self.point_weights == "SA-PINN" and float(self.sa_lr) <= 0:
             errors.append("Per-point weights (SA-PINN): the learning rate must be positive.")
 
         if self.problem_dim == "ODE":

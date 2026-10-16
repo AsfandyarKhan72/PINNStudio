@@ -728,8 +728,10 @@ def _training_methods_defs(config):
       lambda trained by gradient ascent (Adam, maximize) on the same loss
       the network minimizes.
     Only the training points are weighted (the test loss stays the plain
-    one), and everything is held fixed during L-BFGS, which needs a fixed
-    objective."""
+    one). L-BFGS needs a fixed objective: causal weights are held fixed;
+    point weights are either held ("keep") or dropped, so L-BFGS refines on
+    the plain loss ("plain", the default -- holding them made already-
+    accurate problems such as 1D Burgers and Kovasznay flow 2-10x worse)."""
     causal = bool(getattr(config, "causal_training", False)) and not config.steady_state
     pw = _point_weights_mode(config)
     if not (causal or pw):
@@ -800,7 +802,8 @@ class _CausalMonitor(dde.callbacks.Callback):
 """)
     if pw:
         out.append(f"""_PW = {{"mode": {pw!r}, "gamma": {float(config.rba_gamma)!r}, "eta": {float(config.rba_eta)!r}, "lr": {float(config.sa_lr)!r},
-       "norm": {bool(getattr(config, "sa_normalize", True))!r}, "lam": None, "fp": None, "frozen": False, "pending": False, "opt": None}}
+       "norm": {bool(getattr(config, "sa_normalize", True))!r},
+       "keep": {str(getattr(config, "point_weights_lbfgs", "plain")) == "keep"!r}, "lam": None, "fp": None, "frozen": False, "pending": False, "opt": None}}
 
 
 def _pw_is_train(x):
@@ -815,6 +818,8 @@ def _pw_wrap(_f):
         _rs = list(_r) if isinstance(_r, (list, tuple)) else [_r]
         if any(_ri.shape[0] != x.shape[0] for _ri in _rs) or not _pw_is_train(x):
             return _r                      # test points, or a residual on a subset of points: unchanged
+        if _PW["frozen"] and not _PW["keep"]:
+            return _r                      # L-BFGS on the plain loss
         _n, _k = x.shape[0], len(_rs)
         if _PW["lam"] is None or tuple(_PW["lam"].shape) != (_n, _k):
             _PW["lam"] = torch.ones(_n, _k, dtype=_rs[0].dtype, device=x.device,
@@ -882,7 +887,8 @@ class _PointWeights(dde.callbacks.Callback):
         if st.step % self.every == 0:
             l = lam.detach()
             print(f"  point weights: mean {{float(l.mean()):.3g}}, max {{float(l.max()):.3g}}"
-                  + (" (held during L-BFGS)" if _PW["frozen"] else ""), flush=True)
+                  + ((" (held during L-BFGS)" if _PW["keep"] else " (L-BFGS on the plain loss)")
+                     if _PW["frozen"] else ""), flush=True)
 """)
     return "\n".join(out) + "\n"
 
