@@ -913,6 +913,18 @@ where $\gamma_1 = 0.0001$ and $\gamma_2 = 5$.
 
 ![1D Allen-Cahn — line comparison against reference data](assets/Images/1D-AllenCahn/line_comparison.png)
 
+*Without time-adaptive training* — the same problem can also be solved on the whole time interval in one training run (about 2.5 minutes), with three settings from the [training methods study](benchmarks/training_methods.md). Trained this way without them, the PINN reaches only about 10% at $t = 1$.
+
+- **Exact periodicity:** Network → Input transform → *Formula* `cos(pi*x); sin(pi*x); t` -- periodic by construction
+- **Exact initial condition:** Network → Output transform → *Formula* `x**2*cos(pi*x) + t*u`, with the initial condition unticked (it now holds exactly)
+- **Per-point weights:** Adaptive training → Method *None*, Per-point weights *RBA*, During L-BFGS *Keep the weights*
+
+Result: $L_2$ = 9.8 × 10⁻⁸ ($t = 0$), 5.0 × 10⁻⁴ ($t = 0.25$), 8.2 × 10⁻⁴ ($t = 0.5$), 1.5 × 10⁻³ ($t = 0.75$), 2.7 × 10⁻³ ($t = 1$) -- as accurate as time-adaptive training early on and about 1.8× more accurate at $t = 1$.
+
+![1D Allen-Cahn, whole time interval with exact periodicity, exact initial condition and RBA — PINN vs reference](assets/Images/1D-AllenCahn/whole_domain_surface_comparison.png)
+
+![1D Allen-Cahn, whole time interval — line comparison against reference data](assets/Images/1D-AllenCahn/whole_domain_line_comparison.png)
+
 *Inverse mode* — same template, switched to **Inverse**, jointly recovering both $\gamma_1$ (diffusion) and $\gamma_2$ (reaction) as unknown parameters; the live convergence animation below shows each estimate settling onto its true value during training:
 
 ![1D Allen-Cahn inverse parameter convergence animation](assets/Images/1D-AllenCahn/param_convergence_animation.gif)
@@ -1812,6 +1824,18 @@ where $c_1^2 = 0.0001$ and $c_2 = 1$.
 
 ![2D Allen-Cahn (Mattey & Ghosh) — PINN vs Ground Truth, Error Analysis surface comparison](assets/Images/2D_Allen_Cahn_Mattey/surface_comparison.png)
 
+*Without time-adaptive training* — trained on the whole time interval at once (about 3.5 minutes) with the same three settings as the 1D example (see the [training methods study](benchmarks/training_methods.md)), the error drops more than 10× below the time-adaptive result:
+
+- **Exact periodicity:** Network → Input transform → *Formula* `cos(2*pi*x); sin(2*pi*x); cos(2*pi*y); sin(2*pi*y); t`
+- **Exact initial condition:** Network → Output transform → *Formula* `sin(4*pi*x)*cos(4*pi*y) + t*u`, with the initial condition unticked
+- **Per-point weights:** Adaptive training → Method *None*, Per-point weights *RBA*, During L-BFGS *Keep the weights*
+
+Result: $L_2$ = 2.0 × 10⁻⁵ ($t = 0$), 3.4 × 10⁻⁴ ($t = 0.25$), 5.0 × 10⁻⁴ ($t = 0.5$), 5.4 × 10⁻⁴ ($t = 0.75$), 5.4 × 10⁻⁴ ($t = 1$). The same training without these settings gives about 1.3%.
+
+![2D Allen-Cahn (Mattey & Ghosh), whole time interval with exact periodicity, exact initial condition and RBA — PINN vs reference](assets/Images/2D_Allen_Cahn_Mattey/whole_domain_surface_comparison.png)
+
+![2D Allen-Cahn (Mattey & Ghosh), whole time interval — line comparison against reference data](assets/Images/2D_Allen_Cahn_Mattey/whole_domain_line_comparison.png)
+
 *Restore & Visualize* — the trained model restored from its saved checkpoint and re-animated without retraining:
 
 ![2D Allen-Cahn (Mattey & Ghosh) — restored solution animation](assets/Images/2D_Allen_Cahn_Mattey/restored_animation.gif)
@@ -1840,6 +1864,8 @@ where $\lambda = 10$ and $\varepsilon = 0.025$, matching the paper's own values 
 **Result (RTX 4090):** $L_2$ = 3.1 × 10⁻⁴ ($t = 0$), 9.3 × 10⁻³ ($t = 2.5$), 2.1 × 10⁻² ($t = 5$), 7.9 × 10⁻³ ($t = 10$), against the reference data in [`reference_data/2D/allen_cahn_wight`](reference_data/2D/allen_cahn_wight). Inverse mode: $\lambda$ = 9.68 (true 10), $\lambda\varepsilon^2$ = 6.07 × 10⁻³ (true 6.25 × 10⁻³).
 
 ![2D Allen-Cahn (Wight & Zhao) — PINN vs Ground Truth, Error Analysis surface comparison](assets/Images/2D_AllenCahn-Wight/surface_comparison.png)
+
+*Without time-adaptive training* this problem is not solved: over its long interval ($t$ up to 10) the plain PINN is wrong everywhere (about 200% error), and the best whole-interval setting found -- RBA per-point weights -- still gives 3.5% at $t = 2.5$ and 19% at $t = 10$. Here time-adaptive training is the method to use (see the [training methods study](benchmarks/training_methods.md)).
 
 *Restore & Visualize* — the trained model restored from its saved checkpoint and re-animated without retraining:
 
