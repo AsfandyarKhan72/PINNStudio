@@ -739,7 +739,10 @@ def _training_methods_defs(config):
     out = ["", "# ── Training methods: causal training / per-point weights ──────"]
     if causal:
         out.append(f"""_CAUSAL = {{"M": {int(config.causal_chunks)}, "eps": {float(config.causal_eps)!r}, "t0": {float(config.t_min)!r}, "t1": {float(config.t_max)!r},
-           "w": None, "frozen": False, "n": 0}}
+           "w": None, "frozen": False, "n": 0,
+           "sched": {[0.01, 0.1, 1.0, 10.0, 100.0] if getattr(config, "causal_anneal", False) else None!r}, "k": 0}}
+if _CAUSAL["sched"]:
+    _CAUSAL["eps"] = _CAUSAL["sched"][0]
 
 
 def _causal_wrap(_f):
@@ -777,7 +780,8 @@ def _causal_wrap(_f):
 
 
 pde = _causal_wrap(pde)
-print(f"Causal training: {{_CAUSAL['M']}} time chunks, epsilon = {{_CAUSAL['eps']}}")
+print(f"Causal training: {{_CAUSAL['M']}} time chunks, epsilon = "
+      + (f"{{_CAUSAL['sched']}} (next one once all weights > 0.99)" if _CAUSAL["sched"] else f"{{_CAUSAL['eps']}}"))
 
 
 class _CausalMonitor(dde.callbacks.Callback):
@@ -789,15 +793,22 @@ class _CausalMonitor(dde.callbacks.Callback):
 
     def on_train_begin(self):
         _CAUSAL["frozen"] = "L-BFGS" in str(getattr(self.model, "opt_name", ""))
+        if _CAUSAL["sched"] and not _CAUSAL["frozen"]:     # a new Adam run (e.g. the next time-adaptive step): start the schedule over
+            _CAUSAL["k"], _CAUSAL["eps"] = 0, _CAUSAL["sched"][0]
 
     def on_batch_end(self):
         st = self.model.train_state
+        if (_CAUSAL["sched"] and not _CAUSAL["frozen"] and _CAUSAL["w"] is not None
+                and _CAUSAL["k"] < len(_CAUSAL["sched"]) - 1 and float(_CAUSAL["w"].min()) > 0.99):
+            _CAUSAL["k"] += 1
+            _CAUSAL["eps"] = _CAUSAL["sched"][_CAUSAL["k"]]
+            print(f"  causal: all weights > 0.99 at step {{st.step}}, epsilon -> {{_CAUSAL['eps']}}", flush=True)
         if st.step % self.every or _CAUSAL["w"] is None:
             return
         _w = _CAUSAL["w"].cpu().numpy()
         _ok = int((_w > 0.99).sum()) if (_w > 0.99).all() else int(np.argmax(_w <= 0.99))
         _tt = _CAUSAL["t0"] + (_CAUSAL["t1"] - _CAUSAL["t0"]) * _ok / _CAUSAL["M"]
-        print(f"  causal weights: min {{_w.min():.3g}}, settled up to t = {{_tt:.3g}}"
+        print(f"  causal weights (epsilon {{_CAUSAL['eps']}}): min {{_w.min():.3g}}, settled up to t = {{_tt:.3g}}"
               + (" (held during L-BFGS)" if _CAUSAL["frozen"] else ""), flush=True)
 """)
     if pw:
@@ -806,11 +817,21 @@ class _CausalMonitor(dde.callbacks.Callback):
        "keep": {str(getattr(config, "point_weights_lbfgs", "plain")) == "keep"!r}, "lam": None, "fp": None, "frozen": False, "pending": False, "opt": None}}
 
 
+def _pw_sums(X):
+    # checksum of the whole point set: plain sum and a position-weighted one
+    # (so a reordering or a few moved points change it too)
+    _X = torch.as_tensor(X).detach().to(torch.float64).reshape(len(X), -1)
+    _i = torch.arange(1, len(_X) + 1, dtype=torch.float64, device=_X.device).unsqueeze(1) / len(_X)
+    return float(_X.sum()), float((_X * _i).sum())
+
+
 def _pw_is_train(x):
     _fp = _PW["fp"]
-    return (_fp is not None and x.shape[0] == _fp[0]
-            and abs(float(x[0, 0]) - _fp[1]) <= 1e-6 * (1 + abs(_fp[1]))
-            and abs(float(x[-1, -1]) - _fp[2]) <= 1e-6 * (1 + abs(_fp[2])))
+    if _fp is None or x.shape[0] != _fp[0]:
+        return False
+    _a, _b = _pw_sums(x)
+    return (abs(_a - _fp[1]) <= 1e-5 * (1 + abs(_fp[1]))
+            and abs(_b - _fp[2]) <= 1e-5 * (1 + abs(_fp[2])))
 
 
 def _pw_wrap(_f):
@@ -865,7 +886,7 @@ class _PointWeights(dde.callbacks.Callback):
     def _mark(self):
         X = self.model.train_state.X_train
         if X is not None and len(X):
-            fp = (len(X), float(X[0][0]), float(X[-1][-1]))
+            fp = (len(X),) + _pw_sums(X)
             if _PW["fp"] is not None and fp != _PW["fp"] and _PW["lam"] is not None:
                 # new training points (a resampler, a RAR round, the next
                 # time-adaptive step): weights belong to points -- start over

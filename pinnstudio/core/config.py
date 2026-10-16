@@ -388,15 +388,21 @@ class PINNConfig:
     causal_training: bool = False
     causal_chunks: int = 32
     causal_eps: float = 1.0
+    # The paper's schedule (Algorithm 1): epsilon steps through 0.01, 0.1, 1,
+    # 10, 100, moving on once every chunk weight is above 0.99. When on,
+    # causal_eps is ignored. On by default: with a fixed eps = 1 the weights
+    # on 1D Allen-Cahn stayed at ~0.98 (causal training barely acted).
+    causal_anneal: bool = True
     point_weights: str = "None"        # "None", "RBA" or "SA-PINN"
     rba_gamma: float = 0.999
     rba_eta: float = 0.01
     sa_lr: float = 0.005
-    # SA-PINN: rescale the weights to mean 1 after every ascent step. Plain
-    # SA-PINN's weights only grow (by ~sa_lr per Adam step), which inflated
-    # the loss until 1D Allen-Cahn diverged; normalized, only their relative
-    # sizes -- where the emphasis is -- change.
-    sa_normalize: bool = True
+    # SA-PINN: rescale the weights to mean 1 after every ascent step (not in
+    # the paper, whose weights only grow by ~sa_lr per Adam step). Off by
+    # default: with the weights held during L-BFGS, as in the paper, the
+    # original was the more reliable of the two (1D Allen-Cahn, three seeds,
+    # 0.13-0.20% at t = 1 against 0.10-2.7% normalized).
+    sa_normalize: bool = False
     # During L-BFGS: "plain" drops the point weights (L-BFGS refines on the
     # plain loss) or "keep" holds them at their last values. Kept weights
     # helped where the plain PINN struggles (1D Cahn-Hilliard, Allen-Cahn)

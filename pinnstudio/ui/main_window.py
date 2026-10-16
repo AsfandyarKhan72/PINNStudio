@@ -3417,9 +3417,11 @@ class MainWindow(QMainWindow):
         _aw.addWidget(_aw_title)
         self.auto_weights_note = QLabel(
             "For hard problems (sharp fronts, phase fields): first make the initial and periodic "
-            "conditions exact (Initial Conditions / Boundary Conditions pages), then try RBA. "
-            "On a problem a plain PINN already solves well these can make the result worse -- "
-            "compare with a plain run. Measured on 9 problems in benchmarks/training_methods.md.")
+            "conditions exact (Initial Conditions / Boundary Conditions pages), then add one of these: "
+            "RBA (cheap, safe), SA-PINN with the weights kept during L-BFGS (best on Cahn-Hilliard), or "
+            "causal training (best on Allen-Cahn, with an MsFFN network). "
+            "On a problem a plain PINN already solves well they can make the result worse -- "
+            "compare with a plain run. Measured on 12 problems in benchmarks/training_methods.md.")
         self.auto_weights_note.setWordWrap(True)
         self._register_hint(self.auto_weights_note, '#74c0fc')
         _aw.addWidget(self.auto_weights_note)
@@ -3442,7 +3444,9 @@ class MainWindow(QMainWindow):
             "physics-informed neural networks'. The time interval is split into chunks;\n"
             "each chunk's residual is weighted by exp(-ε · the residual loss of all\n"
             "earlier chunks), so later times only start to count once earlier times\n"
-            "are fitted. The weights are held fixed during L-BFGS.")
+            "are fitted. The weights are held fixed during L-BFGS.\n"
+            "Tip: don't combine it with per-point weights -- both reweight the same\n"
+            "residuals, and together they did worse than either alone.")
         _cl.addWidget(self.causal_cb)
         self.causal_widget = QWidget()
         cz = QVBoxLayout(self.causal_widget)
@@ -3450,13 +3454,23 @@ class MainWindow(QMainWindow):
         self.causal_chunks = QSpinBox(); self.causal_chunks.setRange(2, 1000); self.causal_chunks.setValue(32)
         self.causal_chunks.setToolTip("How many equal time chunks the interval is split into.")
         _num_row(cz, "Time chunks:", self.causal_chunks)
+        self.causal_anneal_cb = QCheckBox("Raise ε step by step (0.01 → 100), as in the paper")
+        self.causal_anneal_cb.setChecked(True)
+        self.causal_anneal_cb.setToolTip(
+            "The paper's Algorithm 1: ε starts at 0.01 and moves to 0.1, 1, 10, 100, each time\n"
+            "once every chunk weight is above 0.99. A single fixed ε is hard to pick -- too\n"
+            "small and the weights never hold anything back, too large and later times never\n"
+            "start. On 1D Allen-Cahn the schedule gave 0.18% error at t = 1, fixed ε = 1 gave 0.65%.")
+        cz.addWidget(self.causal_anneal_cb)
         self.causal_eps = QDoubleSpinBox(); self.causal_eps.setDecimals(3)
         self.causal_eps.setRange(0.001, 1e6); self.causal_eps.setValue(1.0)
         self.causal_eps.setToolTip(
             "Causality strength ε. Larger values hold later times back more strongly.\n"
             "It acts on the residual loss itself, so it depends on how large the residuals are:\n"
             "the log prints how far in time the weights have settled (all close to 1).")
-        _num_row(cz, "Causality ε:", self.causal_eps)
+        _num_row(cz, "Fixed ε:", self.causal_eps)
+        self.causal_anneal_cb.toggled.connect(lambda on: self.causal_eps.setEnabled(not on))
+        self.causal_eps.setEnabled(False)
         self.causal_widget.setVisible(False)
         _cl.addWidget(self.causal_widget)
         self.causal_cb.toggled.connect(self.causal_widget.setVisible)
@@ -3502,11 +3516,13 @@ class MainWindow(QMainWindow):
         self.sa_lr.setToolTip("Learning rate of the weights' gradient ascent (Adam).")
         _num_row(sz, "Weights' learning rate:", self.sa_lr)
         self.sa_normalize_cb = QCheckBox("Keep the mean weight at 1")
-        self.sa_normalize_cb.setChecked(True)
+        self.sa_normalize_cb.setChecked(False)
         self.sa_normalize_cb.setToolTip(
-            "Rescale the weights to mean 1 after every step, so only where the emphasis lies changes.\n"
-            "Unchecked is the original method, whose weights only grow (by about the learning rate\n"
-            "every step); on 1D Allen-Cahn that made the loss grow until training diverged.")
+            "Not part of the paper (unchecked = the paper's method, whose weights only grow,\n"
+            "by about the learning rate every step). Checked rescales the weights to mean 1 after\n"
+            "every step, so only where the emphasis lies changes -- a safeguard if the loss grows\n"
+            "without bound. With the weights held during L-BFGS, the paper's version was the more\n"
+            "reliable one (1D Allen-Cahn, three seeds: 0.13-0.20% at t = 1, against 0.10-2.7%).")
         sz.addWidget(self.sa_normalize_cb)
         self.sa_widget.setVisible(False)
         _pl.addWidget(self.sa_widget)
@@ -3523,8 +3539,9 @@ class MainWindow(QMainWindow):
             "Plain loss: Adam trains with the point weights, then L-BFGS refines on the ordinary loss.\n"
             "Safe default -- keeping the weights made already-accurate problems (1D Burgers,\n"
             "Kovasznay flow) 2-10x worse.\n"
-            "Keep the weights: L-BFGS goes on with the weights Adam ended with. Better where the plain\n"
-            "PINN struggles (1D Cahn-Hilliard, Allen-Cahn: about 1.5-2x lower error than plain loss).")
+            "Keep the weights: L-BFGS goes on with the weights Adam ended with, as both papers do.\n"
+            "Better where the plain PINN struggles (Cahn-Hilliard, Allen-Cahn: about 1.5-2x lower\n"
+            "error than plain loss; SA-PINN needs it -- without it, it barely helped).")
         lz.addWidget(self.pw_lbfgs_combo, 1)
         self.pw_lbfgs_widget.setVisible(False)
         _pl.addWidget(self.pw_lbfgs_widget)
@@ -3535,6 +3552,24 @@ class MainWindow(QMainWindow):
             self.sa_widget.setVisible(m == "SA-PINN")
             self.pw_lbfgs_widget.setVisible(m in ("RBA", "SA-PINN"))
         self.point_weights_combo.currentIndexChanged.connect(_pw_changed)
+
+        # Causal training and per-point weights both reweight the PDE
+        # residual; together they did worse than either alone (1D Allen-Cahn:
+        # 1.8% at t = 1 against 0.18% causal, 0.43% RBA).
+        self.causal_pw_warn = QLabel(
+            "Causal training and per-point weights both reweight the same residuals; "
+            "together they did worse than either alone (benchmarks/training_methods.md). "
+            "Pick one.")
+        self.causal_pw_warn.setWordWrap(True)
+        self._register_hint(self.causal_pw_warn, '#ffa94d')
+        self.causal_pw_warn.setVisible(False)
+        _aw.addWidget(self.causal_pw_warn)
+
+        def _causal_pw_check(*_a):
+            self.causal_pw_warn.setVisible(self.causal_cb.isChecked()
+                                           and self.point_weights_combo.currentData() in ("RBA", "SA-PINN"))
+        self.causal_cb.toggled.connect(_causal_pw_check)
+        self.point_weights_combo.currentIndexChanged.connect(_causal_pw_check)
 
         left_layout.addWidget(adapt_group)
 
@@ -5197,10 +5232,12 @@ class MainWindow(QMainWindow):
         if pw:
             self._set_combo_data(self.point_weights_combo, pw)
             self._set_combo_data(self.pw_lbfgs_combo, t.get('point_weights_lbfgs', 'plain'))
+            self.sa_normalize_cb.setChecked(bool(t.get('sa_normalize', False)))
             self._tpl_point_weights = True
         elif getattr(self, "_tpl_point_weights", False):
             self._set_combo_data(self.point_weights_combo, "None")
             self._set_combo_data(self.pw_lbfgs_combo, "plain")
+            self.sa_normalize_cb.setChecked(False)
             self._tpl_point_weights = False
 
     def _rebuild_output_transform_rows(self, n_outputs):
@@ -6045,8 +6082,9 @@ class MainWindow(QMainWindow):
     _PINNSTUDIO_EXAMPLES = (
         "1D Heat", "1D Allen-Cahn", "1D Cahn-Hilliard", "1D Burgers", "1D Schrödinger",
         "2D Heat", "2D Allen-Cahn (Mattey & Ghosh)", "2D Allen-Cahn (Wight & Zhao)",
+        "2D Cahn-Hilliard (Wight & Zhao)",
         "2D Burgers (Mathias)", "2D Poisson (L-Shape)", "2D Poisson (Disk)",
-        "3D Heat", "3D Poisson (Sphere)",
+        "3D Heat", "3D Allen-Cahn (Wight & Zhao)", "3D Poisson (Sphere)",
     )
 
     # Settings that are the user's own preferences rather than part of a
@@ -8135,6 +8173,18 @@ class MainWindow(QMainWindow):
                 self._add_custom_bc_entry(bc_type=btype, component=i, location=loc,
                                            value=val, locked=False)
 
+    def _populate_3d_periodic_bc_entries(self, n_out):
+        """Periodic in x, y and z for every output (a box with periodic
+        faces), for 3D templates -- same direct-to-panel approach as
+        _populate_3d_heat_bc_entries."""
+        for e in list(self.custom_bc_list):
+            e['widget'].deleteLater()
+        self.custom_bc_list.clear(); self._schedule_bc_nodes_sync()
+        for i in range(n_out):
+            for axis, loc in (("x", "left"), ("y", "bottom"), ("z", "front")):
+                self._add_custom_bc_entry(bc_type="periodic", component=i, location=loc,
+                                          axis=axis, deriv_order=0, locked=False)
+
     def _populate_schrodinger_bc_entries(self, n_out):
         """Add the first-derivative periodic rows the 1D Schrodinger
         template's h_x(t,-5)=h_x(t,5) condition needs (on both the real
@@ -8718,6 +8768,7 @@ class MainWindow(QMainWindow):
             causal_training=self.causal_cb.isChecked(),
             causal_chunks=self.causal_chunks.value(),
             causal_eps=self.causal_eps.value(),
+            causal_anneal=self.causal_anneal_cb.isChecked(),
             point_weights=self.point_weights_combo.currentData() or "None",
             rba_gamma=self.rba_gamma.value(),
             rba_eta=self.rba_eta.value(),
@@ -9470,6 +9521,7 @@ class MainWindow(QMainWindow):
         self.causal_cb.setChecked(bool(getattr(config, 'causal_training', False)))
         self.causal_chunks.setValue(int(getattr(config, 'causal_chunks', 32)))
         self.causal_eps.setValue(float(getattr(config, 'causal_eps', 1.0)))
+        self.causal_anneal_cb.setChecked(bool(getattr(config, 'causal_anneal', True)))
         self._set_combo_data(self.point_weights_combo, getattr(config, 'point_weights', 'None') or 'None')
         self.rba_gamma.setValue(float(getattr(config, 'rba_gamma', 0.999)))
         self.rba_eta.setValue(float(getattr(config, 'rba_eta', 0.01)))
@@ -9679,6 +9731,8 @@ class MainWindow(QMainWindow):
         # including inside "lambda_eps_sq" itself). Verified with a direct
         # round-trip simulation before choosing this name.
         "2D Allen-Cahn (Wight & Zhao)": [(0, "10", 0), (0, "0.00625", 1)],
+        "2D Cahn-Hilliard (Wight & Zhao)": [(1, "0.0025", 0)],
+        "3D Allen-Cahn (Wight & Zhao)": [(0, "10", 0), (0, "0.025", 1)],
         "3D Heat": [(0, "0.4", 0)],
         # lambda_1 (convection, the paper's true value 1.0 -- written
         # explicitly as "1.0*" in the forward PDE below so there's a
@@ -9798,7 +9852,11 @@ class MainWindow(QMainWindow):
         # parameters, recovered independently exactly as they appear in
         # the PDE box (not epsilon on its own).
         "2D Allen-Cahn (Wight & Zhao)": [("lambda_", 1.0, 10.0), ("diff_coeff", 1.0, 0.00625)],
+        # eps^2, the interface term (Wight & Zhao eq. 3.20)
+        "2D Cahn-Hilliard (Wight & Zhao)": [("eps_sq", 1.0, 0.0025)],
         "3D Heat": [("alpha", 1.0, 0.4)],
+        # lambda (reaction) and lambda*eps^2 (diffusion), as in the 2D template
+        "3D Allen-Cahn (Wight & Zhao)": [("lambda_", 1.0, 10.0), ("diff_coeff", 1.0, 0.025)],
         # lambda_1 (convection) and lambda_2 (viscosity numerator) --
         # Raissi et al.'s own eq. B.1 names (Appendix B). lambda_1's true
         # value is already 1, so -- same reasoning as the Poisson family --
@@ -12688,6 +12746,54 @@ print("DOMAIN_PREVIEW_DONE")
                 'ta_default': {'step_groups': [(0.0, 10.0, 10)], 'transfer_learning': True, 'ic_grid': 51, 'transfer_optimizer': 'lbfgs'},
                 'inverse_t_max': 2.5,
             },
+            # Wight & Zhao (2021), Section 3.3, eqs. 3.20-3.21: two bubbles
+            # that merge, phi_t = lambda lap(-eps^2 lap phi + phi^3 - phi)
+            # on [-1, 1]^2 (periodic), lambda = 1, eps = 0.05, t in [0, 1].
+            # Mixed form, as the paper's network U = (phi, mu): u_t = lap mu,
+            # mu = u^3 - u - eps^2 lap u. The initial condition
+            # max(tanh((r - R1)/2eps), tanh((r - R2)/2eps)), r = 0.4, equals
+            # tanh((r - min(R1, R2))/2eps); the min is written smoothed,
+            # (R1 + R2 - sqrt((R1 - R2)^2 + 0.0004))/2: the corner of the plain
+            # min where the bubbles touch drives the merging, but autograd sees
+            # no curvature in a corner, and with it the network learned an
+            # almost frozen solution. The smoothing changes u by 0.5% (relative
+            # L2), along x = 0 only; the reference data uses the same formula
+            # (tools/make_phase_field_reference_data.py). The +1e-12 keeps
+            # sqrt differentiable at the bubble centres.
+            # mu takes no initial condition (it follows from u).
+            "2D Cahn-Hilliard (Wight & Zhao)": {
+                'pde': ["du_t - (dmu_xx + dmu_yy)",
+                        "mu - (u**3 - u) + 0.0025*(du_xx + du_yy)"],
+                'ic': ["tanh((0.4 - (sqrt((x - 0.28)**2 + y**2 + 1e-12) + sqrt((x + 0.28)**2 + y**2 + 1e-12)"
+                       " - sqrt((sqrt((x - 0.28)**2 + y**2 + 1e-12) - sqrt((x + 0.28)**2 + y**2 + 1e-12))**2 + 0.0004))/2)/0.1)",
+                       "0"],
+                'ic_active': [True, False],
+                'num_domain': 20000,
+                'num_boundary': 800,
+                'num_initial': 1024,
+                'layers': 4,
+                'neurons': 128,
+                'iterations': 20000,
+                'optimizer2': 'lbfgs',
+                'iterations2': 20000,
+                'x_min': -1.0, 'x_max': 1.0,
+                'y_min': -1.0, 'y_max': 1.0,
+                'periodic_bc': True,
+                'bc_config': 'periodic_all',
+                'num_outputs': 2,
+                'output_names': ['u', 'mu'],
+                'ic_weight': 100.0,
+                'ic_hard': [True, False],
+                'periodic_inputs': True,
+                # SA-PINN as in the paper (weights only grow, held during
+                # L-BFGS): without it the network stays near the initial
+                # condition (u 16% / 30% error at t = 0.25 / 1, about what
+                # "nothing moves" gives); with it 1.2% / 3.8%.
+                'point_weights': 'SA-PINN',
+                'sa_normalize': False,
+                'point_weights_lbfgs': 'keep',
+                'ref_dir': os.path.join(REFERENCE_DATA_DIR, "2D", "cahn_hilliard_wight"),
+            },
             # Physics only, from Mathias, de Almeida, de Barros, Coelho et
             # al. 2022 ("Augmenting a Physics-Informed Neural Network for
             # the 2D Burgers Equation by Addition of Solution Data Points",
@@ -12768,6 +12874,11 @@ print("DOMAIN_PREVIEW_DONE")
             self._tpl_set_time_range(t)
             self._tpl_set_sampling_and_training(t, num_initial=t['num_initial'], optimizer2=t['optimizer2'])
             self._tpl_set_ic_weights(n_out, t.get('ic_weight', 100.0))
+            _ic_on = t.get('ic_active', [])
+            for i, cb in enumerate(self.ic_active):
+                cb.setChecked(_ic_on[i] if i < len(_ic_on) else True)
+            self._tpl_set_output_scale(t.get('output_scale'))
+            self._tpl_set_extras(t)
             bc_config = t.get('bc_config', 'periodic_all')
             if bc_config == 'periodic_all':
                 # All boundaries periodic for all outputs
@@ -12909,6 +13020,37 @@ print("DOMAIN_PREVIEW_DONE")
                 'ic_weight': 100.0,
                 'ref_dir': os.path.join(REFERENCE_DATA_DIR, "3D", "heat"),
             },
+            # Wight & Zhao (2021), Section 3.2, eq. 3.13: a shrinking sphere,
+            # phi_t = lambda (eps^2 lap phi - (phi^3 - phi)) on [0, 1]^3
+            # (periodic), lambda = 10, eps = 0.05, t in [0, 1].
+            "3D Allen-Cahn (Wight & Zhao)": {
+                'pde': ["du_t - 0.025*(du_xx + du_yy + du_zz) + 10*(u**3 - u)"],
+                # +1e-6: sqrt(r^2) has no derivative at r = 0, the sphere's
+                # centre, which a grid of test points hits exactly (NaN loss;
+                # with +1e-12 the second derivative there was still ~1e6). It
+                # changes the initial condition by < 1e-5 (deep inside the
+                # sphere, where tanh is saturated).
+                'ic': ["tanh((0.35 - sqrt((x - 0.5)**2 + (y - 0.5)**2 + (z - 0.5)**2 + 1e-6))/0.1)"],
+                'num_domain': 30000,
+                'num_boundary': 1500,
+                'num_initial': 2000,
+                'layers': 4,
+                'neurons': 128,
+                'iterations': 20000,
+                'optimizer2': 'lbfgs',
+                'iterations2': 20000,
+                'num_test': 10000,
+                'x_min': 0.0, 'x_max': 1.0,
+                'y_min': 0.0, 'y_max': 1.0,
+                'z_min': 0.0, 'z_max': 1.0,
+                'num_outputs': 1,
+                'output_names': ['u'],
+                'ic_weight': 100.0,
+                'bc_config': 'periodic_xyz',
+                'ic_hard': [True],
+                'periodic_inputs': True,
+                'ref_dir': os.path.join(REFERENCE_DATA_DIR, "3D", "allen_cahn_wight"),
+            },
         }
         if text in templates_3d:
             t = templates_3d[text]
@@ -12923,7 +13065,15 @@ print("DOMAIN_PREVIEW_DONE")
             self._tpl_set_time_range(t)
             self._tpl_set_sampling_and_training(t, num_initial=t['num_initial'], optimizer2=t['optimizer2'])
             self._tpl_set_ic_weights(n_out, t.get('ic_weight', 100.0))
-            self._populate_3d_heat_bc_entries(n_out)
+            if t.get('bc_config') == 'periodic_xyz':
+                self._populate_3d_periodic_bc_entries(n_out)
+            else:
+                self._populate_3d_heat_bc_entries(n_out)
+            _ic_on = t.get('ic_active', [])
+            for i, cb in enumerate(self.ic_active):
+                cb.setChecked(_ic_on[i] if i < len(_ic_on) else True)
+            self._tpl_set_output_scale(t.get('output_scale'))
+            self._tpl_set_extras(t)
             self._update_bc_mode_visibility()
             # 3D Heat doesn't use Time-Adaptive, but if turned on manually
             # the grid should already be at a 3D-safe size ("21", see
@@ -12931,7 +13081,7 @@ print("DOMAIN_PREVIEW_DONE")
             self._tpl_reset_time_adaptive(t.get('ta_default'), t.get('t_max', 1.0), "21")
             # The x-max Dirichlet face defaults to weight 100, same
             # convention as 2D Heat's right edge.
-            self._tpl_finish(text, t, dirichlet_bc_weight=100.0)
+            self._tpl_finish(text, t, dirichlet_bc_weight=100.0 if t.get('bc_config') != 'periodic_xyz' else None)
             return
 
         # ── Steady-state (time-independent) 3D Quick Example ────────────
@@ -13026,16 +13176,19 @@ print("DOMAIN_PREVIEW_DONE")
                 'pde': ["du_t - dmu_xx",
                         "(mu - 0.01*(u**3 - u) + 1e-6*du_xx)/0.01"],
                 # Best setup of the training methods study (benchmarks/
-                # training_methods.md), about 4x lower error than the plain
+                # training_methods.md), about 8x lower error than the plain
                 # scaled problem: the network's mu scaled by 0.01 (output
                 # Scale); u's initial condition exact (u = IC + t*N, so no IC
                 # loss term -- and mu, with no time derivative, never takes
-                # one); exact periodicity (cos/sin inputs); RBA per-point
-                # weights, kept during L-BFGS.
+                # one); exact periodicity (cos/sin inputs); SA-PINN per-point
+                # weights as in the paper (no normalization, held during
+                # L-BFGS): u at t = 1 0.05-0.06% over three seeds, against
+                # 0.12% with RBA.
                 'output_scale': [1.0, 0.01],
                 'ic_hard': [True, False],
                 'periodic_inputs': True,
-                'point_weights': 'RBA',
+                'point_weights': 'SA-PINN',
+                'sa_normalize': False,
                 'point_weights_lbfgs': 'keep',
                 'ic': ["-cos(2*pi*x)", "0"],
                 'ic_active': [True, False],

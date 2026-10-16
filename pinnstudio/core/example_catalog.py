@@ -58,10 +58,14 @@ _TEMPLATES = [
      "Mattey & Ghosh (2022)"),
     ("2D Allen-Cahn (Wight & Zhao)", "Allen-Cahn 2D – Wight & Zhao", "2D", "Time-dependent", "Rectangle",
      "Wight & Zhao (2021)"),
+    ("2D Cahn-Hilliard (Wight & Zhao)", "Cahn-Hilliard 2D – Wight & Zhao", "2D", "Time-dependent", "Rectangle",
+     "Wight & Zhao (2021)"),
     ("2D Burgers (Mathias)", "Burgers 2D – Mathias et al.", "2D", "Time-dependent", "Rectangle", "Mathias et al. (2022)"),
     ("2D Poisson (L-Shape)", "Poisson 2D – L-shape, Lu et al.", "2D", "Steady", "Polygon (L-shape)", "Lu et al. (2021)"),
     ("2D Poisson (Disk)", "Poisson 2D – disk", "2D", "Steady", "Disk", ""),
     ("3D Heat", "Heat 3D", "3D", "Time-dependent", "Cuboid", ""),
+    ("3D Allen-Cahn (Wight & Zhao)", "Allen-Cahn 3D – Wight & Zhao", "3D", "Time-dependent", "Cuboid",
+     "Wight & Zhao (2021)"),
     ("3D Poisson (Sphere)", "Poisson 3D – sphere", "3D", "Steady", "Sphere", ""),
 ]
 TEMPLATE_KEYS = tuple(t[0] for t in _TEMPLATES)

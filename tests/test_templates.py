@@ -51,11 +51,12 @@ TEMPLATES_BY_DIM = {
         "2D Heat",
         "2D Allen-Cahn (Mattey & Ghosh)",
         "2D Allen-Cahn (Wight & Zhao)",
+        "2D Cahn-Hilliard (Wight & Zhao)",
         "2D Burgers (Mathias)",
         "2D Poisson (L-Shape)",
         "2D Poisson (Disk)",
     ],
-    "3d": ["3D Heat", "3D Poisson (Sphere)"],
+    "3d": ["3D Heat", "3D Allen-Cahn (Wight & Zhao)", "3D Poisson (Sphere)"],
 }
 
 # Combinations that are EXPECTED to fail config.validate() in their fresh,

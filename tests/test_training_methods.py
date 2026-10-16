@@ -50,29 +50,36 @@ def test_gui_round_trip():
     w.causal_cb.setChecked(True)
     assert not w.causal_widget.isHidden()
     w.causal_chunks.setValue(16)
+    assert w.causal_anneal_cb.isChecked() and not w.causal_eps.isEnabled()   # the paper's schedule by default
+    w.causal_anneal_cb.setChecked(False)
+    assert w.causal_eps.isEnabled()
     w.causal_eps.setValue(25.0)
+    assert w.causal_pw_warn.isHidden()
     w._set_combo_data(w.point_weights_combo, "RBA")
+    assert not w.causal_pw_warn.isHidden()           # causal + per-point weights: warned
     assert not w.rba_widget.isHidden() and w.sa_widget.isHidden()
     w.rba_gamma.setValue(0.99)
     w.rba_eta.setValue(0.02)
     w._set_combo_data(w.point_weights_combo, "SA-PINN")
     assert w.rba_widget.isHidden() and not w.sa_widget.isHidden()
     w.sa_lr.setValue(0.01)
-    w.sa_normalize_cb.setChecked(False)
+    assert not w.sa_normalize_cb.isChecked()         # the paper's SA-PINN by default
+    w.sa_normalize_cb.setChecked(True)
     assert not w.pw_lbfgs_widget.isHidden()
     w._set_combo_data(w.pw_lbfgs_combo, "keep")
     c = w._build_config()
-    assert (c.causal_training, c.causal_chunks, c.causal_eps) == (True, 16, 25.0)
+    assert (c.causal_training, c.causal_chunks, c.causal_eps, c.causal_anneal) == (True, 16, 25.0, False)
     assert (c.point_weights, c.rba_gamma, c.rba_eta, c.sa_lr) == ("SA-PINN", 0.99, 0.02, 0.01)
-    assert c.sa_normalize is False and c.point_weights_lbfgs == "keep"
+    assert c.sa_normalize is True and c.point_weights_lbfgs == "keep"
     assert c.validate() == [], c.validate()
     w2 = _window()
     w2._apply_config(PINNConfig(**json.loads(json.dumps(dataclasses.asdict(c)))))   # as saved to .pinn.json
     _settle()
     c2 = w2._build_config()
-    assert (c2.causal_training, c2.causal_chunks, c2.causal_eps) == (True, 16, 25.0)
+    assert (c2.causal_training, c2.causal_chunks, c2.causal_eps, c2.causal_anneal) == (True, 16, 25.0, False)
+    assert w2.causal_eps.isEnabled() and not w2.causal_pw_warn.isHidden()
     assert (c2.point_weights, c2.rba_gamma, c2.rba_eta, c2.sa_lr) == ("SA-PINN", 0.99, 0.02, 0.01)
-    assert c2.sa_normalize is False and c2.point_weights_lbfgs == "keep"
+    assert c2.sa_normalize is True and c2.point_weights_lbfgs == "keep"
     assert not w2.causal_widget.isHidden() and not w2.sa_widget.isHidden()
     for x in (w, w2):
         x.close()
@@ -151,6 +158,7 @@ def test_generated_code_runs():
     c.causal_training = True
     c.causal_chunks = 4
     c.causal_eps = 10.0
+    c.causal_anneal = False
     c.point_weights = "RBA"
     ns, dde, torch, np, model = _tiny(c)
     # causal weights: one per chunk, 1 for the first chunk, never increasing
@@ -186,6 +194,32 @@ def test_generated_code_runs():
     assert torch.allclose(ns["_pw_wrap"](plain)(X, model.net(X)), held_l[:, 0:1])
 
 
+def test_causal_epsilon_schedule():
+    """The paper's schedule: epsilon starts at 0.01 and moves up once every
+    chunk weight is above 0.99; a new Adam run starts it over; L-BFGS holds it."""
+    c = PINNConfig()
+    c.causal_training = True
+    c.causal_chunks = 4
+    assert c.causal_anneal                    # on by default
+    ns, dde, torch, np, model = _tiny(c)
+    C = ns["_CAUSAL"]
+    assert C["sched"] == [0.01, 0.1, 1.0, 10.0, 100.0] and C["eps"] == 0.01
+    model.compile("adam", lr=1e-3)
+    cb = ns["_CausalMonitor"](1000)
+    model.train(iterations=30, display_every=1000, verbose=0, callbacks=[cb])
+    assert C["k"] >= 1 and C["eps"] == C["sched"][C["k"]]
+    k = C["k"]
+    dde.optimizers.set_LBFGS_options(maxiter=5)
+    model.compile("L-BFGS")
+    model.train(display_every=1000, verbose=0, callbacks=[cb])
+    assert C["frozen"] and C["k"] == k        # not advanced during L-BFGS
+    model.compile("adam", lr=1e-3)
+    model.train(iterations=0, display_every=1000, verbose=0, callbacks=[cb])
+    assert C["k"] == 0 and C["eps"] == 0.01   # a new Adam run (next time window) starts over
+    c.causal_anneal = False
+    assert '"sched": None' in _training_methods_defs(c)
+
+
 def test_sa_pinn_ascends():
     for norm in (False, True):
         c = PINNConfig()
@@ -206,7 +240,8 @@ def test_sa_pinn_ascends():
 def test_cahn_hilliard_template_scaling():
     """The template's best setup (training methods study): mu's equation
     divided by gamma_2 and the network's mu scaled by 0.01, the exact initial
-    condition u = IC + t*N, periodic inputs, RBA kept during L-BFGS; none of it
+    condition u = IC + t*N, periodic inputs, SA-PINN (the paper's: no
+    normalization, held during L-BFGS); none of it
     carries over to the next template; the inverse substitution reaches both
     0.01s of the equation."""
     w = _window("1D Cahn-Hilliard")
@@ -216,7 +251,7 @@ def test_cahn_hilliard_template_scaling():
     assert c.pde_expressions.split("|")[1] == "(mu - 0.01*(u**3 - u) + 1e-6*du_xx)/0.01"
     assert c.output_transform_enabled and c.output_transform_mode == "scale"
     assert list(c.output_transform_scale) == [1.0, 0.01]
-    assert (c.point_weights, c.point_weights_lbfgs) == ("RBA", "keep")
+    assert (c.point_weights, c.point_weights_lbfgs, c.sa_normalize) == ("SA-PINN", "keep", False)
     assert not w.ic_active[0].isEnabled() and not w.ic_active[0].isChecked()
     assert not c.time_adaptive and c.validate() == [], c.validate()
     from pinnstudio.core.codegen import _effective_config
