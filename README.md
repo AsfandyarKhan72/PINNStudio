@@ -121,9 +121,26 @@ The install takes a few minutes, and at the end it says whether training will ru
 <details>
 <summary><strong>Updating, uninstalling, and what gets installed</strong></summary>
 
-- **Update:** run the same command again.
-- **Uninstall:** `pinnstudio --remove-shortcut`, then `uv tool uninstall pinnstudio`.
-- **Icon for another installation:** `pinnstudio --create-shortcut` adds the icon for a PINNStudio installed with pip or from source as well, and `pinnstudio --remove-shortcut` removes it.
+**Update to the latest version** by running the install command again. It replaces the old version and keeps your settings and results.
+
+macOS / Linux (in a terminal):
+```bash
+curl -LsSf https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/get-pinnstudio.sh | sh
+```
+
+Windows (in PowerShell):
+```powershell
+powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/get-pinnstudio.ps1 | iex"
+```
+
+**Uninstall** with these two commands (the first removes the icon, the second removes PINNStudio and its Python). They are the same on every system; on Windows, type them in PowerShell:
+```bash
+pinnstudio --remove-shortcut
+uv tool uninstall pinnstudio
+```
+Your results in `PINNStudio_Results` are not deleted.
+
+**Icon for a pip or source installation:** `pinnstudio --create-shortcut` adds the icon, and `pinnstudio --remove-shortcut` removes it.
 
 The installer uses [uv](https://docs.astral.sh/uv/) (and installs it first if needed). PINNStudio gets its own environment with Python 3.12, so nothing is installed system-wide; `uv tool dir` shows where it is. The environment contains [DeepXDE](https://github.com/lululxvi/deepxde) (PyTorch backend), PyTorch, PyQt6, NumPy (below 2.5, since DeepXDE 1.15's Polygon/Triangle geometry fails on NumPy 2.5+), Matplotlib and Pandas. The PyTorch build is chosen from the NVIDIA driver (`--torch-backend auto`), or CPU-only without an NVIDIA GPU. A GPU is optional but recommended for larger 2D/3D problems and inverse runs.
 
