@@ -2470,12 +2470,12 @@ Instead of changing a value and pressing Solve again for each case, **Enable Par
 ![Parameter sweep page — Burgers 1D network-size sweep (hidden layers 2, 4, 6, 8 × neurons 10, 20, 40, All combinations) after it finished: each run's final loss and L2 error in the Training Log, and History comparing the four 40-neuron networks' loss and error](assets/Images/Parameter_Sweep/sweep_panel.png)
 
 **Four ways to combine parameters:**
-- **One-at-a-time** — vary each parameter separately, the others held at their current values (3 values of one parameter → 3 runs).
+- **One at a time** — vary each parameter separately, the others held at their current values (3 values of one parameter → 3 runs).
 - **All combinations** — every value of every parameter (2 parameters with 3 and 2 values → 6 runs).
-- **Specified combinations** — the *i*-th values of all parameters run together (lists of equal length).
-- **Bayesian search** — each run's settings are chosen by a Gaussian-process model of the results so far, to reach the lowest final loss or $L_2$ error in as few runs as possible. Each parameter's range (linear or log) or list of choices is its search space; **Runs** sets the budget and **Random first** the number of random runs before the model takes over (see the Helmholtz hyperparameter-search example under [Examples](#examples)).
+- **Paired values** — the *i*-th values of all parameters run together (lists of equal length).
+- **Bayesian search** — each run's settings are chosen by a Gaussian-process model of the results so far, to reach the lowest final loss or $L_2$ error in as few runs as possible. Each parameter's range (*Linear* or *Log*, from *Min* to *Max*) or list of choices is its search space; **Runs** sets the budget and **Random first** the number of random runs before the model takes over (see the Helmholtz hyperparameter-search example under [Examples](#examples)).
 
-Each parameter takes a list of values or a linear/log range; text settings (activation, point distribution, ...) take a list of choices. **Almost any setting can be swept** — **Refresh** lists everything available for the current problem:
+Each parameter's **Values** are a *List*, or a *Linear* or *Log* range; text settings (activation, point distribution, ...) take a list of choices. **Almost any setting can be swept** — the *Parameter* list shows everything available for the current problem, and updates itself as the problem changes:
 
 - **Network** — hidden layers, neurons per layer, activation, initializer, weight decay.
 - **Collocation points** — domain, boundary, initial and test points, sampling distribution.
@@ -2485,7 +2485,7 @@ Each parameter takes a list of values or a linear/log range; text settings (acti
 - **RAR** and **time-adaptive training** — rounds, candidate and added points, iterations; step counts, IC grid resolution.
 - **Input and output transforms** — each scale value.
 
-*Also run the current settings (baseline)* adds one run with the settings unchanged, as a reference point; it is on by default for One-at-a-time with two or more parameters and for Bayesian search.
+*Also run the current settings (baseline)* adds one run with the settings unchanged, as a reference point; it is on by default for *One at a time* with two or more parameters and for Bayesian search.
 
 **Results.** The sweep saves to one folder (e.g. `Poisson_1D-Dirichlet_sweep__2026-10-13_11-39-17`) with a subfolder per run named after what it set (`run_01__Phase-1-Iterations_1000`, …), each with its model, plots and Error Analysis results. The folder also holds `sweep_summary.csv` (the swept values, final loss and error metrics of every run) and **`sweep_error_vs_parameter.png`**, a plot of the error ($L_2$, plus MSE and maximum error when selected; for a time-dependent problem, the mean over the reference times) and the final loss against the swept values.
 
@@ -2613,7 +2613,7 @@ Start from a clean problem: on the Start tab, click **1D problem** (or *Problem 
    ```
    du_t - 0.01*du_xx - 1.0*u*(1 - u)
    ```
-   This is exactly the `d<output>_<vars>` convention described under [Free-form, multi-output PDE editor](#problem-setup) — `du_t` is $\partial u/\partial t$, `du_xx` is $\partial^2 u/\partial x^2$, and the coefficients $D=0.01$ and $r=1$ are just written inline.
+   This is the `d<output>_<vars>` convention described under [Equation editor for single equations and coupled systems](#problem-setup) — `du_t` is $\partial u/\partial t$, `du_xx` is $\partial^2 u/\partial x^2$, and the coefficients $D=0.01$ and $r=1$ are just written inline.
 3. **Geometry.** Set the interval to `0` to `1` for x and the time interval to `0` to `1`.
 4. **Initial conditions.** A localized bump that will spread and saturate toward 1:
    ```
@@ -2621,7 +2621,7 @@ Start from a clean problem: on the Start tab, click **1D problem** (or *Problem 
    ```
 5. **Boundary conditions.** Right-click *Boundary conditions* → **Add boundary condition** (or use the button on its page): **Neumann**, value `0` (no-flux — the population can't leave through either edge), and in **Where** pick *Left and right sides* from the list. Two rows, one on the left side and one on the right, would do the same.
 6. **Neural network & Training.** The defaults (a handful of hidden layers, Adam then L-BFGS) are a reasonable starting point for a problem this size — adjust layer/neuron counts or add Time-Adaptive stepping later if convergence needs help.
-7. **Solve.** Click **Solve** and watch the loss fall in *Results → Live loss*; the loss and solution figures appear under *Overview* once training finishes. *Save* (Ctrl+S) keeps the setup for later. Try the axis-swap option in Plot Settings on the resulting Surface plot — it's the same option described under [Configurable result plotting](#analysis--output).
+7. **Solve.** Click **Solve** and watch the loss fall in *Results → Live loss*; the loss and solution figures appear under *Overview* once training finishes. *Save* (Ctrl+S) keeps the setup for later. Try *Swap axes* in the Surface plot's settings on the result — see [Plots and animations](#analysis--output).
 8. **Error Analysis (optional).** Since this isn't a bundled template, there's no reference data pre-loaded — Error Analysis is entirely optional here, but if you have your own reference solution (from a separate FEM/FD solver, say), point the Error Analysis dialog at it the same way the built-in templates do automatically.
 
 <table>
@@ -2641,7 +2641,7 @@ Start from a clean problem: on the Start tab, click **1D problem** (or *Problem 
 </tr>
 </table>
 
-From here, the same eight steps apply to essentially any PDE expressible with the derivative syntax under [Free-form, multi-output PDE editor](#problem-setup) — swap in your own residual, domain, and conditions.
+From here, the same eight steps apply to essentially any PDE expressible with the derivative syntax under [Equation editor for single equations and coupled systems](#problem-setup) — swap in your own residual, domain, and conditions.
 
 ## How It Works
 
