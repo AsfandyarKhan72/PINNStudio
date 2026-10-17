@@ -312,6 +312,8 @@ class Domain3DView(QWidget):
         shapes = c.shapes
         if not shapes:
             ax.set_axis_off()
+            fig.legends.clear()
+            ax.set_position([0.0, 0.0, 1.0, 1.0])
             ax.text2D(0.5, 0.5, "No 3D domain yet", transform=ax.transAxes, ha="center", va="center",
                       color=t["text_muted"])
             self._mpl.draw_idle()
@@ -388,11 +390,22 @@ class Domain3DView(QWidget):
                                   label=f"domain points (preview, {n_inner})"))
             handles.append(Line2D([], [], ls="none", marker="o", ms=3, color=t["text"],
                                   label=f"boundary points (preview, {n_bnd})"))
+        # the legend sits in its own column on the right, outside the 3D axes,
+        # so the solid never runs under it whichever way it is turned
+        fig.legends.clear()
+        ax.set_position([0.0, 0.0, 1.0, 1.0])
         if handles:
-            leg = ax.legend(handles=handles, loc="upper right", fontsize=8, frameon=True, framealpha=0.95)
+            leg = fig.legend(handles=handles, loc="upper right", bbox_to_anchor=(0.99, 0.98), fontsize=8,
+                             frameon=True, framealpha=0.95, borderpad=0.6)
             leg.get_frame().set_facecolor(t["card"])
             leg.get_frame().set_edgecolor(t["border"])
             for txt in leg.get_texts():
                 txt.set_color(t["text"])
+            try:
+                fig.canvas.draw()
+                x0 = leg.get_window_extent().transformed(fig.transFigure.inverted()).x0
+                ax.set_position([0.0, 0.0, max(0.45, x0 - 0.03), 1.0])
+            except Exception:
+                ax.set_position([0.0, 0.0, 0.72, 1.0])
         ax.view_init(*self._view_angles)
         self._mpl.draw_idle()
