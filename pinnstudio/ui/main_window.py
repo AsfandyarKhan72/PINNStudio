@@ -11,7 +11,7 @@ from PyQt6.QtWidgets import (
     QDialog, QApplication, QColorDialog,
     QTabWidget, QMessageBox, QScrollArea, QGridLayout, QPlainTextEdit, QSizePolicy, QToolButton, QAbstractSpinBox,
 )
-from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer
+from PyQt6.QtCore import Qt, QObject, QThread, pyqtSignal, QTimer
 from PyQt6.QtGui import QPixmap, QAction, QColor, QMovie, QIntValidator, QKeySequence
 from pinnstudio.core.config import PINNConfig
 from pinnstudio.core.runner import run_pinn
@@ -389,9 +389,23 @@ class SweepThread(QThread):
 
 
 # --- Update-check background thread ---
-class UpdateCheckThread(QThread):
-    """Fetches the latest published version from PyPI without blocking the GUI."""
+class UpdateCheckThread(QObject):
+    """Fetches the latest published version from PyPI without blocking the GUI.
+
+    The request runs in a plain daemon thread rather than a QThread: a QThread
+    still waiting on the network when the window closes makes Qt abort the
+    whole process ("QThread: Destroyed while thread is still running"), while
+    a daemon thread is simply dropped when Python exits."""
     result_signal = pyqtSignal(str)
+
+    def start(self):
+        import threading
+        self._worker = threading.Thread(target=self.run, name="pinnstudio-update-check", daemon=True)
+        self._worker.start()
+
+    def isRunning(self):
+        w = getattr(self, "_worker", None)
+        return bool(w and w.is_alive())
 
     def run(self):
         try:
@@ -404,9 +418,12 @@ class UpdateCheckThread(QThread):
             with urllib.request.urlopen(req, timeout=5) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
             latest = data.get("info", {}).get("version", "")
-            self.result_signal.emit(latest)
         except Exception:
-            self.result_signal.emit("")
+            latest = ""
+        try:
+            self.result_signal.emit(latest)
+        except RuntimeError:      # the window (and this object) is already gone
+            pass
 
 
 # ── Main Window ──────────────────────────────────────────────

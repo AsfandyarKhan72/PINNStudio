@@ -208,6 +208,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **Quitting no longer aborts** with "QThread: Destroyed while thread '' is still running" when the window is closed while the startup update check is still waiting for PyPI (seen on macOS). The check now runs in a daemon thread, which Python drops on exit.
 - **Error Analysis surface plots:** the PINN and Reference panels of a 1D x–t surface comparison were always titled `u(x,t)`; they now show the compared output's name (`mu(x,t)` for the Cahn-Hilliard chemical potential).
 - **README maths:** two more `\,` in the Cahn-Hilliard equations showed as commas on GitHub; removed.
 - Ticking or unticking an output's *Exact (built into the network)* initial condition now rebuilds the loss-weight rows (with the IC row's weight kept, 100 for a new one) and every training phase's weight list; before, the IC term could end up with weight 1 or the phases could carry the wrong number of weights.
