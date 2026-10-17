@@ -8,24 +8,29 @@ Which published PINN training techniques actually help, tested with PINNStudio o
 
 ## How the study is organised
 
-Every phase-field example (Allen-Cahn and Cahn-Hilliard, in 1D, 2D and 3D) is run with the same ten **core setups**, so a row with the same name means the same thing in every table and figure:
+Every phase-field example (Allen-Cahn and Cahn-Hilliard, in 1D, 2D and 3D) is run with the same ten **core setups**. Each name lists what the setup contains, so the same name means the same thing in every table, figure and paragraph:
 
-| Setup | What it is | Where in PINNStudio |
-|---|---|---|
-| **Plain** | The whole time interval at once; the periodic boundary condition and the initial condition are loss terms (initial condition weight 100) | — |
-| **Exact periodicity** | Plain, with periodicity built into the network | Boundary conditions → *Exact periodicity* |
-| **Exact** | Exact periodicity and an exact initial condition, so neither is a loss term | Initial conditions → *Exact (built into the network)* |
-| **Exact + RBA** | Exact, with residual-based attention weights on the PDE points | Loss weights → *Per-point weights* |
-| **Exact + SA-PINN** | Exact, with self-adaptive weights on the PDE points | Loss weights → *Per-point weights* |
-| **Exact + causal** | Exact, with causal training (the paper's $\varepsilon$ schedule) | Loss weights → *Causal training* |
-| **Exact + causal + MsFFN** | Exact + causal, with a multi-scale Fourier feature network | Network → *Network type* |
-| **Time-adaptive** | The time interval in windows, each started from the previous one; exact periodicity, initial condition (and each window's starting state) as a loss term with weight 100 | Adaptive training → *Time Adaptive Training* |
-| **Time-adaptive + RBA** | Time-adaptive, with RBA weights | |
-| **Time-adaptive + SA-PINN** | Time-adaptive, with SA-PINN weights | |
+- **BC**: the periodic boundary condition, either a **loss** term or **exact** (built into the network: Boundary conditions → *Exact periodicity*).
+- **IC**: the initial condition, either a **loss** term (weight 100) or **exact** (Initial conditions → *Exact (built into the network)*). An exact IC cannot be combined with time windows, so every time-window setup has the IC as a loss term.
+- **Time**: the whole time interval at once, or **time windows** (Adaptive training → *Time Adaptive Training*): the interval in windows, each started from the previous window's network, with that window's starting state as a loss term.
+- **Weighting**: none, RBA or SA-PINN (Loss weights → *Per-point weights*), causal training (Loss weights → *Causal training*, with the paper's $\varepsilon$ schedule), or causal training with an MsFFN network (Network → *Network type*).
 
-Per-point weights are held fixed during the L-BFGS phase, as in the papers (Loss weights → *During L-BFGS*: *Keep the weights*); a row marked *unweighted L-BFGS* runs L-BFGS on the plain loss instead. "(template)" marks the setup the example's template uses, and the best setup of each table is in bold. Each example section then lists **other setups**, specific to that problem, under the core table. The other problems (Klein-Gordon, Burgers, the steady problems and the mixed-convection cavity) have no periodicity or initial-condition formula to build in, so they are run as **Plain** and **Plain +** one method.
+| Setup | BC | IC | Time | Weighting |
+|---|---|---|---|---|
+| Loss BC + loss IC | loss | loss | whole interval | – |
+| Exact BC + loss IC | exact | loss | whole interval | – |
+| Exact BC + exact IC | exact | exact | whole interval | – |
+| Exact BC + exact IC + RBA | exact | exact | whole interval | RBA |
+| Exact BC + exact IC + SA-PINN | exact | exact | whole interval | SA-PINN |
+| Exact BC + exact IC + causal | exact | exact | whole interval | causal |
+| Exact BC + exact IC + causal + MsFFN | exact | exact | whole interval | causal, MsFFN network |
+| Time windows: exact BC + loss IC | exact | loss | windows | – |
+| Time windows: exact BC + loss IC + RBA | exact | loss | windows | RBA |
+| Time windows: exact BC + loss IC + SA-PINN | exact | loss | windows | SA-PINN |
 
-**Figures.** Each figure shows the error against time on a log scale, with the same colour and marker for a setup in every figure. The colour is the weighting method (purple none, blue RBA, orange SA-PINN, green causal, dark green causal + MsFFN); the left panel holds the setups on the whole time interval, the right panel the time-adaptive ones, with Plain (dashed gray) in both as the common reference; Exact periodicity is the dotted gray line. A thick line is the template's setup. $t = 0$ is left out, because with an exact initial condition the error there is zero. Each figure is also available as a vector PDF in [`figures/pdf/`](figures/pdf/). Figures and core tables are drawn from [`figures/study.json`](figures/study.json) by [`make_figures.py`](make_figures.py), and the runs were made with [`study_runner.py`](study_runner.py) from the plans in [`plans/`](plans/).
+Everything else (network, points, iterations) is the example's own and is given at the start of its section. Per-point weights are held fixed during the L-BFGS phase, as in the papers (Loss weights → *During L-BFGS*: *Keep the weights*); a row marked *unweighted L-BFGS* runs L-BFGS on the unweighted loss instead. "(template)" marks the setup the example's template uses, the best setup of each table is in bold, and "–" marks a setup that was not run. Under each core table, **other setups** lists further runs on that problem, named the same way. The other problems (Klein-Gordon, Burgers, the steady problems and the mixed-convection cavity) have no periodicity or initial condition to build in, so they are run as **Plain** (every condition a loss term) and **Plain +** one method.
+
+**Figures.** Each figure shows the error against time on a log scale, every core setup in one plot, in the order and with the names of the table under it. The colour is the weighting method (purple none, blue RBA, orange SA-PINN, green causal, dark green causal + MsFFN), a **solid line** trains on the whole time interval at once and a **dashed line** in time windows, and the two setups without an exact IC on the whole interval are gray with open markers. A thick line is the template's setup. $t = 0$ is left out, because with an exact IC the error there is zero. Each figure is also available as a vector PDF in [`figures/pdf/`](figures/pdf/). Figures and core tables are drawn from [`figures/study.json`](figures/study.json) by [`make_figures.py`](make_figures.py), and the runs were made with [`study_runner.py`](study_runner.py) from the plans in [`plans/`](plans/).
 
 ## Methods
 
@@ -44,20 +49,20 @@ Per-point weights are held fixed during the L-BFGS phase, as in the papers (Loss
 
 ![Error at the last reference time for every phase-field example and every core setup](figures/overview.png)
 
-**Figure 1.** Relative $L_2$ error at the last reference time, for every phase-field example (rows) and every core setup (columns; TA = time-adaptive). Darker is lower; the best setup of each example is in bold, and "–" marks a setup that was not run.
+**Figure 1.** Relative $L_2$ error at the last reference time, for every phase-field example (rows) and every core setup (columns). Darker is lower; the best setup of each example is in bold, and "–" marks a setup that was not run.
 
 ## Summary
 
-| Problem | Plain | Best | Best setup |
+| Problem | Plain (everything a loss term) | Best | Best setup |
 |---|---|---|---|
-| 1D Allen-Cahn (Wight & Zhao), $t = 1$ | 10% | 0.13% | Exact + causal + MsFFN |
-| 2D Allen-Cahn (Wight & Zhao), $t = 10$ | 200% | 0.16% | Time-adaptive + RBA |
-| 2D Allen-Cahn (Mattey & Ghosh), $t = 1$ | 1.3% | 0.036% | Exact + SA-PINN |
-| 3D Allen-Cahn (Wight & Zhao), $t = 1$ | – (exact IC: 0.72%) | 0.027% | Exact periodicity (template) |
-| 1D Cahn-Hilliard (Wight & Zhao), $t = 1$ | 0.52% (42% unscaled) | 0.060% | Exact + SA-PINN (template) |
-| 1D Cahn-Hilliard (Mattey & Ghosh), $t = 1$ | 83% | 0.39–0.48% | Time-adaptive (template), + SA-PINN |
-| 2D Cahn-Hilliard (Wight & Zhao), $t = 1$ | 32% | 1.1% | Exact periodicity (template) |
-| 2D Cahn-Hilliard (Mattey & Ghosh), $t' = 1$ | 51% | 0.20% | Exact + SA-PINN (template) |
+| 1D Allen-Cahn (Wight & Zhao), $t = 1$ | 10% | 0.13% | Exact BC + exact IC + causal + MsFFN |
+| 2D Allen-Cahn (Wight & Zhao), $t = 10$ | 200% | 0.16% | Time windows: exact BC + loss IC + RBA |
+| 2D Allen-Cahn (Mattey & Ghosh), $t = 1$ | 1.3% | 0.036% | Exact BC + exact IC + SA-PINN |
+| 3D Allen-Cahn (Wight & Zhao), $t = 1$ | – (exact BC + exact IC: 0.72%) | 0.027% | Exact BC + loss IC (template) |
+| 1D Cahn-Hilliard (Wight & Zhao), $t = 1$ | 0.52% (42% unscaled) | 0.060% | Exact BC + exact IC + SA-PINN (template) |
+| 1D Cahn-Hilliard (Mattey & Ghosh), $t = 1$ | 83% | 0.39–0.48% | Time windows: exact BC + loss IC (template), and + SA-PINN |
+| 2D Cahn-Hilliard (Wight & Zhao), $t = 1$ | 32% | 1.1% | Exact BC + loss IC (template) |
+| 2D Cahn-Hilliard (Mattey & Ghosh), $t' = 1$ | 51% | 0.20% | Exact BC + exact IC + SA-PINN (template) |
 | Mixed convection, $u$ / $v$ / $T$ | 44 / 41 / 56% | 14 / 13 / 24% | Plain + MsFFN (template) |
 | Klein-Gordon, $t = 10$ | 8.1% | 0.22% | Plain + causal + MsFFN |
 | 1D Burgers, $t = 1$ | 0.13% | 0.13% | Plain; nothing helps |
@@ -74,7 +79,7 @@ Per-point weights are held fixed during the L-BFGS phase, as in the papers (Loss
 
 ### 1D Allen-Cahn (Wight & Zhao)
 
-$u_t = 10^{-4} u_{xx} - 5u^3 + 5u$ on $x \in [-1, 1]$ (periodic), $u(x, 0) = x^2\cos(\pi x)$, $t \in [0, 1]$ ([Wight & Zhao, 2021](https://doi.org/10.4208/cicp.OA-2020-0086)). 4 × 128 network, Adam 20,000 → L-BFGS 10,000 (per window in the time-adaptive runs, 4 windows of 0.25).
+$u_t = 10^{-4} u_{xx} - 5u^3 + 5u$ on $x \in [-1, 1]$ (periodic), $u(x, 0) = x^2\cos(\pi x)$, $t \in [0, 1]$ ([Wight & Zhao, 2021](https://doi.org/10.4208/cicp.OA-2020-0086)). 4 × 128 network, Adam 20,000 → L-BFGS 10,000 (per window in the time-window runs, 4 windows of 0.25).
 
 ![Relative L2 error against time for 1D Allen-Cahn](figures/ac1d.png)
 
@@ -83,43 +88,43 @@ $u_t = 10^{-4} u_{xx} - 5u^3 + 5u$ on $x \in [-1, 1]$ (periodic), $u(x, 0) = x^2
 <!-- core:ac1d -->
 | Setup | $t = 0.25$ | $t = 1$ |
 |---|---|---|
-| Plain | 0.69% | 10% |
-| Exact periodicity | 0.54% | 9.8% |
-| Exact | 0.27% | 4.3% |
-| Exact + RBA | 0.053% | 0.43% |
-| Exact + SA-PINN | 0.046% | 0.18% |
-| Exact + causal | 0.049% | 0.18% |
-| **Exact + causal + MsFFN** | **0.040%** | **0.13%** |
-| Time-adaptive | 0.081% | 0.62% |
-| Time-adaptive + RBA | 0.031% | 0.18% |
-| Time-adaptive + SA-PINN | 0.20% | 1.4% |
+| Loss BC + loss IC | 0.69% | 10% |
+| Exact BC + loss IC | 0.54% | 9.8% |
+| Exact BC + exact IC | 0.27% | 4.3% |
+| Exact BC + exact IC + RBA | 0.053% | 0.43% |
+| Exact BC + exact IC + SA-PINN | 0.046% | 0.18% |
+| Exact BC + exact IC + causal | 0.049% | 0.18% |
+| **Exact BC + exact IC + causal + MsFFN** | **0.040%** | **0.13%** |
+| Time windows: exact BC + loss IC | 0.081% | 0.62% |
+| Time windows: exact BC + loss IC + RBA | 0.031% | 0.18% |
+| Time windows: exact BC + loss IC + SA-PINN | 0.20% | 1.4% |
 <!-- /core -->
 
-Seeds 1 and 2 of the whole-interval setups, at $t = 0.25$ / $t = 1$: Plain 0.85% / 10%; Exact + RBA 0.11% / 0.78% and 0.070% / 0.50%; Exact + SA-PINN 0.061% / 0.20% and 0.049% / 0.13%; Exact + causal 0.056% / 0.64% and 0.056% / 0.45%; Exact + causal + MsFFN 0.041% / 0.12% and 0.042% / 0.065%.
+Seeds 1 and 2 of the whole-interval setups, at $t = 0.25$ / $t = 1$: loss BC + loss IC 0.85% / 10%; exact BC + exact IC + RBA 0.11% / 0.78% and 0.070% / 0.50%; + SA-PINN 0.061% / 0.20% and 0.049% / 0.13%; + causal 0.056% / 0.64% and 0.056% / 0.45%; + causal + MsFFN 0.041% / 0.12% and 0.042% / 0.065%.
 
 *Other setups*
 
 | Setup | $t = 0.25$ | $t = 1$ |
 |---|---|---|
-| Time-adaptive, periodic BC as a loss term (template) | 0.050% | 0.48% |
-| Time-adaptive, periodic BC as a loss term, + causal | 0.034% | 0.48% |
-| Time-adaptive, periodic BC as a loss term, + gradient-norm balancing | 0.18% | 1.4% |
-| Exact + causal, fixed $\varepsilon = 1$ | 0.061% | 0.65% |
-| Exact + causal + RBA | 0.18% | 1.8% |
-| Plain + RBA | 1.0% | 11% |
-| Exact periodicity + RBA | 0.22% | 4.2% |
-| Exact periodicity + RBA, unweighted L-BFGS | 0.40% | 7.0% |
-| Exact periodicity + RBA + learning-rate decay | 0.26% | 5.7% |
-| Plain + MsFFN (2 seeds) | 0.08–0.12% | 1.8–2.3% |
-| Plain + MsFFN + RBA (2 seeds) | 0.051–0.055% | 0.74–0.89% |
-| Plain + MsFFN + RBA, unweighted L-BFGS | 0.14% | 2.5% |
-| Plain + gradient-norm balancing | 74% | 99% |
+| Time windows: loss BC + loss IC (template) | 0.050% | 0.48% |
+| Time windows: loss BC + loss IC + causal | 0.034% | 0.48% |
+| Time windows: loss BC + loss IC + gradient-norm balancing | 0.18% | 1.4% |
+| Exact BC + exact IC + causal, fixed $\varepsilon = 1$ | 0.061% | 0.65% |
+| Exact BC + exact IC + causal + RBA | 0.18% | 1.8% |
+| Loss BC + loss IC + RBA | 1.0% | 11% |
+| Exact BC + loss IC + RBA | 0.22% | 4.2% |
+| Exact BC + loss IC + RBA, unweighted L-BFGS | 0.40% | 7.0% |
+| Exact BC + loss IC + RBA + learning-rate decay | 0.26% | 5.7% |
+| Loss BC + loss IC + MsFFN (2 seeds) | 0.08–0.12% | 1.8–2.3% |
+| Loss BC + loss IC + MsFFN + RBA (2 seeds) | 0.051–0.055% | 0.74–0.89% |
+| Loss BC + loss IC + MsFFN + RBA, unweighted L-BFGS | 0.14% | 2.5% |
+| Loss BC + loss IC + gradient-norm balancing | 74% | 99% |
 
 On the whole interval, built-in periodicity alone changes little (10% to 9.8% at $t = 1$), the exact initial condition on top of it halves the error (4.3%), and every weighting method on top of both brings it below 0.5%. Causal training with a Fourier-feature network is the most accurate and the most repeatable of these; SA-PINN and causal training alone are close behind. With time windows, RBA does as well as the best whole-interval setup (0.18% at $t = 1$), while SA-PINN is worse than no weighting at all: inside each window the initial condition is a loss term, and SA-PINN only weights the PDE points (see 2D Allen-Cahn, Wight & Zhao, where this goes wrong completely). Causal training together with per-point weights is worse than either alone, and with a fixed $\varepsilon = 1$ the causal weights hardly move (see [Checked against the papers](#checked-against-the-papers)).
 
 ### 2D Allen-Cahn (Wight & Zhao)
 
-A shrinking circle over a long time range, $t \in [0, 10]$ ([Wight & Zhao, 2021](https://doi.org/10.4208/cicp.OA-2020-0086)). 4 × 128 network, 10,000 points, Adam 20,000 → L-BFGS 10,000 (per window in the time-adaptive runs, 10 windows of 1).
+A shrinking circle over a long time range, $t \in [0, 10]$ ([Wight & Zhao, 2021](https://doi.org/10.4208/cicp.OA-2020-0086)). 4 × 128 network, 10,000 points, Adam 20,000 → L-BFGS 10,000 (per window in the time-window runs, 10 windows of 1).
 
 ![Relative L2 error against time for 2D Allen-Cahn, Wight & Zhao](figures/ac2d_wz.png)
 
@@ -128,32 +133,30 @@ A shrinking circle over a long time range, $t \in [0, 10]$ ([Wight & Zhao, 2021]
 <!-- core:ac2d_wz -->
 | Setup | $t = 2.5$ | $t = 5$ | $t = 10$ |
 |---|---|---|---|
-| Plain | 177% | 187% | 200% |
-| Exact periodicity | 100% | 100% | 100% |
-| Exact | 47% | 109% | 141% |
-| Exact + RBA | 17% | 19% | 33% |
-| Exact + SA-PINN | 25% | 37% | 53% |
-| Exact + causal | 32% | 36% | 47% |
-| Exact + causal + MsFFN | 45% | 96% | 126% |
-| Time-adaptive† (template) | 0.93% | 2.1% | 0.79% |
-| **Time-adaptive + RBA** | **0.92%** | **2.0%** | **0.16%** |
-| Time-adaptive + SA-PINN | 100% | 100% | 100% |
+| Loss BC + loss IC | 177% | 187% | 200% |
+| Exact BC + loss IC | 100% | 100% | 100% |
+| Exact BC + exact IC | 47% | 109% | 141% |
+| Exact BC + exact IC + RBA | 17% | 19% | 33% |
+| Exact BC + exact IC + SA-PINN | 25% | 37% | 53% |
+| Exact BC + exact IC + causal | 32% | 36% | 47% |
+| Exact BC + exact IC + causal + MsFFN | 45% | 96% | 126% |
+| Time windows: loss BC + loss IC (template) | 0.93% | 2.1% | 0.79% |
+| **Time windows: exact BC + loss IC + RBA** | **0.92%** | **2.0%** | **0.16%** |
+| Time windows: exact BC + loss IC + SA-PINN | 100% | 100% | 100% |
 <!-- /core -->
-
-† The time-adaptive row is the template itself, whose periodic boundary condition is a loss term rather than exact periodicity.
 
 *Other setups*
 
 | Setup | $t = 2.5$ | $t = 5$ | $t = 10$ |
 |---|---|---|---|
-| Plain + RBA, unweighted L-BFGS | 3.5% | 5.7% | 19% |
-| Plain + MsFFN + RBA | 81% | 100% | 110% |
+| Loss BC + loss IC + RBA, unweighted L-BFGS | 3.5% | 5.7% | 19% |
+| Loss BC + loss IC + MsFFN + RBA | 81% | 100% | 110% |
 
 On the whole interval nothing works: the circle shrinks over $t \in [0, 10]$, and every whole-interval setup ends at 33% error or worse at $t = 10$ (with exact periodicity alone the network learns a flat field, exactly 100% everywhere). Time windows are what makes this problem solvable, and RBA on top of them gives the best result of the study's long-time problems, 0.16% at $t = 10$. SA-PINN does not work here at all. With time windows, the initial condition (and each window's starting state) is a loss term with a fixed weight of 100, while SA-PINN's weights on the PDE points only grow; within the first window the PDE term outweighs the initial condition, and $u = 0$, which satisfies the Allen-Cahn equation exactly, is what the network settles on in every window. The paper's SA-PINN also gives the initial-condition points their own growing weights, which PINNStudio does not do, so use SA-PINN with an exact initial condition only.
 
 ### 2D Allen-Cahn (Mattey & Ghosh)
 
-IBVP-1 of [Mattey & Ghosh (2022)](https://doi.org/10.1016/j.cma.2021.114474), $t \in [0, 1]$. 4 × 128 network, 10,000 points, Adam 20,000 → L-BFGS 10,000 (per window in the time-adaptive runs, 4 windows of 0.25).
+IBVP-1 of [Mattey & Ghosh (2022)](https://doi.org/10.1016/j.cma.2021.114474), $t \in [0, 1]$. 4 × 128 network, 10,000 points, Adam 20,000 → L-BFGS 10,000 (per window in the time-window runs, 4 windows of 0.25).
 
 ![Relative L2 error against time for 2D Allen-Cahn, Mattey & Ghosh](figures/ac2d_mg.png)
 
@@ -162,32 +165,32 @@ IBVP-1 of [Mattey & Ghosh (2022)](https://doi.org/10.1016/j.cma.2021.114474), $t
 <!-- core:ac2d_mg -->
 | Setup | $t = 0.25$ | $t = 1$ |
 |---|---|---|
-| Plain | 1.2% | 1.3% |
-| Exact periodicity | 0.81% | 0.71% |
-| Exact | 0.042% | 0.057% |
-| Exact + RBA | 0.034% | 0.054% |
-| **Exact + SA-PINN** | **0.024%** | **0.036%** |
-| Exact + causal | 0.037% | 0.057% |
-| Exact + causal + MsFFN | 0.71% | 4.7% |
-| Time-adaptive† (template) | 0.56% | 0.67% |
-| Time-adaptive + RBA | – | – |
-| Time-adaptive + SA-PINN | – | – |
+| Loss BC + loss IC | 1.2% | 1.3% |
+| Exact BC + loss IC | 0.81% | 0.71% |
+| Exact BC + exact IC | 0.042% | 0.057% |
+| Exact BC + exact IC + RBA | 0.034% | 0.054% |
+| **Exact BC + exact IC + SA-PINN** | **0.024%** | **0.036%** |
+| Exact BC + exact IC + causal | 0.037% | 0.057% |
+| Exact BC + exact IC + causal + MsFFN | 0.71% | 4.7% |
+| Time windows: loss BC + loss IC (template) | 0.56% | 0.67% |
+| Time windows: exact BC + loss IC + RBA | – | – |
+| Time windows: exact BC + loss IC + SA-PINN | – | – |
 <!-- /core -->
 
-† The time-adaptive row is the template itself, whose periodic boundary condition is a loss term; the two weighted time-adaptive setups were not run for this example.
+The time-window row is the template itself, whose periodic BC is a loss term; the weighted time-window setups were not run for this example.
 
 *Other setups*
 
 | Setup | $t = 0.25$ | $t = 1$ |
 |---|---|---|
-| Plain + RBA, unweighted L-BFGS | 1.6% | 1.7% |
-| Plain + MsFFN + RBA | 0.78% | 1.7% |
+| Loss BC + loss IC + RBA, unweighted L-BFGS | 1.6% | 1.7% |
+| Loss BC + loss IC + MsFFN + RBA | 0.78% | 1.7% |
 
-Here the exact constraints do almost all the work: exact periodicity and an exact initial condition alone take the error at $t = 1$ from 1.3% to 0.057%, 23 times lower, and 12 times lower than the time-adaptive template. A weighting method on top changes little (RBA and causal training land on the same error; SA-PINN is 1.6 times lower, at the edge of the run-to-run variation; the RBA row is two runs, 0.052–0.054% at $t = 1$). The Fourier-feature network hurts on this smooth problem, 4.7% at $t = 1$ with causal training.
+Here the exact constraints do almost all the work: exact periodicity and an exact initial condition alone take the error at $t = 1$ from 1.3% to 0.057%, 23 times lower, and 12 times lower than the time-window template. A weighting method on top changes little (RBA and causal training land on the same error; SA-PINN is 1.6 times lower, at the edge of the run-to-run variation; the RBA row is two runs, 0.052–0.054% at $t = 1$). The Fourier-feature network hurts on this smooth problem, 4.7% at $t = 1$ with causal training.
 
 ### 3D Allen-Cahn (Wight & Zhao)
 
-A shrinking sphere, $u_t = 0.025\nabla^2 u - 10(u^3 - u)$ on $[0, 1]^3$ (periodic), $t \in [0, 1]$; 4 × 128 network, 30,000 points, Adam 20,000 → L-BFGS 20,000 (Adam 10,000 → L-BFGS 10,000 per window in the time-adaptive run, 4 windows of 0.25).
+A shrinking sphere, $u_t = 0.025\nabla^2 u - 10(u^3 - u)$ on $[0, 1]^3$ (periodic), $t \in [0, 1]$; 4 × 128 network, 30,000 points, Adam 20,000 → L-BFGS 20,000 (Adam 10,000 → L-BFGS 10,000 per window in the time-window run, 4 windows of 0.25).
 
 ![Relative L2 error against time for 3D Allen-Cahn](figures/ac3d.png)
 
@@ -196,27 +199,27 @@ A shrinking sphere, $u_t = 0.025\nabla^2 u - 10(u^3 - u)$ on $[0, 1]^3$ (periodi
 <!-- core:ac3d -->
 | Setup | $t = 0.25$ | $t = 1$ |
 |---|---|---|
-| Plain | – | – |
-| **Exact periodicity (template)** | **0.030%** | **0.027%** |
-| Exact | 0.81% | 0.72% |
-| Exact + RBA | 0.81% | 0.72% |
-| Exact + SA-PINN | 0.81% | 0.72% |
-| Exact + causal | 0.81% | 0.72% |
-| Exact + causal + MsFFN | – | – |
-| Time-adaptive | – | – |
-| Time-adaptive + RBA | – | – |
-| Time-adaptive + SA-PINN | – | – |
+| Loss BC + loss IC | – | – |
+| **Exact BC + loss IC (template)** | **0.030%** | **0.027%** |
+| Exact BC + exact IC | 0.81% | 0.72% |
+| Exact BC + exact IC + RBA | 0.81% | 0.72% |
+| Exact BC + exact IC + SA-PINN | 0.81% | 0.72% |
+| Exact BC + exact IC + causal | 0.81% | 0.72% |
+| Exact BC + exact IC + causal + MsFFN | – | – |
+| Time windows: exact BC + loss IC | – | – |
+| Time windows: exact BC + loss IC + RBA | – | – |
+| Time windows: exact BC + loss IC + SA-PINN | – | – |
 <!-- /core -->
 
-The Plain, Exact + causal + MsFFN and time-adaptive setups were not run for this example yet.
+Loss BC + loss IC, exact BC + exact IC + causal + MsFFN and the time-window setups were not run for this example yet.
 
-With the exact initial condition every method lands on the same error to three digits (the logs confirm that RBA and the causal schedule were active), so the limit is the $\text{IC} + tN$ form itself: the tanh profile relaxes quickly at the start, and the network has to produce that change through $tN$. Training the initial condition as a loss term instead (the Exact periodicity row, the template) gives 25 times less error. On the slice $z = 0.5$ the sphere stays round, and the largest pointwise error, about 0.013, sits on the interface.
+With the exact initial condition every method lands on the same error to three digits (the logs confirm that RBA and the causal schedule were active), so the limit is the $\text{IC} + tN$ form itself: the tanh profile relaxes quickly at the start, and the network has to produce that change through $tN$. Training the initial condition as a loss term instead (exact BC + loss IC, the template) gives 25 times less error. On the slice $z = 0.5$ the sphere stays round, and the largest pointwise error, about 0.013, sits on the interface.
 
 ## Cahn-Hilliard
 
 ### 1D Cahn-Hilliard (Wight & Zhao)
 
-Mixed form after [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086): $u_t = \mu_{xx}$, $\mu = \gamma_2(u^3 - u) - \gamma_1 u_{xx}$ with $\gamma_1 = 10^{-6}$ and $\gamma_2 = 0.01$, on $x \in [-1, 1]$, $t \in [0, 1]$, periodic. All core setups use the scaled equations (see below). Adam 20,000 → L-BFGS 20,000 (Adam 10,000 → L-BFGS 10,000 per window in the time-adaptive runs, 4 windows of 0.25).
+Mixed form after [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086): $u_t = \mu_{xx}$, $\mu = \gamma_2(u^3 - u) - \gamma_1 u_{xx}$ with $\gamma_1 = 10^{-6}$ and $\gamma_2 = 0.01$, on $x \in [-1, 1]$, $t \in [0, 1]$, periodic. All core setups use the scaled equations (see below). Adam 20,000 → L-BFGS 20,000 (Adam 10,000 → L-BFGS 10,000 per window in the time-window runs, 4 windows of 0.25).
 
 ![Relative L2 error against time for 1D Cahn-Hilliard](figures/ch1d.png)
 
@@ -225,42 +228,42 @@ Mixed form after [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086
 <!-- core:ch1d -->
 | Setup | $t = 0.25$ | $t = 1$ |
 |---|---|---|
-| Plain | 3.3% | 0.52% |
-| Exact periodicity | 2.0% | 0.46% |
-| Exact | 0.83% | 0.16% |
-| Exact + RBA | 0.60% | 0.12% |
-| **Exact + SA-PINN (template)** | **0.23%** | **0.060%** |
-| Exact + causal | 0.50% | 0.10% |
-| Exact + causal + MsFFN | 1.0% | 0.22% |
-| Time-adaptive | 3.2% | 0.65% |
-| Time-adaptive + RBA | 2.0% | 0.40% |
-| Time-adaptive + SA-PINN | 1.9% | 0.57% |
+| Loss BC + loss IC | 3.3% | 0.52% |
+| Exact BC + loss IC | 2.0% | 0.46% |
+| Exact BC + exact IC | 0.83% | 0.16% |
+| Exact BC + exact IC + RBA | 0.60% | 0.12% |
+| **Exact BC + exact IC + SA-PINN (template)** | **0.23%** | **0.060%** |
+| Exact BC + exact IC + causal | 0.50% | 0.10% |
+| Exact BC + exact IC + causal + MsFFN | 1.0% | 0.22% |
+| Time windows: exact BC + loss IC | 3.2% | 0.65% |
+| Time windows: exact BC + loss IC + RBA | 2.0% | 0.40% |
+| Time windows: exact BC + loss IC + SA-PINN | 1.9% | 0.57% |
 <!-- /core -->
 
-Seeds: Plain 2.2–3.3% / 0.40–0.52% and the template 0.21–0.23% / 0.051–0.060% (three seeds each, $t = 0.25$ / $t = 1$). The error in $\mu$ with the template is 0.25–0.28% at $t = 0.25$ and 0.15–0.18% at $t = 1$. In every run with the physics check, mass was conserved to about $10^{-4}$ and the free energy decreased at all 40 time samples; $E(1)$ = 5.80 × 10⁻⁴ against 5.797 × 10⁻⁴ in the reference.
+Seeds: loss BC + loss IC 2.2–3.3% / 0.40–0.52% and the template 0.21–0.23% / 0.051–0.060% (three seeds each, $t = 0.25$ / $t = 1$). The error in $\mu$ with the template is 0.25–0.28% at $t = 0.25$ and 0.15–0.18% at $t = 1$. In every run with the physics check, mass was conserved to about $10^{-4}$ and the free energy decreased at all 40 time samples; $E(1)$ = 5.80 × 10⁻⁴ against 5.797 × 10⁻⁴ in the reference.
 
 *Other setups*
 
 | Setup | $t = 0.25$ | $t = 1$ |
 |---|---|---|
-| Plain, unscaled equations | 28% | 42% |
-| Plain, unscaled equations, + gradient-norm balancing | 28% | 41% |
-| Plain + gradient-norm balancing | 19% | 6.5% |
-| Plain + RBA | 1.1% | 0.30% |
-| Exact periodicity + RBA | 0.78% | 0.17% |
-| Exact periodicity + RBA, unweighted L-BFGS | 1.2% | 0.26% |
-| Exact periodicity + RBA + learning-rate decay | 1.1% | 0.29% |
-| Plain + MsFFN (2 seeds) | 1.4–1.5% | 0.17–0.25% |
-| Plain + MsFFN + RBA (2 seeds) | 0.54–0.57% | 0.11–0.14% |
-| Plain + MsFFN + RBA, unweighted L-BFGS | 1.1% | 0.11% |
-| Plain, separate $u$ and $\mu$ networks (PFNN) | 2.5% | 0.39% |
-| Time-adaptive, periodic BC as a loss term (4 windows) | 3.4% | 0.41% |
+| Loss BC + loss IC, unscaled equations | 28% | 42% |
+| Loss BC + loss IC + gradient-norm balancing, unscaled equations | 28% | 41% |
+| Loss BC + loss IC + gradient-norm balancing | 19% | 6.5% |
+| Loss BC + loss IC + RBA | 1.1% | 0.30% |
+| Exact BC + loss IC + RBA | 0.78% | 0.17% |
+| Exact BC + loss IC + RBA, unweighted L-BFGS | 1.2% | 0.26% |
+| Exact BC + loss IC + RBA + learning-rate decay | 1.1% | 0.29% |
+| Loss BC + loss IC + MsFFN (2 seeds) | 1.4–1.5% | 0.17–0.25% |
+| Loss BC + loss IC + MsFFN + RBA (2 seeds) | 0.54–0.57% | 0.11–0.14% |
+| Loss BC + loss IC + MsFFN + RBA, unweighted L-BFGS | 1.1% | 0.11% |
+| Loss BC + loss IC, separate $u$ and $\mu$ networks (PFNN) | 2.5% | 0.39% |
+| Time windows: loss BC + loss IC | 3.4% | 0.41% |
 
-**Scaling comes first.** $\mu$ is only about $\gamma_2 = 0.01$ in size, so written as above its equation's residual is about 100 times smaller than the $u_t$ equation's, and the network settles on a wrong solution with a small loss (28–42% error, whatever else is added). The template divides $\mu$'s equation by $\gamma_2$ and scales the network's $\mu$ output by 0.01, so both residuals are of order 1; all core setups use these scaled equations. After that, the exact constraints cut the error at $t = 1$ about three times (0.52% to 0.16%), and SA-PINN on top of them about three times more (0.060%). Time windows do not help here: this solution has no fast transient, and each window starts from the previous window's slightly wrong end state, so the error builds up (0.40–0.65% at $t = 1$ for all three time-adaptive setups).
+**Scaling comes first.** $\mu$ is only about $\gamma_2 = 0.01$ in size, so written as above its equation's residual is about 100 times smaller than the $u_t$ equation's, and the network settles on a wrong solution with a small loss (28–42% error, whatever else is added). The template divides $\mu$'s equation by $\gamma_2$ and scales the network's $\mu$ output by 0.01, so both residuals are of order 1; all core setups use these scaled equations. After that, the exact constraints cut the error at $t = 1$ about three times (0.52% to 0.16%), and SA-PINN on top of them about three times more (0.060%). Time windows do not help here: this solution has no fast transient, and each window starts from the previous window's slightly wrong end state, so the error builds up (0.40–0.65% at $t = 1$ for all three time-window setups).
 
 ### 1D Cahn-Hilliard (Mattey & Ghosh)
 
-$u_t = (u^3 - u - 0.02 u_{xx})_{xx}$ on $[-1, 1]$ (periodic), $u(x, 0) = \cos(\pi x) - \exp(-4(\pi x)^2)$, $t \in [0, 1]$ ([Mattey & Ghosh, 2022](https://doi.org/10.1016/j.cma.2021.114474), eq. 25). The narrow Gaussian in the initial condition makes the solution change very fast at first (it is reshaped well before $t = 0.05$) and then settle. The paper's own standard PINN fails here too, with 86% error over the whole domain; the authors solve it with their bc-PINN, which trains time segments one after another. 4 × 128 network, 10,000 points. Whole-interval runs: Adam 20,000 → L-BFGS 20,000. Time-adaptive runs (the template): 10 windows of 0.01 over the fast start and 9 windows of 0.1 for the rest, Adam 5,000 → L-BFGS 5,000 per window.
+$u_t = (u^3 - u - 0.02 u_{xx})_{xx}$ on $[-1, 1]$ (periodic), $u(x, 0) = \cos(\pi x) - \exp(-4(\pi x)^2)$, $t \in [0, 1]$ ([Mattey & Ghosh, 2022](https://doi.org/10.1016/j.cma.2021.114474), eq. 25). The narrow Gaussian in the initial condition makes the solution change very fast at first (it is reshaped well before $t = 0.05$) and then settle. The paper's own standard PINN fails here too, with 86% error over the whole domain; the authors solve it with their bc-PINN, which trains time segments one after another. 4 × 128 network, 10,000 points. Whole-interval runs: Adam 20,000 → L-BFGS 20,000. Time-window runs (the template): 10 windows of 0.01 over the fast start and 9 windows of 0.1 for the rest, Adam 5,000 → L-BFGS 5,000 per window.
 
 ![Relative L2 error against time for 1D Cahn-Hilliard, Mattey & Ghosh](figures/ch1d_mg.png)
 
@@ -269,23 +272,23 @@ $u_t = (u^3 - u - 0.02 u_{xx})_{xx}$ on $[-1, 1]$ (periodic), $u(x, 0) = \cos(\p
 <!-- core:ch1d_mg -->
 | Setup | $t = 0.05$ | $t = 0.25$ | $t = 1$ |
 |---|---|---|---|
-| Plain | 62% | 94% | 83% |
-| Exact periodicity | 64% | 94% | 89% |
-| Exact | 68% | 93% | 84% |
-| Exact + RBA | 71% | 81% | 90% |
-| Exact + SA-PINN | 93% | 91% | 51% |
-| Exact + causal | 74% | 93% | 78% |
-| Exact + causal + MsFFN | 57% | 90% | 25% |
-| Time-adaptive (template) | 0.35% | 0.51% | 0.48% |
-| Time-adaptive + RBA | 2.5% | 2.1% | 2.1% |
-| **Time-adaptive + SA-PINN** | **1.5%** | **0.27%** | **0.39%** |
+| Loss BC + loss IC | 62% | 94% | 83% |
+| Exact BC + loss IC | 64% | 94% | 89% |
+| Exact BC + exact IC | 68% | 93% | 84% |
+| Exact BC + exact IC + RBA | 71% | 81% | 90% |
+| Exact BC + exact IC + SA-PINN | 93% | 91% | 51% |
+| Exact BC + exact IC + causal | 74% | 93% | 78% |
+| Exact BC + exact IC + causal + MsFFN | 57% | 90% | 25% |
+| Time windows: exact BC + loss IC (template) | 0.35% | 0.51% | 0.48% |
+| Time windows: exact BC + loss IC + RBA | 2.5% | 2.1% | 2.1% |
+| **Time windows: exact BC + loss IC + SA-PINN** | **1.5%** | **0.27%** | **0.39%** |
 <!-- /core -->
 
 Every setup on the whole time interval fails (25–90% at $t = 1$), with or without the exact constraints and whatever the weighting: a network trained on the whole interval at once cannot follow the Gaussian's collapse before $t = 0.05$ and the slow coarsening after it. Time windows are what works, as the paper's bc-PINN suggests: the template's 19 windows, each started from the previous window's network, give 0.35–0.51% at every time. Per-point weights do not improve on that. RBA is about four times worse (2.1%), and SA-PINN is slightly better later on but fits the start much worse (9.4% at $t = 0$, against 0.29%), since its weights grow on the PDE points while the initial condition is a fixed-weight loss term; so the template uses plain windows. The relative error in $\mu$ is larger, 3–13% after the merge, because $\mu$ is nearly zero once the two phases have settled.
 
 ### 2D Cahn-Hilliard (Wight & Zhao)
 
-Two bubbles that merge, $u_t = \nabla^2\mu$, $\mu = u^3 - u - 0.0025\nabla^2 u$ on $[-1, 1]^2$ (periodic), $t \in [0, 1]$; 4 × 128 network, 20,000 points, Adam 20,000 → L-BFGS 20,000 (Adam 10,000 → L-BFGS 10,000 per window in the time-adaptive runs, 5 windows of 0.2). Every run uses the template's smoothed initial condition (see below).
+Two bubbles that merge, $u_t = \nabla^2\mu$, $\mu = u^3 - u - 0.0025\nabla^2 u$ on $[-1, 1]^2$ (periodic), $t \in [0, 1]$; 4 × 128 network, 20,000 points, Adam 20,000 → L-BFGS 20,000 (Adam 10,000 → L-BFGS 10,000 per window in the time-window runs, 5 windows of 0.2). Every run uses the template's smoothed initial condition (see below).
 
 ![Relative L2 error against time for 2D Cahn-Hilliard, Wight & Zhao](figures/ch2d_wz.png)
 
@@ -294,28 +297,28 @@ Two bubbles that merge, $u_t = \nabla^2\mu$, $\mu = u^3 - u - 0.0025\nabla^2 u$ 
 <!-- core:ch2d_wz -->
 | Setup | $t = 0.25$ | $t = 1$ |
 |---|---|---|
-| Plain | 4.2% | 32% |
-| **Exact periodicity (template)** | **2.6%** | **1.1%** |
-| Exact | 16% | 30% |
-| Exact + RBA | 24% | 45% |
-| Exact + SA-PINN | 1.2% | 3.8% |
-| Exact + causal | 2.9% | 4.2% |
-| Exact + causal + MsFFN | 5.8% | 6.3% |
-| Time-adaptive | – | – |
-| Time-adaptive + RBA | – | – |
-| Time-adaptive + SA-PINN | 0.42% | 1.7% |
+| Loss BC + loss IC | 4.2% | 32% |
+| **Exact BC + loss IC (template)** | **2.6%** | **1.1%** |
+| Exact BC + exact IC | 16% | 30% |
+| Exact BC + exact IC + RBA | 24% | 45% |
+| Exact BC + exact IC + SA-PINN | 1.2% | 3.8% |
+| Exact BC + exact IC + causal | 2.9% | 4.2% |
+| Exact BC + exact IC + causal + MsFFN | 5.8% | 6.3% |
+| Time windows: exact BC + loss IC | – | – |
+| Time windows: exact BC + loss IC + RBA | – | – |
+| Time windows: exact BC + loss IC + SA-PINN | 0.42% | 1.7% |
 <!-- /core -->
 
-The time-adaptive row without weighting, and the one with RBA, were not run for this example.
+The time-window setups without weighting and with RBA were not run for this example.
 
 *Other setups*
 
 | Setup | $t = 0.25$ | $t = 1$ |
 |---|---|---|
 | $u$ left at its initial condition (for scale) | 16% | 30% |
-| Exact, with the paper's initial condition (also with RBA, causal, or SA-PINN with normalized weights) | 13–15% | 27–31% |
-| Exact + SA-PINN, 6 × 128 network (the paper's size) | 3.5% | 3.3% |
-| Exact + SA-PINN, 40,000 Adam steps | 1.9% | 3.5% |
+| Exact BC + exact IC, the paper's initial condition (also with RBA, causal, or SA-PINN with normalized weights) | 13–15% | 27–31% |
+| Exact BC + exact IC + SA-PINN, 6 × 128 network (the paper's size) | 3.5% | 3.3% |
+| Exact BC + exact IC + SA-PINN, 40,000 Adam steps | 1.9% | 3.5% |
 
 With the paper's initial condition every setup learned an almost frozen solution. That condition is a max of two tanh profiles, which has a corner where the bubbles touch, and the corner's curvature is what drives the merging; a network built on the exact initial condition sees no curvature in a corner, because automatic differentiation gives no second derivative there. The template writes the max as $\tanh((r - \min(R_1, R_2))/2\varepsilon)$ with a smoothed minimum, $(R_1 + R_2 - \sqrt{(R_1 - R_2)^2 + 0.0004})/2$. This changes $u$ by at most 0.5%, along the line where the bubbles meet, and the reference data uses the same formula. A larger network or twice the Adam steps did not help, so the template keeps 4 × 128 and 20,000 + 20,000 steps.
 
@@ -323,7 +326,7 @@ With the paper's initial condition every setup learned an almost frozen solution
 
 ### 2D Cahn-Hilliard (Mattey & Ghosh)
 
-Stripes that sharpen into two phases: $u_{t'} = 0.005\nabla^2\mu$, $\mu = u^3 - u - 0.0002\nabla^2 u$ on $[0, 1]^2$ (periodic), $u(x, y, 0) = 0.4\cos(4\pi x)\cos(4\pi(x + y))$, with time rescaled to $t' = t/0.005 \in [0, 1]$ (IBVP-2 of [Mattey & Ghosh, 2022](https://doi.org/10.1016/j.cma.2021.114474)). $\alpha = 0.0002$ reproduces the paper's figures, while the stated $\alpha = 0.02$ makes the pattern decay. 4 × 128 network, 20,000 points, Adam 20,000 → L-BFGS 20,000 (Adam 10,000 → L-BFGS 10,000 per window in the time-adaptive run, 4 windows of 0.25).
+Stripes that sharpen into two phases: $u_{t'} = 0.005\nabla^2\mu$, $\mu = u^3 - u - 0.0002\nabla^2 u$ on $[0, 1]^2$ (periodic), $u(x, y, 0) = 0.4\cos(4\pi x)\cos(4\pi(x + y))$, with time rescaled to $t' = t/0.005 \in [0, 1]$ (IBVP-2 of [Mattey & Ghosh, 2022](https://doi.org/10.1016/j.cma.2021.114474)). $\alpha = 0.0002$ reproduces the paper's figures, while the stated $\alpha = 0.02$ makes the pattern decay. 4 × 128 network, 20,000 points, Adam 20,000 → L-BFGS 20,000 (Adam 10,000 → L-BFGS 10,000 per window in the time-window run, 4 windows of 0.25).
 
 ![Relative L2 error against time for 2D Cahn-Hilliard, Mattey & Ghosh](figures/ch2d_mg.png)
 
@@ -332,21 +335,21 @@ Stripes that sharpen into two phases: $u_{t'} = 0.005\nabla^2\mu$, $\mu = u^3 - 
 <!-- core:ch2d_mg -->
 | Setup | $t' = 0.2$ | $t' = 0.6$ | $t' = 1$ |
 |---|---|---|---|
-| Plain | 44% | 71% | 51% |
-| Exact periodicity | 45% | 64% | 42% |
-| Exact | 0.87% | 0.64% | 0.35% |
-| Exact + RBA | 0.97% | 0.73% | 0.42% |
-| **Exact + SA-PINN (template)** | **0.52%** | **0.40%** | **0.20%** |
-| Exact + causal | 0.83% | 0.70% | 0.39% |
-| Exact + causal + MsFFN | 50% | 83% | 73% |
-| Time-adaptive | – | – | – |
-| Time-adaptive + RBA | – | – | – |
-| Time-adaptive + SA-PINN | – | – | – |
+| Loss BC + loss IC | 44% | 71% | 51% |
+| Exact BC + loss IC | 45% | 64% | 42% |
+| Exact BC + exact IC | 0.87% | 0.64% | 0.35% |
+| Exact BC + exact IC + RBA | 0.97% | 0.73% | 0.42% |
+| **Exact BC + exact IC + SA-PINN (template)** | **0.52%** | **0.40%** | **0.20%** |
+| Exact BC + exact IC + causal | 0.83% | 0.70% | 0.39% |
+| Exact BC + exact IC + causal + MsFFN | 50% | 83% | 73% |
+| Time windows: exact BC + loss IC | – | – | – |
+| Time windows: exact BC + loss IC + RBA | – | – | – |
+| Time windows: exact BC + loss IC + SA-PINN | – | – | – |
 <!-- /core -->
 
-The time-adaptive setups were not run for this example.
+The time-window setups were not run for this example.
 
-Here the exact initial condition is essential: without it the pattern is lost (Plain 51% and Exact periodicity 42% at $t' = 1$), with it the error drops to 0.35%, 150 times lower. Unlike the 2D Wight & Zhao problem the solution changes slowly at the start, so the $\text{IC} + tN$ form is no handicap. SA-PINN on top halves the error again (0.20%, the template); RBA and causal training change nothing, and the Fourier-feature network loses the pattern altogether (73%).
+Here the exact initial condition is essential: without it the pattern is lost (loss BC + loss IC 51%, exact BC + loss IC 42% at $t' = 1$), with it the error drops to 0.35%, 150 times lower. Unlike the 2D Wight & Zhao problem the solution changes slowly at the start, so the $\text{IC} + tN$ form is no handicap. SA-PINN on top halves the error again (0.20%, the template); RBA and causal training change nothing, and the Fourier-feature network loses the pattern altogether (73%).
 
 ## Other problems
 

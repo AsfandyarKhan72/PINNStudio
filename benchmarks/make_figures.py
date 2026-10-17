@@ -4,10 +4,11 @@ Figures and tables for benchmarks/training_methods.md, drawn from
 benchmarks/figures/study.json (one record per run: example, setup, and the
 relative L2 error of the main output at each reference time).
 
-Every setup has one colour and marker in every figure: the colour is the
-weighting method (none, RBA, SA-PINN, causal, causal + MsFFN), the panel is
-how time is handled (left: the whole time interval at once, right: time
-windows), and the two references (Plain, Exact periodicity) are gray.
+Every setup has one colour, marker and line style in every figure: the
+colour is the weighting method (none, RBA, SA-PINN, causal, causal +
+MsFFN), a solid line trains on the whole time interval at once and a dashed
+line in time windows, and the two references without an exact initial
+condition (loss BC + loss IC, exact BC + loss IC) are gray.
 
 Each figure is written as a PNG for the documentation and a vector PDF
 (figures/pdf/) for papers and slides; captions live in the markdown. The
@@ -34,20 +35,20 @@ GRAY, GRAY2 = "#7d7d78", "#a9a8a2"
 
 # The study's setups, in table order: (name, panel, colour, marker, line style)
 SETUPS = [
-    ("Plain", "whole", GRAY, "o", (0, (5, 3))),
-    ("Exact periodicity", "whole", GRAY2, "s", (0, (1.5, 1.5))),
-    ("Exact", "whole", "#6250d6", "D", "-"),
-    ("Exact + RBA", "whole", "#2a78d6", "o", "-"),
-    ("Exact + SA-PINN", "whole", "#eb6834", "s", "-"),
-    ("Exact + causal", "whole", "#1baf7a", "^", "-"),
-    ("Exact + causal + MsFFN", "whole", "#008300", "v", "-"),
-    ("Time-adaptive", "windows", "#6250d6", "D", "-"),
-    ("Time-adaptive + RBA", "windows", "#2a78d6", "o", "-"),
-    ("Time-adaptive + SA-PINN", "windows", "#eb6834", "s", "-"),
+    ("Loss BC + loss IC", "whole", GRAY, "o", "-"),
+    ("Exact BC + loss IC", "whole", GRAY2, "s", "-"),
+    ("Exact BC + exact IC", "whole", "#6250d6", "D", "-"),
+    ("Exact BC + exact IC + RBA", "whole", "#2a78d6", "o", "-"),
+    ("Exact BC + exact IC + SA-PINN", "whole", "#eb6834", "s", "-"),
+    ("Exact BC + exact IC + causal", "whole", "#1baf7a", "^", "-"),
+    ("Exact BC + exact IC + causal + MsFFN", "whole", "#008300", "v", "-"),
+    ("Time windows: exact BC + loss IC", "windows", "#6250d6", "D", (0, (5, 2.5))),
+    ("Time windows: exact BC + loss IC + RBA", "windows", "#2a78d6", "o", (0, (5, 2.5))),
+    ("Time windows: exact BC + loss IC + SA-PINN", "windows", "#eb6834", "s", (0, (5, 2.5))),
 ]
 # setups of the problems without periodicity or an initial-condition formula
 PLAIN_SETUPS = [
-    ("Plain", "whole", GRAY, "o", (0, (5, 3))),
+    ("Plain", "whole", GRAY, "o", "-"),
     ("Plain + RBA", "whole", "#2a78d6", "o", "-"),
     ("Plain + SA-PINN", "whole", "#eb6834", "s", "-"),
     ("Plain + causal", "whole", "#1baf7a", "^", "-"),
@@ -55,7 +56,7 @@ PLAIN_SETUPS = [
     ("Plain + causal + MsFFN", "whole", "#008300", "v", "-"),
 ]
 STYLE = {s[0]: s[1:] for s in SETUPS + PLAIN_SETUPS}
-ORDER = [s[0] for s in SETUPS] + [s[0] for s in PLAIN_SETUPS[1:]]
+ORDER = [s[0] for s in SETUPS] + [s[0] for s in PLAIN_SETUPS]
 
 plt.rcParams.update({
     "font.family": "DejaVu Sans",
@@ -136,10 +137,10 @@ def _draw(ax, recs):
         if not ts:
             continue
         tpl = r.get("template")
-        ref = color in (GRAY, GRAY2)
+        ref = color in (GRAY, GRAY2)          # the two references: open markers
         ax.plot(ts, ls_, color=color, ls=ls, lw=2.4 if tpl else 1.4, marker=marker, ms=6 if tpl else 4.5,
                 mfc="white" if ref else color, mec="white" if (tpl and not ref) else color, mew=0.9 if ref else 0.8,
-                label=r["setup"] + r.get("mark", "") + (" (template)" if tpl else ""), zorder=4 if tpl else (2 if ref else 3))
+                label=r.get("label", r["setup"]) + (" (template)" if tpl else ""), zorder=4 if tpl else (2 if ref else 3))
 
 
 def _style_axes(ax, xlabel, ylabel=True):
@@ -168,35 +169,32 @@ def _log_ticks(axes, recs):
 
 
 def example_figure(e):
-    """Left: the whole-interval setups; right: time windows (with Plain as
-    the common reference). One panel when no time-window runs exist."""
+    """All core setups in one plot: colour = weighting method, solid = the
+    whole time interval at once, dashed = time windows. The legend sits
+    under the plot, in two columns, in the order of the table."""
     core = sorted(e["core"], key=lambda r: ORDER.index(r["setup"]))
-    whole = [r for r in core if STYLE[r["setup"]][0] == "whole"]
-    windows = [r for r in core if STYLE[r["setup"]][0] == "windows"]
-    two = bool(windows)
-    fig, axes = plt.subplots(1, 2 if two else 1, figsize=(10.4, 3.9) if two else (6.2, 3.9),
-                             sharey=two, squeeze=False)
-    axes = axes[0]
-    _draw(axes[0], whole)
-    if two:
-        _draw(axes[1], [r for r in whole if r["setup"] == "Plain"] + windows)
-    for i, ax in enumerate(axes):
-        _style_axes(ax, e["xlabel"], ylabel=(i == 0))
-    if two:
-        axes[0].set_title("Whole time interval", color=INK, fontsize=9)
-        axes[1].set_title("Time windows (time-adaptive training)", color=INK, fontsize=9)
-    _log_ticks(axes, core)
-    fig.tight_layout(pad=0.4, w_pad=1.2)
-    for ax in axes:
+    plain = e.get("plain_setups")
+    fig, ax = plt.subplots(figsize=(6.6, 4.0) if plain else (7.6, 5.6))
+    _draw(ax, core)
+    _style_axes(ax, e["xlabel"])
+    _log_ticks([ax], core)
+    if plain:
+        fig.tight_layout(pad=0.4)
         _place_legend(fig, ax)
+    else:
+        leg = ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.14), ncol=2, frameon=False,
+                        handlelength=3.0, columnspacing=1.6, labelspacing=0.5, fontsize=7.5)
+        for t in leg.get_texts():
+            t.set_color(INK)
+        fig.tight_layout(pad=0.4)
     return _save(fig, e["id"] + ".png")
 
 
 def _save(fig, name):
     os.makedirs(os.path.join(OUT, "pdf"), exist_ok=True)
     png = os.path.join(OUT, name)
-    fig.savefig(png, facecolor="white")
-    fig.savefig(os.path.join(OUT, "pdf", name.replace(".png", ".pdf")), facecolor="white")
+    fig.savefig(png, facecolor="white", bbox_inches="tight", pad_inches=0.05)
+    fig.savefig(os.path.join(OUT, "pdf", name.replace(".png", ".pdf")), facecolor="white", bbox_inches="tight", pad_inches=0.05)
     plt.close(fig)
     return png
 
@@ -229,7 +227,7 @@ def core_table(e):
     best = min((r for r in e["core"]), key=lambda r: _at(r, times[-1]) or 9e9)
     for s in setups:
         r = recs.get(s)
-        name = s + ((r.get("mark") or "") if r else "") + (" (template)" if r and r.get("template") else "")
+        name = (r.get("label", s) if r else s) + (" (template)" if r and r.get("template") else "")
         if r is None:
             lines.append(f"| {name} | " + " | ".join("–" for _ in times) + " |")
             continue
@@ -241,8 +239,9 @@ def core_table(e):
 
 
 OVERVIEW_COLS = [s[0] for s in SETUPS]
-OVERVIEW_SHORT = ["Plain", "Exact per.", "Exact", "+ RBA", "+ SA-PINN", "+ causal", "+ causal\n+ MsFFN",
-                  "TA", "TA + RBA", "TA + SA-PINN"]
+OVERVIEW_SHORT = ["Loss BC\nloss IC", "Exact BC\nloss IC", "Exact BC\nexact IC", "Exact BC\nexact IC\n+ RBA",
+                  "Exact BC\nexact IC\n+ SA-PINN", "Exact BC\nexact IC\n+ causal", "Exact BC\nexact IC\n+ causal\n+ MsFFN",
+                  "Windows:\nexact BC\nloss IC", "Windows:\nexact BC\nloss IC\n+ RBA", "Windows:\nexact BC\nloss IC\n+ SA-PINN"]
 
 
 def overview(examples):

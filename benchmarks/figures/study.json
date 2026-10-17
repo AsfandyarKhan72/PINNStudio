@@ -34,7 +34,7 @@
       ]
      ],
      "src": "ch6_ac_plain/m/base",
-     "setup": "Plain"
+     "setup": "Loss BC + loss IC"
     },
     {
      "l2": [
@@ -60,7 +60,7 @@
       ]
      ],
      "src": "cm_paper_base/m/base",
-     "setup": "Exact"
+     "setup": "Exact BC + exact IC"
     },
     {
      "l2": [
@@ -86,7 +86,7 @@
       ]
      ],
      "src": "cm_paper_base/m/base_rba",
-     "setup": "Exact + RBA"
+     "setup": "Exact BC + exact IC + RBA"
     },
     {
      "l2": [
@@ -112,7 +112,7 @@
       ]
      ],
      "src": "cl_paper_methods/m/causal_anneal",
-     "setup": "Exact + causal"
+     "setup": "Exact BC + exact IC + causal"
     },
     {
      "l2": [
@@ -138,7 +138,7 @@
       ]
      ],
      "src": "cl_paper_methods/m/sa_paper",
-     "setup": "Exact + SA-PINN"
+     "setup": "Exact BC + exact IC + SA-PINN"
     },
     {
      "l2": [
@@ -164,10 +164,10 @@
       ]
      ],
      "src": "cl_paper_methods/m/causal_anneal_msffn",
-     "setup": "Exact + causal + MsFFN"
+     "setup": "Exact BC + exact IC + causal + MsFFN"
     },
     {
-     "setup": "Time-adaptive",
+     "setup": "Time windows: exact BC + loss IC",
      "l2": [
       [
        0.0,
@@ -194,7 +194,7 @@
      "seconds": 1615
     },
     {
-     "setup": "Time-adaptive + RBA",
+     "setup": "Time windows: exact BC + loss IC + RBA",
      "l2": [
       [
        0.0,
@@ -221,7 +221,7 @@
      "seconds": 1714
     },
     {
-     "setup": "Time-adaptive + SA-PINN",
+     "setup": "Time windows: exact BC + loss IC + SA-PINN",
      "l2": [
       [
        0.0,
@@ -248,7 +248,7 @@
      "seconds": 3037
     },
     {
-     "setup": "Exact periodicity",
+     "setup": "Exact BC + loss IC",
      "l2": [
       [
        0.0,
@@ -362,7 +362,7 @@
       ]
      ],
      "src": "ch14_ac2d/m/wz_plain",
-     "setup": "Plain",
+     "setup": "Loss BC + loss IC",
      "template": false
     },
     {
@@ -385,7 +385,7 @@
       ]
      ],
      "src": "ch14_ac2d/m/wz_rba_keep_per_hard",
-     "setup": "Exact + RBA",
+     "setup": "Exact BC + exact IC + RBA",
      "template": false
     },
     {
@@ -408,7 +408,7 @@
       ]
      ],
      "src": "cw_sa2d/m/ac2wz_whole_sa",
-     "setup": "Exact + SA-PINN",
+     "setup": "Exact BC + exact IC + SA-PINN",
      "template": false
     },
     {
@@ -431,7 +431,7 @@
       ]
      ],
      "src": "ch15_wzta/m/wz_ta_rba_per",
-     "setup": "Time-adaptive + RBA",
+     "setup": "Time windows: exact BC + loss IC + RBA",
      "template": false
     },
     {
@@ -454,11 +454,11 @@
       ]
      ],
      "src": "cw_sa2d/m/ac2wz_ta_sa",
-     "setup": "Time-adaptive + SA-PINN",
+     "setup": "Time windows: exact BC + loss IC + SA-PINN",
      "template": false
     },
     {
-     "setup": "Exact + causal",
+     "setup": "Exact BC + exact IC + causal",
      "l2": [
       [
        0.0,
@@ -482,7 +482,7 @@
      "template": false
     },
     {
-     "setup": "Exact + causal + MsFFN",
+     "setup": "Exact BC + exact IC + causal + MsFFN",
      "l2": [
       [
        0.0,
@@ -506,7 +506,7 @@
      "template": false
     },
     {
-     "setup": "Exact periodicity",
+     "setup": "Exact BC + loss IC",
      "l2": [
       [
        0.0,
@@ -530,7 +530,7 @@
      "template": false
     },
     {
-     "setup": "Exact",
+     "setup": "Exact BC + exact IC",
      "l2": [
       [
        0.0,
@@ -554,7 +554,7 @@
      "template": false
     },
     {
-     "setup": "Time-adaptive",
+     "setup": "Time windows: exact BC + loss IC",
      "l2": [
       [
        0.0,
@@ -574,8 +574,8 @@
       ]
      ],
      "src": "ch14_ac2d/m/wz_ta_template",
-     "mark": "\u2020",
-     "template": true
+     "template": true,
+     "label": "Time windows: loss BC + loss IC"
     }
    ],
    "other": [
@@ -660,7 +660,7 @@
       ]
      ],
      "src": "ch14_ac2d/m/mg_plain",
-     "setup": "Plain",
+     "setup": "Loss BC + loss IC",
      "template": false
     },
     {
@@ -687,7 +687,7 @@
       ]
      ],
      "src": "cp_broad/m/mg_wd_ex_causal_sched",
-     "setup": "Exact + causal",
+     "setup": "Exact BC + exact IC + causal",
      "template": false
     },
     {
@@ -714,7 +714,7 @@
       ]
      ],
      "src": "ch14_ac2d/m/mg_rba_keep_per_hard",
-     "setup": "Exact + RBA",
+     "setup": "Exact BC + exact IC + RBA",
      "template": false
     },
     {
@@ -741,11 +741,11 @@
       ]
      ],
      "src": "cw_sa2d/m/ac2mg_whole_sa",
-     "setup": "Exact + SA-PINN",
+     "setup": "Exact BC + exact IC + SA-PINN",
      "template": false
     },
     {
-     "setup": "Exact + causal + MsFFN",
+     "setup": "Exact BC + exact IC + causal + MsFFN",
      "l2": [
       [
        0.0,
@@ -773,7 +773,7 @@
      "template": false
     },
     {
-     "setup": "Exact periodicity",
+     "setup": "Exact BC + loss IC",
      "l2": [
       [
        0.0,
@@ -801,7 +801,7 @@
      "template": false
     },
     {
-     "setup": "Exact",
+     "setup": "Exact BC + exact IC",
      "l2": [
       [
        0.0,
@@ -829,7 +829,7 @@
      "template": false
     },
     {
-     "setup": "Time-adaptive",
+     "setup": "Time windows: exact BC + loss IC",
      "l2": [
       [
        0.0,
@@ -853,8 +853,8 @@
       ]
      ],
      "src": "ch14_ac2d/m/mg_ta_template",
-     "mark": "\u2020",
-     "template": true
+     "template": true,
+     "label": "Time windows: loss BC + loss IC"
     }
    ],
    "other": [
@@ -924,7 +924,7 @@
    "xlabel": "$t$",
    "core": [
     {
-     "setup": "Exact",
+     "setup": "Exact BC + exact IC",
      "l2": [
       [
        0.0,
@@ -951,7 +951,7 @@
      "template": false
     },
     {
-     "setup": "Exact + RBA",
+     "setup": "Exact BC + exact IC + RBA",
      "l2": [
       [
        0.0,
@@ -978,7 +978,7 @@
      "template": false
     },
     {
-     "setup": "Exact + SA-PINN",
+     "setup": "Exact BC + exact IC + SA-PINN",
      "l2": [
       [
        0.0,
@@ -1005,7 +1005,7 @@
      "template": false
     },
     {
-     "setup": "Exact + causal",
+     "setup": "Exact BC + exact IC + causal",
      "l2": [
       [
        0.0,
@@ -1032,7 +1032,7 @@
      "template": false
     },
     {
-     "setup": "Exact periodicity",
+     "setup": "Exact BC + loss IC",
      "src": "cy_tpl/ac3_template",
      "l2": [
       [
@@ -1094,7 +1094,7 @@
       ]
      ],
      "src": "ch5_tmpl/m/tmpl",
-     "setup": "Plain",
+     "setup": "Loss BC + loss IC",
      "template": false
     },
     {
@@ -1121,7 +1121,7 @@
       ]
      ],
      "src": "cj2_tpl_run/m/ch_template",
-     "setup": "Exact + RBA",
+     "setup": "Exact BC + exact IC + RBA",
      "template": false
     },
     {
@@ -1148,7 +1148,7 @@
       ]
      ],
      "src": "cn_paper_seeds/m_ch/causal_anneal",
-     "setup": "Exact + causal",
+     "setup": "Exact BC + exact IC + causal",
      "template": false
     },
     {
@@ -1175,7 +1175,7 @@
       ]
      ],
      "src": "cn_paper_seeds/m_ch/causal_anneal_msffn",
-     "setup": "Exact + causal + MsFFN",
+     "setup": "Exact BC + exact IC + causal + MsFFN",
      "template": false
     },
     {
@@ -1202,11 +1202,11 @@
       ]
      ],
      "src": "cq_figs/m/ch1d_tpl",
-     "setup": "Exact + SA-PINN",
+     "setup": "Exact BC + exact IC + SA-PINN",
      "template": true
     },
     {
-     "setup": "Exact",
+     "setup": "Exact BC + exact IC",
      "l2": [
       [
        0.0,
@@ -1234,7 +1234,7 @@
      "template": false
     },
     {
-     "setup": "Time-adaptive",
+     "setup": "Time windows: exact BC + loss IC",
      "l2": [
       [
        0.0,
@@ -1262,7 +1262,7 @@
      "template": false
     },
     {
-     "setup": "Time-adaptive + RBA",
+     "setup": "Time windows: exact BC + loss IC + RBA",
      "l2": [
       [
        0.0,
@@ -1290,7 +1290,7 @@
      "template": false
     },
     {
-     "setup": "Time-adaptive + SA-PINN",
+     "setup": "Time windows: exact BC + loss IC + SA-PINN",
      "l2": [
       [
        0.0,
@@ -1318,7 +1318,7 @@
      "template": false
     },
     {
-     "setup": "Exact periodicity",
+     "setup": "Exact BC + loss IC",
      "l2": [
       [
        0.0,
@@ -1467,7 +1467,7 @@
       ]
      ],
      "src": "cs_mattey_a/m/m1_plain",
-     "setup": "Exact",
+     "setup": "Exact BC + exact IC",
      "template": false
     },
     {
@@ -1498,7 +1498,7 @@
       ]
      ],
      "src": "cs_mattey_a/m/m1_rba",
-     "setup": "Exact + RBA",
+     "setup": "Exact BC + exact IC + RBA",
      "template": false
     },
     {
@@ -1529,7 +1529,7 @@
       ]
      ],
      "src": "cs_mattey_a/m/m1_tpl",
-     "setup": "Exact + SA-PINN",
+     "setup": "Exact BC + exact IC + SA-PINN",
      "template": false
     },
     {
@@ -1560,7 +1560,7 @@
       ]
      ],
      "src": "cs_mattey_a/m/m1_causal_msffn",
-     "setup": "Exact + causal + MsFFN",
+     "setup": "Exact BC + exact IC + causal + MsFFN",
      "template": false
     },
     {
@@ -1591,7 +1591,7 @@
       ]
      ],
      "src": "cu_mattey_b2/m/m1_ta19_sa",
-     "setup": "Time-adaptive + SA-PINN",
+     "setup": "Time windows: exact BC + loss IC + SA-PINN",
      "template": false
     },
     {
@@ -1622,11 +1622,11 @@
       ]
      ],
      "src": "cu_mattey_b2/m/m1_ta19_plain",
-     "setup": "Time-adaptive",
+     "setup": "Time windows: exact BC + loss IC",
      "template": true
     },
     {
-     "setup": "Time-adaptive + RBA",
+     "setup": "Time windows: exact BC + loss IC + RBA",
      "l2": [
       [
        0.0,
@@ -1658,7 +1658,7 @@
      "template": false
     },
     {
-     "setup": "Exact + causal",
+     "setup": "Exact BC + exact IC + causal",
      "l2": [
       [
        0.0,
@@ -1690,7 +1690,7 @@
      "template": false
     },
     {
-     "setup": "Exact periodicity",
+     "setup": "Exact BC + loss IC",
      "l2": [
       [
        0.0,
@@ -1722,7 +1722,7 @@
      "template": false
     },
     {
-     "setup": "Plain",
+     "setup": "Loss BC + loss IC",
      "l2": [
       [
        0.0,
@@ -1789,7 +1789,7 @@
       ]
      ],
      "src": "cnc_new2/m/ch2d_tpl",
-     "setup": "Exact",
+     "setup": "Exact BC + exact IC",
      "template": false
     },
     {
@@ -1816,7 +1816,7 @@
       ]
      ],
      "src": "cnc_new2/m/ch2d_causal",
-     "setup": "Exact + causal",
+     "setup": "Exact BC + exact IC + causal",
      "template": false
     },
     {
@@ -1843,7 +1843,7 @@
       ]
      ],
      "src": "cq_figs/m/ch2d_tpl",
-     "setup": "Exact + SA-PINN",
+     "setup": "Exact BC + exact IC + SA-PINN",
      "template": false
     },
     {
@@ -1870,11 +1870,11 @@
       ]
      ],
      "src": "cu_mattey_b2/m/chw_ta5",
-     "setup": "Time-adaptive + SA-PINN",
+     "setup": "Time windows: exact BC + loss IC + SA-PINN",
      "template": false
     },
     {
-     "setup": "Exact + causal + MsFFN",
+     "setup": "Exact BC + exact IC + causal + MsFFN",
      "l2": [
       [
        0.0,
@@ -1902,7 +1902,7 @@
      "template": false
     },
     {
-     "setup": "Exact + RBA",
+     "setup": "Exact BC + exact IC + RBA",
      "l2": [
       [
        0.0,
@@ -1930,7 +1930,7 @@
      "template": false
     },
     {
-     "setup": "Exact periodicity",
+     "setup": "Exact BC + loss IC",
      "l2": [
       [
        0.0,
@@ -1958,7 +1958,7 @@
      "template": true
     },
     {
-     "setup": "Plain",
+     "setup": "Loss BC + loss IC",
      "l2": [
       [
        0.0,
@@ -2131,7 +2131,7 @@
       ]
      ],
      "src": "cu_mattey_b2/m/m2_plain",
-     "setup": "Exact",
+     "setup": "Exact BC + exact IC",
      "template": false
     },
     {
@@ -2162,7 +2162,7 @@
       ]
      ],
      "src": "cu_mattey_b2/m/m2_rba",
-     "setup": "Exact + RBA",
+     "setup": "Exact BC + exact IC + RBA",
      "template": false
     },
     {
@@ -2193,7 +2193,7 @@
       ]
      ],
      "src": "cu_mattey_b2/m/m2_causal",
-     "setup": "Exact + causal",
+     "setup": "Exact BC + exact IC + causal",
      "template": false
     },
     {
@@ -2224,11 +2224,11 @@
       ]
      ],
      "src": "cu_mattey_b2/m/m2_tpl",
-     "setup": "Exact + SA-PINN",
+     "setup": "Exact BC + exact IC + SA-PINN",
      "template": true
     },
     {
-     "setup": "Exact + causal + MsFFN",
+     "setup": "Exact BC + exact IC + causal + MsFFN",
      "l2": [
       [
        0.0,
@@ -2260,7 +2260,7 @@
      "template": false
     },
     {
-     "setup": "Exact periodicity",
+     "setup": "Exact BC + loss IC",
      "l2": [
       [
        0.0,
@@ -2292,7 +2292,7 @@
      "template": false
     },
     {
-     "setup": "Plain",
+     "setup": "Loss BC + loss IC",
      "l2": [
       [
        0.0,
