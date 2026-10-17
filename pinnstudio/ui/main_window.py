@@ -4248,6 +4248,7 @@ class MainWindow(QMainWindow):
         self.sketch_panel = SketchPanel()
         self.sketch_panel.shapes_edited.connect(self._on_sketch_edited)
         self.sketch_panel.set_bc_provider(self._sketch_bc_rows, self._sketch_domain)
+        self._hook_view3d_points(self.sketch_panel)
         self.sketch_panel.new_bc_requested.connect(self._on_sketch_new_bc)
         self.sketch_panel.add_to_bc_requested.connect(self._on_sketch_add_to_bc)
         self.sketch_panel.remove_from_bcs_requested.connect(self._on_sketch_remove_from_bcs)
@@ -4287,6 +4288,7 @@ class MainWindow(QMainWindow):
         self.domain_view = SketchPanel()
         self.domain_view.make_viewer()
         self.domain_view.set_bc_provider(self._sketch_bc_rows, self._sketch_domain)
+        self._hook_view3d_points(self.domain_view)
         self.domain_view.new_bc_requested.connect(self._on_sketch_new_bc)
         self.domain_view.add_to_bc_requested.connect(self._on_sketch_add_to_bc)
         self.domain_view.remove_from_bcs_requested.connect(self._on_sketch_remove_from_bcs)
@@ -10645,6 +10647,18 @@ class MainWindow(QMainWindow):
         _pth = getattr(self, '_preview_thread', None)
         if isinstance(_pth, QThread) and _pth.isRunning():
             active.append(("preview", _pth))
+        # the 3D view's points sample: stopped without asking (nothing is lost;
+        # if the close is cancelled, the view asks for a new sample)
+        _vth = getattr(self, '_view3d_pts_thread', None)
+        if isinstance(_vth, QThread) and _vth.isRunning():
+            try:
+                _vth.done_sig.disconnect()
+            except TypeError:
+                pass
+            _vth.stop()
+            for _panel in (getattr(self, "domain_view", None), getattr(self, "sketch_panel", None)):
+                if _panel is not None and getattr(_panel, "view3d", None) is not None:
+                    _panel.view3d._requested_key = None
         if active:
             names = " and ".join(name for name, _ in active)
             reply = QMessageBox.question(
@@ -11344,6 +11358,146 @@ def _style_legend(ax):
         from pinnstudio.core.codegen import _custom_geom_leaf_literal
         geom_code = _custom_geom_leaf_literal(shape_type, params)
         return geom_code, outline_code, bbox
+
+    # ── training points for the 3D geometry view ─────────────────────────
+    def _hook_view3d_points(self, panel):
+        """The 3D view's "Show points": the real training points, sampled by
+        DeepXDE in a background process with the Collocation Points
+        settings, like View domain & point distribution -- without touching
+        the Results panel, where that preview draws its figures."""
+        v = getattr(panel, "view3d", None)
+        if v is None:
+            return
+        v.points_key_fn = self._view3d_points_key
+        v.points_provider = self._request_view3d_points
+
+    def _view3d_points_key(self):
+        import json
+        return json.dumps([self._current_geometry_type(), self._domain_view_shapes(),
+                           self.radio_time_dependent.isChecked(), self.num_domain.value(), self.num_boundary.value(),
+                           self.num_initial.value(), self.pts_dist_combo.currentText(),
+                           self.t_min.value(), self.t_max.value()], sort_keys=True, default=str)
+
+    def _view3d_geom_code(self):
+        """The DeepXDE constructor of the current 3D domain (the code the
+        domain preview and the exported script use), or None."""
+        t = self._current_geometry_type()
+        if t == "Cuboid":
+            return self._preview_single_geom_code(
+                "Cuboid", x_min=self.x_min.value(), x_max=self.x_max.value(), y_min=self.y_min.value(),
+                y_max=self.y_max.value(), z_min=self.z_min.value(), z_max=self.z_max.value())
+        if t == "Sphere":
+            return self._preview_single_geom_code(
+                "Sphere", cx=self.geom_sphere_cx.value(), cy=self.geom_sphere_cy.value(),
+                cz=self.geom_sphere_cz.value(), r=self.geom_sphere_r.value())
+        if t == "Custom" and self.custom_geom_shape_rows:
+            from pinnstudio.core.codegen import _CUSTOM_GEOM_OP_CTORS as _ops
+            code = None
+            for i, row in enumerate(self.custom_geom_shape_rows, start=1):
+                entry = self._custom_geom_row_to_dict(row, is_first=(i == 1))
+                leaf, _outline, _bbox = self._custom_geom_3d_leaf_code(i, entry["type"], entry["params"])
+                code = leaf if code is None else f"dde.geometry.{_ops.get(entry.get('op') or 'union', 'CSGUnion')}({code}, {leaf})"
+            return code
+        return None
+
+    def _request_view3d_points(self):
+        import tempfile
+        key = self._view3d_points_key()
+        if getattr(self, "_view3d_pts_thread", None) is not None and self._view3d_pts_thread.isRunning():
+            self._view3d_pts_pending = True          # sample again for the newest settings when this one ends
+            return
+        self._view3d_pts_pending = False
+        try:
+            geom_code = self._view3d_geom_code()
+        except ValueError as e:
+            geom_code, err = None, str(e)
+        else:
+            err = "this geometry type has no 3D points preview"
+        if geom_code is None:
+            self._push_view3d_points(key, None, None, "", f"No points: {err}.")
+            return
+        out = os.path.join(tempfile.gettempdir(), f"pinnstudio_view3d_points_{os.getpid()}.npz")
+        dist = self.pts_dist_combo.currentText()
+        if self.radio_time_dependent.isChecked():
+            data_code = (f"gt = dde.geometry.GeometryXTime(geom, dde.geometry.TimeDomain({self.t_min.value()}, "
+                         f"{self.t_max.value()}))\n"
+                         f"data = dde.data.TimePDE(gt, pde, [], num_domain={self.num_domain.value()}, "
+                         f"num_boundary={self.num_boundary.value()}, num_initial={self.num_initial.value()}, "
+                         f"num_test=10, train_distribution={dist!r})\n"
+                         f"pts = data.train_points()\n"
+                         f"ic = pts[:, 3] <= {self.t_min.value()} + max(({self.t_max.value()} - {self.t_min.value()}) * 1e-9, 1e-12)\n"
+                         "pts = pts[~ic]\n")
+        else:
+            data_code = (f"data = dde.data.PDE(geom, pde, [], num_domain={self.num_domain.value()}, "
+                         f"num_boundary={self.num_boundary.value()}, num_test=10, train_distribution={dist!r})\n"
+                         "pts = data.train_points()\n")
+        script = (
+            "import os\nos.environ['DDE_BACKEND'] = 'pytorch'\n"
+            "import deepxde as dde\nimport numpy as np\n"
+            f"geom = {geom_code}\n"
+            "def pde(x, y): return y[:, 0:1] * 0\n"
+            + data_code +
+            "xyz = pts[:, :3]\n"
+            "bnd = geom.on_boundary(xyz)\n"
+            f"np.savez({out!r}, domain=xyz[~bnd], boundary=xyz[bnd])\n")
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as tf:
+            tf.write(script)
+            tmp = tf.name
+        from PyQt6.QtCore import pyqtSignal as _sig
+
+        class _PointsThread(QThread):
+            done_sig = _sig(bool, str)
+
+            def __init__(self, path):
+                super().__init__()
+                self._path = path
+
+                self.process = None
+
+            def run(self):
+                import subprocess, sys
+                try:
+                    self.process = subprocess.Popen([sys.executable, self._path], stdout=subprocess.PIPE,
+                                                    stderr=subprocess.STDOUT, text=True)
+                    out_, _ = self.process.communicate(timeout=300)
+                    ok = self.process.returncode == 0
+                    self.done_sig.emit(ok, ((out_ or "").strip().splitlines() or [""])[-1])
+                except Exception as exc:
+                    self.done_sig.emit(False, str(exc))
+                finally:
+                    try:
+                        os.unlink(self._path)
+                    except OSError:
+                        pass
+
+            def stop(self):
+                if self.process is not None and self.process.poll() is None:
+                    self.process.kill()
+                self.wait(5000)
+
+        th = _PointsThread(tmp)
+        th.done_sig.connect(lambda ok, msg, key=key, out=out, dist=dist: self._on_view3d_points(ok, msg, key, out, dist))
+        self._view3d_pts_thread = th
+        th.start()
+
+    def _on_view3d_points(self, ok, msg, key, out, dist):
+        if ok and os.path.exists(out):
+            import numpy as np
+            with np.load(out) as f:
+                dom, bnd = f["domain"], f["boundary"]
+            self._push_view3d_points(key, dom, bnd, dist)
+        else:
+            self._push_view3d_points(key, None, None, "", f"Sampling the points failed: {msg}")
+        if getattr(self, "_view3d_pts_pending", False):
+            self._request_view3d_points()
+
+    def _push_view3d_points(self, key, dom, bnd, label, status=""):
+        for panel in (getattr(self, "domain_view", None), getattr(self, "sketch_panel", None)):
+            v = getattr(panel, "view3d", None) if panel is not None else None
+            if v is not None:
+                if v._requested_key not in (None, key) and dom is not None:
+                    continue                          # settings changed meanwhile: a newer sample is coming
+                v.set_external_points(key, dom, bnd, label, status)
 
     def _preview_domain(self):
         import tempfile, math

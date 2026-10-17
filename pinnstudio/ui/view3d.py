@@ -198,6 +198,15 @@ class Domain3DView(QWidget):
         self._mesh_key = None
         self._patches = []
         self._points = None
+        # the main window can supply the real training points (DeepXDE's own
+        # sampler with the run's settings): points_key_fn() says what they
+        # depend on, points_provider() starts sampling them, and
+        # set_external_points() hands them over
+        self.points_key_fn = None
+        self.points_provider = None
+        self._ext = None                   # (key, domain points, boundary points, label)
+        self._ext_status = ""
+        self._requested_key = None
         self._view_angles = ORIENTATIONS["Iso"]
         lay = QVBoxLayout(self)
         lay.setContentsMargins(0, 0, 0, 0)
@@ -217,9 +226,10 @@ class Domain3DView(QWidget):
             self.orient_buttons[name] = b
         bar.addSpacing(12)
         self.points_cb = QCheckBox("Show points")
-        self.points_cb.setToolTip("A preview of where training points fall: random points inside the domain and on "
-                                  "its boundary, as DeepXDE samples them. Check that none land in a cut-out. "
-                                  "These are not the run's exact points, which are drawn when training starts.")
+        self.points_cb.setToolTip("The training points, sampled by DeepXDE with the Collocation Points settings "
+                                  "(number of points, distribution) -- the same as View domain & point "
+                                  "distribution. Check that none land in a cut-out. Random distributions draw "
+                                  "new points each run.")
         self.points_cb.toggled.connect(lambda _on: self.refresh())
         bar.addWidget(self.points_cb)
         bar.addStretch()
@@ -262,6 +272,28 @@ class Domain3DView(QWidget):
         self.holder.addWidget(self._mpl, 1)
         return True
 
+    def set_external_points(self, key, domain, boundary, label="", status=""):
+        """Points sampled elsewhere (DeepXDE, in the background) for `key`;
+        status is a message instead (sampling, or why it failed)."""
+        self._ext = (key, domain, boundary, label) if domain is not None else None
+        self._ext_status = status
+        self.refresh()
+
+    def _points_to_draw(self):
+        """(domain, boundary, label) to draw, or (None, None, message)."""
+        if self.points_key_fn is None or self.points_provider is None:
+            if self._points is None:              # no provider (standalone): an approximate sample
+                self._points = sample_points(self.canvas_src.shapes, self._patches)
+            return self._points[0], self._points[1], "preview"
+        key = self.points_key_fn()
+        if self._ext is not None and self._ext[0] == key:
+            return self._ext[1], self._ext[2], self._ext[3]
+        if self._requested_key != key:
+            self._requested_key = key
+            self._ext_status = "Sampling points with DeepXDE…"
+            self.points_provider()
+        return None, None, self._ext_status
+
     def set_orientation(self, name):
         self._view_angles = ORIENTATIONS[name]
         if self._ax is not None:
@@ -275,7 +307,9 @@ class Domain3DView(QWidget):
         bc_of = c.edge_bcs() if c.shapes else []
         rows = c.owner.bc_rows() if c.shapes else []
         return json.dumps([c.shapes, bc_of, [(b["index"], b["label"]) for b in rows],
-                           c.view, round(c.depth, 9), _theme.current().get("card"), self.points_cb.isChecked()],
+                           c.view, round(c.depth, 9), _theme.current().get("card"), self.points_cb.isChecked(),
+                           self.points_key_fn() if (self.points_key_fn and self.points_cb.isChecked()) else None,
+                           self._ext[0] if self._ext else None, self._ext_status],
                           sort_keys=True, default=str)
 
     def refresh(self):
@@ -338,10 +372,12 @@ class Domain3DView(QWidget):
                 ax.text(*lp, f"F{k + 1}", color=t["text"], fontsize=8, ha="center", va="center",
                         bbox=dict(boxstyle="round,pad=0.2", fc=t["card"], ec=col, lw=0.8, alpha=0.9))
         n_inner = n_bnd = 0
+        pts_label = ""
         if self.points_cb.isChecked():
-            if self._points is None:
-                self._points = sample_points(shapes, self._patches)
-            inner, bnd = self._points
+            inner, bnd, pts_label = self._points_to_draw()
+            if inner is None:
+                ax.text2D(0.02, 0.02, pts_label, transform=ax.transAxes, color=t["text_muted"], fontsize=9)
+                inner = bnd = []
             n_inner, n_bnd = len(inner), len(bnd)
             if n_inner:
                 ax.scatter(inner[:, 0], inner[:, 1], inner[:, 2], s=2, c=t["text_muted"], alpha=0.45,
@@ -386,10 +422,11 @@ class Domain3DView(QWidget):
             handles.append(Patch(facecolor=NO_BC_COLOR, label="no BC yet"))
         if n_inner or n_bnd:
             from matplotlib.lines import Line2D
+            sfx = f", {pts_label}" if pts_label else ""
             handles.append(Line2D([], [], ls="none", marker="o", ms=3, color=t["text_muted"],
-                                  label=f"domain points (preview, {n_inner})"))
+                                  label=f"domain points ({n_inner}{sfx})"))
             handles.append(Line2D([], [], ls="none", marker="o", ms=3, color=t["text"],
-                                  label=f"boundary points (preview, {n_bnd})"))
+                                  label=f"boundary points ({n_bnd})"))
         # the legend sits in its own column on the right, outside the 3D axes,
         # so the solid never runs under it whichever way it is turned
         fig.legends.clear()

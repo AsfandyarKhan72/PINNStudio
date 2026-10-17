@@ -139,3 +139,38 @@ def test_points_checkbox_draws_points():
     _settle()
     assert p.view3d._points is not None and len(p.view3d._points[0]) > 0
     p.close()
+
+
+def test_show_points_uses_deepxde_with_the_run_settings():
+    """In the app, Show points samples the real training points in the
+    background (DeepXDE, the Collocation Points settings) and samples again
+    when a setting changes."""
+    from PyQt6.QtWidgets import QApplication
+    app = QApplication.instance() or QApplication([])
+    from pinnstudio.ui.main_window import MainWindow
+    w = MainWindow()
+    w.show()
+    w.quick_examples_combo.setCurrentText("3D Allen-Cahn (Wight & Zhao)")
+    _settle(1.2)
+    w.num_domain.setValue(3000)
+    w.num_boundary.setValue(400)
+    dv = w.domain_view
+    w.right_tabs.setCurrentIndex(w._domain_tab_index)
+    dv.view_combo.setCurrentIndex(dv.view_combo.findData("3d"))
+    v = dv.view3d
+    v.points_cb.setChecked(True)
+    _settle(0.5)
+
+    def wait_for(key):
+        t = time.time()
+        while not (v._ext is not None and v._ext[0] == key) and time.time() - t < 180:
+            _settle(0.3)
+        return v._ext
+
+    ext = wait_for(w._view3d_points_key())
+    assert ext is not None and len(ext[1]) == 3000 and len(ext[2]) == 400
+    assert ext[3] == w.pts_dist_combo.currentText()
+    w.num_domain.setValue(1200)
+    ext = wait_for(w._view3d_points_key())
+    assert len(ext[1]) == 1200
+    w.close()
