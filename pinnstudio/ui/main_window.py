@@ -5882,8 +5882,15 @@ class MainWindow(QMainWindow):
         for i, e in enumerate(getattr(self, 'custom_bc_list', [])):
             if e['type'].currentData() in self._SKETCH_NO_WHERE_TYPES:
                 continue
-            rows.append({"index": i, "label": f"BC {i + 1}: {self._bc_weight_desc(e)}",
-                         "expr": e['location'].text()})
+            expr = e['location'].text()
+            if e['type'].currentData() == "periodic" and expr.strip():
+                # a periodic row's Where: picks one side; DeepXDE pairs it with
+                # the opposite side along the row's axis, which has the BC too
+                axis = e['axis'].currentText() if 'axis' in e else "x"
+                ax = axis.strip().lower()[:1] if axis else "x"
+                lo, hi = {"x": ("x_min", "x_max"), "y": ("y_min", "y_max"), "z": ("z_min", "z_max")}.get(ax, ("x_min", "x_max"))
+                expr = f"({expr}) or np.isclose({ax}, {lo}) or np.isclose({ax}, {hi})"
+            rows.append({"index": i, "label": f"BC {i + 1}: {self._bc_weight_desc(e)}", "expr": expr})
         return rows
 
     def _sketch_domain(self):

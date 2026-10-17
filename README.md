@@ -2256,6 +2256,8 @@ A domain can also be **sketched** (*Geometry → Shape → Sketch*): rectangles,
 
 Every 2D and 3D domain is drawn next to the settings with its boundary split into numbered **edges** (faces in 3D) — the straight sides and arcs that actually bound it — each coloured by the boundary condition that uses it. Select a boundary condition in the model tree and click edges to add them to it or take them out: its *Where* is written for you (`np.isclose(x, 0) and 0 <= y <= 1`, `abs(np.hypot(x - 0.6, y - 0.5) - 0.25) < 3e-05`, ...) and works the same in the exported script.
 
+For a 3D domain the *View* list also has **3D**: the whole domain as a shaded solid you can rotate and zoom, with *Iso*, *Top*, *Front* and *Side* buttons. Only the surfaces that bound the domain are drawn, so a cut-out shows as a hole; each face carries its label and the colour of its boundary condition, and the slice the flat views show is drawn as a translucent plane. Shapes are still drawn and faces picked in the flat views or the face list.
+
 <table>
 <tr>
 <td width="50%" align="center">
@@ -2275,6 +2277,12 @@ Every 2D and 3D domain is drawn next to the settings with its boundary split int
 <td width="50%" align="center">
 <img src="assets/screenshots/sketch_import.png" alt="An SVG drawing of a bracket imported into the Sketch: outline with a notch, two bolt holes and a slot, boundary conditions on the bottom edge and the holes" width="100%">
 <sub><strong>Imported drawing</strong> — an SVG bracket: its notch, bolt holes and slot come in as edges</sub>
+</td>
+</tr>
+<tr>
+<td colspan="2" align="center">
+<img src="assets/screenshots/view_3d.png" alt="3D view of a sketched domain: a box with a spherical cut-out and a raised block, faces coloured by three boundary conditions, the slice plane at z = 0.75" width="70%">
+<sub><strong>3D view</strong> — the same kind of domain as a solid: the spherical cut-out, a raised block, faces coloured by their boundary conditions</sub>
 </td>
 </tr>
 </table>
