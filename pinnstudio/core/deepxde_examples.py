@@ -361,11 +361,20 @@ EXAMPLES = [
         dict(problem_dim="2D", steady_state=True, geometry_type="Polygon",
              geom_polygon_vertices="0,0;1,0;1,-1;-1,-1;-1,1;0,1",
              x_min=-1.0, x_max=1.0, y_min=-1.0, y_max=1.0, num_initial=0,
-             pde_expressions="-du_xx - du_yy - 1", custom_bc_json=_bcs(_bc("dirichlet", "True", "0")),
+             pde_expressions="-du_xx - du_yy - f", custom_bc_json=_bcs(_bc("dirichlet", "True", "0")),
              num_domain=1200, num_boundary=120, num_test=1500,
              ea_files=repr([(0.0, "@REF/2D/poisson_lshape/solution.txt", None)])),
+        _consts(("f", "1")),
         _net([2, 50, 50, 50, 50, 1]), _adam(50000), _LBFGS,
-        note="Compared against PINNStudio's own reference solution for this problem."),
+        note="Compared against PINNStudio's own reference solution for this problem. The source term is the "
+             "constant f = 1 (DeepXDE's script writes 1), so that Inverse mode can learn it.",
+        inverse=dict(problem_type="Inverse", constants="[]",
+                     inverse_variables_json=json.dumps([{"name": "f", "init": 0.1, "true": 1.0}]),
+                     inverse_obs_files_json=json.dumps([{"path": "@REF/2D/poisson_lshape/u_obs.txt", "output_idx": 0,
+                                                         "weight": 100.0, "custom_expr": ""}]),
+                     inv_param_save="Every 1000 iters"),
+        inverse_note="Inverse mode (PINNStudio's addition): the source term f is unknown (initial guess 0.1, true 1) "
+                     "and learned from measurements of u (reference_data/2D/poisson_lshape/u_obs.txt)."),
 
     _ex("Laplace equation on a disk", FORWARD, _DOCS + "pinn_forward/laplace.disk.html",
         dict(problem_dim="2D", steady_state=True, geometry_type="Rectangle",

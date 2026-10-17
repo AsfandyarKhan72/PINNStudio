@@ -78,9 +78,10 @@ TEMPLATE_KEYS = tuple(t[0] for t in _TEMPLATES)
 
 # Templates not listed in Quick Examples or the README because a DeepXDE
 # example is the same problem (and has the same Inverse mode): 1D Heat is
-# DeepXDE's Heat 1D – Dirichlet, 1D Schrödinger DeepXDE's Schrödinger 1D.
+# DeepXDE's Heat 1D – Dirichlet, 1D Schrödinger DeepXDE's Schrödinger 1D,
+# 2D Poisson (L-Shape) DeepXDE's Poisson 2D – L-shape.
 # They stay loadable by name, so saved projects and scripts keep working.
-HIDDEN_TEMPLATES = ("1D Heat", "1D Schrödinger")
+HIDDEN_TEMPLATES = ("1D Heat", "1D Schrödinger", "2D Poisson (L-Shape)")
 
 # Phase-field problems lead their group, Allen-Cahn before Cahn-Hilliard;
 # within each, DeepXDE's example, then Wight & Zhao, then Mattey & Ghosh.
