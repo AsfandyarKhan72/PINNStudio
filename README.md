@@ -81,7 +81,7 @@ Setting up a PINN by hand means writing a new script for every problem: the resi
 **How it trains**
 
 - **Multi-phase training** (e.g. Adam followed by L-BFGS) with learning-rate schedules and loss weights per phase.
-- **Adaptive methods:** residual-based adaptive refinement (RAR), which adds points where the error is largest; time-adaptive training, which marches through time in steps, each starting from the previous one (transfer learning); initial-condition-guided pre-training; plus, on the Loss weights page, automatic weighting -- per-point residual weights (RBA or SA-PINN), which concentrate training where the equation is worst satisfied, and causal training -- and exact constraints: an initial condition built into the network and exact periodicity, one tick box each. Which of these help, and on which problems, is measured in the [training methods study](benchmarks/training_methods.md).
+- **Adaptive methods:** residual-based adaptive refinement (RAR), which adds points where the error is largest; time-adaptive training, which marches through time in steps, each starting from the previous one (transfer learning); initial-condition-guided pre-training; plus, on the Loss weights page, automatic weighting — per-point residual weights (RBA or SA-PINN), which concentrate training where the equation is worst satisfied, and causal training — and exact constraints: an initial condition built into the network and exact periodicity, one tick box each. Which of these help, and on which problems, is measured in the [training methods study](benchmarks/training_methods.md).
 - **Point resampling, early stopping, checkpointing and time budgets**, and live monitors of any output or derivative during training.
 - **Parameter sweeps** over almost any setting — one at a time, all combinations, paired values, or Bayesian search — with a summary of how the error changes with each parameter.
 
@@ -206,7 +206,7 @@ That's it - no need to reinstall or recreate the virtual environment.
 - [DeepXDE](https://github.com/lululxvi/deepxde) (PyTorch backend)
 - PyTorch
 - PyQt6
-- NumPy (below 2.5 -- DeepXDE 1.15's Polygon/Triangle geometry breaks on NumPy 2.5+)
+- NumPy (below 2.5 — DeepXDE 1.15's Polygon/Triangle geometry breaks on NumPy 2.5+)
 - Matplotlib
 - Pandas
 
@@ -899,7 +899,7 @@ $$\Large -\frac{d^2u}{dx^2} + q(x) = 0, \qquad x \in [-1, 1]$$
 <details id="1d-allen-cahn">
 <summary><strong>Allen-Cahn 1D – Wight & Zhao</strong></summary>
 
-Benchmark problem after Wight & Zhao (2021) — see [References](#references).
+Benchmark problem after [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086).
 
 $$\Large \frac{\partial u}{\partial t} = \gamma_1\frac{\partial^2 u}{\partial x^2} - \gamma_2 u^3 + \gamma_2 u, \qquad x \in [-1, 1],\ t \in [0, 1]$$
 
@@ -919,12 +919,12 @@ where $\gamma_1 = 0.0001$ and $\gamma_2 = 5$.
 
 *Without time-adaptive training* — the same problem can also be solved on the whole time interval in one training run (about 3 minutes), with four settings from the [training methods study](benchmarks/training_methods.md). Trained this way without them, the PINN reaches only about 10% at $t = 1$.
 
-- **Exact periodicity:** Boundary conditions → *Exact periodicity (periodic inputs)* -- the network's inputs become `cos(pi*x); sin(pi*x); t`, periodic by construction
-- **Exact initial condition:** Initial conditions → *Exact (built into the network)* -- $u = x^2\cos(\pi x) + t\,N$, so the initial condition holds exactly and needs no loss term
+- **Exact periodicity:** Boundary conditions → *Exact periodicity (periodic inputs)* — the network's inputs become $\cos(\pi x)$, $\sin(\pi x)$, $t$, periodic by construction
+- **Exact initial condition:** Initial conditions → *Exact (built into the network)* — $u = x^2\cos(\pi x) + t N$, so the initial condition holds exactly and needs no loss term
 - **Causal training:** Loss weights → *Automatic weighting* → *Causal training*, with *Raise ε step by step* (the paper's schedule, the default); Adaptive training → Method *None*
 - **Fourier-feature network:** Network → Network type *MsFFN*, scales `1, 5`
 
-Result: $L_2$ = 9.8 × 10⁻⁸ ($t = 0$), 4.0 × 10⁻⁴ ($t = 0.25$), 4.6 × 10⁻⁴ ($t = 0.5$), 6.9 × 10⁻⁴ ($t = 0.75$), 1.6 × 10⁻³ ($t = 1$) -- as accurate as time-adaptive training early on and about 3× more accurate at $t = 1$ (0.065–0.16% at $t = 1$ over four runs). RBA per-point weights in place of causal training and MsFFN give 2.7–7.8 × 10⁻³ at $t = 1$.
+Result: $L_2$ = 9.8 × 10⁻⁸ ($t = 0$), 4.0 × 10⁻⁴ ($t = 0.25$), 4.6 × 10⁻⁴ ($t = 0.5$), 6.9 × 10⁻⁴ ($t = 0.75$), 1.6 × 10⁻³ ($t = 1$) — as accurate as time-adaptive training early on and about 3× more accurate at $t = 1$ (0.065–0.16% at $t = 1$ over four runs). RBA per-point weights in place of causal training and MsFFN give 2.7–7.8 × 10⁻³ at $t = 1$.
 
 ![1D Allen-Cahn, whole time interval with exact periodicity, exact initial condition, causal training and MsFFN — PINN vs reference](assets/Images/1D-AllenCahn/whole_domain_surface_comparison.png)
 
@@ -939,7 +939,7 @@ Result: $L_2$ = 9.8 × 10⁻⁸ ($t = 0$), 4.0 × 10⁻⁴ ($t = 0.25$), 4.6 × 
 <details id="1d-cahn-hilliard-mattey--ghosh">
 <summary><strong>Cahn-Hilliard 1D – Mattey & Ghosh</strong></summary>
 
-Benchmark problem after Mattey & Ghosh (2022), section 5.2 (eq. 25) — see [References](#references):
+Benchmark problem after [Mattey & Ghosh (2022)](https://doi.org/10.1016/j.cma.2021.114474), section 5.2 (eq. 25):
 
 $$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 \mu}{\partial x^2}, \qquad \mu = \kappa\,(u^3 - u) - \alpha\kappa\,\frac{\partial^2 u}{\partial x^2}, \qquad x \in [-1, 1],\ t \in [0, 1]$$
 
@@ -964,7 +964,7 @@ where $\alpha = 0.02$ and $\kappa = 1$. As in the paper (its phase-space form, e
 <details id="1d-cahn-hilliard">
 <summary><strong>Cahn-Hilliard 1D – Wight & Zhao</strong></summary>
 
-Benchmark problem after Wight & Zhao (2021), section 3.2 — see [References](#references).
+Benchmark problem after [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086), section 3.2.
 
 $$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 \mu}{\partial x^2}, \qquad \mu = \gamma_2\,(u^3 - u) - \gamma_1 \frac{\partial^2 u}{\partial x^2}, \qquad x \in [-1, 1],\ t \in [0, 1]$$
 
@@ -974,13 +974,13 @@ where $\gamma_1 = 10^{-6}$ and $\gamma_2 = 0.01$. The fourth-order equation is s
 - **Boundary conditions:** Periodic in value and slope, for $u$ and $\mu$
 - **Geometry:** Interval
 - **Scaling:** $\mu$ is only about $\gamma_2 = 0.01$ in size, so written as above its equation's residual is about 100× smaller than $u_t$'s and the network settles on a wrong solution with a small loss (28–42% $L_2$ error in $u$). The template enters the $\mu$ equation divided by $\gamma_2$, `(mu - 0.01*(u**3 - u) + 1e-6*du_xx)/0.01`, and scales the network's $\mu$ output by 0.01, so both residuals are of order 1 — the same equations, with $\mu$ in physical units.
-- **Exact initial condition** (Initial conditions → *Exact (built into the network)*): $u = -\cos(2\pi x) + t\,N_u$, so the initial condition holds exactly and needs no loss term ($\mu = 0.01\,N_\mu$ keeps its scaling)
+- **Exact initial condition** (Initial conditions → *Exact (built into the network)*): $u = -\cos(2\pi x) + t N_u$, so the initial condition holds exactly and needs no loss term ($\mu = 0.01 N_\mu$ keeps its scaling)
 - **Exact periodicity** (Boundary conditions → *Exact periodicity (periodic inputs)*): the network's inputs are $\cos(\pi x)$, $\sin(\pi x)$, $t$, so the solution is periodic by construction (the periodic BC rows stay on)
-- **Per-point weights** (Loss weights → *Automatic weighting*): *SA-PINN* as in the paper (McClenny & Braga-Neto) -- *Keep the mean weight at 1* off, *During L-BFGS: Keep the weights*
+- **Per-point weights** (Loss weights → *Automatic weighting*): *SA-PINN* as in the paper ([McClenny & Braga-Neto, 2023](https://doi.org/10.1016/j.jcp.2022.111722)) — *Keep the mean weight at 1* off, *During L-BFGS: Keep the weights*
 - **Training:** Adam 20,000 → L-BFGS 20,000; 10,000 domain, 200 boundary, 512 initial points; no time-adaptive training
 - **In PINNStudio:** Examples → **Forward** (or **Inverse**) → **Cahn-Hilliard 1D – Wight & Zhao**
 
-**Result (RTX 4090, about 6 minutes):** $u$: $L_2$ = 1.6 × 10⁻⁷ ($t = 0$), 2.3 × 10⁻³ ($t = 0.25$), 1.1 × 10⁻³ ($t = 0.5$), 7.2 × 10⁻⁴ ($t = 0.75$), 6.0 × 10⁻⁴ ($t = 1$); $\mu$: 1.2 × 10⁻³, 2.8 × 10⁻³, 1.8 × 10⁻³, 1.3 × 10⁻³, 1.6 × 10⁻³, against a Fourier pseudo-spectral solution in [`reference_data/1D/cahn_hilliard`](reference_data/1D/cahn_hilliard) (made by [`tools/make_exact_reference_data.py`](tools/make_exact_reference_data.py)). Two more seeds gave the same within 15% (0.051–0.060% in $u$ at $t = 1$). With RBA in place of SA-PINN the error in $u$ is about 2× larger (6.0 × 10⁻³ at $t = 0.25$, 1.2 × 10⁻³ at $t = 1$), with the scaling alone about 10× larger (3.3 × 10⁻² and 5.2 × 10⁻³) -- see the [training methods study](benchmarks/training_methods.md) for every setup tried.
+**Result (RTX 4090, about 6 minutes):** $u$: $L_2$ = 1.6 × 10⁻⁷ ($t = 0$), 2.3 × 10⁻³ ($t = 0.25$), 1.1 × 10⁻³ ($t = 0.5$), 7.2 × 10⁻⁴ ($t = 0.75$), 6.0 × 10⁻⁴ ($t = 1$); $\mu$: 1.2 × 10⁻³, 2.8 × 10⁻³, 1.8 × 10⁻³, 1.3 × 10⁻³, 1.6 × 10⁻³, against a Fourier pseudo-spectral solution in [`reference_data/1D/cahn_hilliard`](reference_data/1D/cahn_hilliard) (made by [`tools/make_exact_reference_data.py`](tools/make_exact_reference_data.py)). Two more seeds gave the same within 15% (0.051–0.060% in $u$ at $t = 1$). With RBA in place of SA-PINN the error in $u$ is about 2× larger (6.0 × 10⁻³ at $t = 0.25$, 1.2 × 10⁻³ at $t = 1$), with the scaling alone about 10× larger (3.3 × 10⁻² and 5.2 × 10⁻³) — see the [training methods study](benchmarks/training_methods.md) for every setup tried.
 
 ![1D Cahn-Hilliard — PINN vs reference, u](assets/Images/1D-CahnHilliard/surface_comparison_u.png)
 
@@ -1072,7 +1072,7 @@ $$\Large \frac{\partial V}{\partial \tau} = \frac{\sigma^2}{2}S^2\frac{\partial^
 <details id="1d-burgers">
 <summary><strong>Burgers 1D – Raissi et al.</strong></summary>
 
-Exact equation, initial and boundary conditions as in Raissi, Perdikaris & Karniadakis (2019) — see [References](#references).
+Exact equation, initial and boundary conditions as in [Raissi, Perdikaris & Karniadakis (2019)](https://doi.org/10.1016/j.jcp.2018.10.045).
 
 $$\Large \frac{\partial u}{\partial t} + u\frac{\partial u}{\partial x} = \frac{0.01}{\pi}\frac{\partial^2 u}{\partial x^2}, \qquad x \in [-1, 1],\ t \in [0, 1]$$
 
@@ -1093,7 +1093,7 @@ A shock forms near $x = 0$ as $t \to 1$; this template uses a larger fixed collo
 
 ![1D Burgers — restored solution animation](assets/Images/1D-Burgers/restored_animation.gif)
 
-*Inverse mode* — same template, switched to **Inverse**, jointly recovering both coefficients of Raissi, Perdikaris & Karniadakis (2019)'s data-driven-discovery form of this equation, Appendix B, eq. B.1 — see [References](#references):
+*Inverse mode* — same template, switched to **Inverse**, jointly recovering both coefficients of the data-driven-discovery form of this equation in [Raissi, Perdikaris & Karniadakis (2019)](https://doi.org/10.1016/j.jcp.2018.10.045), Appendix B, eq. B.1:
 
 $$\Large \frac{\partial u}{\partial t} + \lambda_1 u\frac{\partial u}{\partial x} - \lambda_2\frac{\partial^2 u}{\partial x^2} = 0$$
 
@@ -1795,7 +1795,7 @@ $$\Large -\nabla^2 u = 1, \qquad \Omega = [-1, 1]^2 \setminus [0, 1]\times[-1, 0
 <details id="2d-poisson-l-shape">
 <summary><strong>Poisson 2D – L-shape, Lu et al.</strong></summary>
 
-A classic re-entrant-corner benchmark — the Poisson equation on an L-shaped domain (a unit square with a quadrant notched out), steady-state (no time axis). This is the same benchmark used as a demonstration example in the original DeepXDE paper — see Lu, Meng, Mao & Karniadakis (2021) under [References](#references).
+A classic re-entrant-corner benchmark — the Poisson equation on an L-shaped domain (a unit square with a quadrant notched out), steady-state (no time axis). This is the same benchmark used as a demonstration example in the original DeepXDE paper, [Lu et al. (2021)](https://doi.org/10.1137/19M1274067).
 
 $$\Large -\frac{\partial^2 u}{\partial x^2} - \frac{\partial^2 u}{\partial y^2} = 1, \qquad (x, y) \in \Omega_{L}$$
 
@@ -1841,7 +1841,7 @@ $$\Large -(-\Delta)^{\alpha/2}u = 2^{\alpha_0}\Gamma(2 + \tfrac{\alpha_0}{2})\Ga
 <details id="2d-allen-cahn-mattey--ghosh">
 <summary><strong>Allen-Cahn 2D – Mattey & Ghosh</strong></summary>
 
-Benchmark problem after Mattey & Ghosh (2022) — see [References](#references).
+Benchmark problem after [Mattey & Ghosh (2022)](https://doi.org/10.1016/j.cma.2021.114474).
 
 $$\Large \frac{\partial u}{\partial t} = c_1^2\left(\frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2}\right) - c_2(u^3 - u), \qquad (x, y) \in [0, 1]^2,\ t \in (0, 1]$$
 
@@ -1859,8 +1859,8 @@ where $c_1^2 = 0.0001$ and $c_2 = 1$.
 
 *Without time-adaptive training* — trained on the whole time interval at once (about 3.5 minutes) with the same three settings as the 1D example (see the [training methods study](benchmarks/training_methods.md)), the error drops more than 10× below the time-adaptive result:
 
-- **Exact periodicity:** Boundary conditions → *Exact periodicity (periodic inputs)* -- inputs `cos(2*pi*x); sin(2*pi*x); cos(2*pi*y); sin(2*pi*y); t`
-- **Exact initial condition:** Initial conditions → *Exact (built into the network)* -- $u = \sin(4\pi x)\cos(4\pi y) + t\,N$
+- **Exact periodicity:** Boundary conditions → *Exact periodicity (periodic inputs)* — the network's inputs become $\cos(2\pi x)$, $\sin(2\pi x)$, $\cos(2\pi y)$, $\sin(2\pi y)$, $t$
+- **Exact initial condition:** Initial conditions → *Exact (built into the network)* — $u = \sin(4\pi x)\cos(4\pi y) + t N$
 - **Per-point weights:** Loss weights → Per-point weights *RBA*, During L-BFGS *Keep the weights*; Adaptive training → Method *None*
 
 Result: $L_2$ = 2.0 × 10⁻⁵ ($t = 0$), 3.4 × 10⁻⁴ ($t = 0.25$), 5.0 × 10⁻⁴ ($t = 0.5$), 5.4 × 10⁻⁴ ($t = 0.75$), 5.4 × 10⁻⁴ ($t = 1$). The same training without these settings gives about 1.3%.
@@ -1882,7 +1882,7 @@ Result: $L_2$ = 2.0 × 10⁻⁵ ($t = 0$), 3.4 × 10⁻⁴ ($t = 0.25$), 5.0 × 
 <details id="2d-allen-cahn-wight--zhao">
 <summary><strong>Allen-Cahn 2D – Wight & Zhao</strong></summary>
 
-Benchmark problem after Wight & Zhao (2021) — see [References](#references). This is the paper's own shrinking-circle-interface benchmark, posed there for a field it calls $\phi$ (PINNStudio's $u$) with rate constant $\lambda$ and interface-width parameter $\varepsilon$ (eq. 3.11):
+Benchmark problem after [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086). This is the paper's own shrinking-circle-interface benchmark, posed there for a field it calls $\phi$ (PINNStudio's $u$) with rate constant $\lambda$ and interface-width parameter $\varepsilon$ (eq. 3.11):
 
 $$\Large \frac{\partial u}{\partial t} = \lambda\left(\varepsilon^2\left(\frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2}\right) - u^3 + u\right), \qquad (x, y) \in [0, 1]^2,\ t \in [0, 10]$$
 
@@ -1898,7 +1898,7 @@ where $\lambda = 10$ and $\varepsilon = 0.025$, matching the paper's own values 
 
 ![2D Allen-Cahn (Wight & Zhao) — PINN vs Ground Truth, Error Analysis surface comparison](assets/Images/2D_AllenCahn-Wight/surface_comparison.png)
 
-*Without time-adaptive training* this problem is not solved: over its long interval ($t$ up to 10) the plain PINN is wrong everywhere (about 200% error), and the best whole-interval setting found -- RBA per-point weights -- still gives 3.5% at $t = 2.5$ and 19% at $t = 10$. Here time-adaptive training is the method to use, and adding RBA per-point weights and exact periodicity (inputs `cos(2*pi*x); sin(2*pi*x); cos(2*pi*y); sin(2*pi*y); t`) to it lowers the error at $t = 10$ about 5× (1.6 × 10⁻³ against 7.9 × 10⁻³), with the same error at $t = 2.5$ and 5 (see the [training methods study](benchmarks/training_methods.md)).
+*Without time-adaptive training* this problem is not solved: over its long interval ($t$ up to 10) the plain PINN is wrong everywhere (about 200% error), and the best whole-interval setting found — RBA per-point weights — still gives 3.5% at $t = 2.5$ and 19% at $t = 10$. Here time-adaptive training is the method to use, and adding RBA per-point weights and exact periodicity (inputs `cos(2*pi*x); sin(2*pi*x); cos(2*pi*y); sin(2*pi*y); t`) to it lowers the error at $t = 10$ about 5× (1.6 × 10⁻³ against 7.9 × 10⁻³), with the same error at $t = 2.5$ and 5 (see the [training methods study](benchmarks/training_methods.md)).
 
 *Restore & Visualize* — the trained model restored from its saved checkpoint and re-animated without retraining:
 
@@ -1917,7 +1917,7 @@ with true values $\lambda = 10$ and $\lambda\varepsilon^2 = 0.00625$. The live c
 <details id="2d-burgers-mathias">
 <summary><strong>Burgers 2D – Mathias et al.</strong></summary>
 
-Physics after Mathias, de Almeida, de Barros, Coelho, et al. (2022) — see [References](#references). A coupled, two-output system for the velocity components $U$, $V$, with kinematic viscosity $\nu = \dfrac{0.01}{\pi}$:
+Physics after [Mathias et al. (2022)](https://arxiv.org/abs/2301.07824). A coupled, two-output system for the velocity components $U$, $V$, with kinematic viscosity $\nu = \dfrac{0.01}{\pi}$:
 
 $$\Large \frac{\partial U}{\partial t} + U\frac{\partial U}{\partial x} + V\frac{\partial U}{\partial y} = \nu\left(\frac{\partial^2 U}{\partial x^2} + \frac{\partial^2 U}{\partial y^2}\right)$$
 
@@ -1975,7 +1975,7 @@ Error Analysis — PINN vs Ground Truth, for each output:
 <details id="2d-cahn-hilliard-mattey--ghosh">
 <summary><strong>Cahn-Hilliard 2D – Mattey & Ghosh</strong></summary>
 
-Benchmark problem after Mattey & Ghosh (2022), section 6.2, IBVP-2 — see [References](#references): a pattern of stripes that sharpens into the two phases,
+Benchmark problem after [Mattey & Ghosh (2022)](https://doi.org/10.1016/j.cma.2021.114474), section 6.2, IBVP-2: a pattern of stripes that sharpens into the two phases,
 
 $$\Large \frac{\partial u}{\partial t'} = 0.005\left(\frac{\partial^2 \mu}{\partial x^2} + \frac{\partial^2 \mu}{\partial y^2}\right), \qquad \mu = u^3 - u - \alpha\left(\frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2}\right), \qquad (x, y) \in [0, 1]^2,\ t' \in [0, 1]$$
 
@@ -1997,13 +1997,13 @@ $$\Large \frac{\partial u}{\partial t'} = 0.005\left(\frac{\partial^2 \mu}{\part
 <details id="2d-cahn-hilliard-wight--zhao">
 <summary><strong>Cahn-Hilliard 2D – Wight & Zhao</strong></summary>
 
-Benchmark problem after Wight & Zhao (2021), section 3.3 (eqs. 3.20–3.21) — see [References](#references): two bubbles that touch and merge into one, written for a field $\phi$ (PINNStudio's $u$),
+Benchmark problem after [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086), section 3.3 (eqs. 3.20–3.21): two bubbles that touch and merge into one, written for a field $\phi$ (PINNStudio's $u$),
 
 $$\Large \frac{\partial u}{\partial t} = \lambda\left(\frac{\partial^2 \mu}{\partial x^2} + \frac{\partial^2 \mu}{\partial y^2}\right), \qquad \mu = u^3 - u - \varepsilon^2\left(\frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2}\right), \qquad (x, y) \in [-1, 1]^2,\ t \in [0, 1]$$
 
 where $\lambda = 1$ and $\varepsilon = 0.05$. As in the 1D example, the chemical potential $\mu$ is a second output (the paper's network is also $(\phi, \mu)$), so no residual needs a fourth derivative.
 
-- **Initial condition:** the paper's two bubbles of radius $r = 0.4$ centred at $(\pm 0.28, 0)$, $u = \max\left(\tanh\frac{r - R_1}{2\varepsilon}, \tanh\frac{r - R_2}{2\varepsilon}\right) = \tanh\frac{r - \min(R_1, R_2)}{2\varepsilon}$, with the minimum written smoothly, $\min(R_1, R_2) \approx \tfrac12\left(R_1 + R_2 - \sqrt{(R_1 - R_2)^2 + 0.0004}\right)$. The plain minimum has a corner where the bubbles touch, and that corner's curvature is what drives the merging -- but a network built on the exact initial condition sees no curvature in a corner, and with it every setup learned an almost frozen solution (16% / 30% error at $t = 0.25$ / 1, about what leaving $u$ unchanged gives). The smoothing changes $u$ by 0.5% (relative $L_2$), only along the line where the bubbles meet; the reference data uses the same formula. $\mu$ has no initial condition.
+- **Initial condition:** the paper's two bubbles of radius $r = 0.4$ centred at $(\pm 0.28, 0)$, $u = \max\left(\tanh\frac{r - R_1}{2\varepsilon}, \tanh\frac{r - R_2}{2\varepsilon}\right) = \tanh\frac{r - \min(R_1, R_2)}{2\varepsilon}$, with the minimum written smoothly, $\min(R_1, R_2) \approx \tfrac12\left(R_1 + R_2 - \sqrt{(R_1 - R_2)^2 + 0.0004}\right)$. The plain minimum has a corner where the bubbles touch, and that corner's curvature is what drives the merging — but a network built on the exact initial condition sees no curvature in a corner, and with it every setup learned an almost frozen solution (16% / 30% error at $t = 0.25$ / 1, about what leaving $u$ unchanged gives). The smoothing changes $u$ by 0.5% (relative $L_2$), only along the line where the bubbles meet; the reference data uses the same formula. $\mu$ has no initial condition.
 - **Boundary conditions:** Periodic, for $u$ and $\mu$
 - **Geometry:** Rectangle
 - **Exact initial condition** and **exact periodicity** (inputs $\cos\pi x$, $\sin\pi x$, $\cos\pi y$, $\sin\pi y$, $t$), as in the 1D examples
@@ -2011,7 +2011,7 @@ where $\lambda = 1$ and $\varepsilon = 0.05$. As in the 1D example, the chemical
 - **Training:** Adam 20,000 → L-BFGS 20,000; 20,000 domain points, 4 × 128 network; no time-adaptive training
 - **In PINNStudio:** Examples → **Forward** (or **Inverse**) → **Cahn-Hilliard 2D – Wight & Zhao**
 
-**Result (RTX 4090, about 19 minutes):** $u$: $L_2$ = 1.2 × 10⁻⁷ ($t = 0$), 1.2 × 10⁻² ($t = 0.25$), 1.3 × 10⁻² ($t = 0.5$), 2.8 × 10⁻² ($t = 0.75$), 3.8 × 10⁻² ($t = 1$); $\mu$: 3.5 × 10⁻², 5.0 × 10⁻², 3.7 × 10⁻², 2.0 × 10⁻² at $t = 0.25$ to 1 (at $t = 0$ the true $\mu$ has a sharp spike at the neck, which the network, with no initial condition for $\mu$, doesn't reproduce), against a Fourier pseudo-spectral solution in [`reference_data/2D/cahn_hilliard_wight`](reference_data/2D/cahn_hilliard_wight) (made by [`tools/make_phase_field_reference_data.py`](tools/make_phase_field_reference_data.py); grid and time-step refinement change it by about 10⁻⁴). The remaining error sits on the moving interface; the paper's own errors at $t = 1$ (its Figure 3.13) are up to about 0.5. Causal training also merges the bubbles (2.9% / 4.2% at $t = 0.25$ / 1), RBA and a plain run don't -- see the [training methods study](benchmarks/training_methods.md).
+**Result (RTX 4090, about 19 minutes):** $u$: $L_2$ = 1.2 × 10⁻⁷ ($t = 0$), 1.2 × 10⁻² ($t = 0.25$), 1.3 × 10⁻² ($t = 0.5$), 2.8 × 10⁻² ($t = 0.75$), 3.8 × 10⁻² ($t = 1$); $\mu$: 3.5 × 10⁻², 5.0 × 10⁻², 3.7 × 10⁻², 2.0 × 10⁻² at $t = 0.25$ to 1 (at $t = 0$ the true $\mu$ has a sharp spike at the neck, which the network, with no initial condition for $\mu$, doesn't reproduce), against a Fourier pseudo-spectral solution in [`reference_data/2D/cahn_hilliard_wight`](reference_data/2D/cahn_hilliard_wight) (made by [`tools/make_phase_field_reference_data.py`](tools/make_phase_field_reference_data.py); grid and time-step refinement change it by about 10⁻⁴). The remaining error sits on the moving interface; the paper's own errors at $t = 1$ (its Figure 3.13) are up to about 0.5. Causal training also merges the bubbles (2.9% / 4.2% at $t = 0.25$ / 1), RBA and a plain run don't — see the [training methods study](benchmarks/training_methods.md).
 
 ![2D Cahn-Hilliard — PINN vs reference, u](assets/Images/2D_CahnHilliard-Wight/surface_comparison_u.png)
 
@@ -2094,7 +2094,7 @@ $$\Large -\frac{\partial^2 u}{\partial x^2} - \frac{\partial^2 u}{\partial y^2} 
 <details id="3d-allen-cahn-wight--zhao">
 <summary><strong>Allen-Cahn 3D – Wight & Zhao</strong></summary>
 
-Benchmark problem after Wight & Zhao (2021), section 3.2 (eq. 3.13) — see [References](#references): a sphere that shrinks under its own curvature,
+Benchmark problem after [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086), section 3.2 (eq. 3.13): a sphere that shrinks under its own curvature,
 
 $$\Large \frac{\partial u}{\partial t} = \lambda\left(\varepsilon^2\left(\frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2} + \frac{\partial^2 u}{\partial z^2}\right) - u^3 + u\right), \qquad (x, y, z) \in [0, 1]^3,\ t \in [0, 1]$$
 
@@ -2107,7 +2107,7 @@ where $\lambda = 10$ and $\varepsilon = 0.05$ ($\lambda\varepsilon^2 = 0.025$). 
 - **Training:** Adam 20,000 → L-BFGS 20,000; 30,000 domain points, 4 × 128 network
 - **In PINNStudio:** Examples → **Forward** (or **Inverse**) → **Allen-Cahn 3D – Wight & Zhao**
 
-**Result (RTX 4090, about 15 minutes):** $L_2$ = 2.5 × 10⁻³ ($t = 0$), 3.0 × 10⁻⁴ ($t = 0.25$), 2.2 × 10⁻⁴ ($t = 0.5$), 2.5 × 10⁻⁴ ($t = 0.75$), 2.7 × 10⁻⁴ ($t = 1$), against a Fourier pseudo-spectral solution (ETDRK4) in [`reference_data/3D/allen_cahn_wight`](reference_data/3D/allen_cahn_wight) (made by [`tools/make_phase_field_reference_data.py`](tools/make_phase_field_reference_data.py)). Building the initial condition into the output instead ($u = u_0 + t\,N$) gives about 30 times more error (7 × 10⁻³ at every time), and RBA, SA-PINN or causal training don't help either way.
+**Result (RTX 4090, about 15 minutes):** $L_2$ = 2.5 × 10⁻³ ($t = 0$), 3.0 × 10⁻⁴ ($t = 0.25$), 2.2 × 10⁻⁴ ($t = 0.5$), 2.5 × 10⁻⁴ ($t = 0.75$), 2.7 × 10⁻⁴ ($t = 1$), against a Fourier pseudo-spectral solution (ETDRK4) in [`reference_data/3D/allen_cahn_wight`](reference_data/3D/allen_cahn_wight) (made by [`tools/make_phase_field_reference_data.py`](tools/make_phase_field_reference_data.py)). Building the initial condition into the output instead ($u = u_0 + t N$) gives about 30 times more error (7 × 10⁻³ at every time), and RBA, SA-PINN or causal training don't help either way.
 
 The figure is the slice $z = 0.5$ through the centre of the sphere (PINN, reference, error): the bubble stays round and shrinks, and the largest pointwise error, about 0.013, sits on its interface.
 
@@ -2341,20 +2341,20 @@ Loss weights can be set per term (each equation, boundary condition, initial con
 <details id="hard-problems">
 <summary><strong>When a PINN struggles: exact constraints and automatic weighting</strong></summary>
 
-A plain PINN fits the equation, the boundary conditions and the initial condition all as loss terms that compete with each other. On hard problems -- sharp fronts, phase fields, long time ranges -- it can settle on a wrong solution with a small loss. These settings help, in this order (each measured in the [training methods study](benchmarks/training_methods.md), about 140 runs on 12 problems):
+A plain PINN fits the equation, the boundary conditions and the initial condition all as loss terms that compete with each other. On hard problems — sharp fronts, phase fields, long time ranges — it can settle on a wrong solution with a small loss. These settings help, in this order (each measured in the [training methods study](benchmarks/training_methods.md), about 150 runs on 14 problems):
 
-1. **Scale the equations** so every residual is of order 1. If one equation's residual is naturally ~100× smaller than another's, it is barely enforced -- this alone took the Cahn-Hilliard example from 40% to under 1% error. Divide that equation by its small coefficient, and scale the matching output (Network → *Output transform → Scale*).
-2. **Make the initial condition exact** (Initial conditions → *Exact (built into the network)*, per output): the output becomes $\text{IC}(x) + \tau\,N$ with $\tau = (t - t_{min})/(t_{max} - t_{min})$, so it equals the initial condition at the first time whatever the network learns, and the condition needs no loss term (a hard constraint, after Lagaris et al., 1998). Write the initial condition as a smooth formula: a corner (a `max`, an `abs`) carries curvature the network can't see -- the 2D Cahn-Hilliard example's two bubbles never merged until the `max` in their initial condition was smoothed. Compare it with the initial condition as an ordinary loss term, though: on 3D Allen-Cahn the loss term (weight 100) was 25× more accurate, because there the profile changes fast right after $t = 0$ and $\tau N$ has to produce that change.
-3. **Make periodicity exact** (Boundary conditions → *Exact periodicity (periodic inputs)*): each periodic axis enters the network as $\cos(2\pi x/L)$, $\sin(2\pi x/L)$, so values and derivatives match at both ends by construction (Dong & Ni, 2021).
-4. **Add one automatic weighting method** (Loss weights → *Automatic weighting*), each implemented as its paper describes it (see [References](#references)):
-   - *Per-point weights → RBA* (residual-based attention, Anagnostopoulos et al., 2024): each training point's residual gets a weight that grows where the equation stays badly satisfied, so training concentrates on interfaces and fronts. Cheap and the safest choice.
-   - *Per-point weights → SA-PINN* (self-adaptive weights, McClenny & Braga-Neto, 2023): the weights are trained by gradient ascent. With *During L-BFGS: Keep the weights*, as in the paper, it was the best on Cahn-Hilliard (1D and 2D).
-   - *Causal training* (Wang, Sankaran & Perdikaris, 2024): later times count only once earlier ones are fitted, with ε raised step by step as in the paper. With an MsFFN network (Network → *Network type*) it was the best on 1D Allen-Cahn and Klein-Gordon.
+1. **Scale the equations** so every residual is of order 1. If one equation's residual is naturally ~100× smaller than another's, it is barely enforced — this alone took the Cahn-Hilliard example from 40% to under 1% error. Divide that equation by its small coefficient, and scale the matching output (Network → *Output transform → Scale*).
+2. **Make the initial condition exact** (Initial conditions → *Exact (built into the network)*, per output): the output becomes $\text{IC}(x) + \tau N$ with $\tau = (t - t_{min})/(t_{max} - t_{min})$, so it equals the initial condition at the first time whatever the network learns, and the condition needs no loss term (a hard constraint, after [Lagaris et al., 1998](https://doi.org/10.1109/72.712178)). Write the initial condition as a smooth formula: a corner (a `max`, an `abs`) carries curvature the network can't see — the 2D Cahn-Hilliard example's two bubbles never merged until the `max` in their initial condition was smoothed. Compare it with the initial condition as an ordinary loss term, though: on 3D Allen-Cahn the loss term (weight 100) was 25× more accurate, because there the profile changes fast right after $t = 0$ and $\tau N$ has to produce that change.
+3. **Make periodicity exact** (Boundary conditions → *Exact periodicity (periodic inputs)*): each periodic axis enters the network as $\cos(2\pi x/L)$, $\sin(2\pi x/L)$, so values and derivatives match at both ends by construction ([Dong & Ni, 2021](https://doi.org/10.1016/j.jcp.2021.110242)).
+4. **Add one automatic weighting method** (Loss weights → *Automatic weighting*), each implemented as its paper describes it:
+   - *Per-point weights → RBA* (residual-based attention, [Anagnostopoulos et al., 2024](https://doi.org/10.1016/j.cma.2024.116805)): each training point's residual gets a weight that grows where the equation stays badly satisfied, so training concentrates on interfaces and fronts. Cheap and the safest choice.
+   - *Per-point weights → SA-PINN* (self-adaptive weights, [McClenny & Braga-Neto, 2023](https://doi.org/10.1016/j.jcp.2022.111722)): the weights are trained by gradient ascent. With *During L-BFGS: Keep the weights*, as in the paper, it was the best on Cahn-Hilliard (1D and 2D).
+   - *Causal training* ([Wang, Sankaran & Perdikaris, 2024](https://doi.org/10.1016/j.cma.2024.116813)): later times count only once earlier ones are fitted, with ε raised step by step as in the paper. With an MsFFN network (Network → *Network type*) it was the best on 1D Allen-Cahn and Klein-Gordon.
 
-   *During L-BFGS*: *Keep the weights* is stronger on hard problems; *Plain loss* (the default) is the safe choice elsewhere. Don't combine causal training with per-point weights -- together they did worse than either alone.
-5. **For long time ranges, or a very fast change right after the start, use time-adaptive training** (Adaptive training → *Time Adaptive Training*; short windows over the fast part: the 1D Cahn-Hilliard (Mattey & Ghosh) example uses 10 windows of 0.01, then 9 of 0.1, and gets 0.5% error where every whole-domain setup failed) -- per-point weights and exact periodicity still help on top of it; an exact initial condition can't be combined with it yet.
+   *During L-BFGS*: *Keep the weights* is stronger on hard problems; *Plain loss* (the default) is the safe choice elsewhere. Don't combine causal training with per-point weights — together they did worse than either alone.
+5. **For long time ranges, or a very fast change right after the start, use time-adaptive training** (Adaptive training → *Time Adaptive Training*; short windows over the fast part: the 1D Cahn-Hilliard (Mattey & Ghosh) example uses 10 windows of 0.01, then 9 of 0.1, and gets 0.5% error where every whole-domain setup failed) — per-point weights and exact periodicity still help on top of it; an exact initial condition can't be combined with it yet.
 
-Steps 2–4 together solved 1D Allen-Cahn without time-adaptive training 80–150× more accurately than a plain PINN (at t = 1), the 2D Mattey & Ghosh problem 25× (and 12× better than its time-adaptive template), and are what the Cahn-Hilliard examples use. On problems a plain PINN already solves well (Burgers, Helmholtz, Kovasznay flow, Schrödinger) they add little or make the result worse, so compare against a plain run.
+Steps 2–4 together solved 1D Allen-Cahn without time-adaptive training 80–150× more accurately than a plain PINN (at $t = 1$), the 2D Mattey & Ghosh problem 25× (and 12× better than its time-adaptive template), and are what the Cahn-Hilliard examples use. On problems a plain PINN already solves well (Burgers, Helmholtz, Kovasznay flow, Schrödinger) they add little or make the result worse, so compare against a plain run.
 
 </details>
 
@@ -2661,7 +2661,7 @@ Training methods ([When a PINN struggles](#hard-problems), [training methods stu
 
 PINNStudio is built on [DeepXDE](https://github.com/lululxvi/deepxde) (Lu et al., 2021), [PyTorch](https://pytorch.org) and PyQt6. We are especially grateful to Lu Lu and the DeepXDE developers: DeepXDE is the physics-informed learning library that every script PINNStudio generates runs on, and its documented examples are included among PINNStudio's examples, each linked to its original script.
 
-The examples that reproduce published benchmarks follow the problem setups of the original papers: *Burgers 1D – Raissi et al.* follows Raissi, Perdikaris & Karniadakis (2019); *Burgers 2D – Mathias et al.* follows Mathias et al. (2022); the Allen-Cahn and Cahn-Hilliard examples follow Wight & Zhao (2021) and Mattey & Ghosh (2022); and *Poisson 2D – L-shape, Lu et al.* follows the demonstration example of the DeepXDE paper (Lu et al., 2021) — see [References](#references).
+The examples that reproduce published benchmarks follow the problem setups of the original papers: *Burgers 1D – Raissi et al.* follows [Raissi, Perdikaris & Karniadakis (2019)](https://doi.org/10.1016/j.jcp.2018.10.045); *Burgers 2D – Mathias et al.* follows [Mathias et al. (2022)](https://arxiv.org/abs/2301.07824); the Allen-Cahn and Cahn-Hilliard examples follow [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086) and [Mattey & Ghosh (2022)](https://doi.org/10.1016/j.cma.2021.114474); and *Poisson 2D – L-shape, Lu et al.* follows the demonstration example of the DeepXDE paper ([Lu et al., 2021](https://doi.org/10.1137/19M1274067)). Full references are listed [below](#references).
 
 Developed under the supervision of Prof. Mahmood Mamivand, Computational Materials Design Lab, Boise State University.
 

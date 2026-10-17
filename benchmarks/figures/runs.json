@@ -3,8 +3,6 @@
  "figures": [
   {
    "file": "ac1d.png",
-   "title": "1D Allen-Cahn (Wight & Zhao)",
-   "subtitle": "whole time interval unless noted; all but the gray line have exact IC + periodicity; seed 2026",
    "runs": [
     {
      "label": "Plain PINN",
@@ -61,7 +59,7 @@
      "src": "ch4_ac/m/base"
     },
     {
-     "label": "Exact IC + periodic only",
+     "label": "Exact IC + periodic",
      "l2": [
       [
        0.0,
@@ -87,7 +85,7 @@
      "src": "cm_paper_base/m/base"
     },
     {
-     "label": "+ RBA (keep)",
+     "label": "+ RBA",
      "l2": [
       [
        0.0,
@@ -139,7 +137,7 @@
      "src": "cl_paper_methods/m/causal_fixed_e1"
     },
     {
-     "label": "+ causal, $\\varepsilon$ schedule",
+     "label": "+ causal",
      "l2": [
       [
        0.0,
@@ -165,7 +163,7 @@
      "src": "cl_paper_methods/m/causal_anneal"
     },
     {
-     "label": "+ SA-PINN (paper)",
+     "label": "+ SA-PINN",
      "l2": [
       [
        0.0,
@@ -191,7 +189,7 @@
      "src": "cl_paper_methods/m/sa_paper"
     },
     {
-     "label": "+ causal schedule + MsFFN",
+     "label": "+ causal + MsFFN",
      "l2": [
       [
        0.0,
@@ -221,11 +219,9 @@
   },
   {
    "file": "ch1d.png",
-   "title": "1D Cahn-Hilliard (Wight & Zhao), $u$",
-   "subtitle": "all scaled except the gray line; lines starting with '+' also have exact IC + periodicity",
    "runs": [
     {
-     "label": "Unscaled plain PINN",
+     "label": "Unscaled, plain",
      "l2": [
       [
        0.0,
@@ -304,7 +300,7 @@
      "src": "ch11_more/m/ch_msffn_rba"
     },
     {
-     "label": "+ RBA (keep), earlier template",
+     "label": "+ RBA",
      "l2": [
       [
        0.0,
@@ -330,7 +326,7 @@
      "src": "cj2_tpl_run/m/ch_template"
     },
     {
-     "label": "+ causal, $\\varepsilon$ schedule",
+     "label": "+ causal",
      "l2": [
       [
        0.0,
@@ -356,7 +352,7 @@
      "src": "cn_paper_seeds/m_ch/causal_anneal"
     },
     {
-     "label": "+ causal schedule + MsFFN",
+     "label": "+ causal + MsFFN",
      "l2": [
       [
        0.0,
@@ -382,7 +378,7 @@
      "src": "cn_paper_seeds/m_ch/causal_anneal_msffn"
     },
     {
-     "label": "+ SA-PINN, mean-1",
+     "label": "+ SA-PINN, normalized weights",
      "l2": [
       [
        0.0,
@@ -408,7 +404,7 @@
      "src": "cn_paper_seeds/m_ch/sa_norm_keep"
     },
     {
-     "label": "+ SA-PINN (paper)",
+     "label": "+ SA-PINN",
      "l2": [
       [
        0.0,
@@ -439,8 +435,6 @@
   },
   {
    "file": "ch2d_wz.png",
-   "title": "2D Cahn-Hilliard (Wight & Zhao), $u$",
-   "subtitle": "two merging bubbles; exact IC + periodicity; 'smoothed' = the template's smoothed initial condition",
    "runs": [
     {
      "label": "$u$ left at its initial condition",
@@ -518,7 +512,7 @@
      "src": "cnc_new2/m/ch2d_tpl"
     },
     {
-     "label": "Smoothed, + causal schedule",
+     "label": "Smoothed IC + causal",
      "l2": [
       [
        0.0,
@@ -544,7 +538,7 @@
      "src": "cnc_new2/m/ch2d_causal"
     },
     {
-     "label": "Smoothed, + SA-PINN, 6 \u00d7 128",
+     "label": "Smoothed IC + SA-PINN, 6 \u00d7 128 network",
      "l2": [
       [
        0.0,
@@ -570,7 +564,7 @@
      "src": "cq_figs/m/ch2d_6x128"
     },
     {
-     "label": "Smoothed, + SA-PINN, 40,000 Adam",
+     "label": "Smoothed IC + SA-PINN, 40,000 Adam steps",
      "l2": [
       [
        0.0,
@@ -596,7 +590,7 @@
      "src": "cqb_ch2d40k/m/ch2d_40k"
     },
     {
-     "label": "Smoothed, + SA-PINN (paper)",
+     "label": "Smoothed IC + SA-PINN",
      "l2": [
       [
        0.0,
@@ -624,7 +618,7 @@
      "src": "cq_figs/m/ch2d_tpl"
     },
     {
-     "label": "Smoothed + SA-PINN, time-adaptive, IC loss",
+     "label": "Smoothed IC + SA-PINN, time-adaptive",
      "l2": [
       [
        0.0,
@@ -653,8 +647,6 @@
   },
   {
    "file": "ac2d_mg.png",
-   "title": "2D Allen-Cahn (Mattey & Ghosh)",
-   "subtitle": "whole time interval unless noted",
    "runs": [
     {
      "label": "Plain PINN",
@@ -711,7 +703,7 @@
      "src": "ch14_ac2d/m/mg_ta_template"
     },
     {
-     "label": "+ RBA (plain L-BFGS)",
+     "label": "+ RBA, unweighted L-BFGS",
      "l2": [
       [
        0.0,
@@ -737,7 +729,7 @@
      "src": "ch14_ac2d/m/mg_rba"
     },
     {
-     "label": "+ MsFFN + RBA (keep)",
+     "label": "+ MsFFN + RBA",
      "l2": [
       [
        0.0,
@@ -763,7 +755,7 @@
      "src": "ch14_ac2d/m/mg_msffn_rba_keep"
     },
     {
-     "label": "Exact IC + periodic + causal schedule",
+     "label": "Exact IC + periodic + causal",
      "l2": [
       [
        0.0,
@@ -789,7 +781,7 @@
      "src": "cp_broad/m/mg_wd_ex_causal_sched"
     },
     {
-     "label": "Exact IC + periodic + RBA (keep)",
+     "label": "Exact IC + periodic + RBA",
      "l2": [
       [
        0.0,
@@ -819,12 +811,10 @@
   },
   {
    "file": "ac2d_wz.png",
-   "title": "2D Allen-Cahn (Wight & Zhao)",
    "xlabel": "$t$",
-   "subtitle": "shrinking circle, $t$ up to 10",
    "runs": [
     {
-     "label": "Plain PINN, whole interval",
+     "label": "Plain PINN",
      "l2": [
       [
        0.0,
@@ -847,7 +837,7 @@
      "src": "ch14_ac2d/m/wz_plain"
     },
     {
-     "label": "Whole, + MsFFN + RBA",
+     "label": "MsFFN + RBA",
      "l2": [
       [
        0.0,
@@ -869,7 +859,7 @@
      "src": "ch14_ac2d/m/wz_msffn_rba_keep"
     },
     {
-     "label": "Whole, exact IC + periodic + RBA",
+     "label": "Exact IC + periodic + RBA",
      "l2": [
       [
        0.0,
@@ -891,7 +881,7 @@
      "src": "ch14_ac2d/m/wz_rba_keep_per_hard"
     },
     {
-     "label": "Whole, + RBA (plain L-BFGS)",
+     "label": "RBA, unweighted L-BFGS",
      "l2": [
       [
        0.0,
@@ -962,8 +952,6 @@
   },
   {
    "file": "kg.png",
-   "title": "Klein-Gordon (DeepXDE example)",
-   "subtitle": "$t$ up to 10",
    "runs": [
     {
      "label": "Plain PINN",
@@ -993,7 +981,7 @@
      "src": "ch12_broad2/m/kg_base"
     },
     {
-     "label": "+ RBA (keep)",
+     "label": "+ RBA",
      "l2": [
       [
        0.0,
@@ -1019,7 +1007,7 @@
      "src": "ch12_broad2/m/kg_rba"
     },
     {
-     "label": "+ causal, $\\varepsilon$ schedule",
+     "label": "+ causal",
      "l2": [
       [
        0.0,
@@ -1045,7 +1033,7 @@
      "src": "cp_broad/m/kg_causal_sched"
     },
     {
-     "label": "+ SA-PINN (paper, keep)",
+     "label": "+ SA-PINN",
      "l2": [
       [
        0.0,
@@ -1071,7 +1059,7 @@
      "src": "cp_broad/m/kg_sa_paper"
     },
     {
-     "label": "+ SA-PINN, mean-1 (keep)",
+     "label": "+ SA-PINN, normalized weights",
      "l2": [
       [
        0.0,
@@ -1097,7 +1085,7 @@
      "src": "ch12_broad2/m/kg_sa"
     },
     {
-     "label": "+ RBA (plain L-BFGS)",
+     "label": "+ RBA, unweighted L-BFGS",
      "l2": [
       [
        0.0,
@@ -1149,7 +1137,7 @@
      "src": "ch12_broad2/m/kg_msffn"
     },
     {
-     "label": "+ causal schedule + MsFFN",
+     "label": "+ causal + MsFFN",
      "l2": [
       [
        0.0,
@@ -1179,8 +1167,6 @@
   },
   {
    "file": "burgers.png",
-   "title": "1D Burgers (Raissi et al.)",
-   "subtitle": "a problem the plain PINN already solves well",
    "runs": [
     {
      "label": "Plain PINN",
@@ -1211,7 +1197,7 @@
      "src": "ch10_broad/m/Burgers_base"
     },
     {
-     "label": "+ RBA (keep)",
+     "label": "+ RBA",
      "l2": [
       [
        0.0,
@@ -1237,7 +1223,7 @@
      "src": "ch10_broad/m/Burgers_rba"
     },
     {
-     "label": "+ SA-PINN, mean-1 (keep)",
+     "label": "+ SA-PINN, normalized weights",
      "l2": [
       [
        0.0,
@@ -1263,7 +1249,7 @@
      "src": "ch10_broad/m/Burgers_sa"
     },
     {
-     "label": "+ SA-PINN (paper, keep)",
+     "label": "+ SA-PINN",
      "l2": [
       [
        0.0,
@@ -1315,7 +1301,7 @@
      "src": "ch12_broad2/m/bu_msffn"
     },
     {
-     "label": "+ SA-PINN (plain L-BFGS)",
+     "label": "+ SA-PINN, normalized, unweighted L-BFGS",
      "l2": [
       [
        0.0,
@@ -1341,7 +1327,7 @@
      "src": "ch11_more/m/bu_sa_lbplain"
     },
     {
-     "label": "+ causal, $\\varepsilon$ schedule",
+     "label": "+ causal",
      "l2": [
       [
        0.0,
@@ -1367,7 +1353,7 @@
      "src": "cp_broad/m/burgers_causal_sched"
     },
     {
-     "label": "+ RBA (plain L-BFGS)",
+     "label": "+ RBA, unweighted L-BFGS",
      "l2": [
       [
        0.0,
@@ -1397,8 +1383,6 @@
   },
   {
    "file": "ch1d_mg.png",
-   "title": "1D Cahn-Hilliard (Mattey & Ghosh), $u$",
-   "subtitle": "whole-domain lines have exact IC + periodicity; time-adaptive lines use 19 windows, IC as a loss term",
    "runs": [
     {
      "label": "Whole domain, plain",
@@ -1432,7 +1416,7 @@
      "src": "cs_mattey_a/m/m1_plain"
     },
     {
-     "label": "Whole domain + RBA (keep)",
+     "label": "Whole domain + RBA",
      "l2": [
       [
        0.0,
@@ -1462,7 +1446,7 @@
      "src": "cs_mattey_a/m/m1_rba"
     },
     {
-     "label": "Whole domain + SA-PINN (keep)",
+     "label": "Whole domain + SA-PINN",
      "l2": [
       [
        0.0,
@@ -1522,7 +1506,7 @@
      "src": "cs_mattey_a/m/m1_causal_msffn"
     },
     {
-     "label": "Time-adaptive + SA-PINN (keep)",
+     "label": "Time-adaptive + SA-PINN",
      "l2": [
       [
        0.0,
@@ -1552,7 +1536,7 @@
      "src": "cu_mattey_b2/m/m1_ta19_sa"
     },
     {
-     "label": "Time-adaptive, plain",
+     "label": "Time-adaptive",
      "l2": [
       [
        0.0,
@@ -1587,8 +1571,6 @@
   },
   {
    "file": "ch2d_mg.png",
-   "title": "2D Cahn-Hilliard (Mattey & Ghosh), $u$",
-   "subtitle": "all with exact IC + periodicity, whole domain",
    "xlabel": "$t' = t/0.005$",
    "runs": [
     {
@@ -1623,7 +1605,7 @@
      "src": "cu_mattey_b2/m/m2_plain"
     },
     {
-     "label": "+ RBA (keep)",
+     "label": "+ RBA",
      "l2": [
       [
        0.0,
@@ -1653,7 +1635,7 @@
      "src": "cu_mattey_b2/m/m2_rba"
     },
     {
-     "label": "+ causal, $\\varepsilon$ schedule",
+     "label": "+ causal",
      "l2": [
       [
        0.0,
@@ -1683,7 +1665,7 @@
      "src": "cu_mattey_b2/m/m2_causal"
     },
     {
-     "label": "+ SA-PINN as in the paper (keep)",
+     "label": "+ SA-PINN",
      "l2": [
       [
        0.0,
