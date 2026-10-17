@@ -912,6 +912,8 @@ $$\Large \frac{\partial u}{\partial t} = 0.001\frac{\partial^2 u}{\partial x^2} 
 
 **Result (RTX 4090):** $L_2$ = 9.5 × 10⁻⁸ ($t = 0$), 1.9 × 10⁻³ ($t = 0.25$), 5.2 × 10⁻³ ($t = 0.5$), 1.3 × 10⁻² ($t = 0.75$), 2.9 × 10⁻² ($t = 1$)
 
+**Note — a more accurate 1D Allen-Cahn.** These are DeepXDE's own settings: a small network trained on the whole time interval, so the error grows to about 3% by $t = 1$. For a better-resolved 1D Allen-Cahn, see [*Allen-Cahn 1D – Wight & Zhao*](#1d-allen-cahn). It is the same equation and initial condition with a sharper interface (diffusion $10^{-4}$ instead of $10^{-3}$) and periodic boundaries. It reaches 0.48% at $t = 1$ with time-adaptive training (the template) and 0.13% on the whole interval with exact periodicity, an exact initial condition, causal training and an MsFFN network. The [training methods study](benchmarks/training_methods.md#1d-allen-cahn-wight--zhao) compares all of its setups.
+
 *u — PINN solution over time*
 
 ![Allen-Cahn 1D — PINN solution over time (u)](assets/Images/DeepXDE/Allen_Cahn_equation/animation.gif)
