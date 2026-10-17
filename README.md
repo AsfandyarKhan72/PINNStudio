@@ -116,7 +116,7 @@ curl -LsSf https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/get
 powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/get-pinnstudio.ps1 | iex"
 ```
 
-Then open PINNStudio from its icon, or run `pinnstudio` in a new terminal. It takes a few minutes and several GB of disk space with an NVIDIA GPU (mostly PyTorch's CUDA libraries; much less without one); at the end the installer says whether training will run on the GPU.
+The install takes a few minutes, and at the end it says whether training will run on the GPU. Then open PINNStudio from its icon <img src="pinnstudio/resources/pinnstudio.png" alt="PINNStudio icon" height="20"> in the Start menu, Applications or the app menu, or run `pinnstudio` in a new terminal.
 
 <details>
 <summary><strong>Updating, uninstalling, and what gets installed</strong></summary>
@@ -236,7 +236,7 @@ There is no need to reinstall or recreate the virtual environment.
 
 Your first result takes about a minute:
 
-1. Open PINNStudio from its icon, or run `pinnstudio` in a terminal (`./venv/bin/pinnstudio` for a source install). It opens on the **Start** tab.
+1. Open PINNStudio from its icon <img src="pinnstudio/resources/pinnstudio.png" alt="PINNStudio icon" height="20">, or run `pinnstudio` in a terminal (`./venv/bin/pinnstudio` for a source install). It opens on the **Start** tab.
 2. Under **Examples** on the Start tab, click **Heat 1D – Dirichlet** (or pick it from the **Examples** list in the toolbar). Every setting — equation, domain, conditions, network, training — fills in, and the model tree on the left shows each part of the problem.
 3. Press **Solve** (or Ctrl+Enter). The loss is plotted as it trains (*Results → Live loss*), and the status bar shows the phase, the progress and the time left.
 4. When the run finishes, the loss curve and the solution appear under *Results → Overview*, and *Results → Error analysis* lists the relative $L_2$ error against the exact solution at each reference time, with the comparison plots.

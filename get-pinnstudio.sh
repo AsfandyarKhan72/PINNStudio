@@ -38,7 +38,7 @@ else
 fi
 
 say ""
-say "Installing PINNStudio and the PyTorch build for this computer (a few minutes; several GB with an NVIDIA GPU)..."
+say "Installing PINNStudio and the PyTorch build for this computer (this takes a few minutes)..."
 uv tool install --upgrade --python 3.12 --torch-backend auto "$PKG"
 
 uv tool update-shell >/dev/null 2>&1 || true
