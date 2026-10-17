@@ -83,10 +83,10 @@ def _mac_create():
     os.makedirs(res)
     shutil.copy(os.path.join(RES, "pinnstudio.icns"), os.path.join(res, "pinnstudio.icns"))
     exe = os.path.join(macos, NAME)
-    with open(exe, "w") as f:
+    with open(exe, "w", encoding="utf-8") as f:
         f.write('#!/bin/sh\ncd "$HOME"\nexec "%s" -m pinnstudio "$@"\n' % sys.executable)
     os.chmod(exe, os.stat(exe).st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
-    with open(os.path.join(app, "Contents", "Info.plist"), "w") as f:
+    with open(os.path.join(app, "Contents", "Info.plist"), "w", encoding="utf-8") as f:
         f.write(f"""<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -132,7 +132,7 @@ def _linux_create():
     )
     made = []
     for path in filter(None, (entry, _linux_desktop_copy())):
-        with open(path, "w") as f:
+        with open(path, "w", encoding="utf-8") as f:
             f.write(text)
         os.chmod(path, 0o755)
         made.append(path)

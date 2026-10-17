@@ -11518,7 +11518,7 @@ def _style_legend(ax):
             "xyz = pts[:, :3]\n"
             "bnd = geom.on_boundary(xyz)\n"
             f"np.savez({out!r}, domain=xyz[~bnd], boundary=xyz[bnd])\n")
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as tf:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False, encoding="utf-8") as tf:
             tf.write(script)
             tmp = tf.name
         from PyQt6.QtCore import pyqtSignal as _sig
@@ -11536,7 +11536,7 @@ def _style_legend(ax):
                 import subprocess, sys
                 try:
                     self.process = subprocess.Popen([_pyexe.script_python(), self._path], creationflags=_pyexe.NO_WINDOW, stdout=subprocess.PIPE,
-                                                    stderr=subprocess.STDOUT, text=True)
+                                                    stderr=subprocess.STDOUT, env=_pyexe.script_env(), **_pyexe.TEXT_UTF8)
                     out_, _ = self.process.communicate(timeout=300)
                     ok = self.process.returncode == 0
                     self.done_sig.emit(ok, ((out_ or "").strip().splitlines() or [""])[-1])
@@ -11665,7 +11665,7 @@ def _style_legend(ax):
             else:
                 script = self._build_3d_preview_script(
                     geom_type, t_min, t_max, n_domain, n_boundary, n_initial, dist)
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as tf:
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False, encoding="utf-8") as tf:
                 tf.write(script)
                 tmp = tf.name
             self._launch_preview_thread(tmp)
@@ -11863,7 +11863,7 @@ plt.savefig({time_path!r}, dpi={_DOMAIN_PREVIEW_DPI}, bbox_inches='tight')
 plt.close(fig)
 print("DOMAIN_PREVIEW_DONE")
 """
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as tf:
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False, encoding="utf-8") as tf:
             tf.write(script)
             tmp = tf.name
         self._launch_preview_thread(tmp)
@@ -11907,7 +11907,7 @@ print("DOMAIN_PREVIEW_DONE")
             def run(self):
                 import subprocess, sys
                 proc = subprocess.Popen([_pyexe.script_python(), self._tmp], creationflags=_pyexe.NO_WINDOW,
-                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=_pyexe.script_env(), **_pyexe.TEXT_UTF8)
                 self.process = proc
                 for line in proc.stdout:
                     self.log_sig.emit(line.rstrip())
@@ -12602,7 +12602,7 @@ print("DOMAIN_PREVIEW_DONE")
         exclusion existed."""
         import json
         try:
-            with open(self.restore_config_path.text().strip()) as f:
+            with open(self.restore_config_path.text().strip(), encoding="utf-8", errors="replace") as f:
                 _restore_cfg_probe = json.load(f)
             is_steady = bool(_restore_cfg_probe.get("steady_state", False))
             is_1d = _restore_cfg_probe.get("problem_dim") == "1D"
@@ -12698,7 +12698,7 @@ print("DOMAIN_PREVIEW_DONE")
         _restore_is_steady = False
         try:
             import json as _json_dim
-            with open(self.restore_config_path.text().strip()) as _df:
+            with open(self.restore_config_path.text().strip(), encoding="utf-8", errors="replace") as _df:
                 _restore_cfg_dim = _json_dim.load(_df)
             _restore_dim = _restore_cfg_dim.get("problem_dim", "1D")
             _restore_y_min = _restore_cfg_dim.get("y_min", 0.0); _restore_y_max = _restore_cfg_dim.get("y_max", 1.0)
@@ -15057,7 +15057,7 @@ print("DOMAIN_PREVIEW_DONE")
                     for cf in conv_files:
                         name = ""
                         try:
-                            with open(cf) as _cf:
+                            with open(cf, encoding="utf-8", errors="replace") as _cf:
                                 header = _cf.readline().strip().split(",")
                             if len(header) >= 2 and header[1].strip():
                                 name = header[1].strip()
@@ -15076,7 +15076,7 @@ print("DOMAIN_PREVIEW_DONE")
                     # exactly as if the user had left it blank themselves.
                     true_by_name = {}
                     try:
-                        with open(self.restore_config_path.text().strip()) as _mcf:
+                        with open(self.restore_config_path.text().strip(), encoding="utf-8", errors="replace") as _mcf:
                             _mc = _json_brm.load(_mcf)
                         for _iv in _mc.get("inverse_variables", []) or []:
                             if isinstance(_iv, dict) and _iv.get("name") and _iv.get("true") is not None:
@@ -15123,7 +15123,7 @@ print("DOMAIN_PREVIEW_DONE")
         _refresh_restore_output_combo."""
         import json
         try:
-            with open(self.restore_config_path.text().strip()) as f:
+            with open(self.restore_config_path.text().strip(), encoding="utf-8", errors="replace") as f:
                 cfg = json.load(f)
         except Exception:
             return
@@ -15154,7 +15154,7 @@ print("DOMAIN_PREVIEW_DONE")
         yet -- e.g. no file picked, or Browse cancelled."""
         import json
         try:
-            with open(self.restore_config_path.text().strip()) as f:
+            with open(self.restore_config_path.text().strip(), encoding="utf-8", errors="replace") as f:
                 cfg = json.load(f)
         except Exception:
             return
@@ -15202,7 +15202,7 @@ print("DOMAIN_PREVIEW_DONE")
 
         fallback_cfg = {}
         try:
-            with open(self.restore_config_path.text().strip()) as f:
+            with open(self.restore_config_path.text().strip(), encoding="utf-8", errors="replace") as f:
                 fallback_cfg = json.load(f)
         except Exception:
             pass
@@ -15211,7 +15211,7 @@ print("DOMAIN_PREVIEW_DONE")
         for d in candidate_dirs:
             cfg_path = os.path.join(d, "step_config.json")
             try:
-                with open(cfg_path) as f:
+                with open(cfg_path, encoding="utf-8", errors="replace") as f:
                     cfg = json.load(f)
             except Exception:
                 parts = os.path.basename(d).split("_")
@@ -15392,7 +15392,7 @@ print("DOMAIN_PREVIEW_DONE")
             self.solution_label._source_path = None
             script = self._build_restore_param_script(paths, save_dir, combine, log_scale, animate, true_vals)
 
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as tf:
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False, encoding="utf-8") as tf:
                 tf.write(script)
                 tmp = tf.name
 
@@ -15409,7 +15409,7 @@ print("DOMAIN_PREVIEW_DONE")
                 def run(self):
                     proc = subprocess.Popen(
                         [_pyexe.script_python(), self._tmp], creationflags=_pyexe.NO_WINDOW,
-                        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
+                        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=_pyexe.script_env(), **_pyexe.TEXT_UTF8
                     )
                     self.process = proc
                     for line in proc.stdout:
@@ -15484,7 +15484,7 @@ print("DOMAIN_PREVIEW_DONE")
             self._last_restore_model_dirs = [_model_dir]
 
         try:
-            with open(config_path, "r") as f:
+            with open(config_path, "r", encoding="utf-8", errors="replace") as f:
                 cfg = json.load(f)
         except Exception as e:
             self.log_box.append(f"❌ Could not read config: {e}"); return
@@ -15589,7 +15589,7 @@ print("DOMAIN_PREVIEW_DONE")
                 t_min_restore = cfg.get('t_min', 0.0)
                 t_max_restore = cfg.get('t_max', 1.0)
                 try:
-                    with open(step_cfg_path) as _sf:
+                    with open(step_cfg_path, encoding="utf-8", errors="replace") as _sf:
                         _sc = _json_ea.load(_sf)
                     t_min_restore = _sc.get('t_min', t_min_restore)
                     t_max_restore = _sc.get('t_max', t_max_restore)
@@ -15713,7 +15713,7 @@ print("DOMAIN_PREVIEW_DONE")
                 except OSError:
                     pass
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as tf:
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False, encoding="utf-8") as tf:
             tf.write(script)
             tmp = tf.name
 
@@ -15730,7 +15730,7 @@ print("DOMAIN_PREVIEW_DONE")
             def run(self):
                 proc = subprocess.Popen(
                     [_pyexe.script_python(), self._tmp], creationflags=_pyexe.NO_WINDOW,
-                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
+                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=_pyexe.script_env(), **_pyexe.TEXT_UTF8
                 )
                 self.process = proc
                 for line in proc.stdout:
@@ -15928,7 +15928,7 @@ _ylabel_override = {ylabel_override!r}
 def _load_conv(path):
     name = None
     iters, vals = [], []
-    with open(path) as f:
+    with open(path, encoding="utf-8", errors="replace") as f:
         header = f.readline().strip().split(",")
         if len(header) >= 2 and header[0].strip().lower() == "iteration":
             name = header[1].strip()
@@ -16998,7 +16998,7 @@ for _i, _tv in enumerate(_ea_times):
     _ea_metrics.append((_tv, _l2, _mse, _mx, _ma))
     print(f"  t={{_tv:.4f}} — {_ea_print_frag}")
 
-with open(os.path.join(_ea_dir, "error_metrics_restore.txt"), "w") as _mf:
+with open(os.path.join(_ea_dir, "error_metrics_restore.txt"), "w", encoding="utf-8") as _mf:
     _mf.write("{_ea_csv_header}\\n")
     for _tv, _l2, _mse, _mx, _ma in _ea_metrics:
         _mf.write(f"{_ea_csv_row}\\n")

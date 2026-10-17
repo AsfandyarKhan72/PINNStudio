@@ -268,7 +268,7 @@ class BayesRuns:
         """bayes_search.csv (every run, its objective and the best so far)
         and bayes_convergence.png (best objective vs run)."""
         try:
-            with open(os.path.join(sweep_root, "bayes_search.csv"), "w", newline="") as f:
+            with open(os.path.join(sweep_root, "bayes_search.csv"), "w", newline="", encoding="utf-8") as f:
                 w = csv.writer(f)
                 w.writerow(["Run"] + [p.label for p in self.params] + [self._objective_label(), "Best so far"])
                 best = float("inf")
@@ -382,7 +382,7 @@ def _read_run_metrics(cfg, not_before):
     cols, times = {}, set()
     for path in files:
         try:
-            with open(path) as f:
+            with open(path, encoding="utf-8", errors="replace") as f:
                 lines = [ln.strip() for ln in f if ln.strip()]
         except OSError:
             continue
@@ -556,7 +556,7 @@ def run_sweep(base_config, on_run_start=None, on_output=None, on_run_done=None,
 
 def _write_sweep_manifest(sweep_root, manifest):
     try:
-        with open(os.path.join(sweep_root, "sweep_manifest.json"), "w") as f:
+        with open(os.path.join(sweep_root, "sweep_manifest.json"), "w", encoding="utf-8") as f:
             json.dump(manifest, f, indent=2)
     except OSError:
         pass  # best-effort -- a sweep's real results/models are already
@@ -581,7 +581,7 @@ def _write_sweep_summary_csv(sweep_root, results):
     if not metrics:
         metrics = [("L2_relative", "L2 relative error")]
     try:
-        with open(os.path.join(sweep_root, "sweep_summary.csv"), "w", newline="") as f:
+        with open(os.path.join(sweep_root, "sweep_summary.csv"), "w", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
             writer.writerow(["Run"] + params + ["Status", "Final loss"] + [n for _k, n in metrics] + ["Folder"])
             for label, result in results:
