@@ -163,7 +163,7 @@ def run():
 
         script = generate_script(cfg)
         sp = os.path.join(tmpdir, "gui_rar_steady_script.py")
-        with open(sp, "w") as f:
+        with open(sp, "w", encoding="utf-8") as f:
             f.write(script)
         proc = subprocess.run([sys.executable, sp], cwd=tmpdir, capture_output=True, text=True, timeout=120)
         check(proc.returncode == 0,

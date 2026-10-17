@@ -66,7 +66,7 @@ def run():
         win = MainWindow()
         with tempfile.TemporaryDirectory() as td:
             cp = os.path.join(td, "cfg.json")
-            with open(cp, "w") as f:
+            with open(cp, "w", encoding="utf-8") as f:
                 json.dump({"problem_dim": "2D", "steady_state": False}, f)
             win.restore_config_path.setText(cp)
             win.radio_2d.setChecked(True)

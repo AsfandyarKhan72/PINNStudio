@@ -29,7 +29,7 @@ SCRIPT = textwrap.dedent("""
     QTimer.singleShot(0, boom)
     QTimer.singleShot(200, app.quit)
     app.exec()
-    open(os.path.join(os.environ["HOME"], "survived"), "w").close()
+    open(os.path.join(os.environ["HOME"], "survived"), "w", encoding="utf-8").close()
 """)
 
 

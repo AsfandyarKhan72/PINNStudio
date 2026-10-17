@@ -68,7 +68,7 @@ from pinnstudio.core.codegen import generate_script
 
 def _run_script(script, tmpdir, tag):
     sp = os.path.join(tmpdir, f"{tag}_script.py")
-    with open(sp, "w") as f:
+    with open(sp, "w", encoding="utf-8") as f:
         f.write(script)
     proc = subprocess.run(
         [sys.executable, sp], cwd=tmpdir, capture_output=True, text=True, timeout=600,
@@ -140,7 +140,7 @@ def run():
         diag_path = os.path.join(tmpdir, "ta_loss_diag.json")
         diag = (
             "\nimport json as _json_diag\n"
-            "with open(" + repr(diag_path) + ", 'w') as _f_diag:\n"
+            "with open(" + repr(diag_path) + ", 'w', encoding='utf-8') as _f_diag:\n"
             "    _json_diag.dump({\n"
             "        'all_steps': _ta_all_steps,\n"
             "        'boundaries': _ta_step_boundaries,\n"
@@ -159,7 +159,7 @@ def run():
         diag_data = None
         if os.path.exists(diag_path) and os.path.getsize(diag_path) > 0:
             try:
-                with open(diag_path) as f:
+                with open(diag_path, encoding="utf-8", errors="replace") as f:
                     diag_data = json.load(f)
             except Exception as e:
                 check(False, f"diagnostic side-channel file should be valid JSON, got {type(e).__name__}: {e}")

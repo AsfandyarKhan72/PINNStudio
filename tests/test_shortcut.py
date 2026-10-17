@@ -64,7 +64,7 @@ def test_windows(monkeypatch, tmp_path):
         else:
             scripts.append(script)
             lnk = script.split("CreateShortcut('")[1].split("')")[0]
-            open(lnk, "w").close()
+            open(lnk, "w", encoding="utf-8").close()
         return r
 
     monkeypatch.setattr(shortcut, "_ps", fake_ps)

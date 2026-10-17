@@ -110,7 +110,7 @@ def run():
         for gen in (generate_script, generate_clean_script):
             d = os.path.join(tmp, "f1" + gen.__name__)
             os.makedirs(d)
-            with open(os.path.join(d, "run.py"), "w") as fh:
+            with open(os.path.join(d, "run.py"), "w", encoding="utf-8") as fh:
                 fh.write(gen(_short(NAMES[0], d, 3000)))
             p = subprocess.run([sys.executable, "run.py"], cwd=d, capture_output=True, text=True, timeout=900)
             check(p.returncode == 0, f"1D {gen.__name__} ran:\n{p.stderr[-1500:]}")
@@ -119,7 +119,7 @@ def run():
               f"fractional Poisson 1D trains, live and export agree {res}")
         d = os.path.join(tmp, "inv")
         os.makedirs(d)
-        with open(os.path.join(d, "run.py"), "w") as fh:
+        with open(os.path.join(d, "run.py"), "w", encoding="utf-8") as fh:
             fh.write(generate_script(_short(NAMES[4], d, 600)))
         p = subprocess.run([sys.executable, "run.py"], cwd=d, capture_output=True, text=True, timeout=900)
         check(p.returncode == 0, f"inverse 1D ran:\n{p.stderr[-1500:]}")

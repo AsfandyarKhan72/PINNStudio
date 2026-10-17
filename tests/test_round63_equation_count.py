@@ -136,7 +136,7 @@ def run():
             for gen in (generate_script, generate_clean_script):
                 d = os.path.join(tmp, f"{tag}_{gen.__name__}")
                 os.makedirs(d)
-                with open(os.path.join(d, "run.py"), "w") as f:
+                with open(os.path.join(d, "run.py"), "w", encoding="utf-8") as f:
                     f.write(gen(make(d)))
                 p = subprocess.run([sys.executable, "run.py"], cwd=d, capture_output=True, text=True, timeout=600)
                 check(p.returncode == 0, f"{tag} via {gen.__name__} failed:\n{p.stdout[-600:]}\n{p.stderr[-1200:]}")

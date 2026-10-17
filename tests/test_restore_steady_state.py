@@ -140,7 +140,7 @@ def _run_script(script, tmpdir, tag):
     RuntimeError this fix addresses -- fails the test the same way it
     failed for the user, instead of being silently swallowed)."""
     sp = os.path.join(tmpdir, f"{tag}_script.py")
-    with open(sp, "w") as f:
+    with open(sp, "w", encoding="utf-8") as f:
         f.write(script)
     proc = subprocess.run(
         [sys.executable, sp], cwd=tmpdir, capture_output=True, text=True, timeout=120,
@@ -163,10 +163,10 @@ def run():
         # and blocking under headless/offscreen test runs with no one to close it.
 
         steady_cfg_path = os.path.join(tmpdir, "steady_cfg.json")
-        with open(steady_cfg_path, "w") as f:
+        with open(steady_cfg_path, "w", encoding="utf-8") as f:
             json.dump({"steady_state": True, "num_outputs": 1, "output_names": "u"}, f)
         trans_cfg_path = os.path.join(tmpdir, "trans_cfg.json")
-        with open(trans_cfg_path, "w") as f:
+        with open(trans_cfg_path, "w", encoding="utf-8") as f:
             json.dump({"steady_state": False, "num_outputs": 1, "output_names": "u"}, f)
 
         win.restore_config_path.setText(steady_cfg_path)
@@ -317,7 +317,7 @@ def run():
 
         train_script = generate_script(config)
         sp = os.path.join(tmpdir, "train_script.py")
-        with open(sp, "w") as f:
+        with open(sp, "w", encoding="utf-8") as f:
             f.write(train_script)
         proc = subprocess.run([sys.executable, sp], cwd=tmpdir, capture_output=True, text=True, timeout=180)
         check(proc.returncode == 0,
@@ -326,7 +326,7 @@ def run():
         mc_path = os.path.join(run_dir, "solution_results", "model_config.json")
         check(os.path.exists(mc_path), f"real training run should write {mc_path}")
         if os.path.exists(mc_path):
-            with open(mc_path) as f:
+            with open(mc_path, encoding="utf-8", errors="replace") as f:
                 saved_cfg = json.load(f)
             check(saved_cfg.get("steady_state") is True,
                   f"model_config.json written by a real steady-state training run should have "

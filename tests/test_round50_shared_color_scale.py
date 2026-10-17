@@ -132,7 +132,7 @@ def run():
         script = generate_clean_script(_ea_2d_disk_cfg(save_dir, ref_path))
         mask_path = os.path.join(tmpdir, "mask.npy")
         sp = os.path.join(tmpdir, "export.py")
-        with open(sp, "w") as f:
+        with open(sp, "w", encoding="utf-8") as f:
             f.write(script + f"\nnp.save({mask_path!r}, inside_ea)\n")
         proc = subprocess.run([sys.executable, sp], cwd=tmpdir, capture_output=True, text=True, timeout=300)
         check(proc.returncode == 0, f"export with 2D Error Analysis should run cleanly, got {proc.returncode}:\n"

@@ -109,7 +109,7 @@ def run():
         for gen in (generate_script, generate_clean_script):
             d = os.path.join(tmp, gen.__name__)
             os.makedirs(d)
-            with open(os.path.join(d, "run.py"), "w") as fh:
+            with open(os.path.join(d, "run.py"), "w", encoding="utf-8") as fh:
                 fh.write(gen(_cfg(d)))
             p = subprocess.run([sys.executable, "run.py"], cwd=d, capture_output=True, text=True, timeout=600)
             check(p.returncode == 0, f"{gen.__name__} ran:\n{p.stderr[-1500:]}")
@@ -122,7 +122,7 @@ def run():
                  pde_expressions="du_t - 0.1*du_xx", ic_expressions="sin(pi*x)", num_initial=20, iterations=200,
                  layers=[2, 16, 16, 1], ea_ref_formula="exp(-0.1*pi**2*t)*sin(pi*x)")
         c.ic_expression = c.ic_expressions
-        with open(os.path.join(d, "run.py"), "w") as fh:
+        with open(os.path.join(d, "run.py"), "w", encoding="utf-8") as fh:
             fh.write(generate_script(c))
         p = subprocess.run([sys.executable, "run.py"], cwd=d, capture_output=True, text=True, timeout=600)
         check(p.returncode == 0, f"STMsFFN runs:\n{p.stderr[-1500:]}")

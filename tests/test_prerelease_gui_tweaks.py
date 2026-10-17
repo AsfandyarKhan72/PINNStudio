@@ -160,7 +160,7 @@ def main():
     import tempfile
 
     def _viz_items_for_config(cfg_dict):
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as f:
             json.dump(cfg_dict, f)
             path = f.name
         try:

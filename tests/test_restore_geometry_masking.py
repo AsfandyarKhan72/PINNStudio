@@ -163,7 +163,7 @@ def _train_and_save_model(tmpdir, dde_geom, is_3d, is_2d, steady, layers, tag):
 
 def _run_script(script, tmpdir, tag):
     sp = os.path.join(tmpdir, f"{tag}_script.py")
-    with open(sp, "w") as f:
+    with open(sp, "w", encoding="utf-8") as f:
         f.write(script)
     proc = subprocess.run(
         [sys.executable, sp], cwd=tmpdir, capture_output=True, text=True, timeout=120,
@@ -314,7 +314,7 @@ def run():
 
         train_script = generate_script(config)
         sp = os.path.join(tmpdir, "train_script.py")
-        with open(sp, "w") as f:
+        with open(sp, "w", encoding="utf-8") as f:
             f.write(train_script)
         proc = subprocess.run([sys.executable, sp], cwd=tmpdir, capture_output=True, text=True, timeout=180)
         check(proc.returncode == 0,
@@ -323,7 +323,7 @@ def run():
 
         mc_path = os.path.join(tmpdir, "solution_results", "model_config.json")
         if os.path.exists(mc_path):
-            with open(mc_path) as f:
+            with open(mc_path, encoding="utf-8", errors="replace") as f:
                 saved_cfg = json.load(f)
             check(saved_cfg.get("geometry_type") == "Custom",
                   f"model_config.json from a real Custom-geometry run should save "

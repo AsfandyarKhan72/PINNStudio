@@ -8,7 +8,7 @@ def esc(s):
     return s.replace("%", "%25").replace("\r", "").replace("\n", "%0A")
 
 
-def main(path):
+def main(path, label=""):
     try:
         root = ET.parse(path).getroot()
     except (OSError, ET.ParseError) as e:
@@ -21,11 +21,11 @@ def main(path):
             if el is None:
                 continue
             n += 1
-            name = f"{case.get('classname', '')}::{case.get('name', '')}"
+            name = f"{label + ': ' if label else ''}{case.get('classname', '')}::{case.get('name', '')}"
             text = ((el.get("message") or "") + "\n" + (el.text or ""))[-3500:]
             print(f"::error title={esc(name)}::{esc(text)}")
     print(f"{n} failing tests")
 
 
 if __name__ == "__main__":
-    main(sys.argv[1])
+    main(sys.argv[1], sys.argv[2] if len(sys.argv) > 2 else "")

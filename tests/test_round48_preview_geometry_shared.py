@@ -57,7 +57,7 @@ def run():
 
     win = MainWindow()
     captured = []
-    win._launch_preview_thread = lambda tmp: (captured.append(open(tmp).read()), os.unlink(tmp))
+    win._launch_preview_thread = lambda tmp: (captured.append(open(tmp, encoding="utf-8", errors="replace").read()), os.unlink(tmp))
 
     # _clean_geom_line is still exactly "geom = " + _clean_geom_inner (+ wrapper).
     ns = types.SimpleNamespace(geometry_type="Disk", geom_center_x=0.2, geom_center_y=0.3, geom_radius=0.7,
@@ -125,7 +125,7 @@ def run():
             continue
         with tempfile.TemporaryDirectory() as tmpdir:
             sp = os.path.join(tmpdir, f"preview_{tag}.py")
-            with open(sp, "w") as f:
+            with open(sp, "w", encoding="utf-8") as f:
                 f.write(script)
             proc = subprocess.run([sys.executable, sp], cwd=tmpdir, capture_output=True, text=True, timeout=240)
             check(proc.returncode == 0 and "DOMAIN_PREVIEW_DONE" in proc.stdout,

@@ -37,7 +37,7 @@ from pinnstudio.core.codegen import generate_script, generate_clean_script
 
 def _run_script(script, tmpdir, tag, timeout_s=150):
     sp = os.path.join(tmpdir, f"{tag}_script.py")
-    with open(sp, "w") as f:
+    with open(sp, "w", encoding="utf-8") as f:
         f.write(script)
     return subprocess.run(
         [sys.executable, sp], cwd=tmpdir, capture_output=True, text=True, timeout=timeout_s,

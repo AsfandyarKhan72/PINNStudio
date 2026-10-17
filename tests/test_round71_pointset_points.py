@@ -115,7 +115,7 @@ def run():
             for gen in (generate_script, generate_clean_script):
                 dd = os.path.join(tmp, tag + gen.__name__)
                 os.makedirs(dd)
-                with open(os.path.join(dd, "run.py"), "w") as fh:
+                with open(os.path.join(dd, "run.py"), "w", encoding="utf-8") as fh:
                     fh.write(gen(_cfg(rows, dd)))
                 p = subprocess.run([sys.executable, "run.py"], cwd=dd, capture_output=True, text=True, timeout=600)
                 check(p.returncode == 0, f"{tag} {gen.__name__} ran:\n{p.stderr[-1500:]}")

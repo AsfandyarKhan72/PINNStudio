@@ -121,7 +121,7 @@ def test_restore_main_branch_relabels_from_loaded_model_config():
     # the cfg-based relabel, which happens just after the config.json
     # is parsed and before that script-building call.
     cfgdict = {"problem_dim": "3D", "steady_state": False, "problem_type": "Forward"}
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as f:
         json.dump(cfgdict, f)
         cfg_path = f.name
 

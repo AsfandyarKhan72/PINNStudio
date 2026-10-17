@@ -123,7 +123,7 @@ def run():
         for gen in (generate_script, generate_clean_script):
             d = os.path.join(tmp, gen.__name__)
             os.makedirs(d)
-            with open(os.path.join(d, "run.py"), "w") as fh:
+            with open(os.path.join(d, "run.py"), "w", encoding="utf-8") as fh:
                 fh.write(gen(_heat(d, 300)))
             p = subprocess.run([sys.executable, "run.py"], cwd=d, capture_output=True, text=True, timeout=600)
             check(p.returncode == 0, f"{gen.__name__} failed:\n{p.stderr[-1500:]}")
@@ -141,7 +141,7 @@ def run():
                   pde_expressions="-du_xx - du_yy - 1", ea_ref_formula="(1 - x**2 - y**2)/4", ea_ref_grid=41,
                   layers=[2, 16, 1])
         c.pde_expression = c.pde_expressions
-        with open(os.path.join(d, "run.py"), "w") as fh:
+        with open(os.path.join(d, "run.py"), "w", encoding="utf-8") as fh:
             fh.write(generate_script(c))
         p = subprocess.run([sys.executable, "run.py"], cwd=d, capture_output=True, text=True, timeout=600)
         check(p.returncode == 0, f"disk failed:\n{p.stderr[-1500:]}")

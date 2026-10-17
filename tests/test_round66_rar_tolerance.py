@@ -80,7 +80,7 @@ def run():
             for tol, stops in ((10.0, True), (0.0, False)):
                 d = os.path.join(tmp, f"{gen.__name__}_{tol}")
                 os.makedirs(d)
-                with open(os.path.join(d, "run.py"), "w") as fh:
+                with open(os.path.join(d, "run.py"), "w", encoding="utf-8") as fh:
                     fh.write(gen(_rar(d, tol)))
                 p = subprocess.run([sys.executable, "run.py"], cwd=d, capture_output=True, text=True, timeout=600)
                 check(p.returncode == 0, f"{gen.__name__} tol={tol} failed:\n{p.stderr[-1200:]}")

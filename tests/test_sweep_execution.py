@@ -266,7 +266,7 @@ def run():
             check(os.path.isfile(manifest_path), f"expected a sweep_manifest.json at {manifest_path}")
             check(os.path.isfile(csv_path), f"expected a sweep_summary.csv at {csv_path}")
             if os.path.isfile(manifest_path):
-                with open(manifest_path) as f:
+                with open(manifest_path, encoding="utf-8", errors="replace") as f:
                     manifest = _json.load(f)
                 check(manifest.get("sweep_mode") == "oat",
                       f"manifest should record the real sweep_mode, got {manifest.get('sweep_mode')}")
@@ -275,7 +275,7 @@ def run():
                     check(run_entry.get("status") == "done" and run_entry.get("final_loss") is not None,
                           f"manifest run entry should reflect the real completed result: {run_entry}")
             if os.path.isfile(csv_path):
-                with open(csv_path) as f:
+                with open(csv_path, encoding="utf-8", errors="replace") as f:
                     csv_text = f.read()
                 check(csv_text.startswith("Run,Hidden layers,Status,Final loss,L2 relative error,"),
                       f"sweep_summary.csv should have the expected header, got {csv_text.splitlines()[:1]}")

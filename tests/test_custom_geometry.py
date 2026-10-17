@@ -210,7 +210,7 @@ def run():
     win4._preview_domain()
     check('tmp' in captured, "_preview_domain() should reach script generation for a non-empty Custom geometry")
     if 'tmp' in captured:
-        preview_script = open(captured['tmp']).read()
+        preview_script = open(captured['tmp'], encoding="utf-8", errors="replace").read()
         os.unlink(captured['tmp'])
         try:
             ast.parse(preview_script)
@@ -232,7 +232,7 @@ def run():
         winN._preview_domain()
         check('tmp' in capturedN, f"{gtype} preview should still reach script generation")
         if 'tmp' in capturedN:
-            scriptN = open(capturedN['tmp']).read()
+            scriptN = open(capturedN['tmp'], encoding="utf-8", errors="replace").read()
             os.unlink(capturedN['tmp'])
             try:
                 ast.parse(scriptN)
@@ -457,7 +457,7 @@ def run():
     win9._preview_domain()
     check('tmp' in captured9, "_preview_domain() should reach script generation for a non-empty 3D Custom geometry")
     if 'tmp' in captured9:
-        preview3_script = open(captured9['tmp']).read()
+        preview3_script = open(captured9['tmp'], encoding="utf-8", errors="replace").read()
         os.unlink(captured9['tmp'])
         try:
             ast.parse(preview3_script)
@@ -482,7 +482,7 @@ def run():
         winN3._preview_domain()
         check('tmp' in capturedN3, f"{gtype} (non-Custom) 3D preview should still reach script generation")
         if 'tmp' in capturedN3:
-            scriptN3 = open(capturedN3['tmp']).read()
+            scriptN3 = open(capturedN3['tmp'], encoding="utf-8", errors="replace").read()
             os.unlink(capturedN3['tmp'])
             try:
                 ast.parse(scriptN3)

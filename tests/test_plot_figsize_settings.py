@@ -359,7 +359,7 @@ def run():
             config.save_dir = tmpdir
             script = codegen.generate_script(config)
             sp = os.path.join(tmpdir, "run_script.py")
-            with open(sp, "w") as f:
+            with open(sp, "w", encoding="utf-8") as f:
                 f.write(script)
             proc = subprocess.run([sys.executable, sp], cwd=tmpdir, capture_output=True, text=True, timeout=120)
             check(proc.returncode == 0, f"[{mode}] real run should exit 0, got {proc.returncode}. stderr tail: {proc.stderr[-1500:]}")
@@ -374,7 +374,7 @@ def run():
                 loss_png = found
             check(loss_png is not None and os.path.isfile(loss_png), f"[{mode}] loss_plot.png should exist under {tmpdir}")
             if loss_png and os.path.isfile(loss_png):
-                with Image.open(loss_png) as im:
+                with Image.open(loss_png, encoding="utf-8", errors="replace") as im:
                     got_w, got_h = im.size
                 check((got_w, got_h) == (exp_w_px, exp_h_px),
                       f"[{mode}] loss_plot.png pixel size should be {(exp_w_px, exp_h_px)} (figsize*dpi), got {(got_w, got_h)}")

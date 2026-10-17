@@ -137,7 +137,7 @@ def run():
             root = os.path.dirname(res[0][1]["save_dir"])
             check(os.path.exists(os.path.join(root, "bayes_search.csv")) and
                   os.path.exists(os.path.join(root, "bayes_convergence.png")), "search table and convergence plot written")
-            man = json.load(open(os.path.join(root, "sweep_manifest.json")))
+            man = json.load(open(os.path.join(root, "sweep_manifest.json"), encoding="utf-8", errors="replace"))
             check("bayes_best" in man, f"manifest records the best run {man.get('bayes_best')}")
     finally:
         sweep_runner.run_pinn = real
@@ -171,7 +171,7 @@ def run():
         for gen in (generate_script, generate_clean_script):
             dd = os.path.join(tmp, gen.__name__)
             os.makedirs(dd)
-            with open(os.path.join(dd, "run.py"), "w") as fh:
+            with open(os.path.join(dd, "run.py"), "w", encoding="utf-8") as fh:
                 fh.write(gen(_cfg(dd, loss_weights_from_initial=5.0)))
             p = subprocess.run([sys.executable, "run.py"], cwd=dd, capture_output=True, text=True, timeout=600)
             check(p.returncode == 0, f"{gen.__name__} ran:\n{p.stderr[-1500:]}")

@@ -71,9 +71,9 @@ def run():
     with tempfile.TemporaryDirectory() as tmp:
         dxf = os.path.join(tmp, "plate.dxf")
         svg = os.path.join(tmp, "part.svg")
-        with open(dxf, "w") as fh:
+        with open(dxf, "w", encoding="utf-8") as fh:
             fh.write(PLATE_DXF)
-        with open(svg, "w") as fh:
+        with open(svg, "w", encoding="utf-8") as fh:
             fh.write(PART_SVG)
 
         shapes, notes = import_file(dxf)

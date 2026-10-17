@@ -102,7 +102,7 @@ def run():
                       f"{tag}: 'Points from: v' should select equation 1's residual in the export")
             check("RAR per-round diagnostics" in script, f"{tag}: export should include the diagnostics block")
             sp = os.path.join(tmpdir, "export.py")
-            with open(sp, "w") as f:
+            with open(sp, "w", encoding="utf-8") as f:
                 f.write(script + "\nnp.save('final_w.npy', next(iter(model.net.state_dict().values())).detach().cpu().numpy())\n")
             proc = subprocess.run([sys.executable, sp], cwd=tmpdir, capture_output=True, text=True, timeout=300)
             check(proc.returncode == 0, f"{tag}: export should run cleanly, got {proc.returncode}:\n"

@@ -279,7 +279,7 @@ def run():
     stale_dir = "/tmp/_sweep_tab_test_stale/error_analysis"
     os.makedirs(stale_dir, exist_ok=True)
     stale_path = os.path.join(stale_dir, "error_metrics.txt")
-    with open(stale_path, "w") as f:
+    with open(stale_path, "w", encoding="utf-8") as f:
         f.write("t,L2_relative,MSE,Max_error,Mean_abs_error\n0.0,0.999,0,0,0\n")
     class _Fake:
         ea_files = "[(0.0, 'x', None)]"
@@ -291,11 +291,11 @@ def run():
     time.sleep(0.05)
     now = time.time()
     time.sleep(0.05)
-    with open(stale_path, "w") as f:
+    with open(stale_path, "w", encoding="utf-8") as f:
         f.write("t,L2_relative,MSE,Max_error,Mean_abs_error\n0.0,0.123,0,0,0\n")
     check(_read_last_l2(_Fake(), now) == 0.123,
           "a results file written after the run's own start time should be read correctly")
-    with open(stale_path, "w") as f:
+    with open(stale_path, "w", encoding="utf-8") as f:
         f.write("t,L2_relative,MSE,Max_error,Mean_abs_error\n0.0,0.1,0,0,0\n0.5,0.2,0,0,0\n1.0,0.6,0,0,0\n")
     from pinnstudio.core.sweep_runner import _read_run_metrics
     _m = _read_run_metrics(_Fake(), now)
