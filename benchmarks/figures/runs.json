@@ -113,7 +113,7 @@
      "src": "cm_paper_base/m/base_rba"
     },
     {
-     "label": "+ causal, fixed eps = 1",
+     "label": "+ causal, fixed $\\varepsilon = 1$",
      "l2": [
       [
        0.0,
@@ -139,7 +139,7 @@
      "src": "cl_paper_methods/m/causal_fixed_e1"
     },
     {
-     "label": "+ causal, eps schedule",
+     "label": "+ causal, $\\varepsilon$ schedule",
      "l2": [
       [
        0.0,
@@ -221,7 +221,7 @@
   },
   {
    "file": "ch1d.png",
-   "title": "1D Cahn-Hilliard (Wight & Zhao), u",
+   "title": "1D Cahn-Hilliard (Wight & Zhao), $u$",
    "subtitle": "all scaled except the gray line; lines starting with '+' also have exact IC + periodicity",
    "runs": [
     {
@@ -330,7 +330,7 @@
      "src": "cj2_tpl_run/m/ch_template"
     },
     {
-     "label": "+ causal, eps schedule",
+     "label": "+ causal, $\\varepsilon$ schedule",
      "l2": [
       [
        0.0,
@@ -439,11 +439,11 @@
   },
   {
    "file": "ch2d_wz.png",
-   "title": "2D Cahn-Hilliard (Wight & Zhao), u",
+   "title": "2D Cahn-Hilliard (Wight & Zhao), $u$",
    "subtitle": "two merging bubbles; exact IC + periodicity; 'smoothed' = the template's smoothed initial condition",
    "runs": [
     {
-     "label": "u left at its initial condition",
+     "label": "$u$ left at its initial condition",
      "baseline": true,
      "l2": [
       [
@@ -544,7 +544,7 @@
      "src": "cnc_new2/m/ch2d_causal"
     },
     {
-     "label": "Smoothed, + SA-PINN, 6x128",
+     "label": "Smoothed, + SA-PINN, 6 \u00d7 128",
      "l2": [
       [
        0.0,
@@ -570,7 +570,7 @@
      "src": "cq_figs/m/ch2d_6x128"
     },
     {
-     "label": "Smoothed, + SA-PINN, 40k Adam",
+     "label": "Smoothed, + SA-PINN, 40,000 Adam",
      "l2": [
       [
        0.0,
@@ -820,8 +820,8 @@
   {
    "file": "ac2d_wz.png",
    "title": "2D Allen-Cahn (Wight & Zhao)",
-   "xlabel": "t",
-   "subtitle": "shrinking circle, t up to 10",
+   "xlabel": "$t$",
+   "subtitle": "shrinking circle, $t$ up to 10",
    "runs": [
     {
      "label": "Plain PINN, whole interval",
@@ -963,7 +963,7 @@
   {
    "file": "kg.png",
    "title": "Klein-Gordon (DeepXDE example)",
-   "subtitle": "t up to 10",
+   "subtitle": "$t$ up to 10",
    "runs": [
     {
      "label": "Plain PINN",
@@ -1019,7 +1019,7 @@
      "src": "ch12_broad2/m/kg_rba"
     },
     {
-     "label": "+ causal, eps schedule",
+     "label": "+ causal, $\\varepsilon$ schedule",
      "l2": [
       [
        0.0,
@@ -1341,7 +1341,7 @@
      "src": "ch11_more/m/bu_sa_lbplain"
     },
     {
-     "label": "+ causal, eps schedule",
+     "label": "+ causal, $\\varepsilon$ schedule",
      "l2": [
       [
        0.0,
@@ -1397,7 +1397,7 @@
   },
   {
    "file": "ch1d_mg.png",
-   "title": "1D Cahn-Hilliard (Mattey & Ghosh), u",
+   "title": "1D Cahn-Hilliard (Mattey & Ghosh), $u$",
    "subtitle": "whole-domain lines have exact IC + periodicity; time-adaptive lines use 19 windows, IC as a loss term",
    "runs": [
     {
@@ -1587,9 +1587,9 @@
   },
   {
    "file": "ch2d_mg.png",
-   "title": "2D Cahn-Hilliard (Mattey & Ghosh), u",
+   "title": "2D Cahn-Hilliard (Mattey & Ghosh), $u$",
    "subtitle": "all with exact IC + periodicity, whole domain",
-   "xlabel": "t' = t / 0.005",
+   "xlabel": "$t' = t/0.005$",
    "runs": [
     {
      "label": "Plain",
@@ -1653,7 +1653,7 @@
      "src": "cu_mattey_b2/m/m2_rba"
     },
     {
-     "label": "+ causal, eps schedule",
+     "label": "+ causal, $\\varepsilon$ schedule",
      "l2": [
       [
        0.0,

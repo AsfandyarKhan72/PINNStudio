@@ -26,7 +26,7 @@ BASE = "#8a8a86"
 INK, INK2, GRID = "#1f1f1e", "#5f5e5a", "#e6e5e0"
 
 
-def chart(fig_name, title, subtitle, runs, xlabel="t", note=None):
+def chart(fig_name, title, subtitle, runs, xlabel="$t$", note=None):
     fig, ax = plt.subplots(figsize=(8.6, 4.4), dpi=130)
     fig.patch.set_facecolor("white")
     k = 0
@@ -56,7 +56,7 @@ def chart(fig_name, title, subtitle, runs, xlabel="t", note=None):
         ax.spines[s].set_color("#c9c8c2")
     ax.tick_params(colors=INK2, labelsize=9)
     ax.set_xlabel(xlabel, color=INK2, fontsize=10)
-    ax.set_ylabel("relative L2 error (log scale)", color=INK2, fontsize=10)
+    ax.set_ylabel("relative $L_2$ error (log scale)", color=INK2, fontsize=10)
     fig.text(0.012, 0.965, title, fontsize=12.5, fontweight="bold", color=INK, ha="left", va="top")
     fig.text(0.012, 0.905, subtitle, fontsize=9, color=INK2, ha="left", va="top")
     leg = ax.legend(loc="center left", bbox_to_anchor=(1.01, 0.5), frameon=False, fontsize=8.6, labelcolor=INK)
@@ -75,7 +75,7 @@ def chart(fig_name, title, subtitle, runs, xlabel="t", note=None):
 def main():
     data = json.load(open(os.path.join(OUT, "runs.json")))
     for fig in data["figures"]:
-        print(chart(fig["file"], fig["title"], fig["subtitle"], fig["runs"], fig.get("xlabel", "t"), fig.get("note")))
+        print(chart(fig["file"], fig["title"], fig["subtitle"], fig["runs"], fig.get("xlabel", "$t$"), fig.get("note")))
 
 
 if __name__ == "__main__":
