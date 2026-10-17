@@ -378,32 +378,6 @@
      "src": "cn_paper_seeds/m_ch/causal_anneal_msffn"
     },
     {
-     "label": "+ SA-PINN, normalized weights",
-     "l2": [
-      [
-       0.0,
-       1.5926e-07
-      ],
-      [
-       0.25,
-       0.006882
-      ],
-      [
-       0.5,
-       0.0033307
-      ],
-      [
-       0.75,
-       0.0022019
-      ],
-      [
-       1.0,
-       0.001864
-      ]
-     ],
-     "src": "cn_paper_seeds/m_ch/sa_norm_keep"
-    },
-    {
      "label": "+ SA-PINN",
      "l2": [
       [

@@ -8,7 +8,7 @@ Which published PINN training techniques actually help, tested on PINNStudio's o
 
 **Reading the tables and figures.**
 
-- A row starting with "+" adds that method to the setup named in the section's text (usually the template, or the row in bold above it).
+- Tables are grouped by an italic heading row that names the base setup; a row starting with "+" adds that method to it. Results from the first, uncorrected versions of causal training and SA-PINN are kept in a collapsed note under the table where they occur.
 - Per-point weights (RBA, SA-PINN) are held fixed during the L-BFGS phase, as in the papers. Rows marked *unweighted L-BFGS* run L-BFGS on the ordinary, unweighted loss instead. In the GUI this is Loss weights → *During L-BFGS*: *Keep the weights* or *Plain loss*.
 - *Causal* means causal training with the paper's $\varepsilon$ schedule; a fixed $\varepsilon$ is written out.
 - The figures show the error against time on a log scale. The dashed gray line is the reference setup (usually a plain PINN), and the thick line is the best one. $t = 0$ is left out because with an exact initial condition the error there is zero. Each figure is also available as a vector PDF in [`figures/pdf/`](figures/pdf/), and all of them are drawn from [`figures/runs.json`](figures/runs.json) by [`make_figures.py`](make_figures.py).
@@ -59,39 +59,47 @@ Mixed form after [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086
 
 **Figure 1.** 1D Cahn-Hilliard (Wight & Zhao), error in $u$. All runs except the dashed line use the scaled equations; runs starting with "+" also have exact periodicity and an exact initial condition.
 
-| Method | $t = 0.25$ | $t = 1$ |
+| Setup | $t = 0.25$ | $t = 1$ |
 |---|---|---|
+| ***Equations and exact constraints*** | | |
 | Unscaled template | 28% | 42% |
-| Unscaled + causal, fixed $\varepsilon$ = 1 / 10 / 100 | 25–30% | 42–69% |
-| Unscaled + gradient-norm balancing | 28% | 41% |
-| **Scaled template** (3 seeds) | **2.2–3.3%** | **0.40–0.52%** |
-| + causal, fixed $\varepsilon = 1$ (32 / 16 chunks) | 2.7–4.7% | 0.43–0.93% |
-| + gradient-norm balancing | 19% | 6.5% |
-| + time-adaptive training (4 windows) | 3.4% | 0.41% |
-| + separate $u$ and $\mu$ networks (PFNN) | 2.5% | 0.39% |
-| + exact periodicity | 2.0% | 0.46% |
-| + SA-PINN, normalized weights | 1.8% | 0.40% |
-| + RBA | 1.1% | 0.30% |
-| + SA-PINN (first implementation) | 0.91% | 0.24% |
-| + RBA + exact periodicity, unweighted L-BFGS | 1.2% | 0.26% |
-| + RBA + exact periodicity + learning-rate decay | 1.1% | 0.29% |
-| + RBA + exact periodicity | 0.78% | 0.17% |
-| + MsFFN (2 seeds) | 1.4–1.5% | 0.17–0.25% |
-| + MsFFN + SA-PINN | 0.97% | 0.21% |
-| + MsFFN + RBA, unweighted L-BFGS | 1.1% | 0.11% |
-| **+ RBA + exact periodicity + exact IC** | **0.60%** | **0.12%** |
-| **+ MsFFN + RBA** (2 seeds) | **0.54–0.57%** | **0.11–0.14%** |
-
-A second round used the methods exactly as their papers describe them, all with exact periodicity and an exact initial condition:
-
-| Method | $t = 0.25$ | $t = 1$ |
-|---|---|---|
+| Scaled (3 seeds) | 2.2–3.3% | 0.40–0.52% |
+| Scaled + exact periodicity | 2.0% | 0.46% |
+| ***One weighting method, on scaled + exact periodicity + exact IC*** | | |
+| + RBA | 0.60% | 0.12% |
 | + causal | 0.50% | 0.10% |
 | + causal + MsFFN | 1.0% | 0.22% |
-| + SA-PINN, normalized weights | 0.69% | 0.19% |
-| **+ SA-PINN** (3 seeds) | **0.21–0.23%** | **0.051–0.060%** |
+| **+ SA-PINN (the template, 3 seeds)** | **0.21–0.23%** | **0.051–0.060%** |
+| ***Other options, on the scaled equations*** | | |
+| + RBA | 1.1% | 0.30% |
+| + RBA + exact periodicity | 0.78% | 0.17% |
+| + RBA + exact periodicity, unweighted L-BFGS | 1.2% | 0.26% |
+| + RBA + exact periodicity + learning-rate decay | 1.1% | 0.29% |
+| + MsFFN (2 seeds) | 1.4–1.5% | 0.17–0.25% |
+| + MsFFN + RBA (2 seeds) | 0.54–0.57% | 0.11–0.14% |
+| + MsFFN + RBA, unweighted L-BFGS | 1.1% | 0.11% |
+| + time-adaptive training (4 windows) | 3.4% | 0.41% |
+| + separate $u$ and $\mu$ networks (PFNN) | 2.5% | 0.39% |
+| + gradient-norm balancing | 19% | 6.5% |
+| Unscaled + gradient-norm balancing | 28% | 41% |
 
-SA-PINN is now the template's setting; the error in $\mu$ is 0.25–0.28% at $t = 0.25$ and 0.15–0.18% at $t = 1$. In every run with the physics check, mass was conserved to about $10^{-4}$ and the free energy decreased at all 40 time samples; $E(1)$ = 5.80 × 10⁻⁴ against 5.797 × 10⁻⁴ in the reference.
+The error in $\mu$ with the template is 0.25–0.28% at $t = 0.25$ and 0.15–0.18% at $t = 1$. In every run with the physics check, mass was conserved to about $10^{-4}$ and the free energy decreased at all 40 time samples; $E(1)$ = 5.80 × 10⁻⁴ against 5.797 × 10⁻⁴ in the reference.
+
+<details>
+<summary>Earlier implementations of causal training and SA-PINN</summary>
+
+These runs used the first versions of the two methods, before they were checked against the papers: causal training with one fixed $\varepsilon$ instead of the paper's schedule, and SA-PINN with its weights normalized to a mean of 1 (still available as *Keep the mean weight at 1*, now off by default) or with other small differences from the paper. They are kept only as a record; the corrected methods are in the table above.
+
+| Setup | $t = 0.25$ | $t = 1$ |
+|---|---|---|
+| Unscaled + causal, fixed $\varepsilon$ = 1 / 10 / 100 | 25–30% | 42–69% |
+| Scaled + causal, fixed $\varepsilon = 1$ (32 / 16 chunks) | 2.7–4.7% | 0.43–0.93% |
+| Scaled + SA-PINN, normalized weights | 1.8% | 0.40% |
+| Scaled + SA-PINN, first implementation | 0.91% | 0.24% |
+| Scaled + MsFFN + SA-PINN, first implementation | 0.97% | 0.21% |
+| Scaled + exact periodicity + exact IC + SA-PINN, normalized weights | 0.69% | 0.19% |
+
+</details>
 
 ## 1D Allen-Cahn (Wight & Zhao)
 
@@ -101,51 +109,54 @@ The template's settings with time-adaptive training switched off, unless the row
 
 **Figure 2.** 1D Allen-Cahn, error in $u$ over the whole time interval (seed 2026). Runs starting with "+" add one method to exact periodicity and an exact initial condition.
 
-| Method | $t = 0.25$ | $t = 1$ |
+| Setup | $t = 0.25$ | $t = 1$ |
 |---|---|---|
-| **Plain** (2 seeds) | **0.69–0.85%** | **10%** |
-| + gradient-norm balancing | 74% | 99% |
-| + SA-PINN (first implementation) | ~100% (diverged) | ~100% |
-| + causal, fixed $\varepsilon = 100$, unweighted L-BFGS | 15% | 67% |
-| + causal, fixed $\varepsilon = 1$ | 1.1% | 13% |
-| + causal, fixed $\varepsilon = 10$ | 0.24% | 12% |
-| + RBA | 1.0% | 11% |
+| ***Exact constraints*** | | |
+| Plain (2 seeds) | 0.69–0.85% | 10% |
 | + exact periodicity | 0.54% | 9.8% |
-| + SA-PINN, normalized weights + exact periodicity | 0.29% | 6.1% |
-| + RBA + exact periodicity, unweighted L-BFGS | 0.40% | 7.0% |
-| + RBA + exact periodicity + learning-rate decay | 0.26% | 5.7% |
-| + SA-PINN, normalized weights | 0.22% | 4.0% |
-| + RBA + exact periodicity | 0.22% | 4.2% |
-| + MsFFN + SA-PINN | 1.4% | 13% |
-| + MsFFN (2 seeds) | 0.08–0.12% | 1.8–2.3% |
-| + MsFFN + RBA, unweighted L-BFGS | 0.14% | 2.5% |
-| + MsFFN + RBA (2 seeds) | 0.051–0.055% | 0.74–0.89% |
-| **+ RBA + exact periodicity + exact IC** | **0.050%** | **0.27%** |
-
-Second round, the methods as their papers describe them, three seeds each (2026 / 1 / 2), all with exact periodicity and an exact initial condition, no time windows:
-
-| Method | $t = 0.25$ | $t = 1$ |
-|---|---|---|
-| Exact periodicity + exact IC only | 0.27% | 4.3% |
+| + exact periodicity + exact IC | 0.27% | 4.3% |
+| ***One method, on exact periodicity + exact IC (3 seeds: 2026 / 1 / 2)*** | | |
 | + RBA | 0.053 / 0.11 / 0.070% | 0.43 / 0.78 / 0.50% |
 | + causal, fixed $\varepsilon = 1$ | 0.061% | 0.65% |
 | + causal | 0.049 / 0.056 / 0.056% | 0.18 / 0.64 / 0.45% |
 | + causal + RBA | 0.18% | 1.8% |
-| + SA-PINN, normalized weights | 0.053 / 0.31 / 0.14% | 0.10 / 2.7 / 1.05% |
 | + SA-PINN | 0.046 / 0.061 / 0.049% | 0.18 / 0.20 / 0.13% |
 | **+ causal + MsFFN** | **0.040 / 0.041 / 0.042%** | **0.13 / 0.12 / 0.065%** |
-
-Causal training with the paper's schedule and a Fourier-feature network is the most accurate and the most repeatable here, while causal training together with per-point weights is worse than either alone. (The RBA row gave 0.27% at $t = 1$ in the first round, with an earlier version of the code; the current code gives 0.43% at seed 2026, identical to the digit in two repeats.)
-
-With time-adaptive training, the template's own setting:
-
-| Method | $t = 0.25$ | $t = 1$ |
-|---|---|---|
+| ***Other options, without exact constraints unless stated*** | | |
+| + RBA | 1.0% | 11% |
+| + RBA + exact periodicity | 0.22% | 4.2% |
+| + RBA + exact periodicity, unweighted L-BFGS | 0.40% | 7.0% |
+| + RBA + exact periodicity + learning-rate decay | 0.26% | 5.7% |
+| + MsFFN (2 seeds) | 0.08–0.12% | 1.8–2.3% |
+| + MsFFN + RBA (2 seeds) | 0.051–0.055% | 0.74–0.89% |
+| + MsFFN + RBA, unweighted L-BFGS | 0.14% | 2.5% |
+| + gradient-norm balancing | 74% | 99% |
+| ***Time-adaptive training (the template's own setting)*** | | |
 | Time-adaptive template (4 windows) | 0.05% | 0.48% |
-| + causal, fixed $\varepsilon$ = 1 / 10 | 0.07% | 0.57% / 0.81% |
-| + causal, fixed $\varepsilon = 100$ | 25% | 86% |
 | + causal | 0.034% | 0.48% |
 | + gradient-norm balancing | 0.18% | 1.4% |
+
+Causal training with the paper's schedule and a Fourier-feature network is the most accurate and the most repeatable setup without time windows, while causal training together with per-point weights is worse than either alone. With a fixed $\varepsilon = 1$ the causal weights hardly move (see [Checked against the papers](#checked-against-the-papers)), which is why that row is close to plain RBA.
+
+<details>
+<summary>Earlier implementations of causal training and SA-PINN</summary>
+
+These runs used the first versions of the two methods, before they were checked against the papers: causal training with one fixed $\varepsilon$ instead of the paper's schedule, and SA-PINN with its weights normalized to a mean of 1 (still available as *Keep the mean weight at 1*, now off by default) or with other small differences from the paper. They are kept only as a record; the corrected methods are in the table above. (An RBA run with an earlier version of the code also gave 0.27% at $t = 1$, against 0.43% now; the current code repeats to the digit.)
+
+| Setup | $t = 0.25$ | $t = 1$ |
+|---|---|---|
+| + causal, fixed $\varepsilon = 1$ | 1.1% | 13% |
+| + causal, fixed $\varepsilon = 10$ | 0.24% | 12% |
+| + causal, fixed $\varepsilon = 100$, unweighted L-BFGS | 15% | 67% |
+| + SA-PINN, first implementation | ~100% (diverged) | ~100% |
+| + SA-PINN, normalized weights | 0.22% | 4.0% |
+| + SA-PINN, normalized weights + exact periodicity | 0.29% | 6.1% |
+| + MsFFN + SA-PINN, first implementation | 1.4% | 13% |
+| Exact periodicity + exact IC + SA-PINN, normalized weights (3 seeds) | 0.053 / 0.31 / 0.14% | 0.10 / 2.7 / 1.05% |
+| Time-adaptive + causal, fixed $\varepsilon$ = 1 / 10 | 0.07% | 0.57% / 0.81% |
+| Time-adaptive + causal, fixed $\varepsilon = 100$ | 25% | 86% |
+
+</details>
 
 ## 2D Allen-Cahn (Mattey & Ghosh)
 
