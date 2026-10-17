@@ -81,6 +81,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **Examples order:** in the Examples lists and the README, Allen-Cahn and then Cahn-Hilliard come first in each group (1D, 2D, 3D); within each, DeepXDE's example, then Wight & Zhao, then Mattey & Ghosh. The README's example sections follow the same order.
+- **README:** the Geometry section's 3D view screenshot is retaken with the current view (legend beside the plot), next to a second one with *Show points* on.
 - **Loss weights page**: *Scale by initial losses* moved from the top of the page into *Automatic weighting*, below causal training, and its tooltip now says when it is needed (the 1D wave example: 14% error at t = 1 with it, 80–130% without, also with IC/BC weights of 100, RBA or causal training). The "Shared weights (all phases)" heading under *Use same weights for all phases* is gone.
 - **Loss weights and automatic weighting**: the *Automatic weighting* help text opens from an *About automatic weighting* button like the other panels' help, and now says how the two layers combine (per-point weights and causal training act inside the PDE term; the weights above still balance the PDE, boundary and initial-condition terms), and the weight rows are greyed out, with a short note, while *Scale by initial losses* sets every term weight itself.
 - Option labels and tooltips describe what an option does and cite the method's authors, instead of saying "as in the paper" (*Raise ε step by step*, *Keep the mean weight at 1*, *During L-BFGS*).
@@ -193,6 +195,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **Error Analysis surface plots:** the PINN and Reference panels of a 1D x–t surface comparison were always titled `u(x,t)`; they now show the compared output's name (`mu(x,t)` for the Cahn-Hilliard chemical potential).
+- **README maths:** two more `\,` in the Cahn-Hilliard equations showed as commas on GitHub; removed.
 - Ticking or unticking an output's *Exact (built into the network)* initial condition now rebuilds the loss-weight rows (with the IC row's weight kept, 100 for a new one) and every training phase's weight list; before, the IC term could end up with weight 1 or the phases could carry the wrong number of weights.
 - Rebuilt rows (loss weights, training phases, sweep parameters) disappear at once instead of staying on screen next to the new ones until Qt deleted them.
 - A periodic boundary condition now colours both faces (edges in 2D) it pairs in the geometry views; its *Where:* names one side, and the opposite side, which DeepXDE pairs with it along the row's axis, was shown as having no BC.

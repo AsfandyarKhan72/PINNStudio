@@ -276,6 +276,8 @@ def test_cahn_hilliard_template_scaling():
         assert "pde = _pw_wrap(pde)" in src
         assert "torch.cat([(-torch.cos(2*np.pi*x)) + t*u, 0.01*mu], dim=1)" in src
         assert "torch.cat([torch.cos(np.pi*x), torch.sin(np.pi*x), t], dim=1)" in src
+    # the surface comparison names the compared output (mu), not always u
+    assert 'set_title(f"PINN  {_ea_field_txt(_ea_sel)}(x,t)")' in generate_script(c)
     assert not w.exact_inputs_note.isHidden() and not w.exact_outputs_note.isHidden()
     w.radio_inverse.setChecked(True)
     _settle()

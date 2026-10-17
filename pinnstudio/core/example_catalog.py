@@ -12,7 +12,8 @@ DeepXDE example's original name -- which saved projects, tests and the
 code that sets a template up still use; only the shown name changed.
 
 Order: ODE, 1D, 2D, 3D; within each, steady before time-dependent and
-forward before inverse, same problems next to each other.
+forward before inverse, same problems next to each other, Allen-Cahn and
+then Cahn-Hilliard first.
 """
 import re
 from dataclasses import dataclass
@@ -80,8 +81,10 @@ TEMPLATE_KEYS = tuple(t[0] for t in _TEMPLATES)
 # They stay loadable by name, so saved projects and scripts keep working.
 HIDDEN_TEMPLATES = ("1D Heat", "1D Schrödinger")
 
-# Shown before the other examples of the same problem (better results).
-_FIRST_IN_FAMILY = ("1D Allen-Cahn",)
+# Phase-field problems lead their group, Allen-Cahn before Cahn-Hilliard;
+# within each, DeepXDE's example, then Wight & Zhao, then Mattey & Ghosh.
+_FAMILY_FIRST = ("allen-cahn", "cahn-hilliard")
+_PAPER_ORDER = ("Wight & Zhao", "Mattey & Ghosh")
 
 # The templates' papers (Entry.reference) -> DOI / arXiv link.
 PAPERS = {
@@ -209,10 +212,16 @@ def _build():
                              "Steady" if cfg.steady_state else "Time-dependent", problem,
                              _dx_geometry(cfg, ex.name), ex.source))
 
+    def _paper_rank(e):
+        if e.source == DEEPXDE:
+            return 0
+        return next((i + 1 for i, p in enumerate(_PAPER_ORDER) if p in e.name), len(_PAPER_ORDER) + 1)
+
     def _key(e):
+        fam = _family(e.name)
+        lead = _FAMILY_FIRST.index(fam) if fam in _FAMILY_FIRST else len(_FAMILY_FIRST)
         return (_DIM_ORDER[e.dim], 0 if e.regime == "Steady" else 1, 1 if e.problem == INVERSE else 0,
-                _family(e.name), 0 if e.key in _FIRST_IN_FAMILY else 1, e.name.lower(),
-                0 if e.source == PINNSTUDIO else 1)
+                lead, fam, _paper_rank(e) if fam in _FAMILY_FIRST else 0, e.name.lower(), 0 if e.source == PINNSTUDIO else 1)
     return sorted(entries, key=_key)
 
 

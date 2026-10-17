@@ -2390,6 +2390,19 @@ def _ea_title_txt(_kind, _ea_sel):
                 else _plot_output_names_list[int(_g.get("_plot_idx", 0))].strip())
     return f"PINN vs Reference — {{_lbl}} — {{_kind}}" if _lbl else f"PINN vs Reference — {{_kind}}"
 
+def _ea_field_txt(_ea_sel):
+    # The compared field's name for panel titles ("PINN  mu(x,t)"), the
+    # first output's name when nothing else is selected.
+    _lbl = _ea_group_label(_ea_sel)
+    if not _lbl:
+        _g = globals()
+        if str(_g.get("_plot_custom_expr", "")).strip():
+            _lbl = str(_g.get("_plot_custom_label", "")).strip()
+        elif _plot_output_names_list:
+            _i = int(_g.get("_plot_idx", 0))
+            _lbl = _plot_output_names_list[_i if 0 <= _i < len(_plot_output_names_list) else 0].strip()
+    return _lbl or "u"
+
 def _ea_extract(_ea_grid, _ea_sel, _ea_model=None):
     _ea_m = _ea_model if _ea_model is not None else model
     if _ea_sel is None:
@@ -3951,10 +3964,10 @@ if {config.time_adaptive}:
                     fig, axes = plt.subplots(1, 3, figsize=(15, 5))
                     fig.suptitle(_ea_title_txt("Surface Comparison", _ea_sel), fontsize={config.plot_title_fontsize}, fontweight='bold')
                     im0 = axes[0].contourf(_ea_Tg, _ea_Xg, _ea_U_pinn, levels=_levels_ea1d, cmap='{config.plot_colormap}')
-                    axes[0].set_title("PINN  u(x,t)"); axes[0].set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); axes[0].set_ylabel("x", fontsize={config.plot_axis_label_fontsize})
+                    axes[0].set_title(f"PINN  {{_ea_field_txt(_ea_sel)}}(x,t)"); axes[0].set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); axes[0].set_ylabel("x", fontsize={config.plot_axis_label_fontsize})
                     fig.colorbar(im0, ax=axes[0])
                     im1 = axes[1].contourf(_ea_Tg, _ea_Xg, _ea_U_fem, levels=_levels_ea1d, cmap='{config.plot_colormap}')
-                    axes[1].set_title("Reference  u(x,t)"); axes[1].set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); axes[1].set_ylabel("x", fontsize={config.plot_axis_label_fontsize})
+                    axes[1].set_title(f"Reference  {{_ea_field_txt(_ea_sel)}}(x,t)"); axes[1].set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); axes[1].set_ylabel("x", fontsize={config.plot_axis_label_fontsize})
                     fig.colorbar(im1, ax=axes[1])
                     im2 = axes[2].contourf(_ea_Tg, _ea_Xg, _ea_U_err, levels={config.plot_levels}, cmap='{config.plot_colormap}')
                     axes[2].set_title("Error  |PINN - Reference|"); axes[2].set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); axes[2].set_ylabel("x", fontsize={config.plot_axis_label_fontsize})
@@ -7908,10 +7921,10 @@ for _pval in _param_values:
                         fig, axes_s = plt.subplots(1, 3, figsize=(15, 5))
                         fig.suptitle(_ea_title_txt("Surface Comparison", _ea_sel), fontsize={config.plot_title_fontsize}, fontweight='bold')
                         im0 = axes_s[0].contourf(_ea_Tg, _ea_Xg, _ea_U_pinn, levels=_levels_ea1d, cmap='{config.plot_colormap}')
-                        axes_s[0].set_title("PINN  u(x,t)"); axes_s[0].set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); axes_s[0].set_ylabel("x", fontsize={config.plot_axis_label_fontsize})
+                        axes_s[0].set_title(f"PINN  {{_ea_field_txt(_ea_sel)}}(x,t)"); axes_s[0].set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); axes_s[0].set_ylabel("x", fontsize={config.plot_axis_label_fontsize})
                         fig.colorbar(im0, ax=axes_s[0])
                         im1 = axes_s[1].contourf(_ea_Tg, _ea_Xg, _ea_U_fem, levels=_levels_ea1d, cmap='{config.plot_colormap}')
-                        axes_s[1].set_title("Reference  u(x,t)"); axes_s[1].set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); axes_s[1].set_ylabel("x", fontsize={config.plot_axis_label_fontsize})
+                        axes_s[1].set_title(f"Reference  {{_ea_field_txt(_ea_sel)}}(x,t)"); axes_s[1].set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); axes_s[1].set_ylabel("x", fontsize={config.plot_axis_label_fontsize})
                         fig.colorbar(im1, ax=axes_s[1])
                         im2 = axes_s[2].contourf(_ea_Tg, _ea_Xg, _ea_U_err, levels={config.plot_levels}, cmap='{config.plot_colormap}')
                         axes_s[2].set_title("Error  |PINN - Reference|"); axes_s[2].set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); axes_s[2].set_ylabel("x", fontsize={config.plot_axis_label_fontsize})

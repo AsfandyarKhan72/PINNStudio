@@ -295,7 +295,7 @@ Loading an example fills in every setting, and you can change any of them before
 
 Every result shown below comes from one training run with the example's settings on an RTX 4090. Errors are relative $L_2$ errors from Error Analysis, and they vary a little from run to run.
 
-The table is ordered by dimension (ODE, 1D, 2D, 3D), then steady before time-dependent and forward before inverse; examples of the same problem sit next to each other.
+The table is ordered by dimension (ODE, 1D, 2D, 3D), then steady before time-dependent and forward before inverse; examples of the same problem sit next to each other, with Allen-Cahn and then Cahn-Hilliard first in each group.
 
 | # | Example | Dimension | Regime | Problem | Geometry | Error Analysis reference | Source |
 |---|---|---|---|---|---|---|---|
@@ -322,10 +322,10 @@ The table is ordered by dimension (ODE, 1D, 2D, 3D), then steady before time-dep
 | 19 | [Fractional Poisson 1D – unknown order α](#dx-inverse-fractional-poisson-equation-1d) | 1D | Steady | Inverse | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/fractional_Poisson_1d_inverse.py) |
 | 20 | [Poisson 1D – unknown forcing field](#dx-inverse-poisson-with-unknown-forcing-field) | 1D | Steady | Inverse | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/elliptic_inverse_field.py) |
 | 21 | [Poisson 1D – unknown forcing field (batches)](#dx-inverse-poisson-with-unknown-forcing-field-batches) | 1D | Steady | Inverse | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/elliptic_inverse_field_batch.py) |
-| 22 | [Allen-Cahn 1D – Wight & Zhao](#1d-allen-cahn) | 1D | Time-dependent | Forward / Inverse | Interval | Generated data | [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086) |
-| 23 | [Cahn-Hilliard 1D – Mattey & Ghosh](#1d-cahn-hilliard-mattey--ghosh) | 1D | Time-dependent | Forward / Inverse | Interval | Generated data | [Mattey & Ghosh (2022)](https://doi.org/10.1016/j.cma.2021.114474) |
+| 22 | [Allen-Cahn 1D](#dx-allen-cahn-equation) | 1D | Time-dependent | Forward | Interval | Generated data | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Allen_Cahn.py) |
+| 23 | [Allen-Cahn 1D – Wight & Zhao](#1d-allen-cahn) | 1D | Time-dependent | Forward / Inverse | Interval | Generated data | [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086) |
 | 24 | [Cahn-Hilliard 1D – Wight & Zhao](#1d-cahn-hilliard) | 1D | Time-dependent | Forward / Inverse | Interval | Generated data | [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086) |
-| 25 | [Allen-Cahn 1D](#dx-allen-cahn-equation) | 1D | Time-dependent | Forward | Interval | Generated data | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Allen_Cahn.py) |
+| 25 | [Cahn-Hilliard 1D – Mattey & Ghosh](#1d-cahn-hilliard-mattey--ghosh) | 1D | Time-dependent | Forward / Inverse | Interval | Generated data | [Mattey & Ghosh (2022)](https://doi.org/10.1016/j.cma.2021.114474) |
 | 26 | [Black-Scholes 1D – American put](#dx-american-put-option) | 1D | Time-dependent | Forward | Interval | — | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/american_put.py) |
 | 27 | [Black-Scholes 1D – European call](#dx-black-scholes-equation-call-option) | 1D | Time-dependent | Forward | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/black_scholes_call.py) |
 | 28 | [Burgers 1D – Raissi et al.](#1d-burgers) | 1D | Time-dependent | Forward / Inverse | Interval | Generated data | [Raissi et al. (2019)](https://doi.org/10.1016/j.jcp.2018.10.045) |
@@ -356,11 +356,11 @@ The table is ordered by dimension (ODE, 1D, 2D, 3D), then steady before time-dep
 | 52 | [Poisson 2D – L-shape](#dx-poisson-over-an-l-shaped-domain) | 2D | Steady | Forward | Polygon (L-shape) | Generated data | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Poisson_Lshape.py) |
 | 53 | [Poisson 2D – L-shape, Lu et al.](#2d-poisson-l-shape) | 2D | Steady | Forward / Inverse | Polygon (L-shape) | Generated data | [Lu et al. (2021)](https://doi.org/10.1137/19M1274067) |
 | 54 | [Fractional Poisson 2D – unknown order α](#dx-inverse-fractional-poisson-equation-2d) | 2D | Steady | Inverse | Disk | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/fractional_Poisson_2d_inverse.py) |
-| 55 | [Allen-Cahn 2D – Mattey & Ghosh](#2d-allen-cahn-mattey--ghosh) | 2D | Time-dependent | Forward / Inverse | Rectangle | Generated data | [Mattey & Ghosh (2022)](https://doi.org/10.1016/j.cma.2021.114474) |
-| 56 | [Allen-Cahn 2D – Wight & Zhao](#2d-allen-cahn-wight--zhao) | 2D | Time-dependent | Forward / Inverse | Rectangle | Generated data | [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086) |
-| 57 | [Burgers 2D – Mathias et al.](#2d-burgers-mathias) | 2D | Time-dependent | Forward / Inverse | Rectangle | Generated data | [Mathias et al. (2022)](https://arxiv.org/abs/2301.07824) |
+| 55 | [Allen-Cahn 2D – Wight & Zhao](#2d-allen-cahn-wight--zhao) | 2D | Time-dependent | Forward / Inverse | Rectangle | Generated data | [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086) |
+| 56 | [Allen-Cahn 2D – Mattey & Ghosh](#2d-allen-cahn-mattey--ghosh) | 2D | Time-dependent | Forward / Inverse | Rectangle | Generated data | [Mattey & Ghosh (2022)](https://doi.org/10.1016/j.cma.2021.114474) |
+| 57 | [Cahn-Hilliard 2D – Wight & Zhao](#2d-cahn-hilliard-wight--zhao) | 2D | Time-dependent | Forward / Inverse | Rectangle | Generated data | [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086) |
 | 58 | [Cahn-Hilliard 2D – Mattey & Ghosh](#2d-cahn-hilliard-mattey--ghosh) | 2D | Time-dependent | Forward / Inverse | Rectangle | Generated data | [Mattey & Ghosh (2022)](https://doi.org/10.1016/j.cma.2021.114474) |
-| 59 | [Cahn-Hilliard 2D – Wight & Zhao](#2d-cahn-hilliard-wight--zhao) | 2D | Time-dependent | Forward / Inverse | Rectangle | Generated data | [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086) |
+| 59 | [Burgers 2D – Mathias et al.](#2d-burgers-mathias) | 2D | Time-dependent | Forward / Inverse | Rectangle | Generated data | [Mathias et al. (2022)](https://arxiv.org/abs/2301.07824) |
 | 60 | [Heat 2D](#2d-heat) | 2D | Time-dependent | Forward / Inverse | Rectangle | Generated data | — |
 | | **3D** | | | | | | |
 | 61 | [Fractional Poisson 3D – sphere](#dx-fractional-poisson-equation-3d) | 3D | Steady | Forward | Sphere | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/fractional_Poisson_3d.py) |
@@ -896,6 +896,32 @@ $$\Large -\frac{d^2u}{dx^2} + q(x) = 0, \qquad x \in [-1, 1]$$
 
 </details>
 
+<details id="dx-allen-cahn-equation">
+<summary><strong>Allen-Cahn 1D</strong></summary>
+
+DeepXDE example: [`Allen_Cahn.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Allen_Cahn.py) ([documentation](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/allen.cahn.html))
+
+$$\Large \frac{\partial u}{\partial t} = 0.001\frac{\partial^2 u}{\partial x^2} + 5(u - u^3), \qquad x \in [-1, 1],\ t \in [0, 1]$$
+
+- **Initial and boundary conditions:** $u(x, 0) = x^2\cos(\pi x)$ and $u(\pm 1, t) = -1$, imposed exactly by $\hat u = x^2\cos(\pi x) + t(1 - x^2)N$
+- **Reference:** computed by `tools/make_deepxde_reference_data.py` (agrees with DeepXDE's `Allen_Cahn.mat` to $5\times 10^{-4}$)
+- **Constants:** `d = 0.001`
+- **Network:** FNN [2, 20, 20, 20, 1], tanh, Glorot normal
+- **Training:** Adam 40,000 → L-BFGS 15,000; 8,000 domain, 400 boundary points
+- **In PINNStudio:** Examples → **Forward** → **Allen-Cahn 1D**
+
+**Result (RTX 4090):** $L_2$ = 9.5 × 10⁻⁸ ($t = 0$), 1.9 × 10⁻³ ($t = 0.25$), 5.2 × 10⁻³ ($t = 0.5$), 1.3 × 10⁻² ($t = 0.75$), 2.9 × 10⁻² ($t = 1$)
+
+*u — PINN solution over time*
+
+![Allen-Cahn 1D — PINN solution over time (u)](assets/Images/DeepXDE/Allen_Cahn_equation/animation.gif)
+
+*PINN vs reference, error analysis*
+
+![Allen-Cahn 1D — PINN vs reference, error analysis](assets/Images/DeepXDE/Allen_Cahn_equation/surface_comparison.png)
+
+</details>
+
 <details id="1d-allen-cahn">
 <summary><strong>Allen-Cahn 1D – Wight & Zhao</strong></summary>
 
@@ -936,37 +962,12 @@ Result: $L_2$ = 9.8 × 10⁻⁸ ($t = 0$), 4.0 × 10⁻⁴ ($t = 0.25$), 4.6 × 
 
 </details>
 
-<details id="1d-cahn-hilliard-mattey--ghosh">
-<summary><strong>Cahn-Hilliard 1D – Mattey & Ghosh</strong></summary>
-
-Benchmark problem after [Mattey & Ghosh (2022)](https://doi.org/10.1016/j.cma.2021.114474), section 5.2 (eq. 25):
-
-$$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 \mu}{\partial x^2}, \qquad \mu = \kappa\,(u^3 - u) - \alpha\kappa\,\frac{\partial^2 u}{\partial x^2}, \qquad x \in [-1, 1],\ t \in [0, 1]$$
-
-where $\alpha = 0.02$ and $\kappa = 1$. As in the paper (its phase-space form, eq. 19) and the Wight & Zhao example, $\mu$ is a second output, so no residual needs a fourth derivative. The same paper's 1D Allen-Cahn problem is the [Allen-Cahn 1D – Wight & Zhao](#1d-allen-cahn) example, and its 2D Allen-Cahn IBVP-1 is [Allen-Cahn 2D – Mattey & Ghosh](#2d-allen-cahn-mattey--ghosh).
-
-- **Initial condition:** $u(x, 0) = \cos(\pi x) - \exp(-4(\pi x)^2)$; $\mu$ has none
-- **Boundary conditions:** Periodic in value and slope, for $u$ and $\mu$
-- **Geometry:** Interval
-- **Time-adaptive training** (Adaptive training → *Time Adaptive Training*), the counterpart of the paper's bc-PINN: 10 windows of 0.01 over the fast start (the two bumps merge by about $t = 0.05$), then 9 of 0.1, each starting from the previous window's network (transfer learning, L-BFGS)
-- **Initial condition as a loss term** (weight 100) and **exact periodicity**
-- **Training:** Adam 5,000 → L-BFGS 5,000 per window; 10,000 domain points, 4 × 128 network
-- **In PINNStudio:** Examples → **Forward** (or **Inverse**) → **Cahn-Hilliard 1D – Mattey & Ghosh**
-
-**Result (RTX 4090, about 13 minutes):** $u$: $L_2$ = 2.9 × 10⁻³ ($t = 0$), 3.5 × 10⁻³ ($t = 0.05$), 5.1 × 10⁻³ ($t = 0.25$), 4.9 × 10⁻³ ($t = 0.5$), 4.8 × 10⁻³ ($t = 0.75$), 4.8 × 10⁻³ ($t = 1$), against a Fourier pseudo-spectral solution in [`reference_data/1D/cahn_hilliard_mattey`](reference_data/1D/cahn_hilliard_mattey) (made by [`tools/make_phase_field_reference_data.py`](tools/make_phase_field_reference_data.py)). On the whole time interval every setup failed (25–90% error in $u$ at $t = 1$: plain, exact initial condition, SA-PINN, RBA, causal training with and without MsFFN), as the paper's standard PINN does. $\mu$ is fitted less closely in relative terms (3–13% after the merge), because it is nearly zero once the two phases have settled.
-
-![1D Cahn-Hilliard (Mattey & Ghosh) — PINN vs reference, u](assets/Images/1D-CahnHilliard-Mattey/surface_comparison_u.png)
-
-![1D Cahn-Hilliard (Mattey & Ghosh) — u along x at the reference times](assets/Images/1D-CahnHilliard-Mattey/line_comparison_u.png)
-
-</details>
-
 <details id="1d-cahn-hilliard">
 <summary><strong>Cahn-Hilliard 1D – Wight & Zhao</strong></summary>
 
 Benchmark problem after [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086), section 3.2.
 
-$$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 \mu}{\partial x^2}, \qquad \mu = \gamma_2\,(u^3 - u) - \gamma_1 \frac{\partial^2 u}{\partial x^2}, \qquad x \in [-1, 1],\ t \in [0, 1]$$
+$$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 \mu}{\partial x^2}, \qquad \mu = \gamma_2 (u^3 - u) - \gamma_1 \frac{\partial^2 u}{\partial x^2}, \qquad x \in [-1, 1],\ t \in [0, 1]$$
 
 where $\gamma_1 = 10^{-6}$ and $\gamma_2 = 0.01$. The fourth-order equation is solved in mixed form: the chemical potential $\mu$ is a second output, so no residual needs a fourth derivative.
 
@@ -992,29 +993,28 @@ where $\gamma_1 = 10^{-6}$ and $\gamma_2 = 0.01$. The fourth-order equation is s
 
 </details>
 
-<details id="dx-allen-cahn-equation">
-<summary><strong>Allen-Cahn 1D</strong></summary>
+<details id="1d-cahn-hilliard-mattey--ghosh">
+<summary><strong>Cahn-Hilliard 1D – Mattey & Ghosh</strong></summary>
 
-DeepXDE example: [`Allen_Cahn.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Allen_Cahn.py) ([documentation](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/allen.cahn.html))
+Benchmark problem after [Mattey & Ghosh (2022)](https://doi.org/10.1016/j.cma.2021.114474), section 5.2 (eq. 25):
 
-$$\Large \frac{\partial u}{\partial t} = 0.001\frac{\partial^2 u}{\partial x^2} + 5(u - u^3), \qquad x \in [-1, 1],\ t \in [0, 1]$$
+$$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 \mu}{\partial x^2}, \qquad \mu = \kappa (u^3 - u) - \alpha\kappa \frac{\partial^2 u}{\partial x^2}, \qquad x \in [-1, 1],\ t \in [0, 1]$$
 
-- **Initial and boundary conditions:** $u(x, 0) = x^2\cos(\pi x)$ and $u(\pm 1, t) = -1$, imposed exactly by $\hat u = x^2\cos(\pi x) + t(1 - x^2)N$
-- **Reference:** computed by `tools/make_deepxde_reference_data.py` (agrees with DeepXDE's `Allen_Cahn.mat` to $5\times 10^{-4}$)
-- **Constants:** `d = 0.001`
-- **Network:** FNN [2, 20, 20, 20, 1], tanh, Glorot normal
-- **Training:** Adam 40,000 → L-BFGS 15,000; 8,000 domain, 400 boundary points
-- **In PINNStudio:** Examples → **Forward** → **Allen-Cahn 1D**
+where $\alpha = 0.02$ and $\kappa = 1$. As in the paper (its phase-space form, eq. 19) and the Wight & Zhao example, $\mu$ is a second output, so no residual needs a fourth derivative. The same paper's 1D Allen-Cahn problem is the [Allen-Cahn 1D – Wight & Zhao](#1d-allen-cahn) example, and its 2D Allen-Cahn IBVP-1 is [Allen-Cahn 2D – Mattey & Ghosh](#2d-allen-cahn-mattey--ghosh).
 
-**Result (RTX 4090):** $L_2$ = 9.5 × 10⁻⁸ ($t = 0$), 1.9 × 10⁻³ ($t = 0.25$), 5.2 × 10⁻³ ($t = 0.5$), 1.3 × 10⁻² ($t = 0.75$), 2.9 × 10⁻² ($t = 1$)
+- **Initial condition:** $u(x, 0) = \cos(\pi x) - \exp(-4(\pi x)^2)$; $\mu$ has none
+- **Boundary conditions:** Periodic in value and slope, for $u$ and $\mu$
+- **Geometry:** Interval
+- **Time-adaptive training** (Adaptive training → *Time Adaptive Training*), the counterpart of the paper's bc-PINN: 10 windows of 0.01 over the fast start (the two bumps merge by about $t = 0.05$), then 9 of 0.1, each starting from the previous window's network (transfer learning, L-BFGS)
+- **Initial condition as a loss term** (weight 100) and **exact periodicity**
+- **Training:** Adam 5,000 → L-BFGS 5,000 per window; 10,000 domain points, 4 × 128 network
+- **In PINNStudio:** Examples → **Forward** (or **Inverse**) → **Cahn-Hilliard 1D – Mattey & Ghosh**
 
-*u — PINN solution over time*
+**Result (RTX 4090, about 13 minutes):** $u$: $L_2$ = 2.9 × 10⁻³ ($t = 0$), 3.5 × 10⁻³ ($t = 0.05$), 5.1 × 10⁻³ ($t = 0.25$), 4.9 × 10⁻³ ($t = 0.5$), 4.8 × 10⁻³ ($t = 0.75$), 4.8 × 10⁻³ ($t = 1$), against a Fourier pseudo-spectral solution in [`reference_data/1D/cahn_hilliard_mattey`](reference_data/1D/cahn_hilliard_mattey) (made by [`tools/make_phase_field_reference_data.py`](tools/make_phase_field_reference_data.py)). On the whole time interval every setup failed (25–90% error in $u$ at $t = 1$: plain, exact initial condition, SA-PINN, RBA, causal training with and without MsFFN), as the paper's standard PINN does. $\mu$ is fitted less closely in relative terms (3–13% after the merge), because it is nearly zero once the two phases have settled.
 
-![Allen-Cahn 1D — PINN solution over time (u)](assets/Images/DeepXDE/Allen_Cahn_equation/animation.gif)
+![1D Cahn-Hilliard (Mattey & Ghosh) — PINN vs reference, u](assets/Images/1D-CahnHilliard-Mattey/surface_comparison_u.png)
 
-*PINN vs reference, error analysis*
-
-![Allen-Cahn 1D — PINN vs reference, error analysis](assets/Images/DeepXDE/Allen_Cahn_equation/surface_comparison.png)
+![1D Cahn-Hilliard (Mattey & Ghosh) — u along x at the reference times](assets/Images/1D-CahnHilliard-Mattey/line_comparison_u.png)
 
 </details>
 
@@ -1838,6 +1838,41 @@ $$\Large -(-\Delta)^{\alpha/2}u = 2^{\alpha_0}\Gamma(2 + \tfrac{\alpha_0}{2})\Ga
 
 </details>
 
+<details id="2d-allen-cahn-wight--zhao">
+<summary><strong>Allen-Cahn 2D – Wight & Zhao</strong></summary>
+
+Benchmark problem after [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086). This is the paper's own shrinking-circle-interface benchmark, posed there for a field it calls $\phi$ (PINNStudio's $u$) with rate constant $\lambda$ and interface-width parameter $\varepsilon$ (eq. 3.11):
+
+$$\Large \frac{\partial u}{\partial t} = \lambda\left(\varepsilon^2\left(\frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2}\right) - u^3 + u\right), \qquad (x, y) \in [0, 1]^2,\ t \in [0, 10]$$
+
+where $\lambda = 10$ and $\varepsilon = 0.025$, matching the paper's own values ($\lambda\varepsilon^2 = 0.00625$ is the effective diffusion coefficient).
+
+- **Initial condition:** a smooth circular interface, $u(x, y, 0) = \tanh\left(\dfrac{0.35 - \sqrt{(x-0.5)^2 + (y-0.5)^2}}{2\varepsilon}\right)$ (paper's eq. 3.12)
+- **Boundary conditions:** Periodic
+- **Geometry:** Rectangle
+- **Time-Adaptive default:** on — $t \in [0,10]$ is a wide window for a single pass, so this template splits it into 10 steps of 1 (`0→1, 1→2, ..., 9→10`), L-BFGS transfer learning between steps
+- **In PINNStudio:** Examples → **Forward** (or **Inverse**) → **Allen-Cahn 2D – Wight & Zhao**
+
+**Result (RTX 4090):** $L_2$ = 3.1 × 10⁻⁴ ($t = 0$), 9.3 × 10⁻³ ($t = 2.5$), 2.1 × 10⁻² ($t = 5$), 7.9 × 10⁻³ ($t = 10$), against the reference data in [`reference_data/2D/allen_cahn_wight`](reference_data/2D/allen_cahn_wight). Inverse mode: $\lambda$ = 9.68 (true 10), $\lambda\varepsilon^2$ = 6.07 × 10⁻³ (true 6.25 × 10⁻³).
+
+![2D Allen-Cahn (Wight & Zhao) — PINN vs Ground Truth, Error Analysis surface comparison](assets/Images/2D_AllenCahn-Wight/surface_comparison.png)
+
+*Without time-adaptive training* this problem is not solved: over its long interval ($t$ up to 10) the plain PINN is wrong everywhere (about 200% error), and the best whole-interval setting found — RBA per-point weights — still gives 3.5% at $t = 2.5$ and 19% at $t = 10$. Here time-adaptive training is the method to use, and adding RBA per-point weights and exact periodicity (inputs `cos(2*pi*x); sin(2*pi*x); cos(2*pi*y); sin(2*pi*y); t`) to it lowers the error at $t = 10$ about 5× (1.6 × 10⁻³ against 7.9 × 10⁻³), with the same error at $t = 2.5$ and 5 (see the [training methods study](benchmarks/training_methods.md)).
+
+*Restore & Visualize* — the trained model restored from its saved checkpoint and re-animated without retraining:
+
+![2D Allen-Cahn (Wight & Zhao) — restored solution animation](assets/Images/2D_AllenCahn-Wight/restored_animation.gif)
+
+*Inverse mode* — same template, switched to **Inverse**, jointly recovering the two coefficients exactly as they appear in the PDE box — the reaction-term coefficient $\lambda$ and the lumped diffusion-term coefficient $\lambda\varepsilon^2$ (not $\varepsilon$ on its own):
+
+$$\Large \frac{\partial u}{\partial t} = (\lambda\varepsilon^2)\left(\frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2}\right) - \lambda(u^3 - u)$$
+
+with true values $\lambda = 10$ and $\lambda\varepsilon^2 = 0.00625$. The live convergence animation below shows both estimates settling onto their true values during training:
+
+![2D Allen-Cahn (Wight & Zhao) inverse parameter convergence animation](assets/Images/2D_AllenCahn-Wight/param_convergence_animation.gif)
+
+</details>
+
 <details id="2d-allen-cahn-mattey--ghosh">
 <summary><strong>Allen-Cahn 2D – Mattey & Ghosh</strong></summary>
 
@@ -1879,38 +1914,50 @@ Result: $L_2$ = 2.0 × 10⁻⁵ ($t = 0$), 3.4 × 10⁻⁴ ($t = 0.25$), 5.0 × 
 
 </details>
 
-<details id="2d-allen-cahn-wight--zhao">
-<summary><strong>Allen-Cahn 2D – Wight & Zhao</strong></summary>
+<details id="2d-cahn-hilliard-wight--zhao">
+<summary><strong>Cahn-Hilliard 2D – Wight & Zhao</strong></summary>
 
-Benchmark problem after [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086). This is the paper's own shrinking-circle-interface benchmark, posed there for a field it calls $\phi$ (PINNStudio's $u$) with rate constant $\lambda$ and interface-width parameter $\varepsilon$ (eq. 3.11):
+Benchmark problem after [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086), section 3.3 (eqs. 3.20–3.21): two bubbles that touch and merge into one, written for a field $\phi$ (PINNStudio's $u$),
 
-$$\Large \frac{\partial u}{\partial t} = \lambda\left(\varepsilon^2\left(\frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2}\right) - u^3 + u\right), \qquad (x, y) \in [0, 1]^2,\ t \in [0, 10]$$
+$$\Large \frac{\partial u}{\partial t} = \lambda\left(\frac{\partial^2 \mu}{\partial x^2} + \frac{\partial^2 \mu}{\partial y^2}\right), \qquad \mu = u^3 - u - \varepsilon^2\left(\frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2}\right), \qquad (x, y) \in [-1, 1]^2,\ t \in [0, 1]$$
 
-where $\lambda = 10$ and $\varepsilon = 0.025$, matching the paper's own values ($\lambda\varepsilon^2 = 0.00625$ is the effective diffusion coefficient).
+where $\lambda = 1$ and $\varepsilon = 0.05$. As in the 1D example, the chemical potential $\mu$ is a second output (the paper's network is also $`(\phi, \mu)`$), so no residual needs a fourth derivative.
 
-- **Initial condition:** a smooth circular interface, $u(x, y, 0) = \tanh\left(\dfrac{0.35 - \sqrt{(x-0.5)^2 + (y-0.5)^2}}{2\varepsilon}\right)$ (paper's eq. 3.12)
-- **Boundary conditions:** Periodic
+- **Initial condition:** the paper's two bubbles of radius $r = 0.4$ centred at $(\pm 0.28, 0)$, $u = \max\left(\tanh\frac{r - R_1}{2\varepsilon}, \tanh\frac{r - R_2}{2\varepsilon}\right) = \tanh\frac{r - \min(R_1, R_2)}{2\varepsilon}$, with the minimum written smoothly, $\min(R_1, R_2) \approx \tfrac12\left(R_1 + R_2 - \sqrt{(R_1 - R_2)^2 + 0.0004}\right)$. The plain minimum has a corner where the bubbles touch, and that corner's curvature is what drives the merging — but a network built on the exact initial condition sees no curvature in a corner, and with it every setup learned an almost frozen solution (16% / 30% error at $t = 0.25$ / 1, about what leaving $u$ unchanged gives). The smoothing changes $u$ by 0.5% (relative $L_2$), only along the line where the bubbles meet; the reference data uses the same formula. $\mu$ has no initial condition.
+- **Boundary conditions:** Periodic, for $u$ and $\mu$
 - **Geometry:** Rectangle
-- **Time-Adaptive default:** on — $t \in [0,10]$ is a wide window for a single pass, so this template splits it into 10 steps of 1 (`0→1, 1→2, ..., 9→10`), L-BFGS transfer learning between steps
-- **In PINNStudio:** Examples → **Forward** (or **Inverse**) → **Allen-Cahn 2D – Wight & Zhao**
+- **Exact initial condition** and **exact periodicity** (inputs $\cos\pi x$, $\sin\pi x$, $\cos\pi y$, $\sin\pi y$, $t$), as in the 1D examples
+- **Per-point weights:** *SA-PINN* (Loss weights → *Automatic weighting*; *Keep the mean weight at 1* off, *During L-BFGS: Keep the weights*)
+- **Training:** Adam 20,000 → L-BFGS 20,000; 20,000 domain points, 4 × 128 network; no time-adaptive training
+- **In PINNStudio:** Examples → **Forward** (or **Inverse**) → **Cahn-Hilliard 2D – Wight & Zhao**
 
-**Result (RTX 4090):** $L_2$ = 3.1 × 10⁻⁴ ($t = 0$), 9.3 × 10⁻³ ($t = 2.5$), 2.1 × 10⁻² ($t = 5$), 7.9 × 10⁻³ ($t = 10$), against the reference data in [`reference_data/2D/allen_cahn_wight`](reference_data/2D/allen_cahn_wight). Inverse mode: $\lambda$ = 9.68 (true 10), $\lambda\varepsilon^2$ = 6.07 × 10⁻³ (true 6.25 × 10⁻³).
+**Result (RTX 4090, about 19 minutes):** $u$: $L_2$ = 1.2 × 10⁻⁷ ($t = 0$), 1.2 × 10⁻² ($t = 0.25$), 1.3 × 10⁻² ($t = 0.5$), 2.8 × 10⁻² ($t = 0.75$), 3.8 × 10⁻² ($t = 1$); $\mu$: 3.5 × 10⁻², 5.0 × 10⁻², 3.7 × 10⁻², 2.0 × 10⁻² at $t = 0.25$ to 1 (at $t = 0$ the true $\mu$ has a sharp spike at the neck, which the network, with no initial condition for $\mu$, doesn't reproduce), against a Fourier pseudo-spectral solution in [`reference_data/2D/cahn_hilliard_wight`](reference_data/2D/cahn_hilliard_wight) (made by [`tools/make_phase_field_reference_data.py`](tools/make_phase_field_reference_data.py); grid and time-step refinement change it by about 10⁻⁴). The remaining error sits on the moving interface; the paper's own errors at $t = 1$ (its Figure 3.13) are up to about 0.5. Causal training also merges the bubbles (2.9% / 4.2% at $t = 0.25$ / 1), RBA and a plain run don't — see the [training methods study](benchmarks/training_methods.md).
 
-![2D Allen-Cahn (Wight & Zhao) — PINN vs Ground Truth, Error Analysis surface comparison](assets/Images/2D_AllenCahn-Wight/surface_comparison.png)
+![2D Cahn-Hilliard — PINN vs reference, u](assets/Images/2D_CahnHilliard-Wight/surface_comparison_u.png)
 
-*Without time-adaptive training* this problem is not solved: over its long interval ($t$ up to 10) the plain PINN is wrong everywhere (about 200% error), and the best whole-interval setting found — RBA per-point weights — still gives 3.5% at $t = 2.5$ and 19% at $t = 10$. Here time-adaptive training is the method to use, and adding RBA per-point weights and exact periodicity (inputs `cos(2*pi*x); sin(2*pi*x); cos(2*pi*y); sin(2*pi*y); t`) to it lowers the error at $t = 10$ about 5× (1.6 × 10⁻³ against 7.9 × 10⁻³), with the same error at $t = 2.5$ and 5 (see the [training methods study](benchmarks/training_methods.md)).
+![2D Cahn-Hilliard — PINN vs reference, chemical potential mu](assets/Images/2D_CahnHilliard-Wight/surface_comparison_mu.png)
 
-*Restore & Visualize* — the trained model restored from its saved checkpoint and re-animated without retraining:
+</details>
 
-![2D Allen-Cahn (Wight & Zhao) — restored solution animation](assets/Images/2D_AllenCahn-Wight/restored_animation.gif)
+<details id="2d-cahn-hilliard-mattey--ghosh">
+<summary><strong>Cahn-Hilliard 2D – Mattey & Ghosh</strong></summary>
 
-*Inverse mode* — same template, switched to **Inverse**, jointly recovering the two coefficients exactly as they appear in the PDE box — the reaction-term coefficient $\lambda$ and the lumped diffusion-term coefficient $\lambda\varepsilon^2$ (not $\varepsilon$ on its own):
+Benchmark problem after [Mattey & Ghosh (2022)](https://doi.org/10.1016/j.cma.2021.114474), section 6.2, IBVP-2: a pattern of stripes that sharpens into the two phases,
 
-$$\Large \frac{\partial u}{\partial t} = (\lambda\varepsilon^2)\left(\frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2}\right) - \lambda(u^3 - u)$$
+$$\Large \frac{\partial u}{\partial t'} = 0.005\left(\frac{\partial^2 \mu}{\partial x^2} + \frac{\partial^2 \mu}{\partial y^2}\right), \qquad \mu = u^3 - u - \alpha\left(\frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2}\right), \qquad (x, y) \in [0, 1]^2,\ t' \in [0, 1]$$
 
-with true values $\lambda = 10$ and $\lambda\varepsilon^2 = 0.00625$. The live convergence animation below shows both estimates settling onto their true values during training:
+- **Time is rescaled**, $t' = t / 0.005$: the paper's interval is $t \in [0, 0.005]$, which a network would see as an almost constant input. With $t'$ the equation gains the factor 0.005, and both residuals are of order 1. The reference times $t' = 0.2, 0.6, 1$ are the paper's $t = 0.001, 0.003, 0.005$.
+- **$\alpha = 0.0002$**, not the 0.02 the paper states: with $\alpha = 0.02$ this pattern decays (to ±0.04 at $t = 0.005$, checked with the reference solver), while the paper's Fig. 16 shows it growing to about ±1, which $\alpha = 0.0002$ reproduces (as it does its Fig. 15, IBVP-1).
+- **Initial condition:** $u(x, y, 0) = 0.4\cos(4\pi x)\cos(4\pi(x + y))$; $\mu$ has none
+- **Boundary conditions:** Periodic, for $u$ and $\mu$
+- **Geometry:** Rectangle
+- **Exact initial condition**, **exact periodicity** and **SA-PINN** (weights held during L-BFGS)
+- **Training:** Adam 20,000 → L-BFGS 20,000; 20,000 domain points, 4 × 128 network; no time-adaptive training
+- **In PINNStudio:** Examples → **Forward** (or **Inverse**) → **Cahn-Hilliard 2D – Mattey & Ghosh**
 
-![2D Allen-Cahn (Wight & Zhao) inverse parameter convergence animation](assets/Images/2D_AllenCahn-Wight/param_convergence_animation.gif)
+**Result (RTX 4090, about 15 minutes):** $u$: $L_2$ = 8.5 × 10⁻⁷ ($t' = 0$), 5.2 × 10⁻³ ($t' = 0.2$), 4.5 × 10⁻³ ($t' = 0.4$), 4.0 × 10⁻³ ($t' = 0.6$), 2.4 × 10⁻³ ($t' = 0.8$), 2.0 × 10⁻³ ($t' = 1$); $\mu$: 4.0 × 10⁻³ to 7.8 × 10⁻³ up to $t' = 0.8$, 4.2 × 10⁻² at $t' = 1$, against a Fourier pseudo-spectral solution in [`reference_data/2D/cahn_hilliard_mattey`](reference_data/2D/cahn_hilliard_mattey) (made by [`tools/make_phase_field_reference_data.py`](tools/make_phase_field_reference_data.py)). Without SA-PINN the error in $u$ is about 1.7× larger (3.5 × 10⁻³ at $t' = 1$), and RBA or causal training don't do better than that.
+
+![2D Cahn-Hilliard (Mattey & Ghosh) — PINN vs reference, u](assets/Images/2D_CahnHilliard-Mattey/surface_comparison_u.png)
 
 </details>
 
@@ -1969,53 +2016,6 @@ Error Analysis — PINN vs Ground Truth, for each output:
 *Inverse mode* — same template, switched to **Inverse**, recovering the shared viscosity $\nu$ (true value $0.01/\pi \approx 3.18 \times 10^{-3}$, initial guess 1) from $U$ and $V$ measured at $t = 1$, each against its own output. $\nu$ converges to 3.44 × 10⁻³, and the $L_2$ error at $t = 1$ is 3.7 × 10⁻³ for $U$ and 3.1 × 10⁻³ for $V$:
 
 ![2D Burgers (Mathias) inverse parameter convergence animation](assets/Images/2D_Burgers/param_convergence_animation.gif)
-
-</details>
-
-<details id="2d-cahn-hilliard-mattey--ghosh">
-<summary><strong>Cahn-Hilliard 2D – Mattey & Ghosh</strong></summary>
-
-Benchmark problem after [Mattey & Ghosh (2022)](https://doi.org/10.1016/j.cma.2021.114474), section 6.2, IBVP-2: a pattern of stripes that sharpens into the two phases,
-
-$$\Large \frac{\partial u}{\partial t'} = 0.005\left(\frac{\partial^2 \mu}{\partial x^2} + \frac{\partial^2 \mu}{\partial y^2}\right), \qquad \mu = u^3 - u - \alpha\left(\frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2}\right), \qquad (x, y) \in [0, 1]^2,\ t' \in [0, 1]$$
-
-- **Time is rescaled**, $t' = t / 0.005$: the paper's interval is $t \in [0, 0.005]$, which a network would see as an almost constant input. With $t'$ the equation gains the factor 0.005, and both residuals are of order 1. The reference times $t' = 0.2, 0.6, 1$ are the paper's $t = 0.001, 0.003, 0.005$.
-- **$\alpha = 0.0002$**, not the 0.02 the paper states: with $\alpha = 0.02$ this pattern decays (to ±0.04 at $t = 0.005$, checked with the reference solver), while the paper's Fig. 16 shows it growing to about ±1, which $\alpha = 0.0002$ reproduces (as it does its Fig. 15, IBVP-1).
-- **Initial condition:** $u(x, y, 0) = 0.4\cos(4\pi x)\cos(4\pi(x + y))$; $\mu$ has none
-- **Boundary conditions:** Periodic, for $u$ and $\mu$
-- **Geometry:** Rectangle
-- **Exact initial condition**, **exact periodicity** and **SA-PINN** (weights held during L-BFGS)
-- **Training:** Adam 20,000 → L-BFGS 20,000; 20,000 domain points, 4 × 128 network; no time-adaptive training
-- **In PINNStudio:** Examples → **Forward** (or **Inverse**) → **Cahn-Hilliard 2D – Mattey & Ghosh**
-
-**Result (RTX 4090, about 15 minutes):** $u$: $L_2$ = 8.5 × 10⁻⁷ ($t' = 0$), 5.2 × 10⁻³ ($t' = 0.2$), 4.5 × 10⁻³ ($t' = 0.4$), 4.0 × 10⁻³ ($t' = 0.6$), 2.4 × 10⁻³ ($t' = 0.8$), 2.0 × 10⁻³ ($t' = 1$); $\mu$: 4.0 × 10⁻³ to 7.8 × 10⁻³ up to $t' = 0.8$, 4.2 × 10⁻² at $t' = 1$, against a Fourier pseudo-spectral solution in [`reference_data/2D/cahn_hilliard_mattey`](reference_data/2D/cahn_hilliard_mattey) (made by [`tools/make_phase_field_reference_data.py`](tools/make_phase_field_reference_data.py)). Without SA-PINN the error in $u$ is about 1.7× larger (3.5 × 10⁻³ at $t' = 1$), and RBA or causal training don't do better than that.
-
-![2D Cahn-Hilliard (Mattey & Ghosh) — PINN vs reference, u](assets/Images/2D_CahnHilliard-Mattey/surface_comparison_u.png)
-
-</details>
-
-<details id="2d-cahn-hilliard-wight--zhao">
-<summary><strong>Cahn-Hilliard 2D – Wight & Zhao</strong></summary>
-
-Benchmark problem after [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086), section 3.3 (eqs. 3.20–3.21): two bubbles that touch and merge into one, written for a field $\phi$ (PINNStudio's $u$),
-
-$$\Large \frac{\partial u}{\partial t} = \lambda\left(\frac{\partial^2 \mu}{\partial x^2} + \frac{\partial^2 \mu}{\partial y^2}\right), \qquad \mu = u^3 - u - \varepsilon^2\left(\frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2}\right), \qquad (x, y) \in [-1, 1]^2,\ t \in [0, 1]$$
-
-where $\lambda = 1$ and $\varepsilon = 0.05$. As in the 1D example, the chemical potential $\mu$ is a second output (the paper's network is also $`(\phi, \mu)`$), so no residual needs a fourth derivative.
-
-- **Initial condition:** the paper's two bubbles of radius $r = 0.4$ centred at $(\pm 0.28, 0)$, $u = \max\left(\tanh\frac{r - R_1}{2\varepsilon}, \tanh\frac{r - R_2}{2\varepsilon}\right) = \tanh\frac{r - \min(R_1, R_2)}{2\varepsilon}$, with the minimum written smoothly, $\min(R_1, R_2) \approx \tfrac12\left(R_1 + R_2 - \sqrt{(R_1 - R_2)^2 + 0.0004}\right)$. The plain minimum has a corner where the bubbles touch, and that corner's curvature is what drives the merging — but a network built on the exact initial condition sees no curvature in a corner, and with it every setup learned an almost frozen solution (16% / 30% error at $t = 0.25$ / 1, about what leaving $u$ unchanged gives). The smoothing changes $u$ by 0.5% (relative $L_2$), only along the line where the bubbles meet; the reference data uses the same formula. $\mu$ has no initial condition.
-- **Boundary conditions:** Periodic, for $u$ and $\mu$
-- **Geometry:** Rectangle
-- **Exact initial condition** and **exact periodicity** (inputs $\cos\pi x$, $\sin\pi x$, $\cos\pi y$, $\sin\pi y$, $t$), as in the 1D examples
-- **Per-point weights:** *SA-PINN* (Loss weights → *Automatic weighting*; *Keep the mean weight at 1* off, *During L-BFGS: Keep the weights*)
-- **Training:** Adam 20,000 → L-BFGS 20,000; 20,000 domain points, 4 × 128 network; no time-adaptive training
-- **In PINNStudio:** Examples → **Forward** (or **Inverse**) → **Cahn-Hilliard 2D – Wight & Zhao**
-
-**Result (RTX 4090, about 19 minutes):** $u$: $L_2$ = 1.2 × 10⁻⁷ ($t = 0$), 1.2 × 10⁻² ($t = 0.25$), 1.3 × 10⁻² ($t = 0.5$), 2.8 × 10⁻² ($t = 0.75$), 3.8 × 10⁻² ($t = 1$); $\mu$: 3.5 × 10⁻², 5.0 × 10⁻², 3.7 × 10⁻², 2.0 × 10⁻² at $t = 0.25$ to 1 (at $t = 0$ the true $\mu$ has a sharp spike at the neck, which the network, with no initial condition for $\mu$, doesn't reproduce), against a Fourier pseudo-spectral solution in [`reference_data/2D/cahn_hilliard_wight`](reference_data/2D/cahn_hilliard_wight) (made by [`tools/make_phase_field_reference_data.py`](tools/make_phase_field_reference_data.py); grid and time-step refinement change it by about 10⁻⁴). The remaining error sits on the moving interface; the paper's own errors at $t = 1$ (its Figure 3.13) are up to about 0.5. Causal training also merges the bubbles (2.9% / 4.2% at $t = 0.25$ / 1), RBA and a plain run don't — see the [training methods study](benchmarks/training_methods.md).
-
-![2D Cahn-Hilliard — PINN vs reference, u](assets/Images/2D_CahnHilliard-Wight/surface_comparison_u.png)
-
-![2D Cahn-Hilliard — PINN vs reference, chemical potential mu](assets/Images/2D_CahnHilliard-Wight/surface_comparison_mu.png)
 
 </details>
 
@@ -2280,9 +2280,13 @@ For a 3D domain the *View* list also has **3D**: the whole domain as a shaded so
 </td>
 </tr>
 <tr>
-<td colspan="2" align="center">
-<img src="assets/screenshots/view_3d.png" alt="3D view of a sketched domain: a box with a spherical cut-out and a raised block, faces coloured by three boundary conditions, the slice plane at z = 0.75" width="70%">
+<td width="50%" align="center">
+<img src="assets/screenshots/view_3d.png" alt="3D view of a sketched domain: a box with a spherical cut-out and a raised block, faces coloured by three boundary conditions, the slice plane at z = 0.75" width="100%">
 <sub><strong>3D view</strong> — the same kind of domain as a solid: the spherical cut-out, a raised block, faces coloured by their boundary conditions</sub>
+</td>
+<td width="50%" align="center">
+<img src="assets/screenshots/view_3d_points.png" alt="The same 3D view with Show points on: DeepXDE's domain and boundary points drawn inside the solid and on its faces, none in the cut-out" width="100%">
+<sub><strong>3D view, Show points</strong> — DeepXDE's domain and boundary points; none land in the cut-out</sub>
 </td>
 </tr>
 </table>
