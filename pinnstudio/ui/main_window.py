@@ -3509,7 +3509,10 @@ class MainWindow(QMainWindow):
             "the weights are trained by gradient ascent on the loss the network minimizes.\n"
             "Only the training points are weighted (the test loss stays the plain one).\n"
             "They help most where the plain PINN struggles; on a problem it already solves well\n"
-            "they can make the result worse -- compare with a run without them.")
+            "they can make the result worse -- compare with a run without them.\n"
+            "Use SA-PINN with an exact initial condition: it weights only the PDE points, so an\n"
+            "initial condition given as a loss term (as in time-adaptive training) can be\n"
+            "outweighed -- on 2D Allen-Cahn (Wight & Zhao) the network then learned u = 0.")
         pw_row.addWidget(self.point_weights_combo, 1)
         _pl.addLayout(pw_row)
         self.rba_widget = QWidget()

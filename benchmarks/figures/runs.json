@@ -778,8 +778,34 @@
        0.00053585
       ]
      ],
-     "best": true,
      "src": "ch14_ac2d/m/mg_rba_keep_per_hard"
+    },
+    {
+     "label": "Exact IC + periodic + SA-PINN",
+     "best": true,
+     "src": "cw_sa2d/m/ac2mg_whole_sa",
+     "l2": [
+      [
+       0.0,
+       1.967119e-05
+      ],
+      [
+       0.25,
+       0.0002371671
+      ],
+      [
+       0.5,
+       0.0003974769
+      ],
+      [
+       0.75,
+       0.0004160796
+      ],
+      [
+       1.0,
+       0.0003600556
+      ]
+     ]
     }
    ]
   },
@@ -877,6 +903,28 @@
      "src": "ch14_ac2d/m/wz_rba"
     },
     {
+     "label": "Exact IC + periodic + SA-PINN",
+     "src": "cw_sa2d/m/ac2wz_whole_sa",
+     "l2": [
+      [
+       0.0,
+       2.41465e-05
+      ],
+      [
+       2.5,
+       0.2455015
+      ],
+      [
+       5.0,
+       0.3701172
+      ],
+      [
+       10.0,
+       0.5298695
+      ]
+     ]
+    },
+    {
      "label": "Time-adaptive, 10 windows",
      "l2": [
       [
@@ -921,6 +969,28 @@
      ],
      "best": true,
      "src": "ch15_wzta/m/wz_ta_rba_per"
+    },
+    {
+     "label": "Time-adaptive + SA-PINN + periodic",
+     "src": "cw_sa2d/m/ac2wz_ta_sa",
+     "l2": [
+      [
+       0.0,
+       0.9938528
+      ],
+      [
+       2.5,
+       0.9999994
+      ],
+      [
+       5.0,
+       1.000006
+      ],
+      [
+       10.0,
+       1.000001
+      ]
+     ]
     }
    ]
   },

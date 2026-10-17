@@ -32,8 +32,8 @@ Which published PINN training techniques actually help, tested on PINNStudio's o
 |---|---|---|---|
 | 1D Cahn-Hilliard (Wight & Zhao) | 28–42% unscaled, 0.4–3% scaled | 0.05–0.06% at $t = 1$ | scaling, exact periodicity, exact IC, SA-PINN (the template) |
 | 1D Allen-Cahn, no time windows | 10% at $t = 1$ | 0.065–0.13% at $t = 1$ | exact periodicity, exact IC, causal training, MsFFN |
-| 2D Allen-Cahn (Mattey & Ghosh), $t \le 1$ | 1.3% | 0.054–0.057% (25× lower) | exact periodicity, exact IC, RBA or causal training (time-adaptive template: 0.67%) |
-| 2D Allen-Cahn (Wight & Zhao), $t \le 10$ | 200% (fails) | 0.16–2.0% | time-adaptive training, RBA, exact periodicity (template alone: 0.79–2.1%) |
+| 2D Allen-Cahn (Mattey & Ghosh), $t \le 1$ | 1.3% | 0.036–0.057% (25–35× lower) | exact periodicity, exact IC, then SA-PINN, RBA or causal training (time-adaptive template: 0.67%) |
+| 2D Allen-Cahn (Wight & Zhao), $t \le 10$ | 200% (fails) | 0.16–2.0% | time-adaptive training, RBA, exact periodicity (template alone: 0.79–2.1%); SA-PINN fails here |
 | 2D Cahn-Hilliard (Wight & Zhao) | 16–30% (frozen) | 1.2% / 3.8% at $t = 0.25$ / 1 | smoothed initial condition, exact periodicity, exact IC, SA-PINN (the template) |
 | 1D Cahn-Hilliard (Mattey & Ghosh) | 84% at $t = 1$ | 0.29% / 0.48% at $t = 0$ / 1 | time-adaptive training in 19 windows, IC as a loss term, exact periodicity (the template); every whole-domain setup failed |
 | 2D Cahn-Hilliard (Mattey & Ghosh) | 0.35% at $t' = 1$ | 0.20% at $t' = 1$ | exact periodicity, exact IC, SA-PINN (the template) |
@@ -136,8 +136,11 @@ IBVP-1 of [Mattey & Ghosh (2022)](https://doi.org/10.1016/j.cma.2021.114474), $t
 | Whole domain, plain | 1.2% | 1.3% |
 | + RBA, unweighted L-BFGS | 1.6% | 1.7% |
 | + MsFFN + RBA | 0.78% | 1.7% |
-| **+ RBA + exact periodicity + exact IC** | **0.034%** | **0.054%** |
+| + RBA + exact periodicity + exact IC | 0.033–0.034% | 0.052–0.054% |
 | + causal + exact periodicity + exact IC | 0.037% | 0.057% |
+| **+ SA-PINN + exact periodicity + exact IC** | **0.024%** | **0.036%** |
+
+With an exact initial condition all three weighting methods land close together (the RBA row is two runs: the first and a repeat on the current code); SA-PINN is about 1.4× lower at every time, which is at the edge of the run-to-run variation.
 
 ## 2D Allen-Cahn (Wight & Zhao)
 
@@ -154,7 +157,11 @@ A shrinking circle over a long time range, $t \in [0, 10]$ ([Wight & Zhao, 2021]
 | + MsFFN + RBA | 81% | 100% | 110% |
 | + RBA + exact periodicity + exact IC | 17% | 19% | 33% |
 | + RBA, unweighted L-BFGS | 3.5% | 5.7% | 19% |
-| **Time-adaptive + RBA + exact periodicity** | **0.92%** | **2.0%** | **0.16%** |
+| + SA-PINN + exact periodicity + exact IC | 25% | 37% | 53% |
+| **Time-adaptive + RBA + exact periodicity** (2 runs) | **0.92–0.93%** | **2.0–2.1%** | **0.16%** |
+| Time-adaptive + SA-PINN + exact periodicity | 100% | 100% | 100% |
+
+SA-PINN does not work here. On the whole interval it is worse than RBA, and with time-adaptive training it fails completely: each window learns $u = 0$. With time windows the initial condition (and each window's starting state) is a loss term with a fixed weight of 100, while SA-PINN's weights on the PDE points only grow; within the first window the PDE term outweighs the initial condition, and $u = 0$, which satisfies the Allen-Cahn equation exactly, is what the network settles on. The paper's SA-PINN also gives the initial-condition points their own growing weights, which PINNStudio does not do, so use SA-PINN with an exact initial condition only (the 1D Cahn-Hilliard example of Mattey & Ghosh shows the same effect, milder: 9.4% at $t = 0$).
 
 ## 2D Cahn-Hilliard (Wight & Zhao)
 
@@ -286,7 +293,7 @@ DeepXDE's diffusion-reaction example.
 
 1. Scale the equations so that every residual is of order 1.
 2. Enforce what is known exactly: periodicity, and the initial condition. Write the initial condition as a smooth formula, since a corner (a `max`, an `abs`) carries curvature the network cannot see. Then compare the exact initial condition with the initial condition as a loss term (weight 100): on 3D Allen-Cahn the loss term was 25 times more accurate.
-3. Add one weighting method: RBA (cheap and safe), SA-PINN with its weights held during L-BFGS (best on Cahn-Hilliard), or causal training with the $\varepsilon$ schedule (best on Allen-Cahn, with MsFFN). Do not combine causal training with per-point weights.
+3. Add one weighting method: RBA (cheap and safe), SA-PINN with its weights held during L-BFGS (best on Cahn-Hilliard; only with an exact initial condition, see 2D Allen-Cahn (Wight & Zhao)), or causal training with the $\varepsilon$ schedule (best on Allen-Cahn, with MsFFN). Do not combine causal training with per-point weights.
 4. Try MsFFN for sharp or multi-scale solutions, and compare: it can also hurt.
 5. For long time ranges, or a very fast change right after the start, use time-adaptive training, with short windows over the fast part (as the 1D Cahn-Hilliard template after Mattey & Ghosh does).
 6. Always compare against a plain run. On problems a plain PINN already solves well, most of these methods add nothing or make the result worse.
