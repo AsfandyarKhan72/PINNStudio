@@ -148,11 +148,17 @@ def run():
     check(e3["location_picker"].currentText() == "Back side (z = z_max)", "3D offers front/back")
 
     # periodic rows: the axis says which sides are tied, so Where: is set from it and hidden
-    ep = w._add_custom_bc_entry(bc_type="periodic", location="", axis="y")
+    ep = w._add_custom_bc_entry(bc_type="periodic", location="True", axis="y")
     loc_w = ep["location"].parentWidget()
-    check(ep["location"].text() == "bottom" and loc_w.isHidden(), "periodic: Where from the axis, hidden")
-    ep["axis"].setCurrentText("z")
-    check(ep["location"].text() == "front" and loc_w.isHidden(), "periodic: changing the axis moves the side")
+    check(ep["location"].text() == "True" and loc_w.isHidden(),
+          "periodic: whole boundary (DeepXDE's own examples) is kept as it is, and hidden")
+    epb = w._add_custom_bc_entry(bc_type="periodic", location="bottom", axis="y")
+    epb["axis"].setCurrentText("z")
+    check(epb["location"].text() == "front" and epb["location"].parentWidget().isHidden(),
+          "periodic: changing the axis moves the side")
+    epm = w._add_custom_bc_entry(bc_type="periodic", location="bottom", axis="x")
+    check(epm["location"].text() == "bottom" and not epm["location"].parentWidget().isHidden(),
+          "periodic: a side that doesn't fit the axis is kept and shown, never rewritten on load")
     ep2 = w._add_custom_bc_entry(bc_type="periodic", location="right", axis="x")
     check(ep2["location"].text() == "right" and ep2["location"].parentWidget().isHidden(),
           "periodic: either side of the pair is kept as it is")

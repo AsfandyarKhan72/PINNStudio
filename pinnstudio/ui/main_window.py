@@ -7911,30 +7911,28 @@ class MainWindow(QMainWindow):
         }
         default_val_label = "Value:"
 
+        _own_sides = {"x": ("left", "right", "left or right"), "y": ("bottom", "top", "bottom or top"),
+                      "z": ("front", "back", "front or back")}
+
         def _periodic_where_is_auto():
-            """A periodic row whose Where: is the standard side of its axis
-            (or empty / whole boundary, which periodic rows never mean): the
-            axis says it all, so Where: is set from it and hidden."""
+            """A periodic row whose Where: is standard for its axis -- either
+            side of the pair, or the whole boundary (DeepXDE's own examples
+            use that: points off the paired sides map to themselves, so it
+            adds nothing) -- says nothing the axis doesn't: hide Where:. It is
+            never rewritten here, so a loaded project trains as before."""
             if type_combo.currentData() != "periodic":
                 return False
             txt = " ".join(loc_edit.text().split())
-            ax = axis_combo.currentText()
-            own = {"x": ("left", "right", "left or right"), "y": ("bottom", "top", "bottom or top"),
-                   "z": ("front", "back", "front or back")}
-            if txt in own.get(ax, ()):            # either side of the pair: DeepXDE treats them alike
-                return True
-            if txt in ("", "True") or any(txt in v for v in own.values()):
-                # empty / whole boundary would tie the wrong points together;
-                # a side of another axis is left over from changing the axis
-                loc_edit.setText(self._PERIODIC_SIDE.get(ax, "left"))
-                return True
-            return False
+            return txt in ("", "True") or txt in _own_sides.get(axis_combo.currentText(), ())
 
         def _sync_periodic_axis(_t=None):
             pair_label.setText(f"({self._PERIODIC_PAIR.get(axis_combo.currentText(), '')})")
             if type_combo.currentData() == "periodic":
-                auto = _periodic_where_is_auto()
-                loc_widget.setVisible(not auto)
+                # the user changed the axis: a side of another axis moves with it
+                txt = " ".join(loc_edit.text().split())
+                if any(txt in v for v in _own_sides.values()) and txt not in _own_sides.get(axis_combo.currentText(), ()):
+                    loc_edit.setText(self._PERIODIC_SIDE.get(axis_combo.currentText(), "left"))
+                loc_widget.setVisible(not _periodic_where_is_auto())
         axis_combo.currentTextChanged.connect(_sync_periodic_axis)
 
         def _sync_type(_t=None):
