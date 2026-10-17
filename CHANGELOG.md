@@ -209,6 +209,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 
 - **Windows: PINNStudio would not start** (`JSONDecodeError: Invalid \escape` while building the Examples list). The DeepXDE examples' reference-file paths were written into JSON and Python-literal settings with a plain text replace, so a Windows path's backslashes broke them. The paths are now put into the parsed settings and written out escaped; a test builds every example and its generated scripts with Windows paths.
+- **Windows: examples with an exact-solution reference failed to train** (`SyntaxError: (unicode error) 'unicodeescape' codec can't decode bytes ... truncated \UXXXXXXXX escape`). The generated script printed the reference folder with the path pasted into its source; it is now an escaped string. The Windows-path test checks that no path appears unescaped in any generated script.
 - **Quitting no longer aborts** with "QThread: Destroyed while thread '' is still running" when the window is closed while the startup update check is still waiting for PyPI (seen on macOS). The check now runs in a daemon thread, which Python drops on exit.
 - **Error Analysis surface plots:** the PINN and Reference panels of a 1D x–t surface comparison were always titled `u(x,t)`; they now show the compared output's name (`mu(x,t)` for the Cahn-Hilliard chemical potential).
 - **README maths:** two more `\,` in the Cahn-Hilliard equations showed as commas on GitHub; removed.

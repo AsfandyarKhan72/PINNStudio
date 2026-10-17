@@ -9064,7 +9064,7 @@ def _formula_reference_code(config, geom_ref="geom"):
         L.append("        np.savetxt(_path, np.column_stack([_pts, _u]))")
     else:
         L.append("        np.savetxt(_path, np.column_stack([_pts, np.full(len(_pts), _t), _u]))")
-    L.append(f"    print(f'Reference from formula: wrote {len(rows)} file(s) to {_formula_reference_dir(config)}')")
+    L.append(f"    print('Reference from formula: wrote {len(rows)} file(s) to ' + {_formula_reference_dir(config)!r})")
     L.append("_write_formula_reference()")
     return "\n".join(L)
 
