@@ -2430,22 +2430,19 @@ class MainWindow(QMainWindow):
         self.bc_loc_hint_toggle = self._ref_button("\"Where\" examples")
         self._ref_row(self.custom_bc_main_layout, self.bc_loc_hint_toggle)
         self.bc_loc_hint = QLabel(
-            "\"Where\" picks WHICH part of the boundary a condition applies to.\n"
-            "It's only checked at points already on the boundary, so you never\n"
-            "need to detect \"on the boundary\" yourself -- only say which part.\n"
-            "Use the picker, or type any True/False expression:\n"
-            "True                  → the whole boundary\n"
-            "left / right          → x = x_min / x = x_max (your domain's own limits)\n"
-            "bottom / top          → y = y_min / y = y_max (2D/3D)\n"
-            "front / back          → z = z_min / z = z_max (3D)\n"
-            "left or right         → both ends\n"
-            "x <= x_min            → same as left; x_min, x_max, y_min, ... are\n"
-            "                        defined in every BC expression, Value included\n"
-            "np.isclose(x**2 + y**2, 0.25) → a circle of radius 0.5 (for shapes\n"
-            "                        without named sides, e.g. a hole)\n"
-            "Neumann/Robin values are du/dn, the derivative along the OUTWARD\n"
-            "normal: at a right/top side that is +du/dx or +du/dy, at a\n"
-            "left/bottom side it is -du/dx or -du/dy."
+            "\"Where\" says which part of the boundary a condition applies to. Pick the whole boundary or "
+            "a side (left/right = x_min/x_max, bottom/top = y_min/y_max, front/back = z_min/z_max: your "
+            "domain's own limits), or choose Custom expression… and write any true/false expression in "
+            "x, y, z (and t). It is only checked at points already on the boundary, so it only has to say "
+            "which part.\n\n"
+            "In a custom expression you can use the side names and the limits:\n"
+            "    left or right                       both ends in x\n"
+            "    x <= 0.5 and bottom                 the left half of the bottom side\n"
+            "    np.isclose(x**2 + y**2, 0.25)       a circle of radius 0.5 (e.g. a hole)\n\n"
+            "Periodic conditions need no Where: \"Periodic in: x\" ties the left and right sides "
+            "together.\n\n"
+            "Neumann and Robin values are du/dn, the derivative along the outward normal: +du/dx on a "
+            "right side, -du/dx on a left side (likewise in y and z)."
         )
         self._register_hint(self.bc_loc_hint, '#74c0fc')
         self.bc_loc_hint.setWordWrap(True)
@@ -7496,6 +7493,10 @@ class MainWindow(QMainWindow):
             )
 
     _BC_CUSTOM_WHERE = "Custom expression…"
+    # a periodic row's Where: is the side DeepXDE starts from; the axis says
+    # which pair of sides is tied together
+    _PERIODIC_SIDE = {"x": "left", "y": "bottom", "z": "front"}
+    _PERIODIC_PAIR = {"x": "left ↔ right", "y": "bottom ↔ top", "z": "front ↔ back"}
 
     def _bc_where_choices(self):
         """(label, expression) pairs for the "Where:" picker, for the
@@ -7506,11 +7507,14 @@ class MainWindow(QMainWindow):
         if self._is_ode():
             return [("Both ends (t₀ and t₁)", "True"), ("Start (t = t₀)", "start"), ("End (t = t₁)", "end")]
         ch = [("Whole boundary", "True"),
-              ("Left (x = x_min)", "left"), ("Right (x = x_max)", "right"), ("Left and right", "left or right")]
+              ("Left side (x = x_min)", "left"), ("Right side (x = x_max)", "right"),
+              ("Left and right sides", "left or right")]
         if is_2d or is_3d:
-            ch += [("Bottom (y = y_min)", "bottom"), ("Top (y = y_max)", "top"), ("Bottom and top", "bottom or top")]
+            ch += [("Bottom side (y = y_min)", "bottom"), ("Top side (y = y_max)", "top"),
+                   ("Bottom and top sides", "bottom or top")]
         if is_3d:
-            ch += [("Front (z = z_min)", "front"), ("Back (z = z_max)", "back"), ("Front and back", "front or back")]
+            ch += [("Front side (z = z_min)", "front"), ("Back side (z = z_max)", "back"),
+                   ("Front and back sides", "front or back")]
         return ch
 
     def _fill_bc_where_picker(self, pick, edit):
@@ -7523,20 +7527,29 @@ class MainWindow(QMainWindow):
         self._sync_bc_where_picker(pick, edit)
 
     def _sync_bc_where_picker(self, pick, edit):
+        """The picker follows the expression; the expression box is shown
+        only for a custom expression (a named choice says it in words, and
+        its code -- "True", "left" -- would only repeat it)."""
         text = " ".join(edit.text().split())
         if text == "":
             text = "True"  # an empty "Where" means the whole boundary
         idx = pick.findData(text)
+        custom = bool(edit.property("customWhere")) or idx < 0
         pick.blockSignals(True)
-        pick.setCurrentIndex(idx if idx >= 0 else pick.count() - 1)
+        pick.setCurrentIndex(pick.count() - 1 if custom else idx)
         pick.blockSignals(False)
+        edit.setVisible(custom)
 
     def _on_bc_where_picked(self, pick, edit):
         expr = pick.currentData()
-        if expr is None:
+        if expr is None:                       # Custom expression…: the box opens, and stays open while typing
+            edit.setProperty("customWhere", True)
+            edit.setVisible(True)
             edit.setFocus()
             return
+        edit.setProperty("customWhere", False)
         edit.setText(expr)
+        self._sync_bc_where_picker(pick, edit)
 
     def _refresh_bc_where_pickers(self):
         """Dimension changed: offer that dimension's sides."""
@@ -7627,7 +7640,7 @@ class MainWindow(QMainWindow):
         loc_pick.setToolTip("Which part of the boundary this condition applies to.\n"
                             "Sides are the domain's own limits: left = x_min, right = x_max,\n"
                             "bottom/top = y_min/y_max, front/back = z_min/z_max.")
-        loc_row.addWidget(loc_pick)
+        loc_row.addWidget(loc_pick, 1)     # fills the row; shares it with the box for a custom expression
         loc_edit = QLineEdit(location)
         # a long Where: set by the sketch or a template shows from its start
         loc_edit.setCursorPosition(0)
@@ -7636,7 +7649,7 @@ class MainWindow(QMainWindow):
         loc_edit.setToolTip(loc_pick.toolTip() + "\nOr any True/False expression in x, y, z (and t), "
                             "e.g. left or right, x <= x_min, np.isclose(x**2 + y**2, 0.25).")
         loc_edit.setFixedHeight(26)
-        loc_row.addWidget(loc_edit, 1)
+        loc_row.addWidget(loc_edit, 2)
         loc_layout.addLayout(loc_row)
         self._fill_bc_where_picker(loc_pick, loc_edit)
         loc_pick.activated.connect(lambda _i: self._on_bc_where_picked(loc_pick, loc_edit))
@@ -7680,6 +7693,9 @@ class MainWindow(QMainWindow):
         axis_combo = QComboBox(); axis_combo.addItems(_axis_choices)
         axis_combo.setCurrentText(axis); axis_combo.setFixedHeight(26); axis_combo.setFixedWidth(60)
         periodic_layout.addWidget(axis_combo)
+        pair_label = QLabel(f"({self._PERIODIC_PAIR.get(axis_combo.currentText(), '')})")
+        self._register_hint(pair_label, '#74c0fc')
+        periodic_layout.addWidget(pair_label)
         periodic_layout.addWidget(QLabel("Derivative order:"))
         deriv_spin = QSpinBox(); deriv_spin.setRange(0, 1); deriv_spin.setValue(deriv_order)
         deriv_spin.setFixedHeight(26); deriv_spin.setFixedWidth(50)
@@ -7892,6 +7908,32 @@ class MainWindow(QMainWindow):
         }
         default_val_label = "Value:"
 
+        def _periodic_where_is_auto():
+            """A periodic row whose Where: is the standard side of its axis
+            (or empty / whole boundary, which periodic rows never mean): the
+            axis says it all, so Where: is set from it and hidden."""
+            if type_combo.currentData() != "periodic":
+                return False
+            txt = " ".join(loc_edit.text().split())
+            ax = axis_combo.currentText()
+            own = {"x": ("left", "right", "left or right"), "y": ("bottom", "top", "bottom or top"),
+                   "z": ("front", "back", "front or back")}
+            if txt in own.get(ax, ()):            # either side of the pair: DeepXDE treats them alike
+                return True
+            if txt in ("", "True") or any(txt in v for v in own.values()):
+                # empty / whole boundary would tie the wrong points together;
+                # a side of another axis is left over from changing the axis
+                loc_edit.setText(self._PERIODIC_SIDE.get(ax, "left"))
+                return True
+            return False
+
+        def _sync_periodic_axis(_t=None):
+            pair_label.setText(f"({self._PERIODIC_PAIR.get(axis_combo.currentText(), '')})")
+            if type_combo.currentData() == "periodic":
+                auto = _periodic_where_is_auto()
+                loc_widget.setVisible(not auto)
+        axis_combo.currentTextChanged.connect(_sync_periodic_axis)
+
         def _sync_type(_t=None):
             key = type_combo.currentData()
             comp_widget.setVisible(key in self._BC_NEEDS_COMPONENT)
@@ -7915,6 +7957,8 @@ class MainWindow(QMainWindow):
             # from Interface 2D (or removing it) never reverts Point
             # Distribution back on its own -- whatever the user had it set
             # to before stays, same as every other config value in the app.
+            if key == "periodic" and _periodic_where_is_auto():
+                loc_widget.setVisible(False)
             _is_interface2d = key == "interface2d"
             interface2d_note.setVisible(_is_interface2d)
             if _is_interface2d and hasattr(self, "pts_dist_combo"):
