@@ -47,6 +47,15 @@ def _window(example="1D Burgers"):
 def test_gui_round_trip():
     w = _window()
     assert w.causal_widget.isHidden() and w.rba_widget.isHidden() and w.sa_widget.isHidden()
+    # the help text opens from its "About" button
+    assert w.auto_weights_note.isHidden()
+    w.auto_weights_ref_toggle.setChecked(True)
+    assert not w.auto_weights_note.isHidden()
+    # Scale by initial losses sets every term weight itself: the rows grey out
+    w.loss_w_init_cb.setChecked(True)
+    assert not w._manual_weights_box.isEnabled() and not w.manual_weights_auto_note.isHidden()
+    w.loss_w_init_cb.setChecked(False)
+    assert w._manual_weights_box.isEnabled() and w.manual_weights_auto_note.isHidden()
     w.causal_cb.setChecked(True)
     assert not w.causal_widget.isHidden()
     w.causal_chunks.setValue(16)
@@ -136,6 +145,9 @@ def _tiny(c):
     import torch
     import deepxde as dde
     ns = {"dde": dde, "torch": torch, "np": np}
+    # fixed network and training points: with a random start the causal
+    # schedule test could need more than its 30 steps to move epsilon on
+    dde.config.set_random_seed(0)
 
     def pde(x, y):
         dy_t = dde.grad.jacobian(y, x, i=0, j=1)
@@ -366,3 +378,27 @@ if __name__ == "__main__":
     test_generated_code_runs()
     test_sa_pinn_ascends()
     print("PASSED")
+
+
+def test_plot_toolbar_icons_follow_theme():
+    """Matplotlib picks dark or light toolbar icons from the toolbar's
+    background; on Linux that came through as transparent black, so the icons
+    were white on the white panel. The toolbar now takes the theme's colour."""
+    from PyQt6.QtCore import QSize
+    from pinnstudio.ui.results import RunProgress
+    w = _window("1D Allen-Cahn")
+    w.live_loss.start(RunProgress())
+    _settle()
+    tb = w.live_loss._toolbar
+
+    def icon_colours():
+        img = tb.actions()[0].icon().pixmap(QSize(24, 24)).toImage()
+        return {img.pixelColor(x, y).name() for x in range(24) for y in range(24) if img.pixelColor(x, y).alpha() > 200}
+
+    assert icon_colours() == {"#000000"}             # light theme: dark icons
+    w._theme = "Studio Dark"
+    w._apply_display_settings()
+    _settle()
+    assert icon_colours() == {"#ffffff"}             # dark theme: light icons
+    w.live_loss.stop()
+    w.close()

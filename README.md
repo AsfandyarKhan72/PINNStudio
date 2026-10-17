@@ -976,7 +976,7 @@ where $\gamma_1 = 10^{-6}$ and $\gamma_2 = 0.01$. The fourth-order equation is s
 - **Scaling:** $\mu$ is only about $\gamma_2 = 0.01$ in size, so written as above its equation's residual is about 100× smaller than $u_t$'s and the network settles on a wrong solution with a small loss (28–42% $L_2$ error in $u$). The template enters the $\mu$ equation divided by $\gamma_2$, `(mu - 0.01*(u**3 - u) + 1e-6*du_xx)/0.01`, and scales the network's $\mu$ output by 0.01, so both residuals are of order 1 — the same equations, with $\mu$ in physical units.
 - **Exact initial condition** (Initial conditions → *Exact (built into the network)*): $u = -\cos(2\pi x) + t N_u$, so the initial condition holds exactly and needs no loss term ($\mu = 0.01 N_\mu$ keeps its scaling)
 - **Exact periodicity** (Boundary conditions → *Exact periodicity (periodic inputs)*): the network's inputs are $\cos(\pi x)$, $\sin(\pi x)$, $t$, so the solution is periodic by construction (the periodic BC rows stay on)
-- **Per-point weights** (Loss weights → *Automatic weighting*): *SA-PINN* as in the paper ([McClenny & Braga-Neto, 2023](https://doi.org/10.1016/j.jcp.2022.111722)) — *Keep the mean weight at 1* off, *During L-BFGS: Keep the weights*
+- **Per-point weights** (Loss weights → *Automatic weighting*): *SA-PINN* ([McClenny & Braga-Neto, 2023](https://doi.org/10.1016/j.jcp.2022.111722)), *Keep the mean weight at 1* off, *During L-BFGS: Keep the weights*
 - **Training:** Adam 20,000 → L-BFGS 20,000; 10,000 domain, 200 boundary, 512 initial points; no time-adaptive training
 - **In PINNStudio:** Examples → **Forward** (or **Inverse**) → **Cahn-Hilliard 1D – Wight & Zhao**
 
@@ -1984,7 +1984,7 @@ $$\Large \frac{\partial u}{\partial t'} = 0.005\left(\frac{\partial^2 \mu}{\part
 - **Initial condition:** $u(x, y, 0) = 0.4\cos(4\pi x)\cos(4\pi(x + y))$; $\mu$ has none
 - **Boundary conditions:** Periodic, for $u$ and $\mu$
 - **Geometry:** Rectangle
-- **Exact initial condition**, **exact periodicity** and **SA-PINN** as in the paper (held during L-BFGS)
+- **Exact initial condition**, **exact periodicity** and **SA-PINN** (weights held during L-BFGS)
 - **Training:** Adam 20,000 → L-BFGS 20,000; 20,000 domain points, 4 × 128 network; no time-adaptive training
 - **In PINNStudio:** Examples → **Forward** (or **Inverse**) → **Cahn-Hilliard 2D – Mattey & Ghosh**
 
@@ -2007,7 +2007,7 @@ where $\lambda = 1$ and $\varepsilon = 0.05$. As in the 1D example, the chemical
 - **Boundary conditions:** Periodic, for $u$ and $\mu$
 - **Geometry:** Rectangle
 - **Exact initial condition** and **exact periodicity** (inputs $\cos\pi x$, $\sin\pi x$, $\cos\pi y$, $\sin\pi y$, $t$), as in the 1D examples
-- **Per-point weights:** *SA-PINN* as in the paper (Loss weights → *Automatic weighting*; *Keep the mean weight at 1* off, *During L-BFGS: Keep the weights*)
+- **Per-point weights:** *SA-PINN* (Loss weights → *Automatic weighting*; *Keep the mean weight at 1* off, *During L-BFGS: Keep the weights*)
 - **Training:** Adam 20,000 → L-BFGS 20,000; 20,000 domain points, 4 × 128 network; no time-adaptive training
 - **In PINNStudio:** Examples → **Forward** (or **Inverse**) → **Cahn-Hilliard 2D – Wight & Zhao**
 
@@ -2348,8 +2348,8 @@ A plain PINN fits the equation, the boundary conditions and the initial conditio
 3. **Make periodicity exact** (Boundary conditions → *Exact periodicity (periodic inputs)*): each periodic axis enters the network as $\cos(2\pi x/L)$, $\sin(2\pi x/L)$, so values and derivatives match at both ends by construction ([Dong & Ni, 2021](https://doi.org/10.1016/j.jcp.2021.110242)).
 4. **Add one automatic weighting method** (Loss weights → *Automatic weighting*), each implemented as its paper describes it:
    - *Per-point weights → RBA* (residual-based attention, [Anagnostopoulos et al., 2024](https://doi.org/10.1016/j.cma.2024.116805)): each training point's residual gets a weight that grows where the equation stays badly satisfied, so training concentrates on interfaces and fronts. Cheap and the safest choice.
-   - *Per-point weights → SA-PINN* (self-adaptive weights, [McClenny & Braga-Neto, 2023](https://doi.org/10.1016/j.jcp.2022.111722)): the weights are trained by gradient ascent. With *During L-BFGS: Keep the weights*, as in the paper, it was the best on Cahn-Hilliard (1D and 2D).
-   - *Causal training* ([Wang, Sankaran & Perdikaris, 2024](https://doi.org/10.1016/j.cma.2024.116813)): later times count only once earlier ones are fitted, with ε raised step by step as in the paper. With an MsFFN network (Network → *Network type*) it was the best on 1D Allen-Cahn and Klein-Gordon.
+   - *Per-point weights → SA-PINN* (self-adaptive weights, [McClenny & Braga-Neto, 2023](https://doi.org/10.1016/j.jcp.2022.111722)): the weights are trained by gradient ascent. With *During L-BFGS: Keep the weights* it was the best on Cahn-Hilliard (1D and 2D).
+   - *Causal training* ([Wang, Sankaran & Perdikaris, 2024](https://doi.org/10.1016/j.cma.2024.116813)): later times count only once earlier ones are fitted, with ε raised step by step. With an MsFFN network (Network → *Network type*) it was the best on 1D Allen-Cahn and Klein-Gordon.
 
    *During L-BFGS*: *Keep the weights* is stronger on hard problems; *Plain loss* (the default) is the safe choice elsewhere. Don't combine causal training with per-point weights — together they did worse than either alone.
 5. **For long time ranges, or a very fast change right after the start, use time-adaptive training** (Adaptive training → *Time Adaptive Training*; short windows over the fast part: the 1D Cahn-Hilliard (Mattey & Ghosh) example uses 10 windows of 0.01, then 9 of 0.1, and gets 0.5% error where every whole-domain setup failed) — per-point weights and exact periodicity still help on top of it; an exact initial condition can't be combined with it yet.

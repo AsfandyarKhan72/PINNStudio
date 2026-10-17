@@ -3201,11 +3201,21 @@ class MainWindow(QMainWindow):
         self.loss_w_init_c = SciLineEdit(5.0); self.loss_w_init_c.setFixedWidth(70)
         self.loss_w_init_c.setEnabled(False)
         self.loss_w_init_cb.toggled.connect(self.loss_w_init_c.setEnabled)
+        self.loss_w_init_cb.toggled.connect(self._update_manual_weights_enabled)
         _wi_row.addWidget(self.loss_w_init_cb); _wi_row.addWidget(self.loss_w_init_c); _wi_row.addStretch()
         # placed under "Automatic weighting" (it is one), after causal training
         self._loss_w_init_row = _wi_row
+        # shown instead of usable rows while "Scale by initial losses" sets
+        # every term weight itself
+        self.manual_weights_auto_note = QLabel(
+            "Set automatically from the initial losses (Scale by initial losses, below).")
+        self.manual_weights_auto_note.setWordWrap(True)
+        self._register_hint(self.manual_weights_auto_note, '#74c0fc')
+        self.manual_weights_auto_note.setVisible(False)
+        _wg_outer.addWidget(self.manual_weights_auto_note)
         _wg_outer.addWidget(self.sched_same_weights_cb)
         _wg_inner = QWidget()
+        self._manual_weights_box = _wg_inner
         self.weights_main_layout = QVBoxLayout(_wg_inner)
         self.weights_main_layout.setContentsMargins(0, 0, 0, 0)
         self.weights_main_layout.setSpacing(4)
@@ -3416,17 +3426,23 @@ class MainWindow(QMainWindow):
         _aw.setContentsMargins(0, 8, 0, 0); _aw.setSpacing(5)
         _aw_title = QLabel("Automatic weighting")
         _aw_title.setStyleSheet("font-weight: 600;")
-        _aw.addWidget(_aw_title)
+        self.auto_weights_ref_toggle = self._ref_button("About automatic weighting")
+        self._ref_row(_aw, self.auto_weights_ref_toggle, _aw_title)
         self.auto_weights_note = QLabel(
+            "Per-point weights and causal training weight the PDE residual inside its term: point "
+            "by point (RBA, SA-PINN) or by time. The weights above still set the balance between the "
+            "PDE, boundary and initial-condition terms.\n\n"
             "For hard problems (sharp fronts, phase fields): first make periodicity exact and try the "
             "initial condition both exact and as a loss term (Initial Conditions / Boundary Conditions "
             "pages), then add one of these: "
             "RBA (cheap, safe), SA-PINN with the weights kept during L-BFGS (best on Cahn-Hilliard), or "
             "causal training (best on Allen-Cahn, with an MsFFN network). "
-            "On a problem a plain PINN already solves well they can make the result worse -- "
-            "compare with a plain run. Measured on 12 problems in benchmarks/training_methods.md.")
+            "On a problem a plain PINN already solves well they can make the result worse — "
+            "compare with a plain run. Measured on 14 problems in benchmarks/training_methods.md.")
         self.auto_weights_note.setWordWrap(True)
         self._register_hint(self.auto_weights_note, '#74c0fc')
+        self.auto_weights_note.setVisible(False)
+        self.auto_weights_ref_toggle.toggled.connect(self.auto_weights_note.setVisible)
         _aw.addWidget(self.auto_weights_note)
         _pl_w = QWidget(); _pl = QVBoxLayout(_pl_w); _pl.setContentsMargins(0, 0, 0, 0); _pl.setSpacing(5)
         _cl_w = QWidget(); _cl = QVBoxLayout(_cl_w); _cl.setContentsMargins(0, 0, 0, 0); _cl.setSpacing(5)
@@ -3458,11 +3474,11 @@ class MainWindow(QMainWindow):
         self.causal_chunks = QSpinBox(); self.causal_chunks.setRange(2, 1000); self.causal_chunks.setValue(32)
         self.causal_chunks.setToolTip("How many equal time chunks the interval is split into.")
         _num_row(cz, "Time chunks:", self.causal_chunks)
-        self.causal_anneal_cb = QCheckBox("Raise ε step by step (0.01 → 100), as in the paper")
+        self.causal_anneal_cb = QCheckBox("Raise ε step by step (0.01 → 100)")
         self.causal_anneal_cb.setChecked(True)
         self.causal_anneal_cb.setToolTip(
-            "The paper's Algorithm 1: ε starts at 0.01 and moves to 0.1, 1, 10, 100, each time\n"
-            "once every chunk weight is above 0.99. A single fixed ε is hard to pick -- too\n"
+            "ε starts at 0.01 and moves to 0.1, 1, 10 and 100, each time once every chunk weight\n"
+            "is above 0.99 (Wang, Sankaran & Perdikaris, 2024, Algorithm 1). A single fixed ε is hard to pick -- too\n"
             "small and the weights never hold anything back, too large and later times never\n"
             "start. On 1D Allen-Cahn the schedule gave 0.18% error at t = 1, fixed ε = 1 gave 0.65%.")
         cz.addWidget(self.causal_anneal_cb)
@@ -3522,10 +3538,10 @@ class MainWindow(QMainWindow):
         self.sa_normalize_cb = QCheckBox("Keep the mean weight at 1")
         self.sa_normalize_cb.setChecked(False)
         self.sa_normalize_cb.setToolTip(
-            "Not part of the paper (unchecked = the paper's method, whose weights only grow,\n"
-            "by about the learning rate every step). Checked rescales the weights to mean 1 after\n"
-            "every step, so only where the emphasis lies changes -- a safeguard if the loss grows\n"
-            "without bound. With the weights held during L-BFGS, the paper's version was the more\n"
+            "Rescales the weights to mean 1 after every step, so only where the emphasis lies\n"
+            "changes -- a safeguard if the loss grows without bound. Unchecked (the default), the\n"
+            "weights only grow, by about the learning rate every step, as in McClenny & Braga-Neto\n"
+            "(2023). With the weights held during L-BFGS, the unchecked version was the more\n"
             "reliable one (1D Allen-Cahn, three seeds: 0.13-0.20% at t = 1, against 0.10-2.7%).")
         sz.addWidget(self.sa_normalize_cb)
         self.sa_widget.setVisible(False)
@@ -3543,7 +3559,7 @@ class MainWindow(QMainWindow):
             "Plain loss: Adam trains with the point weights, then L-BFGS refines on the ordinary loss.\n"
             "Safe default -- keeping the weights made already-accurate problems (1D Burgers,\n"
             "Kovasznay flow) 2-10x worse.\n"
-            "Keep the weights: L-BFGS goes on with the weights Adam ended with, as both papers do.\n"
+            "Keep the weights: L-BFGS goes on with the weights Adam ended with.\n"
             "Better where the plain PINN struggles (Cahn-Hilliard, Allen-Cahn: about 1.5-2x lower\n"
             "error than plain loss; SA-PINN needs it -- without it, it barely helped).")
         lz.addWidget(self.pw_lbfgs_combo, 1)
@@ -8256,6 +8272,16 @@ class MainWindow(QMainWindow):
         return f"{btype}, {name or f'output {comp + 1}'}"
 
     # ── Build weight inputs ───────────────────────────────────
+    def _update_manual_weights_enabled(self, auto=None):
+        """The per-term weight rows do nothing while Scale by initial losses
+        computes every term weight itself (w_i = c / L_i(0)): grey them out
+        and say why. Children added later (a rebuild) inherit the state."""
+        if auto is None:
+            auto = self.loss_w_init_cb.isChecked()
+        self._manual_weights_box.setEnabled(not auto)
+        self.sched_same_weights_cb.setEnabled(not auto)
+        self.manual_weights_auto_note.setVisible(auto)
+
     def _build_weight_inputs(self, n, keep=False):
         # keep=True: rows that already exist keep their values (an IC switched
         # on or off adds or removes only its own row -- it used to leave the
@@ -12221,6 +12247,8 @@ print("DOMAIN_PREVIEW_DONE")
             self.start_page.retheme()
         if getattr(self, "run_history", None) is not None and self.run_history.compare.isVisible():
             self.run_history.compare.redraw()
+        if getattr(self, "live_loss", None) is not None and self.live_loss._canvas is not None:
+            self.live_loss._redraw()          # plot colours and the toolbar's icons
         if hasattr(self, "workspace"):
             self.workspace.tree.viewport().update()
 
