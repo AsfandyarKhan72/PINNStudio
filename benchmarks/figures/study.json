@@ -164,7 +164,8 @@
       ]
      ],
      "src": "cl_paper_methods/m/causal_anneal_msffn",
-     "setup": "Exact BC + exact IC + causal + MsFFN"
+     "setup": "Exact BC + exact IC + causal + MsFFN",
+     "template": true
     },
     {
      "setup": "Time windows: exact BC + loss IC",
@@ -1057,6 +1058,62 @@
       ]
      ],
      "template": true
+    },
+    {
+     "setup": "Loss BC + loss IC",
+     "l2": [
+      [
+       0.0,
+       0.00031531
+      ],
+      [
+       0.25,
+       0.0016438
+      ],
+      [
+       0.5,
+       0.00051986
+      ],
+      [
+       0.75,
+       0.00025097
+      ],
+      [
+       1.0,
+       0.00032604
+      ]
+     ],
+     "src": "ac3_plain",
+     "seconds": 2705,
+     "template": false
+    },
+    {
+     "setup": "Exact BC + exact IC + causal + MsFFN",
+     "l2": [
+      [
+       0.0,
+       7.532e-06
+      ],
+      [
+       0.25,
+       0.015967
+      ],
+      [
+       0.5,
+       0.031248
+      ],
+      [
+       0.75,
+       0.066916
+      ],
+      [
+       1.0,
+       0.1381
+      ]
+     ],
+     "src": "ac3_e_causal_msffn",
+     "seconds": 2900,
+     "template": false
     }
    ],
    "other": []

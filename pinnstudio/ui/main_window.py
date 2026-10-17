@@ -5217,6 +5217,17 @@ class MainWindow(QMainWindow):
         for i, cb in enumerate(self.ic_hard):
             cb.setChecked(bool(hard[i]) if i < len(hard) else False)
         self.periodic_inputs_cb.setChecked(bool(t.get('periodic_inputs', False)))
+        # causal training and the network type: off / a plain FNN unless the
+        # template asks for them, so neither carries over to the next one
+        self.causal_cb.setChecked(bool(t.get('causal', False)))
+        if t.get('causal'):
+            self.causal_anneal_cb.setChecked(True)
+        net = t.get('network_type', 'FNN')
+        if net != 'FNN' or getattr(self, "_tpl_network_type", False):
+            self.network_type_combo.setCurrentText(net)
+            if 'msffn_sigmas' in t:
+                self.msffn_sigmas_edit.setText(t['msffn_sigmas'])
+            self._tpl_network_type = net != 'FNN'
         pw = t.get('point_weights')
         if pw:
             self._set_combo_data(self.point_weights_combo, pw)
@@ -6076,7 +6087,7 @@ class MainWindow(QMainWindow):
             self._add_custom_geom_shape(shape_type=shape_type, op=op, params=params)
 
     _PINNSTUDIO_EXAMPLES = (
-        "1D Heat", "1D Allen-Cahn", "1D Cahn-Hilliard", "1D Cahn-Hilliard (Mattey & Ghosh)", "1D Burgers", "1D Schrödinger",
+        "1D Heat", "1D Allen-Cahn", "1D Allen-Cahn (whole interval)", "1D Cahn-Hilliard", "1D Cahn-Hilliard (Mattey & Ghosh)", "1D Burgers", "1D Schrödinger",
         "2D Heat", "2D Allen-Cahn (Mattey & Ghosh)", "2D Allen-Cahn (Wight & Zhao)",
         "2D Cahn-Hilliard (Mattey & Ghosh)", "2D Cahn-Hilliard (Wight & Zhao)",
         "2D Burgers (Mathias)", "2D Poisson (L-Shape)", "2D Poisson (Disk)",
@@ -9796,6 +9807,7 @@ class MainWindow(QMainWindow):
         # like the multi-row substitutions below (D/kf-style) but within
         # one row instead of across rows.
         "1D Allen-Cahn": [(0, "0.0001", 0), (0, "5", 1), (0, "5", 1)],
+        "1D Allen-Cahn (whole interval)": [(0, "0.0001", 0), (0, "5", 1), (0, "5", 1)],
         # gamma_1 (interface energy, 1e-6) and gamma_2 (0.01), Wight & Zhao's
         # eq. 3.15 names, both in the chemical-potential row.
         "1D Cahn-Hilliard": [(1, "1e-6", 0), (1, "0.01", 1), (1, "0.01", 1)],
@@ -9929,6 +9941,7 @@ class MainWindow(QMainWindow):
         # eq. 3.2/3.5 names. Both start at init=1.0 (neither's true value
         # is 1, so this doesn't start the fit already at the answer).
         "1D Allen-Cahn": [("gamma_1", 1.0, 0.0001), ("gamma_2", 1.0, 5.0)],
+        "1D Allen-Cahn (whole interval)": [("gamma_1", 1.0, 0.0001), ("gamma_2", 1.0, 5.0)],
         "1D Cahn-Hilliard": [("gamma_1", 1.0, 1e-6), ("gamma_2", 1.0, 0.01)],
         # alpha (interface term) and kappa (the "1.0" on f(u)), Mattey & Ghosh eq. 18
         "1D Cahn-Hilliard (Mattey & Ghosh)": [("alpha", 1.0, 0.02), ("kappa", 0.1, 1.0)],
@@ -13442,6 +13455,34 @@ print("DOMAIN_PREVIEW_DONE")
                 'periodic_bc': True,
                 'ref_dir': os.path.join(REFERENCE_DATA_DIR, "1D", "allen_cahn"),
                 'ta_default': {'step_groups': [(0.0, 1.0, 4)], 'transfer_learning': True, 'ic_grid': 101, 'transfer_optimizer': 'lbfgs'},
+            },
+            # The same problem trained on the whole time interval in one run,
+            # with the best setup of the training methods study
+            # (benchmarks/training_methods.md): exact periodicity (cos/sin
+            # inputs), the initial condition built into the network
+            # (u = IC + t*N), causal training with the stepped epsilon, and
+            # an MsFFN network. 0.13% at t = 1, against 0.48% for the
+            # time-adaptive template above and ~10% for a plain PINN.
+            "1D Allen-Cahn (whole interval)": {
+                'pde': ["du_t - 0.0001*du_xx + 5*u**3 - 5*u"],
+                'ic': ["x**2*cos(pi*x)"],
+                'ic_hard': [True],
+                'ic_active': [False],
+                'periodic_inputs': True,
+                'causal': True,
+                'network_type': 'MsFFN',
+                'msffn_sigmas': '1, 5',
+                'num_domain': 10000,
+                'num_boundary': 200,
+                'num_initial': 512,
+                'layers': 4,
+                'neurons': 128,
+                'iterations': 20000,
+                'optimizer2': 'lbfgs',
+                'iterations2': 10000,
+                'x_min': -1.0, 'x_max': 1.0,
+                'periodic_bc': True,
+                'ref_dir': os.path.join(REFERENCE_DATA_DIR, "1D", "allen_cahn"),
             },
             # Wight & Zhao (2021), section 3.2, eq. 3.15: the 1D
             # Cahn-Hilliard equation u_t - (g2 (u^3 - u) - g1 u_xx)_xx = 0 on

@@ -58,7 +58,7 @@ Everything else (network, points, iterations) is the example's own and is given 
 | 1D Allen-Cahn (Wight & Zhao), $t = 1$ | 10% | 0.13% | Exact BC + exact IC + causal + MsFFN |
 | 2D Allen-Cahn (Wight & Zhao), $t = 10$ | 200% | 0.16% | Time windows: exact BC + loss IC + RBA |
 | 2D Allen-Cahn (Mattey & Ghosh), $t = 1$ | 1.3% | 0.036% | Exact BC + exact IC + SA-PINN |
-| 3D Allen-Cahn (Wight & Zhao), $t = 1$ | – (exact BC + exact IC: 0.72%) | 0.027% | Exact BC + loss IC (template) |
+| 3D Allen-Cahn (Wight & Zhao), $t = 1$ | 0.033% | 0.027% | Exact BC + loss IC (template) |
 | 1D Cahn-Hilliard (Wight & Zhao), $t = 1$ | 0.52% (42% unscaled) | 0.060% | Exact BC + exact IC + SA-PINN (template) |
 | 1D Cahn-Hilliard (Mattey & Ghosh), $t = 1$ | 83% | 0.39–0.48% | Time windows: exact BC + loss IC (template), and + SA-PINN |
 | 2D Cahn-Hilliard (Wight & Zhao), $t = 1$ | 32% | 1.1% | Exact BC + loss IC (template) |
@@ -94,13 +94,13 @@ $u_t = 10^{-4} u_{xx} - 5u^3 + 5u$ on $x \in [-1, 1]$ (periodic), $u(x, 0) = x^2
 | Exact BC + exact IC + RBA | 0.053% | 0.43% |
 | Exact BC + exact IC + SA-PINN | 0.046% | 0.18% |
 | Exact BC + exact IC + causal | 0.049% | 0.18% |
-| **Exact BC + exact IC + causal + MsFFN** | **0.040%** | **0.13%** |
+| **Exact BC + exact IC + causal + MsFFN (template)** | **0.040%** | **0.13%** |
 | Time windows: exact BC + loss IC | 0.081% | 0.62% |
 | Time windows: exact BC + loss IC + RBA | 0.031% | 0.18% |
 | Time windows: exact BC + loss IC + SA-PINN | 0.20% | 1.4% |
 <!-- /core -->
 
-Seeds 1 and 2 of the whole-interval setups, at $t = 0.25$ / $t = 1$: loss BC + loss IC 0.85% / 10%; exact BC + exact IC + RBA 0.11% / 0.78% and 0.070% / 0.50%; + SA-PINN 0.061% / 0.20% and 0.049% / 0.13%; + causal 0.056% / 0.64% and 0.056% / 0.45%; + causal + MsFFN 0.041% / 0.12% and 0.042% / 0.065%.
+Seeds 1 and 2 of the whole-interval setups, at $t = 0.25$ / $t = 1$: loss BC + loss IC 0.85% / 10%; exact BC + exact IC + RBA 0.11% / 0.78% and 0.070% / 0.50%; + SA-PINN 0.061% / 0.20% and 0.049% / 0.13%; + causal 0.056% / 0.64% and 0.056% / 0.45%; + causal + MsFFN 0.041% / 0.12% and 0.042% / 0.065%. This last setup is now a template of its own, *Allen-Cahn 1D – Wight & Zhao (whole interval)*; rerun from the template it gave 0.041% / 0.24% (about 17 minutes on an RTX 4090).
 
 *Other setups*
 
@@ -199,21 +199,21 @@ A shrinking sphere, $u_t = 0.025\nabla^2 u - 10(u^3 - u)$ on $[0, 1]^3$ (periodi
 <!-- core:ac3d -->
 | Setup | $t = 0.25$ | $t = 1$ |
 |---|---|---|
-| Loss BC + loss IC | – | – |
+| Loss BC + loss IC | 0.16% | 0.033% |
 | **Exact BC + loss IC (template)** | **0.030%** | **0.027%** |
 | Exact BC + exact IC | 0.81% | 0.72% |
 | Exact BC + exact IC + RBA | 0.81% | 0.72% |
 | Exact BC + exact IC + SA-PINN | 0.81% | 0.72% |
 | Exact BC + exact IC + causal | 0.81% | 0.72% |
-| Exact BC + exact IC + causal + MsFFN | – | – |
+| Exact BC + exact IC + causal + MsFFN | 1.6% | 14% |
 | Time windows: exact BC + loss IC | – | – |
 | Time windows: exact BC + loss IC + RBA | – | – |
 | Time windows: exact BC + loss IC + SA-PINN | – | – |
 <!-- /core -->
 
-Loss BC + loss IC, exact BC + exact IC + causal + MsFFN and the time-window setups were not run for this example yet.
+The time-window setups were not run for this example yet.
 
-With the exact initial condition every method lands on the same error to three digits (the logs confirm that RBA and the causal schedule were active), so the limit is the $\text{IC} + tN$ form itself: the tanh profile relaxes quickly at the start, and the network has to produce that change through $tN$. Training the initial condition as a loss term instead (exact BC + loss IC, the template) gives 25 times less error. On the slice $z = 0.5$ the sphere stays round, and the largest pointwise error, about 0.013, sits on the interface.
+With the exact initial condition every method lands on the same error to three digits (the logs confirm that RBA and the causal schedule were active), so the limit is the $\text{IC} + tN$ form itself: the tanh profile relaxes quickly at the start, and the network has to produce that change through $tN$. Training the initial condition as a loss term instead (exact BC + loss IC, the template) gives 25 times less error, and the plain setup, with the boundaries as loss terms too, is almost as good (0.033% at $t = 1$): this problem is easy enough that the exact periodic inputs add little. Causal training with an MsFFN network, the best setup in 1D, is the worst one here (14% at $t = 1$), its error growing steadily with time. On the slice $z = 0.5$ the sphere stays round, and the largest pointwise error, about 0.013, sits on the interface.
 
 ## Cahn-Hilliard
 
@@ -448,7 +448,7 @@ This is the hardest problem in the study, and no setup solves it well. With a pl
 1. Scale the equations so that every residual is of order 1.
 2. Build in what is known exactly: periodicity, and the initial condition. Write the initial condition as a smooth formula, since a corner (a `max`, an `abs`) carries curvature the network cannot see. If the solution changes quickly right after the start, also try the initial condition as a loss term (weight 100) with exact periodicity: on 3D Allen-Cahn and 2D Cahn-Hilliard (Wight & Zhao) it was 25 and 3.6 times more accurate.
 3. Add one weighting method: SA-PINN with its weights held during L-BFGS (best on Cahn-Hilliard and 2D Allen-Cahn; only with an exact initial condition), causal training with the $\varepsilon$ schedule and an MsFFN network (best on 1D Allen-Cahn and Klein-Gordon), or RBA (cheap, and the best with time windows). Do not combine causal training with per-point weights.
-4. Try MsFFN for sharp or multi-scale solutions, and for steady flows with a hard corner (the mixed-convection cavity), and compare: on smooth 2D problems it hurt.
+4. Try MsFFN for sharp or multi-scale solutions, and for steady flows with a hard corner (the mixed-convection cavity), and compare: on smooth 2D problems it hurt, and so did causal training with MsFFN on 3D Allen-Cahn (14% at $t = 1$).
 5. For long time ranges, or a very fast change right after the start, use time-adaptive training, with short windows over the fast part (as the 1D Cahn-Hilliard template after Mattey & Ghosh does), and RBA on top. Do not use time windows on a problem that is smooth in time.
 6. Always compare against a plain run. On problems a plain PINN already solves well, most of these methods add nothing or make the result worse.
 

@@ -51,7 +51,10 @@ class Entry:
 # PINNStudio templates: key, shown name, dimension, regime, geometry, paper.
 _TEMPLATES = [
     ("1D Heat", "Heat 1D", "1D", "Time-dependent", "Interval", ""),
-    ("1D Allen-Cahn", "Allen-Cahn 1D – Wight & Zhao", "1D", "Time-dependent", "Interval", "Wight & Zhao (2021)"),
+    ("1D Allen-Cahn", "Allen-Cahn 1D – Wight & Zhao (time-adaptive)", "1D", "Time-dependent", "Interval",
+     "Wight & Zhao (2021)"),
+    ("1D Allen-Cahn (whole interval)", "Allen-Cahn 1D – Wight & Zhao (whole interval)", "1D", "Time-dependent",
+     "Interval", "Wight & Zhao (2021)"),
     ("1D Cahn-Hilliard", "Cahn-Hilliard 1D – Wight & Zhao", "1D", "Time-dependent", "Interval", "Wight & Zhao (2021)"),
     ("1D Cahn-Hilliard (Mattey & Ghosh)", "Cahn-Hilliard 1D – Mattey & Ghosh", "1D", "Time-dependent", "Interval",
      "Mattey & Ghosh (2022)"),

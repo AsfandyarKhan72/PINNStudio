@@ -404,3 +404,24 @@ def test_plot_toolbar_icons_follow_theme():
     assert icon_colours() == {"#ffffff"}             # dark theme: light icons
     w.live_loss.stop()
     w.close()
+
+
+def test_whole_interval_allen_cahn_template():
+    """The second 1D Allen-Cahn template: the whole time interval in one run with
+    the study's best setup, which does not carry over to the next template."""
+    w = _window("1D Allen-Cahn (whole interval)")
+    c = w._build_config()
+    assert not c.time_adaptive and c.periodic_inputs and c.causal_training and c.causal_anneal
+    assert c.network_type == "MsFFN" and c.msffn_sigmas == "1, 5"
+    assert c.ic_hard.split(",")[0].strip() == "True" and c.validate() == []
+    for gen in (generate_script, generate_clean_script):
+        ast.parse(gen(c))
+    for nxt in ("1D Allen-Cahn", "1D Burgers"):
+        w.quick_examples_combo.setCurrentText(nxt)
+        _settle()
+        c = w._build_config()
+        assert not c.causal_training and c.network_type == "FNN" and not c.periodic_inputs, nxt
+    assert w._build_config().time_adaptive is False      # 1D Burgers
+    w.close()
+    w.deleteLater()
+    _settle()

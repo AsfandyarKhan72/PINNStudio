@@ -1,0 +1,3 @@
+[
+ {"example": "1D Allen-Cahn (whole interval)", "setup": "Template", "name": "ac1_whole_template"}
+]
