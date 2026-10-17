@@ -187,7 +187,7 @@ def example_figure(e):
         for t in leg.get_texts():
             t.set_color(INK)
         fig.tight_layout(pad=0.4)
-    return _save(fig, e["id"] + ".png")
+    return _save(fig, "study_" + e["id"] + ".png")
 
 
 def _save(fig, name):
@@ -283,7 +283,7 @@ def overview(examples):
     ax.tick_params(which="minor", length=0)
     ax.axvline(6.5, color=INK2, lw=0.8)
     fig.tight_layout(pad=0.4)
-    return _save(fig, "overview.png")
+    return _save(fig, "study_overview.png")
 
 
 def update_markdown(examples):

@@ -47,7 +47,7 @@ Everything else (network, points, iterations) is the example's own and is given 
 
 ## Results at a glance
 
-![Error at the last reference time for every phase-field example and every core setup](figures/overview.png)
+![Error at the last reference time for every phase-field example and every core setup](figures/study_overview.png)
 
 **Figure 1.** Relative $L_2$ error at the last reference time, for every phase-field example (rows) and every core setup (columns). Darker is lower; the best setup of each example is in bold, and "–" marks a setup that was not run.
 
@@ -81,7 +81,7 @@ Everything else (network, points, iterations) is the example's own and is given 
 
 $u_t = 10^{-4} u_{xx} - 5u^3 + 5u$ on $x \in [-1, 1]$ (periodic), $u(x, 0) = x^2\cos(\pi x)$, $t \in [0, 1]$ ([Wight & Zhao, 2021](https://doi.org/10.4208/cicp.OA-2020-0086)). 4 × 128 network, Adam 20,000 → L-BFGS 10,000 (per window in the time-window runs, 4 windows of 0.25).
 
-![Relative L2 error against time for 1D Allen-Cahn](figures/ac1d.png)
+![Relative L2 error against time for 1D Allen-Cahn](figures/study_ac1d.png)
 
 **Figure 2.** 1D Allen-Cahn (Wight & Zhao), error in $u$.
 
@@ -126,7 +126,7 @@ On the whole interval, built-in periodicity alone changes little (10% to 9.8% at
 
 A shrinking circle over a long time range, $t \in [0, 10]$ ([Wight & Zhao, 2021](https://doi.org/10.4208/cicp.OA-2020-0086)). 4 × 128 network, 10,000 points, Adam 20,000 → L-BFGS 10,000 (per window in the time-window runs, 10 windows of 1).
 
-![Relative L2 error against time for 2D Allen-Cahn, Wight & Zhao](figures/ac2d_wz.png)
+![Relative L2 error against time for 2D Allen-Cahn, Wight & Zhao](figures/study_ac2d_wz.png)
 
 **Figure 3.** 2D Allen-Cahn (Wight & Zhao), error in $u$.
 
@@ -158,7 +158,7 @@ On the whole interval nothing works: the circle shrinks over $t \in [0, 10]$, an
 
 IBVP-1 of [Mattey & Ghosh (2022)](https://doi.org/10.1016/j.cma.2021.114474), $t \in [0, 1]$. 4 × 128 network, 10,000 points, Adam 20,000 → L-BFGS 10,000 (per window in the time-window runs, 4 windows of 0.25).
 
-![Relative L2 error against time for 2D Allen-Cahn, Mattey & Ghosh](figures/ac2d_mg.png)
+![Relative L2 error against time for 2D Allen-Cahn, Mattey & Ghosh](figures/study_ac2d_mg.png)
 
 **Figure 4.** 2D Allen-Cahn (Mattey & Ghosh), error in $u$.
 
@@ -192,7 +192,7 @@ Here the exact constraints do almost all the work: exact periodicity and an exac
 
 A shrinking sphere, $u_t = 0.025\nabla^2 u - 10(u^3 - u)$ on $[0, 1]^3$ (periodic), $t \in [0, 1]$; 4 × 128 network, 30,000 points, Adam 20,000 → L-BFGS 20,000 (Adam 10,000 → L-BFGS 10,000 per window in the time-window run, 4 windows of 0.25).
 
-![Relative L2 error against time for 3D Allen-Cahn](figures/ac3d.png)
+![Relative L2 error against time for 3D Allen-Cahn](figures/study_ac3d.png)
 
 **Figure 5.** 3D Allen-Cahn (Wight & Zhao), error in $u$.
 
@@ -221,7 +221,7 @@ With the exact initial condition every method lands on the same error to three d
 
 Mixed form after [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086): $u_t = \mu_{xx}$, $\mu = \gamma_2(u^3 - u) - \gamma_1 u_{xx}$ with $\gamma_1 = 10^{-6}$ and $\gamma_2 = 0.01$, on $x \in [-1, 1]$, $t \in [0, 1]$, periodic. All core setups use the scaled equations (see below). Adam 20,000 → L-BFGS 20,000 (Adam 10,000 → L-BFGS 10,000 per window in the time-window runs, 4 windows of 0.25).
 
-![Relative L2 error against time for 1D Cahn-Hilliard](figures/ch1d.png)
+![Relative L2 error against time for 1D Cahn-Hilliard](figures/study_ch1d.png)
 
 **Figure 6.** 1D Cahn-Hilliard (Wight & Zhao), error in $u$.
 
@@ -265,7 +265,7 @@ Seeds: loss BC + loss IC 2.2–3.3% / 0.40–0.52% and the template 0.21–0.23%
 
 $u_t = (u^3 - u - 0.02 u_{xx})_{xx}$ on $[-1, 1]$ (periodic), $u(x, 0) = \cos(\pi x) - \exp(-4(\pi x)^2)$, $t \in [0, 1]$ ([Mattey & Ghosh, 2022](https://doi.org/10.1016/j.cma.2021.114474), eq. 25). The narrow Gaussian in the initial condition makes the solution change very fast at first (it is reshaped well before $t = 0.05$) and then settle. The paper's own standard PINN fails here too, with 86% error over the whole domain; the authors solve it with their bc-PINN, which trains time segments one after another. 4 × 128 network, 10,000 points. Whole-interval runs: Adam 20,000 → L-BFGS 20,000. Time-window runs (the template): 10 windows of 0.01 over the fast start and 9 windows of 0.1 for the rest, Adam 5,000 → L-BFGS 5,000 per window.
 
-![Relative L2 error against time for 1D Cahn-Hilliard, Mattey & Ghosh](figures/ch1d_mg.png)
+![Relative L2 error against time for 1D Cahn-Hilliard, Mattey & Ghosh](figures/study_ch1d_mg.png)
 
 **Figure 7.** 1D Cahn-Hilliard (Mattey & Ghosh), error in $u$.
 
@@ -290,7 +290,7 @@ Every setup on the whole time interval fails (25–90% at $t = 1$), with or with
 
 Two bubbles that merge, $u_t = \nabla^2\mu$, $\mu = u^3 - u - 0.0025\nabla^2 u$ on $[-1, 1]^2$ (periodic), $t \in [0, 1]$; 4 × 128 network, 20,000 points, Adam 20,000 → L-BFGS 20,000 (Adam 10,000 → L-BFGS 10,000 per window in the time-window runs, 5 windows of 0.2). Every run uses the template's smoothed initial condition (see below).
 
-![Relative L2 error against time for 2D Cahn-Hilliard, Wight & Zhao](figures/ch2d_wz.png)
+![Relative L2 error against time for 2D Cahn-Hilliard, Wight & Zhao](figures/study_ch2d_wz.png)
 
 **Figure 8.** 2D Cahn-Hilliard (Wight & Zhao), error in $u$.
 
@@ -328,7 +328,7 @@ With the paper's initial condition every setup learned an almost frozen solution
 
 Stripes that sharpen into two phases: $u_{t'} = 0.005\nabla^2\mu$, $\mu = u^3 - u - 0.0002\nabla^2 u$ on $[0, 1]^2$ (periodic), $u(x, y, 0) = 0.4\cos(4\pi x)\cos(4\pi(x + y))$, with time rescaled to $t' = t/0.005 \in [0, 1]$ (IBVP-2 of [Mattey & Ghosh, 2022](https://doi.org/10.1016/j.cma.2021.114474)). $\alpha = 0.0002$ reproduces the paper's figures, while the stated $\alpha = 0.02$ makes the pattern decay. 4 × 128 network, 20,000 points, Adam 20,000 → L-BFGS 20,000 (Adam 10,000 → L-BFGS 10,000 per window in the time-window run, 4 windows of 0.25).
 
-![Relative L2 error against time for 2D Cahn-Hilliard, Mattey & Ghosh](figures/ch2d_mg.png)
+![Relative L2 error against time for 2D Cahn-Hilliard, Mattey & Ghosh](figures/study_ch2d_mg.png)
 
 **Figure 9.** 2D Cahn-Hilliard (Mattey & Ghosh), error in $u$.
 
@@ -357,7 +357,7 @@ Here the exact initial condition is essential: without it the pattern is lost (l
 
 DeepXDE's Klein-Gordon example, $t \in [0, 10]$.
 
-![Relative L2 error against time for Klein-Gordon](figures/kg.png)
+![Relative L2 error against time for Klein-Gordon](figures/study_kg.png)
 
 **Figure 10.** Klein-Gordon, error in $u$.
 
@@ -383,7 +383,7 @@ DeepXDE's Klein-Gordon example, $t \in [0, 10]$.
 
 The Burgers example of [Raissi et al. (2019)](https://doi.org/10.1016/j.jcp.2018.10.045), a problem the plain PINN already solves well.
 
-![Relative L2 error against time for 1D Burgers](figures/burgers.png)
+![Relative L2 error against time for 1D Burgers](figures/study_burgers.png)
 
 **Figure 11.** 1D Burgers, error in $u$.
 
