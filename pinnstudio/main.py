@@ -1,6 +1,5 @@
 import sys
 from PyQt6.QtWidgets import QApplication
-from pinnstudio.ui.main_window import MainWindow
 
 
 def _check_gpu_torch_mismatch():
@@ -34,6 +33,10 @@ def main():
     code = shortcut.main(sys.argv[1:])
     if code is not None:              # --create-shortcut / --remove-shortcut
         sys.exit(code)
+    # errors are shown and logged instead of closing the window (see errors.py)
+    from pinnstudio import errors
+    errors.install()
+    from pinnstudio.ui.main_window import MainWindow
     # "pinnstudio" as the program name, so the desktop matches the window to
     # its shortcut and icon however PINNStudio was started
     app = QApplication(["pinnstudio"] + sys.argv[1:])
