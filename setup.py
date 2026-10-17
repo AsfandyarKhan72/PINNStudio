@@ -16,10 +16,10 @@ setup(
     classifiers=["Programming Language :: Python :: 3", "Operating System :: OS Independent", "Intended Audience :: Science/Research", "Topic :: Scientific/Engineering :: Physics"],
     packages=find_packages(),
     include_package_data=True,
+    package_data={"pinnstudio": ["resources/*"]},
     install_requires=[
         "deepxde>=1.10.0",
         "torch>=2.0",
-        "torch==2.5.1; sys_platform == 'win32'",
         "PyQt6>=6.4",
         # Newer PyQt6-Qt6 builds fail to load on some Windows versions with a
         # "DLL load failed" ImportError. Pin to a known-working build on Windows only;

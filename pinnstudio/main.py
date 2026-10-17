@@ -30,7 +30,15 @@ def main():
     # first has been observed to leave some Qt widgets built-but-not-painted
     # until an unrelated event nudges a repaint -- creating the QApplication
     # first avoids that ordering issue entirely.
-    app = QApplication(sys.argv)
+    from pinnstudio import shortcut
+    code = shortcut.main(sys.argv[1:])
+    if code is not None:              # --create-shortcut / --remove-shortcut
+        sys.exit(code)
+    # "pinnstudio" as the program name, so the desktop matches the window to
+    # its shortcut and icon however PINNStudio was started
+    app = QApplication(["pinnstudio"] + sys.argv[1:])
+    app.setApplicationName("PINNStudio")
+    app.setDesktopFileName("pinnstudio")
     app.setStyle("Fusion")
     _check_gpu_torch_mismatch()
     window = MainWindow()

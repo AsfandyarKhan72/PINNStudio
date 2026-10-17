@@ -1,4 +1,5 @@
 import os
+from pinnstudio.core import pyexe as _pyexe
 import math
 import re as _re_log
 _re_log_l2 = _re_log.compile(r"(?<![A-Za-z0-9_])L2(?![A-Za-z0-9_])")
@@ -11517,7 +11518,7 @@ def _style_legend(ax):
             def run(self):
                 import subprocess, sys
                 try:
-                    self.process = subprocess.Popen([sys.executable, self._path], stdout=subprocess.PIPE,
+                    self.process = subprocess.Popen([_pyexe.script_python(), self._path], creationflags=_pyexe.NO_WINDOW, stdout=subprocess.PIPE,
                                                     stderr=subprocess.STDOUT, text=True)
                     out_, _ = self.process.communicate(timeout=300)
                     ok = self.process.returncode == 0
@@ -11888,7 +11889,7 @@ print("DOMAIN_PREVIEW_DONE")
                 self.process = None
             def run(self):
                 import subprocess, sys
-                proc = subprocess.Popen([sys.executable, self._tmp],
+                proc = subprocess.Popen([_pyexe.script_python(), self._tmp], creationflags=_pyexe.NO_WINDOW,
                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
                 self.process = proc
                 for line in proc.stdout:
@@ -15390,7 +15391,7 @@ print("DOMAIN_PREVIEW_DONE")
 
                 def run(self):
                     proc = subprocess.Popen(
-                        [sys.executable, self._tmp],
+                        [_pyexe.script_python(), self._tmp], creationflags=_pyexe.NO_WINDOW,
                         stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
                     )
                     self.process = proc
@@ -15711,7 +15712,7 @@ print("DOMAIN_PREVIEW_DONE")
 
             def run(self):
                 proc = subprocess.Popen(
-                    [sys.executable, self._tmp],
+                    [_pyexe.script_python(), self._tmp], creationflags=_pyexe.NO_WINDOW,
                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
                 )
                 self.process = proc

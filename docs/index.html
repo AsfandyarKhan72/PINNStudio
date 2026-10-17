@@ -132,6 +132,7 @@
   .chip { font-size: 13px; padding: 4px 10px; border-radius: 999px; background: var(--code-bg); border: 1px solid var(--border); color: var(--text); }
 
   .install-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; }
+  pre.cmd { white-space: pre-wrap; word-break: break-all; }
   pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; overflow-x: auto; font-size: 14px; margin: 12px 0 0; color: #d6dbe8; }
   .muted { color: var(--text-dim); font-size: 14.5px; }
 
@@ -182,10 +183,11 @@
     <p class="tagline">A no-code scientific computing environment for solving forward and inverse problems with physics-informed neural networks — from setting up the equations to training, error analysis, and visualization.</p>
 
     <div class="install-box">
-      <code>pip install pinnstudio</code>
-      <button class="copy-btn" onclick="navigator.clipboard.writeText('pip install pinnstudio'); this.textContent='Copied!'; setTimeout(() => this.textContent='Copy', 1500)">Copy</button>
+      <code>curl -LsSf https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/get-pinnstudio.sh | sh</code>
+      <button class="copy-btn" onclick="navigator.clipboard.writeText('curl -LsSf https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/get-pinnstudio.sh | sh'); this.textContent='Copied!'; setTimeout(() => this.textContent='Copy', 1500)">Copy</button>
     </div>
 
+    <p class="muted" style="margin:10px 0 0;font-size:14px;">macOS and Linux. On Windows, use the <a href="#install">PowerShell command</a>.</p>
     <div class="cta-row">
       <a class="btn primary" href="https://github.com/AsfandyarKhan72/PINNStudio#quick-start">Get started</a>
       <a class="btn secondary" href="https://github.com/AsfandyarKhan72/PINNStudio">View on GitHub</a>
@@ -420,23 +422,20 @@
   <div class="wrap">
     <div class="kicker">Install</div>
     <h2>Get started in a few minutes</h2>
-    <p class="section-sub">PINNStudio runs on Windows, macOS and Linux with Python 3.9 or newer. A GPU is optional but helps with larger 2D and 3D problems.</p>
+    <p class="section-sub">One command installs PINNStudio with its own Python and the PyTorch build that matches your GPU, and adds it to the Start menu, Applications or the app menu. Python and git do not need to be installed. A GPU is optional but helps with larger 2D and 3D problems.</p>
     <div class="install-cards">
       <div class="card">
-        <h3>Quick install</h3>
-        <p>The fastest way to try it, on any operating system.</p>
-        <pre><code>pip install pinnstudio
-pinnstudio</code></pre>
+        <h3>macOS / Linux</h3>
+        <p>In a terminal:</p>
+        <pre class="cmd"><code>curl -LsSf https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/get-pinnstudio.sh | sh</code></pre>
       </div>
       <div class="card">
-        <h3>With an NVIDIA GPU</h3>
-        <p>The install script creates its own environment and makes sure PyTorch can use your GPU.</p>
-        <pre><code>git clone https://github.com/AsfandyarKhan72/PINNStudio.git
-cd PINNStudio
-bash install.sh          # Windows: install.bat
-./venv/bin/pinnstudio    # Windows: .\venv\Scripts\pinnstudio.exe</code></pre>
+        <h3>Windows</h3>
+        <p>In PowerShell:</p>
+        <pre class="cmd"><code>powershell -ExecutionPolicy ByPass -c &quot;irm https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/get-pinnstudio.ps1 | iex&quot;</code></pre>
       </div>
     </div>
+    <p class="muted" style="margin-top:14px;">Already using Python? <code>pip install pinnstudio</code> works too, and the source install is described in the <a href="https://github.com/AsfandyarKhan72/PINNStudio#installation">README</a>.</p>
     <p class="muted" style="margin-top:22px;">Then click an example on the <b>Start</b> tab and press <b>Solve</b> — see the <a href="https://github.com/AsfandyarKhan72/PINNStudio#quick-start">Quick Start</a>.</p>
   </div>
 </section>
