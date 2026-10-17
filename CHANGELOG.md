@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Source code links in the README:** every feature now links to the code that implements it (the method in the generated script, and the GUI panel where that helps). Each feature names its functions once in a comment, and `tools/update_source_links.py` rewrites the links with the current line numbers; `tests/test_source_links.py` checks that every named function still exists.
 - **Local templates:** templates you keep for yourself can go in `pinnstudio/core/local_examples.py`, with their reference data in `reference_data/local/`; both are ignored by git, and the template is added to the Examples lists when the file is there (`pinnstudio/core/pinnstudio_examples.py` says how).
 - **Second 1D Allen-Cahn template**, *Allen-Cahn 1D – Wight & Zhao (whole interval)*: the same problem trained on the whole time interval in one run with the best setup of the training methods study (exact periodicity, exact initial condition, causal training with the stepped ε, MsFFN network with scales 1, 5), 0.24% error at $t = 1$. The time-adaptive template is now listed as *Allen-Cahn 1D – Wight & Zhao (time-adaptive)*. Templates now also set causal training and the network type, and turn them off again for the next template.
 - **Training methods study, 3D Allen-Cahn:** the plain setup (0.033% at $t = 1$, almost as good as the template) and exact BC + exact IC + causal + MsFFN (14%, the worst) are now run.
