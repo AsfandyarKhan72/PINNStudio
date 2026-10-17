@@ -17,7 +17,7 @@ import json
 import math
 
 from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QSizePolicy, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QCheckBox, QHBoxLayout, QLabel, QPushButton, QSizePolicy, QVBoxLayout, QWidget
 
 from pinnstudio.ui import sketch3d as s3
 
@@ -130,6 +130,61 @@ def face_label_point(patches):
     return min(cs, key=lambda c: sum((c[k] - m[k]) ** 2 for k in range(3)))
 
 
+def inside_mask(shapes, pts):
+    """in_region3 for many points at once (numpy): True where the point is
+    inside the domain."""
+    import numpy as np
+    pts = np.asarray(pts, dtype=float)
+    inside = None
+    for i, sh in enumerate(shapes):
+        t, p = sh.get("type"), sh.get("params") or {}
+        here = np.zeros(len(pts), dtype=bool)
+        try:
+            if t == "Cuboid":
+                b = s3._box(p)
+                here = np.all([(pts[:, k] > b[k][0]) & (pts[:, k] < b[k][1]) for k in range(3)], axis=0)
+            elif t == "Sphere":
+                c, r = s3._sph(p)
+                here = np.sum((pts - np.asarray(c)) ** 2, axis=1) < r * r
+        except (KeyError, TypeError, ValueError):
+            pass
+        if i == 0:
+            inside = here
+            continue
+        op = sh.get("op", "union")
+        inside = (inside & ~here) if op == "subtract" else (inside & here) if op == "intersect" else (inside | here)
+    return inside if inside is not None else np.zeros(len(pts), dtype=bool)
+
+
+def sample_points(shapes, patches, n_domain=1500, n_boundary=600, seed=0):
+    """A preview of where training points fall: n_domain random points inside
+    the domain (drawn in its bounding box, kept if inside) and n_boundary on
+    its boundary (on the drawn face patches, by area). Uniform random, as
+    DeepXDE's default sampler; not the run's exact points, which are drawn
+    when training starts."""
+    import numpy as np
+    rng = np.random.default_rng(seed)
+    lo, hi = (np.asarray(v, dtype=float) for v in s3.bbox3(shapes))
+    inner = np.empty((0, 3))
+    for _ in range(20):                       # rejection sampling; stops early for a full box
+        cand = lo + (hi - lo) * rng.random((max(n_domain, 256) * 2, 3))
+        inner = np.vstack([inner, cand[inside_mask(shapes, cand)]])
+        if len(inner) >= n_domain:
+            break
+    inner = inner[:n_domain]
+    quads = [np.asarray(q, dtype=float) for face in patches for q in face]
+    if not quads:
+        return inner, np.empty((0, 3))
+    areas = np.array([0.5 * (np.linalg.norm(np.cross(q[1] - q[0], q[3] - q[0]))
+                             + np.linalg.norm(np.cross(q[1] - q[2], q[3] - q[2]))) for q in quads])
+    pick = rng.choice(len(quads), size=n_boundary, p=areas / areas.sum())
+    u, v = rng.random(n_boundary), rng.random(n_boundary)
+    Q = np.asarray(quads)[pick]
+    bnd = ((1 - u)[:, None] * (1 - v)[:, None] * Q[:, 0] + u[:, None] * (1 - v)[:, None] * Q[:, 1]
+           + u[:, None] * v[:, None] * Q[:, 2] + (1 - u)[:, None] * v[:, None] * Q[:, 3])
+    return inner, bnd
+
+
 # ── the widget ───────────────────────────────────────────────────────────
 class Domain3DView(QWidget):
     """Rotatable 3D view of the sketch canvas's shapes. `canvas` is the
@@ -142,6 +197,7 @@ class Domain3DView(QWidget):
         self._key = None
         self._mesh_key = None
         self._patches = []
+        self._points = None
         self._view_angles = ORIENTATIONS["Iso"]
         lay = QVBoxLayout(self)
         lay.setContentsMargins(0, 0, 0, 0)
@@ -159,6 +215,13 @@ class Domain3DView(QWidget):
             b.clicked.connect(lambda _c, n=name: self.set_orientation(n))
             bar.addWidget(b)
             self.orient_buttons[name] = b
+        bar.addSpacing(12)
+        self.points_cb = QCheckBox("Show points")
+        self.points_cb.setToolTip("A preview of where training points fall: random points inside the domain and on "
+                                  "its boundary, as DeepXDE samples them. Check that none land in a cut-out. "
+                                  "These are not the run's exact points, which are drawn when training starts.")
+        self.points_cb.toggled.connect(lambda _on: self.refresh())
+        bar.addWidget(self.points_cb)
         bar.addStretch()
         lay.addLayout(bar)
         self.holder = QVBoxLayout()
@@ -212,7 +275,8 @@ class Domain3DView(QWidget):
         bc_of = c.edge_bcs() if c.shapes else []
         rows = c.owner.bc_rows() if c.shapes else []
         return json.dumps([c.shapes, bc_of, [(b["index"], b["label"]) for b in rows],
-                           c.view, round(c.depth, 9), _theme.current().get("card")], sort_keys=True, default=str)
+                           c.view, round(c.depth, 9), _theme.current().get("card"), self.points_cb.isChecked()],
+                          sort_keys=True, default=str)
 
     def refresh(self):
         if not self.isVisible():
@@ -256,19 +320,33 @@ class Domain3DView(QWidget):
         mkey = json.dumps(shapes, sort_keys=True)
         if mkey != self._mesh_key:
             self._patches = face_patches(shapes, faces)
+            self._points = None
             self._mesh_key = mkey
         bc_of = c.edge_bcs()
         for k, quads in enumerate(self._patches):
             if not quads:
                 continue
             col = BC_COLORS[bc_of[k][0] % len(BC_COLORS)] if k < len(bc_of) and bc_of[k] else NO_BC_COLOR
-            poly = Poly3DCollection(quads, facecolors=shaded_colours(quads, col), edgecolors="none", alpha=0.6,
+            poly = Poly3DCollection(quads, facecolors=shaded_colours(quads, col), edgecolors="none",
+                                    alpha=0.22 if self.points_cb.isChecked() else 0.6,
                                     linewidths=0, antialiased=False)
             ax.add_collection3d(poly)
             lp = face_label_point(quads)
             if lp is not None:
                 ax.text(*lp, f"F{k + 1}", color=t["text"], fontsize=8, ha="center", va="center",
                         bbox=dict(boxstyle="round,pad=0.2", fc=t["card"], ec=col, lw=0.8, alpha=0.9))
+        n_inner = n_bnd = 0
+        if self.points_cb.isChecked():
+            if self._points is None:
+                self._points = sample_points(shapes, self._patches)
+            inner, bnd = self._points
+            n_inner, n_bnd = len(inner), len(bnd)
+            if n_inner:
+                ax.scatter(inner[:, 0], inner[:, 1], inner[:, 2], s=2, c=t["text_muted"], alpha=0.45,
+                           depthshade=False, linewidths=0)
+            if n_bnd:
+                ax.scatter(bnd[:, 0], bnd[:, 1], bnd[:, 2], s=3, c=t["text"], alpha=0.7, depthshade=False,
+                           linewidths=0)
         lo, hi = s3.bbox3(shapes)
         # the slice the flat views show, as a translucent plane
         if c.view in s3.VIEWS:
@@ -304,6 +382,12 @@ class Domain3DView(QWidget):
                    for b in rows if b["index"] in used]
         if any(not lst for lst in bc_of):
             handles.append(Patch(facecolor=NO_BC_COLOR, label="no BC yet"))
+        if n_inner or n_bnd:
+            from matplotlib.lines import Line2D
+            handles.append(Line2D([], [], ls="none", marker="o", ms=3, color=t["text_muted"],
+                                  label=f"domain points (preview, {n_inner})"))
+            handles.append(Line2D([], [], ls="none", marker="o", ms=3, color=t["text"],
+                                  label=f"boundary points (preview, {n_bnd})"))
         if handles:
             leg = ax.legend(handles=handles, loc="upper right", fontsize=8, frameon=True, framealpha=0.95)
             leg.get_frame().set_facecolor(t["card"])

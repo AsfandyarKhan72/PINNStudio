@@ -105,3 +105,37 @@ def test_periodic_rows_colour_the_opposite_face():
     bc_of = w.domain_view.canvas.edge_bcs()
     assert len(bc_of) == 6 and all(bc_of)                         # all six faces of the periodic box
     w.close()
+
+
+def test_point_preview_stays_in_the_domain():
+    import numpy as np
+    from pinnstudio.ui.view3d import inside_mask, sample_points
+    shapes = [BOX, HOLE]
+    rng = np.random.default_rng(1)
+    P = rng.random((2000, 3)) * [2, 1, 1]
+    assert (inside_mask(shapes, P) == np.array([s3.in_region3(shapes, q) for q in P])).all()
+    inner, bnd = sample_points(shapes, face_patches(shapes), n_domain=800, n_boundary=300)
+    assert len(inner) == 800 and len(bnd) == 300
+    assert inside_mask(shapes, inner).all()                          # none in the cut-out
+    assert not (np.sum((inner - [1, 0.5, 1]) ** 2, axis=1) < 0.4 ** 2).any()
+    again = sample_points(shapes, face_patches(shapes), n_domain=800, n_boundary=300)
+    assert np.array_equal(inner, again[0])                          # fixed seed: no jumping on redraw
+
+
+def test_points_checkbox_draws_points():
+    from PyQt6.QtWidgets import QApplication
+    app = QApplication.instance() or QApplication([])
+    from pinnstudio.ui.sketch_canvas import SketchPanel
+    p = SketchPanel()
+    p.resize(900, 900)
+    p.set_bc_provider(lambda: [], lambda: {})
+    p.set_dim(3)
+    p.show()
+    p.set_shapes([BOX, HOLE], fit=True)
+    p.view_combo.setCurrentIndex(p.view_combo.findData("3d"))
+    _settle()
+    assert p.view3d._points is None                                 # off by default
+    p.view3d.points_cb.setChecked(True)
+    _settle()
+    assert p.view3d._points is not None and len(p.view3d._points[0]) > 0
+    p.close()
