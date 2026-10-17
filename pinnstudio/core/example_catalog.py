@@ -19,6 +19,7 @@ import re
 from dataclasses import dataclass
 
 from pinnstudio.core import deepxde_examples as dx
+from pinnstudio.core import pinnstudio_examples as ps
 
 PINNSTUDIO = "PINNStudio"
 DEEPXDE = "DeepXDE"
@@ -93,6 +94,7 @@ PAPERS = {
     "Mattey & Ghosh (2022)": "https://doi.org/10.1016/j.cma.2021.114474",
     "Mathias et al. (2022)": "https://arxiv.org/abs/2301.07824",
     "Lu et al. (2021)": "https://doi.org/10.1137/19M1274067",
+    **ps.PAPERS,
 }
 
 _DEEPXDE_CODE_ROOT = "https://github.com/lululxvi/deepxde/blob/master/examples/"
@@ -205,6 +207,12 @@ def _build():
     entries = []
     for key, name, dim, reg, geo, paper in _TEMPLATES:
         entries.append(Entry(key, name, PINNSTUDIO, dim, reg, BOTH, geo, paper, key in HIDDEN_TEMPLATES))
+    for ex in ps.EXAMPLES:          # templates defined by their settings
+        cfg = ps.build_config(ex, "/r")
+        name, paper = ps.CATALOG[ex.name]
+        entries.append(Entry(ex.name, name, PINNSTUDIO, cfg.problem_dim,
+                             "Steady" if cfg.steady_state else "Time-dependent",
+                             BOTH if ex.inverse else FORWARD, _dx_geometry(cfg, ex.name), paper))
     for ex in dx.EXAMPLES:
         cfg = dx.build_config(ex, "/r")
         problem = INVERSE if ex.category == dx.INVERSE else (BOTH if ex.inverse else FORWARD)

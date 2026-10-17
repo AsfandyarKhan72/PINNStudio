@@ -1,0 +1,80 @@
+[
+ {
+  "example": "1D Cahn-Hilliard",
+  "setup": "Template",
+  "name": "ch1w_template"
+ },
+ {
+  "example": "1D Cahn-Hilliard",
+  "setup": "Exact",
+  "name": "ch1w_exact"
+ },
+ {
+  "example": "1D Allen-Cahn",
+  "setup": "Time-adaptive",
+  "name": "ac1_ta"
+ },
+ {
+  "example": "1D Allen-Cahn",
+  "setup": "Time-adaptive + RBA",
+  "name": "ac1_ta_rba"
+ },
+ {
+  "example": "1D Allen-Cahn",
+  "setup": "Time-adaptive + SA-PINN",
+  "name": "ac1_ta_sa"
+ },
+ {
+  "example": "1D Cahn-Hilliard",
+  "setup": "Time-adaptive",
+  "name": "ch1w_ta",
+  "windows": [
+   {
+    "t_start": 0.0,
+    "t_end": 1.0,
+    "steps": 4
+   }
+  ],
+  "phases": [
+   10000,
+   10000
+  ]
+ },
+ {
+  "example": "1D Cahn-Hilliard",
+  "setup": "Time-adaptive + RBA",
+  "name": "ch1w_ta_rba",
+  "windows": [
+   {
+    "t_start": 0.0,
+    "t_end": 1.0,
+    "steps": 4
+   }
+  ],
+  "phases": [
+   10000,
+   10000
+  ]
+ },
+ {
+  "example": "1D Cahn-Hilliard",
+  "setup": "Time-adaptive + SA-PINN",
+  "name": "ch1w_ta_sa",
+  "windows": [
+   {
+    "t_start": 0.0,
+    "t_end": 1.0,
+    "steps": 4
+   }
+  ],
+  "phases": [
+   10000,
+   10000
+  ]
+ },
+ {
+  "example": "1D Cahn-Hilliard (Mattey & Ghosh)",
+  "setup": "Time-adaptive + RBA",
+  "name": "ch1m_ta_rba"
+ }
+]

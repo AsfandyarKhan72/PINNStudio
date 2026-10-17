@@ -15,6 +15,7 @@ from PyQt6.QtGui import QPixmap, QAction, QColor, QMovie, QIntValidator, QKeySeq
 from pinnstudio.core.config import PINNConfig
 from pinnstudio.core.runner import run_pinn
 from pinnstudio.core import deepxde_examples as _dx_examples
+from pinnstudio.core import pinnstudio_examples as _ps_examples
 from pinnstudio.core import example_catalog as _ex_catalog
 from pinnstudio.core.config import LBFGS_RECOMMENDED
 from pinnstudio.ui.sketch_canvas import SketchPanel
@@ -6105,7 +6106,8 @@ class MainWindow(QMainWindow):
         deepxde_examples.py (DeepXDE's own script), applied through
         _apply_config() exactly like opening a saved problem. `inverse`
         loads the example's Inverse-mode version (Example.inverse)."""
-        ex = _dx_examples.BY_NAME[name]
+        ex = _dx_examples.BY_NAME.get(name) or _ps_examples.BY_NAME[name]
+        own = name in _ps_examples.BY_NAME      # a PINNStudio template defined by its settings
         try:
             current = self._build_config()
             keep = {k: getattr(current, k) for k in self._DEEPXDE_KEEP_FIELDS if hasattr(current, k)}
@@ -6145,9 +6147,9 @@ class MainWindow(QMainWindow):
         self._current_path = None
         self._current_problem_name = name
         self._mark_clean()
-        self.log_box.append(f"✅ DeepXDE example loaded: {_ex_catalog.display_name(name)}"
+        self.log_box.append(f"✅ {'Template' if own else 'DeepXDE example'} loaded: {_ex_catalog.display_name(name)}"
                             + (" (Inverse mode)" if inverse else ""))
-        self.log_box.append(f"   Source: {ex.source}")
+        self.log_box.append(f"   {'Paper' if own else 'Source'}: {ex.source}")
         if ex.note:
             self.log_box.append(f"   Note: {ex.note}")
         if inverse and ex.inverse_note:
@@ -6162,7 +6164,7 @@ class MainWindow(QMainWindow):
             self.quick_examples_combo.blockSignals(False)
             return
         self._shown_example = text
-        if text in _dx_examples.BY_NAME:
+        if text in _dx_examples.BY_NAME or text in _ps_examples.BY_NAME:
             # a DeepXDE example sets its whole configuration, transforms and
             # training methods included: nothing left for a template reset
             self._tpl_output_scaled = self._tpl_input_features = False

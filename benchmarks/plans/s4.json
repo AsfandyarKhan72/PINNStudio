@@ -1,0 +1,12 @@
+[
+ {
+  "example": "3D Allen-Cahn (Wight & Zhao)",
+  "setup": "Plain",
+  "name": "ac3_plain"
+ },
+ {
+  "example": "3D Allen-Cahn (Wight & Zhao)",
+  "setup": "Exact + causal + MsFFN",
+  "name": "ac3_e_causal_msffn"
+ }
+]
