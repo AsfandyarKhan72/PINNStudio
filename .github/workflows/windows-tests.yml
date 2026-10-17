@@ -36,4 +36,9 @@ jobs:
           python -m pinnstudio --remove-shortcut
 
       - name: Tests
-        run: python -m pytest tests -q -p no:cacheprovider --durations=20 -x --ignore=tests/local
+        run: python -m pytest tests -q -p no:cacheprovider --durations=20 --ignore=tests/local --junitxml=junit.xml
+
+      # Each failing test as an annotation on the run (readable without the full log)
+      - name: Report failures
+        if: always()
+        run: python tools/junit_annotations.py junit.xml
