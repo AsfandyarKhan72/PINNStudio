@@ -3,7 +3,7 @@
 Restore Model's Surface plot predicted and plotted over the full
 rectangular BOUNDING BOX of a non-rectangular problem, instead of the
 real domain. Reported by the user for a Custom-geometry "triangle with
-cavity" (a Soomro_Paper-style steady 2D problem): after the two earlier
+cavity" (a steady 2D problem): after the two earlier
 restore fixes (steady-state shape mismatch, then steady_state missing
 from model_config.json) got "Restore && Visualize" running without
 crashing, the resulting plot still showed the prediction smeared across

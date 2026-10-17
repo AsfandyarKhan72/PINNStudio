@@ -2,7 +2,7 @@
 
 *PINNStudio, October 2026*
 
-Which published PINN training techniques actually help, tested with PINNStudio on one GPU (RTX 4090): about 190 runs on 15 problems. Every number is the relative $L_2$ error of the main output against the reference data the example ships with, as computed by PINNStudio's Error Analysis. Unless stated otherwise, each run uses its example's own network, collocation points and training budget, and the random seed 2026.
+Which published PINN training techniques actually help, tested with PINNStudio on one GPU (RTX 4090): about 180 runs on 14 problems. Every number is the relative $L_2$ error of the main output against the reference data the example ships with, as computed by PINNStudio's Error Analysis. Unless stated otherwise, each run uses its example's own network, collocation points and training budget, and the random seed 2026.
 
 **Run-to-run variation.** Changing only the random seed moves the error by about ±20% (1D Cahn-Hilliard, three seeds), so only differences of about 1.5× or more should be read as real.
 
@@ -28,7 +28,7 @@ Every phase-field example (Allen-Cahn and Cahn-Hilliard, in 1D, 2D and 3D) is ru
 | Time windows: exact BC + loss IC + RBA | exact | loss | windows | RBA |
 | Time windows: exact BC + loss IC + SA-PINN | exact | loss | windows | SA-PINN |
 
-Everything else (network, points, iterations) is the example's own and is given at the start of its section. Per-point weights are held fixed during the L-BFGS phase, as in the papers (Loss weights → *During L-BFGS*: *Keep the weights*); a row marked *unweighted L-BFGS* runs L-BFGS on the unweighted loss instead. "(template)" marks the setup the example's template uses, the best setup of each table is in bold, and "–" marks a setup that was not run. Under each core table, **other setups** lists further runs on that problem, named the same way. The other problems (Klein-Gordon, Burgers, the steady problems and the mixed-convection cavity) have no periodicity or initial condition to build in, so they are run as **Plain** (every condition a loss term) and **Plain +** one method.
+Everything else (network, points, iterations) is the example's own and is given at the start of its section. Per-point weights are held fixed during the L-BFGS phase, as in the papers (Loss weights → *During L-BFGS*: *Keep the weights*); a row marked *unweighted L-BFGS* runs L-BFGS on the unweighted loss instead. "(template)" marks the setup the example's template uses, the best setup of each table is in bold, and "–" marks a setup that was not run. Under each core table, **other setups** lists further runs on that problem, named the same way. The other problems (Klein-Gordon, Burgers, and the steady problems) have no periodicity or initial condition to build in, so they are run as **Plain** (every condition a loss term) and **Plain +** one method.
 
 **Figures.** Each figure shows the error against time on a log scale, every core setup in one plot, in the order and with the names of the table under it. The colour is the weighting method (purple none, blue RBA, orange SA-PINN, green causal, dark green causal + MsFFN), a **solid line** trains on the whole time interval at once and a **dashed line** in time windows, and the two setups without an exact IC on the whole interval are gray with open markers. A thick line is the template's setup. $t = 0$ is left out, because with an exact IC the error there is zero. Each figure is also available as a vector PDF in [`figures/pdf/`](figures/pdf/). Figures and core tables are drawn from [`figures/study.json`](figures/study.json) by [`make_figures.py`](make_figures.py), and the runs were made with [`study_runner.py`](study_runner.py) from the plans in [`plans/`](plans/).
 
@@ -63,15 +63,14 @@ Everything else (network, points, iterations) is the example's own and is given 
 | 1D Cahn-Hilliard (Mattey & Ghosh), $t = 1$ | 83% | 0.39–0.48% | Time windows: exact BC + loss IC (template), and + SA-PINN |
 | 2D Cahn-Hilliard (Wight & Zhao), $t = 1$ | 32% | 1.1% | Exact BC + loss IC (template) |
 | 2D Cahn-Hilliard (Mattey & Ghosh), $t' = 1$ | 51% | 0.20% | Exact BC + exact IC + SA-PINN (template) |
-| Mixed convection, $u$ / $v$ / $T$ | 44 / 41 / 56% | 14 / 13 / 24% | Plain + MsFFN (template) |
 | Klein-Gordon, $t = 10$ | 8.1% | 0.22% | Plain + causal + MsFFN |
 | 1D Burgers, $t = 1$ | 0.13% | 0.13% | Plain; nothing helps |
 | Diffusion-reaction 1D, $t = 1$ | 11% | 11% | Plain; causal training is worse |
 | Schrödinger 1D, Helmholtz 2D, Kovasznay flow | 0.02–0.2% | same, or MsFFN 2× lower on Kovasznay | Plain |
 
-**What worked.** On the phase-field problems, building in what is known exactly came first: exact periodicity and an exact initial condition cut the error 2–150 times on most of them (not on the problems over a long time range or with a fast start, see below), and then one weighting method on top of them: SA-PINN on Cahn-Hilliard and 2D Allen-Cahn (Mattey & Ghosh), causal training with a Fourier-feature network on 1D Allen-Cahn. Time-adaptive training was the only thing that worked on a long time range (2D Allen-Cahn, $t \le 10$) and on a very fast start (1D Cahn-Hilliard, Mattey & Ghosh), and RBA was the weighting that went best with it. On the Cahn-Hilliard problem of Wight & Zhao the actual fix was scaling the equations. A Fourier-feature network gave large gains on 1D Allen-Cahn, Klein-Gordon and the mixed-convection cavity.
+**What worked.** On the phase-field problems, building in what is known exactly came first: exact periodicity and an exact initial condition cut the error 2–150 times on most of them (not on the problems over a long time range or with a fast start, see below), and then one weighting method on top of them: SA-PINN on Cahn-Hilliard and 2D Allen-Cahn (Mattey & Ghosh), causal training with a Fourier-feature network on 1D Allen-Cahn. Time-adaptive training was the only thing that worked on a long time range (2D Allen-Cahn, $t \le 10$) and on a very fast start (1D Cahn-Hilliard, Mattey & Ghosh), and RBA was the weighting that went best with it. On the Cahn-Hilliard problem of Wight & Zhao the actual fix was scaling the equations. A Fourier-feature network gave large gains on 1D Allen-Cahn and Klein-Gordon.
 
-**What did not.** The exact initial condition is not always better than the initial condition as a loss term: on 3D Allen-Cahn and 2D Cahn-Hilliard (Wight & Zhao), whose solutions change quickly at the start, the loss term was 25 and 3.6 times more accurate at $t = 1$. Time windows made smooth problems worse (1D Cahn-Hilliard, Wight & Zhao). SA-PINN with the initial condition as a loss term can fail completely (2D Allen-Cahn, Wight & Zhao: $u = 0$ in every window). The Fourier-feature network hurt on the smooth 2D problems (2D Allen-Cahn and 2D Cahn-Hilliard of Mattey & Ghosh). Per-point weights made the mixed-convection cavity worse. Gradient-norm loss balancing was worse everywhere and has been removed; causal training with one fixed $\varepsilon$ barely acted, and causal training together with per-point weights did worse than either alone.
+**What did not.** The exact initial condition is not always better than the initial condition as a loss term: on 3D Allen-Cahn and 2D Cahn-Hilliard (Wight & Zhao), whose solutions change quickly at the start, the loss term was 25 and 3.6 times more accurate at $t = 1$. Time windows made smooth problems worse (1D Cahn-Hilliard, Wight & Zhao). SA-PINN with the initial condition as a loss term can fail completely (2D Allen-Cahn, Wight & Zhao: $u = 0$ in every window). The Fourier-feature network hurt on the smooth 2D problems (2D Allen-Cahn and 2D Cahn-Hilliard of Mattey & Ghosh). Gradient-norm loss balancing was worse everywhere and has been removed; causal training with one fixed $\varepsilon$ barely acted, and causal training together with per-point weights did worse than either alone.
 
 **Following the papers closely mattered.** The first versions of causal training and SA-PINN here used one fixed $\varepsilon$ and normalized SA-PINN's weights. Both then looked no better than RBA, or worse, until they were implemented as published (see [Checked against the papers](#checked-against-the-papers)); only the corrected versions are reported here.
 
@@ -422,33 +421,12 @@ DeepXDE's diffusion-reaction example.
 | Helmholtz 2D (Adam only) | 0.19% | 0.41% | 0.41% | 5.2% | ~100% |
 | Kovasznay flow, $u$ / $v$ / $p$ | 0.021 / 0.090 / 0.054% | 0.054 / 0.23 / 0.13% | 0.016 / 0.086 / 0.048% | 0.032 / 0.12 / 0.059% | 0.0077 / 0.040 / 0.036% |
 
-### Mixed convection in a triangular cavity (Soomro et al.)
-
-The steady mixed-convection problem of [Soomro et al. (2020)](https://doi.org/10.1016/j.est.2020.101702), the template *Mixed convection 2D – Soomro et al.*: a lid-driven equilateral triangle with a cold cylinder and a horizontal magnetic field, four outputs ($u$, $v$, $p$, $T$), $Re = 300$, $Ri = 0.1$, $Ha = 10$, $Pr = 6.2$ (see the README for the full problem). The reference is a finite-element solution written for it, which reproduces the paper's Nusselt numbers to within 3–4%. 5 × 64 network, 12,000 domain and 3,000 boundary points, Adam 30,000 → L-BFGS 20,000. There is no time and no periodicity, so the setups are Plain and Plain + one method.
-
-| Setup | $u$ | $v$ | $T$ |
-|---|---|---|---|
-| Plain | 44% | 41% | 56% |
-| Plain + RBA | 61% | 61% | 75% |
-| Plain + SA-PINN | 95% | 88% | 84% |
-| **Plain + MsFFN (template)** | **14%** | **13%** | **24%** |
-| Plain + MsFFN, scales $\sigma = 1, 10$ | 12% | 12% | 26% |
-| Plain + MsFFN, twice the training (Adam 60,000 → L-BFGS 30,000) | 13% | 12% | 26% |
-| Plain + MsFFN + RBA | 26% | 22% | 23% |
-| Exact boundary conditions (output transform) | 57% | 112% | 41% |
-| Exact boundary conditions + MsFFN | 108% | 211% | 43% |
-| Exact boundary conditions + MsFFN + RBA | 289% | 490% | 37% |
-| Equations multiplied by $Re$ and $Pr Re$ | 137% | 100% | 53% |
-| Plain, at $Re = 100$ (against a reference at $Re = 100$) | 56% | 43% | 40% |
-
-This is the hardest problem in the study, and no setup solves it well. With a plain network the losses all fall below $10^{-3}$, except the no-slip condition next to the lid's two ends, where the moving lid meets a wall at rest; the network settles on a weak, smooth circulation instead of the strong vortex under the lid, and the temperature then follows the wrong flow (at $Pr Re = 1860$ heat is carried almost entirely by the flow, so a wrong flow gives a wrong temperature with a small residual). The same happens at $Re = 100$, so the Reynolds number is not the cause. Per-point weights make it worse: the largest PDE residuals sit at the lid's two ends, where the velocity jumps from $-1$ to 0, so the weights pile up there rather than in the cavity. The Fourier-feature network is the only change that helps much, by a factor of about three: it captures the vortex under the lid and the cold plume to the right of the cylinder, but not their strength. Larger Fourier scales or twice the training change it by less than the run-to-run variation, so the remaining error is not a matter of budget. Building the boundary conditions into the network (an output transform that is zero on the walls and the cylinder and $-1$ on the lid) removes the corner conflict from the loss, but the transform's own steep gradients near the lid's ends make the result worse, and so does rescaling the equations. The template uses the MsFFN network; its errors are an honest starting point for this problem, not a solved benchmark.
-
 ## Recommendations for a hard problem
 
 1. Scale the equations so that every residual is of order 1.
 2. Build in what is known exactly: periodicity, and the initial condition. Write the initial condition as a smooth formula, since a corner (a `max`, an `abs`) carries curvature the network cannot see. If the solution changes quickly right after the start, also try the initial condition as a loss term (weight 100) with exact periodicity: on 3D Allen-Cahn and 2D Cahn-Hilliard (Wight & Zhao) it was 25 and 3.6 times more accurate.
 3. Add one weighting method: SA-PINN with its weights held during L-BFGS (best on Cahn-Hilliard and 2D Allen-Cahn; only with an exact initial condition), causal training with the $\varepsilon$ schedule and an MsFFN network (best on 1D Allen-Cahn and Klein-Gordon), or RBA (cheap, and the best with time windows). Do not combine causal training with per-point weights.
-4. Try MsFFN for sharp or multi-scale solutions, and for steady flows with a hard corner (the mixed-convection cavity), and compare: on smooth 2D problems it hurt, and so did causal training with MsFFN on 3D Allen-Cahn (14% at $t = 1$).
+4. Try MsFFN for sharp or multi-scale solutions and compare: on smooth 2D problems it hurt, and so did causal training with MsFFN on 3D Allen-Cahn (14% at $t = 1$).
 5. For long time ranges, or a very fast change right after the start, use time-adaptive training, with short windows over the fast part (as the 1D Cahn-Hilliard template after Mattey & Ghosh does), and RBA on top. Do not use time windows on a problem that is smooth in time.
 6. Always compare against a plain run. On problems a plain PINN already solves well, most of these methods add nothing or make the result worse.
 
@@ -476,4 +454,3 @@ Each method was compared, step by step, with the paper it comes from.
 - **Time-adaptive training, Allen-Cahn and Cahn-Hilliard problems**: C. L. Wight and J. Zhao (2021). Solving Allen-Cahn and Cahn-Hilliard equations using the adaptive physics informed neural networks. *Communications in Computational Physics* 29(3), 930–954. [doi:10.4208/cicp.OA-2020-0086](https://doi.org/10.4208/cicp.OA-2020-0086)
 - **Sequential training, Allen-Cahn and Cahn-Hilliard problems**: R. Mattey and S. Ghosh (2022). A novel sequential method to train physics informed neural networks for Allen-Cahn and Cahn-Hilliard equations. *Computer Methods in Applied Mechanics and Engineering* 390, 114474. [doi:10.1016/j.cma.2021.114474](https://doi.org/10.1016/j.cma.2021.114474)
 - **1D Burgers**: M. Raissi, P. Perdikaris and G. E. Karniadakis (2019). Physics-informed neural networks: a deep learning framework for solving forward and inverse problems involving nonlinear partial differential equations. *Journal of Computational Physics* 378, 686–707. [doi:10.1016/j.jcp.2018.10.045](https://doi.org/10.1016/j.jcp.2018.10.045)
-- **Mixed convection in a triangular cavity**: F. A. Soomro, R. U. Haq, E. A. Algehyne and I. Tlili (2020). Thermal performance due to magnetohydrodynamics mixed convection flow in a triangular cavity with circular obstacle. *Journal of Energy Storage* 31, 101702. [doi:10.1016/j.est.2020.101702](https://doi.org/10.1016/j.est.2020.101702)

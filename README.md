@@ -323,7 +323,7 @@ The table is ordered by dimension (ODE, 1D, 2D, 3D), then steady before time-dep
 | 20 | [Poisson 1D – unknown forcing field](#dx-inverse-poisson-with-unknown-forcing-field) | 1D | Steady | Inverse | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/elliptic_inverse_field.py) |
 | 21 | [Poisson 1D – unknown forcing field (batches)](#dx-inverse-poisson-with-unknown-forcing-field-batches) | 1D | Steady | Inverse | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/elliptic_inverse_field_batch.py) |
 | 22 | [Allen-Cahn 1D](#dx-allen-cahn-equation) | 1D | Time-dependent | Forward | Interval | Generated data | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Allen_Cahn.py) |
-| 23 | [Allen-Cahn 1D – Wight & Zhao](#1d-allen-cahn) | 1D | Time-dependent | Forward / Inverse | Interval | Generated data | [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086) |
+| 23 | [Allen-Cahn 1D – Wight & Zhao](#1d-allen-cahn) (two templates: time-adaptive and whole interval) | 1D | Time-dependent | Forward / Inverse | Interval | Generated data | [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086) |
 | 24 | [Cahn-Hilliard 1D – Wight & Zhao](#1d-cahn-hilliard) | 1D | Time-dependent | Forward / Inverse | Interval | Generated data | [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086) |
 | 25 | [Cahn-Hilliard 1D – Mattey & Ghosh](#1d-cahn-hilliard-mattey--ghosh) | 1D | Time-dependent | Forward / Inverse | Interval | Generated data | [Mattey & Ghosh (2022)](https://doi.org/10.1016/j.cma.2021.114474) |
 | 26 | [Black-Scholes 1D – American put](#dx-american-put-option) | 1D | Time-dependent | Forward | Interval | — | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/american_put.py) |
@@ -351,23 +351,22 @@ The table is ordered by dimension (ODE, 1D, 2D, 3D), then steady before time-dep
 | 47 | [Laplace 2D – disk](#dx-laplace-equation-on-a-disk) | 2D | Steady | Forward | Rectangle in (r, θ) | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Laplace_disk.py) |
 | 48 | [Linear elasticity 2D – plate](#dx-linear-elastostatic-plate) | 2D | Steady | Forward | Rectangle | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/elasticity_plate.py) |
 | 49 | [Linear elasticity 2D – plate, soft BCs](#dx-linear-elastostatic-plate-soft-bcs) | 2D | Steady | Forward | Rectangle | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/elasticity_plate.py) |
-| 50 | [Mixed convection 2D – Soomro et al.](#2d-mixed-convection) | 2D | Steady | Forward / Inverse | Triangle − Disk | Generated data | [Soomro et al. (2020)](https://doi.org/10.1016/j.est.2020.101702) |
-| 51 | [Navier-Stokes 2D – Kovasznay flow](#dx-kovasznay-flow) | 2D | Steady | Forward | Rectangle | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Kovasznay_flow.py) |
-| 52 | [Poisson 2D – disk](#2d-poisson-disk) | 2D | Steady | Forward / Inverse | Disk | Generated data | — |
-| 53 | [Poisson 2D – L-shape](#dx-poisson-over-an-l-shaped-domain) | 2D | Steady | Forward / Inverse | Polygon (L-shape) | Generated data | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Poisson_Lshape.py) |
-| 54 | [Fractional Poisson 2D – unknown order α](#dx-inverse-fractional-poisson-equation-2d) | 2D | Steady | Inverse | Disk | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/fractional_Poisson_2d_inverse.py) |
-| 55 | [Allen-Cahn 2D – Wight & Zhao](#2d-allen-cahn-wight--zhao) | 2D | Time-dependent | Forward / Inverse | Rectangle | Generated data | [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086) |
-| 56 | [Allen-Cahn 2D – Mattey & Ghosh](#2d-allen-cahn-mattey--ghosh) | 2D | Time-dependent | Forward / Inverse | Rectangle | Generated data | [Mattey & Ghosh (2022)](https://doi.org/10.1016/j.cma.2021.114474) |
-| 57 | [Cahn-Hilliard 2D – Wight & Zhao](#2d-cahn-hilliard-wight--zhao) | 2D | Time-dependent | Forward / Inverse | Rectangle | Generated data | [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086) |
-| 58 | [Cahn-Hilliard 2D – Mattey & Ghosh](#2d-cahn-hilliard-mattey--ghosh) | 2D | Time-dependent | Forward / Inverse | Rectangle | Generated data | [Mattey & Ghosh (2022)](https://doi.org/10.1016/j.cma.2021.114474) |
-| 59 | [Burgers 2D – Mathias et al.](#2d-burgers-mathias) | 2D | Time-dependent | Forward / Inverse | Rectangle | Generated data | [Mathias et al. (2022)](https://arxiv.org/abs/2301.07824) |
-| 60 | [Heat 2D](#2d-heat) | 2D | Time-dependent | Forward / Inverse | Rectangle | Generated data | — |
+| 50 | [Navier-Stokes 2D – Kovasznay flow](#dx-kovasznay-flow) | 2D | Steady | Forward | Rectangle | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Kovasznay_flow.py) |
+| 51 | [Poisson 2D – disk](#2d-poisson-disk) | 2D | Steady | Forward / Inverse | Disk | Generated data | — |
+| 52 | [Poisson 2D – L-shape](#dx-poisson-over-an-l-shaped-domain) | 2D | Steady | Forward / Inverse | Polygon (L-shape) | Generated data | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Poisson_Lshape.py) |
+| 53 | [Fractional Poisson 2D – unknown order α](#dx-inverse-fractional-poisson-equation-2d) | 2D | Steady | Inverse | Disk | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/fractional_Poisson_2d_inverse.py) |
+| 54 | [Allen-Cahn 2D – Wight & Zhao](#2d-allen-cahn-wight--zhao) | 2D | Time-dependent | Forward / Inverse | Rectangle | Generated data | [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086) |
+| 55 | [Allen-Cahn 2D – Mattey & Ghosh](#2d-allen-cahn-mattey--ghosh) | 2D | Time-dependent | Forward / Inverse | Rectangle | Generated data | [Mattey & Ghosh (2022)](https://doi.org/10.1016/j.cma.2021.114474) |
+| 56 | [Cahn-Hilliard 2D – Wight & Zhao](#2d-cahn-hilliard-wight--zhao) | 2D | Time-dependent | Forward / Inverse | Rectangle | Generated data | [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086) |
+| 57 | [Cahn-Hilliard 2D – Mattey & Ghosh](#2d-cahn-hilliard-mattey--ghosh) | 2D | Time-dependent | Forward / Inverse | Rectangle | Generated data | [Mattey & Ghosh (2022)](https://doi.org/10.1016/j.cma.2021.114474) |
+| 58 | [Burgers 2D – Mathias et al.](#2d-burgers-mathias) | 2D | Time-dependent | Forward / Inverse | Rectangle | Generated data | [Mathias et al. (2022)](https://arxiv.org/abs/2301.07824) |
+| 59 | [Heat 2D](#2d-heat) | 2D | Time-dependent | Forward / Inverse | Rectangle | Generated data | — |
 | | **3D** | | | | | | |
-| 61 | [Fractional Poisson 3D – sphere](#dx-fractional-poisson-equation-3d) | 3D | Steady | Forward | Sphere | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/fractional_Poisson_3d.py) |
-| 62 | [Poisson 3D – sphere](#3d-poisson-sphere) | 3D | Steady | Forward / Inverse | Sphere | Generated data | — |
-| 63 | [Allen-Cahn 3D – Wight & Zhao](#3d-allen-cahn-wight--zhao) | 3D | Time-dependent | Forward / Inverse | Cuboid | Generated data | [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086) |
-| 64 | [Heat 3D](#3d-heat) | 3D | Time-dependent | Forward / Inverse | Cuboid | Generated data | — |
-| 65 | [Navier-Stokes 3D – Beltrami flow](#dx-beltrami-flow) | 3D | Time-dependent | Forward | Cuboid | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Beltrami_flow.py) |
+| 60 | [Fractional Poisson 3D – sphere](#dx-fractional-poisson-equation-3d) | 3D | Steady | Forward | Sphere | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/fractional_Poisson_3d.py) |
+| 61 | [Poisson 3D – sphere](#3d-poisson-sphere) | 3D | Steady | Forward / Inverse | Sphere | Generated data | — |
+| 62 | [Allen-Cahn 3D – Wight & Zhao](#3d-allen-cahn-wight--zhao) | 3D | Time-dependent | Forward / Inverse | Cuboid | Generated data | [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086) |
+| 63 | [Heat 3D](#3d-heat) | 3D | Time-dependent | Forward / Inverse | Cuboid | Generated data | — |
+| 64 | [Navier-Stokes 3D – Beltrami flow](#dx-beltrami-flow) | 3D | Time-dependent | Forward | Cuboid | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Beltrami_flow.py) |
 
 The "unknown field" inverse examples learn the field as an extra network output from measurements given as a Point Set boundary condition, so they run in Forward mode, as in DeepXDE. To train the DeepXDE examples from the command line and print their Error Analysis results:
 
@@ -1727,52 +1726,6 @@ $$\Large \frac{\partial \sigma_{xx}}{\partial x} + \frac{\partial \sigma_{xy}}{\
 
 </details>
 
-<details id="2d-mixed-convection">
-<summary><strong>Mixed convection 2D – Soomro et al.</strong></summary>
-
-Benchmark problem after [Soomro et al. (2020)](https://doi.org/10.1016/j.est.2020.101702): steady mixed convection with a magnetic field in a lid-driven triangular cavity with a cold cylinder. The lid is hot and moves to the left, the two inclined walls are adiabatic, the cylinder is cold, and a horizontal magnetic field damps the vertical velocity. The four outputs are the velocities $u$, $v$, the pressure $p$ and the temperature $T$.
-
-$$\Large u u_x + v u_y = -p_x + \frac{1}{Re}\nabla^2 u, \qquad u v_x + v v_y = -p_y + \frac{1}{Re}\nabla^2 v + Ri T - \frac{Ha^2}{Re} v$$
-
-$$\Large u T_x + v T_y = \frac{1}{Pr Re}\nabla^2 T, \qquad u_x + v_y = 0$$
-
-with $Re = 300$, $Ri = 0.1$, $Ha = 10$ and $Pr = 6.2$ (water), the paper's central case.
-
-- **Geometry:** an equilateral triangle with side 1, the lid along $y = 1$ and the apex at $(0.5, 1 - \sqrt{3}/2)$, minus a disk of radius 0.1 centred at $(0.5, 0.7)$ (Custom geometry, *Triangle* minus *Disk*). The paper's text writes the side walls as $y = \pm 2x + \dots$, but its mesh, streamline and isotherm figures all show an equilateral triangle, and it gives neither the cylinder's centre nor its radius; both are read off its figures.
-- **Boundary conditions:** lid $u = -1$, $v = 0$, $T = 1$; inclined walls $u = v = 0$, $\partial T/\partial n = 0$; cylinder $u = v = 0$, $T = 0$. The paper's eq. (11c) writes $u = 1$, but its Fig. 1 draws the lid moving to the left, and only $u = -1$ reproduces its streamlines and isotherms (the vortex core in the top-left corner, the cold tongue to the right of the cylinder).
-- **Constants:** `Re = 300`, `Ri = 0.1`, `Ha = 10`, `Pr = 6.2`, so another case of the paper is one edit away.
-- **Network:** MsFFN (multi-scale Fourier features, scales 1 and 5), 5 × 64, tanh, 4 outputs
-- **Training:** Adam 30,000 → L-BFGS 20,000; 12,000 domain, 3,000 boundary points
-- **Reference:** a finite-element solution written for this template, [`tools/make_mixed_convection_reference.py`](tools/make_mixed_convection_reference.py) (Taylor-Hood elements for $u$, $v$, $p$ and quadratic elements for $T$, Newton's method, 66,000 triangles), in [`reference_data/2D/mixed_convection`](reference_data/2D/mixed_convection). It reproduces the paper's average Nusselt number on the lid, $Nu = \int_0^1 \partial T/\partial y dx$, to within 3–4% for every case of its Fig. 3(b), consistently a little higher, as expected from a finer mesh at the lid's corners (tables below, computed on 34,000 triangles; the data file's 66,000 triangles give 13.02 at $Re = 300$). Halving the element size again changes $T$ by 0.005%, $u$ by 0.25% and $v$ by 0.7%.
-- **Inverse mode:** learns the Hartmann number ($Ha$, true value 10, starting from 1) from 400 measurements each of $u$ and $v$.
-- **In PINNStudio:** Examples → **Forward** (or **Inverse**) → **Mixed convection 2D – Soomro et al.**
-
-| Average Nusselt number on the lid | $Re = 100$ | $Re = 200$ | $Re = 300$ | $Re = 400$ | $Re = 500$ |
-|---|---|---|---|---|---|
-| Soomro et al., Fig. 3(b) ($Ri = 0.1$, $Ha = 10$, read off the plot) | 9.7 | 11.6 | 12.6 | 13.3 | 13.6 |
-| Reference solver | 9.93 | 11.92 | 13.07 | 13.80 | 14.17 |
-
-| $Re = 300$ | $Ha = 0$ | $Ha = 5$ | $Ha = 10$ |
-|---|---|---|---|
-| $Ri = 0.01$: paper / reference solver | 11.5 / 11.98 | 11.8 / 12.27 | 12.45 / 12.93 |
-| $Ri = 0.1$: paper / reference solver | 11.7 / 12.17 | 11.95 / 12.45 | 12.6 / 13.07 |
-
-**Result (RTX 4090):** $L_2$ = 0.14 ($u$), 0.13 ($v$), 0.24 ($T$). This is the hardest problem in PINNStudio's examples, and a plain PINN fails on it (0.44, 0.41, 0.56): it settles on a weak, smooth circulation instead of the strong vortex under the lid, because the moving lid meets the resting walls at its two ends, and the temperature follows the wrong flow. The Fourier-feature network captures the vortex under the lid and the cold plume to the right of the cylinder, but not yet their full strength. The [training methods study](benchmarks/training_methods.md#mixed-convection-in-a-triangular-cavity-soomro-et-al) lists every setup tried (per-point weights, exact boundary conditions, rescaled equations, $Re = 100$); none does better so far.
-
-*u — PINN vs reference*
-
-![Mixed convection 2D — PINN vs reference, u](assets/Images/2D-MixedConvection/surface_comparison_u.png)
-
-*v — PINN vs reference*
-
-![Mixed convection 2D — PINN vs reference, v](assets/Images/2D-MixedConvection/surface_comparison_v.png)
-
-*T — PINN vs reference*
-
-![Mixed convection 2D — PINN vs reference, T](assets/Images/2D-MixedConvection/surface_comparison_T.png)
-
-</details>
-
 <details id="dx-kovasznay-flow">
 <summary><strong>Navier-Stokes 2D – Kovasznay flow</strong></summary>
 
@@ -2383,7 +2336,7 @@ Loss weights can be set per term (each equation, boundary condition, initial con
 <details id="hard-problems">
 <summary><strong>When a PINN struggles: exact constraints and automatic weighting</strong></summary>
 
-A plain PINN fits the equation, the boundary conditions and the initial condition all as loss terms that compete with each other. On hard problems — sharp fronts, phase fields, long time ranges — it can settle on a wrong solution with a small loss. These settings help, in this order (each measured in the [training methods study](benchmarks/training_methods.md), about 190 runs on 15 problems):
+A plain PINN fits the equation, the boundary conditions and the initial condition all as loss terms that compete with each other. On hard problems — sharp fronts, phase fields, long time ranges — it can settle on a wrong solution with a small loss. These settings help, in this order (each measured in the [training methods study](benchmarks/training_methods.md), about 180 runs on 14 problems):
 
 1. **Scale the equations** so every residual is of order 1. If one equation's residual is naturally ~100× smaller than another's, it is barely enforced — this alone took the Cahn-Hilliard example from 40% to under 1% error. Divide that equation by its small coefficient, and scale the matching output (Network → *Output transform → Scale*).
 2. **Make the initial condition exact** (Initial conditions → *Exact (built into the network)*, per output): the output becomes $\text{IC}(x) + \tau N$ with $\tau = (t - t_{min})/(t_{max} - t_{min})$, so it equals the initial condition at the first time whatever the network learns, and the condition needs no loss term (a hard constraint, after [Lagaris et al., 1998](https://doi.org/10.1109/72.712178)). Write the initial condition as a smooth formula: a corner (a `max`, an `abs`) carries curvature the network can't see — the 2D Cahn-Hilliard example's two bubbles never merged until the `max` in their initial condition was smoothed. Compare it with the initial condition as an ordinary loss term, though: on 3D Allen-Cahn the loss term (weight 100) was 25× more accurate, because there the profile changes fast right after $t = 0$ and $\tau N$ has to produce that change.
@@ -2396,7 +2349,7 @@ A plain PINN fits the equation, the boundary conditions and the initial conditio
    *During L-BFGS*: *Keep the weights* is stronger on hard problems; *Plain loss* (the default) is the safe choice elsewhere. Don't combine causal training with per-point weights — together they did worse than either alone.
 5. **For long time ranges, or a very fast change right after the start, use time-adaptive training** (Adaptive training → *Time Adaptive Training*; short windows over the fast part: the 1D Cahn-Hilliard (Mattey & Ghosh) example uses 10 windows of 0.01, then 9 of 0.1, and gets 0.5% error where every whole-domain setup failed) — per-point weights and exact periodicity still help on top of it; an exact initial condition can't be combined with it yet.
 
-Steps 2–4 together solved 1D Allen-Cahn without time-adaptive training 80–150× more accurately than a plain PINN (at $t = 1$), the 2D Mattey & Ghosh problem 25× (and 12× better than its time-adaptive template), and are what the Cahn-Hilliard examples use. On problems a plain PINN already solves well (Burgers, Helmholtz, Kovasznay flow, Schrödinger) they add little or make the result worse, so compare against a plain run. On a steady flow with a hard corner, the mixed-convection cavity, the per-point weights made things worse and an MsFFN network (Network → *Network type*) was the only change that helped.
+Steps 2–4 together solved 1D Allen-Cahn without time-adaptive training 80–150× more accurately than a plain PINN (at $t = 1$), the 2D Mattey & Ghosh problem 25× (and 12× better than its time-adaptive template), and are what the Cahn-Hilliard examples use. On problems a plain PINN already solves well (Burgers, Helmholtz, Kovasznay flow, Schrödinger) they add little or make the result worse, so compare against a plain run.
 
 </details>
 
@@ -2703,7 +2656,7 @@ Training methods ([When a PINN struggles](#hard-problems), [training methods stu
 
 PINNStudio is built on [DeepXDE](https://github.com/lululxvi/deepxde) (Lu et al., 2021), [PyTorch](https://pytorch.org) and PyQt6. We are especially grateful to Lu Lu and the DeepXDE developers: DeepXDE is the physics-informed learning library that every script PINNStudio generates runs on, and its documented examples are included among PINNStudio's examples, each linked to its original script.
 
-The examples that reproduce published benchmarks follow the problem setups of the original papers: *Burgers 1D – Raissi et al.* follows [Raissi, Perdikaris & Karniadakis (2019)](https://doi.org/10.1016/j.jcp.2018.10.045); *Burgers 2D – Mathias et al.* follows [Mathias et al. (2022)](https://arxiv.org/abs/2301.07824); the Allen-Cahn and Cahn-Hilliard examples follow [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086) and [Mattey & Ghosh (2022)](https://doi.org/10.1016/j.cma.2021.114474); *Mixed convection 2D – Soomro et al.* follows [Soomro et al. (2020)](https://doi.org/10.1016/j.est.2020.101702); and *Poisson 2D – L-shape* is the demonstration example of the DeepXDE paper ([Lu et al., 2021](https://doi.org/10.1137/19M1274067)). Full references are listed [below](#references).
+The examples that reproduce published benchmarks follow the problem setups of the original papers: *Burgers 1D – Raissi et al.* follows [Raissi, Perdikaris & Karniadakis (2019)](https://doi.org/10.1016/j.jcp.2018.10.045); *Burgers 2D – Mathias et al.* follows [Mathias et al. (2022)](https://arxiv.org/abs/2301.07824); the Allen-Cahn and Cahn-Hilliard examples follow [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086) and [Mattey & Ghosh (2022)](https://doi.org/10.1016/j.cma.2021.114474); and *Poisson 2D – L-shape* is the demonstration example of the DeepXDE paper ([Lu et al., 2021](https://doi.org/10.1137/19M1274067)). Full references are listed [below](#references).
 
 Developed under the supervision of Prof. Mahmood Mamivand, Computational Materials Design Lab, Boise State University.
 

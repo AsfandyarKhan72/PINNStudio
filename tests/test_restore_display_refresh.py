@@ -4,7 +4,7 @@ After Restore && Visualize finished, the right-side results panel
 sometimes showed a stale leftover plot/animation from a COMPLETELY
 different, earlier restore run in the same save folder, instead of what
 the just-finished run actually produced -- reported by the user: running
-a steady-state Surface restore (their Soomro_Paper triangular-cavity
+a steady-state Surface restore (a triangular-cavity
 model) correctly saved restored_plot.png, but the right panel displayed
 an animated GIF of an unrelated Burgers-equation example instead, because
 a restored_animation.gif from an earlier, different restore was still

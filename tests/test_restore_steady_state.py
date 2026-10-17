@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Restore Model crashed for a steady-state problem: restoring a trained
-Soomro_Paper-style 2D steady model and generating a Surface plot raised
+steady 2D model and generating a Surface plot raised
 "RuntimeError: mat1 and mat2 shapes cannot be multiplied (40000x3 and
 2x64)". Root cause: _build_restore_script() in main_window.py -- the
 script-builder behind the Restore panel's "Restore && Visualize" button --
@@ -48,7 +48,7 @@ Checks:
  - _build_restore_ea_script()'s generated script runs cleanly against a
    steady-state reference file (x, y, u -- no time column) and a restored
    steady 2D model, matching the user's actual Error-Analysis-on-restore
-   use case for their corrected Soomro_Paper problem.
+   use case for a steady 2D problem.
 
 SECOND BUG, found when the user re-tried restoring after the first fix
 above and hit the *same* crash again: the checks above all hand-built the
