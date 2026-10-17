@@ -8,7 +8,7 @@ Which published PINN training techniques actually help, tested on PINNStudio's o
 
 **Reading the tables and figures.**
 
-- Tables are grouped by an italic heading row that names the base setup; a row starting with "+" adds that method to it. Results from the first, uncorrected versions of causal training and SA-PINN are kept in a collapsed note under the table where they occur.
+- Tables are grouped by an italic heading row that names the base setup; a row starting with "+" adds that method to it.
 - Per-point weights (RBA, SA-PINN) are held fixed during the L-BFGS phase, as in the papers. Rows marked *unweighted L-BFGS* run L-BFGS on the ordinary, unweighted loss instead. In the GUI this is Loss weights → *During L-BFGS*: *Keep the weights* or *Plain loss*.
 - *Causal* means causal training with the paper's $\varepsilon$ schedule; a fixed $\varepsilon$ is written out.
 - The figures show the error against time on a log scale. The dashed gray line is the reference setup (usually a plain PINN), and the thick line is the best one. $t = 0$ is left out because with an exact initial condition the error there is zero. Each figure is also available as a vector PDF in [`figures/pdf/`](figures/pdf/), and all of them are drawn from [`figures/runs.json`](figures/runs.json) by [`make_figures.py`](make_figures.py).
@@ -49,7 +49,7 @@ Which published PINN training techniques actually help, tested on PINNStudio's o
 
 **What did not.** Gradient-norm loss balancing was worse everywhere and has been removed. Causal training with one fixed $\varepsilon$ barely acted, and causal training combined with per-point weights did worse than either alone. SA-PINN with normalized weights was unstable across seeds. Holding per-point weights during L-BFGS made already-accurate problems 2–10× worse. Separate networks for $u$ and $\mu$, and learning-rate decay, made no difference.
 
-**Following the papers closely mattered.** The first versions of causal training and SA-PINN here left out the $\varepsilon$ schedule and normalized SA-PINN's weights, and both looked useless until they were implemented as published (see [Checked against the papers](#checked-against-the-papers)).
+**Following the papers closely mattered.** The first versions of causal training and SA-PINN here used one fixed $\varepsilon$ and normalized SA-PINN's weights. Both then looked no better than RBA, or worse (on 1D Allen-Cahn the first SA-PINN diverged), until they were implemented as published (see [Checked against the papers](#checked-against-the-papers)); only the corrected versions are reported below.
 
 ## 1D Cahn-Hilliard (Wight & Zhao)
 
@@ -84,22 +84,6 @@ Mixed form after [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086
 | Unscaled + gradient-norm balancing | 28% | 41% |
 
 The error in $\mu$ with the template is 0.25–0.28% at $t = 0.25$ and 0.15–0.18% at $t = 1$. In every run with the physics check, mass was conserved to about $10^{-4}$ and the free energy decreased at all 40 time samples; $E(1)$ = 5.80 × 10⁻⁴ against 5.797 × 10⁻⁴ in the reference.
-
-<details>
-<summary>Earlier implementations of causal training and SA-PINN</summary>
-
-These runs used the first versions of the two methods, before they were checked against the papers: causal training with one fixed $\varepsilon$ instead of the paper's schedule, and SA-PINN with its weights normalized to a mean of 1 (still available as *Keep the mean weight at 1*, now off by default) or with other small differences from the paper. They are kept only as a record; the corrected methods are in the table above.
-
-| Setup | $t = 0.25$ | $t = 1$ |
-|---|---|---|
-| Unscaled + causal, fixed $\varepsilon$ = 1 / 10 / 100 | 25–30% | 42–69% |
-| Scaled + causal, fixed $\varepsilon = 1$ (32 / 16 chunks) | 2.7–4.7% | 0.43–0.93% |
-| Scaled + SA-PINN, normalized weights | 1.8% | 0.40% |
-| Scaled + SA-PINN, first implementation | 0.91% | 0.24% |
-| Scaled + MsFFN + SA-PINN, first implementation | 0.97% | 0.21% |
-| Scaled + exact periodicity + exact IC + SA-PINN, normalized weights | 0.69% | 0.19% |
-
-</details>
 
 ## 1D Allen-Cahn (Wight & Zhao)
 
@@ -137,26 +121,6 @@ The template's settings with time-adaptive training switched off, unless the row
 | + gradient-norm balancing | 0.18% | 1.4% |
 
 Causal training with the paper's schedule and a Fourier-feature network is the most accurate and the most repeatable setup without time windows, while causal training together with per-point weights is worse than either alone. With a fixed $\varepsilon = 1$ the causal weights hardly move (see [Checked against the papers](#checked-against-the-papers)), which is why that row is close to plain RBA.
-
-<details>
-<summary>Earlier implementations of causal training and SA-PINN</summary>
-
-These runs used the first versions of the two methods, before they were checked against the papers: causal training with one fixed $\varepsilon$ instead of the paper's schedule, and SA-PINN with its weights normalized to a mean of 1 (still available as *Keep the mean weight at 1*, now off by default) or with other small differences from the paper. They are kept only as a record; the corrected methods are in the table above. (An RBA run with an earlier version of the code also gave 0.27% at $t = 1$, against 0.43% now; the current code repeats to the digit.)
-
-| Setup | $t = 0.25$ | $t = 1$ |
-|---|---|---|
-| + causal, fixed $\varepsilon = 1$ | 1.1% | 13% |
-| + causal, fixed $\varepsilon = 10$ | 0.24% | 12% |
-| + causal, fixed $\varepsilon = 100$, unweighted L-BFGS | 15% | 67% |
-| + SA-PINN, first implementation | ~100% (diverged) | ~100% |
-| + SA-PINN, normalized weights | 0.22% | 4.0% |
-| + SA-PINN, normalized weights + exact periodicity | 0.29% | 6.1% |
-| + MsFFN + SA-PINN, first implementation | 1.4% | 13% |
-| Exact periodicity + exact IC + SA-PINN, normalized weights (3 seeds) | 0.053 / 0.31 / 0.14% | 0.10 / 2.7 / 1.05% |
-| Time-adaptive + causal, fixed $\varepsilon$ = 1 / 10 | 0.07% | 0.57% / 0.81% |
-| Time-adaptive + causal, fixed $\varepsilon = 100$ | 25% | 86% |
-
-</details>
 
 ## 2D Allen-Cahn (Mattey & Ghosh)
 
