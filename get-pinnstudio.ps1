@@ -58,4 +58,4 @@ if ($gpu) {
 }
 Write-Host ""
 Write-Host "Done. Open PINNStudio from the Start menu or the desktop icon, or run: pinnstudio"
-Write-Host "(If the pinnstudio command is not found, open a new PowerShell window first.)"
+Write-Host "(The pinnstudio command works in new PowerShell windows. In this one, run: & '$(Join-Path $bin 'pinnstudio.exe')')"

@@ -60,4 +60,4 @@ else
 fi
 say ""
 say "Done. Open PINNStudio from its icon, or run: pinnstudio"
-say "(If the pinnstudio command is not found, open a new terminal first.)"
+say "(The pinnstudio command works in new terminals. In this one, run: $BIN/pinnstudio)"
