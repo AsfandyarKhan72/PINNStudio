@@ -13032,15 +13032,13 @@ print("DOMAIN_PREVIEW_DONE")
                 'num_outputs': 2,
                 'output_names': ['u', 'mu'],
                 'ic_weight': 100.0,
-                'ic_hard': [True, False],
+                # The initial condition as a loss term (weight 100), with
+                # exact periodicity and no per-point weights: 2.6% / 1.1% at
+                # t = 0.25 / 1. Built into the network (u = IC + t*N) it
+                # needs SA-PINN to get the bubbles moving at all, and then
+                # gives 1.2% / 3.8% (training methods study).
+                'ic_hard': [False, False],
                 'periodic_inputs': True,
-                # SA-PINN as in the paper (weights only grow, held during
-                # L-BFGS): without it the network stays near the initial
-                # condition (u 16% / 30% error at t = 0.25 / 1, about what
-                # "nothing moves" gives); with it 1.2% / 3.8%.
-                'point_weights': 'SA-PINN',
-                'sa_normalize': False,
-                'point_weights_lbfgs': 'keep',
                 'ref_dir': os.path.join(REFERENCE_DATA_DIR, "2D", "cahn_hilliard_wight"),
             },
             # Mattey & Ghosh (2022), Section 6.2, IBVP-2: u_t = lap mu,
