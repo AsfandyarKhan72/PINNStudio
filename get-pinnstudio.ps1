@@ -35,7 +35,7 @@ if (Get-Command uv -ErrorAction SilentlyContinue) {
 
 Write-Host ""
 Write-Host "Installing PINNStudio and the PyTorch build for this computer (this takes a few minutes)..."
-uv tool install --upgrade --python 3.12 --torch-backend auto $pkg
+uv tool install --upgrade --reinstall-package pinnstudio --python 3.12 --torch-backend auto $pkg
 if ($LASTEXITCODE -ne 0) { Fail "The installation failed (see the messages above)." }
 
 uv tool update-shell *> $null
