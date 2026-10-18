@@ -36,6 +36,7 @@ class _Card(QPushButton):
         col.setSpacing(1)
         self.title = QLabel(title)
         self.title.setObjectName("startCardTitle")
+        self.title.setWordWrap(True)      # a narrow card (large text) wraps its title instead of cutting it
         self.meta = QLabel(meta)
         self.meta.setObjectName("startCardMeta")
         self.meta.setWordWrap(True)

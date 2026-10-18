@@ -20,7 +20,7 @@ import re
 
 from PyQt6.QtCore import QEvent, QObject, QTimer
 from PyQt6.QtGui import QColor, QFontDatabase, QSyntaxHighlighter, QTextCharFormat
-from PyQt6.QtWidgets import QApplication, QWidget
+from PyQt6.QtWidgets import QApplication, QDialog, QWidget
 
 # ── themes ───────────────────────────────────────────────────────────────
 THEMES = {
@@ -486,8 +486,14 @@ class StyleRemapper(QObject):
                 pass
 
     def eventFilter(self, obj, ev):
+        if ev.type() == QEvent.Type.Show and isinstance(obj, QDialog):
+            self._fit_dialog(obj)
+        if ev.type() == QEvent.Type.FontChange and isinstance(obj, QWidget):
+            self._fit_text_button(obj)       # the UI scale changed the text size
+            self._fit_combo(obj)
         if ev.type() in (QEvent.Type.StyleChange, QEvent.Type.Polish) and isinstance(obj, QWidget):
             self._fit_text_button(obj)
+            self._fit_combo(obj)
             if ev.type() == QEvent.Type.Polish:
                 self._fit_small_button(obj)
                 from pinnstudio.ui import icons as _icons
@@ -497,6 +503,39 @@ class StyleRemapper(QObject):
             if ev.type() == QEvent.Type.Polish:
                 self._fit_height_later(obj)
         return False
+
+    @staticmethod
+    def _fit_dialog(d):
+        """A dialog given a minimum width in code (setMinimumWidth(520)) no
+        longer grows to its contents by itself, so with larger text its
+        widest rows were cut off. It opens at least as large as they need."""
+        lay = d.layout()
+        if lay is None:
+            return
+        need = lay.totalMinimumSize()
+        if need.width() > d.minimumWidth():
+            d.setMinimumWidth(need.width())
+        if need.height() > d.minimumHeight():
+            d.setMinimumHeight(need.height())
+        if d.width() < need.width() or d.height() < need.height():
+            d.resize(max(d.width(), need.width()), max(d.height(), need.height()))
+
+    @staticmethod
+    def _fit_combo(w):
+        """A drop-down given a fixed width is widened when the option it shows
+        does not fit (with a larger UI scale); at most 1.8 times wider."""
+        from PyQt6.QtWidgets import QComboBox
+        if not isinstance(w, QComboBox) or w.minimumWidth() != w.maximumWidth() or w.maximumWidth() <= 48:
+            return
+        if not w.property("_pinn_fit_combo"):
+            w.setProperty("_pinn_fit_combo", True)
+            w.setProperty("_pinn_combo_w", w.maximumWidth())
+            w.currentTextChanged.connect(lambda _t, c=w: StyleRemapper._fit_combo(c))
+        base = int(w.property("_pinn_combo_w") or w.maximumWidth())
+        need = w.fontMetrics().horizontalAdvance(w.currentText()) + 40
+        width = min(max(base, need), int(base * 1.8))
+        if width != w.maximumWidth():
+            w.setFixedWidth(width)
 
     @staticmethod
     def _fit_text_button(w):
@@ -511,6 +550,7 @@ class StyleRemapper(QObject):
         need = w.fontMetrics().horizontalAdvance(text) + 2 * 12 + 6
         if not w.icon().isNull():
             need += w.iconSize().width() + 4
+        need = max(need, w.sizeHint().width())     # the style sheet's own padding and border
         if w.maximumWidth() < need:
             w.setFixedWidth(need)
 

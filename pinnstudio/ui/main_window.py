@@ -12318,7 +12318,9 @@ print("DOMAIN_PREVIEW_DONE")
         border_row = QHBoxLayout()
         border_row.addWidget(QLabel("Panel border color:"))
         border_color_btn = QPushButton()
-        border_color_btn.setFixedWidth(90)
+        # wide enough for its longest text at any text size (a fixed 90 px
+        # cut "Color: Auto" off)
+        border_color_btn.setMinimumWidth(border_color_btn.fontMetrics().horizontalAdvance("Color: Auto") + 40)
         border_color_btn.setToolTip("Click to pick a border color for every panel section; Reset keeps the theme's own default")
         border_color_state = {"color": (self._panel_border_color or "").strip()}
 
@@ -12343,7 +12345,7 @@ print("DOMAIN_PREVIEW_DONE")
         border_row.addStretch(); border_row.addWidget(border_color_btn)
 
         border_reset_btn = QPushButton("✕ Reset")
-        border_reset_btn.setFixedWidth(60)
+        # (its natural width: a fixed 60 px cut "Reset" off once the theme drew it)
         border_reset_btn.setToolTip("Clear the border color override, back to the theme's own default")
 
         def _reset_border_color(_checked=False, state=border_color_state, btn=border_color_btn):
@@ -14102,12 +14104,15 @@ print("DOMAIN_PREVIEW_DONE")
             spin = QDoubleSpinBox()
             spin.setRange(-1e6, 1e6); spin.setValue(val_default)
             spin.setFixedWidth(90)
-            spin.setVisible(show_slice and not auto_cb.isChecked())
             row.addStretch(); row.addWidget(spin)
-            auto_cb.stateChanged.connect(lambda st: spin.setVisible(show_slice and st != 2))
+            # the label and its box are shown and hidden together (the label
+            # was left on its own for a Surface plot, or with Auto ticked)
+            row_w = _wrap(row)
+            row_w.setVisible(show_slice and not auto_cb.isChecked())
+            auto_cb.stateChanged.connect(lambda st: row_w.setVisible(show_slice and st != 2))
             auto_cb.setVisible(show_slice)
             _add(auto_cb)
-            _add(row)
+            _add(row_w)
             return auto_cb, spin
 
         if slice_defaults and (is_2d or is_3d):
