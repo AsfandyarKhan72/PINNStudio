@@ -589,9 +589,15 @@ class MainWindow(QMainWindow):
             _width_follows_current_tab(_tabs)
 
     def eventFilter(self, obj, ev):
-        if obj is getattr(self, "app_toolbar", None) and ev.type() in (QEvent.Type.Resize, QEvent.Type.Show):
-            self._fit_toolbar()
-        return super().eventFilter(obj, ev)
+        # (Never raises and never calls the base class: while the window is
+        # being torn down that call can meet a deleted C++ object, and an
+        # error raised here makes PyQt end the program.)
+        try:
+            if obj is getattr(self, "app_toolbar", None) and ev.type() in (QEvent.Type.Resize, QEvent.Type.Show):
+                self._fit_toolbar()
+        except RuntimeError:
+            pass
+        return False
 
     def _fit_toolbar(self):
         """Open / Save / Export script with their text when the toolbar has

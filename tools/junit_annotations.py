@@ -12,7 +12,16 @@ def main(path, label=""):
     try:
         root = ET.parse(path).getroot()
     except (OSError, ET.ParseError) as e:
-        print(f"::error title=No test report::{esc(str(e))}")
+        # no report: the test process itself crashed -- show where, from
+        # the end of its output (pytest.log, written by the workflow)
+        tail = ""
+        try:
+            with open("pytest.log", encoding="utf-8", errors="replace") as f:
+                tail = f.read()[-3000:]
+        except OSError:
+            pass
+        print(f"::error title={esc((label + ': ' if label else '') + 'No test report (crash?)')}::"
+              f"{esc(str(e) + chr(10) + tail)}")
         return
     n = 0
     for case in root.iter("testcase"):
@@ -28,4 +37,9 @@ def main(path, label=""):
 
 
 if __name__ == "__main__":
+    for _s in (sys.stdout, sys.stderr):    # test messages with non-ASCII text on a cp1252 console
+        try:
+            _s.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
     main(sys.argv[1], sys.argv[2] if len(sys.argv) > 2 else "")

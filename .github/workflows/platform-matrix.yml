@@ -68,7 +68,8 @@ jobs:
         run: echo "::error title=install ${{ matrix.os }} py${{ matrix.python }}::PINNStudio or one of its dependencies could not be installed (see the Install step)"
 
       - name: Tests
-        run: python -m pytest tests -q -p no:cacheprovider --durations=10 --ignore=tests/local --junitxml=junit.xml
+        shell: bash
+        run: set -o pipefail; python -m pytest tests -q -p no:cacheprovider --durations=10 --ignore=tests/local --junitxml=junit.xml 2>&1 | tee pytest.log
 
       - name: Report failures
         if: always() && steps.install.outcome == 'success'
