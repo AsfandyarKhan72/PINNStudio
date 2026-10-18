@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Platform matrix** (`.github/workflows/platform-matrix.yml`, for commits marked `[matrix]`): the tests and the window check on Ubuntu 22.04 and 24.04 (x64 and ARM), Windows Server 2022 and 2025 and Windows on ARM, macOS 14 and 15 and an Intel Mac, with Python 3.9 to 3.14; the installer on Linux, Windows (x64 and ARM) and an Intel Mac.
+
 - **Timing study** (`benchmarks/timing_study.py`): the same examples solved as the plain exported script, as the script Solve runs, and through the window's Solve, on the CPU and on the GPU, timing the training and the whole run.
 - **All-examples check** (`tools/all_examples_check.py`): every Forward and Inverse example loaded as the window loads it, validated, written out as both scripts, and trained briefly to the end.
 
@@ -215,6 +217,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **The "Periodic in:" axis dropdown on a Periodic BC row now only offers the axes the current problem dimension actually has** (x only for 1D; x, y for 2D; x, y, z for 3D), instead of always offering all three regardless of dimension.
 
 ### Fixed
+
+- **Intel Macs:** PyTorch's last Intel-Mac release (2.2.2) was built against NumPy 1, so with NumPy 2 every run failed ("Failed to initialize NumPy"). NumPy stays below 2 on Intel Macs.
+- **Windows on ARM** (Snapdragon PCs): PyTorch has no build for ARM Windows, so the installer now uses the x64 Python there, which Windows runs under emulation. The README says so for pip installs.
+- Tests run on Python 3.9 again (one used a Python 3.10 option).
 
 - **Boxes drawn whole, forms aligned.** Many input boxes kept a fixed height from an older style (24-26 px) while the theme draws them at 28-30 px, so the row around them was too short and their bottom edge was cut off (Add constant, Extra training points' Count and Ranges, the BC rows, the training phases, ...). The theme now raises such a height to what it draws. A training phase added with *Add Phase* (and other rows added after a page is opened, such as the loss weights) now lines up with the rest of the page instead of sitting at the far right, and every label row has the same spacing, so a page's controls start at the same place. `tests/test_layout_boxes.py` checks every page for cut boxes and misaligned rows.
 
