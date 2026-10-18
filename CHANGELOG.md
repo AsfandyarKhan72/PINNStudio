@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Train on: CPU** (*Settings → GPU / Hardware*): trains on the CPU even when there is a GPU. A small network (a 1D problem, a few thousand points) often trains faster there, since each GPU step waits on Python more than it computes; the timing study measured 1.8× for the 1D inverse diffusion example. Both the Solve script and the exported script then hide the GPU from PyTorch. Saved with the problem.
+
 - **Platform matrix** (`.github/workflows/platform-matrix.yml`, for commits marked `[matrix]`): the tests and the window check on Ubuntu 22.04 and 24.04 (x64 and ARM), Windows Server 2022 and 2025 and Windows on ARM, macOS 14 and 15 and an Intel Mac, with Python 3.9 to 3.14; the installer on Linux, Windows (x64 and ARM) and an Intel Mac.
 
 - **Timing study** (`benchmarks/timing_study.py`): the same examples solved as the plain exported script, as the script Solve runs, and through the window's Solve, on the CPU and on the GPU, timing the training and the whole run.

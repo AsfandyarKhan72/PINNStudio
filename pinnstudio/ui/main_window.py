@@ -518,6 +518,7 @@ class MainWindow(QMainWindow):
         self._float_type = "float32"
         self._gpu_device_index = 0
         self._gpu_memory_fraction = 0.95
+        self._train_device = "auto"
         self._use_random_seed = True
         self._random_seed = 2026
         # ── Per-category display settings (font family/size/weight/color for
@@ -6174,7 +6175,7 @@ class MainWindow(QMainWindow):
     # problem: loading a DeepXDE example keeps them as they are (unless the
     # example itself sets one, e.g. a coarser plot grid for a 3D problem).
     _DEEPXDE_KEEP_FIELDS = (
-        "save_dir", "sweep_save_dir", "sweep_label", "gpu_device_index", "gpu_memory_fraction",
+        "save_dir", "sweep_save_dir", "sweep_label", "gpu_device_index", "gpu_memory_fraction", "train_device",
         "use_random_seed", "random_seed",
         "plot_colormap", "plot_levels", "plot_dpi", "plot_colorbar", "plot_figsize_mode",
         "plot_figsize_w", "plot_figsize_h", "plot_linewidth", "plot_linewidth_anim", "plot_fps",
@@ -8940,6 +8941,7 @@ class MainWindow(QMainWindow):
             float_type=getattr(self, '_float_type', 'float64'),
             gpu_device_index=getattr(self, '_gpu_device_index', 0),
             gpu_memory_fraction=getattr(self, '_gpu_memory_fraction', 0.95),
+            train_device=getattr(self, '_train_device', "auto"),
             use_random_seed=getattr(self, '_use_random_seed', True),
             random_seed=getattr(self, '_random_seed', 2026),
             ic_pretrain=self.ic_pretrain_cb.isChecked(),
@@ -9698,6 +9700,7 @@ class MainWindow(QMainWindow):
         self._float_type = config.float_type
         self._gpu_device_index = getattr(config, 'gpu_device_index', 0)
         self._gpu_memory_fraction = getattr(config, 'gpu_memory_fraction', 0.95)
+        self._train_device = getattr(config, 'train_device', "auto") or "auto"
         self._use_random_seed = getattr(config, 'use_random_seed', True)
         self._random_seed = getattr(config, 'random_seed', 2026)
 
@@ -11144,6 +11147,18 @@ class MainWindow(QMainWindow):
         info.setWordWrap(True)
         layout.addWidget(info)
 
+        where_row = QHBoxLayout()
+        where_row.addWidget(QLabel("Train on:"))
+        where_combo = QComboBox()
+        where_combo.addItem("GPU when there is one", "auto")
+        where_combo.addItem("CPU", "cpu")
+        where_combo.setCurrentIndex(max(0, where_combo.findData(getattr(self, '_train_device', "auto"))))
+        where_combo.setToolTip("A small network (1D problems, few points) often trains faster on the CPU: "
+                               "each GPU step waits on Python more than it computes. See the README's "
+                               "timing section.")
+        where_row.addStretch(); where_row.addWidget(where_combo)
+        layout.addLayout(where_row)
+
         dev_row = QHBoxLayout()
         dev_row.addWidget(QLabel("GPU device index:"))
         dev_spin = QSpinBox()
@@ -11173,7 +11188,9 @@ class MainWindow(QMainWindow):
         def _on_ok():
             self._gpu_device_index = dev_spin.value()
             self._gpu_memory_fraction = mem_spin.value() / 100.0
+            self._train_device = where_combo.currentData() or "auto"
             self.log_box.append(
+                "✅ Training on the CPU" if self._train_device == "cpu" else
                 f"✅ GPU settings: device {self._gpu_device_index}, "
                 f"{mem_spin.value()}% memory reserved"
             )

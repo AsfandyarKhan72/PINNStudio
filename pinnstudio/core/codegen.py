@@ -4486,6 +4486,13 @@ def _effective_config(config):
     return config
 
 
+
+def _cpu_only_line(config):
+    """Train on: CPU -- PyTorch then sees no GPU (set before it is imported)."""
+    if getattr(config, "train_device", "auto") == "cpu":
+        return 'os.environ["CUDA_VISIBLE_DEVICES"] = ""   # Train on: CPU (PINNStudio GPU / Hardware settings)\n'
+    return ""
+
 def generate_script(config):
     config = _effective_config(config)
     # Naming convention (cleanup Round 55): generation-time Python names in
@@ -4865,7 +4872,7 @@ if _dxde_ver is not None and _dxde_ver < (1, 13, 0):
 
 import os
 os.environ["DDE_BACKEND"] = "pytorch"
-
+{_cpu_only_line(config)}
 # ── Windows has no /tmp by default; make "/tmp/..." paths work there too ──
 if os.name == "nt":
     _tmp_root = os.path.splitdrive(os.getcwd())[0] + os.sep + "tmp"
@@ -10442,7 +10449,7 @@ the PINNStudio GUI.
 """
 import os
 os.environ["DDE_BACKEND"] = "pytorch"
-
+{_cpu_only_line(config)}
 import deepxde as dde
 import numpy as np
 import torch

@@ -672,6 +672,11 @@ class PINNConfig:
     # script always falls back to CPU in that case regardless of these.
     gpu_device_index: int = 0
     gpu_memory_fraction: float = 0.95
+    # Where to train: "auto" = the GPU when there is one (the default),
+    # "cpu" = always the CPU. A small network often trains faster on the CPU,
+    # where each step does not wait for the GPU (see the README's timing
+    # section).
+    train_device: str = "auto"
 
     # Reproducibility. When on (the default), the generated script calls
     # dde.config.set_random_seed(random_seed) once, right at the start --
@@ -1116,6 +1121,8 @@ class PINNConfig:
                     "against, but no observation row has a file selected."
                 )
 
+        if self.train_device not in ("auto", "cpu"):
+            errors.append(f'Train on must be "auto" or "cpu"; got {self.train_device!r}.')
         if self.gpu_device_index < 0:
             errors.append(f"GPU device index cannot be negative; got {self.gpu_device_index}.")
         if not (0.0 < self.gpu_memory_fraction <= 1.0):
