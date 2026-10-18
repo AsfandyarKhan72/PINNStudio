@@ -611,12 +611,24 @@ class MainWindow(QMainWindow):
                 if b.text() != t:
                     b.setText(t)
             self.app_title_label.setVisible(True)
+            ex_label = getattr(self, "_tb_examples_label", None)
+            if ex_label is not None:
+                ex_label.setVisible(True)
+            self.quick_examples_combo.setMinimumWidth(260)
             lay = self.app_toolbar.layout()
-            if self.app_toolbar.width() < lay.minimumSize().width():
+            short = lambda: self.app_toolbar.width() < lay.minimumSize().width()
+            if short():
                 for b, _t in texts:
                     b.setText("")
-                if self.app_toolbar.width() < lay.minimumSize().width():
-                    self.app_title_label.setVisible(False)   # (the window's title bar names it too)
+            # still no room (large text): the title (the window's title bar
+            # names it too), then the "Examples:" label (the tooltip and the
+            # category list next to it say what it is), then a narrower list
+            if short():
+                self.app_title_label.setVisible(False)
+            if short() and ex_label is not None:
+                ex_label.setVisible(False)
+            if short():
+                self.quick_examples_combo.setMinimumWidth(160)
         finally:
             self._fitting_toolbar = False
 
@@ -1073,6 +1085,7 @@ class MainWindow(QMainWindow):
         bar.addSpacing(18)
         ex_label = QLabel("Examples:")
         ex_label.setObjectName("toolbarLabel")
+        self._tb_examples_label = ex_label
         bar.addWidget(ex_label)
         self.quick_examples_category_combo.setFixedWidth(120)
         bar.addWidget(self.quick_examples_category_combo)
@@ -1551,28 +1564,34 @@ class MainWindow(QMainWindow):
             return bool(self._save_problem())
         return r == QMessageBox.StandardButton.Discard
 
+    def _apply_fresh_settings(self):
+        """The settings PINNStudio starts with, keeping the save folder, GPU
+        and plot preferences."""
+        fresh = getattr(self, "_fresh_config", None)
+        if fresh is None:
+            return
+        import dataclasses
+        try:
+            current = self._build_config()
+            keep = {k: getattr(current, k) for k in self._DEEPXDE_KEEP_FIELDS if hasattr(current, k)}
+        except Exception:
+            keep = {}
+        keep.pop("save_dir", None)
+        save_dir_text = self.save_dir_input.text()
+        cfg = dataclasses.replace(fresh, **keep)
+        self._applying_template = True
+        try:
+            self._apply_config(cfg)
+        finally:
+            self._applying_template = False
+        self.save_dir_input.setText(save_dir_text)
+
     def _new_problem(self, dim="1D"):
         """A fresh problem: the settings PINNStudio starts with (keeping the
         save folder, GPU and plot preferences), in `dim` (1D/2D/3D/ODE)."""
         if not self._maybe_save_changes():
             return
-        fresh = getattr(self, "_fresh_config", None)
-        if fresh is not None:
-            import dataclasses
-            try:
-                current = self._build_config()
-                keep = {k: getattr(current, k) for k in self._DEEPXDE_KEEP_FIELDS if hasattr(current, k)}
-            except Exception:
-                keep = {}
-            keep.pop("save_dir", None)
-            save_dir_text = self.save_dir_input.text()
-            cfg = dataclasses.replace(fresh, **keep)
-            self._applying_template = True
-            try:
-                self._apply_config(cfg)
-            finally:
-                self._applying_template = False
-            self.save_dir_input.setText(save_dir_text)
+        self._apply_fresh_settings()
         self.quick_examples_combo.blockSignals(True)
         self.quick_examples_combo.setCurrentText("None")
         self.quick_examples_combo.blockSignals(False)
@@ -4751,6 +4770,7 @@ class MainWindow(QMainWindow):
         # spare, while it's still free to grow as large as the window
         # allows once there is room.
         self.loss_label.setMinimumSize(240, 180)
+        self.loss_label.setWordWrap(True)      # the placeholder text, with large text in a small box
         self.loss_label._source_path = None
 
         self.solution_label = QLabel()
@@ -4758,6 +4778,7 @@ class MainWindow(QMainWindow):
         self.solution_label.setText("🗺 Solution plot")
         self.solution_label.setStyleSheet("border: 1px solid #3e3e42; border-radius: 6px; color: #505080; background: #252526;")
         self.solution_label.setMinimumSize(240, 180)
+        self.solution_label.setWordWrap(True)      # the placeholder text, with large text in a small box
         self.solution_label._source_path = None
         from pinnstudio.ui.export_tools import attach_image_menu
         for _lbl in (self.loss_label, self.solution_label):
@@ -6317,9 +6338,18 @@ class MainWindow(QMainWindow):
         # to 1.0, so it's intentionally not repeated.
         # a previous template's transforms / point weights never carry over
         # (the 1D templates set their own again in _on_template_selected)
+        # A template sets only what differs from one template to the next,
+        # so after a DeepXDE example or an opened problem (which set every
+        # setting) start from PINNStudio's own settings: an exact-IC formula,
+        # constants or loss weights from before would carry over otherwise.
+        if getattr(self, "_settings_from", None) != "template":
+            self._apply_fresh_settings()
+            self._tpl_output_scaled = self._tpl_input_features = False
+            self._tpl_output_formula = self._tpl_point_weights = False
         self._tpl_set_output_scale(None)
         self._tpl_set_extras({})
         self._on_template_selected(text)
+        self._settings_from = "template"
         # The Inverse category loads a template in Inverse mode (which brings
         # in the template's own measured-data file). The Forward list leaves
         # the Forward/Inverse choice as it is, as before.
@@ -6913,13 +6943,10 @@ class MainWindow(QMainWindow):
         floor on top of that. Call this after every combo.addItem(s) call
         -- it reads the combo's current font, so it stays correct even if
         Display Settings later changes the app-wide font size/family."""
-        fm = combo.fontMetrics()
-        widest = 0
-        for i in range(combo.count()):
-            w = fm.horizontalAdvance(combo.itemText(i))
-            if w > widest:
-                widest = w
-        combo.setMinimumWidth(max(min_width, widest + extra))
+        # The theme sizes it again once the stylesheet font (larger with a
+        # larger text size) is in place: see theme.StyleRemapper._fit_items.
+        combo.setProperty("_pinn_fit_items", (int(extra), int(min_width)))
+        _theme.StyleRemapper._fit_items(combo)
 
     def _on_adapt_changed(self, text):
         self.rar_widget.setVisible(text == "Residual-based Adaptive Refinement (RAR)")
@@ -8429,7 +8456,9 @@ class MainWindow(QMainWindow):
 
     def _domain_label(self, text):
         lbl = QLabel(text)
-        lbl.setFixedWidth(self.DOMAIN_LABEL_WIDTH)
+        # at least the column width, wider when larger text needs it
+        lbl.setMinimumWidth(self.DOMAIN_LABEL_WIDTH)
+        lbl.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Preferred)
         return lbl
 
     def _domain_row(self, label, *items, tip=""):
@@ -9313,6 +9342,7 @@ class MainWindow(QMainWindow):
         output count are set first, since changing any of them rebuilds the
         per-output PDE/BC/IC widget rows from scratch -- only once those rows
         exist can their individual values be populated."""
+        self._settings_from = None      # every setting, from a file or a DeepXDE example
         self._example_snapshot = None   # set again by _apply_deepxde_example() when an example is loaded
         import json
         import ast as _ast

@@ -491,9 +491,11 @@ class StyleRemapper(QObject):
         if ev.type() == QEvent.Type.FontChange and isinstance(obj, QWidget):
             self._fit_text_button(obj)       # the UI scale changed the text size
             self._fit_combo(obj)
+            self._fit_items(obj)
         if ev.type() in (QEvent.Type.StyleChange, QEvent.Type.Polish) and isinstance(obj, QWidget):
             self._fit_text_button(obj)
             self._fit_combo(obj)
+            self._fit_items(obj)
             if ev.type() == QEvent.Type.Polish:
                 self._fit_small_button(obj)
                 from pinnstudio.ui import icons as _icons
@@ -523,7 +525,7 @@ class StyleRemapper(QObject):
     @staticmethod
     def _fit_combo(w):
         """A drop-down given a fixed width is widened when the option it shows
-        does not fit (with a larger UI scale); at most 1.8 times wider."""
+        does not fit (with a larger UI scale); at most 2.5 times wider."""
         from PyQt6.QtWidgets import QComboBox
         if not isinstance(w, QComboBox) or w.minimumWidth() != w.maximumWidth() or w.maximumWidth() <= 48:
             return
@@ -533,9 +535,24 @@ class StyleRemapper(QObject):
             w.currentTextChanged.connect(lambda _t, c=w: StyleRemapper._fit_combo(c))
         base = int(w.property("_pinn_combo_w") or w.maximumWidth())
         need = w.fontMetrics().horizontalAdvance(w.currentText()) + 40
-        width = min(max(base, need), int(base * 1.8))
+        width = min(max(base, need), int(base * 2.5))
         if width != w.maximumWidth():
             w.setFixedWidth(width)
+
+    @staticmethod
+    def _fit_items(w):
+        """A drop-down sized to its widest option (main_window's
+        _fit_combo_width) is sized again with the font it is shown in."""
+        from PyQt6.QtWidgets import QComboBox
+        spec = w.property("_pinn_fit_items") if isinstance(w, QComboBox) else None
+        if not spec:
+            return
+        extra, min_width = spec
+        fm = w.fontMetrics()
+        widest = max((fm.horizontalAdvance(w.itemText(i)) for i in range(w.count())), default=0)
+        need = max(int(min_width), widest + int(extra))
+        if need != w.minimumWidth():
+            w.setMinimumWidth(need)
 
     @staticmethod
     def _fit_text_button(w):
