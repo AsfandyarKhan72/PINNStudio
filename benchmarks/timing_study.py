@@ -167,11 +167,16 @@ def main():
     ap.add_argument("--repeat", type=int, default=2)
     ap.add_argument("--only", default="")
     ap.add_argument("--profile", action="store_true", help="run the scripts under cProfile (slower)")
+    ap.add_argument("--threads", type=int, default=0,
+                    help="CPU threads for PyTorch (OMP_NUM_THREADS); 0 = PyTorch's default (every core)")
+    ap.add_argument("--tag", default="", help="added to the mode name in the results")
     ap.add_argument("--scale", type=float, default=1.0, help="multiply the iterations (a quick check: 0.05)")
     ap.add_argument("--cpu-scale", type=float, default=0.2,
                     help="multiply the iterations again on the CPU, which is many times slower")
     a = ap.parse_args()
     devices = ["cpu", "gpu"] if a.device == "both" else [a.device]
+    if a.threads:
+        os.environ["OMP_NUM_THREADS"] = str(a.threads)      # read by PyTorch in the training process
     modes = a.modes.split(",")
     from pinnstudio.core.codegen import generate_clean_script, generate_script
     app, w = _window()
@@ -188,7 +193,7 @@ def main():
             iters = {k: max(1, int(v * f)) for k, v in base_iters.items()}
             for rep in range(a.repeat):
                 for mode in modes:
-                    if (name, device, mode, rep) in done:
+                    if (name, device, mode + a.tag, rep) in done:
                         continue
                     d = os.path.join(base, f"{len(results):03d}")
                     os.makedirs(d)
@@ -201,7 +206,7 @@ def main():
                         r = run_window(app, w, cfg, device, quiet=(mode == "window-quiet"))
                     else:
                         raise SystemExit(f"unknown mode {mode}")
-                    r.update(problem=name, device=device, mode=mode, rep=rep, iters=iters)
+                    r.update(problem=name, device=device, mode=mode + a.tag, rep=rep, iters=iters, threads=a.threads)
                     results.append(r)
                     print(f"{name:32s} {device:3s} {mode:12s} rep {rep}: train {r['train']:8.2f} s  "
                           f"total {r['total']:8.2f} s  rc={r['rc']}", flush=True)
