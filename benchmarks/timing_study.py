@@ -54,6 +54,16 @@ def train_seconds(log):
     return round(sum(float(x) for x in TRAIN_RE.findall(log)), 2)
 
 
+STEP_RE = re.compile(r"^\s*(\d+)\s+\[", re.M)
+
+
+def steps_taken(log):
+    """The last step DeepXDE reports (its step count runs on across the
+    phases): L-BFGS can stop before its limit, so runs are compared per step."""
+    found = [int(x) for x in STEP_RE.findall(log)]
+    return max(found) if found else None
+
+
 def _env(device):
     env = dict(os.environ, PYTHONUNBUFFERED="1", MPLBACKEND="Agg", DDE_BACKEND="pytorch")
     if device == "cpu":
@@ -112,7 +122,7 @@ def run_script(text, device, workdir, profile=False):
     log = p.stdout + "\n" + p.stderr
     with open(os.path.join(workdir, "log.txt"), "w", encoding="utf-8") as f:
         f.write(log)
-    r = dict(rc=p.returncode, total=round(total, 2), train=train_seconds(log))
+    r = dict(rc=p.returncode, total=round(total, 2), train=train_seconds(log), steps=steps_taken(log))
     if profile and os.path.exists(prof):
         import io
         import pstats
@@ -146,7 +156,7 @@ def run_window(app, w, cfg, device, quiet=False):
     log = w.log_box.toPlainText()
     ok = "Training complete" in log
     os.environ.pop("CUDA_VISIBLE_DEVICES", None)
-    return dict(rc=0 if ok else 1, total=round(total, 2), train=train_seconds(log))
+    return dict(rc=0 if ok else 1, total=round(total, 2), train=train_seconds(log), steps=steps_taken(log))
 
 
 def main():
