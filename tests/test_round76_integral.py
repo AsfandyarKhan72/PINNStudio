@@ -95,7 +95,7 @@ def run():
                     p["iterations"] = min(int(p["iterations"]), it)
                 if ph:
                     c.scheduler_phases = json.dumps(ph)
-                with open(os.path.join(d, "run.py"), "w") as fh:
+                with open(os.path.join(d, "run.py"), "w", encoding="utf-8") as fh:
                     fh.write(gen(c))
                 p = subprocess.run([sys.executable, "run.py"], cwd=d, capture_output=True, text=True, timeout=900)
                 check(p.returncode == 0, f"{name} {gen.__name__} ran:\n{p.stderr[-1500:]}")

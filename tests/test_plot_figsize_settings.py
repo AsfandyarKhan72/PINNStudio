@@ -359,7 +359,7 @@ def run():
             config.save_dir = tmpdir
             script = codegen.generate_script(config)
             sp = os.path.join(tmpdir, "run_script.py")
-            with open(sp, "w") as f:
+            with open(sp, "w", encoding="utf-8") as f:
                 f.write(script)
             proc = subprocess.run([sys.executable, sp], cwd=tmpdir, capture_output=True, text=True, timeout=120)
             check(proc.returncode == 0, f"[{mode}] real run should exit 0, got {proc.returncode}. stderr tail: {proc.stderr[-1500:]}")

@@ -112,18 +112,18 @@ def run():
         for gen in (generate_script, generate_clean_script):
             d = os.path.join(tmp, gen.__name__)
             os.makedirs(d)
-            with open(os.path.join(d, "run.py"), "w") as f:
+            with open(os.path.join(d, "run.py"), "w", encoding="utf-8") as f:
                 f.write(gen(_cfg(d, 300)))
             p = subprocess.run([sys.executable, "run.py"], cwd=d, capture_output=True, text=True, timeout=600)
             check(p.returncode == 0, f"{gen.__name__}: hard-constraint run failed:\n{p.stderr[-1500:]}")
         sol = os.path.join(tmp, "generate_script", "solution_results")
-        cfg = json.load(open(os.path.join(sol, "model_config.json")))
+        cfg = json.load(open(os.path.join(sol, "model_config.json"), encoding="utf-8", errors="replace"))
         check(cfg.get("output_transform_formula") == "(1-x**2)*u", "model_config.json should record the transform")
         model = sorted(glob.glob(os.path.join(sol, "model_*.pt")))[-1]
         s = win._build_restore_script(model, cfg, "adam", "Surface", 0, 3, os.path.join(tmp, "restore"))
         s += "\nimport numpy as _np\nprint('PRED', *[float(v) for v in model.predict(_np.array([[-1.0], [1.0]]))[:, 0]])\n"
         rp = os.path.join(tmp, "restore.py")
-        with open(rp, "w") as f:
+        with open(rp, "w", encoding="utf-8") as f:
             f.write(s)
         p = subprocess.run([sys.executable, rp], cwd=tmp, capture_output=True, text=True, timeout=300)
         pred = [l for l in p.stdout.splitlines() if l.startswith("PRED")]

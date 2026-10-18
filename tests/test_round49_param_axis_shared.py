@@ -116,7 +116,7 @@ def run():
                   f"{gen_name}: should define and call the shared _draw_param_ax")
             check("R49 title" in script, f"{gen_name}: the title override should reach the parameter plot")
             sp = os.path.join(tmpdir, f"{gen_name}.py")
-            with open(sp, "w") as f:
+            with open(sp, "w", encoding="utf-8") as f:
                 f.write(script)
             proc = subprocess.run([sys.executable, sp], cwd=tmpdir, capture_output=True, text=True, timeout=300)
             check(proc.returncode == 0, f"{gen_name}: inverse run should exit cleanly, got {proc.returncode}:\n"
@@ -128,7 +128,7 @@ def run():
 
         # ── 3. Restore & Visualize parameter-convergence script ──────────
         conv = os.path.join(tmpdir, "D_convergence.txt")
-        with open(conv, "w") as f:
+        with open(conv, "w", encoding="utf-8") as f:
             f.write("iteration,D\n" + "".join(f"{i * 100},{0.5 * 0.9 ** i}\n" for i in range(12)))
         win = MainWindow()
         win._restore_viz_settings = {"title": "R49 restore", "subplot_title_fontsize": 9.0}
@@ -137,7 +137,7 @@ def run():
             script = win._build_restore_param_script([conv], out_dir, True, True, animate, true_vals=[0.1])
             check("def _draw_param_ax(" in script, "restore param script should embed the shared helper")
             sp = os.path.join(tmpdir, f"restore_{animate}.py")
-            with open(sp, "w") as f:
+            with open(sp, "w", encoding="utf-8") as f:
                 f.write(script)
             proc = subprocess.run([sys.executable, sp], cwd=tmpdir, capture_output=True, text=True, timeout=240)
             check(proc.returncode == 0 and "RESTORE_DONE" in proc.stdout,

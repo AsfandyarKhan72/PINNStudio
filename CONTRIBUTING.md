@@ -44,6 +44,7 @@ On an RTX 4090 the quick run takes about 6 minutes and the full run about 10; on
 - Run the tests (above).
 - Launch the app (`python -m pinnstudio.main`) and confirm it still starts cleanly.
 - Run at least one built-in Quick Example end-to-end (Solve → Stop/finish) to confirm script generation still produces a runnable script.
+- If you changed code that a README feature links to, run `python tools/update_source_links.py` so the **Source code** links point at the right lines (each feature names its functions once, in a `<!-- source: ... -->` comment).
 - Keep PRs focused — one feature or fix per PR is easier to review than a bundle of unrelated changes.
 - Describe *what changed and why* in the PR description; screenshots or a snippet of the generated script are welcome for UI or codegen changes.
 

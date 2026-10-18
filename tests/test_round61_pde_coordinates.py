@@ -113,7 +113,7 @@ def run():
                 d = os.path.join(tmp, f"{tag}_{gen.__name__}")
                 os.makedirs(d)
                 sp = os.path.join(d, "run.py")
-                with open(sp, "w") as f:
+                with open(sp, "w", encoding="utf-8") as f:
                     f.write(gen(make(d, 300)))
                 p = subprocess.run([sys.executable, sp], cwd=d, capture_output=True, text=True, timeout=600)
                 check(p.returncode == 0, f"{tag} via {gen.__name__} should run, got {p.returncode}:\n"

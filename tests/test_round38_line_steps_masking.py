@@ -65,7 +65,7 @@ from pinnstudio.ui.main_window import MainWindow
 
 def _run_script(script, tmpdir, tag, timeout_s=120):
     sp = os.path.join(tmpdir, f"{tag}_script.py")
-    with open(sp, "w") as f:
+    with open(sp, "w", encoding="utf-8") as f:
         f.write(script)
     return subprocess.run([sys.executable, sp], cwd=tmpdir, capture_output=True, text=True, timeout=timeout_s)
 

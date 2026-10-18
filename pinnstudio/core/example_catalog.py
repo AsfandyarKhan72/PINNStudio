@@ -12,12 +12,14 @@ DeepXDE example's original name -- which saved projects, tests and the
 code that sets a template up still use; only the shown name changed.
 
 Order: ODE, 1D, 2D, 3D; within each, steady before time-dependent and
-forward before inverse, same problems next to each other.
+forward before inverse, same problems next to each other, Allen-Cahn and
+then Cahn-Hilliard first.
 """
 import re
 from dataclasses import dataclass
 
 from pinnstudio.core import deepxde_examples as dx
+from pinnstudio.core import pinnstudio_examples as ps
 
 PINNSTUDIO = "PINNStudio"
 DEEPXDE = "DeepXDE"
@@ -49,7 +51,13 @@ class Entry:
 # PINNStudio templates: key, shown name, dimension, regime, geometry, paper.
 _TEMPLATES = [
     ("1D Heat", "Heat 1D", "1D", "Time-dependent", "Interval", ""),
-    ("1D Allen-Cahn", "Allen-Cahn 1D – Wight & Zhao", "1D", "Time-dependent", "Interval", "Wight & Zhao (2021)"),
+    ("1D Allen-Cahn", "Allen-Cahn 1D – Wight & Zhao (time-adaptive)", "1D", "Time-dependent", "Interval",
+     "Wight & Zhao (2021)"),
+    ("1D Allen-Cahn (whole interval)", "Allen-Cahn 1D – Wight & Zhao (whole interval)", "1D", "Time-dependent",
+     "Interval", "Wight & Zhao (2021)"),
+    ("1D Cahn-Hilliard", "Cahn-Hilliard 1D – Wight & Zhao", "1D", "Time-dependent", "Interval", "Wight & Zhao (2021)"),
+    ("1D Cahn-Hilliard (Mattey & Ghosh)", "Cahn-Hilliard 1D – Mattey & Ghosh", "1D", "Time-dependent", "Interval",
+     "Mattey & Ghosh (2022)"),
     ("1D Burgers", "Burgers 1D – Raissi et al.", "1D", "Time-dependent", "Interval", "Raissi et al. (2019)"),
     ("1D Schrödinger", "Schrödinger 1D – Raissi et al.", "1D", "Time-dependent", "Interval", "Raissi et al. (2019)"),
     ("2D Heat", "Heat 2D", "2D", "Time-dependent", "Rectangle", ""),
@@ -57,22 +65,31 @@ _TEMPLATES = [
      "Mattey & Ghosh (2022)"),
     ("2D Allen-Cahn (Wight & Zhao)", "Allen-Cahn 2D – Wight & Zhao", "2D", "Time-dependent", "Rectangle",
      "Wight & Zhao (2021)"),
+    ("2D Cahn-Hilliard (Mattey & Ghosh)", "Cahn-Hilliard 2D – Mattey & Ghosh", "2D", "Time-dependent", "Rectangle",
+     "Mattey & Ghosh (2022)"),
+    ("2D Cahn-Hilliard (Wight & Zhao)", "Cahn-Hilliard 2D – Wight & Zhao", "2D", "Time-dependent", "Rectangle",
+     "Wight & Zhao (2021)"),
     ("2D Burgers (Mathias)", "Burgers 2D – Mathias et al.", "2D", "Time-dependent", "Rectangle", "Mathias et al. (2022)"),
     ("2D Poisson (L-Shape)", "Poisson 2D – L-shape, Lu et al.", "2D", "Steady", "Polygon (L-shape)", "Lu et al. (2021)"),
     ("2D Poisson (Disk)", "Poisson 2D – disk", "2D", "Steady", "Disk", ""),
     ("3D Heat", "Heat 3D", "3D", "Time-dependent", "Cuboid", ""),
+    ("3D Allen-Cahn (Wight & Zhao)", "Allen-Cahn 3D – Wight & Zhao", "3D", "Time-dependent", "Cuboid",
+     "Wight & Zhao (2021)"),
     ("3D Poisson (Sphere)", "Poisson 3D – sphere", "3D", "Steady", "Sphere", ""),
 ]
 TEMPLATE_KEYS = tuple(t[0] for t in _TEMPLATES)
 
 # Templates not listed in Quick Examples or the README because a DeepXDE
 # example is the same problem (and has the same Inverse mode): 1D Heat is
-# DeepXDE's Heat 1D – Dirichlet, 1D Schrödinger DeepXDE's Schrödinger 1D.
+# DeepXDE's Heat 1D – Dirichlet, 1D Schrödinger DeepXDE's Schrödinger 1D,
+# 2D Poisson (L-Shape) DeepXDE's Poisson 2D – L-shape.
 # They stay loadable by name, so saved projects and scripts keep working.
-HIDDEN_TEMPLATES = ("1D Heat", "1D Schrödinger")
+HIDDEN_TEMPLATES = ("1D Heat", "1D Schrödinger", "2D Poisson (L-Shape)")
 
-# Shown before the other examples of the same problem (better results).
-_FIRST_IN_FAMILY = ("1D Allen-Cahn",)
+# Phase-field problems lead their group, Allen-Cahn before Cahn-Hilliard;
+# within each, DeepXDE's example, then Wight & Zhao, then Mattey & Ghosh.
+_FAMILY_FIRST = ("allen-cahn", "cahn-hilliard")
+_PAPER_ORDER = ("Wight & Zhao", "Mattey & Ghosh")
 
 # The templates' papers (Entry.reference) -> DOI / arXiv link.
 PAPERS = {
@@ -81,6 +98,7 @@ PAPERS = {
     "Mattey & Ghosh (2022)": "https://doi.org/10.1016/j.cma.2021.114474",
     "Mathias et al. (2022)": "https://arxiv.org/abs/2301.07824",
     "Lu et al. (2021)": "https://doi.org/10.1137/19M1274067",
+    **ps.PAPERS,
 }
 
 _DEEPXDE_CODE_ROOT = "https://github.com/lululxvi/deepxde/blob/master/examples/"
@@ -193,6 +211,12 @@ def _build():
     entries = []
     for key, name, dim, reg, geo, paper in _TEMPLATES:
         entries.append(Entry(key, name, PINNSTUDIO, dim, reg, BOTH, geo, paper, key in HIDDEN_TEMPLATES))
+    for ex in ps.EXAMPLES:          # templates defined by their settings
+        cfg = ps.build_config(ex, "/r")
+        name, paper = ps.CATALOG[ex.name]
+        entries.append(Entry(ex.name, name, PINNSTUDIO, cfg.problem_dim,
+                             "Steady" if cfg.steady_state else "Time-dependent",
+                             BOTH if ex.inverse else FORWARD, _dx_geometry(cfg, ex.name), paper))
     for ex in dx.EXAMPLES:
         cfg = dx.build_config(ex, "/r")
         problem = INVERSE if ex.category == dx.INVERSE else (BOTH if ex.inverse else FORWARD)
@@ -200,10 +224,16 @@ def _build():
                              "Steady" if cfg.steady_state else "Time-dependent", problem,
                              _dx_geometry(cfg, ex.name), ex.source))
 
+    def _paper_rank(e):
+        if e.source == DEEPXDE:
+            return 0
+        return next((i + 1 for i, p in enumerate(_PAPER_ORDER) if p in e.name), len(_PAPER_ORDER) + 1)
+
     def _key(e):
+        fam = _family(e.name)
+        lead = _FAMILY_FIRST.index(fam) if fam in _FAMILY_FIRST else len(_FAMILY_FIRST)
         return (_DIM_ORDER[e.dim], 0 if e.regime == "Steady" else 1, 1 if e.problem == INVERSE else 0,
-                _family(e.name), 0 if e.key in _FIRST_IN_FAMILY else 1, e.name.lower(),
-                0 if e.source == PINNSTUDIO else 1)
+                lead, fam, _paper_rank(e) if fam in _FAMILY_FIRST else 0, e.name.lower(), 0 if e.source == PINNSTUDIO else 1)
     return sorted(entries, key=_key)
 
 

@@ -118,19 +118,53 @@ def run():
     e = w._add_custom_bc_entry(location="right")
     pick = e["location_picker"]
     labels = [pick.itemText(i) for i in range(pick.count())]
-    check(labels == ["Whole boundary", "Left (x = x_min)", "Right (x = x_max)", "Left and right",
+    check(labels == ["Whole boundary", "Left side (x = x_min)", "Right side (x = x_max)", "Left and right sides",
                      "Custom expression…"], f"1D choices {labels}")
-    check(pick.currentText() == "Right (x = x_max)", "picker follows the expression")
+    check(pick.currentText() == "Right side (x = x_max)", "picker follows the expression")
+    # a named choice says it in words: its code ("right", "True") stays hidden
+    check(e["location"].isHidden(), "expression box hidden for a named choice")
     e["location"].setText("x <= x_min")
     check(pick.currentText() == "Custom expression…", "typed expression -> Custom")
+    check(not e["location"].isHidden(), "expression box shown for a custom expression")
     e["location"].setText("")
     check(pick.currentText() == "Whole boundary", "empty Where = whole boundary")
+    check(e["location"].isHidden(), "whole boundary: no 'True' shown")
     pick.setCurrentIndex(pick.findData("left or right"))
     w._on_bc_where_picked(pick, e["location"])
     check(e["location"].text() == "left or right", "picking writes the expression")
+    # Custom expression…: the box opens and stays open while typing, even
+    # through text that matches a named choice
+    pick.setCurrentIndex(pick.count() - 1)
+    w._on_bc_where_picked(pick, e["location"])
+    check(not e["location"].isHidden(), "Custom expression… opens the box")
+    e["location"].setText("left")
+    check(not e["location"].isHidden() and pick.currentText() == "Custom expression…",
+          "typing a named choice's code keeps the custom box open")
+    pick.setCurrentIndex(pick.findData("True"))
+    w._on_bc_where_picked(pick, e["location"])
+    check(e["location"].isHidden(), "picking a named choice closes it again")
     w.radio_3d.setChecked(True)
     e3 = w._add_custom_bc_entry(location="back")
-    check(e3["location_picker"].currentText() == "Back (z = z_max)", "3D offers front/back")
+    check(e3["location_picker"].currentText() == "Back side (z = z_max)", "3D offers front/back")
+
+    # periodic rows: the axis says which sides are tied, so Where: is set from it and hidden
+    ep = w._add_custom_bc_entry(bc_type="periodic", location="True", axis="y")
+    loc_w = ep["location"].parentWidget()
+    check(ep["location"].text() == "True" and loc_w.isHidden(),
+          "periodic: whole boundary (DeepXDE's own examples) is kept as it is, and hidden")
+    epb = w._add_custom_bc_entry(bc_type="periodic", location="bottom", axis="y")
+    epb["axis"].setCurrentText("z")
+    check(epb["location"].text() == "front" and epb["location"].parentWidget().isHidden(),
+          "periodic: changing the axis moves the side")
+    epm = w._add_custom_bc_entry(bc_type="periodic", location="bottom", axis="x")
+    check(epm["location"].text() == "bottom" and not epm["location"].parentWidget().isHidden(),
+          "periodic: a side that doesn't fit the axis is kept and shown, never rewritten on load")
+    ep2 = w._add_custom_bc_entry(bc_type="periodic", location="right", axis="x")
+    check(ep2["location"].text() == "right" and ep2["location"].parentWidget().isHidden(),
+          "periodic: either side of the pair is kept as it is")
+    ep3 = w._add_custom_bc_entry(bc_type="periodic", location="x <= 0.5 and left", axis="x")
+    check(ep3["location"].text() == "x <= 0.5 and left" and not ep3["location"].parentWidget().isHidden(),
+          "periodic with a custom Where: kept and shown")
 
     # 4) Built-in templates use side names.
     w.quick_examples_category_combo.setCurrentText("Forward")
@@ -164,7 +198,7 @@ def run():
             d = os.path.join(tmp, gen.__name__)
             os.makedirs(d)
             c = _cfg(save_dir=d)
-            with open(os.path.join(d, "run.py"), "w") as fh:
+            with open(os.path.join(d, "run.py"), "w", encoding="utf-8") as fh:
                 fh.write(gen(c))
             p = subprocess.run([sys.executable, "run.py"], cwd=d, capture_output=True, text=True, timeout=600)
             check(p.returncode == 0, f"{gen.__name__} ran:\n{p.stderr[-1500:]}")

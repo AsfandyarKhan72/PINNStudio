@@ -127,7 +127,7 @@ def run():
             c = _small(d)
             if tag == "phases":
                 c = use_training_phases(copy.deepcopy(c))
-            with open(os.path.join(d, "run.py"), "w") as fh:
+            with open(os.path.join(d, "run.py"), "w", encoding="utf-8") as fh:
                 fh.write(generate_script(c))
             p = subprocess.run([sys.executable, "run.py"], cwd=d, capture_output=True, text=True, timeout=600)
             check(p.returncode == 0, f"{tag} ran:\n{p.stderr[-1500:]}")

@@ -34,8 +34,8 @@ from PyQt6.QtCore import QPointF, QRectF, Qt, pyqtSignal
 from PyQt6.QtGui import (QBrush, QColor, QFont, QPainter, QPainterPath, QPainterPathStroker, QPen, QPolygonF,
                          QKeySequence, QTransform)
 from PyQt6.QtWidgets import (QAbstractItemView, QButtonGroup, QCheckBox, QComboBox, QDoubleSpinBox, QHBoxLayout,
-                             QLabel, QLineEdit, QListWidget, QListWidgetItem, QPushButton, QSizePolicy, QVBoxLayout,
-                             QWidget)
+                             QLabel, QLineEdit, QListWidget, QListWidgetItem, QPushButton, QSizePolicy, QStackedWidget,
+                             QVBoxLayout, QWidget)
 
 from pinnstudio.ui.sketch_edges import boundary_edges, in_region, join_where, where_matches
 from pinnstudio.ui import sketch3d as s3
@@ -843,7 +843,10 @@ class SketchPanel(QWidget):
         self.view_combo = QComboBox()
         for key, label in s3.VIEW_LABELS.items():
             self.view_combo.addItem(label, key)
+        self.view_combo.addItem("3D", "3d")
         self.view_combo.setFixedHeight(26)
+        self.view_combo.setToolTip("A flat view shows the domain cut at the slice depth, where shapes are drawn "
+                                   "and faces picked; 3D shows the whole domain, to rotate and check")
         b3.addWidget(self.view_combo)
         b3.addSpacing(8)
         self.depth_label = QLabel("Slice at z =")
@@ -870,14 +873,21 @@ class SketchPanel(QWidget):
             sp_.setFixedHeight(26)
             sp_.setFixedWidth(90)
         b3.addWidget(self.new_d0)
-        b3.addWidget(QLabel("to"))
+        self.new_to_label = QLabel("to")
+        b3.addWidget(self.new_to_label)
         b3.addWidget(self.new_d1)
         b3.addStretch()
         lay.addWidget(self.view_bar)
         self.view_bar.setVisible(False)
 
         self.canvas = _Canvas(self)
-        lay.addWidget(self.canvas, 1)
+        # the flat canvas, or (3D, View: 3D) the rotatable view of the whole domain
+        from pinnstudio.ui.view3d import Domain3DView
+        self.view3d = Domain3DView(self.canvas)
+        self.canvas_stack = QStackedWidget()
+        self.canvas_stack.addWidget(self.canvas)
+        self.canvas_stack.addWidget(self.view3d)
+        lay.addWidget(self.canvas_stack, 1)
         self.hint = QLabel("")
         self.hint.setWordWrap(True)
         lay.addWidget(self.hint)
@@ -1033,7 +1043,16 @@ class SketchPanel(QWidget):
             if t in names:
                 _icons.apply(b, names[t], "text", size=16)
 
+    HINT_VIEW3D = ("Drag to rotate, scroll to zoom. Each face takes the colour of its boundary condition; the "
+                   "translucent plane is the slice the flat views show. Draw shapes and pick faces in a flat view, "
+                   "or pick faces in the list below.")
+
+    def in_view3d(self):
+        return self.canvas.dim == 3 and self.view_combo.currentData() == "3d"
+
     def hints(self):
+        if self.in_view3d():
+            return {t: self.HINT_VIEW3D for t in TOOLS}
         return self.HINTS if self.canvas.dim == 2 else {**self.HINTS, **self.HINTS_3D}
 
     def coord_formats(self):
@@ -1072,6 +1091,8 @@ class SketchPanel(QWidget):
         self._apply_tool_icons()
         self.view_bar.setVisible(dim == 3)
         self.face_list.setVisible(dim == 3)
+        if dim == 2 and self.view_combo.currentData() == "3d":
+            self.view_combo.setCurrentIndex(0)
         self.import_btn.setVisible(dim == 2 and not self.viewer)
         if self.viewer:
             self.set_tool("Edges")
@@ -1088,7 +1109,25 @@ class SketchPanel(QWidget):
             self.new_depth_label.setText(f"New box: {d} from")
 
     def _on_view(self, _i=None):
+        if self.view_combo.currentData() == "3d":
+            # the whole domain; the canvas keeps its last flat view, whose
+            # slice the 3D view shows as a plane
+            self.canvas_stack.setCurrentWidget(self.view3d)
+            self.hint.setText(self.HINT_VIEW3D)
+            for w in (self.new_depth_label, self.new_d0, self.new_to_label, self.new_d1):
+                w.setVisible(False)
+            for b in self.tool_buttons.values():
+                b.setEnabled(False)
+            self.view3d.refresh()
+            return
+        self.canvas_stack.setCurrentWidget(self.canvas)
+        for b in self.tool_buttons.values():
+            b.setEnabled(True)
+        if not self.viewer:
+            for w in (self.new_depth_label, self.new_d0, self.new_to_label, self.new_d1):
+                w.setVisible(True)
         self.canvas.view = self.view_combo.currentData()
+        self.hint.setText(self.hints()[self.canvas.tool])
         self._sync_axis_labels()
         self._centre_depth()
         self.canvas.fit()

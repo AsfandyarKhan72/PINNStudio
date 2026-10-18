@@ -42,8 +42,8 @@ def run():
     _app.processEvents()
 
     check(not hasattr(win, "adapt_ref_toggle"), "the old shared toggle should be gone")
-    check(win.ta_ref_toggle.text() == "📖 Show Time-Adaptive reference", win.ta_ref_toggle.text())
-    check(win.rar_ref_toggle.text() == "📖 Show RAR reference", win.rar_ref_toggle.text())
+    check(win.ta_ref_toggle.text().strip() == "About time-adaptive training", win.ta_ref_toggle.text())
+    check(win.rar_ref_toggle.text().strip() == "About RAR", win.rar_ref_toggle.text())
     check("Splits the time domain" in win.ta_ref_hint.text(), "TA toggle should carry the Time-Adaptive text")
     check("worst-residual points" in win.rar_ref_hint.text(), "RAR toggle should carry the RAR text")
 

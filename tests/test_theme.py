@@ -43,7 +43,7 @@ def test_window_theme_and_switch():
     os.environ["HOME"] = home
     try:
         os.makedirs(os.path.join(home, ".pinnstudio"))
-        with open(os.path.join(home, ".pinnstudio", "display_settings.json"), "w") as fh:
+        with open(os.path.join(home, ".pinnstudio", "display_settings.json"), "w", encoding="utf-8") as fh:
             json.dump({"font_size": 18, "theme": "Monokai", "accent": "Green (#69db7c)"}, fh)
         w = MainWindow()
         assert w._theme == theme.DEFAULT_THEME == "Studio Light", "old display settings are not carried over"

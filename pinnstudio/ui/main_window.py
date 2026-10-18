@@ -1,4 +1,5 @@
 import os
+from pinnstudio.core import pyexe as _pyexe
 import math
 import re as _re_log
 _re_log_l2 = _re_log.compile(r"(?<![A-Za-z0-9_])L2(?![A-Za-z0-9_])")
@@ -8,13 +9,14 @@ from PyQt6.QtWidgets import (
     QTextEdit, QGroupBox, QComboBox, QSplitter, QLineEdit,
     QFileDialog, QCheckBox, QRadioButton, QButtonGroup,
     QDialog, QApplication, QColorDialog,
-    QTabWidget, QMessageBox, QScrollArea, QGridLayout, QPlainTextEdit, QSizePolicy,
+    QTabWidget, QMessageBox, QScrollArea, QGridLayout, QPlainTextEdit, QSizePolicy, QToolButton, QAbstractSpinBox,
 )
-from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer
+from PyQt6.QtCore import Qt, QObject, QThread, pyqtSignal, QTimer
 from PyQt6.QtGui import QPixmap, QAction, QColor, QMovie, QIntValidator, QKeySequence
 from pinnstudio.core.config import PINNConfig
 from pinnstudio.core.runner import run_pinn
 from pinnstudio.core import deepxde_examples as _dx_examples
+from pinnstudio.core import pinnstudio_examples as _ps_examples
 from pinnstudio.core import example_catalog as _ex_catalog
 from pinnstudio.core.config import LBFGS_RECOMMENDED
 from pinnstudio.ui.sketch_canvas import SketchPanel
@@ -23,6 +25,31 @@ REFERENCE_DATA_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
     "reference_data",
 )
+
+
+def _width_follows_current_tab(tabs):
+    """A QTabWidget is never narrower than its widest page, shown or not: the
+    Script tab's one-line note, the Sketch toolbar or History's buttons kept
+    the graphics column wide while Error analysis was showing, so the divider
+    beside it stopped early (most of all on Windows, whose fonts and display
+    scaling make those pages wider). Hidden pages get an Ignored horizontal
+    size policy, which Qt leaves out of the minimum width; the page shown
+    keeps its own."""
+    def update(_index=None):
+        current = tabs.currentWidget()
+        for i in range(tabs.count()):
+            page = tabs.widget(i)
+            if page is None:
+                continue
+            pol = page.sizePolicy()
+            if not hasattr(page, "_own_hpolicy"):
+                page._own_hpolicy = pol.horizontalPolicy()
+            pol.setHorizontalPolicy(page._own_hpolicy if page is current else QSizePolicy.Policy.Ignored)
+            page.setSizePolicy(pol)
+        tabs.updateGeometry()
+
+    tabs.currentChanged.connect(update)
+    update()
 
 
 class ExampleCombo(QComboBox):
@@ -387,9 +414,23 @@ class SweepThread(QThread):
 
 
 # --- Update-check background thread ---
-class UpdateCheckThread(QThread):
-    """Fetches the latest published version from PyPI without blocking the GUI."""
+class UpdateCheckThread(QObject):
+    """Fetches the latest published version from PyPI without blocking the GUI.
+
+    The request runs in a plain daemon thread rather than a QThread: a QThread
+    still waiting on the network when the window closes makes Qt abort the
+    whole process ("QThread: Destroyed while thread is still running"), while
+    a daemon thread is simply dropped when Python exits."""
     result_signal = pyqtSignal(str)
+
+    def start(self):
+        import threading
+        self._worker = threading.Thread(target=self.run, name="pinnstudio-update-check", daemon=True)
+        self._worker.start()
+
+    def isRunning(self):
+        w = getattr(self, "_worker", None)
+        return bool(w and w.is_alive())
 
     def run(self):
         try:
@@ -402,9 +443,12 @@ class UpdateCheckThread(QThread):
             with urllib.request.urlopen(req, timeout=5) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
             latest = data.get("info", {}).get("version", "")
-            self.result_signal.emit(latest)
         except Exception:
-            self.result_signal.emit("")
+            latest = ""
+        try:
+            self.result_signal.emit(latest)
+        except RuntimeError:      # the window (and this object) is already gone
+            pass
 
 
 # ── Main Window ──────────────────────────────────────────────
@@ -539,6 +583,9 @@ class MainWindow(QMainWindow):
         # first passes of the event loop: the starting problem -- what New
         # gives and what counts as "unchanged" -- is taken after them.
         QTimer.singleShot(0, lambda: QTimer.singleShot(0, self._capture_fresh_problem))
+        # The graphics column's narrowest width follows the tab that is showing
+        for _tabs in (self.right_tabs, self.bottom_tabs, self.results_tabs):
+            _width_follows_current_tab(_tabs)
 
     def _nudge_central_tabs_repaint(self):
         bar = self.central_tabs.tabBar()
@@ -932,9 +979,9 @@ class MainWindow(QMainWindow):
         ("training", "Training", "T", "#74c0fc", None, ("Training",),
          "Optimizers and training phases, initial-condition pre-training, callbacks."),
         ("weights", "Loss weights", "W", "#91a7ff", "training", ("Loss Weights",),
-         "How much each loss term counts."),
+         "How much each loss term counts, by hand or automatically: per-point weights (RBA, SA-PINN) and causal training."),
         ("adaptive", "Adaptive training", "A", "#91a7ff", "training", ("Adaptive Training",),
-         "Residual-based refinement, point resampling and time-adaptive training."),
+         "Residual-based adaptive refinement (RAR) and time-adaptive training."),
         ("sweep", "Parameter sweep", "S", "#e599f7", None, ("Parameter Sweep",),
          "Run the problem over a range of settings and compare the results."),
         ("results", "Results", "R", "#fcc419", None, (),
@@ -959,7 +1006,7 @@ class MainWindow(QMainWindow):
             missing = [t for t in titles if t not in groups]
             assert not missing, f"workspace: panels not found: {missing}"
             ws.add_node(key, label, glyph, color, desc, parent, [groups[t] for t in titles])
-        self._quick_examples_group = groups.get("📋 Quick Examples")
+        self._quick_examples_group = groups.get("Quick Examples")
         self._sync_bc_nodes()
         splitter.addWidget(ws.tree_panel)
         splitter.addWidget(ws.settings_panel)
@@ -1137,6 +1184,9 @@ class MainWindow(QMainWindow):
     _PROBLEM_KEYWORDS = (
         ("sweep", "sweep"),
         ("inverse", ("inverse", "observ", "unknown variable", "true value")),
+        ("ic", ("exact initial",)),
+        ("bcs", ("exact periodicity",)),
+        ("weights", ("causal", "per-point")),
         ("adaptive", ("rar", "time-adaptive", "time adaptive", "resampl", "adaptive")),
         ("weights", ("scale by initial losses", "loss weight", "weights")),
         ("network", ("network", "layer", "msffn", "neuron", "fourier", "activation", "initializer")),
@@ -1701,7 +1751,7 @@ class MainWindow(QMainWindow):
         # ── else below it -- dimension, Forward/Inverse, Time ───────────
         # ── Dependent/Stationary -- instead of the user having to set ───
         # ── those by hand first before the right examples even appear) ──
-        examples_group = QGroupBox("📋 Quick Examples")
+        examples_group = QGroupBox("Quick Examples")
         examples_layout = QGridLayout(examples_group)
         # Category: PINNStudio's own templates, or DeepXDE's documented
         # forward / inverse examples (pinnstudio/core/deepxde_examples.py).
@@ -1857,9 +1907,7 @@ class MainWindow(QMainWindow):
         # "Show derivative reference" sits on this row, after Equations; its
         # hint text (self.pde_hint) opens below the Constants row.
         # (it sits on the Constants row below, where there's room)
-        self.pde_hint_toggle = QCheckBox("📖 Show derivative reference")
-        self.pde_hint_toggle.setChecked(False)
-        self._register_hint(self.pde_hint_toggle, '#74c0fc')
+        self.pde_hint_toggle = self._ref_button("Derivative syntax")
         nout_row.addStretch()
         pde_outer_layout.addLayout(nout_row)
 
@@ -1881,9 +1929,8 @@ class MainWindow(QMainWindow):
         self.add_constant_btn.setFixedHeight(24)
         self.add_constant_btn.clicked.connect(lambda: self._add_constant_row())
         _crow.addWidget(self.add_constant_btn)
-        _crow.addSpacing(12)
-        _crow.addWidget(self.pde_hint_toggle)
         _crow.addStretch()
+        _crow.addWidget(self.pde_hint_toggle)
         _cw.addLayout(_crow)
         self.constants_rows_layout = QVBoxLayout()
         self.constants_rows_layout.setSpacing(2)
@@ -1904,7 +1951,7 @@ class MainWindow(QMainWindow):
         self.pde_hint.setWordWrap(True)
         self.pde_hint.setVisible(False)
         pde_outer_layout.addWidget(self.pde_hint)
-        self.pde_hint_toggle.stateChanged.connect(lambda state: self.pde_hint.setVisible(state == 2))
+        self.pde_hint_toggle.toggled.connect(self.pde_hint.setVisible)
 
         # self.pde_main_layout stays a nested layout (not the group's own
         # top-level layout) so _build_pde_inputs() can freely clear/rebuild
@@ -2360,16 +2407,14 @@ class MainWindow(QMainWindow):
         # only depends on the problem's dimension (1D/2D/3D), not which
         # output it's under, so one copy covers all of them; its text is
         # kept up to date by _build_bc_inputs() whenever dimension changes.
-        self.ic_hint_toggle = QCheckBox("📖 Show IC reference")
-        self.ic_hint_toggle.setChecked(False)
-        self._register_hint(self.ic_hint_toggle, '#74c0fc')
-        _ic_group_top_layout.addWidget(self.ic_hint_toggle)
+        self.ic_hint_toggle = self._ref_button("Initial-condition syntax")
+        self._ref_row(_ic_group_top_layout, self.ic_hint_toggle)
         self.ic_hint = QLabel()
         self._register_hint(self.ic_hint, '#74c0fc')
         self.ic_hint.setWordWrap(True)
         self.ic_hint.setVisible(False)
         _ic_group_top_layout.addWidget(self.ic_hint)
-        self.ic_hint_toggle.stateChanged.connect(lambda s: self.ic_hint.setVisible(s == 2))
+        self.ic_hint_toggle.toggled.connect(self.ic_hint.setVisible)
 
         # Nested container whose own layout (bc_main_layout) is what
         # _build_bc_inputs() freely clears and rebuilds every time the
@@ -2392,7 +2437,7 @@ class MainWindow(QMainWindow):
         self.bc_boundary_types = []; self.bc_boundary_vals = []; self.bc_boundary_active = []
         # Per-edge BC groups, per output (Triangle/Polygon) -- nested: [output][edge]
         self.bc_edge_types = []; self.bc_edge_vals = []; self.bc_edge_active = []
-        self.ic_inputs = [];      self.ic_active = []
+        self.ic_inputs = [];      self.ic_active = [];  self.ic_hard = []
         self._2d_bc_widgets = []
         # Wrapper widgets (one per output) around the hardcoded per-shape BC
         # rows above -- hidden whenever a custom (non-template) problem is
@@ -2429,33 +2474,39 @@ class MainWindow(QMainWindow):
         # doesn't depend on which row you're looking at, so one copy is
         # enough; each row's own "Where:" field still has a short inline
         # placeholder example of its own.
-        self.bc_loc_hint_toggle = QCheckBox("📖 Show location examples")
-        self.bc_loc_hint_toggle.setChecked(False)
-        self._register_hint(self.bc_loc_hint_toggle, '#74c0fc')
-        self.custom_bc_main_layout.addWidget(self.bc_loc_hint_toggle)
+        self.bc_loc_hint_toggle = self._ref_button("\"Where\" examples")
+        self._ref_row(self.custom_bc_main_layout, self.bc_loc_hint_toggle)
         self.bc_loc_hint = QLabel(
-            "\"Where\" picks WHICH part of the boundary a condition applies to.\n"
-            "It's only checked at points already on the boundary, so you never\n"
-            "need to detect \"on the boundary\" yourself -- only say which part.\n"
-            "Use the picker, or type any True/False expression:\n"
-            "True                  → the whole boundary\n"
-            "left / right          → x = x_min / x = x_max (your domain's own limits)\n"
-            "bottom / top          → y = y_min / y = y_max (2D/3D)\n"
-            "front / back          → z = z_min / z = z_max (3D)\n"
-            "left or right         → both ends\n"
-            "x <= x_min            → same as left; x_min, x_max, y_min, ... are\n"
-            "                        defined in every BC expression, Value included\n"
-            "np.isclose(x**2 + y**2, 0.25) → a circle of radius 0.5 (for shapes\n"
-            "                        without named sides, e.g. a hole)\n"
-            "Neumann/Robin values are du/dn, the derivative along the OUTWARD\n"
-            "normal: at a right/top side that is +du/dx or +du/dy, at a\n"
-            "left/bottom side it is -du/dx or -du/dy."
+            "\"Where\" says which part of the boundary a condition applies to. Pick the whole boundary or "
+            "a side (left/right = x_min/x_max, bottom/top = y_min/y_max, front/back = z_min/z_max: your "
+            "domain's own limits), or choose Custom expression… and write any true/false expression in "
+            "x, y, z (and t). It is only checked at points already on the boundary, so it only has to say "
+            "which part.\n\n"
+            "In a custom expression you can use the side names and the limits:\n"
+            "    left or right                       both ends in x\n"
+            "    x <= 0.5 and bottom                 the left half of the bottom side\n"
+            "    np.isclose(x**2 + y**2, 0.25)       a circle of radius 0.5 (e.g. a hole)\n\n"
+            "Periodic conditions need no Where: \"Periodic in: x\" ties the left and right sides "
+            "together.\n\n"
+            "Neumann and Robin values are du/dn, the derivative along the outward normal: +du/dx on a "
+            "right side, -du/dx on a left side (likewise in y and z)."
         )
         self._register_hint(self.bc_loc_hint, '#74c0fc')
         self.bc_loc_hint.setWordWrap(True)
         self.bc_loc_hint.setVisible(False)
         self.custom_bc_main_layout.addWidget(self.bc_loc_hint)
-        self.bc_loc_hint_toggle.stateChanged.connect(lambda s: self.bc_loc_hint.setVisible(s == 2))
+        self.bc_loc_hint_toggle.toggled.connect(self.bc_loc_hint.setVisible)
+
+        self.periodic_inputs_cb = QCheckBox("Exact periodicity (periodic inputs)")
+        self.periodic_inputs_cb.setToolTip(
+            "Make the solution periodic by construction: every axis with a periodic BC row enters\n"
+            "the network as cos(2πx/L), sin(2πx/L) instead of x (L = the domain's length on that\n"
+            "axis), so values and all derivatives match at the two ends exactly. The periodic rows\n"
+            "can stay -- their loss is then about zero. Replaces the Network page's input transform.\n"
+            "With an exact initial condition and RBA this gave the lowest errors on the phase-field\n"
+            "examples -- see benchmarks/training_methods.md.")
+        self.periodic_inputs_cb.toggled.connect(lambda _on: self._update_exact_notes())
+        self.custom_bc_main_layout.addWidget(self.periodic_inputs_cb)
 
         self.custom_bc_list_widget = QWidget()
         self.custom_bc_list_layout = QVBoxLayout(self.custom_bc_list_widget)
@@ -2602,6 +2653,13 @@ class MainWindow(QMainWindow):
         self.input_transform_cb = QCheckBox("Enable input transform")
         self.input_transform_cb.setChecked(False)
         nn_layout.addWidget(self.input_transform_cb)
+        self.exact_inputs_note = QLabel(
+            "Exact periodicity is on (Boundary Conditions page): the network's inputs are cos/sin "
+            "of each periodic axis -- leave this input transform off.")
+        self.exact_inputs_note.setWordWrap(True)
+        self._register_hint(self.exact_inputs_note, '#74c0fc')
+        self.exact_inputs_note.setVisible(False)
+        nn_layout.addWidget(self.exact_inputs_note)
 
         self.input_transform_widget = QWidget()
         it_layout = QVBoxLayout(self.input_transform_widget)
@@ -2637,6 +2695,13 @@ class MainWindow(QMainWindow):
         self.output_transform_cb = QCheckBox("Enable output transform")
         self.output_transform_cb.setChecked(False)
         nn_layout.addWidget(self.output_transform_cb)
+        self.exact_outputs_note = QLabel(
+            "An exact initial condition is on (Initial Conditions page): it is built into the "
+            "output as IC + τ·N, together with any Scale/shift set here; a Formula here can't be combined with it.")
+        self.exact_outputs_note.setWordWrap(True)
+        self._register_hint(self.exact_outputs_note, '#74c0fc')
+        self.exact_outputs_note.setVisible(False)
+        nn_layout.addWidget(self.exact_outputs_note)
 
         self.output_transform_widget = QWidget()
         ot_layout = QVBoxLayout(self.output_transform_widget)
@@ -2716,8 +2781,8 @@ class MainWindow(QMainWindow):
         # is chosen are ever shown -- picking "Restore" hides the training
         # fields instead of just adding the restore path underneath them.
         ic_mode_row = QHBoxLayout()
-        self.ic_pretrain_mode_train = QRadioButton("▶ Train from start")
-        self.ic_pretrain_mode_restore = QRadioButton("🔄 Restore from checkpoint")
+        self.ic_pretrain_mode_train = QRadioButton("Train from start")
+        self.ic_pretrain_mode_restore = QRadioButton("Restore from checkpoint")
         self.ic_pretrain_mode_train.setChecked(True)
         self._ic_pretrain_mode_group = QButtonGroup(self.ic_pretrain_widget)
         self._ic_pretrain_mode_group.addButton(self.ic_pretrain_mode_train)
@@ -2739,7 +2804,7 @@ class MainWindow(QMainWindow):
         self.ic_pretrain_opt = QComboBox()
         self.ic_pretrain_opt.addItem("Adam", "adam")
         self.ic_pretrain_opt.setFixedHeight(26)
-        self._fit_combo_width(self.ic_pretrain_opt, min_width=80)
+        self.ic_pretrain_opt.setFixedWidth(self.PHASE_FIELD_W)
         ic_opt_row.addStretch(); ic_opt_row.addWidget(self.ic_pretrain_opt)
         ic_train_fields_layout.addLayout(ic_opt_row)
 
@@ -2750,6 +2815,7 @@ class MainWindow(QMainWindow):
         self.ic_pretrain_iters.setSingleStep(1000)
         self.ic_pretrain_iters.setValue(20000)
         self.ic_pretrain_iters.setFixedHeight(26)
+        self.ic_pretrain_iters.setFixedWidth(self.PHASE_FIELD_W)
         ic_iter_row.addStretch(); ic_iter_row.addWidget(self.ic_pretrain_iters)
         ic_train_fields_layout.addLayout(ic_iter_row)
 
@@ -2761,6 +2827,7 @@ class MainWindow(QMainWindow):
         self.ic_pretrain_lr.setRange(1e-6, 1.0); self.ic_pretrain_lr.setDecimals(6)
         self.ic_pretrain_lr.setSingleStep(0.0001); self.ic_pretrain_lr.setValue(0.001)
         self.ic_pretrain_lr.setFixedHeight(26)
+        self.ic_pretrain_lr.setFixedWidth(self.PHASE_FIELD_W)
         ic_lr_row.addStretch(); ic_lr_row.addWidget(self.ic_pretrain_lr)
         ic_train_fields_layout.addLayout(ic_lr_row)
 
@@ -2776,7 +2843,8 @@ class MainWindow(QMainWindow):
             ["MSE", "MAE", "mean l2 relative error",
              "mean absolute percentage error", "softplus"])
         self.ic_pretrain_loss_combo.setFixedHeight(26)
-        self._fit_combo_width(self.ic_pretrain_loss_combo, min_width=160)
+        self.ic_pretrain_loss_combo.setFixedWidth(self.PHASE_FIELD_W)
+        self.ic_pretrain_loss_combo.view().setMinimumWidth(self.ic_pretrain_loss_combo.view().sizeHintForColumn(0) + 24)
         ic_loss_row.addStretch(); ic_loss_row.addWidget(self.ic_pretrain_loss_combo)
         ic_train_fields_layout.addLayout(ic_loss_row)
 
@@ -2788,6 +2856,7 @@ class MainWindow(QMainWindow):
         self.ic_pretrain_test.setSingleStep(1000)
         self.ic_pretrain_test.setValue(10000)
         self.ic_pretrain_test.setFixedHeight(26)
+        self.ic_pretrain_test.setFixedWidth(self.PHASE_FIELD_W)
         ic_test_row.addStretch(); ic_test_row.addWidget(self.ic_pretrain_test)
         ic_train_fields_layout.addLayout(ic_test_row)
 
@@ -2808,6 +2877,7 @@ class MainWindow(QMainWindow):
         self.ic_pretrain_init.setSingleStep(100)
         self.ic_pretrain_init.setValue(1000)
         self.ic_pretrain_init.setFixedHeight(26)
+        self.ic_pretrain_init.setFixedWidth(self.PHASE_FIELD_W)
         ic_init_row.addStretch(); ic_init_row.addWidget(self.ic_pretrain_init)
         ic_train_fields_layout.addWidget(self.ic_pretrain_init_widget)
         ic_pt_layout.addWidget(self.ic_pretrain_train_fields_widget)
@@ -2950,7 +3020,7 @@ class MainWindow(QMainWindow):
         self.lbfgs_float_combo.addItems(["float64", "float32"])
         self.lbfgs_float_combo.setCurrentText("float32")
         self.lbfgs_float_combo.setFixedHeight(26)
-        self._fit_combo_width(self.lbfgs_float_combo, min_width=80)
+        self.lbfgs_float_combo.setFixedWidth(self.PHASE_FIELD_W)
         _prec_tip = ("Floating-point precision for training. float64 runs the whole training in\n"
                      "double precision: slower, but L-BFGS converges further and is less likely\n"
                      "to stop early. float32 is faster.")
@@ -3168,14 +3238,28 @@ class MainWindow(QMainWindow):
         self.loss_w_init_cb.setToolTip(
             "Before training, evaluate every loss term once and set its weight to c divided by\n"
             "its initial value, so all terms start at the same size (DeepXDE's wave example uses\n"
-            "c = 5). The weights below are then ignored, in every training phase.")
+            "c = 5). The manual weights above are then ignored, in every training phase.\n"
+            "Use it when the loss terms differ by orders of magnitude: on the 1D wave example\n"
+            "it gives 14% error at t = 1, against 80-130% without it (also with IC/BC\n"
+            "weights of 100, RBA or causal training).")
         self.loss_w_init_c = SciLineEdit(5.0); self.loss_w_init_c.setFixedWidth(70)
         self.loss_w_init_c.setEnabled(False)
         self.loss_w_init_cb.toggled.connect(self.loss_w_init_c.setEnabled)
+        self.loss_w_init_cb.toggled.connect(self._update_manual_weights_enabled)
         _wi_row.addWidget(self.loss_w_init_cb); _wi_row.addWidget(self.loss_w_init_c); _wi_row.addStretch()
-        _wg_outer.addLayout(_wi_row)
+        # placed under "Automatic weighting" (it is one), after causal training
+        self._loss_w_init_row = _wi_row
+        # shown instead of usable rows while "Scale by initial losses" sets
+        # every term weight itself
+        self.manual_weights_auto_note = QLabel(
+            "Set automatically from the initial losses (Scale by initial losses, below).")
+        self.manual_weights_auto_note.setWordWrap(True)
+        self._register_hint(self.manual_weights_auto_note, '#74c0fc')
+        self.manual_weights_auto_note.setVisible(False)
+        _wg_outer.addWidget(self.manual_weights_auto_note)
         _wg_outer.addWidget(self.sched_same_weights_cb)
         _wg_inner = QWidget()
+        self._manual_weights_box = _wg_inner
         self.weights_main_layout = QVBoxLayout(_wg_inner)
         self.weights_main_layout.setContentsMargins(0, 0, 0, 0)
         self.weights_main_layout.setSpacing(4)
@@ -3208,7 +3292,7 @@ class MainWindow(QMainWindow):
         ta_layout = QVBoxLayout(self.ta_widget)
         ta_layout.setSpacing(4); ta_layout.setContentsMargins(0, 0, 0, 0)
         self.ta_ref_toggle, self.ta_ref_hint = self._add_reference_toggle(
-            ta_layout, "Show Time-Adaptive reference", self._TA_REFERENCE_TEXT)
+            ta_layout, "About time-adaptive training", self._TA_REFERENCE_TEXT)
 
         # ── Step groups ───────────────────────────────────────
         ta_groups_label = QLabel("Time step groups:")
@@ -3240,7 +3324,7 @@ class MainWindow(QMainWindow):
 
         row_ta2 = QHBoxLayout()
         row_ta2.addWidget(QLabel("IC grid resolution:"))
-        self.ta_grid = QComboBox(); self.ta_grid.addItems(["101", "51", "21", "11"])
+        self.ta_grid = QComboBox(); self.ta_grid.addItems(["201", "101", "51", "21", "11"])
         self.ta_grid.setFixedHeight(28); self.ta_grid.setFixedWidth(100)
         # Editable so a user can type their own per-axis resolution (e.g.
         # 5000 for a fine 1D grid) instead of being limited to the 4
@@ -3315,7 +3399,7 @@ class MainWindow(QMainWindow):
         rar_layout = QVBoxLayout(self.rar_widget)
         rar_layout.setSpacing(4); rar_layout.setContentsMargins(0, 0, 0, 0)
         self.rar_ref_toggle, self.rar_ref_hint = self._add_reference_toggle(
-            rar_layout, "Show RAR reference", self._RAR_REFERENCE_TEXT)
+            rar_layout, "About RAR", self._RAR_REFERENCE_TEXT)
 
         def _rar_row(label, default, min_v, max_v, step):
             row = QHBoxLayout()
@@ -3377,6 +3461,183 @@ class MainWindow(QMainWindow):
         self.rar_widget.setVisible(False)
         adapt_layout.addWidget(self.rar_widget)
 
+        # Automatic weighting, on the Loss Weights page: per-point weights and
+        # causal training change how the loss is weighted (not which points
+        # or which time window are trained), so they sit with the loss
+        # weights and combine with any Adaptive Training method.
+        self.auto_weights_box = QWidget()
+        _aw = QVBoxLayout(self.auto_weights_box)
+        _aw.setContentsMargins(0, 8, 0, 0); _aw.setSpacing(5)
+        _aw_title = QLabel("Automatic weighting")
+        _aw_title.setStyleSheet("font-weight: 600;")
+        self.auto_weights_ref_toggle = self._ref_button("About automatic weighting")
+        self._ref_row(_aw, self.auto_weights_ref_toggle, _aw_title)
+        self.auto_weights_note = QLabel(
+            "Per-point weights and causal training weight the PDE residual inside its term: point "
+            "by point (RBA, SA-PINN) or by time. The weights above still set the balance between the "
+            "PDE, boundary and initial-condition terms.\n\n"
+            "For hard problems (sharp fronts, phase fields): first make periodicity exact and try the "
+            "initial condition both exact and as a loss term (Initial Conditions / Boundary Conditions "
+            "pages), then add one of these: "
+            "RBA (cheap, safe), SA-PINN with the weights kept during L-BFGS (best on Cahn-Hilliard), or "
+            "causal training (best on Allen-Cahn, with an MsFFN network). "
+            "On a problem a plain PINN already solves well they can make the result worse — "
+            "compare with a plain run. Measured on 14 problems in benchmarks/training_methods.md.")
+        self.auto_weights_note.setWordWrap(True)
+        self._register_hint(self.auto_weights_note, '#74c0fc')
+        self.auto_weights_note.setVisible(False)
+        self.auto_weights_ref_toggle.toggled.connect(self.auto_weights_note.setVisible)
+        _aw.addWidget(self.auto_weights_note)
+        _pl_w = QWidget(); _pl = QVBoxLayout(_pl_w); _pl.setContentsMargins(0, 0, 0, 0); _pl.setSpacing(5)
+        _cl_w = QWidget(); _cl = QVBoxLayout(_cl_w); _cl.setContentsMargins(0, 0, 0, 0); _cl.setSpacing(5)
+        _aw.addWidget(_pl_w)
+        _aw.addWidget(_cl_w)
+        _aw.addLayout(self._loss_w_init_row)
+        self.weights_group.layout().addWidget(self.auto_weights_box)
+
+        def _num_row(lay, label, spin):
+            row = QHBoxLayout()
+            row.addWidget(QLabel(label))
+            spin.setFixedHeight(28); spin.setFixedWidth(100)
+            row.addStretch(); row.addWidget(spin)
+            lay.addLayout(row)
+
+        self.causal_cb = QCheckBox("Causal training")
+        self.causal_cb.setToolTip(
+            "Wang, Sankaran & Perdikaris (2024), 'Respecting causality for training\n"
+            "physics-informed neural networks'. The time interval is split into chunks;\n"
+            "each chunk's residual is weighted by exp(-ε · the residual loss of all\n"
+            "earlier chunks), so later times only start to count once earlier times\n"
+            "are fitted. The weights are held fixed during L-BFGS.\n"
+            "Tip: don't combine it with per-point weights -- both reweight the same\n"
+            "residuals, and together they did worse than either alone.")
+        _cl.addWidget(self.causal_cb)
+        self.causal_widget = QWidget()
+        cz = QVBoxLayout(self.causal_widget)
+        cz.setSpacing(4); cz.setContentsMargins(18, 0, 0, 0)
+        self.causal_chunks = QSpinBox(); self.causal_chunks.setRange(2, 1000); self.causal_chunks.setValue(32)
+        self.causal_chunks.setToolTip("How many equal time chunks the interval is split into.")
+        _num_row(cz, "Time chunks:", self.causal_chunks)
+        self.causal_anneal_cb = QCheckBox("Raise ε step by step (0.01 → 100)")
+        self.causal_anneal_cb.setChecked(True)
+        self.causal_anneal_cb.setToolTip(
+            "ε starts at 0.01 and moves to 0.1, 1, 10 and 100, each time once every chunk weight\n"
+            "is above 0.99 (Wang, Sankaran & Perdikaris, 2024, Algorithm 1). A single fixed ε is hard to pick -- too\n"
+            "small and the weights never hold anything back, too large and later times never\n"
+            "start. On 1D Allen-Cahn the schedule gave 0.18% error at t = 1, fixed ε = 1 gave 0.65%.")
+        cz.addWidget(self.causal_anneal_cb)
+        self.causal_eps = QDoubleSpinBox(); self.causal_eps.setDecimals(3)
+        self.causal_eps.setRange(0.001, 1e6); self.causal_eps.setValue(1.0)
+        self.causal_eps.setToolTip(
+            "Causality strength ε. Larger values hold later times back more strongly.\n"
+            "It acts on the residual loss itself, so it depends on how large the residuals are:\n"
+            "the log prints how far in time the weights have settled (all close to 1).")
+        _num_row(cz, "Fixed ε:", self.causal_eps)
+        self.causal_anneal_cb.toggled.connect(lambda on: self.causal_eps.setEnabled(not on))
+        self.causal_eps.setEnabled(False)
+        self.causal_widget.setVisible(False)
+        _cl.addWidget(self.causal_widget)
+        self.causal_cb.toggled.connect(self.causal_widget.setVisible)
+
+        pw_row = QHBoxLayout()
+        pw_row.addWidget(QLabel("Per-point weights:"))
+        self.point_weights_combo = QComboBox()
+        self.point_weights_combo.addItem("None", "None")
+        self.point_weights_combo.addItem("Residual-based attention (RBA)", "RBA")
+        self.point_weights_combo.addItem("Self-adaptive (SA-PINN)", "SA-PINN")
+        self.point_weights_combo.setFixedHeight(28)
+        self.point_weights_combo.setToolTip(
+            "Each training point's PDE residual gets its own weight, which grows where the\n"
+            "residual stays large -- usually at sharp fronts and interfaces.\n"
+            "RBA: Anagnostopoulos, Toscano, Stergiopulos & Karniadakis (2024), 'Residual-based\n"
+            "attention in physics-informed neural networks': w <- gamma*w + eta*|r|/max|r| after\n"
+            "every Adam step (cheap, nothing extra to train).\n"
+            "SA-PINN: McClenny & Braga-Neto (2023), 'Self-adaptive physics-informed neural networks':\n"
+            "the weights are trained by gradient ascent on the loss the network minimizes.\n"
+            "Only the training points are weighted (the test loss stays the plain one).\n"
+            "They help most where the plain PINN struggles; on a problem it already solves well\n"
+            "they can make the result worse -- compare with a run without them.\n"
+            "Use SA-PINN with an exact initial condition: it weights only the PDE points, so an\n"
+            "initial condition given as a loss term (as in time-adaptive training) can be\n"
+            "outweighed -- on 2D Allen-Cahn (Wight & Zhao) the network then learned u = 0.")
+        pw_row.addWidget(self.point_weights_combo, 1)
+        _pl.addLayout(pw_row)
+        self.rba_widget = QWidget()
+        rz = QVBoxLayout(self.rba_widget)
+        rz.setSpacing(4); rz.setContentsMargins(18, 0, 0, 0)
+        self.rba_gamma = QDoubleSpinBox(); self.rba_gamma.setDecimals(4)
+        self.rba_gamma.setRange(0.0001, 0.9999); self.rba_gamma.setSingleStep(0.001); self.rba_gamma.setValue(0.999)
+        self.rba_gamma.setToolTip("How much of a weight is kept each step (memory). The weights level off at about eta / (1 - gamma).")
+        _num_row(rz, "Decay γ:", self.rba_gamma)
+        self.rba_eta = QDoubleSpinBox(); self.rba_eta.setDecimals(4)
+        self.rba_eta.setRange(0.0001, 100.0); self.rba_eta.setSingleStep(0.005); self.rba_eta.setValue(0.01)
+        self.rba_eta.setToolTip("How much the normalized residual |r|/max|r| adds to a weight each step.")
+        _num_row(rz, "Step η:", self.rba_eta)
+        self.rba_widget.setVisible(False)
+        _pl.addWidget(self.rba_widget)
+        self.sa_widget = QWidget()
+        sz = QVBoxLayout(self.sa_widget)
+        sz.setSpacing(4); sz.setContentsMargins(18, 0, 0, 0)
+        self.sa_lr = QDoubleSpinBox(); self.sa_lr.setDecimals(5)
+        self.sa_lr.setRange(0.00001, 10.0); self.sa_lr.setSingleStep(0.001); self.sa_lr.setValue(0.005)
+        self.sa_lr.setToolTip("Learning rate of the weights' gradient ascent (Adam).")
+        _num_row(sz, "Weights' learning rate:", self.sa_lr)
+        self.sa_normalize_cb = QCheckBox("Keep the mean weight at 1")
+        self.sa_normalize_cb.setChecked(False)
+        self.sa_normalize_cb.setToolTip(
+            "Rescales the weights to mean 1 after every step, so only where the emphasis lies\n"
+            "changes -- a safeguard if the loss grows without bound. Unchecked (the default), the\n"
+            "weights only grow, by about the learning rate every step, as in McClenny & Braga-Neto\n"
+            "(2023). With the weights held during L-BFGS, the unchecked version was the more\n"
+            "reliable one (1D Allen-Cahn, three seeds: 0.13-0.20% at t = 1, against 0.10-2.7%).")
+        sz.addWidget(self.sa_normalize_cb)
+        self.sa_widget.setVisible(False)
+        _pl.addWidget(self.sa_widget)
+
+        self.pw_lbfgs_widget = QWidget()
+        lz = QHBoxLayout(self.pw_lbfgs_widget)
+        lz.setContentsMargins(18, 0, 0, 0)
+        lz.addWidget(QLabel("During L-BFGS:"))
+        self.pw_lbfgs_combo = QComboBox()
+        self.pw_lbfgs_combo.addItem("Plain loss (weights off)", "plain")
+        self.pw_lbfgs_combo.addItem("Keep the weights", "keep")
+        self.pw_lbfgs_combo.setFixedHeight(26)
+        self.pw_lbfgs_combo.setToolTip(
+            "Plain loss: Adam trains with the point weights, then L-BFGS refines on the ordinary loss.\n"
+            "Safe default -- keeping the weights made already-accurate problems (1D Burgers,\n"
+            "Kovasznay flow) 2-10x worse.\n"
+            "Keep the weights: L-BFGS goes on with the weights Adam ended with.\n"
+            "Better where the plain PINN struggles (Cahn-Hilliard, Allen-Cahn: about 1.5-2x lower\n"
+            "error than plain loss; SA-PINN needs it -- without it, it barely helped).")
+        lz.addWidget(self.pw_lbfgs_combo, 1)
+        self.pw_lbfgs_widget.setVisible(False)
+        _pl.addWidget(self.pw_lbfgs_widget)
+
+        def _pw_changed(_i=None):
+            m = self.point_weights_combo.currentData()
+            self.rba_widget.setVisible(m == "RBA")
+            self.sa_widget.setVisible(m == "SA-PINN")
+            self.pw_lbfgs_widget.setVisible(m in ("RBA", "SA-PINN"))
+        self.point_weights_combo.currentIndexChanged.connect(_pw_changed)
+
+        # Causal training and per-point weights both reweight the PDE
+        # residual; together they did worse than either alone (1D Allen-Cahn:
+        # 1.8% at t = 1 against 0.18% causal, 0.43% RBA).
+        self.causal_pw_warn = QLabel(
+            "Causal training and per-point weights both reweight the same residuals; "
+            "together they did worse than either alone (benchmarks/training_methods.md). "
+            "Pick one.")
+        self.causal_pw_warn.setWordWrap(True)
+        self._register_hint(self.causal_pw_warn, '#ffa94d')
+        self.causal_pw_warn.setVisible(False)
+        _aw.addWidget(self.causal_pw_warn)
+
+        def _causal_pw_check(*_a):
+            self.causal_pw_warn.setVisible(self.causal_cb.isChecked()
+                                           and self.point_weights_combo.currentData() in ("RBA", "SA-PINN"))
+        self.causal_cb.toggled.connect(_causal_pw_check)
+        self.point_weights_combo.currentIndexChanged.connect(_causal_pw_check)
+
         left_layout.addWidget(adapt_group)
 
         # ── Parameter Sweep ──────────────────────────────────────
@@ -3396,52 +3657,33 @@ class MainWindow(QMainWindow):
         sweep_toggle_layout = QVBoxLayout(sweep_toggle_group)
         sweep_toggle_layout.setSpacing(5)
 
-        # Top row: Enable, the "📖 Show sweep reference" toggle and
-        # Refresh (shown only while the sweep is enabled) side by side.
-        sweep_top_row = QHBoxLayout()
-        sweep_top_row.setSpacing(10)
+        # Top row: Enable on the left, the reference toggle on the right.
+        # The parameter list updates itself (when the sweep is switched on
+        # and whenever a Parameter dropdown opens), so there is no Refresh.
         self.sweep_enable_cb = QCheckBox("Enable Parameter Sweep")
         self.sweep_enable_cb.toggled.connect(self._on_sweep_enabled_toggled)
-        sweep_top_row.addWidget(self.sweep_enable_cb)
-        sweep_ref_toggle = QCheckBox("\U0001F4D6 Show sweep reference")
-        sweep_ref_toggle.setChecked(False)
-        self._register_hint(sweep_ref_toggle, '#74c0fc')
-        sweep_top_row.addWidget(sweep_ref_toggle)
-        sweep_top_row.addStretch()
-        self.sweep_refresh_btn = QPushButton("Refresh")
-        self.sweep_refresh_btn.setToolTip(
-            "Re-reads the rest of this panel's current settings to update which parameters can be swept")
-        self.sweep_refresh_btn.clicked.connect(lambda: self._refresh_sweep_param_choices())
-        from pinnstudio.ui import icons as _icons_s
-        _icons_s.apply(self.sweep_refresh_btn, "refresh", "text", size=16)
-        self.sweep_refresh_btn.setVisible(False)
-        sweep_top_row.addWidget(self.sweep_refresh_btn)
-        sweep_toggle_layout.addLayout(sweep_top_row)
-        sweep_ref_text = ("Runs the SAME problem multiple times while varying one or more\n"
-                        "settings (learning rate, a PDE coefficient, number of iterations, ...),\n"
-                        "so you can compare results side by side instead of changing a value\n"
-                        "and re-running by hand each time. Each run gets its own numbered\n"
-                        "subfolder under the main \"Save to:\" location, with the full normal set\n"
-                        "of plots/checkpoints for that one run.\n"
-                        "One-at-a-time: one run per value of each swept parameter in turn,\n"
-                        "everything else held at its current value.\n"
-                        "All combinations: every value of every swept parameter, crossed --\n"
-                        "N parameters with k values each means k^N total runs.\n"
-                        "Specified combinations: parameter 1's 1st value runs together with\n"
-                        "parameter 2's 1st value, and so on -- every parameter needs the same\n"
-                        "number of values listed.\n"
-                        "\"Points from:\" (where shown) picks which equation's values are read\n"
-                        "when a parameter lives inside a PDE coefficient.\n"
-                        "Baseline: the box below Mode adds one run with the current settings\n"
-                        "unchanged, before the swept values. When the sweep finishes, its folder\n"
-                        "also holds sweep_error_vs_parameter.png (error and final loss vs the\n"
-                        "swept values) and sweep_summary.csv.")
+        sweep_ref_toggle = self._ref_button("About sweeps")
+        self._ref_row(sweep_toggle_layout, sweep_ref_toggle, self.sweep_enable_cb)
+        sweep_ref_text = ("Runs the same problem several times, changing one or more settings (a learning\n"
+                          "rate, a PDE coefficient, the number of iterations, ...), so the results can be\n"
+                          "compared side by side. Each run gets its own numbered folder under \"Save to\".\n"
+                          "One at a time: one run per value of each parameter in turn, the others at\n"
+                          "their current values.\n"
+                          "All combinations: every value of every parameter, crossed -- N parameters\n"
+                          "with k values each make k^N runs.\n"
+                          "Paired values: parameter 1's 1st value runs with parameter 2's 1st value,\n"
+                          "and so on (every parameter needs the same number of values).\n"
+                          "Bayesian search: each run is chosen from the results so far; Min/Max is\n"
+                          "the search range.\n"
+                          "Baseline adds one run with the current settings, first. When the sweep\n"
+                          "finishes, its folder also holds sweep_error_vs_parameter.png (error and final\n"
+                          "loss against the swept values) and sweep_summary.csv.")
         sweep_ref_hint = QLabel(sweep_ref_text)
         self._register_hint(sweep_ref_hint, '#74c0fc')
         sweep_ref_hint.setWordWrap(True)
         sweep_ref_hint.setVisible(False)
         sweep_toggle_layout.addWidget(sweep_ref_hint)
-        sweep_ref_toggle.stateChanged.connect(lambda state, h=sweep_ref_hint: h.setVisible(state == 2))
+        sweep_ref_toggle.toggled.connect(sweep_ref_hint.setVisible)
 
         # Everything below (mode, sweep-parameter rows, add/refresh
         # buttons) is only relevant once the sweep is actually enabled --
@@ -3466,15 +3708,15 @@ class MainWindow(QMainWindow):
         # terminology for its Parametric Sweep feature -- named the
         # same way here (grid/zip underneath) since it's a familiar
         # framing for anyone who's used that kind of tool before.
-        self.sweep_mode_combo.addItem("One-at-a-time (vary each parameter separately)", "oat")
-        self.sweep_mode_combo.addItem("All combinations (every value of every parameter)", "grid")
-        self.sweep_mode_combo.addItem("Specified combinations (parameters' Nth values run together)", "zip")
-        self.sweep_mode_combo.addItem("Bayesian search (each run chosen from the results so far)", "bayes")
+        self.sweep_mode_combo.addItem("One at a time", "oat")
+        self.sweep_mode_combo.addItem("All combinations", "grid")
+        self.sweep_mode_combo.addItem("Paired values", "zip")
+        self.sweep_mode_combo.addItem("Bayesian search", "bayes")
         self.sweep_mode_combo.setFixedHeight(26)
         self.sweep_mode_combo.setToolTip(
-            "One-at-a-time: vary ONE parameter per run, the others held at their current values.\n"
-            "All combinations: every value of every parameter, crossed (a Cartesian product/Grid).\n"
-            "Specified combinations: parameter 1's 1st value with parameter 2's 1st value, etc. -- "
+            "One at a time: vary ONE parameter per run, the others held at their current values.\n"
+            "All combinations: every value of every parameter, crossed (a grid).\n"
+            "Paired values: parameter 1's 1st value with parameter 2's 1st value, etc. --\n"
             "every parameter needs the same number of values.\n"
             "Bayesian search: each run picked by a Gaussian-process model of the\n"
             "results so far (DeepXDE's hyperparameter-optimization example) -- each parameter's\n"
@@ -3490,7 +3732,7 @@ class MainWindow(QMainWindow):
         self.sweep_baseline_cb = QCheckBox("Also run the current settings (baseline)")
         self.sweep_baseline_cb.setToolTip(
             "Runs the panel's settings unchanged first, as a reference point.\n"
-            "On by default for One-at-a-time with 2+ parameters and for Bayesian search\n"
+            "On by default for One at a time with 2+ parameters and for Bayesian search\n"
             "(its first point); off otherwise, so only the swept values run.")
         self._sweep_baseline_user = None   # None = automatic, else True/False
         self.sweep_baseline_cb.clicked.connect(self._on_sweep_baseline_clicked)
@@ -3530,9 +3772,6 @@ class MainWindow(QMainWindow):
         # room for one wide line per parameter) rather than v69's
         # single-line-per-row table layout, which needed ~700px of
         # width this column never has.
-        div_sweep_params = QLabel("── Sweep Parameters ──")
-        self._register_section_divider(div_sweep_params)
-        sweep_options_layout.addWidget(div_sweep_params)
 
 
         self.sweep_rows_widget = QWidget()
@@ -3574,19 +3813,10 @@ class MainWindow(QMainWindow):
         inv_layout = QVBoxLayout(self.inverse_group)
         inv_layout.setSpacing(5)
 
-        # "📖 Show inverse reference" toggle + hint, at the TOP of this
-        # panel (same positioning as the IC/BC/PDE panels' own reference
-        # toggles) rather than mid-panel, after the trainable-variable
-        # rows -- shown once here, applies to the whole panel.
-        inv_ref_row = QHBoxLayout()
-        inv_ref_toggle = QCheckBox("\U0001F4D6 Show inverse reference")
-        inv_ref_toggle.setChecked(False)
-        self._register_hint(inv_ref_toggle, '#74c0fc')
-        inv_ref_row.addWidget(inv_ref_toggle)
-        inv_ref_row.addStretch()
-        inv_ref_row_widget = QWidget()
-        inv_ref_row_widget.setLayout(inv_ref_row)
-        inv_layout.addWidget(inv_ref_row_widget)
+        # Reference toggle on the first row (the standard _ref_button), its
+        # text right below it.
+        inv_ref_toggle = self._ref_button("About inverse problems")
+        self._ref_row(inv_layout, inv_ref_toggle, QLabel("Trainable (unknown) variables:"))
         inv_ref_text = ("Each trainable (unknown) variable is a value the solver infers (fits)\n"
                         "during training, e.g. a diffusion coefficient or reaction rate.\n"
                         "The first is named 'trainable_variable_1' by default -- rename any of\n"
@@ -3606,9 +3836,8 @@ class MainWindow(QMainWindow):
         inv_ref_hint.setWordWrap(True)
         inv_ref_hint.setVisible(False)
         inv_layout.addWidget(inv_ref_hint)
-        inv_ref_toggle.stateChanged.connect(lambda state, h=inv_ref_hint: h.setVisible(state == 2))
+        inv_ref_toggle.toggled.connect(inv_ref_hint.setVisible)
 
-        inv_layout.addWidget(QLabel("Trainable (unknown) variables:"))
         self.inv_vars_widget = QWidget()
         self.inv_vars_layout = QVBoxLayout(self.inv_vars_widget)
         self.inv_vars_layout.setSpacing(3)
@@ -3733,7 +3962,7 @@ class MainWindow(QMainWindow):
         restore_layout = QVBoxLayout(restore_group)
         restore_layout.setSpacing(5)
 
-        restore_toggle = QCheckBox("🔄 Enable Model Restore && Visualization")
+        restore_toggle = QCheckBox("Enable Model Restore && Visualization")
         restore_toggle.setChecked(False)
         self._register_hint(restore_toggle, '#a0c4ff')
         restore_layout.addWidget(restore_toggle)
@@ -4066,6 +4295,7 @@ class MainWindow(QMainWindow):
         self.sketch_panel = SketchPanel()
         self.sketch_panel.shapes_edited.connect(self._on_sketch_edited)
         self.sketch_panel.set_bc_provider(self._sketch_bc_rows, self._sketch_domain)
+        self._hook_view3d_points(self.sketch_panel)
         self.sketch_panel.new_bc_requested.connect(self._on_sketch_new_bc)
         self.sketch_panel.add_to_bc_requested.connect(self._on_sketch_add_to_bc)
         self.sketch_panel.remove_from_bcs_requested.connect(self._on_sketch_remove_from_bcs)
@@ -4105,6 +4335,7 @@ class MainWindow(QMainWindow):
         self.domain_view = SketchPanel()
         self.domain_view.make_viewer()
         self.domain_view.set_bc_provider(self._sketch_bc_rows, self._sketch_domain)
+        self._hook_view3d_points(self.domain_view)
         self.domain_view.new_bc_requested.connect(self._on_sketch_new_bc)
         self.domain_view.add_to_bc_requested.connect(self._on_sketch_add_to_bc)
         self.domain_view.remove_from_bcs_requested.connect(self._on_sketch_remove_from_bcs)
@@ -4126,6 +4357,7 @@ class MainWindow(QMainWindow):
         _sbar = QHBoxLayout()
         _sbar.setContentsMargins(6, 0, 6, 0)
         self.script_status = QLabel("The DeepXDE script for this problem, as Export script would write it.")
+        self.script_status.setWordWrap(True)        # a long one-liner would set the column's minimum width
         self.script_status.setObjectName("pageDesc")
         _sbar.addWidget(self.script_status, 1)
         self.script_copy_btn = QPushButton("Copy")
@@ -4279,7 +4511,7 @@ class MainWindow(QMainWindow):
         # Second row for Error Analysis/Export -- its own row for the same
         # independent-minimum-width reason as ctrl_row_save above.
         ctrl_row2 = QHBoxLayout()
-        self.ea_btn = QPushButton("📊 Error Analysis")
+        self.ea_btn = QPushButton("Error Analysis")
         self.ea_btn.setFixedHeight(28)
         self._register_style(self.ea_btn, "button", lambda css: f"""
             QPushButton {{ background: #1a3a5a; color: #74c0fc; {css}
@@ -4298,7 +4530,7 @@ class MainWindow(QMainWindow):
         # same pattern as self._plot_viz_settings just below, and
         # round-tripped into/out of PINNConfig by _build_config()/
         # _apply_config().
-        self.loss_plot_btn = QPushButton("📉 Loss Plot Settings")
+        self.loss_plot_btn = QPushButton("Loss Plot Settings")
         self.loss_plot_btn.setFixedHeight(28)
         self._register_style(self.loss_plot_btn, "button", lambda css: f"""
             QPushButton {{ background: #3a2a1a; color: #ffa94d; {css}
@@ -4351,7 +4583,7 @@ class MainWindow(QMainWindow):
             'axis_label_fontsize': 10.0,
         }
 
-        self.export_btn = QPushButton("💾 Export Solution")
+        self.export_btn = QPushButton("Export Solution")
         self.export_btn.setFixedHeight(28)
         self._register_style(self.export_btn, "button", lambda css: f"""
             QPushButton {{ background: #1a4a3a; color: #69db7c; {css}
@@ -4580,8 +4812,6 @@ class MainWindow(QMainWindow):
         available to sweep over against the panel's current settings."""
         if hasattr(self, 'sweep_options_widget'):
             self.sweep_options_widget.setVisible(checked)
-        if hasattr(self, 'sweep_refresh_btn'):
-            self.sweep_refresh_btn.setVisible(checked)
         if hasattr(self, 'solve_btn'):
             self.solve_btn.setText(" Run Sweep" if checked else " Solve")
             self.solve_btn.setToolTip(
@@ -4627,7 +4857,7 @@ class MainWindow(QMainWindow):
         row_widget = QWidget()
         row_widget.setObjectName("sweepParamRow")
         row_widget.setStyleSheet(
-            "QWidget#sweepParamRow { border-bottom: 1px solid #333338; }")
+            "QWidget#sweepParamRow { border-bottom: 1px solid palette(midlight); }")
         row_layout = QVBoxLayout(row_widget)
         row_layout.setSpacing(3)
         row_layout.setContentsMargins(0, 4, 0, 6)
@@ -4646,65 +4876,65 @@ class MainWindow(QMainWindow):
         header_row.addStretch(); header_row.addWidget(remove_btn)
         row_layout.addLayout(header_row)
 
-        # Parameter
+        # Parameter -- its list is refreshed from the current settings every
+        # time the dropdown opens (so it never goes stale; no Refresh button)
         param_row = QHBoxLayout()
         param_row.addWidget(QLabel("Parameter:"))
-        param_combo = QComboBox()
+        _self = self
+
+        class _ParamCombo(QComboBox):
+            def showPopup(self_c):
+                _self._refresh_sweep_param_choices()
+                super().showPopup()
+        param_combo = _ParamCombo()
         param_combo.setFixedHeight(26)
-        param_row.addStretch(); param_row.addWidget(param_combo)
+        param_combo.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        param_row.addWidget(param_combo, 1)
         row_layout.addLayout(param_row)
 
-        # Sweep as (hidden for categorical parameters -- those are
-        # always a plain list of choices, there's no range to pick)
-        mode_row_widget = QWidget()
-        mode_row = QHBoxLayout(mode_row_widget)
-        mode_row.setContentsMargins(0, 0, 0, 0)
-        mode_row.addWidget(QLabel("Sweep as:"))
+        # Values: how to give them (a list, or a linear/log range) and the
+        # values themselves, on one line
+        values_row = QHBoxLayout()
+        values_row.setSpacing(4)
+        values_row.addWidget(QLabel("Values:"))
         mode_combo = QComboBox()
-        mode_combo.addItem("List of values", "list")
-        mode_combo.addItem("Linear range", "linear")
-        mode_combo.addItem("Log range", "log")
-        mode_combo.setFixedHeight(24)
-        mode_row.addStretch(); mode_row.addWidget(mode_combo)
-        row_layout.addWidget(mode_row_widget)
+        mode_combo.addItem("List", "list")
+        mode_combo.addItem("Linear", "linear")
+        mode_combo.addItem("Log", "log")
+        mode_combo.setFixedHeight(26)
+        mode_combo.setToolTip("A list of values, or Steps values spread evenly (linearly or on a log scale) from Min to Max")
+        mode_row_widget = mode_combo          # hidden for categorical parameters (always a list of choices)
+        values_row.addWidget(mode_combo)
 
-        # Values (list mode) -- label above the field on its own line
-        # (like "PDE 1 (residual = 0):" elsewhere in this panel) rather
-        # than label-then-field on one line, so a longer comma-separated
-        # list has real room to be typed/read in this narrow column.
-        list_widget = QWidget()
-        list_layout = QVBoxLayout(list_widget)
-        list_layout.setContentsMargins(0, 0, 0, 0)
-        list_layout.setSpacing(2)
-        list_layout.addWidget(QLabel("Values:"))
-        list_edit = QLineEdit()
-        list_edit.setPlaceholderText("comma-separated, e.g. 0.001, 0.005, 0.01")
-        list_edit.setFixedHeight(26)
-        list_layout.addWidget(list_edit)
-        row_layout.addWidget(list_widget)
+        list_widget = QLineEdit()
+        list_widget.setPlaceholderText("comma-separated, e.g. 0.001, 0.005, 0.01")
+        list_widget.setFixedHeight(26)
+        list_edit = list_widget
+        values_row.addWidget(list_widget, 1)
 
-        # Range (linear/log mode)
         range_widget = QWidget()
         range_row = QHBoxLayout(range_widget)
         range_row.setContentsMargins(0, 0, 0, 0)
         range_row.setSpacing(4)
-        range_row.addWidget(QLabel("Min:"))
+        range_row.addWidget(QLabel("Min"))
         min_spin = QDoubleSpinBox()
         min_spin.setRange(-1e9, 1e9); min_spin.setDecimals(4)
-        min_spin.setFixedWidth(62); min_spin.setFixedHeight(24)
-        range_row.addWidget(min_spin)
-        range_row.addWidget(QLabel("Max:"))
+        min_spin.setMinimumWidth(64); min_spin.setFixedHeight(26)
+        min_spin.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
+        range_row.addWidget(min_spin, 1)
+        range_row.addWidget(QLabel("Max"))
         max_spin = QDoubleSpinBox()
         max_spin.setRange(-1e9, 1e9); max_spin.setDecimals(4); max_spin.setValue(1.0)
-        max_spin.setFixedWidth(62); max_spin.setFixedHeight(24)
-        range_row.addWidget(max_spin)
-        range_row.addWidget(QLabel("Steps:"))
+        max_spin.setMinimumWidth(64); max_spin.setFixedHeight(26)
+        max_spin.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
+        range_row.addWidget(max_spin, 1)
+        range_row.addWidget(QLabel("Steps"))
         n_spin = QSpinBox()
         n_spin.setRange(2, 100); n_spin.setValue(5)
-        n_spin.setFixedWidth(48); n_spin.setFixedHeight(24)
+        n_spin.setFixedWidth(52); n_spin.setFixedHeight(26)
         range_row.addWidget(n_spin)
-        range_row.addStretch()
-        row_layout.addWidget(range_widget)
+        values_row.addWidget(range_widget, 1)
+        row_layout.addLayout(values_row)
 
         def _update_value_widgets():
             meta = param_combo.itemData(param_combo.currentIndex(), Qt.ItemDataRole.UserRole + 1) or {}
@@ -4739,7 +4969,7 @@ class MainWindow(QMainWindow):
         self._update_sweep_baseline_default()
 
         def _remove():
-            row_widget.deleteLater()
+            self._drop_row_widget(self.sweep_rows_layout, row_widget)
             if row_data in self.sweep_row_list:
                 self.sweep_row_list.remove(row_data)
             self._update_sweep_baseline_default()
@@ -4959,6 +5189,103 @@ class MainWindow(QMainWindow):
             row_l.addWidget(edit)
             self.output_formula_rows_layout.addWidget(row_w)
             self.output_formula_edits.append(edit)
+
+    def _tpl_set_output_scale(self, scale):
+        """A template's output scaling (Output transform, Scale/shift): turned
+        on with its scales, or -- when the previous template set one --
+        turned off again, so it never carries over to the next template."""
+        if scale:
+            self._set_combo_data(self.output_transform_mode_combo, "scale")
+            for i, r in enumerate(self.output_transform_rows):
+                r["scale"].setValue(scale[i] if i < len(scale) else 1.0)
+                r["shift"].setValue(0.0)
+            self.output_transform_cb.setChecked(True)
+            self._tpl_output_scaled = True
+        elif getattr(self, "_tpl_output_scaled", False):
+            for r in self.output_transform_rows:
+                r["scale"].setValue(1.0)
+                r["shift"].setValue(0.0)
+            self.output_transform_cb.setChecked(False)
+            self._tpl_output_scaled = False
+
+    def _refresh_ic_names(self):
+        """Initial Conditions page: label each output by its current name."""
+        names = [e.text().strip() for e in getattr(self, "output_name_inputs", [])]
+        for i, (sep, act) in enumerate(getattr(self, "_ic_name_widgets", [])):
+            nm = names[i] if i < len(names) and names[i] else f"u{i + 1}"
+            try:
+                sep.setText(f"── Output {i+1} ({nm}) ──")
+                if act is not None:
+                    act.setText(f"IC for {nm}")
+            except RuntimeError:          # a widget already rebuilt away
+                pass
+
+    def _update_exact_notes(self):
+        """Network page: say when the Boundary/Initial Conditions pages' exact
+        constraints build the input / output transform."""
+        if hasattr(self, "exact_inputs_note"):
+            self.exact_inputs_note.setVisible(self.periodic_inputs_cb.isChecked())
+        if hasattr(self, "exact_outputs_note"):
+            self.exact_outputs_note.setVisible(any(cb.isChecked() for cb in getattr(self, "ic_hard", [])))
+
+    def _tpl_set_extras(self, t):
+        """A template's exact-constraint and training-method settings: an
+        input feature formula ('input_features', e.g. a periodic embedding),
+        output transform formulas ('output_formula', one per output, e.g. an
+        exact initial condition) and per-point weights ('point_weights',
+        'point_weights_lbfgs'). Whatever the previous template turned on and
+        this one doesn't set is turned off again, so it never carries over."""
+        feats = t.get('input_features')
+        if feats:
+            self._set_combo_data(self.input_transform_mode_combo, "formula")
+            self.input_feature_formula_edit.setText(feats)
+            self.input_transform_cb.setChecked(True)
+            self._tpl_input_features = True
+        elif getattr(self, "_tpl_input_features", False):
+            self.input_feature_formula_edit.setText("")
+            self._set_combo_data(self.input_transform_mode_combo, "scale")
+            self.input_transform_cb.setChecked(False)
+            self._tpl_input_features = False
+        forms = t.get('output_formula')
+        if forms:
+            self._set_combo_data(self.output_transform_mode_combo, "formula")
+            for i, e in enumerate(self.output_formula_edits):
+                e.setText(forms[i] if i < len(forms) else "")
+            self.output_transform_cb.setChecked(True)
+            self._tpl_output_formula = True
+        elif getattr(self, "_tpl_output_formula", False):
+            for e in self.output_formula_edits:
+                e.setText("")
+            self._set_combo_data(self.output_transform_mode_combo, "scale")
+            if not t.get('output_scale'):
+                self.output_transform_cb.setChecked(False)
+            self._tpl_output_formula = False
+        hard = t.get('ic_hard') or []
+        for i, cb in enumerate(self.ic_hard):
+            cb.setChecked(bool(hard[i]) if i < len(hard) else False)
+        self.periodic_inputs_cb.setChecked(bool(t.get('periodic_inputs', False)))
+        # causal training and the network type: off / a plain FNN unless the
+        # template asks for them, so neither carries over to the next one
+        self.causal_cb.setChecked(bool(t.get('causal', False)))
+        if t.get('causal'):
+            self.causal_anneal_cb.setChecked(True)
+        net = t.get('network_type', 'FNN')
+        if net != 'FNN' or getattr(self, "_tpl_network_type", False):
+            self.network_type_combo.setCurrentText(net)
+            if 'msffn_sigmas' in t:
+                self.msffn_sigmas_edit.setText(t['msffn_sigmas'])
+            self._tpl_network_type = net != 'FNN'
+        pw = t.get('point_weights')
+        if pw:
+            self._set_combo_data(self.point_weights_combo, pw)
+            self._set_combo_data(self.pw_lbfgs_combo, t.get('point_weights_lbfgs', 'plain'))
+            self.sa_normalize_cb.setChecked(bool(t.get('sa_normalize', False)))
+            self._tpl_point_weights = True
+        elif getattr(self, "_tpl_point_weights", False):
+            self._set_combo_data(self.point_weights_combo, "None")
+            self._set_combo_data(self.pw_lbfgs_combo, "plain")
+            self.sa_normalize_cb.setChecked(False)
+            self._tpl_point_weights = False
 
     def _rebuild_output_transform_rows(self, n_outputs):
         if hasattr(self, "output_formula_rows_layout"):
@@ -5616,8 +5943,15 @@ class MainWindow(QMainWindow):
         for i, e in enumerate(getattr(self, 'custom_bc_list', [])):
             if e['type'].currentData() in self._SKETCH_NO_WHERE_TYPES:
                 continue
-            rows.append({"index": i, "label": f"BC {i + 1}: {self._bc_weight_desc(e)}",
-                         "expr": e['location'].text()})
+            expr = e['location'].text()
+            if e['type'].currentData() == "periodic" and expr.strip():
+                # a periodic row's Where: picks one side; DeepXDE pairs it with
+                # the opposite side along the row's axis, which has the BC too
+                axis = e['axis'].currentText() if 'axis' in e else "x"
+                ax = axis.strip().lower()[:1] if axis else "x"
+                lo, hi = {"x": ("x_min", "x_max"), "y": ("y_min", "y_max"), "z": ("z_min", "z_max")}.get(ax, ("x_min", "x_max"))
+                expr = f"({expr}) or np.isclose({ax}, {lo}) or np.isclose({ax}, {hi})"
+            rows.append({"index": i, "label": f"BC {i + 1}: {self._bc_weight_desc(e)}", "expr": expr})
         return rows
 
     def _sketch_domain(self):
@@ -5800,10 +6134,11 @@ class MainWindow(QMainWindow):
             self._add_custom_geom_shape(shape_type=shape_type, op=op, params=params)
 
     _PINNSTUDIO_EXAMPLES = (
-        "1D Heat", "1D Allen-Cahn", "1D Burgers", "1D Schrödinger",
+        "1D Heat", "1D Allen-Cahn", "1D Allen-Cahn (whole interval)", "1D Cahn-Hilliard", "1D Cahn-Hilliard (Mattey & Ghosh)", "1D Burgers", "1D Schrödinger",
         "2D Heat", "2D Allen-Cahn (Mattey & Ghosh)", "2D Allen-Cahn (Wight & Zhao)",
+        "2D Cahn-Hilliard (Mattey & Ghosh)", "2D Cahn-Hilliard (Wight & Zhao)",
         "2D Burgers (Mathias)", "2D Poisson (L-Shape)", "2D Poisson (Disk)",
-        "3D Heat", "3D Poisson (Sphere)",
+        "3D Heat", "3D Allen-Cahn (Wight & Zhao)", "3D Poisson (Sphere)",
     )
 
     # Settings that are the user's own preferences rather than part of a
@@ -5829,7 +6164,8 @@ class MainWindow(QMainWindow):
         deepxde_examples.py (DeepXDE's own script), applied through
         _apply_config() exactly like opening a saved problem. `inverse`
         loads the example's Inverse-mode version (Example.inverse)."""
-        ex = _dx_examples.BY_NAME[name]
+        ex = _dx_examples.BY_NAME.get(name) or _ps_examples.BY_NAME[name]
+        own = name in _ps_examples.BY_NAME      # a PINNStudio template defined by its settings
         try:
             current = self._build_config()
             keep = {k: getattr(current, k) for k in self._DEEPXDE_KEEP_FIELDS if hasattr(current, k)}
@@ -5869,9 +6205,9 @@ class MainWindow(QMainWindow):
         self._current_path = None
         self._current_problem_name = name
         self._mark_clean()
-        self.log_box.append(f"✅ DeepXDE example loaded: {_ex_catalog.display_name(name)}"
+        self.log_box.append(f"✅ {'Template' if own else 'DeepXDE example'} loaded: {_ex_catalog.display_name(name)}"
                             + (" (Inverse mode)" if inverse else ""))
-        self.log_box.append(f"   Source: {ex.source}")
+        self.log_box.append(f"   {'Paper' if own else 'Source'}: {ex.source}")
         if ex.note:
             self.log_box.append(f"   Note: {ex.note}")
         if inverse and ex.inverse_note:
@@ -5886,7 +6222,11 @@ class MainWindow(QMainWindow):
             self.quick_examples_combo.blockSignals(False)
             return
         self._shown_example = text
-        if text in _dx_examples.BY_NAME:
+        if text in _dx_examples.BY_NAME or text in _ps_examples.BY_NAME:
+            # a DeepXDE example sets its whole configuration, transforms and
+            # training methods included: nothing left for a template reset
+            self._tpl_output_scaled = self._tpl_input_features = False
+            self._tpl_output_formula = self._tpl_point_weights = False
             # A forward DeepXDE example with an Inverse mode, picked from the
             # Inverse list, loads its Inverse version (like the templates).
             self._apply_deepxde_example(
@@ -5909,6 +6249,10 @@ class MainWindow(QMainWindow):
         # right-Dirichlet BC) -- an extra call here would rebuild the
         # weight rows a second time and silently wipe such a default back
         # to 1.0, so it's intentionally not repeated.
+        # a previous template's transforms / point weights never carry over
+        # (the 1D templates set their own again in _on_template_selected)
+        self._tpl_set_output_scale(None)
+        self._tpl_set_extras({})
         self._on_template_selected(text)
         # The Inverse category loads a template in Inverse mode (which brings
         # in the template's own measured-data file). The Forward list leaves
@@ -6508,19 +6852,44 @@ class MainWindow(QMainWindow):
         "\"Points from:\" picks which equation's residual to rank candidate\n"
         "points by, for a problem with more than one output/equation.")
 
+    def _ref_button(self, label, tip=""):
+        """The standard in-panel reference toggle: a small flat checkable
+        button (info icon + a short label saying what it opens), placed at the
+        right of its row on every page. Its text panel is shown while checked."""
+        b = QToolButton()
+        b.setText(label)
+        b.setCheckable(True)
+        b.setAutoRaise(True)
+        b.setCursor(Qt.CursorShape.PointingHandCursor)
+        b.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        b.setToolTip(tip or f"Show or hide: {label}")
+        from pinnstudio.ui import icons as _icons_r
+        _icons_r.apply(b, "info", "text", size=14)
+        self._register_hint(b, '#74c0fc')
+        return b
+
+    def _ref_row(self, layout, button, *left):
+        """Add a row to `layout`: optional widgets on the left, the reference
+        button on the right."""
+        row = QHBoxLayout()
+        row.setContentsMargins(0, 0, 0, 0)
+        for w in left:
+            row.addWidget(w)
+        row.addStretch()
+        row.addWidget(button)
+        layout.addLayout(row)
+        return row
+
     def _add_reference_toggle(self, layout, label, text):
-        """A "📖 <label>" checkbox plus the hint text it shows/hides, added
-        to `layout` -- the same look as every panel's reference toggle.
-        Returns (toggle, hint)."""
-        toggle = QCheckBox(f"\U0001F4D6 {label}")
-        toggle.setChecked(False)
-        self._register_hint(toggle, '#74c0fc')
+        """A reference toggle (see _ref_button) and the hint text it shows and
+        hides, added to `layout`. Returns (toggle, hint)."""
+        toggle = self._ref_button(label)
         hint = QLabel(text)
         self._register_hint(hint, '#74c0fc')
         hint.setWordWrap(True)
         hint.setVisible(False)
-        toggle.stateChanged.connect(lambda state, h=hint: h.setVisible(state == 2))
-        layout.addWidget(toggle)
+        toggle.toggled.connect(hint.setVisible)
+        self._ref_row(layout, toggle)
         layout.addWidget(hint)
         return toggle, hint
 
@@ -6613,7 +6982,7 @@ class MainWindow(QMainWindow):
         for i in reversed(range(self.pde_main_layout.count())):
             w = self.pde_main_layout.itemAt(i).widget()
             if w:
-                w.deleteLater()
+                self._drop_row_widget(self.pde_main_layout, w)
         self.pde_inputs.clear()
         self.output_name_inputs.clear()
 
@@ -6632,6 +7001,7 @@ class MainWindow(QMainWindow):
                 name_row.addWidget(name_input); name_row.addStretch()
                 self.output_name_inputs.append(name_input)
                 name_input.textChanged.connect(lambda _t: self._refresh_equation_previews())
+                name_input.textChanged.connect(lambda _t: self._refresh_ic_names())
                 nw = QWidget(); nw.setLayout(name_row)
                 self.pde_main_layout.addWidget(nw)
 
@@ -6721,7 +7091,7 @@ class MainWindow(QMainWindow):
         for i in reversed(range(self.bc_main_layout.count())):
             w = self.bc_main_layout.itemAt(i).widget()
             if w:
-                w.deleteLater()
+                self._drop_row_widget(self.bc_main_layout, w)
         self.bc_left_types.clear();   self.bc_left_vals.clear();   self.bc_left_active.clear();   self.bc_left_deriv.clear()
         self.bc_right_types.clear();  self.bc_right_vals.clear();  self.bc_right_active.clear();  self.bc_right_deriv.clear()
         self.bc_bottom_types.clear(); self.bc_bottom_vals.clear(); self.bc_bottom_active.clear(); self.bc_bottom_deriv.clear()
@@ -6730,7 +7100,7 @@ class MainWindow(QMainWindow):
         self.bc_back_types.clear();   self.bc_back_vals.clear();   self.bc_back_active.clear()
         self.bc_boundary_types.clear(); self.bc_boundary_vals.clear(); self.bc_boundary_active.clear()
         self.bc_edge_types.clear();   self.bc_edge_vals.clear();   self.bc_edge_active.clear()
-        self.ic_inputs.clear();       self.ic_active.clear()
+        self.ic_inputs.clear();       self.ic_active.clear();   self.ic_hard.clear()
         if not hasattr(self, 'ic_from_file'): self.ic_from_file = []
         if not hasattr(self, 'ic_file_paths'): self.ic_file_paths = []
         self.ic_from_file.clear()
@@ -6846,8 +7216,13 @@ class MainWindow(QMainWindow):
             )
 
         for i in range(n):
-            name = ["u", "v", "w", "p"][i] if i < 4 else f"u{i+1}"
+            _names_now = [e.text().strip() for e in getattr(self, "output_name_inputs", [])]
+            name = (_names_now[i] if i < len(_names_now) and _names_now[i]
+                    else (["u", "v", "w", "p"][i] if i < 4 else f"u{i+1}"))
             sep = QLabel(f"── Output {i+1} ({name}) ──")
+            if i == 0:
+                self._ic_name_widgets = []
+            self._ic_name_widgets.append([sep, None])
             self._register_section_divider(sep, 'margin-top: 4px; ')
             self.bc_main_layout.addWidget(sep)
 
@@ -6944,8 +7319,26 @@ class MainWindow(QMainWindow):
 
             # IC
             ic_act = QCheckBox(f"IC for {name}"); ic_act.setChecked(True)
+            ic_act.toggled.connect(lambda _on: self._build_weight_inputs(self.num_outputs_spin.value(), keep=True)
+                                   if getattr(self, "weight_widgets", None) is not None and hasattr(self, "weights_main_layout") else None)
             self.ic_active.append(ic_act)
-            self.bc_main_layout.addWidget(ic_act)
+            self._ic_name_widgets[-1][1] = ic_act
+            _ic_row = QHBoxLayout()
+            _ic_row.addWidget(ic_act)
+            _ic_row.addStretch()
+            ic_hard = QCheckBox("Exact (built into the network)")
+            ic_hard.setToolTip(
+                f"Build the initial condition into the network instead of fitting it:\n"
+                f"{name} = IC(x) + τ·N, τ = (t − t_min)/(t_max − t_min), so {name} equals the IC exactly\n"
+                f"at t_min whatever the network learns, and the IC needs no loss term (its row is\n"
+                f"switched off). Needs the IC as a formula; not with time-adaptive training.\n"
+                f"With RBA and exact periodicity this gave the lowest errors on the phase-field\n"
+                f"examples (Allen-Cahn, Cahn-Hilliard) -- see benchmarks/training_methods.md.")
+            ic_hard.toggled.connect(lambda on, a=ic_act: (a.setChecked(not on), a.setEnabled(not on)))
+            ic_hard.toggled.connect(lambda _on: self._update_exact_notes())
+            self.ic_hard.append(ic_hard)
+            _ic_row.addWidget(ic_hard)
+            self.bc_main_layout.addLayout(_ic_row)
 
             ic_inp = QLineEdit()
             if is_2d:
@@ -6962,7 +7355,7 @@ class MainWindow(QMainWindow):
             # default; this is opt-in per output, and only ever applies to
             # output 0's IC (single global IC file per problem).
             _ic_file_fmt = "x,y,z,t,c" if is_3d else ("x,y,t,c" if is_2d else "x,t,c")
-            ic_file_cb = QCheckBox(f"📂 Load IC from file ({_ic_file_fmt} format)")
+            ic_file_cb = QCheckBox(f"Load IC from file ({_ic_file_fmt} format)")
             ic_file_cb.setChecked(False)
             self._register_hint(ic_file_cb, '#ffa94d')
             self.bc_main_layout.addWidget(ic_file_cb)
@@ -7163,6 +7556,10 @@ class MainWindow(QMainWindow):
             )
 
     _BC_CUSTOM_WHERE = "Custom expression…"
+    # a periodic row's Where: is the side DeepXDE starts from; the axis says
+    # which pair of sides is tied together
+    _PERIODIC_SIDE = {"x": "left", "y": "bottom", "z": "front"}
+    _PERIODIC_PAIR = {"x": "left ↔ right", "y": "bottom ↔ top", "z": "front ↔ back"}
 
     def _bc_where_choices(self):
         """(label, expression) pairs for the "Where:" picker, for the
@@ -7173,11 +7570,14 @@ class MainWindow(QMainWindow):
         if self._is_ode():
             return [("Both ends (t₀ and t₁)", "True"), ("Start (t = t₀)", "start"), ("End (t = t₁)", "end")]
         ch = [("Whole boundary", "True"),
-              ("Left (x = x_min)", "left"), ("Right (x = x_max)", "right"), ("Left and right", "left or right")]
+              ("Left side (x = x_min)", "left"), ("Right side (x = x_max)", "right"),
+              ("Left and right sides", "left or right")]
         if is_2d or is_3d:
-            ch += [("Bottom (y = y_min)", "bottom"), ("Top (y = y_max)", "top"), ("Bottom and top", "bottom or top")]
+            ch += [("Bottom side (y = y_min)", "bottom"), ("Top side (y = y_max)", "top"),
+                   ("Bottom and top sides", "bottom or top")]
         if is_3d:
-            ch += [("Front (z = z_min)", "front"), ("Back (z = z_max)", "back"), ("Front and back", "front or back")]
+            ch += [("Front side (z = z_min)", "front"), ("Back side (z = z_max)", "back"),
+                   ("Front and back sides", "front or back")]
         return ch
 
     def _fill_bc_where_picker(self, pick, edit):
@@ -7190,20 +7590,29 @@ class MainWindow(QMainWindow):
         self._sync_bc_where_picker(pick, edit)
 
     def _sync_bc_where_picker(self, pick, edit):
+        """The picker follows the expression; the expression box is shown
+        only for a custom expression (a named choice says it in words, and
+        its code -- "True", "left" -- would only repeat it)."""
         text = " ".join(edit.text().split())
         if text == "":
             text = "True"  # an empty "Where" means the whole boundary
         idx = pick.findData(text)
+        custom = bool(edit.property("customWhere")) or idx < 0
         pick.blockSignals(True)
-        pick.setCurrentIndex(idx if idx >= 0 else pick.count() - 1)
+        pick.setCurrentIndex(pick.count() - 1 if custom else idx)
         pick.blockSignals(False)
+        edit.setVisible(custom)
 
     def _on_bc_where_picked(self, pick, edit):
         expr = pick.currentData()
-        if expr is None:
+        if expr is None:                       # Custom expression…: the box opens, and stays open while typing
+            edit.setProperty("customWhere", True)
+            edit.setVisible(True)
             edit.setFocus()
             return
+        edit.setProperty("customWhere", False)
         edit.setText(expr)
+        self._sync_bc_where_picker(pick, edit)
 
     def _refresh_bc_where_pickers(self):
         """Dimension changed: offer that dimension's sides."""
@@ -7294,7 +7703,7 @@ class MainWindow(QMainWindow):
         loc_pick.setToolTip("Which part of the boundary this condition applies to.\n"
                             "Sides are the domain's own limits: left = x_min, right = x_max,\n"
                             "bottom/top = y_min/y_max, front/back = z_min/z_max.")
-        loc_row.addWidget(loc_pick)
+        loc_row.addWidget(loc_pick, 1)     # fills the row; shares it with the box for a custom expression
         loc_edit = QLineEdit(location)
         # a long Where: set by the sketch or a template shows from its start
         loc_edit.setCursorPosition(0)
@@ -7303,7 +7712,7 @@ class MainWindow(QMainWindow):
         loc_edit.setToolTip(loc_pick.toolTip() + "\nOr any True/False expression in x, y, z (and t), "
                             "e.g. left or right, x <= x_min, np.isclose(x**2 + y**2, 0.25).")
         loc_edit.setFixedHeight(26)
-        loc_row.addWidget(loc_edit, 1)
+        loc_row.addWidget(loc_edit, 2)
         loc_layout.addLayout(loc_row)
         self._fill_bc_where_picker(loc_pick, loc_edit)
         loc_pick.activated.connect(lambda _i: self._on_bc_where_picked(loc_pick, loc_edit))
@@ -7347,6 +7756,9 @@ class MainWindow(QMainWindow):
         axis_combo = QComboBox(); axis_combo.addItems(_axis_choices)
         axis_combo.setCurrentText(axis); axis_combo.setFixedHeight(26); axis_combo.setFixedWidth(60)
         periodic_layout.addWidget(axis_combo)
+        pair_label = QLabel(f"({self._PERIODIC_PAIR.get(axis_combo.currentText(), '')})")
+        self._register_hint(pair_label, '#74c0fc')
+        periodic_layout.addWidget(pair_label)
         periodic_layout.addWidget(QLabel("Derivative order:"))
         deriv_spin = QSpinBox(); deriv_spin.setRange(0, 1); deriv_spin.setValue(deriv_order)
         deriv_spin.setFixedHeight(26); deriv_spin.setFixedWidth(50)
@@ -7559,6 +7971,30 @@ class MainWindow(QMainWindow):
         }
         default_val_label = "Value:"
 
+        _own_sides = {"x": ("left", "right", "left or right"), "y": ("bottom", "top", "bottom or top"),
+                      "z": ("front", "back", "front or back")}
+
+        def _periodic_where_is_auto():
+            """A periodic row whose Where: is standard for its axis -- either
+            side of the pair, or the whole boundary (DeepXDE's own examples
+            use that: points off the paired sides map to themselves, so it
+            adds nothing) -- says nothing the axis doesn't: hide Where:. It is
+            never rewritten here, so a loaded project trains as before."""
+            if type_combo.currentData() != "periodic":
+                return False
+            txt = " ".join(loc_edit.text().split())
+            return txt in ("", "True") or txt in _own_sides.get(axis_combo.currentText(), ())
+
+        def _sync_periodic_axis(_t=None):
+            pair_label.setText(f"({self._PERIODIC_PAIR.get(axis_combo.currentText(), '')})")
+            if type_combo.currentData() == "periodic":
+                # the user changed the axis: a side of another axis moves with it
+                txt = " ".join(loc_edit.text().split())
+                if any(txt in v for v in _own_sides.values()) and txt not in _own_sides.get(axis_combo.currentText(), ()):
+                    loc_edit.setText(self._PERIODIC_SIDE.get(axis_combo.currentText(), "left"))
+                loc_widget.setVisible(not _periodic_where_is_auto())
+        axis_combo.currentTextChanged.connect(_sync_periodic_axis)
+
         def _sync_type(_t=None):
             key = type_combo.currentData()
             comp_widget.setVisible(key in self._BC_NEEDS_COMPONENT)
@@ -7582,6 +8018,8 @@ class MainWindow(QMainWindow):
             # from Interface 2D (or removing it) never reverts Point
             # Distribution back on its own -- whatever the user had it set
             # to before stays, same as every other config value in the app.
+            if key == "periodic" and _periodic_where_is_auto():
+                loc_widget.setVisible(False)
             _is_interface2d = key == "interface2d"
             interface2d_note.setVisible(_is_interface2d)
             if _is_interface2d and hasattr(self, "pts_dist_combo"):
@@ -7862,6 +8300,18 @@ class MainWindow(QMainWindow):
                 self._add_custom_bc_entry(bc_type=btype, component=i, location=loc,
                                            value=val, locked=False)
 
+    def _populate_3d_periodic_bc_entries(self, n_out):
+        """Periodic in x, y and z for every output (a box with periodic
+        faces), for 3D templates -- same direct-to-panel approach as
+        _populate_3d_heat_bc_entries."""
+        for e in list(self.custom_bc_list):
+            e['widget'].deleteLater()
+        self.custom_bc_list.clear(); self._schedule_bc_nodes_sync()
+        for i in range(n_out):
+            for axis, loc in (("x", "left"), ("y", "bottom"), ("z", "front")):
+                self._add_custom_bc_entry(bc_type="periodic", component=i, location=loc,
+                                          axis=axis, deriv_order=0, locked=False)
+
     def _populate_schrodinger_bc_entries(self, n_out):
         """Add the first-derivative periodic rows the 1D Schrodinger
         template's h_x(t,-5)=h_x(t,5) condition needs (on both the real
@@ -7936,10 +8386,36 @@ class MainWindow(QMainWindow):
         return f"{btype}, {name or f'output {comp + 1}'}"
 
     # ── Build weight inputs ───────────────────────────────────
-    def _build_weight_inputs(self, n):
+    def _update_manual_weights_enabled(self, auto=None):
+        """The per-term weight rows do nothing while Scale by initial losses
+        computes every term weight itself (w_i = c / L_i(0)): grey them out
+        and say why. Children added later (a rebuild) inherit the state."""
+        if auto is None:
+            auto = self.loss_w_init_cb.isChecked()
+        self._manual_weights_box.setEnabled(not auto)
+        self.sched_same_weights_cb.setEnabled(not auto)
+        self.manual_weights_auto_note.setVisible(auto)
+
+    def _build_weight_inputs(self, n, keep=False):
+        # keep=True: rows that already exist keep their values (an IC switched
+        # on or off adds or removes only its own row -- it used to leave the
+        # weights and the training phases' weight lists one entry short, and
+        # the IC trained at weight 1 against the PDE's thousands of points)
+        _old_w = {}
+        if keep:
+            for _k, _wd in self.weight_widgets.items():
+                try:
+                    _old_w[_k] = _wd.value()
+                except Exception:
+                    pass
         for i in reversed(range(self.weights_main_layout.count())):
             w = self.weights_main_layout.itemAt(i).widget()
             if w:
+                # out of the layout and hidden now (deleteLater only runs once
+                # the event loop gets to it -- a template that switches several
+                # ICs rebuilds this a few times in a row)
+                self.weights_main_layout.removeWidget(w)
+                w.hide()
                 w.deleteLater()
         self.weight_widgets.clear()
 
@@ -7964,7 +8440,7 @@ class MainWindow(QMainWindow):
             # other panels' label + field rows.
             row.setContentsMargins(0, 0, 0, 0)
             row.addWidget(QLabel(label))
-            _default_w = 100.0 if key.startswith("ic_") else 1.0
+            _default_w = _old_w.get(key, 100.0 if key.startswith("ic_") else 1.0)
             w = SciLineEdit(_default_w); w.setFixedWidth(100)
             row.addStretch(); row.addWidget(w)
             self.weight_widgets[key] = w
@@ -7972,12 +8448,7 @@ class MainWindow(QMainWindow):
             self.weights_main_layout.addWidget(ww)
 
         if _same_weights:
-            _sep_all = QLabel("── Shared weights (all phases) ──")
-            self._register_section_divider(_sep_all)
-            _sw_all = QWidget(); _sl_all = QHBoxLayout(_sw_all)
-            _sl_all.setContentsMargins(0,0,0,0); _sl_all.addWidget(_sep_all)
-            self.weights_main_layout.addWidget(_sw_all)
-
+            # (no heading here: "Use same weights for all phases", right above, says it)
             for i in range(self._n_equations()):
                 name = self.output_name_inputs[i].text() if i < len(self.output_name_inputs) else f"u{i+1}"
                 _w_row(f"PDE {i+1} ({name}):" if self._n_equations() == n else f"PDE {i+1}:", f"pde_{i}")
@@ -8278,6 +8749,8 @@ class MainWindow(QMainWindow):
 
             ic_expressions="|".join([self.ic_inputs[i].text() for i in range(n_out)]),
             ic_active=",".join([str(self.ic_active[i].isChecked()) for i in range(n_out)]),
+            ic_hard=",".join([str(i < len(self.ic_hard) and self.ic_hard[i].isChecked()) for i in range(n_out)]),
+            periodic_inputs=self.periodic_inputs_cb.isChecked(),
             forward_ic_from_file=any(
                 i < len(self.ic_from_file) and self.ic_from_file[i] is not None
                 and self.ic_from_file[i].isChecked()
@@ -8440,6 +8913,16 @@ class MainWindow(QMainWindow):
             cb_checkpoint_monitor=self.cb_ck_monitor.currentData(),
             cb_timer=self.cb_timer_cb.isChecked(),
             cb_timer_minutes=self.cb_tm_minutes.value(),
+            causal_training=self.causal_cb.isChecked(),
+            causal_chunks=self.causal_chunks.value(),
+            causal_eps=self.causal_eps.value(),
+            causal_anneal=self.causal_anneal_cb.isChecked(),
+            point_weights=self.point_weights_combo.currentData() or "None",
+            rba_gamma=self.rba_gamma.value(),
+            rba_eta=self.rba_eta.value(),
+            sa_lr=self.sa_lr.value(),
+            sa_normalize=self.sa_normalize_cb.isChecked(),
+            point_weights_lbfgs=self.pw_lbfgs_combo.currentData() or "plain",
             training_monitors_enabled=self.training_monitors_cb.isChecked(),
             training_monitors=self._build_training_monitors_json(),
             plot_colormap=self._plot_viz_settings.get('colormap', 'RdBu_r'),
@@ -8700,7 +9183,7 @@ class MainWindow(QMainWindow):
         except (json.JSONDecodeError, TypeError):
             phases = []
         for ph in list(self.sched_phase_list):
-            ph["widget"].deleteLater()
+            self._drop_row_widget(self.sched_phases_layout, ph["widget"])
         self.sched_phase_list.clear()
         for ph in phases:
             self._add_scheduler_phase(
@@ -8945,8 +9428,15 @@ class MainWindow(QMainWindow):
         for i in range(n_out):
             if i < len(self.ic_inputs):
                 self.ic_inputs[i].setText(ics[i])
+            if i < len(self.ic_hard):
+                self.ic_hard[i].setChecked(False)
             if i < len(self.ic_active):
                 self.ic_active[i].setChecked(ic_active[i])
+        ic_hard = _bools(getattr(config, 'ic_hard', '') or '', n_out, False)
+        for i in range(n_out):
+            if i < len(self.ic_hard) and ic_hard[i]:
+                self.ic_hard[i].setChecked(True)
+        self.periodic_inputs_cb.setChecked(bool(getattr(config, 'periodic_inputs', False)))
 
         # IC-from-file (any dimension; the builder only supports one output at a time)
         if config.forward_ic_from_file and hasattr(self, "ic_from_file"):
@@ -9176,6 +9666,16 @@ class MainWindow(QMainWindow):
         self._set_combo_data(self.cb_ck_monitor, config.cb_checkpoint_monitor)
         self.cb_timer_cb.setChecked(config.cb_timer)
         self.cb_tm_minutes.setValue(float(config.cb_timer_minutes))
+        self.causal_cb.setChecked(bool(getattr(config, 'causal_training', False)))
+        self.causal_chunks.setValue(int(getattr(config, 'causal_chunks', 32)))
+        self.causal_eps.setValue(float(getattr(config, 'causal_eps', 1.0)))
+        self.causal_anneal_cb.setChecked(bool(getattr(config, 'causal_anneal', True)))
+        self._set_combo_data(self.point_weights_combo, getattr(config, 'point_weights', 'None') or 'None')
+        self.rba_gamma.setValue(float(getattr(config, 'rba_gamma', 0.999)))
+        self.rba_eta.setValue(float(getattr(config, 'rba_eta', 0.01)))
+        self.sa_lr.setValue(float(getattr(config, 'sa_lr', 0.005)))
+        self.sa_normalize_cb.setChecked(bool(getattr(config, 'sa_normalize', True)))
+        self._set_combo_data(self.pw_lbfgs_combo, getattr(config, 'point_weights_lbfgs', 'plain') or 'plain')
         self.training_monitors_cb.setChecked(getattr(config, 'training_monitors_enabled', False))
         self._apply_training_monitors_json(getattr(config, 'training_monitors', '') or '[]')
         # Auto-reveal the Training Callbacks group on load if this saved
@@ -9354,6 +9854,12 @@ class MainWindow(QMainWindow):
         # like the multi-row substitutions below (D/kf-style) but within
         # one row instead of across rows.
         "1D Allen-Cahn": [(0, "0.0001", 0), (0, "5", 1), (0, "5", 1)],
+        "1D Allen-Cahn (whole interval)": [(0, "0.0001", 0), (0, "5", 1), (0, "5", 1)],
+        # gamma_1 (interface energy, 1e-6) and gamma_2 (0.01), Wight & Zhao's
+        # eq. 3.15 names, both in the chemical-potential row.
+        "1D Cahn-Hilliard": [(1, "1e-6", 0), (1, "0.01", 1), (1, "0.01", 1)],
+        "1D Cahn-Hilliard (Mattey & Ghosh)": [(1, "0.02", 0), (1, "1.0", 1)],
+        "2D Cahn-Hilliard (Mattey & Ghosh)": [(1, "0.0002", 0), (1, "1.0", 1)],
         "2D Heat": [(0, "0.4", 0)],
         # c_1^2 (interfacial-thickness-squared, 0.0001) and c_2 (reaction,
         # 1) -- Mattey & Ghosh's own eq. 13 coefficients. c_2's "1" isn't
@@ -9376,6 +9882,8 @@ class MainWindow(QMainWindow):
         # including inside "lambda_eps_sq" itself). Verified with a direct
         # round-trip simulation before choosing this name.
         "2D Allen-Cahn (Wight & Zhao)": [(0, "10", 0), (0, "0.00625", 1)],
+        "2D Cahn-Hilliard (Wight & Zhao)": [(1, "0.0025", 0)],
+        "3D Allen-Cahn (Wight & Zhao)": [(0, "10", 0), (0, "0.025", 1)],
         "3D Heat": [(0, "0.4", 0)],
         # lambda_1 (convection, the paper's true value 1.0 -- written
         # explicitly as "1.0*" in the forward PDE below so there's a
@@ -9480,6 +9988,11 @@ class MainWindow(QMainWindow):
         # eq. 3.2/3.5 names. Both start at init=1.0 (neither's true value
         # is 1, so this doesn't start the fit already at the answer).
         "1D Allen-Cahn": [("gamma_1", 1.0, 0.0001), ("gamma_2", 1.0, 5.0)],
+        "1D Allen-Cahn (whole interval)": [("gamma_1", 1.0, 0.0001), ("gamma_2", 1.0, 5.0)],
+        "1D Cahn-Hilliard": [("gamma_1", 1.0, 1e-6), ("gamma_2", 1.0, 0.01)],
+        # alpha (interface term) and kappa (the "1.0" on f(u)), Mattey & Ghosh eq. 18
+        "1D Cahn-Hilliard (Mattey & Ghosh)": [("alpha", 1.0, 0.02), ("kappa", 0.1, 1.0)],
+        "2D Cahn-Hilliard (Mattey & Ghosh)": [("alpha", 1.0, 0.0002), ("kappa", 0.1, 1.0)],
         "2D Heat": [("alpha", 1.0, 0.4)],
         # c_1^2 (interfacial-thickness-squared) and c_2 (reaction) --
         # Mattey & Ghosh's own eq. 13 names. c_2's true value is already 1
@@ -9494,7 +10007,11 @@ class MainWindow(QMainWindow):
         # parameters, recovered independently exactly as they appear in
         # the PDE box (not epsilon on its own).
         "2D Allen-Cahn (Wight & Zhao)": [("lambda_", 1.0, 10.0), ("diff_coeff", 1.0, 0.00625)],
+        # eps^2, the interface term (Wight & Zhao eq. 3.20)
+        "2D Cahn-Hilliard (Wight & Zhao)": [("eps_sq", 1.0, 0.0025)],
         "3D Heat": [("alpha", 1.0, 0.4)],
+        # lambda (reaction) and lambda*eps^2 (diffusion), as in the 2D template
+        "3D Allen-Cahn (Wight & Zhao)": [("lambda_", 1.0, 10.0), ("diff_coeff", 1.0, 0.025)],
         # lambda_1 (convection) and lambda_2 (viscosity numerator) --
         # Raissi et al.'s own eq. B.1 names (Appendix B). lambda_1's true
         # value is already 1, so -- same reasoning as the Poisson family --
@@ -10237,6 +10754,18 @@ class MainWindow(QMainWindow):
         _pth = getattr(self, '_preview_thread', None)
         if isinstance(_pth, QThread) and _pth.isRunning():
             active.append(("preview", _pth))
+        # the 3D view's points sample: stopped without asking (nothing is lost;
+        # if the close is cancelled, the view asks for a new sample)
+        _vth = getattr(self, '_view3d_pts_thread', None)
+        if isinstance(_vth, QThread) and _vth.isRunning():
+            try:
+                _vth.done_sig.disconnect()
+            except TypeError:
+                pass
+            _vth.stop()
+            for _panel in (getattr(self, "domain_view", None), getattr(self, "sketch_panel", None)):
+                if _panel is not None and getattr(_panel, "view3d", None) is not None:
+                    _panel.view3d._requested_key = None
         if active:
             names = " and ".join(name for name, _ in active)
             reply = QMessageBox.question(
@@ -10484,7 +11013,7 @@ class MainWindow(QMainWindow):
                 # selected (see its own comment), so nothing goes stale
                 # across templates by leaving it set here.
             else:
-                self.log_box.append("ℹ️ No error analysis configured — click '📊 Error Analysis' before training.")
+                self.log_box.append("ℹ️ No error analysis configured — click 'Error Analysis' before training.")
 
         else:
             self.log_box.append("\n❌ Error during training. Check log above.")
@@ -10937,6 +11466,146 @@ def _style_legend(ax):
         geom_code = _custom_geom_leaf_literal(shape_type, params)
         return geom_code, outline_code, bbox
 
+    # ── training points for the 3D geometry view ─────────────────────────
+    def _hook_view3d_points(self, panel):
+        """The 3D view's "Show points": the real training points, sampled by
+        DeepXDE in a background process with the Collocation Points
+        settings, like View domain & point distribution -- without touching
+        the Results panel, where that preview draws its figures."""
+        v = getattr(panel, "view3d", None)
+        if v is None:
+            return
+        v.points_key_fn = self._view3d_points_key
+        v.points_provider = self._request_view3d_points
+
+    def _view3d_points_key(self):
+        import json
+        return json.dumps([self._current_geometry_type(), self._domain_view_shapes(),
+                           self.radio_time_dependent.isChecked(), self.num_domain.value(), self.num_boundary.value(),
+                           self.num_initial.value(), self.pts_dist_combo.currentText(),
+                           self.t_min.value(), self.t_max.value()], sort_keys=True, default=str)
+
+    def _view3d_geom_code(self):
+        """The DeepXDE constructor of the current 3D domain (the code the
+        domain preview and the exported script use), or None."""
+        t = self._current_geometry_type()
+        if t == "Cuboid":
+            return self._preview_single_geom_code(
+                "Cuboid", x_min=self.x_min.value(), x_max=self.x_max.value(), y_min=self.y_min.value(),
+                y_max=self.y_max.value(), z_min=self.z_min.value(), z_max=self.z_max.value())
+        if t == "Sphere":
+            return self._preview_single_geom_code(
+                "Sphere", cx=self.geom_sphere_cx.value(), cy=self.geom_sphere_cy.value(),
+                cz=self.geom_sphere_cz.value(), r=self.geom_sphere_r.value())
+        if t == "Custom" and self.custom_geom_shape_rows:
+            from pinnstudio.core.codegen import _CUSTOM_GEOM_OP_CTORS as _ops
+            code = None
+            for i, row in enumerate(self.custom_geom_shape_rows, start=1):
+                entry = self._custom_geom_row_to_dict(row, is_first=(i == 1))
+                leaf, _outline, _bbox = self._custom_geom_3d_leaf_code(i, entry["type"], entry["params"])
+                code = leaf if code is None else f"dde.geometry.{_ops.get(entry.get('op') or 'union', 'CSGUnion')}({code}, {leaf})"
+            return code
+        return None
+
+    def _request_view3d_points(self):
+        import tempfile
+        key = self._view3d_points_key()
+        if getattr(self, "_view3d_pts_thread", None) is not None and self._view3d_pts_thread.isRunning():
+            self._view3d_pts_pending = True          # sample again for the newest settings when this one ends
+            return
+        self._view3d_pts_pending = False
+        try:
+            geom_code = self._view3d_geom_code()
+        except ValueError as e:
+            geom_code, err = None, str(e)
+        else:
+            err = "this geometry type has no 3D points preview"
+        if geom_code is None:
+            self._push_view3d_points(key, None, None, "", f"No points: {err}.")
+            return
+        out = os.path.join(tempfile.gettempdir(), f"pinnstudio_view3d_points_{os.getpid()}.npz")
+        dist = self.pts_dist_combo.currentText()
+        if self.radio_time_dependent.isChecked():
+            data_code = (f"gt = dde.geometry.GeometryXTime(geom, dde.geometry.TimeDomain({self.t_min.value()}, "
+                         f"{self.t_max.value()}))\n"
+                         f"data = dde.data.TimePDE(gt, pde, [], num_domain={self.num_domain.value()}, "
+                         f"num_boundary={self.num_boundary.value()}, num_initial={self.num_initial.value()}, "
+                         f"num_test=10, train_distribution={dist!r})\n"
+                         f"pts = data.train_points()\n"
+                         f"ic = pts[:, 3] <= {self.t_min.value()} + max(({self.t_max.value()} - {self.t_min.value()}) * 1e-9, 1e-12)\n"
+                         "pts = pts[~ic]\n")
+        else:
+            data_code = (f"data = dde.data.PDE(geom, pde, [], num_domain={self.num_domain.value()}, "
+                         f"num_boundary={self.num_boundary.value()}, num_test=10, train_distribution={dist!r})\n"
+                         "pts = data.train_points()\n")
+        script = (
+            "import os\nos.environ['DDE_BACKEND'] = 'pytorch'\n"
+            "import deepxde as dde\nimport numpy as np\n"
+            f"geom = {geom_code}\n"
+            "def pde(x, y): return y[:, 0:1] * 0\n"
+            + data_code +
+            "xyz = pts[:, :3]\n"
+            "bnd = geom.on_boundary(xyz)\n"
+            f"np.savez({out!r}, domain=xyz[~bnd], boundary=xyz[bnd])\n")
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False, encoding="utf-8") as tf:
+            tf.write(script)
+            tmp = tf.name
+        from PyQt6.QtCore import pyqtSignal as _sig
+
+        class _PointsThread(QThread):
+            done_sig = _sig(bool, str)
+
+            def __init__(self, path):
+                super().__init__()
+                self._path = path
+
+                self.process = None
+
+            def run(self):
+                import subprocess, sys
+                try:
+                    self.process = subprocess.Popen([_pyexe.script_python(), self._path], creationflags=_pyexe.NO_WINDOW, stdout=subprocess.PIPE,
+                                                    stderr=subprocess.STDOUT, env=_pyexe.script_env(), **_pyexe.TEXT_UTF8)
+                    out_, _ = self.process.communicate(timeout=300)
+                    ok = self.process.returncode == 0
+                    self.done_sig.emit(ok, ((out_ or "").strip().splitlines() or [""])[-1])
+                except Exception as exc:
+                    self.done_sig.emit(False, str(exc))
+                finally:
+                    try:
+                        os.unlink(self._path)
+                    except OSError:
+                        pass
+
+            def stop(self):
+                if self.process is not None and self.process.poll() is None:
+                    self.process.kill()
+                self.wait(5000)
+
+        th = _PointsThread(tmp)
+        th.done_sig.connect(lambda ok, msg, key=key, out=out, dist=dist: self._on_view3d_points(ok, msg, key, out, dist))
+        self._view3d_pts_thread = th
+        th.start()
+
+    def _on_view3d_points(self, ok, msg, key, out, dist):
+        if ok and os.path.exists(out):
+            import numpy as np
+            with np.load(out) as f:
+                dom, bnd = f["domain"], f["boundary"]
+            self._push_view3d_points(key, dom, bnd, dist)
+        else:
+            self._push_view3d_points(key, None, None, "", f"Sampling the points failed: {msg}")
+        if getattr(self, "_view3d_pts_pending", False):
+            self._request_view3d_points()
+
+    def _push_view3d_points(self, key, dom, bnd, label, status=""):
+        for panel in (getattr(self, "domain_view", None), getattr(self, "sketch_panel", None)):
+            v = getattr(panel, "view3d", None) if panel is not None else None
+            if v is not None:
+                if v._requested_key not in (None, key) and dom is not None:
+                    continue                          # settings changed meanwhile: a newer sample is coming
+                v.set_external_points(key, dom, bnd, label, status)
+
     def _preview_domain(self):
         import tempfile, math
         spatial_path = self._DOMAIN_PREVIEW_SPATIAL_PATH
@@ -11025,7 +11694,7 @@ def _style_legend(ax):
             else:
                 script = self._build_3d_preview_script(
                     geom_type, t_min, t_max, n_domain, n_boundary, n_initial, dist)
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as tf:
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False, encoding="utf-8") as tf:
                 tf.write(script)
                 tmp = tf.name
             self._launch_preview_thread(tmp)
@@ -11223,7 +11892,7 @@ plt.savefig({time_path!r}, dpi={_DOMAIN_PREVIEW_DPI}, bbox_inches='tight')
 plt.close(fig)
 print("DOMAIN_PREVIEW_DONE")
 """
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as tf:
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False, encoding="utf-8") as tf:
             tf.write(script)
             tmp = tf.name
         self._launch_preview_thread(tmp)
@@ -11266,8 +11935,8 @@ print("DOMAIN_PREVIEW_DONE")
                 self.process = None
             def run(self):
                 import subprocess, sys
-                proc = subprocess.Popen([sys.executable, self._tmp],
-                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+                proc = subprocess.Popen([_pyexe.script_python(), self._tmp], creationflags=_pyexe.NO_WINDOW,
+                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=_pyexe.script_env(), **_pyexe.TEXT_UTF8)
                 self.process = proc
                 for line in proc.stdout:
                     self.log_sig.emit(line.rstrip())
@@ -11846,6 +12515,8 @@ print("DOMAIN_PREVIEW_DONE")
             self.start_page.retheme()
         if getattr(self, "run_history", None) is not None and self.run_history.compare.isVisible():
             self.run_history.compare.redraw()
+        if getattr(self, "live_loss", None) is not None and self.live_loss._canvas is not None:
+            self.live_loss._redraw()          # plot colours and the toolbar's icons
         if hasattr(self, "workspace"):
             self.workspace.tree.viewport().update()
 
@@ -11960,7 +12631,7 @@ print("DOMAIN_PREVIEW_DONE")
         exclusion existed."""
         import json
         try:
-            with open(self.restore_config_path.text().strip()) as f:
+            with open(self.restore_config_path.text().strip(), encoding="utf-8", errors="replace") as f:
                 _restore_cfg_probe = json.load(f)
             is_steady = bool(_restore_cfg_probe.get("steady_state", False))
             is_1d = _restore_cfg_probe.get("problem_dim") == "1D"
@@ -12056,7 +12727,7 @@ print("DOMAIN_PREVIEW_DONE")
         _restore_is_steady = False
         try:
             import json as _json_dim
-            with open(self.restore_config_path.text().strip()) as _df:
+            with open(self.restore_config_path.text().strip(), encoding="utf-8", errors="replace") as _df:
                 _restore_cfg_dim = _json_dim.load(_df)
             _restore_dim = _restore_cfg_dim.get("problem_dim", "1D")
             _restore_y_min = _restore_cfg_dim.get("y_min", 0.0); _restore_y_max = _restore_cfg_dim.get("y_max", 1.0)
@@ -12384,6 +13055,88 @@ print("DOMAIN_PREVIEW_DONE")
                 'ta_default': {'step_groups': [(0.0, 10.0, 10)], 'transfer_learning': True, 'ic_grid': 51, 'transfer_optimizer': 'lbfgs'},
                 'inverse_t_max': 2.5,
             },
+            # Wight & Zhao (2021), Section 3.3, eqs. 3.20-3.21: two bubbles
+            # that merge, phi_t = lambda lap(-eps^2 lap phi + phi^3 - phi)
+            # on [-1, 1]^2 (periodic), lambda = 1, eps = 0.05, t in [0, 1].
+            # Mixed form, as the paper's network U = (phi, mu): u_t = lap mu,
+            # mu = u^3 - u - eps^2 lap u. The initial condition
+            # max(tanh((r - R1)/2eps), tanh((r - R2)/2eps)), r = 0.4, equals
+            # tanh((r - min(R1, R2))/2eps); the min is written smoothed,
+            # (R1 + R2 - sqrt((R1 - R2)^2 + 0.0004))/2: the corner of the plain
+            # min where the bubbles touch drives the merging, but autograd sees
+            # no curvature in a corner, and with it the network learned an
+            # almost frozen solution. The smoothing changes u by 0.5% (relative
+            # L2), along x = 0 only; the reference data uses the same formula
+            # (tools/make_phase_field_reference_data.py). The +1e-12 keeps
+            # sqrt differentiable at the bubble centres.
+            # mu takes no initial condition (it follows from u).
+            "2D Cahn-Hilliard (Wight & Zhao)": {
+                'pde': ["du_t - (dmu_xx + dmu_yy)",
+                        "mu - (u**3 - u) + 0.0025*(du_xx + du_yy)"],
+                'ic': ["tanh((0.4 - (sqrt((x - 0.28)**2 + y**2 + 1e-12) + sqrt((x + 0.28)**2 + y**2 + 1e-12)"
+                       " - sqrt((sqrt((x - 0.28)**2 + y**2 + 1e-12) - sqrt((x + 0.28)**2 + y**2 + 1e-12))**2 + 0.0004))/2)/0.1)",
+                       "0"],
+                'ic_active': [True, False],
+                'num_domain': 20000,
+                'num_boundary': 800,
+                'num_initial': 1024,
+                'layers': 4,
+                'neurons': 128,
+                'iterations': 20000,
+                'optimizer2': 'lbfgs',
+                'iterations2': 20000,
+                'x_min': -1.0, 'x_max': 1.0,
+                'y_min': -1.0, 'y_max': 1.0,
+                'periodic_bc': True,
+                'bc_config': 'periodic_all',
+                'num_outputs': 2,
+                'output_names': ['u', 'mu'],
+                'ic_weight': 100.0,
+                # The initial condition as a loss term (weight 100), with
+                # exact periodicity and no per-point weights: 2.6% / 1.1% at
+                # t = 0.25 / 1. Built into the network (u = IC + t*N) it
+                # needs SA-PINN to get the bubbles moving at all, and then
+                # gives 1.2% / 3.8% (training methods study).
+                'ic_hard': [False, False],
+                'periodic_inputs': True,
+                'ref_dir': os.path.join(REFERENCE_DATA_DIR, "2D", "cahn_hilliard_wight"),
+            },
+            # Mattey & Ghosh (2022), Section 6.2, IBVP-2: u_t = lap mu,
+            # mu = u^3 - u - alpha lap u on [0, 1]^2 (periodic), t in
+            # [0, 0.005], u(x, y, 0) = 0.4 cos(4 pi x) cos(4 pi (x + y)).
+            # Time is rescaled, t' = t / 0.005 in [0, 1] (a network sees
+            # t in [0, 0.005] as almost constant), so u_t' = 0.005 lap mu,
+            # which also puts both residuals at order 1. alpha = 0.0002: with
+            # the paper's stated alpha = 0.02 this pattern decays (to +-0.04
+            # at t = 0.005), while its Fig. 16 shows it growing to about +-1,
+            # which alpha = 0.0002 reproduces (and Fig. 15, IBVP-1, too).
+            "2D Cahn-Hilliard (Mattey & Ghosh)": {
+                'pde': ["du_t - 0.005*(dmu_xx + dmu_yy)",
+                        "mu - 1.0*(u**3 - u) + 0.0002*(du_xx + du_yy)"],
+                'ic': ["0.4*cos(4*pi*x)*cos(4*pi*(x + y))", "0"],
+                'ic_active': [True, False],
+                'num_domain': 20000,
+                'num_boundary': 800,
+                'num_initial': 1024,
+                'layers': 4,
+                'neurons': 128,
+                'iterations': 20000,
+                'optimizer2': 'lbfgs',
+                'iterations2': 20000,
+                'x_min': 0.0, 'x_max': 1.0,
+                'y_min': 0.0, 'y_max': 1.0,
+                'periodic_bc': True,
+                'bc_config': 'periodic_all',
+                'num_outputs': 2,
+                'output_names': ['u', 'mu'],
+                'ic_weight': 100.0,
+                'ic_hard': [True, False],
+                'periodic_inputs': True,
+                'point_weights': 'SA-PINN',
+                'sa_normalize': False,
+                'point_weights_lbfgs': 'keep',
+                'ref_dir': os.path.join(REFERENCE_DATA_DIR, "2D", "cahn_hilliard_mattey"),
+            },
             # Physics only, from Mathias, de Almeida, de Barros, Coelho et
             # al. 2022 ("Augmenting a Physics-Informed Neural Network for
             # the 2D Burgers Equation by Addition of Solution Data Points",
@@ -12442,7 +13195,7 @@ print("DOMAIN_PREVIEW_DONE")
                 # _auto_configure_ea's per-output filename matching, exactly
                 # like every other template's single-output reference data
                 # (for ease of use). Users can still reassign or add their
-                # own via the "📊 Error Analysis" dialog.
+                # own via the "Error Analysis" dialog.
                 'ref_dir': os.path.join(REFERENCE_DATA_DIR, "2D", "burgers_mathias"),
                 # 4 real Time-Adaptive steps (0->0.25->0.5->0.75->1.0),
                 # L-BFGS transfer learning between steps, 51-point IC
@@ -12464,6 +13217,11 @@ print("DOMAIN_PREVIEW_DONE")
             self._tpl_set_time_range(t)
             self._tpl_set_sampling_and_training(t, num_initial=t['num_initial'], optimizer2=t['optimizer2'])
             self._tpl_set_ic_weights(n_out, t.get('ic_weight', 100.0))
+            _ic_on = t.get('ic_active', [])
+            for i, cb in enumerate(self.ic_active):
+                cb.setChecked(_ic_on[i] if i < len(_ic_on) else True)
+            self._tpl_set_output_scale(t.get('output_scale'))
+            self._tpl_set_extras(t)
             bc_config = t.get('bc_config', 'periodic_all')
             if bc_config == 'periodic_all':
                 # All boundaries periodic for all outputs
@@ -12605,6 +13363,42 @@ print("DOMAIN_PREVIEW_DONE")
                 'ic_weight': 100.0,
                 'ref_dir': os.path.join(REFERENCE_DATA_DIR, "3D", "heat"),
             },
+            # Wight & Zhao (2021), Section 3.2, eq. 3.13: a shrinking sphere,
+            # phi_t = lambda (eps^2 lap phi - (phi^3 - phi)) on [0, 1]^3
+            # (periodic), lambda = 10, eps = 0.05, t in [0, 1].
+            "3D Allen-Cahn (Wight & Zhao)": {
+                'pde': ["du_t - 0.025*(du_xx + du_yy + du_zz) + 10*(u**3 - u)"],
+                # +1e-6: sqrt(r^2) has no derivative at r = 0, the sphere's
+                # centre, which a grid of test points hits exactly (NaN loss;
+                # with +1e-12 the second derivative there was still ~1e6). It
+                # changes the initial condition by < 1e-5 (deep inside the
+                # sphere, where tanh is saturated).
+                'ic': ["tanh((0.35 - sqrt((x - 0.5)**2 + (y - 0.5)**2 + (z - 0.5)**2 + 1e-6))/0.1)"],
+                'num_domain': 30000,
+                'num_boundary': 1500,
+                'num_initial': 2000,
+                'layers': 4,
+                'neurons': 128,
+                'iterations': 20000,
+                'optimizer2': 'lbfgs',
+                'iterations2': 20000,
+                'num_test': 10000,
+                'x_min': 0.0, 'x_max': 1.0,
+                'y_min': 0.0, 'y_max': 1.0,
+                'z_min': 0.0, 'z_max': 1.0,
+                'num_outputs': 1,
+                'output_names': ['u'],
+                'ic_weight': 100.0,
+                'bc_config': 'periodic_xyz',
+                # the initial condition as a loss term (weight 100), not built
+                # into the output: on the GPU the soft IC gave 0.03% error at
+                # t = 1, the exact IC (u = IC + t*N) 0.72% -- the t*N form
+                # makes the network fight the fast early relaxation of the
+                # interface profile
+                'ic_hard': [False],
+                'periodic_inputs': True,
+                'ref_dir': os.path.join(REFERENCE_DATA_DIR, "3D", "allen_cahn_wight"),
+            },
         }
         if text in templates_3d:
             t = templates_3d[text]
@@ -12619,7 +13413,15 @@ print("DOMAIN_PREVIEW_DONE")
             self._tpl_set_time_range(t)
             self._tpl_set_sampling_and_training(t, num_initial=t['num_initial'], optimizer2=t['optimizer2'])
             self._tpl_set_ic_weights(n_out, t.get('ic_weight', 100.0))
-            self._populate_3d_heat_bc_entries(n_out)
+            if t.get('bc_config') == 'periodic_xyz':
+                self._populate_3d_periodic_bc_entries(n_out)
+            else:
+                self._populate_3d_heat_bc_entries(n_out)
+            _ic_on = t.get('ic_active', [])
+            for i, cb in enumerate(self.ic_active):
+                cb.setChecked(_ic_on[i] if i < len(_ic_on) else True)
+            self._tpl_set_output_scale(t.get('output_scale'))
+            self._tpl_set_extras(t)
             self._update_bc_mode_visibility()
             # 3D Heat doesn't use Time-Adaptive, but if turned on manually
             # the grid should already be at a 3D-safe size ("21", see
@@ -12627,7 +13429,7 @@ print("DOMAIN_PREVIEW_DONE")
             self._tpl_reset_time_adaptive(t.get('ta_default'), t.get('t_max', 1.0), "21")
             # The x-max Dirichlet face defaults to weight 100, same
             # convention as 2D Heat's right edge.
-            self._tpl_finish(text, t, dirichlet_bc_weight=100.0)
+            self._tpl_finish(text, t, dirichlet_bc_weight=100.0 if t.get('bc_config') != 'periodic_xyz' else None)
             return
 
         # ── Steady-state (time-independent) 3D Quick Example ────────────
@@ -12700,6 +13502,121 @@ print("DOMAIN_PREVIEW_DONE")
                 'periodic_bc': True,
                 'ref_dir': os.path.join(REFERENCE_DATA_DIR, "1D", "allen_cahn"),
                 'ta_default': {'step_groups': [(0.0, 1.0, 4)], 'transfer_learning': True, 'ic_grid': 101, 'transfer_optimizer': 'lbfgs'},
+            },
+            # The same problem trained on the whole time interval in one run,
+            # with the best setup of the training methods study
+            # (benchmarks/training_methods.md): exact periodicity (cos/sin
+            # inputs), the initial condition built into the network
+            # (u = IC + t*N), causal training with the stepped epsilon, and
+            # an MsFFN network. 0.13% at t = 1, against 0.48% for the
+            # time-adaptive template above and ~10% for a plain PINN.
+            "1D Allen-Cahn (whole interval)": {
+                'pde': ["du_t - 0.0001*du_xx + 5*u**3 - 5*u"],
+                'ic': ["x**2*cos(pi*x)"],
+                'ic_hard': [True],
+                'ic_active': [False],
+                'periodic_inputs': True,
+                'causal': True,
+                'network_type': 'MsFFN',
+                'msffn_sigmas': '1, 5',
+                'num_domain': 10000,
+                'num_boundary': 200,
+                'num_initial': 512,
+                'layers': 4,
+                'neurons': 128,
+                'iterations': 20000,
+                'optimizer2': 'lbfgs',
+                'iterations2': 10000,
+                'x_min': -1.0, 'x_max': 1.0,
+                'periodic_bc': True,
+                'ref_dir': os.path.join(REFERENCE_DATA_DIR, "1D", "allen_cahn"),
+            },
+            # Wight & Zhao (2021), section 3.2, eq. 3.15: the 1D
+            # Cahn-Hilliard equation u_t - (g2 (u^3 - u) - g1 u_xx)_xx = 0 on
+            # [-1, 1] x [0, 1], u(0, x) = -cos(2 pi x), periodic, with
+            # g2 = 0.01, g1 = 1e-6. Written in mixed form with the chemical
+            # potential mu = g2 (u^3 - u) - g1 u_xx as a second output, so no
+            # residual needs a 4th derivative: u_t = mu_xx. Both outputs are
+            # periodic in value and slope. Plain PINN (no time-adaptive
+            # training).
+            # Scaling: mu is only ~g2 = 0.01 in size, so as written its
+            # equation's residual is ~100x smaller than u_t's and the network
+            # settles on a wrong solution with a loss of ~1e-5 (28-42% L2
+            # error in u). The network's mu output is scaled by 0.01 and the
+            # mu equation divided by g2, so both residuals are O(1): 0.4-3%
+            # L2 error in u with the same network/training, 0.1-0.6% with the
+            # exact IC, periodic inputs and RBA below.
+            "1D Cahn-Hilliard": {
+                'num_outputs': 2,
+                'output_names': 'u,mu',
+                'pde': ["du_t - dmu_xx",
+                        "(mu - 0.01*(u**3 - u) + 1e-6*du_xx)/0.01"],
+                # Best setup of the training methods study (benchmarks/
+                # training_methods.md), about 8x lower error than the plain
+                # scaled problem: the network's mu scaled by 0.01 (output
+                # Scale); u's initial condition exact (u = IC + t*N, so no IC
+                # loss term -- and mu, with no time derivative, never takes
+                # one); exact periodicity (cos/sin inputs); SA-PINN per-point
+                # weights as in the paper (no normalization, held during
+                # L-BFGS): u at t = 1 0.05-0.06% over three seeds, against
+                # 0.12% with RBA.
+                'output_scale': [1.0, 0.01],
+                'ic_hard': [True, False],
+                'periodic_inputs': True,
+                'point_weights': 'SA-PINN',
+                'sa_normalize': False,
+                'point_weights_lbfgs': 'keep',
+                'ic': ["-cos(2*pi*x)", "0"],
+                'ic_active': [True, False],
+                'num_domain': 10000,
+                'num_boundary': 200,
+                'num_initial': 512,
+                'layers': 4,
+                'neurons': 128,
+                'iterations': 20000,
+                'optimizer2': 'lbfgs',
+                'iterations2': 20000,
+                'x_min': -1.0, 'x_max': 1.0,
+                'periodic_bc': True,
+                'periodic_slope': True,
+                'ref_dir': os.path.join(REFERENCE_DATA_DIR, "1D", "cahn_hilliard"),
+            },
+            # Mattey & Ghosh (2022), Section 5.2, eq. 25: u_t = lap(kappa f(u)
+            # - alpha kappa lap u), f(u) = u^3 - u, alpha = 0.02, kappa = 1,
+            # on [-1, 1] (periodic in value and slope), t in [0, 1],
+            # u(x, 0) = cos(pi x) - exp(-4 (pi x)^2). Mixed form as in the
+            # paper's phase-space version (eq. 19), with mu the chemical
+            # potential u^3 - u - 0.02 u_xx (order 1, so no scaling needed),
+            # and the same setup as the Wight & Zhao template.
+            "1D Cahn-Hilliard (Mattey & Ghosh)": {
+                'num_outputs': 2,
+                'output_names': 'u,mu',
+                'pde': ["du_t - dmu_xx",
+                        "mu - 1.0*(u**3 - u) + 0.02*du_xx"],
+                # Time-adaptive training, like the paper's bc-PINN: 10 windows
+                # of 0.01 over the fast start (the two bumps merge by t ~ 0.05),
+                # then 9 of 0.1, each started from the previous one, with the
+                # IC as a loss term (weight 100). 0.29% error at t = 0, 0.48%
+                # at t = 1; on the whole domain every method failed (25-90%),
+                # as the paper's standard PINN does.
+                'ic_hard': [False, False],
+                'periodic_inputs': True,
+                'ic': ["cos(pi*x) - exp(-4*(pi*x)**2)", "0"],
+                'ic_active': [True, False],
+                'ta_default': {'step_groups': [(0.0, 0.1, 10), (0.1, 1.0, 9)], 'transfer_learning': True,
+                               'ic_grid': 201, 'transfer_optimizer': 'lbfgs'},
+                'num_domain': 10000,
+                'num_boundary': 200,
+                'num_initial': 512,
+                'layers': 4,
+                'neurons': 128,
+                'iterations': 5000,
+                'optimizer2': 'lbfgs',
+                'iterations2': 5000,
+                'x_min': -1.0, 'x_max': 1.0,
+                'periodic_bc': True,
+                'periodic_slope': True,
+                'ref_dir': os.path.join(REFERENCE_DATA_DIR, "1D", "cahn_hilliard_mattey"),
             },
             # Exact equation, IC and BC as in Lu, Meng, Mao & Karniadakis
             # 2019 (DeepXDE), section 4.2 / Raissi, Perdikaris & Karniadakis
@@ -12800,14 +13717,21 @@ print("DOMAIN_PREVIEW_DONE")
         if not t:
             return
 
-        if 'num_outputs' in t:
-            self.num_outputs_spin.setValue(t['num_outputs'])
+        # every template sets its output count (a 1-output template after a
+        # 2-output one used to keep the second output and its equation)
+        if self.num_outputs_spin.value() != t.get('num_outputs', 1):
+            self.num_outputs_spin.setValue(t.get('num_outputs', 1))
             QApplication.processEvents()
-        names = [n.strip() for n in t['output_names'].split(',')] if 'output_names' in t else []
+        names = [n.strip() for n in t['output_names'].split(',')] if 'output_names' in t else ['u']
         self._tpl_set_equations(None, names, t['pde'], t['ic'])
+        _ic_on = t.get('ic_active', [])
+        for i, cb in enumerate(self.ic_active):
+            cb.setChecked(_ic_on[i] if i < len(_ic_on) else True)
         self._tpl_set_sampling_and_training(t, num_initial=t['num_initial'], optimizer2=t['optimizer2'])
-        if text == "1D Allen-Cahn":
+        if text in ("1D Allen-Cahn", "1D Cahn-Hilliard", "1D Cahn-Hilliard (Mattey & Ghosh)"):
             self._tpl_set_ic_weights(self.num_outputs_spin.value(), 100.0)
+        self._tpl_set_output_scale(t.get('output_scale'))
+        self._tpl_set_extras(t)
         if 'x_min' in t:
             self.x_min.setValue(t['x_min'])
             self.x_max.setValue(t['x_max'])
@@ -12838,7 +13762,7 @@ print("DOMAIN_PREVIEW_DONE")
                 if i < len(self.bc_left_vals): self.bc_left_vals[i].setValue(0.0)
                 if i < len(self.bc_right_vals): self.bc_right_vals[i].setValue(0.0)
         self._populate_locked_bc_entries_from_legacy(self.num_outputs_spin.value(), is_2d=False)
-        if text == "1D Schrödinger":
+        if text == "1D Schrödinger" or t.get('periodic_slope'):
             self._populate_schrodinger_bc_entries(self.num_outputs_spin.value())
         self._update_bc_mode_visibility()
 
@@ -13298,7 +14222,7 @@ print("DOMAIN_PREVIEW_DONE")
         import os, glob
 
         dialog = QDialog(self)
-        dialog.setWindowTitle("📊 Error Analysis")
+        dialog.setWindowTitle("Error Analysis")
         dialog.setMinimumWidth(520)
         layout = QVBoxLayout(dialog)
 
@@ -13588,7 +14512,7 @@ print("DOMAIN_PREVIEW_DONE")
         _existing_ea = getattr(self, '_ea_settings', None)
         ref_dir = getattr(self, '_template_ref_dir', '')
         if _existing_ea and _existing_ea.get('files'):
-            hint2 = QLabel("📂 Auto-loaded from template" + (f": {os.path.basename(ref_dir)}" if ref_dir else ""))
+            hint2 = QLabel("Auto-loaded from template" + (f": {os.path.basename(ref_dir)}" if ref_dir else ""))
             self._register_hint(hint2, '#a0c4ff')
             files_layout.addWidget(hint2)
             for _ea_entry in _existing_ea['files']:
@@ -13598,7 +14522,7 @@ print("DOMAIN_PREVIEW_DONE")
         elif ref_dir and os.path.isdir(ref_dir):
             txt_files = sorted(glob.glob(os.path.join(ref_dir, 't_*.txt')))
             if txt_files:
-                hint2 = QLabel(f"📂 Auto-loaded from template: {os.path.basename(ref_dir)}")
+                hint2 = QLabel(f"Auto-loaded from template: {os.path.basename(ref_dir)}")
                 self._register_hint(hint2, '#a0c4ff')
                 files_layout.addWidget(hint2)
                 for f in txt_files:
@@ -13614,7 +14538,7 @@ print("DOMAIN_PREVIEW_DONE")
 
         # ── Buttons ────────────────────────────────────────────
         btn_row = QHBoxLayout()
-        run_btn = QPushButton("▶ Run Error Analysis")
+        run_btn = QPushButton("Run Error Analysis")
         run_btn.setStyleSheet("QPushButton { background: #1a4a6a; color: #74c0fc; font-weight: bold; border-radius: 4px; padding: 4px 14px; }")
         cancel_btn = QPushButton("Cancel")
         btn_row.addStretch()
@@ -13730,7 +14654,7 @@ print("DOMAIN_PREVIEW_DONE")
         """Clear existing phases and add defaults based on template."""
         # Clear existing phases
         for ph in list(self.sched_phase_list):
-            ph['widget'].deleteLater()
+            self._drop_row_widget(self.sched_phases_layout, ph['widget'])
         self.sched_phase_list.clear()
 
         # Default: Adam warm-up phase, then L-BFGS refinement, using same weights
@@ -13878,6 +14802,19 @@ print("DOMAIN_PREVIEW_DONE")
                 period=m.get('period', 1000) or 1000,
             )
 
+    # one width for every field of a Training phase (and its learning-rate
+    # decay fields), so the column of fields lines up
+    PHASE_FIELD_W = 170
+
+    @staticmethod
+    def _drop_row_widget(layout, widget):
+        """Take a repeatable row (phase, sweep parameter) off the screen
+        now: deleteLater alone leaves it visible until the event loop gets
+        round to it, so a rebuilt list briefly shows old and new rows."""
+        layout.removeWidget(widget)
+        widget.hide()
+        widget.deleteLater()
+
     def _make_lr_decay_widget(self):
         """The "Learning rate decay" type combo and its one or two
         parameters (step size / gamma, T_max / eta min, ...), shared by
@@ -13896,7 +14833,7 @@ print("DOMAIN_PREVIEW_DONE")
         decay_type_combo.addItem("Exponential", "exponential")
         # DeepXDE's "inverse time": lr / (1 + rate * step / steps) (Round 64).
         decay_type_combo.addItem("Inverse time", "inverse time")
-        decay_type_combo.setFixedHeight(24); decay_type_combo.setFixedWidth(100)
+        decay_type_combo.setFixedHeight(26); decay_type_combo.setFixedWidth(self.PHASE_FIELD_W)
         decay_type_row.addStretch(); decay_type_row.addWidget(decay_type_combo)
         decay_layout.addLayout(decay_type_row)
 
@@ -13905,7 +14842,8 @@ print("DOMAIN_PREVIEW_DONE")
         decay_p1_row.addWidget(decay_p1_lbl)
         decay_p1_spin = QDoubleSpinBox()
         decay_p1_spin.setRange(1, 500000); decay_p1_spin.setDecimals(0)
-        decay_p1_spin.setValue(5000); decay_p1_spin.setFixedHeight(24)
+        decay_p1_spin.setValue(5000); decay_p1_spin.setFixedHeight(26)
+        decay_p1_spin.setFixedWidth(self.PHASE_FIELD_W)
         decay_p1_row.addStretch(); decay_p1_row.addWidget(decay_p1_spin)
         decay_layout.addLayout(decay_p1_row)
 
@@ -13915,7 +14853,7 @@ print("DOMAIN_PREVIEW_DONE")
         decay_p2_spin = QDoubleSpinBox()
         decay_p2_spin.setRange(0.0, 1.0); decay_p2_spin.setDecimals(4)
         decay_p2_spin.setSingleStep(0.01); decay_p2_spin.setValue(0.9)
-        decay_p2_spin.setFixedHeight(24)
+        decay_p2_spin.setFixedHeight(26); decay_p2_spin.setFixedWidth(self.PHASE_FIELD_W)
         decay_p2_row.addStretch(); decay_p2_row.addWidget(decay_p2_spin)
         decay_layout.addLayout(decay_p2_row)
 
@@ -13974,8 +14912,7 @@ print("DOMAIN_PREVIEW_DONE")
         opt_combo.addItem("L-BFGS", "lbfgs")
         opt_combo.addItem("NNCG", "nncg")
         self._set_combo_data(opt_combo, optimizer)
-        opt_combo.setFixedHeight(26)
-        self._fit_combo_width(opt_combo, min_width=80)
+        opt_combo.setFixedHeight(26); opt_combo.setFixedWidth(self.PHASE_FIELD_W)
         opt_row.addStretch(); opt_row.addWidget(opt_combo)
         phase_layout.addLayout(opt_row)
 
@@ -13985,6 +14922,7 @@ print("DOMAIN_PREVIEW_DONE")
         iter_spin = QSpinBox()
         iter_spin.setRange(0, 500000); iter_spin.setSingleStep(1000)
         iter_spin.setValue(iterations); iter_spin.setFixedHeight(26)
+        iter_spin.setFixedWidth(self.PHASE_FIELD_W)
         iter_row.addStretch(); iter_row.addWidget(iter_spin)
         phase_layout.addLayout(iter_row)
 
@@ -13998,7 +14936,7 @@ print("DOMAIN_PREVIEW_DONE")
         lr_spin = QDoubleSpinBox()
         lr_spin.setRange(1e-6, 1.0); lr_spin.setDecimals(6)
         lr_spin.setSingleStep(0.0001); lr_spin.setValue(lr)
-        lr_spin.setFixedHeight(26)
+        lr_spin.setFixedHeight(26); lr_spin.setFixedWidth(self.PHASE_FIELD_W)
         lr_row.addStretch(); lr_row.addWidget(lr_spin)
         phase_layout.addWidget(lr_widget)
         _lr_capable = optimizer not in ("lbfgs", "nncg")
@@ -14021,8 +14959,8 @@ print("DOMAIN_PREVIEW_DONE")
         loss_combo_ph = QComboBox()
         loss_combo_ph.addItems(["MSE", "MAE", "mean l2 relative error",
                                  "mean absolute percentage error", "softplus"])
-        loss_combo_ph.setFixedHeight(26)
-        self._fit_combo_width(loss_combo_ph, min_width=160)
+        loss_combo_ph.setFixedHeight(26); loss_combo_ph.setFixedWidth(self.PHASE_FIELD_W)
+        loss_combo_ph.view().setMinimumWidth(loss_combo_ph.view().sizeHintForColumn(0) + 24)
         loss_row.addStretch(); loss_row.addWidget(loss_combo_ph)
         phase_layout.addLayout(loss_row)
 
@@ -14041,7 +14979,7 @@ print("DOMAIN_PREVIEW_DONE")
         self.sched_phase_list.append(phase_data)
 
         def _remove():
-            phase_widget.deleteLater()
+            self._drop_row_widget(self.sched_phases_layout, phase_widget)
             if phase_data in self.sched_phase_list:
                 self.sched_phase_list.remove(phase_data)
             self._build_weight_inputs(self.num_outputs_spin.value())
@@ -14148,7 +15086,7 @@ print("DOMAIN_PREVIEW_DONE")
                     for cf in conv_files:
                         name = ""
                         try:
-                            with open(cf) as _cf:
+                            with open(cf, encoding="utf-8", errors="replace") as _cf:
                                 header = _cf.readline().strip().split(",")
                             if len(header) >= 2 and header[1].strip():
                                 name = header[1].strip()
@@ -14167,7 +15105,7 @@ print("DOMAIN_PREVIEW_DONE")
                     # exactly as if the user had left it blank themselves.
                     true_by_name = {}
                     try:
-                        with open(self.restore_config_path.text().strip()) as _mcf:
+                        with open(self.restore_config_path.text().strip(), encoding="utf-8", errors="replace") as _mcf:
                             _mc = _json_brm.load(_mcf)
                         for _iv in _mc.get("inverse_variables", []) or []:
                             if isinstance(_iv, dict) and _iv.get("name") and _iv.get("true") is not None:
@@ -14214,13 +15152,28 @@ print("DOMAIN_PREVIEW_DONE")
         _refresh_restore_output_combo."""
         import json
         try:
-            with open(self.restore_config_path.text().strip()) as f:
+            with open(self.restore_config_path.text().strip(), encoding="utf-8", errors="replace") as f:
                 cfg = json.load(f)
         except Exception:
             return
         opt2 = str(cfg.get("optimizer2", "none") or "none").strip().lower()
         opt1 = str(cfg.get("optimizer", "") or "").strip().lower()
         detected = opt2 if opt2 not in ("", "none") else opt1
+        # Runs now train through Training phases, where optimizer/optimizer2
+        # may be stale: the last phase decides, and the checkpoint's own
+        # name (model_lbfgs-phase2-..., model_adam-phase1-...) decides first.
+        try:
+            _ph = json.loads(cfg.get("scheduler_phases") or "[]")
+            if _ph and cfg.get("optimizer_scheduler"):
+                detected = str(_ph[-1].get("optimizer", detected)).strip().lower()
+        except (ValueError, TypeError, AttributeError):
+            pass
+        _pt = os.path.basename(self.restore_model_path.text().strip()).lower() \
+            if hasattr(self, "restore_model_path") else ""
+        for _name in ("lbfgs", "adam"):
+            if _pt.startswith("model_" + _name):
+                detected = _name
+                break
         if not hasattr(self, 'restore_optimizer_combo'):
             return
         idx = self.restore_optimizer_combo.findData(detected)
@@ -14245,7 +15198,7 @@ print("DOMAIN_PREVIEW_DONE")
         yet -- e.g. no file picked, or Browse cancelled."""
         import json
         try:
-            with open(self.restore_config_path.text().strip()) as f:
+            with open(self.restore_config_path.text().strip(), encoding="utf-8", errors="replace") as f:
                 cfg = json.load(f)
         except Exception:
             return
@@ -14293,7 +15246,7 @@ print("DOMAIN_PREVIEW_DONE")
 
         fallback_cfg = {}
         try:
-            with open(self.restore_config_path.text().strip()) as f:
+            with open(self.restore_config_path.text().strip(), encoding="utf-8", errors="replace") as f:
                 fallback_cfg = json.load(f)
         except Exception:
             pass
@@ -14302,7 +15255,7 @@ print("DOMAIN_PREVIEW_DONE")
         for d in candidate_dirs:
             cfg_path = os.path.join(d, "step_config.json")
             try:
-                with open(cfg_path) as f:
+                with open(cfg_path, encoding="utf-8", errors="replace") as f:
                     cfg = json.load(f)
             except Exception:
                 parts = os.path.basename(d).split("_")
@@ -14483,7 +15436,7 @@ print("DOMAIN_PREVIEW_DONE")
             self.solution_label._source_path = None
             script = self._build_restore_param_script(paths, save_dir, combine, log_scale, animate, true_vals)
 
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as tf:
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False, encoding="utf-8") as tf:
                 tf.write(script)
                 tmp = tf.name
 
@@ -14499,8 +15452,8 @@ print("DOMAIN_PREVIEW_DONE")
 
                 def run(self):
                     proc = subprocess.Popen(
-                        [sys.executable, self._tmp],
-                        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
+                        [_pyexe.script_python(), self._tmp], creationflags=_pyexe.NO_WINDOW,
+                        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=_pyexe.script_env(), **_pyexe.TEXT_UTF8
                     )
                     self.process = proc
                     for line in proc.stdout:
@@ -14575,7 +15528,7 @@ print("DOMAIN_PREVIEW_DONE")
             self._last_restore_model_dirs = [_model_dir]
 
         try:
-            with open(config_path, "r") as f:
+            with open(config_path, "r", encoding="utf-8", errors="replace") as f:
                 cfg = json.load(f)
         except Exception as e:
             self.log_box.append(f"❌ Could not read config: {e}"); return
@@ -14680,7 +15633,7 @@ print("DOMAIN_PREVIEW_DONE")
                 t_min_restore = cfg.get('t_min', 0.0)
                 t_max_restore = cfg.get('t_max', 1.0)
                 try:
-                    with open(step_cfg_path) as _sf:
+                    with open(step_cfg_path, encoding="utf-8", errors="replace") as _sf:
                         _sc = _json_ea.load(_sf)
                     t_min_restore = _sc.get('t_min', t_min_restore)
                     t_max_restore = _sc.get('t_max', t_max_restore)
@@ -14804,7 +15757,7 @@ print("DOMAIN_PREVIEW_DONE")
                 except OSError:
                     pass
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as tf:
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False, encoding="utf-8") as tf:
             tf.write(script)
             tmp = tf.name
 
@@ -14820,8 +15773,8 @@ print("DOMAIN_PREVIEW_DONE")
 
             def run(self):
                 proc = subprocess.Popen(
-                    [sys.executable, self._tmp],
-                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
+                    [_pyexe.script_python(), self._tmp], creationflags=_pyexe.NO_WINDOW,
+                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=_pyexe.script_env(), **_pyexe.TEXT_UTF8
                 )
                 self.process = proc
                 for line in proc.stdout:
@@ -15019,7 +15972,7 @@ _ylabel_override = {ylabel_override!r}
 def _load_conv(path):
     name = None
     iters, vals = [], []
-    with open(path) as f:
+    with open(path, encoding="utf-8", errors="replace") as f:
         header = f.readline().strip().split(",")
         if len(header) >= 2 and header[0].strip().lower() == "iteration":
             name = header[1].strip()
@@ -15333,6 +16286,21 @@ print("RESTORE_DONE")
 import os
 os.environ["DDE_BACKEND"] = "pytorch"
 import deepxde as dde
+
+import torch as _torch_dev
+if not _torch_dev.cuda.is_available() and str(getattr(_torch_dev, "get_default_device", lambda: "cpu")()).startswith("mps"):
+    _torch_dev.set_default_device("cpu")   # as in training: no Apple GPU (MPS)
+
+def _restore_weights(_model, _path):
+    # Only the network's weights are needed to plot it. DeepXDE's
+    # model.restore() also loads the optimizer state, which fails when the
+    # checkpoint came from a different optimizer than the one compiled here
+    # (an L-BFGS checkpoint into an Adam model: KeyError 'step').
+    import torch as _torch_rw
+    _dev = next(_model.net.parameters()).device
+    _ck = _torch_rw.load(_path, map_location=_dev, weights_only=False)
+    _sd = _ck["model_state_dict"] if isinstance(_ck, dict) and "model_state_dict" in _ck else _ck
+    _model.net.load_state_dict(_sd)
 import numpy as np
 import torch
 import matplotlib
@@ -15389,7 +16357,7 @@ if {is_inverse_restore}:
           "the *_convergence.txt file(s) saved alongside the model for that.")
 
 try:
-    model.restore({model_path!r}, verbose=1)
+    _restore_weights(model, {model_path!r})
     print("✅ Model restored successfully.")
 except Exception as e:
     print(f"❌ Restore error: {{e}}")
@@ -15708,6 +16676,21 @@ def _extract_plot_field(x_grid):
 import os
 os.environ["DDE_BACKEND"] = "pytorch"
 import deepxde as dde
+
+import torch as _torch_dev
+if not _torch_dev.cuda.is_available() and str(getattr(_torch_dev, "get_default_device", lambda: "cpu")()).startswith("mps"):
+    _torch_dev.set_default_device("cpu")   # as in training: no Apple GPU (MPS)
+
+def _restore_weights(_model, _path):
+    # Only the network's weights are needed to plot it. DeepXDE's
+    # model.restore() also loads the optimizer state, which fails when the
+    # checkpoint came from a different optimizer than the one compiled here
+    # (an L-BFGS checkpoint into an Adam model: KeyError 'step').
+    import torch as _torch_rw
+    _dev = next(_model.net.parameters()).device
+    _ck = _torch_rw.load(_path, map_location=_dev, weights_only=False)
+    _sd = _ck["model_state_dict"] if isinstance(_ck, dict) and "model_state_dict" in _ck else _ck
+    _model.net.load_state_dict(_sd)
 import numpy as np
 import torch
 import matplotlib
@@ -15761,7 +16744,7 @@ def _ta_get_model(i):
     else:
         _model.compile("adam", lr=0.001, loss=_s["loss_type"])
     try:
-        _model.restore(_s["model_path"], verbose=0)
+        _restore_weights(_model, _s["model_path"])
     except Exception as e:
         print(f"❌ Restore error on step {{i+1}}/{{len(_ta_steps)}} ({{_s['model_path']}}): {{e}}")
         raise
@@ -16089,7 +17072,7 @@ for _i, _tv in enumerate(_ea_times):
     _ea_metrics.append((_tv, _l2, _mse, _mx, _ma))
     print(f"  t={{_tv:.4f}} — {_ea_print_frag}")
 
-with open(os.path.join(_ea_dir, "error_metrics_restore.txt"), "w") as _mf:
+with open(os.path.join(_ea_dir, "error_metrics_restore.txt"), "w", encoding="utf-8") as _mf:
     _mf.write("{_ea_csv_header}\\n")
     for _tv, _l2, _mse, _mx, _ma in _ea_metrics:
         _mf.write(f"{_ea_csv_row}\\n")

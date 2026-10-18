@@ -4,7 +4,7 @@ After Restore && Visualize finished, the right-side results panel
 sometimes showed a stale leftover plot/animation from a COMPLETELY
 different, earlier restore run in the same save folder, instead of what
 the just-finished run actually produced -- reported by the user: running
-a steady-state Surface restore (their Soomro_Paper triangular-cavity
+a steady-state Surface restore (a triangular-cavity
 model) correctly saved restored_plot.png, but the right panel displayed
 an animated GIF of an unrelated Burgers-equation example instead, because
 a restored_animation.gif from an earlier, different restore was still
@@ -161,7 +161,7 @@ def run():
     win._restore_viz_settings["resolution"] = 16  # speed only
 
     # ── Case 1: steady 2D Surface restore, stale animation GIF present ──
-    with tempfile.TemporaryDirectory() as tmpdir:
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmpdir:
         layers = [2, 16, 16, 1]
         model_path = _train_and_save_model(tmpdir, False, True, True, layers, "steady_2d")
         cfg = {
@@ -172,7 +172,7 @@ def run():
             "output_names": "u", "geometry_type": "Rectangle",
         }
         config_path = os.path.join(tmpdir, "model_config.json")
-        with open(config_path, "w") as f:
+        with open(config_path, "w", encoding="utf-8") as f:
             json.dump(cfg, f)
 
         # Simulate a leftover animation GIF + stale EA pngs from some
@@ -221,7 +221,7 @@ def run():
               f"(the user's reported bug: a stale leftover animation GIF gets shown instead)")
 
     # ── Case 2: transient 2D Animation Surface restore, stale plot.png ──
-    with tempfile.TemporaryDirectory() as tmpdir:
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmpdir:
         layers = [3, 16, 16, 1]
         model_path = _train_and_save_model(tmpdir, False, True, False, layers, "transient_2d")
         cfg = {
@@ -232,7 +232,7 @@ def run():
             "output_names": "u", "geometry_type": "Rectangle",
         }
         config_path = os.path.join(tmpdir, "model_config.json")
-        with open(config_path, "w") as f:
+        with open(config_path, "w", encoding="utf-8") as f:
             json.dump(cfg, f)
 
         stale_plot = os.path.join(tmpdir, "restored_plot.png")

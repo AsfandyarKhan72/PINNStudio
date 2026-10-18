@@ -195,6 +195,17 @@ class PINNConfig:
     # ICs
     ic_expressions: str = "np.sin(np.pi * x[:, 0])"
     ic_active: str = "True"
+    # Exact (hard) initial conditions, one "True"/"False" per output like
+    # ic_active: output = IC(x) + tau * network output, tau = (t - t_min) /
+    # (t_max - t_min), so the condition holds exactly and needs no loss term
+    # (its IC row is switched off). Built into the output transform by the
+    # generators (codegen._exact_constraints).
+    ic_hard: str = ""
+    # Exact periodicity: every axis with a periodic boundary condition enters
+    # the network as cos(2 pi x / L), sin(2 pi x / L) instead of x (L = the
+    # domain's length on that axis), so the solution is periodic by
+    # construction. Built into the input transform by the generators.
+    periodic_inputs: bool = False
     loss_weights_multi: str = ""
     # Round 75: > 0 -> before training, each loss weight becomes
     # c / (that term's initial loss), as in DeepXDE's wave example
@@ -364,6 +375,39 @@ class PINNConfig:
 
     cb_timer: bool = False
     cb_timer_minutes: float = 60.0
+
+    # Training methods (adaptive training). Causal training (Wang, Sankaran
+    # & Perdikaris, CMAME 2024) weights the PDE residual of each time chunk
+    # by exp(-eps * sum of the earlier chunks' residual losses), so later
+    # times count once earlier ones are solved. Per-point weights scale each
+    # training point's residual by its own weight: "RBA" (residual-based
+    # attention, Anagnostopoulos et al., CMAME 2024: lambda <- gamma*lambda
+    # + eta*|r|/max|r|) or "SA-PINN" (self-adaptive weights, McClenny &
+    # Braga-Neto, JCP 2023: lambda trained by gradient ascent, learning rate
+    # sa_lr). All are held fixed during L-BFGS.
+    causal_training: bool = False
+    causal_chunks: int = 32
+    causal_eps: float = 1.0
+    # The paper's schedule (Algorithm 1): epsilon steps through 0.01, 0.1, 1,
+    # 10, 100, moving on once every chunk weight is above 0.99. When on,
+    # causal_eps is ignored. On by default: with a fixed eps = 1 the weights
+    # on 1D Allen-Cahn stayed at ~0.98 (causal training barely acted).
+    causal_anneal: bool = True
+    point_weights: str = "None"        # "None", "RBA" or "SA-PINN"
+    rba_gamma: float = 0.999
+    rba_eta: float = 0.01
+    sa_lr: float = 0.005
+    # SA-PINN: rescale the weights to mean 1 after every ascent step (not in
+    # the paper, whose weights only grow by ~sa_lr per Adam step). Off by
+    # default: with the weights held during L-BFGS, as in the paper, the
+    # original was the more reliable of the two (1D Allen-Cahn, three seeds,
+    # 0.13-0.20% at t = 1 against 0.10-2.7% normalized).
+    sa_normalize: bool = False
+    # During L-BFGS: "plain" drops the point weights (L-BFGS refines on the
+    # plain loss) or "keep" holds them at their last values. Kept weights
+    # helped where the plain PINN struggles (1D Cahn-Hilliard, Allen-Cahn)
+    # but made already-accurate problems (1D Burgers, Kovasznay) 2-10x worse.
+    point_weights_lbfgs: str = "plain"
 
     # Training Monitors: optional, pure-observability DeepXDE
     # dde.callbacks.OperatorPredictor instances. Each one watches an
@@ -730,6 +774,53 @@ class PINNConfig:
         file and hard to diagnose from the resulting crash, not every
         possible misconfiguration."""
         errors = []
+        if self.causal_training:
+            if self.steady_state:
+                errors.append("Causal training needs a time-dependent problem (it weights the residual by time).")
+            if int(self.causal_chunks) < 2:
+                errors.append("Causal training: the number of time chunks must be at least 2.")
+            if float(self.causal_eps) <= 0:
+                errors.append("Causal training: the causality parameter epsilon must be positive.")
+        _hard = [h.strip() == "True" for h in (self.ic_hard or "").split(",")]
+        if any(_hard):
+            _ics = (self.ic_expressions or "").split("|")
+            if self.steady_state or self.problem_dim == "ODE":
+                errors.append("Exact initial condition: needs a time-dependent PDE problem.")
+            if self.time_adaptive:
+                errors.append("Exact initial condition can't be combined with time-adaptive training yet "
+                              "(each time step starts from the previous step's solution, not the formula) -- "
+                              "untick 'Exact' on the Initial Conditions page, or switch time-adaptive training off.")
+            if getattr(self, "forward_ic_from_file", False):
+                errors.append("Exact initial condition: needs the initial condition as a formula, not from a file.")
+            for _i, _h in enumerate(_hard):
+                _e = _ics[_i].strip() if _i < len(_ics) else ""
+                if _h and (not _e or "x[" in _e or "np." in _e):
+                    errors.append(f"Exact initial condition (output {_i + 1}): write the initial condition as a "
+                                  f"formula in x, y, z (e.g. sin(pi*x)), not {_e or 'empty'!r}.")
+            if self.output_transform_enabled and self.output_transform_mode == "formula" \
+                    and (self.output_transform_formula or "").strip("| "):
+                errors.append("Exact initial condition can't be combined with your own output transform formula -- "
+                              "write the condition into the formula yourself (IC + t*u), or turn the formula off.")
+        if self.periodic_inputs:
+            if self.problem_dim == "ODE":
+                errors.append("Exact periodicity: needs a spatial axis with a periodic boundary condition.")
+            elif not _periodic_axes(self):
+                errors.append("Exact periodicity: no boundary condition is periodic -- add a periodic BC row "
+                              "(or untick 'Exact periodicity' on the Boundary Conditions page).")
+            if self.input_transform_enabled:
+                errors.append("Exact periodicity can't be combined with the Network page's input transform -- "
+                              "turn the input transform off, or write the cos/sin features into its formula yourself.")
+        if self.point_weights not in ("None", "RBA", "SA-PINN"):
+            errors.append(f"Per-point weights: unknown method {self.point_weights!r} (None, RBA or SA-PINN).")
+        elif self.point_weights == "RBA":
+            if not (0.0 < float(self.rba_gamma) < 1.0):
+                errors.append("Per-point weights (RBA): the decay gamma must be between 0 and 1.")
+            if float(self.rba_eta) <= 0:
+                errors.append("Per-point weights (RBA): the step eta must be positive.")
+        if self.point_weights in ("RBA", "SA-PINN") and self.point_weights_lbfgs not in ("plain", "keep"):
+            errors.append("Per-point weights: during L-BFGS must be 'plain' or 'keep'.")
+        if self.point_weights == "SA-PINN" and float(self.sa_lr) <= 0:
+            errors.append("Per-point weights (SA-PINN): the learning rate must be positive.")
 
         if self.problem_dim == "ODE":
             _bad = [n.strip() for n in (self.output_names or "").split(",") if n.strip() in ("x", "t")]
@@ -1246,3 +1337,26 @@ def use_training_phases(config):
             config.optimizer_scheduler = True
             config.scheduler_same_weights = True
     return config
+
+
+def _periodic_axes(config):
+    """The spatial axes ("x", "y", "z") that carry a periodic boundary
+    condition -- Boundary Conditions panel rows, or the legacy per-side
+    types of a template without panel rows."""
+    import json as _json_pa
+    axes = []
+    try:
+        rows = _json_pa.loads(config.custom_bc_json) if (config.custom_bc_json or "").strip() else []
+    except ValueError:
+        rows = []
+    for r in rows:
+        if isinstance(r, dict) and str(r.get("type", "")).lower() == "periodic":
+            a = str(r.get("axis", "x") or "x")
+            if a not in axes:
+                axes.append(a)
+    if not rows:
+        if "Periodic" in (config.bc_left_types or "") + (config.bc_right_types or ""):
+            axes.append("x")
+        if config.problem_dim in ("2D", "3D") and "Periodic" in (config.bc_bottom_types or "") + (config.bc_top_types or ""):
+            axes.append("y")
+    return [a for a in ("x", "y", "z") if a in axes]

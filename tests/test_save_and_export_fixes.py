@@ -142,7 +142,7 @@ def run():
     )
     e2e_script = generate_script(e2e_cfg)
     _script_path = os.path.join(_tmpdir, "run.py")
-    with open(_script_path, "w") as _f:
+    with open(_script_path, "w", encoding="utf-8") as _f:
         _f.write(e2e_script)
     _r = subprocess.run([sys.executable, _script_path], cwd=_tmpdir,
                          capture_output=True, text=True, timeout=180)
@@ -186,7 +186,7 @@ def run():
                     'max(_ta_all_steps) if _ta_all_steps else None)\n')
     ta_e2e_script_debug = ta_e2e_script[:_idx] + _debug_line + ta_e2e_script[_idx:]
     _ta_script_path = os.path.join(_ta_tmpdir, "run.py")
-    with open(_ta_script_path, "w") as _f:
+    with open(_ta_script_path, "w", encoding="utf-8") as _f:
         _f.write(ta_e2e_script_debug)
     _r2 = subprocess.run([sys.executable, _ta_script_path], cwd=_ta_tmpdir,
                           capture_output=True, text=True, timeout=180)
@@ -242,14 +242,17 @@ def run():
                                          plot_custom_expr="du_x", plot_custom_label="du_dx")
     clean_e2e_script = generate_clean_script(clean_e2e_cfg)
     _clean_script_path = os.path.join(_clean_tmpdir, "run.py")
-    with open(_clean_script_path, "w") as _f:
+    with open(_clean_script_path, "w", encoding="utf-8") as _f:
         _f.write(clean_e2e_script)
     _r3 = subprocess.run([sys.executable, _clean_script_path], cwd=_clean_tmpdir,
                           capture_output=True, text=True, timeout=180)
     check(_r3.returncode == 0,
           f"derivative-custom-expr clean-script should run to completion "
           f"(stderr tail: {_r3.stderr[-800:]})")
-    check(os.path.exists("/tmp/solution_plot.png"),
+    # "/tmp" in the script is on the drive of its own folder (on Windows, C:
+    # for the temp folder, which need not be this test's drive)
+    _plot = os.path.join(os.path.splitdrive(_clean_tmpdir)[0] + os.sep, "tmp", "solution_plot.png")
+    check(os.path.exists(_plot),
           "the derivative-custom-expr clean-script should produce a solution plot")
 
     # =====================================================================
@@ -305,7 +308,7 @@ def run():
     )
     ea_e2e_script = generate_script(ea_e2e_cfg)
     _ea_script_path = os.path.join(_ea_tmpdir, "run.py")
-    with open(_ea_script_path, "w") as _f:
+    with open(_ea_script_path, "w", encoding="utf-8") as _f:
         _f.write(ea_e2e_script)
     _r4 = subprocess.run([sys.executable, _ea_script_path], cwd=_ea_tmpdir,
                           capture_output=True, text=True, timeout=180)

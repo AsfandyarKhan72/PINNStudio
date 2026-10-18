@@ -1,0 +1,37 @@
+[
+ {
+  "example": "2D Allen-Cahn (Wight & Zhao)",
+  "setup": "Exact periodicity",
+  "name": "ac2w_ep"
+ },
+ {
+  "example": "2D Allen-Cahn (Wight & Zhao)",
+  "setup": "Exact",
+  "name": "ac2w_exact"
+ },
+ {
+  "example": "2D Allen-Cahn (Wight & Zhao)",
+  "setup": "Exact + causal",
+  "name": "ac2w_e_causal"
+ },
+ {
+  "example": "2D Allen-Cahn (Wight & Zhao)",
+  "setup": "Exact + causal + MsFFN",
+  "name": "ac2w_e_causal_msffn"
+ },
+ {
+  "example": "2D Allen-Cahn (Mattey & Ghosh)",
+  "setup": "Exact periodicity",
+  "name": "ac2m_ep"
+ },
+ {
+  "example": "2D Allen-Cahn (Mattey & Ghosh)",
+  "setup": "Exact",
+  "name": "ac2m_exact"
+ },
+ {
+  "example": "2D Allen-Cahn (Mattey & Ghosh)",
+  "setup": "Exact + causal + MsFFN",
+  "name": "ac2m_e_causal_msffn"
+ }
+]

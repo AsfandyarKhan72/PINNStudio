@@ -109,7 +109,7 @@ def _train_and_save_ta_step(step_dir, t0, t1, tag):
     # in a bounded number of steps the way Adam's `iterations=` does.
     model_path = model.save(os.path.join(step_dir, "model_lbfgs"))
 
-    with open(os.path.join(step_dir, "step_config.json"), "w") as f:
+    with open(os.path.join(step_dir, "step_config.json"), "w", encoding="utf-8") as f:
         json.dump({
             "t_min": t0, "t_max": t1, "problem_dim": "1D", "steady_state": False,
             "layers": [2, 16, 16, 1], "activation": "tanh", "output_names": "u",
@@ -120,7 +120,7 @@ def _train_and_save_ta_step(step_dir, t0, t1, tag):
 
 def _run_script(script, tmpdir, tag):
     sp = os.path.join(tmpdir, f"{tag}_script.py")
-    with open(sp, "w") as f:
+    with open(sp, "w", encoding="utf-8") as f:
         f.write(script)
     proc = subprocess.run(
         [sys.executable, sp], cwd=tmpdir, capture_output=True, text=True, timeout=120,

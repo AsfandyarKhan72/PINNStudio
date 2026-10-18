@@ -1,5 +1,6 @@
 import os
 os.environ["DDE_BACKEND"] = "pytorch"
+from pinnstudio.core import pyexe as _pyexe
 import subprocess
 import sys
 import tempfile
@@ -53,10 +54,9 @@ def run_pinn(config: PINNConfig, on_output=None, set_process=None):
         # Force the child process itself to use UTF-8 for its own stdout/stderr -
         # otherwise Windows defaults a piped (non-console) stream to the legacy
         # system codepage, which can't encode emoji/symbols the script prints.
-        _env = os.environ.copy()
-        _env["PYTHONIOENCODING"] = "utf-8"
+        _env = _pyexe.script_env()
         process = subprocess.Popen(
-                    [sys.executable, tmp_path],
+                    [_pyexe.script_python(), tmp_path], creationflags=_pyexe.NO_WINDOW,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
                     text=True,

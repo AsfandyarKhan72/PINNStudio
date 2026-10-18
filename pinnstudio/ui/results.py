@@ -18,7 +18,7 @@ import re
 import time
 
 from PyQt6.QtCore import QEvent, QObject, QRectF, Qt, QTimer, pyqtSignal
-from PyQt6.QtGui import QPainter, QPixmap
+from PyQt6.QtGui import QColor, QPainter, QPixmap
 from PyQt6.QtWidgets import (QCheckBox, QDialog, QGraphicsPixmapItem, QGraphicsScene, QGraphicsView, QHBoxLayout,
                              QHeaderView, QLabel, QPushButton, QScrollArea, QSizePolicy, QSplitter, QTableWidget,
                              QTableWidgetItem, QVBoxLayout, QWidget)
@@ -64,6 +64,24 @@ def _floats(txt):
         except ValueError:
             return []
     return out
+
+
+def _theme_toolbar(toolbar):
+    """Give matplotlib's navigation toolbar the theme's panel colour.
+
+    Matplotlib picks dark or light icons from the toolbar's background colour.
+    On Linux that colour came through as transparent black, so it drew white
+    icons on the white panel and the toolbar looked empty; on macOS it read
+    the native colour. Setting it from the theme gives dark icons on the light
+    themes and light icons on the dark ones, on every platform."""
+    # a stylesheet, not just a palette: the window's "QWidget { background:
+    # transparent }" rule resets a palette set before the toolbar is polished
+    card = _theme.current()["card"]
+    toolbar.setStyleSheet(f"QToolBar {{ background: {card}; border: none; }}")
+    pal = toolbar.palette()
+    pal.setColor(toolbar.backgroundRole(), QColor(card))
+    toolbar.setPalette(pal)
+    toolbar.update()
 
 
 class RunProgress:
@@ -262,6 +280,7 @@ class LiveLossPlot(QWidget):
         self._canvas = FigureCanvasQTAgg(self._fig)
         self._canvas.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self._toolbar = NavigationToolbar2QT(self._canvas, self)
+        _theme_toolbar(self._toolbar)
         from pinnstudio.ui.export_tools import attach_figure_menu
         attach_figure_menu(self._canvas, lambda: self._fig, "live_loss.png")
         self.empty.hide()
@@ -295,6 +314,7 @@ class LiveLossPlot(QWidget):
         if p is None or not self._ensure_canvas():
             return
         t = _theme.current()
+        _theme_toolbar(self._toolbar)          # follows a theme change
         ax, fig = self._ax, self._fig
         ax.clear()
         fig.set_facecolor(t["card"])
@@ -410,8 +430,11 @@ class ErrorAnalysisPanel(QWidget):
         lay.setContentsMargins(6, 6, 6, 6)
         self.summary = QLabel("Run a problem with Error Analysis set up to see its errors here.")
         self.summary.setWordWrap(True)
+        lay.addWidget(self.summary)
+        # the buttons get their own row, so the summary beside them does not
+        # keep the graphics column (and its divider) wide
         bar = QHBoxLayout()
-        bar.addWidget(self.summary, 1)
+        bar.addStretch()
         self.copy_btn = QPushButton("Copy")
         self.copy_btn.setToolTip("Copy the table (or the selected rows) -- it pastes into a spreadsheet")
         self.export_btn = QPushButton("Export CSV…")
@@ -631,6 +654,7 @@ class RunCompare(QWidget):
         self._canvas = FigureCanvasQTAgg(self._fig)
         self._canvas.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self._toolbar = NavigationToolbar2QT(self._canvas, self)
+        _theme_toolbar(self._toolbar)
         from pinnstudio.ui.export_tools import attach_figure_menu
         attach_figure_menu(self._canvas, lambda: self._fig, "run_comparison.png")
         self.empty.hide()
@@ -647,6 +671,7 @@ class RunCompare(QWidget):
         if self._canvas is None:
             return
         t = _theme.current()
+        _theme_toolbar(self._toolbar)
         fig = self._fig
         fig.clear()
         fig.set_facecolor(t["card"])

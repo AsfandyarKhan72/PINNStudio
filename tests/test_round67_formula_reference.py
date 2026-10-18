@@ -73,8 +73,9 @@ def run():
     ents = _formula_reference_entries(_heat("/runs/a", 10))
     check([(t, os.path.basename(p), i) for (t, p, i, _e) in ents] == [(0.5, "u_t_0.5.txt", 0), (1.0, "u_t_1.txt", 0)], ents)
     eff = _effective_config(_heat("/runs/a", 10))
-    check(ast.literal_eval(eff.ea_files) == [(0.5, "/runs/a/reference_from_formula/u_t_0.5.txt", 0),
-                                              (1.0, "/runs/a/reference_from_formula/u_t_1.txt", 0)], eff.ea_files)
+    check([(t, f.replace("\\", "/"), i) for t, f, i in ast.literal_eval(eff.ea_files)]   # Windows joins with \\
+          == [(0.5, "/runs/a/reference_from_formula/u_t_0.5.txt", 0),
+              (1.0, "/runs/a/reference_from_formula/u_t_1.txt", 0)], eff.ea_files)
     check(len(_formula_reference_entries(_heat("/r", 10, ea_ref_times=""))) == 5, "blank times -> 5 evenly spaced")
     check(_formula_reference_entries(_heat("/r", 10, ea_ref_mode="files")) == [], "files mode -> no formula files")
     for gen in (generate_script, generate_clean_script):
@@ -123,7 +124,7 @@ def run():
         for gen in (generate_script, generate_clean_script):
             d = os.path.join(tmp, gen.__name__)
             os.makedirs(d)
-            with open(os.path.join(d, "run.py"), "w") as fh:
+            with open(os.path.join(d, "run.py"), "w", encoding="utf-8") as fh:
                 fh.write(gen(_heat(d, 300)))
             p = subprocess.run([sys.executable, "run.py"], cwd=d, capture_output=True, text=True, timeout=600)
             check(p.returncode == 0, f"{gen.__name__} failed:\n{p.stderr[-1500:]}")
@@ -141,7 +142,7 @@ def run():
                   pde_expressions="-du_xx - du_yy - 1", ea_ref_formula="(1 - x**2 - y**2)/4", ea_ref_grid=41,
                   layers=[2, 16, 1])
         c.pde_expression = c.pde_expressions
-        with open(os.path.join(d, "run.py"), "w") as fh:
+        with open(os.path.join(d, "run.py"), "w", encoding="utf-8") as fh:
             fh.write(generate_script(c))
         p = subprocess.run([sys.executable, "run.py"], cwd=d, capture_output=True, text=True, timeout=600)
         check(p.returncode == 0, f"disk failed:\n{p.stderr[-1500:]}")

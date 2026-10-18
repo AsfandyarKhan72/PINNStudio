@@ -38,6 +38,12 @@ def _window():
     w.resize(1600, 950)
     w.show()
     _settle()
+    # the starting problem ("unchanged") is recorded a few event-loop passes
+    # after the window opens; on a slow machine that can take longer than
+    # the settle above, and a change made before it would count as the start
+    t = time.time()
+    while getattr(w, "_clean_key", None) is None and time.time() - t < 10:
+        _settle(0.05)
     return w
 
 
@@ -179,9 +185,9 @@ def test_run_history():
     run = os.path.join(base, "1D_Forward__2026-10-01_12-30-00")
     os.makedirs(os.path.join(run, "solution_results"))
     os.makedirs(os.path.join(run, "error_analysis"))
-    with open(os.path.join(run, "solution_results", "training_log.txt"), "w") as fh:
+    with open(os.path.join(run, "solution_results", "training_log.txt"), "w", encoding="utf-8") as fh:
         fh.write("Step 0: [np.float32(1.0), np.float32(2.0)]\nStep 100: [np.float32(0.001), np.float32(0.002)]\n")
-    with open(os.path.join(run, "error_analysis", "error_metrics.txt"), "w") as fh:
+    with open(os.path.join(run, "error_analysis", "error_metrics.txt"), "w", encoding="utf-8") as fh:
         fh.write("t,L2_relative,Mean_abs_error\n0.0,0.01,0.001\n1.0,0.03,0.002\n")
     os.makedirs(os.path.join(base, "not_a_run"))
     runs = scan_runs(base)
@@ -207,10 +213,10 @@ def _fake_run(base, name, losses, l2s):
     run = os.path.join(base, name)
     os.makedirs(os.path.join(run, "solution_results"))
     os.makedirs(os.path.join(run, "error_analysis"))
-    with open(os.path.join(run, "solution_results", "training_log.txt"), "w") as fh:
+    with open(os.path.join(run, "solution_results", "training_log.txt"), "w", encoding="utf-8") as fh:
         for i, v in enumerate(losses):
             fh.write(f"Step {i * 100}: [np.float32({v}), np.float32({v / 10})]\n")
-    with open(os.path.join(run, "error_analysis", "error_metrics.txt"), "w") as fh:
+    with open(os.path.join(run, "error_analysis", "error_metrics.txt"), "w", encoding="utf-8") as fh:
         fh.write("t,L2_relative,Mean_abs_error\n")
         for i, e in enumerate(l2s):
             fh.write(f"{i * 0.5},{e},0.001\n")
@@ -324,7 +330,7 @@ def test_copy_and_save():
     text = ex.copy_table(w.ea_panel.table)
     assert text.splitlines()[0].startswith("time\t") and "0.0123456789" in text, "full precision"
     csv_path = ex.export_table_csv(w.ea_panel.table, target=os.path.join(d, "err"))
-    with open(csv_path) as fh:
+    with open(csv_path, encoding="utf-8", errors="replace") as fh:
         rows = fh.read().splitlines()
     assert len(rows) == 3 and rows[2].endswith(","), "an empty cell stays empty"
     from matplotlib.figure import Figure

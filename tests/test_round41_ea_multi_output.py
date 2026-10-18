@@ -66,7 +66,7 @@ from pinnstudio.core.codegen import generate_clean_script
 
 def _run_script(script, tmpdir, tag, timeout_s=150):
     sp = os.path.join(tmpdir, f"{tag}_script.py")
-    with open(sp, "w") as f:
+    with open(sp, "w", encoding="utf-8") as f:
         f.write(script)
     return subprocess.run([sys.executable, sp], cwd=tmpdir, capture_output=True, text=True, timeout=timeout_s)
 
@@ -204,7 +204,7 @@ def run():
         check(os.path.exists(v_metrics), "raw-int-group error_metrics_v.txt should exist")
 
         if os.path.exists(const_metrics):
-            with open(const_metrics) as f:
+            with open(const_metrics, encoding="utf-8", errors="replace") as f:
                 rows = [ln for ln in f.read().splitlines() if ln.strip() and not ln.lower().startswith("t")]
             # header row's exact column names vary by config (RMSE/L2/etc select-
             # able metrics) -- just confirm at least one data row parses and its
@@ -259,7 +259,7 @@ def run():
         check(os.path.exists(const_metrics_ta),
               "TA const-group error_metrics_const.txt should exist")
         if os.path.exists(const_metrics_ta):
-            with open(const_metrics_ta) as f:
+            with open(const_metrics_ta, encoding="utf-8", errors="replace") as f:
                 rows = [ln for ln in f.read().splitlines() if ln.strip() and not ln.lower().startswith("t")]
             check(len(rows) >= 1, "TA const-group metrics should have at least one data row")
             if rows:

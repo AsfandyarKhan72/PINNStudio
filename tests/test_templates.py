@@ -46,16 +46,18 @@ from pinnstudio.ui.main_window import MainWindow
 from pinnstudio.core.codegen import generate_script, generate_clean_script
 
 TEMPLATES_BY_DIM = {
-    "1d": ["1D Heat", "1D Allen-Cahn", "1D Burgers", "1D Schrödinger"],
+    "1d": ["1D Heat", "1D Allen-Cahn", "1D Cahn-Hilliard", "1D Cahn-Hilliard (Mattey & Ghosh)", "1D Burgers", "1D Schrödinger"],
     "2d": [
         "2D Heat",
         "2D Allen-Cahn (Mattey & Ghosh)",
         "2D Allen-Cahn (Wight & Zhao)",
+        "2D Cahn-Hilliard (Mattey & Ghosh)",
+        "2D Cahn-Hilliard (Wight & Zhao)",
         "2D Burgers (Mathias)",
         "2D Poisson (L-Shape)",
         "2D Poisson (Disk)",
     ],
-    "3d": ["3D Heat", "3D Poisson (Sphere)"],
+    "3d": ["3D Heat", "3D Allen-Cahn (Wight & Zhao)", "3D Poisson (Sphere)"],
 }
 
 # Combinations that are EXPECTED to fail config.validate() in their fresh,

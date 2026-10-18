@@ -241,7 +241,7 @@ def run():
                 setattr(cfg, k, v)
             cfg.pde_expression = cfg.pde_expressions
             check(not cfg.validate(), f"training config valid: {cfg.validate()}")
-            with open(os.path.join(d, "run.py"), "w") as fh:
+            with open(os.path.join(d, "run.py"), "w", encoding="utf-8") as fh:
                 fh.write(gen(cfg))
             p = subprocess.run([sys.executable, "run.py"], cwd=d, capture_output=True, text=True, timeout=900)
             check(p.returncode == 0, f"{gen.__name__} ran:\n{p.stderr[-2000:]}")

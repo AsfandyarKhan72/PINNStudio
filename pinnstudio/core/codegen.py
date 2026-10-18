@@ -708,6 +708,231 @@ def _parse_inverse_obs_files(config):
     return files
 
 
+
+def _training_methods_defs(config):
+    """Module-level source for causal training and per-point residual
+    weights (empty when neither is on). Both wrap `pde` and scale each
+    collocation point's residual, so the mean-squared PDE loss becomes the
+    weighted one.
+
+    Causal training (Wang, Sankaran & Perdikaris, CMAME 2024): a point in
+    time chunk i is scaled by sqrt(w_i), w_i = exp(-eps * sum_{k<i} L_k),
+    L_k the mean squared residual in chunk k (no gradient through w).
+
+    Per-point weights lambda (one per training point and equation, the
+    residual scaled by lambda):
+      RBA, residual-based attention (Anagnostopoulos, Toscano, Stergiopulos
+      & Karniadakis, CMAME 2024): lambda <- gamma*lambda + eta*|r|/max|r|
+      after every Adam step (no gradient through lambda);
+      SA-PINN, self-adaptive weights (McClenny & Braga-Neto, JCP 2023):
+      lambda trained by gradient ascent (Adam, maximize) on the same loss
+      the network minimizes.
+    Only the training points are weighted (the test loss stays the plain
+    one). L-BFGS needs a fixed objective: causal weights are held fixed;
+    point weights are either held ("keep") or dropped, so L-BFGS refines on
+    the plain loss ("plain", the default -- holding them made already-
+    accurate problems such as 1D Burgers and Kovasznay flow 2-10x worse)."""
+    causal = bool(getattr(config, "causal_training", False)) and not config.steady_state
+    pw = _point_weights_mode(config)
+    if not (causal or pw):
+        return ""
+    out = ["", "# ── Training methods: causal training / per-point weights ──────"]
+    if causal:
+        out.append(f"""_CAUSAL = {{"M": {int(config.causal_chunks)}, "eps": {float(config.causal_eps)!r}, "t0": {float(config.t_min)!r}, "t1": {float(config.t_max)!r},
+           "w": None, "frozen": False, "n": 0,
+           "sched": {[0.01, 0.1, 1.0, 10.0, 100.0] if getattr(config, "causal_anneal", False) else None!r}, "k": 0}}
+if _CAUSAL["sched"]:
+    _CAUSAL["eps"] = _CAUSAL["sched"][0]
+
+
+def _causal_wrap(_f):
+    def _weigh(x, _r):
+        _rs = list(_r) if isinstance(_r, (list, tuple)) else [_r]
+        if any(_ri.shape[0] != x.shape[0] for _ri in _rs):
+            return _r                      # residual on a subset of points (fractional): unchanged
+        _M = _CAUSAL["M"]
+        _t = x[:, -1].detach()
+        _t0, _t1 = float(_t.min()), float(_t.max())   # this training window (one Time-Adaptive step, or all of it)
+        _CAUSAL["t0"], _CAUSAL["t1"] = _t0, _t1
+        _idx = ((_t - _t0) / max(_t1 - _t0, 1e-12) * _M).floor().clamp(0, _M - 1).long()
+        if _CAUSAL["frozen"] and _CAUSAL["w"] is not None:
+            _w = _CAUSAL["w"].to(x.device)
+        else:
+            with torch.no_grad():
+                _sq = sum(_ri.detach().reshape(-1) ** 2 for _ri in _rs)
+                _L = torch.zeros(_M, dtype=_sq.dtype, device=x.device).scatter_add_(0, _idx, _sq)
+                _c = torch.zeros(_M, dtype=_sq.dtype, device=x.device).scatter_add_(0, _idx, torch.ones_like(_sq))
+                _L = _L / _c.clamp(min=1)
+                _w = torch.exp(-_CAUSAL["eps"] * (torch.cumsum(_L, 0) - _L))
+            if x.shape[0] >= _CAUSAL["n"]:     # the training points (not the smaller test set)
+                _CAUSAL["w"], _CAUSAL["n"] = _w.detach(), x.shape[0]
+        _s = _w[_idx].sqrt().unsqueeze(1).to(_rs[0].dtype)
+        _out = [_ri * _s for _ri in _rs]
+        return _out if isinstance(_r, (list, tuple)) else _out[0]
+    import inspect as _inspect
+    if len(_inspect.signature(_f).parameters) == 3:    # fractional: pde(x, y, int_mat)
+        def _pde_causal(x, y, int_mat=None):
+            return _weigh(x, _f(x, y, int_mat))
+    else:
+        def _pde_causal(x, y):
+            return _weigh(x, _f(x, y))
+    return _pde_causal
+
+
+pde = _causal_wrap(pde)
+print(f"Causal training: {{_CAUSAL['M']}} time chunks, epsilon = "
+      + (f"{{_CAUSAL['sched']}} (next one once all weights > 0.99)" if _CAUSAL["sched"] else f"{{_CAUSAL['eps']}}"))
+
+
+class _CausalMonitor(dde.callbacks.Callback):
+    \"\"\"Prints how far in time the causal weights say the solution is
+    settled, and holds the weights fixed during L-BFGS.\"\"\"
+    def __init__(self, every=1000):
+        super().__init__()
+        self.every = every
+
+    def on_train_begin(self):
+        _CAUSAL["frozen"] = "L-BFGS" in str(getattr(self.model, "opt_name", ""))
+        if _CAUSAL["sched"] and not _CAUSAL["frozen"]:     # a new Adam run (e.g. the next time-adaptive step): start the schedule over
+            _CAUSAL["k"], _CAUSAL["eps"] = 0, _CAUSAL["sched"][0]
+
+    def on_batch_end(self):
+        st = self.model.train_state
+        if (_CAUSAL["sched"] and not _CAUSAL["frozen"] and _CAUSAL["w"] is not None
+                and _CAUSAL["k"] < len(_CAUSAL["sched"]) - 1 and float(_CAUSAL["w"].min()) > 0.99):
+            _CAUSAL["k"] += 1
+            _CAUSAL["eps"] = _CAUSAL["sched"][_CAUSAL["k"]]
+            print(f"  causal: all weights > 0.99 at step {{st.step}}, epsilon -> {{_CAUSAL['eps']}}", flush=True)
+        if st.step % self.every or _CAUSAL["w"] is None:
+            return
+        _w = _CAUSAL["w"].cpu().numpy()
+        _ok = int((_w > 0.99).sum()) if (_w > 0.99).all() else int(np.argmax(_w <= 0.99))
+        _tt = _CAUSAL["t0"] + (_CAUSAL["t1"] - _CAUSAL["t0"]) * _ok / _CAUSAL["M"]
+        print(f"  causal weights (epsilon {{_CAUSAL['eps']}}): min {{_w.min():.3g}}, settled up to t = {{_tt:.3g}}"
+              + (" (held during L-BFGS)" if _CAUSAL["frozen"] else ""), flush=True)
+""")
+    if pw:
+        out.append(f"""_PW = {{"mode": {pw!r}, "gamma": {float(config.rba_gamma)!r}, "eta": {float(config.rba_eta)!r}, "lr": {float(config.sa_lr)!r},
+       "norm": {bool(getattr(config, "sa_normalize", True))!r},
+       "keep": {str(getattr(config, "point_weights_lbfgs", "plain")) == "keep"!r}, "lam": None, "fp": None, "frozen": False, "pending": False, "opt": None}}
+
+
+def _pw_sums(X):
+    # checksum of the whole point set: plain sum and a position-weighted one
+    # (so a reordering or a few moved points change it too)
+    _X = torch.as_tensor(X).detach().to(torch.float64).reshape(len(X), -1)
+    _i = torch.arange(1, len(_X) + 1, dtype=torch.float64, device=_X.device).unsqueeze(1) / len(_X)
+    return float(_X.sum()), float((_X * _i).sum())
+
+
+def _pw_is_train(x):
+    _fp = _PW["fp"]
+    if _fp is None or x.shape[0] != _fp[0]:
+        return False
+    _a, _b = _pw_sums(x)
+    return (abs(_a - _fp[1]) <= 1e-5 * (1 + abs(_fp[1]))
+            and abs(_b - _fp[2]) <= 1e-5 * (1 + abs(_fp[2])))
+
+
+def _pw_wrap(_f):
+    def _weigh(x, _r):
+        _rs = list(_r) if isinstance(_r, (list, tuple)) else [_r]
+        if any(_ri.shape[0] != x.shape[0] for _ri in _rs) or not _pw_is_train(x):
+            return _r                      # test points, or a residual on a subset of points: unchanged
+        if _PW["frozen"] and not _PW["keep"]:
+            return _r                      # L-BFGS on the plain loss
+        _n, _k = x.shape[0], len(_rs)
+        if _PW["lam"] is None or tuple(_PW["lam"].shape) != (_n, _k):
+            _PW["lam"] = torch.ones(_n, _k, dtype=_rs[0].dtype, device=x.device,
+                                    requires_grad=_PW["mode"] == "SA-PINN")
+            _PW["opt"] = (torch.optim.Adam([_PW["lam"]], lr=_PW["lr"], maximize=True)
+                          if _PW["mode"] == "SA-PINN" else None)
+        _lam = _PW["lam"]
+        if _PW["mode"] == "RBA" and _PW["pending"] and not _PW["frozen"]:
+            with torch.no_grad():
+                _a = torch.cat([_ri.detach().abs().reshape(-1, 1) for _ri in _rs], dim=1)
+                _lam.mul_(_PW["gamma"]).add_(_PW["eta"] * _a / _a.max(dim=0, keepdim=True).values.clamp(min=1e-30))
+            _PW["pending"] = False
+        if _PW["frozen"] or _PW["mode"] == "RBA":
+            _lam = _lam.detach()
+        _out = [_ri * _lam[:, j:j + 1].to(_ri.dtype) for j, _ri in enumerate(_rs)]
+        return _out if isinstance(_r, (list, tuple)) else _out[0]
+    import inspect as _inspect
+    if len(_inspect.signature(_f).parameters) == 3:    # fractional: pde(x, y, int_mat)
+        def _pde_pw(x, y, int_mat=None):
+            return _weigh(x, _f(x, y, int_mat))
+    else:
+        def _pde_pw(x, y):
+            return _weigh(x, _f(x, y))
+    return _pde_pw
+
+
+pde = _pw_wrap(pde)
+print(f"Per-point weights: {{_PW['mode']}}" + (f" (gamma = {{_PW['gamma']}}, eta = {{_PW['eta']}})" if _PW["mode"] == "RBA"
+                                               else f" (learning rate {{_PW['lr']}}, gradient ascent)"))
+
+
+class _PointWeights(dde.callbacks.Callback):
+    \"\"\"Marks the training points, updates the weights once per Adam step
+    (RBA) or takes the ascent step (SA-PINN), and holds them during L-BFGS.\"\"\"
+    def __init__(self, every=1000):
+        super().__init__()
+        self.every = every
+
+    def on_train_begin(self):
+        _PW["frozen"] = "L-BFGS" in str(getattr(self.model, "opt_name", ""))
+        self._mark()
+
+    def _mark(self):
+        X = self.model.train_state.X_train
+        if X is not None and len(X):
+            fp = (len(X),) + _pw_sums(X)
+            if _PW["fp"] is not None and fp != _PW["fp"] and _PW["lam"] is not None:
+                # new training points (a resampler, a RAR round, the next
+                # time-adaptive step): weights belong to points -- start over
+                _PW["lam"], _PW["opt"] = None, None
+            _PW["fp"] = fp
+
+    def on_batch_begin(self):
+        if not _PW["frozen"]:
+            self._mark()
+            _PW["pending"] = True
+
+    def on_batch_end(self):
+        lam = _PW["lam"]
+        if lam is None:
+            return
+        if _PW["mode"] == "SA-PINN" and not _PW["frozen"] and lam.grad is not None:
+            _PW["opt"].step()
+            _PW["opt"].zero_grad()
+            with torch.no_grad():
+                lam.clamp_(min=0.0)
+                if _PW["norm"]:          # mean weight 1 per equation: the emphasis moves, the loss scale doesn't grow
+                    lam.div_(lam.mean(dim=0, keepdim=True).clamp(min=1e-30))
+        st = self.model.train_state
+        if st.step % self.every == 0:
+            l = lam.detach()
+            print(f"  point weights: mean {{float(l.mean()):.3g}}, max {{float(l.max()):.3g}}"
+                  + ((" (held during L-BFGS)" if _PW["keep"] else " (L-BFGS on the plain loss)")
+                     if _PW["frozen"] else ""), flush=True)
+""")
+    return "\n".join(out) + "\n"
+
+
+def _point_weights_mode(config):
+    m = str(getattr(config, "point_weights", "None") or "None")
+    return m if m in ("RBA", "SA-PINN") else ""
+
+
+def _training_methods_cbs(config, var_name, pad):
+    lines = []
+    if bool(getattr(config, "causal_training", False)) and not config.steady_state:
+        lines.append(f"{pad}{var_name}.append(_CausalMonitor(1000))")
+    if _point_weights_mode(config):
+        lines.append(f"{pad}{var_name}.append(_PointWeights(1000))")
+    return lines
+
+
 def _build_train_cbs_code(config, var_name="_train_cbs", indent=4):
     """Builds the literal Python source (already indented at `indent`
     spaces, matching whatever base indent level the generated script has
@@ -784,6 +1009,7 @@ def _build_train_cbs_code(config, var_name="_train_cbs", indent=4):
         )
     if config.cb_timer:
         lines.append(f"{pad}{var_name}.append(dde.callbacks.Timer(available_time={config.cb_timer_minutes}))")
+    lines.extend(_training_methods_cbs(config, var_name, pad))
     return "\n".join(lines)
 
 
@@ -2163,6 +2389,19 @@ def _ea_title_txt(_kind, _ea_sel):
         _lbl = (_g.get("_plot_custom_label", "") if str(_g.get("_plot_custom_expr", "")).strip()
                 else _plot_output_names_list[int(_g.get("_plot_idx", 0))].strip())
     return f"PINN vs Reference — {{_lbl}} — {{_kind}}" if _lbl else f"PINN vs Reference — {{_kind}}"
+
+def _ea_field_txt(_ea_sel):
+    # The compared field's name for panel titles ("PINN  mu(x,t)"), the
+    # first output's name when nothing else is selected.
+    _lbl = _ea_group_label(_ea_sel)
+    if not _lbl:
+        _g = globals()
+        if str(_g.get("_plot_custom_expr", "")).strip():
+            _lbl = str(_g.get("_plot_custom_label", "")).strip()
+        elif _plot_output_names_list:
+            _i = int(_g.get("_plot_idx", 0))
+            _lbl = _plot_output_names_list[_i if 0 <= _i < len(_plot_output_names_list) else 0].strip()
+    return _lbl or "u"
 
 def _ea_extract(_ea_grid, _ea_sel, _ea_model=None):
     _ea_m = _ea_model if _ea_model is not None else model
@@ -3725,10 +3964,10 @@ if {config.time_adaptive}:
                     fig, axes = plt.subplots(1, 3, figsize=(15, 5))
                     fig.suptitle(_ea_title_txt("Surface Comparison", _ea_sel), fontsize={config.plot_title_fontsize}, fontweight='bold')
                     im0 = axes[0].contourf(_ea_Tg, _ea_Xg, _ea_U_pinn, levels=_levels_ea1d, cmap='{config.plot_colormap}')
-                    axes[0].set_title("PINN  u(x,t)"); axes[0].set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); axes[0].set_ylabel("x", fontsize={config.plot_axis_label_fontsize})
+                    axes[0].set_title(f"PINN  {{_ea_field_txt(_ea_sel)}}(x,t)"); axes[0].set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); axes[0].set_ylabel("x", fontsize={config.plot_axis_label_fontsize})
                     fig.colorbar(im0, ax=axes[0])
                     im1 = axes[1].contourf(_ea_Tg, _ea_Xg, _ea_U_fem, levels=_levels_ea1d, cmap='{config.plot_colormap}')
-                    axes[1].set_title("Reference  u(x,t)"); axes[1].set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); axes[1].set_ylabel("x", fontsize={config.plot_axis_label_fontsize})
+                    axes[1].set_title(f"Reference  {{_ea_field_txt(_ea_sel)}}(x,t)"); axes[1].set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); axes[1].set_ylabel("x", fontsize={config.plot_axis_label_fontsize})
                     fig.colorbar(im1, ax=axes[1])
                     im2 = axes[2].contourf(_ea_Tg, _ea_Xg, _ea_U_err, levels={config.plot_levels}, cmap='{config.plot_colormap}')
                     axes[2].set_title("Error  |PINN - Reference|"); axes[2].set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); axes[2].set_ylabel("x", fontsize={config.plot_axis_label_fontsize})
@@ -4101,6 +4340,83 @@ def _init_loss_weights_code(config, indent, model, weights_var, lr, ext_vars):
     return "\n".join(indent + ln for ln in lines)
 
 
+def _num_lit(v):
+    """A float as a short literal for a generated formula (2.0 -> "2")."""
+    v = float(v)
+    return repr(int(v)) if v == int(v) and abs(v) < 1e15 else repr(v)
+
+
+def _exact_constraints(config):
+    """Exact initial conditions (config.ic_hard) and exact periodicity
+    (config.periodic_inputs), turned into the output / input transform
+    formulas both generators already support. Returns the config unchanged
+    when neither is on, else a copy:
+      output i = IC_i(x) + tau * (network output i), tau = (t - t_min) /
+      (t_max - t_min) -- exact at t = t_min (outputs without an exact IC keep
+      their own scale/shift);
+      inputs = cos(2 pi x / L), sin(2 pi x / L) for each periodic axis
+      (L = that axis' domain length), the other coordinates as they are, t."""
+    import dataclasses as _dc
+    from pinnstudio.core.config import _periodic_axes
+    names = [n.strip() for n in (config.output_names or "u").split(",") if n.strip()]
+    n_out = max(1, int(getattr(config, "num_outputs", 1) or 1))
+    while len(names) < n_out:
+        names.append(f"u{len(names)}")
+    hard = [h.strip() == "True" for h in (getattr(config, "ic_hard", "") or "").split(",")][:n_out]
+    hard += [False] * (n_out - len(hard))
+    per = bool(getattr(config, "periodic_inputs", False))
+    if config.steady_state or config.problem_dim == "ODE":
+        hard = [False] * n_out
+    if not (any(hard) or per):
+        return config
+    upd = {}
+    if any(hard):
+        ics = (config.ic_expressions or "").split("|")
+        t0, t1 = float(config.t_min), float(config.t_max)
+        if t0 == 0.0:
+            tau = "t" if t1 == 1.0 else f"(t/{_num_lit(t1)})"
+        else:
+            tau = f"((t - {_num_lit(t0)})/{_num_lit(t1 - t0)})"
+        scale_on = bool(config.output_transform_enabled) and (config.output_transform_mode or "scale") == "scale"
+        sc = list(config.output_transform_scale or []) if scale_on else []
+        sh = list(config.output_transform_shift or []) if scale_on else []
+        outs = []
+        for i, nm in enumerate(names[:n_out]):
+            base = nm
+            a = float(sc[i]) if i < len(sc) else 1.0
+            b = float(sh[i]) if i < len(sh) else 0.0
+            if a != 1.0:
+                base = f"{_num_lit(a)}*{base}"
+            if b != 0.0:
+                base = f"({base} + {_num_lit(b)})"
+            if hard[i]:
+                ic = ics[i].strip() if i < len(ics) else "0"
+                outs.append(f"({ic}) + {tau}*{base}")
+            else:
+                outs.append(base)
+        upd.update(output_transform_enabled=True, output_transform_mode="formula",
+                   output_transform_formula="|".join(outs))
+    if per:
+        axes = _periodic_axes(config)
+        coords = ["x"] + (["y"] if config.problem_dim in ("2D", "3D") else []) + (["z"] if config.problem_dim == "3D" else [])
+        bounds = {"x": (config.x_min, config.x_max), "y": (getattr(config, "y_min", 0.0), getattr(config, "y_max", 1.0)),
+                  "z": (getattr(config, "z_min", 0.0), getattr(config, "z_max", 1.0))}
+        feats = []
+        for c in coords:
+            if c in axes:
+                L = float(bounds[c][1]) - float(bounds[c][0])
+                k = 2.0 / L
+                arg = f"pi*{c}" if k == 1.0 else f"{_num_lit(k)}*pi*{c}"
+                feats += [f"cos({arg})", f"sin({arg})"]
+            else:
+                feats.append(c)
+        if not config.steady_state:
+            feats.append("t")
+        upd.update(input_transform_enabled=True, input_transform_mode="formula",
+                   input_feature_formula="; ".join(feats))
+    return _dc.replace(config, **upd)
+
+
 def _effective_config(config):
     """The config as the generators should read it -- cleanup Round 56.
     PINNConfig documents time_adaptive as IGNORED for a steady-state problem
@@ -4128,6 +4444,7 @@ def _effective_config(config):
         _sub["inverse_obs_files_json"] = _cmod.substitute_json(config.inverse_obs_files_json, _consts, ("custom_expr",))
         _sub["training_monitors"] = _cmod.substitute_json(config.training_monitors, _consts, ("expr",))
         config = _dc.replace(config, constants="", **_sub)
+    config = _exact_constraints(config)
     if (getattr(config, "loss_weights_from_initial", 0) or 0) > 0 and getattr(config, "scheduler_phases", ""):
         # Round 75: weights from the initial losses replace every phase's own.
         try:
@@ -4560,6 +4877,12 @@ import torch
 import matplotlib.pyplot as plt
 import warnings
 warnings.filterwarnings("ignore", message=".*cuBLAS.*")
+
+# DeepXDE puts PyTorch on Apple's GPU (MPS) on a Mac. MPS has no float64 and
+# PyTorch's L-BFGS is unreliable on it, so PINNStudio trains on the CPU there.
+if not torch.cuda.is_available() and str(getattr(torch, "get_default_device", lambda: "cpu")()).startswith("mps"):
+    torch.set_default_device("cpu")
+    print("  [Info] Training on the CPU (Apple GPU / MPS not used)")
 
 # ── Plot Settings: figure-size standardization ─────────────────
 # Applied to every single-panel results plot below (Loss, Line, Surface,
@@ -5156,7 +5479,7 @@ def _pde_standard(x, y{", _int_mat=None" if "_frac(" in (config.pde_expressions 
     return _res
 if not _IS_FECR:
     pde = _pde_standard
-
+{_training_methods_defs(config)}
 # ── Geometry & Time domain ──────────────────────────────────
 # _build_geom() is the one place that turns the Geometry Type selector
 # (Rectangle/Disk/Ellipse/Triangle/Polygon in 2D; Cuboid/Sphere in 3D;
@@ -6935,10 +7258,12 @@ for _pval in _param_values:
 
         _plot_idx, _run_solution_path = _plot_main_job
         import shutil as _shutil
-        if _run_loss_path != "/tmp/loss_plot.png":
+        # the same file can be spelled two ways on Windows (/tmp\\x.png, /tmp/x.png)
+        _same_file = lambda _a, _b: _os.path.normcase(_os.path.abspath(_a)) == _os.path.normcase(_os.path.abspath(_b))
+        if not _same_file(_run_loss_path, "/tmp/loss_plot.png"):
             _shutil.copy(_run_loss_path, "/tmp/loss_plot.png")
         _tmp_solution_path = "/tmp/solution_plot.{sol_ext}"
-        if _run_solution_path != _tmp_solution_path and _os.path.exists(_run_solution_path):
+        if not _same_file(_run_solution_path, _tmp_solution_path) and _os.path.exists(_run_solution_path):
             _shutil.copy(_run_solution_path, _tmp_solution_path)
 
         # ── Inline Error Analysis ─────────────────────────────
@@ -7604,10 +7929,10 @@ for _pval in _param_values:
                         fig, axes_s = plt.subplots(1, 3, figsize=(15, 5))
                         fig.suptitle(_ea_title_txt("Surface Comparison", _ea_sel), fontsize={config.plot_title_fontsize}, fontweight='bold')
                         im0 = axes_s[0].contourf(_ea_Tg, _ea_Xg, _ea_U_pinn, levels=_levels_ea1d, cmap='{config.plot_colormap}')
-                        axes_s[0].set_title("PINN  u(x,t)"); axes_s[0].set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); axes_s[0].set_ylabel("x", fontsize={config.plot_axis_label_fontsize})
+                        axes_s[0].set_title(f"PINN  {{_ea_field_txt(_ea_sel)}}(x,t)"); axes_s[0].set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); axes_s[0].set_ylabel("x", fontsize={config.plot_axis_label_fontsize})
                         fig.colorbar(im0, ax=axes_s[0])
                         im1 = axes_s[1].contourf(_ea_Tg, _ea_Xg, _ea_U_fem, levels=_levels_ea1d, cmap='{config.plot_colormap}')
-                        axes_s[1].set_title("Reference  u(x,t)"); axes_s[1].set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); axes_s[1].set_ylabel("x", fontsize={config.plot_axis_label_fontsize})
+                        axes_s[1].set_title(f"Reference  {{_ea_field_txt(_ea_sel)}}(x,t)"); axes_s[1].set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); axes_s[1].set_ylabel("x", fontsize={config.plot_axis_label_fontsize})
                         fig.colorbar(im1, ax=axes_s[1])
                         im2 = axes_s[2].contourf(_ea_Tg, _ea_Xg, _ea_U_err, levels={config.plot_levels}, cmap='{config.plot_colormap}')
                         axes_s[2].set_title("Error  |PINN - Reference|"); axes_s[2].set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); axes_s[2].set_ylabel("x", fontsize={config.plot_axis_label_fontsize})
@@ -7617,6 +7942,53 @@ for _pval in _param_values:
                         _ea_sp = _os.path.join(_ea_dir, f"surface_comparison{{_ea_suffix}}.png")
                         plt.savefig(_ea_sp, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
                         print(f"  Surface comparison saved: {{_ea_sp}}")
+                    if _ea_did_surface and _is_3d and _geom_type != "Sphere":
+                        # Mid-plane slice z = const (Settings' line slice z, the
+                        # box's middle by default): the face plot above shows only
+                        # the box's outside, so anything inside it -- a sphere in
+                        # a box, say -- is only visible here (as a circle).
+                        from scipy.interpolate import griddata as _gd_sl
+                        _bb_sl = np.asarray(geom.bbox)
+                        _zs_sl = {line_slice_z}
+                        _res_sl = min({config.plot_resolution}, 120)
+                        _Xs_sl, _Ys_sl = np.meshgrid(np.linspace(_bb_sl[0][0], _bb_sl[1][0], _res_sl),
+                                                     np.linspace(_bb_sl[0][1], _bb_sl[1][1], _res_sl))
+                        fig, _axs_sl = plt.subplots(_ea_n_t, 3, figsize=(15, 4.2 * _ea_n_t), squeeze=False)
+                        fig.suptitle(_ea_title_txt(f"Slice z = {{_zs_sl:.3g}}", _ea_sel), fontsize={config.plot_title_fontsize}, fontweight='bold')
+                        for _ei, _ea_tv in enumerate(_ea_times):
+                            _ea_tv_r, _l2, _mse, _mx, _ma = _ea_metrics[_ei]
+                            _cols_sl = [_Xs_sl.ravel(), _Ys_sl.ravel(), np.full(_Xs_sl.size, _zs_sl)]
+                            if not _is_steady:
+                                _cols_sl.append(np.full(_Xs_sl.size, _ea_tv))
+                            _p_sl = np.asarray(_ea_extract(np.column_stack(_cols_sl), _ea_sel, model)).reshape(_Xs_sl.shape)
+                            # reference: its grid plane nearest the slice, or points close to it
+                            _zr_sl = _ea_z_refs[_ei]
+                            _zn_sl = _zr_sl[np.argmin(np.abs(_zr_sl - _zs_sl))]
+                            _m_sl = np.abs(_zr_sl - _zn_sl) < 1e-9 * (1.0 + abs(_zn_sl))
+                            if _m_sl.sum() < 10:
+                                _m_sl = np.abs(_zr_sl - _zs_sl) < 0.02 * max(_bb_sl[1][2] - _bb_sl[0][2], 1e-12)
+                            _xy_sl = np.column_stack([_ea_x_refs[_ei][_m_sl], _ea_y_refs[_ei][_m_sl]])
+                            _g_sl = _gd_sl(_xy_sl, _ea_u_refs[_ei][_m_sl], (_Xs_sl, _Ys_sl), method='linear')
+                            if np.isnan(_g_sl).any():
+                                _g_sl[np.isnan(_g_sl)] = _gd_sl(_xy_sl, _ea_u_refs[_ei][_m_sl], (_Xs_sl, _Ys_sl), method='nearest')[np.isnan(_g_sl)]
+                            _e_sl = np.abs(_p_sl - _g_sl)
+                            _lo_sl = min(_p_sl.min(), _g_sl.min()); _hi_sl = max(_p_sl.max(), _g_sl.max(), _lo_sl + 1e-12)
+                            _lv_sl = _cf_levels({config.plot_levels}, _lo_sl, _hi_sl)["levels"]
+                            _tt_sl = "" if _is_steady else f"t={{_ea_tv:.3f}}  "
+                            for _c_sl, (_v_sl, _ttl_sl, _lev_sl) in enumerate((
+                                    (_p_sl, f"PINN  {{_tt_sl}}{{_l2_txt(_l2)}}", _lv_sl),
+                                    (_g_sl, f"Reference  {{_tt_sl}}".rstrip(), _lv_sl),
+                                    (_e_sl, f"|Error|  {{_tt_sl}}max = {{_sci_txt(float(_e_sl.max()))}}", {config.plot_levels}))):
+                                _ax_sl = _axs_sl[_ei][_c_sl]
+                                _im_sl = _ax_sl.contourf(_Xs_sl, _Ys_sl, _v_sl, levels=_lev_sl, cmap='{config.plot_colormap}')
+                                fig.colorbar(_im_sl, ax=_ax_sl)
+                                _ax_sl.set_title(_ttl_sl, fontsize={config.plot_subplot_title_fontsize})
+                                _ax_sl.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_sl.set_ylabel("y", fontsize={config.plot_axis_label_fontsize})
+                                _ax_sl.set_aspect('equal')
+                        plt.tight_layout(rect=[0, 0, 1, 0.96])
+                        _ea_slp = _os.path.join(_ea_dir, f"slice_comparison{{_ea_suffix}}.png")
+                        plt.savefig(_ea_slp, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
+                        print(f"  Slice comparison saved: {{_ea_slp}}")
                 print(f"  Group '{{_ea_group_label(_ea_sel) or 'default'}}' analysis complete")
             print("=== Error Analysis Complete ===")
 
@@ -8700,7 +9072,7 @@ def _formula_reference_code(config, geom_ref="geom"):
         L.append("        np.savetxt(_path, np.column_stack([_pts, _u]))")
     else:
         L.append("        np.savetxt(_path, np.column_stack([_pts, np.full(len(_pts), _t), _u]))")
-    L.append(f"    print(f'Reference from formula: wrote {len(rows)} file(s) to {_formula_reference_dir(config)}')")
+    L.append(f"    print('Reference from formula: wrote {len(rows)} file(s) to ' + {_formula_reference_dir(config)!r})")
     L.append("_write_formula_reference()")
     return "\n".join(L)
 
@@ -9923,6 +10295,7 @@ def generate_clean_script(config):
     any_cbs = bool(config.cb_early_stopping or config.cb_point_resampler
                    or config.cb_model_checkpoint or config.cb_timer
                    or config.training_monitors_enabled
+                   or bool(_training_methods_cbs(config, "train_cbs", ""))
                    or _bc_entries_use_batching(bc_entries))
     cbs_code = ""
     if any_cbs:
@@ -10069,7 +10442,12 @@ os.environ["DDE_BACKEND"] = "pytorch"
 import deepxde as dde
 import numpy as np
 import torch
-import matplotlib.pyplot as plt''')
+import matplotlib.pyplot as plt
+# DeepXDE puts PyTorch on Apple's GPU (MPS) on a Mac. MPS has no float64 and
+# PyTorch's L-BFGS is unreliable on it, so PINNStudio trains on the CPU there.
+if not torch.cuda.is_available() and str(getattr(torch, "get_default_device", lambda: "cpu")()).startswith("mps"):
+    torch.set_default_device("cpu")
+    print("  [Info] Training on the CPU (Apple GPU / MPS not used)")''')
 
     if uses_nncg:
         parts.append('''_dxde_ver_parts = dde.__version__.split(".")[:3]
@@ -10166,6 +10544,9 @@ if save_dir:
     if "_frac(" in (config.pde_expressions or ""):
         parts.append(_frac_helper_code(config))
     parts.append(pde_block)
+    _tm_defs = _training_methods_defs(config)
+    if _tm_defs:
+        parts.append(_tm_defs.strip("\n"))
 
     if bc_defs:
         parts.append("\n".join(bc_defs))
@@ -10491,6 +10872,8 @@ prev_net = None
 _ta_all_steps, _ta_all_train_loss, _ta_all_test_loss = [], [], []
 _ta_loss_offset = 0''')
         parts.append("\n".join(ta_lines))
+        if cbs_code:
+            parts.append(cbs_code)
 
         loop_lines = ["for step_i, (t0, t1) in enumerate(intervals):",
                       "    geom_i = _build_geom()",

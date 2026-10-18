@@ -1,0 +1,197 @@
+[
+ {
+  "example": "1D Cahn-Hilliard",
+  "setup": "Template",
+  "name": "ch1w_template"
+ },
+ {
+  "example": "1D Cahn-Hilliard",
+  "setup": "Exact",
+  "name": "ch1w_exact"
+ },
+ {
+  "example": "1D Allen-Cahn",
+  "setup": "Time-adaptive",
+  "name": "ac1_ta"
+ },
+ {
+  "example": "1D Allen-Cahn",
+  "setup": "Time-adaptive + RBA",
+  "name": "ac1_ta_rba"
+ },
+ {
+  "example": "1D Allen-Cahn",
+  "setup": "Time-adaptive + SA-PINN",
+  "name": "ac1_ta_sa"
+ },
+ {
+  "example": "1D Cahn-Hilliard",
+  "setup": "Time-adaptive",
+  "name": "ch1w_ta",
+  "windows": [
+   {
+    "t_start": 0.0,
+    "t_end": 1.0,
+    "steps": 4
+   }
+  ],
+  "phases": [
+   10000,
+   10000
+  ]
+ },
+ {
+  "example": "1D Cahn-Hilliard",
+  "setup": "Time-adaptive + RBA",
+  "name": "ch1w_ta_rba",
+  "windows": [
+   {
+    "t_start": 0.0,
+    "t_end": 1.0,
+    "steps": 4
+   }
+  ],
+  "phases": [
+   10000,
+   10000
+  ]
+ },
+ {
+  "example": "1D Cahn-Hilliard",
+  "setup": "Time-adaptive + SA-PINN",
+  "name": "ch1w_ta_sa",
+  "windows": [
+   {
+    "t_start": 0.0,
+    "t_end": 1.0,
+    "steps": 4
+   }
+  ],
+  "phases": [
+   10000,
+   10000
+  ]
+ },
+ {
+  "example": "1D Cahn-Hilliard (Mattey & Ghosh)",
+  "setup": "Time-adaptive + RBA",
+  "name": "ch1m_ta_rba"
+ },
+ {
+  "example": "1D Allen-Cahn",
+  "setup": "Exact periodicity",
+  "name": "ac1_ep"
+ },
+ {
+  "example": "1D Cahn-Hilliard",
+  "setup": "Exact periodicity",
+  "name": "ch1w_ep"
+ },
+ {
+  "example": "1D Cahn-Hilliard (Mattey & Ghosh)",
+  "setup": "Exact + causal",
+  "name": "ch1m_e_causal",
+  "phases": [
+   20000,
+   20000
+  ]
+ },
+ {
+  "example": "1D Cahn-Hilliard (Mattey & Ghosh)",
+  "setup": "Plain",
+  "name": "ch1m_plain",
+  "phases": [
+   20000,
+   20000
+  ]
+ },
+ {
+  "example": "1D Cahn-Hilliard (Mattey & Ghosh)",
+  "setup": "Exact periodicity",
+  "name": "ch1m_ep",
+  "phases": [
+   20000,
+   20000
+  ]
+ },
+ {
+  "example": "2D Allen-Cahn (Wight & Zhao)",
+  "setup": "Exact periodicity",
+  "name": "ac2w_ep"
+ },
+ {
+  "example": "2D Allen-Cahn (Wight & Zhao)",
+  "setup": "Exact",
+  "name": "ac2w_exact"
+ },
+ {
+  "example": "2D Allen-Cahn (Wight & Zhao)",
+  "setup": "Exact + causal",
+  "name": "ac2w_e_causal"
+ },
+ {
+  "example": "2D Allen-Cahn (Wight & Zhao)",
+  "setup": "Exact + causal + MsFFN",
+  "name": "ac2w_e_causal_msffn"
+ },
+ {
+  "example": "2D Allen-Cahn (Mattey & Ghosh)",
+  "setup": "Exact periodicity",
+  "name": "ac2m_ep"
+ },
+ {
+  "example": "2D Allen-Cahn (Mattey & Ghosh)",
+  "setup": "Exact",
+  "name": "ac2m_exact"
+ },
+ {
+  "example": "2D Allen-Cahn (Mattey & Ghosh)",
+  "setup": "Exact + causal + MsFFN",
+  "name": "ac2m_e_causal_msffn"
+ },
+ {
+  "example": "2D Cahn-Hilliard (Wight & Zhao)",
+  "setup": "Plain",
+  "name": "ch2w_plain"
+ },
+ {
+  "example": "2D Cahn-Hilliard (Wight & Zhao)",
+  "setup": "Exact periodicity",
+  "name": "ch2w_ep"
+ },
+ {
+  "example": "2D Cahn-Hilliard (Wight & Zhao)",
+  "setup": "Exact + RBA",
+  "name": "ch2w_e_rba"
+ },
+ {
+  "example": "2D Cahn-Hilliard (Wight & Zhao)",
+  "setup": "Exact + causal + MsFFN",
+  "name": "ch2w_e_causal_msffn"
+ },
+ {
+  "example": "2D Cahn-Hilliard (Mattey & Ghosh)",
+  "setup": "Plain",
+  "name": "ch2m_plain"
+ },
+ {
+  "example": "2D Cahn-Hilliard (Mattey & Ghosh)",
+  "setup": "Exact periodicity",
+  "name": "ch2m_ep"
+ },
+ {
+  "example": "2D Cahn-Hilliard (Mattey & Ghosh)",
+  "setup": "Exact + causal + MsFFN",
+  "name": "ch2m_e_causal_msffn"
+ },
+ {
+  "example": "3D Allen-Cahn (Wight & Zhao)",
+  "setup": "Plain",
+  "name": "ac3_plain"
+ },
+ {
+  "example": "3D Allen-Cahn (Wight & Zhao)",
+  "setup": "Exact + causal + MsFFN",
+  "name": "ac3_e_causal_msffn"
+ }
+]

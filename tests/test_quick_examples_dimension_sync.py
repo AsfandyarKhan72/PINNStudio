@@ -39,10 +39,11 @@ def test_quick_examples_combo_lists_every_dimension_up_front():
     w = MainWindow()
     items = w.quick_examples_combo.keys()   # internal names of the listed examples
     assert items[0] == "None"
-    # 1D Heat and 1D Schrödinger are not listed (DeepXDE's Heat 1D – Dirichlet
-    # and Schrödinger 1D replace them) but still load by name.
+    # 1D Heat, 1D Schrödinger and 2D Poisson (L-Shape) are not listed
+    # (DeepXDE's Heat 1D – Dirichlet, Schrödinger 1D and Poisson 2D – L-shape
+    # replace them) but still load by name.
     for name in ("Heat equation", "1D Allen-Cahn", "1D Burgers", "Schrödinger equation",
-                 "2D Heat", "2D Poisson (L-Shape)", "2D Poisson (Disk)",
+                 "2D Heat", "Poisson over an L-shaped domain", "2D Poisson (Disk)",
                  "3D Heat", "3D Poisson (Sphere)"):
         assert name in items, f"{name!r} missing from the combo's full list: {items}"
 

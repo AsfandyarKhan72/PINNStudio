@@ -132,6 +132,7 @@
   .chip { font-size: 13px; padding: 4px 10px; border-radius: 999px; background: var(--code-bg); border: 1px solid var(--border); color: var(--text); }
 
   .install-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; }
+  pre.cmd { white-space: pre-wrap; word-break: break-all; }
   pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; overflow-x: auto; font-size: 14px; margin: 12px 0 0; color: #d6dbe8; }
   .muted { color: var(--text-dim); font-size: 14.5px; }
 
@@ -182,10 +183,11 @@
     <p class="tagline">A no-code scientific computing environment for solving forward and inverse problems with physics-informed neural networks — from setting up the equations to training, error analysis, and visualization.</p>
 
     <div class="install-box">
-      <code>pip install pinnstudio</code>
-      <button class="copy-btn" onclick="navigator.clipboard.writeText('pip install pinnstudio'); this.textContent='Copied!'; setTimeout(() => this.textContent='Copy', 1500)">Copy</button>
+      <code>curl -LsSf https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/get-pinnstudio.sh | sh</code>
+      <button class="copy-btn" onclick="navigator.clipboard.writeText('curl -LsSf https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/get-pinnstudio.sh | sh'); this.textContent='Copied!'; setTimeout(() => this.textContent='Copy', 1500)">Copy</button>
     </div>
 
+    <p class="muted" style="margin:10px 0 0;font-size:14px;">macOS and Linux. On Windows, use the <a href="#install">PowerShell command</a>.</p>
     <div class="cta-row">
       <a class="btn primary" href="https://github.com/AsfandyarKhan72/PINNStudio#quick-start">Get started</a>
       <a class="btn secondary" href="https://github.com/AsfandyarKhan72/PINNStudio">View on GitHub</a>
@@ -193,7 +195,7 @@
     </div>
 
     <div class="stats">
-      <div><b>60</b>ready-to-run examples</div>
+      <div><b>65</b>ready-to-run examples</div>
       <div><b>ODE → 3D</b>steady and time-dependent</div>
       <div><b>Forward &amp; inverse</b>solve or learn from data</div>
       <div><b>No code</b>required</div>
@@ -269,6 +271,16 @@
         <figure class="shot dark">
           <img src="assets/sketch_import.png" alt="An SVG bracket drawing imported into the Sketch with boundary conditions on its holes" loading="lazy">
           <figcaption><b>Import a drawing.</b> A DXF or SVG outline comes in with its holes and arcs as edges.</figcaption>
+        </figure>
+      </div>
+      <div class="shot-pair">
+        <figure class="shot dark">
+          <img src="assets/view_3d.png" alt="3D view of a sketched domain: a box with a spherical cut-out and a raised block, faces coloured by boundary condition" loading="lazy">
+          <figcaption><b>See it in 3D.</b> The domain as a solid you can rotate, each face in the colour of its boundary condition.</figcaption>
+        </figure>
+        <figure class="shot dark">
+          <img src="assets/view_3d_points.png" alt="The same 3D view with DeepXDE's domain and boundary points drawn" loading="lazy">
+          <figcaption><b>Check the points.</b> <i>Show points</i> draws DeepXDE's training points, so you can see none land in a cut-out.</figcaption>
         </figure>
       </div>
       <div class="shot-pair">
@@ -350,7 +362,7 @@
   <div class="wrap">
     <div class="kicker">Results</div>
     <h2>Everything you need to trust a result</h2>
-    <p class="section-sub">Each run reports its error against reference data and saves the figures to judge it — here from the Burgers equation, one of the 60 examples.</p>
+    <p class="section-sub">Each run reports its error against reference data and saves the figures to judge it — here from the Burgers equation, one of the 65 examples.</p>
     <div class="shots">
       <figure class="shot">
         <img src="assets/burgers_error.png" alt="PINN solution, reference solution and their difference for the Burgers equation" loading="lazy">
@@ -377,7 +389,7 @@
 <section id="examples">
   <div class="wrap">
     <div class="kicker">Examples</div>
-    <h2>60 examples, ready to run</h2>
+    <h2>65 examples, ready to run</h2>
     <p class="section-sub">Each example loads every setting in one click — pick it, press Solve, and compare with the reference. 58 come with an exact solution or reference data, and 22 can be run as inverse problems.</p>
     <div class="ex-row">
       <div class="card">
@@ -410,23 +422,20 @@
   <div class="wrap">
     <div class="kicker">Install</div>
     <h2>Get started in a few minutes</h2>
-    <p class="section-sub">PINNStudio runs on Windows, macOS and Linux with Python 3.9 or newer. A GPU is optional but helps with larger 2D and 3D problems.</p>
+    <p class="section-sub">One command installs PINNStudio with its own Python and the PyTorch build that matches your GPU, and adds it to the Start menu, Applications or the app menu. Python and git do not need to be installed. A GPU is optional but helps with larger 2D and 3D problems.</p>
     <div class="install-cards">
       <div class="card">
-        <h3>Quick install</h3>
-        <p>The fastest way to try it, on any operating system.</p>
-        <pre><code>pip install pinnstudio
-pinnstudio</code></pre>
+        <h3>macOS / Linux</h3>
+        <p>In a terminal:</p>
+        <pre class="cmd"><code>curl -LsSf https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/get-pinnstudio.sh | sh</code></pre>
       </div>
       <div class="card">
-        <h3>With an NVIDIA GPU</h3>
-        <p>The install script creates its own environment and makes sure PyTorch can use your GPU.</p>
-        <pre><code>git clone https://github.com/AsfandyarKhan72/PINNStudio.git
-cd PINNStudio
-bash install.sh          # Windows: install.bat
-./venv/bin/pinnstudio    # Windows: .\venv\Scripts\pinnstudio.exe</code></pre>
+        <h3>Windows</h3>
+        <p>In PowerShell:</p>
+        <pre class="cmd"><code>powershell -ExecutionPolicy ByPass -c &quot;irm https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/get-pinnstudio.ps1 | iex&quot;</code></pre>
       </div>
     </div>
+    <p class="muted" style="margin-top:14px;">Already using Python? <code>pip install pinnstudio</code> works too, and the source install is described in the <a href="https://github.com/AsfandyarKhan72/PINNStudio#installation">README</a>.</p>
     <p class="muted" style="margin-top:22px;">Then click an example on the <b>Start</b> tab and press <b>Solve</b> — see the <a href="https://github.com/AsfandyarKhan72/PINNStudio#quick-start">Quick Start</a>.</p>
   </div>
 </section>

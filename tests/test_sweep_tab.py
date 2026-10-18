@@ -146,24 +146,24 @@ def run():
     opt_idx = combo.findData("phase0_optimizer")
     check(opt_idx >= 0, "expected 'phase0_optimizer' to be available with the default Optimizer Scheduler on")
     combo.setCurrentIndex(opt_idx)
-    check(row['mode_combo'].parentWidget().isHidden(),
+    check(row['mode_combo'].isHidden(),
           "mode picker should be hidden for a categorical parameter")
-    check(not row['list_edit'].parentWidget().isHidden(),
+    check(not row['list_edit'].isHidden(),
           "the values field should stay visible for a categorical parameter")
     check("adam" in row['list_edit'].placeholderText(),
           f"categorical placeholder should list its choices, got {row['list_edit'].placeholderText()!r}")
 
     hl_idx = combo.findData("hidden_layers")
     combo.setCurrentIndex(hl_idx)
-    check(not row['mode_combo'].parentWidget().isHidden(),
+    check(not row['mode_combo'].isHidden(),
           "mode picker should reappear for a numeric parameter")
-    check(not row['list_edit'].parentWidget().isHidden(),
+    check(not row['list_edit'].isHidden(),
           "list entry should be visible by default (mode defaults to 'list')")
     check(row['min_spin'].parentWidget().isHidden(),
           "range widgets should stay hidden while mode is 'list'")
 
     row['mode_combo'].setCurrentIndex(row['mode_combo'].findData("linear"))
-    check(row['list_edit'].parentWidget().isHidden(), "list entry should hide once mode is 'linear'")
+    check(row['list_edit'].isHidden(), "list entry should hide once mode is 'linear'")
     check(not row['min_spin'].parentWidget().isHidden(), "range widgets should show once mode is 'linear'")
 
     # ── JSON building + validate() ───────────────────────────────────
@@ -279,7 +279,7 @@ def run():
     stale_dir = "/tmp/_sweep_tab_test_stale/error_analysis"
     os.makedirs(stale_dir, exist_ok=True)
     stale_path = os.path.join(stale_dir, "error_metrics.txt")
-    with open(stale_path, "w") as f:
+    with open(stale_path, "w", encoding="utf-8") as f:
         f.write("t,L2_relative,MSE,Max_error,Mean_abs_error\n0.0,0.999,0,0,0\n")
     class _Fake:
         ea_files = "[(0.0, 'x', None)]"
@@ -291,11 +291,11 @@ def run():
     time.sleep(0.05)
     now = time.time()
     time.sleep(0.05)
-    with open(stale_path, "w") as f:
+    with open(stale_path, "w", encoding="utf-8") as f:
         f.write("t,L2_relative,MSE,Max_error,Mean_abs_error\n0.0,0.123,0,0,0\n")
     check(_read_last_l2(_Fake(), now) == 0.123,
           "a results file written after the run's own start time should be read correctly")
-    with open(stale_path, "w") as f:
+    with open(stale_path, "w", encoding="utf-8") as f:
         f.write("t,L2_relative,MSE,Max_error,Mean_abs_error\n0.0,0.1,0,0,0\n0.5,0.2,0,0,0\n1.0,0.6,0,0,0\n")
     from pinnstudio.core.sweep_runner import _read_run_metrics
     _m = _read_run_metrics(_Fake(), now)
@@ -339,14 +339,14 @@ def run():
     win2_fresh.workspace.select("sweep")
     _app.processEvents()
     fresh_row = win2_fresh.sweep_row_list[0]
-    list_visible = fresh_row['list_edit'].parentWidget().isVisible()
+    list_visible = fresh_row['list_edit'].isVisible()
     range_visible = fresh_row['min_spin'].parentWidget().isVisible()
     check(list_visible != range_visible,
           f"a freshly added row should show exactly one of the Values field / range fields, "
           f"not both or neither -- got list_visible={list_visible}, range_visible={range_visible}")
 
-    # Each parameter row is now a stacked block (header + Parameter +
-    # Sweep as + Values/range), the same convention Training Phases use
+    # Each parameter row is now a stacked block (header, Parameter, then
+    # Values: list-or-range kind + the values on one line), the same convention Training Phases use
     # in this same narrow column -- not v69's single-line table layout.
     from PyQt6.QtWidgets import QVBoxLayout as _QVBoxLayout
     check(isinstance(row['widget'].layout(), _QVBoxLayout),
@@ -378,10 +378,10 @@ def run():
           f"blank sweep_save_dir should fall back to the documented default path, got {root_default!r}")
     cfg_names.sweep_save_dir = "/tmp/_v68_custom_root"
     root_custom = sweep_root_dir(cfg_names, started_at=stamp)
-    check(root_custom == "/tmp/_v68_custom_root/sweep__2026-01-02_03-04-05",
+    check(root_custom.replace("\\", "/") == "/tmp/_v68_custom_root/sweep__2026-01-02_03-04-05",
           f"a custom sweep_save_dir should be used as-is with a timestamped subfolder, got {root_custom!r}")
     cfg_names.sweep_label = "Poisson_1D-Dirichlet"
-    check(sweep_root_dir(cfg_names, started_at=stamp) == "/tmp/_v68_custom_root/Poisson_1D-Dirichlet_sweep__2026-01-02_03-04-05",
+    check(sweep_root_dir(cfg_names, started_at=stamp).replace("\\", "/") == "/tmp/_v68_custom_root/Poisson_1D-Dirichlet_sweep__2026-01-02_03-04-05",
           f"the sweep folder is named like a normal run's, got {sweep_root_dir(cfg_names, started_at=stamp)!r}")
     check(run_folder_name(0, "baseline") == "run_00__baseline", "run 0 labeled 'baseline' should get a fixed, predictable folder name")
     check(run_folder_name(3, "Hidden layers=4, Neurons per layer=64") == "run_03__Hidden-layers_4__Neurons-per-layer_64",
