@@ -220,6 +220,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **Solve trains 5-10% faster on the GPU.** Solve's script ran a small backward pass on a throwaway CUDA tensor before training ("warm up CUDA"); it made every training step afterwards slower, so Solve trained up to 10% slower than the exported plain script on the same problem. Found with the timing study (`benchmarks/timing_ab.py` takes single parts of the script out); the warm-up is gone. The window itself adds no measurable time.
+
 - **No text cut off at larger text sizes** (a larger UI scale, Windows' wider fonts, display scaling): buttons with a fixed width (Browse, Reset, ...) widen to their text, a drop-down with a fixed width widens to the option it shows, dialogs open at least as large as their contents need (the Error Analysis dialog cut its plot-type checkboxes off), and the Start page's example titles wrap. The Plot Settings dialog no longer shows a lone "y value:" label for a Surface plot, and Display Settings' "Color: Auto" button is wide enough. `tests/test_text_fits.py` checks every page and settings dialog at 100% and 175%.
 
 - **Intel Macs:** PyTorch's last Intel-Mac release (2.2.2) was built against NumPy 1, so with NumPy 2 every run failed ("Failed to initialize NumPy"). NumPy stays below 2 on Intel Macs.

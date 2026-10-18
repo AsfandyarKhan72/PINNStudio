@@ -4939,13 +4939,9 @@ if torch.cuda.is_available():
     torch.backends.cudnn.benchmark        = False
     torch.backends.cudnn.deterministic    = False
 
-    # ── Warm up CUDA ──────────────────────────────────────────
-    _dummy = torch.zeros(10, 10, requires_grad=True, device=f'cuda:{{_gpu_device_index}}')
-    _loss = (_dummy ** 2).sum()
-    _loss.backward()
-    torch.cuda.synchronize()
-    del _dummy, _loss
-    torch.cuda.empty_cache()
+    # (No warm-up step here: a backward pass on a throwaway CUDA tensor before
+    # training made every training step 5-10% slower on the GPU -- measured
+    # with benchmarks/timing_ab.py; the first step warms CUDA up anyway.)
 
     _free, _total = torch.cuda.mem_get_info(_gpu_device_index)
     print(f"✅ GPU: {{torch.cuda.get_device_name(_gpu_device_index)}}")
