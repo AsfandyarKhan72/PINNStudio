@@ -27,6 +27,31 @@ REFERENCE_DATA_DIR = os.path.join(
 )
 
 
+def _width_follows_current_tab(tabs):
+    """A QTabWidget is never narrower than its widest page, shown or not: the
+    Script tab's one-line note, the Sketch toolbar or History's buttons kept
+    the graphics column wide while Error analysis was showing, so the divider
+    beside it stopped early (most of all on Windows, whose fonts and display
+    scaling make those pages wider). Hidden pages get an Ignored horizontal
+    size policy, which Qt leaves out of the minimum width; the page shown
+    keeps its own."""
+    def update(_index=None):
+        current = tabs.currentWidget()
+        for i in range(tabs.count()):
+            page = tabs.widget(i)
+            if page is None:
+                continue
+            pol = page.sizePolicy()
+            if not hasattr(page, "_own_hpolicy"):
+                page._own_hpolicy = pol.horizontalPolicy()
+            pol.setHorizontalPolicy(page._own_hpolicy if page is current else QSizePolicy.Policy.Ignored)
+            page.setSizePolicy(pol)
+        tabs.updateGeometry()
+
+    tabs.currentChanged.connect(update)
+    update()
+
+
 class ExampleCombo(QComboBox):
     """Quick Examples list: shows each example's name
     ("Burgers 1D – RAR") under dimension headers, while
@@ -558,6 +583,9 @@ class MainWindow(QMainWindow):
         # first passes of the event loop: the starting problem -- what New
         # gives and what counts as "unchanged" -- is taken after them.
         QTimer.singleShot(0, lambda: QTimer.singleShot(0, self._capture_fresh_problem))
+        # The graphics column's narrowest width follows the tab that is showing
+        for _tabs in (self.right_tabs, self.bottom_tabs, self.results_tabs):
+            _width_follows_current_tab(_tabs)
 
     def _nudge_central_tabs_repaint(self):
         bar = self.central_tabs.tabBar()
@@ -4329,6 +4357,7 @@ class MainWindow(QMainWindow):
         _sbar = QHBoxLayout()
         _sbar.setContentsMargins(6, 0, 6, 0)
         self.script_status = QLabel("The DeepXDE script for this problem, as Export script would write it.")
+        self.script_status.setWordWrap(True)        # a long one-liner would set the column's minimum width
         self.script_status.setObjectName("pageDesc")
         _sbar.addWidget(self.script_status, 1)
         self.script_copy_btn = QPushButton("Copy")

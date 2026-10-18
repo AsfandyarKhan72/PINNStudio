@@ -209,6 +209,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **The divider beside the graphics column moves freely.** The graphics column was never narrower than the widest page of all its tabs, shown or not (the Script tab's note, the Sketch toolbar, History's buttons), so with Error analysis open the divider stopped early, most of all on Windows where fonts and display scaling make those pages wider. The minimum width now follows the tab that is showing: with Error analysis open it went from 576 to 272 px (Linux), and the Script note wraps.
 - **Windows: Restore & Visualize closed the window** (`UnicodeEncodeError: 'charmap' codec can't encode characters`). Text files were written with Windows' legacy encoding (cp1252), which cannot hold the symbols in the generated scripts. Every text file PINNStudio reads or writes now says UTF-8, and the scripts it runs use Python's UTF-8 mode; a test checks that no file is opened without an encoding.
 - **Errors no longer close the window.** Started from the shortcut on Windows (pythonw.exe, no console), any unexpected error ended the program without a message. Errors are now shown in a message box and written to `~/.pinnstudio/pinnstudio.log`, and the app keeps running; hard crashes are logged there too.
 - **Windows: PyTorch is loaded before PyQt6**, which otherwise makes PyTorch fail to load in the same process (`[WinError 1114] ... c10.dll`).
