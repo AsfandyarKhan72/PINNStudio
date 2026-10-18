@@ -79,19 +79,28 @@ def settle(sec=0.3):
 
 
 def _blocking_widget(pane):
-    """The descendant with the widest minimum size: what stops a divider."""
+    """What stops a divider: the innermost visible widgets whose minimum width
+    is close to the pane's own (the pane's minimum comes from them)."""
     from PyQt6.QtWidgets import QWidget
-    best = (pane.minimumSizeHint().width(), pane)
-    for c in pane.findChildren(QWidget):
-        if not c.isVisibleTo(pane):
-            continue
-        m = max(c.minimumSizeHint().width(), c.minimumWidth())
-        if m > best[0]:
-            best = (m, c)
-    m, c = best
-    name = c.objectName() or type(c).__name__
-    text = getattr(c, "text", lambda: "")() if hasattr(c, "text") else ""
-    return f"{m}px {type(c).__name__}({name}){(' ' + repr(text[:40])) if isinstance(text, str) and text else ''}"
+
+    def depth(w):
+        d = 0
+        while w.parentWidget() is not None:
+            w, d = w.parentWidget(), d + 1
+        return d
+
+    def mw(w):
+        return max(w.minimumSizeHint().width(), w.minimumWidth())
+
+    pm = mw(pane)
+    near = [c for c in pane.findChildren(QWidget) if c.isVisible() and mw(c) >= pm - 80]
+    near.sort(key=depth)
+    out = []
+    for c in near[-3:] or [pane]:
+        text = c.text() if hasattr(c, "text") and callable(c.text) else ""
+        text = text if isinstance(text, str) else ""
+        out.append(f"{mw(c)}px {type(c).__name__}({c.objectName()})" + (f" {text[:40]!r}" if text else ""))
+    return f"pane {pm}px; innermost: " + " > ".join(out)
 
 
 def _watchdog(seconds):
