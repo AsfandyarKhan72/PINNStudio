@@ -255,6 +255,12 @@ class LiveLossPlot(QWidget):
         self.terms_cb.setToolTip("One line per loss term (PDE residuals, each BC, IC...) instead of the totals")
         self.terms_cb.toggled.connect(self._redraw)
         bar.addWidget(self.terms_cb)
+        self.live_cb = QCheckBox("Update while training")
+        self.live_cb.setChecked(True)
+        self.live_cb.setToolTip("Redraw the curve while the run trains. Off: it is drawn once, when the run "
+                                "ends (saves the window's work on slow computers)")
+        self.live_cb.toggled.connect(lambda on: on and self._tick())
+        bar.addWidget(self.live_cb)
         lay.addLayout(bar)
         self.holder = QVBoxLayout()
         lay.addLayout(self.holder, 1)
@@ -305,7 +311,7 @@ class LiveLossPlot(QWidget):
         self._tick()
 
     def _tick(self):
-        if self._dirty:
+        if self._dirty and (self.live_cb.isChecked() or not self._timer.isActive()):
             self._dirty = False
             self._redraw()
 

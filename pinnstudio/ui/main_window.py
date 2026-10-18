@@ -4321,6 +4321,8 @@ class MainWindow(QMainWindow):
         self.right_tabs.setObjectName("graphicsTabs")
         self.log_box = QTextEdit()
         self.log_box.setReadOnly(True)
+        # a very long run keeps the last 20,000 lines, not every line it printed
+        self.log_box.document().setMaximumBlockCount(20000)
         self._log_highlighter = _theme.LogHighlighter(self.log_box.document())
         self.log_box.setPlaceholderText("Training log will appear here...")
         self.bottom_tabs = QTabWidget()
@@ -4347,6 +4349,7 @@ class MainWindow(QMainWindow):
         self.results_tabs.setObjectName("resultsTabs")
         self.results_tabs.addTab(plots_widget, "Overview")
         self.live_loss = LiveLossPlot()
+        self.live_loss_cb = self.live_loss.live_cb
         self.results_tabs.addTab(self.live_loss, "Live loss")
         self.ea_panel = ErrorAnalysisPanel()
         self.results_tabs.addTab(self.ea_panel, "Error analysis")
@@ -10669,6 +10672,10 @@ class MainWindow(QMainWindow):
         self._progress = RunProgress(config)
         self._progress_label = label
         self._stopped = False
+        # the settings checks (every 1.5 s) wait while a run trains: the run
+        # already has its settings, and the check rebuilds the whole config
+        if hasattr(self, '_problems_timer'):
+            self._problems_timer.stop()
         self.status_progress.setVisible(True)
         self.status_progress.setRange(0, 1000)
         self.status_progress.setValue(0)
@@ -10723,6 +10730,9 @@ class MainWindow(QMainWindow):
         from pinnstudio.ui.results import fmt_seconds
         p = getattr(self, '_progress', None)
         self._progress = None    # later output (after Stop) is not this run's
+        if hasattr(self, '_problems_timer'):
+            self._problems_timer.start()
+            QTimer.singleShot(0, self._check_problems)
         if hasattr(self, "run_history"):
             self.run_history.stale = True
         if not hasattr(self, 'status_text'):
