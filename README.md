@@ -2686,6 +2686,11 @@ Because the output of every run is an ordinary Python script, you can take it an
 
 ### Speed: PINNStudio and a plain script
 
+PINNStudio trains as fast as the plain exported script, on the GPU and on the CPU; a small 1D problem can be faster on the CPU.
+
+<details>
+<summary><strong>Timing study: GPU and CPU times, and what was found</strong></summary>
+
 Solve writes a DeepXDE script and runs it in a Python process of its own; the window only reads what the script prints. To see how much PINNStudio adds to a run, five examples were trained in four ways, with the same settings and the same number of iterations, with [`benchmarks/timing_study.py`](benchmarks/timing_study.py):
 
 - **plain script**: *File → Export as DeepXDE Script*, run with `python`;
@@ -2720,6 +2725,8 @@ Training time per 1,000 steps on an RTX 4090 (5,000 Adam + 1,000 L-BFGS iteratio
 For a small 1D problem, *Settings → GPU / Hardware → Train on: CPU* can be the faster choice; 2D and 3D problems, larger networks and many points belong on the GPU.
 
 **Fewer CPU threads are faster.** PyTorch uses one thread per core by default. On a processor with efficiency cores (recent Intel and Apple chips), the slow cores hold every step back: identical runs of Heat 1D took anywhere from 6.4 to 11.7 s with PyTorch's 24 threads, and 3.3 to 3.6 s with 8, one per performance core (Navier-Stokes 2D: 51-52 s against 45-46 s; Allen-Cahn 1D with causal training: 204-206 s against 135-136 s). PINNStudio's scripts therefore train on the CPU with half the logical processors, at most 8; setting `OMP_NUM_THREADS` overrides this.
+
+</details>
 
 ## Repository Structure
 
