@@ -85,11 +85,11 @@ class ModelWorkspace(QObject):
         sl.addWidget(head)
         self.title = QLabel("")
         self.title.setObjectName("pageTitle")
+        self.title.setWordWrap(True)      # a long title in a narrow panel at a large text size
         from PyQt6.QtWidgets import QHBoxLayout, QToolButton
         trow = QHBoxLayout()
         trow.setContentsMargins(0, 0, 4, 0)
-        trow.addWidget(self.title)
-        trow.addStretch()
+        trow.addWidget(self.title, 1)
         self.help_btn = QToolButton()
         self.help_btn.setObjectName("helpButton")
         self.help_btn.setText("?")

@@ -33,6 +33,14 @@ def _settle(secs=0.3):
         app.processEvents()
 
 
+def _until(cond, secs=10):
+    """Wait for the preview's delayed update (slow CI runners take longer)."""
+    t = time.time()
+    while not cond() and time.time() - t < secs:
+        _settle(0.1)
+    return cond()
+
+
 def _window():
     w = MainWindow()
     w.resize(1600, 950)
@@ -67,11 +75,9 @@ def test_equation_preview():
     assert prev.math.pixmap() is not None and not prev.math.pixmap().isNull()
     assert not prev.note.isVisible()
     w.pde_inputs[0].setText("du_t - Re*du_xx")
-    _settle(0.6)
-    assert prev.note.isVisible() and "Re" in prev.note.text()
+    assert _until(lambda: prev.note.isVisible() and "Re" in prev.note.text())
     w._add_constant_row("Re", "20")
-    _settle(0.6)
-    assert not prev.note.isVisible(), "a named constant is known"
+    assert _until(lambda: not prev.note.isVisible()), "a named constant is known"
 
 
 def test_start_files_and_unsaved_marker():
