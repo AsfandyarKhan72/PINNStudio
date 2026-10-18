@@ -8,9 +8,12 @@
   weights) get the page's label column, and every row has the same spacing,
   so the controls of a group start at the same place.
 """
+import json
 import os
 import sys
 import time
+
+import pytest
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -79,10 +82,18 @@ def _misaligned(w):
     return bad
 
 
-def test_boxes_whole_and_forms_aligned(monkeypatch):
+@pytest.mark.parametrize("ui_scale", [100, 175])
+def test_boxes_whole_and_forms_aligned(monkeypatch, tmp_path, ui_scale):
+    """At the default text size and at 175% (the wider text of Windows and of
+    display scaling, which once broke the label column only there)."""
     monkeypatch.setattr(QMessageBox, "exec", lambda self: 0)
     for name in ("question", "warning", "information"):
         monkeypatch.setattr(QMessageBox, name, staticmethod(lambda *a, **k: QMessageBox.StandardButton.No))
+    (tmp_path / ".pinnstudio").mkdir()
+    (tmp_path / ".pinnstudio" / "display_settings.json").write_text(
+        json.dumps({"style_version": 2, "ui_scale": ui_scale}))
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
     w = MainWindow()
     w.resize(1500, 900)
     w.show()
