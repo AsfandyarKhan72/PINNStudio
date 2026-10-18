@@ -4551,11 +4551,7 @@ class MainWindow(QMainWindow):
         ctrl_row2 = QHBoxLayout()
         self.ea_btn = QPushButton("Error Analysis")
         self.ea_btn.setFixedHeight(28)
-        self._register_style(self.ea_btn, "button", lambda css: f"""
-            QPushButton {{ background: #1a3a5a; color: #74c0fc; {css}
-                          border-radius: 4px; border: 1px solid #2a5a8a; padding: 0 8px; }}
-            QPushButton:hover {{ background: #2a5a8a; }}
-        """)
+        self._register_style(self.ea_btn, "button", lambda css: f"QPushButton {{ {css} }}")  # the theme's own button
         self.ea_btn.clicked.connect(self._on_error_analysis_btn)
         ctrl_row2.addWidget(self.ea_btn)
 
@@ -4570,11 +4566,7 @@ class MainWindow(QMainWindow):
         # _apply_config().
         self.loss_plot_btn = QPushButton("Loss Plot Settings")
         self.loss_plot_btn.setFixedHeight(28)
-        self._register_style(self.loss_plot_btn, "button", lambda css: f"""
-            QPushButton {{ background: #3a2a1a; color: #ffa94d; {css}
-                          border-radius: 4px; border: 1px solid #6a4a2a; padding: 0 8px; }}
-            QPushButton:hover {{ background: #5a3a2a; }}
-        """)
+        self._register_style(self.loss_plot_btn, "button", lambda css: f"QPushButton {{ {css} }}")  # the theme's own button
         self.loss_plot_btn.clicked.connect(self._on_loss_plot_settings)
         ctrl_row2.addWidget(self.loss_plot_btn)
 
@@ -4623,11 +4615,7 @@ class MainWindow(QMainWindow):
 
         self.export_btn = QPushButton("Export Solution")
         self.export_btn.setFixedHeight(28)
-        self._register_style(self.export_btn, "button", lambda css: f"""
-            QPushButton {{ background: #1a4a3a; color: #69db7c; {css}
-                          border-radius: 4px; border: 1px solid #2a6a4a; padding: 0 8px; }}
-            QPushButton:hover {{ background: #2a6a4a; }}
-        """)
+        self._register_style(self.export_btn, "button", lambda css: f"QPushButton {{ {css} }}")  # the theme's own button
         self.export_btn.clicked.connect(self._on_export_settings)
         ctrl_row2.addWidget(self.export_btn)
 

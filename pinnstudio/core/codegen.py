@@ -5309,6 +5309,11 @@ if _problem_type == "Inverse":
 {_frac_helper_code(config)}
 _IS_FECR = False
 # ── PDE definition (standard) ───────────────────────────────
+# The equations are compiled once here; eval() of the text itself would
+# parse it again at every training step.
+_PDE_CODES = ([compile({repr(pde_expr_single)}, "<PDE>", "eval")] if {_n_equations(config)} == 1 else
+              [compile(_e.strip(), "<PDE>", "eval")
+               for _e in {repr(config_pde_expressions)}.split("|")[:{_n_equations(config)}]])
 def _pde_standard(x, y{", _int_mat=None" if "_frac(" in (config.pde_expressions or "") else ""}):
     _n_out = {config.num_outputs}
     _n_eq = {_n_equations(config)}
@@ -5468,10 +5473,9 @@ def _pde_standard(x, y{", _int_mat=None" if "_frac(" in (config.pde_expressions 
             _eval_ns[_iv_name] = _iv_var
 
     if _n_eq == 1:
-        _res = eval({repr(pde_expr_single)}, _eval_ns)
+        _res = eval(_PDE_CODES[0], _eval_ns)
     else:
-        _pde_exprs = {repr(config_pde_expressions)}.split("|")[:_n_eq]
-        _res = [eval(_expr.strip(), _eval_ns) for _expr in _pde_exprs]
+        _res = [eval(_c, _eval_ns) for _c in _PDE_CODES]
     if "_frac_apply" in globals() and _int_mat is not None:
         # fractional problem: the residual lives on the FPDE points only
         _nr = _frac_rows(_int_mat)

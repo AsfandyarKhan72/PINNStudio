@@ -99,18 +99,27 @@ def config_for(w, iters, out):
     return cfg
 
 
-def run_script(text, device, workdir):
+def run_script(text, device, workdir, profile=False):
     path = os.path.join(workdir, "run.py")
     with open(path, "w", encoding="utf-8") as f:
         f.write(text)
+    prof = os.path.join(workdir, "run.prof")
+    cmd = [sys.executable] + (["-m", "cProfile", "-o", prof] if profile else []) + [path]
     t0 = time.perf_counter()
-    p = subprocess.run([sys.executable, path], cwd=workdir, env=_env(device),
+    p = subprocess.run(cmd, cwd=workdir, env=_env(device),
                        capture_output=True, text=True, encoding="utf-8", errors="replace")
     total = time.perf_counter() - t0
     log = p.stdout + "\n" + p.stderr
     with open(os.path.join(workdir, "log.txt"), "w", encoding="utf-8") as f:
         f.write(log)
-    return dict(rc=p.returncode, total=round(total, 2), train=train_seconds(log))
+    r = dict(rc=p.returncode, total=round(total, 2), train=train_seconds(log))
+    if profile and os.path.exists(prof):
+        import io
+        import pstats
+        buf = io.StringIO()
+        pstats.Stats(prof, stream=buf).sort_stats("tottime").print_stats(25)
+        r["profile"] = buf.getvalue()[-6000:]
+    return r
 
 
 def run_window(app, w, cfg, device, quiet=False):
@@ -147,6 +156,7 @@ def main():
     ap.add_argument("--modes", default="script,solve,window")
     ap.add_argument("--repeat", type=int, default=2)
     ap.add_argument("--only", default="")
+    ap.add_argument("--profile", action="store_true", help="run the scripts under cProfile (slower)")
     ap.add_argument("--scale", type=float, default=1.0, help="multiply the iterations (a quick check: 0.05)")
     ap.add_argument("--cpu-scale", type=float, default=0.2,
                     help="multiply the iterations again on the CPU, which is many times slower")
@@ -174,9 +184,9 @@ def main():
                     os.makedirs(d)
                     cfg = config_for(w, iters, d)
                     if mode == "script":
-                        r = run_script(generate_clean_script(cfg), device, d)
+                        r = run_script(generate_clean_script(cfg), device, d, a.profile)
                     elif mode == "solve":
-                        r = run_script(generate_script(cfg), device, d)
+                        r = run_script(generate_script(cfg), device, d, a.profile)
                     elif mode in ("window", "window-quiet"):
                         r = run_window(app, w, cfg, device, quiet=(mode == "window-quiet"))
                     else:
