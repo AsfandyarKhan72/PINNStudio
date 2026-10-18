@@ -60,7 +60,7 @@ def main():
     ap.add_argument("out")
     ap.add_argument("--only", default="")
     ap.add_argument("--repeat", type=int, default=3)
-    ap.add_argument("--variants", default="", help="comma-separated names to run (default: all)")
+    ap.add_argument("--variants", default="", help="names to run, separated by ; (default: all)")
     a = ap.parse_args()
     from pinnstudio.core.codegen import generate_clean_script, generate_script
     app, w = ts._window()
@@ -76,7 +76,7 @@ def main():
             runs.update({v: (lambda c, fn=fn: fn(generate_script(c), generate_clean_script(c)))
                          for v, fn in TEXT_VARIANTS.items()})
             if a.variants:
-                keep = {x.strip() for x in a.variants.split(",")}
+                keep = {x.strip() for x in a.variants.split(";")}
                 runs = {k: g for k, g in runs.items() if k in keep}
             for v, gen in runs.items():
                 d = os.path.join(base, f"{len(res):03d}")
