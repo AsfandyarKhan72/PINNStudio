@@ -486,7 +486,10 @@ class StyleRemapper(QObject):
                 pass
 
     def eventFilter(self, obj, ev):
-        if ev.type() == QEvent.Type.Show and isinstance(obj, QDialog):
+        if isinstance(obj, QDialog) and (ev.type() == QEvent.Type.Show or
+                                         (ev.type() == QEvent.Type.LayoutRequest and obj.isVisible())):
+            # again on every layout change: the theme's fonts and padding
+            # arrive after the dialog is first shown, and rows get added
             self._fit_dialog(obj)
         if ev.type() == QEvent.Type.FontChange and isinstance(obj, QWidget):
             self._fit_text_button(obj)       # the UI scale changed the text size
@@ -509,12 +512,18 @@ class StyleRemapper(QObject):
     @staticmethod
     def _fit_dialog(d):
         """A dialog given a minimum width in code (setMinimumWidth(520)) no
-        longer grows to its contents by itself, so with larger text its
-        widest rows were cut off. It opens at least as large as they need."""
+        longer grows to its contents by itself (Qt then leaves its minimum
+        size to the code), so its rows were squeezed on top of each other
+        (Error Analysis) or cut off. It is kept at least as large as they
+        need, within the screen."""
         lay = d.layout()
         if lay is None:
             return
         need = lay.totalMinimumSize()
+        scr = d.screen().availableGeometry() if d.screen() is not None else None
+        if scr is not None:
+            need.setHeight(min(need.height(), scr.height() - 40))
+            need.setWidth(min(need.width(), scr.width() - 40))
         if need.width() > d.minimumWidth():
             d.setMinimumWidth(need.width())
         if need.height() > d.minimumHeight():

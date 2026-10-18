@@ -165,8 +165,8 @@ def run():
     # settings-dialog side effect (dialog.exec()) -- unrelated to this fix,
     # and blocking under headless/offscreen test runs with no one to close it
     # (same workaround test_restore_steady_state.py already uses).
-    win._restore_viz_settings = dict(win._restore_viz_settings or {})
-    win._restore_viz_settings["resolution"] = 16  # speed only
+    win._plot_viz_settings = dict(win._restore_viz_settings or {})
+    win._plot_viz_settings["resolution"] = 16  # speed only
 
     # ── Case 1: steady 2D Surface restore, stale animation GIF present ──
     with _tmpdir() as tmpdir:

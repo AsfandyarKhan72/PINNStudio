@@ -4923,7 +4923,7 @@ if not torch.cuda.is_available() and str(getattr(torch, "get_default_device", la
 
 # Parameter-convergence axis drawing, shared with the exported script and
 # Restore & Visualize (see codegen.py's _param_axis_helper_code).
-{_param_axis_helper_code(config.plot_axis_label_fontsize, config.plot_subplot_title_fontsize)}
+{_param_axis_helper_code(config.plot_axis_label_fontsize, config.plot_subplot_title_fontsize, param_style_of(config))}
 {_nncg_guard_code}
 
 # ── Force GPU initialization ──────────────────────────────────
@@ -6725,7 +6725,7 @@ for _pval in _param_values:
                         _plot_xlabel_override, _plot_ylabel_override)
                     print(f"\\n=== {{_vname}} final value: {{_final_val:.6g}} ===")
                 plt.tight_layout()
-                plt.savefig("/tmp/param_plot.png", dpi=100)
+                plt.savefig("/tmp/param_plot.png", dpi={int(config.plot_dpi)})
                 if _use_save:
                     import shutil as _sp
                     _sp.copy("/tmp/param_plot.png", _os.path.join(
@@ -8959,7 +8959,18 @@ _mpl_sci.rcParams["axes.formatter.use_mathtext"] = True
 _mpl_sci.rcParams["axes.formatter.limits"] = (-2, 5)"""
 
 
-def _param_axis_helper_code(axis_label_fontsize, subplot_title_fontsize):
+def param_style_of(cfg):
+    """The parameter convergence plot style (Figure style -> Parameter
+    convergence) from a config object or a dict of its fields."""
+    g = (cfg.get if isinstance(cfg, dict) else (lambda k, d=None: getattr(cfg, k, d)))
+    return {"linewidth": float(g("param_plot_linewidth", 1.5) or 1.5),
+            "color": str(g("param_plot_color", "#69db7c") or "#69db7c"),
+            "markers": bool(g("param_plot_markers", False)),
+            "show_true": bool(g("param_plot_show_true", True)),
+            "show_final": bool(g("param_plot_show_final", True))}
+
+
+def _param_axis_helper_code(axis_label_fontsize, subplot_title_fontsize, style=None):
     """Runtime source for _draw_param_ax(...), the one "draw a single
     inferred parameter's convergence curve on an axis" function -- cleanup
     Round 49 (audit §2e, _build_restore_param_script). It used to be hand-typed
@@ -8974,6 +8985,7 @@ def _param_axis_helper_code(axis_label_fontsize, subplot_title_fontsize):
 
     Log scale needs every value > 0; otherwise it falls back to linear and
     says so (matching the restore path's existing warning)."""
+    style = dict(param_style_of({}), **(style or {}))
     return f'''def _param_label_num(_v):
     # A parameter value for the legend: "1.2038 x 10^-4" (mathtext) when it is
     # small or very large, otherwise up to 6 significant digits ("0.398434").
@@ -8983,6 +8995,8 @@ def _param_axis_helper_code(axis_label_fontsize, subplot_title_fontsize):
     _e = int(np.floor(np.log10(abs(_f))))
     return f"{{_f / 10 ** _e:.4f}} $\\\\times$ 10$^{{{{{{_e}}}}}}$"
 
+_PARAM_STYLE = {style!r}
+
 def _draw_param_ax(ax, name, iters, vals, true_val=None, log_scale=False,
                    title_override="", xlabel_override="", ylabel_override=""):
     vals = np.asarray(vals, dtype=float)
@@ -8990,18 +9004,23 @@ def _draw_param_ax(ax, name, iters, vals, true_val=None, log_scale=False,
     use_log = bool(log_scale) and len(vals) > 0 and bool(np.all(vals > 0))
     if log_scale and not use_log:
         print(f"⚠️ {{name}}: log scale requested but values aren't all positive -- using linear scale instead.")
+    _kw = dict(color=_PARAM_STYLE["color"], linewidth=_PARAM_STYLE["linewidth"],
+               marker="o" if _PARAM_STYLE["markers"] else None, markersize=3)
     if use_log:
-        ax.semilogy(iters, vals, color="#69db7c", linewidth=1.5)
+        ax.semilogy(iters, vals, **_kw)
         ax.set_ylabel(ylabel_override or f"log({{name}})", fontsize={axis_label_fontsize})
     else:
-        ax.plot(iters, vals, color="#69db7c", linewidth=1.5)
+        ax.plot(iters, vals, **_kw)
         ax.set_ylabel(ylabel_override or name, fontsize={axis_label_fontsize})
-    ax.axhline(y=final_val, color="#ff8787", linestyle="--", alpha=0.5, label=f"Final = {{_param_label_num(final_val)}}")
-    if true_val is not None:
+    if _PARAM_STYLE["show_final"]:
+        ax.axhline(y=final_val, color="#ff8787", linestyle="--", alpha=0.5, label=f"Final = {{_param_label_num(final_val)}}")
+    if true_val is not None and _PARAM_STYLE["show_true"]:
         ax.axhline(y=true_val, color="#ffd43b", linestyle="--", alpha=0.8, label=f"True = {{_param_label_num(true_val)}}")
     ax.set_xlabel(xlabel_override or "Iteration", fontsize={axis_label_fontsize})
     ax.set_title(title_override or f"Inferred Parameter: {{name}}", fontsize={subplot_title_fontsize})
-    ax.legend(); ax.grid(True, alpha=0.3)
+    if ax.get_legend_handles_labels()[0]:
+        ax.legend()
+    ax.grid(True, alpha=0.3)
     return final_val'''
 
 
@@ -11076,7 +11095,7 @@ with open(var_history_path, "r") as f:
 param_iters = np.array(param_iters)
 _inv_true_vals = {[t for _n, _i, t in inv_vars_parsed]!r}
 
-{_param_axis_helper_code(config.plot_axis_label_fontsize, config.plot_subplot_title_fontsize)}
+{_param_axis_helper_code(config.plot_axis_label_fontsize, config.plot_subplot_title_fontsize, param_style_of(config))}
 
 fig, axes = plt.subplots(len(inv_vars), 1, figsize=(_plot_figsize(6, 3.2)[0], _plot_figsize(6, 3.2)[1] * len(inv_vars)), squeeze=False)
 for vi, name in enumerate({[n for n, _i, _t in inv_vars_parsed]!r}):
@@ -11087,7 +11106,7 @@ for vi, name in enumerate({[n for n, _i, _t in inv_vars_parsed]!r}):
     print(f"Final inferred {{name}}: {{final_val:.6g}}")
 plt.tight_layout()
 param_plot_path = os.path.join(sol_dir, "param_convergence.png")
-plt.savefig(param_plot_path, dpi=100)
+plt.savefig(param_plot_path, dpi={int(config.plot_dpi)})
 plt.close(fig)''')
 
     # ── Result plot -- exactly one of these, matching this problem's

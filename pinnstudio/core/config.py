@@ -494,6 +494,14 @@ class PINNConfig:
     plot_title_fontsize: float = 13.0
     plot_subplot_title_fontsize: float = 10.0
     plot_axis_label_fontsize: float = 10.0
+    # Parameter convergence plots (inverse problems; Figure style ->
+    # Parameter convergence): the same style in Solve, the exported script
+    # and Restore. Log scale is inv_param_log_scale.
+    param_plot_linewidth: float = 1.5
+    param_plot_color: str = "#69db7c"
+    param_plot_markers: bool = False
+    param_plot_show_true: bool = True
+    param_plot_show_final: bool = True
 
     # Loss Plot Settings (Round 28): previously every loss plot across the
     # app hardcoded "semilogy of summed Train/Test loss" with no user

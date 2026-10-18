@@ -125,68 +125,8 @@ def test_build_config_wires_hidden_spinboxes():
     assert cfg2.num_timesteps_anim == 13
 
 
-def test_setup_line_plot_settings_dialog_is_type_aware():
-    """_on_line_plot_settings() was merged into the unified
-    _on_plot_settings() dialog in Round 24 (one popup for every plot
-    type, matching Restore & Visualize's own single-dialog shape, and
-    removing the standalone "⚙" button that used to open the old
-    _on_plot_settings separately) -- same type-aware steps-spinbox
-    behavior, just reached through the merged entry point now."""
-    w = MainWindow()
-    orig_exec = QDialog.exec
-    try:
-        QDialog.exec = lambda self: _click_ok(self, set_spin=17)
-
-        w.plot_type_combo.blockSignals(True)
-        w.plot_type_combo.setCurrentText("Line (time steps)")
-        w.plot_type_combo.blockSignals(False)
-        w._on_plot_settings()
-        assert w.timesteps_spin_line.value() == 17
-        assert w.timesteps_spin_anim.value() == 20  # untouched
-
-        w.plot_type_combo.blockSignals(True)
-        w.plot_type_combo.setCurrentText("Line Animation (GIF)")
-        w.plot_type_combo.blockSignals(False)
-        w._on_plot_settings()
-        assert w.timesteps_spin_anim.value() == 17
-        assert w.timesteps_spin_line.value() == 17  # unchanged from before
-
-        w.plot_type_combo.blockSignals(True)
-        w.plot_type_combo.setCurrentText("Surface Animation (GIF)")
-        w.plot_type_combo.blockSignals(False)
-        w._on_plot_settings()
-        assert w.timesteps_spin_anim.value() == 17
-    finally:
-        QDialog.exec = orig_exec
-
-
-def test_setup_plot_settings_dialog_linewidth_is_type_aware_and_preserves_other_key():
-    w = MainWindow()
-    orig_exec = QDialog.exec
-    try:
-        QDialog.exec = lambda self: _click_ok(self, set_lw_combo="2.5")
-
-        w.plot_type_combo.blockSignals(True)
-        w.plot_type_combo.setCurrentText("Line (time steps)")
-        w.plot_type_combo.blockSignals(False)
-        w._on_plot_settings()
-        assert w._plot_viz_settings["linewidth"] == 2.5
-        assert w._plot_viz_settings.get("linewidth_anim", 3.0) == 3.0
-
-        w.plot_type_combo.blockSignals(True)
-        w.plot_type_combo.setCurrentText("Line Animation (GIF)")
-        w.plot_type_combo.blockSignals(False)
-        w._on_plot_settings()
-        assert w._plot_viz_settings["linewidth_anim"] == 2.5
-        # The *other* key must survive this save, not revert to a bare
-        # literal dict missing it (the bug this round fixed).
-        assert w._plot_viz_settings["linewidth"] == 2.5
-
-        cfg = w._build_config()
-        assert cfg.plot_linewidth == 2.5
-        assert cfg.plot_linewidth_anim == 2.5
-    finally:
-        QDialog.exec = orig_exec
+# (The two dialog tests moved to tests/test_figure_style.py: the Figure style
+# dialog keeps the steps / frames and the two line widths apart.)
 
 
 def _restore_script_cfg_dict():
@@ -207,6 +147,7 @@ def test_restore_script_reads_type_specific_steps_and_linewidth():
         "vmin": -1.0, "vmax": 1.0, "fps": 10, "swap_xt": True,
         "figsize_mode": "Default", "figsize_w": 7.0, "figsize_h": 5.0,
     }
+    w._plot_viz_settings = dict(w._plot_viz_settings, **w._restore_viz_settings)   # (the shared Figure style)
     cfg_dict = _restore_script_cfg_dict()
 
     s_line = w._build_restore_script(
@@ -231,7 +172,5 @@ def test_restore_script_reads_type_specific_steps_and_linewidth():
 if __name__ == "__main__":
     test_config_defaults_and_backward_compat()
     test_build_config_wires_hidden_spinboxes()
-    test_setup_line_plot_settings_dialog_is_type_aware()
-    test_setup_plot_settings_dialog_linewidth_is_type_aware_and_preserves_other_key()
     test_restore_script_reads_type_specific_steps_and_linewidth()
     print("ALL PASSED")

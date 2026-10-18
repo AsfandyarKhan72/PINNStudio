@@ -111,10 +111,11 @@ def run():
           "MainWindow._plot_viz_settings should default figsize_mode to 'Default'")
     check(win._plot_viz_settings.get("figsize_w") == 7.0 and win._plot_viz_settings.get("figsize_h") == 5.0,
           "MainWindow._plot_viz_settings figsize_w/h should default to 7.0/5.0")
-    check(win._restore_viz_settings.get("figsize_mode") == "Default",
-          "MainWindow._restore_viz_settings should default figsize_mode to 'Default'")
-    check(win._restore_viz_settings.get("figsize_w") == 7.0 and win._restore_viz_settings.get("figsize_h") == 5.0,
-          "MainWindow._restore_viz_settings figsize_w/h should default to 7.0/5.0")
+    # Restore draws with the same Figure style
+    check(win._restore_style().get("figsize_mode") == "Default",
+          "Restore's style should default figsize_mode to 'Default'")
+    check(win._restore_style().get("figsize_w") == 7.0 and win._restore_style().get("figsize_h") == 5.0,
+          "Restore's style figsize_w/h should default to 7.0/5.0")
 
     # ── _build_config() threads self._plot_viz_settings into the config ──
     win._plot_viz_settings = dict(win._plot_viz_settings)
@@ -232,8 +233,8 @@ def run():
         ("Wide", 7.0, 5.0, (9.0, 5)),
         ("Custom", 3.0, 6.0, (3.0, 6.0)),
     ]:
-        win2._restore_viz_settings = dict(win2._restore_viz_settings)
-        win2._restore_viz_settings.update({"figsize_mode": mode, "figsize_w": w, "figsize_h": h})
+        win2._plot_viz_settings = dict(win2._plot_viz_settings)      # (one Figure style for Solve and Restore)
+        win2._plot_viz_settings.update({"figsize_mode": mode, "figsize_w": w, "figsize_h": h})
 
         single_script = win2._build_restore_script(
             "/tmp/does_not_need_to_exist.pt", minimal_cfg, "adam", "Line (time steps)", 0, 5, "/tmp")

@@ -913,6 +913,9 @@ class MainWindow(QMainWindow):
         # Phases/L-BFGS, so it's visible and editable without a popup.
 
         settings_menu.addSeparator()
+        figure_style_action = QAction("Figure Style...", self)
+        figure_style_action.triggered.connect(lambda: self._on_figure_style(context="solve", tab="General"))
+        settings_menu.addAction(figure_style_action)
         display_action = QAction("🎨 Display Settings...", self)
         display_action.triggered.connect(self._on_display_settings)
         settings_menu.addAction(display_action)
@@ -1034,7 +1037,7 @@ class MainWindow(QMainWindow):
          "Run the problem over a range of settings and compare the results."),
         ("results", "Results", "R", "#fcc419", None, (),
          "What to plot and save, error analysis, and solution export."),
-        ("restore", "Restore & visualize", "↺", "#ffe066", "results", ("Model Restore && Visualization",),
+        ("restore", "Restore & visualize", "↺", "#ffe066", "results", ("Trained model",),
          "Load a trained model and plot it again, without retraining."),
     )
 
@@ -3958,8 +3961,10 @@ class MainWindow(QMainWindow):
         # page, as for forward problems (no separate selector here).
         log_row = QHBoxLayout()
         log_row.setContentsMargins(0, 6, 0, 0)
-        log_row.addWidget(QLabel("Convergence plot:"))
+        # (the log scale is set in Figure style -> Parameter convergence now;
+        # this tick box only holds the value)
         self.inv_param_log_scale = QCheckBox("Log scale")
+        self.inv_param_log_scale.setVisible(False)
         self.inv_param_log_scale.setToolTip("Draw the parameter convergence plot with a logarithmic value axis")
         self.inv_param_log_scale.setChecked(False)
         log_row.addWidget(self.inv_param_log_scale)
@@ -4052,21 +4057,15 @@ class MainWindow(QMainWindow):
     def _build_restore_panel(self, left_layout):
         """Model Restore & Visualization panel."""
         # ── Model Restore & Visualization ─────────────────────
-        restore_group = QGroupBox("Model Restore && Visualization")
+        restore_group = QGroupBox("Trained model")
         restore_layout = QVBoxLayout(restore_group)
         restore_layout.setSpacing(5)
 
-        restore_toggle = QCheckBox("Enable Model Restore && Visualization")
-        restore_toggle.setChecked(False)
-        self._register_hint(restore_toggle, '#a0c4ff')
-        restore_layout.addWidget(restore_toggle)
-
+        # (no "Enable" tick box: the page is Restore's own)
         restore_content = QWidget()
         restore_content_layout = QVBoxLayout(restore_content)
         restore_content_layout.setContentsMargins(0, 0, 0, 0)
-        restore_content_layout.setSpacing(5)
-        restore_content.setVisible(False)
-        restore_toggle.stateChanged.connect(lambda s: restore_content.setVisible(s == 2))
+        restore_content_layout.setSpacing(6)
         restore_layout.addWidget(restore_content)
 
         # Restore mode -- Forward vs Inverse. Forward keeps the panel
@@ -4079,17 +4078,15 @@ class MainWindow(QMainWindow):
         # instead of the model itself (the trained parameter's value was
         # never part of the .pt checkpoint to begin with -- see
         # _build_restore_script's comment for why).
-        restore_mode_row = QHBoxLayout()
-        restore_mode_row.addWidget(QLabel("Restore:"))
-        self.restore_mode_combo = QComboBox()
+        # Forward or Inverse is read from the model's config when a model
+        # is chosen (_on_restore_config_chosen); this list only holds it.
+        self.restore_mode_combo = QComboBox(restore_content)
         self.restore_mode_combo.addItems(["Forward Model", "Inverse Model"])
-        self.restore_mode_combo.setFixedHeight(28)
+        self.restore_mode_combo.setVisible(False)
         self.restore_mode_combo.currentTextChanged.connect(self._on_restore_mode_changed)
-        restore_mode_row.addWidget(self.restore_mode_combo)
-        restore_content_layout.addLayout(restore_mode_row)
 
         self._RESTORE_FORWARD_VIZ = ["Surface", "Line (time steps)", "Animation Line (GIF)", "Animation Surface (GIF)"]
-        self._RESTORE_PARAM_VIZ = ["Parameter Convergence Plot (PNG)", "Parameter Convergence Animation (GIF)"]
+        self._RESTORE_PARAM_VIZ = ["Parameter convergence", "Parameter convergence (GIF)"]
         # Populated by _detect_restore_ta_steps() when the browsed model
         # file lives inside a Time-Adaptive run's "time_adaptive_steps/
         # step_*/" folder -- see that method and _build_restore_script_ta.
@@ -4100,8 +4097,8 @@ class MainWindow(QMainWindow):
         _rmf_layout.setContentsMargins(0, 0, 0, 0)
         _rmf_layout.setSpacing(5)
 
-        _rmf_layout.addWidget(QLabel("Model file (.pt):"))
         restore_path_row = QHBoxLayout()
+        restore_path_row.addWidget(QLabel("Model file:"))
         self.restore_model_path = QLineEdit()
         self.restore_model_path.setPlaceholderText("Browse for model .pt file...")
         self.restore_model_path.setFixedHeight(28)
@@ -4109,13 +4106,16 @@ class MainWindow(QMainWindow):
         self.restore_browse_btn = QPushButton("Browse")
         self.restore_browse_btn.setFixedHeight(28); self.restore_browse_btn.setFixedWidth(65)
         self.restore_browse_btn.clicked.connect(self._on_browse_restore_model)
+        self.restore_model_path.editingFinished.connect(
+            lambda: self._on_restore_model_chosen(self.restore_model_path.text().strip(), quiet=True))
         restore_path_row.addWidget(self.restore_browse_btn)
         _rmf_layout.addLayout(restore_path_row)
 
-        _rmf_layout.addWidget(QLabel("Config file (model_config.json):"))
         config_path_row = QHBoxLayout()
+        config_path_row.addWidget(QLabel("Config:"))
         self.restore_config_path = QLineEdit()
-        self.restore_config_path.setPlaceholderText("Auto-detected or browse...")
+        self.restore_config_path.setPlaceholderText("found next to the model, or browse")
+        self.restore_config_path.setToolTip("The model's settings (model_config.json), saved next to it by Solve")
         self.restore_config_path.setFixedHeight(28)
         config_path_row.addWidget(self.restore_config_path)
         self.restore_config_browse_btn = QPushButton("Browse")
@@ -4123,6 +4123,12 @@ class MainWindow(QMainWindow):
         self.restore_config_browse_btn.clicked.connect(self._on_browse_restore_config)
         config_path_row.addWidget(self.restore_config_browse_btn)
         _rmf_layout.addLayout(config_path_row)
+        # What the config says: the problem, Forward/Inverse, parameters
+        self.restore_info_label = QLabel("")
+        self.restore_info_label.setWordWrap(True)
+        self._register_hint(self.restore_info_label, '#868e96')
+        self.restore_info_label.setVisible(False)
+        _rmf_layout.addWidget(self.restore_info_label)
 
         # Time-Adaptive step auto-detection (see _detect_restore_ta_steps)
         # -- shown only when the browsed model file lives inside a
@@ -4162,6 +4168,9 @@ class MainWindow(QMainWindow):
         self._fit_combo_width(self.restore_optimizer_combo, min_width=80)
         _ro_layout.addWidget(self.restore_optimizer_combo)
         restore_content_layout.addWidget(self.restore_optimizer_widget)
+        # Not shown: Restore loads only the network's weights, which fit a
+        # model compiled with any optimizer; the one in the config is used.
+        self.restore_optimizer_widget.setVisible(False)
 
         # Inverse-only: lets an older Inverse-trained model (saved before
         # model_config.json recorded this) still restore. model.restore()
@@ -4177,78 +4186,55 @@ class MainWindow(QMainWindow):
         _riv_layout = QVBoxLayout(self.restore_inv_vars_widget)
         _riv_layout.setContentsMargins(0, 0, 0, 0)
         _riv_layout.setSpacing(5)
-        _riv_layout.addWidget(QLabel("Trainable variable names (comma-separated -- blank = auto-detect):"))
+        _riv_row = QHBoxLayout()
+        _riv_row.addWidget(QLabel("Parameter names:"))
         self.restore_inv_var_names = QLineEdit()
-        self.restore_inv_var_names.setPlaceholderText("e.g. D  or  D,k  (leave blank to auto-detect from config)")
+        self.restore_inv_var_names.setPlaceholderText("e.g. D  or  D,k (an older model's config does not list them)")
         self.restore_inv_var_names.setFixedHeight(28)
-        _riv_layout.addWidget(self.restore_inv_var_names)
+        _riv_row.addWidget(self.restore_inv_var_names)
+        _riv_layout.addLayout(_riv_row)
         restore_content_layout.addWidget(self.restore_inv_vars_widget)
         self.restore_inv_vars_widget.setVisible(False)
 
-        restore_content_layout.addWidget(QLabel("Visualization type:"))
+        _rviz_row = QHBoxLayout()
+        _rviz_row.addWidget(QLabel("Plot type:"))
         self.restore_viz_combo = QComboBox()
         self.restore_viz_combo.addItems(self._RESTORE_FORWARD_VIZ)
         self.restore_viz_combo.setFixedHeight(28)
+        self._fit_combo_width(self.restore_viz_combo, min_width=200)
         self.restore_viz_combo.currentTextChanged.connect(self._on_restore_viz_changed)
-        restore_content_layout.addWidget(self.restore_viz_combo)
+        _rviz_row.addWidget(self.restore_viz_combo)
+        self.restore_style_btn = QPushButton("Style…")
+        self.restore_style_btn.setFixedHeight(28)
+        self.restore_style_btn.setToolTip("Figure style: colours, sizes, fonts and the settings of this plot type")
+        self.restore_style_btn.clicked.connect(lambda: self._on_restore_viz_settings())
+        _rviz_row.addWidget(self.restore_style_btn)
+        _rviz_row.addStretch()
+        restore_content_layout.addLayout(_rviz_row)
 
         self.restore_tsteps_spin = QSpinBox()
         self.restore_tsteps_spin.setRange(2, 50); self.restore_tsteps_spin.setValue(10)
         self.restore_tsteps_spin.setVisible(False)
 
+        # Restore's own view settings (time steps / frames and the y/z
+        # slice, which depend on the model being restored); the figure
+        # style itself (colours, sizes, fonts ...) is the one Figure style
+        # Solve uses too -- see _restore_style().
         self._restore_viz_settings = {
-            'colormap': 'jet',
-            'n_2d_snapshots': 2,
-            # Split from one shared "n_steps" into two: a static multi-
-            # snapshot line plot ("Line (time steps)") wants few enough
-            # lines to stay readable, while an animation wants more
-            # frames for a smoother/slower playback -- see
-            # _viz_steps_key()/_viz_linewidth_key() for which one a given
-            # viz_type actually uses.
             'n_steps_line': 5,
             'n_steps_anim': 20,
-            'colorbar': True,
-            'levels': 100,
-            'resolution': 200,
-            'dpi': 300,
-            'auto_range': True,
-            'vmin': -1.0,
-            'vmax': 1.0,
-            'linewidth': 2.0,
-            'linewidth_anim': 3.0,
-            'fps': 10,
-            'title': '',
-            'xlabel': '',
-            'ylabel': '',
-            'figsize_mode': 'Default',
-            'figsize_w': 7.0,
-            'figsize_h': 5.0,
-            # y/z slice for the two Line-type viz types ("Line (time
-            # steps)"/"Animation Line (GIF)") on a 2D/3D restore -- a
-            # genuinely live, independently-overridable control (see
-            # _on_restore_viz_settings' slice rows and the matching
-            # comment in _build_restore_script), not a readback of
-            # whatever the run was originally solved/plotted with.
-            # _auto=True (the default) means "domain midpoint of whatever
-            # model gets restored", recomputed fresh each time since
-            # different restored configs can have different domains.
             'line_slice_y_auto': True,
             'line_slice_y': 0.0,
             'line_slice_z_auto': True,
             'line_slice_z': 0.0,
-            # Round 31: same 3 font-size settings as the Setup tab's own
-            # Plot Settings dialog (self._plot_viz_settings) -- independent
-            # of it, same defaults, same keys (see _on_restore_viz_settings).
-            'title_fontsize': 13.0,
-            'subplot_title_fontsize': 10.0,
-            'axis_label_fontsize': 10.0,
         }
 
         self.restore_output_widget = QWidget()
         _rout_layout = QVBoxLayout(self.restore_output_widget)
         _rout_layout.setContentsMargins(0, 0, 0, 0)
         _rout_layout.setSpacing(5)
-        _rout_layout.addWidget(QLabel("Output to plot:"))
+        _rout_row = QHBoxLayout()
+        _rout_row.addWidget(QLabel("Output:"))
         self.restore_output_combo = QComboBox()
         # "Custom..." mirrors the live Results panel's own Plot output
         # selector (see plot_output_combo/_on_plot_output_combo_changed) --
@@ -4260,7 +4246,10 @@ class MainWindow(QMainWindow):
         self.restore_output_combo.addItems(["Output 1 (u)", "Custom..."])
         self.restore_output_combo.setFixedHeight(28)
         self.restore_output_combo.currentTextChanged.connect(self._on_restore_output_combo_changed)
-        _rout_layout.addWidget(self.restore_output_combo)
+        self._fit_combo_width(self.restore_output_combo, min_width=200)
+        _rout_row.addWidget(self.restore_output_combo)
+        _rout_row.addStretch()
+        _rout_layout.addLayout(_rout_row)
         _rout_custom_row = QHBoxLayout()
         self.restore_custom_expr_input = QLineEdit()
         self.restore_custom_expr_input.setPlaceholderText("expression, e.g. sqrt(u**2+v**2) or du_x")
@@ -4294,7 +4283,10 @@ class MainWindow(QMainWindow):
         _rp_layout = QVBoxLayout(self.restore_param_widget)
         _rp_layout.setContentsMargins(0, 0, 0, 0)
         _rp_layout.setSpacing(5)
-        _rp_layout.addWidget(QLabel("Parameter convergence text file(s) (<name>_convergence.txt):"))
+        _rp_hint = QLabel("Convergence files and true values:")
+        _rp_hint.setToolTip("<name>_convergence.txt for each parameter, saved by Solve in the model's run "
+                            "folder and found there; a true value draws a dashed line")
+        _rp_layout.addWidget(_rp_hint)
         self.restore_param_files_widget = QWidget()
         self.restore_param_files_layout = QVBoxLayout(self.restore_param_files_widget)
         self.restore_param_files_layout.setSpacing(6)
@@ -4310,25 +4302,27 @@ class MainWindow(QMainWindow):
         self._add_restore_param_row()
 
         _rp_combine_row = QHBoxLayout()
-        _rp_combine_row.addWidget(QLabel("Output:"))
+        _rp_combine_row.addWidget(QLabel("Figures:"))
         self.restore_param_combine_combo = QComboBox()
         self.restore_param_combine_combo.addItems([
-            "Combine all variables into one file",
-            "Separate file per variable",
+            "One figure for all parameters",
+            "One figure per parameter",
         ])
         self.restore_param_combine_combo.setFixedHeight(28)
+        self._fit_combo_width(self.restore_param_combine_combo, min_width=200)
         _rp_combine_row.addWidget(self.restore_param_combine_combo)
+        _rp_combine_row.addStretch()
         _rp_layout.addLayout(_rp_combine_row)
 
+        # (the log scale is Figure style -> Parameters, as for Solve)
         self.restore_param_log_cb = QCheckBox("Log-scale y-axis")
-        self.restore_param_log_cb.setStyleSheet("color: #a0c4ff;")
-        _rp_layout.addWidget(self.restore_param_log_cb)
+        self.restore_param_log_cb.setVisible(False)
 
         restore_content_layout.addWidget(self.restore_param_widget)
         self.restore_param_widget.setVisible(False)
 
-        restore_content_layout.addWidget(QLabel("Save visualization to:"))
         restore_save_row = QHBoxLayout()
+        restore_save_row.addWidget(QLabel("Save to:"))
         self.restore_save_path = QLineEdit()
         self.restore_save_path.setPlaceholderText("Directory to save output...")
         # Same default as the main Solve panel's "Save to:" field
@@ -4487,8 +4481,21 @@ class MainWindow(QMainWindow):
         # Controls row
         ctrl_row = QHBoxLayout()
 
-        # Output selector
-        ctrl_row.addWidget(QLabel("Plot output:"))
+        # Output selector: one drop-down, "All outputs" (with more than one
+        # output), "Output 1 (u)", ..., "Custom...". It sets the two value
+        # holders below (the output the main plot shows, and whether every
+        # output also gets its own plot), which the rest of the window and
+        # the saved settings use.
+        ctrl_row.addWidget(QLabel("Outputs to plot:"))
+        self.plot_outputs_choice = QComboBox()
+        self.plot_outputs_choice.setFixedHeight(28)
+        self.plot_outputs_choice.setToolTip(
+            "All outputs: a plot of every output (solution_plot_<name>.png), the first one also as\n"
+            "solution_plot.png. One output: only its plot. Custom...: a combination of the outputs.")
+        ctrl_row.addWidget(self.plot_outputs_choice)
+        _outputs_holder = QWidget(self.results_controls)
+        _outputs_holder.setVisible(False)
+        _oh_lay = QHBoxLayout(_outputs_holder)
         self.plot_output_combo = QComboBox()
         # "Custom..." is always the last item (see _on_num_outputs_changed
         # and _apply_config, where the combo is rebuilt) -- picking it
@@ -4500,14 +4507,19 @@ class MainWindow(QMainWindow):
         self.plot_output_combo.setFixedHeight(28)
         self._fit_combo_width(self.plot_output_combo, min_width=130)
         self.plot_output_combo.currentTextChanged.connect(self._on_plot_output_combo_changed)
-        ctrl_row.addWidget(self.plot_output_combo)
+        _oh_lay.addWidget(self.plot_output_combo)
         # Multi-output problems: also save each output's own plot, named
         # after it (solution_plot_<name>.png) -- Round 69.
         self.plot_all_outputs_cb = QCheckBox("All outputs")
         self.plot_all_outputs_cb.setChecked(True)
-        self.plot_all_outputs_cb.setToolTip("With more than one output, also save every output's own plot\n"
-                                            "(solution_plot_<name>.png), not only the one selected here.")
-        ctrl_row.addWidget(self.plot_all_outputs_cb)
+        _oh_lay.addWidget(self.plot_all_outputs_cb)
+        self._syncing_outputs_choice = False
+        self.plot_outputs_choice.currentIndexChanged.connect(self._on_outputs_choice_changed)
+        _om = self.plot_output_combo.model()
+        for _sig in (_om.rowsInserted, _om.rowsRemoved, _om.modelReset):
+            _sig.connect(lambda *_a: self._sync_outputs_choice())
+        self.plot_output_combo.currentIndexChanged.connect(lambda _i: self._sync_outputs_choice())
+        self.plot_all_outputs_cb.toggled.connect(lambda _c: self._sync_outputs_choice())
 
         # Custom field expression/label -- only visible when "Custom..." is
         # selected above. Expression variables are this problem's own
@@ -4565,6 +4577,11 @@ class MainWindow(QMainWindow):
         # mismatch Restore & Visualize's own plot-type combo never had).
         self.plot_type_combo.currentTextChanged.connect(self._on_plot_type_changed)
         ctrl_row.addWidget(self.plot_type_combo)
+        self.plot_style_btn = QPushButton("Style…")
+        self.plot_style_btn.setFixedHeight(28)
+        self.plot_style_btn.setToolTip("Figure style: colours, sizes, fonts and the settings of this plot type")
+        self.plot_style_btn.clicked.connect(lambda: self._on_figure_style(self.plot_type_combo.currentText()))
+        ctrl_row.addWidget(self.plot_style_btn)
         ctrl_row.addStretch()
         controls_layout.addLayout(ctrl_row)
 
@@ -4587,7 +4604,7 @@ class MainWindow(QMainWindow):
         # row -- same reasoning as ctrl_row2 (Error Analysis/Export)
         # already being split out below for the same reason.
         ctrl_row_save = QHBoxLayout()
-        self.param_save_label = QLabel("Save parameter:")
+        self.param_save_label = QLabel("Save parameters:")
         self.param_save_label.setVisible(False)
         ctrl_row_save.addWidget(self.param_save_label)
         self.param_save_combo = QComboBox()
@@ -4608,7 +4625,7 @@ class MainWindow(QMainWindow):
         # Second row for Error Analysis/Export -- its own row for the same
         # independent-minimum-width reason as ctrl_row_save above.
         ctrl_row2 = QHBoxLayout()
-        self.ea_btn = QPushButton("Error Analysis")
+        self.ea_btn = QPushButton("Error Analysis…")
         self.ea_btn.setFixedHeight(28)
         self._register_style(self.ea_btn, "button", lambda css: f"QPushButton {{ {css} }}")  # the theme's own button
         self.ea_btn.clicked.connect(self._on_error_analysis_btn)
@@ -4628,6 +4645,7 @@ class MainWindow(QMainWindow):
         self._register_style(self.loss_plot_btn, "button", lambda css: f"QPushButton {{ {css} }}")  # the theme's own button
         self.loss_plot_btn.clicked.connect(self._on_loss_plot_settings)
         ctrl_row2.addWidget(self.loss_plot_btn)
+        self.loss_plot_btn.setVisible(False)    # (now the Loss tab of Figure style: the Style... button)
 
         self._loss_plot_settings = {
             'mode': 'train_test',       # "train_test" | "individual" | "all"
@@ -4672,7 +4690,7 @@ class MainWindow(QMainWindow):
             'axis_label_fontsize': 10.0,
         }
 
-        self.export_btn = QPushButton("Export Solution")
+        self.export_btn = QPushButton("Export Solution…")
         self.export_btn.setFixedHeight(28)
         self._register_style(self.export_btn, "button", lambda css: f"QPushButton {{ {css} }}")  # the theme's own button
         self.export_btn.clicked.connect(self._on_export_settings)
@@ -4712,7 +4730,6 @@ class MainWindow(QMainWindow):
         self.line_slice_z_spin.setVisible(False)
 
         ctrl_row2.addStretch()
-        controls_layout.addLayout(ctrl_row2)
 
         # Save / export row
         save_row = QHBoxLayout()
@@ -4750,6 +4767,8 @@ class MainWindow(QMainWindow):
         self.export_enabled_cb.setChecked(False)
         self.export_enabled_cb.setVisible(False)
         controls_layout.addLayout(save_row)
+        controls_layout.addLayout(ctrl_row2)     # (after Save to: they act on the saved run)
+        self._sync_outputs_choice()
 
         # Plot area
         plots_layout = QHBoxLayout()
@@ -6547,7 +6566,59 @@ class MainWindow(QMainWindow):
         # restore. It's updated inside _on_plot_settings itself instead,
         # once a selection actually sticks (either Cancel's own revert, or
         # this dialog's OK).
-        self._on_plot_settings(text)
+        # The settings no longer pop up on every change of plot type: the
+        # Style... button next to the list opens them.
+        self._plot_type_prev = text
+
+    def _sync_outputs_choice(self):
+        """Refill "Outputs to plot" from the output list (whose names change
+        with the problem) and select what the two value holders say."""
+        if self._syncing_outputs_choice or not hasattr(self, "plot_outputs_choice"):
+            return
+        self._syncing_outputs_choice = True
+        try:
+            c = self.plot_outputs_choice
+            src = self.plot_output_combo
+            outs = [src.itemText(i) for i in range(src.count()) if src.itemText(i) != "Custom..."]
+            items = (["All outputs"] if len(outs) > 1 else []) + outs + ["Custom..."]
+            if [c.itemText(i) for i in range(c.count())] != items:
+                c.blockSignals(True)
+                c.clear()
+                c.addItems(items)
+                c.blockSignals(False)
+                self._fit_combo_width(c, min_width=130)
+            if src.currentText() == "Custom...":
+                want = "Custom..."
+            elif len(outs) > 1 and self.plot_all_outputs_cb.isChecked():
+                want = "All outputs"
+            else:
+                want = src.currentText() or (outs[0] if outs else "Custom...")
+            if c.currentText() != want:
+                c.blockSignals(True)
+                c.setCurrentText(want)
+                c.blockSignals(False)
+        finally:
+            self._syncing_outputs_choice = False
+
+    def _on_outputs_choice_changed(self, _i=None):
+        if self._syncing_outputs_choice:
+            return
+        text = self.plot_outputs_choice.currentText()
+        self._syncing_outputs_choice = True
+        try:
+            src = self.plot_output_combo
+            if text == "All outputs":
+                src.setCurrentIndex(0)
+                self.plot_all_outputs_cb.setChecked(True)
+            else:
+                i = src.findText(text)
+                if i >= 0:
+                    src.setCurrentIndex(i)
+                if text != "Custom...":
+                    self.plot_all_outputs_cb.setChecked(False)
+        finally:
+            self._syncing_outputs_choice = False
+        self._on_plot_output_combo_changed(self.plot_output_combo.currentText())
 
     def _on_plot_output_combo_changed(self, text):
         """Show the custom expression/label fields only while "Custom..."
@@ -9075,6 +9146,11 @@ class MainWindow(QMainWindow):
             plot_title_fontsize=self._plot_viz_settings.get('title_fontsize', 13.0),
             plot_subplot_title_fontsize=self._plot_viz_settings.get('subplot_title_fontsize', 10.0),
             plot_axis_label_fontsize=self._plot_viz_settings.get('axis_label_fontsize', 10.0),
+            param_plot_linewidth=self._plot_viz_settings.get('param_linewidth', 1.5),
+            param_plot_color=self._plot_viz_settings.get('param_color', '#69db7c'),
+            param_plot_markers=self._plot_viz_settings.get('param_markers', False),
+            param_plot_show_true=self._plot_viz_settings.get('param_show_true', True),
+            param_plot_show_final=self._plot_viz_settings.get('param_show_final', True),
             loss_plot_mode=self._loss_plot_settings.get('mode', 'train_test') if getattr(self, '_loss_plot_settings', None) else 'train_test',
             loss_display_every=self._loss_plot_settings.get('display_every', 1000) if getattr(self, '_loss_plot_settings', None) else 1000,
             loss_plot_linewidth=self._loss_plot_settings.get('linewidth', 2.0) if getattr(self, '_loss_plot_settings', None) else 2.0,
@@ -9892,6 +9968,11 @@ class MainWindow(QMainWindow):
             "title_fontsize": getattr(config, "plot_title_fontsize", 13.0),
             "subplot_title_fontsize": getattr(config, "plot_subplot_title_fontsize", 10.0),
             "axis_label_fontsize": getattr(config, "plot_axis_label_fontsize", 10.0),
+            "param_linewidth": getattr(config, "param_plot_linewidth", 1.5),
+            "param_color": getattr(config, "param_plot_color", "#69db7c"),
+            "param_markers": getattr(config, "param_plot_markers", False),
+            "param_show_true": getattr(config, "param_plot_show_true", True),
+            "param_show_final": getattr(config, "param_plot_show_final", True),
         }
 
         # Loss Plot Settings (Round 28) -- getattr defaults so a config
@@ -12744,7 +12825,8 @@ print("DOMAIN_PREVIEW_DONE")
     
     def _on_restore_mode_changed(self, text):
         is_inverse = (text == "Inverse Model")
-        self.restore_inv_vars_widget.setVisible(is_inverse)
+        # parameter names only when the model's config does not list them
+        self.restore_inv_vars_widget.setVisible(is_inverse and not getattr(self, "_restore_cfg_has_vars", False))
         current_viz = self.restore_viz_combo.currentText()
         items = self._restore_forward_viz_items() + (list(self._RESTORE_PARAM_VIZ) if is_inverse else [])
         self.restore_viz_combo.blockSignals(True)
@@ -12753,6 +12835,7 @@ print("DOMAIN_PREVIEW_DONE")
         if current_viz in items:
             self.restore_viz_combo.setCurrentText(current_viz)
         self.restore_viz_combo.blockSignals(False)
+        self._fit_combo_width(self.restore_viz_combo, min_width=200)
         self._on_restore_viz_changed(self.restore_viz_combo.currentText())
 
     def _restore_forward_viz_items(self):
@@ -12819,6 +12902,7 @@ print("DOMAIN_PREVIEW_DONE")
         if current_viz in items:
             self.restore_viz_combo.setCurrentText(current_viz)
         self.restore_viz_combo.blockSignals(False)
+        self._fit_combo_width(self.restore_viz_combo, min_width=200)
         self._on_restore_viz_changed(self.restore_viz_combo.currentText())
 
     def _on_restore_viz_changed(self, text):
@@ -12827,12 +12911,10 @@ print("DOMAIN_PREVIEW_DONE")
         # needed) and show the parameter-file row list instead. Every
         # other viz type keeps the panel exactly as it always was.
         is_param = text in getattr(self, '_RESTORE_PARAM_VIZ', [])
-        self.restore_model_fields_widget.setVisible(not is_param)
-        self.restore_optimizer_widget.setVisible(not is_param)
+        # (the model fields stay: the model's config says what it is)
         self.restore_output_widget.setVisible(not is_param)
         self.restore_param_widget.setVisible(is_param)
         self._update_restore_ta_combine_visibility()
-        self._on_restore_viz_settings(text)
 
     def _update_restore_ta_combine_visibility(self):
         """The 'Combine steps' checkbox only makes sense for the two
@@ -12864,96 +12946,26 @@ print("DOMAIN_PREVIEW_DONE")
         width control at all, see lw_widget's own visibility below)."""
         return 'linewidth_anim' if 'Animation' in viz_type else 'linewidth'
 
+    _RESTORE_VIEW_KEYS = ('n_steps_line', 'n_steps_anim', 'line_slice_y_auto', 'line_slice_y',
+                          'line_slice_z_auto', 'line_slice_z')
+
+    def _restore_style(self):
+        """Settings a restored figure is drawn with: the Figure style (the
+        same as Solve's) plus Restore's own steps / frames and slice."""
+        out = dict(self._plot_viz_settings)
+        view = getattr(self, '_restore_viz_settings', {}) or {}
+        out.update({k: v for k, v in view.items() if k in self._RESTORE_VIEW_KEYS})
+        return out
+
     def _on_restore_viz_settings(self, viz_type=None):
-        if viz_type is None:
-            viz_type = self.restore_viz_combo.currentText()
+        """Figure style, opened on the tab of Restore's plot type (its time
+        steps / frames and slice are Restore's own)."""
+        self._on_figure_style(viz_type or self.restore_viz_combo.currentText(), "restore")
 
-        is_param = viz_type in getattr(self, '_RESTORE_PARAM_VIZ', [])
-
-        # The dimension that matters for this dialog (e.g. the "Swap axes"
-        # option below, 1D-only) is whatever's being restored, not whatever
-        # the main Setup tab's dimension radios currently show -- those two
-        # can easily differ (e.g. Setup tab left on 3D while restoring an
-        # older 1D checkpoint). Read it from the config about to be
-        # restored; fall back to "1D" (same default _build_restore_script
-        # itself uses) if it can't be read yet, e.g. no config picked yet.
-        _restore_dim = "1D"
-        _restore_y_min, _restore_y_max = 0.0, 1.0
-        _restore_z_min, _restore_z_max = 0.0, 1.0
-        _restore_is_steady = False
-        try:
-            import json as _json_dim
-            with open(self.restore_config_path.text().strip(), encoding="utf-8", errors="replace") as _df:
-                _restore_cfg_dim = _json_dim.load(_df)
-            _restore_dim = _restore_cfg_dim.get("problem_dim", "1D")
-            _restore_y_min = _restore_cfg_dim.get("y_min", 0.0); _restore_y_max = _restore_cfg_dim.get("y_max", 1.0)
-            _restore_z_min = _restore_cfg_dim.get("z_min", 0.0); _restore_z_max = _restore_cfg_dim.get("z_max", 1.0)
-            _restore_is_steady = bool(_restore_cfg_dim.get("steady_state", False))
-        except Exception:
-            pass
-        _restore_is_1d = _restore_dim == "1D"
-        _restore_is_2d = _restore_dim == "2D"
-        _restore_is_3d = _restore_dim == "3D"
-        _restore_is_line_type = viz_type in ("Line (time steps)", "Animation Line (GIF)")
-
-        dialog = QDialog(self)
-        dialog.setWindowTitle(f"Plot Settings — {viz_type}")
-        dialog.setMinimumWidth(320)
-        layout = QVBoxLayout(dialog)
-
-        current = self._restore_viz_settings
-        # Slice defaults: an override saved earlier for this restore, else
-        # the midpoint of the domain about to be restored (recomputed from
-        # whatever config was just picked, not an earlier model's domain).
-        _slice = None
-        if _restore_is_2d or _restore_is_3d:
-            _y_auto = current.get('line_slice_y_auto', True)
-            _slice = {"y": (_y_auto, (_restore_y_min + _restore_y_max) / 2.0 if _y_auto else current.get('line_slice_y', 0.0))}
-            if _restore_is_3d:
-                _z_auto = current.get('line_slice_z_auto', True)
-                _slice["z"] = (_z_auto, (_restore_z_min + _restore_z_max) / 2.0 if _z_auto else current.get('line_slice_z', 0.0))
-        # Shared with the Setup tab's dialog -- see _build_plot_settings_fields.
-        w = self._build_plot_settings_fields(
-            layout, current, viz_type, is_param=is_param, is_1d=_restore_is_1d, is_2d=_restore_is_2d,
-            is_3d=_restore_is_3d, is_steady=_restore_is_steady, is_line_type=_restore_is_line_type,
-            is_anim="Animation" in viz_type, surface_types=("Surface", "Animation Surface (GIF)"),
-            levels_default=40, steps_value=current.get(self._viz_steps_key(viz_type), 10), steps_max=100,
-            slice_defaults=_slice)
-
-        info_texts = {
-            "Surface": "Single heatmap/contour at specified time.",
-            "Line (time steps)": "Solution lines at evenly spaced time steps.",
-            "Animation Line (GIF)": "Animated GIF of line plots over time.",
-            "Animation Surface (GIF)": "Animated GIF of surface plots with colorbar.",
-            "Parameter Convergence Plot (PNG)": "Static plot of each trainable variable's value vs. iteration.",
-            "Parameter Convergence Animation (GIF)": "Animated GIF of each trainable variable's convergence, growing curve up to each logged iteration.",
-        }
-        info = QLabel(info_texts.get(viz_type, ""))
-        self._register_hint(info, '#586e75')
-        info.setWordWrap(True)
-        layout.addWidget(info)
-
-        ok_btn, cancel_btn = self._add_ok_cancel_row(layout, dialog)
-
-        def _on_ok():
-            new_settings = self._plot_settings_values(w, current, viz_type, is_param)
-            if not is_param:
-                # Written to whichever n_steps_* key this viz_type actually
-                # uses (see _viz_steps_key), so Animation Line's frame count
-                # doesn't clobber Line (time steps)'s step count or vice versa.
-                new_settings[self._viz_steps_key(viz_type)] = w.steps_spin.value()
-                self.restore_tsteps_spin.setValue(w.steps_spin.value())
-                if w.y_auto_cb is not None:
-                    new_settings['line_slice_y_auto'] = w.y_auto_cb.isChecked()
-                    new_settings['line_slice_y'] = w.y_spin.value()
-                if w.z_auto_cb is not None:
-                    new_settings['line_slice_z_auto'] = w.z_auto_cb.isChecked()
-                    new_settings['line_slice_z'] = w.z_spin.value()
-            self._restore_viz_settings = new_settings
-            self.log_box.append(f"✅ Viz settings saved — {viz_type}")
-            dialog.accept()
-        ok_btn.clicked.connect(_on_ok)
-        dialog.exec()
+    def _on_figure_style(self, viz_type=None, context="solve", tab=None):
+        """One Figure style dialog for every saved figure (see figure_style.py)."""
+        from pinnstudio.ui.figure_style import open_figure_style
+        return open_figure_style(self, viz_type, context, tab)
 
     # ── Quick Examples: shared template-apply steps (cleanup Round 59) ──
     # _on_template_selected applies five template tables (2D, 2D steady,
@@ -13943,434 +13955,13 @@ print("DOMAIN_PREVIEW_DONE")
         self._tpl_finish(text, t)
 
     def _on_loss_plot_settings(self):
-        """Loss Plot Settings dialog (Round 28) -- the chat-agreed design:
-        which losses to show (Train+Test totals / Individual components /
-        All), a single display_every sampling cadence applied everywhere
-        (per the user's "should be a single value that applies everywhere"
-        -- replaces the old scattered 1000/200/500 constants across every
-        model.train() call site, see codegen.py), line thickness, and a
-        log/linear y-axis toggle (log matches every loss plot's previous,
-        always-semilogy behavior). Backed by self._loss_plot_settings,
-        read into PINNConfig by _build_config() and restored by
-        _apply_config() -- same shape as self._plot_viz_settings and
-        _on_plot_settings() just below, but a separate, self-contained
-        dialog since Loss Plot Settings apply globally (not per plot-type
-        like Surface/Line/GIF's own settings)."""
-        current = self._loss_plot_settings
-
-        dialog = QDialog(self)
-        dialog.setWindowTitle("Loss Plot Settings")
-        dialog.setMinimumWidth(340)
-        layout = QVBoxLayout(dialog)
-
-        info = QLabel(
-            "Controls every loss plot in the app (live Solve, RAR, "
-            "Time-Adaptive, and \"Export as DeepXDE Script\").")
-        info.setWordWrap(True)
-        self._register_hint(info, '#586e75')
-        layout.addWidget(info)
-
-        # Which losses to show
-        mode_row = QHBoxLayout()
-        mode_row.addWidget(QLabel("Show:"))
-        mode_combo = QComboBox()
-        mode_combo.addItem("Train + Test totals", "train_test")
-        mode_combo.addItem("Individual components", "individual")
-        mode_combo.addItem("All (totals + individual)", "all")
-        _mode_idx = {"train_test": 0, "individual": 1, "all": 2}.get(current.get('mode', 'train_test'), 0)
-        mode_combo.setCurrentIndex(_mode_idx)
-        mode_combo.setFixedWidth(190)
-        mode_row.addStretch(); mode_row.addWidget(mode_combo)
-        layout.addLayout(mode_row)
-
-        mode_hint = QLabel(
-            "\"Individual\" and \"All\" plot each PDE/BC/IC loss term "
-            "separately (PDE terms named by output; others as "
-            "\"Constraint N\") -- DeepXDE only tracks a single combined "
-            "Test loss, so individual Test-term lines aren't available.")
-        mode_hint.setWordWrap(True)
-        self._register_hint(mode_hint, '#74c0fc')
-        layout.addWidget(mode_hint)
-
-        # display_every -- single shared value
-        de_row = QHBoxLayout()
-        de_row.addWidget(QLabel("Display every (iterations):"))
-        de_spin = QSpinBox()
-        de_spin.setRange(1, 100000)
-        de_spin.setValue(int(current.get('display_every', 1000)))
-        de_spin.setFixedWidth(90)
-        de_row.addStretch(); de_row.addWidget(de_spin)
-        layout.addLayout(de_row)
-
-        de_hint = QLabel(
-            "How often loss is recorded during training -- one shared "
-            "value used everywhere (Adam, L-BFGS, RAR rounds, every "
-            "Time-Adaptive step). Smaller = more detail, slower logging.")
-        de_hint.setWordWrap(True)
-        self._register_hint(de_hint, '#586e75')
-        layout.addWidget(de_hint)
-
-        # Line thickness
-        lw_row = QHBoxLayout()
-        lw_row.addWidget(QLabel("Line width:"))
-        lw_combo = QComboBox()
-        lw_combo.addItems(["1.0", "1.5", "2.0", "2.5", "3.0"])
-        lw_combo.setCurrentText(str(current.get('linewidth', 2.0)))
-        lw_combo.setFixedWidth(90)
-        lw_row.addStretch(); lw_row.addWidget(lw_combo)
-        layout.addLayout(lw_row)
-
-        # Log / linear y-axis
-        log_cb = QCheckBox("Logarithmic y-axis (semilogy)")
-        log_cb.setChecked(bool(current.get('log_y', True)))
-        layout.addWidget(log_cb)
-
-        ok_btn, cancel_btn = self._add_ok_cancel_row(layout, dialog)
-
-        def _on_ok():
-            self._loss_plot_settings = {
-                'mode': mode_combo.currentData(),
-                'display_every': de_spin.value(),
-                'linewidth': float(lw_combo.currentText()),
-                'log_y': log_cb.isChecked(),
-            }
-            dialog.accept()
-
-        ok_btn.clicked.connect(_on_ok)
-        dialog.exec()
-
-    def _build_plot_settings_fields(self, layout, current, viz_type, *, is_param, is_1d, is_2d, is_3d,
-                                    is_steady, is_line_type, is_anim, surface_types, levels_default,
-                                    steps_value, steps_max, slice_defaults):
-        """Builds every field the two Plot Settings dialogs share --
-        cleanup Round 57. The Setup tab's dialog (_on_plot_settings) and
-        Restore & Visualize's (_on_restore_viz_settings) used to build these
-        ~300 lines independently and had drifted: same fields in a different
-        order, different labels ("Animation FPS:" vs "Frame rate (fps):"),
-        different frame-rate choices. Now both show the same fields in the
-        same order with the same labels; what genuinely differs between them
-        comes in as arguments:
-          surface_types -- the two Surface-type names each panel uses;
-          levels_default -- the contour-level default when unset;
-          steps_value/steps_max -- the steps/frames spinbox's start value and
-              upper limit (the Setup tab writes it back to its own hidden
-              spinboxes, which top out lower);
-          slice_defaults -- {"y": (auto, value), "z": (auto, value)} for a
-              2D/3D problem (z only in 3D), or None.
-        Parameter-convergence types (is_param) only get figure size and the
-        title/label/font fields, as before. Returns a namespace of the input
-        widgets; _plot_settings_values() reads the shared ones back."""
-        import types as _types
-        w = _types.SimpleNamespace(y_auto_cb=None, y_spin=None, z_auto_cb=None, z_spin=None)
-
-        def _row(label, widget, width):
-            row = QHBoxLayout()
-            row.addWidget(QLabel(label))
-            widget.setFixedWidth(width)
-            row.addStretch(); row.addWidget(widget)
-            return row
-
-        def _combo(items, value):
-            c = QComboBox()
-            c.addItems(items)
-            c.setCurrentText(value)
-            return c
-
-        def _add(item, always=False):
-            if always or not is_param:
-                if isinstance(item, QHBoxLayout):
-                    layout.addLayout(item)
-                else:
-                    layout.addWidget(item)
-
-        def _wrap(row):
-            box = QWidget()
-            row.setContentsMargins(0, 0, 0, 0)
-            box.setLayout(row)
-            return box
-
-        # Colormap, contour levels, grid resolution, output DPI
-        w.cmap_combo = _combo(["RdBu_r", "viridis", "plasma", "jet", "coolwarm", "inferno", "turbo", "seismic", "bwr"],
-                              current.get('colormap', 'RdBu_r'))
-        _add(_row("Colormap:", w.cmap_combo, 120))
-        w.levels_spin = QSpinBox()
-        w.levels_spin.setRange(5, 200); w.levels_spin.setValue(current.get('levels', levels_default))
-        _add(_row("Contour levels:", w.levels_spin, 80))
-        w.res_combo = _combo(["80", "100", "150", "200"], str(current.get('resolution', 100)))
-        _add(_row("Grid resolution:", w.res_combo, 80))
-        w.dpi_combo = _combo(["100", "150", "200", "300"], str(current.get('dpi', 100)))
-        _add(_row("Output DPI:", w.dpi_combo, 80))
-
-        # Figure size -- every viz type, Parameter Convergence included;
-        # Error Analysis comparison grids size themselves and ignore it.
-        w.figsize_combo = _combo(["Default", "Square", "Wide", "Custom"], current.get('figsize_mode', 'Default'))
-        _add(_row("Figure size:", w.figsize_combo, 100), always=True)
-        figsize_custom_widget = QWidget()
-        figsize_custom_layout = QHBoxLayout(figsize_custom_widget)
-        figsize_custom_layout.setContentsMargins(0, 0, 0, 0)
-        w.figsize_w_spin = QDoubleSpinBox(); w.figsize_h_spin = QDoubleSpinBox()
-        for _lbl, _sp, _key, _dflt in (("Width:", w.figsize_w_spin, 'figsize_w', 7.0),
-                                       ("Height:", w.figsize_h_spin, 'figsize_h', 5.0)):
-            figsize_custom_layout.addWidget(QLabel(_lbl))
-            _sp.setRange(2.0, 30.0); _sp.setSingleStep(0.5)
-            _sp.setValue(current.get(_key, _dflt)); _sp.setFixedWidth(70)
-            figsize_custom_layout.addWidget(_sp)
-        figsize_custom_layout.addStretch()
-        figsize_custom_widget.setVisible(w.figsize_combo.currentText() == "Custom")
-        w.figsize_combo.currentTextChanged.connect(lambda t: figsize_custom_widget.setVisible(t == "Custom"))
-        _add(figsize_custom_widget, always=True)
-
-        # Color range -- Surface types only
-        color_range_widget = QWidget()
-        cr_layout = QVBoxLayout(color_range_widget)
-        cr_layout.setContentsMargins(0, 0, 0, 0)
-        w.cr_auto_cb = QCheckBox("Auto color range")
-        w.cr_auto_cb.setChecked(current.get('auto_range', True))
-        cr_layout.addWidget(w.cr_auto_cb)
-        cr_manual_widget = QWidget()
-        cr_manual_layout = QHBoxLayout(cr_manual_widget)
-        cr_manual_layout.setContentsMargins(0, 0, 0, 0)
-        w.vmin_spin = QDoubleSpinBox(); w.vmax_spin = QDoubleSpinBox()
-        for _lbl, _sp, _key, _dflt in (("vmin:", w.vmin_spin, 'vmin', -1.0), ("vmax:", w.vmax_spin, 'vmax', 1.0)):
-            cr_manual_layout.addWidget(QLabel(_lbl))
-            _sp.setRange(-1e6, 1e6); _sp.setValue(current.get(_key, _dflt)); _sp.setFixedWidth(80)
-            cr_manual_layout.addWidget(_sp)
-        cr_manual_widget.setVisible(not w.cr_auto_cb.isChecked())
-        cr_layout.addWidget(cr_manual_widget)
-        w.cr_auto_cb.stateChanged.connect(lambda st: cr_manual_widget.setVisible(st != 2))
-        color_range_widget.setVisible(viz_type in surface_types)
-        _add(color_range_widget)
-
-        # 2D/3D time snapshots -- Surface only, and only for a time-dependent
-        # 2D/3D problem (the multi-snapshot branch: several evenly spaced
-        # heatmaps side by side). A steady problem or any 1D Surface (the
-        # x-t heatmap already shows the whole time range) is one plot.
-        w.snap_spin = QSpinBox()
-        w.snap_spin.setRange(1, 10); w.snap_spin.setValue(current.get('n_2d_snapshots', 2))
-        snap_widget = _wrap(_row("2D/3D time snapshots:", w.snap_spin, 80))
-        snap_widget.setVisible(viz_type == "Surface" and (is_2d or is_3d) and not is_steady)
-        _add(snap_widget)
-
-        # Swap x/t axes -- 1D Surface types only (2D/3D Surface plots are
-        # spatial snapshots with no x/t axis to swap); t on the x-axis by
-        # default, same as the main Results panel's 1D Surface plot.
-        w.swap_xt_cb = QCheckBox("Swap axes (x-axis = t, y-axis = x)")
-        w.swap_xt_cb.setChecked(current.get('swap_xt', True))
-        w.swap_xt_cb.setVisible(viz_type in surface_types and is_1d)
-        _add(w.swap_xt_cb)
-
-        # Colorbar -- Surface types only
-        w.colorbar_cb = QCheckBox("Show colorbar")
-        w.colorbar_cb.setChecked(current.get('colorbar', True))
-        w.colorbar_cb.setVisible(viz_type in surface_types)
-        _add(w.colorbar_cb)
-
-        # Steps/frames -- every type except Surface (whose analogous
-        # control is the snapshot count above)
-        w.steps_spin = QSpinBox()
-        w.steps_spin.setRange(2, steps_max); w.steps_spin.setValue(steps_value)
-        steps_widget = _wrap(_row("Frames to show:" if is_anim else "Time steps to show:", w.steps_spin, 80))
-        steps_widget.setVisible(viz_type != "Surface")
-        _add(steps_widget)
-
-        # y/z slice -- the two Line-type plots on a 2D/3D problem only:
-        # they plot u vs x, so the rest of the domain is fixed at a slice.
-        show_slice = is_line_type and (is_2d or is_3d)
-        slice_info = QLabel("This plot type only shows u vs x -- pick where to slice the rest of the domain.")
-        slice_info.setWordWrap(True)
-        self._register_hint(slice_info, '#74c0fc')
-        slice_info.setVisible(show_slice)
-        _add(slice_info)
-
-        def _slice_row(label, auto_default, val_default):
-            row = QHBoxLayout()
-            auto_cb = QCheckBox("Auto (domain midpoint)")
-            auto_cb.setChecked(auto_default)
-            row.addWidget(QLabel(f"{label} value:"))
-            spin = QDoubleSpinBox()
-            spin.setRange(-1e6, 1e6); spin.setValue(val_default)
-            spin.setFixedWidth(90)
-            row.addStretch(); row.addWidget(spin)
-            # the label and its box are shown and hidden together (the label
-            # was left on its own for a Surface plot, or with Auto ticked)
-            row_w = _wrap(row)
-            row_w.setVisible(show_slice and not auto_cb.isChecked())
-            auto_cb.stateChanged.connect(lambda st: row_w.setVisible(show_slice and st != 2))
-            auto_cb.setVisible(show_slice)
-            _add(auto_cb)
-            _add(row_w)
-            return auto_cb, spin
-
-        if slice_defaults and (is_2d or is_3d):
-            w.y_auto_cb, w.y_spin = _slice_row("y", *slice_defaults["y"])
-            if is_3d and "z" in slice_defaults:
-                w.z_auto_cb, w.z_spin = _slice_row("z", *slice_defaults["z"])
-
-        # Line width -- Line types only
-        w.lw_combo = _combo(["1.0", "1.5", "2.0", "2.5", "3.0"], str(current.get(self._viz_linewidth_key(viz_type), 2.0)))
-        lw_widget = _wrap(_row("Line width:", w.lw_combo, 80))
-        lw_widget.setVisible(is_line_type)
-        _add(lw_widget)
-
-        # Frame rate -- the GIF animation types only
-        w.fps_combo = _combo(["5", "8", "10", "15", "20", "24", "30"], str(current.get('fps', 10)))
-        fps_widget = _wrap(_row("Frame rate (fps):", w.fps_combo, 80))
-        fps_widget.setVisible(is_anim)
-        _add(fps_widget)
-
-        # Title / axis labels -- every viz type; blank keeps the default text
-        labels_line = QLabel("Leave blank to keep the default title/axis labels.")
-        self._register_hint(labels_line, '#586e75')
-        labels_line.setWordWrap(True)
-        _add(labels_line, always=True)
-        w.title_edit = QLineEdit(); w.xlabel_edit = QLineEdit(); w.ylabel_edit = QLineEdit()
-        for _lbl, _ed, _key in (("Title:", w.title_edit, 'title'), ("X-axis label:", w.xlabel_edit, 'xlabel'),
-                                ("Y-axis label:", w.ylabel_edit, 'ylabel')):
-            row = QHBoxLayout()
-            row.addWidget(QLabel(_lbl))
-            _ed.setText(current.get(_key, ''))
-            _ed.setPlaceholderText("(default)")
-            row.addWidget(_ed)
-            _add(row, always=True)
-
-        # Font sizes (Round 31) -- figure title, per-panel subplot title,
-        # axis labels; every viz type
-        w.title_fs_spin = QDoubleSpinBox(); w.subplot_title_fs_spin = QDoubleSpinBox(); w.axis_label_fs_spin = QDoubleSpinBox()
-        for _lbl, _sp, _key, _dflt in (("Title font size:", w.title_fs_spin, 'title_fontsize', 13.0),
-                                       ("Subplot title font size:", w.subplot_title_fs_spin, 'subplot_title_fontsize', 10.0),
-                                       ("Axis label font size:", w.axis_label_fs_spin, 'axis_label_fontsize', 10.0)):
-            _sp.setRange(6.0, 36.0); _sp.setSingleStep(0.5); _sp.setValue(current.get(_key, _dflt))
-            _add(_row(_lbl, _sp, 70), always=True)
-        return w
-
-    def _plot_settings_values(self, w, current, viz_type, is_param):
-        """The settings dict both Plot Settings dialogs save on OK, from the
-        widgets _build_plot_settings_fields() made -- starting from a copy
-        of the existing settings so keys this viz_type doesn't surface
-        (e.g. the other plot type's linewidth) survive. Each dialog then
-        adds what only it handles (steps/slice write-back)."""
-        new_settings = dict(current)
-        if not is_param:
-            new_settings.update({
-                'colormap': w.cmap_combo.currentText(),
-                'levels': w.levels_spin.value(),
-                'resolution': int(w.res_combo.currentText()),
-                'dpi': int(w.dpi_combo.currentText()),
-                'auto_range': w.cr_auto_cb.isChecked(),
-                'vmin': w.vmin_spin.value(),
-                'vmax': w.vmax_spin.value(),
-                'colorbar': w.colorbar_cb.isChecked(),
-                'n_2d_snapshots': w.snap_spin.value(),
-                'fps': int(w.fps_combo.currentText()),
-                'swap_xt': w.swap_xt_cb.isChecked(),
-            })
-            new_settings[self._viz_linewidth_key(viz_type)] = float(w.lw_combo.currentText())
-        new_settings.update({
-            'title': w.title_edit.text().strip(),
-            'xlabel': w.xlabel_edit.text().strip(),
-            'ylabel': w.ylabel_edit.text().strip(),
-            'figsize_mode': w.figsize_combo.currentText(),
-            'figsize_w': w.figsize_w_spin.value(),
-            'figsize_h': w.figsize_h_spin.value(),
-            'title_fontsize': w.title_fs_spin.value(),
-            'subplot_title_fontsize': w.subplot_title_fs_spin.value(),
-            'axis_label_fontsize': w.axis_label_fs_spin.value(),
-        })
-        return new_settings
-
+        """Figure style, Loss tab (which losses, line width, log axis, how
+        often the loss is recorded)."""
+        self._on_figure_style(context="solve", tab="Loss")
 
     def _on_plot_settings(self, viz_type=None):
-        """Unified Plot Settings dialog for the Setup tab's "Plot output"
-        panel -- merges what used to be two separate dialogs (this one,
-        opened via a standalone "⚙" button that's now removed, plus
-        _on_line_plot_settings's own steps/slice-only popup opened
-        automatically for just the line/animation types) into one dialog
-        that auto-pops for every plot-type selection, gating each field's
-        visibility by viz_type/dimension -- the same single-dialog shape
-        _on_restore_viz_settings already uses for the Restore & Visualize
-        panel, so both panels show the exact same settings for a given
-        plot type. (plot_type_combo never actually contains "📊 Error
-        Analysis" -- see the dead-code removal note above
-        _add_ta_step_group -- the real Error Analysis entry point is the
-        separate ea_btn -> _on_error_analysis_btn().)
-        """
-        if viz_type is None:
-            viz_type = self.plot_type_combo.currentText()
-
-        # "Parameter Convergence" isn't a spatial plot at all -- it's the
-        # iteration-vs-inferred-value chart for an Inverse problem (see
-        # codegen.py's own Parameter Convergence branch) -- so, exactly
-        # like Restore & Visualize's own is_param gating for its
-        # "Parameter Convergence Plot/Animation" entries, almost every
-        # field below (colormap, contour levels, resolution, DPI, color
-        # range, 2D snapshots, swap axes, colorbar, line width, steps,
-        # fps) means nothing for it and stays hidden; only figure size and
-        # the title/axis-label overrides still apply.
-        is_param = (viz_type == "Parameter Convergence")
-        _is_1d = self.radio_1d.isChecked()
-        _is_2d = self.radio_2d.isChecked()
-        _is_3d = self.radio_3d.isChecked()
-        _is_steady = bool(self.steady_state_check.isChecked()) if hasattr(self, 'steady_state_check') else False
-        _is_anim = "Animation" in viz_type
-        _is_line_type = viz_type in ("Line (time steps)", "Line Animation (GIF)")
-
-        dialog = QDialog(self)
-        dialog.setWindowTitle(f"Plot Settings — {viz_type}")
-        dialog.setMinimumWidth(320)
-        layout = QVBoxLayout(dialog)
-
-        current = self._plot_viz_settings
-        # The steps/frames value and the y/z slice live in the Setup tab's
-        # own (hidden) widgets -- timesteps_spin_line/_anim and
-        # line_slice_*_auto_cb/_spin -- which the generators read via
-        # PINNConfig; this dialog edits those.
-        _target_spin = self.timesteps_spin_anim if _is_anim else self.timesteps_spin_line
-        _slice = None
-        if _is_2d or _is_3d:
-            _slice = {"y": (self.line_slice_y_auto_cb.isChecked(), self.line_slice_y_spin.value())}
-            if _is_3d:
-                _slice["z"] = (self.line_slice_z_auto_cb.isChecked(), self.line_slice_z_spin.value())
-        # Shared with Restore & Visualize's dialog -- see _build_plot_settings_fields.
-        w = self._build_plot_settings_fields(
-            layout, current, viz_type, is_param=is_param, is_1d=_is_1d, is_2d=_is_2d, is_3d=_is_3d,
-            is_steady=_is_steady, is_line_type=_is_line_type, is_anim=_is_anim,
-            surface_types=("Surface", "Surface Animation (GIF)"), levels_default=50,
-            steps_value=_target_spin.value(), steps_max=_target_spin.maximum(), slice_defaults=_slice)
-
-        ok_btn, cancel_btn = self._add_ok_cancel_row(layout)
-
-        def _on_cancel():
-            # Restore whichever plot type was actually selected before
-            # this dialog opened -- not a hardcoded "Surface" -- so
-            # reconsidering a different plot type and then Cancelling
-            # lands back on the real previous selection, the same Cancel
-            # behavior every other Settings dialog in this app already
-            # has. blockSignals avoids re-triggering _on_plot_type_changed
-            # (and re-opening this same dialog) for the revert itself.
-            self.plot_type_combo.blockSignals(True)
-            self.plot_type_combo.setCurrentText(getattr(self, '_plot_type_prev', 'Surface'))
-            self.plot_type_combo.blockSignals(False)
-            dialog.reject()
-
-        cancel_btn.clicked.connect(_on_cancel)
-
-        def _on_ok():
-            new_settings = self._plot_settings_values(w, current, viz_type, is_param)
-            if not is_param:
-                _target_spin.setValue(w.steps_spin.value())
-                if w.y_auto_cb is not None:
-                    self.line_slice_y_auto_cb.setChecked(w.y_auto_cb.isChecked())
-                    self.line_slice_y_spin.setValue(w.y_spin.value())
-                if w.z_auto_cb is not None:
-                    self.line_slice_z_auto_cb.setChecked(w.z_auto_cb.isChecked())
-                    self.line_slice_z_spin.setValue(w.z_spin.value())
-            self._plot_viz_settings = new_settings
-            self._plot_type_prev = self.plot_type_combo.currentText()
-            self.log_box.append(f"✅ Plot settings saved — {viz_type}")
-            dialog.accept()
-
-        ok_btn.clicked.connect(_on_ok)
-        dialog.exec()
+        """Figure style, opened on the tab of the Results page's plot type."""
+        self._on_figure_style(viz_type or self.plot_type_combo.currentText(), "solve")
 
     def _on_error_analysis_btn(self):
         """Standalone error analysis button — opens dialog."""
@@ -14382,7 +13973,7 @@ print("DOMAIN_PREVIEW_DONE")
 
         dialog = QDialog(self)
         dialog.setWindowTitle("Error Analysis")
-        dialog.setMinimumWidth(520)
+        dialog.setMinimumWidth(640)
         layout = QVBoxLayout(dialog)
 
         # ── Plot type selection ────────────────────────────────
@@ -15170,123 +14761,170 @@ print("DOMAIN_PREVIEW_DONE")
         self.ic_pretrain_init_widget.setVisible(not restoring and not _any_ic_from_file)
 
     def _on_browse_restore_model(self):
-        f, _ = QFileDialog.getOpenFileName(self, "Select model file", "", "PyTorch model (*.pt)")
+        start = os.path.dirname(self.restore_model_path.text().strip()) or self.save_dir_input.text().strip()
+        f, _ = QFileDialog.getOpenFileName(self, "Select model file", start if os.path.isdir(start) else "",
+                                           "PyTorch model (*.pt)")
         if f:
-            self.restore_model_path.setText(f)
-            base = os.path.dirname(f)
-            # First try: same name as .pt but .json
-            specific = f.replace(".pt", ".json")
-            if os.path.exists(specific):
-                self.restore_config_path.setText(specific)
-                self.log_box.append(f"✅ Auto-detected config: {specific}")
-            elif os.path.exists(os.path.join(base, "model_config.json")):
-                self.restore_config_path.setText(os.path.join(base, "model_config.json"))
-                self.log_box.append(f"✅ Auto-detected config (generic): {os.path.join(base, 'model_config.json')}")
+            self._on_restore_model_chosen(f)
+
+    def _on_restore_model_chosen(self, f, quiet=False):
+        """A model file was chosen (browsed or typed): find its config and,
+        from it, everything else (see _on_restore_config_chosen)."""
+        if not f or not os.path.isfile(f) or getattr(self, "_restore_model_seen", None) == f and quiet:
+            return
+        self._restore_model_seen = f
+        self.restore_model_path.setText(f)
+        base = os.path.dirname(f)
+        # First try: same name as .pt but .json
+        specific = f.replace(".pt", ".json")
+        if os.path.exists(specific):
+            self.restore_config_path.setText(specific)
+            self.log_box.append(f"✅ Auto-detected config: {specific}")
+        elif os.path.exists(os.path.join(base, "model_config.json")):
+            self.restore_config_path.setText(os.path.join(base, "model_config.json"))
+            self.log_box.append(f"✅ Auto-detected config (generic): {os.path.join(base, 'model_config.json')}")
+        else:
+            # A Time-Adaptive step folder has no model_config.json of
+            # its own (that only lives in the run's top-level
+            # solution_results/ folder) -- but it does have its own
+            # step_config.json, one level up from neither of the two
+            # checks above, which already has THIS step's correct
+            # t_min/t_max/x_min/x_max/... (the run's top-level
+            # model_config.json has the FULL domain's bounds instead,
+            # which would silently let a restore evaluate this step's
+            # model outside the only window it was ever trained on).
+            step_cfg_fallback = os.path.join(base, "step_config.json")
+            if os.path.exists(step_cfg_fallback):
+                self.restore_config_path.setText(step_cfg_fallback)
+                self.log_box.append(f"✅ Auto-detected Time-Adaptive step config: {step_cfg_fallback}")
             else:
-                # A Time-Adaptive step folder has no model_config.json of
-                # its own (that only lives in the run's top-level
-                # solution_results/ folder) -- but it does have its own
-                # step_config.json, one level up from neither of the two
-                # checks above, which already has THIS step's correct
-                # t_min/t_max/x_min/x_max/... (the run's top-level
-                # model_config.json has the FULL domain's bounds instead,
-                # which would silently let a restore evaluate this step's
-                # model outside the only window it was ever trained on).
-                step_cfg_fallback = os.path.join(base, "step_config.json")
-                if os.path.exists(step_cfg_fallback):
-                    self.restore_config_path.setText(step_cfg_fallback)
-                    self.log_box.append(f"✅ Auto-detected Time-Adaptive step config: {step_cfg_fallback}")
-                else:
-                    self.log_box.append("⚠️ No config found — please browse manually.")
+                self.log_box.append("⚠️ No config found — please browse manually.")
 
-            self._restore_ta_steps = self._detect_restore_ta_steps(f)
-            if self._restore_ta_steps:
-                n_found = len(self._restore_ta_steps)
-                t0_full = self._restore_ta_steps[0]['t0']
-                t1_full = self._restore_ta_steps[-1]['t1']
-                self.restore_ta_info_label.setText(
-                    f"⏱ Detected {n_found} Time-Adaptive steps (t={t0_full:.4g} → {t1_full:.4g}) "
-                    "in this run folder. Surface/Line snapshots now auto-route to whichever "
-                    "step actually covers the requested time; check \"Combine steps\" below "
-                    "for a full-domain animation.")
-                self.restore_ta_info_label.setVisible(True)
-                self.restore_ta_combine_cb.setChecked(True)
-                self.log_box.append(f"✅ Detected {n_found} Time-Adaptive steps (t={t0_full:.4g} → {t1_full:.4g})")
-            else:
-                self.restore_ta_info_label.setVisible(False)
-            self._update_restore_ta_combine_visibility()
+        self._restore_ta_steps = self._detect_restore_ta_steps(f)
+        if self._restore_ta_steps:
+            n_found = len(self._restore_ta_steps)
+            t0_full = self._restore_ta_steps[0]['t0']
+            t1_full = self._restore_ta_steps[-1]['t1']
+            self.restore_ta_info_label.setText(
+                f"⏱ Detected {n_found} Time-Adaptive steps (t={t0_full:.4g} → {t1_full:.4g}) "
+                "in this run folder. Surface/Line snapshots now auto-route to whichever "
+                "step actually covers the requested time; check \"Combine steps\" below "
+                "for a full-domain animation.")
+            self.restore_ta_info_label.setVisible(True)
+            self.restore_ta_combine_cb.setChecked(True)
+            self.log_box.append(f"✅ Detected {n_found} Time-Adaptive steps (t={t0_full:.4g} → {t1_full:.4g})")
+        else:
+            self.restore_ta_info_label.setVisible(False)
+        self._update_restore_ta_combine_visibility()
 
-            self._refresh_restore_output_combo()
-            self._refresh_restore_viz_options()
-            self._auto_detect_restore_optimizer()
+        self._on_restore_config_chosen()
 
-            # Inverse-only convenience: auto-detect the *_convergence.txt
-            # file(s) saved alongside this run (one level up from
-            # solution_results/, same folder the model_config.json above
-            # was auto-detected in) and the trainable-variable names read
-            # from each file's own header row -- the same auto-detect
-            # convenience as the config.json above, so an older model
-            # missing "inverse_variables" in its config still gets this
-            # filled in without the user typing anything.
-            if getattr(self, 'restore_mode_combo', None) is not None and self.restore_mode_combo.currentText() == "Inverse Model":
-                import glob as _glob_brm
-                import json as _json_brm
-                run_dir = os.path.dirname(base) if os.path.basename(base) == "solution_results" else base
-                conv_files = sorted(_glob_brm.glob(os.path.join(run_dir, "*_convergence.txt")))
-                if conv_files:
-                    # names[i] stays aligned with conv_files[i] (an empty
-                    # string for a file with no usable header), unlike the
-                    # restore_inv_var_names text below which -- to keep its
-                    # own prior behavior -- only ever joins the names that
-                    # were actually found. The aligned version is what lets
-                    # true_by_name below match each row to the right file
-                    # even when some file in the middle lacks a header.
-                    names = []
-                    for cf in conv_files:
-                        name = ""
-                        try:
-                            with open(cf, encoding="utf-8", errors="replace") as _cf:
-                                header = _cf.readline().strip().split(",")
-                            if len(header) >= 2 and header[1].strip():
-                                name = header[1].strip()
-                        except Exception:
-                            pass
-                        names.append(name)
+    def _find_restore_param_files(self):
+        """Inverse model: its <name>_convergence.txt files and true values."""
+        f = self.restore_model_path.text().strip()
+        base = os.path.dirname(f)
 
-                    # Auto-fill each row's True-value field from this run's
-                    # own model_config.json ("inverse_variables": [{"name",
-                    # "init", "true"}, ...] -- "true" added specifically for
-                    # this) when available, so the plot/GIF can draw the
-                    # same dashed true-value line the training-time plot
-                    # already does. An older run saved before this field
-                    # existed, or a manually-added variable with no known
-                    # ground truth, simply leaves it blank here too --
-                    # exactly as if the user had left it blank themselves.
-                    true_by_name = {}
+        # Inverse-only convenience: auto-detect the *_convergence.txt
+        # file(s) saved alongside this run (one level up from
+        # solution_results/, same folder the model_config.json above
+        # was auto-detected in) and the trainable-variable names read
+        # from each file's own header row -- the same auto-detect
+        # convenience as the config.json above, so an older model
+        # missing "inverse_variables" in its config still gets this
+        # filled in without the user typing anything.
+        if getattr(self, 'restore_mode_combo', None) is not None and self.restore_mode_combo.currentText() == "Inverse Model" and f:
+            import glob as _glob_brm
+            import json as _json_brm
+            run_dir = os.path.dirname(base) if os.path.basename(base) == "solution_results" else base
+            conv_files = sorted(_glob_brm.glob(os.path.join(run_dir, "*_convergence.txt")))
+            if conv_files:
+                # names[i] stays aligned with conv_files[i] (an empty
+                # string for a file with no usable header), unlike the
+                # restore_inv_var_names text below which -- to keep its
+                # own prior behavior -- only ever joins the names that
+                # were actually found. The aligned version is what lets
+                # true_by_name below match each row to the right file
+                # even when some file in the middle lacks a header.
+                names = []
+                for cf in conv_files:
+                    name = ""
                     try:
-                        with open(self.restore_config_path.text().strip(), encoding="utf-8", errors="replace") as _mcf:
-                            _mc = _json_brm.load(_mcf)
-                        for _iv in _mc.get("inverse_variables", []) or []:
-                            if isinstance(_iv, dict) and _iv.get("name") and _iv.get("true") is not None:
-                                true_by_name[_iv["name"]] = _iv["true"]
+                        with open(cf, encoding="utf-8", errors="replace") as _cf:
+                            header = _cf.readline().strip().split(",")
+                        if len(header) >= 2 and header[1].strip():
+                            name = header[1].strip()
                     except Exception:
                         pass
-                    true_vals = [true_by_name.get(n) if n else None for n in names]
+                    names.append(name)
 
-                    self._set_restore_param_rows(conv_files, true_vals)
-                    self.log_box.append(f"✅ Auto-detected {len(conv_files)} parameter convergence file(s) in {run_dir}")
-                    if any(v is not None for v in true_vals):
-                        self.log_box.append("✅ Auto-filled true parameter value(s) from model_config.json")
-                    if any(names) and not self.restore_inv_var_names.text().strip():
-                        self.restore_inv_var_names.setText(",".join(n for n in names if n))
+                # Auto-fill each row's True-value field from this run's
+                # own model_config.json ("inverse_variables": [{"name",
+                # "init", "true"}, ...] -- "true" added specifically for
+                # this) when available, so the plot/GIF can draw the
+                # same dashed true-value line the training-time plot
+                # already does. An older run saved before this field
+                # existed, or a manually-added variable with no known
+                # ground truth, simply leaves it blank here too --
+                # exactly as if the user had left it blank themselves.
+                true_by_name = {}
+                try:
+                    with open(self.restore_config_path.text().strip(), encoding="utf-8", errors="replace") as _mcf:
+                        _mc = _json_brm.load(_mcf)
+                    for _iv in _mc.get("inverse_variables", []) or []:
+                        if isinstance(_iv, dict) and _iv.get("name") and _iv.get("true") is not None:
+                            true_by_name[_iv["name"]] = _iv["true"]
+                except Exception:
+                    pass
+                true_vals = [true_by_name.get(n) if n else None for n in names]
+
+                self._set_restore_param_rows(conv_files, true_vals)
+                self.log_box.append(f"✅ Auto-detected {len(conv_files)} parameter convergence file(s) in {run_dir}")
+                if any(v is not None for v in true_vals):
+                    self.log_box.append("✅ Auto-filled true parameter value(s) from model_config.json")
+                if any(names) and not self.restore_inv_var_names.text().strip():
+                    self.restore_inv_var_names.setText(",".join(n for n in names if n))
 
     def _on_browse_restore_config(self):
         f, _ = QFileDialog.getOpenFileName(self, "Select config file", "", "JSON (*.json)")
         if f:
             self.restore_config_path.setText(f)
-            self._refresh_restore_output_combo()
-            self._refresh_restore_viz_options()
-            self._auto_detect_restore_optimizer()
+            self._on_restore_config_chosen()
+
+    def _on_restore_config_chosen(self):
+        """Everything Restore needs from the model's config: its outputs and
+        plot types, Forward or Inverse (an inverse model adds the parameter
+        plots, selected first, and finds its convergence files), the
+        optimizer, and a one-line summary under the file fields."""
+        import json
+        try:
+            with open(self.restore_config_path.text().strip(), encoding="utf-8", errors="replace") as fh:
+                cfg = json.load(fh)
+        except Exception:
+            cfg = None
+        inv_vars = [v.get("name") for v in (cfg or {}).get("inverse_variables", []) or [] if isinstance(v, dict)]
+        is_inverse = bool(cfg) and (cfg.get("problem_type") == "Inverse" or bool(inv_vars))
+        self._restore_cfg_has_vars = bool(inv_vars)
+        was_inverse = self.restore_mode_combo.currentText() == "Inverse Model"
+        self.restore_mode_combo.setCurrentText("Inverse Model" if is_inverse else "Forward Model")
+        if was_inverse == is_inverse:
+            self._on_restore_mode_changed(self.restore_mode_combo.currentText())
+        self._refresh_restore_output_combo()
+        self._refresh_restore_viz_options()
+        self._auto_detect_restore_optimizer()
+        if is_inverse:
+            self._find_restore_param_files()
+            if self.restore_viz_combo.findText(self._RESTORE_PARAM_VIZ[0]) >= 0 and not was_inverse:
+                self.restore_viz_combo.setCurrentText(self._RESTORE_PARAM_VIZ[0])
+        if cfg:
+            dim = cfg.get("problem_dim", "")
+            kind = "steady" if cfg.get("steady_state") else ("time-dependent" if dim != "ODE" else "")
+            n_out = int(cfg.get("num_outputs", 1) or 1)
+            bits = [b for b in (dim, kind, "inverse" if is_inverse else "forward") if b]
+            text = " · ".join(bits) + f" · {n_out} output{'s' if n_out != 1 else ''}"
+            if inv_vars:
+                text += " · parameters: " + ", ".join(n for n in inv_vars if n)
+            self.restore_info_label.setText(text)
+        self.restore_info_label.setVisible(bool(cfg))
 
     def _auto_detect_restore_optimizer(self):
         """Pre-select restore_optimizer_combo from the model_config.json
@@ -15499,6 +15137,7 @@ print("DOMAIN_PREVIEW_DONE")
         self.restore_param_rows.append(row_data)
 
         def _remove():
+            row_widget.hide()
             row_widget.deleteLater()
             if row_data in self.restore_param_rows:
                 self.restore_param_rows.remove(row_data)
@@ -15507,6 +15146,7 @@ print("DOMAIN_PREVIEW_DONE")
 
     def _set_restore_param_rows(self, paths, true_vals=None):
         for row in list(self.restore_param_rows):
+            row['widget'].hide()            # (gone at once, not when Qt deletes it)
             row['widget'].deleteLater()
         self.restore_param_rows.clear()
         if not paths:
@@ -15562,9 +15202,9 @@ print("DOMAIN_PREVIEW_DONE")
                     true_vals.append(float(tv_text) if tv_text else None)
                 except ValueError:
                     true_vals.append(None)
-            combine = self.restore_param_combine_combo.currentText().startswith("Combine")
-            log_scale = self.restore_param_log_cb.isChecked()
-            animate = (viz_type == "Parameter Convergence Animation (GIF)")
+            combine = self.restore_param_combine_combo.currentIndex() == 0     # one figure for all
+            log_scale = self.inv_param_log_scale.isChecked()                   # (Figure style -> Parameters)
+            animate = (viz_type == "Parameter convergence (GIF)")
 
             self.restore_btn.setEnabled(False)
             self.restore_btn.setText(" Restoring…")
@@ -15736,7 +15376,7 @@ print("DOMAIN_PREVIEW_DONE")
         self.solution_label.setText("⏳ Restoring...")
         self.loss_label._source_path = None
         self.solution_label._source_path = None
-        viz_settings = getattr(self, '_restore_viz_settings', {})
+        viz_settings = self._restore_style()
         # Script-building below is pure computation (no subprocess started
         # yet), but it reads several cfg[...] keys directly rather than
         # cfg.get(...) -- a malformed or older-format model_config.json
@@ -16091,7 +15731,7 @@ print("DOMAIN_PREVIEW_DONE")
         combine_literal = repr(bool(combine))
         log_literal = repr(bool(log_scale))
         animate_literal = repr(bool(animate))
-        viz_settings = getattr(self, '_restore_viz_settings', {})
+        viz_settings = self._restore_style()
         title_override = (viz_settings.get('title') or '').strip()
         xlabel_override = (viz_settings.get('xlabel') or '').strip()
         ylabel_override = (viz_settings.get('ylabel') or '').strip()
@@ -16100,7 +15740,12 @@ print("DOMAIN_PREVIEW_DONE")
         figsize_h = viz_settings.get('figsize_h', 5.0)
         subplot_title_fontsize = viz_settings.get('subplot_title_fontsize', 10.0)
         axis_label_fontsize = viz_settings.get('axis_label_fontsize', 10.0)
-        from pinnstudio.core.codegen import _figsize_helper_code, _param_axis_helper_code, _contour_levels_helper_code
+        _dpi = int(viz_settings.get('dpi', 150) or 150)
+        _fps = int(viz_settings.get('fps', 15) or 15)
+        from pinnstudio.core.codegen import (_figsize_helper_code, _param_axis_helper_code,
+                                             _contour_levels_helper_code, param_style_of)
+        _pstyle = param_style_of({'param_plot_' + k[len('param_'):]: v for k, v in viz_settings.items()
+                                  if k.startswith('param_')})
         script = f"""
 import os
 os.makedirs({save_dir!r}, exist_ok=True)
@@ -16181,7 +15826,7 @@ def _use_log(vals):
 # cleanup Round 49: the static plot draws through _draw_param_ax, the same
 # function the live Solve and exported scripts use (codegen.py's
 # _param_axis_helper_code), instead of its own hand-typed copy.
-{_param_axis_helper_code(axis_label_fontsize, subplot_title_fontsize)}
+{_param_axis_helper_code(axis_label_fontsize, subplot_title_fontsize, _pstyle)}
 
 def _draw_static_ax(ax, name, iters, vals, true_val=None):
     _draw_param_ax(ax, name, iters, vals, true_val, _log_scale,
@@ -16205,13 +15850,17 @@ def _setup_anim_ax(ax, name, iters, vals, true_val=None):
     vmin, vmax = _range_vals.min(), _range_vals.max()
     pad = 0.05 * (abs(vmax - vmin) if vmax != vmin else (abs(vmax) + 1))
     ax.set_ylim(vmin - pad, vmax + pad)
-    ax.axhline(y=final_val, color="#ff8787", linestyle="--", alpha=0.5, label=f"Final = {{_num_txt(final_val)}}")
-    if true_val is not None:
+    if _PARAM_STYLE["show_final"]:
+        ax.axhline(y=final_val, color="#ff8787", linestyle="--", alpha=0.5, label=f"Final = {{_num_txt(final_val)}}")
+    if true_val is not None and _PARAM_STYLE["show_true"]:
         ax.axhline(y=true_val, color="#ffd43b", linestyle="--", alpha=0.8, label=f"True = {{_num_txt(true_val)}}")
     ax.set_xlabel(_xlabel_override or "Iteration", fontsize={axis_label_fontsize})
     ax.set_title(_title_override or f"Inferred Parameter: {{name}}", fontsize={subplot_title_fontsize})
-    ax.legend(loc="upper right"); ax.grid(True, alpha=0.3)
-    line, = ax.plot([], [], color="#69db7c", linewidth=1.5)
+    if ax.get_legend_handles_labels()[0]:
+        ax.legend(loc="upper right")
+    ax.grid(True, alpha=0.3)
+    line, = ax.plot([], [], color=_PARAM_STYLE["color"], linewidth=_PARAM_STYLE["linewidth"],
+                    marker="o" if _PARAM_STYLE["markers"] else None, markersize=3)
     return line
 
 if not _animate:
@@ -16222,7 +15871,7 @@ if not _animate:
             _draw_static_ax(axes[i][0], name, iters, vals, true_val)
         plt.tight_layout()
         out_path = os.path.join({save_dir!r}, "param_convergence_plot.png")
-        plt.savefig(out_path, dpi=150)
+        plt.savefig(out_path, dpi={_dpi})
         plt.close(fig)
         print(f"✅ Parameter convergence plot saved: {{out_path}}")
     else:
@@ -16231,7 +15880,7 @@ if not _animate:
             _draw_static_ax(ax, name, iters, vals, true_val)
             plt.tight_layout()
             out_path = os.path.join({save_dir!r}, f"{{name}}_convergence_plot.png")
-            plt.savefig(out_path, dpi=150)
+            plt.savefig(out_path, dpi={_dpi})
             plt.close(fig)
             print(f"✅ Parameter convergence plot saved: {{out_path}}")
 else:
@@ -16254,7 +15903,7 @@ else:
             return lines
         ani = _anim.FuncAnimation(fig, update, frames=n_frames, interval=80)
         out_path = os.path.join({save_dir!r}, "param_convergence_animation.gif")
-        ani.save(out_path, writer='pillow', fps=15)
+        ani.save(out_path, writer='pillow', fps={_fps})
         plt.close(fig)
         print(f"✅ Parameter convergence animation saved: {{out_path}}")
     else:
@@ -16270,7 +15919,7 @@ else:
                 return [line]
             ani = _anim.FuncAnimation(fig, update, frames=n_frames, interval=80)
             out_path = os.path.join({save_dir!r}, f"{{name}}_convergence_animation.gif")
-            ani.save(out_path, writer='pillow', fps=15)
+            ani.save(out_path, writer='pillow', fps={_fps})
             plt.close(fig)
             print(f"✅ Parameter convergence animation saved: {{out_path}}")
 
@@ -16279,7 +15928,7 @@ print("RESTORE_DONE")
         return script
 
     def _build_restore_script(self, model_path, cfg, optimizer, viz_type, output_idx, t_steps, save_dir, custom_expr="", custom_label=""):
-        viz_settings = getattr(self, '_restore_viz_settings', {})
+        viz_settings = self._restore_style()
         colormap = viz_settings.get('colormap', 'RdBu_r')
         # A genuinely live, multiple-evenly-spaced-snapshots Surface plot
         # (one subplot per snapshot, same convention as the Setup tab's own
@@ -16700,7 +16349,7 @@ def _extract_plot_field(x_grid):
         same as before this feature) -- both fall back to the single-model
         path's existing (unchanged) behavior in those cases.
         """
-        viz_settings = getattr(self, '_restore_viz_settings', {})
+        viz_settings = self._restore_style()
         colormap = viz_settings.get('colormap', 'RdBu_r')
         show_colorbar = viz_settings.get('colorbar', True)
         # Type-aware keys (see _viz_steps_key/_viz_linewidth_key): the
