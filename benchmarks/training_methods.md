@@ -99,7 +99,7 @@ $u_t = 10^{-4} u_{xx} - 5u^3 + 5u$ on $x \in [-1, 1]$ (periodic), $u(x, 0) = x^2
 | Time windows: exact BC + loss IC + SA-PINN | 0.20% | 1.4% |
 <!-- /core -->
 
-Seeds 1 and 2 of the whole-interval setups, at $t = 0.25$ / $t = 1$: loss BC + loss IC 0.85% / 10%; exact BC + exact IC + RBA 0.11% / 0.78% and 0.070% / 0.50%; + SA-PINN 0.061% / 0.20% and 0.049% / 0.13%; + causal 0.056% / 0.64% and 0.056% / 0.45%; + causal + MsFFN 0.041% / 0.12% and 0.042% / 0.065%. This last setup is now a template of its own, *Allen-Cahn 1D – Wight & Zhao (whole interval)*; rerun from the template it gave 0.041% / 0.24% (about 17 minutes on an RTX 4090).
+Seeds 1 and 2 of the whole-interval setups, at $t = 0.25$ / $t = 1$: loss BC + loss IC 0.85% / 10%; exact BC + exact IC + RBA 0.11% / 0.78% and 0.070% / 0.50%; + SA-PINN 0.061% / 0.20% and 0.049% / 0.13%; + causal 0.056% / 0.64% and 0.056% / 0.45%; + causal + MsFFN 0.041% / 0.12% and 0.042% / 0.065%. This last setup is now a template of its own, *Allen-Cahn 1D – Wight & Zhao (whole interval)*; rerun from the template it gave 0.041% / 0.24% and 0.041% / 0.18% (about 3 minutes on an RTX 4090 with nothing else running on it).
 
 *Other setups*
 

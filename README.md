@@ -977,14 +977,14 @@ where $\gamma_1 = 0.0001$ and $\gamma_2 = 5$.
 
 ![1D Allen-Cahn — line comparison against reference data](assets/Images/1D-AllenCahn/line_comparison.png)
 
-*Without time-adaptive training* — the same problem can also be solved on the whole time interval in one training run (about 17 minutes on the RTX 4090), with four settings from the [training methods study](benchmarks/training_methods.md). Trained this way without them, the PINN reaches only about 10% at $t = 1$. A second template has all four already set: Examples → **Forward** (or **Inverse**) → **Allen-Cahn 1D – Wight & Zhao (whole interval)**. The settings it uses are:
+*Without time-adaptive training* — the same problem can also be solved on the whole time interval in one training run (about 3 minutes on the RTX 4090), with four settings from the [training methods study](benchmarks/training_methods.md). Trained this way without them, the PINN reaches only about 10% at $t = 1$. A second template has all four already set: Examples → **Forward** (or **Inverse**) → **Allen-Cahn 1D – Wight & Zhao (whole interval)**. The settings it uses are:
 
 - **Exact periodicity:** Boundary conditions → *Exact periodicity (periodic inputs)* — the network's inputs become $\cos(\pi x)$, $\sin(\pi x)$, $t$, so the solution is exactly periodic
 - **Exact initial condition:** Initial conditions → *Exact (built into the network)* — $u = x^2\cos(\pi x) + t N$, so the initial condition holds exactly and needs no loss term
 - **Causal training:** Loss weights → *Automatic weighting* → *Causal training*, with *Raise ε step by step* (the paper's schedule, the default); Adaptive training → Method *None*
 - **Fourier-feature network:** Network → Network type *MsFFN*, scales `1, 5`
 
-Result: $L_2$ = 9.8 × 10⁻⁸ ($t = 0$), 4.0 × 10⁻⁴ ($t = 0.25$), 4.6 × 10⁻⁴ ($t = 0.5$), 6.9 × 10⁻⁴ ($t = 0.75$), 1.6 × 10⁻³ ($t = 1$). This is as accurate as time-adaptive training at early times and about 3× more accurate at $t = 1$ (0.065–0.24% at $t = 1$ over five runs; the template itself, rerun, gave 0.24%). RBA per-point weights in place of causal training and MsFFN give 2.7–7.8 × 10⁻³ at $t = 1$.
+Result: $L_2$ = 9.8 × 10⁻⁸ ($t = 0$), 4.0 × 10⁻⁴ ($t = 0.25$), 4.6 × 10⁻⁴ ($t = 0.5$), 6.9 × 10⁻⁴ ($t = 0.75$), 1.6 × 10⁻³ ($t = 1$). This is as accurate as time-adaptive training at early times and about 3× more accurate at $t = 1$ (0.065–0.24% at $t = 1$ over five runs; the template itself, rerun twice, gave 0.24% and 0.18%). RBA per-point weights in place of causal training and MsFFN give 2.7–7.8 × 10⁻³ at $t = 1$.
 
 ![1D Allen-Cahn, whole time interval with exact periodicity, exact initial condition, causal training and MsFFN — PINN vs reference](assets/Images/1D-AllenCahn/whole_domain_surface_comparison.png)
 
