@@ -42,7 +42,25 @@ def _no_cuda_setup(solve_text, clean_text):
                               "if False:  # (A/B: CUDA setup taken out)\n    torch.cuda.init()", 1)
 
 
+def _no_warmup(solve_text, clean_text):
+    return re.sub(r"^(\s*)_dummy = torch\.zeros\(.*?\n(?:\1.*\n)*?\1del _dummy, _loss\n",
+                  lambda m: m.group(1) + "pass  # (A/B: warm-up taken out)\n", solve_text, count=1, flags=re.M)
+
+
+def _no_init_set_device(solve_text, clean_text):
+    return re.sub(r"^(\s*)torch\.cuda\.(init\(\)|set_device\(.*\))\s*$",
+                  lambda m: m.group(1) + "pass  # (A/B: taken out)", solve_text, flags=re.M)
+
+
+def _no_empty_cache(solve_text, clean_text):
+    return re.sub(r"^(\s*)torch\.cuda\.empty_cache\(\)\s*$",
+                  lambda m: m.group(1) + "pass  # (A/B: taken out)", solve_text, flags=re.M)
+
+
 TEXT_VARIANTS = {
+    "solve, warm-up out": _no_warmup,
+    "solve, cuda.init/set_device out": _no_init_set_device,
+    "solve, empty_cache out": _no_empty_cache,
     "solve, plain script's pde()": _plain_pde,
     "solve, CUDA setup block out": _no_cuda_setup,
 }
