@@ -10897,7 +10897,12 @@ _ta_loss_offset = 0''')
         if cbs_code:
             parts.append(cbs_code)
 
-        loop_lines = ["for step_i, (t0, t1) in enumerate(intervals):",
+        loop_lines = [f"def _ta_weights(w, constraints):",
+                      f"    n = {_n_equations(config)} + len(constraints)   # PDE terms + this step's conditions",
+                      "    return list(w) if len(w) == n else [1.0] * n",
+                      "",
+                      "",
+                      "for step_i, (t0, t1) in enumerate(intervals):",
                       "    geom_i = _build_geom()",
                       "    timedomain_i = dde.geometry.TimeDomain(t0, t1)",
                       "    geomtime_i = dde.geometry.GeometryXTime(geom_i, timedomain_i)",
@@ -10961,8 +10966,12 @@ _ta_loss_offset = 0''')
         for pi, sp in enumerate(sched_phases):
             loop_lines.append(f"    # ── Phase {pi + 1}: {sp.get('optimizer', 'adam')}, "
                                f"{int(sp.get('iterations', 0) or 0)} iterations ──")
-            loop_lines += _clean_phase_train_lines(sp, sp['_w'], ext_vars_kw, cbs_kw, "model_i", "data_i", config,
-                                                     indent="    ")
+            # a later step pins every output to the previous step's solution,
+            # which can be more loss terms than step 0 had (an output with no
+            # initial condition): _ta_weights then uses equal weights, as
+            # Solve does, instead of crashing on the length mismatch
+            loop_lines += _clean_phase_train_lines(sp, f"_ta_weights({sp['_w']}, constraints_i)", ext_vars_kw,
+                                                     cbs_kw, "model_i", "data_i", config, indent="    ")
             loop_lines.append(
                 "    _ta_all_steps.extend([_s + _ta_loss_offset for _s in loss_history.steps]); "
                 "_ta_all_train_loss.extend(loss_history.loss_train); "
