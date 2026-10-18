@@ -111,8 +111,10 @@ def _linux_entry():
 
 
 def _linux_desktop_copy():
-    d = os.path.join(_home(), "Desktop")
-    return os.path.join(d, "pinnstudio.desktop") if os.path.isdir(d) else None
+    """An icon on the Desktop, made by earlier versions. Ubuntu's desktop blocks
+    such launchers until "Allow Launching" is chosen, so only the app menu
+    entry is made now; remove() still takes away an old copy."""
+    return os.path.join(_home(), "Desktop", "pinnstudio.desktop")
 
 
 def _linux_create():
@@ -130,14 +132,13 @@ def _linux_create():
         "Categories=Science;Education;Development;\n"
         "StartupWMClass=pinnstudio\n"
     )
-    made = []
-    for path in filter(None, (entry, _linux_desktop_copy())):
-        with open(path, "w", encoding="utf-8") as f:
-            f.write(text)
-        os.chmod(path, 0o755)
-        made.append(path)
-        if path != entry and shutil.which("gio"):   # GNOME: let the desktop icon launch without a prompt
-            subprocess.run(["gio", "set", path, "metadata::trusted", "true"], capture_output=True)
+    with open(entry, "w", encoding="utf-8") as f:
+        f.write(text)
+    os.chmod(entry, 0o755)
+    made = [entry]
+    old = _linux_desktop_copy()
+    if os.path.isfile(old):     # an earlier version's Desktop icon, which Ubuntu blocks
+        os.remove(old)
     if shutil.which("update-desktop-database"):
         subprocess.run(["update-desktop-database", os.path.dirname(entry)], capture_output=True)
     return made
@@ -150,7 +151,7 @@ def paths():
         return _windows_paths()
     if sys.platform == "darwin":
         return [_mac_app()]
-    return [p for p in (_linux_entry(), _linux_desktop_copy()) if p]
+    return [_linux_entry(), _linux_desktop_copy()]
 
 
 def create():

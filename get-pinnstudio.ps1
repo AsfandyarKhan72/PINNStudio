@@ -44,7 +44,8 @@ $toolPy = Join-Path (uv tool dir).Trim() "pinnstudio\Scripts\python.exe"
 
 Write-Host ""
 & $toolPy -c "import pinnstudio.shortcut" 2>$null
-if ($LASTEXITCODE -eq 0) {
+$hasShortcut = ($LASTEXITCODE -eq 0)
+if ($hasShortcut) {
     & (Join-Path $bin "pinnstudio.exe") --create-shortcut
     if ($LASTEXITCODE -ne 0) { Write-Host "(The shortcut could not be created; PINNStudio still starts with the pinnstudio command.)" }
 } else {   # older versions (1.4.0 on PyPI) have no --create-shortcut and would open the window instead
@@ -62,5 +63,6 @@ if ($gpu) {
     Write-Host "No NVIDIA GPU found: PINNStudio will train on the CPU."
 }
 Write-Host ""
-Write-Host "Done. Open PINNStudio from the Start menu or the desktop icon, or run: pinnstudio"
+if ($hasShortcut) { Write-Host "Done. Open PINNStudio from the Start menu or the desktop icon, or run: pinnstudio" }
+else { Write-Host "Done. Start PINNStudio with: pinnstudio" }
 Write-Host "(The pinnstudio command works in new PowerShell windows. In this one, run: & '$(Join-Path $bin 'pinnstudio.exe')')"

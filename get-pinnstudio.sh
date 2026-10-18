@@ -46,10 +46,12 @@ BIN="$(uv tool dir --bin)"
 TOOL_PY="$(uv tool dir)/pinnstudio/bin/python"
 
 say ""
+WHERE="its icon in the app menu (Linux) or ~/Applications (macOS)"
 if "$TOOL_PY" -c "import pinnstudio.shortcut" 2>/dev/null; then
   "$BIN/pinnstudio" --create-shortcut || say "(The shortcut could not be created; PINNStudio still starts with the pinnstudio command.)"
 else   # older versions (1.4.0 on PyPI) have no --create-shortcut and would open the window instead
   say "(This PINNStudio version cannot create a desktop shortcut; start it with the pinnstudio command.)"
+  WHERE=""
 fi
 
 GPU=$("$TOOL_PY" -c "import torch; print(torch.cuda.get_device_name(0) if torch.cuda.is_available() else '')" 2>/dev/null || true)
@@ -63,5 +65,5 @@ else
     say "No NVIDIA GPU found: PINNStudio will train on the CPU."
 fi
 say ""
-say "Done. Open PINNStudio from its icon, or run: pinnstudio"
+if [ -n "$WHERE" ]; then say "Done. Open PINNStudio from $WHERE, or run: pinnstudio"; else say "Done. Start PINNStudio with: pinnstudio"; fi
 say "(The pinnstudio command works in new terminals. In this one, run: $BIN/pinnstudio)"

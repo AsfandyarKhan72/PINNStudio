@@ -25,9 +25,11 @@ def test_icons_are_packaged():
 def test_linux(monkeypatch, tmp_path):
     _home(monkeypatch, tmp_path)
     monkeypatch.setattr(sys, "platform", "linux")
+    (tmp_path / "Desktop/pinnstudio.desktop").write_text("[Desktop Entry]\n")   # from an earlier version
     made = shortcut.create()
     entry = tmp_path / ".local/share/applications/pinnstudio.desktop"
-    assert str(entry) in made and str(tmp_path / "Desktop/pinnstudio.desktop") in made
+    # the app menu only: Ubuntu's desktop blocks launcher files there
+    assert made == [str(entry)] and not (tmp_path / "Desktop/pinnstudio.desktop").exists()
     text = entry.read_text()
     assert f'Exec="{sys.executable}" -m pinnstudio' in text and "Terminal=false" in text
     assert "StartupWMClass=pinnstudio" in text and os.path.isfile(text.split("Icon=")[1].split("\n")[0])
