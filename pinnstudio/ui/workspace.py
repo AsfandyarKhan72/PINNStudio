@@ -145,6 +145,7 @@ class ModelWorkspace(QObject):
         scroll.setFrameShape(QFrame.Shape.NoFrame)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         scroll.setWidget(page)
+        page.installEventFilter(self)      # rows added later are aligned too
         self.stack.addWidget(scroll)
         self.pages[key] = {"item": item, "scroll": scroll, "page": page, "layout": lay, "label": label,
                            "desc": desc, "widgets": []}
@@ -326,7 +327,22 @@ class ModelWorkspace(QObject):
     def eventFilter(self, obj, ev):
         if ev.type() in (QEvent.Type.ShowToParent, QEvent.Type.HideToParent) and obj in self._watched:
             self._schedule_visibility()
+        elif ev.type() == QEvent.Type.LayoutRequest and obj.objectName() == "settingsPage":
+            self._schedule_align()
         return False
+
+    def _schedule_align(self):
+        """Rows added or shown on the open page (a training phase, a BC,
+        the loss weights ...) get the page's label column too."""
+        if not getattr(self, "_align_pending", False):
+            self._align_pending = True
+            QTimer.singleShot(0, self._align_current)
+
+    def _align_current(self):
+        self._align_pending = False
+        key = self.current_key()
+        if key in self.pages:
+            align_forms(self.pages[key]["page"])
 
     def _schedule_visibility(self):
         if not self._vis_pending:
@@ -399,6 +415,9 @@ class VisibilityFollower(QObject):
 
 
 # ── page forms: one label column, controls next to their labels ──────────
+ROW_SPACING = 8      # between a row's label and its control
+
+
 def align_forms(root, max_label=190):
     """Rows built as  [label][stretch][control]  -- control pushed to the far
     right -- become  [label][control][stretch], and every row label on the
@@ -424,20 +443,25 @@ def align_forms(root, max_label=190):
             last = lay.itemAt(lay.count() - 1).widget()
             if not isinstance(last, QLineEdit):
                 lay.addStretch(1)
-        if first.minimumWidth() != first.maximumWidth() or first.maximumWidth() > 1000:
+        if first.property("_pinn_col") or first.minimumWidth() != first.maximumWidth() \
+                or first.maximumWidth() > 1000:      # (a width the code fixed itself is kept)
             labels.append(first)
+            if lay.spacing() != ROW_SPACING:   # rows built in different ways had 3-6 px here
+                lay.setSpacing(ROW_SPACING)
 
     if root.layout() is not None:
         walk(root.layout())
     shown = [l for l in labels if l.isVisibleTo(root)]
     if not shown:
         return
-    for l in shown:   # (a label widened earlier for a bigger page state starts over)
-        if l.property("_pinn_col"):
-            l.setMinimumWidth(0)
     w = min(max_label, max(l.sizeHint().width() for l in shown))
     for l in shown:
-        l.setMinimumWidth(w)
+        if l.minimumWidth() != w:        # only when it changes: setting it again re-lays the page
+            l.setMinimumWidth(w)
+        # not wider either, so the control next to it starts at the same place
+        cap = w if l.sizeHint().width() <= w else 16777215
+        if l.maximumWidth() != cap:
+            l.setMaximumWidth(cap)
         l.setProperty("_pinn_col", True)
 
 

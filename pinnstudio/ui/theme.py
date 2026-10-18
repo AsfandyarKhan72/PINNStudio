@@ -18,7 +18,7 @@ sizes (14 px text), multiplied by a UI scale (Display Settings).
 """
 import re
 
-from PyQt6.QtCore import QEvent, QObject
+from PyQt6.QtCore import QEvent, QObject, QTimer
 from PyQt6.QtGui import QColor, QFontDatabase, QSyntaxHighlighter, QTextCharFormat
 from PyQt6.QtWidgets import QApplication, QWidget
 
@@ -493,6 +493,9 @@ class StyleRemapper(QObject):
                 from pinnstudio.ui import icons as _icons
                 _icons.iconize(obj)
             self.apply(obj)
+            self._fit_height(obj)
+            if ev.type() == QEvent.Type.Polish:
+                self._fit_height_later(obj)
         return False
 
     @staticmethod
@@ -510,6 +513,29 @@ class StyleRemapper(QObject):
             need += w.iconSize().width() + 4
         if w.maximumWidth() < need:
             w.setFixedWidth(need)
+
+    @classmethod
+    def _fit_height_later(cls, w):
+        """Again once the widget has been polished: the style sheet sets the
+        larger minimum only then."""
+        from PyQt6.QtWidgets import QAbstractSpinBox, QComboBox, QLineEdit, QPushButton
+        if isinstance(w, (QLineEdit, QAbstractSpinBox, QComboBox, QPushButton)):
+            from PyQt6 import sip
+            QTimer.singleShot(0, lambda: None if sip.isdeleted(w) else cls._fit_height(w))
+
+    @staticmethod
+    def _fit_height(w):
+        """A box given a fixed height for an older, smaller style (24-26 px)
+        keeps that as its maximum, while the theme's padding and border make
+        its minimum larger (28-30 px). The theme then draws the box at the
+        larger height, but the row around it is laid out for the smaller
+        one, so the box's bottom edge was cut off (Add constant, the BC rows,
+        the training phases ...). The maximum is raised to the minimum."""
+        from PyQt6.QtWidgets import QAbstractSpinBox, QComboBox, QLineEdit, QPushButton
+        if not isinstance(w, (QLineEdit, QAbstractSpinBox, QComboBox, QPushButton)):
+            return
+        if w.maximumHeight() < w.minimumHeight() <= 60:
+            w.setMaximumHeight(w.minimumHeight())
 
     @staticmethod
     def _fit_small_button(w):
