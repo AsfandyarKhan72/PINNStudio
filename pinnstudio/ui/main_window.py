@@ -6635,7 +6635,7 @@ class MainWindow(QMainWindow):
             # this, so the same slot covers both cases.
             name_edit.editingFinished.connect(self._on_inv_param_name_changed)
             remove_btn = QPushButton("✕")
-            remove_btn.setFixedHeight(26)
+            remove_btn.setFixedSize(self.INV_X_W, 26)
             remove_btn.setToolTip("Remove this parameter")
             remove_btn.setStyleSheet(
                 "QPushButton { color: #ff8787; background: transparent; border: none; }")
