@@ -41,12 +41,17 @@ app = QApplication.instance() or QApplication(sys.argv)
 _STAMP_RE = r"\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}"
 
 
+def _fwd(path):
+    """Windows joins the run folder with a backslash; compare with forward slashes."""
+    return path.replace("\\", "/")
+
+
 def test_timestamped_save_dir_basics():
     assert MainWindow._timestamped_save_dir("", "Foo") == ""
     assert MainWindow._timestamped_save_dir("   ", "Foo") == ""
 
     p = MainWindow._timestamped_save_dir("/tmp/results", "My Example (v2)")
-    assert re.match(rf"^/tmp/results/My_Example_v2__{_STAMP_RE}$", p), p
+    assert re.match(rf"^/tmp/results/My_Example_v2__{_STAMP_RE}$", _fwd(p)), p
 
 
 def test_build_config_gives_each_run_its_own_folder():
@@ -58,7 +63,7 @@ def test_build_config_gives_each_run_its_own_folder():
     cfg = w._build_config()
     m = re.match(
         rf"^/Users/asykhan/PINNStudio_Results/(1D|2D|3D)_(Stationary|TimeDependent)_(Forward|Inverse)__{_STAMP_RE}$",
-        cfg.save_dir)
+        _fwd(cfg.save_dir))
     assert m, cfg.save_dir
 
     # Blank base path -> save-to-disk stays off, untouched.
@@ -75,7 +80,7 @@ def test_build_config_gives_each_run_its_own_folder():
         chosen = w.quick_examples_combo.currentText()
         cfg3 = w._build_config()
         expected_label = MainWindow._sanitize_run_label(chosen)
-        assert cfg3.save_dir.split("/")[-1].startswith(expected_label + "__"), cfg3.save_dir
+        assert _fwd(cfg3.save_dir).split("/")[-1].startswith(expected_label + "__"), cfg3.save_dir
 
 
 def test_restore_parameter_convergence_branch_gets_own_folder():
@@ -102,7 +107,7 @@ def test_restore_parameter_convergence_branch_gets_own_folder():
     w._on_restore()
     got = getattr(w, "_last_restore_save_dir", None)
     assert got and re.match(
-        rf"^/tmp/restore_test_base/ParameterConvergence__{_STAMP_RE}$", got), got
+        rf"^/tmp/restore_test_base/ParameterConvergence__{_STAMP_RE}$", _fwd(got)), got
 
     # _on_restore_done must read that SAME resolved path back, not
     # recompute a fresh (and different) one from the raw widget text.
@@ -131,7 +136,7 @@ def test_restore_main_branch_relabels_from_loaded_model_config():
     w._on_restore()
     got = getattr(w, "_last_restore_save_dir", None)
     assert got and re.match(
-        rf"^/tmp/restore_test_base/Restore_3D_TimeDependent_Forward__{_STAMP_RE}$", got), got
+        rf"^/tmp/restore_test_base/Restore_3D_TimeDependent_Forward__{_STAMP_RE}$", _fwd(got)), got
 
 
 if __name__ == "__main__":

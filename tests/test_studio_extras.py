@@ -38,6 +38,12 @@ def _window():
     w.resize(1600, 950)
     w.show()
     _settle()
+    # the starting problem ("unchanged") is recorded a few event-loop passes
+    # after the window opens; on a slow machine that can take longer than
+    # the settle above, and a change made before it would count as the start
+    t = time.time()
+    while getattr(w, "_clean_key", None) is None and time.time() - t < 10:
+        _settle(0.05)
     return w
 
 

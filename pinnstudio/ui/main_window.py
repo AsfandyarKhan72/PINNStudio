@@ -16287,6 +16287,10 @@ import os
 os.environ["DDE_BACKEND"] = "pytorch"
 import deepxde as dde
 
+import torch as _torch_dev
+if not _torch_dev.cuda.is_available() and str(getattr(_torch_dev, "get_default_device", lambda: "cpu")()).startswith("mps"):
+    _torch_dev.set_default_device("cpu")   # as in training: no Apple GPU (MPS)
+
 def _restore_weights(_model, _path):
     # Only the network's weights are needed to plot it. DeepXDE's
     # model.restore() also loads the optimizer state, which fails when the
@@ -16672,6 +16676,10 @@ def _extract_plot_field(x_grid):
 import os
 os.environ["DDE_BACKEND"] = "pytorch"
 import deepxde as dde
+
+import torch as _torch_dev
+if not _torch_dev.cuda.is_available() and str(getattr(_torch_dev, "get_default_device", lambda: "cpu")()).startswith("mps"):
+    _torch_dev.set_default_device("cpu")   # as in training: no Apple GPU (MPS)
 
 def _restore_weights(_model, _path):
     # Only the network's weights are needed to plot it. DeepXDE's

@@ -4878,6 +4878,12 @@ import matplotlib.pyplot as plt
 import warnings
 warnings.filterwarnings("ignore", message=".*cuBLAS.*")
 
+# DeepXDE puts PyTorch on Apple's GPU (MPS) on a Mac. MPS has no float64 and
+# PyTorch's L-BFGS is unreliable on it, so PINNStudio trains on the CPU there.
+if not torch.cuda.is_available() and str(getattr(torch, "get_default_device", lambda: "cpu")()).startswith("mps"):
+    torch.set_default_device("cpu")
+    print("  [Info] Training on the CPU (Apple GPU / MPS not used)")
+
 # ── Plot Settings: figure-size standardization ─────────────────
 # Applied to every single-panel results plot below (Loss, Line, Surface,
 # both Animation GIF types, Parameter Convergence, and their
@@ -7252,10 +7258,12 @@ for _pval in _param_values:
 
         _plot_idx, _run_solution_path = _plot_main_job
         import shutil as _shutil
-        if _run_loss_path != "/tmp/loss_plot.png":
+        # the same file can be spelled two ways on Windows (/tmp\\x.png, /tmp/x.png)
+        _same_file = lambda _a, _b: _os.path.normcase(_os.path.abspath(_a)) == _os.path.normcase(_os.path.abspath(_b))
+        if not _same_file(_run_loss_path, "/tmp/loss_plot.png"):
             _shutil.copy(_run_loss_path, "/tmp/loss_plot.png")
         _tmp_solution_path = "/tmp/solution_plot.{sol_ext}"
-        if _run_solution_path != _tmp_solution_path and _os.path.exists(_run_solution_path):
+        if not _same_file(_run_solution_path, _tmp_solution_path) and _os.path.exists(_run_solution_path):
             _shutil.copy(_run_solution_path, _tmp_solution_path)
 
         # ── Inline Error Analysis ─────────────────────────────
@@ -10434,7 +10442,12 @@ os.environ["DDE_BACKEND"] = "pytorch"
 import deepxde as dde
 import numpy as np
 import torch
-import matplotlib.pyplot as plt''')
+import matplotlib.pyplot as plt
+# DeepXDE puts PyTorch on Apple's GPU (MPS) on a Mac. MPS has no float64 and
+# PyTorch's L-BFGS is unreliable on it, so PINNStudio trains on the CPU there.
+if not torch.cuda.is_available() and str(getattr(torch, "get_default_device", lambda: "cpu")()).startswith("mps"):
+    torch.set_default_device("cpu")
+    print("  [Info] Training on the CPU (Apple GPU / MPS not used)")''')
 
     if uses_nncg:
         parts.append('''_dxde_ver_parts = dde.__version__.split(".")[:3]

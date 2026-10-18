@@ -73,8 +73,9 @@ def run():
     ents = _formula_reference_entries(_heat("/runs/a", 10))
     check([(t, os.path.basename(p), i) for (t, p, i, _e) in ents] == [(0.5, "u_t_0.5.txt", 0), (1.0, "u_t_1.txt", 0)], ents)
     eff = _effective_config(_heat("/runs/a", 10))
-    check(ast.literal_eval(eff.ea_files) == [(0.5, "/runs/a/reference_from_formula/u_t_0.5.txt", 0),
-                                              (1.0, "/runs/a/reference_from_formula/u_t_1.txt", 0)], eff.ea_files)
+    check([(t, f.replace("\\", "/"), i) for t, f, i in ast.literal_eval(eff.ea_files)]   # Windows joins with \\
+          == [(0.5, "/runs/a/reference_from_formula/u_t_0.5.txt", 0),
+              (1.0, "/runs/a/reference_from_formula/u_t_1.txt", 0)], eff.ea_files)
     check(len(_formula_reference_entries(_heat("/r", 10, ea_ref_times=""))) == 5, "blank times -> 5 evenly spaced")
     check(_formula_reference_entries(_heat("/r", 10, ea_ref_mode="files")) == [], "files mode -> no formula files")
     for gen in (generate_script, generate_clean_script):
