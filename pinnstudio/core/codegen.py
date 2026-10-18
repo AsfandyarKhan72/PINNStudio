@@ -4487,6 +4487,19 @@ def _effective_config(config):
 
 
 
+
+# On the CPU, PyTorch uses one thread per core. On processors with
+# efficiency cores (recent Intel, Apple) the slow cores hold every step back
+# and run times jump by 2-3 times between identical runs; a few threads
+# (about one per performance core) were faster and steady in the timing
+# study (README, "Speed"). OMP_NUM_THREADS, when set, still decides.
+_CPU_THREADS_CODE = """
+# CPU training: about one thread per performance core is faster and steadier
+# than PyTorch's one per core on processors with efficiency cores.
+if not torch.cuda.is_available() and "OMP_NUM_THREADS" not in os.environ:
+    torch.set_num_threads(max(1, min(8, (os.cpu_count() or 2) // 2)))
+"""
+
 def _cpu_only_line(config):
     """Train on: CPU -- PyTorch then sees no GPU (set before it is imported)."""
     if getattr(config, "train_device", "auto") == "cpu":
@@ -4890,6 +4903,7 @@ warnings.filterwarnings("ignore", message=".*cuBLAS.*")
 if not torch.cuda.is_available() and str(getattr(torch, "get_default_device", lambda: "cpu")()).startswith("mps"):
     torch.set_default_device("cpu")
     print("  [Info] Training on the CPU (Apple GPU / MPS not used)")
+{_CPU_THREADS_CODE}
 
 # ── Plot Settings: figure-size standardization ─────────────────
 # Applied to every single-panel results plot below (Loss, Line, Surface,
@@ -10454,7 +10468,8 @@ import matplotlib.pyplot as plt
 # PyTorch's L-BFGS is unreliable on it, so PINNStudio trains on the CPU there.
 if not torch.cuda.is_available() and str(getattr(torch, "get_default_device", lambda: "cpu")()).startswith("mps"):
     torch.set_default_device("cpu")
-    print("  [Info] Training on the CPU (Apple GPU / MPS not used)")''')
+    print("  [Info] Training on the CPU (Apple GPU / MPS not used)")
+{_CPU_THREADS_CODE}''')
 
     if uses_nncg:
         parts.append('''_dxde_ver_parts = dde.__version__.split(".")[:3]

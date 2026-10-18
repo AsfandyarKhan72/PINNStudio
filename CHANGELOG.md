@@ -96,6 +96,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **CPU training uses fewer threads**: about one per performance core (half the logical processors, at most 8) instead of PyTorch's one per core. On processors with efficiency cores (recent Intel, Apple) the slow cores held every step back, and identical runs took between 1 and 3 times as long; with 8 threads the timing study's Heat 1D trained in 3.3-3.6 s instead of 6.4-11.7 s, and Navier-Stokes 2D in 46 s instead of 51-52 s. Both scripts do it; `OMP_NUM_THREADS`, when set, still decides.
+
 - **Less work for the window while a run trains.** The live loss plot has an *Update while training* switch (on by default): off, the curve is drawn once when the run ends. The settings checks that mark problems on the tree (a full rebuild of the settings every 1.5 s) wait until the run ends, and the Training Log keeps the last 20,000 lines of a very long run.
 
 - **Inverse problem page** split into two boxes. *Unknown parameters* is a small table with column headings (Name, Initial guess, True value -- marked optional), so the rows no longer repeat "initial guess:" and "true value:" and keep their columns when a parameter is added or removed; the convergence plot's log scale is beside it. *Measured data* shows each file as a block (File, Measures: which output or an expression, Loss weight), with a line on what the files contain; a long path shows its file name, the whole path in its tooltip. The warnings became short notes.
