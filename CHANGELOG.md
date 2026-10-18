@@ -89,6 +89,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **Inverse problem page** split into two boxes. *Unknown parameters* is a small table with column headings (Name, Initial guess, True value -- marked optional), so the rows no longer repeat "initial guess:" and "true value:" and keep their columns when a parameter is added or removed; the convergence plot's log scale is beside it. *Measured data* shows each file as a block (File, Measures: which output or an expression, Loss weight), with a line on what the files contain; a long path shows its file name, the whole path in its tooltip. The warnings became short notes.
+
 - The Windows-only `torch==2.5.1` requirement is removed: the install scripts already replaced it with the PyTorch build matching the GPU driver, and it kept the one-command install from choosing a CUDA build.
 - **README screenshots retaken** with the current interface: the main window, the Sketch, live loss and History (plot toolbars), the Geometry pictures (built-in shape, 2D and 3D Sketch, imported drawing; the BC page's new *Exact periodicity* and *"Where" examples*) and the Parameter sweep page (*About sweeps*, one *Values* row per parameter); the website's copies too. The sweep text uses the current names (*One at a time*, *Paired values*, *List / Linear / Log*) and no longer mentions a Refresh button, and the walkthrough links to the features by their current names.
 - README, *Allen-Cahn 1D* (DeepXDE): the solution GIF is replaced by the line comparison at five times, as in the Wight & Zhao example, so the two read the same way.

@@ -964,7 +964,7 @@ class MainWindow(QMainWindow):
          "What kind of problem this is: dimension, time dependence, forward or inverse."),
         ("equations", "Equations", "∂", "#b197fc", None, ("PDE Definition",),
          "The outputs, the equations (residual = 0) and named constants."),
-        ("inverse", "Inverse problem", "?", "#ffa94d", None, ("Inverse PINN Settings",),
+        ("inverse", "Inverse problem", "?", "#ffa94d", None, ("Unknown parameters", "Measured data"),
          "The unknown parameters to learn and the measured data to fit."),
         ("geometry", "Geometry", "G", "#51cf66", None, ("Domain",),
          "The domain: a basic shape, a combination of shapes, or a sketch -- and the time interval."),
@@ -1597,7 +1597,7 @@ class MainWindow(QMainWindow):
         elif key == "training":
             items.append(("Add training phase", lambda: self._add_scheduler_phase(), "add"))
         elif key == "inverse":
-            items.append(("Add trainable variable", lambda: self._add_inverse_var_row(), "add"))
+            items.append(("Add parameter", lambda: self._add_inverse_var_row(), "add"))
         elif key == "equations":
             items.append(("Add constant", lambda: self._add_constant_row(), "add"))
         elif key in ("results", "restore"):
@@ -3806,56 +3806,84 @@ class MainWindow(QMainWindow):
         self._add_sweep_row()
         QTimer.singleShot(0, lambda: self._refresh_sweep_param_choices())
 
-    def _build_inverse_panel(self, left_layout):
-        """Inverse PINN panel."""
-        # ── Inverse PINN panel ────────────────────────────────
-        self.inverse_group = QGroupBox("Inverse PINN Settings")
-        inv_layout = QVBoxLayout(self.inverse_group)
-        inv_layout.setSpacing(5)
+    # Inverse page: column widths of the parameter table (name stretches)
+    INV_NUM_W = 100      # Initial guess, True value
+    INV_X_W = 26         # the remove button (a blank of the same width on the first row)
 
-        # Reference toggle on the first row (the standard _ref_button), its
-        # text right below it.
+    def _build_inverse_panel(self, left_layout):
+        """Inverse page: two boxes, the unknown parameters (a small table:
+        name, initial guess, true value) and the measured data they are
+        fitted to (one block per file: the file, the output it measures
+        and its loss weight)."""
+        # ── Unknown parameters ───────────────────────────────────
+        self.inverse_group = QGroupBox("Unknown parameters")
+        inv_layout = QVBoxLayout(self.inverse_group)
+        inv_layout.setSpacing(6)
+
+        intro = QLabel("Values the network learns along with the solution. Use each name in the "
+                       "equations (Equations page) where that quantity belongs.")
+        intro.setWordWrap(True)
+        self._register_hint(intro, '#868e96')
+        inv_layout.addWidget(intro)
         inv_ref_toggle = self._ref_button("About inverse problems")
-        self._ref_row(inv_layout, inv_ref_toggle, QLabel("Trainable (unknown) variables:"))
-        inv_ref_text = ("Each trainable (unknown) variable is a value the solver infers (fits)\n"
-                        "during training, e.g. a diffusion coefficient or reaction rate.\n"
-                        "The first is named 'trainable_variable_1' by default -- rename any of\n"
-                        "them to anything you like (any valid Python identifier); renaming the\n"
-                        "first one keeps a loaded Quick Example's PDE box in sync automatically.\n"
-                        "For a custom PDE (no example), or for any variable beyond the first,\n"
-                        "make sure the same name also appears in your PDE expression(s) (PDE\n"
-                        "Builder tab) wherever that quantity belongs, e.g. rename to D and write:\n"
-                        "du_t - D*du_xx\n"
-                        "Initial guess sets each variable's starting value before optimization.\n"
-                        "All trainable variables are fit against the same shared measured data\n"
-                        "file(s) below (x, t, u, ...) -- add more than one if you have several\n"
-                        "observation datasets; each gets its own \"which output\" selector and its\n"
-                        "own loss weight, since each becomes a separate loss term.")
-        inv_ref_hint = QLabel(inv_ref_text)
+        ref_row = QHBoxLayout()
+        ref_row.setContentsMargins(0, 0, 0, 0)
+        ref_row.addWidget(inv_ref_toggle)
+        ref_row.addStretch()
+        inv_layout.addLayout(ref_row)
+        inv_ref_hint = QLabel(
+            "Each unknown parameter is a value the solver infers during training, for example a "
+            "diffusion coefficient or a reaction rate. Name it anything that is a valid Python "
+            "name (D, k, lambda_) and write the same name in the PDE, e.g. du_t - D*du_xx.\n"
+            "Initial guess is its value when training starts. True value is optional: when you "
+            "know the answer (the templates fill it in), the parameter convergence plot draws it "
+            "as a dashed line; it never affects training.\n"
+            "All parameters are fitted to the same measured data below. Several data files can "
+            "be added (each measures one output, or an expression of the outputs); each is a loss "
+            "term with its own weight.")
         self._register_hint(inv_ref_hint, '#74c0fc')
         inv_ref_hint.setWordWrap(True)
         inv_ref_hint.setVisible(False)
         inv_layout.addWidget(inv_ref_hint)
         inv_ref_toggle.toggled.connect(inv_ref_hint.setVisible)
 
+        head = QHBoxLayout()
+        head.setContentsMargins(0, 4, 0, 0)
+        head.setSpacing(6)
+        for text, width, tip in (("Name", None, "The parameter's name, as written in the equations."),
+                                 ("Initial guess", self.INV_NUM_W, "Its value when training starts."),
+                                 ("True value", self.INV_NUM_W,
+                                  "Optional: the known answer, drawn as a dashed line on the parameter "
+                                  "convergence plot. Never used in training.")):
+            lbl = QLabel(text)
+            lbl.setToolTip(tip)
+            self._register_hint(lbl, '#868e96')
+            if width:
+                lbl.setFixedWidth(width)
+                head.addWidget(lbl)
+            else:
+                head.addWidget(lbl, 1)
+        x_blank = QWidget()
+        x_blank.setFixedWidth(self.INV_X_W)
+        head.addWidget(x_blank)
+        inv_layout.addLayout(head)
+
         self.inv_vars_widget = QWidget()
         self.inv_vars_layout = QVBoxLayout(self.inv_vars_widget)
-        self.inv_vars_layout.setSpacing(3)
+        self.inv_vars_layout.setSpacing(4)
         self.inv_vars_layout.setContentsMargins(0, 0, 0, 0)
         inv_layout.addWidget(self.inv_vars_widget)
 
         self.inv_var_rows = []  # list of dicts with widgets
 
-        add_inv_var_btn = QPushButton("➕ Add trainable variable")
-        add_inv_var_btn.setStyleSheet(
-            "QPushButton { color: #69db7c; background: transparent; "
-            "border: 1px solid #2a6a4a; border-radius: 4px; padding: 2px 8px; }")
+        add_inv_var_btn = QPushButton("➕ Add parameter")
+        add_inv_var_btn.setToolTip("Add another unknown parameter")
         add_inv_var_btn.clicked.connect(lambda: self._add_inverse_var_row())
         inv_layout.addWidget(add_inv_var_btn)
 
-        self.inv_multi_var_hint = QLabel(
-            "⚠ Add each new variable's name to your PDE expression(s) too\n"
-            "(PDE Builder tab), wherever that unknown quantity belongs.")
+        # shown with more than one parameter: the ones after the first are
+        # not put into a template's PDE automatically
+        self.inv_multi_var_hint = QLabel("Write each added parameter's name into the PDE yourself.")
         self._register_hint(self.inv_multi_var_hint, '#ffd43b')
         self.inv_multi_var_hint.setWordWrap(True)
         self.inv_multi_var_hint.setVisible(False)
@@ -3867,50 +3895,57 @@ class MainWindow(QMainWindow):
         # single-variable behavior this replaces.
         self._add_inverse_var_row("trainable_variable_1", 1.0)
 
-        inv_layout.addWidget(QLabel("Measured data file(s) (x, t, u):"))
+        # v19: the IC for inverse problems comes from the Initial conditions
+        # page, as for forward problems (no separate selector here).
+        log_row = QHBoxLayout()
+        log_row.setContentsMargins(0, 6, 0, 0)
+        log_row.addWidget(QLabel("Convergence plot:"))
+        self.inv_param_log_scale = QCheckBox("Log scale")
+        self.inv_param_log_scale.setToolTip("Draw the parameter convergence plot with a logarithmic value axis")
+        self.inv_param_log_scale.setChecked(False)
+        log_row.addWidget(self.inv_param_log_scale)
+        log_row.addStretch()
+        inv_layout.addLayout(log_row)
+
+        # ── Measured data ────────────────────────────────────────
+        self.inverse_data_group = QGroupBox("Measured data")
+        data_layout = QVBoxLayout(self.inverse_data_group)
+        data_layout.setSpacing(6)
+        data_intro = QLabel("Text files with one point per line: the inputs (x, y, z, t as the problem "
+                            "has them), then the measured value.")
+        data_intro.setWordWrap(True)
+        self._register_hint(data_intro, '#868e96')
+        data_layout.addWidget(data_intro)
+
         self.inv_data_files_widget = QWidget()
         self.inv_data_files_layout = QVBoxLayout(self.inv_data_files_widget)
-        self.inv_data_files_layout.setSpacing(6)
+        self.inv_data_files_layout.setSpacing(10)
         self.inv_data_files_layout.setContentsMargins(0, 0, 0, 0)
-        inv_layout.addWidget(self.inv_data_files_widget)
+        data_layout.addWidget(self.inv_data_files_widget)
 
         self.inv_data_rows = []  # list of dicts with widgets
 
-        add_inv_data_btn = QPushButton("➕ Add measured data file")
-        add_inv_data_btn.setStyleSheet(
-            "QPushButton { color: #69db7c; background: transparent; "
-            "border: 1px solid #2a6a4a; border-radius: 4px; padding: 2px 8px; }")
+        add_inv_data_btn = QPushButton("➕ Add data file")
+        add_inv_data_btn.setToolTip("Add another measured data file (its own loss term)")
         add_inv_data_btn.clicked.connect(lambda: self._add_inverse_data_row())
-        inv_layout.addWidget(add_inv_data_btn)
+        data_layout.addWidget(add_inv_data_btn)
 
-        self.inv_multi_data_hint = QLabel(
-            "⚠ Each additional measured data file adds its own\n"
-            "observation loss term, weighted by its own box below.")
-        self._register_hint(self.inv_multi_data_hint, '#ffd43b')
+        self.inv_multi_data_hint = QLabel("Each file is its own loss term, with its own weight.")
+        self._register_hint(self.inv_multi_data_hint, '#868e96')
         self.inv_multi_data_hint.setWordWrap(True)
         self.inv_multi_data_hint.setVisible(False)
-        inv_layout.addWidget(self.inv_multi_data_hint)
+        data_layout.addWidget(self.inv_multi_data_hint)
 
         # Add the first (primary) measured-data-file row -- always present,
         # matching the single-file behavior this generalizes by default.
         self._add_inverse_data_row()
 
-        # v19: the separate "IC type" (expression/file) selector that used
-        # to live here was removed -- it was confusing to have two places
-        # to set the IC when the Initial Condition panel above already
-        # covers both expression and file-based ICs, for every problem
-        # type (including Inverse) and dimension. Inverse problems now
-        # just use that one panel, same as Forward problems.
-        self.inv_param_log_scale = QCheckBox("Log scale for parameter convergence plot")
-        self.inv_param_log_scale.setChecked(False)
-        inv_layout.addWidget(self.inv_param_log_scale)
-
         self.inverse_group.setVisible(False)
-        # Index 5 = right after PDE Definition (0 title, 1 examples, 2 dim,
-        # 3 type, 4 PDE Definition), before Domain -- trainable variables
-        # are conceptually tied to the PDE, so they're shown immediately
-        # after it rather than after Domain/Collocation Points.
-        left_layout.insertWidget(5, self.inverse_group)  # right after PDE Definition
+        self.inverse_data_group.setVisible(False)
+        # right after PDE Definition (0 title, 1 examples, 2 dim, 3 type,
+        # 4 PDE Definition): the unknowns belong with the equations
+        left_layout.insertWidget(5, self.inverse_group)
+        left_layout.insertWidget(6, self.inverse_data_group)
 
         # Parametric Study removed (untested, not exposed in the GUI).
 
@@ -6574,21 +6609,22 @@ class MainWindow(QMainWindow):
         row_widget = QWidget()
         row_layout = QHBoxLayout(row_widget)
         row_layout.setContentsMargins(0, 0, 0, 0)
-        row_layout.setSpacing(4)
+        row_layout.setSpacing(6)
 
+        # columns as in the header above the rows (Name | Initial guess | True value)
         name_edit = QLineEdit()
         name_edit.setText(name)
-        name_edit.setFixedHeight(26)
-        row_layout.addWidget(name_edit)
+        name_edit.setToolTip("The parameter's name, as written in the equations")
+        row_layout.addWidget(name_edit, 1)
 
-        row_layout.addWidget(QLabel("initial guess:"))
         init_spin = InitGuessLineEdit(init)
-        init_spin.setFixedHeight(26); init_spin.setFixedWidth(85)
+        init_spin.setFixedWidth(self.INV_NUM_W)
+        init_spin.setToolTip("Initial guess: the value when training starts")
         row_layout.addWidget(init_spin)
 
-        row_layout.addWidget(QLabel("true value:"))
         true_edit = TrueValueLineEdit(true_value)
-        true_edit.setFixedHeight(26); true_edit.setFixedWidth(85)
+        true_edit.setFixedWidth(self.INV_NUM_W)
+        true_edit.setPlaceholderText("optional")
         true_edit.setToolTip(
             "Known ground-truth value for this variable, if you have one.\n"
             "Pre-filled for built-in templated examples; leave blank for a\n"
@@ -6608,10 +6644,19 @@ class MainWindow(QMainWindow):
             # this, so the same slot covers both cases.
             name_edit.editingFinished.connect(self._on_inv_param_name_changed)
             remove_btn = QPushButton("✕")
-            remove_btn.setFixedHeight(26); remove_btn.setFixedWidth(26)
+            remove_btn.setFixedHeight(26)
+            remove_btn.setToolTip("Remove this parameter")
             remove_btn.setStyleSheet(
                 "QPushButton { color: #ff8787; background: transparent; border: none; }")
-            row_layout.addWidget(remove_btn)
+        # the ✕ (or nothing, on the first row) in a box of one width, so the
+        # columns stay under the header
+        x_box = QWidget()
+        x_box.setFixedWidth(self.INV_X_W)
+        x_lay = QHBoxLayout(x_box)
+        x_lay.setContentsMargins(0, 0, 0, 0)
+        if remove_btn is not None:
+            x_lay.addWidget(remove_btn)
+        row_layout.addWidget(x_box)
 
         self.inv_vars_layout.addWidget(row_widget)
         row_data = {
@@ -6690,24 +6735,34 @@ class MainWindow(QMainWindow):
         row_widget = QWidget()
         row_v = QVBoxLayout(row_widget)
         row_v.setContentsMargins(0, 0, 0, 0)
-        row_v.setSpacing(2)
+        row_v.setSpacing(4)
 
+        # File:  [path ............] [Browse] [✕]
         path_row = QHBoxLayout()
         path_row.setContentsMargins(0, 0, 0, 0)
+        path_row.addWidget(QLabel("File:"))
         path_edit = QLineEdit()
         path_edit.setText(path)
-        path_edit.setPlaceholderText("Browse...")
-        path_edit.setFixedHeight(28)
-        path_row.addWidget(path_edit)
+        path_edit.setPlaceholderText("a measured data file (.txt, .dat, .csv)")
+
+        def _show_file_end(_t=None, e=path_edit):
+            # a long path shows its file name, the start is in the tooltip
+            e.setToolTip(e.text())
+            if not e.hasFocus():
+                e.setCursorPosition(len(e.text()))
+        path_edit.textChanged.connect(_show_file_end)
+        _show_file_end()
+        path_row.addWidget(path_edit, 1)
         browse_btn = QPushButton("Browse")
-        browse_btn.setFixedHeight(28); browse_btn.setFixedWidth(65)
+        browse_btn.setFixedWidth(65)
         browse_btn.clicked.connect(lambda _checked=False, e=path_edit: self._on_browse_inv_data(e))
         path_row.addWidget(browse_btn)
 
         remove_btn = None
         if not is_primary:
             remove_btn = QPushButton("✕")
-            remove_btn.setFixedHeight(28); remove_btn.setFixedWidth(26)
+            remove_btn.setFixedHeight(26); remove_btn.setFixedWidth(26)
+            remove_btn.setToolTip("Remove this data file")
             remove_btn.setStyleSheet(
                 "QPushButton { color: #ff8787; background: transparent; border: none; }")
             path_row.addWidget(remove_btn)
@@ -6715,11 +6770,12 @@ class MainWindow(QMainWindow):
         path_row_widget.setLayout(path_row)
         row_v.addWidget(path_row_widget)
 
+        # Measures:  [Output 1 (u) v] [custom expression]
         meta_row = QHBoxLayout()
         meta_row.setContentsMargins(0, 0, 0, 0)
-        meta_row.addWidget(QLabel("output:"))
+        meta_row.addWidget(QLabel("Measures:"))
         output_combo = QComboBox()
-        output_combo.setFixedHeight(26)
+        output_combo.setToolTip("Which output the file's values are, or Custom... for an expression of the outputs")
         _n_out = self.num_outputs_spin.value() if hasattr(self, 'num_outputs_spin') else 1
         for _i in range(_n_out):
             _name = (self.output_name_inputs[_i].text()
@@ -6730,7 +6786,6 @@ class MainWindow(QMainWindow):
         custom_edit = QLineEdit()
         custom_edit.setText(custom_expr)
         custom_edit.setPlaceholderText("expression, e.g. sqrt(u**2+v**2)")
-        custom_edit.setFixedHeight(26)
         custom_edit.setVisible(bool(custom_expr))
         if custom_expr:
             output_combo.setCurrentIndex(output_combo.count() - 1)
@@ -6742,15 +6797,24 @@ class MainWindow(QMainWindow):
         output_combo.currentIndexChanged.connect(_on_obs_output_changed)
 
         meta_row.addWidget(output_combo)
-        meta_row.addWidget(custom_edit)
-        meta_row.addWidget(QLabel("Data loss weight:"))
-        weight_edit = SciLineEdit(weight)
-        weight_edit.setFixedHeight(26); weight_edit.setFixedWidth(85)
-        meta_row.addWidget(weight_edit)
+        meta_row.addWidget(custom_edit, 1)
         meta_row.addStretch()
         meta_row_widget = QWidget()
         meta_row_widget.setLayout(meta_row)
         row_v.addWidget(meta_row_widget)
+
+        # Loss weight:  [100]
+        w_row = QHBoxLayout()
+        w_row.setContentsMargins(0, 0, 0, 0)
+        w_row.addWidget(QLabel("Loss weight:"))
+        weight_edit = SciLineEdit(weight)
+        weight_edit.setFixedWidth(self.INV_NUM_W)
+        weight_edit.setToolTip("Weight of this file's data term in the loss")
+        w_row.addWidget(weight_edit)
+        w_row.addStretch()
+        w_row_widget = QWidget()
+        w_row_widget.setLayout(w_row)
+        row_v.addWidget(w_row_widget)
 
         self.inv_data_files_layout.addWidget(row_widget)
         row_data = {
@@ -9541,6 +9605,7 @@ class MainWindow(QMainWindow):
         # saved before this feature existed) so old saved configs still
         # load correctly with exactly one variable.
         for row in list(self.inv_var_rows):
+            row['widget'].hide()
             row['widget'].deleteLater()
         self.inv_var_rows.clear()
         try:
@@ -10094,6 +10159,7 @@ class MainWindow(QMainWindow):
         var_list = self.INVERSE_AUTO_VARS.get(template)
         if var_list:
             for r in list(self.inv_var_rows):
+                r['widget'].hide()
                 r['widget'].deleteLater()
             self.inv_var_rows.clear()
             for i, (name, init, true) in enumerate(var_list):
@@ -10189,6 +10255,7 @@ class MainWindow(QMainWindow):
         is_inv = self.radio_inverse.isChecked()
         self._sync_inverse_pde_substitution(is_inv)
         self.inverse_group.setVisible(is_inv)
+        self.inverse_data_group.setVisible(is_inv)
         self.param_save_label.setVisible(is_inv)
         self.param_save_combo.setVisible(is_inv)
         # "Parameter Convergence" (iteration vs. inferred-value chart) only
