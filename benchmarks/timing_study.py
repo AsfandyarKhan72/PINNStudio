@@ -202,3 +202,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+    sys.stdout.flush()
+    os._exit(0)     # skip Qt's teardown of the window at interpreter exit (it can crash there)
