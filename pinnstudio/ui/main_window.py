@@ -5970,6 +5970,9 @@ class MainWindow(QMainWindow):
         """Scroll the left panel to a BC row and briefly highlight it."""
         def _go():
             if hasattr(self, 'workspace'):
+                # the row's own node may not be made yet on a busy computer
+                if getattr(self, '_bc_nodes_pending', False):
+                    self._sync_bc_nodes()
                 self.workspace.reveal(entry['widget'])
             loc = entry['location']
             old = loc.styleSheet()

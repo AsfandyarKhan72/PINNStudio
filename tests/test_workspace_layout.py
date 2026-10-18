@@ -132,6 +132,10 @@ def test_bc_node_edits_sketch_edges():
     sp.new_bc_btn.click()
     _settle()
     entry = w.custom_bc_list[-1]
+    for _ in range(30):              # selected a moment later (timers)
+        if w.workspace.current_key() == entry['_node']:
+            break
+        _settle(0.1)
     assert w.workspace.current_key() == entry['_node'], "the new BC's node is selected"
     assert sp.active_bc == len(w.custom_bc_list) - 1
     click(right)      # add

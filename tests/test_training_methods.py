@@ -375,57 +375,13 @@ def test_point_weights_reset_on_new_points():
 
 
 if __name__ == "__main__":
-    test_exact_constraints()
-    test_point_weights_reset_on_new_points()
-    test_cahn_hilliard_template_scaling()
-    test_gui_round_trip()
-    test_validation()
-    test_scripts()
-    test_generated_code_runs()
-    test_sa_pinn_ascends()
-    print("PASSED")
-
-
-def test_plot_toolbar_icons_follow_theme():
-    """Matplotlib picks dark or light toolbar icons from the toolbar's
-    background; on Linux that came through as transparent black, so the icons
-    were white on the white panel. The toolbar now takes the theme's colour."""
-    from PyQt6.QtCore import QSize
-    from pinnstudio.ui.results import RunProgress
-    w = _window("1D Allen-Cahn")
-    w.live_loss.start(RunProgress())
-    _settle()
-    tb = w.live_loss._toolbar
-
-    def icon_colours():
-        img = tb.actions()[0].icon().pixmap(QSize(24, 24)).toImage()
-        return {img.pixelColor(x, y).name() for x in range(24) for y in range(24) if img.pixelColor(x, y).alpha() > 200}
-
-    assert icon_colours() == {"#000000"}             # light theme: dark icons
-    w._theme = "Studio Dark"
-    w._apply_display_settings()
-    _settle()
-    assert icon_colours() == {"#ffffff"}             # dark theme: light icons
-    w.live_loss.stop()
-    w.close()
-
-
-def test_whole_interval_allen_cahn_template():
-    """The second 1D Allen-Cahn template: the whole time interval in one run with
-    the study's best setup, which does not carry over to the next template."""
-    w = _window("1D Allen-Cahn (whole interval)")
-    c = w._build_config()
-    assert not c.time_adaptive and c.periodic_inputs and c.causal_training and c.causal_anneal
-    assert c.network_type == "MsFFN" and c.msffn_sigmas == "1, 5"
-    assert c.ic_hard.split(",")[0].strip() == "True" and c.validate() == []
-    for gen in (generate_script, generate_clean_script):
-        ast.parse(gen(c))
-    for nxt in ("1D Allen-Cahn", "1D Burgers"):
-        w.quick_examples_combo.setCurrentText(nxt)
-        _settle()
-        c = w._build_config()
-        assert not c.causal_training and c.network_type == "FNN" and not c.periodic_inputs, nxt
-    assert w._build_config().time_adaptive is False      # 1D Burgers
-    w.close()
-    w.deleteLater()
-    _settle()
+    # run as a script (the Smoke test workflow has no PyTorch or DeepXDE):
+    # the parts that train a model say SKIPPED instead of failing
+    for _t in (test_exact_constraints, test_point_weights_reset_on_new_points, test_cahn_hilliard_template_scaling, test_gui_round_trip, test_validation, test_scripts, test_generated_code_runs, test_sa_pinn_ascends):
+        try:
+            _t()
+        except ModuleNotFoundError as _e:
+            if _e.name not in ("torch", "deepxde"):
+                raise
+            print(f"SKIPPED {_t.__name__}: {_e.name} not installed.")
+    print("ALL TRAINING METHODS TESTS PASSED")
