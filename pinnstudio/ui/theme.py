@@ -525,7 +525,7 @@ class StyleRemapper(QObject):
     @staticmethod
     def _fit_combo(w):
         """A drop-down given a fixed width is widened when the option it shows
-        does not fit (with a larger UI scale); at most 2.5 times wider."""
+        does not fit (with a larger UI scale); at most 3 times wider."""
         from PyQt6.QtWidgets import QComboBox
         if not isinstance(w, QComboBox) or w.minimumWidth() != w.maximumWidth() or w.maximumWidth() <= 48:
             return
@@ -535,7 +535,7 @@ class StyleRemapper(QObject):
             w.currentTextChanged.connect(lambda _t, c=w: StyleRemapper._fit_combo(c))
         base = int(w.property("_pinn_combo_w") or w.maximumWidth())
         need = w.fontMetrics().horizontalAdvance(w.currentText()) + 40
-        width = min(max(base, need), int(base * 2.5))
+        width = min(max(base, need), int(base * 3))
         if width != w.maximumWidth():
             w.setFixedWidth(width)
 

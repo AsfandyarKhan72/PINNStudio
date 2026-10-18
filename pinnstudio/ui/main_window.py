@@ -614,6 +614,9 @@ class MainWindow(QMainWindow):
             ex_label = getattr(self, "_tb_examples_label", None)
             if ex_label is not None:
                 ex_label.setVisible(True)
+                # its whole text counts toward the toolbar's minimum, so
+                # the layout leaves it out below instead of cutting it off
+                ex_label.setMinimumWidth(ex_label.sizeHint().width())
             self.quick_examples_combo.setMinimumWidth(260)
             lay = self.app_toolbar.layout()
             short = lambda: self.app_toolbar.width() < lay.minimumSize().width()
