@@ -8,7 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- **Train on: CPU** (*Settings → GPU / Hardware*): trains on the CPU even when there is a GPU. A small network (a 1D problem, a few thousand points) often trains faster there, since each GPU step waits on Python more than it computes; the timing study measured 1.8× for the 1D inverse diffusion example. Both the Solve script and the exported script then hide the GPU from PyTorch. Saved with the problem.
+- **Train on: CPU** (*Settings → GPU / Hardware*): trains on the CPU even when there is a GPU. A small network (a 1D problem, a few thousand points) often trains faster there, since each GPU step waits on Python more than it computes; the timing study measured 2.2× for the 1D inverse diffusion example. Both the Solve script and the exported script then hide the GPU from PyTorch. Saved with the problem.
 
 - **Platform matrix** (`.github/workflows/platform-matrix.yml`, for commits marked `[matrix]`): the tests and the window check on Ubuntu 22.04 and 24.04 (x64 and ARM), Windows Server 2022 and 2025 and Windows on ARM, macOS 14 and 15 and an Intel Mac, with Python 3.9 to 3.14; the installer on Linux, Windows (x64 and ARM) and an Intel Mac.
 
@@ -96,7 +96,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
-- **CPU training uses fewer threads**: about one per performance core (half the logical processors, at most 8) instead of PyTorch's one per core. On processors with efficiency cores (recent Intel, Apple) the slow cores held every step back, and identical runs took between 1 and 3 times as long; with 8 threads the timing study's Heat 1D trained in 3.3-3.6 s instead of 6.4-11.7 s, and Navier-Stokes 2D in 46 s instead of 51-52 s. Both scripts do it; `OMP_NUM_THREADS`, when set, still decides.
+- **CPU training uses fewer threads**: about one per performance core (half the logical processors, at most 8) instead of PyTorch's one per core. On processors with efficiency cores (recent Intel, Apple) the slow cores held every step back, and identical runs took between 1 and 3 times as long; with 8 threads the timing study's Heat 1D trained in 3.3-3.6 s instead of 6.4-11.7 s, Navier-Stokes 2D in 46 s instead of 51-52 s, and Allen-Cahn 1D in 135 s instead of 205 s. Both scripts do it; `OMP_NUM_THREADS`, when set, still decides.
 
 - **Less work for the window while a run trains.** The live loss plot has an *Update while training* switch (on by default): off, the curve is drawn once when the run ends. The settings checks that mark problems on the tree (a full rebuild of the settings every 1.5 s) wait until the run ends, and the Training Log keeps the last 20,000 lines of a very long run.
 
