@@ -58,3 +58,41 @@ jobs:
       - name: Window end to end (train, results, restore)
         if: always()
         run: python tools/smoke_gui.py
+
+  # The one-command installer as a user runs it (from this checkout instead of
+  # PyPI), then the installed app: it starts, and the window check passes.
+  installer:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    env:
+      QT_QPA_PLATFORM: offscreen
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install with get-pinnstudio.ps1 (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $env:PINNSTUDIO_SOURCE = "${{ github.workspace }}"
+          ./get-pinnstudio.ps1
+          if (-not (Test-Path "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\PINNStudio.lnk")) { throw "no Start menu shortcut" }
+
+      - name: Install with get-pinnstudio.sh (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          PINNSTUDIO_SOURCE="$GITHUB_WORKSPACE" sh get-pinnstudio.sh
+          test -x "$HOME/Applications/PINNStudio.app/Contents/MacOS/PINNStudio"
+
+      - name: Installed app starts and the window check passes
+        shell: bash
+        run: |
+          UV="$HOME/.local/bin/uv"
+          TOOLDIR="$("$UV" tool dir)"
+          if [ "$RUNNER_OS" = "Windows" ]; then PY="$TOOLDIR/pinnstudio/Scripts/python.exe"; EXE="$("$UV" tool dir --bin)/pinnstudio.exe";
+          else PY="$TOOLDIR/pinnstudio/bin/python"; EXE="$("$UV" tool dir --bin)/pinnstudio"; fi
+          "$PY" tools/launch_check.py "$EXE"
+          cd "$RUNNER_TEMP" && "$PY" "$GITHUB_WORKSPACE/tools/smoke_gui.py" --installed
