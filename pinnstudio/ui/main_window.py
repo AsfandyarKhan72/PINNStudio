@@ -11,7 +11,7 @@ from PyQt6.QtWidgets import (
     QDialog, QApplication, QColorDialog,
     QTabWidget, QMessageBox, QScrollArea, QGridLayout, QPlainTextEdit, QSizePolicy, QToolButton, QAbstractSpinBox,
 )
-from PyQt6.QtCore import Qt, QObject, QThread, pyqtSignal, QTimer
+from PyQt6.QtCore import Qt, QEvent, QObject, QThread, pyqtSignal, QTimer
 from PyQt6.QtGui import QPixmap, QAction, QColor, QMovie, QIntValidator, QKeySequence
 from pinnstudio.core.config import PINNConfig
 from pinnstudio.core.runner import run_pinn
@@ -588,6 +588,32 @@ class MainWindow(QMainWindow):
         for _tabs in (self.right_tabs, self.bottom_tabs, self.results_tabs):
             _width_follows_current_tab(_tabs)
 
+    def eventFilter(self, obj, ev):
+        if obj is getattr(self, "app_toolbar", None) and ev.type() in (QEvent.Type.Resize, QEvent.Type.Show):
+            self._fit_toolbar()
+        return super().eventFilter(obj, ev)
+
+    def _fit_toolbar(self):
+        """Open / Save / Export script with their text when the toolbar has
+        room for it, as icons only (text in the tooltip) when it does not."""
+        texts = getattr(self, "_tb_texts", None)
+        if not texts or getattr(self, "_fitting_toolbar", False):
+            return
+        self._fitting_toolbar = True
+        try:
+            for b, t in texts:
+                if b.text() != t:
+                    b.setText(t)
+            self.app_title_label.setVisible(True)
+            lay = self.app_toolbar.layout()
+            if self.app_toolbar.width() < lay.minimumSize().width():
+                for b, _t in texts:
+                    b.setText("")
+                if self.app_toolbar.width() < lay.minimumSize().width():
+                    self.app_title_label.setVisible(False)   # (the window's title bar names it too)
+        finally:
+            self._fitting_toolbar = False
+
     def _nudge_central_tabs_repaint(self):
         bar = self.central_tabs.tabBar()
         bar.hide()
@@ -1075,6 +1101,10 @@ class MainWindow(QMainWindow):
         from pinnstudio.ui import icons as _icons
         for _b, _n in ((self.tb_open_btn, "open"), (self.tb_save_btn, "save"), (self.tb_export_btn, "export")):
             _icons.apply(_b, _n, "text")
+        # a narrow window (or a large UI scale) shows Open/Save/Export as
+        # icons only, rather than squeezing the title and the buttons' text
+        self._tb_texts = [(b, b.text()) for b in (self.tb_open_btn, self.tb_save_btn, self.tb_export_btn)]
+        self.app_toolbar.installEventFilter(self)
         _icons.apply(self.solve_btn, "play", "on_accent", size=14)
         _icons.apply(self.stop_btn, "stop", "on_danger", size=14)
         _icons.apply(self.problems_btn, "warning", "text", size=16)
