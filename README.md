@@ -90,7 +90,7 @@ Setting up a PINN by hand means writing a new script for every problem: the resi
 - A live training log and loss plot, and error analysis against reference data or an exact formula (relative $L_2$, MSE, maximum error).
 - A history of every saved run, with any of them compared on one plot, and figures and tables that copy straight into a paper or a spreadsheet.
 - Line, surface and animated solution plots, solution data export, and a saved model that can be reloaded and visualized again without retraining.
-- A standalone Python script for every problem, so the work can be inspected, shared and reproduced outside PINNStudio.
+- A standalone Python script for every problem, so the work can be inspected, shared and reproduced outside PINNStudio. Solving in the window is as fast as running that script yourself ([timing study](#speed-pinnstudio-and-a-plain-script)).
 
 **Ready-to-run examples.** PINNStudio comes with 65 worked examples, from simple ODEs to the Navier–Stokes equations in 3D, including published PINN benchmarks (Raissi et al., Wight & Zhao, Mattey & Ghosh, and others) and DeepXDE's examples. Each one loads in one click, and 63 of them come with an exact solution or reference data to compare against — see [Examples](#examples).
 
