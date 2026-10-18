@@ -416,6 +416,7 @@ class VisibilityFollower(QObject):
 
 # ── page forms: one label column, controls next to their labels ──────────
 ROW_SPACING = 8      # between a row's label and its control
+MAX_LABEL_CHARS = 26
 
 
 def align_forms(root, max_label=190):
@@ -454,12 +455,18 @@ def align_forms(root, max_label=190):
     shown = [l for l in labels if l.isVisibleTo(root)]
     if not shown:
         return
-    w = min(max_label, max(l.sizeHint().width() for l in shown))
+    # The column is as wide as the widest label of up to MAX_LABEL_CHARS
+    # characters (counted in characters, not pixels, so it grows with the
+    # font: Windows' and display scaling's wider text no longer broke it). A
+    # longer label keeps its own width and does not widen every row.
+    col = [l for l in shown if len(l.text()) <= MAX_LABEL_CHARS] or shown
+    w = max(l.sizeHint().width() for l in col)
     for l in shown:
-        if l.minimumWidth() != w:        # only when it changes: setting it again re-lays the page
-            l.setMinimumWidth(w)
+        own = l not in col
+        if l.minimumWidth() != (0 if own else w):   # only when it changes: setting it re-lays the page
+            l.setMinimumWidth(0 if own else w)
         # not wider either, so the control next to it starts at the same place
-        cap = w if l.sizeHint().width() <= w else 16777215
+        cap = 16777215 if own else w
         if l.maximumWidth() != cap:
             l.setMaximumWidth(cap)
         l.setProperty("_pinn_col", True)
