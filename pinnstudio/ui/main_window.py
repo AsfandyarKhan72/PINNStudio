@@ -15159,6 +15159,21 @@ print("DOMAIN_PREVIEW_DONE")
         opt2 = str(cfg.get("optimizer2", "none") or "none").strip().lower()
         opt1 = str(cfg.get("optimizer", "") or "").strip().lower()
         detected = opt2 if opt2 not in ("", "none") else opt1
+        # Runs now train through Training phases, where optimizer/optimizer2
+        # may be stale: the last phase decides, and the checkpoint's own
+        # name (model_lbfgs-phase2-..., model_adam-phase1-...) decides first.
+        try:
+            _ph = json.loads(cfg.get("scheduler_phases") or "[]")
+            if _ph and cfg.get("optimizer_scheduler"):
+                detected = str(_ph[-1].get("optimizer", detected)).strip().lower()
+        except (ValueError, TypeError, AttributeError):
+            pass
+        _pt = os.path.basename(self.restore_model_path.text().strip()).lower() \
+            if hasattr(self, "restore_model_path") else ""
+        for _name in ("lbfgs", "adam"):
+            if _pt.startswith("model_" + _name):
+                detected = _name
+                break
         if not hasattr(self, 'restore_optimizer_combo'):
             return
         idx = self.restore_optimizer_combo.findData(detected)
@@ -16271,6 +16286,17 @@ print("RESTORE_DONE")
 import os
 os.environ["DDE_BACKEND"] = "pytorch"
 import deepxde as dde
+
+def _restore_weights(_model, _path):
+    # Only the network's weights are needed to plot it. DeepXDE's
+    # model.restore() also loads the optimizer state, which fails when the
+    # checkpoint came from a different optimizer than the one compiled here
+    # (an L-BFGS checkpoint into an Adam model: KeyError 'step').
+    import torch as _torch_rw
+    _dev = next(_model.net.parameters()).device
+    _ck = _torch_rw.load(_path, map_location=_dev, weights_only=False)
+    _sd = _ck["model_state_dict"] if isinstance(_ck, dict) and "model_state_dict" in _ck else _ck
+    _model.net.load_state_dict(_sd)
 import numpy as np
 import torch
 import matplotlib
@@ -16327,7 +16353,7 @@ if {is_inverse_restore}:
           "the *_convergence.txt file(s) saved alongside the model for that.")
 
 try:
-    model.restore({model_path!r}, verbose=1)
+    _restore_weights(model, {model_path!r})
     print("✅ Model restored successfully.")
 except Exception as e:
     print(f"❌ Restore error: {{e}}")
@@ -16646,6 +16672,17 @@ def _extract_plot_field(x_grid):
 import os
 os.environ["DDE_BACKEND"] = "pytorch"
 import deepxde as dde
+
+def _restore_weights(_model, _path):
+    # Only the network's weights are needed to plot it. DeepXDE's
+    # model.restore() also loads the optimizer state, which fails when the
+    # checkpoint came from a different optimizer than the one compiled here
+    # (an L-BFGS checkpoint into an Adam model: KeyError 'step').
+    import torch as _torch_rw
+    _dev = next(_model.net.parameters()).device
+    _ck = _torch_rw.load(_path, map_location=_dev, weights_only=False)
+    _sd = _ck["model_state_dict"] if isinstance(_ck, dict) and "model_state_dict" in _ck else _ck
+    _model.net.load_state_dict(_sd)
 import numpy as np
 import torch
 import matplotlib
@@ -16699,7 +16736,7 @@ def _ta_get_model(i):
     else:
         _model.compile("adam", lr=0.001, loss=_s["loss_type"])
     try:
-        _model.restore(_s["model_path"], verbose=0)
+        _restore_weights(_model, _s["model_path"])
     except Exception as e:
         print(f"❌ Restore error on step {{i+1}}/{{len(_ta_steps)}} ({{_s['model_path']}}): {{e}}")
         raise

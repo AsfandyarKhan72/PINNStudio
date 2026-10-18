@@ -27,6 +27,9 @@ from PyQt6.QtWidgets import QApplication, QFileDialog, QMessageBox  # noqa: E402
 
 SHOWN = []
 QMessageBox.exec = lambda self: SHOWN.append(self.text() + "\n" + (self.detailedText() or "")) or 0
+# settings dialogs (Restore's plot settings, ...) are confirmed with OK as they are
+from PyQt6.QtWidgets import QDialog  # noqa: E402
+QDialog.exec = lambda self: QDialog.DialogCode.Accepted.value
 # questions (save unsaved changes?, ...) are answered "No" so nothing waits for a click
 for _name in ("question", "warning", "information"):
     setattr(QMessageBox, _name, staticmethod(lambda *a, **k: QMessageBox.StandardButton.No))
