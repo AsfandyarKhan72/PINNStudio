@@ -229,3 +229,33 @@ def test_results_plot_types_per_example():
     _load(w, "Inverse", "Diffusion 1D – unknown coefficient")
     assert w.plot_type_combo.currentText() == "Parameter Convergence"
     w.close()
+
+
+def test_convergence_file_rows_are_not_squeezed(tmp_path):
+    """With an example loaded first, the convergence-file rows got less height
+    than their fields (a wrapped label above them kept a stale height)."""
+    import time
+    w = MainWindow()
+    w.resize(1300, 650)
+    w.show()
+    _load(w, "Inverse", "Allen-Cahn 2D – Wight & Zhao")
+    w.workspace.select("restore")
+    run = tmp_path / "run"
+    (run / "solution_results").mkdir(parents=True)
+    model = run / "solution_results" / "model_lbfgs-phase2-100.pt"
+    model.write_bytes(b"")
+    (run / "solution_results" / "model_config.json").write_text(json.dumps(
+        {"problem_dim": "2D", "problem_type": "Inverse", "num_outputs": 1, "output_names": "u",
+         "inverse_variables": [{"name": n, "init": 1.0, "true": 2.0} for n in ("a", "b", "c")]}))
+    for n in ("a", "b", "c"):
+        (run / f"{n}_convergence.txt").write_text(f"iteration,{n}\n0,1.0\n100,1.5\n")
+    w._on_restore_model_chosen(str(model))
+    w.restore_viz_combo.setCurrentText("Parameter Convergence (GIF)")
+    w._add_restore_param_row()
+    t = time.time()
+    while time.time() - t < 0.5:
+        app.processEvents()
+    assert len(w.restore_param_rows) == 4
+    for r in w.restore_param_rows:
+        assert r["widget"].height() >= r["path"].minimumHeight(), (r["widget"].height(), r["path"].minimumHeight())
+    w.close()

@@ -4129,7 +4129,10 @@ class MainWindow(QMainWindow):
         _rmf_layout.addLayout(config_path_row)
         # What the config says: the problem, Forward/Inverse, parameters
         self.restore_info_label = QLabel("")
-        self.restore_info_label.setWordWrap(True)
+        # One line, not wrapped: a wrapped label in this nested layout kept a
+        # stale height, so rows added below it (the convergence files) were
+        # squeezed on top of each other.
+        self.restore_info_label.setWordWrap(False)
         self._register_hint(self.restore_info_label, '#868e96')
         self.restore_info_label.setVisible(False)
         _rmf_layout.addWidget(self.restore_info_label)
@@ -4150,7 +4153,7 @@ class MainWindow(QMainWindow):
         # confined to its own narrow window.
         self.restore_ta_info_label = QLabel("")
         self._register_hint(self.restore_ta_info_label, '#69db7c')
-        self.restore_ta_info_label.setWordWrap(True)
+        self.restore_ta_info_label.setWordWrap(False)     # (see restore_info_label)
         self.restore_ta_info_label.setVisible(False)
         _rmf_layout.addWidget(self.restore_ta_info_label)
         self.restore_ta_combine_cb = QCheckBox("Combine all detected steps into one full-domain animation")
@@ -14807,10 +14810,10 @@ print("DOMAIN_PREVIEW_DONE")
             t0_full = self._restore_ta_steps[0]['t0']
             t1_full = self._restore_ta_steps[-1]['t1']
             self.restore_ta_info_label.setText(
-                f"⏱ Detected {n_found} Time-Adaptive steps (t={t0_full:.4g} → {t1_full:.4g}) "
-                "in this run folder. Surface/Line snapshots now auto-route to whichever "
-                "step actually covers the requested time; check \"Combine steps\" below "
-                "for a full-domain animation.")
+                f"⏱ {n_found} time-adaptive steps (t = {t0_full:.4g} → {t1_full:.4g})")
+            self.restore_ta_info_label.setToolTip(
+                "Found in this run folder. Surface and Line plots use the step that covers each "
+                "time; tick \"Combine steps\" below for one animation over the whole time range.")
             self.restore_ta_info_label.setVisible(True)
             self.restore_ta_combine_cb.setChecked(True)
             self.log_box.append(f"✅ Detected {n_found} Time-Adaptive steps (t={t0_full:.4g} → {t1_full:.4g})")
@@ -14925,6 +14928,7 @@ print("DOMAIN_PREVIEW_DONE")
             if inv_vars:
                 text += " · parameters: " + ", ".join(n for n in inv_vars if n)
             self.restore_info_label.setText(text)
+            self.restore_info_label.setToolTip(text)
         self.restore_info_label.setVisible(bool(cfg))
 
     def _auto_detect_restore_optimizer(self):
