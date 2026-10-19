@@ -7740,8 +7740,15 @@ class MainWindow(QMainWindow):
             # IC from file option — available for 1D, 2D, and 3D; the
             # expected no-header column format changes with dimension:
             # 1D: x,t,c   2D: x,y,t,c   3D: x,y,z,t,c. Expression stays the
-            # default; this is opt-in per output, and only ever applies to
-            # output 0's IC (single global IC file per problem).
+            # default. The file only ever sets output 0's IC (one IC file
+            # per problem), so the option is shown for output 0 only -- it
+            # used to show under every output and load into output 0 anyway.
+            if i > 0:
+                self.ic_from_file.append(None)
+                self.ic_file_paths.append(None)
+                self.bc_main_layout = _main_layout_save
+                self.bc_main_layout.addWidget(_bc_container)
+                continue
             _ic_file_fmt = "x,y,z,t,c" if is_3d else ("x,y,t,c" if is_2d else "x,t,c")
             ic_file_cb = QCheckBox(f"Load IC from file ({_ic_file_fmt} format)")
             ic_file_cb.setChecked(False)
@@ -7769,10 +7776,15 @@ class MainWindow(QMainWindow):
             self.bc_main_layout.addWidget(ic_file_widget)
             self.ic_file_paths.append(ic_file_path)
 
+            # Formula or file, never both: with the file on, the formula's
+            # "IC for" box and the exact option are off and can't be ticked
+            # (the file always won, so a ticked formula did nothing).
             ic_file_cb.stateChanged.connect(
-                lambda state, w=ic_file_widget, inp=ic_inp, act=ic_act:
+                lambda state, w=ic_file_widget, inp=ic_inp, act=ic_act, hard=ic_hard:
                 (w.setVisible(state == 2), inp.setVisible(state != 2),
-                 act.setChecked(state != 2),
+                 hard.setChecked(False) if state == 2 else None,
+                 hard.setEnabled(state != 2),
+                 act.setChecked(state != 2), act.setEnabled(state != 2),
                  self._update_ic_pretrain_visibility())
             )
 

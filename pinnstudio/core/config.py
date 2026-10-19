@@ -234,6 +234,9 @@ class PINNConfig:
     inverse_ic_file: str = ""
     forward_ic_from_file: bool = False
     forward_ic_file: str = ""
+    # Also check the equation at the IC file's points (anchors). Off by
+    # default: the file's points only enter the IC loss.
+    ic_file_anchors: bool = False
     template_type: str = ""
 
     # Multiple trainable variables (Inverse). JSON-encoded list of
@@ -260,6 +263,10 @@ class PINNConfig:
     # loss_weight_obs fields above, so configs saved before this feature
     # existed keep loading as exactly one measured-data file, unchanged.
     inverse_obs_files_json: str = ""
+    # Every measured point is also an anchor (the equation is checked
+    # there too). Off keeps only the data loss -- much faster when the
+    # measured data has many points.
+    inverse_obs_anchors: bool = True
 
     # Export
     # Off by default -- solution data used to be written on every

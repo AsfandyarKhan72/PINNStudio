@@ -16,6 +16,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **Train on: CPU** (*Settings → GPU / Hardware*): trains on the CPU even when there is a GPU. A small network (a 1D problem, a few thousand points) often trains faster there, since each GPU step waits on Python more than it computes; the timing study measured 2.2× for the 1D inverse diffusion example. Both the Solve script and the exported script then hide the GPU from PyTorch. Saved with the problem.
 
+- **Anchor settings (no window option yet):** `inverse_obs_anchors` (on by default, as before: the equation is also checked at every measured point) and `ic_file_anchors` (off by default, as before: an IC file's points are only in the IC loss). `benchmarks/anchors_study.py` runs every inverse example, and a few examples with an IC file, with and without them, to see whether the anchors are worth what they cost.
+
 - **Platform matrix** (`.github/workflows/platform-matrix.yml`, for commits marked `[matrix]`): the tests and the window check on Ubuntu 22.04 and 24.04 (x64 and ARM), Windows Server 2022 and 2025 and Windows on ARM, macOS 14 and 15 and an Intel Mac, with Python 3.9 to 3.14; the installer on Linux, Windows (x64 and ARM) and an Intel Mac.
 
 - **Timing study** (`benchmarks/timing_study.py`): the same examples solved as the plain exported script, as the script Solve runs, and through the window's Solve, on the CPU and on the GPU, timing the training and the whole run.
@@ -242,6 +244,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **Initial condition: formula or file, not both.** With *Load IC from file* ticked, the formula's *IC for* box and *Exact* were unticked but could be ticked again, which did nothing (the file always won); they are now off until the file is unticked. The file option was also shown under every output while it only ever set the first output's IC (ticked under the second output, it put the file onto the first); it is now shown under the first output only.
 - **Help texts that did not fill the panel:** *About time-adaptive training*, *About RAR* and *About sweeps* had line breaks inside their sentences, so they stayed narrow; they are paragraphs now and wrap to the panel's width like *About automatic weighting*.
 
 - **Settings rows that did not line up:** a fixed-width field with no stretch after it left the spare room around its label, so the label and field drifted apart (Callbacks -> *Min. delta* and *Baseline loss*, every row of the Loss weights page); and two RAR labels were too long for the label column or had no colon ("Data points to add per cycle", "Stop when mean residual <", now *Points added per round:* and *Stop below mean residual:*). `tests/test_form_alignment.py` checks every settings page for these.

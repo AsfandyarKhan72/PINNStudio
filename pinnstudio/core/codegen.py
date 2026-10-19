@@ -4603,9 +4603,12 @@ def generate_script(config):
     # Extra training points (Round 65) -- see _anchor_points_code; the
     # text stays exactly as before when there are none.
     _has_user_anchors = bool(_anchor_points_code(config))
-    _live_fwd_anchors = "_user_anchors" if _has_user_anchors else "None"
-    _live_inv_anchors = ("np.vstack([_a for _a in (_obs_anchors, _user_anchors) if _a is not None])"
-                         if _has_user_anchors else "_obs_anchors")
+    _ic_anch = bool(getattr(config, "ic_file_anchors", False) and config.forward_ic_from_file
+                    and not config.steady_state)
+    _live_fwd_anchors = _anchor_join([n for n, on in (("_user_anchors", _has_user_anchors),
+                                                    ("_ic_xyt", _ic_anch)) if on])
+    _live_inv_anchors = _anchor_join(["_obs_anchors"] + [n for n, on in (("_user_anchors", _has_user_anchors),
+                                                                        ("_ic_xyt", _ic_anch)) if on])
     # Coordinates the equation itself uses (a source term like sin(pi*x)):
     # bound as one column each, after the default x/y (inputs/outputs)
     # bindings, only when used -- see _pde_coord_names.
@@ -6210,7 +6213,7 @@ if _problem_type == "Inverse":
         for _e in _obs_entries
     ]
     _constraints.extend(_obs_bcs)
-    _obs_anchors = np.vstack([_e[0] for _e in _obs_entries]) if _obs_entries else None
+    _obs_anchors = {"np.vstack([_e[0] for _e in _obs_entries]) if _obs_entries else None" if getattr(config, "inverse_obs_anchors", True) else "None  # measured points only in the data loss, not anchors"}
     if _is_steady:
         data = dde.data.PDE(
             geomtime, pde, _constraints,
@@ -9260,6 +9263,16 @@ def _anchor_columns(config):
     return cols
 
 
+def _anchor_join(names, var="_a"):
+    """The anchors= text for a list of array names (any may be None at run
+    time): "None", the one name, or a vstack of the ones that are set."""
+    if not names:
+        return "None"
+    if len(names) == 1:
+        return names[0]
+    return f"np.vstack([{var} for {var} in ({', '.join(names)}) if {var} is not None])"
+
+
 def _anchor_points_code(config):
     """Source defining `_user_anchors` (an (N, n_inputs) array) for the
     extra training points the user asked for (Round 65), or "" when none
@@ -10803,7 +10816,10 @@ def _load_obs_data(path):
                 obs_lines.append(f"obs_bcs.append(dde.icbc.PointSetBC("
                                   f"obs_entries[{_oi_f}][0], obs_entries[{_oi_f}][1], "
                                   f"component=obs_entries[{_oi_f}][2]))")
-        obs_lines.append("obs_anchors = np.vstack([e[0] for e in obs_entries]) if obs_entries else None")
+        if getattr(config, "inverse_obs_anchors", True):
+            obs_lines.append("obs_anchors = np.vstack([e[0] for e in obs_entries]) if obs_entries else None")
+        else:
+            obs_lines.append("obs_anchors = None  # measured points only in the data loss, not anchors")
         parts.append("\n".join(inv_lines))
         parts.append("\n".join(obs_lines))
 
@@ -10849,10 +10865,10 @@ def _load_obs_data(path):
         user_anchor_code = _anchor_points_code(config)
         if user_anchor_code:
             parts.append(user_anchor_code)
-            anchors_arg = ("np.vstack([a for a in (obs_anchors, _user_anchors) if a is not None])"
-                           if is_inverse else "_user_anchors")
-        else:
-            anchors_arg = "obs_anchors" if is_inverse else "None"
+        _ic_anch = bool(getattr(config, "ic_file_anchors", False) and config.forward_ic_from_file and not is_steady)
+        anchors_arg = _anchor_join((["obs_anchors"] if is_inverse else [])
+                                   + (["_user_anchors"] if user_anchor_code else [])
+                                   + (["_ic_xt"] if _ic_anch else []), var="a")
         if is_steady:
             data_lines = [f'''data = dde.data.PDE(
     geomtime, pde, constraints,
