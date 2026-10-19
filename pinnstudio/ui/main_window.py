@@ -3733,20 +3733,18 @@ class MainWindow(QMainWindow):
         self.sweep_enable_cb.toggled.connect(self._on_sweep_enabled_toggled)
         sweep_ref_toggle = self._ref_button("About sweeps")
         self._ref_row(sweep_toggle_layout, sweep_ref_toggle, self.sweep_enable_cb)
-        sweep_ref_text = ("Runs the same problem several times, changing one or more settings (a learning\n"
-                          "rate, a PDE coefficient, the number of iterations, ...), so the results can be\n"
-                          "compared side by side. Each run gets its own numbered folder under \"Save to\".\n"
-                          "One at a time: one run per value of each parameter in turn, the others at\n"
-                          "their current values.\n"
-                          "All combinations: every value of every parameter, crossed -- N parameters\n"
-                          "with k values each make k^N runs.\n"
-                          "Paired values: parameter 1's 1st value runs with parameter 2's 1st value,\n"
-                          "and so on (every parameter needs the same number of values).\n"
-                          "Bayesian search: each run is chosen from the results so far; Min/Max is\n"
-                          "the search range.\n"
-                          "Baseline adds one run with the current settings, first. When the sweep\n"
-                          "finishes, its folder also holds sweep_error_vs_parameter.png (error and final\n"
-                          "loss against the swept values) and sweep_summary.csv.")
+        sweep_ref_text = (
+            "Runs the same problem several times, changing one or more settings (a learning rate, a PDE "
+            "coefficient, the number of iterations, ...), so the results can be compared side by side. "
+            "Each run gets its own numbered folder under Save to.\n\n"
+            "One at a time: one run per value of each parameter in turn, the others at their current "
+            "values. All combinations: every value of every parameter, crossed (N parameters with k "
+            "values each make k^N runs). Paired values: parameter 1's first value runs with parameter "
+            "2's first value, and so on (every parameter needs the same number of values). Bayesian "
+            "search: each run is chosen from the results so far, within Min and Max.\n\n"
+            "Baseline adds one run with the current settings, first. When the sweep finishes, its "
+            "folder also holds sweep_error_vs_parameter.png (the error and final loss against the swept "
+            "values) and sweep_summary.csv.")
         sweep_ref_hint = QLabel(sweep_ref_text)
         self._register_hint(sweep_ref_hint, '#74c0fc')
         sweep_ref_hint.setWordWrap(True)
@@ -7112,23 +7110,24 @@ class MainWindow(QMainWindow):
     # that method's own section, so each only shows while its method is
     # selected (it used to be one shared toggle whose text followed the
     # Method dropdown).
-    _TA_REFERENCE_TEXT = ("Splits the time domain into consecutive steps (see the step groups\n"
-        "below) and trains one model per step in sequence, each only over its\n"
-        "own narrow time window instead of the whole domain at once --\n"
-        "usually tracks fast-changing solutions better than a single model\n"
-        "trained over the full time range.\n"
-        "\"Transfer learning\" warm-starts each new step's model from the\n"
-        "previous step's trained weights instead of starting fresh every time.\n"
-        "\"IC grid resolution\" sets how finely the previous step's solution is\n"
-        "sampled to build the next step's initial condition.")
-    _RAR_REFERENCE_TEXT = ("Periodically samples a large pool of random points, checks how badly\n"
-        "each one currently satisfies the PDE (its \"residual\"), and adds the\n"
-        "worst-residual points to training -- concentrating effort where the\n"
-        "model is currently least accurate, instead of resampling uniformly.\n"
-        "That's one \"round\"; it repeats for the configured number of rounds,\n"
-        "retraining for a fixed number of iterations after each one.\n"
-        "\"Points from:\" picks which equation's residual to rank candidate\n"
-        "points by, for a problem with more than one output/equation.")
+    # Help texts are written as paragraphs (no line breaks inside one), so
+    # they wrap to the panel's whole width like the others.
+    _TA_REFERENCE_TEXT = (
+        "Splits the time domain into consecutive steps (the step groups below) and trains one model "
+        "per step, one after another, each only over its own short time window instead of the whole "
+        "time range at once. This usually follows fast-changing solutions better than one model "
+        "trained over the full time range.\n\n"
+        "Transfer learning starts each step's model from the previous step's trained weights instead "
+        "of from scratch. IC grid resolution sets how finely the previous step's solution is sampled "
+        "to make the next step's initial condition.")
+    _RAR_REFERENCE_TEXT = (
+        "Samples a large set of random points, checks how badly each one satisfies the PDE (its "
+        "residual), and adds the worst ones to the training points, so training concentrates where "
+        "the model is least accurate instead of resampling evenly. That is one round; after each round "
+        "the model trains for the iterations set below, and the rounds repeat as many times as set.\n\n"
+        "Stop below mean residual ends the rounds early once the mean residual over the sampled points "
+        "is small enough. Points from picks which equation's residual ranks the points, for a problem "
+        "with more than one equation.")
 
     def _ref_button(self, label, tip=""):
         """The standard in-panel reference toggle: a small flat checkable
@@ -7163,7 +7162,7 @@ class MainWindow(QMainWindow):
         hides, added to `layout`. Returns (toggle, hint)."""
         toggle = self._ref_button(label)
         hint = QLabel(text)
-        self._register_hint(hint, '#74c0fc')
+        self._register_hint(hint, '#74c0fc', 'padding-bottom: 6px; ')   # (a little room before the settings)
         hint.setWordWrap(True)
         hint.setVisible(False)
         toggle.toggled.connect(hint.setVisible)
