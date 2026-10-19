@@ -119,6 +119,23 @@ powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/Asf
 The install takes a few minutes, and at the end it says whether training will run on the GPU. Then continue with the [Quick Start](#quick-start).
 
 <details>
+<summary><strong>Systems PINNStudio is tested on</strong></summary>
+
+Every change is tested on GitHub Actions ([platform tests](.github/workflows/platform-tests.yml), [platform matrix](.github/workflows/platform-matrix.yml)): the test suite, and a check that drives the window end to end -- it trains a model, shows the results and error analysis, and restores the model.
+
+| | Tested on |
+|---|---|
+| **Linux** | Ubuntu 22.04 and 24.04 (x64), Ubuntu 24.04 (ARM) |
+| **Windows** | Windows Server 2022 and 2025 (x64), Windows 11 on ARM |
+| **macOS** | macOS 14 and 15 (Apple silicon), macOS 15 (Intel) |
+| **Python** | 3.9 to 3.14 |
+| **One-command installer** | Ubuntu 22.04 and 24.04, Windows Server 2022, Windows 11 on ARM, macOS 15 (Intel) |
+
+Training on an NVIDIA GPU is tested on Linux (RTX 4090, CUDA 12.4); the test machines above train on the CPU.
+
+</details>
+
+<details>
 <summary><strong>Updating, uninstalling, and what gets installed</strong></summary>
 
 **Update to the latest version** by running the install command again. It replaces the old version and keeps your settings and results.
