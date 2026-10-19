@@ -1986,6 +1986,8 @@ where $\lambda = 1$ and $\varepsilon = 0.05$. As in the 1D example, the chemical
 
 *Inverse mode* — same template, switched to **Inverse**, recovering $\varepsilon^2$ (initial guess 1, true value 0.0025) from $u$ measured at $t = 1$. **Inverse result (RTX 4090):** $\varepsilon^2$ = 0.002509 (0.4% off).
 
+![2D Cahn-Hilliard (Wight & Zhao) inverse parameter convergence animation](assets/Images/2D_CahnHilliard-Wight/param_convergence_animation.gif)
+
 </details>
 
 <details id="2d-cahn-hilliard-mattey--ghosh">
@@ -2009,6 +2011,8 @@ $$\Large \frac{\partial u}{\partial t'} = 0.005\left(\frac{\partial^2 \mu}{\part
 ![2D Cahn-Hilliard (Mattey & Ghosh) — PINN vs reference, u](assets/Images/2D_CahnHilliard-Mattey/surface_comparison_u.png)
 
 *Inverse mode* — same template, switched to **Inverse**, recovering $\alpha$ and $\kappa$ (initial guesses 1 and 0.1, true values 0.0002 and 1) from $u$ measured at $t' = 1$. **Inverse result (RTX 4090):** $\alpha$ = 1.88 × 10⁻⁴ (6% off), $\kappa$ = 1.012 (1.2% off).
+
+![2D Cahn-Hilliard (Mattey & Ghosh) inverse parameter convergence animation](assets/Images/2D_CahnHilliard-Mattey/param_convergence_animation.gif)
 
 </details>
 

@@ -90,10 +90,15 @@ def run():
     check(len(ax.get_lines()) == 3, "curve + final line + true line")
     plt.close(fig)
     fig, ax = plt.subplots()
-    draw(ax, "k", [0, 1], [-1.0, 2.0], None, True, "T", "X", "Y")
-    check(ax.get_yscale() == "linear", "non-positive values must fall back to linear")
+    draw(ax, "k", [0, 1], [1.0, -2.0], None, True, "T", "X", "Y")
+    check(ax.get_yscale() == "linear", "a non-positive final value must fall back to linear")
+
     check((ax.get_title(), ax.get_xlabel(), ax.get_ylabel()) == ("T", "X", "Y"), "overrides should win")
     check(len(ax.get_lines()) == 2, "no true line when true_val is None")
+    plt.close(fig)
+    fig, ax = plt.subplots()
+    draw(ax, "k", [0, 1, 2], [1.0, -2.0, 1e-4], 1e-4, True, "", "", "")
+    check(ax.get_yscale() == "log", "a value that dipped below zero on the way keeps the log axis (that point left out)")
     plt.close(fig)
 
     try:

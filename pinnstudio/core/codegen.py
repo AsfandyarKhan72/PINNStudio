@@ -9104,9 +9104,14 @@ def _draw_param_ax(ax, name, iters, vals, true_val=None, log_scale=False,
                    title_override="", xlabel_override="", ylabel_override=""):
     vals = np.asarray(vals, dtype=float)
     final_val = vals[-1] if len(vals) else float("nan")
-    use_log = bool(log_scale) and len(vals) > 0 and bool(np.all(vals > 0))
+    # a log axis as long as the result (and the true value) is positive; values
+    # that dipped to zero or below on the way are left out of the curve
+    use_log = (bool(log_scale) and len(vals) > 0 and vals[-1] > 0
+               and (true_val is None or true_val > 0))
     if log_scale and not use_log:
-        print(f"⚠️ {{name}}: log scale requested but values aren't all positive -- using linear scale instead.")
+        print(f"⚠️ {{name}}: log scale requested but the value isn't positive -- using linear scale instead.")
+    if use_log and not np.all(vals > 0):
+        vals = np.where(vals > 0, vals, np.nan)
     _kw = dict(color=_PARAM_STYLE["color"], linewidth=_PARAM_STYLE["linewidth"],
                marker="o" if _PARAM_STYLE["markers"] else None, markersize=3)
     # (a log axis shows the values themselves, so the label is the name)
@@ -9136,7 +9141,12 @@ def _param_animation(series, out_path, log_scale=False, fps=10, dpi=100,
         ax = axes[i][0]
         iters = np.asarray(iters, dtype=float); vals = np.asarray(vals, dtype=float)
         _rv = vals if true_val is None else np.append(vals, true_val)
-        use_log = bool(log_scale) and len(vals) > 0 and bool(np.all(_rv > 0))
+        use_log = (bool(log_scale) and len(vals) > 0 and vals[-1] > 0
+                   and (true_val is None or true_val > 0))
+        if use_log:
+            # values that dipped to zero or below on the way are left out
+            vals = np.where(vals > 0, vals, np.nan)
+            _rv = _rv[_rv > 0]
         ax.set_ylabel(ylabel_override or name, fontsize={axis_label_fontsize})
         x_hi = iters.max() if iters.max() > iters.min() else iters.min() + 1
         ax.set_xlim(iters.min(), x_hi)
@@ -9156,7 +9166,11 @@ def _param_animation(series, out_path, log_scale=False, fps=10, dpi=100,
         ax.set_xlabel(xlabel_override or "Iteration", fontsize={axis_label_fontsize})
         ax.set_title(title_override or f"Inferred Parameter: {{name}}", fontsize={subplot_title_fontsize})
         if ax.get_legend_handles_labels()[0]:
-            ax.legend(loc="upper right")
+            # away from where the curve ends (the legend is placed before the
+            # curve is drawn, so "best" can't see it)
+            _end = vals[np.isfinite(vals)][-1] if np.isfinite(vals).any() else hi
+            _mid = (np.sqrt(lo * hi) if use_log else 0.5 * (lo + hi))
+            ax.legend(loc="lower right" if _end >= _mid else "upper right")
         ax.grid(True, alpha=0.3)
         line, = ax.plot([], [], color=_PARAM_STYLE["anim_color"], linewidth=_PARAM_STYLE["anim_linewidth"])
         lines.append((line, iters, vals))
