@@ -1070,6 +1070,7 @@ class MainWindow(QMainWindow):
         ws.add_widget("results", self.results_controls)
         self._split_geometry_page()
         self._split_training_page()
+        self._add_page_help()
         # The sketch's "selected edges -> BC" controls sit on the Boundary
         # conditions page, shown while the sketch is picking edges.
         from pinnstudio.ui.workspace import VisibilityFollower
@@ -1193,6 +1194,111 @@ class MainWindow(QMainWindow):
         self._geom_followers = [VisibilityFollower(self.geom_shape_box, [self.geom_type_row_widget]),
                                 VisibilityFollower(self.geom_time_box, [self.t_row_widget])]
         self._update_domain_box_title()
+
+    # ── "About ..." help on the pages a new user is most likely to wonder
+    # about (same toggle and paragraph style as About automatic weighting) ──
+    _NETWORK_HELP = (
+        "Hidden layers and Neurons per layer set the network's size. Most problems here train well with "
+        "3 to 6 layers of 32 to 100 neurons. A wider network can fit sharper features but trains more "
+        "slowly; going deeper than that rarely helps.\n\n"
+        "Activation: tanh is the usual choice, since the PDE needs smooth derivatives of the network; sin "
+        "can suit oscillating solutions. ReLU is a poor choice, as its second derivative is zero. Kernel "
+        "initializer sets the starting weights (Glorot suits tanh and sin).\n\n"
+        "Network type: FNN is one network for all outputs. PFNN gives each output its own sub-network, "
+        "which can help when the outputs differ a lot in size. MsFFN and STMsFFN feed the inputs through "
+        "Fourier features at several scales (their sigmas), for solutions with several length scales or "
+        "fast oscillations; STMsFFN does it separately in space and in time. The input and output "
+        "transforms rescale the inputs or outputs, or build a condition into the network exactly.")
+    _TRAINING_HELP = (
+        "Training runs in phases, one after another, each with its own optimizer and number of iterations. "
+        "The usual recipe is Adam first, to get close (learning rate around 0.001), then L-BFGS to refine "
+        "the result. L-BFGS stops by itself once the loss stops improving; the recommended L-BFGS settings "
+        "are DeepXDE's defaults.\n\n"
+        "Learning rate decay lowers Adam's learning rate during a phase, which helps a long phase settle. "
+        "MSE suits almost every problem as the loss function. Precision applies to the whole run: float32 is "
+        "faster, above all on a GPU; float64 is more accurate and lets L-BFGS go further when very small "
+        "errors are needed.\n\n"
+        "Each phase can have its own loss weights (Loss weights page) unless the same weights are used for "
+        "all phases. Initial-condition pre-training first fits the network to the initial condition alone, "
+        "which can help time-dependent problems start well.")
+    _POINTS_HELP = (
+        "Domain points are where the equation is checked inside the domain; boundary and initial points are "
+        "where the boundary and initial conditions are checked. Test points are not trained on: they give "
+        "the test loss, to see whether the network also fits between the training points. More points help "
+        "where the solution changes sharply, at the cost of slower training steps; the examples' numbers are "
+        "a good place to start.\n\n"
+        "Point distribution: Hammersley (the default), Sobol, Halton and LHS spread the points evenly without "
+        "a grid; uniform is a regular grid; pseudo is plain random. Extra training points are always "
+        "included, from a file or at random in a box, for example where the solution is hard to fit. Point "
+        "resampling (Training page, Callbacks) draws new points while training.")
+    _CALLBACKS_HELP = (
+        "Optional extras while training. Early stopping ends training once the loss stops improving by more "
+        "than Min. delta for Patience iterations. Point resampling draws new collocation points every few "
+        "iterations, so the network is checked at more places over the run. Model checkpoint saves the model "
+        "every few iterations, or only when the loss improves. Training timer stops training after a time "
+        "budget. Training monitors print the value of any expression of the outputs (a derivative, say) at "
+        "chosen points while training, without affecting it.")
+    _BC_HELP = (
+        "Dirichlet sets the value of an output on a boundary, Neumann its derivative across the boundary, "
+        "and Robin a combination of the two. Periodic makes an output (and, if chosen, its derivative) the "
+        "same on two opposite sides. Point set takes measured or known values at points from a file. "
+        "Operator and point set operator conditions set any expression of the outputs and their "
+        "derivatives, on a boundary or at points; Interface 2D joins two edges.\n\n"
+        "Each condition is a loss term, so it is met approximately, as well as its weight (Loss weights page) "
+        "asks for. Exact periodicity, an exact initial condition (Initial conditions page) or an output "
+        "transform formula (Neural network page) build a condition into the network instead, so it holds "
+        "exactly. Where says which part of the boundary a row applies to.")
+
+    def _insert_help(self, layout, pos, label, text):
+        """An "About ..." toggle (top right) and its paragraph text, put into
+        `layout` at `pos` -- for boxes that are already built."""
+        toggle = self._ref_button(label)
+        hint = QLabel(text)
+        self._register_hint(hint, '#74c0fc', 'padding-bottom: 6px; ')
+        hint.setWordWrap(True)
+        hint.setVisible(False)
+        toggle.toggled.connect(hint.setVisible)
+        row = QHBoxLayout()
+        row.setContentsMargins(0, 0, 0, 0)
+        row.addStretch()
+        row.addWidget(toggle)
+        layout.insertLayout(pos, row)
+        layout.insertWidget(pos + 1, hint)
+        return toggle, hint
+
+    def _add_page_help(self):
+        """About the network / training / training points / callbacks /
+        boundary conditions, at the top of their boxes."""
+        ws = self.workspace
+
+        def box_layout(page, title):
+            for w in ws.pages[page]["widgets"]:
+                if isinstance(w, QGroupBox) and w.title().replace("&&", "&") == title:
+                    return w.layout()
+            return None
+        for page, title, label, text, attr in (
+                ("network", "Neural Network", "About the network", self._NETWORK_HELP, "network_help"),
+                ("training", "Training phases", "About training", self._TRAINING_HELP, "training_help"),
+                ("points", "Collocation Points", "About training points", self._POINTS_HELP, "points_help"),
+                ("training", "Callbacks", "About callbacks", self._CALLBACKS_HELP, "callbacks_help")):
+            lay = box_layout(page, title)
+            if lay is not None:
+                setattr(self, attr + "_toggle", self._insert_help(lay, 0, label, text)[0])
+        # Boundary conditions: in the row of the "Where" examples button
+        lay = self.custom_bc_main_layout
+        for i in range(lay.count()):
+            row = lay.itemAt(i).layout()
+            if row is not None and row.indexOf(self.bc_loc_hint_toggle) >= 0:
+                toggle = self._ref_button("About boundary conditions")
+                hint = QLabel(self._BC_HELP)
+                self._register_hint(hint, '#74c0fc', 'padding-bottom: 6px; ')
+                hint.setWordWrap(True)
+                hint.setVisible(False)
+                toggle.toggled.connect(hint.setVisible)
+                row.insertWidget(row.indexOf(self.bc_loc_hint_toggle), toggle)
+                lay.insertWidget(i + 1, hint)
+                self.bc_help_toggle = toggle
+                break
 
     def _split_training_page(self):
         """Training page: phases, initial-condition pre-training and
