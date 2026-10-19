@@ -4849,6 +4849,13 @@ class MainWindow(QMainWindow):
         self.solution_header_label = QLabel("Solution")
         solution_header.addWidget(self.solution_header_label)
         solution_header.addStretch()
+        # after a restore: the restored model's own training loss, on request
+        self.restore_loss_link = QLabel('<a href="#">Show loss plot</a>')
+        self.restore_loss_link.setTextFormat(Qt.TextFormat.RichText)
+        self.restore_loss_link.setToolTip("The loss plot saved when this model was trained")
+        self.restore_loss_link.linkActivated.connect(lambda _l: self._open_restore_loss())
+        self.restore_loss_link.setVisible(False)
+        solution_header.addWidget(self.restore_loss_link)
         # a quiet icon: right-clicking the figure also copies or saves it
         self.solution_save_btn = self._figure_save_button("Save the solution plot shown (or right-click the figure to copy it)")
         self.solution_save_btn.clicked.connect(lambda: self._save_figure(self.solution_label, "solution_plot"))
@@ -4858,6 +4865,8 @@ class MainWindow(QMainWindow):
 
         plots_layout.addWidget(loss_container)
         plots_layout.addWidget(solution_container)
+        # (a restore shows only the solution, across both: _show_restore_panel)
+        self._loss_container = loss_container
         bottom_layout.addLayout(plots_layout)
 
         # Training Monitors -- hidden unless the last run actually had at
@@ -11062,7 +11071,15 @@ class MainWindow(QMainWindow):
         solution plot would use."""
         self._clear_solution_movie()
         movie = QMovie(path)
-        movie.setScaledSize(self.solution_label.size())
+        # fitted inside the panel, keeping its proportions (a wide panel,
+        # after a restore, stretched it)
+        movie.jumpToFrame(0)
+        size = movie.currentImage().size()
+        if size.isValid() and not size.isEmpty():
+            size.scale(self.solution_label.size(), Qt.AspectRatioMode.KeepAspectRatio)
+            movie.setScaledSize(size)
+        else:
+            movie.setScaledSize(self.solution_label.size())
         self.solution_label.setMovie(movie)
         self._solution_movie = movie
         movie.start()
@@ -11080,6 +11097,41 @@ class MainWindow(QMainWindow):
         self.loss_save_btn.setToolTip("Save the loss plot currently shown")
         self.solution_header_label.setText("Solution")
         self.solution_save_btn.setToolTip("Save the solution plot currently shown")
+        # training results (Solve, a run from History): loss and solution
+        if hasattr(self, "_loss_container"):
+            self._loss_container.setVisible(True)
+        if hasattr(self, "restore_loss_link"):
+            self.restore_loss_link.setVisible(False)
+        self._restore_loss_path = None
+
+    def _show_restore_panel(self, title):
+        """A restore shows its figure alone, across the whole Overview (the
+        loss panel belongs to training); _reset_plot_headers brings the two
+        panels back for the next Solve or a run opened from History."""
+        self._loss_container.setVisible(False)
+        self.solution_header_label.setText(title)
+        self.solution_save_btn.setToolTip("Save the restored figure")
+        self.restore_loss_link.setVisible(bool(getattr(self, "_restore_loss_path", None)))
+
+    def _restore_title(self, viz_type):
+        """ "Restored solution · Heat 2D · Surface": the run folder's name
+        without its timestamp, and the plot type."""
+        name = ""
+        for d in getattr(self, "_last_restore_model_dirs", []) or []:
+            base = os.path.basename(os.path.normpath(d))
+            if base in ("solution_results", "") or base.startswith("step_"):
+                base = os.path.basename(os.path.dirname(os.path.normpath(d)))
+            name = base.split("__")[0].replace("_", " ").strip()
+            if name:
+                break
+        what = "Restored parameters" if viz_type.startswith("Parameter") else "Restored solution"
+        return " · ".join(b for b in (what, name, viz_type) if b)
+
+    def _open_restore_loss(self):
+        from pinnstudio.ui.results import ImageViewer
+        path = getattr(self, "_restore_loss_path", None)
+        if path and os.path.exists(path):
+            ImageViewer(path, self).exec()
 
     def _save_figure(self, label, default_basename):
         """Save whichever figure is currently shown in `label` (loss_label
@@ -11119,10 +11171,11 @@ class MainWindow(QMainWindow):
         the Setup tab's own save location for a normal run, or that run's
         own per-run folder under the sweep's root for a sweep."""
         self._clear_solution_movie()
+        self._reset_plot_headers()      # a training run: loss and solution side by side
 
-        # The two GIF animation plot types write "solution_plot.gif"
-        # instead of "solution_plot.png" (see codegen.py's _sol_ext).
-        _gif_types = ("Line Animation (GIF)", "Surface Animation (GIF)")
+        # The GIF plot types write "solution_plot.gif" instead of
+        # "solution_plot.png" (see codegen.py's _sol_ext).
+        _gif_types = ("Line Animation (GIF)", "Surface Animation (GIF)", "Parameter Convergence (GIF)")
         _is_gif = config.plot_type in _gif_types
         _sol_ext = "gif" if _is_gif else "png"
 
@@ -15234,8 +15287,15 @@ print("DOMAIN_PREVIEW_DONE")
             # restore left behind so _on_restore_done doesn't mistakenly
             # show that earlier run's loss plot here.
             self._last_restore_model_dirs = []
+            # ...unless the files are this model's: then its run folder
+            # names the figure and has its loss plot
+            _mp = self.restore_model_path.text().strip()
+            if _mp and os.path.isfile(_mp):
+                _md = os.path.dirname(os.path.abspath(_mp))
+                self._last_restore_model_dirs = [_md, os.path.dirname(_md)]
             self._clear_solution_movie()
             self._reset_plot_headers()
+            self._show_restore_panel(self._restore_title(viz_type))
             self.loss_label.setText("⏳ Restoring...")
             self.solution_label.setText("⏳ Restoring...")
             self.loss_label._source_path = None
@@ -15380,6 +15440,7 @@ print("DOMAIN_PREVIEW_DONE")
         self._last_restore_is_param = False
         self._clear_solution_movie()
         self._reset_plot_headers()
+        self._show_restore_panel(self._restore_title(self.restore_viz_combo.currentText()))
         self.loss_label.setText("⏳ Restoring...")
         self.solution_label.setText("⏳ Restoring...")
         self.loss_label._source_path = None
@@ -15648,12 +15709,9 @@ print("DOMAIN_PREVIEW_DONE")
                         break
                 if loss_path:
                     break
-            if loss_path:
-                self.loss_label.setPixmap(QPixmap(loss_path).scaled(
-                    self.loss_label.width(), self.loss_label.height(),
-                    Qt.AspectRatioMode.KeepAspectRatio,
-                    Qt.TransformationMode.SmoothTransformation))
-                self.loss_label._source_path = loss_path
+            # (not shown beside the restored figure: "Show loss plot" opens it)
+            self._restore_loss_path = loss_path
+            self.restore_loss_link.setVisible(bool(loss_path))
 
             if is_param:
                 # Parameter Convergence Plot/Animation outputs -- combined
@@ -16181,9 +16239,10 @@ def _extract_plot_field(x_grid):
             _xlabel_1d = xlabel_override or ("t" if swap_xt else "x")
             _ylabel_1d = ylabel_override or ("x" if swap_xt else "t")
             _title_1d = title_override or f"Restored Model — {out_name}(x,t) Surface"
-            _xlabel_1d_steady = xlabel_override or "x"
+            _v1 = "t" if cfg.get("ode") else "x"      # an ODE's variable is t (solved as x = t)
+            _xlabel_1d_steady = xlabel_override or _v1
             _ylabel_1d_steady = ylabel_override or out_name
-            _title_1d_steady = title_override or f"Restored Model — {out_name}(x)"
+            _title_1d_steady = title_override or f"Restored Model — {out_name}({_v1})"
             # cleanup Round 45 (audit §2e, sub-round 3): this branch and its
             # _build_restore_script_ta counterpart were two hand-typed copies
             # -- see _restore_surface_code's own docstring in codegen.py.

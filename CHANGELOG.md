@@ -101,6 +101,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **A restored figure has the Overview to itself:** after Restore & Visualize, the solution panel spans the whole Overview, titled with what was restored ("Restored solution · Heat 2D · Surface"), and the loss panel -- which belongs to training -- is left out; *Show loss plot* above the figure opens the model's own training loss plot when its run folder has one. Solve, or a run opened from History, brings the loss and solution panels back. Animations keep their proportions in the wider panel, and a restored ODE is plotted against t.
+
 - **Faster platform testing:** the tests run in parallel on each machine (pytest-xdist); the sweep test, which trained about 30 short runs in one test, is ten tests that run side by side; and the platform matrix (every other system and Python version) leaves out the tests that train real models -- marked `slow` in `tests/conftest.py` and run by the platform tests on Windows, macOS and Linux -- while its window check still trains, shows the results and restores on every system.
 
 - **Results page:** *Outputs to plot* is one list -- *All outputs* (the default with more than one output), one output, or *Custom...* -- instead of an output list and an *All outputs* tick box that made the list's choice do nothing. *Plot settings*, *Error Analysis* and *Export Solution* sit in one row under *Save to*.
@@ -232,6 +234,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **The "Periodic in:" axis dropdown on a Periodic BC row now only offers the axes the current problem dimension actually has** (x only for 1D; x, y for 2D; x, y, z for 3D), instead of always offering all three regardless of dimension.
 
 ### Fixed
+
+- **Results page, Parameter Convergence (GIF):** the animation Solve made was not shown in the Overview (the window looked for a PNG).
 
 - **Two inverse runs at once could read each other's parameter values:** Solve's script kept the parameter history and the parameter plot in fixed files in /tmp, so two windows training inverse problems at the same time (or the test suite in parallel) wrote into the same files. Each run now keeps them in a scratch folder of its own.
 

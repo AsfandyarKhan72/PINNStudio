@@ -259,3 +259,24 @@ def test_convergence_file_rows_are_not_squeezed(tmp_path):
     for r in w.restore_param_rows:
         assert r["widget"].height() >= r["path"].minimumHeight(), (r["widget"].height(), r["path"].minimumHeight())
     w.close()
+
+
+def test_restore_shows_its_figure_alone(tmp_path):
+    """A restore shows one panel across the Overview (with "Show loss plot"
+    when the model's loss plot is there); a training run's results bring
+    the loss panel back."""
+    from types import SimpleNamespace
+    w = MainWindow()
+    w.show()
+    run = tmp_path / "Heat_2D__2026-10-18_12-00-00"
+    (run / "solution_results").mkdir(parents=True)
+    w._last_restore_model_dirs = [str(run / "solution_results"), str(run)]
+    w._restore_loss_path = str(run / "solution_results" / "loss_plot.png")
+    w._show_restore_panel(w._restore_title("Surface"))
+    assert w._loss_container.isHidden()
+    assert w.solution_header_label.text() == "Restored solution · Heat 2D · Surface"
+    assert not w.restore_loss_link.isHidden()
+    w._display_run_result_plots(SimpleNamespace(plot_type="Surface"), str(tmp_path / "none"))
+    assert not w._loss_container.isHidden() and w.solution_header_label.text() == "Solution"
+    assert w.restore_loss_link.isHidden()
+    w.close()
