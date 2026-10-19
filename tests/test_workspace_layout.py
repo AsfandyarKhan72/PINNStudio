@@ -190,5 +190,8 @@ def test_geometry_view_for_ordinary_shapes():
     assert split_where(entry['location'].text()) == ["left", E[right]["expr"]], entry['location'].text()
     # the domain follows the Domain panel
     w.x_max.setValue(3.0)
-    _settle(0.6)
+    for _ in range(25):           # (the view redraws after a short delay; slow CI runners take longer)
+        _settle(0.2)
+        if any(e["desc"].startswith("x = 3") for e in w.domain_view.canvas.edges()):
+            break
     assert any(e["desc"].startswith("x = 3") for e in w.domain_view.canvas.edges())

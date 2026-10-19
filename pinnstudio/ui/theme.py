@@ -515,15 +515,11 @@ class StyleRemapper(QObject):
         longer grows to its contents by itself (Qt then leaves its minimum
         size to the code), so its rows were squeezed on top of each other
         (Error Analysis) or cut off. It is kept at least as large as they
-        need, within the screen."""
+        need."""
         lay = d.layout()
         if lay is None:
             return
         need = lay.totalMinimumSize()
-        scr = d.screen().availableGeometry() if d.screen() is not None else None
-        if scr is not None:
-            need.setHeight(min(need.height(), scr.height() - 40))
-            need.setWidth(min(need.width(), scr.width() - 40))
         if need.width() > d.minimumWidth():
             d.setMinimumWidth(need.width())
         if need.height() > d.minimumHeight():
