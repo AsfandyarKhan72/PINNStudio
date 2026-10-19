@@ -5364,11 +5364,16 @@ class MainWindow(QMainWindow):
             entries = json.loads(getattr(config, "sweep_parameters", "[]") or "[]")
         except ValueError:
             entries = []
+        # No sweep rows in the settings: back to the one empty row a new
+        # problem has (the hyperparameter-search example's four rows stayed
+        # for every example loaded after it).
+        for row in list(self.sweep_row_list):
+            row['widget'].setParent(None)
+            row['widget'].deleteLater()
+        self.sweep_row_list.clear()
+        if not entries:
+            self._add_sweep_row()
         if entries:
-            for row in list(self.sweep_row_list):
-                row['widget'].setParent(None)
-                row['widget'].deleteLater()
-            self.sweep_row_list.clear()
             for e in entries:
                 self._add_sweep_row()
                 row = self.sweep_row_list[-1]
@@ -6600,10 +6605,13 @@ class MainWindow(QMainWindow):
         # so after a DeepXDE example or an opened problem (which set every
         # setting) start from PINNStudio's own settings: an exact-IC formula,
         # constants or loss weights from before would carry over otherwise.
-        if getattr(self, "_settings_from", None) != "template":
-            self._apply_fresh_settings()
-            self._tpl_output_scaled = self._tpl_input_features = False
-            self._tpl_output_formula = self._tpl_point_weights = False
+        # This holds after another template too: templates differ in more
+        # than they set (time-step groups, the 3D Allen-Cahn initial
+        # condition after 3D Poisson, the sphere's centre), so a template
+        # loaded second used to keep some of the first one's settings.
+        self._apply_fresh_settings()
+        self._tpl_output_scaled = self._tpl_input_features = False
+        self._tpl_output_formula = self._tpl_point_weights = False
         self._tpl_set_output_scale(None)
         self._tpl_set_extras({})
         self._on_template_selected(text)

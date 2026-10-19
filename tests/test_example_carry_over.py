@@ -55,25 +55,29 @@ def test_template_after_deepxde_example(target):
     assert not w._build_config().validate()
 
 
-def test_inverse_examples_in_a_row():
-    """Every Inverse example loaded one after another has the same unknowns
-    and measured-data files as when loaded first. Burgers 2D's second file
-    (v) stayed as Heat 2D's second measured-data file, so Heat 2D's alpha
-    came out at 2e-5 instead of 0.4."""
-    import json
+@pytest.mark.parametrize("category", ["Inverse", "Forward"])
+def test_examples_in_a_row(category):
+    """Every example loaded one after another has the same settings as when
+    loaded first. Found: Burgers 2D's second measured-data file stayed with
+    Heat 2D (whose alpha then came out at 2e-5 instead of 0.4), 3D Allen-Cahn
+    after 3D Poisson kept sin(pi*x) as its initial condition, time-step groups
+    and the sphere's centre carried from one template to the next, and the
+    hyperparameter search's sweep rows stayed for every later example."""
     w = MainWindow()
-    w.quick_examples_category_combo.setCurrentText("Inverse")
+    w.quick_examples_category_combo.setCurrentText(category)
     app.processEvents()
     names = [w.quick_examples_combo.itemText(i) for i in range(w.quick_examples_combo.count())]
     names = [n for n in names if n != "None" and not n.startswith("──")]
     bad = []
+    prev = None
     for n in names:
-        got = _load(w, "Inverse", n)
+        got = _load(w, category, n)
         fresh_w = MainWindow()
-        fresh = _load(fresh_w, "Inverse", n)
+        fresh = _load(fresh_w, category, n)
         fresh_w.close()
-        for k in ("inverse_obs_files_json", "inverse_variables_json"):
-            if json.loads(got[k] or "[]") != json.loads(fresh[k] or "[]"):
-                bad.append(f"{n}: {k}")
+        diff = sorted(k for k in fresh if fresh[k] != got[k] and k != "y_min")
+        if diff:
+            bad.append(f"{n} (after {prev}): {diff}")
+        prev = n
     w.close()
-    assert not bad, bad
+    assert not bad, "\n".join(bad)

@@ -34,7 +34,7 @@ SLOW_FILES = {
     "test_round46_anim_surface_masking.py", "test_round74_ode.py", "test_round73_msffn.py",
     "test_restore_geometry_masking.py", "test_round38_line_steps_masking.py",
     "test_round45_restore_surface_refactor.py", "test_round47_ic_pretrain_shared_block.py",
-    "test_round44_ta_surface_masking.py",
+    "test_round44_ta_surface_masking.py", "test_example_carry_over.py",
 }
 
 
