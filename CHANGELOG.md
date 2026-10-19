@@ -235,6 +235,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **Parameter convergence animation with a log value axis showed no curve:** the animation sets its axis range before drawing (the curve starts empty), and on a log axis it left the range to the two reference lines, so the curve was drawn off the axis. The range now covers the whole curve and the true value, with the margin as a factor on a log axis. The value axis of the parameter plots is labelled with the parameter's name, not "log(name)", since a log axis shows the values themselves.
+
 - **Results page, Parameter Convergence (GIF):** the animation Solve made was not shown in the Overview (the window looked for a PNG).
 
 - **Two inverse runs at once could read each other's parameter values:** Solve's script kept the parameter history and the parameter plot in fixed files in /tmp, so two windows training inverse problems at the same time (or the test suite in parallel) wrote into the same files. Each run now keeps them in a scratch folder of its own.

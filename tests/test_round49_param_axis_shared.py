@@ -85,7 +85,7 @@ def run():
     draw = ns["_draw_param_ax"]
     fig, ax = plt.subplots()
     fv = draw(ax, "D", [0, 1, 2], [0.5, 0.3, 0.2], 0.1, True, "", "", "")
-    check(ax.get_yscale() == "log" and ax.get_ylabel() == "log(D)", "positive values + log_scale -> log axis")
+    check(ax.get_yscale() == "log" and ax.get_ylabel() == "D", "positive values + log_scale -> log axis (labelled with the name: the axis shows the values)")
     check(abs(fv - 0.2) < 1e-12 and ax.get_title() == "Inferred Parameter: D", "final value / default title")
     check(len(ax.get_lines()) == 3, "curve + final line + true line")
     plt.close(fig)

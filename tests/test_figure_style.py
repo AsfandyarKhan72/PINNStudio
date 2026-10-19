@@ -280,3 +280,31 @@ def test_restore_shows_its_figure_alone(tmp_path):
     assert not w._loss_container.isHidden() and w.solution_header_label.text() == "Solution"
     assert w.restore_loss_link.isHidden()
     w.close()
+
+
+def test_parameter_animation_log_axis_holds_the_curve(tmp_path):
+    """On a log axis the animation's value range was set by the two
+    reference lines only, so the curve was drawn off the axis."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    import numpy as np
+    from pinnstudio.core.codegen import _param_axis_helper_code
+    ns = {"np": np, "plt": plt}
+    exec(_param_axis_helper_code(10, 10), ns)
+    it = np.arange(0, 4001, 100)
+    vals = 0.9 * np.exp(-it / 300) + 2.6e-3
+    seen = {}
+    real_save = matplotlib.animation.Animation.save
+
+    def save(self, *a, **k):
+        ax = self._fig.axes[0]
+        seen["ylim"], seen["scale"], seen["label"] = ax.get_ylim(), ax.get_yscale(), ax.get_ylabel()
+    matplotlib.animation.Animation.save = save
+    try:
+        ns["_param_animation"]([("eps", it, vals, 2.5e-3)], str(tmp_path / "a.gif"), log_scale=True)
+    finally:
+        matplotlib.animation.Animation.save = real_save
+    lo, hi = seen["ylim"]
+    assert seen["scale"] == "log" and seen["label"] == "eps"
+    assert lo <= 2.5e-3 and hi >= vals.max(), seen

@@ -9060,12 +9060,12 @@ def _draw_param_ax(ax, name, iters, vals, true_val=None, log_scale=False,
         print(f"⚠️ {{name}}: log scale requested but values aren't all positive -- using linear scale instead.")
     _kw = dict(color=_PARAM_STYLE["color"], linewidth=_PARAM_STYLE["linewidth"],
                marker="o" if _PARAM_STYLE["markers"] else None, markersize=3)
+    # (a log axis shows the values themselves, so the label is the name)
     if use_log:
         ax.semilogy(iters, vals, **_kw)
-        ax.set_ylabel(ylabel_override or f"log({{name}})", fontsize={axis_label_fontsize})
     else:
         ax.plot(iters, vals, **_kw)
-        ax.set_ylabel(ylabel_override or name, fontsize={axis_label_fontsize})
+    ax.set_ylabel(ylabel_override or name, fontsize={axis_label_fontsize})
     _param_ref_lines(ax, final_val, true_val)
     ax.set_xlabel(xlabel_override or "Iteration", fontsize={axis_label_fontsize})
     ax.set_title(title_override or f"Inferred Parameter: {{name}}", fontsize={subplot_title_fontsize})
@@ -9086,16 +9086,22 @@ def _param_animation(series, out_path, log_scale=False, fps=10, dpi=100,
     for i, (name, iters, vals, true_val) in enumerate(series):
         ax = axes[i][0]
         iters = np.asarray(iters, dtype=float); vals = np.asarray(vals, dtype=float)
-        use_log = bool(log_scale) and len(vals) > 0 and bool(np.all(vals > 0))
-        if use_log:
-            ax.set_yscale("log")
-        ax.set_ylabel(ylabel_override or (f"log({{name}})" if use_log else name), fontsize={axis_label_fontsize})
+        _rv = vals if true_val is None else np.append(vals, true_val)
+        use_log = bool(log_scale) and len(vals) > 0 and bool(np.all(_rv > 0))
+        ax.set_ylabel(ylabel_override or name, fontsize={axis_label_fontsize})
         x_hi = iters.max() if iters.max() > iters.min() else iters.min() + 1
         ax.set_xlim(iters.min(), x_hi)
-        _rv = vals if true_val is None else np.append(vals, true_val)
         lo, hi = _rv.min(), _rv.max()
-        pad = 0.05 * (abs(hi - lo) if hi != lo else (abs(hi) + 1))
-        if not use_log:
+        # The curve starts empty, so the axis can't take its range from the
+        # data it draws: set it to the whole curve (and the true value) now.
+        # On a log axis the margin is a factor -- an added margin there left
+        # the range to the two reference lines alone, and the curve off it.
+        if use_log:
+            ax.set_yscale("log")
+            pad = (hi / lo) ** 0.05 if hi > lo else 1.5
+            ax.set_ylim(lo / pad, hi * pad)
+        else:
+            pad = 0.05 * (abs(hi - lo) if hi != lo else (abs(hi) + 1))
             ax.set_ylim(lo - pad, hi + pad)
         _param_ref_lines(ax, vals[-1], true_val)
         ax.set_xlabel(xlabel_override or "Iteration", fontsize={axis_label_fontsize})
