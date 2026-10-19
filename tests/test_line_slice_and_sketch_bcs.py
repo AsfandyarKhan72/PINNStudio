@@ -5,8 +5,8 @@ boundary condition where it applies.
 Helmholtz 2D with a hole: u = sin(k0 x) sin(k0 y) is exactly zero on the
 middle line y = 0, which also runs through the hole, so the line
 comparison showed the reference as a flat zero and the PINN's noise, drawn
-straight across the hole. The automatic line now moves when the middle
-shows (almost) nothing; it stays in the middle otherwise (Heat 2D).
+straight across the hole. The example now sets its line (y = 0.25) in Plot
+settings, where it shows; "middle of the domain" always means the middle.
 
 Its inner-circle condition's Where: uses the constant R, which the
 geometry view could not evaluate, so the circle was never highlighted; and
@@ -39,16 +39,16 @@ def _load(w, name):
 def test_auto_line_and_sketch_bcs():
     w = MainWindow()
     c = _load(w, "Helmholtz 2D – square with hole")
-    y, _z = auto_line_slice(c)
-    assert abs(y) > 0.1                                   # not the zero line through the hole
-    c.line_slice_y_auto, c.line_slice_y = False, 0.0
-    assert auto_line_slice(c)[0] == 0.0                   # a value set by hand is kept
+    assert not w.line_slice_y_auto_cb.isChecked() and w.line_slice_y_spin.value() == 0.25
+    assert auto_line_slice(c)[0] == 0.25
+    assert "y=0.25" in codegen.generate_script(c)
     w._refresh_domain_view()
     app.processEvents()
     bc_of = w._gpanel().canvas.edge_bcs()
     assert any(0 in lst for lst in bc_of)                 # BC 1 (the circle, uses R) picks an edge
 
-    c = _load(w, "Heat 2D")
+    c = _load(w, "Heat 2D")                               # the next example: the middle again
+    assert w.line_slice_y_auto_cb.isChecked()
     assert auto_line_slice(c)[0] == (c.y_min + c.y_max) / 2.0
 
     _load(w, "Helmholtz 2D – Dirichlet")

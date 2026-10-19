@@ -806,6 +806,15 @@ class PINNConfig:
         file and hard to diagnose from the resulting crash, not every
         possible misconfiguration."""
         errors = []
+        import json as _json_bc
+        try:
+            _bc_rows = _json_bc.loads(self.custom_bc_json) if (self.custom_bc_json or "").strip() else []
+        except (ValueError, TypeError):
+            _bc_rows = []
+        for _i, _r in enumerate(_bc_rows if isinstance(_bc_rows, list) else []):
+            if isinstance(_r, dict) and str(_r.get("location", "")).strip() == "False":
+                errors.append(f"BC {_i + 1} picks no part of the boundary (its last edge was taken out): pick its "
+                              f"edges in the Geometry view, or delete the BC.")
         if self.causal_training:
             if self.steady_state:
                 errors.append("Causal training needs a time-dependent problem (it weights the residual by time).")

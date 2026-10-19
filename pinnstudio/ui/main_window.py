@@ -1542,25 +1542,64 @@ class MainWindow(QMainWindow):
         cur = entry['location'].text().strip()
         expr = edges[k]['expr']
         if add:
-            entry['location'].setText(add_to_where(cur, expr))
+            entry['location'].setText(add_to_where("" if cur == "False" else cur, expr))
         else:
+            pre = "E" if gp.canvas.dim == 2 else "F"
             if cur in ("", "True"):
                 rest = [e['expr'] for j, e in enumerate(edges) if j != k]
                 new = join_where(rest)
+            elif cur == "False":
+                new = ""
             else:
                 new = remove_from_where(cur, [expr])
             if new is None:
-                gp.hint.setText(
-                    f"BC {index + 1}'s Where: was written by hand, so it can't be edited by clicking -- "
-                    "change it in the panel, or clear it and pick the edges again.")
-                return
+                # A Where typed by hand or set by an example (np.isclose(x**2 + y**2, R**2)):
+                # write it again from the edges it picks, without this one.
+                bc_of = gp.canvas.edge_bcs()
+                picked = [j for j, lst in enumerate(bc_of) if index in lst]
+                cover = [self._where_on_edge(cur, e) for e in edges]
+                partial = [j for j, (some, whole) in enumerate(cover) if some and not whole]
+                if partial:
+                    gp.hint.setText(
+                        f"BC {index + 1}'s Where picks only part of "
+                        f"{', '.join(f'{pre}{j + 1}' for j in partial)}, so it can't be rewritten from whole "
+                        f"edges -- change it on the BC's page.")
+                    return
+                new = join_where([edges[j]['expr'] for j in picked if j != k])
+                self.log_box.append(
+                    f"ℹ️ BC {index + 1}'s Where was rewritten from its edges ("
+                    f"{', '.join(f'{pre}{j + 1}' for j in picked if j != k) or 'none'}); it was: {cur}")
             if not new:
-                gp.hint.setText(
-                    f"That's the last edge of BC {index + 1} -- a BC needs at least one; remove the BC instead.")
-                return
+                # no edge left: "False" picks nothing (an empty Where would mean
+                # the whole boundary); Solve asks to pick edges or delete the BC
+                new = "False"
+                gp.hint.setText(f"BC {index + 1} now picks no edges: click edges to give it some, or delete it.")
             entry['location'].setText(new)
         gp.refresh_bcs()
         self._refresh_bc_sketch_boxes()
+
+    def _where_on_edge(self, where, edge):
+        """(picks some of it, picks all of it) for a Where and an edge (face),
+        tested at points spread along it, ends left out (corners belong to
+        two edges). A 3D face is judged by its middle."""
+        from pinnstudio.ui.sketch_edges import where_matches
+        dom = self._sketch_domain()
+        pts = edge.get("points") or []
+        if len(pts) < 2 or len(pts[0]) != 2:
+            return self._face_mid_match(where, edge, dom)
+        if len(pts) > 2:
+            # an arc: its own points lie on the curve (a chord between them doesn't)
+            sample = pts[1:-1]
+        else:
+            (x0, y0), (x1, y1) = pts[0], pts[-1]
+            sample = [(x0 + f * (x1 - x0), y0 + f * (y1 - y0)) for f in [0.02 + 0.96 * i / 40 for i in range(41)]]
+        hits = [where_matches(where, x, y, dom) for x, y in sample]
+        return any(hits), all(hits)
+
+    def _face_mid_match(self, where, edge, dom):
+        from pinnstudio.ui import sketch3d as s3
+        hit = s3.where_matches3(where, edge["mid"], dom) if "mid" in edge else False
+        return hit, hit
 
     # ── New / recent files / unsaved changes / shortcuts ────────────
     _recent_mem = []   # recent files when settings aren't kept (tests)
@@ -4872,12 +4911,14 @@ class MainWindow(QMainWindow):
         self.line_slice_y_auto_cb.setChecked(True)
         self.line_slice_y_auto_cb.setVisible(False)
         self.line_slice_y_spin = QDoubleSpinBox()
+        self.line_slice_y_spin.setDecimals(4)
         self.line_slice_y_spin.setRange(-1e6, 1e6); self.line_slice_y_spin.setValue(0.0)
         self.line_slice_y_spin.setVisible(False)
         self.line_slice_z_auto_cb = QCheckBox("Auto (domain midpoint)")
         self.line_slice_z_auto_cb.setChecked(True)
         self.line_slice_z_auto_cb.setVisible(False)
         self.line_slice_z_spin = QDoubleSpinBox()
+        self.line_slice_z_spin.setDecimals(4)
         self.line_slice_z_spin.setRange(-1e6, 1e6); self.line_slice_z_spin.setValue(0.0)
         self.line_slice_z_spin.setVisible(False)
 
@@ -10850,8 +10891,8 @@ class MainWindow(QMainWindow):
 
     def _restore_line_slice(self, cfg, viz_settings, files=None):
         """(y, z) of the line plots for a restored model: the values set in
-        Plot settings, or the automatic line (see core/line_slice) worked
-        out from the model's settings and reference data."""
+        Plot settings for the restore, else the model's own (an example
+        like Helmholtz 2D sets its own line), else the middle."""
         import dataclasses
         from pinnstudio.core.line_slice import auto_line_slice
         known = {f.name for f in dataclasses.fields(PINNConfig)}
@@ -10862,13 +10903,9 @@ class MainWindow(QMainWindow):
             for k in ("problem_dim", "x_min", "x_max", "y_min", "y_max", "z_min", "z_max"):
                 if k in (cfg or {}):
                     setattr(c, k, cfg[k])
-        c.line_slice_y_auto = viz_settings.get("line_slice_y_auto", True)
-        c.line_slice_z_auto = viz_settings.get("line_slice_z_auto", True)
-        c.line_slice_y = viz_settings.get("line_slice_y", 0.0)
-        c.line_slice_z = viz_settings.get("line_slice_z", 0.0)
-        if files:
-            c.ea_files = repr([tuple(f) if isinstance(f, (list, tuple)) else f for f in files])
-            c.ea_ref_mode = "files"
+        for k in ("line_slice_y_auto", "line_slice_z_auto", "line_slice_y", "line_slice_z"):
+            if k in viz_settings:
+                setattr(c, k, viz_settings[k])
         try:
             return auto_line_slice(c)
         except Exception:
