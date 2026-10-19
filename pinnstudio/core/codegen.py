@@ -8138,7 +8138,27 @@ print("DONE")
 """
     if "_frac(" in (config.pde_expressions or ""):
         script = _frac_data_text(script, config, "geomtime", "pde", "_constraints")
-    return script
+    return _own_param_scratch(script)
+
+
+_PS_HEADER_OLD = (
+    'if os.name == "nt":\n'
+    '    _tmp_root = os.path.splitdrive(os.getcwd())[0] + os.sep + "tmp"\n'
+    '    os.makedirs(_tmp_root, exist_ok=True)\n')
+_PS_HEADER_NEW = _PS_HEADER_OLD + (
+    'import tempfile as _tf_ps\n'
+    '_PS_TMP = _tf_ps.mkdtemp(prefix="pinnstudio_run_").replace(os.sep, "/")   # this run\'s own scratch folder\n')
+
+
+def _own_param_scratch(script):
+    """The inverse parameter history and plots go to a scratch folder of
+    this run's own, not /tmp, where two runs at once (two windows, or the
+    test suite in parallel) read each other's parameter values."""
+    out = (script.replace('f"/tmp/param', '_PS_TMP + f"/param').replace('"/tmp/param', '_PS_TMP + "/param')
+           .replace('f"/tmp/{_in}_param_save.txt"', '_PS_TMP + f"/{_in}_param_save.txt"'))
+    if out == script or _PS_HEADER_OLD not in out:
+        return script
+    return out.replace(_PS_HEADER_OLD, _PS_HEADER_NEW, 1)
 
 
 # =====================================================================

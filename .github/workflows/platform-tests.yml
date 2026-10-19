@@ -40,7 +40,7 @@ jobs:
           python -m pip install --upgrade pip
           if [ "$RUNNER_OS" = "macOS" ]; then python -m pip install torch; \
           else python -m pip install torch --index-url https://download.pytorch.org/whl/cpu; fi
-          python -m pip install -e . pytest
+          python -m pip install -e . pytest pytest-xdist
 
       - name: Desktop shortcut
         shell: bash
@@ -50,7 +50,8 @@ jobs:
 
       - name: Tests
         shell: bash
-        run: set -o pipefail; python -m pytest tests -q -p no:cacheprovider --durations=20 --ignore=tests/local --junitxml=junit.xml 2>&1 | tee pytest.log
+        # every test, spread over the machine's cores
+        run: set -o pipefail; python -m pytest tests -q -p no:cacheprovider -n auto --durations=20 --ignore=tests/local --junitxml=junit.xml 2>&1 | tee pytest.log
 
       - name: Report failures
         if: always()

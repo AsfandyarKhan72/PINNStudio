@@ -100,6 +100,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **Faster platform testing:** the tests run in parallel on each machine (pytest-xdist); the sweep test, which trained about 30 short runs in one test, is ten tests that run side by side; and the platform matrix (every other system and Python version) leaves out the tests that train real models -- marked `slow` in `tests/conftest.py` and run by the platform tests on Windows, macOS and Linux -- while its window check still trains, shows the results and restores on every system.
+
 - **Results page:** *Outputs to plot* is one list -- *All outputs* (the default with more than one output), one output, or *Custom...* -- instead of an output list and an *All outputs* tick box that made the list's choice do nothing. *Plot settings*, *Error Analysis* and *Export Solution* sit in one row under *Save to*.
 - **Plot types follow the problem**, by one rule on the Results and Restore pages: an ODE or a steady 1D problem has one curve (*Line*), a 1D problem no surface animation, and an inverse problem adds *Parameter Convergence* and *Parameter Convergence (GIF)*, with *Parameter Convergence* selected -- an inverse example now opens on it (Lorenz opened on *Surface*). A saved problem whose plot type doesn't apply opens on one that does, and the log says so.
 - **Restore & visualize works from the model file alone.** Choose a model and its config is found next to it; a line under the file fields says what it is (dimension, forward or inverse, outputs, parameters). Forward or inverse is read from the config, so the *Restore: Forward/Inverse* choice is gone: an inverse model adds *Parameter Convergence* and *Parameter Convergence (GIF)* to *Plot type*, selects the first, and finds its convergence files and true values in the run folder. The *Optimizer used for this model* choice is gone too -- Restore loads only the network's weights, which fit whichever optimizer trained it -- and so is the *Enable Model Restore* tick box. Labels sit to the left of their fields, as on the other pages, and the convergence-file rows are spaced like other rows (they overlapped). An ODE model is called an ODE (it said 1D steady) and its restore folder is named Restore_ODE_...
@@ -229,6 +231,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **The "Periodic in:" axis dropdown on a Periodic BC row now only offers the axes the current problem dimension actually has** (x only for 1D; x, y for 2D; x, y, z for 3D), instead of always offering all three regardless of dimension.
 
 ### Fixed
+
+- **Two inverse runs at once could read each other's parameter values:** Solve's script kept the parameter history and the parameter plot in fixed files in /tmp, so two windows training inverse problems at the same time (or the test suite in parallel) wrote into the same files. Each run now keeps them in a scratch folder of its own.
 
 - **Error Analysis and other settings dialogs were squeezed** -- check boxes and file rows drawn on top of each other until the window was stretched. A dialog given a width in code left its height to the code too, so it opened at the height its rows had before the theme's fonts and padding arrived. Dialogs now grow to fit their rows whenever these change, and Error Analysis opens wider.
 

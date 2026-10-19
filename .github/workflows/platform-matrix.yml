@@ -1,6 +1,7 @@
 name: Platform matrix
 
-# Before a release: the test suite and the window check on older and newer
+# Before a release: the test suite (without the tests that train real models,
+# which the platform tests run) and the window check on older and newer
 # versions of each system and of Python, and the one-command installer on
 # Linux, Windows Server 2022 and an Intel Mac. Runs for a commit whose message
 # contains [matrix] (or by hand), not for every push.
@@ -59,7 +60,7 @@ jobs:
           python -m pip install --upgrade pip
           if [ "$RUNNER_OS" = "macOS" ] || [ "$RUNNER_ARCH" = "ARM64" -a "$RUNNER_OS" = "Linux" ]; then python -m pip install torch; \
           else python -m pip install torch --index-url https://download.pytorch.org/whl/cpu; fi
-          python -m pip install -e . pytest
+          python -m pip install -e . pytest pytest-xdist
           python -c "import sys, torch, PyQt6.QtCore as q, deepxde, numpy; print('::notice title=versions ${{ matrix.os }} py${{ matrix.python }}::Python', sys.version.split()[0], '| torch', torch.__version__, '| Qt', q.QT_VERSION_STR, '| DeepXDE', deepxde.__version__, '| NumPy', numpy.__version__)"
 
       - name: Install failed
@@ -69,7 +70,11 @@ jobs:
 
       - name: Tests
         shell: bash
-        run: set -o pipefail; python -m pytest tests -q -p no:cacheprovider --durations=10 --ignore=tests/local --junitxml=junit.xml 2>&1 | tee pytest.log
+        # every test except the ones that train real models (marked slow in
+        # tests/conftest.py; the platform tests run those on Windows, macOS
+        # and Linux), spread over the machine's cores. The window check below
+        # still trains, shows the results and restores on every system.
+        run: set -o pipefail; python -m pytest tests -q -p no:cacheprovider -n auto -m "not slow" --durations=10 --ignore=tests/local --junitxml=junit.xml 2>&1 | tee pytest.log
 
       - name: Report failures
         if: always() && steps.install.outcome == 'success'

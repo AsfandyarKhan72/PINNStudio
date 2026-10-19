@@ -57,6 +57,7 @@ Checks:
    test_sweep_tab.py; this confirms it also works end-to-end against a
    real run_sweep() call).
 
+Each part is its own test, so a parallel run (pytest -n) spreads them out.
 Run directly (this trains for real, so budget a few minutes depending
 on the machine):
     QT_QPA_PLATFORM=offscreen python3 tests/test_sweep_execution.py
@@ -80,13 +81,18 @@ from pinnstudio.ui.main_window import MainWindow
 from pinnstudio.core.sweep_runner import run_sweep
 
 
-def run():
+
+
+def _checker():
     failures = []
 
     def check(cond, msg):
         if not cond:
             failures.append(msg)
+    return failures, check
 
+
+def _part_heat_no_reference(check):
     # ── 1D Heat: no Error Analysis data configured ───────────────────
     win = MainWindow()
     _app.processEvents()
@@ -110,6 +116,10 @@ def run():
         check(result["l2_relative"] is None,
               f"[1D Heat] run {label!r} should report l2_relative=None (no EA data configured), got {result}")
 
+
+
+
+def _part_poisson3d_reads_its_own_l2(check):
     # ── 3D Poisson (Sphere): DOES have Error Analysis data configured ─
     win2 = MainWindow()
     _app.processEvents()
@@ -145,6 +155,10 @@ def run():
         check(os.path.isfile(os.path.join(_root2, "sweep_error_vs_parameter.png")),
               f"error-vs-parameter summary plot saved in {_root2}")
 
+
+
+
+def _part_loss_weight(check):
     # ── Loss weight sweep: a real training run, not just generated-
     # script text (test_sweep_registry.py already checks the text) ────
     win3 = MainWindow()
@@ -175,6 +189,10 @@ def run():
               f"swept={swept_loss3} (if these are too close, the swept weight may not actually "
               "be reaching training)")
 
+
+
+
+def _part_run_folders_and_summary(check):
     # ── v68: real per-run save folders + manifest/summary CSV ────────
     # (sweep_save_dir set -> every run's own save_dir gets pointed at a
     # distinct, descriptively-named subfolder, and the EXISTING codegen
@@ -284,6 +302,10 @@ def run():
     finally:
         shutil.rmtree(tmp_root, ignore_errors=True)
 
+
+
+
+def _part_zip_mode(check):
     # ── v68: a real "zip" (Specified Combinations) sweep ──────────────
     # 2 parameters, 2 values each -> zip() pairs them up (3 runs: 1
     # baseline + 2 paired), NOT a 5-run cross product like grid mode.
@@ -322,6 +344,10 @@ def run():
         check(result["status"] == "done", f"[zip sweep] run {label!r} should finish 'done', got {result}")
         check(result["final_loss"] is not None, f"[zip sweep] run {label!r} should report a real final_loss, got {result}")
 
+
+
+
+def _part_inverse_guess_and_data_weight(check):
     # ── Inverse: initial guess + observation loss weight sweep together
     # ("SCOPE v3") -- one "one-at-a-time" sweep over BOTH new Inverse
     # entries at once (baseline + 1 variant per entry = 3 runs total,
@@ -388,6 +414,10 @@ def run():
                   f"100000 should measurably change the real final_loss vs. baseline -- "
                   f"got baseline={baseline6}, swept={losses6[obs_run6]}")
 
+
+
+
+def _part_rar(check):
     # ── v73: RAR sweep, real training ─────────────────────────────────
     # test_sweep_param_expansion.py already confirms rar_cycles reaches
     # the generated script's text without running it; this confirms a
@@ -433,6 +463,10 @@ def run():
         check(result["status"] == "done", f"[RAR sweep] run {label!r} should finish 'done', got {result}")
         check(result["final_loss"] is not None, f"[RAR sweep] run {label!r} should report a parsed final_loss, got {result}")
 
+
+
+
+def _part_time_adaptive(check):
     # ── v73: Time-Adaptive sweep, real training ───────────────────────
     # ta_grid_size swept between two small values, with a single tiny
     # time step. IMPORTANT (found while verifying this real-training run
@@ -482,6 +516,10 @@ def run():
     for label, result in results10:
         check(result["status"] == "done", f"[Time-Adaptive sweep] run {label!r} should finish 'done', got {result}")
 
+
+
+
+def _part_transform_and_activation(check):
     # ── v73: Output transform + Activation sweep, real training ───────
     # Two independent, cheap one-value sweep rows combined into a single
     # OAT sweep (1 baseline + 1 + 1 = 3 runs) rather than two separate
@@ -519,6 +557,10 @@ def run():
         check(result["status"] == "done", f"[OT/Activation sweep] run {label!r} should finish 'done', got {result}")
         check(result["final_loss"] is not None, f"[OT/Activation sweep] run {label!r} should report a parsed final_loss, got {result}")
 
+
+
+
+def _part_stop_kills_the_run(check):
     # ── Stop hard-kills the CURRENTLY RUNNING subprocess ──────────────
     # Earlier behavior (v71 and before) only set a flag SweepThread.run()
     # checked BETWEEN runs -- the in-flight run kept training to
@@ -566,20 +608,76 @@ def run():
               "200000-iteration training job to completion in the background")
     sweep_thread.wait(5000)
 
-    if failures:
-        print("FAILURES:")
-        for f in failures:
-            print(f"  - {f}")
-    else:
-        print("ALL SWEEP EXECUTION TESTS PASSED")
-    return failures
 
 
-def test_sweep_execution():
-    # pytest entry point (this file used to be runnable only as a script).
-    # Trains for real -- the slowest test in the suite.
-    failures = run()
+def test_sweep_heat_no_reference():
+    failures, check = _checker()
+    _part_heat_no_reference(check)
     assert not failures, "\n".join(failures)
+
+
+def test_sweep_poisson3d_reads_its_own_l2():
+    failures, check = _checker()
+    _part_poisson3d_reads_its_own_l2(check)
+    assert not failures, "\n".join(failures)
+
+
+def test_sweep_loss_weight():
+    failures, check = _checker()
+    _part_loss_weight(check)
+    assert not failures, "\n".join(failures)
+
+
+def test_sweep_run_folders_and_summary():
+    failures, check = _checker()
+    _part_run_folders_and_summary(check)
+    assert not failures, "\n".join(failures)
+
+
+def test_sweep_zip_mode():
+    failures, check = _checker()
+    _part_zip_mode(check)
+    assert not failures, "\n".join(failures)
+
+
+def test_sweep_inverse_guess_and_data_weight():
+    failures, check = _checker()
+    _part_inverse_guess_and_data_weight(check)
+    assert not failures, "\n".join(failures)
+
+
+def test_sweep_rar():
+    failures, check = _checker()
+    _part_rar(check)
+    assert not failures, "\n".join(failures)
+
+
+def test_sweep_time_adaptive():
+    failures, check = _checker()
+    _part_time_adaptive(check)
+    assert not failures, "\n".join(failures)
+
+
+def test_sweep_transform_and_activation():
+    failures, check = _checker()
+    _part_transform_and_activation(check)
+    assert not failures, "\n".join(failures)
+
+
+def test_sweep_stop_kills_the_run():
+    failures, check = _checker()
+    _part_stop_kills_the_run(check)
+    assert not failures, "\n".join(failures)
+
+
+def run():
+    failures, check = _checker()
+    for part in (_part_heat_no_reference, _part_poisson3d_reads_its_own_l2, _part_loss_weight, _part_run_folders_and_summary, _part_zip_mode, _part_inverse_guess_and_data_weight, _part_rar, _part_time_adaptive, _part_transform_and_activation, _part_stop_kills_the_run):
+        part(check)
+    print("FAILURES:" if failures else "ALL SWEEP EXECUTION TESTS PASSED")
+    for f in failures:
+        print(f"  - {f}")
+    return failures
 
 
 if __name__ == "__main__":
