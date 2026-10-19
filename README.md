@@ -121,7 +121,7 @@ The install takes a few minutes, and at the end it says whether training will ru
 <details>
 <summary><strong>Systems PINNStudio is tested on</strong></summary>
 
-Every change is tested on GitHub Actions ([platform tests](.github/workflows/platform-tests.yml), [platform matrix](.github/workflows/platform-matrix.yml)): the test suite, and a check that drives the window end to end -- it trains a model, shows the results and error analysis, and restores the model.
+Every change is tested on GitHub Actions ([platform tests](.github/workflows/platform-tests.yml), [platform matrix](.github/workflows/platform-matrix.yml)): the test suite, and a check that drives the window end to end: it trains a model, shows the results and error analysis, and restores the model.
 
 | | Tested on |
 |---|---|
@@ -178,7 +178,7 @@ pinnstudio
 <details>
 <summary><strong>Command not found after <code>pip install</code>?</strong></summary>
 
-- **<code>pip: command not found</code>?** Use <code>pip3</code> instead - many systems (macOS especially) only ship <code>pip3</code>, not a plain <code>pip</code>.
+- **<code>pip: command not found</code>?** Use <code>pip3</code> instead; many systems (macOS especially) only ship <code>pip3</code>, not a plain <code>pip</code>.
 - **<code>pinnstudio: command not found</code> even though the install said it succeeded?** pip installed it into a per-user folder that is not on your shell's PATH yet. The install output names the folder in a line like <code>WARNING: The script pinnstudio is installed in '.../bin' which is not on PATH.</code> Add that folder to your PATH:
 
 ```bash
@@ -205,7 +205,7 @@ The install script creates its own environment and checks that the installed PyT
 <summary><strong>Before you start: open a terminal and check git and Python 3.9+</strong></summary>
 
 - **Windows:** click the Start menu, type `PowerShell`, and open **Windows PowerShell**.
-- **macOS:** press `Cmd + Space` to open Spotlight, type `Terminal`, and press Enter (or find it under Applications -> Utilities -> Terminal).
+- **macOS:** press `Cmd + Space` to open Spotlight, type `Terminal`, and press Enter (or find it under Applications → Utilities → Terminal).
 - **Linux:** open your terminal application (commonly `Ctrl + Alt + T`, or search "Terminal" in your application menu).
 
 Then check git and Python by pasting these one at a time:
@@ -290,7 +290,7 @@ PINNStudio's window follows the layout of finite-element tools such as COMSOL: a
 <img src="assets/screenshots/interface.png" alt="PINNStudio window: model tree on the left, the Equations page with the Burgers equation typeset in the middle, the loss curve and solution of the finished run on the right, Training Log below" width="100%">
 </p>
 
-- **Model tree.** Problem, Equations, Geometry, Collocation points, Initial and Boundary conditions (one node per condition), Neural network, Training, Parameter sweep and Results. A node with a setting that would stop **Solve** is marked, and the toolbar says how many there are. Right-click a node for its actions (add, duplicate or delete a boundary condition, add a training phase, fold all sections), and the **?** next to a page's title opens its part of this README.
+- **Model tree.** Problem, Equations, Inverse problem (for an inverse problem), Geometry, Collocation points, Initial and Boundary conditions (one node per condition), Neural network, Training with its Loss weights and Adaptive training, Parameter sweep, and Results with Restore & visualize. A node with a setting that would stop **Solve** is marked, and the toolbar says how many there are. Right-click a node for its actions (add, duplicate or delete a boundary condition, add a training phase, fold all sections), and the **?** next to a page's title opens its part of this README.
 - **Settings.** Each page is a short form whose sections fold to their titles. Equations are typeset as you type them, and any name PINNStudio does not recognize is flagged.
 - **Graphics.** *Start* (new problem, open, recent problems, every example), *Results*, and the domain — *Geometry* for any 2D/3D shape, or the *Sketch* when the domain is drawn.
 - **Toolbar and status bar.** Examples, Open, Save, Export script, **Solve** and **Stop** are always in the toolbar; the status bar shows the run's phase, progress, loss and the time left, and the save folder.
@@ -336,9 +336,9 @@ Three themes are built in — **Studio Light** (the default), **Studio Dark** an
 
 ## Examples
 
-PINNStudio comes with 65 ready-to-run examples, all listed in the table below and loaded from the **Examples** list in the toolbar or the gallery on the Start tab. The list's category is **Forward** (every example, solving for the field) or **Inverse** (examples that learn unknown parameters or fields from data), and each list is ordered like the table, under ODE / 1D / 2D / 3D headings. Every name follows one style, *Equation Dimension – detail*. The table's **Source** column says where each example comes from:
+PINNStudio comes with 65 ready-to-run examples, all listed in the table below and loaded from the **Examples** list in the toolbar or the gallery on the Start tab. The list's category is **Forward** (every example that solves for the field, which is all of them except the 10 inverse-only DeepXDE examples) or **Inverse** (examples that learn unknown parameters or fields from data), and each list is ordered like the table, under ODE / 1D / 2D / 3D headings. Every name follows one style, *Equation Dimension – detail*. The table's **Source** column says where each example comes from:
 
-- **PINNStudio templates** (10): our own problems; most reproduce a published PINN result, and the Source column names and links that paper (the heat and the disk/sphere Poisson templates are our own and show "—"). Each one works in both **Forward** and **Inverse** mode (picked from the Inverse list, it loads in Inverse mode with its measured-data file), and all of them ship with reference data in [`reference_data/`](reference_data), so Error Analysis is ready as soon as you load one.
+- **PINNStudio templates** (15, in 14 rows of the table: row 23 holds the two Allen-Cahn 1D templates): our own problems; most reproduce a published PINN result, and the Source column names and links that paper (the heat and the disk/sphere Poisson templates are our own and show "—"). Each one works in both **Forward** and **Inverse** mode (picked from the Inverse list, it loads in Inverse mode with its measured-data file), and all of them ship with reference data in [`reference_data/`](reference_data), so Error Analysis is ready as soon as you load one.
 - **DeepXDE examples** (40 forward, 10 inverse): the **DeepXDE** link in the Source column opens each one's script in DeepXDE's repository. These are the PINN examples from DeepXDE's documentation ([forward](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward.html), [inverse](https://deepxde.readthedocs.io/en/latest/demos/pinn_inverse.html)), set up with each script's own equation, geometry, boundary/initial conditions, network, optimizers, iteration counts and loss weights, so pressing **Solve** trains what the DeepXDE script trains. Anything that differs from the script is printed in the Training Log when the example loads, and noted in its entry below.
 
 Loading an example fills in every setting, and you can change any of them before pressing **Solve**; if you do, the Training Log lists what you changed. Your save folder, GPU, random-seed and plot-style settings are kept when you load one.
@@ -963,7 +963,7 @@ $$\Large \frac{\partial u}{\partial t} = 0.001\frac{\partial^2 u}{\partial x^2} 
 
 **Result (RTX 4090):** $L_2$ = 9.5 × 10⁻⁸ ($t = 0$), 1.9 × 10⁻³ ($t = 0.25$), 5.2 × 10⁻³ ($t = 0.5$), 1.3 × 10⁻² ($t = 0.75$), 2.9 × 10⁻² ($t = 1$)
 
-**Note — a more accurate 1D Allen-Cahn.** These are DeepXDE's own settings: a small network trained on the whole time interval, so the error grows to about 3% by $t = 1$. For a better-resolved 1D Allen-Cahn, see [*Allen-Cahn 1D – Wight & Zhao*](#1d-allen-cahn). It is the same equation and initial condition with a sharper interface (diffusion $10^{-4}$ instead of $10^{-3}$) and periodic boundaries. It reaches 0.48% at $t = 1$ with time-adaptive training and 0.13% on the whole interval with exact periodicity, an exact initial condition, causal training and an MsFFN network, and PINNStudio has a template for each. The [training methods study](benchmarks/training_methods.md#1d-allen-cahn-wight--zhao) compares all of its setups.
+**Note — a more accurate 1D Allen-Cahn.** These are DeepXDE's own settings: a small network trained on the whole time interval, so the error grows to about 3% by $t = 1$. For a better-resolved 1D Allen-Cahn, see the two [*Allen-Cahn 1D – Wight & Zhao*](#1d-allen-cahn) templates (*time-adaptive* and *whole interval*). It is the same equation and initial condition with a sharper interface (diffusion $10^{-4}$ instead of $10^{-3}$) and periodic boundaries. It reaches 0.48% at $t = 1$ with time-adaptive training and 0.13% on the whole interval (0.07–0.24% over repeated runs) with exact periodicity, an exact initial condition, causal training and an MsFFN network, and PINNStudio has a template for each. The [training methods study](benchmarks/training_methods.md#1d-allen-cahn-wight--zhao) compares all of its setups.
 
 *PINN vs reference, error analysis*
 
@@ -1142,7 +1142,7 @@ A shock forms near $x = 0$ as $t \to 1$; this template uses a larger fixed collo
 
 ![1D Burgers — line comparison against reference data](assets/Images/1D-Burgers/line_comparison.png)
 
-*Restore & Visualize* — the trained model restored from its saved checkpoint and re-animated without retraining:
+*Restore & visualize* — the trained model restored from its saved checkpoint and re-animated without retraining:
 
 ![1D Burgers — restored solution animation](assets/Images/1D-Burgers/restored_animation.gif)
 
@@ -1895,7 +1895,7 @@ where $\lambda = 10$ and $\varepsilon = 0.025$, matching the paper's own values 
 
 *Without time-adaptive training* this problem is not solved: over its long interval ($t$ up to 10) the plain PINN fails across the domain (about 200% error), and the best whole-interval setting found, RBA per-point weights, still gives 3.5% at $t = 2.5$ and 19% at $t = 10$. Time-adaptive training is therefore needed here, and adding RBA per-point weights and exact periodicity (inputs `cos(2*pi*x); sin(2*pi*x); cos(2*pi*y); sin(2*pi*y); t`) to it lowers the error at $t = 10$ about 5× (1.6 × 10⁻³ against 7.9 × 10⁻³), with the same error at $t = 2.5$ and 5 (see the [training methods study](benchmarks/training_methods.md)).
 
-*Restore & Visualize* — the trained model restored from its saved checkpoint and re-animated without retraining:
+*Restore & visualize* — the trained model restored from its saved checkpoint and re-animated without retraining:
 
 ![2D Allen-Cahn (Wight & Zhao) — restored solution animation](assets/Images/2D_AllenCahn-Wight/restored_animation.gif)
 
@@ -1940,7 +1940,7 @@ Result: $L_2$ = 2.0 × 10⁻⁵ ($t = 0$), 3.4 × 10⁻⁴ ($t = 0.25$), 5.0 × 
 
 ![2D Allen-Cahn (Mattey & Ghosh), whole time interval — line comparison against reference data](assets/Images/2D_Allen_Cahn_Mattey/whole_domain_line_comparison.png)
 
-*Restore & Visualize* — the trained model restored from its saved checkpoint and re-animated without retraining:
+*Restore & visualize* — the trained model restored from its saved checkpoint and re-animated without retraining:
 
 ![2D Allen-Cahn (Mattey & Ghosh) — restored solution animation](assets/Images/2D_Allen_Cahn_Mattey/restored_animation.gif)
 
@@ -2068,7 +2068,7 @@ $$\Large \frac{\partial u}{\partial t} = 0.4\left(\frac{\partial^2 u}{\partial x
 
 ![2D Heat — PINN vs Ground Truth, Error Analysis surface comparison](assets/Images/2D-Heat/surface_comparison.png)
 
-*Restore & Visualize* — the trained model restored from its saved checkpoint and re-animated without retraining:
+*Restore & visualize* — the trained model restored from its saved checkpoint and re-animated without retraining:
 
 ![2D Heat — restored solution animation](assets/Images/2D-Heat/restored_animation_2D_Heat.gif)
 
@@ -2168,7 +2168,7 @@ Time-Adaptive Training is fully supported for this template if you turn it on �
 
 ![3D Heat solution surface](assets/Images/3D_Heat/3D_Heat_Solution_Surface.png)
 
-*Restore & Visualize* — the trained model restored from its saved checkpoint and re-animated without retraining:
+*Restore & visualize* — the trained model restored from its saved checkpoint and re-animated without retraining:
 
 ![3D Heat — restored solution animation](assets/Images/3D_Heat/restored_animation.gif)
 
@@ -2242,7 +2242,7 @@ $$\Large \frac{\partial \mathbf u}{\partial t} + (\mathbf u\cdot\nabla)\mathbf u
 <summary><strong>ODE, 1D, 2D, and 3D problems</strong></summary>
 
 <!-- source: pinnstudio/core/codegen.py::_ode_to_1d | ODEs ; pinnstudio/core/codegen.py::_integral_helper_code | integrals ; pinnstudio/core/codegen.py::_frac_helper_code | fractional equations ; pinnstudio/ui/main_window.py::MainWindow._on_dim_changed | dimension switch -->
-**Source code:** [ODEs](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/codegen.py#L4129-L4187) (`codegen.py`) · [integrals](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/codegen.py#L4230-L4248) (`codegen.py`) · [fractional equations](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/codegen.py#L4297-L4323) (`codegen.py`) · [dimension switch](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/ui/main_window.py#L5466-L5567) (`main_window.py`)
+**Source code:** [ODEs](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/codegen.py#L4131-L4189) (`codegen.py`) · [integrals](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/codegen.py#L4232-L4250) (`codegen.py`) · [fractional equations](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/codegen.py#L4299-L4325) (`codegen.py`) · [dimension switch](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/ui/main_window.py#L5606-L5707) (`main_window.py`)
 
 Problems are defined over `t` (ODEs), `(x, t)`, `(x, y, t)` or `(x, y, z, t)`, or without the time axis for steady-state problems in `x`, `(x, y)` or `(x, y, z)`. Changing the dimension rebuilds the related controls (geometry, boundary-condition rows, plot options), so no setting from the previous dimension is carried over by mistake.
 
@@ -2256,7 +2256,7 @@ Problems are defined over `t` (ODEs), `(x, t)`, `(x, y, t)` or `(x, y, z, t)`, o
 <summary><strong>Forward and inverse problems</strong></summary>
 
 <!-- source: pinnstudio/core/codegen.py::_parse_inverse_variables | unknown parameters ; pinnstudio/core/codegen.py::_parse_inverse_obs_files | measured data ; pinnstudio/ui/main_window.py::MainWindow._build_inverse_panel | Inverse panel -->
-**Source code:** [unknown parameters](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/codegen.py#L598-L652) (`codegen.py`) · [measured data](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/codegen.py#L654-L708) (`codegen.py`) · [Inverse panel](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/ui/main_window.py#L3879-L4016) (`main_window.py`)
+**Source code:** [unknown parameters](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/codegen.py#L598-L652) (`codegen.py`) · [measured data](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/codegen.py#L654-L708) (`codegen.py`) · [Inverse panel](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/ui/main_window.py#L3987-L4129) (`main_window.py`)
 
 **Forward**: every coefficient is known and PINNStudio solves for the field. **Inverse**: one or more coefficients — or a whole unknown field — are learned from measured data while the field is solved for at the same time. Any number of unknowns can be learned in one problem, each with its own initial guess and, when it is known, its true value for comparison. Measured data comes from one or more files, each with its own loss weight, and can be a single output or any expression of the outputs (e.g. $|h| = \sqrt{u^2 + v^2}$).
 
@@ -2268,7 +2268,7 @@ Every PINNStudio template, and several DeepXDE examples, have an Inverse mode th
 <summary><strong>Equation editor for single equations and coupled systems</strong></summary>
 
 <!-- source: pinnstudio/ui/main_window.py::MainWindow._build_pde_inputs | equation inputs ; pinnstudio/ui/equation.py | live equation preview ; pinnstudio/core/constants.py | constants -->
-**Source code:** [equation inputs](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/ui/main_window.py#L7226-L7335) (`main_window.py`) · [live equation preview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/ui/equation.py) (`equation.py`) · [constants](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/constants.py) (`constants.py`)
+**Source code:** [equation inputs](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/ui/main_window.py#L7414-L7523) (`main_window.py`) · [live equation preview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/ui/equation.py) (`equation.py`) · [constants](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/constants.py) (`constants.py`)
 
 Equations are typed as residuals, not chosen from presets. Derivatives use a plain `d<output>_<variables>` naming — `du_x`, `du_xx`, `du_t`, `du_xy`, up to mixed fourth-order terms such as `du_xxyy` — so anything from a diffusion equation to a coupled higher-order system can be written directly. Coupled systems work the same way: a second output `v` brings `dv_x`, `dv_t` and so on (the *Burgers 2D – Mathias et al.* and *Schrödinger 1D* examples are two-output systems).
 
@@ -2282,7 +2282,7 @@ The coordinates `x`, `y`, `z` and `t` can appear in an equation along with stand
 <summary><strong>Boundary and initial conditions</strong></summary>
 
 <!-- source: pinnstudio/core/codegen.py::_clean_bc_row_code | boundary conditions in the script ; pinnstudio/ui/main_window.py::MainWindow._add_custom_bc_entry | boundary-condition rows -->
-**Source code:** [boundary conditions in the script](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/codegen.py#L8347-L8521) (`codegen.py`) · [boundary-condition rows](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/ui/main_window.py#L7871-L8350) (`main_window.py`)
+**Source code:** [boundary conditions in the script](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/codegen.py#L8397-L8571) (`codegen.py`) · [boundary-condition rows](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/ui/main_window.py#L8071-L8550) (`main_window.py`)
 
 Boundary conditions are rows in a panel, each with its type, the output(s) it applies to, and **where** it applies:
 
@@ -2349,7 +2349,7 @@ For a 3D domain the *View* list also has **3D**: the whole domain as a shaded so
 <summary><strong>Collocation points and domain preview</strong></summary>
 
 <!-- source: pinnstudio/core/codegen.py::_anchor_points_code | extra training points ; pinnstudio/ui/main_window.py::MainWindow._preview_domain | domain preview ; pinnstudio/ui/view3d.py | 3D view -->
-**Source code:** [extra training points](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/codegen.py#L9207-L9243) (`codegen.py`) · [domain preview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/ui/main_window.py#L11862-L12151) (`main_window.py`) · [3D view](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/ui/view3d.py) (`view3d.py`)
+**Source code:** [extra training points](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/codegen.py#L9300-L9336) (`codegen.py`) · [domain preview](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/ui/main_window.py#L12159-L12448) (`main_window.py`) · [3D view](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/ui/view3d.py) (`view3d.py`)
 
 The numbers of domain, boundary, initial and test points are set independently, along with the sampling distribution (Hammersley, uniform, Halton, LHS, Sobol or pseudo-random). For a 2D or 3D domain, *View domain & point distribution* (on the Collocation points page) shows the actual training points — domain, boundary and initial points, colour-coded — on the geometry, with a second panel showing their spread in time:
 
@@ -2380,7 +2380,7 @@ The numbers of domain, boundary, initial and test points are set independently, 
 <summary><strong>Network architecture</strong></summary>
 
 <!-- source: pinnstudio/core/codegen.py::_net_construction_helper_code | networks (FNN, PFNN, MsFFN) ; pinnstudio/ui/main_window.py::MainWindow._build_network_panel | Network panel -->
-**Source code:** [networks (FNN, PFNN, MsFFN)](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/codegen.py#L1084-L1133) (`codegen.py`) · [Network panel](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/ui/main_window.py#L2596-L2807) (`main_window.py`)
+**Source code:** [networks (FNN, PFNN, MsFFN)](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/codegen.py#L1084-L1133) (`codegen.py`) · [Network panel](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/ui/main_window.py#L2703-L2914) (`main_window.py`)
 
 The number of hidden layers, neurons per layer, activation function (tanh, sin, Sigmoid, ReLU, SiLU/Swish, ELU, GELU, SELU) and weight initializer (Glorot or He, uniform or normal) are all set in the panel. Four network types are available:
 
@@ -2394,7 +2394,7 @@ The number of hidden layers, neurons per layer, activation function (tanh, sin, 
 <summary><strong>Input and output transforms</strong></summary>
 
 <!-- source: pinnstudio/core/codegen.py::_net_transforms_code | input and output transforms -->
-**Source code:** [input and output transforms](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/codegen.py#L4017-L4083) (`codegen.py`)
+**Source code:** [input and output transforms](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/codegen.py#L4019-L4085) (`codegen.py`)
 
 Inputs and outputs can be rescaled ($x \mapsto x \times \text{scale} + \text{shift}$), which helps when a coordinate or the solution is far from order one. Each transform can also be a **formula**: an input formula sets the network's input features (e.g. `x*sin(y); x*cos(y)` for polar coordinates), and an output formula rewrites each output — typically to satisfy boundary or initial conditions exactly, e.g. `x*(1 - x)*u` gives $u = 0$ at $x = 0$ and $x = 1$ without a boundary loss term.
 
@@ -2404,7 +2404,7 @@ Inputs and outputs can be rescaled ($x \mapsto x \times \text{scale} + \text{shi
 <summary><strong>Training phases, learning-rate schedules and loss weights</strong></summary>
 
 <!-- source: pinnstudio/core/codegen.py::_clean_phase_train_lines | training phases ; pinnstudio/core/codegen.py::_ic_pretrain_train_code | IC-guided pre-training ; pinnstudio/ui/main_window.py::MainWindow._add_scheduler_phase | phase rows -->
-**Source code:** [training phases](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/codegen.py#L8770-L8804) (`codegen.py`) · [IC-guided pre-training](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/codegen.py#L10026-L10092) (`codegen.py`) · [phase rows](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/ui/main_window.py#L14638-L14739) (`main_window.py`)
+**Source code:** [training phases](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/codegen.py#L8820-L8854) (`codegen.py`) · [IC-guided pre-training](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/codegen.py#L10119-L10185) (`codegen.py`) · [phase rows](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/ui/main_window.py#L14936-L15037) (`main_window.py`)
 
 Training is a sequence of **phases**, each with its own optimizer (Adam, AdamW, L-BFGS or NNCG), number of iterations, learning rate and loss weights — for example the common Adam-then-L-BFGS recipe, or several Adam phases with decreasing learning rates. Each phase's learning rate can decay by a step, cosine, exponential or inverse-time schedule. L-BFGS uses DeepXDE's default options unless you set your own, and the run's precision can be set to float64 when L-BFGS needs the extra precision to converge (float32 is faster).
 
@@ -2418,7 +2418,7 @@ Loss weights can be set per term (each equation, boundary condition, initial con
 <summary><strong>When a PINN struggles: exact constraints and automatic weighting</strong></summary>
 
 <!-- source: pinnstudio/core/codegen.py::_exact_constraints | exact periodicity and initial condition ; pinnstudio/core/codegen.py::_training_methods_defs | causal training, RBA and SA-PINN -->
-**Source code:** [exact periodicity and initial condition](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/codegen.py#L4349-L4417) (`codegen.py`) · [causal training, RBA and SA-PINN](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/codegen.py#L712-L919) (`codegen.py`)
+**Source code:** [exact periodicity and initial condition](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/codegen.py#L4351-L4419) (`codegen.py`) · [causal training, RBA and SA-PINN](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/codegen.py#L712-L919) (`codegen.py`)
 
 A plain PINN fits the equation, the boundary conditions and the initial condition all as loss terms that compete with each other. On hard problems — sharp fronts, phase fields, long time ranges — it can settle on a wrong solution with a small loss. These settings help, in this order (each measured in the [training methods study](benchmarks/training_methods.md), about 180 runs on 14 problems):
 
@@ -2433,7 +2433,7 @@ A plain PINN fits the equation, the boundary conditions and the initial conditio
    *During L-BFGS*: *Keep the weights* gave better results on the hard problems, and *Plain loss* (the default) is the safer choice otherwise. Causal training and per-point weights should not be combined; together they did worse than either one alone.
 5. **For long time ranges, or a very fast change right after the start, use time-adaptive training** (Adaptive training → *Time Adaptive Training*; short windows over the fast part: the 1D Cahn-Hilliard (Mattey & Ghosh) example uses 10 windows of 0.01, then 9 of 0.1, and reaches 0.5% error, where every whole-interval setup failed). Per-point weights and exact periodicity can be used with it; an exact initial condition cannot yet.
 
-Together, steps 2–4 made the 1D Allen-Cahn solution without time-adaptive training 80–150× more accurate than a plain PINN at $t = 1$, and the 2D Allen-Cahn problem of Mattey & Ghosh 25× more accurate (12× better than its time-adaptive template); the Cahn-Hilliard examples use them as well. On problems that a plain PINN already solves well (Burgers, Helmholtz, Kovasznay flow, Schrödinger) they add little or make the result worse, so results should always be compared with a plain run.
+Together, steps 2–4 took the 1D Allen-Cahn solution without time-adaptive training from 10% to 0.13% at $t = 1$ (about 75× more accurate than a plain PINN), and the 2D Allen-Cahn problem of Mattey & Ghosh from 1.3% to 0.036% (36×, and 19× better than its time-adaptive template); the Cahn-Hilliard examples use them as well. On problems that a plain PINN already solves well (Burgers, Helmholtz, Kovasznay flow, Schrödinger) they add little or make the result worse, so results should always be compared with a plain run.
 
 </details>
 
@@ -2479,9 +2479,9 @@ Every round saves a checkpoint and two figures to `solution_results/rar_rounds/r
 <summary><strong>Time-adaptive training</strong></summary>
 
 <!-- source: pinnstudio/core/codegen.py::_gs_time_adaptive_loop_code | time-adaptive loop ; pinnstudio/ui/main_window.py::MainWindow._add_ta_step_group | time-step groups -->
-**Source code:** [time-adaptive loop](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/codegen.py#L2427-L3983) (`codegen.py`) · [time-step groups](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/ui/main_window.py#L6712-L6766) (`main_window.py`)
+**Source code:** [time-adaptive loop](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/codegen.py#L2427-L3985) (`codegen.py`) · [time-step groups](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/ui/main_window.py#L6899-L6953) (`main_window.py`)
 
-Splits the time range into steps and trains through them in order, each step starting from the network of the previous one (transfer learning) and taking its initial condition from the previous step's solution. This suits problems over a long time window or with fast dynamics that are hard to fit with a single network in one pass; the Allen-Cahn templates use it by default. It works in 1D, 2D and 3D, and each step is compared with any reference data that falls inside its time window.
+Splits the time range into steps and trains through them in order, each step starting from the network of the previous one (transfer learning) and taking its initial condition from the previous step's solution. This suits problems over a long time window or with fast dynamics that are hard to fit with a single network in one pass; the time-adaptive Allen-Cahn 1D template, the 2D Allen-Cahn templates, Cahn-Hilliard 1D (Mattey & Ghosh) and Burgers 2D use it by default. It works in 1D, 2D and 3D, and each step is compared with any reference data that falls inside its time window.
 
 The grid that passes the solution from one step to the next is set per axis (*IC grid resolution*), so its size grows with the dimension — PINNStudio picks a smaller default in 3D and warns when a chosen value would be very large.
 
@@ -2505,9 +2505,9 @@ The grid that passes the solution from one step to the next is set per axis (*IC
 <summary><strong>Inverse parameters during training</strong></summary>
 
 <!-- source: pinnstudio/core/codegen.py::_param_axis_helper_code | convergence plots ; pinnstudio/ui/main_window.py::MainWindow._build_restore_param_script | plots after training -->
-**Source code:** [convergence plots](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/codegen.py#L9004-L9098) (`codegen.py`) · [plots after training](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/ui/main_window.py#L15710-L15871) (`main_window.py`)
+**Source code:** [convergence plots](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/codegen.py#L9073-L9181) (`codegen.py`) · [plots after training](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/ui/main_window.py#L16014-L16175) (`main_window.py`)
 
-In an inverse problem, each unknown is saved at regular intervals throughout training, including the final value where training stops, and its convergence can be shown as a plot or an animation — with the true value drawn as a reference line when it is known, both after training and later in Restore & Visualize.
+In an inverse problem, each unknown is saved at regular intervals throughout training, including the final value where training stops, and its convergence can be shown as a plot or an animation — with the true value drawn as a reference line when it is known, both after training and later in Restore & visualize.
 
 </details>
 
@@ -2596,7 +2596,7 @@ Right-click any result figure to copy it, save it as PNG or JPEG, open it in a z
 <summary><strong>Error analysis against reference data</strong></summary>
 
 <!-- source: pinnstudio/core/codegen.py::_gs_ea_setup_code | error analysis ; pinnstudio/core/codegen.py::_formula_reference_code | exact-solution reference ; pinnstudio/ui/main_window.py::MainWindow._show_ea_dialog | Error Analysis dialog -->
-**Source code:** [error analysis](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/codegen.py#L2339-L2424) (`codegen.py`) · [exact-solution reference](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/codegen.py#L9151-L9191) (`codegen.py`) · [Error Analysis dialog](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/ui/main_window.py#L13972-L14358) (`main_window.py`)
+**Source code:** [error analysis](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/codegen.py#L2339-L2424) (`codegen.py`) · [exact-solution reference](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/codegen.py#L9234-L9274) (`codegen.py`) · [Error Analysis dialog](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/ui/main_window.py#L14270-L14656) (`main_window.py`)
 
 A run can be compared with reference solution files at one or more times, or — when the problem has an exact solution — with a formula typed in (one per output, in `x`, `y`, `z`, `t`). For predicted values $u_{\text{pred}}$ and reference values $u_{\text{true}}$ at $N$ points, PINNStudio reports
 
@@ -2612,9 +2612,9 @@ with line and surface comparisons of the prediction, the reference and the error
 <summary><strong>Plots and animations</strong></summary>
 
 <!-- source: pinnstudio/core/codegen.py::generate_clean_script._result_plot_parts | result plots ; pinnstudio/ui/figure_style.py::FigureStyleDialog | figure style -->
-**Source code:** [result plots](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/codegen.py#L11239-L11676) (`codegen.py`) · [figure style](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/ui/figure_style.py#L84-L507) (`figure_style.py`)
+**Source code:** [result plots](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/codegen.py#L11350-L11787) (`codegen.py`) · [figure style](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/ui/figure_style.py#L84-L512) (`figure_style.py`)
 
-Results can be shown as surface or line plots, or as animations of either over time; the list offers only what the problem can have (one curve for an ODE or a steady 1D problem, no surface animation in 1D), and an inverse problem adds the parameter convergence plot and its animation, selected by default. How every figure looks is set in one place, **Plot settings** on the Results page (or *Settings → Plot Settings*): the colour map, contour levels, resolution, snapshots, figure size, font sizes and axis orientation, the line widths and time steps, the loss plot, and for an inverse problem the parameter convergence plot and animation (line colour and width, markers, log axis, and the true-value and final-value lines). Solve, the exported script and Restore & Visualize all use it, and it is saved with the problem. Besides the raw outputs, **Custom...** plots any expression of the outputs and their derivatives (`sqrt(u**2 + v**2)`, `du_x`, ...), during training, in Error Analysis and in Restore & Visualize. For problems with several outputs, *Outputs to plot → All outputs* (the default) saves a figure of each output; pick one output to save only its figure. Numbers in plots are written in scientific notation. In 2D and 3D a line plot follows $x$ at one $y$ (and $z$): the middle of the domain, unless the solution hardly changes there — Helmholtz 2D is exactly zero on $y = 0$ — in which case the line moves to where it does; where the line crosses a hole, the curve stops and starts again on the other side.
+Results can be shown as surface or line plots, or as animations of either over time; the list offers only what the problem can have (one curve for an ODE or a steady 1D problem, no surface animation in 1D), and an inverse problem adds the parameter convergence plot and its animation, selected by default. How every figure looks is set in one place, **Plot settings** on the Results page (or *Settings → Plot Settings*): the colour map, contour levels, resolution, snapshots, figure size, font sizes and axis orientation, the line widths and time steps, the loss plot, and for an inverse problem the parameter convergence plot and animation (line colour and width, markers, log axis, and the true-value and final-value lines). Solve, the exported script and Restore & visualize all use it, and it is saved with the problem. Besides the raw outputs, **Custom...** plots any expression of the outputs and their derivatives (`sqrt(u**2 + v**2)`, `du_x`, ...), during training, in Error Analysis and in Restore & visualize. For problems with several outputs, *Outputs to plot → All outputs* (the default) saves a figure of each output; pick one output to save only its figure. Numbers in plots are written in scientific notation. In 2D and 3D a line plot follows $x$ at one $y$ (and $z$): the middle of the domain, unless the solution hardly changes there — Helmholtz 2D is exactly zero on $y = 0$ — in which case the line moves to where it does; where the line crosses a hole, the curve stops and starts again on the other side.
 
 </details>
 
@@ -2622,7 +2622,7 @@ Results can be shown as surface or line plots, or as animations of either over t
 <summary><strong>Data export and standalone scripts</strong></summary>
 
 <!-- source: pinnstudio/core/codegen.py::generate_clean_script | standalone script ; pinnstudio/ui/main_window.py::MainWindow._on_export_settings | data export -->
-**Source code:** [standalone script](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/codegen.py#L10201-L12152) (`codegen.py`) · [data export](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/ui/main_window.py#L12778-L12842) (`main_window.py`)
+**Source code:** [standalone script](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/codegen.py#L10294-L12263) (`codegen.py`) · [data export](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/ui/main_window.py#L13075-L13139) (`main_window.py`)
 
 The predicted solution can be saved as data on a grid of your choice, for your own analysis. Every problem can also be exported as a standalone DeepXDE/PyTorch script (*Export script* in the toolbar, or Ctrl+E) — to read, run on a cluster, share with a collaborator, or use as a starting point for your own code. The **Script** tab next to the Training Log shows that script for the current settings and updates as you change them.
 
@@ -2632,21 +2632,21 @@ The predicted solution can be saved as data on a grid of your choice, for your o
 <summary><strong>Saving problems, reproducibility and hardware</strong></summary>
 
 <!-- source: pinnstudio/core/config.py::PINNConfig | problem settings ; pinnstudio/ui/main_window.py::MainWindow._save_problem | save ; pinnstudio/ui/main_window.py::MainWindow._open_problem | open ; pinnstudio/ui/main_window.py::MainWindow._on_gpu_settings | GPU settings -->
-**Source code:** [problem settings](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/config.py#L12-L1329) (`config.py`) · [save](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/ui/main_window.py#L9256-L9301) (`main_window.py`) · [open](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/ui/main_window.py#L9303-L9362) (`main_window.py`) · [GPU settings](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/ui/main_window.py#L11291-L11368) (`main_window.py`)
+**Source code:** [problem settings](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/core/config.py#L12-L1340) (`config.py`) · [save](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/ui/main_window.py#L9456-L9501) (`main_window.py`) · [open](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/ui/main_window.py#L9503-L9562) (`main_window.py`) · [GPU settings](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/ui/main_window.py#L11588-L11665) (`main_window.py`)
 
 A whole problem setup can be saved and reopened later (**Save** and **Open** in the toolbar, Ctrl+S and Ctrl+O). Once a problem has a file, Save writes back to it; *Problem → Open Recent* and the Start tab list the last eight problems, the title bar marks unsaved changes, and PINNStudio asks before they would be lost. Runs use a fixed random seed by default, so a run can be repeated exactly, and each run saves its settings next to its results. The GPU to train on (or the CPU, which can be faster for a small 1D problem; see [Speed](#speed-pinnstudio-and-a-plain-script)), its memory share, the float precision, the random seed and the L-BFGS options are set under *Settings*.
 
 </details>
 
-### Restore & Visualize
+### Restore & visualize
 
 <details>
 <summary><strong>Reload a trained model without retraining</strong></summary>
 
-<!-- source: pinnstudio/ui/main_window.py::MainWindow._on_restore | Restore & Visualize ; pinnstudio/ui/main_window.py::MainWindow._build_restore_script | restore script -->
-**Source code:** [Restore & Visualize](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/ui/main_window.py#L15165-L15611) (`main_window.py`) · [restore script](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/ui/main_window.py#L15873-L16260) (`main_window.py`)
+<!-- source: pinnstudio/ui/main_window.py::MainWindow._on_restore | Restore & visualize ; pinnstudio/ui/main_window.py::MainWindow._build_restore_script | restore script -->
+**Source code:** [Restore & visualize](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/ui/main_window.py#L15464-L15918) (`main_window.py`) · [restore script](https://github.com/AsfandyarKhan72/PINNStudio/blob/main/pinnstudio/ui/main_window.py#L16177-L16564) (`main_window.py`)
 
-Point Restore & Visualize at a saved model, and PINNStudio finds its `model_config.json` next to it, says what the model is (dimension, forward or inverse, outputs, parameters), rebuilds the trained network and produces any of the plots or animations above — including derivative expressions you did not plot during training, Error Analysis against the original reference data, and, for an inverse run, the convergence of the unknowns, whose files it finds in the run folder — without training again. Only the network's weights are loaded, so it does not matter which optimizer trained the model.
+Point Restore & visualize (*Results → Restore & visualize* in the model tree) at a saved model, and PINNStudio finds its `model_config.json` next to it, says what the model is (dimension, forward or inverse, outputs, parameters), rebuilds the trained network and produces any of the plots or animations above — including derivative expressions you did not plot during training, Error Analysis against the original reference data, and, for an inverse run, the convergence of the unknowns, whose files it finds in the run folder — without training again. Only the network's weights are loaded, so it does not matter which optimizer trained the model.
 
 </details>
 
@@ -2712,7 +2712,7 @@ PINNStudio trains as fast as the plain exported script, on the GPU and on the CP
 
 Solve writes a DeepXDE script and runs it in a Python process of its own; the window only reads what the script prints. To see how much PINNStudio adds to a run, five examples were trained in four ways, with the same settings and the same number of iterations, with [`benchmarks/timing_study.py`](benchmarks/timing_study.py):
 
-- **plain script**: *File → Export as DeepXDE Script*, run with `python`;
+- **plain script**: *Problem → Export as DeepXDE Script*, run with `python`;
 - **Solve's script**: the script Solve runs, run with `python` (no window);
 - **PINNStudio window**: Solve, with the live loss plot;
 - **live plot off**: Solve, with *Update while training* unticked above the plot.
@@ -2756,38 +2756,49 @@ pinnstudio/
 │   ├── ui/
 │   │   ├── main_window.py   # PyQt6 interface — every page, dialog, and control
 │   │   ├── workspace.py     # Model tree + settings pages (the three-panel layout)
-│   │   ├── theme.py         # Studio Light/Dark themes, built from colour tokens
+│   │   ├── theme.py         # Studio Light, Studio Dark and Solarized Dark, built from colour tokens
 │   │   ├── icons.py         # Line icons and the app icon
 │   │   ├── start_page.py    # Start tab: new problem, recent files, example gallery
 │   │   ├── results.py       # Live loss, status, error analysis, run history and comparison
+│   │   ├── figure_style.py  # Plot settings (how every saved figure looks)
 │   │   ├── export_tools.py  # Copy / save figures and tables
 │   │   ├── equation.py      # Equations typeset as you type, unknown-name check
 │   │   ├── sketch_canvas.py # Sketch and Geometry tabs (2D and 3D)
 │   │   ├── sketch_edges.py  # A sketch's boundary edges and their Where: expressions
 │   │   ├── sketch3d.py      # 3D sketch: views, sections, faces
+│   │   ├── view3d.py        # The rotatable 3D view of a domain
 │   │   └── sketch_import.py # DXF / SVG import
 │   └── core/
 │       ├── config.py          # PINNConfig — the full problem definition
 │       ├── codegen.py         # PINNConfig -> standalone DeepXDE/PyTorch script
-│       ├── deepxde_examples.py # DeepXDE's documented examples
+│       ├── constants.py       # Named constants in expressions
+│       ├── line_slice.py      # Where 2D/3D line plots cut the domain
+│       ├── example_catalog.py # The Examples list: order, names, categories
+│       ├── pinnstudio_examples.py # PINNStudio's own templates
+│       ├── deepxde_examples.py    # DeepXDE's documented examples
+│       ├── bayes_opt.py       # Bayesian hyperparameter search
 │       ├── runner.py          # Runs the generated script, streams output to the Training Log
 │       ├── sweep_registry.py  # Parameter Sweep's list of sweepable parameters
 │       └── sweep_runner.py    # Builds and runs each sweep configuration in turn
 ├── assets/
-│   ├── screenshots/        # README screenshots
-│   └── results/             # Example output (solution images, demo GIFs)
+│   ├── Images/              # README figures of every example
+│   └── screenshots/         # README screenshots
 ├── reference_data/          # Bundled ground truth for the built-in templates
 │   ├── 1D/
 │   ├── 2D/
 │   ├── 3D/
 │   └── deepxde/             # Reference/measurement data for the DeepXDE examples
-├── tools/                   # Reference-data generator, DeepXDE example runner
+├── benchmarks/              # Training methods study, timing study, anchors study
+├── docs/                    # Project web page
+├── tests/                   # Test suite (pytest)
+├── tools/                   # Reference-data generators, example runners, window check
 ├── requirements.txt
-├── setup.py
+├── setup.py, pyproject.toml
 ├── get-pinnstudio.sh       # One-command install with uv (macOS/Linux)
 ├── get-pinnstudio.ps1      # One-command install with uv (Windows)
 ├── install.sh              # Source install into ./venv (macOS/Linux)
 ├── install.bat             # Source install into ./venv (Windows)
+├── CHANGELOG.md
 └── README.md
 ```
 
