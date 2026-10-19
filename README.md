@@ -575,6 +575,10 @@ $$\Large \frac{dy_1}{dt} = C_1(y_2 - y_1), \qquad \frac{dy_2}{dt} = y_1(C_2 - y_
 
 ![Lorenz ODE – unknown C₁, C₂, C₃ — PINN vs reference along a line (y1)](assets/Images/DeepXDE/Inverse_Lorenz_system/line_comparison_y1.png)
 
+*y2 — PINN vs reference along a line*
+
+![Lorenz ODE – unknown C₁, C₂, C₃ — PINN vs reference along a line (y2)](assets/Images/DeepXDE/Inverse_Lorenz_system/line_comparison_y2.png)
+
 *y3 — PINN vs reference along a line*
 
 ![Lorenz ODE – unknown C₁, C₂, C₃ — PINN vs reference along a line (y3)](assets/Images/DeepXDE/Inverse_Lorenz_system/line_comparison_y3.png)
@@ -605,6 +609,10 @@ $$\Large \frac{dy_1}{dt} = C_1(y_2 - y_1), \qquad \frac{dy_2}{dt} = y_1(C_2 - y_
 *y1 — PINN vs reference along a line*
 
 ![Lorenz ODE – unknown C₁, C₂, C₃, exogenous input — PINN vs reference along a line (y1)](assets/Images/DeepXDE/Inverse_Lorenz_system_with_exogenous_input/line_comparison_y1.png)
+
+*y2 — PINN vs reference along a line*
+
+![Lorenz ODE – unknown C₁, C₂, C₃, exogenous input — PINN vs reference along a line (y2)](assets/Images/DeepXDE/Inverse_Lorenz_system_with_exogenous_input/line_comparison_y2.png)
 
 *y3 — PINN vs reference along a line*
 
@@ -871,6 +879,10 @@ $$\Large \lambda\frac{d^2u}{dx^2} - k(x)\ u = \sin(2\pi x), \qquad \lambda = 0.0
 
 ![Diffusion-reaction 1D – unknown rate field — PINN solution (u)](assets/Images/DeepXDE/Inverse_diffusion_reaction_with_space_dependent_rate/solution_plot.png)
 
+*k — the learned rate field*
+
+![Diffusion-reaction 1D – unknown rate field — learned rate field (k)](assets/Images/DeepXDE/Inverse_diffusion_reaction_with_space_dependent_rate/solution_plot_k.png)
+
 </details>
 
 <details id="dx-inverse-fractional-poisson-equation-1d">
@@ -942,6 +954,8 @@ $$\Large -\frac{d^2u}{dx^2} + q(x) = 0, \qquad x \in [-1, 1]$$
 **Result (RTX 4090):** $L_2$ = 7.6 × 10⁻³ ($u$), 1.3 × 10⁻¹ ($q$)
 
 *q — PINN vs reference along a line*
+
+![Poisson 1D – unknown forcing field (batches) — PINN vs reference along a line (u)](assets/Images/DeepXDE/Inverse_Poisson_with_unknown_forcing_field_batches/line_comparison_u.png)
 
 ![Poisson 1D – unknown forcing field (batches) — PINN vs reference along a line (q)](assets/Images/DeepXDE/Inverse_Poisson_with_unknown_forcing_field_batches/line_comparison_q.png)
 
@@ -1072,6 +1086,10 @@ where $\alpha = 0.02$ and $\kappa = 1$. As in the paper (its phase-space form, e
 ![1D Cahn-Hilliard (Mattey & Ghosh) — PINN vs reference, u](assets/Images/1D-CahnHilliard-Mattey/surface_comparison_u.png)
 
 ![1D Cahn-Hilliard (Mattey & Ghosh) — u along x at the reference times](assets/Images/1D-CahnHilliard-Mattey/line_comparison_u.png)
+
+![1D Cahn-Hilliard (Mattey & Ghosh) — PINN vs reference, chemical potential mu](assets/Images/1D-CahnHilliard-Mattey/surface_comparison_mu.png)
+
+![1D Cahn-Hilliard (Mattey & Ghosh) — mu along x at the reference times](assets/Images/1D-CahnHilliard-Mattey/line_comparison_mu.png)
 
 *Inverse mode* — same template, switched to **Inverse** (without time windows, which Inverse mode does not use), recovering $\alpha$ and $\kappa$ (initial guesses 1 and 0.1, true values 0.02 and 1) from $u$ measured at $t = 1$. **Inverse result (RTX 4090): not recovered** — $\alpha$ = 8.5 × 10⁻⁴ (96% off) and $\kappa$ = 0.105 (90% off). Being worked on.
 
@@ -1543,6 +1561,8 @@ $$\Large \frac{\partial C_A}{\partial t} = D\frac{\partial^2 C_A}{\partial x^2} 
 
 ![Diffusion-reaction 1D – unknown k_f, D — PINN solution over time (ca)](assets/Images/DeepXDE/Inverse_diffusion_reaction_system/animation.gif)
 
+![Diffusion-reaction 1D – unknown k_f, D — PINN solution over time (cb)](assets/Images/DeepXDE/Inverse_diffusion_reaction_system/animation_cb.gif)
+
 *ca — inferred parameters during training*
 
 ![Diffusion-reaction 1D – unknown k_f, D — inferred parameters during training (ca)](assets/Images/DeepXDE/Inverse_diffusion_reaction_system/param_plot.png)
@@ -1807,6 +1827,10 @@ $$\Large (\mathbf u\cdot\nabla)\mathbf u + \nabla p = \frac{1}{Re}\nabla^2\mathb
 
 ![Navier-Stokes 2D – Kovasznay flow — PINN vs reference, error analysis (u)](assets/Images/DeepXDE/Kovasznay_flow/surface_comparison_u.png)
 
+*v — PINN vs reference, error analysis*
+
+![Navier-Stokes 2D – Kovasznay flow — PINN vs reference, error analysis (v)](assets/Images/DeepXDE/Kovasznay_flow/surface_comparison_v.png)
+
 *p — PINN vs reference, error analysis*
 
 ![Navier-Stokes 2D – Kovasznay flow — PINN vs reference, error analysis (p)](assets/Images/DeepXDE/Kovasznay_flow/surface_comparison_p.png)
@@ -2009,6 +2033,8 @@ $$\Large \frac{\partial u}{\partial t'} = 0.005\left(\frac{\partial^2 \mu}{\part
 **Result (RTX 4090, about 15 minutes):** $u$: $L_2$ = 8.5 × 10⁻⁷ ($t' = 0$), 5.2 × 10⁻³ ($t' = 0.2$), 4.5 × 10⁻³ ($t' = 0.4$), 4.0 × 10⁻³ ($t' = 0.6$), 2.4 × 10⁻³ ($t' = 0.8$), 2.0 × 10⁻³ ($t' = 1$); $\mu$: 4.0 × 10⁻³ to 7.8 × 10⁻³ up to $t' = 0.8$, 4.2 × 10⁻² at $t' = 1$, against a Fourier pseudo-spectral solution in [`reference_data/2D/cahn_hilliard_mattey`](reference_data/2D/cahn_hilliard_mattey) (made by [`tools/make_phase_field_reference_data.py`](tools/make_phase_field_reference_data.py)). Without SA-PINN the error in $u$ is about 1.7× larger (3.5 × 10⁻³ at $t' = 1$), and RBA or causal training do no better.
 
 ![2D Cahn-Hilliard (Mattey & Ghosh) — PINN vs reference, u](assets/Images/2D_CahnHilliard-Mattey/surface_comparison_u.png)
+
+![2D Cahn-Hilliard (Mattey & Ghosh) — PINN vs reference, chemical potential mu](assets/Images/2D_CahnHilliard-Mattey/surface_comparison_mu.png)
 
 *Inverse mode* — same template, switched to **Inverse**, recovering $\alpha$ and $\kappa$ (initial guesses 1 and 0.1, true values 0.0002 and 1) from $u$ measured at $t' = 1$. **Inverse result (RTX 4090):** $\alpha$ = 1.88 × 10⁻⁴ (6% off), $\kappa$ = 1.012 (1.2% off).
 
