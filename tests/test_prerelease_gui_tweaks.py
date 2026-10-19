@@ -183,9 +183,13 @@ def main():
     check("Animation Surface (GIF)" in items_3d,
           f"_restore_forward_viz_items includes Animation Surface (GIF) for a 3D config, got {items_3d}")
 
+    # a steady 1D model (and an ODE) is one curve: Line; steady 2D/3D: Surface
     items_1d_steady = _viz_items_for_config({"steady_state": True, "problem_dim": "1D"})
-    check(items_1d_steady == ["Surface"],
-          f"_restore_forward_viz_items still collapses to just ['Surface'] for a steady-state config regardless of dimension, got {items_1d_steady}")
+    check(items_1d_steady == ["Line"],
+          f"_restore_forward_viz_items gives just ['Line'] for a steady 1D config, got {items_1d_steady}")
+    items_2d_steady = _viz_items_for_config({"steady_state": True, "problem_dim": "2D"})
+    check(items_2d_steady == ["Surface"],
+          f"_restore_forward_viz_items gives just ['Surface'] for a steady 2D config, got {items_2d_steady}")
 
     win.close()
 
