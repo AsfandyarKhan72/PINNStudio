@@ -521,6 +521,20 @@ class PINNConfig:
     # figure per parameter (<name>_convergence_plot.png / _animation.gif)
     param_plot_figures: str = "combined"
     param_anim_figures: str = "combined"
+    # How the curve is drawn: "line", "line_markers" or "markers" (dots
+    # only), the marker's shape and size; the animation can also mark the
+    # current value with a dot at the curve's tip. param_plot_markers above
+    # is the older on/off for markers, still read from saved problems.
+    param_plot_draw: str = "line"
+    param_plot_marker: str = "o"
+    param_plot_marker_size: float = 4.0
+    param_anim_draw: str = "line"
+    param_anim_head: bool = True
+    # Grid lines on every line-type figure (line plots and animations, line
+    # comparisons, loss, parameter convergence); Plot settings -> General.
+    plot_grid: bool = True
+    # The reference in line comparisons (Error Analysis): "line" or "dots".
+    plot_ref_style: str = "line"
 
     # Loss Plot Settings (Round 28): previously every loss plot across the
     # app hardcoded "semilogy of summed Train/Test loss" with no user

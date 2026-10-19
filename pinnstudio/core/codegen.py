@@ -1215,6 +1215,7 @@ def _make_loss_plot(train_rows, test_rows, steps, save_path, title, xlabel="Iter
     ax.set_xlabel(xlabel, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel("Loss", fontsize={config.plot_axis_label_fontsize})
     ax.set_title(title)
     ax.legend(fontsize=8 if _LOSS_MODE != "train_test" else 10)
+    _grid(ax, alpha=0.3, which="major")
     fig.tight_layout()
     fig.savefig(save_path, dpi={config.plot_dpi}); plt.close(fig)
 '''
@@ -1703,7 +1704,7 @@ def _gs_rar_loop_code(config):
                         _fig_r, _ax_r = plt.subplots(figsize=_plot_figsize(6.5, 5))
                         _ax_r.plot(_xr, _field_r, color="#1971c2", linewidth=2.0)
                         _ax_r.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_r.set_ylabel("u", fontsize={config.plot_axis_label_fontsize})
-                        _ax_r.grid(True, alpha=0.3)
+                        _grid(_ax_r, alpha=0.3)
                         _fig_r.suptitle(f"RAR round {{_rar_idx}} solution snapshot")
                         plt.tight_layout(rect=[0, 0, 1, 0.93])
                         plt.savefig(_os.path.join(_rd, "solution_plot.png"), dpi={config.plot_dpi}, bbox_inches="tight")
@@ -1757,7 +1758,7 @@ def _gs_rar_loop_code(config):
                             print(f"  [RAR round {{_rar_idx}}] vs Reference: L2 rel error = {{_l2_r:.4e}}, MSE = {{_mse_r:.4e}}")
                             _fig_e, _ax_e = plt.subplots(figsize=_plot_figsize(6.5, 5))
                             _ord_e = np.argsort(_ref_x_r)
-                            _ax_e.plot(_ref_x_r[_ord_e], _ref_u_r[_ord_e], label="Reference", color="#2f9e44")
+                            _ref_plot(_ax_e, _ref_x_r[_ord_e], _ref_u_r[_ord_e], label="Reference", color="#2f9e44")
                             _ax_e.plot(_ref_x_r[_ord_e], _ref_pred_r[_ord_e], label="PINN", color="#1971c2", linestyle="--")
                             _ax_e.legend(loc="best", fontsize=8)
                             _ax_e.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_e.set_ylabel("u", fontsize={config.plot_axis_label_fontsize})
@@ -1904,7 +1905,7 @@ def _gs_rar_loop_code(config):
                         print(f"  [RAR round {{_rar_idx}}] vs Reference t={{_ref_t_r:.3g}}: L2 rel error = {{_l2_r:.4e}}, MSE = {{_mse_r:.4e}}")
                         _fig_e, _ax_e = plt.subplots(figsize=_plot_figsize(6.5, 5))
                         _ord_e = np.argsort(_ref_xyz_r[:, 0])
-                        _ax_e.plot(_ref_xyz_r[_ord_e, 0], _ref_u_r[_ord_e], label="Reference", color="#2f9e44")
+                        _ref_plot(_ax_e, _ref_xyz_r[_ord_e, 0], _ref_u_r[_ord_e], label="Reference", color="#2f9e44")
                         _ax_e.plot(_ref_xyz_r[_ord_e, 0], _ref_pred_r[_ord_e], label="PINN", color="#1971c2", linestyle="--")
                         _ax_e.legend(loc="best", fontsize=8)
                         _ax_e.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_e.set_ylabel("u", fontsize={config.plot_axis_label_fontsize})
@@ -3157,10 +3158,10 @@ if {config.time_adaptive}:
                             _tea_up = _ta_ref_extract(_tea_xt_l, _msel, model_i).flatten()
                             _tea_l2 = float(np.linalg.norm(_tea_up - _tea_uv) / (np.linalg.norm(_tea_uv) + 1e-10))
                             _ax = _tea_ax_flat[_mi]
-                            _ax.plot(_tea_xv, _tea_uv, color="#4dabf7", linewidth=2.0, label="Reference")
+                            _ref_plot(_ax, _tea_xv, _tea_uv, color="#4dabf7", linewidth=2.0, label="Reference")
                             _ax.plot(_tea_xv, _tea_up, color="#ff6b6b", linewidth=2.0, linestyle="--", label="PINN")
                             _ax.set_title(f"t={{_mtv:.4f}}  {{_l2_txt(_tea_l2)}}", fontsize={config.plot_subplot_title_fontsize})
-                            _ax.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax.set_ylabel("u", fontsize={config.plot_axis_label_fontsize}); _ax.grid(True, alpha=0.3)
+                            _ax.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax.set_ylabel("u", fontsize={config.plot_axis_label_fontsize}); _grid(_ax, alpha=0.3)
                         for _mj in range(len(_step_matches), len(_tea_ax_flat)):
                             _tea_ax_flat[_mj].set_visible(False)
                         _tea_h, _tea_l = _tea_ax_flat[0].get_legend_handles_labels()
@@ -3178,7 +3179,7 @@ if {config.time_adaptive}:
                             ax.plot(_x_l2, _u_line, color=colors[_ci], linewidth={config.plot_linewidth}, label=f"t={{_tv:.3f}}")
                         ax.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel("u", fontsize={config.plot_axis_label_fontsize})
                         ax.set_title(f"Step {{step_i+1}}: t = {{t0:.4f}} → {{t1:.4f}}")
-                        ax.legend(loc="upper right", fontsize=7); ax.grid(True, alpha=0.2)
+                        ax.legend(loc="upper right", fontsize=7); _grid(ax, alpha=0.2)
                         plt.tight_layout()
                     plt.savefig(_step_line_fname, dpi={config.plot_dpi}, bbox_inches="tight")
                     plt.close()
@@ -3473,7 +3474,7 @@ if {config.time_adaptive}:
                            else (f"u(x,y={line_slice_y:.3g},t)" if _is_2d else "u(x,t)"))
         ax.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_ylabel_ta_line, fontsize={config.plot_axis_label_fontsize})
         ax.set_title("Time-Adaptive PINN — Line Plot")
-        ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
+        ax.legend(loc="upper right", fontsize=8); _grid(ax, alpha=0.2)
         plt.tight_layout(); plt.savefig(_ta_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
 
     # Full Time-Adaptive run -- every optimizer phase of every time
@@ -3777,10 +3778,10 @@ if {config.time_adaptive}:
                     _ea_tv, _l2, _mse, _mx, _ma = _ea_metrics[_ei]
                     if _is_2d or _is_3d:
                         _xv_s, _gt_s, _pinn_s = _line_gaps(_xv_s, _gt_s, _pinn_s)
-                    ax.plot(_xv_s, _gt_s,   color='#4dabf7', linewidth=2.0, linestyle='-',  label='Reference')
+                    _ref_plot(ax, _xv_s, _gt_s,   color='#4dabf7', linewidth=2.0, linestyle='-',  label='Reference')
                     ax.plot(_xv_s, _pinn_s, color='#ff6b6b', linewidth=2.0, linestyle='--', label='PINN')
                     ax.set_title(f"t = {{_ea_tv:.3g}}  ({{_l2_txt(_l2)}})", fontsize={config.plot_subplot_title_fontsize})
-                    ax.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel("u(x,t)", fontsize={config.plot_axis_label_fontsize}); ax.grid(True, alpha=0.3)
+                    ax.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel("u(x,t)", fontsize={config.plot_axis_label_fontsize}); _grid(ax, alpha=0.3)
                 for _ej in range(_ea_n_t, len(_ea_ax_flat)):
                     _ea_ax_flat[_ej].set_visible(False)
                 _ea_ax_flat[0].legend(loc='best', fontsize=10, framealpha=0.9)
@@ -4922,7 +4923,7 @@ if not torch.cuda.is_available() and str(getattr(torch, "get_default_device", la
 # applied to the multi-column Error Analysis comparison grids (sized by
 # however many files/columns are being compared) or the domain-sampling
 # preview plots (sized to the problem's own geometry).
-{_figsize_helper_code(config.plot_figsize_mode, config.plot_figsize_w, config.plot_figsize_h)}
+{_figsize_helper_code(config.plot_figsize_mode, config.plot_figsize_w, config.plot_figsize_h, getattr(config, "plot_grid", True), getattr(config, "plot_ref_style", "line"))}
 
 # Shared-color-scale contourf levels (see codegen.py's _contour_levels_helper_code).
 {_contour_levels_helper_code()}
@@ -6869,7 +6870,7 @@ for _pval in _param_values:
                     _time_txt_x, _time_txt_y, _time_txt_ha = (0.02, 0.95, 'left') if _plot_title_override else (0.5, 1.02, 'center')
                     _time_txt_gif = _ax_gif.text(_time_txt_x, _time_txt_y, '', transform=_ax_gif.transAxes,
                                                   color='black', ha=_time_txt_ha, fontsize=11)
-                    _ax_gif.grid(True, alpha=0.2)
+                    _grid(_ax_gif, alpha=0.2)
                     def _init_gif():
                         _line_gif.set_data([], []); _time_txt_gif.set_text(''); return _line_gif, _time_txt_gif
                     def _update_gif(i):
@@ -7053,7 +7054,7 @@ for _pval in _param_values:
                     _u_l2ds = _extract_plot_field(_xy_l2ds).flatten()
                     ax.plot(*_line_gaps(_x_l2ds, _u_l2ds), color="#4dabf7", linewidth={config.plot_linewidth})
                     ax.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or f"{{out_name}}(x,y={line_slice_y:.3g})", fontsize={config.plot_axis_label_fontsize})
-                    ax.grid(True, alpha=0.2)
+                    _grid(ax, alpha=0.2)
                 ax.set_title(_plot_title_override or f"PINN Solution — {{out_name}}(x,y={line_slice_y:.3g})")
                 plt.tight_layout(); plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
             elif _is_2d and _is_steady:
@@ -7110,7 +7111,7 @@ for _pval in _param_values:
                         _u_l2d = _extract_plot_field(_xyt_l2d).flatten()
                         ax.plot(*_line_gaps(_x_l2d, _u_l2d), color=_colors_l2d[_i_l2d], linewidth={config.plot_linewidth}, label=f"t = {{_tv_l2d:.3f}}")
                     ax.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or f"{{out_name}}(x,y={line_slice_y:.3g},t)", fontsize={config.plot_axis_label_fontsize})
-                    ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
+                    ax.legend(loc="upper right", fontsize=8); _grid(ax, alpha=0.2)
                 ax.set_title(_plot_title_override or f"PINN Solution — {{out_name}}(x,y={line_slice_y:.3g},t)")
                 plt.tight_layout(); plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
             elif _is_2d:
@@ -7162,7 +7163,7 @@ for _pval in _param_values:
                     _u_l3ds = _extract_plot_field(_xyz_l3ds).flatten()
                     ax.plot(*_line_gaps(_x_l3ds, _u_l3ds), color="#4dabf7", linewidth={config.plot_linewidth})
                     ax.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or f"{{out_name}}(x,y={line_slice_y:.3g},z={line_slice_z:.3g})", fontsize={config.plot_axis_label_fontsize})
-                    ax.grid(True, alpha=0.2)
+                    _grid(ax, alpha=0.2)
                 ax.set_title(_plot_title_override or f"PINN Solution — {{out_name}}(x,y={line_slice_y:.3g},z={line_slice_z:.3g})")
                 plt.tight_layout(); plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
             elif _is_3d and _is_steady:
@@ -7220,7 +7221,7 @@ for _pval in _param_values:
                         _u_l3d = _extract_plot_field(_xyzt_l3d).flatten()
                         ax.plot(*_line_gaps(_x_l3d, _u_l3d), color=_colors_l3d[_i_l3d], linewidth={config.plot_linewidth}, label=f"t = {{_tv_l3d:.3f}}")
                     ax.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or f"{{out_name}}(x,y={line_slice_y:.3g},z={line_slice_z:.3g},t)", fontsize={config.plot_axis_label_fontsize})
-                    ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
+                    ax.legend(loc="upper right", fontsize=8); _grid(ax, alpha=0.2)
                 ax.set_title(_plot_title_override or f"PINN Solution — {{out_name}}(x,y={line_slice_y:.3g},z={line_slice_z:.3g},t)")
                 plt.tight_layout(); plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
             elif _is_3d:
@@ -7272,7 +7273,7 @@ for _pval in _param_values:
                 ax.set_xlabel(_plot_xlabel_override or _v1d, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or f"{{_out_name_1d}}({{_v1d}})", fontsize={config.plot_axis_label_fontsize})
                 ax.set_title(_plot_title_override or (f"PINN Solution — {{_param_name}}={{_pval}}" if _parametric
                               else (f"PINN Solution — {{_out_name_1d}}({{_v1d}})" if _plot_n_out > 1 or _plot_custom_expr.strip() else "PINN Solution")))
-                ax.grid(True, alpha=0.2)
+                _grid(ax, alpha=0.2)
                 plt.tight_layout(); plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
             else:
                 # 1D plot (_plot_type already computed above)
@@ -7318,7 +7319,7 @@ for _pval in _param_values:
                     ax.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or f"{{_out_name_line}}(x,t)", fontsize={config.plot_axis_label_fontsize})
                     ax.set_title(_plot_title_override or (f"PINN Solution — {{_param_name}}={{_pval}}" if _parametric
                                   else (f"PINN Solution — {{_out_name_line}}(x,t)" if _plot_n_out > 1 or _plot_custom_expr.strip() else "PINN Solution")))
-                    ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
+                    ax.legend(loc="upper right", fontsize=8); _grid(ax, alpha=0.2)
                     plt.tight_layout(); plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
 
         _plot_idx, _run_solution_path = _plot_main_job
@@ -7681,7 +7682,7 @@ for _pval in _param_values:
                         _ea_tv, _l2, _mse, _mx, _ma = _ea_metrics[_ei]
                         if _is_2d or _is_3d:
                             _xv_s, _gt_s, _pinn_s = _line_gaps(_xv_s, _gt_s, _pinn_s)
-                        ax.plot(_xv_s, _gt_s,   color='#4dabf7', linewidth=2.0, linestyle='-',  label='Reference')
+                        _ref_plot(ax, _xv_s, _gt_s,   color='#4dabf7', linewidth=2.0, linestyle='-',  label='Reference')
                         ax.plot(_xv_s, _pinn_s, color='#ff6b6b', linewidth=2.0, linestyle='--', label='PINN')
                         # Steady-state (e.g. a Poisson equation) has no time
                         # axis at all -- every reference file is really just
@@ -7691,7 +7692,7 @@ for _pval in _param_values:
                         _ea_lt = (f"({{_l2_txt(_l2)}})" if _is_steady else f"t = {{_ea_tv:.3g}}  ({{_l2_txt(_l2)}})")
                         ax.set_title(f"{{_ea_line_head}}     {{_ea_lt}}" if _ea_single else _ea_lt,
                                      fontsize={config.plot_subplot_title_fontsize} + (2 if _ea_single else 0))
-                        ax.set_xlabel(_v1d, fontsize={config.plot_axis_label_fontsize}); _ea_fn = (_ea_line_suptitle.split(" — ") + ["", ""])[1] if _ea_line_suptitle.count(" — ") >= 2 else "u"; ax.set_ylabel(f"{{_ea_fn}}({{_v1d}})" if _is_steady else f"{{_ea_fn}}(x,t)", fontsize={config.plot_axis_label_fontsize}); ax.grid(True, alpha=0.3)
+                        ax.set_xlabel(_v1d, fontsize={config.plot_axis_label_fontsize}); _ea_fn = (_ea_line_suptitle.split(" — ") + ["", ""])[1] if _ea_line_suptitle.count(" — ") >= 2 else "u"; ax.set_ylabel(f"{{_ea_fn}}({{_v1d}})" if _is_steady else f"{{_ea_fn}}(x,t)", fontsize={config.plot_axis_label_fontsize}); _grid(ax, alpha=0.3)
                     for _ej in range(_ea_n_t, len(_ea_ax_flat)):
                         _ea_ax_flat[_ej].set_visible(False)
                     # Legend inside the (first) panel, in its emptiest corner.
@@ -8948,7 +8949,7 @@ def _math_namespace_code(var, lib, indent=""):
     return "\n".join(indent + ln for ln in lines)
 
 
-def _figsize_helper_code(mode, w, h):
+def _figsize_helper_code(mode, w, h, grid=True, ref_style="line"):
     """Builds the literal Python source for a module-level `_plot_figsize(
     default_w, default_h)` helper -- the Round 31 Plot Settings figure-size
     standardization, called at every single-panel plot site in place of a
@@ -8978,10 +8979,31 @@ def _figsize_helper_code(mode, w, h):
         return (_default_h * 1.8, _default_h)
     elif _fs_mode == "Custom":
         return ({w}, {h})
-    return (_default_w, _default_h)''' + _PLOT_TEXT_HELPERS
+    return (_default_w, _default_h)
+
+_PLOT_GRID = {bool(grid)!r}
+_PLOT_REF_DOTS = {ref_style == "dots"!r}''' + _PLOT_TEXT_HELPERS
 
 
 _PLOT_TEXT_HELPERS = """
+
+def _grid(_ax, **_kw):
+    # Grid lines on a line-type figure, as set in Plot settings -> General.
+    if globals().get("_PLOT_GRID", True):
+        _ax.grid(True, **_kw)
+    else:
+        _ax.grid(False)
+
+
+def _ref_plot(_ax, _x, _y, **_kw):
+    # The reference in a line comparison: a line, or dots (Plot settings -> Line).
+    if globals().get("_PLOT_REF_DOTS", False):
+        _kw = {k: v for k, v in _kw.items() if k not in ("linestyle", "linewidth", "ls", "lw")}
+        _n = len(_x)
+        _ax.plot(_x, _y, linestyle="none", marker="o", markersize=4,
+                 markevery=max(1, _n // 50), **_kw)
+    else:
+        _ax.plot(_x, _y, **_kw)
 
 def _line_gaps(_x, *_ys):
     # A line along x masked to the domain: NaN where points were taken out
@@ -9047,6 +9069,8 @@ PARAM_STYLE_DEFAULTS = {
     "param_plot_show_final": True, "param_final_color": "#868e96", "param_final_style": ":",
     "param_anim_color": "#e03131", "param_anim_linewidth": 3.0, "param_anim_frames": 60,
     "param_plot_figures": "combined", "param_anim_figures": "combined",
+    "param_plot_draw": "line", "param_plot_marker": "o", "param_plot_marker_size": 4.0,
+    "param_anim_draw": "line", "param_anim_head": True,
 }
 
 
@@ -9067,7 +9091,12 @@ def param_style_of(cfg):
             "anim_color": str(v("param_anim_color")), "anim_linewidth": float(v("param_anim_linewidth")),
             "anim_frames": max(2, int(v("param_anim_frames"))),
             "plot_separate": v("param_plot_figures") == "separate",
-            "anim_separate": v("param_anim_figures") == "separate"}
+            "anim_separate": v("param_anim_figures") == "separate",
+            # the older on/off markers setting, when the newer one is left as it was
+            "draw": ("line_markers" if (v("param_plot_draw") == "line" and bool(v("param_plot_markers")))
+                     else str(v("param_plot_draw"))),
+            "marker": str(v("param_plot_marker")), "marker_size": float(v("param_plot_marker_size")),
+            "anim_draw": str(v("param_anim_draw")), "anim_head": bool(v("param_anim_head"))}
 
 
 def _param_axis_helper_code(axis_label_fontsize, subplot_title_fontsize, style=None):
@@ -9092,6 +9121,14 @@ def _param_axis_helper_code(axis_label_fontsize, subplot_title_fontsize, style=N
 
 _PARAM_STYLE = {style!r}
 
+if "_grid" not in globals():
+    def _grid(_ax, **_kw):
+        # Grid lines (Plot settings -> General), when the figure helpers are not loaded.
+        if globals().get("_PLOT_GRID", True):
+            _ax.grid(True, **_kw)
+        else:
+            _ax.grid(False)
+
 def _param_ref_lines(ax, final_val, true_val):
     if _PARAM_STYLE["show_final"]:
         ax.axhline(y=final_val, color=_PARAM_STYLE["final_color"], linestyle=_PARAM_STYLE["final_style"],
@@ -9112,8 +9149,12 @@ def _draw_param_ax(ax, name, iters, vals, true_val=None, log_scale=False,
         print(f"⚠️ {{name}}: log scale requested but the value isn't positive -- using linear scale instead.")
     if use_log and not np.all(vals > 0):
         vals = np.where(vals > 0, vals, np.nan)
+    _draw = _PARAM_STYLE.get("draw", "line_markers" if _PARAM_STYLE.get("markers") else "line")
     _kw = dict(color=_PARAM_STYLE["color"], linewidth=_PARAM_STYLE["linewidth"],
-               marker="o" if _PARAM_STYLE["markers"] else None, markersize=3)
+               marker=_PARAM_STYLE.get("marker", "o") if _draw != "line" else None,
+               markersize=_PARAM_STYLE.get("marker_size", 4.0),
+               markevery=max(1, len(iters) // 40),   # about 40 markers, however often values were saved
+               linestyle="none" if _draw == "markers" else "-")
     # (a log axis shows the values themselves, so the label is the name)
     if use_log:
         ax.semilogy(iters, vals, **_kw)
@@ -9125,7 +9166,7 @@ def _draw_param_ax(ax, name, iters, vals, true_val=None, log_scale=False,
     ax.set_title(title_override or f"Inferred Parameter: {{name}}", fontsize={subplot_title_fontsize})
     if ax.get_legend_handles_labels()[0]:
         ax.legend()
-    ax.grid(True, alpha=0.3)
+    _grid(ax, alpha=0.3)
     return final_val
 
 def _param_animation(series, out_path, log_scale=False, fps=10, dpi=100,
@@ -9171,24 +9212,40 @@ def _param_animation(series, out_path, log_scale=False, fps=10, dpi=100,
             _end = vals[np.isfinite(vals)][-1] if np.isfinite(vals).any() else hi
             _mid = (np.sqrt(lo * hi) if use_log else 0.5 * (lo + hi))
             ax.legend(loc="lower right" if _end >= _mid else "upper right")
-        ax.grid(True, alpha=0.3)
-        line, = ax.plot([], [], color=_PARAM_STYLE["anim_color"], linewidth=_PARAM_STYLE["anim_linewidth"])
-        lines.append((line, iters, vals))
+        _grid(ax, alpha=0.3)
+        _adraw = _PARAM_STYLE.get("anim_draw", "line")
+        line, = ax.plot([], [], color=_PARAM_STYLE["anim_color"], linewidth=_PARAM_STYLE["anim_linewidth"],
+                        marker=_PARAM_STYLE.get("marker", "o") if _adraw != "line" else None,
+                        markersize=_PARAM_STYLE.get("marker_size", 4.0),
+                        markevery=max(1, len(iters) // 40),
+                        linestyle="none" if _adraw == "markers" else "-")
+        # a dot on the curve's tip: where the parameter is now
+        head = (ax.plot([], [], linestyle="none", marker="o", color=_PARAM_STYLE["anim_color"],
+                        markersize=max(6.0, 2.2 * _PARAM_STYLE["anim_linewidth"]),
+                        markeredgecolor="white", markeredgewidth=1.0, zorder=5)[0]
+                if _PARAM_STYLE.get("anim_head", True) else None)
+        lines.append((line, iters, vals, head))
     plt.tight_layout()
 
     # Each frame moves on by the same number of iterations, not of saved
     # values: the values are saved more often in some phases than others
     # (L-BFGS logs less often than Adam), and stepping through them one
     # share at a time made the curve speed up in the sparser phase.
-    _i0 = min(float(np.min(_it)) for _l, _it, _v in lines)
-    _i1 = max(float(np.max(_it)) for _l, _it, _v in lines)
+    _i0 = min(float(np.min(_it)) for _l, _it, _v, _h in lines)
+    _i1 = max(float(np.max(_it)) for _l, _it, _v, _h in lines)
 
     def _update(frame):
         cut = _i0 + (frame + 1) / n_frames * (_i1 - _i0)
-        for line, iters, vals in lines:
+        out = []
+        for line, iters, vals, head in lines:
             k = max(1, int(np.searchsorted(iters, cut, side="right")))
             line.set_data(iters[:k], vals[:k])
-        return [l for l, _i, _v in lines]
+            out.append(line)
+            if head is not None:
+                _ok = np.flatnonzero(np.isfinite(vals[:k]))
+                head.set_data(iters[_ok[-1:]], vals[_ok[-1:]]) if len(_ok) else head.set_data([], [])
+                out.append(head)
+        return out
     ani = _p_anim.FuncAnimation(fig, _update, frames=n_frames, interval=1000 / max(1, fps))
     ani.save(out_path, writer="pillow", fps=fps, dpi=dpi)
     plt.close(fig)
@@ -9398,7 +9455,8 @@ def _clean_figsize_runtime_code(config):
     already calls it this way (see Round 31). See _figsize_helper_code()'s own
     docstring for the full rationale; this just extracts the 3 relevant fields
     from a PINNConfig."""
-    return _figsize_helper_code(config.plot_figsize_mode, config.plot_figsize_w, config.plot_figsize_h)
+    return _figsize_helper_code(config.plot_figsize_mode, config.plot_figsize_w, config.plot_figsize_h,
+                                getattr(config, "plot_grid", True), getattr(config, "plot_ref_style", "line"))
 
 
 def _restore_line_plot_code(x_min, x_max, resolution, t_min, t_max, n_steps, colormap,
@@ -9498,7 +9556,7 @@ else:
 {pre_xt_lines}{xt_branch}        u_line = _extract_plot_field(xt{predict_model_arg}).flatten(){line_label_stmt}
         ax.plot(*_line_gaps(x_vals, u_line), color=colors[i], linewidth={linewidth}, {line_label_arg})
     ax.set_xlabel({xlabel!r}, fontsize={axis_label_fontsize}); ax.set_ylabel({ylabel!r}, fontsize={axis_label_fontsize})
-    ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
+    ax.legend(loc="upper right", fontsize=8); _grid(ax, alpha=0.2)
 ax.set_title({title!r}, fontsize={subplot_title_fontsize})
 plt.tight_layout()
 out_path = os.path.join({save_dir!r}, "restored_plot.png")
@@ -9587,7 +9645,7 @@ else:
     {title_stmt}
     line, = ax.plot([], [], color="#4dabf7", linewidth={linewidth})
     time_txt = ax.text({tt_x}, {tt_y}, '', transform=ax.transAxes, color='black', ha={tt_ha!r}, fontsize=11)
-    ax.grid(True, alpha=0.2)
+    _grid(ax, alpha=0.2)
     def init():
         line.set_data([], []); time_txt.set_text(''); return line, time_txt
     def update(i):
@@ -10016,7 +10074,7 @@ def _restore_surface_code(resolution, x_min, x_max, y_min, y_max, t_min, t_max, 
             "    pred = _extract_plot_field(x_vals.reshape(-1, 1)).flatten()\n"
             "    fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))\n"
             f"    ax.plot(x_vals, pred, color=\"#4dabf7\", linewidth={linewidth})\n"
-            "    ax.grid(True, alpha=0.2)\n"
+            "    _grid(ax, alpha=0.2)\n"
             f"    ax.set_xlabel({xlabel_1d_steady!r}, fontsize={axis_label_fontsize}); ax.set_ylabel({ylabel_1d_steady!r}, fontsize={axis_label_fontsize})\n"
             f"    ax.set_title({title_1d_steady!r}, fontsize={subplot_title_fontsize})\n"
         )
@@ -10259,7 +10317,7 @@ def _clean_rar_diagnostics_code(config, is_2d, is_3d, is_steady, out_name):
         snap = (f'''    xs = np.linspace({config.x_min}, {config.x_max}, {res})
     fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
     ax.plot(xs, _extract_plot_field(xs.reshape(-1, 1)), color="#4dabf7")
-    ax.set_xlabel("x"); ax.set_ylabel({out_name!r}); ax.grid(True, alpha=0.2)
+    ax.set_xlabel("x"); ax.set_ylabel({out_name!r}); _grid(ax, alpha=0.2)
     ax.set_title(f"{out_name} after RAR round {{ri}}")''')
     else:
         swap = bool(config.plot_swap_xt)
@@ -11420,7 +11478,7 @@ else:
     u_l2ds = _extract_plot_field(xy_l2ds).flatten()
     ax.plot(*_line_gaps(x_l2ds, u_l2ds), color="#4dabf7", linewidth={config.plot_linewidth})
     ax.set_xlabel({(plot_xlabel_override or "x")!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel({(plot_ylabel_override or f"{out_name}(x, y={line_slice_y:.3g})")!r}, fontsize={config.plot_axis_label_fontsize})
-    ax.grid(True, alpha=0.2)
+    _grid(ax, alpha=0.2)
 ax.set_title({(plot_title_override or "PINN Solution")!r})
 plt.tight_layout()
 plt.savefig(solution_path, dpi={config.plot_dpi}, bbox_inches="tight")
@@ -11468,7 +11526,7 @@ else:
     u_l3ds = _extract_plot_field(xyz_l3ds).flatten()
     ax.plot(*_line_gaps(x_l3ds, u_l3ds), color="#4dabf7", linewidth={config.plot_linewidth})
     ax.set_xlabel({(plot_xlabel_override or "x")!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel({(plot_ylabel_override or f"{out_name}(x, y={line_slice_y:.3g}, z={line_slice_z:.3g})")!r}, fontsize={config.plot_axis_label_fontsize})
-    ax.grid(True, alpha=0.2)
+    _grid(ax, alpha=0.2)
 ax.set_title({(plot_title_override or "PINN Solution")!r})
 plt.tight_layout()
 plt.savefig(solution_path, dpi={config.plot_dpi}, bbox_inches="tight")
@@ -11507,7 +11565,7 @@ fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
 ax.plot(x_1d, u_1d, color="#4dabf7", linewidth={config.plot_linewidth})
 ax.set_xlabel({(plot_xlabel_override or v1)!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel({(plot_ylabel_override or f"{out_name}({v1})")!r}, fontsize={config.plot_axis_label_fontsize})
 ax.set_title({(plot_title_override or "PINN Solution")!r})
-ax.grid(True, alpha=0.2)
+_grid(ax, alpha=0.2)
 plt.tight_layout()
 plt.savefig(solution_path, dpi={config.plot_dpi}, bbox_inches="tight")
 plt.close()
@@ -11549,7 +11607,7 @@ u_min = min(np.nanmin(u) for u in frames_u); u_max = max(np.nanmax(u) for u in f
 fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
 ax.set_xlim({config.x_min}, {config.x_max})
 ax.set_ylim(u_min - 0.05 * abs(u_min) - 1e-9, u_max + 0.05 * abs(u_max) + 1e-9)
-ax.set_xlabel({(plot_xlabel_override or "x")!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel({(plot_ylabel_override or _ylabel_anim)!r}, fontsize={config.plot_axis_label_fontsize}); ax.grid(True, alpha=0.2)
+ax.set_xlabel({(plot_xlabel_override or "x")!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel({(plot_ylabel_override or _ylabel_anim)!r}, fontsize={config.plot_axis_label_fontsize}); _grid(ax, alpha=0.2)
 {f"ax.set_title({plot_title_override!r})" if plot_title_override else "# (no title override set)"}
 line, = ax.plot([], [], color="#4dabf7", linewidth={config.plot_linewidth_anim})
 time_txt = ax.text(0.02, 0.95, "", transform=ax.transAxes, color="#ff8787")
@@ -11667,7 +11725,7 @@ else:
         u_line = _extract_plot_field(xyt).flatten()
         ax.plot(*_line_gaps(x_l2d, u_line), color=colors[i], linewidth={config.plot_linewidth}, label=f"t = {{tv:.3f}}")
     ax.set_xlabel({(plot_xlabel_override or "x")!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel({(plot_ylabel_override or f"{out_name}(x, y={line_slice_y:.3g}, t)")!r}, fontsize={config.plot_axis_label_fontsize})
-    ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
+    ax.legend(loc="upper right", fontsize=8); _grid(ax, alpha=0.2)
 ax.set_title({(plot_title_override or "PINN Solution")!r})
 plt.tight_layout()
 plt.savefig(solution_path, dpi={config.plot_dpi}, bbox_inches="tight")
@@ -11724,7 +11782,7 @@ else:
         u_line = _extract_plot_field(xyzt).flatten()
         ax.plot(*_line_gaps(x_l3d, u_line), color=colors[i], linewidth={config.plot_linewidth}, label=f"t = {{tv:.3f}}")
     ax.set_xlabel({(plot_xlabel_override or "x")!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel({(plot_ylabel_override or f"{out_name}(x, y={line_slice_y:.3g}, z={line_slice_z:.3g}, t)")!r}, fontsize={config.plot_axis_label_fontsize})
-    ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
+    ax.legend(loc="upper right", fontsize=8); _grid(ax, alpha=0.2)
 ax.set_title({(plot_title_override or "PINN Solution")!r})
 plt.tight_layout()
 plt.savefig(solution_path, dpi={config.plot_dpi}, bbox_inches="tight")
@@ -11771,7 +11829,7 @@ for i, tv in enumerate(t_steps):
     ax.plot(x_l, u_line, color=colors[i], linewidth={config.plot_linewidth}, label=f"t = {{tv:.3f}}")
 ax.set_xlabel({(plot_xlabel_override or "x")!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel({(plot_ylabel_override or f"{out_name}(x, t)")!r}, fontsize={config.plot_axis_label_fontsize})
 ax.set_title({(plot_title_override or "PINN Solution")!r})
-ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
+ax.legend(loc="upper right", fontsize=8); _grid(ax, alpha=0.2)
 plt.tight_layout()
 plt.savefig(solution_path, dpi={config.plot_dpi}, bbox_inches="tight")
 plt.close()
@@ -12094,11 +12152,11 @@ for i, tv in enumerate(ea_times):
     ax = axf[i]{mid_slice}
 {sort_line}
     tv_r, l2, mse, mx, ma = ea_metrics[i]{chr(10) + "    xv, gt, pn = _line_gaps(xv, gt, pn)" if (is_2d or is_3d) else ""}
-    ax.plot(xv, gt, color="#4dabf7", linewidth=2.0, label="Reference")
+    _ref_plot(ax, xv, gt, color="#4dabf7", linewidth=2.0, label="Reference")
     ax.plot(xv, pn, color="#ff6b6b", linewidth=2.0, linestyle="--", label="PINN")
     ax.set_title(line_head + "     " + {_ea_line_title} if single else {_ea_line_title},
                  fontsize={config.plot_subplot_title_fontsize} + (2 if single else 0))
-    ax.set_xlabel({v1!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel({_ea_line_ylabel}, fontsize={config.plot_axis_label_fontsize}); ax.grid(True, alpha=0.3)
+    ax.set_xlabel({v1!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel({_ea_line_ylabel}, fontsize={config.plot_axis_label_fontsize}); _grid(ax, alpha=0.3)
 for j in range(n_t, len(axf)):
     axf[j].set_visible(False)
 axf[0].legend(loc="best", fontsize=10, framealpha=0.9)   # inside the panel, in its emptiest corner

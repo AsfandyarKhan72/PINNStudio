@@ -117,7 +117,13 @@ def test_parameter_style_reaches_the_scripts(monkeypatch):
 
     def edit(d):
         d.p_color.setCurrentIndex(d.p_color.findData("#1c7ed6"))
-        d.p_markers.setChecked(True)
+        d.p_draw.setCurrentIndex(d.p_draw.findData("line_markers"))
+        d.p_marker.setCurrentIndex(d.p_marker.findData("s"))
+        d.p_msize.setValue(6.0)
+        d.pa_draw.setCurrentIndex(d.pa_draw.findData("markers"))
+        d.pa_head.setChecked(False)
+        d.grid_cb.setChecked(False)
+        d.ref_style.setCurrentIndex(d.ref_style.findData("dots"))
         d.p_final.setChecked(False)
         d.p_true_style.setCurrentIndex(d.p_true_style.findData(":"))
         d.pa_lw.setCurrentText("1.5")
@@ -129,17 +135,24 @@ def test_parameter_style_reaches_the_scripts(monkeypatch):
     assert cfg.param_plot_color == "#1c7ed6" and cfg.param_plot_markers and not cfg.param_plot_show_final
     assert cfg.param_true_style == ":" and cfg.param_anim_linewidth == 1.5 and cfg.param_anim_color == "#e03131"
     assert cfg.inv_param_log_scale
+    assert cfg.param_plot_draw == "line_markers" and cfg.param_plot_marker == "s" and cfg.param_plot_marker_size == 6.0
+    assert cfg.param_anim_draw == "markers" and not cfg.param_anim_head
+    assert not cfg.plot_grid and cfg.plot_ref_style == "dots"
     for plot_type in ("Parameter Convergence", "Parameter Convergence (GIF)"):
         cfg.plot_type = plot_type
         for gen in (generate_script, generate_clean_script):
             text = gen(cfg)
             assert "'color': '#1c7ed6'" in text and "'markers': True" in text and "'show_final': False" in text
+            assert "'draw': 'line_markers'" in text and "'marker': 's'" in text and "'anim_head': False" in text
+            assert "_PLOT_GRID = False" in text and "_PLOT_REF_DOTS = True" in text
             if gen is generate_clean_script:      # (Solve's script decides when it runs)
                 assert ("# ── Result plot: parameter convergence animation" in text) == plot_type.endswith("(GIF)")
             compile(text, gen.__name__, "exec")
     w2 = MainWindow()
     w2._apply_config(cfg)
-    assert w2._build_config().param_plot_color == "#1c7ed6"
+    c2 = w2._build_config()
+    assert c2.param_plot_color == "#1c7ed6" and c2.param_plot_draw == "line_markers" and not c2.param_anim_head
+    assert not c2.plot_grid and c2.plot_ref_style == "dots"
     w.close()
     w2.close()
 

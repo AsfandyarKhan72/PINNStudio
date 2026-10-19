@@ -17,6 +17,8 @@ COLORMAPS = ["RdBu_r", "viridis", "plasma", "jet", "coolwarm", "inferno", "turbo
 PARAM_COLORS = [("Red", "#e03131"), ("Blue", "#1c7ed6"), ("Black", "#212529"), ("Grey", "#868e96"),
                 ("Green", "#2f9e44"), ("Orange", "#f08c00"), ("Purple", "#7048e8")]
 LINE_STYLES = [("Dashed", "--"), ("Dotted", ":"), ("Dash-dot", "-."), ("Solid", "-")]
+DRAW_AS = [("Line", "line"), ("Line and markers", "line_markers"), ("Markers only", "markers")]
+MARKERS = [("Circle", "o"), ("Square", "s"), ("Triangle", "^"), ("Cross", "x")]
 
 
 def tab_for(viz_type):
@@ -191,6 +193,11 @@ class FigureStyleDialog(QDialog):
         f.addRow("Title font size:", self.title_fs)
         f.addRow("Panel title font size:", self.sub_fs)
         f.addRow("Axis label font size:", self.axis_fs)
+        self.grid_cb = QCheckBox("Show on line-type figures")
+        self.grid_cb.setToolTip("Line plots and animations, the line comparisons of Error Analysis,\n"
+                                "the loss plot and the parameter convergence plot and animation.")
+        self.grid_cb.setChecked(bool(s.get("grid", True)))
+        f.addRow("Grid lines:", self.grid_cb)
         f.addRow(_hint("Blank titles and labels keep each plot's own. Error analysis figures size themselves."))
 
     def _surface(self):
@@ -275,6 +282,10 @@ class FigureStyleDialog(QDialog):
                 sp.setEnabled(not auto)
                 f.addRow(f"{ax} =", row)
                 self.slices[ax] = (cb, sp)
+        self.ref_style = _combo([("Line", "line"), ("Dots", "dots")], s.get("ref_style", "line"), 90)
+        self.ref_style.setToolTip("How the reference is drawn in the line comparisons of Error Analysis:\n"
+                                  "a line, or dots (the PINN stays a dashed line).")
+        f.addRow("Reference in line comparisons:", self.ref_style)
         self._param_plot_section(f)
 
     def _animation(self):
@@ -344,8 +355,13 @@ class FigureStyleDialog(QDialog):
         s = self.style
         self.p_color = _combo(PARAM_COLORS, s.get("param_color", "#e03131"), 100)
         self.p_lw = _combo(["1.0", "1.5", "2.0", "2.5", "3.0", "4.0"], str(float(s.get("param_linewidth", 3.0))), 80)
-        self.p_markers = QCheckBox("Mark each saved value")
-        self.p_markers.setChecked(bool(s.get("param_markers", False)))
+        # "Mark each saved value" (older setting) shows as "Line and markers"
+        _draw = s.get("param_draw", "line")
+        if _draw == "line" and s.get("param_markers", False):
+            _draw = "line_markers"
+        self.p_draw = _combo(DRAW_AS, _draw, 150)
+        self.p_marker = _combo(MARKERS, s.get("param_marker", "o"), 100)
+        self.p_msize = _spin(1.0, 20.0, float(s.get("param_marker_size", 4.0)), 0.5, True, 70)
         self.p_figs = _combo([("One for all parameters", "combined"), ("One per parameter", "separate")], s.get("param_plot_figures", "combined"), 190)
         self.p_figs.setToolTip("One figure with a panel per parameter, or one figure per parameter as well\n"
                                "(<name>_convergence_plot.png)")
@@ -361,7 +377,22 @@ class FigureStyleDialog(QDialog):
         f.addRow("Figures:", self.p_figs)
         f.addRow("Line colour:", self.p_color)
         f.addRow("Line width:", self.p_lw)
-        f.addRow("Markers:", self.p_markers)
+        f.addRow("Draw as:", self.p_draw)
+        mrow = QWidget()
+        ml = QHBoxLayout(mrow)
+        ml.setContentsMargins(0, 0, 0, 0)
+        ml.addWidget(self.p_marker)
+        ml.addWidget(QLabel("size"))
+        ml.addWidget(self.p_msize)
+        ml.addStretch()
+        f.addRow("Marker:", mrow)
+
+        def _sync_marker(_i=None):
+            mrow.setEnabled(self.p_draw.currentData() != "line" or self.pa_draw.currentData() != "line"
+                            if hasattr(self, "pa_draw") else self.p_draw.currentData() != "line")
+        self.p_draw.currentIndexChanged.connect(_sync_marker)
+        self._sync_marker = _sync_marker
+        _sync_marker()
         f.addRow("Value axis:", self.p_log)
         f.addRow("Reference lines:", true_row)
         f.addRow("", final_row)
@@ -378,12 +409,19 @@ class FigureStyleDialog(QDialog):
         self.pa_figs = _combo([("One for all parameters", "combined"), ("One per parameter", "separate")], s.get("param_anim_figures", "combined"), 190)
         self.pa_figs.setToolTip("One animation with a panel per parameter, or one per parameter as well\n"
                                 "(<name>_convergence_animation.gif)")
+        self.pa_draw = _combo(DRAW_AS, s.get("param_anim_draw", "line"), 150)
+        self.pa_head = QCheckBox("Mark it with a dot")
+        self.pa_head.setChecked(bool(s.get("param_anim_head", True)))
         self._section(f, "Parameter convergence animation (inverse problems)")
         f.addRow("Figures:", self.pa_figs)
+        f.addRow("Draw as:", self.pa_draw)
         f.addRow("Line colour:", self.pa_color)
         f.addRow("Line width:", self.pa_lw)
+        f.addRow("Current value:", self.pa_head)
         f.addRow("Frames (at most):", self.pa_frames)
-        f.addRow(_hint("Reference lines and the value axis are as for the plot (Line tab)."))
+        f.addRow(_hint("Markers, reference lines and the value axis are as for the plot (Line tab)."))
+        self.pa_draw.currentIndexChanged.connect(lambda _i: self._sync_marker())
+        self._sync_marker()
 
     def _hide_what_does_not_apply(self):
         """An ODE or a steady 1D problem is one curve: no surface, no time
@@ -417,6 +455,7 @@ class FigureStyleDialog(QDialog):
             self.title_fs.setValue(d.plot_title_fontsize)
             self.sub_fs.setValue(d.plot_subplot_title_fontsize)
             self.axis_fs.setValue(d.plot_axis_label_fontsize)
+            self.grid_cb.setChecked(d.plot_grid)
         elif name == "Surface":
             self.cmap.setCurrentText(d.plot_colormap)
             self.levels.setValue(d.plot_levels)
@@ -431,7 +470,10 @@ class FigureStyleDialog(QDialog):
                 cb.setChecked(True)
             self.p_color.setCurrentIndex(max(0, self.p_color.findData(d.param_plot_color)))
             self.p_lw.setCurrentText(str(float(d.param_plot_linewidth)))
-            self.p_markers.setChecked(d.param_plot_markers)
+            self.p_draw.setCurrentIndex(max(0, self.p_draw.findData(d.param_plot_draw)))
+            self.p_marker.setCurrentIndex(max(0, self.p_marker.findData(d.param_plot_marker)))
+            self.p_msize.setValue(d.param_plot_marker_size)
+            self.ref_style.setCurrentIndex(max(0, self.ref_style.findData(d.plot_ref_style)))
             self.p_log.setChecked(d.inv_param_log_scale)
             self.p_figs.setCurrentIndex(max(0, self.p_figs.findData(d.param_plot_figures)))
             for cb, col, sty, show, c, st in ((self.p_true, self.p_true_color, self.p_true_style,
@@ -447,6 +489,8 @@ class FigureStyleDialog(QDialog):
             self.pa_color.setCurrentIndex(max(0, self.pa_color.findData(d.param_anim_color)))
             self.pa_lw.setCurrentText(str(float(d.param_anim_linewidth)))
             self.pa_frames.setValue(d.param_anim_frames)
+            self.pa_draw.setCurrentIndex(max(0, self.pa_draw.findData(d.param_anim_draw)))
+            self.pa_head.setChecked(d.param_anim_head)
             self.pa_figs.setCurrentIndex(max(0, self.pa_figs.findData(d.param_anim_figures)))
         elif name == "Loss":
             self.loss_mode.setCurrentIndex(self.loss_mode.findData(d.loss_plot_mode))
@@ -471,7 +515,11 @@ class FigureStyleDialog(QDialog):
             "linewidth": float(self.lw_line.currentText()), "linewidth_anim": float(self.lw_anim.currentText()),
             "fps": int(self.fps.currentText()),
             "param_color": self.p_color.currentData(), "param_linewidth": float(self.p_lw.currentText()),
-            "param_markers": self.p_markers.isChecked(),
+            "param_markers": self.p_draw.currentData() != "line",
+            "param_draw": self.p_draw.currentData(), "param_marker": self.p_marker.currentData(),
+            "param_marker_size": self.p_msize.value(),
+            "param_anim_draw": self.pa_draw.currentData(), "param_anim_head": self.pa_head.isChecked(),
+            "grid": self.grid_cb.isChecked(), "ref_style": self.ref_style.currentData(),
             "param_show_true": self.p_true.isChecked(), "param_true_color": self.p_true_color.currentData(),
             "param_true_style": self.p_true_style.currentData(),
             "param_show_final": self.p_final.isChecked(), "param_final_color": self.p_final_color.currentData(),

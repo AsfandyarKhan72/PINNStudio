@@ -4866,6 +4866,8 @@ class MainWindow(QMainWindow):
             'linewidth_anim': 3.0,
             'fps': 10,
             'figsize_mode': 'Default',
+            'grid': True,
+            'ref_style': 'line',
             'figsize_w': 7.0,
             'figsize_h': 5.0,
             'title': '',
@@ -9456,6 +9458,8 @@ class MainWindow(QMainWindow):
             plot_n_2d_snapshots=self._plot_viz_settings.get('n_2d_snapshots', 2),
             plot_swap_xt=self._plot_viz_settings.get('swap_xt', True),
             plot_figsize_mode=self._plot_viz_settings.get('figsize_mode', 'Default'),
+            plot_grid=bool(self._plot_viz_settings.get('grid', True)),
+            plot_ref_style=self._plot_viz_settings.get('ref_style', 'line'),
             plot_figsize_w=self._plot_viz_settings.get('figsize_w', 7.0),
             plot_figsize_h=self._plot_viz_settings.get('figsize_h', 5.0),
             plot_title_override=self._plot_viz_settings.get('title', ''),
@@ -10273,6 +10277,8 @@ class MainWindow(QMainWindow):
             "fps": getattr(config, "plot_fps", 10),
             "swap_xt": getattr(config, "plot_swap_xt", True),
             "figsize_mode": getattr(config, "plot_figsize_mode", "Default"),
+            "grid": getattr(config, "plot_grid", True),
+            "ref_style": getattr(config, "plot_ref_style", "line"),
             "figsize_w": getattr(config, "plot_figsize_w", 7.0),
             "figsize_h": getattr(config, "plot_figsize_h", 5.0),
             "title": getattr(config, "plot_title_override", ""),
@@ -13314,7 +13320,10 @@ print("DOMAIN_PREVIEW_DONE")
                          ("param_show_final", "param_plot_show_final"), ("param_final_color", "param_final_color"),
                          ("param_final_style", "param_final_style"), ("param_anim_color", "param_anim_color"),
                          ("param_anim_linewidth", "param_anim_linewidth"), ("param_anim_frames", "param_anim_frames"),
-                         ("param_plot_figures", "param_plot_figures"), ("param_anim_figures", "param_anim_figures"))
+                         ("param_plot_figures", "param_plot_figures"), ("param_anim_figures", "param_anim_figures"),
+                         ("param_draw", "param_plot_draw"), ("param_marker", "param_plot_marker"),
+                         ("param_marker_size", "param_plot_marker_size"), ("param_anim_draw", "param_anim_draw"),
+                         ("param_anim_head", "param_anim_head"))
 
     _RESTORE_VIEW_KEYS = ('n_steps_line', 'n_steps_anim', 'line_slice_y_auto', 'line_slice_y',
                           'line_slice_z_auto', 'line_slice_z')
@@ -16155,7 +16164,7 @@ _ylabel_override = {ylabel_override!r}
 # _figsize_helper_code for the full rationale) -- "Default" mode renders
 # every figsize=_plot_figsize(w, h) call below byte-identical to before
 # this existed.
-{_figsize_helper_code(figsize_mode, figsize_w, figsize_h)}
+{_figsize_helper_code(figsize_mode, figsize_w, figsize_h, viz_settings.get('grid', True), viz_settings.get('ref_style', 'line'))}
 
 # Shared-color-scale contourf levels (see codegen.py's _contour_levels_helper_code).
 {_contour_levels_helper_code()}
@@ -16444,7 +16453,7 @@ import matplotlib.pyplot as plt
 # _figsize_helper_code for the full rationale) -- "Default" mode renders
 # every figsize=_plot_figsize(w, h) call below byte-identical to before
 # this existed.
-{_figsize_helper_code(figsize_mode, figsize_w, figsize_h)}
+{_figsize_helper_code(figsize_mode, figsize_w, figsize_h, viz_settings.get('grid', True), viz_settings.get('ref_style', 'line'))}
 
 # Shared-color-scale contourf levels (see codegen.py's _contour_levels_helper_code).
 {_contour_levels_helper_code()}
@@ -16834,7 +16843,7 @@ import matplotlib.pyplot as plt
 # _figsize_helper_code for the full rationale) -- "Default" mode renders
 # every figsize=_plot_figsize(w, h) call below byte-identical to before
 # this existed.
-{_figsize_helper_code(figsize_mode, figsize_w, figsize_h)}
+{_figsize_helper_code(figsize_mode, figsize_w, figsize_h, viz_settings.get('grid', True), viz_settings.get('ref_style', 'line'))}
 
 # Shared-color-scale contourf levels (see codegen.py's _contour_levels_helper_code).
 {_contour_levels_helper_code()}
@@ -17285,12 +17294,12 @@ if {do_line}:
             _pinn_s = _ea_u_pinns[_i][_ea_sort]
         if {bool(is_2d or is_3d)} and '_line_gaps' in globals():
             _xv_s, _gt_s, _pinn_s = _line_gaps(_xv_s, _gt_s, _pinn_s)
-        ax.plot(_xv_s, _gt_s,   color='#4dabf7', linewidth=2.0, label='Reference')
+        _ref_plot(ax, _xv_s, _gt_s,   color='#4dabf7', linewidth=2.0, label='Reference')
         ax.plot(_xv_s, _pinn_s, color='#ff6b6b', linewidth=2.0, linestyle='--', label='PINN')
         ax.set_title(f"t = {{_tv:.3g}}  ({{_l2_txt(_l2)}})", fontsize={_subtitle_fs})
         _ea_line_ylabel = (f"{out_name}(x,y={line_slice_y:.3g},z={line_slice_z:.3g})" if {is_3d}
                             else (f"{out_name}(x,y={line_slice_y:.3g})" if {is_2d} else "{out_name}"))
-        ax.set_xlabel("x", fontsize={_axislabel_fs}); ax.set_ylabel(_ea_line_ylabel, fontsize={_axislabel_fs}); ax.grid(True, alpha=0.3)
+        ax.set_xlabel("x", fontsize={_axislabel_fs}); ax.set_ylabel(_ea_line_ylabel, fontsize={_axislabel_fs}); _grid(ax, alpha=0.3)
     for _j in range(_ea_n_t, len(_ax_flat)):
         _ax_flat[_j].set_visible(False)
     _ax_flat[0].legend(loc='best', fontsize=10, framealpha=0.9)
