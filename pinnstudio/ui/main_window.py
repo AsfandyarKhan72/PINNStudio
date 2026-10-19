@@ -4013,7 +4013,12 @@ class MainWindow(QMainWindow):
             "as a dashed line; it never affects training.\n"
             "All parameters are fitted to the same measured data below. Several data files can "
             "be added (each measures one output, or an expression of the outputs); each is a loss "
-            "term with its own weight.")
+            "term with its own weight.\n\n"
+            "Every measured point is used at every training step: the network is fitted to its value, "
+            "and the equation is also checked there. A file with tens of thousands of points therefore "
+            "makes training much slower, above all on the CPU. A few hundred to a few thousand points "
+            "spread over the domain are often enough to find a few parameters: if a run is slow, thin "
+            "the file (every 10th row, say), or train on a GPU.")
         self._register_hint(inv_ref_hint, '#74c0fc')
         inv_ref_hint.setWordWrap(True)
         inv_ref_hint.setVisible(False)
@@ -10748,6 +10753,31 @@ class MainWindow(QMainWindow):
         else:
             self.log_box.append(f"ℹ️ \"{_ex_catalog.display_name(snap[0])}\" example with its own settings (unchanged).")
 
+    LARGE_DATA_POINTS = 20000
+
+    def _note_large_data(self, config):
+        """A log note when an inverse problem's measured data has many points
+        (every one is used at every training step)."""
+        if config.problem_type != "Inverse":
+            return
+        import json
+        try:
+            files = json.loads(config.inverse_obs_files_json or "[]")
+        except (ValueError, TypeError):
+            return
+        total = 0
+        for f in files:
+            try:
+                with open(f.get("path", ""), "rb") as fh:
+                    total += max(0, sum(1 for line in fh if line.strip()) - 1)
+            except (OSError, AttributeError):
+                pass
+        if total >= self.LARGE_DATA_POINTS:
+            self.log_box.append(
+                f"ℹ️ The measured data has {total:,} points, all used at every training step, so training "
+                "may be slow (above all on the CPU). A few thousand points spread over the domain are often "
+                "enough: thin the file if it is too slow (Inverse problem page, About inverse problems).")
+
     def _on_solve(self):
         if hasattr(self, 'right_tabs'):
             self.right_tabs.setCurrentWidget(self.results_tabs)   # the run streams into the log
@@ -10797,6 +10827,7 @@ class MainWindow(QMainWindow):
             if os.path.exists(_p):
                 os.remove(_p)
         self._log_example_changes(config)
+        self._note_large_data(config)
         self._start_progress(config)
         self.thread = SolverThread(config)
         self.thread.output_signal.connect(self._on_output)

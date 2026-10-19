@@ -102,6 +102,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **README tips brought up to date:** the old tip said accuracy generally improves with more, smaller time-adaptive steps; the training methods study found that what helps depends on the problem, and the tips now say what it found and point to it. A new tip on inverse problems with a lot of measured data.
+- **Large measured data in inverse problems:** *About inverse problems* explains that every measured point is used at every training step (so tens of thousands of points make training slow, above all on the CPU) and that a few thousand spread-out points are often enough; Solve notes it in the log when the data has 20,000 points or more.
+
 - **Parameter convergence Figures moved to Plot settings:** *One for all parameters* or *One per parameter*, for the plot (Line tab) and the animation (Animation tab) each. Restore uses it (its own *Figures* list is gone), and Solve and the exported script now save one figure per parameter too when it is chosen (`<name>_convergence_plot.png`, `<name>_convergence_animation.gif`), next to the one figure the Overview shows.
 - **Restore saves into the Results page's Save to folder** (each restore in its own timestamped folder, as before); its own *Save to* field, which only repeated it, is gone.
 
