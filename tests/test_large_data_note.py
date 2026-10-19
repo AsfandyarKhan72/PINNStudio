@@ -34,3 +34,29 @@ def test_large_data_note(tmp_path):
     w._note_large_data(c)
     assert not w.log_box.toPlainText()
     w.close()
+
+
+def test_measured_points_as_anchors_option():
+    """Measured data -> "Check the equation at the measured points too":
+    on by default; off keeps the points only in the data loss."""
+    from pinnstudio.core.codegen import generate_script, generate_clean_script
+    w = MainWindow()
+    w.quick_examples_category_combo.setCurrentText("Inverse")
+    app.processEvents()
+    w.quick_examples_combo.setCurrentText("Heat 2D")
+    for _ in range(5):
+        app.processEvents()
+    assert w.inv_obs_anchors_cb.isChecked()
+    c = w._build_config()
+    assert c.inverse_obs_anchors
+    assert "_obs_anchors = np.vstack(" in generate_script(c)
+    w.inv_obs_anchors_cb.setChecked(False)
+    c = w._build_config()
+    assert not c.inverse_obs_anchors
+    assert "_obs_anchors = None" in generate_script(c)
+    assert "obs_anchors = None" in generate_clean_script(c)
+    w.inv_obs_anchors_cb.setChecked(True)
+    w._apply_config(c)                       # a saved problem with it off opens with it off
+    app.processEvents()
+    assert not w.inv_obs_anchors_cb.isChecked()
+    w.close()

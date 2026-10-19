@@ -4019,7 +4019,9 @@ class MainWindow(QMainWindow):
             "and the equation is also checked there. A file with tens of thousands of points therefore "
             "makes training much slower, above all on the CPU. A few hundred to a few thousand points "
             "spread over the domain are often enough to find a few parameters: if a run is slow, thin "
-            "the file (every 10th row, say), or train on a GPU.")
+            "the file (every 10th row, say), untick \"Check the equation at the measured points too\" "
+            "under Measured data (the points then stay only in the data loss, which is usually about as "
+            "accurate unless there are only a few of them), or train on a GPU.")
         self._register_hint(inv_ref_hint, '#74c0fc')
         inv_ref_hint.setWordWrap(True)
         inv_ref_hint.setVisible(False)
@@ -4120,6 +4122,20 @@ class MainWindow(QMainWindow):
         # Add the first (primary) measured-data-file row -- always present,
         # matching the single-file behavior this generalizes by default.
         self._add_inverse_data_row()
+
+        # Every measured point is also an anchor by default (the equation is
+        # checked there too). Unticked, the points are only in the data loss:
+        # much faster with a lot of data, and the anchors study found the
+        # parameters about as accurate on most examples -- not with very few
+        # points (Brinkman-Forchheimer, 5 points), see benchmarks/anchors_study.py.
+        self.inv_obs_anchors_cb = QCheckBox("Check the equation at the measured points too (anchors)")
+        self.inv_obs_anchors_cb.setChecked(True)
+        self.inv_obs_anchors_cb.setToolTip(
+            "On (default): each measured point is also a training point, so the equation is checked there\n"
+            "as well as the data. Off: the points are only in the data loss -- training is faster when the\n"
+            "file has many points, and the parameters usually come out about as accurate; keep it on when\n"
+            "there are only a few measured points.")
+        data_layout.addWidget(self.inv_obs_anchors_cb)
 
         self.inverse_group.setVisible(False)
         self.inverse_data_group.setVisible(False)
@@ -9314,6 +9330,7 @@ class MainWindow(QMainWindow):
             inverse_obs_output_idx=self.inv_obs_output_combo.currentIndex() if self.inv_obs_output_combo.currentIndex() >= 0 else 0,
             inverse_data_file=self.inv_data_path.text().strip(),
             inverse_obs_files_json=self._build_inverse_obs_files_json(),
+            inverse_obs_anchors=self.inv_obs_anchors_cb.isChecked(),
             # v19: the Inverse panel's own IC-type selector is gone (see the
             # comment where it used to be built) -- always "expression" now,
             # so codegen always takes the Initial Condition panel's path.
@@ -10011,6 +10028,7 @@ class MainWindow(QMainWindow):
         # inverse_obs_output_idx/loss_weight_obs fields, so old saved
         # configs still load correctly with exactly one measured-data
         # file.
+        self.inv_obs_anchors_cb.setChecked(bool(getattr(config, "inverse_obs_anchors", True)))
         for row in list(self.inv_data_rows):
             row['widget'].deleteLater()
         self.inv_data_rows.clear()
@@ -10863,7 +10881,8 @@ class MainWindow(QMainWindow):
             self.log_box.append(
                 f"ℹ️ The measured data has {total:,} points, all used at every training step, so training "
                 "may be slow (above all on the CPU). A few thousand points spread over the domain are often "
-                "enough: thin the file if it is too slow (Inverse problem page, About inverse problems).")
+                "enough: thin the file, or untick \"Check the equation at the measured points too\" under Measured "
+                "data, if it is too slow (Inverse problem page, About inverse problems).")
 
     def _on_solve(self):
         if hasattr(self, 'right_tabs'):
