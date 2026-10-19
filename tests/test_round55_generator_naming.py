@@ -50,8 +50,9 @@ def run():
         bad = sorted(used & _OLD)
         if bad:
             failures.append(f"{name}: old generation-time spelling(s) back in use: {bad}")
-    gs_names = {t.id for s in ast.walk(fns["generate_script"]) if isinstance(s, ast.Assign)
-                for t in s.targets if isinstance(t, ast.Name)}
+    # (a tuple target counts too: line_slice_y, line_slice_z = auto_line_slice(config))
+    gs_names = {n.id for s in ast.walk(fns["generate_script"]) if isinstance(s, ast.Assign)
+                for t in s.targets for n in ast.walk(t) if isinstance(n, ast.Name)}
     for flag in ("is_2d", "is_3d", "is_steady", "line_slice_y", "line_slice_z", "sol_ext"):
         if flag not in gs_names:
             failures.append(f"generate_script() should define the shared generation-time name {flag!r}")
