@@ -1,32 +1,33 @@
-"""Figure style: one dialog for how every saved figure looks.
+"""Plot settings: one dialog for how every saved figure looks.
 
-Solve and Restore & Visualize draw with the same style (colours, sizes,
-fonts, line widths ...), kept in the window's _plot_viz_settings and
-_loss_plot_settings and saved with the problem. The dialog has a tab per
-kind of plot; the Style... button next to a Plot type list opens it on that
-plot's tab, and Settings -> Figure style opens it on General.
-
-What depends on the problem being plotted -- the number of time steps or
-frames, and where a line plot slices a 2D/3D domain -- is kept per place:
-Solve's in its own settings, Restore's with the model being restored
-(`context` "solve" or "restore").
+Solve, the exported script and Restore & visualize draw with the same
+settings (colours, sizes, fonts, line widths, time steps ...), kept in the
+window's _plot_viz_settings, _loss_plot_settings and its steps / slice
+widgets, and saved with the problem. The dialog has a tab per kind of plot;
+the Results page's Plot settings button opens it on the tab of the plot
+type, Settings -> Plot Settings on General. An inverse problem's parameter
+convergence plot is set on the Line tab, its animation on Animation.
 """
 from PyQt6.QtWidgets import (QCheckBox, QComboBox, QDialog, QDoubleSpinBox, QFormLayout, QHBoxLayout, QLabel,
                              QLineEdit, QPushButton, QSpinBox, QTabWidget, QVBoxLayout, QWidget)
 
-TABS = ("General", "Surface", "Line", "Animation", "Loss", "Parameters")
+TABS = ("General", "Surface", "Line", "Animation", "Loss")
 
 COLORMAPS = ["RdBu_r", "viridis", "plasma", "jet", "coolwarm", "inferno", "turbo", "seismic", "bwr"]
-PARAM_COLORS = [("Green", "#69db7c"), ("Blue", "#1c7ed6"), ("Black", "#212529"), ("Red", "#e03131"),
-                ("Orange", "#f08c00"), ("Purple", "#7048e8")]
+PARAM_COLORS = [("Red", "#e03131"), ("Blue", "#1c7ed6"), ("Black", "#212529"), ("Grey", "#868e96"),
+                ("Green", "#2f9e44"), ("Orange", "#f08c00"), ("Purple", "#7048e8")]
+LINE_STYLES = [("Dashed", "--"), ("Dotted", ":"), ("Dash-dot", "-."), ("Solid", "-")]
 
 
 def tab_for(viz_type):
     """The tab a plot type's Style... button opens."""
     v = viz_type or ""
+    if "Animation" in v or "(GIF)" in v:
+        return "Animation"
     if "Parameter" in v:
-        return "Parameters"
-    if "Animation" in v:
+        return "Line"
+    if v.startswith("Line"):
+        return "Line"
         return "Animation"
     if v.startswith("Line"):
         return "Line"
@@ -85,7 +86,7 @@ class FigureStyleDialog(QDialog):
         super().__init__(win)
         self.win = win
         self.context = context
-        self.setWindowTitle("Figure Style")
+        self.setWindowTitle("Plot Settings")
         self.setMinimumWidth(540)
         self.style = dict(win._plot_viz_settings)
         self.loss = dict(win._loss_plot_settings)
@@ -94,7 +95,7 @@ class FigureStyleDialog(QDialog):
 
         lay = QVBoxLayout(self)
         lay.addWidget(_hint("Used by every figure PINNStudio saves -- after training, in the exported script and "
-                            "in Restore & Visualize -- and saved with the problem."))
+                            "in Restore & visualize -- and saved with the problem."))
         self.tabs = QTabWidget()
         lay.addWidget(self.tabs)
         self._general()
@@ -102,7 +103,7 @@ class FigureStyleDialog(QDialog):
         self._line()
         self._animation()
         self._loss_tab()
-        self._param()
+        self._hide_what_does_not_apply()
         names = [self.tabs.tabText(i) for i in range(self.tabs.count())]
         if tab in names:
             self.tabs.setCurrentIndex(names.index(tab))
@@ -272,6 +273,7 @@ class FigureStyleDialog(QDialog):
                 sp.setEnabled(not auto)
                 f.addRow(f"{ax} =", row)
                 self.slices[ax] = (cb, sp)
+        self._param_plot_section(f)
 
     def _animation(self):
         s = self.style
@@ -283,7 +285,9 @@ class FigureStyleDialog(QDialog):
         f.addRow("Frame rate (fps):", self.fps)
         self.lw_anim = _combo(["1.0", "1.5", "2.0", "2.5", "3.0", "4.0"], str(float(s.get("linewidth_anim", 3.0))), 80)
         f.addRow("Line width:", self.lw_anim)
-        f.addRow(_hint("Surface animations use the Surface tab's colour map, levels and colour range."))
+        if self.dim in ("2D", "3D") and not self.steady:
+            f.addRow(_hint("Surface animations use the Surface tab's colour map, levels and colour range."))
+        self._param_anim_section(f)
 
     def _loss_tab(self):
         s = self.loss
@@ -301,29 +305,98 @@ class FigureStyleDialog(QDialog):
         f.addRow(_hint("Record every: how often (in iterations) the loss is recorded and printed during training. "
                        "DeepXDE keeps one test loss, so each term is shown for the training loss only."))
 
-    def _param(self):
+    def _keep_hidden(self, *widgets):
+        """Settings not shown (a forward problem): kept, so OK saves them as they are."""
+        for wdg in widgets:
+            wdg.setParent(self)
+            wdg.hide()
+
+    @staticmethod
+    def _section(f, title):
+        lbl = QLabel(title)
+        lbl.setStyleSheet("font-weight: 600; padding-top: 10px;")
+        f.addRow(lbl)
+
+    def _ref_line(self, show_key, color_key, style_key, label, defaults):
+        """A reference line's row: on/off, colour, line style."""
         s = self.style
-        f = self._page("Parameters")
-        self.p_color = _combo(PARAM_COLORS, s.get("param_color", "#69db7c"), 110)
-        f.addRow("Line colour:", self.p_color)
-        self.p_lw = _combo(["1.0", "1.5", "2.0", "2.5", "3.0"], str(float(s.get("param_linewidth", 1.5))), 80)
-        f.addRow("Line width:", self.p_lw)
+        cb = QCheckBox(label)
+        cb.setChecked(bool(s.get(show_key, True)))
+        col = _combo(PARAM_COLORS, s.get(color_key, defaults[0]), 90)
+        sty = _combo(LINE_STYLES, s.get(style_key, defaults[1]), 90)
+        row = QWidget()
+        rl = QHBoxLayout(row)
+        rl.setContentsMargins(0, 0, 0, 0)
+        rl.addWidget(cb)
+        rl.addWidget(col)
+        rl.addWidget(sty)
+        rl.addStretch()
+        cb.toggled.connect(lambda on: (col.setEnabled(on), sty.setEnabled(on)))
+        col.setEnabled(cb.isChecked())
+        sty.setEnabled(cb.isChecked())
+        return row, cb, col, sty
+
+    def _param_plot_section(self, f):
+        """Inverse problems: the parameter convergence plot (a parameter's
+        value against the iteration), on the Line tab."""
+        s = self.style
+        self.p_color = _combo(PARAM_COLORS, s.get("param_color", "#e03131"), 100)
+        self.p_lw = _combo(["1.0", "1.5", "2.0", "2.5", "3.0", "4.0"], str(float(s.get("param_linewidth", 3.0))), 80)
         self.p_markers = QCheckBox("Mark each saved value")
         self.p_markers.setChecked(bool(s.get("param_markers", False)))
-        f.addRow("Markers:", self.p_markers)
-        self.p_true = QCheckBox("True value (when it is known)")
-        self.p_true.setChecked(bool(s.get("param_show_true", True)))
-        self.p_final = QCheckBox("Final value")
-        self.p_final.setChecked(bool(s.get("param_show_final", True)))
-        f.addRow("Dashed lines:", self.p_true)
-        f.addRow("", self.p_final)
         self.p_log = QCheckBox("Logarithmic")
         self.p_log.setChecked(self.win.inv_param_log_scale.isChecked())
+        true_row, self.p_true, self.p_true_color, self.p_true_style = self._ref_line(
+            "param_show_true", "param_true_color", "param_true_style", "True value", ("#212529", "--"))
+        final_row, self.p_final, self.p_final_color, self.p_final_style = self._ref_line(
+            "param_show_final", "param_final_color", "param_final_style", "Final value", ("#868e96", ":"))
+        if not self.is_inverse:         # (only inverse problems have parameters to plot)
+            self._keep_hidden(self.p_color, self.p_lw, self.p_markers, self.p_log, true_row, final_row)
+            return
+        self._section(f, "Parameter convergence plot")
+        f.addRow("Line colour:", self.p_color)
+        f.addRow("Line width:", self.p_lw)
+        f.addRow("Markers:", self.p_markers)
         f.addRow("Value axis:", self.p_log)
-        f.addRow(_hint("The animation uses the Animation tab's frame rate. Size, resolution and fonts are on "
-                       "the General tab."))
-        if not self.is_inverse:          # (only inverse problems have parameters to plot)
-            self.tabs.setTabVisible(self.tabs.count() - 1, False)
+        f.addRow("Reference lines:", true_row)
+        f.addRow("", final_row)
+
+    def _param_anim_section(self, f):
+        """Inverse problems: the parameter convergence animation, on the
+        Animation tab (frame rate as above; reference lines and log axis as
+        the plot's, on the Line tab)."""
+        s = self.style
+        self.pa_color = _combo(PARAM_COLORS, s.get("param_anim_color", "#e03131"), 100)
+        self.pa_lw = _combo(["1.0", "1.5", "2.0", "2.5", "3.0", "4.0"],
+                            str(float(s.get("param_anim_linewidth", 3.0))), 80)
+        self.pa_frames = _spin(10, 300, int(s.get("param_anim_frames", 60)), width=80)
+        if not self.is_inverse:
+            self._keep_hidden(self.pa_color, self.pa_lw, self.pa_frames)
+            return
+        self._section(f, "Parameter convergence animation")
+        f.addRow("Line colour:", self.pa_color)
+        f.addRow("Line width:", self.pa_lw)
+        f.addRow("Frames (at most):", self.pa_frames)
+        f.addRow(_hint("Reference lines and the value axis are as for the plot (Line tab)."))
+
+    def _hide_what_does_not_apply(self):
+        """An ODE or a steady 1D problem is one curve: no surface, no time
+        steps, no line animation (an inverse one keeps its parameter
+        animation and frame rate)."""
+        if not (self.dim == "ODE" or (self.dim == "1D" and self.steady)):
+            return
+
+        def hide(w):
+            f = w.parentWidget().layout() if w.parentWidget() is not None else None
+            if isinstance(f, QFormLayout) and hasattr(f, "setRowVisible"):
+                f.setRowVisible(w, False)
+        names = [self.tabs.tabText(i) for i in range(self.tabs.count())]
+        self.tabs.setTabVisible(names.index("Surface"), False)
+        hide(self.steps_line)
+        hide(self.frames)
+        hide(self.lw_anim)
+        if not self.is_inverse:
+            self.tabs.setTabVisible(names.index("Animation"), False)
 
     # ── buttons ──
     def _reset_tab(self):
@@ -352,21 +425,28 @@ class FigureStyleDialog(QDialog):
             self.lw_line.setCurrentText(str(float(d.plot_linewidth)))
             for cb, _sp in self.slices.values():
                 cb.setChecked(True)
+            self.p_color.setCurrentIndex(max(0, self.p_color.findData(d.param_plot_color)))
+            self.p_lw.setCurrentText(str(float(d.param_plot_linewidth)))
+            self.p_markers.setChecked(d.param_plot_markers)
+            self.p_log.setChecked(d.inv_param_log_scale)
+            for cb, col, sty, show, c, st in ((self.p_true, self.p_true_color, self.p_true_style,
+                                              d.param_plot_show_true, d.param_true_color, d.param_true_style),
+                                             (self.p_final, self.p_final_color, self.p_final_style,
+                                              d.param_plot_show_final, d.param_final_color, d.param_final_style)):
+                cb.setChecked(show)
+                col.setCurrentIndex(max(0, col.findData(c)))
+                sty.setCurrentIndex(max(0, sty.findData(st)))
         elif name == "Animation":
             self.fps.setCurrentText(str(d.plot_fps))
             self.lw_anim.setCurrentText(str(float(d.plot_linewidth_anim)))
+            self.pa_color.setCurrentIndex(max(0, self.pa_color.findData(d.param_anim_color)))
+            self.pa_lw.setCurrentText(str(float(d.param_anim_linewidth)))
+            self.pa_frames.setValue(d.param_anim_frames)
         elif name == "Loss":
             self.loss_mode.setCurrentIndex(self.loss_mode.findData(d.loss_plot_mode))
             self.loss_lw.setCurrentText(str(float(d.loss_plot_linewidth)))
             self.loss_log.setChecked(d.loss_plot_log_y)
             self.loss_every.setValue(d.loss_display_every)
-        else:
-            self.p_color.setCurrentIndex(max(0, self.p_color.findData(d.param_plot_color)))
-            self.p_lw.setCurrentText(str(float(d.param_plot_linewidth)))
-            self.p_markers.setChecked(d.param_plot_markers)
-            self.p_true.setChecked(d.param_plot_show_true)
-            self.p_final.setChecked(d.param_plot_show_final)
-            self.p_log.setChecked(d.inv_param_log_scale)
 
     def values(self):
         s = dict(self.style)
@@ -385,8 +465,13 @@ class FigureStyleDialog(QDialog):
             "linewidth": float(self.lw_line.currentText()), "linewidth_anim": float(self.lw_anim.currentText()),
             "fps": int(self.fps.currentText()),
             "param_color": self.p_color.currentData(), "param_linewidth": float(self.p_lw.currentText()),
-            "param_markers": self.p_markers.isChecked(), "param_show_true": self.p_true.isChecked(),
-            "param_show_final": self.p_final.isChecked(),
+            "param_markers": self.p_markers.isChecked(),
+            "param_show_true": self.p_true.isChecked(), "param_true_color": self.p_true_color.currentData(),
+            "param_true_style": self.p_true_style.currentData(),
+            "param_show_final": self.p_final.isChecked(), "param_final_color": self.p_final_color.currentData(),
+            "param_final_style": self.p_final_style.currentData(),
+            "param_anim_color": self.pa_color.currentData(), "param_anim_linewidth": float(self.pa_lw.currentText()),
+            "param_anim_frames": self.pa_frames.value(),
         })
         loss = {"mode": self.loss_mode.currentData(), "display_every": self.loss_every.value(),
                 "linewidth": float(self.loss_lw.currentText()), "log_y": self.loss_log.isChecked()}
@@ -416,7 +501,7 @@ class FigureStyleDialog(QDialog):
                 getattr(w, f"line_slice_{ax}_auto_cb").setChecked(cb.isChecked())
                 getattr(w, f"line_slice_{ax}_spin").setValue(sp.value())
         try:
-            w.log_box.append("✅ Figure style saved")
+            w.log_box.append("✅ Plot settings saved")
         except Exception:
             pass
         self.accept()

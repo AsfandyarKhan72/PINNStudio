@@ -4586,7 +4586,8 @@ def generate_script(config):
     # Steady-state problems have no time axis, so a GIF animation (which is
     # inherently a walk over time) never applies -- always .png there, even
     # if a stale config still has one of the GIF plot types selected.
-    sol_ext = "gif" if (not is_steady and config.plot_type in ("Line Animation (GIF)", "Surface Animation (GIF)")) else "png"
+    sol_ext = "gif" if ((not is_steady and config.plot_type in ("Line Animation (GIF)", "Surface Animation (GIF)"))
+                        or (config.problem_type == "Inverse" and config.plot_type == "Parameter Convergence (GIF)")) else "png"
     # Convert user-friendly IC expressions
     ic_exprs_raw = config.ic_expressions.split("|")
     ic_exprs_converted = [_simplify_expr(e, is_2d, is_3d) for e in ic_exprs_raw]
@@ -5001,6 +5002,9 @@ if _use_save:
         "line_slice_y_auto": {config.line_slice_y_auto}, "line_slice_y": {config.line_slice_y},
         "line_slice_z_auto": {config.line_slice_z_auto}, "line_slice_z": {config.line_slice_z},
         "problem_dim": {repr(config.problem_dim)},
+        # an ODE is solved as a 1D steady problem in x = t (_ode_to_1d):
+        # Restore says ODE and plots it as one curve
+        "ode": {bool(getattr(config, "_ode", False))},
         # Restoring a model has no other way to tell a steady-state
         # checkpoint from a transient one -- _build_restore_script()/
         # _build_restore_ea_script() in main_window.py both read this key
@@ -6733,6 +6737,14 @@ for _pval in _param_values:
                 plt.close(_fig)
                 for _vi, _vname in enumerate(_inv_var_names):
                     print(f"Final inferred {{_vname}}: {{_ph_vals_by_var[_vi][-1]:.6g}}")
+                if "{config.plot_type}" == "Parameter Convergence (GIF)":
+                    _param_animation(
+                        [(_vn, _ph_iters_arr, _ph_vals_by_var[_vi],
+                          _inv_var_trues[_vi] if _vi < len(_inv_var_trues) else None)
+                         for _vi, _vn in enumerate(_inv_var_names)],
+                        "/tmp/param_anim.gif", {bool(config.inv_param_log_scale)}, {int(config.plot_fps)},
+                        {int(config.plot_dpi)}, _plot_title_override, _plot_xlabel_override, _plot_ylabel_override,
+                        _plot_figsize(6, 3.2))
             except Exception as _e:
                 print(f"Could not plot parameter history: {{_e}}")
 
@@ -6751,7 +6763,7 @@ for _pval in _param_values:
         _plot_main_job = (_plot_idx, _run_solution_path)
         _plot_jobs = [_plot_main_job]
         if ({config.plot_all_outputs} and _plot_n_out > 1 and not _plot_custom_expr.strip()
-                and not (_problem_type == "Inverse" and _plot_type == "Parameter Convergence")):
+                and not (_problem_type == "Inverse" and _plot_type.startswith("Parameter Convergence"))):
             _sol_root, _sol_ext = _os.path.splitext(_run_solution_path)
             for _pj, _pj_name in enumerate(_plot_output_names_list):
                 _pj_safe = "".join(_c if (_c.isalnum() or _c in "-_") else "_" for _c in _pj_name.strip()) or f"out{{_pj}}"
@@ -6772,6 +6784,10 @@ for _pval in _param_values:
                 import shutil as _shutil_pc
                 if _os.path.exists("/tmp/param_plot.png"):
                     _shutil_pc.copy("/tmp/param_plot.png", _run_solution_path)
+            elif _problem_type == "Inverse" and _plot_type == "Parameter Convergence (GIF)":
+                import shutil as _shutil_pa
+                if _os.path.exists("/tmp/param_anim.gif"):
+                    _shutil_pa.copy("/tmp/param_anim.gif", _run_solution_path)
 
             elif (not _is_steady) and _plot_type in ("Line Animation (GIF)", "Surface Animation (GIF)"):
                 import matplotlib.animation as _anim
@@ -8959,32 +8975,42 @@ _mpl_sci.rcParams["axes.formatter.use_mathtext"] = True
 _mpl_sci.rcParams["axes.formatter.limits"] = (-2, 5)"""
 
 
+PARAM_STYLE_DEFAULTS = {
+    "param_plot_color": "#e03131", "param_plot_linewidth": 3.0, "param_plot_markers": False,
+    "param_plot_show_true": True, "param_true_color": "#212529", "param_true_style": "--",
+    "param_plot_show_final": True, "param_final_color": "#868e96", "param_final_style": ":",
+    "param_anim_color": "#e03131", "param_anim_linewidth": 3.0, "param_anim_frames": 60,
+}
+
+
 def param_style_of(cfg):
-    """The parameter convergence plot style (Figure style -> Parameter
-    convergence) from a config object or a dict of its fields."""
+    """The parameter convergence plot and animation style (Plot settings ->
+    Line / Animation) from a config object or a dict of its fields."""
     g = (cfg.get if isinstance(cfg, dict) else (lambda k, d=None: getattr(cfg, k, d)))
-    return {"linewidth": float(g("param_plot_linewidth", 1.5) or 1.5),
-            "color": str(g("param_plot_color", "#69db7c") or "#69db7c"),
-            "markers": bool(g("param_plot_markers", False)),
-            "show_true": bool(g("param_plot_show_true", True)),
-            "show_final": bool(g("param_plot_show_final", True))}
+
+    def v(k):
+        x = g(k, None)
+        return PARAM_STYLE_DEFAULTS[k] if x is None or x == "" else x
+    return {"color": str(v("param_plot_color")), "linewidth": float(v("param_plot_linewidth")),
+            "markers": bool(v("param_plot_markers")),
+            "show_true": bool(v("param_plot_show_true")), "true_color": str(v("param_true_color")),
+            "true_style": str(v("param_true_style")),
+            "show_final": bool(v("param_plot_show_final")), "final_color": str(v("param_final_color")),
+            "final_style": str(v("param_final_style")),
+            "anim_color": str(v("param_anim_color")), "anim_linewidth": float(v("param_anim_linewidth")),
+            "anim_frames": max(2, int(v("param_anim_frames")))}
 
 
 def _param_axis_helper_code(axis_label_fontsize, subplot_title_fontsize, style=None):
     """Runtime source for _draw_param_ax(...), the one "draw a single
-    inferred parameter's convergence curve on an axis" function -- cleanup
-    Round 49 (audit §2e, _build_restore_param_script). It used to be hand-typed
-    three times with drift between the copies: generate_script()'s live
-    param_plot.png (log scale + title/axis overrides, default title size),
-    generate_clean_script()'s exported param_convergence.png (no log scale,
-    no overrides at all -- the export silently ignored both settings), and
-    Restore & Visualize's Parameter Convergence plot (log scale + overrides
-    + the subplot-title font size). All three now emit this one function and
-    call it, so the export honors the log-scale and override settings too
-    and every copy uses the configured subplot-title font size.
+    inferred parameter's convergence curve on an axis" function, and
+    _param_animation(...), the convergence animation of every parameter --
+    used by Solve's script, the exported script and Restore, so the three
+    draw the parameter plots the same way with the same style (`style`,
+    from param_style_of).
 
     Log scale needs every value > 0; otherwise it falls back to linear and
-    says so (matching the restore path's existing warning)."""
+    says so."""
     style = dict(param_style_of({}), **(style or {}))
     return f'''def _param_label_num(_v):
     # A parameter value for the legend: "1.2038 x 10^-4" (mathtext) when it is
@@ -8996,6 +9022,14 @@ def _param_axis_helper_code(axis_label_fontsize, subplot_title_fontsize, style=N
     return f"{{_f / 10 ** _e:.4f}} $\\\\times$ 10$^{{{{{{_e}}}}}}$"
 
 _PARAM_STYLE = {style!r}
+
+def _param_ref_lines(ax, final_val, true_val):
+    if _PARAM_STYLE["show_final"]:
+        ax.axhline(y=final_val, color=_PARAM_STYLE["final_color"], linestyle=_PARAM_STYLE["final_style"],
+                   linewidth=1.5, label=f"Final = {{_param_label_num(final_val)}}")
+    if true_val is not None and _PARAM_STYLE["show_true"]:
+        ax.axhline(y=true_val, color=_PARAM_STYLE["true_color"], linestyle=_PARAM_STYLE["true_style"],
+                   linewidth=1.5, label=f"True = {{_param_label_num(true_val)}}")
 
 def _draw_param_ax(ax, name, iters, vals, true_val=None, log_scale=False,
                    title_override="", xlabel_override="", ylabel_override=""):
@@ -9012,16 +9046,56 @@ def _draw_param_ax(ax, name, iters, vals, true_val=None, log_scale=False,
     else:
         ax.plot(iters, vals, **_kw)
         ax.set_ylabel(ylabel_override or name, fontsize={axis_label_fontsize})
-    if _PARAM_STYLE["show_final"]:
-        ax.axhline(y=final_val, color="#ff8787", linestyle="--", alpha=0.5, label=f"Final = {{_param_label_num(final_val)}}")
-    if true_val is not None and _PARAM_STYLE["show_true"]:
-        ax.axhline(y=true_val, color="#ffd43b", linestyle="--", alpha=0.8, label=f"True = {{_param_label_num(true_val)}}")
+    _param_ref_lines(ax, final_val, true_val)
     ax.set_xlabel(xlabel_override or "Iteration", fontsize={axis_label_fontsize})
     ax.set_title(title_override or f"Inferred Parameter: {{name}}", fontsize={subplot_title_fontsize})
     if ax.get_legend_handles_labels()[0]:
         ax.legend()
     ax.grid(True, alpha=0.3)
-    return final_val'''
+    return final_val
+
+def _param_animation(series, out_path, log_scale=False, fps=10, dpi=100,
+                     title_override="", xlabel_override="", ylabel_override="", figsize=(6, 3.2)):
+    """series: [(name, iters, vals, true_val or None)] -> one GIF, a panel per
+    parameter, each curve growing to its last saved value."""
+    import matplotlib.animation as _p_anim
+    n = len(series)
+    fig, axes = plt.subplots(n, 1, figsize=(figsize[0], figsize[1] * n), squeeze=False)
+    n_frames = min(max(len(s[1]) for s in series), _PARAM_STYLE["anim_frames"])
+    lines = []
+    for i, (name, iters, vals, true_val) in enumerate(series):
+        ax = axes[i][0]
+        iters = np.asarray(iters, dtype=float); vals = np.asarray(vals, dtype=float)
+        use_log = bool(log_scale) and len(vals) > 0 and bool(np.all(vals > 0))
+        if use_log:
+            ax.set_yscale("log")
+        ax.set_ylabel(ylabel_override or (f"log({{name}})" if use_log else name), fontsize={axis_label_fontsize})
+        x_hi = iters.max() if iters.max() > iters.min() else iters.min() + 1
+        ax.set_xlim(iters.min(), x_hi)
+        _rv = vals if true_val is None else np.append(vals, true_val)
+        lo, hi = _rv.min(), _rv.max()
+        pad = 0.05 * (abs(hi - lo) if hi != lo else (abs(hi) + 1))
+        if not use_log:
+            ax.set_ylim(lo - pad, hi + pad)
+        _param_ref_lines(ax, vals[-1], true_val)
+        ax.set_xlabel(xlabel_override or "Iteration", fontsize={axis_label_fontsize})
+        ax.set_title(title_override or f"Inferred Parameter: {{name}}", fontsize={subplot_title_fontsize})
+        if ax.get_legend_handles_labels()[0]:
+            ax.legend(loc="upper right")
+        ax.grid(True, alpha=0.3)
+        line, = ax.plot([], [], color=_PARAM_STYLE["anim_color"], linewidth=_PARAM_STYLE["anim_linewidth"])
+        lines.append((line, iters, vals))
+    plt.tight_layout()
+
+    def _update(frame):
+        for line, iters, vals in lines:
+            k = max(1, min(len(iters), int(round((frame + 1) / n_frames * len(iters)))))
+            line.set_data(iters[:k], vals[:k])
+        return [l for l, _i, _v in lines]
+    ani = _p_anim.FuncAnimation(fig, _update, frames=n_frames, interval=1000 / max(1, fps))
+    ani.save(out_path, writer="pillow", fps=fps, dpi=dpi)
+    plt.close(fig)
+    print(f"Parameter convergence animation saved: {{out_path}}")'''
 
 
 def _rar_tolerance_check(config, indent):
@@ -10157,7 +10231,8 @@ def generate_clean_script(config):
     # (matches the live script's _n_coord_cols_bc -- a steady problem's
     # points files have no time column; this used to always expect one).
     n_coord_cols = n_coord + (0 if is_steady else 1)
-    sol_ext = "gif" if (not is_steady and config.plot_type in ("Line Animation (GIF)", "Surface Animation (GIF)")) else "png"
+    sol_ext = "gif" if ((not is_steady and config.plot_type in ("Line Animation (GIF)", "Surface Animation (GIF)"))
+                        or (config.problem_type == "Inverse" and config.plot_type == "Parameter Convergence (GIF)")) else "png"
     is_inverse = problem_type == "Inverse"
 
     # Same y/z slice-value precomputation as generate_script() above -- see
@@ -11190,6 +11265,13 @@ import shutil
 shutil.copy(param_plot_path, solution_path)
 print(f"Solution plot saved: {solution_path}")''')
 
+        elif is_inverse and config.plot_type == "Parameter Convergence (GIF)":
+            parts.append(f'''# ── Result plot: parameter convergence animation ──
+_param_animation([(name, param_iters, param_vals[vi], _inv_true_vals[vi] if vi < len(_inv_true_vals) else None)
+                  for vi, name in enumerate({[n for n, _i, _t in inv_vars_parsed]!r})],
+                 solution_path, {bool(config.inv_param_log_scale)}, {int(config.plot_fps)}, {int(config.plot_dpi)},
+                 {plot_title_override!r}, {plot_xlabel_override!r}, {plot_ylabel_override!r}, _plot_figsize(6, 3.2))''')
+
         elif is_2d and is_steady and config.plot_type == "Line (time steps)":
             # Steady 2D "Line (time steps)": no time axis, so a single curve
             # u(x) at the configured y slice -- previously this selection
@@ -11595,7 +11677,7 @@ print(f"Solution plot saved: {{solution_path}}")''')
 
     _result_plot_parts(out_name)
     if (config.plot_all_outputs and len(out_names) > 1 and not _plot_custom_expr_val and not use_ta
-            and not (is_inverse and config.plot_type == "Parameter Convergence")):
+            and not (is_inverse and config.plot_type.startswith("Parameter Convergence"))):
         _ext_all = "gif" if (not is_steady and config.plot_type in ("Line Animation (GIF)", "Surface Animation (GIF)")) else "png"
         parts.append("# ── Every output's own plot, named after it ──\n_main_solution_path = solution_path")
         for _oi, _oname in enumerate(out_names):

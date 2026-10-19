@@ -21,6 +21,7 @@ from pinnstudio.core import example_catalog as _ex_catalog
 from pinnstudio.core.config import LBFGS_RECOMMENDED
 from pinnstudio.ui.sketch_canvas import SketchPanel
 from pinnstudio.ui import theme as _theme
+from pinnstudio.core.codegen import PARAM_STYLE_DEFAULTS
 REFERENCE_DATA_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
     "reference_data",
@@ -913,7 +914,7 @@ class MainWindow(QMainWindow):
         # Phases/L-BFGS, so it's visible and editable without a popup.
 
         settings_menu.addSeparator()
-        figure_style_action = QAction("Figure Style...", self)
+        figure_style_action = QAction("Plot Settings...", self)
         figure_style_action.triggered.connect(lambda: self._on_figure_style(context="solve", tab="General"))
         settings_menu.addAction(figure_style_action)
         display_action = QAction("🎨 Display Settings...", self)
@@ -1525,6 +1526,7 @@ class MainWindow(QMainWindow):
         self._set_dirty(False)
 
     def _capture_fresh_problem(self):
+        self._refresh_plot_types()
         try:
             self._fresh_config = self._build_config()
         except Exception:
@@ -1874,6 +1876,7 @@ class MainWindow(QMainWindow):
         self.radio_2d.toggled.connect(self._on_dim_changed)
         self.radio_3d.toggled.connect(self._on_dim_changed)
         self.radio_ode.toggled.connect(self._on_ode_toggled)
+        self.radio_ode.toggled.connect(lambda _c: self._refresh_plot_types())
 
         # ── Problem type ──────────────────────────────────────
         # Time Dependent/Stationary now lives here too, right above
@@ -2363,6 +2366,7 @@ class MainWindow(QMainWindow):
         self.steady_state_check = QCheckBox("Steady-state (no time axis, e.g. Poisson equation)")
         self.steady_state_check.setVisible(False)
         self.steady_state_check.toggled.connect(self._on_steady_state_changed)
+        self.steady_state_check.toggled.connect(lambda _c: self._refresh_plot_types())
         self.steady_state_check.toggled.connect(
             lambda checked: self.radio_stationary.setChecked(True) if checked
             else self.radio_time_dependent.setChecked(True))
@@ -4086,7 +4090,7 @@ class MainWindow(QMainWindow):
         self.restore_mode_combo.currentTextChanged.connect(self._on_restore_mode_changed)
 
         self._RESTORE_FORWARD_VIZ = ["Surface", "Line (time steps)", "Animation Line (GIF)", "Animation Surface (GIF)"]
-        self._RESTORE_PARAM_VIZ = ["Parameter convergence", "Parameter convergence (GIF)"]
+        self._RESTORE_PARAM_VIZ = ["Parameter Convergence", "Parameter Convergence (GIF)"]
         # Populated by _detect_restore_ta_steps() when the browsed model
         # file lives inside a Time-Adaptive run's "time_adaptive_steps/
         # step_*/" folder -- see that method and _build_restore_script_ta.
@@ -4204,13 +4208,14 @@ class MainWindow(QMainWindow):
         self._fit_combo_width(self.restore_viz_combo, min_width=200)
         self.restore_viz_combo.currentTextChanged.connect(self._on_restore_viz_changed)
         _rviz_row.addWidget(self.restore_viz_combo)
-        self.restore_style_btn = QPushButton("Style…")
-        self.restore_style_btn.setFixedHeight(28)
-        self.restore_style_btn.setToolTip("Figure style: colours, sizes, fonts and the settings of this plot type")
-        self.restore_style_btn.clicked.connect(lambda: self._on_restore_viz_settings())
-        _rviz_row.addWidget(self.restore_style_btn)
         _rviz_row.addStretch()
         restore_content_layout.addLayout(_rviz_row)
+        # One set of plot settings, on the Results page: Restore draws with them.
+        self.restore_style_note = QLabel('Plots use the <a href="#">plot settings</a> of the Results page.')
+        self.restore_style_note.setTextFormat(Qt.TextFormat.RichText)
+        self.restore_style_note.linkActivated.connect(lambda _l: self._on_restore_viz_settings())
+        self._register_hint(self.restore_style_note, '#868e96')
+        restore_content_layout.addWidget(self.restore_style_note)
 
         self.restore_tsteps_spin = QSpinBox()
         self.restore_tsteps_spin.setRange(2, 50); self.restore_tsteps_spin.setValue(10)
@@ -4577,11 +4582,13 @@ class MainWindow(QMainWindow):
         # mismatch Restore & Visualize's own plot-type combo never had).
         self.plot_type_combo.currentTextChanged.connect(self._on_plot_type_changed)
         ctrl_row.addWidget(self.plot_type_combo)
-        self.plot_style_btn = QPushButton("Style…")
+        self.plot_style_btn = QPushButton("Plot settings")
         self.plot_style_btn.setFixedHeight(28)
-        self.plot_style_btn.setToolTip("Figure style: colours, sizes, fonts and the settings of this plot type")
+        self.plot_style_btn.setToolTip("How every saved figure looks -- here and in Restore & visualize: colours,\n"
+                                       "sizes, fonts, line widths, and the settings of this plot type")
+        from pinnstudio.ui import icons as _icons_ps
+        _icons_ps.apply(self.plot_style_btn, "settings", size=16)
         self.plot_style_btn.clicked.connect(lambda: self._on_figure_style(self.plot_type_combo.currentText()))
-        ctrl_row.addWidget(self.plot_style_btn)
         ctrl_row.addStretch()
         controls_layout.addLayout(ctrl_row)
 
@@ -4625,7 +4632,8 @@ class MainWindow(QMainWindow):
         # Second row for Error Analysis/Export -- its own row for the same
         # independent-minimum-width reason as ctrl_row_save above.
         ctrl_row2 = QHBoxLayout()
-        self.ea_btn = QPushButton("Error Analysis…")
+        ctrl_row2.addWidget(self.plot_style_btn)     # (with the other two: beside Plot type it was too wide)
+        self.ea_btn = QPushButton("Error Analysis")
         self.ea_btn.setFixedHeight(28)
         self._register_style(self.ea_btn, "button", lambda css: f"QPushButton {{ {css} }}")  # the theme's own button
         self.ea_btn.clicked.connect(self._on_error_analysis_btn)
@@ -4690,7 +4698,7 @@ class MainWindow(QMainWindow):
             'axis_label_fontsize': 10.0,
         }
 
-        self.export_btn = QPushButton("Export Solution…")
+        self.export_btn = QPushButton("Export Solution")
         self.export_btn.setFixedHeight(28)
         self._register_style(self.export_btn, "button", lambda css: f"QPushButton {{ {css} }}")  # the theme's own button
         self.export_btn.clicked.connect(self._on_export_settings)
@@ -5532,25 +5540,7 @@ class MainWindow(QMainWindow):
         # (_on_radio_inverse_toggled) -- removed (not just hidden) so a
         # stale selection can't silently linger into a script that no
         # longer offers it.
-        _sa_idx = self.plot_type_combo.findText("Surface Animation (GIF)")
-        if is_2d or is_3d:
-            if _sa_idx == -1:
-                self.plot_type_combo.addItem("Surface Animation (GIF)")
-                self._fit_combo_width(self.plot_type_combo, min_width=160)
-        elif _sa_idx != -1:
-            if self.plot_type_combo.currentText() == "Surface Animation (GIF)":
-                # blockSignals: this is a programmatic fallback caused by
-                # the dimension switch itself, not a user picking a new
-                # plot type from the combo -- without this,
-                # setCurrentText below fires currentTextChanged ->
-                # _on_plot_type_changed -> _on_line_plot_settings, which
-                # pops the modal "Line Plot Settings" dialog out of
-                # nowhere every time someone switches back to 1D with
-                # this option selected.
-                self.plot_type_combo.blockSignals(True)
-                self.plot_type_combo.setCurrentText("Line Animation (GIF)")
-                self.plot_type_combo.blockSignals(False)
-            self.plot_type_combo.removeItem(_sa_idx)
+        self._refresh_plot_types()
 
         # Repopulate the geometry-type selector for the new dimension.
         self.geom_type_row_widget.setVisible(is_2d or is_3d)
@@ -6289,6 +6279,8 @@ class MainWindow(QMainWindow):
             self._apply_config(cfg)
         finally:
             self._applying_template = False
+        if self.radio_inverse.isChecked():      # an inverse example opens on its parameters
+            self._refresh_plot_types(prefer_param=True)
         # Show it in the list: switch to its category first if needed.
         want_cat = _ex_catalog.INVERSE if (ex.category == _dx_examples.INVERSE or inverse) else _ex_catalog.FORWARD
         if name not in self.quick_examples_combo.keys() or (
@@ -6554,6 +6546,66 @@ class MainWindow(QMainWindow):
                 f"(t={valid_files[-1][0]:.4g})")
 
     # ── Plot type change ──────────────────────────────────────
+    @staticmethod
+    def plot_types_for(dim, steady, inverse, restore=False):
+        """The plot types a problem can have -- the one rule for the Results
+        page and Restore & visualize (whose list names the animations the
+        other way round). An ODE or a steady 1D problem is one curve (Line);
+        a 1D problem has no second spatial axis for a surface animation."""
+        anim_line, anim_surf = (("Animation Line (GIF)", "Animation Surface (GIF)") if restore
+                                else ("Line Animation (GIF)", "Surface Animation (GIF)"))
+        if dim == "ODE" or (dim == "1D" and steady):
+            out = ["Line"]
+        elif dim == "1D":
+            out = ["Surface", "Line (time steps)", anim_line]
+        elif steady:
+            out = ["Surface"] if restore else ["Surface", "Line (time steps)"]
+        else:
+            out = ["Surface", "Line (time steps)", anim_line, anim_surf]
+        if inverse:
+            out += ["Parameter Convergence", "Parameter Convergence (GIF)"]
+        return out
+
+    def _problem_dim_now(self):
+        if self._is_ode():
+            return "ODE"
+        return "3D" if self.radio_3d.isChecked() else "2D" if self.radio_2d.isChecked() else "1D"
+
+    def _refresh_plot_types(self, wanted=None, warn=False, prefer_param=False):
+        """Fill Results' Plot type with what this problem can have (see
+        plot_types_for), keeping the choice when it still applies. `wanted`:
+        a saved problem's plot type (logged when it doesn't apply)."""
+        if not hasattr(self, "plot_type_combo"):
+            return
+        steady = bool(getattr(self, "steady_state_check", None) and self.steady_state_check.isChecked())
+        inverse = bool(getattr(self, "radio_inverse", None) and self.radio_inverse.isChecked())
+        items = self.plot_types_for(self._problem_dim_now(), steady, inverse)
+        c = self.plot_type_combo
+        cur = wanted if wanted is not None else c.currentText()
+        if prefer_param and inverse:
+            pick = "Parameter Convergence"
+        elif cur in items:
+            pick = cur
+        elif cur in ("Line", "Line (time steps)") and ({"Line", "Line (time steps)"} & set(items)):
+            pick = "Line" if "Line" in items else "Line (time steps)"
+        elif cur == "Surface Animation (GIF)" and "Line Animation (GIF)" in items:
+            pick = "Line Animation (GIF)"
+        else:
+            pick = "Parameter Convergence" if inverse else items[0]
+        if warn and wanted and wanted != pick and not (wanted, pick) in (("Surface", "Line"),):
+            try:
+                self.log_box.append(f"ℹ️ Plot type \"{wanted}\" doesn't apply to this problem -- using \"{pick}\".")
+            except Exception:
+                pass
+        c.blockSignals(True)
+        if [c.itemText(i) for i in range(c.count())] != items:
+            c.clear()
+            c.addItems(items)
+            self._fit_combo_width(c, min_width=160)
+        c.setCurrentText(pick)
+        c.blockSignals(False)
+        self._plot_type_prev = pick
+
     def _on_plot_type_changed(self, text):
         # Every plot type auto-pops the unified settings dialog on
         # selection now -- exactly matching Restore & Visualize's own
@@ -9146,11 +9198,8 @@ class MainWindow(QMainWindow):
             plot_title_fontsize=self._plot_viz_settings.get('title_fontsize', 13.0),
             plot_subplot_title_fontsize=self._plot_viz_settings.get('subplot_title_fontsize', 10.0),
             plot_axis_label_fontsize=self._plot_viz_settings.get('axis_label_fontsize', 10.0),
-            param_plot_linewidth=self._plot_viz_settings.get('param_linewidth', 1.5),
-            param_plot_color=self._plot_viz_settings.get('param_color', '#69db7c'),
-            param_plot_markers=self._plot_viz_settings.get('param_markers', False),
-            param_plot_show_true=self._plot_viz_settings.get('param_show_true', True),
-            param_plot_show_final=self._plot_viz_settings.get('param_show_final', True),
+            **{cfg_key: self._plot_viz_settings.get(ui_key, PARAM_STYLE_DEFAULTS[cfg_key])
+               for ui_key, cfg_key in self._PARAM_STYLE_KEYS},
             loss_plot_mode=self._loss_plot_settings.get('mode', 'train_test') if getattr(self, '_loss_plot_settings', None) else 'train_test',
             loss_display_every=self._loss_plot_settings.get('display_every', 1000) if getattr(self, '_loss_plot_settings', None) else 1000,
             loss_plot_linewidth=self._loss_plot_settings.get('linewidth', 2.0) if getattr(self, '_loss_plot_settings', None) else 2.0,
@@ -9681,10 +9730,7 @@ class MainWindow(QMainWindow):
         # it reads (timesteps_spin_line/_anim, line_slice_*) are restored to
         # this config's real values on the lines right below, so a dialog
         # popped mid-restore would show stale defaults rather than them.
-        self.plot_type_combo.blockSignals(True)
-        self.plot_type_combo.setCurrentText(config.plot_type)
-        self.plot_type_combo.blockSignals(False)
-        self._plot_type_prev = config.plot_type
+        self._refresh_plot_types(wanted=config.plot_type, warn=True)
         self.timesteps_spin_line.setValue(getattr(config, 'num_timesteps_line', 5))
         self.timesteps_spin_anim.setValue(getattr(config, 'num_timesteps_anim', 20))
         self.line_slice_y_auto_cb.setChecked(getattr(config, 'line_slice_y_auto', True))
@@ -9968,12 +10014,9 @@ class MainWindow(QMainWindow):
             "title_fontsize": getattr(config, "plot_title_fontsize", 13.0),
             "subplot_title_fontsize": getattr(config, "plot_subplot_title_fontsize", 10.0),
             "axis_label_fontsize": getattr(config, "plot_axis_label_fontsize", 10.0),
-            "param_linewidth": getattr(config, "param_plot_linewidth", 1.5),
-            "param_color": getattr(config, "param_plot_color", "#69db7c"),
-            "param_markers": getattr(config, "param_plot_markers", False),
-            "param_show_true": getattr(config, "param_plot_show_true", True),
-            "param_show_final": getattr(config, "param_plot_show_final", True),
         }
+        self._plot_viz_settings.update({ui_key: getattr(config, cfg_key, PARAM_STYLE_DEFAULTS[cfg_key])
+                                        for ui_key, cfg_key in self._PARAM_STYLE_KEYS})
 
         # Loss Plot Settings (Round 28) -- getattr defaults so a config
         # saved before this feature existed restores cleanly.
@@ -10409,33 +10452,8 @@ class MainWindow(QMainWindow):
         # switched on. Removing it when leaving Inverse (rather than just
         # hiding it) keeps a stray leftover selection from silently
         # producing no solution plot for a Forward problem.
-        _pc_idx = self.plot_type_combo.findText("Parameter Convergence")
-        # blockSignals: like the dimension-switch fallback above, these two
-        # setCurrentText calls are a programmatic side effect of toggling
-        # Inverse/Forward, not a user picking a new plot type -- now that
-        # _on_plot_type_changed() auto-pops the settings dialog for every
-        # selection (not just line/animation types as before), leaving
-        # these unguarded would pop it out of nowhere every time Inverse
-        # mode is switched on or off.
-        if is_inv:
-            if _pc_idx == -1:
-                self.plot_type_combo.addItem("Parameter Convergence")
-                # "Parameter Convergence" is the widest item this combo
-                # ever holds -- re-fit now so it isn't clipped the moment
-                # Inverse mode adds it (see _fit_combo_width's own note
-                # that it must be re-called after every addItem).
-                self._fit_combo_width(self.plot_type_combo, min_width=160)
-            self.plot_type_combo.blockSignals(True)
-            self.plot_type_combo.setCurrentText("Parameter Convergence")
-            self.plot_type_combo.blockSignals(False)
-            self._plot_type_prev = "Parameter Convergence"
-        elif _pc_idx != -1:
-            if self.plot_type_combo.currentText() == "Parameter Convergence":
-                self.plot_type_combo.blockSignals(True)
-                self.plot_type_combo.setCurrentText("Surface")
-                self.plot_type_combo.blockSignals(False)
-                self._plot_type_prev = "Surface"
-            self.plot_type_combo.removeItem(_pc_idx)
+        # inverse: selected first (the most useful view of an inverse run)
+        self._refresh_plot_types(prefer_param=is_inv)
         # Time Adaptive training does not yet wire the inferred parameter
         # into its per-step training loop (no external_trainable_variables
         # there), so it silently would not converge for Inverse problems --
@@ -12839,50 +12857,17 @@ print("DOMAIN_PREVIEW_DONE")
         self._on_restore_viz_changed(self.restore_viz_combo.currentText())
 
     def _restore_forward_viz_items(self):
-        """Forward viz-type options for the Restore panel's dropdown --
-        all four (see self._RESTORE_FORWARD_VIZ) normally, but just
-        ["Surface"] when the config about to be restored is steady-state:
-        a steady-state problem has no time axis at all (same reason
-        _on_steady_state_changed already hides Time Adaptive Training and
-        the Initial Condition panel on the main Setup tab), so "Line (time
-        steps)" and the two Animation types -- all inherently about
-        stepping through or animating over time -- don't apply. Read
-        directly from the config file about to be restored (same safe-no-
-        op-on-unreadable-config pattern as _on_restore_viz_settings's own
-        _restore_dim) rather than any cached state, so this always reflects
-        whatever's actually currently browsed to; defaults to showing all
-        four when that file can't be read yet (e.g. nothing picked yet).
-
-        "Animation Surface (GIF)" is further excluded for a 1D config --
-        same reasoning as the main Setup tab's plot_type_combo (see
-        _on_dim_changed): a 1D animation frame has only one real spatial
-        axis, so there's no second axis for a surface to vary across
-        within a single frame. "Animation Line (GIF)" stays -- that's 1D's
-        actual correct time-animated option.
-
-        Only excluded when "problem_dim" is explicitly present and equal
-        to "1D" -- a config saved before this field existed (or written
-        directly in a test/script without it) has it missing entirely,
-        and its real dimension is simply unknown here, not necessarily
-        1D. Defaulting a missing field to "1D" would silently hide this
-        option for an old 2D/3D config too, which is worse than just
-        showing all four the way every config was treated before this
-        exclusion existed."""
+        """Restore's plot types for the model about to be restored (the
+        same rule as the Results page, plot_types_for): read from its
+        config; every type when it can't be read yet."""
         import json
         try:
             with open(self.restore_config_path.text().strip(), encoding="utf-8", errors="replace") as f:
-                _restore_cfg_probe = json.load(f)
-            is_steady = bool(_restore_cfg_probe.get("steady_state", False))
-            is_1d = _restore_cfg_probe.get("problem_dim") == "1D"
+                cfg = json.load(f)
         except Exception:
-            is_steady = False
-            is_1d = False
-        if is_steady:
-            return ["Surface"]
-        items = list(self._RESTORE_FORWARD_VIZ)
-        if is_1d:
-            items = [v for v in items if v != "Animation Surface (GIF)"]
-        return items
+            return list(self._RESTORE_FORWARD_VIZ)
+        dim = "ODE" if (cfg.get("ode") or cfg.get("problem_dim") == "ODE") else cfg.get("problem_dim", "2D")
+        return self.plot_types_for(dim, bool(cfg.get("steady_state", False)), False, restore=True)
 
     def _refresh_restore_viz_options(self):
         """Re-apply the steady-state filtering above to the dropdown's
@@ -12946,6 +12931,14 @@ print("DOMAIN_PREVIEW_DONE")
         width control at all, see lw_widget's own visibility below)."""
         return 'linewidth_anim' if 'Animation' in viz_type else 'linewidth'
 
+    # the parameter convergence style: Plot settings key -> PINNConfig field
+    _PARAM_STYLE_KEYS = (("param_color", "param_plot_color"), ("param_linewidth", "param_plot_linewidth"),
+                         ("param_markers", "param_plot_markers"), ("param_show_true", "param_plot_show_true"),
+                         ("param_true_color", "param_true_color"), ("param_true_style", "param_true_style"),
+                         ("param_show_final", "param_plot_show_final"), ("param_final_color", "param_final_color"),
+                         ("param_final_style", "param_final_style"), ("param_anim_color", "param_anim_color"),
+                         ("param_anim_linewidth", "param_anim_linewidth"), ("param_anim_frames", "param_anim_frames"))
+
     _RESTORE_VIEW_KEYS = ('n_steps_line', 'n_steps_anim', 'line_slice_y_auto', 'line_slice_y',
                           'line_slice_z_auto', 'line_slice_z')
 
@@ -12955,12 +12948,20 @@ print("DOMAIN_PREVIEW_DONE")
         out = dict(self._plot_viz_settings)
         view = getattr(self, '_restore_viz_settings', {}) or {}
         out.update({k: v for k, v in view.items() if k in self._RESTORE_VIEW_KEYS})
+        # the time steps / frames and the slice are the Results page's too
+        if hasattr(self, "timesteps_spin_line"):
+            out.update({'n_steps_line': self.timesteps_spin_line.value(),
+                        'n_steps_anim': self.timesteps_spin_anim.value(),
+                        'line_slice_y_auto': self.line_slice_y_auto_cb.isChecked(),
+                        'line_slice_y': self.line_slice_y_spin.value(),
+                        'line_slice_z_auto': self.line_slice_z_auto_cb.isChecked(),
+                        'line_slice_z': self.line_slice_z_spin.value()})
         return out
 
     def _on_restore_viz_settings(self, viz_type=None):
-        """Figure style, opened on the tab of Restore's plot type (its time
-        steps / frames and slice are Restore's own)."""
-        self._on_figure_style(viz_type or self.restore_viz_combo.currentText(), "restore")
+        """Plot settings (the Results page's: Restore draws with them), on
+        the tab of Restore's plot type."""
+        self._on_figure_style(viz_type or self.restore_viz_combo.currentText(), "solve")
 
     def _on_figure_style(self, viz_type=None, context="solve", tab=None):
         """One Figure style dialog for every saved figure (see figure_style.py)."""
@@ -14916,8 +14917,8 @@ print("DOMAIN_PREVIEW_DONE")
             if self.restore_viz_combo.findText(self._RESTORE_PARAM_VIZ[0]) >= 0 and not was_inverse:
                 self.restore_viz_combo.setCurrentText(self._RESTORE_PARAM_VIZ[0])
         if cfg:
-            dim = cfg.get("problem_dim", "")
-            kind = "steady" if cfg.get("steady_state") else ("time-dependent" if dim != "ODE" else "")
+            dim = "ODE" if (cfg.get("ode") or cfg.get("problem_dim") == "ODE") else cfg.get("problem_dim", "")
+            kind = "" if dim == "ODE" else ("steady" if cfg.get("steady_state") else "time-dependent")
             n_out = int(cfg.get("num_outputs", 1) or 1)
             bits = [b for b in (dim, kind, "inverse" if is_inverse else "forward") if b]
             text = " · ".join(bits) + f" · {n_out} output{'s' if n_out != 1 else ''}"
@@ -15107,16 +15108,16 @@ print("DOMAIN_PREVIEW_DONE")
         row_widget = QWidget()
         row_layout = QHBoxLayout(row_widget)
         row_layout.setContentsMargins(0, 0, 0, 0)
-        row_layout.setSpacing(4)
+        row_layout.setSpacing(6)
         path_edit = QLineEdit()
         path_edit.setText(path)
         path_edit.setPlaceholderText("Browse for <name>_convergence.txt...")
-        path_edit.setFixedHeight(26)
+        path_edit.setFixedHeight(28)
         row_layout.addWidget(path_edit)
         true_edit = QLineEdit()
         true_edit.setText("" if true_val is None else str(true_val))
         true_edit.setPlaceholderText("True value (optional)")
-        true_edit.setFixedHeight(26)
+        true_edit.setFixedHeight(28)
         true_edit.setFixedWidth(130)
         true_edit.setToolTip(
             "Known ground-truth value for this parameter, if any -- draws a "
@@ -15125,11 +15126,11 @@ print("DOMAIN_PREVIEW_DONE")
             "model_config.json recorded it; leave blank to skip the line.")
         row_layout.addWidget(true_edit)
         browse_btn = QPushButton("Browse")
-        browse_btn.setFixedHeight(26); browse_btn.setFixedWidth(65)
+        browse_btn.setFixedHeight(28); browse_btn.setFixedWidth(65)
         browse_btn.clicked.connect(lambda _checked=False, e=path_edit: self._on_browse_restore_param(e))
         row_layout.addWidget(browse_btn)
         remove_btn = QPushButton("✕")
-        remove_btn.setFixedHeight(26); remove_btn.setFixedWidth(26)
+        remove_btn.setFixedSize(26, 26)
         remove_btn.setStyleSheet("QPushButton { color: #ff8787; background: transparent; border: none; }")
         row_layout.addWidget(remove_btn)
         self.restore_param_files_layout.addWidget(row_widget)
@@ -15164,6 +15165,8 @@ print("DOMAIN_PREVIEW_DONE")
     def _on_restore(self):
         import json, tempfile, subprocess, sys
         viz_type    = self.restore_viz_combo.currentText()
+        if viz_type == "Line":
+            viz_type = "Surface"    # an ODE / steady 1D model is one curve, drawn by the Surface branch
         # Every restore run gets its own timestamped subfolder under the
         # configured save path too (same convention as a normal Solve --
         # see _run_results_dir/_timestamped_save_dir), not just plain
@@ -15204,7 +15207,7 @@ print("DOMAIN_PREVIEW_DONE")
                     true_vals.append(None)
             combine = self.restore_param_combine_combo.currentIndex() == 0     # one figure for all
             log_scale = self.inv_param_log_scale.isChecked()                   # (Figure style -> Parameters)
-            animate = (viz_type == "Parameter convergence (GIF)")
+            animate = (viz_type == "Parameter Convergence (GIF)")
 
             self.restore_btn.setEnabled(False)
             self.restore_btn.setText(" Restoring…")
@@ -15340,9 +15343,10 @@ print("DOMAIN_PREVIEW_DONE")
         # has no Quick-Example name of its own to use instead.
         if _base_restore_dir:
             _restore_label = (
-                f"Restore_{cfg.get('problem_dim', '1D')}_"
-                f"{'Stationary' if cfg.get('steady_state', False) else 'TimeDependent'}_"
-                f"{'Inverse' if cfg.get('problem_type', 'Forward') == 'Inverse' else 'Forward'}"
+                ("Restore_ODE_" if cfg.get("ode") else
+                 f"Restore_{cfg.get('problem_dim', '1D')}_"
+                 f"{'Stationary' if cfg.get('steady_state', False) else 'TimeDependent'}_")
+                + f"{'Inverse' if cfg.get('problem_type', 'Forward') == 'Inverse' else 'Forward'}"
             )
             save_dir = self._timestamped_save_dir(_base_restore_dir, _restore_label)
             self._last_restore_save_dir = save_dir
@@ -15744,8 +15748,8 @@ print("DOMAIN_PREVIEW_DONE")
         _fps = int(viz_settings.get('fps', 15) or 15)
         from pinnstudio.core.codegen import (_figsize_helper_code, _param_axis_helper_code,
                                              _contour_levels_helper_code, param_style_of)
-        _pstyle = param_style_of({'param_plot_' + k[len('param_'):]: v for k, v in viz_settings.items()
-                                  if k.startswith('param_')})
+        _pstyle = param_style_of({cfg_key: viz_settings[ui_key] for ui_key, cfg_key in self._PARAM_STYLE_KEYS
+                                  if ui_key in viz_settings})
         script = f"""
 import os
 os.makedirs({save_dir!r}, exist_ok=True)
@@ -15832,37 +15836,6 @@ def _draw_static_ax(ax, name, iters, vals, true_val=None):
     _draw_param_ax(ax, name, iters, vals, true_val, _log_scale,
                    _title_override, _xlabel_override, _ylabel_override)
 
-def _setup_anim_ax(ax, name, iters, vals, true_val=None):
-    final_val = vals[-1]
-    use_log = _use_log(vals)
-    if use_log:
-        ax.set_yscale("log")
-        ax.set_ylabel(_ylabel_override or f"log({{name}})", fontsize={axis_label_fontsize})
-    else:
-        ax.set_ylabel(_ylabel_override or name, fontsize={axis_label_fontsize})
-    x_hi = iters.max() if iters.max() > iters.min() else iters.min() + 1
-    ax.set_xlim(iters.min(), x_hi)
-    # Include the true value in the y-range too (not just the logged
-    # trajectory) -- otherwise a run that hasn't fully converged yet can
-    # clip the true-value line right off the animated axes, defeating the
-    # point of drawing it.
-    _range_vals = vals if true_val is None else np.append(vals, true_val)
-    vmin, vmax = _range_vals.min(), _range_vals.max()
-    pad = 0.05 * (abs(vmax - vmin) if vmax != vmin else (abs(vmax) + 1))
-    ax.set_ylim(vmin - pad, vmax + pad)
-    if _PARAM_STYLE["show_final"]:
-        ax.axhline(y=final_val, color="#ff8787", linestyle="--", alpha=0.5, label=f"Final = {{_num_txt(final_val)}}")
-    if true_val is not None and _PARAM_STYLE["show_true"]:
-        ax.axhline(y=true_val, color="#ffd43b", linestyle="--", alpha=0.8, label=f"True = {{_num_txt(true_val)}}")
-    ax.set_xlabel(_xlabel_override or "Iteration", fontsize={axis_label_fontsize})
-    ax.set_title(_title_override or f"Inferred Parameter: {{name}}", fontsize={subplot_title_fontsize})
-    if ax.get_legend_handles_labels()[0]:
-        ax.legend(loc="upper right")
-    ax.grid(True, alpha=0.3)
-    line, = ax.plot([], [], color=_PARAM_STYLE["color"], linewidth=_PARAM_STYLE["linewidth"],
-                    marker="o" if _PARAM_STYLE["markers"] else None, markersize=3)
-    return line
-
 if not _animate:
     if _combine:
         n = len(series)
@@ -15884,44 +15857,14 @@ if not _animate:
             plt.close(fig)
             print(f"✅ Parameter convergence plot saved: {{out_path}}")
 else:
-    # The reveal-frame count is capped for GIF size/render time -- the
-    # final frame always shows every logged point regardless, this only
-    # affects how many intermediate steps the growth is drawn across. A
-    # series with fewer points than the frame budget finishes revealing
-    # early and holds its completed curve for the rest of the animation.
+    # the animation every place draws (codegen's _param_animation)
+    _pa_args = (_log_scale, {_fps}, {_dpi}, _title_override, _xlabel_override, _ylabel_override,
+                _plot_figsize(6, 3.2))
     if _combine:
-        n = len(series)
-        n_frames = min(max(len(s[1]) for s in series), 120)
-        fig, axes = plt.subplots(n, 1, figsize=(_plot_figsize(6, 3.2)[0], _plot_figsize(6, 3.2)[1] * n), squeeze=False)
-        lines = [_setup_anim_ax(axes[i][0], name, iters, vals, true_val) for i, (name, iters, vals, true_val) in enumerate(series)]
-        plt.tight_layout()
-        def update(frame):
-            for line, (name, iters, vals, true_val) in zip(lines, series):
-                frac = (frame + 1) / n_frames
-                idx = max(1, min(len(iters), int(round(frac * len(iters)))))
-                line.set_data(iters[:idx], vals[:idx])
-            return lines
-        ani = _anim.FuncAnimation(fig, update, frames=n_frames, interval=80)
-        out_path = os.path.join({save_dir!r}, "param_convergence_animation.gif")
-        ani.save(out_path, writer='pillow', fps={_fps})
-        plt.close(fig)
-        print(f"✅ Parameter convergence animation saved: {{out_path}}")
+        _param_animation(series, os.path.join({save_dir!r}, "param_convergence_animation.gif"), *_pa_args)
     else:
-        for name, iters, vals, true_val in series:
-            n_frames = min(len(iters), 120)
-            fig, ax = plt.subplots(figsize=_plot_figsize(6, 3.2))
-            line = _setup_anim_ax(ax, name, iters, vals, true_val)
-            plt.tight_layout()
-            def update(frame, iters=iters, vals=vals, line=line, n_frames=n_frames):
-                frac = (frame + 1) / n_frames
-                idx = max(1, min(len(iters), int(round(frac * len(iters)))))
-                line.set_data(iters[:idx], vals[:idx])
-                return [line]
-            ani = _anim.FuncAnimation(fig, update, frames=n_frames, interval=80)
-            out_path = os.path.join({save_dir!r}, f"{{name}}_convergence_animation.gif")
-            ani.save(out_path, writer='pillow', fps={_fps})
-            plt.close(fig)
-            print(f"✅ Parameter convergence animation saved: {{out_path}}")
+        for _s in series:
+            _param_animation([_s], os.path.join({save_dir!r}, f"{{_s[0]}}_convergence_animation.gif"), *_pa_args)
 
 print("RESTORE_DONE")
 """

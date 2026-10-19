@@ -1,10 +1,11 @@
-"""Figure style: one dialog for every saved figure, opened by the Style...
-buttons of Results and Restore & visualize (on the tab of the plot type) and
-from the Settings menu. Solve and Restore draw with the same style; the time
-steps / frames and the y/z slice stay each one's own. The parameter
-convergence plots have their own tab (inverse problems only), and the
-Results page's "Outputs to plot" list replaces the old output list plus
-"All outputs" tick box."""
+"""Plot settings: one dialog for every saved figure, opened by the Results
+page's Plot settings button (on the tab of the plot type), Settings -> Plot
+Settings and Restore's link. Solve, the exported script and Restore draw with
+the same settings. An inverse problem's parameter convergence plot is set on
+the Line tab and its animation on Animation (red, width 3 by default). The
+plot types a problem can have follow one rule on both pages, and the Results
+page's "Outputs to plot" list replaces the old output list plus "All
+outputs" tick box."""
 import json
 import os
 import sys
@@ -59,8 +60,8 @@ def test_tab_for_plot_types():
     assert fs.tab_for("Line (time steps)") == "Line"
     assert fs.tab_for("Line Animation (GIF)") == "Animation"
     assert fs.tab_for("Animation Surface (GIF)") == "Animation"
-    assert fs.tab_for("Parameter Convergence") == "Parameters"
-    assert fs.tab_for("Parameter convergence (GIF)") == "Parameters"
+    assert fs.tab_for("Parameter Convergence") == "Line"
+    assert fs.tab_for("Parameter Convergence (GIF)") == "Animation"
     assert fs.tab_for(None) == "General"
 
 
@@ -72,7 +73,7 @@ def test_style_buttons_open_the_plot_types_tab_and_no_popup_on_change(monkeypatc
     assert not calls, "changing the plot type no longer opens a dialog"
     seen = _open(monkeypatch, w, w.plot_style_btn.click)
     assert seen["tab"] == "Line"
-    assert "Parameters" not in seen["tabs"], "forward problem: no parameter tab"
+    assert seen["dlg"].windowTitle() == "Plot Settings"
     w.close()
 
 
@@ -92,16 +93,15 @@ def test_one_style_for_solve_and_restore_steps_kept_apart(monkeypatch):
     assert (cfg.plot_colormap, cfg.plot_dpi) == ("viridis", 200)
     assert (cfg.num_timesteps_line, cfg.num_timesteps_anim) == (7, 13)
     assert (cfg.plot_linewidth, cfg.plot_linewidth_anim, cfg.loss_plot_linewidth) == (1.5, 4.0, 3.0)
-    # Restore draws with the same style, but keeps its own steps
-    assert w._restore_style()["colormap"] == "viridis"
+    # Restore draws with the same settings, its steps and frames included
+    st = w._restore_style()
+    assert (st["colormap"], st["n_steps_line"], st["n_steps_anim"]) == ("viridis", 7, 13)
 
     def edit_r(d):
-        d.steps_line.setValue(9)
         d.cmap.setCurrentText("plasma")
-    _open(monkeypatch, w, lambda: w._on_restore_viz_settings("Line (time steps)"), edit=edit_r)
-    assert w._restore_viz_settings["n_steps_line"] == 9
-    assert w.timesteps_spin_line.value() == 7, "Restore's steps are its own"
-    assert w._build_config().plot_colormap == "plasma", "one style"
+    seen = _open(monkeypatch, w, lambda: w.restore_style_note.linkActivated.emit("#"), edit=edit_r)
+    assert seen["dlg"].windowTitle() == "Plot Settings"
+    assert w._build_config().plot_colormap == "plasma", "one set of settings"
     # saved with the problem and read back
     w2 = MainWindow()
     w2._apply_config(w._build_config())
@@ -119,16 +119,24 @@ def test_parameter_style_reaches_the_scripts(monkeypatch):
         d.p_color.setCurrentIndex(d.p_color.findData("#1c7ed6"))
         d.p_markers.setChecked(True)
         d.p_final.setChecked(False)
+        d.p_true_style.setCurrentIndex(d.p_true_style.findData(":"))
+        d.pa_lw.setCurrentText("1.5")
         d.p_log.setChecked(True)
+    assert w._build_config().param_plot_color == "#e03131" and w._build_config().param_plot_linewidth == 3.0
     seen = _open(monkeypatch, w, w.plot_style_btn.click, edit=edit)
-    assert seen["tab"] == "Parameters"
+    assert seen["tab"] == "Line"
     cfg = w._build_config()
     assert cfg.param_plot_color == "#1c7ed6" and cfg.param_plot_markers and not cfg.param_plot_show_final
+    assert cfg.param_true_style == ":" and cfg.param_anim_linewidth == 1.5 and cfg.param_anim_color == "#e03131"
     assert cfg.inv_param_log_scale
-    for gen in (generate_script, generate_clean_script):
-        text = gen(cfg)
-        assert "'color': '#1c7ed6'" in text and "'markers': True" in text and "'show_final': False" in text
-        compile(text, gen.__name__, "exec")
+    for plot_type in ("Parameter Convergence", "Parameter Convergence (GIF)"):
+        cfg.plot_type = plot_type
+        for gen in (generate_script, generate_clean_script):
+            text = gen(cfg)
+            assert "'color': '#1c7ed6'" in text and "'markers': True" in text and "'show_final': False" in text
+            if gen is generate_clean_script:      # (Solve's script decides when it runs)
+                assert ("_param_animation(" in text.split("def _param_animation")[-1]) == plot_type.endswith("(GIF)")
+            compile(text, gen.__name__, "exec")
     w2 = MainWindow()
     w2._apply_config(cfg)
     assert w2._build_config().param_plot_color == "#1c7ed6"
@@ -175,7 +183,9 @@ def test_restore_reads_forward_or_inverse_from_the_config(tmp_path):
     (run / "C_convergence.txt").write_text("iteration,C\n0,2.0\n100,1.5\n")
     w._on_restore_model_chosen(str(model))
     assert w.restore_mode_combo.currentText() == "Inverse Model"
-    assert w.restore_viz_combo.currentText() == "Parameter convergence", "selected first for an inverse model"
+    assert w.restore_viz_combo.currentText() == "Parameter Convergence", "selected first for an inverse model"
+    assert [w.restore_viz_combo.itemText(i) for i in range(w.restore_viz_combo.count())] == \
+        ["Surface", "Line (time steps)", "Animation Line (GIF)", "Parameter Convergence", "Parameter Convergence (GIF)"]
     assert [r['path'].text() for r in w.restore_param_rows] == [str(run / "C_convergence.txt")]
     assert [r['true'].text() for r in w.restore_param_rows] == ["1.0"]
     assert "inverse" in w.restore_info_label.text() and "C" in w.restore_info_label.text()
@@ -188,4 +198,34 @@ def test_restore_reads_forward_or_inverse_from_the_config(tmp_path):
     w._on_restore_config_chosen()
     assert w.restore_mode_combo.currentText() == "Forward Model"
     assert all("arameter" not in w.restore_viz_combo.itemText(i) for i in range(w.restore_viz_combo.count()))
+    w.close()
+
+
+def test_plot_types_follow_the_problem():
+    f = MainWindow.plot_types_for
+    assert f("ODE", False, False) == ["Line"] and f("1D", True, False) == ["Line"]
+    assert f("1D", False, False) == ["Surface", "Line (time steps)", "Line Animation (GIF)"]
+    assert f("2D", True, False) == ["Surface", "Line (time steps)"]
+    assert f("3D", False, False)[-1] == "Surface Animation (GIF)"
+    assert f("ODE", False, True) == ["Line", "Parameter Convergence", "Parameter Convergence (GIF)"]
+    assert f("1D", False, False, restore=True)[-1] == "Animation Line (GIF)"
+    assert f("2D", True, False, restore=True) == ["Surface"]
+
+
+def test_results_plot_types_per_example():
+    w = MainWindow()
+
+    def items():
+        return [w.plot_type_combo.itemText(i) for i in range(w.plot_type_combo.count())]
+    _load(w, "Forward", "Linear ODE system")
+    assert items() == ["Line"]
+    _load(w, "Forward", "Poisson 1D – Dirichlet")
+    assert items() == ["Line"]
+    _load(w, "Forward", "Heat 1D – Dirichlet")
+    assert "Surface Animation (GIF)" not in items()
+    _load(w, "Inverse", "Lorenz ODE – unknown C₁, C₂, C₃")
+    assert items() == ["Line", "Parameter Convergence", "Parameter Convergence (GIF)"]
+    assert w.plot_type_combo.currentText() == "Parameter Convergence", "an inverse example opens on its parameters"
+    _load(w, "Inverse", "Diffusion 1D – unknown coefficient")
+    assert w.plot_type_combo.currentText() == "Parameter Convergence"
     w.close()
