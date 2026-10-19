@@ -21,6 +21,7 @@ from pinnstudio.core import example_catalog as _ex_catalog
 from pinnstudio.core.config import LBFGS_RECOMMENDED
 from pinnstudio.ui.sketch_canvas import SketchPanel
 from pinnstudio.ui import theme as _theme
+from pinnstudio.ui.theme import EXACT_BC_INDEX
 from pinnstudio.core.codegen import PARAM_STYLE_DEFAULTS
 REFERENCE_DATA_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
@@ -6187,12 +6188,59 @@ class MainWindow(QMainWindow):
                 lo, hi = {"x": ("x_min", "x_max"), "y": ("y_min", "y_max"), "z": ("z_min", "z_max")}.get(ax, ("x_min", "x_max"))
                 expr = f"({expr}) or np.isclose({ax}, {lo}) or np.isclose({ax}, {hi})"
             rows.append({"index": i, "label": f"BC {i + 1}: {self._bc_weight_desc(e)}", "expr": expr})
+        exact = self._sketch_exact_where()
+        if exact:
+            rows.append({"index": EXACT_BC_INDEX, "label": exact[0], "expr": exact[1], "exact": True})
         return rows
+
+    def _sketch_exact_where(self):
+        """(label, Where:) for the boundary an output transform fixes -- e.g.
+        x*(1 - x)*y*(1 - y)*u is 0 on the square's sides whatever the network
+        gives -- so the sketch shows those sides as set instead of "no BC
+        yet". None without a formula output transform. A point is fixed for
+        an output when its transform doesn't change with that output there."""
+        try:
+            if not (self.output_transform_cb.isChecked()
+                    and (self.output_transform_mode_combo.currentData() or "scale") == "formula"):
+                return None
+            import re
+            forms = [e.text().strip() for e in self.output_formula_edits]
+            names = [w.text().strip() for w in self.output_name_inputs[:len(forms)]]
+        except (AttributeError, RuntimeError):
+            return None
+        t_mid = (self.t_min.value() + self.t_max.value()) / 2.0
+        parts, fixed_names = [], []
+        for k, f in enumerate(forms):
+            if not f or k >= len(names) or not names[k] or f.replace(" ", "") == names[k]:
+                continue
+
+            def sub(val, f=f, k=k):
+                e = f
+                for j, n in enumerate(names):
+                    if n:
+                        e = re.sub(rf"(?<![\w.]){re.escape(n)}(?!\w)", f"({val if j == k else 0.5})", e)
+                return re.sub(r"(?<![\w.])t(?!\w)", f"({t_mid!r})", e)
+            parts.append(f"abs(({sub(1.0)}) - ({sub(0.0)})) < 1e-9")
+            fixed_names.append(names[k])
+        if not parts:
+            return None
+        return (f"Exact: set by the output transform ({', '.join(fixed_names)})",
+                " or ".join(f"({p})" for p in parts))
 
     def _sketch_domain(self):
         names = {"x_min": self.x_min, "x_max": self.x_max, "y_min": self.y_min, "y_max": self.y_max,
                  "z_min": self.z_min, "z_max": self.z_max, "t_min": self.t_min}
-        return {n: w.value() for n, w in names.items()}
+        dom = {n: w.value() for n, w in names.items()}
+        # named constants too: a Where: like np.isclose(x**2 + y**2, R**2)
+        # picked no edge in the sketch (R unknown there), so the circle it
+        # applies to was never highlighted
+        try:
+            from pinnstudio.core import constants as _cm
+            for name, _e, val in _cm.evaluate(self._constants_json()):
+                dom.setdefault(name, val)
+        except Exception:
+            pass
+        return dom
 
     def _sketch_bcs_changed(self, *_a):
         for _p in (getattr(self, 'sketch_panel', None), getattr(self, 'domain_view', None)):
@@ -10766,6 +10814,33 @@ class MainWindow(QMainWindow):
             self.log_box.append(f"ℹ️ \"{_ex_catalog.display_name(snap[0])}\" example with its own settings (unchanged).")
 
     LARGE_DATA_POINTS = 20000
+
+    def _restore_line_slice(self, cfg, viz_settings, files=None):
+        """(y, z) of the line plots for a restored model: the values set in
+        Plot settings, or the automatic line (see core/line_slice) worked
+        out from the model's settings and reference data."""
+        import dataclasses
+        from pinnstudio.core.line_slice import auto_line_slice
+        known = {f.name for f in dataclasses.fields(PINNConfig)}
+        try:
+            c = PINNConfig(**{k: v for k, v in (cfg or {}).items() if k in known})
+        except Exception:
+            c = PINNConfig()
+            for k in ("problem_dim", "x_min", "x_max", "y_min", "y_max", "z_min", "z_max"):
+                if k in (cfg or {}):
+                    setattr(c, k, cfg[k])
+        c.line_slice_y_auto = viz_settings.get("line_slice_y_auto", True)
+        c.line_slice_z_auto = viz_settings.get("line_slice_z_auto", True)
+        c.line_slice_y = viz_settings.get("line_slice_y", 0.0)
+        c.line_slice_z = viz_settings.get("line_slice_z", 0.0)
+        if files:
+            c.ea_files = repr([tuple(f) if isinstance(f, (list, tuple)) else f for f in files])
+            c.ea_ref_mode = "files"
+        try:
+            return auto_line_slice(c)
+        except Exception:
+            return ((c.y_min + c.y_max) / 2.0 if c.line_slice_y_auto else c.line_slice_y,
+                    (c.z_min + c.z_max) / 2.0 if c.line_slice_z_auto else c.line_slice_z)
 
     def _note_large_data(self, config):
         """A log note when an inverse problem's measured data has many points
@@ -15731,8 +15806,7 @@ print("DOMAIN_PREVIEW_DONE")
                     # of its y/z coordinate.
                     _ea_y_min = cfg.get('y_min', 0.0); _ea_y_max = cfg.get('y_max', 1.0)
                     _ea_z_min = cfg.get('z_min', 0.0); _ea_z_max = cfg.get('z_max', 1.0)
-                    _ea_line_slice_y = (_ea_y_min + _ea_y_max) / 2.0 if viz_settings.get('line_slice_y_auto', True) else viz_settings.get('line_slice_y', 0.0)
-                    _ea_line_slice_z = (_ea_z_min + _ea_z_max) / 2.0 if viz_settings.get('line_slice_z_auto', True) else viz_settings.get('line_slice_z', 0.0)
+                    _ea_line_slice_y, _ea_line_slice_z = self._restore_line_slice(cfg, viz_settings, matching_files)
                     script += self._build_restore_ea_script(
                         matching_files, save_dir, is_2d,
                         ea.get('do_line', True), ea.get('do_surface', True),
@@ -16170,8 +16244,7 @@ print("RESTORE_DONE")
         # the domain midpoint the first time the dialog opens for a given
         # restore (viz_settings won't have these keys yet); overriding it
         # there re-plots/re-animates at the new slice without re-training.
-        line_slice_y = (y_min + y_max) / 2.0 if viz_settings.get("line_slice_y_auto", True) else viz_settings.get("line_slice_y", 0.0)
-        line_slice_z = (z_min + z_max) / 2.0 if viz_settings.get("line_slice_z_auto", True) else viz_settings.get("line_slice_z", 0.0)
+        line_slice_y, line_slice_z = self._restore_line_slice(cfg, viz_settings)
         # Steady-state problems have no time axis at all (see
         # _on_steady_state_changed and generate_script()'s own _is_steady
         # branch in codegen.py): the restored network's first layer has one
@@ -16566,8 +16639,7 @@ def _extract_plot_field(x_grid):
         is_3d = cfg.get("problem_dim", "1D") == "3D"
         # Same live, independently-overridable slice-value convention as
         # _build_restore_script -- see the matching comment there.
-        line_slice_y = (y_min + y_max) / 2.0 if viz_settings.get("line_slice_y_auto", True) else viz_settings.get("line_slice_y", 0.0)
-        line_slice_z = (z_min + z_max) / 2.0 if viz_settings.get("line_slice_z_auto", True) else viz_settings.get("line_slice_z", 0.0)
+        line_slice_y, line_slice_z = self._restore_line_slice(cfg, viz_settings)
         out_names = cfg.get("output_names", "u").split(",")
         _custom_expr_val = (custom_expr or "").strip()
         _custom_label_val = (custom_label or "").strip()
@@ -17132,6 +17204,8 @@ if {do_line}:
             _xv_s   = _xv[_ea_sort]
             _gt_s   = _ea_u_refs[_i][_ea_sort]
             _pinn_s = _ea_u_pinns[_i][_ea_sort]
+        if {bool(is_2d or is_3d)} and '_line_gaps' in globals():
+            _xv_s, _gt_s, _pinn_s = _line_gaps(_xv_s, _gt_s, _pinn_s)
         ax.plot(_xv_s, _gt_s,   color='#4dabf7', linewidth=2.0, label='Reference')
         ax.plot(_xv_s, _pinn_s, color='#ff6b6b', linewidth=2.0, linestyle='--', label='PINN')
         ax.set_title(f"t = {{_tv:.3g}}  ({{_l2_txt(_l2)}})", fontsize={_subtitle_fs})

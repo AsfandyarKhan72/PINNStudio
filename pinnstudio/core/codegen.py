@@ -3775,6 +3775,8 @@ if {config.time_adaptive}:
                         _gt_s = _ea_u_refs[_ei][_ea_sort]
                         _pinn_s = _ea_u_pinns[_ei][_ea_sort]
                     _ea_tv, _l2, _mse, _mx, _ma = _ea_metrics[_ei]
+                    if _is_2d or _is_3d:
+                        _xv_s, _gt_s, _pinn_s = _line_gaps(_xv_s, _gt_s, _pinn_s)
                     ax.plot(_xv_s, _gt_s,   color='#4dabf7', linewidth=2.0, linestyle='-',  label='Reference')
                     ax.plot(_xv_s, _pinn_s, color='#ff6b6b', linewidth=2.0, linestyle='--', label='PINN')
                     ax.set_title(f"t = {{_ea_tv:.3g}}  ({{_l2_txt(_l2)}})", fontsize={config.plot_subplot_title_fontsize})
@@ -4625,8 +4627,8 @@ def generate_script(config):
     # separately; now every site reads the same user-configurable value,
     # computed once here. _auto (the default) reproduces the previous
     # hardcoded behavior exactly.
-    line_slice_y = (config.y_min + config.y_max) / 2.0 if config.line_slice_y_auto else config.line_slice_y
-    line_slice_z = (config.z_min + config.z_max) / 2.0 if config.line_slice_z_auto else config.line_slice_z
+    from pinnstudio.core.line_slice import auto_line_slice
+    line_slice_y, line_slice_z = auto_line_slice(config)
 
     # The optional custom Results-panel plot expression (e.g. Schrodinger's
     # "sqrt(u**2+v**2)") is passed through UNCONVERTED, deliberately NOT
@@ -6830,8 +6832,12 @@ for _pval in _param_values:
                         else:
                             _xt_gif = np.column_stack([_x_gif, np.full_like(_x_gif, _tv)])
                         _all_u_gif.append(_extract_plot_field(_xt_gif).flatten())
-                    _u_min_gif = min(_u.min() for _u in _all_u_gif)
-                    _u_max_gif = max(_u.max() for _u in _all_u_gif)
+                    if _is_2d or _is_3d:
+                        # only inside the domain (a hole, the L-shape's corner)
+                        _in_gif = np.asarray(geom.inside(_xt_gif[:, :(3 if _is_3d else 2)]), dtype=bool)
+                        _all_u_gif = [np.where(_in_gif, _u, np.nan) for _u in _all_u_gif]
+                    _u_min_gif = min(np.nanmin(_u) for _u in _all_u_gif)
+                    _u_max_gif = max(np.nanmax(_u) for _u in _all_u_gif)
                     _fig_gif, _ax_gif = plt.subplots(figsize=_plot_figsize(7, 5))
                     _ax_gif.set_xlim(_plot_x_min, _plot_x_max)
                     _ax_gif.set_ylim(_u_min_gif - 0.05*abs(_u_min_gif) - 1e-9, _u_max_gif + 0.05*abs(_u_max_gif) + 1e-9)
@@ -7045,7 +7051,7 @@ for _pval in _param_values:
                     ax.set_xticks([]); ax.set_yticks([])
                 else:
                     _u_l2ds = _extract_plot_field(_xy_l2ds).flatten()
-                    ax.plot(_x_l2ds, _u_l2ds, color="#4dabf7", linewidth={config.plot_linewidth})
+                    ax.plot(*_line_gaps(_x_l2ds, _u_l2ds), color="#4dabf7", linewidth={config.plot_linewidth})
                     ax.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or f"{{out_name}}(x,y={line_slice_y:.3g})", fontsize={config.plot_axis_label_fontsize})
                     ax.grid(True, alpha=0.2)
                 ax.set_title(_plot_title_override or f"PINN Solution — {{out_name}}(x,y={line_slice_y:.3g})")
@@ -7102,7 +7108,7 @@ for _pval in _param_values:
                     for _i_l2d, _tv_l2d in enumerate(_t_steps_l2d):
                         _xyt_l2d = np.column_stack([_x_l2d, np.full_like(_x_l2d, {line_slice_y}), np.full_like(_x_l2d, _tv_l2d)])
                         _u_l2d = _extract_plot_field(_xyt_l2d).flatten()
-                        ax.plot(_x_l2d, _u_l2d, color=_colors_l2d[_i_l2d], linewidth={config.plot_linewidth}, label=f"t = {{_tv_l2d:.3f}}")
+                        ax.plot(*_line_gaps(_x_l2d, _u_l2d), color=_colors_l2d[_i_l2d], linewidth={config.plot_linewidth}, label=f"t = {{_tv_l2d:.3f}}")
                     ax.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or f"{{out_name}}(x,y={line_slice_y:.3g},t)", fontsize={config.plot_axis_label_fontsize})
                     ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
                 ax.set_title(_plot_title_override or f"PINN Solution — {{out_name}}(x,y={line_slice_y:.3g},t)")
@@ -7154,7 +7160,7 @@ for _pval in _param_values:
                     ax.set_xticks([]); ax.set_yticks([])
                 else:
                     _u_l3ds = _extract_plot_field(_xyz_l3ds).flatten()
-                    ax.plot(_x_l3ds, _u_l3ds, color="#4dabf7", linewidth={config.plot_linewidth})
+                    ax.plot(*_line_gaps(_x_l3ds, _u_l3ds), color="#4dabf7", linewidth={config.plot_linewidth})
                     ax.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or f"{{out_name}}(x,y={line_slice_y:.3g},z={line_slice_z:.3g})", fontsize={config.plot_axis_label_fontsize})
                     ax.grid(True, alpha=0.2)
                 ax.set_title(_plot_title_override or f"PINN Solution — {{out_name}}(x,y={line_slice_y:.3g},z={line_slice_z:.3g})")
@@ -7212,7 +7218,7 @@ for _pval in _param_values:
                     for _i_l3d, _tv_l3d in enumerate(_t_steps_l3d):
                         _xyzt_l3d = np.column_stack([_x_l3d, np.full_like(_x_l3d, {line_slice_y}), np.full_like(_x_l3d, {line_slice_z}), np.full_like(_x_l3d, _tv_l3d)])
                         _u_l3d = _extract_plot_field(_xyzt_l3d).flatten()
-                        ax.plot(_x_l3d, _u_l3d, color=_colors_l3d[_i_l3d], linewidth={config.plot_linewidth}, label=f"t = {{_tv_l3d:.3f}}")
+                        ax.plot(*_line_gaps(_x_l3d, _u_l3d), color=_colors_l3d[_i_l3d], linewidth={config.plot_linewidth}, label=f"t = {{_tv_l3d:.3f}}")
                     ax.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or f"{{out_name}}(x,y={line_slice_y:.3g},z={line_slice_z:.3g},t)", fontsize={config.plot_axis_label_fontsize})
                     ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
                 ax.set_title(_plot_title_override or f"PINN Solution — {{out_name}}(x,y={line_slice_y:.3g},z={line_slice_z:.3g},t)")
@@ -7673,6 +7679,8 @@ for _pval in _param_values:
                             _gt_s   = _ea_u_refs[_ei][_ea_sort]
                             _pinn_s = _ea_u_pinns[_ei][_ea_sort]
                         _ea_tv, _l2, _mse, _mx, _ma = _ea_metrics[_ei]
+                        if _is_2d or _is_3d:
+                            _xv_s, _gt_s, _pinn_s = _line_gaps(_xv_s, _gt_s, _pinn_s)
                         ax.plot(_xv_s, _gt_s,   color='#4dabf7', linewidth=2.0, linestyle='-',  label='Reference')
                         ax.plot(_xv_s, _pinn_s, color='#ff6b6b', linewidth=2.0, linestyle='--', label='PINN')
                         # Steady-state (e.g. a Poisson equation) has no time
@@ -8975,6 +8983,22 @@ def _figsize_helper_code(mode, w, h):
 
 _PLOT_TEXT_HELPERS = """
 
+def _line_gaps(_x, *_ys):
+    # A line along x masked to the domain: NaN where points were taken out
+    # (a hole, the L-shape's missing corner), so the curve stops there
+    # instead of a straight segment across the gap.
+    import numpy as _np_g
+    _x = _np_g.asarray(_x, dtype=float).ravel()
+    _ys = tuple(_np_g.asarray(_y, dtype=float).ravel() for _y in _ys)
+    _d = _np_g.diff(_x)
+    _pos = _d[_d > 0]
+    if _x.size < 3 or _pos.size == 0:
+        return (_x,) + _ys
+    _cut = _np_g.flatnonzero(_d > 1.5 * _pos.min()) + 1
+    if _cut.size == 0:
+        return (_x,) + _ys
+    return (_np_g.insert(_x, _cut, _np_g.nan),) + tuple(_np_g.insert(_y, _cut, _np_g.nan) for _y in _ys)
+
 def _sci_txt(_v, _d=2):
     # 8.44e-03 -> "8.44 x 10^-3" in matplotlib mathtext, for plot titles.
     import math as _m_sci
@@ -9458,7 +9482,7 @@ else:
     colors = plt.get_cmap("{colormap}")(np.linspace(0, 1, {n_steps}))
     for i, tv in enumerate(t_steps_vals):
 {pre_xt_lines}{xt_branch}        u_line = _extract_plot_field(xt{predict_model_arg}).flatten(){line_label_stmt}
-        ax.plot(x_vals, u_line, color=colors[i], linewidth={linewidth}, {line_label_arg})
+        ax.plot(*_line_gaps(x_vals, u_line), color=colors[i], linewidth={linewidth}, {line_label_arg})
     ax.set_xlabel({xlabel!r}, fontsize={axis_label_fontsize}); ax.set_ylabel({ylabel!r}, fontsize={axis_label_fontsize})
     ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
 ax.set_title({title!r}, fontsize={subplot_title_fontsize})
@@ -9553,7 +9577,7 @@ else:
     def init():
         line.set_data([], []); time_txt.set_text(''); return line, time_txt
     def update(i):
-        line.set_data(x_vals, all_u[i])
+        line.set_data(*_line_gaps(x_vals, all_u[i]))
         time_txt.set_text(f"t = {{t_frames[i]:.3f}}")
         return line, time_txt
     ani = _anim.FuncAnimation(fig, update, init_func=init, frames={n_steps}, interval=100, blit=True)
@@ -10307,8 +10331,8 @@ def generate_clean_script(config):
     # Same y/z slice-value precomputation as generate_script() above -- see
     # the matching comment there. Every line-type plot in this generator
     # reads it instead of hardcoding the domain midpoint independently.
-    line_slice_y = (config.y_min + config.y_max) / 2.0 if config.line_slice_y_auto else config.line_slice_y
-    line_slice_z = (config.z_min + config.z_max) / 2.0 if config.line_slice_z_auto else config.line_slice_z
+    from pinnstudio.core.line_slice import auto_line_slice
+    line_slice_y, line_slice_z = auto_line_slice(config)
 
     # Optional title/axis-label overrides -- same blank-means-default
     # convention as generate_script() and the Restore & Visualize script
@@ -11380,7 +11404,7 @@ if len(x_l2ds) < 2:
     ax.set_xticks([]); ax.set_yticks([])
 else:
     u_l2ds = _extract_plot_field(xy_l2ds).flatten()
-    ax.plot(x_l2ds, u_l2ds, color="#4dabf7", linewidth={config.plot_linewidth})
+    ax.plot(*_line_gaps(x_l2ds, u_l2ds), color="#4dabf7", linewidth={config.plot_linewidth})
     ax.set_xlabel({(plot_xlabel_override or "x")!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel({(plot_ylabel_override or f"{out_name}(x, y={line_slice_y:.3g})")!r}, fontsize={config.plot_axis_label_fontsize})
     ax.grid(True, alpha=0.2)
 ax.set_title({(plot_title_override or "PINN Solution")!r})
@@ -11428,7 +11452,7 @@ if len(x_l3ds) < 2:
     ax.set_xticks([]); ax.set_yticks([])
 else:
     u_l3ds = _extract_plot_field(xyz_l3ds).flatten()
-    ax.plot(x_l3ds, u_l3ds, color="#4dabf7", linewidth={config.plot_linewidth})
+    ax.plot(*_line_gaps(x_l3ds, u_l3ds), color="#4dabf7", linewidth={config.plot_linewidth})
     ax.set_xlabel({(plot_xlabel_override or "x")!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel({(plot_ylabel_override or f"{out_name}(x, y={line_slice_y:.3g}, z={line_slice_z:.3g})")!r}, fontsize={config.plot_axis_label_fontsize})
     ax.grid(True, alpha=0.2)
 ax.set_title({(plot_title_override or "PINN Solution")!r})
@@ -11506,8 +11530,8 @@ x_line = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
 frames_u = []
 for tv in t_frames:
     {_xt_build}
-    frames_u.append(_extract_plot_field(xt).flatten())
-u_min = min(u.min() for u in frames_u); u_max = max(u.max() for u in frames_u)
+    frames_u.append(_extract_plot_field(xt).flatten()){chr(10) + "_in_line = np.asarray(geom.inside(xt[:, :" + ("3" if is_3d else "2") + "]), dtype=bool)" + chr(10) + "frames_u = [np.where(_in_line, u, np.nan) for u in frames_u]  # only inside the domain" if (is_2d or is_3d) else ""}
+u_min = min(np.nanmin(u) for u in frames_u); u_max = max(np.nanmax(u) for u in frames_u)
 fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
 ax.set_xlim({config.x_min}, {config.x_max})
 ax.set_ylim(u_min - 0.05 * abs(u_min) - 1e-9, u_max + 0.05 * abs(u_max) + 1e-9)
@@ -11627,7 +11651,7 @@ else:
     for i, tv in enumerate(t_steps_l2d):
         xyt = np.column_stack([x_l2d, np.full_like(x_l2d, {line_slice_y}), np.full_like(x_l2d, tv)])
         u_line = _extract_plot_field(xyt).flatten()
-        ax.plot(x_l2d, u_line, color=colors[i], linewidth={config.plot_linewidth}, label=f"t = {{tv:.3f}}")
+        ax.plot(*_line_gaps(x_l2d, u_line), color=colors[i], linewidth={config.plot_linewidth}, label=f"t = {{tv:.3f}}")
     ax.set_xlabel({(plot_xlabel_override or "x")!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel({(plot_ylabel_override or f"{out_name}(x, y={line_slice_y:.3g}, t)")!r}, fontsize={config.plot_axis_label_fontsize})
     ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
 ax.set_title({(plot_title_override or "PINN Solution")!r})
@@ -11684,7 +11708,7 @@ else:
     for i, tv in enumerate(t_steps_l3d):
         xyzt = np.column_stack([x_l3d, np.full_like(x_l3d, {line_slice_y}), np.full_like(x_l3d, {line_slice_z}), np.full_like(x_l3d, tv)])
         u_line = _extract_plot_field(xyzt).flatten()
-        ax.plot(x_l3d, u_line, color=colors[i], linewidth={config.plot_linewidth}, label=f"t = {{tv:.3f}}")
+        ax.plot(*_line_gaps(x_l3d, u_line), color=colors[i], linewidth={config.plot_linewidth}, label=f"t = {{tv:.3f}}")
     ax.set_xlabel({(plot_xlabel_override or "x")!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel({(plot_ylabel_override or f"{out_name}(x, y={line_slice_y:.3g}, z={line_slice_z:.3g}, t)")!r}, fontsize={config.plot_axis_label_fontsize})
     ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
 ax.set_title({(plot_title_override or "PINN Solution")!r})
@@ -12055,7 +12079,7 @@ axf = axes.flatten()
 for i, tv in enumerate(ea_times):
     ax = axf[i]{mid_slice}
 {sort_line}
-    tv_r, l2, mse, mx, ma = ea_metrics[i]
+    tv_r, l2, mse, mx, ma = ea_metrics[i]{chr(10) + "    xv, gt, pn = _line_gaps(xv, gt, pn)" if (is_2d or is_3d) else ""}
     ax.plot(xv, gt, color="#4dabf7", linewidth=2.0, label="Reference")
     ax.plot(xv, pn, color="#ff6b6b", linewidth=2.0, linestyle="--", label="PINN")
     ax.set_title(line_head + "     " + {_ea_line_title} if single else {_ea_line_title},

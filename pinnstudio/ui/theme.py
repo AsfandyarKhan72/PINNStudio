@@ -78,6 +78,13 @@ ACCENTS = {   # optional override of the theme's accent: (accent, hover, as text
 # people with red-green colour blindness can tell apart.
 BC_COLORS = ("#0072B2", "#D55E00", "#009E73", "#CC79A7", "#E69F00", "#56B4E9", "#882255", "#44AA99",
              "#332288", "#999933")
+# The sketch's colour for boundary an output transform fixes (no BC row).
+EXACT_BC_INDEX = -1
+EXACT_BC_COLOR = "#212529"
+
+
+def bc_color(i):
+    return EXACT_BC_COLOR if i == EXACT_BC_INDEX else BC_COLORS[i % len(BC_COLORS)]
 
 _current = dict(THEMES[DEFAULT_THEME])
 
