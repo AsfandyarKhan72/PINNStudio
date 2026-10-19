@@ -419,6 +419,14 @@ ROW_SPACING = 8      # between a row's label and its control
 MAX_LABEL_CHARS = 26
 
 
+def _grows(widget):
+    """Whether a row's last widget takes the rest of the row by itself."""
+    from PyQt6.QtWidgets import QLineEdit, QSizePolicy
+    pol = widget.sizePolicy().horizontalPolicy()
+    return (isinstance(widget, QLineEdit) and widget.maximumWidth() >= 16777215
+            and pol not in (QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Maximum))
+
+
 def align_forms(root, max_label=190):
     """Rows built as  [label][stretch][control]  -- control pushed to the far
     right -- become  [label][control][stretch], and every row label on the
@@ -439,10 +447,19 @@ def align_forms(root, max_label=190):
         first = lay.itemAt(0).widget()
         if not isinstance(first, QLabel) or not first.text().rstrip().endswith(":") or first.wordWrap():
             return
+        # The row ends in a stretch unless its last control takes the rest
+        # of the row itself (a line edit left to grow): a fixed-width field
+        # with no stretch after it left the spare room around the capped
+        # label, so the row's label and field drifted apart (Min. delta,
+        # the loss-weight rows).
         if lay.itemAt(1).spacerItem() is not None and lay.count() >= 3:
             lay.takeAt(1)
             last = lay.itemAt(lay.count() - 1).widget()
-            if not isinstance(last, QLineEdit):
+            if last is not None and not _grows(last):
+                lay.addStretch(1)
+        else:
+            last = lay.itemAt(lay.count() - 1).widget()
+            if isinstance(last, QLineEdit) and not _grows(last):
                 lay.addStretch(1)
         if first.property("_pinn_col") or first.minimumWidth() != first.maximumWidth() \
                 or first.maximumWidth() > 1000:      # (a width the code fixed itself is kept)

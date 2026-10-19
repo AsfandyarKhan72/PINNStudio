@@ -238,6 +238,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **Settings rows that did not line up:** a fixed-width field with no stretch after it left the spare room around its label, so the label and field drifted apart (Callbacks -> *Min. delta* and *Baseline loss*, every row of the Loss weights page); and two RAR labels were too long for the label column or had no colon ("Data points to add per cycle", "Stop when mean residual <", now *Points added per round:* and *Stop below mean residual:*). `tests/test_form_alignment.py` checks every settings page for these.
+
 - **The parameter convergence animation sped up in the L-BFGS phase:** each frame showed the next share of the saved values, and L-BFGS saves them less often than Adam, so a frame there covered many more iterations. Each frame now moves on by the same number of iterations.
 
 - **Parameter convergence animation with a log value axis showed no curve:** the animation sets its axis range before drawing (the curve starts empty), and on a log axis it left the range to the two reference lines, so the curve was drawn off the axis. The range now covers the whole curve and the true value, with the margin as a factor on a log axis. The value axis of the parameter plots is labelled with the parameter's name, not "log(name)", since a log axis shows the values themselves.

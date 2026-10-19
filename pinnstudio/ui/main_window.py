@@ -3485,13 +3485,16 @@ class MainWindow(QMainWindow):
         # per round, as many rounds as it takes to reach a tolerance).
         self.rar_cycles      = _rar_row("RAR training rounds:",          3,     1,    1000,   1)
         self.rar_candidates  = _rar_row("Residual sampling points:",     50000, 1000, 500000, 5000)
-        self.rar_add_points  = _rar_row("Data points to add per cycle:", 500,   1,    10000,  100)
+        self.rar_add_points  = _rar_row("Points added per round:",      500,   1,    10000,  100)
         self.rar_adam_iters  = _rar_row("Adam iterations:",              20000, 0,    500000, 1000)
         self.rar_lbfgs_iters = _rar_row("L-BFGS iterations:",            10000, 0,    500000, 1000)
         # Early stop (Round 66): end refinement once the mean residual over
         # the sampled candidates is below this; 0 = always run every round.
         rar_tol_row = QHBoxLayout()
-        rar_tol_row.addWidget(QLabel("Stop when mean residual <"))
+        _rar_tol_label = QLabel("Stop below mean residual:")
+        _rar_tol_label.setToolTip("End the refinement once the mean |residual| over the sampled points is below this "
+                                  "(off: always run every round)")
+        rar_tol_row.addWidget(_rar_tol_label)
         self.rar_tolerance = QDoubleSpinBox()
         self.rar_tolerance.setRange(0.0, 1e6); self.rar_tolerance.setDecimals(6)
         self.rar_tolerance.setSingleStep(0.001); self.rar_tolerance.setValue(0.0)
