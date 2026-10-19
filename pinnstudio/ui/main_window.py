@@ -10603,6 +10603,21 @@ class MainWindow(QMainWindow):
                     path = _preserve_path
                 self._add_inverse_data_row(path=path, output_idx=output_idx, weight=weight,
                                             custom_expr=custom_expr, is_primary=(i == 0))
+        elif template:
+            # A template with the one default data file: drop the extra rows a
+            # template loaded before it left (Burgers 2D's v file stayed as
+            # Heat 2D's second measured-data file); the first row's path is
+            # set by _auto_configure_ea.
+            self._trim_inverse_data_rows()
+
+    def _trim_inverse_data_rows(self):
+        """Keep only the first measured-data row."""
+        for r in list(self.inv_data_rows[1:]):
+            r['widget'].hide()
+            r['widget'].deleteLater()
+            self.inv_data_rows.remove(r)
+        if hasattr(self, 'inv_multi_data_hint'):
+            self.inv_multi_data_hint.setVisible(len(self.inv_data_rows) > 1)
 
     def _sync_inverse_pde_substitution(self, is_inv):
         """Inverse ON: replace the current template's known constants with
