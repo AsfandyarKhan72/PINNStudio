@@ -583,9 +583,9 @@ $$\Large \frac{dy_1}{dt} = C_1(y_2 - y_1), \qquad \frac{dy_2}{dt} = y_1(C_2 - y_
 
 ![Lorenz ODE – unknown C₁, C₂, C₃ — PINN vs reference along a line (y3)](assets/Images/DeepXDE/Inverse_Lorenz_system/line_comparison_y3.png)
 
-*y1 — inferred parameters during training*
+*Inferred parameters during training*
 
-![Lorenz ODE – unknown C₁, C₂, C₃ — inferred parameters during training (y1)](assets/Images/DeepXDE/Inverse_Lorenz_system/param_plot.png)
+![Lorenz ODE – unknown C₁, C₂, C₃ — inferred parameters during training](assets/Images/DeepXDE/Inverse_Lorenz_system/param_convergence_animation.gif)
 
 </details>
 
@@ -618,9 +618,9 @@ $$\Large \frac{dy_1}{dt} = C_1(y_2 - y_1), \qquad \frac{dy_2}{dt} = y_1(C_2 - y_
 
 ![Lorenz ODE – unknown C₁, C₂, C₃, exogenous input — PINN vs reference along a line (y3)](assets/Images/DeepXDE/Inverse_Lorenz_system_with_exogenous_input/line_comparison_y3.png)
 
-*y1 — inferred parameters during training*
+*Inferred parameters during training*
 
-![Lorenz ODE – unknown C₁, C₂, C₃, exogenous input — inferred parameters during training (y1)](assets/Images/DeepXDE/Inverse_Lorenz_system_with_exogenous_input/param_plot.png)
+![Lorenz ODE – unknown C₁, C₂, C₃, exogenous input — inferred parameters during training](assets/Images/DeepXDE/Inverse_Lorenz_system_with_exogenous_input/param_convergence_animation.gif)
 
 </details>
 
@@ -851,7 +851,7 @@ DeepXDE's own script, run unchanged twice on the same GPU, ends with $\nu_e$ = 1
 
 *Inferred parameters during training*
 
-![Brinkman-Forchheimer 1D – unknown ν_e, K — inferred parameters during training](assets/Images/DeepXDE/Inverse_Brinkman_Forchheimer_model/param_plot.png)
+![Brinkman-Forchheimer 1D – unknown ν_e, K — inferred parameters during training](assets/Images/DeepXDE/Inverse_Brinkman_Forchheimer_model/param_convergence_animation.gif)
 
 </details>
 
@@ -908,7 +908,7 @@ $$\Large \frac{D_{-1+}^{\alpha}u + D_{1-}^{\alpha}u}{2\cos(\alpha\pi/2)} = \Gamm
 
 *Inferred parameters during training*
 
-![Fractional Poisson 1D – unknown order α — inferred parameters during training](assets/Images/DeepXDE/Inverse_fractional_Poisson_equation_1D/param_plot.png)
+![Fractional Poisson 1D – unknown order α — inferred parameters during training](assets/Images/DeepXDE/Inverse_fractional_Poisson_equation_1D/param_convergence_animation.gif)
 
 </details>
 
@@ -1537,7 +1537,7 @@ $$\Large \frac{\partial u}{\partial t} = C\frac{\partial^2 u}{\partial x^2} - e^
 
 *Inferred parameters during training*
 
-![Diffusion 1D – unknown coefficient — inferred parameters during training](assets/Images/DeepXDE/Inverse_diffusion_equation/param_plot.png)
+![Diffusion 1D – unknown coefficient — inferred parameters during training](assets/Images/DeepXDE/Inverse_diffusion_equation/param_convergence_animation.gif)
 
 </details>
 
@@ -1563,9 +1563,9 @@ $$\Large \frac{\partial C_A}{\partial t} = D\frac{\partial^2 C_A}{\partial x^2} 
 
 ![Diffusion-reaction 1D – unknown k_f, D — PINN solution over time (cb)](assets/Images/DeepXDE/Inverse_diffusion_reaction_system/animation_cb.gif)
 
-*ca — inferred parameters during training*
+*Inferred parameters during training*
 
-![Diffusion-reaction 1D – unknown k_f, D — inferred parameters during training (ca)](assets/Images/DeepXDE/Inverse_diffusion_reaction_system/param_plot.png)
+![Diffusion-reaction 1D – unknown k_f, D — inferred parameters during training](assets/Images/DeepXDE/Inverse_diffusion_reaction_system/param_convergence_animation.gif)
 
 </details>
 
@@ -1902,7 +1902,7 @@ $$\Large -(-\Delta)^{\alpha/2}u = 2^{\alpha_0}\Gamma(2 + \tfrac{\alpha_0}{2})\Ga
 
 *Inferred parameters during training*
 
-![Fractional Poisson 2D – unknown order α — inferred parameters during training](assets/Images/DeepXDE/Inverse_fractional_Poisson_equation_2D/param_plot.png)
+![Fractional Poisson 2D – unknown order α — inferred parameters during training](assets/Images/DeepXDE/Inverse_fractional_Poisson_equation_2D/param_convergence_animation.gif)
 
 </details>
 
