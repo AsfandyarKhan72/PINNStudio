@@ -1011,6 +1011,8 @@ Result: $L_2$ = 9.8 × 10⁻⁸ ($t = 0$), 4.0 × 10⁻⁴ ($t = 0.25$), 4.6 × 
 
 *Inverse mode* — same template, switched to **Inverse**, jointly recovering both $\gamma_1$ (diffusion) and $\gamma_2$ (reaction) as unknown parameters; the live convergence animation below shows each estimate settling onto its true value during training:
 
+**Inverse result (RTX 4090):** with the whole-interval template, $\gamma_1$ = 1.005 × 10⁻⁴ (true 10⁻⁴) and $\gamma_2$ = 4.999 (true 5); with the time-adaptive template, which trains on the whole interval in Inverse mode, $\gamma_1$ = 1.15 × 10⁻⁴ (15% off) and $\gamma_2$ = 5.001. Both from $u$ measured at $t = 1$.
+
 ![1D Allen-Cahn inverse parameter convergence animation](assets/Images/1D-AllenCahn/param_convergence_animation.gif)
 
 </details>
@@ -1044,6 +1046,8 @@ where $\gamma_1 = 10^{-6}$ and $\gamma_2 = 0.01$. The fourth-order equation is s
 
 ![1D Cahn-Hilliard — mu along x at the reference times](assets/Images/1D-CahnHilliard/line_comparison_mu.png)
 
+*Inverse mode* — same template, switched to **Inverse**, recovering $\gamma_1$ and $\gamma_2$ (initial guesses 1, true values $10^{-6}$ and $0.01$) from $u$ measured at $t = 1$. **Inverse result (RTX 4090): not recovered** — $\gamma_1$ = 2.6 × 10⁻⁵ (26× too large) and $\gamma_2$ = 0.090 (9× too large). Being worked on.
+
 </details>
 
 <details id="1d-cahn-hilliard-mattey--ghosh">
@@ -1068,6 +1072,8 @@ where $\alpha = 0.02$ and $\kappa = 1$. As in the paper (its phase-space form, e
 ![1D Cahn-Hilliard (Mattey & Ghosh) — PINN vs reference, u](assets/Images/1D-CahnHilliard-Mattey/surface_comparison_u.png)
 
 ![1D Cahn-Hilliard (Mattey & Ghosh) — u along x at the reference times](assets/Images/1D-CahnHilliard-Mattey/line_comparison_u.png)
+
+*Inverse mode* — same template, switched to **Inverse** (without time windows, which Inverse mode does not use), recovering $\alpha$ and $\kappa$ (initial guesses 1 and 0.1, true values 0.02 and 1) from $u$ measured at $t = 1$. **Inverse result (RTX 4090): not recovered** — $\alpha$ = 8.5 × 10⁻⁴ (96% off) and $\kappa$ = 0.105 (90% off). Being worked on.
 
 </details>
 
@@ -1150,7 +1156,9 @@ A shock forms near $x = 0$ as $t \to 1$; this template uses a larger fixed collo
 
 $$\Large \frac{\partial u}{\partial t} + \lambda_1 u\frac{\partial u}{\partial x} - \lambda_2\frac{\partial^2 u}{\partial x^2} = 0$$
 
-with true values $\lambda_1 = 1.0$ and $\lambda_2 = 0.01/\pi$. $\lambda_1$'s initial guess starts at $0.1$ rather than $1.0$, since $1.0$ is already its true value. The live convergence animation below shows both estimates settling onto their true values during training:
+with true values $\lambda_1 = 1.0$ and $\lambda_2 = 0.01/\pi$ (the template writes the viscous term as $\frac{\lambda_2}{\pi}\frac{\partial^2 u}{\partial x^2}$, so the value it learns is 0.01). $\lambda_1$'s initial guess starts at $0.1$ rather than $1.0$, since $1.0$ is already its true value. The live convergence animation below shows both estimates settling onto their true values during training:
+
+**Inverse result (RTX 4090):** $\lambda_1$ = 0.997 (true 1), $\lambda_2$ = 0.01001 (true 0.01).
 
 ![1D Burgers inverse parameter convergence animation](assets/Images/1D-Burgers/param_convergence_animation.gif)
 
@@ -1903,7 +1911,9 @@ where $\lambda = 10$ and $\varepsilon = 0.025$, matching the paper's own values 
 
 $$\Large \frac{\partial u}{\partial t} = (\lambda\varepsilon^2)\left(\frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2}\right) - \lambda(u^3 - u)$$
 
-with true values $\lambda = 10$ and $\lambda\varepsilon^2 = 0.00625$. The live convergence animation below shows both estimates settling onto their true values during training:
+with true values $\lambda = 10$ and $\lambda\varepsilon^2 = 0.00625$. The live convergence animation below shows both estimates during training.
+
+**Inverse result (RTX 4090):** $\lambda$ = 9.68 (true 10), $\lambda\varepsilon^2$ = 0.00607 (true 0.00625), both about 3% off, from $u$ measured at $t = 2.5$:
 
 ![2D Allen-Cahn (Wight & Zhao) inverse parameter convergence animation](assets/Images/2D_AllenCahn-Wight/param_convergence_animation.gif)
 
@@ -1944,7 +1954,9 @@ Result: $L_2$ = 2.0 × 10⁻⁵ ($t = 0$), 3.4 × 10⁻⁴ ($t = 0.25$), 5.0 × 
 
 ![2D Allen-Cahn (Mattey & Ghosh) — restored solution animation](assets/Images/2D_Allen_Cahn_Mattey/restored_animation.gif)
 
-*Inverse mode* — same template, switched to **Inverse**, jointly recovering both $c_1^2$ (interfacial-thickness-squared) and $c_2$ (reaction) as unknown parameters; $c_2$'s initial guess starts at $0.1$ rather than $1.0$, since $1.0$ is already its true value. The live convergence animation below shows both estimates settling onto their true values during training:
+*Inverse mode* — same template, switched to **Inverse**, jointly recovering both $c_1^2$ (interfacial-thickness-squared) and $c_2$ (reaction) as unknown parameters; $c_2$'s initial guess starts at $0.1$ rather than $1.0$, since $1.0$ is already its true value. The live convergence animation below shows both estimates during training.
+
+**Inverse result (RTX 4090):** $c_2$ = 1.050 (true 1, 5% off), but $c_1^2$ = 1.66 × 10⁻⁴ (true 10⁻⁴, 66% off), from $u$ measured at $t = 1$. The interface thickness is the harder one to find from a single snapshot.
 
 ![2D Allen-Cahn (Mattey & Ghosh) inverse parameter convergence animation](assets/Images/2D_Allen_Cahn_Mattey/param_convergence_animation.gif)
 
@@ -1972,6 +1984,8 @@ where $\lambda = 1$ and $\varepsilon = 0.05$. As in the 1D example, the chemical
 
 ![2D Cahn-Hilliard — PINN vs reference, chemical potential mu](assets/Images/2D_CahnHilliard-Wight/surface_comparison_mu.png)
 
+*Inverse mode* — same template, switched to **Inverse**, recovering $\varepsilon^2$ (initial guess 1, true value 0.0025) from $u$ measured at $t = 1$. **Inverse result (RTX 4090):** $\varepsilon^2$ = 0.002509 (0.4% off).
+
 </details>
 
 <details id="2d-cahn-hilliard-mattey--ghosh">
@@ -1993,6 +2007,8 @@ $$\Large \frac{\partial u}{\partial t'} = 0.005\left(\frac{\partial^2 \mu}{\part
 **Result (RTX 4090, about 15 minutes):** $u$: $L_2$ = 8.5 × 10⁻⁷ ($t' = 0$), 5.2 × 10⁻³ ($t' = 0.2$), 4.5 × 10⁻³ ($t' = 0.4$), 4.0 × 10⁻³ ($t' = 0.6$), 2.4 × 10⁻³ ($t' = 0.8$), 2.0 × 10⁻³ ($t' = 1$); $\mu$: 4.0 × 10⁻³ to 7.8 × 10⁻³ up to $t' = 0.8$, 4.2 × 10⁻² at $t' = 1$, against a Fourier pseudo-spectral solution in [`reference_data/2D/cahn_hilliard_mattey`](reference_data/2D/cahn_hilliard_mattey) (made by [`tools/make_phase_field_reference_data.py`](tools/make_phase_field_reference_data.py)). Without SA-PINN the error in $u$ is about 1.7× larger (3.5 × 10⁻³ at $t' = 1$), and RBA or causal training do no better.
 
 ![2D Cahn-Hilliard (Mattey & Ghosh) — PINN vs reference, u](assets/Images/2D_CahnHilliard-Mattey/surface_comparison_u.png)
+
+*Inverse mode* — same template, switched to **Inverse**, recovering $\alpha$ and $\kappa$ (initial guesses 1 and 0.1, true values 0.0002 and 1) from $u$ measured at $t' = 1$. **Inverse result (RTX 4090):** $\alpha$ = 1.88 × 10⁻⁴ (6% off), $\kappa$ = 1.012 (1.2% off).
 
 </details>
 
@@ -2073,6 +2089,8 @@ $$\Large \frac{\partial u}{\partial t} = 0.4\left(\frac{\partial^2 u}{\partial x
 ![2D Heat — restored solution animation](assets/Images/2D-Heat/restored_animation_2D_Heat.gif)
 
 *Inverse mode* — same template, switched to **Inverse**, recovering the diffusivity coefficient (fixed at $0.4$ in Forward mode above) as an unknown parameter; the live convergence animation below shows the estimate settling onto its true value during training:
+
+**Inverse result (RTX 4090):** diffusivity = 0.4005 (true 0.4).
 
 ![2D Heat inverse parameter convergence animation](assets/Images/2D-Heat/param_convergence_animation.gif)
 
@@ -2173,6 +2191,8 @@ Time-Adaptive Training is fully supported for this template if you turn it on �
 ![3D Heat — restored solution animation](assets/Images/3D_Heat/restored_animation.gif)
 
 *Inverse mode* — same template, switched to **Inverse**, recovering the diffusivity coefficient (fixed at $0.4$ in Forward mode above) as an unknown parameter; the live convergence animation below shows the estimate settling onto its true value during training:
+
+**Inverse result (RTX 4090):** diffusivity = 0.4001 (true 0.4).
 
 ![3D Heat inverse parameter convergence animation](assets/Images/3D_Heat/param_convergence_animation.gif)
 
