@@ -350,10 +350,9 @@ class FigureStyleDialog(QDialog):
             "param_show_true", "param_true_color", "param_true_style", "True value", ("#212529", "--"))
         final_row, self.p_final, self.p_final_color, self.p_final_style = self._ref_line(
             "param_show_final", "param_final_color", "param_final_style", "Final value", ("#868e96", ":"))
-        if not self.is_inverse:         # (only inverse problems have parameters to plot)
-            self._keep_hidden(self.p_color, self.p_lw, self.p_markers, self.p_log, true_row, final_row)
-            return
-        self._section(f, "Parameter convergence plot")
+        # Always shown: the problem open here may be a forward one while the
+        # plots are for an inverse model (Restore uses these settings too).
+        self._section(f, "Parameter convergence plot (inverse problems)")
         f.addRow("Line colour:", self.p_color)
         f.addRow("Line width:", self.p_lw)
         f.addRow("Markers:", self.p_markers)
@@ -370,10 +369,7 @@ class FigureStyleDialog(QDialog):
         self.pa_lw = _combo(["1.0", "1.5", "2.0", "2.5", "3.0", "4.0"],
                             str(float(s.get("param_anim_linewidth", 3.0))), 80)
         self.pa_frames = _spin(10, 300, int(s.get("param_anim_frames", 60)), width=80)
-        if not self.is_inverse:
-            self._keep_hidden(self.pa_color, self.pa_lw, self.pa_frames)
-            return
-        self._section(f, "Parameter convergence animation")
+        self._section(f, "Parameter convergence animation (inverse problems)")
         f.addRow("Line colour:", self.pa_color)
         f.addRow("Line width:", self.pa_lw)
         f.addRow("Frames (at most):", self.pa_frames)
@@ -395,8 +391,6 @@ class FigureStyleDialog(QDialog):
         hide(self.steps_line)
         hide(self.frames)
         hide(self.lw_anim)
-        if not self.is_inverse:
-            self.tabs.setTabVisible(names.index("Animation"), False)
 
     # ── buttons ──
     def _reset_tab(self):
