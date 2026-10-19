@@ -135,7 +135,7 @@ def test_parameter_style_reaches_the_scripts(monkeypatch):
             text = gen(cfg)
             assert "'color': '#1c7ed6'" in text and "'markers': True" in text and "'show_final': False" in text
             if gen is generate_clean_script:      # (Solve's script decides when it runs)
-                assert ("_param_animation(" in text.split("def _param_animation")[-1]) == plot_type.endswith("(GIF)")
+                assert ("# ── Result plot: parameter convergence animation" in text) == plot_type.endswith("(GIF)")
             compile(text, gen.__name__, "exec")
     w2 = MainWindow()
     w2._apply_config(cfg)
@@ -287,6 +287,7 @@ def test_parameter_animation_log_axis_holds_the_curve(tmp_path):
     reference lines only, so the curve was drawn off the axis."""
     import matplotlib
     matplotlib.use("Agg")
+    import matplotlib.animation  # noqa: F401
     import matplotlib.pyplot as plt
     import numpy as np
     from pinnstudio.core.codegen import _param_axis_helper_code

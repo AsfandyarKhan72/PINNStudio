@@ -6745,6 +6745,25 @@ for _pval in _param_values:
                         "/tmp/param_anim.gif", {bool(config.inv_param_log_scale)}, {int(config.plot_fps)},
                         {int(config.plot_dpi)}, _plot_title_override, _plot_xlabel_override, _plot_ylabel_override,
                         _plot_figsize(6, 3.2))
+                # Plot settings -> Figures: one per parameter, as well
+                _pf_dir = _run_dir if (_parametric and _pval is not None) else _save_dir
+                if _use_save and (_PARAM_STYLE["plot_separate"] or _PARAM_STYLE["anim_separate"]):
+                    for _vi, _vn in enumerate(_inv_var_names):
+                        _tv = _inv_var_trues[_vi] if _vi < len(_inv_var_trues) else None
+                        if _PARAM_STYLE["plot_separate"]:
+                            _fig1, _ax1 = plt.subplots(figsize=_plot_figsize(6, 3.2))
+                            _draw_param_ax(_ax1, _vn, _ph_iters_arr, _ph_vals_by_var[_vi], _tv,
+                                           {bool(config.inv_param_log_scale)}, _plot_title_override,
+                                           _plot_xlabel_override, _plot_ylabel_override)
+                            plt.tight_layout()
+                            plt.savefig(_os.path.join(_pf_dir, f"{{_vn}}_convergence_plot.png"), dpi={int(config.plot_dpi)})
+                            plt.close(_fig1)
+                        if _PARAM_STYLE["anim_separate"] and "{config.plot_type}" == "Parameter Convergence (GIF)":
+                            _param_animation([(_vn, _ph_iters_arr, _ph_vals_by_var[_vi], _tv)],
+                                             _os.path.join(_pf_dir, f"{{_vn}}_convergence_animation.gif"),
+                                             {bool(config.inv_param_log_scale)}, {int(config.plot_fps)},
+                                             {int(config.plot_dpi)}, _plot_title_override, _plot_xlabel_override,
+                                             _plot_ylabel_override, _plot_figsize(6, 3.2))
             except Exception as _e:
                 print(f"Could not plot parameter history: {{_e}}")
 
@@ -9000,6 +9019,7 @@ PARAM_STYLE_DEFAULTS = {
     "param_plot_show_true": True, "param_true_color": "#212529", "param_true_style": "--",
     "param_plot_show_final": True, "param_final_color": "#868e96", "param_final_style": ":",
     "param_anim_color": "#e03131", "param_anim_linewidth": 3.0, "param_anim_frames": 60,
+    "param_plot_figures": "combined", "param_anim_figures": "combined",
 }
 
 
@@ -9018,7 +9038,9 @@ def param_style_of(cfg):
             "show_final": bool(v("param_plot_show_final")), "final_color": str(v("param_final_color")),
             "final_style": str(v("param_final_style")),
             "anim_color": str(v("param_anim_color")), "anim_linewidth": float(v("param_anim_linewidth")),
-            "anim_frames": max(2, int(v("param_anim_frames")))}
+            "anim_frames": max(2, int(v("param_anim_frames"))),
+            "plot_separate": v("param_plot_figures") == "separate",
+            "anim_separate": v("param_anim_figures") == "separate"}
 
 
 def _param_axis_helper_code(axis_label_fontsize, subplot_title_fontsize, style=None):
@@ -9113,9 +9135,17 @@ def _param_animation(series, out_path, log_scale=False, fps=10, dpi=100,
         lines.append((line, iters, vals))
     plt.tight_layout()
 
+    # Each frame moves on by the same number of iterations, not of saved
+    # values: the values are saved more often in some phases than others
+    # (L-BFGS logs less often than Adam), and stepping through them one
+    # share at a time made the curve speed up in the sparser phase.
+    _i0 = min(float(np.min(_it)) for _l, _it, _v in lines)
+    _i1 = max(float(np.max(_it)) for _l, _it, _v in lines)
+
     def _update(frame):
+        cut = _i0 + (frame + 1) / n_frames * (_i1 - _i0)
         for line, iters, vals in lines:
-            k = max(1, min(len(iters), int(round((frame + 1) / n_frames * len(iters)))))
+            k = max(1, int(np.searchsorted(iters, cut, side="right")))
             line.set_data(iters[:k], vals[:k])
         return [l for l, _i, _v in lines]
     ani = _p_anim.FuncAnimation(fig, _update, frames=n_frames, interval=1000 / max(1, fps))
@@ -11208,7 +11238,22 @@ for vi, name in enumerate({[n for n, _i, _t in inv_vars_parsed]!r}):
 plt.tight_layout()
 param_plot_path = os.path.join(sol_dir, "param_convergence.png")
 plt.savefig(param_plot_path, dpi={int(config.plot_dpi)})
-plt.close(fig)''')
+plt.close(fig)
+# Plot settings -> Figures: one per parameter, as well
+for vi, name in enumerate({[n for n, _i, _t in inv_vars_parsed]!r}):
+    true_val = _inv_true_vals[vi] if vi < len(_inv_true_vals) else None
+    if _PARAM_STYLE["plot_separate"]:
+        fig1, ax1 = plt.subplots(figsize=_plot_figsize(6, 3.2))
+        _draw_param_ax(ax1, name, param_iters, param_vals[vi], true_val, {bool(config.inv_param_log_scale)},
+                       {plot_title_override!r}, {plot_xlabel_override!r}, {plot_ylabel_override!r})
+        plt.tight_layout()
+        plt.savefig(os.path.join(sol_dir, f"{{name}}_convergence_plot.png"), dpi={int(config.plot_dpi)})
+        plt.close(fig1)
+    if _PARAM_STYLE["anim_separate"] and {config.plot_type == "Parameter Convergence (GIF)"}:
+        _param_animation([(name, param_iters, param_vals[vi], true_val)],
+                         os.path.join(sol_dir, f"{{name}}_convergence_animation.gif"),
+                         {bool(config.inv_param_log_scale)}, {int(config.plot_fps)}, {int(config.plot_dpi)},
+                         {plot_title_override!r}, {plot_xlabel_override!r}, {plot_ylabel_override!r}, _plot_figsize(6, 3.2))''')
 
     # ── Result plot -- exactly one of these, matching this problem's
     # dimension / Time-Adaptive status / selected Plot Type. No runtime

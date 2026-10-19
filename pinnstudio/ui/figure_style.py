@@ -344,6 +344,9 @@ class FigureStyleDialog(QDialog):
         self.p_lw = _combo(["1.0", "1.5", "2.0", "2.5", "3.0", "4.0"], str(float(s.get("param_linewidth", 3.0))), 80)
         self.p_markers = QCheckBox("Mark each saved value")
         self.p_markers.setChecked(bool(s.get("param_markers", False)))
+        self.p_figs = _combo([("One for all parameters", "combined"), ("One per parameter", "separate")], s.get("param_plot_figures", "combined"), 190)
+        self.p_figs.setToolTip("One figure with a panel per parameter, or one figure per parameter as well\n"
+                               "(<name>_convergence_plot.png)")
         self.p_log = QCheckBox("Logarithmic")
         self.p_log.setChecked(self.win.inv_param_log_scale.isChecked())
         true_row, self.p_true, self.p_true_color, self.p_true_style = self._ref_line(
@@ -353,6 +356,7 @@ class FigureStyleDialog(QDialog):
         # Always shown: the problem open here may be a forward one while the
         # plots are for an inverse model (Restore uses these settings too).
         self._section(f, "Parameter convergence plot (inverse problems)")
+        f.addRow("Figures:", self.p_figs)
         f.addRow("Line colour:", self.p_color)
         f.addRow("Line width:", self.p_lw)
         f.addRow("Markers:", self.p_markers)
@@ -369,7 +373,11 @@ class FigureStyleDialog(QDialog):
         self.pa_lw = _combo(["1.0", "1.5", "2.0", "2.5", "3.0", "4.0"],
                             str(float(s.get("param_anim_linewidth", 3.0))), 80)
         self.pa_frames = _spin(10, 300, int(s.get("param_anim_frames", 60)), width=80)
+        self.pa_figs = _combo([("One for all parameters", "combined"), ("One per parameter", "separate")], s.get("param_anim_figures", "combined"), 190)
+        self.pa_figs.setToolTip("One animation with a panel per parameter, or one per parameter as well\n"
+                                "(<name>_convergence_animation.gif)")
         self._section(f, "Parameter convergence animation (inverse problems)")
+        f.addRow("Figures:", self.pa_figs)
         f.addRow("Line colour:", self.pa_color)
         f.addRow("Line width:", self.pa_lw)
         f.addRow("Frames (at most):", self.pa_frames)
@@ -423,6 +431,7 @@ class FigureStyleDialog(QDialog):
             self.p_lw.setCurrentText(str(float(d.param_plot_linewidth)))
             self.p_markers.setChecked(d.param_plot_markers)
             self.p_log.setChecked(d.inv_param_log_scale)
+            self.p_figs.setCurrentIndex(max(0, self.p_figs.findData(d.param_plot_figures)))
             for cb, col, sty, show, c, st in ((self.p_true, self.p_true_color, self.p_true_style,
                                               d.param_plot_show_true, d.param_true_color, d.param_true_style),
                                              (self.p_final, self.p_final_color, self.p_final_style,
@@ -436,6 +445,7 @@ class FigureStyleDialog(QDialog):
             self.pa_color.setCurrentIndex(max(0, self.pa_color.findData(d.param_anim_color)))
             self.pa_lw.setCurrentText(str(float(d.param_anim_linewidth)))
             self.pa_frames.setValue(d.param_anim_frames)
+            self.pa_figs.setCurrentIndex(max(0, self.pa_figs.findData(d.param_anim_figures)))
         elif name == "Loss":
             self.loss_mode.setCurrentIndex(self.loss_mode.findData(d.loss_plot_mode))
             self.loss_lw.setCurrentText(str(float(d.loss_plot_linewidth)))
@@ -466,6 +476,7 @@ class FigureStyleDialog(QDialog):
             "param_final_style": self.p_final_style.currentData(),
             "param_anim_color": self.pa_color.currentData(), "param_anim_linewidth": float(self.pa_lw.currentText()),
             "param_anim_frames": self.pa_frames.value(),
+            "param_plot_figures": self.p_figs.currentData(), "param_anim_figures": self.pa_figs.currentData(),
         })
         loss = {"mode": self.loss_mode.currentData(), "display_every": self.loss_every.value(),
                 "linewidth": float(self.loss_lw.currentText()), "log_y": self.loss_log.isChecked()}

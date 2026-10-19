@@ -4214,7 +4214,8 @@ class MainWindow(QMainWindow):
         _rviz_row.addStretch()
         restore_content_layout.addLayout(_rviz_row)
         # One set of plot settings, on the Results page: Restore draws with them.
-        self.restore_style_note = QLabel('Plots use the <a href="#">plot settings</a> of the Results page.')
+        self.restore_style_note = QLabel('Plots use the <a href="#">plot settings</a> and the Save to folder '
+                                         'of the Results page.')
         self.restore_style_note.setTextFormat(Qt.TextFormat.RichText)
         self.restore_style_note.linkActivated.connect(lambda _l: self._on_restore_viz_settings())
         self._register_hint(self.restore_style_note, '#868e96')
@@ -4309,8 +4310,12 @@ class MainWindow(QMainWindow):
         _rp_layout.addWidget(add_param_file_btn)
         self._add_restore_param_row()
 
+        # (the choice is in Plot settings -> Line / Animation now; this list
+        # is no longer shown)
         _rp_combine_row = QHBoxLayout()
-        _rp_combine_row.addWidget(QLabel("Figures:"))
+        _rp_fig_label = QLabel("Figures:")
+        _rp_fig_label.setVisible(False)
+        _rp_combine_row.addWidget(_rp_fig_label)
         self.restore_param_combine_combo = QComboBox()
         self.restore_param_combine_combo.addItems([
             "One figure for all parameters",
@@ -4319,6 +4324,7 @@ class MainWindow(QMainWindow):
         self.restore_param_combine_combo.setFixedHeight(28)
         self._fit_combo_width(self.restore_param_combine_combo, min_width=200)
         _rp_combine_row.addWidget(self.restore_param_combine_combo)
+        self.restore_param_combine_combo.setVisible(False)
         _rp_combine_row.addStretch()
         _rp_layout.addLayout(_rp_combine_row)
 
@@ -4329,8 +4335,12 @@ class MainWindow(QMainWindow):
         restore_content_layout.addWidget(self.restore_param_widget)
         self.restore_param_widget.setVisible(False)
 
+        # Restore saves into the Results page's Save to folder (each restore
+        # in a timestamped folder of its own): this field only holds that
+        # folder, kept in step with it (see _build_right_panel).
         restore_save_row = QHBoxLayout()
-        restore_save_row.addWidget(QLabel("Save to:"))
+        _rs_label = QLabel("Save to:")
+        restore_save_row.addWidget(_rs_label)
         self.restore_save_path = QLineEdit()
         self.restore_save_path.setPlaceholderText("Directory to save output...")
         # Same default as the main Solve panel's "Save to:" field
@@ -4345,6 +4355,8 @@ class MainWindow(QMainWindow):
         self.restore_save_browse_btn.clicked.connect(self._on_browse_restore_save)
         restore_save_row.addWidget(self.restore_save_browse_btn)
         restore_content_layout.addLayout(restore_save_row)
+        for _w in (_rs_label, self.restore_save_path, self.restore_save_browse_btn):
+            _w.setVisible(False)
 
         self.restore_btn = QPushButton("Restore && Visualize")
         # the page's main action: filled like Solve, in every theme
@@ -4750,6 +4762,9 @@ class MainWindow(QMainWindow):
         self.save_dir_input.setText(os.path.join(os.path.expanduser("~"), "PINNStudio_Results"))
         self.save_dir_input.setFixedHeight(28)
         save_row.addWidget(self.save_dir_input)
+        if hasattr(self, "restore_save_path"):       # Restore saves here too
+            self.save_dir_input.textChanged.connect(self.restore_save_path.setText)
+            self.restore_save_path.setText(self.save_dir_input.text())
         self.browse_btn = QPushButton("Browse")
         self.browse_btn.setFixedHeight(28); self.browse_btn.setFixedWidth(65)
         self.browse_btn.clicked.connect(self._on_browse)
@@ -12993,7 +13008,8 @@ print("DOMAIN_PREVIEW_DONE")
                          ("param_true_color", "param_true_color"), ("param_true_style", "param_true_style"),
                          ("param_show_final", "param_plot_show_final"), ("param_final_color", "param_final_color"),
                          ("param_final_style", "param_final_style"), ("param_anim_color", "param_anim_color"),
-                         ("param_anim_linewidth", "param_anim_linewidth"), ("param_anim_frames", "param_anim_frames"))
+                         ("param_anim_linewidth", "param_anim_linewidth"), ("param_anim_frames", "param_anim_frames"),
+                         ("param_plot_figures", "param_plot_figures"), ("param_anim_figures", "param_anim_figures"))
 
     _RESTORE_VIEW_KEYS = ('n_steps_line', 'n_steps_anim', 'line_slice_y_auto', 'line_slice_y',
                           'line_slice_z_auto', 'line_slice_z')
@@ -15262,7 +15278,8 @@ print("DOMAIN_PREVIEW_DONE")
                     true_vals.append(float(tv_text) if tv_text else None)
                 except ValueError:
                     true_vals.append(None)
-            combine = self.restore_param_combine_combo.currentIndex() == 0     # one figure for all
+            _key = "param_anim_figures" if viz_type.endswith("(GIF)") else "param_plot_figures"
+            combine = self._plot_viz_settings.get(_key, "combined") != "separate"   # (Plot settings)
             log_scale = self.inv_param_log_scale.isChecked()                   # (Figure style -> Parameters)
             animate = (viz_type == "Parameter Convergence (GIF)")
 

@@ -510,6 +510,10 @@ class PINNConfig:
     param_anim_color: str = "#e03131"
     param_anim_linewidth: float = 3.0
     param_anim_frames: int = 60
+    # "combined": one figure with a panel per parameter; "separate": also one
+    # figure per parameter (<name>_convergence_plot.png / _animation.gif)
+    param_plot_figures: str = "combined"
+    param_anim_figures: str = "combined"
 
     # Loss Plot Settings (Round 28): previously every loss plot across the
     # app hardcoded "semilogy of summed Train/Test loss" with no user
