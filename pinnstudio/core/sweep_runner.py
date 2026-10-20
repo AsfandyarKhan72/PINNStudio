@@ -151,7 +151,7 @@ def build_runs_detailed(base_config):
     runs = []
     if includes_baseline(base_config) or not per_param:
         runs.append({"label": "baseline", "config": copy.deepcopy(base_config), "group": None, "baseline": True,
-                     "values": {p.label: p.get_value(base_config) for p, _ in per_param}})
+                     "values": {p.label: p.shown(base_config) for p, _ in per_param}})
     if not per_param:
         return runs
 
@@ -159,7 +159,7 @@ def build_runs_detailed(base_config):
         cfg = copy.deepcopy(base_config)
         for param, v in parts:
             param.set_value(cfg, v)
-        values = {p.label: p.get_value(base_config) for p, _ in per_param}
+        values = {p.label: p.shown(base_config) for p, _ in per_param}
         values.update({p.label: v for p, v in parts})
         return {"label": _run_label(parts), "config": cfg, "group": group, "baseline": False, "values": values}
 
@@ -195,6 +195,16 @@ def build_runs(base_config):
 def _fmt(v):
     return f"{v:.4g}" if isinstance(v, float) else str(v)
 
+
+
+def _in_space(dim, v):
+    """Whether value v lies in a Bayesian-search dimension."""
+    if dim.kind == "categorical":
+        return str(v) in dim.choices
+    try:
+        return float(dim.low) <= float(v) <= float(dim.high)
+    except (TypeError, ValueError):
+        return False
 
 class BayesRuns:
     """Run source for sweep_mode "bayes": the baseline (unless turned off),
@@ -244,7 +254,12 @@ class BayesRuns:
                 v = p.get_value(self.base)
                 point.append(str(v) if d.kind == "categorical" else (v if v is not None else d.low))
             self._pending = point
+            # The baseline teaches the model only if it lies in the search
+            # space: an activation not among the choices, or a value outside
+            # Min..Max, would be recorded as the nearest choice or edge.
+            self._pending_in_space = all(_in_space(d, v) for d, v in zip(self.dims, point))
             return "baseline", copy.deepcopy(self.base)
+        self._pending_in_space = True
         point = self.opt.ask()
         cfg = copy.deepcopy(self.base)
         parts = []
@@ -258,7 +273,8 @@ class BayesRuns:
     def tell(self, label, result):
         key = {"loss": "final_loss", "loss_unweighted": "final_loss_unweighted"}.get(self.objective, "l2_relative")
         val = result.get(key) if result.get("status") == "done" else None
-        self.opt.tell(self._pending, val)
+        if getattr(self, "_pending_in_space", True):
+            self.opt.tell(self._pending, val)
         self.history.append((label, list(self._pending), val))
 
     def best(self):
@@ -310,7 +326,8 @@ def _slugify(text, maxlen=60):
     collapsed to one dash -- "Phase 1: Iterations" -> "Phase-1-Iterations"."""
     text = re.sub(r"[^A-Za-z0-9.+-]+", "-", str(text).strip())
     text = re.sub(r"-+", "-", text).strip("-")
-    return (text or "run")[:maxlen]
+    # no trailing dot or dash: Windows drops a trailing dot from a folder name
+    return ((text or "run")[:maxlen].rstrip(".-")) or "run"
 
 
 def sweep_root_dir(base_config, started_at=None):
@@ -352,7 +369,17 @@ def run_folder_name(index, label, total=None):
     for part in pieces:
         name, _, value = part.rpartition("=")
         parts.append(f"{_slugify(name, 40)}_{_slugify(value, 24)}" if name else _slugify(part))
-    return f"run_{index:0{width}d}__" + "__".join(parts)[:100]
+    # Whole name_value parts only (a cut in the middle would show a wrong
+    # value), and "__more" when some did not fit; the log and
+    # sweep_summary.csv always have every value.
+    kept, n = [], 0
+    for part in parts:
+        if kept and n + 2 + len(part) > 100:
+            kept.append("more")
+            break
+        kept.append(part[:100])
+        n += len(part) + 2
+    return f"run_{index:0{width}d}__" + "__".join(kept)
 
 
 _PARAM_LINE_RE = re.compile(r"^\s*\[([^\]]+)\] Iter \d+: ([-+0-9.eE]+)")
@@ -365,10 +392,10 @@ def _read_inverse_params(cfg, log_lines, not_before):
     printed. {} for a forward run."""
     if getattr(cfg, "problem_type", "Forward") != "Inverse":
         return {}
-    try:
-        variables = json.loads(getattr(cfg, "inverse_variables_json", "") or "[]")
-    except (ValueError, TypeError):
-        variables = []
+    # The names the script uses (cleaned up to Python names, made unique),
+    # which are the names of its convergence files and log lines.
+    from pinnstudio.core.codegen import _parse_inverse_variables
+    variables = [{"name": n, "true": t} for n, _init, t in _parse_inverse_variables(cfg)]
     out = {}
     printed = {}
     for line in log_lines:

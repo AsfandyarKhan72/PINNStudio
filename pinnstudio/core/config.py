@@ -1256,6 +1256,11 @@ class PINNConfig:
                 # same lazy-import style this method already uses for json.
                 from pinnstudio.core import sweep_registry as _sweep_reg
                 _available_ids = {p.id for p in _sweep_reg.available_params(self)}
+                _swept_ids = [_sp.get("id") for _sp in _sweep_params if isinstance(_sp, dict)]
+                if "inv_obs_grid_n" in _swept_ids and "inv_obs_random_n" in _swept_ids:
+                    errors.append("Parameter Sweep: 'Measured data: grid points per axis' and 'Measured data: "
+                                  "random points' each set how the measured data are reduced, so they can't be "
+                                  "swept together -- sweep one of them.")
                 # Collected alongside the per-entry checks below so the
                 # "zip" mode length check after this loop only compares
                 # entries that are themselves well-formed -- an entry

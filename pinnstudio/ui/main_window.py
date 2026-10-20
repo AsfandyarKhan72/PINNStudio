@@ -5416,6 +5416,7 @@ class MainWindow(QMainWindow):
         for row in getattr(self, 'sweep_row_list', []):
             combo = row['param_combo']
             previous_id = combo.currentData()
+            previous_text = combo.currentText()
             combo.blockSignals(True)
             combo.clear()
             for p in params:
@@ -5437,8 +5438,14 @@ class MainWindow(QMainWindow):
                 )
             if previous_id:
                 idx = combo.findData(previous_id)
-                if idx >= 0:
-                    combo.setCurrentIndex(idx)
+                if idx < 0:
+                    # No longer offered (e.g. RAR turned off): keep the row on
+                    # it, marked, instead of moving its values to another
+                    # parameter. Solve then says it isn't available.
+                    base = previous_text.split(" (not available")[0] or previous_id
+                    combo.addItem(f"{base} (not available now)", previous_id)
+                    idx = combo.count() - 1
+                combo.setCurrentIndex(idx)
             combo.blockSignals(False)
             # Same convention as the Training Phases' own Optimizer
             # combo (opt_combo, min_width=80) a few sections up --
