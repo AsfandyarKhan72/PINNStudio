@@ -4908,6 +4908,7 @@ class MainWindow(QMainWindow):
             'figsize_mode': 'Default',
             'grid': True,
             'ref_style': 'line',
+            'sig_digits': 4, 'sci_notation': 'auto', 'sci_style': 'times',
             'figsize_w': 7.0,
             'figsize_h': 5.0,
             'title': '',
@@ -9507,6 +9508,9 @@ class MainWindow(QMainWindow):
             plot_figsize_mode=self._plot_viz_settings.get('figsize_mode', 'Default'),
             plot_grid=bool(self._plot_viz_settings.get('grid', True)),
             plot_ref_style=self._plot_viz_settings.get('ref_style', 'line'),
+            plot_sig_digits=int(self._plot_viz_settings.get('sig_digits', 4)),
+            plot_sci_notation=self._plot_viz_settings.get('sci_notation', 'auto'),
+            plot_sci_style=self._plot_viz_settings.get('sci_style', 'times'),
             plot_figsize_w=self._plot_viz_settings.get('figsize_w', 7.0),
             plot_figsize_h=self._plot_viz_settings.get('figsize_h', 5.0),
             plot_title_override=self._plot_viz_settings.get('title', ''),
@@ -10427,6 +10431,9 @@ class MainWindow(QMainWindow):
             "figsize_mode": getattr(config, "plot_figsize_mode", "Default"),
             "grid": getattr(config, "plot_grid", True),
             "ref_style": getattr(config, "plot_ref_style", "line"),
+            "sig_digits": getattr(config, "plot_sig_digits", 4),
+            "sci_notation": getattr(config, "plot_sci_notation", "auto"),
+            "sci_style": getattr(config, "plot_sci_style", "times"),
             "figsize_w": getattr(config, "plot_figsize_w", 7.0),
             "figsize_h": getattr(config, "plot_figsize_h", 5.0),
             "title": getattr(config, "plot_title_override", ""),
@@ -16376,7 +16383,7 @@ print("DOMAIN_PREVIEW_DONE")
         _dpi = int(viz_settings.get('dpi', 150) or 150)
         _fps = int(viz_settings.get('fps', 15) or 15)
         from pinnstudio.core.codegen import (_figsize_helper_code, _param_axis_helper_code,
-                                             _contour_levels_helper_code, param_style_of)
+                                             _contour_levels_helper_code, param_style_of, number_settings)
         _pstyle = param_style_of({cfg_key: viz_settings[ui_key] for ui_key, cfg_key in self._PARAM_STYLE_KEYS
                                   if ui_key in viz_settings})
         script = f"""
@@ -16401,7 +16408,7 @@ _ylabel_override = {ylabel_override!r}
 # _figsize_helper_code for the full rationale) -- "Default" mode renders
 # every figsize=_plot_figsize(w, h) call below byte-identical to before
 # this existed.
-{_figsize_helper_code(figsize_mode, figsize_w, figsize_h, viz_settings.get('grid', True), viz_settings.get('ref_style', 'line'))}
+{_figsize_helper_code(figsize_mode, figsize_w, figsize_h, viz_settings.get('grid', True), viz_settings.get('ref_style', 'line'), number_settings(viz_settings))}
 
 # Shared-color-scale contourf levels (see codegen.py's _contour_levels_helper_code).
 {_contour_levels_helper_code()}
@@ -16540,7 +16547,7 @@ print("RESTORE_DONE")
         activation = cfg["activation"]
         from pinnstudio.core.codegen import (_net_construction_helper_code,
             _training_monitor_runtime_code, _figsize_helper_code, _contour_levels_helper_code,
-            _math_namespace_code)
+            _math_namespace_code, number_settings)
         net_helper_code = _net_construction_helper_code(cfg.get("network_type", "FNN"), cfg.get("msffn_sigmas", "1, 10"),
                                                         cfg.get("msffn_sigmas_t", "1, 10"))
         # Re-attach the model's input/output transforms (Round 62) -- see
@@ -16690,7 +16697,7 @@ import matplotlib.pyplot as plt
 # _figsize_helper_code for the full rationale) -- "Default" mode renders
 # every figsize=_plot_figsize(w, h) call below byte-identical to before
 # this existed.
-{_figsize_helper_code(figsize_mode, figsize_w, figsize_h, viz_settings.get('grid', True), viz_settings.get('ref_style', 'line'))}
+{_figsize_helper_code(figsize_mode, figsize_w, figsize_h, viz_settings.get('grid', True), viz_settings.get('ref_style', 'line'), number_settings(viz_settings))}
 
 # Shared-color-scale contourf levels (see codegen.py's _contour_levels_helper_code).
 {_contour_levels_helper_code()}
@@ -16867,13 +16874,13 @@ def _extract_plot_field(x_grid):
             _ylabel_animsurf3d = ylabel_override or "y"
             _animsurf_title_line_3d = (
                 f"ax.set_title({title_override!r}, fontsize={subplot_title_fontsize})" if title_override
-                else f'ax.set_title(f"t = {{t_frames[i]:.3f}}", fontsize={subplot_title_fontsize})'
+                else f'ax.set_title(f"t = {{_fmt_num(t_frames[i])}}", fontsize={subplot_title_fontsize})'
             )
             _xlabel_animsurf_else = xlabel_override or ("t" if (swap_xt and not is_2d) else "x")
             _ylabel_animsurf_else = ylabel_override or ("y" if is_2d else ("x" if swap_xt else "t"))
             _animsurf_title_line_else = (
                 f"ax.set_title({title_override!r}, fontsize={subplot_title_fontsize})" if title_override
-                else f'ax.set_title(f"t = {{t_frames[i]:.3f}}", fontsize={subplot_title_fontsize})'
+                else f'ax.set_title(f"t = {{_fmt_num(t_frames[i])}}", fontsize={subplot_title_fontsize})'
             )
             # cleanup Round 43 (audit §2e, sub-round 2): this branch and its
             # Time-Adaptive counterpart below were ~82% textually identical --
@@ -17003,7 +17010,7 @@ def _extract_plot_field(x_grid):
         # this function's docstring already gives for x_min/x_max/etc.
         from pinnstudio.core.codegen import (_net_construction_helper_code,
             _training_monitor_runtime_code, _figsize_helper_code, _contour_levels_helper_code,
-            _math_namespace_code)
+            _math_namespace_code, number_settings)
         net_helper_code = _net_construction_helper_code(cfg.get("network_type", "FNN"), cfg.get("msffn_sigmas", "1, 10"),
                                                         cfg.get("msffn_sigmas_t", "1, 10"))
         # Re-attach the model's input/output transforms (Round 62) -- see
@@ -17080,7 +17087,7 @@ import matplotlib.pyplot as plt
 # _figsize_helper_code for the full rationale) -- "Default" mode renders
 # every figsize=_plot_figsize(w, h) call below byte-identical to before
 # this existed.
-{_figsize_helper_code(figsize_mode, figsize_w, figsize_h, viz_settings.get('grid', True), viz_settings.get('ref_style', 'line'))}
+{_figsize_helper_code(figsize_mode, figsize_w, figsize_h, viz_settings.get('grid', True), viz_settings.get('ref_style', 'line'), number_settings(viz_settings))}
 
 # Shared-color-scale contourf levels (see codegen.py's _contour_levels_helper_code).
 {_contour_levels_helper_code()}
@@ -17247,13 +17254,13 @@ def _extract_plot_field(x_grid, _tm_model):
             _ylabel_animsurf3d = ylabel_override or "y"
             _animsurf_title_line_3d = (
                 f"ax.set_title({title_override!r}, fontsize={subplot_title_fontsize})" if title_override
-                else f'ax.set_title(f"t = {{t_frames[i]:.3f}}", fontsize={subplot_title_fontsize})'
+                else f'ax.set_title(f"t = {{_fmt_num(t_frames[i])}}", fontsize={subplot_title_fontsize})'
             )
             _xlabel_animsurf_else = xlabel_override or ("t" if (swap_xt and not is_2d) else "x")
             _ylabel_animsurf_else = ylabel_override or ("y" if is_2d else ("x" if swap_xt else "t"))
             _animsurf_title_line_else = (
                 f"ax.set_title({title_override!r}, fontsize={subplot_title_fontsize})" if title_override
-                else f'ax.set_title(f"t = {{t_frames[i]:.3f}}", fontsize={subplot_title_fontsize})'
+                else f'ax.set_title(f"t = {{_fmt_num(t_frames[i])}}", fontsize={subplot_title_fontsize})'
             )
             # cleanup Round 43 (audit §2e, sub-round 2): see
             # _restore_anim_surface_code's docstring in codegen.py.
@@ -17464,9 +17471,9 @@ if {do_line}:
     fig, axes = plt.subplots(_nrows, _ncols, figsize=(4*_ncols, 3.5*_nrows), squeeze=False)
     _ea_line_suptitle = "Restored Model vs Reference — Line Comparison"
     if {is_3d}:
-        _ea_line_suptitle += f" (y={line_slice_y:.3g}, z={line_slice_z:.3g})"
+        _ea_line_suptitle += f" (y={{_fmt_num({line_slice_y!r})}}, z={{_fmt_num({line_slice_z!r})}})"
     elif {is_2d}:
-        _ea_line_suptitle += f" (y={line_slice_y:.3g})"
+        _ea_line_suptitle += f" (y={{_fmt_num({line_slice_y!r})}})"
     fig.suptitle(_ea_line_suptitle.replace(" — Line Comparison", ""), fontsize={_subtitle_fs} + 2)
     _ax_flat = axes.flatten()
     if {is_2d} or {is_3d}:
@@ -17533,8 +17540,8 @@ if {do_line}:
             _xv_s, _gt_s, _pinn_s = _line_gaps(_xv_s, _gt_s, _pinn_s)
         _ref_plot(ax, _xv_s, _gt_s,   color='#4dabf7', linewidth=2.0, label='Reference')
         ax.plot(_xv_s, _pinn_s, color='#ff6b6b', linewidth=2.0, linestyle='--', label='PINN')
-        ax.set_title(f"t = {{_tv:.3g}}  ({{_l2_txt(_l2)}})", fontsize={_subtitle_fs})
-        _ea_line_ylabel = (f"{out_name}(x,y={line_slice_y:.3g},z={line_slice_z:.3g})" if {is_3d}
+        ax.set_title(f"t = {{_fmt_num(_tv)}}  ({{_l2_txt(_l2)}})", fontsize={_subtitle_fs})
+        _ea_line_ylabel = (f"{out_name}(x,y={{_fmt_num({line_slice_y!r})}},z={{_fmt_num({line_slice_z!r})}})" if {is_3d}
                             else (f"{out_name}(x,y={line_slice_y:.3g})" if {is_2d} else "{out_name}"))
         ax.set_xlabel("x", fontsize={_axislabel_fs}); ax.set_ylabel(_ea_line_ylabel, fontsize={_axislabel_fs}); _grid(ax, alpha=0.3)
     for _j in range(_ea_n_t, len(_ax_flat)):
@@ -17571,8 +17578,8 @@ elif {do_surface}:
             _u_err_g  = np.abs(_u_pinn_g - _u_fem_g)
             _vmin_data = min(_u_pinn_g.min(), _u_fem_g.min()) if {_auto} else {_vmin}
             _vmax_data = max(_u_pinn_g.max(), _u_fem_g.max()) if {_auto} else {_vmax}
-            _ea_pinn_title = f"PINN (steady-state) {{_l2_txt(_l2)}}" if {is_steady} else f"PINN t={{_tv:.3f}} {{_l2_txt(_l2)}}"
-            _ea_gt_title = "Reference" if {is_steady} else f"Reference t={{_tv:.3f}}"
+            _ea_pinn_title = f"PINN (steady-state) {{_l2_txt(_l2)}}" if {is_steady} else f"PINN t={{_fmt_num(_tv)}} {{_l2_txt(_l2)}}"
+            _ea_gt_title = "Reference" if {is_steady} else f"Reference t={{_fmt_num(_tv)}}"
             im0 = axes[_i][0].contourf(_Xg_ea, _Yg_ea, _u_pinn_g, cmap='{_cmap}', **_cf_levels({_levels}, _vmin_data, _vmax_data, _u_pinn_g))
             axes[_i][0].set_title(_ea_pinn_title, fontsize={_subtitle_fs}); axes[_i][0].set_xlabel("x", fontsize={_axislabel_fs}); axes[_i][0].set_ylabel("y", fontsize={_axislabel_fs})
             if {_colorbar}: fig.colorbar(im0, ax=axes[_i][0])

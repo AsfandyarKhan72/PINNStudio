@@ -199,6 +199,21 @@ class FigureStyleDialog(QDialog):
         self.grid_cb.setChecked(bool(s.get("grid", True)))
         f.addRow("Grid lines:", self.grid_cb)
         f.addRow(_hint("Blank titles and labels keep each plot's own. Error analysis figures size themselves."))
+        # Numbers written in figures: times in titles, errors, parameter
+        # values (two digits more), and the notation of axis/colorbar ticks.
+        self._section(f, "Numbers")
+        self.sig_digits = _spin(1, 10, int(s.get("sig_digits", 4)), 1, False, 70)
+        self.sig_digits.setToolTip("Significant digits of the numbers written in figures: times in titles,\n"
+                                   "error values, and (two digits more) inferred parameter values.\n"
+                                   "Axis and colorbar tick labels pick their own decimals.")
+        f.addRow("Significant digits:", self.sig_digits)
+        self.sci_notation = _combo([("Automatic (below 0.01 or from 100,000)", "auto"), ("Always", "always"),
+                                    ("Never", "never")], s.get("sci_notation", "auto"), 260)
+        self.sci_notation.setToolTip("When numbers are written with a power of ten -- in titles, legends\n"
+                                     "and the axis and colorbar tick labels.")
+        f.addRow("Scientific notation:", self.sci_notation)
+        self.sci_style = _combo([("1.23 × 10⁻⁴", "times"), ("1.23e-04", "e")], s.get("sci_style", "times"), 120)
+        f.addRow("Written as:", self.sci_style)
 
     def _surface(self):
         s = self.style
@@ -456,6 +471,9 @@ class FigureStyleDialog(QDialog):
             self.sub_fs.setValue(d.plot_subplot_title_fontsize)
             self.axis_fs.setValue(d.plot_axis_label_fontsize)
             self.grid_cb.setChecked(d.plot_grid)
+            self.sig_digits.setValue(d.plot_sig_digits)
+            self.sci_notation.setCurrentIndex(max(0, self.sci_notation.findData(d.plot_sci_notation)))
+            self.sci_style.setCurrentIndex(max(0, self.sci_style.findData(d.plot_sci_style)))
         elif name == "Surface":
             self.cmap.setCurrentText(d.plot_colormap)
             self.levels.setValue(d.plot_levels)
@@ -520,6 +538,8 @@ class FigureStyleDialog(QDialog):
             "param_marker_size": self.p_msize.value(),
             "param_anim_draw": self.pa_draw.currentData(), "param_anim_head": self.pa_head.isChecked(),
             "grid": self.grid_cb.isChecked(), "ref_style": self.ref_style.currentData(),
+            "sig_digits": self.sig_digits.value(), "sci_notation": self.sci_notation.currentData(),
+            "sci_style": self.sci_style.currentData(),
             "param_show_true": self.p_true.isChecked(), "param_true_color": self.p_true_color.currentData(),
             "param_true_style": self.p_true_style.currentData(),
             "param_show_final": self.p_final.isChecked(), "param_final_color": self.p_final_color.currentData(),

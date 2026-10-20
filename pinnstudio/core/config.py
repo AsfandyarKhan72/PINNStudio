@@ -542,6 +542,13 @@ class PINNConfig:
     plot_grid: bool = True
     # The reference in line comparisons (Error Analysis): "line" or "dots".
     plot_ref_style: str = "line"
+    # Numbers written in figures (Plot settings -> General -> Numbers):
+    # significant digits (parameter values get two more), and scientific
+    # notation "auto" (below 0.01 or from 100,000 up), "always" or "never",
+    # written as "1.2 x 10^-4" ("times") or "1.2e-04" ("e").
+    plot_sig_digits: int = 4
+    plot_sci_notation: str = "auto"
+    plot_sci_style: str = "times"
 
     # Loss Plot Settings (Round 28): previously every loss plot across the
     # app hardcoded "semilogy of summed Train/Test loss" with no user
