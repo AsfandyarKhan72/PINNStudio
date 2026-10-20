@@ -45,3 +45,18 @@ def test_ellipse_box_in_the_scripts():
     pts = dde.geometry.CSGIntersection(dde.geometry.Rectangle([0, -1], [1, 1]),
                                        dde.geometry.Ellipse([0.2, 0], 0.4, 0.2, 0.3)).random_points(3000)
     assert pts[:, 0].max() > 0.5
+
+
+def test_robin_and_operator_namespaces():
+    """A Robin value using u is computed on tensors (u*x, t - u); an exported
+    Operator BC has np, torch and the domain limits, as Solve's does."""
+    c = PINNConfig()
+    c.custom_bc_json = json.dumps([{"type": "robin", "location": "True", "value": "t - u", "component": 0},
+                                   {"type": "operator", "location": "True", "value": "du_x - np.sin(x_max)"}])
+    exp = cg.generate_clean_script(c)
+    assert "t = Y.new_tensor(np.asarray(t, dtype=float)).reshape(-1, 1)" in exp
+    assert "'np': np, 'torch': torch" in exp and "'x_max':" in exp
+    live = cg.generate_script(c)
+    assert "_BC_MATH_NS_T = {" in live and '_ns["t"] = _Xt[:, -1:]' in live
+    compile(exp, "x", "exec")
+    compile(live, "x", "exec")

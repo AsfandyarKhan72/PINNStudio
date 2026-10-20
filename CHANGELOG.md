@@ -290,6 +290,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - The surface animation and the line animation ignored a fixed colour range and the grid resolution; they follow Plot settings now, as Solve's do.
   - A surface animation picked for a steady 1D model (possible when its saved settings can't be read) stops with a message instead of an error.
 - **L-BFGS ran more iterations than set, and maxfun did nothing.** DeepXDE (PyTorch) works out its L-BFGS chunk size and evaluation budget once, when it is imported, and `set_LBFGS_options` doesn't update them: a phase of fewer than 1000 iterations ran 1000, longer phases rounded up to the next 1000, and a custom *maxfun* was ignored. Both scripts now keep them in step; phases that are multiples of 1000 with the recommended settings (all the examples) train exactly as before.
+- **Boundary and initial conditions:**
+  - A Robin value mixing the coordinates and u (`u*x`, `t - u`) failed in both scripts (`t` wasn't defined in Solve at all); such a value is now computed on tensors.
+  - An Operator BC using `np`, `torch` or a domain limit (`du_x - np.sin(x_max)`) ran in Solve but failed in the exported script; both have the same names now.
+  - With an initial condition switched off, the next output's IC got the wrong loss weight (1 instead of the one set) in both scripts.
+  - The domain preview drew a rotated ellipse turned the other way from the one DeepXDE trains on (DeepXDE turns a positive angle clockwise).
 - **Shapes other than a rectangle or box:** the named sides (*Left*, *Right*, *Top*, ...), the exported script's plot area and the Error Analysis grids used the hidden box fields, which don't follow a Polygon, Disk, Ellipse or Custom shape (an L-shape's *left* side matched no points, and training failed). Both scripts now use the shape's own bounding box. DeepXDE 1.15 also gives an Ellipse a wrong box ((center − a, center + b), ignoring the rotation), which cut off plots and lost collocation points in a shape combined with an ellipse; the scripts correct it. No example changes.
 - **An expression typed with `np.`** (the default initial condition `np.sin(np.pi * x[:, 0])`) became `np.np.sin(...)` with a second `[:, 0]`, so the exported script failed. Expressions that already use `np.` or `x[:, 0]` are left as they are.
 - **Inverse problems:**

@@ -159,3 +159,19 @@ def test_cpu_threads_setting():
     assert any("CPU threads" in e for e in c.validate())
     w.close()
     w2.close()
+
+
+def test_switched_off_ic_keeps_the_next_weight():
+    """The window writes a weight for each active IC only; the scripts used
+    to skip a slot for a switched-off one, giving the next IC weight 1."""
+    import json
+    from pinnstudio.core import codegen as cg
+    from pinnstudio.core.config import PINNConfig
+    c = PINNConfig()
+    c.num_outputs, c.output_names, c.ic_active = 2, "u,v", "False,True"
+    c.custom_bc_json = "[]"
+    c.pde_expressions = "du_t - dv_xx\ndv_t + du_xx"
+    c.loss_weights_multi = "1.0,1.0,7.0"
+    w, _n = cg._clean_loss_weights(c, 2, json.loads(c.custom_bc_json), c.ic_active.split(","), [])
+    assert w[-1] == 7.0
+    assert "_ic_w.append(None)     # the window writes" in cg.generate_script(c)

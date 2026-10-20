@@ -12453,7 +12453,7 @@ def _style_legend(ax):
             cx, cy = params["cx"], params["cy"]
             a, b, angle = params["a"], params["b"], params["angle"]
             patch_code = (
-                f"matplotlib.patches.Ellipse(({cx},{cy}), {2*a}, {2*b}, angle={_math.degrees(angle)}, "
+                f"matplotlib.patches.Ellipse(({cx},{cy}), {2*a}, {2*b}, angle={-_math.degrees(angle)}, "
                 "linewidth=2, edgecolor='#1971c2', facecolor='none')"
             )
             dx = _math.sqrt((a * _math.cos(angle)) ** 2 + (b * _math.sin(angle)) ** 2)
@@ -12838,7 +12838,7 @@ def _style_legend(ax):
             angle = self.geom_ellipse_angle.value()
             geom_code = self._preview_single_geom_code("Ellipse", cx=cx, cy=cy, a=a, b=b, angle=angle)
             patch_code = (
-                f"matplotlib.patches.Ellipse(({cx},{cy}), {2*a}, {2*b}, angle={math.degrees(angle)}, "
+                f"matplotlib.patches.Ellipse(({cx},{cy}), {2*a}, {2*b}, angle={-math.degrees(angle)}, "
                 "linewidth=2, edgecolor='#1971c2', facecolor='none')"
             )
             dx = math.sqrt((a * math.cos(angle)) ** 2 + (b * math.sin(angle)) ** 2)

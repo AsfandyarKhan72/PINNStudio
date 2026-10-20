@@ -539,6 +539,18 @@ def _np_math_expr(expr):
     return re.sub(r'(?<![a-zA-Z_.])pi(?![a-zA-Z_0-9])', 'np.pi', e)
 
 
+def _torch_math_expr(expr):
+    """np.sin(...) -> torch.sin(...) and so on (arcsin -> asin), for an
+    exported boundary value computed on tensors."""
+    import re
+    e = expr or ""
+    alias = {"arcsin": "asin", "arccos": "acos", "arctan": "atan"}
+    for row in _MATH_NS_ROWS:
+        for fn in row:
+            e = re.sub(rf'(?<![a-zA-Z_])np\.{fn}\(', f'torch.{alias.get(fn, fn)}(', e)
+    return e
+
+
 def _pde_coord_names(exprs):
     """The coordinate names (x, y, z, t) a set of PDE expressions actually
     uses -- found with ast, so du_x/du_t and the like don't count. Both
@@ -5848,6 +5860,7 @@ _n_coord_cols_bc = (3 if _is_3d else (2 if _is_2d else 1)) if _is_steady else (4
 # or "exp(...)" would raise a plain NameError the first time anyone typed
 # one, since eval()'s namespace otherwise only has x/y/z/t/np in it.
 {_math_namespace_code('_BC_MATH_NS', 'np', '')}
+{_math_namespace_code('_BC_MATH_NS_T', 'torch', '')}
 
 # The domain's own limits, usable by name in every Boundary Conditions
 # expression (e.g. "x <= x_min", "x_max - x"), and the named sides of the
@@ -5909,18 +5922,35 @@ def _bc_robin_fn(_expr, _comp):
     # plain numpy/constant expression in x, y, z.
     _src = _expr if _expr.strip() else "0"
     _code = compile(_src, "<bc_robin_value>", "eval")
+    # A value using an output (u, or an output by name) is computed on
+    # tensors: the coordinates become (N, 1) tensors and sin, exp, ... torch
+    # functions, so u*x or t - u work. Otherwise numpy, as before.
+    _on_tensors = bool(set(_code.co_names) & ({{"u"}} | {{_n.strip() for _n in _out_names_list if _n.strip()}}))
     def _f(_Xb, _Yb):
-        _ns = {{**_BC_MATH_NS, **_BC_DOMAIN, "x": _Xb[:, 0], "np": np, "torch": torch}}
+        if _on_tensors:
+            _Xt = _Yb.new_tensor(np.asarray(_Xb, dtype=float))
+            _ns = {{**_BC_MATH_NS_T, **_BC_DOMAIN, "x": _Xt[:, 0:1], "np": np, "torch": torch}}
+            if _is_2d or _is_3d:
+                _ns["y"] = _Xt[:, 1:2]
+            if _is_3d:
+                _ns["z"] = _Xt[:, 2:3]
+            if not _is_steady:
+                _ns["t"] = _Xt[:, -1:]
+        else:
+            _ns = {{**_BC_MATH_NS, **_BC_DOMAIN, "x": _Xb[:, 0], "np": np, "torch": torch}}
+            if not _is_steady:
+                _ns["t"] = _Xb[:, -1]
         # Round 75: every output by name (e.g. -k0*u_im for a Helmholtz
         # absorbing condition on u_re), then u = this row's own output.
         for _oi, _on in enumerate(_out_names_list):
             if _on.strip():
                 _ns[_on.strip()] = _Yb[:, _oi:_oi + 1]
         _ns["u"] = _Yb[:, _comp:_comp + 1]
-        if _is_2d or _is_3d:
-            _ns["y"] = _Xb[:, 1]
-        if _is_3d:
-            _ns["z"] = _Xb[:, 2]
+        if not _on_tensors:
+            if _is_2d or _is_3d:
+                _ns["y"] = _Xb[:, 1]
+            if _is_3d:
+                _ns["z"] = _Xb[:, 2]
         _r = eval(_code, _ns)
         if isinstance(_r, torch.Tensor):
             return _r if _r.dim() == 2 else _r.reshape(-1, 1)
@@ -6297,7 +6327,7 @@ if _custom_bc_entries or _bc_panel_data_present:
         if not _is_steady and ((_oi_w == 0 and {config.forward_ic_from_file}) or (_oi_w < len(_ic_a) and _ic_a[_oi_w].strip() == "True")):
             _ic_w.append(_wm_list[_wi] if _wi < len(_wm_list) else 1.0); _wi += 1
         else:
-            _ic_w.append(None); _wi += 1 if (not _is_steady and _wi < len(_wm_list)) else 0
+            _ic_w.append(None)     # the window writes a weight for each active IC only
 
     _multi_weights = list(_pde_w) + list(_bc_entry_w)
     for _oi_w in range(_n_out_w):
@@ -8579,7 +8609,7 @@ def _clean_coord_unpack(indent, is_batch, is_2d, is_3d, is_steady=True, used=Non
     return lines
 
 
-def _bc_operator_def_lines(name, expr, is_steady, dim_str, out_names_list, n_out):
+def _bc_operator_def_lines(name, expr, is_steady, dim_str, out_names_list, n_out, domain=None):
     """def lines for an Operator BC / Point Set Operator BC row's func, in
     DeepXDE's own real signature -- func(inputs, outputs, X), see each
     class's docstring. Unlike every other BC row's helper (whose
@@ -8597,6 +8627,8 @@ def _bc_operator_def_lines(name, expr, is_steady, dim_str, out_names_list, n_out
         f"{is_steady!r}, {dim_str!r}, {expr!r})",
         "    _ns = dict(_dvars)",
         "    _ns['inputs'] = inputs; _ns['outputs'] = outputs; _ns['X'] = X",
+        # the same names Solve's operator BCs have: domain limits, np, torch
+        f"    _ns.update({{**{dict(domain or {})!r}, 'np': np, 'torch': torch}})",
         f"    return eval({expr!r}, _ns)",
     ]
 
@@ -8705,9 +8737,16 @@ def _clean_bc_row_code(i, entry, is_2d, is_3d, n_coord_cols, is_steady=False, n_
     elif btype == 'robin':
         rob_name = f"_bc{i}_robin"
         L = [f"def {rob_name}(X, Y):"]
-        L += _clean_coord_unpack("    ", True, is_2d, is_3d, is_steady, _pde_coord_names([val]))
-        L += _clean_bc_name_lines("    ", val, domain, False)
         _used = _expr_names(val)
+        _outs = {"u"} | {n.strip() for n in (out_names or "").split(",") if n.strip()}
+        L += _clean_coord_unpack("    ", True, is_2d, is_3d, is_steady, _pde_coord_names([val]))
+        if _used & _outs:
+            # uses an output: coordinates as (N, 1) tensors, torch math
+            for _cn in ("x", "y", "z", "t"):
+                if _cn in _used:
+                    L.append(f"    {_cn} = Y.new_tensor(np.asarray({_cn}, dtype=float)).reshape(-1, 1)")
+            val = _torch_math_expr(val)
+        L += _clean_bc_name_lines("    ", val, domain, False)
         for _oi, _on in enumerate(n.strip() for n in (out_names or "").split(",")):
             if _on and _on in _used and _on != "u":
                 L.append(f"    {_on} = Y[:, {_oi}:{_oi + 1}]")
@@ -8733,7 +8772,7 @@ def _clean_bc_row_code(i, entry, is_2d, is_3d, n_coord_cols, is_steady=False, n_
         append.append(f"constraints.append(dde.icbc.PointSetBC(_pts{i}, _pvals{i}, component={_comp_arg!r}{batch_kwargs_str}))")
     elif btype == 'pointset_operator':
         op_name = f"_bc{i}_op"
-        defs += _bc_operator_def_lines(op_name, val_raw, is_steady, _dim_str, _out_names_list, n_out)
+        defs += _bc_operator_def_lines(op_name, val_raw, is_steady, _dim_str, _out_names_list, n_out, domain)
         _pd, _pa = _clean_points_values(i, entry, 1)
         defs += _pd
         append += _pa
@@ -8749,9 +8788,9 @@ def _clean_bc_row_code(i, entry, is_2d, is_3d, n_coord_cols, is_steady=False, n_
             init_loc += _clean_coord_unpack("    ", False, is_2d, is_3d, is_steady, _pde_coord_names([loc]))
             init_loc += _clean_bc_name_lines("    ", loc, domain, True)
             init_loc.append(f"    return bool({loc})")
-            defs += _bc_operator_def_lines(op_name, val_raw, is_steady, _dim_str, _out_names_list, n_out) + init_loc
+            defs += _bc_operator_def_lines(op_name, val_raw, is_steady, _dim_str, _out_names_list, n_out, domain) + init_loc
         else:
-            defs += _bc_operator_def_lines(op_name, val_raw, is_steady, _dim_str, _out_names_list, n_out) + loc_fn(loc_name, loc)
+            defs += _bc_operator_def_lines(op_name, val_raw, is_steady, _dim_str, _out_names_list, n_out, domain) + loc_fn(loc_name, loc)
         append.append(f"constraints.append(dde.icbc.OperatorBC(geomtime, {op_name}, {loc_name}))")
     elif btype == 'interface2d':
         defs += loc_fn(loc_name, loc) + loc_fn(loc2_name, loc2) + val_fn(val_name, val)
@@ -8984,10 +9023,8 @@ def _clean_loss_weights(config, n_out, bc_entries, ic_active_list, obs_weights, 
     if not is_steady:
         for oi in range(n_out):
             active = (oi == 0 and config.forward_ic_from_file) or (oi < len(ic_active_list) and ic_active_list[oi].strip() == "True")
-            if active:
+            if active:      # the window writes a weight for each active IC only
                 ic_w.append(wm_list[wi] if wi < len(wm_list) else 1.0)
-                wi += 1
-            elif wi < len(wm_list):
                 wi += 1
     weights = pde_w + bc_w + ic_w + list(obs_weights)
     expected_len = len(pde_w) + len(bc_w) + len(ic_w) + len(obs_weights)
