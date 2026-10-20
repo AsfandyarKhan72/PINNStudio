@@ -21,13 +21,12 @@ of per-variable Parameter Convergence subplots, or a row of Surface
 snapshots) results plot -- Loss, Line, Surface, both Animation GIF types,
 Parameter Convergence, the Parametric-sweep summary bar chart, and all of
 their Time-Adaptive equivalents -- gets figsize=_plot_figsize(w, h) in
-place of a bare literal tuple. Two categories are deliberately EXCLUDED
-and must never be touched by this: the multi-column Error Analysis
-comparison grids (sized from however many reference files/columns are
-being compared -- forcing any fixed mode on those would misshape a grid
-whose whole point is to lay out N columns), and the Setup tab's
-domain-sampling preview plots (sized to the problem's own geometry, not
-a "results" plot).
+place of a bare literal tuple. The multi-column Error Analysis grids use
+_panel_figsize(pw, ph, ncols, nrows) instead: each panel is scaled the way
+the setting scales a single 7 x 5 figure, so the grid keeps its N columns
+(and is unchanged with the Default size). The Setup tab's domain-sampling
+preview plots keep their own size (sized to the problem's geometry, not a
+"results" plot).
 
 A later round brought generate_clean_script (a separate, less-central
 exporter) to parity with this feature: its own in-scope single-panel
@@ -140,13 +139,13 @@ def run():
     # These two have no other (15, 5)-shaped call site anywhere in the
     # generated script, so the simple wrap-and-check-absent pattern is safe.
     ea_untouched_snippets = [
-        "figsize=(4*_ea_ncols, 3.5*_ea_nrows)",
-        "figsize=(15, 4.5 * _ea_n_t)",
+        "figsize=_panel_figsize(4, 3.5, _ea_ncols, _ea_nrows)",
+        "figsize=_panel_figsize(5, 4.5, 3, _ea_n_t)",
     ]
     for snippet in ea_untouched_snippets:
-        check(snippet in script_default, f"Error Analysis grid figsize should stay a bare literal (untouched): {snippet!r}")
-        wrapped = snippet.replace("figsize=(", "figsize=_plot_figsize(")
-        check(wrapped not in script_default, f"Error Analysis grid figsize must NOT be wrapped by _plot_figsize: found {wrapped!r}")
+        check(snippet in script_default, f"Error Analysis grid figsize should scale with Figure size (_panel_figsize): {snippet!r}")
+    for old in ("figsize=(4*_ea_ncols, 3.5*_ea_nrows)", "figsize=(15, 4.5 * _ea_n_t)"):
+        check(old not in script_default, f"Error Analysis grid with a fixed size left: {old!r}")
 
     # "figsize=(15, 5)" / "figsize=_plot_figsize(15, 5)" and even the
     # "fig, axes_s = plt.subplots(1, 3, ...)" statement text are NOT unique
@@ -162,8 +161,8 @@ def run():
     import re as _re_fs
     _m_ea = _re_fs.search(r"\n( *_levels_ea1d = [^\n]*)\n( *fig, axes_s = plt\.subplots\(1, 3, figsize=[^\n]*\))", script_default)
     _ea_1d_line = _m_ea.group(2) if _m_ea else ""
-    check(_ea_1d_line.endswith("figsize=(15, 5))"),
-          "Error Analysis 1D surface-comparison grid figsize should stay a bare literal (untouched)")
+    check(_ea_1d_line.endswith("figsize=_panel_figsize(5, 5, 3, 1))"),
+          "Error Analysis 1D surface-comparison grid figsize should scale with Figure size")
     check("_plot_figsize" not in _ea_1d_line,
           "Error Analysis 1D surface-comparison grid figsize must NOT be wrapped by _plot_figsize")
     _m_tea = _re_fs.search(r"\n *_tea_levels = [^\n]*\n( *fig, axes_s = plt\.subplots\(1, 3, figsize=[^\n]*\))", script_default)
@@ -192,8 +191,8 @@ def run():
         ea_do_surface=True, ea_do_line=False, t_min=0.0, t_max=1.0,
     )
     clean_script_ea = codegen.generate_clean_script(cfg_clean_ea)
-    check("fig, axes = plt.subplots(1, 3, figsize=(15, 5))" in clean_script_ea,
-          "generate_clean_script()'s EA surface-comparison grid figsize should stay a bare literal (untouched)")
+    check("fig, axes = plt.subplots(1, 3, figsize=_panel_figsize(5, 5, 3, 1))" in clean_script_ea,
+          "generate_clean_script()'s EA surface-comparison grid figsize should scale with Figure size")
     check("fig, axes = plt.subplots(1, 3, figsize=_plot_figsize(15, 5))" not in clean_script_ea,
           "generate_clean_script()'s EA surface-comparison grid figsize must NOT be wrapped by _plot_figsize")
 
@@ -201,7 +200,7 @@ def run():
     cfg_ta = PINNConfig(time_adaptive=True)
     script_ta = codegen.generate_script(cfg_ta)
     check("figsize=_plot_figsize(7, 5)" in script_ta, "Time-Adaptive Surface/loss single-panel plot should use _plot_figsize")
-    check("figsize=(4*_ea_ncols, 3.5*_ea_nrows)" in script_ta, "Time-Adaptive EA grid figsize should stay untouched")
+    check("figsize=_panel_figsize(4, 3.5, _ea_ncols, _ea_nrows)" in script_ta, "Time-Adaptive EA grid figsize should scale with Figure size")
 
     # ── _plot_figsize's actual (exec'd from the real generated text) behavior ──
     plot_figsize = _extract_plot_figsize_func(script_default)

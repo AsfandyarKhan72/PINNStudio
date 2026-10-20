@@ -220,12 +220,16 @@ class FigureStyleDialog(QDialog):
         f.addRow("Title font size:", self.title_fs)
         f.addRow("Panel title font size:", self.sub_fs)
         f.addRow("Axis label font size:", self.axis_fs)
+        self.legend_fs = _spin(0.0, 36.0, float(s.get("legend_fontsize", 0.0) or 0.0), 0.5, True, 80)
+        self.legend_fs.setSpecialValueText("Automatic")
+        self.legend_fs.setToolTip("Font size of every legend. Automatic keeps each figure's own (7 to 10).")
+        f.addRow("Legend font size:", self.legend_fs)
         self.grid_cb = QCheckBox("Show on line-type figures")
         self.grid_cb.setToolTip("Line plots and animations, the line comparisons of Error Analysis,\n"
                                 "the loss plot and the parameter convergence plot and animation.")
         self.grid_cb.setChecked(bool(s.get("grid", True)))
         f.addRow("Grid lines:", self.grid_cb)
-        f.addRow(_hint("Blank titles and labels keep each plot's own. Error analysis figures size themselves."))
+        f.addRow(_hint("Blank titles and labels keep each plot's own. Error analysis figures scale their panels with the figure size."))
         # Numbers written in figures: times in titles, errors, parameter
         # values (two digits more), and the notation of axis/colorbar ticks.
         self._section(f, "Numbers")
@@ -257,6 +261,10 @@ class FigureStyleDialog(QDialog):
         f.addRow("Contour levels:", self.levels)
         self.res = _edit_combo(["80", "100", "150", "200", "300"], str(s.get("resolution", 100)), 80)
         f.addRow("Grid resolution:", self.res)
+        self.res3d = _spin(10, 200, int(s.get("resolution_3d", 40) or 40), 5, False, 80)
+        self.res3d.setToolTip("Points per side on each face of a 3D surface (plots, animations, Error Analysis).\n"
+                              "Above about 60 the 3D figures get slow to draw.")
+        f.addRow("3D grid resolution:", self.res3d)
         self.auto_range = QCheckBox("Automatic")
         self.auto_range.setChecked(bool(s.get("auto_range", True)))
         from pinnstudio.ui.sci_spinbox import SciSpinBox
@@ -517,6 +525,7 @@ class FigureStyleDialog(QDialog):
             self.title_fs.setValue(d.plot_title_fontsize)
             self.sub_fs.setValue(d.plot_subplot_title_fontsize)
             self.axis_fs.setValue(d.plot_axis_label_fontsize)
+            self.legend_fs.setValue(d.plot_legend_fontsize)
             self.grid_cb.setChecked(d.plot_grid)
             self.sig_digits.setValue(d.plot_sig_digits)
             self.sci_notation.setCurrentIndex(max(0, self.sci_notation.findData(d.plot_sci_notation)))
@@ -526,6 +535,7 @@ class FigureStyleDialog(QDialog):
             self.levels.setValue(d.plot_levels)
             self.err_cmap.setCurrentIndex(0)
             self.res.setCurrentText(str(d.plot_resolution))
+            self.res3d.setValue(d.plot_resolution_3d)
             self.auto_range.setChecked(d.plot_auto_range)
             self.colorbar.setChecked(d.plot_colorbar)
             self.snaps.setValue(d.plot_n_2d_snapshots)
@@ -601,7 +611,8 @@ class FigureStyleDialog(QDialog):
             "title": self.title.text().strip(), "xlabel": self.xlabel.text().strip(),
             "ylabel": self.ylabel.text().strip(),
             "title_fontsize": self.title_fs.value(), "subplot_title_fontsize": self.sub_fs.value(),
-            "axis_label_fontsize": self.axis_fs.value(),
+            "axis_label_fontsize": self.axis_fs.value(), "legend_fontsize": self.legend_fs.value(),
+            "resolution_3d": self.res3d.value(),
             "colormap": self._colormap(), "levels": self.levels.value(),
             "resolution": _num(self.res, int, int(self.style.get("resolution", 200))),
             "auto_range": self.auto_range.isChecked(),

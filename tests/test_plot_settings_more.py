@@ -113,3 +113,55 @@ def test_dialog_and_window_round_trip():
     assert i >= 0
     w.close()
     w2.close()
+
+
+def test_legend_range_panels_and_3d_grid():
+    ns = {}
+    exec(cg._figsize_helper_code("Wide", 7, 5, extras=(12.0, (0.2, 0.8))), ns)
+    assert ns["_lfs"](8) == 12.0 and ns["_vr"](0, 1) == (0.2, 0.8) and ns["_vext"]() == "both"
+    assert ns["_vext"](50) == "neither", "an error panel keeps its own range"
+    w, h = ns["_panel_figsize"](4, 3.5, 2, 3)
+    assert abs(w - 4 * 2 * 9 / 7) < 1e-9 and abs(h - 3.5 * 3) < 1e-9
+    ns = {}
+    exec(cg._figsize_helper_code("Default", 7, 5), ns)       # defaults: as before
+    assert ns["_lfs"](8) == 8 and ns["_vr"](0, 1) == (0, 1) and ns["_vext"]() == "neither"
+    assert ns["_panel_figsize"](5, 4, 3, 2) == (15.0, 8.0)
+    c = PINNConfig()
+    assert cg.plot_extras(c) == (0.0, None) and cg.res_3d(c) == 40
+    c.plot_auto_range, c.plot_vmin, c.plot_vmax, c.plot_legend_fontsize = False, -1.0, 2.0, 9
+    assert cg.plot_extras(c) == (9.0, (-1.0, 2.0))
+    assert cg.plot_extras({"auto_range": False, "vmin": 1.0, "vmax": 1.0}) == (0.0, None), "an empty range is ignored"
+    assert cg.res_3d({"resolution_3d": 64}) == 64
+    t = cg._restore_anim_surface_code(0, 1, 0, 1, 0, 1, 5, "jet", True, 20, False, 10, 5, "d", "x", "y", "T",
+                                      "x", "t", "T", is_time_adaptive=False, resolution=60, res3d=55)
+    assert "_res3a = 55" in t
+
+
+def test_scripts_use_the_new_helpers():
+    c = _example("Heat 2D")
+    c.plot_type = "Line"
+    c.plot_auto_range, c.plot_vmin, c.plot_vmax, c.plot_legend_fontsize = False, 0.2, 0.8, 14.0
+    for gen in (cg.generate_script, cg.generate_clean_script):
+        t = gen(c)
+        assert "_PLOT_LEGEND_FS, _PLOT_VRANGE = (14.0, (0.2, 0.8))" in t
+        assert not re.search(r"legend\([^)\n]*fontsize=\d", t), "a legend with a fixed font size"
+        assert not re.search(r"figsize=\(15, ", t), "an Error Analysis figure with a fixed size"
+        assert "_vr(" in t
+
+
+def test_new_settings_round_trip():
+    from pinnstudio.ui.figure_style import FigureStyleDialog
+    from pinnstudio.ui.main_window import MainWindow
+    w = MainWindow()
+    w._plot_viz_settings.update({"legend_fontsize": 11.5, "resolution_3d": 60})
+    d = FigureStyleDialog(w, "solve", "General")
+    s, _loss = d.values()
+    assert (s["legend_fontsize"], s["resolution_3d"]) == (11.5, 60)
+    c = w._build_config()
+    assert (c.plot_legend_fontsize, c.plot_resolution_3d) == (11.5, 60)
+    w2 = MainWindow()
+    w2._apply_config(c)
+    c2 = w2._build_config()
+    assert (c2.plot_legend_fontsize, c2.plot_resolution_3d) == (11.5, 60)
+    w.close()
+    w2.close()

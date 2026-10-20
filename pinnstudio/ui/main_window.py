@@ -4964,6 +4964,7 @@ class MainWindow(QMainWindow):
             'ref_style': 'line',
             'sig_digits': 4, 'sci_notation': 'auto', 'sci_style': 'times',
             'pinn_color': '#ff6b6b', 'ref_color': '#4dabf7', 'err_colormap': '', 'ea_cols': 4, 'dpi_anim': 150,
+            'legend_fontsize': 0.0, 'resolution_3d': 40,
             'figsize_w': 7.0,
             'figsize_h': 5.0,
             'title': '',
@@ -9588,6 +9589,8 @@ class MainWindow(QMainWindow):
             plot_err_colormap=self._plot_viz_settings.get('err_colormap', ''),
             plot_ea_cols=int(self._plot_viz_settings.get('ea_cols', 4)),
             plot_dpi_anim=int(self._plot_viz_settings.get('dpi_anim', 150)),
+            plot_legend_fontsize=float(self._plot_viz_settings.get('legend_fontsize', 0.0) or 0.0),
+            plot_resolution_3d=int(self._plot_viz_settings.get('resolution_3d', 40) or 40),
             plot_sci_notation=self._plot_viz_settings.get('sci_notation', 'auto'),
             plot_sci_style=self._plot_viz_settings.get('sci_style', 'times'),
             plot_figsize_w=self._plot_viz_settings.get('figsize_w', 7.0),
@@ -10520,6 +10523,8 @@ class MainWindow(QMainWindow):
             "err_colormap": getattr(config, "plot_err_colormap", ""),
             "ea_cols": getattr(config, "plot_ea_cols", 4),
             "dpi_anim": getattr(config, "plot_dpi_anim", 150),
+            "legend_fontsize": getattr(config, "plot_legend_fontsize", 0.0),
+            "resolution_3d": getattr(config, "plot_resolution_3d", 40),
             "sci_notation": getattr(config, "plot_sci_notation", "auto"),
             "sci_style": getattr(config, "plot_sci_style", "times"),
             "figsize_w": getattr(config, "plot_figsize_w", 7.0),
@@ -16498,7 +16503,7 @@ print("DOMAIN_PREVIEW_DONE")
         _dpi = int(viz_settings.get('dpi', 150) or 150)
         _fps = int(viz_settings.get('fps', 15) or 15)
         from pinnstudio.core.codegen import (_figsize_helper_code, _param_axis_helper_code,
-                                             _contour_levels_helper_code, param_style_of, number_settings, line_colors, font_sizes, anim_dpi)
+                                             _contour_levels_helper_code, param_style_of, number_settings, line_colors, font_sizes, anim_dpi, plot_extras, res_3d)
         _pstyle = param_style_of({cfg_key: viz_settings[ui_key] for ui_key, cfg_key in self._PARAM_STYLE_KEYS
                                   if ui_key in viz_settings})
         script = f"""
@@ -16523,7 +16528,7 @@ _ylabel_override = {ylabel_override!r}
 # _figsize_helper_code for the full rationale) -- "Default" mode renders
 # every figsize=_plot_figsize(w, h) call below byte-identical to before
 # this existed.
-{_figsize_helper_code(figsize_mode, figsize_w, figsize_h, viz_settings.get('grid', True), viz_settings.get('ref_style', 'line'), number_settings(viz_settings), line_colors(viz_settings), font_sizes(viz_settings), anim_dpi(viz_settings))}
+{_figsize_helper_code(figsize_mode, figsize_w, figsize_h, viz_settings.get('grid', True), viz_settings.get('ref_style', 'line'), number_settings(viz_settings), line_colors(viz_settings), font_sizes(viz_settings), anim_dpi(viz_settings), plot_extras(viz_settings))}
 
 # Shared-color-scale contourf levels (see codegen.py's _contour_levels_helper_code).
 {_contour_levels_helper_code()}
@@ -16662,7 +16667,7 @@ print("RESTORE_DONE")
         activation = cfg["activation"]
         from pinnstudio.core.codegen import (_net_construction_helper_code,
             _training_monitor_runtime_code, _figsize_helper_code, _contour_levels_helper_code,
-            _math_namespace_code, number_settings, line_colors, font_sizes, anim_dpi)
+            _math_namespace_code, number_settings, line_colors, font_sizes, anim_dpi, plot_extras, res_3d)
         net_helper_code = _net_construction_helper_code(cfg.get("network_type", "FNN"), cfg.get("msffn_sigmas", "1, 10"),
                                                         cfg.get("msffn_sigmas_t", "1, 10"))
         # Re-attach the model's input/output transforms (Round 62) -- see
@@ -16812,7 +16817,7 @@ import matplotlib.pyplot as plt
 # _figsize_helper_code for the full rationale) -- "Default" mode renders
 # every figsize=_plot_figsize(w, h) call below byte-identical to before
 # this existed.
-{_figsize_helper_code(figsize_mode, figsize_w, figsize_h, viz_settings.get('grid', True), viz_settings.get('ref_style', 'line'), number_settings(viz_settings), line_colors(viz_settings), font_sizes(viz_settings), anim_dpi(viz_settings))}
+{_figsize_helper_code(figsize_mode, figsize_w, figsize_h, viz_settings.get('grid', True), viz_settings.get('ref_style', 'line'), number_settings(viz_settings), line_colors(viz_settings), font_sizes(viz_settings), anim_dpi(viz_settings), plot_extras(viz_settings))}
 
 # Shared-color-scale contourf levels (see codegen.py's _contour_levels_helper_code).
 {_contour_levels_helper_code()}
@@ -16941,7 +16946,8 @@ def _extract_plot_field(x_grid):
                 linewidth, title_fontsize, subplot_title_fontsize, axis_label_fontsize,
                 save_dir, dpi, _xlabel_3d, _ylabel_3d, _title_3d, _xlabel_2d, _ylabel_2d,
                 _title_2d, _xlabel_1d, _ylabel_1d, _title_1d, _xlabel_1d_steady,
-                _ylabel_1d_steady, _title_1d_steady, is_time_adaptive=False) + "\n"
+                _ylabel_1d_steady, _title_1d_steady, is_time_adaptive=False,
+                res3d=res_3d(viz_settings)) + "\n"
             
         elif viz_type == "Line (time steps)":
             _xlabel_line = xlabel_override or "x"
@@ -17006,7 +17012,7 @@ def _extract_plot_field(x_grid):
                 show_colorbar, levels, swap_xt, axis_label_fontsize, fps, save_dir,
                 _xlabel_animsurf3d, _ylabel_animsurf3d, _animsurf_title_line_3d,
                 _xlabel_animsurf_else, _ylabel_animsurf_else, _animsurf_title_line_else,
-                is_time_adaptive=False, resolution=resolution) + "\n"
+                is_time_adaptive=False, resolution=resolution, res3d=res_3d(viz_settings)) + "\n"
         script += '\nprint("RESTORE_DONE")\n'
         return script
 
@@ -17125,7 +17131,7 @@ def _extract_plot_field(x_grid):
         # this function's docstring already gives for x_min/x_max/etc.
         from pinnstudio.core.codegen import (_net_construction_helper_code,
             _training_monitor_runtime_code, _figsize_helper_code, _contour_levels_helper_code,
-            _math_namespace_code, number_settings, line_colors, font_sizes, anim_dpi)
+            _math_namespace_code, number_settings, line_colors, font_sizes, anim_dpi, plot_extras, res_3d)
         net_helper_code = _net_construction_helper_code(cfg.get("network_type", "FNN"), cfg.get("msffn_sigmas", "1, 10"),
                                                         cfg.get("msffn_sigmas_t", "1, 10"))
         # Re-attach the model's input/output transforms (Round 62) -- see
@@ -17202,7 +17208,7 @@ import matplotlib.pyplot as plt
 # _figsize_helper_code for the full rationale) -- "Default" mode renders
 # every figsize=_plot_figsize(w, h) call below byte-identical to before
 # this existed.
-{_figsize_helper_code(figsize_mode, figsize_w, figsize_h, viz_settings.get('grid', True), viz_settings.get('ref_style', 'line'), number_settings(viz_settings), line_colors(viz_settings), font_sizes(viz_settings), anim_dpi(viz_settings))}
+{_figsize_helper_code(figsize_mode, figsize_w, figsize_h, viz_settings.get('grid', True), viz_settings.get('ref_style', 'line'), number_settings(viz_settings), line_colors(viz_settings), font_sizes(viz_settings), anim_dpi(viz_settings), plot_extras(viz_settings))}
 
 # Shared-color-scale contourf levels (see codegen.py's _contour_levels_helper_code).
 {_contour_levels_helper_code()}
@@ -17323,7 +17329,7 @@ def _extract_plot_field(x_grid, _tm_model):
                 None, title_fontsize, subplot_title_fontsize, axis_label_fontsize,
                 save_dir, dpi, _xlabel_3d, _ylabel_3d, _title_3d, _xlabel_2d, _ylabel_2d,
                 _title_2d, _xlabel_1d, _ylabel_1d, _title_1d, None, None, None,
-                is_time_adaptive=True) + "\n"
+                is_time_adaptive=True, res3d=res_3d(viz_settings)) + "\n"
 
         elif viz_type == "Line (time steps)":
             _slice_suffix_line = (f", y={line_slice_y:.3g}, z={line_slice_z:.3g}" if is_3d
@@ -17385,7 +17391,7 @@ def _extract_plot_field(x_grid, _tm_model):
                 show_colorbar, levels, swap_xt, axis_label_fontsize, fps, save_dir,
                 _xlabel_animsurf3d, _ylabel_animsurf3d, _animsurf_title_line_3d,
                 _xlabel_animsurf_else, _ylabel_animsurf_else, _animsurf_title_line_else,
-                is_time_adaptive=True, resolution=resolution) + "\n"
+                is_time_adaptive=True, resolution=resolution, res3d=res_3d(viz_settings)) + "\n"
         script += '\nprint("RESTORE_DONE")\n'
         return script
 
@@ -17584,7 +17590,7 @@ print(f"  Metrics saved: {{os.path.join(_ea_dir, 'error_metrics_restore.txt')}}"
 if {do_line}:
     _ncols = min({max(1, int(viz_settings.get('ea_cols', 4) or 4))}, _ea_n_t)
     _nrows = (_ea_n_t + _ncols - 1) // _ncols
-    fig, axes = plt.subplots(_nrows, _ncols, figsize=(4*_ncols, 3.5*_nrows), squeeze=False)
+    fig, axes = plt.subplots(_nrows, _ncols, figsize=_panel_figsize(4, 3.5, _ncols, _nrows), squeeze=False)
     _ea_line_suptitle = "Restored Model vs Reference — Line Comparison"
     if {is_3d}:
         _ea_line_suptitle += f" (y={{_fmt_num({line_slice_y!r})}}, z={{_fmt_num({line_slice_z!r})}})"
@@ -17662,7 +17668,7 @@ if {do_line}:
         ax.set_xlabel("x", fontsize={_axislabel_fs}); ax.set_ylabel(_ea_line_ylabel, fontsize={_axislabel_fs}); _grid(ax, alpha=0.3)
     for _j in range(_ea_n_t, len(_ax_flat)):
         _ax_flat[_j].set_visible(False)
-    _ax_flat[0].legend(loc='best', fontsize=10, framealpha=0.9)
+    _ax_flat[0].legend(loc='best', fontsize=_lfs(10), framealpha=0.9)
     plt.tight_layout(rect=[0, 0, 1, 0.93])
     _lp = os.path.join(_ea_dir, "line_comparison_restore.png")
     plt.savefig(_lp, dpi={_dpi}, bbox_inches='tight'); plt.close()
@@ -17680,7 +17686,7 @@ elif {do_surface}:
         _xg_ea = np.linspace({x_min}, {x_max}, _res_ea)
         _yg_ea = np.linspace({y_min}, {y_max}, _res_ea)
         _Xg_ea, _Yg_ea = np.meshgrid(_xg_ea, _yg_ea)
-        fig, axes = plt.subplots(_ea_n_t, 3, figsize=(15, 4*_ea_n_t), squeeze=False)
+        fig, axes = plt.subplots(_ea_n_t, 3, figsize=_panel_figsize(5, 4, 3, _ea_n_t), squeeze=False)
         fig.suptitle("Restored Model vs Reference — 2D Heatmaps", fontsize={_title_fs}, fontweight='bold')
         for _i, _tv in enumerate(_ea_times):
             _tv_r, _l2, _mse, _mx, _ma = _ea_metrics[_i]
@@ -17720,7 +17726,7 @@ elif {do_surface}:
         _U_err = np.abs(_U_pinn - _U_fem)
         _vmin_data = min(_U_pinn.min(), _U_fem.min()) if {_auto} else {_vmin}
         _vmax_data = max(_U_pinn.max(), _U_fem.max()) if {_auto} else {_vmax}
-        fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+        fig, axes = plt.subplots(1, 3, figsize=_panel_figsize(5, 5, 3, 1))
         fig.suptitle("Restored Model vs Reference — Surface", fontsize={_title_fs}, fontweight='bold')
         im0 = axes[0].contourf(_Tg, _Xg, _U_pinn, cmap='{_cmap}', **_cf_levels({_levels}, _vmin_data, _vmax_data, _U_pinn))
         axes[0].set_title("PINN", fontsize={_subtitle_fs}); axes[0].set_xlabel("t", fontsize={_axislabel_fs}); axes[0].set_ylabel("x", fontsize={_axislabel_fs})

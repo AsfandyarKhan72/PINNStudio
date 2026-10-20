@@ -295,7 +295,7 @@ def _part_run_folders_and_summary(check):
             if os.path.isfile(csv_path):
                 with open(csv_path, encoding="utf-8", errors="replace") as f:
                     csv_text = f.read()
-                check(csv_text.startswith("Run,Hidden layers,Status,Final loss,L2 relative error,"),
+                check(csv_text.startswith("Run,Hidden layers,Status,Final loss,Final loss (unweighted),L2 relative error,"),
                       f"sweep_summary.csv should have the expected header, got {csv_text.splitlines()[:1]}")
                 check("run_00__baseline" in csv_text and "run_01__Hidden-layers_2" in csv_text,
                       f"sweep_summary.csv should list both runs' own folder names, got:\n{csv_text}")

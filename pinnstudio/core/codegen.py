@@ -1263,7 +1263,7 @@ def _make_loss_plot(train_rows, test_rows, steps, save_path, title, xlabel="Iter
         extra_fn(ax)
     ax.set_xlabel(xlabel, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel("Loss", fontsize={config.plot_axis_label_fontsize})
     ax.set_title(title)
-    ax.legend(fontsize=8 if _LOSS_MODE != "train_test" else 10)
+    ax.legend(fontsize=_lfs(8 if _LOSS_MODE != "train_test" else 10))
     _grid(ax, alpha=0.3, which="major")
     fig.tight_layout()
     fig.savefig(save_path, dpi={config.plot_dpi}); plt.close(fig)
@@ -1575,7 +1575,7 @@ def _build_training_monitors_plot_code(config, sol_dir_var="_sol_dir", indent=0)
         )
         lines.append(f"{pad}            _tm_ax_{_mi}.set_xlabel('Iteration', fontsize={config.plot_axis_label_fontsize}); _tm_ax_{_mi}.set_ylabel('Value', fontsize={config.plot_axis_label_fontsize})")
         lines.append(f"{pad}            _tm_ax_{_mi}.set_title({('Training Monitor: ' + _name)!r})")
-        lines.append(f"{pad}            _tm_ax_{_mi}.legend(fontsize=7, loc='best'); _tm_ax_{_mi}.grid(alpha=0.3)")
+        lines.append(f"{pad}            _tm_ax_{_mi}.legend(fontsize=_lfs(7), loc='best'); _tm_ax_{_mi}.grid(alpha=0.3)")
         lines.append(f"{pad}            _tm_plot_path_{_mi} = _os.path.join({sol_dir_var}, 'monitor_{_safe_name}_plot.png')")
         lines.append(f"{pad}            plt.tight_layout(); plt.savefig(_tm_plot_path_{_mi}, dpi={int(config.plot_dpi)}); plt.close(_tm_fig_{_mi})")
         lines.append(f"{pad}            print(f'  Training monitor plot saved: {{_tm_plot_path_{_mi}}}')")
@@ -1775,7 +1775,7 @@ def _gs_rar_loop_code(config):
                         _ax_c.scatter(_rar_new_pts[:, 0], np.full(len(_rar_new_pts), 0.0), s=18, c="#e03131", label=f"Added this round ({{len(_rar_new_pts)}})")
                         _ax_c.set_yticks([]); _ax_c.set_ylim(-0.6, 2.6)
                         _ax_c.set_xlabel("x", fontsize={config.plot_axis_label_fontsize})
-                        _ax_c.legend(loc="best", fontsize=8)
+                        _ax_c.legend(loc="best", fontsize=_lfs(8))
                         _ax_c.set_title(f"RAR round {{_rar_idx}} -- collocation points")
                         plt.tight_layout()
                         plt.savefig(_os.path.join(_rd, "collocation_points.png"), dpi={config.plot_dpi}, bbox_inches="tight")
@@ -1809,7 +1809,7 @@ def _gs_rar_loop_code(config):
                             _ord_e = np.argsort(_ref_x_r)
                             _ref_plot(_ax_e, _ref_x_r[_ord_e], _ref_u_r[_ord_e], label="Reference", color=_PLOT_REF_COLOR)
                             _ax_e.plot(_ref_x_r[_ord_e], _ref_pred_r[_ord_e], label="PINN", color=_PLOT_PINN_COLOR, linestyle="--")
-                            _ax_e.legend(loc="best", fontsize=8)
+                            _ax_e.legend(loc="best", fontsize=_lfs(8))
                             _ax_e.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_e.set_ylabel("u", fontsize={config.plot_axis_label_fontsize})
                             _ax_e.set_title(f"RAR round {{_rar_idx}} -- PINN vs Reference  ({{_l2_txt(_l2_r)}})")
                             plt.tight_layout()
@@ -1862,6 +1862,7 @@ def _gs_rar_loop_code(config):
                         _rar_vmax = max(_rar_U_pinn.max(), _rar_U_ref.max())
                         if _rar_vmax - _rar_vmin < 1e-12:
                             _rar_vmax = _rar_vmin + 1e-12
+                        _rar_vmin, _rar_vmax = _vr(_rar_vmin, _rar_vmax)   # Plot settings -> Surface -> Colour range
                         _rar_levels = _cf_levels({config.plot_levels}, _rar_vmin, _rar_vmax)["levels"]
                         _fig_r, _axes_r = plt.subplots(1, 3, figsize=_plot_figsize(15, 5))
                         _rar_cols = [
@@ -1871,10 +1872,10 @@ def _gs_rar_loop_code(config):
                         ]
                         for _rci, (_rvals, _rttl, _rlv, _rcmap) in enumerate(_rar_cols):
                             if {config.plot_swap_xt}:
-                                _rim = _axes_r[_rci].contourf(_rar_Tg, _rar_Xg, _rvals, levels=_rlv, cmap=_rcmap)
+                                _rim = _axes_r[_rci].contourf(_rar_Tg, _rar_Xg, _rvals, levels=_rlv, cmap=_rcmap, extend=_vext(_rlv))
                                 _axes_r[_rci].set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); _axes_r[_rci].set_ylabel("x", fontsize={config.plot_axis_label_fontsize})
                             else:
-                                _rim = _axes_r[_rci].contourf(_rar_Xg.T, _rar_Tg.T, _rvals.T, levels=_rlv, cmap=_rcmap)
+                                _rim = _axes_r[_rci].contourf(_rar_Xg.T, _rar_Tg.T, _rvals.T, levels=_rlv, cmap=_rcmap, extend=_vext(_rlv))
                                 _axes_r[_rci].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _axes_r[_rci].set_ylabel("t", fontsize={config.plot_axis_label_fontsize})
                             _axes_r[_rci].set_title(_rttl, fontsize={config.plot_subplot_title_fontsize})
                             _fig_r.colorbar(_rim, ax=_axes_r[_rci])
@@ -1917,7 +1918,7 @@ def _gs_rar_loop_code(config):
                             _ax_c.scatter(_rar_added_so_far[:, 0], _rar_added_so_far[:, 1], s=10, c="#fd7e14", label="Added in earlier rounds")
                         _ax_c.scatter(_rar_new_pts[:, 0], _rar_new_pts[:, 1], s=14, c="#e03131", label=f"Added this round ({{len(_rar_new_pts)}})")
                         _ax_c.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_c.set_ylabel("t", fontsize={config.plot_axis_label_fontsize})
-                    _ax_c.legend(loc="best", fontsize=8)
+                    _ax_c.legend(loc="best", fontsize=_lfs(8))
                     _ax_c.set_title(f"RAR round {{_rar_idx}} -- collocation points")
                     plt.tight_layout()
                     plt.savefig(_os.path.join(_rd, "collocation_points.png"), dpi={config.plot_dpi}, bbox_inches="tight")
@@ -1956,7 +1957,7 @@ def _gs_rar_loop_code(config):
                         _ord_e = np.argsort(_ref_xyz_r[:, 0])
                         _ref_plot(_ax_e, _ref_xyz_r[_ord_e, 0], _ref_u_r[_ord_e], label="Reference", color=_PLOT_REF_COLOR)
                         _ax_e.plot(_ref_xyz_r[_ord_e, 0], _ref_pred_r[_ord_e], label="PINN", color=_PLOT_PINN_COLOR, linestyle="--")
-                        _ax_e.legend(loc="best", fontsize=8)
+                        _ax_e.legend(loc="best", fontsize=_lfs(8))
                         _ax_e.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_e.set_ylabel("u", fontsize={config.plot_axis_label_fontsize})
                         _ax_e.set_title(f"RAR round {{_rar_idx}} -- PINN vs Reference  t={{_fmt_num(_ref_t_r)}} ({{_l2_txt(_l2_r)}})")
                         plt.tight_layout()
@@ -2047,13 +2048,14 @@ def _gs_rar_loop_code(config):
                             _vmin2_r = np.nanmin([_u_pinn_g_r, _u_ref_g_r]); _vmax2_r = np.nanmax([_u_pinn_g_r, _u_ref_g_r])
                             if _vmax2_r - _vmin2_r < 1e-12:
                                 _vmax2_r = _vmin2_r + 1e-12
+                            _vmin2_r, _vmax2_r = _vr(_vmin2_r, _vmax2_r)   # Plot settings -> Surface -> Colour range
                             _levels2_r = _cf_levels({config.plot_levels}, _vmin2_r, _vmax2_r)["levels"]
                             _fig_r, _axes2_r = plt.subplots(1, 3, figsize=_plot_figsize(15, 5))
-                            _im0_r = _axes2_r[0].contourf(_Xg, _Yg, _u_pinn_g_r, levels=_levels2_r, cmap="{config.plot_colormap}")
+                            _im0_r = _axes2_r[0].contourf(_Xg, _Yg, _u_pinn_g_r, levels=_levels2_r, cmap="{config.plot_colormap}", extend=_vext())
                             _axes2_r[0].set_title(f"PINN  {{_l2_txt(_l2_r)}}", fontsize={config.plot_subplot_title_fontsize})
                             _axes2_r[0].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _axes2_r[0].set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _axes2_r[0].set_aspect("equal", adjustable="box")
                             _fig_r.colorbar(_im0_r, ax=_axes2_r[0], fraction=0.046, pad=0.04)
-                            _im1_r = _axes2_r[1].contourf(_Xg, _Yg, _u_ref_g_r, levels=_levels2_r, cmap="{config.plot_colormap}")
+                            _im1_r = _axes2_r[1].contourf(_Xg, _Yg, _u_ref_g_r, levels=_levels2_r, cmap="{config.plot_colormap}", extend=_vext())
                             _axes2_r[1].set_title("Reference", fontsize={config.plot_subplot_title_fontsize})
                             _axes2_r[1].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _axes2_r[1].set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _axes2_r[1].set_aspect("equal", adjustable="box")
                             _fig_r.colorbar(_im1_r, ax=_axes2_r[1], fraction=0.046, pad=0.04)
@@ -2092,7 +2094,7 @@ def _gs_rar_loop_code(config):
                             _ax_c.scatter(_rar_added_so_far[:, 0], _rar_added_so_far[:, 1], _rar_added_so_far[:, 2], s=9, c="#fd7e14", label="Added in earlier rounds")
                         _ax_c.scatter(_rar_new_pts[:, 0], _rar_new_pts[:, 1], _rar_new_pts[:, 2], s=12, c="#e03131", label=f"Added this round ({{len(_rar_new_pts)}})")
                         _ax_c.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_c.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _ax_c.set_zlabel("z", fontsize={config.plot_axis_label_fontsize}); [_tk.set_ticks(plt.matplotlib.ticker.MaxNLocator(nbins=4, steps=[1, 2, 5, 10]).tick_values(*_tk.get_data_interval())) for _tk in (_ax_c.xaxis, _ax_c.yaxis, _ax_c.zaxis)]
-                        _ax_c.legend(loc="best", fontsize=8)
+                        _ax_c.legend(loc="best", fontsize=_lfs(8))
                         _ax_c.set_title(f"RAR round {{_rar_idx}} -- collocation points")
                         plt.tight_layout()
                     else:
@@ -2103,7 +2105,7 @@ def _gs_rar_loop_code(config):
                             _ax_c.scatter(_rar_added_so_far[:, 0], _rar_added_so_far[:, 1], s=10, c="#fd7e14", label="Added in earlier rounds")
                         _ax_c.scatter(_rar_new_pts[:, 0], _rar_new_pts[:, 1], s=14, c="#e03131", label=f"Added this round ({{len(_rar_new_pts)}})")
                         _ax_c.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_c.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _ax_c.set_aspect("equal", adjustable="box")
-                        _ax_c.legend(loc="best", fontsize=8)
+                        _ax_c.legend(loc="best", fontsize=_lfs(8))
                         _ax_c.set_title(f"RAR round {{_rar_idx}} -- collocation points")
                         plt.tight_layout()
                     plt.savefig(_os.path.join(_rd, "collocation_points.png"), dpi={config.plot_dpi}, bbox_inches="tight")
@@ -2204,6 +2206,7 @@ def _gs_rar_loop_code(config):
                         _vmin2_r = np.nanmin([_u_pinn_g_r, _u_ref_g_r]); _vmax2_r = np.nanmax([_u_pinn_g_r, _u_ref_g_r])
                         if _vmax2_r - _vmin2_r < 1e-12:
                             _vmax2_r = _vmin2_r + 1e-12
+                        _vmin2_r, _vmax2_r = _vr(_vmin2_r, _vmax2_r)   # Plot settings -> Surface -> Colour range
                         # contourf's own vmin/vmax kwargs do NOT restrict
                         # an integer `levels=N` -- it still auto-ranges
                         # each panel to that panel's own data, so PINN and
@@ -2214,11 +2217,11 @@ def _gs_rar_loop_code(config):
                         # panels share one scale.
                         _levels2_r = _cf_levels({config.plot_levels}, _vmin2_r, _vmax2_r)["levels"]
                         _fig_r, _axes2_r = plt.subplots(1, 3, figsize=_plot_figsize(15, 5))
-                        _im0_r = _axes2_r[0].contourf(_Xg, _Yg, _u_pinn_g_r, levels=_levels2_r, cmap="{config.plot_colormap}")
+                        _im0_r = _axes2_r[0].contourf(_Xg, _Yg, _u_pinn_g_r, levels=_levels2_r, cmap="{config.plot_colormap}", extend=_vext())
                         _axes2_r[0].set_title(f"PINN  t={{_fmt_num(_ref_t_r)}}  {{_l2_txt(_l2_r)}}", fontsize={config.plot_subplot_title_fontsize})
                         _axes2_r[0].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _axes2_r[0].set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _axes2_r[0].set_aspect("equal", adjustable="box")
                         _fig_r.colorbar(_im0_r, ax=_axes2_r[0], fraction=0.046, pad=0.04)
-                        _im1_r = _axes2_r[1].contourf(_Xg, _Yg, _u_ref_g_r, levels=_levels2_r, cmap="{config.plot_colormap}")
+                        _im1_r = _axes2_r[1].contourf(_Xg, _Yg, _u_ref_g_r, levels=_levels2_r, cmap="{config.plot_colormap}", extend=_vext())
                         _axes2_r[1].set_title(f"Reference  t={{_fmt_num(_ref_t_r)}}", fontsize={config.plot_subplot_title_fontsize})
                         _axes2_r[1].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _axes2_r[1].set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _axes2_r[1].set_aspect("equal", adjustable="box")
                         _fig_r.colorbar(_im1_r, ax=_axes2_r[1], fraction=0.046, pad=0.04)
@@ -2265,7 +2268,7 @@ def _gs_rar_loop_code(config):
                         _ax_c.scatter(_rar_added_so_far[:, 0], _rar_added_so_far[:, 1], _rar_added_so_far[:, 2], s=9, c="#fd7e14", alpha=_added_alpha, label="Added in earlier rounds")
                     _ax_c.scatter(_rar_new_pts[:, 0], _rar_new_pts[:, 1], _rar_new_pts[:, 2], s=12, c="#e03131", label=f"Added this round ({{len(_rar_new_pts)}})")
                     _ax_c.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_c.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _ax_c.set_zlabel("z", fontsize={config.plot_axis_label_fontsize}); [_tk.set_ticks(plt.matplotlib.ticker.MaxNLocator(nbins=4, steps=[1, 2, 5, 10]).tick_values(*_tk.get_data_interval())) for _tk in (_ax_c.xaxis, _ax_c.yaxis, _ax_c.zaxis)]
-                    _ax_c.legend(loc="best", fontsize=8)
+                    _ax_c.legend(loc="best", fontsize=_lfs(8))
                     _ax_c.set_title(f"RAR round {{_rar_idx}} -- collocation points")
                     plt.tight_layout()
                 else:
@@ -2281,7 +2284,7 @@ def _gs_rar_loop_code(config):
                         _ax_c.scatter(_rar_added_so_far[:, 0], _rar_added_so_far[:, 1], _rar_added_so_far[:, 2], s=9, c="#fd7e14", alpha=0.85, label="Added in earlier rounds")
                     _ax_c.scatter(_rar_new_pts[:, 0], _rar_new_pts[:, 1], _rar_new_pts[:, 2], s=12, c="#e03131", label=f"Added this round ({{len(_rar_new_pts)}})")
                     _ax_c.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_c.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _ax_c.set_zlabel("t", fontsize={config.plot_axis_label_fontsize}); [_tk.set_ticks(plt.matplotlib.ticker.MaxNLocator(nbins=4, steps=[1, 2, 5, 10]).tick_values(*_tk.get_data_interval())) for _tk in (_ax_c.xaxis, _ax_c.yaxis, _ax_c.zaxis)]
-                    _ax_c.legend(loc="best", fontsize=8)
+                    _ax_c.legend(loc="best", fontsize=_lfs(8))
                     _ax_c.set_title("3D view (x, y, t)")
                     _ax_c2 = _fig_c.add_subplot(1, 2, 2)
                     if len(_rar_orig_pts):
@@ -2290,7 +2293,7 @@ def _gs_rar_loop_code(config):
                         _ax_c2.scatter(_rar_added_so_far[:, 0], _rar_added_so_far[:, 1], s=10, c="#fd7e14", alpha=0.85, label="Added in earlier rounds")
                     _ax_c2.scatter(_rar_new_pts[:, 0], _rar_new_pts[:, 1], s=14, c="#e03131", label=f"Added this round ({{len(_rar_new_pts)}})")
                     _ax_c2.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_c2.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _ax_c2.set_aspect("equal", adjustable="box")
-                    _ax_c2.legend(loc="best", fontsize=8)
+                    _ax_c2.legend(loc="best", fontsize=_lfs(8))
                     _ax_c2.set_title("Spatial view (x, y) -- all times")
                     _fig_c.suptitle(f"RAR round {{_rar_idx}} -- collocation points", fontsize={config.plot_title_fontsize}, fontweight="bold")
                     plt.tight_layout(rect=[0, 0, 1, 0.93])
@@ -3130,6 +3133,7 @@ if {config.time_adaptive}:
                         _tea_vmax = max(_tea_U_pinn.max(), _tea_U_ref.max())
                         if _tea_vmax - _tea_vmin < 1e-12:
                             _tea_vmax = _tea_vmin + 1e-12
+                        _tea_vmin, _tea_vmax = _vr(_tea_vmin, _tea_vmax)   # Plot settings -> Surface -> Colour range
                         _tea_levels = _cf_levels({config.plot_levels}, _tea_vmin, _tea_vmax)["levels"]
                         fig, axes_s = plt.subplots(1, 3, figsize=_plot_figsize(15, 5))
                         fig.suptitle(f"Step {{step_i+1}}: t = {{_fmt_num(t0)}} → {{_fmt_num(t1)}} -- PINN vs Reference", fontsize={config.plot_title_fontsize}, fontweight="bold")
@@ -3140,10 +3144,10 @@ if {config.time_adaptive}:
                         ]
                         for _tea_ci, (_tea_vals, _tea_ttl, _tea_lv, _tea_cmap) in enumerate(_tea_cols):
                             if {config.plot_swap_xt}:
-                                _tea_im = axes_s[_tea_ci].contourf(_tea_Tg, _tea_Xg, _tea_vals, levels=_tea_lv, cmap=_tea_cmap)
+                                _tea_im = axes_s[_tea_ci].contourf(_tea_Tg, _tea_Xg, _tea_vals, levels=_tea_lv, cmap=_tea_cmap, extend=_vext(_tea_lv))
                                 axes_s[_tea_ci].set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); axes_s[_tea_ci].set_ylabel("x", fontsize={config.plot_axis_label_fontsize})
                             else:
-                                _tea_im = axes_s[_tea_ci].contourf(_tea_Xg.T, _tea_Tg.T, _tea_vals.T, levels=_tea_lv, cmap=_tea_cmap)
+                                _tea_im = axes_s[_tea_ci].contourf(_tea_Xg.T, _tea_Tg.T, _tea_vals.T, levels=_tea_lv, cmap=_tea_cmap, extend=_vext(_tea_lv))
                                 axes_s[_tea_ci].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); axes_s[_tea_ci].set_ylabel("t", fontsize={config.plot_axis_label_fontsize})
                             axes_s[_tea_ci].set_title(_tea_ttl, fontsize={config.plot_subplot_title_fontsize})
                             fig.colorbar(_tea_im, ax=axes_s[_tea_ci])
@@ -3188,7 +3192,7 @@ if {config.time_adaptive}:
                         # evenly-spaced time sampling used below.
                         _tea_ncols = min({max(1, int(getattr(config, 'plot_ea_cols', 4) or 4))}, len(_step_matches))
                         _tea_nrows = (len(_step_matches) + _tea_ncols - 1) // _tea_ncols
-                        fig, axes = plt.subplots(_tea_nrows, _tea_ncols, figsize=(4*_tea_ncols, 3.5*_tea_nrows), squeeze=False)
+                        fig, axes = plt.subplots(_tea_nrows, _tea_ncols, figsize=_panel_figsize(4, 3.5, _tea_ncols, _tea_nrows), squeeze=False)
                         fig.suptitle(f"Step {{step_i+1}}: t = {{_fmt_num(t0)}} → {{_fmt_num(t1)}} -- PINN vs Reference", fontsize={config.plot_title_fontsize}, fontweight="bold")
                         _tea_ax_flat = axes.flatten()
                         for _mi, (_mtv, _mfp, _msel) in enumerate(_step_matches):
@@ -3209,7 +3213,7 @@ if {config.time_adaptive}:
                         for _mj in range(len(_step_matches), len(_tea_ax_flat)):
                             _tea_ax_flat[_mj].set_visible(False)
                         _tea_h, _tea_l = _tea_ax_flat[0].get_legend_handles_labels()
-                        fig.legend(_tea_h, _tea_l, loc="lower center", ncol=2, fontsize=9, framealpha=0.9, bbox_to_anchor=(0.5, 0.01))
+                        fig.legend(_tea_h, _tea_l, loc="lower center", ncol=2, fontsize=_lfs(9), framealpha=0.9, bbox_to_anchor=(0.5, 0.01))
                         plt.tight_layout(rect=[0, 0.06, 1, 1])
                     else:
                         n_steps_plot = {config.num_timesteps_line}
@@ -3223,7 +3227,7 @@ if {config.time_adaptive}:
                             ax.plot(_x_l2, _u_line, color=colors[_ci], linewidth={config.plot_linewidth}, label=f"t={{_fmt_num(_tv)}}")
                         ax.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel("u", fontsize={config.plot_axis_label_fontsize})
                         ax.set_title(f"Step {{step_i+1}}: t = {{_fmt_num(t0)}} → {{_fmt_num(t1)}}")
-                        ax.legend(loc="upper right", fontsize=7); _grid(ax, alpha=0.2)
+                        ax.legend(loc="upper right", fontsize=_lfs(7)); _grid(ax, alpha=0.2)
                         plt.tight_layout()
                     plt.savefig(_step_line_fname, dpi={config.plot_dpi}, bbox_inches="tight")
                     plt.close()
@@ -3254,6 +3258,7 @@ if {config.time_adaptive}:
                                 _tea_l2 = float(np.linalg.norm(_tea_pred - _tea_u) / (np.linalg.norm(_tea_u) + 1e-12))
                                 _tea_vmin = min(_tea_pred.min(), _tea_u.min())
                                 _tea_vmax = max(_tea_pred.max(), _tea_u.max())
+                                _tea_vmin, _tea_vmax = _vr(_tea_vmin, _tea_vmax)
                                 _tea_cols3 = [
                                     (_tea_pred, f"PINN  t={{_fmt_num(_mtv)}}  {{_l2_txt(_tea_l2)}}", _tea_vmin, _tea_vmax, "{config.plot_colormap}"),
                                     (_tea_u, f"Reference  t={{_mtv:.4f}}", _tea_vmin, _tea_vmax, "{config.plot_colormap}"),
@@ -3268,7 +3273,7 @@ if {config.time_adaptive}:
                                     _tea_ax.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _tea_ax.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _tea_ax.set_zlabel("z", fontsize={config.plot_axis_label_fontsize}); [_tk.set_ticks(plt.matplotlib.ticker.MaxNLocator(nbins=4, steps=[1, 2, 5, 10]).tick_values(*_tk.get_data_interval())) for _tk in (_tea_ax.xaxis, _tea_ax.yaxis, _tea_ax.zaxis)]
                             fig.suptitle(f"Step {{step_i+1}} -- PINN vs Reference", fontsize={config.plot_title_fontsize}, fontweight="bold")
                         else:
-                            fig, axes = plt.subplots(_tea_n, 3, figsize=(15, 4*_tea_n), squeeze=False)
+                            fig, axes = plt.subplots(_tea_n, 3, figsize=_panel_figsize(5, 4, 3, _tea_n), squeeze=False)
                             fig.suptitle(f"Step {{step_i+1}}: t = {{_fmt_num(t0)}} → {{_fmt_num(t1)}} -- PINN vs Reference", fontsize={config.plot_title_fontsize}, fontweight="bold")
                             _res_step = {config.plot_resolution}
                             _xg_s = np.linspace({config.x_min}, {config.x_max}, _res_step)
@@ -3292,6 +3297,7 @@ if {config.time_adaptive}:
                                 _tea_vmax = np.nanmax([_tea_u_pinn, _tea_u_ref])
                                 if _tea_vmax - _tea_vmin < 1e-12:
                                     _tea_vmax = _tea_vmin + 1e-12
+                                _tea_vmin, _tea_vmax = _vr(_tea_vmin, _tea_vmax)   # Plot settings -> Surface -> Colour range
                                 _tea_levels = _cf_levels({config.plot_levels}, _tea_vmin, _tea_vmax)["levels"]
                                 # Round 31: standardized on "|Error|  Max=..."
                                 # here -- matching every other per-panel error
@@ -3302,11 +3308,11 @@ if {config.time_adaptive}:
                                 # one of the inconsistent labels the user
                                 # reported.
                                 _tea_max_err = float(np.nanmax(_tea_u_err))
-                                im0 = axes[_mi][0].contourf(_Xg_s, _Yg_s, _tea_u_pinn, levels=_tea_levels, cmap="{config.plot_colormap}")
+                                im0 = axes[_mi][0].contourf(_Xg_s, _Yg_s, _tea_u_pinn, levels=_tea_levels, cmap="{config.plot_colormap}", extend=_vext())
                                 axes[_mi][0].set_title(f"PINN  t={{_fmt_num(_mtv)}}", fontsize={config.plot_subplot_title_fontsize})
                                 axes[_mi][0].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); axes[_mi][0].set_ylabel("y", fontsize={config.plot_axis_label_fontsize})
                                 fig.colorbar(im0, ax=axes[_mi][0])
-                                im1 = axes[_mi][1].contourf(_Xg_s, _Yg_s, _tea_u_ref, levels=_tea_levels, cmap="{config.plot_colormap}")
+                                im1 = axes[_mi][1].contourf(_Xg_s, _Yg_s, _tea_u_ref, levels=_tea_levels, cmap="{config.plot_colormap}", extend=_vext())
                                 axes[_mi][1].set_title(f"Reference  t={{_fmt_num(_mtv)}}", fontsize={config.plot_subplot_title_fontsize})
                                 axes[_mi][1].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); axes[_mi][1].set_ylabel("y", fontsize={config.plot_axis_label_fontsize})
                                 fig.colorbar(im1, ax=axes[_mi][1])
@@ -3527,7 +3533,7 @@ if {config.time_adaptive}:
                            else (f"u(x,y={line_slice_y:.3g},t)" if _is_2d else "u(x,t)"))
         ax.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_ylabel_ta_line, fontsize={config.plot_axis_label_fontsize})
         ax.set_title("Time-Adaptive PINN — Line Plot")
-        ax.legend(loc="upper right", fontsize=8); _grid(ax, alpha=0.2)
+        ax.legend(loc="upper right", fontsize=_lfs(8)); _grid(ax, alpha=0.2)
         plt.tight_layout(); plt.savefig(_ta_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
 
     # Full Time-Adaptive run -- every optimizer phase of every time
@@ -3730,7 +3736,7 @@ if {config.time_adaptive}:
             if {config.ea_do_line}:
                 _ea_ncols = min({max(1, int(getattr(config, 'plot_ea_cols', 4) or 4))}, _ea_n_t)
                 _ea_nrows = (_ea_n_t + _ea_ncols - 1) // _ea_ncols
-                fig, axes = plt.subplots(_ea_nrows, _ea_ncols, figsize=(4*_ea_ncols, 3.5*_ea_nrows), squeeze=False)
+                fig, axes = plt.subplots(_ea_nrows, _ea_ncols, figsize=_panel_figsize(4, 3.5, _ea_ncols, _ea_nrows), squeeze=False)
                 _ea_line_suptitle_ta = _ea_title_txt("Line Comparison", _ea_sel)
                 if _is_3d:
                     _ea_line_suptitle_ta += f" (y={{_fmt_num({line_slice_y!r})}}, z={{_fmt_num({line_slice_z!r})}})"
@@ -3837,7 +3843,7 @@ if {config.time_adaptive}:
                     ax.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel("u(x,t)", fontsize={config.plot_axis_label_fontsize}); _grid(ax, alpha=0.3)
                 for _ej in range(_ea_n_t, len(_ea_ax_flat)):
                     _ea_ax_flat[_ej].set_visible(False)
-                _ea_ax_flat[0].legend(loc='best', fontsize=10, framealpha=0.9)
+                _ea_ax_flat[0].legend(loc='best', fontsize=_lfs(10), framealpha=0.9)
                 plt.tight_layout()
                 _ea_lp = _os.path.join(_ea_dir, f"line_comparison{{_ea_suffix}}.png")
                 plt.savefig(_ea_lp, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
@@ -3852,7 +3858,7 @@ if {config.time_adaptive}:
                     _xg_ea = np.linspace({config.x_min}, {config.x_max}, _res_ea)
                     _yg_ea = np.linspace({config.y_min}, {config.y_max}, _res_ea)
                     _Xg_ea, _Yg_ea = np.meshgrid(_xg_ea, _yg_ea)
-                    fig, axes = plt.subplots(_ea_n_t, 3, figsize=(15, 4*_ea_n_t), squeeze=False)
+                    fig, axes = plt.subplots(_ea_n_t, 3, figsize=_panel_figsize(5, 4, 3, _ea_n_t), squeeze=False)
                     fig.suptitle(_ea_title_txt("2D Heatmaps", _ea_sel), fontsize={config.plot_title_fontsize}, fontweight='bold')
                     # Need step models to predict on grid — collect from step dirs
                     import glob as _ea_glob2, json as _ea_json2
@@ -3914,12 +3920,13 @@ if {config.time_adaptive}:
                         _vmax_ea = max(_u_pinn_grid.max(), _u_fem_grid.max())
                         if _vmax_ea - _vmin_ea < 1e-12:
                             _vmax_ea = _vmin_ea + 1e-12
+                        _vmin_ea, _vmax_ea = _vr(_vmin_ea, _vmax_ea)   # Plot settings -> Surface -> Colour range
                         _levels_ea2d = _cf_levels({config.plot_levels}, _vmin_ea, _vmax_ea)["levels"]  # contourf ignores vmin/vmax with an integer `levels=N` -- see the Standard-path comment on the same pattern above
-                        im0 = axes[_ei][0].contourf(_Xg_ea, _Yg_ea, _u_pinn_grid, levels=_levels_ea2d, cmap='{config.plot_colormap}')
+                        im0 = axes[_ei][0].contourf(_Xg_ea, _Yg_ea, _u_pinn_grid, levels=_levels_ea2d, cmap='{config.plot_colormap}', extend=_vext())
                         axes[_ei][0].set_title(f"PINN  t={{_fmt_num(_ea_tv)}}  {{_l2_txt(_l2)}}", fontsize={config.plot_subplot_title_fontsize})
                         axes[_ei][0].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); axes[_ei][0].set_ylabel("y", fontsize={config.plot_axis_label_fontsize})
                         fig.colorbar(im0, ax=axes[_ei][0])
-                        im1 = axes[_ei][1].contourf(_Xg_ea, _Yg_ea, _u_fem_grid, levels=_levels_ea2d, cmap='{config.plot_colormap}')
+                        im1 = axes[_ei][1].contourf(_Xg_ea, _Yg_ea, _u_fem_grid, levels=_levels_ea2d, cmap='{config.plot_colormap}', extend=_vext())
                         axes[_ei][1].set_title(f"Reference  t={{_fmt_num(_ea_tv)}}", fontsize={config.plot_subplot_title_fontsize})
                         axes[_ei][1].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); axes[_ei][1].set_ylabel("y", fontsize={config.plot_axis_label_fontsize})
                         fig.colorbar(im1, ax=axes[_ei][1])
@@ -3947,7 +3954,7 @@ if {config.time_adaptive}:
                     _corners_ta = [(_bx0_ta,_by0_ta,_bz0_ta),(_bx1_ta,_by0_ta,_bz0_ta),(_bx1_ta,_by1_ta,_bz0_ta),(_bx0_ta,_by1_ta,_bz0_ta),
                                     (_bx0_ta,_by0_ta,_bz1_ta),(_bx1_ta,_by0_ta,_bz1_ta),(_bx1_ta,_by1_ta,_bz1_ta),(_bx0_ta,_by1_ta,_bz1_ta)]
                     _edges_ta = [(0,1),(1,2),(2,3),(3,0),(4,5),(5,6),(6,7),(7,4),(0,4),(1,5),(2,6),(3,7)]
-                    fig = plt.figure(figsize=(15, 4.5 * _ea_n_t))
+                    fig = plt.figure(figsize=_panel_figsize(5, 4.5, 3, _ea_n_t))
                     fig.suptitle(_ea_title_txt("3D Comparison", _ea_sel), fontsize={config.plot_title_fontsize}, fontweight='bold')
                     for _ei, _ea_tv in enumerate(_ea_times):
                         _ea_tv_r, _l2, _mse, _mx, _ma = _ea_metrics[_ei]
@@ -4016,13 +4023,14 @@ if {config.time_adaptive}:
                     _ea_vmax = max(_ea_U_pinn.max(), _ea_U_fem.max())
                     if _ea_vmax - _ea_vmin < 1e-12:
                         _ea_vmax = _ea_vmin + 1e-12
+                    _ea_vmin, _ea_vmax = _vr(_ea_vmin, _ea_vmax)   # Plot settings -> Surface -> Colour range
                     _levels_ea1d = _cf_levels({config.plot_levels}, _ea_vmin, _ea_vmax)["levels"]  # contourf ignores vmin/vmax with an integer `levels=N` -- see the Standard-path comment on the same pattern above
-                    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+                    fig, axes = plt.subplots(1, 3, figsize=_panel_figsize(5, 5, 3, 1))
                     fig.suptitle(_ea_title_txt("Surface Comparison", _ea_sel), fontsize={config.plot_title_fontsize}, fontweight='bold')
-                    im0 = axes[0].contourf(_ea_Tg, _ea_Xg, _ea_U_pinn, levels=_levels_ea1d, cmap='{config.plot_colormap}')
+                    im0 = axes[0].contourf(_ea_Tg, _ea_Xg, _ea_U_pinn, levels=_levels_ea1d, cmap='{config.plot_colormap}', extend=_vext())
                     axes[0].set_title(f"PINN  {{_ea_field_txt(_ea_sel)}}(x,t)"); axes[0].set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); axes[0].set_ylabel("x", fontsize={config.plot_axis_label_fontsize})
                     fig.colorbar(im0, ax=axes[0])
-                    im1 = axes[1].contourf(_ea_Tg, _ea_Xg, _ea_U_fem, levels=_levels_ea1d, cmap='{config.plot_colormap}')
+                    im1 = axes[1].contourf(_ea_Tg, _ea_Xg, _ea_U_fem, levels=_levels_ea1d, cmap='{config.plot_colormap}', extend=_vext())
                     axes[1].set_title(f"Reference  {{_ea_field_txt(_ea_sel)}}(x,t)"); axes[1].set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); axes[1].set_ylabel("x", fontsize={config.plot_axis_label_fontsize})
                     fig.colorbar(im1, ax=axes[1])
                     im2 = axes[2].contourf(_ea_Tg, _ea_Xg, _ea_U_err, levels={config.plot_levels}, cmap='{err_cmap(config)}')
@@ -4980,7 +4988,7 @@ if not torch.cuda.is_available() and str(getattr(torch, "get_default_device", la
 # applied to the multi-column Error Analysis comparison grids (sized by
 # however many files/columns are being compared) or the domain-sampling
 # preview plots (sized to the problem's own geometry).
-{_figsize_helper_code(config.plot_figsize_mode, config.plot_figsize_w, config.plot_figsize_h, getattr(config, "plot_grid", True), getattr(config, "plot_ref_style", "line"), number_settings(config), line_colors(config), font_sizes(config), anim_dpi(config))}
+{_figsize_helper_code(config.plot_figsize_mode, config.plot_figsize_w, config.plot_figsize_h, getattr(config, "plot_grid", True), getattr(config, "plot_ref_style", "line"), number_settings(config), line_colors(config), font_sizes(config), anim_dpi(config), plot_extras(config))}
 
 # Shared-color-scale contourf levels (see codegen.py's _contour_levels_helper_code).
 {_contour_levels_helper_code()}
@@ -6958,7 +6966,7 @@ for _pval in _param_values:
                         # per-quad rendering). A user who explicitly lowers
                         # plot_resolution below this cap still gets an even
                         # coarser/faster 3D GIF, same as every other plot type.
-                        _res3a = min({config.plot_resolution}, 40)
+                        _res3a = {res_3d(config)}   # Plot settings -> Surface -> 3D grid resolution
                         _bbox3a = np.asarray(geom.bbox)
                         _cx0a, _cy0a, _cz0a = _bbox3a[0]; _cx1a, _cy1a, _cz1a = _bbox3a[1]
                         _xg3a = np.linspace(_cx0a, _cx1a, _res3a)
@@ -7175,7 +7183,7 @@ for _pval in _param_values:
                         _u_l2d = _extract_plot_field(_xyt_l2d).flatten()
                         ax.plot(*_line_gaps(_x_l2d, _u_l2d), color=_colors_l2d[_i_l2d], linewidth={config.plot_linewidth}, label=f"t = {{_fmt_num(_tv_l2d)}}")
                     ax.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or f"{{out_name}}(x,y={{_fmt_num({line_slice_y!r})}},t)", fontsize={config.plot_axis_label_fontsize})
-                    ax.legend(loc="upper right", fontsize=8); _grid(ax, alpha=0.2)
+                    ax.legend(loc="upper right", fontsize=_lfs(8)); _grid(ax, alpha=0.2)
                 ax.set_title(_plot_title_override or f"PINN Solution — {{out_name}}(x,y={{_fmt_num({line_slice_y!r})}},t)", fontsize={config.plot_title_fontsize})
                 plt.tight_layout(); plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
             elif _is_2d:
@@ -7285,7 +7293,7 @@ for _pval in _param_values:
                         _u_l3d = _extract_plot_field(_xyzt_l3d).flatten()
                         ax.plot(*_line_gaps(_x_l3d, _u_l3d), color=_colors_l3d[_i_l3d], linewidth={config.plot_linewidth}, label=f"t = {{_fmt_num(_tv_l3d)}}")
                     ax.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or f"{{out_name}}(x,y={{_fmt_num({line_slice_y!r})}},z={{_fmt_num({line_slice_z!r})}},t)", fontsize={config.plot_axis_label_fontsize})
-                    ax.legend(loc="upper right", fontsize=8); _grid(ax, alpha=0.2)
+                    ax.legend(loc="upper right", fontsize=_lfs(8)); _grid(ax, alpha=0.2)
                 ax.set_title(_plot_title_override or f"PINN Solution — {{out_name}}(x,y={{_fmt_num({line_slice_y!r})}},z={{_fmt_num({line_slice_z!r})}},t)", fontsize={config.plot_title_fontsize})
                 plt.tight_layout(); plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
             elif _is_3d:
@@ -7385,7 +7393,7 @@ for _pval in _param_values:
                     ax.set_title(_plot_title_override or (f"PINN Solution — {{_param_name}}={{_pval}}" if _parametric
                                   else (f"PINN Solution — {{_out_name_line}}(x,t)" if _plot_n_out > 1 or _plot_custom_expr.strip() else "PINN Solution")),
                                  fontsize={config.plot_title_fontsize})
-                    ax.legend(loc="upper right", fontsize=8); _grid(ax, alpha=0.2)
+                    ax.legend(loc="upper right", fontsize=_lfs(8)); _grid(ax, alpha=0.2)
                     plt.tight_layout(); plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
 
         _plot_idx, _run_solution_path = _plot_main_job
@@ -7661,7 +7669,7 @@ for _pval in _param_values:
                     # error; several times: one panel each, one figure title.
                     _ea_single = _ea_n_t == 1
                     fig, axes = plt.subplots(_ea_nrows, _ea_ncols, squeeze=False,
-                                             figsize=(6, 4.5) if _ea_single else (4.5*_ea_ncols, 3.8*_ea_nrows))
+                                             figsize=_panel_figsize(6, 4.5, 1, 1) if _ea_single else _panel_figsize(4.5, 3.8, _ea_ncols, _ea_nrows))
                     _ea_line_suptitle = _ea_title_txt("Line Comparison", _ea_sel)
                     _ea_line_head = _ea_line_suptitle.replace(" — Line Comparison", "")
                     if _is_3d:
@@ -7762,7 +7770,7 @@ for _pval in _param_values:
                     for _ej in range(_ea_n_t, len(_ea_ax_flat)):
                         _ea_ax_flat[_ej].set_visible(False)
                     # Legend inside the (first) panel, in its emptiest corner.
-                    _ea_ax_flat[0].legend(loc='best', fontsize=10, framealpha=0.9)
+                    _ea_ax_flat[0].legend(loc='best', fontsize=_lfs(10), framealpha=0.9)
                     plt.tight_layout()
                     _ea_lp = _os.path.join(_ea_dir, f"line_comparison{{_ea_suffix}}.png")
                     plt.savefig(_ea_lp, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
@@ -7784,7 +7792,7 @@ for _pval in _param_values:
                         # looking colored surface, matching the smoothness of
                         # the 2D contourf plots above.
                         from scipy.interpolate import griddata as _gd3
-                        fig = plt.figure(figsize=(15, 4.5 * _ea_n_t))
+                        fig = plt.figure(figsize=_panel_figsize(5, 4.5, 3, _ea_n_t))
                         fig.suptitle(_ea_title_txt("3D Surface Comparison", _ea_sel), fontsize={config.plot_title_fontsize}, fontweight='bold')
                         _geom_bbox_ea = np.asarray(geom.bbox)
                         _bx0, _by0, _bz0 = _geom_bbox_ea[0]
@@ -7798,7 +7806,7 @@ for _pval in _param_values:
                         # doesn't scale the way the 2D Error Analysis surface
                         # comparison (which does use contourf, and already
                         # read plot_resolution directly) does.
-                        _res3_ea = min({config.plot_resolution}, 40)
+                        _res3_ea = {res_3d(config)}   # Plot settings -> Surface -> 3D grid resolution
                         _xg3_ea = np.linspace(_bx0, _bx1, _res3_ea)
                         _yg3_ea = np.linspace(_by0, _by1, _res3_ea)
                         _zg3_ea = np.linspace(_bz0, _bz1, _res3_ea)
@@ -7858,6 +7866,7 @@ for _pval in _param_values:
                                 _gt_faces_ea.append(_fgt_ea)
                             _vmin3_ea = min(min(_f.min() for _f in _pinn_faces_ea), min(_f.min() for _f in _gt_faces_ea))
                             _vmax3_ea = max(max(_f.max() for _f in _pinn_faces_ea), max(_f.max() for _f in _gt_faces_ea))
+                            _vmin3_ea, _vmax3_ea = _vr(_vmin3_ea, _vmax3_ea)
                             _err_faces_ea = [np.abs(_pf_ea - _gf_ea) for _pf_ea, _gf_ea in zip(_pinn_faces_ea, _gt_faces_ea)]
                             _vmax_err_ea = max(_f.max() for _f in _err_faces_ea)
                             # See the matching comment on the Line comparison
@@ -7895,7 +7904,7 @@ for _pval in _param_values:
                         # own boundary (geom.on_boundary()), predicted and
                         # compared directly (no interpolation needed), with a
                         # wireframe box from geom.bbox for spatial context.
-                        fig = plt.figure(figsize=(15, 4.5 * _ea_n_t))
+                        fig = plt.figure(figsize=_panel_figsize(5, 4.5, 3, _ea_n_t))
                         fig.suptitle(_ea_title_txt("3D Surface Comparison", _ea_sel), fontsize={config.plot_title_fontsize}, fontweight='bold')
                         _geom_bbox_ea = np.asarray(geom.bbox)
                         _bx0, _by0, _bz0 = _geom_bbox_ea[0]
@@ -7959,7 +7968,7 @@ for _pval in _param_values:
                     elif _is_2d:
                         # 2D: 3 columns (PINN | Reference | Error), one row per time snapshot
                         fig, axes = plt.subplots(_ea_n_t, 3,
-                                                 figsize=(15, 4*_ea_n_t), squeeze=False)
+                                                 figsize=_panel_figsize(5, 4, 3, _ea_n_t), squeeze=False)
                         fig.suptitle(_ea_title_txt("2D Heatmaps", _ea_sel), fontsize={config.plot_title_fontsize}, fontweight='bold')
                         _res_ea = {config.plot_resolution}
                         _xg_ea = np.linspace({config.x_min}, {config.x_max}, _res_ea)
@@ -7993,6 +8002,7 @@ for _pval in _param_values:
                             _vmax_ea = np.nanmax([_u_pinn_grid, _u_fem_grid])
                             if _vmax_ea - _vmin_ea < 1e-12:
                                 _vmax_ea = _vmin_ea + 1e-12
+                            _vmin_ea, _vmax_ea = _vr(_vmin_ea, _vmax_ea)   # Plot settings -> Surface -> Colour range
                             # contourf's own vmin/vmax kwargs do NOT constrain
                             # an integer `levels=N` -- each panel still
                             # auto-ranges to its own data, so PINN and Ground
@@ -8003,7 +8013,7 @@ for _pval in _param_values:
                             _levels_ea2d = _cf_levels({config.plot_levels}, _vmin_ea, _vmax_ea)["levels"]
                             # Column 0: PINN
                             im0 = axes[_ei][0].contourf(_Xg_ea, _Yg_ea, _u_pinn_grid, levels=_levels_ea2d,
-                                                         cmap='{config.plot_colormap}')
+                                                         cmap='{config.plot_colormap}', extend=_vext())
                             # Steady-state has no time axis -- see the
                             # matching comment on the Line comparison title
                             # above -- so "t=..." is dropped from every
@@ -8013,7 +8023,7 @@ for _pval in _param_values:
                             fig.colorbar(im0, ax=axes[_ei][0])
                             # Column 1: Reference
                             im1 = axes[_ei][1].contourf(_Xg_ea, _Yg_ea, _u_fem_grid, levels=_levels_ea2d,
-                                                         cmap='{config.plot_colormap}')
+                                                         cmap='{config.plot_colormap}', extend=_vext())
                             axes[_ei][1].set_title(("Reference" if _is_steady else f"Reference  t={{_fmt_num(_ea_tv)}}"), fontsize={config.plot_subplot_title_fontsize})
                             axes[_ei][1].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); axes[_ei][1].set_ylabel("y", fontsize={config.plot_axis_label_fontsize})
                             fig.colorbar(im1, ax=axes[_ei][1])
@@ -8059,13 +8069,14 @@ for _pval in _param_values:
                         _ea_vmax = max(_ea_U_pinn.max(), _ea_U_fem.max())
                         if _ea_vmax - _ea_vmin < 1e-12:
                             _ea_vmax = _ea_vmin + 1e-12
+                        _ea_vmin, _ea_vmax = _vr(_ea_vmin, _ea_vmax)   # Plot settings -> Surface -> Colour range
                         _levels_ea1d = _cf_levels({config.plot_levels}, _ea_vmin, _ea_vmax)["levels"]  # see the matching comment above -- contourf ignores vmin/vmax with an integer `levels=N`
-                        fig, axes_s = plt.subplots(1, 3, figsize=(15, 5))
+                        fig, axes_s = plt.subplots(1, 3, figsize=_panel_figsize(5, 5, 3, 1))
                         fig.suptitle(_ea_title_txt("Surface Comparison", _ea_sel), fontsize={config.plot_title_fontsize}, fontweight='bold')
-                        im0 = axes_s[0].contourf(_ea_Tg, _ea_Xg, _ea_U_pinn, levels=_levels_ea1d, cmap='{config.plot_colormap}')
+                        im0 = axes_s[0].contourf(_ea_Tg, _ea_Xg, _ea_U_pinn, levels=_levels_ea1d, cmap='{config.plot_colormap}', extend=_vext())
                         axes_s[0].set_title(f"PINN  {{_ea_field_txt(_ea_sel)}}(x,t)"); axes_s[0].set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); axes_s[0].set_ylabel("x", fontsize={config.plot_axis_label_fontsize})
                         fig.colorbar(im0, ax=axes_s[0])
-                        im1 = axes_s[1].contourf(_ea_Tg, _ea_Xg, _ea_U_fem, levels=_levels_ea1d, cmap='{config.plot_colormap}')
+                        im1 = axes_s[1].contourf(_ea_Tg, _ea_Xg, _ea_U_fem, levels=_levels_ea1d, cmap='{config.plot_colormap}', extend=_vext())
                         axes_s[1].set_title(f"Reference  {{_ea_field_txt(_ea_sel)}}(x,t)"); axes_s[1].set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); axes_s[1].set_ylabel("x", fontsize={config.plot_axis_label_fontsize})
                         fig.colorbar(im1, ax=axes_s[1])
                         im2 = axes_s[2].contourf(_ea_Tg, _ea_Xg, _ea_U_err, levels={config.plot_levels}, cmap='{err_cmap(config)}')
@@ -8087,7 +8098,7 @@ for _pval in _param_values:
                         _res_sl = min({config.plot_resolution}, 120)
                         _Xs_sl, _Ys_sl = np.meshgrid(np.linspace(_bb_sl[0][0], _bb_sl[1][0], _res_sl),
                                                      np.linspace(_bb_sl[0][1], _bb_sl[1][1], _res_sl))
-                        fig, _axs_sl = plt.subplots(_ea_n_t, 3, figsize=(15, 4.2 * _ea_n_t), squeeze=False)
+                        fig, _axs_sl = plt.subplots(_ea_n_t, 3, figsize=_panel_figsize(5, 4.2, 3, _ea_n_t), squeeze=False)
                         fig.suptitle(_ea_title_txt(f"Slice z = {{_fmt_num(_zs_sl)}}", _ea_sel), fontsize={config.plot_title_fontsize}, fontweight='bold')
                         for _ei, _ea_tv in enumerate(_ea_times):
                             _ea_tv_r, _l2, _mse, _mx, _ma = _ea_metrics[_ei]
@@ -8107,6 +8118,7 @@ for _pval in _param_values:
                                 _g_sl[np.isnan(_g_sl)] = _gd_sl(_xy_sl, _ea_u_refs[_ei][_m_sl], (_Xs_sl, _Ys_sl), method='nearest')[np.isnan(_g_sl)]
                             _e_sl = np.abs(_p_sl - _g_sl)
                             _lo_sl = min(_p_sl.min(), _g_sl.min()); _hi_sl = max(_p_sl.max(), _g_sl.max(), _lo_sl + 1e-12)
+                            _lo_sl, _hi_sl = _vr(_lo_sl, _hi_sl)
                             _lv_sl = _cf_levels({config.plot_levels}, _lo_sl, _hi_sl)["levels"]
                             _tt_sl = "" if _is_steady else f"t={{_ea_tv:.3f}}  "
                             for _c_sl, (_v_sl, _ttl_sl, _lev_sl) in enumerate((
@@ -8114,7 +8126,7 @@ for _pval in _param_values:
                                     (_g_sl, f"Reference  {{_tt_sl}}".rstrip(), _lv_sl),
                                     (_e_sl, f"|Error|  {{_tt_sl}}max = {{_sci_txt(float(_e_sl.max()))}}", {config.plot_levels}))):
                                 _ax_sl = _axs_sl[_ei][_c_sl]
-                                _im_sl = _ax_sl.contourf(_Xs_sl, _Ys_sl, _v_sl, levels=_lev_sl,
+                                _im_sl = _ax_sl.contourf(_Xs_sl, _Ys_sl, _v_sl, levels=_lev_sl, extend=_vext(_lev_sl),
                                                          cmap=('{err_cmap(config)}' if _c_sl == 2 else '{config.plot_colormap}'))
                                 fig.colorbar(_im_sl, ax=_ax_sl)
                                 _ax_sl.set_title(_ttl_sl, fontsize={config.plot_subplot_title_fontsize})
@@ -9093,6 +9105,38 @@ def font_sizes(src):
             f("plot_axis_label_fontsize", "axis_label_fontsize", d=10.0))
 
 
+def plot_extras(src):
+    """(legend font size, fixed colour range or None) for the scripts'
+    helpers, from a config or a Plot settings dict."""
+    g = (src.get if isinstance(src, dict) else (lambda k, d=None: getattr(src, k, d)))
+    try:
+        lfs = float(g("plot_legend_fontsize", None) or g("legend_fontsize", None) or 0.0)
+    except (TypeError, ValueError):
+        lfs = 0.0
+    auto = g("plot_auto_range", None)
+    if auto is None:
+        auto = g("auto_range", True)
+    vr = None
+    if not auto:
+        try:
+            lo = float(g("plot_vmin", None) if g("plot_vmin", None) is not None else g("vmin", -1.0))
+            hi = float(g("plot_vmax", None) if g("plot_vmax", None) is not None else g("vmax", 1.0))
+            if hi > lo:
+                vr = (lo, hi)
+        except (TypeError, ValueError):
+            vr = None
+    return (lfs, vr)
+
+
+def res_3d(src):
+    """Points per side of the 3D surfaces (Plot settings -> Surface)."""
+    g = (src.get if isinstance(src, dict) else (lambda k, d=None: getattr(src, k, d)))
+    try:
+        return max(10, int(g("plot_resolution_3d", None) or g("resolution_3d", None) or 40))
+    except (TypeError, ValueError):
+        return 40
+
+
 def anim_dpi(src):
     """Resolution of the saved animations (Plot settings -> Animation)."""
     g = (src.get if isinstance(src, dict) else (lambda k, d=None: getattr(src, k, d)))
@@ -9102,7 +9146,8 @@ def anim_dpi(src):
         return 150
 
 
-def _figsize_helper_code(mode, w, h, grid=True, ref_style="line", numbers=None, colors=None, fonts=None, dpi_anim=150):
+def _figsize_helper_code(mode, w, h, grid=True, ref_style="line", numbers=None, colors=None, fonts=None, dpi_anim=150,
+                         extras=None):
     """Builds the literal Python source for a module-level `_plot_figsize(
     default_w, default_h)` helper -- the Round 31 Plot Settings figure-size
     standardization, called at every single-panel plot site in place of a
@@ -9120,9 +9165,9 @@ def _figsize_helper_code(mode, w, h, grid=True, ref_style="line", numbers=None, 
     cleanup Round 39). Previously this exact block existed as 5 separate
     hand-typed copies; this is now the only one.
 
-    Deliberately NOT applied to the multi-column Error Analysis comparison
-    grids (sized by however many files/columns are being compared) or the
-    domain-sampling preview plots (sized to the problem's own geometry)."""
+    The multi-panel Error Analysis grids use _panel_figsize(), which scales
+    each panel the way this scales a single 7 x 5 figure. The domain-sampling
+    preview plots keep their own size (sized to the problem's geometry)."""
     return f'''def _plot_figsize(_default_w, _default_h):
     _fs_mode = {mode!r}
     if _fs_mode == "Square":
@@ -9139,7 +9184,28 @@ _PLOT_REF_DOTS = {ref_style == "dots"!r}
 _PLOT_SIG, _PLOT_SCI, _PLOT_SCI_STYLE = {tuple(numbers or (4, "auto", "times"))!r}
 _PLOT_PINN_COLOR, _PLOT_REF_COLOR = {tuple(colors or ("#ff6b6b", "#4dabf7"))!r}
 _PLOT_FONTS = {tuple(fonts or (13.0, 10.0, 10.0))!r}
-_PLOT_DPI_ANIM = {int(dpi_anim)}''' + _PLOT_TEXT_HELPERS
+_PLOT_DPI_ANIM = {int(dpi_anim)}
+_PLOT_LEGEND_FS, _PLOT_VRANGE = {tuple(extras or (0.0, None))!r}
+
+def _lfs(_d):
+    # legend font size: the one set in Plot settings, or this figure's own
+    return _PLOT_LEGEND_FS if _PLOT_LEGEND_FS else _d
+
+def _vr(_lo, _hi):
+    # colour range of the PINN and reference panels: fixed in Plot settings,
+    # or the data's own
+    return tuple(_PLOT_VRANGE) if _PLOT_VRANGE else (_lo, _hi)
+
+def _vext(_levels=None):
+    # contour colours beyond a fixed colour range: arrows on the colorbar
+    # (an error panel, given a number of levels, keeps its own range)
+    return "both" if (_PLOT_VRANGE and not isinstance(_levels, int)) else "neither"
+
+def _panel_figsize(_pw, _ph, _ncols, _nrows):
+    # a figure of _ncols x _nrows panels of _pw x _ph inches, scaled as the
+    # Figure size setting scales a single 7 x 5 figure
+    _fw, _fh = _plot_figsize(7.0, 5.0)
+    return (_pw * _ncols * _fw / 7.0, _ph * _nrows * _fh / 5.0)''' + _PLOT_TEXT_HELPERS
 
 
 _PLOT_TEXT_HELPERS = """
@@ -9645,7 +9711,7 @@ def _clean_figsize_runtime_code(config):
     from a PINNConfig."""
     return _figsize_helper_code(config.plot_figsize_mode, config.plot_figsize_w, config.plot_figsize_h,
                                 getattr(config, "plot_grid", True), getattr(config, "plot_ref_style", "line"),
-                                number_settings(config), line_colors(config), font_sizes(config), anim_dpi(config))
+                                number_settings(config), line_colors(config), font_sizes(config), anim_dpi(config), plot_extras(config))
 
 
 def _restore_line_plot_code(x_min, x_max, resolution, t_min, t_max, n_steps, colormap,
@@ -9745,7 +9811,7 @@ else:
 {pre_xt_lines}{xt_branch}        u_line = _extract_plot_field(xt{predict_model_arg}).flatten(){line_label_stmt}
         ax.plot(*_line_gaps(x_vals, u_line), color=colors[i], linewidth={linewidth}, {line_label_arg})
     ax.set_xlabel({xlabel!r}, fontsize={axis_label_fontsize}); ax.set_ylabel({ylabel!r}, fontsize={axis_label_fontsize})
-    ax.legend(loc="upper right", fontsize=8); _grid(ax, alpha=0.2)
+    ax.legend(loc="upper right", fontsize=_lfs(8)); _grid(ax, alpha=0.2)
 ax.set_title({title!r}, fontsize={subplot_title_fontsize})
 plt.tight_layout()
 out_path = os.path.join({save_dir!r}, "restored_plot.png")
@@ -9852,7 +9918,7 @@ def _restore_anim_surface_code(x_min, x_max, y_min, y_max, t_min, t_max, n_steps
                                 show_colorbar, levels, swap_xt, axis_label_fontsize, fps, save_dir,
                                 xlabel_animsurf3d, ylabel_animsurf3d, animsurf_title_line_3d,
                                 xlabel_animsurf_else, ylabel_animsurf_else, animsurf_title_line_else,
-                                is_time_adaptive, resolution=80):
+                                is_time_adaptive, resolution=80, res3d=40):
     """Builds the "Animation Surface (GIF)" branch shared between
     main_window.py's single-model restore (_build_restore_script) and its
     Time-Adaptive counterpart (_build_restore_script_ta) -- cleanup Round
@@ -9880,7 +9946,7 @@ def _restore_anim_surface_code(x_min, x_max, y_min, y_max, t_min, t_max, n_steps
     which neither original copy had -- the same geom.inside(...)
     convention the static Surface plot (_restore_surface_code) uses."""
     res = max(10, int(resolution))     # Plot settings -> Surface -> Grid resolution
-    res3 = min(res, 40)                # 3D surfaces are capped, as in Solve's animations
+    res3 = max(10, int(res3d))         # Plot settings -> Surface -> 3D grid resolution
     if is_time_adaptive:
         comment_3d = ""
         bbox3a_expr = "_ta_build_geomtime(t_frames[0], t_frames[0]).geometry.bbox"
@@ -10067,7 +10133,7 @@ def _restore_surface_code(resolution, x_min, x_max, y_min, y_max, t_min, t_max, 
                           linewidth, title_fontsize, subplot_title_fontsize, axis_label_fontsize,
                           save_dir, dpi, xlabel_3d, ylabel_3d, title_3d, xlabel_2d, ylabel_2d,
                           title_2d, xlabel_1d, ylabel_1d, title_1d, xlabel_1d_steady,
-                          ylabel_1d_steady, title_1d_steady, is_time_adaptive):
+                          ylabel_1d_steady, title_1d_steady, is_time_adaptive, res3d=40):
     """Builds the static "Surface" branch shared between main_window.py's
     single-model restore (_build_restore_script) and its Time-Adaptive
     counterpart (_build_restore_script_ta) -- cleanup Round 45 (audit §2e,
@@ -10285,7 +10351,7 @@ x_vals = np.linspace({x_min}, {x_max}, res)
 y_vals = np.linspace({y_min}, {y_max}, res)
 {suptitle_note}_had_suptitle = False
 if is_3d:
-{comment_3d}    _res3 = max(24, res // 2)
+{comment_3d}    _res3 = {max(10, int(res3d))}   # Plot settings -> Surface -> 3D grid resolution
     _bbox3 = np.asarray({bbox3_expr})
     _cx0, _cy0, _cz0 = _bbox3[0]; _cx1, _cy1, _cz1 = _bbox3[1]
     _xg3 = np.linspace(_cx0, _cx1, _res3)
@@ -10556,7 +10622,7 @@ for ri, (rar_state, rar_new) in enumerate(rar_rounds, start=1):
               (rar_new, "#e03131", f"Round {{ri}} ({{len(rar_new)}})", 16)]
 {scatter}
     ax.set_title(f"RAR collocation points -- round {{ri}}")
-    ax.legend(fontsize=8)
+    ax.legend(fontsize=_lfs(8))
     plt.tight_layout(); plt.savefig(os.path.join(rd, "collocation_points.png"), dpi={config.plot_dpi}); plt.close()
 {snap}
     plt.tight_layout(); plt.savefig(os.path.join(rd, "solution_plot.png"), dpi={config.plot_dpi}); plt.close()
@@ -11970,7 +12036,7 @@ else:
         u_line = _extract_plot_field(xyt).flatten()
         ax.plot(*_line_gaps(x_l2d, u_line), color=colors[i], linewidth={config.plot_linewidth}, label=f"t = {{_fmt_num(tv)}}")
     ax.set_xlabel({(plot_xlabel_override or "x")!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel({(plot_ylabel_override or f"{out_name}(x, y={fmt_num(line_slice_y, number_settings(config))}, t)")!r}, fontsize={config.plot_axis_label_fontsize})
-    ax.legend(loc="upper right", fontsize=8); _grid(ax, alpha=0.2)
+    ax.legend(loc="upper right", fontsize=_lfs(8)); _grid(ax, alpha=0.2)
 ax.set_title({(plot_title_override or "PINN Solution")!r})
 plt.tight_layout()
 plt.savefig(solution_path, dpi={config.plot_dpi}, bbox_inches="tight")
@@ -12027,7 +12093,7 @@ else:
         u_line = _extract_plot_field(xyzt).flatten()
         ax.plot(*_line_gaps(x_l3d, u_line), color=colors[i], linewidth={config.plot_linewidth}, label=f"t = {{_fmt_num(tv)}}")
     ax.set_xlabel({(plot_xlabel_override or "x")!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel({(plot_ylabel_override or f"{out_name}(x, y={fmt_num(line_slice_y, number_settings(config))}, z={fmt_num(line_slice_z, number_settings(config))}, t)")!r}, fontsize={config.plot_axis_label_fontsize})
-    ax.legend(loc="upper right", fontsize=8); _grid(ax, alpha=0.2)
+    ax.legend(loc="upper right", fontsize=_lfs(8)); _grid(ax, alpha=0.2)
 ax.set_title({(plot_title_override or "PINN Solution")!r})
 plt.tight_layout()
 plt.savefig(solution_path, dpi={config.plot_dpi}, bbox_inches="tight")
@@ -12074,7 +12140,7 @@ for i, tv in enumerate(t_steps):
     ax.plot(x_l, u_line, color=colors[i], linewidth={config.plot_linewidth}, label=f"t = {{_fmt_num(tv)}}")
 ax.set_xlabel({(plot_xlabel_override or "x")!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel({(plot_ylabel_override or f"{out_name}(x, t)")!r}, fontsize={config.plot_axis_label_fontsize})
 ax.set_title({(plot_title_override or "PINN Solution")!r})
-ax.legend(loc="upper right", fontsize=8); _grid(ax, alpha=0.2)
+ax.legend(loc="upper right", fontsize=_lfs(8)); _grid(ax, alpha=0.2)
 plt.tight_layout()
 plt.savefig(solution_path, dpi={config.plot_dpi}, bbox_inches="tight")
 plt.close()
@@ -12388,7 +12454,7 @@ with open(os.path.join(ea_dir, "error_metrics{_ea_suffix}.txt"), "w") as f:
 # ── Line comparison ──{chr(10) + "from scipy.interpolate import griddata" if _ea_line_needs_griddata else ""}
 ncols = min({max(1, int(getattr(config, 'plot_ea_cols', 4) or 4))}, n_t); nrows = (n_t + ncols - 1) // ncols
 single = n_t == 1
-fig, axes = plt.subplots(nrows, ncols, figsize=(6, 4.5) if single else (4.5 * ncols, 3.8 * nrows), squeeze=False)
+fig, axes = plt.subplots(nrows, ncols, figsize=_panel_figsize(6, 4.5, 1, 1) if single else _panel_figsize(4.5, 3.8, ncols, nrows), squeeze=False)
 line_head = {_ea_line_suptitle!r}
 if not single:
     fig.suptitle(line_head, fontsize={config.plot_subplot_title_fontsize} + 2)
@@ -12404,7 +12470,7 @@ for i, tv in enumerate(ea_times):
     ax.set_xlabel({v1!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel({_ea_line_ylabel}, fontsize={config.plot_axis_label_fontsize}); _grid(ax, alpha=0.3)
 for j in range(n_t, len(axf)):
     axf[j].set_visible(False)
-axf[0].legend(loc="best", fontsize=10, framealpha=0.9)   # inside the panel, in its emptiest corner
+axf[0].legend(loc="best", fontsize=_lfs(10), framealpha=0.9)   # inside the panel, in its emptiest corner
 plt.tight_layout()
 plt.savefig(os.path.join(ea_dir, "line_comparison{_ea_suffix}.png"), dpi={config.plot_dpi}, bbox_inches="tight")
 plt.close()
@@ -12438,8 +12504,8 @@ else:
     Xg, Tg = np.meshgrid(x_common, t_arr)
     U_err = np.abs(U_pinn - U_ref)
     # PINN and Reference share one color scale (same as the live Solve path).
-    _ea_cf = _cf_levels({config.plot_levels}, np.nanmin([U_pinn, U_ref]), np.nanmax([U_pinn, U_ref]))
-    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+    _ea_cf = _cf_levels({config.plot_levels}, *_vr(np.nanmin([U_pinn, U_ref]), np.nanmax([U_pinn, U_ref])), U_pinn, U_ref)
+    fig, axes = plt.subplots(1, 3, figsize=_panel_figsize(5, 5, 3, 1))
     fig.suptitle("PINN vs Reference -- Surface Comparison", fontsize={config.plot_title_fontsize}, fontweight="bold")
     im0 = axes[0].contourf(Tg, Xg, U_pinn, cmap="{config.plot_colormap}", **_ea_cf)
     axes[0].set_title("PINN"); axes[0].set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); axes[0].set_ylabel("x", fontsize={config.plot_axis_label_fontsize}); fig.colorbar(im0, ax=axes[0])
@@ -12469,7 +12535,7 @@ Xg_ea, Yg_ea = np.meshgrid(xg_ea, yg_ea)
 # Blank out grid points outside the real geometry (same as the live Solve
 # path): no extrapolated PINN values and no fabricated reference values there.
 inside_ea = {_ea_geom2d_ref}.inside(np.column_stack([Xg_ea.ravel(), Yg_ea.ravel()])).reshape(res_ea, res_ea)
-fig, axes = plt.subplots(n_t, 3, figsize=(15, 4 * n_t), squeeze=False)
+fig, axes = plt.subplots(n_t, 3, figsize=_panel_figsize(5, 4, 3, n_t), squeeze=False)
 fig.suptitle("PINN vs Reference -- 2D Heatmaps", fontsize={config.plot_title_fontsize}, fontweight="bold")
 for i, tv in enumerate(ea_times):
     tv_r, l2, mse, mx, ma = ea_metrics[i]
@@ -12477,7 +12543,7 @@ for i, tv in enumerate(ea_times):
     u_pinn_grid = np.where(inside_ea, _ea_extract_group(xyt_grid, model, {_ea_sel!r}).reshape(res_ea, res_ea), np.nan)
     u_ref_grid = np.where(inside_ea, griddata(np.column_stack([ea_x_refs[i], ea_y_refs[i]]), ea_u_refs[i], (Xg_ea, Yg_ea), method="linear", fill_value=np.nan), np.nan)
     u_err_grid = np.abs(u_pinn_grid - u_ref_grid)
-    _ea_cf = _cf_levels({config.plot_levels}, np.nanmin([u_pinn_grid, u_ref_grid]), np.nanmax([u_pinn_grid, u_ref_grid]))
+    _ea_cf = _cf_levels({config.plot_levels}, *_vr(np.nanmin([u_pinn_grid, u_ref_grid]), np.nanmax([u_pinn_grid, u_ref_grid])), u_pinn_grid, u_ref_grid)
     im0 = axes[i][0].contourf(Xg_ea, Yg_ea, u_pinn_grid, cmap="{config.plot_colormap}", **_ea_cf)
     axes[i][0].set_title({_ea_pinn_title}); fig.colorbar(im0, ax=axes[i][0])
     im1 = axes[i][1].contourf(Xg_ea, Yg_ea, u_ref_grid, cmap="{config.plot_colormap}", **_ea_cf)
@@ -12516,7 +12582,7 @@ print("  Surface comparison saved.")''')
                 _ea_gt_title_3d = '"Reference"' if is_steady else 'f"Reference  t={_fmt_num(tv)}"'
                 ea_lines.append(f'''
 # ── Surface comparison (3D: boundary-point scatter vs reference) ──
-fig = plt.figure(figsize=(15, 4.5 * n_t))
+fig = plt.figure(figsize=_panel_figsize(5, 4.5, 3, n_t))
 fig.suptitle("PINN vs Reference -- 3D Comparison", fontsize={config.plot_title_fontsize}, fontweight="bold")
 _ea_geom3d = {_ea_geom_ref}
 for i, tv in enumerate(ea_times):
@@ -12550,7 +12616,7 @@ for i, tv in enumerate(ea_times):
 {_ea_3d_predict_line}
     err_b = np.abs(pinn_b - gt_b)
     cols = [(pinn_b, {_ea_pinn_title_3d}), (gt_b, {_ea_gt_title_3d}), (err_b, f"|Error|  max = {{_sci_txt(mx)}}")]
-    _ea_v3 = (float(np.nanmin([pinn_b, gt_b])), float(np.nanmax([pinn_b, gt_b])))
+    _ea_v3 = _vr(float(np.nanmin([pinn_b, gt_b])), float(np.nanmax([pinn_b, gt_b])))
     for ci, (vals, ttl) in enumerate(cols):
         ax3 = fig.add_subplot(n_t, 3, i * 3 + ci + 1, projection="3d")
         # PINN and Reference (ci 0/1) share one scale; |Error| keeps its own.

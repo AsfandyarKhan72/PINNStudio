@@ -555,6 +555,10 @@ class PINNConfig:
     plot_err_colormap: str = ""
     plot_ea_cols: int = 4
     plot_dpi_anim: int = 150
+    # Legend font size (0 = each figure's own, 7-10) and the grid of the 3D
+    # surfaces (faces get slow to draw above about 40 points per side).
+    plot_legend_fontsize: float = 0.0
+    plot_resolution_3d: int = 40
     plot_sci_notation: str = "auto"
     plot_sci_style: str = "times"
 
