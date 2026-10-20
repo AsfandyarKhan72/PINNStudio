@@ -1718,10 +1718,9 @@ class MainWindow(QMainWindow):
             return bool(self._save_problem())
         return r == QMessageBox.StandardButton.Discard
 
-    def _apply_fresh_settings(self, keep_problem_type=False):
+    def _apply_fresh_settings(self):
         """The settings PINNStudio starts with, keeping the save folder, GPU
-        and plot preferences -- and, before an example loads, Forward or
-        Inverse as chosen (the Forward list leaves that choice alone)."""
+        and plot preferences."""
         fresh = getattr(self, "_fresh_config", None)
         if fresh is None:
             return
@@ -1729,8 +1728,6 @@ class MainWindow(QMainWindow):
         try:
             current = self._build_config()
             keep = {k: getattr(current, k) for k in self._DEEPXDE_KEEP_FIELDS if hasattr(current, k)}
-            if keep_problem_type:
-                keep["problem_type"] = current.problem_type
         except Exception:
             keep = {}
         keep.pop("save_dir", None)
@@ -6654,7 +6651,10 @@ class MainWindow(QMainWindow):
         # than they set (time-step groups, the 3D Allen-Cahn initial
         # condition after 3D Poisson, the sphere's centre), so a template
         # loaded second used to keep some of the first one's settings.
-        self._apply_fresh_settings(keep_problem_type=True)
+        # Forward or Inverse as chosen: the example loads in Forward and is
+        # switched to Inverse below, the same way as from the Inverse list
+        _was_inverse = self.radio_inverse.isChecked()
+        self._apply_fresh_settings()
         self._tpl_output_scaled = self._tpl_input_features = False
         self._tpl_output_formula = self._tpl_point_weights = False
         self._tpl_set_output_scale(None)
@@ -6664,7 +6664,7 @@ class MainWindow(QMainWindow):
         # The Inverse category loads a template in Inverse mode (which brings
         # in the template's own measured-data file). The Forward list leaves
         # the Forward/Inverse choice as it is, as before.
-        if (self.quick_examples_category_combo.currentText() == _ex_catalog.INVERSE
+        if ((self.quick_examples_category_combo.currentText() == _ex_catalog.INVERSE or _was_inverse)
                 and not self.radio_inverse.isChecked()):
             self.radio_inverse.setChecked(True)
         self._current_problem_name = text
