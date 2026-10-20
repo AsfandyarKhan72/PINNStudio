@@ -15539,11 +15539,14 @@ print("DOMAIN_PREVIEW_DONE")
                 s1.setRange(0.0, 1.0); s1.setValue(0.9999)
             elif kind in ("step", "cosine", "inverse time") and _v1 < 1.0:
                 s1.setRange(1, 1e9); s1.setValue(5000 if kind != "inverse time" else 1000)
+            s1.setToolTip("")
             if kind == "step":
                 l1.setText("Step size:"); s1.setRange(1, 1e9)
                 l2.setText("Gamma:"); r2widget_visible = True
             elif kind == "cosine":
                 l1.setText("T_max (iters):"); s1.setRange(1, 1e9)
+                s1.setToolTip("Iterations for the rate to fall to Eta min. PyTorch's cosine schedule "
+                              "rises again after T_max, so set it to the phase's iterations.")
                 l2.setText("Eta min:"); r2widget_visible = True
             elif kind == "exponential":
                 l1.setText("Gamma:"); s1.setRange(0.0, 1.0)
