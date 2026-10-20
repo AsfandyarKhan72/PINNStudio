@@ -2527,6 +2527,7 @@ if {config.time_adaptive}:
         x_grid = np.linspace({config.x_min}, {config.x_max}, grid_size)
 
     all_x = []; all_t = []; all_u = []
+    _ta_frames = {{}}   # Surface Animation (GIF): frame index -> (X, Y, U), predicted by the step that covers its time
 
     if _is_2d or _is_3d:
         x = x_grid
@@ -3097,8 +3098,24 @@ if {config.time_adaptive}:
             Up     = _extract_plot_field(XYTp, model_i).reshape({config.plot_resolution}, {config.plot_resolution})
             all_x.append(Xp); all_t.append(Tp); all_u.append(Up)
 
+        if "{config.plot_type}" == "Surface Animation (GIF)" and (_is_2d or _is_3d):
+            _fr_t = np.linspace({config.t_min}, {config.t_max}, max(2, {config.num_timesteps_anim}))
+            _xa = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
+            _ya = np.linspace({config.y_min}, {config.y_max}, {config.plot_resolution})
+            _Xa, _Ya = np.meshgrid(_xa, _ya)
+            for _fk, _ftv in enumerate(_fr_t):
+                if _fk in _ta_frames or _ftv < t0 - 1e-12 or _ftv > t1 + 1e-12:
+                    continue
+                _cols = [_Xa.ravel(), _Ya.ravel()] + ([np.full(_Xa.size, {line_slice_z!r})] if _is_3d else [])
+                _Ua = _extract_plot_field(np.column_stack(_cols + [np.full(_Xa.size, _ftv)]), model_i).reshape(_Xa.shape)
+                _ta_frames[_fk] = (_ftv, _Ua)
+
         print(f"Step {{step_i+1}} done. Final train loss: {{sum(lh_i.loss_train[-1]):.4e}}")
         _ta_step_boundaries.append(_ta_loss_offset)
+
+        # for transfer learning without a save folder (no checkpoints to
+        # read): the network as this step ended, kept in memory
+        _prev_step_state = {{_k: _v.detach().clone() for _k, _v in model_i.net.state_dict().items()}}
 
         # ── Save step plot & models ───────────────────────────
         if _use_save:
@@ -3398,8 +3415,6 @@ if {config.time_adaptive}:
                     _prev_step_model_path = max(_adam_pts, key=_os.path.getmtime)
                     print(f"  Transfer learning source (adam): {{_os.path.basename(_prev_step_model_path)}}")
 
-            # without a save folder (no checkpoints): the network kept in memory
-            _prev_step_state = {{_k: _v.detach().clone() for _k, _v in model_i.net.state_dict().items()}}
 
             # ── Save step config JSON ─────────────────────────
             # y_min/y_max/z_min/z_max added alongside x_min/x_max so a 2D/3D
@@ -3442,10 +3457,61 @@ if {config.time_adaptive}:
     _ta_loss_path     = _os.path.join(_sol_dir, "loss_plot.png")
 
     _plot_type_ta = "{config.plot_type}"
-    if _plot_type_ta not in ("Surface", "Line (time steps)"):
-        # Same fallback reasoning as the per-step preview above -- GIF
-        # animations and Parameter Convergence aren't wired up for
-        # Time-Adaptive's final solution plot yet.
+    # The animations, as the exported script makes them: the line along x
+    # (at the set y, z) from every step's stored rows, and the x-y surface
+    # (3D: at the set z) from the frames each step predicted for its window.
+    if _plot_type_ta == "Line Animation (GIF)" and all_u:
+        import matplotlib.animation as _anim_ta
+        _ta_solution_path = _os.path.join(_sol_dir, "solution_plot.gif")
+        _T_rows = np.concatenate([_tt[:, 0] for _tt in all_t])
+        _U_rows = np.concatenate(all_u, axis=0)
+        _x_row = all_x[0][0, :]
+        _t_fr = np.linspace({config.t_min}, {config.t_max}, max(2, {config.num_timesteps_anim}))
+        _rows = [int(np.argmin(np.abs(_T_rows - _tv))) for _tv in _t_fr]
+        _lo, _hi = float(np.nanmin(_U_rows)), float(np.nanmax(_U_rows))
+        _pad = 0.05 * (_hi - _lo or 1.0)
+        fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
+        def _upd_ta(_k):
+            ax.cla()
+            ax.plot(_x_row, _U_rows[_rows[_k]], color=_PLOT_PINN_COLOR, linewidth={config.plot_linewidth_anim})
+            ax.set_ylim(_lo - _pad, _hi + _pad)
+            ax.set_xlabel(globals().get("_plot_xlabel_override") or "x", fontsize={config.plot_axis_label_fontsize})
+            ax.set_ylabel(globals().get("_plot_ylabel_override") or {_ta_out_label(config)!r}, fontsize={config.plot_axis_label_fontsize})
+            ax.set_title(globals().get("_plot_title_override") or f"t = {{_fmt_num(_t_fr[_k])}}", fontsize={config.plot_title_fontsize})
+            _grid(ax, alpha=0.3)
+        _ani_ta = _anim_ta.FuncAnimation(fig, _upd_ta, frames=len(_t_fr), interval=150)
+        _ani_ta.save(_ta_solution_path, writer="pillow", fps={config.plot_fps}, dpi=_PLOT_DPI_ANIM)
+        plt.close(fig)
+        _plot_type_ta = "done"
+    elif _plot_type_ta == "Surface Animation (GIF)" and _ta_frames:
+        import matplotlib.animation as _anim_ta
+        _ta_solution_path = _os.path.join(_sol_dir, "solution_plot.gif")
+        _fks = sorted(_ta_frames)
+        _xa = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
+        _ya = np.linspace({config.y_min}, {config.y_max}, {config.plot_resolution})
+        _Xa, _Ya = np.meshgrid(_xa, _ya)
+        _lo = min(float(np.nanmin(_ta_frames[_k][1])) for _k in _fks)
+        _hi = max(float(np.nanmax(_ta_frames[_k][1])) for _k in _fks)
+        if not {config.plot_auto_range}:
+            _lo, _hi = {config.plot_vmin}, {config.plot_vmax}
+        fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
+        _sm_ta = plt.cm.ScalarMappable(cmap="{config.plot_colormap}", norm=plt.Normalize(vmin=_lo, vmax=_hi))
+        if {config.plot_colorbar}:
+            fig.colorbar(_sm_ta, ax=ax)
+        def _upd_ta(_k):
+            ax.cla()
+            _tv, _Ua = _ta_frames[_fks[_k]]
+            ax.contourf(_Xa, _Ya, _Ua, cmap="{config.plot_colormap}", **_cf_levels({config.plot_levels}, _lo, _hi, _Ua))
+            ax.set_xlabel(globals().get("_plot_xlabel_override") or "x", fontsize={config.plot_axis_label_fontsize})
+            ax.set_ylabel(globals().get("_plot_ylabel_override") or "y", fontsize={config.plot_axis_label_fontsize})
+            ax.set_title(globals().get("_plot_title_override") or f"t = {{_fmt_num(_tv)}}", fontsize={config.plot_title_fontsize})
+        _ani_ta = _anim_ta.FuncAnimation(fig, _upd_ta, frames=len(_fks), interval=150)
+        _ani_ta.save(_ta_solution_path, writer="pillow", fps={config.plot_fps}, dpi=_PLOT_DPI_ANIM)
+        plt.close(fig)
+        _plot_type_ta = "done"
+    elif _plot_type_ta not in ("Surface", "Line (time steps)"):
+        # Parameter Convergence has no Time-Adaptive form (Inverse has no
+        # time-adaptive training): the surface instead.
         _plot_type_ta = "Surface"
     if _plot_type_ta == "Surface":
         _vmin_ta = None if {config.plot_auto_range} else {config.plot_vmin}
@@ -3995,6 +4061,8 @@ if {config.time_adaptive}:
                             _bx_ta, _by_ta, _bz_ta = _bx_ta[_ea_sub_ta], _by_ta[_ea_sub_ta], _bz_ta[_ea_sub_ta]
                             _gt_b_ta, _pinn_b_ta = _gt_b_ta[_ea_sub_ta], _pinn_b_ta[_ea_sub_ta]
                         _err_b_ta = np.abs(_pinn_b_ta - _gt_b_ta)
+                        # PINN and reference on one scale (fixed in Plot settings, or the data's)
+                        _v3_ta = _vr(float(min(_pinn_b_ta.min(), _gt_b_ta.min())), float(max(_pinn_b_ta.max(), _gt_b_ta.max())))
                         _cols_ta = [(_pinn_b_ta, f"PINN  t={{_fmt_num(_ea_tv)}}  {{_l2_txt(_l2)}}"),
                                     (_gt_b_ta, f"Reference  t={{_fmt_num(_ea_tv)}}"),
                                     (_err_b_ta, f"|Error|  max = {{_sci_txt(_mx)}}")]
@@ -4005,7 +4073,8 @@ if {config.time_adaptive}:
                                 _ax3_ta.plot([_p0_ta[0], _p1_ta[0]], [_p0_ta[1], _p1_ta[1]], [_p0_ta[2], _p1_ta[2]],
                                              color='#888888', linewidth=0.8, alpha=0.6)
                             _sc3_ta = _ax3_ta.scatter(_bx_ta, _by_ta, _bz_ta, c=_vals_ta,
-                                                       cmap=('{err_cmap(config)}' if _ci_ta == 2 else '{config.plot_colormap}'), s=14)
+                                                       cmap=('{err_cmap(config)}' if _ci_ta == 2 else '{config.plot_colormap}'), s=14,
+                                                       **(dict(vmin=_v3_ta[0], vmax=_v3_ta[1]) if _ci_ta < 2 else {{}}))
                             fig.colorbar(_sc3_ta, ax=_ax3_ta, shrink=0.6, pad=0.12)
                             _ax3_ta.set_title(_ttl_ta, fontsize={config.plot_subplot_title_fontsize})
                             _ax3_ta.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax3_ta.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _ax3_ta.set_zlabel("z", fontsize={config.plot_axis_label_fontsize}); [_tk.set_ticks(plt.matplotlib.ticker.MaxNLocator(nbins=4, steps=[1, 2, 5, 10]).tick_values(*_tk.get_data_interval())) for _tk in (_ax3_ta.xaxis, _ax3_ta.yaxis, _ax3_ta.zaxis)]
@@ -4565,6 +4634,13 @@ def _shape_bbox(config):
     for k, (l, h) in enumerate(zip(*box)):
         out[f"{names[k]}_min"], out[f"{names[k]}_max"] = float(l), float(h)
     return out
+
+
+def _ta_out_label(config):
+    """The plotted output's name, for a Time-Adaptive animation's y label."""
+    names = [n.strip() for n in (getattr(config, "output_names", "") or "u").split(",") if n.strip()] or ["u"]
+    i = int(getattr(config, "plot_output_idx", 0) or 0)
+    return names[i] if 0 <= i < len(names) else names[0]
 
 
 def _effective_config(config):
@@ -8098,6 +8174,7 @@ for _pval in _param_values:
                             _err_b_ea = np.abs(_pinn_b_ea - _gt_b_ea)
                             _vmin3_ea = min(_pinn_b_ea.min(), _gt_b_ea.min())
                             _vmax3_ea = max(_pinn_b_ea.max(), _gt_b_ea.max())
+                            _vmin3_ea, _vmax3_ea = _vr(_vmin3_ea, _vmax3_ea)   # Plot settings -> Surface -> Colour range
                             # See the matching comment on the Line comparison
                             # title above -- steady-state has no time axis,
                             # so "t=..." is dropped from every column title.
@@ -12145,7 +12222,7 @@ frames = []''')
                     parts.append(f'''# 3D: same "x-y heatmap at the z mid-plane" convention as the static
 # 3D solution plot below -- no volumetric GIF renderer.
 y_a = np.linspace({config.y_min}, {config.y_max}, res)
-z_mid_a = ({config.z_min} + {config.z_max}) / 2.0
+z_mid_a = {line_slice_z!r}   # Plot settings -> Line: z (the middle by default)
 Xa, Ya = np.meshgrid(x_a, y_a)
 # Blank out points outside the real geometry (same mask as the static plot).
 inside_a = geom.inside(np.column_stack([Xa.ravel(), Ya.ravel(), np.full(Xa.size, z_mid_a)])).reshape(res, res)

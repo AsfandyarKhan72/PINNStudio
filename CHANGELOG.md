@@ -290,6 +290,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - The surface animation and the line animation ignored a fixed colour range and the grid resolution; they follow Plot settings now, as Solve's do.
   - A surface animation picked for a steady 1D model (possible when its saved settings can't be read) stops with a message instead of an error.
 - **L-BFGS ran more iterations than set, and maxfun did nothing.** DeepXDE (PyTorch) works out its L-BFGS chunk size and evaluation budget once, when it is imported, and `set_LBFGS_options` doesn't update them: a phase of fewer than 1000 iterations ran 1000, longer phases rounded up to the next 1000, and a custom *maxfun* was ignored. Both scripts now keep them in step; phases that are multiples of 1000 with the recommended settings (all the examples) train exactly as before.
+- **Time-adaptive training:**
+  - *Line Animation (GIF)* and *Surface Animation (GIF)* made a static surface in Solve (the window then had no GIF to show) while the exported script made the animation; Solve makes them now (the surface of a 3D problem at the z set under *Plot settings → Line*, as the export does).
+  - *Transfer learning* did nothing in Solve without a save folder (the in-memory copy of each step's network was only kept when saving).
+  - Error Analysis of a time-adaptive 3D problem drew the PINN and reference panels on separate scales and ignored a fixed colour range; the 3D sphere comparison in Solve also ignored it.
+  - The exported 3D surface animation was always at the middle z, not the z set under *Plot settings → Line*.
 - **Boundary and initial conditions:**
   - A Robin value mixing the coordinates and u (`u*x`, `t - u`) failed in both scripts (`t` wasn't defined in Solve at all); such a value is now computed on tensors.
   - An Operator BC using `np`, `torch` or a domain limit (`du_x - np.sin(x_max)`) ran in Solve but failed in the exported script; both have the same names now.
