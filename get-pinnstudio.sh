@@ -61,6 +61,8 @@ if [ -n "$GPU" ]; then
 elif command -v nvidia-smi >/dev/null 2>&1; then
     say "An NVIDIA GPU was found, but PyTorch cannot use it; PINNStudio will train on the CPU."
     say "See 'GPU troubleshooting' in the README: https://github.com/AsfandyarKhan72/PINNStudio#installation"
+elif [ "$(uname -s)" = "Darwin" ]; then
+    say "PINNStudio trains on the CPU on a Mac (Apple's GPU was no faster for PINNs in our tests)."
 else
     say "No NVIDIA GPU found: PINNStudio will train on the CPU."
 fi

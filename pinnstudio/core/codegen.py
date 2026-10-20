@@ -4970,8 +4970,10 @@ import matplotlib.pyplot as plt
 import warnings
 warnings.filterwarnings("ignore", message=".*cuBLAS.*")
 
-# DeepXDE puts PyTorch on Apple's GPU (MPS) on a Mac. MPS has no float64 and
-# PyTorch's L-BFGS is unreliable on it, so PINNStudio trains on the CPU there.
+# DeepXDE puts PyTorch on Apple's GPU (MPS) on a Mac. On an M1 it was never
+# faster than the CPU for PINNs (2x slower on a small problem, even on 20-30k
+# points; benchmarks/mac_gpu_check.py), and it has no float64, so PINNStudio
+# trains on the CPU there.
 if not torch.cuda.is_available() and str(getattr(torch, "get_default_device", lambda: "cpu")()).startswith("mps"):
     torch.set_default_device("cpu")
     print("  [Info] Training on the CPU (Apple GPU / MPS not used)")
@@ -10991,8 +10993,10 @@ import deepxde as dde
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
-# DeepXDE puts PyTorch on Apple's GPU (MPS) on a Mac. MPS has no float64 and
-# PyTorch's L-BFGS is unreliable on it, so PINNStudio trains on the CPU there.
+# DeepXDE puts PyTorch on Apple's GPU (MPS) on a Mac. On an M1 it was never
+# faster than the CPU for PINNs (2x slower on a small problem, even on 20-30k
+# points; benchmarks/mac_gpu_check.py), and it has no float64, so PINNStudio
+# trains on the CPU there.
 if not torch.cuda.is_available() and str(getattr(torch, "get_default_device", lambda: "cpu")()).startswith("mps"):
     torch.set_default_device("cpu")
     print("  [Info] Training on the CPU (Apple GPU / MPS not used)")

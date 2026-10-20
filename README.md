@@ -2803,6 +2803,8 @@ Training time per 1,000 steps on an RTX 4090 (5,000 Adam + 1,000 L-BFGS iteratio
 
 For a small 1D problem, *Settings → GPU / Hardware → Train on: CPU* can be the faster choice; 2D and 3D problems, larger networks and many points belong on the GPU.
 
+**On a Mac, PINNStudio trains on the CPU.** Apple's GPU (MPS) was tried on an M1 MacBook Air with `benchmarks/mac_gpu_check.py`: it was half the speed of the CPU on Heat 1D (73 against 136 Adam iterations a second, and L-BFGS 7 times slower) and about the same on Poisson 2D and Heat 2D with 20,000 and 30,000 points (3 to 4 iterations a second either way), with the same accuracy. It also has no float64. A Mac with more GPU cores (an M-series Pro or Max) may do better on large problems; `mac_gpu_check.py` measures it. For comparison, an RTX 4090 ran the same 2D problems at 139 to 162 iterations a second (`benchmarks/gpu_check.py`, which also checks an NVIDIA GPU's setup on Windows or Linux).
+
 **Fewer CPU threads are faster.** PyTorch uses one thread per core by default. On a processor with efficiency cores (recent Intel and Apple chips), the slow cores hold every step back: identical runs of Heat 1D took anywhere from 6.4 to 11.7 s with PyTorch's 24 threads, and 3.3 to 3.6 s with 8, one per performance core (Navier-Stokes 2D: 51-52 s against 45-46 s; Allen-Cahn 1D with causal training: 204-206 s against 135-136 s). PINNStudio's scripts therefore train on the CPU with half the logical processors, at most 8; setting `OMP_NUM_THREADS` overrides this.
 
 </details>
