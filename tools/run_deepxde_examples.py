@@ -57,6 +57,7 @@ def main():
     ap.add_argument("--out", required=True)
     ap.add_argument("--only", default="", help="run examples whose name (internal or shown) contains this text ('|' separates several)")
     ap.add_argument("--skip", default="", help="leave out examples whose name contains this text ('|' separates several)")
+    ap.add_argument("--names", default="", help="run exactly these examples (internal names, '|' separates several)")
     ap.add_argument("--smoke", action="store_true")
     ap.add_argument("--export", action="store_true", help="run the exported script instead of the live one")
     ap.add_argument("--plot-type", default="", choices=["", "Surface", "Line (time steps)", "Line Animation (GIF)",
@@ -76,7 +77,9 @@ def main():
 
     def _names(e):   # internal name and the name shown in the GUI/README
         return (e.name, display_name(e.name))
-    examples = [e for e in dx.EXAMPLES if (not wanted or any(s in n for s in wanted for n in _names(e)))
+    exact = [s for s in args.names.split("|") if s]
+    examples = [e for e in dx.EXAMPLES if (not exact or e.name in exact)
+                and (not wanted or any(s in n for s in wanted for n in _names(e)))
                 and not any(s in n for s in skipped for n in _names(e)) and (e.inverse or not args.inverse)]
     gen = generate_clean_script if args.export else generate_script
     rows = []
