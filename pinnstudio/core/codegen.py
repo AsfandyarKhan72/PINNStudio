@@ -9900,7 +9900,7 @@ def _restore_anim_surface_code(x_min, x_max, y_min, y_max, t_min, t_max, n_steps
             "            pred = _extract_plot_field(XYT, _ta_m).reshape({res}, {res})\n"
             "            pred = np.where(_inside2da, pred, np.nan)\n"
             "            all_frames.append((Xg, Yg, pred))\n"
-        )
+        ).format(res=res)
         comment_else = ""
         loop_else = (
             "        for tv in t_frames:\n"
@@ -9949,7 +9949,7 @@ def _restore_anim_surface_code(x_min, x_max, y_min, y_max, t_min, t_max, n_steps
             "            pred = _extract_plot_field(XYT).reshape({res}, {res})\n"
             "            pred = np.where(_inside2da, pred, np.nan)\n"
             "            all_frames.append((Xg, Yg, pred))\n"
-        )
+        ).format(res=res)
         comment_else = (
             "        # Same no-reshape-of-pred swap as the static Surface option above\n"
             "        # -- storing T_anim/X_anim in swapped order per frame is enough,\n"
