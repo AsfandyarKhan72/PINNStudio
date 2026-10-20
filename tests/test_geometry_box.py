@@ -60,3 +60,14 @@ def test_robin_and_operator_namespaces():
     assert "_BC_MATH_NS_T = {" in live and '_ns["t"] = _Xt[:, -1:]' in live
     compile(exp, "x", "exec")
     compile(live, "x", "exec")
+
+
+def test_operator_bc_has_coordinates_and_math():
+    """An Operator BC can use x, y, z, t and sin, exp, pi (on tensors), as
+    the other boundary expressions can."""
+    c = PINNConfig()
+    c.custom_bc_json = json.dumps([{"type": "operator", "location": "True", "value": "du_x - sin(pi*x)*t"}])
+    exp = cg.generate_clean_script(c)
+    assert "'sin': torch.sin" in exp and "_ns['x'] = inputs[:, 0:1]" in exp and "_ns['t'] = inputs[:, -1:]" in exp
+    live = cg.generate_script(c)
+    assert '_ns["x"] = _inputs[:, 0:1]' in live and "**_BC_MATH_NS_T" in live

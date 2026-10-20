@@ -539,6 +539,14 @@ def _np_math_expr(expr):
     return re.sub(r'(?<![a-zA-Z_.])pi(?![a-zA-Z_0-9])', 'np.pi', e)
 
 
+def _torch_math_dict_literal():
+    """{'sin': torch.sin, ..., 'pi': np.pi} as source text, for an exported
+    Operator BC's namespace (it works on tensors)."""
+    alias = {"arcsin": "asin", "arccos": "acos", "arctan": "atan"}
+    items = [f"'{fn}': torch.{alias.get(fn, fn)}" for row in _MATH_NS_ROWS for fn in row]
+    return "{" + ", ".join(items + ["'pi': np.pi"]) + "}"
+
+
 def _torch_math_expr(expr):
     """np.sin(...) -> torch.sin(...) and so on (arcsin -> asin), for an
     exported boundary value computed on tensors."""
@@ -6059,7 +6067,16 @@ def _bc_operator_fn(_expr):
         _dvars = _tm_build_dvars(_inputs, _outputs, _bc_op_n_out, _bc_op_out_names,
                                   _is_steady, _bc_op_dim, _expr)
         _ns = dict(_dvars)
-        _ns.update({{**_BC_DOMAIN, "inputs": _inputs, "outputs": _outputs, "X": _X, "np": np, "torch": torch}})
+        _ns.update({{**_BC_MATH_NS_T, **_BC_DOMAIN, "inputs": _inputs, "outputs": _outputs, "X": _X, "np": np, "torch": torch}})
+        # the coordinates, as columns of the network input
+        _ns["x"] = _inputs[:, 0:1]
+        if _is_2d or _is_3d:
+            _ns["y"] = _inputs[:, 1:2]
+        if _is_3d:
+            _ns["z"] = _inputs[:, 2:3]
+        if not _is_steady:
+            _ns["t"] = _inputs[:, -1:]
+        _ns.update(_dvars)     # u, du_x, ... win over a math name
         return eval(_code, _ns)
     return _f
 
@@ -8708,7 +8725,12 @@ def _bc_operator_def_lines(name, expr, is_steady, dim_str, out_names_list, n_out
         "    _ns = dict(_dvars)",
         "    _ns['inputs'] = inputs; _ns['outputs'] = outputs; _ns['X'] = X",
         # the same names Solve's operator BCs have: domain limits, np, torch
-        f"    _ns.update({{**{dict(domain or {})!r}, 'np': np, 'torch': torch}})",
+        f"    _ns.update({{**{_torch_math_dict_literal()}, **{dict(domain or {})!r}, 'np': np, 'torch': torch}})",
+        "    _ns['x'] = inputs[:, 0:1]",
+        *(["    _ns['y'] = inputs[:, 1:2]"] if dim_str in ("2D", "3D") else []),
+        *(["    _ns['z'] = inputs[:, 2:3]"] if dim_str == "3D" else []),
+        *(["    _ns['t'] = inputs[:, -1:]"] if not is_steady else []),
+        "    _ns.update(_dvars)",
         f"    return eval({expr!r}, _ns)",
     ]
 
