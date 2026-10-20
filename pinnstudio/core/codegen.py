@@ -2499,10 +2499,13 @@ if {config.time_adaptive}:
     # Clear old step directories to avoid stale models from previous runs
     import shutil as _ta_shutil
     _ta_steps_root = _os.path.join(_save_dir, "time_adaptive_steps")
-    if _os.path.isdir(_ta_steps_root):
-        _ta_shutil.rmtree(_ta_steps_root)
-        print(f"  Cleared old time_adaptive_steps directory")
-    _os.makedirs(_ta_steps_root, exist_ok=True)
+    # only inside a save folder: without one this would be a folder of that
+    # name wherever the script was started, and nothing is saved there
+    if _use_save:
+        if _os.path.isdir(_ta_steps_root):
+            _ta_shutil.rmtree(_ta_steps_root)
+            print(f"  Cleared old time_adaptive_steps directory")
+        _os.makedirs(_ta_steps_root, exist_ok=True)
 
     grid_size = {config.ta_grid_size}
     if _is_3d:
@@ -5125,11 +5128,11 @@ if _dxde_ver is not None and _dxde_ver < (1, 13, 0):
     # _ic_pretrain_train_code.
     _ic_pretrain_block_std = _ic_pretrain_train_code(
         config, "        ", "_ic_gt_pre", "_ic_ics_pre", _ic_pretrain_num_initial_safe,
-        "_ic_only_weights", "net", f'_os.path.join({config.save_dir!r}, "ic_pretrain")',
+        "_ic_only_weights", "net", (f'_os.path.join({config.save_dir!r}, "ic_pretrain")' if (config.save_dir or "").strip() else '_os.path.join(__import__("tempfile").gettempdir(), "pinnstudio_ic_pretrain")'),
         "_os", "  ", _safe_point_distribution)
     _ic_pretrain_block_ta = _ic_pretrain_train_code(
         config, "            ", "_ic_gt_pt", "_ic_constraints_pt", _ic_pretrain_num_initial_safe,
-        "_ic_only_weights", "model_i.net", f'_os.path.join({config.save_dir!r}, "ic_pretrain")',
+        "_ic_only_weights", "model_i.net", (f'_os.path.join({config.save_dir!r}, "ic_pretrain")' if (config.save_dir or "").strip() else '_os.path.join(__import__("tempfile").gettempdir(), "pinnstudio_ic_pretrain")'),
         "_os", "  ", _safe_point_distribution)
 
     script = f"""
