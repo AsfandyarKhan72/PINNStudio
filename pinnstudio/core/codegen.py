@@ -10536,7 +10536,7 @@ if {config.ic_pretrain_restore} and {rp} and {os_name}.path.exists({rp}):
     print("{p}IC pre-train model restored -- skipping training.")
 else:
     _ic_lh, _ = _model_pre.train(iterations={config.ic_pretrain_iterations},
-                                 display_every=10000, batch_size=None,
+                                 display_every={max(1, int(getattr(config, 'loss_display_every', 1000) or 1000))}, batch_size=None,
                                  model_save_path={os_name}.path.join(_ic_pretrain_save_dir, "ic_pretrain_model"))
     print(f"{p}IC pre-training done. Final IC loss: {{sum(_ic_lh.loss_train[-1]):.4e}}")
     print(f"{p}IC pre-train model saved to: {{_ic_pretrain_save_dir}}")'''
