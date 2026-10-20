@@ -9610,7 +9610,21 @@ class MainWindow(QMainWindow):
                 "time_adaptive": ta,
                 # Inverse switched the template's time-adaptive training off;
                 # Forward turns it back on
-                "time_adaptive_suspended": bool(getattr(self, "_ta_suspended_for_inverse", False))}
+                "time_adaptive_suspended": bool(getattr(self, "_ta_suspended_for_inverse", False)),
+                "mode_training": self._mode_training_for_save()}
+
+    def _mode_training_for_save(self):
+        import json
+        mt = getattr(self, "_tpl_mode_training", None)
+        if not mt or mt[0] != getattr(self, "_current_template", None):
+            return None
+        keys = ('ic_hard', 'ic_active', 'periodic_inputs', 'causal', 'network_type', 'msffn_sigmas')
+        base = {k: mt[1][k] for k in keys if k in mt[1]}
+        try:
+            json.dumps([base, mt[2]])
+        except (TypeError, ValueError):
+            return None
+        return [base, mt[2]]
 
     def _restore_template_origin(self, origin):
         """The other half of _template_origin, after the settings are applied."""
@@ -9627,6 +9641,8 @@ class MainWindow(QMainWindow):
         if isinstance(origin.get("time_adaptive"), dict):
             self._current_ta_cfg = origin["time_adaptive"]
         self._ta_suspended_for_inverse = bool(origin.get("time_adaptive_suspended")) and self.radio_inverse.isChecked()
+        mt = origin.get("mode_training")
+        self._tpl_mode_training = (key, mt[0], mt[1]) if isinstance(mt, list) and len(mt) == 2 else None
         # A copy saved in Inverse mode has the unknowns in its equation:
         # note them, so switching to Forward puts the constants back.
         if self.radio_inverse.isChecked():
@@ -9855,6 +9871,7 @@ class MainWindow(QMainWindow):
         # problem) can't leak into this one via _on_problem_type_changed /
         # _sync_inverse_pde_substitution.
         self._current_template = ""
+        self._tpl_mode_training = None
         self._current_template_type = config.template_type or ""
         self._template_ref_dir = ""
         self._current_template_forward_tmax = None
@@ -10850,6 +10867,7 @@ class MainWindow(QMainWindow):
                     self.ta_transfer_cb.setChecked(_ta_cfg.get('transfer_learning', False))
                     self.ta_grid.setCurrentText(str(_ta_cfg.get('ic_grid', 101)))
                     self._set_combo_data(self.ta_transfer_opt, _ta_cfg.get('transfer_optimizer', 'adam'))
+        self._apply_mode_training(is_inv)
         # 2D Allen-Cahn (Wight & Zhao): Inverse trains over a shorter t
         # range than Forward (see the template's inverse_t_max) since
         # fitting the unknown parameter over the full t in [0,10] window
@@ -13551,7 +13569,35 @@ print("DOMAIN_PREVIEW_DONE")
             self._auto_configure_ea(self._template_ref_dir, is_steady=True)
         else:
             self._auto_configure_ea(self._template_ref_dir)
+        self._tpl_mode_training = ((text, t, t['inverse_training'])
+                                   if t.get('inverse_training') else None)
+        if self.radio_inverse.isChecked():
+            self._apply_mode_training(True)
         self.log_box.append(f"✅ Template loaded: {_ex_catalog.display_name(text)}")
+
+    def _apply_mode_training(self, is_inv):
+        """A template whose Inverse mode trains differently (its
+        'inverse_training': initial condition, periodic inputs, causal
+        training, network type) gets those settings in Inverse and its own
+        back in Forward."""
+        mt = getattr(self, "_tpl_mode_training", None)
+        if not mt or mt[0] != getattr(self, "_current_template", None):
+            return
+        _key, base, inv = mt
+        t = dict(base, **inv) if is_inv else base
+        if is_inv:
+            self._mode_forward_sigmas = self.msffn_sigmas_edit.text()
+        ic_on = t.get('ic_active', [])
+        for i, cb in enumerate(self.ic_active):
+            cb.setChecked(bool(ic_on[i]) if i < len(ic_on) else True)
+        self._tpl_set_extras(t)
+        if not is_inv and getattr(self, "_mode_forward_sigmas", None) is not None:
+            self.msffn_sigmas_edit.setText(self._mode_forward_sigmas)
+        n_out = self.num_outputs_spin.value()
+        self._tpl_set_ic_weights(n_out, 100.0)
+        if is_inv:
+            self.log_box.append("   Inverse trains on the whole time interval (no time-adaptive training there), "
+                                "with an exact initial condition, periodic inputs, causal training and an MsFFN network.")
 
     def _on_template_selected(self, text):
         if text == "📋 Examples":
@@ -14137,6 +14183,11 @@ print("DOMAIN_PREVIEW_DONE")
                 'periodic_bc': True,
                 'ref_dir': os.path.join(REFERENCE_DATA_DIR, "1D", "allen_cahn"),
                 'ta_default': {'step_groups': [(0.0, 1.0, 4)], 'transfer_learning': True, 'ic_grid': 101, 'transfer_optimizer': 'lbfgs'},
+                # Inverse has no time-adaptive training, so it trains on the
+                # whole interval -- with the whole-interval template's
+                # setup, which finds gamma_1 to 0.5% (15% without it).
+                'inverse_training': {'ic_hard': [True], 'ic_active': [False], 'periodic_inputs': True,
+                                     'causal': True, 'network_type': 'MsFFN', 'msffn_sigmas': '1, 5'},
             },
             # The same problem trained on the whole time interval in one run,
             # with the best setup of the training methods study

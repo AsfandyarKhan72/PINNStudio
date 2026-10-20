@@ -1025,7 +1025,7 @@ Result: $L_2$ = 9.8 × 10⁻⁸ ($t = 0$), 4.0 × 10⁻⁴ ($t = 0.25$), 4.6 × 
 
 *Inverse mode* — same template, switched to **Inverse**, jointly recovering both $\gamma_1$ (diffusion) and $\gamma_2$ (reaction) as unknown parameters; the live convergence animation below shows each estimate settling onto its true value during training:
 
-**Inverse result (RTX 4090):** with the whole-interval template, $\gamma_1$ = 1.005 × 10⁻⁴ (true 10⁻⁴) and $\gamma_2$ = 4.999 (true 5); with the time-adaptive template, which trains on the whole interval in Inverse mode, $\gamma_1$ = 1.15 × 10⁻⁴ (15% off) and $\gamma_2$ = 5.001. Both from $u$ measured at $t = 1$.
+**Inverse result (RTX 4090):** with the whole-interval template, $\gamma_1$ = 1.005 × 10⁻⁴ (true 10⁻⁴) and $\gamma_2$ = 4.999 (true 5); both from $u$ measured at $t = 1$. Inverse mode has no time-adaptive training, so the time-adaptive template switched to Inverse trains on the whole interval with the whole-interval template's setup (without it, $\gamma_1$ came out 15% off), and switched back to Forward it has its own setup again.
 
 ![1D Allen-Cahn inverse parameter convergence animation](assets/Images/1D-AllenCahn/param_convergence_animation.gif)
 

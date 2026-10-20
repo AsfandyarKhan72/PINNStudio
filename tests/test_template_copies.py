@@ -126,3 +126,43 @@ def test_a_problem_saved_half_done_opens_again(save_to):
     assert w2.radio_inverse.isChecked() and w2._current_path.endswith("half.pinn.json")
     w.close()
     w2.close()
+
+
+def test_time_adaptive_allen_cahn_inverse_uses_the_whole_interval_setup():
+    """Inverse has no time-adaptive training, so the time-adaptive Allen-Cahn
+    1D template trains there exactly as the whole-interval template does
+    (exact IC, periodic inputs, causal training, MsFFN), and gets its own
+    setup back in Forward."""
+    import dataclasses
+    keys = ("ic_hard", "ic_active", "periodic_inputs", "causal_training", "network_type", "msffn_sigmas",
+            "time_adaptive", "scheduler_phases", "inverse_obs_files_json", "loss_weights")
+
+    def cfg(w):
+        c = dataclasses.asdict(w._build_config())
+        return {k: c[k] for k in keys}
+
+    def load(w, cat, part):
+        w.quick_examples_category_combo.setCurrentText(cat)
+        _pump(2)
+        names = [w.quick_examples_combo.itemText(i) for i in range(w.quick_examples_combo.count())]
+        w.quick_examples_combo.setCurrentText(next(n for n in names if part in n))
+        _pump()
+
+    w = MainWindow()
+    load(w, "Inverse", "Allen-Cahn 1D – Wight & Zhao (whole interval)")
+    whole = cfg(w)
+    w2 = MainWindow()
+    load(w2, "Inverse", "Allen-Cahn 1D – Wight & Zhao (time-adaptive)")
+    assert cfg(w2) == whole
+    w3 = MainWindow()
+    load(w3, "Forward", "Allen-Cahn 1D – Wight & Zhao (time-adaptive)")
+    fwd = cfg(w3)
+    assert fwd["time_adaptive"] and fwd["network_type"] == "FNN"
+    w3.radio_inverse.setChecked(True)
+    _pump()
+    assert cfg(w3) == whole
+    w3.radio_forward.setChecked(True)
+    _pump()
+    assert cfg(w3) == fwd
+    for x in (w, w2, w3):
+        x.close()
