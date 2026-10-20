@@ -15531,6 +15531,14 @@ print("DOMAIN_PREVIEW_DONE")
                                   s1=decay_p1_spin, r2=decay_p2_row, l2=decay_p2_lbl,
                                   s2=decay_p2_spin):
             kind = c.currentData()
+            # a value that belongs to the previous kind gets this kind's usual
+            # one (Exponential's gamma is below 1; the others count iterations):
+            # switching from Step to Exponential used to clamp 5000 to 1.0, no decay
+            _v1 = s1.value()
+            if kind == "exponential" and _v1 >= 1.0:
+                s1.setRange(0.0, 1.0); s1.setValue(0.9999)
+            elif kind in ("step", "cosine", "inverse time") and _v1 < 1.0:
+                s1.setRange(1, 1e9); s1.setValue(5000 if kind != "inverse time" else 1000)
             if kind == "step":
                 l1.setText("Step size:"); s1.setRange(1, 1e9)
                 l2.setText("Gamma:"); r2widget_visible = True
