@@ -2167,7 +2167,7 @@ def _gs_rar_loop_code(config):
                         _vmax3_r = max(_ref_pred_pts_r.max(), _ref_u_r.max())
                         _cols3_r = [
                             (_ref_pred_pts_r, f"PINN  t={{_fmt_num(_ref_t_r)}}  {{_l2_txt(_l2_r)}}", _vmin3_r, _vmax3_r, "{config.plot_colormap}"),
-                            (_ref_u_r, f"Reference  t={{_ref_t_r:.3g}}", _vmin3_r, _vmax3_r, "{config.plot_colormap}"),
+                            (_ref_u_r, f"Reference  t={{_fmt_num(_ref_t_r)}}", _vmin3_r, _vmax3_r, "{config.plot_colormap}"),
                             (_abs_err_r, f"|Error|  max = {{_sci_txt(_abs_err_r.max())}}", None, None, "{err_cmap(config)}"),
                         ]
                         for _ci_r, (_vals3_r, _ttl3_r, _vmin_c3_r, _vmax_c3_r, _cmap_c3_r) in enumerate(_cols3_r):
@@ -3261,7 +3261,7 @@ if {config.time_adaptive}:
                                 _tea_vmin, _tea_vmax = _vr(_tea_vmin, _tea_vmax)
                                 _tea_cols3 = [
                                     (_tea_pred, f"PINN  t={{_fmt_num(_mtv)}}  {{_l2_txt(_tea_l2)}}", _tea_vmin, _tea_vmax, "{config.plot_colormap}"),
-                                    (_tea_u, f"Reference  t={{_mtv:.4f}}", _tea_vmin, _tea_vmax, "{config.plot_colormap}"),
+                                    (_tea_u, f"Reference  t={{_fmt_num(_mtv)}}", _tea_vmin, _tea_vmax, "{config.plot_colormap}"),
                                     (_tea_err, f"|Error|  max = {{_sci_txt(_tea_err.max())}}", None, None, "{err_cmap(config)}"),
                                 ]
                                 for _tea_ci, (_tea_vals, _tea_ttl, _tea_vmn, _tea_vmx, _tea_cmap) in enumerate(_tea_cols3):
@@ -3530,7 +3530,7 @@ if {config.time_adaptive}:
             idx = np.argmin(np.abs(T_full[:,0] - tv))
             ax.plot(X_full[idx,:], U_full[idx,:], color=colors[ci], linewidth={config.plot_linewidth}, label=f"t={{_fmt_num(tv)}}")
         _ylabel_ta_line = (f"u(x,y={{_fmt_num({line_slice_y!r})}},z={{_fmt_num({line_slice_z!r})}},t)" if _is_3d
-                           else (f"u(x,y={line_slice_y:.3g},t)" if _is_2d else "u(x,t)"))
+                           else (f"u(x,y={{_fmt_num({line_slice_y!r})}},t)" if _is_2d else "u(x,t)"))
         ax.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_ylabel_ta_line, fontsize={config.plot_axis_label_fontsize})
         ax.set_title("Time-Adaptive PINN — Line Plot")
         ax.legend(loc="upper right", fontsize=_lfs(8)); _grid(ax, alpha=0.2)
@@ -3980,7 +3980,7 @@ if {config.time_adaptive}:
                             _gt_b_ta, _pinn_b_ta = _gt_b_ta[_ea_sub_ta], _pinn_b_ta[_ea_sub_ta]
                         _err_b_ta = np.abs(_pinn_b_ta - _gt_b_ta)
                         _cols_ta = [(_pinn_b_ta, f"PINN  t={{_fmt_num(_ea_tv)}}  {{_l2_txt(_l2)}}"),
-                                    (_gt_b_ta, f"Reference  t={{_ea_tv:.3f}}"),
+                                    (_gt_b_ta, f"Reference  t={{_fmt_num(_ea_tv)}}"),
                                     (_err_b_ta, f"|Error|  max = {{_sci_txt(_mx)}}")]
                         for _ci_ta, (_vals_ta, _ttl_ta) in enumerate(_cols_ta):
                             _ax3_ta = fig.add_subplot(_ea_n_t, 3, _ei * 3 + _ci_ta + 1, projection='3d')
@@ -7492,7 +7492,7 @@ for _pval in _param_values:
                         _ea_x_refs.append(_ea_d[_ea_idx, 0])
                         _ea_y_refs.append(np.zeros_like(_ea_d[_ea_idx, 0]))
                         _ea_z_refs.append(np.zeros_like(_ea_d[_ea_idx, 0]))
-                        _ea_u_refs.append(_ea_d[_ea_idx, 1])
+                        _ea_u_refs.append(_ea_d[_ea_idx, -1])   # x, u (or x, t, u: u is last)
                         _ea_times.append(0.0)
                         print(f"  Loaded ground truth (steady-state): {{len(_ea_d)}} pts from {{_os.path.basename(_ea_fp)}}")
                     else:
@@ -7687,9 +7687,9 @@ for _pval in _param_values:
                     _ea_line_suptitle = _ea_title_txt("Line Comparison", _ea_sel)
                     _ea_line_head = _ea_line_suptitle.replace(" — Line Comparison", "")
                     if _is_3d:
-                        _ea_line_head += f" (y={line_slice_y:.3g}, z={line_slice_z:.3g})"
+                        _ea_line_head += f" (y={{_fmt_num({line_slice_y!r})}}, z={{_fmt_num({line_slice_z!r})}})"
                     elif _is_2d:
-                        _ea_line_head += f" (y={line_slice_y:.3g})"
+                        _ea_line_head += f" (y={{_fmt_num({line_slice_y!r})}})"
                     if not _ea_single:
                         fig.suptitle(_ea_line_head, fontsize={config.plot_subplot_title_fontsize} + 2)
                     _ea_ax_flat = axes.flatten()
@@ -7888,7 +7888,7 @@ for _pval in _param_values:
                             # so "t=..." is dropped from every column title.
                             _cols_ea = [
                                 (_pinn_faces_ea, (f"PINN  {{_l2_txt(_l2)}}" if _is_steady else f"PINN  t={{_fmt_num(_ea_tv)}}  {{_l2_txt(_l2)}}"), _vmin3_ea, _vmax3_ea, '{config.plot_colormap}'),
-                                (_gt_faces_ea,   ("Reference" if _is_steady else f"Reference  t={{_ea_tv:.3f}}"),         _vmin3_ea, _vmax3_ea, '{config.plot_colormap}'),
+                                (_gt_faces_ea,   ("Reference" if _is_steady else f"Reference  t={{_fmt_num(_ea_tv)}}"),         _vmin3_ea, _vmax3_ea, '{config.plot_colormap}'),
                                 (_err_faces_ea,  (f"|Error|  max = {{_sci_txt(_mx)}}" if _is_steady else f"|Error|  t={{_fmt_num(_ea_tv)}}  max = {{_sci_txt(_mx)}}"), 0.0, _vmax_err_ea, '{err_cmap(config)}'),
                             ]
                             for _col_ea, (_face_vals_ea, _ttl_ea, _vmin_c_ea, _vmax_c_ea, _cmap_c_ea) in enumerate(_cols_ea):
@@ -7960,7 +7960,7 @@ for _pval in _param_values:
                             # so "t=..." is dropped from every column title.
                             _cols_ea = [
                                 (_pinn_b_ea, (f"PINN  {{_l2_txt(_l2)}}" if _is_steady else f"PINN  t={{_fmt_num(_ea_tv)}}  {{_l2_txt(_l2)}}"), _vmin3_ea, _vmax3_ea, '{config.plot_colormap}'),
-                                (_gt_b_ea,   ("Reference" if _is_steady else f"Reference  t={{_ea_tv:.3f}}"),         _vmin3_ea, _vmax3_ea, '{config.plot_colormap}'),
+                                (_gt_b_ea,   ("Reference" if _is_steady else f"Reference  t={{_fmt_num(_ea_tv)}}"),         _vmin3_ea, _vmax3_ea, '{config.plot_colormap}'),
                                 (_err_b_ea,  (f"|Error|  max = {{_sci_txt(_mx)}}" if _is_steady else f"|Error|  t={{_fmt_num(_ea_tv)}}  max = {{_sci_txt(_mx)}}"), None, None, '{err_cmap(config)}'),
                             ]
                             for _col_ea, (_vals_ea, _ttl_ea, _vmin_c_ea, _vmax_c_ea, _cmap_c_ea) in enumerate(_cols_ea):
@@ -8134,7 +8134,7 @@ for _pval in _param_values:
                             _lo_sl = min(_p_sl.min(), _g_sl.min()); _hi_sl = max(_p_sl.max(), _g_sl.max(), _lo_sl + 1e-12)
                             _lo_sl, _hi_sl = _vr(_lo_sl, _hi_sl)
                             _lv_sl = _cf_levels({config.plot_levels}, _lo_sl, _hi_sl)["levels"]
-                            _tt_sl = "" if _is_steady else f"t={{_ea_tv:.3f}}  "
+                            _tt_sl = "" if _is_steady else f"t={{_fmt_num(_ea_tv)}}  "
                             for _c_sl, (_v_sl, _ttl_sl, _lev_sl) in enumerate((
                                     (_p_sl, f"PINN  {{_tt_sl}}{{_l2_txt(_l2)}}", _lv_sl),
                                     (_g_sl, f"Reference  {{_tt_sl}}".rstrip(), _lv_sl),
@@ -9788,7 +9788,7 @@ def _restore_line_plot_code(x_min, x_max, resolution, t_min, t_max, n_steps, col
             "        # this is just a defensive fallback so it can't crash if ever reached).\n"
         )
         predict_model_arg = ""
-        line_label_stmt = '\n        _line_label = "steady-state" if is_steady else f"t={tv:.3f}"'
+        line_label_stmt = '\n        _line_label = "steady-state" if is_steady else f"t={_fmt_num(tv)}"'
         line_label_arg = "label=_line_label"
         xt_branch = (
             "        if is_steady and is_3d:\n"
@@ -9987,7 +9987,7 @@ def _restore_anim_surface_code(x_min, x_max, y_min, y_max, t_min, t_max, n_steps
             "            _ta_m = _ta_model_for_t(tv)\n"
             "            XT = np.column_stack([x_anim, np.full_like(x_anim, tv)])\n"
             "            pred_row = _extract_plot_field(XT, _ta_m).flatten()\n"
-            "            pred = np.tile(pred_row, (80, 1))\n"
+            "            pred = np.tile(pred_row, ({res}, 1))\n"
             "            if {swap_xt}:\n"
             "                all_frames.append((T_anim, X_anim, pred))\n"
             "            else:\n"
@@ -10085,6 +10085,7 @@ if is_3d:
     else:
         v_min = min(_f.min() for _frame in all_frames for _f in _frame)
         v_max = max(_f.max() for _frame in all_frames for _f in _frame)
+    v_min, v_max = _vr(v_min, v_max)   # Plot settings -> Surface -> Colour range
     fig = plt.figure(figsize=_plot_figsize(8, 6.5))
     ax = fig.add_subplot(111, projection='3d')
     _norm3a = plt.Normalize(vmin=v_min, vmax=v_max)
@@ -10118,10 +10119,13 @@ else:
         # (contourf leaves them unfilled), same as the static 2D Surface plot.
         _inside2da = np.asarray(geom.inside(np.column_stack([Xg.ravel(), Yg.ravel()]))).reshape({res}, {res})
 {loop_2d}    else:
+        if globals().get("is_steady", False):
+            raise SystemExit("Animation Surface needs a time axis, and a steady 1D model has none: use Line.")
 {comment_else}        t_anim = np.linspace({t_min}, {t_max}, {res})
         X_anim, T_anim = np.meshgrid(x_anim, t_anim)
 {loop_else}    v_min = min(np.nanmin(f[2]) for f in all_frames)
     v_max = max(np.nanmax(f[2]) for f in all_frames)
+    v_min, v_max = _vr(v_min, v_max)   # Plot settings -> Surface -> Colour range
     fig, ax = plt.subplots(figsize=_plot_figsize(8, 6))
     from mpl_toolkits.axes_grid1 import make_axes_locatable
     _div = make_axes_locatable(ax)

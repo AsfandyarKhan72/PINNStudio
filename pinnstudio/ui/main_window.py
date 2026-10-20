@@ -16520,7 +16520,7 @@ print("DOMAIN_PREVIEW_DONE")
         _dpi = int(viz_settings.get('dpi', 150) or 150)
         _fps = int(viz_settings.get('fps', 15) or 15)
         from pinnstudio.core.codegen import (_figsize_helper_code, _param_axis_helper_code,
-                                             _contour_levels_helper_code, param_style_of, number_settings, line_colors, font_sizes, anim_dpi, plot_extras, res_3d)
+                                             _contour_levels_helper_code, param_style_of, number_settings, line_colors, font_sizes, anim_dpi, plot_extras, res_3d, fmt_num)
         _pstyle = param_style_of({cfg_key: viz_settings[ui_key] for ui_key, cfg_key in self._PARAM_STYLE_KEYS
                                   if ui_key in viz_settings})
         script = f"""
@@ -16684,7 +16684,7 @@ print("RESTORE_DONE")
         activation = cfg["activation"]
         from pinnstudio.core.codegen import (_net_construction_helper_code,
             _training_monitor_runtime_code, _figsize_helper_code, _contour_levels_helper_code,
-            _math_namespace_code, number_settings, line_colors, font_sizes, anim_dpi, plot_extras, res_3d)
+            _math_namespace_code, number_settings, line_colors, font_sizes, anim_dpi, plot_extras, res_3d, fmt_num)
         net_helper_code = _net_construction_helper_code(cfg.get("network_type", "FNN"), cfg.get("msffn_sigmas", "1, 10"),
                                                         cfg.get("msffn_sigmas_t", "1, 10"))
         # Re-attach the model's input/output transforms (Round 62) -- see
@@ -16888,9 +16888,9 @@ except Exception as e:
     exit(1)
 
 os.makedirs({save_dir!r}, exist_ok=True)
-x_vals = np.linspace({x_min}, {x_max}, 100)
-y_vals = np.linspace({y_min}, {y_max}, 100)
-z_vals = np.linspace({z_min}, {z_max}, 100)
+x_vals = np.linspace({x_min}, {x_max}, {max(10, int(resolution))})   # Plot settings -> Surface -> Grid resolution
+y_vals = np.linspace({y_min}, {y_max}, {max(10, int(resolution))})
+z_vals = np.linspace({z_min}, {z_max}, {max(10, int(resolution))})
 is_2d  = {str(is_2d)}
 is_3d  = {str(is_3d)}
 is_steady = {str(is_steady)}
@@ -16969,7 +16969,7 @@ def _extract_plot_field(x_grid):
         elif viz_type == "Line (time steps)":
             _xlabel_line = xlabel_override or "x"
             _ylabel_line = ylabel_override or out_name
-            _slice_suffix_line = (f", y={line_slice_y:.3g}, z={line_slice_z:.3g}" if is_3d else (f", y={line_slice_y:.3g}" if is_2d else ""))
+            _slice_suffix_line = (f", y={fmt_num(line_slice_y, number_settings(viz_settings))}, z={fmt_num(line_slice_z, number_settings(viz_settings))}" if is_3d else (f", y={fmt_num(line_slice_y, number_settings(viz_settings))}" if is_2d else ""))
             _title_line = title_override or f"Restored Model — {out_name}(x,t{_slice_suffix_line}) Line Plot"
             # cleanup Round 42 (audit §2e): this branch and its
             # _build_restore_script_ta counterpart were two independently
@@ -16984,8 +16984,8 @@ def _extract_plot_field(x_grid):
                 _title_line, subplot_title_fontsize, axis_label_fontsize, save_dir, dpi,
                 is_time_adaptive=False) + "\n"
         elif viz_type == "Animation Line (GIF)":
-            _slice_suffix_animline = (f", y={line_slice_y:.3g}, z={line_slice_z:.3g}" if is_3d
-                                       else (f", y={line_slice_y:.3g}" if is_2d else ""))
+            _slice_suffix_animline = (f", y={fmt_num(line_slice_y, number_settings(viz_settings))}, z={fmt_num(line_slice_z, number_settings(viz_settings))}" if is_3d
+                                       else (f", y={fmt_num(line_slice_y, number_settings(viz_settings))}" if is_2d else ""))
             _xlabel_animline = xlabel_override or "x"
             _ylabel_animline = ylabel_override or (f"{out_name}(x,t{_slice_suffix_animline})" if (is_2d or is_3d) else out_name)
             _title_line_stmt = f"ax.set_title({title_override!r}, fontsize={subplot_title_fontsize})" if title_override else ""
@@ -17148,7 +17148,7 @@ def _extract_plot_field(x_grid):
         # this function's docstring already gives for x_min/x_max/etc.
         from pinnstudio.core.codegen import (_net_construction_helper_code,
             _training_monitor_runtime_code, _figsize_helper_code, _contour_levels_helper_code,
-            _math_namespace_code, number_settings, line_colors, font_sizes, anim_dpi, plot_extras, res_3d)
+            _math_namespace_code, number_settings, line_colors, font_sizes, anim_dpi, plot_extras, res_3d, fmt_num)
         net_helper_code = _net_construction_helper_code(cfg.get("network_type", "FNN"), cfg.get("msffn_sigmas", "1, 10"),
                                                         cfg.get("msffn_sigmas_t", "1, 10"))
         # Re-attach the model's input/output transforms (Round 62) -- see
@@ -17292,9 +17292,9 @@ def _ta_model_for_t(tv):
     return _ta_get_model(_ta_pick_step(tv))
 
 os.makedirs({save_dir!r}, exist_ok=True)
-x_vals = np.linspace({x_min}, {x_max}, 100)
-y_vals = np.linspace({y_min}, {y_max}, 100)
-z_vals = np.linspace({z_min}, {z_max}, 100)
+x_vals = np.linspace({x_min}, {x_max}, {max(10, int(resolution))})   # Plot settings -> Surface -> Grid resolution
+y_vals = np.linspace({y_min}, {y_max}, {max(10, int(resolution))})
+z_vals = np.linspace({z_min}, {z_max}, {max(10, int(resolution))})
 
 {_tm_runtime_code_restore}
 
@@ -17349,8 +17349,8 @@ def _extract_plot_field(x_grid, _tm_model):
                 is_time_adaptive=True, res3d=res_3d(viz_settings)) + "\n"
 
         elif viz_type == "Line (time steps)":
-            _slice_suffix_line = (f", y={line_slice_y:.3g}, z={line_slice_z:.3g}" if is_3d
-                                   else (f", y={line_slice_y:.3g}" if is_2d else ""))
+            _slice_suffix_line = (f", y={fmt_num(line_slice_y, number_settings(viz_settings))}, z={fmt_num(line_slice_z, number_settings(viz_settings))}" if is_3d
+                                   else (f", y={fmt_num(line_slice_y, number_settings(viz_settings))}" if is_2d else ""))
             _xlabel_line = xlabel_override or "x"
             _ylabel_line = ylabel_override or out_name
             _title_line = title_override or f"Restored Model — {out_name}(x,t{_slice_suffix_line}) Line Plot"
@@ -17364,8 +17364,8 @@ def _extract_plot_field(x_grid, _tm_model):
                 _title_line, subplot_title_fontsize, axis_label_fontsize, save_dir, dpi,
                 is_time_adaptive=True) + "\n"
         elif viz_type == "Animation Line (GIF)":
-            _slice_suffix_animline = (f", y={line_slice_y:.3g}, z={line_slice_z:.3g}" if is_3d
-                                       else (f", y={line_slice_y:.3g}" if is_2d else ""))
+            _slice_suffix_animline = (f", y={fmt_num(line_slice_y, number_settings(viz_settings))}, z={fmt_num(line_slice_z, number_settings(viz_settings))}" if is_3d
+                                       else (f", y={fmt_num(line_slice_y, number_settings(viz_settings))}" if is_2d else ""))
             _xlabel_animline = xlabel_override or "x"
             _ylabel_animline = ylabel_override or (f"{out_name}(x,t{_slice_suffix_animline})" if (is_2d or is_3d) else out_name)
             _title_line_stmt = f"ax.set_title({title_override!r}, fontsize={subplot_title_fontsize})" if title_override else ""
@@ -17418,12 +17418,14 @@ def _extract_plot_field(x_grid, _tm_model):
                                   is_steady=False, is_ta=False,
                                   z_min=0.0, z_max=1.0, line_slice_y=None, line_slice_z=None,
                                   ea_metric_l2=True, ea_metric_mse=False, ea_metric_max=False):
+        if is_steady and not is_2d and not is_3d:
+            do_surface = False     # a steady 1D model has no x-t surface: the line comparison only
         # line_slice_y/_z: the same configured 2D/3D line-plot slice value
         # (PINNConfig.line_slice_y/_z) the restore script's own Line plot
         # uses. None means "caller didn't pass one" (e.g. an older call
         # site) -- fall back to the domain midpoint, matching this
         # feature's behavior everywhere else when left on Auto.
-        from pinnstudio.core.codegen import _math_namespace_code
+        from pinnstudio.core.codegen import _math_namespace_code, fmt_num, number_settings
         if line_slice_y is None:
             line_slice_y = (y_min + y_max) / 2.0
         if line_slice_z is None:
@@ -17537,6 +17539,14 @@ for _tv, _fp in _ea_files:
         _ea_z_refs.append(np.zeros_like(_d[_idx, 0]))
         _ea_u_refs.append(_d[_idx, 2])
         _ea_times.append(0.0)
+    elif {is_steady}:
+        # Steady 1D reference format: x, u (or x, t, u: u is the last column)
+        _idx = np.argsort(_d[:, 0])
+        _ea_x_refs.append(_d[_idx, 0])
+        _ea_y_refs.append(np.zeros_like(_d[_idx, 0]))
+        _ea_z_refs.append(np.zeros_like(_d[_idx, 0]))
+        _ea_u_refs.append(_d[_idx, -1])
+        _ea_times.append(0.0)
     elif {is_3d}:
         # 3D time-dependent reference format: x, y, z, t, u
         _idx = np.lexsort((_d[:, 2], _d[:, 1], _d[:, 0]))
@@ -17572,6 +17582,8 @@ for _i, _tv in enumerate(_ea_times):
         _xt = np.column_stack([_xf, _ea_y_refs[_i], _ea_z_refs[_i]])
     elif {is_steady} and {is_2d}:
         _xt = np.column_stack([_xf, _ea_y_refs[_i]])
+    elif {is_steady}:
+        _xt = _xf.reshape(-1, 1)
     elif {is_3d}:
         _yf = _ea_y_refs[_i]; _zf = _ea_z_refs[_i]
         _xt = np.column_stack([_xf, _yf, _zf, np.full_like(_xf, _tv)])
@@ -17679,9 +17691,9 @@ if {do_line}:
             _xv_s, _gt_s, _pinn_s = _line_gaps(_xv_s, _gt_s, _pinn_s)
         _ref_plot(ax, _xv_s, _gt_s,   color=_PLOT_REF_COLOR, linewidth={viz_settings.get('linewidth', 2.0)}, label='Reference')
         ax.plot(_xv_s, _pinn_s, color=_PLOT_PINN_COLOR, linewidth={viz_settings.get('linewidth', 2.0)}, linestyle='--', label='PINN')
-        ax.set_title(f"t = {{_fmt_num(_tv)}}  ({{_l2_txt(_l2)}})", fontsize={_subtitle_fs})
+        ax.set_title((f"Steady state  ({{_l2_txt(_l2)}})" if {is_steady} else f"t = {{_fmt_num(_tv)}}  ({{_l2_txt(_l2)}})"), fontsize={_subtitle_fs})
         _ea_line_ylabel = (f"{out_name}(x,y={{_fmt_num({line_slice_y!r})}},z={{_fmt_num({line_slice_z!r})}})" if {is_3d}
-                            else (f"{out_name}(x,y={line_slice_y:.3g})" if {is_2d} else "{out_name}"))
+                            else (f"{out_name}(x,y={fmt_num(line_slice_y, number_settings(viz_settings))})" if {is_2d} else "{out_name}"))
         ax.set_xlabel("x", fontsize={_axislabel_fs}); ax.set_ylabel(_ea_line_ylabel, fontsize={_axislabel_fs}); _grid(ax, alpha=0.3)
     for _j in range(_ea_n_t, len(_ax_flat)):
         _ax_flat[_j].set_visible(False)
