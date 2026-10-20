@@ -1585,7 +1585,7 @@ $$\Large -(-\Delta)^{\alpha/2}u = 2^{\alpha}\Gamma(2 + \tfrac{\alpha}{2})\Gamma(
 - **Training:** Adam 20,000; 100 domain points
 - **In PINNStudio:** Examples → **Forward** → **Fractional Poisson 2D – disk**
 
-**Result (RTX 4090):** $L_2$ = 1.2 × 10⁻³ to 4.2 × 10⁻³ over repeated runs (the fractional operator's sums on the GPU are not bit-for-bit repeatable)
+**Result (RTX 4090):** $L_2$ = 6.6 × 10⁻⁴ to 4.2 × 10⁻³ over repeated runs (the fractional operator's sums on the GPU are not bit-for-bit repeatable)
 
 *PINN vs reference, error analysis*
 
@@ -1896,7 +1896,7 @@ $$\Large -(-\Delta)^{\alpha/2}u = 2^{\alpha_0}\Gamma(2 + \tfrac{\alpha_0}{2})\Ga
 - **Training:** Adam 10,000; 64 domain points
 - **In PINNStudio:** Examples → **Inverse** → **Fractional Poisson 2D – unknown order α**
 
-**Result (RTX 4090):** $\alpha$ = 1.804 (true 1.8); $L_2$ of $u$ = 2.0–2.3 × 10⁻³ over repeated runs
+**Result (RTX 4090):** $\alpha$ = 1.804 (true 1.8); $L_2$ of $u$ = 2.0–3.2 × 10⁻³ over repeated runs
 
 *PINN vs reference, error analysis*
 
