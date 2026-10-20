@@ -4485,6 +4485,76 @@ def _exact_constraints(config):
     return _dc.replace(config, **upd)
 
 
+def _shape_bbox(config):
+    """The bounding box of a non-box shape (Disk, Ellipse, Triangle, Polygon,
+    Sphere, Custom), as {"x_min": .., "x_max": .., ...}; None for a
+    Rectangle/Cuboid/interval, whose box is the domain fields themselves.
+    The scripts' named sides (left/right/top/...), plot areas and Error
+    Analysis grids use the domain fields, which the window doesn't keep in
+    step with these shapes."""
+    import math
+    import json as _js
+
+    def leaf(kind, p):
+        if kind in ("Disk", "Sphere"):
+            c = [float(p.get("cx", 0.5)), float(p.get("cy", 0.5))] + ([float(p.get("cz", 0.5))] if kind == "Sphere" else [])
+            r = abs(float(p.get("r", 0.5)))
+            return [v - r for v in c], [v + r for v in c]
+        if kind == "Ellipse":
+            cx, cy = float(p.get("cx", 0.5)), float(p.get("cy", 0.5))
+            a, b, t = float(p.get("a", 0.5)), float(p.get("b", 0.3)), float(p.get("angle", 0.0))
+            hx, hy = math.hypot(a * math.cos(t), b * math.sin(t)), math.hypot(a * math.sin(t), b * math.cos(t))
+            return [cx - hx, cy - hy], [cx + hx, cy + hy]
+        if kind in ("Triangle", "Polygon"):
+            v = _parse_vertex_list(p.get("vertices_text", ""))
+            if len(v) < 3:
+                return None
+            return [min(q[0] for q in v), min(q[1] for q in v)], [max(q[0] for q in v), max(q[1] for q in v)]
+        keys = ("x", "y", "z") if kind == "Cuboid" else ("x", "y")
+        try:
+            lo = [float(p[f"{k}_min"]) for k in keys]
+            hi = [float(p[f"{k}_max"]) for k in keys]
+        except (KeyError, TypeError, ValueError):
+            return None
+        return lo, hi
+
+    g = getattr(config, "geometry_type", "Rectangle")
+    dim = getattr(config, "problem_dim", "2D")
+    if dim not in ("2D", "3D"):
+        return None
+    if g == "Custom":
+        try:
+            entries = [e for e in (_js.loads(config.geom_custom_shapes_json or "[]") or []) if isinstance(e, dict)]
+        except (ValueError, TypeError):
+            return None
+        box = None
+        for e in entries:
+            b = leaf(e.get("type"), e.get("params") or {})
+            if b is None:
+                return None
+            if box is None:
+                box = b
+                continue
+            op = e.get("op") or "union"
+            if op == "union":
+                box = ([min(a, c) for a, c in zip(box[0], b[0])], [max(a, c) for a, c in zip(box[1], b[1])])
+            elif op == "intersect":
+                box = ([max(a, c) for a, c in zip(box[0], b[0])], [min(a, c) for a, c in zip(box[1], b[1])])
+            # subtract: the box can only shrink, keep the first one's
+    else:
+        P = {"cx": config.geom_center_x, "cy": config.geom_center_y, "cz": getattr(config, "geom_center_z", 0.5),
+             "r": config.geom_radius, "a": config.geom_semi_major, "b": config.geom_semi_minor, "angle": config.geom_angle,
+             "vertices_text": config.geom_triangle_vertices if g == "Triangle" else config.geom_polygon_vertices}
+        box = leaf(g, P) if g in ("Disk", "Ellipse", "Triangle", "Polygon", "Sphere") else None
+    if not box or any(h <= l for l, h in zip(*box)):
+        return None
+    names = ("x", "y", "z")
+    out = {}
+    for k, (l, h) in enumerate(zip(*box)):
+        out[f"{names[k]}_min"], out[f"{names[k]}_max"] = float(l), float(h)
+    return out
+
+
 def _effective_config(config):
     """The config as the generators should read it -- cleanup Round 56.
     PINNConfig documents time_adaptive as IGNORED for a steady-state problem
@@ -4498,6 +4568,11 @@ def _effective_config(config):
     import dataclasses as _dc
     if getattr(config, "steady_state", False) and getattr(config, "time_adaptive", False):
         config = _dc.replace(config, time_adaptive=False)
+    # A non-box shape: its own bounding box is the domain box the scripts use
+    # (sides, plot areas, Error Analysis grids), not the hidden box fields.
+    _sb = _shape_bbox(config)
+    if _sb and any(abs(float(getattr(config, k)) - v) > 1e-12 for k, v in _sb.items()):
+        config = _dc.replace(config, **_sb)
     # Round 70: named constants -> their values, in every expression.
     _consts = _constant_values(config)
     if _consts:
@@ -4996,6 +5071,21 @@ def _lbfgs_options_in_step():
     dde.optimizers.set_LBFGS_options = _oc.set_LBFGS_options = _set_lbfgs
     _set_lbfgs(**{{_k: _oc.LBFGS_options[_k] for _k in ("maxcor", "ftol", "gtol", "maxiter", "maxfun", "maxls")}})
 _lbfgs_options_in_step()
+# DeepXDE 1.15 gives an Ellipse the box (center - a, center + b), whatever
+# its rotation: plots were cut off and a shape combined with an ellipse lost
+# collocation points. Give it its real bounding box.
+def _ellipse_box_fix():
+    _E = dde.geometry.Ellipse
+    _init = _E.__init__
+    def __init__(self, center, semimajor, semiminor, angle=0):
+        _init(self, center, semimajor, semiminor, angle)
+        import numpy as _np
+        _c = _np.asarray(center, dtype=float)
+        _h = _np.array([_np.hypot(semimajor * _np.cos(angle), semiminor * _np.sin(angle)),
+                        _np.hypot(semimajor * _np.sin(angle), semiminor * _np.cos(angle))])
+        self.bbox = (_c - _h, _c + _h)
+    _E.__init__ = __init__
+_ellipse_box_fix()
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
@@ -11045,6 +11135,21 @@ def _lbfgs_options_in_step():
     dde.optimizers.set_LBFGS_options = _oc.set_LBFGS_options = _set_lbfgs
     _set_lbfgs(**{{_k: _oc.LBFGS_options[_k] for _k in ("maxcor", "ftol", "gtol", "maxiter", "maxfun", "maxls")}})
 _lbfgs_options_in_step()
+# DeepXDE 1.15 gives an Ellipse the box (center - a, center + b), whatever
+# its rotation: plots were cut off and a shape combined with an ellipse lost
+# collocation points. Give it its real bounding box.
+def _ellipse_box_fix():
+    _E = dde.geometry.Ellipse
+    _init = _E.__init__
+    def __init__(self, center, semimajor, semiminor, angle=0):
+        _init(self, center, semimajor, semiminor, angle)
+        import numpy as _np
+        _c = _np.asarray(center, dtype=float)
+        _h = _np.array([_np.hypot(semimajor * _np.cos(angle), semiminor * _np.sin(angle)),
+                        _np.hypot(semimajor * _np.sin(angle), semiminor * _np.cos(angle))])
+        self.bbox = (_c - _h, _c + _h)
+    _E.__init__ = __init__
+_ellipse_box_fix()
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
