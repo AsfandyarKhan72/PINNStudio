@@ -9531,8 +9531,14 @@ class MainWindow(QMainWindow):
         from datetime import datetime
         if not path and not save_as:
             path = getattr(self, "_current_path", None)
+        # a template (or DeepXDE example) as loaded has no file: saving it
+        # always makes a new problem, and the template stays as it is
+        from_template = (not getattr(self, "_current_path", None)
+                         and bool(getattr(self, "_current_template", "")))
         if not path:
             default_name = getattr(self, "_current_problem_name", "") or "problem"
+            if from_template:
+                default_name = f"{_ex_catalog.display_name(default_name)} (copy)"
             path, _ = QFileDialog.getSaveFileName(
                 self, "Save Problem As", f"{default_name}.pinn.json",
                 "PINNStudio Problem (*.pinn.json)"
@@ -9557,6 +9563,9 @@ class MainWindow(QMainWindow):
             "saved_at": datetime.now().isoformat(timespec="seconds"),
             "config": dataclasses.asdict(config),
         }
+        origin = self._template_origin()
+        if origin:
+            payload["template"] = origin
         try:
             with open(path, "w", encoding="utf-8") as f:
                 json.dump(payload, f, indent=2)
@@ -9565,10 +9574,70 @@ class MainWindow(QMainWindow):
             self._add_recent(path)
             self._mark_clean(config)
             self.log_box.append(f"💾 Problem saved: {os.path.basename(path)}")
+            if from_template:
+                self.log_box.append(f"   Saved as a new problem; the "
+                                    f"\"{_ex_catalog.display_name(self._current_template)}\" example itself is unchanged.")
             return True
         except Exception as e:
             self.log_box.append(f"❌ Failed to save problem: {e}")
             return False
+
+    def _template_origin(self):
+        """The example this problem started from, saved with it so that an
+        edited copy still does what the example does when switched between
+        Forward and Inverse (the unknown put into the equation, the
+        measured-data file, the time range) and still finds its reference
+        data. None for a problem built from scratch."""
+        import json
+        key = getattr(self, "_current_template", "") or ""
+        if not key:
+            return None
+        ref = getattr(self, "_template_ref_dir", "") or ""
+        try:
+            if ref and os.path.commonpath([os.path.abspath(ref), os.path.abspath(REFERENCE_DATA_DIR)]) \
+                    == os.path.abspath(REFERENCE_DATA_DIR):
+                ref = os.path.relpath(ref, REFERENCE_DATA_DIR)   # works after reinstalling elsewhere
+        except ValueError:
+            pass
+        ta = getattr(self, "_current_ta_cfg", None)
+        try:
+            json.dumps(ta)
+        except (TypeError, ValueError):
+            ta = None
+        return {"key": key, "ref_dir": ref,
+                "forward_t_max": getattr(self, "_current_template_forward_tmax", None),
+                "inverse_t_max": getattr(self, "_current_template_inverse_tmax", None),
+                "time_adaptive": ta,
+                # Inverse switched the template's time-adaptive training off;
+                # Forward turns it back on
+                "time_adaptive_suspended": bool(getattr(self, "_ta_suspended_for_inverse", False))}
+
+    def _restore_template_origin(self, origin):
+        """The other half of _template_origin, after the settings are applied."""
+        if not isinstance(origin, dict) or not origin.get("key"):
+            return
+        key = str(origin["key"])
+        self._current_template = key
+        ref = origin.get("ref_dir") or ""
+        if ref and not os.path.isabs(ref):
+            ref = os.path.join(REFERENCE_DATA_DIR, ref)
+        self._template_ref_dir = ref if ref and os.path.isdir(ref) else ""
+        self._current_template_forward_tmax = origin.get("forward_t_max")
+        self._current_template_inverse_tmax = origin.get("inverse_t_max")
+        if isinstance(origin.get("time_adaptive"), dict):
+            self._current_ta_cfg = origin["time_adaptive"]
+        self._ta_suspended_for_inverse = bool(origin.get("time_adaptive_suspended")) and self.radio_inverse.isChecked()
+        # A copy saved in Inverse mode has the unknowns in its equation:
+        # note them, so switching to Forward puts the constants back.
+        if self.radio_inverse.isChecked():
+            active = []
+            for idx, const_str, var_row in self.INVERSE_AUTO_CONST.get(key) or []:
+                if idx >= len(self.pde_inputs):
+                    continue
+                var_name = self._inv_var_name(var_row)
+                if var_name and var_name in self.pde_inputs[idx].text():
+                    active.append((key, idx, const_str, var_name, var_row))
+            self._inverse_sub_active = active
 
     def _open_problem(self, path=None):
         import json
@@ -9608,18 +9677,24 @@ class MainWindow(QMainWindow):
         # layers list, an inverted domain range, invalid JSON in one of
         # the JSON-encoded fields, etc. -- previously this either silently
         # produced a degenerate run or crashed deep inside DeepXDE/PyTorch
-        # with a traceback giving no hint it was a config problem. Catch it
-        # here, before it's ever applied to the interface.
+        # with a traceback giving no hint it was a config problem. Solve
+        # checks these (validate()) before every run. The file is still
+        # opened, with what needs fixing listed: a problem saved half done
+        # (Inverse with no measured-data file picked yet) must open again.
         _val_errors = config.validate()
-        if _val_errors:
-            self.log_box.append("❌ This problem file has invalid settings and was not loaded:")
-            for _ve in _val_errors:
-                self.log_box.append(f"   • {_ve}")
-            return
+        try:
+            _before = self._build_config()
+        except Exception:
+            _before = None
         try:
             self._apply_config(config)
         except Exception as e:
             self.log_box.append(f"❌ Failed to load problem into the interface: {e}")
+            if _before is not None:      # not left half loaded
+                try:
+                    self._apply_config(_before)
+                except Exception:
+                    pass
             return
         problem_name = (
             data.get("problem_name", os.path.splitext(os.path.basename(path))[0])
@@ -9627,9 +9702,14 @@ class MainWindow(QMainWindow):
         )
         self._current_problem_name = problem_name
         self._current_path = path
+        self._restore_template_origin(data.get("template") if isinstance(data, dict) else None)
         self._add_recent(path)
         self._mark_clean()
         self.log_box.append(f"✅ Problem loaded: {problem_name}")
+        if _val_errors:
+            self.log_box.append("⚠️ To fix before Solve:")
+            for _ve in _val_errors:
+                self.log_box.append(f"   • {_ve}")
 
     def _export_deepxde_script(self):
         """Export the problem exactly as currently configured in the GUI as
