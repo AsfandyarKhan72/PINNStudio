@@ -40,3 +40,25 @@ def test_short_lbfgs_phase_runs_its_iterations():
         assert p.returncode == 0, p.stderr[-1500:]
         steps = [int(s) for s in re.findall(r"^(\d+)\s+\[", p.stdout, re.M)]
         assert steps and max(steps) <= 35, (gen.__name__, steps[-3:])
+
+
+def test_training_method_checks():
+    """MsFFN needs an even first width; weight decay can't go with PFNN or
+    MsFFN; causal training isn't available for an ODE; RAR rounds train the
+    unknowns of an inverse problem with the phases' optimizer and callbacks."""
+    c = PINNConfig()
+    c.network_type, c.layers = "MsFFN", [2, 21, 20, 1]
+    assert any("even number" in e for e in c.validate())
+    c.layers, c.weight_decay = [2, 20, 20, 1], 1e-4
+    assert any("Weight decay can't" in e for e in c.validate())
+    c = PINNConfig()
+    c.problem_dim, c.causal_training = "ODE", True
+    assert any("Causal training isn't available for an ODE" in e for e in c.validate())
+    c = PINNConfig()
+    c.problem_type, c.adapt_method = "Inverse", "RAR"
+    c.optimizer_scheduler = True
+    c.scheduler_phases = json.dumps([{"optimizer": "adam", "iterations": 100, "lr": 1e-4}])
+    t = cg.generate_script(c)
+    assert "external_trainable_variables=_rar_ext" in t and "callbacks=list(_train_cbs)" in t
+    assert 'model.compile("adam", lr=0.0001' in t
+    assert "exists('/tmp')" not in t

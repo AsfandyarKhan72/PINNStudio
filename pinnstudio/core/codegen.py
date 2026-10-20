@@ -1673,6 +1673,25 @@ def _ea_metrics_print_fragment(config, l2, mse, mx, ma):
     return ", ".join(parts)
 
 
+def _rar_optimizer(config):
+    """(optimizer, learning rate) of RAR's first-order rounds: the last
+    non-L-BFGS Training Phase's, as the user set them (the hidden
+    single-optimizer fields are only a fallback)."""
+    import json as _js
+    try:
+        phases = [p for p in (_js.loads(getattr(config, "scheduler_phases", "") or "[]") or [])
+                  if isinstance(p, dict) and str(p.get("optimizer", "")).lower() not in ("lbfgs", "l-bfgs")]
+    except (ValueError, TypeError):
+        phases = []
+    if getattr(config, "optimizer_scheduler", False) and phases:
+        p = phases[-1]
+        try:
+            return str(p.get("optimizer") or config.optimizer), float(p.get("lr", config.learning_rate))
+        except (TypeError, ValueError):
+            pass
+    return config.optimizer, float(config.learning_rate)
+
+
 def _gs_rar_loop_code(config):
     """generate_script()'s Residual-based Adaptive Refinement loop, including the
     per-round diagnostics (_rar_save_round_diagnostics) -- cleanup Round 52
@@ -2372,8 +2391,14 @@ def _gs_rar_loop_code(config):
             new_points = xt_cand[top_idx]
             print(f"Max residual: {{residuals.max():.4e}}, Mean: {{residuals.mean():.4e}}")
             data.add_anchors(new_points)
-            model.compile("{config.optimizer}", lr=_lr, loss="{config.loss_type}", loss_weights=_multi_weights)
-            loss_history, train_state = model.train(iterations={config.rar_adam_iters}, display_every={config.loss_display_every})
+            # the last first-order phase's optimizer and learning rate, the
+            # unknowns of an inverse problem, and the training callbacks
+            # (causal training, point weights, monitors) as in the phases
+            _rar_ext = _inv_vars if _problem_type == "Inverse" else None
+            model.compile("{_rar_optimizer(config)[0]}", lr={_rar_optimizer(config)[1]!r}, loss="{config.loss_type}",
+                          loss_weights=_multi_weights, external_trainable_variables=_rar_ext)
+            loss_history, train_state = model.train(iterations={config.rar_adam_iters}, display_every={config.loss_display_every},
+                                                    callbacks=list(_train_cbs))
             if {config.rar_lbfgs_iters} > 0:
                 # Round 31: when this round also runs an L-BFGS phase, save
                 # the Adam phase's own checkpoint here -- standardized on
@@ -2398,9 +2423,16 @@ def _gs_rar_loop_code(config):
                     gtol={config.lbfgs_gtol}, maxiter={config.rar_lbfgs_iters},
                     maxfun={_lbfgs_maxfun(config, config.rar_lbfgs_iters)}, maxls={config.lbfgs_maxls}
                 )
-                model.compile("L-BFGS", loss="{config.loss_type}", loss_weights=_multi_weights)
-                loss_history, train_state = model.train(display_every={config.loss_display_every})
+                model.compile("L-BFGS", loss="{config.loss_type}", loss_weights=_multi_weights,
+                              external_trainable_variables=_rar_ext)
+                loss_history, train_state = model.train(display_every={config.loss_display_every}, callbacks=list(_train_cbs))
             _rar_save_round_diagnostics(rar_cycle + 1, new_points)
+            if _problem_type == "Inverse":
+                # the unknowns after this round, in the parameter history
+                # (the convergence plot and the final value read it)
+                with open("/tmp/param_history.txt", "a") as _phf_rar:
+                    _phf_rar.write(f"{{int(model.train_state.step)}} [" +
+                                   ", ".join(f"{{float(_v.detach().cpu()):.10g}}" for _v in _inv_vars) + "]\\n")
             _rar_added_so_far = np.vstack([_rar_added_so_far, new_points])
         print("\\n=== RAR Complete ===")"""
 
@@ -2881,11 +2913,10 @@ if {config.time_adaptive}:
                 # folder, the previous step's network kept in memory
                 _state = (_torch.load(_prev_step_model_path, map_location='cpu')["model_state_dict"]
                           if _prev_step_model_path else _prev_step_state)
-                # Extract ONLY weights and biases — nothing else
-                _wb_only = {{
-                    k: v for k, v in _state.items()
-                    if k.endswith('.weight') or k.endswith('.bias')
-                }}
+                # the network's weights and biases, and its buffers too (an
+                # MsFFN's random Fourier matrices B_x/B_t: without them each
+                # step drew new features under the transferred weights)
+                _wb_only = {{k: v for k, v in _state.items()}}
                 # Strict=False so geometry mismatch doesn't crash
                 # but we verify shapes match before loading
                 _cur_state = model_i.net.state_dict()
@@ -6672,7 +6703,7 @@ for _pval in _param_values:
         print("=== Starting Main Training ===\\n")
 
     if not {config.time_adaptive}:
-        _sched_active = {config.optimizer_scheduler} and _os.path.exists('/tmp') and {len(config.scheduler_phases) > 0}
+        _sched_active = {config.optimizer_scheduler} and {len(config.scheduler_phases) > 0}
         if _problem_type == "Inverse":
             with open("/tmp/param_history.txt", "w") as _f:
                 pass
@@ -11702,14 +11733,14 @@ for rar_cycle in range({config.rar_cycles}):''']
     top_idx = np.argsort(residuals)[-{config.rar_add_points}:]
     print(f"RAR round {{rar_cycle + 1}}: max residual {{residuals.max():.4e}}, mean {{residuals.mean():.4e}}")
     data.add_anchors(xt_cand[top_idx])
-    model.compile("{config.optimizer}", lr={config.learning_rate}, loss="{config.loss_type}", loss_weights={multi_weights})
-    loss_history, train_state = model.train(iterations={config.rar_adam_iters}, display_every={config.loss_display_every})''')
+    model.compile("{_rar_optimizer(config)[0]}", lr={_rar_optimizer(config)[1]!r}, loss="{config.loss_type}", loss_weights={multi_weights}{ext_vars_kw})
+    loss_history, train_state = model.train(iterations={config.rar_adam_iters}, display_every={config.loss_display_every}{cbs_kw})''')
             if config.rar_lbfgs_iters > 0:
                 rar_lines.append(f'''    dde.optimizers.set_LBFGS_options(maxcor={config.lbfgs_maxcor}, ftol={config.lbfgs_ftol},
                                      gtol={config.lbfgs_gtol}, maxiter={config.rar_lbfgs_iters},
                                      maxfun={_lbfgs_maxfun(config, config.rar_lbfgs_iters)}, maxls={config.lbfgs_maxls})
-    model.compile("L-BFGS", loss="{config.loss_type}", loss_weights={multi_weights})
-    loss_history, train_state = model.train(display_every={config.loss_display_every})''')
+    model.compile("L-BFGS", loss="{config.loss_type}", loss_weights={multi_weights}{ext_vars_kw})
+    loss_history, train_state = model.train(display_every={config.loss_display_every}{cbs_kw})''')
             rar_lines.append("    rar_rounds.append((copy.deepcopy(model.net.state_dict()), xt_cand[top_idx]))")
             parts.append("\n".join(rar_lines))
 
@@ -11802,6 +11833,9 @@ _ta_loss_offset = 0''')
                       "",
                       "",
                       "for step_i, (t0, t1) in enumerate(intervals):",
+                      *(["    for _cb in train_cbs:   # each step gets the Timer's whole budget, as in Solve",
+                         "        if isinstance(_cb, dde.callbacks.Timer):",
+                         "            _cb.t_start = None"] if cbs_kw and getattr(config, "cb_timer", False) else []),
                       "    geom_i = _build_geom()",
                       "    timedomain_i = dde.geometry.TimeDomain(t0, t1)",
                       "    geomtime_i = dde.geometry.GeometryXTime(geom_i, timedomain_i)",
@@ -11844,11 +11878,11 @@ _ta_loss_offset = 0''')
             loop_lines.append("    net_i = _apply_transforms(net_i)")
         if config.ta_transfer_learning:
             loop_lines.append('''    if _prev_state is not None:
-        # transfer learning: the previous step's weights and biases (after the
-        # phase chosen under Transfer from), as Solve's script does
+        # transfer learning: the previous step's network (after the phase
+        # chosen under Transfer from) -- weights, biases and buffers such as
+        # an MsFFN's Fourier matrices -- as Solve's script does
         _cur = net_i.state_dict()
-        _cur.update({k: v for k, v in _prev_state.items()
-                     if (k.endswith(".weight") or k.endswith(".bias")) and k in _cur and _cur[k].shape == v.shape})
+        _cur.update({k: v for k, v in _prev_state.items() if k in _cur and _cur[k].shape == v.shape})
         net_i.load_state_dict(_cur)''')
 
         if use_ic_pretrain:

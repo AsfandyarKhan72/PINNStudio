@@ -861,6 +861,9 @@ class PINNConfig:
         if self.causal_training:
             if self.steady_state:
                 errors.append("Causal training needs a time-dependent problem (it weights the residual by time).")
+            elif self.problem_dim == "ODE":
+                errors.append("Causal training isn't available for an ODE (PINNStudio solves it as a problem in t "
+                              "without a separate time axis); turn it off.")
             if int(self.causal_chunks) < 2:
                 errors.append("Causal training: the number of time chunks must be at least 2.")
             if float(self.causal_eps) <= 0:
@@ -984,6 +987,9 @@ class PINNConfig:
             if isinstance(self.layers, (list, tuple)) and len(self.layers) >= 3 and self.layers[1] < 2:
                 errors.append(f"{self.network_type}: the first hidden layer needs at least 2 neurons "
                               "(half of them are cosine and half sine Fourier features).")
+            elif isinstance(self.layers, (list, tuple)) and len(self.layers) >= 3 and self.layers[1] % 2:
+                errors.append(f"{self.network_type}: the first hidden layer needs an even number of neurons "
+                              f"(half cosine, half sine Fourier features); got {self.layers[1]}.")
             if isinstance(self.layers, (list, tuple)) and len(self.layers) < 3:
                 errors.append(f"{self.network_type} needs at least one hidden layer.")
 
@@ -1044,6 +1050,9 @@ class PINNConfig:
             errors.append(f"Learning rate must be positive; got {self.learning_rate}.")
         if self.weight_decay < 0:
             errors.append(f"Weight decay cannot be negative; got {self.weight_decay}.")
+        elif self.weight_decay > 0 and self.network_type in ("PFNN", "MsFFN", "STMsFFN"):
+            errors.append(f"Weight decay can't be used with a {self.network_type} network (DeepXDE's {self.network_type} "
+                          "has no regularization): set it to 0, or use an FNN.")
 
         if self.problem_dim not in ("1D", "2D", "3D", "ODE"):
             errors.append(f"problem_dim must be '1D', '2D', '3D' or 'ODE'; got {self.problem_dim!r}.")
