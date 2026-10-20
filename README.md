@@ -338,7 +338,7 @@ Three themes are built in — **Studio Light** (the default), **Studio Dark** an
 
 PINNStudio comes with 65 ready-to-run examples, all listed in the table below and loaded from the **Examples** list in the toolbar or the gallery on the Start tab. The list's category is **Forward** (every example that solves for the field, which is all of them except the 10 inverse-only DeepXDE examples) or **Inverse** (examples that learn unknown parameters or fields from data), and each list is ordered like the table, under ODE / 1D / 2D / 3D headings. Every name follows one style, *Equation Dimension – detail*. The table's **Source** column says where each example comes from:
 
-- **PINNStudio templates** (15, in 14 rows of the table: row 23 holds the two Allen-Cahn 1D templates): our own problems; most reproduce a published PINN result, and the Source column names and links that paper (the heat and the disk/sphere Poisson templates are our own and show "—"). Each one works in both **Forward** and **Inverse** mode (picked from the Inverse list, it loads in Inverse mode with its measured-data file), and all of them ship with reference data in [`reference_data/`](reference_data), so Error Analysis is ready as soon as you load one.
+- **PINNStudio templates** (15, in 14 rows of the table: row 23 holds the two Allen-Cahn 1D templates): our own problems; most reproduce a published PINN result, and the Source column names and links that paper (the heat and the disk/sphere Poisson templates are our own and show "—"). Each one works in **Forward** mode, and all but the two Cahn-Hilliard 1D templates in **Inverse** mode too (picked from the Inverse list, it loads in Inverse mode with its measured-data file); all of them ship with reference data in [`reference_data/`](reference_data), so Error Analysis is ready as soon as you load one.
 - **DeepXDE examples** (40 forward, 10 inverse): the **DeepXDE** link in the Source column opens each one's script in DeepXDE's repository. These are the PINN examples from DeepXDE's documentation ([forward](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward.html), [inverse](https://deepxde.readthedocs.io/en/latest/demos/pinn_inverse.html)), set up with each script's own equation, geometry, boundary/initial conditions, network, optimizers, iteration counts and loss weights, so pressing **Solve** trains what the DeepXDE script trains. Anything that differs from the script is printed in the Training Log when the example loads, and noted in its entry below.
 
 Loading an example fills in every setting, and you can change any of them before pressing **Solve**; if you do, the Training Log lists what you changed. Your save folder, GPU, random-seed and plot-style settings are kept when you load one.
@@ -376,8 +376,8 @@ The table is ordered by dimension (ODE, 1D, 2D, 3D), then steady before time-dep
 | 21 | [Poisson 1D – unknown forcing field (batches)](#dx-inverse-poisson-with-unknown-forcing-field-batches) | 1D | Steady | Inverse | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/elliptic_inverse_field_batch.py) |
 | 22 | [Allen-Cahn 1D](#dx-allen-cahn-equation) | 1D | Time-dependent | Forward | Interval | Generated data | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Allen_Cahn.py) |
 | 23 | [Allen-Cahn 1D – Wight & Zhao](#1d-allen-cahn) (two templates: time-adaptive and whole interval) | 1D | Time-dependent | Forward / Inverse | Interval | Generated data | [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086) |
-| 24 | [Cahn-Hilliard 1D – Wight & Zhao](#1d-cahn-hilliard) | 1D | Time-dependent | Forward / Inverse | Interval | Generated data | [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086) |
-| 25 | [Cahn-Hilliard 1D – Mattey & Ghosh](#1d-cahn-hilliard-mattey--ghosh) | 1D | Time-dependent | Forward / Inverse | Interval | Generated data | [Mattey & Ghosh (2022)](https://doi.org/10.1016/j.cma.2021.114474) |
+| 24 | [Cahn-Hilliard 1D – Wight & Zhao](#1d-cahn-hilliard) | 1D | Time-dependent | Forward | Interval | Generated data | [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086) |
+| 25 | [Cahn-Hilliard 1D – Mattey & Ghosh](#1d-cahn-hilliard-mattey--ghosh) | 1D | Time-dependent | Forward | Interval | Generated data | [Mattey & Ghosh (2022)](https://doi.org/10.1016/j.cma.2021.114474) |
 | 26 | [Black-Scholes 1D – American put](#dx-american-put-option) | 1D | Time-dependent | Forward | Interval | — | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/american_put.py) |
 | 27 | [Black-Scholes 1D – European call](#dx-black-scholes-equation-call-option) | 1D | Time-dependent | Forward | Interval | Exact solution | [DeepXDE](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/black_scholes_call.py) |
 | 28 | [Burgers 1D – Raissi et al.](#1d-burgers) | 1D | Time-dependent | Forward / Inverse | Interval | Generated data | [Raissi et al. (2019)](https://doi.org/10.1016/j.jcp.2018.10.045) |
@@ -1048,7 +1048,7 @@ where $\gamma_1 = 10^{-6}$ and $\gamma_2 = 0.01$. The fourth-order equation is s
 - **Exact periodicity** (Boundary conditions → *Exact periodicity (periodic inputs)*): the network's inputs are $\cos(\pi x)$, $\sin(\pi x)$, $t$, so the solution is exactly periodic (the periodic BC rows stay on)
 - **Per-point weights** (Loss weights → *Automatic weighting*): *SA-PINN* ([McClenny & Braga-Neto, 2023](https://doi.org/10.1016/j.jcp.2022.111722)), *Keep the mean weight at 1* off, *During L-BFGS: Keep the weights*
 - **Training:** Adam 20,000 → L-BFGS 20,000; 10,000 domain, 200 boundary, 512 initial points; no time-adaptive training
-- **In PINNStudio:** Examples → **Forward** (or **Inverse**) → **Cahn-Hilliard 1D – Wight & Zhao**
+- **In PINNStudio:** Examples → **Forward** → **Cahn-Hilliard 1D – Wight & Zhao**
 
 **Result (RTX 4090, about 6 minutes):** $u$: $L_2$ = 1.6 × 10⁻⁷ ($t = 0$), 2.3 × 10⁻³ ($t = 0.25$), 1.1 × 10⁻³ ($t = 0.5$), 7.2 × 10⁻⁴ ($t = 0.75$), 6.0 × 10⁻⁴ ($t = 1$); $\mu$: 1.2 × 10⁻³, 2.8 × 10⁻³, 1.8 × 10⁻³, 1.3 × 10⁻³, 1.6 × 10⁻³, against a Fourier pseudo-spectral solution in [`reference_data/1D/cahn_hilliard`](reference_data/1D/cahn_hilliard) (made by [`tools/make_exact_reference_data.py`](tools/make_exact_reference_data.py)). Two more seeds gave the same within 15% (0.051–0.060% in $u$ at $t = 1$). With RBA in place of SA-PINN the error in $u$ is about 2× larger (6.0 × 10⁻³ at $t = 0.25$, 1.2 × 10⁻³ at $t = 1$), with the scaling alone about 10× larger (3.3 × 10⁻² and 5.2 × 10⁻³) — see the [training methods study](benchmarks/training_methods.md) for every setup tried.
 
@@ -1059,8 +1059,6 @@ where $\gamma_1 = 10^{-6}$ and $\gamma_2 = 0.01$. The fourth-order equation is s
 ![1D Cahn-Hilliard — PINN vs reference, chemical potential mu](assets/Images/1D-CahnHilliard/surface_comparison_mu.png)
 
 ![1D Cahn-Hilliard — mu along x at the reference times](assets/Images/1D-CahnHilliard/line_comparison_mu.png)
-
-*Inverse mode* — same template, switched to **Inverse**, recovering $\gamma_1$ and $\gamma_2$ (initial guesses 1, true values $10^{-6}$ and $0.01$) from $u$ measured at $t = 1$. **Inverse result (RTX 4090): not recovered** — $\gamma_1$ = 2.6 × 10⁻⁵ (26× too large) and $\gamma_2$ = 0.090 (9× too large). Being worked on.
 
 </details>
 
@@ -1079,7 +1077,7 @@ where $\alpha = 0.02$ and $\kappa = 1$. As in the paper (its phase-space form, e
 - **Time-adaptive training** (Adaptive training → *Time Adaptive Training*), the counterpart of the paper's bc-PINN: 10 windows of 0.01 over the fast start (the two bumps merge by about $t = 0.05$), then 9 of 0.1, each starting from the previous window's network (transfer learning, L-BFGS)
 - **Initial condition as a loss term** (weight 100) and **exact periodicity**
 - **Training:** Adam 5,000 → L-BFGS 5,000 per window; 10,000 domain points, 4 × 128 network
-- **In PINNStudio:** Examples → **Forward** (or **Inverse**) → **Cahn-Hilliard 1D – Mattey & Ghosh**
+- **In PINNStudio:** Examples → **Forward** → **Cahn-Hilliard 1D – Mattey & Ghosh**
 
 **Result (RTX 4090, about 13 minutes):** $u$: $L_2$ = 2.9 × 10⁻³ ($t = 0$), 3.5 × 10⁻³ ($t = 0.05$), 5.1 × 10⁻³ ($t = 0.25$), 4.9 × 10⁻³ ($t = 0.5$), 4.8 × 10⁻³ ($t = 0.75$), 4.8 × 10⁻³ ($t = 1$), against a Fourier pseudo-spectral solution in [`reference_data/1D/cahn_hilliard_mattey`](reference_data/1D/cahn_hilliard_mattey) (made by [`tools/make_phase_field_reference_data.py`](tools/make_phase_field_reference_data.py)). On the whole time interval every setup failed (25–90% error in $u$ at $t = 1$: plain, exact initial condition, SA-PINN, RBA, causal training with and without MsFFN), as the paper's standard PINN does. $\mu$ is fitted less closely in relative terms (3–13% after the merge), because it is nearly zero once the two phases have settled.
 
@@ -1090,8 +1088,6 @@ where $\alpha = 0.02$ and $\kappa = 1$. As in the paper (its phase-space form, e
 ![1D Cahn-Hilliard (Mattey & Ghosh) — PINN vs reference, chemical potential mu](assets/Images/1D-CahnHilliard-Mattey/surface_comparison_mu.png)
 
 ![1D Cahn-Hilliard (Mattey & Ghosh) — mu along x at the reference times](assets/Images/1D-CahnHilliard-Mattey/line_comparison_mu.png)
-
-*Inverse mode* — same template, switched to **Inverse** (without time windows, which Inverse mode does not use), recovering $\alpha$ and $\kappa$ (initial guesses 1 and 0.1, true values 0.02 and 1) from $u$ measured at $t = 1$. **Inverse result (RTX 4090): not recovered** — $\alpha$ = 8.5 × 10⁻⁴ (96% off) and $\kappa$ = 0.105 (90% off). Being worked on.
 
 </details>
 
@@ -2314,7 +2310,7 @@ Problems are defined over `t` (ODEs), `(x, t)`, `(x, y, t)` or `(x, y, z, t)`, o
 
 Fewer measured points can be used without changing the files (*Measured data → Use*): **All points**; **Grid: points per axis**, which keeps that many evenly spaced values along each space axis, the edges included (a 101 × 101 grid with 51 gives 51 × 51; each time in a file is reduced the same way); or **Random points**, that many picked with the run's random seed, so a run repeats. It applies to every measured-data file, and a line under it says what the files hold and what is kept (*101 × 101 grid, 10,201 points → 51 × 51 = 2,601 points*). A file that is not a grid gets random points in grid mode. Both the Solve script and the exported script do the reduction, so the exported script shows exactly which points were used. Allen-Cahn 3D's Inverse mode uses every second point of its 51³ grid (grid 26). A sweep over *Measured data: grid points per axis* or *random points* is a data-size study: how many points the parameters need (see [Parameter sweep](#parameter-sweep)).
 
-Every PINNStudio template, and several DeepXDE examples, have an Inverse mode that loads with its measured-data file already set — pick the example from the **Inverse** list of Examples.
+Every PINNStudio template except the two Cahn-Hilliard 1D ones, and several DeepXDE examples, have an Inverse mode that loads with its measured-data file already set — pick the example from the **Inverse** list of Examples.
 
 </details>
 

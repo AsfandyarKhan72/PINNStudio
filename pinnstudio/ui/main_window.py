@@ -10533,8 +10533,6 @@ class MainWindow(QMainWindow):
         "1D Allen-Cahn (whole interval)": [(0, "0.0001", 0), (0, "5", 1), (0, "5", 1)],
         # gamma_1 (interface energy, 1e-6) and gamma_2 (0.01), Wight & Zhao's
         # eq. 3.15 names, both in the chemical-potential row.
-        "1D Cahn-Hilliard": [(1, "1e-6", 0), (1, "0.01", 1), (1, "0.01", 1)],
-        "1D Cahn-Hilliard (Mattey & Ghosh)": [(1, "0.02", 0), (1, "1.0", 1)],
         "2D Cahn-Hilliard (Mattey & Ghosh)": [(1, "0.0002", 0), (1, "1.0", 1)],
         "2D Heat": [(0, "0.4", 0)],
         # c_1^2 (interfacial-thickness-squared, 0.0001) and c_2 (reaction,
@@ -10665,9 +10663,7 @@ class MainWindow(QMainWindow):
         # is 1, so this doesn't start the fit already at the answer).
         "1D Allen-Cahn": [("gamma_1", 1.0, 0.0001), ("gamma_2", 1.0, 5.0)],
         "1D Allen-Cahn (whole interval)": [("gamma_1", 1.0, 0.0001), ("gamma_2", 1.0, 5.0)],
-        "1D Cahn-Hilliard": [("gamma_1", 1.0, 1e-6), ("gamma_2", 1.0, 0.01)],
         # alpha (interface term) and kappa (the "1.0" on f(u)), Mattey & Ghosh eq. 18
-        "1D Cahn-Hilliard (Mattey & Ghosh)": [("alpha", 1.0, 0.02), ("kappa", 0.1, 1.0)],
         "2D Cahn-Hilliard (Mattey & Ghosh)": [("alpha", 1.0, 0.0002), ("kappa", 0.1, 1.0)],
         "2D Heat": [("alpha", 1.0, 0.4)],
         # c_1^2 (interfacial-thickness-squared) and c_2 (reaction) --

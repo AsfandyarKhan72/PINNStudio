@@ -107,6 +107,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **Cahn-Hilliard 1D (Wight & Zhao, and Mattey & Ghosh): Forward only for now.** Their Inverse mode did not find the parameters (Wight & Zhao 3–26 times off, Mattey & Ghosh 24–96% off, over every setup tried), so it is withdrawn until that is fixed: neither is in the Inverse list of Examples, switching one to Inverse no longer fills in its unknowns and measured data, and the README lists them as Forward only. Their Forward mode is unchanged.
 - **README tips brought up to date:** the old tip said accuracy generally improves with more, smaller time-adaptive steps; the training methods study found that what helps depends on the problem, and the tips now say what it found and point to it. A new tip on inverse problems with a lot of measured data.
 - **Large measured data in inverse problems:** *About inverse problems* explains that every measured point is used at every training step (so tens of thousands of points make training slow, above all on the CPU) and that a few thousand spread-out points are often enough; Solve notes it in the log when the data has 20,000 points or more.
 
