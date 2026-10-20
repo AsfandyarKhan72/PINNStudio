@@ -6661,7 +6661,7 @@ for _pval in _param_values:
                 pass
             if not _sched_active:
                 _var_cb = dde.callbacks.VariableValue(
-                    _inv_vars, period={inv_param_period(config) or 1000}, filename="/tmp/param_history.txt",
+                    _inv_vars, period={inv_record_period(config)}, filename="/tmp/param_history.txt",
                     precision=6
                 )
                 loss_history, train_state = model.train(iterations=_iters, display_every={config.loss_display_every}, callbacks=[_var_cb] + _print_cbs + _save_cbs + _train_cbs)
@@ -6760,7 +6760,7 @@ for _pval in _param_values:
                         for _icb in _print_cbs: _icb.set_offset(_sched_cum_iters)
                         for _icb in _save_cbs: _icb.set_offset(_sched_cum_iters)
                         _sp_var_cb = dde.callbacks.VariableValue(
-                            _inv_vars, period={min(inv_param_period(config) or 200, 200)},
+                            _inv_vars, period={inv_record_period(config)},
                             filename=f"/tmp/param_history_sp{{_sp_i}}.txt", precision=6)
                         loss_history, train_state = model.train(
                             display_every={config.loss_display_every}, callbacks=[_sp_var_cb] + _print_cbs + _save_cbs + _train_cbs)
@@ -6795,7 +6795,7 @@ for _pval in _param_values:
                         for _icb in _print_cbs: _icb.set_offset(_sched_cum_iters)
                         for _icb in _save_cbs: _icb.set_offset(_sched_cum_iters)
                         _sp_var_cb = dde.callbacks.VariableValue(
-                            _inv_vars, period={inv_param_period(config) or 1000},
+                            _inv_vars, period={inv_record_period(config)},
                             filename=f"/tmp/param_history_sp{{_sp_i}}.txt", precision=6)
                         loss_history, train_state = model.train(
                             iterations=_sp['iterations'], display_every={config.loss_display_every},
@@ -6839,7 +6839,7 @@ for _pval in _param_values:
                         for _icb in _print_cbs: _icb.set_offset(_sched_cum_iters)
                         for _icb in _save_cbs: _icb.set_offset(_sched_cum_iters)
                         _sp_var_cb = dde.callbacks.VariableValue(
-                            _inv_vars, period={inv_param_period(config) or 1000},
+                            _inv_vars, period={inv_record_period(config)},
                             filename=f"/tmp/param_history_sp{{_sp_i}}.txt", precision=6)
                         loss_history, train_state = model.train(
                             iterations=_sp['iterations'], display_every={config.loss_display_every},
@@ -6872,7 +6872,7 @@ for _pval in _param_values:
                 )
                 if _problem_type == "Inverse":
                     _var_cb2 = dde.callbacks.VariableValue(
-                        _inv_vars, period={min(inv_param_period(config) or 200, 200)}, filename="/tmp/param_history_phase2.txt",
+                        _inv_vars, period={inv_record_period(config)}, filename="/tmp/param_history_phase2.txt",
                         precision=6
                     )
                     model.compile("L-BFGS", loss="{config.loss_type}", loss_weights=_phase2_weights,
@@ -10695,6 +10695,23 @@ def inv_param_period(config):
     return max(1, int(m.group(0))) if m else 100
 
 
+def inv_record_period(config):
+    """How often both scripts record the inverse parameters: Save
+    parameters' period, or (No) 1/200 of the whole training run."""
+    p = inv_param_period(config)
+    if p:
+        return p
+    import json as _js
+    try:
+        phases = _js.loads(getattr(config, "scheduler_phases", "") or "[]") or []
+        total = sum(int(ph.get("iterations", 0) or 0) for ph in phases if isinstance(ph, dict))
+    except (ValueError, TypeError):
+        total = 0
+    if not total:
+        total = int(getattr(config, "iterations", 0) or 0) + int(getattr(config, "iterations2", 0) or 0)
+    return max(1, total // 200) if total else 100
+
+
 def _lbfgs_maxfun(config, iterations):
     """L-BFGS maxfun for a run of `iterations`: 1.25 times them with the
     recommended settings (DeepXDE's own rule when maxfun is unset), the
@@ -11101,7 +11118,7 @@ def generate_clean_script(config):
             + ("\n" + _tm_clean_cbs_code if _tm_clean_cbs_code else "")
         ).replace("_os.path.join", "os.path.join")
 
-    var_cb_period = inv_param_period(config) or (max(1, total_iters // 200) if total_iters else 100)
+    var_cb_period = inv_record_period(config)
     callbacks_parts = []
     if is_inverse:
         callbacks_parts.append("[var_cb]")

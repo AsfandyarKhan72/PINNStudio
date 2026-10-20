@@ -35,6 +35,13 @@ def test_inverse_save_period():
     for text, n in (("No", 0), ("Every 100 iters", 100), ("Every 250 iters", 250), ("1,000", 1000), ("junk", 100)):
         c.inv_param_save = text
         assert cg.inv_param_period(c) == n, text
+    import json
+    c.optimizer_scheduler = True
+    c.scheduler_phases = json.dumps([{"optimizer": "adam", "iterations": 20000}, {"optimizer": "lbfgs", "iterations": 10000}])
+    c.inv_param_save = "No"
+    assert cg.inv_record_period(c) == 150, "No: 1/200 of the run, the same in both scripts"
+    c.inv_param_save = "Every 250 iters"
+    assert cg.inv_record_period(c) == 250
 
 
 def _example(name):
