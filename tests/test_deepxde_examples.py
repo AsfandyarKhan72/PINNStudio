@@ -147,8 +147,11 @@ def run():
     for cat, dx_cat in (("Forward", dx.FORWARD), ("Inverse", dx.INVERSE)):
         w.quick_examples_category_combo.setCurrentText(cat)
         check(listed() == ["None", *[e.key for e in cat_mod.for_category(cat)]], f"{cat}: lists its examples in catalogue order")
-        check(set(dx.names(dx_cat)) <= set(listed()) and shown_templates <= set(listed()),
+        want_templates = shown_templates - (set(cat_mod.FORWARD_ONLY_TEMPLATES) if cat == "Inverse" else set())
+        check(set(dx.names(dx_cat)) <= set(listed()) and want_templates <= set(listed()),
               f"{cat}: every DeepXDE {cat.lower()} example and every template")
+        if cat == "Inverse":
+            check(not set(cat_mod.FORWARD_ONLY_TEMPLATES) & set(listed()), "Forward-only templates are not in Inverse")
         for name in dx.names(dx_cat):
             ex = dx.BY_NAME[name]
             want = dx.build_config(ex, REFERENCE_DATA_DIR)
