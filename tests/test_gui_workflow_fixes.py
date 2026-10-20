@@ -78,6 +78,12 @@ def test_forward_template_after_inverse_example():
     assert w.radio_inverse.isChecked()
     _pick(w, "Forward", "2D Heat")
     assert w.radio_forward.isChecked()
+    w.radio_inverse.setChecked(True)       # Inverse chosen by the user stays
+    _pick(w, "Forward", "1D Heat")
+    assert w.radio_inverse.isChecked()
+    _pick(w, "Inverse", "1D Burgers")
+    w._load_example_from_start("2D Heat")  # the Start page loads in Forward
+    assert w.radio_forward.isChecked()
     w.close()
 
 

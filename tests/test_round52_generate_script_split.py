@@ -47,7 +47,10 @@ def run():
             ast.parse(script)
         except SyntaxError as e:
             check(False, f"{tag}: generated script should parse: {e}")
-        check(codegen._gs_rar_loop_code(cfg) in script, f"{tag}: RAR loop text should be embedded verbatim")
+        _rar = codegen._gs_rar_loop_code(cfg)
+        # the inverse parameter history goes to the run's own scratch folder
+        _rar_own = _rar.replace('"/tmp/param', '_PS_TMP + "/param')
+        check(_rar in script or _rar_own in script, f"{tag}: RAR loop text should be embedded verbatim")
         check("=== Starting Time-Adaptive Training ===" in script and "# ── Time Adaptive Loop" in script,
               f"{tag}: Time-Adaptive loop text should be embedded")
     import inspect

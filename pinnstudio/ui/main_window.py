@@ -71,6 +71,10 @@ class ExampleCombo(QComboBox):
         self._changed_now = False
         self.activated.connect(self._reactivated)
 
+    def showPopup(self):
+        self._changed_now = False    # left over from a change made in code
+        super().showPopup()
+
     def _reactivated(self, _i):
         if not self._changed_now:
             self._emit_key(_i)
@@ -121,8 +125,7 @@ class ExampleCombo(QComboBox):
             self.setCurrentIndex(i)
 
     def _emit_key(self, _i):
-        self._changed_now = True     # cleared once this event is handled
-        QTimer.singleShot(0, lambda: setattr(self, "_changed_now", False))
+        self._changed_now = True     # the activated() that follows is this change
         k = self.currentData()
         if isinstance(k, str):
             self.keyChanged.emit(k)
@@ -2123,6 +2126,7 @@ class MainWindow(QMainWindow):
         left_layout.addWidget(type_group)
         self.radio_forward.toggled.connect(self._on_problem_type_changed)
         self.radio_forward.toggled.connect(lambda _c: self._refresh_equation_previews())
+        self.radio_forward.toggled.connect(self._on_inverse_toggled_by_user)
         # The two-way sync to self.steady_state_check is wired once that
         # checkbox itself is created, further down (see its own comment).
 
@@ -6710,6 +6714,19 @@ class MainWindow(QMainWindow):
             self.log_box.append(f"   Inverse: {ex.inverse_note}")
 
     def _on_quick_example_selected(self, text):
+        self._loading_example = True
+        try:
+            self._on_quick_example_selected_impl(text)
+        finally:
+            self._loading_example = False
+        # Inverse set by this load (not by the user) doesn't carry to the next one
+        self._inverse_from_example = self.radio_inverse.isChecked()
+
+    def _on_inverse_toggled_by_user(self, _on):
+        if not getattr(self, "_loading_example", False):
+            self._inverse_from_example = False
+
+    def _on_quick_example_selected_impl(self, text):
         # loading an example replaces the problem: offer to save it first
         if text != "None" and not getattr(self, "_from_start_gallery", False) \
                 and not self._maybe_save_changes():
@@ -6757,6 +6774,14 @@ class MainWindow(QMainWindow):
         # than they set (time-step groups, the 3D Allen-Cahn initial
         # condition after 3D Poisson, the sphere's centre), so a template
         # loaded second used to keep some of the first one's settings.
+        # Forward or Inverse: Inverse as chosen by the user stays (the example
+        # loads in Forward and is switched to Inverse below), but an Inverse
+        # mode that only came from the example loaded before, or the Start
+        # page, gives Forward: a template from the Forward list after an
+        # Inverse example used to load in Inverse, unlike the DeepXDE examples.
+        _was_inverse = (self.radio_inverse.isChecked()
+                        and not getattr(self, "_inverse_from_example", False)
+                        and not getattr(self, "_from_start_gallery", False))
         self._apply_fresh_settings()
         self._tpl_output_scaled = self._tpl_input_features = False
         self._tpl_output_formula = self._tpl_point_weights = False
@@ -6771,13 +6796,10 @@ class MainWindow(QMainWindow):
             if self.radio_inverse.isChecked():
                 self.radio_forward.setChecked(True)
                 self.log_box.append(f"ℹ️ {text} has no Inverse mode: loaded in Forward.")
-        elif self.quick_examples_category_combo.currentText() == _ex_catalog.INVERSE:
+        elif self.quick_examples_category_combo.currentText() == _ex_catalog.INVERSE or _was_inverse:
             if not self.radio_inverse.isChecked():
                 self.radio_inverse.setChecked(True)
         elif self.radio_inverse.isChecked():
-            # the Forward list (and the Start page) load in Forward, like the
-            # DeepXDE examples: before, a template picked after an Inverse
-            # example stayed Inverse, so it loaded differently by what came before
             self.radio_forward.setChecked(True)
         self._current_problem_name = text
         self._current_path = None
@@ -9922,6 +9944,7 @@ class MainWindow(QMainWindow):
         self.quick_examples_combo.setCurrentText("None")
         self.quick_examples_combo.blockSignals(False)
         self._shown_example = None
+        self._inverse_from_example = self.radio_inverse.isChecked()   # from the file
         self._add_recent(path)
         self._mark_clean()
         self.log_box.append(f"✅ Problem loaded: {problem_name}")
