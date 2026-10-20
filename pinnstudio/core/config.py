@@ -463,7 +463,7 @@ class PINNConfig:
     #    "period": int}               -- epochs between checkpoints
     training_monitors: str = "[]"
 
-    plot_colormap: str = "RdBu_r"
+    plot_colormap: str = "jet"
     # Multi-output problems: also save every output's own plot, as
     # solution_plot_<name>.<ext>, besides the selected "Plot output" (Round 69).
     plot_all_outputs: bool = True
@@ -547,6 +547,14 @@ class PINNConfig:
     # notation "auto" (below 0.01 or from 100,000 up), "always" or "never",
     # written as "1.2 x 10^-4" ("times") or "1.2e-04" ("e").
     plot_sig_digits: int = 4
+    # Line colours of the PINN and the reference in every line figure, the
+    # |Error| panels' colormap ("" = the solution's), how many panels a row
+    # of an Error Analysis grid has, and the animations' resolution.
+    plot_pinn_color: str = "#ff6b6b"
+    plot_ref_color: str = "#4dabf7"
+    plot_err_colormap: str = ""
+    plot_ea_cols: int = 4
+    plot_dpi_anim: int = 150
     plot_sci_notation: str = "auto"
     plot_sci_style: str = "times"
 
@@ -1210,8 +1218,9 @@ class PINNConfig:
                     errors.append("Bayesian search needs at least 2 runs (the baseline and one more).")
                 if not isinstance(self.sweep_bayes_initial, int) or self.sweep_bayes_initial < 1:
                     errors.append("Bayesian search needs at least 1 random starting run.")
-                if self.sweep_bayes_objective not in ("loss", "l2"):
-                    errors.append(f"Bayesian search objective must be 'loss' or 'l2'; got {self.sweep_bayes_objective!r}.")
+                if self.sweep_bayes_objective not in ("loss", "loss_unweighted", "l2"):
+                    errors.append(f"Bayesian search objective must be 'loss', 'loss_unweighted' or 'l2'; "
+                                  f"got {self.sweep_bayes_objective!r}.")
                 elif self.sweep_bayes_objective == "l2" and not (
                         (self.ea_files and self.ea_files != "[]") or self.ea_ref_mode == "formula"):
                     errors.append("Bayesian search on the L2 error needs Error Analysis reference data "

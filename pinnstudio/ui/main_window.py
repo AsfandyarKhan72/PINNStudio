@@ -18,6 +18,7 @@ from pinnstudio.core.runner import run_pinn
 from pinnstudio.core import deepxde_examples as _dx_examples
 from pinnstudio.core import pinnstudio_examples as _ps_examples
 from pinnstudio.core import example_catalog as _ex_catalog
+from pinnstudio.ui.sci_spinbox import SciSpinBox
 from pinnstudio.core.config import LBFGS_RECOMMENDED
 from pinnstudio.ui.sketch_canvas import SketchPanel
 from pinnstudio.ui import theme as _theme
@@ -126,12 +127,13 @@ class SciLineEdit(QLineEdit):
         self.setFixedHeight(28)
 
     def _format(self, v):
+        # Up to 12 significant digits: every value typed or saved comes back
+        # exactly (this used to show 3 below 0.001 -- 1.2345e-5 became
+        # 1.23e-5 -- and value() read that rounded text back).
         v = float(v)
         if v == 0:
             return "0"
-        if abs(v) < 0.001 or abs(v) >= 1e6:
-            return f"{v:.2e}"
-        return f"{v:g}"
+        return f"{v:.12g}"
 
     def _on_edited(self):
         try:
@@ -1908,6 +1910,26 @@ class MainWindow(QMainWindow):
         if hasattr(self, "status_text"):
             self.status_text.setText("Script copied to the clipboard")
 
+    def _remembered_save_dir(self):
+        """The results folder used last time (an existing folder), or ""."""
+        if os.environ.get("QT_QPA_PLATFORM") == "offscreen":
+            return ""        # tests: always the default folder
+        try:
+            d = str(self._layout_settings().value("paths/save_dir", "") or "")
+            return d if d and os.path.isdir(d) else ""
+        except Exception:
+            return ""
+
+    def _remember_save_dir(self):
+        if os.environ.get("QT_QPA_PLATFORM") == "offscreen":
+            return
+        d = self.save_dir_input.text().strip()
+        if d and os.path.isdir(os.path.expanduser(d)):
+            try:
+                self._layout_settings().setValue("paths/save_dir", d)
+            except Exception:
+                pass
+
     def _layout_settings(self):
         from PyQt6.QtCore import QSettings
         return QSettings("PINNStudio", "PINNStudio")
@@ -2485,9 +2507,9 @@ class MainWindow(QMainWindow):
         row2.setContentsMargins(0, 0, 0, 0)
         row2.addWidget(self._domain_label("t:")); row2.setSpacing(6)
         self.t_min = DomainSpinBox()
-        self.t_min.setRange(0.0, 1e6); self.t_min.setValue(0.0); self.t_min.setSingleStep(0.5)
+        self.t_min.setRange(-1e6, 1e6); self.t_min.setValue(0.0); self.t_min.setSingleStep(0.5)
         self.t_max = DomainSpinBox()
-        self.t_max.setRange(0.0, 1e6); self.t_max.setValue(1.0); self.t_max.setSingleStep(0.5)
+        self.t_max.setRange(-1e6, 1e6); self.t_max.setValue(1.0); self.t_max.setSingleStep(0.5)
         # DomainSpinBox keeps 10 decimals, so a time domain that isn't a
         # round number -- e.g. 1D Schrodinger's t in [0, pi/2] -- is stored
         # to full precision rather than rounded to 1.57.
@@ -2536,10 +2558,10 @@ class MainWindow(QMainWindow):
 
         # Minimums low enough for DeepXDE's own small examples (e.g. 16
         # domain / 2 boundary points for its 1D Poisson problems).
-        self.num_domain   = _pts_row("Domain points:",   2000, 1,   200000, 500)
-        self.num_boundary = _pts_row("Boundary points:", 200,  0,   50000,  100)
-        self.num_initial  = _pts_row("Initial points:",  200,  0,   50000,  100)
-        self.num_test     = _pts_row("Test points:",     1000, 10,  200000, 500)
+        self.num_domain   = _pts_row("Domain points:",   2000, 1,   10000000, 500)
+        self.num_boundary = _pts_row("Boundary points:", 200,  0,   2000000,  100)
+        self.num_initial  = _pts_row("Initial points:",  200,  0,   2000000,  100)
+        self.num_test     = _pts_row("Test points:",     1000, 10,  10000000, 500)
 
         pts_dist_row = QHBoxLayout()
         pts_dist_row.addWidget(QLabel("Point distribution:"))
@@ -2758,14 +2780,24 @@ class MainWindow(QMainWindow):
             return _w
 
         self.layers_spin = QSpinBox()
-        self.layers_spin.setRange(1, 8); self.layers_spin.setValue(3)
+        self.layers_spin.setRange(1, 50); self.layers_spin.setValue(3)
         self.layers_spin.setFixedWidth(100); self.layers_spin.setFixedHeight(28)
         _nn_row("Hidden layers:", self.layers_spin)
 
         self.neurons_spin = QSpinBox()
-        self.neurons_spin.setRange(8, 512); self.neurons_spin.setSingleStep(8); self.neurons_spin.setValue(64)
+        self.neurons_spin.setRange(1, 4096); self.neurons_spin.setSingleStep(8); self.neurons_spin.setValue(64)
         self.neurons_spin.setFixedWidth(100); self.neurons_spin.setFixedHeight(28)
         _nn_row("Neurons per layer:", self.neurons_spin)
+        # A network whose layers differ in width ("100, 50"): blank uses the
+        # two boxes above. A config saved with different widths fills it in.
+        self.layer_widths_edit = QLineEdit()
+        self.layer_widths_edit.setPlaceholderText("optional, e.g. 100, 50")
+        self.layer_widths_edit.setToolTip(
+            "Width of each hidden layer, comma-separated (e.g. 128, 64, 32). Overrides\n"
+            "Hidden layers and Neurons per layer above; leave blank to use them.")
+        self.layer_widths_edit.setFixedWidth(150); self.layer_widths_edit.setFixedHeight(28)
+        self.layer_widths_edit.textChanged.connect(self._on_layer_widths_changed)
+        _nn_row("Widths per layer:", self.layer_widths_edit)
 
         self.activation_combo = QComboBox()
         # Every identifier DeepXDE's own deepxde.nn.activations.get() dict
@@ -2848,14 +2880,14 @@ class MainWindow(QMainWindow):
             row_l.addWidget(QLabel(label_text))
             row_l.addStretch()
             row_l.addWidget(QLabel("×"))
-            scale_spin = QDoubleSpinBox()
-            scale_spin.setRange(-1e6, 1e6); scale_spin.setDecimals(4)
+            scale_spin = SciSpinBox()
+            scale_spin.setRange(-1e6, 1e6)
             scale_spin.setSingleStep(0.1); scale_spin.setValue(1.0)
             scale_spin.setFixedWidth(85); scale_spin.setFixedHeight(26)
             row_l.addWidget(scale_spin)
             row_l.addWidget(QLabel("+"))
-            shift_spin = QDoubleSpinBox()
-            shift_spin.setRange(-1e6, 1e6); shift_spin.setDecimals(4)
+            shift_spin = SciSpinBox()
+            shift_spin.setRange(-1e6, 1e6)
             shift_spin.setSingleStep(0.1); shift_spin.setValue(0.0)
             shift_spin.setFixedWidth(85); shift_spin.setFixedHeight(26)
             row_l.addWidget(shift_spin)
@@ -3023,7 +3055,7 @@ class MainWindow(QMainWindow):
         ic_iter_row = QHBoxLayout()
         ic_iter_row.addWidget(QLabel("Iterations:"))
         self.ic_pretrain_iters = QSpinBox()
-        self.ic_pretrain_iters.setRange(100, 500000)
+        self.ic_pretrain_iters.setRange(100, 100000000)
         self.ic_pretrain_iters.setSingleStep(1000)
         self.ic_pretrain_iters.setValue(20000)
         self.ic_pretrain_iters.setFixedHeight(26)
@@ -3035,8 +3067,8 @@ class MainWindow(QMainWindow):
         # reuse the main training's), so it can be tuned independently.
         ic_lr_row = QHBoxLayout()
         ic_lr_row.addWidget(QLabel("Learning rate:"))
-        self.ic_pretrain_lr = QDoubleSpinBox()
-        self.ic_pretrain_lr.setRange(1e-6, 1.0); self.ic_pretrain_lr.setDecimals(6)
+        self.ic_pretrain_lr = SciSpinBox()
+        self.ic_pretrain_lr.setRange(1e-12, 10.0)
         self.ic_pretrain_lr.setSingleStep(0.0001); self.ic_pretrain_lr.setValue(0.001)
         self.ic_pretrain_lr.setFixedHeight(26)
         self.ic_pretrain_lr.setFixedWidth(self.PHASE_FIELD_W)
@@ -3133,7 +3165,7 @@ class MainWindow(QMainWindow):
         self.opt1_combo.setVisible(False)
         self.iter1_spin = QSpinBox(); self.iter1_spin.setRange(0, 1000000)
         self.iter1_spin.setValue(0); self.iter1_spin.setVisible(False)
-        self.lr_spin = QDoubleSpinBox(); self.lr_spin.setRange(1e-6, 1.0)
+        self.lr_spin = SciSpinBox(); self.lr_spin.setRange(1e-12, 10.0)
         self.lr_spin.setDecimals(6); self.lr_spin.setValue(0.001); self.lr_spin.setVisible(False)
         self.loss_combo = QComboBox()
         self.loss_combo.addItems(["MSE", "MAE", "mean l2 relative error",
@@ -3216,6 +3248,19 @@ class MainWindow(QMainWindow):
         self.lbfgs_maxiter = _lbfgs_row("maxiter:", _rec["maxiter"])
         self.lbfgs_maxfun  = _lbfgs_row("maxfun:",  _rec["maxfun"])
         self.lbfgs_maxls   = _lbfgs_row("maxls:",   _rec["maxls"])
+        # maxiter is each L-BFGS phase's own Iterations (what both scripts
+        # use), so a second box for it here would only contradict that
+        for _i in range(lbfgs_manual_layout.count()):
+            _it = lbfgs_manual_layout.itemAt(_i)
+            _lay = _it.layout() if _it is not None else None
+            if _lay is not None and _lay.indexOf(self.lbfgs_maxiter) >= 0:
+                for _j in range(_lay.count()):
+                    _wj = _lay.itemAt(_j).widget()
+                    if _wj is not None:
+                        _wj.setVisible(False)
+        _maxiter_note = QLabel("The number of L-BFGS iterations is each phase's Iterations.")
+        self._register_hint(_maxiter_note, '#868e96')
+        lbfgs_manual_layout.addWidget(_maxiter_note)
 
         self.lbfgs_manual_widget.setVisible(False)
         lbfgs_layout.addWidget(self.lbfgs_manual_widget)
@@ -3630,10 +3675,10 @@ class MainWindow(QMainWindow):
         # Limits wide enough for DeepXDE's own Burgers-RAR recipe (one point
         # per round, as many rounds as it takes to reach a tolerance).
         self.rar_cycles      = _rar_row("RAR training rounds:",          3,     1,    1000,   1)
-        self.rar_candidates  = _rar_row("Residual sampling points:",     50000, 1000, 500000, 5000)
+        self.rar_candidates  = _rar_row("Residual sampling points:",     50000, 1000, 10000000, 5000)
         self.rar_add_points  = _rar_row("Points added per round:",      500,   1,    10000,  100)
-        self.rar_adam_iters  = _rar_row("Adam iterations:",              20000, 0,    500000, 1000)
-        self.rar_lbfgs_iters = _rar_row("L-BFGS iterations:",            10000, 0,    500000, 1000)
+        self.rar_adam_iters  = _rar_row("Adam iterations:",              20000, 0,    100000000, 1000)
+        self.rar_lbfgs_iters = _rar_row("L-BFGS iterations:",            10000, 0,    100000000, 1000)
         # Early stop (Round 66): end refinement once the mean residual over
         # the sampled candidates is below this; 0 = always run every round.
         rar_tol_row = QHBoxLayout()
@@ -3641,8 +3686,8 @@ class MainWindow(QMainWindow):
         _rar_tol_label.setToolTip("End the refinement once the mean |residual| over the sampled points is below this "
                                   "(off: always run every round)")
         rar_tol_row.addWidget(_rar_tol_label)
-        self.rar_tolerance = QDoubleSpinBox()
-        self.rar_tolerance.setRange(0.0, 1e6); self.rar_tolerance.setDecimals(6)
+        self.rar_tolerance = SciSpinBox()
+        self.rar_tolerance.setRange(0.0, 1e6)
         self.rar_tolerance.setSingleStep(0.001); self.rar_tolerance.setValue(0.0)
         self.rar_tolerance.setSpecialValueText("off")
         self.rar_tolerance.setFixedHeight(28); self.rar_tolerance.setFixedWidth(100)
@@ -3780,12 +3825,12 @@ class MainWindow(QMainWindow):
         self.rba_widget = QWidget()
         rz = QVBoxLayout(self.rba_widget)
         rz.setSpacing(4); rz.setContentsMargins(18, 0, 0, 0)
-        self.rba_gamma = QDoubleSpinBox(); self.rba_gamma.setDecimals(4)
-        self.rba_gamma.setRange(0.0001, 0.9999); self.rba_gamma.setSingleStep(0.001); self.rba_gamma.setValue(0.999)
+        self.rba_gamma = SciSpinBox()
+        self.rba_gamma.setRange(1e-9, 0.999999999); self.rba_gamma.setSingleStep(0.001); self.rba_gamma.setValue(0.999)
         self.rba_gamma.setToolTip("How much of a weight is kept each step (memory). The weights level off at about eta / (1 - gamma).")
         _num_row(rz, "Decay γ:", self.rba_gamma)
-        self.rba_eta = QDoubleSpinBox(); self.rba_eta.setDecimals(4)
-        self.rba_eta.setRange(0.0001, 100.0); self.rba_eta.setSingleStep(0.005); self.rba_eta.setValue(0.01)
+        self.rba_eta = SciSpinBox()
+        self.rba_eta.setRange(1e-12, 100.0); self.rba_eta.setSingleStep(0.005); self.rba_eta.setValue(0.01)
         self.rba_eta.setToolTip("How much the normalized residual |r|/max|r| adds to a weight each step.")
         _num_row(rz, "Step η:", self.rba_eta)
         self.rba_widget.setVisible(False)
@@ -3970,6 +4015,9 @@ class MainWindow(QMainWindow):
         _bl.addWidget(QLabel("Minimize:"))
         self.sweep_bayes_obj_combo = QComboBox()
         self.sweep_bayes_obj_combo.addItem("Final loss", "loss")
+        # each loss term divided by its weight: comparable when the loss
+        # weights themselves are being searched
+        self.sweep_bayes_obj_combo.addItem("Final loss (unweighted)", "loss_unweighted")
         self.sweep_bayes_obj_combo.addItem("L2 error", "l2")
         self.sweep_bayes_obj_combo.setToolTip("L2 error needs Error Analysis reference data (files or a formula)")
         _bl.addWidget(self.sweep_bayes_obj_combo)
@@ -4845,6 +4893,12 @@ class MainWindow(QMainWindow):
         # this dropdown first, which is easy to miss since it's a small
         # control that's only visible once Inverse is selected.
         self.param_save_combo.setCurrentText("Every 100 iters")
+        # any period can be typed ("Every 250 iters", or just 250)
+        self.param_save_combo.setEditable(True)
+        self.param_save_combo.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
+        self.param_save_combo.setToolTip(
+            "How often the unknowns are recorded: the convergence files, the convergence plot and\n"
+            "animation, in both the Solve script and the exported script. Type any number of iterations.")
         self.param_save_combo.setFixedHeight(28)
         self._fit_combo_width(self.param_save_combo, min_width=150)
         self.param_save_combo.setVisible(False)
@@ -4909,6 +4963,7 @@ class MainWindow(QMainWindow):
             'grid': True,
             'ref_style': 'line',
             'sig_digits': 4, 'sci_notation': 'auto', 'sci_style': 'times',
+            'pinn_color': '#ff6b6b', 'ref_color': '#4dabf7', 'err_colormap': '', 'ea_cols': 4, 'dpi_anim': 150,
             'figsize_w': 7.0,
             'figsize_h': 5.0,
             'title': '',
@@ -4972,8 +5027,11 @@ class MainWindow(QMainWindow):
         save_row.addWidget(QLabel("Save to:"))
         self.save_dir_input = QLineEdit()
         self.save_dir_input.setPlaceholderText("Save directory — saves plots, logs, models & data")
-        self.save_dir_input.setText(os.path.join(os.path.expanduser("~"), "PINNStudio_Results"))
+        self.save_dir_input.setText(self._remembered_save_dir()
+                                    or os.path.join(os.path.expanduser("~"), "PINNStudio_Results"))
         self.save_dir_input.setFixedHeight(28)
+        # the folder chosen last time is the one PINNStudio starts with
+        self.save_dir_input.editingFinished.connect(self._remember_save_dir)
         save_row.addWidget(self.save_dir_input)
         if hasattr(self, "restore_save_path"):       # Restore saves here too
             self.save_dir_input.textChanged.connect(self.restore_save_path.setText)
@@ -5271,14 +5329,14 @@ class MainWindow(QMainWindow):
         range_row.setContentsMargins(0, 0, 0, 0)
         range_row.setSpacing(4)
         range_row.addWidget(QLabel("Min"))
-        min_spin = QDoubleSpinBox()
-        min_spin.setRange(-1e9, 1e9); min_spin.setDecimals(4)
+        min_spin = SciSpinBox()
+        min_spin.setRange(-1e12, 1e12)
         min_spin.setMinimumWidth(64); min_spin.setFixedHeight(26)
         min_spin.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
         range_row.addWidget(min_spin, 1)
         range_row.addWidget(QLabel("Max"))
-        max_spin = QDoubleSpinBox()
-        max_spin.setRange(-1e9, 1e9); max_spin.setDecimals(4); max_spin.setValue(1.0)
+        max_spin = SciSpinBox()
+        max_spin.setRange(-1e12, 1e12); max_spin.setValue(1.0)
         max_spin.setMinimumWidth(64); max_spin.setFixedHeight(26)
         max_spin.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
         range_row.addWidget(max_spin, 1)
@@ -7016,7 +7074,7 @@ class MainWindow(QMainWindow):
         row_layout.addWidget(QLabel("Start time:"))
 
         t_start_sb = DomainSpinBox()
-        t_start_sb.setRange(0.0, 1e6)
+        t_start_sb.setRange(-1e6, 1e6)
         # DomainSpinBox (10 decimals), like self.t_min/t_max: a time
         # domain that isn't a round number -- e.g. 1D Schrodinger's
         # [0, pi/2] -- has to be enterable here too. The range is set
@@ -7030,7 +7088,7 @@ class MainWindow(QMainWindow):
         row_layout.addWidget(QLabel("End time:"))
 
         t_end_sb = DomainSpinBox()
-        t_end_sb.setRange(0.0, 1e6)
+        t_end_sb.setRange(-1e6, 1e6)
         t_end_sb.setValue(t_end)
         t_end_sb.setFixedHeight(26); t_end_sb.setFixedWidth(85)
         row_layout.addWidget(t_end_sb)
@@ -7463,6 +7521,7 @@ class MainWindow(QMainWindow):
         folder = QFileDialog.getExistingDirectory(self, "Select Save Directory")
         if folder:
             self.save_dir_input.setText(folder)
+            self._remember_save_dir()
 
     def _on_opt2_changed(self, text):
         self.lbfgs_widget.setVisible(text == "lbfgs")
@@ -8958,11 +9017,11 @@ class MainWindow(QMainWindow):
         self.sched_same_weights_cb.setEnabled(not auto)
         self.manual_weights_auto_note.setVisible(auto)
 
-    def _build_weight_inputs(self, n, keep=False):
-        # keep=True: rows that already exist keep their values (an IC switched
-        # on or off adds or removes only its own row -- it used to leave the
-        # weights and the training phases' weight lists one entry short, and
-        # the IC trained at weight 1 against the PDE's thousands of points)
+    def _build_weight_inputs(self, n, keep=True):
+        # Rows that already exist keep their values: the weights are rebuilt
+        # when a BC changes type, a phase is added, Steady-state or the
+        # geometry changes, ... and every typed weight used to go back to 1
+        # (100 for an IC). keep=False starts from the defaults.
         _old_w = {}
         if keep:
             for _k, _wd in self.weight_widgets.items():
@@ -8996,13 +9055,27 @@ class MainWindow(QMainWindow):
         # all), showing weight fields that were silently never used.
         _is_steady = self.steady_state_check.isChecked() if hasattr(self, 'steady_state_check') else False
 
+        def _old_value(key, default):
+            # the same term's weight under the other layout: "pde_0" (all
+            # phases) <-> "pde_0_p1" (per phase; phase 1's when going back)
+            if key in _old_w:
+                return _old_w[key]
+            import re as _re_w
+            base = _re_w.sub(r"_p\d+$", "", key)
+            if base != key and base in _old_w:
+                return _old_w[base]
+            for _k in sorted(_old_w):
+                if _re_w.fullmatch(_re_w.escape(key) + r"_p\d+", _k):
+                    return _old_w[_k]
+            return default
+
         def _w_row(label, key):
             row = QHBoxLayout()
             # No default layout margins: rows sit as close together as the
             # other panels' label + field rows.
             row.setContentsMargins(0, 0, 0, 0)
             row.addWidget(QLabel(label))
-            _default_w = _old_w.get(key, 100.0 if key.startswith("ic_") else 1.0)
+            _default_w = _old_value(key, 100.0 if key.startswith("ic_") else 1.0)
             w = SciLineEdit(_default_w); w.setFixedWidth(100)
             row.addStretch(); row.addWidget(w)
             self.weight_widgets[key] = w
@@ -9201,7 +9274,8 @@ class MainWindow(QMainWindow):
         # Steady-state problems have no time axis, so the network takes one
         # fewer input column than the time-dependent case (x[,y[,z]] only).
         input_size = (3 if is_3d else (2 if is_2d else 1)) if is_steady else (4 if is_3d else (3 if is_2d else 2))
-        layers = [input_size] + [w] * n + [n_out]
+        _widths = self._layer_widths()
+        layers = [input_size] + (_widths or [w] * n) + [n_out]
 
         def _safe_val(lst, i, default=0.0):
             try:
@@ -9492,7 +9566,7 @@ class MainWindow(QMainWindow):
             point_weights_lbfgs=self.pw_lbfgs_combo.currentData() or "plain",
             training_monitors_enabled=self.training_monitors_cb.isChecked(),
             training_monitors=self._build_training_monitors_json(),
-            plot_colormap=self._plot_viz_settings.get('colormap', 'RdBu_r'),
+            plot_colormap=self._plot_viz_settings.get('colormap', 'jet'),
             plot_levels=self._plot_viz_settings.get('levels', 50),
             plot_resolution=self._plot_viz_settings.get('resolution', 100),
             plot_dpi=self._plot_viz_settings.get('dpi', 100),
@@ -9509,6 +9583,11 @@ class MainWindow(QMainWindow):
             plot_grid=bool(self._plot_viz_settings.get('grid', True)),
             plot_ref_style=self._plot_viz_settings.get('ref_style', 'line'),
             plot_sig_digits=int(self._plot_viz_settings.get('sig_digits', 4)),
+            plot_pinn_color=self._plot_viz_settings.get('pinn_color', '#ff6b6b'),
+            plot_ref_color=self._plot_viz_settings.get('ref_color', '#4dabf7'),
+            plot_err_colormap=self._plot_viz_settings.get('err_colormap', ''),
+            plot_ea_cols=int(self._plot_viz_settings.get('ea_cols', 4)),
+            plot_dpi_anim=int(self._plot_viz_settings.get('dpi_anim', 150)),
             plot_sci_notation=self._plot_viz_settings.get('sci_notation', 'auto'),
             plot_sci_style=self._plot_viz_settings.get('sci_style', 'times'),
             plot_figsize_w=self._plot_viz_settings.get('figsize_w', 7.0),
@@ -10161,6 +10240,10 @@ class MainWindow(QMainWindow):
         neurons = config.layers[1] if len(config.layers) > 2 else self.neurons_spin.value()
         self.layers_spin.setValue(n_hidden)
         self.neurons_spin.setValue(neurons)
+        _hidden = list(config.layers[1:-1])
+        # different widths per layer (e.g. [2, 100, 50, 1]) are kept as they
+        # are, instead of every layer taking the first one's width
+        self.layer_widths_edit.setText(", ".join(str(int(v)) for v in _hidden) if len(set(_hidden)) > 1 else "")
         self.activation_combo.setCurrentText(self._canonical_activation_label(config.activation))
         self.kernel_init_combo.setCurrentText(config.kernel_initializer)
         self.network_type_combo.setCurrentText(getattr(config, 'network_type', 'FNN') or 'FNN')
@@ -10432,6 +10515,11 @@ class MainWindow(QMainWindow):
             "grid": getattr(config, "plot_grid", True),
             "ref_style": getattr(config, "plot_ref_style", "line"),
             "sig_digits": getattr(config, "plot_sig_digits", 4),
+            "pinn_color": getattr(config, "plot_pinn_color", "#ff6b6b"),
+            "ref_color": getattr(config, "plot_ref_color", "#4dabf7"),
+            "err_colormap": getattr(config, "plot_err_colormap", ""),
+            "ea_cols": getattr(config, "plot_ea_cols", 4),
+            "dpi_anim": getattr(config, "plot_dpi_anim", 150),
             "sci_notation": getattr(config, "plot_sci_notation", "auto"),
             "sci_style": getattr(config, "plot_sci_style", "times"),
             "figsize_w": getattr(config, "plot_figsize_w", 7.0),
@@ -11088,6 +11176,32 @@ class MainWindow(QMainWindow):
             return ((c.y_min + c.y_max) / 2.0 if c.line_slice_y_auto else c.line_slice_y,
                     (c.z_min + c.z_max) / 2.0 if c.line_slice_z_auto else c.line_slice_z)
 
+    def _layer_widths(self):
+        """Hidden-layer widths typed in Widths per layer, or None (blank or
+        not a list of positive whole numbers)."""
+        if not hasattr(self, "layer_widths_edit"):
+            return None
+        text = self.layer_widths_edit.text().strip()
+        if not text:
+            return None
+        try:
+            widths = [int(v) for v in text.replace(";", ",").split(",") if v.strip()]
+        except ValueError:
+            return None
+        return widths if widths and all(v > 0 for v in widths) else None
+
+    def _on_layer_widths_changed(self, text):
+        widths = self._layer_widths()
+        bad = bool(text.strip()) and widths is None
+        self.layer_widths_edit.setStyleSheet("border: 1px solid red;" if bad else "")
+        # the two boxes above don't apply while widths are typed
+        for b in (self.layers_spin, self.neurons_spin):
+            b.setEnabled(widths is None)
+        if widths:
+            self.layers_spin.blockSignals(True)
+            self.layers_spin.setValue(len(widths))
+            self.layers_spin.blockSignals(False)
+
     def _obs_reduce_mode(self):
         return self.inv_obs_reduce_combo.currentData() if hasattr(self, "inv_obs_reduce_combo") else "all"
 
@@ -11367,6 +11481,7 @@ class MainWindow(QMainWindow):
         self.status_progress.setVisible(True)
         self.status_progress.setRange(0, 1000)
         self.status_progress.setValue(0)
+        self.live_loss.log_y = bool((getattr(self, "_loss_plot_settings", None) or {}).get("log_y", True))
         self.live_loss.start(self._progress)
         self.ea_panel.clear()
         self.results_tabs.setCurrentWidget(self.live_loss)
@@ -12014,7 +12129,7 @@ class MainWindow(QMainWindow):
         sb_maxcor  = _make_row("maxcor:",  self.lbfgs_maxcor.value())
         sb_ftol    = _make_row("ftol:",    self.lbfgs_ftol.value())
         sb_gtol    = _make_row("gtol:",    self.lbfgs_gtol.value())
-        sb_maxiter = _make_row("maxiter:", self.lbfgs_maxiter.value())
+        sb_maxiter = self.lbfgs_maxiter       # (each L-BFGS phase's Iterations is its maxiter; not shown)
         sb_maxfun  = _make_row("maxfun:",  self.lbfgs_maxfun.value())
         sb_maxls   = _make_row("maxls:",   self.lbfgs_maxls.value())
 
@@ -15221,8 +15336,8 @@ print("DOMAIN_PREVIEW_DONE")
         decay_p1_row = QHBoxLayout()
         decay_p1_lbl = QLabel("Step size:")
         decay_p1_row.addWidget(decay_p1_lbl)
-        decay_p1_spin = QDoubleSpinBox()
-        decay_p1_spin.setRange(1, 500000); decay_p1_spin.setDecimals(0)
+        decay_p1_spin = SciSpinBox()
+        decay_p1_spin.setRange(1, 1e9)
         decay_p1_spin.setValue(5000); decay_p1_spin.setFixedHeight(26)
         decay_p1_spin.setFixedWidth(self.PHASE_FIELD_W)
         decay_p1_row.addStretch(); decay_p1_row.addWidget(decay_p1_spin)
@@ -15231,8 +15346,8 @@ print("DOMAIN_PREVIEW_DONE")
         decay_p2_row = QHBoxLayout()
         decay_p2_lbl = QLabel("Gamma:")
         decay_p2_row.addWidget(decay_p2_lbl)
-        decay_p2_spin = QDoubleSpinBox()
-        decay_p2_spin.setRange(0.0, 1.0); decay_p2_spin.setDecimals(4)
+        decay_p2_spin = SciSpinBox()
+        decay_p2_spin.setRange(0.0, 1e6)
         decay_p2_spin.setSingleStep(0.01); decay_p2_spin.setValue(0.9)
         decay_p2_spin.setFixedHeight(26); decay_p2_spin.setFixedWidth(self.PHASE_FIELD_W)
         decay_p2_row.addStretch(); decay_p2_row.addWidget(decay_p2_spin)
@@ -15243,16 +15358,16 @@ print("DOMAIN_PREVIEW_DONE")
                                   s2=decay_p2_spin):
             kind = c.currentData()
             if kind == "step":
-                l1.setText("Step size:"); s1.setRange(1, 500000); s1.setDecimals(0)
+                l1.setText("Step size:"); s1.setRange(1, 1e9)
                 l2.setText("Gamma:"); r2widget_visible = True
             elif kind == "cosine":
-                l1.setText("T_max (iters):"); s1.setRange(1, 500000); s1.setDecimals(0)
+                l1.setText("T_max (iters):"); s1.setRange(1, 1e9)
                 l2.setText("Eta min:"); r2widget_visible = True
             elif kind == "exponential":
-                l1.setText("Gamma:"); s1.setRange(0.0, 1.0); s1.setDecimals(4)
+                l1.setText("Gamma:"); s1.setRange(0.0, 1.0)
                 r2widget_visible = False
             elif kind == "inverse time":
-                l1.setText("Decay steps:"); s1.setRange(1, 500000); s1.setDecimals(0)
+                l1.setText("Decay steps:"); s1.setRange(1, 1e9)
                 l2.setText("Decay rate:"); r2widget_visible = True
             else:
                 r2widget_visible = False
@@ -15301,7 +15416,7 @@ print("DOMAIN_PREVIEW_DONE")
         iter_row = QHBoxLayout()
         iter_row.addWidget(QLabel("Iterations:"))
         iter_spin = QSpinBox()
-        iter_spin.setRange(0, 500000); iter_spin.setSingleStep(1000)
+        iter_spin.setRange(0, 100000000); iter_spin.setSingleStep(1000)
         iter_spin.setValue(iterations); iter_spin.setFixedHeight(26)
         iter_spin.setFixedWidth(self.PHASE_FIELD_W)
         iter_row.addStretch(); iter_row.addWidget(iter_spin)
@@ -15314,8 +15429,8 @@ print("DOMAIN_PREVIEW_DONE")
         lr_row = QHBoxLayout(lr_widget)
         lr_row.setContentsMargins(0, 0, 0, 0)
         lr_row.addWidget(QLabel("Learning rate:"))
-        lr_spin = QDoubleSpinBox()
-        lr_spin.setRange(1e-6, 1.0); lr_spin.setDecimals(6)
+        lr_spin = SciSpinBox()
+        lr_spin.setRange(1e-12, 10.0)
         lr_spin.setSingleStep(0.0001); lr_spin.setValue(lr)
         lr_spin.setFixedHeight(26); lr_spin.setFixedWidth(self.PHASE_FIELD_W)
         lr_row.addStretch(); lr_row.addWidget(lr_spin)
@@ -16383,7 +16498,7 @@ print("DOMAIN_PREVIEW_DONE")
         _dpi = int(viz_settings.get('dpi', 150) or 150)
         _fps = int(viz_settings.get('fps', 15) or 15)
         from pinnstudio.core.codegen import (_figsize_helper_code, _param_axis_helper_code,
-                                             _contour_levels_helper_code, param_style_of, number_settings)
+                                             _contour_levels_helper_code, param_style_of, number_settings, line_colors, font_sizes, anim_dpi)
         _pstyle = param_style_of({cfg_key: viz_settings[ui_key] for ui_key, cfg_key in self._PARAM_STYLE_KEYS
                                   if ui_key in viz_settings})
         script = f"""
@@ -16408,7 +16523,7 @@ _ylabel_override = {ylabel_override!r}
 # _figsize_helper_code for the full rationale) -- "Default" mode renders
 # every figsize=_plot_figsize(w, h) call below byte-identical to before
 # this existed.
-{_figsize_helper_code(figsize_mode, figsize_w, figsize_h, viz_settings.get('grid', True), viz_settings.get('ref_style', 'line'), number_settings(viz_settings))}
+{_figsize_helper_code(figsize_mode, figsize_w, figsize_h, viz_settings.get('grid', True), viz_settings.get('ref_style', 'line'), number_settings(viz_settings), line_colors(viz_settings), font_sizes(viz_settings), anim_dpi(viz_settings))}
 
 # Shared-color-scale contourf levels (see codegen.py's _contour_levels_helper_code).
 {_contour_levels_helper_code()}
@@ -16508,7 +16623,7 @@ print("RESTORE_DONE")
 
     def _build_restore_script(self, model_path, cfg, optimizer, viz_type, output_idx, t_steps, save_dir, custom_expr="", custom_label=""):
         viz_settings = self._restore_style()
-        colormap = viz_settings.get('colormap', 'RdBu_r')
+        colormap = viz_settings.get('colormap', 'jet')
         # A genuinely live, multiple-evenly-spaced-snapshots Surface plot
         # (one subplot per snapshot, same convention as the Setup tab's own
         # "Plot output" -> Surface -> 2D/3D non-steady case, see
@@ -16547,7 +16662,7 @@ print("RESTORE_DONE")
         activation = cfg["activation"]
         from pinnstudio.core.codegen import (_net_construction_helper_code,
             _training_monitor_runtime_code, _figsize_helper_code, _contour_levels_helper_code,
-            _math_namespace_code, number_settings)
+            _math_namespace_code, number_settings, line_colors, font_sizes, anim_dpi)
         net_helper_code = _net_construction_helper_code(cfg.get("network_type", "FNN"), cfg.get("msffn_sigmas", "1, 10"),
                                                         cfg.get("msffn_sigmas_t", "1, 10"))
         # Re-attach the model's input/output transforms (Round 62) -- see
@@ -16697,7 +16812,7 @@ import matplotlib.pyplot as plt
 # _figsize_helper_code for the full rationale) -- "Default" mode renders
 # every figsize=_plot_figsize(w, h) call below byte-identical to before
 # this existed.
-{_figsize_helper_code(figsize_mode, figsize_w, figsize_h, viz_settings.get('grid', True), viz_settings.get('ref_style', 'line'), number_settings(viz_settings))}
+{_figsize_helper_code(figsize_mode, figsize_w, figsize_h, viz_settings.get('grid', True), viz_settings.get('ref_style', 'line'), number_settings(viz_settings), line_colors(viz_settings), font_sizes(viz_settings), anim_dpi(viz_settings))}
 
 # Shared-color-scale contourf levels (see codegen.py's _contour_levels_helper_code).
 {_contour_levels_helper_code()}
@@ -16891,7 +17006,7 @@ def _extract_plot_field(x_grid):
                 show_colorbar, levels, swap_xt, axis_label_fontsize, fps, save_dir,
                 _xlabel_animsurf3d, _ylabel_animsurf3d, _animsurf_title_line_3d,
                 _xlabel_animsurf_else, _ylabel_animsurf_else, _animsurf_title_line_else,
-                is_time_adaptive=False) + "\n"
+                is_time_adaptive=False, resolution=resolution) + "\n"
         script += '\nprint("RESTORE_DONE")\n'
         return script
 
@@ -16929,7 +17044,7 @@ def _extract_plot_field(x_grid):
         path's existing (unchanged) behavior in those cases.
         """
         viz_settings = self._restore_style()
-        colormap = viz_settings.get('colormap', 'RdBu_r')
+        colormap = viz_settings.get('colormap', 'jet')
         show_colorbar = viz_settings.get('colorbar', True)
         # Type-aware keys (see _viz_steps_key/_viz_linewidth_key): the
         # static "Line (time steps)" plot and the GIF animations keep
@@ -17010,7 +17125,7 @@ def _extract_plot_field(x_grid):
         # this function's docstring already gives for x_min/x_max/etc.
         from pinnstudio.core.codegen import (_net_construction_helper_code,
             _training_monitor_runtime_code, _figsize_helper_code, _contour_levels_helper_code,
-            _math_namespace_code, number_settings)
+            _math_namespace_code, number_settings, line_colors, font_sizes, anim_dpi)
         net_helper_code = _net_construction_helper_code(cfg.get("network_type", "FNN"), cfg.get("msffn_sigmas", "1, 10"),
                                                         cfg.get("msffn_sigmas_t", "1, 10"))
         # Re-attach the model's input/output transforms (Round 62) -- see
@@ -17087,7 +17202,7 @@ import matplotlib.pyplot as plt
 # _figsize_helper_code for the full rationale) -- "Default" mode renders
 # every figsize=_plot_figsize(w, h) call below byte-identical to before
 # this existed.
-{_figsize_helper_code(figsize_mode, figsize_w, figsize_h, viz_settings.get('grid', True), viz_settings.get('ref_style', 'line'), number_settings(viz_settings))}
+{_figsize_helper_code(figsize_mode, figsize_w, figsize_h, viz_settings.get('grid', True), viz_settings.get('ref_style', 'line'), number_settings(viz_settings), line_colors(viz_settings), font_sizes(viz_settings), anim_dpi(viz_settings))}
 
 # Shared-color-scale contourf levels (see codegen.py's _contour_levels_helper_code).
 {_contour_levels_helper_code()}
@@ -17270,7 +17385,7 @@ def _extract_plot_field(x_grid, _tm_model):
                 show_colorbar, levels, swap_xt, axis_label_fontsize, fps, save_dir,
                 _xlabel_animsurf3d, _ylabel_animsurf3d, _animsurf_title_line_3d,
                 _xlabel_animsurf_else, _ylabel_animsurf_else, _animsurf_title_line_else,
-                is_time_adaptive=True) + "\n"
+                is_time_adaptive=True, resolution=resolution) + "\n"
         script += '\nprint("RESTORE_DONE")\n'
         return script
 
@@ -17292,7 +17407,8 @@ def _extract_plot_field(x_grid, _tm_model):
             line_slice_z = (z_min + z_max) / 2.0
         if viz_settings is None:
             viz_settings = {}
-        _cmap     = viz_settings.get('colormap', 'viridis')
+        _cmap     = viz_settings.get('colormap', 'jet')
+        _err_cmap = viz_settings.get('err_colormap') or _cmap   # |Error| panels
         _levels   = viz_settings.get('levels', 40)
         _dpi      = viz_settings.get('dpi', 150)
         _colorbar = viz_settings.get('colorbar', True)
@@ -17466,7 +17582,7 @@ print(f"  Metrics saved: {{os.path.join(_ea_dir, 'error_metrics_restore.txt')}}"
 
 # Line comparison
 if {do_line}:
-    _ncols = min(4, _ea_n_t)
+    _ncols = min({max(1, int(viz_settings.get('ea_cols', 4) or 4))}, _ea_n_t)
     _nrows = (_ea_n_t + _ncols - 1) // _ncols
     fig, axes = plt.subplots(_nrows, _ncols, figsize=(4*_ncols, 3.5*_nrows), squeeze=False)
     _ea_line_suptitle = "Restored Model vs Reference — Line Comparison"
@@ -17538,8 +17654,8 @@ if {do_line}:
             _pinn_s = _ea_u_pinns[_i][_ea_sort]
         if {bool(is_2d or is_3d)} and '_line_gaps' in globals():
             _xv_s, _gt_s, _pinn_s = _line_gaps(_xv_s, _gt_s, _pinn_s)
-        _ref_plot(ax, _xv_s, _gt_s,   color='#4dabf7', linewidth=2.0, label='Reference')
-        ax.plot(_xv_s, _pinn_s, color='#ff6b6b', linewidth=2.0, linestyle='--', label='PINN')
+        _ref_plot(ax, _xv_s, _gt_s,   color=_PLOT_REF_COLOR, linewidth={viz_settings.get('linewidth', 2.0)}, label='Reference')
+        ax.plot(_xv_s, _pinn_s, color=_PLOT_PINN_COLOR, linewidth={viz_settings.get('linewidth', 2.0)}, linestyle='--', label='PINN')
         ax.set_title(f"t = {{_fmt_num(_tv)}}  ({{_l2_txt(_l2)}})", fontsize={_subtitle_fs})
         _ea_line_ylabel = (f"{out_name}(x,y={{_fmt_num({line_slice_y!r})}},z={{_fmt_num({line_slice_z!r})}})" if {is_3d}
                             else (f"{out_name}(x,y={line_slice_y:.3g})" if {is_2d} else "{out_name}"))
@@ -17560,7 +17676,7 @@ if {do_surface} and {is_3d}:
 elif {do_surface}:
     if {is_2d}:
         from scipy.interpolate import griddata as _gd
-        _res_ea = 60
+        _res_ea = {int(_ea_line_res)}   # Plot settings -> Surface -> Grid resolution
         _xg_ea = np.linspace({x_min}, {x_max}, _res_ea)
         _yg_ea = np.linspace({y_min}, {y_max}, _res_ea)
         _Xg_ea, _Yg_ea = np.meshgrid(_xg_ea, _yg_ea)
@@ -17586,12 +17702,12 @@ elif {do_surface}:
             im1 = axes[_i][1].contourf(_Xg_ea, _Yg_ea, _u_fem_g, cmap='{_cmap}', **_cf_levels({_levels}, _vmin_data, _vmax_data, _u_fem_g))
             axes[_i][1].set_title(_ea_gt_title, fontsize={_subtitle_fs}); axes[_i][1].set_xlabel("x", fontsize={_axislabel_fs}); axes[_i][1].set_ylabel("y", fontsize={_axislabel_fs})
             if {_colorbar}: fig.colorbar(im1, ax=axes[_i][1])
-            im2 = axes[_i][2].contourf(_Xg_ea, _Yg_ea, _u_err_g, levels={_levels}, cmap='{_cmap}')
+            im2 = axes[_i][2].contourf(_Xg_ea, _Yg_ea, _u_err_g, levels={_levels}, cmap='{_err_cmap}')
             axes[_i][2].set_title(f"|Error| max = {{_sci_txt(_mx)}}", fontsize={_subtitle_fs}); axes[_i][2].set_xlabel("x", fontsize={_axislabel_fs}); axes[_i][2].set_ylabel("y", fontsize={_axislabel_fs})
             if {_colorbar}: fig.colorbar(im2, ax=axes[_i][2])
         plt.tight_layout(rect=[0, 0, 1, 0.93])
     else:
-        _x_common = np.linspace({x_min}, {x_max}, 300)
+        _x_common = np.linspace({x_min}, {x_max}, {int(_ea_line_res)})
         _t_arr = np.array(_ea_times)
         _U_pinn = np.zeros((len(_t_arr), len(_x_common)))
         _U_fem  = np.zeros((len(_t_arr), len(_x_common)))
@@ -17612,7 +17728,7 @@ elif {do_surface}:
         im1 = axes[1].contourf(_Tg, _Xg, _U_fem, cmap='{_cmap}', **_cf_levels({_levels}, _vmin_data, _vmax_data, _U_fem))
         axes[1].set_title("Reference", fontsize={_subtitle_fs}); axes[1].set_xlabel("t", fontsize={_axislabel_fs})
         if {_colorbar}: fig.colorbar(im1, ax=axes[1])
-        im2 = axes[2].contourf(_Tg, _Xg, _U_err, levels={_levels}, cmap='{_cmap}')
+        im2 = axes[2].contourf(_Tg, _Xg, _U_err, levels={_levels}, cmap='{_err_cmap}')
         axes[2].set_title("|Error|", fontsize={_subtitle_fs}); axes[2].set_xlabel("t", fontsize={_axislabel_fs})
         if {_colorbar}: fig.colorbar(im2, ax=axes[2])
         plt.tight_layout(rect=[0, 0, 1, 0.93])

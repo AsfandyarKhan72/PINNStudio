@@ -16,6 +16,7 @@ TABS = ("General", "Surface", "Line", "Animation", "Loss")
 COLORMAPS = ["RdBu_r", "viridis", "plasma", "jet", "coolwarm", "inferno", "turbo", "seismic", "bwr"]
 PARAM_COLORS = [("Red", "#e03131"), ("Blue", "#1c7ed6"), ("Black", "#212529"), ("Grey", "#868e96"),
                 ("Green", "#2f9e44"), ("Orange", "#f08c00"), ("Purple", "#7048e8")]
+LINE_COLORS = [("Light red", "#ff6b6b"), ("Light blue", "#4dabf7")] + PARAM_COLORS
 LINE_STYLES = [("Dashed", "--"), ("Dotted", ":"), ("Dash-dot", "-."), ("Solid", "-")]
 DRAW_AS = [("Line", "line"), ("Line and markers", "line_markers"), ("Markers only", "markers")]
 MARKERS = [("Circle", "o"), ("Square", "s"), ("Triangle", "^"), ("Cross", "x")]
@@ -58,11 +59,37 @@ def _combo(items, value, width=None):
     i = c.findData(value)
     if i < 0:
         i = c.findText(str(value))
+    if i < 0 and isinstance(value, str) and value.startswith("#"):
+        c.addItem(value, value)          # a colour of your own, kept as it is
+        i = c.count() - 1
+    if i < 0 and value not in (None, "") and not any(isinstance(it, tuple) for it in items):
+        # a value that is not in the list (a DeepXDE example's grid of 500,
+        # a colormap of your own) is kept, not replaced by the first item
+        c.addItem(str(value), str(value))
+        i = c.count() - 1
     if i >= 0:
         c.setCurrentIndex(i)
     if width:
         c.setMinimumWidth(width)
     return c
+
+
+def _edit_combo(items, value, width=None):
+    """_combo whose value can also be typed: any number (DPI, grid, fps,
+    line width) or any matplotlib colormap name."""
+    c = _combo(items, value, width)
+    c.setEditable(True)
+    c.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
+    return c
+
+
+def _num(combo, kind, fallback):
+    """A typed number from an editable list, or `fallback` if it isn't one."""
+    try:
+        v = kind(float(combo.currentText().strip()))
+        return v if v > 0 else fallback
+    except (TypeError, ValueError):
+        return fallback
 
 
 def _spin(lo, hi, value, step=None, double=False, width=90):
@@ -158,7 +185,7 @@ class FigureStyleDialog(QDialog):
     def _general(self):
         s = self.style
         f = self._page("General")
-        self.dpi = _combo(["100", "150", "200", "300", "600"], str(s.get("dpi", 100)), 90)
+        self.dpi = _edit_combo(["100", "150", "200", "300", "600"], str(s.get("dpi", 100)), 90)
         f.addRow("Resolution (DPI):", self.dpi)
         self.figsize = _combo(["Default", "Square", "Wide", "Custom"], s.get("figsize_mode", "Default"), 110)
         f.addRow("Figure size:", self.figsize)
@@ -218,16 +245,26 @@ class FigureStyleDialog(QDialog):
     def _surface(self):
         s = self.style
         f = self._page("Surface")
-        self.cmap = _combo(COLORMAPS, s.get("colormap", "RdBu_r"), 120)
+        self.cmap = _edit_combo(COLORMAPS, s.get("colormap", "jet"), 120)
         f.addRow("Colour map:", self.cmap)
+        _ec = s.get("err_colormap", "") or ""
+        self.err_cmap = _edit_combo([("Same as the solution", "")] + [(c, c) for c in COLORMAPS]
+                                    + ([(_ec, _ec)] if _ec and _ec not in COLORMAPS else []), _ec, 150)
+        self.err_cmap.setToolTip("Colour map of the |Error| panels of Error Analysis. The error is never\n"
+                                 "negative, so a one-sided map (viridis, magma, ...) often reads better.")
+        f.addRow("Error colour map:", self.err_cmap)
         self.levels = _spin(5, 200, int(s.get("levels", 50)), width=80)
         f.addRow("Contour levels:", self.levels)
-        self.res = _combo(["80", "100", "150", "200", "300"], str(s.get("resolution", 100)), 80)
+        self.res = _edit_combo(["80", "100", "150", "200", "300"], str(s.get("resolution", 100)), 80)
         f.addRow("Grid resolution:", self.res)
         self.auto_range = QCheckBox("Automatic")
         self.auto_range.setChecked(bool(s.get("auto_range", True)))
-        self.vmin = _spin(-1e6, 1e6, s.get("vmin", -1.0), None, True, 90)
-        self.vmax = _spin(-1e6, 1e6, s.get("vmax", 1.0), None, True, 90)
+        from pinnstudio.ui.sci_spinbox import SciSpinBox
+        self.vmin, self.vmax = SciSpinBox(), SciSpinBox()
+        for _b, _v in ((self.vmin, s.get("vmin", -1.0)), (self.vmax, s.get("vmax", 1.0))):
+            _b.setRange(-1e12, 1e12)
+            _b.setValue(float(_v))
+            _b.setFixedWidth(90)
         cr = QWidget()
         crl = QHBoxLayout(cr)
         crl.setContentsMargins(0, 0, 0, 0)
@@ -269,7 +306,7 @@ class FigureStyleDialog(QDialog):
         v, mx = self._steps(False)
         self.steps_line = _spin(2, mx, v, width=80)
         f.addRow("Time steps to show:", self.steps_line)
-        self.lw_line = _combo(["1.0", "1.5", "2.0", "2.5", "3.0"], str(float(s.get("linewidth", 2.0))), 80)
+        self.lw_line = _edit_combo(["1.0", "1.5", "2.0", "2.5", "3.0"], str(float(s.get("linewidth", 2.0))), 80)
         f.addRow("Line width:", self.lw_line)
         self.slices = {}
         if self.dim in ("2D", "3D"):
@@ -301,6 +338,13 @@ class FigureStyleDialog(QDialog):
         self.ref_style.setToolTip("How the reference is drawn in the line comparisons of Error Analysis:\n"
                                   "a line, or dots (the PINN stays a dashed line).")
         f.addRow("Reference in line comparisons:", self.ref_style)
+        self.pinn_color = _combo(LINE_COLORS, s.get("pinn_color", "#ff6b6b"), 120)
+        self.ref_color = _combo(LINE_COLORS, s.get("ref_color", "#4dabf7"), 120)
+        f.addRow("PINN line colour:", self.pinn_color)
+        f.addRow("Reference line colour:", self.ref_color)
+        self.ea_cols = _spin(1, 12, int(s.get("ea_cols", 4)), width=70)
+        self.ea_cols.setToolTip("Panels per row in Error Analysis figures with one panel per reference time")
+        f.addRow("Error Analysis panels per row:", self.ea_cols)
         self._param_plot_section(f)
 
     def _animation(self):
@@ -309,9 +353,12 @@ class FigureStyleDialog(QDialog):
         v, mx = self._steps(True)
         self.frames = _spin(2, mx, v, width=80)
         f.addRow("Frames:", self.frames)
-        self.fps = _combo(["5", "8", "10", "15", "20", "24", "30"], str(int(s.get("fps", 10))), 80)
+        self.fps = _edit_combo(["5", "8", "10", "15", "20", "24", "30"], str(int(s.get("fps", 10))), 80)
         f.addRow("Frame rate (fps):", self.fps)
-        self.lw_anim = _combo(["1.0", "1.5", "2.0", "2.5", "3.0", "4.0"], str(float(s.get("linewidth_anim", 3.0))), 80)
+        self.dpi_anim = _edit_combo(["72", "100", "150", "200", "300"], str(int(s.get("dpi_anim", 150))), 80)
+        self.dpi_anim.setToolTip("Resolution of every saved animation (solution and parameter convergence)")
+        f.addRow("Resolution (DPI):", self.dpi_anim)
+        self.lw_anim = _edit_combo(["1.0", "1.5", "2.0", "2.5", "3.0", "4.0"], str(float(s.get("linewidth_anim", 3.0))), 80)
         f.addRow("Line width:", self.lw_anim)
         if self.dim in ("2D", "3D") and not self.steady:
             f.addRow(_hint("Surface animations use the Surface tab's colour map, levels and colour range."))
@@ -323,7 +370,7 @@ class FigureStyleDialog(QDialog):
         self.loss_mode = _combo([("Train + Test totals", "train_test"), ("Each loss term", "individual"),
                                  ("Totals and each term", "all")], s.get("mode", "train_test"), 190)
         f.addRow("Show:", self.loss_mode)
-        self.loss_lw = _combo(["1.0", "1.5", "2.0", "2.5", "3.0"], str(float(s.get("linewidth", 2.0))), 80)
+        self.loss_lw = _edit_combo(["1.0", "1.5", "2.0", "2.5", "3.0"], str(float(s.get("linewidth", 2.0))), 80)
         f.addRow("Line width:", self.loss_lw)
         self.loss_log = QCheckBox("Logarithmic")
         self.loss_log.setChecked(bool(s.get("log_y", True)))
@@ -369,7 +416,7 @@ class FigureStyleDialog(QDialog):
         value against the iteration), on the Line tab."""
         s = self.style
         self.p_color = _combo(PARAM_COLORS, s.get("param_color", "#e03131"), 100)
-        self.p_lw = _combo(["1.0", "1.5", "2.0", "2.5", "3.0", "4.0"], str(float(s.get("param_linewidth", 3.0))), 80)
+        self.p_lw = _edit_combo(["1.0", "1.5", "2.0", "2.5", "3.0", "4.0"], str(float(s.get("param_linewidth", 3.0))), 80)
         # "Mark each saved value" (older setting) shows as "Line and markers"
         _draw = s.get("param_draw", "line")
         if _draw == "line" and s.get("param_markers", False):
@@ -418,7 +465,7 @@ class FigureStyleDialog(QDialog):
         the plot's, on the Line tab)."""
         s = self.style
         self.pa_color = _combo(PARAM_COLORS, s.get("param_anim_color", "#e03131"), 100)
-        self.pa_lw = _combo(["1.0", "1.5", "2.0", "2.5", "3.0", "4.0"],
+        self.pa_lw = _edit_combo(["1.0", "1.5", "2.0", "2.5", "3.0", "4.0"],
                             str(float(s.get("param_anim_linewidth", 3.0))), 80)
         self.pa_frames = _spin(10, 300, int(s.get("param_anim_frames", 60)), width=80)
         self.pa_figs = _combo([("One for all parameters", "combined"), ("One per parameter", "separate")], s.get("param_anim_figures", "combined"), 190)
@@ -477,6 +524,7 @@ class FigureStyleDialog(QDialog):
         elif name == "Surface":
             self.cmap.setCurrentText(d.plot_colormap)
             self.levels.setValue(d.plot_levels)
+            self.err_cmap.setCurrentIndex(0)
             self.res.setCurrentText(str(d.plot_resolution))
             self.auto_range.setChecked(d.plot_auto_range)
             self.colorbar.setChecked(d.plot_colorbar)
@@ -492,6 +540,9 @@ class FigureStyleDialog(QDialog):
             self.p_marker.setCurrentIndex(max(0, self.p_marker.findData(d.param_plot_marker)))
             self.p_msize.setValue(d.param_plot_marker_size)
             self.ref_style.setCurrentIndex(max(0, self.ref_style.findData(d.plot_ref_style)))
+            self.pinn_color.setCurrentIndex(max(0, self.pinn_color.findData(d.plot_pinn_color)))
+            self.ref_color.setCurrentIndex(max(0, self.ref_color.findData(d.plot_ref_color)))
+            self.ea_cols.setValue(d.plot_ea_cols)
             self.p_log.setChecked(d.inv_param_log_scale)
             self.p_figs.setCurrentIndex(max(0, self.p_figs.findData(d.param_plot_figures)))
             for cb, col, sty, show, c, st in ((self.p_true, self.p_true_color, self.p_true_style,
@@ -503,6 +554,7 @@ class FigureStyleDialog(QDialog):
                 sty.setCurrentIndex(max(0, sty.findData(st)))
         elif name == "Animation":
             self.fps.setCurrentText(str(d.plot_fps))
+            self.dpi_anim.setCurrentText(str(d.plot_dpi_anim))
             self.lw_anim.setCurrentText(str(float(d.plot_linewidth_anim)))
             self.pa_color.setCurrentIndex(max(0, self.pa_color.findData(d.param_anim_color)))
             self.pa_lw.setCurrentText(str(float(d.param_anim_linewidth)))
@@ -516,40 +568,69 @@ class FigureStyleDialog(QDialog):
             self.loss_log.setChecked(d.loss_plot_log_y)
             self.loss_every.setValue(d.loss_display_every)
 
+    def _colormap(self):
+        """The colormap typed or picked; a name matplotlib does not know
+        keeps the one set before."""
+        name = self.cmap.currentText().strip()
+        try:
+            import matplotlib
+            matplotlib.colormaps[name]
+            return name
+        except Exception:
+            return self.style.get("colormap", "jet")
+
+    def _err_colormap(self):
+        """"" (the solution's) or a colormap matplotlib knows."""
+        data = self.err_cmap.currentData()
+        text = self.err_cmap.currentText().strip()
+        if data == "" and text == "Same as the solution":
+            return ""
+        try:
+            import matplotlib
+            matplotlib.colormaps[text]
+            return text
+        except Exception:
+            return self.style.get("err_colormap", "")
+
     def values(self):
         s = dict(self.style)
         s.update({
-            "dpi": int(self.dpi.currentText()),
+            "dpi": _num(self.dpi, int, int(self.style.get("dpi", 300))),
             "figsize_mode": self.figsize.currentText(),
             "figsize_w": self.fig_w.value(), "figsize_h": self.fig_h.value(),
             "title": self.title.text().strip(), "xlabel": self.xlabel.text().strip(),
             "ylabel": self.ylabel.text().strip(),
             "title_fontsize": self.title_fs.value(), "subplot_title_fontsize": self.sub_fs.value(),
             "axis_label_fontsize": self.axis_fs.value(),
-            "colormap": self.cmap.currentText(), "levels": self.levels.value(),
-            "resolution": int(self.res.currentText()), "auto_range": self.auto_range.isChecked(),
+            "colormap": self._colormap(), "levels": self.levels.value(),
+            "resolution": _num(self.res, int, int(self.style.get("resolution", 200))),
+            "auto_range": self.auto_range.isChecked(),
             "vmin": self.vmin.value(), "vmax": self.vmax.value(), "colorbar": self.colorbar.isChecked(),
             "n_2d_snapshots": self.snaps.value(), "swap_xt": self.swap.isChecked(),
-            "linewidth": float(self.lw_line.currentText()), "linewidth_anim": float(self.lw_anim.currentText()),
-            "fps": int(self.fps.currentText()),
-            "param_color": self.p_color.currentData(), "param_linewidth": float(self.p_lw.currentText()),
+            "linewidth": _num(self.lw_line, float, float(self.style.get("linewidth", 2.0))),
+            "linewidth_anim": _num(self.lw_anim, float, float(self.style.get("linewidth_anim", 3.0))),
+            "fps": _num(self.fps, int, int(self.style.get("fps", 10))),
+            "param_color": self.p_color.currentData(), "param_linewidth": _num(self.p_lw, float, float(self.style.get("param_linewidth", 3.0))),
             "param_markers": self.p_draw.currentData() != "line",
             "param_draw": self.p_draw.currentData(), "param_marker": self.p_marker.currentData(),
             "param_marker_size": self.p_msize.value(),
             "param_anim_draw": self.pa_draw.currentData(), "param_anim_head": self.pa_head.isChecked(),
             "grid": self.grid_cb.isChecked(), "ref_style": self.ref_style.currentData(),
             "sig_digits": self.sig_digits.value(), "sci_notation": self.sci_notation.currentData(),
+            "pinn_color": self.pinn_color.currentData(), "ref_color": self.ref_color.currentData(),
+            "err_colormap": self._err_colormap(), "ea_cols": self.ea_cols.value(),
+            "dpi_anim": _num(self.dpi_anim, int, int(self.style.get("dpi_anim", 150))),
             "sci_style": self.sci_style.currentData(),
             "param_show_true": self.p_true.isChecked(), "param_true_color": self.p_true_color.currentData(),
             "param_true_style": self.p_true_style.currentData(),
             "param_show_final": self.p_final.isChecked(), "param_final_color": self.p_final_color.currentData(),
             "param_final_style": self.p_final_style.currentData(),
-            "param_anim_color": self.pa_color.currentData(), "param_anim_linewidth": float(self.pa_lw.currentText()),
+            "param_anim_color": self.pa_color.currentData(), "param_anim_linewidth": _num(self.pa_lw, float, float(self.style.get("param_anim_linewidth", 3.0))),
             "param_anim_frames": self.pa_frames.value(),
             "param_plot_figures": self.p_figs.currentData(), "param_anim_figures": self.pa_figs.currentData(),
         })
         loss = {"mode": self.loss_mode.currentData(), "display_every": self.loss_every.value(),
-                "linewidth": float(self.loss_lw.currentText()), "log_y": self.loss_log.isChecked()}
+                "linewidth": _num(self.loss_lw, float, 2.0), "log_y": self.loss_log.isChecked()}
         return s, loss
 
     def _ok(self):

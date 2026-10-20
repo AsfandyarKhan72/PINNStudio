@@ -73,6 +73,7 @@ from pinnstudio.core import sweep_registry as reg
 from pinnstudio.core.runner import run_pinn
 
 _FINAL_LOSS_RE = re.compile(r"Final loss:\s*([0-9.eE+-]+)")
+_FINAL_LOSS_UNW_RE = re.compile(r"Final loss \(unweighted\):\s*([0-9.eE+-]+)")
 _SLUG_RE = re.compile(r"[^A-Za-z0-9._=-]+")
 
 
@@ -255,7 +256,7 @@ class BayesRuns:
         return ", ".join(parts), cfg
 
     def tell(self, label, result):
-        key = "final_loss" if self.objective == "loss" else "l2_relative"
+        key = {"loss": "final_loss", "loss_unweighted": "final_loss_unweighted"}.get(self.objective, "l2_relative")
         val = result.get(key) if result.get("status") == "done" else None
         self.opt.tell(self._pending, val)
         self.history.append((label, list(self._pending), val))
@@ -298,7 +299,7 @@ class BayesRuns:
             pass
 
     def _objective_label(self):
-        return "Final loss" if self.objective == "loss" else "L2 relative error"
+        return {"loss": "Final loss", "loss_unweighted": "Final loss (unweighted)"}.get(self.objective, "L2 relative error")
 
 
 # ── Per-run output organization ────────────────────────────────────────
@@ -572,10 +573,18 @@ def run_sweep(base_config, on_run_start=None, on_output=None, on_run_done=None,
             except ValueError:
                 pass  # keep the last successfully-parsed value, if any
 
+        final_loss_unw = None
+        for m in _FINAL_LOSS_UNW_RE.finditer("\n".join(log_lines)):
+            try:
+                final_loss_unw = float(m.group(1))
+            except ValueError:
+                pass
+
         metrics = _read_run_metrics(cfg, _run_started_at)
         result = {
             "status": "done" if status == "DONE" else "error",
             "final_loss": final_loss,
+            "final_loss_unweighted": final_loss_unw,
             "l2_relative": metrics.get("L2_relative"),
             "metrics": metrics,
             "params": _read_inverse_params(cfg, log_lines, _run_started_at),
@@ -649,7 +658,7 @@ def _write_sweep_summary_csv(sweep_root, results):
     try:
         with open(os.path.join(sweep_root, "sweep_summary.csv"), "w", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
-            writer.writerow(["Run"] + params + ["Status", "Final loss"] + [n for _k, n in metrics]
+            writer.writerow(["Run"] + params + ["Status", "Final loss", "Final loss (unweighted)"] + [n for _k, n in metrics]
                             + [h for _k, _w, h in pcols] + ["Folder"])
             for label, result in results:
                 m = result.get("metrics") or {}
@@ -658,7 +667,8 @@ def _write_sweep_summary_csv(sweep_root, results):
                 vals = result.get("values") or {}
                 writer.writerow(
                     [label] + [vals.get(p, "") for p in params]
-                    + [result.get("status"), result.get("final_loss") if result.get("final_loss") is not None else ""]
+                    + [result.get("status"), result.get("final_loss") if result.get("final_loss") is not None else "",
+                       result.get("final_loss_unweighted") if result.get("final_loss_unweighted") is not None else ""]
                     + [m.get(k, "") for k, _n in metrics]
                     + [_param_cell(result, k, what) for k, what, _h in pcols]
                     + [os.path.basename(result.get("save_dir", ""))])
@@ -818,6 +828,6 @@ def _summary_plot(sweep_root, base_config, results):
     fig.suptitle(title, fontsize=12)
     fig.tight_layout()
     path = os.path.join(sweep_root, "sweep_error_vs_parameter.png")
-    fig.savefig(path, dpi=150)
+    fig.savefig(path, dpi=int(getattr(base_config, "plot_dpi", 150) or 150))
     plt.close(fig)
     return path

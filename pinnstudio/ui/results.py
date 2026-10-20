@@ -350,7 +350,9 @@ class LiveLossPlot(QWidget):
                 if any(h[2] for h in hist):
                     ax.plot(steps, [sum(h[2]) if h[2] else math.nan for h in hist], color=t["warning"],
                             lw=1.4, ls="--", label="test")
-            ax.set_yscale("log")
+            # Plot settings -> Loss -> log axis (the window sets log_y)
+            if getattr(self, "log_y", True):
+                ax.set_yscale("log")
             for s0, label in p.phase_starts[1:]:
                 ax.axvline(s0, color=t["text_faint"], lw=0.8, ls=":")
                 ax.text(s0, 1, f" {label}", transform=ax.get_xaxis_transform(), va="top", ha="left",
