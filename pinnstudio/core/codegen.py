@@ -1820,7 +1820,7 @@ def _gs_rar_loop_code(config):
                             _best_r = _rar_ea_entries[0]
                             _ref_fp_r = _best_r[1]
                             _ref_sel_r = _best_r[2] if len(_best_r) >= 3 else None
-                            _ref_d_r = np.loadtxt(_ref_fp_r)
+                            _ref_d_r = _load_ref(_ref_fp_r)
                             if _ref_d_r.ndim == 1:
                                 _ref_d_r = _ref_d_r.reshape(1, -1)
                             _ref_x_r = _ref_d_r[:, 0]; _ref_u_r = _ref_d_r[:, 1]
@@ -1874,7 +1874,7 @@ def _gs_rar_loop_code(config):
                             _rmsel = _rmentry[2] if len(_rmentry) >= 3 else None
                             _rar_xt_c = np.column_stack([_rar_x_common, np.full_like(_rar_x_common, _rmtv)])
                             _rar_U_pinn[_rmi, :] = _rar_ref_extract(_rar_xt_c, _rmsel, model).flatten()
-                            _rd_ld = np.loadtxt(_rmfp)
+                            _rd_ld = _load_ref(_rmfp)
                             if _rd_ld.ndim == 1:
                                 _rd_ld = _rd_ld.reshape(1, -1)
                             _rd_ord = np.argsort(_rd_ld[:, 0])
@@ -1956,7 +1956,7 @@ def _gs_rar_loop_code(config):
                         _best_r = min(_rar_ea_entries, key=lambda _e: abs(_e[0] - {config.t_max}))
                         _ref_t_r, _ref_fp_r = _best_r[0], _best_r[1]
                         _ref_sel_r = _best_r[2] if len(_best_r) >= 3 else None
-                        _ref_d_r = np.loadtxt(_ref_fp_r)
+                        _ref_d_r = _load_ref(_ref_fp_r)
                         if _ref_d_r.ndim == 1:
                             _ref_d_r = _ref_d_r.reshape(1, -1)
                         _ref_xyz_r = _ref_d_r[:, :1]; _ref_u_r = _ref_d_r[:, 2]
@@ -2008,7 +2008,7 @@ def _gs_rar_loop_code(config):
                             _best_r = _rar_ea_entries[0]
                             _ref_fp_r = _best_r[1]
                             _ref_sel_r = _best_r[2] if len(_best_r) >= 3 else None
-                            _ref_d_r = np.loadtxt(_ref_fp_r)
+                            _ref_d_r = _load_ref(_ref_fp_r)
                             if _ref_d_r.ndim == 1:
                                 _ref_d_r = _ref_d_r.reshape(1, -1)
                             if _is_3d:
@@ -2154,7 +2154,7 @@ def _gs_rar_loop_code(config):
                         _best_r = min(_rar_ea_entries, key=lambda _e: abs(_e[0] - {config.t_max}))
                         _ref_t_r, _ref_fp_r = _best_r[0], _best_r[1]
                         _ref_sel_r = _best_r[2] if len(_best_r) >= 3 else None
-                        _ref_d_r = np.loadtxt(_ref_fp_r)
+                        _ref_d_r = _load_ref(_ref_fp_r)
                         if _ref_d_r.ndim == 1:
                             _ref_d_r = _ref_d_r.reshape(1, -1)
                         if _is_3d:
@@ -2427,7 +2427,7 @@ for _ea_entry in {config.ea_files}:
     else:
         _ea_tv0, _ea_fp0 = _ea_entry[0], _ea_entry[1]
         _ea_sel0 = None
-    if {config.t_min} - 1e-10 <= _ea_tv0 <= {config.t_max} + 1e-10:
+    if {bool(config.steady_state)} or {config.t_min} - 1e-10 <= _ea_tv0 <= {config.t_max} + 1e-10:   # steady: no time
         _ea_files_norm.append((_ea_tv0, _ea_fp0, _ea_sel0))
 print("\\n=== Running {banner} ===")
 print(f"  Filtering to t=[{config.t_min}, {config.t_max}]: {{len(_ea_files_norm)}} files")
@@ -3165,7 +3165,7 @@ if {config.time_adaptive}:
                         for _mi, (_mtv, _mfp, _msel) in enumerate(_step_matches):
                             _tea_xt_c = np.column_stack([_tea_x_common, np.full_like(_tea_x_common, _mtv)])
                             _tea_U_pinn[_mi, :] = _ta_ref_extract(_tea_xt_c, _msel, model_i).flatten()
-                            _tea_d = np.loadtxt(_mfp)
+                            _tea_d = _load_ref(_mfp)
                             if _tea_d.ndim == 1:
                                 _tea_d = _tea_d.reshape(1, -1)
                             _tea_ord = np.argsort(_tea_d[:, 0])
@@ -3240,7 +3240,7 @@ if {config.time_adaptive}:
                         fig.suptitle(f"Step {{step_i+1}}: t = {{_fmt_num(t0)}} → {{_fmt_num(t1)}} -- PINN vs Reference", fontsize={config.plot_title_fontsize}, fontweight="bold")
                         _tea_ax_flat = axes.flatten()
                         for _mi, (_mtv, _mfp, _msel) in enumerate(_step_matches):
-                            _tea_d = np.loadtxt(_mfp)
+                            _tea_d = _load_ref(_mfp)
                             if _tea_d.ndim == 1:
                                 _tea_d = _tea_d.reshape(1, -1)
                             _tea_ord = np.argsort(_tea_d[:, 0])
@@ -3291,7 +3291,7 @@ if {config.time_adaptive}:
                         if _is_3d:
                             fig = plt.figure(figsize=_plot_figsize(15, 4.5 * _tea_n))
                             for _mi, (_mtv, _mfp, _msel) in enumerate(_step_matches):
-                                _tea_d = np.loadtxt(_mfp)
+                                _tea_d = _load_ref(_mfp)
                                 if _tea_d.ndim == 1:
                                     _tea_d = _tea_d.reshape(1, -1)
                                 _tea_xyz = _tea_d[:, :3]
@@ -3326,7 +3326,7 @@ if {config.time_adaptive}:
                             _inside_s = geom_i.inside(np.column_stack([_Xg_s.ravel(), _Yg_s.ravel()])).reshape(_res_step, _res_step)
                             from scipy.interpolate import griddata as _tea_gd
                             for _mi, (_mtv, _mfp, _msel) in enumerate(_step_matches):
-                                _tea_d = np.loadtxt(_mfp)
+                                _tea_d = _load_ref(_mfp)
                                 if _tea_d.ndim == 1:
                                     _tea_d = _tea_d.reshape(1, -1)
                                 _tea_xy = _tea_d[:, :2]
@@ -3670,7 +3670,7 @@ if {config.time_adaptive}:
             # Load all ground truth files
             _ea_times = []; _ea_x_refs = []; _ea_y_refs = []; _ea_z_refs = []; _ea_u_refs = []
             for _ea_tv, _ea_fp in _ea_files:
-                _ea_d = np.loadtxt(_ea_fp)
+                _ea_d = _load_ref(_ea_fp)
                 if _ea_d.ndim == 1: _ea_d = _ea_d.reshape(1, -1)
                 if _is_3d:
                     # 3D format: x, y, z, t, u -- same as the Standard path's
@@ -7677,7 +7677,7 @@ for _pval in _param_values:
                 # Load all ground truth files
                 _ea_times = []; _ea_x_refs = []; _ea_y_refs = []; _ea_z_refs = []; _ea_u_refs = []
                 for _ea_tv, _ea_fp in _ea_files:
-                    _ea_d = np.loadtxt(_ea_fp)
+                    _ea_d = _load_ref(_ea_fp)
                     if _ea_d.ndim == 1: _ea_d = _ea_d.reshape(1, -1)
                     if _is_steady and _is_3d:
                         # Steady 3D format: x, y, z, u — no time column at all.
@@ -9476,6 +9476,27 @@ def _panel_figsize(_pw, _ph, _ncols, _nrows):
 
 _PLOT_TEXT_HELPERS = """
 
+def _load_ref(_path):
+    # A reference-data file: comma or space separated, header and comment
+    # lines skipped, and rows with a missing value (NaN, e.g. a point outside
+    # the shape) dropped -- the same in Solve, the exported script and Restore.
+    import re as _re
+    _rows = []
+    with open(_path, encoding="utf-8", errors="replace") as _fh:
+        for _ln in _fh:
+            _ln = _ln.strip()
+            if not _ln or _ln[0] in "#%":
+                continue
+            try:
+                _rows.append([float(_v) for _v in _re.split(r"[,\\s;]+", _ln) if _v])
+            except ValueError:
+                continue
+    _w = max((len(_r) for _r in _rows), default=0)
+    if not _w:
+        return np.zeros((0, 0))
+    _d = np.array([_r for _r in _rows if len(_r) == _w], dtype=float)
+    return _d[np.all(np.isfinite(_d), axis=1)]
+
 def _grid(_ax, **_kw):
     # Grid lines on a line-type figure, as set in Plot settings -> General.
     if globals().get("_PLOT_GRID", True):
@@ -9817,7 +9838,7 @@ def _formula_reference_entries(config):
         if not e:
             continue
         for t in times:
-            fname = f"{names[i]}.txt" if config.steady_state else f"{names[i]}_t_{t:.6g}.txt"
+            fname = f"{names[i]}.txt" if config.steady_state else f"{names[i]}_t_{t:.12g}.txt"
             out.append((float(t), _os_ref.path.join(d, fname), i, e))
     return out
 
@@ -11196,7 +11217,7 @@ def generate_clean_script(config):
             _tv0, _fp0, _sel0 = _entry[0], _entry[1], _entry[2]
         else:
             _tv0, _fp0, _sel0 = _entry[0], _entry[1], None
-        if config.t_min - 1e-10 <= _tv0 <= config.t_max + 1e-10:
+        if config.steady_state or config.t_min - 1e-10 <= _tv0 <= config.t_max + 1e-10:   # steady: no time
             _ea_files_norm.append((_tv0, _fp0, _sel0))
 
     # Group reference files by which model output they belong to -- same
@@ -11246,7 +11267,7 @@ def generate_clean_script(config):
     # otherwise need it (see the embedding condition below).
     _ea_needs_custom_op = any(isinstance(_g["sel"], (list, tuple)) for _g in _ea_groups.values())
 
-    use_ea = bool(_ea_groups) and (config.ea_do_line or config.ea_do_surface)
+    use_ea = bool(_ea_groups)   # the metrics even when no comparison figure is ticked (as Solve)
 
     use_save = bool((config.save_dir or "").strip())
 
@@ -12562,7 +12583,7 @@ os.makedirs(ea_dir, exist_ok=True)
 ea_files = {_ea_group_files}
 ea_times, ea_x_refs, ea_y_refs, ea_z_refs, ea_u_refs = [], [], [], [], []
 for tv, fp in ea_files:
-    d = np.loadtxt(fp)
+    d = _load_ref(fp)
     if d.ndim == 1:
         d = d.reshape(1, -1)''']
             # Same distinction as _n_obs_coord_cols/_n_coord_cols_bc elsewhere in
@@ -12597,7 +12618,7 @@ for tv, fp in ea_files:
                 if is_steady:
                     ea_lines.append('''    idx = np.argsort(d[:, 0])
     ea_x_refs.append(d[idx, 0]); ea_y_refs.append(np.zeros_like(d[idx, 0])); ea_z_refs.append(np.zeros_like(d[idx, 0]))
-    ea_u_refs.append(d[idx, 1]); ea_times.append(float(tv))''')
+    ea_u_refs.append(d[idx, -1]); ea_times.append(float(tv))   # x, u (or x, t, u): u is last, as in Solve''')
                 else:
                     ea_lines.append('''    idx = np.argsort(d[:, 0])
     ea_x_refs.append(d[idx, 0]); ea_y_refs.append(np.zeros_like(d[idx, 0])); ea_z_refs.append(np.zeros_like(d[idx, 0]))

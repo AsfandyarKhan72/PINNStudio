@@ -290,6 +290,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - The surface animation and the line animation ignored a fixed colour range and the grid resolution; they follow Plot settings now, as Solve's do.
   - A surface animation picked for a steady 1D model (possible when its saved settings can't be read) stops with a message instead of an error.
 - **L-BFGS ran more iterations than set, and maxfun did nothing.** DeepXDE (PyTorch) works out its L-BFGS chunk size and evaluation budget once, when it is imported, and `set_LBFGS_options` doesn't update them: a phase of fewer than 1000 iterations ran 1000, longer phases rounded up to the next 1000, and a custom *maxfun* was ignored. Both scripts now keep them in step; phases that are multiples of 1000 with the recommended settings (all the examples) train exactly as before.
+- **Error Analysis:**
+  - Reference files are read the same way everywhere (Solve, the exported script, Restore): commas or spaces, header and comment lines skipped, and rows with a missing value (NaN, e.g. outside an L-shape or a disk) dropped. Solve's time-adaptive Error Analysis and Restore kept NaN rows, so their errors were NaN; a CSV file or one with a header line failed.
+  - Restore's Error Analysis never ran for a single-output problem set up in the dialog (it stopped with "Skipping error analysis"), nor for a reference from a formula; it now runs, with the reference files the run wrote from its formula.
+  - The exported script computed no metrics when both comparison figures were unticked; Solve did.
+  - History and Export CSV took the metric columns by position, so with MSE ticked the MSE showed as the mean error (and as L2 with L2 unticked); they read them by name now, and from the per-output files of a multi-output run.
+  - The dialog read the wrong column as the time for a 3D file (z), and for steady 2D and 1D files; it now goes by the problem's coordinates, and steady references are no longer filtered by time.
+  - For a steady 1D reference the exported script read the value from the second column and Solve from the last; both use the last.
+  - Reopening the dialog reset the metric and figure checkboxes to their defaults.
+  - Formula reference files for two close times could get the same name.
 - **Time-adaptive training:**
   - *Line Animation (GIF)* and *Surface Animation (GIF)* made a static surface in Solve (the window then had no GIF to show) while the exported script made the animation; Solve makes them now (the surface of a 3D problem at the z set under *Plot settings → Line*, as the export does).
   - Without a save folder, Solve deleted and recreated a `time_adaptive_steps` folder, and wrote IC pre-training to an `ic_pretrain` folder, in whatever folder it was started from. It now leaves that folder alone (IC pre-training goes to the system's temporary folder).

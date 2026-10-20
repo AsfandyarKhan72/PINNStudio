@@ -6858,8 +6858,10 @@ class MainWindow(QMainWindow):
             else:
                 continue
             try:
-                d = np.loadtxt(fp)
-                if d.ndim == 1: d = d.reshape(1, -1)
+                from pinnstudio.core import obs_reduce as _obr
+                d = _obr.read_points(fp)
+                if d is None or not len(d):
+                    continue
                 is_2d = self.radio_2d.isChecked()
                 is_3d = self.radio_3d.isChecked() if hasattr(self, 'radio_3d') else False
                 t_val = float(d[0, 3]) if is_3d else (float(d[0, 2]) if is_2d else float(d[0, 1]))
@@ -11025,6 +11027,30 @@ class MainWindow(QMainWindow):
         if hasattr(self, 'inv_multi_data_hint'):
             self.inv_multi_data_hint.setVisible(len(self.inv_data_rows) > 1)
 
+    def _ea_with_formula_files(self, ea, cfg):
+        """Error Analysis "reference from a formula": the run wrote its
+        reference files (reference_from_formula in its folder); Restore
+        compares against those."""
+        if not ea or ea.get('files') or ea.get('ref_mode') != 'formula' or not isinstance(cfg, dict):
+            return ea
+        try:
+            import dataclasses as _dc
+            from pinnstudio.core.config import PINNConfig
+            from pinnstudio.core.codegen import _formula_reference_entries
+            _names = {f.name for f in _dc.fields(PINNConfig)}
+            c = PINNConfig(**{k: v for k, v in cfg.items() if k in _names})
+            c.ea_ref_mode = 'formula'
+            c.ea_ref_formula = ea.get('ref_formula') or c.ea_ref_formula
+            c.ea_ref_times = ea.get('ref_times') or c.ea_ref_times
+            files = [(t, pth, i) for t, pth, i, _e in _formula_reference_entries(c) if os.path.isfile(pth)]
+        except Exception:
+            return ea
+        if files:
+            self.log_box.append(f"📊 Error analysis: {len(files)} reference file(s) the run wrote from its formula")
+        else:
+            self.log_box.append("⚠️ Error analysis from a formula: the run's reference_from_formula files weren't found")
+        return dict(ea, files=files)
+
     def _trim_inverse_data_rows(self):
         """Keep only the first measured-data row."""
         for r in list(self.inv_data_rows[1:]):
@@ -14882,6 +14908,11 @@ print("DOMAIN_PREVIEW_DONE")
 
         # ── Reference source (Round 67): files, or an exact formula ──
         _prev_ea = getattr(self, '_ea_settings', None) or {}
+        # reopened: the boxes as they were set, not the defaults
+        for _cb, _key in ((self._ea_line_cb, "do_line"), (self._ea_surface_cb, "do_surface"),
+                          (self._ea_l2_cb, "do_l2"), (self._ea_mse_cb, "do_mse"), (self._ea_max_cb, "do_max")):
+            if _key in _prev_ea:
+                _cb.setChecked(bool(_prev_ea[_key]))
         src_row = QHBoxLayout()
         src_row.addWidget(QLabel("Reference:"))
         self._ea_ref_mode_combo = QComboBox()
@@ -15090,13 +15121,22 @@ print("DOMAIN_PREVIEW_DONE")
 
             def _detect_time(fpath, lbl):
                 try:
-                    import numpy as np
-                    data = np.loadtxt(fpath)
-                    if data.ndim == 1: data = data.reshape(1, -1)
-                    # Auto-detect: 2D files have 4 cols (x,y,t,u), 1D have 3 cols (x,t,u)
-                    t_col = 2 if data.shape[1] >= 4 else 1
-                    t_detected = float(data[0, t_col])
-                    lbl.setText(f"✅ t = {t_detected:.4f} ({len(data)} pts)")
+                    from pinnstudio.core import obs_reduce as _obr
+                    data = _obr.read_points(fpath)
+                    if data is None or not len(data):
+                        raise ValueError("no numbers in the file")
+                    # The time column follows the problem's coordinates: x[, y[, z]], t, value
+                    # (no time column for a steady problem or an ODE's single t input).
+                    _dim = "ODE" if self._is_ode() else ("3D" if self.radio_3d.isChecked() else
+                                                         ("2D" if self.radio_2d.isChecked() else "1D"))
+                    _steady = self.steady_state_check.isChecked()
+                    _n_coord, _n_space = _obr.coord_columns(_dim, _steady)
+                    if _n_coord > _n_space and data.shape[1] > _n_coord:
+                        t_detected = float(data[0, _n_coord - 1])
+                        lbl.setText(f"✅ t = {t_detected:.4g} ({len(data)} pts)")
+                    else:
+                        t_detected = 0.0
+                        lbl.setText(f"✅ steady ({len(data)} pts)")
                     row_data['t_val'] = t_detected
                 except Exception as e:
                     lbl.setText(f"❌ {str(e)[:30]}")
@@ -16317,7 +16357,11 @@ print("DOMAIN_PREVIEW_DONE")
         # rather than aborting the whole restore over the EA add-on.
         try:
             ea = getattr(self, '_ea_settings', None)
+            ea = self._ea_with_formula_files(ea, cfg)
             if ea and ea.get('files'):
+                # (time, path) from a single-output setup, (time, path, output)
+                # otherwise: always three items below
+                ea = dict(ea, files=[tuple(e) + (None,) * (3 - len(e)) for e in ea['files']])
                 # Read t range from step_config.json in same folder as model
                 import json as _json_ea
                 step_dir = os.path.dirname(model_path)
@@ -17632,7 +17676,7 @@ print("\\n=== Running Restore Error Analysis ===")
 _ea_files = {files_repr}
 _ea_times = []; _ea_x_refs = []; _ea_y_refs = []; _ea_z_refs = []; _ea_u_refs = []
 for _tv, _fp in _ea_files:
-    _d = np.loadtxt(_fp)
+    _d = _load_ref(_fp)
     if _d.ndim == 1: _d = _d.reshape(1, -1)
     _d_shape = _d.shape[1]
     if {is_steady} and {is_3d}:

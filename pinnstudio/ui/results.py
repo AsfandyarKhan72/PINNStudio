@@ -548,14 +548,26 @@ def read_run(folder):
     except OSError:
         pass
     try:
-        with open(os.path.join(folder, "error_analysis", "error_metrics.txt"), encoding="utf-8") as fh:
+        import glob as _glob
+        _ea = os.path.join(folder, "error_analysis")
+        _mf = os.path.join(_ea, "error_metrics.txt")
+        if not os.path.isfile(_mf):          # several outputs: error_metrics_<output>.txt, the first
+            _mf = (sorted(_glob.glob(os.path.join(_ea, "error_metrics_*.txt"))) or [_mf])[0]
+        with open(_mf, encoding="utf-8") as fh:
             rows = [ln.strip().split(",") for ln in fh if ln.strip()]
+        # by the header's names, not position: which metrics are there
+        # depends on the ticked ones (t,L2_relative,MSE,Mean_abs_error, ...)
+        head = [h.strip().lower() for h in rows[0]] if rows else []
+        i_l2 = head.index("l2_relative") if "l2_relative" in head else None
+        i_ma = head.index("mean_abs_error") if "mean_abs_error" in head else None
         for r in rows[1:]:
             try:
-                run["metrics"].append((float(r[0]), float(r[1]), float(r[2]) if len(r) > 2 else None))
+                run["metrics"].append((float(r[0]),
+                                       float(r[i_l2]) if i_l2 is not None else None,
+                                       float(r[i_ma]) if i_ma is not None else None))
             except (ValueError, IndexError):
                 pass
-        l2s = [x[1] for x in run["metrics"]]
+        l2s = [x[1] for x in run["metrics"] if x[1] is not None]
         if l2s:
             run["l2"] = sum(l2s) / len(l2s)
     except OSError:
