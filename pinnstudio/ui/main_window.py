@@ -478,6 +478,16 @@ class UpdateCheckThread(QObject):
 # Linux native-appropriate fonts to fall through to instead of an
 # unpredictable Qt-chosen substitute, ending in the generic 'sans-serif'
 # keyword as a final catch-all.
+def _replace_token(text, old, new):
+    """Replace the first whole occurrence of a name or number in an
+    equation: "d" in "du_t - d*u" is the second d, and "0.4" doesn't match
+    inside "0.45"."""
+    import re as _re
+    if not old:
+        return text
+    return _re.sub(r"(?<![\w.])" + _re.escape(old) + r"(?![\w.])", lambda _m: new, text, count=1)
+
+
 _CROSS_PLATFORM_FONT_FALLBACK = (
     "'Helvetica Neue', 'Helvetica', 'Ubuntu', 'Noto Sans', 'DejaVu Sans', "
     "'Arial', sans-serif"
@@ -2044,6 +2054,8 @@ class MainWindow(QMainWindow):
         self.radio_1d.toggled.connect(self._on_dim_changed)
         self.radio_2d.toggled.connect(self._on_dim_changed)
         self.radio_3d.toggled.connect(self._on_dim_changed)
+        for _rb in (self.radio_2d, self.radio_3d):
+            _rb.toggled.connect(lambda _c: self._update_obs_reduce_note() if hasattr(self, 'inv_obs_reduce_note') else None)
         self.radio_ode.toggled.connect(self._on_ode_toggled)
         self.radio_ode.toggled.connect(lambda _c: self._refresh_plot_types())
 
@@ -2535,6 +2547,8 @@ class MainWindow(QMainWindow):
         self.steady_state_check = QCheckBox("Steady-state (no time axis, e.g. Poisson equation)")
         self.steady_state_check.setVisible(False)
         self.steady_state_check.toggled.connect(self._on_steady_state_changed)
+        self.steady_state_check.toggled.connect(
+            lambda _c: self._update_obs_reduce_note() if hasattr(self, 'inv_obs_reduce_note') else None)
         self.steady_state_check.toggled.connect(lambda _c: self._refresh_plot_types())
         self.steady_state_check.toggled.connect(
             lambda checked: self.radio_stationary.setChecked(True) if checked
@@ -6682,6 +6696,8 @@ class MainWindow(QMainWindow):
             self.quick_examples_combo.blockSignals(False)
             return
         self._shown_example = text
+        self._inv_stash = {}           # a newly picked example starts from its own Inverse setup
+        self._inv_rows_template = None
         if text in _dx_examples.BY_NAME or text in _ps_examples.BY_NAME:
             # a DeepXDE example sets its whole configuration, transforms and
             # training methods included: nothing left for a template reset
@@ -6732,7 +6748,12 @@ class MainWindow(QMainWindow):
         # The Inverse category loads a template in Inverse mode (which brings
         # in the template's own measured-data file). The Forward list leaves
         # the Forward/Inverse choice as it is, as before.
-        if ((self.quick_examples_category_combo.currentText() == _ex_catalog.INVERSE or _was_inverse)
+        if getattr(self, '_current_template', '') in _ex_catalog.FORWARD_ONLY_TEMPLATES:
+            # no Inverse mode for this template (see FORWARD_ONLY_TEMPLATES)
+            if self.radio_inverse.isChecked():
+                self.radio_forward.setChecked(True)
+                self.log_box.append(f"ℹ️ {text} has no Inverse mode: loaded in Forward.")
+        elif ((self.quick_examples_category_combo.currentText() == _ex_catalog.INVERSE or _was_inverse)
                 and not self.radio_inverse.isChecked()):
             self.radio_inverse.setChecked(True)
         self._current_problem_name = text
@@ -7396,6 +7417,7 @@ class MainWindow(QMainWindow):
                 if row_data in self.inv_data_rows:
                     self.inv_data_rows.remove(row_data)
                 self._update_inv_multi_data_hint()
+                self._update_obs_reduce_note()
             remove_btn.clicked.connect(_remove)
 
         self._update_inv_multi_data_hint()
@@ -9793,9 +9815,14 @@ class MainWindow(QMainWindow):
                 if idx >= len(self.pde_inputs):
                     continue
                 var_name = self._inv_var_name(var_row)
-                if var_name and var_name in self.pde_inputs[idx].text():
+                _txt = self.pde_inputs[idx].text()
+                if var_name and _replace_token(_txt, var_name, "\0") != _txt:
                     active.append((key, idx, const_str, var_name, var_row))
             self._inverse_sub_active = active
+            # the opened variables and data files are this template's to
+            # come back to after a trip to Forward
+            self._inv_stash = {key: (self._build_inverse_variables_json(), self._build_inverse_obs_files_json())}
+            self._inv_rows_template = key
 
     def _open_problem(self, path=None):
         import json
@@ -10577,6 +10604,18 @@ class MainWindow(QMainWindow):
             "ref_grid": int(getattr(config, "ea_ref_grid", 0) or 0),
         } if (ea_files or _ref_formula_mode) else None
 
+        # An opened problem's own Inverse variables and data files are the
+        # ones to show (and to come back to after a trip to Forward), not
+        # the template's defaults.
+        self._inv_stash, self._inv_rows_template = {}, None
+        _t = getattr(self, '_current_template', '') or ''
+        try:
+            _cv = json.loads(config.inverse_variables_json or "[]")
+            _co = json.loads(getattr(config, 'inverse_obs_files_json', '') or "[]")
+        except (ValueError, TypeError):
+            _cv, _co = [], []
+        if _t and config.problem_type == "Inverse" and _cv and _co:
+            self._inv_stash[_t] = (config.inverse_variables_json, config.inverse_obs_files_json)
         self._sync_inverse_pde_substitution(self.radio_inverse.isChecked())
         self._apply_sweep_config(config)
 
@@ -10597,6 +10636,13 @@ class MainWindow(QMainWindow):
         self._build_bc_inputs(n)
         self._build_weight_inputs(n)
         self._rebuild_output_transform_rows(n)
+        # Keep each list's choice when it still exists (a measured-data file
+        # fitted to Output 2 stays on Output 2 when a third output is added).
+        _prev_plot = self.plot_output_combo.currentIndex()
+        _prev_restore = self.restore_output_combo.currentIndex()
+        _plot_custom = self.plot_output_combo.currentText() == "Custom..."
+        _restore_custom = self.restore_output_combo.currentText() == "Custom..."
+        _prev_rows = [_r['output_combo'].currentIndex() for _r in getattr(self, 'inv_data_rows', [])]
         self.plot_output_combo.clear()
         self.restore_output_combo.clear()
         self._refresh_rar_points_combo()
@@ -10620,6 +10666,17 @@ class MainWindow(QMainWindow):
             if _r['custom_expr'].text().strip():
                 _r['output_combo'].setCurrentIndex(_r['output_combo'].count() - 1)
                 _r['custom_expr'].setVisible(True)
+        for _r, _pi in zip(getattr(self, 'inv_data_rows', []), _prev_rows):
+            if 0 <= _pi < n and not _r['custom_expr'].text().strip():
+                _r['output_combo'].setCurrentIndex(_pi)
+        if _plot_custom:
+            self.plot_output_combo.setCurrentIndex(self.plot_output_combo.count() - 1)
+        elif 0 <= _prev_plot < n:
+            self.plot_output_combo.setCurrentIndex(_prev_plot)
+        if _restore_custom:
+            self.restore_output_combo.setCurrentIndex(self.restore_output_combo.count() - 1)
+        elif 0 <= _prev_restore < n:
+            self.restore_output_combo.setCurrentIndex(_prev_restore)
 
     # Per built-in template: a list of (PDE row index, original constant
     # substring, trainable-variable row index) triples -- one per constant
@@ -10875,9 +10932,22 @@ class MainWindow(QMainWindow):
         no-op: the rows are left as they are (same as every other
         Inverse-only panel), since nothing here needs undoing the way a
         PDE-box text substitution does."""
-        if not is_inv:
-            return
         template = getattr(self, '_current_template', '')
+        if not is_inv:
+            # Leaving Inverse: remember this template's variables and data
+            # files as the user left them, to put back when Inverse is on
+            # again (instead of the template's defaults).
+            if template and getattr(self, '_inv_rows_template', None) == template:
+                self._inv_stash = getattr(self, '_inv_stash', {})
+                self._inv_stash[template] = (self._build_inverse_variables_json(),
+                                             self._build_inverse_obs_files_json())
+            return
+        _stash = (getattr(self, '_inv_stash', None) or {}).get(template)
+        if _stash:
+            self._set_inverse_rows_from_json(*_stash)
+            self._inv_rows_template = template
+            return
+        self._inv_rows_template = template
         var_list = self.INVERSE_AUTO_VARS.get(template)
         if var_list:
             for r in list(self.inv_var_rows):
@@ -10927,6 +10997,32 @@ class MainWindow(QMainWindow):
             # set by _auto_configure_ea.
             self._trim_inverse_data_rows()
 
+    def _set_inverse_rows_from_json(self, vars_json, obs_json):
+        """Rebuild the Inverse panel's variable and data-file rows from
+        their saved JSON (the user's own setup, put back)."""
+        import json
+        try:
+            variables = json.loads(vars_json or "[]") or []
+            files = json.loads(obs_json or "[]") or []
+        except (ValueError, TypeError):
+            return
+        for r in list(self.inv_var_rows):
+            r['widget'].hide()
+            r['widget'].deleteLater()
+        self.inv_var_rows.clear()
+        for i, v in enumerate(variables):
+            self._add_inverse_var_row(name=v.get('name'), init=v.get('init', 1.0),
+                                      true_value=v.get('true'), is_primary=(i == 0))
+        for r in list(self.inv_data_rows):
+            r['widget'].deleteLater()
+        self.inv_data_rows.clear()
+        for i, f in enumerate(files):
+            self._add_inverse_data_row(path=f.get('path', ''), output_idx=f.get('output_idx', 0),
+                                        weight=f.get('weight', 100.0), custom_expr=f.get('custom_expr', ''),
+                                        is_primary=(i == 0))
+        if hasattr(self, 'inv_multi_data_hint'):
+            self.inv_multi_data_hint.setVisible(len(self.inv_data_rows) > 1)
+
     def _trim_inverse_data_rows(self):
         """Keep only the first measured-data row."""
         for r in list(self.inv_data_rows[1:]):
@@ -10957,16 +11053,22 @@ class MainWindow(QMainWindow):
                     continue
                 var_name = self._inv_var_name(var_row)
                 text = self.pde_inputs[idx].text()
-                if const_str in text:
-                    self.pde_inputs[idx].setText(text.replace(const_str, var_name, 1))
+                new_text = _replace_token(text, const_str, var_name)
+                if new_text != text:
+                    self.pde_inputs[idx].setText(new_text)
+                    active.append((template, idx, const_str, var_name, var_row))
+                elif var_name and _replace_token(text, var_name, "\0") != text:
+                    # already in the equation (an opened Inverse problem):
+                    # still remembered, so Forward puts the constant back
                     active.append((template, idx, const_str, var_name, var_row))
             self._inverse_sub_active = active
         else:
             for s_template, s_idx, s_const, s_var, s_var_row in getattr(self, '_inverse_sub_active', None) or []:
                 if s_idx < len(self.pde_inputs):
                     cur = self.pde_inputs[s_idx].text()
-                    if s_var in cur:
-                        self.pde_inputs[s_idx].setText(cur.replace(s_var, s_const, 1))
+                    new_cur = _replace_token(cur, s_var, s_const)
+                    if new_cur != cur:
+                        self.pde_inputs[s_idx].setText(new_cur)
             self._inverse_sub_active = []
 
     def _on_inv_param_name_changed(self):
@@ -10982,8 +11084,9 @@ class MainWindow(QMainWindow):
             new_var = self._inv_var_name(var_row)
             if new_var and new_var != old_var and idx < len(self.pde_inputs):
                 text = self.pde_inputs[idx].text()
-                if old_var in text:
-                    self.pde_inputs[idx].setText(text.replace(old_var, new_var, 1))
+                new_text = _replace_token(text, old_var, new_var)
+                if new_text != text:
+                    self.pde_inputs[idx].setText(new_text)
                     old_var = new_var
             new_active.append((template, idx, const_str, old_var, var_row))
         self._inverse_sub_active = new_active

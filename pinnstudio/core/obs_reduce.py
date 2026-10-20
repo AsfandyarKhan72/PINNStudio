@@ -65,17 +65,19 @@ def describe(data, n_coord, n_space):
         counts = tuple(len(np.unique(g[:, k])) for k in range(n_space))
         shapes.append(counts if int(np.prod(counts)) == len(g) else None)
     grid = shapes[0] if shapes and all(s == shapes[0] and s is not None for s in shapes) else None
+    if grid is not None and int(np.prod(grid)) < 2:
+        grid = None          # one point per time: scattered (x, t) data, not a grid
     return {"points": len(data), "times": len(groups), "grid": grid}
 
 
-def kept(info, mode, n, n_space):
+def kept(info, mode, n, n_space, n_coord=None):
     """How many points a reduction keeps (as the script will). A file that
-    is not a grid keeps n ** n_space random points in grid mode."""
+    is not a grid keeps n ** (axes, time counted) random points in grid mode."""
     if not info["points"]:
         return 0
     if mode == "grid":
         if info["grid"] is None:
-            return min(info["points"], max(2, n) ** n_space)
+            return min(info["points"], max(2, n) ** (n_coord or n_space))
         return int(np.prod([min(c, max(2, n)) for c in info["grid"]])) * info["times"]
     if mode == "random":
         return min(info["points"], max(1, n))
@@ -93,7 +95,7 @@ def summary(paths, problem_dim, steady, mode, n):
             continue
         readable += 1
         total += info["points"]
-        kept_total += kept(info, mode, n, n_space)
+        kept_total += kept(info, mode, n, n_space, n_coord)
         if info["grid"]:
             grids.append((info["grid"], info["times"]))
         else:

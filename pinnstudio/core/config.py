@@ -1181,6 +1181,21 @@ class PINNConfig:
         # otherwise crash, not ones that legitimately rely on the legacy
         # field.
         if self.problem_type == "Inverse":
+            # Trainable variable names go into the equations as written, so
+            # they must be Python names: "my var" or "lambda" would make
+            # both scripts fail (the variable itself is defined as my_var).
+            import keyword as _kw
+            try:
+                _vars = _json_cfg.loads(self.inverse_variables_json or "[]") or []
+            except (ValueError, TypeError):
+                _vars = []
+            for _v in _vars if isinstance(_vars, list) else []:
+                _nm = str((_v or {}).get("name", "") if isinstance(_v, dict) else "").strip()
+                if _nm and (not _nm.isidentifier() or _kw.iskeyword(_nm)):
+                    errors.append(f'Trainable variable "{_nm}" can\'t be used as a name in the equations: use '
+                                  f'letters, digits and _ (not starting with a digit), and not a Python word '
+                                  f'such as lambda.')
+        if self.problem_type == "Inverse":
             _has_obs_path = False
             _raw_obs = getattr(self, "inverse_obs_files_json", "") or ""
             if _raw_obs.strip():

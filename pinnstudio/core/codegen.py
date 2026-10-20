@@ -662,11 +662,15 @@ def _obs_reduce(_d, _n_coord, _n_space, _mode, _n, _seed=0):
     if _mode == "grid":
         _t_groups = ([np.where(_d[:, _n_coord - 1] == _tv)[0] for _tv in np.unique(_d[:, _n_coord - 1])]
                      if _n_coord > _n_space else [np.arange(_n0)])
-        _grid = all(int(np.prod([len(np.unique(_d[_g, _k])) for _k in range(_n_space)])) == len(_g)
-                    for _g in _t_groups)
+        # A grid: the same full grid of the space axes at every time, with
+        # more than one point (scattered (x, t) data has one point per time).
+        _shapes = [tuple(len(np.unique(_d[_g, _k])) for _k in range(_n_space)) for _g in _t_groups]
+        _grid = (all(int(np.prod(_s)) == len(_g) for _s, _g in zip(_shapes, _t_groups))
+                 and len(set(_shapes)) == 1 and int(np.prod(_shapes[0])) > 1)
         if not _grid:
-            print(f"Measured data is not on a grid: keeping {_n ** _n_space} random points instead")
-            _mode, _n = "random", _n ** _n_space
+            # random points instead: n per axis, time counted as an axis
+            print(f"Measured data is not on a grid: keeping {_n ** _n_coord} random points instead")
+            _mode, _n = "random", _n ** _n_coord
         else:
             _keep = []
             for _g in _t_groups:
@@ -5299,6 +5303,9 @@ if _problem_type == "Inverse":
     _obs_entries = []  # list of (xt, u, output_idx, weight, custom_expr), one per measured-data file
 {_obs_reduce_def}    for _of in _obs_files:
         _of_data = _load_data(_of["path"])
+        if _of_data.ndim != 2 or _of_data.shape[1] < _n_obs_coord_cols + 1:
+            raise SystemExit(f"Measured data {{_of['path']}}: {{_n_obs_coord_cols + 1}} columns are needed "
+                             f"(the coordinates, then the value), found {{_of_data.shape[-1] if _of_data.ndim == 2 else 0}}.")
 {_obs_reduce_call}        _of_xt = _of_data[:, 0:_n_obs_coord_cols]
         _of_u  = _of_data[:, _n_obs_coord_cols:_n_obs_coord_cols + 1]
         _obs_entries.append((_of_xt, _of_u, _of.get("output_idx", 0),
@@ -11176,6 +11183,9 @@ def _load_obs_data(path):
             # for; this one is generate_clean_script()'s own separate
             # Inverse observation-file loading path and was missed then.
             obs_lines.append(f"_of_data = _load_obs_data({of['path']!r})")
+            obs_lines.append(f"if _of_data.ndim != 2 or _of_data.shape[1] < {_n_obs_cols + 1}:\n"
+                             f"    raise SystemExit(f\"Measured data {{os.path.basename({of['path']!r})}}: {_n_obs_cols + 1} columns are needed "
+                             f"(the coordinates, then the value), found {{_of_data.shape[-1] if _of_data.ndim == 2 else 0}}.\")")
             if _obs_red:
                 obs_lines.append(f"_of_data = _obs_reduce(_of_data, {_n_obs_cols}, {_n_obs_space}, "
                                  f"{_obs_red[0]!r}, {_obs_red[1]}, {_obs_red[2]})")

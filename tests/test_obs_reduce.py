@@ -167,3 +167,47 @@ def test_sweep_summary_has_the_inferred_parameters(tmp_path):
     assert rows[0].endswith("alpha,alpha error (%),Folder")
     assert ",0.5,25," in rows[1] and ",0.404,1," in rows[2]
     assert sweep_runner.write_sweep_summary_plot(str(tmp_path), c, results)
+
+
+def test_window_and_script_agree_on_any_layout():
+    """Scattered (x, t) data (one point per time) is not a grid, and times
+    with different grids are not one: both fall back to random points,
+    n per axis with time counted as an axis, in the window and the script."""
+    import numpy as np
+    from pinnstudio.core import obs_reduce as o
+    from pinnstudio.core.codegen import OBS_REDUCE_HELPER
+    ns = {"np": np}
+    exec(OBS_REDUCE_HELPER, ns)
+    rng = np.random.default_rng(1)
+    scattered = np.column_stack([rng.random(2000), rng.random(2000), rng.random(2000)])
+    mixed = np.vstack([np.column_stack([np.linspace(0, 1, 21), np.full(21, .5), np.zeros(21)]),
+                       np.column_stack([np.linspace(0, 1, 11), np.full(11, 1.), np.zeros(11)])])
+    grid = np.array([[x, t, 0] for t in (0, .5, 1) for x in np.linspace(0, 1, 51)])
+    assert o.describe(scattered, 2, 1)["grid"] is None
+    for d, n, want in ((scattered, 10, 100), (mixed, 5, 25), (grid, 5, 15)):
+        assert o.kept(o.describe(d, 2, 1), "grid", n, 1, 2) == len(ns["_obs_reduce"](d, 2, 1, "grid", n)) == want
+
+
+def test_inverse_names_and_columns():
+    """Trainable variables must be Python names; a measured-data file with
+    too few columns stops the run instead of training on NaN."""
+    import json
+    from pinnstudio.core.config import PINNConfig
+    c = PINNConfig()
+    c.problem_type = "Inverse"
+    for name, bad in (("my var", True), ("lambda", True), ("2x", True), ("D_1", False)):
+        c.inverse_variables_json = json.dumps([{"name": name, "init": 1}])
+        assert any("Trainable variable" in e for e in c.validate()) == bad, name
+    from pinnstudio.core import codegen as cg
+    c.inverse_variables_json = json.dumps([{"name": "k", "init": 1}])
+    for gen in (cg.generate_script, cg.generate_clean_script):
+        assert "columns are needed" in gen(c)
+
+
+def test_whole_token_replacement():
+    import os
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    from pinnstudio.ui.main_window import _replace_token as r
+    assert r("du_t - d*(du_xx + du_yy)", "d", "0.4") == "du_t - 0.4*(du_xx + du_yy)"
+    assert r("u*0.45 + 0.4*u", "0.4", "k") == "u*0.45 + k*u"
+    assert r("alpha*u - alphabet", "alpha", "a") == "a*u - alphabet"

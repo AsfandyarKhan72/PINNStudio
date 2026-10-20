@@ -289,6 +289,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - Error Analysis of a steady 1D model failed (it expected a time column); it now draws the line comparison. A steady reference can be x, u or x, t, u.
   - The surface animation and the line animation ignored a fixed colour range and the grid resolution; they follow Plot settings now, as Solve's do.
   - A surface animation picked for a steady 1D model (possible when its saved settings can't be read) stops with a message instead of an error.
+- **Inverse problems:**
+  - *Use: grid points per axis* kept every point of scattered space-time data (one point per time counted as a grid), and the window's predicted count differed from what the script kept when times had different grids. Both now treat a file as a grid only when every time has the same grid of more than one point; otherwise they keep random points, n per axis with time counted as an axis.
+  - Changing the number of outputs set every measured-data file (and the plot and restore output) back to Output 1; each keeps its output now.
+  - Renaming a trainable variable and going back to Forward could damage the equation (renaming alpha to d turned "du_t - d*..." into "0.4u_t - d*..."): names and numbers are now replaced as whole words.
+  - A trainable variable named with a space or a Python word ("my var", "lambda") made both scripts fail; Solve now says so first.
+  - Switching to Forward and back to Inverse replaced your own variables, initial guesses, data files and weights with the template's; they are kept now (picking the example again from the list starts from its defaults). An opened Inverse problem also goes back to Forward correctly.
+  - A Forward-only template picked while Inverse was on loaded in Inverse with another template's variable; it loads in Forward now.
+  - A measured-data file with too few columns trained on NaN and reported a result; both scripts stop with a message.
+  - The measured-data summary now updates when Steady-state, the dimension or the data rows change.
 - **Parameter Sweep:**
   - *Initial points* was offered for ODEs, where it changes nothing.
   - *Measured data: grid points per axis* and *random points* in one sweep overwrote each other (every run used the last one); Solve now says to sweep one of them. A baseline using all the measured data is labelled "all", not with an unused number.
