@@ -11529,7 +11529,9 @@ def _load_obs_data(path):
             # Inverse observation-file loading path and was missed then.
             obs_lines.append(f"_of_data = _load_obs_data({of['path']!r})")
             obs_lines.append(f"if _of_data.ndim != 2 or _of_data.shape[1] < {_n_obs_cols + 1}:\n"
-                             f"    raise SystemExit(f\"Measured data {{os.path.basename({of['path']!r})}}: {_n_obs_cols + 1} columns are needed "
+                             # the path outside the f-string: a Windows path's backslashes
+                             # inside an f-string expression are a SyntaxError before Python 3.12
+                             f"    raise SystemExit(\"Measured data \" + os.path.basename({of['path']!r}) + f\": {_n_obs_cols + 1} columns are needed "
                              f"(the coordinates, then the value), found {{_of_data.shape[-1] if _of_data.ndim == 2 else 0}}.\")")
             if _obs_red:
                 obs_lines.append(f"_of_data = _obs_reduce(_of_data, {_n_obs_cols}, {_n_obs_space}, "
