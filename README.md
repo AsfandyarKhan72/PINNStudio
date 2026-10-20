@@ -2807,6 +2807,19 @@ For a small 1D problem, *Settings → GPU / Hardware → Train on: CPU* can be t
 
 **Fewer CPU threads are faster.** PyTorch uses one thread per core by default. On a processor with efficiency cores (recent Intel and Apple chips), the slow cores hold every step back: identical runs of Heat 1D took anywhere from 6.4 to 11.7 s with PyTorch's 24 threads, and 3.3 to 3.6 s with 8, one per performance core (Navier-Stokes 2D: 51-52 s against 45-46 s; Allen-Cahn 1D with causal training: 204-206 s against 135-136 s). PINNStudio's scripts therefore train on the CPU with half the logical processors, at most 8; setting `OMP_NUM_THREADS` overrides this.
 
+A second measurement on the same i9-13900KF (8 performance and 16 efficiency cores, 32 threads) with `benchmarks/gpu_check.py`'s three problems, Adam iterations a second on the CPU:
+
+| CPU threads | Heat 1D (2k points) | Poisson 2D (20k points) | Heat 2D (30k points) |
+|---|---|---|---|
+| 4 | 312 | 5.7 | 8.1 |
+| **8 (Automatic)** | **364** | **7.8** | **10.9** |
+| 12 | 280 | 6.2 | 9.2 |
+| 16 | 259 | 6.8 | 9.9 |
+| 24 (PyTorch's default) | 179 | 7.3 | 10.4 |
+| 32 (every thread) | 13 | 0.7 | 0.6 |
+
+Eight was the fastest for every size, and using every thread was 10 to 28 times slower. *Settings → GPU / Hardware → CPU threads* keeps *Automatic* (this rule) or takes a number of your own, for a processor where another count is faster.
+
 </details>
 
 ## Repository Structure
