@@ -41,7 +41,8 @@ def test_auto_line_and_sketch_bcs():
     c = _load(w, "Helmholtz 2D – square with hole")
     assert not w.line_slice_y_auto_cb.isChecked() and w.line_slice_y_spin.value() == 0.25
     assert auto_line_slice(c)[0] == 0.25
-    assert "y=0.25" in codegen.generate_script(c)
+    _t = codegen.generate_script(c)
+    assert "y={_fmt_num(0.25)}" in _t or "y=0.25" in _t       # the line is at y = 0.25
     w._refresh_domain_view()
     app.processEvents()
     bc_of = w._gpanel().canvas.edge_bcs()
