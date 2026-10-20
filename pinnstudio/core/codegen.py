@@ -651,6 +651,53 @@ def _parse_inverse_variables(config):
         _deduped.append((name, init, true))
     return _deduped
 
+OBS_REDUCE_HELPER = """
+def _obs_reduce(_d, _n_coord, _n_space, _mode, _n, _seed=0):
+    # Fewer measured points (Inverse -> Measured data -> Use): "grid" keeps
+    # _n evenly spaced values per space axis (edges kept), the same for
+    # each time in the file; "random" keeps _n points.
+    _n0 = len(_d)
+    if _mode == "grid":
+        _t_groups = ([np.where(_d[:, _n_coord - 1] == _tv)[0] for _tv in np.unique(_d[:, _n_coord - 1])]
+                     if _n_coord > _n_space else [np.arange(_n0)])
+        _grid = all(int(np.prod([len(np.unique(_d[_g, _k])) for _k in range(_n_space)])) == len(_g)
+                    for _g in _t_groups)
+        if not _grid:
+            print(f"Measured data is not on a grid: keeping {_n ** _n_space} random points instead")
+            _mode, _n = "random", _n ** _n_space
+        else:
+            _keep = []
+            for _g in _t_groups:
+                _m = np.ones(len(_g), dtype=bool)
+                for _k in range(_n_space):
+                    _vals = np.unique(_d[_g, _k])
+                    if len(_vals) > _n:
+                        _pick = _vals[np.unique(np.round(np.linspace(0, len(_vals) - 1, _n)).astype(int))]
+                        _m &= np.isin(_d[_g, _k], _pick)
+                _keep.append(_g[_m])
+            _d = _d[np.sort(np.concatenate(_keep))]
+            print(f"Measured data: {len(_d)} of {_n0} points kept ({_n} per axis)")
+            return _d
+    if _mode == "random" and _n < _n0:
+        _d = _d[np.sort(np.random.default_rng(_seed).choice(_n0, _n, replace=False))]
+        print(f"Measured data: {len(_d)} of {_n0} points kept (random)")
+    return _d
+"""
+
+
+import textwrap as _textwrap_obs
+
+
+def obs_reduce_args(config):
+    """(mode, n, seed) for _obs_reduce, or None when every point is used."""
+    mode = getattr(config, "inverse_obs_reduce", "all") or "all"
+    if mode not in ("grid", "random"):
+        return None
+    n = int(getattr(config, "inverse_obs_grid_n", 51) if mode == "grid" else getattr(config, "inverse_obs_random_n", 1000))
+    seed = int(config.random_seed) if getattr(config, "use_random_seed", True) else 0
+    return mode, max(1 if mode == "random" else 2, n), seed
+
+
 def _parse_inverse_obs_files(config):
     """Parse config.inverse_obs_files_json into an ordered list of
     {"path", "output_idx", "weight", "custom_expr"} dicts, one per
@@ -4769,6 +4816,10 @@ def generate_script(config):
     # literal, looped over at runtime.
     obs_files_parsed = _parse_inverse_obs_files(config)
     _obs_files_literal = repr(obs_files_parsed)
+    _obs_red = obs_reduce_args(config)
+    _obs_reduce_def = _textwrap_obs.indent(OBS_REDUCE_HELPER.strip("\n"), "    ") + "\n" if _obs_red else ""
+    _obs_reduce_call = (f"        _of_data = _obs_reduce(_of_data, _n_obs_coord_cols, _n_obs_coord_cols if _is_steady "
+                        f"else _n_obs_coord_cols - 1, {_obs_red[0]!r}, {_obs_red[1]}, {_obs_red[2]})\n") if _obs_red else ""
 
     # Whether this run uses the NNCG optimizer anywhere (a Training Phase,
     # or the legacy phase-2 field for pre-scheduler configs) -- NNCG was
@@ -5138,14 +5189,21 @@ if _problem_type == "Inverse":
     _inv_var_trues = {_inv_var_true_literal}
 
     def _load_data(fpath):
-        try:
-            arr = np.loadtxt(fpath, delimiter=",", skiprows=1)
-        except Exception:
-            try:
-                arr = np.loadtxt(fpath, skiprows=1)
-            except Exception:
-                arr = np.loadtxt(fpath, delimiter=",")
-        return arr
+        # Numbers separated by commas or spaces; a header line, comments
+        # (# or %) and blank lines are skipped -- and only those (the first
+        # line used to be dropped always, losing a point of a file without
+        # a header).
+        _rows = []
+        with open(fpath) as _fh:
+            for _line in _fh:
+                _parts = _line.replace(",", " ").split()
+                if not _parts or _parts[0][0] in "#%":
+                    continue
+                try:
+                    _rows.append([float(_v) for _v in _parts])
+                except ValueError:
+                    continue
+        return np.array(_rows)
 
     # Number of leading coordinate columns in a measured-data file (before
     # its value column): x/y/z plus a time column, EXCEPT for a steady-state
@@ -5204,9 +5262,9 @@ if _problem_type == "Inverse":
     _obs_output_names_list = {repr(config.output_names)}.split(",")
     _obs_files = {_obs_files_literal}
     _obs_entries = []  # list of (xt, u, output_idx, weight, custom_expr), one per measured-data file
-    for _of in _obs_files:
+{_obs_reduce_def}    for _of in _obs_files:
         _of_data = _load_data(_of["path"])
-        _of_xt = _of_data[:, 0:_n_obs_coord_cols]
+{_obs_reduce_call}        _of_xt = _of_data[:, 0:_n_obs_coord_cols]
         _of_u  = _of_data[:, _n_obs_coord_cols:_n_obs_coord_cols + 1]
         _obs_entries.append((_of_xt, _of_u, _of.get("output_idx", 0),
                               _of.get("weight", 100.0), _of.get("custom_expr", "")))
@@ -10842,13 +10900,18 @@ if save_dir:
         inv_lines.append("inv_vars = [" + ", ".join(n for n, _i, _t in inv_vars_parsed) + "]")
         inv_lines.append('''
 def _load_obs_data(path):
-    try:
-        return np.loadtxt(path, delimiter=",", skiprows=1)
-    except Exception:
-        try:
-            return np.loadtxt(path, skiprows=1)
-        except Exception:
-            return np.loadtxt(path, delimiter=",")
+    # numbers separated by commas or spaces; header, comment and blank lines skipped
+    rows = []
+    with open(path) as f:
+        for line in f:
+            parts = line.replace(",", " ").split()
+            if not parts or parts[0][0] in "#%":
+                continue
+            try:
+                rows.append([float(v) for v in parts])
+            except ValueError:
+                continue
+    return np.array(rows)
 ''')
         # Number of leading coordinate columns in a measured-data file --
         # x/y/z plus time, EXCEPT for a steady-state problem, which has no
@@ -10861,12 +10924,19 @@ def _load_obs_data(path):
         # literal slice, not a runtime branch.
         _n_obs_cols = (3 if is_3d else (2 if is_2d else 1)) if is_steady else (4 if is_3d else (3 if is_2d else 2))
         obs_lines = ["obs_entries = []  # (xt, u, output_idx, weight, custom_expr), one per measured-data file"]
+        _obs_red = obs_reduce_args(config)
+        if _obs_red:
+            obs_lines.insert(0, OBS_REDUCE_HELPER.strip("\n") + "\n")
+        _n_obs_space = _n_obs_cols if is_steady else _n_obs_cols - 1
         for _oi_f, of in enumerate(obs_files_parsed):
             # of['path']!r (not r"...") -- same Windows-trailing-backslash
             # SyntaxError this file's other path sites were already fixed
             # for; this one is generate_clean_script()'s own separate
             # Inverse observation-file loading path and was missed then.
             obs_lines.append(f"_of_data = _load_obs_data({of['path']!r})")
+            if _obs_red:
+                obs_lines.append(f"_of_data = _obs_reduce(_of_data, {_n_obs_cols}, {_n_obs_space}, "
+                                 f"{_obs_red[0]!r}, {_obs_red[1]}, {_obs_red[2]})")
             obs_lines.append(f"_of_xt, _of_u = _of_data[:, 0:{_n_obs_cols}], _of_data[:, {_n_obs_cols}:{_n_obs_cols + 1}]")
             obs_lines.append(f"obs_entries.append((_of_xt, _of_u, {of['output_idx']}, {of['weight']}, {of.get('custom_expr', '')!r}))")
             if of.get('custom_expr'):

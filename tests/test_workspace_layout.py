@@ -143,7 +143,9 @@ def test_bc_node_edits_sketch_edges():
     assert "E" in entry['sketch_lbl'].text() and entry['sketch_box'].isVisible()
     click(left)       # take out
     assert entry['location'].text() == E[right]["expr"]
-    click(right)      # the last edge stays
+    click(right)      # the last edge can go too: no edges left
+    assert entry['location'].text() == "False"
+    click(right)      # and back
     assert entry['location'].text() == E[right]["expr"]
     w.workspace.select("problem")
     _settle()

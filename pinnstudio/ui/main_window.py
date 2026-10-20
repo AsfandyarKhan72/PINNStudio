@@ -1718,9 +1718,10 @@ class MainWindow(QMainWindow):
             return bool(self._save_problem())
         return r == QMessageBox.StandardButton.Discard
 
-    def _apply_fresh_settings(self):
+    def _apply_fresh_settings(self, keep_problem_type=False):
         """The settings PINNStudio starts with, keeping the save folder, GPU
-        and plot preferences."""
+        and plot preferences -- and, before an example loads, Forward or
+        Inverse as chosen (the Forward list leaves that choice alone)."""
         fresh = getattr(self, "_fresh_config", None)
         if fresh is None:
             return
@@ -1728,6 +1729,8 @@ class MainWindow(QMainWindow):
         try:
             current = self._build_config()
             keep = {k: getattr(current, k) for k in self._DEEPXDE_KEEP_FIELDS if hasattr(current, k)}
+            if keep_problem_type:
+                keep["problem_type"] = current.problem_type
         except Exception:
             keep = {}
         keep.pop("save_dir", None)
@@ -4176,6 +4179,46 @@ class MainWindow(QMainWindow):
             "there are only a few measured points.")
         data_layout.addWidget(self.inv_obs_anchors_cb)
 
+        # Use fewer of the measured points: a coarser grid (points per space
+        # axis, evenly spaced, edges kept) or a random subset. The files stay
+        # as they are; the script keeps the chosen points.
+        use_row = QHBoxLayout()
+        use_row.setContentsMargins(0, 0, 0, 0)
+        use_row.addWidget(QLabel("Use:"))
+        self.inv_obs_reduce_combo = QComboBox()
+        for _lbl, _dat in (("All points", "all"), ("Grid: points per axis", "grid"), ("Random points", "random")):
+            self.inv_obs_reduce_combo.addItem(_lbl, _dat)
+        self.inv_obs_reduce_combo.setToolTip(
+            "All points: every measured point.\n"
+            "Grid: N evenly spaced values along each space axis (the edges kept), e.g. a 101 × 101 grid\n"
+            "with 51 gives 51 × 51; each time in a file is reduced the same way. A file that is not a\n"
+            "grid gives N^(number of axes) random points instead.\n"
+            "Random: N points picked at random (the run's random seed, so it repeats).\n"
+            "Applies to every measured-data file; the files themselves are not changed.")
+        use_row.addWidget(self.inv_obs_reduce_combo)
+        self.inv_obs_grid_n = QSpinBox()
+        self.inv_obs_grid_n.setRange(2, 100000)
+        self.inv_obs_grid_n.setValue(51)
+        self.inv_obs_grid_n.setFixedWidth(85)
+        self.inv_obs_grid_n.setToolTip("Points along each space axis")
+        use_row.addWidget(self.inv_obs_grid_n)
+        self.inv_obs_random_n = QSpinBox()
+        self.inv_obs_random_n.setRange(1, 10000000)
+        self.inv_obs_random_n.setValue(1000)
+        self.inv_obs_random_n.setFixedWidth(95)
+        self.inv_obs_random_n.setToolTip("Points to keep, in all (per file)")
+        use_row.addWidget(self.inv_obs_random_n)
+        use_row.addStretch()
+        data_layout.addLayout(use_row)
+        self.inv_obs_reduce_note = QLabel("")
+        self.inv_obs_reduce_note.setWordWrap(True)
+        self._register_hint(self.inv_obs_reduce_note, '#868e96')
+        data_layout.addWidget(self.inv_obs_reduce_note)
+        self.inv_obs_reduce_combo.currentIndexChanged.connect(lambda _i: self._update_obs_reduce_note())
+        self.inv_obs_grid_n.valueChanged.connect(lambda _v: self._update_obs_reduce_note())
+        self.inv_obs_random_n.valueChanged.connect(lambda _v: self._update_obs_reduce_note())
+        self._update_obs_reduce_note()
+
         self.inverse_group.setVisible(False)
         self.inverse_data_group.setVisible(False)
         # right after PDE Definition (0 title, 1 examples, 2 dim, 3 type,
@@ -6611,7 +6654,7 @@ class MainWindow(QMainWindow):
         # than they set (time-step groups, the 3D Allen-Cahn initial
         # condition after 3D Poisson, the sphere's centre), so a template
         # loaded second used to keep some of the first one's settings.
-        self._apply_fresh_settings()
+        self._apply_fresh_settings(keep_problem_type=True)
         self._tpl_output_scaled = self._tpl_input_features = False
         self._tpl_output_formula = self._tpl_point_weights = False
         self._tpl_set_output_scale(None)
@@ -7189,6 +7232,7 @@ class MainWindow(QMainWindow):
             if not e.hasFocus():
                 e.setCursorPosition(len(e.text()))
         path_edit.textChanged.connect(_show_file_end)
+        path_edit.textChanged.connect(lambda _t: self._update_obs_reduce_note())
         _show_file_end()
         path_row.addWidget(path_edit, 1)
         browse_btn = QPushButton("Browse")
@@ -9382,6 +9426,9 @@ class MainWindow(QMainWindow):
             inverse_data_file=self.inv_data_path.text().strip(),
             inverse_obs_files_json=self._build_inverse_obs_files_json(),
             inverse_obs_anchors=self.inv_obs_anchors_cb.isChecked(),
+            inverse_obs_reduce=self._obs_reduce_mode(),
+            inverse_obs_grid_n=self.inv_obs_grid_n.value(),
+            inverse_obs_random_n=self.inv_obs_random_n.value(),
             # v19: the Inverse panel's own IC-type selector is gone (see the
             # comment where it used to be built) -- always "expression" now,
             # so codegen always takes the Initial Condition panel's path.
@@ -10179,6 +10226,10 @@ class MainWindow(QMainWindow):
         # configs still load correctly with exactly one measured-data
         # file.
         self.inv_obs_anchors_cb.setChecked(bool(getattr(config, "inverse_obs_anchors", True)))
+        _red = getattr(config, "inverse_obs_reduce", "all") or "all"
+        self.inv_obs_reduce_combo.setCurrentIndex(max(0, self.inv_obs_reduce_combo.findData(_red)))
+        self.inv_obs_grid_n.setValue(int(getattr(config, "inverse_obs_grid_n", 51) or 51))
+        self.inv_obs_random_n.setValue(int(getattr(config, "inverse_obs_random_n", 1000) or 1000))
         for row in list(self.inv_data_rows):
             row['widget'].deleteLater()
         self.inv_data_rows.clear()
@@ -10828,6 +10879,8 @@ class MainWindow(QMainWindow):
         self._sync_inverse_pde_substitution(is_inv)
         self.inverse_group.setVisible(is_inv)
         self.inverse_data_group.setVisible(is_inv)
+        if is_inv:
+            self._update_obs_reduce_note()
         self.param_save_label.setVisible(is_inv)
         self.param_save_combo.setVisible(is_inv)
         # "Parameter Convergence" (iteration vs. inferred-value chart) only
@@ -11024,6 +11077,33 @@ class MainWindow(QMainWindow):
             return ((c.y_min + c.y_max) / 2.0 if c.line_slice_y_auto else c.line_slice_y,
                     (c.z_min + c.z_max) / 2.0 if c.line_slice_z_auto else c.line_slice_z)
 
+    def _obs_reduce_mode(self):
+        return self.inv_obs_reduce_combo.currentData() if hasattr(self, "inv_obs_reduce_combo") else "all"
+
+    def _update_obs_reduce_note(self):
+        """Measured data -> Use: show the box for the chosen mode's number,
+        and what the files hold and what is kept ("101 × 101 grid, 10,201
+        points → 51 × 51 = 2,601 points")."""
+        if not hasattr(self, "inv_obs_reduce_note"):
+            return
+        mode = self._obs_reduce_mode()
+        self.inv_obs_grid_n.setVisible(mode == "grid")
+        self.inv_obs_random_n.setVisible(mode == "random")
+        from pinnstudio.core import obs_reduce as _obr
+        paths = [r['path'].text().strip() for r in getattr(self, "inv_data_rows", []) if r['path'].text().strip()]
+        try:
+            dim = "ODE" if self._is_ode() else ("3D" if self.radio_3d.isChecked() else ("2D" if self.radio_2d.isChecked() else "1D"))
+            steady = bool(self.steady_state_check.isChecked())
+        except AttributeError:      # still building the window
+            return
+        n = self.inv_obs_grid_n.value() if mode == "grid" else self.inv_obs_random_n.value()
+        try:
+            text = _obr.summary(paths, dim, steady, mode, n)
+        except Exception:
+            text = ""
+        self.inv_obs_reduce_note.setText(text)
+        self.inv_obs_reduce_note.setVisible(bool(text))
+
     def _note_large_data(self, config):
         """A log note when an inverse problem's measured data has many points
         (every one is used at every training step)."""
@@ -11034,19 +11114,21 @@ class MainWindow(QMainWindow):
             files = json.loads(config.inverse_obs_files_json or "[]")
         except (ValueError, TypeError):
             return
+        from pinnstudio.core import obs_reduce as _obr
+        n_coord, n_space = _obr.coord_columns(config.problem_dim, config.steady_state)
+        mode = getattr(config, "inverse_obs_reduce", "all")
+        n = config.inverse_obs_grid_n if mode == "grid" else config.inverse_obs_random_n
         total = 0
         for f in files:
-            try:
-                with open(f.get("path", ""), "rb") as fh:
-                    total += max(0, sum(1 for line in fh if line.strip()) - 1)
-            except (OSError, AttributeError):
-                pass
+            info = _obr.describe(_obr.read_points(f.get("path", "")), n_coord, n_space)
+            total += _obr.kept(info, mode, n, n_space)
         if total >= self.LARGE_DATA_POINTS:
             self.log_box.append(
                 f"ℹ️ The measured data has {total:,} points, all used at every training step, so training "
                 "may be slow (above all on the CPU). A few thousand points spread over the domain are often "
-                "enough: thin the file, or untick \"Check the equation at the measured points too\" under Measured "
-                "data, if it is too slow (Inverse problem page, About inverse problems).")
+                "enough: under Measured data, set *Use* to a coarser grid or fewer random points, or untick "
+                "\"Check the equation at the measured points too\", if it is too slow (Inverse problem page, "
+                "About inverse problems).")
 
     def _on_solve(self):
         if hasattr(self, 'right_tabs'):
@@ -13569,6 +13651,10 @@ print("DOMAIN_PREVIEW_DONE")
             self._auto_configure_ea(self._template_ref_dir, is_steady=True)
         else:
             self._auto_configure_ea(self._template_ref_dir)
+        _red = t.get('inverse_obs_reduce')
+        if _red and hasattr(self, "inv_obs_reduce_combo"):
+            self.inv_obs_reduce_combo.setCurrentIndex(max(0, self.inv_obs_reduce_combo.findData(_red[0])))
+            (self.inv_obs_grid_n if _red[0] == "grid" else self.inv_obs_random_n).setValue(int(_red[1]))
         self._tpl_mode_training = ((text, t, t['inverse_training'])
                                    if t.get('inverse_training') else None)
         if self.radio_inverse.isChecked():
@@ -14049,6 +14135,10 @@ print("DOMAIN_PREVIEW_DONE")
             # (periodic), lambda = 10, eps = 0.05, t in [0, 1].
             "3D Allen-Cahn (Wight & Zhao)": {
                 'pde': ["du_t - 0.025*(du_xx + du_yy + du_zz) + 10*(u**3 - u)"],
+                # Inverse: every second point of the 51^3 measured grid
+                # (26^3 = 17,576 points); all 132,651, each also an anchor,
+                # made the run several times slower.
+                'inverse_obs_reduce': ('grid', 26),
                 # +1e-6: sqrt(r^2) has no derivative at r = 0, the sphere's
                 # centre, which a grid of test points hits exactly (NaN loss;
                 # with +1e-12 the second derivative there was still ~1e6). It

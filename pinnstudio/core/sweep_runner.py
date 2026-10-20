@@ -354,6 +354,61 @@ def run_folder_name(index, label, total=None):
     return f"run_{index:0{width}d}__" + "__".join(parts)[:100]
 
 
+_PARAM_LINE_RE = re.compile(r"^\s*\[([^\]]+)\] Iter \d+: ([-+0-9.eE]+)")
+
+
+def _read_inverse_params(cfg, log_lines, not_before):
+    """An inverse run's parameters: {name: {"value": last value, "true":
+    true value or None}}. From each parameter's convergence file in the
+    run's folder (written during training), else the last value the run
+    printed. {} for a forward run."""
+    if getattr(cfg, "problem_type", "Forward") != "Inverse":
+        return {}
+    try:
+        variables = json.loads(getattr(cfg, "inverse_variables_json", "") or "[]")
+    except (ValueError, TypeError):
+        variables = []
+    out = {}
+    printed = {}
+    for line in log_lines:
+        m = _PARAM_LINE_RE.match(line)
+        if m:
+            try:
+                printed[m.group(1)] = float(m.group(2))
+            except ValueError:
+                pass
+    for v in variables:
+        name = str(v.get("name", "")).strip()
+        if not name:
+            continue
+        value = None
+        path = os.path.join(cfg.save_dir or "", f"{name}_convergence.txt")
+        try:
+            if os.path.getmtime(path) >= not_before - 1:
+                with open(path, encoding="utf-8") as f:
+                    last = [l for l in f if l.strip() and l[0].isdigit()][-1]
+                value = float(last.replace(",", " ").split()[-1])
+        except (OSError, IndexError, ValueError):
+            value = None
+        if value is None:
+            value = printed.get(name)
+        true = v.get("true")
+        try:
+            true = float(true) if true not in (None, "") else None
+        except (TypeError, ValueError):
+            true = None
+        if value is not None:
+            out[name] = {"value": value, "true": true}
+    return out
+
+
+def _param_error(p):
+    """Relative error (%) of an inferred parameter, or None without a true value."""
+    if p.get("true") in (None, 0):
+        return None
+    return abs(p["value"] - p["true"]) / abs(p["true"]) * 100.0
+
+
 def _read_run_metrics(cfg, not_before):
     """Best-effort read of the error_analysis/error_metrics*.txt files THIS
     run just wrote (one per output group), averaged over every row --
@@ -523,6 +578,7 @@ def run_sweep(base_config, on_run_start=None, on_output=None, on_run_done=None,
             "final_loss": final_loss,
             "l2_relative": metrics.get("L2_relative"),
             "metrics": metrics,
+            "params": _read_inverse_params(cfg, log_lines, _run_started_at),
             "values": {k: (v if isinstance(v, (int, float, str, bool)) or v is None else str(v))
                        for k, v in info["values"].items()},
             "group": info["group"],
@@ -580,10 +636,21 @@ def _write_sweep_summary_csv(sweep_root, results):
                if any((r.get("metrics") or {}).get(k) is not None for _l, r in results)]
     if not metrics:
         metrics = [("L2_relative", "L2 relative error")]
+    pnames = []
+    for _label, r in results:
+        for k in (r.get("params") or {}):
+            if k not in pnames:
+                pnames.append(k)
+    pcols = []
+    for k in pnames:
+        pcols.append((k, "value", k))
+        if any((r.get("params") or {}).get(k, {}).get("true") is not None for _l, r in results):
+            pcols.append((k, "error", f"{k} error (%)"))
     try:
         with open(os.path.join(sweep_root, "sweep_summary.csv"), "w", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
-            writer.writerow(["Run"] + params + ["Status", "Final loss"] + [n for _k, n in metrics] + ["Folder"])
+            writer.writerow(["Run"] + params + ["Status", "Final loss"] + [n for _k, n in metrics]
+                            + [h for _k, _w, h in pcols] + ["Folder"])
             for label, result in results:
                 m = result.get("metrics") or {}
                 if result.get("l2_relative") is not None:
@@ -593,12 +660,25 @@ def _write_sweep_summary_csv(sweep_root, results):
                     [label] + [vals.get(p, "") for p in params]
                     + [result.get("status"), result.get("final_loss") if result.get("final_loss") is not None else ""]
                     + [m.get(k, "") for k, _n in metrics]
+                    + [_param_cell(result, k, what) for k, what, _h in pcols]
                     + [os.path.basename(result.get("save_dir", ""))])
     except OSError:
         pass
 
 
+def _param_cell(result, name, what):
+    p = (result.get("params") or {}).get(name)
+    if not p:
+        return ""
+    if what == "value":
+        return f"{p['value']:.6g}"
+    e = _param_error(p)
+    return "" if e is None else f"{e:.4g}"
+
+
 # ── Summary plot: error vs swept parameter ─────────────────────────────
+
+_PARAM_COLORS = ("#c2255c", "#7048e8", "#0c8599", "#e67700")
 
 _METRIC_STYLE = {"L2_relative": ("Relative $L_2$ error", "o", "#1c7ed6"),
                  "MSE": ("MSE", "s", "#e8590c"),
@@ -641,11 +721,21 @@ def _summary_plot(sweep_root, base_config, results):
     mode = getattr(base_config, "sweep_mode", "oat")
     metrics = [k for k in _METRIC_STYLE if any(_num((r.get("metrics") or {}).get(k)) is not None for _l, r in done)]
     has_loss = any(_num(r.get("final_loss")) is not None for _l, r in done)
-    rows = ([("err", metrics)] if metrics else []) + ([("loss", ["final_loss"])] if has_loss else [])
+    pkeys = []
+    for _l, r in done:
+        for k, p in (r.get("params") or {}).items():
+            if _param_error(p) is not None and f"param:{k}" not in pkeys:
+                pkeys.append(f"param:{k}")
+    rows = (([("param", pkeys)] if pkeys else []) + ([("err", metrics)] if metrics else [])
+            + ([("loss", ["final_loss"])] if has_loss else []))
     if not rows:
         return None
 
     def _y(r, key):
+        if key.startswith("param:"):
+            p = (r.get("params") or {}).get(key[6:])
+            e = _param_error(p) if p else None
+            return e if e and e > 0 else None
         return _num(r.get("final_loss")) if key == "final_loss" else _num((r.get("metrics") or {}).get(key))
 
     # Panels: (x parameter index, [(series label, [(x, r), ...]), ...])
@@ -682,12 +772,15 @@ def _summary_plot(sweep_root, base_config, results):
                     xy = [(_xpos(x), _y(r, key)) for x, r in pts if _y(r, key) is not None]
                     if not xy:
                         continue
-                    ylab, marker, col = _METRIC_STYLE.get(key, ("Final loss", "o", "#495057"))
+                    if key.startswith("param:"):
+                        ylab, marker, col = key[6:], "D", _PARAM_COLORS[keys.index(key) % len(_PARAM_COLORS)]
+                    else:
+                        ylab, marker, col = _METRIC_STYLE.get(key, ("Final loss", "o", "#495057"))
                     if len(series) > 1:
                         col = colors[si % len(colors)]
                         lab = sname if (kind == "loss" or len(keys) == 1) else f"{ylab}, {sname}"
                     else:
-                        lab = ylab if kind == "err" and len(keys) > 1 else None
+                        lab = ylab if kind in ("err", "param") and len(keys) > 1 else None
                     ax.plot(*zip(*xy), marker=marker, color=col, linewidth=1.5, markersize=6,
                             label=lab, linestyle="-" if numeric else ":")
             for r in base_runs:
@@ -706,14 +799,19 @@ def _summary_plot(sweep_root, base_config, results):
                 ax.set_xticks(range(len(cats)))
                 ax.set_xticklabels(cats, rotation=20 if max(len(x) for x in cats) > 6 else 0)
             ax.grid(True, which="both", alpha=0.25)
-            ax.set_ylabel("Error" if kind == "err" and len(keys) > 1
-                          else _METRIC_STYLE.get(keys[0], ("Final loss",))[0])
+            if kind == "param":
+                ax.set_ylabel("Parameter error (%)" if len(keys) > 1 else f"{keys[0][6:]} error (%)")
+            else:
+                ax.set_ylabel("Error" if kind == "err" and len(keys) > 1
+                              else _METRIC_STYLE.get(keys[0], ("Final loss",))[0])
             if rr == nrow - 1:
                 ax.set_xlabel(names[k])
             if ax.get_legend_handles_labels()[0]:
                 ax.legend(loc="best", fontsize=8, framealpha=0.9)
-    what = "Error" if metrics else "Final loss"
+    what = "Parameter and solution error" if pkeys and metrics else ("Error" if (metrics or pkeys) else "Final loss")
     title = f"Parameter sweep: {what.lower()} vs " + (" / ".join(names) if ncol > 1 else names[0])
+    if len(title) > 32 + 30 * ncol:          # wider than the figure: break before "vs"
+        title = title.replace(" vs ", "\nvs ", 1)
     n_t = max((int((r.get("metrics") or {}).get("n_times", 1)) for _l, r in done), default=1)
     if metrics and n_t > 1:
         title += f"\n(error = mean over the {n_t} reference times)"

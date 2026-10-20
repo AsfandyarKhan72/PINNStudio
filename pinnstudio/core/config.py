@@ -267,6 +267,13 @@ class PINNConfig:
     # there too). Off keeps only the data loss -- much faster when the
     # measured data has many points.
     inverse_obs_anchors: bool = True
+    # Use fewer of the measured points (the files stay as they are):
+    # "all", "grid" (N points per space axis, evenly spaced, edges kept;
+    # each time in a file reduced the same way) or "random" (N points,
+    # with the run's seed). Applied to every measured-data file.
+    inverse_obs_reduce: str = "all"
+    inverse_obs_grid_n: int = 51
+    inverse_obs_random_n: int = 1000
 
     # Export
     # Off by default -- solution data used to be written on every

@@ -576,6 +576,38 @@ def _inv_obs_weight_params(config) -> List["SweepParam"]:
     return params
 
 
+def _obs_reduce_set(config, mode, n):
+    """Measured data -> Use: a grid of n points per axis, or n random points."""
+    config.inverse_obs_reduce = mode
+    if mode == "grid":
+        config.inverse_obs_grid_n = max(2, int(round(float(n))))
+    else:
+        config.inverse_obs_random_n = max(1, int(round(float(n))))
+
+
+def _inv_obs_reduce_params(config) -> List["SweepParam"]:
+    """A data-size study: how the parameters come out with fewer measured
+    points. Sets Measured data -> Use for every file."""
+    if not _inv_available(config):
+        return []
+    return [
+        SweepParam(
+            id="inv_obs_grid_n", label="Measured data: grid points per axis",
+            category="Inverse", value_type="int", default_min=11, default_max=101,
+            get_value=lambda c: int(getattr(c, "inverse_obs_grid_n", 51)),
+            set_value=lambda c, v: _obs_reduce_set(c, "grid", v),
+            is_available=lambda c: _inv_available(c),
+        ),
+        SweepParam(
+            id="inv_obs_random_n", label="Measured data: random points",
+            category="Inverse", value_type="int", default_min=100, default_max=10000,
+            get_value=lambda c: int(getattr(c, "inverse_obs_random_n", 1000)),
+            set_value=lambda c, v: _obs_reduce_set(c, "random", v),
+            is_available=lambda c: _inv_available(c),
+        ),
+    ]
+
+
 # ── RAR (Residual-based Adaptive Refinement) helpers ───────────────────
 # See the module docstring's "SCOPE (v4)" section. All five of RAR's own
 # knobs are plain scalar config fields (no per-row/JSON indexing needed,
@@ -960,6 +992,7 @@ def available_params(config) -> List[SweepParam]:
     params.extend(_weight_params(config))
     params.extend(_inv_var_params(config))
     params.extend(_inv_obs_weight_params(config))
+    params.extend(_inv_obs_reduce_params(config))
     params.extend(_rar_params(config))
     params.extend(_ta_group_params(config))
     params.extend(_ta_grid_param(config))
