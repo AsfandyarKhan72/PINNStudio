@@ -48,3 +48,26 @@ def test_export_metrics_without_figures_and_steady_times():
     assert "error_metrics" in cg.generate_clean_script(c)
     c.steady_state, c.t_min = True, 0.5
     assert "if True or 0.5 - 1e-10 <= _ea_tv0" in cg.generate_script(c)
+
+
+def test_error_panel_is_the_error_at_the_reference_points():
+    """The 2D error panel is |PINN - reference| at the reference points put on
+    the grid, so it never shows more than the max in its title. Subtracting
+    the reference interpolated onto the grid added the interpolation's own
+    error (Kovasznay u: colour bar to 5.4e-3, real max 2.0e-3)."""
+    ns = {"np": np}
+    exec(cg._PLOT_TEXT_HELPERS, ns)
+    xs = np.linspace(0, 1, 9)
+    X, Y = np.meshgrid(xs, xs)
+    pts = np.column_stack([X.ravel(), Y.ravel()])
+    ref = np.sin(6 * pts[:, 0]) * np.cos(6 * pts[:, 1])
+    pinn = ref + 1e-3 * pts[:, 0]
+    g = np.linspace(0, 1, 50)
+    Xg, Yg = np.meshgrid(g, g)
+    e = ns["_err_grid"](pts, ref, pinn, Xg, Yg)
+    assert np.nanmax(e) <= 1e-3 + 1e-12
+    for gen in (cg.generate_script, cg.generate_clean_script):
+        c = PINNConfig()
+        c.problem_dim, c.ea_files = "2D", repr([(0.5, "/tmp/x.txt", None)])
+        t = gen(c)
+        assert "_err_grid(" in t and "fill_value=0.0" not in t

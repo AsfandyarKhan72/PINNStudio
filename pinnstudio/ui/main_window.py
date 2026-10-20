@@ -17950,11 +17950,14 @@ elif {do_surface}:
             else:
                 _xyt_g = np.column_stack([_Xg_ea.ravel(), _Yg_ea.ravel(), np.full(_Xg_ea.size, _tv)])
             _u_pinn_g = _extract_restore_field({_predict_call}(_xyt_g)).reshape(_res_ea, _res_ea)
-            _u_fem_g  = _gd(np.column_stack([_ea_x_refs[_i], _ea_y_refs[_i]]),
-                            _ea_u_refs[_i], (_Xg_ea, _Yg_ea), method='linear', fill_value=0.0)
-            _u_err_g  = np.abs(_u_pinn_g - _u_fem_g)
-            _vmin_data = min(_u_pinn_g.min(), _u_fem_g.min()) if {_auto} else {_vmin}
-            _vmax_data = max(_u_pinn_g.max(), _u_fem_g.max()) if {_auto} else {_vmax}
+            _ref_pts_g = np.column_stack([_ea_x_refs[_i], _ea_y_refs[_i]])
+            # outside the reference points: blank (was 0, a made-up value)
+            _u_fem_g  = _gd(_ref_pts_g, _ea_u_refs[_i], (_Xg_ea, _Yg_ea), method='linear', fill_value=np.nan)
+            _pinn_at_ref_g = _extract_restore_field({_predict_call}(_ref_pts_g if {is_steady} else
+                                                    np.column_stack([_ref_pts_g, np.full(len(_ref_pts_g), _tv)])))
+            _u_err_g  = _err_grid(_ref_pts_g, _ea_u_refs[_i], _pinn_at_ref_g, _Xg_ea, _Yg_ea)
+            _vmin_data = np.nanmin([_u_pinn_g, _u_fem_g]) if {_auto} else {_vmin}
+            _vmax_data = np.nanmax([_u_pinn_g, _u_fem_g]) if {_auto} else {_vmax}
             _ea_pinn_title = f"PINN (steady-state) {{_l2_txt(_l2)}}" if {is_steady} else f"PINN t={{_fmt_num(_tv)}} {{_l2_txt(_l2)}}"
             _ea_gt_title = "Reference" if {is_steady} else f"Reference t={{_fmt_num(_tv)}}"
             im0 = axes[_i][0].contourf(_Xg_ea, _Yg_ea, _u_pinn_g, cmap='{_cmap}', **_cf_levels({_levels}, _vmin_data, _vmax_data, _u_pinn_g))

@@ -2085,9 +2085,9 @@ def _gs_rar_loop_code(config):
                             _grid_pinn_r = np.column_stack([_Xg.ravel(), _Yg.ravel()])
                             _u_pinn_g_r = _extract_plot_field(_grid_pinn_r).reshape(_res, _res)
                             _u_pinn_g_r = np.where(_inside_r, _u_pinn_g_r, np.nan)
-                            _u_ref_g_r = _gd_r(_ref_xyz_r, _ref_u_r, (_Xg, _Yg), method="linear", fill_value=0.0)
+                            _u_ref_g_r = _gd_r(_ref_xyz_r, _ref_u_r, (_Xg, _Yg), method="linear", fill_value=np.nan)
                             _u_ref_g_r = np.where(_inside_r, _u_ref_g_r, np.nan)
-                            _u_err_g_r = np.abs(_u_pinn_g_r - _u_ref_g_r)
+                            _u_err_g_r = np.where(_inside_r, _err_grid(_ref_xyz_r, _ref_u_r, _ref_pred_pts_r, _Xg, _Yg), np.nan)
                             _vmin2_r = np.nanmin([_u_pinn_g_r, _u_ref_g_r]); _vmax2_r = np.nanmax([_u_pinn_g_r, _u_ref_g_r])
                             if _vmax2_r - _vmin2_r < 1e-12:
                                 _vmax2_r = _vmin2_r + 1e-12
@@ -2243,9 +2243,9 @@ def _gs_rar_loop_code(config):
                         _grid_pinn_r = np.column_stack([_Xg.ravel(), _Yg.ravel(), np.full(_Xg.size, _ref_t_r)])
                         _u_pinn_g_r = _extract_plot_field(_grid_pinn_r).reshape(_res, _res)
                         _u_pinn_g_r = np.where(_inside_r, _u_pinn_g_r, np.nan)
-                        _u_ref_g_r = _gd_r(_ref_xyz_r, _ref_u_r, (_Xg, _Yg), method="linear", fill_value=0.0)
+                        _u_ref_g_r = _gd_r(_ref_xyz_r, _ref_u_r, (_Xg, _Yg), method="linear", fill_value=np.nan)
                         _u_ref_g_r = np.where(_inside_r, _u_ref_g_r, np.nan)
-                        _u_err_g_r = np.abs(_u_pinn_g_r - _u_ref_g_r)
+                        _u_err_g_r = np.where(_inside_r, _err_grid(_ref_xyz_r, _ref_u_r, _ref_pred_pts_r, _Xg, _Yg), np.nan)
                         _vmin2_r = np.nanmin([_u_pinn_g_r, _u_ref_g_r]); _vmax2_r = np.nanmax([_u_pinn_g_r, _u_ref_g_r])
                         if _vmax2_r - _vmin2_r < 1e-12:
                             _vmax2_r = _vmin2_r + 1e-12
@@ -3365,9 +3365,10 @@ if {config.time_adaptive}:
                                 _tea_grid_pinn = np.column_stack([_Xg_s.ravel(), _Yg_s.ravel(), np.full(_Xg_s.size, _mtv)])
                                 _tea_u_pinn = _ta_ref_extract(_tea_grid_pinn, _msel, model_i).reshape(_res_step, _res_step)
                                 _tea_u_pinn = np.where(_inside_s, _tea_u_pinn, np.nan)
-                                _tea_u_ref = _tea_gd(_tea_xy, _tea_u, (_Xg_s, _Yg_s), method="linear", fill_value=0.0)
+                                _tea_u_ref = _tea_gd(_tea_xy, _tea_u, (_Xg_s, _Yg_s), method="linear", fill_value=np.nan)
                                 _tea_u_ref = np.where(_inside_s, _tea_u_ref, np.nan)
-                                _tea_u_err = np.abs(_tea_u_pinn - _tea_u_ref)
+                                _tea_at_ref = _ta_ref_extract(np.column_stack([_tea_xy, np.full(len(_tea_xy), _mtv)]), _msel, model_i)
+                                _tea_u_err = np.where(_inside_s, _err_grid(_tea_xy, _tea_u, _tea_at_ref, _Xg_s, _Yg_s), np.nan)
                                 _tea_vmin = np.nanmin([_tea_u_pinn, _tea_u_ref])
                                 _tea_vmax = np.nanmax([_tea_u_pinn, _tea_u_ref])
                                 if _tea_vmax - _tea_vmin < 1e-12:
@@ -4034,14 +4035,21 @@ if {config.time_adaptive}:
                                 _sm2.restore(_spt2, verbose=0)
                                 _u_pinn_grid = _ea_extract(_xyt_grid, _ea_sel, _sm2).reshape(_res_ea, _res_ea)
                             else:
+                                _sm2 = None
                                 _u_pinn_grid = np.zeros((_res_ea, _res_ea))
                         else:
+                            _sm2 = None
                             _u_pinn_grid = np.zeros((_res_ea, _res_ea))
-                        _u_fem_grid = _gd(np.column_stack([_ea_x_refs[_ei], _ea_y_refs[_ei]]),
-                                          _ea_u_refs[_ei], (_Xg_ea, _Yg_ea), method='linear', fill_value=0.0)
-                        _u_err_grid = np.abs(_u_pinn_grid - _u_fem_grid)
-                        _vmin_ea = min(_u_pinn_grid.min(), _u_fem_grid.min())
-                        _vmax_ea = max(_u_pinn_grid.max(), _u_fem_grid.max())
+                        _ref_pts_ea = np.column_stack([_ea_x_refs[_ei], _ea_y_refs[_ei]])
+                        _u_fem_grid = _gd(_ref_pts_ea, _ea_u_refs[_ei], (_Xg_ea, _Yg_ea), method='linear', fill_value=np.nan)
+                        if _sm2 is not None:
+                            _pinn_at_ref_ea = _ea_extract(np.column_stack([_ref_pts_ea, np.full(len(_ref_pts_ea), _ea_tv)]),
+                                                          _ea_sel, _sm2)
+                            _u_err_grid = _err_grid(_ref_pts_ea, _ea_u_refs[_ei], _pinn_at_ref_ea, _Xg_ea, _Yg_ea)
+                        else:
+                            _u_err_grid = np.abs(_u_pinn_grid - _u_fem_grid)
+                        _vmin_ea = np.nanmin([_u_pinn_grid, _u_fem_grid])
+                        _vmax_ea = np.nanmax([_u_pinn_grid, _u_fem_grid])
                         if _vmax_ea - _vmin_ea < 1e-12:
                             _vmax_ea = _vmin_ea + 1e-12
                         _vmin_ea, _vmax_ea = _vr(_vmin_ea, _vmax_ea)   # Plot settings -> Surface -> Colour range
@@ -8280,9 +8288,14 @@ for _pval in _param_values:
                             _u_fem_grid = _gd(
                                 np.column_stack([_ea_x_refs[_ei], _ea_y_refs[_ei]]),
                                 _ea_u_refs[_ei],
-                                (_Xg_ea, _Yg_ea), method='linear', fill_value=0.0)
+                                (_Xg_ea, _Yg_ea), method='linear', fill_value=np.nan)
                             _u_fem_grid = np.where(_inside_2d_ea, _u_fem_grid, np.nan)
-                            _u_err_grid = np.abs(_u_pinn_grid - _u_fem_grid)
+                            _ref_pts_ea = np.column_stack([_ea_x_refs[_ei], _ea_y_refs[_ei]])
+                            _pinn_at_ref_ea = _ea_extract(_ref_pts_ea if _is_steady else
+                                                          np.column_stack([_ref_pts_ea, np.full(len(_ref_pts_ea), _ea_tv)]),
+                                                          _ea_sel, model)
+                            _u_err_grid = np.where(_inside_2d_ea, _err_grid(_ref_pts_ea, _ea_u_refs[_ei], _pinn_at_ref_ea,
+                                                                            _Xg_ea, _Yg_ea), np.nan)
                             _vmin_ea = np.nanmin([_u_pinn_grid, _u_fem_grid])
                             _vmax_ea = np.nanmax([_u_pinn_grid, _u_fem_grid])
                             if _vmax_ea - _vmin_ea < 1e-12:
@@ -9506,6 +9519,16 @@ def _panel_figsize(_pw, _ph, _ncols, _nrows):
 
 
 _PLOT_TEXT_HELPERS = """
+
+def _err_grid(_pts, _ref, _pinn_at_pts, _Xg, _Yg):
+    # |PINN - reference| worked out at the reference points, then put on the
+    # plot grid. Subtracting two grids, the reference interpolated between its
+    # points, added the interpolation's own error: stripes in the error
+    # panel, whose colour bar went past the max in its title (Kovasznay u:
+    # 5.4e-3 shown, 2.0e-3 real). Outside the reference points: blank.
+    from scipy.interpolate import griddata as _gd_e
+    _e = np.abs(np.ravel(_pinn_at_pts) - np.ravel(_ref))
+    return _gd_e(np.asarray(_pts)[:, :2], _e, (_Xg, _Yg), method="linear", fill_value=np.nan)
 
 def _load_ref(_path):
     # A reference-data file: comma or space separated, header and comment
@@ -12922,7 +12945,9 @@ for i, tv in enumerate(ea_times):
     xyt_grid = np.column_stack([Xg_ea.ravel(), Yg_ea.ravel()]{"" if is_steady else " + [np.full(Xg_ea.size, tv)]"})
     u_pinn_grid = np.where(inside_ea, _ea_extract_group(xyt_grid, model, {_ea_sel!r}).reshape(res_ea, res_ea), np.nan)
     u_ref_grid = np.where(inside_ea, griddata(np.column_stack([ea_x_refs[i], ea_y_refs[i]]), ea_u_refs[i], (Xg_ea, Yg_ea), method="linear", fill_value=np.nan), np.nan)
-    u_err_grid = np.abs(u_pinn_grid - u_ref_grid)
+    ref_pts_ea = np.column_stack([ea_x_refs[i], ea_y_refs[i]])
+    pinn_at_ref = _ea_extract_group(np.column_stack([ref_pts_ea]{"" if is_steady else " + [np.full(len(ref_pts_ea), tv)]"}), model, {_ea_sel!r})
+    u_err_grid = np.where(inside_ea, _err_grid(ref_pts_ea, ea_u_refs[i], pinn_at_ref, Xg_ea, Yg_ea), np.nan)
     _ea_cf = _cf_levels({config.plot_levels}, *_vr(np.nanmin([u_pinn_grid, u_ref_grid]), np.nanmax([u_pinn_grid, u_ref_grid])), u_pinn_grid, u_ref_grid)
     im0 = axes[i][0].contourf(Xg_ea, Yg_ea, u_pinn_grid, cmap="{config.plot_colormap}", **_ea_cf)
     axes[i][0].set_title({_ea_pinn_title}); fig.colorbar(im0, ax=axes[i][0])

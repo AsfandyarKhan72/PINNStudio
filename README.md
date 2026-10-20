@@ -547,7 +547,7 @@ $$\Large \frac{d^2u}{dt^2} - 10\frac{du}{dt} + 9u = 5t, \qquad t \in [0, 0.25]$$
 - **Training:** Adam 10,000; 16 domain, 2 boundary points
 - **In PINNStudio:** Examples → **Forward** → **Second-order ODE**
 
-**Result (RTX 4090):** $L_2$ = 3.2 × 10⁻⁵
+**Result (RTX 4090):** $L_2$ = 6.9 × 10⁻⁴ (1.7 × 10⁻⁵ in other runs: with only 16 training points and Adam alone, the loss can jump in the last steps, so the final number varies from run to run)
 
 *PINN vs reference along a line*
 
@@ -569,7 +569,7 @@ $$\Large \frac{dy_1}{dt} = C_1(y_2 - y_1), \qquad \frac{dy_2}{dt} = y_1(C_2 - y_
 - **Training:** Adam 20,000 → L-BFGS 15,000; 400 domain, 2 boundary points
 - **In PINNStudio:** Examples → **Inverse** → **Lorenz ODE – unknown C₁, C₂, C₃**
 
-**Result (RTX 4090):** $C_1$ = 9.9990, $C_2$ = 14.9997, $C_3$ = 2.66675 (true 10, 15, 8/3); $L_2$ = 1.2 × 10⁻⁴ ($y_1$), 1.2 × 10⁻⁴ ($y_2$), 6.7 × 10⁻⁵ ($y_3$)
+**Result (RTX 4090):** $C_1$ = 10.000, $C_2$ = 14.9998, $C_3$ = 2.66664 (true 10, 15, 8/3); $L_2$ = 1.0 × 10⁻⁴ ($y_1$), 1.3 × 10⁻⁴ ($y_2$), 6.1 × 10⁻⁵ ($y_3$)
 
 *y1 — PINN vs reference along a line*
 
@@ -604,7 +604,7 @@ $$\Large \frac{dy_1}{dt} = C_1(y_2 - y_1), \qquad \frac{dy_2}{dt} = y_1(C_2 - y_
 - **Training:** Adam 60,000; 400 domain, 2 boundary points
 - **In PINNStudio:** Examples → **Inverse** → **Lorenz ODE – unknown C₁, C₂, C₃, exogenous input**
 
-**Result (RTX 4090):** $C_1$ = 9.987, $C_2$ = 14.998, $C_3$ = 2.6669 (true 10, 15, 8/3); $L_2$ = 7.3 × 10⁻⁴ ($y_1$), 6.6 × 10⁻⁴ ($y_2$), 2.9 × 10⁻⁴ ($y_3$)
+**Result (RTX 4090):** $C_1$ = 9.974, $C_2$ = 14.996, $C_3$ = 2.6669 (true 10, 15, 8/3); $L_2$ = 1.6 × 10⁻³ ($y_1$), 1.2 × 10⁻³ ($y_2$), 6.3 × 10⁻⁴ ($y_3$)
 
 *y1 — PINN vs reference along a line*
 
@@ -843,7 +843,7 @@ $$\Large -\frac{\nu_e}{\epsilon}\frac{d^2u}{dx^2} + \frac{\nu u}{K} = g, \qquad 
 
 DeepXDE's own script, run unchanged twice on the same GPU, ends with $\nu_e$ = 1.31–1.35 × 10⁻³, $K$ = 9.84 × 10⁻⁴ and an $L_2$ error of 1.8 × 10⁻²–2.0 × 10⁻² for $u$. The result is the same: $K$ is recovered closely, while $\nu_e$ is recovered only to within about 30–50% from five measurements.
 
-**Result (RTX 4090):** $\nu_e$ = 1.49 × 10⁻³, $K$ = 9.85 × 10⁻⁴ (both true 1 × 10⁻³); $L_2$ of $u$ = 2.9 × 10⁻²
+**Result (RTX 4090):** $\nu_e$ = 1.28 × 10⁻³, $K$ = 1.04 × 10⁻³ (both true 1 × 10⁻³); $L_2$ of $u$ = 2.0 × 10⁻²
 
 *PINN vs reference along a line*
 
@@ -900,7 +900,7 @@ $$\Large \frac{D_{-1+}^{\alpha}u + D_{1-}^{\alpha}u}{2\cos(\alpha\pi/2)} = \Gamm
 - **Training:** Adam 10,000; 20 domain points
 - **In PINNStudio:** Examples → **Inverse** → **Fractional Poisson 1D – unknown order α**
 
-**Result (RTX 4090):** $\alpha$ = 1.792 (true 1.8); $L_2$ of $u$ = 1.3 × 10⁻²
+**Result (RTX 4090):** $\alpha$ = 1.792 (true 1.8); $L_2$ of $u$ = 4.9 × 10⁻³
 
 *PINN vs reference along a line*
 
@@ -1017,7 +1017,7 @@ where $\gamma_1 = 0.0001$ and $\gamma_2 = 5$.
 - **Causal training:** Loss weights → *Automatic weighting* → *Causal training*, with *Raise ε step by step* (the paper's schedule, the default); Adaptive training → Method *None*
 - **Fourier-feature network:** Network → Network type *MsFFN*, scales `1, 5`
 
-Result: $L_2$ = 9.8 × 10⁻⁸ ($t = 0$), 4.0 × 10⁻⁴ ($t = 0.25$), 4.6 × 10⁻⁴ ($t = 0.5$), 6.9 × 10⁻⁴ ($t = 0.75$), 1.6 × 10⁻³ ($t = 1$). This is as accurate as time-adaptive training at early times and about 3× more accurate at $t = 1$ (0.065–0.24% at $t = 1$ over five runs; the template itself, rerun twice, gave 0.24% and 0.18%). RBA per-point weights in place of causal training and MsFFN give 2.7–7.8 × 10⁻³ at $t = 1$.
+Result: $L_2$ = 9.8 × 10⁻⁸ ($t = 0$), 4.0 × 10⁻⁴ ($t = 0.25$), 4.3 × 10⁻⁴ ($t = 0.5$), 6.0 × 10⁻⁴ ($t = 0.75$), 1.4 × 10⁻³ ($t = 1$). This is as accurate as time-adaptive training at early times and about 3× more accurate at $t = 1$ (0.065–0.24% at $t = 1$ over five runs; the template itself, rerun twice, gave 0.24% and 0.18%). RBA per-point weights in place of causal training and MsFFN give 2.7–7.8 × 10⁻³ at $t = 1$.
 
 ![1D Allen-Cahn, whole time interval with exact periodicity, exact initial condition, causal training and MsFFN — PINN vs reference](assets/Images/1D-AllenCahn/whole_domain_surface_comparison.png)
 
@@ -1025,7 +1025,7 @@ Result: $L_2$ = 9.8 × 10⁻⁸ ($t = 0$), 4.0 × 10⁻⁴ ($t = 0.25$), 4.6 × 
 
 *Inverse mode* — same template, switched to **Inverse**, jointly recovering both $\gamma_1$ (diffusion) and $\gamma_2$ (reaction) as unknown parameters; the live convergence animation below shows each estimate settling onto its true value during training:
 
-**Inverse result (RTX 4090):** with the whole-interval template, $\gamma_1$ = 1.005 × 10⁻⁴ (true 10⁻⁴) and $\gamma_2$ = 4.999 (true 5); both from $u$ measured at $t = 1$. Inverse mode has no time-adaptive training, so the time-adaptive template switched to Inverse trains on the whole interval with the whole-interval template's setup (without it, $\gamma_1$ came out 15% off), and switched back to Forward it has its own setup again.
+**Inverse result (RTX 4090):** with the whole-interval template, $\gamma_1$ = 0.982 × 10⁻⁴ (true 10⁻⁴) and $\gamma_2$ = 4.9995 (true 5); both from $u$ measured at $t = 1$. Inverse mode has no time-adaptive training, so the time-adaptive template switched to Inverse trains on the whole interval with the whole-interval template's setup (without it, $\gamma_1$ came out 15% off), and switched back to Forward it has its own setup again.
 
 ![1D Allen-Cahn inverse parameter convergence animation](assets/Images/1D-AllenCahn/param_convergence_animation.gif)
 
@@ -1172,7 +1172,7 @@ $$\Large \frac{\partial u}{\partial t} + \lambda_1 u\frac{\partial u}{\partial x
 
 with true values $\lambda_1 = 1.0$ and $\lambda_2 = 0.01/\pi$ (the template writes the viscous term as $\frac{\lambda_2}{\pi}\frac{\partial^2 u}{\partial x^2}$, so the value it learns is 0.01). $\lambda_1$'s initial guess starts at $0.1$ rather than $1.0$, since $1.0$ is already its true value. The live convergence animation below shows both estimates settling onto their true values during training:
 
-**Inverse result (RTX 4090):** $\lambda_1$ = 0.997 (true 1), $\lambda_2$ = 0.01001 (true 0.01).
+**Inverse result (RTX 4090):** $\lambda_1$ = 0.996 (true 1), $\lambda_2$ = 0.01004 (true 0.01).
 
 ![1D Burgers inverse parameter convergence animation](assets/Images/1D-Burgers/param_convergence_animation.gif)
 
@@ -1371,7 +1371,7 @@ The solution decays to about 2% of its initial size by $t = 1$, so the relative 
 
 $$\Large \frac{\partial u}{\partial t} = a\ \frac{\partial^2 u}{\partial x^2}$$
 
-**Inverse result (RTX 4090):** $a$ = 0.3984 (true 0.4); $L_2$ = 1.0 × 10⁻³ ($t = 0$), 3.2 × 10⁻³ ($t = 0.25$), 1.2 × 10⁻² ($t = 0.5$), 1.5 × 10⁻² ($t = 0.75$), 2.7 × 10⁻³ ($t = 1$)
+**Inverse result (RTX 4090):** $a$ = 0.3972 (true 0.4); $L_2$ = 7.1 × 10⁻⁴ ($t = 0$), 6.1 × 10⁻³ ($t = 0.25$), 2.1 × 10⁻² ($t = 0.5$), 2.2 × 10⁻² ($t = 0.75$), 5.1 × 10⁻³ ($t = 1$)
 
 *Inverse mode — inferred parameter during training*
 
@@ -1452,7 +1452,7 @@ $$\Large \frac{\partial v}{\partial t} - 0.5\frac{\partial^2 u}{\partial x^2} - 
 - **Training:** Adam 10,000 → L-BFGS 10,000; 10,000 domain, 20 boundary, 200 initial points
 - **In PINNStudio:** Examples → **Forward** (or **Inverse**) → **Schrödinger 1D**
 
-**Result (RTX 4090):** $L_2$ of $|h|$ = 1.5 × 10⁻³ ($t = 0$), 1.1 × 10⁻³ ($t = 0.25$), 1.1 × 10⁻³ ($t = 0.5$), 1.4 × 10⁻³ ($t = 0.75$), 1.4 × 10⁻³ ($t = 1$), 1.1 × 10⁻³ ($t = 1.25$), 1.7 × 10⁻³ ($t = 1.5$)
+**Result (RTX 4090):** $L_2$ of $|h|$ = 1.4 × 10⁻³ ($t = 0$), 1.0 × 10⁻³ ($t = 0.25$), 1.1 × 10⁻³ ($t = 0.5$), 1.4 × 10⁻³ ($t = 0.75$), 1.4 × 10⁻³ ($t = 1$), 1.0 × 10⁻³ ($t = 1.25$), 1.8 × 10⁻³ ($t = 1.5$)
 
 *|h| — PINN solution over time*
 
@@ -1521,7 +1521,7 @@ $$\Large \frac{\partial u}{\partial t} = C\frac{\partial^2 u}{\partial x^2} - e^
 - **Training:** Adam 50,000; 40 domain, 20 boundary, 10 initial points
 - **In PINNStudio:** Examples → **Inverse** → **Diffusion 1D – unknown coefficient**
 
-**Result (RTX 4090):** $C$ = 0.9988 (true 1); $L_2$ = 1.2 × 10⁻³ ($t = 0$), 1.8 × 10⁻³ ($t = 0.25$), 1.9 × 10⁻³ ($t = 0.5$), 2.8 × 10⁻³ ($t = 0.75$), 3.1 × 10⁻³ ($t = 1$)
+**Result (RTX 4090):** $C$ = 0.9996 (true 1); $L_2$ = 1.6 × 10⁻³ ($t = 0$), 4.2 × 10⁻³ ($t = 0.25$), 4.4 × 10⁻³ ($t = 0.5$), 6.9 × 10⁻³ ($t = 0.75$), 1.1 × 10⁻² ($t = 1$)
 
 *u — PINN solution over time*
 
@@ -1551,7 +1551,7 @@ $$\Large \frac{\partial C_A}{\partial t} = D\frac{\partial^2 C_A}{\partial x^2} 
 - **Training:** Adam 80,000; 2,000 domain, 100 boundary, 100 initial points
 - **In PINNStudio:** Examples → **Inverse** → **Diffusion-reaction 1D – unknown k_f, D**
 
-**Result (RTX 4090):** $k_f$ = 0.0992 (true 0.1), $D$ = 1.995 (true 2)
+**Result (RTX 4090):** $k_f$ = 0.0992 (true 0.1), $D$ = 1.993 (true 2)
 
 *ca — PINN solution over time*
 
@@ -1585,7 +1585,7 @@ $$\Large -(-\Delta)^{\alpha/2}u = 2^{\alpha}\Gamma(2 + \tfrac{\alpha}{2})\Gamma(
 - **Training:** Adam 20,000; 100 domain points
 - **In PINNStudio:** Examples → **Forward** → **Fractional Poisson 2D – disk**
 
-**Result (RTX 4090):** $L_2$ = 3.4 × 10⁻³ to 4.2 × 10⁻³ over repeated runs (the fractional operator's sums on the GPU are not bit-for-bit repeatable)
+**Result (RTX 4090):** $L_2$ = 1.2 × 10⁻³ to 4.2 × 10⁻³ over repeated runs (the fractional operator's sums on the GPU are not bit-for-bit repeatable)
 
 *PINN vs reference, error analysis*
 
@@ -1896,7 +1896,7 @@ $$\Large -(-\Delta)^{\alpha/2}u = 2^{\alpha_0}\Gamma(2 + \tfrac{\alpha_0}{2})\Ga
 - **Training:** Adam 10,000; 64 domain points
 - **In PINNStudio:** Examples → **Inverse** → **Fractional Poisson 2D – unknown order α**
 
-**Result (RTX 4090):** $\alpha$ = 1.805 (true 1.8); $L_2$ of $u$ = 2.0–2.2 × 10⁻³ over repeated runs
+**Result (RTX 4090):** $\alpha$ = 1.804 (true 1.8); $L_2$ of $u$ = 2.0–2.3 × 10⁻³ over repeated runs
 
 *PINN vs reference, error analysis*
 
@@ -2122,7 +2122,7 @@ $$\Large \frac{\partial u}{\partial t} = 0.4\left(\frac{\partial^2 u}{\partial x
 
 *Inverse mode* — same template, switched to **Inverse**, recovering the diffusivity coefficient (fixed at $0.4$ in Forward mode above) as an unknown parameter; the live convergence animation below shows the estimate settling onto its true value during training:
 
-**Inverse result (RTX 4090):** diffusivity = 0.4005 (true 0.4).
+**Inverse result (RTX 4090):** diffusivity = 0.3999 (true 0.4).
 
 ![2D Heat inverse parameter convergence animation](assets/Images/2D-Heat/param_convergence_animation.gif)
 
@@ -2147,7 +2147,7 @@ $$\Large -(-\Delta)^{\alpha/2}u = \frac{2^{\alpha}\Gamma(2 + \frac{\alpha}{2})\G
 - **Training:** Adam 10,000; 256 domain points
 - **In PINNStudio:** Examples → **Forward** → **Fractional Poisson 3D – sphere**
 
-**Result (RTX 4090):** $L_2$ = 7.3 × 10⁻³ to 8.2 × 10⁻³ over repeated runs (the fractional operator's sums on the GPU are not bit-for-bit repeatable)
+**Result (RTX 4090):** $L_2$ = 6.7 × 10⁻³ to 8.2 × 10⁻³ over repeated runs (the fractional operator's sums on the GPU are not bit-for-bit repeatable)
 
 *PINN vs reference, error analysis*
 
