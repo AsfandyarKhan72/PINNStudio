@@ -238,7 +238,7 @@ def _simplify_expr(expr, is_2d=False, is_3d=False):
     # Replace math functions with numpy equivalents
     for fn in ["sin","cos","tan","sinh","cosh","tanh","arcsin","arccos","arctan",
                "exp","log","log10","sqrt","abs","ceil","floor"]:
-        e = re.sub(rf'\b{fn}\(', f'np.{fn}(', e)
+        e = re.sub(rf'(?<![\w.]){fn}\(', f'np.{fn}(', e)   # not after np.
     # Replace the pi constant. (There used to be a similar line here for a
     # bare Euler's-number "e" constant, but it was written as \bexp\b
     # instead of \be\b -- since \b is a boundary between a word character
@@ -252,21 +252,21 @@ def _simplify_expr(expr, is_2d=False, is_3d=False):
     # \be\b, matching _simplify_pde_expr in main_window.py (used for the
     # same user-facing "type math like you'd write it" convention
     # elsewhere), which never had a bare-e substitution to begin with.)
-    e = re.sub(r'\bpi\b', 'np.pi', e)
+    e = re.sub(r'(?<![\w.])pi\b', 'np.pi', e)
     # Replace x, y, z variables — must be done carefully to avoid replacing
     # inside words
     if is_3d:
-        e = re.sub(r'\bz\b', '__Z__', e)
-        e = re.sub(r'\by\b', '__Y__', e)
-        e = re.sub(r'\bx\b', 'x[:, 0]', e)
+        e = re.sub(r'(?<![\w.])z\b(?!\s*\[)', '__Z__', e)
+        e = re.sub(r'(?<![\w.])y\b(?!\s*\[)', '__Y__', e)
+        e = re.sub(r'(?<![\w.])x\b(?!\s*\[)', 'x[:, 0]', e)   # x[:, 0] stays as it is
         e = e.replace('__Y__', 'x[:, 1]')
         e = e.replace('__Z__', 'x[:, 2]')
     elif is_2d:
-        e = re.sub(r'\by\b', '__Y__', e)
-        e = re.sub(r'\bx\b', 'x[:, 0]', e)
+        e = re.sub(r'(?<![\w.])y\b(?!\s*\[)', '__Y__', e)
+        e = re.sub(r'(?<![\w.])x\b(?!\s*\[)', 'x[:, 0]', e)   # x[:, 0] stays as it is
         e = e.replace('__Y__', 'x[:, 1]')
     else:
-        e = re.sub(r'\bx\b', 'x[:, 0]', e)
+        e = re.sub(r'(?<![\w.])x\b(?!\s*\[)', 'x[:, 0]', e)   # x[:, 0] stays as it is
     return e
 
 def _parse_vertex_list(text):
@@ -4980,6 +4980,22 @@ if os.name == "nt":
     os.makedirs(_tmp_root, exist_ok=True)
 
 import deepxde as dde
+# DeepXDE (PyTorch) works out its L-BFGS chunk size and evaluation budget
+# once, when it is imported, and set_LBFGS_options does not update them: an
+# L-BFGS phase shorter than 1000 iterations ran 1000, longer ones rounded up
+# to the next 1000, and maxfun had no effect. Keep them in step.
+def _lbfgs_options_in_step():
+    from deepxde.optimizers import config as _oc
+    _set_orig = _oc.set_LBFGS_options
+    def _set_lbfgs(*_a, **_k):
+        _set_orig(*_a, **_k)
+        _o = _oc.LBFGS_options
+        if "iter_per_step" in _o:
+            _o["iter_per_step"] = max(1, min(1000, int(_o["maxiter"])))
+            _o["fun_per_step"] = max(1, int(_o["maxfun"]) * _o["iter_per_step"] // max(1, int(_o["maxiter"])))
+    dde.optimizers.set_LBFGS_options = _oc.set_LBFGS_options = _set_lbfgs
+    _set_lbfgs(**{{_k: _oc.LBFGS_options[_k] for _k in ("maxcor", "ftol", "gtol", "maxiter", "maxfun", "maxls")}})
+_lbfgs_options_in_step()
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
@@ -11013,6 +11029,22 @@ import os
 os.environ["DDE_BACKEND"] = "pytorch"
 {_cpu_only_line(config)}
 import deepxde as dde
+# DeepXDE (PyTorch) works out its L-BFGS chunk size and evaluation budget
+# once, when it is imported, and set_LBFGS_options does not update them: an
+# L-BFGS phase shorter than 1000 iterations ran 1000, longer ones rounded up
+# to the next 1000, and maxfun had no effect. Keep them in step.
+def _lbfgs_options_in_step():
+    from deepxde.optimizers import config as _oc
+    _set_orig = _oc.set_LBFGS_options
+    def _set_lbfgs(*_a, **_k):
+        _set_orig(*_a, **_k)
+        _o = _oc.LBFGS_options
+        if "iter_per_step" in _o:
+            _o["iter_per_step"] = max(1, min(1000, int(_o["maxiter"])))
+            _o["fun_per_step"] = max(1, int(_o["maxfun"]) * _o["iter_per_step"] // max(1, int(_o["maxiter"])))
+    dde.optimizers.set_LBFGS_options = _oc.set_LBFGS_options = _set_lbfgs
+    _set_lbfgs(**{{_k: _oc.LBFGS_options[_k] for _k in ("maxcor", "ftol", "gtol", "maxiter", "maxfun", "maxls")}})
+_lbfgs_options_in_step()
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
