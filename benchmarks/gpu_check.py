@@ -56,14 +56,15 @@ def _num(v):
 class GpuSampler(threading.Thread):
     """Reads utilization, memory, SM clock, power and power state every
     half second (or every `period` s) until stop()."""
-    FIELDS = ["utilization.gpu", "memory.used", "clocks.sm", "power.draw", "pstate", "temperature.gpu"]
+    FIELDS = ["utilization.gpu", "memory.used", "clocks.sm", "power.draw", "pstate", "temperature.gpu",
+              "pcie.link.gen.current"]
 
     def __init__(self, idx=0, period=0.5):
         super().__init__(daemon=True)
-        self.idx, self.period, self.rows, self._stop = idx, period, [], threading.Event()
+        self.idx, self.period, self.rows, self._halt = idx, period, [], threading.Event()
 
     def run(self):
-        while not self._stop.is_set():
+        while not self._halt.is_set():
             try:
                 out = subprocess.run([SMI, "-i", str(self.idx), "--query-gpu=" + ",".join(self.FIELDS),
                                       "--format=csv,noheader,nounits"], capture_output=True, text=True, timeout=10)
@@ -72,10 +73,10 @@ class GpuSampler(threading.Thread):
                     self.rows.append(dict(zip(self.FIELDS, parts)))
             except Exception:
                 pass
-            self._stop.wait(self.period)
+            self._halt.wait(self.period)
 
     def stop(self):
-        self._stop.set()
+        self._halt.set()
         self.join(timeout=15)
         return self.summary()
 
@@ -84,7 +85,7 @@ class GpuSampler(threading.Thread):
             return [x for x in (_num(r.get(k)) for r in self.rows) if x is not None]
         s = {"samples": len(self.rows)}
         for k, name in (("utilization.gpu", "util_pct"), ("memory.used", "mem_mib"), ("clocks.sm", "sm_clock_mhz"),
-                        ("power.draw", "power_w"), ("temperature.gpu", "temp_c")):
+                        ("power.draw", "power_w"), ("temperature.gpu", "temp_c"), ("pcie.link.gen.current", "pcie_gen")):
             v = col(k)
             if v:
                 s[name + "_avg"] = sum(v) / len(v)
@@ -309,6 +310,9 @@ def main():
             warn.append(f"{name}: the GPU clock averaged {s['sm_clock_mhz_avg']:.0f} of {mx:.0f} MHz -- a power-saving mode "
                         "(laptop on battery, Windows 'Best power efficiency', NVIDIA 'Optimal power'), or overheating "
                         f"(max {s.get('temp_c_max', 0):.0f} C).")
+        gmax = _num(info.get("smi_pcie.link.gen.max"))
+        if big and gmax and s.get("pcie_gen_max") and s["pcie_gen_max"] < gmax - 1:
+            warn.append(f"{name}: the PCIe link stayed at Gen {s['pcie_gen_max']:.0f} (of Gen {gmax:.0f}) while training.")
         if big and s.get("pstates") and not any(p in ("P0", "P1", "P2") for p in s["pstates"]):
             warn.append(f"{name}: the GPU never reached a full-speed power state (saw {', '.join(s['pstates'])}).")
         if c and "final_l2" in c and "final_l2" in g and g["final_l2"] > 3 * c["final_l2"] + 1e-3:
@@ -325,7 +329,7 @@ def main():
     for r in results:
         s = r.get("gpu", {})
         print(f"{r['problem']:25} {r['setup']:14} {_f(r, 'adam_it_per_s', '9.0f')} {_f(r, 'adam_l2', '9.2e')} "
-              f"{_f(r, 'lbfgs_s', '8.1f')} {_f(r, 'final_l2', '9.2e')} {_f(s, 'util_pct_avg', '8.0f')}% "
+              f"{_f(r, 'lbfgs_s', '8.1f')} {_f(r, 'final_l2', '9.2e')} {(_f(s, 'util_pct_avg', '8.0f') + '%') if 'util_pct_avg' in s else ' ' * 9} "
               f"{_f(s, 'sm_clock_mhz_avg', '7.0f')} {_f(s, 'power_w_avg', '8.0f')} {','.join(s.get('pstates', [])):>6} "
               f"{_f(r, 'peak_mem_mib', '8.0f')}  {r.get('error', '')}")
     if "tf32_speedup" in info:
