@@ -339,7 +339,7 @@ Three themes are built in — **Studio Light** (the default), **Studio Dark** an
 PINNStudio comes with 65 ready-to-run examples, all listed in the table below and loaded from the **Examples** list in the toolbar or the gallery on the Start tab. The list's category is **Forward** (every example that solves for the field, which is all of them except the 10 inverse-only DeepXDE examples) or **Inverse** (examples that learn unknown parameters or fields from data), and each list is ordered like the table, under ODE / 1D / 2D / 3D headings. Every name follows one style, *Equation Dimension – detail*. The table's **Source** column says where each example comes from:
 
 - **PINNStudio templates** (15, in 14 rows of the table: row 23 holds the two Allen-Cahn 1D templates): our own problems; most reproduce a published PINN result, and the Source column names and links that paper (the heat and the disk/sphere Poisson templates are our own and show "—"). Each one works in **Forward** mode, and all but the two Cahn-Hilliard 1D templates in **Inverse** mode too (picked from the Inverse list, it loads in Inverse mode with its measured-data file); all of them ship with reference data in [`reference_data/`](reference_data), so Error Analysis is ready as soon as you load one.
-- **DeepXDE examples** (40 forward, 10 inverse): the **DeepXDE** link in the Source column opens each one's script in DeepXDE's repository. These are the PINN examples from DeepXDE's documentation ([forward](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward.html), [inverse](https://deepxde.readthedocs.io/en/latest/demos/pinn_inverse.html)), set up with each script's own equation, geometry, boundary/initial conditions, network, optimizers, iteration counts and loss weights, so pressing **Solve** trains what the DeepXDE script trains. Anything that differs from the script is printed in the Training Log when the example loads, and noted in its entry below.
+- **DeepXDE examples** (40 forward, 10 inverse): the **DeepXDE** link in the Source column opens each one's script in DeepXDE's repository. These are the PINN examples from DeepXDE's documentation ([forward](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward.html), [inverse](https://deepxde.readthedocs.io/en/latest/demos/pinn_inverse.html)), set up with each script's own equation, geometry, boundary/initial conditions, network, optimizers, iteration counts and loss weights, so pressing **Solve** trains what the DeepXDE script trains. Anything that differs from the script is printed in the Training Log when the example loads, and noted in its entry below. Their results are what DeepXDE's own settings give, so some show a noticeable error: Brinkman-Forchheimer finds $\nu_e$ only to within about 50% from its five measurements (as DeepXDE's script does), and the unknown-field examples learn the field to a few percent (13% for the forcing field trained in batches). They are kept as in DeepXDE so the two can be compared; more training, more points or the methods under *Tips* below usually improve them, as for PINNStudio's own templates.
 
 Loading an example fills in every setting, and you can change any of them before pressing **Solve**; if you do, the Training Log lists what you changed. Your save folder, GPU, random-seed and plot-style settings are kept when you load one.
 
@@ -1956,7 +1956,7 @@ where $c_1^2 = 0.0001$ and $c_2 = 1$.
 - **Time-Adaptive default:** on — $t \in [0,1]$ split into 4 steps of 0.25, L-BFGS transfer learning between steps
 - **In PINNStudio:** Examples → **Forward** (or **Inverse**) → **Allen-Cahn 2D – Mattey & Ghosh**
 
-**Result (RTX 4090):** $L_2$ = 6.0 × 10⁻³ ($t = 0$), 5.6 × 10⁻³ ($t = 0.25$), 5.5 × 10⁻³ ($t = 0.5$), 5.6 × 10⁻³ ($t = 0.75$), 6.7 × 10⁻³ ($t = 1$), against the reference data in [`reference_data/2D/allen_cahn_mattey`](reference_data/2D/allen_cahn_mattey). Inverse mode: $c_2$ = 1.050 (true 1); $c_1^2$ = 1.66 × 10⁻⁴ (true 1 × 10⁻⁴) is not recovered — the small diffusion coefficient is only weakly determined by the data, as in the 1D Allen-Cahn template.
+**Result (RTX 4090):** $L_2$ = 6.0 × 10⁻³ ($t = 0$), 5.6 × 10⁻³ ($t = 0.25$), 5.5 × 10⁻³ ($t = 0.5$), 5.6 × 10⁻³ ($t = 0.75$), 6.7 × 10⁻³ ($t = 1$), against the reference data in [`reference_data/2D/allen_cahn_mattey`](reference_data/2D/allen_cahn_mattey). Inverse mode: $c_1^2$ = 1.031 × 10⁻⁴ (true 1 × 10⁻⁴, 3% off), $c_2$ = 1.001 (true 1).
 
 ![2D Allen-Cahn (Mattey & Ghosh) — PINN vs Ground Truth, Error Analysis surface comparison](assets/Images/2D_Allen_Cahn_Mattey/surface_comparison.png)
 
@@ -1976,9 +1976,9 @@ Result: $L_2$ = 2.0 × 10⁻⁵ ($t = 0$), 3.4 × 10⁻⁴ ($t = 0.25$), 5.0 × 
 
 ![2D Allen-Cahn (Mattey & Ghosh) — restored solution animation](assets/Images/2D_Allen_Cahn_Mattey/restored_animation.gif)
 
-*Inverse mode* — same template, switched to **Inverse**, jointly recovering both $c_1^2$ (interfacial-thickness-squared) and $c_2$ (reaction) as unknown parameters; $c_2$'s initial guess starts at $0.1$ rather than $1.0$, since $1.0$ is already its true value. The live convergence animation below shows both estimates during training.
+*Inverse mode* — same template, switched to **Inverse**, jointly recovering both $c_1^2$ (interfacial-thickness-squared) and $c_2$ (reaction) as unknown parameters; $c_2$'s initial guess starts at $0.1$ rather than $1.0$, since $1.0$ is already its true value. The template measures $u$ at every reference time after $t = 0$ ($t$ = 0.25, 0.5, 0.75 and 1, four data files, each with weight 100) and trains with Adam 20,000 → L-BFGS 20,000 (Forward keeps L-BFGS 10,000). The animation below shows both estimates during training; $c_1^2$ is briefly negative early on, the gap on the log axis.
 
-**Inverse result (RTX 4090):** $c_2$ = 1.050 (true 1, 5% off), but $c_1^2$ = 1.66 × 10⁻⁴ (true 10⁻⁴, 66% off), from $u$ measured at $t = 1$. The interface thickness is the harder one to find from a single snapshot.
+**Inverse result (RTX 4090):** $c_1^2$ = 1.031 × 10⁻⁴ (true 10⁻⁴, 3% off), $c_2$ = 1.0007 (true 1, 0.07% off); $L_2$ = 1.1 × 10⁻³ ($t = 0.25$) to 1.0 × 10⁻³ ($t = 1$). The interface thickness is the harder one to find: from $u$ at $t = 1$ alone, with L-BFGS 10,000, $c_1^2$ came out 66% off.
 
 ![2D Allen-Cahn (Mattey & Ghosh) inverse parameter convergence animation](assets/Images/2D_Allen_Cahn_Mattey/param_convergence_animation.gif)
 
@@ -2166,9 +2166,9 @@ $$\Large -\frac{\partial^2 u}{\partial x^2} - \frac{\partial^2 u}{\partial y^2} 
 
 ![3D Poisson (Sphere) — PINN vs Ground Truth, Error Analysis surface comparison](assets/Images/3D-Poisson-Sphere/surface_comparison.png)
 
-*Inverse mode* — same template, switched to **Inverse**, recovering the source term (fixed at $1$ in Forward mode above) as an unknown parameter; the live convergence plot below shows the estimate settling onto its true value during training:
+*Inverse mode* — same template, switched to **Inverse**, recovering the source term (fixed at $1$ in Forward mode above) as an unknown parameter from 300 measured points; the convergence animation below shows the estimate settling onto its true value during training:
 
-![3D Poisson (Sphere) inverse source-term parameter convergence](assets/Images/3D-Poisson-Sphere/sourceterm_inverse_plot.png)
+![3D Poisson (Sphere) inverse parameter convergence animation](assets/Images/3D-Poisson-Sphere/param_convergence_animation.gif)
 
 </details>
 
@@ -2193,6 +2193,12 @@ where $\lambda = 10$ and $\varepsilon = 0.05$ ($\lambda\varepsilon^2 = 0.025$). 
 The figure is the slice $z = 0.5$ through the centre of the sphere (PINN, reference, error): the bubble stays round and shrinks, and the largest pointwise error, about 0.013, sits on its interface.
 
 ![3D Allen-Cahn — slice z = 0.5, PINN vs reference](assets/Images/3D_AllenCahn-Wight/slice_comparison.png)
+
+*Inverse mode* — same template, switched to **Inverse**, recovering the two coefficients as they are written in the PDE box, the reaction coefficient $\lambda$ and the diffusion coefficient $\lambda\varepsilon^2$ (initial guesses 1, true values 10 and 0.025), from $u$ measured at $t = 1$ on every second point of the $51^3$ reference grid (*Measured data → Use: Grid, 26 points per axis*, 17,576 points).
+
+**Inverse result (RTX 4090):** $\lambda$ = 9.983 (true 10, 0.2% off), $\lambda\varepsilon^2$ = 0.024989 (true 0.025, 0.04% off); $L_2$ = 4.1 × 10⁻⁴ ($t = 0.25$) to 8.3 × 10⁻⁵ ($t = 1$).
+
+![3D Allen-Cahn (Wight & Zhao) inverse parameter convergence animation](assets/Images/3D_AllenCahn-Wight/param_convergence_animation.gif)
 
 </details>
 
@@ -2278,7 +2284,7 @@ $$\Large \frac{\partial \mathbf u}{\partial t} + (\mathbf u\cdot\nabla)\mathbf u
 
 </details>
 
-> **Tips.** What improves accuracy depends on the problem; the [training methods study](benchmarks/training_methods.md) measured it on 14 of them. On hard time-dependent problems (sharp fronts, phase fields), first make periodicity and the initial condition exact, then try time-adaptive training, or causal training with a per-point weighting method; on a problem a plain PINN already solves well these can make the result worse, so compare with a plain run. More collocation points help where the solution changes sharply.
+> **Tips.** What improves accuracy depends on the problem; the [training methods study](benchmarks/training_methods.md) measured it on 14 of them. On hard time-dependent problems (sharp fronts, phase fields), first make periodicity and the initial condition exact, then try time-adaptive training, or causal training with a per-point weighting method; on a problem a plain PINN already solves well these can make the result worse, so compare with a plain run. More collocation points help where the solution changes sharply. For an inverse problem, measured data at several times usually pins the parameters down much better than one snapshot, and a parameter that is still moving when training stops needs more iterations: Allen-Cahn 2D – Mattey & Ghosh found its $c_1^2$ 66% off from $u$ at $t = 1$ alone and 3% off from $u$ at four times with a longer L-BFGS phase. A sweep over the measured data (*Measured data: grid points per axis*) shows how much data the parameters need.
 >
 > **Inverse problems with a lot of measured data:** every measured point is used at every training step (the network is fitted to it, and the equation is checked there too), so a file with tens of thousands of points makes training much slower, above all on the CPU. A few hundred to a few thousand points spread over the domain are often enough to find a few parameters; if a run is too slow, set *Use* under Measured data to a coarser grid or fewer random points (see below), untick *Check the equation at the measured points too*, or train on a GPU. PINNStudio says so in the log when the data has 20,000 points or more.
 

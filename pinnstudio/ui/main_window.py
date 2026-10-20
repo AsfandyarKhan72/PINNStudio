@@ -9665,7 +9665,7 @@ class MainWindow(QMainWindow):
         mt = getattr(self, "_tpl_mode_training", None)
         if not mt or mt[0] != getattr(self, "_current_template", None):
             return None
-        keys = ('ic_hard', 'ic_active', 'periodic_inputs', 'causal', 'network_type', 'msffn_sigmas')
+        keys = ('ic_hard', 'ic_active', 'periodic_inputs', 'causal', 'network_type', 'msffn_sigmas', 'iterations2')
         base = {k: mt[1][k] for k in keys if k in mt[1]}
         try:
             json.dumps([base, mt[2]])
@@ -10738,6 +10738,14 @@ class MainWindow(QMainWindow):
         # Both velocity components measured at t = 1, each against its own
         # output (a single file would leave the other component unmeasured,
         # and the end-time default picked V's file for output U).
+        # u measured at every reference time after t = 0: from t = 1 alone
+        # c1^2 came out 66% off, from all four 3% (the inverse study of
+        # October 2026, with L-BFGS 20,000, see the template's
+        # inverse_training).
+        "2D Allen-Cahn (Mattey & Ghosh)": [
+            (os.path.join(REFERENCE_DATA_DIR, "2D", "allen_cahn_mattey", f"t_{_t}.txt"), 0, 100.0)
+            for _t in ("0.25", "0.5", "0.75", "1.0")
+        ],
         "2D Burgers (Mathias)": [
             (os.path.join(REFERENCE_DATA_DIR, "2D", "burgers_mathias", "t_1.0_u.txt"), 0, 100.0),
             (os.path.join(REFERENCE_DATA_DIR, "2D", "burgers_mathias", "t_1.0_v.txt"), 1, 100.0),
@@ -13667,19 +13675,24 @@ print("DOMAIN_PREVIEW_DONE")
             return
         _key, base, inv = mt
         t = dict(base, **inv) if is_inv else base
-        if is_inv:
-            self._mode_forward_sigmas = self.msffn_sigmas_edit.text()
-        ic_on = t.get('ic_active', [])
-        for i, cb in enumerate(self.ic_active):
-            cb.setChecked(bool(ic_on[i]) if i < len(ic_on) else True)
-        self._tpl_set_extras(t)
-        if not is_inv and getattr(self, "_mode_forward_sigmas", None) is not None:
-            self.msffn_sigmas_edit.setText(self._mode_forward_sigmas)
-        n_out = self.num_outputs_spin.value()
-        self._tpl_set_ic_weights(n_out, 100.0)
-        if is_inv:
-            self.log_box.append("   Inverse trains on the whole time interval (no time-adaptive training there), "
-                                "with an exact initial condition, periodic inputs, causal training and an MsFFN network.")
+        if set(inv) & {'ic_hard', 'ic_active', 'periodic_inputs', 'causal', 'network_type', 'msffn_sigmas'}:
+            if is_inv:
+                self._mode_forward_sigmas = self.msffn_sigmas_edit.text()
+            ic_on = t.get('ic_active', [])
+            for i, cb in enumerate(self.ic_active):
+                cb.setChecked(bool(ic_on[i]) if i < len(ic_on) else True)
+            self._tpl_set_extras(t)
+            if not is_inv and getattr(self, "_mode_forward_sigmas", None) is not None:
+                self.msffn_sigmas_edit.setText(self._mode_forward_sigmas)
+            self._tpl_set_ic_weights(self.num_outputs_spin.value(), 100.0)
+        if 'iterations2' in inv and t.get('iterations2'):
+            # the L-BFGS phase: Inverse can need more of it than Forward
+            for ph in getattr(self, "sched_phase_list", []):
+                if ph['opt'].currentData() == 'lbfgs' or ph['opt'].currentText().lower().startswith('l-bfgs'):
+                    ph['iters'].setValue(int(t['iterations2']))
+                    break
+        if is_inv and inv.get('note'):
+            self.log_box.append("   " + inv['note'])
 
     def _on_template_selected(self, text):
         if text == "📋 Examples":
@@ -13777,6 +13790,10 @@ print("DOMAIN_PREVIEW_DONE")
                 # way (1.0 times anything is a no-op).
                 'pde': ["du_t - 0.0001*(du_xx + du_yy) + 1.0*(u**3 - u)"],
                 'ic': ["sin(4*pi*x)*cos(4*pi*y)"],
+                # Inverse: L-BFGS 20,000 with u measured at every reference
+                # time (INVERSE_AUTO_OBS): c1^2 3% off, against 66% from
+                # t = 1 alone with L-BFGS 10,000.
+                'inverse_training': {'iterations2': 20000},
                 'num_domain': 10000,
                 'num_boundary': 400,
                 'num_initial': 512,
@@ -14273,7 +14290,10 @@ print("DOMAIN_PREVIEW_DONE")
                 # whole interval -- with the whole-interval template's
                 # setup, which finds gamma_1 to 0.5% (15% without it).
                 'inverse_training': {'ic_hard': [True], 'ic_active': [False], 'periodic_inputs': True,
-                                     'causal': True, 'network_type': 'MsFFN', 'msffn_sigmas': '1, 5'},
+                                     'causal': True, 'network_type': 'MsFFN', 'msffn_sigmas': '1, 5',
+                                     'note': "Inverse trains on the whole time interval (no time-adaptive "
+                                             "training there), with an exact initial condition, periodic "
+                                             "inputs, causal training and an MsFFN network."},
             },
             # The same problem trained on the whole time interval in one run,
             # with the best setup of the training methods study
