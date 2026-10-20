@@ -656,7 +656,8 @@ class FigureStyleDialog(QDialog):
             view["n_steps_anim"] = self.frames.value()
             for ax, (cb, sp) in self.slices.items():
                 view[f"line_slice_{ax}_auto"] = cb.isChecked()
-                view[f"line_slice_{ax}"] = sp.value()
+                if not cb.isChecked():   # the middle is worked out at plot time
+                    view[f"line_slice_{ax}"] = sp.value()
             w._restore_viz_settings = view
             if hasattr(w, "restore_tsteps_spin"):
                 anim = "Animation" in w.restore_viz_combo.currentText()
@@ -666,7 +667,9 @@ class FigureStyleDialog(QDialog):
             w.timesteps_spin_anim.setValue(self.frames.value())
             for ax, (cb, sp) in self.slices.items():
                 getattr(w, f"line_slice_{ax}_auto_cb").setChecked(cb.isChecked())
-                getattr(w, f"line_slice_{ax}_spin").setValue(sp.value())
+                if not cb.isChecked():   # with "middle" ticked the value isn't used;
+                    # writing the shown middle in marked every 2D/3D problem changed
+                    getattr(w, f"line_slice_{ax}_spin").setValue(sp.value())
         try:
             w.log_box.append("✅ Plot settings saved")
         except Exception:

@@ -66,6 +66,15 @@ class ExampleCombo(QComboBox):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.currentIndexChanged.connect(self._emit_key)
+        # picking the example already shown loads it again (after edits, or
+        # after a saved problem was opened over it)
+        self._changed_now = False
+        self.activated.connect(self._reactivated)
+
+    def _reactivated(self, _i):
+        if not self._changed_now:
+            self._emit_key(_i)
+        self._changed_now = False
 
     def set_entries(self, entries):
         """Entries with `hidden` set (templates a DeepXDE example replaces)
@@ -112,6 +121,8 @@ class ExampleCombo(QComboBox):
             self.setCurrentIndex(i)
 
     def _emit_key(self, _i):
+        self._changed_now = True     # cleared once this event is handled
+        QTimer.singleShot(0, lambda: setattr(self, "_changed_now", False))
         k = self.currentData()
         if isinstance(k, str):
             self.keyChanged.emit(k)
@@ -418,6 +429,15 @@ class SweepThread(QThread):
 
 
 # --- Update-check background thread ---
+def _safe_file_stem(name):
+    """A suggested file name without the characters a file name can't hold:
+    "Poisson 1D – Dirichlet/Neumann" was offered as a folder "Poisson 1D –
+    Dirichlet" and a file "Neumann", and "Inverse: Lorenz system" has a colon
+    Windows refuses."""
+    import re as _re
+    return _re.sub(r'\s*[\\/:*?"<>|]+\s*', ' - ', str(name)).strip(' -') or "problem"
+
+
 class UpdateCheckThread(QObject):
     """Fetches the latest published version from PyPI without blocking the GUI.
 
@@ -6737,9 +6757,6 @@ class MainWindow(QMainWindow):
         # than they set (time-step groups, the 3D Allen-Cahn initial
         # condition after 3D Poisson, the sphere's centre), so a template
         # loaded second used to keep some of the first one's settings.
-        # Forward or Inverse as chosen: the example loads in Forward and is
-        # switched to Inverse below, the same way as from the Inverse list
-        _was_inverse = self.radio_inverse.isChecked()
         self._apply_fresh_settings()
         self._tpl_output_scaled = self._tpl_input_features = False
         self._tpl_output_formula = self._tpl_point_weights = False
@@ -6748,16 +6765,20 @@ class MainWindow(QMainWindow):
         self._on_template_selected(text)
         self._settings_from = "template"
         # The Inverse category loads a template in Inverse mode (which brings
-        # in the template's own measured-data file). The Forward list leaves
-        # the Forward/Inverse choice as it is, as before.
+        # in the template's own measured-data file), the Forward list in Forward.
         if getattr(self, '_current_template', '') in _ex_catalog.FORWARD_ONLY_TEMPLATES:
             # no Inverse mode for this template (see FORWARD_ONLY_TEMPLATES)
             if self.radio_inverse.isChecked():
                 self.radio_forward.setChecked(True)
                 self.log_box.append(f"ℹ️ {text} has no Inverse mode: loaded in Forward.")
-        elif ((self.quick_examples_category_combo.currentText() == _ex_catalog.INVERSE or _was_inverse)
-                and not self.radio_inverse.isChecked()):
-            self.radio_inverse.setChecked(True)
+        elif self.quick_examples_category_combo.currentText() == _ex_catalog.INVERSE:
+            if not self.radio_inverse.isChecked():
+                self.radio_inverse.setChecked(True)
+        elif self.radio_inverse.isChecked():
+            # the Forward list (and the Start page) load in Forward, like the
+            # DeepXDE examples: before, a template picked after an Inverse
+            # example stayed Inverse, so it loaded differently by what came before
+            self.radio_forward.setChecked(True)
         self._current_problem_name = text
         self._current_path = None
         self._mark_clean()
@@ -9708,7 +9729,7 @@ class MainWindow(QMainWindow):
             if from_template:
                 default_name = f"{_ex_catalog.display_name(default_name)} (copy)"
             path, _ = QFileDialog.getSaveFileName(
-                self, "Save Problem As", f"{default_name}.pinn.json",
+                self, "Save Problem As", f"{_safe_file_stem(default_name)}.pinn.json",
                 "PINNStudio Problem (*.pinn.json)"
             )
         if not path:
@@ -9870,7 +9891,11 @@ class MainWindow(QMainWindow):
         # checks these (validate()) before every run. The file is still
         # opened, with what needs fixing listed: a problem saved half done
         # (Inverse with no measured-data file picked yet) must open again.
-        _val_errors = config.validate()
+        try:
+            _val_errors = config.validate()
+        except Exception as e:   # a value of the wrong type, e.g. "num_domain": "2000"
+            self.log_box.append(f"❌ Failed to parse problem file: a value has the wrong type ({e}).")
+            return
         try:
             _before = self._build_config()
         except Exception:
@@ -9892,6 +9917,11 @@ class MainWindow(QMainWindow):
         self._current_problem_name = problem_name
         self._current_path = path
         self._restore_template_origin(data.get("template") if isinstance(data, dict) else None)
+        # the list no longer shows the example that was loaded before
+        self.quick_examples_combo.blockSignals(True)
+        self.quick_examples_combo.setCurrentText("None")
+        self.quick_examples_combo.blockSignals(False)
+        self._shown_example = None
         self._add_recent(path)
         self._mark_clean()
         self.log_box.append(f"✅ Problem loaded: {problem_name}")
@@ -9916,7 +9946,7 @@ class MainWindow(QMainWindow):
         DeepXDE code, and run/edit it themselves outside the app."""
         default_name = getattr(self, "_current_problem_name", "") or "problem"
         path, _ = QFileDialog.getSaveFileName(
-            self, "Export as DeepXDE Script", f"{default_name}.py",
+            self, "Export as DeepXDE Script", f"{_safe_file_stem(default_name)}.py",
             "Python Script (*.py)"
         )
         if not path:
@@ -10287,7 +10317,11 @@ class MainWindow(QMainWindow):
         # different widths per layer (e.g. [2, 100, 50, 1]) are kept as they
         # are, instead of every layer taking the first one's width
         self.layer_widths_edit.setText(", ".join(str(int(v)) for v in _hidden) if len(set(_hidden)) > 1 else "")
-        self.activation_combo.setCurrentText(self._canonical_activation_label(config.activation))
+        _act = self._canonical_activation_label(config.activation)
+        self.activation_combo.setCurrentText(_act)
+        if self.activation_combo.currentText() != _act:
+            self.log_box.append(f"⚠️ Unknown activation \"{config.activation}\" in the file: "
+                                f"{self.activation_combo.currentText()} is used instead.")
         self.kernel_init_combo.setCurrentText(config.kernel_initializer)
         self.network_type_combo.setCurrentText(getattr(config, 'network_type', 'FNN') or 'FNN')
         self.msffn_sigmas_edit.setText(getattr(config, 'msffn_sigmas', '1, 10') or '1, 10')
@@ -11447,8 +11481,10 @@ class MainWindow(QMainWindow):
         self.loss_label._source_path = None
         self.solution_label._source_path = None
         for _p in ["/tmp/loss_plot.png", "/tmp/solution_plot.png", "/tmp/solution_plot.gif", "/tmp/param_plot.png"]:
-            if os.path.exists(_p):
+            try:   # another user's file in a shared /tmp can't be removed
                 os.remove(_p)
+            except OSError:
+                pass
         self._log_example_changes(config)
         self._note_large_data(config)
         self._start_progress(config)
@@ -12088,7 +12124,7 @@ class MainWindow(QMainWindow):
             else:
                 self.log_box.append("ℹ️ No error analysis configured — click 'Error Analysis' before training.")
 
-        else:
+        elif not getattr(self, "_stopped", False):   # a Stop is not an error
             self.log_box.append("\n❌ Error during training. Check log above.")
             self.log_box.append("💡 Tip: Check PDE/IC syntax — use * for multiplication (e.g. 5*u not 5u)")
 

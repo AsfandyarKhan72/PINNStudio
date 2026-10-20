@@ -40,6 +40,18 @@ def _load(w, category, name):
     return cfg
 
 
+def _free(w):
+    """Close and really delete a window: about 80 of them otherwise stay in
+    memory and the test runs out of it on a 7 GB machine."""
+    import gc
+    from PyQt6.QtCore import QCoreApplication, QEvent
+    w.close()
+    w.deleteLater()
+    QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete.value)
+    app.processEvents()
+    gc.collect()
+
+
 @pytest.mark.parametrize("target", [("Forward", "Allen-Cahn 1D – Wight & Zhao (whole interval)"),
                                     ("Inverse", "Heat 2D"), ("Forward", "Heat 3D")])
 def test_template_after_deepxde_example(target):
@@ -74,7 +86,7 @@ def test_examples_in_a_row(category):
         got = _load(w, category, n)
         fresh_w = MainWindow()
         fresh = _load(fresh_w, category, n)
-        fresh_w.close()
+        _free(fresh_w)
         diff = sorted(k for k in fresh if fresh[k] != got[k] and k != "y_min")
         if diff:
             bad.append(f"{n} (after {prev}): {diff}")

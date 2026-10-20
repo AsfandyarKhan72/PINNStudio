@@ -260,6 +260,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **Loading examples and opening problems:**
+  - Picking the example already shown in the list did nothing, so an edited example couldn't be loaded again that way. After opening a saved problem the list still showed the example from before, and picking it did nothing either. Now it loads again (after the save prompt), and the list goes back to "None" when a problem is opened.
+  - A template from the Forward list or the Start page loaded in Inverse mode if an Inverse example was loaded before it, so it loaded differently depending on what came before. It loads in Forward now, like the DeepXDE examples.
+  - A hand-edited problem file with a value of the wrong type (`"num_domain": "2000"`, `"x_max": null`) gave an error dialog. It is refused with a message in the log, like other broken files. An unknown activation in a file is now mentioned in the log instead of being quietly replaced by tanh.
+  - Save As and Export suggested names with "/" or ":" in them ("Poisson 1D – Dirichlet/Neumann" was read as a folder, and "Inverse: Lorenz system" isn't allowed on Windows). These become " - ".
+- **Plot settings → OK with nothing changed marked every 2D/3D problem as changed**: the line-slice box showed the middle of the domain and OK wrote it in, so loading the next example asked to save. The value is only written when "middle of the domain" is unticked.
+- **Stop was reported as an error**: after "Stopped by user" the log also said "Error during training" with the PDE syntax tip.
+- Solve no longer fails when an old plot in a shared `/tmp` belongs to another user and can't be removed.
 - **Values entered were changed without notice:**
   - Number boxes (loss weights, initial guesses and true values, data weights, L-BFGS options, weight decay) kept 3 significant digits: 1.2345 × 10⁻⁵ became 1.23 × 10⁻⁵ and a maxiter of 1,234,567 became 1,230,000, and the rounded value was what trained and was saved. They keep up to 12 now.
   - Plot settings lists replaced a value not in the list with the first item: a DeepXDE example's grid of 500 became 80 just by opening the dialog. They keep it now, and DPI, grid, frame rate, line widths and colormap can be typed.
