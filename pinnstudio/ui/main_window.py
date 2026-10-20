@@ -4994,10 +4994,10 @@ class MainWindow(QMainWindow):
         # the animation play back slower/smoother. _on_line_plot_settings
         # picks the right one based on which plot type is active.
         self.timesteps_spin_line = QSpinBox()
-        self.timesteps_spin_line.setRange(2, 20); self.timesteps_spin_line.setValue(5)
+        self.timesteps_spin_line.setRange(2, 50); self.timesteps_spin_line.setValue(5)
         self.timesteps_spin_line.setVisible(False)
         self.timesteps_spin_anim = QSpinBox()
-        self.timesteps_spin_anim.setRange(2, 20); self.timesteps_spin_anim.setValue(20)
+        self.timesteps_spin_anim.setRange(2, 500); self.timesteps_spin_anim.setValue(20)
         self.timesteps_spin_anim.setVisible(False)
 
         # Hidden value-holders for the 2D/3D line-type plots' y/z slice

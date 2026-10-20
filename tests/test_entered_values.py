@@ -78,6 +78,10 @@ def test_small_rates_and_wide_limits():
     assert w.t_min.value() == -1.0
     w.num_domain.setValue(1_000_000)
     assert w._build_config().num_domain == 1_000_000
+    w.timesteps_spin_anim.setValue(120)                 # animations were capped at 20 frames
+    w.timesteps_spin_line.setValue(30)
+    c = w._build_config()
+    assert (c.num_timesteps_anim, c.num_timesteps_line) == (120, 30)
     w.close()
 
 

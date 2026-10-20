@@ -266,6 +266,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - Iterations were capped at 500,000, points at 200,000 (boundary and initial at 50,000), networks at 8 layers of 512, and time could not start below 0. The limits are now 100 million iterations, 10 million points (2 million boundary or initial), 50 layers of 4,096, and negative times.
   - A network with different widths per layer (e.g. [2, 100, 50, 1]) reopened with every layer the first one's width. *Network → Widths per layer* now keeps such a network, and any can be typed.
   - Typed loss weights went back to 1 (100 for an IC) when a BC changed type, a training phase was added, *Same weights for all phases* was switched, Steady-state was switched or the geometry changed. They are kept now; per-phase weights start from the shared ones.
+  - Animations could have at most 20 frames and *Line (time steps)* at most 20 steps. Now up to 500 frames and 50 steps.
   - The default colormap was `jet` in the window, `RdBu_r` for a config without one and `viridis` in Restore's error analysis; it is `jet` everywhere.
 - **The Solve script and the exported script trained differently with the same settings:**
   - L-BFGS in float64 ran the whole Solve run in float64 but then switched the network back to float32 after the L-BFGS phase; the exported script ignored the setting. Both now run the whole training in float64.
