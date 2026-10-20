@@ -523,6 +523,7 @@ class MainWindow(QMainWindow):
         self._gpu_device_index = 0
         self._gpu_memory_fraction = 0.95
         self._train_device = "auto"
+        self._cpu_threads = 0
         self._use_random_seed = True
         self._random_seed = 2026
         # ── Per-category display settings (font family/size/weight/color for
@@ -6595,7 +6596,7 @@ class MainWindow(QMainWindow):
     # problem: loading a DeepXDE example keeps them as they are (unless the
     # example itself sets one, e.g. a coarser plot grid for a 3D problem).
     _DEEPXDE_KEEP_FIELDS = (
-        "save_dir", "sweep_save_dir", "sweep_label", "gpu_device_index", "gpu_memory_fraction", "train_device",
+        "save_dir", "sweep_save_dir", "sweep_label", "gpu_device_index", "gpu_memory_fraction", "train_device", "cpu_threads",
         "use_random_seed", "random_seed",
         "plot_colormap", "plot_levels", "plot_dpi", "plot_colorbar", "plot_figsize_mode",
         "plot_figsize_w", "plot_figsize_h", "plot_linewidth", "plot_linewidth_anim", "plot_fps",
@@ -9524,6 +9525,7 @@ class MainWindow(QMainWindow):
             gpu_device_index=getattr(self, '_gpu_device_index', 0),
             gpu_memory_fraction=getattr(self, '_gpu_memory_fraction', 0.95),
             train_device=getattr(self, '_train_device', "auto"),
+            cpu_threads=int(getattr(self, '_cpu_threads', 0) or 0),
             use_random_seed=getattr(self, '_use_random_seed', True),
             random_seed=getattr(self, '_random_seed', 2026),
             ic_pretrain=self.ic_pretrain_cb.isChecked(),
@@ -10401,6 +10403,7 @@ class MainWindow(QMainWindow):
         self._gpu_device_index = getattr(config, 'gpu_device_index', 0)
         self._gpu_memory_fraction = getattr(config, 'gpu_memory_fraction', 0.95)
         self._train_device = getattr(config, 'train_device', "auto") or "auto"
+        self._cpu_threads = int(getattr(config, 'cpu_threads', 0) or 0)
         self._use_random_seed = getattr(config, 'use_random_seed', True)
         self._random_seed = getattr(config, 'random_seed', 2026)
 
@@ -12020,6 +12023,19 @@ class MainWindow(QMainWindow):
         where_row.addStretch(); where_row.addWidget(where_combo)
         layout.addLayout(where_row)
 
+        thr_row = QHBoxLayout()
+        thr_row.addWidget(QLabel("CPU threads:"))
+        thr_spin = QSpinBox()
+        thr_spin.setRange(0, max(1, os.cpu_count() or 1))
+        thr_spin.setSpecialValueText("Automatic")
+        thr_spin.setValue(int(getattr(self, '_cpu_threads', 0) or 0))
+        thr_spin.setFixedWidth(100)
+        thr_spin.setToolTip("Threads PyTorch uses when training on the CPU. Automatic: about one per\n"
+                            "performance core, at most 8. More threads than fast cores is usually slower\n"
+                            "(the slow cores hold every step back). See the README's Speed section.")
+        thr_row.addStretch(); thr_row.addWidget(thr_spin)
+        layout.addLayout(thr_row)
+
         dev_row = QHBoxLayout()
         dev_row.addWidget(QLabel("GPU device index:"))
         dev_spin = QSpinBox()
@@ -12050,6 +12066,7 @@ class MainWindow(QMainWindow):
             self._gpu_device_index = dev_spin.value()
             self._gpu_memory_fraction = mem_spin.value() / 100.0
             self._train_device = where_combo.currentData() or "auto"
+            self._cpu_threads = thr_spin.value()
             self.log_box.append(
                 "✅ Training on the CPU" if self._train_device == "cpu" else
                 f"✅ GPU settings: device {self._gpu_device_index}, "

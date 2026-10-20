@@ -136,3 +136,26 @@ def test_typed_loss_weights_survive_rebuilds():
     _pump()
     assert kept(), "Steady-state"
     w.close()
+
+
+def test_cpu_threads_setting():
+    from pinnstudio.core import codegen as cg
+    w = MainWindow()
+    c = w._build_config()
+    assert c.cpu_threads == 0
+    assert "min(8, (os.cpu_count() or 2) // 2)" in cg.generate_script(c), "Automatic: the old rule"
+    c.cpu_threads = 6
+    for gen in (cg.generate_script, cg.generate_clean_script):
+        assert "torch.set_num_threads(6)" in gen(c)
+    w2 = MainWindow()
+    w2._apply_config(c)
+    assert w2._build_config().cpu_threads == 6
+    w2.quick_examples_category_combo.setCurrentText("Forward")
+    _pump(2)
+    w2.quick_examples_combo.setCurrentText("Heat 1D – Dirichlet")
+    _pump()
+    assert w2._build_config().cpu_threads == 6, "a machine setting, kept when an example is loaded"
+    c.cpu_threads = -1
+    assert any("CPU threads" in e for e in c.validate())
+    w.close()
+    w2.close()

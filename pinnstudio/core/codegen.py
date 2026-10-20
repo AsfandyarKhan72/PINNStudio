@@ -4557,9 +4557,21 @@ def _effective_config(config):
 # and run times jump by 2-3 times between identical runs; a few threads
 # (about one per performance core) were faster and steady in the timing
 # study (README, "Speed"). OMP_NUM_THREADS, when set, still decides.
-_CPU_THREADS_CODE = """
+def _cpu_threads_code(config):
+    """CPU threads (GPU / Hardware settings): a number of your own, or
+    Automatic -- about one per performance core, at most 8."""
+    n = int(getattr(config, "cpu_threads", 0) or 0)
+    if n > 0:
+        return f"""
+# CPU training: {n} threads (GPU / Hardware settings -> CPU threads)
+if not torch.cuda.is_available():
+    torch.set_num_threads({n})
+"""
+    return """
 # CPU training: about one thread per performance core is faster and steadier
-# than PyTorch's one per core on processors with efficiency cores.
+# than PyTorch's one per core on processors with efficiency cores
+# (GPU / Hardware settings -> CPU threads: Automatic). OMP_NUM_THREADS, when
+# set, still decides.
 if not torch.cuda.is_available() and "OMP_NUM_THREADS" not in os.environ:
     torch.set_num_threads(max(1, min(8, (os.cpu_count() or 2) // 2)))
 """
@@ -4977,7 +4989,7 @@ warnings.filterwarnings("ignore", message=".*cuBLAS.*")
 if not torch.cuda.is_available() and str(getattr(torch, "get_default_device", lambda: "cpu")()).startswith("mps"):
     torch.set_default_device("cpu")
     print("  [Info] Training on the CPU (Apple GPU / MPS not used)")
-{_CPU_THREADS_CODE}
+{_cpu_threads_code(config)}
 
 # ── Plot Settings: figure-size standardization ─────────────────
 # Applied to every single-panel results plot below (Loss, Line, Surface,
@@ -11000,7 +11012,7 @@ import matplotlib.pyplot as plt
 if not torch.cuda.is_available() and str(getattr(torch, "get_default_device", lambda: "cpu")()).startswith("mps"):
     torch.set_default_device("cpu")
     print("  [Info] Training on the CPU (Apple GPU / MPS not used)")
-{_CPU_THREADS_CODE}''')
+{_cpu_threads_code(config)}''')
 
     if uses_nncg:
         parts.append('''_dxde_ver_parts = dde.__version__.split(".")[:3]

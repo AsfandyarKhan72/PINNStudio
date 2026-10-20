@@ -744,6 +744,9 @@ class PINNConfig:
     # where each step does not wait for the GPU (see the README's timing
     # section).
     train_device: str = "auto"
+    # CPU threads for CPU training: 0 = Automatic (about one per performance
+    # core, at most 8), or a number of your own.
+    cpu_threads: int = 0
 
     # Reproducibility. When on (the default), the generated script calls
     # dde.config.set_random_seed(random_seed) once, right at the start --
@@ -1197,6 +1200,8 @@ class PINNConfig:
                     "against, but no observation row has a file selected."
                 )
 
+        if int(self.cpu_threads or 0) < 0:
+            errors.append(f"CPU threads must be 0 (Automatic) or more; got {self.cpu_threads}.")
         if self.train_device not in ("auto", "cpu"):
             errors.append(f'Train on must be "auto" or "cpu"; got {self.train_device!r}.')
         if self.gpu_device_index < 0:
