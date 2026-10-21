@@ -44,6 +44,15 @@ def test_plain_path_and_untouched_values():
     assert from_portable(out, REF) == cfg
 
 
+def test_folder_names_keep_their_case(monkeypatch):
+    # Windows compares paths case-insensitively (normcase lowers them); the
+    # saved "@REF/2D/..." must still say "2D", or Linux and macOS can't find it.
+    monkeypatch.setattr(os.path, "normcase", lambda s: s.lower())
+    p = os.path.join(REF, "2D", "allen_cahn_wight", "t_2.5.txt")
+    out = to_portable({"ea_files": repr([(2.5, p, None)])}, REF)
+    assert "@REF/2D/allen_cahn_wight/t_2.5.txt" in out["ea_files"]
+
+
 def test_windows_style_ref_paths_are_resolved():
     out = from_portable({"x": "@REF/1D/heat/t_1.0.txt"}, REF)
     assert out["x"] == os.path.join(REF, "1D", "heat", "t_1.0.txt") and os.path.isfile(out["x"])

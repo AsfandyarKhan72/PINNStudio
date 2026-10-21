@@ -80,17 +80,22 @@ def _apply(value, fn):
 
 def _to_ref(ref_dir):
     root = _norm(ref_dir)
+    root_real = os.path.normpath(os.path.abspath(ref_dir))
 
     def fn(s):
         if not s or s.startswith(REF) or not _looks_absolute(s):
             return s
         try:
-            p = _norm(s)
+            p = _norm(s)        # case-folded on Windows: only for the comparison
             if os.path.commonpath([p, root]) != root or p == root:
                 return s
+            # the relative part keeps the folder names as written ("2D", not "2d")
+            rel = os.path.relpath(os.path.normpath(os.path.abspath(s)), root_real)
         except ValueError:      # another drive on Windows
             return s
-        return REF + "/".join(_parts(os.path.relpath(p, root)))
+        if rel.startswith(".."):  # only differs from the root in letter case
+            return s
+        return REF + "/".join(_parts(rel))
     return fn
 
 
