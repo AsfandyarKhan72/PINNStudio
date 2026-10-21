@@ -43,7 +43,17 @@ computer's own Python or GPU goes through that computer's runner.
 
 ## Windows chat: notes
 
-(none yet)
+- 2026-10-21: started. Plan: record the laptop's setup; install `cleanup` in a separate test
+  environment inside `PINNStudio_Windows` (own uv tool dir, own USERPROFILE for results and logs, so
+  the user's own install, shortcuts and results are not touched); check start-up, GPU use and all 81
+  examples (`tools/all_examples_check.py`); train a representative set on the GPU against the README
+  errors; then speed (`benchmarks/timing_study.py`, `benchmarks/gpu_check.py`) and Windows-specific
+  problems (paths with spaces / non-ASCII / long paths, Defender, console encoding, Stop and Ctrl+C,
+  shortcuts, updating over an old version).
+- 2026-10-21: the user's home folder on this laptop is `C:\Users\CMD LAB`, with a space. That broke the
+  job runner straight away (PowerShell 5.1's `Start-Process -ArgumentList` does not quote arguments, so
+  `-File C:\Users\CMD LAB\...\run.ps1` was cut at the space; fixed in `runner.ps1`, which is not in the
+  repo). Good test case for PINNStudio itself: every path PINNStudio builds from `~` has a space here.
 
 ## Requests between chats
 
