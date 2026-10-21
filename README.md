@@ -1468,7 +1468,7 @@ $$\Large \frac{\partial u}{\partial t} + c\frac{\partial^2 v}{\partial x^2} + (u
 
 **Why $t = 0.75$.** Measured at $t = 1.5$ only, $|h|$ does not determine $c$: solving the equation with $c = 1.95$ gives an $|h|$ at $t = 1.5$ within 1% of the one for $c = 0.5$, and training from the guess $c = 1$ converges to 1.95, fitting the data at $t = 1.5$ while missing every other time by 27–60%. At $t = 0.75$ (or $0.5$) $|h|$ changes with $c$ in one direction only, and the true value is recovered.
 
-**Inverse result (RTX 4090):** $c$ = 0.50017 (true 0.5); $L_2$ of $|h|$ = 1.3 × 10⁻³ ($t = 0$), 9.7 × 10⁻⁴ ($t = 0.25$), 1.4 × 10⁻³ ($t = 0.5$), 2.2 × 10⁻⁴ ($t = 0.75$), 8.4 × 10⁻⁴ ($t = 1$), 1.3 × 10⁻³ ($t = 1.25$), 1.5 × 10⁻³ ($t = 1.5$)
+**Inverse result (RTX 4090):** this example depends a lot on the random seed, so it was run 12 times with different seeds. $c$ came out between 0.4964 and 0.5008 (true 0.5, within 0.7%) in 11 runs, and 0.515 (3% off) in one. $|h|$ always matches the data at $t = 0.75$ ($L_2$ about 3–6 × 10⁻⁴), but how well it is found at the other times varies: in 2 of the 12 runs $L_2$ stayed around 10⁻³ at every time (e.g. $c$ = 0.50017, $L_2$ = 1.3 × 10⁻³ at $t = 0$ and 1.5 × 10⁻³ at $t = 1.5$, the run shown below), in the others it is 2 × 10⁻² to 1 × 10⁻¹ away from $t = 0.75$. Data at more than one time would pin the solution down better.
 
 *Inverse mode — inferred parameter during training*
 
