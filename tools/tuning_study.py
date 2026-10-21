@@ -118,9 +118,45 @@ def _done(path):
     return seen
 
 
+TEMPLATE_PREFIX = "Template: "
+_app = None
+
+
+def template_config(key, inverse):
+    """The settings PINNStudio's own template `key` loads with, read from the
+    GUI (offscreen) the way the Examples list loads it."""
+    global _app
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    from PyQt6.QtWidgets import QApplication
+    _app = QApplication.instance() or QApplication(["pinnstudio"])
+    from pinnstudio.ui.main_window import MainWindow
+    w = MainWindow()
+    w._maybe_save_changes = lambda: True
+    _app.processEvents()
+    if inverse:
+        w.quick_examples_category_combo.setCurrentText("Inverse")
+        _app.processEvents()
+    else:
+        w.quick_examples_category_combo.setCurrentText("Forward")
+        _app.processEvents()
+    combo = w.quick_examples_combo
+    i = combo.findData(key)
+    if i < 0:
+        raise SystemExit(f"unknown template {key!r} ({'Inverse' if inverse else 'Forward'} list)")
+    combo.setCurrentIndex(i)
+    combo.activated.emit(i)
+    t0 = time.time()
+    while time.time() - t0 < 1.0:
+        _app.processEvents()
+    cfg = w._build_config()
+    w.close()
+    return cfg
+
+
 def run(args):
     names = [s for s in args.names.split("|") if s]
     by_name = {e.name: e for e in dx.EXAMPLES}
+    templates = [s for s in args.templates.split("|") if s]
     missing = [n for n in names if n not in by_name]
     if missing:
         raise SystemExit(f"unknown example(s): {missing}")
@@ -129,10 +165,15 @@ def run(args):
     os.makedirs(args.out, exist_ok=True)
     res_path = os.path.join(args.out, "results.jsonl")
     seen = _done(res_path)
-    for name in names:
-        ex = by_name[name]
-        inverse = args.inverse and ex.inverse is not None
-        base = dx.build_config(ex, REF_ROOT, inverse=inverse)
+    jobs = [(n, None) for n in names] + [(TEMPLATE_PREFIX + k, k) for k in templates]
+    for name, tkey in jobs:
+        if tkey is None:
+            ex = by_name[name]
+            inverse = args.inverse and ex.inverse is not None
+            base = dx.build_config(ex, REF_ROOT, inverse=inverse)
+        else:
+            inverse = args.inverse
+            base = template_config(tkey, inverse)
         true = {v["name"]: v.get("true") for v in json.loads(base.inverse_variables_json or "[]")}
         for variant in variants:
             cfg0 = apply_variant(base, variant)
@@ -218,6 +259,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default="")
     ap.add_argument("--names", default="", help="internal example names, '|' separates several")
+    ap.add_argument("--templates", default="", help="PINNStudio template names as the Examples list shows them, "
+                                                    "'|' separates several")
     ap.add_argument("--variants", default=",".join(VARIANTS))
     ap.add_argument("--seeds", default="2026")
     ap.add_argument("--inverse", action="store_true", help="run the Inverse-mode version where there is one")
@@ -228,8 +271,8 @@ def main():
     if args.summary:
         summary(args.summary)
     else:
-        if not args.out or not args.names:
-            raise SystemExit("--out and --names are needed")
+        if not args.out or not (args.names or args.templates):
+            raise SystemExit("--out and --names or --templates are needed")
         run(args)
 
 
