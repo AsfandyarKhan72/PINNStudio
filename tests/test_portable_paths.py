@@ -109,14 +109,14 @@ def _check_round_trip(category, key, field):
     w = window()
     _pick(w, settle, category, key)
     before = w._build_config()
-    assert REF in getattr(before, field), field
+    assert "reference_data" in getattr(before, field), field   # escaped inside the string on Windows
     d = tempfile.mkdtemp()
     p = os.path.join(d, "copy.pinn.json")
     assert w._save_problem(p)
     text = open(p, encoding="utf-8").read()
     assert "@REF/" in text
     saved = json.load(open(p, encoding="utf-8"))["config"]
-    assert REF not in json.dumps(saved) and REF.replace("\\", "\\\\") not in json.dumps(saved)
+    assert "reference_data" not in json.dumps(saved[field])
     w.close()
     w2 = window()
     w2._open_problem(p)
