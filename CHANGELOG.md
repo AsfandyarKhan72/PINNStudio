@@ -4,6 +4,16 @@ All notable changes to PINNStudio are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Fixed
+- The "newer version available" notice told everyone to run `pip install --upgrade pinnstudio`. For a copy installed with the one-command installer that updated (or created) a second copy somewhere else and left theirs old. It now gives the installer command for an installer copy, and for a pip copy the pip of the Python PINNStudio runs in. The command in the notice can be selected and copied.
+- When another PINNStudio (an older pip, venv or conda install) comes first on the PATH, the installers now say where it is, which version it is, and the exact command that removes it, in a block that is hard to miss, instead of one line at the end. Nothing is removed by the installer.
+
+### Added
+- The installers print the version they installed ("PINNStudio 1.5.0 installed.").
+- README: a note for anyone who installed with pip before to uninstall that copy first.
+
 ## [1.5.0] - 2026-10-21
 
 The first release since 1.4.0 (the 1.5.0 and 1.5.1 entries prepared on 2026-10-07 were never published; they are included here).

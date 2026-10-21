@@ -116,7 +116,9 @@ curl -LsSf https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/get
 powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/AsfandyarKhan72/PINNStudio/main/get-pinnstudio.ps1 | iex"
 ```
 
-The install takes a few minutes, and at the end it says whether training will run on the GPU. Then continue with the [Quick Start](#quick-start).
+The install takes a few minutes, and at the end it says which version was installed and whether training will run on the GPU. Then continue with the [Quick Start](#quick-start). Running the same command again updates PINNStudio.
+
+**Installed PINNStudio with `pip` before?** Run `pip uninstall pinnstudio` first, in the Python or conda environment you installed it in, or typing `pinnstudio` may still start the old copy. The icon the installer adds always opens the new one.
 
 <details>
 <summary><strong>Systems PINNStudio is tested on</strong></summary>

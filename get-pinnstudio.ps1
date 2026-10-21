@@ -44,6 +44,7 @@ if ($LASTEXITCODE -ne 0) { Fail "The installation failed (see the messages above
 uv tool update-shell *> $null
 $bin = (uv tool dir --bin).Trim()
 $toolPy = Join-Path (uv tool dir).Trim() "pinnstudio\Scripts\python.exe"
+$version = & $toolPy -c "import importlib.metadata as m; print(m.version('pinnstudio'))" 2>$null
 
 Write-Host ""
 & $toolPy -c "import pinnstudio.shortcut" 2>$null
@@ -66,14 +67,41 @@ if ($gpu) {
     Write-Host "No NVIDIA GPU found: PINNStudio will train on the CPU."
 }
 Write-Host ""
+if ($version) { Write-Host "PINNStudio $version installed." }
 if ($hasShortcut) { Write-Host "Done. Open PINNStudio from the Start menu or the desktop icon, or run: pinnstudio" }
 else { Write-Host "Done. Start PINNStudio with: pinnstudio" }
 Write-Host "(The pinnstudio command works in new PowerShell windows. In this one, run: & '$(Join-Path $bin 'pinnstudio.exe')')"
 # Another PINNStudio (an older pip, venv or conda install) found first on the
-# PATH would start instead of this one.
-$other = Get-Command pinnstudio -ErrorAction SilentlyContinue | Select-Object -First 1
-if ($other -and ($other.Source -ne (Join-Path $bin "pinnstudio.exe"))) {
-    Write-Host ""
-    Write-Host "Note: the pinnstudio command here runs $($other.Source),"
-    Write-Host "another (possibly older) installation. Remove it, or start this one with: & '$(Join-Path $bin 'pinnstudio.exe')'"
+# PATH would start instead of this one. Say where it is, which version, and
+# how to remove it; nothing is removed here, it belongs to the user's own
+# Python environment.
+function Get-OtherPython($exe) {   # the python.exe next to a pinnstudio.exe (a venv) or one folder up (Scripts\)
+    $dir = Split-Path $exe -Parent
+    foreach ($c in @((Join-Path $dir "python.exe"), (Join-Path (Split-Path $dir -Parent) "python.exe"))) {
+        if (Test-Path $c) { return $c }
+    }
+    return $null
 }
+
+function Show-OtherCopy($otherPath, $thisPath) {
+    if (-not $otherPath -or ($otherPath -eq $thisPath)) { return }
+    $opy = Get-OtherPython $otherPath
+    $over = ""
+    if ($opy) { $over = (& $opy -c "import importlib.metadata as m; print(m.version('pinnstudio'))" 2>$null) }
+    $label = if ($over) { " ($over)" } else { "" }
+    Write-Host ""
+    Write-Host "------------------------------------------------------------------" -ForegroundColor Yellow
+    Write-Host "Another PINNStudio$label is installed, and typing pinnstudio starts it:" -ForegroundColor Yellow
+    Write-Host "  $otherPath"
+    if ($opy) {
+        Write-Host "To remove it (recommended), run:"
+        Write-Host "  & '$opy' -m pip uninstall pinnstudio"
+    } else {
+        Write-Host "Remove it with the pip of the Python it was installed in (pip uninstall pinnstudio)."
+    }
+    Write-Host "The Start menu and desktop icons already open the version installed now; so does: & '$thisPath'"
+    Write-Host "------------------------------------------------------------------" -ForegroundColor Yellow
+}
+
+$other = Get-Command pinnstudio -ErrorAction SilentlyContinue | Select-Object -First 1
+if ($other) { Show-OtherCopy $other.Source (Join-Path $bin "pinnstudio.exe") }

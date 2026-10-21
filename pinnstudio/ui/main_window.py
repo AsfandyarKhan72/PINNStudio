@@ -879,9 +879,12 @@ class MainWindow(QMainWindow):
         except Exception:
             is_newer = False
         if is_newer:
+            from pinnstudio.core.update_info import update_command
             self.update_banner_label.setText(
-                f"🔔  A newer version of PINNStudio is available: {latest_version}  (you have {self._current_pkg_version}).   Update with:  pip install --upgrade pinnstudio"
+                f"🔔  A newer version of PINNStudio is available: {latest_version}  (you have {self._current_pkg_version}).   "
+                f"Close PINNStudio and update with:  {update_command()}"
             )
+            self.update_banner_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)   # to copy it
             self.update_banner.setVisible(True)
 
     def _build_ui(self):
@@ -970,8 +973,8 @@ class MainWindow(QMainWindow):
         banner_layout.setContentsMargins(12, 6, 12, 6)
         self.update_banner_label = QLabel("")
         self.update_banner_label.setStyleSheet("color: #002b36; font-weight: bold; background: transparent;")
-        banner_layout.addWidget(self.update_banner_label)
-        banner_layout.addStretch()
+        self.update_banner_label.setWordWrap(True)   # the installer command is long
+        banner_layout.addWidget(self.update_banner_label, 1)
         update_dismiss_btn = QPushButton("✕")
         update_dismiss_btn.setFixedSize(24, 24)
         update_dismiss_btn.setStyleSheet("background: transparent; color: #002b36; border: none; font-weight: bold;")

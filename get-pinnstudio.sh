@@ -24,6 +24,38 @@ version_ge() {      # version_ge A B: is A >= B?
     [ "$(printf '%s\n%s\n' "$2" "$1" | sort -t. -k1,1n -k2,2n -k3,3n | head -n1)" = "$2" ]
 }
 
+other_python() {    # the Python a pinnstudio command runs with
+    _py=$(head -n 1 "$1" 2>/dev/null | sed -n 's/^#![[:space:]]*//p' | awk '{print $1}')
+    case "$_py" in
+        */python*) [ -x "$_py" ] && { printf '%s\n' "$_py"; return; } ;;
+    esac
+    for _c in "$(dirname "$1")/python" "$(dirname "$1")/python3"; do
+        [ -x "$_c" ] && { printf '%s\n' "$_c"; return; }
+    done
+}
+
+report_other_copy() {   # report_other_copy <path of the pinnstudio command found first> <this install's command>
+    [ -n "$1" ] && [ "$1" != "$2" ] || return 0
+    _opy=$(other_python "$1")
+    _over=""
+    [ -n "$_opy" ] && _over=$("$_opy" -c "import importlib.metadata as m; print(m.version('pinnstudio'))" 2>/dev/null || true)
+    say ""
+    say "------------------------------------------------------------------"
+    say "Another PINNStudio${_over:+ ($_over)} is installed, and typing pinnstudio starts it:"
+    say "  $1"
+    if [ -n "$_opy" ]; then
+        say "To remove it (recommended), run:"
+        say "  \"$_opy\" -m pip uninstall pinnstudio"
+    else
+        say "Remove it with the pip of the Python it was installed in (pip uninstall pinnstudio)."
+    fi
+    say "The PINNStudio icon already opens the version installed now; so does $2"
+    say "------------------------------------------------------------------"
+}
+
+# tests source the functions above without installing anything
+[ "${PINNSTUDIO_INSTALLER_FUNCTIONS_ONLY:-}" = 1 ] && return 0 2>/dev/null
+
 if command -v uv >/dev/null 2>&1; then
     UV_VER=$(uv --version | awk '{print $2}')
     if ! version_ge "$UV_VER" "$UV_MIN"; then
@@ -44,6 +76,7 @@ uv tool install --upgrade --reinstall-package pinnstudio --refresh-package pinns
 uv tool update-shell >/dev/null 2>&1 || true
 BIN="$(uv tool dir --bin)"
 TOOL_PY="$(uv tool dir)/pinnstudio/bin/python"
+VERSION=$("$TOOL_PY" -c "import importlib.metadata as m; print(m.version('pinnstudio'))" 2>/dev/null || true)
 
 say ""
 WHERE="its icon in the app menu (Linux) or ~/Applications (macOS)"
@@ -67,13 +100,12 @@ else
     say "No NVIDIA GPU found: PINNStudio will train on the CPU."
 fi
 say ""
+[ -n "$VERSION" ] && say "PINNStudio $VERSION installed."
 if [ -n "$WHERE" ]; then say "Done. Open PINNStudio from $WHERE, or run: pinnstudio"; else say "Done. Start PINNStudio with: pinnstudio"; fi
 say "(The pinnstudio command works in new terminals. In this one, run: $BIN/pinnstudio)"
+
 # Another PINNStudio (an older pip, venv or conda install) found first on the
-# PATH would start instead of this one.
-OTHER=$(command -v pinnstudio 2>/dev/null || true)
-if [ -n "$OTHER" ] && [ "$OTHER" != "$BIN/pinnstudio" ]; then
-    say ""
-    say "Note: the pinnstudio command in this terminal runs $OTHER,"
-    say "another (possibly older) installation. Remove it, or start this one with $BIN/pinnstudio"
-fi
+# PATH would start instead of this one. Say where it is, which version, and
+# how to remove it; nothing is removed here, it belongs to the user's own
+# Python environment.
+report_other_copy "$(command -v pinnstudio 2>/dev/null || true)" "$BIN/pinnstudio"
