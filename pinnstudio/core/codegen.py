@@ -1,3 +1,5 @@
+import re
+from pinnstudio.core.line_slice import auto_line_slice
 import os
 os.environ["DDE_BACKEND"] = "pytorch"
 # ── CUDA performance environment variables ────────────────────
@@ -236,7 +238,7 @@ def _simplify_expr(expr, is_2d=False, is_3d=False):
     # Replace math functions with numpy equivalents
     for fn in ["sin","cos","tan","sinh","cosh","tanh","arcsin","arccos","arctan",
                "exp","log","log10","sqrt","abs","ceil","floor"]:
-        e = re.sub(rf'\b{fn}\(', f'np.{fn}(', e)
+        e = re.sub(rf'(?<![\w.]){fn}\(', f'np.{fn}(', e)   # not after np.
     # Replace the pi constant. (There used to be a similar line here for a
     # bare Euler's-number "e" constant, but it was written as \bexp\b
     # instead of \be\b -- since \b is a boundary between a word character
@@ -250,21 +252,21 @@ def _simplify_expr(expr, is_2d=False, is_3d=False):
     # \be\b, matching _simplify_pde_expr in main_window.py (used for the
     # same user-facing "type math like you'd write it" convention
     # elsewhere), which never had a bare-e substitution to begin with.)
-    e = re.sub(r'\bpi\b', 'np.pi', e)
+    e = re.sub(r'(?<![\w.])pi\b', 'np.pi', e)
     # Replace x, y, z variables — must be done carefully to avoid replacing
     # inside words
     if is_3d:
-        e = re.sub(r'\bz\b', '__Z__', e)
-        e = re.sub(r'\by\b', '__Y__', e)
-        e = re.sub(r'\bx\b', 'x[:, 0]', e)
+        e = re.sub(r'(?<![\w.])z\b(?!\s*\[)', '__Z__', e)
+        e = re.sub(r'(?<![\w.])y\b(?!\s*\[)', '__Y__', e)
+        e = re.sub(r'(?<![\w.])x\b(?!\s*\[)', 'x[:, 0]', e)   # x[:, 0] stays as it is
         e = e.replace('__Y__', 'x[:, 1]')
         e = e.replace('__Z__', 'x[:, 2]')
     elif is_2d:
-        e = re.sub(r'\by\b', '__Y__', e)
-        e = re.sub(r'\bx\b', 'x[:, 0]', e)
+        e = re.sub(r'(?<![\w.])y\b(?!\s*\[)', '__Y__', e)
+        e = re.sub(r'(?<![\w.])x\b(?!\s*\[)', 'x[:, 0]', e)   # x[:, 0] stays as it is
         e = e.replace('__Y__', 'x[:, 1]')
     else:
-        e = re.sub(r'\bx\b', 'x[:, 0]', e)
+        e = re.sub(r'(?<![\w.])x\b(?!\s*\[)', 'x[:, 0]', e)   # x[:, 0] stays as it is
     return e
 
 def _parse_vertex_list(text):
@@ -537,6 +539,26 @@ def _np_math_expr(expr):
     return re.sub(r'(?<![a-zA-Z_.])pi(?![a-zA-Z_0-9])', 'np.pi', e)
 
 
+def _torch_math_dict_literal():
+    """{'sin': torch.sin, ..., 'pi': np.pi} as source text, for an exported
+    Operator BC's namespace (it works on tensors)."""
+    alias = {"arcsin": "asin", "arccos": "acos", "arctan": "atan"}
+    items = [f"'{fn}': torch.{alias.get(fn, fn)}" for row in _MATH_NS_ROWS for fn in row]
+    return "{" + ", ".join(items + ["'pi': np.pi"]) + "}"
+
+
+def _torch_math_expr(expr):
+    """np.sin(...) -> torch.sin(...) and so on (arcsin -> asin), for an
+    exported boundary value computed on tensors."""
+    import re
+    e = expr or ""
+    alias = {"arcsin": "asin", "arccos": "acos", "arctan": "atan"}
+    for row in _MATH_NS_ROWS:
+        for fn in row:
+            e = re.sub(rf'(?<![a-zA-Z_])np\.{fn}\(', f'torch.{alias.get(fn, fn)}(', e)
+    return e
+
+
 def _pde_coord_names(exprs):
     """The coordinate names (x, y, z, t) a set of PDE expressions actually
     uses -- found with ast, so du_x/du_t and the like don't count. Both
@@ -650,6 +672,57 @@ def _parse_inverse_variables(config):
             _seen[name] = 0
         _deduped.append((name, init, true))
     return _deduped
+
+OBS_REDUCE_HELPER = """
+def _obs_reduce(_d, _n_coord, _n_space, _mode, _n, _seed=0):
+    # Fewer measured points (Inverse -> Measured data -> Use): "grid" keeps
+    # _n evenly spaced values per space axis (edges kept), the same for
+    # each time in the file; "random" keeps _n points.
+    _n0 = len(_d)
+    if _mode == "grid":
+        _t_groups = ([np.where(_d[:, _n_coord - 1] == _tv)[0] for _tv in np.unique(_d[:, _n_coord - 1])]
+                     if _n_coord > _n_space else [np.arange(_n0)])
+        # A grid: the same full grid of the space axes at every time, with
+        # more than one point (scattered (x, t) data has one point per time).
+        _shapes = [tuple(len(np.unique(_d[_g, _k])) for _k in range(_n_space)) for _g in _t_groups]
+        _grid = (all(int(np.prod(_s)) == len(_g) for _s, _g in zip(_shapes, _t_groups))
+                 and len(set(_shapes)) == 1 and int(np.prod(_shapes[0])) > 1)
+        if not _grid:
+            # random points instead: n per axis, time counted as an axis
+            print(f"Measured data is not on a grid: keeping {_n ** _n_coord} random points instead")
+            _mode, _n = "random", _n ** _n_coord
+        else:
+            _keep = []
+            for _g in _t_groups:
+                _m = np.ones(len(_g), dtype=bool)
+                for _k in range(_n_space):
+                    _vals = np.unique(_d[_g, _k])
+                    if len(_vals) > _n:
+                        _pick = _vals[np.unique(np.round(np.linspace(0, len(_vals) - 1, _n)).astype(int))]
+                        _m &= np.isin(_d[_g, _k], _pick)
+                _keep.append(_g[_m])
+            _d = _d[np.sort(np.concatenate(_keep))]
+            print(f"Measured data: {len(_d)} of {_n0} points kept ({_n} per axis)")
+            return _d
+    if _mode == "random" and _n < _n0:
+        _d = _d[np.sort(np.random.default_rng(_seed).choice(_n0, _n, replace=False))]
+        print(f"Measured data: {len(_d)} of {_n0} points kept (random)")
+    return _d
+"""
+
+
+import textwrap as _textwrap_obs
+
+
+def obs_reduce_args(config):
+    """(mode, n, seed) for _obs_reduce, or None when every point is used."""
+    mode = getattr(config, "inverse_obs_reduce", "all") or "all"
+    if mode not in ("grid", "random"):
+        return None
+    n = int(getattr(config, "inverse_obs_grid_n", 51) if mode == "grid" else getattr(config, "inverse_obs_random_n", 1000))
+    seed = int(config.random_seed) if getattr(config, "use_random_seed", True) else 0
+    return mode, max(1 if mode == "random" else 2, n), seed
+
 
 def _parse_inverse_obs_files(config):
     """Parse config.inverse_obs_files_json into an ordered list of
@@ -1214,7 +1287,8 @@ def _make_loss_plot(train_rows, test_rows, steps, save_path, title, xlabel="Iter
         extra_fn(ax)
     ax.set_xlabel(xlabel, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel("Loss", fontsize={config.plot_axis_label_fontsize})
     ax.set_title(title)
-    ax.legend(fontsize=8 if _LOSS_MODE != "train_test" else 10)
+    ax.legend(fontsize=_lfs(8 if _LOSS_MODE != "train_test" else 10))
+    _grid(ax, alpha=0.3, which="major")
     fig.tight_layout()
     fig.savefig(save_path, dpi={config.plot_dpi}); plt.close(fig)
 '''
@@ -1515,7 +1589,7 @@ def _build_training_monitors_plot_code(config, sol_dir_var="_sol_dir", indent=0)
         lines.append(f"{pad}                _tm_iters_{_mi}.append(int(_tm_it_s_{_mi}))")
         lines.append(f"{pad}        if _tm_iters_{_mi} and _tm_npts_{_mi} > 0 and _tm_nexpr_{_mi} > 0:")
         lines.append(f"{pad}            _tm_arr_{_mi} = np.array(_tm_rows_{_mi}).reshape(-1, _tm_npts_{_mi}, _tm_nexpr_{_mi})")
-        lines.append(f"{pad}            _tm_fig_{_mi}, _tm_ax_{_mi} = plt.subplots(figsize=(7, 5))")
+        lines.append(f"{pad}            _tm_fig_{_mi}, _tm_ax_{_mi} = plt.subplots(figsize=_plot_figsize(7, 5))")
         lines.append(f"{pad}            for _tm_pi_{_mi} in range(_tm_npts_{_mi}):")
         lines.append(f"{pad}                for _tm_ei_{_mi} in range(_tm_nexpr_{_mi}):")
         lines.append(
@@ -1525,9 +1599,9 @@ def _build_training_monitors_plot_code(config, sol_dir_var="_sol_dir", indent=0)
         )
         lines.append(f"{pad}            _tm_ax_{_mi}.set_xlabel('Iteration', fontsize={config.plot_axis_label_fontsize}); _tm_ax_{_mi}.set_ylabel('Value', fontsize={config.plot_axis_label_fontsize})")
         lines.append(f"{pad}            _tm_ax_{_mi}.set_title({('Training Monitor: ' + _name)!r})")
-        lines.append(f"{pad}            _tm_ax_{_mi}.legend(fontsize=7, loc='best'); _tm_ax_{_mi}.grid(alpha=0.3)")
+        lines.append(f"{pad}            _tm_ax_{_mi}.legend(fontsize=_lfs(7), loc='best'); _tm_ax_{_mi}.grid(alpha=0.3)")
         lines.append(f"{pad}            _tm_plot_path_{_mi} = _os.path.join({sol_dir_var}, 'monitor_{_safe_name}_plot.png')")
-        lines.append(f"{pad}            plt.tight_layout(); plt.savefig(_tm_plot_path_{_mi}, dpi=150); plt.close(_tm_fig_{_mi})")
+        lines.append(f"{pad}            plt.tight_layout(); plt.savefig(_tm_plot_path_{_mi}, dpi={int(config.plot_dpi)}); plt.close(_tm_fig_{_mi})")
         lines.append(f"{pad}            print(f'  Training monitor plot saved: {{_tm_plot_path_{_mi}}}')")
         lines.append(f"{pad}    except Exception as _tm_plot_err_{_mi}:")
         lines.append(f'{pad}        print(f"  Warning: failed to plot training monitor {_name!r}: {{_tm_plot_err_{_mi}}}")')
@@ -1597,6 +1671,25 @@ def _ea_metrics_print_fragment(config, l2, mse, mx, ma):
         parts.append(f"Max={{{mx}:.4e}}")
     parts.append(f"MeanAbs={{{ma}:.4e}}")
     return ", ".join(parts)
+
+
+def _rar_optimizer(config):
+    """(optimizer, learning rate) of RAR's first-order rounds: the last
+    non-L-BFGS Training Phase's, as the user set them (the hidden
+    single-optimizer fields are only a fallback)."""
+    import json as _js
+    try:
+        phases = [p for p in (_js.loads(getattr(config, "scheduler_phases", "") or "[]") or [])
+                  if isinstance(p, dict) and str(p.get("optimizer", "")).lower() not in ("lbfgs", "l-bfgs")]
+    except (ValueError, TypeError):
+        phases = []
+    if getattr(config, "optimizer_scheduler", False) and phases:
+        p = phases[-1]
+        try:
+            return str(p.get("optimizer") or config.optimizer), float(p.get("lr", config.learning_rate))
+        except (TypeError, ValueError):
+            pass
+    return config.optimizer, float(config.learning_rate)
 
 
 def _gs_rar_loop_code(config):
@@ -1701,9 +1794,9 @@ def _gs_rar_loop_code(config):
                         _xr = np.linspace({config.x_min}, {config.x_max}, _res)
                         _field_r = _extract_plot_field(_xr.reshape(-1, 1))
                         _fig_r, _ax_r = plt.subplots(figsize=_plot_figsize(6.5, 5))
-                        _ax_r.plot(_xr, _field_r, color="#1971c2", linewidth=2.0)
+                        _ax_r.plot(_xr, _field_r, color=_PLOT_PINN_COLOR, linewidth={config.plot_linewidth})
                         _ax_r.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_r.set_ylabel("u", fontsize={config.plot_axis_label_fontsize})
-                        _ax_r.grid(True, alpha=0.3)
+                        _grid(_ax_r, alpha=0.3)
                         _fig_r.suptitle(f"RAR round {{_rar_idx}} solution snapshot")
                         plt.tight_layout(rect=[0, 0, 1, 0.93])
                         plt.savefig(_os.path.join(_rd, "solution_plot.png"), dpi={config.plot_dpi}, bbox_inches="tight")
@@ -1725,7 +1818,7 @@ def _gs_rar_loop_code(config):
                         _ax_c.scatter(_rar_new_pts[:, 0], np.full(len(_rar_new_pts), 0.0), s=18, c="#e03131", label=f"Added this round ({{len(_rar_new_pts)}})")
                         _ax_c.set_yticks([]); _ax_c.set_ylim(-0.6, 2.6)
                         _ax_c.set_xlabel("x", fontsize={config.plot_axis_label_fontsize})
-                        _ax_c.legend(loc="best", fontsize=8)
+                        _ax_c.legend(loc="best", fontsize=_lfs(8))
                         _ax_c.set_title(f"RAR round {{_rar_idx}} -- collocation points")
                         plt.tight_layout()
                         plt.savefig(_os.path.join(_rd, "collocation_points.png"), dpi={config.plot_dpi}, bbox_inches="tight")
@@ -1746,7 +1839,7 @@ def _gs_rar_loop_code(config):
                             _best_r = _rar_ea_entries[0]
                             _ref_fp_r = _best_r[1]
                             _ref_sel_r = _best_r[2] if len(_best_r) >= 3 else None
-                            _ref_d_r = np.loadtxt(_ref_fp_r)
+                            _ref_d_r = _load_ref(_ref_fp_r)
                             if _ref_d_r.ndim == 1:
                                 _ref_d_r = _ref_d_r.reshape(1, -1)
                             _ref_x_r = _ref_d_r[:, 0]; _ref_u_r = _ref_d_r[:, 1]
@@ -1757,9 +1850,9 @@ def _gs_rar_loop_code(config):
                             print(f"  [RAR round {{_rar_idx}}] vs Reference: L2 rel error = {{_l2_r:.4e}}, MSE = {{_mse_r:.4e}}")
                             _fig_e, _ax_e = plt.subplots(figsize=_plot_figsize(6.5, 5))
                             _ord_e = np.argsort(_ref_x_r)
-                            _ax_e.plot(_ref_x_r[_ord_e], _ref_u_r[_ord_e], label="Reference", color="#2f9e44")
-                            _ax_e.plot(_ref_x_r[_ord_e], _ref_pred_r[_ord_e], label="PINN", color="#1971c2", linestyle="--")
-                            _ax_e.legend(loc="best", fontsize=8)
+                            _ref_plot(_ax_e, _ref_x_r[_ord_e], _ref_u_r[_ord_e], label="Reference", color=_PLOT_REF_COLOR)
+                            _ax_e.plot(_ref_x_r[_ord_e], _ref_pred_r[_ord_e], label="PINN", color=_PLOT_PINN_COLOR, linestyle="--")
+                            _ax_e.legend(loc="best", fontsize=_lfs(8))
                             _ax_e.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_e.set_ylabel("u", fontsize={config.plot_axis_label_fontsize})
                             _ax_e.set_title(f"RAR round {{_rar_idx}} -- PINN vs Reference  ({{_l2_txt(_l2_r)}})")
                             plt.tight_layout()
@@ -1800,7 +1893,7 @@ def _gs_rar_loop_code(config):
                             _rmsel = _rmentry[2] if len(_rmentry) >= 3 else None
                             _rar_xt_c = np.column_stack([_rar_x_common, np.full_like(_rar_x_common, _rmtv)])
                             _rar_U_pinn[_rmi, :] = _rar_ref_extract(_rar_xt_c, _rmsel, model).flatten()
-                            _rd_ld = np.loadtxt(_rmfp)
+                            _rd_ld = _load_ref(_rmfp)
                             if _rd_ld.ndim == 1:
                                 _rd_ld = _rd_ld.reshape(1, -1)
                             _rd_ord = np.argsort(_rd_ld[:, 0])
@@ -1812,19 +1905,20 @@ def _gs_rar_loop_code(config):
                         _rar_vmax = max(_rar_U_pinn.max(), _rar_U_ref.max())
                         if _rar_vmax - _rar_vmin < 1e-12:
                             _rar_vmax = _rar_vmin + 1e-12
+                        _rar_vmin, _rar_vmax = _vr(_rar_vmin, _rar_vmax)   # Plot settings -> Surface -> Colour range
                         _rar_levels = _cf_levels({config.plot_levels}, _rar_vmin, _rar_vmax)["levels"]
                         _fig_r, _axes_r = plt.subplots(1, 3, figsize=_plot_figsize(15, 5))
                         _rar_cols = [
                             (_rar_U_pinn, "PINN", _rar_levels, "{config.plot_colormap}"),
                             (_rar_U_ref, "Reference", _rar_levels, "{config.plot_colormap}"),
-                            (_rar_U_err, f"|Error|  max = {{_sci_txt(_rar_U_err.max())}}", {config.plot_levels}, "{config.plot_colormap}"),
+                            (_rar_U_err, f"|Error|  max = {{_sci_txt(_rar_U_err.max())}}", {config.plot_levels}, "{err_cmap(config)}"),
                         ]
                         for _rci, (_rvals, _rttl, _rlv, _rcmap) in enumerate(_rar_cols):
                             if {config.plot_swap_xt}:
-                                _rim = _axes_r[_rci].contourf(_rar_Tg, _rar_Xg, _rvals, levels=_rlv, cmap=_rcmap)
+                                _rim = _axes_r[_rci].contourf(_rar_Tg, _rar_Xg, _rvals, levels=_rlv, cmap=_rcmap, extend=_vext(_rlv))
                                 _axes_r[_rci].set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); _axes_r[_rci].set_ylabel("x", fontsize={config.plot_axis_label_fontsize})
                             else:
-                                _rim = _axes_r[_rci].contourf(_rar_Xg.T, _rar_Tg.T, _rvals.T, levels=_rlv, cmap=_rcmap)
+                                _rim = _axes_r[_rci].contourf(_rar_Xg.T, _rar_Tg.T, _rvals.T, levels=_rlv, cmap=_rcmap, extend=_vext(_rlv))
                                 _axes_r[_rci].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _axes_r[_rci].set_ylabel("t", fontsize={config.plot_axis_label_fontsize})
                             _axes_r[_rci].set_title(_rttl, fontsize={config.plot_subplot_title_fontsize})
                             _fig_r.colorbar(_rim, ax=_axes_r[_rci])
@@ -1867,7 +1961,7 @@ def _gs_rar_loop_code(config):
                             _ax_c.scatter(_rar_added_so_far[:, 0], _rar_added_so_far[:, 1], s=10, c="#fd7e14", label="Added in earlier rounds")
                         _ax_c.scatter(_rar_new_pts[:, 0], _rar_new_pts[:, 1], s=14, c="#e03131", label=f"Added this round ({{len(_rar_new_pts)}})")
                         _ax_c.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_c.set_ylabel("t", fontsize={config.plot_axis_label_fontsize})
-                    _ax_c.legend(loc="best", fontsize=8)
+                    _ax_c.legend(loc="best", fontsize=_lfs(8))
                     _ax_c.set_title(f"RAR round {{_rar_idx}} -- collocation points")
                     plt.tight_layout()
                     plt.savefig(_os.path.join(_rd, "collocation_points.png"), dpi={config.plot_dpi}, bbox_inches="tight")
@@ -1881,7 +1975,7 @@ def _gs_rar_loop_code(config):
                         _best_r = min(_rar_ea_entries, key=lambda _e: abs(_e[0] - {config.t_max}))
                         _ref_t_r, _ref_fp_r = _best_r[0], _best_r[1]
                         _ref_sel_r = _best_r[2] if len(_best_r) >= 3 else None
-                        _ref_d_r = np.loadtxt(_ref_fp_r)
+                        _ref_d_r = _load_ref(_ref_fp_r)
                         if _ref_d_r.ndim == 1:
                             _ref_d_r = _ref_d_r.reshape(1, -1)
                         _ref_xyz_r = _ref_d_r[:, :1]; _ref_u_r = _ref_d_r[:, 2]
@@ -1904,11 +1998,11 @@ def _gs_rar_loop_code(config):
                         print(f"  [RAR round {{_rar_idx}}] vs Reference t={{_ref_t_r:.3g}}: L2 rel error = {{_l2_r:.4e}}, MSE = {{_mse_r:.4e}}")
                         _fig_e, _ax_e = plt.subplots(figsize=_plot_figsize(6.5, 5))
                         _ord_e = np.argsort(_ref_xyz_r[:, 0])
-                        _ax_e.plot(_ref_xyz_r[_ord_e, 0], _ref_u_r[_ord_e], label="Reference", color="#2f9e44")
-                        _ax_e.plot(_ref_xyz_r[_ord_e, 0], _ref_pred_r[_ord_e], label="PINN", color="#1971c2", linestyle="--")
-                        _ax_e.legend(loc="best", fontsize=8)
+                        _ref_plot(_ax_e, _ref_xyz_r[_ord_e, 0], _ref_u_r[_ord_e], label="Reference", color=_PLOT_REF_COLOR)
+                        _ax_e.plot(_ref_xyz_r[_ord_e, 0], _ref_pred_r[_ord_e], label="PINN", color=_PLOT_PINN_COLOR, linestyle="--")
+                        _ax_e.legend(loc="best", fontsize=_lfs(8))
                         _ax_e.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_e.set_ylabel("u", fontsize={config.plot_axis_label_fontsize})
-                        _ax_e.set_title(f"RAR round {{_rar_idx}} -- PINN vs Reference  t={{_ref_t_r:.3g}} ({{_l2_txt(_l2_r)}})")
+                        _ax_e.set_title(f"RAR round {{_rar_idx}} -- PINN vs Reference  t={{_fmt_num(_ref_t_r)}} ({{_l2_txt(_l2_r)}})")
                         plt.tight_layout()
                         plt.savefig(_os.path.join(_rd, "error_compare.png"), dpi={config.plot_dpi}, bbox_inches="tight")
                         plt.close(_fig_e)
@@ -1933,7 +2027,7 @@ def _gs_rar_loop_code(config):
                             _best_r = _rar_ea_entries[0]
                             _ref_fp_r = _best_r[1]
                             _ref_sel_r = _best_r[2] if len(_best_r) >= 3 else None
-                            _ref_d_r = np.loadtxt(_ref_fp_r)
+                            _ref_d_r = _load_ref(_ref_fp_r)
                             if _ref_d_r.ndim == 1:
                                 _ref_d_r = _ref_d_r.reshape(1, -1)
                             if _is_3d:
@@ -1959,7 +2053,7 @@ def _gs_rar_loop_code(config):
                             _cols3_r = [
                                 (_ref_pred_pts_r, f"PINN  {{_l2_txt(_l2_r)}}", _vmin3_r, _vmax3_r, "{config.plot_colormap}"),
                                 (_ref_u_r, "Reference", _vmin3_r, _vmax3_r, "{config.plot_colormap}"),
-                                (_abs_err_r, f"|Error|  max = {{_sci_txt(_abs_err_r.max())}}", None, None, "{config.plot_colormap}"),
+                                (_abs_err_r, f"|Error|  max = {{_sci_txt(_abs_err_r.max())}}", None, None, "{err_cmap(config)}"),
                             ]
                             for _ci_r, (_vals3_r, _ttl3_r, _vmin_c3_r, _vmax_c3_r, _cmap_c3_r) in enumerate(_cols3_r):
                                 _ax3_r = _fig_r.add_subplot(1, 3, _ci_r + 1, projection="3d")
@@ -1973,14 +2067,14 @@ def _gs_rar_loop_code(config):
                             _xp = np.linspace({config.x_min}, {config.x_max}, _res)
                             _yp = np.linspace({config.y_min}, {config.y_max}, _res)
                             _Xg, _Yg = np.meshgrid(_xp, _yp)
-                            _z_mid_r = ({config.z_min} + {config.z_max}) / 2.0
+                            _z_mid_r = {auto_line_slice(config)[1]!r}   # Plot settings -> Line: z
                             _grid_r = np.column_stack([_Xg.ravel(), _Yg.ravel(), np.full(_Xg.size, _z_mid_r)])
                             _field_r = _extract_plot_field(_grid_r).reshape(_res, _res)
                             _fig_r, _ax_r = plt.subplots(figsize=_plot_figsize(6.5, 5.5))
                             _im_r = _ax_r.contourf(_Xg, _Yg, _field_r, levels={config.plot_levels}, cmap="{config.plot_colormap}")
                             _ax_r.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_r.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _ax_r.set_aspect("equal", adjustable="box")
                             _fig_r.colorbar(_im_r, ax=_ax_r, fraction=0.046, pad=0.04)
-                            _fig_r.suptitle(f"RAR round {{_rar_idx}} solution snapshot (z={{_z_mid_r:.3g}})")
+                            _fig_r.suptitle(f"RAR round {{_rar_idx}} solution snapshot (z={{_fmt_num(_z_mid_r)}})")
                     else:
                         _xp = np.linspace({config.x_min}, {config.x_max}, _res)
                         _yp = np.linspace({config.y_min}, {config.y_max}, _res)
@@ -1991,23 +2085,24 @@ def _gs_rar_loop_code(config):
                             _grid_pinn_r = np.column_stack([_Xg.ravel(), _Yg.ravel()])
                             _u_pinn_g_r = _extract_plot_field(_grid_pinn_r).reshape(_res, _res)
                             _u_pinn_g_r = np.where(_inside_r, _u_pinn_g_r, np.nan)
-                            _u_ref_g_r = _gd_r(_ref_xyz_r, _ref_u_r, (_Xg, _Yg), method="linear", fill_value=0.0)
+                            _u_ref_g_r = _gd_r(_ref_xyz_r, _ref_u_r, (_Xg, _Yg), method="linear", fill_value=np.nan)
                             _u_ref_g_r = np.where(_inside_r, _u_ref_g_r, np.nan)
-                            _u_err_g_r = np.abs(_u_pinn_g_r - _u_ref_g_r)
+                            _u_err_g_r = np.where(_inside_r, _err_grid(_ref_xyz_r, _ref_u_r, _ref_pred_pts_r, _Xg, _Yg), np.nan)
                             _vmin2_r = np.nanmin([_u_pinn_g_r, _u_ref_g_r]); _vmax2_r = np.nanmax([_u_pinn_g_r, _u_ref_g_r])
                             if _vmax2_r - _vmin2_r < 1e-12:
                                 _vmax2_r = _vmin2_r + 1e-12
+                            _vmin2_r, _vmax2_r = _vr(_vmin2_r, _vmax2_r)   # Plot settings -> Surface -> Colour range
                             _levels2_r = _cf_levels({config.plot_levels}, _vmin2_r, _vmax2_r)["levels"]
                             _fig_r, _axes2_r = plt.subplots(1, 3, figsize=_plot_figsize(15, 5))
-                            _im0_r = _axes2_r[0].contourf(_Xg, _Yg, _u_pinn_g_r, levels=_levels2_r, cmap="{config.plot_colormap}")
+                            _im0_r = _axes2_r[0].contourf(_Xg, _Yg, _u_pinn_g_r, levels=_levels2_r, cmap="{config.plot_colormap}", extend=_vext())
                             _axes2_r[0].set_title(f"PINN  {{_l2_txt(_l2_r)}}", fontsize={config.plot_subplot_title_fontsize})
                             _axes2_r[0].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _axes2_r[0].set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _axes2_r[0].set_aspect("equal", adjustable="box")
                             _fig_r.colorbar(_im0_r, ax=_axes2_r[0], fraction=0.046, pad=0.04)
-                            _im1_r = _axes2_r[1].contourf(_Xg, _Yg, _u_ref_g_r, levels=_levels2_r, cmap="{config.plot_colormap}")
+                            _im1_r = _axes2_r[1].contourf(_Xg, _Yg, _u_ref_g_r, levels=_levels2_r, cmap="{config.plot_colormap}", extend=_vext())
                             _axes2_r[1].set_title("Reference", fontsize={config.plot_subplot_title_fontsize})
                             _axes2_r[1].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _axes2_r[1].set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _axes2_r[1].set_aspect("equal", adjustable="box")
                             _fig_r.colorbar(_im1_r, ax=_axes2_r[1], fraction=0.046, pad=0.04)
-                            _im2_r = _axes2_r[2].contourf(_Xg, _Yg, _u_err_g_r, levels={config.plot_levels}, cmap="{config.plot_colormap}")
+                            _im2_r = _axes2_r[2].contourf(_Xg, _Yg, _u_err_g_r, levels={config.plot_levels}, cmap="{err_cmap(config)}")
                             _axes2_r[2].set_title(f"|Error|  max = {{_sci_txt(np.nanmax(_u_err_g_r))}}", fontsize={config.plot_subplot_title_fontsize})
                             _axes2_r[2].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _axes2_r[2].set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _axes2_r[2].set_aspect("equal", adjustable="box")
                             _fig_r.colorbar(_im2_r, ax=_axes2_r[2], fraction=0.046, pad=0.04)
@@ -2042,7 +2137,7 @@ def _gs_rar_loop_code(config):
                             _ax_c.scatter(_rar_added_so_far[:, 0], _rar_added_so_far[:, 1], _rar_added_so_far[:, 2], s=9, c="#fd7e14", label="Added in earlier rounds")
                         _ax_c.scatter(_rar_new_pts[:, 0], _rar_new_pts[:, 1], _rar_new_pts[:, 2], s=12, c="#e03131", label=f"Added this round ({{len(_rar_new_pts)}})")
                         _ax_c.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_c.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _ax_c.set_zlabel("z", fontsize={config.plot_axis_label_fontsize}); [_tk.set_ticks(plt.matplotlib.ticker.MaxNLocator(nbins=4, steps=[1, 2, 5, 10]).tick_values(*_tk.get_data_interval())) for _tk in (_ax_c.xaxis, _ax_c.yaxis, _ax_c.zaxis)]
-                        _ax_c.legend(loc="best", fontsize=8)
+                        _ax_c.legend(loc="best", fontsize=_lfs(8))
                         _ax_c.set_title(f"RAR round {{_rar_idx}} -- collocation points")
                         plt.tight_layout()
                     else:
@@ -2053,7 +2148,7 @@ def _gs_rar_loop_code(config):
                             _ax_c.scatter(_rar_added_so_far[:, 0], _rar_added_so_far[:, 1], s=10, c="#fd7e14", label="Added in earlier rounds")
                         _ax_c.scatter(_rar_new_pts[:, 0], _rar_new_pts[:, 1], s=14, c="#e03131", label=f"Added this round ({{len(_rar_new_pts)}})")
                         _ax_c.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_c.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _ax_c.set_aspect("equal", adjustable="box")
-                        _ax_c.legend(loc="best", fontsize=8)
+                        _ax_c.legend(loc="best", fontsize=_lfs(8))
                         _ax_c.set_title(f"RAR round {{_rar_idx}} -- collocation points")
                         plt.tight_layout()
                     plt.savefig(_os.path.join(_rd, "collocation_points.png"), dpi={config.plot_dpi}, bbox_inches="tight")
@@ -2078,7 +2173,7 @@ def _gs_rar_loop_code(config):
                         _best_r = min(_rar_ea_entries, key=lambda _e: abs(_e[0] - {config.t_max}))
                         _ref_t_r, _ref_fp_r = _best_r[0], _best_r[1]
                         _ref_sel_r = _best_r[2] if len(_best_r) >= 3 else None
-                        _ref_d_r = np.loadtxt(_ref_fp_r)
+                        _ref_d_r = _load_ref(_ref_fp_r)
                         if _ref_d_r.ndim == 1:
                             _ref_d_r = _ref_d_r.reshape(1, -1)
                         if _is_3d:
@@ -2114,9 +2209,9 @@ def _gs_rar_loop_code(config):
                         _vmin3_r = min(_ref_pred_pts_r.min(), _ref_u_r.min())
                         _vmax3_r = max(_ref_pred_pts_r.max(), _ref_u_r.max())
                         _cols3_r = [
-                            (_ref_pred_pts_r, f"PINN  t={{_ref_t_r:.3g}}  {{_l2_txt(_l2_r)}}", _vmin3_r, _vmax3_r, "{config.plot_colormap}"),
-                            (_ref_u_r, f"Reference  t={{_ref_t_r:.3g}}", _vmin3_r, _vmax3_r, "{config.plot_colormap}"),
-                            (_abs_err_r, f"|Error|  max = {{_sci_txt(_abs_err_r.max())}}", None, None, "{config.plot_colormap}"),
+                            (_ref_pred_pts_r, f"PINN  t={{_fmt_num(_ref_t_r)}}  {{_l2_txt(_l2_r)}}", _vmin3_r, _vmax3_r, "{config.plot_colormap}"),
+                            (_ref_u_r, f"Reference  t={{_fmt_num(_ref_t_r)}}", _vmin3_r, _vmax3_r, "{config.plot_colormap}"),
+                            (_abs_err_r, f"|Error|  max = {{_sci_txt(_abs_err_r.max())}}", None, None, "{err_cmap(config)}"),
                         ]
                         for _ci_r, (_vals3_r, _ttl3_r, _vmin_c3_r, _vmax_c3_r, _cmap_c3_r) in enumerate(_cols3_r):
                             _ax3_r = _fig_r.add_subplot(1, 3, _ci_r + 1, projection="3d")
@@ -2130,14 +2225,14 @@ def _gs_rar_loop_code(config):
                         _xp = np.linspace({config.x_min}, {config.x_max}, _res)
                         _yp = np.linspace({config.y_min}, {config.y_max}, _res)
                         _Xg, _Yg = np.meshgrid(_xp, _yp)
-                        _z_mid_r = ({config.z_min} + {config.z_max}) / 2.0
+                        _z_mid_r = {auto_line_slice(config)[1]!r}   # Plot settings -> Line: z
                         _grid_r = np.column_stack([_Xg.ravel(), _Yg.ravel(), np.full(_Xg.size, _z_mid_r), np.full(_Xg.size, {config.t_max})])
                         _field_r = _extract_plot_field(_grid_r).reshape(_res, _res)
                         _fig_r, _ax_r = plt.subplots(figsize=_plot_figsize(6.5, 5.5))
                         _im_r = _ax_r.contourf(_Xg, _Yg, _field_r, levels={config.plot_levels}, cmap="{config.plot_colormap}")
                         _ax_r.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_r.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _ax_r.set_aspect("equal", adjustable="box")
                         _fig_r.colorbar(_im_r, ax=_ax_r, fraction=0.046, pad=0.04)
-                        _fig_r.suptitle(f"RAR round {{_rar_idx}} solution snapshot (z={{_z_mid_r:.3g}}, t={config.t_max:.3g})")
+                        _fig_r.suptitle(f"RAR round {{_rar_idx}} solution snapshot (z={{_fmt_num(_z_mid_r)}}, t={{_fmt_num({config.t_max!r})}})")
                 else:
                     _xp = np.linspace({config.x_min}, {config.x_max}, _res)
                     _yp = np.linspace({config.y_min}, {config.y_max}, _res)
@@ -2148,12 +2243,13 @@ def _gs_rar_loop_code(config):
                         _grid_pinn_r = np.column_stack([_Xg.ravel(), _Yg.ravel(), np.full(_Xg.size, _ref_t_r)])
                         _u_pinn_g_r = _extract_plot_field(_grid_pinn_r).reshape(_res, _res)
                         _u_pinn_g_r = np.where(_inside_r, _u_pinn_g_r, np.nan)
-                        _u_ref_g_r = _gd_r(_ref_xyz_r, _ref_u_r, (_Xg, _Yg), method="linear", fill_value=0.0)
+                        _u_ref_g_r = _gd_r(_ref_xyz_r, _ref_u_r, (_Xg, _Yg), method="linear", fill_value=np.nan)
                         _u_ref_g_r = np.where(_inside_r, _u_ref_g_r, np.nan)
-                        _u_err_g_r = np.abs(_u_pinn_g_r - _u_ref_g_r)
+                        _u_err_g_r = np.where(_inside_r, _err_grid(_ref_xyz_r, _ref_u_r, _ref_pred_pts_r, _Xg, _Yg), np.nan)
                         _vmin2_r = np.nanmin([_u_pinn_g_r, _u_ref_g_r]); _vmax2_r = np.nanmax([_u_pinn_g_r, _u_ref_g_r])
                         if _vmax2_r - _vmin2_r < 1e-12:
                             _vmax2_r = _vmin2_r + 1e-12
+                        _vmin2_r, _vmax2_r = _vr(_vmin2_r, _vmax2_r)   # Plot settings -> Surface -> Colour range
                         # contourf's own vmin/vmax kwargs do NOT restrict
                         # an integer `levels=N` -- it still auto-ranges
                         # each panel to that panel's own data, so PINN and
@@ -2164,15 +2260,15 @@ def _gs_rar_loop_code(config):
                         # panels share one scale.
                         _levels2_r = _cf_levels({config.plot_levels}, _vmin2_r, _vmax2_r)["levels"]
                         _fig_r, _axes2_r = plt.subplots(1, 3, figsize=_plot_figsize(15, 5))
-                        _im0_r = _axes2_r[0].contourf(_Xg, _Yg, _u_pinn_g_r, levels=_levels2_r, cmap="{config.plot_colormap}")
-                        _axes2_r[0].set_title(f"PINN  t={{_ref_t_r:.3g}}  {{_l2_txt(_l2_r)}}", fontsize={config.plot_subplot_title_fontsize})
+                        _im0_r = _axes2_r[0].contourf(_Xg, _Yg, _u_pinn_g_r, levels=_levels2_r, cmap="{config.plot_colormap}", extend=_vext())
+                        _axes2_r[0].set_title(f"PINN  t={{_fmt_num(_ref_t_r)}}  {{_l2_txt(_l2_r)}}", fontsize={config.plot_subplot_title_fontsize})
                         _axes2_r[0].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _axes2_r[0].set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _axes2_r[0].set_aspect("equal", adjustable="box")
                         _fig_r.colorbar(_im0_r, ax=_axes2_r[0], fraction=0.046, pad=0.04)
-                        _im1_r = _axes2_r[1].contourf(_Xg, _Yg, _u_ref_g_r, levels=_levels2_r, cmap="{config.plot_colormap}")
-                        _axes2_r[1].set_title(f"Reference  t={{_ref_t_r:.3g}}", fontsize={config.plot_subplot_title_fontsize})
+                        _im1_r = _axes2_r[1].contourf(_Xg, _Yg, _u_ref_g_r, levels=_levels2_r, cmap="{config.plot_colormap}", extend=_vext())
+                        _axes2_r[1].set_title(f"Reference  t={{_fmt_num(_ref_t_r)}}", fontsize={config.plot_subplot_title_fontsize})
                         _axes2_r[1].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _axes2_r[1].set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _axes2_r[1].set_aspect("equal", adjustable="box")
                         _fig_r.colorbar(_im1_r, ax=_axes2_r[1], fraction=0.046, pad=0.04)
-                        _im2_r = _axes2_r[2].contourf(_Xg, _Yg, _u_err_g_r, levels={config.plot_levels}, cmap="{config.plot_colormap}")
+                        _im2_r = _axes2_r[2].contourf(_Xg, _Yg, _u_err_g_r, levels={config.plot_levels}, cmap="{err_cmap(config)}")
                         _axes2_r[2].set_title(f"|Error|  max = {{_sci_txt(np.nanmax(_u_err_g_r))}}", fontsize={config.plot_subplot_title_fontsize})
                         _axes2_r[2].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _axes2_r[2].set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _axes2_r[2].set_aspect("equal", adjustable="box")
                         _fig_r.colorbar(_im2_r, ax=_axes2_r[2], fraction=0.046, pad=0.04)
@@ -2185,7 +2281,7 @@ def _gs_rar_loop_code(config):
                         _im_r = _ax_r.contourf(_Xg, _Yg, _field_r, levels={config.plot_levels}, cmap="{config.plot_colormap}")
                         _ax_r.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_r.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _ax_r.set_aspect("equal", adjustable="box")
                         _fig_r.colorbar(_im_r, ax=_ax_r, fraction=0.046, pad=0.04)
-                        _fig_r.suptitle(f"RAR round {{_rar_idx}} solution snapshot (t={config.t_max:.3g})")
+                        _fig_r.suptitle(f"RAR round {{_rar_idx}} solution snapshot (t={{_fmt_num({config.t_max!r})}})")
                 plt.tight_layout(rect=[0, 0, 1, 0.93])
                 plt.savefig(_os.path.join(_rd, "solution_plot.png"), dpi={config.plot_dpi}, bbox_inches="tight")
                 plt.close(_fig_r)
@@ -2215,7 +2311,7 @@ def _gs_rar_loop_code(config):
                         _ax_c.scatter(_rar_added_so_far[:, 0], _rar_added_so_far[:, 1], _rar_added_so_far[:, 2], s=9, c="#fd7e14", alpha=_added_alpha, label="Added in earlier rounds")
                     _ax_c.scatter(_rar_new_pts[:, 0], _rar_new_pts[:, 1], _rar_new_pts[:, 2], s=12, c="#e03131", label=f"Added this round ({{len(_rar_new_pts)}})")
                     _ax_c.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_c.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _ax_c.set_zlabel("z", fontsize={config.plot_axis_label_fontsize}); [_tk.set_ticks(plt.matplotlib.ticker.MaxNLocator(nbins=4, steps=[1, 2, 5, 10]).tick_values(*_tk.get_data_interval())) for _tk in (_ax_c.xaxis, _ax_c.yaxis, _ax_c.zaxis)]
-                    _ax_c.legend(loc="best", fontsize=8)
+                    _ax_c.legend(loc="best", fontsize=_lfs(8))
                     _ax_c.set_title(f"RAR round {{_rar_idx}} -- collocation points")
                     plt.tight_layout()
                 else:
@@ -2231,7 +2327,7 @@ def _gs_rar_loop_code(config):
                         _ax_c.scatter(_rar_added_so_far[:, 0], _rar_added_so_far[:, 1], _rar_added_so_far[:, 2], s=9, c="#fd7e14", alpha=0.85, label="Added in earlier rounds")
                     _ax_c.scatter(_rar_new_pts[:, 0], _rar_new_pts[:, 1], _rar_new_pts[:, 2], s=12, c="#e03131", label=f"Added this round ({{len(_rar_new_pts)}})")
                     _ax_c.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_c.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _ax_c.set_zlabel("t", fontsize={config.plot_axis_label_fontsize}); [_tk.set_ticks(plt.matplotlib.ticker.MaxNLocator(nbins=4, steps=[1, 2, 5, 10]).tick_values(*_tk.get_data_interval())) for _tk in (_ax_c.xaxis, _ax_c.yaxis, _ax_c.zaxis)]
-                    _ax_c.legend(loc="best", fontsize=8)
+                    _ax_c.legend(loc="best", fontsize=_lfs(8))
                     _ax_c.set_title("3D view (x, y, t)")
                     _ax_c2 = _fig_c.add_subplot(1, 2, 2)
                     if len(_rar_orig_pts):
@@ -2240,7 +2336,7 @@ def _gs_rar_loop_code(config):
                         _ax_c2.scatter(_rar_added_so_far[:, 0], _rar_added_so_far[:, 1], s=10, c="#fd7e14", alpha=0.85, label="Added in earlier rounds")
                     _ax_c2.scatter(_rar_new_pts[:, 0], _rar_new_pts[:, 1], s=14, c="#e03131", label=f"Added this round ({{len(_rar_new_pts)}})")
                     _ax_c2.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_c2.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _ax_c2.set_aspect("equal", adjustable="box")
-                    _ax_c2.legend(loc="best", fontsize=8)
+                    _ax_c2.legend(loc="best", fontsize=_lfs(8))
                     _ax_c2.set_title("Spatial view (x, y) -- all times")
                     _fig_c.suptitle(f"RAR round {{_rar_idx}} -- collocation points", fontsize={config.plot_title_fontsize}, fontweight="bold")
                     plt.tight_layout(rect=[0, 0, 1, 0.93])
@@ -2295,8 +2391,14 @@ def _gs_rar_loop_code(config):
             new_points = xt_cand[top_idx]
             print(f"Max residual: {{residuals.max():.4e}}, Mean: {{residuals.mean():.4e}}")
             data.add_anchors(new_points)
-            model.compile("{config.optimizer}", lr=_lr, loss="{config.loss_type}", loss_weights=_multi_weights)
-            loss_history, train_state = model.train(iterations={config.rar_adam_iters}, display_every={config.loss_display_every})
+            # the last first-order phase's optimizer and learning rate, the
+            # unknowns of an inverse problem, and the training callbacks
+            # (causal training, point weights, monitors) as in the phases
+            _rar_ext = _inv_vars if _problem_type == "Inverse" else None
+            model.compile("{_rar_optimizer(config)[0]}", lr={_rar_optimizer(config)[1]!r}, loss="{config.loss_type}",
+                          loss_weights=_multi_weights, external_trainable_variables=_rar_ext)
+            loss_history, train_state = model.train(iterations={config.rar_adam_iters}, display_every={config.loss_display_every},
+                                                    callbacks=list(_train_cbs))
             if {config.rar_lbfgs_iters} > 0:
                 # Round 31: when this round also runs an L-BFGS phase, save
                 # the Adam phase's own checkpoint here -- standardized on
@@ -2321,17 +2423,16 @@ def _gs_rar_loop_code(config):
                     gtol={config.lbfgs_gtol}, maxiter={config.rar_lbfgs_iters},
                     maxfun={_lbfgs_maxfun(config, config.rar_lbfgs_iters)}, maxls={config.lbfgs_maxls}
                 )
-                if "{config.lbfgs_float_type}" == "float64":
-                    dde.config.set_default_float("float64")
-                    model.net.double()
-                    print("  [L-BFGS] Switched to float64")
-                model.compile("L-BFGS", loss="{config.loss_type}", loss_weights=_multi_weights)
-                loss_history, train_state = model.train(display_every={config.loss_display_every})
-                if "{config.lbfgs_float_type}" == "float64":
-                    dde.config.set_default_float("float32")
-                    model.net.float()
-                    print("  [L-BFGS] Restored to float32")
+                model.compile("L-BFGS", loss="{config.loss_type}", loss_weights=_multi_weights,
+                              external_trainable_variables=_rar_ext)
+                loss_history, train_state = model.train(display_every={config.loss_display_every}, callbacks=list(_train_cbs))
             _rar_save_round_diagnostics(rar_cycle + 1, new_points)
+            if _problem_type == "Inverse":
+                # the unknowns after this round, in the parameter history
+                # (the convergence plot and the final value read it)
+                with open("/tmp/param_history.txt", "a") as _phf_rar:
+                    _phf_rar.write(f"{{int(model.train_state.step)}} [" +
+                                   ", ".join(f"{{float(_v.detach().cpu()):.10g}}" for _v in _inv_vars) + "]\\n")
             _rar_added_so_far = np.vstack([_rar_added_so_far, new_points])
         print("\\n=== RAR Complete ===")"""
 
@@ -2358,7 +2459,7 @@ for _ea_entry in {config.ea_files}:
     else:
         _ea_tv0, _ea_fp0 = _ea_entry[0], _ea_entry[1]
         _ea_sel0 = None
-    if {config.t_min} - 1e-10 <= _ea_tv0 <= {config.t_max} + 1e-10:
+    if {bool(config.steady_state)} or {config.t_min} - 1e-10 <= _ea_tv0 <= {config.t_max} + 1e-10:   # steady: no time
         _ea_files_norm.append((_ea_tv0, _ea_fp0, _ea_sel0))
 print("\\n=== Running {banner} ===")
 print(f"  Filtering to t=[{config.t_min}, {config.t_max}]: {{len(_ea_files_norm)}} files")
@@ -2424,7 +2525,7 @@ def _ea_extract(_ea_grid, _ea_sel, _ea_model=None):
     return "\n".join((indent + ln) if ln else ln for ln in code.split("\n"))
 
 
-def _gs_time_adaptive_loop_code(_ic_pretrain_block_ta, line_slice_y, line_slice_z, _safe_num_test, _ta_ic_init, _train_cbs_code_ta, config, plot_custom_expr_converted):
+def _gs_time_adaptive_loop_code(_ic_pretrain_block_ta, line_slice_y, line_slice_z, _safe_num_test, _ta_ic_init, _train_cbs_code_ta, config, plot_custom_expr_converted, _safe_point_distribution="Hammersley"):
     """generate_script()'s Time-Adaptive training loop (per-step models, IC
     pre-training, per-step previews, the combined final plot and the
     Time-Adaptive Error Analysis) -- cleanup Round 52 (audit §5): moved
@@ -2438,10 +2539,13 @@ if {config.time_adaptive}:
     # Clear old step directories to avoid stale models from previous runs
     import shutil as _ta_shutil
     _ta_steps_root = _os.path.join(_save_dir, "time_adaptive_steps")
-    if _os.path.isdir(_ta_steps_root):
-        _ta_shutil.rmtree(_ta_steps_root)
-        print(f"  Cleared old time_adaptive_steps directory")
-    _os.makedirs(_ta_steps_root, exist_ok=True)
+    # only inside a save folder: without one this would be a folder of that
+    # name wherever the script was started, and nothing is saved there
+    if _use_save:
+        if _os.path.isdir(_ta_steps_root):
+            _ta_shutil.rmtree(_ta_steps_root)
+            print(f"  Cleared old time_adaptive_steps directory")
+        _os.makedirs(_ta_steps_root, exist_ok=True)
 
     grid_size = {config.ta_grid_size}
     if _is_3d:
@@ -2466,6 +2570,7 @@ if {config.time_adaptive}:
         x_grid = np.linspace({config.x_min}, {config.x_max}, grid_size)
 
     all_x = []; all_t = []; all_u = []
+    _ta_frames = {{}}   # Surface Animation (GIF): frame index -> (X, Y, U), predicted by the step that covers its time
 
     if _is_2d or _is_3d:
         x = x_grid
@@ -2474,6 +2579,7 @@ if {config.time_adaptive}:
     {_ta_ic_init}
     _lr = {config.learning_rate}
     _prev_step_model_path = ""
+    _prev_step_state = None
 
     # ── Build flat interval list from step groups ─────────────
     import json as _json_ta_groups
@@ -2779,6 +2885,7 @@ if {config.time_adaptive}:
             geomtime_i, pde, _constraints_i,
             num_domain={config.num_domain}, num_boundary={config.num_boundary},
             num_initial={config.num_initial}, num_test={_safe_num_test!r},
+            train_distribution="{_safe_point_distribution}",   # as the whole-run model (was DeepXDE's default)
             # forward_ic_from_file only matters for step 0 (loading the
             # true initial condition from a file there); every later step's
             # IC constraint comes from the previous window's own predicted
@@ -2799,16 +2906,17 @@ if {config.time_adaptive}:
 {_train_cbs_code_ta}
 
         # ── Transfer learning — warm start from previous step ─
-        if {config.ta_transfer_learning} and step_i > 0 and _prev_step_model_path:
+        if {config.ta_transfer_learning} and step_i > 0 and (_prev_step_model_path or _prev_step_state):
             try:
                 import torch as _torch
-                _ckpt = _torch.load(_prev_step_model_path, map_location='cpu')
-                # Extract ONLY weights and biases — nothing else
-                _state = _ckpt["model_state_dict"]
-                _wb_only = {{
-                    k: v for k, v in _state.items()
-                    if k.endswith('.weight') or k.endswith('.bias')
-                }}
+                # the saved checkpoint of the chosen phase; without a save
+                # folder, the previous step's network kept in memory
+                _state = (_torch.load(_prev_step_model_path, map_location='cpu')["model_state_dict"]
+                          if _prev_step_model_path else _prev_step_state)
+                # the network's weights and biases, and its buffers too (an
+                # MsFFN's random Fourier matrices B_x/B_t: without them each
+                # step drew new features under the transferred weights)
+                _wb_only = {{k: v for k, v in _state.items()}}
                 # Strict=False so geometry mismatch doesn't crash
                 # but we verify shapes match before loading
                 _cur_state = model_i.net.state_dict()
@@ -2905,8 +3013,7 @@ if {config.time_adaptive}:
                     dde.optimizers.set_LBFGS_options(
                         maxcor={config.lbfgs_maxcor}, ftol={config.lbfgs_ftol},
                         gtol={config.lbfgs_gtol}, maxiter=_sp['iterations'],
-                        maxfun=int(_sp['iterations']*1.25), maxls={config.lbfgs_maxls})
-                    _lbfgs_float = "{config.lbfgs_float_type}"
+                        maxfun=(int(_sp['iterations']*1.25) if {bool(getattr(config, 'lbfgs_use_default', True))} else {config.lbfgs_maxfun}), maxls={config.lbfgs_maxls})
                     model_i.compile("L-BFGS", loss=_sp.get('loss', '{config.loss_type}'),
                                     loss_weights=_sp_weights)
                     lh_i, ts_i = model_i.train(display_every={config.loss_display_every}, callbacks=_train_cbs_ta)
@@ -3033,8 +3140,24 @@ if {config.time_adaptive}:
             Up     = _extract_plot_field(XYTp, model_i).reshape({config.plot_resolution}, {config.plot_resolution})
             all_x.append(Xp); all_t.append(Tp); all_u.append(Up)
 
+        if "{config.plot_type}" == "Surface Animation (GIF)" and (_is_2d or _is_3d):
+            _fr_t = np.linspace({config.t_min}, {config.t_max}, max(2, {config.num_timesteps_anim}))
+            _xa = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
+            _ya = np.linspace({config.y_min}, {config.y_max}, {config.plot_resolution})
+            _Xa, _Ya = np.meshgrid(_xa, _ya)
+            for _fk, _ftv in enumerate(_fr_t):
+                if _fk in _ta_frames or _ftv < t0 - 1e-12 or _ftv > t1 + 1e-12:
+                    continue
+                _cols = [_Xa.ravel(), _Ya.ravel()] + ([np.full(_Xa.size, {line_slice_z!r})] if _is_3d else [])
+                _Ua = _extract_plot_field(np.column_stack(_cols + [np.full(_Xa.size, _ftv)]), model_i).reshape(_Xa.shape)
+                _ta_frames[_fk] = (_ftv, _Ua)
+
         print(f"Step {{step_i+1}} done. Final train loss: {{sum(lh_i.loss_train[-1]):.4e}}")
         _ta_step_boundaries.append(_ta_loss_offset)
+
+        # for transfer learning without a save folder (no checkpoints to
+        # read): the network as this step ended, kept in memory
+        _prev_step_state = {{_k: _v.detach().clone() for _k, _v in model_i.net.state_dict().items()}}
 
         # ── Save step plot & models ───────────────────────────
         if _use_save:
@@ -3073,7 +3196,7 @@ if {config.time_adaptive}:
                         for _mi, (_mtv, _mfp, _msel) in enumerate(_step_matches):
                             _tea_xt_c = np.column_stack([_tea_x_common, np.full_like(_tea_x_common, _mtv)])
                             _tea_U_pinn[_mi, :] = _ta_ref_extract(_tea_xt_c, _msel, model_i).flatten()
-                            _tea_d = np.loadtxt(_mfp)
+                            _tea_d = _load_ref(_mfp)
                             if _tea_d.ndim == 1:
                                 _tea_d = _tea_d.reshape(1, -1)
                             _tea_ord = np.argsort(_tea_d[:, 0])
@@ -3085,20 +3208,21 @@ if {config.time_adaptive}:
                         _tea_vmax = max(_tea_U_pinn.max(), _tea_U_ref.max())
                         if _tea_vmax - _tea_vmin < 1e-12:
                             _tea_vmax = _tea_vmin + 1e-12
+                        _tea_vmin, _tea_vmax = _vr(_tea_vmin, _tea_vmax)   # Plot settings -> Surface -> Colour range
                         _tea_levels = _cf_levels({config.plot_levels}, _tea_vmin, _tea_vmax)["levels"]
                         fig, axes_s = plt.subplots(1, 3, figsize=_plot_figsize(15, 5))
-                        fig.suptitle(f"Step {{step_i+1}}: t = {{t0:.4f}} → {{t1:.4f}} -- PINN vs Reference", fontsize={config.plot_title_fontsize}, fontweight="bold")
+                        fig.suptitle(f"Step {{step_i+1}}: t = {{_fmt_num(t0)}} → {{_fmt_num(t1)}} -- PINN vs Reference", fontsize={config.plot_title_fontsize}, fontweight="bold")
                         _tea_cols = [
                             (_tea_U_pinn, "PINN", _tea_levels, "{config.plot_colormap}"),
                             (_tea_U_ref, "Reference", _tea_levels, "{config.plot_colormap}"),
-                            (_tea_U_err, f"|Error|  max = {{_sci_txt(_tea_U_err.max())}}", {config.plot_levels}, "{config.plot_colormap}"),
+                            (_tea_U_err, f"|Error|  max = {{_sci_txt(_tea_U_err.max())}}", {config.plot_levels}, "{err_cmap(config)}"),
                         ]
                         for _tea_ci, (_tea_vals, _tea_ttl, _tea_lv, _tea_cmap) in enumerate(_tea_cols):
                             if {config.plot_swap_xt}:
-                                _tea_im = axes_s[_tea_ci].contourf(_tea_Tg, _tea_Xg, _tea_vals, levels=_tea_lv, cmap=_tea_cmap)
+                                _tea_im = axes_s[_tea_ci].contourf(_tea_Tg, _tea_Xg, _tea_vals, levels=_tea_lv, cmap=_tea_cmap, extend=_vext(_tea_lv))
                                 axes_s[_tea_ci].set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); axes_s[_tea_ci].set_ylabel("x", fontsize={config.plot_axis_label_fontsize})
                             else:
-                                _tea_im = axes_s[_tea_ci].contourf(_tea_Xg.T, _tea_Tg.T, _tea_vals.T, levels=_tea_lv, cmap=_tea_cmap)
+                                _tea_im = axes_s[_tea_ci].contourf(_tea_Xg.T, _tea_Tg.T, _tea_vals.T, levels=_tea_lv, cmap=_tea_cmap, extend=_vext(_tea_lv))
                                 axes_s[_tea_ci].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); axes_s[_tea_ci].set_ylabel("t", fontsize={config.plot_axis_label_fontsize})
                             axes_s[_tea_ci].set_title(_tea_ttl, fontsize={config.plot_subplot_title_fontsize})
                             fig.colorbar(_tea_im, ax=axes_s[_tea_ci])
@@ -3126,7 +3250,7 @@ if {config.time_adaptive}:
                             ax.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel("t", fontsize={config.plot_axis_label_fontsize})
                         if {config.plot_colorbar}:
                             fig.colorbar(im, ax=ax)
-                        ax.set_title(f"Step {{step_i+1}}: t = {{t0:.4f}} → {{t1:.4f}}")
+                        ax.set_title(f"Step {{step_i+1}}: t = {{_fmt_num(t0)}} → {{_fmt_num(t1)}}")
                         plt.tight_layout()
                     plt.savefig(_step_fname, dpi={config.plot_dpi}, bbox_inches="tight")
                     plt.close()
@@ -3141,13 +3265,13 @@ if {config.time_adaptive}:
                         # ALL of them when there's more than one, since
                         # that's more informative) instead of the plain
                         # evenly-spaced time sampling used below.
-                        _tea_ncols = min(4, len(_step_matches))
+                        _tea_ncols = min({max(1, int(getattr(config, 'plot_ea_cols', 4) or 4))}, len(_step_matches))
                         _tea_nrows = (len(_step_matches) + _tea_ncols - 1) // _tea_ncols
-                        fig, axes = plt.subplots(_tea_nrows, _tea_ncols, figsize=(4*_tea_ncols, 3.5*_tea_nrows), squeeze=False)
-                        fig.suptitle(f"Step {{step_i+1}}: t = {{t0:.4f}} → {{t1:.4f}} -- PINN vs Reference", fontsize={config.plot_title_fontsize}, fontweight="bold")
+                        fig, axes = plt.subplots(_tea_nrows, _tea_ncols, figsize=_panel_figsize(4, 3.5, _tea_ncols, _tea_nrows), squeeze=False)
+                        fig.suptitle(f"Step {{step_i+1}}: t = {{_fmt_num(t0)}} → {{_fmt_num(t1)}} -- PINN vs Reference", fontsize={config.plot_title_fontsize}, fontweight="bold")
                         _tea_ax_flat = axes.flatten()
                         for _mi, (_mtv, _mfp, _msel) in enumerate(_step_matches):
-                            _tea_d = np.loadtxt(_mfp)
+                            _tea_d = _load_ref(_mfp)
                             if _tea_d.ndim == 1:
                                 _tea_d = _tea_d.reshape(1, -1)
                             _tea_ord = np.argsort(_tea_d[:, 0])
@@ -3157,14 +3281,14 @@ if {config.time_adaptive}:
                             _tea_up = _ta_ref_extract(_tea_xt_l, _msel, model_i).flatten()
                             _tea_l2 = float(np.linalg.norm(_tea_up - _tea_uv) / (np.linalg.norm(_tea_uv) + 1e-10))
                             _ax = _tea_ax_flat[_mi]
-                            _ax.plot(_tea_xv, _tea_uv, color="#4dabf7", linewidth=2.0, label="Reference")
-                            _ax.plot(_tea_xv, _tea_up, color="#ff6b6b", linewidth=2.0, linestyle="--", label="PINN")
-                            _ax.set_title(f"t={{_mtv:.4f}}  {{_l2_txt(_tea_l2)}}", fontsize={config.plot_subplot_title_fontsize})
-                            _ax.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax.set_ylabel("u", fontsize={config.plot_axis_label_fontsize}); _ax.grid(True, alpha=0.3)
+                            _ref_plot(_ax, _tea_xv, _tea_uv, color=_PLOT_REF_COLOR, linewidth={config.plot_linewidth}, label="Reference")
+                            _ax.plot(_tea_xv, _tea_up, color=_PLOT_PINN_COLOR, linewidth={config.plot_linewidth}, linestyle="--", label="PINN")
+                            _ax.set_title(f"t={{_fmt_num(_mtv)}}  {{_l2_txt(_tea_l2)}}", fontsize={config.plot_subplot_title_fontsize})
+                            _ax.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax.set_ylabel("u", fontsize={config.plot_axis_label_fontsize}); _grid(_ax, alpha=0.3)
                         for _mj in range(len(_step_matches), len(_tea_ax_flat)):
                             _tea_ax_flat[_mj].set_visible(False)
                         _tea_h, _tea_l = _tea_ax_flat[0].get_legend_handles_labels()
-                        fig.legend(_tea_h, _tea_l, loc="lower center", ncol=2, fontsize=9, framealpha=0.9, bbox_to_anchor=(0.5, 0.01))
+                        fig.legend(_tea_h, _tea_l, loc="lower center", ncol=2, fontsize=_lfs(9), framealpha=0.9, bbox_to_anchor=(0.5, 0.01))
                         plt.tight_layout(rect=[0, 0.06, 1, 1])
                     else:
                         n_steps_plot = {config.num_timesteps_line}
@@ -3175,10 +3299,10 @@ if {config.time_adaptive}:
                         for _ci, _tv in enumerate(_t_line):
                             _xt_line = np.column_stack([_x_l2, np.full_like(_x_l2, _tv)])
                             _u_line = _extract_plot_field(_xt_line, model_i).flatten()
-                            ax.plot(_x_l2, _u_line, color=colors[_ci], linewidth={config.plot_linewidth}, label=f"t={{_tv:.3f}}")
+                            ax.plot(_x_l2, _u_line, color=colors[_ci], linewidth={config.plot_linewidth}, label=f"t={{_fmt_num(_tv)}}")
                         ax.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel("u", fontsize={config.plot_axis_label_fontsize})
-                        ax.set_title(f"Step {{step_i+1}}: t = {{t0:.4f}} → {{t1:.4f}}")
-                        ax.legend(loc="upper right", fontsize=7); ax.grid(True, alpha=0.2)
+                        ax.set_title(f"Step {{step_i+1}}: t = {{_fmt_num(t0)}} → {{_fmt_num(t1)}}")
+                        ax.legend(loc="upper right", fontsize=_lfs(7)); _grid(ax, alpha=0.2)
                         plt.tight_layout()
                     plt.savefig(_step_line_fname, dpi={config.plot_dpi}, bbox_inches="tight")
                     plt.close()
@@ -3198,7 +3322,7 @@ if {config.time_adaptive}:
                         if _is_3d:
                             fig = plt.figure(figsize=_plot_figsize(15, 4.5 * _tea_n))
                             for _mi, (_mtv, _mfp, _msel) in enumerate(_step_matches):
-                                _tea_d = np.loadtxt(_mfp)
+                                _tea_d = _load_ref(_mfp)
                                 if _tea_d.ndim == 1:
                                     _tea_d = _tea_d.reshape(1, -1)
                                 _tea_xyz = _tea_d[:, :3]
@@ -3209,10 +3333,11 @@ if {config.time_adaptive}:
                                 _tea_l2 = float(np.linalg.norm(_tea_pred - _tea_u) / (np.linalg.norm(_tea_u) + 1e-12))
                                 _tea_vmin = min(_tea_pred.min(), _tea_u.min())
                                 _tea_vmax = max(_tea_pred.max(), _tea_u.max())
+                                _tea_vmin, _tea_vmax = _vr(_tea_vmin, _tea_vmax)
                                 _tea_cols3 = [
-                                    (_tea_pred, f"PINN  t={{_mtv:.4f}}  {{_l2_txt(_tea_l2)}}", _tea_vmin, _tea_vmax, "{config.plot_colormap}"),
-                                    (_tea_u, f"Reference  t={{_mtv:.4f}}", _tea_vmin, _tea_vmax, "{config.plot_colormap}"),
-                                    (_tea_err, f"|Error|  max = {{_sci_txt(_tea_err.max())}}", None, None, "{config.plot_colormap}"),
+                                    (_tea_pred, f"PINN  t={{_fmt_num(_mtv)}}  {{_l2_txt(_tea_l2)}}", _tea_vmin, _tea_vmax, "{config.plot_colormap}"),
+                                    (_tea_u, f"Reference  t={{_fmt_num(_mtv)}}", _tea_vmin, _tea_vmax, "{config.plot_colormap}"),
+                                    (_tea_err, f"|Error|  max = {{_sci_txt(_tea_err.max())}}", None, None, "{err_cmap(config)}"),
                                 ]
                                 for _tea_ci, (_tea_vals, _tea_ttl, _tea_vmn, _tea_vmx, _tea_cmap) in enumerate(_tea_cols3):
                                     _tea_ax = fig.add_subplot(_tea_n, 3, _mi * 3 + _tea_ci + 1, projection="3d")
@@ -3223,8 +3348,8 @@ if {config.time_adaptive}:
                                     _tea_ax.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _tea_ax.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _tea_ax.set_zlabel("z", fontsize={config.plot_axis_label_fontsize}); [_tk.set_ticks(plt.matplotlib.ticker.MaxNLocator(nbins=4, steps=[1, 2, 5, 10]).tick_values(*_tk.get_data_interval())) for _tk in (_tea_ax.xaxis, _tea_ax.yaxis, _tea_ax.zaxis)]
                             fig.suptitle(f"Step {{step_i+1}} -- PINN vs Reference", fontsize={config.plot_title_fontsize}, fontweight="bold")
                         else:
-                            fig, axes = plt.subplots(_tea_n, 3, figsize=(15, 4*_tea_n), squeeze=False)
-                            fig.suptitle(f"Step {{step_i+1}}: t = {{t0:.4f}} → {{t1:.4f}} -- PINN vs Reference", fontsize={config.plot_title_fontsize}, fontweight="bold")
+                            fig, axes = plt.subplots(_tea_n, 3, figsize=_panel_figsize(5, 4, 3, _tea_n), squeeze=False)
+                            fig.suptitle(f"Step {{step_i+1}}: t = {{_fmt_num(t0)}} → {{_fmt_num(t1)}} -- PINN vs Reference", fontsize={config.plot_title_fontsize}, fontweight="bold")
                             _res_step = {config.plot_resolution}
                             _xg_s = np.linspace({config.x_min}, {config.x_max}, _res_step)
                             _yg_s = np.linspace({config.y_min}, {config.y_max}, _res_step)
@@ -3232,7 +3357,7 @@ if {config.time_adaptive}:
                             _inside_s = geom_i.inside(np.column_stack([_Xg_s.ravel(), _Yg_s.ravel()])).reshape(_res_step, _res_step)
                             from scipy.interpolate import griddata as _tea_gd
                             for _mi, (_mtv, _mfp, _msel) in enumerate(_step_matches):
-                                _tea_d = np.loadtxt(_mfp)
+                                _tea_d = _load_ref(_mfp)
                                 if _tea_d.ndim == 1:
                                     _tea_d = _tea_d.reshape(1, -1)
                                 _tea_xy = _tea_d[:, :2]
@@ -3240,13 +3365,15 @@ if {config.time_adaptive}:
                                 _tea_grid_pinn = np.column_stack([_Xg_s.ravel(), _Yg_s.ravel(), np.full(_Xg_s.size, _mtv)])
                                 _tea_u_pinn = _ta_ref_extract(_tea_grid_pinn, _msel, model_i).reshape(_res_step, _res_step)
                                 _tea_u_pinn = np.where(_inside_s, _tea_u_pinn, np.nan)
-                                _tea_u_ref = _tea_gd(_tea_xy, _tea_u, (_Xg_s, _Yg_s), method="linear", fill_value=0.0)
+                                _tea_u_ref = _tea_gd(_tea_xy, _tea_u, (_Xg_s, _Yg_s), method="linear", fill_value=np.nan)
                                 _tea_u_ref = np.where(_inside_s, _tea_u_ref, np.nan)
-                                _tea_u_err = np.abs(_tea_u_pinn - _tea_u_ref)
+                                _tea_at_ref = _ta_ref_extract(np.column_stack([_tea_xy, np.full(len(_tea_xy), _mtv)]), _msel, model_i)
+                                _tea_u_err = np.where(_inside_s, _err_grid(_tea_xy, _tea_u, _tea_at_ref, _Xg_s, _Yg_s), np.nan)
                                 _tea_vmin = np.nanmin([_tea_u_pinn, _tea_u_ref])
                                 _tea_vmax = np.nanmax([_tea_u_pinn, _tea_u_ref])
                                 if _tea_vmax - _tea_vmin < 1e-12:
                                     _tea_vmax = _tea_vmin + 1e-12
+                                _tea_vmin, _tea_vmax = _vr(_tea_vmin, _tea_vmax)   # Plot settings -> Surface -> Colour range
                                 _tea_levels = _cf_levels({config.plot_levels}, _tea_vmin, _tea_vmax)["levels"]
                                 # Round 31: standardized on "|Error|  Max=..."
                                 # here -- matching every other per-panel error
@@ -3257,15 +3384,15 @@ if {config.time_adaptive}:
                                 # one of the inconsistent labels the user
                                 # reported.
                                 _tea_max_err = float(np.nanmax(_tea_u_err))
-                                im0 = axes[_mi][0].contourf(_Xg_s, _Yg_s, _tea_u_pinn, levels=_tea_levels, cmap="{config.plot_colormap}")
-                                axes[_mi][0].set_title(f"PINN  t={{_mtv:.4f}}", fontsize={config.plot_subplot_title_fontsize})
+                                im0 = axes[_mi][0].contourf(_Xg_s, _Yg_s, _tea_u_pinn, levels=_tea_levels, cmap="{config.plot_colormap}", extend=_vext())
+                                axes[_mi][0].set_title(f"PINN  t={{_fmt_num(_mtv)}}", fontsize={config.plot_subplot_title_fontsize})
                                 axes[_mi][0].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); axes[_mi][0].set_ylabel("y", fontsize={config.plot_axis_label_fontsize})
                                 fig.colorbar(im0, ax=axes[_mi][0])
-                                im1 = axes[_mi][1].contourf(_Xg_s, _Yg_s, _tea_u_ref, levels=_tea_levels, cmap="{config.plot_colormap}")
-                                axes[_mi][1].set_title(f"Reference  t={{_mtv:.4f}}", fontsize={config.plot_subplot_title_fontsize})
+                                im1 = axes[_mi][1].contourf(_Xg_s, _Yg_s, _tea_u_ref, levels=_tea_levels, cmap="{config.plot_colormap}", extend=_vext())
+                                axes[_mi][1].set_title(f"Reference  t={{_fmt_num(_mtv)}}", fontsize={config.plot_subplot_title_fontsize})
                                 axes[_mi][1].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); axes[_mi][1].set_ylabel("y", fontsize={config.plot_axis_label_fontsize})
                                 fig.colorbar(im1, ax=axes[_mi][1])
-                                im2 = axes[_mi][2].contourf(_Xg_s, _Yg_s, _tea_u_err, levels={config.plot_levels}, cmap="{config.plot_colormap}")
+                                im2 = axes[_mi][2].contourf(_Xg_s, _Yg_s, _tea_u_err, levels={config.plot_levels}, cmap="{err_cmap(config)}")
                                 axes[_mi][2].set_title(f"|Error|  max = {{_sci_txt(_tea_max_err)}}", fontsize={config.plot_subplot_title_fontsize})
                                 axes[_mi][2].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); axes[_mi][2].set_ylabel("y", fontsize={config.plot_axis_label_fontsize})
                                 fig.colorbar(im2, ax=axes[_mi][2])
@@ -3287,8 +3414,8 @@ if {config.time_adaptive}:
                                 if {config.plot_colorbar}:
                                     fig.colorbar(im, ax=axes[_ai])
                                 axes[_ai].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); axes[_ai].set_ylabel("y", fontsize={config.plot_axis_label_fontsize})
-                                axes[_ai].set_title(f"t = {{_tv_s:.4f}}  (z={{_z_mid_s:.3g}})")
-                            fig.suptitle(f"Step {{step_i+1}}: t = {{t0:.4f}} → {{t1:.4f}}", fontsize={config.plot_title_fontsize})
+                                axes[_ai].set_title(f"t = {{_fmt_num(_tv_s)}}  (z={{_fmt_num(_z_mid_s)}})")
+                            fig.suptitle(f"Step {{step_i+1}}: t = {{_fmt_num(t0)}} → {{_fmt_num(t1)}}", fontsize={config.plot_title_fontsize})
                         else:
                             fig, axes = plt.subplots(1, 2, figsize=_plot_figsize(10, 4))
                             for _ai, _tv_s in enumerate([t0, t1]):
@@ -3298,8 +3425,8 @@ if {config.time_adaptive}:
                                 if {config.plot_colorbar}:
                                     fig.colorbar(im, ax=axes[_ai])
                                 axes[_ai].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); axes[_ai].set_ylabel("y", fontsize={config.plot_axis_label_fontsize})
-                                axes[_ai].set_title(f"t = {{_tv_s:.4f}}")
-                            fig.suptitle(f"Step {{step_i+1}}: t = {{t0:.4f}} → {{t1:.4f}}", fontsize={config.plot_title_fontsize})
+                                axes[_ai].set_title(f"t = {{_fmt_num(_tv_s)}}")
+                            fig.suptitle(f"Step {{step_i+1}}: t = {{_fmt_num(t0)}} → {{_fmt_num(t1)}}", fontsize={config.plot_title_fontsize})
                         plt.tight_layout(rect=[0, 0, 1, 0.93])
                     plt.savefig(_step_fname, dpi={config.plot_dpi}, bbox_inches="tight")
                     plt.close()
@@ -3331,6 +3458,7 @@ if {config.time_adaptive}:
                     _prev_step_model_path = max(_adam_pts, key=_os.path.getmtime)
                     print(f"  Transfer learning source (adam): {{_os.path.basename(_prev_step_model_path)}}")
 
+
             # ── Save step config JSON ─────────────────────────
             # y_min/y_max/z_min/z_max added alongside x_min/x_max so a 2D/3D
             # Time-Adaptive step's own model_config-equivalent is complete
@@ -3361,15 +3489,72 @@ if {config.time_adaptive}:
 
     X_full = np.vstack(all_x); T_full = np.vstack(all_t); U_full = np.vstack(all_u)
     print("\\n=== Time-Adaptive Training Complete ===")
+    try:            # the last time step's losses, as a sweep reads them
+        _fl_ta, _fl_ta_unw = _final_losses(model_i, lh_i)
+        print(f"Final loss: {{_fl_ta:.4e}}")
+        print(f"Final loss (unweighted): {{_fl_ta_unw:.4e}}")
+    except Exception:
+        pass
 
     _ta_solution_path = _os.path.join(_sol_dir, "solution_plot.png")
     _ta_loss_path     = _os.path.join(_sol_dir, "loss_plot.png")
 
     _plot_type_ta = "{config.plot_type}"
-    if _plot_type_ta not in ("Surface", "Line (time steps)"):
-        # Same fallback reasoning as the per-step preview above -- GIF
-        # animations and Parameter Convergence aren't wired up for
-        # Time-Adaptive's final solution plot yet.
+    # The animations, as the exported script makes them: the line along x
+    # (at the set y, z) from every step's stored rows, and the x-y surface
+    # (3D: at the set z) from the frames each step predicted for its window.
+    if _plot_type_ta == "Line Animation (GIF)" and all_u:
+        import matplotlib.animation as _anim_ta
+        _ta_solution_path = _os.path.join(_sol_dir, "solution_plot.gif")
+        _T_rows = np.concatenate([_tt[:, 0] for _tt in all_t])
+        _U_rows = np.concatenate(all_u, axis=0)
+        _x_row = all_x[0][0, :]
+        _t_fr = np.linspace({config.t_min}, {config.t_max}, max(2, {config.num_timesteps_anim}))
+        _rows = [int(np.argmin(np.abs(_T_rows - _tv))) for _tv in _t_fr]
+        _lo, _hi = float(np.nanmin(_U_rows)), float(np.nanmax(_U_rows))
+        _pad = 0.05 * (_hi - _lo or 1.0)
+        fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
+        def _upd_ta(_k):
+            ax.cla()
+            ax.plot(_x_row, _U_rows[_rows[_k]], color=_PLOT_PINN_COLOR, linewidth={config.plot_linewidth_anim})
+            ax.set_ylim(_lo - _pad, _hi + _pad)
+            ax.set_xlabel(globals().get("_plot_xlabel_override") or "x", fontsize={config.plot_axis_label_fontsize})
+            ax.set_ylabel(globals().get("_plot_ylabel_override") or {_ta_out_label(config)!r}, fontsize={config.plot_axis_label_fontsize})
+            ax.set_title(globals().get("_plot_title_override") or f"t = {{_fmt_num(_t_fr[_k])}}", fontsize={config.plot_title_fontsize})
+            _grid(ax, alpha=0.3)
+        _ani_ta = _anim_ta.FuncAnimation(fig, _upd_ta, frames=len(_t_fr), interval=150)
+        _ani_ta.save(_ta_solution_path, writer="pillow", fps={config.plot_fps}, dpi=_PLOT_DPI_ANIM)
+        plt.close(fig)
+        _plot_type_ta = "done"
+    elif _plot_type_ta == "Surface Animation (GIF)" and _ta_frames:
+        import matplotlib.animation as _anim_ta
+        _ta_solution_path = _os.path.join(_sol_dir, "solution_plot.gif")
+        _fks = sorted(_ta_frames)
+        _xa = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
+        _ya = np.linspace({config.y_min}, {config.y_max}, {config.plot_resolution})
+        _Xa, _Ya = np.meshgrid(_xa, _ya)
+        _lo = min(float(np.nanmin(_ta_frames[_k][1])) for _k in _fks)
+        _hi = max(float(np.nanmax(_ta_frames[_k][1])) for _k in _fks)
+        if not {config.plot_auto_range}:
+            _lo, _hi = {config.plot_vmin}, {config.plot_vmax}
+        fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
+        _sm_ta = plt.cm.ScalarMappable(cmap="{config.plot_colormap}", norm=plt.Normalize(vmin=_lo, vmax=_hi))
+        if {config.plot_colorbar}:
+            fig.colorbar(_sm_ta, ax=ax)
+        def _upd_ta(_k):
+            ax.cla()
+            _tv, _Ua = _ta_frames[_fks[_k]]
+            ax.contourf(_Xa, _Ya, _Ua, cmap="{config.plot_colormap}", **_cf_levels({config.plot_levels}, _lo, _hi, _Ua))
+            ax.set_xlabel(globals().get("_plot_xlabel_override") or "x", fontsize={config.plot_axis_label_fontsize})
+            ax.set_ylabel(globals().get("_plot_ylabel_override") or "y", fontsize={config.plot_axis_label_fontsize})
+            ax.set_title(globals().get("_plot_title_override") or f"t = {{_fmt_num(_tv)}}", fontsize={config.plot_title_fontsize})
+        _ani_ta = _anim_ta.FuncAnimation(fig, _upd_ta, frames=len(_fks), interval=150)
+        _ani_ta.save(_ta_solution_path, writer="pillow", fps={config.plot_fps}, dpi=_PLOT_DPI_ANIM)
+        plt.close(fig)
+        _plot_type_ta = "done"
+    elif _plot_type_ta not in ("Surface", "Line (time steps)"):
+        # Parameter Convergence has no Time-Adaptive form (Inverse has no
+        # time-adaptive training): the surface instead.
         _plot_type_ta = "Surface"
     if _plot_type_ta == "Surface":
         _vmin_ta = None if {config.plot_auto_range} else {config.plot_vmin}
@@ -3437,7 +3622,7 @@ if {config.time_adaptive}:
                     _pred_ta = np.zeros((_res_ta, _res_ta))
                 _pred_ta = np.where(_inside_ta, _pred_ta, np.nan)
                 im = axes[_ai].contourf(_Xg_ta, _Yg_ta, _pred_ta, cmap="{config.plot_colormap}", **_cf_levels({config.plot_levels}, _vmin_ta, _vmax_ta, _pred_ta))
-                axes[_ai].set_title(f"t = {{_tv_ta:.3f}}")
+                axes[_ai].set_title(f"t = {{_fmt_num(_tv_ta)}}")
                 axes[_ai].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); axes[_ai].set_ylabel("y", fontsize={config.plot_axis_label_fontsize})
                 if {config.plot_colorbar}: fig.colorbar(im, ax=axes[_ai])
             fig.suptitle("Time-Adaptive PINN Solution", fontsize={config.plot_title_fontsize})
@@ -3468,12 +3653,12 @@ if {config.time_adaptive}:
         colors = plt.get_cmap("{config.plot_colormap}")(np.linspace(0, 1, n_ts))
         for ci, tv in enumerate(t_vals):
             idx = np.argmin(np.abs(T_full[:,0] - tv))
-            ax.plot(X_full[idx,:], U_full[idx,:], color=colors[ci], linewidth={config.plot_linewidth}, label=f"t={{tv:.3f}}")
-        _ylabel_ta_line = (f"u(x,y={line_slice_y:.3g},z={line_slice_z:.3g},t)" if _is_3d
-                           else (f"u(x,y={line_slice_y:.3g},t)" if _is_2d else "u(x,t)"))
+            ax.plot(X_full[idx,:], U_full[idx,:], color=colors[ci], linewidth={config.plot_linewidth}, label=f"t={{_fmt_num(tv)}}")
+        _ylabel_ta_line = (f"u(x,y={{_fmt_num({line_slice_y!r})}},z={{_fmt_num({line_slice_z!r})}},t)" if _is_3d
+                           else (f"u(x,y={{_fmt_num({line_slice_y!r})}},t)" if _is_2d else "u(x,t)"))
         ax.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_ylabel_ta_line, fontsize={config.plot_axis_label_fontsize})
         ax.set_title("Time-Adaptive PINN — Line Plot")
-        ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
+        ax.legend(loc="upper right", fontsize=_lfs(8)); _grid(ax, alpha=0.2)
         plt.tight_layout(); plt.savefig(_ta_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
 
     # Full Time-Adaptive run -- every optimizer phase of every time
@@ -3517,7 +3702,7 @@ if {config.time_adaptive}:
             # Load all ground truth files
             _ea_times = []; _ea_x_refs = []; _ea_y_refs = []; _ea_z_refs = []; _ea_u_refs = []
             for _ea_tv, _ea_fp in _ea_files:
-                _ea_d = np.loadtxt(_ea_fp)
+                _ea_d = _load_ref(_ea_fp)
                 if _ea_d.ndim == 1: _ea_d = _ea_d.reshape(1, -1)
                 if _is_3d:
                     # 3D format: x, y, z, t, u -- same as the Standard path's
@@ -3674,14 +3859,14 @@ if {config.time_adaptive}:
 
             # Line comparison
             if {config.ea_do_line}:
-                _ea_ncols = min(4, _ea_n_t)
+                _ea_ncols = min({max(1, int(getattr(config, 'plot_ea_cols', 4) or 4))}, _ea_n_t)
                 _ea_nrows = (_ea_n_t + _ea_ncols - 1) // _ea_ncols
-                fig, axes = plt.subplots(_ea_nrows, _ea_ncols, figsize=(4*_ea_ncols, 3.5*_ea_nrows), squeeze=False)
+                fig, axes = plt.subplots(_ea_nrows, _ea_ncols, figsize=_panel_figsize(4, 3.5, _ea_ncols, _ea_nrows), squeeze=False)
                 _ea_line_suptitle_ta = _ea_title_txt("Line Comparison", _ea_sel)
                 if _is_3d:
-                    _ea_line_suptitle_ta += f" (y={line_slice_y:.3g}, z={line_slice_z:.3g})"
+                    _ea_line_suptitle_ta += f" (y={{_fmt_num({line_slice_y!r})}}, z={{_fmt_num({line_slice_z!r})}})"
                 elif _is_2d:
-                    _ea_line_suptitle_ta += f" (y={line_slice_y:.3g})"
+                    _ea_line_suptitle_ta += f" (y={{_fmt_num({line_slice_y!r})}})"
                 fig.suptitle(_ea_line_suptitle_ta.replace(" — Line Comparison", ""), fontsize={config.plot_subplot_title_fontsize} + 2)
                 _ea_ax_flat = axes.flatten()
                 if _is_2d or _is_3d:
@@ -3775,13 +3960,15 @@ if {config.time_adaptive}:
                         _gt_s = _ea_u_refs[_ei][_ea_sort]
                         _pinn_s = _ea_u_pinns[_ei][_ea_sort]
                     _ea_tv, _l2, _mse, _mx, _ma = _ea_metrics[_ei]
-                    ax.plot(_xv_s, _gt_s,   color='#4dabf7', linewidth=2.0, linestyle='-',  label='Reference')
-                    ax.plot(_xv_s, _pinn_s, color='#ff6b6b', linewidth=2.0, linestyle='--', label='PINN')
-                    ax.set_title(f"t = {{_ea_tv:.3g}}  ({{_l2_txt(_l2)}})", fontsize={config.plot_subplot_title_fontsize})
-                    ax.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel("u(x,t)", fontsize={config.plot_axis_label_fontsize}); ax.grid(True, alpha=0.3)
+                    if _is_2d or _is_3d:
+                        _xv_s, _gt_s, _pinn_s = _line_gaps(_xv_s, _gt_s, _pinn_s)
+                    _ref_plot(ax, _xv_s, _gt_s,   color=_PLOT_REF_COLOR, linewidth={config.plot_linewidth}, linestyle='-',  label='Reference')
+                    ax.plot(_xv_s, _pinn_s, color=_PLOT_PINN_COLOR, linewidth={config.plot_linewidth}, linestyle='--', label='PINN')
+                    ax.set_title(f"t = {{_fmt_num(_ea_tv)}}  ({{_l2_txt(_l2)}})", fontsize={config.plot_subplot_title_fontsize})
+                    ax.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel("u(x,t)", fontsize={config.plot_axis_label_fontsize}); _grid(ax, alpha=0.3)
                 for _ej in range(_ea_n_t, len(_ea_ax_flat)):
                     _ea_ax_flat[_ej].set_visible(False)
-                _ea_ax_flat[0].legend(loc='best', fontsize=10, framealpha=0.9)
+                _ea_ax_flat[0].legend(loc='best', fontsize=_lfs(10), framealpha=0.9)
                 plt.tight_layout()
                 _ea_lp = _os.path.join(_ea_dir, f"line_comparison{{_ea_suffix}}.png")
                 plt.savefig(_ea_lp, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
@@ -3796,7 +3983,7 @@ if {config.time_adaptive}:
                     _xg_ea = np.linspace({config.x_min}, {config.x_max}, _res_ea)
                     _yg_ea = np.linspace({config.y_min}, {config.y_max}, _res_ea)
                     _Xg_ea, _Yg_ea = np.meshgrid(_xg_ea, _yg_ea)
-                    fig, axes = plt.subplots(_ea_n_t, 3, figsize=(15, 4*_ea_n_t), squeeze=False)
+                    fig, axes = plt.subplots(_ea_n_t, 3, figsize=_panel_figsize(5, 4, 3, _ea_n_t), squeeze=False)
                     fig.suptitle(_ea_title_txt("2D Heatmaps", _ea_sel), fontsize={config.plot_title_fontsize}, fontweight='bold')
                     # Need step models to predict on grid — collect from step dirs
                     import glob as _ea_glob2, json as _ea_json2
@@ -3848,27 +4035,35 @@ if {config.time_adaptive}:
                                 _sm2.restore(_spt2, verbose=0)
                                 _u_pinn_grid = _ea_extract(_xyt_grid, _ea_sel, _sm2).reshape(_res_ea, _res_ea)
                             else:
+                                _sm2 = None
                                 _u_pinn_grid = np.zeros((_res_ea, _res_ea))
                         else:
+                            _sm2 = None
                             _u_pinn_grid = np.zeros((_res_ea, _res_ea))
-                        _u_fem_grid = _gd(np.column_stack([_ea_x_refs[_ei], _ea_y_refs[_ei]]),
-                                          _ea_u_refs[_ei], (_Xg_ea, _Yg_ea), method='linear', fill_value=0.0)
-                        _u_err_grid = np.abs(_u_pinn_grid - _u_fem_grid)
-                        _vmin_ea = min(_u_pinn_grid.min(), _u_fem_grid.min())
-                        _vmax_ea = max(_u_pinn_grid.max(), _u_fem_grid.max())
+                        _ref_pts_ea = np.column_stack([_ea_x_refs[_ei], _ea_y_refs[_ei]])
+                        _u_fem_grid = _gd(_ref_pts_ea, _ea_u_refs[_ei], (_Xg_ea, _Yg_ea), method='linear', fill_value=np.nan)
+                        if _sm2 is not None:
+                            _pinn_at_ref_ea = _ea_extract(np.column_stack([_ref_pts_ea, np.full(len(_ref_pts_ea), _ea_tv)]),
+                                                          _ea_sel, _sm2)
+                            _u_err_grid = _err_grid(_ref_pts_ea, _ea_u_refs[_ei], _pinn_at_ref_ea, _Xg_ea, _Yg_ea)
+                        else:
+                            _u_err_grid = np.abs(_u_pinn_grid - _u_fem_grid)
+                        _vmin_ea = np.nanmin([_u_pinn_grid, _u_fem_grid])
+                        _vmax_ea = np.nanmax([_u_pinn_grid, _u_fem_grid])
                         if _vmax_ea - _vmin_ea < 1e-12:
                             _vmax_ea = _vmin_ea + 1e-12
+                        _vmin_ea, _vmax_ea = _vr(_vmin_ea, _vmax_ea)   # Plot settings -> Surface -> Colour range
                         _levels_ea2d = _cf_levels({config.plot_levels}, _vmin_ea, _vmax_ea)["levels"]  # contourf ignores vmin/vmax with an integer `levels=N` -- see the Standard-path comment on the same pattern above
-                        im0 = axes[_ei][0].contourf(_Xg_ea, _Yg_ea, _u_pinn_grid, levels=_levels_ea2d, cmap='{config.plot_colormap}')
-                        axes[_ei][0].set_title(f"PINN  t={{_ea_tv:.3f}}  {{_l2_txt(_l2)}}", fontsize={config.plot_subplot_title_fontsize})
+                        im0 = axes[_ei][0].contourf(_Xg_ea, _Yg_ea, _u_pinn_grid, levels=_levels_ea2d, cmap='{config.plot_colormap}', extend=_vext())
+                        axes[_ei][0].set_title(f"PINN  t={{_fmt_num(_ea_tv)}}  {{_l2_txt(_l2)}}", fontsize={config.plot_subplot_title_fontsize})
                         axes[_ei][0].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); axes[_ei][0].set_ylabel("y", fontsize={config.plot_axis_label_fontsize})
                         fig.colorbar(im0, ax=axes[_ei][0])
-                        im1 = axes[_ei][1].contourf(_Xg_ea, _Yg_ea, _u_fem_grid, levels=_levels_ea2d, cmap='{config.plot_colormap}')
-                        axes[_ei][1].set_title(f"Reference  t={{_ea_tv:.3f}}", fontsize={config.plot_subplot_title_fontsize})
+                        im1 = axes[_ei][1].contourf(_Xg_ea, _Yg_ea, _u_fem_grid, levels=_levels_ea2d, cmap='{config.plot_colormap}', extend=_vext())
+                        axes[_ei][1].set_title(f"Reference  t={{_fmt_num(_ea_tv)}}", fontsize={config.plot_subplot_title_fontsize})
                         axes[_ei][1].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); axes[_ei][1].set_ylabel("y", fontsize={config.plot_axis_label_fontsize})
                         fig.colorbar(im1, ax=axes[_ei][1])
-                        im2 = axes[_ei][2].contourf(_Xg_ea, _Yg_ea, _u_err_grid, levels={config.plot_levels}, cmap='{config.plot_colormap}')
-                        axes[_ei][2].set_title(f"|Error|  t={{_ea_tv:.3f}}  max = {{_sci_txt(_mx)}}", fontsize={config.plot_subplot_title_fontsize})
+                        im2 = axes[_ei][2].contourf(_Xg_ea, _Yg_ea, _u_err_grid, levels={config.plot_levels}, cmap='{err_cmap(config)}')
+                        axes[_ei][2].set_title(f"|Error|  t={{_fmt_num(_ea_tv)}}  max = {{_sci_txt(_mx)}}", fontsize={config.plot_subplot_title_fontsize})
                         axes[_ei][2].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); axes[_ei][2].set_ylabel("y", fontsize={config.plot_axis_label_fontsize})
                         fig.colorbar(im2, ax=axes[_ei][2])
                     plt.tight_layout(rect=[0, 0, 1, 0.93])
@@ -3891,7 +4086,7 @@ if {config.time_adaptive}:
                     _corners_ta = [(_bx0_ta,_by0_ta,_bz0_ta),(_bx1_ta,_by0_ta,_bz0_ta),(_bx1_ta,_by1_ta,_bz0_ta),(_bx0_ta,_by1_ta,_bz0_ta),
                                     (_bx0_ta,_by0_ta,_bz1_ta),(_bx1_ta,_by0_ta,_bz1_ta),(_bx1_ta,_by1_ta,_bz1_ta),(_bx0_ta,_by1_ta,_bz1_ta)]
                     _edges_ta = [(0,1),(1,2),(2,3),(3,0),(4,5),(5,6),(6,7),(7,4),(0,4),(1,5),(2,6),(3,7)]
-                    fig = plt.figure(figsize=(15, 4.5 * _ea_n_t))
+                    fig = plt.figure(figsize=_panel_figsize(5, 4.5, 3, _ea_n_t))
                     fig.suptitle(_ea_title_txt("3D Comparison", _ea_sel), fontsize={config.plot_title_fontsize}, fontweight='bold')
                     for _ei, _ea_tv in enumerate(_ea_times):
                         _ea_tv_r, _l2, _mse, _mx, _ma = _ea_metrics[_ei]
@@ -3916,8 +4111,10 @@ if {config.time_adaptive}:
                             _bx_ta, _by_ta, _bz_ta = _bx_ta[_ea_sub_ta], _by_ta[_ea_sub_ta], _bz_ta[_ea_sub_ta]
                             _gt_b_ta, _pinn_b_ta = _gt_b_ta[_ea_sub_ta], _pinn_b_ta[_ea_sub_ta]
                         _err_b_ta = np.abs(_pinn_b_ta - _gt_b_ta)
-                        _cols_ta = [(_pinn_b_ta, f"PINN  t={{_ea_tv:.3f}}  {{_l2_txt(_l2)}}"),
-                                    (_gt_b_ta, f"Reference  t={{_ea_tv:.3f}}"),
+                        # PINN and reference on one scale (fixed in Plot settings, or the data's)
+                        _v3_ta = _vr(float(min(_pinn_b_ta.min(), _gt_b_ta.min())), float(max(_pinn_b_ta.max(), _gt_b_ta.max())))
+                        _cols_ta = [(_pinn_b_ta, f"PINN  t={{_fmt_num(_ea_tv)}}  {{_l2_txt(_l2)}}"),
+                                    (_gt_b_ta, f"Reference  t={{_fmt_num(_ea_tv)}}"),
                                     (_err_b_ta, f"|Error|  max = {{_sci_txt(_mx)}}")]
                         for _ci_ta, (_vals_ta, _ttl_ta) in enumerate(_cols_ta):
                             _ax3_ta = fig.add_subplot(_ea_n_t, 3, _ei * 3 + _ci_ta + 1, projection='3d')
@@ -3926,7 +4123,8 @@ if {config.time_adaptive}:
                                 _ax3_ta.plot([_p0_ta[0], _p1_ta[0]], [_p0_ta[1], _p1_ta[1]], [_p0_ta[2], _p1_ta[2]],
                                              color='#888888', linewidth=0.8, alpha=0.6)
                             _sc3_ta = _ax3_ta.scatter(_bx_ta, _by_ta, _bz_ta, c=_vals_ta,
-                                                       cmap='{config.plot_colormap}', s=14)
+                                                       cmap=('{err_cmap(config)}' if _ci_ta == 2 else '{config.plot_colormap}'), s=14,
+                                                       **(dict(vmin=_v3_ta[0], vmax=_v3_ta[1]) if _ci_ta < 2 else {{}}))
                             fig.colorbar(_sc3_ta, ax=_ax3_ta, shrink=0.6, pad=0.12)
                             _ax3_ta.set_title(_ttl_ta, fontsize={config.plot_subplot_title_fontsize})
                             _ax3_ta.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax3_ta.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); _ax3_ta.set_zlabel("z", fontsize={config.plot_axis_label_fontsize}); [_tk.set_ticks(plt.matplotlib.ticker.MaxNLocator(nbins=4, steps=[1, 2, 5, 10]).tick_values(*_tk.get_data_interval())) for _tk in (_ax3_ta.xaxis, _ax3_ta.yaxis, _ax3_ta.zaxis)]
@@ -3960,16 +4158,17 @@ if {config.time_adaptive}:
                     _ea_vmax = max(_ea_U_pinn.max(), _ea_U_fem.max())
                     if _ea_vmax - _ea_vmin < 1e-12:
                         _ea_vmax = _ea_vmin + 1e-12
+                    _ea_vmin, _ea_vmax = _vr(_ea_vmin, _ea_vmax)   # Plot settings -> Surface -> Colour range
                     _levels_ea1d = _cf_levels({config.plot_levels}, _ea_vmin, _ea_vmax)["levels"]  # contourf ignores vmin/vmax with an integer `levels=N` -- see the Standard-path comment on the same pattern above
-                    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+                    fig, axes = plt.subplots(1, 3, figsize=_panel_figsize(5, 5, 3, 1))
                     fig.suptitle(_ea_title_txt("Surface Comparison", _ea_sel), fontsize={config.plot_title_fontsize}, fontweight='bold')
-                    im0 = axes[0].contourf(_ea_Tg, _ea_Xg, _ea_U_pinn, levels=_levels_ea1d, cmap='{config.plot_colormap}')
+                    im0 = axes[0].contourf(_ea_Tg, _ea_Xg, _ea_U_pinn, levels=_levels_ea1d, cmap='{config.plot_colormap}', extend=_vext())
                     axes[0].set_title(f"PINN  {{_ea_field_txt(_ea_sel)}}(x,t)"); axes[0].set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); axes[0].set_ylabel("x", fontsize={config.plot_axis_label_fontsize})
                     fig.colorbar(im0, ax=axes[0])
-                    im1 = axes[1].contourf(_ea_Tg, _ea_Xg, _ea_U_fem, levels=_levels_ea1d, cmap='{config.plot_colormap}')
+                    im1 = axes[1].contourf(_ea_Tg, _ea_Xg, _ea_U_fem, levels=_levels_ea1d, cmap='{config.plot_colormap}', extend=_vext())
                     axes[1].set_title(f"Reference  {{_ea_field_txt(_ea_sel)}}(x,t)"); axes[1].set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); axes[1].set_ylabel("x", fontsize={config.plot_axis_label_fontsize})
                     fig.colorbar(im1, ax=axes[1])
-                    im2 = axes[2].contourf(_ea_Tg, _ea_Xg, _ea_U_err, levels={config.plot_levels}, cmap='{config.plot_colormap}')
+                    im2 = axes[2].contourf(_ea_Tg, _ea_Xg, _ea_U_err, levels={config.plot_levels}, cmap='{err_cmap(config)}')
                     axes[2].set_title("Error  |PINN - Reference|"); axes[2].set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); axes[2].set_ylabel("x", fontsize={config.plot_axis_label_fontsize})
                     fig.colorbar(im2, ax=axes[2])
                     plt.tight_layout(rect=[0, 0, 1, 0.93])
@@ -4417,6 +4616,83 @@ def _exact_constraints(config):
     return _dc.replace(config, **upd)
 
 
+def _shape_bbox(config):
+    """The bounding box of a non-box shape (Disk, Ellipse, Triangle, Polygon,
+    Sphere, Custom), as {"x_min": .., "x_max": .., ...}; None for a
+    Rectangle/Cuboid/interval, whose box is the domain fields themselves.
+    The scripts' named sides (left/right/top/...), plot areas and Error
+    Analysis grids use the domain fields, which the window doesn't keep in
+    step with these shapes."""
+    import math
+    import json as _js
+
+    def leaf(kind, p):
+        if kind in ("Disk", "Sphere"):
+            c = [float(p.get("cx", 0.5)), float(p.get("cy", 0.5))] + ([float(p.get("cz", 0.5))] if kind == "Sphere" else [])
+            r = abs(float(p.get("r", 0.5)))
+            return [v - r for v in c], [v + r for v in c]
+        if kind == "Ellipse":
+            cx, cy = float(p.get("cx", 0.5)), float(p.get("cy", 0.5))
+            a, b, t = float(p.get("a", 0.5)), float(p.get("b", 0.3)), float(p.get("angle", 0.0))
+            hx, hy = math.hypot(a * math.cos(t), b * math.sin(t)), math.hypot(a * math.sin(t), b * math.cos(t))
+            return [cx - hx, cy - hy], [cx + hx, cy + hy]
+        if kind in ("Triangle", "Polygon"):
+            v = _parse_vertex_list(p.get("vertices_text", ""))
+            if len(v) < 3:
+                return None
+            return [min(q[0] for q in v), min(q[1] for q in v)], [max(q[0] for q in v), max(q[1] for q in v)]
+        keys = ("x", "y", "z") if kind == "Cuboid" else ("x", "y")
+        try:
+            lo = [float(p[f"{k}_min"]) for k in keys]
+            hi = [float(p[f"{k}_max"]) for k in keys]
+        except (KeyError, TypeError, ValueError):
+            return None
+        return lo, hi
+
+    g = getattr(config, "geometry_type", "Rectangle")
+    dim = getattr(config, "problem_dim", "2D")
+    if dim not in ("2D", "3D"):
+        return None
+    if g == "Custom":
+        try:
+            entries = [e for e in (_js.loads(config.geom_custom_shapes_json or "[]") or []) if isinstance(e, dict)]
+        except (ValueError, TypeError):
+            return None
+        box = None
+        for e in entries:
+            b = leaf(e.get("type"), e.get("params") or {})
+            if b is None:
+                return None
+            if box is None:
+                box = b
+                continue
+            op = e.get("op") or "union"
+            if op == "union":
+                box = ([min(a, c) for a, c in zip(box[0], b[0])], [max(a, c) for a, c in zip(box[1], b[1])])
+            elif op == "intersect":
+                box = ([max(a, c) for a, c in zip(box[0], b[0])], [min(a, c) for a, c in zip(box[1], b[1])])
+            # subtract: the box can only shrink, keep the first one's
+    else:
+        P = {"cx": config.geom_center_x, "cy": config.geom_center_y, "cz": getattr(config, "geom_center_z", 0.5),
+             "r": config.geom_radius, "a": config.geom_semi_major, "b": config.geom_semi_minor, "angle": config.geom_angle,
+             "vertices_text": config.geom_triangle_vertices if g == "Triangle" else config.geom_polygon_vertices}
+        box = leaf(g, P) if g in ("Disk", "Ellipse", "Triangle", "Polygon", "Sphere") else None
+    if not box or any(h <= l for l, h in zip(*box)):
+        return None
+    names = ("x", "y", "z")
+    out = {}
+    for k, (l, h) in enumerate(zip(*box)):
+        out[f"{names[k]}_min"], out[f"{names[k]}_max"] = float(l), float(h)
+    return out
+
+
+def _ta_out_label(config):
+    """The plotted output's name, for a Time-Adaptive animation's y label."""
+    names = [n.strip() for n in (getattr(config, "output_names", "") or "u").split(",") if n.strip()] or ["u"]
+    i = int(getattr(config, "plot_output_idx", 0) or 0)
+    return names[i] if 0 <= i < len(names) else names[0]
+
+
 def _effective_config(config):
     """The config as the generators should read it -- cleanup Round 56.
     PINNConfig documents time_adaptive as IGNORED for a steady-state problem
@@ -4430,6 +4706,11 @@ def _effective_config(config):
     import dataclasses as _dc
     if getattr(config, "steady_state", False) and getattr(config, "time_adaptive", False):
         config = _dc.replace(config, time_adaptive=False)
+    # A non-box shape: its own bounding box is the domain box the scripts use
+    # (sides, plot areas, Error Analysis grids), not the hidden box fields.
+    _sb = _shape_bbox(config)
+    if _sb and any(abs(float(getattr(config, k)) - v) > 1e-12 for k, v in _sb.items()):
+        config = _dc.replace(config, **_sb)
     # Round 70: named constants -> their values, in every expression.
     _consts = _constant_values(config)
     if _consts:
@@ -4485,6 +4766,38 @@ def _effective_config(config):
         config._ode = True
     return config
 
+
+
+
+# On the CPU, PyTorch uses one thread per core. On processors with
+# efficiency cores (recent Intel, Apple) the slow cores hold every step back
+# and run times jump by 2-3 times between identical runs; a few threads
+# (about one per performance core) were faster and steady in the timing
+# study (README, "Speed"). OMP_NUM_THREADS, when set, still decides.
+def _cpu_threads_code(config):
+    """CPU threads (GPU / Hardware settings): a number of your own, or
+    Automatic -- about one per performance core, at most 8."""
+    n = int(getattr(config, "cpu_threads", 0) or 0)
+    if n > 0:
+        return f"""
+# CPU training: {n} threads (GPU / Hardware settings -> CPU threads)
+if not torch.cuda.is_available():
+    torch.set_num_threads({n})
+"""
+    return """
+# CPU training: about one thread per performance core is faster and steadier
+# than PyTorch's one per core on processors with efficiency cores
+# (GPU / Hardware settings -> CPU threads: Automatic). OMP_NUM_THREADS, when
+# set, still decides.
+if not torch.cuda.is_available() and "OMP_NUM_THREADS" not in os.environ:
+    torch.set_num_threads(max(1, min(8, (os.cpu_count() or 2) // 2)))
+"""
+
+def _cpu_only_line(config):
+    """Train on: CPU -- PyTorch then sees no GPU (set before it is imported)."""
+    if getattr(config, "train_device", "auto") == "cpu":
+        return 'os.environ["CUDA_VISIBLE_DEVICES"] = ""   # Train on: CPU (PINNStudio GPU / Hardware settings)\n'
+    return ""
 
 def generate_script(config):
     config = _effective_config(config)
@@ -4566,7 +4879,8 @@ def generate_script(config):
     # Steady-state problems have no time axis, so a GIF animation (which is
     # inherently a walk over time) never applies -- always .png there, even
     # if a stale config still has one of the GIF plot types selected.
-    sol_ext = "gif" if (not is_steady and config.plot_type in ("Line Animation (GIF)", "Surface Animation (GIF)")) else "png"
+    sol_ext = "gif" if ((not is_steady and config.plot_type in ("Line Animation (GIF)", "Surface Animation (GIF)"))
+                        or (config.problem_type == "Inverse" and config.plot_type == "Parameter Convergence (GIF)")) else "png"
     # Convert user-friendly IC expressions
     ic_exprs_raw = config.ic_expressions.split("|")
     ic_exprs_converted = [_simplify_expr(e, is_2d, is_3d) for e in ic_exprs_raw]
@@ -4582,9 +4896,12 @@ def generate_script(config):
     # Extra training points (Round 65) -- see _anchor_points_code; the
     # text stays exactly as before when there are none.
     _has_user_anchors = bool(_anchor_points_code(config))
-    _live_fwd_anchors = "_user_anchors" if _has_user_anchors else "None"
-    _live_inv_anchors = ("np.vstack([_a for _a in (_obs_anchors, _user_anchors) if _a is not None])"
-                         if _has_user_anchors else "_obs_anchors")
+    _ic_anch = bool(getattr(config, "ic_file_anchors", False) and config.forward_ic_from_file
+                    and not config.steady_state)
+    _live_fwd_anchors = _anchor_join([n for n, on in (("_user_anchors", _has_user_anchors),
+                                                    ("_ic_xyt", _ic_anch)) if on])
+    _live_inv_anchors = _anchor_join(["_obs_anchors"] + [n for n, on in (("_user_anchors", _has_user_anchors),
+                                                                        ("_ic_xyt", _ic_anch)) if on])
     # Coordinates the equation itself uses (a source term like sin(pi*x)):
     # bound as one column each, after the default x/y (inputs/outputs)
     # bindings, only when used -- see _pde_coord_names.
@@ -4601,8 +4918,8 @@ def generate_script(config):
     # separately; now every site reads the same user-configurable value,
     # computed once here. _auto (the default) reproduces the previous
     # hardcoded behavior exactly.
-    line_slice_y = (config.y_min + config.y_max) / 2.0 if config.line_slice_y_auto else config.line_slice_y
-    line_slice_z = (config.z_min + config.z_max) / 2.0 if config.line_slice_z_auto else config.line_slice_z
+    from pinnstudio.core.line_slice import auto_line_slice
+    line_slice_y, line_slice_z = auto_line_slice(config)
 
     # The optional custom Results-panel plot expression (e.g. Schrodinger's
     # "sqrt(u**2+v**2)") is passed through UNCONVERTED, deliberately NOT
@@ -4742,6 +5059,10 @@ def generate_script(config):
     # literal, looped over at runtime.
     obs_files_parsed = _parse_inverse_obs_files(config)
     _obs_files_literal = repr(obs_files_parsed)
+    _obs_red = obs_reduce_args(config)
+    _obs_reduce_def = _textwrap_obs.indent(OBS_REDUCE_HELPER.strip("\n"), "    ") + "\n" if _obs_red else ""
+    _obs_reduce_call = (f"        _of_data = _obs_reduce(_of_data, _n_obs_coord_cols, _n_obs_coord_cols if _is_steady "
+                        f"else _n_obs_coord_cols - 1, {_obs_red[0]!r}, {_obs_red[1]}, {_obs_red[2]})\n") if _obs_red else ""
 
     # Whether this run uses the NNCG optimizer anywhere (a Training Phase,
     # or the legacy phase-2 field for pre-scheduler configs) -- NNCG was
@@ -4854,35 +5175,69 @@ if _dxde_ver is not None and _dxde_ver < (1, 13, 0):
     # _ic_pretrain_train_code.
     _ic_pretrain_block_std = _ic_pretrain_train_code(
         config, "        ", "_ic_gt_pre", "_ic_ics_pre", _ic_pretrain_num_initial_safe,
-        "_ic_only_weights", "net", f'_os.path.join({config.save_dir!r}, "ic_pretrain")',
+        "_ic_only_weights", "net", (f'_os.path.join({config.save_dir!r}, "ic_pretrain")' if (config.save_dir or "").strip() else '_os.path.join(__import__("tempfile").gettempdir(), "pinnstudio_ic_pretrain")'),
         "_os", "  ", _safe_point_distribution)
     _ic_pretrain_block_ta = _ic_pretrain_train_code(
         config, "            ", "_ic_gt_pt", "_ic_constraints_pt", _ic_pretrain_num_initial_safe,
-        "_ic_only_weights", "model_i.net", f'_os.path.join({config.save_dir!r}, "ic_pretrain")',
+        "_ic_only_weights", "model_i.net", (f'_os.path.join({config.save_dir!r}, "ic_pretrain")' if (config.save_dir or "").strip() else '_os.path.join(__import__("tempfile").gettempdir(), "pinnstudio_ic_pretrain")'),
         "_os", "  ", _safe_point_distribution)
 
     script = f"""
 
 import os
 os.environ["DDE_BACKEND"] = "pytorch"
-
+{_cpu_only_line(config)}
 # ── Windows has no /tmp by default; make "/tmp/..." paths work there too ──
 if os.name == "nt":
     _tmp_root = os.path.splitdrive(os.getcwd())[0] + os.sep + "tmp"
     os.makedirs(_tmp_root, exist_ok=True)
 
 import deepxde as dde
+# DeepXDE (PyTorch) works out its L-BFGS chunk size and evaluation budget
+# once, when it is imported, and set_LBFGS_options does not update them: an
+# L-BFGS phase shorter than 1000 iterations ran 1000, longer ones rounded up
+# to the next 1000, and maxfun had no effect. Keep them in step.
+def _lbfgs_options_in_step():
+    from deepxde.optimizers import config as _oc
+    _set_orig = _oc.set_LBFGS_options
+    def _set_lbfgs(*_a, **_k):
+        _set_orig(*_a, **_k)
+        _o = _oc.LBFGS_options
+        if "iter_per_step" in _o:
+            _o["iter_per_step"] = max(1, min(1000, int(_o["maxiter"])))
+            _o["fun_per_step"] = max(1, int(_o["maxfun"]) * _o["iter_per_step"] // max(1, int(_o["maxiter"])))
+    dde.optimizers.set_LBFGS_options = _oc.set_LBFGS_options = _set_lbfgs
+    _set_lbfgs(**{{_k: _oc.LBFGS_options[_k] for _k in ("maxcor", "ftol", "gtol", "maxiter", "maxfun", "maxls")}})
+_lbfgs_options_in_step()
+# DeepXDE 1.15 gives an Ellipse the box (center - a, center + b), whatever
+# its rotation: plots were cut off and a shape combined with an ellipse lost
+# collocation points. Give it its real bounding box.
+def _ellipse_box_fix():
+    _E = dde.geometry.Ellipse
+    _init = _E.__init__
+    def __init__(self, center, semimajor, semiminor, angle=0):
+        _init(self, center, semimajor, semiminor, angle)
+        import numpy as _np
+        _c = _np.asarray(center, dtype=float)
+        _h = _np.array([_np.hypot(semimajor * _np.cos(angle), semiminor * _np.sin(angle)),
+                        _np.hypot(semimajor * _np.sin(angle), semiminor * _np.cos(angle))])
+        self.bbox = (_c - _h, _c + _h)
+    _E.__init__ = __init__
+_ellipse_box_fix()
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
 import warnings
 warnings.filterwarnings("ignore", message=".*cuBLAS.*")
 
-# DeepXDE puts PyTorch on Apple's GPU (MPS) on a Mac. MPS has no float64 and
-# PyTorch's L-BFGS is unreliable on it, so PINNStudio trains on the CPU there.
+# DeepXDE puts PyTorch on Apple's GPU (MPS) on a Mac. On an M1 it was never
+# faster than the CPU for PINNs (2x slower on a small problem, even on 20-30k
+# points; benchmarks/mac_gpu_check.py), and it has no float64, so PINNStudio
+# trains on the CPU there.
 if not torch.cuda.is_available() and str(getattr(torch, "get_default_device", lambda: "cpu")()).startswith("mps"):
     torch.set_default_device("cpu")
     print("  [Info] Training on the CPU (Apple GPU / MPS not used)")
+{_cpu_threads_code(config)}
 
 # ── Plot Settings: figure-size standardization ─────────────────
 # Applied to every single-panel results plot below (Loss, Line, Surface,
@@ -4895,14 +5250,14 @@ if not torch.cuda.is_available() and str(getattr(torch, "get_default_device", la
 # applied to the multi-column Error Analysis comparison grids (sized by
 # however many files/columns are being compared) or the domain-sampling
 # preview plots (sized to the problem's own geometry).
-{_figsize_helper_code(config.plot_figsize_mode, config.plot_figsize_w, config.plot_figsize_h)}
+{_figsize_helper_code(config.plot_figsize_mode, config.plot_figsize_w, config.plot_figsize_h, getattr(config, "plot_grid", True), getattr(config, "plot_ref_style", "line"), number_settings(config), line_colors(config), font_sizes(config), anim_dpi(config), plot_extras(config))}
 
 # Shared-color-scale contourf levels (see codegen.py's _contour_levels_helper_code).
 {_contour_levels_helper_code()}
 
 # Parameter-convergence axis drawing, shared with the exported script and
 # Restore & Visualize (see codegen.py's _param_axis_helper_code).
-{_param_axis_helper_code(config.plot_axis_label_fontsize, config.plot_subplot_title_fontsize)}
+{_param_axis_helper_code(config.plot_axis_label_fontsize, config.plot_subplot_title_fontsize, param_style_of(config))}
 {_nncg_guard_code}
 
 # ── Force GPU initialization ──────────────────────────────────
@@ -4932,13 +5287,9 @@ if torch.cuda.is_available():
     torch.backends.cudnn.benchmark        = False
     torch.backends.cudnn.deterministic    = False
 
-    # ── Warm up CUDA ──────────────────────────────────────────
-    _dummy = torch.zeros(10, 10, requires_grad=True, device=f'cuda:{{_gpu_device_index}}')
-    _loss = (_dummy ** 2).sum()
-    _loss.backward()
-    torch.cuda.synchronize()
-    del _dummy, _loss
-    torch.cuda.empty_cache()
+    # (No warm-up step here: a backward pass on a throwaway CUDA tensor before
+    # training made every training step 5-10% slower on the GPU -- measured
+    # with benchmarks/timing_ab.py; the first step warms CUDA up anyway.)
 
     _free, _total = torch.cuda.mem_get_info(_gpu_device_index)
     print(f"✅ GPU: {{torch.cuda.get_device_name(_gpu_device_index)}}")
@@ -4984,6 +5335,9 @@ if _use_save:
         "line_slice_y_auto": {config.line_slice_y_auto}, "line_slice_y": {config.line_slice_y},
         "line_slice_z_auto": {config.line_slice_z_auto}, "line_slice_z": {config.line_slice_z},
         "problem_dim": {repr(config.problem_dim)},
+        # an ODE is solved as a 1D steady problem in x = t (_ode_to_1d):
+        # Restore says ODE and plots it as one curve
+        "ode": {bool(getattr(config, "_ode", False))},
         # Restoring a model has no other way to tell a steady-state
         # checkpoint from a transient one -- _build_restore_script()/
         # _build_restore_ea_script() in main_window.py both read this key
@@ -5053,7 +5407,14 @@ _v1d = {v1!r}
 # a file covering the whole time range works fine, only its t=t_min
 # slice is used as the IC.
 def _load_ic_from_file(_path):
-    _raw = np.loadtxt(_path)
+    _rows = []
+    with open(_path) as _fh:                 # commas or spaces; header/comment lines skipped
+        for _line in _fh:
+            try:
+                _rows.append([float(_v) for _v in _line.replace(",", " ").split()])
+            except ValueError:
+                continue
+    _raw = np.array([_r for _r in _rows if _r])
     _n_coord = 3 if _is_3d else (2 if _is_2d else 1)
     _t_col = _n_coord
     _v_col = _n_coord + 1
@@ -5111,14 +5472,21 @@ if _problem_type == "Inverse":
     _inv_var_trues = {_inv_var_true_literal}
 
     def _load_data(fpath):
-        try:
-            arr = np.loadtxt(fpath, delimiter=",", skiprows=1)
-        except Exception:
-            try:
-                arr = np.loadtxt(fpath, skiprows=1)
-            except Exception:
-                arr = np.loadtxt(fpath, delimiter=",")
-        return arr
+        # Numbers separated by commas or spaces; a header line, comments
+        # (# or %) and blank lines are skipped -- and only those (the first
+        # line used to be dropped always, losing a point of a file without
+        # a header).
+        _rows = []
+        with open(fpath) as _fh:
+            for _line in _fh:
+                _parts = _line.replace(",", " ").split()
+                if not _parts or _parts[0][0] in "#%":
+                    continue
+                try:
+                    _rows.append([float(_v) for _v in _parts])
+                except ValueError:
+                    continue
+        return np.array(_rows)
 
     # Number of leading coordinate columns in a measured-data file (before
     # its value column): x/y/z plus a time column, EXCEPT for a steady-state
@@ -5177,9 +5545,12 @@ if _problem_type == "Inverse":
     _obs_output_names_list = {repr(config.output_names)}.split(",")
     _obs_files = {_obs_files_literal}
     _obs_entries = []  # list of (xt, u, output_idx, weight, custom_expr), one per measured-data file
-    for _of in _obs_files:
+{_obs_reduce_def}    for _of in _obs_files:
         _of_data = _load_data(_of["path"])
-        _of_xt = _of_data[:, 0:_n_obs_coord_cols]
+        if _of_data.ndim != 2 or _of_data.shape[1] < _n_obs_coord_cols + 1:
+            raise SystemExit(f"Measured data {{_of['path']}}: {{_n_obs_coord_cols + 1}} columns are needed "
+                             f"(the coordinates, then the value), found {{_of_data.shape[-1] if _of_data.ndim == 2 else 0}}.")
+{_obs_reduce_call}        _of_xt = _of_data[:, 0:_n_obs_coord_cols]
         _of_u  = _of_data[:, _n_obs_coord_cols:_n_obs_coord_cols + 1]
         _obs_entries.append((_of_xt, _of_u, _of.get("output_idx", 0),
                               _of.get("weight", 100.0), _of.get("custom_expr", "")))
@@ -5248,12 +5619,12 @@ if _problem_type == "Inverse":
                 val = self.var.detach().cpu().numpy().item() if hasattr(self.var, 'detach') else float(self.var.numpy())
                 print(f"  [{{self.name}}] Iter {{cur}}: {{val:.6g}}", flush=True)
 
-    _print_cbs = [_PrintParamCallback(_iv, _in, period=1000) for _iv, _in in zip(_inv_vars, _inv_var_names)]
+    _print_cbs = [_PrintParamCallback(_iv, _in, period={max(1, int(config.loss_display_every))})
+                  for _iv, _in in zip(_inv_vars, _inv_var_names)]
 
     # Parameter saving to text file -- one convergence file per variable,
     # all sharing the same save-period setting from the panel.
-    _param_save_opt = "{config.inv_param_save}"
-    _param_save_period = 100 if _param_save_opt == "Every 100 iters" else 1000 if _param_save_opt == "Every 1000 iters" else 0
+    _param_save_period = {inv_param_period(config)}   # Inverse -> Save parameters
     _param_save_paths = [
         _os.path.join(_save_dir if _use_save else "/tmp", f"{{_in}}_convergence.txt")
         for _in in _inv_var_names
@@ -5280,7 +5651,7 @@ if _problem_type == "Inverse":
         def _write(self, cur):
             val = self.var.detach().cpu().numpy().item() if hasattr(self.var, 'detach') else float(self.var.numpy())
             with open(self.path, "a") as _f:
-                _f.write(f"{{cur}},{{val:.8f}}\\n")
+                _f.write(f"{{cur}},{{val:.10g}}\\n")
             self._last_step = cur
         def on_batch_end(self):
             if self.period == 0: return
@@ -5309,6 +5680,11 @@ if _problem_type == "Inverse":
 {_frac_helper_code(config)}
 _IS_FECR = False
 # ── PDE definition (standard) ───────────────────────────────
+# The equations are compiled once here; eval() of the text itself would
+# parse it again at every training step.
+_PDE_CODES = ([compile({repr(pde_expr_single)}, "<PDE>", "eval")] if {_n_equations(config)} == 1 else
+              [compile(_e.strip(), "<PDE>", "eval")
+               for _e in {repr(config_pde_expressions)}.split("|")[:{_n_equations(config)}]])
 def _pde_standard(x, y{", _int_mat=None" if "_frac(" in (config.pde_expressions or "") else ""}):
     _n_out = {config.num_outputs}
     _n_eq = {_n_equations(config)}
@@ -5468,10 +5844,9 @@ def _pde_standard(x, y{", _int_mat=None" if "_frac(" in (config.pde_expressions 
             _eval_ns[_iv_name] = _iv_var
 
     if _n_eq == 1:
-        _res = eval({repr(pde_expr_single)}, _eval_ns)
+        _res = eval(_PDE_CODES[0], _eval_ns)
     else:
-        _pde_exprs = {repr(config_pde_expressions)}.split("|")[:_n_eq]
-        _res = [eval(_expr.strip(), _eval_ns) for _expr in _pde_exprs]
+        _res = [eval(_c, _eval_ns) for _c in _PDE_CODES]
     if "_frac_apply" in globals() and _int_mat is not None:
         # fractional problem: the residual lives on the FPDE points only
         _nr = _frac_rows(_int_mat)
@@ -5611,6 +5986,7 @@ _n_coord_cols_bc = (3 if _is_3d else (2 if _is_2d else 1)) if _is_steady else (4
 # or "exp(...)" would raise a plain NameError the first time anyone typed
 # one, since eval()'s namespace otherwise only has x/y/z/t/np in it.
 {_math_namespace_code('_BC_MATH_NS', 'np', '')}
+{_math_namespace_code('_BC_MATH_NS_T', 'torch', '')}
 
 # The domain's own limits, usable by name in every Boundary Conditions
 # expression (e.g. "x <= x_min", "x_max - x"), and the named sides of the
@@ -5672,18 +6048,35 @@ def _bc_robin_fn(_expr, _comp):
     # plain numpy/constant expression in x, y, z.
     _src = _expr if _expr.strip() else "0"
     _code = compile(_src, "<bc_robin_value>", "eval")
+    # A value using an output (u, or an output by name) is computed on
+    # tensors: the coordinates become (N, 1) tensors and sin, exp, ... torch
+    # functions, so u*x or t - u work. Otherwise numpy, as before.
+    _on_tensors = bool(set(_code.co_names) & ({{"u"}} | {{_n.strip() for _n in _out_names_list if _n.strip()}}))
     def _f(_Xb, _Yb):
-        _ns = {{**_BC_MATH_NS, **_BC_DOMAIN, "x": _Xb[:, 0], "np": np, "torch": torch}}
+        if _on_tensors:
+            _Xt = _Yb.new_tensor(np.asarray(_Xb, dtype=float))
+            _ns = {{**_BC_MATH_NS_T, **_BC_DOMAIN, "x": _Xt[:, 0:1], "np": np, "torch": torch}}
+            if _is_2d or _is_3d:
+                _ns["y"] = _Xt[:, 1:2]
+            if _is_3d:
+                _ns["z"] = _Xt[:, 2:3]
+            if not _is_steady:
+                _ns["t"] = _Xt[:, -1:]
+        else:
+            _ns = {{**_BC_MATH_NS, **_BC_DOMAIN, "x": _Xb[:, 0], "np": np, "torch": torch}}
+            if not _is_steady:
+                _ns["t"] = _Xb[:, -1]
         # Round 75: every output by name (e.g. -k0*u_im for a Helmholtz
         # absorbing condition on u_re), then u = this row's own output.
         for _oi, _on in enumerate(_out_names_list):
             if _on.strip():
                 _ns[_on.strip()] = _Yb[:, _oi:_oi + 1]
         _ns["u"] = _Yb[:, _comp:_comp + 1]
-        if _is_2d or _is_3d:
-            _ns["y"] = _Xb[:, 1]
-        if _is_3d:
-            _ns["z"] = _Xb[:, 2]
+        if not _on_tensors:
+            if _is_2d or _is_3d:
+                _ns["y"] = _Xb[:, 1]
+            if _is_3d:
+                _ns["z"] = _Xb[:, 2]
         _r = eval(_code, _ns)
         if isinstance(_r, torch.Tensor):
             return _r if _r.dim() == 2 else _r.reshape(-1, 1)
@@ -5713,7 +6106,16 @@ def _bc_operator_fn(_expr):
         _dvars = _tm_build_dvars(_inputs, _outputs, _bc_op_n_out, _bc_op_out_names,
                                   _is_steady, _bc_op_dim, _expr)
         _ns = dict(_dvars)
-        _ns.update({{**_BC_DOMAIN, "inputs": _inputs, "outputs": _outputs, "X": _X, "np": np, "torch": torch}})
+        _ns.update({{**_BC_MATH_NS_T, **_BC_DOMAIN, "inputs": _inputs, "outputs": _outputs, "X": _X, "np": np, "torch": torch}})
+        # the coordinates, as columns of the network input
+        _ns["x"] = _inputs[:, 0:1]
+        if _is_2d or _is_3d:
+            _ns["y"] = _inputs[:, 1:2]
+        if _is_3d:
+            _ns["z"] = _inputs[:, 2:3]
+        if not _is_steady:
+            _ns["t"] = _inputs[:, -1:]
+        _ns.update(_dvars)     # u, du_x, ... win over a math name
         return eval(_code, _ns)
     return _f
 
@@ -6060,7 +6462,7 @@ if _custom_bc_entries or _bc_panel_data_present:
         if not _is_steady and ((_oi_w == 0 and {config.forward_ic_from_file}) or (_oi_w < len(_ic_a) and _ic_a[_oi_w].strip() == "True")):
             _ic_w.append(_wm_list[_wi] if _wi < len(_wm_list) else 1.0); _wi += 1
         else:
-            _ic_w.append(None); _wi += 1 if (not _is_steady and _wi < len(_wm_list)) else 0
+            _ic_w.append(None)     # the window writes a weight for each active IC only
 
     _multi_weights = list(_pde_w) + list(_bc_entry_w)
     for _oi_w in range(_n_out_w):
@@ -6185,7 +6587,7 @@ if _problem_type == "Inverse":
         for _e in _obs_entries
     ]
     _constraints.extend(_obs_bcs)
-    _obs_anchors = np.vstack([_e[0] for _e in _obs_entries]) if _obs_entries else None
+    _obs_anchors = {"np.vstack([_e[0] for _e in _obs_entries]) if _obs_entries else None" if getattr(config, "inverse_obs_anchors", True) else "None  # measured points only in the data loss, not anchors"}
     if _is_steady:
         data = dde.data.PDE(
             geomtime, pde, _constraints,
@@ -6293,7 +6695,8 @@ for _pval in _param_values:
             _ic_ics_pre.append(dde.icbc.PointSetBC(_ic_pre_xyt, _ic_pre_vals, component=0))
         else:
             _ic_exprs_pre = "{config_ic_expressions}".split("|")
-            for _oi_pre in range({config.num_outputs}):
+            # only outputs whose initial condition is on (as the exported script)
+            for _oi_pre in {_clean_active_ic_outputs(config, config.num_outputs, (config.ic_active or "True").split(","))}:
                 _ic_expr_pre = _ic_exprs_pre[_oi_pre].strip() if _oi_pre < len(_ic_exprs_pre) else "np.zeros_like(x[:,0])"
                 def _mk_ic_pre(expr, comp):
                     def _ic_fn(x):
@@ -6308,13 +6711,13 @@ for _pval in _param_values:
         print("=== Starting Main Training ===\\n")
 
     if not {config.time_adaptive}:
-        _sched_active = {config.optimizer_scheduler} and _os.path.exists('/tmp') and {len(config.scheduler_phases) > 0}
+        _sched_active = {config.optimizer_scheduler} and {len(config.scheduler_phases) > 0}
         if _problem_type == "Inverse":
             with open("/tmp/param_history.txt", "w") as _f:
                 pass
             if not _sched_active:
                 _var_cb = dde.callbacks.VariableValue(
-                    _inv_vars, period=1000, filename="/tmp/param_history.txt",
+                    _inv_vars, period={inv_record_period(config)}, filename="/tmp/param_history.txt",
                     precision=6
                 )
                 loss_history, train_state = model.train(iterations=_iters, display_every={config.loss_display_every}, callbacks=[_var_cb] + _print_cbs + _save_cbs + _train_cbs)
@@ -6406,15 +6809,14 @@ for _pval in _param_values:
                     dde.optimizers.set_LBFGS_options(
                         maxcor={config.lbfgs_maxcor}, ftol={config.lbfgs_ftol},
                         gtol={config.lbfgs_gtol}, maxiter=_sp['iterations'],
-                        maxfun=int(_sp['iterations']*1.25), maxls={config.lbfgs_maxls})
-                    _lbfgs_float = "{config.lbfgs_float_type}"
+                        maxfun=(int(_sp['iterations']*1.25) if {bool(getattr(config, 'lbfgs_use_default', True))} else {config.lbfgs_maxfun}), maxls={config.lbfgs_maxls})
                     model.compile("L-BFGS", loss=_sp.get('loss', '{config.loss_type}'),
                                   loss_weights=_sp_weights, external_trainable_variables=_sp_ext_vars)
                     if _problem_type == "Inverse":
                         for _icb in _print_cbs: _icb.set_offset(_sched_cum_iters)
                         for _icb in _save_cbs: _icb.set_offset(_sched_cum_iters)
                         _sp_var_cb = dde.callbacks.VariableValue(
-                            _inv_vars, period=200,
+                            _inv_vars, period={inv_record_period(config)},
                             filename=f"/tmp/param_history_sp{{_sp_i}}.txt", precision=6)
                         loss_history, train_state = model.train(
                             display_every={config.loss_display_every}, callbacks=[_sp_var_cb] + _print_cbs + _save_cbs + _train_cbs)
@@ -6449,7 +6851,7 @@ for _pval in _param_values:
                         for _icb in _print_cbs: _icb.set_offset(_sched_cum_iters)
                         for _icb in _save_cbs: _icb.set_offset(_sched_cum_iters)
                         _sp_var_cb = dde.callbacks.VariableValue(
-                            _inv_vars, period=1000,
+                            _inv_vars, period={inv_record_period(config)},
                             filename=f"/tmp/param_history_sp{{_sp_i}}.txt", precision=6)
                         loss_history, train_state = model.train(
                             iterations=_sp['iterations'], display_every={config.loss_display_every},
@@ -6493,7 +6895,7 @@ for _pval in _param_values:
                         for _icb in _print_cbs: _icb.set_offset(_sched_cum_iters)
                         for _icb in _save_cbs: _icb.set_offset(_sched_cum_iters)
                         _sp_var_cb = dde.callbacks.VariableValue(
-                            _inv_vars, period=1000,
+                            _inv_vars, period={inv_record_period(config)},
                             filename=f"/tmp/param_history_sp{{_sp_i}}.txt", precision=6)
                         loss_history, train_state = model.train(
                             iterations=_sp['iterations'], display_every={config.loss_display_every},
@@ -6524,13 +6926,9 @@ for _pval in _param_values:
                     gtol={config.lbfgs_gtol}, maxiter={config.iterations2},
                     maxfun={_lbfgs_maxfun(config, config.iterations2)}, maxls={config.lbfgs_maxls}
                 )
-                if "{config.lbfgs_float_type}" == "float64":
-                    dde.config.set_default_float("float64")
-                    model.net.double()
-                    print("  [L-BFGS] Switched to float64")
                 if _problem_type == "Inverse":
                     _var_cb2 = dde.callbacks.VariableValue(
-                        _inv_vars, period=200, filename="/tmp/param_history_phase2.txt",
+                        _inv_vars, period={inv_record_period(config)}, filename="/tmp/param_history_phase2.txt",
                         precision=6
                     )
                     model.compile("L-BFGS", loss="{config.loss_type}", loss_weights=_phase2_weights,
@@ -6554,7 +6952,7 @@ for _pval in _param_values:
                                         if not _lv_path:
                                             continue
                                         with open(_lv_path, "a") as _pf:
-                                            _pf.write(f"{{_lbfgs_iter}},{{_lv_val:.8f}}\\n")
+                                            _pf.write(f"{{_lbfgs_iter}},{{_lv_val:.10g}}\\n")
                         except Exception as _le:
                             print(f"Could not save L-BFGS history: {{_le}}")
                     try:
@@ -6571,10 +6969,6 @@ for _pval in _param_values:
                 else:
                     model.compile("L-BFGS", loss="{config.loss_type}", loss_weights=_phase2_weights)
                     loss_history, train_state = model.train(display_every={config.loss_display_every}, callbacks=_train_cbs)
-                    if "{config.lbfgs_float_type}" == "float64":
-                        dde.config.set_default_float("float32")
-                        model.net.float()
-                        print("  [L-BFGS] Restored to float32")
                     if _use_save:
                         _lbfgs_model_path = _os.path.join(_sol_dir, "model_lbfgs")
                         model.save(_lbfgs_model_path)
@@ -6668,7 +7062,7 @@ for _pval in _param_values:
                 for i, l in zip(steps, train_loss):
                     f.write(f"Step {{i}}: {{list(l)}}\\n")
 
-        _final_loss = sum(loss_history.loss_train[-1])
+        _final_loss, _final_loss_unw = _final_losses(model, loss_history)
 
         # Parameter history (inverse only) -- one subplot per trainable
         # variable, all sharing the single param_plot.png output path
@@ -6704,7 +7098,7 @@ for _pval in _param_values:
                         _plot_xlabel_override, _plot_ylabel_override)
                     print(f"\\n=== {{_vname}} final value: {{_final_val:.6g}} ===")
                 plt.tight_layout()
-                plt.savefig("/tmp/param_plot.png", dpi=100)
+                plt.savefig("/tmp/param_plot.png", dpi={int(config.plot_dpi)})
                 if _use_save:
                     import shutil as _sp
                     _sp.copy("/tmp/param_plot.png", _os.path.join(
@@ -6712,11 +7106,39 @@ for _pval in _param_values:
                 plt.close(_fig)
                 for _vi, _vname in enumerate(_inv_var_names):
                     print(f"Final inferred {{_vname}}: {{_ph_vals_by_var[_vi][-1]:.6g}}")
+                if "{config.plot_type}" == "Parameter Convergence (GIF)":
+                    _param_animation(
+                        [(_vn, _ph_iters_arr, _ph_vals_by_var[_vi],
+                          _inv_var_trues[_vi] if _vi < len(_inv_var_trues) else None)
+                         for _vi, _vn in enumerate(_inv_var_names)],
+                        "/tmp/param_anim.gif", {bool(config.inv_param_log_scale)}, {int(config.plot_fps)},
+                        {int(config.plot_dpi)}, _plot_title_override, _plot_xlabel_override, _plot_ylabel_override,
+                        _plot_figsize(6, 3.2))
+                # Plot settings -> Figures: one per parameter, as well
+                _pf_dir = _run_dir if (_parametric and _pval is not None) else _save_dir
+                if _use_save and (_PARAM_STYLE["plot_separate"] or _PARAM_STYLE["anim_separate"]):
+                    for _vi, _vn in enumerate(_inv_var_names):
+                        _tv = _inv_var_trues[_vi] if _vi < len(_inv_var_trues) else None
+                        if _PARAM_STYLE["plot_separate"]:
+                            _fig1, _ax1 = plt.subplots(figsize=_plot_figsize(6, 3.2))
+                            _draw_param_ax(_ax1, _vn, _ph_iters_arr, _ph_vals_by_var[_vi], _tv,
+                                           {bool(config.inv_param_log_scale)}, _plot_title_override,
+                                           _plot_xlabel_override, _plot_ylabel_override)
+                            plt.tight_layout()
+                            plt.savefig(_os.path.join(_pf_dir, f"{{_vn}}_convergence_plot.png"), dpi={int(config.plot_dpi)})
+                            plt.close(_fig1)
+                        if _PARAM_STYLE["anim_separate"] and "{config.plot_type}" == "Parameter Convergence (GIF)":
+                            _param_animation([(_vn, _ph_iters_arr, _ph_vals_by_var[_vi], _tv)],
+                                             _os.path.join(_pf_dir, f"{{_vn}}_convergence_animation.gif"),
+                                             {bool(config.inv_param_log_scale)}, {int(config.plot_fps)},
+                                             {int(config.plot_dpi)}, _plot_title_override, _plot_xlabel_override,
+                                             _plot_ylabel_override, _plot_figsize(6, 3.2))
             except Exception as _e:
                 print(f"Could not plot parameter history: {{_e}}")
 
         _summary.append((_pval, _final_loss))
         print(f"Final loss: {{_final_loss:.4e}}")
+        print(f"Final loss (unweighted): {{_final_loss_unw:.4e}}")
 
     # ── Plot solution ─────────────────────────────────────────
     # _plot_idx/_plot_type/_plot_custom_expr/_extract_plot_field etc. are
@@ -6730,7 +7152,7 @@ for _pval in _param_values:
         _plot_main_job = (_plot_idx, _run_solution_path)
         _plot_jobs = [_plot_main_job]
         if ({config.plot_all_outputs} and _plot_n_out > 1 and not _plot_custom_expr.strip()
-                and not (_problem_type == "Inverse" and _plot_type == "Parameter Convergence")):
+                and not (_problem_type == "Inverse" and _plot_type.startswith("Parameter Convergence"))):
             _sol_root, _sol_ext = _os.path.splitext(_run_solution_path)
             for _pj, _pj_name in enumerate(_plot_output_names_list):
                 _pj_safe = "".join(_c if (_c.isalnum() or _c in "-_") else "_" for _c in _pj_name.strip()) or f"out{{_pj}}"
@@ -6751,6 +7173,10 @@ for _pval in _param_values:
                 import shutil as _shutil_pc
                 if _os.path.exists("/tmp/param_plot.png"):
                     _shutil_pc.copy("/tmp/param_plot.png", _run_solution_path)
+            elif _problem_type == "Inverse" and _plot_type == "Parameter Convergence (GIF)":
+                import shutil as _shutil_pa
+                if _os.path.exists("/tmp/param_anim.gif"):
+                    _shutil_pa.copy("/tmp/param_anim.gif", _run_solution_path)
 
             elif (not _is_steady) and _plot_type in ("Line Animation (GIF)", "Surface Animation (GIF)"):
                 import matplotlib.animation as _anim
@@ -6771,17 +7197,21 @@ for _pval in _param_values:
                         else:
                             _xt_gif = np.column_stack([_x_gif, np.full_like(_x_gif, _tv)])
                         _all_u_gif.append(_extract_plot_field(_xt_gif).flatten())
-                    _u_min_gif = min(_u.min() for _u in _all_u_gif)
-                    _u_max_gif = max(_u.max() for _u in _all_u_gif)
+                    if _is_2d or _is_3d:
+                        # only inside the domain (a hole, the L-shape's corner)
+                        _in_gif = np.asarray(geom.inside(_xt_gif[:, :(3 if _is_3d else 2)]), dtype=bool)
+                        _all_u_gif = [np.where(_in_gif, _u, np.nan) for _u in _all_u_gif]
+                    _u_min_gif = min(np.nanmin(_u) for _u in _all_u_gif)
+                    _u_max_gif = max(np.nanmax(_u) for _u in _all_u_gif)
                     _fig_gif, _ax_gif = plt.subplots(figsize=_plot_figsize(7, 5))
                     _ax_gif.set_xlim(_plot_x_min, _plot_x_max)
                     _ax_gif.set_ylim(_u_min_gif - 0.05*abs(_u_min_gif) - 1e-9, _u_max_gif + 0.05*abs(_u_max_gif) + 1e-9)
                     _gif_name = _plot_custom_label if _plot_custom_expr.strip() else _plot_output_names_list[_plot_idx].strip()
-                    _ylabel_gif = (f"{{_gif_name}}(x,y={{_y_mid_gif:.3g}},z={{_z_mid_gif:.3g}},t)" if _is_3d else f"{{_gif_name}}(x,y={{_y_mid_gif:.3g}},t)") if (_is_2d or _is_3d) else f"{{_gif_name}}(x,t)"
+                    _ylabel_gif = (f"{{_gif_name}}(x,y={{_fmt_num(_y_mid_gif)}},z={{_fmt_num(_z_mid_gif)}},t)" if _is_3d else f"{{_gif_name}}(x,y={{_fmt_num(_y_mid_gif)}},t)") if (_is_2d or _is_3d) else f"{{_gif_name}}(x,t)"
                     _ax_gif.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); _ax_gif.set_ylabel(_plot_ylabel_override or _ylabel_gif, fontsize={config.plot_axis_label_fontsize})
                     if _plot_title_override:
                         _ax_gif.set_title(_plot_title_override)
-                    _line_gif, = _ax_gif.plot([], [], color="#4dabf7", linewidth={config.plot_linewidth_anim})
+                    _line_gif, = _ax_gif.plot([], [], color=_PLOT_PINN_COLOR, linewidth={config.plot_linewidth_anim})
                     # Positioned just above the axes (not set_title()) and
                     # styled to match it (black, centered, top) -- same visual
                     # place the 2D/3D Surface Animation branches below put their
@@ -6804,15 +7234,15 @@ for _pval in _param_values:
                     _time_txt_x, _time_txt_y, _time_txt_ha = (0.02, 0.95, 'left') if _plot_title_override else (0.5, 1.02, 'center')
                     _time_txt_gif = _ax_gif.text(_time_txt_x, _time_txt_y, '', transform=_ax_gif.transAxes,
                                                   color='black', ha=_time_txt_ha, fontsize=11)
-                    _ax_gif.grid(True, alpha=0.2)
+                    _grid(_ax_gif, alpha=0.2)
                     def _init_gif():
                         _line_gif.set_data([], []); _time_txt_gif.set_text(''); return _line_gif, _time_txt_gif
                     def _update_gif(i):
                         _line_gif.set_data(_x_gif, _all_u_gif[i])
-                        _time_txt_gif.set_text(f"t = {{_t_frames[i]:.3f}}")
+                        _time_txt_gif.set_text(f"t = {{_fmt_num(_t_frames[i])}}")
                         return _line_gif, _time_txt_gif
                     _ani_gif = _anim.FuncAnimation(_fig_gif, _update_gif, init_func=_init_gif, frames=_n_frames, interval=100, blit=True)
-                    _ani_gif.save(_run_solution_path, writer='pillow', fps=_fps)
+                    _ani_gif.save(_run_solution_path, writer='pillow', fps=_fps, dpi=_PLOT_DPI_ANIM)
                     plt.close(_fig_gif)
 
                 else:  # Surface Animation (GIF)
@@ -6828,7 +7258,7 @@ for _pval in _param_values:
                         # per-quad rendering). A user who explicitly lowers
                         # plot_resolution below this cap still gets an even
                         # coarser/faster 3D GIF, same as every other plot type.
-                        _res3a = min({config.plot_resolution}, 40)
+                        _res3a = {res_3d(config)}   # Plot settings -> Surface -> 3D grid resolution
                         _bbox3a = np.asarray(geom.bbox)
                         _cx0a, _cy0a, _cz0a = _bbox3a[0]; _cx1a, _cy1a, _cz1a = _bbox3a[1]
                         _xg3a = np.linspace(_cx0a, _cx1a, _res3a)
@@ -6886,13 +7316,13 @@ for _pval in _param_values:
                                 _ax_gif.plot_surface(_fX3a, _fY3a, _fZ3a, facecolors=_fc3a,
                                                  rstride=1, cstride=1, linewidth=0, antialiased=False, shade=False)
                             _ax_gif.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); _ax_gif.set_ylabel(_plot_ylabel_override or "y", fontsize={config.plot_axis_label_fontsize}); _ax_gif.set_zlabel("z", fontsize={config.plot_axis_label_fontsize}); [_tk.set_ticks(plt.matplotlib.ticker.MaxNLocator(nbins=4, steps=[1, 2, 5, 10]).tick_values(*_tk.get_data_interval())) for _tk in (_ax_gif.xaxis, _ax_gif.yaxis, _ax_gif.zaxis)]
-                            _ax_gif.set_title(_plot_title_override or f"t = {{_t_frames[i]:.3f}}")
+                            _ax_gif.set_title(_plot_title_override or f"t = {{_fmt_num(_t_frames[i])}}")
                             try:
                                 _ax_gif.set_box_aspect((_cx1a - _cx0a, _cy1a - _cy0a, _cz1a - _cz0a))
                             except Exception:
                                 pass
                         _ani_gif = _anim.FuncAnimation(_fig_gif, _update_gif, frames=_n_frames, interval=150)
-                        _ani_gif.save(_run_solution_path, writer='pillow', fps=_fps)
+                        _ani_gif.save(_run_solution_path, writer='pillow', fps=_fps, dpi=_PLOT_DPI_ANIM)
                         plt.close(_fig_gif)
                     else:
                         _res_anim_gif = {config.plot_resolution}
@@ -6956,9 +7386,9 @@ for _pval in _param_values:
                             _ax_gif.contourf(_Xp_gif, _Yp_gif, _Zp_gif, cmap="{config.plot_colormap}", **_cf_levels({config.plot_levels}, _v_min_gif, _v_max_gif, _Zp_gif))
                             _ax_gif.set_xlabel(_plot_xlabel_override or _xlabel_gif, fontsize={config.plot_axis_label_fontsize})
                             _ax_gif.set_ylabel(_plot_ylabel_override or _ylabel_gif, fontsize={config.plot_axis_label_fontsize})
-                            _ax_gif.set_title(_plot_title_override or f"t = {{_t_frames[i]:.3f}}")
+                            _ax_gif.set_title(_plot_title_override or f"t = {{_fmt_num(_t_frames[i])}}")
                         _ani_gif = _anim.FuncAnimation(_fig_gif, _update_gif, frames=_n_frames, interval=150)
-                        _ani_gif.save(_run_solution_path, writer='pillow', fps=_fps)
+                        _ani_gif.save(_run_solution_path, writer='pillow', fps=_fps, dpi=_PLOT_DPI_ANIM)
                         plt.close(_fig_gif)
 
             elif _is_2d and _is_steady and _plot_type == "Line (time steps)":
@@ -6986,10 +7416,10 @@ for _pval in _param_values:
                     ax.set_xticks([]); ax.set_yticks([])
                 else:
                     _u_l2ds = _extract_plot_field(_xy_l2ds).flatten()
-                    ax.plot(_x_l2ds, _u_l2ds, color="#4dabf7", linewidth={config.plot_linewidth})
-                    ax.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or f"{{out_name}}(x,y={line_slice_y:.3g})", fontsize={config.plot_axis_label_fontsize})
-                    ax.grid(True, alpha=0.2)
-                ax.set_title(_plot_title_override or f"PINN Solution — {{out_name}}(x,y={line_slice_y:.3g})")
+                    ax.plot(*_line_gaps(_x_l2ds, _u_l2ds), color=_PLOT_PINN_COLOR, linewidth={config.plot_linewidth})
+                    ax.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or f"{{out_name}}(x,y={{_fmt_num({line_slice_y!r})}})", fontsize={config.plot_axis_label_fontsize})
+                    _grid(ax, alpha=0.2)
+                ax.set_title(_plot_title_override or f"PINN Solution — {{out_name}}(x,y={{_fmt_num({line_slice_y!r})}})", fontsize={config.plot_title_fontsize})
                 plt.tight_layout(); plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
             elif _is_2d and _is_steady:
                 # Steady-state 2D: a single static x-y heatmap of u(x,y) -- no
@@ -7043,10 +7473,10 @@ for _pval in _param_values:
                     for _i_l2d, _tv_l2d in enumerate(_t_steps_l2d):
                         _xyt_l2d = np.column_stack([_x_l2d, np.full_like(_x_l2d, {line_slice_y}), np.full_like(_x_l2d, _tv_l2d)])
                         _u_l2d = _extract_plot_field(_xyt_l2d).flatten()
-                        ax.plot(_x_l2d, _u_l2d, color=_colors_l2d[_i_l2d], linewidth={config.plot_linewidth}, label=f"t = {{_tv_l2d:.3f}}")
-                    ax.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or f"{{out_name}}(x,y={line_slice_y:.3g},t)", fontsize={config.plot_axis_label_fontsize})
-                    ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
-                ax.set_title(_plot_title_override or f"PINN Solution — {{out_name}}(x,y={line_slice_y:.3g},t)")
+                        ax.plot(*_line_gaps(_x_l2d, _u_l2d), color=_colors_l2d[_i_l2d], linewidth={config.plot_linewidth}, label=f"t = {{_fmt_num(_tv_l2d)}}")
+                    ax.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or f"{{out_name}}(x,y={{_fmt_num({line_slice_y!r})}},t)", fontsize={config.plot_axis_label_fontsize})
+                    ax.legend(loc="upper right", fontsize=_lfs(8)); _grid(ax, alpha=0.2)
+                ax.set_title(_plot_title_override or f"PINN Solution — {{out_name}}(x,y={{_fmt_num({line_slice_y!r})}},t)", fontsize={config.plot_title_fontsize})
                 plt.tight_layout(); plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
             elif _is_2d:
                 # 2D: x-y heatmaps at user-selected number of time snapshots
@@ -7070,7 +7500,7 @@ for _pval in _param_values:
                     _pred = _extract_plot_field(_XYT).reshape(_res_2d, _res_2d)
                     _pred = np.where(_inside_2d, _pred, np.nan)
                     im = axes[_ai].contourf(_Xg, _Yg, _pred, cmap="{config.plot_colormap}", **_cf_levels({config.plot_levels}, _vmin_2d, _vmax_2d, _pred))
-                    axes[_ai].set_title(f"t = {{_tv:.3f}}")
+                    axes[_ai].set_title(f"t = {{_fmt_num(_tv)}}")
                     axes[_ai].set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); axes[_ai].set_ylabel(_plot_ylabel_override or "y", fontsize={config.plot_axis_label_fontsize})
                     if {config.plot_colorbar}: fig.colorbar(im, ax=axes[_ai])
                 out_name = _plot_custom_label if _plot_custom_expr.strip() else {repr(config.output_names)}.split(",")[_plot_idx].strip()
@@ -7095,10 +7525,10 @@ for _pval in _param_values:
                     ax.set_xticks([]); ax.set_yticks([])
                 else:
                     _u_l3ds = _extract_plot_field(_xyz_l3ds).flatten()
-                    ax.plot(_x_l3ds, _u_l3ds, color="#4dabf7", linewidth={config.plot_linewidth})
-                    ax.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or f"{{out_name}}(x,y={line_slice_y:.3g},z={line_slice_z:.3g})", fontsize={config.plot_axis_label_fontsize})
-                    ax.grid(True, alpha=0.2)
-                ax.set_title(_plot_title_override or f"PINN Solution — {{out_name}}(x,y={line_slice_y:.3g},z={line_slice_z:.3g})")
+                    ax.plot(*_line_gaps(_x_l3ds, _u_l3ds), color=_PLOT_PINN_COLOR, linewidth={config.plot_linewidth})
+                    ax.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or f"{{out_name}}(x,y={{_fmt_num({line_slice_y!r})}},z={{_fmt_num({line_slice_z!r})}})", fontsize={config.plot_axis_label_fontsize})
+                    _grid(ax, alpha=0.2)
+                ax.set_title(_plot_title_override or f"PINN Solution — {{out_name}}(x,y={{_fmt_num({line_slice_y!r})}},z={{_fmt_num({line_slice_z!r})}})", fontsize={config.plot_title_fontsize})
                 plt.tight_layout(); plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
             elif _is_3d and _is_steady:
                 # Steady-state 3D: same "x-y heatmap at the z mid-plane"
@@ -7109,7 +7539,7 @@ for _pval in _param_values:
                 _xp3 = np.linspace(_plot_x_min, _plot_x_max, _res_3d)
                 _yp3 = np.linspace(_plot_y_min, _plot_y_max, _res_3d)
                 _Xg3, _Yg3 = np.meshgrid(_xp3, _yp3)
-                _z_mid = (_plot_z_min + _plot_z_max) / 2.0
+                _z_mid = {line_slice_z!r}   # Plot settings -> Line: z (the middle by default)
                 _inside_3d = geom.inside(np.column_stack(
                     [_Xg3.ravel(), _Yg3.ravel(), np.full(_Xg3.size, _z_mid)])).reshape(_res_3d, _res_3d)
                 _vmin_3d = None if {config.plot_auto_range} else {config.plot_vmin}
@@ -7124,7 +7554,7 @@ for _pval in _param_values:
                 ax.set_aspect("equal", adjustable="box")
                 if {config.plot_colorbar}: fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
                 out_name = _plot_custom_label if _plot_custom_expr.strip() else {repr(config.output_names)}.split(",")[_plot_idx].strip()
-                fig.suptitle(_plot_title_override or f"PINN Solution — {{out_name}}(x,y,z={{_z_mid:.3g}})", fontsize={config.plot_title_fontsize})
+                fig.suptitle(_plot_title_override or f"PINN Solution — {{out_name}}(x,y,z={{_fmt_num(_z_mid)}})", fontsize={config.plot_title_fontsize})
                 plt.tight_layout()
                 plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
             elif _is_3d and _plot_type == "Line (time steps)":
@@ -7153,10 +7583,10 @@ for _pval in _param_values:
                     for _i_l3d, _tv_l3d in enumerate(_t_steps_l3d):
                         _xyzt_l3d = np.column_stack([_x_l3d, np.full_like(_x_l3d, {line_slice_y}), np.full_like(_x_l3d, {line_slice_z}), np.full_like(_x_l3d, _tv_l3d)])
                         _u_l3d = _extract_plot_field(_xyzt_l3d).flatten()
-                        ax.plot(_x_l3d, _u_l3d, color=_colors_l3d[_i_l3d], linewidth={config.plot_linewidth}, label=f"t = {{_tv_l3d:.3f}}")
-                    ax.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or f"{{out_name}}(x,y={line_slice_y:.3g},z={line_slice_z:.3g},t)", fontsize={config.plot_axis_label_fontsize})
-                    ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
-                ax.set_title(_plot_title_override or f"PINN Solution — {{out_name}}(x,y={line_slice_y:.3g},z={line_slice_z:.3g},t)")
+                        ax.plot(*_line_gaps(_x_l3d, _u_l3d), color=_colors_l3d[_i_l3d], linewidth={config.plot_linewidth}, label=f"t = {{_fmt_num(_tv_l3d)}}")
+                    ax.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or f"{{out_name}}(x,y={{_fmt_num({line_slice_y!r})}},z={{_fmt_num({line_slice_z!r})}},t)", fontsize={config.plot_axis_label_fontsize})
+                    ax.legend(loc="upper right", fontsize=_lfs(8)); _grid(ax, alpha=0.2)
+                ax.set_title(_plot_title_override or f"PINN Solution — {{out_name}}(x,y={{_fmt_num({line_slice_y!r})}},z={{_fmt_num({line_slice_z!r})}},t)", fontsize={config.plot_title_fontsize})
                 plt.tight_layout(); plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
             elif _is_3d:
                 # 3D: no volumetric renderer yet -- plot an x-y heatmap at the
@@ -7171,7 +7601,7 @@ for _pval in _param_values:
                 _xp3 = np.linspace(_plot_x_min, _plot_x_max, _res_3d)
                 _yp3 = np.linspace(_plot_y_min, _plot_y_max, _res_3d)
                 _Xg3, _Yg3 = np.meshgrid(_xp3, _yp3)
-                _z_mid = (_plot_z_min + _plot_z_max) / 2.0
+                _z_mid = {line_slice_z!r}   # Plot settings -> Line: z (the middle by default)
                 # Mask points outside the true 3D shape at this z-slice (only
                 # differs from the bbox for Sphere) -- same reasoning as the 2D
                 # branch above.
@@ -7187,11 +7617,11 @@ for _pval in _param_values:
                     _pred3 = _extract_plot_field(_XYZT).reshape(_res_3d, _res_3d)
                     _pred3 = np.where(_inside_3d, _pred3, np.nan)
                     im = axes[_ai].contourf(_Xg3, _Yg3, _pred3, cmap="{config.plot_colormap}", **_cf_levels({config.plot_levels}, _vmin_3d, _vmax_3d, _pred3))
-                    axes[_ai].set_title(f"t = {{_tv:.3f}}, z = {{_z_mid:.3g}} (mid-plane)")
+                    axes[_ai].set_title(f"t = {{_fmt_num(_tv)}}, z = {{_fmt_num(_z_mid)}}")
                     axes[_ai].set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); axes[_ai].set_ylabel(_plot_ylabel_override or "y", fontsize={config.plot_axis_label_fontsize})
                     if {config.plot_colorbar}: fig.colorbar(im, ax=axes[_ai])
                 out_name = _plot_custom_label if _plot_custom_expr.strip() else {repr(config.output_names)}.split(",")[_plot_idx].strip()
-                fig.suptitle(_plot_title_override or f"PINN Solution — {{out_name}}(x,y,z={{_z_mid:.3g}},t)", fontsize={config.plot_title_fontsize})
+                fig.suptitle(_plot_title_override or f"PINN Solution — {{out_name}}(x,y,z={{_fmt_num(_z_mid)}},t)", fontsize={config.plot_title_fontsize})
                 plt.tight_layout(rect=[0, 0, 1, 0.93])
                 plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
             elif _is_steady:
@@ -7203,11 +7633,12 @@ for _pval in _param_values:
                 _u_1d = _extract_plot_field(_x_1d.reshape(-1, 1)).flatten()
                 _out_name_1d = _plot_custom_label if _plot_custom_expr.strip() else {repr(config.output_names)}.split(",")[_plot_idx].strip()
                 fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
-                ax.plot(_x_1d, _u_1d, color="#4dabf7", linewidth={config.plot_linewidth})
+                ax.plot(_x_1d, _u_1d, color=_PLOT_PINN_COLOR, linewidth={config.plot_linewidth})
                 ax.set_xlabel(_plot_xlabel_override or _v1d, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or f"{{_out_name_1d}}({{_v1d}})", fontsize={config.plot_axis_label_fontsize})
                 ax.set_title(_plot_title_override or (f"PINN Solution — {{_param_name}}={{_pval}}" if _parametric
-                              else (f"PINN Solution — {{_out_name_1d}}({{_v1d}})" if _plot_n_out > 1 or _plot_custom_expr.strip() else "PINN Solution")))
-                ax.grid(True, alpha=0.2)
+                              else (f"PINN Solution — {{_out_name_1d}}({{_v1d}})" if _plot_n_out > 1 or _plot_custom_expr.strip() else "PINN Solution")),
+                             fontsize={config.plot_title_fontsize})
+                _grid(ax, alpha=0.2)
                 plt.tight_layout(); plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
             else:
                 # 1D plot (_plot_type already computed above)
@@ -7236,7 +7667,7 @@ for _pval in _param_values:
                         ax.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or "t", fontsize={config.plot_axis_label_fontsize})
                     if {config.plot_colorbar}: fig.colorbar(im, ax=ax)
                     ax.set_title(_plot_title_override or (f"PINN Solution — {{_out_name_1dt}}(x,t) — {{_param_name}}={{_pval}}" if _parametric
-                                  else f"PINN Solution — {{_out_name_1dt}}(x,t)"))
+                                  else f"PINN Solution — {{_out_name_1dt}}(x,t)"), fontsize={config.plot_title_fontsize})
                     plt.tight_layout(); plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
 
                 elif _plot_type == "Line (time steps)":
@@ -7249,11 +7680,12 @@ for _pval in _param_values:
                     for i, t_val in enumerate(t_steps_plot):
                         xt = np.column_stack([_x_l, np.full_like(_x_l, t_val)])
                         u_line = _extract_plot_field(xt).flatten()
-                        ax.plot(_x_l, u_line, color=colors[i], linewidth={config.plot_linewidth}, label=f"t = {{t_val:.3f}}")
+                        ax.plot(_x_l, u_line, color=colors[i], linewidth={config.plot_linewidth}, label=f"t = {{_fmt_num(t_val)}}")
                     ax.set_xlabel(_plot_xlabel_override or "x", fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel(_plot_ylabel_override or f"{{_out_name_line}}(x,t)", fontsize={config.plot_axis_label_fontsize})
                     ax.set_title(_plot_title_override or (f"PINN Solution — {{_param_name}}={{_pval}}" if _parametric
-                                  else (f"PINN Solution — {{_out_name_line}}(x,t)" if _plot_n_out > 1 or _plot_custom_expr.strip() else "PINN Solution")))
-                    ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
+                                  else (f"PINN Solution — {{_out_name_line}}(x,t)" if _plot_n_out > 1 or _plot_custom_expr.strip() else "PINN Solution")),
+                                 fontsize={config.plot_title_fontsize})
+                    ax.legend(loc="upper right", fontsize=_lfs(8)); _grid(ax, alpha=0.2)
                     plt.tight_layout(); plt.savefig(_run_solution_path, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
 
         _plot_idx, _run_solution_path = _plot_main_job
@@ -7284,7 +7716,7 @@ for _pval in _param_values:
                 # Load all ground truth files
                 _ea_times = []; _ea_x_refs = []; _ea_y_refs = []; _ea_z_refs = []; _ea_u_refs = []
                 for _ea_tv, _ea_fp in _ea_files:
-                    _ea_d = np.loadtxt(_ea_fp)
+                    _ea_d = _load_ref(_ea_fp)
                     if _ea_d.ndim == 1: _ea_d = _ea_d.reshape(1, -1)
                     if _is_steady and _is_3d:
                         # Steady 3D format: x, y, z, u — no time column at all.
@@ -7338,7 +7770,7 @@ for _pval in _param_values:
                         _ea_x_refs.append(_ea_d[_ea_idx, 0])
                         _ea_y_refs.append(np.zeros_like(_ea_d[_ea_idx, 0]))
                         _ea_z_refs.append(np.zeros_like(_ea_d[_ea_idx, 0]))
-                        _ea_u_refs.append(_ea_d[_ea_idx, 1])
+                        _ea_u_refs.append(_ea_d[_ea_idx, -1])   # x, u (or x, t, u: u is last)
                         _ea_times.append(0.0)
                         print(f"  Loaded ground truth (steady-state): {{len(_ea_d)}} pts from {{_os.path.basename(_ea_fp)}}")
                     else:
@@ -7523,19 +7955,19 @@ for _pval in _param_values:
 
                 # ── Line comparison ───────────────────────────────────
                 if {config.ea_do_line}:
-                    _ea_ncols = min(4, _ea_n_t)
+                    _ea_ncols = min({max(1, int(getattr(config, 'plot_ea_cols', 4) or 4))}, _ea_n_t)
                     _ea_nrows = (_ea_n_t + _ea_ncols - 1) // _ea_ncols
                     # One panel: a 6 x 4.5 figure whose only title carries the
                     # error; several times: one panel each, one figure title.
                     _ea_single = _ea_n_t == 1
                     fig, axes = plt.subplots(_ea_nrows, _ea_ncols, squeeze=False,
-                                             figsize=(6, 4.5) if _ea_single else (4.5*_ea_ncols, 3.8*_ea_nrows))
+                                             figsize=_panel_figsize(6, 4.5, 1, 1) if _ea_single else _panel_figsize(4.5, 3.8, _ea_ncols, _ea_nrows))
                     _ea_line_suptitle = _ea_title_txt("Line Comparison", _ea_sel)
                     _ea_line_head = _ea_line_suptitle.replace(" — Line Comparison", "")
                     if _is_3d:
-                        _ea_line_head += f" (y={line_slice_y:.3g}, z={line_slice_z:.3g})"
+                        _ea_line_head += f" (y={{_fmt_num({line_slice_y!r})}}, z={{_fmt_num({line_slice_z!r})}})"
                     elif _is_2d:
-                        _ea_line_head += f" (y={line_slice_y:.3g})"
+                        _ea_line_head += f" (y={{_fmt_num({line_slice_y!r})}})"
                     if not _ea_single:
                         fig.suptitle(_ea_line_head, fontsize={config.plot_subplot_title_fontsize} + 2)
                     _ea_ax_flat = axes.flatten()
@@ -7614,21 +8046,23 @@ for _pval in _param_values:
                             _gt_s   = _ea_u_refs[_ei][_ea_sort]
                             _pinn_s = _ea_u_pinns[_ei][_ea_sort]
                         _ea_tv, _l2, _mse, _mx, _ma = _ea_metrics[_ei]
-                        ax.plot(_xv_s, _gt_s,   color='#4dabf7', linewidth=2.0, linestyle='-',  label='Reference')
-                        ax.plot(_xv_s, _pinn_s, color='#ff6b6b', linewidth=2.0, linestyle='--', label='PINN')
+                        if _is_2d or _is_3d:
+                            _xv_s, _gt_s, _pinn_s = _line_gaps(_xv_s, _gt_s, _pinn_s)
+                        _ref_plot(ax, _xv_s, _gt_s,   color=_PLOT_REF_COLOR, linewidth={config.plot_linewidth}, linestyle='-',  label='Reference')
+                        ax.plot(_xv_s, _pinn_s, color=_PLOT_PINN_COLOR, linewidth={config.plot_linewidth}, linestyle='--', label='PINN')
                         # Steady-state (e.g. a Poisson equation) has no time
                         # axis at all -- every reference file is really just
                         # a single snapshot at a placeholder t=0, so showing
                         # "t = 0.000" here would be meaningless noise rather
                         # than a real time coordinate.
-                        _ea_lt = (f"({{_l2_txt(_l2)}})" if _is_steady else f"t = {{_ea_tv:.3g}}  ({{_l2_txt(_l2)}})")
+                        _ea_lt = (f"({{_l2_txt(_l2)}})" if _is_steady else f"t = {{_fmt_num(_ea_tv)}}  ({{_l2_txt(_l2)}})")
                         ax.set_title(f"{{_ea_line_head}}     {{_ea_lt}}" if _ea_single else _ea_lt,
                                      fontsize={config.plot_subplot_title_fontsize} + (2 if _ea_single else 0))
-                        ax.set_xlabel(_v1d, fontsize={config.plot_axis_label_fontsize}); _ea_fn = (_ea_line_suptitle.split(" — ") + ["", ""])[1] if _ea_line_suptitle.count(" — ") >= 2 else "u"; ax.set_ylabel(f"{{_ea_fn}}({{_v1d}})" if _is_steady else f"{{_ea_fn}}(x,t)", fontsize={config.plot_axis_label_fontsize}); ax.grid(True, alpha=0.3)
+                        ax.set_xlabel(_v1d, fontsize={config.plot_axis_label_fontsize}); _ea_fn = (_ea_line_suptitle.split(" — ") + ["", ""])[1] if _ea_line_suptitle.count(" — ") >= 2 else "u"; ax.set_ylabel(f"{{_ea_fn}}({{_v1d}})" if _is_steady else f"{{_ea_fn}}(x,t)", fontsize={config.plot_axis_label_fontsize}); _grid(ax, alpha=0.3)
                     for _ej in range(_ea_n_t, len(_ea_ax_flat)):
                         _ea_ax_flat[_ej].set_visible(False)
                     # Legend inside the (first) panel, in its emptiest corner.
-                    _ea_ax_flat[0].legend(loc='best', fontsize=10, framealpha=0.9)
+                    _ea_ax_flat[0].legend(loc='best', fontsize=_lfs(10), framealpha=0.9)
                     plt.tight_layout()
                     _ea_lp = _os.path.join(_ea_dir, f"line_comparison{{_ea_suffix}}.png")
                     plt.savefig(_ea_lp, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
@@ -7650,7 +8084,7 @@ for _pval in _param_values:
                         # looking colored surface, matching the smoothness of
                         # the 2D contourf plots above.
                         from scipy.interpolate import griddata as _gd3
-                        fig = plt.figure(figsize=(15, 4.5 * _ea_n_t))
+                        fig = plt.figure(figsize=_panel_figsize(5, 4.5, 3, _ea_n_t))
                         fig.suptitle(_ea_title_txt("3D Surface Comparison", _ea_sel), fontsize={config.plot_title_fontsize}, fontweight='bold')
                         _geom_bbox_ea = np.asarray(geom.bbox)
                         _bx0, _by0, _bz0 = _geom_bbox_ea[0]
@@ -7664,7 +8098,7 @@ for _pval in _param_values:
                         # doesn't scale the way the 2D Error Analysis surface
                         # comparison (which does use contourf, and already
                         # read plot_resolution directly) does.
-                        _res3_ea = min({config.plot_resolution}, 40)
+                        _res3_ea = {res_3d(config)}   # Plot settings -> Surface -> 3D grid resolution
                         _xg3_ea = np.linspace(_bx0, _bx1, _res3_ea)
                         _yg3_ea = np.linspace(_by0, _by1, _res3_ea)
                         _zg3_ea = np.linspace(_bz0, _bz1, _res3_ea)
@@ -7724,15 +8158,16 @@ for _pval in _param_values:
                                 _gt_faces_ea.append(_fgt_ea)
                             _vmin3_ea = min(min(_f.min() for _f in _pinn_faces_ea), min(_f.min() for _f in _gt_faces_ea))
                             _vmax3_ea = max(max(_f.max() for _f in _pinn_faces_ea), max(_f.max() for _f in _gt_faces_ea))
+                            _vmin3_ea, _vmax3_ea = _vr(_vmin3_ea, _vmax3_ea)
                             _err_faces_ea = [np.abs(_pf_ea - _gf_ea) for _pf_ea, _gf_ea in zip(_pinn_faces_ea, _gt_faces_ea)]
                             _vmax_err_ea = max(_f.max() for _f in _err_faces_ea)
                             # See the matching comment on the Line comparison
                             # title above -- steady-state has no time axis,
                             # so "t=..." is dropped from every column title.
                             _cols_ea = [
-                                (_pinn_faces_ea, (f"PINN  {{_l2_txt(_l2)}}" if _is_steady else f"PINN  t={{_ea_tv:.3f}}  {{_l2_txt(_l2)}}"), _vmin3_ea, _vmax3_ea, '{config.plot_colormap}'),
-                                (_gt_faces_ea,   ("Reference" if _is_steady else f"Reference  t={{_ea_tv:.3f}}"),         _vmin3_ea, _vmax3_ea, '{config.plot_colormap}'),
-                                (_err_faces_ea,  (f"|Error|  max = {{_sci_txt(_mx)}}" if _is_steady else f"|Error|  t={{_ea_tv:.3f}}  max = {{_sci_txt(_mx)}}"), 0.0, _vmax_err_ea, '{config.plot_colormap}'),
+                                (_pinn_faces_ea, (f"PINN  {{_l2_txt(_l2)}}" if _is_steady else f"PINN  t={{_fmt_num(_ea_tv)}}  {{_l2_txt(_l2)}}"), _vmin3_ea, _vmax3_ea, '{config.plot_colormap}'),
+                                (_gt_faces_ea,   ("Reference" if _is_steady else f"Reference  t={{_fmt_num(_ea_tv)}}"),         _vmin3_ea, _vmax3_ea, '{config.plot_colormap}'),
+                                (_err_faces_ea,  (f"|Error|  max = {{_sci_txt(_mx)}}" if _is_steady else f"|Error|  t={{_fmt_num(_ea_tv)}}  max = {{_sci_txt(_mx)}}"), 0.0, _vmax_err_ea, '{err_cmap(config)}'),
                             ]
                             for _col_ea, (_face_vals_ea, _ttl_ea, _vmin_c_ea, _vmax_c_ea, _cmap_c_ea) in enumerate(_cols_ea):
                                 _ax3_ea = fig.add_subplot(_ea_n_t, 3, _ei * 3 + _col_ea + 1, projection='3d')
@@ -7761,7 +8196,7 @@ for _pval in _param_values:
                         # own boundary (geom.on_boundary()), predicted and
                         # compared directly (no interpolation needed), with a
                         # wireframe box from geom.bbox for spatial context.
-                        fig = plt.figure(figsize=(15, 4.5 * _ea_n_t))
+                        fig = plt.figure(figsize=_panel_figsize(5, 4.5, 3, _ea_n_t))
                         fig.suptitle(_ea_title_txt("3D Surface Comparison", _ea_sel), fontsize={config.plot_title_fontsize}, fontweight='bold')
                         _geom_bbox_ea = np.asarray(geom.bbox)
                         _bx0, _by0, _bz0 = _geom_bbox_ea[0]
@@ -7798,13 +8233,14 @@ for _pval in _param_values:
                             _err_b_ea = np.abs(_pinn_b_ea - _gt_b_ea)
                             _vmin3_ea = min(_pinn_b_ea.min(), _gt_b_ea.min())
                             _vmax3_ea = max(_pinn_b_ea.max(), _gt_b_ea.max())
+                            _vmin3_ea, _vmax3_ea = _vr(_vmin3_ea, _vmax3_ea)   # Plot settings -> Surface -> Colour range
                             # See the matching comment on the Line comparison
                             # title above -- steady-state has no time axis,
                             # so "t=..." is dropped from every column title.
                             _cols_ea = [
-                                (_pinn_b_ea, (f"PINN  {{_l2_txt(_l2)}}" if _is_steady else f"PINN  t={{_ea_tv:.3f}}  {{_l2_txt(_l2)}}"), _vmin3_ea, _vmax3_ea, '{config.plot_colormap}'),
-                                (_gt_b_ea,   ("Reference" if _is_steady else f"Reference  t={{_ea_tv:.3f}}"),         _vmin3_ea, _vmax3_ea, '{config.plot_colormap}'),
-                                (_err_b_ea,  (f"|Error|  max = {{_sci_txt(_mx)}}" if _is_steady else f"|Error|  t={{_ea_tv:.3f}}  max = {{_sci_txt(_mx)}}"), None, None, '{config.plot_colormap}'),
+                                (_pinn_b_ea, (f"PINN  {{_l2_txt(_l2)}}" if _is_steady else f"PINN  t={{_fmt_num(_ea_tv)}}  {{_l2_txt(_l2)}}"), _vmin3_ea, _vmax3_ea, '{config.plot_colormap}'),
+                                (_gt_b_ea,   ("Reference" if _is_steady else f"Reference  t={{_fmt_num(_ea_tv)}}"),         _vmin3_ea, _vmax3_ea, '{config.plot_colormap}'),
+                                (_err_b_ea,  (f"|Error|  max = {{_sci_txt(_mx)}}" if _is_steady else f"|Error|  t={{_fmt_num(_ea_tv)}}  max = {{_sci_txt(_mx)}}"), None, None, '{err_cmap(config)}'),
                             ]
                             for _col_ea, (_vals_ea, _ttl_ea, _vmin_c_ea, _vmax_c_ea, _cmap_c_ea) in enumerate(_cols_ea):
                                 _ax3_ea = fig.add_subplot(_ea_n_t, 3, _ei * 3 + _col_ea + 1, projection='3d')
@@ -7825,7 +8261,7 @@ for _pval in _param_values:
                     elif _is_2d:
                         # 2D: 3 columns (PINN | Reference | Error), one row per time snapshot
                         fig, axes = plt.subplots(_ea_n_t, 3,
-                                                 figsize=(15, 4*_ea_n_t), squeeze=False)
+                                                 figsize=_panel_figsize(5, 4, 3, _ea_n_t), squeeze=False)
                         fig.suptitle(_ea_title_txt("2D Heatmaps", _ea_sel), fontsize={config.plot_title_fontsize}, fontweight='bold')
                         _res_ea = {config.plot_resolution}
                         _xg_ea = np.linspace({config.x_min}, {config.x_max}, _res_ea)
@@ -7852,13 +8288,19 @@ for _pval in _param_values:
                             _u_fem_grid = _gd(
                                 np.column_stack([_ea_x_refs[_ei], _ea_y_refs[_ei]]),
                                 _ea_u_refs[_ei],
-                                (_Xg_ea, _Yg_ea), method='linear', fill_value=0.0)
+                                (_Xg_ea, _Yg_ea), method='linear', fill_value=np.nan)
                             _u_fem_grid = np.where(_inside_2d_ea, _u_fem_grid, np.nan)
-                            _u_err_grid = np.abs(_u_pinn_grid - _u_fem_grid)
+                            _ref_pts_ea = np.column_stack([_ea_x_refs[_ei], _ea_y_refs[_ei]])
+                            _pinn_at_ref_ea = _ea_extract(_ref_pts_ea if _is_steady else
+                                                          np.column_stack([_ref_pts_ea, np.full(len(_ref_pts_ea), _ea_tv)]),
+                                                          _ea_sel, model)
+                            _u_err_grid = np.where(_inside_2d_ea, _err_grid(_ref_pts_ea, _ea_u_refs[_ei], _pinn_at_ref_ea,
+                                                                            _Xg_ea, _Yg_ea), np.nan)
                             _vmin_ea = np.nanmin([_u_pinn_grid, _u_fem_grid])
                             _vmax_ea = np.nanmax([_u_pinn_grid, _u_fem_grid])
                             if _vmax_ea - _vmin_ea < 1e-12:
                                 _vmax_ea = _vmin_ea + 1e-12
+                            _vmin_ea, _vmax_ea = _vr(_vmin_ea, _vmax_ea)   # Plot settings -> Surface -> Colour range
                             # contourf's own vmin/vmax kwargs do NOT constrain
                             # an integer `levels=N` -- each panel still
                             # auto-ranges to its own data, so PINN and Ground
@@ -7869,23 +8311,23 @@ for _pval in _param_values:
                             _levels_ea2d = _cf_levels({config.plot_levels}, _vmin_ea, _vmax_ea)["levels"]
                             # Column 0: PINN
                             im0 = axes[_ei][0].contourf(_Xg_ea, _Yg_ea, _u_pinn_grid, levels=_levels_ea2d,
-                                                         cmap='{config.plot_colormap}')
+                                                         cmap='{config.plot_colormap}', extend=_vext())
                             # Steady-state has no time axis -- see the
                             # matching comment on the Line comparison title
                             # above -- so "t=..." is dropped from every
                             # column title here too.
-                            axes[_ei][0].set_title((f"PINN  {{_l2_txt(_l2)}}" if _is_steady else f"PINN  t={{_ea_tv:.3f}}  {{_l2_txt(_l2)}}"), fontsize={config.plot_subplot_title_fontsize})
+                            axes[_ei][0].set_title((f"PINN  {{_l2_txt(_l2)}}" if _is_steady else f"PINN  t={{_fmt_num(_ea_tv)}}  {{_l2_txt(_l2)}}"), fontsize={config.plot_subplot_title_fontsize})
                             axes[_ei][0].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); axes[_ei][0].set_ylabel("y", fontsize={config.plot_axis_label_fontsize})
                             fig.colorbar(im0, ax=axes[_ei][0])
                             # Column 1: Reference
                             im1 = axes[_ei][1].contourf(_Xg_ea, _Yg_ea, _u_fem_grid, levels=_levels_ea2d,
-                                                         cmap='{config.plot_colormap}')
-                            axes[_ei][1].set_title(("Reference" if _is_steady else f"Reference  t={{_ea_tv:.3f}}"), fontsize={config.plot_subplot_title_fontsize})
+                                                         cmap='{config.plot_colormap}', extend=_vext())
+                            axes[_ei][1].set_title(("Reference" if _is_steady else f"Reference  t={{_fmt_num(_ea_tv)}}"), fontsize={config.plot_subplot_title_fontsize})
                             axes[_ei][1].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); axes[_ei][1].set_ylabel("y", fontsize={config.plot_axis_label_fontsize})
                             fig.colorbar(im1, ax=axes[_ei][1])
                             # Column 2: Absolute error
-                            im2 = axes[_ei][2].contourf(_Xg_ea, _Yg_ea, _u_err_grid, levels={config.plot_levels}, cmap='{config.plot_colormap}')
-                            axes[_ei][2].set_title((f"|Error|  max = {{_sci_txt(_mx)}}" if _is_steady else f"|Error|  t={{_ea_tv:.3f}}  max = {{_sci_txt(_mx)}}"), fontsize={config.plot_subplot_title_fontsize})
+                            im2 = axes[_ei][2].contourf(_Xg_ea, _Yg_ea, _u_err_grid, levels={config.plot_levels}, cmap='{err_cmap(config)}')
+                            axes[_ei][2].set_title((f"|Error|  max = {{_sci_txt(_mx)}}" if _is_steady else f"|Error|  t={{_fmt_num(_ea_tv)}}  max = {{_sci_txt(_mx)}}"), fontsize={config.plot_subplot_title_fontsize})
                             axes[_ei][2].set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); axes[_ei][2].set_ylabel("y", fontsize={config.plot_axis_label_fontsize})
                             fig.colorbar(im2, ax=axes[_ei][2])
                         plt.tight_layout(rect=[0, 0, 1, 0.93])
@@ -7925,16 +8367,17 @@ for _pval in _param_values:
                         _ea_vmax = max(_ea_U_pinn.max(), _ea_U_fem.max())
                         if _ea_vmax - _ea_vmin < 1e-12:
                             _ea_vmax = _ea_vmin + 1e-12
+                        _ea_vmin, _ea_vmax = _vr(_ea_vmin, _ea_vmax)   # Plot settings -> Surface -> Colour range
                         _levels_ea1d = _cf_levels({config.plot_levels}, _ea_vmin, _ea_vmax)["levels"]  # see the matching comment above -- contourf ignores vmin/vmax with an integer `levels=N`
-                        fig, axes_s = plt.subplots(1, 3, figsize=(15, 5))
+                        fig, axes_s = plt.subplots(1, 3, figsize=_panel_figsize(5, 5, 3, 1))
                         fig.suptitle(_ea_title_txt("Surface Comparison", _ea_sel), fontsize={config.plot_title_fontsize}, fontweight='bold')
-                        im0 = axes_s[0].contourf(_ea_Tg, _ea_Xg, _ea_U_pinn, levels=_levels_ea1d, cmap='{config.plot_colormap}')
+                        im0 = axes_s[0].contourf(_ea_Tg, _ea_Xg, _ea_U_pinn, levels=_levels_ea1d, cmap='{config.plot_colormap}', extend=_vext())
                         axes_s[0].set_title(f"PINN  {{_ea_field_txt(_ea_sel)}}(x,t)"); axes_s[0].set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); axes_s[0].set_ylabel("x", fontsize={config.plot_axis_label_fontsize})
                         fig.colorbar(im0, ax=axes_s[0])
-                        im1 = axes_s[1].contourf(_ea_Tg, _ea_Xg, _ea_U_fem, levels=_levels_ea1d, cmap='{config.plot_colormap}')
+                        im1 = axes_s[1].contourf(_ea_Tg, _ea_Xg, _ea_U_fem, levels=_levels_ea1d, cmap='{config.plot_colormap}', extend=_vext())
                         axes_s[1].set_title(f"Reference  {{_ea_field_txt(_ea_sel)}}(x,t)"); axes_s[1].set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); axes_s[1].set_ylabel("x", fontsize={config.plot_axis_label_fontsize})
                         fig.colorbar(im1, ax=axes_s[1])
-                        im2 = axes_s[2].contourf(_ea_Tg, _ea_Xg, _ea_U_err, levels={config.plot_levels}, cmap='{config.plot_colormap}')
+                        im2 = axes_s[2].contourf(_ea_Tg, _ea_Xg, _ea_U_err, levels={config.plot_levels}, cmap='{err_cmap(config)}')
                         axes_s[2].set_title("Error  |PINN - Reference|"); axes_s[2].set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); axes_s[2].set_ylabel("x", fontsize={config.plot_axis_label_fontsize})
                         fig.colorbar(im2, ax=axes_s[2])
                         plt.tight_layout(rect=[0, 0, 1, 0.93])
@@ -7953,8 +8396,8 @@ for _pval in _param_values:
                         _res_sl = min({config.plot_resolution}, 120)
                         _Xs_sl, _Ys_sl = np.meshgrid(np.linspace(_bb_sl[0][0], _bb_sl[1][0], _res_sl),
                                                      np.linspace(_bb_sl[0][1], _bb_sl[1][1], _res_sl))
-                        fig, _axs_sl = plt.subplots(_ea_n_t, 3, figsize=(15, 4.2 * _ea_n_t), squeeze=False)
-                        fig.suptitle(_ea_title_txt(f"Slice z = {{_zs_sl:.3g}}", _ea_sel), fontsize={config.plot_title_fontsize}, fontweight='bold')
+                        fig, _axs_sl = plt.subplots(_ea_n_t, 3, figsize=_panel_figsize(5, 4.2, 3, _ea_n_t), squeeze=False)
+                        fig.suptitle(_ea_title_txt(f"Slice z = {{_fmt_num(_zs_sl)}}", _ea_sel), fontsize={config.plot_title_fontsize}, fontweight='bold')
                         for _ei, _ea_tv in enumerate(_ea_times):
                             _ea_tv_r, _l2, _mse, _mx, _ma = _ea_metrics[_ei]
                             _cols_sl = [_Xs_sl.ravel(), _Ys_sl.ravel(), np.full(_Xs_sl.size, _zs_sl)]
@@ -7973,14 +8416,16 @@ for _pval in _param_values:
                                 _g_sl[np.isnan(_g_sl)] = _gd_sl(_xy_sl, _ea_u_refs[_ei][_m_sl], (_Xs_sl, _Ys_sl), method='nearest')[np.isnan(_g_sl)]
                             _e_sl = np.abs(_p_sl - _g_sl)
                             _lo_sl = min(_p_sl.min(), _g_sl.min()); _hi_sl = max(_p_sl.max(), _g_sl.max(), _lo_sl + 1e-12)
+                            _lo_sl, _hi_sl = _vr(_lo_sl, _hi_sl)
                             _lv_sl = _cf_levels({config.plot_levels}, _lo_sl, _hi_sl)["levels"]
-                            _tt_sl = "" if _is_steady else f"t={{_ea_tv:.3f}}  "
+                            _tt_sl = "" if _is_steady else f"t={{_fmt_num(_ea_tv)}}  "
                             for _c_sl, (_v_sl, _ttl_sl, _lev_sl) in enumerate((
                                     (_p_sl, f"PINN  {{_tt_sl}}{{_l2_txt(_l2)}}", _lv_sl),
                                     (_g_sl, f"Reference  {{_tt_sl}}".rstrip(), _lv_sl),
                                     (_e_sl, f"|Error|  {{_tt_sl}}max = {{_sci_txt(float(_e_sl.max()))}}", {config.plot_levels}))):
                                 _ax_sl = _axs_sl[_ei][_c_sl]
-                                _im_sl = _ax_sl.contourf(_Xs_sl, _Ys_sl, _v_sl, levels=_lev_sl, cmap='{config.plot_colormap}')
+                                _im_sl = _ax_sl.contourf(_Xs_sl, _Ys_sl, _v_sl, levels=_lev_sl, extend=_vext(_lev_sl),
+                                                         cmap=('{err_cmap(config)}' if _c_sl == 2 else '{config.plot_colormap}'))
                                 fig.colorbar(_im_sl, ax=_ax_sl)
                                 _ax_sl.set_title(_ttl_sl, fontsize={config.plot_subplot_title_fontsize})
                                 _ax_sl.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); _ax_sl.set_ylabel("y", fontsize={config.plot_axis_label_fontsize})
@@ -8087,21 +8532,41 @@ if _parametric and len(_summary) > 0:
         ax.text(bar.get_x() + bar.get_width()/2, loss, _sci_txt(loss), ha="center", va="bottom", fontsize=9)
     plt.tight_layout()
     _summary_path = _os.path.join(_save_dir if _use_save else "/tmp", "parametric_summary.png")
-    plt.savefig(_summary_path, dpi=100); plt.close()
+    plt.savefig(_summary_path, dpi={int(config.plot_dpi)}); plt.close()
     import shutil as _shutil2
     _shutil2.copy(_summary_path, "/tmp/solution_plot.png")
     _shutil2.copy(_summary_path, "/tmp/loss_plot.png")
     print(f"\\n=== Parametric Study Complete ===")
     print(f"Summary saved to: {{_summary_path}}")
 
-{_gs_time_adaptive_loop_code(_ic_pretrain_block_ta, line_slice_y, line_slice_z, _safe_num_test, _ta_ic_init, _train_cbs_code_ta, config, plot_custom_expr_converted)}
+{_gs_time_adaptive_loop_code(_ic_pretrain_block_ta, line_slice_y, line_slice_z, _safe_num_test, _ta_ic_init, _train_cbs_code_ta, config, plot_custom_expr_converted, _safe_point_distribution)}
 
 {_tm_plot_code}
 print("DONE")
 """
     if "_frac(" in (config.pde_expressions or ""):
         script = _frac_data_text(script, config, "geomtime", "pde", "_constraints")
-    return script
+    return _own_param_scratch(script)
+
+
+_PS_HEADER_OLD = (
+    'if os.name == "nt":\n'
+    '    _tmp_root = os.path.splitdrive(os.getcwd())[0] + os.sep + "tmp"\n'
+    '    os.makedirs(_tmp_root, exist_ok=True)\n')
+_PS_HEADER_NEW = _PS_HEADER_OLD + (
+    'import tempfile as _tf_ps\n'
+    '_PS_TMP = _tf_ps.mkdtemp(prefix="pinnstudio_run_").replace(os.sep, "/")   # this run\'s own scratch folder\n')
+
+
+def _own_param_scratch(script):
+    """The inverse parameter history and plots go to a scratch folder of
+    this run's own, not /tmp, where two runs at once (two windows, or the
+    test suite in parallel) read each other's parameter values."""
+    out = (script.replace('f"/tmp/param', '_PS_TMP + f"/param').replace('"/tmp/param', '_PS_TMP + "/param')
+           .replace('f"/tmp/{_in}_param_save.txt"', '_PS_TMP + f"/{_in}_param_save.txt"'))
+    if out == script or _PS_HEADER_OLD not in out:
+        return script
+    return out.replace(_PS_HEADER_OLD, _PS_HEADER_NEW, 1)
 
 
 # =====================================================================
@@ -8285,7 +8750,7 @@ def _clean_coord_unpack(indent, is_batch, is_2d, is_3d, is_steady=True, used=Non
     return lines
 
 
-def _bc_operator_def_lines(name, expr, is_steady, dim_str, out_names_list, n_out):
+def _bc_operator_def_lines(name, expr, is_steady, dim_str, out_names_list, n_out, domain=None):
     """def lines for an Operator BC / Point Set Operator BC row's func, in
     DeepXDE's own real signature -- func(inputs, outputs, X), see each
     class's docstring. Unlike every other BC row's helper (whose
@@ -8303,6 +8768,13 @@ def _bc_operator_def_lines(name, expr, is_steady, dim_str, out_names_list, n_out
         f"{is_steady!r}, {dim_str!r}, {expr!r})",
         "    _ns = dict(_dvars)",
         "    _ns['inputs'] = inputs; _ns['outputs'] = outputs; _ns['X'] = X",
+        # the same names Solve's operator BCs have: domain limits, np, torch
+        f"    _ns.update({{**{_torch_math_dict_literal()}, **{dict(domain or {})!r}, 'np': np, 'torch': torch}})",
+        "    _ns['x'] = inputs[:, 0:1]",
+        *(["    _ns['y'] = inputs[:, 1:2]"] if dim_str in ("2D", "3D") else []),
+        *(["    _ns['z'] = inputs[:, 2:3]"] if dim_str == "3D" else []),
+        *(["    _ns['t'] = inputs[:, -1:]"] if not is_steady else []),
+        "    _ns.update(_dvars)",
         f"    return eval({expr!r}, _ns)",
     ]
 
@@ -8411,9 +8883,16 @@ def _clean_bc_row_code(i, entry, is_2d, is_3d, n_coord_cols, is_steady=False, n_
     elif btype == 'robin':
         rob_name = f"_bc{i}_robin"
         L = [f"def {rob_name}(X, Y):"]
-        L += _clean_coord_unpack("    ", True, is_2d, is_3d, is_steady, _pde_coord_names([val]))
-        L += _clean_bc_name_lines("    ", val, domain, False)
         _used = _expr_names(val)
+        _outs = {"u"} | {n.strip() for n in (out_names or "").split(",") if n.strip()}
+        L += _clean_coord_unpack("    ", True, is_2d, is_3d, is_steady, _pde_coord_names([val]))
+        if _used & _outs:
+            # uses an output: coordinates as (N, 1) tensors, torch math
+            for _cn in ("x", "y", "z", "t"):
+                if _cn in _used:
+                    L.append(f"    {_cn} = Y.new_tensor(np.asarray({_cn}, dtype=float)).reshape(-1, 1)")
+            val = _torch_math_expr(val)
+        L += _clean_bc_name_lines("    ", val, domain, False)
         for _oi, _on in enumerate(n.strip() for n in (out_names or "").split(",")):
             if _on and _on in _used and _on != "u":
                 L.append(f"    {_on} = Y[:, {_oi}:{_oi + 1}]")
@@ -8439,7 +8918,7 @@ def _clean_bc_row_code(i, entry, is_2d, is_3d, n_coord_cols, is_steady=False, n_
         append.append(f"constraints.append(dde.icbc.PointSetBC(_pts{i}, _pvals{i}, component={_comp_arg!r}{batch_kwargs_str}))")
     elif btype == 'pointset_operator':
         op_name = f"_bc{i}_op"
-        defs += _bc_operator_def_lines(op_name, val_raw, is_steady, _dim_str, _out_names_list, n_out)
+        defs += _bc_operator_def_lines(op_name, val_raw, is_steady, _dim_str, _out_names_list, n_out, domain)
         _pd, _pa = _clean_points_values(i, entry, 1)
         defs += _pd
         append += _pa
@@ -8455,9 +8934,9 @@ def _clean_bc_row_code(i, entry, is_2d, is_3d, n_coord_cols, is_steady=False, n_
             init_loc += _clean_coord_unpack("    ", False, is_2d, is_3d, is_steady, _pde_coord_names([loc]))
             init_loc += _clean_bc_name_lines("    ", loc, domain, True)
             init_loc.append(f"    return bool({loc})")
-            defs += _bc_operator_def_lines(op_name, val_raw, is_steady, _dim_str, _out_names_list, n_out) + init_loc
+            defs += _bc_operator_def_lines(op_name, val_raw, is_steady, _dim_str, _out_names_list, n_out, domain) + init_loc
         else:
-            defs += _bc_operator_def_lines(op_name, val_raw, is_steady, _dim_str, _out_names_list, n_out) + loc_fn(loc_name, loc)
+            defs += _bc_operator_def_lines(op_name, val_raw, is_steady, _dim_str, _out_names_list, n_out, domain) + loc_fn(loc_name, loc)
         append.append(f"constraints.append(dde.icbc.OperatorBC(geomtime, {op_name}, {loc_name}))")
     elif btype == 'interface2d':
         defs += loc_fn(loc_name, loc) + loc_fn(loc2_name, loc2) + val_fn(val_name, val)
@@ -8690,10 +9169,8 @@ def _clean_loss_weights(config, n_out, bc_entries, ic_active_list, obs_weights, 
     if not is_steady:
         for oi in range(n_out):
             active = (oi == 0 and config.forward_ic_from_file) or (oi < len(ic_active_list) and ic_active_list[oi].strip() == "True")
-            if active:
+            if active:      # the window writes a weight for each active IC only
                 ic_w.append(wm_list[wi] if wi < len(wm_list) else 1.0)
-                wi += 1
-            elif wi < len(wm_list):
                 wi += 1
     weights = pde_w + bc_w + ic_w + list(obs_weights)
     expected_len = len(pde_w) + len(bc_w) + len(ic_w) + len(obs_weights)
@@ -8740,7 +9217,7 @@ def _clean_phase_train_lines(sp, w, ext_vars_kw, cbs_kw, model_name, data_name, 
     L = []
     if opt == 'lbfgs':
         L.append(f"dde.optimizers.set_LBFGS_options(maxcor={config.lbfgs_maxcor}, ftol={config.lbfgs_ftol}, "
-                  f"gtol={config.lbfgs_gtol}, maxiter={iters}, maxfun={int(iters * 1.25)}, maxls={config.lbfgs_maxls})")
+                  f"gtol={config.lbfgs_gtol}, maxiter={iters}, maxfun={_lbfgs_maxfun(config, iters)}, maxls={config.lbfgs_maxls})")
         L.append(f"{model_name}.compile(\"L-BFGS\", loss={loss!r}, loss_weights={w}{ext_vars_kw})")
         L.append(f"loss_history, train_state = {model_name}.train(display_every={config.loss_display_every}{cbs_kw})")
     elif opt == 'nncg':
@@ -8861,7 +9338,126 @@ def _math_namespace_code(var, lib, indent=""):
     return "\n".join(indent + ln for ln in lines)
 
 
-def _figsize_helper_code(mode, w, h):
+def number_settings(src):
+    """(significant digits, scientific notation, style) for the numbers
+    written in figures (Plot settings -> General -> Numbers), from a config
+    or a Plot settings dict."""
+    g = (src.get if isinstance(src, dict) else (lambda k, d=None: getattr(src, k, d)))
+    try:
+        sig = int(g("plot_sig_digits", None) or g("sig_digits", None) or 4)
+    except (TypeError, ValueError):
+        sig = 4
+    sci = g("plot_sci_notation", None) or g("sci_notation", None) or "auto"
+    style = g("plot_sci_style", None) or g("sci_style", None) or "times"
+    return (max(1, min(10, sig)), sci if sci in ("auto", "always", "never") else "auto",
+            style if style in ("times", "e") else "times")
+
+
+def fmt_num(v, numbers=None, digits=None):
+    """The scripts' _fmt_num, for a number written into a label while the
+    script is generated (a slice position, t_max): the same text, so every
+    number in a figure follows Plot settings -> General -> Numbers."""
+    import math
+    sig, sci, style = numbers or (4, "auto", "times")
+    d = int(digits or sig)
+    try:
+        v = float(v)
+    except (TypeError, ValueError):
+        return str(v)
+    if not math.isfinite(v) or v == 0:
+        return f"{v:g}"
+    a = abs(v)
+    if sci == "always" or (sci == "auto" and (a < 1e-2 or a >= 1e5)):
+        m, e = f"{v:.{max(0, d - 1)}e}".split("e")
+        if "." in m:
+            m = m.rstrip("0").rstrip(".")
+        e = int(e)
+        if style == "e":
+            return f"{m}e{e:+03d}"
+        return f"{m} $\\times$ 10$^{{{e}}}$" if e else m
+    txt = f"{v:.{d}g}"
+    if "e" in txt:
+        txt = f"{v:.{max(0, d - 1 - int(math.floor(math.log10(a))))}f}"
+    return txt
+
+
+def err_cmap(src):
+    """The colormap of |Error| panels (Plot settings -> Surface): its own,
+    or the solution's when left at "Same as the solution"."""
+    g = (src.get if isinstance(src, dict) else (lambda k, d=None: getattr(src, k, d)))
+    return (g("plot_err_colormap", None) or g("err_colormap", None)
+            or g("plot_colormap", None) or g("colormap", None) or "jet")
+
+
+def line_colors(src):
+    """(PINN colour, Reference colour) for the line figures (Plot settings
+    -> Line), from a config or a Plot settings dict."""
+    g = (src.get if isinstance(src, dict) else (lambda k, d=None: getattr(src, k, d)))
+    return (g("plot_pinn_color", None) or g("pinn_color", None) or "#ff6b6b",
+            g("plot_ref_color", None) or g("ref_color", None) or "#4dabf7")
+
+
+def font_sizes(src):
+    """(title, panel title, axis label) font sizes, from a config or a Plot
+    settings dict."""
+    g = (src.get if isinstance(src, dict) else (lambda k, d=None: getattr(src, k, d)))
+    def f(*keys, d):
+        for k in keys:
+            v = g(k, None)
+            if v not in (None, ""):
+                try:
+                    return float(v)
+                except (TypeError, ValueError):
+                    pass
+        return d
+    return (f("plot_title_fontsize", "title_fontsize", d=13.0),
+            f("plot_subplot_title_fontsize", "subplot_title_fontsize", d=10.0),
+            f("plot_axis_label_fontsize", "axis_label_fontsize", d=10.0))
+
+
+def plot_extras(src):
+    """(legend font size, fixed colour range or None) for the scripts'
+    helpers, from a config or a Plot settings dict."""
+    g = (src.get if isinstance(src, dict) else (lambda k, d=None: getattr(src, k, d)))
+    try:
+        lfs = float(g("plot_legend_fontsize", None) or g("legend_fontsize", None) or 0.0)
+    except (TypeError, ValueError):
+        lfs = 0.0
+    auto = g("plot_auto_range", None)
+    if auto is None:
+        auto = g("auto_range", True)
+    vr = None
+    if not auto:
+        try:
+            lo = float(g("plot_vmin", None) if g("plot_vmin", None) is not None else g("vmin", -1.0))
+            hi = float(g("plot_vmax", None) if g("plot_vmax", None) is not None else g("vmax", 1.0))
+            if hi > lo:
+                vr = (lo, hi)
+        except (TypeError, ValueError):
+            vr = None
+    return (lfs, vr)
+
+
+def res_3d(src):
+    """Points per side of the 3D surfaces (Plot settings -> Surface)."""
+    g = (src.get if isinstance(src, dict) else (lambda k, d=None: getattr(src, k, d)))
+    try:
+        return max(10, int(g("plot_resolution_3d", None) or g("resolution_3d", None) or 40))
+    except (TypeError, ValueError):
+        return 40
+
+
+def anim_dpi(src):
+    """Resolution of the saved animations (Plot settings -> Animation)."""
+    g = (src.get if isinstance(src, dict) else (lambda k, d=None: getattr(src, k, d)))
+    try:
+        return max(20, int(g("plot_dpi_anim", None) or g("dpi_anim", None) or 150))
+    except (TypeError, ValueError):
+        return 150
+
+
+def _figsize_helper_code(mode, w, h, grid=True, ref_style="line", numbers=None, colors=None, fonts=None, dpi_anim=150,
+                         extras=None):
     """Builds the literal Python source for a module-level `_plot_figsize(
     default_w, default_h)` helper -- the Round 31 Plot Settings figure-size
     standardization, called at every single-panel plot site in place of a
@@ -8879,9 +9475,9 @@ def _figsize_helper_code(mode, w, h):
     cleanup Round 39). Previously this exact block existed as 5 separate
     hand-typed copies; this is now the only one.
 
-    Deliberately NOT applied to the multi-column Error Analysis comparison
-    grids (sized by however many files/columns are being compared) or the
-    domain-sampling preview plots (sized to the problem's own geometry)."""
+    The multi-panel Error Analysis grids use _panel_figsize(), which scales
+    each panel the way this scales a single 7 x 5 figure. The domain-sampling
+    preview plots keep their own size (sized to the problem's geometry)."""
     return f'''def _plot_figsize(_default_w, _default_h):
     _fs_mode = {mode!r}
     if _fs_mode == "Square":
@@ -8891,97 +9487,364 @@ def _figsize_helper_code(mode, w, h):
         return (_default_h * 1.8, _default_h)
     elif _fs_mode == "Custom":
         return ({w}, {h})
-    return (_default_w, _default_h)''' + _PLOT_TEXT_HELPERS
+    return (_default_w, _default_h)
+
+_PLOT_GRID = {bool(grid)!r}
+_PLOT_REF_DOTS = {ref_style == "dots"!r}
+_PLOT_SIG, _PLOT_SCI, _PLOT_SCI_STYLE = {tuple(numbers or (4, "auto", "times"))!r}
+_PLOT_PINN_COLOR, _PLOT_REF_COLOR = {tuple(colors or ("#ff6b6b", "#4dabf7"))!r}
+_PLOT_FONTS = {tuple(fonts or (13.0, 10.0, 10.0))!r}
+_PLOT_DPI_ANIM = {int(dpi_anim)}
+_PLOT_LEGEND_FS, _PLOT_VRANGE = {tuple(extras or (0.0, None))!r}
+
+def _lfs(_d):
+    # legend font size: the one set in Plot settings, or this figure's own
+    return _PLOT_LEGEND_FS if _PLOT_LEGEND_FS else _d
+
+def _vr(_lo, _hi):
+    # colour range of the PINN and reference panels: fixed in Plot settings,
+    # or the data's own
+    return tuple(_PLOT_VRANGE) if _PLOT_VRANGE else (_lo, _hi)
+
+def _vext(_levels=None):
+    # contour colours beyond a fixed colour range: arrows on the colorbar
+    # (an error panel, given a number of levels, keeps its own range)
+    return "both" if (_PLOT_VRANGE and not isinstance(_levels, int)) else "neither"
+
+def _panel_figsize(_pw, _ph, _ncols, _nrows):
+    # a figure of _ncols x _nrows panels of _pw x _ph inches, scaled as the
+    # Figure size setting scales a single 7 x 5 figure
+    _fw, _fh = _plot_figsize(7.0, 5.0)
+    return (_pw * _ncols * _fw / 7.0, _ph * _nrows * _fh / 5.0)''' + _PLOT_TEXT_HELPERS
 
 
 _PLOT_TEXT_HELPERS = """
 
-def _sci_txt(_v, _d=2):
-    # 8.44e-03 -> "8.44 x 10^-3" in matplotlib mathtext, for plot titles.
-    import math as _m_sci
+def _err_grid(_pts, _ref, _pinn_at_pts, _Xg, _Yg):
+    # |PINN - reference| worked out at the reference points, then put on the
+    # plot grid. Subtracting two grids, the reference interpolated between its
+    # points, added the interpolation's own error: stripes in the error
+    # panel, whose colour bar went past the max in its title (Kovasznay u:
+    # 5.4e-3 shown, 2.0e-3 real). Outside the reference points: blank.
+    from scipy.interpolate import griddata as _gd_e
+    _e = np.abs(np.ravel(_pinn_at_pts) - np.ravel(_ref))
+    return _gd_e(np.asarray(_pts)[:, :2], _e, (_Xg, _Yg), method="linear", fill_value=np.nan)
+
+def _load_ref(_path):
+    # A reference-data file: comma or space separated, header and comment
+    # lines skipped, and rows with a missing value (NaN, e.g. a point outside
+    # the shape) dropped -- the same in Solve, the exported script and Restore.
+    import re as _re
+    _rows = []
+    with open(_path, encoding="utf-8", errors="replace") as _fh:
+        for _ln in _fh:
+            _ln = _ln.strip()
+            if not _ln or _ln[0] in "#%":
+                continue
+            try:
+                _rows.append([float(_v) for _v in _re.split(r"[,\\s;]+", _ln) if _v])
+            except ValueError:
+                continue
+    _w = max((len(_r) for _r in _rows), default=0)
+    if not _w:
+        return np.zeros((0, 0))
+    _d = np.array([_r for _r in _rows if len(_r) == _w], dtype=float)
+    return _d[np.all(np.isfinite(_d), axis=1)]
+
+def _grid(_ax, **_kw):
+    # Grid lines on a line-type figure, as set in Plot settings -> General.
+    if globals().get("_PLOT_GRID", True):
+        _ax.grid(True, **_kw)
+    else:
+        _ax.grid(False)
+
+
+def _ref_plot(_ax, _x, _y, **_kw):
+    # The reference in a line comparison: a line, or dots (Plot settings -> Line).
+    if globals().get("_PLOT_REF_DOTS", False):
+        _kw = {k: v for k, v in _kw.items() if k not in ("linestyle", "linewidth", "ls", "lw")}
+        _n = len(_x)
+        _ax.plot(_x, _y, linestyle="none", marker="o", markersize=4,
+                 markevery=max(1, _n // 50), **_kw)
+    else:
+        _ax.plot(_x, _y, **_kw)
+
+def _line_gaps(_x, *_ys):
+    # A line along x masked to the domain: NaN where points were taken out
+    # (a hole, the L-shape's missing corner), so the curve stops there
+    # instead of a straight segment across the gap.
+    import numpy as _np_g
+    _x = _np_g.asarray(_x, dtype=float).ravel()
+    _ys = tuple(_np_g.asarray(_y, dtype=float).ravel() for _y in _ys)
+    _d = _np_g.diff(_x)
+    _pos = _d[_d > 0]
+    if _x.size < 3 or _pos.size == 0:
+        return (_x,) + _ys
+    _cut = _np_g.flatnonzero(_d > 1.5 * _pos.min()) + 1
+    if _cut.size == 0:
+        return (_x,) + _ys
+    return (_np_g.insert(_x, _cut, _np_g.nan),) + tuple(_np_g.insert(_y, _cut, _np_g.nan) for _y in _ys)
+
+def _fmt_num(_v, _d=None, _sci=None):
+    # A number written in a figure (a time, an error, a parameter value):
+    # _d significant digits (Plot settings -> General -> Numbers), and
+    # scientific notation below 0.01 or from 100,000 up ("Automatic"),
+    # always, or never -- as "1.23 x 10^-4" in mathtext or as "1.23e-04".
+    import math as _m_fn
+    _d = int(_d or globals().get("_PLOT_SIG", 4))
     try:
         _v = float(_v)
     except (TypeError, ValueError):
         return str(_v)
-    if not _m_sci.isfinite(_v):
-        return str(_v)
-    if _v == 0:
-        return "0"
-    _e = int(_m_sci.floor(_m_sci.log10(abs(_v))))
-    _mant = _v / 10 ** _e
-    if round(abs(_mant), _d) >= 10:
-        _mant, _e = _mant / 10, _e + 1
-    if _e == 0:
-        return f"{_v:.{_d}f}"
-    return f"{_mant:.{_d}f} $\\\\times$ 10$^{{{_e}}}$"
+    if not _m_fn.isfinite(_v) or _v == 0:
+        return f"{_v:g}"
+    _mode = _sci or globals().get("_PLOT_SCI", "auto")
+    _a = abs(_v)
+    if _mode == "always" or (_mode == "auto" and (_a < 1e-2 or _a >= 1e5)):
+        _m, _e = f"{_v:.{max(0, _d - 1)}e}".split("e")
+        if "." in _m:
+            _m = _m.rstrip("0").rstrip(".")
+        _e = int(_e)
+        if globals().get("_PLOT_SCI_STYLE", "times") == "e":
+            return f"{_m}e{_e:+03d}"
+        return f"{_m} $\\\\times$ 10$^{{{_e}}}$" if _e else _m
+    _s = f"{_v:.{_d}g}"
+    if "e" in _s:      # %g switched to an exponent: write the digits out
+        _s = f"{_v:.{max(0, _d - 1 - int(_m_fn.floor(_m_fn.log10(_a))))}f}"
+    return _s
 
-def _l2_txt(_v, _d=2):
+def _final_losses(_model, _lh):
+    # (weighted, unweighted) total of the last recorded training losses; the
+    # unweighted one divides each term by its loss weight, so runs with
+    # different weights (a loss-weight sweep) can be compared.
+    _l = [float(_v) for _v in _lh.loss_train[-1]]
+    _w = getattr(_model, "loss_weights", None)
+    try:
+        _w = [float(_x) for _x in _w] if _w is not None else None
+    except TypeError:
+        _w = None
+    _unw = (sum(_li / _wi for _li, _wi in zip(_l, _w) if _wi) if _w and len(_w) == len(_l) else sum(_l))
+    return sum(_l), _unw
+
+def _sci_txt(_v, _d=None):
+    # An error value for a plot title: with a power of ten ("4.79 x 10^-3")
+    # when notation is Automatic, as errors are usually written.
+    _mode = globals().get("_PLOT_SCI", "auto")
+    return _fmt_num(_v, _d, "always" if _mode == "auto" else _mode)
+
+def _l2_txt(_v, _d=None):
     # The relative L2 error as it is written in papers: italic L, subscript 2.
     return "$L_2$ = " + _sci_txt(_v, _d)
 
-def _num_txt(_v, _d=4):
-    # A parameter value for a plot label: "1.2038 x 10^-4" when it is small
-    # (or very large), otherwise up to 6 significant digits ("0.398434").
-    try:
-        _f = float(_v)
-    except (TypeError, ValueError):
-        return str(_v)
-    if _f != 0 and (abs(_f) < 1e-2 or abs(_f) >= 1e5):
-        return _sci_txt(_f, _d)
-    return f"{_f:.6g}"
+def _num_txt(_v, _d=None):
+    # A parameter value for a plot label: two digits more than other numbers
+    # (6 by default), so a value close to the true one shows how close.
+    return _fmt_num(_v, (_d or globals().get("_PLOT_SIG", 4) + 2))
 
-# Axis and colorbar numbers: values below 1e-2 (or from 1e5 up) are shown as
-# plain ticks with one "x 10^n" factor, written in mathtext, instead of long
-# decimals such as 0.000225 or e-notation.
+# Axis and colorbar numbers: scientific notation as set in Plot settings ->
+# General -> Numbers (by default below 1e-2 or from 1e5 up, with one
+# "x 10^n" factor in mathtext) instead of long decimals such as 0.000225.
 import matplotlib as _mpl_sci
-_mpl_sci.rcParams["axes.formatter.use_mathtext"] = True
-_mpl_sci.rcParams["axes.formatter.limits"] = (-2, 5)"""
+_mpl_sci.rcParams["axes.formatter.use_mathtext"] = globals().get("_PLOT_SCI_STYLE", "times") == "times"
+_mpl_sci.rcParams["axes.formatter.limits"] = {"always": (0, 0), "never": (-1000, 1000)}.get(
+    globals().get("_PLOT_SCI", "auto"), (-2, 5))
+# Titles and labels that don't set a size follow Plot settings -> General
+# (figure title, panel title, axis label font sizes).
+_fs_t, _fs_p, _fs_a = globals().get("_PLOT_FONTS", (13.0, 10.0, 10.0))
+_mpl_sci.rcParams["figure.titlesize"] = _fs_t
+_mpl_sci.rcParams["axes.titlesize"] = _fs_p
+_mpl_sci.rcParams["axes.labelsize"] = _fs_a"""
 
 
-def _param_axis_helper_code(axis_label_fontsize, subplot_title_fontsize):
+PARAM_STYLE_DEFAULTS = {
+    "param_plot_color": "#e03131", "param_plot_linewidth": 3.0, "param_plot_markers": False,
+    "param_plot_show_true": True, "param_true_color": "#212529", "param_true_style": "--",
+    "param_plot_show_final": True, "param_final_color": "#868e96", "param_final_style": ":",
+    "param_anim_color": "#e03131", "param_anim_linewidth": 3.0, "param_anim_frames": 60,
+    "param_plot_figures": "combined", "param_anim_figures": "combined",
+    "param_plot_draw": "line", "param_plot_marker": "o", "param_plot_marker_size": 4.0,
+    "param_anim_draw": "line", "param_anim_head": True,
+}
+
+
+def param_style_of(cfg):
+    """The parameter convergence plot and animation style (Plot settings ->
+    Line / Animation) from a config object or a dict of its fields."""
+    g = (cfg.get if isinstance(cfg, dict) else (lambda k, d=None: getattr(cfg, k, d)))
+
+    def v(k):
+        x = g(k, None)
+        return PARAM_STYLE_DEFAULTS[k] if x is None or x == "" else x
+    return {"color": str(v("param_plot_color")), "linewidth": float(v("param_plot_linewidth")),
+            "markers": bool(v("param_plot_markers")),
+            "show_true": bool(v("param_plot_show_true")), "true_color": str(v("param_true_color")),
+            "true_style": str(v("param_true_style")),
+            "show_final": bool(v("param_plot_show_final")), "final_color": str(v("param_final_color")),
+            "final_style": str(v("param_final_style")),
+            "anim_color": str(v("param_anim_color")), "anim_linewidth": float(v("param_anim_linewidth")),
+            "anim_frames": max(2, int(v("param_anim_frames"))),
+            "plot_separate": v("param_plot_figures") == "separate",
+            "anim_separate": v("param_anim_figures") == "separate",
+            # the older on/off markers setting, when the newer one is left as it was
+            "draw": ("line_markers" if (v("param_plot_draw") == "line" and bool(v("param_plot_markers")))
+                     else str(v("param_plot_draw"))),
+            "marker": str(v("param_plot_marker")), "marker_size": float(v("param_plot_marker_size")),
+            "anim_draw": str(v("param_anim_draw")), "anim_head": bool(v("param_anim_head"))}
+
+
+def _param_axis_helper_code(axis_label_fontsize, subplot_title_fontsize, style=None):
     """Runtime source for _draw_param_ax(...), the one "draw a single
-    inferred parameter's convergence curve on an axis" function -- cleanup
-    Round 49 (audit §2e, _build_restore_param_script). It used to be hand-typed
-    three times with drift between the copies: generate_script()'s live
-    param_plot.png (log scale + title/axis overrides, default title size),
-    generate_clean_script()'s exported param_convergence.png (no log scale,
-    no overrides at all -- the export silently ignored both settings), and
-    Restore & Visualize's Parameter Convergence plot (log scale + overrides
-    + the subplot-title font size). All three now emit this one function and
-    call it, so the export honors the log-scale and override settings too
-    and every copy uses the configured subplot-title font size.
+    inferred parameter's convergence curve on an axis" function, and
+    _param_animation(...), the convergence animation of every parameter --
+    used by Solve's script, the exported script and Restore, so the three
+    draw the parameter plots the same way with the same style (`style`,
+    from param_style_of).
 
     Log scale needs every value > 0; otherwise it falls back to linear and
-    says so (matching the restore path's existing warning)."""
+    says so."""
+    style = dict(param_style_of({}), **(style or {}))
     return f'''def _param_label_num(_v):
-    # A parameter value for the legend: "1.2038 x 10^-4" (mathtext) when it is
-    # small or very large, otherwise up to 6 significant digits ("0.398434").
+    # A parameter value for the legend: two digits more than the other
+    # numbers in figures (Plot settings -> General -> Numbers; 6 by default).
+    if "_num_txt" in globals():
+        return _num_txt(_v)
     _f = float(_v)
     if not np.isfinite(_f) or _f == 0 or 1e-2 <= abs(_f) < 1e5:
         return f"{{_f:.6g}}"
     _e = int(np.floor(np.log10(abs(_f))))
-    return f"{{_f / 10 ** _e:.4f}} $\\\\times$ 10$^{{{{{{_e}}}}}}$"
+    return f"{{_f / 10 ** _e:.5f}} $\\\\times$ 10$^{{{{{{_e}}}}}}$"
+
+_PARAM_STYLE = {style!r}
+
+if "_grid" not in globals():
+    def _grid(_ax, **_kw):
+        # Grid lines (Plot settings -> General), when the figure helpers are not loaded.
+        if globals().get("_PLOT_GRID", True):
+            _ax.grid(True, **_kw)
+        else:
+            _ax.grid(False)
+
+def _param_ref_lines(ax, final_val, true_val):
+    if _PARAM_STYLE["show_final"]:
+        ax.axhline(y=final_val, color=_PARAM_STYLE["final_color"], linestyle=_PARAM_STYLE["final_style"],
+                   linewidth=1.5, label=f"Final = {{_param_label_num(final_val)}}")
+    if true_val is not None and _PARAM_STYLE["show_true"]:
+        ax.axhline(y=true_val, color=_PARAM_STYLE["true_color"], linestyle=_PARAM_STYLE["true_style"],
+                   linewidth=1.5, label=f"True = {{_param_label_num(true_val)}}")
 
 def _draw_param_ax(ax, name, iters, vals, true_val=None, log_scale=False,
                    title_override="", xlabel_override="", ylabel_override=""):
     vals = np.asarray(vals, dtype=float)
     final_val = vals[-1] if len(vals) else float("nan")
-    use_log = bool(log_scale) and len(vals) > 0 and bool(np.all(vals > 0))
+    # a log axis as long as the result (and the true value) is positive; values
+    # that dipped to zero or below on the way are left out of the curve
+    use_log = (bool(log_scale) and len(vals) > 0 and vals[-1] > 0
+               and (true_val is None or true_val > 0))
     if log_scale and not use_log:
-        print(f"⚠️ {{name}}: log scale requested but values aren't all positive -- using linear scale instead.")
+        print(f"⚠️ {{name}}: log scale requested but the value isn't positive -- using linear scale instead.")
+    if use_log and not np.all(vals > 0):
+        vals = np.where(vals > 0, vals, np.nan)
+    _draw = _PARAM_STYLE.get("draw", "line_markers" if _PARAM_STYLE.get("markers") else "line")
+    _kw = dict(color=_PARAM_STYLE["color"], linewidth=_PARAM_STYLE["linewidth"],
+               marker=_PARAM_STYLE.get("marker", "o") if _draw != "line" else None,
+               markersize=_PARAM_STYLE.get("marker_size", 4.0),
+               markevery=max(1, len(iters) // 40),   # about 40 markers, however often values were saved
+               linestyle="none" if _draw == "markers" else "-")
+    # (a log axis shows the values themselves, so the label is the name)
     if use_log:
-        ax.semilogy(iters, vals, color="#69db7c", linewidth=1.5)
-        ax.set_ylabel(ylabel_override or f"log({{name}})", fontsize={axis_label_fontsize})
+        ax.semilogy(iters, vals, **_kw)
     else:
-        ax.plot(iters, vals, color="#69db7c", linewidth=1.5)
-        ax.set_ylabel(ylabel_override or name, fontsize={axis_label_fontsize})
-    ax.axhline(y=final_val, color="#ff8787", linestyle="--", alpha=0.5, label=f"Final = {{_param_label_num(final_val)}}")
-    if true_val is not None:
-        ax.axhline(y=true_val, color="#ffd43b", linestyle="--", alpha=0.8, label=f"True = {{_param_label_num(true_val)}}")
+        ax.plot(iters, vals, **_kw)
+    ax.set_ylabel(ylabel_override or name, fontsize={axis_label_fontsize})
+    _param_ref_lines(ax, final_val, true_val)
     ax.set_xlabel(xlabel_override or "Iteration", fontsize={axis_label_fontsize})
     ax.set_title(title_override or f"Inferred Parameter: {{name}}", fontsize={subplot_title_fontsize})
-    ax.legend(); ax.grid(True, alpha=0.3)
-    return final_val'''
+    if ax.get_legend_handles_labels()[0]:
+        ax.legend()
+    _grid(ax, alpha=0.3)
+    return final_val
+
+def _param_animation(series, out_path, log_scale=False, fps=10, dpi=100,
+                     title_override="", xlabel_override="", ylabel_override="", figsize=(6, 3.2)):
+    """series: [(name, iters, vals, true_val or None)] -> one GIF, a panel per
+    parameter, each curve growing to its last saved value."""
+    import matplotlib.animation as _p_anim
+    n = len(series)
+    fig, axes = plt.subplots(n, 1, figsize=(figsize[0], figsize[1] * n), squeeze=False)
+    n_frames = min(max(len(s[1]) for s in series), _PARAM_STYLE["anim_frames"])
+    lines = []
+    for i, (name, iters, vals, true_val) in enumerate(series):
+        ax = axes[i][0]
+        iters = np.asarray(iters, dtype=float); vals = np.asarray(vals, dtype=float)
+        _rv = vals if true_val is None else np.append(vals, true_val)
+        use_log = (bool(log_scale) and len(vals) > 0 and vals[-1] > 0
+                   and (true_val is None or true_val > 0))
+        if use_log:
+            # values that dipped to zero or below on the way are left out
+            vals = np.where(vals > 0, vals, np.nan)
+            _rv = _rv[_rv > 0]
+        ax.set_ylabel(ylabel_override or name, fontsize={axis_label_fontsize})
+        x_hi = iters.max() if iters.max() > iters.min() else iters.min() + 1
+        ax.set_xlim(iters.min(), x_hi)
+        lo, hi = _rv.min(), _rv.max()
+        # The curve starts empty, so the axis can't take its range from the
+        # data it draws: set it to the whole curve (and the true value) now.
+        # On a log axis the margin is a factor -- an added margin there left
+        # the range to the two reference lines alone, and the curve off it.
+        if use_log:
+            ax.set_yscale("log")
+            pad = (hi / lo) ** 0.05 if hi > lo else 1.5
+            ax.set_ylim(lo / pad, hi * pad)
+        else:
+            pad = 0.05 * (abs(hi - lo) if hi != lo else (abs(hi) + 1))
+            ax.set_ylim(lo - pad, hi + pad)
+        _param_ref_lines(ax, vals[-1], true_val)
+        ax.set_xlabel(xlabel_override or "Iteration", fontsize={axis_label_fontsize})
+        ax.set_title(title_override or f"Inferred Parameter: {{name}}", fontsize={subplot_title_fontsize})
+        if ax.get_legend_handles_labels()[0]:
+            # away from where the curve ends (the legend is placed before the
+            # curve is drawn, so "best" can't see it)
+            _end = vals[np.isfinite(vals)][-1] if np.isfinite(vals).any() else hi
+            _mid = (np.sqrt(lo * hi) if use_log else 0.5 * (lo + hi))
+            ax.legend(loc="lower right" if _end >= _mid else "upper right")
+        _grid(ax, alpha=0.3)
+        _adraw = _PARAM_STYLE.get("anim_draw", "line")
+        line, = ax.plot([], [], color=_PARAM_STYLE["anim_color"], linewidth=_PARAM_STYLE["anim_linewidth"],
+                        marker=_PARAM_STYLE.get("marker", "o") if _adraw != "line" else None,
+                        markersize=_PARAM_STYLE.get("marker_size", 4.0),
+                        markevery=max(1, len(iters) // 40),
+                        linestyle="none" if _adraw == "markers" else "-")
+        # a dot on the curve's tip: where the parameter is now
+        head = (ax.plot([], [], linestyle="none", marker="o", color=_PARAM_STYLE["anim_color"],
+                        markersize=max(6.0, 2.2 * _PARAM_STYLE["anim_linewidth"]),
+                        markeredgecolor="white", markeredgewidth=1.0, zorder=5)[0]
+                if _PARAM_STYLE.get("anim_head", True) else None)
+        lines.append((line, iters, vals, head))
+    plt.tight_layout()
+
+    # Each frame moves on by the same number of iterations, not of saved
+    # values: the values are saved more often in some phases than others
+    # (L-BFGS logs less often than Adam), and stepping through them one
+    # share at a time made the curve speed up in the sparser phase.
+    _i0 = min(float(np.min(_it)) for _l, _it, _v, _h in lines)
+    _i1 = max(float(np.max(_it)) for _l, _it, _v, _h in lines)
+
+    def _update(frame):
+        cut = _i0 + (frame + 1) / n_frames * (_i1 - _i0)
+        out = []
+        for line, iters, vals, head in lines:
+            k = max(1, int(np.searchsorted(iters, cut, side="right")))
+            line.set_data(iters[:k], vals[:k])
+            out.append(line)
+            if head is not None:
+                _ok = np.flatnonzero(np.isfinite(vals[:k]))
+                head.set_data(iters[_ok[-1:]], vals[_ok[-1:]]) if len(_ok) else head.set_data([], [])
+                out.append(head)
+        return out
+    ani = _p_anim.FuncAnimation(fig, _update, frames=n_frames, interval=1000 / max(1, fps))
+    ani.save(out_path, writer="pillow", fps=fps, dpi=globals().get("_PLOT_DPI_ANIM", dpi))
+    plt.close(fig)
+    print(f"Parameter convergence animation saved: {{out_path}}")'''
 
 
 def _rar_tolerance_check(config, indent):
@@ -9029,7 +9892,7 @@ def _formula_reference_entries(config):
         if not e:
             continue
         for t in times:
-            fname = f"{names[i]}.txt" if config.steady_state else f"{names[i]}_t_{t:.6g}.txt"
+            fname = f"{names[i]}.txt" if config.steady_state else f"{names[i]}_t_{t:.12g}.txt"
             out.append((float(t), _os_ref.path.join(d, fname), i, e))
     return out
 
@@ -9088,6 +9951,16 @@ def _anchor_columns(config):
     if not config.steady_state:
         cols.append(("t", config.t_min, config.t_max))
     return cols
+
+
+def _anchor_join(names, var="_a"):
+    """The anchors= text for a list of array names (any may be None at run
+    time): "None", the one name, or a vstack of the ones that are set."""
+    if not names:
+        return "None"
+    if len(names) == 1:
+        return names[0]
+    return f"np.vstack([{var} for {var} in ({', '.join(names)}) if {var} is not None])"
 
 
 def _anchor_points_code(config):
@@ -9177,7 +10050,9 @@ def _clean_figsize_runtime_code(config):
     already calls it this way (see Round 31). See _figsize_helper_code()'s own
     docstring for the full rationale; this just extracts the 3 relevant fields
     from a PINNConfig."""
-    return _figsize_helper_code(config.plot_figsize_mode, config.plot_figsize_w, config.plot_figsize_h)
+    return _figsize_helper_code(config.plot_figsize_mode, config.plot_figsize_w, config.plot_figsize_h,
+                                getattr(config, "plot_grid", True), getattr(config, "plot_ref_style", "line"),
+                                number_settings(config), line_colors(config), font_sizes(config), anim_dpi(config), plot_extras(config))
 
 
 def _restore_line_plot_code(x_min, x_max, resolution, t_min, t_max, n_steps, colormap,
@@ -9217,7 +10092,7 @@ def _restore_line_plot_code(x_min, x_max, resolution, t_min, t_max, n_steps, col
         pre_xt_lines = "        _ta_m = _ta_model_for_t(tv)\n"
         predict_model_arg = ", _ta_m"
         line_label_stmt = ""
-        line_label_arg = 'label=f"t={tv:.3f}"'
+        line_label_arg = 'label=f"t={_fmt_num(tv)}"'
         xt_branch = (
             "        if is_3d:\n"
             "            xt = np.column_stack([x_vals, np.full_like(x_vals, y_mid), np.full_like(x_vals, z_mid), np.full_like(x_vals, tv)])\n"
@@ -9240,7 +10115,7 @@ def _restore_line_plot_code(x_min, x_max, resolution, t_min, t_max, n_steps, col
             "        # this is just a defensive fallback so it can't crash if ever reached).\n"
         )
         predict_model_arg = ""
-        line_label_stmt = '\n        _line_label = "steady-state" if is_steady else f"t={tv:.3f}"'
+        line_label_stmt = '\n        _line_label = "steady-state" if is_steady else f"t={_fmt_num(tv)}"'
         line_label_arg = "label=_line_label"
         xt_branch = (
             "        if is_steady and is_3d:\n"
@@ -9275,9 +10150,9 @@ else:
     colors = plt.get_cmap("{colormap}")(np.linspace(0, 1, {n_steps}))
     for i, tv in enumerate(t_steps_vals):
 {pre_xt_lines}{xt_branch}        u_line = _extract_plot_field(xt{predict_model_arg}).flatten(){line_label_stmt}
-        ax.plot(x_vals, u_line, color=colors[i], linewidth={linewidth}, {line_label_arg})
+        ax.plot(*_line_gaps(x_vals, u_line), color=colors[i], linewidth={linewidth}, {line_label_arg})
     ax.set_xlabel({xlabel!r}, fontsize={axis_label_fontsize}); ax.set_ylabel({ylabel!r}, fontsize={axis_label_fontsize})
-    ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
+    ax.legend(loc="upper right", fontsize=_lfs(8)); _grid(ax, alpha=0.2)
 ax.set_title({title!r}, fontsize={subplot_title_fontsize})
 plt.tight_layout()
 out_path = os.path.join({save_dir!r}, "restored_plot.png")
@@ -9364,18 +10239,18 @@ else:
     ax.set_ylim(u_min - 0.05*abs(u_min), u_max + 0.05*abs(u_max))
     ax.set_xlabel({xlabel!r}, fontsize={axis_label_fontsize}); ax.set_ylabel({ylabel!r}, fontsize={axis_label_fontsize})
     {title_stmt}
-    line, = ax.plot([], [], color="#4dabf7", linewidth={linewidth})
+    line, = ax.plot([], [], color=_PLOT_PINN_COLOR, linewidth={linewidth})
     time_txt = ax.text({tt_x}, {tt_y}, '', transform=ax.transAxes, color='black', ha={tt_ha!r}, fontsize=11)
-    ax.grid(True, alpha=0.2)
+    _grid(ax, alpha=0.2)
     def init():
         line.set_data([], []); time_txt.set_text(''); return line, time_txt
     def update(i):
-        line.set_data(x_vals, all_u[i])
-        time_txt.set_text(f"t = {{t_frames[i]:.3f}}")
+        line.set_data(*_line_gaps(x_vals, all_u[i]))
+        time_txt.set_text(f"t = {{_fmt_num(t_frames[i])}}")
         return line, time_txt
     ani = _anim.FuncAnimation(fig, update, init_func=init, frames={n_steps}, interval=100, blit=True)
     out_path = os.path.join({save_dir!r}, "restored_animation.gif")
-    ani.save(out_path, writer='pillow', fps={fps})
+    ani.save(out_path, writer='pillow', fps={fps}, dpi=_PLOT_DPI_ANIM)
     plt.close()
     print(f"Animation saved to: {{out_path}}")"""
 
@@ -9384,7 +10259,7 @@ def _restore_anim_surface_code(x_min, x_max, y_min, y_max, t_min, t_max, n_steps
                                 show_colorbar, levels, swap_xt, axis_label_fontsize, fps, save_dir,
                                 xlabel_animsurf3d, ylabel_animsurf3d, animsurf_title_line_3d,
                                 xlabel_animsurf_else, ylabel_animsurf_else, animsurf_title_line_else,
-                                is_time_adaptive):
+                                is_time_adaptive, resolution=80, res3d=40):
     """Builds the "Animation Surface (GIF)" branch shared between
     main_window.py's single-model restore (_build_restore_script) and its
     Time-Adaptive counterpart (_build_restore_script_ta) -- cleanup Round
@@ -9411,6 +10286,8 @@ def _restore_anim_surface_code(x_min, x_max, y_min, y_max, t_min, t_max, n_steps
     alpha-0 out-of-domain face quads; 2D: NaN out-of-domain grid points),
     which neither original copy had -- the same geom.inside(...)
     convention the static Surface plot (_restore_surface_code) uses."""
+    res = max(10, int(resolution))     # Plot settings -> Surface -> Grid resolution
+    res3 = max(10, int(res3d))         # Plot settings -> Surface -> 3D grid resolution
     if is_time_adaptive:
         comment_3d = ""
         bbox3a_expr = "_ta_build_geomtime(t_frames[0], t_frames[0]).geometry.bbox"
@@ -9427,22 +10304,22 @@ def _restore_anim_surface_code(x_min, x_max, y_min, y_max, t_min, t_max, n_steps
             "        for tv in t_frames:\n"
             "            _ta_m = _ta_model_for_t(tv)\n"
             "            XYT = np.column_stack([Xg.ravel(), Yg.ravel(), np.full(Xg.size, tv)])\n"
-            "            pred = _extract_plot_field(XYT, _ta_m).reshape(80, 80)\n"
+            "            pred = _extract_plot_field(XYT, _ta_m).reshape({res}, {res})\n"
             "            pred = np.where(_inside2da, pred, np.nan)\n"
             "            all_frames.append((Xg, Yg, pred))\n"
-        )
+        ).format(res=res)
         comment_else = ""
         loop_else = (
             "        for tv in t_frames:\n"
             "            _ta_m = _ta_model_for_t(tv)\n"
             "            XT = np.column_stack([x_anim, np.full_like(x_anim, tv)])\n"
             "            pred_row = _extract_plot_field(XT, _ta_m).flatten()\n"
-            "            pred = np.tile(pred_row, (80, 1))\n"
+            "            pred = np.tile(pred_row, ({res}, 1))\n"
             "            if {swap_xt}:\n"
             "                all_frames.append((T_anim, X_anim, pred))\n"
             "            else:\n"
             "                all_frames.append((X_anim, T_anim, pred))\n"
-        ).format(swap_xt=swap_xt)
+        ).format(swap_xt=swap_xt, res=res)
     else:
         comment_3d = (
             "    # Genuine smooth 3D surface animated over time: same 6-flat-face\n"
@@ -9476,10 +10353,10 @@ def _restore_anim_surface_code(x_min, x_max, y_min, y_max, t_min, t_max, n_steps
             "                XYT = np.column_stack([Xg.ravel(), Yg.ravel()])\n"
             "            else:\n"
             "                XYT = np.column_stack([Xg.ravel(), Yg.ravel(), np.full(Xg.size, tv)])\n"
-            "            pred = _extract_plot_field(XYT).reshape(80, 80)\n"
+            "            pred = _extract_plot_field(XYT).reshape({res}, {res})\n"
             "            pred = np.where(_inside2da, pred, np.nan)\n"
             "            all_frames.append((Xg, Yg, pred))\n"
-        )
+        ).format(res=res)
         comment_else = (
             "        # Same no-reshape-of-pred swap as the static Surface option above\n"
             "        # -- storing T_anim/X_anim in swapped order per frame is enough,\n"
@@ -9489,19 +10366,19 @@ def _restore_anim_surface_code(x_min, x_max, y_min, y_max, t_min, t_max, n_steps
         loop_else = (
             "        for tv in t_frames:\n"
             "            XT = np.vstack([X_anim.ravel(), np.full(X_anim.size, tv)]).T\n"
-            "            pred = _extract_plot_field(XT).reshape(80, 80)\n"
+            "            pred = _extract_plot_field(XT).reshape({res}, {res})\n"
             "            if {swap_xt}:\n"
             "                all_frames.append((T_anim, X_anim, pred))\n"
             "            else:\n"
             "                all_frames.append((X_anim, T_anim, pred))\n"
-        ).format(swap_xt=swap_xt)
+        ).format(swap_xt=swap_xt, res=res)
 
     return f"""import matplotlib.animation as _anim
 t_frames = np.linspace({t_min}, {t_max}, {n_steps})
-x_anim = np.linspace({x_min}, {x_max}, 80)
+x_anim = np.linspace({x_min}, {x_max}, {res})
 all_frames = []
 if is_3d:
-{comment_3d}    _res3a = 28
+{comment_3d}    _res3a = {res3}
     _bbox3a = np.asarray({bbox3a_expr})
     _cx0a, _cy0a, _cz0a = _bbox3a[0]; _cx1a, _cy1a, _cz1a = _bbox3a[1]
     _xg3a = np.linspace(_cx0a, _cx1a, _res3a)
@@ -9535,6 +10412,7 @@ if is_3d:
     else:
         v_min = min(_f.min() for _frame in all_frames for _f in _frame)
         v_max = max(_f.max() for _frame in all_frames for _f in _frame)
+    v_min, v_max = _vr(v_min, v_max)   # Plot settings -> Surface -> Colour range
     fig = plt.figure(figsize=_plot_figsize(8, 6.5))
     ax = fig.add_subplot(111, projection='3d')
     _norm3a = plt.Normalize(vmin=v_min, vmax=v_max)
@@ -9557,21 +10435,24 @@ if is_3d:
             pass
     ani = _anim.FuncAnimation(fig, update, frames={n_steps}, interval=150)
     out_path = os.path.join({save_dir!r}, "restored_animation.gif")
-    ani.save(out_path, writer='pillow', fps={fps})
+    ani.save(out_path, writer='pillow', fps={fps}, dpi=_PLOT_DPI_ANIM)
     plt.close()
     print(f"3D surface animation saved to: {{out_path}}")
 else:
     if is_2d:
-        y_anim = np.linspace({y_min}, {y_max}, 80)
+        y_anim = np.linspace({y_min}, {y_max}, {res})
         Xg, Yg = np.meshgrid(x_anim, y_anim)
         # cleanup Round 46: NaN out grid points outside the real geometry
         # (contourf leaves them unfilled), same as the static 2D Surface plot.
-        _inside2da = np.asarray(geom.inside(np.column_stack([Xg.ravel(), Yg.ravel()]))).reshape(80, 80)
+        _inside2da = np.asarray(geom.inside(np.column_stack([Xg.ravel(), Yg.ravel()]))).reshape({res}, {res})
 {loop_2d}    else:
-{comment_else}        t_anim = np.linspace({t_min}, {t_max}, 80)
+        if globals().get("is_steady", False):
+            raise SystemExit("Animation Surface needs a time axis, and a steady 1D model has none: use Line.")
+{comment_else}        t_anim = np.linspace({t_min}, {t_max}, {res})
         X_anim, T_anim = np.meshgrid(x_anim, t_anim)
 {loop_else}    v_min = min(np.nanmin(f[2]) for f in all_frames)
     v_max = max(np.nanmax(f[2]) for f in all_frames)
+    v_min, v_max = _vr(v_min, v_max)   # Plot settings -> Surface -> Colour range
     fig, ax = plt.subplots(figsize=_plot_figsize(8, 6))
     from mpl_toolkits.axes_grid1 import make_axes_locatable
     _div = make_axes_locatable(ax)
@@ -9587,7 +10468,7 @@ else:
         {animsurf_title_line_else}
     ani = _anim.FuncAnimation(fig, update, frames={n_steps}, interval=150)
     out_path = os.path.join({save_dir!r}, "restored_animation.gif")
-    ani.save(out_path, writer='pillow', fps={fps})
+    ani.save(out_path, writer='pillow', fps={fps}, dpi=_PLOT_DPI_ANIM)
     plt.close()
     print(f"Surface animation saved to: {{out_path}}")"""
 
@@ -9597,7 +10478,7 @@ def _restore_surface_code(resolution, x_min, x_max, y_min, y_max, t_min, t_max, 
                           linewidth, title_fontsize, subplot_title_fontsize, axis_label_fontsize,
                           save_dir, dpi, xlabel_3d, ylabel_3d, title_3d, xlabel_2d, ylabel_2d,
                           title_2d, xlabel_1d, ylabel_1d, title_1d, xlabel_1d_steady,
-                          ylabel_1d_steady, title_1d_steady, is_time_adaptive):
+                          ylabel_1d_steady, title_1d_steady, is_time_adaptive, res3d=40):
     """Builds the static "Surface" branch shared between main_window.py's
     single-model restore (_build_restore_script) and its Time-Adaptive
     counterpart (_build_restore_script_ta) -- cleanup Round 45 (audit §2e,
@@ -9664,7 +10545,7 @@ def _restore_surface_code(resolution, x_min, x_max, y_min, y_max, t_min, t_max, 
             "        # single-model path -- otherwise meaningless bounding-box-only\n"
             "        # predictions could skew the color scale.\n"
         )
-        title3_expr = 'f"t = {_tv3:.3f}"'
+        title3_expr = 'f"t = {_fmt_num(_tv3)}"'
         pass_note = ""
         suptitle3 = (
             f"    fig.suptitle({title_3d!r}, fontsize={title_fontsize})\n"
@@ -9681,7 +10562,7 @@ def _restore_surface_code(resolution, x_min, x_max, y_min, y_max, t_min, t_max, 
             "        XYT = np.column_stack([Xg.ravel(), Yg.ravel(), np.full(Xg.size, _tv2)])\n"
             "        pred = _extract_plot_field(XYT, _model2).reshape(res, res)\n"
         )
-        title2_expr = 'f"t = {_tv2:.3f}"'
+        title2_expr = 'f"t = {_fmt_num(_tv2)}"'
         suptitle2 = (
             f"    fig.suptitle({title_2d!r}, fontsize={title_fontsize})\n"
             "    _had_suptitle = True\n"
@@ -9754,7 +10635,7 @@ def _restore_surface_code(resolution, x_min, x_max, y_min, y_max, t_min, t_max, 
             "        # auto-ranges per panel) -- only an explicit manual vmin/vmax is\n"
             "        # shared across every panel.\n"
         )
-        title3_expr = f'{title_3d!r} if is_steady else f"t = {{_tv3:.3f}}"'
+        title3_expr = f'{title_3d!r} if is_steady else f"t = {{_fmt_num(_tv3)}}"'
         pass_note = "  # older matplotlib without set_box_aspect -- cosmetic only"
         suptitle3 = (
             "    if not is_steady:\n"
@@ -9782,7 +10663,7 @@ def _restore_surface_code(resolution, x_min, x_max, y_min, y_max, t_min, t_max, 
             "               else np.column_stack([Xg.ravel(), Yg.ravel(), np.full(Xg.size, _tv2)]))\n"
             "        pred = _extract_plot_field(XYT).reshape(res, res)\n"
         )
-        title2_expr = f'{title_2d!r} if is_steady else f"t = {{_tv2:.3f}}"'
+        title2_expr = f'{title_2d!r} if is_steady else f"t = {{_fmt_num(_tv2)}}"'
         suptitle2 = (
             "    if not is_steady:\n"
             f"        fig.suptitle({title_2d!r}, fontsize={title_fontsize})\n"
@@ -9794,8 +10675,8 @@ def _restore_surface_code(resolution, x_min, x_max, y_min, y_max, t_min, t_max, 
             "    # nothing left to make a \"surface\" out of, just the one curve u(x).\n"
             "    pred = _extract_plot_field(x_vals.reshape(-1, 1)).flatten()\n"
             "    fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))\n"
-            f"    ax.plot(x_vals, pred, color=\"#4dabf7\", linewidth={linewidth})\n"
-            "    ax.grid(True, alpha=0.2)\n"
+            f"    ax.plot(x_vals, pred, color=_PLOT_PINN_COLOR, linewidth={linewidth})\n"
+            "    _grid(ax, alpha=0.2)\n"
             f"    ax.set_xlabel({xlabel_1d_steady!r}, fontsize={axis_label_fontsize}); ax.set_ylabel({ylabel_1d_steady!r}, fontsize={axis_label_fontsize})\n"
             f"    ax.set_title({title_1d_steady!r}, fontsize={subplot_title_fontsize})\n"
         )
@@ -9815,7 +10696,7 @@ x_vals = np.linspace({x_min}, {x_max}, res)
 y_vals = np.linspace({y_min}, {y_max}, res)
 {suptitle_note}_had_suptitle = False
 if is_3d:
-{comment_3d}    _res3 = max(24, res // 2)
+{comment_3d}    _res3 = {max(10, int(res3d))}   # Plot settings -> Surface -> 3D grid resolution
     _bbox3 = np.asarray({bbox3_expr})
     _cx0, _cy0, _cz0 = _bbox3[0]; _cx1, _cy1, _cz1 = _bbox3[1]
     _xg3 = np.linspace(_cx0, _cx1, _res3)
@@ -9900,6 +10781,34 @@ plt.savefig(out_path, dpi={dpi}, bbox_inches='tight'); plt.close()
 print(f"Surface plot saved to: {{out_path}}")"""
 
 
+def inv_param_period(config):
+    """Inverse -> Save parameters as a number of iterations: "No" -> 0,
+    "Every 100 iters" -> 100, and any number typed ("Every 250 iters",
+    "250"). Both scripts record the parameters this often."""
+    text = str(getattr(config, "inv_param_save", "Every 100 iters") or "")
+    if text.strip().lower() in ("", "no", "off", "none"):
+        return 0
+    m = re.search(r"\d+", text.replace(",", ""))
+    return max(1, int(m.group(0))) if m else 100
+
+
+def inv_record_period(config):
+    """How often both scripts record the inverse parameters: Save
+    parameters' period, or (No) 1/200 of the whole training run."""
+    p = inv_param_period(config)
+    if p:
+        return p
+    import json as _js
+    try:
+        phases = _js.loads(getattr(config, "scheduler_phases", "") or "[]") or []
+        total = sum(int(ph.get("iterations", 0) or 0) for ph in phases if isinstance(ph, dict))
+    except (ValueError, TypeError):
+        total = 0
+    if not total:
+        total = int(getattr(config, "iterations", 0) or 0) + int(getattr(config, "iterations2", 0) or 0)
+    return max(1, total // 200) if total else 100
+
+
 def _lbfgs_maxfun(config, iterations):
     """L-BFGS maxfun for a run of `iterations`: 1.25 times them with the
     recommended settings (DeepXDE's own rule when maxfun is unset), the
@@ -9971,7 +10880,7 @@ if {config.ic_pretrain_restore} and {rp} and {os_name}.path.exists({rp}):
     print("{p}IC pre-train model restored -- skipping training.")
 else:
     _ic_lh, _ = _model_pre.train(iterations={config.ic_pretrain_iterations},
-                                 display_every=10000, batch_size=None,
+                                 display_every={max(1, int(getattr(config, 'loss_display_every', 1000) or 1000))}, batch_size=None,
                                  model_save_path={os_name}.path.join(_ic_pretrain_save_dir, "ic_pretrain_model"))
     print(f"{p}IC pre-training done. Final IC loss: {{sum(_ic_lh.loss_train[-1]):.4e}}")
     print(f"{p}IC pre-train model saved to: {{_ic_pretrain_save_dir}}")'''
@@ -10000,7 +10909,7 @@ def _clean_rar_diagnostics_code(config, is_2d, is_3d, is_steady, out_name):
         if len(pts):
             ax.scatter(pts[:, 0], pts[:, 1], pts[:, 2], s=sz, c=col, label=lab)
     ax.set_xlabel("x"); ax.set_ylabel("y"); ax.set_zlabel("z"); [_tk.set_ticks(plt.matplotlib.ticker.MaxNLocator(nbins=4, steps=[1, 2, 5, 10]).tick_values(*_tk.get_data_interval())) for _tk in (ax.xaxis, ax.yaxis, ax.zaxis)]''')
-        zmid = (config.z_min + config.z_max) / 2.0
+        zmid = auto_line_slice(config)[1]
         time_col = "" if is_steady else f", np.full(Xs.size, {tmax})"
         snap = (f'''    xs = np.linspace({config.x_min}, {config.x_max}, {res}); ys = np.linspace({config.y_min}, {config.y_max}, {res})
     Xs, Ys = np.meshgrid(xs, ys)
@@ -10011,7 +10920,7 @@ def _clean_rar_diagnostics_code(config, is_2d, is_3d, is_steady, out_name):
     im = ax.contourf(Xs, Ys, Us, levels={config.plot_levels}, cmap="{config.plot_colormap}")
     fig.colorbar(im, ax=ax)
     ax.set_xlabel("x"); ax.set_ylabel("y")
-    ax.set_title(f"{out_name} after RAR round {{ri}} (z={zmid:.3g}{"" if is_steady else f", t={tmax:.3g}"})")''')
+    ax.set_title(f"{out_name} after RAR round {{ri}} (z={{_fmt_num({zmid!r})}}{"" if is_steady else f", t={{_fmt_num({tmax!r})}}"})")''')
     elif is_2d:
         scatter = ('''    fig, ax = plt.subplots(figsize=_plot_figsize(7, 6))
     for pts, col, lab, sz in groups:
@@ -10028,7 +10937,7 @@ def _clean_rar_diagnostics_code(config, is_2d, is_3d, is_steady, out_name):
     im = ax.contourf(Xs, Ys, Us, levels={config.plot_levels}, cmap="{config.plot_colormap}")
     fig.colorbar(im, ax=ax)
     ax.set_xlabel("x"); ax.set_ylabel("y")
-    ax.set_title(f"{out_name} after RAR round {{ri}}{"" if is_steady else f" (t={tmax:.3g})"}")''')
+    ax.set_title(f"{out_name} after RAR round {{ri}}{"" if is_steady else f" (t={{_fmt_num({tmax!r})}})"}")''')
     elif is_steady:
         scatter = ('''    fig, ax = plt.subplots(figsize=_plot_figsize(7, 3))
     for pts, col, lab, sz in groups:
@@ -10037,8 +10946,8 @@ def _clean_rar_diagnostics_code(config, is_2d, is_3d, is_steady, out_name):
     ax.set_xlabel("x"); ax.set_yticks([])''')
         snap = (f'''    xs = np.linspace({config.x_min}, {config.x_max}, {res})
     fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
-    ax.plot(xs, _extract_plot_field(xs.reshape(-1, 1)), color="#4dabf7")
-    ax.set_xlabel("x"); ax.set_ylabel({out_name!r}); ax.grid(True, alpha=0.2)
+    ax.plot(xs, _extract_plot_field(xs.reshape(-1, 1)), color=_PLOT_PINN_COLOR, linewidth={config.plot_linewidth})
+    ax.set_xlabel("x"); ax.set_ylabel({out_name!r}); _grid(ax, alpha=0.2)
     ax.set_title(f"{out_name} after RAR round {{ri}}")''')
     else:
         swap = bool(config.plot_swap_xt)
@@ -10075,7 +10984,7 @@ for ri, (rar_state, rar_new) in enumerate(rar_rounds, start=1):
               (rar_new, "#e03131", f"Round {{ri}} ({{len(rar_new)}})", 16)]
 {scatter}
     ax.set_title(f"RAR collocation points -- round {{ri}}")
-    ax.legend(fontsize=8)
+    ax.legend(fontsize=_lfs(8))
     plt.tight_layout(); plt.savefig(os.path.join(rd, "collocation_points.png"), dpi={config.plot_dpi}); plt.close()
 {snap}
     plt.tight_layout(); plt.savefig(os.path.join(rd, "solution_plot.png"), dpi={config.plot_dpi}); plt.close()
@@ -10117,14 +11026,15 @@ def generate_clean_script(config):
     # (matches the live script's _n_coord_cols_bc -- a steady problem's
     # points files have no time column; this used to always expect one).
     n_coord_cols = n_coord + (0 if is_steady else 1)
-    sol_ext = "gif" if (not is_steady and config.plot_type in ("Line Animation (GIF)", "Surface Animation (GIF)")) else "png"
+    sol_ext = "gif" if ((not is_steady and config.plot_type in ("Line Animation (GIF)", "Surface Animation (GIF)"))
+                        or (config.problem_type == "Inverse" and config.plot_type == "Parameter Convergence (GIF)")) else "png"
     is_inverse = problem_type == "Inverse"
 
     # Same y/z slice-value precomputation as generate_script() above -- see
     # the matching comment there. Every line-type plot in this generator
     # reads it instead of hardcoding the domain midpoint independently.
-    line_slice_y = (config.y_min + config.y_max) / 2.0 if config.line_slice_y_auto else config.line_slice_y
-    line_slice_z = (config.z_min + config.z_max) / 2.0 if config.line_slice_z_auto else config.line_slice_z
+    from pinnstudio.core.line_slice import auto_line_slice
+    line_slice_y, line_slice_z = auto_line_slice(config)
 
     # Optional title/axis-label overrides -- same blank-means-default
     # convention as generate_script() and the Restore & Visualize script
@@ -10305,7 +11215,7 @@ def generate_clean_script(config):
             + ("\n" + _tm_clean_cbs_code if _tm_clean_cbs_code else "")
         ).replace("_os.path.join", "os.path.join")
 
-    var_cb_period = max(1, total_iters // 200) if total_iters else 100
+    var_cb_period = inv_record_period(config)
     callbacks_parts = []
     if is_inverse:
         callbacks_parts.append("[var_cb]")
@@ -10361,7 +11271,7 @@ def generate_clean_script(config):
             _tv0, _fp0, _sel0 = _entry[0], _entry[1], _entry[2]
         else:
             _tv0, _fp0, _sel0 = _entry[0], _entry[1], None
-        if config.t_min - 1e-10 <= _tv0 <= config.t_max + 1e-10:
+        if config.steady_state or config.t_min - 1e-10 <= _tv0 <= config.t_max + 1e-10:   # steady: no time
             _ea_files_norm.append((_tv0, _fp0, _sel0))
 
     # Group reference files by which model output they belong to -- same
@@ -10411,7 +11321,7 @@ def generate_clean_script(config):
     # otherwise need it (see the embedding condition below).
     _ea_needs_custom_op = any(isinstance(_g["sel"], (list, tuple)) for _g in _ea_groups.values())
 
-    use_ea = bool(_ea_groups) and (config.ea_do_line or config.ea_do_surface)
+    use_ea = bool(_ea_groups)   # the metrics even when no comparison figure is ticked (as Solve)
 
     use_save = bool((config.save_dir or "").strip())
 
@@ -10438,16 +11348,50 @@ the PINNStudio GUI.
 """
 import os
 os.environ["DDE_BACKEND"] = "pytorch"
-
+{_cpu_only_line(config)}
 import deepxde as dde
+# DeepXDE (PyTorch) works out its L-BFGS chunk size and evaluation budget
+# once, when it is imported, and set_LBFGS_options does not update them: an
+# L-BFGS phase shorter than 1000 iterations ran 1000, longer ones rounded up
+# to the next 1000, and maxfun had no effect. Keep them in step.
+def _lbfgs_options_in_step():
+    from deepxde.optimizers import config as _oc
+    _set_orig = _oc.set_LBFGS_options
+    def _set_lbfgs(*_a, **_k):
+        _set_orig(*_a, **_k)
+        _o = _oc.LBFGS_options
+        if "iter_per_step" in _o:
+            _o["iter_per_step"] = max(1, min(1000, int(_o["maxiter"])))
+            _o["fun_per_step"] = max(1, int(_o["maxfun"]) * _o["iter_per_step"] // max(1, int(_o["maxiter"])))
+    dde.optimizers.set_LBFGS_options = _oc.set_LBFGS_options = _set_lbfgs
+    _set_lbfgs(**{{_k: _oc.LBFGS_options[_k] for _k in ("maxcor", "ftol", "gtol", "maxiter", "maxfun", "maxls")}})
+_lbfgs_options_in_step()
+# DeepXDE 1.15 gives an Ellipse the box (center - a, center + b), whatever
+# its rotation: plots were cut off and a shape combined with an ellipse lost
+# collocation points. Give it its real bounding box.
+def _ellipse_box_fix():
+    _E = dde.geometry.Ellipse
+    _init = _E.__init__
+    def __init__(self, center, semimajor, semiminor, angle=0):
+        _init(self, center, semimajor, semiminor, angle)
+        import numpy as _np
+        _c = _np.asarray(center, dtype=float)
+        _h = _np.array([_np.hypot(semimajor * _np.cos(angle), semiminor * _np.sin(angle)),
+                        _np.hypot(semimajor * _np.sin(angle), semiminor * _np.cos(angle))])
+        self.bbox = (_c - _h, _c + _h)
+    _E.__init__ = __init__
+_ellipse_box_fix()
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
-# DeepXDE puts PyTorch on Apple's GPU (MPS) on a Mac. MPS has no float64 and
-# PyTorch's L-BFGS is unreliable on it, so PINNStudio trains on the CPU there.
+# DeepXDE puts PyTorch on Apple's GPU (MPS) on a Mac. On an M1 it was never
+# faster than the CPU for PINNs (2x slower on a small problem, even on 20-30k
+# points; benchmarks/mac_gpu_check.py), and it has no float64, so PINNStudio
+# trains on the CPU there.
 if not torch.cuda.is_available() and str(getattr(torch, "get_default_device", lambda: "cpu")()).startswith("mps"):
     torch.set_default_device("cpu")
-    print("  [Info] Training on the CPU (Apple GPU / MPS not used)")''')
+    print("  [Info] Training on the CPU (Apple GPU / MPS not used)")
+{_cpu_threads_code(config)}''')
 
     if uses_nncg:
         parts.append('''_dxde_ver_parts = dde.__version__.split(".")[:3]
@@ -10461,7 +11405,9 @@ if _dxde_ver is not None and _dxde_ver < (1, 13, 0):
         f"Please upgrade: pip install --upgrade deepxde"
     )''')
 
-    parts.append(f'dde.config.set_default_float("{config.float_type}")')
+    # L-BFGS in float64 runs the whole training in float64, as in Solve's script
+    _eff_float = "float64" if (config.lbfgs_float_type == "float64" or config.float_type == "float64") else config.float_type
+    parts.append(f'dde.config.set_default_float("{_eff_float}")')
 
     if config.use_random_seed:
         parts.append(f'dde.config.set_random_seed({config.random_seed})')
@@ -10477,10 +11423,20 @@ if save_dir:
     coordinate column per spatial axis, then time, then value -- e.g.
     "x, t, u" in 1D. Only the rows already at t = {config.t_min} (the
     domain's start time) are used."""
-    raw = np.loadtxt(path)
+    rows = []
+    with open(path) as f:
+        for line in f:
+            parts = line.replace(",", " ").split()
+            try:
+                rows.append([float(v) for v in parts])
+            except ValueError:
+                continue                     # a header or comment line
+    raw = np.array([r for r in rows if r])
     n_coord = {n_coord}
     t_col, v_col = n_coord, n_coord + 1
     mask = np.abs(raw[:, t_col] - {config.t_min}) < 1e-8
+    if not mask.any():
+        raise ValueError(f"IC file {{path}} has no rows at t = {config.t_min} (the domain's start time)")
     coords = raw[mask, :n_coord]
     t0 = np.full((int(mask.sum()), 1), {config.t_min})
     return np.hstack([coords, t0]), raw[mask, v_col:v_col + 1]''')
@@ -10561,13 +11517,18 @@ if save_dir:
         inv_lines.append("inv_vars = [" + ", ".join(n for n, _i, _t in inv_vars_parsed) + "]")
         inv_lines.append('''
 def _load_obs_data(path):
-    try:
-        return np.loadtxt(path, delimiter=",", skiprows=1)
-    except Exception:
-        try:
-            return np.loadtxt(path, skiprows=1)
-        except Exception:
-            return np.loadtxt(path, delimiter=",")
+    # numbers separated by commas or spaces; header, comment and blank lines skipped
+    rows = []
+    with open(path) as f:
+        for line in f:
+            parts = line.replace(",", " ").split()
+            if not parts or parts[0][0] in "#%":
+                continue
+            try:
+                rows.append([float(v) for v in parts])
+            except ValueError:
+                continue
+    return np.array(rows)
 ''')
         # Number of leading coordinate columns in a measured-data file --
         # x/y/z plus time, EXCEPT for a steady-state problem, which has no
@@ -10580,12 +11541,24 @@ def _load_obs_data(path):
         # literal slice, not a runtime branch.
         _n_obs_cols = (3 if is_3d else (2 if is_2d else 1)) if is_steady else (4 if is_3d else (3 if is_2d else 2))
         obs_lines = ["obs_entries = []  # (xt, u, output_idx, weight, custom_expr), one per measured-data file"]
+        _obs_red = obs_reduce_args(config)
+        if _obs_red:
+            obs_lines.insert(0, OBS_REDUCE_HELPER.strip("\n") + "\n")
+        _n_obs_space = _n_obs_cols if is_steady else _n_obs_cols - 1
         for _oi_f, of in enumerate(obs_files_parsed):
             # of['path']!r (not r"...") -- same Windows-trailing-backslash
             # SyntaxError this file's other path sites were already fixed
             # for; this one is generate_clean_script()'s own separate
             # Inverse observation-file loading path and was missed then.
             obs_lines.append(f"_of_data = _load_obs_data({of['path']!r})")
+            obs_lines.append(f"if _of_data.ndim != 2 or _of_data.shape[1] < {_n_obs_cols + 1}:\n"
+                             # the path outside the f-string: a Windows path's backslashes
+                             # inside an f-string expression are a SyntaxError before Python 3.12
+                             f"    raise SystemExit(\"Measured data \" + os.path.basename({of['path']!r}) + f\": {_n_obs_cols + 1} columns are needed "
+                             f"(the coordinates, then the value), found {{_of_data.shape[-1] if _of_data.ndim == 2 else 0}}.\")")
+            if _obs_red:
+                obs_lines.append(f"_of_data = _obs_reduce(_of_data, {_n_obs_cols}, {_n_obs_space}, "
+                                 f"{_obs_red[0]!r}, {_obs_red[1]}, {_obs_red[2]})")
             obs_lines.append(f"_of_xt, _of_u = _of_data[:, 0:{_n_obs_cols}], _of_data[:, {_n_obs_cols}:{_n_obs_cols + 1}]")
             obs_lines.append(f"obs_entries.append((_of_xt, _of_u, {of['output_idx']}, {of['weight']}, {of.get('custom_expr', '')!r}))")
             if of.get('custom_expr'):
@@ -10631,7 +11604,10 @@ def _load_obs_data(path):
                 obs_lines.append(f"obs_bcs.append(dde.icbc.PointSetBC("
                                   f"obs_entries[{_oi_f}][0], obs_entries[{_oi_f}][1], "
                                   f"component=obs_entries[{_oi_f}][2]))")
-        obs_lines.append("obs_anchors = np.vstack([e[0] for e in obs_entries]) if obs_entries else None")
+        if getattr(config, "inverse_obs_anchors", True):
+            obs_lines.append("obs_anchors = np.vstack([e[0] for e in obs_entries]) if obs_entries else None")
+        else:
+            obs_lines.append("obs_anchors = None  # measured points only in the data loss, not anchors")
         parts.append("\n".join(inv_lines))
         parts.append("\n".join(obs_lines))
 
@@ -10677,10 +11653,10 @@ def _load_obs_data(path):
         user_anchor_code = _anchor_points_code(config)
         if user_anchor_code:
             parts.append(user_anchor_code)
-            anchors_arg = ("np.vstack([a for a in (obs_anchors, _user_anchors) if a is not None])"
-                           if is_inverse else "_user_anchors")
-        else:
-            anchors_arg = "obs_anchors" if is_inverse else "None"
+        _ic_anch = bool(getattr(config, "ic_file_anchors", False) and config.forward_ic_from_file and not is_steady)
+        anchors_arg = _anchor_join((["obs_anchors"] if is_inverse else [])
+                                   + (["_user_anchors"] if user_anchor_code else [])
+                                   + (["_ic_xt"] if _ic_anch else []), var="a")
         if is_steady:
             data_lines = [f'''data = dde.data.PDE(
     geomtime, pde, constraints,
@@ -10782,14 +11758,14 @@ for rar_cycle in range({config.rar_cycles}):''']
     top_idx = np.argsort(residuals)[-{config.rar_add_points}:]
     print(f"RAR round {{rar_cycle + 1}}: max residual {{residuals.max():.4e}}, mean {{residuals.mean():.4e}}")
     data.add_anchors(xt_cand[top_idx])
-    model.compile("{config.optimizer}", lr={config.learning_rate}, loss="{config.loss_type}", loss_weights={multi_weights})
-    loss_history, train_state = model.train(iterations={config.rar_adam_iters}, display_every={config.loss_display_every})''')
+    model.compile("{_rar_optimizer(config)[0]}", lr={_rar_optimizer(config)[1]!r}, loss="{config.loss_type}", loss_weights={multi_weights}{ext_vars_kw})
+    loss_history, train_state = model.train(iterations={config.rar_adam_iters}, display_every={config.loss_display_every}{cbs_kw})''')
             if config.rar_lbfgs_iters > 0:
                 rar_lines.append(f'''    dde.optimizers.set_LBFGS_options(maxcor={config.lbfgs_maxcor}, ftol={config.lbfgs_ftol},
                                      gtol={config.lbfgs_gtol}, maxiter={config.rar_lbfgs_iters},
                                      maxfun={_lbfgs_maxfun(config, config.rar_lbfgs_iters)}, maxls={config.lbfgs_maxls})
-    model.compile("L-BFGS", loss="{config.loss_type}", loss_weights={multi_weights})
-    loss_history, train_state = model.train(display_every={config.loss_display_every})''')
+    model.compile("L-BFGS", loss="{config.loss_type}", loss_weights={multi_weights}{ext_vars_kw})
+    loss_history, train_state = model.train(display_every={config.loss_display_every}{cbs_kw})''')
             rar_lines.append("    rar_rounds.append((copy.deepcopy(model.net.state_dict()), xt_cand[top_idx]))")
             parts.append("\n".join(rar_lines))
 
@@ -10859,6 +11835,7 @@ prev_u = _prev_u0(x_grid)''')
 all_x, all_t, all_u = [], [], []   # accumulated per-step (X, T, U) grids for the final stitched plot
 ta_step_models = []                # [(t0, t1, model_i)] -- used for Error Analysis, if configured
 prev_net = None
+_prev_state = None
 
 # Accumulates the loss history across EVERY optimizer phase of EVERY time
 # sub-domain, so the final loss plot shows the full Time-Adaptive run
@@ -10875,7 +11852,15 @@ _ta_loss_offset = 0''')
         if cbs_code:
             parts.append(cbs_code)
 
-        loop_lines = ["for step_i, (t0, t1) in enumerate(intervals):",
+        loop_lines = [f"def _ta_weights(w, constraints):",
+                      f"    n = {_n_equations(config)} + len(constraints)   # PDE terms + this step's conditions",
+                      "    return list(w) if len(w) == n else [1.0] * n",
+                      "",
+                      "",
+                      "for step_i, (t0, t1) in enumerate(intervals):",
+                      *(["    for _cb in train_cbs:   # each step gets the Timer's whole budget, as in Solve",
+                         "        if isinstance(_cb, dde.callbacks.Timer):",
+                         "            _cb.t_start = None"] if cbs_kw and getattr(config, "cb_timer", False) else []),
                       "    geom_i = _build_geom()",
                       "    timedomain_i = dde.geometry.TimeDomain(t0, t1)",
                       "    geomtime_i = dde.geometry.GeometryXTime(geom_i, timedomain_i)",
@@ -10886,11 +11871,14 @@ _ta_loss_offset = 0''')
         for ln in step_bc_appends:
             loop_lines.append(f"    {ln.replace('constraints.append', 'constraints_i.append')}")
         loop_lines.append("")
+        loop_lines.append("    _xt_ic_i = None")
         loop_lines.append("    if step_i == 0:")
         step0_ic_appends = [ln.replace("geomtime", "geomtime_i").replace("constraints.append", "constraints_i.append")
                              for ln in ic_appends]
         for ln in step0_ic_appends:
             loop_lines.append(f"        {ln}")
+        if not step0_ic_appends:
+            loop_lines.append("        pass   # no initial condition as a loss term (an exact one, say)")
         loop_lines.append("    else:")
         loop_lines.append("        _xt_ic_i = np.column_stack([x_grid, np.full(len(x_grid), t0)])")
         for _oi_ic in range(n_out):
@@ -10899,7 +11887,10 @@ _ta_loss_offset = 0''')
                 f"prev_u[:, {_oi_ic}:{_oi_ic + 1}], component={_oi_ic}))"
             )
         loop_lines.append("")
-        anchors_i = "obs_anchors" if is_inverse else "None"
+        # as in Solve's script: from the second step on (2D/3D), the points
+        # where the previous window's solution is given are anchors too
+        anchors_i = ("obs_anchors" if is_inverse
+                     else ("_xt_ic_i" if (is_2d or is_3d) else "None"))
         loop_lines.append(f'''    data_i = dde.data.TimePDE(
         geomtime_i, pde, constraints_i,
         num_domain={config.num_domain}, num_boundary={config.num_boundary},
@@ -10911,8 +11902,13 @@ _ta_loss_offset = 0''')
         if needs_transform_helper:
             loop_lines.append("    net_i = _apply_transforms(net_i)")
         if config.ta_transfer_learning:
-            loop_lines.append('''    if prev_net is not None:
-        net_i.load_state_dict(prev_net.state_dict())''')
+            loop_lines.append('''    if _prev_state is not None:
+        # transfer learning: the previous step's network (after the phase
+        # chosen under Transfer from) -- weights, biases and buffers such as
+        # an MsFFN's Fourier matrices -- as Solve's script does
+        _cur = net_i.state_dict()
+        _cur.update({k: v for k, v in _prev_state.items() if k in _cur and _cur[k].shape == v.shape})
+        net_i.load_state_dict(_cur)''')
 
         if use_ic_pretrain:
             ic_only_weights = [0.0] * n_out + [1000.0] * len(active_ic_outputs)
@@ -10931,6 +11927,7 @@ _ta_loss_offset = 0''')
                 "os", "", _safe_point_distribution))
 
         loop_lines.append("    model_i = dde.Model(data_i, net_i)")
+        loop_lines.append("    _adam_state_i = None")
         if is_inverse:
             loop_lines.append("    if step_i == 0:")
             hist_path = 'os.path.join(save_dir, "param_history.txt") if save_dir else "/tmp/param_history.txt"'
@@ -10939,8 +11936,14 @@ _ta_loss_offset = 0''')
         for pi, sp in enumerate(sched_phases):
             loop_lines.append(f"    # ── Phase {pi + 1}: {sp.get('optimizer', 'adam')}, "
                                f"{int(sp.get('iterations', 0) or 0)} iterations ──")
-            loop_lines += _clean_phase_train_lines(sp, sp['_w'], ext_vars_kw, cbs_kw, "model_i", "data_i", config,
-                                                     indent="    ")
+            # a later step pins every output to the previous step's solution,
+            # which can be more loss terms than step 0 had (an output with no
+            # initial condition): _ta_weights then uses equal weights, as
+            # Solve does, instead of crashing on the length mismatch
+            loop_lines += _clean_phase_train_lines(sp, f"_ta_weights({sp['_w']}, constraints_i)", ext_vars_kw,
+                                                     cbs_kw, "model_i", "data_i", config, indent="    ")
+            if sp.get('optimizer', 'adam') != 'lbfgs':
+                loop_lines.append("    _adam_state_i = {k: v.detach().clone() for k, v in net_i.state_dict().items()}")
             loop_lines.append(
                 "    _ta_all_steps.extend([_s + _ta_loss_offset for _s in loss_history.steps]); "
                 "_ta_all_train_loss.extend(loss_history.loss_train); "
@@ -10949,6 +11952,8 @@ _ta_loss_offset = 0''')
             )
         loop_lines.append("    ta_step_models.append((t0, t1, model_i))")
         loop_lines.append("    prev_net = net_i")
+        loop_lines.append(f"    _prev_state = (_adam_state_i if ({config.ta_transfer_optimizer!r} == 'adam' and _adam_state_i is not None) "
+                          f"else {{k: v.detach().clone() for k, v in net_i.state_dict().items()}})")
         if is_3d:
             loop_lines.append('''    _xyzt_pred = np.column_stack([x_grid, np.full(len(x_grid), t1)])
     prev_u = model_i.predict(_xyzt_pred)
@@ -11045,7 +12050,7 @@ with open(var_history_path, "r") as f:
 param_iters = np.array(param_iters)
 _inv_true_vals = {[t for _n, _i, t in inv_vars_parsed]!r}
 
-{_param_axis_helper_code(config.plot_axis_label_fontsize, config.plot_subplot_title_fontsize)}
+{_param_axis_helper_code(config.plot_axis_label_fontsize, config.plot_subplot_title_fontsize, param_style_of(config))}
 
 fig, axes = plt.subplots(len(inv_vars), 1, figsize=(_plot_figsize(6, 3.2)[0], _plot_figsize(6, 3.2)[1] * len(inv_vars)), squeeze=False)
 for vi, name in enumerate({[n for n, _i, _t in inv_vars_parsed]!r}):
@@ -11056,8 +12061,23 @@ for vi, name in enumerate({[n for n, _i, _t in inv_vars_parsed]!r}):
     print(f"Final inferred {{name}}: {{final_val:.6g}}")
 plt.tight_layout()
 param_plot_path = os.path.join(sol_dir, "param_convergence.png")
-plt.savefig(param_plot_path, dpi=100)
-plt.close(fig)''')
+plt.savefig(param_plot_path, dpi={int(config.plot_dpi)})
+plt.close(fig)
+# Plot settings -> Figures: one per parameter, as well
+for vi, name in enumerate({[n for n, _i, _t in inv_vars_parsed]!r}):
+    true_val = _inv_true_vals[vi] if vi < len(_inv_true_vals) else None
+    if _PARAM_STYLE["plot_separate"]:
+        fig1, ax1 = plt.subplots(figsize=_plot_figsize(6, 3.2))
+        _draw_param_ax(ax1, name, param_iters, param_vals[vi], true_val, {bool(config.inv_param_log_scale)},
+                       {plot_title_override!r}, {plot_xlabel_override!r}, {plot_ylabel_override!r})
+        plt.tight_layout()
+        plt.savefig(os.path.join(sol_dir, f"{{name}}_convergence_plot.png"), dpi={int(config.plot_dpi)})
+        plt.close(fig1)
+    if _PARAM_STYLE["anim_separate"] and {config.plot_type == "Parameter Convergence (GIF)"}:
+        _param_animation([(name, param_iters, param_vals[vi], true_val)],
+                         os.path.join(sol_dir, f"{{name}}_convergence_animation.gif"),
+                         {bool(config.inv_param_log_scale)}, {int(config.plot_fps)}, {int(config.plot_dpi)},
+                         {plot_title_override!r}, {plot_xlabel_override!r}, {plot_ylabel_override!r}, _plot_figsize(6, 3.2))''')
 
     # ── Result plot -- exactly one of these, matching this problem's
     # dimension / Time-Adaptive status / selected Plot Type. No runtime
@@ -11140,6 +12160,13 @@ import shutil
 shutil.copy(param_plot_path, solution_path)
 print(f"Solution plot saved: {solution_path}")''')
 
+        elif is_inverse and config.plot_type == "Parameter Convergence (GIF)":
+            parts.append(f'''# ── Result plot: parameter convergence animation ──
+_param_animation([(name, param_iters, param_vals[vi], _inv_true_vals[vi] if vi < len(_inv_true_vals) else None)
+                  for vi, name in enumerate({[n for n, _i, _t in inv_vars_parsed]!r})],
+                 solution_path, {bool(config.inv_param_log_scale)}, {int(config.plot_fps)}, {int(config.plot_dpi)},
+                 {plot_title_override!r}, {plot_xlabel_override!r}, {plot_ylabel_override!r}, _plot_figsize(6, 3.2))''')
+
         elif is_2d and is_steady and config.plot_type == "Line (time steps)":
             # Steady 2D "Line (time steps)": no time axis, so a single curve
             # u(x) at the configured y slice -- previously this selection
@@ -11161,9 +12188,9 @@ if len(x_l2ds) < 2:
     ax.set_xticks([]); ax.set_yticks([])
 else:
     u_l2ds = _extract_plot_field(xy_l2ds).flatten()
-    ax.plot(x_l2ds, u_l2ds, color="#4dabf7", linewidth={config.plot_linewidth})
-    ax.set_xlabel({(plot_xlabel_override or "x")!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel({(plot_ylabel_override or f"{out_name}(x, y={line_slice_y:.3g})")!r}, fontsize={config.plot_axis_label_fontsize})
-    ax.grid(True, alpha=0.2)
+    ax.plot(*_line_gaps(x_l2ds, u_l2ds), color=_PLOT_PINN_COLOR, linewidth={config.plot_linewidth})
+    ax.set_xlabel({(plot_xlabel_override or "x")!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel({(plot_ylabel_override or f"{out_name}(x, y={fmt_num(line_slice_y, number_settings(config))})")!r}, fontsize={config.plot_axis_label_fontsize})
+    _grid(ax, alpha=0.2)
 ax.set_title({(plot_title_override or "PINN Solution")!r})
 plt.tight_layout()
 plt.savefig(solution_path, dpi={config.plot_dpi}, bbox_inches="tight")
@@ -11209,9 +12236,9 @@ if len(x_l3ds) < 2:
     ax.set_xticks([]); ax.set_yticks([])
 else:
     u_l3ds = _extract_plot_field(xyz_l3ds).flatten()
-    ax.plot(x_l3ds, u_l3ds, color="#4dabf7", linewidth={config.plot_linewidth})
-    ax.set_xlabel({(plot_xlabel_override or "x")!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel({(plot_ylabel_override or f"{out_name}(x, y={line_slice_y:.3g}, z={line_slice_z:.3g})")!r}, fontsize={config.plot_axis_label_fontsize})
-    ax.grid(True, alpha=0.2)
+    ax.plot(*_line_gaps(x_l3ds, u_l3ds), color=_PLOT_PINN_COLOR, linewidth={config.plot_linewidth})
+    ax.set_xlabel({(plot_xlabel_override or "x")!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel({(plot_ylabel_override or f"{out_name}(x, y={fmt_num(line_slice_y, number_settings(config))}, z={fmt_num(line_slice_z, number_settings(config))})")!r}, fontsize={config.plot_axis_label_fontsize})
+    _grid(ax, alpha=0.2)
 ax.set_title({(plot_title_override or "PINN Solution")!r})
 plt.tight_layout()
 plt.savefig(solution_path, dpi={config.plot_dpi}, bbox_inches="tight")
@@ -11224,7 +12251,7 @@ res = {config.plot_resolution}
 xp = np.linspace({config.x_min}, {config.x_max}, res)
 yp = np.linspace({config.y_min}, {config.y_max}, res)
 Xg, Yg = np.meshgrid(xp, yp)
-z_mid = ({config.z_min} + {config.z_max}) / 2.0
+z_mid = {line_slice_z!r}   # Plot settings -> Line: z (the middle by default)
 inside = geom.inside(np.column_stack([Xg.ravel(), Yg.ravel(), np.full(Xg.size, z_mid)])).reshape(res, res)
 xyz = np.column_stack([Xg.ravel(), Yg.ravel(), np.full(Xg.size, z_mid)])
 pred = _extract_plot_field(xyz).reshape(res, res)
@@ -11234,7 +12261,7 @@ im = ax.contourf(Xg, Yg, pred, levels={config.plot_levels}, cmap="{config.plot_c
 ax.set_xlabel({(plot_xlabel_override or "x")!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel({(plot_ylabel_override or "y")!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_aspect("equal", adjustable="box")
 if {config.plot_colorbar}:
     fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-fig.suptitle({plot_title_override!r} if {bool(plot_title_override)} else f"PINN Solution — {out_name}(x, y, z={{z_mid:.3g}})")
+fig.suptitle({plot_title_override!r} if {bool(plot_title_override)} else f"PINN Solution — {out_name}(x, y, z={{_fmt_num(z_mid)}})")
 plt.tight_layout()
 plt.savefig(solution_path, dpi={config.plot_dpi}, bbox_inches="tight")
 plt.close()
@@ -11247,10 +12274,10 @@ res = {config.plot_resolution}
 x_1d = np.linspace({config.x_min}, {config.x_max}, res)
 u_1d = _extract_plot_field(x_1d.reshape(-1, 1)).flatten()
 fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
-ax.plot(x_1d, u_1d, color="#4dabf7", linewidth={config.plot_linewidth})
+ax.plot(x_1d, u_1d, color=_PLOT_PINN_COLOR, linewidth={config.plot_linewidth})
 ax.set_xlabel({(plot_xlabel_override or v1)!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel({(plot_ylabel_override or f"{out_name}({v1})")!r}, fontsize={config.plot_axis_label_fontsize})
 ax.set_title({(plot_title_override or "PINN Solution")!r})
-ax.grid(True, alpha=0.2)
+_grid(ax, alpha=0.2)
 plt.tight_layout()
 plt.savefig(solution_path, dpi={config.plot_dpi}, bbox_inches="tight")
 plt.close()
@@ -11273,10 +12300,10 @@ print(f"Solution plot saved: {{solution_path}}")''')
                 if is_3d:
                     _xt_build = (f'xt = np.column_stack([x_line, np.full_like(x_line, {line_slice_y}), '
                                  f'np.full_like(x_line, {line_slice_z}), np.full_like(x_line, tv)])')
-                    _ylabel_anim = f"{out_name}(x, y={line_slice_y:.3g}, z={line_slice_z:.3g}, t)"
+                    _ylabel_anim = f"{out_name}(x, y={fmt_num(line_slice_y, number_settings(config))}, z={fmt_num(line_slice_z, number_settings(config))}, t)"
                 elif is_2d:
                     _xt_build = f'xt = np.column_stack([x_line, np.full_like(x_line, {line_slice_y}), np.full_like(x_line, tv)])'
-                    _ylabel_anim = f"{out_name}(x, y={line_slice_y:.3g}, t)"
+                    _ylabel_anim = f"{out_name}(x, y={fmt_num(line_slice_y, number_settings(config))}, t)"
                 else:
                     _xt_build = 'xt = np.column_stack([x_line, np.full_like(x_line, tv)])'
                     _ylabel_anim = f"{out_name}(x, t)"
@@ -11287,21 +12314,23 @@ x_line = np.linspace({config.x_min}, {config.x_max}, {config.plot_resolution})
 frames_u = []
 for tv in t_frames:
     {_xt_build}
-    frames_u.append(_extract_plot_field(xt).flatten())
-u_min = min(u.min() for u in frames_u); u_max = max(u.max() for u in frames_u)
+    frames_u.append(_extract_plot_field(xt).flatten()){chr(10) + "_in_line = np.asarray(geom.inside(xt[:, :" + ("3" if is_3d else "2") + "]), dtype=bool)" + chr(10) + "frames_u = [np.where(_in_line, u, np.nan) for u in frames_u]  # only inside the domain" if (is_2d or is_3d) else ""}
+u_min = min(np.nanmin(u) for u in frames_u); u_max = max(np.nanmax(u) for u in frames_u)
 fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
 ax.set_xlim({config.x_min}, {config.x_max})
 ax.set_ylim(u_min - 0.05 * abs(u_min) - 1e-9, u_max + 0.05 * abs(u_max) + 1e-9)
-ax.set_xlabel({(plot_xlabel_override or "x")!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel({(plot_ylabel_override or _ylabel_anim)!r}, fontsize={config.plot_axis_label_fontsize}); ax.grid(True, alpha=0.2)
+ax.set_xlabel({(plot_xlabel_override or "x")!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel({(plot_ylabel_override or _ylabel_anim)!r}, fontsize={config.plot_axis_label_fontsize}); _grid(ax, alpha=0.2)
 {f"ax.set_title({plot_title_override!r})" if plot_title_override else "# (no title override set)"}
-line, = ax.plot([], [], color="#4dabf7", linewidth={config.plot_linewidth_anim})
-time_txt = ax.text(0.02, 0.95, "", transform=ax.transAxes, color="#ff8787")
+line, = ax.plot([], [], color=_PLOT_PINN_COLOR, linewidth={config.plot_linewidth_anim})
+time_txt = ax.text({0.02 if plot_title_override else 0.5}, {0.95 if plot_title_override else 1.02},
+                   "", transform=ax.transAxes, color="black", fontsize=11,
+                   ha={"left" if plot_title_override else "center"!r})   # as in Solve's animation
 def _update(i):
     line.set_data(x_line, frames_u[i])
-    time_txt.set_text(f"t = {{t_frames[i]:.3f}}")
+    time_txt.set_text(f"t = {{_fmt_num(t_frames[i])}}")
     return line, time_txt
 ani = animation.FuncAnimation(fig, _update, frames={n_frames}, interval=100, blit=True)
-ani.save(solution_path, writer="pillow", fps={config.plot_fps})
+ani.save(solution_path, writer="pillow", fps={config.plot_fps}, dpi=_PLOT_DPI_ANIM)
 plt.close(fig)
 print(f"Solution plot saved: {{solution_path}}")''')
             else:
@@ -11315,7 +12344,7 @@ frames = []''')
                     parts.append(f'''# 3D: same "x-y heatmap at the z mid-plane" convention as the static
 # 3D solution plot below -- no volumetric GIF renderer.
 y_a = np.linspace({config.y_min}, {config.y_max}, res)
-z_mid_a = ({config.z_min} + {config.z_max}) / 2.0
+z_mid_a = {line_slice_z!r}   # Plot settings -> Line: z (the middle by default)
 Xa, Ya = np.meshgrid(x_a, y_a)
 # Blank out points outside the real geometry (same mask as the static plot).
 inside_a = geom.inside(np.column_stack([Xa.ravel(), Ya.ravel(), np.full(Xa.size, z_mid_a)])).reshape(res, res)
@@ -11329,9 +12358,9 @@ fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
 def _update(i):
     ax.cla()
     ax.contourf(Xa, Ya, frames[i], cmap="{config.plot_colormap}", **_cf_levels({config.plot_levels}, v_min, v_max, frames[i]))
-    ax.set_xlabel({(plot_xlabel_override or "x")!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel({(plot_ylabel_override or "y")!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_title({plot_title_override!r} if {bool(plot_title_override)} else f"t = {{t_frames[i]:.3f}}")
+    ax.set_xlabel({(plot_xlabel_override or "x")!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel({(plot_ylabel_override or "y")!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_title({plot_title_override!r} if {bool(plot_title_override)} else f"t = {{_fmt_num(t_frames[i])}}")
 ani = animation.FuncAnimation(fig, _update, frames={n_frames}, interval=150)
-ani.save(solution_path, writer="pillow", fps={config.plot_fps})
+ani.save(solution_path, writer="pillow", fps={config.plot_fps}, dpi=_PLOT_DPI_ANIM)
 plt.close(fig)
 print(f"Solution plot saved: {{solution_path}}")''')
                 elif is_2d:
@@ -11349,9 +12378,9 @@ fig, ax = plt.subplots(figsize=_plot_figsize(7, 5))
 def _update(i):
     ax.cla()
     ax.contourf(Xa, Ya, frames[i], cmap="{config.plot_colormap}", **_cf_levels({config.plot_levels}, v_min, v_max, frames[i]))
-    ax.set_xlabel({(plot_xlabel_override or "x")!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel({(plot_ylabel_override or "y")!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_title({plot_title_override!r} if {bool(plot_title_override)} else f"t = {{t_frames[i]:.3f}}")
+    ax.set_xlabel({(plot_xlabel_override or "x")!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel({(plot_ylabel_override or "y")!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_title({plot_title_override!r} if {bool(plot_title_override)} else f"t = {{_fmt_num(t_frames[i])}}")
 ani = animation.FuncAnimation(fig, _update, frames={n_frames}, interval=150)
-ani.save(solution_path, writer="pillow", fps={config.plot_fps})
+ani.save(solution_path, writer="pillow", fps={config.plot_fps}, dpi=_PLOT_DPI_ANIM)
 plt.close(fig)
 print(f"Solution plot saved: {{solution_path}}")''')
                 else:
@@ -11376,9 +12405,9 @@ def _update(i):
     else:
         ax.contourf(Xa, Ta, frames[i], cmap="{config.plot_colormap}", **_cf_levels({config.plot_levels}, v_min, v_max, frames[i]))
         ax.set_xlabel({(plot_xlabel_override or "x")!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel({(plot_ylabel_override or "t")!r}, fontsize={config.plot_axis_label_fontsize})
-    ax.set_title({plot_title_override!r} if {bool(plot_title_override)} else f"t = {{t_frames[i]:.3f}}")
+    ax.set_title({plot_title_override!r} if {bool(plot_title_override)} else f"t = {{_fmt_num(t_frames[i])}}")
 ani = animation.FuncAnimation(fig, _update, frames={n_frames}, interval=150)
-ani.save(solution_path, writer="pillow", fps={config.plot_fps})
+ani.save(solution_path, writer="pillow", fps={config.plot_fps}, dpi=_PLOT_DPI_ANIM)
 plt.close(fig)
 print(f"Solution plot saved: {{solution_path}}")''')
 
@@ -11408,9 +12437,9 @@ else:
     for i, tv in enumerate(t_steps_l2d):
         xyt = np.column_stack([x_l2d, np.full_like(x_l2d, {line_slice_y}), np.full_like(x_l2d, tv)])
         u_line = _extract_plot_field(xyt).flatten()
-        ax.plot(x_l2d, u_line, color=colors[i], linewidth={config.plot_linewidth}, label=f"t = {{tv:.3f}}")
-    ax.set_xlabel({(plot_xlabel_override or "x")!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel({(plot_ylabel_override or f"{out_name}(x, y={line_slice_y:.3g}, t)")!r}, fontsize={config.plot_axis_label_fontsize})
-    ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
+        ax.plot(*_line_gaps(x_l2d, u_line), color=colors[i], linewidth={config.plot_linewidth}, label=f"t = {{_fmt_num(tv)}}")
+    ax.set_xlabel({(plot_xlabel_override or "x")!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel({(plot_ylabel_override or f"{out_name}(x, y={fmt_num(line_slice_y, number_settings(config))}, t)")!r}, fontsize={config.plot_axis_label_fontsize})
+    ax.legend(loc="upper right", fontsize=_lfs(8)); _grid(ax, alpha=0.2)
 ax.set_title({(plot_title_override or "PINN Solution")!r})
 plt.tight_layout()
 plt.savefig(solution_path, dpi={config.plot_dpi}, bbox_inches="tight")
@@ -11434,7 +12463,7 @@ for ai, tv in enumerate(t_snaps):
     pred = _extract_plot_field(xyt).reshape(res, res)
     pred = np.where(inside, pred, np.nan)
     im = axes[ai].contourf(Xg, Yg, pred, levels={config.plot_levels}, cmap="{config.plot_colormap}")
-    axes[ai].set_title(f"t = {{tv:.3f}}"); axes[ai].set_xlabel({(plot_xlabel_override or "x")!r}, fontsize={config.plot_axis_label_fontsize}); axes[ai].set_ylabel({(plot_ylabel_override or "y")!r}, fontsize={config.plot_axis_label_fontsize})
+    axes[ai].set_title(f"t = {{_fmt_num(tv)}}"); axes[ai].set_xlabel({(plot_xlabel_override or "x")!r}, fontsize={config.plot_axis_label_fontsize}); axes[ai].set_ylabel({(plot_ylabel_override or "y")!r}, fontsize={config.plot_axis_label_fontsize})
     if {config.plot_colorbar}:
         fig.colorbar(im, ax=axes[ai])
 fig.suptitle({(plot_title_override or f"PINN Solution — {out_name}(x, y, t)")!r})
@@ -11465,9 +12494,9 @@ else:
     for i, tv in enumerate(t_steps_l3d):
         xyzt = np.column_stack([x_l3d, np.full_like(x_l3d, {line_slice_y}), np.full_like(x_l3d, {line_slice_z}), np.full_like(x_l3d, tv)])
         u_line = _extract_plot_field(xyzt).flatten()
-        ax.plot(x_l3d, u_line, color=colors[i], linewidth={config.plot_linewidth}, label=f"t = {{tv:.3f}}")
-    ax.set_xlabel({(plot_xlabel_override or "x")!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel({(plot_ylabel_override or f"{out_name}(x, y={line_slice_y:.3g}, z={line_slice_z:.3g}, t)")!r}, fontsize={config.plot_axis_label_fontsize})
-    ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
+        ax.plot(*_line_gaps(x_l3d, u_line), color=colors[i], linewidth={config.plot_linewidth}, label=f"t = {{_fmt_num(tv)}}")
+    ax.set_xlabel({(plot_xlabel_override or "x")!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel({(plot_ylabel_override or f"{out_name}(x, y={fmt_num(line_slice_y, number_settings(config))}, z={fmt_num(line_slice_z, number_settings(config))}, t)")!r}, fontsize={config.plot_axis_label_fontsize})
+    ax.legend(loc="upper right", fontsize=_lfs(8)); _grid(ax, alpha=0.2)
 ax.set_title({(plot_title_override or "PINN Solution")!r})
 plt.tight_layout()
 plt.savefig(solution_path, dpi={config.plot_dpi}, bbox_inches="tight")
@@ -11482,7 +12511,7 @@ res = {config.plot_resolution}
 xp = np.linspace({config.x_min}, {config.x_max}, res)
 yp = np.linspace({config.y_min}, {config.y_max}, res)
 Xg, Yg = np.meshgrid(xp, yp)
-z_mid = ({config.z_min} + {config.z_max}) / 2.0
+z_mid = {line_slice_z!r}   # Plot settings -> Line: z (the middle by default)
 inside = geom.inside(np.column_stack([Xg.ravel(), Yg.ravel(), np.full(Xg.size, z_mid)])).reshape(res, res)
 fig, axes = plt.subplots(1, n_snaps, figsize=(_plot_figsize(5, 5)[0] * n_snaps, _plot_figsize(5, 5)[1]))
 if n_snaps == 1:
@@ -11492,10 +12521,10 @@ for ai, tv in enumerate(t_snaps):
     pred = _extract_plot_field(xyzt).reshape(res, res)
     pred = np.where(inside, pred, np.nan)
     im = axes[ai].contourf(Xg, Yg, pred, levels={config.plot_levels}, cmap="{config.plot_colormap}")
-    axes[ai].set_title(f"t = {{tv:.3f}}, z = {{z_mid:.3g}}"); axes[ai].set_xlabel({(plot_xlabel_override or "x")!r}, fontsize={config.plot_axis_label_fontsize}); axes[ai].set_ylabel({(plot_ylabel_override or "y")!r}, fontsize={config.plot_axis_label_fontsize})
+    axes[ai].set_title(f"t = {{_fmt_num(tv)}}, z = {{_fmt_num(z_mid)}}"); axes[ai].set_xlabel({(plot_xlabel_override or "x")!r}, fontsize={config.plot_axis_label_fontsize}); axes[ai].set_ylabel({(plot_ylabel_override or "y")!r}, fontsize={config.plot_axis_label_fontsize})
     if {config.plot_colorbar}:
         fig.colorbar(im, ax=axes[ai])
-fig.suptitle({plot_title_override!r} if {bool(plot_title_override)} else f"PINN Solution — {out_name}(x, y, z={{z_mid:.3g}}, t)")
+fig.suptitle({plot_title_override!r} if {bool(plot_title_override)} else f"PINN Solution — {out_name}(x, y, z={{_fmt_num(z_mid)}}, t)")
 plt.tight_layout(rect=[0, 0, 1, 0.93])
 plt.savefig(solution_path, dpi={config.plot_dpi}, bbox_inches="tight")
 plt.close()
@@ -11511,10 +12540,10 @@ colors = plt.get_cmap("{config.plot_colormap}")(np.linspace(0, 1, n_steps_plot))
 for i, tv in enumerate(t_steps):
     xt = np.column_stack([x_l, np.full_like(x_l, tv)])
     u_line = _extract_plot_field(xt).flatten()
-    ax.plot(x_l, u_line, color=colors[i], linewidth={config.plot_linewidth}, label=f"t = {{tv:.3f}}")
+    ax.plot(x_l, u_line, color=colors[i], linewidth={config.plot_linewidth}, label=f"t = {{_fmt_num(tv)}}")
 ax.set_xlabel({(plot_xlabel_override or "x")!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel({(plot_ylabel_override or f"{out_name}(x, t)")!r}, fontsize={config.plot_axis_label_fontsize})
 ax.set_title({(plot_title_override or "PINN Solution")!r})
-ax.legend(loc="upper right", fontsize=8); ax.grid(True, alpha=0.2)
+ax.legend(loc="upper right", fontsize=_lfs(8)); _grid(ax, alpha=0.2)
 plt.tight_layout()
 plt.savefig(solution_path, dpi={config.plot_dpi}, bbox_inches="tight")
 plt.close()
@@ -11545,7 +12574,7 @@ print(f"Solution plot saved: {{solution_path}}")''')
 
     _result_plot_parts(out_name)
     if (config.plot_all_outputs and len(out_names) > 1 and not _plot_custom_expr_val and not use_ta
-            and not (is_inverse and config.plot_type == "Parameter Convergence")):
+            and not (is_inverse and config.plot_type.startswith("Parameter Convergence"))):
         _ext_all = "gif" if (not is_steady and config.plot_type in ("Line Animation (GIF)", "Surface Animation (GIF)")) else "png"
         parts.append("# ── Every output's own plot, named after it ──\n_main_solution_path = solution_path")
         for _oi, _oname in enumerate(out_names):
@@ -11613,7 +12642,7 @@ os.makedirs(ea_dir, exist_ok=True)
 ea_files = {_ea_group_files}
 ea_times, ea_x_refs, ea_y_refs, ea_z_refs, ea_u_refs = [], [], [], [], []
 for tv, fp in ea_files:
-    d = np.loadtxt(fp)
+    d = _load_ref(fp)
     if d.ndim == 1:
         d = d.reshape(1, -1)''']
             # Same distinction as _n_obs_coord_cols/_n_coord_cols_bc elsewhere in
@@ -11648,7 +12677,7 @@ for tv, fp in ea_files:
                 if is_steady:
                     ea_lines.append('''    idx = np.argsort(d[:, 0])
     ea_x_refs.append(d[idx, 0]); ea_y_refs.append(np.zeros_like(d[idx, 0])); ea_z_refs.append(np.zeros_like(d[idx, 0]))
-    ea_u_refs.append(d[idx, 1]); ea_times.append(float(tv))''')
+    ea_u_refs.append(d[idx, -1]); ea_times.append(float(tv))   # x, u (or x, t, u): u is last, as in Solve''')
                 else:
                     ea_lines.append('''    idx = np.argsort(d[:, 0])
     ea_x_refs.append(d[idx, 0]); ea_y_refs.append(np.zeros_like(d[idx, 0])); ea_z_refs.append(np.zeros_like(d[idx, 0]))
@@ -11811,13 +12840,13 @@ with open(os.path.join(ea_dir, "error_metrics{_ea_suffix}.txt"), "w") as f:
                 # all -- every reference file is really just a single snapshot
                 # at a placeholder t=0, so "t = 0.000" in the title would be
                 # meaningless noise rather than a real time coordinate.
-                _ea_line_title = 'f"({_l2_txt(l2)})"' if is_steady else 'f"t = {tv:.3g}  ({_l2_txt(l2)})"'
+                _ea_line_title = 'f"({_l2_txt(l2)})"' if is_steady else 'f"t = {_fmt_num(tv)}  ({_l2_txt(l2)})"'
                 if is_3d:
-                    _ea_line_ylabel = repr(f"{out_name}(x, y={line_slice_y:.3g}, z={line_slice_z:.3g})") if is_steady else repr(f"{out_name}(x, y={line_slice_y:.3g}, z={line_slice_z:.3g}, t)")
-                    _ea_line_suptitle = f" (y={line_slice_y:.3g}, z={line_slice_z:.3g})"
+                    _ea_line_ylabel = repr(f"{out_name}(x, y={fmt_num(line_slice_y, number_settings(config))}, z={fmt_num(line_slice_z, number_settings(config))})") if is_steady else repr(f"{out_name}(x, y={fmt_num(line_slice_y, number_settings(config))}, z={fmt_num(line_slice_z, number_settings(config))}, t)")
+                    _ea_line_suptitle = f" (y={fmt_num(line_slice_y, number_settings(config))}, z={fmt_num(line_slice_z, number_settings(config))})"
                 elif is_2d:
-                    _ea_line_ylabel = repr(f"{out_name}(x, y={line_slice_y:.3g})") if is_steady else repr(f"{out_name}(x, y={line_slice_y:.3g}, t)")
-                    _ea_line_suptitle = f" (y={line_slice_y:.3g})"
+                    _ea_line_ylabel = repr(f"{out_name}(x, y={fmt_num(line_slice_y, number_settings(config))})") if is_steady else repr(f"{out_name}(x, y={fmt_num(line_slice_y, number_settings(config))}, t)")
+                    _ea_line_suptitle = f" (y={fmt_num(line_slice_y, number_settings(config))})"
                 else:
                     _ea_line_ylabel = repr(f"{out_name}({v1})") if is_steady else repr(f"{out_name}(x, t)")
                     _ea_line_suptitle = ""
@@ -11826,9 +12855,9 @@ with open(os.path.join(ea_dir, "error_metrics{_ea_suffix}.txt"), "w") as f:
                 _ea_line_suptitle = "PINN vs Reference — " + out_name + _ea_line_suptitle
                 ea_lines.append(f'''
 # ── Line comparison ──{chr(10) + "from scipy.interpolate import griddata" if _ea_line_needs_griddata else ""}
-ncols = min(4, n_t); nrows = (n_t + ncols - 1) // ncols
+ncols = min({max(1, int(getattr(config, 'plot_ea_cols', 4) or 4))}, n_t); nrows = (n_t + ncols - 1) // ncols
 single = n_t == 1
-fig, axes = plt.subplots(nrows, ncols, figsize=(6, 4.5) if single else (4.5 * ncols, 3.8 * nrows), squeeze=False)
+fig, axes = plt.subplots(nrows, ncols, figsize=_panel_figsize(6, 4.5, 1, 1) if single else _panel_figsize(4.5, 3.8, ncols, nrows), squeeze=False)
 line_head = {_ea_line_suptitle!r}
 if not single:
     fig.suptitle(line_head, fontsize={config.plot_subplot_title_fontsize} + 2)
@@ -11836,15 +12865,15 @@ axf = axes.flatten()
 for i, tv in enumerate(ea_times):
     ax = axf[i]{mid_slice}
 {sort_line}
-    tv_r, l2, mse, mx, ma = ea_metrics[i]
-    ax.plot(xv, gt, color="#4dabf7", linewidth=2.0, label="Reference")
-    ax.plot(xv, pn, color="#ff6b6b", linewidth=2.0, linestyle="--", label="PINN")
+    tv_r, l2, mse, mx, ma = ea_metrics[i]{chr(10) + "    xv, gt, pn = _line_gaps(xv, gt, pn)" if (is_2d or is_3d) else ""}
+    _ref_plot(ax, xv, gt, color=_PLOT_REF_COLOR, linewidth={config.plot_linewidth}, label="Reference")
+    ax.plot(xv, pn, color=_PLOT_PINN_COLOR, linewidth={config.plot_linewidth}, linestyle="--", label="PINN")
     ax.set_title(line_head + "     " + {_ea_line_title} if single else {_ea_line_title},
                  fontsize={config.plot_subplot_title_fontsize} + (2 if single else 0))
-    ax.set_xlabel({v1!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel({_ea_line_ylabel}, fontsize={config.plot_axis_label_fontsize}); ax.grid(True, alpha=0.3)
+    ax.set_xlabel({v1!r}, fontsize={config.plot_axis_label_fontsize}); ax.set_ylabel({_ea_line_ylabel}, fontsize={config.plot_axis_label_fontsize}); _grid(ax, alpha=0.3)
 for j in range(n_t, len(axf)):
     axf[j].set_visible(False)
-axf[0].legend(loc="best", fontsize=10, framealpha=0.9)   # inside the panel, in its emptiest corner
+axf[0].legend(loc="best", fontsize=_lfs(10), framealpha=0.9)   # inside the panel, in its emptiest corner
 plt.tight_layout()
 plt.savefig(os.path.join(ea_dir, "line_comparison{_ea_suffix}.png"), dpi={config.plot_dpi}, bbox_inches="tight")
 plt.close()
@@ -11878,14 +12907,14 @@ else:
     Xg, Tg = np.meshgrid(x_common, t_arr)
     U_err = np.abs(U_pinn - U_ref)
     # PINN and Reference share one color scale (same as the live Solve path).
-    _ea_cf = _cf_levels({config.plot_levels}, np.nanmin([U_pinn, U_ref]), np.nanmax([U_pinn, U_ref]))
-    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+    _ea_cf = _cf_levels({config.plot_levels}, *_vr(np.nanmin([U_pinn, U_ref]), np.nanmax([U_pinn, U_ref])), U_pinn, U_ref)
+    fig, axes = plt.subplots(1, 3, figsize=_panel_figsize(5, 5, 3, 1))
     fig.suptitle("PINN vs Reference -- Surface Comparison", fontsize={config.plot_title_fontsize}, fontweight="bold")
     im0 = axes[0].contourf(Tg, Xg, U_pinn, cmap="{config.plot_colormap}", **_ea_cf)
     axes[0].set_title("PINN"); axes[0].set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); axes[0].set_ylabel("x", fontsize={config.plot_axis_label_fontsize}); fig.colorbar(im0, ax=axes[0])
     im1 = axes[1].contourf(Tg, Xg, U_ref, cmap="{config.plot_colormap}", **_ea_cf)
     axes[1].set_title("Reference"); axes[1].set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); axes[1].set_ylabel("x", fontsize={config.plot_axis_label_fontsize}); fig.colorbar(im1, ax=axes[1])
-    im2 = axes[2].contourf(Tg, Xg, U_err, levels={config.plot_levels}, cmap="{config.plot_colormap}")
+    im2 = axes[2].contourf(Tg, Xg, U_err, levels={config.plot_levels}, cmap="{err_cmap(config)}")
     axes[2].set_title("|Error|"); axes[2].set_xlabel("t", fontsize={config.plot_axis_label_fontsize}); axes[2].set_ylabel("x", fontsize={config.plot_axis_label_fontsize}); fig.colorbar(im2, ax=axes[2])
     plt.tight_layout(rect=[0, 0, 1, 0.93])
     plt.savefig(os.path.join(ea_dir, "surface_comparison{_ea_suffix}.png"), dpi={config.plot_dpi}, bbox_inches="tight")
@@ -11894,8 +12923,8 @@ else:
             elif config.ea_do_surface and is_2d:
                 # See the matching comment on the Line comparison title above --
                 # steady-state has no time axis, so "t=..." is dropped here too.
-                _ea_pinn_title = 'f"PINN  {_l2_txt(l2)}"' if is_steady else 'f"PINN  t={tv:.3f}  {_l2_txt(l2)}"'
-                _ea_gt_title = '"Reference"' if is_steady else 'f"Reference  t={tv:.3f}"'
+                _ea_pinn_title = 'f"PINN  {_l2_txt(l2)}"' if is_steady else 'f"PINN  t={_fmt_num(tv)}  {_l2_txt(l2)}"'
+                _ea_gt_title = '"Reference"' if is_steady else 'f"Reference  t={_fmt_num(tv)}"'
                 # Same geometry source as the 3D block below: Time-Adaptive
                 # never keeps a bare module-level `geom` around.
                 _ea_geom2d_ref = "_build_geom()" if use_ta else "geom"
@@ -11909,20 +12938,22 @@ Xg_ea, Yg_ea = np.meshgrid(xg_ea, yg_ea)
 # Blank out grid points outside the real geometry (same as the live Solve
 # path): no extrapolated PINN values and no fabricated reference values there.
 inside_ea = {_ea_geom2d_ref}.inside(np.column_stack([Xg_ea.ravel(), Yg_ea.ravel()])).reshape(res_ea, res_ea)
-fig, axes = plt.subplots(n_t, 3, figsize=(15, 4 * n_t), squeeze=False)
+fig, axes = plt.subplots(n_t, 3, figsize=_panel_figsize(5, 4, 3, n_t), squeeze=False)
 fig.suptitle("PINN vs Reference -- 2D Heatmaps", fontsize={config.plot_title_fontsize}, fontweight="bold")
 for i, tv in enumerate(ea_times):
     tv_r, l2, mse, mx, ma = ea_metrics[i]
     xyt_grid = np.column_stack([Xg_ea.ravel(), Yg_ea.ravel()]{"" if is_steady else " + [np.full(Xg_ea.size, tv)]"})
     u_pinn_grid = np.where(inside_ea, _ea_extract_group(xyt_grid, model, {_ea_sel!r}).reshape(res_ea, res_ea), np.nan)
     u_ref_grid = np.where(inside_ea, griddata(np.column_stack([ea_x_refs[i], ea_y_refs[i]]), ea_u_refs[i], (Xg_ea, Yg_ea), method="linear", fill_value=np.nan), np.nan)
-    u_err_grid = np.abs(u_pinn_grid - u_ref_grid)
-    _ea_cf = _cf_levels({config.plot_levels}, np.nanmin([u_pinn_grid, u_ref_grid]), np.nanmax([u_pinn_grid, u_ref_grid]))
+    ref_pts_ea = np.column_stack([ea_x_refs[i], ea_y_refs[i]])
+    pinn_at_ref = _ea_extract_group(np.column_stack([ref_pts_ea]{"" if is_steady else " + [np.full(len(ref_pts_ea), tv)]"}), model, {_ea_sel!r})
+    u_err_grid = np.where(inside_ea, _err_grid(ref_pts_ea, ea_u_refs[i], pinn_at_ref, Xg_ea, Yg_ea), np.nan)
+    _ea_cf = _cf_levels({config.plot_levels}, *_vr(np.nanmin([u_pinn_grid, u_ref_grid]), np.nanmax([u_pinn_grid, u_ref_grid])), u_pinn_grid, u_ref_grid)
     im0 = axes[i][0].contourf(Xg_ea, Yg_ea, u_pinn_grid, cmap="{config.plot_colormap}", **_ea_cf)
     axes[i][0].set_title({_ea_pinn_title}); fig.colorbar(im0, ax=axes[i][0])
     im1 = axes[i][1].contourf(Xg_ea, Yg_ea, u_ref_grid, cmap="{config.plot_colormap}", **_ea_cf)
     axes[i][1].set_title({_ea_gt_title}); fig.colorbar(im1, ax=axes[i][1])
-    im2 = axes[i][2].contourf(Xg_ea, Yg_ea, u_err_grid, levels={config.plot_levels}, cmap="{config.plot_colormap}")
+    im2 = axes[i][2].contourf(Xg_ea, Yg_ea, u_err_grid, levels={config.plot_levels}, cmap="{err_cmap(config)}")
     axes[i][2].set_title(f"|Error|  max = {{_sci_txt(mx)}}"); fig.colorbar(im2, ax=axes[i][2])
 plt.tight_layout(rect=[0, 0, 1, 0.93])
 plt.savefig(os.path.join(ea_dir, "surface_comparison{_ea_suffix}.png"), dpi={config.plot_dpi}, bbox_inches="tight")
@@ -11952,11 +12983,11 @@ print("  Surface comparison saved.")''')
                 _ea_geom_ref = "_build_geom()" if use_ta else "geom"
                 # See the matching comment on the Line comparison title above --
                 # steady-state has no time axis, so "t=..." is dropped here too.
-                _ea_pinn_title_3d = 'f"PINN  {_l2_txt(l2)}"' if is_steady else 'f"PINN  t={tv:.3f}  {_l2_txt(l2)}"'
-                _ea_gt_title_3d = '"Reference"' if is_steady else 'f"Reference  t={tv:.3f}"'
+                _ea_pinn_title_3d = 'f"PINN  {_l2_txt(l2)}"' if is_steady else 'f"PINN  t={_fmt_num(tv)}  {_l2_txt(l2)}"'
+                _ea_gt_title_3d = '"Reference"' if is_steady else 'f"Reference  t={_fmt_num(tv)}"'
                 ea_lines.append(f'''
 # ── Surface comparison (3D: boundary-point scatter vs reference) ──
-fig = plt.figure(figsize=(15, 4.5 * n_t))
+fig = plt.figure(figsize=_panel_figsize(5, 4.5, 3, n_t))
 fig.suptitle("PINN vs Reference -- 3D Comparison", fontsize={config.plot_title_fontsize}, fontweight="bold")
 _ea_geom3d = {_ea_geom_ref}
 for i, tv in enumerate(ea_times):
@@ -11990,12 +13021,12 @@ for i, tv in enumerate(ea_times):
 {_ea_3d_predict_line}
     err_b = np.abs(pinn_b - gt_b)
     cols = [(pinn_b, {_ea_pinn_title_3d}), (gt_b, {_ea_gt_title_3d}), (err_b, f"|Error|  max = {{_sci_txt(mx)}}")]
-    _ea_v3 = (float(np.nanmin([pinn_b, gt_b])), float(np.nanmax([pinn_b, gt_b])))
+    _ea_v3 = _vr(float(np.nanmin([pinn_b, gt_b])), float(np.nanmax([pinn_b, gt_b])))
     for ci, (vals, ttl) in enumerate(cols):
         ax3 = fig.add_subplot(n_t, 3, i * 3 + ci + 1, projection="3d")
         # PINN and Reference (ci 0/1) share one scale; |Error| keeps its own.
         _ea_vr = dict(vmin=_ea_v3[0], vmax=_ea_v3[1]) if ci < 2 else {{}}
-        sc = ax3.scatter(bx, by, bz, c=vals, cmap="{config.plot_colormap}", s=14, **_ea_vr)
+        sc = ax3.scatter(bx, by, bz, c=vals, cmap=("{err_cmap(config)}" if ci == 2 else "{config.plot_colormap}"), s=14, **_ea_vr)
         fig.colorbar(sc, ax=ax3, shrink=0.6, pad=0.12)
         ax3.set_title(ttl, fontsize={config.plot_subplot_title_fontsize})
         ax3.set_xlabel("x", fontsize={config.plot_axis_label_fontsize}); ax3.set_ylabel("y", fontsize={config.plot_axis_label_fontsize}); ax3.set_zlabel("z", fontsize={config.plot_axis_label_fontsize}); [_tk.set_ticks(plt.matplotlib.ticker.MaxNLocator(nbins=4, steps=[1, 2, 5, 10]).tick_values(*_tk.get_data_interval())) for _tk in (ax3.xaxis, ax3.yaxis, ax3.zaxis)]

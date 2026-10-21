@@ -36,6 +36,7 @@ class _Card(QPushButton):
         col.setSpacing(1)
         self.title = QLabel(title)
         self.title.setObjectName("startCardTitle")
+        self.title.setWordWrap(True)      # a narrow card (large text) wraps its title instead of cutting it
         self.meta = QLabel(meta)
         self.meta.setObjectName("startCardMeta")
         self.meta.setWordWrap(True)
@@ -74,6 +75,7 @@ class StartPage(QScrollArea):
 
         title = QLabel("PINNStudio")
         title.setObjectName("startTitle")
+        self._title = title
         sub = QLabel("Physics-informed neural networks for forward and inverse problems — "
                      "set a problem up on the left, then Solve.")
         sub.setObjectName("startSubtitle")
@@ -128,6 +130,23 @@ class StartPage(QScrollArea):
             n += 1
         lay.addStretch(1)
         self.set_recent([])
+
+    def resizeEvent(self, ev):
+        super().resizeEvent(ev)
+        self._fit_title()
+
+    def _fit_title(self):
+        """The big heading is one word, so it cannot wrap: in a narrow panel
+        (or with a large UI scale) its text size comes down to fit."""
+        t = getattr(self, "_title", None)
+        if t is None:
+            return
+        t.setStyleSheet("")
+        avail = self.viewport().width() - 48 - 4          # the page's side margins
+        need = t.fontMetrics().horizontalAdvance(t.text())
+        px = t.font().pixelSize()
+        if need > avail > 0 and px > 0:
+            t.setStyleSheet(f"font-size: {max(12, int(px * avail / need))}px;")
 
     def retheme(self):
         """Redraw the card icons in the current theme's accent colour."""

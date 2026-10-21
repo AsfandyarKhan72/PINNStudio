@@ -2,7 +2,7 @@
 """
 Round 66 -- RAR can stop on a residual tolerance, as DeepXDE's Burgers-RAR
 example does (it keeps adding points until the mean residual is below
-0.005). "Stop when mean residual <" in the RAR settings (0 = off: every
+0.005). "Stop below mean residual:" in the RAR settings (0 = off: every
 round runs, as before; otherwise "RAR training rounds" is the cap). The
 RAR limits were also widened for that recipe: one point per round, up to
 1000 rounds. Shared by both generators via codegen._rar_tolerance_check;

@@ -234,6 +234,9 @@ class PINNConfig:
     inverse_ic_file: str = ""
     forward_ic_from_file: bool = False
     forward_ic_file: str = ""
+    # Also check the equation at the IC file's points (anchors). Off by
+    # default: the file's points only enter the IC loss.
+    ic_file_anchors: bool = False
     template_type: str = ""
 
     # Multiple trainable variables (Inverse). JSON-encoded list of
@@ -260,6 +263,17 @@ class PINNConfig:
     # loss_weight_obs fields above, so configs saved before this feature
     # existed keep loading as exactly one measured-data file, unchanged.
     inverse_obs_files_json: str = ""
+    # Every measured point is also an anchor (the equation is checked
+    # there too). Off keeps only the data loss -- much faster when the
+    # measured data has many points.
+    inverse_obs_anchors: bool = True
+    # Use fewer of the measured points (the files stay as they are):
+    # "all", "grid" (N points per space axis, evenly spaced, edges kept;
+    # each time in a file reduced the same way) or "random" (N points,
+    # with the run's seed). Applied to every measured-data file.
+    inverse_obs_reduce: str = "all"
+    inverse_obs_grid_n: int = 51
+    inverse_obs_random_n: int = 1000
 
     # Export
     # Off by default -- solution data used to be written on every
@@ -449,7 +463,7 @@ class PINNConfig:
     #    "period": int}               -- epochs between checkpoints
     training_monitors: str = "[]"
 
-    plot_colormap: str = "RdBu_r"
+    plot_colormap: str = "jet"
     # Multi-output problems: also save every output's own plot, as
     # solution_plot_<name>.<ext>, besides the selected "Plot output" (Round 69).
     plot_all_outputs: bool = True
@@ -494,6 +508,59 @@ class PINNConfig:
     plot_title_fontsize: float = 13.0
     plot_subplot_title_fontsize: float = 10.0
     plot_axis_label_fontsize: float = 10.0
+    # Parameter convergence plot and animation (inverse problems; Plot
+    # settings -> Line / Animation): the same style in Solve, the exported
+    # script and Restore. Log scale is inv_param_log_scale. Defaults are
+    # codegen.PARAM_STYLE_DEFAULTS.
+    param_plot_color: str = "#e03131"
+    param_plot_linewidth: float = 3.0
+    param_plot_markers: bool = False
+    param_plot_show_true: bool = True
+    param_true_color: str = "#212529"
+    param_true_style: str = "--"
+    param_plot_show_final: bool = True
+    param_final_color: str = "#868e96"
+    param_final_style: str = ":"
+    param_anim_color: str = "#e03131"
+    param_anim_linewidth: float = 3.0
+    param_anim_frames: int = 60
+    # "combined": one figure with a panel per parameter; "separate": also one
+    # figure per parameter (<name>_convergence_plot.png / _animation.gif)
+    param_plot_figures: str = "combined"
+    param_anim_figures: str = "combined"
+    # How the curve is drawn: "line", "line_markers" or "markers" (dots
+    # only), the marker's shape and size; the animation can also mark the
+    # current value with a dot at the curve's tip. param_plot_markers above
+    # is the older on/off for markers, still read from saved problems.
+    param_plot_draw: str = "line"
+    param_plot_marker: str = "o"
+    param_plot_marker_size: float = 4.0
+    param_anim_draw: str = "line"
+    param_anim_head: bool = True
+    # Grid lines on every line-type figure (line plots and animations, line
+    # comparisons, loss, parameter convergence); Plot settings -> General.
+    plot_grid: bool = True
+    # The reference in line comparisons (Error Analysis): "line" or "dots".
+    plot_ref_style: str = "line"
+    # Numbers written in figures (Plot settings -> General -> Numbers):
+    # significant digits (parameter values get two more), and scientific
+    # notation "auto" (below 0.01 or from 100,000 up), "always" or "never",
+    # written as "1.2 x 10^-4" ("times") or "1.2e-04" ("e").
+    plot_sig_digits: int = 4
+    # Line colours of the PINN and the reference in every line figure, the
+    # |Error| panels' colormap ("" = the solution's), how many panels a row
+    # of an Error Analysis grid has, and the animations' resolution.
+    plot_pinn_color: str = "#ff6b6b"
+    plot_ref_color: str = "#4dabf7"
+    plot_err_colormap: str = ""
+    plot_ea_cols: int = 4
+    plot_dpi_anim: int = 150
+    # Legend font size (0 = each figure's own, 7-10) and the grid of the 3D
+    # surfaces (faces get slow to draw above about 40 points per side).
+    plot_legend_fontsize: float = 0.0
+    plot_resolution_3d: int = 40
+    plot_sci_notation: str = "auto"
+    plot_sci_style: str = "times"
 
     # Loss Plot Settings (Round 28): previously every loss plot across the
     # app hardcoded "semilogy of summed Train/Test loss" with no user
@@ -672,6 +739,14 @@ class PINNConfig:
     # script always falls back to CPU in that case regardless of these.
     gpu_device_index: int = 0
     gpu_memory_fraction: float = 0.95
+    # Where to train: "auto" = the GPU when there is one (the default),
+    # "cpu" = always the CPU. A small network often trains faster on the CPU,
+    # where each step does not wait for the GPU (see the README's timing
+    # section).
+    train_device: str = "auto"
+    # CPU threads for CPU training: 0 = Automatic (about one per performance
+    # core, at most 8), or a number of your own.
+    cpu_threads: int = 0
 
     # Reproducibility. When on (the default), the generated script calls
     # dde.config.set_random_seed(random_seed) once, right at the start --
@@ -774,9 +849,21 @@ class PINNConfig:
         file and hard to diagnose from the resulting crash, not every
         possible misconfiguration."""
         errors = []
+        import json as _json_bc
+        try:
+            _bc_rows = _json_bc.loads(self.custom_bc_json) if (self.custom_bc_json or "").strip() else []
+        except (ValueError, TypeError):
+            _bc_rows = []
+        for _i, _r in enumerate(_bc_rows if isinstance(_bc_rows, list) else []):
+            if isinstance(_r, dict) and str(_r.get("location", "")).strip() == "False":
+                errors.append(f"BC {_i + 1} picks no part of the boundary (its last edge was taken out): pick its "
+                              f"edges in the Geometry view, or delete the BC.")
         if self.causal_training:
             if self.steady_state:
                 errors.append("Causal training needs a time-dependent problem (it weights the residual by time).")
+            elif self.problem_dim == "ODE":
+                errors.append("Causal training isn't available for an ODE (PINNStudio solves it as a problem in t "
+                              "without a separate time axis); turn it off.")
             if int(self.causal_chunks) < 2:
                 errors.append("Causal training: the number of time chunks must be at least 2.")
             if float(self.causal_eps) <= 0:
@@ -900,6 +987,9 @@ class PINNConfig:
             if isinstance(self.layers, (list, tuple)) and len(self.layers) >= 3 and self.layers[1] < 2:
                 errors.append(f"{self.network_type}: the first hidden layer needs at least 2 neurons "
                               "(half of them are cosine and half sine Fourier features).")
+            elif isinstance(self.layers, (list, tuple)) and len(self.layers) >= 3 and self.layers[1] % 2:
+                errors.append(f"{self.network_type}: the first hidden layer needs an even number of neurons "
+                              f"(half cosine, half sine Fourier features); got {self.layers[1]}.")
             if isinstance(self.layers, (list, tuple)) and len(self.layers) < 3:
                 errors.append(f"{self.network_type} needs at least one hidden layer.")
 
@@ -960,6 +1050,9 @@ class PINNConfig:
             errors.append(f"Learning rate must be positive; got {self.learning_rate}.")
         if self.weight_decay < 0:
             errors.append(f"Weight decay cannot be negative; got {self.weight_decay}.")
+        elif self.weight_decay > 0 and self.network_type in ("PFNN", "MsFFN", "STMsFFN"):
+            errors.append(f"Weight decay can't be used with a {self.network_type} network (DeepXDE's {self.network_type} "
+                          "has no regularization): set it to 0, or use an FNN.")
 
         if self.problem_dim not in ("1D", "2D", "3D", "ODE"):
             errors.append(f"problem_dim must be '1D', '2D', '3D' or 'ODE'; got {self.problem_dim!r}.")
@@ -1097,6 +1190,21 @@ class PINNConfig:
         # otherwise crash, not ones that legitimately rely on the legacy
         # field.
         if self.problem_type == "Inverse":
+            # Trainable variable names go into the equations as written, so
+            # they must be Python names: "my var" or "lambda" would make
+            # both scripts fail (the variable itself is defined as my_var).
+            import keyword as _kw
+            try:
+                _vars = _json_cfg.loads(self.inverse_variables_json or "[]") or []
+            except (ValueError, TypeError):
+                _vars = []
+            for _v in _vars if isinstance(_vars, list) else []:
+                _nm = str((_v or {}).get("name", "") if isinstance(_v, dict) else "").strip()
+                if _nm and (not _nm.isidentifier() or _kw.iskeyword(_nm)):
+                    errors.append(f'Trainable variable "{_nm}" can\'t be used as a name in the equations: use '
+                                  f'letters, digits and _ (not starting with a digit), and not a Python word '
+                                  f'such as lambda.')
+        if self.problem_type == "Inverse":
             _has_obs_path = False
             _raw_obs = getattr(self, "inverse_obs_files_json", "") or ""
             if _raw_obs.strip():
@@ -1116,6 +1224,10 @@ class PINNConfig:
                     "against, but no observation row has a file selected."
                 )
 
+        if int(self.cpu_threads or 0) < 0:
+            errors.append(f"CPU threads must be 0 (Automatic) or more; got {self.cpu_threads}.")
+        if self.train_device not in ("auto", "cpu"):
+            errors.append(f'Train on must be "auto" or "cpu"; got {self.train_device!r}.')
         if self.gpu_device_index < 0:
             errors.append(f"GPU device index cannot be negative; got {self.gpu_device_index}.")
         if not (0.0 < self.gpu_memory_fraction <= 1.0):
@@ -1139,8 +1251,9 @@ class PINNConfig:
                     errors.append("Bayesian search needs at least 2 runs (the baseline and one more).")
                 if not isinstance(self.sweep_bayes_initial, int) or self.sweep_bayes_initial < 1:
                     errors.append("Bayesian search needs at least 1 random starting run.")
-                if self.sweep_bayes_objective not in ("loss", "l2"):
-                    errors.append(f"Bayesian search objective must be 'loss' or 'l2'; got {self.sweep_bayes_objective!r}.")
+                if self.sweep_bayes_objective not in ("loss", "loss_unweighted", "l2"):
+                    errors.append(f"Bayesian search objective must be 'loss', 'loss_unweighted' or 'l2'; "
+                                  f"got {self.sweep_bayes_objective!r}.")
                 elif self.sweep_bayes_objective == "l2" and not (
                         (self.ea_files and self.ea_files != "[]") or self.ea_ref_mode == "formula"):
                     errors.append("Bayesian search on the L2 error needs Error Analysis reference data "
@@ -1167,6 +1280,11 @@ class PINNConfig:
                 # same lazy-import style this method already uses for json.
                 from pinnstudio.core import sweep_registry as _sweep_reg
                 _available_ids = {p.id for p in _sweep_reg.available_params(self)}
+                _swept_ids = [_sp.get("id") for _sp in _sweep_params if isinstance(_sp, dict)]
+                if "inv_obs_grid_n" in _swept_ids and "inv_obs_random_n" in _swept_ids:
+                    errors.append("Parameter Sweep: 'Measured data: grid points per axis' and 'Measured data: "
+                                  "random points' each set how the measured data are reduced, so they can't be "
+                                  "swept together -- sweep one of them.")
                 # Collected alongside the per-entry checks below so the
                 # "zip" mode length check after this loop only compares
                 # entries that are themselves well-formed -- an entry

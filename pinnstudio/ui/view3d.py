@@ -333,7 +333,7 @@ class Domain3DView(QWidget):
         from mpl_toolkits.mplot3d.art3d import Poly3DCollection
         from pinnstudio.ui import theme as _theme
         from pinnstudio.ui.sketch_canvas import NO_BC_COLOR
-        from pinnstudio.ui.theme import BC_COLORS
+        from pinnstudio.ui.theme import BC_COLORS, bc_color  # noqa: F401
         t = _theme.current()
         c = self.canvas_src
         ax, fig = self._ax, self._fig
@@ -362,7 +362,7 @@ class Domain3DView(QWidget):
         for k, quads in enumerate(self._patches):
             if not quads:
                 continue
-            col = BC_COLORS[bc_of[k][0] % len(BC_COLORS)] if k < len(bc_of) and bc_of[k] else NO_BC_COLOR
+            col = bc_color(bc_of[k][0]) if k < len(bc_of) and bc_of[k] else NO_BC_COLOR
             poly = Poly3DCollection(quads, facecolors=shaded_colours(quads, col), edgecolors="none",
                                     alpha=0.22 if self.points_cb.isChecked() else 0.6,
                                     linewidths=0, antialiased=False)
@@ -416,7 +416,7 @@ class Domain3DView(QWidget):
         rows = c.owner.bc_rows()
         used = {i for lst in bc_of for i in lst}
         from matplotlib.patches import Patch
-        handles = [Patch(facecolor=BC_COLORS[b["index"] % len(BC_COLORS)], label=b["label"])
+        handles = [Patch(facecolor=bc_color(b["index"]), label=b["label"])
                    for b in rows if b["index"] in used]
         if any(not lst for lst in bc_of):
             handles.append(Patch(facecolor=NO_BC_COLOR, label="no BC yet"))

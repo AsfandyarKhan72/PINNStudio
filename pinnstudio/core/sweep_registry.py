@@ -162,6 +162,12 @@ class SweepParam:
     get_value: Optional[Callable[[Any], Any]] = None
     set_value: Optional[Callable[[Any, Any], None]] = None
     is_available: Optional[Callable[[Any], bool]] = None
+    # What the baseline run is labelled with in the summary (CSV, plot),
+    # when that differs from get_value (default: get_value).
+    display_value: Optional[Callable[[Any], Any]] = None
+
+    def shown(self, config):
+        return (self.display_value or self.get_value)(config)
 
 
 # ── Scheduler-phase helpers ───────────────────────────────────────────
@@ -576,6 +582,51 @@ def _inv_obs_weight_params(config) -> List["SweepParam"]:
     return params
 
 
+def _obs_reduce_set(config, mode, n):
+    """Measured data -> Use: a grid of n points per axis, or n random points."""
+    config.inverse_obs_reduce = mode
+    if mode == "grid":
+        config.inverse_obs_grid_n = max(2, int(round(float(n))))
+    else:
+        config.inverse_obs_random_n = max(1, int(round(float(n))))
+
+
+def _obs_reduce_get(config, mode):
+    """The baseline's value for a data-size parameter: its number when the
+    measured data already use that mode, otherwise what they do use."""
+    cur = getattr(config, "inverse_obs_reduce", "all") or "all"
+    if cur == mode:
+        return int(getattr(config, "inverse_obs_grid_n" if mode == "grid" else "inverse_obs_random_n"))
+    if cur == "all":
+        return "all"
+    return f"{cur} {int(getattr(config, 'inverse_obs_grid_n' if cur == 'grid' else 'inverse_obs_random_n'))}"
+
+
+def _inv_obs_reduce_params(config) -> List["SweepParam"]:
+    """A data-size study: how the parameters come out with fewer measured
+    points. Sets Measured data -> Use for every file."""
+    if not _inv_available(config):
+        return []
+    return [
+        SweepParam(
+            id="inv_obs_grid_n", label="Measured data: grid points per axis",
+            category="Inverse", value_type="int", default_min=11, default_max=101,
+            get_value=lambda c: int(getattr(c, "inverse_obs_grid_n", 51)),
+            display_value=lambda c: _obs_reduce_get(c, "grid"),
+            set_value=lambda c, v: _obs_reduce_set(c, "grid", v),
+            is_available=lambda c: _inv_available(c),
+        ),
+        SweepParam(
+            id="inv_obs_random_n", label="Measured data: random points",
+            category="Inverse", value_type="int", default_min=100, default_max=10000,
+            get_value=lambda c: int(getattr(c, "inverse_obs_random_n", 1000)),
+            display_value=lambda c: _obs_reduce_get(c, "random"),
+            set_value=lambda c, v: _obs_reduce_set(c, "random", v),
+            is_available=lambda c: _inv_available(c),
+        ),
+    ]
+
+
 # ── RAR (Residual-based Adaptive Refinement) helpers ───────────────────
 # See the module docstring's "SCOPE (v4)" section. All five of RAR's own
 # knobs are plain scalar config fields (no per-row/JSON indexing needed,
@@ -858,9 +909,9 @@ _STATIC_PARAMS: List[SweepParam] = [
         value_type="int", default_min=100, default_max=1000,
         get_value=lambda c: c.num_initial,
         set_value=lambda c, v: setattr(c, "num_initial", int(v)),
-        # Steady-state problems have no initial condition at all -- this
-        # field is unused and would be a no-op sweep for them.
-        is_available=lambda c: not c.steady_state,
+        # Steady-state problems and ODEs (solved as a steady 1D problem in
+        # x = t) have no initial points -- a no-op sweep for them.
+        is_available=lambda c: not c.steady_state and c.problem_dim != "ODE",
     ),
     SweepParam(
         id="num_test", label="Test points", category="Collocation Points",
@@ -960,6 +1011,7 @@ def available_params(config) -> List[SweepParam]:
     params.extend(_weight_params(config))
     params.extend(_inv_var_params(config))
     params.extend(_inv_obs_weight_params(config))
+    params.extend(_inv_obs_reduce_params(config))
     params.extend(_rar_params(config))
     params.extend(_ta_group_params(config))
     params.extend(_ta_grid_param(config))

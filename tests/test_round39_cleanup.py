@@ -165,7 +165,7 @@ def run():
         "output_names": "u", "geometry_type": "Rectangle",
     }
 
-    win._restore_viz_settings = {"figsize_mode": "Custom", "figsize_w": 9.0, "figsize_h": 1.5}
+    win._plot_viz_settings = {**win._plot_viz_settings, "figsize_mode": "Custom", "figsize_w": 9.0, "figsize_h": 1.5}
     restore_script = win._build_restore_script(
         "dummy_model_path", rect_cfg_dict, "adam", "Line (time steps)", 0, 1, "/tmp")
     check("_figsize_helper_code(figsize_mode, figsize_w, figsize_h)" not in restore_script,
@@ -214,7 +214,7 @@ def run():
 
     with tempfile.TemporaryDirectory() as tmpdir:
         model_path = _train_rect_model(tmpdir, "rect_model")
-        win._restore_viz_settings = {"figsize_mode": "Custom", "figsize_w": 10.0, "figsize_h": 2.0}
+        win._plot_viz_settings = {**win._plot_viz_settings, "figsize_mode": "Custom", "figsize_w": 10.0, "figsize_h": 2.0}
         restore_script = win._build_restore_script(
             model_path, rect_cfg_dict, "adam", "Line (time steps)", 0, 1, tmpdir)
         proc = _run_script(restore_script, tmpdir, "restore_rect_line_custom_figsize")

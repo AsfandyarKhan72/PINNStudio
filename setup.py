@@ -31,6 +31,9 @@ setup(
         # 2.5 (it now raises ValueError) -- keep NumPy below 2.5 until a
         # DeepXDE release fixes that.
         "numpy<2.5",
+        # PyTorch's last Intel-Mac release (2.2.2) was built against NumPy 1
+        # and cannot use NumPy 2 ("Failed to initialize NumPy").
+        "numpy<2; sys_platform == 'darwin' and platform_machine == 'x86_64'",
         "matplotlib",
         "pandas",
     ],

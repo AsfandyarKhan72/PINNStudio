@@ -1,0 +1,132 @@
+name: Platform matrix
+
+# Before a release: the test suite (without the tests that train real models,
+# which the platform tests run) and the window check on older and newer
+# versions of each system and of Python, and the one-command installer on
+# Linux, Windows Server 2022 and an Intel Mac. Runs for a commit whose message
+# contains [matrix] (or by hand), not for every push.
+on:
+  push:
+    branches: [cleanup]
+  workflow_dispatch:
+
+jobs:
+  tests:
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[matrix]')
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {os: ubuntu-22.04, python: "3.9"}
+          - {os: ubuntu-22.04, python: "3.10"}
+          - {os: ubuntu-24.04, python: "3.11"}
+          - {os: ubuntu-24.04, python: "3.13"}
+          - {os: ubuntu-24.04, python: "3.14"}
+          - {os: ubuntu-24.04-arm, python: "3.12"}
+          - {os: windows-2022, python: "3.10"}
+          - {os: windows-2025, python: "3.13"}
+          - {os: windows-2025, python: "3.14"}
+          - {os: windows-11-arm, python: "3.12", arch: x64}    # x64 Python: no PyTorch for ARM Windows
+          - {os: macos-14, python: "3.11"}
+          - {os: macos-15, python: "3.13"}
+          - {os: macos-15-intel, python: "3.12"}
+    runs-on: ${{ matrix.os }}
+    name: tests (${{ matrix.os }}, Python ${{ matrix.python }})
+    timeout-minutes: 150
+    env:
+      QT_QPA_PLATFORM: offscreen
+      DDE_BACKEND: pytorch
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          architecture: ${{ matrix.arch }}
+          allow-prereleases: true
+
+      - name: Qt system libraries (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libegl1 libgl1 libxkbcommon0 libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 \
+            libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 \
+            libxcb-xfixes0 libfontconfig1 libdbus-1-3
+
+      - name: Install PINNStudio (CPU PyTorch)
+        id: install
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          if [ "$RUNNER_OS" = "macOS" ] || [ "$RUNNER_ARCH" = "ARM64" -a "$RUNNER_OS" = "Linux" ]; then python -m pip install torch; \
+          else python -m pip install torch --index-url https://download.pytorch.org/whl/cpu; fi
+          python -m pip install -e . pytest pytest-xdist
+          python -c "import sys, torch, PyQt6.QtCore as q, deepxde, numpy; print('::notice title=versions ${{ matrix.os }} py${{ matrix.python }}::Python', sys.version.split()[0], '| torch', torch.__version__, '| Qt', q.QT_VERSION_STR, '| DeepXDE', deepxde.__version__, '| NumPy', numpy.__version__)"
+
+      - name: Install failed
+        if: failure() && steps.install.outcome == 'failure'
+        shell: bash
+        run: echo "::error title=install ${{ matrix.os }} py${{ matrix.python }}::PINNStudio or one of its dependencies could not be installed (see the Install step)"
+
+      - name: Tests
+        shell: bash
+        # every test except the ones that train real models (marked slow in
+        # tests/conftest.py; the platform tests run those on Windows, macOS
+        # and Linux), spread over the machine's cores. The window check below
+        # still trains, shows the results and restores on every system.
+        run: set -o pipefail; python -m pytest tests -q -p no:cacheprovider -n auto -m "not slow" --durations=10 --ignore=tests/local --junitxml=junit.xml 2>&1 | tee pytest.log
+
+      - name: Report failures
+        if: always() && steps.install.outcome == 'success'
+        run: python tools/junit_annotations.py junit.xml "${{ matrix.os }} py${{ matrix.python }}"
+
+      - name: Window end to end (train, results, restore)
+        if: always() && steps.install.outcome == 'success'
+        run: python tools/smoke_gui.py
+
+  installer:
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[matrix]')
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04, windows-2022, windows-11-arm, macos-15-intel]
+    runs-on: ${{ matrix.os }}
+    name: installer (${{ matrix.os }})
+    timeout-minutes: 60
+    env:
+      QT_QPA_PLATFORM: offscreen
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Qt system libraries (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libegl1 libgl1 libxkbcommon0 libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 \
+            libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 \
+            libxcb-xfixes0 libfontconfig1 libdbus-1-3
+
+      - name: Install with get-pinnstudio.ps1 (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $env:PINNSTUDIO_SOURCE = "${{ github.workspace }}"
+          ./get-pinnstudio.ps1
+          if (-not (Test-Path "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\PINNStudio.lnk")) { throw "no Start menu shortcut" }
+
+      - name: Install with get-pinnstudio.sh (macOS, Linux)
+        if: runner.os != 'Windows'
+        run: |
+          PINNSTUDIO_SOURCE="$GITHUB_WORKSPACE" sh get-pinnstudio.sh
+          if [ "$RUNNER_OS" = "macOS" ]; then test -x "$HOME/Applications/PINNStudio.app/Contents/MacOS/PINNStudio";
+          else test -f "$HOME/.local/share/applications/pinnstudio.desktop" && ! test -e "$HOME/Desktop/pinnstudio.desktop"; fi
+
+      - name: Installed app starts and the window check passes
+        shell: bash
+        run: |
+          UV="$HOME/.local/bin/uv"
+          TOOLDIR="$("$UV" tool dir)"
+          if [ "$RUNNER_OS" = "Windows" ]; then PY="$TOOLDIR/pinnstudio/Scripts/python.exe"; EXE="$("$UV" tool dir --bin)/pinnstudio.exe";
+          else PY="$TOOLDIR/pinnstudio/bin/python"; EXE="$("$UV" tool dir --bin)/pinnstudio"; fi
+          "$PY" tools/launch_check.py "$EXE"
+          cd "$RUNNER_TEMP" && "$PY" "$GITHUB_WORKSPACE/tools/smoke_gui.py" --installed

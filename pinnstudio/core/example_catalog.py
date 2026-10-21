@@ -207,10 +207,16 @@ def _dx_geometry(cfg, key):
     return "Polygon (L-shape)" if g == "Polygon" else g
 
 
+# Templates whose Inverse mode is withdrawn for now: the parameters were not
+# found (Cahn-Hilliard 1D, both forms). Forward only until that is fixed.
+FORWARD_ONLY_TEMPLATES = {"1D Cahn-Hilliard", "1D Cahn-Hilliard (Mattey & Ghosh)"}
+
+
 def _build():
     entries = []
     for key, name, dim, reg, geo, paper in _TEMPLATES:
-        entries.append(Entry(key, name, PINNSTUDIO, dim, reg, BOTH, geo, paper, key in HIDDEN_TEMPLATES))
+        entries.append(Entry(key, name, PINNSTUDIO, dim, reg, FORWARD if key in FORWARD_ONLY_TEMPLATES else BOTH,
+                             geo, paper, key in HIDDEN_TEMPLATES))
     for ex in ps.EXAMPLES:          # templates defined by their settings
         cfg = ps.build_config(ex, "/r")
         name, paper = ps.CATALOG[ex.name]

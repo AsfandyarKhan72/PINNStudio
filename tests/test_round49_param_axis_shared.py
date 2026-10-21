@@ -85,15 +85,20 @@ def run():
     draw = ns["_draw_param_ax"]
     fig, ax = plt.subplots()
     fv = draw(ax, "D", [0, 1, 2], [0.5, 0.3, 0.2], 0.1, True, "", "", "")
-    check(ax.get_yscale() == "log" and ax.get_ylabel() == "log(D)", "positive values + log_scale -> log axis")
+    check(ax.get_yscale() == "log" and ax.get_ylabel() == "D", "positive values + log_scale -> log axis (labelled with the name: the axis shows the values)")
     check(abs(fv - 0.2) < 1e-12 and ax.get_title() == "Inferred Parameter: D", "final value / default title")
     check(len(ax.get_lines()) == 3, "curve + final line + true line")
     plt.close(fig)
     fig, ax = plt.subplots()
-    draw(ax, "k", [0, 1], [-1.0, 2.0], None, True, "T", "X", "Y")
-    check(ax.get_yscale() == "linear", "non-positive values must fall back to linear")
+    draw(ax, "k", [0, 1], [1.0, -2.0], None, True, "T", "X", "Y")
+    check(ax.get_yscale() == "linear", "a non-positive final value must fall back to linear")
+
     check((ax.get_title(), ax.get_xlabel(), ax.get_ylabel()) == ("T", "X", "Y"), "overrides should win")
     check(len(ax.get_lines()) == 2, "no true line when true_val is None")
+    plt.close(fig)
+    fig, ax = plt.subplots()
+    draw(ax, "k", [0, 1, 2], [1.0, -2.0, 1e-4], 1e-4, True, "", "", "")
+    check(ax.get_yscale() == "log", "a value that dipped below zero on the way keeps the log axis (that point left out)")
     plt.close(fig)
 
     try:

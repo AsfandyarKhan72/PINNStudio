@@ -45,7 +45,7 @@ def run():
     check(win.ta_ref_toggle.text().strip() == "About time-adaptive training", win.ta_ref_toggle.text())
     check(win.rar_ref_toggle.text().strip() == "About RAR", win.rar_ref_toggle.text())
     check("Splits the time domain" in win.ta_ref_hint.text(), "TA toggle should carry the Time-Adaptive text")
-    check("worst-residual points" in win.rar_ref_hint.text(), "RAR toggle should carry the RAR text")
+    check("adds the worst ones" in win.rar_ref_hint.text(), "RAR toggle should carry the RAR text")
 
     for method, ta_vis, rar_vis in (("None", False, False), (_TA, True, False), (_RAR, False, True)):
         win.adapt_combo.setCurrentText(method)

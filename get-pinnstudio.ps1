@@ -35,7 +35,10 @@ if (Get-Command uv -ErrorAction SilentlyContinue) {
 
 Write-Host ""
 Write-Host "Installing PINNStudio and the PyTorch build for this computer (this takes a few minutes)..."
-uv tool install --upgrade --reinstall-package pinnstudio --python 3.12 --torch-backend auto $pkg
+# PyTorch has no build for ARM Windows: on an ARM PC, use the x64 Python,
+# which Windows runs under emulation.
+$py = if ($env:PROCESSOR_ARCHITECTURE -eq "ARM64") { "cpython-3.12-windows-x86_64-none" } else { "3.12" }
+uv tool install --upgrade --reinstall-package pinnstudio --refresh-package pinnstudio --python $py --torch-backend auto $pkg
 if ($LASTEXITCODE -ne 0) { Fail "The installation failed (see the messages above)." }
 
 uv tool update-shell *> $null
@@ -66,3 +69,11 @@ Write-Host ""
 if ($hasShortcut) { Write-Host "Done. Open PINNStudio from the Start menu or the desktop icon, or run: pinnstudio" }
 else { Write-Host "Done. Start PINNStudio with: pinnstudio" }
 Write-Host "(The pinnstudio command works in new PowerShell windows. In this one, run: & '$(Join-Path $bin 'pinnstudio.exe')')"
+# Another PINNStudio (an older pip, venv or conda install) found first on the
+# PATH would start instead of this one.
+$other = Get-Command pinnstudio -ErrorAction SilentlyContinue | Select-Object -First 1
+if ($other -and ($other.Source -ne (Join-Path $bin "pinnstudio.exe"))) {
+    Write-Host ""
+    Write-Host "Note: the pinnstudio command here runs $($other.Source),"
+    Write-Host "another (possibly older) installation. Remove it, or start this one with: & '$(Join-Path $bin 'pinnstudio.exe')'"
+}

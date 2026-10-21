@@ -45,7 +45,7 @@ OPS = (("Union (add)", "union"), ("Subtract (cut hole)", "subtract"), ("Intersec
 OP_COLORS = {None: QColor("#1f6fd1"), "union": QColor("#1f6fd1"),
              "subtract": QColor("#d9480f"), "intersect": QColor("#2b8a3e")}
 # one colour per Boundary Conditions row (cycled), and edges without one
-from pinnstudio.ui.theme import BC_COLORS  # noqa: E402  (colour-blind-safe palette)
+from pinnstudio.ui.theme import BC_COLORS, EXACT_BC_INDEX, bc_color  # noqa: E402,F401  (colour-blind-safe palette)
 NO_BC_COLOR = "#868e96"
 
 
@@ -336,7 +336,7 @@ class _Canvas(QWidget):
         for e in traces:
             k = e["idx"]
             poly = QPolygonF([self.to_screen(QPointF(x, y)) for x, y in e["points"]])
-            color = QColor(BC_COLORS[bc_of[k][0] % len(BC_COLORS)]) if bc_of[k] else QColor(NO_BC_COLOR)
+            color = QColor(bc_color(bc_of[k][0])) if bc_of[k] else QColor(NO_BC_COLOR)
             if k in self.sel_edges or k == self.hover_edge:
                 halo = QColor("#ffd43b") if k in self.sel_edges else QColor(255, 212, 59, 110)
                 qp.setPen(QPen(halo, 11, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin))
@@ -347,7 +347,7 @@ class _Canvas(QWidget):
         # labels on top of every edge
         for e in traces:
             k = e["idx"]
-            color = QColor(BC_COLORS[bc_of[k][0] % len(BC_COLORS)]) if bc_of[k] else QColor(NO_BC_COLOR)
+            color = QColor(bc_color(bc_of[k][0])) if bc_of[k] else QColor(NO_BC_COLOR)
             m = self.to_screen(QPointF(*e["mid"]))
             ox, oy = e["out"]
             text = f"{prefix}{k + 1}"
@@ -363,7 +363,7 @@ class _Canvas(QWidget):
         # legend: which colour is which BC row
         rows = self.owner.bc_rows()
         used = {i for lst in bc_of for i in lst}
-        items = [(QColor(BC_COLORS[b["index"] % len(BC_COLORS)]), b["label"]) for b in rows if b["index"] in used]
+        items = [(QColor(bc_color(b["index"])), b["label"]) for b in rows if b["index"] in used]
         if any(not lst for lst in bc_of):
             items.append((QColor(NO_BC_COLOR), "no BC yet"))
         if items:
@@ -1183,7 +1183,7 @@ class SketchPanel(QWidget):
             it = self.face_list.item(k)
             on = ", ".join(labels.get(i, f"BC {i + 1}").split(":")[0] for i in bc_of[k]) if k < len(bc_of) else ""
             it.setText(f"F{k + 1}:  {edges[k]['desc']}" + (f"   [{on}]" if on else ""))
-            it.setForeground(QColor(BC_COLORS[bc_of[k][0] % len(BC_COLORS)]) if k < len(bc_of) and bc_of[k]
+            it.setForeground(QColor(bc_color(bc_of[k][0])) if k < len(bc_of) and bc_of[k]
                              else QColor(NO_BC_COLOR))
             it.setSelected(k in self.canvas.sel_edges)
         self.face_list.blockSignals(False)
@@ -1363,6 +1363,8 @@ class SketchPanel(QWidget):
         self.add_to_combo.blockSignals(True)
         self.add_to_combo.clear()
         for b in self.bc_rows():
+            if b.get("exact"):
+                continue
             self.add_to_combo.addItem(b["label"], b["index"])
         i = self.add_to_combo.findData(cur)
         self.add_to_combo.setCurrentIndex(i if i >= 0 else 0)

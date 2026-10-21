@@ -98,7 +98,7 @@ def test_restore_parameter_convergence_branch_gets_own_folder():
     w.restore_viz_combo.blockSignals(True)
     w.restore_viz_combo.clear()
     w.restore_viz_combo.addItems(items)
-    w.restore_viz_combo.setCurrentText("Parameter Convergence Plot (PNG)")
+    w.restore_viz_combo.setCurrentText("Parameter Convergence")
     w.restore_viz_combo.blockSignals(False)
 
     # No convergence files configured -> _on_restore logs an error and

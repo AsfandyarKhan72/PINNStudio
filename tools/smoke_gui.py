@@ -249,4 +249,9 @@ if __name__ == "__main__":
         _gh("error", "errors shown by the window", "\n\n".join(SHOWN))
     print("SMOKE " + ("FAILED: " + "; ".join(FAILED) if FAILED or SHOWN else "PASSED"), flush=True)
     _gh("notice" if not (FAILED or SHOWN) else "error", "result", "PASSED" if not (FAILED or SHOWN) else "; ".join(FAILED))
-    sys.exit(1 if FAILED or SHOWN else 0)
+    # os._exit, not sys.exit: the result is already printed, and Qt's own
+    # teardown at interpreter exit sometimes crashed (exit code 139 after
+    # "SMOKE PASSED" on Ubuntu 24.04 with Python 3.13), failing a passed check.
+    sys.stdout.flush()
+    sys.stderr.flush()
+    os._exit(1 if FAILED or SHOWN else 0)

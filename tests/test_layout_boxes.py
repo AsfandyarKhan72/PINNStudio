@@ -112,6 +112,22 @@ def test_boxes_whole_and_forms_aligned(monkeypatch, tmp_path, ui_scale):
         _pump(0.4)
         cut += [f"{key}: {b}" for b in _cut_boxes(w)]
         off += [f"{key}: {b}" for b in _misaligned(w)]
+    # the Inverse page, with a second data file added
+    w.quick_examples_category_combo.setCurrentText("Inverse")
+    _pump(0.3)
+    w.quick_examples_combo.setCurrentText("Allen-Cahn 3D – Wight & Zhao")
+    _pump(0.5)
+    w.workspace.select("inverse")
+    _pump(0.3)
+    w._add_inverse_data_row()
+    w._add_inverse_var_row()
+    _pump(0.5)
+    cut += [f"inverse: {b}" for b in _cut_boxes(w)]
+    off += [f"inverse: {b}" for b in _misaligned(w)]
+    narrow = [b.width() for b in w.inverse_group.findChildren(QPushButton) if b.isVisible() and b.text() == "✕" and b.width() < 20]
+    assert not narrow, f"remove buttons squeezed to {narrow} px"
+    heads = [r["init"].mapTo(w.inverse_group, r["init"].rect().topLeft()).x() for r in w.inv_var_rows]
+    assert len(set(heads)) == 1, f"parameter rows' Initial guess columns differ: {heads}"
     assert not cut, "\n".join(cut)
     assert not off, "\n".join(off)
     w.close()

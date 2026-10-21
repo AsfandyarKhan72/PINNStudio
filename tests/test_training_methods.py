@@ -285,7 +285,8 @@ def test_cahn_hilliard_template_scaling():
     assert not w.exact_inputs_note.isHidden() and not w.exact_outputs_note.isHidden()
     w.radio_inverse.setChecked(True)
     _settle()
-    assert w.pde_inputs[1].text() == "(mu - gamma_2*(u**3 - u) + gamma_1*du_xx)/gamma_2"
+    # Inverse mode withdrawn for now (parameters not found): no unknowns put in
+    assert w.pde_inputs[1].text() == "(mu - 0.01*(u**3 - u) + 1e-6*du_xx)/0.01"
     w.radio_inverse.setChecked(False)
     w.radio_forward.setChecked(True)
     _settle()

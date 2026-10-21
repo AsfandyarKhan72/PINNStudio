@@ -20,7 +20,7 @@ import re
 
 from PyQt6.QtCore import QEvent, QObject, QTimer
 from PyQt6.QtGui import QColor, QFontDatabase, QSyntaxHighlighter, QTextCharFormat
-from PyQt6.QtWidgets import QApplication, QWidget
+from PyQt6.QtWidgets import QApplication, QDialog, QWidget
 
 # ── themes ───────────────────────────────────────────────────────────────
 THEMES = {
@@ -78,6 +78,13 @@ ACCENTS = {   # optional override of the theme's accent: (accent, hover, as text
 # people with red-green colour blindness can tell apart.
 BC_COLORS = ("#0072B2", "#D55E00", "#009E73", "#CC79A7", "#E69F00", "#56B4E9", "#882255", "#44AA99",
              "#332288", "#999933")
+# The sketch's colour for boundary an output transform fixes (no BC row).
+EXACT_BC_INDEX = -1
+EXACT_BC_COLOR = "#212529"
+
+
+def bc_color(i):
+    return EXACT_BC_COLOR if i == EXACT_BC_INDEX else BC_COLORS[i % len(BC_COLORS)]
 
 _current = dict(THEMES[DEFAULT_THEME])
 
@@ -486,8 +493,19 @@ class StyleRemapper(QObject):
                 pass
 
     def eventFilter(self, obj, ev):
+        if isinstance(obj, QDialog) and (ev.type() == QEvent.Type.Show or
+                                         (ev.type() == QEvent.Type.LayoutRequest and obj.isVisible())):
+            # again on every layout change: the theme's fonts and padding
+            # arrive after the dialog is first shown, and rows get added
+            self._fit_dialog(obj)
+        if ev.type() == QEvent.Type.FontChange and isinstance(obj, QWidget):
+            self._fit_text_button(obj)       # the UI scale changed the text size
+            self._fit_combo(obj)
+            self._fit_items(obj)
         if ev.type() in (QEvent.Type.StyleChange, QEvent.Type.Polish) and isinstance(obj, QWidget):
             self._fit_text_button(obj)
+            self._fit_combo(obj)
+            self._fit_items(obj)
             if ev.type() == QEvent.Type.Polish:
                 self._fit_small_button(obj)
                 from pinnstudio.ui import icons as _icons
@@ -497,6 +515,56 @@ class StyleRemapper(QObject):
             if ev.type() == QEvent.Type.Polish:
                 self._fit_height_later(obj)
         return False
+
+    @staticmethod
+    def _fit_dialog(d):
+        """A dialog given a minimum width in code (setMinimumWidth(520)) no
+        longer grows to its contents by itself (Qt then leaves its minimum
+        size to the code), so its rows were squeezed on top of each other
+        (Error Analysis) or cut off. It is kept at least as large as they
+        need."""
+        lay = d.layout()
+        if lay is None:
+            return
+        need = lay.totalMinimumSize()
+        if need.width() > d.minimumWidth():
+            d.setMinimumWidth(need.width())
+        if need.height() > d.minimumHeight():
+            d.setMinimumHeight(need.height())
+        if d.width() < need.width() or d.height() < need.height():
+            d.resize(max(d.width(), need.width()), max(d.height(), need.height()))
+
+    @staticmethod
+    def _fit_combo(w):
+        """A drop-down given a fixed width is widened when the option it shows
+        does not fit (with a larger UI scale); at most 3 times wider."""
+        from PyQt6.QtWidgets import QComboBox
+        if not isinstance(w, QComboBox) or w.minimumWidth() != w.maximumWidth() or w.maximumWidth() <= 48:
+            return
+        if not w.property("_pinn_fit_combo"):
+            w.setProperty("_pinn_fit_combo", True)
+            w.setProperty("_pinn_combo_w", w.maximumWidth())
+            w.currentTextChanged.connect(lambda _t, c=w: StyleRemapper._fit_combo(c))
+        base = int(w.property("_pinn_combo_w") or w.maximumWidth())
+        need = w.fontMetrics().horizontalAdvance(w.currentText()) + 40
+        width = min(max(base, need), int(base * 3))
+        if width != w.maximumWidth():
+            w.setFixedWidth(width)
+
+    @staticmethod
+    def _fit_items(w):
+        """A drop-down sized to its widest option (main_window's
+        _fit_combo_width) is sized again with the font it is shown in."""
+        from PyQt6.QtWidgets import QComboBox
+        spec = w.property("_pinn_fit_items") if isinstance(w, QComboBox) else None
+        if not spec:
+            return
+        extra, min_width = spec
+        fm = w.fontMetrics()
+        widest = max((fm.horizontalAdvance(w.itemText(i)) for i in range(w.count())), default=0)
+        need = max(int(min_width), widest + int(extra))
+        if need != w.minimumWidth():
+            w.setMinimumWidth(need)
 
     @staticmethod
     def _fit_text_button(w):
@@ -511,6 +579,7 @@ class StyleRemapper(QObject):
         need = w.fontMetrics().horizontalAdvance(text) + 2 * 12 + 6
         if not w.icon().isNull():
             need += w.iconSize().width() + 4
+        need = max(need, w.sizeHint().width())     # the style sheet's own padding and border
         if w.maximumWidth() < need:
             w.setFixedWidth(need)
 

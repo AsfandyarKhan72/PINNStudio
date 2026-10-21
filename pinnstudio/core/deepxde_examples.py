@@ -436,7 +436,9 @@ EXAMPLES = [
              pde_expressions="-du_xx - du_yy - k0**2*u - k0**2*sin(k0*x)*sin(k0*y)",
              custom_bc_json="[]", num_domain=400, num_boundary=80, num_test=3600,
              output_transform_enabled=True, output_transform_mode="formula",
-             output_transform_formula="x*(1 - x)*y*(1 - y)*u"),
+             output_transform_formula="x*(1 - x)*y*(1 - y)*u",
+             # line plots at y = 0.375, a peak of sin(k0*y): the middle (0.5) is a zero
+             line_slice_y_auto=False, line_slice_y=0.375),
         _consts(("n", "2"), ("k0", "2*pi*n")),
         _net([2, 150, 150, 150, 1], activation="sin"), _adam(5000), _NO_LBFGS,
         _formula_ref(["sin(k0*x)*sin(k0*y)"]),
@@ -450,7 +452,7 @@ EXAMPLES = [
              output_transform_enabled=True, output_transform_mode="formula",
              output_transform_formula="x*(1 - x)*y*(1 - y)*u",
              sweep_enabled=True, sweep_mode="bayes", sweep_bayes_calls=50, sweep_bayes_initial=10,
-             sweep_bayes_objective="loss",
+             sweep_bayes_objective="loss", line_slice_y_auto=False, line_slice_y=0.375,
              sweep_parameters=json.dumps([
                  {"id": "phase0_lr", "mode": "log", "min": 1e-4, "max": 5e-2, "n": 5},
                  {"id": "hidden_layers", "mode": "linear", "min": 1, "max": 10, "n": 5},
@@ -476,7 +478,10 @@ EXAMPLES = [
                  _bc("neumann", "np.isclose(x**2 + y**2, R**2)",
                      "-(k0*cos(k0*x)*sin(k0*y)*x + k0*sin(k0*x)*cos(k0*y)*y)/R"),
                  _bc("dirichlet", "left or right or bottom or top", "sin(k0*x)*sin(k0*y)")),
-             loss_weights_multi="1,10,100", num_domain=225, num_boundary=240, num_test=900),
+             loss_weights_multi="1,10,100", num_domain=225, num_boundary=240, num_test=900,
+             # line plots at y = 0.25, a peak of sin(k0*y) that just touches the hole:
+             # the middle (y = 0) is a zero of the solution and runs through the hole
+             line_slice_y_auto=False, line_slice_y=0.25),
         _consts(("n", "1"), ("k0", "2*pi*n"), ("R", "1/4")),
         _net([2, 350, 350, 350, 1], activation="sin"), _adam(5000), _NO_LBFGS,
         _formula_ref(["sin(k0*x)*sin(k0*y)"])),

@@ -185,7 +185,7 @@ def run():
         win.restore_config_path.setText(steady_cfg_path)
         win._refresh_restore_viz_options()
         items_inv_steady = [win.restore_viz_combo.itemText(i) for i in range(win.restore_viz_combo.count())]
-        check(items_inv_steady == ["Surface", "Parameter Convergence Plot (PNG)", "Parameter Convergence Animation (GIF)"],
+        check(items_inv_steady == ["Surface", "Parameter Convergence", "Parameter Convergence (GIF)"],
               f"inverse+steady restore dropdown should keep Surface + param options only, got {items_inv_steady}")
 
     # ── _build_restore_script / _build_restore_ea_script: real restore + ──

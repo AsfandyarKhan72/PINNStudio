@@ -255,6 +255,12 @@ class LiveLossPlot(QWidget):
         self.terms_cb.setToolTip("One line per loss term (PDE residuals, each BC, IC...) instead of the totals")
         self.terms_cb.toggled.connect(self._redraw)
         bar.addWidget(self.terms_cb)
+        self.live_cb = QCheckBox("Update while training")
+        self.live_cb.setChecked(True)
+        self.live_cb.setToolTip("Redraw the curve while the run trains. Off: it is drawn once, when the run "
+                                "ends (saves the window's work on slow computers)")
+        self.live_cb.toggled.connect(lambda on: on and self._tick())
+        bar.addWidget(self.live_cb)
         lay.addLayout(bar)
         self.holder = QVBoxLayout()
         lay.addLayout(self.holder, 1)
@@ -305,7 +311,7 @@ class LiveLossPlot(QWidget):
         self._tick()
 
     def _tick(self):
-        if self._dirty:
+        if self._dirty and (self.live_cb.isChecked() or not self._timer.isActive()):
             self._dirty = False
             self._redraw()
 
@@ -344,7 +350,9 @@ class LiveLossPlot(QWidget):
                 if any(h[2] for h in hist):
                     ax.plot(steps, [sum(h[2]) if h[2] else math.nan for h in hist], color=t["warning"],
                             lw=1.4, ls="--", label="test")
-            ax.set_yscale("log")
+            # Plot settings -> Loss -> log axis (the window sets log_y)
+            if getattr(self, "log_y", True):
+                ax.set_yscale("log")
             for s0, label in p.phase_starts[1:]:
                 ax.axvline(s0, color=t["text_faint"], lw=0.8, ls=":")
                 ax.text(s0, 1, f" {label}", transform=ax.get_xaxis_transform(), va="top", ha="left",
@@ -540,14 +548,26 @@ def read_run(folder):
     except OSError:
         pass
     try:
-        with open(os.path.join(folder, "error_analysis", "error_metrics.txt"), encoding="utf-8") as fh:
+        import glob as _glob
+        _ea = os.path.join(folder, "error_analysis")
+        _mf = os.path.join(_ea, "error_metrics.txt")
+        if not os.path.isfile(_mf):          # several outputs: error_metrics_<output>.txt, the first
+            _mf = (sorted(_glob.glob(os.path.join(_ea, "error_metrics_*.txt"))) or [_mf])[0]
+        with open(_mf, encoding="utf-8") as fh:
             rows = [ln.strip().split(",") for ln in fh if ln.strip()]
+        # by the header's names, not position: which metrics are there
+        # depends on the ticked ones (t,L2_relative,MSE,Mean_abs_error, ...)
+        head = [h.strip().lower() for h in rows[0]] if rows else []
+        i_l2 = head.index("l2_relative") if "l2_relative" in head else None
+        i_ma = head.index("mean_abs_error") if "mean_abs_error" in head else None
         for r in rows[1:]:
             try:
-                run["metrics"].append((float(r[0]), float(r[1]), float(r[2]) if len(r) > 2 else None))
+                run["metrics"].append((float(r[0]),
+                                       float(r[i_l2]) if i_l2 is not None else None,
+                                       float(r[i_ma]) if i_ma is not None else None))
             except (ValueError, IndexError):
                 pass
-        l2s = [x[1] for x in run["metrics"]]
+        l2s = [x[1] for x in run["metrics"] if x[1] is not None]
         if l2s:
             run["l2"] = sum(l2s) / len(l2s)
     except OSError:

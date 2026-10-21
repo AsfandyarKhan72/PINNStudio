@@ -94,6 +94,14 @@ _app = QApplication.instance() or QApplication(sys.argv)
 from pinnstudio.ui.main_window import MainWindow
 
 
+
+def _tmpdir():
+    """A temporary folder whose removal may fail on Windows (a file still
+    open) without failing the test; ignore_cleanup_errors needs Python 3.10."""
+    if sys.version_info >= (3, 10):
+        return tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
+    return tempfile.TemporaryDirectory()
+
 def _train_and_save_model(tmpdir, is_3d, is_2d, steady, layers, tag):
     """Same minimal real-checkpoint helper as test_restore_steady_state.py."""
     import deepxde as dde
@@ -157,11 +165,11 @@ def run():
     # settings-dialog side effect (dialog.exec()) -- unrelated to this fix,
     # and blocking under headless/offscreen test runs with no one to close it
     # (same workaround test_restore_steady_state.py already uses).
-    win._restore_viz_settings = dict(win._restore_viz_settings or {})
-    win._restore_viz_settings["resolution"] = 16  # speed only
+    win._plot_viz_settings = dict(win._restore_viz_settings or {})
+    win._plot_viz_settings["resolution"] = 16  # speed only
 
     # ── Case 1: steady 2D Surface restore, stale animation GIF present ──
-    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmpdir:
+    with _tmpdir() as tmpdir:
         layers = [2, 16, 16, 1]
         model_path = _train_and_save_model(tmpdir, False, True, True, layers, "steady_2d")
         cfg = {
@@ -221,7 +229,7 @@ def run():
               f"(the user's reported bug: a stale leftover animation GIF gets shown instead)")
 
     # ── Case 2: transient 2D Animation Surface restore, stale plot.png ──
-    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmpdir:
+    with _tmpdir() as tmpdir:
         layers = [3, 16, 16, 1]
         model_path = _train_and_save_model(tmpdir, False, True, False, layers, "transient_2d")
         cfg = {

@@ -39,7 +39,7 @@ fi
 
 say ""
 say "Installing PINNStudio and the PyTorch build for this computer (this takes a few minutes)..."
-uv tool install --upgrade --reinstall-package pinnstudio --python 3.12 --torch-backend auto "$PKG"
+uv tool install --upgrade --reinstall-package pinnstudio --refresh-package pinnstudio --python 3.12 --torch-backend auto "$PKG"
 
 uv tool update-shell >/dev/null 2>&1 || true
 BIN="$(uv tool dir --bin)"
@@ -61,9 +61,19 @@ if [ -n "$GPU" ]; then
 elif command -v nvidia-smi >/dev/null 2>&1; then
     say "An NVIDIA GPU was found, but PyTorch cannot use it; PINNStudio will train on the CPU."
     say "See 'GPU troubleshooting' in the README: https://github.com/AsfandyarKhan72/PINNStudio#installation"
+elif [ "$(uname -s)" = "Darwin" ]; then
+    say "PINNStudio trains on the CPU on a Mac (Apple's GPU was no faster for PINNs in our tests)."
 else
     say "No NVIDIA GPU found: PINNStudio will train on the CPU."
 fi
 say ""
 if [ -n "$WHERE" ]; then say "Done. Open PINNStudio from $WHERE, or run: pinnstudio"; else say "Done. Start PINNStudio with: pinnstudio"; fi
 say "(The pinnstudio command works in new terminals. In this one, run: $BIN/pinnstudio)"
+# Another PINNStudio (an older pip, venv or conda install) found first on the
+# PATH would start instead of this one.
+OTHER=$(command -v pinnstudio 2>/dev/null || true)
+if [ -n "$OTHER" ] && [ "$OTHER" != "$BIN/pinnstudio" ]; then
+    say ""
+    say "Note: the pinnstudio command in this terminal runs $OTHER,"
+    say "another (possibly older) installation. Remove it, or start this one with $BIN/pinnstudio"
+fi

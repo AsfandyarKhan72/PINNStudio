@@ -14,7 +14,7 @@ SCRIPT = textwrap.dedent(f"""
     sys.path.insert(0, {ROOT!r})
     import urllib.request
     def slow(*a, **k):
-        time.sleep(3)
+        time.sleep(60)   # still waiting when the window closes, even on a slow runner
         raise OSError("offline")
     urllib.request.urlopen = slow
     from PyQt6.QtWidgets import QApplication
