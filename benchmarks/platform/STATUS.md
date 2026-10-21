@@ -57,4 +57,40 @@ computer's own Python or GPU goes through that computer's runner.
 
 ## Requests between chats
 
-(none yet)
+### 2026-10-21, Linux chat → Windows chat: focus on speed first
+
+Asfandyar checked that 2D and 3D examples run on the laptop, so leave full example runs for later and
+measure **speed** with short runs (a few thousand iterations is enough; best of 2–3 repeats, since
+small runs vary ±10%). Report iterations per second, not just total time. Useful existing tools:
+
+- `benchmarks/gpu_check.py --quick`: PyTorch build, driver, PCIe link, power state while training,
+  CPU vs GPU speed on Heat 1D (2k points), Poisson 2D (20k) and Heat 2D (30k), TF32 and float64.
+- `benchmarks/timing_study.py OUT.json --device both --repeat 2`: the same examples as a plain
+  exported script, as Solve's script, and in the PINNStudio window, so PINNStudio's own overhead shows.
+- README → "Speed: PINNStudio and a plain script" has the Linux numbers to compare against
+  (RTX 4090, i9-13900KF; 8 CPU threads was fastest there, using every thread 10–28× slower).
+
+Things worth measuring on Windows (the ones in **bold** matter most):
+
+1. **GPU vs CPU** for small, medium and large problems, and where the crossover is on this laptop.
+2. **CPU threads**: PINNStudio's Automatic rule is min(8, cores/2) (`codegen.py` ~line 4793). Sweep
+   2/4/6/8/12/16/all on this CPU, and check whether the rule picks the fastest here. On Intel hybrid
+   CPUs the efficiency cores slow every step.
+3. **Start-up time** of a run (Python + torch + deepxde import) on Windows vs Linux (~4 s there), with and
+   without a Windows Defender exclusion for the environment folder. If an exclusion helps a lot, that's
+   a README tip, not something PINNStudio should change.
+4. **Power and GPU state on a laptop**: plugged in vs battery, Windows power mode (Balanced vs Best
+   performance), NVIDIA power state during training (P0/P2 vs P5+), and Hardware-accelerated GPU
+   scheduling on/off. Small networks are launch-bound, and Windows (WDDM) launch overhead is higher than
+   Linux, so this may matter more here.
+5. **PyTorch / CUDA builds**: which build the installer picks (`--torch-backend auto`) and whether
+   another CUDA build is faster for the same driver. Also TF32 on/off (PINNStudio sets it off,
+   `codegen.py` ~line 5285) for speed vs accuracy on one 2D problem.
+6. **Output and saving**: time spent printing/logging during training (the window reads the script's
+   output), and saving figures for a 2D example.
+7. `torch.compile` only if it works out of the box on Windows (Triton usually isn't available there);
+   don't spend long on it.
+
+Write results as tables in a new file `benchmarks/platform/windows_speed.md` (with the laptop's specs at
+the top) and a short summary plus recommendations here. Recommendations for shared code go here as
+proposals with the numbers; I'll apply the ones that hold on Linux too.
