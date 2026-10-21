@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 - The "newer version available" notice told everyone to run `pip install --upgrade pinnstudio`. For a copy installed with the one-command installer that updated (or created) a second copy somewhere else and left theirs old. It now gives the installer command for an installer copy, and for a pip copy the pip of the Python PINNStudio runs in. The command in the notice can be selected and copied.
 - When another PINNStudio (an older pip, venv or conda install) comes first on the PATH, the installers now say where it is, which version it is, and the exact command that removes it, in a block that is hard to miss, instead of one line at the end. Nothing is removed by the installer.
+- A problem saved from an example or template could not find its reference or measured-data files on another computer: the file stored them as full paths into the reference_data folder of the computer that saved it. Saving now writes them as `@REF/...` (inside reference_data), and opening points them at this installation's reference_data. A file saved before this is repaired on opening too: a reference_data path from another computer is pointed at the same file here.
 
 ### Added
 - The installers print the version they installed ("PINNStudio 1.5.0 installed.").

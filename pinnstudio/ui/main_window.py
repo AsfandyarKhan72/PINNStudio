@@ -18,6 +18,7 @@ from pinnstudio.core.runner import run_pinn
 from pinnstudio.core import deepxde_examples as _dx_examples
 from pinnstudio.core import pinnstudio_examples as _ps_examples
 from pinnstudio.core import example_catalog as _ex_catalog
+from pinnstudio.core import portable_paths as _portable
 from pinnstudio.ui.sci_spinbox import SciSpinBox
 from pinnstudio.core.config import LBFGS_RECOMMENDED
 from pinnstudio.ui.sketch_canvas import SketchPanel
@@ -9775,7 +9776,8 @@ class MainWindow(QMainWindow):
             "problem_name": problem_name,
             "saved_with_pinnstudio_version": installed_version,
             "saved_at": datetime.now().isoformat(timespec="seconds"),
-            "config": dataclasses.asdict(config),
+            # reference_data paths as "@REF/...", so the file works on another computer
+            "config": _portable.to_portable(dataclasses.asdict(config), REFERENCE_DATA_DIR),
         }
         origin = self._template_origin()
         if origin:
@@ -9901,6 +9903,9 @@ class MainWindow(QMainWindow):
             return
         known_fields = {f.name for f in dataclasses.fields(PINNConfig)}
         filtered = {k: v for k, v in raw_config.items() if k in known_fields}
+        # "@REF/..." (and reference_data paths saved on another computer)
+        # point into this installation's reference_data folder
+        filtered = _portable.from_portable(filtered, REFERENCE_DATA_DIR)
         try:
             config = PINNConfig(**filtered)
         except Exception as e:
