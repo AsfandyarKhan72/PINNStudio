@@ -347,7 +347,7 @@ Loading an example fills in every setting, and you can change any of them before
 
 **Error Analysis reference:** where the problem has an exact solution, Error Analysis compares against it directly (*Exact solution*). Otherwise it uses reference files computed independently of the PINN (*Generated data*): PINNStudio's own reference solutions in [`reference_data/`](reference_data), or data computed by [`tools/make_deepxde_reference_data.py`](tools/make_deepxde_reference_data.py) (no data is copied from DeepXDE's repository). Examples marked "—" have no bundled reference; you can add your own files in the Error Analysis dialog.
 
-Every result shown below comes from one training run with the example's settings on an RTX 4090. Errors are relative $L_2$ errors from Error Analysis, and they vary a little from run to run.
+Every result shown below comes from one training run with the example's settings on an RTX 4090. Errors are relative $L_2$ errors from Error Analysis, and they vary a little from run to run. Many DeepXDE examples are set up to show how the library works, so they train briefly or on a small network; the [tuning study](benchmarks/tuning_study.md) reruns the 21 with the largest errors with more iterations, a larger network, more points or an added L-BFGS phase. Most errors drop several times, some more than 100 times, and each tuned setup is there as a problem file to open in PINNStudio.
 
 The table is ordered by dimension (ODE, 1D, 2D, 3D), then steady before time-dependent and forward before inverse; examples of the same problem sit next to each other, with Allen-Cahn and then Cahn-Hilliard first in each group.
 
