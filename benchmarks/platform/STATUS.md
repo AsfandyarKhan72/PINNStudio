@@ -43,6 +43,29 @@ computer's own Python or GPU goes through that computer's runner.
 
 ## Windows chat: notes
 
+- 2026-10-21, first speed results (details will go in `windows_speed.md`):
+  - **Laptop:** Alienware m17 (2018), Core i9-8950HK (6 cores / 12 threads, no efficiency cores), 32 GB,
+    RTX 2080 Max-Q 8 GB (Turing, compute 7.5), driver 546.29 (CUDA 12.3), WDDM, Windows 11 Enterprise
+    26200, plugged in, power mode Best performance. Home folder `C:\Users\CMD LAB` (space).
+  - **Installer's PyTorch:** `--torch-backend auto` picked `torch 2.9.0+cu129` for a driver that reports
+    CUDA 12.3. It works (CUDA 12.x minor-version compatibility), GPU found. Install of `cleanup` from a local
+    folder: 7.5 min, most of it the 2.9 GB torch download.
+  - **This CPU runs hot:** 96 °C under load, stuck at its 2.9 GHz base clock (no turbo). While training,
+    other programs used ~3.5 of 12 threads: Windows Search indexing the new environment (78k files; it
+    was under the user folder, not AppData), WMI host polled by Dell's Alienware software, AnyDesk. So the
+    absolute numbers are low; comparisons on this laptop are still fair.
+  - **gpu_check --quick, GPU** (Adam it/s; RTX 4090 for comparison where the README has it):
+    Heat 1D 2k 59 it/s (GPU 30 % busy, 470 MHz); Poisson 2D 20k 26 it/s (43 % busy; 4090: 139–162);
+    Heat 2D 30k 28 it/s (38 % busy). The GPU waits on the CPU (Python + kernel launches under WDDM), so
+    even the 2D problems are CPU-bound here. CPU Heat 1D: 34 it/s at 6 threads.
+  - **TF32** 1.07× (Turing has no TF32 hardware), **float64** 6× slower. PINNStudio's defaults are right.
+  - **torch.compile** fails out of the box on Windows (`TritonMissing`). Not worth pursuing.
+  - **Start-up** (new process, median of 5): `import torch` 5.2 s, `import torch, deepxde` 9.9 s (Linux
+    about 4 s). Checking now how much of it is Windows Defender (exclusion on/off, removed after).
+  - Possible issue to check in the timing-study logs: torch 2.9 prints a UserWarning that
+    `torch.backends.cuda.matmul.allow_tf32` is deprecated after 2.9 (seen in gpu_check). If PINNStudio's
+    scripts trigger it too (`codegen.py` ~5285), it shows in the Training Log; then the new
+    `fp32_precision` API would be the fix when torch has it.
 - 2026-10-21: started. Plan: record the laptop's setup; install `cleanup` in a separate test
   environment inside `PINNStudio_Windows` (own uv tool dir, own USERPROFILE for results and logs, so
   the user's own install, shortcuts and results are not touched); check start-up, GPU use and all 81
