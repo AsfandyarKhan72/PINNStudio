@@ -56,6 +56,8 @@ def save(out, rows):
         json.dump(old + rows, f, indent=1)
 
 
+# To hide the GPU, "-1" and not "": on Windows an empty value counts as unset for CUDA, so the GPU
+# stays visible while PyTorch's Python side sees no devices (STATUS.md, 2026-10-21).
 def child(args, env=None, timeout=3600):
     """Run this file again in a new Python process; return its last JSON line."""
     e = dict(os.environ)
@@ -124,7 +126,7 @@ def cmd_threads(a):
             speeds = []
             for rep in range(a.repeat):
                 r = child(["_case", prob, "cpu", str(adam), "--threads", str(n)],
-                          env={"OMP_NUM_THREADS": str(n), "CUDA_VISIBLE_DEVICES": ""})
+                          env={"OMP_NUM_THREADS": str(n), "CUDA_VISIBLE_DEVICES": "-1"})
                 speeds.append(r.get("adam_it_per_s"))
                 if "error" in r:
                     print(f"  {prob} threads={n}: {r['error'][-300:]}")
@@ -144,7 +146,7 @@ def cmd_sizes(a):
             adam = 2000 if dev == "cuda" else max(40, int(400 * 2000 / n))
             speeds = []
             for rep in range(a.repeat):
-                env = {"CUDA_VISIBLE_DEVICES": ""} if dev == "cpu" else {}
+                env = {"CUDA_VISIBLE_DEVICES": "-1"} if dev == "cpu" else {}
                 r = child(["_case", f"Poisson 2D n={n}", dev, str(adam)] +
                           (["--threads", str(auto_threads())] if dev == "cpu" else []), env=env)
                 speeds.append(r.get("adam_it_per_s"))
