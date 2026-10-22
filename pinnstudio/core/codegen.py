@@ -4819,6 +4819,23 @@ def _cpu_only_line(config):
         return 'os.environ["CUDA_VISIBLE_DEVICES"] = "-1"   # Train on: CPU (PINNStudio GPU / Hardware settings)\n'
     return ""
 
+def _small_problem_gpu_tip(config):
+    """A line for the Training Log when a small 1D problem trains on the GPU:
+    with a small network a GPU step mostly waits on Python, and such problems
+    often train faster on the CPU (README, timing study; Windows laptop study
+    in benchmarks/platform/windows_speed.md). Only a hint: nothing is changed."""
+    if getattr(config, "train_device", "auto") != "auto":
+        return ""
+    if config.problem_dim not in ("1D", "ODE"):
+        return ""
+    points = int(config.num_domain or 0) + int(config.num_boundary or 0) + int(config.num_initial or 0)
+    widths = [int(w) for w in list(config.layers)[1:-1]] or [0]
+    if points > 3000 or max(widths) > 64:
+        return ""
+    return ('    print("  [Tip] A small 1D problem like this one often trains faster on the CPU: "\n'
+            '          "Settings -> GPU / Hardware -> Train on: CPU.")\n')
+
+
 def generate_script(config):
     config = _effective_config(config)
     # Naming convention (cleanup Round 55): generation-time Python names in
@@ -5197,6 +5214,7 @@ if _dxde_ver is not None and _dxde_ver < (1, 13, 0):
         config, "        ", "_ic_gt_pre", "_ic_ics_pre", _ic_pretrain_num_initial_safe,
         "_ic_only_weights", "net", (f'_os.path.join({config.save_dir!r}, "ic_pretrain")' if (config.save_dir or "").strip() else '_os.path.join(__import__("tempfile").gettempdir(), "pinnstudio_ic_pretrain")'),
         "_os", "  ", _safe_point_distribution)
+    _small_gpu_tip = _small_problem_gpu_tip(config)
     _ic_pretrain_block_ta = _ic_pretrain_train_code(
         config, "            ", "_ic_gt_pt", "_ic_constraints_pt", _ic_pretrain_num_initial_safe,
         "_ic_only_weights", "model_i.net", (f'_os.path.join({config.save_dir!r}, "ic_pretrain")' if (config.save_dir or "").strip() else '_os.path.join(__import__("tempfile").gettempdir(), "pinnstudio_ic_pretrain")'),
@@ -5302,8 +5320,14 @@ if torch.cuda.is_available():
 
     # ── Performance settings ──────────────────────────────────
     _is_f64 = "{config.float_type}" == "float64"
-    torch.backends.cuda.matmul.allow_tf32 = False
-    torch.backends.cudnn.allow_tf32       = False
+    # TF32 off (full float32 precision). PyTorch 2.9 replaced allow_tf32
+    # with fp32_precision and warns about the old name.
+    if hasattr(torch.backends.cuda.matmul, "fp32_precision"):
+        torch.backends.cuda.matmul.fp32_precision = "ieee"
+        torch.backends.cudnn.fp32_precision = "ieee"
+    else:
+        torch.backends.cuda.matmul.allow_tf32 = False
+        torch.backends.cudnn.allow_tf32       = False
     torch.backends.cudnn.benchmark        = False
     torch.backends.cudnn.deterministic    = False
 
@@ -5318,7 +5342,7 @@ if torch.cuda.is_available():
     print(f"   TF32:         False")
     print(f"   Float type:   {config.float_type}")
     print(f"   cuDNN bench:  False")
-else:
+{_small_gpu_tip}else:
     print("⚠️ No GPU found — running on CPU")
 
 # ── Save directory setup ─────────────────────────────────────

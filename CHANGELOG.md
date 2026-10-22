@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- A tip in the Training Log when a small 1D problem (up to 3,000 points, hidden layers up to 64 wide) trains on the GPU with *Train on: Automatic*: such problems often train faster on the CPU. Nothing is changed by it.
+- README, Speed section: what differs on Windows (slower start of a run, an optional Windows Defender exclusion, power mode on laptops), from a Windows laptop study in `benchmarks/platform/windows_speed.md`.
+
+### Changed
+- TF32 is turned off with PyTorch's `fp32_precision` setting when the installed PyTorch has it (2.9 and newer), which avoids the warning about the old `allow_tf32` setting. Older PyTorch uses `allow_tf32` as before.
+
 ### Fixed
 - *Train on: CPU* did not work on Windows with an NVIDIA GPU: the GPU was hidden with an empty `CUDA_VISIBLE_DEVICES`, which Windows treats as unset, so Solve's script stopped with "Invalid device id" and the exported script trained on the GPU anyway. It is now hidden with `-1`, which works the same on every platform. Found on a Windows laptop.
 - Every GPU run on Windows printed a warning that expandable segments are not supported, and with PyTorch 2.9 or newer every GPU run printed that `PYTORCH_CUDA_ALLOC_CONF` is deprecated. The allocator setting now leaves expandable segments out on Windows and uses `PYTORCH_ALLOC_CONF` with PyTorch 2.9 and newer. A value you set yourself is kept.
