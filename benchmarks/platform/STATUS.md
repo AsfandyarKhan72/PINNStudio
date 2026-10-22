@@ -43,6 +43,13 @@ computer's own Python or GPU goes through that computer's runner.
 
 ## Windows chat: notes
 
+- 2026-10-21, speed study done (all numbers in `benchmarks/platform/windows_speed.md`, summary at the top).
+  Short version: PINNStudio is as fast as a plain DeepXDE script on Windows (GPU and CPU, Solve and the
+  window); the installer's PyTorch choice, the CPU-thread rule, TF32 off and float32 are all right here.
+  Found one bug and three things worth changing; proposals with numbers under "Requests between chats".
+  Also: the laptop's GPU is ~10× slower than the 4090 on every README example, largely because each GPU
+  step has a fixed cost of ~11 ms here (CPU-bound: hot CPU without turbo, plus WDDM launches), so the 1D
+  examples train 1.5–3× faster on the CPU on this laptop.
 - 2026-10-21, first speed results (details will go in `windows_speed.md`):
   - **Laptop:** Alienware m17 (2018), Core i9-8950HK (6 cores / 12 threads, no efficiency cores), 32 GB,
     RTX 2080 Max-Q 8 GB (Turing, compute 7.5), driver 546.29 (CUDA 12.3), WDDM, Windows 11 Enterprise
@@ -62,10 +69,8 @@ computer's own Python or GPU goes through that computer's runner.
   - **torch.compile** fails out of the box on Windows (`TritonMissing`). Not worth pursuing.
   - **Start-up** (new process, median of 5): `import torch` 5.2 s, `import torch, deepxde` 9.9 s (Linux
     about 4 s). Checking now how much of it is Windows Defender (exclusion on/off, removed after).
-  - Possible issue to check in the timing-study logs: torch 2.9 prints a UserWarning that
-    `torch.backends.cuda.matmul.allow_tf32` is deprecated after 2.9 (seen in gpu_check). If PINNStudio's
-    scripts trigger it too (`codegen.py` ~5285), it shows in the Training Log; then the new
-    `fp32_precision` API would be the fix when torch has it.
+  - (Checked later: the torch 2.9 TF32 deprecation warning does not appear in PINNStudio's scripts; it
+    came from gpu_check turning TF32 on.)
 - 2026-10-21: started. Plan: record the laptop's setup; install `cleanup` in a separate test
   environment inside `PINNStudio_Windows` (own uv tool dir, own USERPROFILE for results and logs, so
   the user's own install, shortcuts and results are not touched); check start-up, GPU use and all 81
@@ -79,6 +84,38 @@ computer's own Python or GPU goes through that computer's runner.
   repo). Good test case for PINNStudio itself: every path PINNStudio builds from `~` has a space here.
 
 ## Requests between chats
+
+### 2026-10-21, Windows chat → Linux chat: proposals from the Windows speed study
+
+In order of value for the work. Evidence in `windows_speed.md`.
+
+1. **Fix Train on: CPU** (the bug below): `"-1"` instead of `""`.
+2. **Installers: add `--compile-bytecode`** to `uv tool install` in `get-pinnstudio.ps1` and `.sh` (and
+   `pip install --compile`/nothing extra needed for venv installs, pip compiles by default). Measured on
+   Windows: first start after installing 17–18 s (37 s cold) → 8.4–8.8 s; install 20–55 s longer. It
+   should help on Linux and macOS too (uv doesn't compile bytecode there either).
+3. **The allocator line, `codegen.py` line 14**: every GPU run on Windows prints
+   `UserWarning: expandable_segments not supported on this platform` and, with torch ≥ 2.9 on every
+   platform, `PYTORCH_CUDA_ALLOC_CONF is deprecated, use PYTORCH_ALLOC_CONF instead`. Suggest: leave out
+   `expandable_segments:True` on Windows (`sys.platform == "win32"`), and pick the variable name from the
+   installed torch version without importing it (`importlib.metadata.version("torch")` ≥ 2.9 →
+   `PYTORCH_ALLOC_CONF`).
+4. **Start-up is 7–9 s a run on Windows** (Linux ~4 s), paid again by every sweep combination. Two ideas,
+   for Asfandyar to decide: (a) a warm worker: start the next run's Python with torch and deepxde already
+   imported while the window is idle, so Solve and sweeps skip it; (b) upstream, ask DeepXDE to import
+   scikit-learn lazily (`deepxde/utils/external.py` imports it for `standardize()` only; 2.0 s of the
+   4.7 s DeepXDE import here).
+5. **GPU or CPU for small problems** (for Asfandyar): on this laptop the GPU only pays off above ~1,000
+   points; the 1D examples train 1.5–3× faster on the CPU, and even on the 4090 the inverse Diffusion 1D
+   example is 2.2× faster on the CPU (README). Since nothing should be chosen silently, a hint is the
+   lighter option: e.g. a line in the Training Log when a small 1D problem trains on the GPU ("small
+   problems are often faster with Train on: CPU"), or the Hardware settings' help text.
+6. **README tips** (Windows): an optional Defender exclusion for uv's tool folder saves 1.5–2 s a start and
+   halves install time; on laptops, plug in and use the "Best performance" power mode.
+
+Nothing needed for: CPU threads (Automatic picks 6 here, the best or within 10 %), TF32/float64 defaults,
+`torch.compile` (no Triton on Windows), the PyTorch build (`--torch-backend auto` chose cu129 correctly;
+cu130 can't use driver 546), output while training (no cost).
 
 ### 2026-10-21, Windows chat → Linux chat: BUG, "Train on: CPU" is broken on Windows with an NVIDIA GPU (please fix first)
 
