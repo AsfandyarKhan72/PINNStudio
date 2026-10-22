@@ -25,7 +25,9 @@ import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
-sys.path.insert(0, ROOT)
+INSTALLED = os.environ.get("WIN_CHECKS_INSTALLED") == "1"    # test the installed PINNStudio, not this checkout
+if not INSTALLED:
+    sys.path.insert(0, ROOT)
 sys.path.insert(0, os.path.dirname(HERE))       # benchmarks/, for timing_study's helpers
 
 STILL_ACTIVE = 259
@@ -59,6 +61,8 @@ def gpu_pids():
 
 def window():
     import timing_study as ts
+    if INSTALLED:          # timing_study puts this checkout first on sys.path; take it out again
+        sys.path[:] = [p for p in sys.path if os.path.abspath(p) != os.path.abspath(ROOT)]
     from PyQt6.QtWidgets import QMessageBox
     app, w = ts._window()
     # closing while a run trains asks "Stop it and quit?": answer Yes; "save changes?": No
@@ -202,9 +206,11 @@ def cmd_parent_dies():
                      "training process still on the GPU": pid in gpu_pids(),
                      "window output (last lines)": rest.strip().splitlines()[-6:]}
         print(mode, json.dumps(res[mode], ensure_ascii=False), flush=True)
+        t_end = time.time() + 240
+        while alive(pid) and time.time() < t_end:
+            time.sleep(1)
+        res[mode]["training process ended after s (max 240)"] = None if alive(pid) else round(243 - (t_end - time.time()))
         if alive(pid):
-            time.sleep(10)
-            res[mode]["training process still running 13 s later"] = alive(pid)
             subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], capture_output=True)
     print(json.dumps(res, indent=1, ensure_ascii=False))
 
