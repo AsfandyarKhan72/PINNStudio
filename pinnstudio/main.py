@@ -28,14 +28,12 @@ def _check_gpu_torch_mismatch():
             return
     except Exception:
         pass
+    from pinnstudio.core import torch_index
     print("=" * 70)
-    print("An NVIDIA GPU was detected, but PyTorch cannot use it.")
-    print("This usually happens when PyTorch was installed with pip install pinnstudio directly,")
-    print("which can pull a CUDA build newer than what your GPU driver supports.")
-    print("Fix it with these two commands:")
-    print("  pip install --upgrade pip")
-    print("  pip install torch --index-url https://download.pytorch.org/whl/cu121 --force-reinstall")
-    print("(PINNStudio will still run on CPU in the meantime.)")
+    print("An NVIDIA GPU was detected, but PyTorch cannot use it (PINNStudio runs on the CPU for now).")
+    print("This happens with a CPU-only PyTorch, or one built for a newer CUDA than the driver supports.")
+    for line in torch_index.gpu_fix_lines(torch_index.select_tag()):
+        print(line)
     print("=" * 70)
 
 def main():
