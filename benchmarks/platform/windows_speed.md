@@ -62,13 +62,36 @@ Automatic rule, min(8, logical CPUs / 2), gives 6 here.
 | Threads | Heat 1D (2k points) | Poisson 2D (20k points) | Heat 2D (30k points) |
 |---|---|---|---|
 | 1 | 49 | 1.0 | 1.3 |
-| 2 | 66 | 1.3 | |
+| 2 | 66 | 1.3 | 1.7 |
 | 3 | 61 | 1.4 | |
-| 4 | **69** | **1.5** | |
-| **6 (Automatic)** | 62 | **1.5** | |
-| 8 | 65 | **1.5** | |
+| 4 | **69** | **1.5** | **1.9** |
+| **6 (Automatic)** | 62 | **1.5** | **1.9** |
+| 8 | 65 | **1.5** | 1.8 |
 | 10 | 59 | **1.5** | |
-| 12 (every thread) | 42 | 1.3 | |
+| 12 (every thread) | 42 | 1.3 | 1.1 |
+
+(Heat 2D: best of 2. The 1-thread Heat 2D run is from the first sweep, the others from a second one.)
+
+**The Automatic rule picks well on this CPU:** 6 threads is the fastest or within 10 % of it for every
+size, and every thread (12) is 15–40 % slower. On this 6-core CPU without efficiency cores, the slowdown
+from using every thread is far smaller than on the i9-13900KF (10–28×), but it is still there.
+
+## GPU or CPU: where the GPU starts to pay off (platform_bench.py sizes)
+
+Poisson 2D, a 4×64 network, Adam iterations a second, best of 2 (CPU with Automatic threads):
+
+| Points | CPU | GPU | |
+|---|---|---|---|
+| 500 | 47 | 39 | CPU 1.2× faster |
+| 2,000 | 37 | 47 | GPU 1.3× |
+| 8,000 | 11 | 43 | GPU 3.8× |
+| 32,000 | 2.1 | 34 | GPU 16× |
+| 64,000 | 1.3 | 23 | GPU 18× |
+
+The crossover is around 1,000 points. Up to 8,000 points the GPU's speed hardly changes (39–47 it/s): each
+step costs the same fixed time to launch, whatever the size, and only from about 30,000 points does the
+GPU's own work start to show. The same holds on Linux, with a much lower fixed cost (README: the 4090
+runs these sizes at 139–162 it/s).
 
 ## Start-up of a run
 
@@ -112,3 +135,19 @@ Heat 1D on the GPU, 3,000 Adam steps, the script's output read line by line thro
 | 10 steps | 321 | 52 |
 
 Printing and reading the log costs nothing measurable.
+
+## Bug found: "Train on: CPU" on Windows with an NVIDIA GPU
+
+PINNStudio hides the GPU for *Train on: CPU* with `os.environ["CUDA_VISIBLE_DEVICES"] = ""`. On Windows an
+empty variable counts as unset for CUDA, so the GPU stays visible, while PyTorch's Python side sees 0
+devices:
+
+| `CUDA_VISIBLE_DEVICES` | `cuda.is_available()` | `device_count()` | `get_device_properties(0)` |
+|---|---|---|---|
+| not set | True | 1 | ok |
+| `""` | True | 0 | AssertionError: Invalid device id |
+| `"-1"` | False | 0 | RuntimeError: no CUDA GPUs |
+
+With *Train on: CPU*, Solve's script stops with "Invalid device id" before training, and the exported
+script trains on the GPU. With `"-1"` both run on the CPU. Proposed in STATUS.md (a one-line change in
+`codegen.py`, plus the tests and `timing_study.py` that use the same empty value).
