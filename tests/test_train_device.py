@@ -14,7 +14,7 @@ from pinnstudio.core.config import PINNConfig
 from pinnstudio.ui.main_window import MainWindow
 
 app = QApplication.instance() or QApplication([])
-LINE = 'os.environ["CUDA_VISIBLE_DEVICES"] = ""'
+LINE = 'os.environ["CUDA_VISIBLE_DEVICES"] = "-1"'
 
 
 def test_scripts():

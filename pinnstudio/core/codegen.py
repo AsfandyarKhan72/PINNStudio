@@ -11,7 +11,25 @@ os.environ["DDE_BACKEND"] = "pytorch"
 # present, same as it already does for everyone via the ordinary prebuilt
 # CUDA wheels install.sh/select_torch_index.py picks for their driver.)
 os.environ["CUDA_LAUNCH_BLOCKING"] = "0"        # async CUDA launches
-os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:512,expandable_segments:True"
+# The allocator settings: PyTorch 2.9 renamed the variable (the old name
+# warns there), and Windows has no expandable segments (it warns on every
+# GPU run). The installed torch version is read without importing torch.
+# A value the user has set already is left alone.
+def _torch_alloc_env():
+    import sys as _sys
+    try:
+        from importlib.metadata import version as _v
+        _tv = tuple(int(x) for x in re.findall(r"\d+", _v("torch"))[:2])
+    except Exception:
+        _tv = (0, 0)
+    name = "PYTORCH_ALLOC_CONF" if _tv >= (2, 9) else "PYTORCH_CUDA_ALLOC_CONF"
+    value = "max_split_size_mb:512" + ("" if _sys.platform == "win32" else ",expandable_segments:True")
+    return name, value
+
+
+_alloc_name, _alloc_value = _torch_alloc_env()
+if not (os.environ.get("PYTORCH_ALLOC_CONF") or os.environ.get("PYTORCH_CUDA_ALLOC_CONF")):
+    os.environ[_alloc_name] = _alloc_value
 
 import ast as _bc_ast
 import json as _bc_json_std
@@ -4796,7 +4814,9 @@ if not torch.cuda.is_available() and "OMP_NUM_THREADS" not in os.environ:
 def _cpu_only_line(config):
     """Train on: CPU -- PyTorch then sees no GPU (set before it is imported)."""
     if getattr(config, "train_device", "auto") == "cpu":
-        return 'os.environ["CUDA_VISIBLE_DEVICES"] = ""   # Train on: CPU (PINNStudio GPU / Hardware settings)\n'
+        # "-1", not "": on Windows the CUDA runtime treats an empty variable
+        # as unset and still sees the GPU, while PyTorch counts 0 devices
+        return 'os.environ["CUDA_VISIBLE_DEVICES"] = "-1"   # Train on: CPU (PINNStudio GPU / Hardware settings)\n'
     return ""
 
 def generate_script(config):

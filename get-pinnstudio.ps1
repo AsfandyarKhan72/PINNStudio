@@ -38,7 +38,7 @@ Write-Host "Installing PINNStudio and the PyTorch build for this computer (this 
 # PyTorch has no build for ARM Windows: on an ARM PC, use the x64 Python,
 # which Windows runs under emulation.
 $py = if ($env:PROCESSOR_ARCHITECTURE -eq "ARM64") { "cpython-3.12-windows-x86_64-none" } else { "3.12" }
-uv tool install --upgrade --reinstall-package pinnstudio --refresh-package pinnstudio --python $py --torch-backend auto $pkg
+uv tool install --compile-bytecode --upgrade --reinstall-package pinnstudio --refresh-package pinnstudio --python $py --torch-backend auto $pkg
 if ($LASTEXITCODE -ne 0) { Fail "The installation failed (see the messages above)." }
 
 uv tool update-shell *> $null

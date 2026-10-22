@@ -71,7 +71,7 @@ fi
 
 say ""
 say "Installing PINNStudio and the PyTorch build for this computer (this takes a few minutes)..."
-uv tool install --upgrade --reinstall-package pinnstudio --refresh-package pinnstudio --python 3.12 --torch-backend auto "$PKG"
+uv tool install --compile-bytecode --upgrade --reinstall-package pinnstudio --refresh-package pinnstudio --python 3.12 --torch-backend auto "$PKG"
 
 uv tool update-shell >/dev/null 2>&1 || true
 BIN="$(uv tool dir --bin)"
