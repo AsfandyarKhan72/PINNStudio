@@ -7,6 +7,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- Parameter Sweep can now vary everything the training methods and tuning studies vary, so those studies can be run from the window: **Random seed** (repeat a setup), **L-BFGS phase at the end** (its iterations; 0 removes it, a number adds one after the last phase), **Per-point weights** (None, RBA, SA-PINN), **Causal training**, the network **Architecture** (FNN, PFNN, MsFFN, STMsFFN, as the network allows), **Exact periodicity**, **Exact initial condition** (the IC loss weights follow), **Time-adaptive training**, and for inverse problems **Measured data: times** (the measured data at every reference time, not only the file picked). Each is offered only where the window itself allows it.
+
+### Changed
+- A Parameter Sweep checks every run's settings before training it, as Solve does: a combination that can't be run (e.g. time windows together with an exact initial condition) is skipped with the reason in the Training Log and marked "invalid" in the summary, instead of failing inside the training script.
+
+### Added
 - A tip in the Training Log when a small 1D problem (up to 3,000 points, hidden layers up to 64 wide) trains on the GPU with *Train on: Automatic*: such problems often train faster on the CPU. Nothing is changed by it.
 - README, Speed section: what differs on Windows (slower start of a run, an optional Windows Defender exclusion, power mode on laptops), from a Windows laptop study in `benchmarks/platform/windows_speed.md`.
 

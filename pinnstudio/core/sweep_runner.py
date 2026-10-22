@@ -535,7 +535,7 @@ def run_sweep(base_config, on_run_start=None, on_output=None, on_run_done=None,
     on_output(i, total, line) fires per stdout line from that run (so a
     caller can stream progress the same way a normal Solve does).
     on_run_done(i, total, label, result) fires once a run finishes,
-    where result = {"status": "done"|"error", "final_loss": float|None,
+    where result = {"status": "done"|"error"|"invalid" (settings that can't be combined; not run), "final_loss": float|None,
     "l2_relative": float|None, "save_dir": str}.
     should_stop(), if given, is checked before each run and stops the
     sweep early (without running the remaining combinations) if it
@@ -591,7 +591,17 @@ def run_sweep(base_config, on_run_start=None, on_output=None, on_run_done=None,
                 on_output(_i, _total, line)
 
         _run_started_at = time.time()
-        status = run_pinn(cfg, on_output=_collect, set_process=set_process)
+        # A combination can be invalid even when every value is (e.g. Grid
+        # mode turning on an exact IC and time-adaptive training together):
+        # check it as Solve does and skip it with the reason, rather than
+        # letting it fail inside the training script.
+        _bad = _run_errors(cfg)
+        if _bad:
+            for _e in ["Skipped: these settings can't be combined --"] + [f"  {e}" for e in _bad]:
+                _collect(_e)
+            status = "INVALID"
+        else:
+            status = run_pinn(cfg, on_output=_collect, set_process=set_process)
 
         final_loss = None
         for m in _FINAL_LOSS_RE.finditer("\n".join(log_lines)):
@@ -609,7 +619,7 @@ def run_sweep(base_config, on_run_start=None, on_output=None, on_run_done=None,
 
         metrics = _read_run_metrics(cfg, _run_started_at)
         result = {
-            "status": "done" if status == "DONE" else "error",
+            "status": "done" if status == "DONE" else ("invalid" if status == "INVALID" else "error"),
             "final_loss": final_loss,
             "final_loss_unweighted": final_loss_unw,
             "l2_relative": metrics.get("L2_relative"),
@@ -644,6 +654,17 @@ def run_sweep(base_config, on_run_start=None, on_output=None, on_run_done=None,
             if on_output:
                 on_output(max(0, len(results) - 1), total, f"(sweep summary plot skipped: {exc})")
     return results
+
+
+def _run_errors(cfg):
+    """PINNConfig.validate() errors of one run's settings, sweep fields
+    aside (those describe the sweep, not this run)."""
+    probe = copy.deepcopy(cfg)
+    probe.sweep_enabled = False
+    try:
+        return list(probe.validate() or [])
+    except Exception as exc:          # a broken value: report it, don't crash the sweep
+        return [f"{type(exc).__name__}: {exc}"]
 
 
 def _write_sweep_manifest(sweep_root, manifest):

@@ -866,6 +866,328 @@ def _ot_scale_params(config) -> List["SweepParam"]:
     return params
 
 
+# ── Training methods, seed and a final L-BFGS phase (SCOPE v5) ──────────
+# The switches of the training methods study (benchmarks/training_methods.md)
+# and the tuning study (benchmarks/tuning_study.md), so both can be run from
+# the Parameter Sweep itself: the random seed (repeat a setup), an L-BFGS
+# phase after the last training phase, per-point weights, causal training,
+# the network type, exact periodicity, an exact initial condition,
+# time-adaptive training, and (Inverse) measured data at every reference
+# time. Each is offered only where the window itself allows it, mirroring
+# PINNConfig.validate(); a combination that validate() still rejects (e.g.
+# Grid mode turning on an exact IC and time-adaptive training together) is
+# skipped by sweep_runner with its reason, not run.
+
+_OFF_ON = ["off", "on"]
+
+
+def _onoff(v) -> bool:
+    return str(v).strip().lower() in ("on", "true", "1", "yes")
+
+
+def _time_dependent_pde(config) -> bool:
+    return not config.steady_state and config.problem_dim != "ODE"
+
+
+# final L-BFGS phase ---------------------------------------------------------
+
+def _final_lbfgs_get(config) -> int:
+    phases = _load_phases(config)
+    if len(phases) >= 2 and str(phases[-1].get("optimizer", "")).lower() == "lbfgs":
+        return int(phases[-1].get("iterations", 0))
+    return 0
+
+
+def _final_lbfgs_set(config, value) -> None:
+    """0 removes a trailing L-BFGS phase (when there is one after another
+    phase); a number sets its iterations, adding the phase after the last
+    one when there is none. The added phase copies the last phase's loss
+    and weights, as a phase added in the window does."""
+    n = int(round(float(value)))
+    phases = _load_phases(config)
+    if not phases:
+        return
+    has = len(phases) >= 2 and str(phases[-1].get("optimizer", "")).lower() == "lbfgs"
+    if n <= 0:
+        if has:
+            phases.pop()
+    elif has:
+        phases[-1]["iterations"] = n
+    else:
+        new = dict(phases[-1])
+        new.update({"optimizer": "lbfgs", "iterations": n, "decay_type": "none"})
+        phases.append(new)
+    _save_phases(config, phases)
+
+
+def _final_lbfgs_available(config) -> bool:
+    return sched_active(config) and num_phases(config) >= 1 and getattr(config, "adapt_method", "None") != "RAR"
+
+
+# per-point weights, causal training, network type -----------------------------
+
+def _pw_set(config, value) -> None:
+    v = str(value)
+    if v not in ("None", "RBA", "SA-PINN"):
+        raise ValueError(f"per-point weights: {v!r} is not None, RBA or SA-PINN")
+    config.point_weights = v
+    if v != "None":
+        # held during L-BFGS: the training methods study's setting for both
+        config.point_weights_lbfgs = "keep"
+
+
+def _causal_set(config, value) -> None:
+    on = _onoff(value)
+    config.causal_training = on
+    if on:
+        config.causal_anneal = True
+
+
+def _net_choices(config) -> List[str]:
+    out = ["FNN"]
+    if not float(getattr(config, "weight_decay", 0) or 0) > 0:
+        out.append("PFNN")
+        layers = list(getattr(config, "layers", []) or [])
+        if len(layers) >= 3 and layers[1] >= 2 and layers[1] % 2 == 0:
+            out.append("MsFFN")
+            if _time_dependent_pde(config):
+                out.append("STMsFFN")
+    cur = getattr(config, "network_type", "FNN")
+    if cur not in out:
+        out.append(cur)
+    return out
+
+
+def _net_set(config, value) -> None:
+    v = str(value)
+    if v not in ("FNN", "PFNN", "MsFFN", "STMsFFN"):
+        raise ValueError(f"network type: {v!r}")
+    config.network_type = v
+    if v in ("MsFFN", "STMsFFN") and not (getattr(config, "msffn_sigmas", "") or "").strip():
+        config.msffn_sigmas = "1, 10"
+    if v == "STMsFFN" and not (getattr(config, "msffn_sigmas_t", "") or "").strip():
+        config.msffn_sigmas_t = "1, 10"
+
+
+# exact periodicity and exact initial condition ---------------------------------
+
+def _periodic_available(config) -> bool:
+    if config.problem_dim == "ODE":
+        return False
+    from pinnstudio.core.config import _periodic_axes
+    if not _periodic_axes(config):
+        return False
+    return bool(config.periodic_inputs) or not bool(getattr(config, "input_transform_enabled", False))
+
+
+def _ic_list(config, field) -> list:
+    n_out = int(config.num_outputs or 1)
+    vals = [v.strip() for v in (getattr(config, field, "") or "").split(",")]
+    return (vals + [""] * n_out)[:n_out]
+
+
+def _exact_ic_get(config) -> str:
+    return "on" if _ic_list(config, "ic_hard")[0] == "True" else "off"
+
+
+def _exact_ic_available(config) -> bool:
+    if not _time_dependent_pde(config) or getattr(config, "forward_ic_from_file", False):
+        return False
+    if _exact_ic_get(config) == "on":
+        return True
+    # offered with time windows on too, so one sweep can switch the windows
+    # off and the exact IC on together (Specified combinations); a run with
+    # both on is skipped by sweep_runner, as Solve would refuse it
+    if getattr(config, "output_transform_enabled", False) and getattr(config, "output_transform_mode", "") == "formula" \
+            and (getattr(config, "output_transform_formula", "") or "").strip("| "):
+        return False
+    e = ((config.ic_expressions or "").split("|") or [""])[0].strip()
+    return bool(e) and "x[" not in e and "np." not in e
+
+
+def _reshape_loss_weights(config, change, new_ic_weight=100.0) -> None:
+    """Apply change(config) -- something that changes which outputs have an
+    initial-condition loss term -- and rebuild loss_weights_multi and every
+    phase's own weights for the new slot list: each PDE/BC/IC slot keeps its
+    value, a new IC slot gets new_ic_weight (PINNStudio's usual IC weight)."""
+    old = [s["key"] for s in _weight_slot_descriptors(config)]
+    old_vals = dict(zip(old, _weight_flat_list(config)))
+    old_phase = []
+    for ph in _load_phases(config):
+        try:
+            w = [float(x) for x in str(ph.get("weights", "")).split(",") if x.strip()]
+        except (TypeError, ValueError):
+            w = []
+        old_phase.append(w)
+    change(config)
+    new = [s["key"] for s in _weight_slot_descriptors(config)]
+
+    def _remap(vals_by_key, tail):
+        return [vals_by_key.get(k, new_ic_weight if k.startswith("ic_") else 1.0) for k in new] + tail
+
+    config.loss_weights_multi = ",".join(str(v) for v in _remap(old_vals, []))
+    phases = _load_phases(config)
+    for ph, w in zip(phases, old_phase):
+        if not w:
+            continue
+        by_key = dict(zip(old, w))
+        tail = w[len(old):]
+        ph["weights"] = ",".join(str(v) for v in _remap(by_key, tail))
+    if phases:
+        _save_phases(config, phases)
+
+
+def _exact_ic_set(config, value) -> None:
+    on = _onoff(value)
+
+    def _change(c):
+        hard = _ic_list(c, "ic_hard")
+        act = _ic_list(c, "ic_active")
+        hard = [h if h in ("True", "False") else "False" for h in hard]
+        act = [a if a in ("True", "False") else "False" for a in act]
+        hard[0] = "True" if on else "False"
+        act[0] = "False" if on else "True"     # the window unticks "active" for an exact IC
+        c.ic_hard = ",".join(hard)
+        c.ic_active = ",".join(act)
+    _reshape_loss_weights(config, _change)
+
+
+# time-adaptive training ------------------------------------------------------
+
+def _ta_switch_available(config) -> bool:
+    if not _time_dependent_pde(config) or config.problem_type == "Inverse":
+        return False
+    if getattr(config, "adapt_method", "None") not in ("None", "Time Adaptive"):
+        return False
+    if getattr(config, "time_adaptive", False):
+        return True
+    import re as _re
+    if _re.search(r"(?<![\w.])frac\(", config.pde_expressions or ""):
+        return False
+    # (an exact IC on doesn't hide it: a sweep can turn the IC off with it)
+    return not (getattr(config, "loss_weights_from_initial", 0) or 0)
+
+
+def _ta_switch_set(config, value) -> None:
+    on = _onoff(value)
+    config.time_adaptive = on
+    config.adapt_method = "Time Adaptive" if on else "None"
+
+
+# measured data at every reference time (Inverse) --------------------------------
+
+def _obs_times_all(config):
+    """The measured-data list with, for every file named t_<time><rest>.txt,
+    its siblings t_<other time><rest>.txt (time > 0) added; None when there
+    are none to add."""
+    import glob as _glob
+    import os as _os
+    import re as _re
+    rows = _inv_obs_files_list(config)
+    if not rows:
+        return None
+    out = [dict(r) for r in rows]
+    for r in rows:
+        folder, fname = _os.path.split(str(r.get("path", "")))
+        m = _re.match(r"t_([0-9.]+)(.*)\.txt$", fname)
+        if not m or not folder:
+            continue
+        for f in sorted(_glob.glob(_os.path.join(folder, "t_*" + m.group(2) + ".txt"))):
+            m2 = _re.match(r"t_([0-9.]+)" + _re.escape(m.group(2)) + r"\.txt$", _os.path.basename(f))
+            try:
+                tv = float(m2.group(1)) if m2 else 0.0
+            except ValueError:
+                continue
+            if m2 and tv > 0 and not any(_os.path.abspath(str(x.get("path", ""))) == _os.path.abspath(f) for x in out):
+                out.append(dict(r, path=f))
+    return out if len(out) > len(rows) else None
+
+
+def _obs_times_set(config, value) -> None:
+    if str(value) == "every reference time":
+        before = len(_inv_obs_files_list(config))
+        rows = _obs_times_all(config)
+        if rows:
+            config.inverse_obs_files_json = json.dumps(rows)
+            # each phase carries one weight per measured-data file after the
+            # PDE/BC/IC slots (see _inv_obs_set_weight): add the new files'
+            n_slots = len(_weight_slot_descriptors(config))
+            phases = _load_phases(config)
+            for ph in phases:
+                try:
+                    w = [float(x) for x in str(ph.get("weights", "")).split(",") if x.strip()]
+                except (TypeError, ValueError):
+                    continue
+                if len(w) == n_slots + before:
+                    w += [float(r["weight"]) for r in rows[before:]]
+                    ph["weights"] = ",".join(str(v) for v in w)
+            if phases:
+                _save_phases(config, phases)
+    # "as set": the measured data as they are
+
+
+def _method_params(config) -> List["SweepParam"]:
+    params = [
+        SweepParam(
+            id="random_seed", label="Random seed", category="Training",
+            value_type="int", default_min=1, default_max=5,
+            get_value=lambda c: int(getattr(c, "random_seed", 0)),
+            set_value=lambda c, v: setattr(c, "random_seed", int(round(float(v)))),
+            is_available=lambda c: True,
+        ),
+        SweepParam(
+            id="final_lbfgs", label="L-BFGS phase at the end: iterations (0 = none)", category="Training",
+            value_type="int", default_min=0, default_max=20000,
+            get_value=_final_lbfgs_get, set_value=_final_lbfgs_set,
+            is_available=_final_lbfgs_available,
+        ),
+        SweepParam(
+            id="point_weights", label="Per-point weights", category="Training Methods",
+            value_type="categorical", choices=["None", "RBA", "SA-PINN"],
+            get_value=lambda c: str(getattr(c, "point_weights", "None") or "None"),
+            set_value=_pw_set, is_available=lambda c: True,
+        ),
+        SweepParam(
+            id="causal_training", label="Causal training", category="Training Methods",
+            value_type="categorical", choices=list(_OFF_ON),
+            get_value=lambda c: "on" if getattr(c, "causal_training", False) else "off",
+            set_value=_causal_set, is_available=_time_dependent_pde,
+        ),
+        SweepParam(
+            id="network_type", label="Architecture (FNN, PFNN, MsFFN, STMsFFN)", category="Network",
+            value_type="categorical", choices=_net_choices(config),
+            get_value=lambda c: getattr(c, "network_type", "FNN"),
+            set_value=_net_set, is_available=lambda c: True,
+        ),
+        SweepParam(
+            id="periodic_inputs", label="Exact periodicity", category="Training Methods",
+            value_type="categorical", choices=list(_OFF_ON),
+            get_value=lambda c: "on" if getattr(c, "periodic_inputs", False) else "off",
+            set_value=lambda c, v: setattr(c, "periodic_inputs", _onoff(v)),
+            is_available=_periodic_available,
+        ),
+        SweepParam(
+            id="exact_ic", label="Exact initial condition", category="Training Methods",
+            value_type="categorical", choices=list(_OFF_ON),
+            get_value=_exact_ic_get, set_value=_exact_ic_set, is_available=_exact_ic_available,
+        ),
+        SweepParam(
+            id="time_adaptive", label="Time-adaptive training", category="Training Methods",
+            value_type="categorical", choices=list(_OFF_ON),
+            get_value=lambda c: "on" if getattr(c, "time_adaptive", False) else "off",
+            set_value=_ta_switch_set, is_available=_ta_switch_available,
+        ),
+        SweepParam(
+            id="inv_obs_times", label="Measured data: times", category="Inverse",
+            value_type="categorical", choices=["as set", "every reference time"],
+            get_value=lambda c: "as set",
+            set_value=_obs_times_set,
+            is_available=lambda c: _inv_available(c) and _obs_times_all(c) is not None,
+        ),
+    ]
+    return params
+
+
 # ── Static (always-available) registry entries ────────────────────────
 
 _STATIC_PARAMS: List[SweepParam] = [
@@ -1017,6 +1339,7 @@ def available_params(config) -> List[SweepParam]:
     params.extend(_ta_grid_param(config))
     params.extend(_it_scale_params(config))
     params.extend(_ot_scale_params(config))
+    params.extend(_method_params(config))
     return [p for p in params if p.is_available(config)]
 
 
