@@ -19,6 +19,12 @@ Adds what benchmarks/gpu_check.py and benchmarks/timing_study.py don't measure:
         through a pipe the way PINNStudio's window reads a run.
     python platform_bench.py compile OUT.json
         Whether torch.compile works on this computer.
+    python platform_bench.py launch OUT.json [--repeat 3]
+        The fixed cost of one step, without the problem: microseconds per tiny
+        GPU operation (kernel launch), per tiny CPU operation, and per training
+        step (forward, second derivatives, backward, Adam) of a 3x64 network on
+        64 points, on the CPU and the GPU. Small PINN problems are limited by
+        this, not by the GPU's speed.
 
 Each command adds its results to OUT.json (a list of dicts) and prints a table.
 """
@@ -262,13 +268,74 @@ def cmd_compile(a):
     save(a.out, [r])
 
 
+def _launch_case(dev, rep):
+    import torch
+    torch.manual_seed(0)
+    sync = torch.cuda.synchronize if dev == "cuda" else (lambda: None)
+    r = {"test": "launch", "device": dev, "rep": rep}
+    x = torch.zeros(16, device=dev)
+    for _ in range(200):
+        x.add_(1.0)
+    sync()
+    n = 20000
+    t0 = time.perf_counter()
+    for _ in range(n):
+        x.add_(1.0)
+    sync()
+    r["us_per_tiny_op"] = (time.perf_counter() - t0) / n * 1e6
+    net = torch.nn.Sequential(torch.nn.Linear(2, 64), torch.nn.Tanh(), torch.nn.Linear(64, 64), torch.nn.Tanh(),
+                              torch.nn.Linear(64, 64), torch.nn.Tanh(), torch.nn.Linear(64, 1)).to(dev)
+    opt = torch.optim.Adam(net.parameters(), lr=1e-3)
+    pts = torch.rand(64, 2, device=dev, requires_grad=True)
+
+    def step():
+        u = net(pts)
+        g = torch.autograd.grad(u.sum(), pts, create_graph=True)[0]
+        uxx = torch.autograd.grad(g[:, 0].sum(), pts, create_graph=True)[0][:, 0]
+        loss = (uxx ** 2).mean() + (u ** 2).mean()
+        opt.zero_grad()
+        loss.backward()
+        opt.step()
+    for _ in range(30):
+        step()
+    sync()
+    n = 500
+    t0 = time.perf_counter()
+    for _ in range(n):
+        step()
+    sync()
+    r["us_per_train_step"] = (time.perf_counter() - t0) / n * 1e6
+    return r
+
+
+def cmd_launch(a):
+    import torch
+    rows = []
+    devs = ["cpu"] + (["cuda"] if torch.cuda.is_available() else [])
+    if "cpu" in devs:
+        torch.set_num_threads(auto_threads())
+    for rep in range(a.repeat):
+        for dev in devs:
+            r = _launch_case(dev, rep)
+            r["torch"] = torch.__version__
+            rows.append(r)
+            print(f"{dev:4s} rep {rep}: {r['us_per_tiny_op']:7.1f} us per tiny op   "
+                  f"{r['us_per_train_step']:8.0f} us per training step ({1e6 / r['us_per_train_step']:6.0f} steps/s)",
+                  flush=True)
+    for dev in devs:
+        best = min((r for r in rows if r["device"] == dev), key=lambda r: r["us_per_train_step"])
+        print(f"best {dev}: {min(r['us_per_tiny_op'] for r in rows if r['device'] == dev):.1f} us per tiny op, "
+              f"{best['us_per_train_step']:.0f} us per training step")
+    save(a.out, rows)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     sub = ap.add_subparsers(dest="cmd", required=True)
-    for name in ("threads", "sizes", "startup", "output", "compile"):
+    for name in ("threads", "sizes", "startup", "output", "compile", "launch"):
         s = sub.add_parser(name)
         s.add_argument("out")
-        s.add_argument("--repeat", type=int, default=3 if name == "threads" else (5 if name == "startup" else 2))
+        s.add_argument("--repeat", type=int, default=3 if name in ("threads", "launch") else (5 if name == "startup" else 2))
         s.add_argument("--counts", default="1,2,4,6,8,12,16,all")
         s.add_argument("--only", default="")
     c = sub.add_parser("_case")
@@ -282,7 +349,7 @@ def main():
     print(f"{platform.platform()}  Python {platform.python_version()}  {os.cpu_count()} logical CPUs, "
           f"Automatic threads = {auto_threads()}", flush=True)
     {"threads": cmd_threads, "sizes": cmd_sizes, "startup": cmd_startup, "output": cmd_output,
-     "compile": cmd_compile}[a.cmd](a)
+     "compile": cmd_compile, "launch": cmd_launch}[a.cmd](a)
 
 
 if __name__ == "__main__":
