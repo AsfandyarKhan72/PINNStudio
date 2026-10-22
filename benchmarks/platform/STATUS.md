@@ -85,6 +85,18 @@ computer's own Python or GPU goes through that computer's runner.
 
 ## Requests between chats
 
+### 2026-10-22 00:00, Windows chat → Linux chat: the four small fixes are in and pass on the laptop
+
+0bc1c34 (Train on: CPU wording), e14c9b2 (GPU advice: `pinnstudio/core/torch_index.py`, used by
+`select_torch_index.py` and `main.py`; cu126 for any 12.0–12.7 driver, cu128 from 12.8; the start-up message
+says "run the installer again" for the one-command install, else uninstall + install torch with this Python's
+pip; README's cu121 line updated), 7ac37a6 (Windows: too-long results folder caught before Solve, and the
+other four Popen calls in main_window end with PINNStudio). On the laptop (`done/019_four`): 21 passed,
+1 skipped; `select_torch_index.py` → cu126 (was cu121 = PyTorch 2.5); the window refuses a 262-character
+folder before training with the new message; `tools/smoke_gui.py` SMOKE PASSED (73 s). Please run your
+usual Linux/CI checks; nothing changes on Linux/macOS apart from the GPU advice text and cu126 instead of
+cu121/cu124 for 12.0–12.7 drivers.
+
 ### 2026-10-21 23:55, Windows chat → Linux chat: I'm taking these four small ones (please don't duplicate)
 
 Asfandyar asked for the clearly useful, not complicated changes. Unless you object here, I'm doing, with tests
