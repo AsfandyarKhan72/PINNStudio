@@ -255,6 +255,37 @@ def problem_file(s):
     return fn
 
 
+FIG_ROOT = os.path.join(FIG_DIR, "tuning")
+
+
+def _figures(s):
+    """Figures of the example's own-settings run and the chosen run (seed 2026),
+    from benchmarks/figures/tuning/<run folder>/own_*.png and tuned_*.png: the
+    surface comparisons when there are any (else the line comparisons), and the
+    parameter convergence of an inverse run."""
+    slug = ts._slug(s["name"]) + ("_inv" if s["inverse"] else "")
+    folder = os.path.join(FIG_ROOT, slug)
+    if not os.path.isdir(folder):
+        return []
+    names = sorted({f[4:] if f.startswith("own_") else f[6:] for f in os.listdir(folder) if f.endswith(".png")})
+    surf = [n for n in names if n.startswith("surface_comparison")]
+    line = [n for n in names if n.startswith("line_comparison")]
+    kinds = (surf or line) + [n for n in names if n == "param_plot.png"]
+    out = []
+    for n in kinds:
+        what = ("Parameter convergence" if n == "param_plot.png" else
+                ("Surface" if n.startswith("surface") else "Line") + " comparison")
+        sub = re.sub(r"^(surface|line)_comparison_?|\.png$|^param_plot", "", n.replace(".png", ""))
+        if sub:
+            what += f", {sub}"
+        for tag, label in (("own", "the example's own settings"), ("tuned", f"tuned ({s['chosen']})")):
+            f = os.path.join(folder, f"{tag}_{n}")
+            if os.path.isfile(f):
+                rel = os.path.relpath(f, os.path.dirname(PAGE)).replace(os.sep, "/")
+                out.append(f"*{what}, {label}:*\n\n![{what}, {label}]({rel.replace(' ', '%20')})\n")
+    return out
+
+
 def page(summ, rows, with_files):
     n_seeds = max((s["n_tuned"] for s in summ), default=1)
     better = sum(1 for s in summ if s["base"] and s["tuned"] and s["base"] / s["tuned"] >= 1.5)
@@ -350,6 +381,9 @@ def page(summ, rows, with_files):
         note = NOTES.get((s["name"], s["inverse"]))
         if note:
             a(note + "\n")
+        figs = _figures(s)
+        if figs:
+            a("\n".join(figs) + "\n")
         if s.get("file"):
             a(f"Tuned settings: [`{s['file']}`](tuning/{s['file'].replace(' ', '%20')})\n")
         a("</details>\n")

@@ -18,7 +18,10 @@ So far 25 problems are included, chosen as the ones with the largest errors in t
 | **all** | all of the changes above together |
 | **dataw** | 10× the weight of the measured data (inverse problems) |
 | **lbfgs3** | 3× the L-BFGS iterations, or an L-BFGS phase of 45,000 added (inverse problems) |
+| **times** | measured data at every reference time after t = 0, not only one (inverse problems) |
+| **setup** | the best whole-interval setup of the forward problem from the training methods study (inverse problems) |
 | **invall** | 10× data weight, 3× L-BFGS and the wider, deeper network together (inverse problems) |
+| **windows2** | twice as many time windows (time-adaptive training) |
 
 - **Choosing a variant.** For each problem the variant with the lowest final training loss is chosen. The reference solution is not looked at, so the choice is one a user could make without knowing the answer. The best error any variant reached is listed too, so it is visible when the training loss picks a less accurate variant.
 - **The error** is the relative $L_2$ error from PINNStudio's Error Analysis, the worst over the outputs and the reference times, against the reference data the example ships with. For inverse problems the worst relative error of the learned parameters is given as well.
@@ -82,6 +85,15 @@ Its own settings and results are in the README: [Poisson 1D – Dirichlet/Period
 
 Over seeds: own settings 9.6 × 10<sup>-3</sup> [7.9 × 10<sup>-4</sup> – 1.2 × 10<sup>-2</sup>] (3 seeds), tuned 6.4 × 10<sup>-6</sup> [3.2 × 10<sup>-6</sup> – 8.8 × 10<sup>-6</sup>] (3 seeds).
 
+*Line comparison, the example's own settings:*
+
+![Line comparison, the example's own settings](figures/tuning/Poisson_1D_Dirichlet_Periodic/own_line_comparison.png)
+
+*Line comparison, tuned (all):*
+
+![Line comparison, tuned (all)](figures/tuning/Poisson_1D_Dirichlet_Periodic/tuned_line_comparison.png)
+
+
 Tuned settings: [`Poisson 1D – Dirichlet - Periodic (tuned).pinn.json`](tuning/Poisson%201D%20–%20Dirichlet%20-%20Periodic%20(tuned).pinn.json)
 
 </details>
@@ -106,6 +118,15 @@ Its own settings and results are in the README: [Diffusion-reaction 1D](../READM
 
 Over seeds: own settings 8.8 × 10<sup>-2</sup> [4.7 × 10<sup>-2</sup> – 1.1 × 10<sup>-1</sup>] (3 seeds), tuned 8.5 × 10<sup>-5</sup> [6.1 × 10<sup>-5</sup> – 9.0 × 10<sup>-5</sup>] (3 seeds).
 
+*Surface comparison, the example's own settings:*
+
+![Surface comparison, the example's own settings](figures/tuning/Diffusion_reaction_equation/own_surface_comparison.png)
+
+*Surface comparison, tuned (all):*
+
+![Surface comparison, tuned (all)](figures/tuning/Diffusion_reaction_equation/tuned_surface_comparison.png)
+
+
 Tuned settings: [`Diffusion-reaction 1D (tuned).pinn.json`](tuning/Diffusion-reaction%201D%20(tuned).pinn.json)
 
 </details>
@@ -128,6 +149,47 @@ Its own settings and results are in the README: [Linear elasticity 2D – plate]
 **Chosen: all** (all of the changes above together): network [2, 80, 80, 80, 80, 80, 5], Adam 60,000 → L-BFGS 60,000, 1,500 / 1,500 / 0 points.
 
 Over seeds: own settings 1.4 × 10<sup>-1</sup> [6.7 × 10<sup>-2</sup> – 3.0 × 10<sup>-1</sup>] (3 seeds), tuned 8.4 × 10<sup>-4</sup> [8.0 × 10<sup>-4</sup> – 8.7 × 10<sup>-4</sup>] (3 seeds).
+
+*Surface comparison, sxx, the example's own settings:*
+
+![Surface comparison, sxx, the example's own settings](figures/tuning/Linear_elastostatic_plate/own_surface_comparison_sxx.png)
+
+*Surface comparison, sxx, tuned (all):*
+
+![Surface comparison, sxx, tuned (all)](figures/tuning/Linear_elastostatic_plate/tuned_surface_comparison_sxx.png)
+
+*Surface comparison, sxy, the example's own settings:*
+
+![Surface comparison, sxy, the example's own settings](figures/tuning/Linear_elastostatic_plate/own_surface_comparison_sxy.png)
+
+*Surface comparison, sxy, tuned (all):*
+
+![Surface comparison, sxy, tuned (all)](figures/tuning/Linear_elastostatic_plate/tuned_surface_comparison_sxy.png)
+
+*Surface comparison, syy, the example's own settings:*
+
+![Surface comparison, syy, the example's own settings](figures/tuning/Linear_elastostatic_plate/own_surface_comparison_syy.png)
+
+*Surface comparison, syy, tuned (all):*
+
+![Surface comparison, syy, tuned (all)](figures/tuning/Linear_elastostatic_plate/tuned_surface_comparison_syy.png)
+
+*Surface comparison, ux, the example's own settings:*
+
+![Surface comparison, ux, the example's own settings](figures/tuning/Linear_elastostatic_plate/own_surface_comparison_ux.png)
+
+*Surface comparison, ux, tuned (all):*
+
+![Surface comparison, ux, tuned (all)](figures/tuning/Linear_elastostatic_plate/tuned_surface_comparison_ux.png)
+
+*Surface comparison, uy, the example's own settings:*
+
+![Surface comparison, uy, the example's own settings](figures/tuning/Linear_elastostatic_plate/own_surface_comparison_uy.png)
+
+*Surface comparison, uy, tuned (all):*
+
+![Surface comparison, uy, tuned (all)](figures/tuning/Linear_elastostatic_plate/tuned_surface_comparison_uy.png)
+
 
 Tuned settings: [`Linear elasticity 2D – plate (tuned).pinn.json`](tuning/Linear%20elasticity%202D%20–%20plate%20(tuned).pinn.json)
 
@@ -155,6 +217,23 @@ Over seeds: own settings 1.8 × 10<sup>-1</sup> (1 seeds), tuned 1.1 × 10<sup>-
 
 Only |h| is measured, at one time, and with the example's own network c depends on the seed (0.4964 to 0.515 over twelve seeds). The wider network recovers c to within 0.01% and the field to 0.1%.
 
+*Surface comparison, the example's own settings:*
+
+![Surface comparison, the example's own settings](figures/tuning/Schr_dinger_equation_inv/own_surface_comparison.png)
+
+*Surface comparison, tuned (net):*
+
+![Surface comparison, tuned (net)](figures/tuning/Schr_dinger_equation_inv/tuned_surface_comparison.png)
+
+*Parameter convergence, the example's own settings:*
+
+![Parameter convergence, the example's own settings](figures/tuning/Schr_dinger_equation_inv/own_param_plot.png)
+
+*Parameter convergence, tuned (net):*
+
+![Parameter convergence, tuned (net)](figures/tuning/Schr_dinger_equation_inv/tuned_param_plot.png)
+
+
 Tuned settings: [`Schrödinger 1D, inverse mode (tuned).pinn.json`](tuning/Schrödinger%201D,%20inverse%20mode%20(tuned).pinn.json)
 
 </details>
@@ -181,6 +260,15 @@ Over seeds: own settings 3.0 × 10<sup>-1</sup> [1.4 × 10<sup>-1</sup> – 7.6 
 
 Adding L-BFGS reaches almost the lowest training loss but a worse error (0.16), one of the cases where the training loss and the error do not agree. With every change together the error is about 150 times lower, and it barely changes between seeds while the example's own settings give 0.14 to 0.76.
 
+*Surface comparison, the example's own settings:*
+
+![Surface comparison, the example's own settings](figures/tuning/Wave_propagation_space_time_multi_scale_Fourier_features/own_surface_comparison.png)
+
+*Surface comparison, tuned (all):*
+
+![Surface comparison, tuned (all)](figures/tuning/Wave_propagation_space_time_multi_scale_Fourier_features/tuned_surface_comparison.png)
+
+
 Tuned settings: [`Wave 1D – space-time multi-scale Fourier features (tuned).pinn.json`](tuning/Wave%201D%20–%20space-time%20multi-scale%20Fourier%20features%20(tuned).pinn.json)
 
 </details>
@@ -205,6 +293,23 @@ Its own settings and results are in the README: [Diffusion 1D – unknown coeffi
 
 Over seeds: own settings 6.2 × 10<sup>-3</sup> [2.9 × 10<sup>-3</sup> – 1.1 × 10<sup>-2</sup>] (3 seeds), tuned 2.8 × 10<sup>-4</sup> [2.7 × 10<sup>-4</sup> – 8.5 × 10<sup>-4</sup>] (3 seeds).
  Learned parameters (tuned, median): C = 1.00017 (true 1.0).
+
+*Surface comparison, the example's own settings:*
+
+![Surface comparison, the example's own settings](figures/tuning/Inverse_diffusion_equation/own_surface_comparison.png)
+
+*Surface comparison, tuned (all):*
+
+![Surface comparison, tuned (all)](figures/tuning/Inverse_diffusion_equation/tuned_surface_comparison.png)
+
+*Parameter convergence, the example's own settings:*
+
+![Parameter convergence, the example's own settings](figures/tuning/Inverse_diffusion_equation/own_param_plot.png)
+
+*Parameter convergence, tuned (all):*
+
+![Parameter convergence, tuned (all)](figures/tuning/Inverse_diffusion_equation/tuned_param_plot.png)
+
 
 Tuned settings: [`Diffusion 1D – unknown coefficient (tuned).pinn.json`](tuning/Diffusion%201D%20–%20unknown%20coefficient%20(tuned).pinn.json)
 
@@ -232,6 +337,15 @@ Over seeds: own settings 1.1 × 10<sup>-2</sup> [8.5 × 10<sup>-3</sup> – 4.6 
 
 An L-BFGS phase after Adam is all it needs: about 15 times lower error for 7 seconds more training.
 
+*Surface comparison, the example's own settings:*
+
+![Surface comparison, the example's own settings](figures/tuning/Helmholtz_2D_with_a_hole/own_surface_comparison.png)
+
+*Surface comparison, tuned (lbfgs):*
+
+![Surface comparison, tuned (lbfgs)](figures/tuning/Helmholtz_2D_with_a_hole/tuned_surface_comparison.png)
+
+
 Tuned settings: [`Helmholtz 2D – square with hole (tuned).pinn.json`](tuning/Helmholtz%202D%20–%20square%20with%20hole%20(tuned).pinn.json)
 
 </details>
@@ -255,6 +369,15 @@ Its own settings and results are in the README: [Diffusion 1D](../README.md#dx-d
 **Chosen: all** (all of the changes above together): network [2, 64, 64, 64, 64, 1], Adam 30,000 → L-BFGS 15,000, 120 / 60 / 30 points.
 
 Over seeds: own settings 2.3 × 10<sup>-2</sup> [7.5 × 10<sup>-3</sup> – 3.0 × 10<sup>-2</sup>] (3 seeds), tuned 1.5 × 10<sup>-3</sup> [8.7 × 10<sup>-4</sup> – 1.7 × 10<sup>-3</sup>] (3 seeds).
+
+*Surface comparison, the example's own settings:*
+
+![Surface comparison, the example's own settings](figures/tuning/Diffusion_equation/own_surface_comparison.png)
+
+*Surface comparison, tuned (all):*
+
+![Surface comparison, tuned (all)](figures/tuning/Diffusion_equation/tuned_surface_comparison.png)
+
 
 Tuned settings: [`Diffusion 1D (tuned).pinn.json`](tuning/Diffusion%201D%20(tuned).pinn.json)
 
@@ -281,6 +404,15 @@ Over seeds: own settings 8.5 × 10<sup>-2</sup> [2.8 × 10<sup>-2</sup> – 8.6 
 
 The wider network alone is the best and steadiest change; with all the changes together the error is about three times higher.
 
+*Surface comparison, the example's own settings:*
+
+![Surface comparison, the example's own settings](figures/tuning/Klein_Gordon_equation/own_surface_comparison.png)
+
+*Surface comparison, tuned (net):*
+
+![Surface comparison, tuned (net)](figures/tuning/Klein_Gordon_equation/tuned_surface_comparison.png)
+
+
 Tuned settings: [`Klein-Gordon 1D (tuned).pinn.json`](tuning/Klein-Gordon%201D%20(tuned).pinn.json)
 
 </details>
@@ -304,6 +436,15 @@ Its own settings and results are in the README: [Euler beam 1D](../README.md#dx-
 **Chosen: all** (all of the changes above together): network [1, 40, 40, 40, 40, 1], Adam 30,000 → L-BFGS 15,000, 30 / 6 / 0 points.
 
 Over seeds: own settings 3.5 × 10<sup>-3</sup> [1.0 × 10<sup>-3</sup> – 8.4 × 10<sup>-3</sup>] (3 seeds), tuned 2.8 × 10<sup>-4</sup> [1.1 × 10<sup>-4</sup> – 4.0 × 10<sup>-4</sup>] (3 seeds).
+
+*Line comparison, the example's own settings:*
+
+![Line comparison, the example's own settings](figures/tuning/Euler_beam/own_line_comparison.png)
+
+*Line comparison, tuned (all):*
+
+![Line comparison, tuned (all)](figures/tuning/Euler_beam/tuned_line_comparison.png)
+
 
 Tuned settings: [`Euler beam 1D (tuned).pinn.json`](tuning/Euler%20beam%201D%20(tuned).pinn.json)
 
@@ -331,6 +472,15 @@ Over seeds: own settings 5.4 × 10<sup>-2</sup> [4.3 × 10<sup>-2</sup> – 5.6 
 
 Again L-BFGS alone gives most of the gain, at almost no extra time.
 
+*Surface comparison, the example's own settings:*
+
+![Surface comparison, the example's own settings](figures/tuning/Diffusion_equation_with_resampling/own_surface_comparison.png)
+
+*Surface comparison, tuned (lbfgs):*
+
+![Surface comparison, tuned (lbfgs)](figures/tuning/Diffusion_equation_with_resampling/tuned_surface_comparison.png)
+
+
 Tuned settings: [`Diffusion 1D – resampling (tuned).pinn.json`](tuning/Diffusion%201D%20–%20resampling%20(tuned).pinn.json)
 
 </details>
@@ -355,6 +505,23 @@ Its own settings and results are in the README: [Heat 1D – Dirichlet](../READM
 Over seeds: own settings 2.2 × 10<sup>-2</sup> [1.6 × 10<sup>-2</sup> – 3.6 × 10<sup>-2</sup>] (3 seeds), tuned 4.1 × 10<sup>-3</sup> [3.6 × 10<sup>-3</sup> – 6.6 × 10<sup>-3</sup>] (3 seeds).
  Learned parameters (tuned, median): a = 0.400406 (true 0.4).
 
+*Surface comparison, the example's own settings:*
+
+![Surface comparison, the example's own settings](figures/tuning/Heat_equation_inv/own_surface_comparison.png)
+
+*Surface comparison, tuned (all):*
+
+![Surface comparison, tuned (all)](figures/tuning/Heat_equation_inv/tuned_surface_comparison.png)
+
+*Parameter convergence, the example's own settings:*
+
+![Parameter convergence, the example's own settings](figures/tuning/Heat_equation_inv/own_param_plot.png)
+
+*Parameter convergence, tuned (all):*
+
+![Parameter convergence, tuned (all)](figures/tuning/Heat_equation_inv/tuned_param_plot.png)
+
+
 Tuned settings: [`Heat 1D – Dirichlet, inverse mode (tuned).pinn.json`](tuning/Heat%201D%20–%20Dirichlet,%20inverse%20mode%20(tuned).pinn.json)
 
 </details>
@@ -377,6 +544,15 @@ Its own settings and results are in the README: [Heat 1D – resampling](../READ
 **Chosen: all** (all of the changes above together): network [2, 40, 40, 40, 40, 1], Adam 600,000 → L-BFGS 45,000, 7,620 / 240 / 480 points.
 
 Over seeds: own settings 1.4 × 10<sup>-2</sup> [6.1 × 10<sup>-3</sup> – 2.7 × 10<sup>-2</sup>] (3 seeds), tuned 3.3 × 10<sup>-3</sup> [2.9 × 10<sup>-3</sup> – 3.5 × 10<sup>-3</sup>] (3 seeds).
+
+*Surface comparison, the example's own settings:*
+
+![Surface comparison, the example's own settings](figures/tuning/Heat_equation_with_resampling/own_surface_comparison.png)
+
+*Surface comparison, tuned (all):*
+
+![Surface comparison, tuned (all)](figures/tuning/Heat_equation_with_resampling/tuned_surface_comparison.png)
+
 
 Tuned settings: [`Heat 1D – resampling (tuned).pinn.json`](tuning/Heat%201D%20–%20resampling%20(tuned).pinn.json)
 
@@ -403,6 +579,15 @@ Over seeds: own settings 5.0 × 10<sup>-2</sup> [3.4 × 10<sup>-2</sup> – 6.3 
 
 With one seed the wider network looked best (5.8e-3), but over three seeds it varies from 5.8e-3 to 3.3e-2, while all the changes together stay between 1.0e-2 and 1.6e-2.
 
+*Surface comparison, the example's own settings:*
+
+![Surface comparison, the example's own settings](figures/tuning/Heat_equation/own_surface_comparison.png)
+
+*Surface comparison, tuned (all):*
+
+![Surface comparison, tuned (all)](figures/tuning/Heat_equation/tuned_surface_comparison.png)
+
+
 Tuned settings: [`Heat 1D – Dirichlet (tuned).pinn.json`](tuning/Heat%201D%20–%20Dirichlet%20(tuned).pinn.json)
 
 </details>
@@ -425,6 +610,15 @@ Its own settings and results are in the README: [Allen-Cahn 1D](../README.md#dx-
 **Chosen: all** (all of the changes above together): network [2, 40, 40, 40, 40, 1], Adam 120,000 → L-BFGS 45,000, 24,000 / 1,200 / 2,400 points.
 
 Over seeds: own settings 3.4 × 10<sup>-2</sup> [2.9 × 10<sup>-2</sup> – 5.7 × 10<sup>-2</sup>] (3 seeds), tuned 1.2 × 10<sup>-2</sup> [1.0 × 10<sup>-2</sup> – 1.5 × 10<sup>-2</sup>] (3 seeds).
+
+*Surface comparison, the example's own settings:*
+
+![Surface comparison, the example's own settings](figures/tuning/Allen_Cahn_equation/own_surface_comparison.png)
+
+*Surface comparison, tuned (all):*
+
+![Surface comparison, tuned (all)](figures/tuning/Allen_Cahn_equation/tuned_surface_comparison.png)
+
 
 Tuned settings: [`Allen-Cahn 1D (tuned).pinn.json`](tuning/Allen-Cahn%201D%20(tuned).pinn.json)
 
@@ -450,6 +644,23 @@ Its own settings and results are in the README: [Poisson 1D – unknown forcing 
 
 Over seeds: own settings 9.3 × 10<sup>-2</sup> [8.4 × 10<sup>-2</sup> – 1.3 × 10<sup>-1</sup>] (3 seeds), tuned 4.1 × 10<sup>-2</sup> [3.8 × 10<sup>-2</sup> – 5.4 × 10<sup>-2</sup>] (3 seeds).
 
+*Line comparison, q, the example's own settings:*
+
+![Line comparison, q, the example's own settings](figures/tuning/Inverse_Poisson_with_unknown_forcing_field_batches/own_line_comparison_q.png)
+
+*Line comparison, q, tuned (all):*
+
+![Line comparison, q, tuned (all)](figures/tuning/Inverse_Poisson_with_unknown_forcing_field_batches/tuned_line_comparison_q.png)
+
+*Line comparison, u, the example's own settings:*
+
+![Line comparison, u, the example's own settings](figures/tuning/Inverse_Poisson_with_unknown_forcing_field_batches/own_line_comparison_u.png)
+
+*Line comparison, u, tuned (all):*
+
+![Line comparison, u, tuned (all)](figures/tuning/Inverse_Poisson_with_unknown_forcing_field_batches/tuned_line_comparison_u.png)
+
+
 Tuned settings: [`Poisson 1D – unknown forcing field (batches) (tuned).pinn.json`](tuning/Poisson%201D%20–%20unknown%20forcing%20field%20(batches)%20(tuned).pinn.json)
 
 </details>
@@ -473,6 +684,15 @@ Its own settings and results are in the README: [Fractional Poisson 1D](../READM
 **Chosen: all** (all of the changes above together): network [1, 40, 40, 40, 40, 40, 1], Adam 30,000 → L-BFGS 15,000, 303 / 6 / 0 points.
 
 Over seeds: own settings 2.3 × 10<sup>-2</sup> [1.6 × 10<sup>-2</sup> – 3.7 × 10<sup>-2</sup>] (3 seeds), tuned 1.2 × 10<sup>-2</sup> [1.2 × 10<sup>-2</sup> – 1.4 × 10<sup>-2</sup>] (3 seeds).
+
+*Line comparison, the example's own settings:*
+
+![Line comparison, the example's own settings](figures/tuning/Fractional_Poisson_equation_1D/own_line_comparison.png)
+
+*Line comparison, tuned (all):*
+
+![Line comparison, tuned (all)](figures/tuning/Fractional_Poisson_equation_1D/tuned_line_comparison.png)
+
 
 Tuned settings: [`Fractional Poisson 1D (tuned).pinn.json`](tuning/Fractional%20Poisson%201D%20(tuned).pinn.json)
 
@@ -501,6 +721,23 @@ Over seeds: own settings 2.0 × 10<sup>-2</sup> [1.7 × 10<sup>-2</sup> – 2.0 
 
 The field improves, but the effective viscosity stays about 18% too high in every seed, while K comes out within 0.5%. With the measured velocity at only a few points, ν_e is weakly determined by the data.
 
+*Line comparison, the example's own settings:*
+
+![Line comparison, the example's own settings](figures/tuning/Inverse_Brinkman_Forchheimer_model/own_line_comparison.png)
+
+*Line comparison, tuned (all):*
+
+![Line comparison, tuned (all)](figures/tuning/Inverse_Brinkman_Forchheimer_model/tuned_line_comparison.png)
+
+*Parameter convergence, the example's own settings:*
+
+![Parameter convergence, the example's own settings](figures/tuning/Inverse_Brinkman_Forchheimer_model/own_param_plot.png)
+
+*Parameter convergence, tuned (all):*
+
+![Parameter convergence, tuned (all)](figures/tuning/Inverse_Brinkman_Forchheimer_model/tuned_param_plot.png)
+
+
 Tuned settings: [`Brinkman-Forchheimer 1D – unknown ν_e, K (tuned).pinn.json`](tuning/Brinkman-Forchheimer%201D%20–%20unknown%20ν_e,%20K%20(tuned).pinn.json)
 
 </details>
@@ -524,6 +761,23 @@ Its own settings and results are in the README: [Poisson 1D – unknown forcing 
 **Chosen: all** (all of the changes above together): network [1, 40, 40, 40, 40, 2], Adam 60,000 → L-BFGS 15,000, 600 / 6 / 0 points.
 
 Over seeds: own settings 1.8 × 10<sup>-2</sup> [9.4 × 10<sup>-3</sup> – 4.3 × 10<sup>-2</sup>] (3 seeds), tuned 1.2 × 10<sup>-2</sup> [3.8 × 10<sup>-3</sup> – 2.0 × 10<sup>-2</sup>] (3 seeds).
+
+*Line comparison, q, the example's own settings:*
+
+![Line comparison, q, the example's own settings](figures/tuning/Inverse_Poisson_with_unknown_forcing_field/own_line_comparison_q.png)
+
+*Line comparison, q, tuned (all):*
+
+![Line comparison, q, tuned (all)](figures/tuning/Inverse_Poisson_with_unknown_forcing_field/tuned_line_comparison_q.png)
+
+*Line comparison, u, the example's own settings:*
+
+![Line comparison, u, the example's own settings](figures/tuning/Inverse_Poisson_with_unknown_forcing_field/own_line_comparison_u.png)
+
+*Line comparison, u, tuned (all):*
+
+![Line comparison, u, tuned (all)](figures/tuning/Inverse_Poisson_with_unknown_forcing_field/tuned_line_comparison_u.png)
+
 
 Tuned settings: [`Poisson 1D – unknown forcing field (tuned).pinn.json`](tuning/Poisson%201D%20–%20unknown%20forcing%20field%20(tuned).pinn.json)
 
@@ -550,6 +804,15 @@ Over seeds: own settings 3.5 × 10<sup>-2</sup> [3.2 × 10<sup>-2</sup> – 3.5 
 
 Training loss picks the wider network, but all the changes together give the lower error; the re-entrant corner keeps the error near 1–2% either way.
 
+*Surface comparison, the example's own settings:*
+
+![Surface comparison, the example's own settings](figures/tuning/Poisson_over_an_L_shaped_domain/own_surface_comparison.png)
+
+*Surface comparison, tuned (net):*
+
+![Surface comparison, tuned (net)](figures/tuning/Poisson_over_an_L_shaped_domain/tuned_surface_comparison.png)
+
+
 Tuned settings: [`Poisson 2D – L-shape (tuned).pinn.json`](tuning/Poisson%202D%20–%20L-shape%20(tuned).pinn.json)
 
 </details>
@@ -574,6 +837,15 @@ Its own settings and results are in the README: [Diffusion-reaction 1D – unkno
 
 Over seeds: own settings 4.0 × 10<sup>-2</sup> [1.8 × 10<sup>-2</sup> – 4.1 × 10<sup>-2</sup>] (3 seeds), tuned 2.8 × 10<sup>-2</sup> [1.3 × 10<sup>-2</sup> – 3.0 × 10<sup>-2</sup>] (3 seeds).
 
+*Line comparison, the example's own settings:*
+
+![Line comparison, the example's own settings](figures/tuning/Inverse_diffusion_reaction_with_space_dependent_rate/own_line_comparison.png)
+
+*Line comparison, tuned (all):*
+
+![Line comparison, tuned (all)](figures/tuning/Inverse_diffusion_reaction_with_space_dependent_rate/tuned_line_comparison.png)
+
+
 Tuned settings: [`Diffusion-reaction 1D – unknown rate field (tuned).pinn.json`](tuning/Diffusion-reaction%201D%20–%20unknown%20rate%20field%20(tuned).pinn.json)
 
 </details>
@@ -594,6 +866,23 @@ Tuned settings: [`Diffusion-reaction 1D – unknown rate field (tuned).pinn.json
 Over seeds: own settings 6.0 × 10<sup>-1</sup> (1 seeds), tuned 5.4 × 10<sup>-1</sup> (1 seeds).
 
 The worst error is at t = 0, where the initial field is close to zero and the relative error is not a good measure; none of the changes improves it.
+
+*Surface comparison, mu, the example's own settings:*
+
+![Surface comparison, mu, the example's own settings](figures/tuning/Template_2D_Cahn_Hilliard_Wight_Zhao/own_surface_comparison_mu.png)
+
+*Surface comparison, mu, tuned (net):*
+
+![Surface comparison, mu, tuned (net)](figures/tuning/Template_2D_Cahn_Hilliard_Wight_Zhao/tuned_surface_comparison_mu.png)
+
+*Surface comparison, u, the example's own settings:*
+
+![Surface comparison, u, the example's own settings](figures/tuning/Template_2D_Cahn_Hilliard_Wight_Zhao/own_surface_comparison_u.png)
+
+*Surface comparison, u, tuned (net):*
+
+![Surface comparison, u, tuned (net)](figures/tuning/Template_2D_Cahn_Hilliard_Wight_Zhao/tuned_surface_comparison_u.png)
+
 
 Tuned settings: [`Cahn-Hilliard 2D – Wight & Zhao (PINNStudio template) (tuned).pinn.json`](tuning/Cahn-Hilliard%202D%20–%20Wight%20&%20Zhao%20(PINNStudio%20template)%20(tuned).pinn.json)
 
@@ -621,6 +910,23 @@ Over seeds: own settings 8.0 × 10<sup>-2</sup> [7.8 × 10<sup>-2</sup> – 1.3 
 
 No variant gets below about 7.7%, although the training loss falls about 800 times. The limit is the problem itself: the absorbing boundary condition only approximates the infinite domain the exact solution is written for, so a better-trained network converges to a slightly different answer.
 
+*Surface comparison, u_im, the example's own settings:*
+
+![Surface comparison, u_im, the example's own settings](figures/tuning/Helmholtz_sound_hard_scattering_absorbing_BC/own_surface_comparison_u_im.png)
+
+*Surface comparison, u_im, tuned (all):*
+
+![Surface comparison, u_im, tuned (all)](figures/tuning/Helmholtz_sound_hard_scattering_absorbing_BC/tuned_surface_comparison_u_im.png)
+
+*Surface comparison, u_re, the example's own settings:*
+
+![Surface comparison, u_re, the example's own settings](figures/tuning/Helmholtz_sound_hard_scattering_absorbing_BC/own_surface_comparison_u_re.png)
+
+*Surface comparison, u_re, tuned (all):*
+
+![Surface comparison, u_re, tuned (all)](figures/tuning/Helmholtz_sound_hard_scattering_absorbing_BC/tuned_surface_comparison_u_re.png)
+
+
 Tuned settings: [`Helmholtz 2D – sound-hard scattering (tuned).pinn.json`](tuning/Helmholtz%202D%20–%20sound-hard%20scattering%20(tuned).pinn.json)
 
 </details>
@@ -643,6 +949,23 @@ Over seeds: own settings 1.9 × 10<sup>-2</sup> (1 seeds), tuned 1.8 × 10<sup>-
 
 None of the changes helps: every variant ends at about 1.8% (worst output and time). With every change together the run did not finish within the 4-hour limit.
 
+*Surface comparison, u, the example's own settings:*
+
+![Surface comparison, u, the example's own settings](figures/tuning/Template_2D_Burgers_Mathias/own_surface_comparison_u.png)
+
+*Surface comparison, u, tuned (iters):*
+
+![Surface comparison, u, tuned (iters)](figures/tuning/Template_2D_Burgers_Mathias/tuned_surface_comparison_u.png)
+
+*Surface comparison, v, the example's own settings:*
+
+![Surface comparison, v, the example's own settings](figures/tuning/Template_2D_Burgers_Mathias/own_surface_comparison_v.png)
+
+*Surface comparison, v, tuned (iters):*
+
+![Surface comparison, v, tuned (iters)](figures/tuning/Template_2D_Burgers_Mathias/tuned_surface_comparison_v.png)
+
+
 Tuned settings: [`Burgers 2D – Mathias et al. (PINNStudio template) (tuned).pinn.json`](tuning/Burgers%202D%20–%20Mathias%20et%20al.%20(PINNStudio%20template)%20(tuned).pinn.json)
 
 </details>
@@ -664,6 +987,15 @@ Tuned settings: [`Burgers 2D – Mathias et al. (PINNStudio template) (tuned).pi
 Over seeds: own settings 2.1 × 10<sup>-2</sup> (1 seeds), tuned 9.3 × 10<sup>-2</sup> (1 seeds).
 
 The template's own settings are the best here; more iterations or a bigger network make the error 4 to 7 times larger. Its settings come from the training methods study, where time windows with exact periodicity and RBA weights were found to be needed. With every change together the run did not finish within the 4-hour limit.
+
+*Surface comparison, the example's own settings:*
+
+![Surface comparison, the example's own settings](figures/tuning/Template_2D_Allen_Cahn_Wight_Zhao/own_surface_comparison.png)
+
+*Surface comparison, tuned (iters):*
+
+![Surface comparison, tuned (iters)](figures/tuning/Template_2D_Allen_Cahn_Wight_Zhao/tuned_surface_comparison.png)
+
 
 Tuned settings: [`Allen-Cahn 2D – Wight & Zhao (PINNStudio template) (tuned).pinn.json`](tuning/Allen-Cahn%202D%20–%20Wight%20&%20Zhao%20(PINNStudio%20template)%20(tuned).pinn.json)
 
