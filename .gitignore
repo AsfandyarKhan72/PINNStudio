@@ -10,6 +10,7 @@ venv/
 !assets/Images/**/*.png
 !docs/assets/*.png
 !benchmarks/figures/*.png
+!benchmarks/figures/tuning/**/*.png
 !pinnstudio/resources/*.png
 
 # Claude delivery scratch -- apply_*.py / *.patch files Claude sends for
