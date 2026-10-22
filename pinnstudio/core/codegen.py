@@ -5215,6 +5215,10 @@ if _dxde_ver is not None and _dxde_ver < (1, 13, 0):
         "_ic_only_weights", "net", (f'_os.path.join({config.save_dir!r}, "ic_pretrain")' if (config.save_dir or "").strip() else '_os.path.join(__import__("tempfile").gettempdir(), "pinnstudio_ic_pretrain")'),
         "_os", "  ", _safe_point_distribution)
     _small_gpu_tip = _small_problem_gpu_tip(config)
+    # On the CPU because the user chose it, or because there is no GPU
+    _no_gpu_line = ('    print("Training on the CPU (Settings -> GPU / Hardware -> Train on: CPU)")\n'
+                    if getattr(config, "train_device", "auto") == "cpu"
+                    else '    print("⚠️ No GPU found — running on CPU")\n')
     _ic_pretrain_block_ta = _ic_pretrain_train_code(
         config, "            ", "_ic_gt_pt", "_ic_constraints_pt", _ic_pretrain_num_initial_safe,
         "_ic_only_weights", "model_i.net", (f'_os.path.join({config.save_dir!r}, "ic_pretrain")' if (config.save_dir or "").strip() else '_os.path.join(__import__("tempfile").gettempdir(), "pinnstudio_ic_pretrain")'),
@@ -5343,8 +5347,7 @@ if torch.cuda.is_available():
     print(f"   Float type:   {config.float_type}")
     print(f"   cuDNN bench:  False")
 {_small_gpu_tip}else:
-    print("⚠️ No GPU found — running on CPU")
-
+{_no_gpu_line}
 # ── Save directory setup ─────────────────────────────────────
 import os as _os
 _save_dir = {repr(config.save_dir)}.strip()
