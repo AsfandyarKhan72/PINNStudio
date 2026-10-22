@@ -144,6 +144,29 @@ Every GPU step pays this fixed cost before the GPU does any real work; for a sma
 of the step, which is why the GPU is flat at 40–60 it/s up to about 8,000 points and loses to the CPU
 below about 1,000. (Linux numbers for the same test are requested in STATUS.md.)
 
+## PyTorch builds (same torch 2.9.0, different CUDA versions)
+
+Each build in a fresh environment on D: (a hard disk, so start-up there is only compared between builds),
+installed with `uv pip install --torch-backend <build>`. GPU: `gpu_check.py --no-cpu --iters 400`, Adam
+it/s. Launch: `platform_bench.py launch`, best of 3.
+
+| Build | GPU found | Heat 1D | Poisson 2D | Heat 2D | GPU step (launch test) | CPU step | `import torch, deepxde` |
+|---|---|---|---|---|---|---|---|
+| cu126 | yes | 62 | 30 | 30 | 12.2 ms | 5.5 ms | 8.0 s |
+| **cu129** (the installer's choice) | yes | 54 | 29 | 30 | 14.5 ms | 6.2 ms | 9.2 s |
+| cu130 | **no** | – | – | – | – | 5.4 ms | 8.1 s |
+| cpu | – | – | – | – | – | 4.9 ms | 6.3 s |
+
+- cu126 and cu129 are the same speed within this laptop's spread (the installer's own cu129 environment on
+  C: measured 11.1 ms a GPU step). Nothing to gain from pinning another CUDA build.
+- **cu130 cannot use this driver** (546.29, CUDA 12.3): `torch.cuda.is_available()` is False with only a
+  UserWarning ("cudaGetDeviceCount() returned cudaErrorNotSupported"), so training would quietly run on
+  the CPU. The installer's `--torch-backend auto` correctly chose cu129 instead; a plain `pip install
+  torch` that picks a CUDA 13 build would hit this. `gpu_check.py` says so clearly.
+- The CPU-only build starts 2–3 s faster (no CUDA libraries to load) and its CPU step is about 10 %
+  faster. That is what the installer installs on a computer without an NVIDIA GPU.
+- TF32 was 0.93× and 1.08× (no TF32 on Turing); float64 6.2–6.4× slower, as before.
+
 ## Start-up of a run
 
 Time to start a new Python process and import what a PINNStudio script imports (median of 5, the laptop
