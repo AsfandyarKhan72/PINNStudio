@@ -272,3 +272,22 @@ devices:
 With *Train on: CPU*, Solve's script stops with "Invalid device id" before training, and the exported
 script trains on the GPU. With `"-1"` both run on the CPU. Proposed in STATUS.md (a one-line change in
 `codegen.py`, plus the tests and `timing_study.py` that use the same empty value).
+
+## Windows checks (benchmarks/platform/win_checks.py and the job runner)
+
+| Check | Result |
+|---|---|
+| Python environment, TEMP, home and results all in `…\Ünï Ölçü 用户 é\…` | Solve, Error Analysis and the exported script run and save normally |
+| Results folder of 210 characters, long paths off (Windows' default) | works; the longest file written is 259 characters |
+| Results folder of 227 characters, long paths off | fails mid-run: `FileNotFoundError: [WinError 206] The filename or extension is too long`, then "❌ Error during training" |
+| Stop while training | the training process is gone in 0.1 s, Solve enabled again |
+| Closing the window while training (answering Yes) | the training process is gone in 0.1 s |
+| Ctrl+C in the terminal PINNStudio was started from | the window keeps running and prints a KeyboardInterrupt traceback in the terminal; the run goes on |
+| PINNStudio's process ended outright while training (terminal closed, Task Manager, crash) | **before:** the training process kept running on its own; **now** (`pyexe.end_with_pinnstudio`, a job object with kill-on-close): it ends with PINNStudio |
+| `pinnstudio --create-shortcut` / `--remove-shortcut` | Start menu and desktop icons made and removed; the desktop icon opens PINNStudio without a console window |
+| The installer over PINNStudio 1.4.0 (uv tool, torch 2.5.1+cu124, NumPy 2.5.4) | replaced by `cleanup` with torch 2.9.0+cu129 and NumPy 2.4.6 in 60 s (bytecode compiled: 9,442 files in 23 s); settings and results kept; first start 7.9 s |
+| Train on: CPU with the fix, Solve's script | runs on the CPU (log: "No GPU found — running on CPU") |
+| TF32 off through `fp32_precision` (torch 2.9) | accepted; "TF32: False", no warning |
+| The tip for small 1D problems on the GPU | shown |
+
+The home folder here is `C:\Users\CMD LAB` (a space) throughout, and nothing failed because of it.
