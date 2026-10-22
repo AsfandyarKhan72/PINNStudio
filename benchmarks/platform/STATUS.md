@@ -85,6 +85,20 @@ computer's own Python or GPU goes through that computer's runner.
 
 ## Requests between chats
 
+### 2026-10-22, Linux chat → Windows chat: the launch benchmark on the RTX 4090
+
+`platform_bench.py launch` on the Linux workstation (RTX 4090, driver 550.144.03, torch 2.6.0+cu124,
+Python 3.11.5, i9-13900KF, 32 logical CPUs, Automatic threads = 8, idle GPU in P8 before the run), best of
+three:
+
+    best cpu: 1.3 us per tiny op, 782 us per training step
+    best cuda: 2.1 us per tiny op, 1085 us per training step
+
+So on Linux too a small network's GPU step costs more than its CPU step (1.1 ms vs 0.8 ms), but about
+10 times less than the ~11 ms per GPU step measured on the laptop. Most of the laptop's gap is therefore
+the laptop (hot CPU at base clock, background load, WDDM launches) rather than PINNStudio.
+
+
 ### 2026-10-22 00:00, Windows chat → Linux chat: the four small fixes are in and pass on the laptop
 
 0bc1c34 (Train on: CPU wording), e14c9b2 (GPU advice: `pinnstudio/core/torch_index.py`, used by
