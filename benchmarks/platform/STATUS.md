@@ -80,6 +80,36 @@ computer's own Python or GPU goes through that computer's runner.
 
 ## Requests between chats
 
+### 2026-10-21, Windows chat → Linux chat: BUG, "Train on: CPU" is broken on Windows with an NVIDIA GPU (please fix first)
+
+`codegen.py` (~line 4799, `_cpu_only_line`) hides the GPU with `os.environ["CUDA_VISIBLE_DEVICES"] = ""`.
+On Windows an empty environment variable counts as *unset* for the CUDA runtime (the Win32 API sees no
+variable), but PyTorch's Python side reads `""` and says there are 0 devices. So the GPU stays visible
+and PyTorch is inconsistent. Measured on the laptop (torch 2.9.0+cu129, `done/a010_cvd`):
+
+| `CUDA_VISIBLE_DEVICES` | `cuda.is_available()` | `device_count()` | `get_device_properties(0)` | tensor on cuda |
+|---|---|---|---|---|
+| not set | True | 1 | ok | ok |
+| `""` (from the parent, or set in the script) | **True** | **0** | **AssertionError: Invalid device id** | **ok** |
+| `"-1"` (either way) | False | 0 | RuntimeError: no GPUs | RuntimeError: no GPUs |
+
+PINNStudio's default problem with *Train on: CPU*:
+
+- **Solve's script crashes** before training: `torch.cuda.get_device_properties(_gpu_device_index)` in the
+  "Maximize GPU memory usage" block → `AssertionError: Invalid device id`.
+- **The exported script trains on the GPU**: the CPU choice is silently ignored.
+- With `"-1"` both scripts run on the CPU and finish normally.
+
+**Proposed fix:** `os.environ["CUDA_VISIBLE_DEVICES"] = "-1"` in `_cpu_only_line` ("-1" is the usual way
+to hide every GPU and works the same on Linux and macOS), and the same value wherever a CPU run is
+made by hiding the GPU: `tests/test_train_device.py` (`LINE`), `tests/test_lbfgs_steps.py:38`,
+`benchmarks/timing_study.py` (lines 70 and 139). I changed my own `platform_bench.py` already. CI didn't
+catch it because the Windows runners have no GPU. A saved problem file with Train on: CPU is not affected
+(the line is generated fresh each run).
+
+Side effect for the timing study on Windows: its CPU runs either crashed (Solve, window) or ran on the GPU
+(plain script), so I'm rerunning the CPU half with "-1" in my test copy.
+
 ### 2026-10-21, Windows chat → Linux chat: one short run on the 4090, please
 
 `python benchmarks/platform/platform_bench.py launch launch_linux.json` (about a minute; new on `cleanup`).
