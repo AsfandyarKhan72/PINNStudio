@@ -41,7 +41,36 @@ from pinnstudio.core.codegen import generate_script  # noqa: E402
 REF_ROOT = os.path.join(_REPO, "reference_data")
 VARIANTS = ["base", "iters", "net", "points", "lbfgs", "all"]
 # inverse problems: changes aimed at the unknown parameters
-INVERSE_VARIANTS = ["dataw", "lbfgs3", "invall"]
+INVERSE_VARIANTS = ["dataw", "lbfgs3", "times", "setup", "invall"]
+TA_VARIANTS = ["windows2"]
+
+# The best setup of each PINNStudio template in the training methods study
+# (benchmarks/training_methods.md), as switches of benchmarks/study_runner.py.
+# --best starts the forward runs from it. BEST_WHOLE is the best setup that
+# trains on the whole interval, which is what Inverse mode can use; the
+# inverse "setup" variant switches to it.
+BEST_FORWARD = {
+    "2D Allen-Cahn (Wight & Zhao)": ["soft_ic", "exact_bc", "windows", "rba"],
+    "2D Allen-Cahn (Mattey & Ghosh)": ["exact_ic", "exact_bc", "whole", "sa"],
+    "1D Cahn-Hilliard (Mattey & Ghosh)": ["soft_ic", "exact_bc", "windows", "sa"],
+    "1D Burgers": ["whole", "causal"],
+}
+BEST_WHOLE = {
+    "2D Allen-Cahn (Wight & Zhao)": ["exact_ic", "exact_bc", "whole", "rba"],
+    "2D Allen-Cahn (Mattey & Ghosh)": ["exact_ic", "exact_bc", "whole", "sa"],
+    "1D Burgers": ["whole", "causal"],
+}
+
+
+def apply_switches(cfg, switches):
+    """study_runner's setup switches on a copy of cfg."""
+    sys.path.insert(0, os.path.join(_REPO, "benchmarks"))
+    import study_runner as sr
+    cfg = copy.deepcopy(cfg)
+    key = "_tuning_" + "_".join(switches)
+    sr.SETUPS[key] = list(switches)
+    sr.apply_setup(cfg, key, {})
+    return cfg
 LBFGS_PHASE = {"optimizer": "lbfgs", "iterations": 15000, "lr": 0.001, "decay_type": "none"}
 
 
@@ -68,9 +97,42 @@ def _has_lbfgs(cfg):
     return any(p.get("optimizer", "").lower().startswith("l") for p in _phases(cfg))
 
 
-def apply_variant(cfg, variant):
+def apply_variant(cfg, variant, tkey=None):
     """Return a changed copy of cfg, or None when the variant does not apply."""
     cfg = copy.deepcopy(cfg)
+    if variant == "windows2":                        # twice the time windows
+        if not cfg.time_adaptive or not (cfg.ta_step_groups or "").strip():
+            return None
+        groups = json.loads(cfg.ta_step_groups)
+        for g in groups:
+            g["steps"] = int(g["steps"]) * 2
+        cfg.ta_step_groups = json.dumps(groups)
+        cfg.ta_num_steps = sum(g["steps"] for g in groups)
+        return cfg
+    if variant == "setup":                           # the best whole-interval setup (inverse)
+        if not tkey or tkey not in BEST_WHOLE or not (cfg.inverse_obs_files_json or "").strip():
+            return None
+        return apply_switches(cfg, BEST_WHOLE[tkey])
+    if variant == "times":                           # measured data at every reference time after t = 0
+        obs = json.loads(cfg.inverse_obs_files_json or "[]")
+        if not obs:
+            return None
+        import glob as _glob
+        new = []
+        for o in obs:
+            folder, fname = os.path.split(o["path"])
+            m = re.match(r"t_([0-9.]+)(.*)\.txt$", fname)
+            if not m:
+                new.append(o)
+                continue
+            for f in sorted(_glob.glob(os.path.join(folder, "t_*" + m.group(2) + ".txt"))):
+                m2 = re.match(r"t_([0-9.]+)" + re.escape(m.group(2)) + r"\.txt$", os.path.basename(f))
+                if m2 and float(m2.group(1)) > 0 and not any(x["path"] == f for x in new):
+                    new.append(dict(o, path=f))
+        if len(new) <= len(obs):
+            return None
+        cfg.inverse_obs_files_json = json.dumps(new)
+        return cfg
     if variant in ("dataw", "lbfgs3", "invall"):
         if not (cfg.inverse_obs_files_json or "").strip():
             return None
@@ -368,9 +430,12 @@ def run(args):
             if loaded_diffs:
                 print(f"!!  {name[:50]:50s} the window loads it differently from its definition: "
                       f"{json.dumps(loaded_diffs, ensure_ascii=False)[:600]}", flush=True)
+        if args.best and tkey in BEST_FORWARD and not inverse:   # start from the study's best setup
+            base = apply_switches(base, BEST_FORWARD[tkey])
+            name = name + " | best setup"
         true = {v["name"]: v.get("true") for v in json.loads(base.inverse_variables_json or "[]")}
         for variant in variants:
-            cfg0 = apply_variant(base, variant)
+            cfg0 = apply_variant(base, variant, tkey)
             if cfg0 is None:
                 print(f"--  {name[:50]:50s} {variant:7s} does not apply", flush=True)
                 continue
@@ -467,6 +532,8 @@ def main():
     ap.add_argument("--variants", default=",".join(VARIANTS))
     ap.add_argument("--seeds", default="2026")
     ap.add_argument("--inverse", action="store_true", help="run the Inverse-mode version where there is one")
+    ap.add_argument("--best", action="store_true",
+                    help="forward templates: start from the training methods study's best setup (BEST_FORWARD)")
     ap.add_argument("--gui", action="store_true",
                     help="run every case through the PINNStudio window (offscreen) instead of its script")
     ap.add_argument("--smoke", action="store_true", help="30 iterations per phase, to check that it runs")

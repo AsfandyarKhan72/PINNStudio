@@ -38,7 +38,10 @@ VARIANT_TEXT = {
     "all": "all of the changes above together",
     "dataw": "10× the weight of the measured data (inverse problems)",
     "lbfgs3": "3× the L-BFGS iterations, or an L-BFGS phase of 45,000 added (inverse problems)",
+    "times": "measured data at every reference time after t = 0, not only one (inverse problems)",
+    "setup": "the best whole-interval setup of the forward problem from the training methods study (inverse problems)",
     "invall": "10× data weight, 3× L-BFGS and the wider, deeper network together (inverse problems)",
+    "windows2": "twice as many time windows (time-adaptive training)",
 }
 
 # One or two sentences per example, keyed by (example, inverse). Only what the
@@ -130,6 +133,9 @@ def pct(x):
 
 
 def _title(name, inverse):
+    if " | " in name:
+        base, extra = name.split(" | ", 1)
+        return _title(base, inverse) + f" ({extra})"
     if name.startswith(ts.TEMPLATE_PREFIX):
         t = display_name(name[len(ts.TEMPLATE_PREFIX):]) + " (PINNStudio template)"
     else:
@@ -223,12 +229,18 @@ def problem_file(s):
     except ImportError:
         return None
     name, inv = s["name"], s["inverse"]
-    if name.startswith(ts.TEMPLATE_PREFIX):
-        base = ts.template_config(name[len(ts.TEMPLATE_PREFIX):], inv)
+    plain, _, extra = name.partition(" | ")
+    tkey = plain[len(ts.TEMPLATE_PREFIX):] if plain.startswith(ts.TEMPLATE_PREFIX) else None
+    if tkey:
+        base = ts.template_config(tkey, inv)
+        if extra == "best setup":
+            base = ts.apply_switches(base, ts.BEST_FORWARD[tkey])
     else:
-        ex = {e.name: e for e in dx.EXAMPLES}[name]
+        ex = {e.name: e for e in dx.EXAMPLES}[plain]
         base = dx.build_config(ex, ts.REF_ROOT, inverse=inv)
-    cfg = ts.apply_variant(base, s["chosen"])
+    cfg = ts.apply_variant(base, s["chosen"], tkey)
+    if cfg is None:
+        return None
     cfg = copy.deepcopy(cfg)
     cfg.save_dir = ""
     cfg.sweep_save_dir = ""
@@ -310,7 +322,7 @@ def page(summ, rows, with_files):
           f"{b['points'][0]:,} domain / {b['points'][1]:,} boundary / {b['points'][2]:,} initial points.\n")
         a("| Variant | Final training loss | $L_2$ (worst) | Parameter error | Time (s) |")
         a("|---|---|---|---|---|")
-        for v in ts.VARIANTS + ts.INVERSE_VARIANTS:
+        for v in ts.VARIANTS + ts.INVERSE_VARIANTS + ts.TA_VARIANTS:
             rs = [r for r in s["variants"].get(v, []) if r["seed"] == 2026] or s["variants"].get(v, [])[:1]
             if not rs:
                 continue
