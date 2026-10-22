@@ -40,6 +40,8 @@ from pinnstudio.core.codegen import generate_script  # noqa: E402
 
 REF_ROOT = os.path.join(_REPO, "reference_data")
 VARIANTS = ["base", "iters", "net", "points", "lbfgs", "all"]
+# inverse problems: changes aimed at the unknown parameters
+INVERSE_VARIANTS = ["dataw", "lbfgs3", "invall"]
 LBFGS_PHASE = {"optimizer": "lbfgs", "iterations": 15000, "lr": 0.001, "decay_type": "none"}
 
 
@@ -69,6 +71,26 @@ def _has_lbfgs(cfg):
 def apply_variant(cfg, variant):
     """Return a changed copy of cfg, or None when the variant does not apply."""
     cfg = copy.deepcopy(cfg)
+    if variant in ("dataw", "lbfgs3", "invall"):
+        if not (cfg.inverse_obs_files_json or "").strip():
+            return None
+        if variant in ("dataw", "invall"):           # 10x the weight of every measured-data term
+            obs = json.loads(cfg.inverse_obs_files_json)
+            for o in obs:
+                o["weight"] = float(o.get("weight", 1.0)) * 10
+            cfg.inverse_obs_files_json = json.dumps(obs)
+        if variant in ("lbfgs3", "invall"):          # 3x the L-BFGS phase, or add one
+            ph = _phases(cfg)
+            lb = [p for p in ph if p.get("optimizer", "").lower().startswith("l")]
+            if lb:
+                for p in lb:
+                    p["iterations"] = int(p["iterations"]) * 3
+            else:
+                ph.append(dict(LBFGS_PHASE, iterations=45000))
+            _set_phases(cfg, ph)
+        if variant == "invall":                      # and the wider, deeper network
+            cfg = apply_variant(cfg, "net")
+        return cfg
     parts = ["iters", "net", "points", "lbfgs"] if variant == "all" else [variant]
     if variant == "lbfgs" and _has_lbfgs(cfg):
         return None

@@ -36,6 +36,9 @@ VARIANT_TEXT = {
     "points": "3× the domain, boundary and initial points",
     "lbfgs": "an L-BFGS phase (15,000 iterations) after Adam",
     "all": "all of the changes above together",
+    "dataw": "10× the weight of the measured data (inverse problems)",
+    "lbfgs3": "3× the L-BFGS iterations, or an L-BFGS phase of 45,000 added (inverse problems)",
+    "invall": "10× data weight, 3× L-BFGS and the wider, deeper network together (inverse problems)",
 }
 
 # One or two sentences per example, keyed by (example, inverse). Only what the
@@ -292,7 +295,7 @@ def page(summ, rows, with_files):
           f"{b['points'][0]:,} domain / {b['points'][1]:,} boundary / {b['points'][2]:,} initial points.\n")
         a("| Variant | Final training loss | $L_2$ (worst) | Parameter error | Time (s) |")
         a("|---|---|---|---|---|")
-        for v in ts.VARIANTS:
+        for v in ts.VARIANTS + ts.INVERSE_VARIANTS:
             rs = [r for r in s["variants"].get(v, []) if r["seed"] == 2026] or s["variants"].get(v, [])[:1]
             if not rs:
                 continue
