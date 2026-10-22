@@ -61,14 +61,14 @@ Automatic rule, min(8, logical CPUs / 2), gives 6 here.
 
 | Threads | Heat 1D (2k points) | Poisson 2D (20k points) | Heat 2D (30k points) |
 |---|---|---|---|
-| 1 | 49 | 1.0 | |
-| 2 | 66 | | |
-| 3 | 61 | | |
-| 4 | **69** | | |
-| **6 (Automatic)** | 62 | | |
-| 8 | 65 | | |
-| 10 | 59 | | |
-| 12 (every thread) | 42 | | |
+| 1 | 49 | 1.0 | 1.3 |
+| 2 | 66 | 1.3 | |
+| 3 | 61 | 1.4 | |
+| 4 | **69** | **1.5** | |
+| **6 (Automatic)** | 62 | **1.5** | |
+| 8 | 65 | **1.5** | |
+| 10 | 59 | **1.5** | |
+| 12 (every thread) | 42 | 1.3 | |
 
 ## Start-up of a run
 
@@ -86,7 +86,19 @@ otherwise idle). Linux: about 4 s.
 | first import in that brand-new environment | 16.3 s | 17.9 s |
 
 Under load (the first measurement, while Windows Search was indexing) `import torch, deepxde` took 9.9 s.
-DeepXDE's own import takes about 4 s on top of torch's.
+
+Where the time goes (`python -X importtime -c "import torch, deepxde"`, one run, 7.5 s in all):
+
+| Module | Time | |
+|---|---|---|
+| torch | 2.7 s | |
+| deepxde | 4.7 s | |
+| &nbsp;&nbsp;scikit-learn (imported by `deepxde/utils/external.py`) | 2.0 s | only used by DeepXDE's `standardize()` helper |
+| &nbsp;&nbsp;`deepxde.backend.pytorch.tensor` | 1.2 s | starts CUDA (needed on the GPU anyway) |
+| &nbsp;&nbsp;matplotlib.pyplot | 0.5 s | PINNStudio's scripts plot anyway |
+| &nbsp;&nbsp;scipy.spatial.distance | 0.5 s | |
+
+About 2 s of every run's start-up here is scikit-learn, which PINNStudio's scripts don't use.
 
 ## Output while training
 
