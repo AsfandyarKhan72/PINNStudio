@@ -114,6 +114,27 @@ def run():
                 print("   ", type(e).__name__, e)
             check(ok, f"{ex.name}: {gen.__name__} gives valid Python")
 
+    # 1b) Every Inverse mode: valid config, measured data present, both scripts generate,
+    #     each unknown starts away from its true value.
+    for ex in [e for e in dx.EXAMPLES if e.inverse]:
+        cfg = dx.build_config(ex, REFERENCE_DATA_DIR, inverse=True)
+        errs = cfg.validate()
+        check(cfg.problem_type == "Inverse" and not errs, f"{ex.name} (inverse): config validates {errs}")
+        missing = [p for p in _paths(cfg) if not os.path.isfile(p)]
+        check(json.loads(cfg.inverse_obs_files_json or "[]") and not missing,
+              f"{ex.name} (inverse): measured data files exist {missing}")
+        unknowns = json.loads(cfg.inverse_variables_json or "[]")
+        check(unknowns and all(float(v["init"]) != float(v["true"]) for v in unknowns),
+              f"{ex.name} (inverse): unknowns start away from their true values")
+        for gen in (generate_script, generate_clean_script):
+            try:
+                ast.parse(gen(cfg))
+                ok = True
+            except Exception as e:  # noqa: BLE001
+                ok = False
+                print("   ", type(e).__name__, e)
+            check(ok, f"{ex.name} (inverse): {gen.__name__} gives valid Python")
+
     # 2) DeepXDE's default loss weights.
     heat = dx.build_config(dx.BY_NAME["Heat equation"], REFERENCE_DATA_DIR)
     check(heat.loss_weights_multi == "1,1,1", f"Heat: PDE, BC, IC all weighted 1, got {heat.loss_weights_multi}")

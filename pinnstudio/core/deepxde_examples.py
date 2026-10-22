@@ -879,6 +879,149 @@ EXAMPLES = [
              "C(alpha, 2) differentiable in alpha, as DeepXDE's script does."),
 ]
 
+
+# ── Inverse modes PINNStudio adds to DeepXDE's forward examples ──────────
+# Each learns coefficients of the example's own equation from measured data
+# made from the exact solution with the example's true values (written by
+# tools/make_deepxde_reference_data.py into reference_data/deepxde/*_inverse).
+# The unknowns leave the constants; where a boundary condition, output
+# transform or reference formula used one, it gets the true value instead
+# (the boundary data are given, the coefficient in the equation is not).
+# Every one has a high measured-data weight and an L-BFGS phase after Adam,
+# which inverse problems need to settle the parameters.
+
+def _num(text, **values):
+    """text with the named coefficients replaced by numbers."""
+    import re
+    for k, v in values.items():
+        text = re.sub(rf"\b{k}\b", f"({v})", text)
+    return text
+
+
+def _vars(*triples):
+    return json.dumps([{"name": n, "init": i, "true": tv} for n, i, tv in triples])
+
+
+def _obs(*files, weight=100.0):
+    return json.dumps([{"path": "@REF/deepxde/" + f, "output_idx": i, "weight": weight, "custom_expr": ""}
+                       for f, i in files])
+
+
+def _inv(variables, obs, **settings):
+    return dict(problem_type="Inverse", inverse_variables_json=variables, inverse_obs_files_json=obs,
+                inv_param_save="Every 1000 iters", **settings)
+
+
+_ADD_LBFGS = dict(optimizer2="lbfgs", iterations2=15000)
+_PLATE_REF_TRUE = _num(_PLATE_REF["ea_ref_formula"], lmbd=1, mu=0.5)
+_KOV_L = "1/(2*(1/20)) - sqrt(1/(4*(1/20)**2) + 4*pi**2)"
+_DR_SRC = "exp(-t)*(3*sin(2*x)/2 + 8*sin(3*x)/3 + 15*sin(4*x)/4 + 63*sin(8*x)/8)"
+
+ADDED_INVERSE = {
+    "Linear elastostatic plate": (
+        _inv(_vars(("lmbd", 2.0, 1.0), ("mu", 1.0, 0.5)),
+             _obs(("elasticity_inverse/ux_obs.txt", 0), ("elasticity_inverse/uy_obs.txt", 1)),
+             constants=json.dumps([{"name": "Q", "value": "4"}]),
+             output_transform_formula="ux*y*(1 - y)|uy*x*(1 - x)*y|sxx*x*(1 - x)|syy*(1 - y) + (1 + 2*0.5)*Q*sin(pi*x)|sxy",
+             ea_ref_formula=_PLATE_REF_TRUE),
+        "Inverse mode (PINNStudio's addition): the Lamé parameters lmbd (initial guess 2, true 1) and mu (initial "
+        "guess 1, true 0.5) are learned from the displacements ux and uy measured on a 19 x 19 grid "
+        "(reference_data/deepxde/elasticity_inverse)."),
+    "Kovasznay flow": (
+        _inv(_vars(("Re", 10.0, 20.0)),
+             _obs(("kovasznay_inverse/u_obs.txt", 0), ("kovasznay_inverse/v_obs.txt", 1)),
+             constants=json.dumps([{"name": "l", "value": _KOV_L}])),
+        "Inverse mode (PINNStudio's addition): the Reynolds number Re (initial guess 10, true 20) is learned from "
+        "u and v measured at 500 points (reference_data/deepxde/kovasznay_inverse); the boundary values keep "
+        "the true Re."),
+    "Beltrami flow": (
+        _inv(_vars(("nu", 0.5, 1.0)),
+             _obs(("beltrami_inverse/u_obs.txt", 0), ("beltrami_inverse/v_obs.txt", 1),
+                  ("beltrami_inverse/w_obs.txt", 2)),
+             pde_expressions="|".join([
+                 "du_t + (u*du_x + v*du_y + w*du_z) + dp_x - nu*(du_xx + du_yy + du_zz)",
+                 "dv_t + (u*dv_x + v*dv_y + w*dv_z) + dp_y - nu*(dv_xx + dv_yy + dv_zz)",
+                 "dw_t + (u*dw_x + v*dw_y + w*dw_z) + dp_z - nu*(dw_xx + dw_yy + dw_zz)",
+                 "du_x + dv_y + dw_z"])),
+        "Inverse mode (PINNStudio's addition): the viscosity nu (1 in the forward equations; initial guess 0.5) "
+        "is learned from u, v and w measured at 500 points each at t = 0.5 and t = 1 "
+        "(reference_data/deepxde/beltrami_inverse)."),
+    "Klein-Gordon equation": (
+        _inv(_vars(("alpha", -2.0, -1.0), ("gamma", 0.5, 1.0)),
+             _obs(*((f"klein_gordon_inverse/t_{t:g}.txt", 0) for t in (2.5, 5.0, 7.5, 10.0))),
+             constants=json.dumps([{"name": "beta", "value": "0"}, {"name": "k", "value": "2"}])),
+        "Inverse mode (PINNStudio's addition): the coefficients alpha (initial guess -2, true -1) and gamma "
+        "(initial guess 0.5, true 1) are learned from u measured at t = 2.5, 5, 7.5 and 10 "
+        "(reference_data/deepxde/klein_gordon_inverse); beta = 0 stays known."),
+    "Black-Scholes equation (call option)": (
+        _inv(_vars(("sigma", 0.4, 0.2), ("r", 0.1, 0.05)),
+             _obs(*((f"black_scholes_inverse/t_{t:g}.txt", 0) for t in (0.25, 0.5, 1.0))),
+             constants=json.dumps([{"name": "K", "value": "50"}]),
+             custom_bc_json=_bcs(_bc("dirichlet", "left", "0"), _bc("dirichlet", "right", "x_max - K*exp(-0.05*t)")),
+             ea_ref_formula=_num(next(e for e in EXAMPLES if e.name == "Black-Scholes equation (call option)")
+                                 .settings["ea_ref_formula"], sigma=0.2, r=0.05)),
+        "Inverse mode (PINNStudio's addition): the volatility sigma (initial guess 0.4, true 0.2) and the rate r "
+        "(initial guess 0.1, true 0.05) are learned from option prices at time to maturity 0.25, 0.5 and 1 "
+        "(reference_data/deepxde/black_scholes_inverse), the implied-volatility problem."),
+    "Lotka-Volterra equation": (
+        _inv(_vars(("a", 1.0, 2.0), ("d", 2.0, 1.06)),
+             _obs(("lotka_volterra/r.txt", 0), ("lotka_volterra/p.txt", 1)),
+             pde_expressions="dr_t - 1/ub*rb*(a*ub*r - 0.04*ub*r*ub*p)|dp_t - 1/ub*rb*(0.02*r*ub*p*ub - d*p*ub)"),
+        "Inverse mode (PINNStudio's addition): the prey growth rate a (2 in the forward equations; initial guess 1) "
+        "and the predator death rate d (1.06; initial guess 2) are learned from both populations "
+        "(reference_data/deepxde/lotka_volterra)."),
+    "Helmholtz 2D (Dirichlet)": (
+        _inv(_vars(("k0", 10.0, 4 * math.pi)), _obs(("helmholtz_inverse/u_obs.txt", 0)),
+             constants="[]", ea_ref_formula="sin(4*pi*x)*sin(4*pi*y)", **_ADD_LBFGS),
+        "Inverse mode (PINNStudio's addition): the wavenumber k0 (4 pi; initial guess 10) is learned from u "
+        "measured on a 31 x 31 grid (reference_data/deepxde/helmholtz_inverse). An L-BFGS phase follows Adam."),
+    "Wave propagation – space-time multi-scale Fourier features": (
+        _inv(_vars(("C", 5.0, 10.0)),
+             _obs(*((f"wave_inverse/t_{t:g}.txt", 0) for t in (0.25, 0.5, 0.75, 1.0))),
+             constants=json.dumps([{"name": "A", "value": "2"}]),
+             ea_ref_formula="sin(pi*x)*cos(10*pi*t) + sin(A*pi*x)*cos(A*10*pi*t)",
+             scheduler_phases=json.dumps([_phase("adam", 10000, 1e-3, ("inverse time", 2000, 0.9)),
+                                          _phase("lbfgs", 15000)])),
+        "Inverse mode (PINNStudio's addition): the wave speed C (initial guess 5, true 10) is learned from u "
+        "measured at t = 0.25, 0.5, 0.75 and 1 (reference_data/deepxde/wave_inverse). An L-BFGS phase follows Adam."),
+    "Diffusion-reaction equation": (
+        _inv(_vars(("D", 2.0, 1.0)),
+             _obs(*((f"diffusion_reaction_inverse/t_{t:g}.txt", 0) for t in (0.25, 0.5, 0.75, 1.0))),
+             pde_expressions=f"du_t - D*du_xx - {_DR_SRC}", **_ADD_LBFGS),
+        "Inverse mode (PINNStudio's addition): the diffusivity D (1 in the forward equation; initial guess 2) is "
+        "learned from u measured at t = 0.25, 0.5, 0.75 and 1 (reference_data/deepxde/diffusion_reaction_inverse). "
+        "An L-BFGS phase follows Adam."),
+    "Euler beam": (
+        _inv(_vars(("EI", 2.0, 1.0)), _obs(("euler_beam_inverse/u_obs.txt", 0)),
+             pde_expressions="EI*du_xxxx + 1", **_ADD_LBFGS),
+        "Inverse mode (PINNStudio's addition): the bending stiffness EI (1 in the forward equation; initial guess 2) "
+        "is learned from the deflection measured at 20 points (reference_data/deepxde/euler_beam_inverse). "
+        "An L-BFGS phase follows Adam."),
+    "Allen-Cahn equation": (
+        _inv(_vars(("d", 0.002, 0.001), ("c", 2.5, 5.0)),
+             json.dumps([{"path": f"@REF/deepxde/allen_cahn/t_{t:g}.txt", "output_idx": 0, "weight": 100.0,
+                          "custom_expr": ""} for t in (0.25, 0.5, 0.75, 1.0)]),
+             constants="[]", pde_expressions="du_t - d*du_xx - c*(u - u**3)"),
+        "Inverse mode (PINNStudio's addition): the diffusion coefficient d (initial guess 0.002, true 0.001) and "
+        "the reaction coefficient c (5 in the forward equation; initial guess 2.5) are learned from u at "
+        "t = 0.25, 0.5, 0.75 and 1 (the example's reference data, reference_data/deepxde/allen_cahn)."),
+    "Second-order ODE": (
+        _inv(_vars(("a", 5.0, 10.0), ("b", 4.5, 9.0)), _obs(("ode2_inverse/u_obs.txt", 0)),
+             pde_expressions="du_tt - a*du_t + b*u - 5*t", **_ADD_LBFGS),
+        "Inverse mode (PINNStudio's addition): the coefficients a (10 in the forward equation; initial guess 5) "
+        "and b (9; initial guess 4.5) of u'' - a u' + b u = 5t are learned from u at 30 times "
+        "(reference_data/deepxde/ode2_inverse). An L-BFGS phase follows Adam."),
+    "ODE system": (
+        _inv(_vars(("w", 2.0, 1.0)),
+             _obs(("ode_system_inverse/y1_obs.txt", 0), ("ode_system_inverse/y2_obs.txt", 1)),
+             pde_expressions="dy1_t - y2|dy2_t + w*y1", **_ADD_LBFGS),
+        "Inverse mode (PINNStudio's addition): the coefficient w in y2' = -w y1 (1 in the forward equations; "
+        "initial guess 2) is learned from y1 and y2 at 40 times (reference_data/deepxde/ode_system_inverse). "
+        "An L-BFGS phase follows Adam."),
+}
+EXAMPLES = [dataclasses.replace(e, inverse=ADDED_INVERSE[e.name][0], inverse_note=ADDED_INVERSE[e.name][1])
+            if e.name in ADDED_INVERSE and not e.inverse else e for e in EXAMPLES]
+
 BY_NAME = {e.name: e for e in EXAMPLES}
 
 
