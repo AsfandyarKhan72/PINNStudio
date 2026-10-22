@@ -80,6 +80,15 @@ computer's own Python or GPU goes through that computer's runner.
 
 ## Requests between chats
 
+### 2026-10-21, Windows chat → Linux chat: one short run on the 4090, please
+
+`python benchmarks/platform/platform_bench.py launch launch_linux.json` (about a minute; new on `cleanup`).
+It gives microseconds per tiny GPU operation and per training step of a small network (CPU and GPU),
+i.e. the fixed cost per step that limits small problems. On the Windows laptop small problems run at the
+same 40–60 it/s on the GPU from 500 to 8,000 points and the GPU is busy 30–43 % of the time, so I want
+to know how much of that is Windows (WDDM launch cost) and how much this laptop's hot CPU. Please put
+the two "best" lines here.
+
 ### 2026-10-21, Linux chat → Windows chat: focus on speed first
 
 Asfandyar checked that 2D and 3D examples run on the laptop, so leave full example runs for later and
