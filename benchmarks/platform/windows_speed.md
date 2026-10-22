@@ -93,6 +93,57 @@ step costs the same fixed time to launch, whatever the size, and only from about
 GPU's own work start to show. The same holds on Linux, with a much lower fixed cost (README: the 4090
 runs these sizes at 139–162 it/s).
 
+## PINNStudio against a plain script (benchmarks/timing_study.py)
+
+The README's five examples, run three ways: the plain exported script, the script Solve runs (with
+`python`, no window), and Solve in the PINNStudio window with the live loss plot. 2,000 Adam + 400 L-BFGS
+steps on the GPU, 400 + 80 on the CPU, best of 2. Training time per 1,000 steps (the sum of DeepXDE's
+"'train' took" lines over the steps actually taken):
+
+| Example | GPU: script | Solve's script | window | CPU: script | Solve's script | window |
+|---|---|---|---|---|---|---|
+| Heat 1D | 22.8 s | 22.9 s | 22.8 s | 12.0 s | 12.4 s | 12.1 s |
+| Burgers 1D | 25.2 s | 24.8 s | 24.7 s | 16.9 s | 17.4 s | 17.1 s |
+| Navier-Stokes 2D (Kovasznay) | 53.6 s | 53.9 s | 53.2 s | 74.4 s | 73.5 s | 72.9 s |
+| Allen-Cahn 1D (causal, MsFFN) | 69.6 s | 72.6 s | 72.5 s | 564 s | 554 s | 525 s |
+| Diffusion 1D, inverse | 19.6 s | 19.2 s | 19.4 s | 6.8 s | 6.8 s | 6.7 s |
+
+**PINNStudio trains as fast as the plain script on Windows too**, on the GPU and on the CPU; the
+differences are within the spread between repeats. A run also spends 10–25 s outside training (start-up,
+plots, saving): Heat 1D 68 s in all on the GPU for 55 s of training.
+
+(The CPU columns were measured with `CUDA_VISIBLE_DEVICES="-1"`: with the study's `""` the CPU runs either
+crashed or trained on the GPU, see the bug below.)
+
+The same examples against the Linux workstation (plain script, per 1,000 steps):
+
+| Example | Laptop GPU | Laptop CPU | Linux RTX 4090 | Linux i9-13900KF CPU |
+|---|---|---|---|---|
+| Heat 1D | 22.8 s | **12.0 s** | 2.10 s | 2.13 s |
+| Burgers 1D | 25.2 s | **16.9 s** | 2.68 s | 3.62 s |
+| Navier-Stokes 2D | **53.6 s** | 74.4 s | 5.78 s | 22.8 s |
+| Allen-Cahn 1D | **69.6 s** | 564 s | 7.21 s | 90 s |
+| Diffusion 1D, inverse | 19.6 s | **6.8 s** | 2.50 s | 1.14 s |
+
+The laptop's GPU is about 10× slower than the 4090 on every example. Its CPU is 4–6× slower than the
+i9 on the 1D examples and Allen-Cahn, 3× on Navier-Stokes. **On this laptop three of the five examples
+train faster on the CPU**, the 1D ones with a small network. PINNStudio's default, the GPU when there is
+one, is the slower choice for them here.
+
+## The fixed cost of a step (platform_bench.py launch)
+
+A tiny GPU operation (adding 1 to 16 numbers) and one training step of a 3×64 network on 64 points with
+second derivatives and Adam, best of 3:
+
+| | per tiny operation | per training step | steps a second |
+|---|---|---|---|
+| CPU (6 threads) | 9.2 µs | 5.4 ms | 187 |
+| GPU | 29.2 µs | 11.1 ms | 90 |
+
+Every GPU step pays this fixed cost before the GPU does any real work; for a small 1D problem it is most
+of the step, which is why the GPU is flat at 40–60 it/s up to about 8,000 points and loses to the CPU
+below about 1,000. (Linux numbers for the same test are requested in STATUS.md.)
+
 ## Start-up of a run
 
 Time to start a new Python process and import what a PINNStudio script imports (median of 5, the laptop
