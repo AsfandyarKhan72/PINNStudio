@@ -5,6 +5,27 @@ the one-command installer installs it (uv, Python 3.12, `--torch-backend auto`),
 own. Short runs, best of 2–3 repeats unless noted. The Linux numbers to compare with are in the README
 ("Speed: PINNStudio and a plain script"): RTX 4090 and Core i9-13900KF.
 
+## Summary
+
+- **PINNStudio trains as fast as a plain DeepXDE script on Windows**, on the GPU and the CPU (Solve's
+  script and the window within the spread of a plain script). Printing the log costs nothing.
+- **Bug: *Train on: CPU* does not work on Windows with an NVIDIA GPU.** Solve's script crashes ("Invalid
+  device id") and the exported script trains on the GPU. Cause: `CUDA_VISIBLE_DEVICES=""`; `"-1"` fixes it.
+- **Every GPU run prints two warnings in the Training Log on Windows** (`expandable_segments not supported
+  on this platform`, `PYTORCH_CUDA_ALLOC_CONF is deprecated`), from `codegen.py` line 14.
+- **Start-up costs 7–9 s a run** (Linux about 4 s): torch 3–4 s, DeepXDE 4–5 s, of which 2 s is
+  scikit-learn, which PINNStudio doesn't use. Windows Defender adds 1.5–2 s; an exclusion removes it.
+- **The first start after installing takes 17–40 s**; installing with uv's `--compile-bytecode` makes it
+  8.5 s, for 20–55 s more at install time.
+- **The installer's PyTorch choice is right** (cu129 for driver 546.29). cu126 is the same speed; cu130 can't
+  use this driver and would fall back to the CPU with only a warning.
+- **CPU threads: the Automatic rule (6 here) is right**; every thread is 15–40 % slower.
+- **TF32 off and float32 are right**; float64 is 6× slower on this GPU, `torch.compile` doesn't work on
+  Windows (no Triton).
+- **On this laptop the GPU only pays off above about 1,000 points**: each GPU step has a fixed cost of
+  11 ms (CPU: 5 ms), so the 1D examples train 1.5–3× faster on the CPU. This laptop's CPU is also
+  thermally limited (96 °C, no turbo) and busy with background programs, which slows the GPU too.
+
 ## The laptop
 
 | | |
@@ -196,6 +217,32 @@ Where the time goes (`python -X importtime -c "import torch, deepxde"`, one run,
 | &nbsp;&nbsp;scipy.spatial.distance | 0.5 s | |
 
 About 2 s of every run's start-up here is scikit-learn, which PINNStudio's scripts don't use.
+
+## The first start after installing
+
+uv installs packages without compiling them to bytecode, so the first start compiles every module (and
+Windows Defender scans each new file once). Fresh environments on C: from uv's cache (no download), the
+time to `import torch, deepxde, matplotlib.pyplot` (`jobs/010b_bytecode`):
+
+| Install | install | first start | second | third |
+|---|---|---|---|---|
+| `uv pip install` (as the installer does now) | 6.7–10.5 s | **17.0–17.6 s** | 7.5–8.5 s | 7.7–8.9 s |
+| `uv pip install --compile-bytecode` | 27.8–65.2 s | **8.4–8.8 s** | 7.3–7.5 s | 7.2–7.6 s |
+
+The first time an environment was used after a reboot-cold cache, the first start took 37 s (and 34–41 s
+on the hard disk D:). With `--compile-bytecode` the first Solve after installing or updating starts like
+every later one.
+
+## Warnings in every GPU run on Windows
+
+`codegen.py` sets `os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:512,expandable_segments:True"`.
+On Windows with torch 2.9 every GPU run then prints, into the Training Log:
+
+    UserWarning: expandable_segments not supported on this platform
+    Warning: PYTORCH_CUDA_ALLOC_CONF is deprecated, use PYTORCH_ALLOC_CONF instead
+
+The first is Windows only (expandable segments are a Linux feature); the second comes with torch 2.9 on
+every platform. The TF32 deprecation warning torch 2.9 has does not appear in PINNStudio's scripts.
 
 ## Output while training
 
