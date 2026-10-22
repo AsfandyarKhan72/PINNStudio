@@ -100,7 +100,7 @@ def apply_variant(cfg, variant):
 
 
 def _parse(out):
-    l2 = [float(x) for x in re.findall(r"L2=([0-9.eE+-]+)", out)]
+    l2 = [float(x) for x in re.findall(r"L(?:2|₂)=([0-9.eE+-]+)", out)]
     loss = re.findall(r"Final loss: ([0-9.eE+-]+)", out)
     params = {n: float(v) for n, v in re.findall(r"=== (\w+) final value: (\S+) ===", out)}
     return l2, (float(loss[-1]) if loss else None), params
@@ -153,6 +153,172 @@ def template_config(key, inverse):
     return cfg
 
 
+# ---------------------------------------------------------------- GUI mode
+# --gui runs every case through the PINNStudio window itself (offscreen): the
+# example is picked from the Examples list, the variant is put into the window
+# the way an opened problem file is, Solve is pressed, and the results are read
+# from the Training Log. Differences between the window's settings and the
+# expected ones are recorded as "gui_diffs" -- each one is a possible bug.
+_IGNORE = {"save_dir", "sweep_save_dir", "sweep_label", "random_seed", "gpu_device_index", "gpu_memory_fraction",
+           "train_device", "cpu_threads", "plot_colormap", "template_type"}
+_WIN = None
+
+
+def _window():
+    global _WIN, _app
+    if _WIN is None:
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        from PyQt6.QtWidgets import QApplication
+        _app = QApplication.instance() or QApplication(["pinnstudio"])
+        from pinnstudio.ui.main_window import MainWindow
+        _WIN = MainWindow()
+        _WIN._maybe_save_changes = lambda: True
+        _pump(1.0)
+    return _WIN
+
+
+def _pump(seconds):
+    t0 = time.time()
+    while time.time() - t0 < seconds:
+        _app.processEvents()
+        time.sleep(0.02)
+
+
+def _pick(w, key, inverse):
+    w.quick_examples_category_combo.setCurrentText("Inverse" if inverse else "Forward")
+    _pump(0.2)
+    combo = w.quick_examples_combo
+    i = combo.findData(key)
+    if i < 0 and not inverse:          # an inverse-only DeepXDE example is in the Inverse list
+        w.quick_examples_category_combo.setCurrentText("Inverse")
+        _pump(0.2)
+        i = combo.findData(key)
+    if i < 0:
+        raise SystemExit(f"{key!r} is not in the {'Inverse' if inverse else 'Forward'} list")
+    combo.setCurrentIndex(i)
+    combo.activated.emit(i)
+    _pump(1.0)
+
+
+def _norm(v):
+    """A setting in a comparable form: JSON and Python-literal strings parsed,
+    numbers as floats, so "[1, 2]" and "[1,2]" or 2 and 2.0 compare equal."""
+    import ast
+    if isinstance(v, str):
+        s = v.strip()
+        if s[:1] in "[{(":
+            for parse in (json.loads, ast.literal_eval):
+                try:
+                    return _norm(parse(s))
+                except (ValueError, SyntaxError, TypeError):
+                    pass
+        return s
+    if isinstance(v, bool) or v is None:
+        return v
+    if isinstance(v, (int, float)):
+        return round(float(v), 12)
+    if isinstance(v, (list, tuple)):
+        return [_norm(x) for x in v]
+    if isinstance(v, dict):
+        return {k: _norm(x) for k, x in v.items()}
+    return v
+
+
+def _same(a, b):
+    """a and b mean the same: a dict in b may carry extra keys that a leaves
+    to their defaults (the window writes every key out)."""
+    if isinstance(a, dict) and isinstance(b, dict):
+        return all(k in b and _same(v, b[k]) for k, v in a.items())
+    if isinstance(a, list) and isinstance(b, list):
+        return len(a) == len(b) and all(_same(x, y) for x, y in zip(a, b))
+    return a == b
+
+
+# settings the window fills with its defaults when an example leaves them unset;
+# they only take effect when the feature they belong to is switched on
+_FILLED = {"bc_boundary_json", "bc_edge_json", "sweep_parameters", "ta_step_groups", "inverse_variables_json",
+           "inverse_obs_files_json", "inverse_data_file", "inverse_param_init", "inverse_param_name", "ic_hard",
+           "loss_weights_multi"}
+
+
+def _diffs(expected, got):
+    import dataclasses
+    a, b = dataclasses.asdict(expected), dataclasses.asdict(got)
+    out = {}
+    for k in a:
+        if k in _IGNORE or k.startswith(("plot_", "fig_", "line_", "surface_", "anim_")):
+            continue
+        va, vb = _norm(a[k]), _norm(b.get(k))
+        if k in _FILLED and va in ("", [], None, {}):
+            continue
+        if k == "loss_weights_multi" and isinstance(va, str) and isinstance(vb, str):
+            try:
+                if [float(x) for x in va.split(",")] == [float(x) for x in vb.split(",")]:
+                    continue
+            except ValueError:
+                pass
+        if _same(va, vb):
+            continue
+        if isinstance(va, float) and isinstance(vb, (int, float)) and abs(va - vb) <= 1e-12 * max(1, abs(va)):
+            continue
+        if va != vb:
+            out[k] = [str(va)[:200], str(vb)[:200]]
+    return out
+
+
+def _script_diff(expected, got):
+    """The lines that differ between the scripts the two configurations
+    generate (save folder, seed and device settings made equal): settings
+    that differ only in form generate the same script and are not listed."""
+    import difflib
+    a, b = copy.deepcopy(expected), copy.deepcopy(got)
+    for k in _IGNORE:
+        if hasattr(b, k):
+            setattr(b, k, getattr(a, k))
+    sa, sb = generate_script(a).splitlines(), generate_script(b).splitlines()
+    return [l for l in difflib.unified_diff(sa, sb, lineterm="", n=0)
+            if l[:1] in "+-" and not l.startswith(("+++", "---"))][:40]
+
+
+def gui_base_config(name, tkey, inverse):
+    """The example as the window loads it, and how that differs from the
+    example's own definition (DeepXDE examples only)."""
+    w = _window()
+    _pick(w, tkey or name, inverse)
+    cfg = w._build_config()
+    loaded_diffs = {}
+    if tkey is None:
+        ex = {e.name: e for e in dx.EXAMPLES}[name]
+        loaded_diffs = _diffs(dx.build_config(ex, REF_ROOT, inverse=inverse), cfg)
+    return cfg, loaded_diffs
+
+
+def gui_solve(cfg, run_dir, timeout):
+    """Put cfg into the window, press Solve, wait, return (rc, log text, round-trip diffs)."""
+    w = _window()
+    w._apply_config(cfg)
+    _pump(0.3)
+    w.save_dir_input.setText(run_dir)
+    got = w._build_config()
+    rt = _diffs(cfg, got)
+    w._on_solve()
+    t0 = time.time()
+    while getattr(w, "thread", None) is None or not hasattr(w.thread, "isRunning"):
+        _pump(0.2)
+        if time.time() - t0 > 30:
+            return "not started", w.log_box.toPlainText(), rt
+    while w.thread.isRunning():
+        _pump(0.5)
+        if time.time() - t0 > timeout:
+            w.thread.stop()
+            _pump(2)
+            return "timeout", w.log_box.toPlainText(), rt
+    _pump(1.5)                      # let the window finish reading results
+    log = w.log_box.toPlainText()
+    rc = 0 if "Training complete" in log else 1
+    return rc, log, rt
+
+
 def run(args):
     names = [s for s in args.names.split("|") if s]
     by_name = {e.name: e for e in dx.EXAMPLES}
@@ -174,6 +340,12 @@ def run(args):
         else:
             inverse = args.inverse
             base = template_config(tkey, inverse)
+        loaded_diffs = {}
+        if args.gui:
+            base, loaded_diffs = gui_base_config(name, tkey, inverse)
+            if loaded_diffs:
+                print(f"!!  {name[:50]:50s} the window loads it differently from its definition: "
+                      f"{json.dumps(loaded_diffs, ensure_ascii=False)[:600]}", flush=True)
         true = {v["name"]: v.get("true") for v in json.loads(base.inverse_variables_json or "[]")}
         for variant in variants:
             cfg0 = apply_variant(base, variant)
@@ -195,14 +367,22 @@ def run(args):
                         p["iterations"] = min(int(p["iterations"]), 30)
                     _set_phases(cfg, ph)
                     cfg.rar_cycles = min(cfg.rar_cycles, 1)
-                with open(os.path.join(d, "run.py"), "w", encoding="utf-8") as fh:
-                    fh.write(generate_script(cfg))
                 t0 = time.time()
-                try:
+                rt_diffs = {}
+                if args.gui:
+                    rc, out, rt_diffs = gui_solve(cfg, d, args.timeout)
+                    err = ""
+                    if rt_diffs:
+                        print(f"!!  {name[:50]:50s} {variant}: the window changed settings: "
+                              f"{json.dumps(rt_diffs, ensure_ascii=False)[:600]}", flush=True)
+                else:
+                  with open(os.path.join(d, "run.py"), "w", encoding="utf-8") as fh:
+                    fh.write(generate_script(cfg))
+                  try:
                     p = subprocess.run([sys.executable, "run.py"], cwd=d, capture_output=True, text=True,
                                        timeout=args.timeout)
                     rc, out, err = p.returncode, p.stdout, p.stderr
-                except subprocess.TimeoutExpired as e:
+                  except subprocess.TimeoutExpired as e:
                     rc = "timeout"
                     out = e.stdout.decode(errors="replace") if isinstance(e.stdout, bytes) else (e.stdout or "")
                     err = ""
@@ -213,7 +393,8 @@ def run(args):
                 rec = dict(example=name, inverse=inverse, variant=variant, seed=seed, rc=rc, seconds=round(dt, 1),
                            l2=l2, final_loss=loss, params=params, true=true,
                            layers=list(cfg.layers), phases=_phases(cfg),
-                           points=[cfg.num_domain, cfg.num_boundary, cfg.num_initial])
+                           points=[cfg.num_domain, cfg.num_boundary, cfg.num_initial],
+                           mode="gui" if args.gui else "script", gui_diffs=rt_diffs, loaded_diffs=loaded_diffs)
                 with open(res_path, "a", encoding="utf-8") as fh:
                     fh.write(json.dumps(rec) + "\n")
                 worst = max(l2) if l2 else float("nan")
@@ -264,6 +445,8 @@ def main():
     ap.add_argument("--variants", default=",".join(VARIANTS))
     ap.add_argument("--seeds", default="2026")
     ap.add_argument("--inverse", action="store_true", help="run the Inverse-mode version where there is one")
+    ap.add_argument("--gui", action="store_true",
+                    help="run every case through the PINNStudio window (offscreen) instead of its script")
     ap.add_argument("--smoke", action="store_true", help="30 iterations per phase, to check that it runs")
     ap.add_argument("--timeout", type=float, default=10800)
     ap.add_argument("--summary", default="", help="print the table for a finished study folder")
