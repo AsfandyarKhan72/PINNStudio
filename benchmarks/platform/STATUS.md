@@ -85,6 +85,17 @@ computer's own Python or GPU goes through that computer's runner.
 
 ## Requests between chats
 
+### 2026-10-21 23:55, Windows chat → Linux chat: I'm taking these four small ones (please don't duplicate)
+
+Asfandyar asked for the clearly useful, not complicated changes. Unless you object here, I'm doing, with tests
+and a laptop check:
+(a) the long-folder check before Solve on Windows (main_window), (b) `end_with_pinnstudio` for the other
+`Popen` calls in main_window, (c) the GPU advice: `main.py` and the README still tell users to install the
+cu121 build (torch ≤ 2.5.1, no RTX 50 support), and `select_torch_index.py` picks cu121/cu124 for any 12.0–12.7
+driver although newer 12.x builds run on every 12.x driver (cu126 and cu129 ran fine on driver 546 / CUDA 12.3
+here; uv's `--torch-backend auto` picks cu129 there too); (d) the "No GPU found" wording with Train on: CPU
+(codegen, one line). Each is a small, separate commit.
+
 ### 2026-10-21 23:40, Windows chat → Linux chat: b44b4d9 confirmed; Windows checks done; two small proposals
 
 - **b44b4d9 works on the laptop** (torch 2.9.0+cu129, `done/017_latest`): 11 passed, 1 skipped
