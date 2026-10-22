@@ -11494,6 +11494,10 @@ class MainWindow(QMainWindow):
                 self.log_box.append(f"   • {_ve}")
             return
         config = _config_preview
+        _path_msg = _pyexe.results_path_problem(config.save_dir, sweep=bool(config.sweep_enabled))
+        if _path_msg:      # Windows without long paths: would fail while saving, after training
+            self.log_box.append(_path_msg)
+            return
         # Enable Parameter Sweep (left panel, right after Adaptive
         # Training) is what decides which of the two Solve actually
         # does -- there's no separate Run Sweep button anymore, and
@@ -12734,6 +12738,7 @@ def _style_legend(ax):
                 try:
                     self.process = subprocess.Popen([_pyexe.script_python(), self._path], creationflags=_pyexe.NO_WINDOW, stdout=subprocess.PIPE,
                                                     stderr=subprocess.STDOUT, env=_pyexe.script_env(), **_pyexe.TEXT_UTF8)
+                    _pyexe.end_with_pinnstudio(self.process)   # Windows: ends when PINNStudio ends
                     out_, _ = self.process.communicate(timeout=300)
                     ok = self.process.returncode == 0
                     self.done_sig.emit(ok, ((out_ or "").strip().splitlines() or [""])[-1])
@@ -13105,6 +13110,7 @@ print("DOMAIN_PREVIEW_DONE")
                 import subprocess, sys
                 proc = subprocess.Popen([_pyexe.script_python(), self._tmp], creationflags=_pyexe.NO_WINDOW,
                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=_pyexe.script_env(), **_pyexe.TEXT_UTF8)
+                _pyexe.end_with_pinnstudio(proc)   # Windows: ends when PINNStudio ends
                 self.process = proc
                 for line in proc.stdout:
                     self.log_sig.emit(line.rstrip())
@@ -16263,6 +16269,7 @@ print("DOMAIN_PREVIEW_DONE")
                         [_pyexe.script_python(), self._tmp], creationflags=_pyexe.NO_WINDOW,
                         stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=_pyexe.script_env(), **_pyexe.TEXT_UTF8
                     )
+                    _pyexe.end_with_pinnstudio(proc)   # Windows: ends when PINNStudio ends
                     self.process = proc
                     for line in proc.stdout:
                         line = line.rstrip()
@@ -16589,6 +16596,7 @@ print("DOMAIN_PREVIEW_DONE")
                     [_pyexe.script_python(), self._tmp], creationflags=_pyexe.NO_WINDOW,
                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=_pyexe.script_env(), **_pyexe.TEXT_UTF8
                 )
+                _pyexe.end_with_pinnstudio(proc)   # Windows: ends when PINNStudio ends
                 self.process = proc
                 for line in proc.stdout:
                     line = line.rstrip()

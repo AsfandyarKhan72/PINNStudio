@@ -96,3 +96,43 @@ def end_with_pinnstudio(proc):
         return bool(k32.AssignProcessToJobObject(job, int(proc._handle)))
     except Exception:
         return False
+
+
+# ── Windows: results folders too long for Windows' 260-character limit ──
+# Unless "long paths" is turned on, Windows refuses paths of 260 characters
+# or more. PINNStudio saves files up to about 45 characters below a run's
+# folder (e.g. "\solution_results\..."), and a sweep adds its own folder per
+# run. A results folder of 227 characters failed after training, while
+# saving; 210 still worked (benchmarks/platform/windows_speed.md).
+_MAX_PATH = 259
+_BELOW_RUN = 60        # deepest file below a run's folder, with some margin
+_BELOW_SWEEP = 40      # a sweep run's own folder, on top of that
+
+
+def _long_paths_enabled():
+    try:
+        import winreg
+        with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"SYSTEM\CurrentControlSet\Control\FileSystem") as k:
+            return bool(winreg.QueryValueEx(k, "LongPathsEnabled")[0])
+    except Exception:
+        return False
+
+
+def results_path_problem(folder, sweep=False, platform=None, long_paths=None):
+    """A message when `folder` is too long for the files a run saves in it
+    (Windows without long paths only), else None."""
+    platform = sys.platform if platform is None else platform
+    if platform != "win32" or not folder:
+        return None
+    if long_paths is None:
+        long_paths = _long_paths_enabled()
+    if long_paths:
+        return None
+    n = len(os.path.abspath(folder)) if platform == sys.platform else len(folder)
+    limit = _MAX_PATH - _BELOW_RUN - (_BELOW_SWEEP if sweep else 0)
+    if n <= limit:
+        return None
+    return (f"❌ Cannot start -- the results folder's path is too long for Windows ({n} characters; "
+            f"up to {limit} work here). The files PINNStudio saves inside it would pass Windows' "
+            "260-character limit. Choose a shorter results folder (Save to), or turn on Windows' "
+            "long paths (LongPathsEnabled).")
