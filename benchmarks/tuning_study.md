@@ -4,7 +4,7 @@
 
 DeepXDE's examples are written to show how the library is used, so many train briefly, on a small network or with Adam only. This study asks how far ordinary tuning in PINNStudio takes them: each example is run with its own settings and with the same five changes, and the change that trains best is reported next to the example's own result. It complements the [training methods study](training_methods.md), which tests specialised methods (causal training, per-point weights, time windows) on the hardest problems.
 
-So far 21 problems are included, chosen as the ones with the largest errors in the [README results](../README.md). 19 of them improve by 1.5× or more; the median improvement is 5×.
+So far 25 problems are included, chosen as the ones with the largest errors in the [README results](../README.md). 20 of them improve by 1.5× or more; the median improvement is 4×.
 
 ## How it is done
 
@@ -16,6 +16,9 @@ So far 21 problems are included, chosen as the ones with the largest errors in t
 | **points** | 3× the domain, boundary and initial points |
 | **lbfgs** | an L-BFGS phase (15,000 iterations) after Adam |
 | **all** | all of the changes above together |
+| **dataw** | 10× the weight of the measured data (inverse problems) |
+| **lbfgs3** | 3× the L-BFGS iterations, or an L-BFGS phase of 45,000 added (inverse problems) |
+| **invall** | 10× data weight, 3× L-BFGS and the wider, deeper network together (inverse problems) |
 
 - **Choosing a variant.** For each problem the variant with the lowest final training loss is chosen. The reference solution is not looked at, so the choice is one a user could make without knowing the answer. The best error any variant reached is listed too, so it is visible when the training loss picks a less accurate variant.
 - **The error** is the relative $L_2$ error from PINNStudio's Error Analysis, the worst over the outputs and the reference times, against the reference data the example ships with. For inverse problems the worst relative error of the learned parameters is given as well.
@@ -32,6 +35,7 @@ So far 21 problems are included, chosen as the ones with the largest errors in t
 | [Poisson 1D – Dirichlet/Periodic](#tune-poisson-1d-dirichlet-periodic) | 9.6 × 10<sup>-3</sup> | 6.4 × 10<sup>-6</sup> | 1,495× | all | – | 20 → 67 |
 | [Diffusion-reaction 1D](#tune-diffusion-reaction-1d) | 8.8 × 10<sup>-2</sup> | 8.5 × 10<sup>-5</sup> | 1,034× | all | – | 87 → 290 |
 | [Linear elasticity 2D – plate](#tune-linear-elasticity-2d-plate) | 1.4 × 10<sup>-1</sup> | 8.4 × 10<sup>-4</sup> | 166× | all | – | 541 → 1147 |
+| [Schrödinger 1D, inverse mode](#tune-schr-dinger-1d-inverse-mode) | 1.8 × 10<sup>-1</sup> | 1.1 × 10<sup>-3</sup> | 163× | net | 3% → 0.0072% | 196 → 337 |
 | [Wave 1D – space-time multi-scale Fourier features](#tune-wave-1d-space-time-multi-scale-fourier-features) | 3.0 × 10<sup>-1</sup> | 2.1 × 10<sup>-3</sup> | 145× | all | – | 75 → 645 |
 | [Diffusion 1D – unknown coefficient](#tune-diffusion-1d-unknown-coefficient) | 6.2 × 10<sup>-3</sup> | 2.8 × 10<sup>-4</sup> | 22× | all | 0.045% → 0.017% | 118 → 380 |
 | [Helmholtz 2D – square with hole](#tune-helmholtz-2d-square-with-hole) | 1.1 × 10<sup>-2</sup> | 7.0 × 10<sup>-4</sup> | 15× | lbfgs | – | 17 → 24 |
@@ -49,7 +53,10 @@ So far 21 problems are included, chosen as the ones with the largest errors in t
 | [Poisson 1D – unknown forcing field](#tune-poisson-1d-unknown-forcing-field) | 1.8 × 10<sup>-2</sup> | 1.2 × 10<sup>-2</sup> | 2× | all | – | 66 → 221 |
 | [Poisson 2D – L-shape](#tune-poisson-2d-l-shape) | 3.5 × 10<sup>-2</sup> | 2.3 × 10<sup>-2</sup> | 2× | net | – | 174 → 182 |
 | [Diffusion-reaction 1D – unknown rate field](#tune-diffusion-reaction-1d-unknown-rate-field) | 4.0 × 10<sup>-2</sup> | 2.8 × 10<sup>-2</sup> | none | all | – | 49 → 178 |
+| [Cahn-Hilliard 2D – Wight & Zhao (PINNStudio template)](#tune-cahn-hilliard-2d-wight-zhao-pinnstudio-template) | 6.0 × 10<sup>-1</sup> | 5.4 × 10<sup>-1</sup> | none | net | – | 822 → 1995 |
 | [Helmholtz 2D – sound-hard scattering](#tune-helmholtz-2d-sound-hard-scattering) | 8.0 × 10<sup>-2</sup> | 7.7 × 10<sup>-2</sup> | none | all | – | 61 → 1017 |
+| [Burgers 2D – Mathias et al. (PINNStudio template)](#tune-burgers-2d-mathias-et-al-pinnstudio-template) | 1.9 × 10<sup>-2</sup> | 1.8 × 10<sup>-2</sup> | none | iters | – | 1662 → 3684 |
+| [Allen-Cahn 2D – Wight & Zhao (PINNStudio template)](#tune-allen-cahn-2d-wight-zhao-pinnstudio-template) | 2.1 × 10<sup>-2</sup> | 9.3 × 10<sup>-2</sup> | worse (4× higher) | iters | – | 1780 → 3710 |
 
 ## Problems
 
@@ -123,6 +130,32 @@ Its own settings and results are in the README: [Linear elasticity 2D – plate]
 Over seeds: own settings 1.4 × 10<sup>-1</sup> [6.7 × 10<sup>-2</sup> – 3.0 × 10<sup>-1</sup>] (3 seeds), tuned 8.4 × 10<sup>-4</sup> [8.0 × 10<sup>-4</sup> – 8.7 × 10<sup>-4</sup>] (3 seeds).
 
 Tuned settings: [`Linear elasticity 2D – plate (tuned).pinn.json`](tuning/Linear%20elasticity%202D%20–%20plate%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-schr-dinger-1d-inverse-mode">
+<summary><strong>Schrödinger 1D, inverse mode</strong></summary>
+
+Its own settings and results are in the README: [Schrödinger 1D](../README.md#dx-schr-dinger-equation).
+
+**Own settings:** network [2, 100, 100, 100, 100, 2], Adam 10,000 → L-BFGS 10,000, 10,000 domain / 20 boundary / 200 initial points.
+
+| Variant | Final training loss | $L_2$ (worst) | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 7.34e-04 | 1.8 × 10<sup>-1</sup> | 3% | 196 |
+| iters | 1.96e-04 | 3.6 × 10<sup>-1</sup> | 2.3% | 483 |
+| **net** | 6.19e-06 | 1.1 × 10<sup>-3</sup> | 0.0072% | 337 |
+| points | 1.84e-03 | 6.5 × 10<sup>-2</sup> | 0.023% | 324 |
+| all | 6.75e-04 | 1.7 × 10<sup>-1</sup> | 0.82% | 1745 |
+
+**Chosen: net** (hidden layers twice as wide (at most 512) and one layer more): network [2, 200, 200, 200, 200, 200, 2], Adam 10,000 → L-BFGS 10,000, 10,000 / 20 / 200 points.
+
+Over seeds: own settings 1.8 × 10<sup>-1</sup> (1 seeds), tuned 1.1 × 10<sup>-3</sup> (1 seeds).
+ Learned parameters (tuned, median): c = 0.500036 (true 0.5).
+
+Only |h| is measured, at one time, and with the example's own network c depends on the seed (0.4964 to 0.515 over twelve seeds). The wider network recovers c to within 0.01% and the field to 0.1%.
+
+Tuned settings: [`Schrödinger 1D, inverse mode (tuned).pinn.json`](tuning/Schrödinger%201D,%20inverse%20mode%20(tuned).pinn.json)
 
 </details>
 
@@ -545,6 +578,27 @@ Tuned settings: [`Diffusion-reaction 1D – unknown rate field (tuned).pinn.json
 
 </details>
 
+<details id="tune-cahn-hilliard-2d-wight-zhao-pinnstudio-template">
+<summary><strong>Cahn-Hilliard 2D – Wight & Zhao (PINNStudio template)</strong></summary>
+
+**Own settings:** network [3, 128, 128, 128, 128, 2], Adam 20,000 → L-BFGS 20,000, 20,000 domain / 800 boundary / 1,024 initial points.
+
+| Variant | Final training loss | $L_2$ (worst) | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 1.85e-04 | 6.0 × 10<sup>-1</sup> | – | 822 |
+| iters | 1.56e-04 | 5.6 × 10<sup>-1</sup> | – | 1464 |
+| **net** | 1.39e-04 | 5.4 × 10<sup>-1</sup> | – | 1995 |
+
+**Chosen: net** (hidden layers twice as wide (at most 512) and one layer more): network [3, 256, 256, 256, 256, 256, 2], Adam 20,000 → L-BFGS 20,000, 20,000 / 800 / 1,024 points.
+
+Over seeds: own settings 6.0 × 10<sup>-1</sup> (1 seeds), tuned 5.4 × 10<sup>-1</sup> (1 seeds).
+
+The worst error is at t = 0, where the initial field is close to zero and the relative error is not a good measure; none of the changes improves it.
+
+Tuned settings: [`Cahn-Hilliard 2D – Wight & Zhao (PINNStudio template) (tuned).pinn.json`](tuning/Cahn-Hilliard%202D%20–%20Wight%20&%20Zhao%20(PINNStudio%20template)%20(tuned).pinn.json)
+
+</details>
+
 <details id="tune-helmholtz-2d-sound-hard-scattering">
 <summary><strong>Helmholtz 2D – sound-hard scattering</strong></summary>
 
@@ -568,5 +622,49 @@ Over seeds: own settings 8.0 × 10<sup>-2</sup> [7.8 × 10<sup>-2</sup> – 1.3 
 No variant gets below about 7.7%, although the training loss falls about 800 times. The limit is the problem itself: the absorbing boundary condition only approximates the infinite domain the exact solution is written for, so a better-trained network converges to a slightly different answer.
 
 Tuned settings: [`Helmholtz 2D – sound-hard scattering (tuned).pinn.json`](tuning/Helmholtz%202D%20–%20sound-hard%20scattering%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-burgers-2d-mathias-et-al-pinnstudio-template">
+<summary><strong>Burgers 2D – Mathias et al. (PINNStudio template)</strong></summary>
+
+**Own settings:** network [3, 128, 128, 128, 128, 2], Adam 15,000 → L-BFGS 10,000, 8,000 domain / 2,000 boundary / 2,000 initial points.
+
+| Variant | Final training loss | $L_2$ (worst) | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 1.80e-04 | 1.9 × 10<sup>-2</sup> | – | 1662 |
+| **iters** | 1.16e-04 | 1.8 × 10<sup>-2</sup> | – | 3684 |
+| net | 1.74e-04 | 1.8 × 10<sup>-2</sup> | – | 4720 |
+| points | 1.43e-04 | 1.8 × 10<sup>-2</sup> | – | 4352 |
+
+**Chosen: iters** (3× the iterations of every training phase): network [3, 128, 128, 128, 128, 2], Adam 45,000 → L-BFGS 30,000, 8,000 / 2,000 / 2,000 points.
+
+Over seeds: own settings 1.9 × 10<sup>-2</sup> (1 seeds), tuned 1.8 × 10<sup>-2</sup> (1 seeds).
+
+None of the changes helps: every variant ends at about 1.8% (worst output and time). With every change together the run did not finish within the 4-hour limit.
+
+Tuned settings: [`Burgers 2D – Mathias et al. (PINNStudio template) (tuned).pinn.json`](tuning/Burgers%202D%20–%20Mathias%20et%20al.%20(PINNStudio%20template)%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-allen-cahn-2d-wight-zhao-pinnstudio-template">
+<summary><strong>Allen-Cahn 2D – Wight & Zhao (PINNStudio template)</strong></summary>
+
+**Own settings:** network [3, 128, 128, 128, 128, 1], Adam 20,000 → L-BFGS 10,000, 10,000 domain / 400 boundary / 512 initial points.
+
+| Variant | Final training loss | $L_2$ (worst) | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 5.78e-05 | 2.1 × 10<sup>-2</sup> | – | 1780 |
+| **iters** | 4.53e-05 | 9.3 × 10<sup>-2</sup> | – | 3710 |
+| net | 7.75e-05 | 1.4 × 10<sup>-1</sup> | – | 4728 |
+| points | 6.01e-05 | 2.0 × 10<sup>-2</sup> | – | 4108 |
+
+**Chosen: iters** (3× the iterations of every training phase): network [3, 128, 128, 128, 128, 1], Adam 60,000 → L-BFGS 30,000, 10,000 / 400 / 512 points.
+
+Over seeds: own settings 2.1 × 10<sup>-2</sup> (1 seeds), tuned 9.3 × 10<sup>-2</sup> (1 seeds).
+
+The template's own settings are the best here; more iterations or a bigger network make the error 4 to 7 times larger. Its settings come from the training methods study, where time windows with exact periodicity and RBA weights were found to be needed. With every change together the run did not finish within the 4-hour limit.
+
+Tuned settings: [`Allen-Cahn 2D – Wight & Zhao (PINNStudio template) (tuned).pinn.json`](tuning/Allen-Cahn%202D%20–%20Wight%20&%20Zhao%20(PINNStudio%20template)%20(tuned).pinn.json)
 
 </details>

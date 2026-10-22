@@ -65,6 +65,20 @@ NOTES = {
         "An L-BFGS phase after Adam is all it needs: about 15 times lower error for 7 seconds more training.",
     ("Diffusion equation with resampling", False):
         "Again L-BFGS alone gives most of the gain, at almost no extra time.",
+    ("Schrödinger equation", True):
+        "Only |h| is measured, at one time, and with the example's own network c depends on the seed (0.4964 to "
+        "0.515 over twelve seeds). The wider network recovers c to within 0.01% and the field to 0.1%.",
+    ("Template: 2D Burgers (Mathias)", False):
+        "None of the changes helps: every variant ends at about 1.8% (worst output and time). With every change "
+        "together the run did not finish within the 4-hour limit.",
+    ("Template: 2D Allen-Cahn (Wight & Zhao)", False):
+        "The template's own settings are the best here; more iterations or a bigger network make the error 4 to 7 "
+        "times larger. Its settings come from the training methods study, where time windows with exact "
+        "periodicity and RBA weights were found to be needed. With every change together the run did not finish "
+        "within the 4-hour limit.",
+    ("Template: 2D Cahn-Hilliard (Wight & Zhao)", False):
+        "The worst error is at t = 0, where the initial field is close to zero and the relative error is not a "
+        "good measure; none of the changes improves it.",
     ("Poisson over an L-shaped domain", False):
         "Training loss picks the wider network, but all the changes together give the lower error; the "
         "re-entrant corner keeps the error near 1–2% either way.",
@@ -276,7 +290,8 @@ def page(summ, rows, with_files):
     a("|---|---|---|---|---|---|---|")
     for s in summ:
         title = _title(s["name"], s["inverse"])
-        imp = f"{s['base'] / s['tuned']:,.0f}×" if s["base"] / s["tuned"] >= 1.5 else "none"
+        r = s["base"] / s["tuned"]
+        imp = f"{r:,.0f}×" if r >= 1.5 else ("none" if r > 1 / 1.5 else f"worse ({1 / r:.0f}× higher)")
         par = f"{pct(s['base_p'])} → {pct(s['tuned_p'])}" if s["base_p"] is not None else "–"
         a(f"| [{title}](#{_slug(title)}) | {e(s['base'])} | {e(s['tuned'])} | {imp} | {s['chosen']} | {par} | "
           f"{s['t_base']:.0f} → {s['t_tuned']:.0f} |")
