@@ -286,6 +286,7 @@ script trains on the GPU. With `"-1"` both run on the CPU. Proposed in STATUS.md
 | PINNStudio's process ended outright while training (terminal closed, Task Manager, crash) | **before:** the training process kept running on its own; **now** (`pyexe.end_with_pinnstudio`, a job object with kill-on-close): it ends with PINNStudio |
 | `pinnstudio --create-shortcut` / `--remove-shortcut` | Start menu and desktop icons made and removed; the desktop icon opens PINNStudio without a console window |
 | The installer over PINNStudio 1.4.0 (uv tool, torch 2.5.1+cu124, NumPy 2.5.4) | replaced by `cleanup` with torch 2.9.0+cu129 and NumPy 2.4.6 in 60 s (bytecode compiled: 9,442 files in 23 s); settings and results kept; first start 7.9 s |
+| The installer with an old pip copy (1.4.0) first on the PATH | installs, then says "Another PINNStudio (1.4.0) is installed, and typing pinnstudio starts it", with the command to remove it |
 | Train on: CPU with the fix, Solve's script | runs on the CPU (log: "No GPU found — running on CPU") |
 | TF32 off through `fp32_precision` (torch 2.9) | accepted; "TF32: False", no warning |
 | The tip for small 1D problems on the GPU | shown |
