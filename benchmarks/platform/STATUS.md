@@ -90,8 +90,8 @@ computer's own Python or GPU goes through that computer's runner.
 In order of value for the work. Evidence in `windows_speed.md`.
 
 1. **Fix Train on: CPU** (the bug below): `"-1"` instead of `""`.
-2. **Installers: add `--compile-bytecode`** to `uv tool install` in `get-pinnstudio.ps1` and `.sh` (and
-   `pip install --compile`/nothing extra needed for venv installs, pip compiles by default). Measured on
+2. **Installers: add `--compile-bytecode`** to `uv tool install` in `get-pinnstudio.ps1` and `.sh` (pip, used by
+   `install.sh`/`install.bat`, already compiles bytecode by default). Measured on
    Windows: first start after installing 17–18 s (37 s cold) → 8.4–8.8 s; install 20–55 s longer. It
    should help on Linux and macOS too (uv doesn't compile bytecode there either).
 3. **The allocator line, `codegen.py` line 14**: every GPU run on Windows prints
