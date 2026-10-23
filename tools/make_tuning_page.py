@@ -68,6 +68,30 @@ NOTES = {
         "An L-BFGS phase after Adam is all it needs: about 15 times lower error for 7 seconds more training.",
     ("Diffusion equation with resampling", False):
         "Again L-BFGS alone gives most of the gain, at almost no extra time.",
+    ("Second-order ODE", True):
+        "PINNStudio's own inverse mode: a and b of u'' - a u' + b u = 5t from u at 30 times. With the example's "
+        "settings b comes out 7% off (9.65 against 9); the wider network finds a = 10.0003 and b = 8.993.",
+    ("ODE system", True):
+        "PINNStudio's own inverse mode: w in y2' = -w y1 from y1 and y2 at 40 times. Already within 0.03% with "
+        "the example's settings.",
+    ("Lotka-Volterra equation", True):
+        "PINNStudio's own inverse mode: the prey growth rate a and the predator death rate d from both "
+        "populations. Both are found to 0.001% with the example's settings; no change does better.",
+    ("Euler beam", True):
+        "PINNStudio's own inverse mode: the bending stiffness EI from the deflection at 20 points. The example's "
+        "settings leave EI 2.3% off; every change together brings it to 0.08%.",
+    ("Diffusion-reaction equation", True):
+        "PINNStudio's own inverse mode: the diffusivity D from u at four times.",
+    ("Allen-Cahn equation", True):
+        "PINNStudio's own inverse mode: the diffusion coefficient d and the reaction coefficient c from u at "
+        "four times, both found to within 0.06% after tuning.",
+    ("Kovasznay flow", True):
+        "PINNStudio's own inverse mode: the Reynolds number from u and v at 500 points, within 0.01% with "
+        "every setting tried.",
+    ("Beltrami flow", True):
+        "PINNStudio's own inverse mode: the viscosity from u, v and w at two times. The error is that of u; "
+        "the pressure is only known up to a constant here, so its own error is large and not a fault. Every "
+        "change together ran out of memory on the 24 GB GPU.",
     ("Schrödinger equation", True):
         "Only |h| is measured, at one time, and with the example's own network c depends on the seed (0.4964 to "
         "0.515 over twelve seeds). The wider network recovers c to within 0.01% and the field to 0.1%.",

@@ -4,7 +4,7 @@
 
 DeepXDE's examples are written to show how the library is used, so many train briefly, on a small network or with Adam only. This study asks how far ordinary tuning in PINNStudio takes them: each example is run with its own settings and with the same five changes, and the change that trains best is reported next to the example's own result. It complements the [training methods study](training_methods.md), which tests specialised methods (causal training, per-point weights, time windows) on the hardest problems.
 
-So far 45 problems are included, chosen as the ones with the largest errors in the [README results](../README.md). 27 of them improve by 1.5× or more; the median improvement is 2×.
+So far 45 problems are included, chosen as the ones with the largest errors in the [README results](../README.md). 28 of them improve by 1.5× or more; the median improvement is 2×.
 
 ## How it is done
 
@@ -61,12 +61,12 @@ So far 45 problems are included, chosen as the ones with the largest errors in t
 | [Fractional Poisson 1D](#tune-fractional-poisson-1d) | 2.3 × 10<sup>-2</sup> | 1.2 × 10<sup>-2</sup> | 2× | all | – | 20 → 57 |
 | [Brinkman-Forchheimer 1D – unknown ν_e, K](#tune-brinkman-forchheimer-1d-unknown-e-k) | 2.0 × 10<sup>-2</sup> | 1.2 × 10<sup>-2</sup> | 2× | all | 28% → 18% | 74 → 237 |
 | [Linear ODE system, inverse mode](#tune-linear-ode-system-inverse-mode) | 3.3 × 10<sup>-4</sup> | 2.0 × 10<sup>-4</sup> | 2× | all | 0.022% → 0.0088% | 48 → 135 |
+| [Navier-Stokes 3D – Beltrami flow, inverse mode](#tune-navier-stokes-3d-beltrami-flow-inverse-mode) | 3.5 × 10<sup>-4</sup> | 2.2 × 10<sup>-4</sup> | 2× | net | 0.22% → 0.2% | 2514 → 6315 |
 | [Poisson 2D – L-shape](#tune-poisson-2d-l-shape) | 3.5 × 10<sup>-2</sup> | 2.3 × 10<sup>-2</sup> | 2× | net | – | 174 → 182 |
 | [Diffusion-reaction 1D – unknown rate field](#tune-diffusion-reaction-1d-unknown-rate-field) | 4.0 × 10<sup>-2</sup> | 2.8 × 10<sup>-2</sup> | none | all | – | 49 → 178 |
 | [Burgers 2D – Mathias et al. (PINNStudio template)](#tune-burgers-2d-mathias-et-al-pinnstudio-template) | 1.1 × 10<sup>-2</sup> | 8.4 × 10<sup>-3</sup> | none | iters | – | 1662 → 3684 |
 | [Cahn-Hilliard 2D – Wight & Zhao (PINNStudio template)](#tune-cahn-hilliard-2d-wight-zhao-pinnstudio-template) | 1.1 × 10<sup>-2</sup> | 8.0 × 10<sup>-3</sup> | none | net | – | 822 → 1995 |
 | [Helmholtz 2D – sound-hard scattering](#tune-helmholtz-2d-sound-hard-scattering) | 8.0 × 10<sup>-2</sup> | 7.7 × 10<sup>-2</sup> | none | all | – | 61 → 1017 |
-| [Navier-Stokes 3D – Beltrami flow, inverse mode](#tune-navier-stokes-3d-beltrami-flow-inverse-mode) | 3.5 × 10<sup>-4</sup> | 3.5 × 10<sup>-4</sup> | none | lbfgs3 | 0.22% → 0.12% | 2514 → 2575 |
 | [Poisson 2D – disk (PINNStudio template), inverse mode](#tune-poisson-2d-disk-pinnstudio-template-inverse-mode) | 5.4 × 10<sup>-4</sup> | 5.4 × 10<sup>-4</sup> | none | base | 0.002% → 0.002% | 157 → 157 |
 | [Heat 2D (PINNStudio template), inverse mode](#tune-heat-2d-pinnstudio-template-inverse-mode) | 5.8 × 10<sup>-4</sup> | 5.8 × 10<sup>-4</sup> | none | base | 0.027% → 0.027% | 169 → 169 |
 | [Burgers 2D – Mathias et al. (PINNStudio template), inverse mode](#tune-burgers-2d-mathias-et-al-pinnstudio-template-inverse-mode) | 3.5 × 10<sup>-3</sup> | 3.5 × 10<sup>-3</sup> | none | base | 7.2% → 7.2% | 1242 → 1242 |
@@ -313,6 +313,25 @@ Its own settings and results are in the README: [Second-order ODE](../README.md#
 Over seeds: own settings 1.6 × 10<sup>-3</sup> (1 seeds), tuned 8.9 × 10<sup>-6</sup> (1 seeds).
  Learned parameters (tuned, median): a = 10.0003 (true 10.0), b = 8.99262 (true 9.0).
 
+PINNStudio's own inverse mode: a and b of u'' - a u' + b u = 5t from u at 30 times. With the example's settings b comes out 7% off (9.65 against 9); the wider network finds a = 10.0003 and b = 8.993.
+
+*Line comparison, the example's own settings:*
+
+![Line comparison, the example's own settings](figures/tuning/Second_order_ODE_inv/own_line_comparison.png)
+
+*Line comparison, tuned (net):*
+
+![Line comparison, tuned (net)](figures/tuning/Second_order_ODE_inv/tuned_line_comparison.png)
+
+*Parameter convergence, the example's own settings:*
+
+![Parameter convergence, the example's own settings](figures/tuning/Second_order_ODE_inv/own_param_plot.png)
+
+*Parameter convergence, tuned (net):*
+
+![Parameter convergence, tuned (net)](figures/tuning/Second_order_ODE_inv/tuned_param_plot.png)
+
+
 Tuned settings: [`Second-order ODE, inverse mode (tuned).pinn.json`](tuning/Second-order%20ODE,%20inverse%20mode%20(tuned).pinn.json)
 
 </details>
@@ -336,6 +355,25 @@ Its own settings and results are in the README: [Euler beam 1D](../README.md#dx-
 
 Over seeds: own settings 1.6 × 10<sup>-3</sup> (1 seeds), tuned 3.8 × 10<sup>-5</sup> (1 seeds).
  Learned parameters (tuned, median): EI = 1.00075 (true 1.0).
+
+PINNStudio's own inverse mode: the bending stiffness EI from the deflection at 20 points. The example's settings leave EI 2.3% off; every change together brings it to 0.08%.
+
+*Line comparison, the example's own settings:*
+
+![Line comparison, the example's own settings](figures/tuning/Euler_beam_inv/own_line_comparison.png)
+
+*Line comparison, tuned (all):*
+
+![Line comparison, tuned (all)](figures/tuning/Euler_beam_inv/tuned_line_comparison.png)
+
+*Parameter convergence, the example's own settings:*
+
+![Parameter convergence, the example's own settings](figures/tuning/Euler_beam_inv/own_param_plot.png)
+
+*Parameter convergence, tuned (all):*
+
+![Parameter convergence, tuned (all)](figures/tuning/Euler_beam_inv/tuned_param_plot.png)
+
 
 Tuned settings: [`Euler beam 1D, inverse mode (tuned).pinn.json`](tuning/Euler%20beam%201D,%20inverse%20mode%20(tuned).pinn.json)
 
@@ -614,6 +652,25 @@ Its own settings and results are in the README: [Allen-Cahn 1D](../README.md#dx-
 Over seeds: own settings 5.4 × 10<sup>-4</sup> (1 seeds), tuned 1.1 × 10<sup>-4</sup> (1 seeds).
  Learned parameters (tuned, median): d = 0.00100055 (true 0.001), c = 5.00002 (true 5.0).
 
+PINNStudio's own inverse mode: the diffusion coefficient d and the reaction coefficient c from u at four times, both found to within 0.06% after tuning.
+
+*Surface comparison, the example's own settings:*
+
+![Surface comparison, the example's own settings](figures/tuning/Allen_Cahn_equation_inv/own_surface_comparison.png)
+
+*Surface comparison, tuned (all):*
+
+![Surface comparison, tuned (all)](figures/tuning/Allen_Cahn_equation_inv/tuned_surface_comparison.png)
+
+*Parameter convergence, the example's own settings:*
+
+![Parameter convergence, the example's own settings](figures/tuning/Allen_Cahn_equation_inv/own_param_plot.png)
+
+*Parameter convergence, tuned (all):*
+
+![Parameter convergence, tuned (all)](figures/tuning/Allen_Cahn_equation_inv/tuned_param_plot.png)
+
+
 Tuned settings: [`Allen-Cahn 1D, inverse mode (tuned).pinn.json`](tuning/Allen-Cahn%201D,%20inverse%20mode%20(tuned).pinn.json)
 
 </details>
@@ -678,6 +735,25 @@ Its own settings and results are in the README: [Diffusion-reaction 1D](../READM
 
 Over seeds: own settings 6.2 × 10<sup>-4</sup> (1 seeds), tuned 1.4 × 10<sup>-4</sup> (1 seeds).
  Learned parameters (tuned, median): D = 0.999773 (true 1.0).
+
+PINNStudio's own inverse mode: the diffusivity D from u at four times.
+
+*Surface comparison, the example's own settings:*
+
+![Surface comparison, the example's own settings](figures/tuning/Diffusion_reaction_equation_inv/own_surface_comparison.png)
+
+*Surface comparison, tuned (all):*
+
+![Surface comparison, tuned (all)](figures/tuning/Diffusion_reaction_equation_inv/tuned_surface_comparison.png)
+
+*Parameter convergence, the example's own settings:*
+
+![Parameter convergence, the example's own settings](figures/tuning/Diffusion_reaction_equation_inv/own_param_plot.png)
+
+*Parameter convergence, tuned (all):*
+
+![Parameter convergence, tuned (all)](figures/tuning/Diffusion_reaction_equation_inv/tuned_param_plot.png)
+
 
 Tuned settings: [`Diffusion-reaction 1D, inverse mode (tuned).pinn.json`](tuning/Diffusion-reaction%201D,%20inverse%20mode%20(tuned).pinn.json)
 
@@ -873,6 +949,33 @@ Its own settings and results are in the README: [Navier-Stokes 2D – Kovasznay 
 Over seeds: own settings 9.1 × 10<sup>-5</sup> (1 seeds), tuned 3.7 × 10<sup>-5</sup> (1 seeds).
  Learned parameters (tuned, median): Re = 19.9982 (true 20.0).
 
+PINNStudio's own inverse mode: the Reynolds number from u and v at 500 points, within 0.01% with every setting tried.
+
+*Surface comparison, u, the example's own settings:*
+
+![Surface comparison, u, the example's own settings](figures/tuning/Kovasznay_flow_inv/own_surface_comparison_u.png)
+
+*Surface comparison, u, tuned (all):*
+
+![Surface comparison, u, tuned (all)](figures/tuning/Kovasznay_flow_inv/tuned_surface_comparison_u.png)
+
+*Surface comparison, v, the example's own settings:*
+
+![Surface comparison, v, the example's own settings](figures/tuning/Kovasznay_flow_inv/own_surface_comparison_v.png)
+
+*Surface comparison, v, tuned (all):*
+
+![Surface comparison, v, tuned (all)](figures/tuning/Kovasznay_flow_inv/tuned_surface_comparison_v.png)
+
+*Parameter convergence, the example's own settings:*
+
+![Parameter convergence, the example's own settings](figures/tuning/Kovasznay_flow_inv/own_param_plot.png)
+
+*Parameter convergence, tuned (all):*
+
+![Parameter convergence, tuned (all)](figures/tuning/Kovasznay_flow_inv/tuned_param_plot.png)
+
+
 Tuned settings: [`Navier-Stokes 2D – Kovasznay flow, inverse mode (tuned).pinn.json`](tuning/Navier-Stokes%202D%20–%20Kovasznay%20flow,%20inverse%20mode%20(tuned).pinn.json)
 
 </details>
@@ -974,7 +1077,91 @@ Its own settings and results are in the README: [Linear ODE system](../README.md
 Over seeds: own settings 3.3 × 10<sup>-4</sup> (1 seeds), tuned 2.0 × 10<sup>-4</sup> (1 seeds).
  Learned parameters (tuned, median): w = 0.999912 (true 1.0).
 
+PINNStudio's own inverse mode: w in y2' = -w y1 from y1 and y2 at 40 times. Already within 0.03% with the example's settings.
+
+*Line comparison, y1, the example's own settings:*
+
+![Line comparison, y1, the example's own settings](figures/tuning/ODE_system_inv/own_line_comparison_y1.png)
+
+*Line comparison, y1, tuned (all):*
+
+![Line comparison, y1, tuned (all)](figures/tuning/ODE_system_inv/tuned_line_comparison_y1.png)
+
+*Line comparison, y2, the example's own settings:*
+
+![Line comparison, y2, the example's own settings](figures/tuning/ODE_system_inv/own_line_comparison_y2.png)
+
+*Line comparison, y2, tuned (all):*
+
+![Line comparison, y2, tuned (all)](figures/tuning/ODE_system_inv/tuned_line_comparison_y2.png)
+
+*Parameter convergence, the example's own settings:*
+
+![Parameter convergence, the example's own settings](figures/tuning/ODE_system_inv/own_param_plot.png)
+
+*Parameter convergence, tuned (all):*
+
+![Parameter convergence, tuned (all)](figures/tuning/ODE_system_inv/tuned_param_plot.png)
+
+
 Tuned settings: [`Linear ODE system, inverse mode (tuned).pinn.json`](tuning/Linear%20ODE%20system,%20inverse%20mode%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-navier-stokes-3d-beltrami-flow-inverse-mode">
+<summary><strong>Navier-Stokes 3D – Beltrami flow, inverse mode</strong></summary>
+
+Its own settings and results are in the README: [Navier-Stokes 3D – Beltrami flow](../README.md#dx-beltrami-flow).
+
+**Own settings:** network [4, 50, 50, 50, 50, 4], Adam 30,000 → L-BFGS 15,000, 50,000 domain / 5,000 boundary / 5,000 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 1.17e-04 | 3.5 × 10<sup>-4</sup> | 0.22% | 2514 |
+| **net** | 4.56e-05 | 2.2 × 10<sup>-4</sup> | 0.2% | 6315 |
+| lbfgs3 | 1.09e-04 | 3.5 × 10<sup>-4</sup> | 0.12% | 2575 |
+
+**Chosen: net** (hidden layers twice as wide (at most 512) and one layer more): network [4, 100, 100, 100, 100, 100, 4], Adam 30,000 → L-BFGS 15,000, 50,000 / 5,000 / 5,000 points.
+
+Over seeds: own settings 3.5 × 10<sup>-4</sup> (1 seeds), tuned 2.2 × 10<sup>-4</sup> (1 seeds).
+ Learned parameters (tuned, median): nu = 0.998003 (true 1.0).
+
+PINNStudio's own inverse mode: the viscosity from u, v and w at two times. The error is that of u; the pressure is only known up to a constant here, so its own error is large and not a fault. Every change together ran out of memory on the 24 GB GPU.
+
+*Surface comparison, u, the example's own settings:*
+
+![Surface comparison, u, the example's own settings](figures/tuning/Beltrami_flow_inv/own_surface_comparison_u.png)
+
+*Surface comparison, u, tuned (net):*
+
+![Surface comparison, u, tuned (net)](figures/tuning/Beltrami_flow_inv/tuned_surface_comparison_u.png)
+
+*Surface comparison, v, the example's own settings:*
+
+![Surface comparison, v, the example's own settings](figures/tuning/Beltrami_flow_inv/own_surface_comparison_v.png)
+
+*Surface comparison, v, tuned (net):*
+
+![Surface comparison, v, tuned (net)](figures/tuning/Beltrami_flow_inv/tuned_surface_comparison_v.png)
+
+*Surface comparison, w, the example's own settings:*
+
+![Surface comparison, w, the example's own settings](figures/tuning/Beltrami_flow_inv/own_surface_comparison_w.png)
+
+*Surface comparison, w, tuned (net):*
+
+![Surface comparison, w, tuned (net)](figures/tuning/Beltrami_flow_inv/tuned_surface_comparison_w.png)
+
+*Parameter convergence, the example's own settings:*
+
+![Parameter convergence, the example's own settings](figures/tuning/Beltrami_flow_inv/own_param_plot.png)
+
+*Parameter convergence, tuned (net):*
+
+![Parameter convergence, tuned (net)](figures/tuning/Beltrami_flow_inv/tuned_param_plot.png)
+
+
+Tuned settings: [`Navier-Stokes 3D – Beltrami flow, inverse mode (tuned).pinn.json`](tuning/Navier-Stokes%203D%20–%20Beltrami%20flow,%20inverse%20mode%20(tuned).pinn.json)
 
 </details>
 
@@ -1162,27 +1349,6 @@ No variant gets below about 7.7%, although the training loss falls about 800 tim
 
 
 Tuned settings: [`Helmholtz 2D – sound-hard scattering (tuned).pinn.json`](tuning/Helmholtz%202D%20–%20sound-hard%20scattering%20(tuned).pinn.json)
-
-</details>
-
-<details id="tune-navier-stokes-3d-beltrami-flow-inverse-mode">
-<summary><strong>Navier-Stokes 3D – Beltrami flow, inverse mode</strong></summary>
-
-Its own settings and results are in the README: [Navier-Stokes 3D – Beltrami flow](../README.md#dx-beltrami-flow).
-
-**Own settings:** network [4, 50, 50, 50, 50, 4], Adam 30,000 → L-BFGS 15,000, 50,000 domain / 5,000 boundary / 5,000 initial points.
-
-| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
-|---|---|---|---|---|
-| base | 1.17e-04 | 3.5 × 10<sup>-4</sup> | 0.22% | 2514 |
-| **lbfgs3** | 1.09e-04 | 3.5 × 10<sup>-4</sup> | 0.12% | 2575 |
-
-**Chosen: lbfgs3** (3× the L-BFGS iterations, or an L-BFGS phase of 45,000 added (inverse problems)): network [4, 50, 50, 50, 50, 4], Adam 30,000 → L-BFGS 45,000, 50,000 / 5,000 / 5,000 points.
-
-Over seeds: own settings 3.5 × 10<sup>-4</sup> (1 seeds), tuned 3.5 × 10<sup>-4</sup> (1 seeds).
- Learned parameters (tuned, median): nu = 0.998842 (true 1.0).
-
-Tuned settings: [`Navier-Stokes 3D – Beltrami flow, inverse mode (tuned).pinn.json`](tuning/Navier-Stokes%203D%20–%20Beltrami%20flow,%20inverse%20mode%20(tuned).pinn.json)
 
 </details>
 
@@ -1456,6 +1622,21 @@ Its own settings and results are in the README: [Lotka-Volterra ODE](../README.m
 
 Over seeds: own settings 1.5 × 10<sup>-5</sup> (1 seeds), tuned 1.5 × 10<sup>-5</sup> (1 seeds).
  Learned parameters (tuned, median): a = 2.00001 (true 2.0), d = 1.06 (true 1.06).
+
+PINNStudio's own inverse mode: the prey growth rate a and the predator death rate d from both populations. Both are found to 0.001% with the example's settings; no change does better.
+
+*Line comparison, p, the example's own settings:*
+
+![Line comparison, p, the example's own settings](figures/tuning/Lotka_Volterra_equation_inv/own_line_comparison_p.png)
+
+*Line comparison, r, the example's own settings:*
+
+![Line comparison, r, the example's own settings](figures/tuning/Lotka_Volterra_equation_inv/own_line_comparison_r.png)
+
+*Parameter convergence, the example's own settings:*
+
+![Parameter convergence, the example's own settings](figures/tuning/Lotka_Volterra_equation_inv/own_param_plot.png)
+
 
 Tuned settings: [`Lotka-Volterra ODE, inverse mode (tuned).pinn.json`](tuning/Lotka-Volterra%20ODE,%20inverse%20mode%20(tuned).pinn.json)
 
