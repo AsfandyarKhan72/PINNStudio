@@ -4,7 +4,7 @@
 
 DeepXDE's examples are written to show how the library is used, so many train briefly, on a small network or with Adam only. This study asks how far ordinary tuning in PINNStudio takes them: each example is run with its own settings and with the same five changes, and the change that trains best is reported next to the example's own result. It complements the [training methods study](training_methods.md), which tests specialised methods (causal training, per-point weights, time windows) on the hardest problems.
 
-So far 36 problems are included, chosen as the ones with the largest errors in the [README results](../README.md). 21 of them improve by 1.5× or more; the median improvement is 2×.
+So far 37 problems are included, chosen as the ones with the largest errors in the [README results](../README.md). 21 of them improve by 1.5× or more; the median improvement is 2×.
 
 ## How it is done
 
@@ -68,6 +68,7 @@ So far 36 problems are included, chosen as the ones with the largest errors in t
 | [Cahn-Hilliard 2D – Wight & Zhao (PINNStudio template), inverse mode](#tune-cahn-hilliard-2d-wight-zhao-pinnstudio-template-inverse-mode) | 6.9 × 10<sup>-5</sup> | 6.9 × 10<sup>-5</sup> | none | base | 0.42% → 0.42% | 3736 → 3736 |
 | [Heat 3D (PINNStudio template), inverse mode](#tune-heat-3d-pinnstudio-template-inverse-mode) | 1.3 × 10<sup>-3</sup> | 1.3 × 10<sup>-3</sup> | none | base | 0.076% → 0.076% | 729 → 729 |
 | [Allen-Cahn 3D – Wight & Zhao (PINNStudio template), inverse mode](#tune-allen-cahn-3d-wight-zhao-pinnstudio-template-inverse-mode) | 9.7 × 10<sup>-5</sup> | 9.7 × 10<sup>-5</sup> | none | base | 0.31% → 0.31% | 1419 → 1419 |
+| [Allen-Cahn 2D – Wight & Zhao (PINNStudio template) (best setup)](#tune-allen-cahn-2d-wight-zhao-pinnstudio-template-best-setup) | 1.6 × 10<sup>-3</sup> | 1.6 × 10<sup>-3</sup> | none | base | – | 1596 → 1596 |
 | [Allen-Cahn 2D – Mattey & Ghosh (PINNStudio template) (best setup)](#tune-allen-cahn-2d-mattey-ghosh-pinnstudio-template-best-setup) | 3.6 × 10<sup>-4</sup> | 5.9 × 10<sup>-4</sup> | worse (2× higher) | net | – | 266 → 464 |
 | [Allen-Cahn 2D – Wight & Zhao (PINNStudio template)](#tune-allen-cahn-2d-wight-zhao-pinnstudio-template) | 7.9 × 10<sup>-3</sup> | 9.3 × 10<sup>-2</sup> | worse (12× higher) | iters | – | 1780 → 3710 |
 | [Cahn-Hilliard 1D – Mattey & Ghosh (PINNStudio template) (best setup)](#tune-cahn-hilliard-1d-mattey-ghosh-pinnstudio-template-best-setup) | 3.9 × 10<sup>-3</sup> | 9.9 × 10<sup>-1</sup> | worse (253× higher) | net | – | 1002 → 1893 |
@@ -662,6 +663,15 @@ Over seeds: own settings 1.7 × 10<sup>-3</sup> (1 seeds), tuned 5.2 × 10<sup>-
 
 Causal training on the whole interval, then every change together, gives 5.2e-4 at t = 1, against 1.3e-3 for the template as it loads.
 
+*Surface comparison, the example's own settings:*
+
+![Surface comparison, the example's own settings](figures/tuning/Template_1D_Burgers_best_setup/own_surface_comparison.png)
+
+*Surface comparison, tuned (all):*
+
+![Surface comparison, tuned (all)](figures/tuning/Template_1D_Burgers_best_setup/tuned_surface_comparison.png)
+
+
 Tuned settings: [`Burgers 1D – Raissi et al. (PINNStudio template) (best setup) (tuned).pinn.json`](tuning/Burgers%201D%20–%20Raissi%20et%20al.%20(PINNStudio%20template)%20(best%20setup)%20(tuned).pinn.json)
 
 </details>
@@ -1017,6 +1027,15 @@ Tuned settings: [`Helmholtz 2D – sound-hard scattering (tuned).pinn.json`](tun
 Over seeds: own settings 5.4 × 10<sup>-4</sup> (1 seeds), tuned 5.4 × 10<sup>-4</sup> (1 seeds).
  Learned parameters (tuned, median): source_term = 1.00002 (true 1.0).
 
+*Surface comparison, the example's own settings:*
+
+![Surface comparison, the example's own settings](figures/tuning/Template_2D_Poisson_Disk_inv/own_surface_comparison.png)
+
+*Parameter convergence, the example's own settings:*
+
+![Parameter convergence, the example's own settings](figures/tuning/Template_2D_Poisson_Disk_inv/own_param_plot.png)
+
+
 Tuned settings: [`Poisson 2D – disk (PINNStudio template), inverse mode (tuned).pinn.json`](tuning/Poisson%202D%20–%20disk%20(PINNStudio%20template),%20inverse%20mode%20(tuned).pinn.json)
 
 </details>
@@ -1034,6 +1053,15 @@ Tuned settings: [`Poisson 2D – disk (PINNStudio template), inverse mode (tuned
 
 Over seeds: own settings 5.8 × 10<sup>-4</sup> (1 seeds), tuned 5.8 × 10<sup>-4</sup> (1 seeds).
  Learned parameters (tuned, median): alpha = 0.399893 (true 0.4).
+
+*Surface comparison, the example's own settings:*
+
+![Surface comparison, the example's own settings](figures/tuning/Template_2D_Heat_inv/own_surface_comparison.png)
+
+*Parameter convergence, the example's own settings:*
+
+![Parameter convergence, the example's own settings](figures/tuning/Template_2D_Heat_inv/own_param_plot.png)
+
 
 Tuned settings: [`Heat 2D (PINNStudio template), inverse mode (tuned).pinn.json`](tuning/Heat%202D%20(PINNStudio%20template),%20inverse%20mode%20(tuned).pinn.json)
 
@@ -1053,6 +1081,19 @@ Tuned settings: [`Heat 2D (PINNStudio template), inverse mode (tuned).pinn.json`
 Over seeds: own settings 3.5 × 10<sup>-3</sup> (1 seeds), tuned 3.5 × 10<sup>-3</sup> (1 seeds).
  Learned parameters (tuned, median): nu = 0.00341319 (true 0.00318309886184).
 
+*Surface comparison, u, the example's own settings:*
+
+![Surface comparison, u, the example's own settings](figures/tuning/Template_2D_Burgers_Mathias_inv/own_surface_comparison_u.png)
+
+*Surface comparison, v, the example's own settings:*
+
+![Surface comparison, v, the example's own settings](figures/tuning/Template_2D_Burgers_Mathias_inv/own_surface_comparison_v.png)
+
+*Parameter convergence, the example's own settings:*
+
+![Parameter convergence, the example's own settings](figures/tuning/Template_2D_Burgers_Mathias_inv/own_param_plot.png)
+
+
 Tuned settings: [`Burgers 2D – Mathias et al. (PINNStudio template), inverse mode (tuned).pinn.json`](tuning/Burgers%202D%20–%20Mathias%20et%20al.%20(PINNStudio%20template),%20inverse%20mode%20(tuned).pinn.json)
 
 </details>
@@ -1070,6 +1111,15 @@ Tuned settings: [`Burgers 2D – Mathias et al. (PINNStudio template), inverse m
 
 Over seeds: own settings 8.9 × 10<sup>-4</sup> (1 seeds), tuned 8.9 × 10<sup>-4</sup> (1 seeds).
  Learned parameters (tuned, median): c1_sq = 0.000105791 (true 0.0001), c2 = 1.00367 (true 1.0).
+
+*Surface comparison, the example's own settings:*
+
+![Surface comparison, the example's own settings](figures/tuning/Template_2D_Allen_Cahn_Mattey_Ghosh_inv/own_surface_comparison.png)
+
+*Parameter convergence, the example's own settings:*
+
+![Parameter convergence, the example's own settings](figures/tuning/Template_2D_Allen_Cahn_Mattey_Ghosh_inv/own_param_plot.png)
+
 
 Tuned settings: [`Allen-Cahn 2D – Mattey & Ghosh (PINNStudio template), inverse mode (tuned).pinn.json`](tuning/Allen-Cahn%202D%20–%20Mattey%20&%20Ghosh%20(PINNStudio%20template),%20inverse%20mode%20(tuned).pinn.json)
 
@@ -1089,6 +1139,15 @@ Tuned settings: [`Allen-Cahn 2D – Mattey & Ghosh (PINNStudio template), invers
 Over seeds: own settings 3.1 × 10<sup>-4</sup> (1 seeds), tuned 3.1 × 10<sup>-4</sup> (1 seeds).
  Learned parameters (tuned, median): lambda_ = 9.54428 (true 10.0), diff_coeff = 0.00598505 (true 0.00625).
 
+*Surface comparison, the example's own settings:*
+
+![Surface comparison, the example's own settings](figures/tuning/Template_2D_Allen_Cahn_Wight_Zhao_inv/own_surface_comparison.png)
+
+*Parameter convergence, the example's own settings:*
+
+![Parameter convergence, the example's own settings](figures/tuning/Template_2D_Allen_Cahn_Wight_Zhao_inv/own_param_plot.png)
+
+
 Tuned settings: [`Allen-Cahn 2D – Wight & Zhao (PINNStudio template), inverse mode (tuned).pinn.json`](tuning/Allen-Cahn%202D%20–%20Wight%20&%20Zhao%20(PINNStudio%20template),%20inverse%20mode%20(tuned).pinn.json)
 
 </details>
@@ -1106,6 +1165,19 @@ Tuned settings: [`Allen-Cahn 2D – Wight & Zhao (PINNStudio template), inverse 
 
 Over seeds: own settings 6.9 × 10<sup>-5</sup> (1 seeds), tuned 6.9 × 10<sup>-5</sup> (1 seeds).
  Learned parameters (tuned, median): eps_sq = 0.00251042 (true 0.0025).
+
+*Surface comparison, mu, the example's own settings:*
+
+![Surface comparison, mu, the example's own settings](figures/tuning/Template_2D_Cahn_Hilliard_Wight_Zhao_inv/own_surface_comparison_mu.png)
+
+*Surface comparison, u, the example's own settings:*
+
+![Surface comparison, u, the example's own settings](figures/tuning/Template_2D_Cahn_Hilliard_Wight_Zhao_inv/own_surface_comparison_u.png)
+
+*Parameter convergence, the example's own settings:*
+
+![Parameter convergence, the example's own settings](figures/tuning/Template_2D_Cahn_Hilliard_Wight_Zhao_inv/own_param_plot.png)
+
 
 Tuned settings: [`Cahn-Hilliard 2D – Wight & Zhao (PINNStudio template), inverse mode (tuned).pinn.json`](tuning/Cahn-Hilliard%202D%20–%20Wight%20&%20Zhao%20(PINNStudio%20template),%20inverse%20mode%20(tuned).pinn.json)
 
@@ -1125,6 +1197,15 @@ Tuned settings: [`Cahn-Hilliard 2D – Wight & Zhao (PINNStudio template), inver
 Over seeds: own settings 1.3 × 10<sup>-3</sup> (1 seeds), tuned 1.3 × 10<sup>-3</sup> (1 seeds).
  Learned parameters (tuned, median): alpha = 0.400303 (true 0.4).
 
+*Surface comparison, the example's own settings:*
+
+![Surface comparison, the example's own settings](figures/tuning/Template_3D_Heat_inv/own_surface_comparison.png)
+
+*Parameter convergence, the example's own settings:*
+
+![Parameter convergence, the example's own settings](figures/tuning/Template_3D_Heat_inv/own_param_plot.png)
+
+
 Tuned settings: [`Heat 3D (PINNStudio template), inverse mode (tuned).pinn.json`](tuning/Heat%203D%20(PINNStudio%20template),%20inverse%20mode%20(tuned).pinn.json)
 
 </details>
@@ -1143,7 +1224,40 @@ Tuned settings: [`Heat 3D (PINNStudio template), inverse mode (tuned).pinn.json`
 Over seeds: own settings 9.7 × 10<sup>-5</sup> (1 seeds), tuned 9.7 × 10<sup>-5</sup> (1 seeds).
  Learned parameters (tuned, median): lambda_ = 9.96899 (true 10.0), diff_coeff = 0.0249817 (true 0.025).
 
+*Surface comparison, the example's own settings:*
+
+![Surface comparison, the example's own settings](figures/tuning/Template_3D_Allen_Cahn_Wight_Zhao_inv/own_surface_comparison.png)
+
+*Parameter convergence, the example's own settings:*
+
+![Parameter convergence, the example's own settings](figures/tuning/Template_3D_Allen_Cahn_Wight_Zhao_inv/own_param_plot.png)
+
+
 Tuned settings: [`Allen-Cahn 3D – Wight & Zhao (PINNStudio template), inverse mode (tuned).pinn.json`](tuning/Allen-Cahn%203D%20–%20Wight%20&%20Zhao%20(PINNStudio%20template),%20inverse%20mode%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-allen-cahn-2d-wight-zhao-pinnstudio-template-best-setup">
+<summary><strong>Allen-Cahn 2D – Wight & Zhao (PINNStudio template) (best setup)</strong></summary>
+
+**Own settings:** network [3, 128, 128, 128, 128, 1], Adam 20,000 → L-BFGS 10,000, 10,000 domain / 400 boundary / 512 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| **base** | 1.48e-05 | 1.6 × 10<sup>-3</sup> | – | 1596 |
+
+**Chosen: base** (the example's own settings): network [3, 128, 128, 128, 128, 1], Adam 20,000 → L-BFGS 10,000, 10,000 / 400 / 512 points.
+
+Over seeds: own settings 1.6 × 10<sup>-3</sup> (1 seeds), tuned 1.6 × 10<sup>-3</sup> (1 seeds).
+
+The study's best setup (time windows with RBA weights, soft IC, exact periodicity) gives 1.6e-3 at t = 10, against 7.9e-3 for the template as it loads. The gain is only at the last time: at t = 2.5 and t = 5 both runs are the same (9.3e-3 and 2.1e-2), and at t = 10 neither run shows the small drop left in the reference, so the lower number mostly reflects a flatter field. The other variants are still running and will be added here.
+
+*Surface comparison, the example's own settings:*
+
+![Surface comparison, the example's own settings](figures/tuning/Template_2D_Allen_Cahn_Wight_Zhao_best_setup/own_surface_comparison.png)
+
+
+Tuned settings: [`Allen-Cahn 2D – Wight & Zhao (PINNStudio template) (best setup) (tuned).pinn.json`](tuning/Allen-Cahn%202D%20–%20Wight%20&%20Zhao%20(PINNStudio%20template)%20(best%20setup)%20(tuned).pinn.json)
 
 </details>
 
@@ -1164,6 +1278,15 @@ Tuned settings: [`Allen-Cahn 3D – Wight & Zhao (PINNStudio template), inverse 
 Over seeds: own settings 3.6 × 10<sup>-4</sup> (1 seeds), tuned 5.9 × 10<sup>-4</sup> (1 seeds).
 
 Switching from the template's time windows to the study's best setup (exact periodicity and IC, SA-PINN weights, whole interval) lowers the error from 6.7e-3 to 3.6e-4 and trains in 4.5 minutes. More iterations give about the same; the variant with the lowest training loss (the wider network) is a little worse.
+
+*Surface comparison, the example's own settings:*
+
+![Surface comparison, the example's own settings](figures/tuning/Template_2D_Allen_Cahn_Mattey_Ghosh_best_setup/own_surface_comparison.png)
+
+*Surface comparison, tuned (net):*
+
+![Surface comparison, tuned (net)](figures/tuning/Template_2D_Allen_Cahn_Mattey_Ghosh_best_setup/tuned_surface_comparison.png)
+
 
 Tuned settings: [`Allen-Cahn 2D – Mattey & Ghosh (PINNStudio template) (best setup) (tuned).pinn.json`](tuning/Allen-Cahn%202D%20–%20Mattey%20&%20Ghosh%20(PINNStudio%20template)%20(best%20setup)%20(tuned).pinn.json)
 
@@ -1210,6 +1333,7 @@ Tuned settings: [`Allen-Cahn 2D – Wight & Zhao (PINNStudio template) (tuned).p
 | base | 2.85e-05 | 3.9 × 10<sup>-3</sup> | – | 1002 |
 | iters | 2.28e-04 | 6.1 × 10<sup>-2</sup> | – | 2165 |
 | **net** | 1.50e-12 | 9.9 × 10<sup>-1</sup> | – | 1893 |
+| all | 7.33e-11 | 9.9 × 10<sup>-1</sup> | – | 13959 |
 | windows2 | 3.50e-05 | 1.5 × 10<sup>-2</sup> | – | 1709 |
 
 **Chosen: net** (hidden layers twice as wide (at most 512) and one layer more): network [2, 256, 256, 256, 256, 256, 2], Adam 5,000 → L-BFGS 5,000, 10,000 / 200 / 512 points.
@@ -1217,6 +1341,23 @@ Tuned settings: [`Allen-Cahn 2D – Wight & Zhao (PINNStudio template) (tuned).p
 Over seeds: own settings 3.9 × 10<sup>-3</sup> (1 seeds), tuned 9.9 × 10<sup>-1</sup> (1 seeds).
 
 The study's best setup (time windows, exact periodicity, SA-PINN weights) gives 0.39% at t = 1, as in the training methods study. Every change makes it worse, and the wider network is a warning: its training loss is the lowest of all (1.5e-12) while the solution has collapsed to a nearly flat field (99% error). A tiny loss does not mean a right answer for this problem.
+
+*Surface comparison, mu, the example's own settings:*
+
+![Surface comparison, mu, the example's own settings](figures/tuning/Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/own_surface_comparison_mu.png)
+
+*Surface comparison, mu, tuned (net):*
+
+![Surface comparison, mu, tuned (net)](figures/tuning/Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/tuned_surface_comparison_mu.png)
+
+*Surface comparison, u, the example's own settings:*
+
+![Surface comparison, u, the example's own settings](figures/tuning/Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/own_surface_comparison_u.png)
+
+*Surface comparison, u, tuned (net):*
+
+![Surface comparison, u, tuned (net)](figures/tuning/Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/tuned_surface_comparison_u.png)
+
 
 Tuned settings: [`Cahn-Hilliard 1D – Mattey & Ghosh (PINNStudio template) (best setup) (tuned).pinn.json`](tuning/Cahn-Hilliard%201D%20–%20Mattey%20&%20Ghosh%20(PINNStudio%20template)%20(best%20setup)%20(tuned).pinn.json)
 

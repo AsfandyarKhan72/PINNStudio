@@ -92,6 +92,12 @@ NOTES = {
         "weights, whole interval) lowers the error from 6.7e-3 to 3.6e-4 and trains in 4.5 minutes. More "
         "iterations give about the same; the variant with the lowest training loss (the wider network) is a "
         "little worse.",
+    ("Template: 2D Allen-Cahn (Wight & Zhao) | best setup", False):
+        "The study's best setup (time windows with RBA weights, soft IC, exact periodicity) gives 1.6e-3 at "
+        "t = 10, against 7.9e-3 for the template as it loads. The gain is only at the last time: at t = 2.5 and "
+        "t = 5 both runs are the same (9.3e-3 and 2.1e-2), and at t = 10 neither run shows the small drop left "
+        "in the reference, so the lower number mostly reflects a flatter field. The other variants are still "
+        "running and will be added here.",
     ("Template: 1D Burgers | best setup", False):
         "Causal training on the whole interval, then every change together, gives 5.2e-4 at t = 1, against 1.3e-3 "
         "for the template as it loads.",
@@ -300,7 +306,10 @@ def _figures(s):
         sub = re.sub(r"^(surface|line)_comparison_?|\.png$|^param_plot", "", n.replace(".png", ""))
         if sub:
             what += f", {sub}"
-        for tag, label in (("own", "the example's own settings"), ("tuned", f"tuned ({s['chosen']})")):
+        pairs = [("own", "the example's own settings"), ("tuned", f"tuned ({s['chosen']})")]
+        if s["chosen"] == "base":  # nothing beat the own settings, so show them once
+            pairs = pairs[:1]
+        for tag, label in pairs:
             f = os.path.join(folder, f"{tag}_{n}")
             if os.path.isfile(f):
                 rel = os.path.relpath(f, os.path.dirname(PAGE)).replace(os.sep, "/")
