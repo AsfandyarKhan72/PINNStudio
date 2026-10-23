@@ -1,5 +1,6 @@
 import re
 from pinnstudio.core.line_slice import auto_line_slice
+from pinnstudio.core.ea_view3d import view3d_block as _view3d_block
 import os
 os.environ["DDE_BACKEND"] = "pytorch"
 # ── CUDA performance environment variables ────────────────────
@@ -2540,6 +2541,8 @@ def _ea_extract(_ea_grid, _ea_sel, _ea_model=None):
         return eval(_ea_expr, _ea_ns)
 
     return _ea_m.predict(_ea_grid, operator=_ea_custom_op)[:, 0]'''
+    from pinnstudio.core.ea_view3d import HELPERS as _v3_helpers   # the 3D view's helpers (ea_view3d.py)
+    code += "\n" + _v3_helpers.rstrip()
     return "\n".join((indent + ln) if ln else ln for ln in code.split("\n"))
 
 
@@ -8481,6 +8484,7 @@ for _pval in _param_values:
                         _ea_slp = _os.path.join(_ea_dir, f"slice_comparison{{_ea_suffix}}.png")
                         plt.savefig(_ea_slp, dpi={config.plot_dpi}, bbox_inches='tight'); plt.close()
                         print(f"  Slice comparison saved: {{_ea_slp}}")
+{_view3d_block(config, 20)}
                 print(f"  Group '{{_ea_group_label(_ea_sel) or 'default'}}' analysis complete")
             print("=== Error Analysis Complete ===")
 

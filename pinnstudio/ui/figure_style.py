@@ -265,6 +265,15 @@ class FigureStyleDialog(QDialog):
         self.res3d.setToolTip("Points per side on each face of a 3D surface (plots, animations, Error Analysis).\n"
                               "Above about 60 the 3D figures get slow to draw.")
         f.addRow("3D grid resolution:", self.res3d)
+        self.iso_level = QLineEdit(str(s.get("iso_level", "") or ""))
+        self.iso_level.setPlaceholderText("automatic")
+        self.iso_level.setFixedWidth(90)
+        self.iso_level.setToolTip("Error Analysis of a 3D box problem also draws a 3D view: the PINN's surface\n"
+                                  "where the field equals this value (for a phase field, 0 is the interface)\n"
+                                  "inside the box, and the |error| on the box with one corner cut away.\n"
+                                  "Automatic: the middle of the reference's range.")
+        if self.dim == "3D":
+            f.addRow("3D view surface level:", self.iso_level)
         self.auto_range = QCheckBox("Automatic")
         self.auto_range.setChecked(bool(s.get("auto_range", True)))
         from pinnstudio.ui.sci_spinbox import SciSpinBox
@@ -536,6 +545,7 @@ class FigureStyleDialog(QDialog):
             self.err_cmap.setCurrentIndex(0)
             self.res.setCurrentText(str(d.plot_resolution))
             self.res3d.setValue(d.plot_resolution_3d)
+            self.iso_level.setText(d.plot_iso_level)
             self.auto_range.setChecked(d.plot_auto_range)
             self.colorbar.setChecked(d.plot_colorbar)
             self.snaps.setValue(d.plot_n_2d_snapshots)
@@ -613,6 +623,7 @@ class FigureStyleDialog(QDialog):
             "title_fontsize": self.title_fs.value(), "subplot_title_fontsize": self.sub_fs.value(),
             "axis_label_fontsize": self.axis_fs.value(), "legend_fontsize": self.legend_fs.value(),
             "resolution_3d": self.res3d.value(),
+            "iso_level": self.iso_level.text().strip(),
             "colormap": self._colormap(), "levels": self.levels.value(),
             "resolution": _num(self.res, int, int(self.style.get("resolution", 200))),
             "auto_range": self.auto_range.isChecked(),

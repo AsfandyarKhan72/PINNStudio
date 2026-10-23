@@ -2201,7 +2201,7 @@ The figure is the slice $z = 0.5$ through the centre of the sphere (PINN, refere
 
 ![3D Allen-Cahn — slice z = 0.5, PINN vs reference](assets/Images/3D_AllenCahn-Wight/slice_comparison.png)
 
-The same run in 3D, drawn like the paper's Fig. 3.9: the drop ($\phi = 0$) inside the cube at each reference time, and the error on the cube with one corner cut away, so the cuts through the centre show where it sits (the black line is the reference interface). After $t = 0$ the error is largest in a thin shell around the interface and shrinks with the drop. Made with [`tools/plot_3d_allen_cahn_isosurface.py`](tools/plot_3d_allen_cahn_isosurface.py) from the model PINNStudio saves in `solution_results/`.
+The same run in 3D, drawn like the paper's Fig. 3.9: the drop ($\phi = 0$) inside the cube at each reference time, and the error on the cube with one corner cut away, so the cuts through the centre show where it sits (the black line is the reference interface). After $t = 0$ the error is largest in a thin shell around the interface and shrinks with the drop. Made with [`tools/plot_3d_allen_cahn_isosurface.py`](tools/plot_3d_allen_cahn_isosurface.py) from the model PINNStudio saves in `solution_results/`. PINNStudio's own Error Analysis draws the same view for any 3D box problem (`view3d_comparison.png`, with |error| instead of the signed error); its surface level is set in Plot settings → Surface.
 
 ![3D Allen-Cahn — the drop inside the cube and the error, PINN vs reference](assets/Images/3D_AllenCahn-Wight/isosurface.png)
 

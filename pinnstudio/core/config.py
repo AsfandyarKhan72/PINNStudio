@@ -559,6 +559,10 @@ class PINNConfig:
     # surfaces (faces get slow to draw above about 40 points per side).
     plot_legend_fontsize: float = 0.0
     plot_resolution_3d: int = 40
+    # The level of the surface drawn in Error Analysis' 3D view of a 3D box
+    # problem ("" = the middle of the reference's range, e.g. 0 for a phase
+    # field between -1 and 1).
+    plot_iso_level: str = ""
     plot_sci_notation: str = "auto"
     plot_sci_style: str = "times"
 
