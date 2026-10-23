@@ -2182,7 +2182,7 @@ $$\Large -\frac{\partial^2 u}{\partial x^2} - \frac{\partial^2 u}{\partial y^2} 
 <details id="3d-allen-cahn-wight--zhao">
 <summary><strong>Allen-Cahn 3D – Wight & Zhao</strong></summary>
 
-Benchmark problem after [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086), section 3.2 (eq. 3.13): a sphere that shrinks under its own curvature,
+Benchmark problem after [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086), section 3.2 (eq. 3.13): a spherical drop inside the periodic cube $[0, 1]^3$ that shrinks under its own curvature,
 
 $$\Large \frac{\partial \phi}{\partial t} = \lambda\left(\varepsilon^2\left(\frac{\partial^2 \phi}{\partial x^2} + \frac{\partial^2 \phi}{\partial y^2} + \frac{\partial^2 \phi}{\partial z^2}\right) - \phi^3 + \phi\right), \qquad (x, y, z) \in [0, 1]^3,\ t \in [0, 1]$$
 
@@ -2200,6 +2200,10 @@ where $\lambda = 10$ and $\varepsilon = 0.05$ ($\lambda\varepsilon^2 = 0.025$). 
 The figure is the slice $z = 0.5$ through the centre of the sphere (PINN, reference, error): the bubble stays round and shrinks, and the largest pointwise error, about 0.013, sits on its interface.
 
 ![3D Allen-Cahn — slice z = 0.5, PINN vs reference](assets/Images/3D_AllenCahn-Wight/slice_comparison.png)
+
+The same run in 3D, drawn like the paper's Fig. 3.9: the drop ($\phi = 0$) inside the cube at each reference time, and the error on the cube with one corner cut away, so the cuts through the centre show where it sits (the black line is the reference interface). After $t = 0$ the error is largest in a thin shell around the interface and shrinks with the drop. Made with [`tools/plot_3d_allen_cahn_isosurface.py`](tools/plot_3d_allen_cahn_isosurface.py) from the model PINNStudio saves in `solution_results/`.
+
+![3D Allen-Cahn — the drop inside the cube and the error, PINN vs reference](assets/Images/3D_AllenCahn-Wight/isosurface.png)
 
 *Inverse mode* — same template, switched to **Inverse**, recovering the two coefficients as they are written in the PDE box, the reaction coefficient $\lambda$ and the diffusion coefficient $\lambda\varepsilon^2$ (initial guesses 1, true values 10 and 0.025), from $\phi$ measured at $t = 1$ on every second point of the $51^3$ reference grid (*Measured data → Use: Grid, 26 points per axis*, 17,576 points).
 
