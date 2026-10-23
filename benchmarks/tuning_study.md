@@ -31,7 +31,7 @@ So far 45 problems are included, chosen as the ones with the largest errors in t
 
 ## Summary
 
-The figure has the layout of the paper's Fig. 4: one row per problem, grouped by kind, with the forward (circles) and inverse (diamonds) results on one axis and the worst error of the learned parameters on the right. Open grey markers are the example's own settings, filled ones the chosen tuned run. For a template run from the training methods study's best setup, the grey marker is the template as it loads, or, marked "best setup", the best setup's own settings when the template itself was not part of this study.
+The figure has the layout of the paper's Fig. 4 and lists every example of PINNStudio, in the order of the README: one row per problem, the forward (circles) and inverse (diamonds) results on one axis, and each learned parameter's error on the right, labelled with its symbol. Rows marked † are in this study: the filled marker is the chosen run, and an open grey marker the example's own settings where a change helped. Rows without † show the README's result (kept in [`tuning/readme_results.json`](tuning/readme_results.json)) until they are run here. For a template run from the training methods study's best setup, the grey marker is the template as it loads.
 
 ![Error with the example's own settings and tuned in PINNStudio](figures/tuning_summary.png)
 

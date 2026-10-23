@@ -249,59 +249,88 @@ C_FORWARD, C_INVERSE, C_OWN = "#1f5fa8", "#d1701c", "#aab2bd"
 C_TEXT, C_GRID, C_BAND = "#1f2933", "#e4e7eb", "#f3f5f7"
 XLIM_ERROR = (1e-6, 3)
 XLIM_PARAM = (1e-4, 300)
-GROUP_ORDER = ["ODEs", "1D, steady", "1D, time-dependent", "2D, steady", "2D, time-dependent", "3D"]
 MISLED_MARK = " ‡"
+TUNED_MARK = " †"
 
 
-def _group(name):
-    """The Fig. 4 group of a problem: from the DeepXDE example's settings, or
-    the template's name."""
-    base = name.split(" | ")[0]
-    if base.startswith(ts.TEMPLATE_PREFIX):
-        t = base[len(ts.TEMPLATE_PREFIX):]
-        d = "3D" if "3D" in t else ("2D" if "2D" in t else "1D")
-        steady = "Poisson" in t
-    else:
-        ex = {x.name: x for x in dx.EXAMPLES}.get(base)
-        st = ex.settings if ex else {}
-        if st.get("problem_dim") == "ODE" or st.get("ode"):
-            return "ODEs"
-        d = st.get("problem_dim", "1D")
-        steady = bool(st.get("steady_state"))
-    if d == "3D":
+# How the study's parameter names are written in the figure (mathtext).
+PARAM_SYMBOLS = {"lambda_": r"$\lambda$", "diff_coeff": r"$\lambda\varepsilon^2$", "eps_sq": r"$\varepsilon^2$",
+                 "c1_sq": r"$c_1^2$", "c2": r"$c_2$", "source_term": r"$f$", "alpha": r"$\alpha$",
+                 "nu": r"$\nu$", "v_e": r"$\nu_e$", "K": r"$K$", "C": r"$C$", "a": r"$a$", "b": r"$b$",
+                 "c": r"$c$", "d": r"$d$", "D": r"$D$", "w": r"$\omega$", "EI": r"$EI$", "Re": r"$Re$",
+                 "gamma": r"$\gamma$", "k0": r"$k_0$", "lmbd": r"$\lambda$", "mu": r"$\mu$"}
+README_RESULTS = os.path.join(_REPO, "benchmarks", "tuning", "readme_results.json")
+
+
+def _group_of(entry):
+    if entry.dim == "ODE":
+        return "ODEs"
+    if entry.dim == "3D":
         return "3D"
-    return f"{d}, {'steady' if steady else 'time-dependent'}"
+    return f"{entry.dim}, {'steady' if entry.regime == 'Steady' else 'time-dependent'}"
+
+
+def _found(x):
+    """Median of each learned parameter over the chosen variant's runs: [(symbol, found, true)]."""
+    rs = x["variants"][x["chosen"]]
+    out = []
+    for k, tv in (rs[0].get("true") or {}).items():
+        vals = [r["params"][k] for r in rs if k in r.get("params", {})]
+        if tv not in (None, 0) and vals:
+            out.append((PARAM_SYMBOLS.get(k, k), statistics.median(vals), tv))
+    return out
 
 
 def _fig_rows(summ):
-    """One row per problem: forward (own, tuned, misled?) and inverse (own,
-    tuned, misled?, own and tuned parameter error). A template's best setup is
-    its forward result, measured against the template as it loads."""
-    rows = {}
-    for x in summ:
-        base, extra = (x["name"].split(" | ", 1) + [""])[:2]
-        r = rows.setdefault(base, dict(name=base, f=None, i=None))
+    """Every example of the catalogue, in its order: the tuning study's result
+    where the problem is in it (forward: the template's best setup when run,
+    against the template as it loads), else the README's (readme_results.json).
+    A DeepXDE "Inverse: ..." example is an inverse row though it trains in
+    Forward mode."""
+    from pinnstudio.core import example_catalog as cat
+    by = {(x["name"], x["inverse"]): x for x in summ}
+    try:
+        readme = json.load(open(README_RESULTS, encoding="utf-8"))
+    except OSError:
+        readme = {}
+
+    def entry(x):
+        if not x:
+            return None
         errs = [_med(rs, _maxl2) for rs in x["variants"].values()]
         best = min([v for v in errs if v], default=None)
-        misled = bool(best and x["tuned"] and x["tuned"] > 2 * best)
-        entry = dict(own=x["base"], tuned=x["tuned"], misled=misled, own_p=x["base_p"], tuned_p=x["tuned_p"])
-        if x["inverse"]:
-            r["i"] = entry
-        elif extra == "best setup":
-            r["f_best"] = entry
-        else:
-            r["f"] = entry
-    for r in rows.values():
-        fb = r.pop("f_best", None)
-        if fb:   # the best setup, against the template as it loads when that was run
-            r["only_best"] = not r["f"]
-            r["f"] = dict(fb, own=r["f"]["own"] if r["f"] else fb["own"])
-        r["group"] = _group(r["name"])
-    label = lambda n: _title(n, False).replace(" (PINNStudio template)", " (template)")
-    out = sorted(rows.values(), key=lambda r: (GROUP_ORDER.index(r["group"]), label(r["name"]).lower()))
-    for r in out:   # only the best setup was run: its own settings are the grey marker
-        r["label"] = label(r["name"]) + (", best setup" if r.get("only_best") else "")
-    return out
+        return dict(own=x["base"], tuned=x["tuned"], tuned_run=x["chosen"] != "base", study=True,
+                    misled=bool(best and x["tuned"] and x["tuned"] > 2 * best),
+                    own_p=x["base_p"], params=_found(x))
+
+    rows = []
+    for e in cat.ENTRIES:
+        if e.hidden:
+            continue
+        key = e.key if e.source == cat.DEEPXDE else ts.TEMPLATE_PREFIX + e.key
+        rd = readme.get(e.key, {})
+        is_inv_example = e.key.startswith("Inverse:")
+        plain, best = entry(by.get((key, False))), entry(by.get((key + " | best setup", False)))
+        inv = entry(by.get((key, True))) or (plain if is_inv_example else None)
+        if is_inv_example:
+            plain = None
+        fwd, only_best = plain, False
+        if best:
+            only_best = plain is None
+            fwd = dict(best, own=plain["own"] if plain else (rd.get("f") or best["own"]), tuned_run=True)
+            if plain is None and rd.get("f"):
+                only_best = False          # the README's template result is the own-settings marker
+        if fwd is None and rd.get("f") is not None and not is_inv_example:
+            fwd = dict(own=None, tuned=rd["f"], tuned_run=False, misled=False)
+        if inv is None and (rd.get("i") is not None or rd.get("params")):
+            inv = dict(own=None, tuned=rd.get("i"), tuned_run=False, misled=False, own_p=None,
+                       params=[tuple(p) for p in rd.get("params", [])])
+        if is_inv_example and inv is None and rd.get("f") is not None:
+            inv = dict(own=None, tuned=rd["f"], tuned_run=False, misled=False, own_p=None,
+                       params=[tuple(p) for p in rd.get("params", [])])
+        rows.append(dict(name=e.key, label=e.name + (", best setup" if only_best else ""),
+                         group=_group_of(e), f=fwd, i=inv))
+    return rows
 
 
 def figure(summ, path):
@@ -343,14 +372,30 @@ def figure(summ, path):
 
     for i, r in enumerate(R):
         y = Y[i]
-        if r["f"]:
-            pair(ax, r["f"]["own"], r["f"]["tuned"], y, "o", C_FORWARD, 27)
-        if r["i"]:
-            pair(ax, r["i"]["own"], r["i"]["tuned"], y, "D", C_INVERSE, 22)
-            p_own = max(100 * r["i"]["own_p"], 1.2e-4) if r["i"]["own_p"] is not None else None
-            p_tun = max(100 * r["i"]["tuned_p"], 1.2e-4) if r["i"]["tuned_p"] is not None else None
-            pair(bx, p_own, p_tun, y, "D", C_INVERSE, 20)
-    labels = [r["label"] + (MISLED_MARK if any(r[k] and r[k]["misled"] for k in ("f", "i")) else "") for r in R]
+        f, v = r["f"], r["i"]
+        pts = [p for p in ((f or {}).get("tuned"), (v or {}).get("tuned")) if p]
+        if len(pts) == 2:
+            ax.plot(pts, [y, y], color=C_GRID, lw=1.0, zorder=1)
+        if f:
+            pair(ax, f["own"] if f.get("tuned_run") else None, f["tuned"], y, "o", C_FORWARD, 27)
+        if v:
+            pair(ax, v["own"] if v.get("tuned_run") else None, v["tuned"], y, "D", C_INVERSE, 22)
+            es = [(sym, max(abs(fo - tr) / abs(tr) * 100, 1.2e-4)) for sym, fo, tr in v.get("params") or []]
+            if es:
+                right = max(e_ for _, e_ in es)
+                if v.get("tuned_run") and v.get("own_p") is not None:
+                    o = max(100 * v["own_p"], 1.2e-4)
+                    bx.plot([min(o, max(e for _, e in es)), max(o, max(e for _, e in es))], [y, y],
+                            color=C_INVERSE, lw=0.9, alpha=0.35, zorder=1)
+                    bx.scatter(o, y, s=15, marker="D", facecolor="white", edgecolor=C_OWN, lw=0.9, zorder=2)
+                    right = max(right, o)
+                for _, e_ in es:
+                    bx.scatter(e_, y, s=20, marker="D", color=C_INVERSE, edgecolor="white", lw=0.5, zorder=3)
+                txt = ", ".join(sym for sym, _ in sorted(es, key=lambda q: q[1]))
+                bx.text(right * 1.9, y, txt, va="center", ha="left", fontsize=6.6,
+                        color="#52606d")
+    labels = [r["label"] + (TUNED_MARK if any(r[k] and r[k].get("study") for k in ("f", "i")) else "")
+              + (MISLED_MARK if any(r[k] and r[k].get("misled") for k in ("f", "i")) else "") for r in R]
     ax.set_yticks([Y[i] for i in range(len(R))], labels, fontsize=7.2, color=C_TEXT)
     ax.set_ylim(Y[len(R) - 1] - 0.7, H + 0.15)
     ax.set_xscale("log"); ax.set_xlim(*XLIM_ERROR)
@@ -366,13 +411,14 @@ def figure(summ, path):
             axx.spines[sp].set_visible(False)
         axx.tick_params(axis="y", length=0)
         axx.tick_params(axis="x", labelsize=7.2)
-    h = [Line2D([], [], ls="", marker="o", color=C_FORWARD, markersize=5, label="Forward, tuned"),
-         Line2D([], [], ls="", marker="D", color=C_INVERSE, markersize=4.5, label="Inverse, tuned"),
+    h = [Line2D([], [], ls="", marker="o", color=C_FORWARD, markersize=5, label="Forward"),
+         Line2D([], [], ls="", marker="D", color=C_INVERSE, markersize=4.5, label="Inverse"),
          Line2D([], [], ls="", marker="o", markerfacecolor="white", markeredgecolor=C_OWN, markersize=4.5,
-                label="Example's own settings")]
+                label="Example's own settings, where a change helped")]
     fig.legend(handles=h, loc="upper center", ncol=3, frameon=False, fontsize=7.2, bbox_to_anchor=(0.62, 1.0))
-    fig.text(0.30, 0.0, "‡ the run with the lowest training loss (shown) is more than 2× less accurate than "
-             "another run of this problem", fontsize=6.6, color="#52606d", ha="left", va="bottom")
+    fig.text(0.30, 0.0, "† in this study (filled: the chosen run); rows without † show the README's result.  "
+             "‡ the run with the lowest training loss (shown) is more than 2× less accurate than another run.",
+             fontsize=6.4, color="#52606d", ha="left", va="bottom")
     fig.subplots_adjust(left=0.33, right=0.985, top=1 - 0.32 / h_in, bottom=0.55 / h_in)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     fig.savefig(path, dpi=300, bbox_inches="tight", pad_inches=0.03)
@@ -491,11 +537,13 @@ def page(summ, rows, with_files):
       "- **Reproducing a result.** The runs were made with [`tools/tuning_study.py`](../tools/tuning_study.py), "
       "and this page is written from its results by [`tools/make_tuning_page.py`](../tools/make_tuning_page.py).\n")
     a("## Summary\n")
-    a("The figure has the layout of the paper's Fig. 4: one row per problem, grouped by kind, with the forward "
-      "(circles) and inverse (diamonds) results on one axis and the worst error of the learned parameters on the "
-      "right. Open grey markers are the example's own settings, filled ones the chosen tuned run. For a template "
-      "run from the training methods study's best setup, the grey marker is the template as it loads, or, marked "
-      "\"best setup\", the best setup's own settings when the template itself was not part of this study.\n")
+    a("The figure has the layout of the paper's Fig. 4 and lists every example of PINNStudio, in the order of "
+      "the README: one row per problem, the forward (circles) and inverse (diamonds) results on one axis, and "
+      "each learned parameter's error on the right, labelled with its symbol. Rows marked † are in this study: "
+      "the filled marker is the chosen run, and an open grey marker the example's own settings where a change "
+      "helped. Rows without † show the README's result (kept in "
+      "[`tuning/readme_results.json`](tuning/readme_results.json)) until they are run here. For a template "
+      "run from the training methods study's best setup, the grey marker is the template as it loads.\n")
     a("![Error with the example's own settings and tuned in PINNStudio](figures/tuning_summary.png)\n")
     a("| Problem | Own settings: $L_2$ | Tuned: $L_2$ | Improvement | Chosen variant | Parameter error: own → tuned | "
       "Time (s): own → tuned |")
