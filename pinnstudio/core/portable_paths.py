@@ -99,10 +99,41 @@ def _to_ref(ref_dir):
     return fn
 
 
+# Reference files renamed when a template's output took the paper's symbol
+# (October 2026): folder inside reference_data -> (old output, new output).
+# A problem file saved before that still names "t_0_u.txt"; it is pointed
+# at the renamed file.
+RENAMED_OUTPUTS = {
+    ("1D", "cahn_hilliard_mattey"): ("u", "h"),
+    ("2D", "cahn_hilliard_mattey"): ("u", "h"),
+    ("2D", "cahn_hilliard_wight"): ("u", "phi"),
+}
+
+
+def _renamed(tail):
+    """`tail` (folder names inside reference_data) with a renamed file's new
+    name, or None when it is not one of them."""
+    if len(tail) != 3 or tuple(tail[:2]) not in RENAMED_OUTPUTS:
+        return None
+    old, new = RENAMED_OUTPUTS[tuple(tail[:2])]
+    if not (tail[2].startswith("t_") and tail[2].endswith(f"_{old}.txt")):
+        return None
+    return tail[:2] + [tail[2][:-len(f"_{old}.txt")] + f"_{new}.txt"]
+
+
+def _local(ref_dir, tail):
+    local = os.path.join(ref_dir, *tail)
+    if not os.path.exists(local):
+        moved = _renamed(tail)
+        if moved is not None and os.path.exists(os.path.join(ref_dir, *moved)):
+            return os.path.join(ref_dir, *moved)
+    return local
+
+
 def _from_ref(ref_dir):
     def fn(s):
         if s.startswith(REF):
-            return os.path.join(ref_dir, *_parts(s[len(REF):]))
+            return _local(ref_dir, _parts(s[len(REF):]))
         if not s or not _looks_absolute(s) or os.path.exists(s):
             return s
         parts = _parts(s)
@@ -111,7 +142,7 @@ def _from_ref(ref_dir):
         tail = parts[len(parts) - 1 - parts[::-1].index(_SEGMENT) + 1:]
         if not tail:
             return s
-        local = os.path.join(ref_dir, *tail)
+        local = _local(ref_dir, tail)
         return local if os.path.exists(local) else s
     return fn
 

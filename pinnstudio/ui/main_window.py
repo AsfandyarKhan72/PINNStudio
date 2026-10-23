@@ -6834,6 +6834,17 @@ class MainWindow(QMainWindow):
         if not _out_names:
             _out_names = ["u"]
         _name_to_idx = {n.lower(): i for i, n in enumerate(_out_names)}
+        # A problem saved before a template's output took the paper's symbol
+        # (u -> phi, u -> h) still calls it "u": its renamed files
+        # ("t_0_phi.txt") go to that output.
+        try:
+            from pinnstudio.core.portable_paths import RENAMED_OUTPUTS
+            _parts_ref = os.path.normpath(ref_dir or "").replace("\\", "/").split("/")[-2:]
+            _ren = RENAMED_OUTPUTS.get(tuple(_parts_ref))
+        except Exception:
+            _ren = None
+        if _ren and _ren[0] in _name_to_idx and _ren[1] not in _name_to_idx:
+            _name_to_idx[_ren[1]] = _name_to_idx[_ren[0]]
         if is_steady:
             # Steady-state (time-independent) templates have a single
             # reference file with no time column at all -- "solution.txt",
@@ -6956,13 +6967,17 @@ class MainWindow(QMainWindow):
         # them -- this single-file default would overwrite its first row.
         _tpl_obs = self.INVERSE_AUTO_OBS.get(getattr(self, '_current_template', ''))
         if hasattr(self, 'inv_data_path') and not (_tpl_obs and _tpl_obs[0][0]):
-            _end_time_file = valid_files[-1][1]
+            # the end time's file for the first output: the files are in
+            # name order within one time, and "t_1_h.txt" sorts before
+            # "t_1_mu.txt" while "t_1_u.txt" sorted after it
+            _end_vf = max(valid_files, key=lambda vf: (vf[0], -(vf[2] or 0)))
+            _end_time_file = _end_vf[1]
             _less_data_variant = _end_time_file[:-4] + "_LessData.txt"
             _inv_default_file = _less_data_variant if os.path.isfile(_less_data_variant) else _end_time_file
             self.inv_data_path.setText(_inv_default_file)
             # A per-output snapshot ("t_1.0_v.txt") is data for THAT output,
             # not output 1 -- point the row's output selector at it.
-            _end_sel = valid_files[-1][2]
+            _end_sel = _end_vf[2]
             if (_end_sel is not None and hasattr(self, 'inv_obs_output_combo')
                     and _end_sel < self.inv_obs_output_combo.count()):
                 self.inv_obs_output_combo.setCurrentIndex(_end_sel)
@@ -10774,7 +10789,7 @@ class MainWindow(QMainWindow):
         # c_1^2 (interfacial-thickness-squared, 0.0001) and c_2 (reaction,
         # 1) -- Mattey & Ghosh's own eq. 13 coefficients. c_2's "1" isn't
         # written explicitly in the original PDE box text (an implicit
-        # coefficient on (u**3 - u)), so the forward 'pde' string below was
+        # coefficient on (h**3 - h)), so the forward 'pde' string below was
         # given an explicit "1.0*" for exactly this purpose -- see that
         # template's own comment.
         "2D Allen-Cahn (Mattey & Ghosh)": [(0, "0.0001", 0), (0, "1.0", 1)],
@@ -10899,7 +10914,7 @@ class MainWindow(QMainWindow):
         # is 1, so this doesn't start the fit already at the answer).
         "1D Allen-Cahn": [("gamma_1", 1.0, 0.0001), ("gamma_2", 1.0, 5.0)],
         "1D Allen-Cahn (whole interval)": [("gamma_1", 1.0, 0.0001), ("gamma_2", 1.0, 5.0)],
-        # alpha (interface term) and kappa (the "1.0" on f(u)), Mattey & Ghosh eq. 18
+        # alpha (interface term) and kappa (the "1.0" on f(h)), Mattey & Ghosh eq. 18
         "2D Cahn-Hilliard (Mattey & Ghosh)": [("alpha", 1.0, 0.0002), ("kappa", 0.1, 1.0)],
         "2D Heat": [("alpha", 1.0, 0.4)],
         # c_1^2 (interfacial-thickness-squared) and c_2 (reaction) --
@@ -10974,7 +10989,7 @@ class MainWindow(QMainWindow):
         # Both velocity components measured at t = 1, each against its own
         # output (a single file would leave the other component unmeasured,
         # and the end-time default picked V's file for output U).
-        # u measured at every reference time after t = 0: from t = 1 alone
+        # h measured at every reference time after t = 0: from t = 1 alone
         # c1^2 came out 66% off, from all four 3% (the inverse study of
         # October 2026, with L-BFGS 20,000, see the template's
         # inverse_training).
@@ -14139,13 +14154,13 @@ print("DOMAIN_PREVIEW_DONE")
             "2D Allen-Cahn (Mattey & Ghosh)": {
                 # The "1.0*" on the reaction term is written explicitly
                 # (rather than the mathematically-equivalent bare
-                # "(u**3 - u)") so there's a literal substring for Inverse
+                # "(h**3 - h)") so there's a literal substring for Inverse
                 # mode to substitute c_2 into -- see INVERSE_AUTO_CONST's
                 # comment above. Forward-mode behavior is identical either
                 # way (1.0 times anything is a no-op).
-                'pde': ["du_t - 0.0001*(du_xx + du_yy) + 1.0*(u**3 - u)"],
+                'pde': ["dh_t - 0.0001*(dh_xx + dh_yy) + 1.0*(h**3 - h)"],
                 'ic': ["sin(4*pi*x)*cos(4*pi*y)"],
-                # Inverse: L-BFGS 20,000 with u measured at every reference
+                # Inverse: L-BFGS 20,000 with h measured at every reference
                 # time (INVERSE_AUTO_OBS): c1^2 3% off, against 66% from
                 # t = 1 alone with L-BFGS 10,000.
                 'inverse_training': {'iterations2': 20000},
@@ -14162,13 +14177,13 @@ print("DOMAIN_PREVIEW_DONE")
                 'periodic_bc': True,
                 'bc_config': 'periodic_all',
                 'num_outputs': 1,
-                'output_names': ['u'],
+                'output_names': ['h'],
                 'ic_weight': 100.0,
                 'ref_dir': os.path.join(REFERENCE_DATA_DIR, "2D", "allen_cahn_mattey"),
                 'ta_default': {'step_groups': [(0.0, 1.0, 4)], 'transfer_learning': True, 'ic_grid': 51, 'transfer_optimizer': 'lbfgs'},
             },
             "2D Allen-Cahn (Wight & Zhao)": {
-                'pde': ["du_t - 0.00625*(du_xx + du_yy) + 10*(u**3 - u)"],
+                'pde': ["dphi_t - 0.00625*(dphi_xx + dphi_yy) + 10*(phi**3 - phi)"],
                 'ic': ["tanh((0.35 - sqrt((x-0.5)**2 + (y-0.5)**2)) / (2*0.025))"],
                 'num_domain': 10000,
                 'num_boundary': 400,
@@ -14184,7 +14199,7 @@ print("DOMAIN_PREVIEW_DONE")
                 'periodic_bc': True,
                 'bc_config': 'periodic_all',
                 'num_outputs': 1,
-                'output_names': ['u'],
+                'output_names': ['phi'],
                 'ic_weight': 100.0,
                 'ref_dir': os.path.join(REFERENCE_DATA_DIR, "2D", "allen_cahn_wight"),
                 'ta_default': {'step_groups': [(0.0, 10.0, 10)], 'transfer_learning': True, 'ic_grid': 51, 'transfer_optimizer': 'lbfgs'},
@@ -14193,21 +14208,21 @@ print("DOMAIN_PREVIEW_DONE")
             # Wight & Zhao (2021), Section 3.3, eqs. 3.20-3.21: two bubbles
             # that merge, phi_t = lambda lap(-eps^2 lap phi + phi^3 - phi)
             # on [-1, 1]^2 (periodic), lambda = 1, eps = 0.05, t in [0, 1].
-            # Mixed form, as the paper's network U = (phi, mu): u_t = lap mu,
-            # mu = u^3 - u - eps^2 lap u. The initial condition
+            # Mixed form, as the paper's network U = (phi, mu): phi_t = lap mu,
+            # mu = phi^3 - phi - eps^2 lap phi. The initial condition
             # max(tanh((r - R1)/2eps), tanh((r - R2)/2eps)), r = 0.4, equals
             # tanh((r - min(R1, R2))/2eps); the min is written smoothed,
             # (R1 + R2 - sqrt((R1 - R2)^2 + 0.0004))/2: the corner of the plain
             # min where the bubbles touch drives the merging, but autograd sees
             # no curvature in a corner, and with it the network learned an
-            # almost frozen solution. The smoothing changes u by 0.5% (relative
+            # almost frozen solution. The smoothing changes phi by 0.5% (relative
             # L2), along x = 0 only; the reference data uses the same formula
             # (tools/make_phase_field_reference_data.py). The +1e-12 keeps
             # sqrt differentiable at the bubble centres.
-            # mu takes no initial condition (it follows from u).
+            # mu takes no initial condition (it follows from phi).
             "2D Cahn-Hilliard (Wight & Zhao)": {
-                'pde': ["du_t - (dmu_xx + dmu_yy)",
-                        "mu - (u**3 - u) + 0.0025*(du_xx + du_yy)"],
+                'pde': ["dphi_t - (dmu_xx + dmu_yy)",
+                        "mu - (phi**3 - phi) + 0.0025*(dphi_xx + dphi_yy)"],
                 'ic': ["tanh((0.4 - (sqrt((x - 0.28)**2 + y**2 + 1e-12) + sqrt((x + 0.28)**2 + y**2 + 1e-12)"
                        " - sqrt((sqrt((x - 0.28)**2 + y**2 + 1e-12) - sqrt((x + 0.28)**2 + y**2 + 1e-12))**2 + 0.0004))/2)/0.1)",
                        "0"],
@@ -14225,29 +14240,29 @@ print("DOMAIN_PREVIEW_DONE")
                 'periodic_bc': True,
                 'bc_config': 'periodic_all',
                 'num_outputs': 2,
-                'output_names': ['u', 'mu'],
+                'output_names': ['phi', 'mu'],
                 'ic_weight': 100.0,
                 # The initial condition as a loss term (weight 100), with
                 # exact periodicity and no per-point weights: 2.6% / 1.1% at
-                # t = 0.25 / 1. Built into the network (u = IC + t*N) it
+                # t = 0.25 / 1. Built into the network (phi = IC + t*N) it
                 # needs SA-PINN to get the bubbles moving at all, and then
                 # gives 1.2% / 3.8% (training methods study).
                 'ic_hard': [False, False],
                 'periodic_inputs': True,
                 'ref_dir': os.path.join(REFERENCE_DATA_DIR, "2D", "cahn_hilliard_wight"),
             },
-            # Mattey & Ghosh (2022), Section 6.2, IBVP-2: u_t = lap mu,
-            # mu = u^3 - u - alpha lap u on [0, 1]^2 (periodic), t in
-            # [0, 0.005], u(x, y, 0) = 0.4 cos(4 pi x) cos(4 pi (x + y)).
+            # Mattey & Ghosh (2022), Section 6.2, IBVP-2: h_t = lap mu,
+            # mu = h^3 - h - alpha lap h on [0, 1]^2 (periodic), t in
+            # [0, 0.005], h(x, y, 0) = 0.4 cos(4 pi x) cos(4 pi (x + y)).
             # Time is rescaled, t' = t / 0.005 in [0, 1] (a network sees
-            # t in [0, 0.005] as almost constant), so u_t' = 0.005 lap mu,
+            # t in [0, 0.005] as almost constant), so h_t' = 0.005 lap mu,
             # which also puts both residuals at order 1. alpha = 0.0002: with
             # the paper's stated alpha = 0.02 this pattern decays (to +-0.04
             # at t = 0.005), while its Fig. 16 shows it growing to about +-1,
             # which alpha = 0.0002 reproduces (and Fig. 15, IBVP-1, too).
             "2D Cahn-Hilliard (Mattey & Ghosh)": {
-                'pde': ["du_t - 0.005*(dmu_xx + dmu_yy)",
-                        "mu - 1.0*(u**3 - u) + 0.0002*(du_xx + du_yy)"],
+                'pde': ["dh_t - 0.005*(dmu_xx + dmu_yy)",
+                        "mu - 1.0*(h**3 - h) + 0.0002*(dh_xx + dh_yy)"],
                 'ic': ["0.4*cos(4*pi*x)*cos(4*pi*(x + y))", "0"],
                 'ic_active': [True, False],
                 'num_domain': 20000,
@@ -14263,7 +14278,7 @@ print("DOMAIN_PREVIEW_DONE")
                 'periodic_bc': True,
                 'bc_config': 'periodic_all',
                 'num_outputs': 2,
-                'output_names': ['u', 'mu'],
+                'output_names': ['h', 'mu'],
                 'ic_weight': 100.0,
                 'ic_hard': [True, False],
                 'periodic_inputs': True,
@@ -14502,7 +14517,7 @@ print("DOMAIN_PREVIEW_DONE")
             # phi_t = lambda (eps^2 lap phi - (phi^3 - phi)) on [0, 1]^3
             # (periodic), lambda = 10, eps = 0.05, t in [0, 1].
             "3D Allen-Cahn (Wight & Zhao)": {
-                'pde': ["du_t - 0.025*(du_xx + du_yy + du_zz) + 10*(u**3 - u)"],
+                'pde': ["dphi_t - 0.025*(dphi_xx + dphi_yy + dphi_zz) + 10*(phi**3 - phi)"],
                 # Inverse: every second point of the 51^3 measured grid
                 # (26^3 = 17,576 points); all 132,651, each also an anchor,
                 # made the run several times slower.
@@ -14526,12 +14541,12 @@ print("DOMAIN_PREVIEW_DONE")
                 'y_min': 0.0, 'y_max': 1.0,
                 'z_min': 0.0, 'z_max': 1.0,
                 'num_outputs': 1,
-                'output_names': ['u'],
+                'output_names': ['phi'],
                 'ic_weight': 100.0,
                 'bc_config': 'periodic_xyz',
                 # the initial condition as a loss term (weight 100), not built
                 # into the output: on the GPU the soft IC gave 0.03% error at
-                # t = 1, the exact IC (u = IC + t*N) 0.72% -- the t*N form
+                # t = 1, the exact IC (phi = IC + t*N) 0.72% -- the t*N form
                 # makes the network fight the fast early relaxation of the
                 # interface profile
                 'ic_hard': [False],
@@ -14728,18 +14743,18 @@ print("DOMAIN_PREVIEW_DONE")
                 'periodic_slope': True,
                 'ref_dir': os.path.join(REFERENCE_DATA_DIR, "1D", "cahn_hilliard"),
             },
-            # Mattey & Ghosh (2022), Section 5.2, eq. 25: u_t = lap(kappa f(u)
-            # - alpha kappa lap u), f(u) = u^3 - u, alpha = 0.02, kappa = 1,
+            # Mattey & Ghosh (2022), Section 5.2, eq. 25: h_t = lap(kappa f(h)
+            # - alpha kappa lap h), f(h) = h^3 - h, alpha = 0.02, kappa = 1,
             # on [-1, 1] (periodic in value and slope), t in [0, 1],
-            # u(x, 0) = cos(pi x) - exp(-4 (pi x)^2). Mixed form as in the
+            # h(x, 0) = cos(pi x) - exp(-4 (pi x)^2). Mixed form as in the
             # paper's phase-space version (eq. 19), with mu the chemical
-            # potential u^3 - u - 0.02 u_xx (order 1, so no scaling needed),
+            # potential h^3 - h - 0.02 h_xx (order 1, so no scaling needed),
             # and the same setup as the Wight & Zhao template.
             "1D Cahn-Hilliard (Mattey & Ghosh)": {
                 'num_outputs': 2,
-                'output_names': 'u,mu',
-                'pde': ["du_t - dmu_xx",
-                        "mu - 1.0*(u**3 - u) + 0.02*du_xx"],
+                'output_names': 'h,mu',
+                'pde': ["dh_t - dmu_xx",
+                        "mu - 1.0*(h**3 - h) + 0.02*dh_xx"],
                 # Time-adaptive training, like the paper's bc-PINN: 10 windows
                 # of 0.01 over the fast start (the two bumps merge by t ~ 0.05),
                 # then 9 of 0.1, each started from the previous one, with the

@@ -117,7 +117,7 @@ def write_ch2d():
     xs = np.round(-1.0 + 0.01 * np.arange(201), 6)            # the 200-point grid plus x = 1 (= -1, periodic)
     X, Y = np.meshgrid(xs, xs, indexing="ij")
     for tt in CH_TIMES:
-        for j, name in enumerate(("u", "mu")):
+        for j, name in enumerate(("phi", "mu")):
             a = ref[tt][j].cpu().numpy()
             dn = np.abs(a - fine[tt][j].cpu().numpy()[::2, ::2]).max()
             dtm = np.abs(a - coarse[tt][j].cpu().numpy()).max()
@@ -236,7 +236,7 @@ def write_mattey_ch1d():
     os.makedirs(d, exist_ok=True)
     x = np.round(-1.0 + 0.002 * np.arange(1000), 6)
     for tt in MATTEY_CH1D_TIMES:
-        for j, name in enumerate(("u", "mu")):
+        for j, name in enumerate(("h", "mu")):
             a = ref[tt][j].cpu().numpy()
             print(f"Mattey CH 1D t={tt:g} {name}: max |N1000 - N2000| = {np.abs(a - fine[tt][j].cpu().numpy()[::2]).max():.2e}, "
                   f"max |dt - 2dt| = {np.abs(a - coarse[tt][j].cpu().numpy()).max():.2e}, range [{a.min():.4f}, {a.max():.4f}]", flush=True)
@@ -261,7 +261,7 @@ def write_mattey_ch2d():
     xs = np.round(0.01 * np.arange(101), 6)                   # every 4th point of the 400-grid, plus 1 (= 0)
     X, Y = np.meshgrid(xs, xs, indexing="ij")
     for tt in MATTEY_CH2D_TIMES:
-        for j, name in enumerate(("u", "mu")):
+        for j, name in enumerate(("h", "mu")):
             a = ref[tt][j].cpu().numpy()
             print(f"Mattey CH 2D t'={tt:g} {name}: max |N400 - N800| = {np.abs(a - fine[tt][j].cpu().numpy()[::2, ::2]).max():.2e}, "
                   f"max |dt - 2dt| = {np.abs(a - coarse[tt][j].cpu().numpy()).max():.2e}, range [{a.min():.4f}, {a.max():.4f}]", flush=True)
