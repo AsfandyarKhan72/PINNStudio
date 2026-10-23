@@ -4,7 +4,7 @@
 
 DeepXDE's examples are written to show how the library is used, so many train briefly, on a small network or with Adam only. This study asks how far ordinary tuning in PINNStudio takes them: each example is run with its own settings and with the same five changes, and the change that trains best is reported next to the example's own result. It complements the [training methods study](training_methods.md), which tests specialised methods (causal training, per-point weights, time windows) on the hardest problems.
 
-So far 45 problems are included, chosen as the ones with the largest errors in the [README results](../README.md). 28 of them improve by 1.5× or more; the median improvement is 2×.
+So far 47 problems are included, chosen as the ones with the largest errors in the [README results](../README.md). 29 of them improve by 1.5× or more; the median improvement is 2×.
 
 ## How it is done
 
@@ -55,6 +55,7 @@ The figure has the layout of the paper's Fig. 4 and lists every example of PINNS
 | [Heat 1D – Dirichlet, inverse mode](#tune-heat-1d-dirichlet-inverse-mode) | 5.1 × 10<sup>-3</sup> | 1.1 × 10<sup>-3</sup> | 5× | all | 0.69% → 0.1% | 50 → 146 |
 | [Diffusion-reaction 1D, inverse mode](#tune-diffusion-reaction-1d-inverse-mode) | 6.2 × 10<sup>-4</sup> | 1.4 × 10<sup>-4</sup> | 5× | all | 0.12% → 0.023% | 121 → 334 |
 | [Heat 1D – resampling](#tune-heat-1d-resampling) | 1.4 × 10<sup>-2</sup> | 3.3 × 10<sup>-3</sup> | 4× | all | – | 509 → 2060 |
+| [Helmholtz 2D – Dirichlet, inverse mode](#tune-helmholtz-2d-dirichlet-inverse-mode) | 3.5 × 10<sup>-4</sup> | 8.7 × 10<sup>-5</sup> | 4× | all | 0.011% → 0.0042% | 35 → 125 |
 | [Heat 1D – Dirichlet](#tune-heat-1d-dirichlet) | 5.0 × 10<sup>-2</sup> | 1.3 × 10<sup>-2</sup> | 4× | all | – | 42 → 128 |
 | [Burgers 1D – Raissi et al. (PINNStudio template) (best setup)](#tune-burgers-1d-raissi-et-al-pinnstudio-template-best-setup) | 1.7 × 10<sup>-3</sup> | 5.2 × 10<sup>-4</sup> | 3× | all | – | 86 → 172 |
 | [Allen-Cahn 1D](#tune-allen-cahn-1d) | 3.4 × 10<sup>-2</sup> | 1.2 × 10<sup>-2</sup> | 3× | all | – | 210 → 438 |
@@ -79,6 +80,7 @@ The figure has the layout of the paper's Fig. 4 and lists every example of PINNS
 | [Allen-Cahn 3D – Wight & Zhao (PINNStudio template), inverse mode](#tune-allen-cahn-3d-wight-zhao-pinnstudio-template-inverse-mode) | 9.7 × 10<sup>-5</sup> | 9.7 × 10<sup>-5</sup> | none | base | 0.31% → 0.31% | 1419 → 1419 |
 | [Allen-Cahn 2D – Wight & Zhao (PINNStudio template) (best setup)](#tune-allen-cahn-2d-wight-zhao-pinnstudio-template-best-setup) | 1.6 × 10<sup>-3</sup> | 1.6 × 10<sup>-3</sup> | none | base | – | 1596 → 1596 |
 | [Lotka-Volterra ODE, inverse mode](#tune-lotka-volterra-ode-inverse-mode) | 1.5 × 10<sup>-5</sup> | 1.5 × 10<sup>-5</sup> | none | base | 0.0005% → 0.0005% | 230 → 230 |
+| [Linear elasticity 2D – plate, inverse mode](#tune-linear-elasticity-2d-plate-inverse-mode) | 1.9 × 10<sup>-3</sup> | 1.9 × 10<sup>-3</sup> | none | base | 0.026% → 0.026% | 546 → 546 |
 | [Allen-Cahn 2D – Mattey & Ghosh (PINNStudio template) (best setup)](#tune-allen-cahn-2d-mattey-ghosh-pinnstudio-template-best-setup) | 3.6 × 10<sup>-4</sup> | 5.9 × 10<sup>-4</sup> | worse (2× higher) | net | – | 266 → 464 |
 | [Allen-Cahn 2D – Wight & Zhao (PINNStudio template)](#tune-allen-cahn-2d-wight-zhao-pinnstudio-template) | 7.9 × 10<sup>-3</sup> | 9.3 × 10<sup>-2</sup> | worse (12× higher) | iters | – | 1780 → 3710 |
 | [Cahn-Hilliard 1D – Mattey & Ghosh (PINNStudio template) (best setup)](#tune-cahn-hilliard-1d-mattey-ghosh-pinnstudio-template-best-setup) | 3.9 × 10<sup>-3</sup> | 9.9 × 10<sup>-1</sup> | worse (253× higher) | net | – | 1002 → 1893 |
@@ -793,6 +795,32 @@ Tuned settings: [`Heat 1D – resampling (tuned).pinn.json`](tuning/Heat%201D%20
 
 </details>
 
+<details id="tune-helmholtz-2d-dirichlet-inverse-mode">
+<summary><strong>Helmholtz 2D – Dirichlet, inverse mode</strong></summary>
+
+Its own settings and results are in the README: [Helmholtz 2D – Dirichlet](../README.md#dx-helmholtz-2d-dirichlet).
+
+**Own settings:** network [2, 150, 150, 150, 1], Adam 5,000 → L-BFGS 15,000, 400 domain / 80 boundary / 0 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 5.09e-03 | 3.5 × 10<sup>-4</sup> | 0.011% | 35 |
+| net | 4.89e-04 | 2.2 × 10<sup>-4</sup> | 0.011% | 64 |
+| **all** | 2.64e-04 | 8.7 × 10<sup>-5</sup> | 0.0042% | 125 |
+| lbfgs3 | 5.09e-03 | 3.5 × 10<sup>-4</sup> | 0.011% | 35 |
+| invall | 7.95e-04 | 4.0 × 10<sup>-5</sup> | 0.00023% | 58 |
+
+**Chosen: all** (all of the changes above together): network [2, 300, 300, 300, 300, 1], Adam 15,000 → L-BFGS 45,000, 1,200 / 240 / 0 points.
+
+Over seeds: own settings 3.5 × 10<sup>-4</sup> (1 seeds), tuned 8.7 × 10<sup>-5</sup> (1 seeds).
+ Learned parameters (tuned, median): k0 = 12.5669 (true 12.5663706144).
+
+PINNStudio's own inverse mode: the wavenumber k0 = 4π from u on a 31 × 31 grid. The source term is the known load and keeps the true wavenumber, so k0 is unknown only in the k0² u term (an earlier version also had k0 inside the source and failed). k0 is found to 0.01% with the example's settings and to 0.004% after tuning.
+
+Tuned settings: [`Helmholtz 2D – Dirichlet, inverse mode (tuned).pinn.json`](tuning/Helmholtz%202D%20–%20Dirichlet,%20inverse%20mode%20(tuned).pinn.json)
+
+</details>
+
 <details id="tune-heat-1d-dirichlet">
 <summary><strong>Heat 1D – Dirichlet</strong></summary>
 
@@ -1122,6 +1150,7 @@ Its own settings and results are in the README: [Navier-Stokes 3D – Beltrami f
 | base | 1.17e-04 | 3.5 × 10<sup>-4</sup> | 0.22% | 2514 |
 | **net** | 4.56e-05 | 2.2 × 10<sup>-4</sup> | 0.2% | 6315 |
 | lbfgs3 | 1.09e-04 | 3.5 × 10<sup>-4</sup> | 0.12% | 2575 |
+| invall | 1.01e-04 | 2.6 × 10<sup>-4</sup> | 0.25% | 6328 |
 
 **Chosen: net** (hidden layers twice as wide (at most 512) and one layer more): network [4, 100, 100, 100, 100, 100, 4], Adam 30,000 → L-BFGS 15,000, 50,000 / 5,000 / 5,000 points.
 
@@ -1641,6 +1670,29 @@ PINNStudio's own inverse mode: the prey growth rate a and the predator death rat
 
 
 Tuned settings: [`Lotka-Volterra ODE, inverse mode (tuned).pinn.json`](tuning/Lotka-Volterra%20ODE,%20inverse%20mode%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-linear-elasticity-2d-plate-inverse-mode">
+<summary><strong>Linear elasticity 2D – plate, inverse mode</strong></summary>
+
+Its own settings and results are in the README: [Linear elasticity 2D – plate](../README.md#dx-linear-elastostatic-plate).
+
+**Own settings:** network [2, 40, 40, 40, 40, 5], Adam 20,000 → L-BFGS 20,000, 500 domain / 500 boundary / 0 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| **base** | 3.46e-05 | 1.9 × 10<sup>-3</sup> | 0.026% | 546 |
+| lbfgs3 | 3.46e-05 | 1.9 × 10<sup>-3</sup> | 0.026% | 561 |
+
+**Chosen: base** (the example's own settings): network [2, 40, 40, 40, 40, 5], Adam 20,000 → L-BFGS 20,000, 500 / 500 / 0 points.
+
+Over seeds: own settings 1.9 × 10<sup>-3</sup> (1 seeds), tuned 1.9 × 10<sup>-3</sup> (1 seeds).
+ Learned parameters (tuned, median): lmbd = 0.999744 (true 1.0), mu = 0.500088 (true 0.5).
+
+PINNStudio's own inverse mode: the Lamé parameters λ and μ from the displacements on a 19 × 19 grid. The body force is the known load and keeps the true values, so λ and μ are unknown only in the stress-strain law (with them in the body force too, an earlier version ended 24% off). Both are found to within 0.03%.
+
+Tuned settings: [`Linear elasticity 2D – plate, inverse mode (tuned).pinn.json`](tuning/Linear%20elasticity%202D%20–%20plate,%20inverse%20mode%20(tuned).pinn.json)
 
 </details>
 

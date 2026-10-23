@@ -92,6 +92,16 @@ NOTES = {
         "PINNStudio's own inverse mode: the viscosity from u, v and w at two times. The error is that of u; "
         "the pressure is only known up to a constant here, so its own error is large and not a fault. Every "
         "change together ran out of memory on the 24 GB GPU.",
+    ("Helmholtz 2D (Dirichlet)", True):
+        "PINNStudio's own inverse mode: the wavenumber k0 = 4π from u on a 31 × 31 grid. The source term is the "
+        "known load and keeps the true wavenumber, so k0 is unknown only in the k0² u term (an earlier version "
+        "also had k0 inside the source and failed). k0 is found to 0.01% with the example's settings and to "
+        "0.004% after tuning.",
+    ("Linear elastostatic plate", True):
+        "PINNStudio's own inverse mode: the Lamé parameters λ and μ from the displacements on a 19 × 19 grid. "
+        "The body force is the known load and keeps the true values, so λ and μ are unknown only in the "
+        "stress-strain law (with them in the body force too, an earlier version ended 24% off). Both are found "
+        "to within 0.03%.",
     ("Schrödinger equation", True):
         "Only |h| is measured, at one time, and with the example's own network c depends on the seed (0.4964 to "
         "0.515 over twelve seeds). The wider network recovers c to within 0.01% and the field to 0.1%.",
