@@ -3877,6 +3877,15 @@ if {config.time_adaptive}:
                 for _ea_tv, _l2, _mse, _mx, _ma in _ea_metrics:
                     _emf.write(f"{_ea_metrics_row_code(config, '_ea_tv', '_l2', '_mse', '_mx', '_ma')}\\n")
             print(f"  Metrics saved: {{_ea_metrics_path}}")
+            # All reference times together: the relative L2 over every reference
+            # point at every time, the measure papers usually report.
+            _ea_st_num = sum(float(np.sum((np.asarray(_ea_u_pinns[_k]) - np.asarray(_ea_u_refs[_k]))**2)) for _k in range(len(_ea_times)))
+            _ea_st_den = sum(float(np.sum(np.asarray(_ea_u_refs[_k])**2)) for _k in range(len(_ea_times)))
+            if len(_ea_times) > 1 and _ea_st_den > 0:
+                _ea_st_l2 = (_ea_st_num / _ea_st_den) ** 0.5
+                print(f"  All {{len(_ea_times)}} reference times together: L₂={{_ea_st_l2:.4e}}")
+                with open(_os.path.join(_ea_dir, f"error_spacetime{{_ea_suffix}}.txt"), "w") as _stf:
+                    _stf.write("times,L2_relative_all_times\\n" + f"{{len(_ea_times)}},{{_ea_st_l2:.6e}}\\n")
 
             # Line comparison
             if {config.ea_do_line}:
@@ -8002,6 +8011,15 @@ for _pval in _param_values:
                     for _ea_tv, _l2, _mse, _mx, _ma in _ea_metrics:
                         _emf.write(f"{_ea_metrics_row_code(config, '_ea_tv', '_l2', '_mse', '_mx', '_ma')}\\n")
                 print(f"  Metrics saved: {{_ea_metrics_path}}")
+                # All reference times together: the relative L2 over every reference
+                # point at every time, the measure papers usually report.
+                _ea_st_num = sum(float(np.sum((np.asarray(_ea_u_pinns[_k]) - np.asarray(_ea_u_refs[_k]))**2)) for _k in range(len(_ea_times)))
+                _ea_st_den = sum(float(np.sum(np.asarray(_ea_u_refs[_k])**2)) for _k in range(len(_ea_times)))
+                if len(_ea_times) > 1 and _ea_st_den > 0:
+                    _ea_st_l2 = (_ea_st_num / _ea_st_den) ** 0.5
+                    print(f"  All {{len(_ea_times)}} reference times together: L₂={{_ea_st_l2:.4e}}")
+                    with open(_os.path.join(_ea_dir, f"error_spacetime{{_ea_suffix}}.txt"), "w") as _stf:
+                        _stf.write("times,L2_relative_all_times\\n" + f"{{len(_ea_times)}},{{_ea_st_l2:.6e}}\\n")
 
                 # ── Line comparison ───────────────────────────────────
                 if {config.ea_do_line}:
