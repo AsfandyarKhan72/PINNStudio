@@ -85,3 +85,21 @@ if __name__ == "__main__":
     f = run()
     print(f"\n{len(f)} FAILURE(S)" if f else "\nALL ADDED INVERSE MODE TESTS PASSED")
     sys.exit(1 if f else 0)
+
+
+def test_unknowns_only_where_the_data_can_tell_them():
+    """Klein-Gordon's alpha multiplies u_xx = 0 of u = x cos t; the wave data at
+    quarter steps alone can't tell C = 10 from C = 6; the plate's body force and
+    the Helmholtz source keep the true values (the known load)."""
+    import json
+    from pinnstudio.core import deepxde_examples as dx
+    ex = {e.name: e for e in dx.EXAMPLES}
+    names = lambda n: [v["name"] for v in json.loads(ex[n].inverse["inverse_variables_json"])]
+    assert names("Klein-Gordon equation") == ["gamma"]
+    assert not ex["Black-Scholes equation (call option)"].inverse
+    wave = json.loads(ex["Wave propagation – space-time multi-scale Fourier features"].inverse["inverse_obs_files_json"])
+    assert len(wave) == 10 and any("t_0.1.txt" in o["path"] for o in wave)
+    assert "k0" not in ex["Helmholtz 2D (Dirichlet)"].inverse["pde_expressions"].split(" - (4*pi)")[1]
+    plate = ex["Linear elastostatic plate"].inverse["pde_expressions"].split("|")
+    assert "lmbd" not in plate[0] + plate[1] and "mu" not in plate[0] + plate[1]
+    assert "lmbd" in plate[2] and "mu" in plate[4]

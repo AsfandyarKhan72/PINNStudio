@@ -185,23 +185,14 @@ def inverse_measurements():
     for tt in (2.5, 5.0, 7.5, 10.0):
         _save(f"klein_gordon_inverse/t_{tt:g}.txt", np.column_stack([xs, np.full_like(xs, tt), xs * np.cos(tt)]))
 
-    # Black-Scholes call, K = 50, r = 0.05, sigma = 0.2: price at tau = 0.25, 0.5, 1 (60 prices each).
-    from scipy.stats import norm
-    K, r_, sig = 50.0, 0.05, 0.2
-    S = np.linspace(2.5, 150, 60)
-    for tau in (0.25, 0.5, 1.0):
-        d1 = (np.log(S / K) + (r_ + sig ** 2 / 2) * tau) / (sig * np.sqrt(tau))
-        C = S * norm.cdf(d1) - K * np.exp(-r_ * tau) * norm.cdf(d1 - sig * np.sqrt(tau))
-        _save(f"black_scholes_inverse/t_{tau:g}.txt", np.column_stack([S, np.full_like(S, tau), C]))
-
     # Helmholtz 2D (Dirichlet), k0 = 4 pi: u on a 31 x 31 interior grid.
     g = np.linspace(1 / 32, 31 / 32, 31)
     X, Y = [a.ravel() for a in np.meshgrid(g, g)]
     _save("helmholtz_inverse/u_obs.txt", np.column_stack([X, Y, np.sin(4 * pi * X) * np.sin(4 * pi * Y)]))
 
-    # Wave, A = 2, C = 10: u at t = 0.25, 0.5, 0.75, 1 (101 points each).
+    # Wave, A = 2, C = 10: u at t = 0.1, 0.2, ..., 1 (101 points each).
     xs = np.linspace(0, 1, 101)
-    for tt in times4:
+    for tt in [round(0.1 * i, 1) for i in range(1, 11)]:   # quarter steps alone alias C = 10 with C = 6
         u = np.sin(pi * xs) * np.cos(10 * pi * tt) + np.sin(2 * pi * xs) * np.cos(20 * pi * tt)
         _save(f"wave_inverse/t_{tt:g}.txt", np.column_stack([xs, np.full_like(xs, tt), u]))
 

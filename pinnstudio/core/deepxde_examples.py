@@ -913,7 +913,14 @@ def _inv(variables, obs, **settings):
 
 
 _ADD_LBFGS = dict(optimizer2="lbfgs", iterations2=15000)
+_WAVE_OBS_T = tuple(round(0.1 * i, 1) for i in range(1, 11))
 _PLATE_REF_TRUE = _num(_PLATE_REF["ea_ref_formula"], lmbd=1, mu=0.5)
+# The plate's body force written with the true lmbd = 1, mu = 0.5, the
+# constitutive equations (the last three) with the unknown ones.
+_PLATE_PDE_KNOWN_LOAD = "|".join(
+    [_num(eq, lmbd=1, mu=0.5) for eq in next(e for e in EXAMPLES if e.name == "Linear elastostatic plate")
+     .settings["pde_expressions"].split("|")[:2]]
+    + next(e for e in EXAMPLES if e.name == "Linear elastostatic plate").settings["pde_expressions"].split("|")[2:])
 _KOV_L = "1/(2*(1/20)) - sqrt(1/(4*(1/20)**2) + 4*pi**2)"
 _DR_SRC = "exp(-t)*(3*sin(2*x)/2 + 8*sin(3*x)/3 + 15*sin(4*x)/4 + 63*sin(8*x)/8)"
 
@@ -923,10 +930,11 @@ ADDED_INVERSE = {
              _obs(("elasticity_inverse/ux_obs.txt", 0), ("elasticity_inverse/uy_obs.txt", 1)),
              constants=json.dumps([{"name": "Q", "value": "4"}]),
              output_transform_formula="ux*y*(1 - y)|uy*x*(1 - x)*y|sxx*x*(1 - x)|syy*(1 - y) + (1 + 2*0.5)*Q*sin(pi*x)|sxy",
-             ea_ref_formula=_PLATE_REF_TRUE),
+             pde_expressions=_PLATE_PDE_KNOWN_LOAD, ea_ref_formula=_PLATE_REF_TRUE),
         "Inverse mode (PINNStudio's addition): the Lamé parameters lmbd (initial guess 2, true 1) and mu (initial "
         "guess 1, true 0.5) are learned from the displacements ux and uy measured on a 19 x 19 grid "
-        "(reference_data/deepxde/elasticity_inverse)."),
+        "(reference_data/deepxde/elasticity_inverse). The body force keeps the true values (it is the known "
+        "load), so lmbd and mu are unknown only in the stress-strain law."),
     "Kovasznay flow": (
         _inv(_vars(("Re", 10.0, 20.0)),
              _obs(("kovasznay_inverse/u_obs.txt", 0), ("kovasznay_inverse/v_obs.txt", 1)),
@@ -947,22 +955,14 @@ ADDED_INVERSE = {
         "is learned from u, v and w measured at 500 points each at t = 0.5 and t = 1 "
         "(reference_data/deepxde/beltrami_inverse)."),
     "Klein-Gordon equation": (
-        _inv(_vars(("alpha", -2.0, -1.0), ("gamma", 0.5, 1.0)),
+        _inv(_vars(("gamma", 0.5, 1.0)),
              _obs(*((f"klein_gordon_inverse/t_{t:g}.txt", 0) for t in (2.5, 5.0, 7.5, 10.0))),
-             constants=json.dumps([{"name": "beta", "value": "0"}, {"name": "k", "value": "2"}])),
-        "Inverse mode (PINNStudio's addition): the coefficients alpha (initial guess -2, true -1) and gamma "
-        "(initial guess 0.5, true 1) are learned from u measured at t = 2.5, 5, 7.5 and 10 "
-        "(reference_data/deepxde/klein_gordon_inverse); beta = 0 stays known."),
-    "Black-Scholes equation (call option)": (
-        _inv(_vars(("sigma", 0.4, 0.2), ("r", 0.1, 0.05)),
-             _obs(*((f"black_scholes_inverse/t_{t:g}.txt", 0) for t in (0.25, 0.5, 1.0))),
-             constants=json.dumps([{"name": "K", "value": "50"}]),
-             custom_bc_json=_bcs(_bc("dirichlet", "left", "0"), _bc("dirichlet", "right", "x_max - K*exp(-0.05*t)")),
-             ea_ref_formula=_num(next(e for e in EXAMPLES if e.name == "Black-Scholes equation (call option)")
-                                 .settings["ea_ref_formula"], sigma=0.2, r=0.05)),
-        "Inverse mode (PINNStudio's addition): the volatility sigma (initial guess 0.4, true 0.2) and the rate r "
-        "(initial guess 0.1, true 0.05) are learned from option prices at time to maturity 0.25, 0.5 and 1 "
-        "(reference_data/deepxde/black_scholes_inverse), the implied-volatility problem."),
+             constants=json.dumps([{"name": "alpha", "value": "-1"}, {"name": "beta", "value": "0"},
+                                   {"name": "k", "value": "2"}])),
+        "Inverse mode (PINNStudio's addition): the coefficient gamma of the nonlinear term (initial guess 0.5, "
+        "true 1) is learned from u measured at t = 2.5, 5, 7.5 and 10 "
+        "(reference_data/deepxde/klein_gordon_inverse). alpha and beta stay known: the solution u = x cos t has "
+        "u_xx = 0, so the data cannot tell alpha, and beta = 0."),
     "Lotka-Volterra equation": (
         _inv(_vars(("a", 1.0, 2.0), ("d", 2.0, 1.06)),
              _obs(("lotka_volterra/r.txt", 0), ("lotka_volterra/p.txt", 1)),
@@ -972,18 +972,21 @@ ADDED_INVERSE = {
         "(reference_data/deepxde/lotka_volterra)."),
     "Helmholtz 2D (Dirichlet)": (
         _inv(_vars(("k0", 10.0, 4 * math.pi)), _obs(("helmholtz_inverse/u_obs.txt", 0)),
-             constants="[]", ea_ref_formula="sin(4*pi*x)*sin(4*pi*y)", **_ADD_LBFGS),
+             constants="[]", ea_ref_formula="sin(4*pi*x)*sin(4*pi*y)",
+             pde_expressions="-du_xx - du_yy - k0**2*u - (4*pi)**2*sin(4*pi*x)*sin(4*pi*y)", **_ADD_LBFGS),
         "Inverse mode (PINNStudio's addition): the wavenumber k0 (4 pi; initial guess 10) is learned from u "
-        "measured on a 31 x 31 grid (reference_data/deepxde/helmholtz_inverse). An L-BFGS phase follows Adam."),
+        "measured on a 31 x 31 grid (reference_data/deepxde/helmholtz_inverse). The source keeps the true "
+        "wavenumber (it is the known load), so k0 is unknown only in the k0² u term. An L-BFGS phase follows Adam."),
     "Wave propagation – space-time multi-scale Fourier features": (
         _inv(_vars(("C", 5.0, 10.0)),
-             _obs(*((f"wave_inverse/t_{t:g}.txt", 0) for t in (0.25, 0.5, 0.75, 1.0))),
+             _obs(*((f"wave_inverse/t_{t:g}.txt", 0) for t in _WAVE_OBS_T)),
              constants=json.dumps([{"name": "A", "value": "2"}]),
              ea_ref_formula="sin(pi*x)*cos(10*pi*t) + sin(A*pi*x)*cos(A*10*pi*t)",
              scheduler_phases=json.dumps([_phase("adam", 10000, 1e-3, ("inverse time", 2000, 0.9)),
                                           _phase("lbfgs", 15000)])),
         "Inverse mode (PINNStudio's addition): the wave speed C (initial guess 5, true 10) is learned from u "
-        "measured at t = 0.25, 0.5, 0.75 and 1 (reference_data/deepxde/wave_inverse). An L-BFGS phase follows Adam."),
+        "measured at t = 0.1, 0.2, ..., 1 (reference_data/deepxde/wave_inverse); at only t = 0.25, 0.5, 0.75 and 1 "
+        "the speeds 10 and 6 give the same u, so the data could not tell them. An L-BFGS phase follows Adam."),
     "Diffusion-reaction equation": (
         _inv(_vars(("D", 2.0, 1.0)),
              _obs(*((f"diffusion_reaction_inverse/t_{t:g}.txt", 0) for t in (0.25, 0.5, 0.75, 1.0))),
