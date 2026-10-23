@@ -518,6 +518,15 @@ _CROSS_PLATFORM_FONT_FALLBACK = (
 )
 
 
+def _training_error_tip(log_tail):
+    """The tip printed after a failed run, from what the log says went wrong:
+    the GPU running out of memory is not a syntax problem."""
+    if "OutOfMemoryError" in log_tail or "CUDA out of memory" in log_tail or "MPS backend out of memory" in log_tail:
+        return ("💡 Tip: the GPU ran out of memory. Fewer training points, a smaller network, a smaller "
+                "Error Analysis/plot grid, or Train on: CPU (slower, but uses the computer's memory) can help.")
+    return "💡 Tip: Check PDE/IC syntax — use * for multiplication (e.g. 5*u not 5u)"
+
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -12178,7 +12187,7 @@ class MainWindow(QMainWindow):
 
         elif not getattr(self, "_stopped", False):   # a Stop is not an error
             self.log_box.append("\n❌ Error during training. Check log above.")
-            self.log_box.append("💡 Tip: Check PDE/IC syntax — use * for multiplication (e.g. 5*u not 5u)")
+            self.log_box.append(_training_error_tip(self.log_box.toPlainText()[-20000:]))
 
     def _on_float_settings(self):
         dialog = QDialog(self)

@@ -23,6 +23,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - TF32 is turned off with PyTorch's `fp32_precision` setting when the installed PyTorch has it (2.9 and newer), which avoids the warning about the old `allow_tf32` setting. Older PyTorch uses `allow_tf32` as before.
 
 ### Fixed
+- A run that failed because the GPU ran out of memory ended with the tip to check the PDE syntax. The tip now says the GPU ran out of memory and what can help.
 - *Train on: CPU* did not work on Windows with an NVIDIA GPU: the GPU was hidden with an empty `CUDA_VISIBLE_DEVICES`, which Windows treats as unset, so Solve's script stopped with "Invalid device id" and the exported script trained on the GPU anyway. It is now hidden with `-1`, which works the same on every platform. Found on a Windows laptop.
 - Every GPU run on Windows printed a warning that expandable segments are not supported, and with PyTorch 2.9 or newer every GPU run printed that `PYTORCH_CUDA_ALLOC_CONF` is deprecated. The allocator setting now leaves expandable segments out on Windows and uses `PYTORCH_ALLOC_CONF` with PyTorch 2.9 and newer. A value you set yourself is kept.
 - The installers compile PINNStudio's Python files when installing (`--compile-bytecode`), so the first start after installing or updating no longer compiles them: on a Windows laptop it went from 17–18 s to about 9 s. Installing takes a little longer.

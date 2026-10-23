@@ -34,3 +34,9 @@ def test_2d_problem_and_large_1d_problem_get_none():
 def test_explicit_device_choice_gets_none():
     assert "[Tip]" not in _script("Heat equation", train_device="cpu")
     assert "[Tip]" not in _script("Heat equation", train_device="gpu")
+
+
+def test_failed_run_tip_names_out_of_memory():
+    from pinnstudio.ui.main_window import _training_error_tip
+    assert "ran out of memory" in _training_error_tip("torch.OutOfMemoryError: CUDA out of memory. Tried to allocate")
+    assert "PDE/IC syntax" in _training_error_tip("NameError: name 'uu' is not defined")
