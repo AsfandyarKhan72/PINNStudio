@@ -1245,12 +1245,15 @@ Tuned settings: [`Allen-Cahn 3D – Wight & Zhao (PINNStudio template), inverse 
 | Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
 |---|---|---|---|---|
 | **base** | 1.48e-05 | 1.6 × 10<sup>-3</sup> | – | 1596 |
+| iters | 1.70e-05 | 1.6 × 10<sup>-3</sup> | – | 4504 |
+| net | 1.64e-05 | 1.2 × 10<sup>0</sup> | – | 4991 |
+| windows2 | 2.76e-05 | 1.5 × 10<sup>-3</sup> | – | 3109 |
 
 **Chosen: base** (the example's own settings): network [3, 128, 128, 128, 128, 1], Adam 20,000 → L-BFGS 10,000, 10,000 / 400 / 512 points.
 
 Over seeds: own settings 1.6 × 10<sup>-3</sup> (1 seeds), tuned 1.6 × 10<sup>-3</sup> (1 seeds).
 
-The study's best setup (time windows with RBA weights, soft IC, exact periodicity) gives 1.6e-3 at t = 10, against 7.9e-3 for the template as it loads. The gain is only at the last time: at t = 2.5 and t = 5 both runs are the same (9.3e-3 and 2.1e-2), and at t = 10 neither run shows the small drop left in the reference, so the lower number mostly reflects a flatter field. The other variants are still running and will be added here.
+The study's best setup (time windows with RBA weights, soft IC, exact periodicity) gives 1.6e-3 at t = 10, against 7.9e-3 for the template as it loads. The gain is only at the last time: at t = 2.5 and t = 5 both runs are the same (9.3e-3 and 2.1e-2), and at t = 10 neither run shows the small drop left in the reference, so the lower number mostly reflects a flatter field. More iterations and two time windows give the same errors at every time; the wider network fails (120% at t = 10). The run with every change together is still going.
 
 *Surface comparison, the example's own settings:*
 
