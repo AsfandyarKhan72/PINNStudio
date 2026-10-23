@@ -4,7 +4,7 @@
 
 DeepXDE's examples are written to show how the library is used, so many train briefly, on a small network or with Adam only. This study asks how far ordinary tuning in PINNStudio takes them: each example is run with its own settings and with the same five changes, and the change that trains best is reported next to the example's own result. It complements the [training methods study](training_methods.md), which tests specialised methods (causal training, per-point weights, time windows) on the hardest problems.
 
-So far 40 problems are included, chosen as the ones with the largest errors in the [README results](../README.md). 23 of them improve by 1.5× or more; the median improvement is 2×.
+So far 45 problems are included, chosen as the ones with the largest errors in the [README results](../README.md). 27 of them improve by 1.5× or more; the median improvement is 2×.
 
 ## How it is done
 
@@ -41,6 +41,7 @@ So far 40 problems are included, chosen as the ones with the largest errors in t
 | [Wave 1D – space-time multi-scale Fourier features](#tune-wave-1d-space-time-multi-scale-fourier-features) | 3.0 × 10<sup>-1</sup> | 1.5 × 10<sup>-3</sup> | 207× | all | – | 75 → 645 |
 | [Schrödinger 1D, inverse mode](#tune-schr-dinger-1d-inverse-mode) | 1.8 × 10<sup>-1</sup> | 9.9 × 10<sup>-4</sup> | 183× | net | 3% → 0.0072% | 196 → 337 |
 | [Second-order ODE, inverse mode](#tune-second-order-ode-inverse-mode) | 1.6 × 10<sup>-3</sup> | 8.9 × 10<sup>-6</sup> | 178× | net | 7.3% → 0.082% | 27 → 30 |
+| [Euler beam 1D, inverse mode](#tune-euler-beam-1d-inverse-mode) | 1.6 × 10<sup>-3</sup> | 3.8 × 10<sup>-5</sup> | 41× | all | 2.3% → 0.075% | 61 → 231 |
 | [Diffusion 1D – unknown coefficient](#tune-diffusion-1d-unknown-coefficient) | 6.2 × 10<sup>-3</sup> | 2.0 × 10<sup>-4</sup> | 32× | all | 0.045% → 0.017% | 118 → 380 |
 | [Klein-Gordon 1D](#tune-klein-gordon-1d) | 6.9 × 10<sup>-2</sup> | 2.3 × 10<sup>-3</sup> | 30× | net | – | 60 → 151 |
 | [Helmholtz 2D – square with hole](#tune-helmholtz-2d-square-with-hole) | 1.1 × 10<sup>-2</sup> | 7.0 × 10<sup>-4</sup> | 15× | lbfgs | – | 17 → 24 |
@@ -48,12 +49,15 @@ So far 40 problems are included, chosen as the ones with the largest errors in t
 | [Euler beam 1D](#tune-euler-beam-1d) | 3.5 × 10<sup>-3</sup> | 2.8 × 10<sup>-4</sup> | 12× | all | – | 55 → 217 |
 | [Diffusion 1D – resampling](#tune-diffusion-1d-resampling) | 5.4 × 10<sup>-2</sup> | 5.8 × 10<sup>-3</sup> | 9× | lbfgs | – | 8 → 12 |
 | [Poisson 1D – unknown forcing field (batches)](#tune-poisson-1d-unknown-forcing-field-batches) | 4.5 × 10<sup>-3</sup> | 7.8 × 10<sup>-4</sup> | 6× | all | – | 62 → 215 |
+| [Allen-Cahn 1D, inverse mode](#tune-allen-cahn-1d-inverse-mode) | 5.4 × 10<sup>-4</sup> | 1.1 × 10<sup>-4</sup> | 5× | all | 0.15% → 0.055% | 168 → 488 |
 | [Heat 1D – Dirichlet, inverse mode](#tune-heat-1d-dirichlet-inverse-mode) | 5.1 × 10<sup>-3</sup> | 1.1 × 10<sup>-3</sup> | 5× | all | 0.69% → 0.1% | 50 → 146 |
+| [Diffusion-reaction 1D, inverse mode](#tune-diffusion-reaction-1d-inverse-mode) | 6.2 × 10<sup>-4</sup> | 1.4 × 10<sup>-4</sup> | 5× | all | 0.12% → 0.023% | 121 → 334 |
 | [Heat 1D – resampling](#tune-heat-1d-resampling) | 1.4 × 10<sup>-2</sup> | 3.3 × 10<sup>-3</sup> | 4× | all | – | 509 → 2060 |
 | [Heat 1D – Dirichlet](#tune-heat-1d-dirichlet) | 5.0 × 10<sup>-2</sup> | 1.3 × 10<sup>-2</sup> | 4× | all | – | 42 → 128 |
 | [Burgers 1D – Raissi et al. (PINNStudio template) (best setup)](#tune-burgers-1d-raissi-et-al-pinnstudio-template-best-setup) | 1.7 × 10<sup>-3</sup> | 5.2 × 10<sup>-4</sup> | 3× | all | – | 86 → 172 |
 | [Allen-Cahn 1D](#tune-allen-cahn-1d) | 3.4 × 10<sup>-2</sup> | 1.2 × 10<sup>-2</sup> | 3× | all | – | 210 → 438 |
 | [Poisson 1D – unknown forcing field](#tune-poisson-1d-unknown-forcing-field) | 5.4 × 10<sup>-4</sup> | 2.1 × 10<sup>-4</sup> | 3× | all | – | 66 → 221 |
+| [Navier-Stokes 2D – Kovasznay flow, inverse mode](#tune-navier-stokes-2d-kovasznay-flow-inverse-mode) | 9.1 × 10<sup>-5</sup> | 3.7 × 10<sup>-5</sup> | 2× | all | 0.013% → 0.009% | 220 → 956 |
 | [Fractional Poisson 1D](#tune-fractional-poisson-1d) | 2.3 × 10<sup>-2</sup> | 1.2 × 10<sup>-2</sup> | 2× | all | – | 20 → 57 |
 | [Brinkman-Forchheimer 1D – unknown ν_e, K](#tune-brinkman-forchheimer-1d-unknown-e-k) | 2.0 × 10<sup>-2</sup> | 1.2 × 10<sup>-2</sup> | 2× | all | 28% → 18% | 74 → 237 |
 | [Linear ODE system, inverse mode](#tune-linear-ode-system-inverse-mode) | 3.3 × 10<sup>-4</sup> | 2.0 × 10<sup>-4</sup> | 2× | all | 0.022% → 0.0088% | 48 → 135 |
@@ -62,6 +66,7 @@ So far 40 problems are included, chosen as the ones with the largest errors in t
 | [Burgers 2D – Mathias et al. (PINNStudio template)](#tune-burgers-2d-mathias-et-al-pinnstudio-template) | 1.1 × 10<sup>-2</sup> | 8.4 × 10<sup>-3</sup> | none | iters | – | 1662 → 3684 |
 | [Cahn-Hilliard 2D – Wight & Zhao (PINNStudio template)](#tune-cahn-hilliard-2d-wight-zhao-pinnstudio-template) | 1.1 × 10<sup>-2</sup> | 8.0 × 10<sup>-3</sup> | none | net | – | 822 → 1995 |
 | [Helmholtz 2D – sound-hard scattering](#tune-helmholtz-2d-sound-hard-scattering) | 8.0 × 10<sup>-2</sup> | 7.7 × 10<sup>-2</sup> | none | all | – | 61 → 1017 |
+| [Navier-Stokes 3D – Beltrami flow, inverse mode](#tune-navier-stokes-3d-beltrami-flow-inverse-mode) | 3.5 × 10<sup>-4</sup> | 3.5 × 10<sup>-4</sup> | none | lbfgs3 | 0.22% → 0.12% | 2514 → 2575 |
 | [Poisson 2D – disk (PINNStudio template), inverse mode](#tune-poisson-2d-disk-pinnstudio-template-inverse-mode) | 5.4 × 10<sup>-4</sup> | 5.4 × 10<sup>-4</sup> | none | base | 0.002% → 0.002% | 157 → 157 |
 | [Heat 2D (PINNStudio template), inverse mode](#tune-heat-2d-pinnstudio-template-inverse-mode) | 5.8 × 10<sup>-4</sup> | 5.8 × 10<sup>-4</sup> | none | base | 0.027% → 0.027% | 169 → 169 |
 | [Burgers 2D – Mathias et al. (PINNStudio template), inverse mode](#tune-burgers-2d-mathias-et-al-pinnstudio-template-inverse-mode) | 3.5 × 10<sup>-3</sup> | 3.5 × 10<sup>-3</sup> | none | base | 7.2% → 7.2% | 1242 → 1242 |
@@ -309,6 +314,30 @@ Over seeds: own settings 1.6 × 10<sup>-3</sup> (1 seeds), tuned 8.9 × 10<sup>-
  Learned parameters (tuned, median): a = 10.0003 (true 10.0), b = 8.99262 (true 9.0).
 
 Tuned settings: [`Second-order ODE, inverse mode (tuned).pinn.json`](tuning/Second-order%20ODE,%20inverse%20mode%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-euler-beam-1d-inverse-mode">
+<summary><strong>Euler beam 1D, inverse mode</strong></summary>
+
+Its own settings and results are in the README: [Euler beam 1D](../README.md#dx-euler-beam).
+
+**Own settings:** network [1, 20, 20, 20, 1], Adam 10,000 → L-BFGS 15,000, 10 domain / 2 boundary / 0 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 1.82e-04 | 1.6 × 10<sup>-3</sup> | 2.3% | 61 |
+| net | 4.49e-06 | 6.4 × 10<sup>-5</sup> | 0.15% | 80 |
+| **all** | 1.56e-07 | 3.8 × 10<sup>-5</sup> | 0.075% | 231 |
+| lbfgs3 | 1.82e-04 | 1.6 × 10<sup>-3</sup> | 2.3% | 60 |
+| invall | 8.30e-06 | 1.9 × 10<sup>-4</sup> | 0.47% | 80 |
+
+**Chosen: all** (all of the changes above together): network [1, 40, 40, 40, 40, 1], Adam 30,000 → L-BFGS 45,000, 30 / 6 / 0 points.
+
+Over seeds: own settings 1.6 × 10<sup>-3</sup> (1 seeds), tuned 3.8 × 10<sup>-5</sup> (1 seeds).
+ Learned parameters (tuned, median): EI = 1.00075 (true 1.0).
+
+Tuned settings: [`Euler beam 1D, inverse mode (tuned).pinn.json`](tuning/Euler%20beam%201D,%20inverse%20mode%20(tuned).pinn.json)
 
 </details>
 
@@ -565,6 +594,30 @@ Tuned settings: [`Poisson 1D – unknown forcing field (batches) (tuned).pinn.js
 
 </details>
 
+<details id="tune-allen-cahn-1d-inverse-mode">
+<summary><strong>Allen-Cahn 1D, inverse mode</strong></summary>
+
+Its own settings and results are in the README: [Allen-Cahn 1D](../README.md#dx-allen-cahn-equation).
+
+**Own settings:** network [2, 20, 20, 20, 1], Adam 40,000 → L-BFGS 15,000, 8,000 domain / 400 boundary / 800 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 2.03e-04 | 5.4 × 10<sup>-4</sup> | 0.15% | 168 |
+| net | 2.93e-05 | 1.2 × 10<sup>-4</sup> | 0.03% | 186 |
+| **all** | 2.15e-05 | 1.1 × 10<sup>-4</sup> | 0.055% | 488 |
+| lbfgs3 | 2.03e-04 | 5.4 × 10<sup>-4</sup> | 0.15% | 165 |
+| invall | 1.52e-04 | 1.0 × 10<sup>-4</sup> | 0.5% | 188 |
+
+**Chosen: all** (all of the changes above together): network [2, 40, 40, 40, 40, 1], Adam 120,000 → L-BFGS 45,000, 24,000 / 1,200 / 2,400 points.
+
+Over seeds: own settings 5.4 × 10<sup>-4</sup> (1 seeds), tuned 1.1 × 10<sup>-4</sup> (1 seeds).
+ Learned parameters (tuned, median): d = 0.00100055 (true 0.001), c = 5.00002 (true 5.0).
+
+Tuned settings: [`Allen-Cahn 1D, inverse mode (tuned).pinn.json`](tuning/Allen-Cahn%201D,%20inverse%20mode%20(tuned).pinn.json)
+
+</details>
+
 <details id="tune-heat-1d-dirichlet-inverse-mode">
 <summary><strong>Heat 1D – Dirichlet, inverse mode</strong></summary>
 
@@ -603,6 +656,30 @@ Over seeds: own settings 5.1 × 10<sup>-3</sup> [2.6 × 10<sup>-3</sup> – 6.0 
 
 
 Tuned settings: [`Heat 1D – Dirichlet, inverse mode (tuned).pinn.json`](tuning/Heat%201D%20–%20Dirichlet,%20inverse%20mode%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-diffusion-reaction-1d-inverse-mode">
+<summary><strong>Diffusion-reaction 1D, inverse mode</strong></summary>
+
+Its own settings and results are in the README: [Diffusion-reaction 1D](../README.md#dx-diffusion-reaction-equation).
+
+**Own settings:** network [2, 30, 30, 30, 30, 30, 30, 1], Adam 20,000 → L-BFGS 15,000, 320 domain / 0 boundary / 0 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 2.36e-04 | 6.2 × 10<sup>-4</sup> | 0.12% | 121 |
+| net | 1.15e-04 | 5.2 × 10<sup>-4</sup> | 0.1% | 130 |
+| **all** | 1.58e-05 | 1.4 × 10<sup>-4</sup> | 0.023% | 334 |
+| lbfgs3 | 2.36e-04 | 6.2 × 10<sup>-4</sup> | 0.12% | 118 |
+| invall | 2.71e-03 | 1.5 × 10<sup>-3</sup> | 0.2% | 118 |
+
+**Chosen: all** (all of the changes above together): network [2, 60, 60, 60, 60, 60, 60, 60, 1], Adam 60,000 → L-BFGS 45,000, 960 / 0 / 0 points.
+
+Over seeds: own settings 6.2 × 10<sup>-4</sup> (1 seeds), tuned 1.4 × 10<sup>-4</sup> (1 seeds).
+ Learned parameters (tuned, median): D = 0.999773 (true 1.0).
+
+Tuned settings: [`Diffusion-reaction 1D, inverse mode (tuned).pinn.json`](tuning/Diffusion-reaction%201D,%20inverse%20mode%20(tuned).pinn.json)
 
 </details>
 
@@ -773,6 +850,30 @@ Over seeds: own settings 5.4 × 10<sup>-4</sup> [1.3 × 10<sup>-4</sup> – 8.3 
 
 
 Tuned settings: [`Poisson 1D – unknown forcing field (tuned).pinn.json`](tuning/Poisson%201D%20–%20unknown%20forcing%20field%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-navier-stokes-2d-kovasznay-flow-inverse-mode">
+<summary><strong>Navier-Stokes 2D – Kovasznay flow, inverse mode</strong></summary>
+
+Its own settings and results are in the README: [Navier-Stokes 2D – Kovasznay flow](../README.md#dx-kovasznay-flow).
+
+**Own settings:** network [2, 50, 50, 50, 50, 3], Adam 30,000 → L-BFGS 15,000, 2,601 domain / 400 boundary / 0 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 8.25e-06 | 9.1 × 10<sup>-5</sup> | 0.013% | 220 |
+| net | 3.02e-06 | 5.9 × 10<sup>-5</sup> | 0.011% | 252 |
+| **all** | 1.95e-06 | 3.7 × 10<sup>-5</sup> | 0.009% | 956 |
+| lbfgs3 | 8.25e-06 | 9.1 × 10<sup>-5</sup> | 0.013% | 224 |
+| invall | 1.98e-05 | 7.1 × 10<sup>-5</sup> | 0.043% | 253 |
+
+**Chosen: all** (all of the changes above together): network [2, 100, 100, 100, 100, 100, 3], Adam 90,000 → L-BFGS 45,000, 7,803 / 1,200 / 0 points.
+
+Over seeds: own settings 9.1 × 10<sup>-5</sup> (1 seeds), tuned 3.7 × 10<sup>-5</sup> (1 seeds).
+ Learned parameters (tuned, median): Re = 19.9982 (true 20.0).
+
+Tuned settings: [`Navier-Stokes 2D – Kovasznay flow, inverse mode (tuned).pinn.json`](tuning/Navier-Stokes%202D%20–%20Kovasznay%20flow,%20inverse%20mode%20(tuned).pinn.json)
 
 </details>
 
@@ -1064,6 +1165,27 @@ Tuned settings: [`Helmholtz 2D – sound-hard scattering (tuned).pinn.json`](tun
 
 </details>
 
+<details id="tune-navier-stokes-3d-beltrami-flow-inverse-mode">
+<summary><strong>Navier-Stokes 3D – Beltrami flow, inverse mode</strong></summary>
+
+Its own settings and results are in the README: [Navier-Stokes 3D – Beltrami flow](../README.md#dx-beltrami-flow).
+
+**Own settings:** network [4, 50, 50, 50, 50, 4], Adam 30,000 → L-BFGS 15,000, 50,000 domain / 5,000 boundary / 5,000 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 1.17e-04 | 3.5 × 10<sup>-4</sup> | 0.22% | 2514 |
+| **lbfgs3** | 1.09e-04 | 3.5 × 10<sup>-4</sup> | 0.12% | 2575 |
+
+**Chosen: lbfgs3** (3× the L-BFGS iterations, or an L-BFGS phase of 45,000 added (inverse problems)): network [4, 50, 50, 50, 50, 4], Adam 30,000 → L-BFGS 45,000, 50,000 / 5,000 / 5,000 points.
+
+Over seeds: own settings 3.5 × 10<sup>-4</sup> (1 seeds), tuned 3.5 × 10<sup>-4</sup> (1 seeds).
+ Learned parameters (tuned, median): nu = 0.998842 (true 1.0).
+
+Tuned settings: [`Navier-Stokes 3D – Beltrami flow, inverse mode (tuned).pinn.json`](tuning/Navier-Stokes%203D%20–%20Beltrami%20flow,%20inverse%20mode%20(tuned).pinn.json)
+
+</details>
+
 <details id="tune-poisson-2d-disk-pinnstudio-template-inverse-mode">
 <summary><strong>Poisson 2D – disk (PINNStudio template), inverse mode</strong></summary>
 
@@ -1325,6 +1447,10 @@ Its own settings and results are in the README: [Lotka-Volterra ODE](../README.m
 | Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
 |---|---|---|---|---|
 | **base** | 4.07e-06 | 1.5 × 10<sup>-5</sup> | 0.0005% | 230 |
+| net | 6.85e-06 | 1.8 × 10<sup>-5</sup> | 0.00094% | 243 |
+| all | 6.58e-06 | 1.2 × 10<sup>-5</sup> | 0.00094% | 648 |
+| lbfgs3 | 4.07e-06 | 1.5 × 10<sup>-5</sup> | 0.0005% | 240 |
+| invall | 7.10e-06 | 9.2 × 10<sup>-6</sup> | 0.00094% | 250 |
 
 **Chosen: base** (the example's own settings): network [2, 64, 64, 64, 64, 64, 64, 2], Adam 50,000 → L-BFGS 15,000, 3,000 / 2 / 0 points.
 
