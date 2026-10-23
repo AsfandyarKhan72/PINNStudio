@@ -956,11 +956,11 @@ ADDED_INVERSE = {
         "(reference_data/deepxde/beltrami_inverse)."),
     "Klein-Gordon equation": (
         _inv(_vars(("gamma", 0.5, 1.0)),
-             _obs(*((f"klein_gordon_inverse/t_{t:g}.txt", 0) for t in (2.5, 5.0, 7.5, 10.0))),
+             _obs(*((f"klein_gordon_inverse/t_{t:g}.txt", 0) for t in range(1, 11))),
              constants=json.dumps([{"name": "alpha", "value": "-1"}, {"name": "beta", "value": "0"},
                                    {"name": "k", "value": "2"}])),
         "Inverse mode (PINNStudio's addition): the coefficient gamma of the nonlinear term (initial guess 0.5, "
-        "true 1) is learned from u measured at t = 2.5, 5, 7.5 and 10 "
+        "true 1) is learned from u measured at t = 1, 2, ..., 10 "
         "(reference_data/deepxde/klein_gordon_inverse). alpha and beta stay known: the solution u = x cos t has "
         "u_xx = 0, so the data cannot tell alpha, and beta = 0."),
     "Lotka-Volterra equation": (
@@ -980,13 +980,16 @@ ADDED_INVERSE = {
     "Wave propagation – space-time multi-scale Fourier features": (
         _inv(_vars(("C", 5.0, 10.0)),
              _obs(*((f"wave_inverse/t_{t:g}.txt", 0) for t in _WAVE_OBS_T)),
+             num_domain=5000,
              constants=json.dumps([{"name": "A", "value": "2"}]),
              ea_ref_formula="sin(pi*x)*cos(10*pi*t) + sin(A*pi*x)*cos(A*10*pi*t)",
              scheduler_phases=json.dumps([_phase("adam", 10000, 1e-3, ("inverse time", 2000, 0.9)),
                                           _phase("lbfgs", 15000)])),
         "Inverse mode (PINNStudio's addition): the wave speed C (initial guess 5, true 10) is learned from u "
         "measured at t = 0.1, 0.2, ..., 1 (reference_data/deepxde/wave_inverse); at only t = 0.25, 0.5, 0.75 and 1 "
-        "the speeds 10 and 6 give the same u, so the data could not tell them. An L-BFGS phase follows Adam."),
+        "the speeds 10 and 6 give the same u, so the data could not tell them. 5,000 residual points instead of "
+        "the forward example's 360: with 360 the network fits the data between them with a wrong C. An L-BFGS "
+        "phase follows Adam."),
     "Diffusion-reaction equation": (
         _inv(_vars(("D", 2.0, 1.0)),
              _obs(*((f"diffusion_reaction_inverse/t_{t:g}.txt", 0) for t in (0.25, 0.5, 0.75, 1.0))),

@@ -180,9 +180,9 @@ def inverse_measurements():
             rows.append(np.column_stack([x, y, z, np.full(n, tt), f(x, y, z) * np.exp(-tt)]))
         _save(f"beltrami_inverse/{name}_obs.txt", np.vstack(rows))
 
-    # Klein-Gordon: u = x cos t at t = 2.5, 5, 7.5, 10 (101 points each).
+    # Klein-Gordon: u = x cos t at t = 1, 2, ..., 10 (and 2.5, 7.5) (101 points each).
     xs = np.linspace(-1, 1, 101)
-    for tt in (2.5, 5.0, 7.5, 10.0):
+    for tt in [float(i) for i in range(1, 11)] + [2.5, 7.5]:
         _save(f"klein_gordon_inverse/t_{tt:g}.txt", np.column_stack([xs, np.full_like(xs, tt), xs * np.cos(tt)]))
 
     # Helmholtz 2D (Dirichlet), k0 = 4 pi: u on a 31 x 31 interior grid.
