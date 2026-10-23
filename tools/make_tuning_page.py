@@ -239,38 +239,144 @@ def summarize(rows):
     return out
 
 
+# Summary figure, in the layout of the paper's Fig. 4: one row per problem,
+# grouped by kind; forward (circles) and inverse (diamonds) on one error axis,
+# the worst parameter error on the right. Open grey markers: the example's own
+# settings; filled: tuned. Formatting options:
+FIG_WIDTH = 7.3
+ROW_HEIGHT = 0.19
+C_FORWARD, C_INVERSE, C_OWN = "#1f5fa8", "#d1701c", "#aab2bd"
+C_TEXT, C_GRID, C_BAND = "#1f2933", "#e4e7eb", "#f3f5f7"
+XLIM_ERROR = (1e-6, 3)
+XLIM_PARAM = (1e-4, 300)
+GROUP_ORDER = ["ODEs", "1D, steady", "1D, time-dependent", "2D, steady", "2D, time-dependent", "3D"]
+MISLED_MARK = " ‡"
+
+
+def _group(name):
+    """The Fig. 4 group of a problem: from the DeepXDE example's settings, or
+    the template's name."""
+    base = name.split(" | ")[0]
+    if base.startswith(ts.TEMPLATE_PREFIX):
+        t = base[len(ts.TEMPLATE_PREFIX):]
+        d = "3D" if "3D" in t else ("2D" if "2D" in t else "1D")
+        steady = "Poisson" in t
+    else:
+        ex = {x.name: x for x in dx.EXAMPLES}.get(base)
+        st = ex.settings if ex else {}
+        if st.get("problem_dim") == "ODE" or st.get("ode"):
+            return "ODEs"
+        d = st.get("problem_dim", "1D")
+        steady = bool(st.get("steady_state"))
+    if d == "3D":
+        return "3D"
+    return f"{d}, {'steady' if steady else 'time-dependent'}"
+
+
+def _fig_rows(summ):
+    """One row per problem: forward (own, tuned, misled?) and inverse (own,
+    tuned, misled?, own and tuned parameter error). A template's best setup is
+    its forward result, measured against the template as it loads."""
+    rows = {}
+    for x in summ:
+        base, extra = (x["name"].split(" | ", 1) + [""])[:2]
+        r = rows.setdefault(base, dict(name=base, f=None, i=None))
+        errs = [_med(rs, _maxl2) for rs in x["variants"].values()]
+        best = min([v for v in errs if v], default=None)
+        misled = bool(best and x["tuned"] and x["tuned"] > 2 * best)
+        entry = dict(own=x["base"], tuned=x["tuned"], misled=misled, own_p=x["base_p"], tuned_p=x["tuned_p"])
+        if x["inverse"]:
+            r["i"] = entry
+        elif extra == "best setup":
+            r["f_best"] = entry
+        else:
+            r["f"] = entry
+    for r in rows.values():
+        fb = r.pop("f_best", None)
+        if fb:   # the best setup, against the template as it loads when that was run
+            r["only_best"] = not r["f"]
+            r["f"] = dict(fb, own=r["f"]["own"] if r["f"] else fb["own"])
+        r["group"] = _group(r["name"])
+    label = lambda n: _title(n, False).replace(" (PINNStudio template)", " (template)")
+    out = sorted(rows.values(), key=lambda r: (GROUP_ORDER.index(r["group"]), label(r["name"]).lower()))
+    for r in out:   # only the best setup was run: its own settings are the grey marker
+        r["label"] = label(r["name"]) + (", best setup" if r.get("only_best") else "")
+    return out
+
+
 def figure(summ, path):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    s = [x for x in summ if x["base"] and x["tuned"]][::-1]
-    fig, ax = plt.subplots(figsize=(7.2, 0.32 * len(s) + 1.2), dpi=200)
-    y = range(len(s))
-    for i, x in enumerate(s):
-        ax.plot([x["tuned"], x["base"]], [i, i], color="#c9ccd1", lw=2, zorder=1, solid_capstyle="round")
-        for key, rk, col in (("base", "base_rng", "#8a9099"), ("tuned", "tuned_rng", "#2266cc")):
-            if x[rk]:
-                ax.plot(x[rk], [i, i], color=col, lw=1.2, alpha=0.6, zorder=2)
-    ax.scatter([x["base"] for x in s], list(y), s=34, color="#8a9099", zorder=3, label="Example's own settings",
-               edgecolors="white", linewidths=1)
-    ax.scatter([x["tuned"] for x in s], list(y), s=34, color="#2266cc", zorder=4, label="Tuned in PINNStudio",
-               edgecolors="white", linewidths=1)
-    ax.set_xscale("log")
-    ax.set_yticks(list(y))
-    ax.set_yticklabels([_title(x["name"], x["inverse"]).replace(" (PINNStudio template)", " (template)")
-                        for x in s], fontsize=7.5)
-    ax.set_xlabel("Relative $L_2$ error of the main output at the last reference time (median over seeds, line = range)", fontsize=8)
-    ax.grid(axis="x", which="major", color="#e6e8eb", lw=0.6)
-    ax.set_axisbelow(True)
-    for sp in ("top", "right", "left"):
-        ax.spines[sp].set_visible(False)
-    ax.tick_params(axis="y", length=0)
-    ax.tick_params(axis="x", labelsize=7.5)
-    ax.legend(loc="lower left", fontsize=7.5, frameon=False, bbox_to_anchor=(0, 1.0), ncol=2)
-    fig.tight_layout()
+    from matplotlib.lines import Line2D
+    R = _fig_rows(summ)
+    plt.rcParams.update({"font.size": 8, "axes.linewidth": 0.7, "pdf.fonttype": 42,
+                         "xtick.major.size": 3, "xtick.minor.size": 1.6})
+    ypos, heads, groups, yy = {}, [], [], 0.0
+    for i, r in enumerate(R):
+        if not groups or groups[-1][0] != r["group"]:
+            if groups:
+                yy += 0.35
+            heads.append((r["group"], yy)); yy += 0.9
+            groups.append([r["group"], i, i])
+        groups[-1][2] = i
+        ypos[i] = yy; yy += 1.0
+    H = yy
+    Y = {i: H - v for i, v in ypos.items()}
+    h_in = ROW_HEIGHT * H + 1.0
+    fig, (ax, bx) = plt.subplots(1, 2, figsize=(FIG_WIDTH, h_in), sharey=True,
+                                 gridspec_kw={"width_ratios": [3.0, 1.45], "wspace": 0.08})
+    for gi, (g, a, b) in enumerate(groups):
+        for axx in (ax, bx):
+            axx.axhspan(Y[b] - 0.5, Y[a] + 1.4, color=C_BAND if gi % 2 == 0 else "white", zorder=0, lw=0)
+    for g, v in heads:
+        ax.text(-0.012, H - v - 0.05, g, transform=ax.get_yaxis_transform(), ha="right", va="center",
+                fontsize=7.6, fontweight="bold", color=C_TEXT)
+
+    def pair(axx, own, tuned, y, marker, color, ms):
+        if own and tuned:
+            axx.plot([min(own, tuned), max(own, tuned)], [y, y], color=color, lw=0.9, alpha=0.35, zorder=1)
+        if own:
+            axx.scatter(own, y, s=ms * 0.75, marker=marker, facecolor="white", edgecolor=C_OWN, lw=0.9, zorder=2)
+        if tuned:
+            axx.scatter(tuned, y, s=ms, marker=marker, color=color, edgecolor="white", lw=0.5, zorder=3)
+
+    for i, r in enumerate(R):
+        y = Y[i]
+        if r["f"]:
+            pair(ax, r["f"]["own"], r["f"]["tuned"], y, "o", C_FORWARD, 27)
+        if r["i"]:
+            pair(ax, r["i"]["own"], r["i"]["tuned"], y, "D", C_INVERSE, 22)
+            p_own = max(100 * r["i"]["own_p"], 1.2e-4) if r["i"]["own_p"] is not None else None
+            p_tun = max(100 * r["i"]["tuned_p"], 1.2e-4) if r["i"]["tuned_p"] is not None else None
+            pair(bx, p_own, p_tun, y, "D", C_INVERSE, 20)
+    labels = [r["label"] + (MISLED_MARK if any(r[k] and r[k]["misled"] for k in ("f", "i")) else "") for r in R]
+    ax.set_yticks([Y[i] for i in range(len(R))], labels, fontsize=7.2, color=C_TEXT)
+    ax.set_ylim(Y[len(R) - 1] - 0.7, H + 0.15)
+    ax.set_xscale("log"); ax.set_xlim(*XLIM_ERROR)
+    ax.set_xticks([10.0 ** k for k in range(-6, 1)])
+    bx.set_xscale("log"); bx.set_xlim(*XLIM_PARAM)
+    bx.set_xticks([1e-3, 1e-1, 10], ["0.001", "0.1", "10"])
+    ax.set_xlabel("Relative $L_2$ error of the main output at the last reference time", fontsize=8)
+    bx.set_xlabel("Worst parameter error (%)", fontsize=8)
+    for axx in (ax, bx):
+        axx.grid(axis="x", color=C_GRID, lw=0.6, zorder=0)
+        axx.set_axisbelow(True)
+        for sp in ("top", "right", "left"):
+            axx.spines[sp].set_visible(False)
+        axx.tick_params(axis="y", length=0)
+        axx.tick_params(axis="x", labelsize=7.2)
+    h = [Line2D([], [], ls="", marker="o", color=C_FORWARD, markersize=5, label="Forward, tuned"),
+         Line2D([], [], ls="", marker="D", color=C_INVERSE, markersize=4.5, label="Inverse, tuned"),
+         Line2D([], [], ls="", marker="o", markerfacecolor="white", markeredgecolor=C_OWN, markersize=4.5,
+                label="Example's own settings")]
+    fig.legend(handles=h, loc="upper center", ncol=3, frameon=False, fontsize=7.2, bbox_to_anchor=(0.62, 1.0))
+    fig.text(0.30, 0.0, "‡ the run with the lowest training loss (shown) is more than 2× less accurate than "
+             "another run of this problem", fontsize=6.6, color="#52606d", ha="left", va="bottom")
+    fig.subplots_adjust(left=0.33, right=0.985, top=1 - 0.32 / h_in, bottom=0.55 / h_in)
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    fig.savefig(path)
-    fig.savefig(path.replace(".png", ".pdf"))
+    fig.savefig(path, dpi=300, bbox_inches="tight", pad_inches=0.03)
+    fig.savefig(path.replace(".png", ".pdf"), bbox_inches="tight", pad_inches=0.03)
     plt.close(fig)
 
 
@@ -385,6 +491,11 @@ def page(summ, rows, with_files):
       "- **Reproducing a result.** The runs were made with [`tools/tuning_study.py`](../tools/tuning_study.py), "
       "and this page is written from its results by [`tools/make_tuning_page.py`](../tools/make_tuning_page.py).\n")
     a("## Summary\n")
+    a("The figure has the layout of the paper's Fig. 4: one row per problem, grouped by kind, with the forward "
+      "(circles) and inverse (diamonds) results on one axis and the worst error of the learned parameters on the "
+      "right. Open grey markers are the example's own settings, filled ones the chosen tuned run. For a template "
+      "run from the training methods study's best setup, the grey marker is the template as it loads, or, marked "
+      "\"best setup\", the best setup's own settings when the template itself was not part of this study.\n")
     a("![Error with the example's own settings and tuned in PINNStudio](figures/tuning_summary.png)\n")
     a("| Problem | Own settings: $L_2$ | Tuned: $L_2$ | Improvement | Chosen variant | Parameter error: own → tuned | "
       "Time (s): own → tuned |")

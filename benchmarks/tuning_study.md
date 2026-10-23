@@ -31,6 +31,8 @@ So far 45 problems are included, chosen as the ones with the largest errors in t
 
 ## Summary
 
+The figure has the layout of the paper's Fig. 4: one row per problem, grouped by kind, with the forward (circles) and inverse (diamonds) results on one axis and the worst error of the learned parameters on the right. Open grey markers are the example's own settings, filled ones the chosen tuned run. For a template run from the training methods study's best setup, the grey marker is the template as it loads, or, marked "best setup", the best setup's own settings when the template itself was not part of this study.
+
 ![Error with the example's own settings and tuned in PINNStudio](figures/tuning_summary.png)
 
 | Problem | Own settings: $L_2$ | Tuned: $L_2$ | Improvement | Chosen variant | Parameter error: own → tuned | Time (s): own → tuned |
