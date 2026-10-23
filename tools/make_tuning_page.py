@@ -82,6 +82,19 @@ NOTES = {
     ("Template: 2D Cahn-Hilliard (Wight & Zhao)", False):
         "The worst error is at t = 0, where the initial field is close to zero and the relative error is not a "
         "good measure; none of the changes improves it.",
+    ("Template: 1D Cahn-Hilliard (Mattey & Ghosh) | best setup", False):
+        "The study's best setup (time windows, exact periodicity, SA-PINN weights) gives 0.39% at t = 1, as in "
+        "the training methods study. Every change makes it worse, and the wider network is a warning: its "
+        "training loss is the lowest of all (1.5e-12) while the solution has collapsed to a nearly flat field "
+        "(99% error). A tiny loss does not mean a right answer for this problem.",
+    ("Template: 2D Allen-Cahn (Mattey & Ghosh) | best setup", False):
+        "Switching from the template's time windows to the study's best setup (exact periodicity and IC, SA-PINN "
+        "weights, whole interval) lowers the error from 6.7e-3 to 3.6e-4 and trains in 4.5 minutes. More "
+        "iterations give about the same; the variant with the lowest training loss (the wider network) is a "
+        "little worse.",
+    ("Template: 1D Burgers | best setup", False):
+        "Causal training on the whole interval, then every change together, gives 5.2e-4 at t = 1, against 1.3e-3 "
+        "for the template as it loads.",
     ("Poisson over an L-shaped domain", False):
         "Training loss picks the wider network, but all the changes together give the lower error; the "
         "re-entrant corner keeps the error near 1–2% either way.",
@@ -101,7 +114,16 @@ def _load(paths):
     return rows
 
 
+PRIMARY = {}   # (run folder, variant, seed) -> L2 of the main output at the last reference time
+
+
 def _maxl2(r):
+    """The error a run is judged by: the main output (u, c, phi, ...) at the
+    last reference time, read from the run's log (see --primary), else the
+    worst error the run printed."""
+    key = (ts._slug(r["example"]) + ("_inv" if r["inverse"] else ""), r["variant"], str(r["seed"]))
+    if key in PRIMARY:
+        return PRIMARY[key]
     return max(r["l2"]) if r.get("l2") else None
 
 
@@ -206,7 +228,7 @@ def figure(summ, path):
     ax.set_yticks(list(y))
     ax.set_yticklabels([_title(x["name"], x["inverse"]).replace(" (PINNStudio template)", " (template)")
                         for x in s], fontsize=7.5)
-    ax.set_xlabel("Relative $L_2$ error (worst output and time; median over seeds, line = range)", fontsize=8)
+    ax.set_xlabel("Relative $L_2$ error of the main output at the last reference time (median over seeds, line = range)", fontsize=8)
     ax.grid(axis="x", which="major", color="#e6e8eb", lw=0.6)
     ax.set_axisbelow(True)
     for sp in ("top", "right", "left"):
@@ -312,9 +334,11 @@ def page(summ, rows, with_files):
       "The reference solution is not looked at, so the choice is one a user could make without knowing the "
       "answer. The best error any variant reached is listed too, so it is visible when the training loss "
       "picks a less accurate variant.")
-    a("- **The error** is the relative $L_2$ error from PINNStudio's Error Analysis, the worst over the outputs "
-      "and the reference times, against the reference data the example ships with. For inverse problems the "
-      "worst relative error of the learned parameters is given as well.")
+    a("- **The error** is the relative $L_2$ error from PINNStudio's Error Analysis of the main output (u, c, "
+      "phi, ...) at the last reference time, against the reference data the example ships with, the same "
+      "measure as the paper's Fig. 4. (The worst over all outputs and times would often be an output such as a "
+      "chemical potential at t = 0, where the reference is close to zero and a relative error says little.) "
+      "For inverse problems the worst relative error of the learned parameters is given as well.")
     a(f"- **Seeds.** The example's own settings and the chosen variant are run with up to {n_seeds} random seeds "
       "(1, 2 and 2026); tables give the median and, in brackets, the range. The screening of all variants uses "
       "seed 2026.")
@@ -351,7 +375,7 @@ def page(summ, rows, with_files):
         b = s["variants"]["base"][0]
         a(f"**Own settings:** network {b['layers']}, {_phases_text(b)}, "
           f"{b['points'][0]:,} domain / {b['points'][1]:,} boundary / {b['points'][2]:,} initial points.\n")
-        a("| Variant | Final training loss | $L_2$ (worst) | Parameter error | Time (s) |")
+        a("| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |")
         a("|---|---|---|---|---|")
         for v in ts.VARIANTS + ts.INVERSE_VARIANTS + ts.TA_VARIANTS:
             rs = [r for r in s["variants"].get(v, []) if r["seed"] == 2026] or s["variants"].get(v, [])[:1]
@@ -394,7 +418,14 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("results", nargs="+")
     ap.add_argument("--no-files", action="store_true", help="do not write the tuned problem files")
+    ap.add_argument("--primary", default="", help="primary.json: each run's main-output error at the last time, "
+                                                  "read from the run logs")
     args = ap.parse_args()
+    if args.primary:
+        for slug, vs in json.load(open(args.primary, encoding="utf-8")).items():
+            for variant, runs in vs.items():
+                for r in runs:
+                    PRIMARY[(slug, variant, str(r["seed"]))] = r["l2"]
     rows = _load(args.results)
     summ = summarize(rows)
     with_files = False
