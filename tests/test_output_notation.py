@@ -11,6 +11,7 @@ file: run with PINNSTUDIO_SLOW_TESTS=1 (a few minutes); skipped otherwise.
 
     QT_QPA_PLATFORM=offscreen python3 -m pytest tests/test_output_notation.py
 """
+import ast
 import os
 import re
 import subprocess
@@ -109,8 +110,9 @@ def test_old_saved_paths_find_the_renamed_files():
            "inverse_obs_file": "@REF/1D/cahn_hilliard_mattey/t_1_u.txt",
            "ic_file": "/home/someone/site-packages/reference_data/2D/cahn_hilliard_mattey/t_0_u.txt"}
     new = pp.from_portable(old, REFERENCE_DATA_DIR)
-    assert os.path.join("cahn_hilliard_wight", "t_0_phi.txt") in new["ea_files"]
-    assert os.path.join("cahn_hilliard_wight", "t_0_mu.txt") in new["ea_files"]
+    ea = [os.path.normpath(f) for _, f, _ in ast.literal_eval(new["ea_files"])]
+    assert ea[0].endswith(os.path.join("cahn_hilliard_wight", "t_0_phi.txt")) and os.path.isfile(ea[0])
+    assert ea[1].endswith(os.path.join("cahn_hilliard_wight", "t_0_mu.txt"))
     assert new["inverse_obs_file"].endswith(os.path.join("cahn_hilliard_mattey", "t_1_h.txt"))
     assert new["ic_file"].endswith(os.path.join("cahn_hilliard_mattey", "t_0_h.txt"))
     assert os.path.isfile(new["inverse_obs_file"]) and os.path.isfile(new["ic_file"])
