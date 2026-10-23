@@ -98,7 +98,7 @@ NOTES = {
         "t = 5 both runs are the same (9.3e-3 and 2.1e-2), and at t = 10 neither run shows the small drop left "
         "in the reference, so the lower number mostly reflects a flatter field. More iterations and two time "
         "windows give the same errors at every time; the wider network fails (120% at t = 10). The run with "
-        "every change together is still going.",
+        "every change together did not finish within the 4-hour limit.",
     ("Template: 1D Burgers | best setup", False):
         "Causal training on the whole interval, then every change together, gives 5.2e-4 at t = 1, against 1.3e-3 "
         "for the template as it loads.",

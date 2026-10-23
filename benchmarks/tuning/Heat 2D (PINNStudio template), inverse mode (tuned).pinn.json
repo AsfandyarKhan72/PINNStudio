@@ -252,6 +252,7 @@
     "plot_dpi_anim": 150,
     "plot_legend_fontsize": 0.0,
     "plot_resolution_3d": 40,
+    "plot_iso_level": "",
     "plot_sci_notation": "auto",
     "plot_sci_style": "times",
     "loss_plot_mode": "train_test",

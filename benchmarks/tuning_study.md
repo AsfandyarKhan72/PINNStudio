@@ -4,7 +4,7 @@
 
 DeepXDE's examples are written to show how the library is used, so many train briefly, on a small network or with Adam only. This study asks how far ordinary tuning in PINNStudio takes them: each example is run with its own settings and with the same five changes, and the change that trains best is reported next to the example's own result. It complements the [training methods study](training_methods.md), which tests specialised methods (causal training, per-point weights, time windows) on the hardest problems.
 
-So far 37 problems are included, chosen as the ones with the largest errors in the [README results](../README.md). 21 of them improve by 1.5× or more; the median improvement is 2×.
+So far 40 problems are included, chosen as the ones with the largest errors in the [README results](../README.md). 23 of them improve by 1.5× or more; the median improvement is 2×.
 
 ## How it is done
 
@@ -40,6 +40,7 @@ So far 37 problems are included, chosen as the ones with the largest errors in t
 | [Linear elasticity 2D – plate](#tune-linear-elasticity-2d-plate) | 6.7 × 10<sup>-2</sup> | 1.3 × 10<sup>-4</sup> | 521× | all | – | 541 → 1147 |
 | [Wave 1D – space-time multi-scale Fourier features](#tune-wave-1d-space-time-multi-scale-fourier-features) | 3.0 × 10<sup>-1</sup> | 1.5 × 10<sup>-3</sup> | 207× | all | – | 75 → 645 |
 | [Schrödinger 1D, inverse mode](#tune-schr-dinger-1d-inverse-mode) | 1.8 × 10<sup>-1</sup> | 9.9 × 10<sup>-4</sup> | 183× | net | 3% → 0.0072% | 196 → 337 |
+| [Second-order ODE, inverse mode](#tune-second-order-ode-inverse-mode) | 1.6 × 10<sup>-3</sup> | 8.9 × 10<sup>-6</sup> | 178× | net | 7.3% → 0.082% | 27 → 30 |
 | [Diffusion 1D – unknown coefficient](#tune-diffusion-1d-unknown-coefficient) | 6.2 × 10<sup>-3</sup> | 2.0 × 10<sup>-4</sup> | 32× | all | 0.045% → 0.017% | 118 → 380 |
 | [Klein-Gordon 1D](#tune-klein-gordon-1d) | 6.9 × 10<sup>-2</sup> | 2.3 × 10<sup>-3</sup> | 30× | net | – | 60 → 151 |
 | [Helmholtz 2D – square with hole](#tune-helmholtz-2d-square-with-hole) | 1.1 × 10<sup>-2</sup> | 7.0 × 10<sup>-4</sup> | 15× | lbfgs | – | 17 → 24 |
@@ -55,6 +56,7 @@ So far 37 problems are included, chosen as the ones with the largest errors in t
 | [Poisson 1D – unknown forcing field](#tune-poisson-1d-unknown-forcing-field) | 5.4 × 10<sup>-4</sup> | 2.1 × 10<sup>-4</sup> | 3× | all | – | 66 → 221 |
 | [Fractional Poisson 1D](#tune-fractional-poisson-1d) | 2.3 × 10<sup>-2</sup> | 1.2 × 10<sup>-2</sup> | 2× | all | – | 20 → 57 |
 | [Brinkman-Forchheimer 1D – unknown ν_e, K](#tune-brinkman-forchheimer-1d-unknown-e-k) | 2.0 × 10<sup>-2</sup> | 1.2 × 10<sup>-2</sup> | 2× | all | 28% → 18% | 74 → 237 |
+| [Linear ODE system, inverse mode](#tune-linear-ode-system-inverse-mode) | 3.3 × 10<sup>-4</sup> | 2.0 × 10<sup>-4</sup> | 2× | all | 0.022% → 0.0088% | 48 → 135 |
 | [Poisson 2D – L-shape](#tune-poisson-2d-l-shape) | 3.5 × 10<sup>-2</sup> | 2.3 × 10<sup>-2</sup> | 2× | net | – | 174 → 182 |
 | [Diffusion-reaction 1D – unknown rate field](#tune-diffusion-reaction-1d-unknown-rate-field) | 4.0 × 10<sup>-2</sup> | 2.8 × 10<sup>-2</sup> | none | all | – | 49 → 178 |
 | [Burgers 2D – Mathias et al. (PINNStudio template)](#tune-burgers-2d-mathias-et-al-pinnstudio-template) | 1.1 × 10<sup>-2</sup> | 8.4 × 10<sup>-3</sup> | none | iters | – | 1662 → 3684 |
@@ -69,6 +71,7 @@ So far 37 problems are included, chosen as the ones with the largest errors in t
 | [Heat 3D (PINNStudio template), inverse mode](#tune-heat-3d-pinnstudio-template-inverse-mode) | 1.3 × 10<sup>-3</sup> | 1.3 × 10<sup>-3</sup> | none | base | 0.076% → 0.076% | 729 → 729 |
 | [Allen-Cahn 3D – Wight & Zhao (PINNStudio template), inverse mode](#tune-allen-cahn-3d-wight-zhao-pinnstudio-template-inverse-mode) | 9.7 × 10<sup>-5</sup> | 9.7 × 10<sup>-5</sup> | none | base | 0.31% → 0.31% | 1419 → 1419 |
 | [Allen-Cahn 2D – Wight & Zhao (PINNStudio template) (best setup)](#tune-allen-cahn-2d-wight-zhao-pinnstudio-template-best-setup) | 1.6 × 10<sup>-3</sup> | 1.6 × 10<sup>-3</sup> | none | base | – | 1596 → 1596 |
+| [Lotka-Volterra ODE, inverse mode](#tune-lotka-volterra-ode-inverse-mode) | 1.5 × 10<sup>-5</sup> | 1.5 × 10<sup>-5</sup> | none | base | 0.0005% → 0.0005% | 230 → 230 |
 | [Allen-Cahn 2D – Mattey & Ghosh (PINNStudio template) (best setup)](#tune-allen-cahn-2d-mattey-ghosh-pinnstudio-template-best-setup) | 3.6 × 10<sup>-4</sup> | 5.9 × 10<sup>-4</sup> | worse (2× higher) | net | – | 266 → 464 |
 | [Allen-Cahn 2D – Wight & Zhao (PINNStudio template)](#tune-allen-cahn-2d-wight-zhao-pinnstudio-template) | 7.9 × 10<sup>-3</sup> | 9.3 × 10<sup>-2</sup> | worse (12× higher) | iters | – | 1780 → 3710 |
 | [Cahn-Hilliard 1D – Mattey & Ghosh (PINNStudio template) (best setup)](#tune-cahn-hilliard-1d-mattey-ghosh-pinnstudio-template-best-setup) | 3.9 × 10<sup>-3</sup> | 9.9 × 10<sup>-1</sup> | worse (253× higher) | net | – | 1002 → 1893 |
@@ -282,6 +285,30 @@ Only |h| is measured, at one time, and with the example's own network c depends 
 
 
 Tuned settings: [`Schrödinger 1D, inverse mode (tuned).pinn.json`](tuning/Schrödinger%201D,%20inverse%20mode%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-second-order-ode-inverse-mode">
+<summary><strong>Second-order ODE, inverse mode</strong></summary>
+
+Its own settings and results are in the README: [Second-order ODE](../README.md#dx-second-order-ode).
+
+**Own settings:** network [2, 50, 50, 50, 1], Adam 10,000 → L-BFGS 15,000, 16 domain / 2 boundary / 0 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 2.90e-04 | 1.6 × 10<sup>-3</sup> | 7.3% | 27 |
+| **net** | 3.23e-06 | 8.9 × 10<sup>-6</sup> | 0.082% | 30 |
+| all | 8.07e-06 | 5.8 × 10<sup>-5</sup> | 0.19% | 74 |
+| lbfgs3 | 2.90e-04 | 1.6 × 10<sup>-3</sup> | 7.3% | 25 |
+| invall | 8.85e-04 | 4.1 × 10<sup>-4</sup> | 4.2% | 28 |
+
+**Chosen: net** (hidden layers twice as wide (at most 512) and one layer more): network [2, 100, 100, 100, 100, 1], Adam 10,000 → L-BFGS 15,000, 16 / 2 / 0 points.
+
+Over seeds: own settings 1.6 × 10<sup>-3</sup> (1 seeds), tuned 8.9 × 10<sup>-6</sup> (1 seeds).
+ Learned parameters (tuned, median): a = 10.0003 (true 10.0), b = 8.99262 (true 9.0).
+
+Tuned settings: [`Second-order ODE, inverse mode (tuned).pinn.json`](tuning/Second-order%20ODE,%20inverse%20mode%20(tuned).pinn.json)
 
 </details>
 
@@ -826,6 +853,30 @@ Tuned settings: [`Brinkman-Forchheimer 1D – unknown ν_e, K (tuned).pinn.json`
 
 </details>
 
+<details id="tune-linear-ode-system-inverse-mode">
+<summary><strong>Linear ODE system, inverse mode</strong></summary>
+
+Its own settings and results are in the README: [Linear ODE system](../README.md#dx-ode-system).
+
+**Own settings:** network [2, 50, 50, 50, 2], Adam 20,000 → L-BFGS 15,000, 35 domain / 2 boundary / 0 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 3.52e-05 | 3.3 × 10<sup>-4</sup> | 0.022% | 48 |
+| net | 3.27e-05 | 4.5 × 10<sup>-4</sup> | 0.044% | 49 |
+| **all** | 9.53e-06 | 2.0 × 10<sup>-4</sup> | 0.0088% | 135 |
+| lbfgs3 | 3.52e-05 | 3.3 × 10<sup>-4</sup> | 0.022% | 47 |
+| invall | 2.79e-04 | 4.6 × 10<sup>-4</sup> | 0.091% | 50 |
+
+**Chosen: all** (all of the changes above together): network [2, 100, 100, 100, 100, 2], Adam 60,000 → L-BFGS 45,000, 105 / 6 / 0 points.
+
+Over seeds: own settings 3.3 × 10<sup>-4</sup> (1 seeds), tuned 2.0 × 10<sup>-4</sup> (1 seeds).
+ Learned parameters (tuned, median): w = 0.999912 (true 1.0).
+
+Tuned settings: [`Linear ODE system, inverse mode (tuned).pinn.json`](tuning/Linear%20ODE%20system,%20inverse%20mode%20(tuned).pinn.json)
+
+</details>
+
 <details id="tune-poisson-2d-l-shape">
 <summary><strong>Poisson 2D – L-shape</strong></summary>
 
@@ -1253,7 +1304,7 @@ Tuned settings: [`Allen-Cahn 3D – Wight & Zhao (PINNStudio template), inverse 
 
 Over seeds: own settings 1.6 × 10<sup>-3</sup> (1 seeds), tuned 1.6 × 10<sup>-3</sup> (1 seeds).
 
-The study's best setup (time windows with RBA weights, soft IC, exact periodicity) gives 1.6e-3 at t = 10, against 7.9e-3 for the template as it loads. The gain is only at the last time: at t = 2.5 and t = 5 both runs are the same (9.3e-3 and 2.1e-2), and at t = 10 neither run shows the small drop left in the reference, so the lower number mostly reflects a flatter field. More iterations and two time windows give the same errors at every time; the wider network fails (120% at t = 10). The run with every change together is still going.
+The study's best setup (time windows with RBA weights, soft IC, exact periodicity) gives 1.6e-3 at t = 10, against 7.9e-3 for the template as it loads. The gain is only at the last time: at t = 2.5 and t = 5 both runs are the same (9.3e-3 and 2.1e-2), and at t = 10 neither run shows the small drop left in the reference, so the lower number mostly reflects a flatter field. More iterations and two time windows give the same errors at every time; the wider network fails (120% at t = 10). The run with every change together did not finish within the 4-hour limit.
 
 *Surface comparison, the example's own settings:*
 
@@ -1261,6 +1312,26 @@ The study's best setup (time windows with RBA weights, soft IC, exact periodicit
 
 
 Tuned settings: [`Allen-Cahn 2D – Wight & Zhao (PINNStudio template) (best setup) (tuned).pinn.json`](tuning/Allen-Cahn%202D%20–%20Wight%20&%20Zhao%20(PINNStudio%20template)%20(best%20setup)%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-lotka-volterra-ode-inverse-mode">
+<summary><strong>Lotka-Volterra ODE, inverse mode</strong></summary>
+
+Its own settings and results are in the README: [Lotka-Volterra ODE](../README.md#dx-lotka-volterra-equation).
+
+**Own settings:** network [2, 64, 64, 64, 64, 64, 64, 2], Adam 50,000 → L-BFGS 15,000, 3,000 domain / 2 boundary / 0 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| **base** | 4.07e-06 | 1.5 × 10<sup>-5</sup> | 0.0005% | 230 |
+
+**Chosen: base** (the example's own settings): network [2, 64, 64, 64, 64, 64, 64, 2], Adam 50,000 → L-BFGS 15,000, 3,000 / 2 / 0 points.
+
+Over seeds: own settings 1.5 × 10<sup>-5</sup> (1 seeds), tuned 1.5 × 10<sup>-5</sup> (1 seeds).
+ Learned parameters (tuned, median): a = 2.00001 (true 2.0), d = 1.06 (true 1.06).
+
+Tuned settings: [`Lotka-Volterra ODE, inverse mode (tuned).pinn.json`](tuning/Lotka-Volterra%20ODE,%20inverse%20mode%20(tuned).pinn.json)
 
 </details>
 
