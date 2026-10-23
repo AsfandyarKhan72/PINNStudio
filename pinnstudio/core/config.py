@@ -40,6 +40,25 @@ class PINNConfig:
     ta_step_groups: str = ""
     ta_transfer_learning: bool = False
     ta_transfer_optimizer: str = "adam"
+    # Sequential training on time windows with ONE network (needs transfer
+    # learning, so each window starts from the previous one's weights):
+    # - ta_growing: each window's residual and boundary points cover the whole
+    #   time range so far [t_start, t1], with the true initial condition at
+    #   t_start (Wight & Zhao 2021, "approach I").
+    # - ta_backward: backward-compatible PINN (Mattey & Ghosh 2022): after each
+    #   window the network's prediction on the time range so far is stored
+    #   (ta_backward_points spatial points x ta_backward_times times per window)
+    #   and later windows are held to it, with loss weight ta_backward_weight.
+    # - ta_icgl_fraction: initial-condition guided learning (Mattey & Ghosh):
+    #   before each window's training, fit the window's starting profile, held
+    #   constant over the window, for this fraction of the first Adam phase's
+    #   iterations (0 = off).
+    ta_growing: bool = False
+    ta_backward: bool = False
+    ta_backward_weight: float = 100.0
+    ta_backward_times: int = 10
+    ta_backward_points: int = 2000
+    ta_icgl_fraction: float = 0.0
 
     parametric_study: bool = False
     parametric_param: str = "none"
@@ -872,6 +891,19 @@ class PINNConfig:
                 errors.append("Causal training: the number of time chunks must be at least 2.")
             if float(self.causal_eps) <= 0:
                 errors.append("Causal training: the causality parameter epsilon must be positive.")
+        if self.time_adaptive and (self.ta_growing or self.ta_backward):
+            _which = " and ".join(n for n, on in (("Growing time range", self.ta_growing),
+                                                  ("Backward compatibility", self.ta_backward)) if on)
+            if not self.ta_transfer_learning:
+                errors.append(f"Time-adaptive training: {_which} train one network through all the time windows, "
+                              "so they need 'transfer learning' (each window starts from the previous one's "
+                              "weights) -- tick it, or untick " + _which + ".")
+            if self.ta_backward and (int(self.ta_backward_times) < 1 or int(self.ta_backward_points) < 1):
+                errors.append("Time-adaptive training: backward compatibility needs at least 1 time per window "
+                              "and 1 point.")
+        if self.time_adaptive and not 0 <= float(self.ta_icgl_fraction) < 1:
+            errors.append("Time-adaptive training: the initial-condition guided learning fraction must be "
+                          "from 0 (off) to below 1.")
         _hard = [h.strip() == "True" for h in (self.ic_hard or "").split(",")]
         if any(_hard):
             _ics = (self.ic_expressions or "").split("|")

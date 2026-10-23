@@ -2546,6 +2546,24 @@ def _ea_extract(_ea_grid, _ea_sel, _ea_model=None):
     return "\n".join((indent + ln) if ln else ln for ln in code.split("\n"))
 
 
+def _ta_icgl_iterations(config):
+    """Initial-condition guided learning's iterations per time window: the
+    given fraction of the first Adam phase (Time-Adaptive settings)."""
+    frac = float(getattr(config, "ta_icgl_fraction", 0.0) or 0.0)
+    if frac <= 0:
+        return 0
+    n = int(config.iterations)
+    try:
+        import json as _j
+        phases = _j.loads(config.scheduler_phases or "[]") if config.optimizer_scheduler else []
+        first = next((p for p in phases if str(p.get("optimizer", "")).lower() == "adam"), None)
+        if first:
+            n = int(float(first.get("iterations", n)))
+    except (ValueError, TypeError):
+        pass
+    return max(1, round(frac * n))
+
+
 def _gs_time_adaptive_loop_code(_ic_pretrain_block_ta, line_slice_y, line_slice_z, _safe_num_test, _ta_ic_init, _train_cbs_code_ta, config, plot_custom_expr_converted, _safe_point_distribution="Hammersley"):
     """generate_script()'s Time-Adaptive training loop (per-step models, IC
     pre-training, per-step previews, the combined final plot and the
@@ -2717,11 +2735,23 @@ if {config.time_adaptive}:
         _ta_all_test_loss.extend(_lh.loss_test)
         _ta_loss_offset += (_lh.steps[-1] if _lh.steps else 0)
 
+    # One network through all windows (Time-Adaptive -> growing time range /
+    # backward compatibility / initial-condition guided learning, config.py)
+    _ta_growing = {bool(getattr(config, "ta_growing", False))}
+    _ta_bc = {bool(getattr(config, "ta_backward", False))}
+    _ta_bc_w = {float(getattr(config, "ta_backward_weight", 100.0))}
+    _ta_bc_nt = {int(getattr(config, "ta_backward_times", 10))}
+    _ta_bc_np = {int(getattr(config, "ta_backward_points", 2000))}
+    _ta_icgl_iters = {_ta_icgl_iterations(config)}
+    _ta_t_start = _ta_flat_intervals[0][0]
+    _ta_bc_times, _ta_bc_pts, _ta_bc_vals = [], None, None
+
     for step_i, (t0, t1) in enumerate(_ta_flat_intervals):
         print(f"\\n--- Time step {{step_i+1}}/{{n_steps}}: t = {{t0:.4f}} to {{t1:.4f}} ---")
 
         geom_i = _build_geom()
-        time_i     = dde.geometry.TimeDomain(t0, t1)
+        # growing time range: residual and boundary points on [t_start, t1]
+        time_i     = dde.geometry.TimeDomain(_ta_t_start if _ta_growing else t0, t1)
         geomtime_i = dde.geometry.GeometryXTime(geom_i, time_i)
 
         _constraints_i = []
@@ -2784,7 +2814,7 @@ if {config.time_adaptive}:
             # IC (independent of the BC panel -- same per-step IC scheme as always)
             for _oi_ta in range({config.num_outputs}):
                 _comp_ta = _oi_ta
-                if step_i == 0:
+                if step_i == 0 or _ta_growing:   # growing range: the true IC at t_start every window
                     if {config.forward_ic_from_file} and _oi_ta == 0:
                         _xyt_ic_anchor = _ic_xyt  # use the already-loaded IC points
                         _constraints_i.append(dde.icbc.PointSetBC(_ic_xyt, _ic_vals, component=0))
@@ -2881,7 +2911,7 @@ if {config.time_adaptive}:
                         elif _btt_ta == "Periodic":
                             _constraints_i.append(dde.icbc.PeriodicBC(geomtime_i, 1, _bt_on_ta, derivative_order=0, component=_comp_ta))
 
-                if step_i == 0:
+                if step_i == 0 or _ta_growing:
                     if {config.forward_ic_from_file} and _oi_ta == 0:
                         _xyt_ic_anchor = _ic_xyt  # use the already-loaded IC points
                         _constraints_i.append(dde.icbc.PointSetBC(_ic_xyt, _ic_vals, component=0))
@@ -2901,6 +2931,16 @@ if {config.time_adaptive}:
                         xt_ic = np.column_stack([x_grid, np.full_like(x_grid.ravel(), t0)])
                         _xyt_ic_anchor = xt_ic
                         _constraints_i.append(dde.icbc.PointSetBC(xt_ic, prev_u[:, _oi_ta:_oi_ta+1], component=_oi_ta))
+
+        # Backward compatibility: hold the network to its stored solution on
+        # the time range already trained (one PointSetBC per output).
+        _n_bc_extra = 0
+        if _ta_bc and step_i > 0 and _ta_bc_pts is not None:
+            for _oi_bc in range({config.num_outputs}):
+                _constraints_i.append(dde.icbc.PointSetBC(_ta_bc_pts, _ta_bc_vals[:, _oi_bc:_oi_bc+1], component=_oi_bc))
+            _n_bc_extra = {config.num_outputs}
+            print(f"  Backward compatibility: {{len(_ta_bc_pts)}} stored points on t = {{_ta_t_start:g}} to {{t0:g}}, weight {{_ta_bc_w:g}}")
+        _wx = lambda _ws: list(_ws) + [_ta_bc_w] * _n_bc_extra
 
         data_i = dde.data.TimePDE(
             geomtime_i, pde, _constraints_i,
@@ -2981,6 +3021,40 @@ if {config.time_adaptive}:
 {_ic_pretrain_block_ta}
             print("  === Starting Main Training ===")
 
+        # ── Initial-condition guided learning ─────────────────────
+        # Fit the window's starting profile (the IC in the first window, the
+        # previous window's solution at t0 after it), held constant over the
+        # window, before the window's own training (Mattey & Ghosh 2022).
+        if _ta_icgl_iters > 0:
+            _gs_icgl = grid_size
+            if _is_3d:
+                _gx = [np.linspace(_lo, _hi, _gs_icgl) for _lo, _hi in (({config.x_min}, {config.x_max}), ({config.y_min}, {config.y_max}), ({config.z_min}, {config.z_max}))]
+                _sp_icgl = np.column_stack([_a.ravel() for _a in np.meshgrid(*_gx)])
+            elif _is_2d:
+                _gx = [np.linspace(_lo, _hi, _gs_icgl) for _lo, _hi in (({config.x_min}, {config.x_max}), ({config.y_min}, {config.y_max}))]
+                _sp_icgl = np.column_stack([_a.ravel() for _a in np.meshgrid(*_gx)])
+            else:
+                _sp_icgl = np.linspace({config.x_min}, {config.x_max}, _gs_icgl).reshape(-1, 1)
+            if step_i == 0 or _ta_growing:
+                _x0_icgl = np.column_stack([_sp_icgl, np.full(len(_sp_icgl), _ta_t_start)])
+                def _icgl_ic(_k):
+                    _e = _ic_expressions[_k].strip() if _k < len(_ic_expressions) and _ic_expressions[_k].strip() else "0"
+                    _v = np.asarray(eval(_e, {{"np": np, "x": _x0_icgl, "__builtins__": __builtins__}}), dtype=float)
+                    return np.full(len(_x0_icgl), float(_v)) if _v.size == 1 else _v.reshape(-1)
+                _v0_icgl = np.column_stack([_icgl_ic(_k) for _k in range({config.num_outputs})])
+            else:
+                _sp_icgl, _v0_icgl = np.asarray(x_grid).reshape(len(prev_u), -1), np.asarray(prev_u)
+            _tg_icgl = np.linspace(_ta_t_start if _ta_growing else t0, t1, 10)
+            _P_icgl = np.vstack([np.column_stack([_sp_icgl, np.full(len(_sp_icgl), _tv)]) for _tv in _tg_icgl])
+            _V_icgl = np.vstack([_v0_icgl for _ in _tg_icgl])
+            _cons_icgl = [dde.icbc.PointSetBC(_P_icgl, _V_icgl[:, _k:_k+1], component=_k) for _k in range({config.num_outputs})]
+            _data_icgl = dde.data.TimePDE(geomtime_i, pde, _cons_icgl, num_domain=16, num_boundary=0, num_initial=0)
+            _model_icgl = dde.Model(_data_icgl, model_i.net)
+            _model_icgl.compile("adam", lr={config.learning_rate},
+                                loss_weights=[0.0] * {_n_equations(config)} + [1.0] * {config.num_outputs})
+            print(f"  === Initial-condition guided learning: {{_ta_icgl_iters}} iterations ===")
+            _model_icgl.train(iterations=_ta_icgl_iters, display_every={config.loss_display_every})
+
         # ── Phase 1 (Adam) ──────────────────────────────────────
         # Mirrors the Standard (non-Time-Adaptive) path's own unconditional
         # Phase 1 training call above (model.train(iterations=_iters, ...)
@@ -2997,7 +3071,7 @@ if {config.time_adaptive}:
         # no exception raised anywhere.
         if not ({config.optimizer_scheduler} and {len(config.scheduler_phases) > 0}):
             model_i.compile("{config.optimizer}", lr={config.learning_rate},
-                            loss="{config.loss_type}", loss_weights=_multi_weights)
+                            loss="{config.loss_type}", loss_weights=_wx(_multi_weights))
             lh_i, ts_i = model_i.train(iterations={config.iterations}, display_every={config.loss_display_every}, callbacks=_train_cbs_ta)
             _ta_accumulate_loss(lh_i)
             print(f"  Adam phase done. Steps: {{len(lh_i.steps)}}")
@@ -3017,6 +3091,8 @@ if {config.time_adaptive}:
                 # A phase without its own weights (e.g. written by hand) uses
                 # the Loss Weights panel's.
                 _sp_weights = [float(w) for w in str(_sp.get('weights') or '').split(',') if w.strip()] or list(_multi_weights)
+                if len(_sp_weights) + _n_bc_extra == {_n_equations(config)} + len(_constraints_i):
+                    _sp_weights = _wx(_sp_weights)   # the backward-compatibility terms' weights
                 # Same safety net as the main (non-Time-Adaptive) scheduler loop:
                 # each step rebuilds its own _constraints_i, which can be a
                 # different length than what the GUI's scheduler-phase weight
@@ -3092,7 +3168,7 @@ if {config.time_adaptive}:
                     gtol={config.lbfgs_gtol}, maxiter={config.iterations2},
                     maxfun={_lbfgs_maxfun(config, config.iterations2)}, maxls={config.lbfgs_maxls})
             model_i.compile("L-BFGS", loss="{config.loss_type}",
-                            loss_weights=_multi_weights)
+                            loss_weights=_wx(_multi_weights))
             lh_i, ts_i = model_i.train(display_every={config.loss_display_every}, callbacks=_train_cbs_ta)
             _ta_accumulate_loss(lh_i)
             print(f"  L-BFGS phase done. Steps: {{len(lh_i.steps)}}")
@@ -3127,6 +3203,17 @@ if {config.time_adaptive}:
             xt_pred = np.column_stack([x_pred, t_pred])
             prev_u  = model_i.predict(xt_pred)
             x_grid  = x_pred.reshape(-1, 1)
+
+        # Backward compatibility: store the network's solution on the time
+        # range trained so far, for the next windows to keep (re-predicted by
+        # the newest network each window, as in Mattey & Ghosh's bc-PINN).
+        if _ta_bc and step_i < n_steps - 1:
+            _sp_all = np.asarray(x_grid).reshape(len(prev_u), -1)
+            if len(_sp_all) > _ta_bc_np:
+                _sp_all = _sp_all[np.random.default_rng(1234).choice(len(_sp_all), _ta_bc_np, replace=False)]
+            _ta_bc_times = sorted(set(_ta_bc_times) | set(np.round(np.linspace(t0, t1, _ta_bc_nt + 1)[:-1], 12).tolist()) | {{float(t1)}})
+            _ta_bc_pts = np.vstack([np.column_stack([_sp_all, np.full(len(_sp_all), _tv)]) for _tv in _ta_bc_times])
+            _ta_bc_vals = model_i.predict(_ta_bc_pts)
 
         if _is_3d:
             # 3D: no volumetric renderer for the stitched plot either (same

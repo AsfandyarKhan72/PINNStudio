@@ -3702,6 +3702,47 @@ class MainWindow(QMainWindow):
         self.ta_transfer_cb.stateChanged.connect(
             lambda s: self.ta_transfer_opt_widget.setVisible(s == 2))
 
+        # One network through all windows (needs transfer learning): Wight &
+        # Zhao's growing time range, Mattey & Ghosh's backward compatibility
+        # (bc-PINN) and initial-condition guided learning.
+        self.ta_growing_cb = QCheckBox("Growing time range: each window trains on [start, t] (one network)")
+        self.ta_growing_cb.setToolTip(
+            "Each window's residual and boundary points cover the whole time range so far, with the true\n"
+            "initial condition at the start (Wight & Zhao 2021, 'approach I'). Needs transfer learning.")
+        ta_layout.addWidget(self.ta_growing_cb)
+        self.ta_backward_cb = QCheckBox("Backward compatibility (bc-PINN): keep the solution on earlier windows")
+        self.ta_backward_cb.setToolTip(
+            "After each window the network's solution on the time range so far is stored, and the later\n"
+            "windows are held to it with this loss weight (Mattey & Ghosh 2022). Needs transfer learning.")
+        ta_layout.addWidget(self.ta_backward_cb)
+        self.ta_backward_widget = QWidget()
+        _bcr = QHBoxLayout(self.ta_backward_widget)
+        _bcr.setContentsMargins(16, 0, 0, 0)
+        self.ta_backward_w = QDoubleSpinBox(); self.ta_backward_w.setRange(0.0, 1e6); self.ta_backward_w.setDecimals(2)
+        self.ta_backward_w.setValue(100.0); self.ta_backward_w.setFixedWidth(90)
+        self.ta_backward_nt = QSpinBox(); self.ta_backward_nt.setRange(1, 1000); self.ta_backward_nt.setValue(10)
+        self.ta_backward_nt.setFixedWidth(70)
+        self.ta_backward_np = QSpinBox(); self.ta_backward_np.setRange(1, 1_000_000); self.ta_backward_np.setValue(2000)
+        self.ta_backward_np.setFixedWidth(90)
+        self.ta_backward_nt.setToolTip("Stored times per window")
+        self.ta_backward_np.setToolTip("Stored points in space (a random subset of the window grid when it has more)")
+        for _lbl, _w in (("Weight:", self.ta_backward_w), ("Times/window:", self.ta_backward_nt),
+                         ("Points:", self.ta_backward_np)):
+            _bcr.addWidget(QLabel(_lbl)); _bcr.addWidget(_w)
+        _bcr.addStretch()
+        self.ta_backward_widget.setVisible(False)
+        ta_layout.addWidget(self.ta_backward_widget)
+        self.ta_backward_cb.stateChanged.connect(lambda s: self.ta_backward_widget.setVisible(s == 2))
+        _icr = QHBoxLayout()
+        _icr.addWidget(QLabel("Initial-condition guided learning (fraction of Adam, 0 = off):"))
+        self.ta_icgl = QDoubleSpinBox(); self.ta_icgl.setRange(0.0, 0.9); self.ta_icgl.setSingleStep(0.05)
+        self.ta_icgl.setDecimals(2); self.ta_icgl.setValue(0.0); self.ta_icgl.setFixedWidth(70)
+        self.ta_icgl.setToolTip(
+            "Before each window's training, fit the window's starting profile, held constant over the\n"
+            "window, for this fraction of the first Adam phase's iterations (Mattey & Ghosh 2022).")
+        _icr.addStretch(); _icr.addWidget(self.ta_icgl)
+        ta_layout.addLayout(_icr)
+
         self.ta_widget.setVisible(False)
         adapt_layout.addWidget(self.ta_widget)
 
@@ -9594,6 +9635,12 @@ class MainWindow(QMainWindow):
             ta_step_groups=self._build_ta_step_groups_json(),
             ta_transfer_learning=self.ta_transfer_cb.isChecked(),
             ta_transfer_optimizer=self.ta_transfer_opt.currentData(),
+            ta_growing=self.ta_growing_cb.isChecked(),
+            ta_backward=self.ta_backward_cb.isChecked(),
+            ta_backward_weight=self.ta_backward_w.value(),
+            ta_backward_times=self.ta_backward_nt.value(),
+            ta_backward_points=self.ta_backward_np.value(),
+            ta_icgl_fraction=self.ta_icgl.value(),
             learning_rate=self.lr_spin.value(),
             loss_type=self.loss_combo.currentText(),
             parametric_study=False,
@@ -10504,6 +10551,12 @@ class MainWindow(QMainWindow):
         self.ta_grid.setCurrentText(str(config.ta_grid_size))
         self.ta_transfer_cb.setChecked(config.ta_transfer_learning)
         self._set_combo_data(self.ta_transfer_opt, config.ta_transfer_optimizer)
+        self.ta_growing_cb.setChecked(bool(getattr(config, "ta_growing", False)))
+        self.ta_backward_cb.setChecked(bool(getattr(config, "ta_backward", False)))
+        self.ta_backward_w.setValue(float(getattr(config, "ta_backward_weight", 100.0)))
+        self.ta_backward_nt.setValue(int(getattr(config, "ta_backward_times", 10)))
+        self.ta_backward_np.setValue(int(getattr(config, "ta_backward_points", 2000)))
+        self.ta_icgl.setValue(float(getattr(config, "ta_icgl_fraction", 0.0)))
 
         # Export / plot-output settings
         self.export_enabled_cb.setChecked(getattr(config, "export_enabled", False))
