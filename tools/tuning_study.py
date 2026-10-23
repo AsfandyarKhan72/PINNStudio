@@ -99,6 +99,9 @@ def _has_lbfgs(cfg):
 
 def apply_variant(cfg, variant, tkey=None):
     """Return a changed copy of cfg, or None when the variant does not apply."""
+    if variant == "plain" or variant.startswith("paper_"):     # the papers comparison (paper_methods.py)
+        import paper_methods
+        return paper_methods.apply(cfg, variant, tkey)
     cfg = copy.deepcopy(cfg)
     if variant == "windows2":                        # twice the time windows
         if not cfg.time_adaptive or not (cfg.ta_step_groups or "").strip():
