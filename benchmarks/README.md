@@ -1489,6 +1489,8 @@ where $\gamma_1 = 0.0001$ and $\gamma_2 = 5$.
 - **Unknowns:** gamma_1 (initial guess 1.0, true 0.0001), gamma_2 (initial guess 1.0, true 5.0)
 - **Measured data:** t_1.0.txt for u (weight 100)
 
+*From the paper, and PINNStudio's choices where it is silent:* W&Z Sec. 3.1, Table 3.1 ("resampling" trial, their best on this problem, rel. L2 2.33e-2): 4 × 128 tanh, weighted loss C0 = 100 (Sec. 2.2.1 default), 2,000 LHS collocation points + 200 added per resampling, about six resamplings, Adam then L-BFGS-B. Not stated: Adam lr/iterations, L-BFGS settings, N_u, N_b (Sec. 3.1 defaults N_u = N_b = 200 used). Resampling = PINNStudio's RAR (residual-based refinement).
+
 *The paper has no inverse problem; Inverse uses the template's own setup.*
 
 **In PINNStudio:** in the toolbar, Examples: **Forward** (or **Inverse**) → **Allen-Cahn 1D – Wight & Zhao** → **Default**, then Solve.
@@ -1498,7 +1500,12 @@ where $\gamma_1 = 0.0001$ and $\gamma_2 = 5$.
 <details>
 <summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
 
-*Forward problem:* the same as Default (no change did better, or no tuning was needed).
+*Forward problem — the template's own settings:*
+
+- **Network:** multi-scale Fourier features (MsFFN) 4 × 128 (2 inputs, 1 output), tanh, Glorot uniform, scales 1, 5
+- **Points:** 10,000 domain, 512 initial, 200 boundary
+- **Training:** Adam 20,000 → L-BFGS 10,000
+- **Methods:** exact initial condition (built into the network) for u; exact periodicity (periodic input features); causal training
 
 *Inverse problem:* the same as Default (no change did better, or no tuning was needed).
 
@@ -1580,6 +1587,8 @@ where $\gamma_1 = 10^{-6}$ and $\gamma_2 = 0.01$. The fourth-order equation is s
 - **Loss weights:** equations 1; boundary 1; initial 100
 - **Methods:** time-adaptive training: 10 time windows, one network on a growing time range
 
+*From the paper, and PINNStudio's choices where it is silent:* W&Z Sec. 3.2: one network (u, mu), 4 × 128 tanh, time-adaptive approach I + resampling, Adam lr 1e-3 (max 20,000) then L-BFGS-B, weighted loss "as for AC" (C0 = 100); rel. L2 9.51e-3. Not stated: the time step of approach I (0.1 used, as their 1D AC), iterations per stage, the resampling schedule.
+
 **In PINNStudio:** in the toolbar, Examples: **Forward** (or **Inverse**) → **Cahn-Hilliard 1D – Wight & Zhao** → **Default**, then Solve.
 
 </details>
@@ -1587,7 +1596,12 @@ where $\gamma_1 = 10^{-6}$ and $\gamma_2 = 0.01$. The fourth-order equation is s
 <details>
 <summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
 
-*Forward problem:* the same as Default (no change did better, or no tuning was needed).
+*Forward problem — the template's own settings:*
+
+- **Network:** FNN 4 × 128 (2 inputs, 2 outputs), tanh, Glorot uniform
+- **Points:** 10,000 domain, 512 initial, 200 boundary
+- **Training:** Adam 20,000 → L-BFGS 20,000
+- **Methods:** exact initial condition (built into the network) for u; exact periodicity (periodic input features); SA-PINN per-point weights
 
 **In PINNStudio:** in the toolbar, Examples: **Forward** (or **Inverse**) → **Cahn-Hilliard 1D – Wight & Zhao** → **Tuned**, then Solve.
 
@@ -1647,6 +1661,8 @@ where $\alpha = 0.02$ and $\kappa = 1$. As in the paper (its phase-space form, e
 - **Loss weights:** equations 1; boundary 1; initial 64
 - **Methods:** time-adaptive training: 10 time windows, a network per window, each starting from the previous one, backward-compatibility term (weight 64), initial-condition guided learning (0.1 of Adam)
 
+*From the paper, and PINNStudio's choices where it is silent:* M&G Sec. 5.2, Table 3 [PAR]: bc-PINN, (h, mu), 6 × 128, N_i = 128, N_b = 20 and N_r = 10,000 per segment, 20 steps (0.1) per segment → 10 segments, 10,000 Adam per segment then L-BFGS, ICGL + TL; rel. L2 1.86e-2. Weights for CH are not stated: 64 on IC and backward terms as in their AC code.
+
 **In PINNStudio:** in the toolbar, Examples: **Forward** (or **Inverse**) → **Cahn-Hilliard 1D – Mattey & Ghosh** → **Default**, then Solve.
 
 </details>
@@ -1656,11 +1672,11 @@ where $\alpha = 0.02$ and $\kappa = 1$. As in the paper (its phase-space form, e
 
 *Forward problem:*
 
-- **Network:** FNN 6 × 128 (2 inputs, 2 outputs), tanh, Glorot uniform
-- **Points:** 10,000 domain, 128 initial, 20 boundary
-- **Training:** Adam 10,000 → L-BFGS 50,000
+- **Network:** FNN 4 × 128 (2 inputs, 2 outputs), tanh, Glorot uniform
+- **Points:** 10,000 domain, 512 initial, 200 boundary
+- **Training:** Adam 5,000 → L-BFGS 5,000
 - **Loss weights:** equations 1; boundary 1; initial 100
-- **Methods:** exact periodicity (periodic input features); SA-PINN per-point weights; time-adaptive training: 10 time windows, a network per window, each starting from the previous one, backward-compatibility term (weight 64), initial-condition guided learning (0.1 of Adam)
+- **Methods:** exact periodicity (periodic input features); SA-PINN per-point weights; time-adaptive training: 19 time windows, a network per window, each starting from the previous one
 
 **In PINNStudio:** in the toolbar, Examples: **Forward** (or **Inverse**) → **Cahn-Hilliard 1D – Mattey & Ghosh** → **Tuned**, then Solve.
 
@@ -1837,6 +1853,8 @@ with true values $\lambda_1 = 1.0$ and $\lambda_2 = 0.01/\pi$ (the template writ
 - **Loss weights:** equations 1; boundary 1; initial 100; measured data 100
 - **Unknowns:** lambda_1 (initial guess 0.1, true 1.0), lambda_2 (initial guess 1.0, true 0.01)
 - **Measured data:** t_1.0.txt for u (weight 100)
+
+*From the paper, and PINNStudio's choices where it is silent:* Raissi et al. Sec. 2.1 and their code: 8x20 tanh (3,021 parameters), N_u = 100 IC/BC points, N_f = 10,000 LHS points, L-BFGS-B only (maxiter 50,000), equal weights; rel. L2 6.7e-4. The code normalises inputs to [-1, 1] (not done here; x is already in [-1, 1], t in [0, 1]).
 
 *The paper has no inverse problem; Inverse uses the template's own setup.*
 
@@ -3891,6 +3909,8 @@ with true values $\lambda = 10$ and $\lambda\varepsilon^2 = 0.00625$.
 - **Unknowns:** lambda_ (initial guess 1.0, true 10.0), diff_coeff (initial guess 1.0, true 0.00625)
 - **Measured data:** t_2.5.txt for phi (weight 100)
 
+*From the paper, and PINNStudio's choices where it is silent:* Wight & Zhao's benchmarks (Sec. 3.1-3.2, Figs. 3.8, 3.9, 3.13): approach II, a separate network per time window starting from the previous one's prediction, 6 × 128, weighted loss C0 = 10^3, Adam with mini-batch 32 for 100 epochs per network, then L-BFGS-B. Not stated: the points, the BCs, the Adam learning rate and the L-BFGS settings; whether a network starts from the previous one's weights (here not). PINNStudio trains full batch: 10,000 Adam + 10,000 L-BFGS per window, the template's points and BCs. Sec. 3.1, Fig. 3.8: Δt = 1 on t in [0, 10] (the caption also says 0.2; the text says 1) → 10 windows.
+
 *The paper has no inverse problem; Inverse uses the template's own setup.*
 
 **In PINNStudio:** in the toolbar, Examples: **Forward** (or **Inverse**) → **Allen-Cahn 2D – Wight & Zhao** → **Default**, then Solve.
@@ -3902,9 +3922,9 @@ with true values $\lambda = 10$ and $\lambda\varepsilon^2 = 0.00625$.
 
 *Forward problem:*
 
-- **Network:** FNN 6 × 128 (3 inputs, 1 output), tanh, Glorot uniform
+- **Network:** FNN 4 × 128 (3 inputs, 1 output), tanh, Glorot uniform
 - **Points:** 10,000 domain, 512 initial, 400 boundary
-- **Training:** Adam 10,000 → L-BFGS 10,000
+- **Training:** Adam 20,000 → L-BFGS 10,000
 - **Loss weights:** equations 1; boundary 1; initial 100
 - **Methods:** exact periodicity (periodic input features); RBA per-point weights; time-adaptive training: 10 time windows, a network per window, each starting from the previous one
 
@@ -4005,6 +4025,8 @@ where $c_1^2 = 0.0001$ and $c_2 = 1$.
 - **Unknowns:** c1_sq (initial guess 1.0, true 0.0001), c2 (initial guess 0.1, true 1.0)
 - **Measured data:** t_0.25.txt for h (weight 100); t_0.5.txt for h (weight 100); t_0.75.txt for h (weight 100); t_1.0.txt for h (weight 100)
 
+*From the paper, and PINNStudio's choices where it is silent:* M&G Sec. 6.1.1, Table 4 [PAR] (IBVP-1): bc-PINN 6 × 128, N_i = 4096 (the 64^2 grid), N_b = 640 and N_r = 20,000 per segment, 20 steps (0.2) per segment → 5 segments, 15,000 Adam per segment of which 20% ICGL, then 10,000 L-BFGS; rel. L2 2.5e-2 (> 95% without ICGL). Weights not stated: 64 as in their code. Backward points (not stated): 1,000 of the 64^2 grid x 10 times per segment.
+
 *The paper has no inverse problem; Inverse uses the template's own setup.*
 
 **In PINNStudio:** in the toolbar, Examples: **Forward** (or **Inverse**) → **Allen-Cahn 2D – Mattey & Ghosh** → **Default**, then Solve.
@@ -4016,9 +4038,9 @@ where $c_1^2 = 0.0001$ and $c_2 = 1$.
 
 *Forward problem:*
 
-- **Network:** FNN 6 × 128 (3 inputs, 1 output), tanh, Glorot uniform
-- **Points:** 20,000 domain, 4,096 initial, 640 boundary
-- **Training:** Adam 12,000 → L-BFGS 10,000
+- **Network:** FNN 4 × 128 (3 inputs, 1 output), tanh, Glorot uniform
+- **Points:** 10,000 domain, 512 initial, 400 boundary
+- **Training:** Adam 20,000 → L-BFGS 10,000
 - **Methods:** exact initial condition (built into the network) for h; exact periodicity (periodic input features); SA-PINN per-point weights
 
 *Inverse problem:* the same as Default (no change did better, or no tuning was needed).
@@ -4113,6 +4135,8 @@ where $\lambda = 1$ and $\varepsilon = 0.05$. As in the 1D example, the chemical
 - **Unknowns:** eps_sq (initial guess 1.0, true 0.0025)
 - **Measured data:** t_1_phi.txt for phi (weight 100)
 
+*From the paper, and PINNStudio's choices where it is silent:* Wight & Zhao's benchmarks (Sec. 3.1-3.2, Figs. 3.8, 3.9, 3.13): approach II, a separate network per time window starting from the previous one's prediction, 6 × 128, weighted loss C0 = 10^3, Adam with mini-batch 32 for 100 epochs per network, then L-BFGS-B. Not stated: the points, the BCs, the Adam learning rate and the L-BFGS settings; whether a network starts from the previous one's weights (here not). PINNStudio trains full batch: 10,000 Adam + 10,000 L-BFGS per window, the template's points and BCs. Sec. 3.2, Fig. 3.13: (u, mu) network, Δt = 0.2 on [0, 1] → 5 windows.
+
 *The paper has no inverse problem; Inverse uses the template's own setup.*
 
 **In PINNStudio:** in the toolbar, Examples: **Forward** (or **Inverse**) → **Cahn-Hilliard 2D – Wight & Zhao** → **Default**, then Solve.
@@ -4124,11 +4148,11 @@ where $\lambda = 1$ and $\varepsilon = 0.05$. As in the 1D example, the chemical
 
 *Forward problem:*
 
-- **Network:** FNN 6 × 128 (3 inputs, 2 outputs), tanh, Glorot uniform
+- **Network:** FNN 4 × 128 (3 inputs, 2 outputs), tanh, Glorot uniform
 - **Points:** 20,000 domain, 1,024 initial, 800 boundary
-- **Training:** Adam 30,000 → L-BFGS 30,000
-- **Loss weights:** equations 1; boundary 1; initial 1000
-- **Methods:** time-adaptive training: 5 time windows, a separate network per window
+- **Training:** Adam 60,000 → L-BFGS 60,000
+- **Loss weights:** equations 1; boundary 1; initial 100
+- **Methods:** exact periodicity (periodic input features)
 
 *Inverse problem:* the same as Default (no change did better, or no tuning was needed).
 
@@ -4225,6 +4249,8 @@ $$\Large \frac{\partial h}{\partial t'} = 0.005\left(\frac{\partial^2 \mu}{\part
 - **Unknowns:** alpha (initial guess 1.0, true 0.0002), kappa (initial guess 0.1, true 1.0)
 - **Measured data:** t_1_h.txt for h (weight 100)
 
+*From the paper, and PINNStudio's choices where it is silent:* M&G Sec. 6.2.1, Table 7 (IBVP-2, the template's problem; t in (0, 0.005] in the paper, rescaled to [0, 1] in the template): bc-PINN, (h, mu), 5 × 128, N_i = 4096 (64^2), N_b = 1600 and N_r = 50,000 per segment, 25 steps per segment → 4 segments, 50,000 Adam and up to 75,000 L-BFGS per segment, ICGL, transfer learning with one more frozen layer per segment (layer freezing is not in PINNStudio). Not stated: the loss weights (64 as in their AC code), the ICGL fraction (20% as in their 2D AC).
+
 *The paper has no inverse problem; Inverse uses the template's own setup.*
 
 **In PINNStudio:** in the toolbar, Examples: **Forward** (or **Inverse**) → **Cahn-Hilliard 2D – Mattey & Ghosh** → **Default**, then Solve.
@@ -4234,7 +4260,12 @@ $$\Large \frac{\partial h}{\partial t'} = 0.005\left(\frac{\partial^2 \mu}{\part
 <details>
 <summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
 
-*Forward problem:* the same as Default (no change did better, or no tuning was needed).
+*Forward problem — the template's own settings:*
+
+- **Network:** FNN 4 × 128 (3 inputs, 2 outputs), tanh, Glorot uniform
+- **Points:** 20,000 domain, 1,024 initial, 800 boundary
+- **Training:** Adam 20,000 → L-BFGS 20,000
+- **Methods:** exact initial condition (built into the network) for h; exact periodicity (periodic input features); SA-PINN per-point weights
 
 *Inverse problem:* the same as Default (no change did better, or no tuning was needed).
 
@@ -4356,6 +4387,8 @@ Error Analysis — PINN vs Ground Truth, for each output:
 - **Unknowns:** nu (initial guess 1.0, true 0.00318309886184)
 - **Measured data:** t_1.0_u.txt for u (weight 100); t_1.0_v.txt for v (weight 100)
 
+*From the paper, and PINNStudio's choices where it is silent:* Mathias et al. Sec. 2 and their code (github.com/C4AI/PINN_for_Burgers): the IC and the zero BCs built into the output, U = d*N + (1 - d)*U0 with d = 16x(1-x)y(1-y)tanh(26.4t); 4x20 tanh with residual connections every two layers (PINNStudio: a plain 4x20 network); mean absolute error loss; n_f = 10,000 uniform physics points and no solution data (their pure-physics case); Adam lr 1e-2 for 99,999 steps, full batch, no L-BFGS.
+
 *The paper has no inverse problem; Inverse uses the template's own setup.*
 
 **In PINNStudio:** in the toolbar, Examples: **Forward** (or **Inverse**) → **Burgers 2D – Mathias et al.** → **Default**, then Solve.
@@ -4367,10 +4400,11 @@ Error Analysis — PINN vs Ground Truth, for each output:
 
 *Forward problem:*
 
-- **Network:** FNN 4 × 20 (3 inputs, 2 outputs), tanh, Glorot uniform
-- **Points:** 10,000 domain
-- **Training:** Adam 299,997 (lr 0.01), MAE loss
-- **Methods:** initial and boundary conditions built into the output (output transform formula)
+- **Network:** FNN 4 × 128 (3 inputs, 2 outputs), tanh, Glorot uniform
+- **Points:** 8,000 domain, 2,000 initial, 2,000 boundary
+- **Training:** Adam 45,000 → L-BFGS 30,000
+- **Loss weights:** equations 1; boundary 1; initial 100
+- **Methods:** time-adaptive training: 4 time windows, a network per window, each starting from the previous one
 
 *Inverse problem:* the same as Default (no change did better, or no tuning was needed).
 
@@ -4698,6 +4732,8 @@ where $\lambda = 10$ and $\varepsilon = 0.05$ ($\lambda\varepsilon^2 = 0.025$). 
 - **Unknowns:** lambda_ (initial guess 1.0, true 10.0), diff_coeff (initial guess 1.0, true 0.025)
 - **Measured data:** t_1.txt for phi (weight 100)
 
+*From the paper, and PINNStudio's choices where it is silent:* Wight & Zhao's benchmarks (Sec. 3.1-3.2, Figs. 3.8, 3.9, 3.13): approach II, a separate network per time window starting from the previous one's prediction, 6 × 128, weighted loss C0 = 10^3, Adam with mini-batch 32 for 100 epochs per network, then L-BFGS-B. Not stated: the points, the BCs, the Adam learning rate and the L-BFGS settings; whether a network starts from the previous one's weights (here not). PINNStudio trains full batch: 10,000 Adam + 10,000 L-BFGS per window, the template's points and BCs. Sec. 3.1, Fig. 3.9: Δt = 0.5 on [0, 1] → 2 windows.
+
 *The paper has no inverse problem; Inverse uses the template's own setup.*
 
 **In PINNStudio:** in the toolbar, Examples: **Forward** (or **Inverse**) → **Allen-Cahn 3D – Wight & Zhao** → **Default**, then Solve.
@@ -4707,7 +4743,13 @@ where $\lambda = 10$ and $\varepsilon = 0.05$ ($\lambda\varepsilon^2 = 0.025$). 
 <details>
 <summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
 
-*Forward problem:* the same as Default (no change did better, or no tuning was needed).
+*Forward problem — the template's own settings:*
+
+- **Network:** FNN 4 × 128 (4 inputs, 1 output), tanh, Glorot uniform
+- **Points:** 30,000 domain, 2,000 initial, 1,500 boundary
+- **Training:** Adam 20,000 → L-BFGS 20,000
+- **Loss weights:** equations 1; boundary 1; initial 100
+- **Methods:** exact periodicity (periodic input features)
 
 *Inverse problem:* the same as Default (no change did better, or no tuning was needed).
 

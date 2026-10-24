@@ -219,6 +219,7 @@ def template_config(key, inverse):
     from pinnstudio.ui.main_window import MainWindow
     w = MainWindow()
     w._maybe_save_changes = lambda: True
+    w._apply_example_settings_mode = lambda key: None   # the template's own settings, not Settings: Default
     _app.processEvents()
     if inverse:
         w.quick_examples_category_combo.setCurrentText("Inverse")

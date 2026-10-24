@@ -584,6 +584,23 @@ def _base_config(e, inverse):
     return ts.template_config(e.key, inverse)
 
 
+def _paper_note(key, variant):
+    """What the paper states for its method and what PINNStudio chooses where it does not: the comments of
+    the method's function in pinnstudio/core/paper_settings.py."""
+    import inspect
+    from pinnstudio.core import paper_settings as ps
+    f = ps.PAPER.get((key, variant))
+    if f is None:
+        return ""
+    src = inspect.getsource(f)
+    lines = [ln.strip()[1:].strip() for ln in src.splitlines() if ln.strip().startswith("#")]
+    if "_wz_approach2(" in src:
+        lines = [ln.strip()[1:].strip() for ln in inspect.getsource(ps._wz_approach2).splitlines()
+                 if ln.strip().startswith("#")] + lines
+    txt = " ".join(lines).replace("Delta t", "Δt").replace("->", "→").replace("x128", " × 128")
+    return f"*From the paper, and PINNStudio's choices where it is silent:* {txt}" if txt else ""
+
+
 def _settings_toggles(r):
     """Two toggles: the Default settings (DeepXDE's, a paper's method, or the template's own) and
     PINNStudio best (Settings: Tuned), forward and inverse, with how to load them."""
@@ -602,11 +619,13 @@ def _settings_toggles(r):
             except Exception as ex:             # an example that cannot be built here: say so
                 body.append(f"*{'Inverse' if inverse else 'Forward'}: not available here ({str(ex)[:80]}).*\n")
                 continue
-            same = mode == es.TUNED and cfg is base
             head = "Inverse problem" if inverse else "Forward problem"
-            if same:
-                body.append(f"*{head}:* the same as Default (no change did better, or no tuning was needed).\n")
-                continue
+            if mode == es.TUNED and cfg is base:
+                dflt = es.settings_for(base, e.key, inverse and not inv_only, es.DEFAULT)[0]
+                if dflt is base:
+                    body.append(f"*{head}:* the same as Default (no change did better, or no tuning was needed).\n")
+                    continue
+                head += " — the template's own settings"     # Default is the paper's method; these differ
             body.append(f"*{head}:*\n\n" + _settings_md(cfg, inverse or inv_only) + "\n")
         cat_md = "**Inverse**" if inv_only else "**Forward** (or **Inverse**)"
         how = f"**In PINNStudio:** in the toolbar, Examples: {cat_md} → **{e.name}** → **{mode}**, then Solve."
@@ -619,6 +638,8 @@ def _settings_toggles(r):
                 title = f"Default: {PAPER_NAME[paper]}, as in the paper"
             note = ("" if not (paper and True in modes) else
                     "\n*The paper has no inverse problem; Inverse uses the template's own setup.*\n")
+            if paper:
+                note = "\n" + _paper_note(e.key, paper) + "\n" + note
             summ = f"⚙️ <em>Default settings — {title.replace('Default: ', '')}</em>"
         else:
             note = ""
