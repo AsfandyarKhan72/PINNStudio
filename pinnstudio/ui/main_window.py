@@ -14398,7 +14398,7 @@ print("DOMAIN_PREVIEW_DONE")
             },
             "2D Allen-Cahn (Wight & Zhao)": {
                 'pde': ["dphi_t - 0.00625*(dphi_xx + dphi_yy) + 10*(phi**3 - phi)"],
-                'ic': ["tanh((0.35 - sqrt((x-0.5)**2 + (y-0.5)**2)) / (2*0.025))"],
+                'ic': ["tanh((0.35 - sqrt((x-0.5)**2 + (y-0.5)**2 + 1e-6)) / (2*0.025))"],
                 'num_domain': 10000,
                 'num_boundary': 400,
                 'num_initial': 512,
