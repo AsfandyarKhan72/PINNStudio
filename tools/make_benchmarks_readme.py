@@ -105,16 +105,27 @@ def _anchor(name):
     return m.group(1) if m else None
 
 
-def _figs_md(s, which):
-    """The tuning study's figures of entry s: which = "own" or "tuned"."""
-    if s is None:
+NEEDED = []   # (run folder, variant) whose figures the page shows: benchmarks/tuning/figures_needed.txt
+
+
+def _figs_md(s, variant, raw_chosen=None, slug=None):
+    """Figures of one run: <variant>_*.png in the run folder's figure folder (older collections: own_* for the
+    reference settings, tuned_* for the study's own choice raw_chosen). Notes the run in NEEDED."""
+    if s is None and slug is None:
         return []
-    slug = ts._slug(s["name"]) + ("_inv" if s["inverse"] else "")
+    slug = slug or (ts._slug(s["name"]) + ("_inv" if s["inverse"] else ""))
+    NEEDED.append((slug, variant))
     folder = os.path.join(mtp.FIG_ROOT, slug)
     if not os.path.isdir(folder):
         return []
-    names = sorted(f for f in os.listdir(folder) if f.startswith(which + "_") and f.endswith(".png"))
-    surf = [n for n in names if "surface_comparison" in n]
+    files = sorted(f for f in os.listdir(folder) if f.endswith(".png"))
+    names = [f for f in files if f.startswith(variant + "_")]
+    if not names and variant == "base":
+        names = [f for f in files if f.startswith("own_")]
+    if not names and raw_chosen == variant and variant != "base":
+        names = [f for f in files if f.startswith("tuned_")]
+    names.sort(key=lambda n: (bool(re.search(r"_(mu|v|w|p|q)\.png$", n)), n))   # the main output first
+    surf = [n for n in names if "surface_comparison" in n or "view3d" in n]
     line = [n for n in names if "line_comparison" in n]
     keep = (surf or line) + [n for n in names if n.endswith("param_plot.png")]
     return [os.path.relpath(os.path.join(folder, n), os.path.dirname(PAGE)).replace(os.sep, "/") for n in keep]
@@ -203,7 +214,7 @@ def _pick(s, inverse):
     low = min(e for e, _, _ in stats.values())
     ok = [v for v, (e, _, _) in stats.items() if e <= SAME * low]
     v = min(ok, key=lambda v: stats[v][1])
-    return dict(s, chosen=v, tuned=stats[v][2])
+    return dict(s, chosen=v, tuned=stats[v][2], _raw_chosen=s.get("chosen"))
 
 
 
@@ -411,7 +422,7 @@ def _section(r):
         else:
             a("| Training | L₂ | Time (s) |\n|---|---|---|")
             cols = ""
-        fmark = r["f_best_s"] if r["f_best_is_setup"] else r["f_plain_s"]
+        fmark = r["f_best_s"]       # _pick's copy: its "chosen" is PINNStudio best
         rows = _sweep_rows(r["f_plain_s"], ref_name, False, mark=fmark)
         if not r["f_plain_s"] and not paper_rows:
             rows = [(ref_name + (" (README)" if r["f_ref_src"] == "README" else ""), r["f_ref"], None, None, False, None)]
@@ -453,37 +464,68 @@ def _section(r):
         if r["deepxde"] and r.get("i_s") and not e.key.startswith("Inverse:") and e.problem != cat.INVERSE:
             a("*DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*\n")
 
-    # figures: reference first, then PINNStudio's best; forward, then inverse
-    ref_lbl = "DeepXDE's settings" if r["deepxde"] else "the template's starting settings"
+    # figures, in two toggles: forward, then inverse. Forward: the reference (DeepXDE's settings; for a
+    # template from a paper the paper's method run in PINNStudio; else the template's starting settings) and
+    # PINNStudio best. Inverse: DeepXDE's settings and PINNStudio best for DeepXDE's own inverse examples,
+    # else PINNStudio best (the papers have no inverse problem; DeepXDE's forward examples have no inverse
+    # setup of their own).
     fwd_r, inv_r = _readme_images(e.name)
-    blocks = []
+
+    def toggle(title, blocks):
+        blocks = [(t, p) for t, p in blocks if p or t.startswith("*")]
+        if not blocks:
+            return
+        a(f"<details>\n<summary><strong>{title}</strong></summary>\n")
+        for t, paths in blocks:
+            if t.startswith("*"):          # a note in place of figures
+                a(t + "\n")
+                continue
+            a(f"*{t}:*\n")
+            for pth in paths:
+                pth = pth if pth.startswith(("figures/", "../", "http")) else "../" + pth
+                a(_img(pth, f"{e.name}: {t}") + "\n")
+        a("</details>\n")
+
     if has_f:
-        own = _figs_md(r["f_plain_s"], "own") if r["f_plain_s"] else []
-        best_s = r["f_best_s"]
-        tuned = ((_figs_md(best_s, "own") if r["f_keep"] else _figs_md(best_s, "tuned"))
-                 or (_figs_md(best_s, "own") if r["f_best_is_setup"] else [])) if best_s else []
-        if best_s and (best_s["chosen"] == "base" or r["f_keep"]) and not r["f_best_is_setup"]:
-            tuned = []
-        if own:
-            blocks.append((f"Forward, {ref_lbl}", own))
-        elif fwd_r:
-            blocks.append(("Forward, the README's result", [p for _, p in fwd_r[:1]]))
-        if tuned:
-            blocks.append(("Forward, PINNStudio best", tuned))
+        blocks = []
+        best_s, raw = r["f_best_s"], (r["f_plain_s"] or {})
+        best_v = best_s["chosen"] if best_s else None
+        best_raw = (raw.get("chosen") if not r["f_best_is_setup"] else (best_s or {}).get("_raw_chosen"))
+        best_figs = _figs_md(best_s, best_v, best_raw) if best_s else []
+        if paper_rows:
+            for _, _, v in r["paper"]:
+                if v in pr:
+                    blocks.append((f"{PAPER_NAME[v]}, run in PINNStudio", _figs_md(None, v, slug=ts._slug(r["key"]))))
+                else:
+                    blocks.append((f"*{PAPER_NAME[v]}, run in PINNStudio: the figures come when its run finishes.*", []))
+        else:
+            ref = "DeepXDE's settings" if r["deepxde"] else "The template's starting settings"
+            same = best_s and best_v == "base" and not r["f_best_is_setup"]
+            if raw:
+                blocks.append((ref + (" (also PINNStudio best)" if same else ""), _figs_md(raw, "base")))
+            elif fwd_r:
+                blocks.append((ref + " (README)", [p for _, p in fwd_r[:1]]))
+            if same:
+                best_figs = []
+        if best_s and best_figs:
+            blocks.append((f"PINNStudio best — {_best_label(r, False)}", best_figs))
+        elif not best_s and paper_rows and fwd_r:
+            blocks.append(("PINNStudio best (the template's own settings, README)", [p for _, p in fwd_r[:1]]))
+        toggle("Forward results: figures", blocks)
     if has_i:
-        own = _figs_md(r.get("i_s"), "own") if r.get("i_s") else []
-        tuned = _figs_md(r.get("i_s"), "tuned") if r.get("i_s") and r["i_s"]["chosen"] != "base" else []
-        if own:
-            blocks.append((f"Inverse, {ref_lbl}", own))
+        blocks = []
+        i_s = r.get("i_s")
+        own_inverse = r["deepxde"] and (e.key.startswith("Inverse:") or e.problem == cat.INVERSE)
+        if i_s:
+            v = i_s["chosen"]
+            raw_v = i_s.get("_raw_chosen")
+            if own_inverse and v != "base":
+                blocks.append(("DeepXDE's settings", _figs_md(i_s, "base")))
+            lab = _best_label(r, True)
+            blocks.append((f"PINNStudio best — {lab}", _figs_md(i_s, v, raw_v)))
         elif inv_r:
-            blocks.append(("Inverse, the README's result", [p for _, p in inv_r[:1]]))
-        if tuned:
-            blocks.append(("Inverse, PINNStudio best", tuned))
-    for title, paths in blocks:
-        a(f"*{title}:*\n")
-        for pth in paths:
-            pth = pth if pth.startswith(("figures/", "../", "http")) else "../" + pth
-            a(_img(pth, f"{e.name}: {title}") + "\n")
+            blocks.append(("PINNStudio best (README)", [p for _, p in inv_r[:1]]))
+        toggle("Inverse results: figures", blocks)
     a("</details>\n")
     return "\n".join(L)
 
@@ -506,8 +548,9 @@ def page(recs):
       "run, and when several runs are about as accurate (within 25% of the lowest error) the fastest of them, so "
       "a change that costs time without helping is not chosen; that run is marked 🔴 in the table and its time "
       "is repeated in the last row. For an inverse problem, accuracy is the error of "
-      "the learned parameters. These are the **Tuned** settings. Then come the figures: the "
-      "reference first, then PINNStudio's best, forward and then inverse.\n")
+      "the learned parameters. These are the **Tuned** settings. Below the tables, two toggles hold the figures: **Forward results** "
+      "(DeepXDE's settings, or for a template from a paper the paper's method run in PINNStudio, then PINNStudio's best) "
+      "and **Inverse results** (PINNStudio's best; for DeepXDE's own inverse examples DeepXDE's settings first).\n")
     a("For a **template taken from a paper**, the forward table also lists a **base PINN** — the baseline "
       "each paper compares against, with the paper's network and points for it, soft initial and boundary "
       "conditions, the whole time interval, equal loss weights and no adaptive technique, the error the paper reports and the "
@@ -598,6 +641,10 @@ def main():
     figure(recs, FIG)
     with open(PAGE, "w", encoding="utf-8") as f:
         f.write(page(recs))
+    # the runs whose figures the page shows, for the figure collection on the GPU machine
+    need = os.path.join(os.path.dirname(PAGE), "tuning", "figures_needed.txt")
+    with open(need, "w", encoding="utf-8") as f:
+        f.write("".join(f"{slug} {v}\n" for slug, v in dict.fromkeys(NEEDED)))
     print(f"wrote {PAGE} ({len(recs)} examples)")
 
 

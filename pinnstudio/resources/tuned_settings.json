@@ -139,6 +139,11 @@
    "switches": null,
    "variant": "net",
    "error": "L2 2.3e-03 vs 6.9e-02 with its own settings"
+  },
+  "inverse": {
+   "switches": null,
+   "variant": "all",
+   "error": "parameter error 0.91%"
   }
  },
  "Schrödinger equation": {
@@ -153,6 +158,11 @@
    "switches": null,
    "variant": "all",
    "error": "L2 1.5e-03 vs 3.0e-01 with its own settings"
+  },
+  "inverse": {
+   "switches": null,
+   "variant": "all",
+   "error": "parameter error 0%"
   }
  },
  "Inverse: diffusion equation": {

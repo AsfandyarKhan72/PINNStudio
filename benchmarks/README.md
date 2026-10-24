@@ -2,7 +2,7 @@
 
 *Every example of PINNStudio, forward and inverse, with the result of its reference settings and PINNStudio's best. Updated as the runs finish.*
 
-**How to read an example.** Each example opens to one table for the forward problem and one for the inverse problem. The first row is the reference: **DeepXDE's own settings** for a DeepXDE example, the **template's starting settings** for a PINNStudio template (the settings PINNStudio's template was written with, before the tuning study; for a template from a paper this is not the paper's method, which has its own row). The next rows are the tuning study's changes, each tried on its own and then all together: 3× the iterations, a larger network (twice as wide, one more layer), 3× the training points, an L-BFGS phase after Adam (for inverse problems also 10× the weight of the measured data and 3× the L-BFGS iterations). The last row, **PINNStudio best**, is the most accurate run, and when several runs are about as accurate (within 25% of the lowest error) the fastest of them, so a change that costs time without helping is not chosen; that run is marked 🔴 in the table and its time is repeated in the last row. For an inverse problem, accuracy is the error of the learned parameters. These are the **Tuned** settings. Then come the figures: the reference first, then PINNStudio's best, forward and then inverse.
+**How to read an example.** Each example opens to one table for the forward problem and one for the inverse problem. The first row is the reference: **DeepXDE's own settings** for a DeepXDE example, the **template's starting settings** for a PINNStudio template (the settings PINNStudio's template was written with, before the tuning study; for a template from a paper this is not the paper's method, which has its own row). The next rows are the tuning study's changes, each tried on its own and then all together: 3× the iterations, a larger network (twice as wide, one more layer), 3× the training points, an L-BFGS phase after Adam (for inverse problems also 10× the weight of the measured data and 3× the L-BFGS iterations). The last row, **PINNStudio best**, is the most accurate run, and when several runs are about as accurate (within 25% of the lowest error) the fastest of them, so a change that costs time without helping is not chosen; that run is marked 🔴 in the table and its time is repeated in the last row. For an inverse problem, accuracy is the error of the learned parameters. These are the **Tuned** settings. Below the tables, two toggles hold the figures: **Forward results** (DeepXDE's settings, or for a template from a paper the paper's method run in PINNStudio, then PINNStudio's best) and **Inverse results** (PINNStudio's best; for DeepXDE's own inverse examples DeepXDE's settings first).
 
 For a **template taken from a paper**, the forward table also lists a **base PINN** — the baseline each paper compares against, with the paper's network and points for it, soft initial and boundary conditions, the whole time interval, equal loss weights and no adaptive technique, the error the paper reports and the paper's own method run in PINNStudio ([how they are set up](paper_comparison.md)); for a template run from the [training methods study](training_methods.md)'s best setup, the changes are tried on that setup. Where a DeepXDE example has no inverse problem of its own, the inverse table is PINNStudio's inverse mode of it.
 
@@ -28,9 +28,14 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | DeepXDE's settings (README) | 1.5 × 10<sup>-4</sup> | – |
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **1.5 × 10<sup>-4</sup>** | – |
 
-*Forward, the README's result:*
+<details>
+<summary><strong>Forward results: figures</strong></summary>
 
-![Integro-differential ODE: Forward, the README's result](../assets/Images/DeepXDE/Integro_differential_equation/line_comparison.png)
+*DeepXDE's settings (README):*
+
+![Integro-differential ODE: DeepXDE's settings (README)](../assets/Images/DeepXDE/Integro_differential_equation/line_comparison.png)
+
+</details>
 
 </details>
 
@@ -46,9 +51,14 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | DeepXDE's settings (README) | 2.5 × 10<sup>-3</sup> | – |
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **2.5 × 10<sup>-3</sup>** | – |
 
-*Forward, the README's result:*
+<details>
+<summary><strong>Forward results: figures</strong></summary>
 
-![Integro-differential ODE – Volterra kernel: Forward, the README's result](../assets/Images/DeepXDE/Volterra_integro_differential_equation/line_comparison.png)
+*DeepXDE's settings (README):*
+
+![Integro-differential ODE – Volterra kernel: DeepXDE's settings (README)](../assets/Images/DeepXDE/Volterra_integro_differential_equation/line_comparison.png)
+
+</details>
 
 </details>
 
@@ -77,25 +87,27 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 *DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*
 
-*Forward, the README's result:*
+<details>
+<summary><strong>Forward results: figures</strong></summary>
 
-![Linear ODE system: Forward, the README's result](../assets/Images/DeepXDE/ODE_system/line_comparison_y1.png)
+*DeepXDE's settings (README):*
 
-*Inverse, DeepXDE's settings:*
+![Linear ODE system: DeepXDE's settings (README)](../assets/Images/DeepXDE/ODE_system/line_comparison_y1.png)
 
-![Linear ODE system: Inverse, DeepXDE's settings](figures/tuning/ODE_system_inv/own_line_comparison_y1.png)
+</details>
 
-![Linear ODE system: Inverse, DeepXDE's settings](figures/tuning/ODE_system_inv/own_line_comparison_y2.png)
+<details>
+<summary><strong>Inverse results: figures</strong></summary>
 
-![Linear ODE system: Inverse, DeepXDE's settings](figures/tuning/ODE_system_inv/own_param_plot.png)
+*PINNStudio best — all of the changes together:*
 
-*Inverse, PINNStudio best:*
+![Linear ODE system: PINNStudio best — all of the changes together](figures/tuning/ODE_system_inv/all_line_comparison_y1.png)
 
-![Linear ODE system: Inverse, PINNStudio best](figures/tuning/ODE_system_inv/tuned_line_comparison_y1.png)
+![Linear ODE system: PINNStudio best — all of the changes together](figures/tuning/ODE_system_inv/all_line_comparison_y2.png)
 
-![Linear ODE system: Inverse, PINNStudio best](figures/tuning/ODE_system_inv/tuned_line_comparison_y2.png)
+![Linear ODE system: PINNStudio best — all of the changes together](figures/tuning/ODE_system_inv/all_param_plot.png)
 
-![Linear ODE system: Inverse, PINNStudio best](figures/tuning/ODE_system_inv/tuned_param_plot.png)
+</details>
 
 </details>
 
@@ -124,17 +136,27 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 *DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*
 
-*Forward, the README's result:*
+<details>
+<summary><strong>Forward results: figures</strong></summary>
 
-![Lotka-Volterra ODE: Forward, the README's result](../assets/Images/DeepXDE/Lotka_Volterra_equation/line_comparison_r.png)
+*DeepXDE's settings (README):*
 
-*Inverse, DeepXDE's settings:*
+![Lotka-Volterra ODE: DeepXDE's settings (README)](../assets/Images/DeepXDE/Lotka_Volterra_equation/line_comparison_r.png)
 
-![Lotka-Volterra ODE: Inverse, DeepXDE's settings](figures/tuning/Lotka_Volterra_equation_inv/own_line_comparison_p.png)
+</details>
 
-![Lotka-Volterra ODE: Inverse, DeepXDE's settings](figures/tuning/Lotka_Volterra_equation_inv/own_line_comparison_r.png)
+<details>
+<summary><strong>Inverse results: figures</strong></summary>
 
-![Lotka-Volterra ODE: Inverse, DeepXDE's settings](figures/tuning/Lotka_Volterra_equation_inv/own_param_plot.png)
+*PINNStudio best — the example's own settings (no change did better):*
+
+![Lotka-Volterra ODE: PINNStudio best — the example's own settings (no change did better)](figures/tuning/Lotka_Volterra_equation_inv/base_line_comparison_r.png)
+
+![Lotka-Volterra ODE: PINNStudio best — the example's own settings (no change did better)](figures/tuning/Lotka_Volterra_equation_inv/base_line_comparison_p.png)
+
+![Lotka-Volterra ODE: PINNStudio best — the example's own settings (no change did better)](figures/tuning/Lotka_Volterra_equation_inv/base_param_plot.png)
+
+</details>
 
 </details>
 
@@ -163,21 +185,25 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 *DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*
 
-*Forward, the README's result:*
+<details>
+<summary><strong>Forward results: figures</strong></summary>
 
-![Second-order ODE: Forward, the README's result](../assets/Images/DeepXDE/Second_order_ODE/line_comparison.png)
+*DeepXDE's settings (README):*
 
-*Inverse, DeepXDE's settings:*
+![Second-order ODE: DeepXDE's settings (README)](../assets/Images/DeepXDE/Second_order_ODE/line_comparison.png)
 
-![Second-order ODE: Inverse, DeepXDE's settings](figures/tuning/Second_order_ODE_inv/own_line_comparison.png)
+</details>
 
-![Second-order ODE: Inverse, DeepXDE's settings](figures/tuning/Second_order_ODE_inv/own_param_plot.png)
+<details>
+<summary><strong>Inverse results: figures</strong></summary>
 
-*Inverse, PINNStudio best:*
+*PINNStudio best — Larger network (2× width, one more layer):*
 
-![Second-order ODE: Inverse, PINNStudio best](figures/tuning/Second_order_ODE_inv/tuned_line_comparison.png)
+![Second-order ODE: PINNStudio best — Larger network (2× width, one more layer)](figures/tuning/Second_order_ODE_inv/net_line_comparison.png)
 
-![Second-order ODE: Inverse, PINNStudio best](figures/tuning/Second_order_ODE_inv/tuned_param_plot.png)
+![Second-order ODE: PINNStudio best — Larger network (2× width, one more layer)](figures/tuning/Second_order_ODE_inv/net_param_plot.png)
+
+</details>
 
 </details>
 
@@ -193,9 +219,14 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | DeepXDE's settings (README) | 1.0 × 10<sup>-4</sup> | C₁ = 10 (10); C₂ = 14.9998 (15); C₃ = 2.66664 (2.66667) | 0.0013% | – |
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **1.0 × 10<sup>-4</sup>** | C₁ = 10 (10); C₂ = 14.9998 (15); C₃ = 2.66664 (2.66667) | **0.0013%** | – |
 
-*Inverse, the README's result:*
+<details>
+<summary><strong>Inverse results: figures</strong></summary>
 
-![Lorenz ODE – unknown C₁, C₂, C₃: Inverse, the README's result](../assets/Images/DeepXDE/Inverse_Lorenz_system/line_comparison_y1.png)
+*PINNStudio best (README):*
+
+![Lorenz ODE – unknown C₁, C₂, C₃: PINNStudio best (README)](../assets/Images/DeepXDE/Inverse_Lorenz_system/line_comparison_y1.png)
+
+</details>
 
 </details>
 
@@ -211,9 +242,14 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | DeepXDE's settings (README) | 1.6 × 10<sup>-3</sup> | C₁ = 9.974 (10); C₂ = 14.996 (15); C₃ = 2.6669 (2.66667) | 0.26% | – |
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **1.6 × 10<sup>-3</sup>** | C₁ = 9.974 (10); C₂ = 14.996 (15); C₃ = 2.6669 (2.66667) | **0.26%** | – |
 
-*Inverse, the README's result:*
+<details>
+<summary><strong>Inverse results: figures</strong></summary>
 
-![Lorenz ODE – unknown C₁, C₂, C₃, exogenous input: Inverse, the README's result](../assets/Images/DeepXDE/Inverse_Lorenz_system_with_exogenous_input/line_comparison_y1.png)
+*PINNStudio best (README):*
+
+![Lorenz ODE – unknown C₁, C₂, C₃, exogenous input: PINNStudio best (README)](../assets/Images/DeepXDE/Inverse_Lorenz_system_with_exogenous_input/line_comparison_y1.png)
+
+</details>
 
 </details>
 
@@ -232,9 +268,9 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | 3× iterations | 5.2 × 10<sup>-3</sup> | 157 |
 | Larger network (2× width, one more layer) | 8.2 × 10<sup>-3</sup> | 74 |
 | 3× training points | 2.8 × 10<sup>-2</sup> | 56 |
-| L-BFGS phase added | 2.4 × 10<sup>-4</sup> | 59 |
-| 🔴 **All of the above together (3 seeds, median)** | **2.8 × 10<sup>-4</sup>** | **217** |
-| **PINNStudio best** (Settings: Tuned): L-BFGS phase added | **2.4 × 10<sup>-4</sup>** | **217** |
+| 🔴 **L-BFGS phase added** | **2.4 × 10<sup>-4</sup>** | **59** |
+| All of the above together (3 seeds, median) | 2.8 × 10<sup>-4</sup> | 217 |
+| **PINNStudio best** (Settings: Tuned): L-BFGS phase added | **2.4 × 10<sup>-4</sup>** | **59** |
 
 **Inverse problem**
 
@@ -249,25 +285,29 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 *DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*
 
-*Forward, DeepXDE's settings:*
+<details>
+<summary><strong>Forward results: figures</strong></summary>
 
-![Euler beam 1D: Forward, DeepXDE's settings](figures/tuning/Euler_beam/own_line_comparison.png)
+*DeepXDE's settings:*
 
-*Forward, PINNStudio best:*
+![Euler beam 1D: DeepXDE's settings](figures/tuning/Euler_beam/base_line_comparison.png)
 
-![Euler beam 1D: Forward, PINNStudio best](figures/tuning/Euler_beam/tuned_line_comparison.png)
+*PINNStudio best — L-BFGS phase added:*
 
-*Inverse, DeepXDE's settings:*
+![Euler beam 1D: PINNStudio best — L-BFGS phase added](figures/tuning/Euler_beam/lbfgs_line_comparison.png)
 
-![Euler beam 1D: Inverse, DeepXDE's settings](figures/tuning/Euler_beam_inv/own_line_comparison.png)
+</details>
 
-![Euler beam 1D: Inverse, DeepXDE's settings](figures/tuning/Euler_beam_inv/own_param_plot.png)
+<details>
+<summary><strong>Inverse results: figures</strong></summary>
 
-*Inverse, PINNStudio best:*
+*PINNStudio best — all of the changes together:*
 
-![Euler beam 1D: Inverse, PINNStudio best](figures/tuning/Euler_beam_inv/tuned_line_comparison.png)
+![Euler beam 1D: PINNStudio best — all of the changes together](figures/tuning/Euler_beam_inv/all_line_comparison.png)
 
-![Euler beam 1D: Inverse, PINNStudio best](figures/tuning/Euler_beam_inv/tuned_param_plot.png)
+![Euler beam 1D: PINNStudio best — all of the changes together](figures/tuning/Euler_beam_inv/all_param_plot.png)
+
+</details>
 
 </details>
 
@@ -282,19 +322,24 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 |---|---|---|
 | DeepXDE's settings (3 seeds, median) | 2.3 × 10<sup>-2</sup> | 20 |
 | 3× iterations | 1.4 × 10<sup>-2</sup> | 52 |
-| Larger network (2× width, one more layer) | 1.5 × 10<sup>-2</sup> | 21 |
+| 🔴 **Larger network (2× width, one more layer)** | **1.5 × 10<sup>-2</sup>** | **21** |
 | 3× training points | 3.7 × 10<sup>-2</sup> | 19 |
 | L-BFGS phase added | 2.0 × 10<sup>-2</sup> | 19 |
-| 🔴 **All of the above together (3 seeds, median)** | **1.2 × 10<sup>-2</sup>** | **57** |
-| **PINNStudio best** (Settings: Tuned): Larger network (2× width, one more layer) | **1.5 × 10<sup>-2</sup>** | **57** |
+| All of the above together (3 seeds, median) | 1.2 × 10<sup>-2</sup> | 57 |
+| **PINNStudio best** (Settings: Tuned): Larger network (2× width, one more layer) | **1.5 × 10<sup>-2</sup>** | **21** |
 
-*Forward, DeepXDE's settings:*
+<details>
+<summary><strong>Forward results: figures</strong></summary>
 
-![Fractional Poisson 1D: Forward, DeepXDE's settings](figures/tuning/Fractional_Poisson_equation_1D/own_line_comparison.png)
+*DeepXDE's settings:*
 
-*Forward, PINNStudio best:*
+![Fractional Poisson 1D: DeepXDE's settings](figures/tuning/Fractional_Poisson_equation_1D/base_line_comparison.png)
 
-![Fractional Poisson 1D: Forward, PINNStudio best](figures/tuning/Fractional_Poisson_equation_1D/tuned_line_comparison.png)
+*PINNStudio best — Larger network (2× width, one more layer):*
+
+![Fractional Poisson 1D: PINNStudio best — Larger network (2× width, one more layer)](figures/tuning/Fractional_Poisson_equation_1D/net_line_comparison.png)
+
+</details>
 
 </details>
 
@@ -310,9 +355,14 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | DeepXDE's settings (README) | 3.7 × 10<sup>-4</sup> | – |
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **3.7 × 10<sup>-4</sup>** | – |
 
-*Forward, the README's result:*
+<details>
+<summary><strong>Forward results: figures</strong></summary>
 
-![Poisson 1D – Dirichlet: Forward, the README's result](../assets/Images/DeepXDE/Poisson_1D_Dirichlet/line_comparison.png)
+*DeepXDE's settings (README):*
+
+![Poisson 1D – Dirichlet: DeepXDE's settings (README)](../assets/Images/DeepXDE/Poisson_1D_Dirichlet/line_comparison.png)
+
+</details>
 
 </details>
 
@@ -328,9 +378,14 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | DeepXDE's settings (README) | 2.3 × 10<sup>-4</sup> | – |
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **2.3 × 10<sup>-4</sup>** | – |
 
-*Forward, the README's result:*
+<details>
+<summary><strong>Forward results: figures</strong></summary>
 
-![Poisson 1D – Dirichlet/Neumann: Forward, the README's result](../assets/Images/DeepXDE/Poisson_1D_Dirichlet_Neumann/line_comparison.png)
+*DeepXDE's settings (README):*
+
+![Poisson 1D – Dirichlet/Neumann: DeepXDE's settings (README)](../assets/Images/DeepXDE/Poisson_1D_Dirichlet_Neumann/line_comparison.png)
+
+</details>
 
 </details>
 
@@ -351,13 +406,18 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | 🔴 **All of the above together (3 seeds, median)** | **6.4 × 10<sup>-6</sup>** | **67** |
 | **PINNStudio best** (Settings: Tuned): all of the changes together | **6.4 × 10<sup>-6</sup>** | **67** |
 
-*Forward, DeepXDE's settings:*
+<details>
+<summary><strong>Forward results: figures</strong></summary>
 
-![Poisson 1D – Dirichlet/Periodic: Forward, DeepXDE's settings](figures/tuning/Poisson_1D_Dirichlet_Periodic/own_line_comparison.png)
+*DeepXDE's settings:*
 
-*Forward, PINNStudio best:*
+![Poisson 1D – Dirichlet/Periodic: DeepXDE's settings](figures/tuning/Poisson_1D_Dirichlet_Periodic/base_line_comparison.png)
 
-![Poisson 1D – Dirichlet/Periodic: Forward, PINNStudio best](figures/tuning/Poisson_1D_Dirichlet_Periodic/tuned_line_comparison.png)
+*PINNStudio best — all of the changes together:*
+
+![Poisson 1D – Dirichlet/Periodic: PINNStudio best — all of the changes together](figures/tuning/Poisson_1D_Dirichlet_Periodic/all_line_comparison.png)
+
+</details>
 
 </details>
 
@@ -373,9 +433,14 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | DeepXDE's settings (README) | 2.6 × 10<sup>-5</sup> | – |
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **2.6 × 10<sup>-5</sup>** | – |
 
-*Forward, the README's result:*
+<details>
+<summary><strong>Forward results: figures</strong></summary>
 
-![Poisson 1D – Dirichlet/point-set operator: Forward, the README's result](../assets/Images/DeepXDE/Poisson_1D_Dirichlet_PointSetOperator/line_comparison.png)
+*DeepXDE's settings (README):*
+
+![Poisson 1D – Dirichlet/point-set operator: DeepXDE's settings (README)](../assets/Images/DeepXDE/Poisson_1D_Dirichlet_PointSetOperator/line_comparison.png)
+
+</details>
 
 </details>
 
@@ -391,9 +456,14 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | DeepXDE's settings (README) | 2.4 × 10<sup>-4</sup> | – |
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **2.4 × 10<sup>-4</sup>** | – |
 
-*Forward, the README's result:*
+<details>
+<summary><strong>Forward results: figures</strong></summary>
 
-![Poisson 1D – Dirichlet/Robin: Forward, the README's result](../assets/Images/DeepXDE/Poisson_1D_Dirichlet_Robin/line_comparison.png)
+*DeepXDE's settings (README):*
+
+![Poisson 1D – Dirichlet/Robin: DeepXDE's settings (README)](../assets/Images/DeepXDE/Poisson_1D_Dirichlet_Robin/line_comparison.png)
+
+</details>
 
 </details>
 
@@ -409,9 +479,14 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | DeepXDE's settings (README) | 2.2 × 10<sup>-6</sup> | – |
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **2.2 × 10<sup>-6</sup>** | – |
 
-*Forward, the README's result:*
+<details>
+<summary><strong>Forward results: figures</strong></summary>
 
-![Poisson 1D – hard BCs: Forward, the README's result](../assets/Images/DeepXDE/Poisson_1D_hard_boundary_conditions/line_comparison.png)
+*DeepXDE's settings (README):*
+
+![Poisson 1D – hard BCs: DeepXDE's settings (README)](../assets/Images/DeepXDE/Poisson_1D_hard_boundary_conditions/line_comparison.png)
+
+</details>
 
 </details>
 
@@ -427,9 +502,14 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | DeepXDE's settings (README) | 3.9 × 10<sup>-3</sup> | – |
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **3.9 × 10<sup>-3</sup>** | – |
 
-*Forward, the README's result:*
+<details>
+<summary><strong>Forward results: figures</strong></summary>
 
-![Poisson 1D – multi-scale Fourier features: Forward, the README's result](../assets/Images/DeepXDE/Poisson_1D_multi_scale_Fourier_features/line_comparison.png)
+*DeepXDE's settings (README):*
+
+![Poisson 1D – multi-scale Fourier features: DeepXDE's settings (README)](../assets/Images/DeepXDE/Poisson_1D_multi_scale_Fourier_features/line_comparison.png)
+
+</details>
 
 </details>
 
@@ -450,17 +530,22 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | All of the above together (3 seeds, median) | 1.2 × 10<sup>-2</sup> | νₑ = 0.00117644 (0.001); K = 0.00100487 (0.001) | 18% | 237 |
 | **PINNStudio best** (Settings: Tuned): 3× iterations | **1.3 × 10<sup>-2</sup>** | νₑ = 0.00115135 (0.001); K = 0.00103409 (0.001) | **15%** | **234** |
 
-*Inverse, DeepXDE's settings:*
+<details>
+<summary><strong>Inverse results: figures</strong></summary>
 
-![Brinkman-Forchheimer 1D – unknown ν_e, K: Inverse, DeepXDE's settings](figures/tuning/Inverse_Brinkman_Forchheimer_model/own_line_comparison.png)
+*DeepXDE's settings:*
 
-![Brinkman-Forchheimer 1D – unknown ν_e, K: Inverse, DeepXDE's settings](figures/tuning/Inverse_Brinkman_Forchheimer_model/own_param_plot.png)
+![Brinkman-Forchheimer 1D – unknown ν_e, K: DeepXDE's settings](figures/tuning/Inverse_Brinkman_Forchheimer_model/base_line_comparison.png)
 
-*Inverse, PINNStudio best:*
+![Brinkman-Forchheimer 1D – unknown ν_e, K: DeepXDE's settings](figures/tuning/Inverse_Brinkman_Forchheimer_model/base_param_plot.png)
 
-![Brinkman-Forchheimer 1D – unknown ν_e, K: Inverse, PINNStudio best](figures/tuning/Inverse_Brinkman_Forchheimer_model/tuned_line_comparison.png)
+*PINNStudio best — 3× iterations:*
 
-![Brinkman-Forchheimer 1D – unknown ν_e, K: Inverse, PINNStudio best](figures/tuning/Inverse_Brinkman_Forchheimer_model/tuned_param_plot.png)
+![Brinkman-Forchheimer 1D – unknown ν_e, K: PINNStudio best — 3× iterations](figures/tuning/Inverse_Brinkman_Forchheimer_model/iters_line_comparison.png)
+
+![Brinkman-Forchheimer 1D – unknown ν_e, K: PINNStudio best — 3× iterations](figures/tuning/Inverse_Brinkman_Forchheimer_model/iters_param_plot.png)
+
+</details>
 
 </details>
 
@@ -481,13 +566,18 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | All of the above together (3 seeds, median) | 2.8 × 10<sup>-2</sup> | – | – | 178 |
 | **PINNStudio best** (Settings: Tuned): Larger network (2× width, one more layer) | **1.3 × 10<sup>-2</sup>** | – | **–** | **61** |
 
-*Inverse, DeepXDE's settings:*
+<details>
+<summary><strong>Inverse results: figures</strong></summary>
 
-![Diffusion-reaction 1D – unknown rate field: Inverse, DeepXDE's settings](figures/tuning/Inverse_diffusion_reaction_with_space_dependent_rate/own_line_comparison.png)
+*DeepXDE's settings:*
 
-*Inverse, PINNStudio best:*
+![Diffusion-reaction 1D – unknown rate field: DeepXDE's settings](figures/tuning/Inverse_diffusion_reaction_with_space_dependent_rate/base_line_comparison.png)
 
-![Diffusion-reaction 1D – unknown rate field: Inverse, PINNStudio best](figures/tuning/Inverse_diffusion_reaction_with_space_dependent_rate/tuned_line_comparison.png)
+*PINNStudio best — Larger network (2× width, one more layer):*
+
+![Diffusion-reaction 1D – unknown rate field: PINNStudio best — Larger network (2× width, one more layer)](figures/tuning/Inverse_diffusion_reaction_with_space_dependent_rate/net_line_comparison.png)
+
+</details>
 
 </details>
 
@@ -503,9 +593,14 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | DeepXDE's settings (README) | 4.9 × 10<sup>-3</sup> | α = 1.79183 (1.8) | 0.45% | – |
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **4.9 × 10<sup>-3</sup>** | α = 1.79183 (1.8) | **0.45%** | – |
 
-*Inverse, the README's result:*
+<details>
+<summary><strong>Inverse results: figures</strong></summary>
 
-![Fractional Poisson 1D – unknown order α: Inverse, the README's result](../assets/Images/DeepXDE/Inverse_fractional_Poisson_equation_1D/line_comparison.png)
+*PINNStudio best (README):*
+
+![Fractional Poisson 1D – unknown order α: PINNStudio best (README)](../assets/Images/DeepXDE/Inverse_fractional_Poisson_equation_1D/line_comparison.png)
+
+</details>
 
 </details>
 
@@ -526,17 +621,22 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | 🔴 **All of the above together (3 seeds, median)** | **2.1 × 10<sup>-4</sup>** | – | – | **221** |
 | **PINNStudio best** (Settings: Tuned): all of the changes together | **2.1 × 10<sup>-4</sup>** | – | **–** | **221** |
 
-*Inverse, DeepXDE's settings:*
+<details>
+<summary><strong>Inverse results: figures</strong></summary>
 
-![Poisson 1D – unknown forcing field: Inverse, DeepXDE's settings](figures/tuning/Inverse_Poisson_with_unknown_forcing_field/own_line_comparison_q.png)
+*DeepXDE's settings:*
 
-![Poisson 1D – unknown forcing field: Inverse, DeepXDE's settings](figures/tuning/Inverse_Poisson_with_unknown_forcing_field/own_line_comparison_u.png)
+![Poisson 1D – unknown forcing field: DeepXDE's settings](figures/tuning/Inverse_Poisson_with_unknown_forcing_field/base_line_comparison_u.png)
 
-*Inverse, PINNStudio best:*
+![Poisson 1D – unknown forcing field: DeepXDE's settings](figures/tuning/Inverse_Poisson_with_unknown_forcing_field/base_line_comparison_q.png)
 
-![Poisson 1D – unknown forcing field: Inverse, PINNStudio best](figures/tuning/Inverse_Poisson_with_unknown_forcing_field/tuned_line_comparison_q.png)
+*PINNStudio best — all of the changes together:*
 
-![Poisson 1D – unknown forcing field: Inverse, PINNStudio best](figures/tuning/Inverse_Poisson_with_unknown_forcing_field/tuned_line_comparison_u.png)
+![Poisson 1D – unknown forcing field: PINNStudio best — all of the changes together](figures/tuning/Inverse_Poisson_with_unknown_forcing_field/all_line_comparison_u.png)
+
+![Poisson 1D – unknown forcing field: PINNStudio best — all of the changes together](figures/tuning/Inverse_Poisson_with_unknown_forcing_field/all_line_comparison_q.png)
+
+</details>
 
 </details>
 
@@ -557,17 +657,22 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | 🔴 **All of the above together (3 seeds, median)** | **7.8 × 10<sup>-4</sup>** | – | – | **215** |
 | **PINNStudio best** (Settings: Tuned): all of the changes together | **7.8 × 10<sup>-4</sup>** | – | **–** | **215** |
 
-*Inverse, DeepXDE's settings:*
+<details>
+<summary><strong>Inverse results: figures</strong></summary>
 
-![Poisson 1D – unknown forcing field (batches): Inverse, DeepXDE's settings](figures/tuning/Inverse_Poisson_with_unknown_forcing_field_batches/own_line_comparison_q.png)
+*DeepXDE's settings:*
 
-![Poisson 1D – unknown forcing field (batches): Inverse, DeepXDE's settings](figures/tuning/Inverse_Poisson_with_unknown_forcing_field_batches/own_line_comparison_u.png)
+![Poisson 1D – unknown forcing field (batches): DeepXDE's settings](figures/tuning/Inverse_Poisson_with_unknown_forcing_field_batches/base_line_comparison_u.png)
 
-*Inverse, PINNStudio best:*
+![Poisson 1D – unknown forcing field (batches): DeepXDE's settings](figures/tuning/Inverse_Poisson_with_unknown_forcing_field_batches/base_line_comparison_q.png)
 
-![Poisson 1D – unknown forcing field (batches): Inverse, PINNStudio best](figures/tuning/Inverse_Poisson_with_unknown_forcing_field_batches/tuned_line_comparison_q.png)
+*PINNStudio best — all of the changes together:*
 
-![Poisson 1D – unknown forcing field (batches): Inverse, PINNStudio best](figures/tuning/Inverse_Poisson_with_unknown_forcing_field_batches/tuned_line_comparison_u.png)
+![Poisson 1D – unknown forcing field (batches): PINNStudio best — all of the changes together](figures/tuning/Inverse_Poisson_with_unknown_forcing_field_batches/all_line_comparison_u.png)
+
+![Poisson 1D – unknown forcing field (batches): PINNStudio best — all of the changes together](figures/tuning/Inverse_Poisson_with_unknown_forcing_field_batches/all_line_comparison_q.png)
+
+</details>
 
 </details>
 
@@ -598,13 +703,27 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | The template's starting settings (README) | 2.1 × 10<sup>-4</sup> | γ₁ = 9.81621e-05 (0.0001); γ₂ = 4.99953 (5) | 1.8% | – |
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **2.1 × 10<sup>-4</sup>** | γ₁ = 9.81621e-05 (0.0001); γ₂ = 4.99953 (5) | **1.8%** | – |
 
-*Forward, the README's result:*
+<details>
+<summary><strong>Forward results: figures</strong></summary>
 
-![Allen-Cahn 1D – Wight & Zhao: Forward, the README's result](../assets/Images/1D-AllenCahn/surface_comparison.png)
+*Wight & Zhao's method, run in PINNStudio: the figures come when its run finishes.*
 
-*Inverse, the README's result:*
+*Mattey & Ghosh's bc-PINN, run in PINNStudio: the figures come when its run finishes.*
 
-![Allen-Cahn 1D – Wight & Zhao: Inverse, the README's result](../assets/Images/1D-AllenCahn/param_convergence_animation.gif)
+*PINNStudio best (the template's own settings, README):*
+
+![Allen-Cahn 1D – Wight & Zhao: PINNStudio best (the template's own settings, README)](../assets/Images/1D-AllenCahn/surface_comparison.png)
+
+</details>
+
+<details>
+<summary><strong>Inverse results: figures</strong></summary>
+
+*PINNStudio best (README):*
+
+![Allen-Cahn 1D – Wight & Zhao: PINNStudio best (README)](../assets/Images/1D-AllenCahn/param_convergence_animation.gif)
+
+</details>
 
 </details>
 
@@ -624,9 +743,16 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 *The base PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*
 
-*Forward, the README's result:*
+<details>
+<summary><strong>Forward results: figures</strong></summary>
 
-![Cahn-Hilliard 1D – Wight & Zhao: Forward, the README's result](../assets/Images/1D-CahnHilliard/surface_comparison_u.png)
+*Wight & Zhao's method, run in PINNStudio: the figures come when its run finishes.*
+
+*PINNStudio best (the template's own settings, README):*
+
+![Cahn-Hilliard 1D – Wight & Zhao: PINNStudio best (the template's own settings, README)](../assets/Images/1D-CahnHilliard/surface_comparison_u.png)
+
+</details>
 
 </details>
 
@@ -651,15 +777,18 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 *The base PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*
 
-*Forward, the README's result:*
+<details>
+<summary><strong>Forward results: figures</strong></summary>
 
-![Cahn-Hilliard 1D – Mattey & Ghosh: Forward, the README's result](../assets/Images/1D-CahnHilliard-Mattey/surface_comparison_u.png)
+*Mattey & Ghosh's bc-PINN, run in PINNStudio: the figures come when its run finishes.*
 
-*Forward, PINNStudio best:*
+*PINNStudio best — the best setup as it is:*
 
-![Cahn-Hilliard 1D – Mattey & Ghosh: Forward, PINNStudio best](figures/tuning/Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/tuned_surface_comparison_mu.png)
+![Cahn-Hilliard 1D – Mattey & Ghosh: PINNStudio best — the best setup as it is](figures/tuning/Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/base_surface_comparison_u.png)
 
-![Cahn-Hilliard 1D – Mattey & Ghosh: Forward, PINNStudio best](figures/tuning/Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/tuned_surface_comparison_u.png)
+![Cahn-Hilliard 1D – Mattey & Ghosh: PINNStudio best — the best setup as it is](figures/tuning/Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/base_surface_comparison_mu.png)
+
+</details>
 
 </details>
 
@@ -682,9 +811,14 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | DeepXDE's settings (README) | 4.3 × 10<sup>-4</sup> | – |
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **4.3 × 10<sup>-4</sup>** | – |
 
-*Forward, the README's result:*
+<details>
+<summary><strong>Forward results: figures</strong></summary>
 
-![Black-Scholes 1D – European call: Forward, the README's result](../assets/Images/DeepXDE/Black_Scholes_equation_call_option/animation.gif)
+*DeepXDE's settings (README):*
+
+![Black-Scholes 1D – European call: DeepXDE's settings (README)](../assets/Images/DeepXDE/Black_Scholes_equation_call_option/animation.gif)
+
+</details>
 
 </details>
 
@@ -715,17 +849,25 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | The template's starting settings (README) | 7.8 × 10<sup>-4</sup> | λ₁ = 0.996107 (1); λ₂ = 0.0100386 (0.01) | 0.39% | – |
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **7.8 × 10<sup>-4</sup>** | λ₁ = 0.996107 (1); λ₂ = 0.0100386 (0.01) | **0.39%** | – |
 
-*Forward, the README's result:*
+<details>
+<summary><strong>Forward results: figures</strong></summary>
 
-![Burgers 1D – Raissi et al.: Forward, the README's result](../assets/Images/1D-Burgers/surface_comparison.png)
+*Raissi et al.'s settings, run in PINNStudio: the figures come when its run finishes.*
 
-*Forward, PINNStudio best:*
+*PINNStudio best — 3× iterations:*
 
-![Burgers 1D – Raissi et al.: Forward, PINNStudio best](figures/tuning/Template_1D_Burgers_best_setup/tuned_surface_comparison.png)
+![Burgers 1D – Raissi et al.: PINNStudio best — 3× iterations](figures/tuning/Template_1D_Burgers_best_setup/iters_surface_comparison.png)
 
-*Inverse, the README's result:*
+</details>
 
-![Burgers 1D – Raissi et al.: Inverse, the README's result](../assets/Images/1D-Burgers/param_convergence_animation.gif)
+<details>
+<summary><strong>Inverse results: figures</strong></summary>
+
+*PINNStudio best (README):*
+
+![Burgers 1D – Raissi et al.: PINNStudio best (README)](../assets/Images/1D-Burgers/param_convergence_animation.gif)
+
+</details>
 
 </details>
 
@@ -741,9 +883,14 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | DeepXDE's settings (README) | 8.4 × 10<sup>-4</sup> | – |
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **8.4 × 10<sup>-4</sup>** | – |
 
-*Forward, the README's result:*
+<details>
+<summary><strong>Forward results: figures</strong></summary>
 
-![Burgers 1D – RAR: Forward, the README's result](../assets/Images/DeepXDE/Burgers_equation_with_RAR/animation.gif)
+*DeepXDE's settings (README):*
+
+![Burgers 1D – RAR: DeepXDE's settings (README)](../assets/Images/DeepXDE/Burgers_equation_with_RAR/animation.gif)
+
+</details>
 
 </details>
 
@@ -764,13 +911,18 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | 🔴 **All of the above together (3 seeds, median)** | **1.5 × 10<sup>-3</sup>** | **76** |
 | **PINNStudio best** (Settings: Tuned): all of the changes together | **1.5 × 10<sup>-3</sup>** | **76** |
 
-*Forward, DeepXDE's settings:*
+<details>
+<summary><strong>Forward results: figures</strong></summary>
 
-![Diffusion 1D: Forward, DeepXDE's settings](figures/tuning/Diffusion_equation/own_surface_comparison.png)
+*DeepXDE's settings:*
 
-*Forward, PINNStudio best:*
+![Diffusion 1D: DeepXDE's settings](figures/tuning/Diffusion_equation/base_surface_comparison.png)
 
-![Diffusion 1D: Forward, PINNStudio best](figures/tuning/Diffusion_equation/tuned_surface_comparison.png)
+*PINNStudio best — all of the changes together:*
+
+![Diffusion 1D: PINNStudio best — all of the changes together](figures/tuning/Diffusion_equation/all_surface_comparison.png)
+
+</details>
 
 </details>
 
@@ -786,9 +938,14 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | DeepXDE's settings (README) | 2.8 × 10<sup>-3</sup> | – |
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **2.8 × 10<sup>-3</sup>** | – |
 
-*Forward, the README's result:*
+<details>
+<summary><strong>Forward results: figures</strong></summary>
 
-![Diffusion 1D – hard IC and BCs: Forward, the README's result](../assets/Images/DeepXDE/Diffusion_equation_with_hard_IC_and_BC/animation.gif)
+*DeepXDE's settings (README):*
+
+![Diffusion 1D – hard IC and BCs: DeepXDE's settings (README)](../assets/Images/DeepXDE/Diffusion_equation_with_hard_IC_and_BC/animation.gif)
+
+</details>
 
 </details>
 
@@ -809,13 +966,18 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | All of the above together | 4.7 × 10<sup>-3</sup> | 20 |
 | **PINNStudio best** (Settings: Tuned): L-BFGS phase added | **5.8 × 10<sup>-3</sup>** | **12** |
 
-*Forward, DeepXDE's settings:*
+<details>
+<summary><strong>Forward results: figures</strong></summary>
 
-![Diffusion 1D – resampling: Forward, DeepXDE's settings](figures/tuning/Diffusion_equation_with_resampling/own_surface_comparison.png)
+*DeepXDE's settings:*
 
-*Forward, PINNStudio best:*
+![Diffusion 1D – resampling: DeepXDE's settings](figures/tuning/Diffusion_equation_with_resampling/base_surface_comparison.png)
 
-![Diffusion 1D – resampling: Forward, PINNStudio best](figures/tuning/Diffusion_equation_with_resampling/tuned_surface_comparison.png)
+*PINNStudio best — L-BFGS phase added:*
+
+![Diffusion 1D – resampling: PINNStudio best — L-BFGS phase added](figures/tuning/Diffusion_equation_with_resampling/lbfgs_surface_comparison.png)
+
+</details>
 
 </details>
 
@@ -849,25 +1011,29 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 *DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*
 
-*Forward, DeepXDE's settings:*
+<details>
+<summary><strong>Forward results: figures</strong></summary>
 
-![Diffusion-reaction 1D: Forward, DeepXDE's settings](figures/tuning/Diffusion_reaction_equation/own_surface_comparison.png)
+*DeepXDE's settings:*
 
-*Forward, PINNStudio best:*
+![Diffusion-reaction 1D: DeepXDE's settings](figures/tuning/Diffusion_reaction_equation/base_surface_comparison.png)
 
-![Diffusion-reaction 1D: Forward, PINNStudio best](figures/tuning/Diffusion_reaction_equation/tuned_surface_comparison.png)
+*PINNStudio best — all of the changes together:*
 
-*Inverse, DeepXDE's settings:*
+![Diffusion-reaction 1D: PINNStudio best — all of the changes together](figures/tuning/Diffusion_reaction_equation/all_surface_comparison.png)
 
-![Diffusion-reaction 1D: Inverse, DeepXDE's settings](figures/tuning/Diffusion_reaction_equation_inv/own_surface_comparison.png)
+</details>
 
-![Diffusion-reaction 1D: Inverse, DeepXDE's settings](figures/tuning/Diffusion_reaction_equation_inv/own_param_plot.png)
+<details>
+<summary><strong>Inverse results: figures</strong></summary>
 
-*Inverse, PINNStudio best:*
+*PINNStudio best — all of the changes together:*
 
-![Diffusion-reaction 1D: Inverse, PINNStudio best](figures/tuning/Diffusion_reaction_equation_inv/tuned_surface_comparison.png)
+![Diffusion-reaction 1D: PINNStudio best — all of the changes together](figures/tuning/Diffusion_reaction_equation_inv/all_surface_comparison.png)
 
-![Diffusion-reaction 1D: Inverse, PINNStudio best](figures/tuning/Diffusion_reaction_equation_inv/tuned_param_plot.png)
+![Diffusion-reaction 1D: PINNStudio best — all of the changes together](figures/tuning/Diffusion_reaction_equation_inv/all_param_plot.png)
+
+</details>
 
 </details>
 
@@ -883,9 +1049,14 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | DeepXDE's settings (README) | 3.3 × 10<sup>-3</sup> | – |
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **3.3 × 10<sup>-3</sup>** | – |
 
-*Forward, the README's result:*
+<details>
+<summary><strong>Forward results: figures</strong></summary>
 
-![Fractional diffusion 1D: Forward, the README's result](../assets/Images/DeepXDE/Fractional_diffusion_equation/animation.gif)
+*DeepXDE's settings (README):*
+
+![Fractional diffusion 1D: DeepXDE's settings (README)](../assets/Images/DeepXDE/Fractional_diffusion_equation/animation.gif)
+
+</details>
 
 </details>
 
@@ -918,25 +1089,29 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 *DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*
 
-*Forward, DeepXDE's settings:*
+<details>
+<summary><strong>Forward results: figures</strong></summary>
 
-![Heat 1D – Dirichlet: Forward, DeepXDE's settings](figures/tuning/Heat_equation/own_surface_comparison.png)
+*DeepXDE's settings:*
 
-*Forward, PINNStudio best:*
+![Heat 1D – Dirichlet: DeepXDE's settings](figures/tuning/Heat_equation/base_surface_comparison.png)
 
-![Heat 1D – Dirichlet: Forward, PINNStudio best](figures/tuning/Heat_equation/tuned_surface_comparison.png)
+*PINNStudio best — all of the changes together:*
 
-*Inverse, DeepXDE's settings:*
+![Heat 1D – Dirichlet: PINNStudio best — all of the changes together](figures/tuning/Heat_equation/all_surface_comparison.png)
 
-![Heat 1D – Dirichlet: Inverse, DeepXDE's settings](figures/tuning/Heat_equation_inv/own_surface_comparison.png)
+</details>
 
-![Heat 1D – Dirichlet: Inverse, DeepXDE's settings](figures/tuning/Heat_equation_inv/own_param_plot.png)
+<details>
+<summary><strong>Inverse results: figures</strong></summary>
 
-*Inverse, PINNStudio best:*
+*PINNStudio best — all of the changes together:*
 
-![Heat 1D – Dirichlet: Inverse, PINNStudio best](figures/tuning/Heat_equation_inv/tuned_surface_comparison.png)
+![Heat 1D – Dirichlet: PINNStudio best — all of the changes together](figures/tuning/Heat_equation_inv/all_surface_comparison.png)
 
-![Heat 1D – Dirichlet: Inverse, PINNStudio best](figures/tuning/Heat_equation_inv/tuned_param_plot.png)
+![Heat 1D – Dirichlet: PINNStudio best — all of the changes together](figures/tuning/Heat_equation_inv/all_param_plot.png)
+
+</details>
 
 </details>
 
@@ -951,25 +1126,30 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 |---|---|---|
 | DeepXDE's settings (3 seeds, median) | 1.4 × 10<sup>-2</sup> | 509 |
 | 3× iterations | 7.2 × 10<sup>-3</sup> | 1502 |
-| Larger network (2× width, one more layer) | 3.1 × 10<sup>-3</sup> | 558 |
+| 🔴 **Larger network (2× width, one more layer)** | **3.1 × 10<sup>-3</sup>** | **558** |
 | 3× training points | 1.0 × 10<sup>-2</sup> | 626 |
-| 🔴 **All of the above together (3 seeds, median)** | **3.3 × 10<sup>-3</sup>** | **2060** |
-| **PINNStudio best** (Settings: Tuned): Larger network (2× width, one more layer) | **3.1 × 10<sup>-3</sup>** | **2060** |
+| All of the above together (3 seeds, median) | 3.3 × 10<sup>-3</sup> | 2060 |
+| **PINNStudio best** (Settings: Tuned): Larger network (2× width, one more layer) | **3.1 × 10<sup>-3</sup>** | **558** |
 
-*Forward, DeepXDE's settings:*
+<details>
+<summary><strong>Forward results: figures</strong></summary>
 
-![Heat 1D – resampling: Forward, DeepXDE's settings](figures/tuning/Heat_equation_with_resampling/own_surface_comparison.png)
+*DeepXDE's settings:*
 
-*Forward, PINNStudio best:*
+![Heat 1D – resampling: DeepXDE's settings](figures/tuning/Heat_equation_with_resampling/base_surface_comparison.png)
 
-![Heat 1D – resampling: Forward, PINNStudio best](figures/tuning/Heat_equation_with_resampling/tuned_surface_comparison.png)
+*PINNStudio best — Larger network (2× width, one more layer):*
+
+![Heat 1D – resampling: PINNStudio best — Larger network (2× width, one more layer)](figures/tuning/Heat_equation_with_resampling/net_surface_comparison.png)
+
+</details>
 
 </details>
 
 <details id="bench-klein-gordon-1d">
 <summary><strong>Klein-Gordon 1D</strong> · DeepXDE example</summary>
 
-[problem and settings in the README](../README.md#dx-klein-gordon-equation) · [forward runs in the tuning study](tuning_study.md#tune-klein-gordon-1d)
+[problem and settings in the README](../README.md#dx-klein-gordon-equation) · [forward runs in the tuning study](tuning_study.md#tune-klein-gordon-1d) · [inverse runs in the tuning study](tuning_study.md#tune-klein-gordon-1d-inverse-mode)
 
 **Forward problem**
 
@@ -982,13 +1162,42 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | All of the above together (3 seeds, median) | 2.0 × 10<sup>-2</sup> | 1216 |
 | **PINNStudio best** (Settings: Tuned): Larger network (2× width, one more layer) | **2.3 × 10<sup>-3</sup>** | **151** |
 
-*Forward, DeepXDE's settings:*
+**Inverse problem**
 
-![Klein-Gordon 1D: Forward, DeepXDE's settings](figures/tuning/Klein_Gordon_equation/own_surface_comparison.png)
+| Training | L₂ | Parameters found (true) | Worst parameter error | Time (s) |
+|---|---|---|---|---|
+| DeepXDE's settings | 1.4 × 10<sup>-2</sup> | γ = 0.945226 (1) | 5.5% | 81 |
+| Larger network (2× width, one more layer) | 1.5 × 10<sup>-2</sup> | γ = 1.03306 (1) | 3.3% | 151 |
+| 3× L-BFGS iterations | 1.4 × 10<sup>-2</sup> | γ = 0.945226 (1) | 5.5% | 79 |
+| 🔴 **All of the above together** | **6.3 × 10<sup>-4</sup>** | **γ = 1.00912 (1)** | **0.91%** | **1361** |
+| 10× data weight, 3× L-BFGS and the larger network | 7.4 × 10<sup>-3</sup> | γ = 1.06471 (1) | 6.5% | 151 |
+| **PINNStudio best** (Settings: Tuned): all of the changes together | **6.3 × 10<sup>-4</sup>** | γ = 1.00912 (1) | **0.91%** | **1361** |
 
-*Forward, PINNStudio best:*
+*DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*
 
-![Klein-Gordon 1D: Forward, PINNStudio best](figures/tuning/Klein_Gordon_equation/tuned_surface_comparison.png)
+<details>
+<summary><strong>Forward results: figures</strong></summary>
+
+*DeepXDE's settings:*
+
+![Klein-Gordon 1D: DeepXDE's settings](figures/tuning/Klein_Gordon_equation/base_surface_comparison.png)
+
+*PINNStudio best — Larger network (2× width, one more layer):*
+
+![Klein-Gordon 1D: PINNStudio best — Larger network (2× width, one more layer)](figures/tuning/Klein_Gordon_equation/net_surface_comparison.png)
+
+</details>
+
+<details>
+<summary><strong>Inverse results: figures</strong></summary>
+
+*PINNStudio best — all of the changes together:*
+
+![Klein-Gordon 1D: PINNStudio best — all of the changes together](figures/tuning/Klein_Gordon_equation_inv/all_surface_comparison.png)
+
+![Klein-Gordon 1D: PINNStudio best — all of the changes together](figures/tuning/Klein_Gordon_equation_inv/all_param_plot.png)
+
+</details>
 
 </details>
 
@@ -1017,28 +1226,32 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 *DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*
 
-*Forward, the README's result:*
+<details>
+<summary><strong>Forward results: figures</strong></summary>
 
-![Schrödinger 1D: Forward, the README's result](../assets/Images/DeepXDE/Schr_dinger_equation/animation.gif)
+*DeepXDE's settings (README):*
 
-*Inverse, DeepXDE's settings:*
+![Schrödinger 1D: DeepXDE's settings (README)](../assets/Images/DeepXDE/Schr_dinger_equation/animation.gif)
 
-![Schrödinger 1D: Inverse, DeepXDE's settings](figures/tuning/Schr_dinger_equation_inv/own_surface_comparison.png)
+</details>
 
-![Schrödinger 1D: Inverse, DeepXDE's settings](figures/tuning/Schr_dinger_equation_inv/own_param_plot.png)
+<details>
+<summary><strong>Inverse results: figures</strong></summary>
 
-*Inverse, PINNStudio best:*
+*PINNStudio best — Larger network (2× width, one more layer):*
 
-![Schrödinger 1D: Inverse, PINNStudio best](figures/tuning/Schr_dinger_equation_inv/tuned_surface_comparison.png)
+![Schrödinger 1D: PINNStudio best — Larger network (2× width, one more layer)](figures/tuning/Schr_dinger_equation_inv/net_surface_comparison.png)
 
-![Schrödinger 1D: Inverse, PINNStudio best](figures/tuning/Schr_dinger_equation_inv/tuned_param_plot.png)
+![Schrödinger 1D: PINNStudio best — Larger network (2× width, one more layer)](figures/tuning/Schr_dinger_equation_inv/net_param_plot.png)
+
+</details>
 
 </details>
 
 <details id="bench-wave-1d-space-time-multi-scale-fourier-features">
 <summary><strong>Wave 1D – space-time multi-scale Fourier features</strong> · DeepXDE example</summary>
 
-[problem and settings in the README](../README.md#dx-wave-propagation-space-time-multi-scale-fourier-features) · [forward runs in the tuning study](tuning_study.md#tune-wave-1d-space-time-multi-scale-fourier-features)
+[problem and settings in the README](../README.md#dx-wave-propagation-space-time-multi-scale-fourier-features) · [forward runs in the tuning study](tuning_study.md#tune-wave-1d-space-time-multi-scale-fourier-features) · [inverse runs in the tuning study](tuning_study.md#tune-wave-1d-space-time-multi-scale-fourier-features-inverse-mode)
 
 **Forward problem**
 
@@ -1052,13 +1265,41 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | 🔴 **All of the above together (3 seeds, median)** | **1.5 × 10<sup>-3</sup>** | **645** |
 | **PINNStudio best** (Settings: Tuned): all of the changes together | **1.5 × 10<sup>-3</sup>** | **645** |
 
-*Forward, DeepXDE's settings:*
+**Inverse problem**
 
-![Wave 1D – space-time multi-scale Fourier features: Forward, DeepXDE's settings](figures/tuning/Wave_propagation_space_time_multi_scale_Fourier_features/own_surface_comparison.png)
+| Training | L₂ | Parameters found (true) | Worst parameter error | Time (s) |
+|---|---|---|---|---|
+| DeepXDE's settings | 5.5 × 10<sup>-5</sup> | C = 9.99999 (10) | 0.0001% | 303 |
+| Larger network (2× width, one more layer) | 5.1 × 10<sup>-5</sup> | C = 9.99999 (10) | 0.0001% | 608 |
+| 🔴 **All of the above together** | **3.8 × 10<sup>-5</sup>** | **C = 10 (10)** | **0%** | **4354** |
+| 10× data weight, 3× L-BFGS and the larger network | 4.1 × 10<sup>-5</sup> | C = 9.99999 (10) | 0.0001% | 1513 |
+| **PINNStudio best** (Settings: Tuned): all of the changes together | **3.8 × 10<sup>-5</sup>** | C = 10 (10) | **0%** | **4354** |
 
-*Forward, PINNStudio best:*
+*DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*
 
-![Wave 1D – space-time multi-scale Fourier features: Forward, PINNStudio best](figures/tuning/Wave_propagation_space_time_multi_scale_Fourier_features/tuned_surface_comparison.png)
+<details>
+<summary><strong>Forward results: figures</strong></summary>
+
+*DeepXDE's settings:*
+
+![Wave 1D – space-time multi-scale Fourier features: DeepXDE's settings](figures/tuning/Wave_propagation_space_time_multi_scale_Fourier_features/base_surface_comparison.png)
+
+*PINNStudio best — all of the changes together:*
+
+![Wave 1D – space-time multi-scale Fourier features: PINNStudio best — all of the changes together](figures/tuning/Wave_propagation_space_time_multi_scale_Fourier_features/all_surface_comparison.png)
+
+</details>
+
+<details>
+<summary><strong>Inverse results: figures</strong></summary>
+
+*PINNStudio best — all of the changes together:*
+
+![Wave 1D – space-time multi-scale Fourier features: PINNStudio best — all of the changes together](figures/tuning/Wave_propagation_space_time_multi_scale_Fourier_features_inv/all_surface_comparison.png)
+
+![Wave 1D – space-time multi-scale Fourier features: PINNStudio best — all of the changes together](figures/tuning/Wave_propagation_space_time_multi_scale_Fourier_features_inv/all_param_plot.png)
+
+</details>
 
 </details>
 
@@ -1079,17 +1320,22 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | All of the above together (3 seeds, median) | 2.0 × 10<sup>-4</sup> | C = 1.00017 (1) | 0.017% | 380 |
 | **PINNStudio best** (Settings: Tuned): 3× iterations | **1.2 × 10<sup>-3</sup>** | C = 1.00004 (1) | **0.004%** | **311** |
 
-*Inverse, DeepXDE's settings:*
+<details>
+<summary><strong>Inverse results: figures</strong></summary>
 
-![Diffusion 1D – unknown coefficient: Inverse, DeepXDE's settings](figures/tuning/Inverse_diffusion_equation/own_surface_comparison.png)
+*DeepXDE's settings:*
 
-![Diffusion 1D – unknown coefficient: Inverse, DeepXDE's settings](figures/tuning/Inverse_diffusion_equation/own_param_plot.png)
+![Diffusion 1D – unknown coefficient: DeepXDE's settings](figures/tuning/Inverse_diffusion_equation/base_surface_comparison.png)
 
-*Inverse, PINNStudio best:*
+![Diffusion 1D – unknown coefficient: DeepXDE's settings](figures/tuning/Inverse_diffusion_equation/base_param_plot.png)
 
-![Diffusion 1D – unknown coefficient: Inverse, PINNStudio best](figures/tuning/Inverse_diffusion_equation/tuned_surface_comparison.png)
+*PINNStudio best — 3× iterations:*
 
-![Diffusion 1D – unknown coefficient: Inverse, PINNStudio best](figures/tuning/Inverse_diffusion_equation/tuned_param_plot.png)
+![Diffusion 1D – unknown coefficient: PINNStudio best — 3× iterations](figures/tuning/Inverse_diffusion_equation/iters_surface_comparison.png)
+
+![Diffusion 1D – unknown coefficient: PINNStudio best — 3× iterations](figures/tuning/Inverse_diffusion_equation/iters_param_plot.png)
+
+</details>
 
 </details>
 
@@ -1105,9 +1351,14 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | DeepXDE's settings (README) | – | k_f = 0.0992 (0.1); D = 1.993 (2) | 0.8% | – |
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **–** | k_f = 0.0992 (0.1); D = 1.993 (2) | **0.8%** | – |
 
-*Inverse, the README's result:*
+<details>
+<summary><strong>Inverse results: figures</strong></summary>
 
-![Diffusion-reaction 1D – unknown k_f, D: Inverse, the README's result](../assets/Images/DeepXDE/Inverse_diffusion_reaction_system/animation.gif)
+*PINNStudio best (README):*
+
+![Diffusion-reaction 1D – unknown k_f, D: PINNStudio best (README)](../assets/Images/DeepXDE/Inverse_diffusion_reaction_system/animation.gif)
+
+</details>
 
 </details>
 
@@ -1125,9 +1376,14 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | DeepXDE's settings (README) | 1.2 × 10<sup>-3</sup> | – |
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **1.2 × 10<sup>-3</sup>** | – |
 
-*Forward, the README's result:*
+<details>
+<summary><strong>Forward results: figures</strong></summary>
 
-![Fractional Poisson 2D – disk: Forward, the README's result](../assets/Images/DeepXDE/Fractional_Poisson_equation_2D/surface_comparison.png)
+*DeepXDE's settings (README):*
+
+![Fractional Poisson 2D – disk: DeepXDE's settings (README)](../assets/Images/DeepXDE/Fractional_Poisson_equation_2D/surface_comparison.png)
+
+</details>
 
 </details>
 
@@ -1156,9 +1412,25 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 *DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*
 
-*Forward, the README's result:*
+<details>
+<summary><strong>Forward results: figures</strong></summary>
 
-![Helmholtz 2D – Dirichlet: Forward, the README's result](../assets/Images/DeepXDE/Helmholtz_2D_Dirichlet/surface_comparison.png)
+*DeepXDE's settings (README):*
+
+![Helmholtz 2D – Dirichlet: DeepXDE's settings (README)](../assets/Images/DeepXDE/Helmholtz_2D_Dirichlet/surface_comparison.png)
+
+</details>
+
+<details>
+<summary><strong>Inverse results: figures</strong></summary>
+
+*PINNStudio best — 10× data weight, 3× L-BFGS and the larger network:*
+
+![Helmholtz 2D – Dirichlet: PINNStudio best — 10× data weight, 3× L-BFGS and the larger network](figures/tuning/Helmholtz_2D_Dirichlet_inv/invall_surface_comparison.png)
+
+![Helmholtz 2D – Dirichlet: PINNStudio best — 10× data weight, 3× L-BFGS and the larger network](figures/tuning/Helmholtz_2D_Dirichlet_inv/invall_param_plot.png)
+
+</details>
 
 </details>
 
@@ -1185,19 +1457,24 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 | Training | L₂ | Time (s) |
 |---|---|---|
-| DeepXDE's settings (3 seeds, median) | 8.0 × 10<sup>-2</sup> | 61 |
+| 🔴 **DeepXDE's settings (3 seeds, median)** | **8.0 × 10<sup>-2</sup>** | **61** |
 | 3× iterations | 8.8 × 10<sup>-2</sup> | 170 |
 | Larger network (2× width, one more layer) | 7.9 × 10<sup>-2</sup> | 101 |
 | 3× training points | 7.7 × 10<sup>-2</sup> | 135 |
 | L-BFGS phase added | 7.7 × 10<sup>-2</sup> | 108 |
-| 🔴 **All of the above together (3 seeds, median)** | **7.7 × 10<sup>-2</sup>** | **1017** |
-| **PINNStudio best** (Settings: Tuned): the example's own settings (no change did better) | **8.0 × 10<sup>-2</sup>** | **1017** |
+| All of the above together (3 seeds, median) | 7.7 × 10<sup>-2</sup> | 1017 |
+| **PINNStudio best** (Settings: Tuned): the example's own settings (no change did better) | **8.0 × 10<sup>-2</sup>** | **61** |
 
-*Forward, DeepXDE's settings:*
+<details>
+<summary><strong>Forward results: figures</strong></summary>
 
-![Helmholtz 2D – sound-hard scattering: Forward, DeepXDE's settings](figures/tuning/Helmholtz_sound_hard_scattering_absorbing_BC/own_surface_comparison_u_im.png)
+*DeepXDE's settings (also PINNStudio best):*
 
-![Helmholtz 2D – sound-hard scattering: Forward, DeepXDE's settings](figures/tuning/Helmholtz_sound_hard_scattering_absorbing_BC/own_surface_comparison_u_re.png)
+![Helmholtz 2D – sound-hard scattering: DeepXDE's settings (also PINNStudio best)](figures/tuning/Helmholtz_sound_hard_scattering_absorbing_BC/base_surface_comparison_u_im.png)
+
+![Helmholtz 2D – sound-hard scattering: DeepXDE's settings (also PINNStudio best)](figures/tuning/Helmholtz_sound_hard_scattering_absorbing_BC/base_surface_comparison_u_re.png)
+
+</details>
 
 </details>
 
@@ -1218,13 +1495,18 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | All of the above together | 2.6 × 10<sup>-3</sup> | 79 |
 | **PINNStudio best** (Settings: Tuned): L-BFGS phase added | **7.0 × 10<sup>-4</sup>** | **24** |
 
-*Forward, DeepXDE's settings:*
+<details>
+<summary><strong>Forward results: figures</strong></summary>
 
-![Helmholtz 2D – square with hole: Forward, DeepXDE's settings](figures/tuning/Helmholtz_2D_with_a_hole/own_surface_comparison.png)
+*DeepXDE's settings:*
 
-*Forward, PINNStudio best:*
+![Helmholtz 2D – square with hole: DeepXDE's settings](figures/tuning/Helmholtz_2D_with_a_hole/base_surface_comparison.png)
 
-![Helmholtz 2D – square with hole: Forward, PINNStudio best](figures/tuning/Helmholtz_2D_with_a_hole/tuned_surface_comparison.png)
+*PINNStudio best — L-BFGS phase added:*
+
+![Helmholtz 2D – square with hole: PINNStudio best — L-BFGS phase added](figures/tuning/Helmholtz_2D_with_a_hole/lbfgs_surface_comparison.png)
+
+</details>
 
 </details>
 
@@ -1240,9 +1522,14 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | DeepXDE's settings (README) | 1.1 × 10<sup>-3</sup> | – |
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **1.1 × 10<sup>-3</sup>** | – |
 
-*Forward, the README's result:*
+<details>
+<summary><strong>Forward results: figures</strong></summary>
 
-![Laplace 2D – disk: Forward, the README's result](../assets/Images/DeepXDE/Laplace_equation_on_a_disk/surface_comparison.png)
+*DeepXDE's settings (README):*
+
+![Laplace 2D – disk: DeepXDE's settings (README)](../assets/Images/DeepXDE/Laplace_equation_on_a_disk/surface_comparison.png)
+
+</details>
 
 </details>
 
@@ -1272,29 +1559,53 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 *DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*
 
-*Forward, DeepXDE's settings:*
+<details>
+<summary><strong>Forward results: figures</strong></summary>
 
-![Linear elasticity 2D – plate: Forward, DeepXDE's settings](figures/tuning/Linear_elastostatic_plate/own_surface_comparison_sxx.png)
+*DeepXDE's settings:*
 
-![Linear elasticity 2D – plate: Forward, DeepXDE's settings](figures/tuning/Linear_elastostatic_plate/own_surface_comparison_sxy.png)
+![Linear elasticity 2D – plate: DeepXDE's settings](figures/tuning/Linear_elastostatic_plate/base_surface_comparison_sxx.png)
 
-![Linear elasticity 2D – plate: Forward, DeepXDE's settings](figures/tuning/Linear_elastostatic_plate/own_surface_comparison_syy.png)
+![Linear elasticity 2D – plate: DeepXDE's settings](figures/tuning/Linear_elastostatic_plate/base_surface_comparison_sxy.png)
 
-![Linear elasticity 2D – plate: Forward, DeepXDE's settings](figures/tuning/Linear_elastostatic_plate/own_surface_comparison_ux.png)
+![Linear elasticity 2D – plate: DeepXDE's settings](figures/tuning/Linear_elastostatic_plate/base_surface_comparison_syy.png)
 
-![Linear elasticity 2D – plate: Forward, DeepXDE's settings](figures/tuning/Linear_elastostatic_plate/own_surface_comparison_uy.png)
+![Linear elasticity 2D – plate: DeepXDE's settings](figures/tuning/Linear_elastostatic_plate/base_surface_comparison_ux.png)
 
-*Forward, PINNStudio best:*
+![Linear elasticity 2D – plate: DeepXDE's settings](figures/tuning/Linear_elastostatic_plate/base_surface_comparison_uy.png)
 
-![Linear elasticity 2D – plate: Forward, PINNStudio best](figures/tuning/Linear_elastostatic_plate/tuned_surface_comparison_sxx.png)
+*PINNStudio best — all of the changes together:*
 
-![Linear elasticity 2D – plate: Forward, PINNStudio best](figures/tuning/Linear_elastostatic_plate/tuned_surface_comparison_sxy.png)
+![Linear elasticity 2D – plate: PINNStudio best — all of the changes together](figures/tuning/Linear_elastostatic_plate/all_surface_comparison_sxx.png)
 
-![Linear elasticity 2D – plate: Forward, PINNStudio best](figures/tuning/Linear_elastostatic_plate/tuned_surface_comparison_syy.png)
+![Linear elasticity 2D – plate: PINNStudio best — all of the changes together](figures/tuning/Linear_elastostatic_plate/all_surface_comparison_sxy.png)
 
-![Linear elasticity 2D – plate: Forward, PINNStudio best](figures/tuning/Linear_elastostatic_plate/tuned_surface_comparison_ux.png)
+![Linear elasticity 2D – plate: PINNStudio best — all of the changes together](figures/tuning/Linear_elastostatic_plate/all_surface_comparison_syy.png)
 
-![Linear elasticity 2D – plate: Forward, PINNStudio best](figures/tuning/Linear_elastostatic_plate/tuned_surface_comparison_uy.png)
+![Linear elasticity 2D – plate: PINNStudio best — all of the changes together](figures/tuning/Linear_elastostatic_plate/all_surface_comparison_ux.png)
+
+![Linear elasticity 2D – plate: PINNStudio best — all of the changes together](figures/tuning/Linear_elastostatic_plate/all_surface_comparison_uy.png)
+
+</details>
+
+<details>
+<summary><strong>Inverse results: figures</strong></summary>
+
+*PINNStudio best — the example's own settings (no change did better):*
+
+![Linear elasticity 2D – plate: PINNStudio best — the example's own settings (no change did better)](figures/tuning/Linear_elastostatic_plate_inv/base_surface_comparison_sxx.png)
+
+![Linear elasticity 2D – plate: PINNStudio best — the example's own settings (no change did better)](figures/tuning/Linear_elastostatic_plate_inv/base_surface_comparison_sxy.png)
+
+![Linear elasticity 2D – plate: PINNStudio best — the example's own settings (no change did better)](figures/tuning/Linear_elastostatic_plate_inv/base_surface_comparison_syy.png)
+
+![Linear elasticity 2D – plate: PINNStudio best — the example's own settings (no change did better)](figures/tuning/Linear_elastostatic_plate_inv/base_surface_comparison_ux.png)
+
+![Linear elasticity 2D – plate: PINNStudio best — the example's own settings (no change did better)](figures/tuning/Linear_elastostatic_plate_inv/base_surface_comparison_uy.png)
+
+![Linear elasticity 2D – plate: PINNStudio best — the example's own settings (no change did better)](figures/tuning/Linear_elastostatic_plate_inv/base_param_plot.png)
+
+</details>
 
 </details>
 
@@ -1310,9 +1621,14 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | DeepXDE's settings (README) | 4.9 × 10<sup>-4</sup> | – |
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **4.9 × 10<sup>-4</sup>** | – |
 
-*Forward, the README's result:*
+<details>
+<summary><strong>Forward results: figures</strong></summary>
 
-![Linear elasticity 2D – plate, soft BCs: Forward, the README's result](../assets/Images/DeepXDE/Linear_elastostatic_plate_soft_BCs/surface_comparison_ux.png)
+*DeepXDE's settings (README):*
+
+![Linear elasticity 2D – plate, soft BCs: DeepXDE's settings (README)](../assets/Images/DeepXDE/Linear_elastostatic_plate_soft_BCs/surface_comparison_ux.png)
+
+</details>
 
 </details>
 
@@ -1341,25 +1657,29 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 *DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*
 
-*Forward, the README's result:*
+<details>
+<summary><strong>Forward results: figures</strong></summary>
 
-![Navier-Stokes 2D – Kovasznay flow: Forward, the README's result](../assets/Images/DeepXDE/Kovasznay_flow/surface_comparison_u.png)
+*DeepXDE's settings (README):*
 
-*Inverse, DeepXDE's settings:*
+![Navier-Stokes 2D – Kovasznay flow: DeepXDE's settings (README)](../assets/Images/DeepXDE/Kovasznay_flow/surface_comparison_u.png)
 
-![Navier-Stokes 2D – Kovasznay flow: Inverse, DeepXDE's settings](figures/tuning/Kovasznay_flow_inv/own_surface_comparison_u.png)
+</details>
 
-![Navier-Stokes 2D – Kovasznay flow: Inverse, DeepXDE's settings](figures/tuning/Kovasznay_flow_inv/own_surface_comparison_v.png)
+<details>
+<summary><strong>Inverse results: figures</strong></summary>
 
-![Navier-Stokes 2D – Kovasznay flow: Inverse, DeepXDE's settings](figures/tuning/Kovasznay_flow_inv/own_param_plot.png)
+*PINNStudio best — Larger network (2× width, one more layer):*
 
-*Inverse, PINNStudio best:*
+![Navier-Stokes 2D – Kovasznay flow: PINNStudio best — Larger network (2× width, one more layer)](figures/tuning/Kovasznay_flow_inv/net_surface_comparison_u.png)
 
-![Navier-Stokes 2D – Kovasznay flow: Inverse, PINNStudio best](figures/tuning/Kovasznay_flow_inv/tuned_surface_comparison_u.png)
+![Navier-Stokes 2D – Kovasznay flow: PINNStudio best — Larger network (2× width, one more layer)](figures/tuning/Kovasznay_flow_inv/net_surface_comparison_p.png)
 
-![Navier-Stokes 2D – Kovasznay flow: Inverse, PINNStudio best](figures/tuning/Kovasznay_flow_inv/tuned_surface_comparison_v.png)
+![Navier-Stokes 2D – Kovasznay flow: PINNStudio best — Larger network (2× width, one more layer)](figures/tuning/Kovasznay_flow_inv/net_surface_comparison_v.png)
 
-![Navier-Stokes 2D – Kovasznay flow: Inverse, PINNStudio best](figures/tuning/Kovasznay_flow_inv/tuned_param_plot.png)
+![Navier-Stokes 2D – Kovasznay flow: PINNStudio best — Larger network (2× width, one more layer)](figures/tuning/Kovasznay_flow_inv/net_param_plot.png)
+
+</details>
 
 </details>
 
@@ -1382,15 +1702,25 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | 🔴 **The template's starting settings** | **5.4 × 10<sup>-4</sup>** | **f = 1.00002 (1)** | **0.002%** | **157** |
 | **PINNStudio best** (Settings: Tuned): the example's own settings (tuning runs queued) | **5.4 × 10<sup>-4</sup>** | f = 1.00002 (1) | **0.002%** | **157** |
 
-*Forward, the README's result:*
+<details>
+<summary><strong>Forward results: figures</strong></summary>
 
-![Poisson 2D – disk: Forward, the README's result](../assets/Images/2D-Poisson-Disk-Shaped/surface_comparison.png)
+*The template's starting settings (README):*
 
-*Inverse, the template's starting settings:*
+![Poisson 2D – disk: The template's starting settings (README)](../assets/Images/2D-Poisson-Disk-Shaped/surface_comparison.png)
 
-![Poisson 2D – disk: Inverse, the template's starting settings](figures/tuning/Template_2D_Poisson_Disk_inv/own_surface_comparison.png)
+</details>
 
-![Poisson 2D – disk: Inverse, the template's starting settings](figures/tuning/Template_2D_Poisson_Disk_inv/own_param_plot.png)
+<details>
+<summary><strong>Inverse results: figures</strong></summary>
+
+*PINNStudio best — the example's own settings (tuning runs queued):*
+
+![Poisson 2D – disk: PINNStudio best — the example's own settings (tuning runs queued)](figures/tuning/Template_2D_Poisson_Disk_inv/base_surface_comparison.png)
+
+![Poisson 2D – disk: PINNStudio best — the example's own settings (tuning runs queued)](figures/tuning/Template_2D_Poisson_Disk_inv/base_param_plot.png)
+
+</details>
 
 </details>
 
@@ -1405,18 +1735,23 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 |---|---|---|
 | DeepXDE's settings (3 seeds, median) | 3.5 × 10<sup>-2</sup> | 174 |
 | 3× iterations | 3.1 × 10<sup>-2</sup> | 413 |
-| 🔴 **Larger network (2× width, one more layer) (3 seeds, median)** | **2.3 × 10<sup>-2</sup>** | **182** |
+| Larger network (2× width, one more layer) (3 seeds, median) | 2.3 × 10<sup>-2</sup> | 182 |
 | 3× training points | 1.9 × 10<sup>-2</sup> | 175 |
-| All of the above together (3 seeds, median) | 1.2 × 10<sup>-2</sup> | 500 |
-| **PINNStudio best** (Settings: Tuned): all of the changes together | **1.2 × 10<sup>-2</sup>** | **182** |
+| 🔴 **All of the above together (3 seeds, median)** | **1.2 × 10<sup>-2</sup>** | **500** |
+| **PINNStudio best** (Settings: Tuned): all of the changes together | **1.2 × 10<sup>-2</sup>** | **500** |
 
-*Forward, DeepXDE's settings:*
+<details>
+<summary><strong>Forward results: figures</strong></summary>
 
-![Poisson 2D – L-shape: Forward, DeepXDE's settings](figures/tuning/Poisson_over_an_L_shaped_domain/own_surface_comparison.png)
+*DeepXDE's settings:*
 
-*Forward, PINNStudio best:*
+![Poisson 2D – L-shape: DeepXDE's settings](figures/tuning/Poisson_over_an_L_shaped_domain/base_surface_comparison.png)
 
-![Poisson 2D – L-shape: Forward, PINNStudio best](figures/tuning/Poisson_over_an_L_shaped_domain/tuned_surface_comparison.png)
+*PINNStudio best — all of the changes together:*
+
+![Poisson 2D – L-shape: PINNStudio best — all of the changes together](figures/tuning/Poisson_over_an_L_shaped_domain/all_surface_comparison.png)
+
+</details>
 
 </details>
 
@@ -1432,9 +1767,14 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | DeepXDE's settings (README) | 2.3 × 10<sup>-3</sup> | α = 1.80445 (1.8) | 0.25% | – |
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **2.3 × 10<sup>-3</sup>** | α = 1.80445 (1.8) | **0.25%** | – |
 
-*Inverse, the README's result:*
+<details>
+<summary><strong>Inverse results: figures</strong></summary>
 
-![Fractional Poisson 2D – unknown order α: Inverse, the README's result](../assets/Images/DeepXDE/Inverse_fractional_Poisson_equation_2D/surface_comparison.png)
+*PINNStudio best (README):*
+
+![Fractional Poisson 2D – unknown order α: PINNStudio best (README)](../assets/Images/DeepXDE/Inverse_fractional_Poisson_equation_2D/surface_comparison.png)
+
+</details>
 
 </details>
 
@@ -1471,19 +1811,27 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | 🔴 **The template's starting settings** | **3.1 × 10<sup>-4</sup>** | **λ = 9.54428 (10); λε² = 0.00598505 (0.00625)** | **4.6%** | **396** |
 | **PINNStudio best** (Settings: Tuned): the example's own settings (tuning runs queued) | **3.1 × 10<sup>-4</sup>** | λ = 9.54428 (10); λε² = 0.00598505 (0.00625) | **4.6%** | **396** |
 
-*Forward, the template's starting settings:*
+<details>
+<summary><strong>Forward results: figures</strong></summary>
 
-![Allen-Cahn 2D – Wight & Zhao: Forward, the template's starting settings](figures/tuning/Template_2D_Allen_Cahn_Wight_Zhao/own_surface_comparison.png)
+*Wight & Zhao's method, run in PINNStudio: the figures come when its run finishes.*
 
-*Forward, PINNStudio best:*
+*PINNStudio best — the best setup as it is:*
 
-![Allen-Cahn 2D – Wight & Zhao: Forward, PINNStudio best](figures/tuning/Template_2D_Allen_Cahn_Wight_Zhao_best_setup/own_surface_comparison.png)
+![Allen-Cahn 2D – Wight & Zhao: PINNStudio best — the best setup as it is](figures/tuning/Template_2D_Allen_Cahn_Wight_Zhao_best_setup/base_surface_comparison.png)
 
-*Inverse, the template's starting settings:*
+</details>
 
-![Allen-Cahn 2D – Wight & Zhao: Inverse, the template's starting settings](figures/tuning/Template_2D_Allen_Cahn_Wight_Zhao_inv/own_surface_comparison.png)
+<details>
+<summary><strong>Inverse results: figures</strong></summary>
 
-![Allen-Cahn 2D – Wight & Zhao: Inverse, the template's starting settings](figures/tuning/Template_2D_Allen_Cahn_Wight_Zhao_inv/own_param_plot.png)
+*PINNStudio best — the example's own settings (tuning runs queued):*
+
+![Allen-Cahn 2D – Wight & Zhao: PINNStudio best — the example's own settings (tuning runs queued)](figures/tuning/Template_2D_Allen_Cahn_Wight_Zhao_inv/base_surface_comparison.png)
+
+![Allen-Cahn 2D – Wight & Zhao: PINNStudio best — the example's own settings (tuning runs queued)](figures/tuning/Template_2D_Allen_Cahn_Wight_Zhao_inv/base_param_plot.png)
+
+</details>
 
 </details>
 
@@ -1514,19 +1862,27 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | 🔴 **The template's starting settings** | **8.9 × 10<sup>-4</sup>** | **c₁² = 0.000105791 (0.0001); c₂ = 1.00367 (1)** | **5.8%** | **1735** |
 | **PINNStudio best** (Settings: Tuned): the example's own settings (tuning runs queued) | **8.9 × 10<sup>-4</sup>** | c₁² = 0.000105791 (0.0001); c₂ = 1.00367 (1) | **5.8%** | **1735** |
 
-*Forward, the README's result:*
+<details>
+<summary><strong>Forward results: figures</strong></summary>
 
-![Allen-Cahn 2D – Mattey & Ghosh: Forward, the README's result](../assets/Images/2D_Allen_Cahn_Mattey/surface_comparison.png)
+*Mattey & Ghosh's bc-PINN, run in PINNStudio: the figures come when its run finishes.*
 
-*Forward, PINNStudio best:*
+*PINNStudio best — the best setup as it is:*
 
-![Allen-Cahn 2D – Mattey & Ghosh: Forward, PINNStudio best](figures/tuning/Template_2D_Allen_Cahn_Mattey_Ghosh_best_setup/tuned_surface_comparison.png)
+![Allen-Cahn 2D – Mattey & Ghosh: PINNStudio best — the best setup as it is](figures/tuning/Template_2D_Allen_Cahn_Mattey_Ghosh_best_setup/base_surface_comparison.png)
 
-*Inverse, the template's starting settings:*
+</details>
 
-![Allen-Cahn 2D – Mattey & Ghosh: Inverse, the template's starting settings](figures/tuning/Template_2D_Allen_Cahn_Mattey_Ghosh_inv/own_surface_comparison.png)
+<details>
+<summary><strong>Inverse results: figures</strong></summary>
 
-![Allen-Cahn 2D – Mattey & Ghosh: Inverse, the template's starting settings](figures/tuning/Template_2D_Allen_Cahn_Mattey_Ghosh_inv/own_param_plot.png)
+*PINNStudio best — the example's own settings (tuning runs queued):*
+
+![Allen-Cahn 2D – Mattey & Ghosh: PINNStudio best — the example's own settings (tuning runs queued)](figures/tuning/Template_2D_Allen_Cahn_Mattey_Ghosh_inv/base_surface_comparison.png)
+
+![Allen-Cahn 2D – Mattey & Ghosh: PINNStudio best — the example's own settings (tuning runs queued)](figures/tuning/Template_2D_Allen_Cahn_Mattey_Ghosh_inv/base_param_plot.png)
+
+</details>
 
 </details>
 
@@ -1543,9 +1899,9 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | Wight & Zhao's method, as reported (Wight & Zhao (2021), Fig. 3.13) | – | figures only | – |
 | Wight & Zhao's method, run in PINNStudio | – | – | – |
 | The template's starting settings | 1.1 × 10<sup>-2</sup> | 1.6 × 10<sup>-2</sup> | 822 |
-| 3× iterations | 4.5 × 10<sup>-3</sup> | 7.2 × 10<sup>-3</sup> | 1464 |
-| 🔴 **Larger network (2× width, one more layer)** | **8.0 × 10<sup>-3</sup>** | **1.1 × 10<sup>-2</sup>** | **1995** |
-| **PINNStudio best** (Settings: Tuned): 3× iterations | **4.5 × 10<sup>-3</sup>** | **1.1 × 10<sup>-2</sup>**  | **1995** |
+| 🔴 **3× iterations** | **4.5 × 10<sup>-3</sup>** | **7.2 × 10<sup>-3</sup>** | **1464** |
+| Larger network (2× width, one more layer) | 8.0 × 10<sup>-3</sup> | 1.1 × 10<sup>-2</sup> | 1995 |
+| **PINNStudio best** (Settings: Tuned): 3× iterations | **4.5 × 10<sup>-3</sup>** | **7.2 × 10<sup>-3</sup>**  | **1464** |
 
 *The base PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*
 
@@ -1556,25 +1912,31 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | 🔴 **The template's starting settings** | **6.9 × 10<sup>-5</sup>** | **ε² = 0.00251042 (0.0025)** | **0.42%** | **3736** |
 | **PINNStudio best** (Settings: Tuned): the example's own settings (tuning runs queued) | **6.9 × 10<sup>-5</sup>** | ε² = 0.00251042 (0.0025) | **0.42%** | **3736** |
 
-*Forward, the template's starting settings:*
+<details>
+<summary><strong>Forward results: figures</strong></summary>
 
-![Cahn-Hilliard 2D – Wight & Zhao: Forward, the template's starting settings](figures/tuning/Template_2D_Cahn_Hilliard_Wight_Zhao/own_surface_comparison_mu.png)
+*Wight & Zhao's method, run in PINNStudio: the figures come when its run finishes.*
 
-![Cahn-Hilliard 2D – Wight & Zhao: Forward, the template's starting settings](figures/tuning/Template_2D_Cahn_Hilliard_Wight_Zhao/own_surface_comparison_u.png)
+*PINNStudio best — 3× iterations:*
 
-*Forward, PINNStudio best:*
+![Cahn-Hilliard 2D – Wight & Zhao: PINNStudio best — 3× iterations](figures/tuning/Template_2D_Cahn_Hilliard_Wight_Zhao/iters_surface_comparison_u.png)
 
-![Cahn-Hilliard 2D – Wight & Zhao: Forward, PINNStudio best](figures/tuning/Template_2D_Cahn_Hilliard_Wight_Zhao/tuned_surface_comparison_mu.png)
+![Cahn-Hilliard 2D – Wight & Zhao: PINNStudio best — 3× iterations](figures/tuning/Template_2D_Cahn_Hilliard_Wight_Zhao/iters_surface_comparison_mu.png)
 
-![Cahn-Hilliard 2D – Wight & Zhao: Forward, PINNStudio best](figures/tuning/Template_2D_Cahn_Hilliard_Wight_Zhao/tuned_surface_comparison_u.png)
+</details>
 
-*Inverse, the template's starting settings:*
+<details>
+<summary><strong>Inverse results: figures</strong></summary>
 
-![Cahn-Hilliard 2D – Wight & Zhao: Inverse, the template's starting settings](figures/tuning/Template_2D_Cahn_Hilliard_Wight_Zhao_inv/own_surface_comparison_mu.png)
+*PINNStudio best — the example's own settings (tuning runs queued):*
 
-![Cahn-Hilliard 2D – Wight & Zhao: Inverse, the template's starting settings](figures/tuning/Template_2D_Cahn_Hilliard_Wight_Zhao_inv/own_surface_comparison_u.png)
+![Cahn-Hilliard 2D – Wight & Zhao: PINNStudio best — the example's own settings (tuning runs queued)](figures/tuning/Template_2D_Cahn_Hilliard_Wight_Zhao_inv/base_surface_comparison_u.png)
 
-![Cahn-Hilliard 2D – Wight & Zhao: Inverse, the template's starting settings](figures/tuning/Template_2D_Cahn_Hilliard_Wight_Zhao_inv/own_param_plot.png)
+![Cahn-Hilliard 2D – Wight & Zhao: PINNStudio best — the example's own settings (tuning runs queued)](figures/tuning/Template_2D_Cahn_Hilliard_Wight_Zhao_inv/base_surface_comparison_mu.png)
+
+![Cahn-Hilliard 2D – Wight & Zhao: PINNStudio best — the example's own settings (tuning runs queued)](figures/tuning/Template_2D_Cahn_Hilliard_Wight_Zhao_inv/base_param_plot.png)
+
+</details>
 
 </details>
 
@@ -1601,13 +1963,25 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | The template's starting settings (README) | – | α = 0.000188 (0.0002); κ = 1.012 (1) | 6% | – |
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **–** | α = 0.000188 (0.0002); κ = 1.012 (1) | **6%** | – |
 
-*Forward, the README's result:*
+<details>
+<summary><strong>Forward results: figures</strong></summary>
 
-![Cahn-Hilliard 2D – Mattey & Ghosh: Forward, the README's result](../assets/Images/2D_CahnHilliard-Mattey/surface_comparison_u.png)
+*Mattey & Ghosh's bc-PINN, run in PINNStudio: the figures come when its run finishes.*
 
-*Inverse, the README's result:*
+*PINNStudio best (the template's own settings, README):*
 
-![Cahn-Hilliard 2D – Mattey & Ghosh: Inverse, the README's result](../assets/Images/2D_CahnHilliard-Mattey/param_convergence_animation.gif)
+![Cahn-Hilliard 2D – Mattey & Ghosh: PINNStudio best (the template's own settings, README)](../assets/Images/2D_CahnHilliard-Mattey/surface_comparison_u.png)
+
+</details>
+
+<details>
+<summary><strong>Inverse results: figures</strong></summary>
+
+*PINNStudio best (README):*
+
+![Cahn-Hilliard 2D – Mattey & Ghosh: PINNStudio best (README)](../assets/Images/2D_CahnHilliard-Mattey/param_convergence_animation.gif)
+
+</details>
 
 </details>
 
@@ -1638,25 +2012,31 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | 🔴 **The template's starting settings** | **3.5 × 10<sup>-3</sup>** | **ν = 0.00341319 (0.0031831)** | **7.2%** | **1242** |
 | **PINNStudio best** (Settings: Tuned): the example's own settings (tuning runs queued) | **3.5 × 10<sup>-3</sup>** | ν = 0.00341319 (0.0031831) | **7.2%** | **1242** |
 
-*Forward, the template's starting settings:*
+<details>
+<summary><strong>Forward results: figures</strong></summary>
 
-![Burgers 2D – Mathias et al.: Forward, the template's starting settings](figures/tuning/Template_2D_Burgers_Mathias/own_surface_comparison_u.png)
+*Mathias et al.'s settings, run in PINNStudio: the figures come when its run finishes.*
 
-![Burgers 2D – Mathias et al.: Forward, the template's starting settings](figures/tuning/Template_2D_Burgers_Mathias/own_surface_comparison_v.png)
+*PINNStudio best — 3× iterations:*
 
-*Forward, PINNStudio best:*
+![Burgers 2D – Mathias et al.: PINNStudio best — 3× iterations](figures/tuning/Template_2D_Burgers_Mathias/iters_surface_comparison_u.png)
 
-![Burgers 2D – Mathias et al.: Forward, PINNStudio best](figures/tuning/Template_2D_Burgers_Mathias/tuned_surface_comparison_u.png)
+![Burgers 2D – Mathias et al.: PINNStudio best — 3× iterations](figures/tuning/Template_2D_Burgers_Mathias/iters_surface_comparison_v.png)
 
-![Burgers 2D – Mathias et al.: Forward, PINNStudio best](figures/tuning/Template_2D_Burgers_Mathias/tuned_surface_comparison_v.png)
+</details>
 
-*Inverse, the template's starting settings:*
+<details>
+<summary><strong>Inverse results: figures</strong></summary>
 
-![Burgers 2D – Mathias et al.: Inverse, the template's starting settings](figures/tuning/Template_2D_Burgers_Mathias_inv/own_surface_comparison_u.png)
+*PINNStudio best — the example's own settings (tuning runs queued):*
 
-![Burgers 2D – Mathias et al.: Inverse, the template's starting settings](figures/tuning/Template_2D_Burgers_Mathias_inv/own_surface_comparison_v.png)
+![Burgers 2D – Mathias et al.: PINNStudio best — the example's own settings (tuning runs queued)](figures/tuning/Template_2D_Burgers_Mathias_inv/base_surface_comparison_u.png)
 
-![Burgers 2D – Mathias et al.: Inverse, the template's starting settings](figures/tuning/Template_2D_Burgers_Mathias_inv/own_param_plot.png)
+![Burgers 2D – Mathias et al.: PINNStudio best — the example's own settings (tuning runs queued)](figures/tuning/Template_2D_Burgers_Mathias_inv/base_surface_comparison_v.png)
+
+![Burgers 2D – Mathias et al.: PINNStudio best — the example's own settings (tuning runs queued)](figures/tuning/Template_2D_Burgers_Mathias_inv/base_param_plot.png)
+
+</details>
 
 </details>
 
@@ -1679,15 +2059,25 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | 🔴 **The template's starting settings** | **5.8 × 10<sup>-4</sup>** | **α = 0.399893 (0.4)** | **0.027%** | **169** |
 | **PINNStudio best** (Settings: Tuned): the example's own settings (tuning runs queued) | **5.8 × 10<sup>-4</sup>** | α = 0.399893 (0.4) | **0.027%** | **169** |
 
-*Forward, the README's result:*
+<details>
+<summary><strong>Forward results: figures</strong></summary>
 
-![Heat 2D: Forward, the README's result](../assets/Images/2D-Heat/surface_comparison.png)
+*The template's starting settings (README):*
 
-*Inverse, the template's starting settings:*
+![Heat 2D: The template's starting settings (README)](../assets/Images/2D-Heat/surface_comparison.png)
 
-![Heat 2D: Inverse, the template's starting settings](figures/tuning/Template_2D_Heat_inv/own_surface_comparison.png)
+</details>
 
-![Heat 2D: Inverse, the template's starting settings](figures/tuning/Template_2D_Heat_inv/own_param_plot.png)
+<details>
+<summary><strong>Inverse results: figures</strong></summary>
+
+*PINNStudio best — the example's own settings (tuning runs queued):*
+
+![Heat 2D: PINNStudio best — the example's own settings (tuning runs queued)](figures/tuning/Template_2D_Heat_inv/base_surface_comparison.png)
+
+![Heat 2D: PINNStudio best — the example's own settings (tuning runs queued)](figures/tuning/Template_2D_Heat_inv/base_param_plot.png)
+
+</details>
 
 </details>
 
@@ -1705,9 +2095,14 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | DeepXDE's settings (README) | 6.7 × 10<sup>-3</sup> | – |
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **6.7 × 10<sup>-3</sup>** | – |
 
-*Forward, the README's result:*
+<details>
+<summary><strong>Forward results: figures</strong></summary>
 
-![Fractional Poisson 3D – sphere: Forward, the README's result](../assets/Images/DeepXDE/Fractional_Poisson_equation_3D/surface_comparison.png)
+*DeepXDE's settings (README):*
+
+![Fractional Poisson 3D – sphere: DeepXDE's settings (README)](../assets/Images/DeepXDE/Fractional_Poisson_equation_3D/surface_comparison.png)
+
+</details>
 
 </details>
 
@@ -1730,13 +2125,23 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | The template's starting settings (README) | 1.4 × 10<sup>-3</sup> | f = 1.00005 (1) | 0.005% | – |
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **1.4 × 10<sup>-3</sup>** | f = 1.00005 (1) | **0.005%** | – |
 
-*Forward, the README's result:*
+<details>
+<summary><strong>Forward results: figures</strong></summary>
 
-![Poisson 3D – sphere: Forward, the README's result](../assets/Images/3D-Poisson-Sphere/surface_comparison.png)
+*The template's starting settings (README):*
 
-*Inverse, the README's result:*
+![Poisson 3D – sphere: The template's starting settings (README)](../assets/Images/3D-Poisson-Sphere/surface_comparison.png)
 
-![Poisson 3D – sphere: Inverse, the README's result](../assets/Images/3D-Poisson-Sphere/param_convergence_animation.gif)
+</details>
+
+<details>
+<summary><strong>Inverse results: figures</strong></summary>
+
+*PINNStudio best (README):*
+
+![Poisson 3D – sphere: PINNStudio best (README)](../assets/Images/3D-Poisson-Sphere/param_convergence_animation.gif)
+
+</details>
 
 </details>
 
@@ -1763,15 +2168,27 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | 🔴 **The template's starting settings** | **9.7 × 10<sup>-5</sup>** | **λ = 9.96899 (10); λε² = 0.0249817 (0.025)** | **0.31%** | **1419** |
 | **PINNStudio best** (Settings: Tuned): the example's own settings (tuning runs queued) | **9.7 × 10<sup>-5</sup>** | λ = 9.96899 (10); λε² = 0.0249817 (0.025) | **0.31%** | **1419** |
 
-*Forward, the README's result:*
+<details>
+<summary><strong>Forward results: figures</strong></summary>
 
-![Allen-Cahn 3D – Wight & Zhao: Forward, the README's result](../assets/Images/3D_AllenCahn-Wight/slice_comparison.png)
+*Wight & Zhao's method, run in PINNStudio: the figures come when its run finishes.*
 
-*Inverse, the template's starting settings:*
+*PINNStudio best (the template's own settings, README):*
 
-![Allen-Cahn 3D – Wight & Zhao: Inverse, the template's starting settings](figures/tuning/Template_3D_Allen_Cahn_Wight_Zhao_inv/own_surface_comparison.png)
+![Allen-Cahn 3D – Wight & Zhao: PINNStudio best (the template's own settings, README)](../assets/Images/3D_AllenCahn-Wight/slice_comparison.png)
 
-![Allen-Cahn 3D – Wight & Zhao: Inverse, the template's starting settings](figures/tuning/Template_3D_Allen_Cahn_Wight_Zhao_inv/own_param_plot.png)
+</details>
+
+<details>
+<summary><strong>Inverse results: figures</strong></summary>
+
+*PINNStudio best — the example's own settings (tuning runs queued):*
+
+![Allen-Cahn 3D – Wight & Zhao: PINNStudio best — the example's own settings (tuning runs queued)](figures/tuning/Template_3D_Allen_Cahn_Wight_Zhao_inv/base_surface_comparison.png)
+
+![Allen-Cahn 3D – Wight & Zhao: PINNStudio best — the example's own settings (tuning runs queued)](figures/tuning/Template_3D_Allen_Cahn_Wight_Zhao_inv/base_param_plot.png)
+
+</details>
 
 </details>
 
@@ -1794,15 +2211,25 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | 🔴 **The template's starting settings** | **1.3 × 10<sup>-3</sup>** | **α = 0.400303 (0.4)** | **0.076%** | **729** |
 | **PINNStudio best** (Settings: Tuned): the example's own settings (tuning runs queued) | **1.3 × 10<sup>-3</sup>** | α = 0.400303 (0.4) | **0.076%** | **729** |
 
-*Forward, the README's result:*
+<details>
+<summary><strong>Forward results: figures</strong></summary>
 
-![Heat 3D: Forward, the README's result](../assets/Images/3D_Heat/3D_Heat_Solution_Surface.png)
+*The template's starting settings (README):*
 
-*Inverse, the template's starting settings:*
+![Heat 3D: The template's starting settings (README)](../assets/Images/3D_Heat/3D_Heat_Solution_Surface.png)
 
-![Heat 3D: Inverse, the template's starting settings](figures/tuning/Template_3D_Heat_inv/own_surface_comparison.png)
+</details>
 
-![Heat 3D: Inverse, the template's starting settings](figures/tuning/Template_3D_Heat_inv/own_param_plot.png)
+<details>
+<summary><strong>Inverse results: figures</strong></summary>
+
+*PINNStudio best — the example's own settings (tuning runs queued):*
+
+![Heat 3D: PINNStudio best — the example's own settings (tuning runs queued)](figures/tuning/Template_3D_Heat_inv/base_surface_comparison.png)
+
+![Heat 3D: PINNStudio best — the example's own settings (tuning runs queued)](figures/tuning/Template_3D_Heat_inv/base_param_plot.png)
+
+</details>
 
 </details>
 
@@ -1830,29 +2257,39 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 *DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*
 
-*Forward, the README's result:*
+<details>
+<summary><strong>Forward results: figures</strong></summary>
 
-![Navier-Stokes 3D – Beltrami flow: Forward, the README's result](../assets/Images/DeepXDE/Beltrami_flow/animation_u.gif)
+*DeepXDE's settings (README):*
 
-*Inverse, DeepXDE's settings:*
+![Navier-Stokes 3D – Beltrami flow: DeepXDE's settings (README)](../assets/Images/DeepXDE/Beltrami_flow/animation_u.gif)
 
-![Navier-Stokes 3D – Beltrami flow: Inverse, DeepXDE's settings](figures/tuning/Beltrami_flow_inv/own_surface_comparison_u.png)
+</details>
 
-![Navier-Stokes 3D – Beltrami flow: Inverse, DeepXDE's settings](figures/tuning/Beltrami_flow_inv/own_surface_comparison_v.png)
+<details>
+<summary><strong>Inverse results: figures</strong></summary>
 
-![Navier-Stokes 3D – Beltrami flow: Inverse, DeepXDE's settings](figures/tuning/Beltrami_flow_inv/own_surface_comparison_w.png)
+*PINNStudio best — 3× L-BFGS iterations:*
 
-![Navier-Stokes 3D – Beltrami flow: Inverse, DeepXDE's settings](figures/tuning/Beltrami_flow_inv/own_param_plot.png)
+![Navier-Stokes 3D – Beltrami flow: PINNStudio best — 3× L-BFGS iterations](figures/tuning/Beltrami_flow_inv/lbfgs3_surface_comparison_u.png)
 
-*Inverse, PINNStudio best:*
+![Navier-Stokes 3D – Beltrami flow: PINNStudio best — 3× L-BFGS iterations](figures/tuning/Beltrami_flow_inv/lbfgs3_view3d_comparison_u.png)
 
-![Navier-Stokes 3D – Beltrami flow: Inverse, PINNStudio best](figures/tuning/Beltrami_flow_inv/tuned_surface_comparison_u.png)
+![Navier-Stokes 3D – Beltrami flow: PINNStudio best — 3× L-BFGS iterations](figures/tuning/Beltrami_flow_inv/lbfgs3_surface_comparison_p.png)
 
-![Navier-Stokes 3D – Beltrami flow: Inverse, PINNStudio best](figures/tuning/Beltrami_flow_inv/tuned_surface_comparison_v.png)
+![Navier-Stokes 3D – Beltrami flow: PINNStudio best — 3× L-BFGS iterations](figures/tuning/Beltrami_flow_inv/lbfgs3_surface_comparison_v.png)
 
-![Navier-Stokes 3D – Beltrami flow: Inverse, PINNStudio best](figures/tuning/Beltrami_flow_inv/tuned_surface_comparison_w.png)
+![Navier-Stokes 3D – Beltrami flow: PINNStudio best — 3× L-BFGS iterations](figures/tuning/Beltrami_flow_inv/lbfgs3_surface_comparison_w.png)
 
-![Navier-Stokes 3D – Beltrami flow: Inverse, PINNStudio best](figures/tuning/Beltrami_flow_inv/tuned_param_plot.png)
+![Navier-Stokes 3D – Beltrami flow: PINNStudio best — 3× L-BFGS iterations](figures/tuning/Beltrami_flow_inv/lbfgs3_view3d_comparison_p.png)
+
+![Navier-Stokes 3D – Beltrami flow: PINNStudio best — 3× L-BFGS iterations](figures/tuning/Beltrami_flow_inv/lbfgs3_view3d_comparison_v.png)
+
+![Navier-Stokes 3D – Beltrami flow: PINNStudio best — 3× L-BFGS iterations](figures/tuning/Beltrami_flow_inv/lbfgs3_view3d_comparison_w.png)
+
+![Navier-Stokes 3D – Beltrami flow: PINNStudio best — 3× L-BFGS iterations](figures/tuning/Beltrami_flow_inv/lbfgs3_param_plot.png)
+
+</details>
 
 </details>
 
