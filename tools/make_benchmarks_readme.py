@@ -328,7 +328,7 @@ def _pick(s, inverse):
         l2 = mtp._med(rs, mtp._maxl2)
         pe = _perr(mtp._found(dict(s, chosen=v))) if inverse else None
         err = pe if pe is not None else l2
-        if err is not None:
+        if err is not None and err == err:          # a run that diverged (NaN) is never the best
             stats[v] = (err, mtp._med(rs, lambda r: r["seconds"]) or 0.0, l2)
     if not stats:
         return s

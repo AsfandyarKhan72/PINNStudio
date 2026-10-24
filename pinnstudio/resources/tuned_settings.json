@@ -226,6 +226,11 @@
    ],
    "variant": "base",
    "error": "L2 1.6e-03 vs 7.9e-03 with its own settings"
+  },
+  "inverse": {
+   "switches": null,
+   "variant": "invall",
+   "error": "parameter error 1.7%"
   }
  },
  "2D Allen-Cahn (Mattey & Ghosh)": {
@@ -257,6 +262,11 @@
    "switches": null,
    "variant": "iters",
    "error": "L2 8.4e-03 vs 1.1e-02 with its own settings"
+  },
+  "inverse": {
+   "switches": null,
+   "variant": "dataw",
+   "error": "parameter error 3.5%"
   }
  },
  "Beltrami flow": {

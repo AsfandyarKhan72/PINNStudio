@@ -1390,7 +1390,7 @@ where $\gamma_1 = 0.0001$ and $\gamma_2 = 5$.
 
 *Found in:* [training methods study: 1D Allen-Cahn (Wight & Zhao)](training_methods.md#1d-allen-cahn-wight--zhao)
 
-*Inverse problem — PINNStudio's own inverse setup*
+*Inverse problem — PINNStudio's own inverse setup, tuned*
 
 - **Network:** multi-scale Fourier features (MsFFN) 4 × 128 (2 inputs, 1 output), tanh, Glorot uniform, scales 1, 5
 - **Points:** 10,000 domain, 512 initial, 200 boundary
@@ -1398,7 +1398,7 @@ where $\gamma_1 = 0.0001$ and $\gamma_2 = 5$.
 - **Loss weights:** equations 1; boundary 1; measured data 100
 - **Methods:** exact initial condition (built into the network) for u; exact periodicity (periodic input features); causal training
 - **Unknowns:** gamma_1 (initial guess 1.0, true 0.0001), gamma_2 (initial guess 1.0, true 5.0)
-- **Measured data:** t_1.0.txt for u (weight 100)
+- **Measured data:** t_0.25.txt for u (weight 100); t_0.50.txt for u (weight 100); t_0.75.txt for u (weight 100); t_1.0.txt for u (weight 100)
 
 *Load it:* toolbar → Examples: **Inverse** → **Allen-Cahn 1D – Wight & Zhao** → **Tuned**, then Solve.
 
@@ -3897,14 +3897,14 @@ with true values $\lambda = 10$ and $\lambda\varepsilon^2 = 0.00625$.
 
 *Found in:* [tuning study, forward runs](tuning_study.md#tune-allen-cahn-2d-wight-zhao-pinnstudio-template-best-setup) · [training methods study: 2D Allen-Cahn (Wight & Zhao)](training_methods.md#2d-allen-cahn-wight--zhao)
 
-*Inverse problem — PINNStudio's own inverse setup*
+*Inverse problem — PINNStudio's own inverse setup, tuned*
 
-- **Network:** FNN 4 × 128 (3 inputs, 1 output), tanh, Glorot uniform
+- **Network:** FNN 5 × 256 (3 inputs, 1 output), tanh, Glorot uniform
 - **Points:** 10,000 domain, 512 initial, 400 boundary
-- **Training:** Adam 20,000 → L-BFGS 10,000
+- **Training:** Adam 20,000 → L-BFGS 30,000
 - **Loss weights:** equations 1; boundary 1; initial 100; measured data 100
 - **Unknowns:** lambda_ (initial guess 1.0, true 10.0), diff_coeff (initial guess 1.0, true 0.00625)
-- **Measured data:** t_2.5.txt for phi (weight 100)
+- **Measured data:** t_2.5.txt for phi (weight 1000)
 
 *Load it:* toolbar → Examples: **Inverse** → **Allen-Cahn 2D – Wight & Zhao** → **Tuned**, then Solve.
 
@@ -3935,8 +3935,11 @@ with true values $\lambda = 10$ and $\lambda\varepsilon^2 = 0.00625$.
 
 | Training | L₂ | Parameters found (true) | Worst parameter error | Time (s) |
 |---|---|---|---|---|
-| 🔴 **The template's starting settings** | **3.1 × 10<sup>-4</sup>** | **λ = 9.54428 (10); λε² = 0.00598505 (0.00625)** | **4.6%** | **396** |
-| **PINNStudio best** (Settings: Tuned): the example's own settings (tuning runs queued) | **3.1 × 10<sup>-4</sup>** | λ = 9.54428 (10); λε² = 0.00598505 (0.00625) | **4.6%** | **396** |
+| The template's starting settings | 3.1 × 10<sup>-4</sup> | λ = 9.54428 (10); λε² = 0.00598505 (0.00625) | 4.6% | 396 |
+| 10× weight on the measured data | 3.6 × 10<sup>-4</sup> | λ = 3.16939 (10); λε² = 0.00211525 (0.00625) | 68% | 400 |
+| Measured data at every reference time | 8.1 × 10<sup>-4</sup> | λ = 4.24259 (10); λε² = 0.00273061 (0.00625) | 58% | 964 |
+| 🔴 **10× data weight, 3× L-BFGS and the larger network** | **8.9 × 10<sup>-5</sup>** | **λ = 9.82765 (10); λε² = 0.00615365 (0.00625)** | **1.7%** | **1859** |
+| **PINNStudio best** (Settings: Tuned): 10× data weight, 3× L-BFGS and the larger network | **8.9 × 10<sup>-5</sup>** | λ = 9.82765 (10); λε² = 0.00615365 (0.00625) | **1.7%** | **1859** |
 
 <details>
 <summary>📊 <em>Forward results — figures</em></summary>
@@ -3952,15 +3955,15 @@ with true values $\lambda = 10$ and $\lambda\varepsilon^2 = 0.00625$.
 <details>
 <summary>📊 <em>Inverse results — figures</em></summary>
 
-*PINNStudio best — the example's own settings (tuning runs queued):*
+*PINNStudio best — 10× data weight, 3× L-BFGS and the larger network:*
 
 <sub>PINN, reference and error over space and time</sub>
 
-![Allen-Cahn 2D – Wight & Zhao: PINNStudio best — the example's own settings (tuning runs queued) — PINN, reference and error over space and time](figures/tuning/Template_2D_Allen_Cahn_Wight_Zhao_inv/base_surface_comparison.png)
+![Allen-Cahn 2D – Wight & Zhao: PINNStudio best — 10× data weight, 3× L-BFGS and the larger network — PINN, reference and error over space and time](figures/tuning/Template_2D_Allen_Cahn_Wight_Zhao_inv/invall_surface_comparison.png)
 
 <sub>the learned parameters during training</sub>
 
-![Allen-Cahn 2D – Wight & Zhao: PINNStudio best — the example's own settings (tuning runs queued) — the learned parameters during training](figures/tuning/Template_2D_Allen_Cahn_Wight_Zhao_inv/base_param_plot.png)
+![Allen-Cahn 2D – Wight & Zhao: PINNStudio best — 10× data weight, 3× L-BFGS and the larger network — the learned parameters during training](figures/tuning/Template_2D_Allen_Cahn_Wight_Zhao_inv/invall_param_plot.png)
 
 </details>
 
@@ -4053,6 +4056,7 @@ where $c_1^2 = 0.0001$ and $c_2 = 1$.
 | The template's starting settings | 8.9 × 10<sup>-4</sup> | c₁² = 0.000105791 (0.0001); c₂ = 1.00367 (1) | 5.8% | 1735 |
 | 🔴 **10× weight on the measured data** | **6.7 × 10<sup>-4</sup>** | **c₁² = 0.000102452 (0.0001); c₂ = 1.00025 (1)** | **2.5%** | **1789** |
 | Best whole-interval setup | 9.6 × 10<sup>-4</sup> | c₁² = 0.000104321 (0.0001); c₂ = 1.00173 (1) | 4.3% | 1774 |
+| 10× data weight, 3× L-BFGS and the larger network | 4.5 × 10<sup>-4</sup> | c₁² = 0.000107025 (0.0001); c₂ = 1.00387 (1) | 7% | 5216 |
 | **PINNStudio best** (Settings: Tuned): 10× weight on the measured data | **6.7 × 10<sup>-4</sup>** | c₁² = 0.000102452 (0.0001); c₂ = 1.00025 (1) | **2.5%** | **1789** |
 
 <details>
@@ -4397,14 +4401,14 @@ Error Analysis — PINN vs Ground Truth, for each output:
 
 *Found in:* [tuning study, forward runs](tuning_study.md#tune-burgers-2d-mathias-et-al-pinnstudio-template)
 
-*Inverse problem — PINNStudio's own inverse setup*
+*Inverse problem — PINNStudio's own inverse setup, tuned*
 
 - **Network:** FNN 4 × 128 (3 inputs, 2 outputs), tanh, Glorot uniform
 - **Points:** 8,000 domain, 2,000 initial, 2,000 boundary
 - **Training:** Adam 15,000 → L-BFGS 10,000
 - **Loss weights:** equations 1; boundary 1; initial 100; measured data 100
 - **Unknowns:** nu (initial guess 1.0, true 0.00318309886184)
-- **Measured data:** t_1.0_u.txt for u (weight 100); t_1.0_v.txt for v (weight 100)
+- **Measured data:** t_1.0_u.txt for u (weight 1000); t_1.0_v.txt for v (weight 1000)
 
 *Load it:* toolbar → Examples: **Inverse** → **Burgers 2D – Mathias et al.** → **Tuned**, then Solve.
 
@@ -4433,8 +4437,9 @@ Error Analysis — PINN vs Ground Truth, for each output:
 
 | Training | L₂ | Parameters found (true) | Worst parameter error | Time (s) |
 |---|---|---|---|---|
-| 🔴 **The template's starting settings** | **3.5 × 10<sup>-3</sup>** | **ν = 0.00341319 (0.0031831)** | **7.2%** | **1242** |
-| **PINNStudio best** (Settings: Tuned): the example's own settings (tuning runs queued) | **3.5 × 10<sup>-3</sup>** | ν = 0.00341319 (0.0031831) | **7.2%** | **1242** |
+| The template's starting settings | 3.5 × 10<sup>-3</sup> | ν = 0.00341319 (0.0031831) | 7.2% | 1242 |
+| 🔴 **10× weight on the measured data** | **2.3 × 10<sup>-3</sup>** | **ν = 0.00329503 (0.0031831)** | **3.5%** | **1250** |
+| **PINNStudio best** (Settings: Tuned): 10× weight on the measured data | **2.3 × 10<sup>-3</sup>** | ν = 0.00329503 (0.0031831) | **3.5%** | **1250** |
 
 <details>
 <summary>📊 <em>Forward results — figures</em></summary>
@@ -4456,19 +4461,19 @@ Error Analysis — PINN vs Ground Truth, for each output:
 <details>
 <summary>📊 <em>Inverse results — figures</em></summary>
 
-*PINNStudio best — the example's own settings (tuning runs queued):*
+*PINNStudio best — 10× weight on the measured data:*
 
 <sub>u — PINN, reference and error over space and time</sub>
 
-![Burgers 2D – Mathias et al.: PINNStudio best — the example's own settings (tuning runs queued) — u — PINN, reference and error over space and time](figures/tuning/Template_2D_Burgers_Mathias_inv/base_surface_comparison_u.png)
+![Burgers 2D – Mathias et al.: PINNStudio best — 10× weight on the measured data — u — PINN, reference and error over space and time](figures/tuning/Template_2D_Burgers_Mathias_inv/dataw_surface_comparison_u.png)
 
 <sub>v — PINN, reference and error over space and time</sub>
 
-![Burgers 2D – Mathias et al.: PINNStudio best — the example's own settings (tuning runs queued) — v — PINN, reference and error over space and time](figures/tuning/Template_2D_Burgers_Mathias_inv/base_surface_comparison_v.png)
+![Burgers 2D – Mathias et al.: PINNStudio best — 10× weight on the measured data — v — PINN, reference and error over space and time](figures/tuning/Template_2D_Burgers_Mathias_inv/dataw_surface_comparison_v.png)
 
 <sub>the learned parameters during training</sub>
 
-![Burgers 2D – Mathias et al.: PINNStudio best — the example's own settings (tuning runs queued) — the learned parameters during training](figures/tuning/Template_2D_Burgers_Mathias_inv/base_param_plot.png)
+![Burgers 2D – Mathias et al.: PINNStudio best — 10× weight on the measured data — the learned parameters during training](figures/tuning/Template_2D_Burgers_Mathias_inv/dataw_param_plot.png)
 
 </details>
 
