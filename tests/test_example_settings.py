@@ -46,3 +46,11 @@ def test_every_stored_entry_applies():
 def test_paper_templates_have_their_papers_method():
     for key, v in ps.TEMPLATE_PAPER.items():
         assert (key, v) in ps.PAPER, key
+
+
+def test_no_tuned_choice_where_default_is_best():
+    """Tuned is offered only where it differs from Default."""
+    from pinnstudio.core import example_settings as es
+    assert es.has_tuned("1D Allen-Cahn (whole interval)", False)        # paper's method vs the template's own
+    assert not es.has_tuned("Helmholtz equation over a 2D square domain: Hyper-parameter optimization", False) \
+        or es.tuned_table().get("Helmholtz equation over a 2D square domain: Hyper-parameter optimization")

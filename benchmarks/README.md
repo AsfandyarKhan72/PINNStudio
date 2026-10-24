@@ -30,24 +30,15 @@ $$\Large \frac{du}{dt} + \int_0^t u(s)\ ds = 2\pi\cos(2\pi t) + \frac{\sin^2(\pi
 - **Exact solution:** $u = \sin(2\pi t)$
 
 <details>
-<summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
+<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
 
-*Forward problem*
+*Forward problem — also PINNStudio best* (already accurate, so it was not tuned)
 
 - **Network:** FNN 3 × 20 (2 inputs, 1 output), tanh, Glorot uniform
 - **Points:** 16 domain, 2 boundary
 - **Training:** Adam 10,000
 
 *Load it:* toolbar → Examples: **Forward** → **Integro-differential ODE** → **Default**, then Solve.
-
-</details>
-
-<details>
-<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
-
-*Forward problem* — the Default settings above: it was already accurate, so it was not tuned.
-
-*Load it:* toolbar → Examples: **Forward** → **Integro-differential ODE** → **Tuned**, then Solve.
 
 </details>
 
@@ -83,24 +74,15 @@ $$\Large \frac{du}{dt} + u(t) = \int_0^t e^{s - t}\ u(s)\ ds, \qquad t \in [0, 5
 - **Exact solution:** $u = e^{-t}\cosh t$
 
 <details>
-<summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
+<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
 
-*Forward problem*
+*Forward problem — also PINNStudio best* (already accurate, so it was not tuned)
 
 - **Network:** FNN 3 × 20 (2 inputs, 1 output), tanh, Glorot uniform
 - **Points:** 10 domain, 2 boundary
 - **Training:** L-BFGS 15,000
 
 *Load it:* toolbar → Examples: **Forward** → **Integro-differential ODE – Volterra kernel** → **Default**, then Solve.
-
-</details>
-
-<details>
-<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
-
-*Forward problem* — the Default settings above: it was already accurate, so it was not tuned.
-
-*Load it:* toolbar → Examples: **Forward** → **Integro-differential ODE – Volterra kernel** → **Tuned**, then Solve.
 
 </details>
 
@@ -125,8 +107,6 @@ $$\Large \frac{du}{dt} + u(t) = \int_0^t e^{s - t}\ u(s)\ ds, \qquad t \in [0, 5
 <details id="bench-linear-ode-system">
 <summary><strong>Linear ODE system</strong> · DeepXDE example</summary>
 
-[inverse runs in the tuning study](tuning_study.md#tune-linear-ode-system-inverse-mode)
-
 **The problem**
 
 DeepXDE example: [`ode_system.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/ode_system.py) ([documentation](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/ode.system.html))
@@ -140,7 +120,7 @@ $$\Large \frac{dy_1}{dt} = y_2, \qquad \frac{dy_2}{dt} = -y_1, \qquad t \in [0, 
 <details>
 <summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
 
-*Forward problem*
+*Forward problem — also PINNStudio best* (already accurate, so it was not tuned)
 
 - **Network:** FNN 3 × 50 (2 inputs, 2 outputs), tanh, Glorot uniform
 - **Points:** 35 domain, 2 boundary
@@ -153,10 +133,6 @@ $$\Large \frac{dy_1}{dt} = y_2, \qquad \frac{dy_2}{dt} = -y_1, \qquad t \in [0, 
 <details>
 <summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
 
-*Forward problem* — the Default settings above: it was already accurate, so it was not tuned.
-
-*Load it:* toolbar → Examples: **Forward** → **Linear ODE system** → **Tuned**, then Solve.
-
 *Inverse problem — PINNStudio's own inverse setup, tuned*
 
 - **Network:** FNN 4 × 100 (2 inputs, 2 outputs), tanh, Glorot uniform
@@ -166,6 +142,10 @@ $$\Large \frac{dy_1}{dt} = y_2, \qquad \frac{dy_2}{dt} = -y_1, \qquad t \in [0, 
 - **Measured data:** y1_obs.txt for y1 (weight 100); y2_obs.txt for y2 (weight 100)
 
 *Load it:* toolbar → Examples: **Inverse** → **Linear ODE system** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, inverse runs](tuning_study.md#tune-linear-ode-system-inverse-mode)
+
+*Forward problem:* PINNStudio best is the Default settings above (no separate Tuned settings).
 
 </details>
 
@@ -218,8 +198,6 @@ $$\Large \frac{dy_1}{dt} = y_2, \qquad \frac{dy_2}{dt} = -y_1, \qquad t \in [0, 
 <details id="bench-lotka-volterra-ode">
 <summary><strong>Lotka-Volterra ODE</strong> · DeepXDE example</summary>
 
-[inverse runs in the tuning study](tuning_study.md#tune-lotka-volterra-ode-inverse-mode)
-
 **The problem**
 
 DeepXDE example: [`Lotka_Volterra.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Lotka_Volterra.py) ([documentation](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/Lotka.Volterra.html))
@@ -234,7 +212,7 @@ $$\Large \frac{dr}{dt} = \frac{R}{U}\left(2Ur - 0.04U^2 rp\right), \qquad \frac{
 <details>
 <summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
 
-*Forward problem*
+*Forward problem — also PINNStudio best* (already accurate, so it was not tuned)
 
 - **Network:** FNN 6 × 64 (2 inputs, 2 outputs), tanh, Glorot normal
 - **Points:** 3,000 domain, 2 boundary
@@ -248,10 +226,6 @@ $$\Large \frac{dr}{dt} = \frac{R}{U}\left(2Ur - 0.04U^2 rp\right), \qquad \frac{
 <details>
 <summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
 
-*Forward problem* — the Default settings above: it was already accurate, so it was not tuned.
-
-*Load it:* toolbar → Examples: **Forward** → **Lotka-Volterra ODE** → **Tuned**, then Solve.
-
 *Inverse problem — PINNStudio's own inverse setup*
 
 - **Network:** FNN 6 × 64 (2 inputs, 2 outputs), tanh, Glorot normal
@@ -262,6 +236,10 @@ $$\Large \frac{dr}{dt} = \frac{R}{U}\left(2Ur - 0.04U^2 rp\right), \qquad \frac{
 - **Measured data:** r.txt for r (weight 100); p.txt for p (weight 100)
 
 *Load it:* toolbar → Examples: **Inverse** → **Lotka-Volterra ODE** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, inverse runs](tuning_study.md#tune-lotka-volterra-ode-inverse-mode)
+
+*Forward problem:* PINNStudio best is the Default settings above (no separate Tuned settings).
 
 </details>
 
@@ -314,8 +292,6 @@ $$\Large \frac{dr}{dt} = \frac{R}{U}\left(2Ur - 0.04U^2 rp\right), \qquad \frac{
 <details id="bench-second-order-ode">
 <summary><strong>Second-order ODE</strong> · DeepXDE example</summary>
 
-[inverse runs in the tuning study](tuning_study.md#tune-second-order-ode-inverse-mode)
-
 **The problem**
 
 DeepXDE example: [`ode_2nd.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/ode_2nd.py) ([documentation](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/ode.2nd.html))
@@ -329,7 +305,7 @@ $$\Large \frac{d^2u}{dt^2} - 10\frac{du}{dt} + 9u = 5t, \qquad t \in [0, 0.25]$$
 <details>
 <summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
 
-*Forward problem*
+*Forward problem — also PINNStudio best* (already accurate, so it was not tuned)
 
 - **Network:** FNN 3 × 50 (2 inputs, 1 output), tanh, Glorot uniform
 - **Points:** 16 domain, 2 boundary
@@ -342,10 +318,6 @@ $$\Large \frac{d^2u}{dt^2} - 10\frac{du}{dt} + 9u = 5t, \qquad t \in [0, 0.25]$$
 <details>
 <summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
 
-*Forward problem* — the Default settings above: it was already accurate, so it was not tuned.
-
-*Load it:* toolbar → Examples: **Forward** → **Second-order ODE** → **Tuned**, then Solve.
-
 *Inverse problem — PINNStudio's own inverse setup, tuned*
 
 - **Network:** FNN 4 × 100 (2 inputs, 1 output), tanh, Glorot uniform
@@ -355,6 +327,10 @@ $$\Large \frac{d^2u}{dt^2} - 10\frac{du}{dt} + 9u = 5t, \qquad t \in [0, 0.25]$$
 - **Measured data:** u_obs.txt for u (weight 100)
 
 *Load it:* toolbar → Examples: **Inverse** → **Second-order ODE** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, inverse runs](tuning_study.md#tune-second-order-ode-inverse-mode)
+
+*Forward problem:* PINNStudio best is the Default settings above (no separate Tuned settings).
 
 </details>
 
@@ -414,9 +390,9 @@ $$\Large \frac{dy_1}{dt} = C_1(y_2 - y_1), \qquad \frac{dy_2}{dt} = y_1(C_2 - y_
 - **Data:** $y_1, y_2, y_3$ measured at 50 times (also used as anchor points), from SciPy's `solve_ivp`
 
 <details>
-<summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
+<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
 
-*Inverse problem*
+*Inverse problem — also PINNStudio best* (already accurate, so it was not tuned)
 
 - **Network:** FNN 3 × 40 (2 inputs, 3 outputs), tanh, Glorot uniform
 - **Points:** 400 domain, 2 boundary
@@ -425,15 +401,6 @@ $$\Large \frac{dy_1}{dt} = C_1(y_2 - y_1), \qquad \frac{dy_2}{dt} = y_1(C_2 - y_
 - **Measured data:** y1_obs.txt for y1 (weight 1); y2_obs.txt for y2 (weight 1); y3_obs.txt for y3 (weight 1)
 
 *Load it:* toolbar → Examples: **Inverse** → **Lorenz ODE – unknown C₁, C₂, C₃** → **Default**, then Solve.
-
-</details>
-
-<details>
-<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
-
-*Inverse problem* — the Default settings above: it was already accurate, so it was not tuned.
-
-*Load it:* toolbar → Examples: **Inverse** → **Lorenz ODE – unknown C₁, C₂, C₃** → **Tuned**, then Solve.
 
 </details>
 
@@ -475,9 +442,9 @@ $$\Large \frac{dy_1}{dt} = C_1(y_2 - y_1), \qquad \frac{dy_2}{dt} = y_1(C_2 - y_
 - **Data:** $y_1, y_2, y_3$ measured at 200 times, from SciPy's `solve_ivp`
 
 <details>
-<summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
+<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
 
-*Inverse problem*
+*Inverse problem — also PINNStudio best* (already accurate, so it was not tuned)
 
 - **Network:** FNN 3 × 40 (2 inputs, 3 outputs), tanh, Glorot uniform
 - **Points:** 400 domain, 2 boundary
@@ -486,15 +453,6 @@ $$\Large \frac{dy_1}{dt} = C_1(y_2 - y_1), \qquad \frac{dy_2}{dt} = y_1(C_2 - y_
 - **Measured data:** y1_obs.txt for y1 (weight 1); y2_obs.txt for y2 (weight 1); y3_obs.txt for y3 (weight 1)
 
 *Load it:* toolbar → Examples: **Inverse** → **Lorenz ODE – unknown C₁, C₂, C₃, exogenous input** → **Default**, then Solve.
-
-</details>
-
-<details>
-<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
-
-*Inverse problem* — the Default settings above: it was already accurate, so it was not tuned.
-
-*Load it:* toolbar → Examples: **Inverse** → **Lorenz ODE – unknown C₁, C₂, C₃, exogenous input** → **Tuned**, then Solve.
 
 </details>
 
@@ -526,8 +484,6 @@ $$\Large \frac{dy_1}{dt} = C_1(y_2 - y_1), \qquad \frac{dy_2}{dt} = y_1(C_2 - y_
 
 <details id="bench-euler-beam-1d">
 <summary><strong>Euler beam 1D</strong> · DeepXDE example</summary>
-
-[forward runs in the tuning study](tuning_study.md#tune-euler-beam-1d) · [inverse runs in the tuning study](tuning_study.md#tune-euler-beam-1d-inverse-mode)
 
 **The problem**
 
@@ -562,6 +518,8 @@ $$\Large \frac{d^4u}{dx^4} = -1, \qquad x \in [0, 1]$$
 
 *Load it:* toolbar → Examples: **Forward** → **Euler beam 1D** → **Tuned**, then Solve.
 
+*Found in:* [tuning study, forward runs](tuning_study.md#tune-euler-beam-1d)
+
 *Inverse problem — PINNStudio's own inverse setup, tuned*
 
 - **Network:** FNN 4 × 40 (1 input, 1 output), tanh, Glorot uniform
@@ -571,6 +529,8 @@ $$\Large \frac{d^4u}{dx^4} = -1, \qquad x \in [0, 1]$$
 - **Measured data:** u_obs.txt for u (weight 100)
 
 *Load it:* toolbar → Examples: **Inverse** → **Euler beam 1D** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, inverse runs](tuning_study.md#tune-euler-beam-1d-inverse-mode)
 
 </details>
 
@@ -628,8 +588,6 @@ $$\Large \frac{d^4u}{dx^4} = -1, \qquad x \in [0, 1]$$
 <details id="bench-fractional-poisson-1d">
 <summary><strong>Fractional Poisson 1D</strong> · DeepXDE example</summary>
 
-[forward runs in the tuning study](tuning_study.md#tune-fractional-poisson-1d)
-
 **The problem**
 
 DeepXDE example: [`fractional_Poisson_1d.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/fractional_Poisson_1d.py)
@@ -666,6 +624,8 @@ $$\Large D_{0+}^{\alpha}u + D_{1-}^{\alpha}u = f(x), \qquad x \in [0, 1],\ \alph
 - **Methods:** initial and boundary conditions built into the output (output transform formula)
 
 *Load it:* toolbar → Examples: **Forward** → **Fractional Poisson 1D** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, forward runs](tuning_study.md#tune-fractional-poisson-1d)
 
 </details>
 
@@ -709,24 +669,15 @@ $$\Large -\frac{d^2u}{dx^2} = \pi^2\sin(\pi x), \qquad x \in [-1, 1]$$
 - **Exact solution:** $u = \sin(\pi x)$
 
 <details>
-<summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
+<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
 
-*Forward problem*
+*Forward problem — also PINNStudio best* (already accurate, so it was not tuned)
 
 - **Network:** FNN 3 × 50 (1 input, 1 output), tanh, Glorot uniform
 - **Points:** 16 domain, 2 boundary
 - **Training:** Adam 10,000
 
 *Load it:* toolbar → Examples: **Forward** → **Poisson 1D – Dirichlet** → **Default**, then Solve.
-
-</details>
-
-<details>
-<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
-
-*Forward problem* — the Default settings above: it was already accurate, so it was not tuned.
-
-*Load it:* toolbar → Examples: **Forward** → **Poisson 1D – Dirichlet** → **Tuned**, then Solve.
 
 </details>
 
@@ -761,24 +712,15 @@ $$\Large \frac{d^2u}{dx^2} = 2, \qquad x \in [-1, 1]$$
 - **Exact solution:** $u = (x + 1)^2$
 
 <details>
-<summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
+<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
 
-*Forward problem*
+*Forward problem — also PINNStudio best* (already accurate, so it was not tuned)
 
 - **Network:** FNN 3 × 50 (1 input, 1 output), tanh, Glorot uniform
 - **Points:** 16 domain, 2 boundary
 - **Training:** Adam 10,000
 
 *Load it:* toolbar → Examples: **Forward** → **Poisson 1D – Dirichlet/Neumann** → **Default**, then Solve.
-
-</details>
-
-<details>
-<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
-
-*Forward problem* — the Default settings above: it was already accurate, so it was not tuned.
-
-*Load it:* toolbar → Examples: **Forward** → **Poisson 1D – Dirichlet/Neumann** → **Tuned**, then Solve.
 
 </details>
 
@@ -802,8 +744,6 @@ $$\Large \frac{d^2u}{dx^2} = 2, \qquad x \in [-1, 1]$$
 
 <details id="bench-poisson-1d-dirichlet-periodic">
 <summary><strong>Poisson 1D – Dirichlet/Periodic</strong> · DeepXDE example</summary>
-
-[forward runs in the tuning study](tuning_study.md#tune-poisson-1d-dirichlet-periodic)
 
 **The problem**
 
@@ -837,6 +777,8 @@ $$\Large -\frac{d^2u}{dx^2} = \pi^2\sin(\pi x), \qquad x \in [-1, 1]$$
 - **Training:** Adam 30,000 → L-BFGS 15,000
 
 *Load it:* toolbar → Examples: **Forward** → **Poisson 1D – Dirichlet/Periodic** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, forward runs](tuning_study.md#tune-poisson-1d-dirichlet-periodic)
 
 </details>
 
@@ -880,24 +822,15 @@ $$\Large \frac{d^2u}{dx^2} = 2, \qquad x \in [-1, 1]$$
 - **Exact solution:** $u = (x + 1)^2$
 
 <details>
-<summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
+<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
 
-*Forward problem*
+*Forward problem — also PINNStudio best* (already accurate, so it was not tuned)
 
 - **Network:** FNN 3 × 50 (1 input, 1 output), tanh, Glorot uniform
 - **Points:** 16 domain, 2 boundary
 - **Training:** Adam 20,000
 
 *Load it:* toolbar → Examples: **Forward** → **Poisson 1D – Dirichlet/point-set operator** → **Default**, then Solve.
-
-</details>
-
-<details>
-<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
-
-*Forward problem* — the Default settings above: it was already accurate, so it was not tuned.
-
-*Load it:* toolbar → Examples: **Forward** → **Poisson 1D – Dirichlet/point-set operator** → **Tuned**, then Solve.
 
 </details>
 
@@ -932,24 +865,15 @@ $$\Large \frac{d^2u}{dx^2} = 2, \qquad x \in [-1, 1]$$
 - **Exact solution:** $u = (x + 1)^2$
 
 <details>
-<summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
+<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
 
-*Forward problem*
+*Forward problem — also PINNStudio best* (already accurate, so it was not tuned)
 
 - **Network:** FNN 3 × 50 (1 input, 1 output), tanh, Glorot uniform
 - **Points:** 16 domain, 2 boundary
 - **Training:** Adam 10,000
 
 *Load it:* toolbar → Examples: **Forward** → **Poisson 1D – Dirichlet/Robin** → **Default**, then Solve.
-
-</details>
-
-<details>
-<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
-
-*Forward problem* — the Default settings above: it was already accurate, so it was not tuned.
-
-*Load it:* toolbar → Examples: **Forward** → **Poisson 1D – Dirichlet/Robin** → **Tuned**, then Solve.
 
 </details>
 
@@ -984,9 +908,9 @@ $$\Large -\frac{d^2u}{dx^2} = \sum_{k=1}^{4} k\sin(kx) + 8\sin(8x), \qquad x \in
 - **Exact solution:** $u = x + \sum_{k=1}^{4}\frac{\sin(kx)}{k} + \frac{\sin(8x)}{8}$
 
 <details>
-<summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
+<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
 
-*Forward problem*
+*Forward problem — also PINNStudio best* (already accurate, so it was not tuned)
 
 - **Network:** FNN 3 × 50 (1 input, 1 output), tanh, Glorot uniform
 - **Points:** 64 domain
@@ -994,15 +918,6 @@ $$\Large -\frac{d^2u}{dx^2} = \sum_{k=1}^{4} k\sin(kx) + 8\sin(8x), \qquad x \in
 - **Methods:** initial and boundary conditions built into the output (output transform formula)
 
 *Load it:* toolbar → Examples: **Forward** → **Poisson 1D – hard BCs** → **Default**, then Solve.
-
-</details>
-
-<details>
-<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
-
-*Forward problem* — the Default settings above: it was already accurate, so it was not tuned.
-
-*Load it:* toolbar → Examples: **Forward** → **Poisson 1D – hard BCs** → **Tuned**, then Solve.
 
 </details>
 
@@ -1040,24 +955,15 @@ $$\Large \frac{d^2u}{dx^2} = -(\pi A)^2\sin(\pi A x) - 0.1(\pi B)^2\sin(\pi B x)
 A plain network of the same size learns the slow wave and largely misses the fast one; the Fourier features at scale 10 allow the PINN to represent the sin(50πx) component.
 
 <details>
-<summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
+<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
 
-*Forward problem*
+*Forward problem — also PINNStudio best* (already accurate, so it was not tuned)
 
 - **Network:** multi-scale Fourier features (MsFFN) 3 × 100 (1 input, 1 output), tanh, Glorot uniform, scales 1, 10
 - **Points:** 1,280 domain, 2 boundary
 - **Training:** Adam 20,000
 
 *Load it:* toolbar → Examples: **Forward** → **Poisson 1D – multi-scale Fourier features** → **Default**, then Solve.
-
-</details>
-
-<details>
-<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
-
-*Forward problem* — the Default settings above: it was already accurate, so it was not tuned.
-
-*Load it:* toolbar → Examples: **Forward** → **Poisson 1D – multi-scale Fourier features** → **Tuned**, then Solve.
 
 </details>
 
@@ -1082,8 +988,6 @@ A plain network of the same size learns the slow wave and largely misses the fas
 <details id="bench-brinkman-forchheimer-1d-unknown-e-k">
 <summary><strong>Brinkman-Forchheimer 1D – unknown ν_e, K</strong> · DeepXDE example</summary>
 
-[forward runs in the tuning study](tuning_study.md#tune-brinkman-forchheimer-1d-unknown-e-k)
-
 **The problem**
 
 DeepXDE example: [`brinkman_forchheimer.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/brinkman_forchheimer.py)
@@ -1096,9 +1000,11 @@ $$\Large -\frac{\nu_e}{\epsilon}\frac{d^2u}{dx^2} + \frac{\nu u}{K} = g, \qquad 
 - **Constants:** `g = 1`, `v = 1e-3`, `e = 0.4`
 
 <details>
-<summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
+<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
 
-*Inverse problem*
+*Inverse problem — also PINNStudio best* (no change in the tuning study did better)
+
+*Found in:* [tuning study, forward runs](tuning_study.md#tune-brinkman-forchheimer-1d-unknown-e-k)
 
 - **Network:** FNN 3 × 20 (1 input, 1 output), tanh, Glorot uniform
 - **Points:** 100 domain
@@ -1108,15 +1014,6 @@ $$\Large -\frac{\nu_e}{\epsilon}\frac{d^2u}{dx^2} + \frac{\nu u}{K} = g, \qquad 
 - **Measured data:** u_obs.txt for u (weight 1)
 
 *Load it:* toolbar → Examples: **Inverse** → **Brinkman-Forchheimer 1D – unknown ν_e, K** → **Default**, then Solve.
-
-</details>
-
-<details>
-<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
-
-*Inverse problem* — the Default settings above: no change in the tuning study did better.
-
-*Load it:* toolbar → Examples: **Inverse** → **Brinkman-Forchheimer 1D – unknown ν_e, K** → **Tuned**, then Solve.
 
 </details>
 
@@ -1154,8 +1051,6 @@ $$\Large -\frac{\nu_e}{\epsilon}\frac{d^2u}{dx^2} + \frac{\nu u}{K} = g, \qquad 
 <details id="bench-diffusion-reaction-1d-unknown-rate-field">
 <summary><strong>Diffusion-reaction 1D – unknown rate field</strong> · DeepXDE example</summary>
 
-[forward runs in the tuning study](tuning_study.md#tune-diffusion-reaction-1d-unknown-rate-field)
-
 **The problem**
 
 DeepXDE example: [`diffusion_reaction_rate.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/diffusion_reaction_rate.py)
@@ -1167,24 +1062,17 @@ $$\Large \lambda\frac{d^2u}{dx^2} - k(x)\ u = \sin(2\pi x), \qquad \lambda = 0.0
 - **Constants:** `l = 0.01`
 
 <details>
-<summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
+<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
 
-*Inverse problem*
+*Inverse problem — also PINNStudio best* (no change in the tuning study did better)
+
+*Found in:* [tuning study, forward runs](tuning_study.md#tune-diffusion-reaction-1d-unknown-rate-field)
 
 - **Network:** PFNN 2 × 20 (1 input, 2 outputs), tanh, Glorot uniform
 - **Points:** 50 domain, 8 boundary
 - **Training:** Adam 20,000
 
 *Load it:* toolbar → Examples: **Inverse** → **Diffusion-reaction 1D – unknown rate field** → **Default**, then Solve.
-
-</details>
-
-<details>
-<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
-
-*Inverse problem* — the Default settings above: no change in the tuning study did better.
-
-*Load it:* toolbar → Examples: **Inverse** → **Diffusion-reaction 1D – unknown rate field** → **Tuned**, then Solve.
 
 </details>
 
@@ -1229,9 +1117,9 @@ $$\Large \frac{D_{-1+}^{\alpha}u + D_{1-}^{\alpha}u}{2\cos(\alpha\pi/2)} = \Gamm
 - **Constants:** `a0 = 1.8`
 
 <details>
-<summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
+<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
 
-*Inverse problem*
+*Inverse problem — also PINNStudio best* (already accurate, so it was not tuned)
 
 - **Network:** FNN 4 × 20 (1 input, 1 output), tanh, Glorot normal
 - **Points:** 20 domain
@@ -1241,15 +1129,6 @@ $$\Large \frac{D_{-1+}^{\alpha}u + D_{1-}^{\alpha}u}{2\cos(\alpha\pi/2)} = \Gamm
 - **Measured data:** u_obs.txt for u (weight 100)
 
 *Load it:* toolbar → Examples: **Inverse** → **Fractional Poisson 1D – unknown order α** → **Default**, then Solve.
-
-</details>
-
-<details>
-<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
-
-*Inverse problem* — the Default settings above: it was already accurate, so it was not tuned.
-
-*Load it:* toolbar → Examples: **Inverse** → **Fractional Poisson 1D – unknown order α** → **Tuned**, then Solve.
 
 </details>
 
@@ -1276,8 +1155,6 @@ $$\Large \frac{D_{-1+}^{\alpha}u + D_{1-}^{\alpha}u}{2\cos(\alpha\pi/2)} = \Gamm
 <details id="bench-poisson-1d-unknown-forcing-field">
 <summary><strong>Poisson 1D – unknown forcing field</strong> · DeepXDE example</summary>
 
-[forward runs in the tuning study](tuning_study.md#tune-poisson-1d-unknown-forcing-field)
-
 **The problem**
 
 DeepXDE example: [`elliptic_inverse_field.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/elliptic_inverse_field.py) ([documentation](https://deepxde.readthedocs.io/en/latest/demos/pinn_inverse/elliptic.inverse.field.html))
@@ -1288,24 +1165,17 @@ $$\Large -\frac{d^2u}{dx^2} + q(x) = 0, \qquad x \in [-1, 1]$$
 - **Data:** 100 measurements of $u$, given as a Point Set BC (and as anchor points); $u = \sin(\pi x)$ on the boundary
 
 <details>
-<summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
+<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
 
-*Inverse problem*
+*Inverse problem — also PINNStudio best* (no change in the tuning study did better)
+
+*Found in:* [tuning study, forward runs](tuning_study.md#tune-poisson-1d-unknown-forcing-field)
 
 - **Network:** PFNN 3 × 20 (1 input, 2 outputs), tanh, Glorot uniform
 - **Points:** 200 domain, 2 boundary
 - **Training:** Adam 20,000 (lr 0.0001)
 
 *Load it:* toolbar → Examples: **Inverse** → **Poisson 1D – unknown forcing field** → **Default**, then Solve.
-
-</details>
-
-<details>
-<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
-
-*Inverse problem* — the Default settings above: no change in the tuning study did better.
-
-*Load it:* toolbar → Examples: **Inverse** → **Poisson 1D – unknown forcing field** → **Tuned**, then Solve.
 
 </details>
 
@@ -1343,8 +1213,6 @@ $$\Large -\frac{d^2u}{dx^2} + q(x) = 0, \qquad x \in [-1, 1]$$
 <details id="bench-poisson-1d-unknown-forcing-field-batches">
 <summary><strong>Poisson 1D – unknown forcing field (batches)</strong> · DeepXDE example</summary>
 
-[forward runs in the tuning study](tuning_study.md#tune-poisson-1d-unknown-forcing-field-batches)
-
 **The problem**
 
 DeepXDE example: [`elliptic_inverse_field_batch.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/elliptic_inverse_field_batch.py)
@@ -1355,24 +1223,17 @@ $$\Large -\frac{d^2u}{dx^2} + q(x) = 0, \qquad x \in [-1, 1]$$
 - **Data:** 10,000 measurements of $u$, used 100 at a time (Point Set BC with batch size 100, redrawn every iteration)
 
 <details>
-<summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
+<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
 
-*Inverse problem*
+*Inverse problem — also PINNStudio best* (no change in the tuning study did better)
+
+*Found in:* [tuning study, forward runs](tuning_study.md#tune-poisson-1d-unknown-forcing-field-batches)
 
 - **Network:** PFNN 3 × 20 (1 input, 2 outputs), tanh, Glorot uniform
 - **Points:** 200 domain, 2 boundary
 - **Training:** Adam 20,000 (lr 0.0001)
 
 *Load it:* toolbar → Examples: **Inverse** → **Poisson 1D – unknown forcing field (batches)** → **Default**, then Solve.
-
-</details>
-
-<details>
-<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
-
-*Inverse problem* — the Default settings above: no change in the tuning study did better.
-
-*Load it:* toolbar → Examples: **Inverse** → **Poisson 1D – unknown forcing field (batches)** → **Tuned**, then Solve.
 
 </details>
 
@@ -1502,6 +1363,10 @@ where $\gamma_1 = 0.0001$ and $\gamma_2 = 5$.
 
 ![Allen-Cahn 1D – Wight & Zhao: PINNStudio best (the template's own settings, README)](../assets/Images/1D-AllenCahn/whole_domain_surface_comparison.png)
 
+![Allen-Cahn 1D – Wight & Zhao: PINNStudio best (the template's own settings, README)](../assets/Images/1D-AllenCahn/line_comparison.png)
+
+![Allen-Cahn 1D – Wight & Zhao: PINNStudio best (the template's own settings, README)](../assets/Images/1D-AllenCahn/whole_domain_line_comparison.png)
+
 </details>
 
 <details>
@@ -1583,14 +1448,16 @@ where $\gamma_1 = 10^{-6}$ and $\gamma_2 = 0.01$. The fourth-order equation is s
 
 ![Cahn-Hilliard 1D – Wight & Zhao: PINNStudio best (the template's own settings, README)](../assets/Images/1D-CahnHilliard/surface_comparison_mu.png)
 
+![Cahn-Hilliard 1D – Wight & Zhao: PINNStudio best (the template's own settings, README)](../assets/Images/1D-CahnHilliard/line_comparison_u.png)
+
+![Cahn-Hilliard 1D – Wight & Zhao: PINNStudio best (the template's own settings, README)](../assets/Images/1D-CahnHilliard/line_comparison_mu.png)
+
 </details>
 
 </details>
 
 <details id="bench-cahn-hilliard-1d-mattey-ghosh">
 <summary><strong>Cahn-Hilliard 1D – Mattey & Ghosh</strong> · PINNStudio template, after Mattey & Ghosh (2022)</summary>
-
-[forward runs in the tuning study](tuning_study.md#tune-cahn-hilliard-1d-mattey-ghosh-pinnstudio-template-best-setup)
 
 **The problem**
 
@@ -1634,6 +1501,8 @@ where $\alpha = 0.02$ and $\kappa = 1$. As in the paper (its phase-space form, e
 
 *Load it:* toolbar → Examples: **Forward** → **Cahn-Hilliard 1D – Mattey & Ghosh** → **Tuned**, then Solve.
 
+*Found in:* [tuning study, forward runs](tuning_study.md#tune-cahn-hilliard-1d-mattey-ghosh-pinnstudio-template-best-setup) · [training methods study](training_methods.md)
+
 </details>
 
 **Forward problem**
@@ -1665,6 +1534,10 @@ where $\alpha = 0.02$ and $\kappa = 1$. As in the paper (its phase-space form, e
 
 ![Cahn-Hilliard 1D – Mattey & Ghosh: PINNStudio best — the best setup as it is](figures/tuning/Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/base_surface_comparison_mu.png)
 
+![Cahn-Hilliard 1D – Mattey & Ghosh: PINNStudio best — the best setup as it is](figures/tuning/Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/base_line_comparison_u.png)
+
+![Cahn-Hilliard 1D – Mattey & Ghosh: PINNStudio best — the best setup as it is](figures/tuning/Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/base_line_comparison_mu.png)
+
 </details>
 
 </details>
@@ -1684,24 +1557,15 @@ $$\Large \min\left(-\mathcal{L}V,\ V - \max(K - S, 0)\right) = 0, \qquad \mathca
 - **Constants:** `r = 0.05`, `sigma = 0.2`, `K = 1`
 
 <details>
-<summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
+<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
 
-*Forward problem*
+*Forward problem — also PINNStudio best* (already accurate, so it was not tuned)
 
 - **Network:** FNN 4 × 128 (2 inputs, 1 output), tanh, Glorot normal
 - **Points:** 6,000 domain, 1,500 initial, 1,500 boundary
 - **Training:** Adam 12,000 → L-BFGS 15,000
 
 *Load it:* toolbar → Examples: **Forward** → **Black-Scholes 1D – American put** → **Default**, then Solve.
-
-</details>
-
-<details>
-<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
-
-*Forward problem* — the Default settings above: it was already accurate, so it was not tuned.
-
-*Load it:* toolbar → Examples: **Forward** → **Black-Scholes 1D – American put** → **Tuned**, then Solve.
 
 </details>
 
@@ -1722,24 +1586,15 @@ $$\Large \frac{\partial V}{\partial \tau} = \frac{\sigma^2}{2}S^2\frac{\partial^
 - **Constants:** `K = 50`, `r = 0.05`, `sigma = 0.2`
 
 <details>
-<summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
+<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
 
-*Forward problem*
+*Forward problem — also PINNStudio best* (already accurate, so it was not tuned)
 
 - **Network:** FNN 4 × 28 (2 inputs, 1 output), tanh, Glorot normal
 - **Points:** 2,047 domain, 127 initial, 63 boundary
 - **Training:** Adam 20,000 → L-BFGS 15,000
 
 *Load it:* toolbar → Examples: **Forward** → **Black-Scholes 1D – European call** → **Default**, then Solve.
-
-</details>
-
-<details>
-<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
-
-*Forward problem* — the Default settings above: it was already accurate, so it was not tuned.
-
-*Load it:* toolbar → Examples: **Forward** → **Black-Scholes 1D – European call** → **Tuned**, then Solve.
 
 </details>
 
@@ -1763,8 +1618,6 @@ $$\Large \frac{\partial V}{\partial \tau} = \frac{\sigma^2}{2}S^2\frac{\partial^
 
 <details id="bench-burgers-1d-raissi-et-al">
 <summary><strong>Burgers 1D – Raissi et al.</strong> · PINNStudio template, after Raissi et al. (2019)</summary>
-
-[forward runs in the tuning study](tuning_study.md#tune-burgers-1d-raissi-et-al-pinnstudio-template-best-setup)
 
 **The problem**
 
@@ -1852,6 +1705,8 @@ with true values $\lambda_1 = 1.0$ and $\lambda_2 = 0.01/\pi$ (the template writ
 
 ![Burgers 1D – Raissi et al.: Raissi et al.'s settings, run in PINNStudio (also PINNStudio best)](figures/tuning/Template_1D_Burgers/paper_raissi_surface_comparison.png)
 
+![Burgers 1D – Raissi et al.: Raissi et al.'s settings, run in PINNStudio (also PINNStudio best)](figures/tuning/Template_1D_Burgers/paper_raissi_line_comparison.png)
+
 </details>
 
 <details>
@@ -1877,9 +1732,9 @@ $$\Large \frac{\partial u}{\partial t} + u\frac{\partial u}{\partial x} = \frac{
 - **Initial / boundary conditions:** $u(x, 0) = -\sin(\pi x)$, $u(\pm 1, t) = 0$
 
 <details>
-<summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
+<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
 
-*Forward problem*
+*Forward problem — also PINNStudio best* (already accurate, so it was not tuned)
 
 - **Network:** FNN 3 × 20 (2 inputs, 1 output), tanh, Glorot normal
 - **Points:** 2,500 domain, 160 initial, 100 boundary
@@ -1887,15 +1742,6 @@ $$\Large \frac{\partial u}{\partial t} + u\frac{\partial u}{\partial x} = \frac{
 - **Methods:** residual-based adaptive refinement (3 rounds of 100 points)
 
 *Load it:* toolbar → Examples: **Forward** → **Burgers 1D – RAR** → **Default**, then Solve.
-
-</details>
-
-<details>
-<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
-
-*Forward problem* — the Default settings above: it was already accurate, so it was not tuned.
-
-*Load it:* toolbar → Examples: **Forward** → **Burgers 1D – RAR** → **Tuned**, then Solve.
 
 </details>
 
@@ -1919,8 +1765,6 @@ $$\Large \frac{\partial u}{\partial t} + u\frac{\partial u}{\partial x} = \frac{
 
 <details id="bench-diffusion-1d">
 <summary><strong>Diffusion 1D</strong> · DeepXDE example</summary>
-
-[forward runs in the tuning study](tuning_study.md#tune-diffusion-1d)
 
 **The problem**
 
@@ -1955,6 +1799,8 @@ $$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} - e^{
 
 *Load it:* toolbar → Examples: **Forward** → **Diffusion 1D** → **Tuned**, then Solve.
 
+*Found in:* [tuning study, forward runs](tuning_study.md#tune-diffusion-1d)
+
 </details>
 
 **Forward problem**
@@ -1976,9 +1822,13 @@ $$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} - e^{
 
 ![Diffusion 1D: DeepXDE's settings](figures/tuning/Diffusion_equation/base_surface_comparison.png)
 
+![Diffusion 1D: DeepXDE's settings](figures/tuning/Diffusion_equation/base_line_comparison.png)
+
 *PINNStudio best — all of the changes together:*
 
 ![Diffusion 1D: PINNStudio best — all of the changes together](figures/tuning/Diffusion_equation/all_surface_comparison.png)
+
+![Diffusion 1D: PINNStudio best — all of the changes together](figures/tuning/Diffusion_equation/all_line_comparison.png)
 
 </details>
 
@@ -1997,9 +1847,9 @@ $$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} - e^{
 - **Exact solution:** $u = e^{-t}\sin(\pi x)$
 
 <details>
-<summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
+<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
 
-*Forward problem*
+*Forward problem — also PINNStudio best* (already accurate, so it was not tuned)
 
 - **Network:** FNN 3 × 32 (2 inputs, 1 output), tanh, Glorot uniform
 - **Points:** 40 domain
@@ -2007,15 +1857,6 @@ $$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} - e^{
 - **Methods:** initial and boundary conditions built into the output (output transform formula)
 
 *Load it:* toolbar → Examples: **Forward** → **Diffusion 1D – hard IC and BCs** → **Default**, then Solve.
-
-</details>
-
-<details>
-<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
-
-*Forward problem* — the Default settings above: it was already accurate, so it was not tuned.
-
-*Load it:* toolbar → Examples: **Forward** → **Diffusion 1D – hard IC and BCs** → **Tuned**, then Solve.
 
 </details>
 
@@ -2039,8 +1880,6 @@ $$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} - e^{
 
 <details id="bench-diffusion-1d-resampling">
 <summary><strong>Diffusion 1D – resampling</strong> · DeepXDE example</summary>
-
-[forward runs in the tuning study](tuning_study.md#tune-diffusion-1d-resampling)
 
 **The problem**
 
@@ -2075,6 +1914,8 @@ $$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} - e^{
 
 *Load it:* toolbar → Examples: **Forward** → **Diffusion 1D – resampling** → **Tuned**, then Solve.
 
+*Found in:* [tuning study, forward runs](tuning_study.md#tune-diffusion-1d-resampling)
+
 </details>
 
 **Forward problem**
@@ -2096,9 +1937,13 @@ $$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} - e^{
 
 ![Diffusion 1D – resampling: DeepXDE's settings](figures/tuning/Diffusion_equation_with_resampling/base_surface_comparison.png)
 
+![Diffusion 1D – resampling: DeepXDE's settings](figures/tuning/Diffusion_equation_with_resampling/base_line_comparison.png)
+
 *PINNStudio best — L-BFGS phase added:*
 
 ![Diffusion 1D – resampling: PINNStudio best — L-BFGS phase added](figures/tuning/Diffusion_equation_with_resampling/lbfgs_surface_comparison.png)
+
+![Diffusion 1D – resampling: PINNStudio best — L-BFGS phase added](figures/tuning/Diffusion_equation_with_resampling/lbfgs_line_comparison.png)
 
 </details>
 
@@ -2106,8 +1951,6 @@ $$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} - e^{
 
 <details id="bench-diffusion-reaction-1d">
 <summary><strong>Diffusion-reaction 1D</strong> · DeepXDE example</summary>
-
-[forward runs in the tuning study](tuning_study.md#tune-diffusion-reaction-1d) · [inverse runs in the tuning study](tuning_study.md#tune-diffusion-reaction-1d-inverse-mode)
 
 **The problem**
 
@@ -2144,6 +1987,8 @@ $$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} + e^{
 
 *Load it:* toolbar → Examples: **Forward** → **Diffusion-reaction 1D** → **Tuned**, then Solve.
 
+*Found in:* [tuning study, forward runs](tuning_study.md#tune-diffusion-reaction-1d)
+
 *Inverse problem — PINNStudio's own inverse setup, tuned*
 
 - **Network:** FNN 7 × 60 (2 inputs, 1 output), tanh, Glorot uniform
@@ -2154,6 +1999,8 @@ $$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} + e^{
 - **Measured data:** t_0.25.txt for u (weight 100); t_0.5.txt for u (weight 100); t_0.75.txt for u (weight 100); t_1.txt for u (weight 100)
 
 *Load it:* toolbar → Examples: **Inverse** → **Diffusion-reaction 1D** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, inverse runs](tuning_study.md#tune-diffusion-reaction-1d-inverse-mode)
 
 </details>
 
@@ -2189,9 +2036,13 @@ $$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} + e^{
 
 ![Diffusion-reaction 1D: DeepXDE's settings](figures/tuning/Diffusion_reaction_equation/base_surface_comparison.png)
 
+![Diffusion-reaction 1D: DeepXDE's settings](figures/tuning/Diffusion_reaction_equation/base_line_comparison.png)
+
 *PINNStudio best — all of the changes together:*
 
 ![Diffusion-reaction 1D: PINNStudio best — all of the changes together](figures/tuning/Diffusion_reaction_equation/all_surface_comparison.png)
+
+![Diffusion-reaction 1D: PINNStudio best — all of the changes together](figures/tuning/Diffusion_reaction_equation/all_line_comparison.png)
 
 </details>
 
@@ -2201,6 +2052,8 @@ $$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} + e^{
 *PINNStudio best — all of the changes together:*
 
 ![Diffusion-reaction 1D: PINNStudio best — all of the changes together](figures/tuning/Diffusion_reaction_equation_inv/all_surface_comparison.png)
+
+![Diffusion-reaction 1D: PINNStudio best — all of the changes together](figures/tuning/Diffusion_reaction_equation_inv/all_line_comparison.png)
 
 ![Diffusion-reaction 1D: PINNStudio best — all of the changes together](figures/tuning/Diffusion_reaction_equation_inv/all_param_plot.png)
 
@@ -2223,9 +2076,9 @@ $$\Large \frac{\partial u}{\partial t} = D_{0+}^{\alpha}u + D_{1-}^{\alpha}u - e
 - **Constants:** `alpha = 1.8`
 
 <details>
-<summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
+<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
 
-*Forward problem*
+*Forward problem — also PINNStudio best* (already accurate, so it was not tuned)
 
 - **Network:** FNN 4 × 20 (2 inputs, 1 output), tanh, Glorot normal
 - **Points:** 400 domain, 2 initial, 2 boundary
@@ -2233,15 +2086,6 @@ $$\Large \frac{\partial u}{\partial t} = D_{0+}^{\alpha}u + D_{1-}^{\alpha}u - e
 - **Methods:** initial and boundary conditions built into the output (output transform formula)
 
 *Load it:* toolbar → Examples: **Forward** → **Fractional diffusion 1D** → **Default**, then Solve.
-
-</details>
-
-<details>
-<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
-
-*Forward problem* — the Default settings above: it was already accurate, so it was not tuned.
-
-*Load it:* toolbar → Examples: **Forward** → **Fractional diffusion 1D** → **Tuned**, then Solve.
 
 </details>
 
@@ -2265,8 +2109,6 @@ $$\Large \frac{\partial u}{\partial t} = D_{0+}^{\alpha}u + D_{1-}^{\alpha}u - e
 
 <details id="bench-heat-1d-dirichlet">
 <summary><strong>Heat 1D – Dirichlet</strong> · DeepXDE example</summary>
-
-[forward runs in the tuning study](tuning_study.md#tune-heat-1d-dirichlet) · [inverse runs in the tuning study](tuning_study.md#tune-heat-1d-dirichlet-inverse-mode)
 
 **The problem**
 
@@ -2308,6 +2150,8 @@ $$\Large \frac{\partial u}{\partial t} = a\ \frac{\partial^2 u}{\partial x^2}$$
 
 *Load it:* toolbar → Examples: **Forward** → **Heat 1D – Dirichlet** → **Tuned**, then Solve.
 
+*Found in:* [tuning study, forward runs](tuning_study.md#tune-heat-1d-dirichlet)
+
 *Inverse problem — PINNStudio's own inverse setup, tuned*
 
 - **Network:** FNN 4 × 40 (2 inputs, 1 output), tanh, Glorot normal
@@ -2317,6 +2161,8 @@ $$\Large \frac{\partial u}{\partial t} = a\ \frac{\partial^2 u}{\partial x^2}$$
 - **Measured data:** t_1.0.txt for u (weight 100)
 
 *Load it:* toolbar → Examples: **Inverse** → **Heat 1D – Dirichlet** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, inverse runs](tuning_study.md#tune-heat-1d-dirichlet-inverse-mode)
 
 </details>
 
@@ -2351,9 +2197,13 @@ $$\Large \frac{\partial u}{\partial t} = a\ \frac{\partial^2 u}{\partial x^2}$$
 
 ![Heat 1D – Dirichlet: DeepXDE's settings](figures/tuning/Heat_equation/base_surface_comparison.png)
 
+![Heat 1D – Dirichlet: DeepXDE's settings](figures/tuning/Heat_equation/base_line_comparison.png)
+
 *PINNStudio best — all of the changes together:*
 
 ![Heat 1D – Dirichlet: PINNStudio best — all of the changes together](figures/tuning/Heat_equation/all_surface_comparison.png)
+
+![Heat 1D – Dirichlet: PINNStudio best — all of the changes together](figures/tuning/Heat_equation/all_line_comparison.png)
 
 </details>
 
@@ -2364,6 +2214,8 @@ $$\Large \frac{\partial u}{\partial t} = a\ \frac{\partial^2 u}{\partial x^2}$$
 
 ![Heat 1D – Dirichlet: PINNStudio best — all of the changes together](figures/tuning/Heat_equation_inv/all_surface_comparison.png)
 
+![Heat 1D – Dirichlet: PINNStudio best — all of the changes together](figures/tuning/Heat_equation_inv/all_line_comparison.png)
+
 ![Heat 1D – Dirichlet: PINNStudio best — all of the changes together](figures/tuning/Heat_equation_inv/all_param_plot.png)
 
 </details>
@@ -2372,8 +2224,6 @@ $$\Large \frac{\partial u}{\partial t} = a\ \frac{\partial^2 u}{\partial x^2}$$
 
 <details id="bench-heat-1d-resampling">
 <summary><strong>Heat 1D – resampling</strong> · DeepXDE example</summary>
-
-[forward runs in the tuning study](tuning_study.md#tune-heat-1d-resampling)
 
 **The problem**
 
@@ -2409,6 +2259,8 @@ $$\Large \frac{\partial u}{\partial t} = 0.4\frac{\partial^2 u}{\partial x^2}, \
 
 *Load it:* toolbar → Examples: **Forward** → **Heat 1D – resampling** → **Tuned**, then Solve.
 
+*Found in:* [tuning study, forward runs](tuning_study.md#tune-heat-1d-resampling)
+
 </details>
 
 **Forward problem**
@@ -2429,9 +2281,13 @@ $$\Large \frac{\partial u}{\partial t} = 0.4\frac{\partial^2 u}{\partial x^2}, \
 
 ![Heat 1D – resampling: DeepXDE's settings](figures/tuning/Heat_equation_with_resampling/base_surface_comparison.png)
 
+![Heat 1D – resampling: DeepXDE's settings](figures/tuning/Heat_equation_with_resampling/base_line_comparison.png)
+
 *PINNStudio best — Larger network (2× width, one more layer):*
 
 ![Heat 1D – resampling: PINNStudio best — Larger network (2× width, one more layer)](figures/tuning/Heat_equation_with_resampling/net_surface_comparison.png)
+
+![Heat 1D – resampling: PINNStudio best — Larger network (2× width, one more layer)](figures/tuning/Heat_equation_with_resampling/net_line_comparison.png)
 
 </details>
 
@@ -2439,8 +2295,6 @@ $$\Large \frac{\partial u}{\partial t} = 0.4\frac{\partial^2 u}{\partial x^2}, \
 
 <details id="bench-klein-gordon-1d">
 <summary><strong>Klein-Gordon 1D</strong> · DeepXDE example</summary>
-
-[forward runs in the tuning study](tuning_study.md#tune-klein-gordon-1d) · [inverse runs in the tuning study](tuning_study.md#tune-klein-gordon-1d-inverse-mode)
 
 **The problem**
 
@@ -2477,6 +2331,8 @@ $$\Large \frac{\partial^2 u}{\partial t^2} - \frac{\partial^2 u}{\partial x^2} +
 
 *Load it:* toolbar → Examples: **Forward** → **Klein-Gordon 1D** → **Tuned**, then Solve.
 
+*Found in:* [tuning study, forward runs](tuning_study.md#tune-klein-gordon-1d)
+
 *Inverse problem — PINNStudio's own inverse setup, tuned*
 
 - **Network:** FNN 3 × 80 (2 inputs, 1 output), tanh, Glorot uniform
@@ -2486,6 +2342,8 @@ $$\Large \frac{\partial^2 u}{\partial t^2} - \frac{\partial^2 u}{\partial x^2} +
 - **Measured data:** t_1.txt for u (weight 100); t_2.txt for u (weight 100); t_3.txt for u (weight 100); t_4.txt for u (weight 100); t_5.txt for u (weight 100); t_6.txt for u (weight 100); t_7.txt for u (weight 100); t_8.txt for u (weight 100); t_9.txt for u (weight 100); t_10.txt for u (weight 100)
 
 *Load it:* toolbar → Examples: **Inverse** → **Klein-Gordon 1D** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, inverse runs](tuning_study.md#tune-klein-gordon-1d-inverse-mode)
 
 </details>
 
@@ -2520,9 +2378,13 @@ $$\Large \frac{\partial^2 u}{\partial t^2} - \frac{\partial^2 u}{\partial x^2} +
 
 ![Klein-Gordon 1D: DeepXDE's settings](figures/tuning/Klein_Gordon_equation/base_surface_comparison.png)
 
+![Klein-Gordon 1D: DeepXDE's settings](figures/tuning/Klein_Gordon_equation/base_line_comparison.png)
+
 *PINNStudio best — Larger network (2× width, one more layer):*
 
 ![Klein-Gordon 1D: PINNStudio best — Larger network (2× width, one more layer)](figures/tuning/Klein_Gordon_equation/net_surface_comparison.png)
+
+![Klein-Gordon 1D: PINNStudio best — Larger network (2× width, one more layer)](figures/tuning/Klein_Gordon_equation/net_line_comparison.png)
 
 </details>
 
@@ -2533,6 +2395,8 @@ $$\Large \frac{\partial^2 u}{\partial t^2} - \frac{\partial^2 u}{\partial x^2} +
 
 ![Klein-Gordon 1D: PINNStudio best — all of the changes together](figures/tuning/Klein_Gordon_equation_inv/all_surface_comparison.png)
 
+![Klein-Gordon 1D: PINNStudio best — all of the changes together](figures/tuning/Klein_Gordon_equation_inv/all_line_comparison.png)
+
 ![Klein-Gordon 1D: PINNStudio best — all of the changes together](figures/tuning/Klein_Gordon_equation_inv/all_param_plot.png)
 
 </details>
@@ -2541,8 +2405,6 @@ $$\Large \frac{\partial^2 u}{\partial t^2} - \frac{\partial^2 u}{\partial x^2} +
 
 <details id="bench-schr-dinger-1d">
 <summary><strong>Schrödinger 1D</strong> · DeepXDE example</summary>
-
-[inverse runs in the tuning study](tuning_study.md#tune-schr-dinger-1d-inverse-mode)
 
 **The problem**
 
@@ -2563,7 +2425,7 @@ $$\Large \frac{\partial u}{\partial t} + c\frac{\partial^2 v}{\partial x^2} + (u
 <details>
 <summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
 
-*Forward problem*
+*Forward problem — also PINNStudio best* (already accurate, so it was not tuned)
 
 - **Network:** FNN 4 × 100 (2 inputs, 2 outputs), tanh, Glorot normal
 - **Points:** 10,000 domain, 200 initial, 20 boundary
@@ -2576,10 +2438,6 @@ $$\Large \frac{\partial u}{\partial t} + c\frac{\partial^2 v}{\partial x^2} + (u
 <details>
 <summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
 
-*Forward problem* — the Default settings above: it was already accurate, so it was not tuned.
-
-*Load it:* toolbar → Examples: **Forward** → **Schrödinger 1D** → **Tuned**, then Solve.
-
 *Inverse problem — PINNStudio's own inverse setup, tuned*
 
 - **Network:** FNN 5 × 200 (2 inputs, 2 outputs), tanh, Glorot normal
@@ -2589,6 +2447,10 @@ $$\Large \frac{\partial u}{\partial t} + c\frac{\partial^2 v}{\partial x^2} + (u
 - **Measured data:** t_0.75.txt for output (weight 100)
 
 *Load it:* toolbar → Examples: **Inverse** → **Schrödinger 1D** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, inverse runs](tuning_study.md#tune-schr-dinger-1d-inverse-mode)
+
+*Forward problem:* PINNStudio best is the Default settings above (no separate Tuned settings).
 
 </details>
 
@@ -2628,6 +2490,8 @@ $$\Large \frac{\partial u}{\partial t} + c\frac{\partial^2 v}{\partial x^2} + (u
 
 ![Schrödinger 1D: PINNStudio best — Larger network (2× width, one more layer)](figures/tuning/Schr_dinger_equation_inv/net_surface_comparison.png)
 
+![Schrödinger 1D: PINNStudio best — Larger network (2× width, one more layer)](figures/tuning/Schr_dinger_equation_inv/net_line_comparison.png)
+
 ![Schrödinger 1D: PINNStudio best — Larger network (2× width, one more layer)](figures/tuning/Schr_dinger_equation_inv/net_param_plot.png)
 
 </details>
@@ -2636,8 +2500,6 @@ $$\Large \frac{\partial u}{\partial t} + c\frac{\partial^2 v}{\partial x^2} + (u
 
 <details id="bench-wave-1d-space-time-multi-scale-fourier-features">
 <summary><strong>Wave 1D – space-time multi-scale Fourier features</strong> · DeepXDE example</summary>
-
-[forward runs in the tuning study](tuning_study.md#tune-wave-1d-space-time-multi-scale-fourier-features) · [inverse runs in the tuning study](tuning_study.md#tune-wave-1d-space-time-multi-scale-fourier-features-inverse-mode)
 
 **The problem**
 
@@ -2676,6 +2538,8 @@ Collocation points are redrawn every iteration from a pseudo-random distribution
 
 *Load it:* toolbar → Examples: **Forward** → **Wave 1D – space-time multi-scale Fourier features** → **Tuned**, then Solve.
 
+*Found in:* [tuning study, forward runs](tuning_study.md#tune-wave-1d-space-time-multi-scale-fourier-features)
+
 *Inverse problem — PINNStudio's own inverse setup, tuned*
 
 - **Network:** STMsFFN 4 × 200 (2 inputs, 1 output), tanh, Glorot uniform
@@ -2685,6 +2549,8 @@ Collocation points are redrawn every iteration from a pseudo-random distribution
 - **Measured data:** u_obs.txt for u (weight 100)
 
 *Load it:* toolbar → Examples: **Inverse** → **Wave 1D – space-time multi-scale Fourier features** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, inverse runs](tuning_study.md#tune-wave-1d-space-time-multi-scale-fourier-features-inverse-mode)
 
 </details>
 
@@ -2719,9 +2585,13 @@ Collocation points are redrawn every iteration from a pseudo-random distribution
 
 ![Wave 1D – space-time multi-scale Fourier features: DeepXDE's settings](figures/tuning/Wave_propagation_space_time_multi_scale_Fourier_features/base_surface_comparison.png)
 
+![Wave 1D – space-time multi-scale Fourier features: DeepXDE's settings](figures/tuning/Wave_propagation_space_time_multi_scale_Fourier_features/base_line_comparison.png)
+
 *PINNStudio best — all of the changes together:*
 
 ![Wave 1D – space-time multi-scale Fourier features: PINNStudio best — all of the changes together](figures/tuning/Wave_propagation_space_time_multi_scale_Fourier_features/all_surface_comparison.png)
+
+![Wave 1D – space-time multi-scale Fourier features: PINNStudio best — all of the changes together](figures/tuning/Wave_propagation_space_time_multi_scale_Fourier_features/all_line_comparison.png)
 
 </details>
 
@@ -2732,6 +2602,8 @@ Collocation points are redrawn every iteration from a pseudo-random distribution
 
 ![Wave 1D – space-time multi-scale Fourier features: PINNStudio best — all of the changes together](figures/tuning/Wave_propagation_space_time_multi_scale_Fourier_features_inv/all_surface_comparison.png)
 
+![Wave 1D – space-time multi-scale Fourier features: PINNStudio best — all of the changes together](figures/tuning/Wave_propagation_space_time_multi_scale_Fourier_features_inv/all_line_comparison.png)
+
 ![Wave 1D – space-time multi-scale Fourier features: PINNStudio best — all of the changes together](figures/tuning/Wave_propagation_space_time_multi_scale_Fourier_features_inv/all_param_plot.png)
 
 </details>
@@ -2740,8 +2612,6 @@ Collocation points are redrawn every iteration from a pseudo-random distribution
 
 <details id="bench-diffusion-1d-unknown-coefficient">
 <summary><strong>Diffusion 1D – unknown coefficient</strong> · DeepXDE example</summary>
-
-[forward runs in the tuning study](tuning_study.md#tune-diffusion-1d-unknown-coefficient)
 
 **The problem**
 
@@ -2754,9 +2624,11 @@ $$\Large \frac{\partial u}{\partial t} = C\frac{\partial^2 u}{\partial x^2} - e^
 - **Exact solution:** $u = e^{-t}\sin(\pi x)$
 
 <details>
-<summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
+<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
 
-*Inverse problem*
+*Inverse problem — also PINNStudio best* (no change in the tuning study did better)
+
+*Found in:* [tuning study, forward runs](tuning_study.md#tune-diffusion-1d-unknown-coefficient)
 
 - **Network:** FNN 3 × 32 (2 inputs, 1 output), tanh, Glorot uniform
 - **Points:** 40 domain, 10 initial, 20 boundary
@@ -2765,15 +2637,6 @@ $$\Large \frac{\partial u}{\partial t} = C\frac{\partial^2 u}{\partial x^2} - e^
 - **Measured data:** u_obs_t1.txt for u (weight 1)
 
 *Load it:* toolbar → Examples: **Inverse** → **Diffusion 1D – unknown coefficient** → **Default**, then Solve.
-
-</details>
-
-<details>
-<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
-
-*Inverse problem* — the Default settings above: no change in the tuning study did better.
-
-*Load it:* toolbar → Examples: **Inverse** → **Diffusion 1D – unknown coefficient** → **Tuned**, then Solve.
 
 </details>
 
@@ -2796,11 +2659,15 @@ $$\Large \frac{\partial u}{\partial t} = C\frac{\partial^2 u}{\partial x^2} - e^
 
 ![Diffusion 1D – unknown coefficient: DeepXDE's settings](figures/tuning/Inverse_diffusion_equation/base_surface_comparison.png)
 
+![Diffusion 1D – unknown coefficient: DeepXDE's settings](figures/tuning/Inverse_diffusion_equation/base_line_comparison.png)
+
 ![Diffusion 1D – unknown coefficient: DeepXDE's settings](figures/tuning/Inverse_diffusion_equation/base_param_plot.png)
 
 *PINNStudio best — 3× iterations:*
 
 ![Diffusion 1D – unknown coefficient: PINNStudio best — 3× iterations](figures/tuning/Inverse_diffusion_equation/iters_surface_comparison.png)
+
+![Diffusion 1D – unknown coefficient: PINNStudio best — 3× iterations](figures/tuning/Inverse_diffusion_equation/iters_line_comparison.png)
 
 ![Diffusion 1D – unknown coefficient: PINNStudio best — 3× iterations](figures/tuning/Inverse_diffusion_equation/iters_param_plot.png)
 
@@ -2822,9 +2689,9 @@ $$\Large \frac{\partial C_A}{\partial t} = D\frac{\partial^2 C_A}{\partial x^2} 
 - **Data:** $C_A$ and $C_B$ on a space-time grid, computed by `tools/make_deepxde_reference_data.py`
 
 <details>
-<summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
+<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
 
-*Inverse problem*
+*Inverse problem — also PINNStudio best* (already accurate, so it was not tuned)
 
 - **Network:** FNN 3 × 20 (2 inputs, 2 outputs), tanh, Glorot uniform
 - **Points:** 2,000 domain, 100 initial, 100 boundary
@@ -2833,15 +2700,6 @@ $$\Large \frac{\partial C_A}{\partial t} = D\frac{\partial^2 C_A}{\partial x^2} 
 - **Measured data:** ca_obs.txt for ca (weight 1); cb_obs.txt for cb (weight 1)
 
 *Load it:* toolbar → Examples: **Inverse** → **Diffusion-reaction 1D – unknown k_f, D** → **Default**, then Solve.
-
-</details>
-
-<details>
-<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
-
-*Inverse problem* — the Default settings above: it was already accurate, so it was not tuned.
-
-*Load it:* toolbar → Examples: **Inverse** → **Diffusion-reaction 1D – unknown k_f, D** → **Tuned**, then Solve.
 
 </details>
 
@@ -2880,9 +2738,9 @@ $$\Large -(-\Delta)^{\alpha/2}u = 2^{\alpha}\Gamma(2 + \tfrac{\alpha}{2})\Gamma(
 - **Constants:** `alpha = 1.8`
 
 <details>
-<summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
+<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
 
-*Forward problem*
+*Forward problem — also PINNStudio best* (already accurate, so it was not tuned)
 
 - **Network:** FNN 4 × 20 (2 inputs, 1 output), tanh, Glorot normal
 - **Points:** 100 domain
@@ -2890,15 +2748,6 @@ $$\Large -(-\Delta)^{\alpha/2}u = 2^{\alpha}\Gamma(2 + \tfrac{\alpha}{2})\Gamma(
 - **Methods:** initial and boundary conditions built into the output (output transform formula)
 
 *Load it:* toolbar → Examples: **Forward** → **Fractional Poisson 2D – disk** → **Default**, then Solve.
-
-</details>
-
-<details>
-<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
-
-*Forward problem* — the Default settings above: it was already accurate, so it was not tuned.
-
-*Load it:* toolbar → Examples: **Forward** → **Fractional Poisson 2D – disk** → **Tuned**, then Solve.
 
 </details>
 
@@ -2923,8 +2772,6 @@ $$\Large -(-\Delta)^{\alpha/2}u = 2^{\alpha}\Gamma(2 + \tfrac{\alpha}{2})\Gamma(
 <details id="bench-helmholtz-2d-dirichlet">
 <summary><strong>Helmholtz 2D – Dirichlet</strong> · DeepXDE example</summary>
 
-[inverse runs in the tuning study](tuning_study.md#tune-helmholtz-2d-dirichlet-inverse-mode)
-
 **The problem**
 
 DeepXDE example: [`Helmholtz_Dirichlet_2d.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Helmholtz_Dirichlet_2d.py) ([documentation](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/helmholtz.2d.dirichlet.html))
@@ -2938,7 +2785,7 @@ $$\Large -\nabla^2 u - k_0^2 u = k_0^2\sin(k_0 x)\sin(k_0 y), \qquad k_0 = 4\pi,
 <details>
 <summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
 
-*Forward problem*
+*Forward problem — also PINNStudio best* (already accurate, so it was not tuned)
 
 - **Network:** FNN 3 × 150 (2 inputs, 1 output), sin, Glorot uniform
 - **Points:** 400 domain, 80 boundary
@@ -2952,10 +2799,6 @@ $$\Large -\nabla^2 u - k_0^2 u = k_0^2\sin(k_0 x)\sin(k_0 y), \qquad k_0 = 4\pi,
 <details>
 <summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
 
-*Forward problem* — the Default settings above: it was already accurate, so it was not tuned.
-
-*Load it:* toolbar → Examples: **Forward** → **Helmholtz 2D – Dirichlet** → **Tuned**, then Solve.
-
 *Inverse problem — PINNStudio's own inverse setup, tuned*
 
 - **Network:** FNN 4 × 300 (2 inputs, 1 output), sin, Glorot uniform
@@ -2966,6 +2809,10 @@ $$\Large -\nabla^2 u - k_0^2 u = k_0^2\sin(k_0 x)\sin(k_0 y), \qquad k_0 = 4\pi,
 - **Measured data:** u_obs.txt for u (weight 1000)
 
 *Load it:* toolbar → Examples: **Inverse** → **Helmholtz 2D – Dirichlet** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, inverse runs](tuning_study.md#tune-helmholtz-2d-dirichlet-inverse-mode)
+
+*Forward problem:* PINNStudio best is the Default settings above (no separate Tuned settings).
 
 </details>
 
@@ -3024,9 +2871,9 @@ $$\Large -\nabla^2 u - k_0^2 u = k_0^2\sin(k_0 x)\sin(k_0 y), \qquad k_0 = 4\pi,
 - **Constants:** `n = 2`, `k0 = 2*pi*n`
 
 <details>
-<summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
+<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
 
-*Forward problem*
+*Forward problem — also PINNStudio best* (already accurate, so it was not tuned)
 
 - **Network:** FNN 4 × 50 (2 inputs, 1 output), sin, Glorot uniform
 - **Points:** 400 domain, 80 boundary
@@ -3034,15 +2881,6 @@ $$\Large -\nabla^2 u - k_0^2 u = k_0^2\sin(k_0 x)\sin(k_0 y), \qquad k_0 = 4\pi,
 - **Methods:** initial and boundary conditions built into the output (output transform formula)
 
 *Load it:* toolbar → Examples: **Forward** → **Helmholtz 2D – hyperparameter search** → **Default**, then Solve.
-
-</details>
-
-<details>
-<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
-
-*Forward problem* — the Default settings above: it was already accurate, so it was not tuned.
-
-*Load it:* toolbar → Examples: **Forward** → **Helmholtz 2D – hyperparameter search** → **Tuned**, then Solve.
 
 </details>
 
@@ -3067,8 +2905,6 @@ $$\Large -\nabla^2 u - k_0^2 u = k_0^2\sin(k_0 x)\sin(k_0 y), \qquad k_0 = 4\pi,
 <details id="bench-helmholtz-2d-sound-hard-scattering">
 <summary><strong>Helmholtz 2D – sound-hard scattering</strong> · DeepXDE example</summary>
 
-[forward runs in the tuning study](tuning_study.md#tune-helmholtz-2d-sound-hard-scattering)
-
 **The problem**
 
 DeepXDE example: [`Helmholtz_Sound_hard_ABC_2d.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Helmholtz_Sound_hard_ABC_2d.py)
@@ -3080,24 +2916,17 @@ $$\Large -\nabla^2 u - k_0^2 u = 0, \qquad u = u_{re} + i\ u_{im},\ k_0 = 2$$
 - **Constants:** `k0 = 2`, `R = pi/4`
 
 <details>
-<summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
+<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
 
-*Forward problem*
+*Forward problem — also PINNStudio best* (no change in the tuning study did better)
+
+*Found in:* [tuning study, forward runs](tuning_study.md#tune-helmholtz-2d-sound-hard-scattering)
 
 - **Network:** FNN 3 × 350 (2 inputs, 2 outputs), tanh, Glorot uniform
 - **Points:** 1,600 domain, 320 boundary
 - **Training:** Adam 10,000
 
 *Load it:* toolbar → Examples: **Forward** → **Helmholtz 2D – sound-hard scattering** → **Default**, then Solve.
-
-</details>
-
-<details>
-<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
-
-*Forward problem* — the Default settings above: no change in the tuning study did better.
-
-*Load it:* toolbar → Examples: **Forward** → **Helmholtz 2D – sound-hard scattering** → **Tuned**, then Solve.
 
 </details>
 
@@ -3130,8 +2959,6 @@ $$\Large -\nabla^2 u - k_0^2 u = 0, \qquad u = u_{re} + i\ u_{im},\ k_0 = 2$$
 
 <details id="bench-helmholtz-2d-square-with-hole">
 <summary><strong>Helmholtz 2D – square with hole</strong> · DeepXDE example</summary>
-
-[forward runs in the tuning study](tuning_study.md#tune-helmholtz-2d-square-with-hole)
 
 **The problem**
 
@@ -3167,6 +2994,8 @@ $$\Large -\nabla^2 u - k_0^2 u = k_0^2\sin(k_0 x)\sin(k_0 y), \qquad k_0 = 2\pi$
 - **Training:** Adam 5,000 → L-BFGS 15,000
 
 *Load it:* toolbar → Examples: **Forward** → **Helmholtz 2D – square with hole** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, forward runs](tuning_study.md#tune-helmholtz-2d-square-with-hole)
 
 </details>
 
@@ -3210,24 +3039,15 @@ $$\Large r\frac{\partial u}{\partial r} + r^2\frac{\partial^2 u}{\partial r^2} +
 - **Exact solution:** $u = r\cos\theta$
 
 <details>
-<summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
+<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
 
-*Forward problem*
+*Forward problem — also PINNStudio best* (already accurate, so it was not tuned)
 
 - **Network:** FNN 3 × 20 (2 inputs, 1 output), tanh, Glorot normal
 - **Points:** 2,540 domain, 80 boundary
 - **Training:** Adam 15,000
 
 *Load it:* toolbar → Examples: **Forward** → **Laplace 2D – disk** → **Default**, then Solve.
-
-</details>
-
-<details>
-<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
-
-*Forward problem* — the Default settings above: it was already accurate, so it was not tuned.
-
-*Load it:* toolbar → Examples: **Forward** → **Laplace 2D – disk** → **Tuned**, then Solve.
 
 </details>
 
@@ -3251,8 +3071,6 @@ $$\Large r\frac{\partial u}{\partial r} + r^2\frac{\partial^2 u}{\partial r^2} +
 
 <details id="bench-linear-elasticity-2d-plate">
 <summary><strong>Linear elasticity 2D – plate</strong> · DeepXDE example</summary>
-
-[forward runs in the tuning study](tuning_study.md#tune-linear-elasticity-2d-plate) · [inverse runs in the tuning study](tuning_study.md#tune-linear-elasticity-2d-plate-inverse-mode)
 
 **The problem**
 
@@ -3293,6 +3111,8 @@ $$\Large \sigma_{xx} = (\lambda + 2\mu)\varepsilon_{xx} + \lambda\varepsilon_{yy
 
 *Load it:* toolbar → Examples: **Forward** → **Linear elasticity 2D – plate** → **Tuned**, then Solve.
 
+*Found in:* [tuning study, forward runs](tuning_study.md#tune-linear-elasticity-2d-plate)
+
 *Inverse problem — PINNStudio's own inverse setup*
 
 - **Network:** PFNN 4 × 40 (2 inputs, 5 outputs), tanh, Glorot uniform
@@ -3303,6 +3123,8 @@ $$\Large \sigma_{xx} = (\lambda + 2\mu)\varepsilon_{xx} + \lambda\varepsilon_{yy
 - **Measured data:** ux_obs.txt for ux (weight 100); uy_obs.txt for uy (weight 100)
 
 *Load it:* toolbar → Examples: **Inverse** → **Linear elasticity 2D – plate** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, inverse runs](tuning_study.md#tune-linear-elasticity-2d-plate-inverse-mode)
 
 </details>
 
@@ -3392,24 +3214,15 @@ $$\Large \frac{\partial \sigma_{xx}}{\partial x} + \frac{\partial \sigma_{xy}}{\
 - **Constants:** `lmbd = 1`, `mu = 0.5`, `Q = 4`
 
 <details>
-<summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
+<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
 
-*Forward problem*
+*Forward problem — also PINNStudio best* (already accurate, so it was not tuned)
 
 - **Network:** PFNN 4 × 40 (2 inputs, 5 outputs), tanh, Glorot uniform
 - **Points:** 500 domain, 500 boundary
 - **Training:** Adam 20,000 → L-BFGS 20,000
 
 *Load it:* toolbar → Examples: **Forward** → **Linear elasticity 2D – plate, soft BCs** → **Default**, then Solve.
-
-</details>
-
-<details>
-<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
-
-*Forward problem* — the Default settings above: it was already accurate, so it was not tuned.
-
-*Load it:* toolbar → Examples: **Forward** → **Linear elasticity 2D – plate, soft BCs** → **Tuned**, then Solve.
 
 </details>
 
@@ -3442,8 +3255,6 @@ $$\Large \frac{\partial \sigma_{xx}}{\partial x} + \frac{\partial \sigma_{xy}}{\
 <details id="bench-navier-stokes-2d-kovasznay-flow">
 <summary><strong>Navier-Stokes 2D – Kovasznay flow</strong> · DeepXDE example</summary>
 
-[inverse runs in the tuning study](tuning_study.md#tune-navier-stokes-2d-kovasznay-flow-inverse-mode)
-
 **The problem**
 
 DeepXDE example: [`Kovasznay_flow.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Kovasznay_flow.py) ([documentation](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/Kovasznay.flow.html))
@@ -3458,7 +3269,7 @@ $$\Large (\mathbf u\cdot\nabla)\mathbf u + \nabla p = \frac{1}{Re}\nabla^2\mathb
 <details>
 <summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
 
-*Forward problem*
+*Forward problem — also PINNStudio best* (already accurate, so it was not tuned)
 
 - **Network:** FNN 4 × 50 (2 inputs, 3 outputs), tanh, Glorot normal
 - **Points:** 2,601 domain, 400 boundary
@@ -3471,10 +3282,6 @@ $$\Large (\mathbf u\cdot\nabla)\mathbf u + \nabla p = \frac{1}{Re}\nabla^2\mathb
 <details>
 <summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
 
-*Forward problem* — the Default settings above: it was already accurate, so it was not tuned.
-
-*Load it:* toolbar → Examples: **Forward** → **Navier-Stokes 2D – Kovasznay flow** → **Tuned**, then Solve.
-
 *Inverse problem — PINNStudio's own inverse setup, tuned*
 
 - **Network:** FNN 5 × 100 (2 inputs, 3 outputs), tanh, Glorot normal
@@ -3484,6 +3291,10 @@ $$\Large (\mathbf u\cdot\nabla)\mathbf u + \nabla p = \frac{1}{Re}\nabla^2\mathb
 - **Measured data:** u_obs.txt for u (weight 100); v_obs.txt for v (weight 100)
 
 *Load it:* toolbar → Examples: **Inverse** → **Navier-Stokes 2D – Kovasznay flow** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, inverse runs](tuning_study.md#tune-navier-stokes-2d-kovasznay-flow-inverse-mode)
+
+*Forward problem:* PINNStudio best is the Default settings above (no separate Tuned settings).
 
 </details>
 
@@ -3540,8 +3351,6 @@ $$\Large (\mathbf u\cdot\nabla)\mathbf u + \nabla p = \frac{1}{Re}\nabla^2\mathb
 <details id="bench-poisson-2d-disk">
 <summary><strong>Poisson 2D – disk</strong> · PINNStudio template</summary>
 
-[inverse runs in the tuning study](tuning_study.md#tune-poisson-2d-disk-pinnstudio-template-inverse-mode)
-
 **The problem**
 
 The Poisson equation on the unit disk, steady-state (no time axis).
@@ -3554,9 +3363,9 @@ $$\Large -\frac{\partial^2 u}{\partial x^2} - \frac{\partial^2 u}{\partial y^2} 
 A companion to the L-Shape template above, on a smooth (curved, non-singular) boundary instead.
 
 <details>
-<summary>⚙️ <em>Default settings — the template's own settings</em></summary>
+<summary>⚙️ <em>Default settings — the template's own settings (also PINNStudio best)</em></summary>
 
-*Forward problem*
+*Forward problem — also PINNStudio best* (already accurate, so it was not tuned)
 
 - **Network:** FNN 4 × 50 (2 inputs, 1 output), tanh, Glorot uniform
 - **Points:** 1,200 domain, 120 boundary
@@ -3564,7 +3373,9 @@ A companion to the L-Shape template above, on a smooth (curved, non-singular) bo
 
 *Load it:* toolbar → Examples: **Forward** → **Poisson 2D – disk** → **Default**, then Solve.
 
-*Inverse problem*
+*Inverse problem — also PINNStudio best* (no change in the tuning study did better)
+
+*Found in:* [tuning study, inverse runs](tuning_study.md#tune-poisson-2d-disk-pinnstudio-template-inverse-mode)
 
 - **Network:** FNN 4 × 50 (2 inputs, 1 output), tanh, Glorot uniform
 - **Points:** 1,200 domain, 120 boundary
@@ -3574,19 +3385,6 @@ A companion to the L-Shape template above, on a smooth (curved, non-singular) bo
 - **Measured data:** u_obs.txt for u (weight 100)
 
 *Load it:* toolbar → Examples: **Inverse** → **Poisson 2D – disk** → **Default**, then Solve.
-
-</details>
-
-<details>
-<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
-
-*Forward problem* — the Default settings above: it was already accurate, so it was not tuned.
-
-*Load it:* toolbar → Examples: **Forward** → **Poisson 2D – disk** → **Tuned**, then Solve.
-
-*Inverse problem* — the Default settings above: no change in the tuning study did better.
-
-*Load it:* toolbar → Examples: **Inverse** → **Poisson 2D – disk** → **Tuned**, then Solve.
 
 </details>
 
@@ -3629,8 +3427,6 @@ A companion to the L-Shape template above, on a smooth (curved, non-singular) bo
 <details id="bench-poisson-2d-l-shape">
 <summary><strong>Poisson 2D – L-shape</strong> · DeepXDE example</summary>
 
-[forward runs in the tuning study](tuning_study.md#tune-poisson-2d-l-shape)
-
 **The problem**
 
 DeepXDE example: [`Poisson_Lshape.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Poisson_Lshape.py) ([documentation](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/poisson.Lshape.html))
@@ -3665,6 +3461,8 @@ $$\Large -\nabla^2 u = f, \qquad \Omega = [-1, 1]^2 \setminus [0, 1]\times[-1, 0
 - **Training:** Adam 150,000 → L-BFGS 45,000
 
 *Load it:* toolbar → Examples: **Forward** → **Poisson 2D – L-shape** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, forward runs](tuning_study.md#tune-poisson-2d-l-shape)
 
 </details>
 
@@ -3708,9 +3506,9 @@ $$\Large -(-\Delta)^{\alpha/2}u = 2^{\alpha_0}\Gamma(2 + \tfrac{\alpha_0}{2})\Ga
 - **Constants:** `a0 = 1.8`
 
 <details>
-<summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
+<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
 
-*Inverse problem*
+*Inverse problem — also PINNStudio best* (already accurate, so it was not tuned)
 
 - **Network:** FNN 4 × 20 (2 inputs, 1 output), tanh, Glorot normal
 - **Points:** 64 domain
@@ -3720,15 +3518,6 @@ $$\Large -(-\Delta)^{\alpha/2}u = 2^{\alpha_0}\Gamma(2 + \tfrac{\alpha_0}{2})\Ga
 - **Measured data:** u_obs.txt for u (weight 100)
 
 *Load it:* toolbar → Examples: **Inverse** → **Fractional Poisson 2D – unknown order α** → **Default**, then Solve.
-
-</details>
-
-<details>
-<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
-
-*Inverse problem* — the Default settings above: it was already accurate, so it was not tuned.
-
-*Load it:* toolbar → Examples: **Inverse** → **Fractional Poisson 2D – unknown order α** → **Tuned**, then Solve.
 
 </details>
 
@@ -3756,8 +3545,6 @@ $$\Large -(-\Delta)^{\alpha/2}u = 2^{\alpha_0}\Gamma(2 + \tfrac{\alpha_0}{2})\Ga
 
 <details id="bench-allen-cahn-2d-wight-zhao">
 <summary><strong>Allen-Cahn 2D – Wight & Zhao</strong> · PINNStudio template, after Wight & Zhao (2021)</summary>
-
-[forward runs in the tuning study](tuning_study.md#tune-allen-cahn-2d-wight-zhao-pinnstudio-template) · [forward runs in the tuning study](tuning_study.md#tune-allen-cahn-2d-wight-zhao-pinnstudio-template-best-setup) · [inverse runs in the tuning study](tuning_study.md#tune-allen-cahn-2d-wight-zhao-pinnstudio-template-inverse-mode)
 
 **The problem**
 
@@ -3809,6 +3596,8 @@ with true values $\lambda = 10$ and $\lambda\varepsilon^2 = 0.00625$.
 
 *Load it:* toolbar → Examples: **Forward** → **Allen-Cahn 2D – Wight & Zhao** → **Tuned**, then Solve.
 
+*Found in:* [tuning study, forward runs](tuning_study.md#tune-allen-cahn-2d-wight-zhao-pinnstudio-template-best-setup) · [training methods study](training_methods.md)
+
 *Inverse problem — PINNStudio's own inverse setup*
 
 - **Network:** FNN 4 × 128 (3 inputs, 1 output), tanh, Glorot uniform
@@ -3819,6 +3608,8 @@ with true values $\lambda = 10$ and $\lambda\varepsilon^2 = 0.00625$.
 - **Measured data:** t_2.5.txt for phi (weight 100)
 
 *Load it:* toolbar → Examples: **Inverse** → **Allen-Cahn 2D – Wight & Zhao** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, inverse runs](tuning_study.md#tune-allen-cahn-2d-wight-zhao-pinnstudio-template-inverse-mode)
 
 </details>
 
@@ -3875,8 +3666,6 @@ with true values $\lambda = 10$ and $\lambda\varepsilon^2 = 0.00625$.
 <details id="bench-allen-cahn-2d-mattey-ghosh">
 <summary><strong>Allen-Cahn 2D – Mattey & Ghosh</strong> · PINNStudio template, after Mattey & Ghosh (2022)</summary>
 
-[forward runs in the tuning study](tuning_study.md#tune-allen-cahn-2d-mattey-ghosh-pinnstudio-template-best-setup) · [inverse runs in the tuning study](tuning_study.md#tune-allen-cahn-2d-mattey-ghosh-pinnstudio-template-inverse-mode)
-
 **The problem**
 
 Benchmark problem after [Mattey & Ghosh (2022)](https://doi.org/10.1016/j.cma.2021.114474).
@@ -3922,6 +3711,8 @@ where $c_1^2 = 0.0001$ and $c_2 = 1$.
 
 *Load it:* toolbar → Examples: **Forward** → **Allen-Cahn 2D – Mattey & Ghosh** → **Tuned**, then Solve.
 
+*Found in:* [tuning study, forward runs](tuning_study.md#tune-allen-cahn-2d-mattey-ghosh-pinnstudio-template-best-setup) · [training methods study](training_methods.md)
+
 *Inverse problem — PINNStudio's own inverse setup*
 
 - **Network:** FNN 4 × 128 (3 inputs, 1 output), tanh, Glorot uniform
@@ -3932,6 +3723,8 @@ where $c_1^2 = 0.0001$ and $c_2 = 1$.
 - **Measured data:** t_0.25.txt for h (weight 100); t_0.5.txt for h (weight 100); t_0.75.txt for h (weight 100); t_1.0.txt for h (weight 100)
 
 *Load it:* toolbar → Examples: **Inverse** → **Allen-Cahn 2D – Mattey & Ghosh** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, inverse runs](tuning_study.md#tune-allen-cahn-2d-mattey-ghosh-pinnstudio-template-inverse-mode)
 
 </details>
 
@@ -3984,8 +3777,6 @@ where $c_1^2 = 0.0001$ and $c_2 = 1$.
 <details id="bench-cahn-hilliard-2d-wight-zhao">
 <summary><strong>Cahn-Hilliard 2D – Wight & Zhao</strong> · PINNStudio template, after Wight & Zhao (2021)</summary>
 
-[forward runs in the tuning study](tuning_study.md#tune-cahn-hilliard-2d-wight-zhao-pinnstudio-template) · [inverse runs in the tuning study](tuning_study.md#tune-cahn-hilliard-2d-wight-zhao-pinnstudio-template-inverse-mode)
-
 **The problem**
 
 Benchmark problem after [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086), section 3.3 (eqs. 3.20–3.21): two bubbles that touch and merge into one, written for a field $\phi$,
@@ -4030,6 +3821,8 @@ where $\lambda = 1$ and $\varepsilon = 0.05$. As in the 1D example, the chemical
 
 *Load it:* toolbar → Examples: **Forward** → **Cahn-Hilliard 2D – Wight & Zhao** → **Tuned**, then Solve.
 
+*Found in:* [tuning study, forward runs](tuning_study.md#tune-cahn-hilliard-2d-wight-zhao-pinnstudio-template)
+
 *Inverse problem — PINNStudio's own inverse setup*
 
 - **Network:** FNN 4 × 128 (3 inputs, 2 outputs), tanh, Glorot uniform
@@ -4041,6 +3834,8 @@ where $\lambda = 1$ and $\varepsilon = 0.05$. As in the 1D example, the chemical
 - **Measured data:** t_1_phi.txt for phi (weight 100)
 
 *Load it:* toolbar → Examples: **Inverse** → **Cahn-Hilliard 2D – Wight & Zhao** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, inverse runs](tuning_study.md#tune-cahn-hilliard-2d-wight-zhao-pinnstudio-template-inverse-mode)
 
 </details>
 
@@ -4198,8 +3993,6 @@ $$\Large \frac{\partial h}{\partial t'} = 0.005\left(\frac{\partial^2 \mu}{\part
 <details id="bench-burgers-2d-mathias-et-al">
 <summary><strong>Burgers 2D – Mathias et al.</strong> · PINNStudio template, after Mathias et al. (2022)</summary>
 
-[forward runs in the tuning study](tuning_study.md#tune-burgers-2d-mathias-et-al-pinnstudio-template) · [inverse runs in the tuning study](tuning_study.md#tune-burgers-2d-mathias-et-al-pinnstudio-template-inverse-mode)
-
 **The problem**
 
 Physics after [Mathias et al. (2022)](https://arxiv.org/abs/2301.07824). A coupled, two-output system for the velocity components $U$, $V$, with kinematic viscosity $\nu = \dfrac{0.01}{\pi}$:
@@ -4277,6 +4070,8 @@ Error Analysis — PINN vs Ground Truth, for each output:
 
 *Load it:* toolbar → Examples: **Forward** → **Burgers 2D – Mathias et al.** → **Tuned**, then Solve.
 
+*Found in:* [tuning study, forward runs](tuning_study.md#tune-burgers-2d-mathias-et-al-pinnstudio-template)
+
 *Inverse problem — PINNStudio's own inverse setup*
 
 - **Network:** FNN 4 × 128 (3 inputs, 2 outputs), tanh, Glorot uniform
@@ -4287,6 +4082,8 @@ Error Analysis — PINN vs Ground Truth, for each output:
 - **Measured data:** t_1.0_u.txt for u (weight 100); t_1.0_v.txt for v (weight 100)
 
 *Load it:* toolbar → Examples: **Inverse** → **Burgers 2D – Mathias et al.** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, inverse runs](tuning_study.md#tune-burgers-2d-mathias-et-al-pinnstudio-template-inverse-mode)
 
 </details>
 
@@ -4345,8 +4142,6 @@ Error Analysis — PINN vs Ground Truth, for each output:
 <details id="bench-heat-2d">
 <summary><strong>Heat 2D</strong> · PINNStudio template</summary>
 
-[inverse runs in the tuning study](tuning_study.md#tune-heat-2d-pinnstudio-template-inverse-mode)
-
 **The problem**
 
 $$\Large \frac{\partial u}{\partial t} = 0.4\left(\frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2}\right), \qquad (x, y) \in [0, 1]^2,\ t \in [0, 1]$$
@@ -4360,9 +4155,9 @@ $$\Large \frac{\partial u}{\partial t} = 0.4\left(\frac{\partial^2 u}{\partial x
 *Inverse mode* — same template, switched to **Inverse**, recovering the diffusivity coefficient (fixed at $0.4$ in Forward mode above) as an unknown parameter:
 
 <details>
-<summary>⚙️ <em>Default settings — the template's own settings</em></summary>
+<summary>⚙️ <em>Default settings — the template's own settings (also PINNStudio best)</em></summary>
 
-*Forward problem*
+*Forward problem — also PINNStudio best* (already accurate, so it was not tuned)
 
 - **Network:** FNN 4 × 64 (3 inputs, 1 output), tanh, Glorot uniform
 - **Points:** 10,000 domain, 400 initial, 400 boundary
@@ -4371,7 +4166,9 @@ $$\Large \frac{\partial u}{\partial t} = 0.4\left(\frac{\partial^2 u}{\partial x
 
 *Load it:* toolbar → Examples: **Forward** → **Heat 2D** → **Default**, then Solve.
 
-*Inverse problem*
+*Inverse problem — also PINNStudio best* (no change in the tuning study did better)
+
+*Found in:* [tuning study, inverse runs](tuning_study.md#tune-heat-2d-pinnstudio-template-inverse-mode)
 
 - **Network:** FNN 4 × 64 (3 inputs, 1 output), tanh, Glorot uniform
 - **Points:** 10,000 domain, 400 initial, 400 boundary
@@ -4381,19 +4178,6 @@ $$\Large \frac{\partial u}{\partial t} = 0.4\left(\frac{\partial^2 u}{\partial x
 - **Measured data:** t_1.0.txt for u (weight 100)
 
 *Load it:* toolbar → Examples: **Inverse** → **Heat 2D** → **Default**, then Solve.
-
-</details>
-
-<details>
-<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
-
-*Forward problem* — the Default settings above: it was already accurate, so it was not tuned.
-
-*Load it:* toolbar → Examples: **Forward** → **Heat 2D** → **Tuned**, then Solve.
-
-*Inverse problem* — the Default settings above: no change in the tuning study did better.
-
-*Load it:* toolbar → Examples: **Inverse** → **Heat 2D** → **Tuned**, then Solve.
 
 </details>
 
@@ -4449,9 +4233,9 @@ $$\Large -(-\Delta)^{\alpha/2}u = \frac{2^{\alpha}\Gamma(2 + \frac{\alpha}{2})\G
 - **Constants:** `alpha = 1.8`
 
 <details>
-<summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
+<summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
 
-*Forward problem*
+*Forward problem — also PINNStudio best* (already accurate, so it was not tuned)
 
 - **Network:** FNN 4 × 20 (3 inputs, 1 output), tanh, Glorot normal
 - **Points:** 256 domain
@@ -4459,15 +4243,6 @@ $$\Large -(-\Delta)^{\alpha/2}u = \frac{2^{\alpha}\Gamma(2 + \frac{\alpha}{2})\G
 - **Methods:** initial and boundary conditions built into the output (output transform formula)
 
 *Load it:* toolbar → Examples: **Forward** → **Fractional Poisson 3D – sphere** → **Default**, then Solve.
-
-</details>
-
-<details>
-<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
-
-*Forward problem* — the Default settings above: it was already accurate, so it was not tuned.
-
-*Load it:* toolbar → Examples: **Forward** → **Fractional Poisson 3D – sphere** → **Tuned**, then Solve.
 
 </details>
 
@@ -4504,9 +4279,9 @@ $$\Large -\frac{\partial^2 u}{\partial x^2} - \frac{\partial^2 u}{\partial y^2} 
 *Inverse mode* — same template, switched to **Inverse**, recovering the source term (fixed at $1$ in Forward mode above) as an unknown parameter from 300 measured points
 
 <details>
-<summary>⚙️ <em>Default settings — the template's own settings</em></summary>
+<summary>⚙️ <em>Default settings — the template's own settings (also PINNStudio best)</em></summary>
 
-*Forward problem*
+*Forward problem — also PINNStudio best* (already accurate, so it was not tuned)
 
 - **Network:** FNN 4 × 50 (3 inputs, 1 output), tanh, Glorot uniform
 - **Points:** 2,000 domain, 300 boundary
@@ -4514,7 +4289,7 @@ $$\Large -\frac{\partial^2 u}{\partial x^2} - \frac{\partial^2 u}{\partial y^2} 
 
 *Load it:* toolbar → Examples: **Forward** → **Poisson 3D – sphere** → **Default**, then Solve.
 
-*Inverse problem*
+*Inverse problem — also PINNStudio best* (already accurate, so it was not tuned)
 
 - **Network:** FNN 4 × 50 (3 inputs, 1 output), tanh, Glorot uniform
 - **Points:** 2,000 domain, 300 boundary
@@ -4524,19 +4299,6 @@ $$\Large -\frac{\partial^2 u}{\partial x^2} - \frac{\partial^2 u}{\partial y^2} 
 - **Measured data:** u_obs.txt for u (weight 100)
 
 *Load it:* toolbar → Examples: **Inverse** → **Poisson 3D – sphere** → **Default**, then Solve.
-
-</details>
-
-<details>
-<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
-
-*Forward problem* — the Default settings above: it was already accurate, so it was not tuned.
-
-*Load it:* toolbar → Examples: **Forward** → **Poisson 3D – sphere** → **Tuned**, then Solve.
-
-*Inverse problem* — the Default settings above: it was already accurate, so it was not tuned.
-
-*Load it:* toolbar → Examples: **Inverse** → **Poisson 3D – sphere** → **Tuned**, then Solve.
 
 </details>
 
@@ -4576,8 +4338,6 @@ $$\Large -\frac{\partial^2 u}{\partial x^2} - \frac{\partial^2 u}{\partial y^2} 
 
 <details id="bench-allen-cahn-3d-wight-zhao">
 <summary><strong>Allen-Cahn 3D – Wight & Zhao</strong> · PINNStudio template, after Wight & Zhao (2021)</summary>
-
-[inverse runs in the tuning study](tuning_study.md#tune-allen-cahn-3d-wight-zhao-pinnstudio-template-inverse-mode)
 
 **The problem**
 
@@ -4635,6 +4395,8 @@ where $\lambda = 10$ and $\varepsilon = 0.05$ ($\lambda\varepsilon^2 = 0.025$). 
 
 *Load it:* toolbar → Examples: **Inverse** → **Allen-Cahn 3D – Wight & Zhao** → **Tuned**, then Solve.
 
+*Found in:* [tuning study, inverse runs](tuning_study.md#tune-allen-cahn-3d-wight-zhao-pinnstudio-template-inverse-mode)
+
 </details>
 
 **Forward problem**
@@ -4682,8 +4444,6 @@ where $\lambda = 10$ and $\varepsilon = 0.05$ ($\lambda\varepsilon^2 = 0.025$). 
 <details id="bench-heat-3d">
 <summary><strong>Heat 3D</strong> · PINNStudio template</summary>
 
-[inverse runs in the tuning study](tuning_study.md#tune-heat-3d-pinnstudio-template-inverse-mode)
-
 **The problem**
 
 The 2D Heat problem extended with a $z$ axis — diffusion in a unit cube.
@@ -4701,9 +4461,9 @@ Time-Adaptive Training is fully supported for this template if you turn it on �
 *Inverse mode* — same template, switched to **Inverse**, recovering the diffusivity coefficient (fixed at $0.4$ in Forward mode above) as an unknown parameter:
 
 <details>
-<summary>⚙️ <em>Default settings — the template's own settings</em></summary>
+<summary>⚙️ <em>Default settings — the template's own settings (also PINNStudio best)</em></summary>
 
-*Forward problem*
+*Forward problem — also PINNStudio best* (already accurate, so it was not tuned)
 
 - **Network:** FNN 4 × 128 (4 inputs, 1 output), tanh, Glorot uniform
 - **Points:** 15,000 domain, 1,000 initial, 1,000 boundary
@@ -4712,7 +4472,9 @@ Time-Adaptive Training is fully supported for this template if you turn it on �
 
 *Load it:* toolbar → Examples: **Forward** → **Heat 3D** → **Default**, then Solve.
 
-*Inverse problem*
+*Inverse problem — also PINNStudio best* (no change in the tuning study did better)
+
+*Found in:* [tuning study, inverse runs](tuning_study.md#tune-heat-3d-pinnstudio-template-inverse-mode)
 
 - **Network:** FNN 4 × 128 (4 inputs, 1 output), tanh, Glorot uniform
 - **Points:** 15,000 domain, 1,000 initial, 1,000 boundary
@@ -4722,19 +4484,6 @@ Time-Adaptive Training is fully supported for this template if you turn it on �
 - **Measured data:** t_1.0_LessData.txt for u (weight 100)
 
 *Load it:* toolbar → Examples: **Inverse** → **Heat 3D** → **Default**, then Solve.
-
-</details>
-
-<details>
-<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
-
-*Forward problem* — the Default settings above: it was already accurate, so it was not tuned.
-
-*Load it:* toolbar → Examples: **Forward** → **Heat 3D** → **Tuned**, then Solve.
-
-*Inverse problem* — the Default settings above: no change in the tuning study did better.
-
-*Load it:* toolbar → Examples: **Inverse** → **Heat 3D** → **Tuned**, then Solve.
 
 </details>
 
@@ -4777,8 +4526,6 @@ Time-Adaptive Training is fully supported for this template if you turn it on �
 <details id="bench-navier-stokes-3d-beltrami-flow">
 <summary><strong>Navier-Stokes 3D – Beltrami flow</strong> · DeepXDE example</summary>
 
-[inverse runs in the tuning study](tuning_study.md#tune-navier-stokes-3d-beltrami-flow-inverse-mode)
-
 **The problem**
 
 DeepXDE example: [`Beltrami_flow.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Beltrami_flow.py)
@@ -4790,7 +4537,7 @@ $$\Large \frac{\partial \mathbf u}{\partial t} + (\mathbf u\cdot\nabla)\mathbf u
 <details>
 <summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
 
-*Forward problem*
+*Forward problem — also PINNStudio best* (already accurate, so it was not tuned)
 
 - **Network:** FNN 4 × 50 (4 inputs, 4 outputs), tanh, Glorot normal
 - **Points:** 50,000 domain, 5,000 initial, 5,000 boundary
@@ -4803,10 +4550,6 @@ $$\Large \frac{\partial \mathbf u}{\partial t} + (\mathbf u\cdot\nabla)\mathbf u
 <details>
 <summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
 
-*Forward problem* — the Default settings above: it was already accurate, so it was not tuned.
-
-*Load it:* toolbar → Examples: **Forward** → **Navier-Stokes 3D – Beltrami flow** → **Tuned**, then Solve.
-
 *Inverse problem — PINNStudio's own inverse setup, tuned*
 
 - **Network:** FNN 4 × 50 (4 inputs, 4 outputs), tanh, Glorot normal
@@ -4816,6 +4559,10 @@ $$\Large \frac{\partial \mathbf u}{\partial t} + (\mathbf u\cdot\nabla)\mathbf u
 - **Measured data:** u_obs.txt for u (weight 100); v_obs.txt for v (weight 100); w_obs.txt for w (weight 100)
 
 *Load it:* toolbar → Examples: **Inverse** → **Navier-Stokes 3D – Beltrami flow** → **Tuned**, then Solve.
+
+*Found in:* [tuning study, inverse runs](tuning_study.md#tune-navier-stokes-3d-beltrami-flow-inverse-mode)
+
+*Forward problem:* PINNStudio best is the Default settings above (no separate Tuned settings).
 
 </details>
 

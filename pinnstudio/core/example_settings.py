@@ -187,6 +187,17 @@ def tuned_table():
         return {}
 
 
+def has_tuned(key, inverse):
+    """Whether Tuned differs from Default for the example: the tuning study found better settings, or
+    Default is a paper's method and Tuned the template's own (forward). Otherwise the Default settings
+    are PINNStudio's best and there is no separate Tuned choice."""
+    from pinnstudio.core import paper_settings as ps
+    if tuned_table().get(key, {}).get("inverse" if inverse else "forward"):
+        return True
+    v = ps.TEMPLATE_PAPER.get(key)
+    return bool(v and not inverse and (key, v) in ps.PAPER)
+
+
 def settings_for(cfg, key, inverse, mode):
     """(config, message): the example `key` (its internal name) as loaded, changed to the chosen Settings.
     The message says what was changed, for the Training Log ("" when nothing was)."""

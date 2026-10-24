@@ -105,6 +105,8 @@ def _readme_images(name, inverse_only=False):
             if k not in by_out or rank < by_out[k][0]:
                 by_out[k] = (rank, p)
         keep = [p for _, p in by_out.values()]
+        if WITH_LINES[0]:       # 1D: the line plots too, after the surfaces
+            keep += [p for p in comp if "line_comparison" in os.path.basename(p) and p not in keep]
         par = [p for a, p in sel if re.search(r"param_|parameter convergence|inferred", a + " " + os.path.basename(p))]
         par = [p for p in par if p.endswith(".png")] or par[:1]
         out = keep + [p for p in par if p not in keep]
@@ -169,6 +171,7 @@ def _anchor(name):
     return m.group(1) if m else None
 
 
+WITH_LINES = [False]   # set per example: 1D and ODE problems also show the line plots
 NEEDED = []   # (run folder, variant) whose figures the page shows: benchmarks/tuning/figures_needed.txt
 
 
@@ -191,7 +194,9 @@ def _figs_md(s, variant, raw_chosen=None, slug=None):
     names.sort(key=lambda n: (bool(re.search(r"_(mu|v|w|p|q)\.png$", n)), n))   # the main output first
     surf = [n for n in names if "surface_comparison" in n or "view3d" in n]
     line = [n for n in names if "line_comparison" in n]
-    keep = (surf or line) + [n for n in names if n.endswith("param_plot.png")]
+    slices = [n for n in names if "slice_comparison" in n]
+    keep = (surf or slices or line) + (line if WITH_LINES[0] and (surf or slices) else [])
+    keep += [n for n in names if n.endswith("param_plot.png")]
     return [os.path.relpath(os.path.join(folder, n), os.path.dirname(PAGE)).replace(os.sep, "/") for n in keep]
 
 
@@ -628,6 +633,24 @@ def _settings_toggles(r):
         base = _base_config(e, inverse and not inv_only)
         return base, es.settings_for(base, e.key, inverse and not inv_only, mode)[0]
 
+    def study_link(inverse):
+        """Where PINNStudio best was found: the tuning study's runs (and the training methods study for a
+        template's best setup)."""
+        st = r.get("i_s") if (inverse or inv_only) else (r.get("f_best_s") or r.get("f_plain_s"))
+        links = []
+        if not (inverse or inv_only) and r.get("f_best_paper"):
+            return ""
+        if st:
+            t = mtp._title(st["name"], st["inverse"])
+            links.append(f"[tuning study, {'inverse' if st['inverse'] else 'forward'} runs](tuning_study.md#{mtp._slug(t)})")
+        if not (inverse or inv_only) and r.get("f_best_is_setup"):
+            links.append("[training methods study](training_methods.md)")
+        return ("*Found in:* " + " · ".join(links)) if links else ""
+
+    # which problems have a Tuned choice (otherwise Default is PINNStudio best: no Tuned toggle for it)
+    tuned_probs = [p for p in probs if es.has_tuned(e.key, p and not inv_only) or (p and not default_inv)]
+    same_probs = [p for p in probs if p not in tuned_probs]
+
     out = []
     # Default
     body = []
@@ -638,34 +661,44 @@ def _settings_toggles(r):
         except Exception as ex:
             body.append(f"*{head}:* not available here ({str(ex)[:80]}).\n")
             continue
-        body.append(f"*{head}*\n\n" + _settings_md(cfg, inverse or inv_only) + "\n\n" + load(inverse, "Default") + "\n")
+        also = " — also PINNStudio best" if inverse in same_probs else ""
+        why = ""
+        if also:
+            ran = r.get("i_s") if inverse or inv_only else (r.get("f_plain_s") or r.get("f_best_s"))
+            why = (" (no change in the tuning study did better)" if ran else
+                   " (already accurate, so it was not tuned)")
+            lk = study_link(inverse) if ran else ""
+            why += ("\n\n" + lk) if lk else ""
+        body.append(f"*{head}{also}*{why}\n\n" + _settings_md(cfg, inverse or inv_only) + "\n\n"
+                    + load(inverse, "Default") + "\n")
     if paper:
         body.append(_paper_note(e.key, paper) + "\n")
-    out.append(f"<details>\n<summary>⚙️ <em>Default settings — {source}</em></summary>\n\n" + "\n".join(body)
+    title = source + (" (also PINNStudio best)" if not tuned_probs else "")
+    out.append(f"<details>\n<summary>⚙️ <em>Default settings — {title}</em></summary>\n\n" + "\n".join(body)
                + "\n</details>\n")
+    if not tuned_probs:
+        return "\n".join(out)
     # PINNStudio best
     body = []
-    for inverse in probs:
+    for inverse in tuned_probs:
         head = "Inverse problem" if inverse else "Forward problem"
         try:
             base, cfg = cfg_for(inverse, es.TUNED)
-            dflt = es.settings_for(base, e.key, inverse and not inv_only, es.DEFAULT)[0]
         except Exception as ex:
             body.append(f"*{head}:* not available here ({str(ex)[:80]}).\n")
-            continue
-        ran = r.get("i_s") if inverse or inv_only else (r.get("f_plain_s") or r.get("f_best_s"))
-        in_default = (not inverse) or default_inv
-        if cfg is base and dflt is base and in_default:
-            why = ("no change in the tuning study did better" if ran else
-                   "it was already accurate, so it was not tuned")
-            body.append(f"*{head}* — the Default settings above: {why}.\n\n" + load(inverse, "Tuned") + "\n")
             continue
         note = ""
         if inverse and not default_inv:     # an inverse problem PINNStudio added: not in Default
             note = " — PINNStudio's own inverse setup" + ("" if cfg is base else ", tuned")
-        elif cfg is base and not in_default or (cfg is base and dflt is not base):
+        elif cfg is base:
             note = " — the template's own settings"
-        body.append(f"*{head}{note}*\n\n" + _settings_md(cfg, inverse or inv_only) + "\n\n" + load(inverse, "Tuned") + "\n")
+        lk = study_link(inverse)
+        body.append(f"*{head}{note}*\n\n" + _settings_md(cfg, inverse or inv_only) + "\n\n" + load(inverse, "Tuned")
+                    + ("\n\n" + lk if lk else "") + "\n")
+    for inverse in same_probs:
+        if inverse or True:
+            head = "Inverse problem" if inverse else "Forward problem"
+            body.append(f"*{head}:* PINNStudio best is the Default settings above (no separate Tuned settings).\n")
     out.append("<details>\n<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>\n\n" + "\n".join(body)
                + "\n</details>\n")
     return "\n".join(out)
@@ -680,14 +713,7 @@ def _section(r):
                                                    else "PINNStudio template")
     a(f'<details id="bench-{re.sub(r"[^a-z0-9]+", "-", e.name.lower()).strip("-")}">')
     a(f"<summary><strong>{e.name}</strong> · {src}</summary>\n")
-    links = []
-    for s in (r["f_plain_s"], r["f_best_s"], r["i_s"]):
-        if s:
-            t = mtp._title(s["name"], s["inverse"])
-            links.append(f"[{'inverse' if s['inverse'] else 'forward'} runs in the tuning study]"
-                         f"(tuning_study.md#{mtp._slug(t)})")
-    if links:
-        a(" · ".join(dict.fromkeys(links)) + "\n")
+    WITH_LINES[0] = e.dim in ("1D", "ODE")
     prob = _problem_md(e.name)
     if prob:
         a("**The problem**\n")

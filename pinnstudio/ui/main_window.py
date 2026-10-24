@@ -6817,6 +6817,19 @@ class MainWindow(QMainWindow):
         combo = getattr(self, "quick_examples_settings_combo", None)
         if combo is None:
             return
+        # No Tuned choice where Default is already PINNStudio's best (the item is greyed out)
+        _tuned_ok = _ex_settings.has_tuned(key, self.radio_inverse.isChecked())
+        _ti = combo.findText(_ex_settings.TUNED)
+        _item = combo.model().item(_ti) if _ti >= 0 else None
+        if _item is not None:
+            _item.setEnabled(_tuned_ok)
+            _item.setToolTip("" if _tuned_ok else "This example's Default settings are already PINNStudio's best.")
+        if not _tuned_ok and combo.currentText() == _ex_settings.TUNED:
+            combo.blockSignals(True)
+            combo.setCurrentText(_ex_settings.DEFAULT)
+            combo.blockSignals(False)
+            self.log_box.append("ℹ️ No Tuned settings for this example: its Default settings are already "
+                                "PINNStudio's best, so it loads with those.")
         mode = combo.currentText()
         cfg = self._build_config()
         try:
