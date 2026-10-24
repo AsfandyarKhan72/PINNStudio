@@ -24,6 +24,7 @@ IC_WEIGHT = 100.0
 
 # What the tuning study's changes are (shown in the Training Log).
 VARIANT_TEXT = {
+    "times": "measured data at every reference time after t = 0",
     "rar": "residual-based adaptive refinement (5 rounds of 500 points)",
     "msffn": "a multi-scale Fourier-feature network (scales 1 and 10)",
     "fracres": "3× the resolution of the fractional operator",
@@ -150,6 +151,27 @@ def apply_variant(cfg, variant):
             g["steps"] = int(g["steps"]) * 2
         cfg.ta_step_groups = json.dumps(groups)
         cfg.ta_num_steps = sum(g["steps"] for g in groups)
+        return cfg
+    if variant == "times":                           # measured data at every reference time after t = 0
+        import glob as _glob
+        import re as _re
+        obs = json.loads(cfg.inverse_obs_files_json or "[]")
+        if not obs:
+            return None
+        new = []
+        for o in obs:
+            folder, fname = os.path.split(o.get("path") or "")
+            m = _re.match(r"t_([0-9.]+)(.*)\.txt$", fname)
+            if not m:
+                new.append(o)
+                continue
+            for f in sorted(_glob.glob(os.path.join(folder, "t_*" + m.group(2) + ".txt"))):
+                m2 = _re.match(r"t_([0-9.]+)" + _re.escape(m.group(2)) + r"\.txt$", os.path.basename(f))
+                if m2 and float(m2.group(1)) > 0 and not any(x["path"] == f for x in new):
+                    new.append(dict(o, path=f))
+        if len(new) <= len(obs):
+            return None
+        cfg.inverse_obs_files_json = json.dumps(new)
         return cfg
     if variant in ("dataw", "lbfgs3", "invall"):
         if not (cfg.inverse_obs_files_json or "").strip():
