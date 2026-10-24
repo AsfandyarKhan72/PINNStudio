@@ -3751,12 +3751,13 @@ class MainWindow(QMainWindow):
         ta_layout.addWidget(self.ta_backward_widget)
         self.ta_backward_cb.stateChanged.connect(lambda s: self.ta_backward_widget.setVisible(s == 2))
         _icr = QHBoxLayout()
-        _icr.addWidget(QLabel("Initial-condition guided learning (fraction of Adam, 0 = off):"))
+        _icr.addWidget(QLabel("IC-guided learning:"))
         self.ta_icgl = QDoubleSpinBox(); self.ta_icgl.setRange(0.0, 0.9); self.ta_icgl.setSingleStep(0.05)
         self.ta_icgl.setDecimals(2); self.ta_icgl.setValue(0.0); self.ta_icgl.setFixedWidth(70)
         self.ta_icgl.setToolTip(
-            "Before each window's training, fit the window's starting profile, held constant over the\n"
-            "window, for this fraction of the first Adam phase's iterations (Mattey & Ghosh 2022).")
+            "Initial-condition guided learning: before each window's training, fit the window's starting\n"
+            "profile, held constant over the "
+            "window, for this fraction of the first Adam phase's iterations (Mattey & Ghosh 2022). 0 = off.")
         _icr.addStretch(); _icr.addWidget(self.ta_icgl)
         ta_layout.addLayout(_icr)
 

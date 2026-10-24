@@ -53,6 +53,8 @@ def run():
             failures.append(msg)
 
     win = MainWindow()
+    # the templates' own settings (Settings: Default would load a paper's method instead)
+    win._apply_example_settings_mode = lambda key: None
 
     def pick(name):
         win.quick_examples_combo.setCurrentText("📋 Examples")

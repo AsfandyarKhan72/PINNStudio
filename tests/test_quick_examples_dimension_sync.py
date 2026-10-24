@@ -41,8 +41,9 @@ def test_quick_examples_combo_lists_every_dimension_up_front():
     assert items[0] == "None"
     # 1D Heat, 1D Schrödinger and 2D Poisson (L-Shape) are not listed
     # (DeepXDE's Heat 1D – Dirichlet, Schrödinger 1D and Poisson 2D – L-shape
-    # replace them) but still load by name.
-    for name in ("Heat equation", "1D Allen-Cahn", "1D Burgers", "Schrödinger equation",
+    # replace them) but still load by name; nor is the time-adaptive 1D
+    # Allen-Cahn (one Allen-Cahn 1D – Wight & Zhao example now).
+    for name in ("Heat equation", "1D Allen-Cahn (whole interval)", "1D Burgers", "Schrödinger equation",
                  "2D Heat", "Poisson over an L-shaped domain", "2D Poisson (Disk)",
                  "3D Heat", "3D Poisson (Sphere)"):
         assert name in items, f"{name!r} missing from the combo's full list: {items}"
