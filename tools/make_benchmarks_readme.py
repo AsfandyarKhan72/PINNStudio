@@ -241,8 +241,11 @@ SHORT = {"base": None, "iters": "3× iterations", "net": "Larger network (2× wi
          "points": "3× training points", "lbfgs": "L-BFGS phase added", "all": "All of the above together",
          "dataw": "10× weight on the measured data", "lbfgs3": "3× L-BFGS iterations",
          "times": "Measured data at every reference time", "setup": "Best whole-interval setup",
-         "invall": "10× data weight, 3× L-BFGS and the larger network", "windows2": "2× time windows"}
-ORDER = ["base", "iters", "net", "points", "lbfgs", "windows2", "dataw", "lbfgs3", "times", "setup", "all", "invall"]
+         "invall": "10× data weight, 3× L-BFGS and the larger network", "windows2": "2× time windows",
+         "rar": "Residual-based adaptive refinement", "msffn": "Multi-scale Fourier features",
+         "fracres": "3× fractional resolution"}
+ORDER = ["base", "iters", "net", "points", "lbfgs", "windows2", "rar", "msffn", "fracres", "dataw", "lbfgs3", "times",
+         "setup", "all", "invall"]
 
 
 def _t(q):

@@ -103,6 +103,25 @@ def apply_variant(cfg, variant, tkey=None):
         import paper_methods
         return paper_methods.apply(cfg, variant, tkey)
     cfg = copy.deepcopy(cfg)
+    if variant == "rar":                             # residual-based adaptive refinement: 5 rounds of 500 points
+        if cfg.time_adaptive or cfg.adapt_method == "RAR" or "_frac(" in (cfg.pde_expressions or ""):
+            return None                              # (fractional problems keep their own points)
+        cfg.adapt_method = "RAR"
+        cfg.rar_cycles, cfg.rar_add_points, cfg.rar_candidates = 5, 500, 50000
+        cfg.rar_adam_iters, cfg.rar_lbfgs_iters = 5000, 5000
+        return cfg
+    if variant == "msffn":                           # multi-scale Fourier features (scales 1 and 10)
+        if cfg.network_type == "MsFFN":
+            return None
+        cfg.network_type = "MsFFN"
+        cfg.msffn_sigmas = "1, 10"
+        return cfg
+    if variant == "fracres":                         # 3x the fractional operator's resolution
+        if "_frac(" not in (cfg.pde_expressions or "") and "frac" not in (cfg.pde_expressions or "").lower():
+            return None
+        vals = [int(float(v)) for v in str(cfg.fractional_resolution).replace(";", ",").split(",") if v.strip()]
+        cfg.fractional_resolution = ", ".join(str(v * 3) for v in vals)
+        return cfg
     if variant == "windows2":                        # twice the time windows
         if not cfg.time_adaptive or not (cfg.ta_step_groups or "").strip():
             return None

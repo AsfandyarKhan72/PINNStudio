@@ -24,6 +24,9 @@ IC_WEIGHT = 100.0
 
 # What the tuning study's changes are (shown in the Training Log).
 VARIANT_TEXT = {
+    "rar": "residual-based adaptive refinement (5 rounds of 500 points)",
+    "msffn": "a multi-scale Fourier-feature network (scales 1 and 10)",
+    "fracres": "3× the resolution of the fractional operator",
     "plain": "the base PINN, as the paper's baseline",
     "paper_wz": "Wight & Zhao's method", "paper_mg": "Mattey & Ghosh's bc-PINN",
     "paper_raissi": "Raissi et al.'s settings", "paper_mathias": "Mathias et al.'s settings",
@@ -119,6 +122,25 @@ def apply_variant(cfg, variant):
     """One of the tuning study's changes on a copy of cfg, or None when it does not apply."""
     cfg = copy.deepcopy(cfg)
     if variant in ("base", "", None):
+        return cfg
+    if variant == "rar":                             # residual-based adaptive refinement: 5 rounds of 500 points
+        if cfg.time_adaptive or cfg.adapt_method == "RAR" or "_frac(" in (cfg.pde_expressions or ""):
+            return None                              # (fractional problems keep their own points)
+        cfg.adapt_method = "RAR"
+        cfg.rar_cycles, cfg.rar_add_points, cfg.rar_candidates = 5, 500, 50000
+        cfg.rar_adam_iters, cfg.rar_lbfgs_iters = 5000, 5000
+        return cfg
+    if variant == "msffn":                           # multi-scale Fourier features (scales 1 and 10)
+        if cfg.network_type == "MsFFN":
+            return None
+        cfg.network_type = "MsFFN"
+        cfg.msffn_sigmas = "1, 10"
+        return cfg
+    if variant == "fracres":                         # 3x the fractional operator's resolution
+        if "_frac(" not in (cfg.pde_expressions or "") and "frac" not in (cfg.pde_expressions or "").lower():
+            return None
+        vals = [int(float(v)) for v in str(cfg.fractional_resolution).replace(";", ",").split(",") if v.strip()]
+        cfg.fractional_resolution = ", ".join(str(v * 3) for v in vals)
         return cfg
     if variant == "windows2":
         if not cfg.time_adaptive or not (cfg.ta_step_groups or "").strip():

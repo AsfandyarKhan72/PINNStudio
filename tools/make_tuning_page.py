@@ -42,6 +42,9 @@ VARIANT_TEXT = {
     "setup": "the best whole-interval setup of the forward problem from the training methods study (inverse problems)",
     "invall": "10× data weight, 3× L-BFGS and the wider, deeper network together (inverse problems)",
     "windows2": "twice as many time windows (time-adaptive training)",
+    "rar": "residual-based adaptive refinement: 5 rounds of 500 points with the largest residual",
+    "msffn": "a multi-scale Fourier-feature network (scales 1 and 10)",
+    "fracres": "3× the resolution of the fractional operator (fractional problems)",
 }
 
 # One or two sentences per example, keyed by (example, inverse). Only what the
