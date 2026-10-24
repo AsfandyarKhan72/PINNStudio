@@ -37,6 +37,7 @@ def _settle(secs=0.2):
 
 def _window(example="1D Burgers"):
     w = MainWindow()
+    w._apply_example_settings_mode = lambda key: None   # the templates' own settings, not Settings: Default
     w.show()
     _settle()
     w.quick_examples_combo.setCurrentText(example)
