@@ -12,7 +12,7 @@ The sweep was run on the 39 examples with the largest errors. The others were al
 
 ![Every example: the reference settings and PINNStudio's best, forward and inverse, and the error of each learned parameter](figures/benchmarks_summary.png)
 
-*Open grey markers: DeepXDE's settings, or the paper's method run in PINNStudio; filled: PINNStudio's best (one filled marker where the two are the same, or where no tuning was needed). Right: the error of each learned parameter, labelled with its symbol.*
+*Open grey markers: DeepXDE's settings, or the paper's method run in PINNStudio; filled: PINNStudio's best (one filled marker where the two are the same, or where no tuning was needed). Right: the error of each learned parameter, labelled with its symbol. ⭐: the error the paper reports (over all times) for the templates taken from a paper.*
 
 <details>
 <summary>📋 <em>All results — one table</em></summary>
@@ -90,7 +90,9 @@ The sweep was run on the 39 examples with the largest errors. The others were al
 <details>
 <summary>📄 <em>Figure for the paper — 25 examples</em></summary>
 
-*One example per kind of problem, most with both forward and inverse problems (the list: [`paper_figure_examples.txt`](paper_figure_examples.txt); PDF: [`figures/paper_figure.pdf`](figures/paper_figure.pdf)). ⭐: the error the paper reports, over all times, for the templates taken from a paper.*
+**Why these examples.** The full figure has 63 examples, which is too many for one page in a paper, so this one keeps one example of each kind of problem. They go from ODEs to 1D, 2D and 3D, and in each dimension from steady to time-dependent problems. Together they cover the main equation types: elliptic (Poisson, Helmholtz, linear elasticity), parabolic (heat, diffusion-reaction, Black-Scholes), hyperbolic and dispersive (wave, Klein-Gordon, Schrödinger), nonlinear flow (Burgers, Navier-Stokes in 2D and 3D), stiff phase-field equations (Allen-Cahn, and the fourth-order Cahn-Hilliard), and the less common fractional and integro-differential operators. Most of them (18 of the 25) have both a forward and an inverse problem, so one row shows both modes. A few are forward only (the integro-differential ODE, Poisson 1D, Cahn-Hilliard 1D, Black-Scholes), and Lorenz, the unknown forcing field and the fractional order α are inverse problems only. The set mixes DeepXDE's examples with templates taken from papers (Raissi et al.; Wight & Zhao; Mattey & Ghosh; Mathias et al.). For those, the open marker is the paper's method run in PINNStudio, and the ⭐ is the error the paper itself reports, where it gives one (Burgers 1D, Allen-Cahn 1D, Cahn-Hilliard 1D, Allen-Cahn 2D of Mattey & Ghosh). Note that the papers report one error over all times, while the x-axis is the error at the last reference time, so the ⭐ is a guide rather than an exact like-for-like point; the all-times errors are in the tables below.
+
+*The list: [`paper_figure_examples.txt`](paper_figure_examples.txt) (one name per line; change a line to swap an example). PDF: [`figures/paper_figure.pdf`](figures/paper_figure.pdf).*
 
 ![The paper's figure: 25 examples, forward and inverse](figures/paper_figure.png)
 

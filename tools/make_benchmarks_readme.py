@@ -422,6 +422,10 @@ def build(summ, papers, spacetime, readme):
     return out
 
 
+P_FLOOR = 1e-4            # parameter errors below it are drawn at it
+P_XLIM = (4e-5, 1500)     # room for the markers at the floor and the symbols on the right
+
+
 def figure(recs, path, stars=False):
     """The paper's Fig. 4 layout (stars: also the error each paper reports, for its templates): grey open = DeepXDE's settings / the paper's method in PINNStudio
     (the template's own settings where that has not run yet); filled = PINNStudio's best."""
@@ -455,7 +459,7 @@ def figure(recs, path, stars=False):
     Y = {i: H - v for i, v in ypos.items()}
     h_in = mtp.ROW_HEIGHT * H + 1.0
     fig, (ax, bx) = plt.subplots(1, 2, figsize=(mtp.FIG_WIDTH, h_in), sharey=True,
-                                 gridspec_kw={"width_ratios": [3.0, 1.45], "wspace": 0.08})
+                                 gridspec_kw={"width_ratios": [3.0, 1.6], "wspace": 0.08})
     for gi, (g, a, b) in enumerate(groups):
         for axx in (ax, bx):
             axx.axhspan(Y[b] - 0.5, Y[a] + 1.4, color=mtp.C_BAND if gi % 2 == 0 else "white", zorder=0, lw=0)
@@ -476,11 +480,11 @@ def figure(recs, path, stars=False):
         pair(ax, r["i_ref"], r["i_best"], y, "D", mtp.C_INVERSE, 22)
         if stars and r["reported"]:
             ax.scatter(r["reported"], y, s=46, marker="*", color="#f59f00", edgecolor="white", lw=0.4, zorder=4)
-        es = [(s, max(abs(f - t) / abs(t) * 100, 1.2e-4)) for s, f, t in r["params"] if t]
+        es = [(s, max(abs(f - t) / abs(t) * 100, P_FLOOR)) for s, f, t in r["params"] if t]
         if es:
             right = max(e for _, e in es)
             if r["p_ref"] is not None:
-                o = max(100 * r["p_ref"], 1.2e-4)
+                o = max(100 * r["p_ref"], P_FLOOR)
                 if abs(o - right) / max(o, right) > 0.05:
                     bx.plot([min(o, right), max(o, right)], [y, y], color=mtp.C_INVERSE, lw=0.9, alpha=0.35, zorder=1)
                     bx.scatter(o, y, s=15, marker="D", facecolor="white", edgecolor=mtp.C_OWN, lw=0.9, zorder=2)
@@ -493,7 +497,7 @@ def figure(recs, path, stars=False):
     ax.set_ylim(Y[len(rows) - 1] - 0.7, H + 0.15)
     ax.set_xscale("log"); ax.set_xlim(*mtp.XLIM_ERROR)
     ax.set_xticks([10.0 ** k for k in range(-6, 1)])
-    bx.set_xscale("log"); bx.set_xlim(*mtp.XLIM_PARAM)
+    bx.set_xscale("log"); bx.set_xlim(*P_XLIM)
     bx.set_xticks([1e-3, 1e-1, 10], ["0.001", "0.1", "10"])
     ax.set_xlabel("Relative $L_2$ error of the main output at the last reference time", fontsize=8)
     bx.set_xlabel("Parameter error (%)", fontsize=8)
@@ -1046,7 +1050,8 @@ def page(recs):
       "learned parameter](figures/benchmarks_summary.png)\n")
     a("*Open grey markers: DeepXDE's settings, or the paper's method run in PINNStudio; filled: PINNStudio's best "
       "(one filled marker where the two are the same, or where no tuning was needed). Right: the error of each "
-      "learned parameter, labelled with its symbol.*\n")
+      "learned parameter, labelled with its symbol. ⭐: the error the paper reports (over all times) for the "
+      "templates taken from a paper.*\n")
     a("<details>\n<summary>📋 <em>All results — one table</em></summary>\n\n"
       "*Reference: DeepXDE's settings, the paper's method run in PINNStudio (paper templates) or the template's own "
       "settings. L₂ at the last reference time; all times where computed. Each name links to its section below.*\n\n"
@@ -1054,10 +1059,24 @@ def page(recs):
     names = _paper_names()
     if names:
         a("<details>\n<summary>📄 <em>Figure for the paper — " + f"{len(names)} examples" + "</em></summary>\n\n"
-          "*One example per kind of problem, most with both forward and inverse problems (the list: "
-          "[`paper_figure_examples.txt`](paper_figure_examples.txt); PDF: "
-          "[`figures/paper_figure.pdf`](figures/paper_figure.pdf)). ⭐: the error the paper reports, over all times, "
-          "for the templates taken from a paper.*\n\n"
+          "**Why these examples.** The full figure has 63 examples, which is too many for one page in a paper, "
+          "so this one keeps one example of each kind of problem. They go from ODEs to 1D, 2D and 3D, and in each "
+          "dimension from steady to time-dependent problems. Together they cover the main equation types: "
+          "elliptic (Poisson, Helmholtz, linear elasticity), parabolic (heat, diffusion-reaction, Black-Scholes), "
+          "hyperbolic and dispersive (wave, Klein-Gordon, Schrödinger), nonlinear flow (Burgers, Navier-Stokes "
+          "in 2D and 3D), stiff phase-field equations (Allen-Cahn, and the fourth-order Cahn-Hilliard), and "
+          "the less common fractional and integro-differential operators. Most of them (18 of the 25) have both "
+          "a forward and an inverse problem, so one row shows both modes. A few are forward only (the "
+          "integro-differential ODE, Poisson 1D, Cahn-Hilliard 1D, Black-Scholes), and Lorenz, the unknown "
+          "forcing field and the fractional order α are inverse problems only. The set mixes DeepXDE's examples "
+          "with templates taken from papers (Raissi et al.; Wight & Zhao; Mattey & Ghosh; Mathias et al.). For "
+          "those, the open marker is the paper's method run in PINNStudio, and the ⭐ is the error the paper "
+          "itself reports, where it gives one (Burgers 1D, Allen-Cahn 1D, Cahn-Hilliard 1D, Allen-Cahn 2D of "
+          "Mattey & Ghosh). Note that the papers report one error over all times, while the x-axis is the error "
+          "at the last reference time, so the ⭐ is a guide rather than an exact like-for-like point; the "
+          "all-times errors are in the tables below.\n\n"
+          "*The list: [`paper_figure_examples.txt`](paper_figure_examples.txt) (one name per line; change a line "
+          "to swap an example). PDF: [`figures/paper_figure.pdf`](figures/paper_figure.pdf).*\n\n"
           "![The paper's figure: 25 examples, forward and inverse](figures/paper_figure.png)\n\n</details>\n")
     for g in GROUPS:
         rs = [r for r in recs if r["group"] == g]
@@ -1132,7 +1151,7 @@ def main():
         readme = {}
     recs = build(summ, papers, spacetime, readme)
     write_tuned(recs)
-    figure(recs, FIG)
+    figure(recs, FIG, stars=True)
     names = _paper_names()
     if names:
         by = {r["entry"].name: r for r in recs}
