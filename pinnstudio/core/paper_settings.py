@@ -6,9 +6,9 @@ tuning study runs them as variants for benchmarks/paper_comparison.md:
         --variants plain,paper_wz,paper_mg --out runs/papers
 
 Variants (each a changed copy of the template as it loads):
-  plain     plain PINN: soft IC and periodic BC, the whole interval, every loss
-            weight 1, no per-point weights, causal training or Fourier
-            features, the template's network and points, Adam then L-BFGS
+  plain     the base PINN: soft IC and periodic BC, the whole interval, every loss
+            weight 1, no adaptive technique, Adam then L-BFGS, with the network and
+            points of the paper's own baseline (plain())
   paper_wz  Wight & Zhao (2021), as far as the paper states it
   paper_mg  Mattey & Ghosh (2022, CMAME), bc-PINN, as far as the paper states it
   paper_raissi  Raissi et al. (2019)
@@ -82,8 +82,42 @@ def _windows(cfg, n, backward=False, growing=False, icgl=0.0, bc_w=100.0, bc_tim
     cfg.ta_backward_points = int(bc_points)
 
 
-def plain(cfg):
+def plain(cfg, tkey=None):
+    """The base PINN, as the template's paper describes its baseline: soft IC and BC, the whole time
+    interval, every loss weight 1, no adaptive technique, Adam then L-BFGS; with the paper's network,
+    points and iterations for its baseline where it states them."""
     _soft(cfg)
+    paper = TEMPLATE_PAPER.get(tkey)
+    dim = len(list(cfg.layers)) and int(list(cfg.layers)[0])
+    if paper == "paper_mg":
+        # M&G Sec. 5.1.1 / 5.2.1: std-PINN 4x200 tanh, 512 IC, 201 BC and 20,000 residual points (1D AC),
+        # 100,000 Adam then L-BFGS (50,000 max, Sec. 3.4).
+        _net(cfg, 4, 200)
+        cfg.num_domain, cfg.num_initial, cfg.num_boundary = 20000, 512, 201
+        _phases(cfg, 100000, 50000, ic_w=1.0)
+        return
+    if paper == "paper_wz":
+        # W&Z Sec. 3.1, Table 3.1 "base PINN": N_f = 10,000, N_u = N_b = 200 (Sec. 3.1 defaults), equal
+        # weights, full batch, Adam then L-BFGS-B. Network not stated for it: 4x128 (their next trial) in 1D,
+        # 6x128 (their benchmarks) in 2D and 3D. Adam iterations not stated: 20,000, then L-BFGS 10,000.
+        _net(cfg, 4 if dim == 2 else 6, 128)
+        if dim == 2:
+            cfg.num_domain, cfg.num_initial, cfg.num_boundary = 10000, 200, 200
+        _phases(cfg, 20000, 10000, ic_w=1.0)
+        return
+    if paper == "paper_raissi":
+        # Raissi et al.'s PINN is itself the base PINN: their network, points and L-BFGS (paper_raissi).
+        f = PAPER.get((tkey, "paper_raissi"))
+        if f:
+            f(cfg)
+            return
+    if paper == "paper_mathias":
+        # Mathias et al.'s network and points (4x20, 10,000 physics points), with the IC and BC as MSE loss
+        # terms instead of built into the output, and Adam lr 1e-3 then L-BFGS.
+        _net(cfg, 4, 20)
+        cfg.num_domain = 10000
+        _phases(cfg, 20000, 10000, ic_w=1.0)
+        return
     ph = json.loads(cfg.scheduler_phases or "[]") if cfg.optimizer_scheduler else []
     adam = sum(int(p["iterations"]) for p in ph if p["optimizer"] == "adam") or cfg.iterations
     lb = sum(int(p["iterations"]) for p in ph if p["optimizer"].startswith("l")) or 10000
@@ -259,7 +293,7 @@ def apply(cfg, variant, tkey):
     """A changed copy of cfg for a plain / paper_* variant, or None when it does not apply."""
     if variant == "plain":
         cfg = copy.deepcopy(cfg)
-        plain(cfg)
+        plain(cfg, tkey)
         return cfg
     f = PAPER.get((tkey, variant))
     if f is None:

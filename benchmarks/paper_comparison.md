@@ -5,11 +5,11 @@
 Twelve PINNStudio templates come from five papers. For each problem we compare four results on the paper's own error measure:
 
 1. **Paper** — the error the paper reports.
-2. **Plain PINN** — soft initial and boundary conditions, the whole time interval at once, equal loss weights, Adam then L-BFGS.
+2. **Base PINN** — the baseline the paper compares its method against (Wight & Zhao's "base PINN", Mattey & Ghosh's "std-PINN"): soft initial and boundary conditions, the whole time interval at once, equal loss weights, no adaptive technique, Adam then L-BFGS. It uses the network and points the paper gives for its baseline: 4×200 with 512 + 201 + 20,000 points and 100,000 Adam iterations for Mattey & Ghosh; 10,000 residual and 200 + 200 initial/boundary points for Wight & Zhao (who do not give its network: 4×128, the network of their next trial, in 1D and their 6×128 in 2D and 3D); for Raissi et al. the PINN of the paper is the base PINN, so the two rows are the same run; for Mathias et al. their 4×20 network with the conditions as loss terms.
 3. **Paper's method in PINNStudio** — the paper's network, points, training scheme and optimizers, as far as the paper states them.
 4. **PINNStudio best** — the best setup of the [training methods study](training_methods.md), tuned as in the [tuning study](tuning_study.md).
 
-If (3) lands near (1), PINNStudio reproduces the paper; (2) and (4) then show what the paper's method adds over a plain PINN and how PINNStudio's best setup compares with it.
+If (3) lands near (1), PINNStudio reproduces the paper; (2) and (4) then show what the paper's method adds over a base PINN and how PINNStudio's best setup compares with it.
 
 ## The problems
 
@@ -17,10 +17,10 @@ The templates' equations, coefficients, domains and initial conditions were chec
 
 | Problem (template) | Paper | Paper's method | Reported error (relative L₂ over space and time) |
 |---|---|---|---|
-| Allen-Cahn 1D | Wight & Zhao (2021), Sec. 3.1 | 4×128 tanh, weighted loss (C₀ = 100), adaptive resampling | 2.33 × 10⁻² (plain PINN 0.99) |
-| | Mattey & Ghosh (2022), Sec. 5.1 | bc-PINN, 6×128, 4 segments of 0.25, ICGL + transfer learning | 1.68 × 10⁻² (plain PINN 0.99, XPINN 0.96) |
+| Allen-Cahn 1D | Wight & Zhao (2021), Sec. 3.1 | 4×128 tanh, weighted loss (C₀ = 100), adaptive resampling | 2.33 × 10⁻² (base PINN 0.99) |
+| | Mattey & Ghosh (2022), Sec. 5.1 | bc-PINN, 6×128, 4 segments of 0.25, ICGL + transfer learning | 1.68 × 10⁻² (std-PINN 0.99, XPINN 0.96) |
 | Cahn-Hilliard 1D – Wight & Zhao | Wight & Zhao, Sec. 3.2 | 4×128, (u, μ), time-adaptive approach I + resampling | 9.51 × 10⁻³ |
-| Cahn-Hilliard 1D – Mattey & Ghosh | Mattey & Ghosh, Sec. 5.2 | bc-PINN, 6×128, (h, μ), segments of 0.05–0.1, ICGL + TL | 1.86 × 10⁻² (plain PINN 0.86) |
+| Cahn-Hilliard 1D – Mattey & Ghosh | Mattey & Ghosh, Sec. 5.2 | bc-PINN, 6×128, (h, μ), segments of 0.05–0.1, ICGL + TL | 1.86 × 10⁻² (std-PINN 0.86) |
 | Allen-Cahn 2D – Wight & Zhao | Wight & Zhao, Sec. 3.1 | approach II (a network per time step Δt = 1), 6×128, C₀ = 10³, batch 32 | error plot only |
 | Allen-Cahn 2D – Mattey & Ghosh | Mattey & Ghosh, Sec. 6.1 (IBVP-1) | bc-PINN, 6×128, 5 segments of 0.2, ICGL 20%, 15,000 Adam + 10,000 L-BFGS per segment | 2.5 × 10⁻² (> 95% without ICGL) |
 | Cahn-Hilliard 2D – Wight & Zhao | Wight & Zhao, Sec. 3.2 | approach II, Δt = 0.2, 6×128, C₀ = 10³ | error plot only |

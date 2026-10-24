@@ -4,7 +4,7 @@
 
 **How to read an example.** Each example opens to one table for the forward problem and one for the inverse problem. The first row is the reference: **DeepXDE's own settings** for a DeepXDE example, the **template's own settings** for a PINNStudio template. The next rows are the tuning study's changes, each tried on its own and then all together: 3× the iterations, a larger network (twice as wide, one more layer), 3× the training points, an L-BFGS phase after Adam (for inverse problems also 10× the weight of the measured data and 3× the L-BFGS iterations). The last row, **PINNStudio best**, is the most accurate run, and when several runs are about as accurate (within 25% of the lowest error) the fastest of them, so a change that costs time without helping is not chosen. For an inverse problem, accuracy is the error of the learned parameters. These are the **Tuned** settings. Then come the figures: the reference first, then PINNStudio's best, forward and then inverse.
 
-For a **template taken from a paper**, the forward table also lists a plain PINN (soft initial and boundary conditions, the whole time interval, equal loss weights), the error the paper reports and the paper's own method run in PINNStudio ([how they are set up](paper_comparison.md)); for a template run from the [training methods study](training_methods.md)'s best setup, the changes are tried on that setup. Where a DeepXDE example has no inverse problem of its own, the inverse table is PINNStudio's inverse mode of it.
+For a **template taken from a paper**, the forward table also lists a **base PINN** — the baseline each paper compares against, with the paper's network and points for it, soft initial and boundary conditions, the whole time interval, equal loss weights and no adaptive technique, the error the paper reports and the paper's own method run in PINNStudio ([how they are set up](paper_comparison.md)); for a template run from the [training methods study](training_methods.md)'s best setup, the changes are tried on that setup. Where a DeepXDE example has no inverse problem of its own, the inverse table is PINNStudio's inverse mode of it.
 
 **The error** is the relative L₂ error of the main output (u, φ, h, …) at the last reference time, against the example's reference data; papers report one error over all times, so their rows give that too. Where a row ran with 3 seeds (1, 2, 2026) it gives the median, otherwise seed 2026. Times are training seconds on one RTX 4090.
 
@@ -582,14 +582,14 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 | Training | L₂, last time | L₂, all times | Time (s) |
 |---|---|---|---|
-| Plain PINN | – | – | – |
+| Base PINN | – | – | – |
 | Wight & Zhao's method, as reported (Wight & Zhao (2021), Table 3.1) | – | 2.3 × 10<sup>-2</sup> | – |
 | Wight & Zhao's method, run in PINNStudio | – | – | – |
 | Mattey & Ghosh's bc-PINN, as reported (Mattey & Ghosh (2022), Table 2) | – | 1.7 × 10<sup>-2</sup> | – |
 | Mattey & Ghosh's bc-PINN, run in PINNStudio | – | – | – |
 | **PINNStudio best** (Settings: Tuned): the template's own settings | **1.4 × 10<sup>-3</sup>** | –  | |
 
-*The plain PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*
+*The base PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*
 
 **Inverse problem**
 
@@ -617,12 +617,12 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 | Training | L₂, last time | L₂, all times | Time (s) |
 |---|---|---|---|
-| Plain PINN | – | – | – |
+| Base PINN | – | – | – |
 | Wight & Zhao's method, as reported (Wight & Zhao (2021), Sec. 3.2) | – | 9.5 × 10<sup>-3</sup> | – |
 | Wight & Zhao's method, run in PINNStudio | – | – | – |
 | **PINNStudio best** (Settings: Tuned): the template's own settings | **6.0 × 10<sup>-4</sup>** | –  | |
 
-*The plain PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*
+*The base PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*
 
 *Forward, the README's result:*
 
@@ -639,7 +639,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 | Training | L₂, last time | L₂, all times | Time (s) |
 |---|---|---|---|
-| Plain PINN | – | – | – |
+| Base PINN | – | – | – |
 | Mattey & Ghosh's bc-PINN, as reported (Mattey & Ghosh (2022), Sec. 5.2) | – | 1.9 × 10<sup>-2</sup> | – |
 | Mattey & Ghosh's bc-PINN, run in PINNStudio | – | – | – |
 | Best setup of the training methods study | 3.9 × 10<sup>-3</sup> | –  | 1002 |
@@ -649,7 +649,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | Best setup + all of the above together | 9.9 × 10<sup>-1</sup> | –  | 13959 |
 | **PINNStudio best** (Settings: Tuned): the best setup as it is | **3.9 × 10<sup>-3</sup>** | –  | |
 
-*The plain PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*
+*The base PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*
 
 *Forward, the README's result:*
 
@@ -697,7 +697,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 | Training | L₂, last time | L₂, all times | Time (s) |
 |---|---|---|---|
-| Plain PINN | – | – | – |
+| Base PINN | – | – | – |
 | Raissi et al.'s settings, as reported (Raissi et al. (2019), Sec. 2.1) | – | 6.7 × 10<sup>-4</sup> | – |
 | Raissi et al.'s settings, run in PINNStudio | – | – | – |
 | Best setup of the training methods study | 1.7 × 10<sup>-3</sup> | –  | 86 |
@@ -706,7 +706,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | Best setup + all of the above together | 5.2 × 10<sup>-4</sup> | –  | 172 |
 | **PINNStudio best** (Settings: Tuned): 3× iterations | **5.5 × 10<sup>-4</sup>** | –  | |
 
-*The plain PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*
+*The base PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*
 
 **Inverse problem**
 
@@ -1449,7 +1449,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 | Training | L₂, last time | L₂, all times | Time (s) |
 |---|---|---|---|
-| Plain PINN | – | – | – |
+| Base PINN | – | – | – |
 | Wight & Zhao's method, as reported (Wight & Zhao (2021), Fig. 3.8) | – | figures only | – |
 | Wight & Zhao's method, run in PINNStudio | – | – | – |
 | The template's own settings | 7.9 × 10<sup>-3</sup> | –  | 1780 |
@@ -1462,7 +1462,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | Best setup + 2× time windows | 1.5 × 10<sup>-3</sup> | –  | 3109 |
 | **PINNStudio best** (Settings: Tuned): the best setup as it is | **1.6 × 10<sup>-3</sup>** | –  | |
 
-*The plain PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*
+*The base PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*
 
 **Inverse problem**
 
@@ -1496,7 +1496,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 | Training | L₂, last time | L₂, all times | Time (s) |
 |---|---|---|---|
-| Plain PINN | – | – | – |
+| Base PINN | – | – | – |
 | Mattey & Ghosh's bc-PINN, as reported (Mattey & Ghosh (2022), Sec. 6.1.1) | – | 2.5 × 10<sup>-2</sup> | – |
 | Mattey & Ghosh's bc-PINN, run in PINNStudio | – | – | – |
 | Best setup of the training methods study | 3.6 × 10<sup>-4</sup> | –  | 266 |
@@ -1505,7 +1505,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | Best setup + all of the above together | 3.5 × 10<sup>-4</sup> | –  | 3872 |
 | **PINNStudio best** (Settings: Tuned): the best setup as it is | **3.6 × 10<sup>-4</sup>** | –  | |
 
-*The plain PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*
+*The base PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*
 
 **Inverse problem**
 
@@ -1539,7 +1539,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 | Training | L₂, last time | L₂, all times | Time (s) |
 |---|---|---|---|
-| Plain PINN | – | – | – |
+| Base PINN | – | – | – |
 | Wight & Zhao's method, as reported (Wight & Zhao (2021), Fig. 3.13) | – | figures only | – |
 | Wight & Zhao's method, run in PINNStudio | – | – | – |
 | The template's own settings | 1.1 × 10<sup>-2</sup> | –  | 822 |
@@ -1547,7 +1547,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | Larger network (2× width, one more layer) | 8.0 × 10<sup>-3</sup> | –  | 1995 |
 | **PINNStudio best** (Settings: Tuned): 3× iterations | **4.5 × 10<sup>-3</sup>** | –  | |
 
-*The plain PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*
+*The base PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*
 
 **Inverse problem**
 
@@ -1587,12 +1587,12 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 | Training | L₂, last time | L₂, all times | Time (s) |
 |---|---|---|---|
-| Plain PINN | – | – | – |
+| Base PINN | – | – | – |
 | Mattey & Ghosh's bc-PINN, as reported (Mattey & Ghosh (2022), Sec. 6.2.1) | – | figures only | – |
 | Mattey & Ghosh's bc-PINN, run in PINNStudio | – | – | – |
 | **PINNStudio best** (Settings: Tuned): the template's own settings | **2.0 × 10<sup>-3</sup>** | –  | |
 
-*The plain PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*
+*The base PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*
 
 **Inverse problem**
 
@@ -1620,7 +1620,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 | Training | L₂, last time | L₂, all times | Time (s) |
 |---|---|---|---|
-| Plain PINN | – | – | – |
+| Base PINN | – | – | – |
 | Mathias et al.'s settings, as reported (Mathias et al. (2022)) | – | figures only | – |
 | Mathias et al.'s settings, run in PINNStudio | – | – | – |
 | The template's own settings | 1.1 × 10<sup>-2</sup> | –  | 1662 |
@@ -1629,7 +1629,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | 3× training points | 9.3 × 10<sup>-3</sup> | –  | 4352 |
 | **PINNStudio best** (Settings: Tuned): 3× iterations | **8.4 × 10<sup>-3</sup>** | –  | |
 
-*The plain PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*
+*The base PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*
 
 **Inverse problem**
 
@@ -1749,12 +1749,12 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 | Training | L₂, last time | L₂, all times | Time (s) |
 |---|---|---|---|
-| Plain PINN | – | – | – |
+| Base PINN | – | – | – |
 | Wight & Zhao's method, as reported (Wight & Zhao (2021), Fig. 3.9) | – | figures only | – |
 | Wight & Zhao's method, run in PINNStudio | – | – | – |
 | **PINNStudio best** (Settings: Tuned): the template's own settings | **2.7 × 10<sup>-4</sup>** | –  | |
 
-*The plain PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*
+*The base PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*
 
 **Inverse problem**
 

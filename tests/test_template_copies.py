@@ -128,11 +128,10 @@ def test_a_problem_saved_half_done_opens_again(save_to):
     w2.close()
 
 
-def test_time_adaptive_allen_cahn_inverse_uses_the_whole_interval_setup():
-    """Inverse has no time-adaptive training, so the time-adaptive Allen-Cahn
-    1D template trains there exactly as the whole-interval template does
-    (exact IC, periodic inputs, causal training, MsFFN), and gets its own
-    setup back in Forward."""
+def test_allen_cahn_1d_switches_between_its_paper_setup_and_inverse():
+    """Allen-Cahn 1D – Wight & Zhao loads with the paper's method (Settings:
+    Default, Forward only); Inverse gives the same setup as loading the
+    example in Inverse, and Forward gives the paper's method back."""
     import dataclasses
     keys = ("ic_hard", "ic_active", "periodic_inputs", "causal_training", "network_type", "msffn_sigmas",
             "time_adaptive", "scheduler_phases", "inverse_obs_files_json", "loss_weights")
@@ -150,19 +149,16 @@ def test_time_adaptive_allen_cahn_inverse_uses_the_whole_interval_setup():
 
     w = MainWindow()
     load(w, "Inverse", "Allen-Cahn 1D – Wight & Zhao")
-    whole = cfg(w)
-    w2 = MainWindow()
-    load(w2, "Inverse", "Allen-Cahn 1D – Wight & Zhao (time-adaptive)")
-    assert cfg(w2) == whole
+    inv = cfg(w)
     w3 = MainWindow()
-    load(w3, "Forward", "Allen-Cahn 1D – Wight & Zhao (time-adaptive)")
+    load(w3, "Forward", "Allen-Cahn 1D – Wight & Zhao")
     fwd = cfg(w3)
-    assert fwd["time_adaptive"] and fwd["network_type"] == "FNN"
+    assert not fwd["time_adaptive"]                # the paper: the whole interval
     w3.radio_inverse.setChecked(True)
     _pump()
-    assert cfg(w3) == whole
+    assert cfg(w3) == inv
     w3.radio_forward.setChecked(True)
     _pump()
     assert cfg(w3) == fwd
-    for x in (w, w2, w3):
+    for x in (w, w3):
         x.close()

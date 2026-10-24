@@ -12,7 +12,7 @@ times. A problem not yet run shows the README's result
 (benchmarks/tuning/readme_results.json) and its README figure.
 
 For a DeepXDE example the page compares DeepXDE's own settings with
-PINNStudio's best; for a template from a paper, a plain PINN, the paper's
+PINNStudio's best; for a template from a paper, a base PINN, the paper's
 reported error, the paper's method run in PINNStudio and PINNStudio's best.
 """
 import argparse
@@ -384,7 +384,7 @@ def _section(r):
         if paper_rows:
             a("| Training | L₂, last time | L₂, all times | Time (s) |\n|---|---|---|---|")
             p = pr.get("plain")
-            a(f"| Plain PINN | {sci(p and p['l2'])} | {sci(p and p['st'])} | {_t(p)} |")
+            a(f"| Base PINN | {sci(p and p['l2'])} | {sci(p and p['st'])} | {_t(p)} |")
             for ref, val, v in r["paper"]:
                 a(f"| {PAPER_NAME[v]}, as reported ({ref}) | – | {sci(val) if val else 'figures only'} | – |")
                 q = pr.get(v)
@@ -407,7 +407,7 @@ def _section(r):
         a(f"| **PINNStudio best** (Settings: Tuned): {lab} | **{sci(r['f_best'])}**{cols} | |")
         a("")
         if paper_rows and not pr:
-            a("*The plain PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*\n")
+            a("*The base PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*\n")
     if has_i:
         a("**Inverse problem**\n")
         a("| Training | L₂ | Parameters found (true) | Worst parameter error | Time (s) |\n|---|---|---|---|---|")
@@ -475,8 +475,9 @@ def page(recs):
       "a change that costs time without helping is not chosen. For an inverse problem, accuracy is the error of "
       "the learned parameters. These are the **Tuned** settings. Then come the figures: the "
       "reference first, then PINNStudio's best, forward and then inverse.\n")
-    a("For a **template taken from a paper**, the forward table also lists a plain PINN (soft initial and "
-      "boundary conditions, the whole time interval, equal loss weights), the error the paper reports and the "
+    a("For a **template taken from a paper**, the forward table also lists a **base PINN** — the baseline "
+      "each paper compares against, with the paper's network and points for it, soft initial and boundary "
+      "conditions, the whole time interval, equal loss weights and no adaptive technique, the error the paper reports and the "
       "paper's own method run in PINNStudio ([how they are set up](paper_comparison.md)); for a template run "
       "from the [training methods study](training_methods.md)'s best setup, the changes are tried on that "
       "setup. Where a DeepXDE example has no inverse problem of its own, the inverse table is PINNStudio's "

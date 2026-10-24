@@ -6809,10 +6809,68 @@ class MainWindow(QMainWindow):
             self.log_box.append(f"⚠️ {mode} settings could not be applied ({e}); the example loads as it is.")
             return
         if new is not cfg:
+            # applying a config forgets which example it came from: keep it, so the
+            # example still switches between Forward and Inverse and finds its reference data
+            origin = self._template_origin()
             self._apply_config(new)
+            self._restore_template_origin(origin)
+            if new.time_adaptive and not new.problem_type == "Inverse":
+                # these settings' time-adaptive training is the example's own now:
+                # Inverse switches it off and Forward puts it back (also in a saved copy)
+                import json
+                try:
+                    groups = [(g['t_start'], g['t_end'], g['steps'])
+                              for g in json.loads(new.ta_step_groups or "[]")]
+                except (ValueError, TypeError, KeyError):
+                    groups = []
+                groups = groups or [(new.t_min, new.t_max, int(new.ta_num_steps))]
+                if groups:
+                    self._current_ta_cfg = {"step_groups": groups,
+                                            "transfer_learning": bool(new.ta_transfer_learning),
+                                            "ic_grid": int(new.ta_grid_size),
+                                            "transfer_optimizer": new.ta_transfer_optimizer}
             self._mark_clean()
         if msg:
             self.log_box.append("ℹ️ " + msg)
+        # Default / Tuned can differ between Forward and Inverse (a paper's method is
+        # Forward only): switching the mode then loads the example again
+        self._settings_example = None
+        try:
+            other = _ex_settings.settings_for(cfg, key, not self.radio_inverse.isChecked(), mode)[0]
+            if new is not cfg or other is not cfg:
+                self._settings_example = (key, self._settings_key(self._build_config()))
+        except Exception:
+            pass
+
+    def _settings_example_unchanged(self, is_inv):
+        """True when the problem is still the example as loaded with its
+        Settings (only Forward/Inverse just switched)."""
+        rec = getattr(self, "_settings_example", None)
+        if not rec or getattr(self, "_loading_example", False) or rec[0] != getattr(self, "_shown_example", None):
+            return False
+        try:
+            c = self._build_config()
+            c.problem_type = "Forward" if is_inv else "Inverse"
+            return self._settings_key(c) == rec[1]
+        except Exception:
+            return False
+
+    def _settings_key(self, c):
+        # the problem's settings, less the loss weights (Inverse adds the measured data's)
+        import json
+        d = json.loads(self._config_key(c) or "{}")
+        d.pop("loss_weights", None)
+        try:
+            d["scheduler_phases"] = [{k: v for k, v in ph.items() if k != "weights"}
+                                     for ph in json.loads(d.get("scheduler_phases") or "[]")]
+        except (ValueError, TypeError, AttributeError):
+            pass
+        return json.dumps(d, sort_keys=True, default=str)
+
+    def _reload_example_for_mode(self, key):
+        self._mark_clean()                 # nothing to save: it is the example as loaded
+        self._inverse_from_example = False
+        self._on_quick_example_selected(key)
 
     def _on_quick_example_settings_changed(self, _mode):
         """Switching Default / Tuned reloads the example shown, with those settings."""
@@ -11309,6 +11367,13 @@ class MainWindow(QMainWindow):
 
     def _on_problem_type_changed(self, checked):
         is_inv = self.radio_inverse.isChecked()
+        if self._settings_example_unchanged(is_inv):
+            # an example as loaded with Settings: Default / Tuned, which differ between
+            # Forward and Inverse: load it again in the mode picked, with that mode's settings
+            from PyQt6.QtCore import QTimer
+            key = self._settings_example[0]
+            self._settings_example = None
+            QTimer.singleShot(0, lambda: self._reload_example_for_mode(key))
         self._sync_inverse_pde_substitution(is_inv)
         self.inverse_group.setVisible(is_inv)
         self.inverse_data_group.setVisible(is_inv)
