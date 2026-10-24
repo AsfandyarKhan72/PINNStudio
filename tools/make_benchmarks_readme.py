@@ -602,49 +602,69 @@ def _paper_note(key, variant):
 
 
 def _settings_toggles(r):
-    """Two toggles: the Default settings (DeepXDE's, a paper's method, or the template's own) and
-    PINNStudio best (Settings: Tuned), forward and inverse, with how to load them."""
+    """Two toggles. Default: the source's own settings (DeepXDE's, or the paper's method) -- only the problems
+    the source itself solves (a paper or a DeepXDE forward example has no inverse problem; PINNStudio's own
+    templates have both). PINNStudio best (Settings: Tuned): forward and inverse. Each problem says how to
+    load it in PINNStudio."""
     from pinnstudio.core import example_settings as es, paper_settings as ps
     e = r["entry"]
     inv_only = e.key.startswith("Inverse:") or e.problem == cat.INVERSE
-    modes = ([] if inv_only else [False]) + ([True] if (inv_only or r.get("i_best") is not None
-                                                          or r.get("i_best_par")) else [])
+    paper = ps.TEMPLATE_PAPER.get(e.key)
+    has_inv = inv_only or r.get("i_best") is not None or bool(r.get("i_best_par"))
+    probs = ([] if inv_only else [False]) + ([True] if has_inv else [])
+    # does the source itself have the inverse problem?
+    default_inv = inv_only or (not r["deepxde"] and not paper)
+    source = ("DeepXDE's settings" if r["deepxde"] else f"{PAPER_NAME[paper]}, as in the paper" if paper
+              else "the template's own settings")
+
+    def load(inverse, mode):
+        cat_name = "Inverse" if (inverse or inv_only) else "Forward"
+        return f"*Load it:* toolbar → Examples: **{cat_name}** → **{e.name}** → **{mode}**, then Solve."
+
+    def cfg_for(inverse, mode):
+        base = _base_config(e, inverse and not inv_only)
+        return base, es.settings_for(base, e.key, inverse and not inv_only, mode)[0]
+
     out = []
-    for mode in (es.DEFAULT, es.TUNED):
-        body = []
-        for inverse in modes:
-            try:
-                base = _base_config(e, inverse and not inv_only)
-                cfg, msg = es.settings_for(base, e.key, inverse and not inv_only, mode)
-            except Exception as ex:             # an example that cannot be built here: say so
-                body.append(f"*{'Inverse' if inverse else 'Forward'}: not available here ({str(ex)[:80]}).*\n")
-                continue
-            head = "Inverse problem" if inverse else "Forward problem"
-            if mode == es.TUNED and cfg is base:
-                dflt = es.settings_for(base, e.key, inverse and not inv_only, es.DEFAULT)[0]
-                if dflt is base:
-                    body.append(f"*{head}:* the same as Default (no change did better, or no tuning was needed).\n")
-                    continue
-                head += " — the template's own settings"     # Default is the paper's method; these differ
-            body.append(f"*{head}:*\n\n" + _settings_md(cfg, inverse or inv_only) + "\n")
-        cat_md = "**Inverse**" if inv_only else "**Forward** (or **Inverse**)"
-        how = f"**In PINNStudio:** in the toolbar, Examples: {cat_md} → **{e.name}** → **{mode}**, then Solve."
-        paper = ps.TEMPLATE_PAPER.get(e.key)
-        if mode == es.DEFAULT:
-            title = ("DeepXDE's settings" if r["deepxde"] else
-                     f"{PAPER_NAME.get(paper, 'The paper')}'s settings".replace("'s's", "'s") if paper else
-                     "The template's own settings")
-            if paper:
-                title = f"Default: {PAPER_NAME[paper]}, as in the paper"
-            note = ("" if not (paper and True in modes) else
-                    "\n*The paper has no inverse problem; Inverse uses the template's own setup.*\n")
-            if paper:
-                note = "\n" + _paper_note(e.key, paper) + "\n" + note
-            summ = f"⚙️ <em>Default settings — {title.replace('Default: ', '')}</em>"
-        else:
-            note = ""
-            summ = "⚙️ <em>PINNStudio best — Tuned settings</em>"
-        out.append(f"<details>\n<summary>{summ}</summary>\n\n" + "\n".join(body) + note + "\n" + how + "\n\n</details>\n")
+    # Default
+    body = []
+    for inverse in [p for p in probs if (not p) or default_inv]:
+        head = "Inverse problem" if inverse else "Forward problem"
+        try:
+            _, cfg = cfg_for(inverse, es.DEFAULT)
+        except Exception as ex:
+            body.append(f"*{head}:* not available here ({str(ex)[:80]}).\n")
+            continue
+        body.append(f"*{head}*\n\n" + _settings_md(cfg, inverse or inv_only) + "\n\n" + load(inverse, "Default") + "\n")
+    if paper:
+        body.append(_paper_note(e.key, paper) + "\n")
+    out.append(f"<details>\n<summary>⚙️ <em>Default settings — {source}</em></summary>\n\n" + "\n".join(body)
+               + "\n</details>\n")
+    # PINNStudio best
+    body = []
+    for inverse in probs:
+        head = "Inverse problem" if inverse else "Forward problem"
+        try:
+            base, cfg = cfg_for(inverse, es.TUNED)
+            dflt = es.settings_for(base, e.key, inverse and not inv_only, es.DEFAULT)[0]
+        except Exception as ex:
+            body.append(f"*{head}:* not available here ({str(ex)[:80]}).\n")
+            continue
+        ran = r.get("i_s") if inverse or inv_only else (r.get("f_plain_s") or r.get("f_best_s"))
+        in_default = (not inverse) or default_inv
+        if cfg is base and dflt is base and in_default:
+            why = ("no change in the tuning study did better" if ran else
+                   "it was already accurate, so it was not tuned")
+            body.append(f"*{head}* — the Default settings above: {why}.\n\n" + load(inverse, "Tuned") + "\n")
+            continue
+        note = ""
+        if inverse and not default_inv:     # an inverse problem PINNStudio added: not in Default
+            note = " — PINNStudio's own inverse setup" + ("" if cfg is base else ", tuned")
+        elif cfg is base and not in_default or (cfg is base and dflt is not base):
+            note = " — the template's own settings"
+        body.append(f"*{head}{note}*\n\n" + _settings_md(cfg, inverse or inv_only) + "\n\n" + load(inverse, "Tuned") + "\n")
+    out.append("<details>\n<summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>\n\n" + "\n".join(body)
+               + "\n</details>\n")
     return "\n".join(out)
 
 
@@ -658,9 +678,6 @@ def _section(r):
     a(f'<details id="bench-{re.sub(r"[^a-z0-9]+", "-", e.name.lower()).strip("-")}">')
     a(f"<summary><strong>{e.name}</strong> · {src}</summary>\n")
     links = []
-    anc = _anchor(e.name)
-    if anc:
-        links.append(f"[problem and settings in the README](../README.md#{anc})")
     for s in (r["f_plain_s"], r["f_best_s"], r["i_s"]):
         if s:
             t = mtp._title(s["name"], s["inverse"])
@@ -849,9 +866,10 @@ def page(recs):
       "run, and when several runs are about as accurate (within 25% of the lowest error) the fastest of them, so "
       "a change that costs time without helping is not chosen; that run is marked 🔴 in the table and its time "
       "is repeated in the last row. For an inverse problem, accuracy is the error of "
-      "the learned parameters. These are the **Tuned** settings. Above the tables, two ⚙️ toggles list the settings themselves — **Default** "
-      "(DeepXDE's, the paper's method, or the template's own) and **PINNStudio best** (Tuned) — and how to load "
-      "them in PINNStudio. Below the tables, two toggles hold the figures: **Forward results** "
+      "the learned parameters. These are the **Tuned** settings. Above the tables, two ⚙️ toggles list the settings themselves, each with how to load "
+      "it: **Default** — the source's own settings, DeepXDE's or the paper's method, for the problems the source "
+      "solves (an inverse problem PINNStudio added appears only under PINNStudio best) — and **PINNStudio best** "
+      "(Settings: Tuned). Below the tables, two toggles hold the figures: **Forward results** "
       "(DeepXDE's settings, or for a template from a paper the paper's method run in PINNStudio, then PINNStudio's best) "
       "and **Inverse results** (PINNStudio's best; for DeepXDE's own inverse examples DeepXDE's settings first).\n")
     a("For a **template taken from a paper**, the forward table also lists a **base PINN** — the baseline "
