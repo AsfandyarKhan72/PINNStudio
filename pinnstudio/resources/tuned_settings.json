@@ -265,8 +265,8 @@
   },
   "inverse": {
    "switches": null,
-   "variant": "dataw",
-   "error": "parameter error 3.5%"
+   "variant": "invall",
+   "error": "parameter error 0.55%"
   }
  },
  "Beltrami flow": {

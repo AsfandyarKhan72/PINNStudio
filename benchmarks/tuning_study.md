@@ -4,7 +4,7 @@
 
 DeepXDE's examples are written to show how the library is used, so many train briefly, on a small network or with Adam only. This study asks how far ordinary tuning in PINNStudio takes them: each example is run with its own settings and with the same five changes, and the change that trains best is reported next to the example's own result. It complements the [training methods study](training_methods.md), which tests specialised methods (causal training, per-point weights, time windows) on the hardest problems.
 
-So far 50 problems are included, chosen as the ones with the largest errors in the [README results](../README.md). 31 of them improve by 1.5× or more; the median improvement is 2×.
+So far 51 problems are included, chosen as the ones with the largest errors in the [README results](../README.md). 32 of them improve by 1.5× or more; the median improvement is 2×.
 
 ## How it is done
 
@@ -54,6 +54,7 @@ The figure has the layout of the paper's Fig. 4 and lists every example of PINNS
 | [Diffusion 1D](#tune-diffusion-1d) | 2.3 × 10<sup>-2</sup> | 1.5 × 10<sup>-3</sup> | 15× | all | – | 26 → 76 |
 | [Burgers 1D – Raissi et al. (PINNStudio template), inverse mode](#tune-burgers-1d-raissi-et-al-pinnstudio-template-inverse-mode) | 7.8 × 10<sup>-4</sup> | 5.5 × 10<sup>-5</sup> | 14× | invall | 0.39% → 0.099% | 97 → 101 |
 | [Euler beam 1D](#tune-euler-beam-1d) | 3.5 × 10<sup>-3</sup> | 2.8 × 10<sup>-4</sup> | 12× | all | – | 55 → 217 |
+| [Burgers 2D – Mathias et al. (PINNStudio template), inverse mode](#tune-burgers-2d-mathias-et-al-pinnstudio-template-inverse-mode) | 3.5 × 10<sup>-3</sup> | 3.7 × 10<sup>-4</sup> | 9× | invall | 7.2% → 0.55% | 1242 → 6962 |
 | [Diffusion 1D – resampling](#tune-diffusion-1d-resampling) | 5.4 × 10<sup>-2</sup> | 5.8 × 10<sup>-3</sup> | 9× | lbfgs | – | 8 → 12 |
 | [Poisson 1D – unknown forcing field (batches)](#tune-poisson-1d-unknown-forcing-field-batches) | 4.5 × 10<sup>-3</sup> | 7.8 × 10<sup>-4</sup> | 6× | all | – | 62 → 215 |
 | [Heat 1D – Dirichlet, inverse mode](#tune-heat-1d-dirichlet-inverse-mode) | 5.1 × 10<sup>-3</sup> | 1.1 × 10<sup>-3</sup> | 5× | all | 0.69% → 0.1% | 50 → 146 |
@@ -81,12 +82,12 @@ The figure has the layout of the paper's Fig. 4 and lists every example of PINNS
 | [Heat 3D (PINNStudio template), inverse mode](#tune-heat-3d-pinnstudio-template-inverse-mode) | 1.3 × 10<sup>-3</sup> | 1.3 × 10<sup>-3</sup> | none | base | 0.076% → 0.076% | 729 → 729 |
 | [Allen-Cahn 1D – Wight & Zhao (PINNStudio template), inverse mode](#tune-allen-cahn-1d-wight-zhao-pinnstudio-template-inverse-mode) | 1.4 × 10<sup>-4</sup> | 1.4 × 10<sup>-4</sup> | none | base | 0.77% → 0.77% | 253 → 253 |
 | [Allen-Cahn 2D – Mattey & Ghosh (PINNStudio template), inverse mode](#tune-allen-cahn-2d-mattey-ghosh-pinnstudio-template-inverse-mode) | 8.9 × 10<sup>-4</sup> | 8.9 × 10<sup>-4</sup> | none | base | 5.8% → 5.8% | 1735 → 1735 |
-| [Burgers 2D – Mathias et al. (PINNStudio template), inverse mode](#tune-burgers-2d-mathias-et-al-pinnstudio-template-inverse-mode) | 3.5 × 10<sup>-3</sup> | 3.5 × 10<sup>-3</sup> | none | base | 7.2% → 7.2% | 1242 → 1242 |
-| [Cahn-Hilliard 2D – Wight & Zhao (PINNStudio template), inverse mode](#tune-cahn-hilliard-2d-wight-zhao-pinnstudio-template-inverse-mode) | 6.9 × 10<sup>-5</sup> | 6.9 × 10<sup>-5</sup> | none | base | 0.42% → 0.42% | 3736 → 3736 |
+| [Cahn-Hilliard 2D – Mattey & Ghosh (PINNStudio template), inverse mode](#tune-cahn-hilliard-2d-mattey-ghosh-pinnstudio-template-inverse-mode) | 1.4 × 10<sup>-2</sup> | 1.4 × 10<sup>-2</sup> | none | base | 5.2% → 5.2% | 1741 → 1741 |
 | [Allen-Cahn 3D – Wight & Zhao (PINNStudio template), inverse mode](#tune-allen-cahn-3d-wight-zhao-pinnstudio-template-inverse-mode) | 9.7 × 10<sup>-5</sup> | 9.7 × 10<sup>-5</sup> | none | base | 0.31% → 0.31% | 1419 → 1419 |
 | [Allen-Cahn 2D – Wight & Zhao (PINNStudio template) (best setup)](#tune-allen-cahn-2d-wight-zhao-pinnstudio-template-best-setup) | 1.6 × 10<sup>-3</sup> | 1.6 × 10<sup>-3</sup> | none | base | – | 1596 → 1596 |
 | [Lotka-Volterra ODE, inverse mode](#tune-lotka-volterra-ode-inverse-mode) | 1.5 × 10<sup>-5</sup> | 1.5 × 10<sup>-5</sup> | none | base | 0.0005% → 0.0005% | 230 → 230 |
 | [Linear elasticity 2D – plate, inverse mode](#tune-linear-elasticity-2d-plate-inverse-mode) | 1.9 × 10<sup>-3</sup> | 1.9 × 10<sup>-3</sup> | none | base | 0.026% → 0.026% | 546 → 546 |
+| [Cahn-Hilliard 2D – Wight & Zhao (PINNStudio template), inverse mode](#tune-cahn-hilliard-2d-wight-zhao-pinnstudio-template-inverse-mode) | 6.9 × 10<sup>-5</sup> | 1.1 × 10<sup>-4</sup> | worse (2× higher) | times | 0.42% → 0.39% | 3736 → 10691 |
 | [Allen-Cahn 2D – Mattey & Ghosh (PINNStudio template) (best setup)](#tune-allen-cahn-2d-mattey-ghosh-pinnstudio-template-best-setup) | 3.6 × 10<sup>-4</sup> | 5.9 × 10<sup>-4</sup> | worse (2× higher) | net | – | 266 → 464 |
 | [Allen-Cahn 2D – Wight & Zhao (PINNStudio template)](#tune-allen-cahn-2d-wight-zhao-pinnstudio-template) | 7.9 × 10<sup>-3</sup> | 9.3 × 10<sup>-2</sup> | worse (12× higher) | iters | – | 1780 → 3710 |
 | [Cahn-Hilliard 1D – Mattey & Ghosh (PINNStudio template) (best setup)](#tune-cahn-hilliard-1d-mattey-ghosh-pinnstudio-template-best-setup) | 3.9 × 10<sup>-3</sup> | 9.9 × 10<sup>-1</sup> | worse (253× higher) | net | – | 1002 → 1893 |
@@ -609,6 +610,40 @@ Over seeds: own settings 3.5 × 10<sup>-3</sup> [1.0 × 10<sup>-3</sup> – 8.4 
 
 
 Tuned settings: [`Euler beam 1D (tuned).pinn.json`](tuning/Euler%20beam%201D%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-burgers-2d-mathias-et-al-pinnstudio-template-inverse-mode">
+<summary><strong>Burgers 2D – Mathias et al. (PINNStudio template), inverse mode</strong></summary>
+
+**Own settings:** network [3, 128, 128, 128, 128, 2], Adam 15,000 → L-BFGS 10,000, 8,000 domain / 2,000 boundary / 2,000 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 1.54e-03 | 3.5 × 10<sup>-3</sup> | 7.2% | 1242 |
+| dataw | 9.77e-03 | 2.3 × 10<sup>-3</sup> | 3.5% | 1250 |
+| times | 2.73e-03 | 3.2 × 10<sup>-3</sup> | 0.77% | 4231 |
+| **invall** | 1.73e-04 | 3.7 × 10<sup>-4</sup> | 0.55% | 6962 |
+
+**Chosen: invall** (10× data weight, 3× L-BFGS and the wider, deeper network together (inverse problems)): network [3, 256, 256, 256, 256, 256, 2], Adam 15,000 → L-BFGS 30,000, 8,000 / 2,000 / 2,000 points.
+
+Over seeds: own settings 3.5 × 10<sup>-3</sup> (1 seeds), tuned 3.7 × 10<sup>-4</sup> (1 seeds).
+ Learned parameters (tuned, median): nu = 0.00320066 (true 0.00318309886184).
+
+*Surface comparison, u, the example's own settings:*
+
+![Surface comparison, u, the example's own settings](figures/tuning/Template_2D_Burgers_Mathias_inv/own_surface_comparison_u.png)
+
+*Surface comparison, v, the example's own settings:*
+
+![Surface comparison, v, the example's own settings](figures/tuning/Template_2D_Burgers_Mathias_inv/own_surface_comparison_v.png)
+
+*Parameter convergence, the example's own settings:*
+
+![Parameter convergence, the example's own settings](figures/tuning/Template_2D_Burgers_Mathias_inv/own_param_plot.png)
+
+
+Tuned settings: [`Burgers 2D – Mathias et al. (PINNStudio template), inverse mode (tuned).pinn.json`](tuning/Burgers%202D%20–%20Mathias%20et%20al.%20(PINNStudio%20template),%20inverse%20mode%20(tuned).pinn.json)
 
 </details>
 
@@ -1572,66 +1607,22 @@ Tuned settings: [`Allen-Cahn 2D – Mattey & Ghosh (PINNStudio template), invers
 
 </details>
 
-<details id="tune-burgers-2d-mathias-et-al-pinnstudio-template-inverse-mode">
-<summary><strong>Burgers 2D – Mathias et al. (PINNStudio template), inverse mode</strong></summary>
-
-**Own settings:** network [3, 128, 128, 128, 128, 2], Adam 15,000 → L-BFGS 10,000, 8,000 domain / 2,000 boundary / 2,000 initial points.
-
-| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
-|---|---|---|---|---|
-| **base** | 1.54e-03 | 3.5 × 10<sup>-3</sup> | 7.2% | 1242 |
-| dataw | 9.77e-03 | 2.3 × 10<sup>-3</sup> | 3.5% | 1250 |
-
-**Chosen: base** (the example's own settings): network [3, 128, 128, 128, 128, 2], Adam 15,000 → L-BFGS 10,000, 8,000 / 2,000 / 2,000 points.
-
-Over seeds: own settings 3.5 × 10<sup>-3</sup> (1 seeds), tuned 3.5 × 10<sup>-3</sup> (1 seeds).
- Learned parameters (tuned, median): nu = 0.00341319 (true 0.00318309886184).
-
-*Surface comparison, u, the example's own settings:*
-
-![Surface comparison, u, the example's own settings](figures/tuning/Template_2D_Burgers_Mathias_inv/own_surface_comparison_u.png)
-
-*Surface comparison, v, the example's own settings:*
-
-![Surface comparison, v, the example's own settings](figures/tuning/Template_2D_Burgers_Mathias_inv/own_surface_comparison_v.png)
-
-*Parameter convergence, the example's own settings:*
-
-![Parameter convergence, the example's own settings](figures/tuning/Template_2D_Burgers_Mathias_inv/own_param_plot.png)
-
-
-Tuned settings: [`Burgers 2D – Mathias et al. (PINNStudio template), inverse mode (tuned).pinn.json`](tuning/Burgers%202D%20–%20Mathias%20et%20al.%20(PINNStudio%20template),%20inverse%20mode%20(tuned).pinn.json)
-
-</details>
-
-<details id="tune-cahn-hilliard-2d-wight-zhao-pinnstudio-template-inverse-mode">
-<summary><strong>Cahn-Hilliard 2D – Wight & Zhao (PINNStudio template), inverse mode</strong></summary>
+<details id="tune-cahn-hilliard-2d-mattey-ghosh-pinnstudio-template-inverse-mode">
+<summary><strong>Cahn-Hilliard 2D – Mattey & Ghosh (PINNStudio template), inverse mode</strong></summary>
 
 **Own settings:** network [3, 128, 128, 128, 128, 2], Adam 20,000 → L-BFGS 20,000, 20,000 domain / 800 boundary / 1,024 initial points.
 
 | Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
 |---|---|---|---|---|
-| **base** | 1.16e-04 | 6.9 × 10<sup>-5</sup> | 0.42% | 3736 |
+| **base** | 7.25e-02 | 1.4 × 10<sup>-2</sup> | 5.2% | 1741 |
+| dataw | 2.92e-01 | 8.0 × 10<sup>-3</sup> | 43% | 776 |
 
 **Chosen: base** (the example's own settings): network [3, 128, 128, 128, 128, 2], Adam 20,000 → L-BFGS 20,000, 20,000 / 800 / 1,024 points.
 
-Over seeds: own settings 6.9 × 10<sup>-5</sup> (1 seeds), tuned 6.9 × 10<sup>-5</sup> (1 seeds).
- Learned parameters (tuned, median): eps_sq = 0.00251042 (true 0.0025).
+Over seeds: own settings 1.4 × 10<sup>-2</sup> (1 seeds), tuned 1.4 × 10<sup>-2</sup> (1 seeds).
+ Learned parameters (tuned, median): alpha = 0.000189574 (true 0.0002), kappa = 1.01558 (true 1.0).
 
-*Surface comparison, mu, the example's own settings:*
-
-![Surface comparison, mu, the example's own settings](figures/tuning/Template_2D_Cahn_Hilliard_Wight_Zhao_inv/own_surface_comparison_mu.png)
-
-*Surface comparison, u, the example's own settings:*
-
-![Surface comparison, u, the example's own settings](figures/tuning/Template_2D_Cahn_Hilliard_Wight_Zhao_inv/own_surface_comparison_u.png)
-
-*Parameter convergence, the example's own settings:*
-
-![Parameter convergence, the example's own settings](figures/tuning/Template_2D_Cahn_Hilliard_Wight_Zhao_inv/own_param_plot.png)
-
-
-Tuned settings: [`Cahn-Hilliard 2D – Wight & Zhao (PINNStudio template), inverse mode (tuned).pinn.json`](tuning/Cahn-Hilliard%202D%20–%20Wight%20&%20Zhao%20(PINNStudio%20template),%20inverse%20mode%20(tuned).pinn.json)
+Tuned settings: [`Cahn-Hilliard 2D – Mattey & Ghosh (PINNStudio template), inverse mode (tuned).pinn.json`](tuning/Cahn-Hilliard%202D%20–%20Mattey%20&%20Ghosh%20(PINNStudio%20template),%20inverse%20mode%20(tuned).pinn.json)
 
 </details>
 
@@ -1748,6 +1739,39 @@ Over seeds: own settings 1.9 × 10<sup>-3</sup> (1 seeds), tuned 1.9 × 10<sup>-
 PINNStudio's own inverse mode: the Lamé parameters λ and μ from the displacements on a 19 × 19 grid. The body force is the known load and keeps the true values, so λ and μ are unknown only in the stress-strain law (with them in the body force too, an earlier version ended 24% off). Both are found to within 0.03%.
 
 Tuned settings: [`Linear elasticity 2D – plate, inverse mode (tuned).pinn.json`](tuning/Linear%20elasticity%202D%20–%20plate,%20inverse%20mode%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-cahn-hilliard-2d-wight-zhao-pinnstudio-template-inverse-mode">
+<summary><strong>Cahn-Hilliard 2D – Wight & Zhao (PINNStudio template), inverse mode</strong></summary>
+
+**Own settings:** network [3, 128, 128, 128, 128, 2], Adam 20,000 → L-BFGS 20,000, 20,000 domain / 800 boundary / 1,024 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 1.16e-04 | 6.9 × 10<sup>-5</sup> | 0.42% | 3736 |
+| dataw | 2.56e-04 | 5.4 × 10<sup>-5</sup> | 1.1% | 3984 |
+| **times** | 8.86e-05 | 1.1 × 10<sup>-4</sup> | 0.39% | 10691 |
+
+**Chosen: times** (measured data at every reference time after t = 0, not only one (inverse problems)): network [3, 128, 128, 128, 128, 2], Adam 20,000 → L-BFGS 20,000, 20,000 / 800 / 1,024 points.
+
+Over seeds: own settings 6.9 × 10<sup>-5</sup> (1 seeds), tuned 1.1 × 10<sup>-4</sup> (1 seeds).
+ Learned parameters (tuned, median): eps_sq = 0.00250963 (true 0.0025).
+
+*Surface comparison, mu, the example's own settings:*
+
+![Surface comparison, mu, the example's own settings](figures/tuning/Template_2D_Cahn_Hilliard_Wight_Zhao_inv/own_surface_comparison_mu.png)
+
+*Surface comparison, u, the example's own settings:*
+
+![Surface comparison, u, the example's own settings](figures/tuning/Template_2D_Cahn_Hilliard_Wight_Zhao_inv/own_surface_comparison_u.png)
+
+*Parameter convergence, the example's own settings:*
+
+![Parameter convergence, the example's own settings](figures/tuning/Template_2D_Cahn_Hilliard_Wight_Zhao_inv/own_param_plot.png)
+
+
+Tuned settings: [`Cahn-Hilliard 2D – Wight & Zhao (PINNStudio template), inverse mode (tuned).pinn.json`](tuning/Cahn-Hilliard%202D%20–%20Wight%20&%20Zhao%20(PINNStudio%20template),%20inverse%20mode%20(tuned).pinn.json)
 
 </details>
 

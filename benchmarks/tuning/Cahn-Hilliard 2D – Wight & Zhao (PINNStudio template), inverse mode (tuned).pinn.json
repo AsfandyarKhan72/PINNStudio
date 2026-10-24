@@ -151,7 +151,7 @@
     "template_type": "",
     "inverse_variables_json": "[{\"name\": \"eps_sq\", \"init\": 1.0, \"true\": 0.0025}]",
     "inverse_obs_output_idx": 0,
-    "inverse_obs_files_json": "[{\"path\": \"@REF/2D/cahn_hilliard_wight/t_1_phi.txt\", \"output_idx\": 0, \"weight\": 100.0, \"custom_expr\": \"\"}]",
+    "inverse_obs_files_json": "[{\"path\": \"@REF/2D/cahn_hilliard_wight/t_0.25_phi.txt\", \"output_idx\": 0, \"weight\": 100.0, \"custom_expr\": \"\"}, {\"path\": \"@REF/2D/cahn_hilliard_wight/t_0.5_phi.txt\", \"output_idx\": 0, \"weight\": 100.0, \"custom_expr\": \"\"}, {\"path\": \"@REF/2D/cahn_hilliard_wight/t_0.75_phi.txt\", \"output_idx\": 0, \"weight\": 100.0, \"custom_expr\": \"\"}, {\"path\": \"@REF/2D/cahn_hilliard_wight/t_1_phi.txt\", \"output_idx\": 0, \"weight\": 100.0, \"custom_expr\": \"\"}]",
     "inverse_obs_anchors": true,
     "inverse_obs_reduce": "all",
     "inverse_obs_grid_n": 51,
