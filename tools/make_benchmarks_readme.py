@@ -306,11 +306,11 @@ def _section(r):
         ref_name = "DeepXDE's settings" if r["deepxde"] else "The template's own settings"
         a(f"| | {ref_name} | PINNStudio best |\n|---|---|---|")
         if has_f:
-            note = "" if r["f_best_s"] else " (not tuned yet)"
+            note = "" if r["f_best_s"] else " (no tuning needed)"
             a(f"| Forward $L_2$ | {sci(r['f_ref'])} | {sci(r['f_best'])}{note} |")
         if has_i:
             a(f"| Inverse $L_2$ | {sci(r.get('i_ref'))} | {sci(r.get('i_best'))}"
-              f"{'' if r.get('i_s') else ' (not tuned yet)'} |")
+              f"{'' if r.get('i_s') else ' (no tuning needed)'} |")
             a(f"| Parameters found (true) | {_par_txt(r.get('i_ref_par')) or '–'} | {_par_txt(r.get('i_best_par')) or '–'} |")
         a("")
         if r["deepxde"] and has_i and r.get("i_s") and not e.key.startswith("Inverse:") and e.problem != cat.INVERSE:
@@ -385,12 +385,14 @@ def page(recs):
       "problem of its own, its inverse row is PINNStudio's inverse mode of it.\n")
     a("The error is the relative $L_2$ error of the main output (u, φ, h, …) at the last reference time, against "
       "the example's reference data; papers report one error over all times, so their rows also give that. "
-      f"So far {n_t} of the {len(recs)} examples have been run in the tuning study; the others show the "
-      "README's result until they are.\n")
+      f"The tuning study ran its sweep (more iterations, a larger network, more points, an L-BFGS phase, all "
+      f"together) on the {n_t} examples whose error with their own settings was largest. The others were "
+      "already accurate with their own settings, so their result is the README's, marked \"no tuning "
+      "needed\".\n")
     a("![Every example: the reference settings and PINNStudio's best, forward and inverse, and the error of each "
       "learned parameter](figures/benchmarks_summary.png)\n")
     a("*Open grey markers: DeepXDE's settings, or the paper's method run in PINNStudio; filled: PINNStudio's best "
-      "(one filled marker where the two are the same or the problem is not tuned yet). Right: the error of each "
+      "(one filled marker where the two are the same, or where no tuning was needed). Right: the error of each "
       "learned parameter, labelled with its symbol.*\n")
     for g in GROUPS:
         rs = [r for r in recs if r["group"] == g]

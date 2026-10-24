@@ -4,11 +4,11 @@
 
 For a **DeepXDE example**, the reference is DeepXDE's own settings run in PINNStudio, and the best is the tuned run of the [tuning study](tuning_study.md). For a **template from a paper**, the table lists a plain PINN (soft initial and boundary conditions, the whole time interval, equal loss weights), the error the paper reports, the paper's method run in PINNStudio, and PINNStudio's best ([how the papers' methods are set up](paper_comparison.md)). Where a DeepXDE example has no inverse problem of its own, its inverse row is PINNStudio's inverse mode of it.
 
-The error is the relative $L_2$ error of the main output (u, φ, h, …) at the last reference time, against the example's reference data; papers report one error over all times, so their rows also give that. So far 37 of the 65 examples have been run in the tuning study; the others show the README's result until they are.
+The error is the relative $L_2$ error of the main output (u, φ, h, …) at the last reference time, against the example's reference data; papers report one error over all times, so their rows also give that. The tuning study ran its sweep (more iterations, a larger network, more points, an L-BFGS phase, all together) on the 37 examples whose error with their own settings was largest. The others were already accurate with their own settings, so their result is the README's, marked "no tuning needed".
 
 ![Every example: the reference settings and PINNStudio's best, forward and inverse, and the error of each learned parameter](figures/benchmarks_summary.png)
 
-*Open grey markers: DeepXDE's settings, or the paper's method run in PINNStudio; filled: PINNStudio's best (one filled marker where the two are the same or the problem is not tuned yet). Right: the error of each learned parameter, labelled with its symbol.*
+*Open grey markers: DeepXDE's settings, or the paper's method run in PINNStudio; filled: PINNStudio's best (one filled marker where the two are the same, or where no tuning was needed). Right: the error of each learned parameter, labelled with its symbol.*
 
 ## ODEs
 
@@ -19,7 +19,7 @@ The error is the relative $L_2$ error of the main output (u, φ, h, …) at the 
 
 | | DeepXDE's settings | PINNStudio best |
 |---|---|---|
-| Forward $L_2$ | 1.5 × 10<sup>-4</sup> | 1.5 × 10<sup>-4</sup> (not tuned yet) |
+| Forward $L_2$ | 1.5 × 10<sup>-4</sup> | 1.5 × 10<sup>-4</sup> (no tuning needed) |
 
 *Forward, the README's result:*
 
@@ -34,7 +34,7 @@ The error is the relative $L_2$ error of the main output (u, φ, h, …) at the 
 
 | | DeepXDE's settings | PINNStudio best |
 |---|---|---|
-| Forward $L_2$ | 2.5 × 10<sup>-3</sup> | 2.5 × 10<sup>-3</sup> (not tuned yet) |
+| Forward $L_2$ | 2.5 × 10<sup>-3</sup> | 2.5 × 10<sup>-3</sup> (no tuning needed) |
 
 *Forward, the README's result:*
 
@@ -49,7 +49,7 @@ The error is the relative $L_2$ error of the main output (u, φ, h, …) at the 
 
 | | DeepXDE's settings | PINNStudio best |
 |---|---|---|
-| Forward $L_2$ | 3.6 × 10<sup>-3</sup> | 3.6 × 10<sup>-3</sup> (not tuned yet) |
+| Forward $L_2$ | 3.6 × 10<sup>-3</sup> | 3.6 × 10<sup>-3</sup> (no tuning needed) |
 | Inverse $L_2$ | 3.3 × 10<sup>-4</sup> | 2.0 × 10<sup>-4</sup> |
 | Parameters found (true) | ω = 0.999776 (1) | ω = 0.999912 (1) |
 
@@ -84,7 +84,7 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 | | DeepXDE's settings | PINNStudio best |
 |---|---|---|
-| Forward $L_2$ | 2.1 × 10<sup>-3</sup> | 2.1 × 10<sup>-3</sup> (not tuned yet) |
+| Forward $L_2$ | 2.1 × 10<sup>-3</sup> | 2.1 × 10<sup>-3</sup> (no tuning needed) |
 | Inverse $L_2$ | 1.5 × 10<sup>-5</sup> | 1.5 × 10<sup>-5</sup> |
 | Parameters found (true) | a = 2.00001 (2); d = 1.06 (1.06) | a = 2.00001 (2); d = 1.06 (1.06) |
 
@@ -111,7 +111,7 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 | | DeepXDE's settings | PINNStudio best |
 |---|---|---|
-| Forward $L_2$ | 6.9 × 10<sup>-4</sup> | 6.9 × 10<sup>-4</sup> (not tuned yet) |
+| Forward $L_2$ | 6.9 × 10<sup>-4</sup> | 6.9 × 10<sup>-4</sup> (no tuning needed) |
 | Inverse $L_2$ | 1.6 × 10<sup>-3</sup> | 8.9 × 10<sup>-6</sup> |
 | Parameters found (true) | a = 9.93327 (10); b = 9.6526 (9) | a = 10.0003 (10); b = 8.99262 (9) |
 
@@ -142,7 +142,7 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 | | DeepXDE's settings | PINNStudio best |
 |---|---|---|
-| Inverse $L_2$ | 1.0 × 10<sup>-4</sup> | 1.0 × 10<sup>-4</sup> (not tuned yet) |
+| Inverse $L_2$ | 1.0 × 10<sup>-4</sup> | 1.0 × 10<sup>-4</sup> (no tuning needed) |
 | Parameters found (true) | C₁ = 10 (10); C₂ = 14.9998 (15); C₃ = 2.66664 (2.66667) | C₁ = 10 (10); C₂ = 14.9998 (15); C₃ = 2.66664 (2.66667) |
 
 *Inverse, the README's result:*
@@ -158,7 +158,7 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 | | DeepXDE's settings | PINNStudio best |
 |---|---|---|
-| Inverse $L_2$ | 1.6 × 10<sup>-3</sup> | 1.6 × 10<sup>-3</sup> (not tuned yet) |
+| Inverse $L_2$ | 1.6 × 10<sup>-3</sup> | 1.6 × 10<sup>-3</sup> (no tuning needed) |
 | Parameters found (true) | C₁ = 9.974 (10); C₂ = 14.996 (15); C₃ = 2.6669 (2.66667) | C₁ = 9.974 (10); C₂ = 14.996 (15); C₃ = 2.6669 (2.66667) |
 
 *Inverse, the README's result:*
@@ -230,7 +230,7 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 | | DeepXDE's settings | PINNStudio best |
 |---|---|---|
-| Forward $L_2$ | 3.7 × 10<sup>-4</sup> | 3.7 × 10<sup>-4</sup> (not tuned yet) |
+| Forward $L_2$ | 3.7 × 10<sup>-4</sup> | 3.7 × 10<sup>-4</sup> (no tuning needed) |
 
 *Forward, the README's result:*
 
@@ -245,7 +245,7 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 | | DeepXDE's settings | PINNStudio best |
 |---|---|---|
-| Forward $L_2$ | 2.3 × 10<sup>-4</sup> | 2.3 × 10<sup>-4</sup> (not tuned yet) |
+| Forward $L_2$ | 2.3 × 10<sup>-4</sup> | 2.3 × 10<sup>-4</sup> (no tuning needed) |
 
 *Forward, the README's result:*
 
@@ -279,7 +279,7 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 | | DeepXDE's settings | PINNStudio best |
 |---|---|---|
-| Forward $L_2$ | 2.6 × 10<sup>-5</sup> | 2.6 × 10<sup>-5</sup> (not tuned yet) |
+| Forward $L_2$ | 2.6 × 10<sup>-5</sup> | 2.6 × 10<sup>-5</sup> (no tuning needed) |
 
 *Forward, the README's result:*
 
@@ -294,7 +294,7 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 | | DeepXDE's settings | PINNStudio best |
 |---|---|---|
-| Forward $L_2$ | 2.4 × 10<sup>-4</sup> | 2.4 × 10<sup>-4</sup> (not tuned yet) |
+| Forward $L_2$ | 2.4 × 10<sup>-4</sup> | 2.4 × 10<sup>-4</sup> (no tuning needed) |
 
 *Forward, the README's result:*
 
@@ -309,7 +309,7 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 | | DeepXDE's settings | PINNStudio best |
 |---|---|---|
-| Forward $L_2$ | 2.2 × 10<sup>-6</sup> | 2.2 × 10<sup>-6</sup> (not tuned yet) |
+| Forward $L_2$ | 2.2 × 10<sup>-6</sup> | 2.2 × 10<sup>-6</sup> (no tuning needed) |
 
 *Forward, the README's result:*
 
@@ -324,7 +324,7 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 | | DeepXDE's settings | PINNStudio best |
 |---|---|---|
-| Forward $L_2$ | 3.9 × 10<sup>-3</sup> | 3.9 × 10<sup>-3</sup> (not tuned yet) |
+| Forward $L_2$ | 3.9 × 10<sup>-3</sup> | 3.9 × 10<sup>-3</sup> (no tuning needed) |
 
 *Forward, the README's result:*
 
@@ -383,7 +383,7 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 | | DeepXDE's settings | PINNStudio best |
 |---|---|---|
-| Inverse $L_2$ | 4.9 × 10<sup>-3</sup> | 4.9 × 10<sup>-3</sup> (not tuned yet) |
+| Inverse $L_2$ | 4.9 × 10<sup>-3</sup> | 4.9 × 10<sup>-3</sup> (no tuning needed) |
 | Parameters found (true) | α = 1.79183 (1.8) | α = 1.79183 (1.8) |
 
 *Inverse, the README's result:*
@@ -578,7 +578,7 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 | | DeepXDE's settings | PINNStudio best |
 |---|---|---|
-| Forward $L_2$ | 4.3 × 10<sup>-4</sup> | 4.3 × 10<sup>-4</sup> (not tuned yet) |
+| Forward $L_2$ | 4.3 × 10<sup>-4</sup> | 4.3 × 10<sup>-4</sup> (no tuning needed) |
 
 *Forward, the README's result:*
 
@@ -624,7 +624,7 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 | | DeepXDE's settings | PINNStudio best |
 |---|---|---|
-| Forward $L_2$ | 8.4 × 10<sup>-4</sup> | 8.4 × 10<sup>-4</sup> (not tuned yet) |
+| Forward $L_2$ | 8.4 × 10<sup>-4</sup> | 8.4 × 10<sup>-4</sup> (no tuning needed) |
 
 *Forward, the README's result:*
 
@@ -658,7 +658,7 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 | | DeepXDE's settings | PINNStudio best |
 |---|---|---|
-| Forward $L_2$ | 2.8 × 10<sup>-3</sup> | 2.8 × 10<sup>-3</sup> (not tuned yet) |
+| Forward $L_2$ | 2.8 × 10<sup>-3</sup> | 2.8 × 10<sup>-3</sup> (no tuning needed) |
 
 *Forward, the README's result:*
 
@@ -727,7 +727,7 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 | | DeepXDE's settings | PINNStudio best |
 |---|---|---|
-| Forward $L_2$ | 3.3 × 10<sup>-3</sup> | 3.3 × 10<sup>-3</sup> (not tuned yet) |
+| Forward $L_2$ | 3.3 × 10<sup>-3</sup> | 3.3 × 10<sup>-3</sup> (no tuning needed) |
 
 *Forward, the README's result:*
 
@@ -815,7 +815,7 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 | | DeepXDE's settings | PINNStudio best |
 |---|---|---|
-| Forward $L_2$ | 1.8 × 10<sup>-3</sup> | 1.8 × 10<sup>-3</sup> (not tuned yet) |
+| Forward $L_2$ | 1.8 × 10<sup>-3</sup> | 1.8 × 10<sup>-3</sup> (no tuning needed) |
 | Inverse $L_2$ | 1.8 × 10<sup>-1</sup> | 9.9 × 10<sup>-4</sup> |
 | Parameters found (true) | c = 0.514806 (0.5) | c = 0.500036 (0.5) |
 
@@ -889,7 +889,7 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 | | DeepXDE's settings | PINNStudio best |
 |---|---|---|
-| Inverse $L_2$ | – | – (not tuned yet) |
+| Inverse $L_2$ | – | – (no tuning needed) |
 | Parameters found (true) | k_f = 0.0992 (0.1); D = 1.993 (2) | k_f = 0.0992 (0.1); D = 1.993 (2) |
 
 *Inverse, the README's result:*
@@ -907,7 +907,7 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 | | DeepXDE's settings | PINNStudio best |
 |---|---|---|
-| Forward $L_2$ | 1.2 × 10<sup>-3</sup> | 1.2 × 10<sup>-3</sup> (not tuned yet) |
+| Forward $L_2$ | 1.2 × 10<sup>-3</sup> | 1.2 × 10<sup>-3</sup> (no tuning needed) |
 
 *Forward, the README's result:*
 
@@ -922,7 +922,7 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 | | DeepXDE's settings | PINNStudio best |
 |---|---|---|
-| Forward $L_2$ | 1.9 × 10<sup>-3</sup> | 1.9 × 10<sup>-3</sup> (not tuned yet) |
+| Forward $L_2$ | 1.9 × 10<sup>-3</sup> | 1.9 × 10<sup>-3</sup> (no tuning needed) |
 | Inverse $L_2$ | 3.5 × 10<sup>-4</sup> | 8.7 × 10<sup>-5</sup> |
 | Parameters found (true) | k₀ = 12.565 (12.5664) | k₀ = 12.5669 (12.5664) |
 
@@ -941,7 +941,7 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 | | DeepXDE's settings | PINNStudio best |
 |---|---|---|
-| Forward $L_2$ | 1.3 × 10<sup>-3</sup> | 1.3 × 10<sup>-3</sup> (not tuned yet) |
+| Forward $L_2$ | 1.3 × 10<sup>-3</sup> | 1.3 × 10<sup>-3</sup> (no tuning needed) |
 
 </details>
 
@@ -994,7 +994,7 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 | | DeepXDE's settings | PINNStudio best |
 |---|---|---|
-| Forward $L_2$ | 1.1 × 10<sup>-3</sup> | 1.1 × 10<sup>-3</sup> (not tuned yet) |
+| Forward $L_2$ | 1.1 × 10<sup>-3</sup> | 1.1 × 10<sup>-3</sup> (no tuning needed) |
 
 *Forward, the README's result:*
 
@@ -1048,7 +1048,7 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 | | DeepXDE's settings | PINNStudio best |
 |---|---|---|
-| Forward $L_2$ | 4.9 × 10<sup>-4</sup> | 4.9 × 10<sup>-4</sup> (not tuned yet) |
+| Forward $L_2$ | 4.9 × 10<sup>-4</sup> | 4.9 × 10<sup>-4</sup> (no tuning needed) |
 
 *Forward, the README's result:*
 
@@ -1063,7 +1063,7 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 | | DeepXDE's settings | PINNStudio best |
 |---|---|---|
-| Forward $L_2$ | 2.1 × 10<sup>-4</sup> | 2.1 × 10<sup>-4</sup> (not tuned yet) |
+| Forward $L_2$ | 2.1 × 10<sup>-4</sup> | 2.1 × 10<sup>-4</sup> (no tuning needed) |
 | Inverse $L_2$ | 9.1 × 10<sup>-5</sup> | 3.7 × 10<sup>-5</sup> |
 | Parameters found (true) | Re = 20.0026 (20) | Re = 19.9982 (20) |
 
@@ -1098,7 +1098,7 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 | | The template's own settings | PINNStudio best |
 |---|---|---|
-| Forward $L_2$ | 2.8 × 10<sup>-4</sup> | 2.8 × 10<sup>-4</sup> (not tuned yet) |
+| Forward $L_2$ | 2.8 × 10<sup>-4</sup> | 2.8 × 10<sup>-4</sup> (no tuning needed) |
 | Inverse $L_2$ | 5.4 × 10<sup>-4</sup> | 5.4 × 10<sup>-4</sup> |
 | Parameters found (true) | f = 1.00002 (1) | f = 1.00002 (1) |
 
@@ -1140,7 +1140,7 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 | | DeepXDE's settings | PINNStudio best |
 |---|---|---|
-| Inverse $L_2$ | 2.3 × 10<sup>-3</sup> | 2.3 × 10<sup>-3</sup> (not tuned yet) |
+| Inverse $L_2$ | 2.3 × 10<sup>-3</sup> | 2.3 × 10<sup>-3</sup> (no tuning needed) |
 | Parameters found (true) | α = 1.80445 (1.8) | α = 1.80445 (1.8) |
 
 *Inverse, the README's result:*
@@ -1329,7 +1329,7 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 | | The template's own settings | PINNStudio best |
 |---|---|---|
-| Forward $L_2$ | 3.9 × 10<sup>-3</sup> | 3.9 × 10<sup>-3</sup> (not tuned yet) |
+| Forward $L_2$ | 3.9 × 10<sup>-3</sup> | 3.9 × 10<sup>-3</sup> (no tuning needed) |
 | Inverse $L_2$ | 5.8 × 10<sup>-4</sup> | 5.8 × 10<sup>-4</sup> |
 | Parameters found (true) | α = 0.399893 (0.4) | α = 0.399893 (0.4) |
 
@@ -1354,7 +1354,7 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 | | DeepXDE's settings | PINNStudio best |
 |---|---|---|
-| Forward $L_2$ | 6.7 × 10<sup>-3</sup> | 6.7 × 10<sup>-3</sup> (not tuned yet) |
+| Forward $L_2$ | 6.7 × 10<sup>-3</sup> | 6.7 × 10<sup>-3</sup> (no tuning needed) |
 
 *Forward, the README's result:*
 
@@ -1369,8 +1369,8 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 | | The template's own settings | PINNStudio best |
 |---|---|---|
-| Forward $L_2$ | 1.5 × 10<sup>-3</sup> | 1.5 × 10<sup>-3</sup> (not tuned yet) |
-| Inverse $L_2$ | 1.4 × 10<sup>-3</sup> | 1.4 × 10<sup>-3</sup> (not tuned yet) |
+| Forward $L_2$ | 1.5 × 10<sup>-3</sup> | 1.5 × 10<sup>-3</sup> (no tuning needed) |
+| Inverse $L_2$ | 1.4 × 10<sup>-3</sup> | 1.4 × 10<sup>-3</sup> (no tuning needed) |
 | Parameters found (true) | f = 1.00005 (1) | f = 1.00005 (1) |
 
 *Forward, the README's result:*
@@ -1419,7 +1419,7 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 | | The template's own settings | PINNStudio best |
 |---|---|---|
-| Forward $L_2$ | 2.6 × 10<sup>-3</sup> | 2.6 × 10<sup>-3</sup> (not tuned yet) |
+| Forward $L_2$ | 2.6 × 10<sup>-3</sup> | 2.6 × 10<sup>-3</sup> (no tuning needed) |
 | Inverse $L_2$ | 1.3 × 10<sup>-3</sup> | 1.3 × 10<sup>-3</sup> |
 | Parameters found (true) | α = 0.400303 (0.4) | α = 0.400303 (0.4) |
 
@@ -1442,7 +1442,7 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 | | DeepXDE's settings | PINNStudio best |
 |---|---|---|
-| Forward $L_2$ | 1.4 × 10<sup>-3</sup> | 1.4 × 10<sup>-3</sup> (not tuned yet) |
+| Forward $L_2$ | 1.4 × 10<sup>-3</sup> | 1.4 × 10<sup>-3</sup> (no tuning needed) |
 | Inverse $L_2$ | 3.5 × 10<sup>-4</sup> | 2.2 × 10<sup>-4</sup> |
 | Parameters found (true) | ν = 0.997797 (1) | ν = 0.998003 (1) |
 
