@@ -233,5 +233,20 @@
  },
  "Beltrami flow": {
   "f": 0.00135
+ },
+ "2D Allen-Cahn (Mattey & Ghosh)": {
+  "f": 0.00665
+ },
+ "2D Allen-Cahn (Wight & Zhao)": {
+  "f": 0.00787
+ },
+ "2D Cahn-Hilliard (Wight & Zhao)": {
+  "f": 0.0105
+ },
+ "2D Burgers (Mathias)": {
+  "f": 0.0114
+ },
+ "2D Poisson (L-Shape)": {
+  "f": 0.035
  }
 }
