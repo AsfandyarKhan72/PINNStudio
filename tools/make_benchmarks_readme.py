@@ -81,8 +81,11 @@ def _perr(params):
     return max(e) if e else None
 
 
-def _readme_images(name):
-    """(forward images, inverse images) of the README section titled `name`: [(alt, path)]."""
+def _readme_images(name, inverse_only=False):
+    """(forward images, inverse images) of the README section titled `name`, as paths: every output's
+    comparison figure (surface or slice, else line) and the learned parameters' plot; solution animations
+    only when there is nothing else. An image is the inverse problem's when its caption or file name says
+    so (or the example is inverse only)."""
     try:
         text = open(README, encoding="utf-8").read()
     except OSError:
@@ -91,9 +94,24 @@ def _readme_images(name):
     if not m:
         return [], []
     imgs = re.findall(r"!\[([^\]]*)\]\(([^)]+)\)", m.group(1))
-    inv = [i for i in imgs if re.search(r"nverse|param", i[0] + i[1])]
-    fwd = [i for i in imgs if i not in inv]
-    return fwd, inv
+    is_inv = lambda alt, path: inverse_only or bool(re.search(r"[Ii]nverse|param_|parameter convergence|inferred", alt + " " + os.path.basename(path)))
+
+    def pick(sel):
+        comp = [p for a, p in sel if re.search(r"(surface|slice|line)_comparison|view3d|3d_view|isosurface", os.path.basename(p))]
+        by_out = {}
+        for p in comp:          # one per output: surface/slice/3D before the line plot
+            k = re.sub(r"(surface|slice|line)_comparison|view3d|3d_view|isosurface", "", os.path.basename(p))
+            rank = 0 if re.search(r"surface|slice|view3d|3d_view|isosurface", os.path.basename(p)) else 1
+            if k not in by_out or rank < by_out[k][0]:
+                by_out[k] = (rank, p)
+        keep = [p for _, p in by_out.values()]
+        par = [p for a, p in sel if re.search(r"param_|parameter convergence|inferred", a + " " + os.path.basename(p))]
+        par = [p for p in par if p.endswith(".png")] or par[:1]
+        out = keep + [p for p in par if p not in keep]
+        return out or [p for _, p in sel[:1]]
+    inv = [(a, p) for a, p in imgs if is_inv(a, p)]
+    fwd = [(a, p) for a, p in imgs if not is_inv(a, p)]
+    return pick(fwd) if fwd else [], pick(inv) if inv else []
 
 
 def _problem_md(name):
@@ -725,7 +743,7 @@ def _section(r):
     # PINNStudio best. Inverse: DeepXDE's settings and PINNStudio best for DeepXDE's own inverse examples,
     # else PINNStudio best (the papers have no inverse problem; DeepXDE's forward examples have no inverse
     # setup of their own).
-    fwd_r, inv_r = _readme_images(e.name)
+    fwd_r, inv_r = _readme_images(e.name, e.key.startswith("Inverse:") or e.problem == cat.INVERSE)
 
     def toggle(title, blocks):
         blocks = [(t, p) for t, p in blocks if p or t.startswith("*")]
@@ -764,7 +782,7 @@ def _section(r):
             if raw:
                 blocks.append((ref + (" (also PINNStudio best)" if same else ""), _figs_md(raw, "base")))
             elif fwd_r:
-                blocks.append((ref + " (README)", [p for _, p in fwd_r[:1]]))
+                blocks.append((ref + " (README)", fwd_r))
             if same:
                 best_figs = []
         if best_s and best_figs:
@@ -772,7 +790,7 @@ def _section(r):
         elif r.get("f_best_paper") == "plain":
             blocks.append(("PINNStudio best — the base PINN", _figs_md(None, "plain", slug=ts._slug(r["key"]))))
         elif not best_s and paper_rows and fwd_r:
-            blocks.append(("PINNStudio best (the template's own settings, README)", [p for _, p in fwd_r[:1]]))
+            blocks.append(("PINNStudio best (the template's own settings, README)", fwd_r))
         toggle("📊 <em>Forward results — figures</em>", blocks)
     if has_i:
         blocks = []
@@ -786,7 +804,7 @@ def _section(r):
             lab = _best_label(r, True)
             blocks.append((f"PINNStudio best — {lab}", _figs_md(i_s, v, raw_v)))
         elif inv_r:
-            blocks.append(("PINNStudio best (README)", [p for _, p in inv_r[:1]]))
+            blocks.append(("PINNStudio best (README)", inv_r))
         toggle("📊 <em>Inverse results — figures</em>", blocks)
     a("</details>\n")
     return "\n".join(L)

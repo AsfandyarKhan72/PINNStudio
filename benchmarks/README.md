@@ -206,6 +206,8 @@ $$\Large \frac{dy_1}{dt} = y_2, \qquad \frac{dy_2}{dt} = -y_1, \qquad t \in [0, 
 
 ![Linear ODE system: DeepXDE's settings (README)](../assets/Images/DeepXDE/ODE_system/line_comparison_y1.png)
 
+![Linear ODE system: DeepXDE's settings (README)](../assets/Images/DeepXDE/ODE_system/line_comparison_y2.png)
+
 </details>
 
 <details>
@@ -299,6 +301,8 @@ $$\Large \frac{dr}{dt} = \frac{R}{U}\left(2Ur - 0.04U^2 rp\right), \qquad \frac{
 *DeepXDE's settings (README):*
 
 ![Lotka-Volterra ODE: DeepXDE's settings (README)](../assets/Images/DeepXDE/Lotka_Volterra_equation/line_comparison_r.png)
+
+![Lotka-Volterra ODE: DeepXDE's settings (README)](../assets/Images/DeepXDE/Lotka_Volterra_equation/line_comparison_p.png)
 
 </details>
 
@@ -465,6 +469,12 @@ $$\Large \frac{dy_1}{dt} = C_1(y_2 - y_1), \qquad \frac{dy_2}{dt} = y_1(C_2 - y_
 
 ![Lorenz ODE – unknown C₁, C₂, C₃: PINNStudio best (README)](../assets/Images/DeepXDE/Inverse_Lorenz_system/line_comparison_y1.png)
 
+![Lorenz ODE – unknown C₁, C₂, C₃: PINNStudio best (README)](../assets/Images/DeepXDE/Inverse_Lorenz_system/line_comparison_y2.png)
+
+![Lorenz ODE – unknown C₁, C₂, C₃: PINNStudio best (README)](../assets/Images/DeepXDE/Inverse_Lorenz_system/line_comparison_y3.png)
+
+![Lorenz ODE – unknown C₁, C₂, C₃: PINNStudio best (README)](../assets/Images/DeepXDE/Inverse_Lorenz_system/param_convergence_animation.gif)
+
 </details>
 
 </details>
@@ -521,6 +531,12 @@ $$\Large \frac{dy_1}{dt} = C_1(y_2 - y_1), \qquad \frac{dy_2}{dt} = y_1(C_2 - y_
 *PINNStudio best (README):*
 
 ![Lorenz ODE – unknown C₁, C₂, C₃, exogenous input: PINNStudio best (README)](../assets/Images/DeepXDE/Inverse_Lorenz_system_with_exogenous_input/line_comparison_y1.png)
+
+![Lorenz ODE – unknown C₁, C₂, C₃, exogenous input: PINNStudio best (README)](../assets/Images/DeepXDE/Inverse_Lorenz_system_with_exogenous_input/line_comparison_y2.png)
+
+![Lorenz ODE – unknown C₁, C₂, C₃, exogenous input: PINNStudio best (README)](../assets/Images/DeepXDE/Inverse_Lorenz_system_with_exogenous_input/line_comparison_y3.png)
+
+![Lorenz ODE – unknown C₁, C₂, C₃, exogenous input: PINNStudio best (README)](../assets/Images/DeepXDE/Inverse_Lorenz_system_with_exogenous_input/param_convergence_animation.gif)
 
 </details>
 
@@ -1291,6 +1307,8 @@ $$\Large \frac{D_{-1+}^{\alpha}u + D_{1-}^{\alpha}u}{2\cos(\alpha\pi/2)} = \Gamm
 
 ![Fractional Poisson 1D – unknown order α: PINNStudio best (README)](../assets/Images/DeepXDE/Inverse_fractional_Poisson_equation_1D/line_comparison.png)
 
+![Fractional Poisson 1D – unknown order α: PINNStudio best (README)](../assets/Images/DeepXDE/Inverse_fractional_Poisson_equation_1D/param_convergence_animation.gif)
+
 </details>
 
 </details>
@@ -1519,6 +1537,8 @@ where $\gamma_1 = 0.0001$ and $\gamma_2 = 5$.
 
 ![Allen-Cahn 1D – Wight & Zhao: PINNStudio best (the template's own settings, README)](../assets/Images/1D-AllenCahn/surface_comparison.png)
 
+![Allen-Cahn 1D – Wight & Zhao: PINNStudio best (the template's own settings, README)](../assets/Images/1D-AllenCahn/whole_domain_surface_comparison.png)
+
 </details>
 
 <details>
@@ -1592,6 +1612,8 @@ where $\gamma_1 = 10^{-6}$ and $\gamma_2 = 0.01$. The fourth-order equation is s
 *PINNStudio best (the template's own settings, README):*
 
 ![Cahn-Hilliard 1D – Wight & Zhao: PINNStudio best (the template's own settings, README)](../assets/Images/1D-CahnHilliard/surface_comparison_u.png)
+
+![Cahn-Hilliard 1D – Wight & Zhao: PINNStudio best (the template's own settings, README)](../assets/Images/1D-CahnHilliard/surface_comparison_mu.png)
 
 </details>
 
@@ -1767,7 +1789,7 @@ $$\Large \frac{\partial V}{\partial \tau} = \frac{\sigma^2}{2}S^2\frac{\partial^
 
 *DeepXDE's settings (README):*
 
-![Black-Scholes 1D – European call: DeepXDE's settings (README)](../assets/Images/DeepXDE/Black_Scholes_equation_call_option/animation.gif)
+![Black-Scholes 1D – European call: DeepXDE's settings (README)](../assets/Images/DeepXDE/Black_Scholes_equation_call_option/surface_comparison.png)
 
 </details>
 
@@ -1925,7 +1947,7 @@ $$\Large \frac{\partial u}{\partial t} + u\frac{\partial u}{\partial x} = \frac{
 
 *DeepXDE's settings (README):*
 
-![Burgers 1D – RAR: DeepXDE's settings (README)](../assets/Images/DeepXDE/Burgers_equation_with_RAR/animation.gif)
+![Burgers 1D – RAR: DeepXDE's settings (README)](../assets/Images/DeepXDE/Burgers_equation_with_RAR/surface_comparison.png)
 
 </details>
 
@@ -2047,7 +2069,7 @@ $$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} - e^{
 
 *DeepXDE's settings (README):*
 
-![Diffusion 1D – hard IC and BCs: DeepXDE's settings (README)](../assets/Images/DeepXDE/Diffusion_equation_with_hard_IC_and_BC/animation.gif)
+![Diffusion 1D – hard IC and BCs: DeepXDE's settings (README)](../assets/Images/DeepXDE/Diffusion_equation_with_hard_IC_and_BC/surface_comparison.png)
 
 </details>
 
@@ -2282,7 +2304,7 @@ $$\Large \frac{\partial u}{\partial t} = D_{0+}^{\alpha}u + D_{1-}^{\alpha}u - e
 
 *DeepXDE's settings (README):*
 
-![Fractional diffusion 1D: DeepXDE's settings (README)](../assets/Images/DeepXDE/Fractional_diffusion_equation/animation.gif)
+![Fractional diffusion 1D: DeepXDE's settings (README)](../assets/Images/DeepXDE/Fractional_diffusion_equation/surface_comparison.png)
 
 </details>
 
@@ -2660,7 +2682,7 @@ $$\Large \frac{\partial u}{\partial t} + c\frac{\partial^2 v}{\partial x^2} + (u
 
 *DeepXDE's settings (README):*
 
-![Schrödinger 1D: DeepXDE's settings (README)](../assets/Images/DeepXDE/Schr_dinger_equation/animation.gif)
+![Schrödinger 1D: DeepXDE's settings (README)](../assets/Images/DeepXDE/Schr_dinger_equation/surface_comparison.png)
 
 </details>
 
@@ -2908,7 +2930,7 @@ $$\Large \frac{\partial C_A}{\partial t} = D\frac{\partial^2 C_A}{\partial x^2} 
 
 *PINNStudio best (README):*
 
-![Diffusion-reaction 1D – unknown k_f, D: PINNStudio best (README)](../assets/Images/DeepXDE/Inverse_diffusion_reaction_system/animation.gif)
+![Diffusion-reaction 1D – unknown k_f, D: PINNStudio best (README)](../assets/Images/DeepXDE/Inverse_diffusion_reaction_system/param_convergence_animation.gif)
 
 </details>
 
@@ -3114,6 +3136,15 @@ $$\Large -\nabla^2 u - k_0^2 u = k_0^2\sin(k_0 x)\sin(k_0 y), \qquad k_0 = 4\pi,
 |---|---|---|
 | DeepXDE's settings (README) | 1.3 × 10<sup>-3</sup> | – |
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **1.3 × 10<sup>-3</sup>** | – |
+
+<details>
+<summary>📊 <em>Forward results — figures</em></summary>
+
+*DeepXDE's settings (README):*
+
+![Helmholtz 2D – hyperparameter search: DeepXDE's settings (README)](../assets/Images/DeepXDE/Helmholtz_2D_hyperparameter_optimization/surface_comparison.png)
+
+</details>
 
 </details>
 
@@ -3484,6 +3515,14 @@ $$\Large \frac{\partial \sigma_{xx}}{\partial x} + \frac{\partial \sigma_{xy}}{\
 
 ![Linear elasticity 2D – plate, soft BCs: DeepXDE's settings (README)](../assets/Images/DeepXDE/Linear_elastostatic_plate_soft_BCs/surface_comparison_ux.png)
 
+![Linear elasticity 2D – plate, soft BCs: DeepXDE's settings (README)](../assets/Images/DeepXDE/Linear_elastostatic_plate_soft_BCs/surface_comparison_uy.png)
+
+![Linear elasticity 2D – plate, soft BCs: DeepXDE's settings (README)](../assets/Images/DeepXDE/Linear_elastostatic_plate_soft_BCs/surface_comparison_sxx.png)
+
+![Linear elasticity 2D – plate, soft BCs: DeepXDE's settings (README)](../assets/Images/DeepXDE/Linear_elastostatic_plate_soft_BCs/surface_comparison_syy.png)
+
+![Linear elasticity 2D – plate, soft BCs: DeepXDE's settings (README)](../assets/Images/DeepXDE/Linear_elastostatic_plate_soft_BCs/surface_comparison_sxy.png)
+
 </details>
 
 </details>
@@ -3568,6 +3607,10 @@ $$\Large (\mathbf u\cdot\nabla)\mathbf u + \nabla p = \frac{1}{Re}\nabla^2\mathb
 *DeepXDE's settings (README):*
 
 ![Navier-Stokes 2D – Kovasznay flow: DeepXDE's settings (README)](../assets/Images/DeepXDE/Kovasznay_flow/surface_comparison_u.png)
+
+![Navier-Stokes 2D – Kovasznay flow: DeepXDE's settings (README)](../assets/Images/DeepXDE/Kovasznay_flow/surface_comparison_v.png)
+
+![Navier-Stokes 2D – Kovasznay flow: DeepXDE's settings (README)](../assets/Images/DeepXDE/Kovasznay_flow/surface_comparison_p.png)
 
 </details>
 
@@ -3794,6 +3837,8 @@ $$\Large -(-\Delta)^{\alpha/2}u = 2^{\alpha_0}\Gamma(2 + \tfrac{\alpha_0}{2})\Ga
 *PINNStudio best (README):*
 
 ![Fractional Poisson 2D – unknown order α: PINNStudio best (README)](../assets/Images/DeepXDE/Inverse_fractional_Poisson_equation_2D/surface_comparison.png)
+
+![Fractional Poisson 2D – unknown order α: PINNStudio best (README)](../assets/Images/DeepXDE/Inverse_fractional_Poisson_equation_2D/param_convergence_animation.gif)
 
 </details>
 
@@ -4223,6 +4268,8 @@ $$\Large \frac{\partial h}{\partial t'} = 0.005\left(\frac{\partial^2 \mu}{\part
 *PINNStudio best (the template's own settings, README):*
 
 ![Cahn-Hilliard 2D – Mattey & Ghosh: PINNStudio best (the template's own settings, README)](../assets/Images/2D_CahnHilliard-Mattey/surface_comparison_u.png)
+
+![Cahn-Hilliard 2D – Mattey & Ghosh: PINNStudio best (the template's own settings, README)](../assets/Images/2D_CahnHilliard-Mattey/surface_comparison_mu.png)
 
 </details>
 
@@ -4876,7 +4923,13 @@ $$\Large \frac{\partial \mathbf u}{\partial t} + (\mathbf u\cdot\nabla)\mathbf u
 
 *DeepXDE's settings (README):*
 
-![Navier-Stokes 3D – Beltrami flow: DeepXDE's settings (README)](../assets/Images/DeepXDE/Beltrami_flow/animation_u.gif)
+![Navier-Stokes 3D – Beltrami flow: DeepXDE's settings (README)](../assets/Images/DeepXDE/Beltrami_flow/surface_comparison_u.png)
+
+![Navier-Stokes 3D – Beltrami flow: DeepXDE's settings (README)](../assets/Images/DeepXDE/Beltrami_flow/surface_comparison_v.png)
+
+![Navier-Stokes 3D – Beltrami flow: DeepXDE's settings (README)](../assets/Images/DeepXDE/Beltrami_flow/surface_comparison_w.png)
+
+![Navier-Stokes 3D – Beltrami flow: DeepXDE's settings (README)](../assets/Images/DeepXDE/Beltrami_flow/surface_comparison_p.png)
 
 </details>
 
