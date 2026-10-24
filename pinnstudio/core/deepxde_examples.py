@@ -913,7 +913,6 @@ def _inv(variables, obs, **settings):
 
 
 _ADD_LBFGS = dict(optimizer2="lbfgs", iterations2=15000)
-_WAVE_OBS_T = tuple(round(0.1 * i, 1) for i in range(1, 11))
 _PLATE_REF_TRUE = _num(_PLATE_REF["ea_ref_formula"], lmbd=1, mu=0.5)
 # The plate's body force written with the true lmbd = 1, mu = 0.5, the
 # constitutive equations (the last three) with the unknown ones.
@@ -979,17 +978,17 @@ ADDED_INVERSE = {
         "wavenumber (it is the known load), so k0 is unknown only in the k0² u term. An L-BFGS phase follows Adam."),
     "Wave propagation – space-time multi-scale Fourier features": (
         _inv(_vars(("C", 5.0, 10.0)),
-             _obs(*((f"wave_inverse/t_{t:g}.txt", 0) for t in _WAVE_OBS_T)),
+             _obs(("wave_inverse/u_obs.txt", 0)),
              num_domain=5000,
              constants=json.dumps([{"name": "A", "value": "2"}]),
              ea_ref_formula="sin(pi*x)*cos(10*pi*t) + sin(A*pi*x)*cos(A*10*pi*t)",
              scheduler_phases=json.dumps([_phase("adam", 10000, 1e-3, ("inverse time", 2000, 0.9)),
                                           _phase("lbfgs", 15000)])),
         "Inverse mode (PINNStudio's addition): the wave speed C (initial guess 5, true 10) is learned from u "
-        "measured at t = 0.1, 0.2, ..., 1 (reference_data/deepxde/wave_inverse); at only t = 0.25, 0.5, 0.75 and 1 "
-        "the speeds 10 and 6 give the same u, so the data could not tell them. 5,000 residual points instead of "
-        "the forward example's 360: with 360 the network fits the data between them with a wrong C. An L-BFGS "
-        "phase follows Adam."),
+        "measured at 2,000 random points in space and time (reference_data/deepxde/wave_inverse). At regular "
+        "times the fast mode cos(20 pi t) is sampled in step with its period, so a slower wave fits the same "
+        "data (at t = 0.25, 0.5, 0.75 and 1, speeds 10 and 6 give the same u). 5,000 residual points instead "
+        "of the forward example's 360. An L-BFGS phase follows Adam."),
     "Diffusion-reaction equation": (
         _inv(_vars(("D", 2.0, 1.0)),
              _obs(*((f"diffusion_reaction_inverse/t_{t:g}.txt", 0) for t in (0.25, 0.5, 0.75, 1.0))),

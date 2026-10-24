@@ -115,6 +115,7 @@ def _ac1d_mg(cfg):
     _net(cfg, 6, 128)
     cfg.num_domain, cfg.num_initial, cfg.num_boundary = 20000, 128, 50
     _windows(cfg, 4, backward=True, icgl=0.1, bc_w=64.0, bc_times=50, bc_points=128)
+    cfg.ta_grid_size = 128                      # each segment's start: the previous solution at 128 points
     _phases(cfg, 10000, 50000, ic_w=64.0)
 
 
@@ -137,6 +138,7 @@ def _ch1d_mg(cfg):
     _net(cfg, 6, 128)
     cfg.num_domain, cfg.num_initial, cfg.num_boundary = 10000, 128, 20
     _windows(cfg, 10, backward=True, icgl=0.1, bc_w=64.0, bc_times=20, bc_points=128)
+    cfg.ta_grid_size = 128
     _phases(cfg, 10000, 50000, ic_w=64.0)
 
 
@@ -144,11 +146,12 @@ def _ac2d_mg(cfg):
     # M&G Sec. 6.1.1, Table 4 [PAR] (IBVP-1): bc-PINN 6x128, N_i = 4096 (the 64^2 grid), N_b = 640 and
     # N_r = 20,000 per segment, 20 steps (0.2) per segment -> 5 segments, 15,000 Adam per segment of which
     # 20% ICGL, then 10,000 L-BFGS; rel. L2 2.5e-2 (> 95% without ICGL). Weights not stated: 64 as in
-    # their code. Backward points 64^2 grid subset of 2,000 x 20 times per segment.
+    # their code. Backward points (not stated): 1,000 of the 64^2 grid x 10 times per segment.
     _soft(cfg)
     _net(cfg, 6, 128)
     cfg.num_domain, cfg.num_initial, cfg.num_boundary = 20000, 4096, 640
-    _windows(cfg, 5, backward=True, icgl=0.25, bc_w=64.0, bc_times=20, bc_points=2000)
+    _windows(cfg, 5, backward=True, icgl=0.25, bc_w=64.0, bc_times=10, bc_points=1000)
+    cfg.ta_grid_size = 64                       # each segment's start on the 64 x 64 grid, N_i = 4096
     _phases(cfg, 12000, 10000, ic_w=64.0)       # 12,000 + 25% of it (3,000) ICGL = 15,000 Adam
 
 

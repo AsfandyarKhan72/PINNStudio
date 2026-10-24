@@ -190,11 +190,13 @@ def inverse_measurements():
     X, Y = [a.ravel() for a in np.meshgrid(g, g)]
     _save("helmholtz_inverse/u_obs.txt", np.column_stack([X, Y, np.sin(4 * pi * X) * np.sin(4 * pi * Y)]))
 
-    # Wave, A = 2, C = 10: u at t = 0.1, 0.2, ..., 1 (101 points each).
-    xs = np.linspace(0, 1, 101)
-    for tt in [round(0.1 * i, 1) for i in range(1, 11)]:   # quarter steps alone alias C = 10 with C = 6
-        u = np.sin(pi * xs) * np.cos(10 * pi * tt) + np.sin(2 * pi * xs) * np.cos(20 * pi * tt)
-        _save(f"wave_inverse/t_{tt:g}.txt", np.column_stack([xs, np.full_like(xs, tt), u]))
+    # Wave, A = 2, C = 10: u at 2,000 random (x, t) points. On any regular set of times the
+    # fast mode cos(20 pi t) is sampled in step with its period (at t = 0.1, 0.2, ... it is always
+    # 1), so a slower wave fits the same data; random times can't be aliased that way.
+    r = np.random.default_rng(2027)
+    xw, tw = r.uniform(0, 1, 2000), r.uniform(0, 1, 2000)
+    uw = np.sin(pi * xw) * np.cos(10 * pi * tw) + np.sin(2 * pi * xw) * np.cos(20 * pi * tw)
+    _save("wave_inverse/u_obs.txt", np.column_stack([xw, tw, uw]))
 
     # Diffusion-reaction (diffusivity 1): u at t = 0.25, 0.5, 0.75, 1 (101 points each).
     xs = np.linspace(-pi, pi, 101)
