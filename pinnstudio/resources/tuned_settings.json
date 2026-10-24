@@ -81,12 +81,9 @@
  },
  "1D Burgers": {
   "forward": {
-   "switches": [
-    "whole",
-    "causal"
-   ],
-   "variant": "iters",
-   "error": "L2 5.5e-04 vs 1.3e-03 with its own settings"
+   "switches": null,
+   "variant": "paper_raissi",
+   "error": "L2 3.3e-04"
   }
  },
  "Diffusion equation": {

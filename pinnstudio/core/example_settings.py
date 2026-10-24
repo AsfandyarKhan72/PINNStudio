@@ -24,6 +24,9 @@ IC_WEIGHT = 100.0
 
 # What the tuning study's changes are (shown in the Training Log).
 VARIANT_TEXT = {
+    "plain": "the base PINN, as the paper's baseline",
+    "paper_wz": "Wight & Zhao's method", "paper_mg": "Mattey & Ghosh's bc-PINN",
+    "paper_raissi": "Raissi et al.'s settings", "paper_mathias": "Mathias et al.'s settings",
     "iters": "3× the iterations of every training phase",
     "net": "a larger network (hidden layers twice as wide, one more layer)",
     "points": "3× the training points",
@@ -200,7 +203,9 @@ def settings_for(cfg, key, inverse, mode):
             return cfg, "Tuned settings: the template's own settings (PINNStudio's best for it)."
         return cfg, "Tuned settings: none for this example (it was already accurate) -- its default settings."
     out = apply_switches(cfg, t.get("switches") or [])
-    out2 = apply_variant(out, t.get("variant") or "base")
+    v = t.get("variant") or "base"
+    # the paper's method (or its base PINN) can itself be the best run
+    out2 = ps.apply(out, v, key) if v == "plain" or v.startswith("paper_") else apply_variant(out, v)
     if out2 is None:
         return cfg, f"Tuned settings: the change '{t.get('variant')}' does not apply here -- default settings kept."
     what = [", ".join(SWITCH_TEXT.get(s, s) for s in t.get("switches") or [])] if t.get("switches") else []

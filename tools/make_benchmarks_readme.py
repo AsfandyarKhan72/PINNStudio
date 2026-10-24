@@ -217,7 +217,7 @@ def _sweep_rows(s, ref_name, inverse, prefix="", mark=None):
             lbl += f" ({len(rs)} seeds, median)"
         out.append((lbl, l2, mtp._found(dict(s, chosen=v)) if inverse else None,
                     f"{t:.0f}" if t is not None else None, bool(_same(s, mark)) and v == mark.get("chosen"),
-                    statistics.median(st) if st else None))
+                    statistics.median(st) if st else None, _outs(rs, v)))
     return out
 
 
@@ -237,6 +237,22 @@ def _best_label(r, inverse):
     del kept
     return (SHORT.get(v) or v) if v != "all" else "all of the changes together"
 
+
+
+OUTS = {}   # (run folder, variant, seed) -> {output: L2 at its last reference time} (--primary)
+SYM = {"mu": "μ", "phi": "φ", "sxx": "σₓₓ", "syy": "σᵧᵧ", "sxy": "σₓᵧ", "ux": "uₓ", "uy": "uᵧ", "psi": "ψ",
+       "theta": "θ", "rho": "ρ", "T": "T"}
+MAIN = ("u", "c", "phi", "h", "U", "solution")
+
+
+def _outs(rs, v):
+    """Median over runs rs (of variant v) of each output's L2 at its last reference time."""
+    acc = {}
+    for r in rs:
+        d = OUTS.get((ts._slug(r["example"]) + ("_inv" if r["inverse"] else ""), v, str(r["seed"]))) or {}
+        for k, x in d.items():
+            acc.setdefault(k, []).append(x)
+    return {k: statistics.median(xs) for k, xs in acc.items()}
 
 
 SPACETIME = {}  # run folder/variant_sSEED -> error over all reference times (--spacetime)
@@ -317,8 +333,20 @@ def build(summ, papers, spacetime, readme):
                 st = [spacetime.get(f"{ts._slug(key)}/{v}_s{r['seed']}") for r in rs]
                 st = [x for x in st if x is not None]
                 pr[v] = dict(l2=l2, st=statistics.median(st) if st else None, seconds=statistics.median(
-                    r["seconds"] for r in rs))
+                    r["seconds"] for r in rs), outs=_outs(rs, v))
         rec["paper_runs"] = pr
+        # the base PINN and the paper's method are PINNStudio runs too: one of them can be PINNStudio best
+        rec["f_best_paper"] = None
+        if pr and rec["f_best"] is not None:
+            fs = rec["f_best_s"]
+            tsec = mtp._med(fs["variants"][fs["chosen"]], lambda q: q["seconds"]) if fs else None
+            cand = [(rec["f_best"], tsec or 0.0, None)] + [(q["l2"], q["seconds"], v) for v, q in pr.items()
+                                                          if q.get("l2") is not None and v != "base"]
+            low = min(c[0] for c in cand)
+            win = min((c for c in cand if c[0] <= SAME * low), key=lambda c: c[1])
+            if win[2]:
+                rec["f_best_paper"] = win[2]
+                rec["f_best"] = win[0]
         out.append(rec)
     return out
 
@@ -459,40 +487,59 @@ def _section(r):
 
     if has_f:
         a("**Forward problem**\n")
-        if paper_rows:
-            a("| Training | L₂, last time | L₂, all times | Time (s) |\n|---|---|---|---|")
-            p = pr.get("plain")
-            a(f"| Base PINN | {sci(p and p['l2'])} | {sci(p and p['st'])} | {_t(p)} |")
-            for ref, val, v in r["paper"]:
-                a(f"| {PAPER_NAME[v]}, as reported ({ref}) | – | {sci(val) if val else 'figures only'} | – |")
-                q = pr.get(v)
-                a(f"| {PAPER_NAME[v]}, run in PINNStudio | {sci(q and q['l2'])} | {sci(q and q['st'])} | {_t(q)} |")
-            pre = "| "
-            cols = " | – "
-        else:
-            a("| Training | L₂ | Time (s) |\n|---|---|---|")
-            cols = ""
-        fmark = r["f_best_s"]       # _pick's copy: its "chosen" is PINNStudio best
+        fmark = r["f_best_s"] if not r.get("f_best_paper") else None   # _pick's copy: its "chosen" is PINNStudio best
         rows = _sweep_rows(r["f_plain_s"], ref_name, False, mark=fmark)
         if not r["f_plain_s"] and not paper_rows:
-            rows = [(ref_name + (" (README)" if r["f_ref_src"] == "README" else ""), r["f_ref"], None, None, False, None)]
+            rows = [(ref_name + (" (README)" if r["f_ref_src"] == "README" else ""), r["f_ref"], None, None, False,
+                     None, {})]
         if r["f_best_s"] and r["f_best_is_setup"]:
             rows += _sweep_rows(r["f_best_s"], "Best setup of the training methods study", False,
-                                prefix="Best setup + ", mark=r["f_best_s"])
-        best_t = None
-        best_st = None
-        for lbl, l2, _, t, picked, st in rows:
+                                prefix="Best setup + ", mark=fmark)
+        # every output's error when the problem has more than one (the main output first; it decides the best)
+        names = []
+        for d in [x[6] for x in rows] + [q.get("outs") or {} for q in pr.values()]:
+            names += [k for k in d if k not in names]
+        main = next((k for k in MAIN if k in names), names[0] if names else None)
+        names = ([main] + [k for k in names if k != main]) if len(names) > 1 else []
+        last = ", last time" if paper_rows else ""
+        heads = ([f"L₂ {SYM.get(k, k)}{last}" for k in names] if names else [f"L₂{last}"]) + \
+            ([f"L₂ {SYM.get(main, main)}, all times" if names else "L₂, all times"] if paper_rows else []) + ["Time (s)"]
+        a("| Training | " + " | ".join(heads) + " |\n|" + "---|" * (len(heads) + 1))
+
+        def cells(l2, outs, st, t):
+            c = [sci((outs or {}).get(k, l2 if k == main else None)) for k in names] if names else [sci(l2)]
+            return c + ([sci(st)] if paper_rows else []) + [t if t is not None else "–"]
+        if paper_rows:
+            p = pr.get("plain")
+            a(_row(["Base PINN"] + cells(p and p["l2"], p and p.get("outs"), p and p["st"], _t(p) if p else None),
+                   r.get("f_best_paper") == "plain"))
+            for ref, val, v in r["paper"]:
+                a(_row([f"{PAPER_NAME[v]}, as reported ({ref})"] + ["–"] * (max(len(names), 1)) +
+                       [sci(val) if val else "figures only", "–"], False))
+                q = pr.get(v)
+                a(_row([f"{PAPER_NAME[v]}, run in PINNStudio"] +
+                       cells(q and q["l2"], q and q.get("outs"), q and q["st"], _t(q) if q else None),
+                       r.get("f_best_paper") == v))
+        best = None
+        for row in rows:
+            lbl, l2, _, t, picked, st, outs = row
             if picked:
-                best_t, best_st = t, st
-            a(_row([lbl, sci(l2)] + ([sci(st)] if cols else []) + [t if t is not None else "–"], picked))
+                best = row
+            a(_row([lbl] + cells(l2, outs, st, t), picked))
         lab = _best_label(r, False)
         if paper_rows and lab == "no tuning needed":
             lab = "the template's starting settings"
-        if cols:
-            cols = f" | {('**' + sci(best_st) + '**') if best_st is not None else '–'} "
-        a(f"| **PINNStudio best** (Settings: Tuned): {lab} | **{sci(r['f_best'])}**{cols} | "
-          f"{('**' + best_t + '**') if best_t else '–'} |")
+        if r.get("f_best_paper"):
+            q = pr[r["f_best_paper"]]
+            lab = "the base PINN" if r["f_best_paper"] == "plain" else f"{PAPER_NAME[r['f_best_paper']]}, run in PINNStudio"
+            bc = cells(q["l2"], q.get("outs"), q["st"], _t(q))
+        else:
+            bc = cells(r["f_best"], best[6] if best else {}, best[5] if best else None, best[3] if best else None)
+        a(_row([f"**PINNStudio best** (Settings: Tuned): {lab}"] + [f"**{c}**" if c != "–" else c for c in bc], False))
         a("")
+        if names:
+            a(f"*Each output's relative L₂ at its last reference time; the best run is chosen by "
+              f"{SYM.get(main, main)}.*\n")
         if paper_rows and not pr:
             a("*The base PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*\n")
     if has_i:
@@ -500,7 +547,7 @@ def _section(r):
         a("| Training | L₂ | Parameters found (true) | Worst parameter error | Time (s) |\n|---|---|---|---|---|")
         best_t = None
         if r.get("i_s"):
-            for lbl, l2, par, t, picked, _st in _sweep_rows(r["i_s"], ref_name, True, mark=r["i_s"]):
+            for lbl, l2, par, t, picked, _st, _o in _sweep_rows(r["i_s"], ref_name, True, mark=r["i_s"]):
                 if picked:
                     best_t = t
                 a(_row([lbl, sci(l2), _par_txt(par) or '–', _pct(_perr(par)), t if t is not None else '–'], picked))
@@ -542,10 +589,14 @@ def _section(r):
         best_v = best_s["chosen"] if best_s else None
         best_raw = (raw.get("chosen") if not r["f_best_is_setup"] else (best_s or {}).get("_raw_chosen"))
         best_figs = _figs_md(best_s, best_v, best_raw) if best_s else []
+        if r.get("f_best_paper"):
+            best_figs = []                  # the paper's run is PINNStudio best: shown once, below
         if paper_rows:
             for _, _, v in r["paper"]:
                 if v in pr:
-                    blocks.append((f"{PAPER_NAME[v]}, run in PINNStudio", _figs_md(None, v, slug=ts._slug(r["key"]))))
+                    both = " (also PINNStudio best)" if r.get("f_best_paper") == v else ""
+                    blocks.append((f"{PAPER_NAME[v]}, run in PINNStudio{both}",
+                                   _figs_md(None, v, slug=ts._slug(r["key"]))))
                 else:
                     blocks.append((f"*{PAPER_NAME[v]}, run in PINNStudio: the figures come when its run finishes.*", []))
         else:
@@ -559,6 +610,8 @@ def _section(r):
                 best_figs = []
         if best_s and best_figs:
             blocks.append((f"PINNStudio best — {_best_label(r, False)}", best_figs))
+        elif r.get("f_best_paper") == "plain":
+            blocks.append(("PINNStudio best — the base PINN", _figs_md(None, "plain", slug=ts._slug(r["key"]))))
         elif not best_s and paper_rows and fwd_r:
             blocks.append(("PINNStudio best (the template's own settings, README)", [p for _, p in fwd_r[:1]]))
         toggle("📊 <em>Forward results — figures</em>", blocks)
@@ -642,7 +695,9 @@ def write_tuned(recs):
     for r in recs:
         e, ent = r["entry"], {}
         fs = r.get("f_best_s")
-        if fs and (fs["chosen"] != "base" or r.get("f_best_is_setup")):
+        if r.get("f_best_paper"):
+            ent["forward"] = dict(switches=None, variant=r["f_best_paper"], error=f"L2 {r['f_best']:.1e}")
+        elif fs and (fs["chosen"] != "base" or r.get("f_best_is_setup")):
             ent["forward"] = dict(switches=ts.BEST_FORWARD.get(e.key) if r.get("f_best_is_setup") else None,
                                   variant=fs["chosen"],
                                   error=f"L2 {r['f_best']:.1e}" + (f" vs {r['f_ref']:.1e} with its own settings"
@@ -675,6 +730,8 @@ def main():
             for variant, runs in vs.items():
                 for r in runs:
                     mtp.PRIMARY[(slug, variant, str(r["seed"]))] = r["l2"]
+                    if r.get("outs"):
+                        OUTS[(slug, variant, str(r["seed"]))] = r["outs"]
     rows = mtp._load(args.results)
     summ = mtp.summarize(rows)
     papers = mtp._load([args.papers]) if args.papers else []
