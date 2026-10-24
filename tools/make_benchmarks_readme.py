@@ -454,6 +454,161 @@ def _row(cells, picked):
     return "| " + " | ".join(str(c) for c in cells) + " |"
 
 
+# ---- each example's settings, Default and Tuned, as PINNStudio loads them --------------------------------
+def _n(x):
+    return f"{int(x):,}"
+
+
+def _phases_txt(c):
+    if c.optimizer_scheduler and c.scheduler_phases:
+        ph = json.loads(c.scheduler_phases)
+    else:
+        ph = [{"optimizer": c.optimizer, "iterations": c.iterations, "lr": c.learning_rate, "loss": "MSE"}]
+        if c.optimizer2 not in ("none", "", None):
+            ph.append({"optimizer": c.optimizer2, "iterations": c.iterations2, "loss": "MSE"})
+    name = {"adam": "Adam", "lbfgs": "L-BFGS", "adamw": "AdamW", "sgd": "SGD", "nncg": "NNCG", "rmsprop": "RMSprop"}
+    parts = []
+    for q in ph:
+        o = name.get(q.get("optimizer"), q.get("optimizer"))
+        t = f"{o} {_n(q.get('iterations', 0))}"
+        if o != "L-BFGS" and q.get("lr") not in (None, 0.001, 1e-3):
+            t += f" (lr {q['lr']:g})"
+        if q.get("loss", "MSE") != "MSE":
+            t += f", {q['loss']} loss"
+        parts.append(t)
+    w = {q.get("weights") for q in ph if q.get("weights")}
+    return " → ".join(parts), (w.pop() if len(w) == 1 else None)
+
+
+def _settings_md(c, inverse):
+    """A short list of what a configuration trains with (network, points, training, methods)."""
+    L = []
+    lay = list(c.layers)
+    net = {"FNN": "FNN", "MsFFN": "multi-scale Fourier features (MsFFN)", "ResNet": "ResNet"}.get(c.network_type, c.network_type)
+    hid = lay[1:-1]
+    shape = f"{len(hid)} × {hid[0]}" if hid and len(set(hid)) == 1 else str(lay)
+    extra = f", scales {c.msffn_sigmas}" if c.network_type == "MsFFN" else ""
+    L.append(f"**Network:** {net} {shape} ({lay[0]} input{'s' if lay[0] != 1 else ''}, {lay[-1]} output{'s' if lay[-1] != 1 else ''}), {c.activation}, {c.kernel_initializer}{extra}")
+    pts = [f"{_n(c.num_domain)} domain"]
+    if not c.steady_state and c.problem_dim != "ODE" or c.num_initial:
+        if c.num_initial:
+            pts.append(f"{_n(c.num_initial)} initial")
+    if c.num_boundary:
+        pts.append(f"{_n(c.num_boundary)} boundary")
+    L.append("**Points:** " + ", ".join(pts))
+    phases, w = _phases_txt(c)
+    L.append(f"**Training:** {phases}")
+    if w and set(w.split(",")) != {"1.0"}:
+        from pinnstudio.core import paper_settings as _ps
+        vals = [float(x) for x in w.split(",")]
+        n_eq, n_bc, n_ic = _ps._n_terms(c)
+        groups = [("equations", vals[:n_eq]), ("boundary", vals[n_eq:n_eq + n_bc]),
+                  ("initial", vals[n_eq + n_bc:n_eq + n_bc + n_ic]), ("measured data", vals[n_eq + n_bc + n_ic:])]
+        txt = [f"{g} {', '.join(f'{x:g}' for x in v) if len(set(v)) > 1 else f'{v[0]:g}'}" for g, v in groups if v]
+        L.append("**Loss weights:** " + "; ".join(txt))
+    m = []
+    act = (c.ic_active or "").split(",")
+    hard = (c.ic_hard or "").split(",")
+    names = c.output_names.split(",")
+    if "True" in hard:
+        m.append("exact initial condition (built into the network) for " + ", ".join(
+            n for n, h in zip(names, hard) if h == "True"))
+    elif c.output_transform_enabled and c.output_transform_mode == "formula" and (c.output_transform_formula or "").strip("|"):
+        m.append("initial and boundary conditions built into the output (output transform formula)")
+    if c.periodic_inputs:
+        m.append("exact periodicity (periodic input features)")
+    if c.causal_training:
+        m.append("causal training")
+    if c.point_weights not in ("None", "", None):
+        m.append(f"{c.point_weights} per-point weights")
+    if c.adapt_method == "RAR" and not c.time_adaptive:
+        m.append(f"residual-based adaptive refinement ({c.rar_cycles} rounds of {_n(c.rar_add_points)} points)")
+    if c.time_adaptive:
+        try:
+            g = json.loads(c.ta_step_groups) if c.ta_step_groups else []
+        except ValueError:
+            g = []
+        n = sum(int(x["steps"]) for x in g) if g else c.ta_num_steps
+        how = ("one network on a growing time range" if c.ta_growing else
+               "a network per window, each starting from the previous one" if c.ta_transfer_learning else
+               "a separate network per window")
+        t = f"time-adaptive training: {n} time windows, {how}"
+        if c.ta_backward:
+            t += f", backward-compatibility term (weight {c.ta_backward_weight:g})"
+        if c.ta_icgl_fraction:
+            t += f", initial-condition guided learning ({c.ta_icgl_fraction:g} of Adam)"
+        m.append(t)
+    if c.ic_pretrain:
+        m.append("initial condition fitted first (IC pre-training)")
+    if m:
+        L.append("**Methods:** " + "; ".join(m))
+    if inverse:
+        try:
+            v = json.loads(c.inverse_variables_json or "[]")
+            f = json.loads(c.inverse_obs_files_json or "[]")
+        except ValueError:
+            v, f = [], []
+        if v:
+            L.append("**Unknowns:** " + ", ".join(f"{x['name']} (initial guess {x.get('init')}, true {x.get('true')})"
+                                                   for x in v))
+        if f:
+            L.append("**Measured data:** " + "; ".join(
+                f"{os.path.basename(x.get('path') or '') or '(file to pick)'} for {names[int(x.get('output_idx', 0))] if int(x.get('output_idx', 0)) < len(names) else 'output'}"
+                f" (weight {x.get('weight', 100):g})" for x in f))
+    return "\n".join("- " + x for x in L)
+
+
+def _base_config(e, inverse):
+    from pinnstudio.core import deepxde_examples as dx
+    if e.source == cat.DEEPXDE:
+        ex = dx.BY_NAME[e.key]
+        return dx.build_config(ex, ts.REF_ROOT, inverse=inverse and ex.inverse is not None)
+    return ts.template_config(e.key, inverse)
+
+
+def _settings_toggles(r):
+    """Two toggles: the Default settings (DeepXDE's, a paper's method, or the template's own) and
+    PINNStudio best (Settings: Tuned), forward and inverse, with how to load them."""
+    from pinnstudio.core import example_settings as es, paper_settings as ps
+    e = r["entry"]
+    inv_only = e.key.startswith("Inverse:") or e.problem == cat.INVERSE
+    modes = ([] if inv_only else [False]) + ([True] if (inv_only or r.get("i_best") is not None
+                                                          or r.get("i_best_par")) else [])
+    out = []
+    for mode in (es.DEFAULT, es.TUNED):
+        body = []
+        for inverse in modes:
+            try:
+                base = _base_config(e, inverse and not inv_only)
+                cfg, msg = es.settings_for(base, e.key, inverse and not inv_only, mode)
+            except Exception as ex:             # an example that cannot be built here: say so
+                body.append(f"*{'Inverse' if inverse else 'Forward'}: not available here ({str(ex)[:80]}).*\n")
+                continue
+            same = mode == es.TUNED and cfg is base
+            head = "Inverse problem" if inverse else "Forward problem"
+            if same:
+                body.append(f"*{head}:* the same as Default (no change did better, or no tuning was needed).\n")
+                continue
+            body.append(f"*{head}:*\n\n" + _settings_md(cfg, inverse or inv_only) + "\n")
+        cat_md = "**Inverse**" if inv_only else "**Forward** (or **Inverse**)"
+        how = f"**In PINNStudio:** in the toolbar, Examples: {cat_md} → **{e.name}** → **{mode}**, then Solve."
+        paper = ps.TEMPLATE_PAPER.get(e.key)
+        if mode == es.DEFAULT:
+            title = ("DeepXDE's settings" if r["deepxde"] else
+                     f"{PAPER_NAME.get(paper, 'The paper')}'s settings".replace("'s's", "'s") if paper else
+                     "The template's own settings")
+            if paper:
+                title = f"Default: {PAPER_NAME[paper]}, as in the paper"
+            note = ("" if not (paper and True in modes) else
+                    "\n*The paper has no inverse problem; Inverse uses the template's own setup.*\n")
+            summ = f"⚙️ <em>Default settings — {title.replace('Default: ', '')}</em>"
+        else:
+            note = ""
+            summ = "⚙️ <em>PINNStudio best — Tuned settings</em>"
+        out.append(f"<details>\n<summary>{summ}</summary>\n\n" + "\n".join(body) + note + "\n" + how + "\n\n</details>\n")
+    return "\n".join(out)
+
+
 def _section(r):
     e = r["entry"]
     L = []
@@ -478,6 +633,10 @@ def _section(r):
     if prob:
         a("**The problem**\n")
         a(prob + "\n")
+    try:
+        a(_settings_toggles(r))
+    except Exception as ex:
+        a(f"*Settings: not available ({ex}).*\n")
 
     has_f = r["f_ref"] is not None or r["f_best"] is not None
     has_i = r.get("i_best") is not None or r.get("i_best_par")
@@ -651,7 +810,9 @@ def page(recs):
       "run, and when several runs are about as accurate (within 25% of the lowest error) the fastest of them, so "
       "a change that costs time without helping is not chosen; that run is marked 🔴 in the table and its time "
       "is repeated in the last row. For an inverse problem, accuracy is the error of "
-      "the learned parameters. These are the **Tuned** settings. Below the tables, two toggles hold the figures: **Forward results** "
+      "the learned parameters. These are the **Tuned** settings. Above the tables, two ⚙️ toggles list the settings themselves — **Default** "
+      "(DeepXDE's, the paper's method, or the template's own) and **PINNStudio best** (Tuned) — and how to load "
+      "them in PINNStudio. Below the tables, two toggles hold the figures: **Forward results** "
       "(DeepXDE's settings, or for a template from a paper the paper's method run in PINNStudio, then PINNStudio's best) "
       "and **Inverse results** (PINNStudio's best; for DeepXDE's own inverse examples DeepXDE's settings first).\n")
     a("For a **template taken from a paper**, the forward table also lists a **base PINN** — the baseline "
