@@ -642,12 +642,12 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | Base PINN | – | – | – |
 | Mattey & Ghosh's bc-PINN, as reported (Mattey & Ghosh (2022), Sec. 5.2) | – | 1.9 × 10<sup>-2</sup> | – |
 | Mattey & Ghosh's bc-PINN, run in PINNStudio | – | – | – |
-| 🔴 **Best setup of the training methods study** | **3.9 × 10<sup>-3</sup>** | – | **1002** |
-| Best setup + 3× iterations | 6.1 × 10<sup>-2</sup> | – | 2165 |
-| Best setup + larger network (2× width, one more layer) | 9.9 × 10<sup>-1</sup> | – | 1893 |
-| Best setup + 2× time windows | 1.5 × 10<sup>-2</sup> | – | 1709 |
-| Best setup + all of the above together | 9.9 × 10<sup>-1</sup> | – | 13959 |
-| **PINNStudio best** (Settings: Tuned): the best setup as it is | **3.9 × 10<sup>-3</sup>** | –  | **1002** |
+| 🔴 **Best setup of the training methods study** | **3.9 × 10<sup>-3</sup>** | **3.2 × 10<sup>-2</sup>** | **1002** |
+| Best setup + 3× iterations | 6.1 × 10<sup>-2</sup> | 7.0 × 10<sup>-2</sup> | 2165 |
+| Best setup + larger network (2× width, one more layer) | 9.9 × 10<sup>-1</sup> | 8.6 × 10<sup>-1</sup> | 1893 |
+| Best setup + 2× time windows | 1.5 × 10<sup>-2</sup> | 3.6 × 10<sup>-2</sup> | 1709 |
+| Best setup + all of the above together | 9.9 × 10<sup>-1</sup> | 9.3 × 10<sup>-1</sup> | 13959 |
+| **PINNStudio best** (Settings: Tuned): the best setup as it is | **3.9 × 10<sup>-3</sup>** | **3.2 × 10<sup>-2</sup>**  | **1002** |
 
 *The base PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*
 
@@ -700,11 +700,11 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | Base PINN | – | – | – |
 | Raissi et al.'s settings, as reported (Raissi et al. (2019), Sec. 2.1) | – | 6.7 × 10<sup>-4</sup> | – |
 | Raissi et al.'s settings, run in PINNStudio | – | – | – |
-| Best setup of the training methods study | 1.7 × 10<sup>-3</sup> | – | 86 |
-| 🔴 **Best setup + 3× iterations** | **5.5 × 10<sup>-4</sup>** | – | **148** |
-| Best setup + larger network (2× width, one more layer) | 6.8 × 10<sup>-4</sup> | – | 75 |
-| Best setup + all of the above together | 5.2 × 10<sup>-4</sup> | – | 172 |
-| **PINNStudio best** (Settings: Tuned): 3× iterations | **5.5 × 10<sup>-4</sup>** | –  | **148** |
+| Best setup of the training methods study | 1.7 × 10<sup>-3</sup> | 1.0 × 10<sup>-3</sup> | 86 |
+| 🔴 **Best setup + 3× iterations** | **5.5 × 10<sup>-4</sup>** | **6.7 × 10<sup>-4</sup>** | **148** |
+| Best setup + larger network (2× width, one more layer) | 6.8 × 10<sup>-4</sup> | 6.2 × 10<sup>-4</sup> | 75 |
+| Best setup + all of the above together | 5.2 × 10<sup>-4</sup> | 2.6 × 10<sup>-4</sup> | 172 |
+| **PINNStudio best** (Settings: Tuned): 3× iterations | **5.5 × 10<sup>-4</sup>** | **6.7 × 10<sup>-4</sup>**  | **148** |
 
 *The base PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*
 
@@ -1452,15 +1452,15 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | Base PINN | – | – | – |
 | Wight & Zhao's method, as reported (Wight & Zhao (2021), Fig. 3.8) | – | figures only | – |
 | Wight & Zhao's method, run in PINNStudio | – | – | – |
-| The template's starting settings | 7.9 × 10<sup>-3</sup> | – | 1780 |
-| 3× iterations | 9.3 × 10<sup>-2</sup> | – | 3710 |
-| Larger network (2× width, one more layer) | 1.4 × 10<sup>-1</sup> | – | 4728 |
-| 3× training points | 1.6 × 10<sup>-3</sup> | – | 4108 |
-| 🔴 **Best setup of the training methods study** | **1.6 × 10<sup>-3</sup>** | – | **1596** |
-| Best setup + 3× iterations | 1.6 × 10<sup>-3</sup> | – | 4504 |
-| Best setup + larger network (2× width, one more layer) | 1.2 × 10<sup>0</sup> | – | 4991 |
-| Best setup + 2× time windows | 1.5 × 10<sup>-3</sup> | – | 3109 |
-| **PINNStudio best** (Settings: Tuned): the best setup as it is | **1.6 × 10<sup>-3</sup>** | –  | **1596** |
+| The template's starting settings | 7.9 × 10<sup>-3</sup> | 1.2 × 10<sup>-2</sup> | 1780 |
+| 3× iterations | 9.3 × 10<sup>-2</sup> | 5.0 × 10<sup>-2</sup> | 3710 |
+| Larger network (2× width, one more layer) | 1.4 × 10<sup>-1</sup> | 7.5 × 10<sup>-2</sup> | 4728 |
+| 3× training points | 1.6 × 10<sup>-3</sup> | 1.1 × 10<sup>-2</sup> | 4108 |
+| 🔴 **Best setup of the training methods study** | **1.6 × 10<sup>-3</sup>** | **1.1 × 10<sup>-2</sup>** | **1596** |
+| Best setup + 3× iterations | 1.6 × 10<sup>-3</sup> | 1.1 × 10<sup>-2</sup> | 4504 |
+| Best setup + larger network (2× width, one more layer) | 1.2 × 10<sup>0</sup> | 8.1 × 10<sup>-1</sup> | 4991 |
+| Best setup + 2× time windows | 1.5 × 10<sup>-3</sup> | 1.1 × 10<sup>-2</sup> | 3109 |
+| **PINNStudio best** (Settings: Tuned): the best setup as it is | **1.6 × 10<sup>-3</sup>** | **1.1 × 10<sup>-2</sup>**  | **1596** |
 
 *The base PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*
 
@@ -1499,11 +1499,11 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | Base PINN | – | – | – |
 | Mattey & Ghosh's bc-PINN, as reported (Mattey & Ghosh (2022), Sec. 6.1.1) | – | 2.5 × 10<sup>-2</sup> | – |
 | Mattey & Ghosh's bc-PINN, run in PINNStudio | – | – | – |
-| 🔴 **Best setup of the training methods study** | **3.6 × 10<sup>-4</sup>** | – | **266** |
-| Best setup + 3× iterations | 3.2 × 10<sup>-4</sup> | – | 617 |
-| Best setup + larger network (2× width, one more layer) | 5.9 × 10<sup>-4</sup> | – | 464 |
-| Best setup + all of the above together | 3.5 × 10<sup>-4</sup> | – | 3872 |
-| **PINNStudio best** (Settings: Tuned): the best setup as it is | **3.6 × 10<sup>-4</sup>** | –  | **266** |
+| 🔴 **Best setup of the training methods study** | **3.6 × 10<sup>-4</sup>** | **3.4 × 10<sup>-4</sup>** | **266** |
+| Best setup + 3× iterations | 3.2 × 10<sup>-4</sup> | 3.1 × 10<sup>-4</sup> | 617 |
+| Best setup + larger network (2× width, one more layer) | 5.9 × 10<sup>-4</sup> | 4.4 × 10<sup>-4</sup> | 464 |
+| Best setup + all of the above together | 3.5 × 10<sup>-4</sup> | 3.1 × 10<sup>-4</sup> | 3872 |
+| **PINNStudio best** (Settings: Tuned): the best setup as it is | **3.6 × 10<sup>-4</sup>** | **3.4 × 10<sup>-4</sup>**  | **266** |
 
 *The base PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*
 
@@ -1542,10 +1542,10 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | Base PINN | – | – | – |
 | Wight & Zhao's method, as reported (Wight & Zhao (2021), Fig. 3.13) | – | figures only | – |
 | Wight & Zhao's method, run in PINNStudio | – | – | – |
-| The template's starting settings | 1.1 × 10<sup>-2</sup> | – | 822 |
-| 3× iterations | 4.5 × 10<sup>-3</sup> | – | 1464 |
-| 🔴 **Larger network (2× width, one more layer)** | **8.0 × 10<sup>-3</sup>** | – | **1995** |
-| **PINNStudio best** (Settings: Tuned): 3× iterations | **4.5 × 10<sup>-3</sup>** | –  | **1995** |
+| The template's starting settings | 1.1 × 10<sup>-2</sup> | 1.6 × 10<sup>-2</sup> | 822 |
+| 3× iterations | 4.5 × 10<sup>-3</sup> | 7.2 × 10<sup>-3</sup> | 1464 |
+| 🔴 **Larger network (2× width, one more layer)** | **8.0 × 10<sup>-3</sup>** | **1.1 × 10<sup>-2</sup>** | **1995** |
+| **PINNStudio best** (Settings: Tuned): 3× iterations | **4.5 × 10<sup>-3</sup>** | **1.1 × 10<sup>-2</sup>**  | **1995** |
 
 *The base PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*
 
@@ -1623,11 +1623,11 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | Base PINN | – | – | – |
 | Mathias et al.'s settings, as reported (Mathias et al. (2022)) | – | figures only | – |
 | Mathias et al.'s settings, run in PINNStudio | – | – | – |
-| The template's starting settings | 1.1 × 10<sup>-2</sup> | – | 1662 |
-| 🔴 **3× iterations** | **8.4 × 10<sup>-3</sup>** | – | **3684** |
-| Larger network (2× width, one more layer) | 8.9 × 10<sup>-3</sup> | – | 4720 |
-| 3× training points | 9.3 × 10<sup>-3</sup> | – | 4352 |
-| **PINNStudio best** (Settings: Tuned): 3× iterations | **8.4 × 10<sup>-3</sup>** | –  | **3684** |
+| The template's starting settings | 1.1 × 10<sup>-2</sup> | 1.2 × 10<sup>-2</sup> | 1662 |
+| 🔴 **3× iterations** | **8.4 × 10<sup>-3</sup>** | **1.1 × 10<sup>-2</sup>** | **3684** |
+| Larger network (2× width, one more layer) | 8.9 × 10<sup>-3</sup> | 1.1 × 10<sup>-2</sup> | 4720 |
+| 3× training points | 9.3 × 10<sup>-3</sup> | 1.1 × 10<sup>-2</sup> | 4352 |
+| **PINNStudio best** (Settings: Tuned): 3× iterations | **8.4 × 10<sup>-3</sup>** | **1.1 × 10<sup>-2</sup>**  | **3684** |
 
 *The base PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*
 

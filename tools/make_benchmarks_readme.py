@@ -150,6 +150,8 @@ def _sweep_rows(s, ref_name, inverse, prefix="", mark=None):
         rs = s["variants"][v]
         l2 = mtp._med(rs, mtp._maxl2)
         t = mtp._med(rs, lambda r: r["seconds"])
+        st = [SPACETIME.get(f"{ts._slug(r['example'])}{'_inv' if r['inverse'] else ''}/{v}_s{r['seed']}") for r in rs]
+        st = [x for x in st if x is not None]
         if v == "base":
             lbl = ref_name if not prefix else "Best setup of the training methods study"
         else:
@@ -157,7 +159,8 @@ def _sweep_rows(s, ref_name, inverse, prefix="", mark=None):
         if len(rs) > 1:
             lbl += f" ({len(rs)} seeds, median)"
         out.append((lbl, l2, mtp._found(dict(s, chosen=v)) if inverse else None,
-                    f"{t:.0f}" if t is not None else None, bool(_same(s, mark)) and v == mark.get("chosen")))
+                    f"{t:.0f}" if t is not None else None, bool(_same(s, mark)) and v == mark.get("chosen"),
+                    statistics.median(st) if st else None))
     return out
 
 
@@ -179,6 +182,7 @@ def _best_label(r, inverse):
 
 
 
+SPACETIME = {}  # run folder/variant_sSEED -> error over all reference times (--spacetime)
 SAME = 1.25    # runs within 25% of the lowest error count as equally accurate; the fastest of them is the best
 
 
@@ -410,18 +414,21 @@ def _section(r):
         fmark = r["f_best_s"] if r["f_best_is_setup"] else r["f_plain_s"]
         rows = _sweep_rows(r["f_plain_s"], ref_name, False, mark=fmark)
         if not r["f_plain_s"] and not paper_rows:
-            rows = [(ref_name + (" (README)" if r["f_ref_src"] == "README" else ""), r["f_ref"], None, None, False)]
+            rows = [(ref_name + (" (README)" if r["f_ref_src"] == "README" else ""), r["f_ref"], None, None, False, None)]
         if r["f_best_s"] and r["f_best_is_setup"]:
             rows += _sweep_rows(r["f_best_s"], "Best setup of the training methods study", False,
                                 prefix="Best setup + ", mark=r["f_best_s"])
         best_t = None
-        for lbl, l2, _, t, picked in rows:
+        best_st = None
+        for lbl, l2, _, t, picked, st in rows:
             if picked:
-                best_t = t
-            a(_row([lbl, sci(l2)] + (["–"] if cols else []) + [t if t is not None else "–"], picked))
+                best_t, best_st = t, st
+            a(_row([lbl, sci(l2)] + ([sci(st)] if cols else []) + [t if t is not None else "–"], picked))
         lab = _best_label(r, False)
         if paper_rows and lab == "no tuning needed":
             lab = "the template's starting settings"
+        if cols:
+            cols = f" | {('**' + sci(best_st) + '**') if best_st is not None else '–'} "
         a(f"| **PINNStudio best** (Settings: Tuned): {lab} | **{sci(r['f_best'])}**{cols} | "
           f"{('**' + best_t + '**') if best_t else '–'} |")
         a("")
@@ -432,7 +439,7 @@ def _section(r):
         a("| Training | L₂ | Parameters found (true) | Worst parameter error | Time (s) |\n|---|---|---|---|---|")
         best_t = None
         if r.get("i_s"):
-            for lbl, l2, par, t, picked in _sweep_rows(r["i_s"], ref_name, True, mark=r["i_s"]):
+            for lbl, l2, par, t, picked, _st in _sweep_rows(r["i_s"], ref_name, True, mark=r["i_s"]):
                 if picked:
                     best_t = t
                 a(_row([lbl, sci(l2), _par_txt(par) or '–', _pct(_perr(par)), t if t is not None else '–'], picked))
@@ -568,7 +575,7 @@ def main():
     ap.add_argument("results", nargs="+")
     ap.add_argument("--primary", default="")
     ap.add_argument("--papers", default="", help="results.jsonl of the papers' methods (variants plain/paper_*)")
-    ap.add_argument("--spacetime", default="", help="json: run folder (slug/variant_sSEED) -> error over all times")
+    ap.add_argument("--spacetime", default="", help="json file(s), comma-separated: run folder (slug/variant_sSEED) -> error over all times")
     args = ap.parse_args()
     if args.primary:
         for slug, vs in json.load(open(args.primary, encoding="utf-8")).items():
@@ -578,7 +585,10 @@ def main():
     rows = mtp._load(args.results)
     summ = mtp.summarize(rows)
     papers = mtp._load([args.papers]) if args.papers else []
-    spacetime = json.load(open(args.spacetime, encoding="utf-8")) if args.spacetime else {}
+    spacetime = {}
+    for f in [x for x in args.spacetime.split(",") if x]:
+        spacetime.update(json.load(open(f, encoding="utf-8")))
+    SPACETIME.update(spacetime)
     try:
         readme = json.load(open(mtp.README_RESULTS, encoding="utf-8"))
     except OSError:
