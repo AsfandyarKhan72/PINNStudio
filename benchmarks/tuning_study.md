@@ -4,7 +4,7 @@
 
 DeepXDE's examples are written to show how the library is used, so many train briefly, on a small network or with Adam only. This study asks how far ordinary tuning in PINNStudio takes them: each example is run with its own settings and with the same five changes, and the change that trains best is reported next to the example's own result. It complements the [training methods study](training_methods.md), which tests specialised methods (causal training, per-point weights, time windows) on the hardest problems.
 
-So far 51 problems are included, chosen as the ones with the largest errors in the [README results](../README.md). 32 of them improve by 1.5× or more; the median improvement is 2×.
+So far 51 problems are included, chosen as the ones with the largest errors in the [README results](../README.md). 33 of them improve by 1.5× or more; the median improvement is 2×.
 
 ## How it is done
 
@@ -66,6 +66,7 @@ The figure has the layout of the paper's Fig. 4 and lists every example of PINNS
 | [Burgers 1D – Raissi et al. (PINNStudio template) (best setup)](#tune-burgers-1d-raissi-et-al-pinnstudio-template-best-setup) | 1.7 × 10<sup>-3</sup> | 5.2 × 10<sup>-4</sup> | 3× | all | – | 86 → 172 |
 | [Poisson 1D – unknown forcing field](#tune-poisson-1d-unknown-forcing-field) | 5.4 × 10<sup>-4</sup> | 2.1 × 10<sup>-4</sup> | 3× | all | – | 66 → 221 |
 | [Navier-Stokes 2D – Kovasznay flow, inverse mode](#tune-navier-stokes-2d-kovasznay-flow-inverse-mode) | 9.1 × 10<sup>-5</sup> | 3.7 × 10<sup>-5</sup> | 2× | all | 0.013% → 0.009% | 220 → 956 |
+| [Cahn-Hilliard 2D – Mattey & Ghosh (PINNStudio template), inverse mode](#tune-cahn-hilliard-2d-mattey-ghosh-pinnstudio-template-inverse-mode) | 1.4 × 10<sup>-2</sup> | 5.9 × 10<sup>-3</sup> | 2× | times | 5.2% → 0.96% | 1741 → 5306 |
 | [Fractional Poisson 1D](#tune-fractional-poisson-1d) | 2.3 × 10<sup>-2</sup> | 1.2 × 10<sup>-2</sup> | 2× | all | – | 20 → 57 |
 | [Brinkman-Forchheimer 1D – unknown ν_e, K](#tune-brinkman-forchheimer-1d-unknown-e-k) | 2.0 × 10<sup>-2</sup> | 1.2 × 10<sup>-2</sup> | 2× | all | 28% → 18% | 74 → 237 |
 | [Linear ODE system, inverse mode](#tune-linear-ode-system-inverse-mode) | 3.3 × 10<sup>-4</sup> | 2.0 × 10<sup>-4</sup> | 2× | all | 0.022% → 0.0088% | 48 → 135 |
@@ -82,7 +83,6 @@ The figure has the layout of the paper's Fig. 4 and lists every example of PINNS
 | [Heat 3D (PINNStudio template), inverse mode](#tune-heat-3d-pinnstudio-template-inverse-mode) | 1.3 × 10<sup>-3</sup> | 1.3 × 10<sup>-3</sup> | none | base | 0.076% → 0.076% | 729 → 729 |
 | [Allen-Cahn 1D – Wight & Zhao (PINNStudio template), inverse mode](#tune-allen-cahn-1d-wight-zhao-pinnstudio-template-inverse-mode) | 1.4 × 10<sup>-4</sup> | 1.4 × 10<sup>-4</sup> | none | base | 0.77% → 0.77% | 253 → 253 |
 | [Allen-Cahn 2D – Mattey & Ghosh (PINNStudio template), inverse mode](#tune-allen-cahn-2d-mattey-ghosh-pinnstudio-template-inverse-mode) | 8.9 × 10<sup>-4</sup> | 8.9 × 10<sup>-4</sup> | none | base | 5.8% → 5.8% | 1735 → 1735 |
-| [Cahn-Hilliard 2D – Mattey & Ghosh (PINNStudio template), inverse mode](#tune-cahn-hilliard-2d-mattey-ghosh-pinnstudio-template-inverse-mode) | 1.4 × 10<sup>-2</sup> | 1.4 × 10<sup>-2</sup> | none | base | 5.2% → 5.2% | 1741 → 1741 |
 | [Allen-Cahn 3D – Wight & Zhao (PINNStudio template), inverse mode](#tune-allen-cahn-3d-wight-zhao-pinnstudio-template-inverse-mode) | 9.7 × 10<sup>-5</sup> | 9.7 × 10<sup>-5</sup> | none | base | 0.31% → 0.31% | 1419 → 1419 |
 | [Allen-Cahn 2D – Wight & Zhao (PINNStudio template) (best setup)](#tune-allen-cahn-2d-wight-zhao-pinnstudio-template-best-setup) | 1.6 × 10<sup>-3</sup> | 1.6 × 10<sup>-3</sup> | none | base | – | 1596 → 1596 |
 | [Lotka-Volterra ODE, inverse mode](#tune-lotka-volterra-ode-inverse-mode) | 1.5 × 10<sup>-5</sup> | 1.5 × 10<sup>-5</sup> | none | base | 0.0005% → 0.0005% | 230 → 230 |
@@ -1052,6 +1052,26 @@ Tuned settings: [`Navier-Stokes 2D – Kovasznay flow, inverse mode (tuned).pinn
 
 </details>
 
+<details id="tune-cahn-hilliard-2d-mattey-ghosh-pinnstudio-template-inverse-mode">
+<summary><strong>Cahn-Hilliard 2D – Mattey & Ghosh (PINNStudio template), inverse mode</strong></summary>
+
+**Own settings:** network [3, 128, 128, 128, 128, 2], Adam 20,000 → L-BFGS 20,000, 20,000 domain / 800 boundary / 1,024 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 7.25e-02 | 1.4 × 10<sup>-2</sup> | 5.2% | 1741 |
+| dataw | 2.92e-01 | 8.0 × 10<sup>-3</sup> | 43% | 776 |
+| **times** | 3.34e-02 | 5.9 × 10<sup>-3</sup> | 0.96% | 5306 |
+
+**Chosen: times** (measured data at every reference time after t = 0, not only one (inverse problems)): network [3, 128, 128, 128, 128, 2], Adam 20,000 → L-BFGS 20,000, 20,000 / 800 / 1,024 points.
+
+Over seeds: own settings 1.4 × 10<sup>-2</sup> (1 seeds), tuned 5.9 × 10<sup>-3</sup> (1 seeds).
+ Learned parameters (tuned, median): alpha = 0.000201912 (true 0.0002), kappa = 0.995857 (true 1.0).
+
+Tuned settings: [`Cahn-Hilliard 2D – Mattey & Ghosh (PINNStudio template), inverse mode (tuned).pinn.json`](tuning/Cahn-Hilliard%202D%20–%20Mattey%20&%20Ghosh%20(PINNStudio%20template),%20inverse%20mode%20(tuned).pinn.json)
+
+</details>
+
 <details id="tune-fractional-poisson-1d">
 <summary><strong>Fractional Poisson 1D</strong></summary>
 
@@ -1604,25 +1624,6 @@ Over seeds: own settings 8.9 × 10<sup>-4</sup> (1 seeds), tuned 8.9 × 10<sup>-
 
 
 Tuned settings: [`Allen-Cahn 2D – Mattey & Ghosh (PINNStudio template), inverse mode (tuned).pinn.json`](tuning/Allen-Cahn%202D%20–%20Mattey%20&%20Ghosh%20(PINNStudio%20template),%20inverse%20mode%20(tuned).pinn.json)
-
-</details>
-
-<details id="tune-cahn-hilliard-2d-mattey-ghosh-pinnstudio-template-inverse-mode">
-<summary><strong>Cahn-Hilliard 2D – Mattey & Ghosh (PINNStudio template), inverse mode</strong></summary>
-
-**Own settings:** network [3, 128, 128, 128, 128, 2], Adam 20,000 → L-BFGS 20,000, 20,000 domain / 800 boundary / 1,024 initial points.
-
-| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
-|---|---|---|---|---|
-| **base** | 7.25e-02 | 1.4 × 10<sup>-2</sup> | 5.2% | 1741 |
-| dataw | 2.92e-01 | 8.0 × 10<sup>-3</sup> | 43% | 776 |
-
-**Chosen: base** (the example's own settings): network [3, 128, 128, 128, 128, 2], Adam 20,000 → L-BFGS 20,000, 20,000 / 800 / 1,024 points.
-
-Over seeds: own settings 1.4 × 10<sup>-2</sup> (1 seeds), tuned 1.4 × 10<sup>-2</sup> (1 seeds).
- Learned parameters (tuned, median): alpha = 0.000189574 (true 0.0002), kappa = 1.01558 (true 1.0).
-
-Tuned settings: [`Cahn-Hilliard 2D – Mattey & Ghosh (PINNStudio template), inverse mode (tuned).pinn.json`](tuning/Cahn-Hilliard%202D%20–%20Mattey%20&%20Ghosh%20(PINNStudio%20template),%20inverse%20mode%20(tuned).pinn.json)
 
 </details>
 

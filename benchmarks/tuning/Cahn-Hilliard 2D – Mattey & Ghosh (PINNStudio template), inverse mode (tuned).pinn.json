@@ -151,7 +151,7 @@
     "template_type": "",
     "inverse_variables_json": "[{\"name\": \"alpha\", \"init\": 1.0, \"true\": 0.0002}, {\"name\": \"kappa\", \"init\": 0.1, \"true\": 1.0}]",
     "inverse_obs_output_idx": 0,
-    "inverse_obs_files_json": "[{\"path\": \"@REF/2D/cahn_hilliard_mattey/t_1_h.txt\", \"output_idx\": 0, \"weight\": 100.0, \"custom_expr\": \"\"}]",
+    "inverse_obs_files_json": "[{\"path\": \"@REF/2D/cahn_hilliard_mattey/t_0.2_h.txt\", \"output_idx\": 0, \"weight\": 100.0, \"custom_expr\": \"\"}, {\"path\": \"@REF/2D/cahn_hilliard_mattey/t_0.4_h.txt\", \"output_idx\": 0, \"weight\": 100.0, \"custom_expr\": \"\"}, {\"path\": \"@REF/2D/cahn_hilliard_mattey/t_0.6_h.txt\", \"output_idx\": 0, \"weight\": 100.0, \"custom_expr\": \"\"}, {\"path\": \"@REF/2D/cahn_hilliard_mattey/t_0.8_h.txt\", \"output_idx\": 0, \"weight\": 100.0, \"custom_expr\": \"\"}, {\"path\": \"@REF/2D/cahn_hilliard_mattey/t_1_h.txt\", \"output_idx\": 0, \"weight\": 100.0, \"custom_expr\": \"\"}]",
     "inverse_obs_anchors": true,
     "inverse_obs_reduce": "all",
     "inverse_obs_grid_n": 51,

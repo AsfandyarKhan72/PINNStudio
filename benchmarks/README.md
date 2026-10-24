@@ -10,9 +10,9 @@ For a **template taken from a paper**, the forward table also lists a **base PIN
 
 The sweep was run on the 39 examples with the largest errors. The others were already accurate with their own settings: their result is the README's, marked **no tuning needed**.
 
-![Every example: the reference settings and PINNStudio's best, forward and inverse, and the error of each learned parameter](figures/benchmarks_summary.png?v=a1e607ea)
+![Every example: the reference settings and PINNStudio's best, forward and inverse, and the error of each learned parameter](figures/benchmarks_summary.png?v=0a7a25d9)
 
-*Circles: forward problems; diamonds: inverse problems. Filled: PINNStudio's best; open: DeepXDE's settings, or the paper's method run in PINNStudio; a ring around a filled marker: the two are the same (no tuning was needed). Right: the error of each learned parameter, labelled with its symbol. ⭐: the error the paper reports (over all times) for the templates taken from a paper.*
+*Circles: forward problems; diamonds: inverse problems. Filled: PINNStudio's best; open: DeepXDE's settings, or the paper's method run in PINNStudio; a ring around a filled marker: the two are the same (no tuning was needed). PINNStudio's own templates, and paper templates whose method has not run yet, have no open marker: there is no outside reference to compare with. Right: the error of each learned parameter, labelled with its symbol. ⭐: the error the paper reports (over all times) for the templates taken from a paper.*
 
 <details>
 <summary>📋 <em>All results — one table</em></summary>
@@ -76,7 +76,7 @@ The sweep was run on the 39 examples with the largest errors. The others were al
 | [Allen-Cahn 2D – Wight & Zhao](#bench-allen-cahn-2d-wight-zhao) | Paper | 7.9 × 10<sup>-3</sup> | **1.6 × 10<sup>-3</sup>** | 1.1 × 10<sup>-2</sup> | 1596 | λ = 9.82765 (10); λε² = 0.00615365 (0.00625) | 1.7% | 1859 |
 | [Allen-Cahn 2D – Mattey & Ghosh](#bench-allen-cahn-2d-mattey-ghosh) | Paper | 6.6 × 10<sup>-3</sup> | **3.6 × 10<sup>-4</sup>** | 3.4 × 10<sup>-4</sup> | 266 | c₁² = 0.000102452 (0.0001); c₂ = 1.00025 (1) | 2.5% | 1789 |
 | [Cahn-Hilliard 2D – Wight & Zhao](#bench-cahn-hilliard-2d-wight-zhao) | Paper | 1.1 × 10<sup>-2</sup> | **4.5 × 10<sup>-3</sup>** | 7.2 × 10<sup>-3</sup> | 1464 | ε² = 0.00251042 (0.0025) | 0.42% | 3736 |
-| [Cahn-Hilliard 2D – Mattey & Ghosh](#bench-cahn-hilliard-2d-mattey-ghosh) | Paper | 2.0 × 10<sup>-3</sup> | **2.0 × 10<sup>-3</sup>** | – | – | α = 0.000189574 (0.0002); κ = 1.01558 (1) | 5.2% | 1741 |
+| [Cahn-Hilliard 2D – Mattey & Ghosh](#bench-cahn-hilliard-2d-mattey-ghosh) | Paper | 2.0 × 10<sup>-3</sup> | **2.0 × 10<sup>-3</sup>** | – | – | α = 0.000201912 (0.0002); κ = 0.995857 (1) | 0.96% | 5306 |
 | [Burgers 2D – Mathias et al.](#bench-burgers-2d-mathias-et-al) | Paper | 1.1 × 10<sup>-2</sup> | **8.4 × 10<sup>-3</sup>** | 1.1 × 10<sup>-2</sup> | 3684 | ν = 0.00320066 (0.0031831) | 0.55% | 6962 |
 | [Heat 2D](#bench-heat-2d) | PINNStudio | 3.9 × 10<sup>-3</sup> | **3.9 × 10<sup>-3</sup>** | – | – | α = 0.399893 (0.4) | 0.027% | 169 |
 | [Fractional Poisson 3D – sphere](#bench-fractional-poisson-3d-sphere) | DeepXDE | 6.7 × 10<sup>-3</sup> | **6.7 × 10<sup>-3</sup>** | – | – | – | – | – |
@@ -98,7 +98,7 @@ The sweep was run on the 39 examples with the largest errors. The others were al
 
 *The list: [`paper_figure_examples.txt`](paper_figure_examples.txt) (one name per line; change a line to swap an example). PDF: [`figures/paper_figure.pdf`](figures/paper_figure.pdf).*
 
-![The paper's figure: 25 examples, forward and inverse](figures/paper_figure.png?v=71b492a7)
+![The paper's figure: 25 examples, forward and inverse](figures/paper_figure.png?v=57ef199f)
 
 </details>
 
@@ -4405,7 +4405,7 @@ $$\Large \frac{\partial h}{\partial t'} = 0.005\left(\frac{\partial^2 \mu}{\part
 
 *Found in:* [training methods study: 2D Cahn-Hilliard (Mattey & Ghosh)](training_methods.md#2d-cahn-hilliard-mattey--ghosh)
 
-*Inverse problem — PINNStudio's own inverse setup*
+*Inverse problem — PINNStudio's own inverse setup, tuned*
 
 - **Network:** FNN 4 × 128 (3 inputs, 2 outputs), tanh, Glorot uniform
 - **Points:** 20,000 domain, 1,024 initial, 800 boundary
@@ -4413,7 +4413,7 @@ $$\Large \frac{\partial h}{\partial t'} = 0.005\left(\frac{\partial^2 \mu}{\part
 - **Loss weights:** equations 1; boundary 1; measured data 100
 - **Methods:** exact initial condition (built into the network) for h; exact periodicity (periodic input features); SA-PINN per-point weights
 - **Unknowns:** alpha (initial guess 1.0, true 0.0002), kappa (initial guess 0.1, true 1.0)
-- **Measured data:** t_1_h.txt for h (weight 100)
+- **Measured data:** t_0.2_h.txt for h (weight 100); t_0.4_h.txt for h (weight 100); t_0.6_h.txt for h (weight 100); t_0.8_h.txt for h (weight 100); t_1_h.txt for h (weight 100)
 
 *Load it:* toolbar → Examples: **Inverse** → **Cahn-Hilliard 2D – Mattey & Ghosh** → **Tuned**, then Solve.
 
@@ -4436,9 +4436,10 @@ $$\Large \frac{\partial h}{\partial t'} = 0.005\left(\frac{\partial^2 \mu}{\part
 
 | Training | L₂ fit to measured data | Parameters found (true) | Worst parameter error | Time (s) |
 |---|---|---|---|---|
-| 🔴 **The template's starting settings** | **1.4 × 10<sup>-2</sup>** | **α = 0.000189574 (0.0002); κ = 1.01558 (1)** | **5.2%** | **1741** |
+| The template's starting settings | 1.4 × 10<sup>-2</sup> | α = 0.000189574 (0.0002); κ = 1.01558 (1) | 5.2% | 1741 |
 | 10× weight on the measured data | 8.0 × 10<sup>-3</sup> | α = 0.000114763 (0.0002); κ = 0.853682 (1) | 43% | 776 |
-| **PINNStudio best** (Settings: Tuned): the example's own settings (no change did better) | **1.4 × 10<sup>-2</sup>** | α = 0.000189574 (0.0002); κ = 1.01558 (1) | **5.2%** | **1741** |
+| 🔴 **Measured data at every reference time** | **5.9 × 10<sup>-3</sup>** | **α = 0.000201912 (0.0002); κ = 0.995857 (1)** | **0.96%** | **5306** |
+| **PINNStudio best** (Settings: Tuned): Measured data at every reference time | **5.9 × 10<sup>-3</sup>** | α = 0.000201912 (0.0002); κ = 0.995857 (1) | **0.96%** | **5306** |
 
 *L₂ fit to measured data: the error on the reference data the inverse run trains on (every reference time), a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
 
@@ -4462,19 +4463,19 @@ $$\Large \frac{\partial h}{\partial t'} = 0.005\left(\frac{\partial^2 \mu}{\part
 <details>
 <summary>📊 <em>Inverse results — figures</em></summary>
 
-*PINNStudio best — the example's own settings (no change did better):*
+*PINNStudio best — Measured data at every reference time:*
 
 <sub>h — PINN, reference and error over space and time</sub>
 
-![Cahn-Hilliard 2D – Mattey & Ghosh: PINNStudio best — the example's own settings (no change did better) — h — PINN, reference and error over space and time](figures/tuning/Template_2D_Cahn_Hilliard_Mattey_Ghosh_inv/base_surface_comparison_h.png)
+![Cahn-Hilliard 2D – Mattey & Ghosh: PINNStudio best — Measured data at every reference time — h — PINN, reference and error over space and time](figures/tuning/Template_2D_Cahn_Hilliard_Mattey_Ghosh_inv/times_surface_comparison_h.png)
 
 <sub>μ — PINN, reference and error over space and time</sub>
 
-![Cahn-Hilliard 2D – Mattey & Ghosh: PINNStudio best — the example's own settings (no change did better) — μ — PINN, reference and error over space and time](figures/tuning/Template_2D_Cahn_Hilliard_Mattey_Ghosh_inv/base_surface_comparison_mu.png)
+![Cahn-Hilliard 2D – Mattey & Ghosh: PINNStudio best — Measured data at every reference time — μ — PINN, reference and error over space and time](figures/tuning/Template_2D_Cahn_Hilliard_Mattey_Ghosh_inv/times_surface_comparison_mu.png)
 
 <sub>the learned parameters during training</sub>
 
-![Cahn-Hilliard 2D – Mattey & Ghosh: PINNStudio best — the example's own settings (no change did better) — the learned parameters during training](figures/tuning/Template_2D_Cahn_Hilliard_Mattey_Ghosh_inv/base_param_plot.png)
+![Cahn-Hilliard 2D – Mattey & Ghosh: PINNStudio best — Measured data at every reference time — the learned parameters during training](figures/tuning/Template_2D_Cahn_Hilliard_Mattey_Ghosh_inv/times_param_plot.png)
 
 </details>
 

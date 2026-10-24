@@ -257,6 +257,13 @@
    "error": "L2 4.5e-03 vs 1.1e-02 with its own settings"
   }
  },
+ "2D Cahn-Hilliard (Mattey & Ghosh)": {
+  "inverse": {
+   "switches": null,
+   "variant": "times",
+   "error": "parameter error 0.96%"
+  }
+ },
  "2D Burgers (Mathias)": {
   "forward": {
    "switches": null,

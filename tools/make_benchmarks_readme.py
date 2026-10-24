@@ -450,11 +450,16 @@ def figure(recs, path, stars=False, paper=False):
         if r["paper"] and r["paper_runs"]:
             pm = [r["paper_runs"][v]["l2"] for _, _, v in r["paper"] if v in r["paper_runs"]]
             ref_f = min(pm) if pm else ref_f
+        # the open marker is DeepXDE's settings or a paper's method run in PINNStudio only; a PINNStudio
+        # template's own starting settings are not an outside reference (and a paper's method not run yet)
+        if not r["deepxde"] and not (r["paper"] and r["paper_runs"] and pm):
+            ref_f = None
+        ext_inv = r["deepxde"]      # the papers have no inverse problems: a template's inverse has no reference
         par_best = r.get("i_best_par") or []
         rep = [val for _, val, _ in (r["paper"] or []) if val] if not r["deepxde"] else []
         rows.append(dict(label=PAPER_SHORT.get(e.name, e.name) if paper else e.name, group=r["group"], f_ref=ref_f, f_best=r["f_best"],
-                         i_ref=r.get("i_ref"), i_best=r.get("i_best"),
-                         p_ref=_perr(r.get("i_ref_par")), params=par_best, reported=min(rep) if rep else None))
+                         i_ref=r.get("i_ref") if ext_inv else None, i_best=r.get("i_best"),
+                         p_ref=_perr(r.get("i_ref_par")) if ext_inv else None, params=par_best, reported=min(rep) if rep else None))
     # paper: drawn at its printed size (6.5 x 7.5 in, a Word page with 1 in margins and room for a caption)
     F = dict(name=8.5, head=8.8, tick=8.0, axis=9.0, legend=9.0, sym=8.0, ms=1.35) if paper else \
         dict(name=7.2, head=7.6, tick=7.2, axis=8.0, legend=7.2, sym=6.6, ms=1.0)
@@ -487,7 +492,7 @@ def figure(recs, path, stars=False, paper=False):
             return
         """Open marker (the mode's colour) = DeepXDE's settings / the paper's method; filled = PINNStudio's
         best. Where the two are the same (or nothing needed tuning) the open one is a ring around the filled."""
-        if best and (not ref or abs(ref - best) / max(ref, best) <= 0.05):
+        if best and ref and abs(ref - best) / max(ref, best) <= 0.05:
             axx.scatter(best, y, s=ms * 2.2, marker=marker, facecolor="none", edgecolor=color, lw=0.9, zorder=2)
         elif ref:
             axx.scatter(ref, y, s=ms * 0.95, marker=marker, facecolor="white", edgecolor=color, lw=1.2, zorder=2)
@@ -1126,7 +1131,8 @@ def page(recs):
       f"learned parameter](figures/benchmarks_summary.png{_ver(FIG)})\n")
     a("*Circles: forward problems; diamonds: inverse problems. Filled: PINNStudio's best; open: DeepXDE's settings, "
       "or the paper's method run in PINNStudio; a ring around a filled marker: the two are the same (no tuning "
-      "was needed). Right: the error of each "
+      "was needed). PINNStudio's own templates, and paper templates whose method has not run yet, have no open "
+      "marker: there is no outside reference to compare with. Right: the error of each "
       "learned parameter, labelled with its symbol. ⭐: the error the paper reports (over all times) for the "
       "templates taken from a paper.*\n")
     a("<details>\n<summary>📋 <em>All results — one table</em></summary>\n\n"
