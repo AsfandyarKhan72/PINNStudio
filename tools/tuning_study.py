@@ -260,6 +260,9 @@ def _window():
         from pinnstudio.ui.main_window import MainWindow
         _WIN = MainWindow()
         _WIN._maybe_save_changes = lambda: True
+        # the study starts from each example's own settings: Examples -> Settings (Default would load
+        # a paper's method for its templates, Tuned the study's own result) stays out of it
+        _WIN._apply_example_settings_mode = lambda key: None
         _pump(1.0)
     return _WIN
 
