@@ -67,6 +67,13 @@
    "error": "L2 7.8e-04"
   }
  },
+ "1D Allen-Cahn (whole interval)": {
+  "inverse": {
+   "switches": null,
+   "variant": "times",
+   "error": "parameter error 0.47%"
+  }
+ },
  "1D Cahn-Hilliard (Mattey & Ghosh)": {
   "forward": {
    "switches": [
@@ -84,6 +91,11 @@
    "switches": null,
    "variant": "paper_raissi",
    "error": "L2 3.3e-04"
+  },
+  "inverse": {
+   "switches": null,
+   "variant": "invall",
+   "error": "parameter error 0.099%"
   }
  },
  "Diffusion equation": {
@@ -226,6 +238,11 @@
    ],
    "variant": "base",
    "error": "L2 3.6e-04 vs 6.6e-03 with its own settings"
+  },
+  "inverse": {
+   "switches": null,
+   "variant": "dataw",
+   "error": "parameter error 2.5%"
   }
  },
  "2D Cahn-Hilliard (Wight & Zhao)": {

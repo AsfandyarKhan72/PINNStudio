@@ -81,6 +81,9 @@ def _perr(params):
     return max(e) if e else None
 
 
+README_ALT = {}   # README figure file -> its caption
+
+
 def _readme_images(name, inverse_only=False):
     """(forward images, inverse images) of the README section titled `name`, as paths: every output's
     comparison figure (surface or slice, else line) and the learned parameters' plot; solution animations
@@ -94,6 +97,12 @@ def _readme_images(name, inverse_only=False):
     if not m:
         return [], []
     imgs = re.findall(r"!\[([^\]]*)\]\(([^)]+)\)", m.group(1))
+    for a_, p_ in imgs:              # the README's own caption, for the figure's description
+        README_ALT[os.path.basename(p_)] = a_
+    if any("whole_domain" in os.path.basename(p_) for _, p_ in imgs):
+        # the template's own settings are its whole-interval setup (the time-adaptive one was merged into it)
+        imgs = [(a_, p_) for a_, p_ in imgs if "whole_domain" in os.path.basename(p_)
+                or re.search(r"[Ii]nverse|param", a_ + os.path.basename(p_))]
     is_inv = lambda alt, path: inverse_only or bool(re.search(r"[Ii]nverse|param_|parameter convergence|inferred", alt + " " + os.path.basename(path)))
 
     def pick(sel):
@@ -198,6 +207,30 @@ def _figs_md(s, variant, raw_chosen=None, slug=None):
     keep = (surf or slices or line) + (line if WITH_LINES[0] and (surf or slices) else [])
     keep += [n for n in names if n.endswith("param_plot.png")]
     return [os.path.relpath(os.path.join(folder, n), os.path.dirname(PAGE)).replace(os.sep, "/") for n in keep]
+
+
+def _caption(path):
+    """A few words on what a figure shows, from its file name."""
+    f = os.path.basename(path).lower()
+    out = re.search(r"_(?!comparison)([a-z0-9]+)\.(png|gif)$", f.split("comparison")[-1] if "comparison" in f else "")
+    o = out.group(1) if out else ""
+    o = SYM.get(o, o)
+    pre = f"{o} — " if o else ""
+    if "surface_comparison" in f:
+        return pre + "PINN, reference and error over space and time"
+    if "slice_comparison" in f:
+        return pre + "PINN, reference and error on slices through the domain"
+    if "line_comparison" in f:
+        return pre + "PINN against the reference along a line, at the reference times"
+    if "view3d" in f:
+        return "3D view: the solution and its error in the domain"
+    if "param" in f:
+        return "the learned parameters during training"
+    if "animation" in f:
+        return pre + "the solution over time"
+    alt = README_ALT.get(os.path.basename(path), "")      # otherwise the README's own caption
+    return alt.split(" — ", 1)[-1] if " — " in alt else alt
+    return ""
 
 
 def _img(path, alt):
@@ -609,6 +642,27 @@ def _paper_note(key, variant):
     return f"*From the paper, and PINNStudio's choices where it is silent:* {txt}" if txt else ""
 
 
+def _tm_anchor(name):
+    """The training methods study's section for an example (benchmarks/training_methods.md), or None:
+    the section whose title words (dimension, equation, authors) all appear in the example's name."""
+    try:
+        text = open(os.path.join(os.path.dirname(PAGE), "training_methods.md"), encoding="utf-8").read()
+    except OSError:
+        return None
+    words = lambda x: {w for w in re.findall(r"[a-z0-9-]+", x.lower()) if w not in ("et", "al", "and")}
+    have = words(name)
+    if "unknown" in have:            # an inverse example of its own, not the study's forward problem
+        return None
+    best = None
+    for h in re.findall(r"^### (.+)$", text, re.M):
+        hw = words(h)
+        if hw and hw <= have and (best is None or len(hw) > len(words(best))):
+            best = h
+    if best is None:
+        return None
+    return best, re.sub(r"[^a-z0-9 -]", "", best.lower()).replace(" ", "-")
+
+
 def _settings_toggles(r):
     """Two toggles. Default: the source's own settings (DeepXDE's, or the paper's method) -- only the problems
     the source itself solves (a paper or a DeepXDE forward example has no inverse problem; PINNStudio's own
@@ -643,7 +697,10 @@ def _settings_toggles(r):
         if st:
             t = mtp._title(st["name"], st["inverse"])
             links.append(f"[tuning study, {'inverse' if st['inverse'] else 'forward'} runs](tuning_study.md#{mtp._slug(t)})")
-        if not (inverse or inv_only) and r.get("f_best_is_setup"):
+        tm = _tm_anchor(e.name)
+        if not (inverse or inv_only) and tm:
+            links.append(f"[training methods study: {tm[0]}](training_methods.md#{tm[1]})")
+        elif not (inverse or inv_only) and r.get("f_best_is_setup"):
             links.append("[training methods study](training_methods.md)")
         return ("*Found in:* " + " · ".join(links)) if links else ""
 
@@ -824,7 +881,10 @@ def _section(r):
             a(f"*{t}:*\n")
             for pth in paths:
                 pth = pth if pth.startswith(("figures/", "../", "http")) else "../" + pth
-                a(_img(pth, f"{e.name}: {t}") + "\n")
+                cap = _caption(pth)
+                if cap and len(paths) > 1:
+                    a(f"<sub>{cap}</sub>\n")
+                a(_img(pth, f"{e.name}: {t}" + (f" — {cap}" if cap else "")) + "\n")
         a("</details>\n")
 
     if has_f:
