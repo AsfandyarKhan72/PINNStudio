@@ -140,8 +140,9 @@ def _pct(x):
     return "–" if x is None else (f"{100 * x:.2g}%" if x < 0.1 else f"{100 * x:.0f}%")
 
 
-def _sweep_rows(s, ref_name, inverse, prefix=""):
-    """[(label, L2, params, seconds)] for every variant the study ran of entry s."""
+def _sweep_rows(s, ref_name, inverse, prefix="", mark=None):
+    """[(label, L2, params, seconds, picked)] for every variant the study ran of entry s; picked marks
+    the run chosen as PINNStudio best when s is `mark` (the entry the best was picked from)."""
     if not s:
         return []
     out = []
@@ -156,7 +157,7 @@ def _sweep_rows(s, ref_name, inverse, prefix=""):
         if len(rs) > 1:
             lbl += f" ({len(rs)} seeds, median)"
         out.append((lbl, l2, mtp._found(dict(s, chosen=v)) if inverse else None,
-                    f"{t:.0f}" if t is not None else None))
+                    f"{t:.0f}" if t is not None else None, bool(_same(s, mark)) and v == mark.get("chosen")))
     return out
 
 
@@ -352,6 +353,18 @@ def figure(recs, path):
     plt.close(fig)
 
 
+def _same(s, mark):
+    # the same study entry (_pick returns a copy with its choice)
+    return s if (s and mark and s.get("name") == mark.get("name") and s.get("inverse") == mark.get("inverse")) else None
+
+
+def _row(cells, picked):
+    """A table row; the run picked as PINNStudio best is marked 🔴 and in bold."""
+    if picked:
+        cells = ["🔴 **" + str(cells[0]) + "**"] + [f"**{c}**" if c not in ("–", "") else c for c in cells[1:]]
+    return "| " + " | ".join(str(c) for c in cells) + " |"
+
+
 def _section(r):
     e = r["entry"]
     L = []
@@ -375,7 +388,7 @@ def _section(r):
 
     has_f = r["f_ref"] is not None or r["f_best"] is not None
     has_i = r.get("i_best") is not None or r.get("i_best_par")
-    ref_name = "DeepXDE's settings" if r["deepxde"] else "The template's own settings"
+    ref_name = "DeepXDE's settings" if r["deepxde"] else "The template's starting settings"
     paper_rows = bool(r["paper"]) and not r["deepxde"]
     pr = r["paper_runs"]
 
@@ -394,37 +407,47 @@ def _section(r):
         else:
             a("| Training | L₂ | Time (s) |\n|---|---|---|")
             cols = ""
-        rows = _sweep_rows(r["f_plain_s"], ref_name, False)
+        fmark = r["f_best_s"] if r["f_best_is_setup"] else r["f_plain_s"]
+        rows = _sweep_rows(r["f_plain_s"], ref_name, False, mark=fmark)
         if not r["f_plain_s"] and not paper_rows:
-            rows = [(ref_name + (" (README)" if r["f_ref_src"] == "README" else ""), r["f_ref"], None, None)]
+            rows = [(ref_name + (" (README)" if r["f_ref_src"] == "README" else ""), r["f_ref"], None, None, False)]
         if r["f_best_s"] and r["f_best_is_setup"]:
-            rows += _sweep_rows(r["f_best_s"], "Best setup of the training methods study", False, prefix="Best setup + ")
-        for lbl, l2, _, t in rows:
-            a(f"| {lbl} | {sci(l2)}{cols} | {t if t is not None else '–'} |")
+            rows += _sweep_rows(r["f_best_s"], "Best setup of the training methods study", False,
+                                prefix="Best setup + ", mark=r["f_best_s"])
+        best_t = None
+        for lbl, l2, _, t, picked in rows:
+            if picked:
+                best_t = t
+            a(_row([lbl, sci(l2)] + (["–"] if cols else []) + [t if t is not None else "–"], picked))
         lab = _best_label(r, False)
         if paper_rows and lab == "no tuning needed":
-            lab = "the template's own settings"
-        a(f"| **PINNStudio best** (Settings: Tuned): {lab} | **{sci(r['f_best'])}**{cols} | |")
+            lab = "the template's starting settings"
+        a(f"| **PINNStudio best** (Settings: Tuned): {lab} | **{sci(r['f_best'])}**{cols} | "
+          f"{('**' + best_t + '**') if best_t else '–'} |")
         a("")
         if paper_rows and not pr:
             a("*The base PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*\n")
     if has_i:
         a("**Inverse problem**\n")
         a("| Training | L₂ | Parameters found (true) | Worst parameter error | Time (s) |\n|---|---|---|---|---|")
+        best_t = None
         if r.get("i_s"):
-            for lbl, l2, par, t in _sweep_rows(r["i_s"], ref_name, True):
-                a(f"| {lbl} | {sci(l2)} | {_par_txt(par) or '–'} | {_pct(_perr(par))} | {t if t is not None else '–'} |")
+            for lbl, l2, par, t, picked in _sweep_rows(r["i_s"], ref_name, True, mark=r["i_s"]):
+                if picked:
+                    best_t = t
+                a(_row([lbl, sci(l2), _par_txt(par) or '–', _pct(_perr(par)), t if t is not None else '–'], picked))
         else:
             a(f"| {ref_name} (README) | {sci(r.get('i_ref'))} | {_par_txt(r.get('i_ref_par')) or '–'} | "
               f"{_pct(_perr(r.get('i_ref_par')))} | – |")
         a(f"| **PINNStudio best** (Settings: Tuned): {_best_label(r, True)} | **{sci(r.get('i_best'))}** | "
-          f"{_par_txt(r.get('i_best_par')) or '–'} | **{_pct(_perr(r.get('i_best_par')))}** | |")
+          f"{_par_txt(r.get('i_best_par')) or '–'} | **{_pct(_perr(r.get('i_best_par')))}** | "
+          f"{('**' + best_t + '**') if best_t else '–'} |")
         a("")
         if r["deepxde"] and r.get("i_s") and not e.key.startswith("Inverse:") and e.problem != cat.INVERSE:
             a("*DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*\n")
 
     # figures: reference first, then PINNStudio's best; forward, then inverse
-    ref_lbl = "DeepXDE's settings" if r["deepxde"] else "the template's own settings"
+    ref_lbl = "DeepXDE's settings" if r["deepxde"] else "the template's starting settings"
     fwd_r, inv_r = _readme_images(e.name)
     blocks = []
     if has_f:
@@ -467,12 +490,15 @@ def page(recs):
       "PINNStudio's best. Updated as the runs finish.*\n")
     a("**How to read an example.** Each example opens to one table for the forward problem and one for the "
       "inverse problem. The first row is the reference: **DeepXDE's own settings** for a DeepXDE example, the "
-      "**template's own settings** for a PINNStudio template. The next rows are the tuning study's changes, each "
+      "**template's starting settings** for a PINNStudio template (the settings PINNStudio's template was "
+      "written with, before the tuning study; for a template from a paper this is not the paper's method, "
+      "which has its own row). The next rows are the tuning study's changes, each "
       "tried on its own and then all together: 3× the iterations, a larger network (twice as wide, one more "
       "layer), 3× the training points, an L-BFGS phase after Adam (for inverse problems also 10× the weight of "
       "the measured data and 3× the L-BFGS iterations). The last row, **PINNStudio best**, is the most accurate "
       "run, and when several runs are about as accurate (within 25% of the lowest error) the fastest of them, so "
-      "a change that costs time without helping is not chosen. For an inverse problem, accuracy is the error of "
+      "a change that costs time without helping is not chosen; that run is marked 🔴 in the table and its time "
+      "is repeated in the last row. For an inverse problem, accuracy is the error of "
       "the learned parameters. These are the **Tuned** settings. Then come the figures: the "
       "reference first, then PINNStudio's best, forward and then inverse.\n")
     a("For a **template taken from a paper**, the forward table also lists a **base PINN** — the baseline "
