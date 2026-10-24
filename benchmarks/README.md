@@ -21,6 +21,16 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 [problem and settings in the README](../README.md#dx-integro-differential-equation)
 
+**The problem**
+
+DeepXDE example: [`ide.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/ide.py) ([documentation](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/ide.html))
+
+$$\Large \frac{du}{dt} + \int_0^t u(s)\ ds = 2\pi\cos(2\pi t) + \frac{\sin^2(\pi t)}{\pi}, \qquad t \in [0, 1]$$
+
+- **Problem dimension:** ODE (t) — `du_t + integral(u) - (2*pi*cos(2*pi*t) + sin(pi*t)**2/pi)`
+- **Initial condition:** $u(0) = 0$
+- **Exact solution:** $u = \sin(2\pi t)$
+
 **Forward problem**
 
 | Training | L₂ | Time (s) |
@@ -29,7 +39,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **1.5 × 10<sup>-4</sup>** | – |
 
 <details>
-<summary><strong>Forward results: figures</strong></summary>
+<summary>📊 <em>Forward results — figures</em></summary>
 
 *DeepXDE's settings (README):*
 
@@ -44,6 +54,16 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 [problem and settings in the README](../README.md#dx-volterra-integro-differential-equation)
 
+**The problem**
+
+DeepXDE example: [`Volterra_IDE.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Volterra_IDE.py)
+
+$$\Large \frac{du}{dt} + u(t) = \int_0^t e^{s - t}\ u(s)\ ds, \qquad t \in [0, 5]$$
+
+- **Problem dimension:** ODE (t) — `du_t + u - integral(exp(s - t)*u)`, the kernel and $u$ written in the integration variable `s`
+- **Initial condition:** $u(0) = 1$
+- **Exact solution:** $u = e^{-t}\cosh t$
+
 **Forward problem**
 
 | Training | L₂ | Time (s) |
@@ -52,7 +72,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **2.5 × 10<sup>-3</sup>** | – |
 
 <details>
-<summary><strong>Forward results: figures</strong></summary>
+<summary>📊 <em>Forward results — figures</em></summary>
 
 *DeepXDE's settings (README):*
 
@@ -66,6 +86,16 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 <summary><strong>Linear ODE system</strong> · DeepXDE example</summary>
 
 [problem and settings in the README](../README.md#dx-ode-system) · [inverse runs in the tuning study](tuning_study.md#tune-linear-ode-system-inverse-mode)
+
+**The problem**
+
+DeepXDE example: [`ode_system.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/ode_system.py) ([documentation](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/ode.system.html))
+
+$$\Large \frac{dy_1}{dt} = y_2, \qquad \frac{dy_2}{dt} = -y_1, \qquad t \in [0, 10]$$
+
+- **Problem dimension:** ODE (t) — derivatives written `dy1_t`, `dy2_t`
+- **Initial conditions:** $y_1(0) = 0$, $y_2(0) = 1$
+- **Exact solution:** $y_1 = \sin t$, $y_2 = \cos t$
 
 **Forward problem**
 
@@ -88,7 +118,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 *DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*
 
 <details>
-<summary><strong>Forward results: figures</strong></summary>
+<summary>📊 <em>Forward results — figures</em></summary>
 
 *DeepXDE's settings (README):*
 
@@ -97,7 +127,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 </details>
 
 <details>
-<summary><strong>Inverse results: figures</strong></summary>
+<summary>📊 <em>Inverse results — figures</em></summary>
 
 *PINNStudio best — all of the changes together:*
 
@@ -115,6 +145,17 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 <summary><strong>Lotka-Volterra ODE</strong> · DeepXDE example</summary>
 
 [problem and settings in the README](../README.md#dx-lotka-volterra-equation) · [inverse runs in the tuning study](tuning_study.md#tune-lotka-volterra-ode-inverse-mode)
+
+**The problem**
+
+DeepXDE example: [`Lotka_Volterra.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Lotka_Volterra.py) ([documentation](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/Lotka.Volterra.html))
+
+$$\Large \frac{dr}{dt} = \frac{R}{U}\left(2Ur - 0.04U^2 rp\right), \qquad \frac{dp}{dt} = \frac{R}{U}\left(0.02U^2 rp - 1.06Up\right), \qquad t \in [0, 1]$$
+
+- **Problem dimension:** ODE (t); populations scaled by $U = 200$ and time by $R = 20$ (constants `ub`, `rb`)
+- **Initial conditions:** $r(0) = 100/U$, $p(0) = 15/U$, imposed exactly by the output transform $\hat r = r\tanh t + 100/U$, $\hat p = p\tanh t + 15/U$
+- **Reference:** SciPy `solve_ivp` solution of the same system
+- **Constants:** `ub = 200`, `rb = 20`
 
 **Forward problem**
 
@@ -137,7 +178,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 *DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*
 
 <details>
-<summary><strong>Forward results: figures</strong></summary>
+<summary>📊 <em>Forward results — figures</em></summary>
 
 *DeepXDE's settings (README):*
 
@@ -146,7 +187,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 </details>
 
 <details>
-<summary><strong>Inverse results: figures</strong></summary>
+<summary>📊 <em>Inverse results — figures</em></summary>
 
 *PINNStudio best — the example's own settings (no change did better):*
 
@@ -164,6 +205,16 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 <summary><strong>Second-order ODE</strong> · DeepXDE example</summary>
 
 [problem and settings in the README](../README.md#dx-second-order-ode) · [inverse runs in the tuning study](tuning_study.md#tune-second-order-ode-inverse-mode)
+
+**The problem**
+
+DeepXDE example: [`ode_2nd.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/ode_2nd.py) ([documentation](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/ode.2nd.html))
+
+$$\Large \frac{d^2u}{dt^2} - 10\frac{du}{dt} + 9u = 5t, \qquad t \in [0, 0.25]$$
+
+- **Problem dimension:** ODE (t) — `du_tt - 10*du_t + 9*u - 5*t`
+- **Initial conditions:** $u(0) = -1$ (initial condition); $u'(0) = 2$ as an Operator BC `du_t - 2` applied at the initial time
+- **Exact solution:** $u = \frac{50}{81} + \frac{5}{9}t - 2e^{t} + \frac{31}{81}e^{9t}$
 
 **Forward problem**
 
@@ -186,7 +237,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 *DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*
 
 <details>
-<summary><strong>Forward results: figures</strong></summary>
+<summary>📊 <em>Forward results — figures</em></summary>
 
 *DeepXDE's settings (README):*
 
@@ -195,7 +246,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 </details>
 
 <details>
-<summary><strong>Inverse results: figures</strong></summary>
+<summary>📊 <em>Inverse results — figures</em></summary>
 
 *PINNStudio best — Larger network (2× width, one more layer):*
 
@@ -212,6 +263,16 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 [problem and settings in the README](../README.md#dx-inverse-lorenz-system)
 
+**The problem**
+
+DeepXDE example: [`Lorenz_inverse.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/Lorenz_inverse.py) ([documentation](https://deepxde.readthedocs.io/en/latest/demos/pinn_inverse/Lorenz.inverse.html))
+
+$$\Large \frac{dy_1}{dt} = C_1(y_2 - y_1), \qquad \frac{dy_2}{dt} = y_1(C_2 - y_3) - y_2, \qquad \frac{dy_3}{dt} = y_1y_2 - C_3y_3, \qquad t \in [0, 3]$$
+
+- **Problem dimension:** ODE (t); initial conditions $y(0) = (-8, 7, 27)$
+- **Unknowns:** $C_1, C_2, C_3$ (true $10, 15, 8/3$), all starting from 1
+- **Data:** $y_1, y_2, y_3$ measured at 50 times (also used as anchor points), from SciPy's `solve_ivp`
+
 **Inverse problem**
 
 | Training | L₂ | Parameters found (true) | Worst parameter error | Time (s) |
@@ -220,7 +281,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **1.0 × 10<sup>-4</sup>** | C₁ = 10 (10); C₂ = 14.9998 (15); C₃ = 2.66664 (2.66667) | **0.0013%** | – |
 
 <details>
-<summary><strong>Inverse results: figures</strong></summary>
+<summary>📊 <em>Inverse results — figures</em></summary>
 
 *PINNStudio best (README):*
 
@@ -235,6 +296,16 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 [problem and settings in the README](../README.md#dx-inverse-lorenz-system-with-exogenous-input)
 
+**The problem**
+
+DeepXDE example: [`Lorenz_inverse_forced.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/Lorenz_inverse_forced.py) ([documentation](https://deepxde.readthedocs.io/en/latest/demos/pinn_inverse/Lorenz.inverse.forced.html))
+
+$$\Large \frac{dy_1}{dt} = C_1(y_2 - y_1), \qquad \frac{dy_2}{dt} = y_1(C_2 - y_3) - y_2, \qquad \frac{dy_3}{dt} = y_1y_2 - C_3y_3 + 10\sin(2\pi t)$$
+
+- **Problem dimension:** ODE (t), $t \in [0, 3]$; initial conditions $y(0) = (-8, 7, 27)$
+- **Unknowns:** $C_1, C_2, C_3$ (true $10, 15, 8/3$), all starting from 1
+- **Data:** $y_1, y_2, y_3$ measured at 200 times, from SciPy's `solve_ivp`
+
 **Inverse problem**
 
 | Training | L₂ | Parameters found (true) | Worst parameter error | Time (s) |
@@ -243,7 +314,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **1.6 × 10<sup>-3</sup>** | C₁ = 9.974 (10); C₂ = 14.996 (15); C₃ = 2.6669 (2.66667) | **0.26%** | – |
 
 <details>
-<summary><strong>Inverse results: figures</strong></summary>
+<summary>📊 <em>Inverse results — figures</em></summary>
 
 *PINNStudio best (README):*
 
@@ -259,6 +330,15 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 <summary><strong>Euler beam 1D</strong> · DeepXDE example</summary>
 
 [problem and settings in the README](../README.md#dx-euler-beam) · [forward runs in the tuning study](tuning_study.md#tune-euler-beam-1d) · [inverse runs in the tuning study](tuning_study.md#tune-euler-beam-1d-inverse-mode)
+
+**The problem**
+
+DeepXDE example: [`Euler_beam.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Euler_beam.py) ([documentation](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/eulerbeam.html))
+
+$$\Large \frac{d^4u}{dx^4} = -1, \qquad x \in [0, 1]$$
+
+- **Boundary conditions:** $u(0) = 0$, $u'(0) = 0$ (clamped); $u''(1) = 0$, $u'''(1) = 0$ (free) — the last two as Operator BCs
+- **Exact solution:** $u = -\frac{x^4}{24} + \frac{x^3}{6} - \frac{x^2}{4}$
 
 **Forward problem**
 
@@ -286,7 +366,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 *DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*
 
 <details>
-<summary><strong>Forward results: figures</strong></summary>
+<summary>📊 <em>Forward results — figures</em></summary>
 
 *DeepXDE's settings:*
 
@@ -299,7 +379,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 </details>
 
 <details>
-<summary><strong>Inverse results: figures</strong></summary>
+<summary>📊 <em>Inverse results — figures</em></summary>
 
 *PINNStudio best — all of the changes together:*
 
@@ -316,6 +396,17 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 [problem and settings in the README](../README.md#dx-fractional-poisson-equation-1d) · [forward runs in the tuning study](tuning_study.md#tune-fractional-poisson-1d)
 
+**The problem**
+
+DeepXDE example: [`fractional_Poisson_1d.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/fractional_Poisson_1d.py)
+
+$$\Large D_{0+}^{\alpha}u + D_{1-}^{\alpha}u = f(x), \qquad x \in [0, 1],\ \alpha = 1.5$$
+
+- **Equation in the panel:** `frac(u) - (...)`, with $f$ written out with `gamma(...)` as in DeepXDE's script; constant `alpha`
+- **Boundary conditions:** $u(0) = u(1) = 0$, imposed exactly by the output transform $\hat u = x(1-x)N$
+- **Exact solution:** $u = x^3(1-x)^3$
+- **Constants:** `alpha = 1.5`
+
 **Forward problem**
 
 | Training | L₂ | Time (s) |
@@ -329,7 +420,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | **PINNStudio best** (Settings: Tuned): Larger network (2× width, one more layer) | **1.5 × 10<sup>-2</sup>** | **21** |
 
 <details>
-<summary><strong>Forward results: figures</strong></summary>
+<summary>📊 <em>Forward results — figures</em></summary>
 
 *DeepXDE's settings:*
 
@@ -348,6 +439,15 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 [problem and settings in the README](../README.md#dx-poisson-1d-dirichlet)
 
+**The problem**
+
+DeepXDE example: [`Poisson_Dirichlet_1d.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Poisson_Dirichlet_1d.py) ([documentation](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/poisson.1d.dirichlet.html))
+
+$$\Large -\frac{d^2u}{dx^2} = \pi^2\sin(\pi x), \qquad x \in [-1, 1]$$
+
+- **Boundary conditions:** Dirichlet, $u(\pm 1) = 0$ — in the panel: Where *Whole boundary*, Value `0`
+- **Exact solution:** $u = \sin(\pi x)$
+
 **Forward problem**
 
 | Training | L₂ | Time (s) |
@@ -356,7 +456,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **3.7 × 10<sup>-4</sup>** | – |
 
 <details>
-<summary><strong>Forward results: figures</strong></summary>
+<summary>📊 <em>Forward results — figures</em></summary>
 
 *DeepXDE's settings (README):*
 
@@ -371,6 +471,15 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 [problem and settings in the README](../README.md#dx-poisson-1d-dirichlet-neumann)
 
+**The problem**
+
+DeepXDE example: [`Poisson_Neumann_1d.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Poisson_Neumann_1d.py) ([documentation](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/poisson.1d.neumanndirichlet.html))
+
+$$\Large \frac{d^2u}{dx^2} = 2, \qquad x \in [-1, 1]$$
+
+- **Boundary conditions:** Dirichlet $u(-1) = 0$ (Where `left`, Value `0`); Neumann $u'(1) = 4$ (Where `right`, Value `4` — at the right end the outward normal derivative is $du/dx$)
+- **Exact solution:** $u = (x + 1)^2$
+
 **Forward problem**
 
 | Training | L₂ | Time (s) |
@@ -379,7 +488,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **2.3 × 10<sup>-4</sup>** | – |
 
 <details>
-<summary><strong>Forward results: figures</strong></summary>
+<summary>📊 <em>Forward results — figures</em></summary>
 
 *DeepXDE's settings (README):*
 
@@ -394,6 +503,15 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 [problem and settings in the README](../README.md#dx-poisson-1d-dirichlet-periodic) · [forward runs in the tuning study](tuning_study.md#tune-poisson-1d-dirichlet-periodic)
 
+**The problem**
+
+DeepXDE example: [`Poisson_periodic_1d.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Poisson_periodic_1d.py) ([documentation](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/poisson.1d.dirichletperiodic.html))
+
+$$\Large -\frac{d^2u}{dx^2} = \pi^2\sin(\pi x), \qquad x \in [-1, 1]$$
+
+- **Boundary conditions:** Dirichlet $u(-1) = 0$ (Where `left`); periodic $u(-1) = u(1)$ (Where `right`)
+- **Exact solution:** $u = \sin(\pi x)$
+
 **Forward problem**
 
 | Training | L₂ | Time (s) |
@@ -407,7 +525,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | **PINNStudio best** (Settings: Tuned): all of the changes together | **6.4 × 10<sup>-6</sup>** | **67** |
 
 <details>
-<summary><strong>Forward results: figures</strong></summary>
+<summary>📊 <em>Forward results — figures</em></summary>
 
 *DeepXDE's settings:*
 
@@ -426,6 +544,15 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 [problem and settings in the README](../README.md#dx-poisson-1d-dirichlet-pointsetoperator)
 
+**The problem**
+
+DeepXDE example: [`Poisson_PointSetOperator_1d.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Poisson_PointSetOperator_1d.py) ([documentation](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/poisson.1d.pointsetoperator.html))
+
+$$\Large \frac{d^2u}{dx^2} = 2, \qquad x \in [-1, 1]$$
+
+- **Boundary conditions:** Dirichlet $u(-1) = 0$ (Where `left`); point-set operator condition $u'(1) = 4$ — a Point Set Operator row with the point typed in (Points `1`, Function `du_x`, Target value `4`; no file)
+- **Exact solution:** $u = (x + 1)^2$
+
 **Forward problem**
 
 | Training | L₂ | Time (s) |
@@ -434,7 +561,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **2.6 × 10<sup>-5</sup>** | – |
 
 <details>
-<summary><strong>Forward results: figures</strong></summary>
+<summary>📊 <em>Forward results — figures</em></summary>
 
 *DeepXDE's settings (README):*
 
@@ -449,6 +576,15 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 [problem and settings in the README](../README.md#dx-poisson-1d-dirichlet-robin)
 
+**The problem**
+
+DeepXDE example: [`Poisson_Robin_1d.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Poisson_Robin_1d.py) ([documentation](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/poisson.1d.dirichletrobin.html))
+
+$$\Large \frac{d^2u}{dx^2} = 2, \qquad x \in [-1, 1]$$
+
+- **Boundary conditions:** Dirichlet $u(-1) = 0$ (Where `left`); Robin $u'(1) = u(1)$ (Where `right`, Value `u`)
+- **Exact solution:** $u = (x + 1)^2$
+
 **Forward problem**
 
 | Training | L₂ | Time (s) |
@@ -457,7 +593,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **2.4 × 10<sup>-4</sup>** | – |
 
 <details>
-<summary><strong>Forward results: figures</strong></summary>
+<summary>📊 <em>Forward results — figures</em></summary>
 
 *DeepXDE's settings (README):*
 
@@ -472,6 +608,15 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 [problem and settings in the README](../README.md#dx-poisson-1d-hard-boundary-conditions)
 
+**The problem**
+
+DeepXDE example: [`Poisson_Dirichlet_1d_exactBC.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Poisson_Dirichlet_1d_exactBC.py)
+
+$$\Large -\frac{d^2u}{dx^2} = \sum_{k=1}^{4} k\sin(kx) + 8\sin(8x), \qquad x \in [0, \pi]$$
+
+- **Boundary conditions:** $u(0) = 0$, $u(\pi) = \pi$, imposed exactly by the output transform $\hat u = x(\pi - x)\ N(x) + x$
+- **Exact solution:** $u = x + \sum_{k=1}^{4}\frac{\sin(kx)}{k} + \frac{\sin(8x)}{8}$
+
 **Forward problem**
 
 | Training | L₂ | Time (s) |
@@ -480,7 +625,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **2.2 × 10<sup>-6</sup>** | – |
 
 <details>
-<summary><strong>Forward results: figures</strong></summary>
+<summary>📊 <em>Forward results — figures</em></summary>
 
 *DeepXDE's settings (README):*
 
@@ -495,6 +640,18 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 [problem and settings in the README](../README.md#dx-poisson-1d-multi-scale-fourier-features)
 
+**The problem**
+
+DeepXDE example: [`Poisson_multiscale_1d.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Poisson_multiscale_1d.py)
+
+$$\Large \frac{d^2u}{dx^2} = -(\pi A)^2\sin(\pi A x) - 0.1(\pi B)^2\sin(\pi B x), \qquad x \in [0, 1],\ A = 2,\ B = 50$$
+
+- **Boundary conditions:** $u(0) = u(1) = 0$
+- **Exact solution:** $u = \sin(2\pi x) + 0.1\sin(50\pi x)$ — a slow wave plus a fast, small one
+- **Constants:** `A = 2`, `B = 50`
+
+A plain network of the same size learns the slow wave and largely misses the fast one; the Fourier features at scale 10 allow the PINN to represent the sin(50πx) component.
+
 **Forward problem**
 
 | Training | L₂ | Time (s) |
@@ -503,7 +660,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **3.9 × 10<sup>-3</sup>** | – |
 
 <details>
-<summary><strong>Forward results: figures</strong></summary>
+<summary>📊 <em>Forward results — figures</em></summary>
 
 *DeepXDE's settings (README):*
 
@@ -518,6 +675,17 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 [problem and settings in the README](../README.md#dx-inverse-brinkman-forchheimer-model) · [forward runs in the tuning study](tuning_study.md#tune-brinkman-forchheimer-1d-unknown-e-k)
 
+**The problem**
+
+DeepXDE example: [`brinkman_forchheimer.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/brinkman_forchheimer.py)
+
+$$\Large -\frac{\nu_e}{\epsilon}\frac{d^2u}{dx^2} + \frac{\nu u}{K} = g, \qquad x \in [0, 1],\ \epsilon = 0.4,\ \nu = 10^{-3},\ g = 1$$
+
+- **Unknowns:** effective viscosity $\nu_e$ and permeability $K$ (both $10^{-3}$, initial guesses 0.1)
+- **Data:** 5 measurements of $u$; $u = 0$ at both walls through the output transform $\hat u = x(1-x)N$
+- **Exact solution:** $u = 1 - \cosh(20(x - 0.5))/\cosh(10)$
+- **Constants:** `g = 1`, `v = 1e-3`, `e = 0.4`
+
 **Inverse problem**
 
 | Training | L₂ | Parameters found (true) | Worst parameter error | Time (s) |
@@ -531,7 +699,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | **PINNStudio best** (Settings: Tuned): 3× iterations | **1.3 × 10<sup>-2</sup>** | νₑ = 0.00115135 (0.001); K = 0.00103409 (0.001) | **15%** | **234** |
 
 <details>
-<summary><strong>Inverse results: figures</strong></summary>
+<summary>📊 <em>Inverse results — figures</em></summary>
 
 *DeepXDE's settings:*
 
@@ -554,6 +722,16 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 [problem and settings in the README](../README.md#dx-inverse-diffusion-reaction-with-space-dependent-rate) · [forward runs in the tuning study](tuning_study.md#tune-diffusion-reaction-1d-unknown-rate-field)
 
+**The problem**
+
+DeepXDE example: [`diffusion_reaction_rate.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/diffusion_reaction_rate.py)
+
+$$\Large \lambda\frac{d^2u}{dx^2} - k(x)\ u = \sin(2\pi x), \qquad \lambda = 0.01,\ x \in [0, 1]$$
+
+- **Unknown:** the reaction rate $k(x)$ (true $0.1 + e^{-0.5(x - 0.5)^2/0.15^2}$), learned as a second network output
+- **Data:** 100 measurements of $u$ (computed with SciPy's `solve_bvp`, as DeepXDE does), $u = 0$ at both ends
+- **Constants:** `l = 0.01`
+
 **Inverse problem**
 
 | Training | L₂ | Parameters found (true) | Worst parameter error | Time (s) |
@@ -567,7 +745,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | **PINNStudio best** (Settings: Tuned): Larger network (2× width, one more layer) | **1.3 × 10<sup>-2</sup>** | – | **–** | **61** |
 
 <details>
-<summary><strong>Inverse results: figures</strong></summary>
+<summary>📊 <em>Inverse results — figures</em></summary>
 
 *DeepXDE's settings:*
 
@@ -586,6 +764,16 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 [problem and settings in the README](../README.md#dx-inverse-fractional-poisson-equation-1d)
 
+**The problem**
+
+DeepXDE example: [`fractional_Poisson_1d_inverse.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/fractional_Poisson_1d_inverse.py)
+
+$$\Large \frac{D_{-1+}^{\alpha}u + D_{1-}^{\alpha}u}{2\cos(\alpha\pi/2)} = \Gamma(\alpha_0 + 2)\ x, \qquad x \in [-1, 1]$$
+
+- **Unknown:** the order $\alpha$ (true $\alpha_0 = 1.8$, start 1.5) — an inverse variable named `alpha`, also the fractional α
+- **Data:** 20 measurements of $u = x(1 - x^2)^{\alpha_0/2}$, loss weight 100
+- **Constants:** `a0 = 1.8`
+
 **Inverse problem**
 
 | Training | L₂ | Parameters found (true) | Worst parameter error | Time (s) |
@@ -594,7 +782,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **4.9 × 10<sup>-3</sup>** | α = 1.79183 (1.8) | **0.45%** | – |
 
 <details>
-<summary><strong>Inverse results: figures</strong></summary>
+<summary>📊 <em>Inverse results — figures</em></summary>
 
 *PINNStudio best (README):*
 
@@ -609,6 +797,15 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 [problem and settings in the README](../README.md#dx-inverse-poisson-with-unknown-forcing-field) · [forward runs in the tuning study](tuning_study.md#tune-poisson-1d-unknown-forcing-field)
 
+**The problem**
+
+DeepXDE example: [`elliptic_inverse_field.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/elliptic_inverse_field.py) ([documentation](https://deepxde.readthedocs.io/en/latest/demos/pinn_inverse/elliptic.inverse.field.html))
+
+$$\Large -\frac{d^2u}{dx^2} + q(x) = 0, \qquad x \in [-1, 1]$$
+
+- **Unknown:** the field $q(x)$ (true $`-\pi^2\sin(\pi x)`$), learned as a second network output
+- **Data:** 100 measurements of $u$, given as a Point Set BC (and as anchor points); $u = \sin(\pi x)$ on the boundary
+
 **Inverse problem**
 
 | Training | L₂ | Parameters found (true) | Worst parameter error | Time (s) |
@@ -622,7 +819,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | **PINNStudio best** (Settings: Tuned): all of the changes together | **2.1 × 10<sup>-4</sup>** | – | **–** | **221** |
 
 <details>
-<summary><strong>Inverse results: figures</strong></summary>
+<summary>📊 <em>Inverse results — figures</em></summary>
 
 *DeepXDE's settings:*
 
@@ -645,6 +842,15 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 [problem and settings in the README](../README.md#dx-inverse-poisson-with-unknown-forcing-field-batches) · [forward runs in the tuning study](tuning_study.md#tune-poisson-1d-unknown-forcing-field-batches)
 
+**The problem**
+
+DeepXDE example: [`elliptic_inverse_field_batch.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/elliptic_inverse_field_batch.py)
+
+$$\Large -\frac{d^2u}{dx^2} + q(x) = 0, \qquad x \in [-1, 1]$$
+
+- **Unknown:** the field $q(x)$ (true $`-\pi^2\sin(\pi x)`$)
+- **Data:** 10,000 measurements of $u$, used 100 at a time (Point Set BC with batch size 100, redrawn every iteration)
+
 **Inverse problem**
 
 | Training | L₂ | Parameters found (true) | Worst parameter error | Time (s) |
@@ -658,7 +864,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | **PINNStudio best** (Settings: Tuned): all of the changes together | **7.8 × 10<sup>-4</sup>** | – | **–** | **215** |
 
 <details>
-<summary><strong>Inverse results: figures</strong></summary>
+<summary>📊 <em>Inverse results — figures</em></summary>
 
 *DeepXDE's settings:*
 
@@ -683,6 +889,20 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 [problem and settings in the README](../README.md#1d-allen-cahn)
 
+**The problem**
+
+Benchmark problem after [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086).
+
+$$\Large \frac{\partial u}{\partial t} = \gamma_1\frac{\partial^2 u}{\partial x^2} - \gamma_2 u^3 + \gamma_2 u, \qquad x \in [-1, 1],\ t \in [0, 1]$$
+
+where $\gamma_1 = 0.0001$ and $\gamma_2 = 5$.
+
+- **Initial condition:** $u(x, 0) = x^2\cos(\pi x)$
+- **Boundary conditions:** Periodic
+- **Geometry:** Interval
+
+*Inverse mode* — same template, switched to **Inverse**, jointly recovering both $\gamma_1$ (diffusion) and $\gamma_2$ (reaction) as unknown parameters:
+
 **Forward problem**
 
 | Training | L₂, last time | L₂, all times | Time (s) |
@@ -704,7 +924,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **2.1 × 10<sup>-4</sup>** | γ₁ = 9.81621e-05 (0.0001); γ₂ = 4.99953 (5) | **1.8%** | – |
 
 <details>
-<summary><strong>Forward results: figures</strong></summary>
+<summary>📊 <em>Forward results — figures</em></summary>
 
 *Wight & Zhao's method, run in PINNStudio: the figures come when its run finishes.*
 
@@ -717,7 +937,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 </details>
 
 <details>
-<summary><strong>Inverse results: figures</strong></summary>
+<summary>📊 <em>Inverse results — figures</em></summary>
 
 *PINNStudio best (README):*
 
@@ -732,6 +952,18 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 [problem and settings in the README](../README.md#1d-cahn-hilliard)
 
+**The problem**
+
+Benchmark problem after [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086), section 3.2.
+
+$$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 \mu}{\partial x^2}, \qquad \mu = \gamma_2 (u^3 - u) - \gamma_1 \frac{\partial^2 u}{\partial x^2}, \qquad x \in [-1, 1],\ t \in [0, 1]$$
+
+where $\gamma_1 = 10^{-6}$ and $\gamma_2 = 0.01$. The fourth-order equation is solved in mixed form: the chemical potential $\mu$ is a second output, so no residual needs a fourth derivative.
+
+- **Initial condition:** $u(x, 0) = -\cos(2\pi x)$; $\mu$ has none, since its equation has no time derivative and determines $\mu$ at each time
+- **Boundary conditions:** Periodic in value and slope, for $u$ and $\mu$
+- **Geometry:** Interval
+
 **Forward problem**
 
 | Training | L₂, last time | L₂, all times | Time (s) |
@@ -744,7 +976,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 *The base PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*
 
 <details>
-<summary><strong>Forward results: figures</strong></summary>
+<summary>📊 <em>Forward results — figures</em></summary>
 
 *Wight & Zhao's method, run in PINNStudio: the figures come when its run finishes.*
 
@@ -760,6 +992,18 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 <summary><strong>Cahn-Hilliard 1D – Mattey & Ghosh</strong> · PINNStudio template, after Mattey & Ghosh (2022)</summary>
 
 [problem and settings in the README](../README.md#1d-cahn-hilliard-mattey--ghosh) · [forward runs in the tuning study](tuning_study.md#tune-cahn-hilliard-1d-mattey-ghosh-pinnstudio-template-best-setup)
+
+**The problem**
+
+Benchmark problem after [Mattey & Ghosh (2022)](https://doi.org/10.1016/j.cma.2021.114474), section 5.2 (eq. 25):
+
+$$\Large \frac{\partial h}{\partial t} = \frac{\partial^2 \mu}{\partial x^2}, \qquad \mu = \kappa (h^3 - h) - \alpha\kappa \frac{\partial^2 h}{\partial x^2}, \qquad x \in [-1, 1],\ t \in [0, 1]$$
+
+where $\alpha = 0.02$ and $\kappa = 1$. As in the paper (its phase-space form, eq. 19) and the Wight & Zhao example, $\mu$ is a second output, so no residual needs a fourth derivative. The same paper's 1D Allen-Cahn problem is the [Allen-Cahn 1D – Wight & Zhao](../README.md#1d-allen-cahn) example, and its 2D Allen-Cahn IBVP-1 is [Allen-Cahn 2D – Mattey & Ghosh](../README.md#2d-allen-cahn-mattey--ghosh).
+
+- **Initial condition:** $h(x, 0) = \cos(\pi x) - \exp(-4(\pi x)^2)$; $\mu$ has none
+- **Boundary conditions:** Periodic in value and slope, for $h$ and $\mu$
+- **Geometry:** Interval
 
 **Forward problem**
 
@@ -778,7 +1022,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 *The base PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*
 
 <details>
-<summary><strong>Forward results: figures</strong></summary>
+<summary>📊 <em>Forward results — figures</em></summary>
 
 *Mattey & Ghosh's bc-PINN, run in PINNStudio: the figures come when its run finishes.*
 
@@ -797,12 +1041,34 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 [problem and settings in the README](../README.md#dx-american-put-option)
 
+**The problem**
+
+DeepXDE example: [`american_put.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/american_put.py)
+
+$$\Large \min\left(-\mathcal{L}V,\ V - \max(K - S, 0)\right) = 0, \qquad \mathcal{L}V = -\frac{\partial V}{\partial \tau} + \frac{\sigma^2}{2}S^2\frac{\partial^2 V}{\partial S^2} + rS\frac{\partial V}{\partial S} - rV$$
+
+- **Domain:** $S \in [0, 4]$, $\tau \in [0, 1]$; strike $K = 1$, $r = 0.05$, $\sigma = 0.2$
+- **Equations:** three residuals for one output (DeepXDE's Fischer-Burmeister form of the complementarity problem)
+- **Reference:** none bundled (DeepXDE compares against a binomial-tree price) — add your own in Error Analysis
+- **Constants:** `r = 0.05`, `sigma = 0.2`, `K = 1`
+
 </details>
 
 <details id="bench-black-scholes-1d-european-call">
 <summary><strong>Black-Scholes 1D – European call</strong> · DeepXDE example</summary>
 
 [problem and settings in the README](../README.md#dx-black-scholes-equation-call-option)
+
+**The problem**
+
+DeepXDE example: [`black_scholes_call.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/black_scholes_call.py) ([documentation](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/black_scholes.html))
+
+$$\Large \frac{\partial V}{\partial \tau} = \frac{\sigma^2}{2}S^2\frac{\partial^2 V}{\partial S^2} + rS\frac{\partial V}{\partial S} - rV, \qquad S \in [0, 150],\ \tau \in [0, 1]$$
+
+- **Parameters:** strike $K = 50$, rate $r = 0.05$, volatility $\sigma = 0.2$; $x$ is the stock price $S$ and $t$ the time to maturity $\tau$
+- **Initial condition:** payoff $V(S, 0) = \max(S - K, 0)$; **boundary conditions:** $V(0, \tau) = 0$, $V(150, \tau) = 150 - Ke^{-r\tau}$
+- **Exact solution:** the Black-Scholes formula (uses `norm_cdf` in the reference formula)
+- **Constants:** `K = 50`, `r = 0.05`, `sigma = 0.2`
 
 **Forward problem**
 
@@ -812,7 +1078,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **4.3 × 10<sup>-4</sup>** | – |
 
 <details>
-<summary><strong>Forward results: figures</strong></summary>
+<summary>📊 <em>Forward results — figures</em></summary>
 
 *DeepXDE's settings (README):*
 
@@ -826,6 +1092,26 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 <summary><strong>Burgers 1D – Raissi et al.</strong> · PINNStudio template, after Raissi et al. (2019)</summary>
 
 [problem and settings in the README](../README.md#1d-burgers) · [forward runs in the tuning study](tuning_study.md#tune-burgers-1d-raissi-et-al-pinnstudio-template-best-setup)
+
+**The problem**
+
+Exact equation, initial and boundary conditions as in [Raissi, Perdikaris & Karniadakis (2019)](https://doi.org/10.1016/j.jcp.2018.10.045).
+
+$$\Large \frac{\partial u}{\partial t} + u\frac{\partial u}{\partial x} = \frac{0.01}{\pi}\frac{\partial^2 u}{\partial x^2}, \qquad x \in [-1, 1],\ t \in [0, 1]$$
+
+- **Initial condition:** $u(x, 0) = -\sin(\pi x)$
+- **Boundary conditions:** Dirichlet, $u = 0$ at both ends
+- **Geometry:** Interval
+
+A shock forms near $x = 0$ as $t \to 1$; this template uses a larger fixed collocation count to resolve it rather than adaptive refinement.
+
+*Restore & visualize* — the trained model restored from its saved checkpoint and re-animated without retraining:
+
+*Inverse mode* — same template, switched to **Inverse**, jointly recovering both coefficients of the data-driven-discovery form of this equation in [Raissi, Perdikaris & Karniadakis (2019)](https://doi.org/10.1016/j.jcp.2018.10.045), Appendix B, eq. B.1:
+
+$$\Large \frac{\partial u}{\partial t} + \lambda_1 u\frac{\partial u}{\partial x} - \lambda_2\frac{\partial^2 u}{\partial x^2} = 0$$
+
+with true values $\lambda_1 = 1.0$ and $\lambda_2 = 0.01/\pi$ (the template writes the viscous term as $\frac{\lambda_2}{\pi}\frac{\partial^2 u}{\partial x^2}$, so the value it learns is 0.01). $\lambda_1$'s initial guess starts at $0.1$ rather than $1.0$, since $1.0$ is already its true value.
 
 **Forward problem**
 
@@ -850,7 +1136,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **7.8 × 10<sup>-4</sup>** | λ₁ = 0.996107 (1); λ₂ = 0.0100386 (0.01) | **0.39%** | – |
 
 <details>
-<summary><strong>Forward results: figures</strong></summary>
+<summary>📊 <em>Forward results — figures</em></summary>
 
 *Raissi et al.'s settings, run in PINNStudio: the figures come when its run finishes.*
 
@@ -861,7 +1147,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 </details>
 
 <details>
-<summary><strong>Inverse results: figures</strong></summary>
+<summary>📊 <em>Inverse results — figures</em></summary>
 
 *PINNStudio best (README):*
 
@@ -876,6 +1162,14 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 [problem and settings in the README](../README.md#dx-burgers-equation-with-rar)
 
+**The problem**
+
+DeepXDE example: [`Burgers_RAR.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Burgers_RAR.py) ([documentation](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/burgers.rar.html))
+
+$$\Large \frac{\partial u}{\partial t} + u\frac{\partial u}{\partial x} = \frac{0.01}{\pi}\frac{\partial^2 u}{\partial x^2}, \qquad x \in [-1, 1],\ t \in [0, 1]$$
+
+- **Initial / boundary conditions:** $u(x, 0) = -\sin(\pi x)$, $u(\pm 1, t) = 0$
+
 **Forward problem**
 
 | Training | L₂ | Time (s) |
@@ -884,7 +1178,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **8.4 × 10<sup>-4</sup>** | – |
 
 <details>
-<summary><strong>Forward results: figures</strong></summary>
+<summary>📊 <em>Forward results — figures</em></summary>
 
 *DeepXDE's settings (README):*
 
@@ -899,6 +1193,15 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 [problem and settings in the README](../README.md#dx-diffusion-equation) · [forward runs in the tuning study](tuning_study.md#tune-diffusion-1d)
 
+**The problem**
+
+DeepXDE example: [`diffusion_1d.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/diffusion_1d.py) ([documentation](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/diffusion.1d.html))
+
+$$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} - e^{-t}\left(\sin(\pi x) - \pi^2\sin(\pi x)\right), \qquad x \in [-1, 1],\ t \in [0, 1]$$
+
+- **Initial condition:** $u(x, 0) = \sin(\pi x)$; **boundary condition:** $u = e^{-t}\sin(\pi x)$
+- **Exact solution:** $u = e^{-t}\sin(\pi x)$
+
 **Forward problem**
 
 | Training | L₂ | Time (s) |
@@ -912,7 +1215,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | **PINNStudio best** (Settings: Tuned): all of the changes together | **1.5 × 10<sup>-3</sup>** | **76** |
 
 <details>
-<summary><strong>Forward results: figures</strong></summary>
+<summary>📊 <em>Forward results — figures</em></summary>
 
 *DeepXDE's settings:*
 
@@ -931,6 +1234,15 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 [problem and settings in the README](../README.md#dx-diffusion-equation-with-hard-ic-and-bc)
 
+**The problem**
+
+DeepXDE example: [`diffusion_1d_exactBC.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/diffusion_1d_exactBC.py) ([documentation](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/diffusion.1d.exactBC.html))
+
+$$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} - e^{-t}\left(\sin(\pi x) - \pi^2\sin(\pi x)\right), \qquad x \in [-1, 1],\ t \in [0, 1]$$
+
+- **Initial and boundary conditions:** imposed exactly by $\hat u = t(1 - x^2)N + \sin(\pi x)$ — no IC/BC loss terms
+- **Exact solution:** $u = e^{-t}\sin(\pi x)$
+
 **Forward problem**
 
 | Training | L₂ | Time (s) |
@@ -939,7 +1251,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **2.8 × 10<sup>-3</sup>** | – |
 
 <details>
-<summary><strong>Forward results: figures</strong></summary>
+<summary>📊 <em>Forward results — figures</em></summary>
 
 *DeepXDE's settings (README):*
 
@@ -954,6 +1266,15 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 [problem and settings in the README](../README.md#dx-diffusion-equation-with-resampling) · [forward runs in the tuning study](tuning_study.md#tune-diffusion-1d-resampling)
 
+**The problem**
+
+DeepXDE example: [`diffusion_1d_resample.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/diffusion_1d_resample.py) ([documentation](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/diffusion.1d.resample.html))
+
+$$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} - e^{-t}\left(\sin(\pi x) - \pi^2\sin(\pi x)\right), \qquad x \in [-1, 1],\ t \in [0, 1]$$
+
+- **Initial / boundary conditions:** $u(x, 0) = \sin(\pi x)$, $u = e^{-t}\sin(\pi x)$ on the boundary
+- **Exact solution:** $u = e^{-t}\sin(\pi x)$
+
 **Forward problem**
 
 | Training | L₂ | Time (s) |
@@ -967,7 +1288,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | **PINNStudio best** (Settings: Tuned): L-BFGS phase added | **5.8 × 10<sup>-3</sup>** | **12** |
 
 <details>
-<summary><strong>Forward results: figures</strong></summary>
+<summary>📊 <em>Forward results — figures</em></summary>
 
 *DeepXDE's settings:*
 
@@ -985,6 +1306,15 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 <summary><strong>Diffusion-reaction 1D</strong> · DeepXDE example</summary>
 
 [problem and settings in the README](../README.md#dx-diffusion-reaction-equation) · [forward runs in the tuning study](tuning_study.md#tune-diffusion-reaction-1d) · [inverse runs in the tuning study](tuning_study.md#tune-diffusion-reaction-1d-inverse-mode)
+
+**The problem**
+
+DeepXDE example: [`diffusion_reaction.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/diffusion_reaction.py) ([documentation](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/diffusion.reaction.html))
+
+$$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} + e^{-t}\left(\tfrac{3}{2}\sin 2x + \tfrac{8}{3}\sin 3x + \tfrac{15}{4}\sin 4x + \tfrac{63}{8}\sin 8x\right), \qquad x \in [-\pi, \pi],\ t \in [0, 1]$$
+
+- **Initial and boundary conditions:** imposed exactly by $\hat u = t(\pi^2 - x^2)N + \sum_k \frac{\sin(kx)}{k}$
+- **Exact solution:** $u = e^{-t}\left(\sin x + \tfrac{\sin 2x}{2} + \tfrac{\sin 3x}{3} + \tfrac{\sin 4x}{4} + \tfrac{\sin 8x}{8}\right)$
 
 **Forward problem**
 
@@ -1012,7 +1342,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 *DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*
 
 <details>
-<summary><strong>Forward results: figures</strong></summary>
+<summary>📊 <em>Forward results — figures</em></summary>
 
 *DeepXDE's settings:*
 
@@ -1025,7 +1355,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 </details>
 
 <details>
-<summary><strong>Inverse results: figures</strong></summary>
+<summary>📊 <em>Inverse results — figures</em></summary>
 
 *PINNStudio best — all of the changes together:*
 
@@ -1042,6 +1372,17 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 [problem and settings in the README](../README.md#dx-fractional-diffusion-equation)
 
+**The problem**
+
+DeepXDE example: [`fractional_diffusion_1d.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/fractional_diffusion_1d.py)
+
+$$\Large \frac{\partial u}{\partial t} = D_{0+}^{\alpha}u + D_{1-}^{\alpha}u - e^{-t}\left(x^3(1-x)^3 + f_\alpha(x)\right), \qquad x \in [0, 1],\ t \in [0, 1],\ \alpha = 1.8$$
+
+- **Equation in the panel:** `du_t - frac(u) + exp(-t)*(x**3*(1 - x)**3 + ...)` (DeepXDE's TimeFPDE)
+- **Boundary and initial conditions:** $u(0, t) = u(1, t) = 0$, $u(x, 0) = x^3(1-x)^3$, both exact through $\hat u = x(1-x)\ t\ N + x^3(1-x)^3$
+- **Exact solution:** $u = e^{-t}x^3(1-x)^3$
+- **Constants:** `alpha = 1.8`
+
 **Forward problem**
 
 | Training | L₂ | Time (s) |
@@ -1050,7 +1391,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **3.3 × 10<sup>-3</sup>** | – |
 
 <details>
-<summary><strong>Forward results: figures</strong></summary>
+<summary>📊 <em>Forward results — figures</em></summary>
 
 *DeepXDE's settings (README):*
 
@@ -1064,6 +1405,22 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 <summary><strong>Heat 1D – Dirichlet</strong> · DeepXDE example</summary>
 
 [problem and settings in the README](../README.md#dx-heat-equation) · [forward runs in the tuning study](tuning_study.md#tune-heat-1d-dirichlet) · [inverse runs in the tuning study](tuning_study.md#tune-heat-1d-dirichlet-inverse-mode)
+
+**The problem**
+
+DeepXDE example: [`heat.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/heat.py) ([documentation](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/heat.html))
+
+$$\Large \frac{\partial u}{\partial t} = 0.4\frac{\partial^2 u}{\partial x^2}, \qquad x \in [0, 1],\ t \in [0, 1]$$
+
+- **Initial condition:** $u(x, 0) = \sin(\pi x)$; **boundary conditions:** $u(0, t) = u(1, t) = 0$
+- **Exact solution:** $u = e^{-0.4\pi^2 t}\sin(\pi x)$
+- **Constants:** `a = 0.4`, `L = 1`, `n = 1`
+
+The solution decays to about 2% of its initial size by $t = 1$, so the relative error grows over time even though the absolute error stays small.
+
+*Inverse mode* — pick the example from the **Inverse** list: the diffusivity $a$ is unknown (initial guess 1, true value 0.4) and is learned together with $u$ from $u$ measured at $t = 1$ (the exact solution, [`reference_data/1D/heat/t_1.0.txt`](../reference_data/1D/heat/t_1.0.txt)):
+
+$$\Large \frac{\partial u}{\partial t} = a\ \frac{\partial^2 u}{\partial x^2}$$
 
 **Forward problem**
 
@@ -1090,7 +1447,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 *DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*
 
 <details>
-<summary><strong>Forward results: figures</strong></summary>
+<summary>📊 <em>Forward results — figures</em></summary>
 
 *DeepXDE's settings:*
 
@@ -1103,7 +1460,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 </details>
 
 <details>
-<summary><strong>Inverse results: figures</strong></summary>
+<summary>📊 <em>Inverse results — figures</em></summary>
 
 *PINNStudio best — all of the changes together:*
 
@@ -1120,6 +1477,16 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 [problem and settings in the README](../README.md#dx-heat-equation-with-resampling) · [forward runs in the tuning study](tuning_study.md#tune-heat-1d-resampling)
 
+**The problem**
+
+DeepXDE example: [`heat_resample.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/heat_resample.py) ([documentation](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/heat.resample.html))
+
+$$\Large \frac{\partial u}{\partial t} = 0.4\frac{\partial^2 u}{\partial x^2}, \qquad x \in [0, 1],\ t \in [0, 1]$$
+
+- **Initial / boundary conditions:** $u(x, 0) = \sin(\pi x)$, $u(0, t) = u(1, t) = 0$
+- **Exact solution:** $u = e^{-0.4\pi^2 t}\sin(\pi x)$
+- **Constants:** `a = 0.4`, `L = 1`, `n = 1`
+
 **Forward problem**
 
 | Training | L₂ | Time (s) |
@@ -1132,7 +1499,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | **PINNStudio best** (Settings: Tuned): Larger network (2× width, one more layer) | **3.1 × 10<sup>-3</sup>** | **558** |
 
 <details>
-<summary><strong>Forward results: figures</strong></summary>
+<summary>📊 <em>Forward results — figures</em></summary>
 
 *DeepXDE's settings:*
 
@@ -1150,6 +1517,17 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 <summary><strong>Klein-Gordon 1D</strong> · DeepXDE example</summary>
 
 [problem and settings in the README](../README.md#dx-klein-gordon-equation) · [forward runs in the tuning study](tuning_study.md#tune-klein-gordon-1d) · [inverse runs in the tuning study](tuning_study.md#tune-klein-gordon-1d-inverse-mode)
+
+**The problem**
+
+DeepXDE example: [`Klein_Gordon.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Klein_Gordon.py) ([documentation](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/klein.gordon.html))
+
+$$\Large \frac{\partial^2 u}{\partial t^2} - \frac{\partial^2 u}{\partial x^2} + u^2 = -x\cos t + x^2\cos^2 t, \qquad x \in [-1, 1],\ t \in [0, 10]$$
+
+- **Initial conditions:** $u(x, 0) = x$ and $\partial u/\partial t\ (x, 0) = 0$ (the second as an Operator BC applied at the initial time)
+- **Boundary condition:** $u = x\cos t$
+- **Exact solution:** $u = x\cos t$
+- **Constants:** `alpha = -1`, `beta = 0`, `gamma = 1`, `k = 2`
 
 **Forward problem**
 
@@ -1176,7 +1554,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 *DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*
 
 <details>
-<summary><strong>Forward results: figures</strong></summary>
+<summary>📊 <em>Forward results — figures</em></summary>
 
 *DeepXDE's settings:*
 
@@ -1189,7 +1567,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 </details>
 
 <details>
-<summary><strong>Inverse results: figures</strong></summary>
+<summary>📊 <em>Inverse results — figures</em></summary>
 
 *PINNStudio best — all of the changes together:*
 
@@ -1205,6 +1583,22 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 <summary><strong>Schrödinger 1D</strong> · DeepXDE example</summary>
 
 [problem and settings in the README](../README.md#dx-schr-dinger-equation) · [inverse runs in the tuning study](tuning_study.md#tune-schr-dinger-1d-inverse-mode)
+
+**The problem**
+
+DeepXDE example: [`Schrodinger.ipynb`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Schrodinger.ipynb)
+
+$$\Large i\frac{\partial h}{\partial t} + \frac{1}{2}\frac{\partial^2 h}{\partial x^2} + |h|^2 h = 0, \qquad x \in [-5, 5],\ t \in [0, \pi/2]$$
+
+$$\Large \frac{\partial u}{\partial t} + 0.5\frac{\partial^2 v}{\partial x^2} + (u^2 + v^2)\ v = 0$$
+
+$$\Large \frac{\partial v}{\partial t} - 0.5\frac{\partial^2 u}{\partial x^2} - (u^2 + v^2)\ u = 0$$
+
+- **Initial condition:** $h(x, 0) = 2\ \mathrm{sech}(x)$; **boundary conditions:** periodic in $u$, $v$ and their $x$-derivatives
+
+*Inverse mode* — pick the example from the **Inverse** list: the coefficient $c$ of the second-derivative terms (0.5 above; initial guess 1) is unknown and is learned from $|h| = \sqrt{u^2 + v^2}$ measured at $t = 0.75$, with the same training as above:
+
+$$\Large \frac{\partial u}{\partial t} + c\frac{\partial^2 v}{\partial x^2} + (u^2 + v^2) v = 0, \qquad \frac{\partial v}{\partial t} - c\frac{\partial^2 u}{\partial x^2} - (u^2 + v^2) u = 0$$
 
 **Forward problem**
 
@@ -1227,7 +1621,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 *DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*
 
 <details>
-<summary><strong>Forward results: figures</strong></summary>
+<summary>📊 <em>Forward results — figures</em></summary>
 
 *DeepXDE's settings (README):*
 
@@ -1236,7 +1630,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 </details>
 
 <details>
-<summary><strong>Inverse results: figures</strong></summary>
+<summary>📊 <em>Inverse results — figures</em></summary>
 
 *PINNStudio best — Larger network (2× width, one more layer):*
 
@@ -1252,6 +1646,19 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 <summary><strong>Wave 1D – space-time multi-scale Fourier features</strong> · DeepXDE example</summary>
 
 [problem and settings in the README](../README.md#dx-wave-propagation-space-time-multi-scale-fourier-features) · [forward runs in the tuning study](tuning_study.md#tune-wave-1d-space-time-multi-scale-fourier-features) · [inverse runs in the tuning study](tuning_study.md#tune-wave-1d-space-time-multi-scale-fourier-features-inverse-mode)
+
+**The problem**
+
+DeepXDE example: [`wave_1d.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/wave_1d.py)
+
+$$\Large \frac{\partial^2 u}{\partial t^2} = C^2\frac{\partial^2 u}{\partial x^2}, \qquad x \in [0, 1],\ t \in [0, 1],\ C = 10$$
+
+- **Boundary conditions:** $u(0, t) = u(1, t) = 0$
+- **Initial conditions:** $u(x, 0) = \sin(\pi x) + \sin(A\pi x)$ ($A = 2$); $\partial u/\partial t(x, 0) = 0$ as an Operator BC `du_t` applied at the initial time
+- **Exact solution:** $u = \sin(\pi x)\cos(C\pi t) + \sin(A\pi x)\cos(AC\pi t)$ — ten and twenty oscillations in time
+- **Constants:** `A = 2`, `C = 10`
+
+Collocation points are redrawn every iteration from a pseudo-random distribution. DeepXDE's script keeps the default Hammersley distribution, which is deterministic, so its resampler redraws the same 360 points: run that way, the network fits them (training loss 4 × 10⁻⁵) but not the wave in between (test loss near 1, $L_2$ ≈ 1 for t > 0). With 10,000 iterations the problem remains difficult: the error grows with t, and longer training reduces it.
 
 **Forward problem**
 
@@ -1278,7 +1685,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 *DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*
 
 <details>
-<summary><strong>Forward results: figures</strong></summary>
+<summary>📊 <em>Forward results — figures</em></summary>
 
 *DeepXDE's settings:*
 
@@ -1291,7 +1698,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 </details>
 
 <details>
-<summary><strong>Inverse results: figures</strong></summary>
+<summary>📊 <em>Inverse results — figures</em></summary>
 
 *PINNStudio best — all of the changes together:*
 
@@ -1308,6 +1715,16 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 [problem and settings in the README](../README.md#dx-inverse-diffusion-equation) · [forward runs in the tuning study](tuning_study.md#tune-diffusion-1d-unknown-coefficient)
 
+**The problem**
+
+DeepXDE example: [`diffusion_1d_inverse.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/diffusion_1d_inverse.py) ([documentation](https://deepxde.readthedocs.io/en/latest/demos/pinn_inverse/diffusion.1d.inverse.html))
+
+$$\Large \frac{\partial u}{\partial t} = C\frac{\partial^2 u}{\partial x^2} - e^{-t}\left(\sin(\pi x) - \pi^2\sin(\pi x)\right), \qquad x \in [-1, 1],\ t \in [0, 1]$$
+
+- **Unknown:** $C$ (true value 1, initial guess 2)
+- **Data:** 10 measurements of $u$ at $t = 1$, plus the initial and boundary conditions
+- **Exact solution:** $u = e^{-t}\sin(\pi x)$
+
 **Inverse problem**
 
 | Training | L₂ | Parameters found (true) | Worst parameter error | Time (s) |
@@ -1321,7 +1738,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | **PINNStudio best** (Settings: Tuned): 3× iterations | **1.2 × 10<sup>-3</sup>** | C = 1.00004 (1) | **0.004%** | **311** |
 
 <details>
-<summary><strong>Inverse results: figures</strong></summary>
+<summary>📊 <em>Inverse results — figures</em></summary>
 
 *DeepXDE's settings:*
 
@@ -1344,6 +1761,16 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 [problem and settings in the README](../README.md#dx-inverse-diffusion-reaction-system)
 
+**The problem**
+
+DeepXDE example: [`reaction_inverse.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/reaction_inverse.py) ([documentation](https://deepxde.readthedocs.io/en/latest/demos/pinn_inverse/reaction.inverse.html))
+
+$$\Large \frac{\partial C_A}{\partial t} = D\frac{\partial^2 C_A}{\partial x^2} - k_f C_A C_B^2, \qquad \frac{\partial C_B}{\partial t} = D\frac{\partial^2 C_B}{\partial x^2} - 2k_f C_A C_B^2$$
+
+- **Domain:** $x \in [0, 1]$, $t \in [0, 10]$; $C_A = C_B = e^{-20x}$ at $t = 0$, $C_A = C_B = 1 - x$ on the boundary
+- **Unknowns:** $k_f$ (true 0.1) and $D$ (true $2\times 10^{-3}$, written as $10^{-3}D$ with $D = 2$)
+- **Data:** $C_A$ and $C_B$ on a space-time grid, computed by `tools/make_deepxde_reference_data.py`
+
 **Inverse problem**
 
 | Training | L₂ | Parameters found (true) | Worst parameter error | Time (s) |
@@ -1352,7 +1779,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **–** | k_f = 0.0992 (0.1); D = 1.993 (2) | **0.8%** | – |
 
 <details>
-<summary><strong>Inverse results: figures</strong></summary>
+<summary>📊 <em>Inverse results — figures</em></summary>
 
 *PINNStudio best (README):*
 
@@ -1369,6 +1796,17 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 [problem and settings in the README](../README.md#dx-fractional-poisson-equation-2d)
 
+**The problem**
+
+DeepXDE example: [`fractional_Poisson_2d.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/fractional_Poisson_2d.py)
+
+$$\Large -(-\Delta)^{\alpha/2}u = 2^{\alpha}\Gamma(2 + \tfrac{\alpha}{2})\Gamma(1 + \tfrac{\alpha}{2})\left(1 - (1 + \tfrac{\alpha}{2})|x|^2\right), \qquad |x| < 1,\ \alpha = 1.8$$
+
+- **Equation in the panel:** `frac(u)*gamma((1 - alpha)/2)*gamma((2 + alpha)/2)/(2*pi**1.5) - ...` — `frac(u)` times $C(\alpha, 2)$ is $-(-\Delta)^{\alpha/2}u$
+- **Geometry:** unit disk; $u = 0$ on the circle through $\hat u = (1 - x^2 - y^2)N$
+- **Exact solution:** $u = (1 - |x|^2)^{1 + \alpha/2}$
+- **Constants:** `alpha = 1.8`
+
 **Forward problem**
 
 | Training | L₂ | Time (s) |
@@ -1377,7 +1815,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **1.2 × 10<sup>-3</sup>** | – |
 
 <details>
-<summary><strong>Forward results: figures</strong></summary>
+<summary>📊 <em>Forward results — figures</em></summary>
 
 *DeepXDE's settings (README):*
 
@@ -1391,6 +1829,16 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 <summary><strong>Helmholtz 2D – Dirichlet</strong> · DeepXDE example</summary>
 
 [problem and settings in the README](../README.md#dx-helmholtz-2d-dirichlet) · [inverse runs in the tuning study](tuning_study.md#tune-helmholtz-2d-dirichlet-inverse-mode)
+
+**The problem**
+
+DeepXDE example: [`Helmholtz_Dirichlet_2d.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Helmholtz_Dirichlet_2d.py) ([documentation](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/helmholtz.2d.dirichlet.html))
+
+$$\Large -\nabla^2 u - k_0^2 u = k_0^2\sin(k_0 x)\sin(k_0 y), \qquad k_0 = 4\pi,\ (x, y) \in [0, 1]^2$$
+
+- **Boundary conditions:** $u = 0$ on the boundary, imposed exactly by $\hat u = x(1-x)y(1-y)N$
+- **Exact solution:** $u = \sin(k_0 x)\sin(k_0 y)$
+- **Constants:** `n = 2`, `k0 = 2*pi*n`
 
 **Forward problem**
 
@@ -1413,7 +1861,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 *DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*
 
 <details>
-<summary><strong>Forward results: figures</strong></summary>
+<summary>📊 <em>Forward results — figures</em></summary>
 
 *DeepXDE's settings (README):*
 
@@ -1422,7 +1870,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 </details>
 
 <details>
-<summary><strong>Inverse results: figures</strong></summary>
+<summary>📊 <em>Inverse results — figures</em></summary>
 
 *PINNStudio best — 10× data weight, 3× L-BFGS and the larger network:*
 
@@ -1439,6 +1887,15 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 [problem and settings in the README](../README.md#dx-helmholtz-2d-hyperparameter-optimization)
 
+**The problem**
+
+DeepXDE example: [`Helmholtz_Dirichlet_2d_HPO.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Helmholtz_Dirichlet_2d_HPO.py)
+
+$$\Large -\nabla^2 u - k_0^2 u = k_0^2\sin(k_0 x)\sin(k_0 y), \qquad k_0 = 4\pi,\ (x, y) \in [0, 1]^2$$
+
+- **Parameter Sweep, mode Bayesian search:** learning rate $10^{-4}$ to $5\times10^{-2}$ (log), hidden layers 1–10, neurons per layer 5–500, activation sin / sigmoid / tanh
+- **Constants:** `n = 2`, `k0 = 2*pi*n`
+
 **Forward problem**
 
 | Training | L₂ | Time (s) |
@@ -1453,6 +1910,16 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 [problem and settings in the README](../README.md#dx-helmholtz-sound-hard-scattering-absorbing-bc) · [forward runs in the tuning study](tuning_study.md#tune-helmholtz-2d-sound-hard-scattering)
 
+**The problem**
+
+DeepXDE example: [`Helmholtz_Sound_hard_ABC_2d.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Helmholtz_Sound_hard_ABC_2d.py)
+
+$$\Large -\nabla^2 u - k_0^2 u = 0, \qquad u = u_{re} + i\ u_{im},\ k_0 = 2$$
+
+- **Geometry:** Custom — the square $[-\pi, \pi]^2$ minus a disk of radius $R = \pi/4$
+- **Reference:** the Bessel/Hankel series solution of DeepXDE's script
+- **Constants:** `k0 = 2`, `R = pi/4`
+
 **Forward problem**
 
 | Training | L₂ | Time (s) |
@@ -1466,7 +1933,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | **PINNStudio best** (Settings: Tuned): the example's own settings (no change did better) | **8.0 × 10<sup>-2</sup>** | **61** |
 
 <details>
-<summary><strong>Forward results: figures</strong></summary>
+<summary>📊 <em>Forward results — figures</em></summary>
 
 *DeepXDE's settings (also PINNStudio best):*
 
@@ -1483,6 +1950,17 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 [problem and settings in the README](../README.md#dx-helmholtz-2d-with-a-hole) · [forward runs in the tuning study](tuning_study.md#tune-helmholtz-2d-square-with-hole)
 
+**The problem**
+
+DeepXDE example: [`Helmholtz_Neumann_2d_hole.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Helmholtz_Neumann_2d_hole.py) ([documentation](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/helmholtz.2d.neumann.hole.html))
+
+$$\Large -\nabla^2 u - k_0^2 u = k_0^2\sin(k_0 x)\sin(k_0 y), \qquad k_0 = 2\pi$$
+
+- **Geometry:** Custom — the square $[-0.5, 0.5]^2$ minus a disk of radius 0.25
+- **Boundary conditions:** Dirichlet (exact solution) on the outer square; Neumann (exact normal derivative) on the hole
+- **Exact solution:** $u = \sin(k_0 x)\sin(k_0 y)$
+- **Constants:** `n = 1`, `k0 = 2*pi*n`, `R = 1/4`
+
 **Forward problem**
 
 | Training | L₂ | Time (s) |
@@ -1496,7 +1974,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | **PINNStudio best** (Settings: Tuned): L-BFGS phase added | **7.0 × 10<sup>-4</sup>** | **24** |
 
 <details>
-<summary><strong>Forward results: figures</strong></summary>
+<summary>📊 <em>Forward results — figures</em></summary>
 
 *DeepXDE's settings:*
 
@@ -1515,6 +1993,15 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 [problem and settings in the README](../README.md#dx-laplace-equation-on-a-disk)
 
+**The problem**
+
+DeepXDE example: [`Laplace_disk.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Laplace_disk.py) ([documentation](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/laplace.disk.html))
+
+$$\Large r\frac{\partial u}{\partial r} + r^2\frac{\partial^2 u}{\partial r^2} + \frac{\partial^2 u}{\partial \theta^2} = 0, \qquad r \in [0, 1],\ \theta \in [0, 2\pi]$$
+
+- **Boundary condition:** $u(1, \theta) = \cos\theta$
+- **Exact solution:** $u = r\cos\theta$
+
 **Forward problem**
 
 | Training | L₂ | Time (s) |
@@ -1523,7 +2010,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **1.1 × 10<sup>-3</sup>** | – |
 
 <details>
-<summary><strong>Forward results: figures</strong></summary>
+<summary>📊 <em>Forward results — figures</em></summary>
 
 *DeepXDE's settings (README):*
 
@@ -1537,6 +2024,19 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 <summary><strong>Linear elasticity 2D – plate</strong> · DeepXDE example</summary>
 
 [problem and settings in the README](../README.md#dx-linear-elastostatic-plate) · [forward runs in the tuning study](tuning_study.md#tune-linear-elasticity-2d-plate) · [inverse runs in the tuning study](tuning_study.md#tune-linear-elasticity-2d-plate-inverse-mode)
+
+**The problem**
+
+DeepXDE example: [`elasticity_plate.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/elasticity_plate.py) ([documentation](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/elasticity.plate.html))
+
+$$\Large \frac{\partial \sigma_{xx}}{\partial x} + \frac{\partial \sigma_{xy}}{\partial y} = f_x, \qquad \frac{\partial \sigma_{xy}}{\partial x} + \frac{\partial \sigma_{yy}}{\partial y} = f_y$$
+
+$$\Large \sigma_{xx} = (\lambda + 2\mu)\varepsilon_{xx} + \lambda\varepsilon_{yy}, \quad \sigma_{yy} = (\lambda + 2\mu)\varepsilon_{yy} + \lambda\varepsilon_{xx}, \quad \sigma_{xy} = 2\mu\varepsilon_{xy}$$
+
+- **Domain:** $[0, 1]^2$; $\lambda = 1$, $\mu = 0.5$, $Q = 4$ (constants `lmbd`, `mu`, `Q`); body forces $f_x$, $f_y$ as in DeepXDE's script
+- **Boundary conditions:** imposed exactly by an output transform, e.g. $\hat u_x = y(1-y)N_1$, $\hat\sigma_{yy} = (1-y)N_4 + (\lambda+2\mu)Q\sin(\pi x)$
+- **Exact solution:** $u_x = \cos(2\pi x)\sin(\pi y)$, $u_y = \sin(\pi x)\ Qy^4/4$
+- **Constants:** `lmbd = 1`, `mu = 0.5`, `Q = 4`
 
 **Forward problem**
 
@@ -1560,7 +2060,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 *DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*
 
 <details>
-<summary><strong>Forward results: figures</strong></summary>
+<summary>📊 <em>Forward results — figures</em></summary>
 
 *DeepXDE's settings:*
 
@@ -1589,7 +2089,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 </details>
 
 <details>
-<summary><strong>Inverse results: figures</strong></summary>
+<summary>📊 <em>Inverse results — figures</em></summary>
 
 *PINNStudio best — the example's own settings (no change did better):*
 
@@ -1614,6 +2114,15 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 [problem and settings in the README](../README.md#dx-linear-elastostatic-plate-soft-bcs)
 
+**The problem**
+
+DeepXDE example: [`elasticity_plate.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/elasticity_plate.py)
+
+$$\Large \frac{\partial \sigma_{xx}}{\partial x} + \frac{\partial \sigma_{xy}}{\partial y} = f_x, \qquad \frac{\partial \sigma_{xy}}{\partial x} + \frac{\partial \sigma_{yy}}{\partial y} = f_y$$
+
+- **Boundary conditions as rows** (DeepXDE's `BC_type = \"soft\"`): $u_x = 0$ at top and bottom; $u_y = 0$ at left, bottom and right; $\sigma_{xx} = 0$ at left and right; $\sigma_{yy} = (\lambda + 2\mu)Q\sin(\pi x)$ at the top
+- **Constants:** `lmbd = 1`, `mu = 0.5`, `Q = 4`
+
 **Forward problem**
 
 | Training | L₂ | Time (s) |
@@ -1622,7 +2131,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **4.9 × 10<sup>-4</sup>** | – |
 
 <details>
-<summary><strong>Forward results: figures</strong></summary>
+<summary>📊 <em>Forward results — figures</em></summary>
 
 *DeepXDE's settings (README):*
 
@@ -1636,6 +2145,17 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 <summary><strong>Navier-Stokes 2D – Kovasznay flow</strong> · DeepXDE example</summary>
 
 [problem and settings in the README](../README.md#dx-kovasznay-flow) · [inverse runs in the tuning study](tuning_study.md#tune-navier-stokes-2d-kovasznay-flow-inverse-mode)
+
+**The problem**
+
+DeepXDE example: [`Kovasznay_flow.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Kovasznay_flow.py) ([documentation](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/Kovasznay.flow.html))
+
+$$\Large (\mathbf u\cdot\nabla)\mathbf u + \nabla p = \frac{1}{Re}\nabla^2\mathbf u, \qquad \nabla\cdot\mathbf u = 0, \qquad Re = 20$$
+
+- **Domain:** $[-0.5, 1] \times [-0.5, 1.5]$; outputs $u, v, p$
+- **Boundary conditions:** Dirichlet for $u$ and $v$ on the whole boundary, and for $p$ on the outlet $x = 1$
+- **Exact solution:** $u = 1 - e^{\lambda x}\cos(2\pi y)$, $v = \frac{\lambda}{2\pi}e^{\lambda x}\sin(2\pi y)$, $p = \frac{1}{2}(1 - e^{2\lambda x})$, $\lambda = \frac{Re}{2} - \sqrt{\frac{Re^2}{4} + 4\pi^2}$
+- **Constants:** `Re = 20`, `nu = 1/Re`, `l = 1/(2*nu) - sqrt(1/(4*nu**2) + 4*pi**2)`
 
 **Forward problem**
 
@@ -1658,7 +2178,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 *DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*
 
 <details>
-<summary><strong>Forward results: figures</strong></summary>
+<summary>📊 <em>Forward results — figures</em></summary>
 
 *DeepXDE's settings (README):*
 
@@ -1667,7 +2187,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 </details>
 
 <details>
-<summary><strong>Inverse results: figures</strong></summary>
+<summary>📊 <em>Inverse results — figures</em></summary>
 
 *PINNStudio best — Larger network (2× width, one more layer):*
 
@@ -1688,6 +2208,17 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 [problem and settings in the README](../README.md#2d-poisson-disk) · [inverse runs in the tuning study](tuning_study.md#tune-poisson-2d-disk-pinnstudio-template-inverse-mode)
 
+**The problem**
+
+The Poisson equation on the unit disk, steady-state (no time axis).
+
+$$\Large -\frac{\partial^2 u}{\partial x^2} - \frac{\partial^2 u}{\partial y^2} = 1, \qquad x^2 + y^2 \le 1$$
+
+- **Boundary conditions:** Dirichlet, $u = 0$ on the boundary circle
+- **Geometry:** Disk, center $(0,0)$, radius $1$
+
+A companion to the L-Shape template above, on a smooth (curved, non-singular) boundary instead.
+
 **Forward problem**
 
 | Training | L₂ | Time (s) |
@@ -1703,7 +2234,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | **PINNStudio best** (Settings: Tuned): the example's own settings (tuning runs queued) | **5.4 × 10<sup>-4</sup>** | f = 1.00002 (1) | **0.002%** | **157** |
 
 <details>
-<summary><strong>Forward results: figures</strong></summary>
+<summary>📊 <em>Forward results — figures</em></summary>
 
 *The template's starting settings (README):*
 
@@ -1712,7 +2243,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 </details>
 
 <details>
-<summary><strong>Inverse results: figures</strong></summary>
+<summary>📊 <em>Inverse results — figures</em></summary>
 
 *PINNStudio best — the example's own settings (tuning runs queued):*
 
@@ -1729,6 +2260,17 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 [problem and settings in the README](../README.md#dx-poisson-over-an-l-shaped-domain) · [forward runs in the tuning study](tuning_study.md#tune-poisson-2d-l-shape)
 
+**The problem**
+
+DeepXDE example: [`Poisson_Lshape.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Poisson_Lshape.py) ([documentation](https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/poisson.Lshape.html))
+
+$$\Large -\nabla^2 u = f, \qquad \Omega = [-1, 1]^2 \setminus [0, 1]\times[-1, 0]$$
+
+- **Boundary conditions:** Dirichlet, $u = 0$ on the whole boundary
+- **Geometry:** Polygon (L-shape)
+
+*Inverse mode* — the source term $f$ learned from $u$ measured at 300 points (initial guess 0.1, true 1).
+
 **Forward problem**
 
 | Training | L₂ | Time (s) |
@@ -1741,7 +2283,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | **PINNStudio best** (Settings: Tuned): all of the changes together | **1.2 × 10<sup>-2</sup>** | **500** |
 
 <details>
-<summary><strong>Forward results: figures</strong></summary>
+<summary>📊 <em>Forward results — figures</em></summary>
 
 *DeepXDE's settings:*
 
@@ -1760,6 +2302,16 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 [problem and settings in the README](../README.md#dx-inverse-fractional-poisson-equation-2d)
 
+**The problem**
+
+DeepXDE example: [`fractional_Poisson_2d_inverse.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_inverse/fractional_Poisson_2d_inverse.py)
+
+$$\Large -(-\Delta)^{\alpha/2}u = 2^{\alpha_0}\Gamma(2 + \tfrac{\alpha_0}{2})\Gamma(1 + \tfrac{\alpha_0}{2})\left(1 - (1 + \tfrac{\alpha_0}{2})|x|^2\right), \qquad |x| < 1$$
+
+- **Unknown:** the order $\alpha$ (true 1.8, start 1.5); $C(\alpha, 2)$ written with `lgamma` so it stays differentiable in α
+- **Data:** 30 random measurements of $u = (1 - |x|^2)^{1 + \alpha_0/2}$, loss weight 100
+- **Constants:** `a0 = 1.8`
+
 **Inverse problem**
 
 | Training | L₂ | Parameters found (true) | Worst parameter error | Time (s) |
@@ -1768,7 +2320,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **2.3 × 10<sup>-3</sup>** | α = 1.80445 (1.8) | **0.25%** | – |
 
 <details>
-<summary><strong>Inverse results: figures</strong></summary>
+<summary>📊 <em>Inverse results — figures</em></summary>
 
 *PINNStudio best (README):*
 
@@ -1784,6 +2336,26 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 <summary><strong>Allen-Cahn 2D – Wight & Zhao</strong> · PINNStudio template, after Wight & Zhao (2021)</summary>
 
 [problem and settings in the README](../README.md#2d-allen-cahn-wight--zhao) · [forward runs in the tuning study](tuning_study.md#tune-allen-cahn-2d-wight-zhao-pinnstudio-template) · [forward runs in the tuning study](tuning_study.md#tune-allen-cahn-2d-wight-zhao-pinnstudio-template-best-setup) · [inverse runs in the tuning study](tuning_study.md#tune-allen-cahn-2d-wight-zhao-pinnstudio-template-inverse-mode)
+
+**The problem**
+
+Benchmark problem after [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086). This is the paper's own shrinking-circle-interface benchmark, posed there for a field $\phi$ with rate constant $\lambda$ and interface-width parameter $\varepsilon$ (eq. 3.11):
+
+$$\Large \frac{\partial \phi}{\partial t} = \lambda\left(\varepsilon^2\left(\frac{\partial^2 \phi}{\partial x^2} + \frac{\partial^2 \phi}{\partial y^2}\right) - \phi^3 + \phi\right), \qquad (x, y) \in [0, 1]^2,\ t \in [0, 10]$$
+
+where $\lambda = 10$ and $\varepsilon = 0.025$, matching the paper's own values ($\lambda\varepsilon^2 = 0.00625$ is the effective diffusion coefficient).
+
+- **Initial condition:** a smooth circular interface, $\phi(x, y, 0) = \tanh\left(\dfrac{0.35 - \sqrt{(x-0.5)^2 + (y-0.5)^2}}{2\varepsilon}\right)$ (paper's eq. 3.12)
+- **Boundary conditions:** Periodic
+- **Geometry:** Rectangle
+
+*Restore & visualize* — the trained model restored from its saved checkpoint and re-animated without retraining:
+
+*Inverse mode* — same template, switched to **Inverse**, jointly recovering the two coefficients as they are written in the PDE box: the reaction-term coefficient $\lambda$ and the lumped diffusion-term coefficient $\lambda\varepsilon^2$ (not $\varepsilon$ on its own):
+
+$$\Large \frac{\partial \phi}{\partial t} = (\lambda\varepsilon^2)\left(\frac{\partial^2 \phi}{\partial x^2} + \frac{\partial^2 \phi}{\partial y^2}\right) - \lambda(\phi^3 - \phi)$$
+
+with true values $\lambda = 10$ and $\lambda\varepsilon^2 = 0.00625$.
 
 **Forward problem**
 
@@ -1812,7 +2384,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | **PINNStudio best** (Settings: Tuned): the example's own settings (tuning runs queued) | **3.1 × 10<sup>-4</sup>** | λ = 9.54428 (10); λε² = 0.00598505 (0.00625) | **4.6%** | **396** |
 
 <details>
-<summary><strong>Forward results: figures</strong></summary>
+<summary>📊 <em>Forward results — figures</em></summary>
 
 *Wight & Zhao's method, run in PINNStudio: the figures come when its run finishes.*
 
@@ -1823,7 +2395,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 </details>
 
 <details>
-<summary><strong>Inverse results: figures</strong></summary>
+<summary>📊 <em>Inverse results — figures</em></summary>
 
 *PINNStudio best — the example's own settings (tuning runs queued):*
 
@@ -1839,6 +2411,22 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 <summary><strong>Allen-Cahn 2D – Mattey & Ghosh</strong> · PINNStudio template, after Mattey & Ghosh (2022)</summary>
 
 [problem and settings in the README](../README.md#2d-allen-cahn-mattey--ghosh) · [forward runs in the tuning study](tuning_study.md#tune-allen-cahn-2d-mattey-ghosh-pinnstudio-template-best-setup) · [inverse runs in the tuning study](tuning_study.md#tune-allen-cahn-2d-mattey-ghosh-pinnstudio-template-inverse-mode)
+
+**The problem**
+
+Benchmark problem after [Mattey & Ghosh (2022)](https://doi.org/10.1016/j.cma.2021.114474).
+
+$$\Large \frac{\partial h}{\partial t} = c_1^2\left(\frac{\partial^2 h}{\partial x^2} + \frac{\partial^2 h}{\partial y^2}\right) - c_2(h^3 - h), \qquad (x, y) \in [0, 1]^2,\ t \in (0, 1]$$
+
+where $c_1^2 = 0.0001$ and $c_2 = 1$.
+
+- **Initial condition:** $h(x, y, 0) = \sin(4\pi x)\cos(4\pi y)$
+- **Boundary conditions:** Periodic
+- **Geometry:** Rectangle
+
+*Restore & visualize* — the trained model restored from its saved checkpoint and re-animated without retraining:
+
+*Inverse mode* — same template, switched to **Inverse**, jointly recovering both $c_1^2$ (interfacial-thickness-squared) and $c_2$ (reaction) as unknown parameters; $c_2$'s initial guess starts at $0.1$ rather than $1.0$, since $1.0$ is already its true value. The template measures $h$ at every reference time after $t = 0$ ($t$ = 0.25, 0.5, 0.75 and 1, four data files, each with weight 100) and trains with Adam 20,000 → L-BFGS 20,000 (Forward keeps L-BFGS 10,000).
 
 **Forward problem**
 
@@ -1863,7 +2451,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | **PINNStudio best** (Settings: Tuned): the example's own settings (tuning runs queued) | **8.9 × 10<sup>-4</sup>** | c₁² = 0.000105791 (0.0001); c₂ = 1.00367 (1) | **5.8%** | **1735** |
 
 <details>
-<summary><strong>Forward results: figures</strong></summary>
+<summary>📊 <em>Forward results — figures</em></summary>
 
 *Mattey & Ghosh's bc-PINN, run in PINNStudio: the figures come when its run finishes.*
 
@@ -1874,7 +2462,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 </details>
 
 <details>
-<summary><strong>Inverse results: figures</strong></summary>
+<summary>📊 <em>Inverse results — figures</em></summary>
 
 *PINNStudio best — the example's own settings (tuning runs queued):*
 
@@ -1890,6 +2478,20 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 <summary><strong>Cahn-Hilliard 2D – Wight & Zhao</strong> · PINNStudio template, after Wight & Zhao (2021)</summary>
 
 [problem and settings in the README](../README.md#2d-cahn-hilliard-wight--zhao) · [forward runs in the tuning study](tuning_study.md#tune-cahn-hilliard-2d-wight-zhao-pinnstudio-template) · [inverse runs in the tuning study](tuning_study.md#tune-cahn-hilliard-2d-wight-zhao-pinnstudio-template-inverse-mode)
+
+**The problem**
+
+Benchmark problem after [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086), section 3.3 (eqs. 3.20–3.21): two bubbles that touch and merge into one, written for a field $\phi$,
+
+$$\Large \frac{\partial \phi}{\partial t} = \lambda\left(\frac{\partial^2 \mu}{\partial x^2} + \frac{\partial^2 \mu}{\partial y^2}\right), \qquad \mu = \phi^3 - \phi - \varepsilon^2\left(\frac{\partial^2 \phi}{\partial x^2} + \frac{\partial^2 \phi}{\partial y^2}\right), \qquad (x, y) \in [-1, 1]^2,\ t \in [0, 1]$$
+
+where $\lambda = 1$ and $\varepsilon = 0.05$. As in the 1D example, the chemical potential $\mu$ is a second output (the paper's network is also $`(\phi, \mu)`$), so no residual needs a fourth derivative.
+
+- **Initial condition:** the paper's two bubbles of radius $r = 0.4$ centred at $(\pm 0.28, 0)$, $\phi = \max\left(\tanh\frac{r - R_1}{2\varepsilon}, \tanh\frac{r - R_2}{2\varepsilon}\right) = \tanh\frac{r - \min(R_1, R_2)}{2\varepsilon}$, with the minimum written smoothly, $\min(R_1, R_2) \approx \tfrac12\left(R_1 + R_2 - \sqrt{(R_1 - R_2)^2 + 0.0004}\right)$. The plain minimum has a corner where the bubbles touch, and the curvature at that corner drives the merging. A network built on the exact initial condition cannot capture curvature at a corner, and with it every setup learned an almost frozen solution (16% / 30% error at $t = 0.25$ / 1, about what leaving $\phi$ unchanged gives). The smoothing changes $\phi$ by 0.5% (relative $L_2$), only along the line where the bubbles meet; the reference data uses the same formula. $\mu$ has no initial condition.
+- **Boundary conditions:** Periodic, for $\phi$ and $\mu$
+- **Geometry:** Rectangle
+
+*Inverse mode* — same template, switched to **Inverse**, recovering $\varepsilon^2$ (initial guess 1, true value 0.0025) from $\phi$ measured at $t = 1$.
 
 **Forward problem**
 
@@ -1913,7 +2515,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | **PINNStudio best** (Settings: Tuned): the example's own settings (tuning runs queued) | **6.9 × 10<sup>-5</sup>** | ε² = 0.00251042 (0.0025) | **0.42%** | **3736** |
 
 <details>
-<summary><strong>Forward results: figures</strong></summary>
+<summary>📊 <em>Forward results — figures</em></summary>
 
 *Wight & Zhao's method, run in PINNStudio: the figures come when its run finishes.*
 
@@ -1926,7 +2528,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 </details>
 
 <details>
-<summary><strong>Inverse results: figures</strong></summary>
+<summary>📊 <em>Inverse results — figures</em></summary>
 
 *PINNStudio best — the example's own settings (tuning runs queued):*
 
@@ -1944,6 +2546,18 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 <summary><strong>Cahn-Hilliard 2D – Mattey & Ghosh</strong> · PINNStudio template, after Mattey & Ghosh (2022)</summary>
 
 [problem and settings in the README](../README.md#2d-cahn-hilliard-mattey--ghosh)
+
+**The problem**
+
+Benchmark problem after [Mattey & Ghosh (2022)](https://doi.org/10.1016/j.cma.2021.114474), section 6.2, IBVP-2: a pattern of stripes that sharpens into the two phases,
+
+$$\Large \frac{\partial h}{\partial t'} = 0.005\left(\frac{\partial^2 \mu}{\partial x^2} + \frac{\partial^2 \mu}{\partial y^2}\right), \qquad \mu = h^3 - h - \alpha\left(\frac{\partial^2 h}{\partial x^2} + \frac{\partial^2 h}{\partial y^2}\right), \qquad (x, y) \in [0, 1]^2,\ t' \in [0, 1]$$
+
+- **Initial condition:** $h(x, y, 0) = 0.4\cos(4\pi x)\cos(4\pi(x + y))$; $\mu$ has none
+- **Boundary conditions:** Periodic, for $h$ and $\mu$
+- **Geometry:** Rectangle
+
+*Inverse mode* — same template, switched to **Inverse**, recovering $\alpha$ and $\kappa$ (initial guesses 1 and 0.1, true values 0.0002 and 1) from $h$ measured at $t' = 1$.
 
 **Forward problem**
 
@@ -1964,7 +2578,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **–** | α = 0.000188 (0.0002); κ = 1.012 (1) | **6%** | – |
 
 <details>
-<summary><strong>Forward results: figures</strong></summary>
+<summary>📊 <em>Forward results — figures</em></summary>
 
 *Mattey & Ghosh's bc-PINN, run in PINNStudio: the figures come when its run finishes.*
 
@@ -1975,7 +2589,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 </details>
 
 <details>
-<summary><strong>Inverse results: figures</strong></summary>
+<summary>📊 <em>Inverse results — figures</em></summary>
 
 *PINNStudio best (README):*
 
@@ -1989,6 +2603,54 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 <summary><strong>Burgers 2D – Mathias et al.</strong> · PINNStudio template, after Mathias et al. (2022)</summary>
 
 [problem and settings in the README](../README.md#2d-burgers-mathias) · [forward runs in the tuning study](tuning_study.md#tune-burgers-2d-mathias-et-al-pinnstudio-template) · [inverse runs in the tuning study](tuning_study.md#tune-burgers-2d-mathias-et-al-pinnstudio-template-inverse-mode)
+
+**The problem**
+
+Physics after [Mathias et al. (2022)](https://arxiv.org/abs/2301.07824). A coupled, two-output system for the velocity components $U$, $V$, with kinematic viscosity $\nu = \dfrac{0.01}{\pi}$:
+
+$$\Large \frac{\partial U}{\partial t} + U\frac{\partial U}{\partial x} + V\frac{\partial U}{\partial y} = \nu\left(\frac{\partial^2 U}{\partial x^2} + \frac{\partial^2 U}{\partial y^2}\right)$$
+
+$$\Large \frac{\partial V}{\partial t} + U\frac{\partial V}{\partial x} + V\frac{\partial V}{\partial y} = \nu\left(\frac{\partial^2 V}{\partial x^2} + \frac{\partial^2 V}{\partial y^2}\right)$$
+
+$(x, y) \in [0, 1]^2$, $t \in [0, 1]$
+
+- **Initial condition:** $U(x,y,0) = \sin(2\pi x)\sin(2\pi y)$, $\ V(x,y,0) = \sin(\pi x)\sin(\pi y)$
+- **Boundary conditions:** Dirichlet, $U = V = 0$ on all four edges
+- **Geometry:** Rectangle
+
+This template uses the paper's PDE, domain, and initial/boundary conditions with PINNStudio's standard soft-constrained loss and a plain MLP network. The paper's sparse-data augmentation and hard-constrained output layer are not included.
+
+PINN solution animated over time, for each of the two coupled outputs:
+
+<table>
+<tr>
+<td width="50%" align="center">
+<img src="assets/Images/2D_Burgers/solution_plot_u.gif" alt="2D Burgers (Mathias) — U solution animated over time" width="100%">
+<sub><strong>U</strong></sub>
+</td>
+<td width="50%" align="center">
+<img src="assets/Images/2D_Burgers/solution_plot_v.gif" alt="2D Burgers (Mathias) — V solution animated over time" width="100%">
+<sub><strong>V</strong></sub>
+</td>
+</tr>
+</table>
+
+Error Analysis — PINN vs Ground Truth, for each output:
+
+<table>
+<tr>
+<td width="50%" align="center">
+<img src="assets/Images/2D_Burgers/surface_comparison_u.png" alt="2D Burgers (Mathias) — U surface comparison" width="100%">
+<sub><strong>U</strong></sub>
+</td>
+<td width="50%" align="center">
+<img src="assets/Images/2D_Burgers/surface_comparison_v.png" alt="2D Burgers (Mathias) — V surface comparison" width="100%">
+<sub><strong>V</strong></sub>
+</td>
+</tr>
+</table>
+
+*Inverse mode* — same template, switched to **Inverse**, recovering the shared viscosity $\nu$ (true value $0.01/\pi \approx 3.18 \times 10^{-3}$, initial guess 1) from $U$ and $V$ measured at $t = 1$, each against its own output. $\nu$ converges to 3.44 × 10⁻³, and the $L_2$ error at $t = 1$ is 3.7 × 10⁻³ for $U$ and 3.1 × 10⁻³ for $V$:
 
 **Forward problem**
 
@@ -2013,7 +2675,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | **PINNStudio best** (Settings: Tuned): the example's own settings (tuning runs queued) | **3.5 × 10<sup>-3</sup>** | ν = 0.00341319 (0.0031831) | **7.2%** | **1242** |
 
 <details>
-<summary><strong>Forward results: figures</strong></summary>
+<summary>📊 <em>Forward results — figures</em></summary>
 
 *Mathias et al.'s settings, run in PINNStudio: the figures come when its run finishes.*
 
@@ -2026,7 +2688,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 </details>
 
 <details>
-<summary><strong>Inverse results: figures</strong></summary>
+<summary>📊 <em>Inverse results — figures</em></summary>
 
 *PINNStudio best — the example's own settings (tuning runs queued):*
 
@@ -2045,6 +2707,18 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 [problem and settings in the README](../README.md#2d-heat) · [inverse runs in the tuning study](tuning_study.md#tune-heat-2d-pinnstudio-template-inverse-mode)
 
+**The problem**
+
+$$\Large \frac{\partial u}{\partial t} = 0.4\left(\frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2}\right), \qquad (x, y) \in [0, 1]^2,\ t \in [0, 1]$$
+
+- **Initial condition:** $u(x, y, 0) = 0$
+- **Boundary conditions:** Dirichlet $u = 1$ on the $x = 1$ edge; Neumann (insulated) on the other three
+- **Geometry:** Rectangle
+
+*Restore & visualize* — the trained model restored from its saved checkpoint and re-animated without retraining:
+
+*Inverse mode* — same template, switched to **Inverse**, recovering the diffusivity coefficient (fixed at $0.4$ in Forward mode above) as an unknown parameter:
+
 **Forward problem**
 
 | Training | L₂ | Time (s) |
@@ -2060,7 +2734,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | **PINNStudio best** (Settings: Tuned): the example's own settings (tuning runs queued) | **5.8 × 10<sup>-4</sup>** | α = 0.399893 (0.4) | **0.027%** | **169** |
 
 <details>
-<summary><strong>Forward results: figures</strong></summary>
+<summary>📊 <em>Forward results — figures</em></summary>
 
 *The template's starting settings (README):*
 
@@ -2069,7 +2743,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 </details>
 
 <details>
-<summary><strong>Inverse results: figures</strong></summary>
+<summary>📊 <em>Inverse results — figures</em></summary>
 
 *PINNStudio best — the example's own settings (tuning runs queued):*
 
@@ -2088,6 +2762,16 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 [problem and settings in the README](../README.md#dx-fractional-poisson-equation-3d)
 
+**The problem**
+
+DeepXDE example: [`fractional_Poisson_3d.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/fractional_Poisson_3d.py)
+
+$$\Large -(-\Delta)^{\alpha/2}u = \frac{2^{\alpha}\Gamma(2 + \frac{\alpha}{2})\Gamma(\frac{3 + \alpha}{2})}{\Gamma(\frac{3}{2})}\left(1 - (1 + \tfrac{\alpha}{3})|x|^2\right), \qquad |x| < 1,\ \alpha = 1.8$$
+
+- **Geometry:** unit sphere; $u = 0$ on the sphere through $\hat u = (1 - |x|^2)N$
+- **Exact solution:** $u = (1 - |x|^2)^{1 + \alpha/2}$
+- **Constants:** `alpha = 1.8`
+
 **Forward problem**
 
 | Training | L₂ | Time (s) |
@@ -2096,7 +2780,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **6.7 × 10<sup>-3</sup>** | – |
 
 <details>
-<summary><strong>Forward results: figures</strong></summary>
+<summary>📊 <em>Forward results — figures</em></summary>
 
 *DeepXDE's settings (README):*
 
@@ -2110,6 +2794,17 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 <summary><strong>Poisson 3D – sphere</strong> · PINNStudio template</summary>
 
 [problem and settings in the README](../README.md#3d-poisson-sphere)
+
+**The problem**
+
+The Poisson equation on the unit ball, steady-state (no time axis) — the 3D companion to the 2D Poisson (Disk) template above.
+
+$$\Large -\frac{\partial^2 u}{\partial x^2} - \frac{\partial^2 u}{\partial y^2} - \frac{\partial^2 u}{\partial z^2} = 1, \qquad x^2 + y^2 + z^2 \le 1$$
+
+- **Boundary conditions:** Dirichlet, $u = 0$ on the boundary sphere
+- **Geometry:** Sphere, center $(0,0,0)$, radius $1$
+
+*Inverse mode* — same template, switched to **Inverse**, recovering the source term (fixed at $1$ in Forward mode above) as an unknown parameter from 300 measured points
 
 **Forward problem**
 
@@ -2126,7 +2821,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **1.4 × 10<sup>-3</sup>** | f = 1.00005 (1) | **0.005%** | – |
 
 <details>
-<summary><strong>Forward results: figures</strong></summary>
+<summary>📊 <em>Forward results — figures</em></summary>
 
 *The template's starting settings (README):*
 
@@ -2135,7 +2830,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 </details>
 
 <details>
-<summary><strong>Inverse results: figures</strong></summary>
+<summary>📊 <em>Inverse results — figures</em></summary>
 
 *PINNStudio best (README):*
 
@@ -2149,6 +2844,20 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 <summary><strong>Allen-Cahn 3D – Wight & Zhao</strong> · PINNStudio template, after Wight & Zhao (2021)</summary>
 
 [problem and settings in the README](../README.md#3d-allen-cahn-wight--zhao) · [inverse runs in the tuning study](tuning_study.md#tune-allen-cahn-3d-wight-zhao-pinnstudio-template-inverse-mode)
+
+**The problem**
+
+Benchmark problem after [Wight & Zhao (2021)](https://doi.org/10.4208/cicp.OA-2020-0086), section 3.2 (eq. 3.13): a spherical drop inside the periodic cube $[0, 1]^3$ that shrinks under its own curvature,
+
+$$\Large \frac{\partial \phi}{\partial t} = \lambda\left(\varepsilon^2\left(\frac{\partial^2 \phi}{\partial x^2} + \frac{\partial^2 \phi}{\partial y^2} + \frac{\partial^2 \phi}{\partial z^2}\right) - \phi^3 + \phi\right), \qquad (x, y, z) \in [0, 1]^3,\ t \in [0, 1]$$
+
+where $\lambda = 10$ and $\varepsilon = 0.05$ ($\lambda\varepsilon^2 = 0.025$). Its radius goes from 0.35 to about 0.14 at $t = 1$.
+
+- **Initial condition:** $\phi(x, y, z, 0) = \tanh\left(\dfrac{0.35 - \sqrt{(x-0.5)^2 + (y-0.5)^2 + (z-0.5)^2}}{2\varepsilon}\right)$ (written with $+10^{-6}$ under the square root, which keeps its derivatives finite at the centre)
+- **Boundary conditions:** Periodic in x, y and z
+- **Geometry:** Cuboid
+
+*Inverse mode* — same template, switched to **Inverse**, recovering the two coefficients as they are written in the PDE box, the reaction coefficient $\lambda$ and the diffusion coefficient $\lambda\varepsilon^2$ (initial guesses 1, true values 10 and 0.025), from $\phi$ measured at $t = 1$ on every second point of the $51^3$ reference grid (*Measured data → Use: Grid, 26 points per axis*, 17,576 points).
 
 **Forward problem**
 
@@ -2169,7 +2878,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | **PINNStudio best** (Settings: Tuned): the example's own settings (tuning runs queued) | **9.7 × 10<sup>-5</sup>** | λ = 9.96899 (10); λε² = 0.0249817 (0.025) | **0.31%** | **1419** |
 
 <details>
-<summary><strong>Forward results: figures</strong></summary>
+<summary>📊 <em>Forward results — figures</em></summary>
 
 *Wight & Zhao's method, run in PINNStudio: the figures come when its run finishes.*
 
@@ -2180,7 +2889,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 </details>
 
 <details>
-<summary><strong>Inverse results: figures</strong></summary>
+<summary>📊 <em>Inverse results — figures</em></summary>
 
 *PINNStudio best — the example's own settings (tuning runs queued):*
 
@@ -2197,6 +2906,22 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 
 [problem and settings in the README](../README.md#3d-heat) · [inverse runs in the tuning study](tuning_study.md#tune-heat-3d-pinnstudio-template-inverse-mode)
 
+**The problem**
+
+The 2D Heat problem extended with a $z$ axis — diffusion in a unit cube.
+
+$$\Large \frac{\partial u}{\partial t} = 0.4\left(\frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2} + \frac{\partial^2 u}{\partial z^2}\right), \qquad (x, y, z) \in [0, 1]^3,\ t \in [0, 1]$$
+
+- **Initial condition:** $u(x, y, z, 0) = 0$
+- **Boundary conditions:** Dirichlet $u = 1$ on the $x = 1$ face; Neumann (insulated) on the other five
+- **Geometry:** Cuboid
+
+Time-Adaptive Training is fully supported for this template if you turn it on — see the note on 3D grid resolution under [Time-Adaptive training](../README.md#training) in Features before picking a large "IC grid resolution" value.
+
+*Restore & visualize* — the trained model restored from its saved checkpoint and re-animated without retraining:
+
+*Inverse mode* — same template, switched to **Inverse**, recovering the diffusivity coefficient (fixed at $0.4$ in Forward mode above) as an unknown parameter:
+
 **Forward problem**
 
 | Training | L₂ | Time (s) |
@@ -2212,7 +2937,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 | **PINNStudio best** (Settings: Tuned): the example's own settings (tuning runs queued) | **1.3 × 10<sup>-3</sup>** | α = 0.400303 (0.4) | **0.076%** | **729** |
 
 <details>
-<summary><strong>Forward results: figures</strong></summary>
+<summary>📊 <em>Forward results — figures</em></summary>
 
 *The template's starting settings (README):*
 
@@ -2221,7 +2946,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 </details>
 
 <details>
-<summary><strong>Inverse results: figures</strong></summary>
+<summary>📊 <em>Inverse results — figures</em></summary>
 
 *PINNStudio best — the example's own settings (tuning runs queued):*
 
@@ -2237,6 +2962,14 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 <summary><strong>Navier-Stokes 3D – Beltrami flow</strong> · DeepXDE example</summary>
 
 [problem and settings in the README](../README.md#dx-beltrami-flow) · [inverse runs in the tuning study](tuning_study.md#tune-navier-stokes-3d-beltrami-flow-inverse-mode)
+
+**The problem**
+
+DeepXDE example: [`Beltrami_flow.py`](https://github.com/lululxvi/deepxde/blob/master/examples/pinn_forward/Beltrami_flow.py)
+
+$$\Large \frac{\partial \mathbf u}{\partial t} + (\mathbf u\cdot\nabla)\mathbf u + \nabla p = \nabla^2\mathbf u, \qquad \nabla\cdot\mathbf u = 0, \qquad (x, y, z) \in [-1, 1]^3,\ t \in [0, 1]$$
+
+- **Exact solution:** e.g. $u = -\left(e^{x}\sin(y + z) + e^{z}\cos(x + y)\right)e^{-t}$
 
 **Forward problem**
 
@@ -2258,7 +2991,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 *DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*
 
 <details>
-<summary><strong>Forward results: figures</strong></summary>
+<summary>📊 <em>Forward results — figures</em></summary>
 
 *DeepXDE's settings (README):*
 
@@ -2267,7 +3000,7 @@ The sweep was run on the 36 examples with the largest errors. The others were al
 </details>
 
 <details>
-<summary><strong>Inverse results: figures</strong></summary>
+<summary>📊 <em>Inverse results — figures</em></summary>
 
 *PINNStudio best — 3× L-BFGS iterations:*
 

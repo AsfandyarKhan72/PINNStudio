@@ -96,6 +96,52 @@ def _readme_images(name):
     return fwd, inv
 
 
+def _problem_md(name):
+    """The problem as the main README states it (source, equations, domain, initial and boundary conditions,
+    and the inverse mode's unknowns), without its settings, results and figures, with links made relative
+    to this page."""
+    try:
+        text = open(README, encoding="utf-8").read()
+    except OSError:
+        return ""
+    m = re.search(r"<summary><strong>" + re.escape(name) + r"</strong></summary>(.*?)</details>", text, re.S)
+    if not m:
+        return ""
+    out, skip_para = [], False
+    for ln in m.group(1).strip().split("\n"):
+        st = ln.strip()
+        if st.startswith(("**Result", "**Inverse result", "**Results", "Result:", "**Note", "*Without",
+                          "The figure", "The same run", "The plot", "The animation", "The figures",
+                          "**Why", "DeepXDE's own script")):
+            skip_para = True
+            continue
+        if not st:
+            skip_para = False
+            out.append("")
+            continue
+        if skip_para or st.startswith("![") or re.fullmatch(r"\*[^*].*[^*]\*", st) and not st.startswith("*Inverse mode*"):
+            continue
+        mb = re.match(r"- \*\*([^*:]+)", st)
+        if mb and ("loss term" in mb.group(1) or not re.match(r"(Initial|Boundary|Geometry|Domain|Exact solution|Constants|Problem dimension|"
+                               r"Unknown|Data|Reference|Source|Load|Material|Coefficient|Parameter|Forcing|Equation)",
+                               mb.group(1).strip())):
+            continue                     # the settings bullets: the tables give the settings each run used
+        ln = re.sub(r"[;,]? the live [^.:]*below[^.:]*", "", ln)
+        ln = re.sub(r"\s*The (live )?(convergence )?animation below[^:]*(:|$)", "", ln)
+        ln = re.sub(r"\s*(The live |the )?(live )?convergence animation[^.]*\.", "", ln)
+        ln = re.sub(r";\s*the convergence animation[^.]*", "", ln)
+        out.append(re.sub(r"\s*\*\*(Inverse )?[Rr]esults?\b.*$", "", ln))     # a result in the same paragraph
+    md = re.sub(r"\n{3,}", "\n\n", "\n".join(out)).strip()
+
+    def fix(mm):
+        url = mm.group(2)
+        if url.startswith(("http", "mailto:", "../")):
+            return mm.group(0)
+        url = "../README.md" + url if url.startswith("#") else "../" + url
+        return f"{mm.group(1)}({url})"
+    return re.sub(r"(\]|`\])\(([^)\s]+)\)", fix, md)
+
+
 def _anchor(name):
     try:
         text = open(README, encoding="utf-8").read()
@@ -400,6 +446,10 @@ def _section(r):
                          f"(tuning_study.md#{mtp._slug(t)})")
     if links:
         a(" · ".join(dict.fromkeys(links)) + "\n")
+    prob = _problem_md(e.name)
+    if prob:
+        a("**The problem**\n")
+        a(prob + "\n")
 
     has_f = r["f_ref"] is not None or r["f_best"] is not None
     has_i = r.get("i_best") is not None or r.get("i_best_par")
@@ -475,7 +525,7 @@ def _section(r):
         blocks = [(t, p) for t, p in blocks if p or t.startswith("*")]
         if not blocks:
             return
-        a(f"<details>\n<summary><strong>{title}</strong></summary>\n")
+        a(f"<details>\n<summary>{title}</summary>\n")
         for t, paths in blocks:
             if t.startswith("*"):          # a note in place of figures
                 a(t + "\n")
@@ -511,7 +561,7 @@ def _section(r):
             blocks.append((f"PINNStudio best — {_best_label(r, False)}", best_figs))
         elif not best_s and paper_rows and fwd_r:
             blocks.append(("PINNStudio best (the template's own settings, README)", [p for _, p in fwd_r[:1]]))
-        toggle("Forward results: figures", blocks)
+        toggle("📊 <em>Forward results — figures</em>", blocks)
     if has_i:
         blocks = []
         i_s = r.get("i_s")
@@ -525,7 +575,7 @@ def _section(r):
             blocks.append((f"PINNStudio best — {lab}", _figs_md(i_s, v, raw_v)))
         elif inv_r:
             blocks.append(("PINNStudio best (README)", [p for _, p in inv_r[:1]]))
-        toggle("Inverse results: figures", blocks)
+        toggle("📊 <em>Inverse results — figures</em>", blocks)
     a("</details>\n")
     return "\n".join(L)
 
