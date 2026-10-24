@@ -12,7 +12,7 @@ The sweep was run on the 39 examples with the largest errors. The others were al
 
 ![Every example: the reference settings and PINNStudio's best, forward and inverse, and the error of each learned parameter](figures/benchmarks_summary.png)
 
-*Open grey markers: DeepXDE's settings, or the paper's method run in PINNStudio; filled: PINNStudio's best (one filled marker where the two are the same, or where no tuning was needed). Right: the error of each learned parameter, labelled with its symbol. ⭐: the error the paper reports (over all times) for the templates taken from a paper.*
+*Circles: forward problems; diamonds: inverse problems. Filled: PINNStudio's best; open: DeepXDE's settings, or the paper's method run in PINNStudio; a ring around a filled marker: the two are the same (no tuning was needed). Right: the error of each learned parameter, labelled with its symbol. ⭐: the error the paper reports (over all times) for the templates taken from a paper.*
 
 <details>
 <summary>📋 <em>All results — one table</em></summary>
@@ -94,7 +94,7 @@ The sweep was run on the 39 examples with the largest errors. The others were al
 
 **For Word.** The figure is drawn at its printed size, 6.5 × 7.5 in (the text width of a Word page with 1 in margins), with 8.5–9 pt text, so insert it at 100% and it leaves about 1.5 in for the caption on the same page. The PDF keeps it sharp at any zoom. A caption to start from:
 
-> *Relative L₂ error of PINNStudio on 25 representative problems, from ODEs to 3D PDEs. Filled markers are PINNStudio's best settings (circles: forward problems, diamonds: inverse problems); open grey markers are DeepXDE's settings or, for templates taken from a paper, that paper's method run in PINNStudio. Stars mark the error reported in the original paper. Right: the relative error of each identified parameter, labelled with its symbol.*
+> *Relative L₂ error of PINNStudio on 25 representative problems, from ODEs to 3D PDEs. Filled markers are PINNStudio's best settings (circles: forward problems, diamonds: inverse problems); open markers are DeepXDE's settings or, for templates taken from a paper, that paper's method run in PINNStudio, and a ring around a filled marker means the two are the same. Stars mark the error reported in the original paper. Right: the relative error of each identified parameter, labelled with its symbol.*
 
 *The list: [`paper_figure_examples.txt`](paper_figure_examples.txt) (one name per line; change a line to swap an example). PDF: [`figures/paper_figure.pdf`](figures/paper_figure.pdf).*
 

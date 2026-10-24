@@ -433,11 +433,11 @@ PAPER_SHORT = {"Wave 1D – space-time multi-scale Fourier features": "Wave 1D �
                "Navier-Stokes 3D – Beltrami flow": "Navier-Stokes 3D – Beltrami",
                "Linear elasticity 2D – plate": "Linear elasticity 2D"}
 P_FLOOR = 1e-4            # parameter errors below it are drawn at it
-P_XLIM = (4e-5, 1500)     # room for the markers at the floor and the symbols on the right
+P_XLIM = (3e-5, 1500)     # room for the markers at the floor and the symbols on the right
 
 
 def figure(recs, path, stars=False, paper=False):
-    """The paper's Fig. 4 layout (stars: also the error each paper reports, for its templates): grey open = DeepXDE's settings / the paper's method in PINNStudio
+    """The paper's Fig. 4 layout (stars: also the error each paper reports, for its templates): open = DeepXDE's settings / the paper's method in PINNStudio
     (the template's own settings where that has not run yet); filled = PINNStudio's best."""
     import matplotlib
     matplotlib.use("Agg")
@@ -481,9 +481,12 @@ def figure(recs, path, stars=False, paper=False):
                 fontsize=F["head"], fontweight="bold", color=mtp.C_TEXT)
 
     def pair(axx, ref, best, y, marker, color, ms):
-        if ref and best and abs(ref - best) / max(ref, best) > 0.05:
-            axx.plot([min(ref, best), max(ref, best)], [y, y], color=color, lw=0.9, alpha=0.35, zorder=1)
-            axx.scatter(ref, y, s=ms * 0.75, marker=marker, facecolor="white", edgecolor=mtp.C_OWN, lw=0.9, zorder=2)
+        """Open marker (the mode's colour) = DeepXDE's settings / the paper's method; filled = PINNStudio's
+        best. Where the two are the same (or nothing needed tuning) the open one is a ring around the filled."""
+        if best and (not ref or abs(ref - best) / max(ref, best) <= 0.05):
+            axx.scatter(best, y, s=ms * 2.2, marker=marker, facecolor="none", edgecolor=color, lw=0.9, zorder=2)
+        elif ref:
+            axx.scatter(ref, y, s=ms * 0.95, marker=marker, facecolor="white", edgecolor=color, lw=1.2, zorder=2)
         if best:
             axx.scatter(best, y, s=ms, marker=marker, color=color, edgecolor="white", lw=0.5, zorder=3)
 
@@ -496,16 +499,14 @@ def figure(recs, path, stars=False, paper=False):
         es = [(s, max(abs(f - t) / abs(t) * 100, P_FLOOR)) for s, f, t in r["params"] if t]
         if es:
             right = max(e for _, e in es)
-            if r["p_ref"] is not None:
-                o = max(100 * r["p_ref"], P_FLOOR)
-                if abs(o - right) / max(o, right) > 0.05:
-                    bx.plot([min(o, right), max(o, right)], [y, y], color=mtp.C_INVERSE, lw=0.9, alpha=0.35, zorder=1)
-                    bx.scatter(o, y, s=15 * F["ms"], marker="D", facecolor="white", edgecolor=mtp.C_OWN, lw=0.9, zorder=2)
-                    right = max(right, o)
+            o = max(100 * r["p_ref"], P_FLOOR) if r["p_ref"] is not None else None
+            # the worst parameter carries the comparison with the reference (open diamond or ring)
+            pair(bx, o, right, y, "D", mtp.C_INVERSE, 20 * F["ms"])
+            right = max(right, o or 0)
             for _, e_ in es:
                 bx.scatter(e_, y, s=20 * F["ms"], marker="D", color=mtp.C_INVERSE, edgecolor="white", lw=0.5, zorder=3)
-            bx.text(right * (2.6 if paper else 1.9), y, ", ".join(_math_sym(s) for s, _ in sorted(es, key=lambda q: q[1])), va="center",
-                    ha="left", fontsize=F["sym"], color="#52606d")
+            bx.text(right * (3.0 if paper else 2.2), y, ", ".join(_math_sym(s) for s, _ in sorted(es, key=lambda q: q[1])), va="center",
+                    ha="left", fontsize=F["sym"], color=mtp.C_TEXT)
     ax.set_yticks([Y[i] for i in range(len(rows))], [r["label"] for r in rows], fontsize=F["name"], color=mtp.C_TEXT)
     ax.set_ylim(Y[len(rows) - 1] - 0.7, H + 0.15)
     ax.set_xscale("log"); ax.set_xlim(*mtp.XLIM_ERROR)
@@ -522,27 +523,36 @@ def figure(recs, path, stars=False, paper=False):
             axx.spines[sp].set_visible(False)
         axx.tick_params(axis="y", length=0)
         axx.tick_params(axis="x", labelsize=F["tick"])
-    lab = (["Forward", "Inverse", "DeepXDE / paper's method", "Paper's reported error"] if paper else
-           ["Forward, PINNStudio best", "Inverse, PINNStudio best", "DeepXDE's settings / the paper's method",
-            "Reported in the paper"])
-    h = [Line2D([], [], ls="", marker="o", color=mtp.C_FORWARD, markersize=5, label=lab[0]),
-         Line2D([], [], ls="", marker="D", color=mtp.C_INVERSE, markersize=4.5, label=lab[1]),
-         Line2D([], [], ls="", marker="o", markerfacecolor="white", markeredgecolor=mtp.C_OWN, markersize=4.5,
-                label=lab[2])]
+    from matplotlib.legend_handler import HandlerTuple
+    lab = (["PINNStudio best", "DeepXDE / paper's method", "Both the same", "Paper's reported error"] if paper else
+           ["PINNStudio best (forward, inverse)", "DeepXDE's settings / the paper's method",
+            "Both the same (no tuning needed)", "Reported in the paper"])
+    mk = lambda m, c, ms, **k: Line2D([], [], ls="", marker=m, markersize=ms, **k)
+    h = [(mk("o", 0, 5, color=mtp.C_FORWARD), mk("D", 0, 4.5, color=mtp.C_INVERSE)),
+         (mk("o", 0, 4.8, markerfacecolor="white", markeredgecolor=mtp.C_FORWARD, markeredgewidth=1.2),
+          mk("D", 0, 4.4, markerfacecolor="white", markeredgecolor=mtp.C_INVERSE, markeredgewidth=1.2)),
+         (mk("o", 0, 8, markerfacecolor="none", markeredgecolor=mtp.C_FORWARD, markeredgewidth=0.9),
+          mk("D", 0, 7, markerfacecolor="none", markeredgecolor=mtp.C_INVERSE, markeredgewidth=0.9))]
+    # the ring: a small filled marker inside it
+    class _Over(tuple):     # drawn on top of each other in the legend
+        pass
+    h[2] = (_Over((h[2][0], mk("o", 0, 4, color=mtp.C_FORWARD))), _Over((h[2][1], mk("D", 0, 3.5, color=mtp.C_INVERSE))))
     if stars:
-        h.append(Line2D([], [], ls="", marker="*", color="#f59f00", markersize=7, label=lab[3]))
+        h.append(mk("*", 0, 8, color="#f59f00"))
+    lab = lab[:len(h)]
+    hm = {tuple: HandlerTuple(ndivide=None, pad=0.6), _Over: HandlerTuple(ndivide=1)}
     os.makedirs(os.path.dirname(path), exist_ok=True)
     if not paper:
-        fig.legend(handles=h, loc="upper center", ncol=len(h), frameon=False, fontsize=F["legend"],
-                   bbox_to_anchor=(0.62, 1.0))
+        fig.legend(h, lab, handler_map=hm, loc="upper center", ncol=len(h), frameon=False,
+                   fontsize=F["legend"], handlelength=2.6, bbox_to_anchor=(0.6, 1.0))
         fig.subplots_adjust(left=0.33, right=0.985, top=1 - 0.32 / h_in, bottom=0.45 / h_in)
         fig.savefig(path, dpi=300, bbox_inches="tight", pad_inches=0.03)
         fig.savefig(path.replace(".png", ".pdf"), bbox_inches="tight", pad_inches=0.03)
         plt.close(fig)
         return
     # exact printed size: margins from the measured labels, no bbox cropping
-    leg = fig.legend(handles=h, loc="upper center", ncol=len(h), frameon=False, fontsize=F["legend"],
-                     handletextpad=0.3, columnspacing=1.2, bbox_to_anchor=(0.5, 1.0))
+    leg = fig.legend(h, lab, handler_map=hm, loc="upper center", ncol=2, frameon=False, fontsize=F["legend"],
+                     handlelength=2.6, handletextpad=0.5, columnspacing=2.0, bbox_to_anchor=(0.5, 1.0))
     fig.subplots_adjust(left=0.3, right=0.98, top=0.95, bottom=0.07)
     rd = fig.canvas.get_renderer()
     pad = 0.04 * fig.dpi
@@ -1089,8 +1099,9 @@ def page(recs):
       "their own settings: their result is the README's, marked **no tuning needed**.\n")
     a("![Every example: the reference settings and PINNStudio's best, forward and inverse, and the error of each "
       "learned parameter](figures/benchmarks_summary.png)\n")
-    a("*Open grey markers: DeepXDE's settings, or the paper's method run in PINNStudio; filled: PINNStudio's best "
-      "(one filled marker where the two are the same, or where no tuning was needed). Right: the error of each "
+    a("*Circles: forward problems; diamonds: inverse problems. Filled: PINNStudio's best; open: DeepXDE's settings, "
+      "or the paper's method run in PINNStudio; a ring around a filled marker: the two are the same (no tuning "
+      "was needed). Right: the error of each "
       "learned parameter, labelled with its symbol. ⭐: the error the paper reports (over all times) for the "
       "templates taken from a paper.*\n")
     a("<details>\n<summary>📋 <em>All results — one table</em></summary>\n\n"
@@ -1120,8 +1131,9 @@ def page(recs):
           "with 1 in margins), with 8.5–9 pt text, so insert it at 100% and it leaves about 1.5 in for the caption "
           "on the same page. The PDF keeps it sharp at any zoom. A caption to start from:\n\n"
           "> *Relative L₂ error of PINNStudio on 25 representative problems, from ODEs to 3D PDEs. Filled markers "
-          "are PINNStudio's best settings (circles: forward problems, diamonds: inverse problems); open grey markers "
-          "are DeepXDE's settings or, for templates taken from a paper, that paper's method run in PINNStudio. "
+          "are PINNStudio's best settings (circles: forward problems, diamonds: inverse problems); open markers "
+          "are DeepXDE's settings or, for templates taken from a paper, that paper's method run in PINNStudio, and "
+          "a ring around a filled marker means the two are the same. "
           "Stars mark the error reported in the original paper. Right: the relative error of each identified "
           "parameter, labelled with its symbol.*\n\n"
           "*The list: [`paper_figure_examples.txt`](paper_figure_examples.txt) (one name per line; change a line "
