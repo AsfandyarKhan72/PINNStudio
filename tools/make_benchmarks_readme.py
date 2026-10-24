@@ -481,8 +481,7 @@ def figure(recs, path, stars=False, paper=False):
                 fontsize=F["head"], fontweight="bold", color=mtp.C_TEXT)
 
     def pair(axx, ref, best, y, marker, color, ms):
-        if paper:       # the paper figure: PINNStudio's best only
-            ref = None
+        if paper and marker == "D":     # the paper figure: inverse = PINNStudio's best parameter error only
             if best:
                 axx.scatter(best, y, s=ms, marker=marker, color=color, edgecolor="white", lw=0.5, zorder=3)
             return
@@ -498,7 +497,8 @@ def figure(recs, path, stars=False, paper=False):
     for i, r in enumerate(rows):
         y = Y[i]
         pair(ax, r["f_ref"], r["f_best"], y, "o", mtp.C_FORWARD, 27 * F["ms"])
-        pair(ax, r["i_ref"], r["i_best"], y, "D", mtp.C_INVERSE, 22 * F["ms"])
+        if not paper:   # the inverse L2 is a fit to the data it trains on: not in the paper figure
+            pair(ax, r["i_ref"], r["i_best"], y, "D", mtp.C_INVERSE, 22 * F["ms"])
         if stars and r["reported"]:
             ax.scatter(r["reported"], y, s=46 * F["ms"], marker="*", color="#f59f00", edgecolor="white", lw=0.4, zorder=4)
         es = [(s, max(abs(f - t) / abs(t) * 100, P_FLOOR)) for s, f, t in r["params"] if t]
@@ -518,9 +518,9 @@ def figure(recs, path, stars=False, paper=False):
     ax.set_xticks([10.0 ** k for k in range(-6, 1)])
     bx.set_xscale("log"); bx.set_xlim(*P_XLIM)
     bx.set_xticks([1e-3, 1e-1, 10], ["0.001", "0.1", "10"])
-    ax.set_xlabel("Relative $L_2$ error (last reference time)" if paper else
+    ax.set_xlabel("Forward problems\nrelative $L_2$ error, last reference time" if paper else
                   "Relative $L_2$ error of the main output at the last reference time", fontsize=F["axis"])
-    bx.set_xlabel("Parameter error (%)", fontsize=F["axis"])
+    bx.set_xlabel("Inverse problems\nparameter error (%)" if paper else "Parameter error (%)", fontsize=F["axis"])
     for axx in (ax, bx):
         axx.grid(axis="x", color=mtp.C_GRID, lw=0.6, zorder=0)
         axx.set_axisbelow(True)
@@ -545,8 +545,12 @@ def figure(recs, path, stars=False, paper=False):
     if stars:
         h.append(mk("*", 0, 8, color="#f59f00"))
     if paper:
-        h = [mk("o", 0, 6, color=mtp.C_FORWARD), mk("D", 0, 5.4, color=mtp.C_INVERSE)] + h[3:]
-        lab = ["Forward problem", "Inverse problem", lab[3]]
+        h = [mk("o", 0, 6, color=mtp.C_FORWARD),
+             mk("o", 0, 5.6, markerfacecolor="white", markeredgecolor=mtp.C_FORWARD, markeredgewidth=1.2),
+             _Over((mk("o", 0, 9, markerfacecolor="none", markeredgecolor=mtp.C_FORWARD, markeredgewidth=0.9),
+                    mk("o", 0, 5, color=mtp.C_FORWARD))),
+             mk("D", 0, 5.4, color=mtp.C_INVERSE)] + h[3:]
+        lab = ["PINNStudio best", "DeepXDE / paper's method", "Both the same", "Inverse: parameter error", lab[3]]
     lab = lab[:len(h)]
     hm = {tuple: HandlerTuple(ndivide=None, pad=0.6), _Over: HandlerTuple(ndivide=1)}
     os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -559,15 +563,15 @@ def figure(recs, path, stars=False, paper=False):
         plt.close(fig)
         return
     # exact printed size: margins from the measured labels, no bbox cropping
-    leg = fig.legend(h, lab, handler_map=hm, loc="upper center", ncol=len(h), frameon=False, fontsize=F["legend"],
-                     handlelength=1.2, handletextpad=0.4, columnspacing=2.0, bbox_to_anchor=(0.5, 1.0))
+    leg = fig.legend(h, lab, handler_map=hm, loc="upper center", ncol=3, frameon=False, fontsize=F["legend"],
+                     handlelength=1.2, handletextpad=0.4, columnspacing=1.6, bbox_to_anchor=(0.5, 1.0))
     fig.subplots_adjust(left=0.3, right=0.98, top=0.95, bottom=0.07)
     rd = fig.canvas.get_renderer()
     pad = 0.04 * fig.dpi
     for _ in range(3):
         fig.canvas.draw()
         w_lab = max(t.get_window_extent(rd).width for t in ax.get_yticklabels() + ax.texts)
-        over = max([t.get_window_extent(rd).x1 for t in bx.texts] + [bx.get_window_extent(rd).x1])
+        over = max([t.get_window_extent(rd).x1 for t in bx.texts + [bx.xaxis.label]] + [bx.get_window_extent(rd).x1])
         W, Hh = fig.bbox.width, fig.bbox.height
         p = fig.subplotpars
         left = (w_lab + 2.5 * pad) / W
@@ -928,7 +932,8 @@ def _section(r):
             a("*The base PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*\n")
     if has_i:
         a("**Inverse problem**\n")
-        a("| Training | L₂ | Parameters found (true) | Worst parameter error | Time (s) |\n|---|---|---|---|---|")
+        a("| Training | L₂ fit to measured data | Parameters found (true) | Worst parameter error | Time (s) |\n"
+          "|---|---|---|---|---|")
         best_t = None
         if r.get("i_s"):
             for lbl, l2, par, t, picked, _st, _o in _sweep_rows(r["i_s"], ref_name, True, mark=r["i_s"]):
@@ -942,6 +947,9 @@ def _section(r):
           f"{_par_txt(r.get('i_best_par')) or '–'} | **{_pct(_perr(r.get('i_best_par')))}** | "
           f"{('**' + best_t + '**') if best_t else '–'} |")
         a("")
+        a("*L₂ fit to measured data: the error on the reference data the inverse run trains on (every reference "
+          "time), a check that the fit worked, not a prediction error. The parameter error measures the accuracy "
+          "and decides the best run.*\n")
         if r["deepxde"] and r.get("i_s") and not e.key.startswith("Inverse:") and e.problem != cat.INVERSE:
             a("*DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*\n")
 
@@ -1130,8 +1138,10 @@ def page(recs):
           "integro-differential ODE, Poisson 1D, Cahn-Hilliard 1D, Black-Scholes), and Lorenz, the unknown "
           "forcing field and the fractional order α are inverse problems only. The set mixes DeepXDE's examples "
           "with templates taken from papers (Raissi et al.; Wight & Zhao; Mattey & Ghosh; Mathias et al.). The "
-          "figure shows only PINNStudio's best result for each problem, to keep it easy to read; the comparison "
-          "with DeepXDE's settings and the papers' methods is in the full figure above and the tables below. For "
+          "left panel shows the forward problems only: PINNStudio's best and DeepXDE's settings or the paper's "
+          "method. Inverse problems are judged by their parameter error (right panel), not by their L₂, because an "
+          "inverse run trains on the reference data at every time, so its L₂ is a fit to that data rather than a "
+          "prediction (it is still in the tables, as \"L₂ fit to measured data\"). For "
           "the paper templates, the ⭐ is the error the paper itself reports, where it gives one (Burgers 1D, Allen-Cahn 1D, Cahn-Hilliard 1D, Allen-Cahn 2D of "
           "Mattey & Ghosh). Note that the papers report one error over all times, while the x-axis is the error "
           "at the last reference time, so the ⭐ is a guide rather than an exact like-for-like point; the "
@@ -1139,10 +1149,11 @@ def page(recs):
           "**For Word.** The figure is drawn at its printed size, 6.5 × 7.5 in (the text width of a Word page "
           "with 1 in margins), with 8.5–9 pt text, so insert it at 100% and it leaves about 1.5 in for the caption "
           "on the same page. The PDF keeps it sharp at any zoom. A caption to start from:\n\n"
-          "> *Relative L₂ error of PINNStudio on 25 representative problems, from ODEs to 3D PDEs, with its best "
-          "settings for each problem (circles: forward problems, diamonds: inverse problems). "
-          "Stars mark the error reported in the original paper. Right: the relative error of each identified "
-          "parameter, labelled with its symbol.*\n\n"
+          "> *PINNStudio on 25 representative problems, from ODEs to 3D PDEs. Left: relative L₂ error of the "
+          "forward problems with PINNStudio's best settings (filled) and with DeepXDE's settings or, for templates "
+          "taken from a paper, that paper's method run in PINNStudio (open; a ring where the two are the same). "
+          "Stars mark the error reported in the original paper. Right: the relative error of each parameter "
+          "identified in the inverse problems, labelled with its symbol.*\n\n"
           "*The list: [`paper_figure_examples.txt`](paper_figure_examples.txt) (one name per line; change a line "
           "to swap an example). PDF: [`figures/paper_figure.pdf`](figures/paper_figure.pdf).*\n\n"
           "![The paper's figure: 25 examples, forward and inverse](figures/paper_figure.png)\n\n</details>\n")
