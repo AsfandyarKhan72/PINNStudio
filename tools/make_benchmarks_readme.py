@@ -124,6 +124,60 @@ def _img(path, alt):
     return f"![{alt}]({path.replace(' ', '%20')})"
 
 
+SHORT = {"base": None, "iters": "3× iterations", "net": "Larger network (2× width, one more layer)",
+         "points": "3× training points", "lbfgs": "L-BFGS phase added", "all": "All of the above together",
+         "dataw": "10× weight on the measured data", "lbfgs3": "3× L-BFGS iterations",
+         "times": "Measured data at every reference time", "setup": "Best whole-interval setup",
+         "invall": "10× data weight, 3× L-BFGS and the larger network", "windows2": "2× time windows"}
+ORDER = ["base", "iters", "net", "points", "lbfgs", "windows2", "dataw", "lbfgs3", "times", "setup", "all", "invall"]
+
+
+def _t(q):
+    return f"{q['seconds']:.0f}" if q and q.get("seconds") is not None else "–"
+
+
+def _pct(x):
+    return "–" if x is None else (f"{100 * x:.2g}%" if x < 0.1 else f"{100 * x:.0f}%")
+
+
+def _sweep_rows(s, ref_name, inverse, prefix=""):
+    """[(label, L2, params, seconds)] for every variant the study ran of entry s."""
+    if not s:
+        return []
+    out = []
+    for v in sorted(s["variants"], key=lambda v: ORDER.index(v) if v in ORDER else 99):
+        rs = s["variants"][v]
+        l2 = mtp._med(rs, mtp._maxl2)
+        t = mtp._med(rs, lambda r: r["seconds"])
+        if v == "base":
+            lbl = ref_name if not prefix else "Best setup of the training methods study"
+        else:
+            lbl = prefix + ((SHORT.get(v) or v)[0].lower() + (SHORT.get(v) or v)[1:] if prefix else (SHORT.get(v) or v))
+        if len(rs) > 1:
+            lbl += f" ({len(rs)} seeds, median)"
+        out.append((lbl, l2, mtp._found(dict(s, chosen=v)) if inverse else None,
+                    f"{t:.0f}" if t is not None else None))
+    return out
+
+
+def _best_label(r, inverse):
+    s = r.get("i_s") if inverse else r.get("f_best_s")
+    if not s:
+        return "no tuning needed"
+    kept = r.get("f_keep") if not inverse else s.get("chosen") == "base" and s.get("tuned") != s.get("base")
+    v = s["chosen"]
+    if not inverse and r.get("f_keep"):
+        return "the starting settings (the run with the lowest training loss was less accurate)"
+    if v == "base":
+        if len(s["variants"]) == 1:
+            return "the example's own settings (tuning runs queued)"
+        return ("the best setup as it is" if (not inverse and r.get("f_best_is_setup"))
+                else "the example's own settings (no change did better)")
+    del kept
+    return (SHORT.get(v) or v).lower() if v != "all" else "all of the changes together"
+
+
+
 def build(summ, papers, spacetime, readme):
     """One record per catalogue example (catalogue order)."""
     by = {(x["name"], x["inverse"]): x for x in summ}
@@ -302,38 +356,50 @@ def _section(r):
 
     has_f = r["f_ref"] is not None or r["f_best"] is not None
     has_i = r.get("i_best") is not None or r.get("i_best_par")
-    if r["deepxde"] or not r["paper"]:
-        ref_name = "DeepXDE's settings" if r["deepxde"] else "The template's own settings"
-        a(f"| | {ref_name} | PINNStudio best |\n|---|---|---|")
-        if has_f:
-            note = "" if r["f_best_s"] else " (no tuning needed)"
-            a(f"| Forward $L_2$ | {sci(r['f_ref'])} | {sci(r['f_best'])}{note} |")
-        if has_i:
-            a(f"| Inverse $L_2$ | {sci(r.get('i_ref'))} | {sci(r.get('i_best'))}"
-              f"{'' if r.get('i_s') else ' (no tuning needed)'} |")
-            a(f"| Parameters found (true) | {_par_txt(r.get('i_ref_par')) or '–'} | {_par_txt(r.get('i_best_par')) or '–'} |")
+    ref_name = "DeepXDE's settings" if r["deepxde"] else "The template's own settings"
+    paper_rows = bool(r["paper"]) and not r["deepxde"]
+    pr = r["paper_runs"]
+
+    if has_f:
+        a("**Forward problem**\n")
+        if paper_rows:
+            a("| Training | L₂, last time | L₂, all times | Time (s) |\n|---|---|---|---|")
+            p = pr.get("plain")
+            a(f"| Plain PINN | {sci(p and p['l2'])} | {sci(p and p['st'])} | {_t(p)} |")
+            for ref, val, v in r["paper"]:
+                a(f"| {PAPER_NAME[v]}, as reported ({ref}) | – | {sci(val) if val else 'figures only'} | – |")
+                q = pr.get(v)
+                a(f"| {PAPER_NAME[v]}, run in PINNStudio | {sci(q and q['l2'])} | {sci(q and q['st'])} | {_t(q)} |")
+            pre = "| "
+            cols = " | – "
+        else:
+            a("| Training | L₂ | Time (s) |\n|---|---|---|")
+            cols = ""
+        rows = _sweep_rows(r["f_plain_s"], ref_name, False)
+        if not r["f_plain_s"]:
+            rows = [(ref_name + (" (README)" if r["f_ref_src"] == "README" else ""), r["f_ref"], None, None)]
+        if r["f_best_s"] and r["f_best_is_setup"]:
+            rows += _sweep_rows(r["f_best_s"], "Best setup of the training methods study", False, prefix="Best setup + ")
+        for lbl, l2, _, t in rows:
+            a(f"| {lbl} | {sci(l2)}{cols} | {t if t is not None else '–'} |")
+        a(f"| **PINNStudio best**: {_best_label(r, False)} | **{sci(r['f_best'])}**{cols} | |")
         a("")
-        if r["deepxde"] and has_i and r.get("i_s") and not e.key.startswith("Inverse:") and e.problem != cat.INVERSE:
-            a("DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse mode of it, "
-              "run with the example's settings and tuned.\n")
-    else:
-        pr = r["paper_runs"]
-        a("| | $L_2$, last time | $L_2$, all times | Parameters found (true) |\n|---|---|---|---|")
-        p = pr.get("plain")
-        a(f"| Plain PINN (in PINNStudio) | {sci(p and p['l2'])} | {sci(p and p['st'])} | |")
-        for ref, val, v in r["paper"]:
-            a(f"| {PAPER_NAME[v]}: reported in {ref} | – | {sci(val) if val else 'figures only'} | |")
-            q = pr.get(v)
-            a(f"| {PAPER_NAME[v]}, run in PINNStudio | {sci(q and q['l2'])} | {sci(q and q['st'])} | |")
-        b = pr.get("base")
-        a(f"| The template as it loads | {sci(b['l2'] if b else r['f_ref'])} | {sci(b and b['st'])} | |")
-        a(f"| **PINNStudio best** (forward) | {sci(r['f_best'] or r['f_ref'])} | – | |")
-        if has_i:
-            a(f"| Inverse, the template's own settings | {sci(r.get('i_ref'))} | – | {_par_txt(r.get('i_ref_par')) or '–'} |")
-            a(f"| **PINNStudio best** (inverse) | {sci(r.get('i_best'))} | – | {_par_txt(r.get('i_best_par')) or '–'} |")
-        a("")
-        if not pr:
+        if paper_rows and not pr:
             a("*The plain PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*\n")
+    if has_i:
+        a("**Inverse problem**\n")
+        a("| Training | L₂ | Parameters found (true) | Worst parameter error | Time (s) |\n|---|---|---|---|---|")
+        if r.get("i_s"):
+            for lbl, l2, par, t in _sweep_rows(r["i_s"], ref_name, True):
+                a(f"| {lbl} | {sci(l2)} | {_par_txt(par) or '–'} | {_pct(_perr(par))} | {t if t is not None else '–'} |")
+        else:
+            a(f"| {ref_name} (README) | {sci(r.get('i_ref'))} | {_par_txt(r.get('i_ref_par')) or '–'} | "
+              f"{_pct(_perr(r.get('i_ref_par')))} | – |")
+        a(f"| **PINNStudio best**: {_best_label(r, True)} | **{sci(r.get('i_best'))}** | "
+          f"{_par_txt(r.get('i_best_par')) or '–'} | **{_pct(_perr(r.get('i_best_par')))}** | |")
+        a("")
+        if r["deepxde"] and r.get("i_s") and not e.key.startswith("Inverse:") and e.problem != cat.INVERSE:
+            a("*DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*\n")
 
     # figures: reference first, then PINNStudio's best; forward, then inverse
     ref_lbl = "DeepXDE's settings" if r["deepxde"] else "the template's own settings"
@@ -377,18 +443,27 @@ def page(recs):
     a("# PINNStudio benchmarks\n")
     a("*Every example of PINNStudio, forward and inverse, with the result of its reference settings and "
       "PINNStudio's best. Updated as the runs finish.*\n")
-    a("For a **DeepXDE example**, the reference is DeepXDE's own settings run in PINNStudio, and the best is the "
-      "tuned run of the [tuning study](tuning_study.md). For a **template from a paper**, the table lists a plain "
-      "PINN (soft initial and boundary conditions, the whole time interval, equal loss weights), the error the "
-      "paper reports, the paper's method run in PINNStudio, and PINNStudio's best "
-      "([how the papers' methods are set up](paper_comparison.md)). Where a DeepXDE example has no inverse "
-      "problem of its own, its inverse row is PINNStudio's inverse mode of it.\n")
-    a("The error is the relative $L_2$ error of the main output (u, φ, h, …) at the last reference time, against "
-      "the example's reference data; papers report one error over all times, so their rows also give that. "
-      f"The tuning study ran its sweep (more iterations, a larger network, more points, an L-BFGS phase, all "
-      f"together) on the {n_t} examples whose error with their own settings was largest. The others were "
-      "already accurate with their own settings, so their result is the README's, marked \"no tuning "
-      "needed\".\n")
+    a("**How to read an example.** Each example opens to one table for the forward problem and one for the "
+      "inverse problem. The first row is the reference: **DeepXDE's own settings** for a DeepXDE example, the "
+      "**template's own settings** for a PINNStudio template. The next rows are the tuning study's changes, each "
+      "tried on its own and then all together: 3× the iterations, a larger network (twice as wide, one more "
+      "layer), 3× the training points, an L-BFGS phase after Adam (for inverse problems also 10× the weight of "
+      "the measured data and 3× the L-BFGS iterations). The last row, **PINNStudio best**, is the run with the "
+      "lowest final training loss, which a user can pick without knowing the answer; where that run is less "
+      "accurate than the settings it started from, the starting settings are kept. Then come the figures: the "
+      "reference first, then PINNStudio's best, forward and then inverse.\n")
+    a("For a **template taken from a paper**, the forward table also lists a plain PINN (soft initial and "
+      "boundary conditions, the whole time interval, equal loss weights), the error the paper reports and the "
+      "paper's own method run in PINNStudio ([how they are set up](paper_comparison.md)); for a template run "
+      "from the [training methods study](training_methods.md)'s best setup, the changes are tried on that "
+      "setup. Where a DeepXDE example has no inverse problem of its own, the inverse table is PINNStudio's "
+      "inverse mode of it.\n")
+    a("**The error** is the relative L₂ error of the main output (u, φ, h, …) at the last reference time, against "
+      "the example's reference data; papers report one error over all times, so their rows give that too. Where "
+      "a row ran with 3 seeds (1, 2, 2026) it gives the median, otherwise seed 2026. Times are training seconds "
+      "on one RTX 4090.\n")
+    a(f"The sweep was run on the {n_t} examples with the largest errors. The others were already accurate with "
+      "their own settings: their result is the README's, marked **no tuning needed**.\n")
     a("![Every example: the reference settings and PINNStudio's best, forward and inverse, and the error of each "
       "learned parameter](figures/benchmarks_summary.png)\n")
     a("*Open grey markers: DeepXDE's settings, or the paper's method run in PINNStudio; filled: PINNStudio's best "

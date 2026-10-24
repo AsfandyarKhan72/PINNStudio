@@ -2,9 +2,13 @@
 
 *Every example of PINNStudio, forward and inverse, with the result of its reference settings and PINNStudio's best. Updated as the runs finish.*
 
-For a **DeepXDE example**, the reference is DeepXDE's own settings run in PINNStudio, and the best is the tuned run of the [tuning study](tuning_study.md). For a **template from a paper**, the table lists a plain PINN (soft initial and boundary conditions, the whole time interval, equal loss weights), the error the paper reports, the paper's method run in PINNStudio, and PINNStudio's best ([how the papers' methods are set up](paper_comparison.md)). Where a DeepXDE example has no inverse problem of its own, its inverse row is PINNStudio's inverse mode of it.
+**How to read an example.** Each example opens to one table for the forward problem and one for the inverse problem. The first row is the reference: **DeepXDE's own settings** for a DeepXDE example, the **template's own settings** for a PINNStudio template. The next rows are the tuning study's changes, each tried on its own and then all together: 3× the iterations, a larger network (twice as wide, one more layer), 3× the training points, an L-BFGS phase after Adam (for inverse problems also 10× the weight of the measured data and 3× the L-BFGS iterations). The last row, **PINNStudio best**, is the run with the lowest final training loss, which a user can pick without knowing the answer; where that run is less accurate than the settings it started from, the starting settings are kept. Then come the figures: the reference first, then PINNStudio's best, forward and then inverse.
 
-The error is the relative $L_2$ error of the main output (u, φ, h, …) at the last reference time, against the example's reference data; papers report one error over all times, so their rows also give that. The tuning study ran its sweep (more iterations, a larger network, more points, an L-BFGS phase, all together) on the 37 examples whose error with their own settings was largest. The others were already accurate with their own settings, so their result is the README's, marked "no tuning needed".
+For a **template taken from a paper**, the forward table also lists a plain PINN (soft initial and boundary conditions, the whole time interval, equal loss weights), the error the paper reports and the paper's own method run in PINNStudio ([how they are set up](paper_comparison.md)); for a template run from the [training methods study](training_methods.md)'s best setup, the changes are tried on that setup. Where a DeepXDE example has no inverse problem of its own, the inverse table is PINNStudio's inverse mode of it.
+
+**The error** is the relative L₂ error of the main output (u, φ, h, …) at the last reference time, against the example's reference data; papers report one error over all times, so their rows give that too. Where a row ran with 3 seeds (1, 2, 2026) it gives the median, otherwise seed 2026. Times are training seconds on one RTX 4090.
+
+The sweep was run on the 37 examples with the largest errors. The others were already accurate with their own settings: their result is the README's, marked **no tuning needed**.
 
 ![Every example: the reference settings and PINNStudio's best, forward and inverse, and the error of each learned parameter](figures/benchmarks_summary.png)
 
@@ -17,9 +21,12 @@ The error is the relative $L_2$ error of the main output (u, φ, h, …) at the 
 
 [problem and settings in the README](../README.md#dx-integro-differential-equation)
 
-| | DeepXDE's settings | PINNStudio best |
+**Forward problem**
+
+| Training | L₂ | Time (s) |
 |---|---|---|
-| Forward $L_2$ | 1.5 × 10<sup>-4</sup> | 1.5 × 10<sup>-4</sup> (no tuning needed) |
+| DeepXDE's settings (README) | 1.5 × 10<sup>-4</sup> | – |
+| **PINNStudio best**: no tuning needed | **1.5 × 10<sup>-4</sup>** | |
 
 *Forward, the README's result:*
 
@@ -32,9 +39,12 @@ The error is the relative $L_2$ error of the main output (u, φ, h, …) at the 
 
 [problem and settings in the README](../README.md#dx-volterra-integro-differential-equation)
 
-| | DeepXDE's settings | PINNStudio best |
+**Forward problem**
+
+| Training | L₂ | Time (s) |
 |---|---|---|
-| Forward $L_2$ | 2.5 × 10<sup>-3</sup> | 2.5 × 10<sup>-3</sup> (no tuning needed) |
+| DeepXDE's settings (README) | 2.5 × 10<sup>-3</sup> | – |
+| **PINNStudio best**: no tuning needed | **2.5 × 10<sup>-3</sup>** | |
 
 *Forward, the README's result:*
 
@@ -47,13 +57,25 @@ The error is the relative $L_2$ error of the main output (u, φ, h, …) at the 
 
 [problem and settings in the README](../README.md#dx-ode-system) · [inverse runs in the tuning study](tuning_study.md#tune-linear-ode-system-inverse-mode)
 
-| | DeepXDE's settings | PINNStudio best |
-|---|---|---|
-| Forward $L_2$ | 3.6 × 10<sup>-3</sup> | 3.6 × 10<sup>-3</sup> (no tuning needed) |
-| Inverse $L_2$ | 3.3 × 10<sup>-4</sup> | 2.0 × 10<sup>-4</sup> |
-| Parameters found (true) | ω = 0.999776 (1) | ω = 0.999912 (1) |
+**Forward problem**
 
-DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse mode of it, run with the example's settings and tuned.
+| Training | L₂ | Time (s) |
+|---|---|---|
+| DeepXDE's settings (README) | 3.6 × 10<sup>-3</sup> | – |
+| **PINNStudio best**: no tuning needed | **3.6 × 10<sup>-3</sup>** | |
+
+**Inverse problem**
+
+| Training | L₂ | Parameters found (true) | Worst parameter error | Time (s) |
+|---|---|---|---|---|
+| DeepXDE's settings | 3.3 × 10<sup>-4</sup> | ω = 0.999776 (1) | 0.022% | 48 |
+| Larger network (2× width, one more layer) | 4.5 × 10<sup>-4</sup> | ω = 0.999558 (1) | 0.044% | 49 |
+| 3× L-BFGS iterations | 3.3 × 10<sup>-4</sup> | ω = 0.999776 (1) | 0.022% | 47 |
+| All of the above together | 2.0 × 10<sup>-4</sup> | ω = 0.999912 (1) | 0.0088% | 135 |
+| 10× data weight, 3× L-BFGS and the larger network | 4.6 × 10<sup>-4</sup> | ω = 0.999089 (1) | 0.091% | 50 |
+| **PINNStudio best**: all of the changes together | **2.0 × 10<sup>-4</sup>** | ω = 0.999912 (1) | **0.0088%** | |
+
+*DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*
 
 *Forward, the README's result:*
 
@@ -82,13 +104,25 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 [problem and settings in the README](../README.md#dx-lotka-volterra-equation) · [inverse runs in the tuning study](tuning_study.md#tune-lotka-volterra-ode-inverse-mode)
 
-| | DeepXDE's settings | PINNStudio best |
-|---|---|---|
-| Forward $L_2$ | 2.1 × 10<sup>-3</sup> | 2.1 × 10<sup>-3</sup> (no tuning needed) |
-| Inverse $L_2$ | 1.5 × 10<sup>-5</sup> | 1.5 × 10<sup>-5</sup> |
-| Parameters found (true) | a = 2.00001 (2); d = 1.06 (1.06) | a = 2.00001 (2); d = 1.06 (1.06) |
+**Forward problem**
 
-DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse mode of it, run with the example's settings and tuned.
+| Training | L₂ | Time (s) |
+|---|---|---|
+| DeepXDE's settings (README) | 2.1 × 10<sup>-3</sup> | – |
+| **PINNStudio best**: no tuning needed | **2.1 × 10<sup>-3</sup>** | |
+
+**Inverse problem**
+
+| Training | L₂ | Parameters found (true) | Worst parameter error | Time (s) |
+|---|---|---|---|---|
+| DeepXDE's settings | 1.5 × 10<sup>-5</sup> | a = 2.00001 (2); d = 1.06 (1.06) | 0.0005% | 230 |
+| Larger network (2× width, one more layer) | 1.8 × 10<sup>-5</sup> | a = 2 (2); d = 1.05999 (1.06) | 0.00094% | 243 |
+| 3× L-BFGS iterations | 1.5 × 10<sup>-5</sup> | a = 2.00001 (2); d = 1.06 (1.06) | 0.0005% | 240 |
+| All of the above together | 1.2 × 10<sup>-5</sup> | a = 1.99999 (2); d = 1.06001 (1.06) | 0.00094% | 648 |
+| 10× data weight, 3× L-BFGS and the larger network | 9.2 × 10<sup>-6</sup> | a = 2.00001 (2); d = 1.06001 (1.06) | 0.00094% | 250 |
+| **PINNStudio best**: the example's own settings (no change did better) | **1.5 × 10<sup>-5</sup>** | a = 2.00001 (2); d = 1.06 (1.06) | **0.0005%** | |
+
+*DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*
 
 *Forward, the README's result:*
 
@@ -109,13 +143,25 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 [problem and settings in the README](../README.md#dx-second-order-ode) · [inverse runs in the tuning study](tuning_study.md#tune-second-order-ode-inverse-mode)
 
-| | DeepXDE's settings | PINNStudio best |
-|---|---|---|
-| Forward $L_2$ | 6.9 × 10<sup>-4</sup> | 6.9 × 10<sup>-4</sup> (no tuning needed) |
-| Inverse $L_2$ | 1.6 × 10<sup>-3</sup> | 8.9 × 10<sup>-6</sup> |
-| Parameters found (true) | a = 9.93327 (10); b = 9.6526 (9) | a = 10.0003 (10); b = 8.99262 (9) |
+**Forward problem**
 
-DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse mode of it, run with the example's settings and tuned.
+| Training | L₂ | Time (s) |
+|---|---|---|
+| DeepXDE's settings (README) | 6.9 × 10<sup>-4</sup> | – |
+| **PINNStudio best**: no tuning needed | **6.9 × 10<sup>-4</sup>** | |
+
+**Inverse problem**
+
+| Training | L₂ | Parameters found (true) | Worst parameter error | Time (s) |
+|---|---|---|---|---|
+| DeepXDE's settings | 1.6 × 10<sup>-3</sup> | a = 9.93327 (10); b = 9.6526 (9) | 7.3% | 27 |
+| Larger network (2× width, one more layer) | 8.9 × 10<sup>-6</sup> | a = 10.0003 (10); b = 8.99262 (9) | 0.082% | 30 |
+| 3× L-BFGS iterations | 1.6 × 10<sup>-3</sup> | a = 9.93327 (10); b = 9.6526 (9) | 7.3% | 25 |
+| All of the above together | 5.8 × 10<sup>-5</sup> | a = 9.99773 (10); b = 9.0168 (9) | 0.19% | 74 |
+| 10× data weight, 3× L-BFGS and the larger network | 4.1 × 10<sup>-4</sup> | a = 9.97923 (10); b = 9.37949 (9) | 4.2% | 28 |
+| **PINNStudio best**: larger network (2× width, one more layer) | **8.9 × 10<sup>-6</sup>** | a = 10.0003 (10); b = 8.99262 (9) | **0.082%** | |
+
+*DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*
 
 *Forward, the README's result:*
 
@@ -140,10 +186,12 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 [problem and settings in the README](../README.md#dx-inverse-lorenz-system)
 
-| | DeepXDE's settings | PINNStudio best |
-|---|---|---|
-| Inverse $L_2$ | 1.0 × 10<sup>-4</sup> | 1.0 × 10<sup>-4</sup> (no tuning needed) |
-| Parameters found (true) | C₁ = 10 (10); C₂ = 14.9998 (15); C₃ = 2.66664 (2.66667) | C₁ = 10 (10); C₂ = 14.9998 (15); C₃ = 2.66664 (2.66667) |
+**Inverse problem**
+
+| Training | L₂ | Parameters found (true) | Worst parameter error | Time (s) |
+|---|---|---|---|---|
+| DeepXDE's settings (README) | 1.0 × 10<sup>-4</sup> | C₁ = 10 (10); C₂ = 14.9998 (15); C₃ = 2.66664 (2.66667) | 0.0013% | – |
+| **PINNStudio best**: no tuning needed | **1.0 × 10<sup>-4</sup>** | C₁ = 10 (10); C₂ = 14.9998 (15); C₃ = 2.66664 (2.66667) | **0.0013%** | |
 
 *Inverse, the README's result:*
 
@@ -156,10 +204,12 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 [problem and settings in the README](../README.md#dx-inverse-lorenz-system-with-exogenous-input)
 
-| | DeepXDE's settings | PINNStudio best |
-|---|---|---|
-| Inverse $L_2$ | 1.6 × 10<sup>-3</sup> | 1.6 × 10<sup>-3</sup> (no tuning needed) |
-| Parameters found (true) | C₁ = 9.974 (10); C₂ = 14.996 (15); C₃ = 2.6669 (2.66667) | C₁ = 9.974 (10); C₂ = 14.996 (15); C₃ = 2.6669 (2.66667) |
+**Inverse problem**
+
+| Training | L₂ | Parameters found (true) | Worst parameter error | Time (s) |
+|---|---|---|---|---|
+| DeepXDE's settings (README) | 1.6 × 10<sup>-3</sup> | C₁ = 9.974 (10); C₂ = 14.996 (15); C₃ = 2.6669 (2.66667) | 0.26% | – |
+| **PINNStudio best**: no tuning needed | **1.6 × 10<sup>-3</sup>** | C₁ = 9.974 (10); C₂ = 14.996 (15); C₃ = 2.6669 (2.66667) | **0.26%** | |
 
 *Inverse, the README's result:*
 
@@ -174,13 +224,30 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 [problem and settings in the README](../README.md#dx-euler-beam) · [forward runs in the tuning study](tuning_study.md#tune-euler-beam-1d) · [inverse runs in the tuning study](tuning_study.md#tune-euler-beam-1d-inverse-mode)
 
-| | DeepXDE's settings | PINNStudio best |
-|---|---|---|
-| Forward $L_2$ | 3.5 × 10<sup>-3</sup> | 2.8 × 10<sup>-4</sup> |
-| Inverse $L_2$ | 1.6 × 10<sup>-3</sup> | 3.8 × 10<sup>-5</sup> |
-| Parameters found (true) | EI = 1.02349 (1) | EI = 1.00075 (1) |
+**Forward problem**
 
-DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse mode of it, run with the example's settings and tuned.
+| Training | L₂ | Time (s) |
+|---|---|---|
+| DeepXDE's settings (3 seeds, median) | 3.5 × 10<sup>-3</sup> | 55 |
+| 3× iterations | 5.2 × 10<sup>-3</sup> | 157 |
+| Larger network (2× width, one more layer) | 8.2 × 10<sup>-3</sup> | 74 |
+| 3× training points | 2.8 × 10<sup>-2</sup> | 56 |
+| L-BFGS phase added | 2.4 × 10<sup>-4</sup> | 59 |
+| All of the above together (3 seeds, median) | 2.8 × 10<sup>-4</sup> | 217 |
+| **PINNStudio best**: all of the changes together | **2.8 × 10<sup>-4</sup>** | |
+
+**Inverse problem**
+
+| Training | L₂ | Parameters found (true) | Worst parameter error | Time (s) |
+|---|---|---|---|---|
+| DeepXDE's settings | 1.6 × 10<sup>-3</sup> | EI = 1.02349 (1) | 2.3% | 61 |
+| Larger network (2× width, one more layer) | 6.4 × 10<sup>-5</sup> | EI = 1.00153 (1) | 0.15% | 80 |
+| 3× L-BFGS iterations | 1.6 × 10<sup>-3</sup> | EI = 1.02349 (1) | 2.3% | 60 |
+| All of the above together | 3.8 × 10<sup>-5</sup> | EI = 1.00075 (1) | 0.075% | 231 |
+| 10× data weight, 3× L-BFGS and the larger network | 1.9 × 10<sup>-4</sup> | EI = 0.995268 (1) | 0.47% | 80 |
+| **PINNStudio best**: all of the changes together | **3.8 × 10<sup>-5</sup>** | EI = 1.00075 (1) | **0.075%** | |
+
+*DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*
 
 *Forward, DeepXDE's settings:*
 
@@ -209,9 +276,17 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 [problem and settings in the README](../README.md#dx-fractional-poisson-equation-1d) · [forward runs in the tuning study](tuning_study.md#tune-fractional-poisson-1d)
 
-| | DeepXDE's settings | PINNStudio best |
+**Forward problem**
+
+| Training | L₂ | Time (s) |
 |---|---|---|
-| Forward $L_2$ | 2.3 × 10<sup>-2</sup> | 1.2 × 10<sup>-2</sup> |
+| DeepXDE's settings (3 seeds, median) | 2.3 × 10<sup>-2</sup> | 20 |
+| 3× iterations | 1.4 × 10<sup>-2</sup> | 52 |
+| Larger network (2× width, one more layer) | 1.5 × 10<sup>-2</sup> | 21 |
+| 3× training points | 3.7 × 10<sup>-2</sup> | 19 |
+| L-BFGS phase added | 2.0 × 10<sup>-2</sup> | 19 |
+| All of the above together (3 seeds, median) | 1.2 × 10<sup>-2</sup> | 57 |
+| **PINNStudio best**: all of the changes together | **1.2 × 10<sup>-2</sup>** | |
 
 *Forward, DeepXDE's settings:*
 
@@ -228,9 +303,12 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 [problem and settings in the README](../README.md#dx-poisson-1d-dirichlet)
 
-| | DeepXDE's settings | PINNStudio best |
+**Forward problem**
+
+| Training | L₂ | Time (s) |
 |---|---|---|
-| Forward $L_2$ | 3.7 × 10<sup>-4</sup> | 3.7 × 10<sup>-4</sup> (no tuning needed) |
+| DeepXDE's settings (README) | 3.7 × 10<sup>-4</sup> | – |
+| **PINNStudio best**: no tuning needed | **3.7 × 10<sup>-4</sup>** | |
 
 *Forward, the README's result:*
 
@@ -243,9 +321,12 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 [problem and settings in the README](../README.md#dx-poisson-1d-dirichlet-neumann)
 
-| | DeepXDE's settings | PINNStudio best |
+**Forward problem**
+
+| Training | L₂ | Time (s) |
 |---|---|---|
-| Forward $L_2$ | 2.3 × 10<sup>-4</sup> | 2.3 × 10<sup>-4</sup> (no tuning needed) |
+| DeepXDE's settings (README) | 2.3 × 10<sup>-4</sup> | – |
+| **PINNStudio best**: no tuning needed | **2.3 × 10<sup>-4</sup>** | |
 
 *Forward, the README's result:*
 
@@ -258,9 +339,17 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 [problem and settings in the README](../README.md#dx-poisson-1d-dirichlet-periodic) · [forward runs in the tuning study](tuning_study.md#tune-poisson-1d-dirichlet-periodic)
 
-| | DeepXDE's settings | PINNStudio best |
+**Forward problem**
+
+| Training | L₂ | Time (s) |
 |---|---|---|
-| Forward $L_2$ | 9.6 × 10<sup>-3</sup> | 6.4 × 10<sup>-6</sup> |
+| DeepXDE's settings (3 seeds, median) | 9.6 × 10<sup>-3</sup> | 20 |
+| 3× iterations | 1.1 × 10<sup>-3</sup> | 54 |
+| Larger network (2× width, one more layer) | 2.6 × 10<sup>-3</sup> | 22 |
+| 3× training points | 1.6 × 10<sup>-3</sup> | 20 |
+| L-BFGS phase added | 3.5 × 10<sup>-5</sup> | 21 |
+| All of the above together (3 seeds, median) | 6.4 × 10<sup>-6</sup> | 67 |
+| **PINNStudio best**: all of the changes together | **6.4 × 10<sup>-6</sup>** | |
 
 *Forward, DeepXDE's settings:*
 
@@ -277,9 +366,12 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 [problem and settings in the README](../README.md#dx-poisson-1d-dirichlet-pointsetoperator)
 
-| | DeepXDE's settings | PINNStudio best |
+**Forward problem**
+
+| Training | L₂ | Time (s) |
 |---|---|---|
-| Forward $L_2$ | 2.6 × 10<sup>-5</sup> | 2.6 × 10<sup>-5</sup> (no tuning needed) |
+| DeepXDE's settings (README) | 2.6 × 10<sup>-5</sup> | – |
+| **PINNStudio best**: no tuning needed | **2.6 × 10<sup>-5</sup>** | |
 
 *Forward, the README's result:*
 
@@ -292,9 +384,12 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 [problem and settings in the README](../README.md#dx-poisson-1d-dirichlet-robin)
 
-| | DeepXDE's settings | PINNStudio best |
+**Forward problem**
+
+| Training | L₂ | Time (s) |
 |---|---|---|
-| Forward $L_2$ | 2.4 × 10<sup>-4</sup> | 2.4 × 10<sup>-4</sup> (no tuning needed) |
+| DeepXDE's settings (README) | 2.4 × 10<sup>-4</sup> | – |
+| **PINNStudio best**: no tuning needed | **2.4 × 10<sup>-4</sup>** | |
 
 *Forward, the README's result:*
 
@@ -307,9 +402,12 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 [problem and settings in the README](../README.md#dx-poisson-1d-hard-boundary-conditions)
 
-| | DeepXDE's settings | PINNStudio best |
+**Forward problem**
+
+| Training | L₂ | Time (s) |
 |---|---|---|
-| Forward $L_2$ | 2.2 × 10<sup>-6</sup> | 2.2 × 10<sup>-6</sup> (no tuning needed) |
+| DeepXDE's settings (README) | 2.2 × 10<sup>-6</sup> | – |
+| **PINNStudio best**: no tuning needed | **2.2 × 10<sup>-6</sup>** | |
 
 *Forward, the README's result:*
 
@@ -322,9 +420,12 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 [problem and settings in the README](../README.md#dx-poisson-1d-multi-scale-fourier-features)
 
-| | DeepXDE's settings | PINNStudio best |
+**Forward problem**
+
+| Training | L₂ | Time (s) |
 |---|---|---|
-| Forward $L_2$ | 3.9 × 10<sup>-3</sup> | 3.9 × 10<sup>-3</sup> (no tuning needed) |
+| DeepXDE's settings (README) | 3.9 × 10<sup>-3</sup> | – |
+| **PINNStudio best**: no tuning needed | **3.9 × 10<sup>-3</sup>** | |
 
 *Forward, the README's result:*
 
@@ -337,10 +438,17 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 [problem and settings in the README](../README.md#dx-inverse-brinkman-forchheimer-model) · [forward runs in the tuning study](tuning_study.md#tune-brinkman-forchheimer-1d-unknown-e-k)
 
-| | DeepXDE's settings | PINNStudio best |
-|---|---|---|
-| Inverse $L_2$ | 2.0 × 10<sup>-2</sup> | 1.2 × 10<sup>-2</sup> |
-| Parameters found (true) | νₑ = 0.00127637 (0.001); K = 0.00103624 (0.001) | νₑ = 0.00117644 (0.001); K = 0.00100487 (0.001) |
+**Inverse problem**
+
+| Training | L₂ | Parameters found (true) | Worst parameter error | Time (s) |
+|---|---|---|---|---|
+| DeepXDE's settings (3 seeds, median) | 2.0 × 10<sup>-2</sup> | νₑ = 0.00127637 (0.001); K = 0.00103624 (0.001) | 28% | 74 |
+| 3× iterations | 1.3 × 10<sup>-2</sup> | νₑ = 0.00115135 (0.001); K = 0.00103409 (0.001) | 15% | 234 |
+| Larger network (2× width, one more layer) | 1.2 × 10<sup>-2</sup> | νₑ = 0.0012027 (0.001); K = 0.000988846 (0.001) | 20% | 82 |
+| 3× training points | 2.1 × 10<sup>-2</sup> | νₑ = 0.0013006 (0.001); K = 0.00103805 (0.001) | 30% | 74 |
+| L-BFGS phase added | 1.9 × 10<sup>-2</sup> | νₑ = 0.00130008 (0.001); K = 0.00100827 (0.001) | 30% | 78 |
+| All of the above together (3 seeds, median) | 1.2 × 10<sup>-2</sup> | νₑ = 0.00117644 (0.001); K = 0.00100487 (0.001) | 18% | 237 |
+| **PINNStudio best**: all of the changes together | **1.2 × 10<sup>-2</sup>** | νₑ = 0.00117644 (0.001); K = 0.00100487 (0.001) | **18%** | |
 
 *Inverse, DeepXDE's settings:*
 
@@ -361,10 +469,17 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 [problem and settings in the README](../README.md#dx-inverse-diffusion-reaction-with-space-dependent-rate) · [forward runs in the tuning study](tuning_study.md#tune-diffusion-reaction-1d-unknown-rate-field)
 
-| | DeepXDE's settings | PINNStudio best |
-|---|---|---|
-| Inverse $L_2$ | 4.0 × 10<sup>-2</sup> | 2.8 × 10<sup>-2</sup> |
-| Parameters found (true) | – | – |
+**Inverse problem**
+
+| Training | L₂ | Parameters found (true) | Worst parameter error | Time (s) |
+|---|---|---|---|---|
+| DeepXDE's settings (3 seeds, median) | 4.0 × 10<sup>-2</sup> | – | – | 49 |
+| 3× iterations | 2.3 × 10<sup>-2</sup> | – | – | 148 |
+| Larger network (2× width, one more layer) | 1.3 × 10<sup>-2</sup> | – | – | 61 |
+| 3× training points | 4.0 × 10<sup>-2</sup> | – | – | 50 |
+| L-BFGS phase added | 4.0 × 10<sup>-2</sup> | – | – | 50 |
+| All of the above together (3 seeds, median) | 2.8 × 10<sup>-2</sup> | – | – | 178 |
+| **PINNStudio best**: all of the changes together | **2.8 × 10<sup>-2</sup>** | – | **–** | |
 
 *Inverse, DeepXDE's settings:*
 
@@ -381,10 +496,12 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 [problem and settings in the README](../README.md#dx-inverse-fractional-poisson-equation-1d)
 
-| | DeepXDE's settings | PINNStudio best |
-|---|---|---|
-| Inverse $L_2$ | 4.9 × 10<sup>-3</sup> | 4.9 × 10<sup>-3</sup> (no tuning needed) |
-| Parameters found (true) | α = 1.79183 (1.8) | α = 1.79183 (1.8) |
+**Inverse problem**
+
+| Training | L₂ | Parameters found (true) | Worst parameter error | Time (s) |
+|---|---|---|---|---|
+| DeepXDE's settings (README) | 4.9 × 10<sup>-3</sup> | α = 1.79183 (1.8) | 0.45% | – |
+| **PINNStudio best**: no tuning needed | **4.9 × 10<sup>-3</sup>** | α = 1.79183 (1.8) | **0.45%** | |
 
 *Inverse, the README's result:*
 
@@ -397,10 +514,17 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 [problem and settings in the README](../README.md#dx-inverse-poisson-with-unknown-forcing-field) · [forward runs in the tuning study](tuning_study.md#tune-poisson-1d-unknown-forcing-field)
 
-| | DeepXDE's settings | PINNStudio best |
-|---|---|---|
-| Inverse $L_2$ | 5.4 × 10<sup>-4</sup> | 2.1 × 10<sup>-4</sup> |
-| Parameters found (true) | – | – |
+**Inverse problem**
+
+| Training | L₂ | Parameters found (true) | Worst parameter error | Time (s) |
+|---|---|---|---|---|
+| DeepXDE's settings (3 seeds, median) | 5.4 × 10<sup>-4</sup> | – | – | 66 |
+| 3× iterations | 1.1 × 10<sup>-3</sup> | – | – | 171 |
+| Larger network (2× width, one more layer) | 5.1 × 10<sup>-4</sup> | – | – | 70 |
+| 3× training points | 8.3 × 10<sup>-4</sup> | – | – | 63 |
+| L-BFGS phase added | 8.3 × 10<sup>-4</sup> | – | – | 60 |
+| All of the above together (3 seeds, median) | 2.1 × 10<sup>-4</sup> | – | – | 221 |
+| **PINNStudio best**: all of the changes together | **2.1 × 10<sup>-4</sup>** | – | **–** | |
 
 *Inverse, DeepXDE's settings:*
 
@@ -421,10 +545,17 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 [problem and settings in the README](../README.md#dx-inverse-poisson-with-unknown-forcing-field-batches) · [forward runs in the tuning study](tuning_study.md#tune-poisson-1d-unknown-forcing-field-batches)
 
-| | DeepXDE's settings | PINNStudio best |
-|---|---|---|
-| Inverse $L_2$ | 4.5 × 10<sup>-3</sup> | 7.8 × 10<sup>-4</sup> |
-| Parameters found (true) | – | – |
+**Inverse problem**
+
+| Training | L₂ | Parameters found (true) | Worst parameter error | Time (s) |
+|---|---|---|---|---|
+| DeepXDE's settings (3 seeds, median) | 4.5 × 10<sup>-3</sup> | – | – | 62 |
+| 3× iterations | 4.6 × 10<sup>-3</sup> | – | – | 179 |
+| Larger network (2× width, one more layer) | 5.3 × 10<sup>-3</sup> | – | – | 74 |
+| 3× training points | 7.5 × 10<sup>-3</sup> | – | – | 61 |
+| L-BFGS phase added | 7.5 × 10<sup>-3</sup> | – | – | 61 |
+| All of the above together (3 seeds, median) | 7.8 × 10<sup>-4</sup> | – | – | 215 |
+| **PINNStudio best**: all of the changes together | **7.8 × 10<sup>-4</sup>** | – | **–** | |
 
 *Inverse, DeepXDE's settings:*
 
@@ -447,13 +578,29 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 [problem and settings in the README](../README.md#dx-allen-cahn-equation) · [forward runs in the tuning study](tuning_study.md#tune-allen-cahn-1d) · [inverse runs in the tuning study](tuning_study.md#tune-allen-cahn-1d-inverse-mode)
 
-| | DeepXDE's settings | PINNStudio best |
-|---|---|---|
-| Forward $L_2$ | 3.4 × 10<sup>-2</sup> | 1.2 × 10<sup>-2</sup> |
-| Inverse $L_2$ | 5.4 × 10<sup>-4</sup> | 1.1 × 10<sup>-4</sup> |
-| Parameters found (true) | d = 0.00100154 (0.001); c = 4.9979 (5) | d = 0.00100055 (0.001); c = 5.00002 (5) |
+**Forward problem**
 
-DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse mode of it, run with the example's settings and tuned.
+| Training | L₂ | Time (s) |
+|---|---|---|
+| DeepXDE's settings (3 seeds, median) | 3.4 × 10<sup>-2</sup> | 210 |
+| 3× iterations | 3.9 × 10<sup>-2</sup> | 426 |
+| Larger network (2× width, one more layer) | 2.3 × 10<sup>-2</sup> | 178 |
+| 3× training points | 1.4 × 10<sup>-1</sup> | 124 |
+| All of the above together (3 seeds, median) | 1.2 × 10<sup>-2</sup> | 438 |
+| **PINNStudio best**: all of the changes together | **1.2 × 10<sup>-2</sup>** | |
+
+**Inverse problem**
+
+| Training | L₂ | Parameters found (true) | Worst parameter error | Time (s) |
+|---|---|---|---|---|
+| DeepXDE's settings | 5.4 × 10<sup>-4</sup> | d = 0.00100154 (0.001); c = 4.9979 (5) | 0.15% | 168 |
+| Larger network (2× width, one more layer) | 1.2 × 10<sup>-4</sup> | d = 0.0010003 (0.001); c = 4.99942 (5) | 0.03% | 186 |
+| 3× L-BFGS iterations | 5.4 × 10<sup>-4</sup> | d = 0.00100154 (0.001); c = 4.9979 (5) | 0.15% | 165 |
+| All of the above together | 1.1 × 10<sup>-4</sup> | d = 0.00100055 (0.001); c = 5.00002 (5) | 0.055% | 488 |
+| 10× data weight, 3× L-BFGS and the larger network | 1.0 × 10<sup>-4</sup> | d = 0.00100501 (0.001); c = 4.99952 (5) | 0.5% | 188 |
+| **PINNStudio best**: all of the changes together | **1.1 × 10<sup>-4</sup>** | d = 0.00100055 (0.001); c = 5.00002 (5) | **0.055%** | |
+
+*DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*
 
 *Forward, DeepXDE's settings:*
 
@@ -480,15 +627,17 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 <details id="bench-allen-cahn-1d-wight-zhao-time-adaptive">
 <summary><strong>Allen-Cahn 1D – Wight & Zhao (time-adaptive)</strong> · PINNStudio template, after Wight & Zhao (2021)</summary>
 
-| | $L_2$, last time | $L_2$, all times | Parameters found (true) |
+**Forward problem**
+
+| Training | L₂, last time | L₂, all times | Time (s) |
 |---|---|---|---|
-| Plain PINN (in PINNStudio) | – | – | |
-| Wight & Zhao's method: reported in Wight & Zhao (2021), Table 3.1 | – | 2.3 × 10<sup>-2</sup> | |
-| Wight & Zhao's method, run in PINNStudio | – | – | |
-| Mattey & Ghosh's bc-PINN: reported in Mattey & Ghosh (2022), Table 2 | – | 1.7 × 10<sup>-2</sup> | |
-| Mattey & Ghosh's bc-PINN, run in PINNStudio | – | – | |
-| The template as it loads | 4.8 × 10<sup>-3</sup> | – | |
-| **PINNStudio best** (forward) | 4.8 × 10<sup>-3</sup> | – | |
+| Plain PINN | – | – | – |
+| Wight & Zhao's method, as reported (Wight & Zhao (2021), Table 3.1) | – | 2.3 × 10<sup>-2</sup> | – |
+| Wight & Zhao's method, run in PINNStudio | – | – | – |
+| Mattey & Ghosh's bc-PINN, as reported (Mattey & Ghosh (2022), Table 2) | – | 1.7 × 10<sup>-2</sup> | – |
+| Mattey & Ghosh's bc-PINN, run in PINNStudio | – | – | – |
+| The template's own settings (README) | 4.8 × 10<sup>-3</sup> | –  | – |
+| **PINNStudio best**: no tuning needed | **4.8 × 10<sup>-3</sup>** | –  | |
 
 *The plain PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*
 
@@ -497,19 +646,26 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 <details id="bench-allen-cahn-1d-wight-zhao-whole-interval">
 <summary><strong>Allen-Cahn 1D – Wight & Zhao (whole interval)</strong> · PINNStudio template, after Wight & Zhao (2021)</summary>
 
-| | $L_2$, last time | $L_2$, all times | Parameters found (true) |
+**Forward problem**
+
+| Training | L₂, last time | L₂, all times | Time (s) |
 |---|---|---|---|
-| Plain PINN (in PINNStudio) | – | – | |
-| Wight & Zhao's method: reported in Wight & Zhao (2021), Table 3.1 | – | 2.3 × 10<sup>-2</sup> | |
-| Wight & Zhao's method, run in PINNStudio | – | – | |
-| Mattey & Ghosh's bc-PINN: reported in Mattey & Ghosh (2022), Table 2 | – | 1.7 × 10<sup>-2</sup> | |
-| Mattey & Ghosh's bc-PINN, run in PINNStudio | – | – | |
-| The template as it loads | 1.4 × 10<sup>-3</sup> | – | |
-| **PINNStudio best** (forward) | 1.4 × 10<sup>-3</sup> | – | |
-| Inverse, the template's own settings | 2.1 × 10<sup>-4</sup> | – | γ₁ = 9.81621e-05 (0.0001); γ₂ = 4.99953 (5) |
-| **PINNStudio best** (inverse) | 2.1 × 10<sup>-4</sup> | – | γ₁ = 9.81621e-05 (0.0001); γ₂ = 4.99953 (5) |
+| Plain PINN | – | – | – |
+| Wight & Zhao's method, as reported (Wight & Zhao (2021), Table 3.1) | – | 2.3 × 10<sup>-2</sup> | – |
+| Wight & Zhao's method, run in PINNStudio | – | – | – |
+| Mattey & Ghosh's bc-PINN, as reported (Mattey & Ghosh (2022), Table 2) | – | 1.7 × 10<sup>-2</sup> | – |
+| Mattey & Ghosh's bc-PINN, run in PINNStudio | – | – | – |
+| The template's own settings (README) | 1.4 × 10<sup>-3</sup> | –  | – |
+| **PINNStudio best**: no tuning needed | **1.4 × 10<sup>-3</sup>** | –  | |
 
 *The plain PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*
+
+**Inverse problem**
+
+| Training | L₂ | Parameters found (true) | Worst parameter error | Time (s) |
+|---|---|---|---|---|
+| The template's own settings (README) | 2.1 × 10<sup>-4</sup> | γ₁ = 9.81621e-05 (0.0001); γ₂ = 4.99953 (5) | 1.8% | – |
+| **PINNStudio best**: no tuning needed | **2.1 × 10<sup>-4</sup>** | γ₁ = 9.81621e-05 (0.0001); γ₂ = 4.99953 (5) | **1.8%** | |
 
 </details>
 
@@ -518,13 +674,15 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 [problem and settings in the README](../README.md#1d-cahn-hilliard)
 
-| | $L_2$, last time | $L_2$, all times | Parameters found (true) |
+**Forward problem**
+
+| Training | L₂, last time | L₂, all times | Time (s) |
 |---|---|---|---|
-| Plain PINN (in PINNStudio) | – | – | |
-| Wight & Zhao's method: reported in Wight & Zhao (2021), Sec. 3.2 | – | 9.5 × 10<sup>-3</sup> | |
-| Wight & Zhao's method, run in PINNStudio | – | – | |
-| The template as it loads | 6.0 × 10<sup>-4</sup> | – | |
-| **PINNStudio best** (forward) | 6.0 × 10<sup>-4</sup> | – | |
+| Plain PINN | – | – | – |
+| Wight & Zhao's method, as reported (Wight & Zhao (2021), Sec. 3.2) | – | 9.5 × 10<sup>-3</sup> | – |
+| Wight & Zhao's method, run in PINNStudio | – | – | – |
+| The template's own settings (README) | 6.0 × 10<sup>-4</sup> | –  | – |
+| **PINNStudio best**: no tuning needed | **6.0 × 10<sup>-4</sup>** | –  | |
 
 *The plain PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*
 
@@ -539,13 +697,20 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 [problem and settings in the README](../README.md#1d-cahn-hilliard-mattey--ghosh) · [forward runs in the tuning study](tuning_study.md#tune-cahn-hilliard-1d-mattey-ghosh-pinnstudio-template-best-setup)
 
-| | $L_2$, last time | $L_2$, all times | Parameters found (true) |
+**Forward problem**
+
+| Training | L₂, last time | L₂, all times | Time (s) |
 |---|---|---|---|
-| Plain PINN (in PINNStudio) | – | – | |
-| Mattey & Ghosh's bc-PINN: reported in Mattey & Ghosh (2022), Sec. 5.2 | – | 1.9 × 10<sup>-2</sup> | |
-| Mattey & Ghosh's bc-PINN, run in PINNStudio | – | – | |
-| The template as it loads | 4.8 × 10<sup>-3</sup> | – | |
-| **PINNStudio best** (forward) | 3.9 × 10<sup>-3</sup> | – | |
+| Plain PINN | – | – | – |
+| Mattey & Ghosh's bc-PINN, as reported (Mattey & Ghosh (2022), Sec. 5.2) | – | 1.9 × 10<sup>-2</sup> | – |
+| Mattey & Ghosh's bc-PINN, run in PINNStudio | – | – | – |
+| The template's own settings (README) | 4.8 × 10<sup>-3</sup> | –  | – |
+| Best setup of the training methods study | 3.9 × 10<sup>-3</sup> | –  | 1002 |
+| Best setup + 3× iterations | 6.1 × 10<sup>-2</sup> | –  | 2165 |
+| Best setup + larger network (2× width, one more layer) | 9.9 × 10<sup>-1</sup> | –  | 1893 |
+| Best setup + 2× time windows | 1.5 × 10<sup>-2</sup> | –  | 1709 |
+| Best setup + all of the above together | 9.9 × 10<sup>-1</sup> | –  | 13959 |
+| **PINNStudio best**: the starting settings (the run with the lowest training loss was less accurate) | **3.9 × 10<sup>-3</sup>** | –  | |
 
 *The plain PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*
 
@@ -566,9 +731,6 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 [problem and settings in the README](../README.md#dx-american-put-option)
 
-| | DeepXDE's settings | PINNStudio best |
-|---|---|---|
-
 </details>
 
 <details id="bench-black-scholes-1d-european-call">
@@ -576,9 +738,12 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 [problem and settings in the README](../README.md#dx-black-scholes-equation-call-option)
 
-| | DeepXDE's settings | PINNStudio best |
+**Forward problem**
+
+| Training | L₂ | Time (s) |
 |---|---|---|
-| Forward $L_2$ | 4.3 × 10<sup>-4</sup> | 4.3 × 10<sup>-4</sup> (no tuning needed) |
+| DeepXDE's settings (README) | 4.3 × 10<sup>-4</sup> | – |
+| **PINNStudio best**: no tuning needed | **4.3 × 10<sup>-4</sup>** | |
 
 *Forward, the README's result:*
 
@@ -591,17 +756,28 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 [problem and settings in the README](../README.md#1d-burgers) · [forward runs in the tuning study](tuning_study.md#tune-burgers-1d-raissi-et-al-pinnstudio-template-best-setup)
 
-| | $L_2$, last time | $L_2$, all times | Parameters found (true) |
+**Forward problem**
+
+| Training | L₂, last time | L₂, all times | Time (s) |
 |---|---|---|---|
-| Plain PINN (in PINNStudio) | – | – | |
-| Raissi et al.'s settings: reported in Raissi et al. (2019), Sec. 2.1 | – | 6.7 × 10<sup>-4</sup> | |
-| Raissi et al.'s settings, run in PINNStudio | – | – | |
-| The template as it loads | 1.3 × 10<sup>-3</sup> | – | |
-| **PINNStudio best** (forward) | 5.2 × 10<sup>-4</sup> | – | |
-| Inverse, the template's own settings | 7.8 × 10<sup>-4</sup> | – | λ₁ = 0.996107 (1); λ₂ = 0.0100386 (0.01) |
-| **PINNStudio best** (inverse) | 7.8 × 10<sup>-4</sup> | – | λ₁ = 0.996107 (1); λ₂ = 0.0100386 (0.01) |
+| Plain PINN | – | – | – |
+| Raissi et al.'s settings, as reported (Raissi et al. (2019), Sec. 2.1) | – | 6.7 × 10<sup>-4</sup> | – |
+| Raissi et al.'s settings, run in PINNStudio | – | – | – |
+| The template's own settings (README) | 1.3 × 10<sup>-3</sup> | –  | – |
+| Best setup of the training methods study | 1.7 × 10<sup>-3</sup> | –  | 86 |
+| Best setup + 3× iterations | 5.5 × 10<sup>-4</sup> | –  | 148 |
+| Best setup + larger network (2× width, one more layer) | 6.8 × 10<sup>-4</sup> | –  | 75 |
+| Best setup + all of the above together | 5.2 × 10<sup>-4</sup> | –  | 172 |
+| **PINNStudio best**: all of the changes together | **5.2 × 10<sup>-4</sup>** | –  | |
 
 *The plain PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*
+
+**Inverse problem**
+
+| Training | L₂ | Parameters found (true) | Worst parameter error | Time (s) |
+|---|---|---|---|---|
+| The template's own settings (README) | 7.8 × 10<sup>-4</sup> | λ₁ = 0.996107 (1); λ₂ = 0.0100386 (0.01) | 0.39% | – |
+| **PINNStudio best**: no tuning needed | **7.8 × 10<sup>-4</sup>** | λ₁ = 0.996107 (1); λ₂ = 0.0100386 (0.01) | **0.39%** | |
 
 *Forward, the README's result:*
 
@@ -622,9 +798,12 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 [problem and settings in the README](../README.md#dx-burgers-equation-with-rar)
 
-| | DeepXDE's settings | PINNStudio best |
+**Forward problem**
+
+| Training | L₂ | Time (s) |
 |---|---|---|
-| Forward $L_2$ | 8.4 × 10<sup>-4</sup> | 8.4 × 10<sup>-4</sup> (no tuning needed) |
+| DeepXDE's settings (README) | 8.4 × 10<sup>-4</sup> | – |
+| **PINNStudio best**: no tuning needed | **8.4 × 10<sup>-4</sup>** | |
 
 *Forward, the README's result:*
 
@@ -637,9 +816,17 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 [problem and settings in the README](../README.md#dx-diffusion-equation) · [forward runs in the tuning study](tuning_study.md#tune-diffusion-1d)
 
-| | DeepXDE's settings | PINNStudio best |
+**Forward problem**
+
+| Training | L₂ | Time (s) |
 |---|---|---|
-| Forward $L_2$ | 2.3 × 10<sup>-2</sup> | 1.5 × 10<sup>-3</sup> |
+| DeepXDE's settings (3 seeds, median) | 2.3 × 10<sup>-2</sup> | 26 |
+| 3× iterations | 1.1 × 10<sup>-2</sup> | 61 |
+| Larger network (2× width, one more layer) | 1.2 × 10<sup>-2</sup> | 26 |
+| 3× training points | 1.2 × 10<sup>-2</sup> | 23 |
+| L-BFGS phase added | 4.4 × 10<sup>-3</sup> | 25 |
+| All of the above together (3 seeds, median) | 1.5 × 10<sup>-3</sup> | 76 |
+| **PINNStudio best**: all of the changes together | **1.5 × 10<sup>-3</sup>** | |
 
 *Forward, DeepXDE's settings:*
 
@@ -656,9 +843,12 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 [problem and settings in the README](../README.md#dx-diffusion-equation-with-hard-ic-and-bc)
 
-| | DeepXDE's settings | PINNStudio best |
+**Forward problem**
+
+| Training | L₂ | Time (s) |
 |---|---|---|
-| Forward $L_2$ | 2.8 × 10<sup>-3</sup> | 2.8 × 10<sup>-3</sup> (no tuning needed) |
+| DeepXDE's settings (README) | 2.8 × 10<sup>-3</sup> | – |
+| **PINNStudio best**: no tuning needed | **2.8 × 10<sup>-3</sup>** | |
 
 *Forward, the README's result:*
 
@@ -671,9 +861,17 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 [problem and settings in the README](../README.md#dx-diffusion-equation-with-resampling) · [forward runs in the tuning study](tuning_study.md#tune-diffusion-1d-resampling)
 
-| | DeepXDE's settings | PINNStudio best |
+**Forward problem**
+
+| Training | L₂ | Time (s) |
 |---|---|---|
-| Forward $L_2$ | 5.4 × 10<sup>-2</sup> | 5.8 × 10<sup>-3</sup> |
+| DeepXDE's settings (3 seeds, median) | 5.4 × 10<sup>-2</sup> | 8 |
+| 3× iterations | 6.7 × 10<sup>-3</sup> | 16 |
+| Larger network (2× width, one more layer) | 3.5 × 10<sup>-2</sup> | 9 |
+| 3× training points | 6.7 × 10<sup>-2</sup> | 8 |
+| L-BFGS phase added (3 seeds, median) | 5.8 × 10<sup>-3</sup> | 12 |
+| All of the above together | 4.7 × 10<sup>-3</sup> | 20 |
+| **PINNStudio best**: l-bfgs phase added | **5.8 × 10<sup>-3</sup>** | |
 
 *Forward, DeepXDE's settings:*
 
@@ -690,13 +888,30 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 [problem and settings in the README](../README.md#dx-diffusion-reaction-equation) · [forward runs in the tuning study](tuning_study.md#tune-diffusion-reaction-1d) · [inverse runs in the tuning study](tuning_study.md#tune-diffusion-reaction-1d-inverse-mode)
 
-| | DeepXDE's settings | PINNStudio best |
-|---|---|---|
-| Forward $L_2$ | 8.8 × 10<sup>-2</sup> | 8.5 × 10<sup>-5</sup> |
-| Inverse $L_2$ | 6.2 × 10<sup>-4</sup> | 1.4 × 10<sup>-4</sup> |
-| Parameters found (true) | D = 0.998802 (1) | D = 0.999773 (1) |
+**Forward problem**
 
-DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse mode of it, run with the example's settings and tuned.
+| Training | L₂ | Time (s) |
+|---|---|---|
+| DeepXDE's settings (3 seeds, median) | 8.8 × 10<sup>-2</sup> | 87 |
+| 3× iterations | 2.3 × 10<sup>-2</sup> | 251 |
+| Larger network (2× width, one more layer) | 3.3 × 10<sup>-2</sup> | 94 |
+| 3× training points | 5.2 × 10<sup>-2</sup> | 89 |
+| L-BFGS phase added | 5.0 × 10<sup>-4</sup> | 98 |
+| All of the above together (3 seeds, median) | 8.5 × 10<sup>-5</sup> | 290 |
+| **PINNStudio best**: all of the changes together | **8.5 × 10<sup>-5</sup>** | |
+
+**Inverse problem**
+
+| Training | L₂ | Parameters found (true) | Worst parameter error | Time (s) |
+|---|---|---|---|---|
+| DeepXDE's settings | 6.2 × 10<sup>-4</sup> | D = 0.998802 (1) | 0.12% | 121 |
+| Larger network (2× width, one more layer) | 5.2 × 10<sup>-4</sup> | D = 0.998959 (1) | 0.1% | 130 |
+| 3× L-BFGS iterations | 6.2 × 10<sup>-4</sup> | D = 0.998802 (1) | 0.12% | 118 |
+| All of the above together | 1.4 × 10<sup>-4</sup> | D = 0.999773 (1) | 0.023% | 334 |
+| 10× data weight, 3× L-BFGS and the larger network | 1.5 × 10<sup>-3</sup> | D = 0.997953 (1) | 0.2% | 118 |
+| **PINNStudio best**: all of the changes together | **1.4 × 10<sup>-4</sup>** | D = 0.999773 (1) | **0.023%** | |
+
+*DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*
 
 *Forward, DeepXDE's settings:*
 
@@ -725,9 +940,12 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 [problem and settings in the README](../README.md#dx-fractional-diffusion-equation)
 
-| | DeepXDE's settings | PINNStudio best |
+**Forward problem**
+
+| Training | L₂ | Time (s) |
 |---|---|---|
-| Forward $L_2$ | 3.3 × 10<sup>-3</sup> | 3.3 × 10<sup>-3</sup> (no tuning needed) |
+| DeepXDE's settings (README) | 3.3 × 10<sup>-3</sup> | – |
+| **PINNStudio best**: no tuning needed | **3.3 × 10<sup>-3</sup>** | |
 
 *Forward, the README's result:*
 
@@ -740,13 +958,29 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 [problem and settings in the README](../README.md#dx-heat-equation) · [forward runs in the tuning study](tuning_study.md#tune-heat-1d-dirichlet) · [inverse runs in the tuning study](tuning_study.md#tune-heat-1d-dirichlet-inverse-mode)
 
-| | DeepXDE's settings | PINNStudio best |
-|---|---|---|
-| Forward $L_2$ | 5.0 × 10<sup>-2</sup> | 1.3 × 10<sup>-2</sup> |
-| Inverse $L_2$ | 5.1 × 10<sup>-3</sup> | 1.1 × 10<sup>-3</sup> |
-| Parameters found (true) | a = 0.397247 (0.4) | a = 0.400406 (0.4) |
+**Forward problem**
 
-DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse mode of it, run with the example's settings and tuned.
+| Training | L₂ | Time (s) |
+|---|---|---|
+| DeepXDE's settings (3 seeds, median) | 5.0 × 10<sup>-2</sup> | 42 |
+| 3× iterations | 2.9 × 10<sup>-2</sup> | 108 |
+| Larger network (2× width, one more layer) (3 seeds, median) | 2.6 × 10<sup>-2</sup> | 46 |
+| 3× training points | 3.1 × 10<sup>-2</sup> | 40 |
+| All of the above together (3 seeds, median) | 1.3 × 10<sup>-2</sup> | 128 |
+| **PINNStudio best**: all of the changes together | **1.3 × 10<sup>-2</sup>** | |
+
+**Inverse problem**
+
+| Training | L₂ | Parameters found (true) | Worst parameter error | Time (s) |
+|---|---|---|---|---|
+| DeepXDE's settings (3 seeds, median) | 5.1 × 10<sup>-3</sup> | a = 0.397247 (0.4) | 0.69% | 50 |
+| 3× iterations | 3.0 × 10<sup>-3</sup> | a = 0.398069 (0.4) | 0.48% | 130 |
+| Larger network (2× width, one more layer) | 1.2 × 10<sup>-3</sup> | a = 0.398489 (0.4) | 0.38% | 50 |
+| 3× training points | 1.7 × 10<sup>-3</sup> | a = 0.397791 (0.4) | 0.55% | 53 |
+| All of the above together (3 seeds, median) | 1.1 × 10<sup>-3</sup> | a = 0.400406 (0.4) | 0.1% | 146 |
+| **PINNStudio best**: all of the changes together | **1.1 × 10<sup>-3</sup>** | a = 0.400406 (0.4) | **0.1%** | |
+
+*DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*
 
 *Forward, DeepXDE's settings:*
 
@@ -775,9 +1009,16 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 [problem and settings in the README](../README.md#dx-heat-equation-with-resampling) · [forward runs in the tuning study](tuning_study.md#tune-heat-1d-resampling)
 
-| | DeepXDE's settings | PINNStudio best |
+**Forward problem**
+
+| Training | L₂ | Time (s) |
 |---|---|---|
-| Forward $L_2$ | 1.4 × 10<sup>-2</sup> | 3.3 × 10<sup>-3</sup> |
+| DeepXDE's settings (3 seeds, median) | 1.4 × 10<sup>-2</sup> | 509 |
+| 3× iterations | 7.2 × 10<sup>-3</sup> | 1502 |
+| Larger network (2× width, one more layer) | 3.1 × 10<sup>-3</sup> | 558 |
+| 3× training points | 1.0 × 10<sup>-2</sup> | 626 |
+| All of the above together (3 seeds, median) | 3.3 × 10<sup>-3</sup> | 2060 |
+| **PINNStudio best**: all of the changes together | **3.3 × 10<sup>-3</sup>** | |
 
 *Forward, DeepXDE's settings:*
 
@@ -794,9 +1035,16 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 [problem and settings in the README](../README.md#dx-klein-gordon-equation) · [forward runs in the tuning study](tuning_study.md#tune-klein-gordon-1d)
 
-| | DeepXDE's settings | PINNStudio best |
+**Forward problem**
+
+| Training | L₂ | Time (s) |
 |---|---|---|
-| Forward $L_2$ | 6.9 × 10<sup>-2</sup> | 2.3 × 10<sup>-3</sup> |
+| DeepXDE's settings (3 seeds, median) | 6.9 × 10<sup>-2</sup> | 60 |
+| 3× iterations | 3.3 × 10<sup>-2</sup> | 156 |
+| Larger network (2× width, one more layer) (3 seeds, median) | 2.3 × 10<sup>-3</sup> | 151 |
+| 3× training points | 1.1 × 10<sup>-2</sup> | 159 |
+| All of the above together (3 seeds, median) | 2.0 × 10<sup>-2</sup> | 1216 |
+| **PINNStudio best**: larger network (2× width, one more layer) | **2.3 × 10<sup>-3</sup>** | |
 
 *Forward, DeepXDE's settings:*
 
@@ -813,13 +1061,25 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 [problem and settings in the README](../README.md#dx-schr-dinger-equation) · [inverse runs in the tuning study](tuning_study.md#tune-schr-dinger-1d-inverse-mode)
 
-| | DeepXDE's settings | PINNStudio best |
-|---|---|---|
-| Forward $L_2$ | 1.8 × 10<sup>-3</sup> | 1.8 × 10<sup>-3</sup> (no tuning needed) |
-| Inverse $L_2$ | 1.8 × 10<sup>-1</sup> | 9.9 × 10<sup>-4</sup> |
-| Parameters found (true) | c = 0.514806 (0.5) | c = 0.500036 (0.5) |
+**Forward problem**
 
-DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse mode of it, run with the example's settings and tuned.
+| Training | L₂ | Time (s) |
+|---|---|---|
+| DeepXDE's settings (README) | 1.8 × 10<sup>-3</sup> | – |
+| **PINNStudio best**: no tuning needed | **1.8 × 10<sup>-3</sup>** | |
+
+**Inverse problem**
+
+| Training | L₂ | Parameters found (true) | Worst parameter error | Time (s) |
+|---|---|---|---|---|
+| DeepXDE's settings | 1.8 × 10<sup>-1</sup> | c = 0.514806 (0.5) | 3% | 196 |
+| 3× iterations | 3.6 × 10<sup>-1</sup> | c = 0.511656 (0.5) | 2.3% | 483 |
+| Larger network (2× width, one more layer) | 9.9 × 10<sup>-4</sup> | c = 0.500036 (0.5) | 0.0072% | 337 |
+| 3× training points | 6.5 × 10<sup>-2</sup> | c = 0.500117 (0.5) | 0.023% | 324 |
+| All of the above together | 1.7 × 10<sup>-1</sup> | c = 0.504096 (0.5) | 0.82% | 1745 |
+| **PINNStudio best**: larger network (2× width, one more layer) | **9.9 × 10<sup>-4</sup>** | c = 0.500036 (0.5) | **0.0072%** | |
+
+*DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*
 
 *Forward, the README's result:*
 
@@ -844,9 +1104,17 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 [problem and settings in the README](../README.md#dx-wave-propagation-space-time-multi-scale-fourier-features) · [forward runs in the tuning study](tuning_study.md#tune-wave-1d-space-time-multi-scale-fourier-features)
 
-| | DeepXDE's settings | PINNStudio best |
+**Forward problem**
+
+| Training | L₂ | Time (s) |
 |---|---|---|
-| Forward $L_2$ | 3.0 × 10<sup>-1</sup> | 1.5 × 10<sup>-3</sup> |
+| DeepXDE's settings (3 seeds, median) | 3.0 × 10<sup>-1</sup> | 75 |
+| 3× iterations | 8.5 × 10<sup>-3</sup> | 220 |
+| Larger network (2× width, one more layer) | 4.2 × 10<sup>-2</sup> | 86 |
+| 3× training points | 1.1 × 10<sup>-1</sup> | 75 |
+| L-BFGS phase added | 1.6 × 10<sup>-1</sup> | 178 |
+| All of the above together (3 seeds, median) | 1.5 × 10<sup>-3</sup> | 645 |
+| **PINNStudio best**: all of the changes together | **1.5 × 10<sup>-3</sup>** | |
 
 *Forward, DeepXDE's settings:*
 
@@ -863,10 +1131,17 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 [problem and settings in the README](../README.md#dx-inverse-diffusion-equation) · [forward runs in the tuning study](tuning_study.md#tune-diffusion-1d-unknown-coefficient)
 
-| | DeepXDE's settings | PINNStudio best |
-|---|---|---|
-| Inverse $L_2$ | 6.2 × 10<sup>-3</sup> | 2.0 × 10<sup>-4</sup> |
-| Parameters found (true) | C = 0.999553 (1) | C = 1.00017 (1) |
+**Inverse problem**
+
+| Training | L₂ | Parameters found (true) | Worst parameter error | Time (s) |
+|---|---|---|---|---|
+| DeepXDE's settings (3 seeds, median) | 6.2 × 10<sup>-3</sup> | C = 0.999553 (1) | 0.045% | 118 |
+| 3× iterations | 1.2 × 10<sup>-3</sup> | C = 1.00004 (1) | 0.004% | 311 |
+| Larger network (2× width, one more layer) | 1.5 × 10<sup>-2</sup> | C = 0.998344 (1) | 0.17% | 127 |
+| 3× training points | 1.6 × 10<sup>-2</sup> | C = 0.99827 (1) | 0.17% | 106 |
+| L-BFGS phase added | 1.1 × 10<sup>-3</sup> | C = 1.00081 (1) | 0.081% | 111 |
+| All of the above together (3 seeds, median) | 2.0 × 10<sup>-4</sup> | C = 1.00017 (1) | 0.017% | 380 |
+| **PINNStudio best**: all of the changes together | **2.0 × 10<sup>-4</sup>** | C = 1.00017 (1) | **0.017%** | |
 
 *Inverse, DeepXDE's settings:*
 
@@ -887,10 +1162,12 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 [problem and settings in the README](../README.md#dx-inverse-diffusion-reaction-system)
 
-| | DeepXDE's settings | PINNStudio best |
-|---|---|---|
-| Inverse $L_2$ | – | – (no tuning needed) |
-| Parameters found (true) | k_f = 0.0992 (0.1); D = 1.993 (2) | k_f = 0.0992 (0.1); D = 1.993 (2) |
+**Inverse problem**
+
+| Training | L₂ | Parameters found (true) | Worst parameter error | Time (s) |
+|---|---|---|---|---|
+| DeepXDE's settings (README) | – | k_f = 0.0992 (0.1); D = 1.993 (2) | 0.8% | – |
+| **PINNStudio best**: no tuning needed | **–** | k_f = 0.0992 (0.1); D = 1.993 (2) | **0.8%** | |
 
 *Inverse, the README's result:*
 
@@ -905,9 +1182,12 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 [problem and settings in the README](../README.md#dx-fractional-poisson-equation-2d)
 
-| | DeepXDE's settings | PINNStudio best |
+**Forward problem**
+
+| Training | L₂ | Time (s) |
 |---|---|---|
-| Forward $L_2$ | 1.2 × 10<sup>-3</sup> | 1.2 × 10<sup>-3</sup> (no tuning needed) |
+| DeepXDE's settings (README) | 1.2 × 10<sup>-3</sup> | – |
+| **PINNStudio best**: no tuning needed | **1.2 × 10<sup>-3</sup>** | |
 
 *Forward, the README's result:*
 
@@ -920,13 +1200,25 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 [problem and settings in the README](../README.md#dx-helmholtz-2d-dirichlet) · [inverse runs in the tuning study](tuning_study.md#tune-helmholtz-2d-dirichlet-inverse-mode)
 
-| | DeepXDE's settings | PINNStudio best |
-|---|---|---|
-| Forward $L_2$ | 1.9 × 10<sup>-3</sup> | 1.9 × 10<sup>-3</sup> (no tuning needed) |
-| Inverse $L_2$ | 3.5 × 10<sup>-4</sup> | 8.7 × 10<sup>-5</sup> |
-| Parameters found (true) | k₀ = 12.565 (12.5664) | k₀ = 12.5669 (12.5664) |
+**Forward problem**
 
-DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse mode of it, run with the example's settings and tuned.
+| Training | L₂ | Time (s) |
+|---|---|---|
+| DeepXDE's settings (README) | 1.9 × 10<sup>-3</sup> | – |
+| **PINNStudio best**: no tuning needed | **1.9 × 10<sup>-3</sup>** | |
+
+**Inverse problem**
+
+| Training | L₂ | Parameters found (true) | Worst parameter error | Time (s) |
+|---|---|---|---|---|
+| DeepXDE's settings | 3.5 × 10<sup>-4</sup> | k₀ = 12.565 (12.5664) | 0.011% | 35 |
+| Larger network (2× width, one more layer) | 2.2 × 10<sup>-4</sup> | k₀ = 12.565 (12.5664) | 0.011% | 64 |
+| 3× L-BFGS iterations | 3.5 × 10<sup>-4</sup> | k₀ = 12.565 (12.5664) | 0.011% | 35 |
+| All of the above together | 8.7 × 10<sup>-5</sup> | k₀ = 12.5669 (12.5664) | 0.0042% | 125 |
+| 10× data weight, 3× L-BFGS and the larger network | 4.0 × 10<sup>-5</sup> | k₀ = 12.5664 (12.5664) | 0.00023% | 58 |
+| **PINNStudio best**: all of the changes together | **8.7 × 10<sup>-5</sup>** | k₀ = 12.5669 (12.5664) | **0.0042%** | |
+
+*DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*
 
 *Forward, the README's result:*
 
@@ -939,9 +1231,12 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 [problem and settings in the README](../README.md#dx-helmholtz-2d-hyperparameter-optimization)
 
-| | DeepXDE's settings | PINNStudio best |
+**Forward problem**
+
+| Training | L₂ | Time (s) |
 |---|---|---|
-| Forward $L_2$ | 1.3 × 10<sup>-3</sup> | 1.3 × 10<sup>-3</sup> (no tuning needed) |
+| DeepXDE's settings (README) | 1.3 × 10<sup>-3</sup> | – |
+| **PINNStudio best**: no tuning needed | **1.3 × 10<sup>-3</sup>** | |
 
 </details>
 
@@ -950,9 +1245,17 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 [problem and settings in the README](../README.md#dx-helmholtz-sound-hard-scattering-absorbing-bc) · [forward runs in the tuning study](tuning_study.md#tune-helmholtz-2d-sound-hard-scattering)
 
-| | DeepXDE's settings | PINNStudio best |
+**Forward problem**
+
+| Training | L₂ | Time (s) |
 |---|---|---|
-| Forward $L_2$ | 8.0 × 10<sup>-2</sup> | 7.7 × 10<sup>-2</sup> |
+| DeepXDE's settings (3 seeds, median) | 8.0 × 10<sup>-2</sup> | 61 |
+| 3× iterations | 8.8 × 10<sup>-2</sup> | 170 |
+| Larger network (2× width, one more layer) | 7.9 × 10<sup>-2</sup> | 101 |
+| 3× training points | 7.7 × 10<sup>-2</sup> | 135 |
+| L-BFGS phase added | 7.7 × 10<sup>-2</sup> | 108 |
+| All of the above together (3 seeds, median) | 7.7 × 10<sup>-2</sup> | 1017 |
+| **PINNStudio best**: all of the changes together | **7.7 × 10<sup>-2</sup>** | |
 
 *Forward, DeepXDE's settings:*
 
@@ -973,9 +1276,17 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 [problem and settings in the README](../README.md#dx-helmholtz-2d-with-a-hole) · [forward runs in the tuning study](tuning_study.md#tune-helmholtz-2d-square-with-hole)
 
-| | DeepXDE's settings | PINNStudio best |
+**Forward problem**
+
+| Training | L₂ | Time (s) |
 |---|---|---|
-| Forward $L_2$ | 1.1 × 10<sup>-2</sup> | 7.0 × 10<sup>-4</sup> |
+| DeepXDE's settings (3 seeds, median) | 1.1 × 10<sup>-2</sup> | 17 |
+| 3× iterations | 5.8 × 10<sup>-3</sup> | 40 |
+| Larger network (2× width, one more layer) | 1.1 × 10<sup>-2</sup> | 18 |
+| 3× training points | 1.6 × 10<sup>-2</sup> | 18 |
+| L-BFGS phase added (3 seeds, median) | 7.0 × 10<sup>-4</sup> | 24 |
+| All of the above together | 2.6 × 10<sup>-3</sup> | 79 |
+| **PINNStudio best**: l-bfgs phase added | **7.0 × 10<sup>-4</sup>** | |
 
 *Forward, DeepXDE's settings:*
 
@@ -992,9 +1303,12 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 [problem and settings in the README](../README.md#dx-laplace-equation-on-a-disk)
 
-| | DeepXDE's settings | PINNStudio best |
+**Forward problem**
+
+| Training | L₂ | Time (s) |
 |---|---|---|
-| Forward $L_2$ | 1.1 × 10<sup>-3</sup> | 1.1 × 10<sup>-3</sup> (no tuning needed) |
+| DeepXDE's settings (README) | 1.1 × 10<sup>-3</sup> | – |
+| **PINNStudio best**: no tuning needed | **1.1 × 10<sup>-3</sup>** | |
 
 *Forward, the README's result:*
 
@@ -1007,13 +1321,26 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 [problem and settings in the README](../README.md#dx-linear-elastostatic-plate) · [forward runs in the tuning study](tuning_study.md#tune-linear-elasticity-2d-plate) · [inverse runs in the tuning study](tuning_study.md#tune-linear-elasticity-2d-plate-inverse-mode)
 
-| | DeepXDE's settings | PINNStudio best |
-|---|---|---|
-| Forward $L_2$ | 6.7 × 10<sup>-2</sup> | 1.3 × 10<sup>-4</sup> |
-| Inverse $L_2$ | 1.9 × 10<sup>-3</sup> | 1.9 × 10<sup>-3</sup> |
-| Parameters found (true) | λ = 0.999744 (1); μ = 0.500088 (0.5) | λ = 0.999744 (1); μ = 0.500088 (0.5) |
+**Forward problem**
 
-DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse mode of it, run with the example's settings and tuned.
+| Training | L₂ | Time (s) |
+|---|---|---|
+| DeepXDE's settings (3 seeds, median) | 6.7 × 10<sup>-2</sup> | 541 |
+| 3× iterations | 7.5 × 10<sup>-2</sup> | 1010 |
+| Larger network (2× width, one more layer) | 2.2 × 10<sup>-3</sup> | 485 |
+| 3× training points | 5.8 × 10<sup>-4</sup> | 476 |
+| All of the above together (3 seeds, median) | 1.3 × 10<sup>-4</sup> | 1147 |
+| **PINNStudio best**: all of the changes together | **1.3 × 10<sup>-4</sup>** | |
+
+**Inverse problem**
+
+| Training | L₂ | Parameters found (true) | Worst parameter error | Time (s) |
+|---|---|---|---|---|
+| DeepXDE's settings | 1.9 × 10<sup>-3</sup> | λ = 0.999744 (1); μ = 0.500088 (0.5) | 0.026% | 546 |
+| 3× L-BFGS iterations | 1.9 × 10<sup>-3</sup> | λ = 0.999744 (1); μ = 0.500088 (0.5) | 0.026% | 561 |
+| **PINNStudio best**: the example's own settings (no change did better) | **1.9 × 10<sup>-3</sup>** | λ = 0.999744 (1); μ = 0.500088 (0.5) | **0.026%** | |
+
+*DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*
 
 *Forward, DeepXDE's settings:*
 
@@ -1046,9 +1373,12 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 [problem and settings in the README](../README.md#dx-linear-elastostatic-plate-soft-bcs)
 
-| | DeepXDE's settings | PINNStudio best |
+**Forward problem**
+
+| Training | L₂ | Time (s) |
 |---|---|---|
-| Forward $L_2$ | 4.9 × 10<sup>-4</sup> | 4.9 × 10<sup>-4</sup> (no tuning needed) |
+| DeepXDE's settings (README) | 4.9 × 10<sup>-4</sup> | – |
+| **PINNStudio best**: no tuning needed | **4.9 × 10<sup>-4</sup>** | |
 
 *Forward, the README's result:*
 
@@ -1061,13 +1391,25 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 [problem and settings in the README](../README.md#dx-kovasznay-flow) · [inverse runs in the tuning study](tuning_study.md#tune-navier-stokes-2d-kovasznay-flow-inverse-mode)
 
-| | DeepXDE's settings | PINNStudio best |
-|---|---|---|
-| Forward $L_2$ | 2.1 × 10<sup>-4</sup> | 2.1 × 10<sup>-4</sup> (no tuning needed) |
-| Inverse $L_2$ | 9.1 × 10<sup>-5</sup> | 3.7 × 10<sup>-5</sup> |
-| Parameters found (true) | Re = 20.0026 (20) | Re = 19.9982 (20) |
+**Forward problem**
 
-DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse mode of it, run with the example's settings and tuned.
+| Training | L₂ | Time (s) |
+|---|---|---|
+| DeepXDE's settings (README) | 2.1 × 10<sup>-4</sup> | – |
+| **PINNStudio best**: no tuning needed | **2.1 × 10<sup>-4</sup>** | |
+
+**Inverse problem**
+
+| Training | L₂ | Parameters found (true) | Worst parameter error | Time (s) |
+|---|---|---|---|---|
+| DeepXDE's settings | 9.1 × 10<sup>-5</sup> | Re = 20.0026 (20) | 0.013% | 220 |
+| Larger network (2× width, one more layer) | 5.9 × 10<sup>-5</sup> | Re = 19.9978 (20) | 0.011% | 252 |
+| 3× L-BFGS iterations | 9.1 × 10<sup>-5</sup> | Re = 20.0026 (20) | 0.013% | 224 |
+| All of the above together | 3.7 × 10<sup>-5</sup> | Re = 19.9982 (20) | 0.009% | 956 |
+| 10× data weight, 3× L-BFGS and the larger network | 7.1 × 10<sup>-5</sup> | Re = 19.9915 (20) | 0.043% | 253 |
+| **PINNStudio best**: all of the changes together | **3.7 × 10<sup>-5</sup>** | Re = 19.9982 (20) | **0.009%** | |
+
+*DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*
 
 *Forward, the README's result:*
 
@@ -1096,11 +1438,19 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 [problem and settings in the README](../README.md#2d-poisson-disk) · [inverse runs in the tuning study](tuning_study.md#tune-poisson-2d-disk-pinnstudio-template-inverse-mode)
 
-| | The template's own settings | PINNStudio best |
+**Forward problem**
+
+| Training | L₂ | Time (s) |
 |---|---|---|
-| Forward $L_2$ | 2.8 × 10<sup>-4</sup> | 2.8 × 10<sup>-4</sup> (no tuning needed) |
-| Inverse $L_2$ | 5.4 × 10<sup>-4</sup> | 5.4 × 10<sup>-4</sup> |
-| Parameters found (true) | f = 1.00002 (1) | f = 1.00002 (1) |
+| The template's own settings (README) | 2.8 × 10<sup>-4</sup> | – |
+| **PINNStudio best**: no tuning needed | **2.8 × 10<sup>-4</sup>** | |
+
+**Inverse problem**
+
+| Training | L₂ | Parameters found (true) | Worst parameter error | Time (s) |
+|---|---|---|---|---|
+| The template's own settings | 5.4 × 10<sup>-4</sup> | f = 1.00002 (1) | 0.002% | 157 |
+| **PINNStudio best**: the example's own settings (tuning runs queued) | **5.4 × 10<sup>-4</sup>** | f = 1.00002 (1) | **0.002%** | |
 
 *Forward, the README's result:*
 
@@ -1119,9 +1469,16 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 [problem and settings in the README](../README.md#dx-poisson-over-an-l-shaped-domain) · [forward runs in the tuning study](tuning_study.md#tune-poisson-2d-l-shape)
 
-| | DeepXDE's settings | PINNStudio best |
+**Forward problem**
+
+| Training | L₂ | Time (s) |
 |---|---|---|
-| Forward $L_2$ | 3.5 × 10<sup>-2</sup> | 2.3 × 10<sup>-2</sup> |
+| DeepXDE's settings (3 seeds, median) | 3.5 × 10<sup>-2</sup> | 174 |
+| 3× iterations | 3.1 × 10<sup>-2</sup> | 413 |
+| Larger network (2× width, one more layer) (3 seeds, median) | 2.3 × 10<sup>-2</sup> | 182 |
+| 3× training points | 1.9 × 10<sup>-2</sup> | 175 |
+| All of the above together (3 seeds, median) | 1.2 × 10<sup>-2</sup> | 500 |
+| **PINNStudio best**: larger network (2× width, one more layer) | **2.3 × 10<sup>-2</sup>** | |
 
 *Forward, DeepXDE's settings:*
 
@@ -1138,10 +1495,12 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 [problem and settings in the README](../README.md#dx-inverse-fractional-poisson-equation-2d)
 
-| | DeepXDE's settings | PINNStudio best |
-|---|---|---|
-| Inverse $L_2$ | 2.3 × 10<sup>-3</sup> | 2.3 × 10<sup>-3</sup> (no tuning needed) |
-| Parameters found (true) | α = 1.80445 (1.8) | α = 1.80445 (1.8) |
+**Inverse problem**
+
+| Training | L₂ | Parameters found (true) | Worst parameter error | Time (s) |
+|---|---|---|---|---|
+| DeepXDE's settings (README) | 2.3 × 10<sup>-3</sup> | α = 1.80445 (1.8) | 0.25% | – |
+| **PINNStudio best**: no tuning needed | **2.3 × 10<sup>-3</sup>** | α = 1.80445 (1.8) | **0.25%** | |
 
 *Inverse, the README's result:*
 
@@ -1156,17 +1515,31 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 [problem and settings in the README](../README.md#2d-allen-cahn-wight--zhao) · [forward runs in the tuning study](tuning_study.md#tune-allen-cahn-2d-wight-zhao-pinnstudio-template) · [forward runs in the tuning study](tuning_study.md#tune-allen-cahn-2d-wight-zhao-pinnstudio-template-best-setup) · [inverse runs in the tuning study](tuning_study.md#tune-allen-cahn-2d-wight-zhao-pinnstudio-template-inverse-mode)
 
-| | $L_2$, last time | $L_2$, all times | Parameters found (true) |
+**Forward problem**
+
+| Training | L₂, last time | L₂, all times | Time (s) |
 |---|---|---|---|
-| Plain PINN (in PINNStudio) | – | – | |
-| Wight & Zhao's method: reported in Wight & Zhao (2021), Fig. 3.8 | – | figures only | |
-| Wight & Zhao's method, run in PINNStudio | – | – | |
-| The template as it loads | 7.9 × 10<sup>-3</sup> | – | |
-| **PINNStudio best** (forward) | 1.6 × 10<sup>-3</sup> | – | |
-| Inverse, the template's own settings | 3.1 × 10<sup>-4</sup> | – | λ = 9.54428 (10); λε² = 0.00598505 (0.00625) |
-| **PINNStudio best** (inverse) | 3.1 × 10<sup>-4</sup> | – | λ = 9.54428 (10); λε² = 0.00598505 (0.00625) |
+| Plain PINN | – | – | – |
+| Wight & Zhao's method, as reported (Wight & Zhao (2021), Fig. 3.8) | – | figures only | – |
+| Wight & Zhao's method, run in PINNStudio | – | – | – |
+| The template's own settings | 7.9 × 10<sup>-3</sup> | –  | 1780 |
+| 3× iterations | 9.3 × 10<sup>-2</sup> | –  | 3710 |
+| Larger network (2× width, one more layer) | 1.4 × 10<sup>-1</sup> | –  | 4728 |
+| 3× training points | 1.6 × 10<sup>-3</sup> | –  | 4108 |
+| Best setup of the training methods study | 1.6 × 10<sup>-3</sup> | –  | 1596 |
+| Best setup + 3× iterations | 1.6 × 10<sup>-3</sup> | –  | 4504 |
+| Best setup + larger network (2× width, one more layer) | 1.2 × 10<sup>0</sup> | –  | 4991 |
+| Best setup + 2× time windows | 1.5 × 10<sup>-3</sup> | –  | 3109 |
+| **PINNStudio best**: the best setup as it is | **1.6 × 10<sup>-3</sup>** | –  | |
 
 *The plain PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*
+
+**Inverse problem**
+
+| Training | L₂ | Parameters found (true) | Worst parameter error | Time (s) |
+|---|---|---|---|---|
+| The template's own settings | 3.1 × 10<sup>-4</sup> | λ = 9.54428 (10); λε² = 0.00598505 (0.00625) | 4.6% | 396 |
+| **PINNStudio best**: the example's own settings (tuning runs queued) | **3.1 × 10<sup>-4</sup>** | λ = 9.54428 (10); λε² = 0.00598505 (0.00625) | **4.6%** | |
 
 *Forward, the template's own settings:*
 
@@ -1189,17 +1562,28 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 [problem and settings in the README](../README.md#2d-allen-cahn-mattey--ghosh) · [forward runs in the tuning study](tuning_study.md#tune-allen-cahn-2d-mattey-ghosh-pinnstudio-template-best-setup) · [inverse runs in the tuning study](tuning_study.md#tune-allen-cahn-2d-mattey-ghosh-pinnstudio-template-inverse-mode)
 
-| | $L_2$, last time | $L_2$, all times | Parameters found (true) |
+**Forward problem**
+
+| Training | L₂, last time | L₂, all times | Time (s) |
 |---|---|---|---|
-| Plain PINN (in PINNStudio) | – | – | |
-| Mattey & Ghosh's bc-PINN: reported in Mattey & Ghosh (2022), Sec. 6.1.1 | – | 2.5 × 10<sup>-2</sup> | |
-| Mattey & Ghosh's bc-PINN, run in PINNStudio | – | – | |
-| The template as it loads | 6.6 × 10<sup>-3</sup> | – | |
-| **PINNStudio best** (forward) | 3.6 × 10<sup>-4</sup> | – | |
-| Inverse, the template's own settings | 8.9 × 10<sup>-4</sup> | – | c₁² = 0.000105791 (0.0001); c₂ = 1.00367 (1) |
-| **PINNStudio best** (inverse) | 8.9 × 10<sup>-4</sup> | – | c₁² = 0.000105791 (0.0001); c₂ = 1.00367 (1) |
+| Plain PINN | – | – | – |
+| Mattey & Ghosh's bc-PINN, as reported (Mattey & Ghosh (2022), Sec. 6.1.1) | – | 2.5 × 10<sup>-2</sup> | – |
+| Mattey & Ghosh's bc-PINN, run in PINNStudio | – | – | – |
+| The template's own settings (README) | 6.6 × 10<sup>-3</sup> | –  | – |
+| Best setup of the training methods study | 3.6 × 10<sup>-4</sup> | –  | 266 |
+| Best setup + 3× iterations | 3.2 × 10<sup>-4</sup> | –  | 617 |
+| Best setup + larger network (2× width, one more layer) | 5.9 × 10<sup>-4</sup> | –  | 464 |
+| Best setup + all of the above together | 3.5 × 10<sup>-4</sup> | –  | 3872 |
+| **PINNStudio best**: the starting settings (the run with the lowest training loss was less accurate) | **3.6 × 10<sup>-4</sup>** | –  | |
 
 *The plain PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*
+
+**Inverse problem**
+
+| Training | L₂ | Parameters found (true) | Worst parameter error | Time (s) |
+|---|---|---|---|---|
+| The template's own settings | 8.9 × 10<sup>-4</sup> | c₁² = 0.000105791 (0.0001); c₂ = 1.00367 (1) | 5.8% | 1735 |
+| **PINNStudio best**: the example's own settings (tuning runs queued) | **8.9 × 10<sup>-4</sup>** | c₁² = 0.000105791 (0.0001); c₂ = 1.00367 (1) | **5.8%** | |
 
 *Forward, the README's result:*
 
@@ -1222,17 +1606,26 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 [problem and settings in the README](../README.md#2d-cahn-hilliard-wight--zhao) · [forward runs in the tuning study](tuning_study.md#tune-cahn-hilliard-2d-wight-zhao-pinnstudio-template) · [inverse runs in the tuning study](tuning_study.md#tune-cahn-hilliard-2d-wight-zhao-pinnstudio-template-inverse-mode)
 
-| | $L_2$, last time | $L_2$, all times | Parameters found (true) |
+**Forward problem**
+
+| Training | L₂, last time | L₂, all times | Time (s) |
 |---|---|---|---|
-| Plain PINN (in PINNStudio) | – | – | |
-| Wight & Zhao's method: reported in Wight & Zhao (2021), Fig. 3.13 | – | figures only | |
-| Wight & Zhao's method, run in PINNStudio | – | – | |
-| The template as it loads | 1.1 × 10<sup>-2</sup> | – | |
-| **PINNStudio best** (forward) | 8.0 × 10<sup>-3</sup> | – | |
-| Inverse, the template's own settings | 6.9 × 10<sup>-5</sup> | – | ε² = 0.00251042 (0.0025) |
-| **PINNStudio best** (inverse) | 6.9 × 10<sup>-5</sup> | – | ε² = 0.00251042 (0.0025) |
+| Plain PINN | – | – | – |
+| Wight & Zhao's method, as reported (Wight & Zhao (2021), Fig. 3.13) | – | figures only | – |
+| Wight & Zhao's method, run in PINNStudio | – | – | – |
+| The template's own settings | 1.1 × 10<sup>-2</sup> | –  | 822 |
+| 3× iterations | 4.5 × 10<sup>-3</sup> | –  | 1464 |
+| Larger network (2× width, one more layer) | 8.0 × 10<sup>-3</sup> | –  | 1995 |
+| **PINNStudio best**: larger network (2× width, one more layer) | **8.0 × 10<sup>-3</sup>** | –  | |
 
 *The plain PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*
+
+**Inverse problem**
+
+| Training | L₂ | Parameters found (true) | Worst parameter error | Time (s) |
+|---|---|---|---|---|
+| The template's own settings | 6.9 × 10<sup>-5</sup> | ε² = 0.00251042 (0.0025) | 0.42% | 3736 |
+| **PINNStudio best**: the example's own settings (tuning runs queued) | **6.9 × 10<sup>-5</sup>** | ε² = 0.00251042 (0.0025) | **0.42%** | |
 
 *Forward, the template's own settings:*
 
@@ -1261,17 +1654,24 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 [problem and settings in the README](../README.md#2d-cahn-hilliard-mattey--ghosh)
 
-| | $L_2$, last time | $L_2$, all times | Parameters found (true) |
+**Forward problem**
+
+| Training | L₂, last time | L₂, all times | Time (s) |
 |---|---|---|---|
-| Plain PINN (in PINNStudio) | – | – | |
-| Mattey & Ghosh's bc-PINN: reported in Mattey & Ghosh (2022), Sec. 6.2.1 | – | figures only | |
-| Mattey & Ghosh's bc-PINN, run in PINNStudio | – | – | |
-| The template as it loads | 2.0 × 10<sup>-3</sup> | – | |
-| **PINNStudio best** (forward) | 2.0 × 10<sup>-3</sup> | – | |
-| Inverse, the template's own settings | – | – | α = 0.000188 (0.0002); κ = 1.012 (1) |
-| **PINNStudio best** (inverse) | – | – | α = 0.000188 (0.0002); κ = 1.012 (1) |
+| Plain PINN | – | – | – |
+| Mattey & Ghosh's bc-PINN, as reported (Mattey & Ghosh (2022), Sec. 6.2.1) | – | figures only | – |
+| Mattey & Ghosh's bc-PINN, run in PINNStudio | – | – | – |
+| The template's own settings (README) | 2.0 × 10<sup>-3</sup> | –  | – |
+| **PINNStudio best**: no tuning needed | **2.0 × 10<sup>-3</sup>** | –  | |
 
 *The plain PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*
+
+**Inverse problem**
+
+| Training | L₂ | Parameters found (true) | Worst parameter error | Time (s) |
+|---|---|---|---|---|
+| The template's own settings (README) | – | α = 0.000188 (0.0002); κ = 1.012 (1) | 6% | – |
+| **PINNStudio best**: no tuning needed | **–** | α = 0.000188 (0.0002); κ = 1.012 (1) | **6%** | |
 
 *Forward, the README's result:*
 
@@ -1288,17 +1688,27 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 [problem and settings in the README](../README.md#2d-burgers-mathias) · [forward runs in the tuning study](tuning_study.md#tune-burgers-2d-mathias-et-al-pinnstudio-template) · [inverse runs in the tuning study](tuning_study.md#tune-burgers-2d-mathias-et-al-pinnstudio-template-inverse-mode)
 
-| | $L_2$, last time | $L_2$, all times | Parameters found (true) |
+**Forward problem**
+
+| Training | L₂, last time | L₂, all times | Time (s) |
 |---|---|---|---|
-| Plain PINN (in PINNStudio) | – | – | |
-| Mathias et al.'s settings: reported in Mathias et al. (2022) | – | figures only | |
-| Mathias et al.'s settings, run in PINNStudio | – | – | |
-| The template as it loads | 1.1 × 10<sup>-2</sup> | – | |
-| **PINNStudio best** (forward) | 8.4 × 10<sup>-3</sup> | – | |
-| Inverse, the template's own settings | 3.5 × 10<sup>-3</sup> | – | ν = 0.00341319 (0.0031831) |
-| **PINNStudio best** (inverse) | 3.5 × 10<sup>-3</sup> | – | ν = 0.00341319 (0.0031831) |
+| Plain PINN | – | – | – |
+| Mathias et al.'s settings, as reported (Mathias et al. (2022)) | – | figures only | – |
+| Mathias et al.'s settings, run in PINNStudio | – | – | – |
+| The template's own settings | 1.1 × 10<sup>-2</sup> | –  | 1662 |
+| 3× iterations | 8.4 × 10<sup>-3</sup> | –  | 3684 |
+| Larger network (2× width, one more layer) | 8.9 × 10<sup>-3</sup> | –  | 4720 |
+| 3× training points | 9.3 × 10<sup>-3</sup> | –  | 4352 |
+| **PINNStudio best**: 3× iterations | **8.4 × 10<sup>-3</sup>** | –  | |
 
 *The plain PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*
+
+**Inverse problem**
+
+| Training | L₂ | Parameters found (true) | Worst parameter error | Time (s) |
+|---|---|---|---|---|
+| The template's own settings | 3.5 × 10<sup>-3</sup> | ν = 0.00341319 (0.0031831) | 7.2% | 1242 |
+| **PINNStudio best**: the example's own settings (tuning runs queued) | **3.5 × 10<sup>-3</sup>** | ν = 0.00341319 (0.0031831) | **7.2%** | |
 
 *Forward, the template's own settings:*
 
@@ -1327,11 +1737,19 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 [problem and settings in the README](../README.md#2d-heat) · [inverse runs in the tuning study](tuning_study.md#tune-heat-2d-pinnstudio-template-inverse-mode)
 
-| | The template's own settings | PINNStudio best |
+**Forward problem**
+
+| Training | L₂ | Time (s) |
 |---|---|---|
-| Forward $L_2$ | 3.9 × 10<sup>-3</sup> | 3.9 × 10<sup>-3</sup> (no tuning needed) |
-| Inverse $L_2$ | 5.8 × 10<sup>-4</sup> | 5.8 × 10<sup>-4</sup> |
-| Parameters found (true) | α = 0.399893 (0.4) | α = 0.399893 (0.4) |
+| The template's own settings (README) | 3.9 × 10<sup>-3</sup> | – |
+| **PINNStudio best**: no tuning needed | **3.9 × 10<sup>-3</sup>** | |
+
+**Inverse problem**
+
+| Training | L₂ | Parameters found (true) | Worst parameter error | Time (s) |
+|---|---|---|---|---|
+| The template's own settings | 5.8 × 10<sup>-4</sup> | α = 0.399893 (0.4) | 0.027% | 169 |
+| **PINNStudio best**: the example's own settings (tuning runs queued) | **5.8 × 10<sup>-4</sup>** | α = 0.399893 (0.4) | **0.027%** | |
 
 *Forward, the README's result:*
 
@@ -1352,9 +1770,12 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 [problem and settings in the README](../README.md#dx-fractional-poisson-equation-3d)
 
-| | DeepXDE's settings | PINNStudio best |
+**Forward problem**
+
+| Training | L₂ | Time (s) |
 |---|---|---|
-| Forward $L_2$ | 6.7 × 10<sup>-3</sup> | 6.7 × 10<sup>-3</sup> (no tuning needed) |
+| DeepXDE's settings (README) | 6.7 × 10<sup>-3</sup> | – |
+| **PINNStudio best**: no tuning needed | **6.7 × 10<sup>-3</sup>** | |
 
 *Forward, the README's result:*
 
@@ -1367,11 +1788,19 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 [problem and settings in the README](../README.md#3d-poisson-sphere)
 
-| | The template's own settings | PINNStudio best |
+**Forward problem**
+
+| Training | L₂ | Time (s) |
 |---|---|---|
-| Forward $L_2$ | 1.5 × 10<sup>-3</sup> | 1.5 × 10<sup>-3</sup> (no tuning needed) |
-| Inverse $L_2$ | 1.4 × 10<sup>-3</sup> | 1.4 × 10<sup>-3</sup> (no tuning needed) |
-| Parameters found (true) | f = 1.00005 (1) | f = 1.00005 (1) |
+| The template's own settings (README) | 1.5 × 10<sup>-3</sup> | – |
+| **PINNStudio best**: no tuning needed | **1.5 × 10<sup>-3</sup>** | |
+
+**Inverse problem**
+
+| Training | L₂ | Parameters found (true) | Worst parameter error | Time (s) |
+|---|---|---|---|---|
+| The template's own settings (README) | 1.4 × 10<sup>-3</sup> | f = 1.00005 (1) | 0.005% | – |
+| **PINNStudio best**: no tuning needed | **1.4 × 10<sup>-3</sup>** | f = 1.00005 (1) | **0.005%** | |
 
 *Forward, the README's result:*
 
@@ -1388,17 +1817,24 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 [problem and settings in the README](../README.md#3d-allen-cahn-wight--zhao) · [inverse runs in the tuning study](tuning_study.md#tune-allen-cahn-3d-wight-zhao-pinnstudio-template-inverse-mode)
 
-| | $L_2$, last time | $L_2$, all times | Parameters found (true) |
+**Forward problem**
+
+| Training | L₂, last time | L₂, all times | Time (s) |
 |---|---|---|---|
-| Plain PINN (in PINNStudio) | – | – | |
-| Wight & Zhao's method: reported in Wight & Zhao (2021), Fig. 3.9 | – | figures only | |
-| Wight & Zhao's method, run in PINNStudio | – | – | |
-| The template as it loads | 2.7 × 10<sup>-4</sup> | – | |
-| **PINNStudio best** (forward) | 2.7 × 10<sup>-4</sup> | – | |
-| Inverse, the template's own settings | 9.7 × 10<sup>-5</sup> | – | λ = 9.96899 (10); λε² = 0.0249817 (0.025) |
-| **PINNStudio best** (inverse) | 9.7 × 10<sup>-5</sup> | – | λ = 9.96899 (10); λε² = 0.0249817 (0.025) |
+| Plain PINN | – | – | – |
+| Wight & Zhao's method, as reported (Wight & Zhao (2021), Fig. 3.9) | – | figures only | – |
+| Wight & Zhao's method, run in PINNStudio | – | – | – |
+| The template's own settings (README) | 2.7 × 10<sup>-4</sup> | –  | – |
+| **PINNStudio best**: no tuning needed | **2.7 × 10<sup>-4</sup>** | –  | |
 
 *The plain PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*
+
+**Inverse problem**
+
+| Training | L₂ | Parameters found (true) | Worst parameter error | Time (s) |
+|---|---|---|---|---|
+| The template's own settings | 9.7 × 10<sup>-5</sup> | λ = 9.96899 (10); λε² = 0.0249817 (0.025) | 0.31% | 1419 |
+| **PINNStudio best**: the example's own settings (tuning runs queued) | **9.7 × 10<sup>-5</sup>** | λ = 9.96899 (10); λε² = 0.0249817 (0.025) | **0.31%** | |
 
 *Forward, the README's result:*
 
@@ -1417,11 +1853,19 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 [problem and settings in the README](../README.md#3d-heat) · [inverse runs in the tuning study](tuning_study.md#tune-heat-3d-pinnstudio-template-inverse-mode)
 
-| | The template's own settings | PINNStudio best |
+**Forward problem**
+
+| Training | L₂ | Time (s) |
 |---|---|---|
-| Forward $L_2$ | 2.6 × 10<sup>-3</sup> | 2.6 × 10<sup>-3</sup> (no tuning needed) |
-| Inverse $L_2$ | 1.3 × 10<sup>-3</sup> | 1.3 × 10<sup>-3</sup> |
-| Parameters found (true) | α = 0.400303 (0.4) | α = 0.400303 (0.4) |
+| The template's own settings (README) | 2.6 × 10<sup>-3</sup> | – |
+| **PINNStudio best**: no tuning needed | **2.6 × 10<sup>-3</sup>** | |
+
+**Inverse problem**
+
+| Training | L₂ | Parameters found (true) | Worst parameter error | Time (s) |
+|---|---|---|---|---|
+| The template's own settings | 1.3 × 10<sup>-3</sup> | α = 0.400303 (0.4) | 0.076% | 729 |
+| **PINNStudio best**: the example's own settings (tuning runs queued) | **1.3 × 10<sup>-3</sup>** | α = 0.400303 (0.4) | **0.076%** | |
 
 *Forward, the README's result:*
 
@@ -1440,13 +1884,24 @@ DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse m
 
 [problem and settings in the README](../README.md#dx-beltrami-flow) · [inverse runs in the tuning study](tuning_study.md#tune-navier-stokes-3d-beltrami-flow-inverse-mode)
 
-| | DeepXDE's settings | PINNStudio best |
-|---|---|---|
-| Forward $L_2$ | 1.4 × 10<sup>-3</sup> | 1.4 × 10<sup>-3</sup> (no tuning needed) |
-| Inverse $L_2$ | 3.5 × 10<sup>-4</sup> | 2.2 × 10<sup>-4</sup> |
-| Parameters found (true) | ν = 0.997797 (1) | ν = 0.998003 (1) |
+**Forward problem**
 
-DeepXDE's example is forward only; the inverse problem is PINNStudio's inverse mode of it, run with the example's settings and tuned.
+| Training | L₂ | Time (s) |
+|---|---|---|
+| DeepXDE's settings (README) | 1.4 × 10<sup>-3</sup> | – |
+| **PINNStudio best**: no tuning needed | **1.4 × 10<sup>-3</sup>** | |
+
+**Inverse problem**
+
+| Training | L₂ | Parameters found (true) | Worst parameter error | Time (s) |
+|---|---|---|---|---|
+| DeepXDE's settings | 3.5 × 10<sup>-4</sup> | ν = 0.997797 (1) | 0.22% | 2514 |
+| Larger network (2× width, one more layer) | 2.2 × 10<sup>-4</sup> | ν = 0.998003 (1) | 0.2% | 6315 |
+| 3× L-BFGS iterations | 3.5 × 10<sup>-4</sup> | ν = 0.998842 (1) | 0.12% | 2575 |
+| 10× data weight, 3× L-BFGS and the larger network | 2.6 × 10<sup>-4</sup> | ν = 0.997473 (1) | 0.25% | 6328 |
+| **PINNStudio best**: larger network (2× width, one more layer) | **2.2 × 10<sup>-4</sup>** | ν = 0.998003 (1) | **0.2%** | |
+
+*DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*
 
 *Forward, the README's result:*
 
