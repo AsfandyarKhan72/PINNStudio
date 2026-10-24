@@ -27,6 +27,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - TF32 is turned off with PyTorch's `fp32_precision` setting when the installed PyTorch has it (2.9 and newer), which avoids the warning about the old `allow_tf32` setting. Older PyTorch uses `allow_tf32` as before.
 
 ### Fixed
+- The base PINN of the paper comparison left out an initial condition of 0 (Schrödinger's $v(x, 0) = 0$), so $v$ was free at $t = 0$, and for Mathias et al.'s 2D Burgers kept the initial and boundary conditions built into the output; it now trains every initial condition the template has, and for 2D Burgers the conditions as loss terms.
 - A problem opened from a file, or loaded with the papers' settings, trained every phase with the MSE loss: each phase's own loss function (e.g. MAE) is now kept. The papers' settings also set the loss weights the window reads, so the base PINN trains with equal weights instead of the template's initial-condition weight.
 - An example loaded with *Settings: Default* or *Tuned* forgot which example it came from, so switching it between Forward and Inverse no longer put the constants back in the equation or turned time-adaptive training back on, and a saved copy lost its reference data. Switching Forward/Inverse on an example still as loaded now loads it again with that mode's settings (a paper's method is Forward only).
 - A run that failed because the GPU ran out of memory ended with the tip to check the PDE syntax. The tip now says the GPU ran out of memory and what can help.

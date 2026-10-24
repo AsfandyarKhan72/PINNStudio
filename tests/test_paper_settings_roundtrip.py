@@ -29,10 +29,22 @@ def _loaded(cfg):
 
 
 @pytest.mark.parametrize("key,variant", [("1D Burgers", "plain"), ("2D Allen-Cahn (Wight & Zhao)", "plain"),
-                                         ("2D Burgers (Mathias)", "paper_mathias")])
+                                         ("2D Burgers (Mathias)", "paper_mathias"), ("1D Schrödinger", "plain"),
+                                         ("2D Burgers (Mathias)", "plain")])
 def test_paper_settings_load_unchanged(key, variant):
     cfg = ps.apply(ts.template_config(key, False), variant, key)
     got = _loaded(cfg)
     want = [(p["weights"], p["loss"]) for p in json.loads(cfg.scheduler_phases)]
     have = [(p["weights"], p["loss"]) for p in json.loads(got.scheduler_phases)]
     assert have == want      # the base PINN's equal weights, Mathias et al.'s MAE loss
+
+
+def test_base_pinn_keeps_every_initial_condition():
+    """The base PINN trains every initial condition the template has, an IC of 0 too (Schrödinger's
+    v(x, 0) = 0), and makes built-in ones (Mathias et al.'s) loss terms with their boundary condition."""
+    c = ps.apply(ts.template_config("1D Schrödinger", False), "plain", "1D Schrödinger")
+    assert c.ic_active == "True,True"
+    c = ps.apply(ts.template_config("2D Burgers (Mathias)", False), "plain", "2D Burgers (Mathias)")
+    assert c.ic_active == "True,True" and not c.output_transform_enabled and c.num_boundary > 0
+    assert len(json.loads(c.custom_bc_json)) == 2
+    assert not [m for m in c.validate() if not m.startswith("ℹ")]

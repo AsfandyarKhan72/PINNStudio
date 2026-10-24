@@ -52,11 +52,19 @@ def _phases(cfg, adam, lbfgs, ic_w, bc_w=1.0):
 
 
 def _soft(cfg, ic_outputs=None):
-    """Soft IC (for the given outputs, default all with an IC formula) and soft periodic BC."""
+    """Soft IC (for the given outputs, default those the template has an IC for, as a loss term or built
+    in; an IC of 0 counts, e.g. Schrödinger's v(x, 0) = 0) and soft periodic BC."""
     n_out = len(cfg.output_names.split(","))
     ics = (cfg.ic_expressions or "").split("|")
-    on = ic_outputs if ic_outputs is not None else [i for i in range(n_out)
-                                                    if i < len(ics) and ics[i].strip() not in ("", "0")]
+    act = (cfg.ic_active or "").split(",")
+    hard = (cfg.ic_hard or "").split(",")
+    flag = lambda xs, i: i < len(xs) and xs[i].strip() == "True"
+    if ic_outputs is not None:
+        on = ic_outputs
+    elif act != [""] or hard != [""]:
+        on = [i for i in range(n_out) if flag(act, i) or flag(hard, i)]
+    else:
+        on = [i for i in range(n_out) if i < len(ics) and ics[i].strip() != ""]
     cfg.ic_hard = ",".join(["False"] * n_out)
     cfg.ic_active = ",".join("True" if i in on else "False" for i in range(n_out))
     cfg.periodic_inputs = False
@@ -118,9 +126,19 @@ def plain(cfg, tkey=None):
             return
     if paper == "paper_mathias":
         # Mathias et al.'s network and points (4x20, 10,000 physics points), with the IC and BC as MSE loss
-        # terms instead of built into the output, and Adam lr 1e-3 then L-BFGS.
+        # terms instead of built into the output (u = v = 0 on the whole boundary; 1,000 initial and 1,000
+        # boundary points, not stated by them), and Adam lr 1e-3 then L-BFGS.
         _net(cfg, 4, 20)
-        cfg.num_domain = 10000
+        n_out = len(cfg.output_names.split(","))
+        cfg.output_transform_enabled = False
+        cfg.output_transform_formula = ""
+        cfg.ic_active = ",".join(["True"] * n_out)
+        cfg.custom_bc_json = json.dumps([
+            {"type": "dirichlet", "component": i, "location": "True", "value": "0", "axis": "x", "deriv_order": 0,
+             "points_file": "", "location2": "", "direction": "normal", "components": "", "batch_size": 0,
+             "shuffle": True, "apply_at": "boundary", "points_mode": "file", "points_list": "", "points_count": 10,
+             "points_where": "boundary", "values_mode": "file", "values_formula": ""} for i in range(n_out)])
+        cfg.num_domain, cfg.num_initial, cfg.num_boundary = 10000, 1000, 1000
         _phases(cfg, 20000, 10000, ic_w=1.0)
         return
     ph = json.loads(cfg.scheduler_phases or "[]") if cfg.optimizer_scheduler else []
