@@ -174,7 +174,31 @@ def _best_label(r, inverse):
         return ("the best setup as it is" if (not inverse and r.get("f_best_is_setup"))
                 else "the example's own settings (no change did better)")
     del kept
-    return (SHORT.get(v) or v).lower() if v != "all" else "all of the changes together"
+    return (SHORT.get(v) or v) if v != "all" else "all of the changes together"
+
+
+
+SAME = 1.25    # runs within 25% of the lowest error count as equally accurate; the fastest of them is the best
+
+
+def _pick(s, inverse):
+    """PINNStudio's best of entry s: the lowest error (for an inverse problem the lowest parameter error,
+    else L2), and among the runs within SAME of it the fastest. A copy of s with chosen/tuned set."""
+    if not s:
+        return s
+    stats = {}
+    for v, rs in s["variants"].items():
+        l2 = mtp._med(rs, mtp._maxl2)
+        pe = _perr(mtp._found(dict(s, chosen=v))) if inverse else None
+        err = pe if pe is not None else l2
+        if err is not None:
+            stats[v] = (err, mtp._med(rs, lambda r: r["seconds"]) or 0.0, l2)
+    if not stats:
+        return s
+    low = min(e for e, _, _ in stats.values())
+    ok = [v for v, (e, _, _) in stats.items() if e <= SAME * low]
+    v = min(ok, key=lambda v: stats[v][1])
+    return dict(s, chosen=v, tuned=stats[v][2])
 
 
 
@@ -203,23 +227,18 @@ def build(summ, papers, spacetime, readme):
         # forward: reference (DeepXDE's / the template's own settings) and best
         f_ref = plain["base"] if plain else (rd.get("f") if not inv_example else None)
         f_ref_src = "study" if plain else ("README" if f_ref is not None else None)
-        f_best_s = best or plain          # a template's best setup, when it was run
-        f_best = f_best_s["tuned"] if f_best_s else f_ref   # not tuned yet: the reference result
-        # the run picked by training loss can be worse than the settings it started from (a collapsed
-        # solution): then those settings stay the best
-        f_keep = bool(f_best_s and f_best_s["base"] and f_best_s["tuned"] > f_best_s["base"])
-        if f_keep:
-            f_best = f_best_s["base"]
+        f_best_s = _pick(best or plain, False)    # a template's best setup, when it was run
+        f_best = f_best_s["tuned"] if f_best_s else f_ref   # not tuned: the reference result
+        f_keep = False
         rec.update(f_ref=f_ref, f_ref_src=f_ref_src, f_best=f_best, f_best_s=f_best_s, f_plain_s=plain,
                    f_best_variant=(f_best_s["chosen"] if f_best_s else None),
                    f_best_is_setup=bool(best), f_keep=f_keep)
         # inverse
         if inv:
             base_par = mtp._found(dict(inv, chosen="base"))
-            i_keep = bool(inv["base"] and inv["tuned"] > inv["base"])
-            rec.update(i_ref=inv["base"], i_ref_par=base_par, i_best=inv["base"] if i_keep else inv["tuned"],
-                       i_best_par=base_par if i_keep else mtp._found(inv),
-                       i_s=dict(inv, chosen="base") if i_keep else inv, i_src="study", i_variant=inv["chosen"])
+            ip = _pick(inv, True)
+            rec.update(i_ref=inv["base"], i_ref_par=base_par, i_best=ip["tuned"], i_best_par=mtp._found(ip),
+                       i_s=ip, i_src="study", i_variant=ip["chosen"])
         elif rd.get("i") is not None or rd.get("params") or (inv_example and rd.get("f") is not None):
             par = [tuple(p) for p in rd.get("params", [])]
             iv = rd.get("i") if rd.get("i") is not None else (rd.get("f") if inv_example else None)
@@ -448,9 +467,10 @@ def page(recs):
       "**template's own settings** for a PINNStudio template. The next rows are the tuning study's changes, each "
       "tried on its own and then all together: 3× the iterations, a larger network (twice as wide, one more "
       "layer), 3× the training points, an L-BFGS phase after Adam (for inverse problems also 10× the weight of "
-      "the measured data and 3× the L-BFGS iterations). The last row, **PINNStudio best**, is the run with the "
-      "lowest final training loss, which a user can pick without knowing the answer; where that run is less "
-      "accurate than the settings it started from, the starting settings are kept. Then come the figures: the "
+      "the measured data and 3× the L-BFGS iterations). The last row, **PINNStudio best**, is the most accurate "
+      "run, and when several runs are about as accurate (within 25% of the lowest error) the fastest of them, so "
+      "a change that costs time without helping is not chosen. For an inverse problem, accuracy is the error of "
+      "the learned parameters. These are the **Tuned** settings. Then come the figures: the "
       "reference first, then PINNStudio's best, forward and then inverse.\n")
     a("For a **template taken from a paper**, the forward table also lists a plain PINN (soft initial and "
       "boundary conditions, the whole time interval, equal loss weights), the error the paper reports and the "

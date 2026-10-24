@@ -631,6 +631,9 @@ def main():
                     PRIMARY[(slug, variant, str(r["seed"]))] = r["l2"]
     rows = _load(args.results)
     summ = summarize(rows)
+    # examples left out of PINNStudio's lists (e.g. DeepXDE's Allen-Cahn 1D) are left out here too
+    from pinnstudio.core import example_catalog as _cat
+    summ = [x for x in summ if not getattr(_cat.BY_KEY.get(x["name"].split(" | ")[0]), "hidden", False)]
     with_files = False
     if not args.no_files:
         for s in summ:

@@ -4,7 +4,7 @@
 
 DeepXDE's examples are written to show how the library is used, so many train briefly, on a small network or with Adam only. This study asks how far ordinary tuning in PINNStudio takes them: each example is run with its own settings and with the same five changes, and the change that trains best is reported next to the example's own result. It complements the [training methods study](training_methods.md), which tests specialised methods (causal training, per-point weights, time windows) on the hardest problems.
 
-So far 47 problems are included, chosen as the ones with the largest errors in the [README results](../README.md). 29 of them improve by 1.5× or more; the median improvement is 2×.
+So far 45 problems are included, chosen as the ones with the largest errors in the [README results](../README.md). 27 of them improve by 1.5× or more; the median improvement is 2×.
 
 ## How it is done
 
@@ -51,14 +51,12 @@ The figure has the layout of the paper's Fig. 4 and lists every example of PINNS
 | [Euler beam 1D](#tune-euler-beam-1d) | 3.5 × 10<sup>-3</sup> | 2.8 × 10<sup>-4</sup> | 12× | all | – | 55 → 217 |
 | [Diffusion 1D – resampling](#tune-diffusion-1d-resampling) | 5.4 × 10<sup>-2</sup> | 5.8 × 10<sup>-3</sup> | 9× | lbfgs | – | 8 → 12 |
 | [Poisson 1D – unknown forcing field (batches)](#tune-poisson-1d-unknown-forcing-field-batches) | 4.5 × 10<sup>-3</sup> | 7.8 × 10<sup>-4</sup> | 6× | all | – | 62 → 215 |
-| [Allen-Cahn 1D, inverse mode](#tune-allen-cahn-1d-inverse-mode) | 5.4 × 10<sup>-4</sup> | 1.1 × 10<sup>-4</sup> | 5× | all | 0.15% → 0.055% | 168 → 488 |
 | [Heat 1D – Dirichlet, inverse mode](#tune-heat-1d-dirichlet-inverse-mode) | 5.1 × 10<sup>-3</sup> | 1.1 × 10<sup>-3</sup> | 5× | all | 0.69% → 0.1% | 50 → 146 |
 | [Diffusion-reaction 1D, inverse mode](#tune-diffusion-reaction-1d-inverse-mode) | 6.2 × 10<sup>-4</sup> | 1.4 × 10<sup>-4</sup> | 5× | all | 0.12% → 0.023% | 121 → 334 |
 | [Heat 1D – resampling](#tune-heat-1d-resampling) | 1.4 × 10<sup>-2</sup> | 3.3 × 10<sup>-3</sup> | 4× | all | – | 509 → 2060 |
 | [Helmholtz 2D – Dirichlet, inverse mode](#tune-helmholtz-2d-dirichlet-inverse-mode) | 3.5 × 10<sup>-4</sup> | 8.7 × 10<sup>-5</sup> | 4× | all | 0.011% → 0.0042% | 35 → 125 |
 | [Heat 1D – Dirichlet](#tune-heat-1d-dirichlet) | 5.0 × 10<sup>-2</sup> | 1.3 × 10<sup>-2</sup> | 4× | all | – | 42 → 128 |
 | [Burgers 1D – Raissi et al. (PINNStudio template) (best setup)](#tune-burgers-1d-raissi-et-al-pinnstudio-template-best-setup) | 1.7 × 10<sup>-3</sup> | 5.2 × 10<sup>-4</sup> | 3× | all | – | 86 → 172 |
-| [Allen-Cahn 1D](#tune-allen-cahn-1d) | 3.4 × 10<sup>-2</sup> | 1.2 × 10<sup>-2</sup> | 3× | all | – | 210 → 438 |
 | [Poisson 1D – unknown forcing field](#tune-poisson-1d-unknown-forcing-field) | 5.4 × 10<sup>-4</sup> | 2.1 × 10<sup>-4</sup> | 3× | all | – | 66 → 221 |
 | [Navier-Stokes 2D – Kovasznay flow, inverse mode](#tune-navier-stokes-2d-kovasznay-flow-inverse-mode) | 9.1 × 10<sup>-5</sup> | 3.7 × 10<sup>-5</sup> | 2× | all | 0.013% → 0.009% | 220 → 956 |
 | [Fractional Poisson 1D](#tune-fractional-poisson-1d) | 2.3 × 10<sup>-2</sup> | 1.2 × 10<sup>-2</sup> | 2× | all | – | 20 → 57 |
@@ -636,49 +634,6 @@ Tuned settings: [`Poisson 1D – unknown forcing field (batches) (tuned).pinn.js
 
 </details>
 
-<details id="tune-allen-cahn-1d-inverse-mode">
-<summary><strong>Allen-Cahn 1D, inverse mode</strong></summary>
-
-Its own settings and results are in the README: [Allen-Cahn 1D](../README.md#dx-allen-cahn-equation).
-
-**Own settings:** network [2, 20, 20, 20, 1], Adam 40,000 → L-BFGS 15,000, 8,000 domain / 400 boundary / 800 initial points.
-
-| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
-|---|---|---|---|---|
-| base | 2.03e-04 | 5.4 × 10<sup>-4</sup> | 0.15% | 168 |
-| net | 2.93e-05 | 1.2 × 10<sup>-4</sup> | 0.03% | 186 |
-| **all** | 2.15e-05 | 1.1 × 10<sup>-4</sup> | 0.055% | 488 |
-| lbfgs3 | 2.03e-04 | 5.4 × 10<sup>-4</sup> | 0.15% | 165 |
-| invall | 1.52e-04 | 1.0 × 10<sup>-4</sup> | 0.5% | 188 |
-
-**Chosen: all** (all of the changes above together): network [2, 40, 40, 40, 40, 1], Adam 120,000 → L-BFGS 45,000, 24,000 / 1,200 / 2,400 points.
-
-Over seeds: own settings 5.4 × 10<sup>-4</sup> (1 seeds), tuned 1.1 × 10<sup>-4</sup> (1 seeds).
- Learned parameters (tuned, median): d = 0.00100055 (true 0.001), c = 5.00002 (true 5.0).
-
-PINNStudio's own inverse mode: the diffusion coefficient d and the reaction coefficient c from u at four times, both found to within 0.06% after tuning.
-
-*Surface comparison, the example's own settings:*
-
-![Surface comparison, the example's own settings](figures/tuning/Allen_Cahn_equation_inv/own_surface_comparison.png)
-
-*Surface comparison, tuned (all):*
-
-![Surface comparison, tuned (all)](figures/tuning/Allen_Cahn_equation_inv/tuned_surface_comparison.png)
-
-*Parameter convergence, the example's own settings:*
-
-![Parameter convergence, the example's own settings](figures/tuning/Allen_Cahn_equation_inv/own_param_plot.png)
-
-*Parameter convergence, tuned (all):*
-
-![Parameter convergence, tuned (all)](figures/tuning/Allen_Cahn_equation_inv/tuned_param_plot.png)
-
-
-Tuned settings: [`Allen-Cahn 1D, inverse mode (tuned).pinn.json`](tuning/Allen-Cahn%201D,%20inverse%20mode%20(tuned).pinn.json)
-
-</details>
-
 <details id="tune-heat-1d-dirichlet-inverse-mode">
 <summary><strong>Heat 1D – Dirichlet, inverse mode</strong></summary>
 
@@ -883,38 +838,6 @@ Causal training on the whole interval, then every change together, gives 5.2e-4 
 
 
 Tuned settings: [`Burgers 1D – Raissi et al. (PINNStudio template) (best setup) (tuned).pinn.json`](tuning/Burgers%201D%20–%20Raissi%20et%20al.%20(PINNStudio%20template)%20(best%20setup)%20(tuned).pinn.json)
-
-</details>
-
-<details id="tune-allen-cahn-1d">
-<summary><strong>Allen-Cahn 1D</strong></summary>
-
-Its own settings and results are in the README: [Allen-Cahn 1D](../README.md#dx-allen-cahn-equation).
-
-**Own settings:** network [2, 20, 20, 20, 1], Adam 40,000 → L-BFGS 15,000, 8,000 domain / 400 boundary / 800 initial points.
-
-| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
-|---|---|---|---|---|
-| base | 5.51e-06 | 2.9 × 10<sup>-2</sup> | – | 200 |
-| iters | 6.86e-06 | 3.9 × 10<sup>-2</sup> | – | 426 |
-| net | 2.90e-06 | 2.3 × 10<sup>-2</sup> | – | 178 |
-| points | 2.84e-04 | 1.4 × 10<sup>-1</sup> | – | 124 |
-| **all** | 1.71e-06 | 1.5 × 10<sup>-2</sup> | – | 415 |
-
-**Chosen: all** (all of the changes above together): network [2, 40, 40, 40, 40, 1], Adam 120,000 → L-BFGS 45,000, 24,000 / 1,200 / 2,400 points.
-
-Over seeds: own settings 3.4 × 10<sup>-2</sup> [2.9 × 10<sup>-2</sup> – 5.7 × 10<sup>-2</sup>] (3 seeds), tuned 1.2 × 10<sup>-2</sup> [1.0 × 10<sup>-2</sup> – 1.5 × 10<sup>-2</sup>] (3 seeds).
-
-*Surface comparison, the example's own settings:*
-
-![Surface comparison, the example's own settings](figures/tuning/Allen_Cahn_equation/own_surface_comparison.png)
-
-*Surface comparison, tuned (all):*
-
-![Surface comparison, tuned (all)](figures/tuning/Allen_Cahn_equation/tuned_surface_comparison.png)
-
-
-Tuned settings: [`Allen-Cahn 1D (tuned).pinn.json`](tuning/Allen-Cahn%201D%20(tuned).pinn.json)
 
 </details>
 

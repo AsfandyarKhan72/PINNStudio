@@ -169,7 +169,7 @@ def run():
         w.quick_examples_category_combo.setCurrentText(cat)
         check(listed() == ["None", *[e.key for e in cat_mod.for_category(cat)]], f"{cat}: lists its examples in catalogue order")
         want_templates = shown_templates - (set(cat_mod.FORWARD_ONLY_TEMPLATES) if cat == "Inverse" else set())
-        check(set(dx.names(dx_cat)) <= set(listed()) and want_templates <= set(listed()),
+        check(set(dx.names(dx_cat)) - set(cat_mod.HIDDEN_DEEPXDE) <= set(listed()) and want_templates <= set(listed()),
               f"{cat}: every DeepXDE {cat.lower()} example and every template")
         if cat == "Inverse":
             check(not set(cat_mod.FORWARD_ONLY_TEMPLATES) & set(listed()), "Forward-only templates are not in Inverse")
@@ -201,7 +201,8 @@ def run():
           "a PINNStudio template (here a hidden one, loaded by name) still loads after a DeepXDE example")
 
     # 5) Forward DeepXDE examples with an Inverse mode load it from the Inverse list.
-    for name in [e.key for e in cat_mod.ENTRIES if e.source == cat_mod.DEEPXDE and e.problem == cat_mod.BOTH]:
+    for name in [e.key for e in cat_mod.ENTRIES if e.source == cat_mod.DEEPXDE and e.problem == cat_mod.BOTH
+                 and not e.hidden]:
         w.quick_examples_category_combo.setCurrentText("Inverse")
         check(name in listed(), f"{name}: listed under Inverse")
         w.quick_examples_combo.setCurrentText(name)

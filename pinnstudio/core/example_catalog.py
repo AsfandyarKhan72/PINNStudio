@@ -85,6 +85,9 @@ TEMPLATE_KEYS = tuple(t[0] for t in _TEMPLATES)
 # 2D Poisson (L-Shape) DeepXDE's Poisson 2D – L-shape.
 # They stay loadable by name, so saved projects and scripts keep working.
 HIDDEN_TEMPLATES = ("1D Heat", "1D Schrödinger", "2D Poisson (L-Shape)")
+# DeepXDE examples left out of the lists (still loadable by name, e.g. from a
+# saved problem): Allen-Cahn 1D is covered by the two Wight & Zhao templates.
+HIDDEN_DEEPXDE = ("Allen-Cahn equation",)
 
 # Phase-field problems lead their group, Allen-Cahn before Cahn-Hilliard;
 # within each, DeepXDE's example, then Wight & Zhao, then Mattey & Ghosh.
@@ -228,7 +231,7 @@ def _build():
         problem = INVERSE if ex.category == dx.INVERSE else (BOTH if ex.inverse else FORWARD)
         entries.append(Entry(ex.name, DEEPXDE_NAMES.get(ex.name, ex.name), DEEPXDE, cfg.problem_dim,
                              "Steady" if cfg.steady_state else "Time-dependent", problem,
-                             _dx_geometry(cfg, ex.name), ex.source))
+                             _dx_geometry(cfg, ex.name), ex.source, ex.name in HIDDEN_DEEPXDE))
 
     def _paper_rank(e):
         if e.source == DEEPXDE:
@@ -258,7 +261,7 @@ def for_category(category, include_hidden=False):
     has every forward example; Inverse has DeepXDE's inverse examples and
     every example with an Inverse mode (every template, and DeepXDE
     examples with Example.inverse), which load in Inverse mode from there.
-    Hidden templates are left out unless `include_hidden`."""
+    Hidden templates and DeepXDE examples are left out unless `include_hidden`."""
     if category == INVERSE:
         out = [e for e in ENTRIES if e.problem in (INVERSE, BOTH)]
     else:

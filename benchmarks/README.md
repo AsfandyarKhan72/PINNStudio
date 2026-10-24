@@ -2,13 +2,13 @@
 
 *Every example of PINNStudio, forward and inverse, with the result of its reference settings and PINNStudio's best. Updated as the runs finish.*
 
-**How to read an example.** Each example opens to one table for the forward problem and one for the inverse problem. The first row is the reference: **DeepXDE's own settings** for a DeepXDE example, the **template's own settings** for a PINNStudio template. The next rows are the tuning study's changes, each tried on its own and then all together: 3× the iterations, a larger network (twice as wide, one more layer), 3× the training points, an L-BFGS phase after Adam (for inverse problems also 10× the weight of the measured data and 3× the L-BFGS iterations). The last row, **PINNStudio best**, is the run with the lowest final training loss, which a user can pick without knowing the answer; where that run is less accurate than the settings it started from, the starting settings are kept. Then come the figures: the reference first, then PINNStudio's best, forward and then inverse.
+**How to read an example.** Each example opens to one table for the forward problem and one for the inverse problem. The first row is the reference: **DeepXDE's own settings** for a DeepXDE example, the **template's own settings** for a PINNStudio template. The next rows are the tuning study's changes, each tried on its own and then all together: 3× the iterations, a larger network (twice as wide, one more layer), 3× the training points, an L-BFGS phase after Adam (for inverse problems also 10× the weight of the measured data and 3× the L-BFGS iterations). The last row, **PINNStudio best**, is the most accurate run, and when several runs are about as accurate (within 25% of the lowest error) the fastest of them, so a change that costs time without helping is not chosen. For an inverse problem, accuracy is the error of the learned parameters. These are the **Tuned** settings. Then come the figures: the reference first, then PINNStudio's best, forward and then inverse.
 
 For a **template taken from a paper**, the forward table also lists a plain PINN (soft initial and boundary conditions, the whole time interval, equal loss weights), the error the paper reports and the paper's own method run in PINNStudio ([how they are set up](paper_comparison.md)); for a template run from the [training methods study](training_methods.md)'s best setup, the changes are tried on that setup. Where a DeepXDE example has no inverse problem of its own, the inverse table is PINNStudio's inverse mode of it.
 
 **The error** is the relative L₂ error of the main output (u, φ, h, …) at the last reference time, against the example's reference data; papers report one error over all times, so their rows give that too. Where a row ran with 3 seeds (1, 2, 2026) it gives the median, otherwise seed 2026. Times are training seconds on one RTX 4090.
 
-The sweep was run on the 37 examples with the largest errors. The others were already accurate with their own settings: their result is the README's, marked **no tuning needed**.
+The sweep was run on the 36 examples with the largest errors. The others were already accurate with their own settings: their result is the README's, marked **no tuning needed**.
 
 ![Every example: the reference settings and PINNStudio's best, forward and inverse, and the error of each learned parameter](figures/benchmarks_summary.png)
 
@@ -159,7 +159,7 @@ The sweep was run on the 37 examples with the largest errors. The others were al
 | 3× L-BFGS iterations | 1.6 × 10<sup>-3</sup> | a = 9.93327 (10); b = 9.6526 (9) | 7.3% | 25 |
 | All of the above together | 5.8 × 10<sup>-5</sup> | a = 9.99773 (10); b = 9.0168 (9) | 0.19% | 74 |
 | 10× data weight, 3× L-BFGS and the larger network | 4.1 × 10<sup>-4</sup> | a = 9.97923 (10); b = 9.37949 (9) | 4.2% | 28 |
-| **PINNStudio best**: larger network (2× width, one more layer) | **8.9 × 10<sup>-6</sup>** | a = 10.0003 (10); b = 8.99262 (9) | **0.082%** | |
+| **PINNStudio best**: Larger network (2× width, one more layer) | **8.9 × 10<sup>-6</sup>** | a = 10.0003 (10); b = 8.99262 (9) | **0.082%** | |
 
 *DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*
 
@@ -234,7 +234,7 @@ The sweep was run on the 37 examples with the largest errors. The others were al
 | 3× training points | 2.8 × 10<sup>-2</sup> | 56 |
 | L-BFGS phase added | 2.4 × 10<sup>-4</sup> | 59 |
 | All of the above together (3 seeds, median) | 2.8 × 10<sup>-4</sup> | 217 |
-| **PINNStudio best**: all of the changes together | **2.8 × 10<sup>-4</sup>** | |
+| **PINNStudio best**: L-BFGS phase added | **2.4 × 10<sup>-4</sup>** | |
 
 **Inverse problem**
 
@@ -286,7 +286,7 @@ The sweep was run on the 37 examples with the largest errors. The others were al
 | 3× training points | 3.7 × 10<sup>-2</sup> | 19 |
 | L-BFGS phase added | 2.0 × 10<sup>-2</sup> | 19 |
 | All of the above together (3 seeds, median) | 1.2 × 10<sup>-2</sup> | 57 |
-| **PINNStudio best**: all of the changes together | **1.2 × 10<sup>-2</sup>** | |
+| **PINNStudio best**: Larger network (2× width, one more layer) | **1.5 × 10<sup>-2</sup>** | |
 
 *Forward, DeepXDE's settings:*
 
@@ -448,7 +448,7 @@ The sweep was run on the 37 examples with the largest errors. The others were al
 | 3× training points | 2.1 × 10<sup>-2</sup> | νₑ = 0.0013006 (0.001); K = 0.00103805 (0.001) | 30% | 74 |
 | L-BFGS phase added | 1.9 × 10<sup>-2</sup> | νₑ = 0.00130008 (0.001); K = 0.00100827 (0.001) | 30% | 78 |
 | All of the above together (3 seeds, median) | 1.2 × 10<sup>-2</sup> | νₑ = 0.00117644 (0.001); K = 0.00100487 (0.001) | 18% | 237 |
-| **PINNStudio best**: all of the changes together | **1.2 × 10<sup>-2</sup>** | νₑ = 0.00117644 (0.001); K = 0.00100487 (0.001) | **18%** | |
+| **PINNStudio best**: 3× iterations | **1.3 × 10<sup>-2</sup>** | νₑ = 0.00115135 (0.001); K = 0.00103409 (0.001) | **15%** | |
 
 *Inverse, DeepXDE's settings:*
 
@@ -479,7 +479,7 @@ The sweep was run on the 37 examples with the largest errors. The others were al
 | 3× training points | 4.0 × 10<sup>-2</sup> | – | – | 50 |
 | L-BFGS phase added | 4.0 × 10<sup>-2</sup> | – | – | 50 |
 | All of the above together (3 seeds, median) | 2.8 × 10<sup>-2</sup> | – | – | 178 |
-| **PINNStudio best**: all of the changes together | **2.8 × 10<sup>-2</sup>** | – | **–** | |
+| **PINNStudio best**: Larger network (2× width, one more layer) | **1.3 × 10<sup>-2</sup>** | – | **–** | |
 
 *Inverse, DeepXDE's settings:*
 
@@ -573,57 +573,6 @@ The sweep was run on the 37 examples with the largest errors. The others were al
 
 ## 1D, time-dependent
 
-<details id="bench-allen-cahn-1d">
-<summary><strong>Allen-Cahn 1D</strong> · DeepXDE example</summary>
-
-[problem and settings in the README](../README.md#dx-allen-cahn-equation) · [forward runs in the tuning study](tuning_study.md#tune-allen-cahn-1d) · [inverse runs in the tuning study](tuning_study.md#tune-allen-cahn-1d-inverse-mode)
-
-**Forward problem**
-
-| Training | L₂ | Time (s) |
-|---|---|---|
-| DeepXDE's settings (3 seeds, median) | 3.4 × 10<sup>-2</sup> | 210 |
-| 3× iterations | 3.9 × 10<sup>-2</sup> | 426 |
-| Larger network (2× width, one more layer) | 2.3 × 10<sup>-2</sup> | 178 |
-| 3× training points | 1.4 × 10<sup>-1</sup> | 124 |
-| All of the above together (3 seeds, median) | 1.2 × 10<sup>-2</sup> | 438 |
-| **PINNStudio best**: all of the changes together | **1.2 × 10<sup>-2</sup>** | |
-
-**Inverse problem**
-
-| Training | L₂ | Parameters found (true) | Worst parameter error | Time (s) |
-|---|---|---|---|---|
-| DeepXDE's settings | 5.4 × 10<sup>-4</sup> | d = 0.00100154 (0.001); c = 4.9979 (5) | 0.15% | 168 |
-| Larger network (2× width, one more layer) | 1.2 × 10<sup>-4</sup> | d = 0.0010003 (0.001); c = 4.99942 (5) | 0.03% | 186 |
-| 3× L-BFGS iterations | 5.4 × 10<sup>-4</sup> | d = 0.00100154 (0.001); c = 4.9979 (5) | 0.15% | 165 |
-| All of the above together | 1.1 × 10<sup>-4</sup> | d = 0.00100055 (0.001); c = 5.00002 (5) | 0.055% | 488 |
-| 10× data weight, 3× L-BFGS and the larger network | 1.0 × 10<sup>-4</sup> | d = 0.00100501 (0.001); c = 4.99952 (5) | 0.5% | 188 |
-| **PINNStudio best**: all of the changes together | **1.1 × 10<sup>-4</sup>** | d = 0.00100055 (0.001); c = 5.00002 (5) | **0.055%** | |
-
-*DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*
-
-*Forward, DeepXDE's settings:*
-
-![Allen-Cahn 1D: Forward, DeepXDE's settings](figures/tuning/Allen_Cahn_equation/own_surface_comparison.png)
-
-*Forward, PINNStudio best:*
-
-![Allen-Cahn 1D: Forward, PINNStudio best](figures/tuning/Allen_Cahn_equation/tuned_surface_comparison.png)
-
-*Inverse, DeepXDE's settings:*
-
-![Allen-Cahn 1D: Inverse, DeepXDE's settings](figures/tuning/Allen_Cahn_equation_inv/own_surface_comparison.png)
-
-![Allen-Cahn 1D: Inverse, DeepXDE's settings](figures/tuning/Allen_Cahn_equation_inv/own_param_plot.png)
-
-*Inverse, PINNStudio best:*
-
-![Allen-Cahn 1D: Inverse, PINNStudio best](figures/tuning/Allen_Cahn_equation_inv/tuned_surface_comparison.png)
-
-![Allen-Cahn 1D: Inverse, PINNStudio best](figures/tuning/Allen_Cahn_equation_inv/tuned_param_plot.png)
-
-</details>
-
 <details id="bench-allen-cahn-1d-wight-zhao-time-adaptive">
 <summary><strong>Allen-Cahn 1D – Wight & Zhao (time-adaptive)</strong> · PINNStudio template, after Wight & Zhao (2021)</summary>
 
@@ -710,7 +659,7 @@ The sweep was run on the 37 examples with the largest errors. The others were al
 | Best setup + larger network (2× width, one more layer) | 9.9 × 10<sup>-1</sup> | –  | 1893 |
 | Best setup + 2× time windows | 1.5 × 10<sup>-2</sup> | –  | 1709 |
 | Best setup + all of the above together | 9.9 × 10<sup>-1</sup> | –  | 13959 |
-| **PINNStudio best**: the starting settings (the run with the lowest training loss was less accurate) | **3.9 × 10<sup>-3</sup>** | –  | |
+| **PINNStudio best**: the best setup as it is | **3.9 × 10<sup>-3</sup>** | –  | |
 
 *The plain PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*
 
@@ -720,9 +669,9 @@ The sweep was run on the 37 examples with the largest errors. The others were al
 
 *Forward, PINNStudio best:*
 
-![Cahn-Hilliard 1D – Mattey & Ghosh: Forward, PINNStudio best](figures/tuning/Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/own_surface_comparison_mu.png)
+![Cahn-Hilliard 1D – Mattey & Ghosh: Forward, PINNStudio best](figures/tuning/Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/tuned_surface_comparison_mu.png)
 
-![Cahn-Hilliard 1D – Mattey & Ghosh: Forward, PINNStudio best](figures/tuning/Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/own_surface_comparison_u.png)
+![Cahn-Hilliard 1D – Mattey & Ghosh: Forward, PINNStudio best](figures/tuning/Template_1D_Cahn_Hilliard_Mattey_Ghosh_best_setup/tuned_surface_comparison_u.png)
 
 </details>
 
@@ -768,7 +717,7 @@ The sweep was run on the 37 examples with the largest errors. The others were al
 | Best setup + 3× iterations | 5.5 × 10<sup>-4</sup> | –  | 148 |
 | Best setup + larger network (2× width, one more layer) | 6.8 × 10<sup>-4</sup> | –  | 75 |
 | Best setup + all of the above together | 5.2 × 10<sup>-4</sup> | –  | 172 |
-| **PINNStudio best**: all of the changes together | **5.2 × 10<sup>-4</sup>** | –  | |
+| **PINNStudio best**: 3× iterations | **5.5 × 10<sup>-4</sup>** | –  | |
 
 *The plain PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*
 
@@ -871,7 +820,7 @@ The sweep was run on the 37 examples with the largest errors. The others were al
 | 3× training points | 6.7 × 10<sup>-2</sup> | 8 |
 | L-BFGS phase added (3 seeds, median) | 5.8 × 10<sup>-3</sup> | 12 |
 | All of the above together | 4.7 × 10<sup>-3</sup> | 20 |
-| **PINNStudio best**: l-bfgs phase added | **5.8 × 10<sup>-3</sup>** | |
+| **PINNStudio best**: L-BFGS phase added | **5.8 × 10<sup>-3</sup>** | |
 
 *Forward, DeepXDE's settings:*
 
@@ -1018,7 +967,7 @@ The sweep was run on the 37 examples with the largest errors. The others were al
 | Larger network (2× width, one more layer) | 3.1 × 10<sup>-3</sup> | 558 |
 | 3× training points | 1.0 × 10<sup>-2</sup> | 626 |
 | All of the above together (3 seeds, median) | 3.3 × 10<sup>-3</sup> | 2060 |
-| **PINNStudio best**: all of the changes together | **3.3 × 10<sup>-3</sup>** | |
+| **PINNStudio best**: Larger network (2× width, one more layer) | **3.1 × 10<sup>-3</sup>** | |
 
 *Forward, DeepXDE's settings:*
 
@@ -1044,7 +993,7 @@ The sweep was run on the 37 examples with the largest errors. The others were al
 | Larger network (2× width, one more layer) (3 seeds, median) | 2.3 × 10<sup>-3</sup> | 151 |
 | 3× training points | 1.1 × 10<sup>-2</sup> | 159 |
 | All of the above together (3 seeds, median) | 2.0 × 10<sup>-2</sup> | 1216 |
-| **PINNStudio best**: larger network (2× width, one more layer) | **2.3 × 10<sup>-3</sup>** | |
+| **PINNStudio best**: Larger network (2× width, one more layer) | **2.3 × 10<sup>-3</sup>** | |
 
 *Forward, DeepXDE's settings:*
 
@@ -1077,7 +1026,7 @@ The sweep was run on the 37 examples with the largest errors. The others were al
 | Larger network (2× width, one more layer) | 9.9 × 10<sup>-4</sup> | c = 0.500036 (0.5) | 0.0072% | 337 |
 | 3× training points | 6.5 × 10<sup>-2</sup> | c = 0.500117 (0.5) | 0.023% | 324 |
 | All of the above together | 1.7 × 10<sup>-1</sup> | c = 0.504096 (0.5) | 0.82% | 1745 |
-| **PINNStudio best**: larger network (2× width, one more layer) | **9.9 × 10<sup>-4</sup>** | c = 0.500036 (0.5) | **0.0072%** | |
+| **PINNStudio best**: Larger network (2× width, one more layer) | **9.9 × 10<sup>-4</sup>** | c = 0.500036 (0.5) | **0.0072%** | |
 
 *DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*
 
@@ -1141,7 +1090,7 @@ The sweep was run on the 37 examples with the largest errors. The others were al
 | 3× training points | 1.6 × 10<sup>-2</sup> | C = 0.99827 (1) | 0.17% | 106 |
 | L-BFGS phase added | 1.1 × 10<sup>-3</sup> | C = 1.00081 (1) | 0.081% | 111 |
 | All of the above together (3 seeds, median) | 2.0 × 10<sup>-4</sup> | C = 1.00017 (1) | 0.017% | 380 |
-| **PINNStudio best**: all of the changes together | **2.0 × 10<sup>-4</sup>** | C = 1.00017 (1) | **0.017%** | |
+| **PINNStudio best**: 3× iterations | **1.2 × 10<sup>-3</sup>** | C = 1.00004 (1) | **0.004%** | |
 
 *Inverse, DeepXDE's settings:*
 
@@ -1216,7 +1165,7 @@ The sweep was run on the 37 examples with the largest errors. The others were al
 | 3× L-BFGS iterations | 3.5 × 10<sup>-4</sup> | k₀ = 12.565 (12.5664) | 0.011% | 35 |
 | All of the above together | 8.7 × 10<sup>-5</sup> | k₀ = 12.5669 (12.5664) | 0.0042% | 125 |
 | 10× data weight, 3× L-BFGS and the larger network | 4.0 × 10<sup>-5</sup> | k₀ = 12.5664 (12.5664) | 0.00023% | 58 |
-| **PINNStudio best**: all of the changes together | **8.7 × 10<sup>-5</sup>** | k₀ = 12.5669 (12.5664) | **0.0042%** | |
+| **PINNStudio best**: 10× data weight, 3× L-BFGS and the larger network | **4.0 × 10<sup>-5</sup>** | k₀ = 12.5664 (12.5664) | **0.00023%** | |
 
 *DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*
 
@@ -1255,19 +1204,13 @@ The sweep was run on the 37 examples with the largest errors. The others were al
 | 3× training points | 7.7 × 10<sup>-2</sup> | 135 |
 | L-BFGS phase added | 7.7 × 10<sup>-2</sup> | 108 |
 | All of the above together (3 seeds, median) | 7.7 × 10<sup>-2</sup> | 1017 |
-| **PINNStudio best**: all of the changes together | **7.7 × 10<sup>-2</sup>** | |
+| **PINNStudio best**: the example's own settings (no change did better) | **8.0 × 10<sup>-2</sup>** | |
 
 *Forward, DeepXDE's settings:*
 
 ![Helmholtz 2D – sound-hard scattering: Forward, DeepXDE's settings](figures/tuning/Helmholtz_sound_hard_scattering_absorbing_BC/own_surface_comparison_u_im.png)
 
 ![Helmholtz 2D – sound-hard scattering: Forward, DeepXDE's settings](figures/tuning/Helmholtz_sound_hard_scattering_absorbing_BC/own_surface_comparison_u_re.png)
-
-*Forward, PINNStudio best:*
-
-![Helmholtz 2D – sound-hard scattering: Forward, PINNStudio best](figures/tuning/Helmholtz_sound_hard_scattering_absorbing_BC/tuned_surface_comparison_u_im.png)
-
-![Helmholtz 2D – sound-hard scattering: Forward, PINNStudio best](figures/tuning/Helmholtz_sound_hard_scattering_absorbing_BC/tuned_surface_comparison_u_re.png)
 
 </details>
 
@@ -1286,7 +1229,7 @@ The sweep was run on the 37 examples with the largest errors. The others were al
 | 3× training points | 1.6 × 10<sup>-2</sup> | 18 |
 | L-BFGS phase added (3 seeds, median) | 7.0 × 10<sup>-4</sup> | 24 |
 | All of the above together | 2.6 × 10<sup>-3</sup> | 79 |
-| **PINNStudio best**: l-bfgs phase added | **7.0 × 10<sup>-4</sup>** | |
+| **PINNStudio best**: L-BFGS phase added | **7.0 × 10<sup>-4</sup>** | |
 
 *Forward, DeepXDE's settings:*
 
@@ -1407,7 +1350,7 @@ The sweep was run on the 37 examples with the largest errors. The others were al
 | 3× L-BFGS iterations | 9.1 × 10<sup>-5</sup> | Re = 20.0026 (20) | 0.013% | 224 |
 | All of the above together | 3.7 × 10<sup>-5</sup> | Re = 19.9982 (20) | 0.009% | 956 |
 | 10× data weight, 3× L-BFGS and the larger network | 7.1 × 10<sup>-5</sup> | Re = 19.9915 (20) | 0.043% | 253 |
-| **PINNStudio best**: all of the changes together | **3.7 × 10<sup>-5</sup>** | Re = 19.9982 (20) | **0.009%** | |
+| **PINNStudio best**: Larger network (2× width, one more layer) | **5.9 × 10<sup>-5</sup>** | Re = 19.9978 (20) | **0.011%** | |
 
 *DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*
 
@@ -1478,7 +1421,7 @@ The sweep was run on the 37 examples with the largest errors. The others were al
 | Larger network (2× width, one more layer) (3 seeds, median) | 2.3 × 10<sup>-2</sup> | 182 |
 | 3× training points | 1.9 × 10<sup>-2</sup> | 175 |
 | All of the above together (3 seeds, median) | 1.2 × 10<sup>-2</sup> | 500 |
-| **PINNStudio best**: larger network (2× width, one more layer) | **2.3 × 10<sup>-2</sup>** | |
+| **PINNStudio best**: all of the changes together | **1.2 × 10<sup>-2</sup>** | |
 
 *Forward, DeepXDE's settings:*
 
@@ -1574,7 +1517,7 @@ The sweep was run on the 37 examples with the largest errors. The others were al
 | Best setup + 3× iterations | 3.2 × 10<sup>-4</sup> | –  | 617 |
 | Best setup + larger network (2× width, one more layer) | 5.9 × 10<sup>-4</sup> | –  | 464 |
 | Best setup + all of the above together | 3.5 × 10<sup>-4</sup> | –  | 3872 |
-| **PINNStudio best**: the starting settings (the run with the lowest training loss was less accurate) | **3.6 × 10<sup>-4</sup>** | –  | |
+| **PINNStudio best**: the best setup as it is | **3.6 × 10<sup>-4</sup>** | –  | |
 
 *The plain PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*
 
@@ -1591,7 +1534,7 @@ The sweep was run on the 37 examples with the largest errors. The others were al
 
 *Forward, PINNStudio best:*
 
-![Allen-Cahn 2D – Mattey & Ghosh: Forward, PINNStudio best](figures/tuning/Template_2D_Allen_Cahn_Mattey_Ghosh_best_setup/own_surface_comparison.png)
+![Allen-Cahn 2D – Mattey & Ghosh: Forward, PINNStudio best](figures/tuning/Template_2D_Allen_Cahn_Mattey_Ghosh_best_setup/tuned_surface_comparison.png)
 
 *Inverse, the template's own settings:*
 
@@ -1616,7 +1559,7 @@ The sweep was run on the 37 examples with the largest errors. The others were al
 | The template's own settings | 1.1 × 10<sup>-2</sup> | –  | 822 |
 | 3× iterations | 4.5 × 10<sup>-3</sup> | –  | 1464 |
 | Larger network (2× width, one more layer) | 8.0 × 10<sup>-3</sup> | –  | 1995 |
-| **PINNStudio best**: larger network (2× width, one more layer) | **8.0 × 10<sup>-3</sup>** | –  | |
+| **PINNStudio best**: 3× iterations | **4.5 × 10<sup>-3</sup>** | –  | |
 
 *The plain PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*
 
@@ -1899,7 +1842,7 @@ The sweep was run on the 37 examples with the largest errors. The others were al
 | Larger network (2× width, one more layer) | 2.2 × 10<sup>-4</sup> | ν = 0.998003 (1) | 0.2% | 6315 |
 | 3× L-BFGS iterations | 3.5 × 10<sup>-4</sup> | ν = 0.998842 (1) | 0.12% | 2575 |
 | 10× data weight, 3× L-BFGS and the larger network | 2.6 × 10<sup>-4</sup> | ν = 0.997473 (1) | 0.25% | 6328 |
-| **PINNStudio best**: larger network (2× width, one more layer) | **2.2 × 10<sup>-4</sup>** | ν = 0.998003 (1) | **0.2%** | |
+| **PINNStudio best**: 3× L-BFGS iterations | **3.5 × 10<sup>-4</sup>** | ν = 0.998842 (1) | **0.12%** | |
 
 *DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*
 
