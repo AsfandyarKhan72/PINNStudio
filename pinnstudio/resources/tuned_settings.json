@@ -1,0 +1,245 @@
+{
+ "ODE system": {
+  "inverse": {
+   "switches": null,
+   "variant": "all",
+   "error": "parameter error 0.0088%"
+  }
+ },
+ "Second-order ODE": {
+  "inverse": {
+   "switches": null,
+   "variant": "net",
+   "error": "parameter error 0.082%"
+  }
+ },
+ "Euler beam": {
+  "forward": {
+   "switches": null,
+   "variant": "lbfgs",
+   "error": "L2 2.4e-04 vs 3.5e-03 with its own settings"
+  },
+  "inverse": {
+   "switches": null,
+   "variant": "all",
+   "error": "parameter error 0.075%"
+  }
+ },
+ "Fractional Poisson equation 1D": {
+  "forward": {
+   "switches": null,
+   "variant": "net",
+   "error": "L2 1.5e-02 vs 2.3e-02 with its own settings"
+  }
+ },
+ "Poisson 1D – Dirichlet/Periodic": {
+  "forward": {
+   "switches": null,
+   "variant": "all",
+   "error": "L2 6.4e-06 vs 9.6e-03 with its own settings"
+  }
+ },
+ "Inverse: Brinkman-Forchheimer model": {
+  "inverse": {
+   "switches": null,
+   "variant": "iters",
+   "error": "parameter error 15%"
+  }
+ },
+ "Inverse: diffusion-reaction with space-dependent rate": {
+  "inverse": {
+   "switches": null,
+   "variant": "net",
+   "error": "L2 1.3e-02"
+  }
+ },
+ "Inverse: Poisson with unknown forcing field": {
+  "inverse": {
+   "switches": null,
+   "variant": "all",
+   "error": "L2 2.1e-04"
+  }
+ },
+ "Inverse: Poisson with unknown forcing field (batches)": {
+  "inverse": {
+   "switches": null,
+   "variant": "all",
+   "error": "L2 7.8e-04"
+  }
+ },
+ "1D Cahn-Hilliard (Mattey & Ghosh)": {
+  "forward": {
+   "switches": [
+    "soft_ic",
+    "exact_bc",
+    "windows",
+    "sa"
+   ],
+   "variant": "base",
+   "error": "L2 3.9e-03 vs 4.8e-03 with its own settings"
+  }
+ },
+ "1D Burgers": {
+  "forward": {
+   "switches": [
+    "whole",
+    "causal"
+   ],
+   "variant": "iters",
+   "error": "L2 5.5e-04 vs 1.3e-03 with its own settings"
+  }
+ },
+ "Diffusion equation": {
+  "forward": {
+   "switches": null,
+   "variant": "all",
+   "error": "L2 1.5e-03 vs 2.3e-02 with its own settings"
+  }
+ },
+ "Diffusion equation with resampling": {
+  "forward": {
+   "switches": null,
+   "variant": "lbfgs",
+   "error": "L2 5.8e-03 vs 5.4e-02 with its own settings"
+  }
+ },
+ "Diffusion-reaction equation": {
+  "forward": {
+   "switches": null,
+   "variant": "all",
+   "error": "L2 8.5e-05 vs 8.8e-02 with its own settings"
+  },
+  "inverse": {
+   "switches": null,
+   "variant": "all",
+   "error": "parameter error 0.023%"
+  }
+ },
+ "Heat equation": {
+  "forward": {
+   "switches": null,
+   "variant": "all",
+   "error": "L2 1.3e-02 vs 5.0e-02 with its own settings"
+  },
+  "inverse": {
+   "switches": null,
+   "variant": "all",
+   "error": "parameter error 0.1%"
+  }
+ },
+ "Heat equation with resampling": {
+  "forward": {
+   "switches": null,
+   "variant": "net",
+   "error": "L2 3.1e-03 vs 1.4e-02 with its own settings"
+  }
+ },
+ "Klein-Gordon equation": {
+  "forward": {
+   "switches": null,
+   "variant": "net",
+   "error": "L2 2.3e-03 vs 6.9e-02 with its own settings"
+  }
+ },
+ "Schrödinger equation": {
+  "inverse": {
+   "switches": null,
+   "variant": "net",
+   "error": "parameter error 0.0072%"
+  }
+ },
+ "Wave propagation – space-time multi-scale Fourier features": {
+  "forward": {
+   "switches": null,
+   "variant": "all",
+   "error": "L2 1.5e-03 vs 3.0e-01 with its own settings"
+  }
+ },
+ "Inverse: diffusion equation": {
+  "inverse": {
+   "switches": null,
+   "variant": "iters",
+   "error": "parameter error 0.004%"
+  }
+ },
+ "Helmholtz 2D (Dirichlet)": {
+  "inverse": {
+   "switches": null,
+   "variant": "invall",
+   "error": "parameter error 0.00023%"
+  }
+ },
+ "Helmholtz 2D with a hole": {
+  "forward": {
+   "switches": null,
+   "variant": "lbfgs",
+   "error": "L2 7.0e-04 vs 1.1e-02 with its own settings"
+  }
+ },
+ "Linear elastostatic plate": {
+  "forward": {
+   "switches": null,
+   "variant": "all",
+   "error": "L2 1.3e-04 vs 6.7e-02 with its own settings"
+  }
+ },
+ "Kovasznay flow": {
+  "inverse": {
+   "switches": null,
+   "variant": "net",
+   "error": "parameter error 0.011%"
+  }
+ },
+ "Poisson over an L-shaped domain": {
+  "forward": {
+   "switches": null,
+   "variant": "all",
+   "error": "L2 1.2e-02 vs 3.5e-02 with its own settings"
+  }
+ },
+ "2D Allen-Cahn (Wight & Zhao)": {
+  "forward": {
+   "switches": [
+    "soft_ic",
+    "exact_bc",
+    "windows",
+    "rba"
+   ],
+   "variant": "base",
+   "error": "L2 1.6e-03 vs 7.9e-03 with its own settings"
+  }
+ },
+ "2D Allen-Cahn (Mattey & Ghosh)": {
+  "forward": {
+   "switches": [
+    "exact_ic",
+    "exact_bc",
+    "whole",
+    "sa"
+   ],
+   "variant": "base",
+   "error": "L2 3.6e-04 vs 6.6e-03 with its own settings"
+  }
+ },
+ "2D Cahn-Hilliard (Wight & Zhao)": {
+  "forward": {
+   "switches": null,
+   "variant": "iters",
+   "error": "L2 4.5e-03 vs 1.1e-02 with its own settings"
+  }
+ },
+ "2D Burgers (Mathias)": {
+  "forward": {
+   "switches": null,
+   "variant": "iters",
+   "error": "L2 8.4e-03 vs 1.1e-02 with its own settings"
+  }
+ },
+ "Beltrami flow": {
+  "inverse": {
+   "switches": null,
+   "variant": "lbfgs3",
+   "error": "parameter error 0.12%"
+  }
+ }
+}

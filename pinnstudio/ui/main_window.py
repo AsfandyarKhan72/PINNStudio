@@ -1150,6 +1150,8 @@ class MainWindow(QMainWindow):
         self.quick_examples_combo.setMinimumWidth(260)
         self.quick_examples_combo.setMaximumWidth(380)
         bar.addWidget(self.quick_examples_combo, 1)
+        self.quick_examples_settings_combo.setFixedWidth(100)
+        bar.addWidget(self.quick_examples_settings_combo)
         if self._quick_examples_group is not None:
             self._quick_examples_group.hide()
         bar.addStretch(1)
@@ -2065,6 +2067,21 @@ class MainWindow(QMainWindow):
         self.quick_examples_combo.view().setMinimumWidth(320)
         self.quick_examples_combo.keyChanged.connect(self._on_quick_example_selected)
         examples_layout.addWidget(self.quick_examples_combo, 1, 1)
+        # Settings: Default (DeepXDE's own, or the paper's for a template from
+        # a paper) or Tuned (PINNStudio's best from the benchmarks), see
+        # pinnstudio/core/example_settings.py.
+        from pinnstudio.core import example_settings as _ex_settings
+        examples_layout.addWidget(QLabel("Settings:"), 2, 0)
+        self.quick_examples_settings_combo = QComboBox()
+        self.quick_examples_settings_combo.addItems(list(_ex_settings.MODES))
+        self.quick_examples_settings_combo.setToolTip(
+            "Default: a DeepXDE example with DeepXDE's own settings; a template from a paper solved the way\n"
+            "the paper solves it (network, points, training); PINNStudio's own templates as they are.\n"
+            "Tuned: PINNStudio's best for the example (benchmarks/README.md): the most accurate run, and of\n"
+            "runs about as accurate the fastest. The Training Log says what it changes.")
+        self.quick_examples_settings_combo.setFixedHeight(28)
+        self.quick_examples_settings_combo.currentTextChanged.connect(self._on_quick_example_settings_changed)
+        examples_layout.addWidget(self.quick_examples_settings_combo, 2, 1)
         examples_layout.setColumnStretch(1, 1)
         left_layout.addWidget(examples_group)
 
@@ -6771,10 +6788,37 @@ class MainWindow(QMainWindow):
         self._loading_example = True
         try:
             self._on_quick_example_selected_impl(text)
+            if text != "None" and getattr(self, "_shown_example", None) == text:
+                self._apply_example_settings_mode(text)
         finally:
             self._loading_example = False
         # Inverse set by this load (not by the user) doesn't carry to the next one
         self._inverse_from_example = self.radio_inverse.isChecked()
+
+    def _apply_example_settings_mode(self, key):
+        """Settings: Default / Tuned (example_settings.py) on the example just loaded."""
+        from pinnstudio.core import example_settings as _ex_settings
+        combo = getattr(self, "quick_examples_settings_combo", None)
+        if combo is None:
+            return
+        mode = combo.currentText()
+        cfg = self._build_config()
+        try:
+            new, msg = _ex_settings.settings_for(cfg, key, self.radio_inverse.isChecked(), mode)
+        except Exception as e:             # never block loading an example
+            self.log_box.append(f"⚠️ {mode} settings could not be applied ({e}); the example loads as it is.")
+            return
+        if new is not cfg:
+            self._apply_config(new)
+            self._mark_clean()
+        if msg:
+            self.log_box.append("ℹ️ " + msg)
+
+    def _on_quick_example_settings_changed(self, _mode):
+        """Switching Default / Tuned reloads the example shown, with those settings."""
+        key = getattr(self, "_shown_example", None)
+        if key and key != "None" and not getattr(self, "_loading_example", False):
+            self._on_quick_example_selected(key)
 
     def _on_inverse_toggled_by_user(self, _on):
         if not getattr(self, "_loading_example", False):

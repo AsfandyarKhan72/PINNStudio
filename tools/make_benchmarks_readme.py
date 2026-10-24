@@ -502,6 +502,37 @@ def page(recs):
     return "\n".join(L)
 
 
+TUNED_JSON = os.path.join(_REPO, "pinnstudio", "resources", "tuned_settings.json")
+
+
+def write_tuned(recs):
+    """Examples -> Settings: Tuned: each example's PINNStudio best as the changes to its own settings
+    (pinnstudio/core/example_settings.py)."""
+    out = {}
+    for r in recs:
+        e, ent = r["entry"], {}
+        fs = r.get("f_best_s")
+        if fs and (fs["chosen"] != "base" or r.get("f_best_is_setup")):
+            ent["forward"] = dict(switches=ts.BEST_FORWARD.get(e.key) if r.get("f_best_is_setup") else None,
+                                  variant=fs["chosen"],
+                                  error=f"L2 {r['f_best']:.1e}" + (f" vs {r['f_ref']:.1e} with its own settings"
+                                                                  if r.get("f_ref") else ""))
+        iv = r.get("i_s")
+        if iv and iv["chosen"] != "base":
+            v = iv["chosen"]
+            pe = _perr(r.get("i_best_par"))
+            ent["inverse"] = dict(switches=ts.BEST_WHOLE.get(e.key) if v == "setup" else None,
+                                  variant="base" if v == "setup" else v,
+                                  error=(f"parameter error {100 * pe:.2g}%" if pe is not None
+                                         else f"L2 {r['i_best']:.1e}"))
+        if ent:
+            out[e.key] = ent
+    with open(TUNED_JSON, "w", encoding="utf-8") as f:
+        json.dump(out, f, indent=1, ensure_ascii=False)
+        f.write("\n")
+
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("results", nargs="+")
@@ -523,6 +554,7 @@ def main():
     except OSError:
         readme = {}
     recs = build(summ, papers, spacetime, readme)
+    write_tuned(recs)
     figure(recs, FIG)
     with open(PAGE, "w", encoding="utf-8") as f:
         f.write(page(recs))
