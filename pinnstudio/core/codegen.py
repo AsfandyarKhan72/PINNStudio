@@ -2743,6 +2743,10 @@ if {config.time_adaptive}:
     _ta_bc_nt = {int(getattr(config, "ta_backward_times", 10))}
     _ta_bc_np = {int(getattr(config, "ta_backward_points", 2000))}
     _ta_icgl_iters = {_ta_icgl_iterations(config)}
+    _ta_rs_rounds = {int(getattr(config, "ta_resample_rounds", 0) or 0)}
+    _ta_rs_points = {int(getattr(config, "ta_resample_points", 200))}
+    _ta_rs_cand = {int(getattr(config, "ta_resample_candidates", 10000))}
+    _ta_rs_iters = {int(getattr(config, "ta_resample_iters", 2000))}
     _ta_t_start = _ta_flat_intervals[0][0]
     _ta_bc_times, _ta_bc_pts, _ta_bc_vals = [], None, None
 
@@ -3179,6 +3183,28 @@ if {config.time_adaptive}:
                 _step_lbfgs_path = _os.path.join(_step_dir_lbfgs, "model_lbfgs")
                 model_i.save(_step_lbfgs_path)
                 print(f"Step L-BFGS model saved: {{_step_lbfgs_path}}.pt")
+
+        # ── Adaptive resampling in this window (Wight & Zhao's approach I + resampling) ──
+        # Random candidates over the window's range; those with the largest PDE residual
+        # join the collocation points, and training goes on with Adam.
+        for _rs_i in range(_ta_rs_rounds):
+            _rs_cand = geomtime_i.random_points(_ta_rs_cand)
+            _rs_res = model_i.predict(_rs_cand, operator=pde)
+            _rs_res = [_rs_res] if not isinstance(_rs_res, (list, tuple)) else list(_rs_res)
+            _rs_err = np.sum([np.abs(np.asarray(_r)).reshape(len(_rs_cand), -1).sum(axis=1) for _r in _rs_res], axis=0)
+            _rs_new = _rs_cand[np.argsort(-_rs_err)[:_ta_rs_points]]
+            data_i.add_anchors(_rs_new)
+            try:
+                _rs_w = list(_sp_weights)
+            except NameError:
+                _rs_w = _wx(_multi_weights)
+            if len(_rs_w) != {_n_equations(config)} + len(_constraints_i):
+                _rs_w = [1.0] * ({_n_equations(config)} + len(_constraints_i))
+            print(f"  === Resampling round {{_rs_i+1}}/{{_ta_rs_rounds}}: {{len(_rs_new)}} points added "
+                  f"(mean residual of the candidates {{float(np.mean(_rs_err)):.3e}}), {{_ta_rs_iters}} Adam iterations ===")
+            model_i.compile("adam", lr={config.learning_rate}, loss="{config.loss_type}", loss_weights=_rs_w)
+            lh_i, ts_i = model_i.train(iterations=_ta_rs_iters, display_every={config.loss_display_every}, callbacks=_train_cbs_ta)
+            _ta_accumulate_loss(lh_i)
 
         if _is_3d:
             # 3D: predict on x-y-z grid at t=t1, store as flat array for PointSetBC next step

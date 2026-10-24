@@ -93,6 +93,7 @@ def _windows(cfg, n, backward=False, growing=False, icgl=0.0, bc_w=100.0, bc_tim
     cfg.ta_backward_weight = float(bc_w)
     cfg.ta_backward_times = int(bc_times)
     cfg.ta_backward_points = int(bc_points)
+    cfg.ta_resample_rounds = 0
 
 
 def plain(cfg, tkey=None):
@@ -180,11 +181,15 @@ def _ac1d_mg(cfg):
 def _ch1d_wz(cfg):
     # W&Z Sec. 3.2: one network (u, mu), 4x128 tanh, time-adaptive approach I + resampling, Adam lr 1e-3
     # (max 20,000) then L-BFGS-B, weighted loss "as for AC" (C0 = 100); rel. L2 9.51e-3. Not stated: the
-    # time step of approach I (0.1 used, as their 1D AC), iterations per stage, the resampling schedule.
+    # time step of approach I (0.1 used, as their 1D AC), iterations per stage, the resampling schedule
+    # (here 2 rounds of 200 points per stage, 2,000 Adam iterations each; their 1D AC trial added 200 points
+    # per resampling).
     _soft(cfg, ic_outputs=[0])
     _net(cfg, 4, 128)
     cfg.num_domain, cfg.num_initial, cfg.num_boundary = 10000, 512, 200
     _windows(cfg, 10, growing=True)
+    cfg.ta_resample_rounds, cfg.ta_resample_points, cfg.ta_resample_iters = 2, 200, 2000
+    cfg.ta_resample_candidates = 10000
     _phases(cfg, 5000, 5000, ic_w=100.0)
 
 

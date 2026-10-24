@@ -47,3 +47,19 @@ def test_script_settings_and_compiles():
     off = generate_script(_cfg())
     assert "_ta_bc = False" in off and "_ta_icgl_iters = 0" in off
     compile(off, "<script>", "exec")
+
+
+def test_resampling_in_each_window():
+    """Time-adaptive resampling (Wight & Zhao's approach I + resampling): the script adds the
+    largest-residual candidates and trains on; bad settings are refused before training."""
+    import dataclasses
+    from pinnstudio.core.config import PINNConfig
+    from pinnstudio.core.codegen import generate_script
+    c = PINNConfig(time_adaptive=True, adapt_method="Time Adaptive", ta_resample_rounds=2)
+    assert not [m for m in c.validate() if "resampling" in m]
+    src = generate_script(c)
+    assert "Resampling round" in src and "data_i.add_anchors(_rs_new)" in src and "_ta_rs_rounds = 2" in src
+    bad = dataclasses.replace(c, ta_resample_candidates=10, ta_resample_points=50)
+    assert any("resampling needs" in m for m in bad.validate())
+    bad = dataclasses.replace(c, point_weights="RBA")
+    assert any("per-point weights" in m for m in bad.validate())

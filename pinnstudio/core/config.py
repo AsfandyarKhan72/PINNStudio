@@ -53,6 +53,15 @@ class PINNConfig:
     #   before each window's training, fit the window's starting profile, held
     #   constant over the window, for this fraction of the first Adam phase's
     #   iterations (0 = off).
+    # - ta_resample_rounds: adaptive resampling in each window (Wight & Zhao's
+    #   approach I + resampling): after the window's training, ta_resample_points
+    #   of ta_resample_candidates random points with the largest PDE residual are
+    #   added to its collocation points and training continues for
+    #   ta_resample_iters Adam iterations, ta_resample_rounds times (0 = off).
+    ta_resample_rounds: int = 0
+    ta_resample_points: int = 200
+    ta_resample_candidates: int = 10000
+    ta_resample_iters: int = 2000
     ta_growing: bool = False
     ta_backward: bool = False
     ta_backward_weight: float = 100.0
@@ -901,6 +910,15 @@ class PINNConfig:
             if self.ta_backward and (int(self.ta_backward_times) < 1 or int(self.ta_backward_points) < 1):
                 errors.append("Time-adaptive training: backward compatibility needs at least 1 time per window "
                               "and 1 point.")
+        if self.time_adaptive and int(self.ta_resample_rounds) > 0 and (
+                int(self.ta_resample_points) < 1 or int(self.ta_resample_candidates) < int(self.ta_resample_points)
+                or int(self.ta_resample_iters) < 1):
+            errors.append("Time-adaptive training: resampling needs at least 1 point per round, at least as many "
+                          "candidates as points, and at least 1 Adam iteration per round.")
+        if self.time_adaptive and int(self.ta_resample_rounds) > 0 and self.point_weights not in ("None", "", None):
+            errors.append("Time-adaptive training: resampling adds collocation points, which per-point weights "
+                          f"({self.point_weights}) can't follow -- set Per-point weights to None, or resampling "
+                          "rounds to 0.")
         if self.time_adaptive and not 0 <= float(self.ta_icgl_fraction) < 1:
             errors.append("Time-adaptive training: the initial-condition guided learning fraction must be "
                           "from 0 (off) to below 1.")

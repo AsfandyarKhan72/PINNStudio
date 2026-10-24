@@ -553,6 +553,9 @@ def _settings_md(c, inverse):
         t = f"time-adaptive training: {n} time windows, {how}"
         if c.ta_backward:
             t += f", backward-compatibility term (weight {c.ta_backward_weight:g})"
+        if getattr(c, "ta_resample_rounds", 0):
+            t += (f", resampling in each window ({c.ta_resample_rounds} rounds of {_n(c.ta_resample_points)} "
+                  f"points, {_n(c.ta_resample_iters)} Adam iterations each)")
         if c.ta_icgl_fraction:
             t += f", initial-condition guided learning ({c.ta_icgl_fraction:g} of Adam)"
         m.append(t)

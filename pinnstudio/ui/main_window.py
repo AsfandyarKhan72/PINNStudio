@@ -3760,6 +3760,21 @@ class MainWindow(QMainWindow):
             "window, for this fraction of the first Adam phase's iterations (Mattey & Ghosh 2022). 0 = off.")
         _icr.addStretch(); _icr.addWidget(self.ta_icgl)
         ta_layout.addLayout(_icr)
+        # Adaptive resampling in each window (Wight & Zhao's approach I + resampling)
+        self.ta_rs_rounds = QSpinBox(); self.ta_rs_rounds.setRange(0, 50); self.ta_rs_rounds.setValue(0)
+        self.ta_rs_points = QSpinBox(); self.ta_rs_points.setRange(1, 100000); self.ta_rs_points.setValue(200)
+        self.ta_rs_iters = QSpinBox(); self.ta_rs_iters.setRange(1, 1000000); self.ta_rs_iters.setSingleStep(500)
+        self.ta_rs_iters.setValue(2000)
+        self.ta_rs_rounds.setToolTip(
+            "Adaptive resampling in each window: after the window's training, the candidate points with the\n"
+            "largest PDE residual (of 10,000 random candidates in the window) are added to its collocation\n"
+            "points and training continues with Adam;\n"
+            "this many rounds per window (Wight & Zhao 2021, approach I + resampling). 0 = off.")
+        for _lbl, _w in (("Resampling rounds:", self.ta_rs_rounds), ("Points per round:", self.ta_rs_points),
+                         ("Adam iterations per round:", self.ta_rs_iters)):
+            _w.setFixedWidth(90)
+            _rr = QHBoxLayout(); _rr.addWidget(QLabel(_lbl)); _rr.addStretch(); _rr.addWidget(_w)
+            ta_layout.addLayout(_rr)
 
         self.ta_widget.setVisible(False)
         adapt_layout.addWidget(self.ta_widget)
@@ -9744,6 +9759,10 @@ class MainWindow(QMainWindow):
             ta_backward_times=self.ta_backward_nt.value(),
             ta_backward_points=self.ta_backward_np.value(),
             ta_icgl_fraction=self.ta_icgl.value(),
+            ta_resample_rounds=self.ta_rs_rounds.value(),
+            ta_resample_points=self.ta_rs_points.value(),
+            ta_resample_iters=self.ta_rs_iters.value(),
+            ta_resample_candidates=int(getattr(self, "_ta_rs_cand", 10000)),
             learning_rate=self.lr_spin.value(),
             loss_type=self.loss_combo.currentText(),
             parametric_study=False,
@@ -10664,6 +10683,10 @@ class MainWindow(QMainWindow):
         self.ta_backward_nt.setValue(int(getattr(config, "ta_backward_times", 10)))
         self.ta_backward_np.setValue(int(getattr(config, "ta_backward_points", 2000)))
         self.ta_icgl.setValue(float(getattr(config, "ta_icgl_fraction", 0.0)))
+        self.ta_rs_rounds.setValue(int(getattr(config, "ta_resample_rounds", 0) or 0))
+        self.ta_rs_points.setValue(int(getattr(config, "ta_resample_points", 200)))
+        self.ta_rs_iters.setValue(int(getattr(config, "ta_resample_iters", 2000)))
+        self._ta_rs_cand = int(getattr(config, "ta_resample_candidates", 10000))   # no field: kept as loaded
 
         # Export / plot-output settings
         self.export_enabled_cb.setChecked(getattr(config, "export_enabled", False))
