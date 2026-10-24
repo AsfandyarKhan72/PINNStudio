@@ -1032,6 +1032,15 @@ PAPER_LIST = os.path.join(_REPO, "benchmarks", "paper_figure_examples.txt")
 PAPER_FIG = os.path.join(_REPO, "benchmarks", "figures", "paper_figure.png")
 
 
+def _ver(path):
+    """?v=<content hash>: a new figure gets a new link, so browsers do not show a cached old one."""
+    import hashlib
+    try:
+        return "?v=" + hashlib.md5(open(path, "rb").read()).hexdigest()[:8]
+    except OSError:
+        return ""
+
+
 def _paper_names():
     """The examples of the paper's figure (benchmarks/paper_figure_examples.txt: one name per line)."""
     try:
@@ -1114,7 +1123,7 @@ def page(recs):
     a(f"The sweep was run on the {n_t} examples with the largest errors. The others were already accurate with "
       "their own settings: their result is the README's, marked **no tuning needed**.\n")
     a("![Every example: the reference settings and PINNStudio's best, forward and inverse, and the error of each "
-      "learned parameter](figures/benchmarks_summary.png)\n")
+      f"learned parameter](figures/benchmarks_summary.png{_ver(FIG)})\n")
     a("*Circles: forward problems; diamonds: inverse problems. Filled: PINNStudio's best; open: DeepXDE's settings, "
       "or the paper's method run in PINNStudio; a ring around a filled marker: the two are the same (no tuning "
       "was needed). Right: the error of each "
@@ -1156,7 +1165,8 @@ def page(recs):
           "identified in the inverse problems, labelled with its symbol.*\n\n"
           "*The list: [`paper_figure_examples.txt`](paper_figure_examples.txt) (one name per line; change a line "
           "to swap an example). PDF: [`figures/paper_figure.pdf`](figures/paper_figure.pdf).*\n\n"
-          "![The paper's figure: 25 examples, forward and inverse](figures/paper_figure.png)\n\n</details>\n")
+          f"![The paper's figure: 25 examples, forward and inverse](figures/paper_figure.png{_ver(PAPER_FIG)})\n\n"
+          "</details>\n")
     for g in GROUPS:
         rs = [r for r in recs if r["group"] == g]
         if not rs:
