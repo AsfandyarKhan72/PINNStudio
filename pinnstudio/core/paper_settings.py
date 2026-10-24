@@ -44,6 +44,11 @@ def _phases(cfg, adam, lbfgs, ic_w, bc_w=1.0):
                    "decay_type": "none", "decay_p1": 5000.0, "decay_p2": 0.9})
     cfg.optimizer_scheduler = True
     cfg.scheduler_phases = json.dumps(ph)
+    # the same weights in every phase: the window reads them from loss_weights_multi
+    # (left as it was, the template's IC weight of 100 came back when the window loaded it)
+    cfg.scheduler_same_weights = True
+    cfg.loss_weights_multi = w
+    cfg.loss_weights = [1.0, float(bc_w), float(bc_w), float(ic_w)]    # the older 1D weight fields, to match
 
 
 def _soft(cfg, ic_outputs=None):

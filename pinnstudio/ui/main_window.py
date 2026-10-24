@@ -10217,6 +10217,10 @@ class MainWindow(QMainWindow):
                 ph.get("optimizer", "adam"), ph.get("iterations", 10000), ph.get("lr", 0.001)
             )
             new_row = self.sched_phase_list[-1]
+            # the phase's loss function (MAE, ...) -- it used to come back as MSE
+            _li = new_row['loss'].findText(str(ph.get('loss', 'MSE')))
+            if _li >= 0:
+                new_row['loss'].setCurrentIndex(_li)
             self._set_combo_data(new_row['decay_type'], ph.get('decay_type', 'none'))
             new_row['decay_p1'].setValue(ph.get('decay_p1', 0) or 0)
             new_row['decay_p2'].setValue(ph.get('decay_p2', 0) or 0)
