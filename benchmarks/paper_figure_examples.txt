@@ -1,0 +1,27 @@
+# The examples of the paper's figure (benchmarks/README.md -> Figure for the paper), in order:
+# one per kind of problem, most with both forward and inverse. One name per line, as the Examples list shows it.
+Lotka-Volterra ODE
+Lorenz ODE – unknown C₁, C₂, C₃
+Integro-differential ODE
+Euler beam 1D
+Poisson 1D – Dirichlet/Periodic
+Poisson 1D – unknown forcing field
+Fractional Poisson 1D – unknown order α
+Burgers 1D – Raissi et al.
+Allen-Cahn 1D – Wight & Zhao
+Cahn-Hilliard 1D – Wight & Zhao
+Schrödinger 1D
+Klein-Gordon 1D
+Wave 1D – space-time multi-scale Fourier features
+Diffusion-reaction 1D
+Black-Scholes 1D – European call
+Helmholtz 2D – Dirichlet
+Linear elasticity 2D – plate
+Navier-Stokes 2D – Kovasznay flow
+Poisson 2D – disk
+Allen-Cahn 2D – Mattey & Ghosh
+Cahn-Hilliard 2D – Wight & Zhao
+Burgers 2D – Mathias et al.
+Heat 2D
+Allen-Cahn 3D – Wight & Zhao
+Navier-Stokes 3D – Beltrami flow

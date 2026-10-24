@@ -76,6 +76,18 @@ def _par_txt(params):
     return "; ".join(out)
 
 
+def _math_sym(s):
+    """A raw parameter name (lambda_1, gamma_2) as mathtext; symbols already in $...$ stay."""
+    s = str(s)
+    if "$" in s:
+        return s
+    m = re.fullmatch(r"(lambda|gamma|alpha|mu|nu|omega|kappa|C|c)_?(\d)", s)
+    if m:
+        b = m.group(1)
+        return f"${chr(92) + b if len(b) > 1 else b}_{m.group(2)}$"
+    return s
+
+
 def _perr(params):
     e = [abs(f - t) / abs(t) for _, f, t in params or [] if t]
     return max(e) if e else None
@@ -410,8 +422,8 @@ def build(summ, papers, spacetime, readme):
     return out
 
 
-def figure(recs, path):
-    """The paper's Fig. 4 layout: grey open = DeepXDE's settings / the paper's method in PINNStudio
+def figure(recs, path, stars=False):
+    """The paper's Fig. 4 layout (stars: also the error each paper reports, for its templates): grey open = DeepXDE's settings / the paper's method in PINNStudio
     (the template's own settings where that has not run yet); filled = PINNStudio's best."""
     import matplotlib
     matplotlib.use("Agg")
@@ -425,9 +437,10 @@ def figure(recs, path):
             pm = [r["paper_runs"][v]["l2"] for _, _, v in r["paper"] if v in r["paper_runs"]]
             ref_f = min(pm) if pm else ref_f
         par_best = r.get("i_best_par") or []
+        rep = [val for _, val, _ in (r["paper"] or []) if val] if not r["deepxde"] else []
         rows.append(dict(label=e.name, group=r["group"], f_ref=ref_f, f_best=r["f_best"],
                          i_ref=r.get("i_ref"), i_best=r.get("i_best"),
-                         p_ref=_perr(r.get("i_ref_par")), params=par_best))
+                         p_ref=_perr(r.get("i_ref_par")), params=par_best, reported=min(rep) if rep else None))
     plt.rcParams.update({"font.size": 8, "axes.linewidth": 0.7, "pdf.fonttype": 42})
     ypos, heads, groups, yy = {}, [], [], 0.0
     for i, r in enumerate(rows):
@@ -461,6 +474,8 @@ def figure(recs, path):
         y = Y[i]
         pair(ax, r["f_ref"], r["f_best"], y, "o", mtp.C_FORWARD, 27)
         pair(ax, r["i_ref"], r["i_best"], y, "D", mtp.C_INVERSE, 22)
+        if stars and r["reported"]:
+            ax.scatter(r["reported"], y, s=46, marker="*", color="#f59f00", edgecolor="white", lw=0.4, zorder=4)
         es = [(s, max(abs(f - t) / abs(t) * 100, 1.2e-4)) for s, f, t in r["params"] if t]
         if es:
             right = max(e for _, e in es)
@@ -472,7 +487,7 @@ def figure(recs, path):
                     right = max(right, o)
             for _, e_ in es:
                 bx.scatter(e_, y, s=20, marker="D", color=mtp.C_INVERSE, edgecolor="white", lw=0.5, zorder=3)
-            bx.text(right * 1.9, y, ", ".join(s for s, _ in sorted(es, key=lambda q: q[1])), va="center",
+            bx.text(right * 1.9, y, ", ".join(_math_sym(s) for s, _ in sorted(es, key=lambda q: q[1])), va="center",
                     ha="left", fontsize=6.6, color="#52606d")
     ax.set_yticks([Y[i] for i in range(len(rows))], [r["label"] for r in rows], fontsize=7.2, color=mtp.C_TEXT)
     ax.set_ylim(Y[len(rows) - 1] - 0.7, H + 0.15)
@@ -493,7 +508,9 @@ def figure(recs, path):
          Line2D([], [], ls="", marker="D", color=mtp.C_INVERSE, markersize=4.5, label="Inverse, PINNStudio best"),
          Line2D([], [], ls="", marker="o", markerfacecolor="white", markeredgecolor=mtp.C_OWN, markersize=4.5,
                 label="DeepXDE's settings / the paper's method")]
-    fig.legend(handles=h, loc="upper center", ncol=3, frameon=False, fontsize=7.2, bbox_to_anchor=(0.62, 1.0))
+    if stars:
+        h.append(Line2D([], [], ls="", marker="*", color="#f59f00", markersize=7, label="Reported in the paper"))
+    fig.legend(handles=h, loc="upper center", ncol=len(h), frameon=False, fontsize=7.2, bbox_to_anchor=(0.62, 1.0))
     fig.subplots_adjust(left=0.33, right=0.985, top=1 - 0.32 / h_in, bottom=0.45 / h_in)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     fig.savefig(path, dpi=300, bbox_inches="tight", pad_inches=0.03)
@@ -940,6 +957,54 @@ def _section(r):
     return "\n".join(L)
 
 
+PAPER_LIST = os.path.join(_REPO, "benchmarks", "paper_figure_examples.txt")
+PAPER_FIG = os.path.join(_REPO, "benchmarks", "figures", "paper_figure.png")
+
+
+def _paper_names():
+    """The examples of the paper's figure (benchmarks/paper_figure_examples.txt: one name per line)."""
+    try:
+        return [ln.strip() for ln in open(PAPER_LIST, encoding="utf-8") if ln.strip() and not ln.startswith("#")]
+    except OSError:
+        return []
+
+
+def _results_table(recs):
+    """Every example in one table: the reference and PINNStudio's best, forward and inverse."""
+    L = ["| Example | Source | Forward: reference L₂ | Forward: PINNStudio best L₂ | L₂, all times | Time (s) | "
+         "Inverse: parameters found (true) | Worst parameter error | Time (s) |",
+         "|---|---|---|---|---|---|---|---|---|"]
+    for g in GROUPS:
+        for r in [x for x in recs if x["group"] == g]:
+            e = r["entry"]
+            anc = "bench-" + re.sub(r"[^a-z0-9]+", "-", e.name.lower()).strip("-")
+            src = "DeepXDE" if r["deepxde"] else ("Paper" if r["paper"] else "PINNStudio")
+            fref = r["f_ref"]
+            if r["paper"] and r["paper_runs"]:
+                pm = [r["paper_runs"][v]["l2"] for _, _, v in r["paper"] if v in r["paper_runs"]]
+                fref = min(pm) if pm else fref
+            fs = r.get("f_best_s")
+            ft = None
+            if r.get("f_best_paper"):
+                ft = r["paper_runs"][r["f_best_paper"]]["seconds"]
+            elif fs:
+                ft = mtp._med(fs["variants"][fs["chosen"]], lambda q: q["seconds"])
+            st = None
+            if fs:
+                vals = [SPACETIME.get(f"{ts._slug(q['example'])}/{fs['chosen']}_s{q['seed']}") for q in fs["variants"][fs["chosen"]]]
+                vals = [v for v in vals if v is not None]
+                st = statistics.median(vals) if vals else None
+            ist = r.get("i_s")
+            it = mtp._med(ist["variants"][ist["chosen"]], lambda q: q["seconds"]) if ist else None
+            has_f = r["f_best"] is not None
+            has_i = r.get("i_best") is not None or r.get("i_best_par")
+            L.append(f"| [{e.name}](#{anc}) | {src} | {sci(fref) if has_f else '–'} | "
+                     f"{('**' + sci(r['f_best']) + '**') if has_f else '–'} | {sci(st) if st else '–'} | "
+                     f"{f'{ft:.0f}' if ft else '–'} | {_par_txt(r.get('i_best_par')) or ('–' if not has_i else 'field')} | "
+                     f"{_pct(_perr(r.get('i_best_par'))) if has_i else '–'} | {f'{it:.0f}' if it else '–'} |")
+    return "\n".join(L) + "\n"
+
+
 def page(recs):
     L = []
     a = L.append
@@ -982,6 +1047,18 @@ def page(recs):
     a("*Open grey markers: DeepXDE's settings, or the paper's method run in PINNStudio; filled: PINNStudio's best "
       "(one filled marker where the two are the same, or where no tuning was needed). Right: the error of each "
       "learned parameter, labelled with its symbol.*\n")
+    a("<details>\n<summary>📋 <em>All results — one table</em></summary>\n\n"
+      "*Reference: DeepXDE's settings, the paper's method run in PINNStudio (paper templates) or the template's own "
+      "settings. L₂ at the last reference time; all times where computed. Each name links to its section below.*\n\n"
+      + _results_table(recs) + "\n</details>\n")
+    names = _paper_names()
+    if names:
+        a("<details>\n<summary>📄 <em>Figure for the paper — " + f"{len(names)} examples" + "</em></summary>\n\n"
+          "*One example per kind of problem, most with both forward and inverse problems (the list: "
+          "[`paper_figure_examples.txt`](paper_figure_examples.txt); PDF: "
+          "[`figures/paper_figure.pdf`](figures/paper_figure.pdf)). ⭐: the error the paper reports, over all times, "
+          "for the templates taken from a paper.*\n\n"
+          "![The paper's figure: 25 examples, forward and inverse](figures/paper_figure.png)\n\n</details>\n")
     for g in GROUPS:
         rs = [r for r in recs if r["group"] == g]
         if not rs:
@@ -1056,6 +1133,13 @@ def main():
     recs = build(summ, papers, spacetime, readme)
     write_tuned(recs)
     figure(recs, FIG)
+    names = _paper_names()
+    if names:
+        by = {r["entry"].name: r for r in recs}
+        missing = [n for n in names if n not in by]
+        if missing:
+            print("paper figure: not in the catalogue:", missing)
+        figure([by[n] for n in names if n in by], PAPER_FIG, stars=True)
     with open(PAGE, "w", encoding="utf-8") as f:
         f.write(page(recs))
     # the runs whose figures the page shows, for the figure collection on the GPU machine

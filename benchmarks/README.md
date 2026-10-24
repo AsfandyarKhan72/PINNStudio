@@ -14,6 +14,88 @@ The sweep was run on the 39 examples with the largest errors. The others were al
 
 *Open grey markers: DeepXDE's settings, or the paper's method run in PINNStudio; filled: PINNStudio's best (one filled marker where the two are the same, or where no tuning was needed). Right: the error of each learned parameter, labelled with its symbol.*
 
+<details>
+<summary>📋 <em>All results — one table</em></summary>
+
+*Reference: DeepXDE's settings, the paper's method run in PINNStudio (paper templates) or the template's own settings. L₂ at the last reference time; all times where computed. Each name links to its section below.*
+
+| Example | Source | Forward: reference L₂ | Forward: PINNStudio best L₂ | L₂, all times | Time (s) | Inverse: parameters found (true) | Worst parameter error | Time (s) |
+|---|---|---|---|---|---|---|---|---|
+| [Integro-differential ODE](#bench-integro-differential-ode) | DeepXDE | 1.5 × 10<sup>-4</sup> | **1.5 × 10<sup>-4</sup>** | – | – | – | – | – |
+| [Integro-differential ODE – Volterra kernel](#bench-integro-differential-ode-volterra-kernel) | DeepXDE | 2.5 × 10<sup>-3</sup> | **2.5 × 10<sup>-3</sup>** | – | – | – | – | – |
+| [Linear ODE system](#bench-linear-ode-system) | DeepXDE | 3.6 × 10<sup>-3</sup> | **3.6 × 10<sup>-3</sup>** | – | – | ω = 0.999912 (1) | 0.0088% | 135 |
+| [Lotka-Volterra ODE](#bench-lotka-volterra-ode) | DeepXDE | 2.1 × 10<sup>-3</sup> | **2.1 × 10<sup>-3</sup>** | – | – | a = 2.00001 (2); d = 1.06 (1.06) | 0.0005% | 230 |
+| [Second-order ODE](#bench-second-order-ode) | DeepXDE | 6.9 × 10<sup>-4</sup> | **6.9 × 10<sup>-4</sup>** | – | – | a = 10.0003 (10); b = 8.99262 (9) | 0.082% | 30 |
+| [Lorenz ODE – unknown C₁, C₂, C₃](#bench-lorenz-ode-unknown-c-c-c) | DeepXDE | – | – | – | – | C₁ = 10 (10); C₂ = 14.9998 (15); C₃ = 2.66664 (2.66667) | 0.0013% | – |
+| [Lorenz ODE – unknown C₁, C₂, C₃, exogenous input](#bench-lorenz-ode-unknown-c-c-c-exogenous-input) | DeepXDE | – | – | – | – | C₁ = 9.974 (10); C₂ = 14.996 (15); C₃ = 2.6669 (2.66667) | 0.26% | – |
+| [Euler beam 1D](#bench-euler-beam-1d) | DeepXDE | 3.5 × 10<sup>-3</sup> | **2.4 × 10<sup>-4</sup>** | – | 59 | EI = 1.00075 (1) | 0.075% | 231 |
+| [Fractional Poisson 1D](#bench-fractional-poisson-1d) | DeepXDE | 2.3 × 10<sup>-2</sup> | **1.5 × 10<sup>-2</sup>** | – | 21 | – | – | – |
+| [Poisson 1D – Dirichlet](#bench-poisson-1d-dirichlet) | DeepXDE | 3.7 × 10<sup>-4</sup> | **3.7 × 10<sup>-4</sup>** | – | – | – | – | – |
+| [Poisson 1D – Dirichlet/Neumann](#bench-poisson-1d-dirichlet-neumann) | DeepXDE | 2.3 × 10<sup>-4</sup> | **2.3 × 10<sup>-4</sup>** | – | – | – | – | – |
+| [Poisson 1D – Dirichlet/Periodic](#bench-poisson-1d-dirichlet-periodic) | DeepXDE | 9.6 × 10<sup>-3</sup> | **6.4 × 10<sup>-6</sup>** | – | 67 | – | – | – |
+| [Poisson 1D – Dirichlet/point-set operator](#bench-poisson-1d-dirichlet-point-set-operator) | DeepXDE | 2.6 × 10<sup>-5</sup> | **2.6 × 10<sup>-5</sup>** | – | – | – | – | – |
+| [Poisson 1D – Dirichlet/Robin](#bench-poisson-1d-dirichlet-robin) | DeepXDE | 2.4 × 10<sup>-4</sup> | **2.4 × 10<sup>-4</sup>** | – | – | – | – | – |
+| [Poisson 1D – hard BCs](#bench-poisson-1d-hard-bcs) | DeepXDE | 2.2 × 10<sup>-6</sup> | **2.2 × 10<sup>-6</sup>** | – | – | – | – | – |
+| [Poisson 1D – multi-scale Fourier features](#bench-poisson-1d-multi-scale-fourier-features) | DeepXDE | 3.9 × 10<sup>-3</sup> | **3.9 × 10<sup>-3</sup>** | – | – | – | – | – |
+| [Brinkman-Forchheimer 1D – unknown ν_e, K](#bench-brinkman-forchheimer-1d-unknown-e-k) | DeepXDE | – | – | – | – | νₑ = 0.00115135 (0.001); K = 0.00103409 (0.001) | 15% | 234 |
+| [Diffusion-reaction 1D – unknown rate field](#bench-diffusion-reaction-1d-unknown-rate-field) | DeepXDE | – | – | – | – | field | – | 61 |
+| [Fractional Poisson 1D – unknown order α](#bench-fractional-poisson-1d-unknown-order) | DeepXDE | – | – | – | – | α = 1.79183 (1.8) | 0.45% | – |
+| [Poisson 1D – unknown forcing field](#bench-poisson-1d-unknown-forcing-field) | DeepXDE | – | – | – | – | field | – | 221 |
+| [Poisson 1D – unknown forcing field (batches)](#bench-poisson-1d-unknown-forcing-field-batches) | DeepXDE | – | – | – | – | field | – | 215 |
+| [Allen-Cahn 1D – Wight & Zhao](#bench-allen-cahn-1d-wight-zhao) | Paper | 1.4 × 10<sup>-3</sup> | **1.4 × 10<sup>-3</sup>** | – | – | γ₁ = 9.95326e-05 (0.0001); γ₂ = 4.99994 (5) | 0.47% | 302 |
+| [Cahn-Hilliard 1D – Wight & Zhao](#bench-cahn-hilliard-1d-wight-zhao) | Paper | 6.0 × 10<sup>-4</sup> | **6.0 × 10<sup>-4</sup>** | – | – | – | – | – |
+| [Cahn-Hilliard 1D – Mattey & Ghosh](#bench-cahn-hilliard-1d-mattey-ghosh) | Paper | 4.8 × 10<sup>-3</sup> | **3.9 × 10<sup>-3</sup>** | 3.2 × 10<sup>-2</sup> | 1002 | – | – | – |
+| [Black-Scholes 1D – American put](#bench-black-scholes-1d-american-put) | DeepXDE | – | – | – | – | – | – | – |
+| [Black-Scholes 1D – European call](#bench-black-scholes-1d-european-call) | DeepXDE | 4.3 × 10<sup>-4</sup> | **4.3 × 10<sup>-4</sup>** | – | – | – | – | – |
+| [Burgers 1D – Raissi et al.](#bench-burgers-1d-raissi-et-al) | Paper | 3.3 × 10<sup>-4</sup> | **3.3 × 10<sup>-4</sup>** | 6.7 × 10<sup>-4</sup> | 40 | λ₁ = 0.999937 (1); λ₂ = 0.0100099 (0.01) | 0.099% | 101 |
+| [Burgers 1D – RAR](#bench-burgers-1d-rar) | DeepXDE | 8.4 × 10<sup>-4</sup> | **8.4 × 10<sup>-4</sup>** | – | – | – | – | – |
+| [Diffusion 1D](#bench-diffusion-1d) | DeepXDE | 2.3 × 10<sup>-2</sup> | **1.5 × 10<sup>-3</sup>** | – | 76 | – | – | – |
+| [Diffusion 1D – hard IC and BCs](#bench-diffusion-1d-hard-ic-and-bcs) | DeepXDE | 2.8 × 10<sup>-3</sup> | **2.8 × 10<sup>-3</sup>** | – | – | – | – | – |
+| [Diffusion 1D – resampling](#bench-diffusion-1d-resampling) | DeepXDE | 5.4 × 10<sup>-2</sup> | **5.8 × 10<sup>-3</sup>** | – | 12 | – | – | – |
+| [Diffusion-reaction 1D](#bench-diffusion-reaction-1d) | DeepXDE | 8.8 × 10<sup>-2</sup> | **8.5 × 10<sup>-5</sup>** | – | 290 | D = 0.999773 (1) | 0.023% | 334 |
+| [Fractional diffusion 1D](#bench-fractional-diffusion-1d) | DeepXDE | 3.3 × 10<sup>-3</sup> | **3.3 × 10<sup>-3</sup>** | – | – | – | – | – |
+| [Heat 1D – Dirichlet](#bench-heat-1d-dirichlet) | DeepXDE | 5.0 × 10<sup>-2</sup> | **1.3 × 10<sup>-2</sup>** | – | 128 | a = 0.400406 (0.4) | 0.1% | 146 |
+| [Heat 1D – resampling](#bench-heat-1d-resampling) | DeepXDE | 1.4 × 10<sup>-2</sup> | **3.1 × 10<sup>-3</sup>** | – | 558 | – | – | – |
+| [Klein-Gordon 1D](#bench-klein-gordon-1d) | DeepXDE | 6.9 × 10<sup>-2</sup> | **2.3 × 10<sup>-3</sup>** | – | 151 | γ = 1.00912 (1) | 0.91% | 1361 |
+| [Schrödinger 1D](#bench-schr-dinger-1d) | DeepXDE | 1.8 × 10<sup>-3</sup> | **1.8 × 10<sup>-3</sup>** | – | – | c = 0.500036 (0.5) | 0.0072% | 337 |
+| [Wave 1D – space-time multi-scale Fourier features](#bench-wave-1d-space-time-multi-scale-fourier-features) | DeepXDE | 3.0 × 10<sup>-1</sup> | **1.5 × 10<sup>-3</sup>** | – | 645 | C = 10 (10) | 0% | 4354 |
+| [Diffusion 1D – unknown coefficient](#bench-diffusion-1d-unknown-coefficient) | DeepXDE | – | – | – | – | C = 1.00004 (1) | 0.004% | 311 |
+| [Diffusion-reaction 1D – unknown k_f, D](#bench-diffusion-reaction-1d-unknown-k-f-d) | DeepXDE | – | – | – | – | k_f = 0.0992 (0.1); D = 1.993 (2) | 0.8% | – |
+| [Fractional Poisson 2D – disk](#bench-fractional-poisson-2d-disk) | DeepXDE | 1.2 × 10<sup>-3</sup> | **1.2 × 10<sup>-3</sup>** | – | – | – | – | – |
+| [Helmholtz 2D – Dirichlet](#bench-helmholtz-2d-dirichlet) | DeepXDE | 1.9 × 10<sup>-3</sup> | **1.9 × 10<sup>-3</sup>** | – | – | k₀ = 12.5664 (12.5664) | 0.00023% | 58 |
+| [Helmholtz 2D – hyperparameter search](#bench-helmholtz-2d-hyperparameter-search) | DeepXDE | 1.3 × 10<sup>-3</sup> | **1.3 × 10<sup>-3</sup>** | – | – | – | – | – |
+| [Helmholtz 2D – sound-hard scattering](#bench-helmholtz-2d-sound-hard-scattering) | DeepXDE | 8.0 × 10<sup>-2</sup> | **8.0 × 10<sup>-2</sup>** | – | 61 | – | – | – |
+| [Helmholtz 2D – square with hole](#bench-helmholtz-2d-square-with-hole) | DeepXDE | 1.1 × 10<sup>-2</sup> | **7.0 × 10<sup>-4</sup>** | – | 24 | – | – | – |
+| [Laplace 2D – disk](#bench-laplace-2d-disk) | DeepXDE | 1.1 × 10<sup>-3</sup> | **1.1 × 10<sup>-3</sup>** | – | – | – | – | – |
+| [Linear elasticity 2D – plate](#bench-linear-elasticity-2d-plate) | DeepXDE | 6.7 × 10<sup>-2</sup> | **1.3 × 10<sup>-4</sup>** | – | 1147 | λ = 0.999744 (1); μ = 0.500088 (0.5) | 0.026% | 546 |
+| [Linear elasticity 2D – plate, soft BCs](#bench-linear-elasticity-2d-plate-soft-bcs) | DeepXDE | 4.9 × 10<sup>-4</sup> | **4.9 × 10<sup>-4</sup>** | – | – | – | – | – |
+| [Navier-Stokes 2D – Kovasznay flow](#bench-navier-stokes-2d-kovasznay-flow) | DeepXDE | 2.1 × 10<sup>-4</sup> | **2.1 × 10<sup>-4</sup>** | – | – | Re = 19.9978 (20) | 0.011% | 252 |
+| [Poisson 2D – disk](#bench-poisson-2d-disk) | PINNStudio | 2.8 × 10<sup>-4</sup> | **2.8 × 10<sup>-4</sup>** | – | – | f = 1.00002 (1) | 0.002% | 157 |
+| [Poisson 2D – L-shape](#bench-poisson-2d-l-shape) | DeepXDE | 3.5 × 10<sup>-2</sup> | **1.2 × 10<sup>-2</sup>** | – | 500 | – | – | – |
+| [Fractional Poisson 2D – unknown order α](#bench-fractional-poisson-2d-unknown-order) | DeepXDE | – | – | – | – | α = 1.80445 (1.8) | 0.25% | – |
+| [Allen-Cahn 2D – Wight & Zhao](#bench-allen-cahn-2d-wight-zhao) | Paper | 7.9 × 10<sup>-3</sup> | **1.6 × 10<sup>-3</sup>** | 1.1 × 10<sup>-2</sup> | 1596 | λ = 9.82765 (10); λε² = 0.00615365 (0.00625) | 1.7% | 1859 |
+| [Allen-Cahn 2D – Mattey & Ghosh](#bench-allen-cahn-2d-mattey-ghosh) | Paper | 6.6 × 10<sup>-3</sup> | **3.6 × 10<sup>-4</sup>** | 3.4 × 10<sup>-4</sup> | 266 | c₁² = 0.000102452 (0.0001); c₂ = 1.00025 (1) | 2.5% | 1789 |
+| [Cahn-Hilliard 2D – Wight & Zhao](#bench-cahn-hilliard-2d-wight-zhao) | Paper | 1.1 × 10<sup>-2</sup> | **4.5 × 10<sup>-3</sup>** | 7.2 × 10<sup>-3</sup> | 1464 | ε² = 0.00251042 (0.0025) | 0.42% | 3736 |
+| [Cahn-Hilliard 2D – Mattey & Ghosh](#bench-cahn-hilliard-2d-mattey-ghosh) | Paper | 2.0 × 10<sup>-3</sup> | **2.0 × 10<sup>-3</sup>** | – | – | α = 0.000189574 (0.0002); κ = 1.01558 (1) | 5.2% | 1741 |
+| [Burgers 2D – Mathias et al.](#bench-burgers-2d-mathias-et-al) | Paper | 1.1 × 10<sup>-2</sup> | **8.4 × 10<sup>-3</sup>** | 1.1 × 10<sup>-2</sup> | 3684 | ν = 0.00320066 (0.0031831) | 0.55% | 6962 |
+| [Heat 2D](#bench-heat-2d) | PINNStudio | 3.9 × 10<sup>-3</sup> | **3.9 × 10<sup>-3</sup>** | – | – | α = 0.399893 (0.4) | 0.027% | 169 |
+| [Fractional Poisson 3D – sphere](#bench-fractional-poisson-3d-sphere) | DeepXDE | 6.7 × 10<sup>-3</sup> | **6.7 × 10<sup>-3</sup>** | – | – | – | – | – |
+| [Poisson 3D – sphere](#bench-poisson-3d-sphere) | PINNStudio | 1.5 × 10<sup>-3</sup> | **1.5 × 10<sup>-3</sup>** | – | – | f = 1.00005 (1) | 0.005% | 83 |
+| [Allen-Cahn 3D – Wight & Zhao](#bench-allen-cahn-3d-wight-zhao) | Paper | 2.7 × 10<sup>-4</sup> | **2.7 × 10<sup>-4</sup>** | – | – | λ = 9.96899 (10); λε² = 0.0249817 (0.025) | 0.31% | 1419 |
+| [Heat 3D](#bench-heat-3d) | PINNStudio | 2.6 × 10<sup>-3</sup> | **2.6 × 10<sup>-3</sup>** | – | – | α = 0.400303 (0.4) | 0.076% | 729 |
+| [Navier-Stokes 3D – Beltrami flow](#bench-navier-stokes-3d-beltrami-flow) | DeepXDE | 1.4 × 10<sup>-3</sup> | **1.4 × 10<sup>-3</sup>** | – | – | ν = 0.998842 (1) | 0.12% | 2575 |
+
+</details>
+
+<details>
+<summary>📄 <em>Figure for the paper — 25 examples</em></summary>
+
+*One example per kind of problem, most with both forward and inverse problems (the list: [`paper_figure_examples.txt`](paper_figure_examples.txt); PDF: [`figures/paper_figure.pdf`](figures/paper_figure.pdf)). ⭐: the error the paper reports, over all times, for the templates taken from a paper.*
+
+![The paper's figure: 25 examples, forward and inverse](figures/paper_figure.png)
+
+</details>
+
 ## ODEs
 
 <details id="bench-integro-differential-ode">
