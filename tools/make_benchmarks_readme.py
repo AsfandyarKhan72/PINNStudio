@@ -422,11 +422,21 @@ def build(summ, papers, spacetime, readme):
     return out
 
 
+PAPER_SIZE = (6.5, 7.5)   # inches: the paper figure's printed size
+# shorter row names in the paper figure
+PAPER_SHORT = {"Wave 1D – space-time multi-scale Fourier features": "Wave 1D – multi-scale Fourier features",
+               "Lorenz ODE – unknown C₁, C₂, C₃": "Lorenz ODE",
+               "Fractional Poisson 1D – unknown order α": "Fractional Poisson 1D",
+               "Poisson 1D – unknown forcing field": "Poisson 1D – unknown forcing",
+               "Black-Scholes 1D – European call": "Black-Scholes 1D",
+               "Navier-Stokes 2D – Kovasznay flow": "Navier-Stokes 2D – Kovasznay",
+               "Navier-Stokes 3D – Beltrami flow": "Navier-Stokes 3D – Beltrami",
+               "Linear elasticity 2D – plate": "Linear elasticity 2D"}
 P_FLOOR = 1e-4            # parameter errors below it are drawn at it
 P_XLIM = (4e-5, 1500)     # room for the markers at the floor and the symbols on the right
 
 
-def figure(recs, path, stars=False):
+def figure(recs, path, stars=False, paper=False):
     """The paper's Fig. 4 layout (stars: also the error each paper reports, for its templates): grey open = DeepXDE's settings / the paper's method in PINNStudio
     (the template's own settings where that has not run yet); filled = PINNStudio's best."""
     import matplotlib
@@ -442,10 +452,13 @@ def figure(recs, path, stars=False):
             ref_f = min(pm) if pm else ref_f
         par_best = r.get("i_best_par") or []
         rep = [val for _, val, _ in (r["paper"] or []) if val] if not r["deepxde"] else []
-        rows.append(dict(label=e.name, group=r["group"], f_ref=ref_f, f_best=r["f_best"],
+        rows.append(dict(label=PAPER_SHORT.get(e.name, e.name) if paper else e.name, group=r["group"], f_ref=ref_f, f_best=r["f_best"],
                          i_ref=r.get("i_ref"), i_best=r.get("i_best"),
                          p_ref=_perr(r.get("i_ref_par")), params=par_best, reported=min(rep) if rep else None))
-    plt.rcParams.update({"font.size": 8, "axes.linewidth": 0.7, "pdf.fonttype": 42})
+    # paper: drawn at its printed size (6.5 x 7.5 in, a Word page with 1 in margins and room for a caption)
+    F = dict(name=8.5, head=8.8, tick=8.0, axis=9.0, legend=9.0, sym=8.0, ms=1.35) if paper else \
+        dict(name=7.2, head=7.6, tick=7.2, axis=8.0, legend=7.2, sym=6.6, ms=1.0)
+    plt.rcParams.update({"font.size": F["tick"], "axes.linewidth": 0.7, "pdf.fonttype": 42})
     ypos, heads, groups, yy = {}, [], [], 0.0
     for i, r in enumerate(rows):
         if not groups or groups[-1][0] != r["group"]:
@@ -457,15 +470,15 @@ def figure(recs, path, stars=False):
         ypos[i] = yy; yy += 1.0
     H = yy
     Y = {i: H - v for i, v in ypos.items()}
-    h_in = mtp.ROW_HEIGHT * H + 1.0
-    fig, (ax, bx) = plt.subplots(1, 2, figsize=(mtp.FIG_WIDTH, h_in), sharey=True,
-                                 gridspec_kw={"width_ratios": [3.0, 1.6], "wspace": 0.08})
+    W_in, h_in = (PAPER_SIZE if paper else (mtp.FIG_WIDTH, mtp.ROW_HEIGHT * H + 1.0))
+    fig, (ax, bx) = plt.subplots(1, 2, figsize=(W_in, h_in), sharey=True,
+                                 gridspec_kw={"width_ratios": [3.0, 1.6], "wspace": 0.12 if paper else 0.08})
     for gi, (g, a, b) in enumerate(groups):
         for axx in (ax, bx):
             axx.axhspan(Y[b] - 0.5, Y[a] + 1.4, color=mtp.C_BAND if gi % 2 == 0 else "white", zorder=0, lw=0)
     for g, v in heads:
         ax.text(-0.012, H - v - 0.05, g, transform=ax.get_yaxis_transform(), ha="right", va="center",
-                fontsize=7.6, fontweight="bold", color=mtp.C_TEXT)
+                fontsize=F["head"], fontweight="bold", color=mtp.C_TEXT)
 
     def pair(axx, ref, best, y, marker, color, ms):
         if ref and best and abs(ref - best) / max(ref, best) > 0.05:
@@ -476,10 +489,10 @@ def figure(recs, path, stars=False):
 
     for i, r in enumerate(rows):
         y = Y[i]
-        pair(ax, r["f_ref"], r["f_best"], y, "o", mtp.C_FORWARD, 27)
-        pair(ax, r["i_ref"], r["i_best"], y, "D", mtp.C_INVERSE, 22)
+        pair(ax, r["f_ref"], r["f_best"], y, "o", mtp.C_FORWARD, 27 * F["ms"])
+        pair(ax, r["i_ref"], r["i_best"], y, "D", mtp.C_INVERSE, 22 * F["ms"])
         if stars and r["reported"]:
-            ax.scatter(r["reported"], y, s=46, marker="*", color="#f59f00", edgecolor="white", lw=0.4, zorder=4)
+            ax.scatter(r["reported"], y, s=46 * F["ms"], marker="*", color="#f59f00", edgecolor="white", lw=0.4, zorder=4)
         es = [(s, max(abs(f - t) / abs(t) * 100, P_FLOOR)) for s, f, t in r["params"] if t]
         if es:
             right = max(e for _, e in es)
@@ -487,38 +500,66 @@ def figure(recs, path, stars=False):
                 o = max(100 * r["p_ref"], P_FLOOR)
                 if abs(o - right) / max(o, right) > 0.05:
                     bx.plot([min(o, right), max(o, right)], [y, y], color=mtp.C_INVERSE, lw=0.9, alpha=0.35, zorder=1)
-                    bx.scatter(o, y, s=15, marker="D", facecolor="white", edgecolor=mtp.C_OWN, lw=0.9, zorder=2)
+                    bx.scatter(o, y, s=15 * F["ms"], marker="D", facecolor="white", edgecolor=mtp.C_OWN, lw=0.9, zorder=2)
                     right = max(right, o)
             for _, e_ in es:
-                bx.scatter(e_, y, s=20, marker="D", color=mtp.C_INVERSE, edgecolor="white", lw=0.5, zorder=3)
-            bx.text(right * 1.9, y, ", ".join(_math_sym(s) for s, _ in sorted(es, key=lambda q: q[1])), va="center",
-                    ha="left", fontsize=6.6, color="#52606d")
-    ax.set_yticks([Y[i] for i in range(len(rows))], [r["label"] for r in rows], fontsize=7.2, color=mtp.C_TEXT)
+                bx.scatter(e_, y, s=20 * F["ms"], marker="D", color=mtp.C_INVERSE, edgecolor="white", lw=0.5, zorder=3)
+            bx.text(right * (2.6 if paper else 1.9), y, ", ".join(_math_sym(s) for s, _ in sorted(es, key=lambda q: q[1])), va="center",
+                    ha="left", fontsize=F["sym"], color="#52606d")
+    ax.set_yticks([Y[i] for i in range(len(rows))], [r["label"] for r in rows], fontsize=F["name"], color=mtp.C_TEXT)
     ax.set_ylim(Y[len(rows) - 1] - 0.7, H + 0.15)
     ax.set_xscale("log"); ax.set_xlim(*mtp.XLIM_ERROR)
     ax.set_xticks([10.0 ** k for k in range(-6, 1)])
     bx.set_xscale("log"); bx.set_xlim(*P_XLIM)
     bx.set_xticks([1e-3, 1e-1, 10], ["0.001", "0.1", "10"])
-    ax.set_xlabel("Relative $L_2$ error of the main output at the last reference time", fontsize=8)
-    bx.set_xlabel("Parameter error (%)", fontsize=8)
+    ax.set_xlabel("Relative $L_2$ error (last reference time)" if paper else
+                  "Relative $L_2$ error of the main output at the last reference time", fontsize=F["axis"])
+    bx.set_xlabel("Parameter error (%)", fontsize=F["axis"])
     for axx in (ax, bx):
         axx.grid(axis="x", color=mtp.C_GRID, lw=0.6, zorder=0)
         axx.set_axisbelow(True)
         for sp in ("top", "right", "left"):
             axx.spines[sp].set_visible(False)
         axx.tick_params(axis="y", length=0)
-        axx.tick_params(axis="x", labelsize=7.2)
-    h = [Line2D([], [], ls="", marker="o", color=mtp.C_FORWARD, markersize=5, label="Forward, PINNStudio best"),
-         Line2D([], [], ls="", marker="D", color=mtp.C_INVERSE, markersize=4.5, label="Inverse, PINNStudio best"),
+        axx.tick_params(axis="x", labelsize=F["tick"])
+    lab = (["Forward", "Inverse", "DeepXDE / paper's method", "Paper's reported error"] if paper else
+           ["Forward, PINNStudio best", "Inverse, PINNStudio best", "DeepXDE's settings / the paper's method",
+            "Reported in the paper"])
+    h = [Line2D([], [], ls="", marker="o", color=mtp.C_FORWARD, markersize=5, label=lab[0]),
+         Line2D([], [], ls="", marker="D", color=mtp.C_INVERSE, markersize=4.5, label=lab[1]),
          Line2D([], [], ls="", marker="o", markerfacecolor="white", markeredgecolor=mtp.C_OWN, markersize=4.5,
-                label="DeepXDE's settings / the paper's method")]
+                label=lab[2])]
     if stars:
-        h.append(Line2D([], [], ls="", marker="*", color="#f59f00", markersize=7, label="Reported in the paper"))
-    fig.legend(handles=h, loc="upper center", ncol=len(h), frameon=False, fontsize=7.2, bbox_to_anchor=(0.62, 1.0))
-    fig.subplots_adjust(left=0.33, right=0.985, top=1 - 0.32 / h_in, bottom=0.45 / h_in)
+        h.append(Line2D([], [], ls="", marker="*", color="#f59f00", markersize=7, label=lab[3]))
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    fig.savefig(path, dpi=300, bbox_inches="tight", pad_inches=0.03)
-    fig.savefig(path.replace(".png", ".pdf"), bbox_inches="tight", pad_inches=0.03)
+    if not paper:
+        fig.legend(handles=h, loc="upper center", ncol=len(h), frameon=False, fontsize=F["legend"],
+                   bbox_to_anchor=(0.62, 1.0))
+        fig.subplots_adjust(left=0.33, right=0.985, top=1 - 0.32 / h_in, bottom=0.45 / h_in)
+        fig.savefig(path, dpi=300, bbox_inches="tight", pad_inches=0.03)
+        fig.savefig(path.replace(".png", ".pdf"), bbox_inches="tight", pad_inches=0.03)
+        plt.close(fig)
+        return
+    # exact printed size: margins from the measured labels, no bbox cropping
+    leg = fig.legend(handles=h, loc="upper center", ncol=len(h), frameon=False, fontsize=F["legend"],
+                     handletextpad=0.3, columnspacing=1.2, bbox_to_anchor=(0.5, 1.0))
+    fig.subplots_adjust(left=0.3, right=0.98, top=0.95, bottom=0.07)
+    rd = fig.canvas.get_renderer()
+    pad = 0.04 * fig.dpi
+    for _ in range(3):
+        fig.canvas.draw()
+        w_lab = max(t.get_window_extent(rd).width for t in ax.get_yticklabels() + ax.texts)
+        over = max([t.get_window_extent(rd).x1 for t in bx.texts] + [bx.get_window_extent(rd).x1])
+        W, Hh = fig.bbox.width, fig.bbox.height
+        p = fig.subplotpars
+        left = (w_lab + 2.5 * pad) / W
+        right = p.right - max(0.0, over + pad - W) / W
+        top = (leg.get_window_extent(rd).y0 - pad) / Hh
+        xl = min(a.xaxis.label.get_window_extent(rd).y0 for a in (ax, bx))
+        bottom = p.bottom + max(0.0, pad - xl) / Hh
+        fig.subplots_adjust(left=left, right=right, top=top, bottom=bottom)
+    fig.savefig(path, dpi=300)
+    fig.savefig(path.replace(".png", ".pdf"))
     plt.close(fig)
 
 
@@ -1075,6 +1116,14 @@ def page(recs):
           "Mattey & Ghosh). Note that the papers report one error over all times, while the x-axis is the error "
           "at the last reference time, so the ⭐ is a guide rather than an exact like-for-like point; the "
           "all-times errors are in the tables below.\n\n"
+          "**For Word.** The figure is drawn at its printed size, 6.5 × 7.5 in (the text width of a Word page "
+          "with 1 in margins), with 8.5–9 pt text, so insert it at 100% and it leaves about 1.5 in for the caption "
+          "on the same page. The PDF keeps it sharp at any zoom. A caption to start from:\n\n"
+          "> *Relative L₂ error of PINNStudio on 25 representative problems, from ODEs to 3D PDEs. Filled markers "
+          "are PINNStudio's best settings (circles: forward problems, diamonds: inverse problems); open grey markers "
+          "are DeepXDE's settings or, for templates taken from a paper, that paper's method run in PINNStudio. "
+          "Stars mark the error reported in the original paper. Right: the relative error of each identified "
+          "parameter, labelled with its symbol.*\n\n"
           "*The list: [`paper_figure_examples.txt`](paper_figure_examples.txt) (one name per line; change a line "
           "to swap an example). PDF: [`figures/paper_figure.pdf`](figures/paper_figure.pdf).*\n\n"
           "![The paper's figure: 25 examples, forward and inverse](figures/paper_figure.png)\n\n</details>\n")
@@ -1158,7 +1207,7 @@ def main():
         missing = [n for n in names if n not in by]
         if missing:
             print("paper figure: not in the catalogue:", missing)
-        figure([by[n] for n in names if n in by], PAPER_FIG, stars=True)
+        figure([by[n] for n in names if n in by], PAPER_FIG, stars=True, paper=True)
     with open(PAGE, "w", encoding="utf-8") as f:
         f.write(page(recs))
     # the runs whose figures the page shows, for the figure collection on the GPU machine
