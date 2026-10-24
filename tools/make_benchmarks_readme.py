@@ -734,7 +734,7 @@ def main():
                         OUTS[(slug, variant, str(r["seed"]))] = r["outs"]
     rows = mtp._load(args.results)
     summ = mtp.summarize(rows)
-    papers = mtp._load([args.papers]) if args.papers else []
+    papers = mtp._load([x for x in args.papers.split(",") if x]) if args.papers else []   # later files first
     spacetime = {}
     for f in [x for x in args.spacetime.split(",") if x]:
         spacetime.update(json.load(open(f, encoding="utf-8")))
