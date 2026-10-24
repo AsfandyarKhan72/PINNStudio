@@ -68,12 +68,12 @@ def _net(cfg, depth, width):
     cfg.layers = [lay[0]] + [int(width)] * int(depth) + [lay[-1]]
 
 
-def _windows(cfg, n, backward=False, growing=False, icgl=0.0, bc_w=100.0, bc_times=10, bc_points=2000):
+def _windows(cfg, n, backward=False, growing=False, icgl=0.0, bc_w=100.0, bc_times=10, bc_points=2000, tl=True):
     cfg.time_adaptive = True
     cfg.adapt_method = "Time Adaptive"
     cfg.ta_num_steps = int(n)
     cfg.ta_step_groups = ""
-    cfg.ta_transfer_learning = True
+    cfg.ta_transfer_learning = bool(tl)
     cfg.ta_backward = bool(backward)
     cfg.ta_growing = bool(growing)
     cfg.ta_icgl_fraction = float(icgl)
@@ -175,6 +175,68 @@ def _schrodinger_raissi(cfg):
     _phases(cfg, 50000, 50000, ic_w=1.0)
 
 
+
+def _wz_approach2(cfg, n_windows, outputs_ic=None):
+    # Wight & Zhao's benchmarks (Sec. 3.1-3.2, Figs. 3.8, 3.9, 3.13): approach II, a separate network per
+    # time window starting from the previous one's prediction, 6x128, weighted loss C0 = 10^3, Adam with
+    # mini-batch 32 for 100 epochs per network, then L-BFGS-B. Not stated: the points, the BCs, the Adam
+    # learning rate and the L-BFGS settings; whether a network starts from the previous one's weights (here
+    # not). PINNStudio trains full batch: 10,000 Adam + 10,000 L-BFGS per window, the template's points and BCs.
+    _soft(cfg, ic_outputs=outputs_ic)
+    _net(cfg, 6, 128)
+    _windows(cfg, n_windows, tl=False)
+    _phases(cfg, 10000, 10000, ic_w=1000.0)
+
+
+def _ac2d_wz(cfg):
+    # Sec. 3.1, Fig. 3.8: Delta t = 1 on t in [0, 10] (the caption also says 0.2; the text says 1) -> 10 windows.
+    _wz_approach2(cfg, 10)
+
+
+def _ch2d_wz(cfg):
+    # Sec. 3.2, Fig. 3.13: (u, mu) network, Delta t = 0.2 on [0, 1] -> 5 windows.
+    _wz_approach2(cfg, 5, outputs_ic=[0])
+
+
+def _ac3d_wz(cfg):
+    # Sec. 3.1, Fig. 3.9: Delta t = 0.5 on [0, 1] -> 2 windows.
+    _wz_approach2(cfg, 2)
+
+
+def _ch2d_mg(cfg):
+    # M&G Sec. 6.2.1, Table 7 (IBVP-2, the template's problem; t in (0, 0.005] in the paper, rescaled to
+    # [0, 1] in the template): bc-PINN, (h, mu), 5x128, N_i = 4096 (64^2), N_b = 1600 and N_r = 50,000 per
+    # segment, 25 steps per segment -> 4 segments, 50,000 Adam and up to 75,000 L-BFGS per segment, ICGL,
+    # transfer learning with one more frozen layer per segment (layer freezing is not in PINNStudio).
+    # Not stated: the loss weights (64 as in their AC code), the ICGL fraction (20% as in their 2D AC).
+    _soft(cfg, ic_outputs=[0])
+    _net(cfg, 5, 128)
+    cfg.num_domain, cfg.num_initial, cfg.num_boundary = 50000, 4096, 1600
+    _windows(cfg, 4, backward=True, icgl=0.2, bc_w=64.0, bc_times=10, bc_points=1000)
+    cfg.ta_grid_size = 64
+    _phases(cfg, 40000, 75000, ic_w=64.0)       # 40,000 + 20% of it (8,000) ICGL ~ 50,000 Adam
+
+
+def _burgers2d_mathias(cfg):
+    # Mathias et al. Sec. 2 and their code (github.com/C4AI/PINN_for_Burgers): the IC and the zero BCs built
+    # into the output, U = d*N + (1 - d)*U0 with d = 16x(1-x)y(1-y)tanh(26.4t); 4x20 tanh with residual
+    # connections every two layers (PINNStudio: a plain 4x20 network); mean absolute error loss; n_f =
+    # 10,000 uniform physics points and no solution data (their pure-physics case); Adam lr 1e-2 for
+    # 99,999 steps, full batch, no L-BFGS.
+    _soft(cfg, ic_outputs=[])
+    _net(cfg, 4, 20)
+    cfg.custom_bc_json = "[]"
+    d = "16*x*(1 - x)*y*(1 - y)*tanh(26.4*t)"
+    cfg.output_transform_enabled = True
+    cfg.output_transform_mode = "formula"
+    cfg.output_transform_formula = (f"u*{d} + (1 - {d})*sin(2*pi*x)*sin(2*pi*y)|"
+                                    f"v*{d} + (1 - {d})*sin(pi*x)*sin(pi*y)")
+    cfg.num_domain, cfg.num_initial, cfg.num_boundary = 10000, 0, 0
+    w = ",".join(["1.0"] * len([e for e in (cfg.pde_expressions or "").split("|") if e.strip()]))
+    cfg.optimizer_scheduler = True
+    cfg.scheduler_phases = json.dumps([{"optimizer": "adam", "iterations": 99999, "lr": 0.01, "loss": "MAE",
+                                        "weights": w, "decay_type": "none", "decay_p1": 5000.0, "decay_p2": 0.9}])
+
 PAPER = {
     ("1D Allen-Cahn (whole interval)", "paper_wz"): _ac1d_wz,
     ("1D Allen-Cahn (whole interval)", "paper_mg"): _ac1d_mg,
@@ -185,6 +247,11 @@ PAPER = {
     ("2D Allen-Cahn (Mattey & Ghosh)", "paper_mg"): _ac2d_mg,
     ("1D Burgers", "paper_raissi"): _burgers1d_raissi,
     ("1D Schrödinger", "paper_raissi"): _schrodinger_raissi,
+    ("2D Allen-Cahn (Wight & Zhao)", "paper_wz"): _ac2d_wz,
+    ("2D Cahn-Hilliard (Wight & Zhao)", "paper_wz"): _ch2d_wz,
+    ("3D Allen-Cahn (Wight & Zhao)", "paper_wz"): _ac3d_wz,
+    ("2D Cahn-Hilliard (Mattey & Ghosh)", "paper_mg"): _ch2d_mg,
+    ("2D Burgers (Mathias)", "paper_mathias"): _burgers2d_mathias,
 }
 
 
@@ -203,12 +270,14 @@ def apply(cfg, variant, tkey):
 
 
 PAPER_LABEL = {"paper_wz": "Wight & Zhao 2021", "paper_mg": "Mattey & Ghosh 2022, bc-PINN",
-               "paper_raissi": "Raissi et al. 2019"}
+               "paper_raissi": "Raissi et al. 2019", "paper_mathias": "Mathias et al. 2022"}
 
 # The paper each template's Default settings follow (the template's own source).
 TEMPLATE_PAPER = {
     "1D Allen-Cahn": "paper_wz", "1D Allen-Cahn (whole interval)": "paper_wz",
     "1D Cahn-Hilliard": "paper_wz", "1D Cahn-Hilliard (Mattey & Ghosh)": "paper_mg",
     "2D Allen-Cahn (Mattey & Ghosh)": "paper_mg", "1D Burgers": "paper_raissi",
-    "1D Schrödinger": "paper_raissi",
+    "1D Schrödinger": "paper_raissi", "2D Allen-Cahn (Wight & Zhao)": "paper_wz",
+    "2D Cahn-Hilliard (Wight & Zhao)": "paper_wz", "3D Allen-Cahn (Wight & Zhao)": "paper_wz",
+    "2D Cahn-Hilliard (Mattey & Ghosh)": "paper_mg", "2D Burgers (Mathias)": "paper_mathias",
 }

@@ -53,7 +53,7 @@ _TEMPLATES = [
     ("1D Heat", "Heat 1D", "1D", "Time-dependent", "Interval", ""),
     ("1D Allen-Cahn", "Allen-Cahn 1D – Wight & Zhao (time-adaptive)", "1D", "Time-dependent", "Interval",
      "Wight & Zhao (2021)"),
-    ("1D Allen-Cahn (whole interval)", "Allen-Cahn 1D – Wight & Zhao (whole interval)", "1D", "Time-dependent",
+    ("1D Allen-Cahn (whole interval)", "Allen-Cahn 1D – Wight & Zhao", "1D", "Time-dependent",
      "Interval", "Wight & Zhao (2021)"),
     ("1D Cahn-Hilliard", "Cahn-Hilliard 1D – Wight & Zhao", "1D", "Time-dependent", "Interval", "Wight & Zhao (2021)"),
     ("1D Cahn-Hilliard (Mattey & Ghosh)", "Cahn-Hilliard 1D – Mattey & Ghosh", "1D", "Time-dependent", "Interval",
@@ -84,7 +84,10 @@ TEMPLATE_KEYS = tuple(t[0] for t in _TEMPLATES)
 # DeepXDE's Heat 1D – Dirichlet, 1D Schrödinger DeepXDE's Schrödinger 1D,
 # 2D Poisson (L-Shape) DeepXDE's Poisson 2D – L-shape.
 # They stay loadable by name, so saved projects and scripts keep working.
-HIDDEN_TEMPLATES = ("1D Heat", "1D Schrödinger", "2D Poisson (L-Shape)")
+HIDDEN_TEMPLATES = ("1D Heat", "1D Schrödinger", "2D Poisson (L-Shape)",
+                    # one Allen-Cahn 1D – Wight & Zhao: the whole-interval template (Settings: Tuned) and
+                    # the paper's own method (Default); the time-adaptive one still loads by name
+                    "1D Allen-Cahn")
 # DeepXDE examples left out of the lists (still loadable by name, e.g. from a
 # saved problem): Allen-Cahn 1D is covered by the two Wight & Zhao templates.
 HIDDEN_DEEPXDE = ("Allen-Cahn equation",)

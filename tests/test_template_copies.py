@@ -149,7 +149,7 @@ def test_time_adaptive_allen_cahn_inverse_uses_the_whole_interval_setup():
         _pump()
 
     w = MainWindow()
-    load(w, "Inverse", "Allen-Cahn 1D – Wight & Zhao (whole interval)")
+    load(w, "Inverse", "Allen-Cahn 1D – Wight & Zhao")
     whole = cfg(w)
     w2 = MainWindow()
     load(w2, "Inverse", "Allen-Cahn 1D – Wight & Zhao (time-adaptive)")

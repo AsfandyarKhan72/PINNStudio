@@ -52,7 +52,7 @@ def _free(w):
     gc.collect()
 
 
-@pytest.mark.parametrize("target", [("Forward", "Allen-Cahn 1D – Wight & Zhao (whole interval)"),
+@pytest.mark.parametrize("target", [("Forward", "Allen-Cahn 1D – Wight & Zhao"),
                                     ("Inverse", "Heat 2D"), ("Forward", "Heat 3D")])
 def test_template_after_deepxde_example(target):
     first = MainWindow()

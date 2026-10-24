@@ -395,13 +395,16 @@ def _section(r):
             a("| Training | L₂ | Time (s) |\n|---|---|---|")
             cols = ""
         rows = _sweep_rows(r["f_plain_s"], ref_name, False)
-        if not r["f_plain_s"]:
+        if not r["f_plain_s"] and not paper_rows:
             rows = [(ref_name + (" (README)" if r["f_ref_src"] == "README" else ""), r["f_ref"], None, None)]
         if r["f_best_s"] and r["f_best_is_setup"]:
             rows += _sweep_rows(r["f_best_s"], "Best setup of the training methods study", False, prefix="Best setup + ")
         for lbl, l2, _, t in rows:
             a(f"| {lbl} | {sci(l2)}{cols} | {t if t is not None else '–'} |")
-        a(f"| **PINNStudio best**: {_best_label(r, False)} | **{sci(r['f_best'])}**{cols} | |")
+        lab = _best_label(r, False)
+        if paper_rows and lab == "no tuning needed":
+            lab = "the template's own settings"
+        a(f"| **PINNStudio best** (Settings: Tuned): {lab} | **{sci(r['f_best'])}**{cols} | |")
         a("")
         if paper_rows and not pr:
             a("*The plain PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*\n")
@@ -414,7 +417,7 @@ def _section(r):
         else:
             a(f"| {ref_name} (README) | {sci(r.get('i_ref'))} | {_par_txt(r.get('i_ref_par')) or '–'} | "
               f"{_pct(_perr(r.get('i_ref_par')))} | – |")
-        a(f"| **PINNStudio best**: {_best_label(r, True)} | **{sci(r.get('i_best'))}** | "
+        a(f"| **PINNStudio best** (Settings: Tuned): {_best_label(r, True)} | **{sci(r.get('i_best'))}** | "
           f"{_par_txt(r.get('i_best_par')) or '–'} | **{_pct(_perr(r.get('i_best_par')))}** | |")
         a("")
         if r["deepxde"] and r.get("i_s") and not e.key.startswith("Inverse:") and e.problem != cat.INVERSE:
