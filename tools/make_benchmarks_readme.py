@@ -481,6 +481,11 @@ def figure(recs, path, stars=False, paper=False):
                 fontsize=F["head"], fontweight="bold", color=mtp.C_TEXT)
 
     def pair(axx, ref, best, y, marker, color, ms):
+        if paper:       # the paper figure: PINNStudio's best only
+            ref = None
+            if best:
+                axx.scatter(best, y, s=ms, marker=marker, color=color, edgecolor="white", lw=0.5, zorder=3)
+            return
         """Open marker (the mode's colour) = DeepXDE's settings / the paper's method; filled = PINNStudio's
         best. Where the two are the same (or nothing needed tuning) the open one is a ring around the filled."""
         if best and (not ref or abs(ref - best) / max(ref, best) <= 0.05):
@@ -502,7 +507,7 @@ def figure(recs, path, stars=False, paper=False):
             o = max(100 * r["p_ref"], P_FLOOR) if r["p_ref"] is not None else None
             # the worst parameter carries the comparison with the reference (open diamond or ring)
             pair(bx, o, right, y, "D", mtp.C_INVERSE, 20 * F["ms"])
-            right = max(right, o or 0)
+            right = max(right, 0 if paper else (o or 0))
             for _, e_ in es:
                 bx.scatter(e_, y, s=20 * F["ms"], marker="D", color=mtp.C_INVERSE, edgecolor="white", lw=0.5, zorder=3)
             bx.text(right * (3.0 if paper else 2.2), y, ", ".join(_math_sym(s) for s, _ in sorted(es, key=lambda q: q[1])), va="center",
@@ -539,6 +544,9 @@ def figure(recs, path, stars=False, paper=False):
     h[2] = (_Over((h[2][0], mk("o", 0, 4, color=mtp.C_FORWARD))), _Over((h[2][1], mk("D", 0, 3.5, color=mtp.C_INVERSE))))
     if stars:
         h.append(mk("*", 0, 8, color="#f59f00"))
+    if paper:
+        h = [mk("o", 0, 6, color=mtp.C_FORWARD), mk("D", 0, 5.4, color=mtp.C_INVERSE)] + h[3:]
+        lab = ["Forward problem", "Inverse problem", lab[3]]
     lab = lab[:len(h)]
     hm = {tuple: HandlerTuple(ndivide=None, pad=0.6), _Over: HandlerTuple(ndivide=1)}
     os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -551,8 +559,8 @@ def figure(recs, path, stars=False, paper=False):
         plt.close(fig)
         return
     # exact printed size: margins from the measured labels, no bbox cropping
-    leg = fig.legend(h, lab, handler_map=hm, loc="upper center", ncol=2, frameon=False, fontsize=F["legend"],
-                     handlelength=2.6, handletextpad=0.5, columnspacing=2.0, bbox_to_anchor=(0.5, 1.0))
+    leg = fig.legend(h, lab, handler_map=hm, loc="upper center", ncol=len(h), frameon=False, fontsize=F["legend"],
+                     handlelength=1.2, handletextpad=0.4, columnspacing=2.0, bbox_to_anchor=(0.5, 1.0))
     fig.subplots_adjust(left=0.3, right=0.98, top=0.95, bottom=0.07)
     rd = fig.canvas.get_renderer()
     pad = 0.04 * fig.dpi
@@ -1121,19 +1129,18 @@ def page(recs):
           "a forward and an inverse problem, so one row shows both modes. A few are forward only (the "
           "integro-differential ODE, Poisson 1D, Cahn-Hilliard 1D, Black-Scholes), and Lorenz, the unknown "
           "forcing field and the fractional order α are inverse problems only. The set mixes DeepXDE's examples "
-          "with templates taken from papers (Raissi et al.; Wight & Zhao; Mattey & Ghosh; Mathias et al.). For "
-          "those, the open marker is the paper's method run in PINNStudio, and the ⭐ is the error the paper "
-          "itself reports, where it gives one (Burgers 1D, Allen-Cahn 1D, Cahn-Hilliard 1D, Allen-Cahn 2D of "
+          "with templates taken from papers (Raissi et al.; Wight & Zhao; Mattey & Ghosh; Mathias et al.). The "
+          "figure shows only PINNStudio's best result for each problem, to keep it easy to read; the comparison "
+          "with DeepXDE's settings and the papers' methods is in the full figure above and the tables below. For "
+          "the paper templates, the ⭐ is the error the paper itself reports, where it gives one (Burgers 1D, Allen-Cahn 1D, Cahn-Hilliard 1D, Allen-Cahn 2D of "
           "Mattey & Ghosh). Note that the papers report one error over all times, while the x-axis is the error "
           "at the last reference time, so the ⭐ is a guide rather than an exact like-for-like point; the "
           "all-times errors are in the tables below.\n\n"
           "**For Word.** The figure is drawn at its printed size, 6.5 × 7.5 in (the text width of a Word page "
           "with 1 in margins), with 8.5–9 pt text, so insert it at 100% and it leaves about 1.5 in for the caption "
           "on the same page. The PDF keeps it sharp at any zoom. A caption to start from:\n\n"
-          "> *Relative L₂ error of PINNStudio on 25 representative problems, from ODEs to 3D PDEs. Filled markers "
-          "are PINNStudio's best settings (circles: forward problems, diamonds: inverse problems); open markers "
-          "are DeepXDE's settings or, for templates taken from a paper, that paper's method run in PINNStudio, and "
-          "a ring around a filled marker means the two are the same. "
+          "> *Relative L₂ error of PINNStudio on 25 representative problems, from ODEs to 3D PDEs, with its best "
+          "settings for each problem (circles: forward problems, diamonds: inverse problems). "
           "Stars mark the error reported in the original paper. Right: the relative error of each identified "
           "parameter, labelled with its symbol.*\n\n"
           "*The list: [`paper_figure_examples.txt`](paper_figure_examples.txt) (one name per line; change a line "
