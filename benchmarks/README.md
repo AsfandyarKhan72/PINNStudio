@@ -10,7 +10,7 @@ For a **template taken from a paper**, the forward table also lists a **base PIN
 
 The sweep was run on the 39 examples with the largest errors. The others were already accurate with their own settings: their result is the README's, marked **no tuning needed**.
 
-![Every example: the reference settings and PINNStudio's best, forward and inverse, and the error of each learned parameter](figures/benchmarks_summary.png?v=d80a6a7c)
+![Every example: the reference settings and PINNStudio's best, forward and inverse, and the error of each learned parameter](figures/benchmarks_summary.png?v=c8e64135)
 
 *Circles: forward problems; diamonds: inverse problems. Filled: PINNStudio's best; open: DeepXDE's settings, or the paper's method run in PINNStudio; a ring around a filled marker: the two are the same (no tuning was needed). PINNStudio's own templates, and paper templates whose method has not run yet, have no open marker: there is no outside reference to compare with. Right: the error of each learned parameter, labelled with its symbol. ⭐: the error the paper reports (over all times) for the templates taken from a paper.*
 
@@ -98,7 +98,7 @@ The sweep was run on the 39 examples with the largest errors. The others were al
 
 *The list: [`paper_figure_examples.txt`](paper_figure_examples.txt) (one name per line; change a line to swap an example). PDF: [`figures/paper_figure.pdf`](figures/paper_figure.pdf).*
 
-![The paper's figure: 25 examples, forward and inverse](figures/paper_figure.png?v=403a9cb9)
+![The paper's figure: 25 examples, forward and inverse](figures/paper_figure.png?v=2e098d12)
 
 </details>
 
@@ -227,6 +227,8 @@ $$\Large \frac{du}{dt} + u(t) = \int_0^t e^{s - t}\ u(s)\ ds, \qquad t \in [0, 5
 - **Initial condition:** $u(0) = 1$
 - **Exact solution:** $u = e^{-t}\cosh t$
 
+*Source paper:* [Lu, Meng, Mao & Karniadakis (2021), SIAM Rev. 63 (DeepXDE)](https://arxiv.org/abs/1907.04502) — DeepXDE's example reproduces this problem.
+
 <details>
 <summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
 
@@ -245,7 +247,10 @@ $$\Large \frac{du}{dt} + u(t) = \int_0^t e^{s - t}\ u(s)\ ds, \qquad t \in [0, 5
 | Training | L₂ | Time (s) |
 |---|---|---|
 | DeepXDE's settings (README) | 2.5 × 10<sup>-3</sup> | – |
+| DeepXDE's PINN (4 × 20 network), as reported (Lu, Meng, Mao & Karniadakis (2021)) | 2.0 × 10<sup>-3</sup> | – |
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **2.5 × 10<sup>-3</sup>** | – |
+
+*As reported: Sec. 4.5, Fig. 10.*
 
 <details>
 <summary>📊 <em>Forward results — figures</em></summary>
@@ -573,6 +578,8 @@ $$\Large \frac{dy_1}{dt} = C_1(y_2 - y_1), \qquad \frac{dy_2}{dt} = y_1(C_2 - y_
 - **Unknowns:** $C_1, C_2, C_3$ (true $10, 15, 8/3$), all starting from 1
 - **Data:** $y_1, y_2, y_3$ measured at 50 times (also used as anchor points), from SciPy's `solve_ivp`
 
+*Source paper:* [Lu, Meng, Mao & Karniadakis (2021), SIAM Rev. 63 (DeepXDE)](https://arxiv.org/abs/1907.04502) — DeepXDE's example reproduces this problem.
+
 <details>
 <summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
 
@@ -593,6 +600,7 @@ $$\Large \frac{dy_1}{dt} = C_1(y_2 - y_1), \qquad \frac{dy_2}{dt} = y_1(C_2 - y_
 | Training | L₂ fit to measured data | Parameters found (true) | Worst parameter error | Time (s) |
 |---|---|---|---|---|
 | DeepXDE's settings (README) | 1.0 × 10<sup>-4</sup> | C₁ = 10 (10); C₂ = 14.9998 (15); C₃ = 2.66664 (2.66667) | 0.0013% | – |
+| DeepXDE's PINN, as reported (Lu, Meng, Mao & Karniadakis (2021), Sec. 4.3, Fig. 9A) | – | C₁ = 10.002 (10); C₂ = 14.999 (15); C₃ = 2.668 (2.66667) | 0.05% | – |
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **1.0 × 10<sup>-4</sup>** | C₁ = 10 (10); C₂ = 14.9998 (15); C₃ = 2.66664 (2.66667) | **0.0013%** | – |
 
 *L₂ fit to measured data: the inverse run trains on measured values of the solution (in most examples at every reference time), so this L₂ is mostly a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
@@ -808,6 +816,8 @@ $$\Large D_{0+}^{\alpha}u + D_{1-}^{\alpha}u = f(x), \qquad x \in [0, 1],\ \alph
 - **Boundary conditions:** $u(0) = u(1) = 0$, imposed exactly by the output transform $\hat u = x(1-x)N$
 - **Exact solution:** $u = x^3(1-x)^3$
 - **Constants:** `alpha = 1.5`
+
+*Source paper:* [Pang, Lu & Karniadakis (2019), SIAM J. Sci. Comput. 41 (fPINNs)](https://arxiv.org/abs/1811.08967) — DeepXDE's example reproduces this problem. Sec. 4.1.1; reported as a mean squared error only.
 
 <details>
 <summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
@@ -1118,6 +1128,8 @@ $$\Large -\frac{d^2u}{dx^2} = \sum_{k=1}^{4} k\sin(kx) + 8\sin(8x), \qquad x \in
 - **Boundary conditions:** $u(0) = 0$, $u(\pi) = \pi$, imposed exactly by the output transform $\hat u = x(\pi - x)\ N(x) + x$
 - **Exact solution:** $u = x + \sum_{k=1}^{4}\frac{\sin(kx)}{k} + \frac{\sin(8x)}{8}$
 
+*Source paper:* [Yu, Lu, Meng & Karniadakis (2022), CMAME 393 (gPINNs)](https://arxiv.org/abs/2111.02801) — DeepXDE's example reproduces this problem. Sec. 3.2.1, with 10–20 residual points against 64 here, so not compared.
+
 <details>
 <summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
 
@@ -1165,6 +1177,8 @@ $$\Large \frac{d^2u}{dx^2} = -(\pi A)^2\sin(\pi A x) - 0.1(\pi B)^2\sin(\pi B x)
 
 A plain network of the same size learns the slow wave and largely misses the fast one; the Fourier features at scale 10 allow the PINN to represent the sin(50πx) component.
 
+*Source paper:* [Wang, Wang & Perdikaris (2021), CMAME 384](https://arxiv.org/abs/2012.10047) — DeepXDE's example reproduces this problem.
+
 <details>
 <summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
 
@@ -1183,7 +1197,10 @@ A plain network of the same size learns the slow wave and largely misses the fas
 | Training | L₂ | Time (s) |
 |---|---|---|
 | DeepXDE's settings (README) | 3.9 × 10<sup>-3</sup> | – |
+| Their multi-scale Fourier feature network, as reported (Wang, Wang & Perdikaris (2021)) | 1.4 × 10<sup>-3</sup> | – |
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **3.9 × 10<sup>-3</sup>** | – |
+
+*As reported: Fig. 9; 10% to above 100% for a plain PINN.*
 
 <details>
 <summary>📊 <em>Forward results — figures</em></summary>
@@ -1209,6 +1226,8 @@ $$\Large -\frac{\nu_e}{\epsilon}\frac{d^2u}{dx^2} + \frac{\nu u}{K} = g, \qquad 
 - **Data:** 5 measurements of $u$; $u = 0$ at both walls through the output transform $\hat u = x(1-x)N$
 - **Exact solution:** $u = 1 - \cosh(20(x - 0.5))/\cosh(10)$
 - **Constants:** `g = 1`, `v = 1e-3`, `e = 0.4`
+
+*Source paper:* [Yu, Lu, Meng & Karniadakis (2022), CMAME 393 (gPINNs)](https://arxiv.org/abs/2111.02801) — DeepXDE's example reproduces this problem. Sec. 3.3.1; reported as figures only.
 
 <details>
 <summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
@@ -1281,6 +1300,8 @@ $$\Large \lambda\frac{d^2u}{dx^2} - k(x)\ u = \sin(2\pi x), \qquad \lambda = 0.0
 - **Unknown:** the reaction rate $k(x)$ (true $0.1 + e^{-0.5(x - 0.5)^2/0.15^2}$), learned as a second network output
 - **Data:** 100 measurements of $u$ (computed with SciPy's `solve_bvp`, as DeepXDE does), $u = 0$ at both ends
 - **Constants:** `l = 0.01`
+
+*Source paper:* [Yu, Lu, Meng & Karniadakis (2022), CMAME 393 (gPINNs)](https://arxiv.org/abs/2111.02801) — DeepXDE's example reproduces this problem. Sec. 3.3.2, and Wu et al. (2023) Sec. 3.6, both with fewer points, so not compared.
 
 <details>
 <summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
@@ -2002,6 +2023,8 @@ $$\Large \frac{\partial u}{\partial t} + u\frac{\partial u}{\partial x} = \frac{
 
 - **Initial / boundary conditions:** $u(x, 0) = -\sin(\pi x)$, $u(\pm 1, t) = 0$
 
+*Source paper:* [Lu, Meng, Mao & Karniadakis (2021), SIAM Rev. 63 (DeepXDE)](https://arxiv.org/abs/1907.04502) — DeepXDE's example reproduces this problem. Sec. 4.2; reported as a plot only.
+
 <details>
 <summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
 
@@ -2045,6 +2068,8 @@ $$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} - e^{
 
 - **Initial condition:** $u(x, 0) = \sin(\pi x)$; **boundary condition:** $u = e^{-t}\sin(\pi x)$
 - **Exact solution:** $u = e^{-t}\sin(\pi x)$
+
+*Source paper:* [Wu, Zhu, Tan, Kartha & Lu (2023), CMAME 403](https://arxiv.org/abs/2207.10289) — DeepXDE's example reproduces this problem. Sec. 3.2, the same equation with 30 residual points, so not compared.
 
 <details>
 <summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
@@ -2247,6 +2272,8 @@ $$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} + e^{
 
 - **Initial and boundary conditions:** imposed exactly by $\hat u = t(\pi^2 - x^2)N + \sum_k \frac{\sin(kx)}{k}$
 - **Exact solution:** $u = e^{-t}\left(\sin x + \tfrac{\sin 2x}{2} + \tfrac{\sin 3x}{3} + \tfrac{\sin 4x}{4} + \tfrac{\sin 8x}{8}\right)$
+
+*Source paper:* [Yu, Lu, Meng & Karniadakis (2022), CMAME 393 (gPINNs)](https://arxiv.org/abs/2111.02801) — DeepXDE's example reproduces this problem. Sec. 3.2.2, with 40–50 residual points against 320 here, so not compared.
 
 <details>
 <summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
@@ -2765,6 +2792,8 @@ $$\Large \frac{\partial v}{\partial t} - 0.5\frac{\partial^2 u}{\partial x^2} - 
 
 $$\Large \frac{\partial u}{\partial t} + c\frac{\partial^2 v}{\partial x^2} + (u^2 + v^2) v = 0, \qquad \frac{\partial v}{\partial t} - c\frac{\partial^2 u}{\partial x^2} - (u^2 + v^2) u = 0$$
 
+*Source paper:* [Raissi, Perdikaris & Karniadakis (2019), J. Comput. Phys. 378](https://doi.org/10.1016/j.jcp.2018.10.045) — DeepXDE's example reproduces this problem.
+
 <details>
 <summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
 
@@ -2802,7 +2831,10 @@ $$\Large \frac{\partial u}{\partial t} + c\frac{\partial^2 v}{\partial x^2} + (u
 | Training | L₂ | Time (s) |
 |---|---|---|
 | DeepXDE's settings (README) | 1.8 × 10<sup>-3</sup> | – |
+| Their PINN (5 × 100 network, 20,000 points), as reported (Raissi, Perdikaris & Karniadakis (2019)) | 2.0 × 10<sup>-3</sup> | – |
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **1.8 × 10<sup>-3</sup>** | – |
+
+*As reported: over the whole space-time domain, for the complex solution h = u + iv.*
 
 **Inverse problem**
 
@@ -3074,6 +3106,8 @@ $$\Large \frac{\partial C_A}{\partial t} = D\frac{\partial^2 C_A}{\partial x^2} 
 - **Unknowns:** $k_f$ (true 0.1) and $D$ (true $2\times 10^{-3}$, written as $10^{-3}D$ with $D = 2$)
 - **Data:** $C_A$ and $C_B$ on a space-time grid, computed by `tools/make_deepxde_reference_data.py`
 
+*Source paper:* [Lu, Meng, Mao & Karniadakis (2021), SIAM Rev. 63 (DeepXDE)](https://arxiv.org/abs/1907.04502) — DeepXDE's example reproduces this problem.
+
 <details>
 <summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
 
@@ -3094,6 +3128,7 @@ $$\Large \frac{\partial C_A}{\partial t} = D\frac{\partial^2 C_A}{\partial x^2} 
 | Training | L₂ fit to measured data | Parameters found (true) | Worst parameter error | Time (s) |
 |---|---|---|---|---|
 | DeepXDE's settings (README) | – | k_f = 0.0992 (0.1); D = 1.993 (2) | 0.8% | – |
+| DeepXDE's PINN, as reported (Lu, Meng, Mao & Karniadakis (2021), Sec. 4.4, Fig. 9B) | – | D = 0.00198 (0.002); k_f = 0.0971 (0.1) | 2.9% | – |
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **–** | k_f = 0.0992 (0.1); D = 1.993 (2) | **0.8%** | – |
 
 *L₂ fit to measured data: the inverse run trains on measured values of the solution (in most examples at every reference time), so this L₂ is mostly a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
@@ -3170,6 +3205,8 @@ $$\Large -\nabla^2 u - k_0^2 u = k_0^2\sin(k_0 x)\sin(k_0 y), \qquad k_0 = 4\pi,
 - **Exact solution:** $u = \sin(k_0 x)\sin(k_0 y)$
 - **Constants:** `n = 2`, `k0 = 2*pi*n`
 
+*Source paper:* [Escapil-Inchauspé & Ruz (2023), Neurocomputing 561](https://arxiv.org/abs/2205.06704) — DeepXDE's example reproduces this problem.
+
 <details>
 <summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
 
@@ -3209,7 +3246,10 @@ $$\Large -\nabla^2 u - k_0^2 u = k_0^2\sin(k_0 x)\sin(k_0 y), \qquad k_0 = 4\pi,
 | Training | L₂ | Time (s) |
 |---|---|---|
 | DeepXDE's settings (README) | 1.9 × 10<sup>-3</sup> | – |
+| Their PINN (25,600 points), as reported (Escapil-Inchauspé & Ruz (2023)) | 1.8 × 10<sup>-4</sup> | – |
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **1.9 × 10<sup>-3</sup>** | – |
+
+*As reported: Table 4, ω = 2; 1.19e-4 for their best hyper-parameter configuration.*
 
 **Inverse problem**
 
@@ -3264,6 +3304,8 @@ $$\Large -\nabla^2 u - k_0^2 u = k_0^2\sin(k_0 x)\sin(k_0 y), \qquad k_0 = 4\pi,
 - **Parameter Sweep, mode Bayesian search:** learning rate $10^{-4}$ to $5\times10^{-2}$ (log), hidden layers 1–10, neurons per layer 5–500, activation sin / sigmoid / tanh
 - **Constants:** `n = 2`, `k0 = 2*pi*n`
 
+*Source paper:* [Escapil-Inchauspé & Ruz (2023), Neurocomputing 561](https://arxiv.org/abs/2205.06704) — DeepXDE's example reproduces this problem.
+
 <details>
 <summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
 
@@ -3283,7 +3325,10 @@ $$\Large -\nabla^2 u - k_0^2 u = k_0^2\sin(k_0 x)\sin(k_0 y), \qquad k_0 = 4\pi,
 | Training | L₂ | Time (s) |
 |---|---|---|
 | DeepXDE's settings (README) | 1.3 × 10<sup>-3</sup> | – |
+| Their best hyper-parameter configuration, as reported (Escapil-Inchauspé & Ruz (2023)) | 1.2 × 10<sup>-4</sup> | – |
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **1.3 × 10<sup>-3</sup>** | – |
+
+*As reported: relative L2 test error.*
 
 <details>
 <summary>📊 <em>Forward results — figures</em></summary>
@@ -3485,7 +3530,7 @@ $$\Large \sigma_{xx} = (\lambda + 2\mu)\varepsilon_{xx} + \lambda\varepsilon_{yy
 - **Exact solution:** $u_x = \cos(2\pi x)\sin(\pi y)$, $u_y = \sin(\pi x)\ Qy^4/4$
 - **Constants:** `lmbd = 1`, `mu = 0.5`, `Q = 4`
 
-*Source paper:* [Haghighat, Raissi, Moure, Gomez & Juanes (2021), CMAME 379](https://arxiv.org/abs/2003.02751) — DeepXDE's example reproduces this problem.
+*Source paper:* [Haghighat, Raissi, Moure, Gomez & Juanes (2021), CMAME 379](https://arxiv.org/abs/2003.02751) — DeepXDE's example reproduces this problem. The same plate, also used there to identify λ and μ; the paper shows the convergence as figures, without error values.
 
 <details>
 <summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
@@ -3712,6 +3757,8 @@ $$\Large (\mathbf u\cdot\nabla)\mathbf u + \nabla p = \frac{1}{Re}\nabla^2\mathb
 - **Exact solution:** $u = 1 - e^{\lambda x}\cos(2\pi y)$, $v = \frac{\lambda}{2\pi}e^{\lambda x}\sin(2\pi y)$, $p = \frac{1}{2}(1 - e^{2\lambda x})$, $\lambda = \frac{Re}{2} - \sqrt{\frac{Re^2}{4} + 4\pi^2}$
 - **Constants:** `Re = 20`, `nu = 1/Re`, `l = 1/(2*nu) - sqrt(1/(4*nu**2) + 4*pi**2)`
 
+*Source paper:* [Jin, Cai, Li & Karniadakis (2021), J. Comput. Phys. 426 (NSFnets)](https://arxiv.org/abs/2003.06496) — DeepXDE's example reproduces this problem. NSFnets solve it at Re = 40 and DeepXDE's example uses Re = 20, so their errors are not compared.
+
 <details>
 <summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
 
@@ -3907,6 +3954,8 @@ $$\Large -\nabla^2 u = f, \qquad \Omega = [-1, 1]^2 \setminus [0, 1]\times[-1, 0
 - **Geometry:** Polygon (L-shape)
 
 *Inverse mode* — the source term $f$ learned from $u$ measured at 300 points (initial guess 0.1, true 1).
+
+*Source paper:* [Lu, Meng, Mao & Karniadakis (2021), SIAM Rev. 63 (DeepXDE)](https://arxiv.org/abs/1907.04502) — DeepXDE's example reproduces this problem. Sec. 4.1; reported as a plot only.
 
 <details>
 <summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>

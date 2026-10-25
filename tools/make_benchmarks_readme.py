@@ -57,7 +57,50 @@ DEEPXDE_SOURCE = {
         cite="Haghighat, Raissi, Moure, Gomez & Juanes (2021), CMAME 379",
         url="https://arxiv.org/abs/2003.02751",
         method="their PINN (five networks, SciANN)", outs=None, main=None,
-        note="the same plate, also used there to identify λ and μ"),
+        note="the same plate, also used there to identify λ and μ; the paper shows the convergence as figures, without error values"),
+    "Volterra integro-differential equation": dict(
+        cite="Lu, Meng, Mao & Karniadakis (2021), SIAM Rev. 63 (DeepXDE)", url="https://arxiv.org/abs/1907.04502", method="DeepXDE's PINN (4 × 20 network)", outs=None, main=2e-3,
+        note="Sec. 4.5, Fig. 10"),
+    "Inverse: Lorenz system": dict(
+        cite="Lu, Meng, Mao & Karniadakis (2021), SIAM Rev. 63 (DeepXDE)", url="https://arxiv.org/abs/1907.04502", method="DeepXDE's PINN", outs=None, main=None,
+        par_text="C₁ = 10.002 (10); C₂ = 14.999 (15); C₃ = 2.668 (2.66667)", par_err=5e-4,
+        note="Sec. 4.3, Fig. 9A"),
+    "Inverse: diffusion-reaction system": dict(
+        cite="Lu, Meng, Mao & Karniadakis (2021), SIAM Rev. 63 (DeepXDE)", url="https://arxiv.org/abs/1907.04502", method="DeepXDE's PINN", outs=None, main=None,
+        par_text="D = 0.00198 (0.002); k_f = 0.0971 (0.1)", par_err=2.9e-2,
+        note="Sec. 4.4, Fig. 9B"),
+    "Poisson 1D – multi-scale Fourier features": dict(
+        cite="Wang, Wang & Perdikaris (2021), CMAME 384", url="https://arxiv.org/abs/2012.10047",
+        method="their multi-scale Fourier feature network", outs=None, main=1.36e-3,
+        note="Fig. 9; 10% to above 100% for a plain PINN"),
+    "Schrödinger equation": dict(
+        cite="Raissi, Perdikaris & Karniadakis (2019), J. Comput. Phys. 378", url="https://doi.org/10.1016/j.jcp.2018.10.045",
+        method="their PINN (5 × 100 network, 20,000 points)", outs=None, main=1.97e-3,
+        note="over the whole space-time domain, for the complex solution h = u + iv"),
+    "Helmholtz 2D (Dirichlet)": dict(
+        cite="Escapil-Inchauspé & Ruz (2023), Neurocomputing 561", url="https://arxiv.org/abs/2205.06704",
+        method="their PINN (25,600 points)", outs=None, main=1.8e-4,
+        note="Table 4, ω = 2; 1.19e-4 for their best hyper-parameter configuration"),
+    "Helmholtz 2D – hyperparameter optimization": dict(
+        cite="Escapil-Inchauspé & Ruz (2023), Neurocomputing 561", url="https://arxiv.org/abs/2205.06704",
+        method="their best hyper-parameter configuration", outs=None, main=1.19e-4, note="relative L2 test error"),
+    "Kovasznay flow": dict(
+        cite="Jin, Cai, Li & Karniadakis (2021), J. Comput. Phys. 426 (NSFnets)", url="https://arxiv.org/abs/2003.06496",
+        outs=None, main=None, note="NSFnets solve it at Re = 40 and DeepXDE's example uses Re = 20, so their errors are not compared"),
+    "Burgers equation with RAR": dict(cite="Lu, Meng, Mao & Karniadakis (2021), SIAM Rev. 63 (DeepXDE)", url="https://arxiv.org/abs/1907.04502", outs=None, main=None, note="Sec. 4.2; reported as a plot only"),
+    "Poisson over an L-shaped domain": dict(cite="Lu, Meng, Mao & Karniadakis (2021), SIAM Rev. 63 (DeepXDE)", url="https://arxiv.org/abs/1907.04502", outs=None, main=None, note="Sec. 4.1; reported as a plot only"),
+    "Fractional Poisson equation 1D": dict(
+        cite="Pang, Lu & Karniadakis (2019), SIAM J. Sci. Comput. 41 (fPINNs)", url="https://arxiv.org/abs/1811.08967",
+        outs=None, main=None, note="Sec. 4.1.1; reported as a mean squared error only"),
+    "Poisson 1D – hard boundary conditions": dict(cite="Yu, Lu, Meng & Karniadakis (2022), CMAME 393 (gPINNs)", url="https://arxiv.org/abs/2111.02801", outs=None, main=None,
+        note="Sec. 3.2.1, with 10–20 residual points against 64 here, so not compared"),
+    "Diffusion-reaction equation": dict(cite="Yu, Lu, Meng & Karniadakis (2022), CMAME 393 (gPINNs)", url="https://arxiv.org/abs/2111.02801", outs=None, main=None,
+        note="Sec. 3.2.2, with 40–50 residual points against 320 here, so not compared"),
+    "Inverse: Brinkman-Forchheimer model": dict(cite="Yu, Lu, Meng & Karniadakis (2022), CMAME 393 (gPINNs)", url="https://arxiv.org/abs/2111.02801", outs=None, main=None, note="Sec. 3.3.1; reported as figures only"),
+    "Inverse: diffusion-reaction with space-dependent rate": dict(cite="Yu, Lu, Meng & Karniadakis (2022), CMAME 393 (gPINNs)", url="https://arxiv.org/abs/2111.02801", outs=None, main=None,
+        note="Sec. 3.3.2, and Wu et al. (2023) Sec. 3.6, both with fewer points, so not compared"),
+    "Diffusion equation": dict(cite="Wu, Zhu, Tan, Kartha & Lu (2023), CMAME 403", url="https://arxiv.org/abs/2207.10289", outs=None, main=None,
+        note="Sec. 3.2, the same equation with 30 residual points, so not compared"),
 }
 
 
@@ -912,7 +955,8 @@ def _section(r):
         a(prob + "\n")
         src = DEEPXDE_SOURCE.get(e.key) if r["deepxde"] else None
         if src:
-            a(f"*Source paper:* [{src['cite']}]({src['url']}) — DeepXDE's example reproduces this problem.\n")
+            extra = "" if (src.get("outs") or src.get("main") or src.get("par_text")) else f" {src['note'][0].upper()}{src['note'][1:]}."
+            a(f"*Source paper:* [{src['cite']}]({src['url']}) — DeepXDE's example reproduces this problem.{extra}\n")
     try:
         a(_settings_toggles(r))
     except Exception as ex:
@@ -971,8 +1015,9 @@ def _section(r):
                 best = row
             a(_row([lbl] + cells(l2, outs, st, t), picked))
         src = DEEPXDE_SOURCE.get(e.key) if r["deepxde"] else None
-        if src and src.get("outs"):
-            rc = [sci(src["outs"].get(k)) for k in names] if names else [sci(src["outs"].get(main) or src["main"])]
+        if src and (src.get("outs") or src.get("main")):
+            o = src.get("outs") or {}
+            rc = [sci(o.get(k, src["main"] if k == main else None)) for k in names] if names else [sci(o.get(main) or src["main"])]
             short = src["cite"].split(")")[0] + ")"
             a(_row([f"{src['method'][0].upper() + src['method'][1:]}, as reported ({short})"] + rc + ["–"], False))
         lab = _best_label(r, False)
@@ -989,7 +1034,7 @@ def _section(r):
         if names:
             a(f"*Each output's relative L₂ at its last reference time; the best run is chosen by "
               f"{SYM.get(main, main)}.*\n")
-        if src and src.get("outs"):
+        if src and (src.get("outs") or src.get("main")):
             a(f"*As reported: {src['note']}.*\n")
         if paper_rows and not pr:
             a("*The base PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*\n")
@@ -1006,6 +1051,10 @@ def _section(r):
         else:
             a(f"| {ref_name} (README) | {sci(r.get('i_ref'))} | {_par_txt(r.get('i_ref_par')) or '–'} | "
               f"{_pct(_perr(r.get('i_ref_par')))} | – |")
+        src = DEEPXDE_SOURCE.get(e.key) if r["deepxde"] else None
+        if src and src.get("par_text"):
+            short = src["cite"].split(")")[0] + ")"
+            a(f"| {src['method']}, as reported ({short}, {src['note']}) | – | {src['par_text']} | {_pct(src['par_err'])} | – |")
         a(f"| **PINNStudio best** (Settings: Tuned): {_best_label(r, True)} | **{sci(r.get('i_best'))}** | "
           f"{_par_txt(r.get('i_best_par')) or '–'} | **{_pct(_perr(r.get('i_best_par')))}** | "
           f"{('**' + best_t + '**') if best_t else '–'} |")
