@@ -202,7 +202,8 @@ THREE_D = {"beltrami": False, "ac3d_inv": True}   # 3D view; True: one corner cu
 # layout, in inches (a Word page's text width is 6.5 in)
 WIDTH = 6.5
 # every column: room for the y-axis labels, the panel, its colorbar and the colorbar's labels
-YLAB, PANEL, CB_PAD, CB_W, CB_TICKS, TOP, ROW_GAP, BOTTOM = 0.42, 1.3, 0.06, 0.08, 0.3, 0.32, 0.62, 0.42
+YLAB, CB_PAD, CB_W, CB_TICKS, TOP, ROW_GAP, BOTTOM = 0.37, 0.06, 0.08, 0.27, 0.32, 0.48, 0.42
+PANEL = (WIDTH - 3 * (YLAB + CB_PAD + CB_W + CB_TICKS)) / 3     # 1.39 in
 COL = YLAB + PANEL + CB_PAD + CB_W + CB_TICKS
 FONT = 8
 
