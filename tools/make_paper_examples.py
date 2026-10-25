@@ -84,9 +84,11 @@ def _conv(run):
     return out
 
 
-def export(runs):
+def export(runs, only=None):
     os.makedirs(DATA, exist_ok=True)
     for key in FORWARD + INVERSE:
+        if only and key not in only:
+            continue
         run = os.path.join(runs, key)
         if not os.path.isdir(run):
             print("missing", run)
@@ -164,6 +166,21 @@ def export(runs):
             meta = dict(xlabel="$x$", ylabel="$y$", ext=[0, 1, 0, 1], field="φ(x, y, z = 0.5, t = 0.5)")
         meta["l2"] = float(np.linalg.norm(P - R) / np.linalg.norm(R))
         extra = {}
+        if key == "beltrami":                   # u in the whole cube at t = 1, for the 3D view
+            g = _grid(-1, 1, 41)
+            A, B, C = np.meshgrid(g, g, g, indexing="ij")
+            extra["grid3"] = g
+            extra["pinn3"] = pred(np.column_stack([A.ravel(), B.ravel(), C.ravel(), np.ones(A.size)]))[:, 0].reshape(A.shape)
+            extra["ref3"] = -(np.exp(A) * np.sin(B + C) + np.exp(C) * np.cos(A + B)) * np.exp(-1.0)
+        if key == "ac3d_inv":                   # phi in the whole cube at t = 0.5, on the reference grid
+            d = np.loadtxt(os.path.join(REF, "3D", "allen_cahn_wight", "t_0.5.txt"))
+            g = np.unique(d[:, 0]); n = len(g)
+            idx = [np.searchsorted(g, d[:, k]) for k in range(3)]
+            R3 = np.zeros((n, n, n)); R3[idx[0], idx[1], idx[2]] = d[:, 4]
+            A, B, C = np.meshgrid(g, g, g, indexing="ij")
+            extra["grid3"] = g
+            extra["ref3"] = R3
+            extra["pinn3"] = pred(np.column_stack([A.ravel(), B.ravel(), C.ravel(), np.full(A.size, 0.5)]))[:, 0].reshape(A.shape)
         if key in INVERSE:
             true = {v["name"]: v["true"] for v in (eval(cfg["inverse_variables"]) if isinstance(cfg["inverse_variables"], str)
                                                     else cfg["inverse_variables"])}
@@ -176,98 +193,171 @@ def export(runs):
 
 # ---- 2. plot ---------------------------------------------------------------------------------------------
 
-ROWS = {
-    "wave": ("Wave 1D", "multi-scale Fourier features"),
-    "ac2d": ("Allen-Cahn 2D", "Mattey & Ghosh"),
-    "beltrami": ("Navier-Stokes 3D", "Beltrami flow"),
-    "burgers_inv": ("Burgers 1D", "Raissi et al."),
-    "plate_inv": ("Linear elasticity 2D", "plate"),
-    "ac3d_inv": ("Allen-Cahn 3D", "Wight & Zhao"),
-}
 SYM = {"lambda_1": r"$\lambda_1$", "lambda_2": r"$\lambda_2$", "lmbd": r"$\lambda$", "mu": r"$\mu$",
        "lambda_": r"$\lambda$", "diff_coeff": r"$\lambda\varepsilon^2$"}
 PAR_COLORS = ["#1f5fa8", "#d1701c", "#2b8a3e"]
-WIDTH, ROW_H = 6.5, 2.05        # inches: a Word page's text width
+ONE_D = ("wave", "burgers_inv")        # drawn with t across and x up, as PINNStudio draws 1D problems
+THREE_D = {"beltrami": False, "ac3d_inv": True}   # 3D view; True: one corner cut away (the field is inside)
+
+# layout, in inches (a Word page's text width is 6.5 in)
+WIDTH = 6.5
+LEFT, PANEL, GAP12, CB_PAD, CB_W, CB_TICKS, GAP3, TOP, ROW_GAP, BOTTOM = 0.45, 1.42, 0.2, 0.07, 0.08, 0.38, 0.55, 0.32, 0.62, 0.42
+FONT = 8
 
 
-def _sci(x):
-    m, e = f"{x:.1e}".split("e")
-    return rf"{m}\times10^{{{int(e)}}}"
+def _faces(g, F, cut):
+    """Quads and values of the cube's three visible faces (x = max, y = min, z = max) on grid g, F[ix, iy, iz];
+    with cut, the corner x > mid, y < mid, z > mid removed and its three cut faces added."""
+    n = len(g); m = n // 2; last = n - 1
+    polys, vals = [], []
+
+    def add(plane, k, ra, rb):
+        for a in range(*ra):
+            for b in range(*rb):
+                if plane == "x":
+                    q = [(g[k], g[a], g[b]), (g[k], g[a + 1], g[b]), (g[k], g[a + 1], g[b + 1]), (g[k], g[a], g[b + 1])]
+                    v = F[k, a:a + 2, b:b + 2].mean()
+                elif plane == "y":
+                    q = [(g[a], g[k], g[b]), (g[a + 1], g[k], g[b]), (g[a + 1], g[k], g[b + 1]), (g[a], g[k], g[b + 1])]
+                    v = F[a:a + 2, k, b:b + 2].mean()
+                else:
+                    q = [(g[a], g[b], g[k]), (g[a + 1], g[b], g[k]), (g[a + 1], g[b + 1], g[k]), (g[a], g[b + 1], g[k])]
+                    v = F[a:a + 2, b:b + 2, k].mean()
+                polys.append(q); vals.append(v)
+    if not cut:
+        add("x", last, (0, last), (0, last)); add("y", 0, (0, last), (0, last)); add("z", last, (0, last), (0, last))
+    else:
+        add("x", last, (0, last), (0, m)); add("x", last, (m, last), (m, last))
+        add("y", 0, (0, m), (0, last)); add("y", 0, (m, last), (0, m))
+        add("z", last, (0, m), (0, last)); add("z", last, (m, last), (m, last))
+        add("x", m, (0, m), (m, last)); add("y", m, (m, last), (m, last)); add("z", m, (m, last), (0, m))
+    return polys, np.array(vals)
+
+
+def _cube(ax, g, F, cut, cmap, norm):
+    from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+    polys, vals = _faces(g, F, cut)
+    cols = cmap(norm(vals))
+    ax.add_collection3d(Poly3DCollection(polys, facecolors=cols, edgecolors=cols, linewidths=0.2))
+    a, b = g[0], g[-1]
+    for s in (a, b):                       # the cube's edges
+        for r in (a, b):
+            ax.plot([a, b], [s, s], [r, r], color="0.35", lw=0.4)
+            ax.plot([s, s], [a, b], [r, r], color="0.35", lw=0.4)
+            ax.plot([s, s], [r, r], [a, b], color="0.35", lw=0.4)
+    ax.set_xlim(a, b); ax.set_ylim(a, b); ax.set_zlim(a, b)
+    ax.set_box_aspect((1, 1, 1))
+    ax.view_init(elev=22, azim=-58)
+    ax.set_axis_off()
+    off = 0.12 * (b - a)                   # axis names next to the edges
+    ax.text((a + b) / 2, a - off, a - off, "$x$", ha="center", va="center", fontsize=FONT)
+    ax.text(b + off, (a + b) / 2, a - off, "$y$", ha="center", va="center", fontsize=FONT)
+    ax.text(a - off, a - off, (a + b) / 2, "$z$", ha="center", va="center", fontsize=FONT)
+
+
+def _colorbar(fig, ax_rect, mappable, sci=False):
+    import matplotlib
+    x0, y0, w, h = ax_rect
+    cax = fig.add_axes([x0 + w + CB_PAD / WIDTH, y0, CB_W / WIDTH, h])
+    fmt = None
+    if sci:
+        fmt = matplotlib.ticker.ScalarFormatter(useMathText=True)
+        fmt.set_powerlimits((0, 0))
+    cb = fig.colorbar(mappable, cax=cax, format=fmt)
+    cb.ax.tick_params(labelsize=FONT - 1.5, length=2, width=0.5)
+    cb.outline.set_linewidth(0.5)
+    if sci:
+        cb.ax.yaxis.get_offset_text().set_fontsize(FONT - 1.5)
+    return cb
 
 
 def plot(keys, path, inverse):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    plt.rcParams.update({"font.size": 8, "axes.linewidth": 0.6, "pdf.fonttype": 42, "mathtext.fontset": "dejavusans"})
-    fig, axes = plt.subplots(len(keys), 3, figsize=(WIDTH, ROW_H * len(keys) + 0.35))
+    plt.rcParams.update({"font.size": FONT, "axes.linewidth": 0.6, "pdf.fonttype": 42, "mathtext.fontset": "dejavusans",
+                         "xtick.major.width": 0.5, "ytick.major.width": 0.5})
+    xs = [LEFT, LEFT + PANEL + GAP12, LEFT + 2 * PANEL + GAP12 + CB_PAD + CB_W + CB_TICKS + GAP3]
+    H = TOP + len(keys) * PANEL + (len(keys) - 1) * ROW_GAP + BOTTOM
+    fig = plt.figure(figsize=(WIDTH, H))
+    cmap = plt.get_cmap("jet")
+    titles = ["PINNStudio", "Reference", "Unknown parameters" if inverse else "Absolute error"]
     for r, key in enumerate(keys):
         d = np.load(os.path.join(DATA, key + ".npz"))
         meta = json.loads(str(d["meta"]))
-        P, R = d["pinn"], d["ref"]
-        lo, hi = np.nanmin(R), np.nanmax(R)
-        ext = meta["ext"]
-        for c, (A, title) in enumerate([(P, "PINNStudio"), (R, "Reference")]):
-            ax = axes[r, c]
-            im = ax.imshow(A, origin="lower", extent=ext, aspect="auto", cmap="jet", vmin=lo, vmax=hi,
-                           interpolation="bilinear")
-            cb = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.03)
-            cb.ax.tick_params(labelsize=6.5)
-            if r == 0:
-                ax.set_title(title, fontsize=9, fontweight="bold")
-        name, sub = ROWS[key]
-        l2 = meta.get("l2_all", meta["l2"])
-        axes[r, 0].set_ylabel(meta["ylabel"])
-        axes[r, 0].annotate(f"{name}\n{sub}", xy=(-0.42, 0.5), xycoords="axes fraction", ha="right", va="center",
-                            fontsize=8.5, fontweight="bold", rotation=90)
-        for c in range(2):
-            axes[r, c].set_xlabel(meta["xlabel"], labelpad=1)
-        ax = axes[r, 2]
-        if not inverse:
-            E = np.abs(P - R)
-            im = ax.imshow(E, origin="lower", extent=ext, aspect="auto", cmap="jet", interpolation="bilinear")
-            fmt = matplotlib.ticker.ScalarFormatter(useMathText=True)
-            fmt.set_powerlimits((0, 0))
-            cb = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.03, format=fmt)
-            cb.ax.tick_params(labelsize=6.5)
-            cb.ax.yaxis.get_offset_text().set_fontsize(6.5)
-            ax.set_xlabel(meta["xlabel"], labelpad=1)
-            lab = (r"$L_2$ = $" + _sci(l2) + "$" + (" (all times)" if "l2_all" in meta else ""))
-            ax.text(0.03, 0.97, lab, transform=ax.transAxes, ha="left", va="top", fontsize=6.8,
-                    bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="none", alpha=0.85))
-            if r == 0:
-                ax.set_title("|Error|", fontsize=9, fontweight="bold")
+        y0 = (H - TOP - (r + 1) * PANEL - r * ROW_GAP) / H
+        rects = [(xs[c] / WIDTH, y0, PANEL / WIDTH, PANEL / H) for c in range(3)]
+        three = key in THREE_D
+        if three:
+            P, R, g = d["pinn3"], d["ref3"], d["grid3"]
         else:
+            P, R = d["pinn"], d["ref"]
+        lo, hi = float(np.nanmin(R)), float(np.nanmax(R))
+        norm = matplotlib.colors.Normalize(lo, hi)
+        E = np.abs(P - R)
+        panels = [(P, norm), (R, norm)] + ([] if inverse else [(E, matplotlib.colors.Normalize(0, float(np.nanmax(E))))])
+        for c, (A, nm) in enumerate(panels):
+            if three:
+                ax = fig.add_axes(rects[c], projection="3d")
+                ax.set_position(rects[c])
+                _cube(ax, g, A, THREE_D[key], cmap, nm)
+                sm = matplotlib.cm.ScalarMappable(norm=nm, cmap=cmap)
+            else:
+                ax = fig.add_axes(rects[c])
+                ext = meta["ext"]
+                if key in ONE_D:            # t across, x up
+                    sm = ax.imshow(A.T, origin="lower", extent=[ext[2], ext[3], ext[0], ext[1]], aspect="auto",
+                                   cmap=cmap, norm=nm, interpolation="bilinear")
+                    ax.set_xlabel("$t$", labelpad=1)
+                    if c != 1:
+                        ax.set_ylabel("$x$", labelpad=1)
+                else:
+                    sm = ax.imshow(A, origin="lower", extent=ext, aspect="auto", cmap=cmap, norm=nm,
+                                   interpolation="bilinear")
+                    ax.set_xlabel("$x$", labelpad=1)
+                    if c != 1:
+                        ax.set_ylabel("$y$", labelpad=1)
+                ax.tick_params(labelsize=FONT - 1, length=2)
+                for axis in (ax.xaxis, ax.yaxis):    # 0, 0.5, 1 (or -1, 0, 1): short labels that never touch
+                    axis.set_major_locator(matplotlib.ticker.LinearLocator(3))
+                    axis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda v, _: f"{v:g}".replace("-", "\u2212")))
+                if c == 1:                  # PINN and reference share the axes and the colour scale
+                    ax.tick_params(labelleft=False)
+            if c > 0:
+                _colorbar(fig, rects[c], sm, sci=(c == 2))
+            if r == 0:
+                fig.text(rects[c][0] + rects[c][2] / 2, (H - TOP / 2.4) / H, titles[c], ha="center", va="center",
+                         fontsize=FONT + 1, fontweight="bold")
+        if inverse:
+            ax = fig.add_axes(rects[2])
             names = [k[3:] for k in d.files if k.startswith("it_")]
             for i, n_ in enumerate(names):
                 it, val = d["it_" + n_], d["val_" + n_]
                 tv = meta["true"][n_]
-                ax.semilogy(it / 1000, np.maximum(np.abs(val - tv) / abs(tv), 1e-6), lw=1.3, color=PAR_COLORS[i],
-                            label=f"{SYM.get(n_, n_)}: {val[-1]:.4g} (true {tv:g})")
-            ax.set_xlabel("Iteration (×1000)", labelpad=1)
+                ax.semilogy(it / 1000, np.maximum(np.abs(val - tv) / abs(tv), 1e-6), lw=1.1, color=PAR_COLORS[i],
+                            label=SYM.get(n_, n_))
+            ax.set_xlabel("Iteration (×10³)", labelpad=1)
             ax.set_ylabel("Relative error", labelpad=1)
-            ax.grid(color="#e4e7eb", lw=0.5)
-            ax.legend(fontsize=6.3, frameon=True, framealpha=0.9, edgecolor="none", loc="lower left",
-                      handlelength=1.2, borderaxespad=0.2)
-            ax.set_ylim(1e-6, 3)
+            ax.set_ylim(1e-5, 3)
+            ax.grid(color="#e4e7eb", lw=0.4)
+            ax.legend(fontsize=FONT - 1, frameon=False, loc="lower left", handlelength=1.3, borderaxespad=0.3)
+            ax.tick_params(labelsize=FONT - 1, length=2)
             for sp in ("top", "right"):
                 ax.spines[sp].set_visible(False)
             if r == 0:
-                ax.set_title("Unknown parameters", fontsize=9, fontweight="bold")
-        axes[r, 0].text(0.03, 0.97, meta["field"], transform=axes[r, 0].transAxes, ha="left", va="top",
-                        fontsize=6.5, bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="none", alpha=0.85))
-        for c in range(3):
-            axes[r, c].tick_params(labelsize=7, length=2)
-    fig.subplots_adjust(left=0.13, right=0.95, top=0.95, bottom=0.06, wspace=0.55, hspace=0.55)
+                fig.text(rects[2][0] + rects[2][2] / 2, (H - TOP / 2.4) / H, titles[2], ha="center", va="center",
+                         fontsize=FONT + 1, fontweight="bold")
+        fig.text(0.08 / WIDTH, (y0 * H + PANEL + 0.02) / H, f"({'abc'[r]})", ha="left", va="bottom",
+                 fontsize=FONT + 1.5, fontweight="bold")
     fig.savefig(path, dpi=300)
     fig.savefig(os.path.splitext(path)[0] + ".pdf")
     plt.close(fig)
-    print("wrote", path)
+    print("wrote", path, f"({WIDTH} x {H:.2f} in)")
 
 
 def main():
     if len(sys.argv) > 2 and sys.argv[1] == "export":
-        export(sys.argv[2])
+        export(sys.argv[2], sys.argv[3:] or None)
     elif len(sys.argv) > 1 and sys.argv[1] == "plot":
         plot(FORWARD, os.path.join(FIGS, "paper_forward.png"), False)
         plot(INVERSE, os.path.join(FIGS, "paper_inverse.png"), True)

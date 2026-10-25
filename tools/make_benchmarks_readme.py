@@ -1071,11 +1071,15 @@ with $h(x, y, 0) = \\sin(4\\pi x)\\cos(4\\pi y)$ and periodic boundaries. PINNSt
 
 $$\\frac{{\\partial \\mathbf u}}{{\\partial t}} + (\\mathbf u\\cdot\\nabla)\\mathbf u + \\nabla p = \\nabla^2\\mathbf u, \\qquad \\nabla\\cdot\\mathbf u = 0, \\qquad (x, y, z) \\in [-1, 1]^3,\\ t \\in [0, 1]$$
 
-with the exact Beltrami solution, e.g. $u = -\\left(e^{{x}}\\sin(y + z) + e^{{z}}\\cos(x + y)\\right)e^{{-t}}$, on the boundary and at $t = 0$. Four outputs $(u, v, w, p)$ from one network (4 × 50, DeepXDE's settings, already accurate). Shown: $u$ on the plane $z = 0$ at $t = 1$. Over the whole cube at $t = 1$: $L_2$ = 1.4 × 10⁻³ ($u$), 7.3 × 10⁻⁴ ($v$), 1.2 × 10⁻³ ($w$) and 2.4 × 10⁻² ($p$, which is fixed only up to a constant, so compared after removing the mean).
+with the exact Beltrami solution, e.g. $u = -\\left(e^{{x}}\\sin(y + z) + e^{{z}}\\cos(x + y)\\right)e^{{-t}}$, on the boundary and at $t = 0$. Four outputs $(u, v, w, p)$ from one network (4 × 50, DeepXDE's settings, already accurate). Shown: $u$ on the three visible faces of the cube at $t = 1$. Over the whole cube at $t = 1$: $L_2$ = 1.4 × 10⁻³ ($u$), 7.3 × 10⁻⁴ ($v$), 1.2 × 10⁻³ ($w$) and 2.4 × 10⁻² ($p$, which is fixed only up to a constant, so compared after removing the mean).
 
 ![Forward examples: Wave 1D, Allen-Cahn 2D, Navier-Stokes 3D — PINNStudio, reference and error](figures/paper_forward.png{_ver(PAPER_FWD)})
 
-*Columns: PINNStudio's solution, the reference (the exact solution for (a) and (c), the template's reference data for (b)) and the absolute error; PINN and reference share a colour scale. (a) the whole space-time domain $u(x, t)$; (b) $h$ at $t = 1$; (c) $u$ on $z = 0$ at $t = 1$. PDF: [`figures/paper_forward.pdf`](figures/paper_forward.pdf). Made with [`tools/make_paper_examples.py`](../tools/make_paper_examples.py) from the saved models (the arrays are in [`paper_examples/`](paper_examples)).*
+**Caption for the paper:**
+
+> **Figure X.** Forward problems solved with PINNStudio. (a) Wave equation in 1D, solved with a space-time multi-scale Fourier feature network: $u(x, t)$ over the whole space-time domain (relative $L_2$ error 3.3 × 10⁻³). (b) Allen-Cahn equation in 2D (Mattey & Ghosh, 2022): $h(x, y)$ at $t = 1$ (relative $L_2$ error over all reference times 3.4 × 10⁻⁴). (c) Navier-Stokes equations in 3D (Beltrami flow): the velocity component $u$ on the visible faces of the cube $[-1, 1]^3$ at $t = 1$ (relative $L_2$ error of $u$ over the cube 1.4 × 10⁻³). Left to right: PINNStudio's prediction, the reference solution (exact for (a) and (c), numerical for (b)) and the absolute error. The prediction and the reference share a colour scale.
+
+*PDF: [`figures/paper_forward.pdf`](figures/paper_forward.pdf). Made with [`tools/make_paper_examples.py`](../tools/make_paper_examples.py) from the saved models (the arrays are in [`paper_examples/`](paper_examples)).*
 
 </details>
 """
@@ -1100,11 +1104,15 @@ on $[0, 1]^2$, with the boundary conditions built into the output and the known 
 
 $$\\frac{{\\partial \\phi}}{{\\partial t}} = \\lambda\\varepsilon^2\\nabla^2\\phi - \\lambda\\left(\\phi^3 - \\phi\\right), \\qquad (x, y, z) \\in [0, 1]^3,\\ t \\in [0, 1]$$
 
-a spherical drop (radius 0.35 at $t = 0$) shrinking in a periodic cube. Unknown: $\\lambda$ (true 10) and $\\lambda\\varepsilon^2$ (true 0.025), both starting from 1. Measured: $\\phi$ at $t = 1$ only, on every second point of the 51³ grid. PINNStudio: 4 × 128 network on periodic input features, Adam 20,000 → L-BFGS 20,000. Found $\\lambda$ = 9.969, $\\lambda\\varepsilon^2$ = 0.02498 (errors 0.31% and 0.07%). Shown: the slice $z = 0.5$ at $t = 0.5$, a time with no measured data ($L_2$ = 5.1 × 10⁻⁴); the drop's radius over time follows the reference within 0.02% ([radius plot](../assets/Images/3D_AllenCahn-Wight/radius.png)).
+a spherical drop (radius 0.35 at $t = 0$) shrinking in a periodic cube. Unknown: $\\lambda$ (true 10) and $\\lambda\\varepsilon^2$ (true 0.025), both starting from 1. Measured: $\\phi$ at $t = 1$ only, on every second point of the 51³ grid. PINNStudio: 4 × 128 network on periodic input features, Adam 20,000 → L-BFGS 20,000. Found $\\lambda$ = 9.969, $\\lambda\\varepsilon^2$ = 0.02498 (errors 0.31% and 0.07%). Shown: $\\phi$ at $t = 0.5$, a time with no measured data, in the cube with one corner cut away so the drop inside is visible ($L_2$ over the cube 3.7 × 10⁻⁴); the drop's radius over time follows the reference within 0.02% ([radius plot](../assets/Images/3D_AllenCahn-Wight/radius.png)).
 
 ![Inverse examples: Burgers 1D, linear elasticity 2D, Allen-Cahn 3D — PINNStudio, reference and the unknown parameters](figures/paper_inverse.png{_ver(PAPER_INV)})
 
-*Columns: PINNStudio's solution, the reference and each unknown's relative error $|p - p_{{true}}|/p_{{true}}$ during training (the legend gives the final value). (a) $u(x, t)$; (b) $u_x(x, y)$; (c) $\\phi$ on $z = 0.5$ at $t = 0.5$. PDF: [`figures/paper_inverse.pdf`](figures/paper_inverse.pdf).*
+**Caption for the paper:**
+
+> **Figure Y.** Inverse problems solved with PINNStudio. (a) Burgers equation in 1D: $u(x, t)$, with $\\lambda_1$ and $\\lambda_2$ learned from $u$ measured at $t = 1$ only. (b) Linear elasticity in 2D: the displacement $u_x(x, y)$, with the Lamé constants $\\lambda$ and $\\mu$ learned from the measured displacements. (c) Allen-Cahn equation in 3D: $\\phi$ at $t = 0.5$ in the cube $[0, 1]^3$ with one corner cut away, with $\\lambda$ and $\\lambda\\varepsilon^2$ learned from $\\phi$ measured at $t = 1$ only. Left to right: PINNStudio's prediction, the reference solution and the relative error $|p - p_{{\\mathrm{{true}}}}|/p_{{\\mathrm{{true}}}}$ of each unknown during training. Final values: $\\lambda_1$ = 0.99994 and $\\lambda_2$ = 0.010010 (true 1 and 0.01); $\\lambda$ = 0.99974 and $\\mu$ = 0.50009 (true 1 and 0.5); $\\lambda$ = 9.969 and $\\lambda\\varepsilon^2$ = 0.02498 (true 10 and 0.025).
+
+*PDF: [`figures/paper_inverse.pdf`](figures/paper_inverse.pdf).*
 
 </details>
 """
