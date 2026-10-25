@@ -201,7 +201,9 @@ THREE_D = {"beltrami": False, "ac3d_inv": True}   # 3D view; True: one corner cu
 
 # layout, in inches (a Word page's text width is 6.5 in)
 WIDTH = 6.5
-LEFT, PANEL, GAP12, CB_PAD, CB_W, CB_TICKS, GAP3, TOP, ROW_GAP, BOTTOM = 0.45, 1.42, 0.2, 0.07, 0.08, 0.38, 0.55, 0.32, 0.62, 0.42
+# every column: room for the y-axis labels, the panel, its colorbar and the colorbar's labels
+YLAB, PANEL, CB_PAD, CB_W, CB_TICKS, TOP, ROW_GAP, BOTTOM = 0.42, 1.3, 0.06, 0.08, 0.3, 0.32, 0.62, 0.42
+COL = YLAB + PANEL + CB_PAD + CB_W + CB_TICKS
 FONT = 8
 
 
@@ -239,20 +241,23 @@ def _cube(ax, g, F, cut, cmap, norm):
     polys, vals = _faces(g, F, cut)
     cols = cmap(norm(vals))
     ax.add_collection3d(Poly3DCollection(polys, facecolors=cols, edgecolors=cols, linewidths=0.2))
+    import matplotlib
     a, b = g[0], g[-1]
-    for s in (a, b):                       # the cube's edges
-        for r in (a, b):
-            ax.plot([a, b], [s, s], [r, r], color="0.35", lw=0.4)
-            ax.plot([s, s], [a, b], [r, r], color="0.35", lw=0.4)
-            ax.plot([s, s], [r, r], [a, b], color="0.35", lw=0.4)
     ax.set_xlim(a, b); ax.set_ylim(a, b); ax.set_zlim(a, b)
-    ax.set_box_aspect((1, 1, 1))
+    ax.set_box_aspect((1, 1, 1), zoom=0.8)
     ax.view_init(elev=22, azim=-58)
-    ax.set_axis_off()
-    off = 0.12 * (b - a)                   # axis names next to the edges
-    ax.text((a + b) / 2, a - off, a - off, "$x$", ha="center", va="center", fontsize=FONT)
-    ax.text(b + off, (a + b) / 2, a - off, "$y$", ha="center", va="center", fontsize=FONT)
-    ax.text(a - off, a - off, (a + b) / 2, "$z$", ha="center", va="center", fontsize=FONT)
+    fmt = matplotlib.ticker.FuncFormatter(lambda v, _: f"{v:g}".replace("-", "−"))
+    for axis, lab in ((ax.xaxis, "$x$"), (ax.yaxis, "$y$"), (ax.zaxis, "$z$")):
+        axis.set_ticks([a, (a + b) / 2, b] if lab == "$z$" else [a, b])   # x and y meet at a corner: ends only
+        axis.set_major_formatter(fmt)
+        axis.set_pane_color((1, 1, 1, 0))
+        axis.line.set_linewidth(0.6)
+        axis._axinfo["grid"]["linewidth"] = 0
+        axis._axinfo["tick"]["inward_factor"] = 0.0
+        axis._axinfo["tick"]["outward_factor"] = 0.25
+    ax.set_xlabel("$x$", labelpad=-8); ax.set_ylabel("$y$", labelpad=-8); ax.set_zlabel("$z$", labelpad=-8)
+    ax.tick_params(labelsize=FONT - 1.5, pad=-3)
+    ax.grid(False)
 
 
 def _colorbar(fig, ax_rect, mappable, sci=False):
@@ -277,11 +282,11 @@ def plot(keys, path, inverse):
     import matplotlib.pyplot as plt
     plt.rcParams.update({"font.size": FONT, "axes.linewidth": 0.6, "pdf.fonttype": 42, "mathtext.fontset": "dejavusans",
                          "xtick.major.width": 0.5, "ytick.major.width": 0.5})
-    xs = [LEFT, LEFT + PANEL + GAP12, LEFT + 2 * PANEL + GAP12 + CB_PAD + CB_W + CB_TICKS + GAP3]
+    xs = [YLAB + c * COL for c in range(3)]
     H = TOP + len(keys) * PANEL + (len(keys) - 1) * ROW_GAP + BOTTOM
     fig = plt.figure(figsize=(WIDTH, H))
     cmap = plt.get_cmap("jet")
-    titles = ["PINNStudio", "Reference", "Unknown parameters" if inverse else "Absolute error"]
+    titles = ["PINNStudio", "Reference", "Parameter error" if inverse else "Absolute error"]
     for r, key in enumerate(keys):
         d = np.load(os.path.join(DATA, key + ".npz"))
         meta = json.loads(str(d["meta"]))
@@ -298,8 +303,11 @@ def plot(keys, path, inverse):
         panels = [(P, norm), (R, norm)] + ([] if inverse else [(E, matplotlib.colors.Normalize(0, float(np.nanmax(E))))])
         for c, (A, nm) in enumerate(panels):
             if three:
-                ax = fig.add_axes(rects[c], projection="3d")
-                ax.set_position(rects[c])
+                # a little wider than the panel, shifted left, so the z axis labels clear the colorbar
+                x0_, y0_, w_, h_ = rects[c]
+                r3 = [x0_ - 0.3 / WIDTH, y0_ - 0.1 / H, w_ + 0.3 / WIDTH, h_ + 0.2 / H]
+                ax = fig.add_axes(r3, projection="3d")
+                ax.set_position(r3)
                 _cube(ax, g, A, THREE_D[key], cmap, nm)
                 sm = matplotlib.cm.ScalarMappable(norm=nm, cmap=cmap)
             else:
@@ -309,43 +317,39 @@ def plot(keys, path, inverse):
                     sm = ax.imshow(A.T, origin="lower", extent=[ext[2], ext[3], ext[0], ext[1]], aspect="auto",
                                    cmap=cmap, norm=nm, interpolation="bilinear")
                     ax.set_xlabel("$t$", labelpad=1)
-                    if c != 1:
-                        ax.set_ylabel("$x$", labelpad=1)
+                    ax.set_ylabel("$x$", labelpad=1)
                 else:
                     sm = ax.imshow(A, origin="lower", extent=ext, aspect="auto", cmap=cmap, norm=nm,
                                    interpolation="bilinear")
                     ax.set_xlabel("$x$", labelpad=1)
-                    if c != 1:
-                        ax.set_ylabel("$y$", labelpad=1)
+                    ax.set_ylabel("$y$", labelpad=1)
                 ax.tick_params(labelsize=FONT - 1, length=2)
                 for axis in (ax.xaxis, ax.yaxis):    # 0, 0.5, 1 (or -1, 0, 1): short labels that never touch
                     axis.set_major_locator(matplotlib.ticker.LinearLocator(3))
                     axis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda v, _: f"{v:g}".replace("-", "\u2212")))
-                if c == 1:                  # PINN and reference share the axes and the colour scale
-                    ax.tick_params(labelleft=False)
-            if c > 0:
-                _colorbar(fig, rects[c], sm, sci=(c == 2))
+            _colorbar(fig, rects[c], sm, sci=(c == 2))
             if r == 0:
                 fig.text(rects[c][0] + rects[c][2] / 2, (H - TOP / 2.4) / H, titles[c], ha="center", va="center",
                          fontsize=FONT + 1, fontweight="bold")
         if inverse:
-            ax = fig.add_axes(rects[2])
+            x0, y0_, w, h = rects[2]
+            ax = fig.add_axes([x0, y0_, w + (CB_PAD + CB_W + CB_TICKS - 0.05) / WIDTH, h])
             names = [k[3:] for k in d.files if k.startswith("it_")]
             for i, n_ in enumerate(names):
                 it, val = d["it_" + n_], d["val_" + n_]
                 tv = meta["true"][n_]
                 ax.semilogy(it / 1000, np.maximum(np.abs(val - tv) / abs(tv), 1e-6), lw=1.1, color=PAR_COLORS[i],
-                            label=SYM.get(n_, n_))
+                            label=f"{SYM.get(n_, n_)} = {val[-1]:.5g}  (true {tv:g})")
             ax.set_xlabel("Iteration (×10³)", labelpad=1)
-            ax.set_ylabel("Relative error", labelpad=1)
             ax.set_ylim(1e-5, 3)
             ax.grid(color="#e4e7eb", lw=0.4)
-            ax.legend(fontsize=FONT - 1, frameon=False, loc="lower left", handlelength=1.3, borderaxespad=0.3)
+            ax.legend(fontsize=FONT - 1.5, frameon=False, loc="lower left", handlelength=1.2, borderaxespad=0.2,
+                      handletextpad=0.4)
             ax.tick_params(labelsize=FONT - 1, length=2)
             for sp in ("top", "right"):
                 ax.spines[sp].set_visible(False)
             if r == 0:
-                fig.text(rects[2][0] + rects[2][2] / 2, (H - TOP / 2.4) / H, titles[2], ha="center", va="center",
+                fig.text(rects[2][0] + (rects[2][2] + (CB_PAD + CB_W + CB_TICKS) / WIDTH) / 2, (H - TOP / 2.4) / H, titles[2], ha="center", va="center",
                          fontsize=FONT + 1, fontweight="bold")
         fig.text(0.08 / WIDTH, (y0 * H + PANEL + 0.02) / H, f"({'abc'[r]})", ha="left", va="bottom",
                  fontsize=FONT + 1.5, fontweight="bold")
