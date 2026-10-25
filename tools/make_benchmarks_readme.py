@@ -335,6 +335,15 @@ SPACETIME = {}  # run folder/variant_sSEED -> error over all reference times (--
 SAME = 1.25    # runs within 25% of the lowest error count as equally accurate; the fastest of them is the best
 
 
+def _judged(r):
+    """The error a forward run is judged by: its main output's L2 at the last reference time, or for a
+    Cahn-Hilliard problem the worse of that and the chemical potential mu's (a solution with mu far off is
+    not solved, however good h is)."""
+    l2 = mtp._maxl2(r)
+    mu = (OUTS.get((ts._slug(r["example"]) + ("_inv" if r["inverse"] else ""), r["variant"], str(r["seed"]))) or {}).get("mu")
+    return max(l2, mu) if (l2 is not None and mu is not None) else l2
+
+
 def _pick(s, inverse):
     """PINNStudio's best of entry s: the lowest error (for an inverse problem the lowest parameter error,
     else L2), and among the runs within SAME of it the fastest. A copy of s with chosen/tuned set."""
@@ -344,7 +353,7 @@ def _pick(s, inverse):
     for v, rs in s["variants"].items():
         l2 = mtp._med(rs, mtp._maxl2)
         pe = _perr(mtp._found(dict(s, chosen=v))) if inverse else None
-        err = pe if pe is not None else l2
+        err = pe if pe is not None else mtp._med(rs, _judged)
         if err is not None and err == err:          # a run that diverged (NaN) is never the best
             stats[v] = (err, mtp._med(rs, lambda r: r["seconds"]) or 0.0, l2)
     if not stats:
@@ -409,20 +418,22 @@ def build(summ, papers, spacetime, readme):
                 st = [spacetime.get(f"{ts._slug(key)}/{v}_s{r['seed']}") for r in rs]
                 st = [x for x in st if x is not None]
                 pr[v] = dict(l2=l2, st=statistics.median(st) if st else None, seconds=statistics.median(
-                    r["seconds"] for r in rs), outs=_outs(rs, v))
+                    r["seconds"] for r in rs), outs=_outs(rs, v),
+                    judged=statistics.median([_judged(r) for r in rs if _judged(r) is not None] or [l2]))
         rec["paper_runs"] = pr
         # the base PINN and the paper's method are PINNStudio runs too: one of them can be PINNStudio best
         rec["f_best_paper"] = None
         if pr and rec["f_best"] is not None:
             fs = rec["f_best_s"]
             tsec = mtp._med(fs["variants"][fs["chosen"]], lambda q: q["seconds"]) if fs else None
-            cand = [(rec["f_best"], tsec or 0.0, None)] + [(q["l2"], q["seconds"], v) for v, q in pr.items()
-                                                          if q.get("l2") is not None and v != "base"]
+            judged = mtp._med(fs["variants"][fs["chosen"]], _judged) if fs else None
+            cand = [(judged if judged is not None else rec["f_best"], tsec or 0.0, None)] + \
+                [(q["judged"], q["seconds"], v) for v, q in pr.items() if q.get("l2") is not None and v != "base"]
             low = min(c[0] for c in cand)
             win = min((c for c in cand if c[0] <= SAME * low), key=lambda c: c[1])
             if win[2]:
                 rec["f_best_paper"] = win[2]
-                rec["f_best"] = win[0]
+                rec["f_best"] = pr[win[2]]["l2"]
         out.append(rec)
     return out
 

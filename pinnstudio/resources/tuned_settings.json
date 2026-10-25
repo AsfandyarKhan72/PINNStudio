@@ -76,14 +76,9 @@
  },
  "1D Cahn-Hilliard (Mattey & Ghosh)": {
   "forward": {
-   "switches": [
-    "soft_ic",
-    "exact_bc",
-    "windows",
-    "sa"
-   ],
-   "variant": "base",
-   "error": "L2 3.9e-03 vs 4.8e-03 with its own settings"
+   "switches": null,
+   "variant": "paper_mg",
+   "error": "L2 5.7e-03"
   }
  },
  "1D Burgers": {
@@ -248,13 +243,6 @@
    "switches": null,
    "variant": "dataw",
    "error": "parameter error 2.5%"
-  }
- },
- "2D Cahn-Hilliard (Wight & Zhao)": {
-  "forward": {
-   "switches": null,
-   "variant": "iters",
-   "error": "L2 4.5e-03 vs 1.1e-02 with its own settings"
   }
  },
  "2D Cahn-Hilliard (Mattey & Ghosh)": {

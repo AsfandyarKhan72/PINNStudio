@@ -10,7 +10,7 @@ For a **template taken from a paper**, the forward table also lists a **base PIN
 
 The sweep was run on the 39 examples with the largest errors. The others were already accurate with their own settings: their result is the README's, marked **no tuning needed**.
 
-![Every example: the reference settings and PINNStudio's best, forward and inverse, and the error of each learned parameter](figures/benchmarks_summary.png?v=6b16a35b)
+![Every example: the reference settings and PINNStudio's best, forward and inverse, and the error of each learned parameter](figures/benchmarks_summary.png?v=a005efa7)
 
 *Circles: forward problems; diamonds: inverse problems. Filled: PINNStudio's best; open: DeepXDE's settings, or the paper's method run in PINNStudio; a ring around a filled marker: the two are the same (no tuning was needed). PINNStudio's own templates, and paper templates whose method has not run yet, have no open marker: there is no outside reference to compare with. Right: the error of each learned parameter, labelled with its symbol. ⭐: the error the paper reports (over all times) for the templates taken from a paper.*
 
@@ -44,7 +44,7 @@ The sweep was run on the 39 examples with the largest errors. The others were al
 | [Poisson 1D – unknown forcing field (batches)](#bench-poisson-1d-unknown-forcing-field-batches) | DeepXDE | – | – | – | – | field | – | 215 |
 | [Allen-Cahn 1D – Wight & Zhao](#bench-allen-cahn-1d-wight-zhao) | Paper | 2.4 × 10<sup>-3</sup> | **1.4 × 10<sup>-3</sup>** | – | – | γ₁ = 9.95326e-05 (0.0001); γ₂ = 4.99994 (5) | 0.47% | 302 |
 | [Cahn-Hilliard 1D – Wight & Zhao](#bench-cahn-hilliard-1d-wight-zhao) | Paper | 8.6 × 10<sup>-3</sup> | **6.0 × 10<sup>-4</sup>** | – | – | – | – | – |
-| [Cahn-Hilliard 1D – Mattey & Ghosh](#bench-cahn-hilliard-1d-mattey-ghosh) | Paper | 5.7 × 10<sup>-3</sup> | **1.9 × 10<sup>-3</sup>** | 3.2 × 10<sup>-2</sup> | 1656 | – | – | – |
+| [Cahn-Hilliard 1D – Mattey & Ghosh](#bench-cahn-hilliard-1d-mattey-ghosh) | Paper | 5.7 × 10<sup>-3</sup> | **5.7 × 10<sup>-3</sup>** | 3.2 × 10<sup>-2</sup> | 2864 | – | – | – |
 | [Black-Scholes 1D – American put](#bench-black-scholes-1d-american-put) | DeepXDE | – | – | – | – | – | – | – |
 | [Black-Scholes 1D – European call](#bench-black-scholes-1d-european-call) | DeepXDE | 4.3 × 10<sup>-4</sup> | **4.3 × 10<sup>-4</sup>** | – | – | – | – | – |
 | [Burgers 1D – Raissi et al.](#bench-burgers-1d-raissi-et-al) | Paper | 3.3 × 10<sup>-4</sup> | **3.3 × 10<sup>-4</sup>** | 6.7 × 10<sup>-4</sup> | 40 | λ₁ = 0.999937 (1); λ₂ = 0.0100099 (0.01) | 0.099% | 101 |
@@ -75,7 +75,7 @@ The sweep was run on the 39 examples with the largest errors. The others were al
 | [Fractional Poisson 2D – unknown order α](#bench-fractional-poisson-2d-unknown-order) | DeepXDE | – | – | – | – | α = 1.80445 (1.8) | 0.25% | – |
 | [Allen-Cahn 2D – Wight & Zhao](#bench-allen-cahn-2d-wight-zhao) | Paper | 7.9 × 10<sup>-3</sup> | **1.6 × 10<sup>-3</sup>** | 1.1 × 10<sup>-2</sup> | 1596 | λ = 9.82765 (10); λε² = 0.00615365 (0.00625) | 1.7% | 1859 |
 | [Allen-Cahn 2D – Mattey & Ghosh](#bench-allen-cahn-2d-mattey-ghosh) | Paper | 6.6 × 10<sup>-3</sup> | **3.6 × 10<sup>-4</sup>** | 3.4 × 10<sup>-4</sup> | 266 | c₁² = 0.000102452 (0.0001); c₂ = 1.00025 (1) | 2.5% | 1789 |
-| [Cahn-Hilliard 2D – Wight & Zhao](#bench-cahn-hilliard-2d-wight-zhao) | Paper | 1.1 × 10<sup>-2</sup> | **4.5 × 10<sup>-3</sup>** | 7.2 × 10<sup>-3</sup> | 1464 | ε² = 0.00251042 (0.0025) | 0.42% | 3736 |
+| [Cahn-Hilliard 2D – Wight & Zhao](#bench-cahn-hilliard-2d-wight-zhao) | Paper | 1.1 × 10<sup>-2</sup> | **1.1 × 10<sup>-2</sup>** | 1.6 × 10<sup>-2</sup> | 822 | ε² = 0.00251042 (0.0025) | 0.42% | 3736 |
 | [Cahn-Hilliard 2D – Mattey & Ghosh](#bench-cahn-hilliard-2d-mattey-ghosh) | Paper | 2.0 × 10<sup>-3</sup> | **2.0 × 10<sup>-3</sup>** | – | – | α = 0.000201912 (0.0002); κ = 0.995857 (1) | 0.96% | 5306 |
 | [Burgers 2D – Mathias et al.](#bench-burgers-2d-mathias-et-al) | Paper | 1.1 × 10<sup>-2</sup> | **8.4 × 10<sup>-3</sup>** | 1.1 × 10<sup>-2</sup> | 3684 | ν = 0.00320066 (0.0031831) | 0.55% | 6962 |
 | [Heat 2D](#bench-heat-2d) | PINNStudio | 3.9 × 10<sup>-3</sup> | **3.9 × 10<sup>-3</sup>** | – | – | α = 0.399893 (0.4) | 0.027% | 169 |
@@ -98,7 +98,7 @@ The sweep was run on the 39 examples with the largest errors. The others were al
 
 *The list: [`paper_figure_examples.txt`](paper_figure_examples.txt) (one name per line; change a line to swap an example). PDF: [`figures/paper_figure.pdf`](figures/paper_figure.pdf).*
 
-![The paper's figure: 25 examples, forward and inverse](figures/paper_figure.png?v=15d9ea26)
+![The paper's figure: 25 examples, forward and inverse](figures/paper_figure.png?v=27b34c03)
 
 </details>
 
@@ -1763,9 +1763,11 @@ where $\alpha = 0.02$ and $\kappa = 1$. As in the paper (its phase-space form, e
 
 *Forward problem*
 
-- **Network:** FNN 4 × 200 (2 inputs, 2 outputs), tanh, Glorot uniform
-- **Points:** 20,000 domain, 512 initial, 201 boundary
-- **Training:** Adam 100,000 → L-BFGS 50,000
+- **Network:** FNN 6 × 128 (2 inputs, 2 outputs), tanh, Glorot uniform
+- **Points:** 10,000 domain, 128 initial, 20 boundary
+- **Training:** Adam 10,000 → L-BFGS 50,000
+- **Loss weights:** equations 1; boundary 1; initial 64
+- **Methods:** time-adaptive training: 10 time windows, a network per window, each starting from the previous one, backward-compatibility term (weight 64), initial-condition guided learning (0.1 of Adam)
 
 *Load it:* toolbar → Examples: **Forward** → **Cahn-Hilliard 1D – Mattey & Ghosh** → **Tuned**, then Solve.
 
@@ -1775,15 +1777,15 @@ where $\alpha = 0.02$ and $\kappa = 1$. As in the paper (its phase-space form, e
 
 | Training | L₂ h, last time | L₂ μ, last time | L₂ h, all times | Time (s) |
 |---|---|---|---|---|
-| 🔴 **Base PINN** | **1.9 × 10<sup>-3</sup>** | **7.7 × 10<sup>-1</sup>** | **3.9 × 10<sup>-3</sup>** | **1656** |
+| Base PINN | 1.9 × 10<sup>-3</sup> | 7.7 × 10<sup>-1</sup> | 3.9 × 10<sup>-3</sup> | 1656 |
 | Mattey & Ghosh's bc-PINN, as reported (Mattey & Ghosh (2022), Sec. 5.2) | – | – | 1.9 × 10<sup>-2</sup> | – |
-| Mattey & Ghosh's bc-PINN, run in PINNStudio | 5.7 × 10<sup>-3</sup> | 4.6 × 10<sup>-2</sup> | 5.5 × 10<sup>-3</sup> | 2864 |
+| 🔴 **Mattey & Ghosh's bc-PINN, run in PINNStudio** | **5.7 × 10<sup>-3</sup>** | **4.6 × 10<sup>-2</sup>** | **5.5 × 10<sup>-3</sup>** | **2864** |
 | Best setup of the training methods study | 3.9 × 10<sup>-3</sup> | 3.8 × 10<sup>-1</sup> | 3.2 × 10<sup>-2</sup> | 1002 |
 | Best setup + 3× iterations | 6.1 × 10<sup>-2</sup> | 1.9 × 10<sup>0</sup> | 7.0 × 10<sup>-2</sup> | 2165 |
 | Best setup + larger network (2× width, one more layer) | 9.9 × 10<sup>-1</sup> | 6.4 × 10<sup>1</sup> | 8.6 × 10<sup>-1</sup> | 1893 |
 | Best setup + 2× time windows | 1.5 × 10<sup>-2</sup> | 1.4 × 10<sup>0</sup> | 3.6 × 10<sup>-2</sup> | 1709 |
 | Best setup + all of the above together | 9.9 × 10<sup>-1</sup> | 3.9 × 10<sup>1</sup> | 9.3 × 10<sup>-1</sup> | 13959 |
-| **PINNStudio best** (Settings: Tuned): the base PINN | **1.9 × 10<sup>-3</sup>** | **7.7 × 10<sup>-1</sup>** | **3.9 × 10<sup>-3</sup>** | **1656** |
+| **PINNStudio best** (Settings: Tuned): Mattey & Ghosh's bc-PINN, run in PINNStudio | **5.7 × 10<sup>-3</sup>** | **4.6 × 10<sup>-2</sup>** | **5.5 × 10<sup>-3</sup>** | **2864** |
 
 *Each output's relative L₂ at its last reference time; the best run is chosen by h.*
 
@@ -4299,11 +4301,11 @@ where $\lambda = 1$ and $\varepsilon = 0.05$. As in the 1D example, the chemical
 <details>
 <summary>⚙️ <em>PINNStudio best — Tuned settings</em></summary>
 
-*Forward problem*
+*Forward problem — the template's own settings*
 
 - **Network:** FNN 4 × 128 (3 inputs, 2 outputs), tanh, Glorot uniform
 - **Points:** 20,000 domain, 1,024 initial, 800 boundary
-- **Training:** Adam 60,000 → L-BFGS 60,000
+- **Training:** Adam 20,000 → L-BFGS 20,000
 - **Loss weights:** equations 1; boundary 1; initial 100
 - **Methods:** exact periodicity (periodic input features)
 
@@ -4334,10 +4336,10 @@ where $\lambda = 1$ and $\varepsilon = 0.05$. As in the 1D example, the chemical
 | Base PINN | – | – | – | – |
 | Wight & Zhao's method, as reported (Wight & Zhao (2021), Fig. 3.13) | – | – | figures only | – |
 | Wight & Zhao's method, run in PINNStudio | – | – | – | – |
-| The template's starting settings | 1.1 × 10<sup>-2</sup> | 2.5 × 10<sup>-2</sup> | 1.6 × 10<sup>-2</sup> | 822 |
-| 🔴 **3× iterations** | **4.5 × 10<sup>-3</sup>** | **2.4 × 10<sup>-2</sup>** | **7.2 × 10<sup>-3</sup>** | **1464** |
+| 🔴 **The template's starting settings** | **1.1 × 10<sup>-2</sup>** | **2.5 × 10<sup>-2</sup>** | **1.6 × 10<sup>-2</sup>** | **822** |
+| 3× iterations | 4.5 × 10<sup>-3</sup> | 2.4 × 10<sup>-2</sup> | 7.2 × 10<sup>-3</sup> | 1464 |
 | Larger network (2× width, one more layer) | 8.0 × 10<sup>-3</sup> | 2.0 × 10<sup>-2</sup> | 1.1 × 10<sup>-2</sup> | 1995 |
-| **PINNStudio best** (Settings: Tuned): 3× iterations | **4.5 × 10<sup>-3</sup>** | **2.4 × 10<sup>-2</sup>** | **7.2 × 10<sup>-3</sup>** | **1464** |
+| **PINNStudio best** (Settings: Tuned): the example's own settings (no change did better) | **1.1 × 10<sup>-2</sup>** | **2.5 × 10<sup>-2</sup>** | **1.6 × 10<sup>-2</sup>** | **822** |
 
 *Each output's relative L₂ at its last reference time; the best run is chosen by u.*
 
@@ -4359,15 +4361,15 @@ where $\lambda = 1$ and $\varepsilon = 0.05$. As in the 1D example, the chemical
 
 *Wight & Zhao's method, run in PINNStudio: the figures come when its run finishes.*
 
-*PINNStudio best — 3× iterations:*
+*PINNStudio best — the example's own settings (no change did better):*
 
 <sub>u — PINN, reference and error over space and time</sub>
 
-![Cahn-Hilliard 2D – Wight & Zhao: PINNStudio best — 3× iterations — u — PINN, reference and error over space and time](figures/tuning/Template_2D_Cahn_Hilliard_Wight_Zhao/iters_surface_comparison_u.png)
+![Cahn-Hilliard 2D – Wight & Zhao: PINNStudio best — the example's own settings (no change did better) — u — PINN, reference and error over space and time](figures/tuning/Template_2D_Cahn_Hilliard_Wight_Zhao/own_surface_comparison_u.png)
 
 <sub>μ — PINN, reference and error over space and time</sub>
 
-![Cahn-Hilliard 2D – Wight & Zhao: PINNStudio best — 3× iterations — μ — PINN, reference and error over space and time](figures/tuning/Template_2D_Cahn_Hilliard_Wight_Zhao/iters_surface_comparison_mu.png)
+![Cahn-Hilliard 2D – Wight & Zhao: PINNStudio best — the example's own settings (no change did better) — μ — PINN, reference and error over space and time](figures/tuning/Template_2D_Cahn_Hilliard_Wight_Zhao/own_surface_comparison_mu.png)
 
 </details>
 
