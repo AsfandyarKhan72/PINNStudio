@@ -80,7 +80,7 @@ DEEPXDE_SOURCE = {
     "Helmholtz 2D (Dirichlet)": dict(
         cite="Escapil-Inchauspé & Ruz (2023), Neurocomputing 561", url="https://arxiv.org/abs/2205.06704",
         method="their PINN (25,600 points)", outs=None, main=1.8e-4,
-        note="Table 4, ω = 2; 1.19e-4 for their best hyper-parameter configuration"),
+        note="Table 4, ω = 2, with 160 points per side and their tuned network (DeepXDE's example uses about 20 per side and its own network); 1.19e-4 for their best hyper-parameter configuration"),
     "Helmholtz 2D – hyperparameter optimization": dict(
         cite="Escapil-Inchauspé & Ruz (2023), Neurocomputing 561", url="https://arxiv.org/abs/2205.06704",
         method="their best hyper-parameter configuration", outs=None, main=1.19e-4, note="relative L2 test error"),
@@ -91,14 +91,14 @@ DEEPXDE_SOURCE = {
     "Poisson over an L-shaped domain": dict(cite="Lu, Meng, Mao & Karniadakis (2021), SIAM Rev. 63 (DeepXDE)", url="https://arxiv.org/abs/1907.04502", outs=None, main=None, note="Sec. 4.1; reported as a plot only"),
     "Fractional Poisson equation 1D": dict(
         cite="Pang, Lu & Karniadakis (2019), SIAM J. Sci. Comput. 41 (fPINNs)", url="https://arxiv.org/abs/1811.08967",
-        outs=None, main=None, note="Sec. 4.1.1; reported as a mean squared error only"),
+        outs=None, main=None, note="Sec. 4.1.1; the relative L2 error is shown only as a plot (Fig. 5)"),
     "Poisson 1D – hard boundary conditions": dict(cite="Yu, Lu, Meng & Karniadakis (2022), CMAME 393 (gPINNs)", url="https://arxiv.org/abs/2111.02801", outs=None, main=None,
         note="Sec. 3.2.1, with 10–20 residual points against 64 here, so not compared"),
     "Diffusion-reaction equation": dict(cite="Yu, Lu, Meng & Karniadakis (2022), CMAME 393 (gPINNs)", url="https://arxiv.org/abs/2111.02801", outs=None, main=None,
         note="Sec. 3.2.2, with 40–50 residual points against 320 here, so not compared"),
     "Inverse: Brinkman-Forchheimer model": dict(cite="Yu, Lu, Meng & Karniadakis (2022), CMAME 393 (gPINNs)", url="https://arxiv.org/abs/2111.02801", outs=None, main=None, note="Sec. 3.3.1; reported as figures only"),
     "Inverse: diffusion-reaction with space-dependent rate": dict(cite="Yu, Lu, Meng & Karniadakis (2022), CMAME 393 (gPINNs)", url="https://arxiv.org/abs/2111.02801", outs=None, main=None,
-        note="Sec. 3.3.2, and Wu et al. (2023) Sec. 3.6, both with fewer points, so not compared"),
+        note="Sec. 3.3.2 (10 residual points, figures only), and Wu et al. (2023) Sec. 3.6 (15 residual points), so not compared"),
     "Diffusion equation": dict(cite="Wu, Zhu, Tan, Kartha & Lu (2023), CMAME 403", url="https://arxiv.org/abs/2207.10289", outs=None, main=None,
         note="Sec. 3.2, the same equation with 30 residual points, so not compared"),
 }
