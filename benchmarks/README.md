@@ -125,7 +125,7 @@ $$\frac{\partial \mathbf u}{\partial t} + (\mathbf u\cdot\nabla)\mathbf u + \nab
 
 with the exact Beltrami solution, e.g. $u = -\left(e^{x}\sin(y + z) + e^{z}\cos(x + y)\right)e^{-t}$, on the boundary and at $t = 0$. Four outputs $(u, v, w, p)$ from one network (4 × 50, DeepXDE's settings, already accurate). Shown: $u$ on the three visible faces of the cube at $t = 1$. Over the whole cube at $t = 1$: $L_2$ = 1.4 × 10⁻³ ($u$), 7.3 × 10⁻⁴ ($v$), 1.2 × 10⁻³ ($w$) and 2.4 × 10⁻² ($p$, which is fixed only up to a constant, so compared after removing the mean).
 
-![Forward examples: Wave 1D, Allen-Cahn 2D, Navier-Stokes 3D — PINNStudio, reference and error](figures/paper_forward.png?v=a4211a9e)
+![Forward examples: Wave 1D, Allen-Cahn 2D, Navier-Stokes 3D — PINNStudio, reference and error](figures/paper_forward.png?v=20b26098)
 
 **Caption for the paper:**
 
@@ -158,7 +158,7 @@ $$\frac{\partial \phi}{\partial t} = \lambda\varepsilon^2\nabla^2\phi - \lambda\
 
 a spherical drop (radius 0.35 at $t = 0$) shrinking in a periodic cube. Unknown: $\lambda$ (true 10) and $\lambda\varepsilon^2$ (true 0.025), both starting from 1. Measured: $\phi$ at $t = 1$ only, on every second point of the 51³ grid. PINNStudio: 4 × 128 network on periodic input features, Adam 20,000 → L-BFGS 20,000. Found $\lambda$ = 9.969, $\lambda\varepsilon^2$ = 0.02498 (errors 0.31% and 0.07%). Shown: $\phi$ at $t = 0.5$, a time with no measured data, in the cube with one corner cut away so the drop inside is visible ($L_2$ over the cube 3.7 × 10⁻⁴); the drop's radius over time follows the reference within 0.02% ([radius plot](../assets/Images/3D_AllenCahn-Wight/radius.png)).
 
-![Inverse examples: Burgers 1D, linear elasticity 2D, Allen-Cahn 3D — PINNStudio, reference and the unknown parameters](figures/paper_inverse.png?v=fe56200f)
+![Inverse examples: Burgers 1D, linear elasticity 2D, Allen-Cahn 3D — PINNStudio, reference and the unknown parameters](figures/paper_inverse.png?v=ae9e6077)
 
 **Caption for the paper:**
 

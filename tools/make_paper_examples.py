@@ -269,6 +269,9 @@ def _colorbar(fig, ax_rect, mappable, sci=False):
         fmt = matplotlib.ticker.ScalarFormatter(useMathText=True)
         fmt.set_powerlimits((0, 0))
     cb = fig.colorbar(mappable, cax=cax, format=fmt)
+    cb.ax.yaxis.set_major_locator(matplotlib.ticker.MaxNLocator(nbins=4))   # few, short labels
+    if not sci:
+        cb.ax.yaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda v, _: f"{v:g}".replace("-", "\u2212")))
     cb.ax.tick_params(labelsize=FONT - 1.5, length=2, width=0.5)
     cb.outline.set_linewidth(0.5)
     if sci:
