@@ -10,7 +10,7 @@ For a **template taken from a paper**, the forward table also lists a **base PIN
 
 The sweep was run on the 39 examples with the largest errors. The others were already accurate with their own settings: their result is the README's, marked **no tuning needed**.
 
-![Every example: the reference settings and PINNStudio's best, forward and inverse, and the error of each learned parameter](figures/benchmarks_summary.png?v=c8e64135)
+![Every example: the reference settings and PINNStudio's best, forward and inverse, and the error of each learned parameter](figures/benchmarks_summary.png?v=9a71ea2b)
 
 *Circles: forward problems; diamonds: inverse problems. Filled: PINNStudio's best; open: DeepXDE's settings, or the paper's method run in PINNStudio; a ring around a filled marker: the two are the same (no tuning was needed). PINNStudio's own templates, and paper templates whose method has not run yet, have no open marker: there is no outside reference to compare with. Right: the error of each learned parameter, labelled with its symbol. ⭐: the error the paper reports (over all times) for the templates taken from a paper.*
 
@@ -90,15 +90,23 @@ The sweep was run on the 39 examples with the largest errors. The others were al
 <details>
 <summary>📄 <em>Figure for the paper — 25 examples</em></summary>
 
-**Why these examples.** The full figure has 63 examples, which is too many for one page in a paper, so this one keeps one example of each kind of problem. They go from ODEs to 1D, 2D and 3D, and in each dimension from steady to time-dependent problems. Together they cover the main equation types: elliptic (Poisson, Helmholtz, linear elasticity), parabolic (heat, diffusion-reaction, Black-Scholes), hyperbolic and dispersive (wave, Klein-Gordon, Schrödinger), nonlinear flow (Burgers, Navier-Stokes in 2D and 3D), stiff phase-field equations (Allen-Cahn, and the fourth-order Cahn-Hilliard), and the less common fractional and integro-differential operators. Most of them (18 of the 25) have both a forward and an inverse problem, so one row shows both modes. A few are forward only (the integro-differential ODE, Poisson 1D, Cahn-Hilliard 1D, Black-Scholes), and Lorenz, the unknown forcing field and the fractional order α are inverse problems only. The set mixes DeepXDE's examples with templates taken from papers (Raissi et al.; Wight & Zhao; Mattey & Ghosh; Mathias et al.). The left panel shows the forward problems only: PINNStudio's best and DeepXDE's settings or the paper's method. Inverse problems are judged by their parameter error (right panel), not by their L₂, because an inverse run trains on measured values of the solution (in most examples at every reference time), so its L₂ is largely a fit to that data rather than a prediction (it is still in the tables, as "L₂ fit to measured data"). For the paper templates, the ⭐ is the error the paper itself reports, where it gives one (Burgers 1D, Allen-Cahn 1D, Cahn-Hilliard 1D, Allen-Cahn 2D of Mattey & Ghosh). Note that the papers report one error over all times, while the x-axis is the error at the last reference time, so the ⭐ is a guide rather than an exact like-for-like point; the all-times errors are in the tables below.
+**Why these examples.** The full figure has 63 examples, which is too many for one page in a paper, so this one keeps one example of each kind of problem. They go from ODEs to 1D, 2D and 3D, and in each dimension from steady to time-dependent problems. Together they cover the main equation types: elliptic (Poisson, Helmholtz, linear elasticity), parabolic (heat, diffusion-reaction, Black-Scholes), hyperbolic and dispersive (wave, Klein-Gordon, Schrödinger), nonlinear flow (Burgers, Navier-Stokes in 2D and 3D), stiff phase-field equations (Allen-Cahn, and the fourth-order Cahn-Hilliard), and the less common fractional and integro-differential operators. Most of them (18 of the 25) have both a forward and an inverse problem, so one row shows both modes. A few are forward only (the integro-differential ODE, Poisson 1D, Cahn-Hilliard 1D, Black-Scholes), and Lorenz, the unknown forcing field and the fractional order α are inverse problems only. The set mixes DeepXDE's examples with templates taken from papers (Raissi et al.; Wight & Zhao; Mattey & Ghosh; Mathias et al.). The left panel shows the forward problems only: PINNStudio's tuned settings and the starting settings (DeepXDE's example, or the paper's method run in PINNStudio). Templates with no outside starting point have a filled point only. Inverse problems are judged by their parameter error (right panel), not by their L₂, because an inverse run trains on measured values of the solution (in most examples at every reference time), so its L₂ is largely a fit to that data rather than a prediction (it is still in the tables, as "L₂ fit to measured data"). The unknown forcing field is a function, not a number, so its row shows the relative L₂ error of the recovered field $q(x)$ instead.
+
+**No reported errors in this figure.** The errors the original papers report are left out here: they come from other networks, point counts and training, and some are over all times while this axis is the last reference time, so next to PINNStudio's points they would read as like-for-like when they are not. They stay in the tables of each example ("as reported" rows, with the source and its setup) and in the full figure.
+
+**In numbers (these 25).** 22 forward problems: median relative L₂ error 5.2 × 10<sup>-4</sup> with the tuned settings, 21 below 10⁻² and 12 below 10⁻³. Of the 16 with an outside starting point (DeepXDE's example or the paper's method), tuning lowered the error by more than 25% in 7, by a median factor of 206.7 in those (median over all 16: 1.0). 20 inverse problems with scalar parameters: median worst parameter error 0.051%, 19 below 1%.
+
+**All 63 examples.** 52 forward problems: median relative L₂ error 1.4 × 10<sup>-3</sup> with the tuned settings, 47 below 10⁻² and 21 below 10⁻³. Of the 42 with an outside starting point (DeepXDE's example or the paper's method), tuning lowered the error by more than 25% in 14, by a median factor of 14.8 in those (median over all 42: 1.0). 32 inverse problems with scalar parameters: median worst parameter error 0.09%, 29 below 1%.
+
+**How "tuned" was chosen.** The tuned settings are the run with the lowest error against the reference (the fastest one where several are within 25% of it), from the recorded tuning study. They are shipped as the *Tuned* presets, so each point can be reloaded and run again.
 
 **For Word.** The figure is drawn at its printed size, 6.5 × 7.5 in (the text width of a Word page with 1 in margins), with 8.5–9 pt text, so insert it at 100% and it leaves about 1.5 in for the caption on the same page. The PDF keeps it sharp at any zoom. A caption to start from:
 
-> *PINNStudio on 25 representative problems, from ODEs to 3D PDEs. Left: relative L₂ error of the forward problems with PINNStudio's best settings (filled) and with DeepXDE's settings or, for templates taken from a paper, that paper's method run in PINNStudio (open; a ring where the two are the same). Stars mark the error reported in the original paper. Right: the relative error of each parameter identified in the inverse problems, labelled with its symbol.*
+> *PINNStudio on 25 representative forward and inverse problems, from ODEs to 3D PDEs. Left: relative L₂ error of the main output of each forward problem at its last reference time, with the starting settings (open circles: the DeepXDE example, or the original paper's method run in PINNStudio) and the settings selected in the PINNStudio tuning study (filled circles); a ring marks cases where the starting settings were kept. Right: relative error (%) of each parameter identified in the inverse problems, labelled with its symbol, and of the recovered field for the unknown-forcing problem. Full results, settings and the sources of the benchmark problems are in the software repository.*
 
 *The list: [`paper_figure_examples.txt`](paper_figure_examples.txt) (one name per line; change a line to swap an example). PDF: [`figures/paper_figure.pdf`](figures/paper_figure.pdf).*
 
-![The paper's figure: 25 examples, forward and inverse](figures/paper_figure.png?v=2e098d12)
+![The paper's figure: 25 examples, forward and inverse](figures/paper_figure.png?v=859f0d50)
 
 </details>
 
@@ -119,11 +127,11 @@ $$\frac{\partial h}{\partial t} = c_1^2\nabla^2 h - c_2\left(h^3 - h\right), \qq
 
 with $h(x, y, 0) = \sin(4\pi x)\cos(4\pi y)$ and periodic boundaries. PINNStudio: 4 × 128 network on periodic input features, the initial condition built into the output, self-adaptive (SA-PINN) point weights, Adam 20,000 → L-BFGS 10,000 over the whole time interval. $L_2$ = 3.4 × 10⁻⁴ over all reference times; Mattey & Ghosh report 2.5 × 10⁻² for their bc-PINN.
 
-**(c) Navier-Stokes 3D — Beltrami flow** ([DeepXDE example](#bench-navier-stokes-3d-beltrami-flow), after [Jin et al. (2021)](https://arxiv.org/abs/2003.06496))
+**(c) Navier-Stokes 3D — Beltrami flow** ([DeepXDE example](#bench-navier-stokes-3d-beltrami-flow), after [Jin et al. (2021)](https://doi.org/10.1016/j.jcp.2020.109951))
 
 $$\frac{\partial \mathbf u}{\partial t} + (\mathbf u\cdot\nabla)\mathbf u + \nabla p = \nabla^2\mathbf u, \qquad \nabla\cdot\mathbf u = 0, \qquad (x, y, z) \in [-1, 1]^3,\ t \in [0, 1]$$
 
-with the exact Beltrami solution, e.g. $u = -\left(e^{x}\sin(y + z) + e^{z}\cos(x + y)\right)e^{-t}$, on the boundary and at $t = 0$. Four outputs $(u, v, w, p)$ from one network (4 × 50, DeepXDE's settings, already accurate). Shown: $u$ on the three visible faces of the cube at $t = 1$. Over the whole cube at $t = 1$: $L_2$ = 1.4 × 10⁻³ ($u$), 7.3 × 10⁻⁴ ($v$), 1.2 × 10⁻³ ($w$) and 2.4 × 10⁻² ($p$, which is fixed only up to a constant, so compared after removing the mean). The problem is the Beltrami test of NSFnets (Jin et al., 2021), who report 4.3 × 10⁻³ ($u$), 3.7 × 10⁻³ ($v$), 5.9 × 10⁻³ ($w$) and 4.8 × 10⁻² ($p$) at $t = 1$ with a 10 × 100 network, 2–5 times PINNStudio's errors with a 4 × 50 network.
+with the exact Beltrami solution, e.g. $u = -\left(e^{x}\sin(y + z) + e^{z}\cos(x + y)\right)e^{-t}$, on the boundary and at $t = 0$. Four outputs $(u, v, w, p)$ from one network (4 × 50, DeepXDE's settings, already accurate). Shown: $u$ on the three visible faces of the cube at $t = 1$. Over the whole cube at $t = 1$: $L_2$ = 1.4 × 10⁻³ ($u$), 7.3 × 10⁻⁴ ($v$), 1.2 × 10⁻³ ($w$) and 2.4 × 10⁻² ($p$, which is fixed only up to a constant, so compared after removing the mean). The problem is the Beltrami test of NSFnets (Jin et al., 2021), who report 1.6 × 10⁻³ ($u$), 2.2 × 10⁻³ ($v$), 1.8 × 10⁻³ ($w$) and 8.9 × 10⁻² ($p$) at $t = 1$ for their VP-NSFnet with a 7 × 50 network (mean of five runs, Table 4). PINNStudio's single run with a 4 × 50 network is of the same order for $u$ and $w$ and lower for $v$ and $p$.
 
 ![Forward examples: Wave 1D, Allen-Cahn 2D, Navier-Stokes 3D — PINNStudio, reference and error](figures/paper_forward.png?v=908e2490)
 
@@ -227,7 +235,7 @@ $$\Large \frac{du}{dt} + u(t) = \int_0^t e^{s - t}\ u(s)\ ds, \qquad t \in [0, 5
 - **Initial condition:** $u(0) = 1$
 - **Exact solution:** $u = e^{-t}\cosh t$
 
-*Source paper:* [Lu, Meng, Mao & Karniadakis (2021), SIAM Rev. 63 (DeepXDE)](https://arxiv.org/abs/1907.04502) — DeepXDE's example reproduces this problem.
+*Source paper:* [Lu, Meng, Mao & Karniadakis (2021), SIAM Rev. 63 (DeepXDE)](https://arxiv.org/abs/1907.04502) — DeepXDE's example follows the equation and conditions studied there, with its own numerical settings.
 
 <details>
 <summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
@@ -578,7 +586,7 @@ $$\Large \frac{dy_1}{dt} = C_1(y_2 - y_1), \qquad \frac{dy_2}{dt} = y_1(C_2 - y_
 - **Unknowns:** $C_1, C_2, C_3$ (true $10, 15, 8/3$), all starting from 1
 - **Data:** $y_1, y_2, y_3$ measured at 50 times (also used as anchor points), from SciPy's `solve_ivp`
 
-*Source paper:* [Lu, Meng, Mao & Karniadakis (2021), SIAM Rev. 63 (DeepXDE)](https://arxiv.org/abs/1907.04502) — DeepXDE's example reproduces this problem.
+*Source paper:* [Lu, Meng, Mao & Karniadakis (2021), SIAM Rev. 63 (DeepXDE)](https://arxiv.org/abs/1907.04502) — DeepXDE's example follows the equation and conditions studied there, with its own numerical settings.
 
 <details>
 <summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
@@ -817,7 +825,7 @@ $$\Large D_{0+}^{\alpha}u + D_{1-}^{\alpha}u = f(x), \qquad x \in [0, 1],\ \alph
 - **Exact solution:** $u = x^3(1-x)^3$
 - **Constants:** `alpha = 1.5`
 
-*Source paper:* [Pang, Lu & Karniadakis (2019), SIAM J. Sci. Comput. 41 (fPINNs)](https://arxiv.org/abs/1811.08967) — DeepXDE's example reproduces this problem. Sec. 4.1.1; the relative L2 error is shown only as a plot (Fig. 5).
+*Source paper:* [Pang, Lu & Karniadakis (2019), SIAM J. Sci. Comput. 41 (fPINNs)](https://arxiv.org/abs/1811.08967) — DeepXDE's example follows the equation and conditions studied there, with its own numerical settings. Sec. 4.1.1; the relative L2 error is shown only as a plot (Fig. 5).
 
 <details>
 <summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
@@ -1128,7 +1136,7 @@ $$\Large -\frac{d^2u}{dx^2} = \sum_{k=1}^{4} k\sin(kx) + 8\sin(8x), \qquad x \in
 - **Boundary conditions:** $u(0) = 0$, $u(\pi) = \pi$, imposed exactly by the output transform $\hat u = x(\pi - x)\ N(x) + x$
 - **Exact solution:** $u = x + \sum_{k=1}^{4}\frac{\sin(kx)}{k} + \frac{\sin(8x)}{8}$
 
-*Source paper:* [Yu, Lu, Meng & Karniadakis (2022), CMAME 393 (gPINNs)](https://arxiv.org/abs/2111.02801) — DeepXDE's example reproduces this problem. Sec. 3.2.1, with 10–20 residual points against 64 here, so not compared.
+*Source paper:* [Yu, Lu, Meng & Karniadakis (2022), CMAME 393 (gPINNs)](https://arxiv.org/abs/2111.02801) — DeepXDE's example follows the equation and conditions studied there, with its own numerical settings. Sec. 3.2.1, with 10–20 residual points against 64 here, so not compared.
 
 <details>
 <summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
@@ -1177,7 +1185,7 @@ $$\Large \frac{d^2u}{dx^2} = -(\pi A)^2\sin(\pi A x) - 0.1(\pi B)^2\sin(\pi B x)
 
 A plain network of the same size learns the slow wave and largely misses the fast one; the Fourier features at scale 10 allow the PINN to represent the sin(50πx) component.
 
-*Source paper:* [Wang, Wang & Perdikaris (2021), CMAME 384](https://arxiv.org/abs/2012.10047) — DeepXDE's example reproduces this problem.
+*Source paper:* [Wang, Wang & Perdikaris (2021), CMAME 384](https://arxiv.org/abs/2012.10047) — DeepXDE's example follows the equation and conditions studied there, with its own numerical settings.
 
 <details>
 <summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
@@ -1227,7 +1235,7 @@ $$\Large -\frac{\nu_e}{\epsilon}\frac{d^2u}{dx^2} + \frac{\nu u}{K} = g, \qquad 
 - **Exact solution:** $u = 1 - \cosh(20(x - 0.5))/\cosh(10)$
 - **Constants:** `g = 1`, `v = 1e-3`, `e = 0.4`
 
-*Source paper:* [Yu, Lu, Meng & Karniadakis (2022), CMAME 393 (gPINNs)](https://arxiv.org/abs/2111.02801) — DeepXDE's example reproduces this problem. Sec. 3.3.1; reported as figures only.
+*Source paper:* [Yu, Lu, Meng & Karniadakis (2022), CMAME 393 (gPINNs)](https://arxiv.org/abs/2111.02801) — DeepXDE's example follows the equation and conditions studied there, with its own numerical settings. Sec. 3.3.1; reported as figures only.
 
 <details>
 <summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
@@ -1301,7 +1309,7 @@ $$\Large \lambda\frac{d^2u}{dx^2} - k(x)\ u = \sin(2\pi x), \qquad \lambda = 0.0
 - **Data:** 100 measurements of $u$ (computed with SciPy's `solve_bvp`, as DeepXDE does), $u = 0$ at both ends
 - **Constants:** `l = 0.01`
 
-*Source paper:* [Yu, Lu, Meng & Karniadakis (2022), CMAME 393 (gPINNs)](https://arxiv.org/abs/2111.02801) — DeepXDE's example reproduces this problem. Sec. 3.3.2 (10 residual points, figures only), and Wu et al. (2023) Sec. 3.6 (15 residual points), so not compared.
+*Source paper:* [Yu, Lu, Meng & Karniadakis (2022), CMAME 393 (gPINNs)](https://arxiv.org/abs/2111.02801) — DeepXDE's example follows the equation and conditions studied there, with its own numerical settings. Sec. 3.3.2 (10 residual points, figures only), and Wu et al. (2023) Sec. 3.6 (15 residual points), so not compared.
 
 <details>
 <summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
@@ -2023,7 +2031,7 @@ $$\Large \frac{\partial u}{\partial t} + u\frac{\partial u}{\partial x} = \frac{
 
 - **Initial / boundary conditions:** $u(x, 0) = -\sin(\pi x)$, $u(\pm 1, t) = 0$
 
-*Source paper:* [Lu, Meng, Mao & Karniadakis (2021), SIAM Rev. 63 (DeepXDE)](https://arxiv.org/abs/1907.04502) — DeepXDE's example reproduces this problem. Sec. 4.2; reported as a plot only.
+*Source paper:* [Lu, Meng, Mao & Karniadakis (2021), SIAM Rev. 63 (DeepXDE)](https://arxiv.org/abs/1907.04502) — DeepXDE's example follows the equation and conditions studied there, with its own numerical settings. Sec. 4.2; reported as a plot only.
 
 <details>
 <summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
@@ -2069,7 +2077,7 @@ $$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} - e^{
 - **Initial condition:** $u(x, 0) = \sin(\pi x)$; **boundary condition:** $u = e^{-t}\sin(\pi x)$
 - **Exact solution:** $u = e^{-t}\sin(\pi x)$
 
-*Source paper:* [Wu, Zhu, Tan, Kartha & Lu (2023), CMAME 403](https://arxiv.org/abs/2207.10289) — DeepXDE's example reproduces this problem. Sec. 3.2, the same equation with 30 residual points, so not compared.
+*Source paper:* [Wu, Zhu, Tan, Kartha & Lu (2023), CMAME 403](https://arxiv.org/abs/2207.10289) — DeepXDE's example follows the equation and conditions studied there, with its own numerical settings. Sec. 3.2, the same equation with 30 residual points, so not compared.
 
 <details>
 <summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
@@ -2150,7 +2158,7 @@ $$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} - e^{
 - **Initial and boundary conditions:** imposed exactly by $\hat u = t(1 - x^2)N + \sin(\pi x)$ — no IC/BC loss terms
 - **Exact solution:** $u = e^{-t}\sin(\pi x)$
 
-*Source paper:* [Wu, Zhu, Tan, Kartha & Lu (2023), CMAME 403](https://arxiv.org/abs/2207.10289) — DeepXDE's example reproduces this problem. Sec. 3.2, the same equation and hard constraint with 30 residual points (40 here), so not compared.
+*Source paper:* [Wu, Zhu, Tan, Kartha & Lu (2023), CMAME 403](https://arxiv.org/abs/2207.10289) — DeepXDE's example follows the equation and conditions studied there, with its own numerical settings. Sec. 3.2, the same equation and hard constraint with 30 residual points (40 here), so not compared.
 
 <details>
 <summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
@@ -2275,7 +2283,7 @@ $$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} + e^{
 - **Initial and boundary conditions:** imposed exactly by $\hat u = t(\pi^2 - x^2)N + \sum_k \frac{\sin(kx)}{k}$
 - **Exact solution:** $u = e^{-t}\left(\sin x + \tfrac{\sin 2x}{2} + \tfrac{\sin 3x}{3} + \tfrac{\sin 4x}{4} + \tfrac{\sin 8x}{8}\right)$
 
-*Source paper:* [Yu, Lu, Meng & Karniadakis (2022), CMAME 393 (gPINNs)](https://arxiv.org/abs/2111.02801) — DeepXDE's example reproduces this problem. Sec. 3.2.2, with 40–50 residual points against 320 here, so not compared.
+*Source paper:* [Yu, Lu, Meng & Karniadakis (2022), CMAME 393 (gPINNs)](https://arxiv.org/abs/2111.02801) — DeepXDE's example follows the equation and conditions studied there, with its own numerical settings. Sec. 3.2.2, with 40–50 residual points against 320 here, so not compared.
 
 <details>
 <summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
@@ -2794,7 +2802,7 @@ $$\Large \frac{\partial v}{\partial t} - 0.5\frac{\partial^2 u}{\partial x^2} - 
 
 $$\Large \frac{\partial u}{\partial t} + c\frac{\partial^2 v}{\partial x^2} + (u^2 + v^2) v = 0, \qquad \frac{\partial v}{\partial t} - c\frac{\partial^2 u}{\partial x^2} - (u^2 + v^2) u = 0$$
 
-*Source paper:* [Raissi, Perdikaris & Karniadakis (2019), J. Comput. Phys. 378](https://doi.org/10.1016/j.jcp.2018.10.045) — DeepXDE's example reproduces this problem.
+*Source paper:* [Raissi, Perdikaris & Karniadakis (2019), J. Comput. Phys. 378](https://doi.org/10.1016/j.jcp.2018.10.045) — DeepXDE's example follows the equation and conditions studied there, with its own numerical settings.
 
 <details>
 <summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
@@ -2899,7 +2907,7 @@ $$\Large \frac{\partial^2 u}{\partial t^2} = C^2\frac{\partial^2 u}{\partial x^2
 
 Collocation points are redrawn every iteration from a pseudo-random distribution. DeepXDE's script keeps the default Hammersley distribution, which is deterministic, so its resampler redraws the same 360 points: run that way, the network fits them (training loss 4 × 10⁻⁵) but not the wave in between (test loss near 1, $L_2$ ≈ 1 for t > 0). With 10,000 iterations the problem remains difficult: the error grows with t, and longer training reduces it.
 
-*Source paper:* [Wang, Wang & Perdikaris (2021), CMAME 384, Sec. 4.3](https://arxiv.org/abs/2012.10047) — DeepXDE's example reproduces this problem.
+*Source paper:* [Wang, Wang & Perdikaris (2021), CMAME 384, Sec. 4.3](https://arxiv.org/abs/2012.10047) — DeepXDE's example follows the equation and conditions studied there, with its own numerical settings.
 
 <details>
 <summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
@@ -3108,7 +3116,7 @@ $$\Large \frac{\partial C_A}{\partial t} = D\frac{\partial^2 C_A}{\partial x^2} 
 - **Unknowns:** $k_f$ (true 0.1) and $D$ (true $2\times 10^{-3}$, written as $10^{-3}D$ with $D = 2$)
 - **Data:** $C_A$ and $C_B$ on a space-time grid, computed by `tools/make_deepxde_reference_data.py`
 
-*Source paper:* [Lu, Meng, Mao & Karniadakis (2021), SIAM Rev. 63 (DeepXDE)](https://arxiv.org/abs/1907.04502) — DeepXDE's example reproduces this problem.
+*Source paper:* [Lu, Meng, Mao & Karniadakis (2021), SIAM Rev. 63 (DeepXDE)](https://arxiv.org/abs/1907.04502) — DeepXDE's example follows the equation and conditions studied there, with its own numerical settings.
 
 <details>
 <summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
@@ -3207,7 +3215,7 @@ $$\Large -\nabla^2 u - k_0^2 u = k_0^2\sin(k_0 x)\sin(k_0 y), \qquad k_0 = 4\pi,
 - **Exact solution:** $u = \sin(k_0 x)\sin(k_0 y)$
 - **Constants:** `n = 2`, `k0 = 2*pi*n`
 
-*Source paper:* [Escapil-Inchauspé & Ruz (2023), Neurocomputing 561](https://arxiv.org/abs/2205.06704) — DeepXDE's example reproduces this problem.
+*Source paper:* [Escapil-Inchauspé & Ruz (2023), Neurocomputing 561](https://arxiv.org/abs/2205.06704) — DeepXDE's example follows the equation and conditions studied there, with its own numerical settings.
 
 <details>
 <summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
@@ -3306,7 +3314,7 @@ $$\Large -\nabla^2 u - k_0^2 u = k_0^2\sin(k_0 x)\sin(k_0 y), \qquad k_0 = 4\pi,
 - **Parameter Sweep, mode Bayesian search:** learning rate $10^{-4}$ to $5\times10^{-2}$ (log), hidden layers 1–10, neurons per layer 5–500, activation sin / sigmoid / tanh
 - **Constants:** `n = 2`, `k0 = 2*pi*n`
 
-*Source paper:* [Escapil-Inchauspé & Ruz (2023), Neurocomputing 561](https://arxiv.org/abs/2205.06704) — DeepXDE's example reproduces this problem.
+*Source paper:* [Escapil-Inchauspé & Ruz (2023), Neurocomputing 561](https://arxiv.org/abs/2205.06704) — DeepXDE's example follows the equation and conditions studied there, with its own numerical settings.
 
 <details>
 <summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
@@ -3532,7 +3540,7 @@ $$\Large \sigma_{xx} = (\lambda + 2\mu)\varepsilon_{xx} + \lambda\varepsilon_{yy
 - **Exact solution:** $u_x = \cos(2\pi x)\sin(\pi y)$, $u_y = \sin(\pi x)\ Qy^4/4$
 - **Constants:** `lmbd = 1`, `mu = 0.5`, `Q = 4`
 
-*Source paper:* [Haghighat, Raissi, Moure, Gomez & Juanes (2021), CMAME 379](https://arxiv.org/abs/2003.02751) — DeepXDE's example reproduces this problem. The same plate, also used there to identify λ and μ; the paper shows the convergence as figures, without error values.
+*Source paper:* [Haghighat, Raissi, Moure, Gomez & Juanes (2021), CMAME 379](https://arxiv.org/abs/2003.02751) — DeepXDE's example follows the equation and conditions studied there, with its own numerical settings. The same plate, also used there to identify λ and μ; the paper shows the convergence as figures, without error values.
 
 <details>
 <summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
@@ -3696,7 +3704,7 @@ $$\Large \frac{\partial \sigma_{xx}}{\partial x} + \frac{\partial \sigma_{xy}}{\
 - **Boundary conditions as rows** (DeepXDE's `BC_type = \"soft\"`): $u_x = 0$ at top and bottom; $u_y = 0$ at left, bottom and right; $\sigma_{xx} = 0$ at left and right; $\sigma_{yy} = (\lambda + 2\mu)Q\sin(\pi x)$ at the top
 - **Constants:** `lmbd = 1`, `mu = 0.5`, `Q = 4`
 
-*Source paper:* [Haghighat, Raissi, Moure, Gomez & Juanes (2021), CMAME 379](https://arxiv.org/abs/2003.02751) — DeepXDE's example reproduces this problem. The same plate, solved there as an inverse problem with five networks; the paper shows the convergence as figures, without error values.
+*Source paper:* [Haghighat, Raissi, Moure, Gomez & Juanes (2021), CMAME 379](https://arxiv.org/abs/2003.02751) — DeepXDE's example follows the equation and conditions studied there, with its own numerical settings. The same plate, solved there as an inverse problem with five networks; the paper shows the convergence as figures, without error values.
 
 <details>
 <summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
@@ -3761,7 +3769,7 @@ $$\Large (\mathbf u\cdot\nabla)\mathbf u + \nabla p = \frac{1}{Re}\nabla^2\mathb
 - **Exact solution:** $u = 1 - e^{\lambda x}\cos(2\pi y)$, $v = \frac{\lambda}{2\pi}e^{\lambda x}\sin(2\pi y)$, $p = \frac{1}{2}(1 - e^{2\lambda x})$, $\lambda = \frac{Re}{2} - \sqrt{\frac{Re^2}{4} + 4\pi^2}$
 - **Constants:** `Re = 20`, `nu = 1/Re`, `l = 1/(2*nu) - sqrt(1/(4*nu**2) + 4*pi**2)`
 
-*Source paper:* [Jin, Cai, Li & Karniadakis (2021), J. Comput. Phys. 426 (NSFnets)](https://arxiv.org/abs/2003.06496) — DeepXDE's example reproduces this problem. NSFnets solve it at Re = 40 and DeepXDE's example uses Re = 20, so their errors are not compared.
+*Source paper:* [Jin, Cai, Li & Karniadakis (2021), J. Comput. Phys. 426, 109951 (NSFnets)](https://doi.org/10.1016/j.jcp.2020.109951) — studies a related problem. NSFnets solve it at Re = 40 and DeepXDE's example uses Re = 20, so their errors are not compared.
 
 <details>
 <summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
@@ -3959,7 +3967,7 @@ $$\Large -\nabla^2 u = f, \qquad \Omega = [-1, 1]^2 \setminus [0, 1]\times[-1, 0
 
 *Inverse mode* — the source term $f$ learned from $u$ measured at 300 points (initial guess 0.1, true 1).
 
-*Source paper:* [Lu, Meng, Mao & Karniadakis (2021), SIAM Rev. 63 (DeepXDE)](https://arxiv.org/abs/1907.04502) — DeepXDE's example reproduces this problem. Sec. 4.1; reported as a plot only.
+*Source paper:* [Lu, Meng, Mao & Karniadakis (2021), SIAM Rev. 63 (DeepXDE)](https://arxiv.org/abs/1907.04502) — DeepXDE's example follows the equation and conditions studied there, with its own numerical settings. Sec. 4.1; reported as a plot only.
 
 <details>
 <summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
@@ -5191,7 +5199,7 @@ $$\Large \frac{\partial \mathbf u}{\partial t} + (\mathbf u\cdot\nabla)\mathbf u
 
 - **Exact solution:** e.g. $u = -\left(e^{x}\sin(y + z) + e^{z}\cos(x + y)\right)e^{-t}$
 
-*Source paper:* [Jin, Cai, Li & Karniadakis (2021), J. Comput. Phys. 426 (NSFnets), Table 3](https://arxiv.org/abs/2003.06496) — DeepXDE's example reproduces this problem.
+*Source paper:* [Jin, Cai, Li & Karniadakis (2021), J. Comput. Phys. 426, 109951 (NSFnets), Table 4](https://doi.org/10.1016/j.jcp.2020.109951) — DeepXDE's example follows the equation and conditions studied there, with its own numerical settings.
 
 <details>
 <summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
@@ -5230,10 +5238,10 @@ $$\Large \frac{\partial \mathbf u}{\partial t} + (\mathbf u\cdot\nabla)\mathbf u
 | Training | L₂ | Time (s) |
 |---|---|---|
 | DeepXDE's settings (README) | 1.4 × 10<sup>-3</sup> | – |
-| VP-NSFnet (10 × 100 network), as reported (Jin, Cai, Li & Karniadakis (2021)) | 4.3 × 10<sup>-3</sup> | – |
+| VP-NSFnet (7 × 50 network, 10,000 residual points), as reported (Jin, Cai, Li & Karniadakis (2021)) | 1.6 × 10<sup>-3</sup> | – |
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **1.4 × 10<sup>-3</sup>** | – |
 
-*As reported: at t = 1.*
+*As reported: at t = 1, mean of five runs, with the pressure shifted to the reference mean; the 2020 arXiv preprint gives different values (Table 3 there, u 4.3e-3) for an earlier setup.*
 
 **Inverse problem**
 

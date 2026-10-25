@@ -48,11 +48,12 @@ DEEPXDE_SOURCE = {
         note="over the whole space-time domain, with their adaptive (NTK) loss weights; 1.02 without them, "
              "1.01 for a plain PINN (Table 1)"),
     "Beltrami flow": dict(
-        cite="Jin, Cai, Li & Karniadakis (2021), J. Comput. Phys. 426 (NSFnets), Table 3",
-        url="https://arxiv.org/abs/2003.06496",
-        method="VP-NSFnet (10 × 100 network)",
-        outs={"u": 4.26e-3, "v": 3.66e-3, "w": 5.87e-3, "p": 4.766e-2}, main=4.26e-3,
-        note="at t = 1"),
+        cite="Jin, Cai, Li & Karniadakis (2021), J. Comput. Phys. 426, 109951 (NSFnets), Table 4",
+        url="https://doi.org/10.1016/j.jcp.2020.109951",
+        method="VP-NSFnet (7 × 50 network, 10,000 residual points)",
+        outs={"u": 1.634e-3, "v": 2.185e-3, "w": 1.783e-3, "p": 8.9335e-2}, main=1.634e-3,
+        note="at t = 1, mean of five runs, with the pressure shifted to the reference mean; the 2020 arXiv preprint gives "
+             "different values (Table 3 there, u 4.3e-3) for an earlier setup"),
     "Linear elastostatic plate": dict(
         cite="Haghighat, Raissi, Moure, Gomez & Juanes (2021), CMAME 379",
         url="https://arxiv.org/abs/2003.02751",
@@ -85,8 +86,8 @@ DEEPXDE_SOURCE = {
         cite="Escapil-Inchauspé & Ruz (2023), Neurocomputing 561", url="https://arxiv.org/abs/2205.06704",
         method="their best hyper-parameter configuration", outs=None, main=1.19e-4, note="relative L2 test error"),
     "Kovasznay flow": dict(
-        cite="Jin, Cai, Li & Karniadakis (2021), J. Comput. Phys. 426 (NSFnets)", url="https://arxiv.org/abs/2003.06496",
-        outs=None, main=None, note="NSFnets solve it at Re = 40 and DeepXDE's example uses Re = 20, so their errors are not compared"),
+        cite="Jin, Cai, Li & Karniadakis (2021), J. Comput. Phys. 426, 109951 (NSFnets)", url="https://doi.org/10.1016/j.jcp.2020.109951",
+        outs=None, main=None, related=True, note="NSFnets solve it at Re = 40 and DeepXDE's example uses Re = 20, so their errors are not compared"),
     "Burgers equation with RAR": dict(cite="Lu, Meng, Mao & Karniadakis (2021), SIAM Rev. 63 (DeepXDE)", url="https://arxiv.org/abs/1907.04502", outs=None, main=None, note="Sec. 4.2; reported as a plot only"),
     "Poisson over an L-shaped domain": dict(cite="Lu, Meng, Mao & Karniadakis (2021), SIAM Rev. 63 (DeepXDE)", url="https://arxiv.org/abs/1907.04502", outs=None, main=None, note="Sec. 4.1; reported as a plot only"),
     "Fractional Poisson equation 1D": dict(
@@ -476,6 +477,11 @@ def build(summ, papers, spacetime, readme):
             ip = _pick(inv, True)
             rec.update(i_ref=inv["base"], i_ref_par=base_par, i_best=ip["tuned"], i_best_par=mtp._found(ip),
                        i_s=ip, i_src="study", i_variant=ip["chosen"])
+            if e.key in FIELD_OUT:
+                fo, sym = FIELD_OUT[e.key]
+                fb = _outs(ip["variants"][ip["chosen"]], ip["chosen"]).get(fo)
+                fr = _outs(ip["variants"].get("base", []), "base").get(fo)
+                rec["i_field"] = (sym, fb, fr) if fb is not None else None
         elif rd.get("i") is not None or rd.get("params") or (inv_example and rd.get("f") is not None):
             par = [tuple(p) for p in rd.get("params", [])]
             iv = rd.get("i") if rd.get("i") is not None else (rd.get("f") if inv_example else None)
@@ -510,6 +516,39 @@ def build(summ, papers, spacetime, readme):
                 rec["f_best"] = pr[win[2]]["l2"]
         out.append(rec)
     return out
+
+
+# inverse examples whose unknown is a function, not a number: the output that holds it, and its symbol.
+# The figure shows that field's relative L2 error (in %) where the others show a parameter error.
+FIELD_OUT = {"Inverse: Poisson with unknown forcing field": ("q", "q(x)"),
+             "Inverse: Poisson with unknown forcing field (batches)": ("q", "q(x)"),
+             "Inverse: diffusion-reaction with space-dependent rate": ("k", "k(x)")}
+
+
+def _stats(recs):
+    """Summary numbers for the text: forward errors and the gain of tuning over the starting settings
+    (where there is an outside starting point), and the inverse parameter errors."""
+    fwd = [r for r in recs if r.get("f_best") is not None]
+    start = [r for r in fwd if r.get("f_ref") is not None and (r["deepxde"] or (r["paper"] and r["paper_runs"]))]
+    gain = [r["f_ref"] / r["f_best"] for r in start if r["f_best"] > 0]
+    better = [g for g in gain if g > SAME]
+    perr = [_perr(r.get("i_best_par")) for r in recs if r.get("i_best_par")]
+    perr = [x for x in perr if x is not None]
+    med = lambda xs: statistics.median(xs) if xs else None
+    return dict(n=len(recs), n_fwd=len(fwd), med_fwd=med([r["f_best"] for r in fwd]),
+                below_1e2=sum(r["f_best"] < 1e-2 for r in fwd), below_1e3=sum(r["f_best"] < 1e-3 for r in fwd),
+                n_start=len(start), n_better=len(better), med_gain=med(better), med_gain_all=med(gain),
+                n_inv=len(perr), med_perr=med(perr), below_1pct=sum(x < 0.01 for x in perr))
+
+
+def _stats_md(recs, title):
+    t = _stats(recs)
+    return (f"**{title}.** {t['n_fwd']} forward problems: median relative L₂ error {sci(t['med_fwd'])} with the "
+            f"tuned settings, {t['below_1e2']} below 10⁻² and {t['below_1e3']} below 10⁻³. Of the {t['n_start']} "
+            f"with an outside starting point (DeepXDE's example or the paper's method), tuning lowered the error "
+            f"by more than 25% in {t['n_better']}, by a median factor of {t['med_gain']:.1f} in those "
+            f"(median over all {t['n_start']}: {t['med_gain_all']:.1f}). {t['n_inv']} inverse problems with "
+            f"scalar parameters: median worst parameter error {_pct(t['med_perr'])}, {t['below_1pct']} below 1%.\n\n")
 
 
 PAPER_SIZE = (6.5, 7.5)   # inches: the paper figure's printed size
@@ -552,7 +591,8 @@ def figure(recs, path, stars=False, paper=False):
             rep = [src["main"]]
         rows.append(dict(label=PAPER_SHORT.get(e.name, e.name) if paper else e.name, group=r["group"], f_ref=ref_f, f_best=r["f_best"],
                          i_ref=r.get("i_ref") if ext_inv else None, i_best=r.get("i_best"),
-                         p_ref=_perr(r.get("i_ref_par")) if ext_inv else None, params=par_best, reported=min(rep) if rep else None))
+                         p_ref=_perr(r.get("i_ref_par")) if ext_inv else None, params=par_best, reported=min(rep) if rep else None,
+                         field=(r["i_field"][:2] + ((r["i_field"][2] if ext_inv else None),)) if r.get("i_field") else None))
     # paper: drawn at its printed size (6.5 x 7.5 in, a Word page with 1 in margins and room for a caption)
     F = dict(name=8.5, head=8.8, tick=8.0, axis=9.0, legend=9.0, sym=8.0, ms=1.35) if paper else \
         dict(name=7.2, head=7.6, tick=7.2, axis=8.0, legend=7.2, sym=6.6, ms=1.0)
@@ -600,6 +640,11 @@ def figure(recs, path, stars=False, paper=False):
         if stars and r["reported"]:
             ax.scatter(r["reported"], y, s=46 * F["ms"], marker="*", color="#f59f00", edgecolor="white", lw=0.4, zorder=4)
         es = [(s, max(abs(f - t) / abs(t) * 100, P_FLOOR)) for s, f, t in r["params"] if t]
+        if not es and r["field"]:
+            sym, fb, fr = r["field"]
+            pair(bx, 100 * fr if fr else None, 100 * fb, y, "D", mtp.C_INVERSE, 20 * F["ms"])
+            bx.text(100 * fb * (3.0 if paper else 2.2), y, f"${sym}$", va="center", ha="left",
+                    fontsize=F["sym"], color=mtp.C_TEXT)
         if es:
             right = max(e for _, e in es)
             o = max(100 * r["p_ref"], P_FLOOR) if r["p_ref"] is not None else None
@@ -618,7 +663,7 @@ def figure(recs, path, stars=False, paper=False):
     bx.set_xticks([1e-3, 1e-1, 10], ["0.001", "0.1", "10"])
     ax.set_xlabel("Forward problems\nrelative $L_2$ error, last reference time" if paper else
                   "Relative $L_2$ error of the main output at the last reference time", fontsize=F["axis"])
-    bx.set_xlabel("Inverse problems\nparameter error (%)" if paper else "Parameter error (%)", fontsize=F["axis"])
+    bx.set_xlabel("Inverse problems\nparameter or field error (%)" if paper else "Parameter (or unknown field) error (%)", fontsize=F["axis"])
     for axx in (ax, bx):
         axx.grid(axis="x", color=mtp.C_GRID, lw=0.6, zorder=0)
         axx.set_axisbelow(True)
@@ -627,8 +672,8 @@ def figure(recs, path, stars=False, paper=False):
         axx.tick_params(axis="y", length=0)
         axx.tick_params(axis="x", labelsize=F["tick"])
     from matplotlib.legend_handler import HandlerTuple
-    lab = (["PINNStudio best", "DeepXDE / paper's method", "Both the same", "Paper's reported error"] if paper else
-           ["PINNStudio best (forward, inverse)", "DeepXDE's settings / the paper's method",
+    lab = (["PINNStudio, tuned", "Starting settings", "Both the same", "Paper's reported error"] if paper else
+           ["PINNStudio, tuned (forward, inverse)", "Starting settings: DeepXDE's example / the paper's method",
             "Both the same (no tuning needed)", "Reported in the paper"])
     mk = lambda m, c, ms, **k: Line2D([], [], ls="", marker=m, markersize=ms, **k)
     h = [(mk("o", 0, 5, color=mtp.C_FORWARD), mk("D", 0, 4.5, color=mtp.C_INVERSE)),
@@ -648,7 +693,8 @@ def figure(recs, path, stars=False, paper=False):
              _Over((mk("o", 0, 9, markerfacecolor="none", markeredgecolor=mtp.C_FORWARD, markeredgewidth=0.9),
                     mk("o", 0, 5, color=mtp.C_FORWARD))),
              mk("D", 0, 5.4, color=mtp.C_INVERSE)] + h[3:]
-        lab = ["PINNStudio best", "DeepXDE / paper's method", "Both the same", "Inverse: parameter error", lab[3]]
+        lab = ["PINNStudio, tuned", "Starting settings", "Both the same",
+               "Inverse: parameter or field error", lab[3]]
     lab = lab[:len(h)]
     hm = {tuple: HandlerTuple(ndivide=None, pad=0.6), _Over: HandlerTuple(ndivide=1)}
     os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -661,7 +707,7 @@ def figure(recs, path, stars=False, paper=False):
         plt.close(fig)
         return
     # exact printed size: margins from the measured labels, no bbox cropping
-    leg = fig.legend(h, lab, handler_map=hm, loc="upper center", ncol=3, frameon=False, fontsize=F["legend"],
+    leg = fig.legend(h, lab, handler_map=hm, loc="upper center", ncol=2, frameon=False, fontsize=F["legend"],
                      handlelength=1.2, handletextpad=0.4, columnspacing=1.6, bbox_to_anchor=(0.5, 1.0))
     fig.subplots_adjust(left=0.3, right=0.98, top=0.95, bottom=0.07)
     rd = fig.canvas.get_renderer()
@@ -963,7 +1009,9 @@ def _section(r):
         src = DEEPXDE_SOURCE.get(e.key) if r["deepxde"] else None
         if src:
             extra = "" if (src.get("outs") or src.get("main") or src.get("par_text")) else f" {src['note'][0].upper()}{src['note'][1:]}."
-            a(f"*Source paper:* [{src['cite']}]({src['url']}) — DeepXDE's example reproduces this problem.{extra}\n")
+            how = ("studies a related problem." if src.get("related") else
+                   "DeepXDE's example follows the equation and conditions studied there, with its own numerical settings.")
+            a(f"*Source paper:* [{src['cite']}]({src['url']}) — {how}{extra}\n")
     try:
         a(_settings_toggles(r))
     except Exception as ex:
@@ -1176,11 +1224,11 @@ $$\\frac{{\\partial h}}{{\\partial t}} = c_1^2\\nabla^2 h - c_2\\left(h^3 - h\\r
 
 with $h(x, y, 0) = \\sin(4\\pi x)\\cos(4\\pi y)$ and periodic boundaries. PINNStudio: 4 × 128 network on periodic input features, the initial condition built into the output, self-adaptive (SA-PINN) point weights, Adam 20,000 → L-BFGS 10,000 over the whole time interval. $L_2$ = 3.4 × 10⁻⁴ over all reference times; Mattey & Ghosh report 2.5 × 10⁻² for their bc-PINN.
 
-**(c) Navier-Stokes 3D — Beltrami flow** ([DeepXDE example](#bench-navier-stokes-3d-beltrami-flow), after [Jin et al. (2021)](https://arxiv.org/abs/2003.06496))
+**(c) Navier-Stokes 3D — Beltrami flow** ([DeepXDE example](#bench-navier-stokes-3d-beltrami-flow), after [Jin et al. (2021)](https://doi.org/10.1016/j.jcp.2020.109951))
 
 $$\\frac{{\\partial \\mathbf u}}{{\\partial t}} + (\\mathbf u\\cdot\\nabla)\\mathbf u + \\nabla p = \\nabla^2\\mathbf u, \\qquad \\nabla\\cdot\\mathbf u = 0, \\qquad (x, y, z) \\in [-1, 1]^3,\\ t \\in [0, 1]$$
 
-with the exact Beltrami solution, e.g. $u = -\\left(e^{{x}}\\sin(y + z) + e^{{z}}\\cos(x + y)\\right)e^{{-t}}$, on the boundary and at $t = 0$. Four outputs $(u, v, w, p)$ from one network (4 × 50, DeepXDE's settings, already accurate). Shown: $u$ on the three visible faces of the cube at $t = 1$. Over the whole cube at $t = 1$: $L_2$ = 1.4 × 10⁻³ ($u$), 7.3 × 10⁻⁴ ($v$), 1.2 × 10⁻³ ($w$) and 2.4 × 10⁻² ($p$, which is fixed only up to a constant, so compared after removing the mean). The problem is the Beltrami test of NSFnets (Jin et al., 2021), who report 4.3 × 10⁻³ ($u$), 3.7 × 10⁻³ ($v$), 5.9 × 10⁻³ ($w$) and 4.8 × 10⁻² ($p$) at $t = 1$ with a 10 × 100 network, 2–5 times PINNStudio's errors with a 4 × 50 network.
+with the exact Beltrami solution, e.g. $u = -\\left(e^{{x}}\\sin(y + z) + e^{{z}}\\cos(x + y)\\right)e^{{-t}}$, on the boundary and at $t = 0$. Four outputs $(u, v, w, p)$ from one network (4 × 50, DeepXDE's settings, already accurate). Shown: $u$ on the three visible faces of the cube at $t = 1$. Over the whole cube at $t = 1$: $L_2$ = 1.4 × 10⁻³ ($u$), 7.3 × 10⁻⁴ ($v$), 1.2 × 10⁻³ ($w$) and 2.4 × 10⁻² ($p$, which is fixed only up to a constant, so compared after removing the mean). The problem is the Beltrami test of NSFnets (Jin et al., 2021), who report 1.6 × 10⁻³ ($u$), 2.2 × 10⁻³ ($v$), 1.8 × 10⁻³ ($w$) and 8.9 × 10⁻² ($p$) at $t = 1$ for their VP-NSFnet with a 7 × 50 network (mean of five runs, Table 4). PINNStudio's single run with a 4 × 50 network is of the same order for $u$ and $w$ and lower for $v$ and $p$.
 
 ![Forward examples: Wave 1D, Allen-Cahn 2D, Navier-Stokes 3D — PINNStudio, reference and error](figures/paper_forward.png{_ver(PAPER_FWD)})
 
@@ -1332,6 +1380,8 @@ def page(recs):
       + _results_table(recs) + "\n</details>\n")
     names = _paper_names()
     if names:
+        by_name = {r["entry"].name: r for r in recs}
+        paper_recs = [by_name[n] for n in names if n in by_name]
         a("<details>\n<summary>📄 <em>Figure for the paper — " + f"{len(names)} examples" + "</em></summary>\n\n"
           "**Why these examples.** The full figure has 63 examples, which is too many for one page in a paper, "
           "so this one keeps one example of each kind of problem. They go from ODEs to 1D, 2D and 3D, and in each "
@@ -1344,22 +1394,31 @@ def page(recs):
           "integro-differential ODE, Poisson 1D, Cahn-Hilliard 1D, Black-Scholes), and Lorenz, the unknown "
           "forcing field and the fractional order α are inverse problems only. The set mixes DeepXDE's examples "
           "with templates taken from papers (Raissi et al.; Wight & Zhao; Mattey & Ghosh; Mathias et al.). The "
-          "left panel shows the forward problems only: PINNStudio's best and DeepXDE's settings or the paper's "
-          "method. Inverse problems are judged by their parameter error (right panel), not by their L₂, because an "
+          "left panel shows the forward problems only: PINNStudio's tuned settings and the starting settings (DeepXDE's "
+          "example, or the paper's method run in PINNStudio). Templates with no outside starting point have a filled "
+          "point only. Inverse problems are judged by their parameter error (right panel), not by their L₂, because an "
           "inverse run trains on measured values of the solution (in most examples at every reference time), so "
-          "its L₂ is largely a fit to that data rather than a prediction (it is still in the tables, as \"L₂ fit to measured data\"). For "
-          "the paper templates, the ⭐ is the error the paper itself reports, where it gives one (Burgers 1D, Allen-Cahn 1D, Cahn-Hilliard 1D, Allen-Cahn 2D of "
-          "Mattey & Ghosh). Note that the papers report one error over all times, while the x-axis is the error "
-          "at the last reference time, so the ⭐ is a guide rather than an exact like-for-like point; the "
-          "all-times errors are in the tables below.\n\n"
+          "its L₂ is largely a fit to that data rather than a prediction (it is still in the tables, as \"L₂ fit to measured data\"). "
+          "The unknown forcing field is a function, not a number, so its row shows the relative L₂ error of the "
+          "recovered field $q(x)$ instead.\n\n"
+          "**No reported errors in this figure.** The errors the original papers report are left out here: they come "
+          "from other networks, point counts and training, and some are over all times while this axis is the last "
+          "reference time, so next to PINNStudio's points they would read as like-for-like when they are not. They "
+          "stay in the tables of each example (\"as reported\" rows, with the source and its setup) and in the full figure.\n\n"
+          + _stats_md(paper_recs, "In numbers (these 25)") + _stats_md(recs, f"All {len(recs)} examples") +
+          "**How \"tuned\" was chosen.** The tuned settings are the run with the lowest error against the reference "
+          "(the fastest one where several are within 25% of it), from the recorded tuning study. They are shipped as "
+          "the *Tuned* presets, so each point can be reloaded and run again.\n\n"
           "**For Word.** The figure is drawn at its printed size, 6.5 × 7.5 in (the text width of a Word page "
           "with 1 in margins), with 8.5–9 pt text, so insert it at 100% and it leaves about 1.5 in for the caption "
           "on the same page. The PDF keeps it sharp at any zoom. A caption to start from:\n\n"
-          "> *PINNStudio on 25 representative problems, from ODEs to 3D PDEs. Left: relative L₂ error of the "
-          "forward problems with PINNStudio's best settings (filled) and with DeepXDE's settings or, for templates "
-          "taken from a paper, that paper's method run in PINNStudio (open; a ring where the two are the same). "
-          "Stars mark the error reported in the original paper. Right: the relative error of each parameter "
-          "identified in the inverse problems, labelled with its symbol.*\n\n"
+          "> *PINNStudio on 25 representative forward and inverse problems, from ODEs to 3D PDEs. Left: relative "
+          "L₂ error of the main output of each forward problem at its last reference time, with the starting "
+          "settings (open circles: the DeepXDE example, or the original paper's method run in PINNStudio) and the "
+          "settings selected in the PINNStudio tuning study (filled circles); a ring marks cases where the starting "
+          "settings were kept. Right: relative error (%) of each parameter identified in the inverse problems, "
+          "labelled with its symbol, and of the recovered field for the unknown-forcing problem. Full results, "
+          "settings and the sources of the benchmark problems are in the software repository.*\n\n"
           "*The list: [`paper_figure_examples.txt`](paper_figure_examples.txt) (one name per line; change a line "
           "to swap an example). PDF: [`figures/paper_figure.pdf`](figures/paper_figure.pdf).*\n\n"
           f"![The paper's figure: 25 examples, forward and inverse](figures/paper_figure.png{_ver(PAPER_FIG)})\n\n"
@@ -1445,7 +1504,7 @@ def main():
         missing = [n for n in names if n not in by]
         if missing:
             print("paper figure: not in the catalogue:", missing)
-        figure([by[n] for n in names if n in by], PAPER_FIG, stars=True, paper=True)
+        figure([by[n] for n in names if n in by], PAPER_FIG, stars=False, paper=True)
     with open(PAGE, "w", encoding="utf-8") as f:
         f.write(page(recs))
     # the runs whose figures the page shows, for the figure collection on the GPU machine
