@@ -68,6 +68,11 @@
   }
  },
  "1D Allen-Cahn (whole interval)": {
+  "forward": {
+   "switches": null,
+   "variant": "net",
+   "error": "L2 6.3e-04 vs 1.4e-03 with its own settings"
+  },
   "inverse": {
    "switches": null,
    "variant": "times",
@@ -246,6 +251,11 @@
   }
  },
  "2D Cahn-Hilliard (Mattey & Ghosh)": {
+  "forward": {
+   "switches": null,
+   "variant": "iters",
+   "error": "L2 1.1e-03 vs 2.0e-03 with its own settings"
+  },
   "inverse": {
    "switches": null,
    "variant": "times",
@@ -262,6 +272,13 @@
    "switches": null,
    "variant": "invall",
    "error": "parameter error 0.55%"
+  }
+ },
+ "3D Allen-Cahn (Wight & Zhao)": {
+  "forward": {
+   "switches": null,
+   "variant": "net",
+   "error": "L2 1.9e-04 vs 2.7e-04 with its own settings"
   }
  },
  "Beltrami flow": {

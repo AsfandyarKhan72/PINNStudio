@@ -4,7 +4,7 @@
 
 DeepXDE's examples are written to show how the library is used, so many train briefly, on a small network or with Adam only. This study asks how far ordinary tuning in PINNStudio takes them: each example is run with its own settings and with the same five changes, and the change that trains best is reported next to the example's own result. It complements the [training methods study](training_methods.md), which tests specialised methods (causal training, per-point weights, time windows) on the hardest problems.
 
-So far 51 problems are included, chosen as the ones with the largest errors in the [README results](../README.md). 33 of them improve by 1.5× or more; the median improvement is 2×.
+So far 55 problems are included, chosen as the ones with the largest errors in the [README results](../README.md). 34 of them improve by 1.5× or more; the median improvement is 2×.
 
 ## How it is done
 
@@ -67,12 +67,14 @@ The figure has the layout of the paper's Fig. 4 and lists every example of PINNS
 | [Poisson 1D – unknown forcing field](#tune-poisson-1d-unknown-forcing-field) | 5.4 × 10<sup>-4</sup> | 2.1 × 10<sup>-4</sup> | 3× | all | – | 66 → 221 |
 | [Navier-Stokes 2D – Kovasznay flow, inverse mode](#tune-navier-stokes-2d-kovasznay-flow-inverse-mode) | 9.1 × 10<sup>-5</sup> | 3.7 × 10<sup>-5</sup> | 2× | all | 0.013% → 0.009% | 220 → 956 |
 | [Cahn-Hilliard 2D – Mattey & Ghosh (PINNStudio template), inverse mode](#tune-cahn-hilliard-2d-mattey-ghosh-pinnstudio-template-inverse-mode) | 1.4 × 10<sup>-2</sup> | 5.9 × 10<sup>-3</sup> | 2× | times | 5.2% → 0.96% | 1741 → 5306 |
+| [Cahn-Hilliard 2D – Mattey & Ghosh (PINNStudio template)](#tune-cahn-hilliard-2d-mattey-ghosh-pinnstudio-template) | 2.0 × 10<sup>-3</sup> | 8.5 × 10<sup>-4</sup> | 2× | net | – | 954 → 2301 |
 | [Fractional Poisson 1D](#tune-fractional-poisson-1d) | 2.3 × 10<sup>-2</sup> | 1.2 × 10<sup>-2</sup> | 2× | all | – | 20 → 57 |
 | [Brinkman-Forchheimer 1D – unknown ν_e, K](#tune-brinkman-forchheimer-1d-unknown-e-k) | 2.0 × 10<sup>-2</sup> | 1.2 × 10<sup>-2</sup> | 2× | all | 28% → 18% | 74 → 237 |
 | [Linear ODE system, inverse mode](#tune-linear-ode-system-inverse-mode) | 3.3 × 10<sup>-4</sup> | 2.0 × 10<sup>-4</sup> | 2× | all | 0.022% → 0.0088% | 48 → 135 |
 | [Navier-Stokes 3D – Beltrami flow, inverse mode](#tune-navier-stokes-3d-beltrami-flow-inverse-mode) | 3.5 × 10<sup>-4</sup> | 2.2 × 10<sup>-4</sup> | 2× | net | 0.22% → 0.2% | 2514 → 6315 |
 | [Poisson 2D – disk (PINNStudio template), inverse mode](#tune-poisson-2d-disk-pinnstudio-template-inverse-mode) | 5.4 × 10<sup>-4</sup> | 3.4 × 10<sup>-4</sup> | 2× | invall | 0.002% → 0.006% | 157 → 173 |
 | [Poisson 2D – L-shape](#tune-poisson-2d-l-shape) | 3.5 × 10<sup>-2</sup> | 2.3 × 10<sup>-2</sup> | 2× | net | – | 174 → 182 |
+| [Allen-Cahn 1D – Wight & Zhao (PINNStudio template)](#tune-allen-cahn-1d-wight-zhao-pinnstudio-template) | 1.4 × 10<sup>-3</sup> | 9.4 × 10<sup>-4</sup> | none | all | – | 200 → 2938 |
 | [Wave 1D – space-time multi-scale Fourier features, inverse mode](#tune-wave-1d-space-time-multi-scale-fourier-features-inverse-mode) | 5.5 × 10<sup>-5</sup> | 3.8 × 10<sup>-5</sup> | none | all | 0.0001% → 0% | 303 → 4354 |
 | [Diffusion-reaction 1D – unknown rate field](#tune-diffusion-reaction-1d-unknown-rate-field) | 4.0 × 10<sup>-2</sup> | 2.8 × 10<sup>-2</sup> | none | all | – | 49 → 178 |
 | [Burgers 2D – Mathias et al. (PINNStudio template)](#tune-burgers-2d-mathias-et-al-pinnstudio-template) | 1.1 × 10<sup>-2</sup> | 8.4 × 10<sup>-3</sup> | none | iters | – | 1662 → 3684 |
@@ -87,6 +89,8 @@ The figure has the layout of the paper's Fig. 4 and lists every example of PINNS
 | [Allen-Cahn 2D – Wight & Zhao (PINNStudio template) (best setup)](#tune-allen-cahn-2d-wight-zhao-pinnstudio-template-best-setup) | 1.6 × 10<sup>-3</sup> | 1.6 × 10<sup>-3</sup> | none | base | – | 1596 → 1596 |
 | [Lotka-Volterra ODE, inverse mode](#tune-lotka-volterra-ode-inverse-mode) | 1.5 × 10<sup>-5</sup> | 1.5 × 10<sup>-5</sup> | none | base | 0.0005% → 0.0005% | 230 → 230 |
 | [Linear elasticity 2D – plate, inverse mode](#tune-linear-elasticity-2d-plate-inverse-mode) | 1.9 × 10<sup>-3</sup> | 1.9 × 10<sup>-3</sup> | none | base | 0.026% → 0.026% | 546 → 546 |
+| [Allen-Cahn 3D – Wight & Zhao (PINNStudio template)](#tune-allen-cahn-3d-wight-zhao-pinnstudio-template) | 2.7 × 10<sup>-4</sup> | 2.8 × 10<sup>-4</sup> | none | iters | – | 957 → 1626 |
+| [Cahn-Hilliard 1D – Wight & Zhao (PINNStudio template)](#tune-cahn-hilliard-1d-wight-zhao-pinnstudio-template) | 6.0 × 10<sup>-4</sup> | 8.9 × 10<sup>-4</sup> | none | net | – | 380 → 719 |
 | [Cahn-Hilliard 2D – Wight & Zhao (PINNStudio template), inverse mode](#tune-cahn-hilliard-2d-wight-zhao-pinnstudio-template-inverse-mode) | 6.9 × 10<sup>-5</sup> | 1.1 × 10<sup>-4</sup> | worse (2× higher) | times | 0.42% → 0.39% | 3736 → 10691 |
 | [Allen-Cahn 2D – Mattey & Ghosh (PINNStudio template) (best setup)](#tune-allen-cahn-2d-mattey-ghosh-pinnstudio-template-best-setup) | 3.6 × 10<sup>-4</sup> | 5.9 × 10<sup>-4</sup> | worse (2× higher) | net | – | 266 → 464 |
 | [Allen-Cahn 2D – Wight & Zhao (PINNStudio template)](#tune-allen-cahn-2d-wight-zhao-pinnstudio-template) | 7.9 × 10<sup>-3</sup> | 9.3 × 10<sup>-2</sup> | worse (12× higher) | iters | – | 1780 → 3710 |
@@ -1074,6 +1078,25 @@ Tuned settings: [`Cahn-Hilliard 2D – Mattey & Ghosh (PINNStudio template), inv
 
 </details>
 
+<details id="tune-cahn-hilliard-2d-mattey-ghosh-pinnstudio-template">
+<summary><strong>Cahn-Hilliard 2D – Mattey & Ghosh (PINNStudio template)</strong></summary>
+
+**Own settings:** network [3, 128, 128, 128, 128, 2], Adam 20,000 → L-BFGS 20,000, 20,000 domain / 800 boundary / 1,024 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 5.90e-03 | 2.0 × 10<sup>-3</sup> | – | 954 |
+| iters | 1.67e-02 | 1.1 × 10<sup>-3</sup> | – | 1964 |
+| **net** | 7.24e-04 | 8.5 × 10<sup>-4</sup> | – | 2301 |
+
+**Chosen: net** (hidden layers twice as wide (at most 512) and one layer more): network [3, 256, 256, 256, 256, 256, 2], Adam 20,000 → L-BFGS 20,000, 20,000 / 800 / 1,024 points.
+
+Over seeds: own settings 2.0 × 10<sup>-3</sup> (1 seeds), tuned 8.5 × 10<sup>-4</sup> (1 seeds).
+
+Tuned settings: [`Cahn-Hilliard 2D – Mattey & Ghosh (PINNStudio template) (tuned).pinn.json`](tuning/Cahn-Hilliard%202D%20–%20Mattey%20&%20Ghosh%20(PINNStudio%20template)%20(tuned).pinn.json)
+
+</details>
+
 <details id="tune-fractional-poisson-1d">
 <summary><strong>Fractional Poisson 1D</strong></summary>
 
@@ -1320,6 +1343,26 @@ Training loss picks the wider network, but all the changes together give the low
 
 
 Tuned settings: [`Poisson 2D – L-shape (tuned).pinn.json`](tuning/Poisson%202D%20–%20L-shape%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-allen-cahn-1d-wight-zhao-pinnstudio-template">
+<summary><strong>Allen-Cahn 1D – Wight & Zhao (PINNStudio template)</strong></summary>
+
+**Own settings:** network [2, 128, 128, 128, 128, 1], Adam 20,000 → L-BFGS 10,000, 10,000 domain / 200 boundary / 512 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 1.06e-06 | 1.4 × 10<sup>-3</sup> | – | 200 |
+| iters | 1.45e-06 | 8.8 × 10<sup>-3</sup> | – | 412 |
+| net | 3.64e-07 | 6.3 × 10<sup>-4</sup> | – | 359 |
+| **all** | 3.48e-07 | 9.4 × 10<sup>-4</sup> | – | 2938 |
+
+**Chosen: all** (all of the changes above together): network [2, 256, 256, 256, 256, 256, 1], Adam 60,000 → L-BFGS 30,000, 30,000 / 600 / 1,536 points.
+
+Over seeds: own settings 1.4 × 10<sup>-3</sup> (1 seeds), tuned 9.4 × 10<sup>-4</sup> (1 seeds).
+
+Tuned settings: [`Allen-Cahn 1D – Wight & Zhao (PINNStudio template) (tuned).pinn.json`](tuning/Allen-Cahn%201D%20–%20Wight%20&%20Zhao%20(PINNStudio%20template)%20(tuned).pinn.json)
 
 </details>
 
@@ -1742,6 +1785,45 @@ Over seeds: own settings 1.9 × 10<sup>-3</sup> (1 seeds), tuned 1.9 × 10<sup>-
 PINNStudio's own inverse mode: the Lamé parameters λ and μ from the displacements on a 19 × 19 grid. The body force is the known load and keeps the true values, so λ and μ are unknown only in the stress-strain law (with them in the body force too, an earlier version ended 24% off). Both are found to within 0.03%.
 
 Tuned settings: [`Linear elasticity 2D – plate, inverse mode (tuned).pinn.json`](tuning/Linear%20elasticity%202D%20–%20plate,%20inverse%20mode%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-allen-cahn-3d-wight-zhao-pinnstudio-template">
+<summary><strong>Allen-Cahn 3D – Wight & Zhao (PINNStudio template)</strong></summary>
+
+**Own settings:** network [4, 128, 128, 128, 128, 1], Adam 20,000 → L-BFGS 20,000, 30,000 domain / 1,500 boundary / 2,000 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 1.43e-04 | 2.7 × 10<sup>-4</sup> | – | 957 |
+| **iters** | 9.18e-05 | 2.8 × 10<sup>-4</sup> | – | 1626 |
+| net | 1.04e-04 | 1.9 × 10<sup>-4</sup> | – | 2678 |
+
+**Chosen: iters** (3× the iterations of every training phase): network [4, 128, 128, 128, 128, 1], Adam 60,000 → L-BFGS 60,000, 30,000 / 1,500 / 2,000 points.
+
+Over seeds: own settings 2.7 × 10<sup>-4</sup> (1 seeds), tuned 2.8 × 10<sup>-4</sup> (1 seeds).
+
+Tuned settings: [`Allen-Cahn 3D – Wight & Zhao (PINNStudio template) (tuned).pinn.json`](tuning/Allen-Cahn%203D%20–%20Wight%20&%20Zhao%20(PINNStudio%20template)%20(tuned).pinn.json)
+
+</details>
+
+<details id="tune-cahn-hilliard-1d-wight-zhao-pinnstudio-template">
+<summary><strong>Cahn-Hilliard 1D – Wight & Zhao (PINNStudio template)</strong></summary>
+
+**Own settings:** network [2, 128, 128, 128, 128, 2], Adam 20,000 → L-BFGS 20,000, 10,000 domain / 200 boundary / 512 initial points.
+
+| Variant | Final training loss | $L_2$ | Parameter error | Time (s) |
+|---|---|---|---|---|
+| base | 2.87e-04 | 6.0 × 10<sup>-4</sup> | – | 380 |
+| iters | 2.64e-03 | 4.5 × 10<sup>-4</sup> | – | 626 |
+| **net** | 1.14e-04 | 8.9 × 10<sup>-4</sup> | – | 719 |
+| all | 1.41e-01 | 1.9 × 10<sup>-1</sup> | – | 4197 |
+
+**Chosen: net** (hidden layers twice as wide (at most 512) and one layer more): network [2, 256, 256, 256, 256, 256, 2], Adam 20,000 → L-BFGS 20,000, 10,000 / 200 / 512 points.
+
+Over seeds: own settings 6.0 × 10<sup>-4</sup> (1 seeds), tuned 8.9 × 10<sup>-4</sup> (1 seeds).
+
+Tuned settings: [`Cahn-Hilliard 1D – Wight & Zhao (PINNStudio template) (tuned).pinn.json`](tuning/Cahn-Hilliard%201D%20–%20Wight%20&%20Zhao%20(PINNStudio%20template)%20(tuned).pinn.json)
 
 </details>
 
