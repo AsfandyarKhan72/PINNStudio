@@ -99,6 +99,13 @@ DEEPXDE_SOURCE = {
     "Inverse: Brinkman-Forchheimer model": dict(cite="Yu, Lu, Meng & Karniadakis (2022), CMAME 393 (gPINNs)", url="https://arxiv.org/abs/2111.02801", outs=None, main=None, note="Sec. 3.3.1; reported as figures only"),
     "Inverse: diffusion-reaction with space-dependent rate": dict(cite="Yu, Lu, Meng & Karniadakis (2022), CMAME 393 (gPINNs)", url="https://arxiv.org/abs/2111.02801", outs=None, main=None,
         note="Sec. 3.3.2 (10 residual points, figures only), and Wu et al. (2023) Sec. 3.6 (15 residual points), so not compared"),
+    "Allen-Cahn equation": dict(cite="Yu, Lu, Meng & Karniadakis (2022), CMAME 393 (gPINNs)", url="https://arxiv.org/abs/2111.02801", outs=None, main=None,
+        note="Sec. 3.4.2, with a 5 × 64 network (3 × 20 here); the paper gives errors only as point counts needed for about 1%, so not compared"),
+    "Diffusion equation with hard IC and BC": dict(cite="Wu, Zhu, Tan, Kartha & Lu (2023), CMAME 403", url="https://arxiv.org/abs/2207.10289", outs=None, main=None,
+        note="Sec. 3.2, the same equation and hard constraint with 30 residual points (40 here), so not compared"),
+    "Linear elastostatic plate (soft BCs)": dict(
+        cite="Haghighat, Raissi, Moure, Gomez & Juanes (2021), CMAME 379", url="https://arxiv.org/abs/2003.02751", outs=None, main=None,
+        note="the same plate, solved there as an inverse problem with five networks; the paper shows the convergence as figures, without error values"),
     "Diffusion equation": dict(cite="Wu, Zhu, Tan, Kartha & Lu (2023), CMAME 403", url="https://arxiv.org/abs/2207.10289", outs=None, main=None,
         note="Sec. 3.2, the same equation with 30 residual points, so not compared"),
 }

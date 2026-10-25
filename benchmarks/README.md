@@ -817,7 +817,7 @@ $$\Large D_{0+}^{\alpha}u + D_{1-}^{\alpha}u = f(x), \qquad x \in [0, 1],\ \alph
 - **Exact solution:** $u = x^3(1-x)^3$
 - **Constants:** `alpha = 1.5`
 
-*Source paper:* [Pang, Lu & Karniadakis (2019), SIAM J. Sci. Comput. 41 (fPINNs)](https://arxiv.org/abs/1811.08967) — DeepXDE's example reproduces this problem. Sec. 4.1.1; reported as a mean squared error only.
+*Source paper:* [Pang, Lu & Karniadakis (2019), SIAM J. Sci. Comput. 41 (fPINNs)](https://arxiv.org/abs/1811.08967) — DeepXDE's example reproduces this problem. Sec. 4.1.1; the relative L2 error is shown only as a plot (Fig. 5).
 
 <details>
 <summary>⚙️ <em>Default settings — DeepXDE's settings</em></summary>
@@ -1301,7 +1301,7 @@ $$\Large \lambda\frac{d^2u}{dx^2} - k(x)\ u = \sin(2\pi x), \qquad \lambda = 0.0
 - **Data:** 100 measurements of $u$ (computed with SciPy's `solve_bvp`, as DeepXDE does), $u = 0$ at both ends
 - **Constants:** `l = 0.01`
 
-*Source paper:* [Yu, Lu, Meng & Karniadakis (2022), CMAME 393 (gPINNs)](https://arxiv.org/abs/2111.02801) — DeepXDE's example reproduces this problem. Sec. 3.3.2, and Wu et al. (2023) Sec. 3.6, both with fewer points, so not compared.
+*Source paper:* [Yu, Lu, Meng & Karniadakis (2022), CMAME 393 (gPINNs)](https://arxiv.org/abs/2111.02801) — DeepXDE's example reproduces this problem. Sec. 3.3.2 (10 residual points, figures only), and Wu et al. (2023) Sec. 3.6 (15 residual points), so not compared.
 
 <details>
 <summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
@@ -2149,6 +2149,8 @@ $$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} - e^{
 
 - **Initial and boundary conditions:** imposed exactly by $\hat u = t(1 - x^2)N + \sin(\pi x)$ — no IC/BC loss terms
 - **Exact solution:** $u = e^{-t}\sin(\pi x)$
+
+*Source paper:* [Wu, Zhu, Tan, Kartha & Lu (2023), CMAME 403](https://arxiv.org/abs/2207.10289) — DeepXDE's example reproduces this problem. Sec. 3.2, the same equation and hard constraint with 30 residual points (40 here), so not compared.
 
 <details>
 <summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
@@ -3249,7 +3251,7 @@ $$\Large -\nabla^2 u - k_0^2 u = k_0^2\sin(k_0 x)\sin(k_0 y), \qquad k_0 = 4\pi,
 | Their PINN (25,600 points), as reported (Escapil-Inchauspé & Ruz (2023)) | 1.8 × 10<sup>-4</sup> | – |
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **1.9 × 10<sup>-3</sup>** | – |
 
-*As reported: Table 4, ω = 2; 1.19e-4 for their best hyper-parameter configuration.*
+*As reported: Table 4, ω = 2, with 160 points per side and their tuned network (DeepXDE's example uses about 20 per side and its own network); 1.19e-4 for their best hyper-parameter configuration.*
 
 **Inverse problem**
 
@@ -3693,6 +3695,8 @@ $$\Large \frac{\partial \sigma_{xx}}{\partial x} + \frac{\partial \sigma_{xy}}{\
 
 - **Boundary conditions as rows** (DeepXDE's `BC_type = \"soft\"`): $u_x = 0$ at top and bottom; $u_y = 0$ at left, bottom and right; $\sigma_{xx} = 0$ at left and right; $\sigma_{yy} = (\lambda + 2\mu)Q\sin(\pi x)$ at the top
 - **Constants:** `lmbd = 1`, `mu = 0.5`, `Q = 4`
+
+*Source paper:* [Haghighat, Raissi, Moure, Gomez & Juanes (2021), CMAME 379](https://arxiv.org/abs/2003.02751) — DeepXDE's example reproduces this problem. The same plate, solved there as an inverse problem with five networks; the paper shows the convergence as figures, without error values.
 
 <details>
 <summary>⚙️ <em>Default settings — DeepXDE's settings (also PINNStudio best)</em></summary>
