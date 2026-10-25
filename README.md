@@ -2176,11 +2176,19 @@ The same run in 3D, drawn like the paper's Fig. 3.9: the drop ($\phi = 0$) insid
 
 ![3D Allen-Cahn — the drop inside the cube and the error, PINN vs reference](assets/Images/3D_AllenCahn-Wight/isosurface.png)
 
+The drop's radius over time gives one number to check against: the $\phi = 0$ crossing along the six half-axes from the centre, averaged. The PINN follows the reference to within 0.14% (forward) and 0.02% (inverse run below) at every reference time. The dashed line is the sharp-interface limit, where the interface moves by mean curvature, $R^2 = R_0^2 - 4\lambda\varepsilon^2 t$; the diffuse interface ($\varepsilon = 0.05$) makes the drop shrink a little faster once it gets small. Made with [`tools/plot_3d_allen_cahn_radius.py`](tools/plot_3d_allen_cahn_radius.py).
+
+![3D Allen-Cahn — drop radius over time, PINN vs reference](assets/Images/3D_AllenCahn-Wight/radius.png)
+
 *Inverse mode* — same template, switched to **Inverse**, recovering the two coefficients as they are written in the PDE box, the reaction coefficient $\lambda$ and the diffusion coefficient $\lambda\varepsilon^2$ (initial guesses 1, true values 10 and 0.025), from $\phi$ measured at $t = 1$ on every second point of the $51^3$ reference grid (*Measured data → Use: Grid, 26 points per axis*, 17,576 points).
 
 **Inverse result (RTX 4090):** $\lambda$ = 9.983 (true 10, 0.2% off), $\lambda\varepsilon^2$ = 0.024989 (true 0.025, 0.04% off); $L_2$ = 4.1 × 10⁻⁴ ($t = 0.25$) to 8.3 × 10⁻⁵ ($t = 1$).
 
 ![3D Allen-Cahn (Wight & Zhao) inverse parameter convergence animation](assets/Images/3D_AllenCahn-Wight/param_convergence_animation.gif)
+
+The inverse run's solution in 3D, drawn the same way:
+
+![3D Allen-Cahn inverse — the drop inside the cube and the error, PINN vs reference](assets/Images/3D_AllenCahn-Wight/isosurface_inverse.png)
 
 </details>
 

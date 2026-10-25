@@ -90,7 +90,7 @@ The sweep was run on the 39 examples with the largest errors. The others were al
 <details>
 <summary>📄 <em>Figure for the paper — 25 examples</em></summary>
 
-**Why these examples.** The full figure has 63 examples, which is too many for one page in a paper, so this one keeps one example of each kind of problem. They go from ODEs to 1D, 2D and 3D, and in each dimension from steady to time-dependent problems. Together they cover the main equation types: elliptic (Poisson, Helmholtz, linear elasticity), parabolic (heat, diffusion-reaction, Black-Scholes), hyperbolic and dispersive (wave, Klein-Gordon, Schrödinger), nonlinear flow (Burgers, Navier-Stokes in 2D and 3D), stiff phase-field equations (Allen-Cahn, and the fourth-order Cahn-Hilliard), and the less common fractional and integro-differential operators. Most of them (18 of the 25) have both a forward and an inverse problem, so one row shows both modes. A few are forward only (the integro-differential ODE, Poisson 1D, Cahn-Hilliard 1D, Black-Scholes), and Lorenz, the unknown forcing field and the fractional order α are inverse problems only. The set mixes DeepXDE's examples with templates taken from papers (Raissi et al.; Wight & Zhao; Mattey & Ghosh; Mathias et al.). The left panel shows the forward problems only: PINNStudio's best and DeepXDE's settings or the paper's method. Inverse problems are judged by their parameter error (right panel), not by their L₂, because an inverse run trains on the reference data at every time, so its L₂ is a fit to that data rather than a prediction (it is still in the tables, as "L₂ fit to measured data"). For the paper templates, the ⭐ is the error the paper itself reports, where it gives one (Burgers 1D, Allen-Cahn 1D, Cahn-Hilliard 1D, Allen-Cahn 2D of Mattey & Ghosh). Note that the papers report one error over all times, while the x-axis is the error at the last reference time, so the ⭐ is a guide rather than an exact like-for-like point; the all-times errors are in the tables below.
+**Why these examples.** The full figure has 63 examples, which is too many for one page in a paper, so this one keeps one example of each kind of problem. They go from ODEs to 1D, 2D and 3D, and in each dimension from steady to time-dependent problems. Together they cover the main equation types: elliptic (Poisson, Helmholtz, linear elasticity), parabolic (heat, diffusion-reaction, Black-Scholes), hyperbolic and dispersive (wave, Klein-Gordon, Schrödinger), nonlinear flow (Burgers, Navier-Stokes in 2D and 3D), stiff phase-field equations (Allen-Cahn, and the fourth-order Cahn-Hilliard), and the less common fractional and integro-differential operators. Most of them (18 of the 25) have both a forward and an inverse problem, so one row shows both modes. A few are forward only (the integro-differential ODE, Poisson 1D, Cahn-Hilliard 1D, Black-Scholes), and Lorenz, the unknown forcing field and the fractional order α are inverse problems only. The set mixes DeepXDE's examples with templates taken from papers (Raissi et al.; Wight & Zhao; Mattey & Ghosh; Mathias et al.). The left panel shows the forward problems only: PINNStudio's best and DeepXDE's settings or the paper's method. Inverse problems are judged by their parameter error (right panel), not by their L₂, because an inverse run trains on measured values of the solution (in most examples at every reference time), so its L₂ is largely a fit to that data rather than a prediction (it is still in the tables, as "L₂ fit to measured data"). For the paper templates, the ⭐ is the error the paper itself reports, where it gives one (Burgers 1D, Allen-Cahn 1D, Cahn-Hilliard 1D, Allen-Cahn 2D of Mattey & Ghosh). Note that the papers report one error over all times, while the x-axis is the error at the last reference time, so the ⭐ is a guide rather than an exact like-for-like point; the all-times errors are in the tables below.
 
 **For Word.** The figure is drawn at its printed size, 6.5 × 7.5 in (the text width of a Word page with 1 in margins), with 8.5–9 pt text, so insert it at 100% and it leaves about 1.5 in for the caption on the same page. The PDF keeps it sharp at any zoom. A caption to start from:
 
@@ -255,7 +255,7 @@ $$\Large \frac{dy_1}{dt} = y_2, \qquad \frac{dy_2}{dt} = -y_1, \qquad t \in [0, 
 | 10× data weight, 3× L-BFGS and the larger network | 4.6 × 10<sup>-4</sup> | ω = 0.999089 (1) | 0.091% | 50 |
 | **PINNStudio best** (Settings: Tuned): all of the changes together | **2.0 × 10<sup>-4</sup>** | ω = 0.999912 (1) | **0.0088%** | **135** |
 
-*L₂ fit to measured data: the error on the reference data the inverse run trains on (every reference time), a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
+*L₂ fit to measured data: the inverse run trains on measured values of the solution (in most examples at every reference time), so this L₂ is mostly a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
 
 *DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*
 
@@ -361,7 +361,7 @@ $$\Large \frac{dr}{dt} = \frac{R}{U}\left(2Ur - 0.04U^2 rp\right), \qquad \frac{
 | 10× data weight, 3× L-BFGS and the larger network | 9.2 × 10<sup>-6</sup> | a = 2.00001 (2); d = 1.06001 (1.06) | 0.00094% | 250 |
 | **PINNStudio best** (Settings: Tuned): the example's own settings (no change did better) | **1.5 × 10<sup>-5</sup>** | a = 2.00001 (2); d = 1.06 (1.06) | **0.0005%** | **230** |
 
-*L₂ fit to measured data: the error on the reference data the inverse run trains on (every reference time), a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
+*L₂ fit to measured data: the inverse run trains on measured values of the solution (in most examples at every reference time), so this L₂ is mostly a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
 
 *DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*
 
@@ -464,7 +464,7 @@ $$\Large \frac{d^2u}{dt^2} - 10\frac{du}{dt} + 9u = 5t, \qquad t \in [0, 0.25]$$
 | 10× data weight, 3× L-BFGS and the larger network | 4.1 × 10<sup>-4</sup> | a = 9.97923 (10); b = 9.37949 (9) | 4.2% | 28 |
 | **PINNStudio best** (Settings: Tuned): Larger network (2× width, one more layer) | **8.9 × 10<sup>-6</sup>** | a = 10.0003 (10); b = 8.99262 (9) | **0.082%** | **30** |
 
-*L₂ fit to measured data: the error on the reference data the inverse run trains on (every reference time), a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
+*L₂ fit to measured data: the inverse run trains on measured values of the solution (in most examples at every reference time), so this L₂ is mostly a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
 
 *DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*
 
@@ -529,7 +529,7 @@ $$\Large \frac{dy_1}{dt} = C_1(y_2 - y_1), \qquad \frac{dy_2}{dt} = y_1(C_2 - y_
 | DeepXDE's settings (README) | 1.0 × 10<sup>-4</sup> | C₁ = 10 (10); C₂ = 14.9998 (15); C₃ = 2.66664 (2.66667) | 0.0013% | – |
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **1.0 × 10<sup>-4</sup>** | C₁ = 10 (10); C₂ = 14.9998 (15); C₃ = 2.66664 (2.66667) | **0.0013%** | – |
 
-*L₂ fit to measured data: the error on the reference data the inverse run trains on (every reference time), a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
+*L₂ fit to measured data: the inverse run trains on measured values of the solution (in most examples at every reference time), so this L₂ is mostly a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
 
 <details>
 <summary>📊 <em>Inverse results — figures</em></summary>
@@ -591,7 +591,7 @@ $$\Large \frac{dy_1}{dt} = C_1(y_2 - y_1), \qquad \frac{dy_2}{dt} = y_1(C_2 - y_
 | DeepXDE's settings (README) | 1.6 × 10<sup>-3</sup> | C₁ = 9.974 (10); C₂ = 14.996 (15); C₃ = 2.6669 (2.66667) | 0.26% | – |
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **1.6 × 10<sup>-3</sup>** | C₁ = 9.974 (10); C₂ = 14.996 (15); C₃ = 2.6669 (2.66667) | **0.26%** | – |
 
-*L₂ fit to measured data: the error on the reference data the inverse run trains on (every reference time), a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
+*L₂ fit to measured data: the inverse run trains on measured values of the solution (in most examples at every reference time), so this L₂ is mostly a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
 
 <details>
 <summary>📊 <em>Inverse results — figures</em></summary>
@@ -695,7 +695,7 @@ $$\Large \frac{d^4u}{dx^4} = -1, \qquad x \in [0, 1]$$
 | 10× data weight, 3× L-BFGS and the larger network | 1.9 × 10<sup>-4</sup> | EI = 0.995268 (1) | 0.47% | 80 |
 | **PINNStudio best** (Settings: Tuned): all of the changes together | **3.8 × 10<sup>-5</sup>** | EI = 1.00075 (1) | **0.075%** | **231** |
 
-*L₂ fit to measured data: the error on the reference data the inverse run trains on (every reference time), a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
+*L₂ fit to measured data: the inverse run trains on measured values of the solution (in most examples at every reference time), so this L₂ is mostly a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
 
 *DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*
 
@@ -1174,7 +1174,7 @@ $$\Large -\frac{\nu_e}{\epsilon}\frac{d^2u}{dx^2} + \frac{\nu u}{K} = g, \qquad 
 | All of the above together (3 seeds, median) | 1.2 × 10<sup>-2</sup> | νₑ = 0.00117644 (0.001); K = 0.00100487 (0.001) | 18% | 237 |
 | **PINNStudio best** (Settings: Tuned): 3× iterations | **1.3 × 10<sup>-2</sup>** | νₑ = 0.00115135 (0.001); K = 0.00103409 (0.001) | **15%** | **234** |
 
-*L₂ fit to measured data: the error on the reference data the inverse run trains on (every reference time), a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
+*L₂ fit to measured data: the inverse run trains on measured values of the solution (in most examples at every reference time), so this L₂ is mostly a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
 
 <details>
 <summary>📊 <em>Inverse results — figures</em></summary>
@@ -1243,7 +1243,7 @@ $$\Large \lambda\frac{d^2u}{dx^2} - k(x)\ u = \sin(2\pi x), \qquad \lambda = 0.0
 | All of the above together (3 seeds, median) | 2.8 × 10<sup>-2</sup> | – | – | 178 |
 | **PINNStudio best** (Settings: Tuned): Larger network (2× width, one more layer) | **1.3 × 10<sup>-2</sup>** | – | **–** | **61** |
 
-*L₂ fit to measured data: the error on the reference data the inverse run trains on (every reference time), a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
+*L₂ fit to measured data: the inverse run trains on measured values of the solution (in most examples at every reference time), so this L₂ is mostly a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
 
 <details>
 <summary>📊 <em>Inverse results — figures</em></summary>
@@ -1296,7 +1296,7 @@ $$\Large \frac{D_{-1+}^{\alpha}u + D_{1-}^{\alpha}u}{2\cos(\alpha\pi/2)} = \Gamm
 | DeepXDE's settings (README) | 4.9 × 10<sup>-3</sup> | α = 1.79183 (1.8) | 0.45% | – |
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **4.9 × 10<sup>-3</sup>** | α = 1.79183 (1.8) | **0.45%** | – |
 
-*L₂ fit to measured data: the error on the reference data the inverse run trains on (every reference time), a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
+*L₂ fit to measured data: the inverse run trains on measured values of the solution (in most examples at every reference time), so this L₂ is mostly a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
 
 <details>
 <summary>📊 <em>Inverse results — figures</em></summary>
@@ -1354,7 +1354,7 @@ $$\Large -\frac{d^2u}{dx^2} + q(x) = 0, \qquad x \in [-1, 1]$$
 | 🔴 **All of the above together (3 seeds, median)** | **2.1 × 10<sup>-4</sup>** | – | – | **221** |
 | **PINNStudio best** (Settings: Tuned): all of the changes together | **2.1 × 10<sup>-4</sup>** | – | **–** | **221** |
 
-*L₂ fit to measured data: the error on the reference data the inverse run trains on (every reference time), a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
+*L₂ fit to measured data: the inverse run trains on measured values of the solution (in most examples at every reference time), so this L₂ is mostly a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
 
 <details>
 <summary>📊 <em>Inverse results — figures</em></summary>
@@ -1422,7 +1422,7 @@ $$\Large -\frac{d^2u}{dx^2} + q(x) = 0, \qquad x \in [-1, 1]$$
 | 🔴 **All of the above together (3 seeds, median)** | **7.8 × 10<sup>-4</sup>** | – | – | **215** |
 | **PINNStudio best** (Settings: Tuned): all of the changes together | **7.8 × 10<sup>-4</sup>** | – | **–** | **215** |
 
-*L₂ fit to measured data: the error on the reference data the inverse run trains on (every reference time), a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
+*L₂ fit to measured data: the inverse run trains on measured values of the solution (in most examples at every reference time), so this L₂ is mostly a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
 
 <details>
 <summary>📊 <em>Inverse results — figures</em></summary>
@@ -1540,7 +1540,7 @@ where $\gamma_1 = 0.0001$ and $\gamma_2 = 5$.
 | 10× data weight, 3× L-BFGS and the larger network | 2.3 × 10<sup>-4</sup> | γ₁ = 3.98815e-06 (0.0001); γ₂ = 4.65939 (5) | 96% | 363 |
 | **PINNStudio best** (Settings: Tuned): Measured data at every reference time | **1.7 × 10<sup>-4</sup>** | γ₁ = 9.95326e-05 (0.0001); γ₂ = 4.99994 (5) | **0.47%** | **302** |
 
-*L₂ fit to measured data: the error on the reference data the inverse run trains on (every reference time), a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
+*L₂ fit to measured data: the inverse run trains on measured values of the solution (in most examples at every reference time), so this L₂ is mostly a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
 
 <details>
 <summary>📊 <em>Forward results — figures</em></summary>
@@ -1924,7 +1924,7 @@ with true values $\lambda_1 = 1.0$ and $\lambda_2 = 0.01/\pi$ (the template writ
 | 🔴 **10× data weight, 3× L-BFGS and the larger network** | **5.5 × 10<sup>-5</sup>** | **λ₁ = 0.999937 (1); λ₂ = 0.0100099 (0.01)** | **0.099%** | **101** |
 | **PINNStudio best** (Settings: Tuned): 10× data weight, 3× L-BFGS and the larger network | **5.5 × 10<sup>-5</sup>** | λ₁ = 0.999937 (1); λ₂ = 0.0100099 (0.01) | **0.099%** | **101** |
 
-*L₂ fit to measured data: the error on the reference data the inverse run trains on (every reference time), a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
+*L₂ fit to measured data: the inverse run trains on measured values of the solution (in most examples at every reference time), so this L₂ is mostly a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
 
 <details>
 <summary>📊 <em>Forward results — figures</em></summary>
@@ -2285,7 +2285,7 @@ $$\Large \frac{\partial u}{\partial t} = \frac{\partial^2 u}{\partial x^2} + e^{
 | 10× data weight, 3× L-BFGS and the larger network | 1.5 × 10<sup>-3</sup> | D = 0.997953 (1) | 0.2% | 118 |
 | **PINNStudio best** (Settings: Tuned): all of the changes together | **1.4 × 10<sup>-4</sup>** | D = 0.999773 (1) | **0.023%** | **334** |
 
-*L₂ fit to measured data: the error on the reference data the inverse run trains on (every reference time), a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
+*L₂ fit to measured data: the inverse run trains on measured values of the solution (in most examples at every reference time), so this L₂ is mostly a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
 
 *DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*
 
@@ -2462,7 +2462,7 @@ $$\Large \frac{\partial u}{\partial t} = a\ \frac{\partial^2 u}{\partial x^2}$$
 | 🔴 **All of the above together (3 seeds, median)** | **1.1 × 10<sup>-3</sup>** | **a = 0.400406 (0.4)** | **0.1%** | **146** |
 | **PINNStudio best** (Settings: Tuned): all of the changes together | **1.1 × 10<sup>-3</sup>** | a = 0.400406 (0.4) | **0.1%** | **146** |
 
-*L₂ fit to measured data: the error on the reference data the inverse run trains on (every reference time), a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
+*L₂ fit to measured data: the inverse run trains on measured values of the solution (in most examples at every reference time), so this L₂ is mostly a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
 
 *DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*
 
@@ -2667,7 +2667,7 @@ $$\Large \frac{\partial^2 u}{\partial t^2} - \frac{\partial^2 u}{\partial x^2} +
 | 10× data weight, 3× L-BFGS and the larger network | 7.4 × 10<sup>-3</sup> | γ = 1.06471 (1) | 6.5% | 151 |
 | **PINNStudio best** (Settings: Tuned): all of the changes together | **6.3 × 10<sup>-4</sup>** | γ = 1.00912 (1) | **0.91%** | **1361** |
 
-*L₂ fit to measured data: the error on the reference data the inverse run trains on (every reference time), a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
+*L₂ fit to measured data: the inverse run trains on measured values of the solution (in most examples at every reference time), so this L₂ is mostly a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
 
 *DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*
 
@@ -2786,7 +2786,7 @@ $$\Large \frac{\partial u}{\partial t} + c\frac{\partial^2 v}{\partial x^2} + (u
 | All of the above together | 1.7 × 10<sup>-1</sup> | c = 0.504096 (0.5) | 0.82% | 1745 |
 | **PINNStudio best** (Settings: Tuned): Larger network (2× width, one more layer) | **9.9 × 10<sup>-4</sup>** | c = 0.500036 (0.5) | **0.0072%** | **337** |
 
-*L₂ fit to measured data: the error on the reference data the inverse run trains on (every reference time), a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
+*L₂ fit to measured data: the inverse run trains on measured values of the solution (in most examples at every reference time), so this L₂ is mostly a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
 
 *DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*
 
@@ -2898,7 +2898,7 @@ Collocation points are redrawn every iteration from a pseudo-random distribution
 | 10× data weight, 3× L-BFGS and the larger network | 4.1 × 10<sup>-5</sup> | C = 9.99999 (10) | 0.0001% | 1513 |
 | **PINNStudio best** (Settings: Tuned): all of the changes together | **3.8 × 10<sup>-5</sup>** | C = 10 (10) | **0%** | **4354** |
 
-*L₂ fit to measured data: the error on the reference data the inverse run trains on (every reference time), a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
+*L₂ fit to measured data: the inverse run trains on measured values of the solution (in most examples at every reference time), so this L₂ is mostly a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
 
 *DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*
 
@@ -2990,7 +2990,7 @@ $$\Large \frac{\partial u}{\partial t} = C\frac{\partial^2 u}{\partial x^2} - e^
 | All of the above together (3 seeds, median) | 2.0 × 10<sup>-4</sup> | C = 1.00017 (1) | 0.017% | 380 |
 | **PINNStudio best** (Settings: Tuned): 3× iterations | **1.2 × 10<sup>-3</sup>** | C = 1.00004 (1) | **0.004%** | **311** |
 
-*L₂ fit to measured data: the error on the reference data the inverse run trains on (every reference time), a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
+*L₂ fit to measured data: the inverse run trains on measured values of the solution (in most examples at every reference time), so this L₂ is mostly a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
 
 <details>
 <summary>📊 <em>Inverse results — figures</em></summary>
@@ -3062,7 +3062,7 @@ $$\Large \frac{\partial C_A}{\partial t} = D\frac{\partial^2 C_A}{\partial x^2} 
 | DeepXDE's settings (README) | – | k_f = 0.0992 (0.1); D = 1.993 (2) | 0.8% | – |
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **–** | k_f = 0.0992 (0.1); D = 1.993 (2) | **0.8%** | – |
 
-*L₂ fit to measured data: the error on the reference data the inverse run trains on (every reference time), a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
+*L₂ fit to measured data: the inverse run trains on measured values of the solution (in most examples at every reference time), so this L₂ is mostly a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
 
 <details>
 <summary>📊 <em>Inverse results — figures</em></summary>
@@ -3188,7 +3188,7 @@ $$\Large -\nabla^2 u - k_0^2 u = k_0^2\sin(k_0 x)\sin(k_0 y), \qquad k_0 = 4\pi,
 | 🔴 **10× data weight, 3× L-BFGS and the larger network** | **4.0 × 10<sup>-5</sup>** | **k₀ = 12.5664 (12.5664)** | **0.00023%** | **58** |
 | **PINNStudio best** (Settings: Tuned): 10× data weight, 3× L-BFGS and the larger network | **4.0 × 10<sup>-5</sup>** | k₀ = 12.5664 (12.5664) | **0.00023%** | **58** |
 
-*L₂ fit to measured data: the error on the reference data the inverse run trains on (every reference time), a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
+*L₂ fit to measured data: the inverse run trains on measured values of the solution (in most examples at every reference time), so this L₂ is mostly a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
 
 *DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*
 
@@ -3515,7 +3515,7 @@ $$\Large \sigma_{xx} = (\lambda + 2\mu)\varepsilon_{xx} + \lambda\varepsilon_{yy
 | 3× L-BFGS iterations | 1.9 × 10<sup>-3</sup> | λ = 0.999744 (1); μ = 0.500088 (0.5) | 0.026% | 561 |
 | **PINNStudio best** (Settings: Tuned): the example's own settings (no change did better) | **1.9 × 10<sup>-3</sup>** | λ = 0.999744 (1); μ = 0.500088 (0.5) | **0.026%** | **546** |
 
-*L₂ fit to measured data: the error on the reference data the inverse run trains on (every reference time), a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
+*L₂ fit to measured data: the inverse run trains on measured values of the solution (in most examples at every reference time), so this L₂ is mostly a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
 
 *DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*
 
@@ -3726,7 +3726,7 @@ $$\Large (\mathbf u\cdot\nabla)\mathbf u + \nabla p = \frac{1}{Re}\nabla^2\mathb
 | 10× data weight, 3× L-BFGS and the larger network | 7.1 × 10<sup>-5</sup> | Re = 19.9915 (20) | 0.043% | 253 |
 | **PINNStudio best** (Settings: Tuned): Larger network (2× width, one more layer) | **5.9 × 10<sup>-5</sup>** | Re = 19.9978 (20) | **0.011%** | **252** |
 
-*L₂ fit to measured data: the error on the reference data the inverse run trains on (every reference time), a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
+*L₂ fit to measured data: the inverse run trains on measured values of the solution (in most examples at every reference time), so this L₂ is mostly a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
 
 *DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*
 
@@ -3830,7 +3830,7 @@ A companion to the L-Shape template above, on a smooth (curved, non-singular) bo
 | 10× data weight, 3× L-BFGS and the larger network | 3.4 × 10<sup>-4</sup> | f = 1.00006 (1) | 0.006% | 173 |
 | **PINNStudio best** (Settings: Tuned): the example's own settings (no change did better) | **5.4 × 10<sup>-4</sup>** | f = 1.00002 (1) | **0.002%** | **157** |
 
-*L₂ fit to measured data: the error on the reference data the inverse run trains on (every reference time), a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
+*L₂ fit to measured data: the inverse run trains on measured values of the solution (in most examples at every reference time), so this L₂ is mostly a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
 
 <details>
 <summary>📊 <em>Forward results — figures</em></summary>
@@ -3964,7 +3964,7 @@ $$\Large -(-\Delta)^{\alpha/2}u = 2^{\alpha_0}\Gamma(2 + \tfrac{\alpha_0}{2})\Ga
 | DeepXDE's settings (README) | 2.3 × 10<sup>-3</sup> | α = 1.80445 (1.8) | 0.25% | – |
 | **PINNStudio best** (Settings: Tuned): no tuning needed | **2.3 × 10<sup>-3</sup>** | α = 1.80445 (1.8) | **0.25%** | – |
 
-*L₂ fit to measured data: the error on the reference data the inverse run trains on (every reference time), a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
+*L₂ fit to measured data: the inverse run trains on measured values of the solution (in most examples at every reference time), so this L₂ is mostly a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
 
 <details>
 <summary>📊 <em>Inverse results — figures</em></summary>
@@ -4085,7 +4085,7 @@ with true values $\lambda = 10$ and $\lambda\varepsilon^2 = 0.00625$.
 | 🔴 **10× data weight, 3× L-BFGS and the larger network** | **8.9 × 10<sup>-5</sup>** | **λ = 9.82765 (10); λε² = 0.00615365 (0.00625)** | **1.7%** | **1859** |
 | **PINNStudio best** (Settings: Tuned): 10× data weight, 3× L-BFGS and the larger network | **8.9 × 10<sup>-5</sup>** | λ = 9.82765 (10); λε² = 0.00615365 (0.00625) | **1.7%** | **1859** |
 
-*L₂ fit to measured data: the error on the reference data the inverse run trains on (every reference time), a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
+*L₂ fit to measured data: the inverse run trains on measured values of the solution (in most examples at every reference time), so this L₂ is mostly a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
 
 <details>
 <summary>📊 <em>Forward results — figures</em></summary>
@@ -4205,7 +4205,7 @@ where $c_1^2 = 0.0001$ and $c_2 = 1$.
 | 10× data weight, 3× L-BFGS and the larger network | 4.5 × 10<sup>-4</sup> | c₁² = 0.000107025 (0.0001); c₂ = 1.00387 (1) | 7% | 5216 |
 | **PINNStudio best** (Settings: Tuned): 10× weight on the measured data | **6.7 × 10<sup>-4</sup>** | c₁² = 0.000102452 (0.0001); c₂ = 1.00025 (1) | **2.5%** | **1789** |
 
-*L₂ fit to measured data: the error on the reference data the inverse run trains on (every reference time), a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
+*L₂ fit to measured data: the inverse run trains on measured values of the solution (in most examples at every reference time), so this L₂ is mostly a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
 
 <details>
 <summary>📊 <em>Forward results — figures</em></summary>
@@ -4325,7 +4325,7 @@ where $\lambda = 1$ and $\varepsilon = 0.05$. As in the 1D example, the chemical
 | Measured data at every reference time | 1.1 × 10<sup>-4</sup> | ε² = 0.00250963 (0.0025) | 0.39% | 10691 |
 | **PINNStudio best** (Settings: Tuned): the example's own settings (no change did better) | **6.9 × 10<sup>-5</sup>** | ε² = 0.00251042 (0.0025) | **0.42%** | **3736** |
 
-*L₂ fit to measured data: the error on the reference data the inverse run trains on (every reference time), a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
+*L₂ fit to measured data: the inverse run trains on measured values of the solution (in most examples at every reference time), so this L₂ is mostly a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
 
 <details>
 <summary>📊 <em>Forward results — figures</em></summary>
@@ -4448,7 +4448,7 @@ $$\Large \frac{\partial h}{\partial t'} = 0.005\left(\frac{\partial^2 \mu}{\part
 | 10× data weight, 3× L-BFGS and the larger network | 1.5 × 10<sup>-3</sup> | α = 0.000205789 (0.0002); κ = 1.04151 (1) | 4.2% | 4619 |
 | **PINNStudio best** (Settings: Tuned): Measured data at every reference time | **5.9 × 10<sup>-3</sup>** | α = 0.000201912 (0.0002); κ = 0.995857 (1) | **0.96%** | **5306** |
 
-*L₂ fit to measured data: the error on the reference data the inverse run trains on (every reference time), a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
+*L₂ fit to measured data: the inverse run trains on measured values of the solution (in most examples at every reference time), so this L₂ is mostly a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
 
 <details>
 <summary>📊 <em>Forward results — figures</em></summary>
@@ -4612,7 +4612,7 @@ Error Analysis — PINN vs Ground Truth, for each output:
 | 🔴 **10× data weight, 3× L-BFGS and the larger network** | **3.7 × 10<sup>-4</sup>** | **ν = 0.00320066 (0.0031831)** | **0.55%** | **6962** |
 | **PINNStudio best** (Settings: Tuned): 10× data weight, 3× L-BFGS and the larger network | **3.7 × 10<sup>-4</sup>** | ν = 0.00320066 (0.0031831) | **0.55%** | **6962** |
 
-*L₂ fit to measured data: the error on the reference data the inverse run trains on (every reference time), a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
+*L₂ fit to measured data: the inverse run trains on measured values of the solution (in most examples at every reference time), so this L₂ is mostly a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
 
 <details>
 <summary>📊 <em>Forward results — figures</em></summary>
@@ -4711,7 +4711,7 @@ $$\Large \frac{\partial u}{\partial t} = 0.4\left(\frac{\partial^2 u}{\partial x
 | 10× data weight, 3× L-BFGS and the larger network | 2.5 × 10<sup>-4</sup> | α = 0.402561 (0.4) | 0.64% | 386 |
 | **PINNStudio best** (Settings: Tuned): the example's own settings (no change did better) | **5.8 × 10<sup>-4</sup>** | α = 0.399893 (0.4) | **0.027%** | **169** |
 
-*L₂ fit to measured data: the error on the reference data the inverse run trains on (every reference time), a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
+*L₂ fit to measured data: the inverse run trains on measured values of the solution (in most examples at every reference time), so this L₂ is mostly a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
 
 <details>
 <summary>📊 <em>Forward results — figures</em></summary>
@@ -4842,7 +4842,7 @@ $$\Large -\frac{\partial^2 u}{\partial x^2} - \frac{\partial^2 u}{\partial y^2} 
 | 10× data weight, 3× L-BFGS and the larger network | 1.6 × 10<sup>-3</sup> | f = 1.0004 (1) | 0.04% | 92 |
 | **PINNStudio best** (Settings: Tuned): the example's own settings (no change did better) | **1.4 × 10<sup>-3</sup>** | f = 1.00005 (1) | **0.005%** | **83** |
 
-*L₂ fit to measured data: the error on the reference data the inverse run trains on (every reference time), a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
+*L₂ fit to measured data: the inverse run trains on measured values of the solution (in most examples at every reference time), so this L₂ is mostly a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
 
 <details>
 <summary>📊 <em>Forward results — figures</em></summary>
@@ -4953,7 +4953,7 @@ where $\lambda = 10$ and $\varepsilon = 0.05$ ($\lambda\varepsilon^2 = 0.025$). 
 | 🔴 **The template's starting settings** | **9.7 × 10<sup>-5</sup>** | **λ = 9.96899 (10); λε² = 0.0249817 (0.025)** | **0.31%** | **1419** |
 | **PINNStudio best** (Settings: Tuned): the example's own settings (tuning runs queued) | **9.7 × 10<sup>-5</sup>** | λ = 9.96899 (10); λε² = 0.0249817 (0.025) | **0.31%** | **1419** |
 
-*L₂ fit to measured data: the error on the reference data the inverse run trains on (every reference time), a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
+*L₂ fit to measured data: the inverse run trains on measured values of the solution (in most examples at every reference time), so this L₂ is mostly a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
 
 <details>
 <summary>📊 <em>Forward results — figures</em></summary>
@@ -4962,7 +4962,17 @@ where $\lambda = 10$ and $\varepsilon = 0.05$ ($\lambda\varepsilon^2 = 0.025$). 
 
 *PINNStudio best (the template's own settings, README):*
 
+<sub>PINN, reference and error on slices through the domain</sub>
+
 ![Allen-Cahn 3D – Wight & Zhao: PINNStudio best (the template's own settings, README) — PINN, reference and error on slices through the domain](../assets/Images/3D_AllenCahn-Wight/slice_comparison.png)
+
+<sub>the drop (φ = 0) in the cube, and the error on the cube with one corner cut away</sub>
+
+![Allen-Cahn 3D – Wight & Zhao: PINNStudio best (the template's own settings, README) — the drop (φ = 0) in the cube, and the error on the cube with one corner cut away](../assets/Images/3D_AllenCahn-Wight/isosurface.png)
+
+<sub>the drop's radius over time: PINN, reference and the sharp-interface limit</sub>
+
+![Allen-Cahn 3D – Wight & Zhao: PINNStudio best (the template's own settings, README) — the drop's radius over time: PINN, reference and the sharp-interface limit](../assets/Images/3D_AllenCahn-Wight/radius.png)
 
 </details>
 
@@ -4971,9 +4981,17 @@ where $\lambda = 10$ and $\varepsilon = 0.05$ ($\lambda\varepsilon^2 = 0.025$). 
 
 *PINNStudio best — the example's own settings (tuning runs queued):*
 
-<sub>PINN, reference and error over space and time</sub>
+<sub>PINN, reference and error on slices through the domain</sub>
 
-![Allen-Cahn 3D – Wight & Zhao: PINNStudio best — the example's own settings (tuning runs queued) — PINN, reference and error over space and time](figures/tuning/Template_3D_Allen_Cahn_Wight_Zhao_inv/base_surface_comparison.png)
+![Allen-Cahn 3D – Wight & Zhao: PINNStudio best — the example's own settings (tuning runs queued) — PINN, reference and error on slices through the domain](figures/tuning/Template_3D_Allen_Cahn_Wight_Zhao_inv/base_slice_comparison.png)
+
+<sub>the drop (φ = 0) in the cube, and the error on the cube with one corner cut away</sub>
+
+![Allen-Cahn 3D – Wight & Zhao: PINNStudio best — the example's own settings (tuning runs queued) — the drop (φ = 0) in the cube, and the error on the cube with one corner cut away](figures/tuning/Template_3D_Allen_Cahn_Wight_Zhao_inv/base_isosurface.png)
+
+<sub>the drop's radius over time: PINN, reference and the sharp-interface limit</sub>
+
+![Allen-Cahn 3D – Wight & Zhao: PINNStudio best — the example's own settings (tuning runs queued) — the drop's radius over time: PINN, reference and the sharp-interface limit](figures/tuning/Template_3D_Allen_Cahn_Wight_Zhao_inv/base_radius.png)
 
 <sub>the learned parameters during training</sub>
 
@@ -5045,7 +5063,7 @@ Time-Adaptive Training is fully supported for this template if you turn it on �
 | 10× data weight, 3× L-BFGS and the larger network | 9.7 × 10<sup>-4</sup> | α = 0.396365 (0.4) | 0.91% | 1946 |
 | **PINNStudio best** (Settings: Tuned): the example's own settings (no change did better) | **1.3 × 10<sup>-3</sup>** | α = 0.400303 (0.4) | **0.076%** | **729** |
 
-*L₂ fit to measured data: the error on the reference data the inverse run trains on (every reference time), a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
+*L₂ fit to measured data: the inverse run trains on measured values of the solution (in most examples at every reference time), so this L₂ is mostly a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
 
 <details>
 <summary>📊 <em>Forward results — figures</em></summary>
@@ -5133,7 +5151,7 @@ $$\Large \frac{\partial \mathbf u}{\partial t} + (\mathbf u\cdot\nabla)\mathbf u
 | 10× data weight, 3× L-BFGS and the larger network | 2.6 × 10<sup>-4</sup> | ν = 0.997473 (1) | 0.25% | 6328 |
 | **PINNStudio best** (Settings: Tuned): 3× L-BFGS iterations | **3.5 × 10<sup>-4</sup>** | ν = 0.998842 (1) | **0.12%** | **2575** |
 
-*L₂ fit to measured data: the error on the reference data the inverse run trains on (every reference time), a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
+*L₂ fit to measured data: the inverse run trains on measured values of the solution (in most examples at every reference time), so this L₂ is mostly a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
 
 *DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*
 

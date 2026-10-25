@@ -118,11 +118,11 @@ def _readme_images(name, inverse_only=False):
     is_inv = lambda alt, path: inverse_only or bool(re.search(r"[Ii]nverse|param_|parameter convergence|inferred", alt + " " + os.path.basename(path)))
 
     def pick(sel):
-        comp = [p for a, p in sel if re.search(r"(surface|slice|line)_comparison|view3d|3d_view|isosurface", os.path.basename(p))]
+        comp = [p for a, p in sel if re.search(r"(surface|slice|line)_comparison|view3d|3d_view|isosurface|radius", os.path.basename(p))]
         by_out = {}
         for p in comp:          # one per output: surface/slice/3D before the line plot
-            k = re.sub(r"(surface|slice|line)_comparison|view3d|3d_view|isosurface", "", os.path.basename(p))
-            rank = 0 if re.search(r"surface|slice|view3d|3d_view|isosurface", os.path.basename(p)) else 1
+            k = re.sub(r"(surface|slice|line)_comparison|view3d|3d_view", "", os.path.basename(p))   # isosurface, radius: own
+            rank = 0 if re.search(r"surface|slice|view3d|3d_view|isosurface|radius", os.path.basename(p)) else 1
             if k not in by_out or rank < by_out[k][0]:
                 by_out[k] = (rank, p)
         keep = [p for _, p in by_out.values()]
@@ -152,7 +152,7 @@ def _problem_md(name):
     for ln in m.group(1).strip().split("\n"):
         st = ln.strip()
         if st.startswith(("**Result", "**Inverse result", "**Results", "Result:", "**Note", "*Without",
-                          "The figure", "The same run", "The plot", "The animation", "The figures",
+                          "The figure", "The same run", "The plot", "The animation", "The figures", "The drop's radius", "The inverse run's",
                           "**Why", "DeepXDE's own script")):
             skip_para = True
             continue
@@ -216,7 +216,8 @@ def _figs_md(s, variant, raw_chosen=None, slug=None):
     surf = [n for n in names if "surface_comparison" in n or "view3d" in n]
     line = [n for n in names if "line_comparison" in n]
     slices = [n for n in names if "slice_comparison" in n]
-    keep = (surf or slices or line) + (line if WITH_LINES[0] and (surf or slices) else [])
+    iso = [n for n in names if "isosurface" in n or "radius" in n]     # 3D drop: interface, cut-away error, radius
+    keep = (slices + iso) if iso else (surf or slices or line) + (line if WITH_LINES[0] and (surf or slices) else [])
     keep += [n for n in names if n.endswith("param_plot.png")]
     return [os.path.relpath(os.path.join(folder, n), os.path.dirname(PAGE)).replace(os.sep, "/") for n in keep]
 
@@ -236,6 +237,10 @@ def _caption(path):
         return pre + "PINN against the reference along a line, at the reference times"
     if "view3d" in f:
         return "3D view: the solution and its error in the domain"
+    if "isosurface" in f:
+        return "the drop (φ = 0) in the cube, and the error on the cube with one corner cut away"
+    if "radius" in f:
+        return "the drop's radius over time: PINN, reference and the sharp-interface limit"
     if "param" in f:
         return "the learned parameters during training"
     if "animation" in f:
@@ -952,9 +957,9 @@ def _section(r):
           f"{_par_txt(r.get('i_best_par')) or '–'} | **{_pct(_perr(r.get('i_best_par')))}** | "
           f"{('**' + best_t + '**') if best_t else '–'} |")
         a("")
-        a("*L₂ fit to measured data: the error on the reference data the inverse run trains on (every reference "
-          "time), a check that the fit worked, not a prediction error. The parameter error measures the accuracy "
-          "and decides the best run.*\n")
+        a("*L₂ fit to measured data: the inverse run trains on measured values of the solution (in most examples at "
+          "every reference time), so this L₂ is mostly a check that the fit worked, not a prediction error. The "
+          "parameter error measures the accuracy and decides the best run.*\n")
         if r["deepxde"] and r.get("i_s") and not e.key.startswith("Inverse:") and e.problem != cat.INVERSE:
             a("*DeepXDE's example is forward only; this inverse problem is PINNStudio's inverse mode of it.*\n")
 
@@ -1155,8 +1160,8 @@ def page(recs):
           "with templates taken from papers (Raissi et al.; Wight & Zhao; Mattey & Ghosh; Mathias et al.). The "
           "left panel shows the forward problems only: PINNStudio's best and DeepXDE's settings or the paper's "
           "method. Inverse problems are judged by their parameter error (right panel), not by their L₂, because an "
-          "inverse run trains on the reference data at every time, so its L₂ is a fit to that data rather than a "
-          "prediction (it is still in the tables, as \"L₂ fit to measured data\"). For "
+          "inverse run trains on measured values of the solution (in most examples at every reference time), so "
+          "its L₂ is largely a fit to that data rather than a prediction (it is still in the tables, as \"L₂ fit to measured data\"). For "
           "the paper templates, the ⭐ is the error the paper itself reports, where it gives one (Burgers 1D, Allen-Cahn 1D, Cahn-Hilliard 1D, Allen-Cahn 2D of "
           "Mattey & Ghosh). Note that the papers report one error over all times, while the x-axis is the error "
           "at the last reference time, so the ⭐ is a guide rather than an exact like-for-like point; the "
