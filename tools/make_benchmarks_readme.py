@@ -1045,7 +1045,8 @@ def _section(r):
         main = next((k for k in MAIN if k in names), names[0] if names else None)
         names = ([main] + [k for k in names if k != main]) if len(names) > 1 else []
         last = ", last time" if paper_rows else ""
-        heads = ([f"L₂ {SYM.get(k, k)}{last}" for k in names] if names else [f"L₂{last}"]) + \
+        heads = ([(f"Mean abs. error {SYM.get(k[4:], k[4:])}{last}" if k.startswith("abs_") else f"L₂ {SYM.get(k, k)}{last}")
+                  for k in names] if names else [f"L₂{last}"]) + \
             ([f"L₂ {SYM.get(main, main)}, all times" if names else "L₂, all times"] if paper_rows else []) + ["Time (s)"]
         a("| Training | " + " | ".join(heads) + " |\n|" + "---|" * (len(heads) + 1))
 
@@ -1088,7 +1089,11 @@ def _section(r):
         a("")
         if names:
             a(f"*Each output's relative L₂ at its last reference time; the best run is chosen by "
-              f"{SYM.get(main, main)}.*\n")
+              f"{SYM.get(main, main)}" + (" and μ together (the worse of the two)" if "mu" in names else "") + ".*\n")
+        if "abs_mu" in names:
+            a("*μ decays to almost zero as the system approaches equilibrium, so its relative L₂ divides by a very "
+              "small number and looks large even when the field is right; the mean absolute error of μ (the same "
+              "time) shows its actual size. The paper's reported error, where it gives one, is compared with the concentration.*\n")
         if src and (src.get("outs") or src.get("main")):
             a(f"*As reported: {src['note']}.*\n")
         if paper_rows and not pr:
@@ -1483,7 +1488,12 @@ def main():
                 for r in runs:
                     mtp.PRIMARY[(slug, variant, str(r["seed"]))] = r["l2"]
                     if r.get("outs"):
-                        OUTS[(slug, variant, str(r["seed"]))] = r["outs"]
+                        o = dict(r["outs"])
+                        # μ of the Cahn-Hilliard templates decays to almost zero, so its relative L2 looks large:
+                        # its mean absolute error goes in its own column
+                        if "mu" in o and (r.get("abs") or {}).get("mu") is not None:
+                            o["abs_mu"] = r["abs"]["mu"]
+                        OUTS[(slug, variant, str(r["seed"]))] = o
     rows = mtp._load(args.results)
     summ = mtp.summarize(rows)
     papers = mtp._load([x for x in args.papers.split(",") if x]) if args.papers else []   # later files first

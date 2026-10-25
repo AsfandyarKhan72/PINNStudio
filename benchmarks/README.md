@@ -10,7 +10,7 @@ For a **template taken from a paper**, the forward table also lists a **base PIN
 
 The sweep was run on the 39 examples with the largest errors. The others were already accurate with their own settings: their result is the README's, marked **no tuning needed**.
 
-![Every example: the reference settings and PINNStudio's best, forward and inverse, and the error of each learned parameter](figures/benchmarks_summary.png?v=9a71ea2b)
+![Every example: the reference settings and PINNStudio's best, forward and inverse, and the error of each learned parameter](figures/benchmarks_summary.png?v=529a0d16)
 
 *Circles: forward problems; diamonds: inverse problems. Filled: PINNStudio's best; open: DeepXDE's settings, or the paper's method run in PINNStudio; a ring around a filled marker: the two are the same (no tuning was needed). PINNStudio's own templates, and paper templates whose method has not run yet, have no open marker: there is no outside reference to compare with. Right: the error of each learned parameter, labelled with its symbol. ⭐: the error the paper reports (over all times) for the templates taken from a paper.*
 
@@ -1721,14 +1721,16 @@ where $\gamma_1 = 10^{-6}$ and $\gamma_2 = 0.01$. The fourth-order equation is s
 
 **Forward problem**
 
-| Training | L₂ u, last time | L₂ μ, last time | L₂ u, all times | Time (s) |
-|---|---|---|---|---|
-| Base PINN | 3.5 × 10<sup>-3</sup> | 1.1 × 10<sup>-2</sup> | 1.4 × 10<sup>-2</sup> | 216 |
-| Wight & Zhao's method, as reported (Wight & Zhao (2021), Sec. 3.2) | – | – | 9.5 × 10<sup>-3</sup> | – |
-| Wight & Zhao's method, run in PINNStudio | 8.6 × 10<sup>-3</sup> | 2.1 × 10<sup>-2</sup> | 4.3 × 10<sup>-2</sup> | 1048 |
-| **PINNStudio best** (Settings: Tuned): the template's starting settings | **6.0 × 10<sup>-4</sup>** | – | – | – |
+| Training | L₂ u, last time | L₂ μ, last time | Mean abs. error μ, last time | L₂ u, all times | Time (s) |
+|---|---|---|---|---|---|
+| Base PINN | 3.5 × 10<sup>-3</sup> | 1.1 × 10<sup>-2</sup> | 1.6 × 10<sup>-5</sup> | 1.4 × 10<sup>-2</sup> | 216 |
+| Wight & Zhao's method, as reported (Wight & Zhao (2021), Sec. 3.2) | – | – | – | 9.5 × 10<sup>-3</sup> | – |
+| Wight & Zhao's method, run in PINNStudio | 8.6 × 10<sup>-3</sup> | 2.1 × 10<sup>-2</sup> | 3.1 × 10<sup>-5</sup> | 4.3 × 10<sup>-2</sup> | 1048 |
+| **PINNStudio best** (Settings: Tuned): the template's starting settings | **6.0 × 10<sup>-4</sup>** | – | – | – | – |
 
-*Each output's relative L₂ at its last reference time; the best run is chosen by u.*
+*Each output's relative L₂ at its last reference time; the best run is chosen by u and μ together (the worse of the two).*
+
+*μ decays to almost zero as the system approaches equilibrium, so its relative L₂ divides by a very small number and looks large even when the field is right; the mean absolute error of μ (the same time) shows its actual size. The paper's reported error, where it gives one, is compared with the concentration.*
 
 <details>
 <summary>📊 <em>Forward results — figures</em></summary>
@@ -1804,19 +1806,21 @@ where $\alpha = 0.02$ and $\kappa = 1$. As in the paper (its phase-space form, e
 
 **Forward problem**
 
-| Training | L₂ h, last time | L₂ μ, last time | L₂ h, all times | Time (s) |
-|---|---|---|---|---|
-| Base PINN | 1.9 × 10<sup>-3</sup> | 7.7 × 10<sup>-1</sup> | 3.9 × 10<sup>-3</sup> | 1656 |
-| Mattey & Ghosh's bc-PINN, as reported (Mattey & Ghosh (2022), Sec. 5.2) | – | – | 1.9 × 10<sup>-2</sup> | – |
-| 🔴 **Mattey & Ghosh's bc-PINN, run in PINNStudio** | **5.7 × 10<sup>-3</sup>** | **4.6 × 10<sup>-2</sup>** | **5.5 × 10<sup>-3</sup>** | **2864** |
-| Best setup of the training methods study | 3.9 × 10<sup>-3</sup> | 3.8 × 10<sup>-1</sup> | 3.2 × 10<sup>-2</sup> | 1002 |
-| Best setup + 3× iterations | 6.1 × 10<sup>-2</sup> | 1.9 × 10<sup>0</sup> | 7.0 × 10<sup>-2</sup> | 2165 |
-| Best setup + larger network (2× width, one more layer) | 9.9 × 10<sup>-1</sup> | 6.4 × 10<sup>1</sup> | 8.6 × 10<sup>-1</sup> | 1893 |
-| Best setup + 2× time windows | 1.5 × 10<sup>-2</sup> | 1.4 × 10<sup>0</sup> | 3.6 × 10<sup>-2</sup> | 1709 |
-| Best setup + all of the above together | 9.9 × 10<sup>-1</sup> | 3.9 × 10<sup>1</sup> | 9.3 × 10<sup>-1</sup> | 13959 |
-| **PINNStudio best** (Settings: Tuned): Mattey & Ghosh's bc-PINN, run in PINNStudio | **5.7 × 10<sup>-3</sup>** | **4.6 × 10<sup>-2</sup>** | **5.5 × 10<sup>-3</sup>** | **2864** |
+| Training | L₂ h, last time | L₂ μ, last time | Mean abs. error μ, last time | L₂ h, all times | Time (s) |
+|---|---|---|---|---|---|
+| Base PINN | 1.9 × 10<sup>-3</sup> | 7.7 × 10<sup>-1</sup> | 8.9 × 10<sup>-4</sup> | 3.9 × 10<sup>-3</sup> | 1656 |
+| Mattey & Ghosh's bc-PINN, as reported (Mattey & Ghosh (2022), Sec. 5.2) | – | – | – | 1.9 × 10<sup>-2</sup> | – |
+| 🔴 **Mattey & Ghosh's bc-PINN, run in PINNStudio** | **5.7 × 10<sup>-3</sup>** | **4.6 × 10<sup>-2</sup>** | **5.9 × 10<sup>-5</sup>** | **5.5 × 10<sup>-3</sup>** | **2864** |
+| Best setup of the training methods study | 3.9 × 10<sup>-3</sup> | 3.8 × 10<sup>-1</sup> | 4.9 × 10<sup>-4</sup> | 3.2 × 10<sup>-2</sup> | 1002 |
+| Best setup + 3× iterations | 6.1 × 10<sup>-2</sup> | 1.9 × 10<sup>0</sup> | 2.4 × 10<sup>-3</sup> | 7.0 × 10<sup>-2</sup> | 2165 |
+| Best setup + larger network (2× width, one more layer) | 9.9 × 10<sup>-1</sup> | 6.4 × 10<sup>1</sup> | 9.0 × 10<sup>-2</sup> | 8.6 × 10<sup>-1</sup> | 1893 |
+| Best setup + 2× time windows | 1.5 × 10<sup>-2</sup> | 1.4 × 10<sup>0</sup> | 1.7 × 10<sup>-3</sup> | 3.6 × 10<sup>-2</sup> | 1709 |
+| Best setup + all of the above together | 9.9 × 10<sup>-1</sup> | 3.9 × 10<sup>1</sup> | 5.5 × 10<sup>-2</sup> | 9.3 × 10<sup>-1</sup> | 13959 |
+| **PINNStudio best** (Settings: Tuned): Mattey & Ghosh's bc-PINN, run in PINNStudio | **5.7 × 10<sup>-3</sup>** | **4.6 × 10<sup>-2</sup>** | **5.9 × 10<sup>-5</sup>** | **5.5 × 10<sup>-3</sup>** | **2864** |
 
-*Each output's relative L₂ at its last reference time; the best run is chosen by h.*
+*Each output's relative L₂ at its last reference time; the best run is chosen by h and μ together (the worse of the two).*
+
+*μ decays to almost zero as the system approaches equilibrium, so its relative L₂ divides by a very small number and looks large even when the field is right; the mean absolute error of μ (the same time) shows its actual size. The paper's reported error, where it gives one, is compared with the concentration.*
 
 </details>
 
@@ -2968,11 +2972,11 @@ Collocation points are redrawn every iteration from a pseudo-random distribution
 
 | Training | L₂ fit to measured data | Parameters found (true) | Worst parameter error | Time (s) |
 |---|---|---|---|---|
-| DeepXDE's settings | 5.5 × 10<sup>-5</sup> | C = 9.99999 (10) | 0.0001% | 303 |
-| Larger network (2× width, one more layer) | 5.1 × 10<sup>-5</sup> | C = 9.99999 (10) | 0.0001% | 608 |
-| 🔴 **All of the above together** | **3.8 × 10<sup>-5</sup>** | **C = 10 (10)** | **0%** | **4354** |
-| 10× data weight, 3× L-BFGS and the larger network | 4.1 × 10<sup>-5</sup> | C = 9.99999 (10) | 0.0001% | 1513 |
-| **PINNStudio best** (Settings: Tuned): all of the changes together | **3.8 × 10<sup>-5</sup>** | C = 10 (10) | **0%** | **4354** |
+| DeepXDE's settings | 7.0 × 10<sup>-4</sup> | C = 9.99999 (10) | 0.0001% | 303 |
+| Larger network (2× width, one more layer) | 1.1 × 10<sup>-3</sup> | C = 9.99999 (10) | 0.0001% | 608 |
+| 🔴 **All of the above together** | **5.2 × 10<sup>-2</sup>** | **C = 10 (10)** | **0%** | **4354** |
+| 10× data weight, 3× L-BFGS and the larger network | 7.9 × 10<sup>-4</sup> | C = 9.99999 (10) | 0.0001% | 1513 |
+| **PINNStudio best** (Settings: Tuned): all of the changes together | **5.2 × 10<sup>-2</sup>** | C = 10 (10) | **0%** | **4354** |
 
 *L₂ fit to measured data: the inverse run trains on measured values of the solution (in most examples at every reference time), so this L₂ is mostly a check that the fit worked, not a prediction error. The parameter error measures the accuracy and decides the best run.*
 
@@ -4409,7 +4413,7 @@ where $\lambda = 1$ and $\varepsilon = 0.05$. As in the 1D example, the chemical
 | Larger network (2× width, one more layer) | 8.0 × 10<sup>-3</sup> | 2.0 × 10<sup>-2</sup> | 1.1 × 10<sup>-2</sup> | 1995 |
 | **PINNStudio best** (Settings: Tuned): the example's own settings (no change did better) | **1.1 × 10<sup>-2</sup>** | **2.5 × 10<sup>-2</sup>** | **1.6 × 10<sup>-2</sup>** | **822** |
 
-*Each output's relative L₂ at its last reference time; the best run is chosen by u.*
+*Each output's relative L₂ at its last reference time; the best run is chosen by u and μ together (the worse of the two).*
 
 *The base PINN and the paper's method are queued on the GPU; their rows fill in as they finish.*
 
